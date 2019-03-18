@@ -95,7 +95,9 @@ struct task_struct {
 #define	get_pid(x)		(x)
 #define	put_pid(x)		do { } while (0)
 #define	current_euid()	(curthread->td_ucred->cr_uid)
+#define	task_euid(task)	((task)->task_thread->td_ucred->cr_uid)
 
+#define	get_task_state(task)		atomic_read(&(task)->state)
 #define	set_task_state(task, x)		atomic_set(&(task)->state, (x))
 #define	__set_task_state(task, x)	((task)->state.counter = (x))
 #define	set_current_state(x)		set_task_state(current, x)
@@ -143,6 +145,11 @@ linux_schedule_save_interrupt_value(struct task_struct *task, int value)
 	task->bsd_interrupt_value = value;
 }
 
+bool linux_task_exiting(struct task_struct *task);
+
+#define	current_exiting() \
+	linux_task_exiting(current)
+
 static inline int
 linux_schedule_get_interrupt_value(struct task_struct *task)
 {
@@ -176,6 +183,14 @@ local_clock(void)
 
 	nanotime(&ts);
 	return ((uint64_t)ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec);
+}
+
+static inline const char *
+get_task_comm(char *buf, struct task_struct *task)
+{
+
+	buf[0] = 0; /* buffer is too small */
+	return (task->comm);
 }
 
 #endif	/* _LINUX_SCHED_H_ */

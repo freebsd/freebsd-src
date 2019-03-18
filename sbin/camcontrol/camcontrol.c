@@ -203,7 +203,7 @@ static struct camcontrol_opts option_table[] = {
 	{"load", CAM_CMD_STARTSTOP, CAM_ARG_START_UNIT | CAM_ARG_EJECT, NULL},
 	{"eject", CAM_CMD_STARTSTOP, CAM_ARG_EJECT, NULL},
 	{"reportluns", CAM_CMD_REPORTLUNS, CAM_ARG_NONE, "clr:"},
-	{"readcapacity", CAM_CMD_READCAP, CAM_ARG_NONE, "bhHNqs"},
+	{"readcapacity", CAM_CMD_READCAP, CAM_ARG_NONE, "bhHlNqs"},
 	{"reprobe", CAM_CMD_REPROBE, CAM_ARG_NONE, NULL},
 #endif /* MINIMALISTIC */
 	{"rescan", CAM_CMD_RESCAN, CAM_ARG_NONE, NULL},
@@ -2292,7 +2292,7 @@ ata_do_identify(struct cam_device *device, int retry_count, int timeout,
 				 /*command*/command,
 				 /*features*/0,
 				 /*lba*/0,
-				 /*sector_count*/(u_int8_t)sizeof(struct ata_params),
+				 /*sector_count*/0,
 				 /*data_ptr*/(u_int8_t *)ptr,
 				 /*dxfer_len*/sizeof(struct ata_params),
 				 /*timeout*/timeout ? timeout : 30 * 1000,
@@ -2312,8 +2312,7 @@ ata_do_identify(struct cam_device *device, int retry_count, int timeout,
 					 /*command*/retry_command,
 					 /*features*/0,
 					 /*lba*/0,
-					 /*sector_count*/(u_int8_t)
-					     sizeof(struct ata_params),
+					 /*sector_count*/0,
 					 /*data_ptr*/(u_int8_t *)ptr,
 					 /*dxfer_len*/sizeof(struct ata_params),
 					 /*timeout*/timeout ? timeout : 30 * 1000,
@@ -7163,7 +7162,7 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 		 char *combinedopt, int task_attr, int retry_count, int timeout)
 {
 	union ccb *ccb;
-	int blocksizeonly, humanize, numblocks, quiet, sizeonly, baseten;
+	int blocksizeonly, humanize, numblocks, quiet, sizeonly, baseten, longonly;
 	struct scsi_read_capacity_data rcap;
 	struct scsi_read_capacity_data_long rcaplong;
 	uint64_t maxsector;
@@ -7173,6 +7172,7 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 
 	blocksizeonly = 0;
 	humanize = 0;
+	longonly = 0;
 	numblocks = 0;
 	quiet = 0;
 	sizeonly = 0;
@@ -7200,6 +7200,9 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 		case 'H':
 			humanize++;
 			baseten++;
+			break;
+		case 'l':
+			longonly++;
 			break;
 		case 'N':
 			numblocks++;
@@ -7243,6 +7246,9 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 		goto bailout;
 	}
 
+	if (longonly != 0)
+		goto long_only;
+
 	scsi_read_capacity(&ccb->csio,
 			   /*retries*/ retry_count,
 			   /*cbfcnp*/ NULL,
@@ -7285,6 +7291,7 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 	if (maxsector != 0xffffffff)
 		goto do_print;
 
+long_only:
 	scsi_read_capacity_16(&ccb->csio,
 			      /*retries*/ retry_count,
 			      /*cbfcnp*/ NULL,
@@ -9516,7 +9523,7 @@ usage(int printlong)
 "        camcontrol identify   [dev_id][generic args] [-v]\n"
 "        camcontrol reportluns [dev_id][generic args] [-c] [-l] [-r report]\n"
 "        camcontrol readcap    [dev_id][generic args] [-b] [-h] [-H] [-N]\n"
-"                              [-q] [-s]\n"
+"                              [-q] [-s] [-l]\n"
 "        camcontrol start      [dev_id][generic args]\n"
 "        camcontrol stop       [dev_id][generic args]\n"
 "        camcontrol load       [dev_id][generic args]\n"

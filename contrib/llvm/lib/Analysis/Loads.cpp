@@ -107,8 +107,8 @@ static bool isDereferenceableAndAlignedPointer(
     return isDereferenceableAndAlignedPointer(ASC->getOperand(0), Align, Size,
                                               DL, CtxI, DT, Visited);
 
-  if (auto CS = ImmutableCallSite(V))
-    if (auto *RP = getArgumentAliasingToReturnedPointer(CS))
+  if (const auto *Call = dyn_cast<CallBase>(V))
+    if (auto *RP = getArgumentAliasingToReturnedPointer(Call))
       return isDereferenceableAndAlignedPointer(RP, Align, Size, DL, CtxI, DT,
                                                 Visited);
 
@@ -345,7 +345,7 @@ Value *llvm::FindAvailablePtrLoadStore(Value *Ptr, Type *AccessTy,
   const DataLayout &DL = ScanBB->getModule()->getDataLayout();
 
   // Try to get the store size for the type.
-  uint64_t AccessSize = DL.getTypeStoreSize(AccessTy);
+  auto AccessSize = LocationSize::precise(DL.getTypeStoreSize(AccessTy));
 
   Value *StrippedPtr = Ptr->stripPointerCasts();
 

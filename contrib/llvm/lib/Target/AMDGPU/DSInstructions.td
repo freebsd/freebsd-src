@@ -728,7 +728,9 @@ class DS64Bit4ByteAlignedWritePat<DS_Pseudo inst, PatFrag frag> : GCNPat<
               (i1 0))
 >;
 
-let OtherPredicates = [LDSRequiresM0Init] in {
+// v2i32 loads are split into i32 loads on SI during lowering, due to a bug
+// related to bounds checking.
+let OtherPredicates = [LDSRequiresM0Init, isCIVI] in {
 def : DS64Bit4ByteAlignedReadPat<DS_READ2_B32, load_local_m0>;
 def : DS64Bit4ByteAlignedWritePat<DS_WRITE2_B32, store_local_m0>;
 }
@@ -814,6 +816,11 @@ defm : DSAtomicRetPat_mc<DS_MIN_RTN_U64, i64, "atomic_load_umin_local">;
 defm : DSAtomicRetPat_mc<DS_MAX_RTN_U64, i64, "atomic_load_umax_local">;
 
 defm : DSAtomicCmpXChg_mc<DS_CMPST_RTN_B64, i64, "atomic_cmp_swap_local">;
+
+def : Pat <
+  (SIds_ordered_count i32:$value, i16:$offset),
+  (DS_ORDERED_COUNT $value, (as_i16imm $offset))
+>;
 
 //===----------------------------------------------------------------------===//
 // Real instructions

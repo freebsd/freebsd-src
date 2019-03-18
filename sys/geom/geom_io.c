@@ -155,7 +155,7 @@ g_new_bio(void)
 
 		CTR1(KTR_GEOM, "g_new_bio(): %p", bp);
 		stack_save(&st);
-		CTRSTACK(KTR_GEOM, &st, 3, 0);
+		CTRSTACK(KTR_GEOM, &st, 3);
 	}
 #endif
 	return (bp);
@@ -173,7 +173,7 @@ g_alloc_bio(void)
 
 		CTR1(KTR_GEOM, "g_alloc_bio(): %p", bp);
 		stack_save(&st);
-		CTRSTACK(KTR_GEOM, &st, 3, 0);
+		CTRSTACK(KTR_GEOM, &st, 3);
 	}
 #endif
 	return (bp);
@@ -188,7 +188,7 @@ g_destroy_bio(struct bio *bp)
 
 		CTR1(KTR_GEOM, "g_destroy_bio(): %p", bp);
 		stack_save(&st);
-		CTRSTACK(KTR_GEOM, &st, 3, 0);
+		CTRSTACK(KTR_GEOM, &st, 3);
 	}
 #endif
 	uma_zfree(biozone, bp);
@@ -236,7 +236,7 @@ g_clone_bio(struct bio *bp)
 
 		CTR2(KTR_GEOM, "g_clone_bio(%p): %p", bp, bp2);
 		stack_save(&st);
-		CTRSTACK(KTR_GEOM, &st, 3, 0);
+		CTRSTACK(KTR_GEOM, &st, 3);
 	}
 #endif
 	return(bp2);
@@ -265,7 +265,7 @@ g_duplicate_bio(struct bio *bp)
 
 		CTR2(KTR_GEOM, "g_duplicate_bio(%p): %p", bp, bp2);
 		stack_save(&st);
-		CTRSTACK(KTR_GEOM, &st, 3, 0);
+		CTRSTACK(KTR_GEOM, &st, 3);
 	}
 #endif
 	return(bp2);

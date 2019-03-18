@@ -1,7 +1,8 @@
 /*-
- * Copyright (c) 2015-2016 Yandex LLC
- * Copyright (c) 2015-2016 Andrey V. Elsukov <ae@FreeBSD.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
+ * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,7 +44,8 @@ struct nat64stl_cfg {
 #define	NAT64STL_KIDX		0x0100
 #define	NAT64STL_46T		0x0200
 #define	NAT64STL_64T		0x0400
-#define	NAT64STL_FLAGSMASK	(NAT64_LOG) /* flags to pass to userland */
+	/* flags to pass to userland */
+#define	NAT64STL_FLAGSMASK	(NAT64_LOG | NAT64_ALLOW_PRIVATE)
 	char			name[64];
 };
 

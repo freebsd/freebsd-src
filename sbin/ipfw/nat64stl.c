@@ -1,7 +1,8 @@
 /*-
- * Copyright (c) 2015-2016 Yandex LLC
- * Copyright (c) 2015-2016 Andrey V. Elsukov <ae@FreeBSD.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
+ * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -196,6 +197,8 @@ static struct _s_x nat64newcmds[] = {
       { "prefix6",	TOK_PREFIX6 },
       { "log",		TOK_LOG },
       { "-log",		TOK_LOGOFF },
+      { "allow_private", TOK_PRIVATE },
+      { "-allow_private", TOK_PRIVATEOFF },
       { NULL, 0 }
 };
 
@@ -262,6 +265,12 @@ nat64stl_create(const char *name, uint8_t set, int ac, char *av[])
 			break;
 		case TOK_LOGOFF:
 			cfg->flags &= ~NAT64_LOG;
+			break;
+		case TOK_PRIVATE:
+			cfg->flags |= NAT64_ALLOW_PRIVATE;
+			break;
+		case TOK_PRIVATEOFF:
+			cfg->flags &= ~NAT64_ALLOW_PRIVATE;
 			break;
 		}
 	}
@@ -331,6 +340,12 @@ nat64stl_config(const char *name, uint8_t set, int ac, char **av)
 			break;
 		case TOK_LOGOFF:
 			cfg->flags &= ~NAT64_LOG;
+			break;
+		case TOK_PRIVATE:
+			cfg->flags |= NAT64_ALLOW_PRIVATE;
+			break;
+		case TOK_PRIVATEOFF:
+			cfg->flags &= ~NAT64_ALLOW_PRIVATE;
 			break;
 		default:
 			errx(EX_USAGE, "Can't change %s option", opt);
@@ -451,6 +466,8 @@ nat64stl_show_cb(ipfw_nat64stl_cfg *cfg, const char *name, uint8_t set)
 	printf(" prefix6 %s/%u", abuf, cfg->plen6);
 	if (cfg->flags & NAT64_LOG)
 		printf(" log");
+	if (cfg->flags & NAT64_ALLOW_PRIVATE)
+		printf(" allow_private");
 	printf("\n");
 	return (0);
 }

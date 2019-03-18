@@ -1560,10 +1560,6 @@ rtwn_set_channel(struct ieee80211com *ic)
 
 	RTWN_LOCK(sc);
 	rtwn_set_chan(sc, c);
-	sc->sc_rxtap.wr_chan_freq = htole16(c->ic_freq);
-	sc->sc_rxtap.wr_chan_flags = htole16(c->ic_flags);
-	sc->sc_txtap.wt_chan_freq = htole16(c->ic_freq);
-	sc->sc_txtap.wt_chan_flags = htole16(c->ic_flags);
 	RTWN_UNLOCK(sc);
 }
 

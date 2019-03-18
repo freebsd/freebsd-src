@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2014
+.Dd Mar 13, 2019
 .Dt MRSAS 4
 .Os
 .Sh NAME
@@ -117,6 +117,12 @@ at probe call for device id's 0x005B, 0x005D, and
 0x005F so that
 .Nm
 does not take control of these devices without user intervention.
+.Pp
+Solid-state drives (SSD) get ATA TRIM support with
+.Nm
+if underlying adapter allows it.
+This may require configuring SSD as Non-RAID drive
+rather then JBOD virtual mode.
 .Sh HARDWARE
 The
 .Nm

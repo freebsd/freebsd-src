@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2018
+.Dd February 23, 2019
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -58,7 +58,7 @@ to control as many of the selected processes as possible.
 An error is only returned if no selected processes successfully complete
 the request.
 The following identifier types are supported:
-.Bl -tag -width "Dv P_PGID"
+.Bl -tag -width P_PGID
 .It Dv P_PID
 Control the process with the process ID
 .Fa id .
@@ -71,7 +71,47 @@ The control request to perform is specified by the
 .Fa cmd
 argument.
 The following commands are supported:
-.Bl -tag -width "Dv PROC_TRAPCAP_STATUS"
+.Bl -tag -width PROC_TRAPCAP_STATUS
+.It Dv PROC_ASLR_CTL
+Controls the Address Space Layout Randomization (ASLR) in the program
+images created
+by
+.Xr execve 2
+in the specified process or its descendants that did not changed
+the control nor modified it by other means.
+The
+.Va arg
+parameter must point to the integer variable holding one of the following
+values:
+.Bl -tag -width PROC_ASLR_FORCE_DISABLE
+.It Dv PROC_ASLR_FORCE_ENABLE
+Request that ASLR is enabled after execution, even if it is disabled
+system-wide.
+The image flag and set-uid might prevent ASLR enablement still.
+.It Dv PROC_ASLR_FORCE_DISABLE
+Request that ASLR is disabled after execution.
+Same notes as for
+.Dv PROC_ASKR_FORCE_ENABLE
+apply.
+.It Dv PROC_ASLR_NOFORCE
+Use system-wide configured policy for ASLR.
+.El
+.It Dv PROC_ASLR_STATUS
+Returns the current status of ASLR enablement for the target process.
+The
+.Va arg
+parameter must point to the integer variable, where one of the
+following values is written:
+.Bl -tag -width PROC_ASLR_FORCE_DISABLE
+.It Dv PROC_ASLR_FORCE_ENABLE
+.It Dv PROC_ASLR_FORCE_DISABLE
+.It Dv PROC_ASLR_NOFORCE
+.El
+.Pp
+If the currently executed image in the process itself has ASLR enabled,
+the
+.Dv PROC_ASLR_ACTIVE
+flag is or-ed with the value listed above.
 .It Dv PROC_SPROTECT
 Set process protection state.
 This is used to mark a process as protected from being killed if the system
@@ -81,7 +121,7 @@ The
 parameter must point to an integer containing an operation and zero or more
 optional flags.
 The following operations are supported:
-.Bl -tag -width "Dv PPROT_CLEAR"
+.Bl -tag -width PPROT_CLEAR
 .It Dv PPROT_SET
 Mark the selected processes as protected.
 .It Dv PPROT_CLEAR
@@ -89,7 +129,7 @@ Clear the protected state of selected processes.
 .El
 .Pp
 The following optional flags are supported:
-.Bl -tag -width "Dv PPROT_DESCEND"
+.Bl -tag -width PPROT_DESCEND
 .It Dv PPROT_DESCEND
 Apply the requested operation to all child processes of each selected process
 in addition to each selected process.
@@ -131,7 +171,7 @@ struct procctl_reaper_status {
 The
 .Fa rs_flags
 may have the following flags returned:
-.Bl -tag -width "Dv REAPER_STATUS_REALINIT"
+.Bl -tag -width REAPER_STATUS_REALINIT
 .It Dv REAPER_STATUS_OWNED
 The specified process has acquired reaper status and has not
 released it.
@@ -211,7 +251,7 @@ of the process.
 The
 .Fa pi_flags
 field returns the following flags, further describing the descendant:
-.Bl -tag -width "Dv REAPER_PIDINFO_REAPER"
+.Bl -tag -width REAPER_PIDINFO_REAPER
 .It Dv REAPER_PIDINFO_VALID
 Set to indicate that the
 .Vt procctl_reaper_pidinfo
@@ -255,7 +295,7 @@ The
 .Fa rk_flags
 field further directs the operation.
 It is or-ed from the following flags:
-.Bl -tag -width "Dv REAPER_KILL_CHILDREN"
+.Bl -tag -width REAPER_KILL_CHILDREN
 .It Dv REAPER_KILL_CHILDREN
 Deliver the specified signal only to direct children of the reaper.
 .It Dv REAPER_KILL_SUBTREE
@@ -296,7 +336,7 @@ and core dumping.
 Possible values for the
 .Fa data
 argument are:
-.Bl -tag -width "Dv PROC_TRACE_CTL_DISABLE_EXEC"
+.Bl -tag -width PROC_TRACE_CTL_DISABLE_EXEC
 .It Dv PROC_TRACE_CTL_ENABLE
 Enable tracing, after it was disabled by
 .Dv PROC_TRACE_CTL_DISABLE .
@@ -346,7 +386,7 @@ signal to the thread immediately before returning from the syscalls.
 Possible values for the
 .Fa data
 argument are:
-.Bl -tag -width "Dv PROC_TRAPCAP_CTL_DISABLE"
+.Bl -tag -width PROC_TRAPCAP_CTL_DISABLE
 .It Dv PROC_TRAPCAP_CTL_ENABLE
 Enable the
 .Dv SIGTRAP
@@ -543,11 +583,16 @@ The
 .Fn procctl
 function appeared in
 .Fx 10.0 .
+.Pp
 The reaper facility is based on a similar feature of Linux and
 DragonflyBSD, and first appeared in
 .Fx 10.2 .
+.Pp
 The
 .Dv PROC_PDEATHSIG_CTL
 facility is based on the prctl(PR_SET_PDEATHSIG, ...) feature of Linux,
 and first appeared in
 .Fx 11.2 .
+.Pp
+The ASLR support was added to system for the checklists compliance in
+.Fx 13.0 .

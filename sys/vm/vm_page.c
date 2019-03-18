@@ -633,7 +633,7 @@ vm_page_startup(vm_offset_t vaddr)
 #endif
 
 #if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
-    defined(__i386__) || defined(__mips__)
+    defined(__i386__) || defined(__mips__) || defined(__riscv)
 	/*
 	 * Allocate a bitmap to indicate that a random physical page
 	 * needs to be included in a minidump.
@@ -658,7 +658,8 @@ vm_page_startup(vm_offset_t vaddr)
 #else
 	(void)last_pa;
 #endif
-#if defined(__aarch64__) || defined(__amd64__) || defined(__mips__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__mips__) || \
+    defined(__riscv)
 	/*
 	 * Include the UMA bootstrap pages, witness pages and vm_page_dump
 	 * in a crash dump.  When pmap_map() uses the direct map, they are
@@ -773,7 +774,8 @@ vm_page_startup(vm_offset_t vaddr)
 		high_avail = new_end;
 	new_end = vm_reserv_startup(&vaddr, new_end, high_avail);
 #endif
-#if defined(__aarch64__) || defined(__amd64__) || defined(__mips__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__mips__) || \
+    defined(__riscv)
 	/*
 	 * Include vm_page_array and vm_reserv_array in a crash dump.
 	 */

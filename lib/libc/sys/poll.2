@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 1, 2018
+.Dd February 27, 2019
 .Dt POLL 2
 .Os
 .Sh NAME
@@ -127,7 +127,8 @@ should never be present in the
 .Fa revents
 bitmask at the same time.
 .It POLLNVAL
-The file descriptor is not open.
+The file descriptor is not open,
+or in capability mode the file descriptor has insufficient rights.
 This flag is always checked, even
 if not present in the
 .Fa events

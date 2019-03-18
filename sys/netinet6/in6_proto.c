@@ -641,3 +641,10 @@ SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_ONLINKNSRFC4861,
 	nd6_onlink_ns_rfc4861, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(nd6_onlink_ns_rfc4861), 0,
 	"Accept 'on-link' ICMPv6 NS messages in compliance with RFC 4861");
+#ifdef EXPERIMENTAL
+SYSCTL_INT(_net_inet6_icmp6, OID_AUTO,
+	nd6_ignore_ipv6_only_ra, CTLFLAG_VNET | CTLFLAG_RW,
+	&VNET_NAME(nd6_ignore_ipv6_only_ra), 0,
+	"Ignore the 'IPv6-Only flag' in RA messages in compliance with "
+	"draft-ietf-6man-ipv6only-flag");
+#endif

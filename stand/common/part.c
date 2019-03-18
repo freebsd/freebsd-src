@@ -44,9 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <uuid.h>
 
 #ifdef PART_DEBUG
-#define	DEBUG(fmt, args...) printf("%s: " fmt "\n", __func__, ## args)
+#define	DPRINTF(fmt, args...) printf("%s: " fmt "\n", __func__, ## args)
 #else
-#define	DEBUG(fmt, args...)
+#define	DPRINTF(fmt, args...)
 #endif
 
 #ifdef LOADER_GPT_SUPPORT
@@ -155,34 +155,34 @@ gpt_checkhdr(struct gpt_hdr *hdr, uint64_t lba_self, uint64_t lba_last,
 	uint32_t sz, crc;
 
 	if (memcmp(hdr->hdr_sig, GPT_HDR_SIG, sizeof(hdr->hdr_sig)) != 0) {
-		DEBUG("no GPT signature");
+		DPRINTF("no GPT signature");
 		return (NULL);
 	}
 	sz = le32toh(hdr->hdr_size);
 	if (sz < 92 || sz > sectorsize) {
-		DEBUG("invalid GPT header size: %d", sz);
+		DPRINTF("invalid GPT header size: %d", sz);
 		return (NULL);
 	}
 	crc = le32toh(hdr->hdr_crc_self);
 	hdr->hdr_crc_self = 0;
 	if (crc32(hdr, sz) != crc) {
-		DEBUG("GPT header's CRC doesn't match");
+		DPRINTF("GPT header's CRC doesn't match");
 		return (NULL);
 	}
 	hdr->hdr_crc_self = crc;
 	hdr->hdr_revision = le32toh(hdr->hdr_revision);
 	if (hdr->hdr_revision < GPT_HDR_REVISION) {
-		DEBUG("unsupported GPT revision %d", hdr->hdr_revision);
+		DPRINTF("unsupported GPT revision %d", hdr->hdr_revision);
 		return (NULL);
 	}
 	hdr->hdr_lba_self = le64toh(hdr->hdr_lba_self);
 	if (hdr->hdr_lba_self != lba_self) {
-		DEBUG("self LBA doesn't match");
+		DPRINTF("self LBA doesn't match");
 		return (NULL);
 	}
 	hdr->hdr_lba_alt = le64toh(hdr->hdr_lba_alt);
 	if (hdr->hdr_lba_alt == hdr->hdr_lba_self) {
-		DEBUG("invalid alternate LBA");
+		DPRINTF("invalid alternate LBA");
 		return (NULL);
 	}
 	hdr->hdr_entries = le32toh(hdr->hdr_entries);
@@ -190,7 +190,7 @@ gpt_checkhdr(struct gpt_hdr *hdr, uint64_t lba_self, uint64_t lba_last,
 	if (hdr->hdr_entries == 0 ||
 	    hdr->hdr_entsz < sizeof(struct gpt_ent) ||
 	    sectorsize % hdr->hdr_entsz != 0) {
-		DEBUG("invalid entry size or number of entries");
+		DPRINTF("invalid entry size or number of entries");
 		return (NULL);
 	}
 	hdr->hdr_lba_start = le64toh(hdr->hdr_lba_start);
@@ -214,7 +214,7 @@ gpt_checktbl(const struct gpt_hdr *hdr, uint8_t *tbl, size_t size,
 		/* Check CRC only when buffer size is enough for table. */
 		if (hdr->hdr_crc_table !=
 		    crc32(tbl, hdr->hdr_entries * hdr->hdr_entsz)) {
-			DEBUG("GPT table's CRC doesn't match");
+			DPRINTF("GPT table's CRC doesn't match");
 			return (-1);
 		}
 	}
@@ -310,7 +310,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		table->type = PTABLE_NONE;
 		goto out;
 	}
-	DEBUG("GPT detected");
+	DPRINTF("GPT detected");
 	size = MIN(hdr.hdr_entries * hdr.hdr_entsz,
 	    MAXTBLSZ * table->sectorsize);
 
@@ -346,7 +346,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		entry->flags = le64toh(ent->ent_attr);
 		memcpy(&entry->type.gpt, &ent->ent_type, sizeof(uuid_t));
 		STAILQ_INSERT_TAIL(&table->entries, entry, entry);
-		DEBUG("new GPT partition added");
+		DPRINTF("new GPT partition added");
 	}
 out:
 	free(buf);
@@ -402,7 +402,7 @@ ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 	buf = malloc(table->sectorsize);
 	if (buf == NULL)
 		return (table);
-	DEBUG("EBR detected");
+	DPRINTF("EBR detected");
 	for (i = 0; i < MAXEBRENTRIES; i++) {
 #if 0	/* Some BIOSes return an incorrect number of sectors */
 		if (offset >= table->sectors)
@@ -430,7 +430,7 @@ ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 		entry->flags = dp[0].dp_flag;
 		entry->type.mbr = dp[0].dp_typ;
 		STAILQ_INSERT_TAIL(&table->entries, entry, entry);
-		DEBUG("new EBR partition added");
+		DPRINTF("new EBR partition added");
 		if (dp[1].dp_typ == 0)
 			break;
 		offset = e1->part.start + le32toh(dp[1].dp_start);
@@ -470,14 +470,14 @@ ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 	int i;
 
 	if (table->sectorsize < sizeof(struct disklabel)) {
-		DEBUG("Too small sectorsize");
+		DPRINTF("Too small sectorsize");
 		return (table);
 	}
 	buf = malloc(table->sectorsize);
 	if (buf == NULL)
 		return (table);
 	if (dread(dev, buf, 1, 1) != 0) {
-		DEBUG("read failed");
+		DPRINTF("read failed");
 		ptable_close(table);
 		table = NULL;
 		goto out;
@@ -487,15 +487,15 @@ ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 	    le32toh(dl->d_magic2) != DISKMAGIC)
 		goto out;
 	if (le32toh(dl->d_secsize) != table->sectorsize) {
-		DEBUG("unsupported sector size");
+		DPRINTF("unsupported sector size");
 		goto out;
 	}
 	dl->d_npartitions = le16toh(dl->d_npartitions);
 	if (dl->d_npartitions > 20 || dl->d_npartitions < 8) {
-		DEBUG("invalid number of partitions");
+		DPRINTF("invalid number of partitions");
 		goto out;
 	}
-	DEBUG("BSD detected");
+	DPRINTF("BSD detected");
 	part = &dl->d_partitions[0];
 	raw_offset = le32toh(part[RAW_PART].p_offset);
 	for (i = 0; i < dl->d_npartitions; i++, part++) {
@@ -513,7 +513,7 @@ ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 		entry->part.index = i; /* starts from zero */
 		entry->type.bsd = part->p_fstype;
 		STAILQ_INSERT_TAIL(&table->entries, entry, entry);
-		DEBUG("new BSD partition added");
+		DPRINTF("new BSD partition added");
 	}
 	table->type = PTABLE_BSD;
 out:
@@ -556,7 +556,7 @@ ptable_vtoc8read(struct ptable *table, void *dev, diskread_t dread)
 	if (buf == NULL)
 		return (table);
 	if (dread(dev, buf, 1, 0) != 0) {
-		DEBUG("read failed");
+		DPRINTF("read failed");
 		ptable_close(table);
 		table = NULL;
 		goto out;
@@ -566,20 +566,20 @@ ptable_vtoc8read(struct ptable *table, void *dev, diskread_t dread)
 	for (i = sum = 0; i < sizeof(struct vtoc8); i += sizeof(sum))
 		sum ^= be16dec(buf + i);
 	if (sum != 0) {
-		DEBUG("incorrect checksum");
+		DPRINTF("incorrect checksum");
 		goto out;
 	}
 	if (be16toh(dl->nparts) != VTOC8_NPARTS) {
-		DEBUG("invalid number of entries");
+		DPRINTF("invalid number of entries");
 		goto out;
 	}
 	sectors = be16toh(dl->nsecs);
 	heads = be16toh(dl->nheads);
 	if (sectors * heads == 0) {
-		DEBUG("invalid geometry");
+		DPRINTF("invalid geometry");
 		goto out;
 	}
-	DEBUG("VTOC8 detected");
+	DPRINTF("VTOC8 detected");
 	for (i = 0; i < VTOC8_NPARTS; i++) {
 		dl->part[i].tag = be16toh(dl->part[i].tag);
 		if (i == VTOC_RAW_PART ||
@@ -595,7 +595,7 @@ ptable_vtoc8read(struct ptable *table, void *dev, diskread_t dread)
 		entry->part.index = i; /* starts from zero */
 		entry->type.vtoc8 = dl->part[i].tag;
 		STAILQ_INSERT_TAIL(&table->entries, entry, entry);
-		DEBUG("new VTOC8 partition added");
+		DPRINTF("new VTOC8 partition added");
 	}
 	table->type = PTABLE_VTOC8;
 out:
@@ -619,7 +619,7 @@ ptable_iso9660read(struct ptable *table, void *dev, diskread_t dread)
 		return (table);
 		
 	if (dread(dev, buf, 1, cdb2devb(16)) != 0) {
-		DEBUG("read failed");
+		DPRINTF("read failed");
 		ptable_close(table);
 		table = NULL;
 		goto out;
@@ -663,7 +663,7 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 		return (NULL);
 	/* First, read the MBR. */
 	if (dread(dev, buf, 1, DOSBBSECTOR) != 0) {
-		DEBUG("read failed");
+		DPRINTF("read failed");
 		goto out;
 	}
 
@@ -703,7 +703,7 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	/* Check the MBR magic. */
 	if (buf[DOSMAGICOFFSET] != 0x55 ||
 	    buf[DOSMAGICOFFSET + 1] != 0xaa) {
-		DEBUG("magic sequence not found");
+		DPRINTF("magic sequence not found");
 #if defined(LOADER_GPT_SUPPORT)
 		/* There is no PMBR, check that we have backup GPT */
 		table->type = PTABLE_GPT;
@@ -715,13 +715,13 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	dp = (struct dos_partition *)(buf + DOSPARTOFF);
 	for (i = 0, count = 0; i < NDOSPART; i++) {
 		if (dp[i].dp_flag != 0 && dp[i].dp_flag != 0x80) {
-			DEBUG("invalid partition flag %x", dp[i].dp_flag);
+			DPRINTF("invalid partition flag %x", dp[i].dp_flag);
 			goto out;
 		}
 #ifdef LOADER_GPT_SUPPORT
 		if (dp[i].dp_typ == DOSPTYP_PMBR) {
 			table->type = PTABLE_GPT;
-			DEBUG("PMBR detected");
+			DPRINTF("PMBR detected");
 		}
 #endif
 		if (dp[i].dp_typ != 0)
@@ -731,9 +731,9 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	if (table->type == PTABLE_GPT && count > 1) {
 		if (dp[1].dp_typ != DOSPTYP_HFS) {
 			table->type = PTABLE_NONE;
-			DEBUG("Incorrect PMBR, ignore it");
+			DPRINTF("Incorrect PMBR, ignore it");
 		} else {
-			DEBUG("Bootcamp detected");
+			DPRINTF("Bootcamp detected");
 		}
 	}
 #ifdef LOADER_GPT_SUPPORT
@@ -744,7 +744,7 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 #endif
 #ifdef LOADER_MBR_SUPPORT
 	/* Read MBR. */
-	DEBUG("MBR detected");
+	DPRINTF("MBR detected");
 	table->type = PTABLE_MBR;
 	for (i = has_ext = 0; i < NDOSPART; i++) {
 		if (dp[i].dp_typ == 0)
@@ -770,7 +770,7 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 		entry->flags = dp[i].dp_flag;
 		entry->type.mbr = dp[i].dp_typ;
 		STAILQ_INSERT_TAIL(&table->entries, entry, entry);
-		DEBUG("new MBR partition added");
+		DPRINTF("new MBR partition added");
 	}
 	if (has_ext) {
 		table = ptable_ebrread(table, dev, dread);

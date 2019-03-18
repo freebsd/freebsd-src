@@ -237,7 +237,7 @@ nvme_ctrlr_fail_req_task(void *arg, int pending)
 		STAILQ_REMOVE_HEAD(&ctrlr->fail_req, stailq);
 		mtx_unlock(&ctrlr->lock);
 		nvme_qpair_manual_complete_request(req->qpair, req,
-		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, TRUE);
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST);
 		mtx_lock(&ctrlr->lock);
 	}
 	mtx_unlock(&ctrlr->lock);
@@ -1056,11 +1056,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 			buf->b_data = pt->buf;
 			buf->b_bufsize = pt->len;
 			buf->b_iocmd = pt->is_read ? BIO_READ : BIO_WRITE;
-#ifdef NVME_UNMAPPED_BIO_SUPPORT
 			if (vmapbuf(buf, 1) < 0) {
-#else
-			if (vmapbuf(buf) < 0) {
-#endif
 				ret = EFAULT;
 				goto err;
 			}

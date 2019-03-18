@@ -1,8 +1,9 @@
 /*-
- * Copyright (c) 2015-2016 Yandex LLC
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
  * Copyright (c) 2015 Alexander V. Chernikov <melifaro@FreeBSD.org>
- * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2016-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -407,7 +408,7 @@ nat64lsn_translate4(struct nat64lsn_cfg *cfg, const struct ipfw_flow_id *f_id,
 	} else
 		logdata = NULL;
 
-	nat64_embed_ip4(&cfg->base, htonl(f_id->src_ip), &src6);
+	nat64_embed_ip4(&src6, cfg->base.plat_plen, htonl(f_id->src_ip));
 	ret = nat64_do_handle_ip4(*pm, &src6, &nh->addr, lport,
 	    &cfg->base, logdata);
 
@@ -1481,8 +1482,10 @@ nat64lsn_translate6(struct nat64lsn_cfg *cfg, struct ipfw_flow_id *f_id,
 		return (nat64lsn_request_host(cfg, f_id, pm));
 
 	/* Fill-in on-stack state structure */
-	kst.u.s.faddr = nat64_extract_ip4(&cfg->base, &f_id->dst_ip6);
-	if (kst.u.s.faddr == 0) {
+	kst.u.s.faddr = nat64_extract_ip4(&f_id->dst_ip6,
+	    cfg->base.plat_plen);
+	if (kst.u.s.faddr == 0 ||
+	    nat64_check_private_ip4(&cfg->base, kst.u.s.faddr) != 0) {
 		NAT64STAT_INC(&cfg->base.stats, dropped);
 		goto drop;
 	}

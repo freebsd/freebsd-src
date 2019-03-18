@@ -16,13 +16,13 @@ v4_body()
 {
 	pft_init
 
-	epair_send=$(pft_mkepair)
+	epair_send=$(vnet_mkepair)
 	ifconfig ${epair_send}a 192.0.2.1/24 up
 
-	epair_recv=$(pft_mkepair)
+	epair_recv=$(vnet_mkepair)
 	ifconfig ${epair_recv}a up
 
-	pft_mkjail alcatraz ${epair_send}b ${epair_recv}b
+	vnet_mkjail alcatraz ${epair_send}b ${epair_recv}b
 	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
 	jexec alcatraz ifconfig ${epair_recv}b 198.51.100.2/24 up
 	jexec alcatraz sysctl net.inet.ip.forwarding=1
@@ -75,13 +75,13 @@ v6_body()
 {
 	pft_init
 
-	epair_send=$(pft_mkepair)
-	epair_recv=$(pft_mkepair)
+	epair_send=$(vnet_mkepair)
+	epair_recv=$(vnet_mkepair)
 
 	ifconfig ${epair_send}a inet6 2001:db8:42::1/64 up no_dad -ifdisabled
 	ifconfig ${epair_recv}a up
 
-	pft_mkjail alcatraz ${epair_send}b ${epair_recv}b
+	vnet_mkjail alcatraz ${epair_send}b ${epair_recv}b
 
 	jexec alcatraz ifconfig ${epair_send}b inet6 2001:db8:42::2/64 up no_dad
 	jexec alcatraz ifconfig ${epair_recv}b inet6 2001:db8:43::2/64 up no_dad

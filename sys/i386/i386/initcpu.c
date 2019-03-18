@@ -749,6 +749,9 @@ initializecpu(void)
 		msr = rdmsr(MSR_EFER) | EFER_NXE;
 		wrmsr(MSR_EFER, msr);
 	}
+	if ((amd_feature & AMDID_RDTSCP) != 0 ||
+	    (cpu_stdext_feature2 & CPUID_STDEXT2_RDPID) != 0)
+		wrmsr(MSR_TSC_AUX, PCPU_GET(cpuid));
 }
 
 void

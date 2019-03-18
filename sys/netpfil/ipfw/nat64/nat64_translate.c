@@ -1,7 +1,8 @@
 /*-
- * Copyright (c) 2015-2018 Yandex LLC
- * Copyright (c) 2015-2018 Andrey V. Elsukov <ae@FreeBSD.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
+ * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -61,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_fib.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/ip_fw_nat64.h>
 
 #include <netpfil/pf/pf.h>
 #include <netpfil/ipfw/ip_fw_private.h>
@@ -219,6 +221,8 @@ nat64_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	}
 	if (logdata != NULL)
 		nat64_log(logdata, m, af);
+	if (m->m_pkthdr.rcvif == NULL)
+		m->m_pkthdr.rcvif = V_loif;
 	ret = netisr_queue(ret, m);
 	if (ret != 0)
 		NAT64STAT_INC(stats, oerrors);
@@ -239,7 +243,7 @@ nat64_output_one(struct mbuf *m, struct nat64_counters *stats, void *logdata)
  * Returns zero on success, otherwise EINVAL.
  */
 int
-nat64_check_prefix6(const struct in6_addr *prefix, int length)
+nat64_check_prefixlen(int length)
 {
 
 	switch (length) {
@@ -248,29 +252,40 @@ nat64_check_prefix6(const struct in6_addr *prefix, int length)
 	case 48:
 	case 56:
 	case 64:
-		/* Well-known prefix has 96 prefix length */
-		if (IN6_IS_ADDR_WKPFX(prefix))
-			return (EINVAL);
-		/* FALLTHROUGH */
 	case 96:
-		/* Bits 64 to 71 must be set to zero */
-		if (prefix->__u6_addr.__u6_addr8[8] != 0)
-			return (EINVAL);
-		/* Some extra checks */
-		if (IN6_IS_ADDR_MULTICAST(prefix) ||
-		    IN6_IS_ADDR_UNSPECIFIED(prefix) ||
-		    IN6_IS_ADDR_LOOPBACK(prefix))
-			return (EINVAL);
 		return (0);
 	}
 	return (EINVAL);
 }
 
 int
+nat64_check_prefix6(const struct in6_addr *prefix, int length)
+{
+
+	if (nat64_check_prefixlen(length) != 0)
+		return (EINVAL);
+
+	/* Well-known prefix has 96 prefix length */
+	if (IN6_IS_ADDR_WKPFX(prefix) && length != 96)
+		return (EINVAL);
+
+	/* Bits 64 to 71 must be set to zero */
+	if (prefix->__u6_addr.__u6_addr8[8] != 0)
+		return (EINVAL);
+
+	/* Some extra checks */
+	if (IN6_IS_ADDR_MULTICAST(prefix) ||
+	    IN6_IS_ADDR_UNSPECIFIED(prefix) ||
+	    IN6_IS_ADDR_LOOPBACK(prefix))
+		return (EINVAL);
+	return (0);
+}
+
+int
 nat64_check_private_ip4(const struct nat64_config *cfg, in_addr_t ia)
 {
 
-	if (V_nat64_allow_private)
+	if (cfg->flags & NAT64_ALLOW_PRIVATE)
 		return (0);
 
 	/* WKPFX must not be used to represent non-global IPv4 addresses */
@@ -299,29 +314,34 @@ nat64_check_private_ip4(const struct nat64_config *cfg, in_addr_t ia)
 	return (0);
 }
 
+/*
+ * Embed @ia IPv4 address into @ip6 IPv6 address.
+ * Place to embedding determined from prefix length @plen.
+ */
 void
-nat64_embed_ip4(const struct nat64_config *cfg, in_addr_t ia,
-    struct in6_addr *ip6)
+nat64_embed_ip4(struct in6_addr *ip6, int plen, in_addr_t ia)
 {
 
-	/* assume the prefix6 is properly filled with zeros */
-	bcopy(&cfg->prefix6, ip6, sizeof(*ip6));
-	switch (cfg->plen6) {
+	switch (plen) {
 	case 32:
 	case 96:
-		ip6->s6_addr32[cfg->plen6 / 32] = ia;
+		ip6->s6_addr32[plen / 32] = ia;
 		break;
 	case 40:
 	case 48:
 	case 56:
+		/*
+		 * Preserve prefix bits.
+		 * Since suffix bits should be zero and reserved for future
+		 * use, we just overwrite the whole word, where they are.
+		 */
+		ip6->s6_addr32[1] &= 0xffffffff << (32 - plen % 32);
 #if BYTE_ORDER == BIG_ENDIAN
-		ip6->s6_addr32[1] = cfg->prefix6.s6_addr32[1] |
-		    (ia >> (cfg->plen6 % 32));
-		ip6->s6_addr32[2] = ia << (24 - cfg->plen6 % 32);
+		ip6->s6_addr32[1] |= ia >> (plen % 32);
+		ip6->s6_addr32[2] = ia << (24 - plen % 32);
 #elif BYTE_ORDER == LITTLE_ENDIAN
-		ip6->s6_addr32[1] = cfg->prefix6.s6_addr32[1] |
-		    (ia << (cfg->plen6 % 32));
-		ip6->s6_addr32[2] = ia >> (24 - cfg->plen6 % 32);
+		ip6->s6_addr32[1] |= ia << (plen % 32);
+		ip6->s6_addr32[2] = ia >> (24 - plen % 32);
 #endif
 		break;
 	case 64:
@@ -334,13 +354,18 @@ nat64_embed_ip4(const struct nat64_config *cfg, in_addr_t ia,
 #endif
 		break;
 	default:
-		panic("Wrong plen6");
+		panic("Wrong plen: %d", plen);
 	};
+	/*
+	 * Bits 64 to 71 of the address are reserved for compatibility
+	 * with the host identifier format defined in the IPv6 addressing
+	 * architecture [RFC4291]. These bits MUST be set to zero.
+	 */
 	ip6->s6_addr8[8] = 0;
 }
 
 in_addr_t
-nat64_extract_ip4(const struct nat64_config *cfg, const struct in6_addr *ip6)
+nat64_extract_ip4(const struct in6_addr *ip6, int plen)
 {
 	in_addr_t ia;
 
@@ -351,7 +376,7 @@ nat64_extract_ip4(const struct nat64_config *cfg, const struct in6_addr *ip6)
 	 * The suffix bits are reserved for future extensions and SHOULD
 	 * be set to zero.
 	 */
-	switch (cfg->plen6) {
+	switch (plen) {
 	case 32:
 		if (ip6->s6_addr32[3] != 0 || ip6->s6_addr32[2] != 0)
 			goto badip6;
@@ -375,20 +400,20 @@ nat64_extract_ip4(const struct nat64_config *cfg, const struct in6_addr *ip6)
 		    (ip6->s6_addr32[3] & htonl(0x00ffffff)) != 0)
 			goto badip6;
 	};
-	switch (cfg->plen6) {
+	switch (plen) {
 	case 32:
 	case 96:
-		ia = ip6->s6_addr32[cfg->plen6 / 32];
+		ia = ip6->s6_addr32[plen / 32];
 		break;
 	case 40:
 	case 48:
 	case 56:
 #if BYTE_ORDER == BIG_ENDIAN
-		ia = (ip6->s6_addr32[1] << (cfg->plen6 % 32)) |
-		    (ip6->s6_addr32[2] >> (24 - cfg->plen6 % 32));
+		ia = (ip6->s6_addr32[1] << (plen % 32)) |
+		    (ip6->s6_addr32[2] >> (24 - plen % 32));
 #elif BYTE_ORDER == LITTLE_ENDIAN
-		ia = (ip6->s6_addr32[1] >> (cfg->plen6 % 32)) |
-		    (ip6->s6_addr32[2] << (24 - cfg->plen6 % 32));
+		ia = (ip6->s6_addr32[1] >> (plen % 32)) |
+		    (ip6->s6_addr32[2] << (24 - plen % 32));
 #endif
 		break;
 	case 64:
@@ -401,12 +426,9 @@ nat64_extract_ip4(const struct nat64_config *cfg, const struct in6_addr *ip6)
 	default:
 		return (0);
 	};
-	if (nat64_check_ip4(ia) != 0 ||
-	    nat64_check_private_ip4(cfg, ia) != 0)
-		goto badip4;
+	if (nat64_check_ip4(ia) == 0)
+		return (ia);
 
-	return (ia);
-badip4:
 	DPRINTF(DP_GENERIC | DP_DROPS,
 	    "invalid destination address: %08x", ia);
 	return (0);
@@ -433,7 +455,7 @@ badip6:
  *	IPv6 to IPv4:	HC' = cksum_add(HC, result)
  *	IPv4 to IPv6:	HC' = cksum_add(HC, ~result)
  */
-static NAT64NOINLINE uint16_t
+static uint16_t
 nat64_cksum_convert(struct ip6_hdr *ip6, struct ip *ip)
 {
 	uint32_t sum;
@@ -453,7 +475,7 @@ nat64_cksum_convert(struct ip6_hdr *ip6, struct ip *ip)
 	return (sum);
 }
 
-static NAT64NOINLINE void
+static void
 nat64_init_ip4hdr(const struct ip6_hdr *ip6, const struct ip6_frag *frag,
     uint16_t plen, uint8_t proto, struct ip *ip)
 {
@@ -1023,9 +1045,11 @@ nat64_icmp_translate(struct mbuf *m, struct ip6_hdr *ip6, uint16_t icmpid,
 	/* Construct new inner IPv6 header */
 	eip6 = mtodo(n, offset + sizeof(struct icmp6_hdr));
 	eip6->ip6_src = ip6->ip6_dst;
-	/* Use the fact that we have single /96 prefix for IPv4 map */
+
+	/* Use the same prefix that we have in outer header */
 	eip6->ip6_dst = ip6->ip6_src;
-	nat64_embed_ip4(cfg, ip.ip_dst.s_addr, &eip6->ip6_dst);
+	MPASS(cfg->flags & NAT64_PLATPFX);
+	nat64_embed_ip4(&eip6->ip6_dst, cfg->plat_plen, ip.ip_dst.s_addr);
 
 	eip6->ip6_flow = htonl(ip.ip_tos << 20);
 	eip6->ip6_vfc |= IPV6_VERSION;
@@ -1448,7 +1472,9 @@ nat64_handle_icmp6(struct mbuf *m, int hlen, uint32_t aaddr, uint16_t aport,
 
 	/* Now we need to make a fake IPv4 packet to generate ICMP message */
 	ip.ip_dst.s_addr = aaddr;
-	ip.ip_src.s_addr = nat64_extract_ip4(cfg, &ip6i->ip6_src);
+	ip.ip_src.s_addr = nat64_extract_ip4(&ip6i->ip6_src, cfg->plat_plen);
+	if (ip.ip_src.s_addr == 0)
+		goto fail;
 	/* XXX: Make fake ulp header */
 	if (V_nat64out == &nat64_direct) /* init_ip4hdr will decrement it */
 		ip6i->ip6_hlim += IPV6_HLIMDEC;
@@ -1501,7 +1527,7 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 		return (NAT64MFREE);
 	}
 
-	ip.ip_dst.s_addr = nat64_extract_ip4(cfg, &ip6->ip6_dst);
+	ip.ip_dst.s_addr = nat64_extract_ip4(&ip6->ip6_dst, cfg->plat_plen);
 	if (ip.ip_dst.s_addr == 0) {
 		NAT64STAT_INC(&cfg->stats, dropped);
 		return (NAT64MFREE);

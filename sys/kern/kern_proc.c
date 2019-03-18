@@ -2487,6 +2487,8 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_flags |= KVME_FLAG_GROWS_UP;
 		if (entry->eflags & MAP_ENTRY_GROWS_DOWN)
 			kve->kve_flags |= KVME_FLAG_GROWS_DOWN;
+		if (entry->eflags & MAP_ENTRY_USER_WIRED)
+			kve->kve_flags |= KVME_FLAG_USER_WIRED;
 
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);

@@ -608,6 +608,7 @@ static int cfg_itype_and_nqueues(struct adapter *, struct intrs_and_queues *);
 static int contact_firmware(struct adapter *);
 static int partition_resources(struct adapter *);
 static int get_params__pre_init(struct adapter *);
+static int set_params__pre_init(struct adapter *);
 static int get_params__post_init(struct adapter *);
 static int set_params__post_init(struct adapter *);
 static void t4_set_desc(struct adapter *);
@@ -1371,10 +1372,19 @@ done:
 static int
 t4_child_location_str(device_t bus, device_t dev, char *buf, size_t buflen)
 {
+	struct adapter *sc;
 	struct port_info *pi;
+	int i;
 
-	pi = device_get_softc(dev);
-	snprintf(buf, buflen, "port=%d", pi->port_id);
+	sc = device_get_softc(bus);
+	buf[0] = '\0';
+	for_each_port(sc, i) {
+		pi = sc->port[i];
+		if (pi != NULL && pi->dev == dev) {
+			snprintf(buf, buflen, "port=%d", pi->port_id);
+			break;
+		}
+	}
 	return (0);
 }
 
@@ -3955,6 +3965,7 @@ apply_cfg_and_initialize(struct adapter *sc, char *cfg_file,
 	}
 
 	t4_tweak_chip_settings(sc);
+	set_params__pre_init(sc);
 
 	/* get basic stuff going */
 	rc = -t4_fw_initialize(sc, sc->mbox);
@@ -4077,6 +4088,35 @@ get_params__pre_init(struct adapter *sc)
 }
 
 /*
+ * Any params that need to be set before FW_INITIALIZE.
+ */
+static int
+set_params__pre_init(struct adapter *sc)
+{
+	int rc = 0;
+	uint32_t param, val;
+
+	if (chip_id(sc) >= CHELSIO_T6) {
+		param = FW_PARAM_DEV(HPFILTER_REGION_SUPPORT);
+		val = 1;
+		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+		/* firmwares < 1.20.1.0 do not have this param. */
+		if (rc == FW_EINVAL && sc->params.fw_vers <
+		    (V_FW_HDR_FW_VER_MAJOR(1) | V_FW_HDR_FW_VER_MINOR(20) |
+		    V_FW_HDR_FW_VER_MICRO(1) | V_FW_HDR_FW_VER_BUILD(0))) {
+			rc = 0;
+		}
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "failed to enable high priority filters :%d.\n",
+			    rc);
+		}
+	}
+
+	return (rc);
+}
+
+/*
  * Retrieve various parameters that are of interest to the driver.  The device
  * has been initialized by the firmware at this point.
  */
@@ -4118,20 +4158,6 @@ get_params__post_init(struct adapter *sc)
 	sc->params.core_vdd = val[6];
 
 	if (chip_id(sc) >= CHELSIO_T6) {
-
-#ifdef INVARIANTS
-		if (sc->params.fw_vers >=
-		    (V_FW_HDR_FW_VER_MAJOR(1) | V_FW_HDR_FW_VER_MINOR(20) |
-		    V_FW_HDR_FW_VER_MICRO(1) | V_FW_HDR_FW_VER_BUILD(0))) {
-			/*
-			 * Note that the code to enable the region should run
-			 * before t4_fw_initialize and not here.  This is just a
-			 * reminder to add said code.
-			 */
-			device_printf(sc->dev,
-			    "hpfilter region not enabled.\n");
-		}
-#endif
 
 		sc->tids.tid_base = t4_read_reg(sc,
 		    A_LE_DB_ACTIVE_TABLE_START_INDEX);
@@ -5048,6 +5074,8 @@ cxgbe_init_synchronized(struct vi_info *vi)
 		callout_reset(&vi->tick, hz, vi_tick, vi);
 	else
 		callout_reset(&pi->tick, hz, cxgbe_tick, pi);
+	if (pi->link_cfg.link_ok)
+		t4_os_link_changed(pi);
 	PORT_UNLOCK(pi);
 done:
 	if (rc != 0)

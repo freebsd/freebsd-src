@@ -99,30 +99,32 @@ __FBSDID("$FreeBSD$");
  */
 void
 ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
-    struct ip_fw_args *args, struct mbuf *m, struct ifnet *oif,
-    u_short offset, uint32_t tablearg, struct ip *ip)
+    struct ip_fw_args *args, u_short offset, uint32_t tablearg, struct ip *ip)
 {
 	char *action;
 	int limit_reached = 0;
 	char action2[92], proto[128], fragment[32];
 
 	if (V_fw_verbose == 0) {
-		if (args->flags & IPFW_ARGS_ETHER) /* layer2, use orig hdr */
-			ipfw_bpf_mtap2(args->eh, ETHER_HDR_LEN, m);
+		if (args->flags & IPFW_ARGS_LENMASK)
+			ipfw_bpf_tap(args->mem, IPFW_ARGS_LENGTH(args->flags));
+		else if (args->flags & IPFW_ARGS_ETHER)
+			/* layer2, use orig hdr */
+			ipfw_bpf_mtap(args->m);
 		else {
 			/* Add fake header. Later we will store
 			 * more info in the header.
 			 */
 			if (ip->ip_v == 4)
 				ipfw_bpf_mtap2("DDDDDDSSSSSS\x08\x00",
-				    ETHER_HDR_LEN, m);
+				    ETHER_HDR_LEN, args->m);
 			else if (ip->ip_v == 6)
 				ipfw_bpf_mtap2("DDDDDDSSSSSS\x86\xdd",
-				    ETHER_HDR_LEN, m);
+				    ETHER_HDR_LEN, args->m);
 			else
 				/* Obviously bogus EtherType. */
 				ipfw_bpf_mtap2("DDDDDDSSSSSS\xff\xff",
-				    ETHER_HDR_LEN, m);
+				    ETHER_HDR_LEN, args->m);
 		}
 		return;
 	}
@@ -405,19 +407,14 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 		}
 	}
 #ifdef __FreeBSD__
-	if (oif || m->m_pkthdr.rcvif)
-		log(LOG_SECURITY | LOG_INFO,
-		    "ipfw: %d %s %s %s via %s%s\n",
-		    f ? f->rulenum : -1,
-		    action, proto, oif ? "out" : "in",
-		    oif ? oif->if_xname : m->m_pkthdr.rcvif->if_xname,
-		    fragment);
-	else
+	log(LOG_SECURITY | LOG_INFO, "ipfw: %d %s %s %s via %s%s\n",
+	    f ? f->rulenum : -1, action, proto,
+	    args->flags & IPFW_ARGS_OUT ? "out" : "in", args->ifp->if_xname,
+	    fragment);
+#else
+	log(LOG_SECURITY | LOG_INFO, "ipfw: %d %s %s [no if info]%s\n",
+	    f ? f->rulenum : -1, action, proto, fragment);
 #endif
-		log(LOG_SECURITY | LOG_INFO,
-		    "ipfw: %d %s %s [no if info]%s\n",
-		    f ? f->rulenum : -1,
-		    action, proto, fragment);
 	if (limit_reached)
 		log(LOG_SECURITY | LOG_NOTICE,
 		    "ipfw: limit %d reached on entry %d\n",

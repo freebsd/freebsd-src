@@ -7027,9 +7027,9 @@ nfsrv_parseug(struct nfsrv_descript *nd, int dogrp, uid_t *uidp, gid_t *gidp,
 	str[len] = '\0';
 	NFSCL_DEBUG(4, "nfsrv_parseug: str=%s\n", str);
 	if (dogrp != 0)
-		error = nfsv4_strtogid(nd, str, len, gidp, p);
+		error = nfsv4_strtogid(nd, str, len, gidp);
 	else
-		error = nfsv4_strtouid(nd, str, len, uidp, p);
+		error = nfsv4_strtouid(nd, str, len, uidp);
 nfsmout:
 	if (len > NFSV4_SMALLSTR)
 		free(str, M_TEMP);

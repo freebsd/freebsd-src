@@ -10,10 +10,6 @@
 #ifndef liblldb_ThreadPlanStepUntil_h_
 #define liblldb_ThreadPlanStepUntil_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 
@@ -59,7 +55,7 @@ private:
 
   friend lldb::ThreadPlanSP Thread::QueueThreadPlanForStepUntil(
       bool abort_other_plans, lldb::addr_t *address_list, size_t num_addresses,
-      bool stop_others, uint32_t frame_idx);
+      bool stop_others, uint32_t frame_idx, Status &status);
 
   // Need an appropriate marker for the current stack so we can tell step out
   // from step in.

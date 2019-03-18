@@ -1,8 +1,9 @@
 /*-
- * Copyright (c) 2015-2016 Yandex LLC
- * Copyright (c) 2015-2016 Andrey V. Elsukov <ae@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
  * Copyright (c) 2015 Alexander V. Chernikov <melifaro@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -99,8 +100,8 @@ nat64stl_export_config(struct ip_fw_chain *ch, struct nat64stl_cfg *cfg,
 {
 	struct named_object *no;
 
-	uc->prefix6 = cfg->base.prefix6;
-	uc->plen6 = cfg->base.plen6;
+	uc->prefix6 = cfg->base.plat_prefix;
+	uc->plen6 = cfg->base.plat_plen;
 	uc->flags = cfg->base.flags & NAT64STL_FLAGSMASK;
 	uc->set = cfg->no.set;
 	strlcpy(uc->name, cfg->no.name, sizeof(uc->name));
@@ -206,10 +207,10 @@ nat64stl_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	IPFW_UH_RUNLOCK(ch);
 
 	cfg = nat64stl_alloc_config(uc->name, uc->set);
-	cfg->base.prefix6 = uc->prefix6;
-	cfg->base.plen6 = uc->plen6;
-	cfg->base.flags = uc->flags & NAT64STL_FLAGSMASK;
-	if (IN6_IS_ADDR_WKPFX(&cfg->base.prefix6))
+	cfg->base.plat_prefix = uc->prefix6;
+	cfg->base.plat_plen = uc->plen6;
+	cfg->base.flags = (uc->flags & NAT64STL_FLAGSMASK) | NAT64_PLATPFX;
+	if (IN6_IS_ADDR_WKPFX(&cfg->base.plat_prefix))
 		cfg->base.flags |= NAT64_WKPFX;
 
 	IPFW_UH_WLOCK(ch);

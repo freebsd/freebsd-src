@@ -12,7 +12,6 @@ TEST_METADATA+=		required_user="root"
 TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	cleanup.ksh
-${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	delegate.cfg
 ${PACKAGE}FILES+=	delegate_common.kshlib
 ${PACKAGE}FILES+=	setup.ksh

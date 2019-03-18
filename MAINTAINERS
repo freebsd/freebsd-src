@@ -41,8 +41,9 @@ contrib/compiler-rt	dim	Pre-commit review preferred.
 contrib/ipfilter	cy	Pre-commit review requested.
 contrib/libc++		dim	Pre-commit review preferred.
 contrib/libcxxrt	dim	Pre-commit review preferred.
+contrib/libunwind	dim,emaste,jhb	Pre-commit review preferred.
 contrib/llvm		dim	Pre-commit review preferred.
-contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
+contrib/llvm/tools/lldb	dim,emaste	Pre-commit review preferred.
 contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
 contrib/pjdfstest	freebsd-testing,asomers,ngie,pjd	Pre-commit review requested.
 *env(3)		secteam	Due to the problematic security history of this
@@ -106,7 +107,12 @@ usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
 usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
 usr.sbin/sysrc	dteske	Pre-commit phabricator review requested. Keep in sync with bsdconfig(8) sysrc.subr.
-vmm(4)		tychon, jhb	Pre-commit review requested.
+vmm(4)		tychon, jhb	Pre-commit review requested via #bhyve
+				phabricator group.
+libvmmapi	tychon, jhb	Pre-commit review requested via #bhyve
+				phabricator group.
+usr.sbin/bhyve*	tychon, jhb	Pre-commit review requested via #bhyve
+				phabricator group.
 autofs(5)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.

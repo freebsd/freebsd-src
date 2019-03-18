@@ -841,7 +841,7 @@ tag_mbuf(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 	dt->rule = fwa->rule;
 	dt->rule.info &= IPFW_ONEPASS;	/* only keep this info */
 	dt->dn_dir = dir;
-	dt->ifp = fwa->oif;
+	dt->ifp = fwa->flags & IPFW_ARGS_OUT ? fwa->ifp : NULL;
 	/* dt->output tame is updated as we move through */
 	dt->output_time = dn_cfg.curr_time;
 	dt->iphdr_off = (dir & PROTO_LAYER2) ? ETHER_HDR_LEN : 0;
@@ -854,22 +854,27 @@ tag_mbuf(struct mbuf *m, int dir, struct ip_fw_args *fwa)
  * We use the argument to locate the flowset fs and the sched_set sch
  * associated to it. The we apply flow_mask and sched_mask to
  * determine the queue and scheduler instances.
- *
- * dir		where shall we send the packet after dummynet.
- * *m0		the mbuf with the packet
- * ifp		the 'ifp' parameter from the caller.
- *		NULL in ip_input, destination interface in ip_output,
  */
 int
-dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
+dummynet_io(struct mbuf **m0, struct ip_fw_args *fwa)
 {
 	struct mbuf *m = *m0;
 	struct dn_fsk *fs = NULL;
 	struct dn_sch_inst *si;
 	struct dn_queue *q = NULL;	/* default */
+	int fs_id, dir;
 
-	int fs_id = (fwa->rule.info & IPFW_INFO_MASK) +
+	fs_id = (fwa->rule.info & IPFW_INFO_MASK) +
 		((fwa->rule.info & IPFW_IS_PIPE) ? 2*DN_MAX_ID : 0);
+	/* XXXGL: convert args to dir */
+	if (fwa->flags & IPFW_ARGS_IN)
+		dir = DIR_IN;
+	else
+		dir = DIR_OUT;
+	if (fwa->flags & IPFW_ARGS_ETHER)
+		dir |= PROTO_LAYER2;
+	else if (fwa->flags & IPFW_ARGS_IP6)
+		dir |= PROTO_IPV6;
 	DN_BH_WLOCK();
 	io_pkt++;
 	/* we could actually tag outside the lock, but who cares... */

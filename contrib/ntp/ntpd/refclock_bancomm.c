@@ -60,6 +60,9 @@
 #include <stdio.h>
 #include <syslog.h>
 #include <ctype.h>
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
 
 struct btfp_time                /* Structure for reading 5 time words   */
                                 /* in one ioctl(2) operation.           */
@@ -74,17 +77,16 @@ struct btfp_time                /* Structure for reading 5 time words   */
 #define IOCIOWN( l, n, s ) ( BTFPIOC | n )
 
 /***** Simple ioctl commands *****/
-#define RUNLOCK     	IOCIOR(b, 19, int )  /* Release Capture Lockout */
-#define RCR0      	IOCIOR(b, 22, int )  /* Read control register zero.*/
-#define	WCR0		IOCIOWN(b, 23, int)	     /* Write control register zero*/
+#define RUNLOCK		IOCIOR(b, 19, int )  /* Release Capture Lockout */
+#define RCR0		IOCIOR(b, 22, int )  /* Read control register zero.*/
+#define	WCR0		IOCIOWN(b, 23, int)  /* Write control register zero*/
 /***** Compound ioctl commands *****/
 
 /* Read all 5 time words in one call.   */
-#define READTIME	IOCIORN(b, 32, sizeof( struct btfp_time ))
-
 #if defined(__FreeBSD__) 
-#undef  READTIME
-#define READTIME	_IOR('u', 5, struct btfp_time )
+# define READTIME	_IOR('u', 5, struct btfp_time )
+#else
+# define READTIME	IOCIORN(b, 32, sizeof( struct btfp_time ))
 #endif 
 
 /* Solaris specific section */
@@ -165,17 +167,75 @@ static  void    vme_poll        (int unit, struct peer *);
 struct vmedate *get_datumtime(struct vmedate *);	
 void	tvme_fill(struct vmedate *, uint32_t btm[2]);
 void	stfp_time2tvme(struct vmedate *time_vme, struct stfp_time *stfp);
-inline const char *DEVICE_NAME(int n);
+static const char *get_devicename(int n);
 
+/* [Bug 3558] and [Bug 1674]  perlinger@ntp.org says:
+ *
+ * bcReadBinTime() is defined to use two DWORD pointers on Windows and
+ * Linux in the BANCOMM SDK.  DWORD is of course Windows-specific
+ * (*shudder*), and it is defined as 'unsigned long' under
+ * Linux/Unix. (*sigh*)
+ *
+ * This creates quite some headache.  The size of 'unsigned long' is
+ * platform/compiler/memory-model dependent (LP32 vs LP64 vs LLP64),
+ * while the card itself always creates 32bit time stamps.  What a
+ * bummer.  And DWORD has tendency to contain 64bit on Win64 (which is
+ * why we have a DWORD32 defined on Win64) so it can be used as
+ * substitute for 'UINT_PTR' in Windows API headers.  I won't even try
+ * to comment on that, because anything I have to say will not be civil.
+ *
+ * We work around this by possibly using a wrapper function that makes
+ * the necessary conversions/casts.  It might be a bit tricky to
+ * maintain the conditional logic below, but any lingering disease needs
+ * constant care to avoid a breakout.
+ */
+#if defined(__linux__)
+  typedef unsigned long bcBinTimeT;
+# if SIZEOF_LONG == 4
+#   define safeReadBinTime bcReadBinTime
+# endif
+#elif defined(SYS_WINNT)
+  typedef DWORD bcBinTimeT;
+# if !defined(_WIN64) || _WIN64 == 0
+#   define safeReadBinTime bcReadBinTime
+# endif
+#else
+  typedef uint32_t bcBinTimeT;
+# define safeReadBinTime bcReadBinTime
+#endif
 
 /*
  * Define the bc*() functions as weak so we can compile/link without them.
  * Only clients with the card will have the proprietary vendor device driver
  * and interface library needed for use on Linux/Windows platforms.
  */
-extern uint32_t __attribute__ ((weak)) bcReadBinTime(SYMMT_PCI_HANDLE, uint32_t *, uint32_t*, uint8_t*);
+extern uint32_t __attribute__ ((weak)) bcReadBinTime(SYMMT_PCI_HANDLE, bcBinTimeT*, bcBinTimeT*, uint8_t*);
 extern SYMMT_PCI_HANDLE __attribute__ ((weak)) bcStartPci(void);
 extern void __attribute__ ((weak)) bcStopPci(SYMMT_PCI_HANDLE);
+
+/* This is the conversion wrapper for the long/DWORD/uint32_t clash in
+ * reading binary times.
+ */
+#ifndef safeReadBinTime
+static uint32_t
+safeReadBinTime(
+	SYMMT_PCI_HANDLE hnd,
+	uint32_t        *pt1,
+	uint32_t        *pt2,
+	uint8_t         *p3
+	)
+{
+	bcBinTimeT t1, t2;
+	uint32_t   rc;
+
+	rc = bcReadBinTime(hnd, &t1, &t2, p3);
+	if (rc != 0) {
+		*pt1 = (uint32_t)t1;
+		*pt2 = (uint32_t)t2;
+	}
+	return rc;
+}
+#endif /* !defined(safeReadBinTime) */
 
 /*
  * Transfer vector
@@ -195,15 +255,27 @@ int regvalue;
 int tfp_type;	/* mode selector, indicate platform and driver interface */
 SYMMT_PCI_HANDLE stfp_handle;
 
-/** 
- * this macro returns the device name based on
- * the platform we are running on and the device number
+/* This helper function returns the device name based on the platform we
+ * are running on and the device number.
+ *
+ * Uses a static buffer, so the result is valid only to the next call of
+ * this function!
  */
-#if defined(__sun__)
-inline const char *DEVICE_NAME(int n) {static char s[20]={0}; snprintf(s,19,"/dev/stfp%d",n);return s;}
-#else
-inline const char* DEVICE_NAME(int n) {static char s[20]={0}; snprintf(s,19,"/dev/btfp%d",n);return s;}
-#endif /**__sun__**/
+static const char*
+get_devicename(int n)
+{
+	
+#   if defined(__sun__)
+	static const char * const template ="/dev/stfp%d";
+#   else
+	static const char * const template ="/dev/btfp%d";
+#   endif
+	static char namebuf[20];
+	
+	snprintf(namebuf, sizeof(namebuf), template, n);
+	namebuf[sizeof(namebuf)-1] = '\0'; /* paranoia rulez! */
+	return namebuf;
+}
 
 /*
  * vme_start - open the VME device and initialize data for processing
@@ -235,9 +307,9 @@ vme_start(
 	 */
 #ifdef DEBUG
 
-	printf("Opening DATUM DEVICE %s\n",DEVICE_NAME(peer->refclkunit));
+	printf("Opening DATUM DEVICE %s\n",get_devicename(peer->refclkunit));
 #endif
-	if ( (fd_vme = open(DEVICE_NAME(peer->refclkunit), O_RDWR)) < 0) {
+	if ( (fd_vme = open(get_devicename(peer->refclkunit), O_RDWR)) < 0) {
 		msyslog(LOG_ERR, "vme_start: failed open of %s: %m", vmedev);
 		return (0);
 	}
@@ -433,7 +505,7 @@ get_datumtime(struct vmedate *time_vme)
 			break;
 
 		case 2:				/* Linux/Windows, PCI, 2 32bit time words */
-			if (bcReadBinTime(stfp_handle, &btm[1], &btm[0], &dmy) == 0) {
+			if (safeReadBinTime(stfp_handle, &btm[1], &btm[0], &dmy) == 0) {
 	    		msyslog(LOG_ERR, "get_datumtime error: %m"); 
 				return(NULL);
 			}
@@ -512,10 +584,11 @@ void
 tvme_fill(struct vmedate *time_vme, uint32_t btm[2])
 {
 	struct tm maj;
-	uint32_t dmaj, dmin;
+	time_t   dmaj;
+	uint32_t dmin;
 
-	dmaj = btm[1];			/* syntax sugar */
-	dmin = btm[0];
+	dmaj = btm[1];			/* syntax sugar & expansion */
+	dmin = btm[0];			/* just syntax sugar */
 
 	gmtime_r(&dmaj, &maj);
 	time_vme->day  = maj.tm_yday+1;

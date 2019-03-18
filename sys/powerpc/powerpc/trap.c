@@ -528,6 +528,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	case EXC_DSE:
 	case EXC_DSI:
 	case EXC_DTMISS:
+	case EXC_ALI:
 		printf("   virtual address = 0x%" PRIxPTR "\n", frame->dar);
 		break;
 	case EXC_ISE:
@@ -545,6 +546,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	printf("   current msr     = 0x%" PRIxPTR "\n", mfmsr());
 	printf("   lr              = 0x%" PRIxPTR " (0x%" PRIxPTR ")\n",
 	    frame->lr, frame->lr - (register_t)(__startkernel - KERNBASE));
+	printf("   frame           = %p\n", frame);
 	printf("   curthread       = %p\n", curthread);
 	if (curthread != NULL)
 		printf("          pid = %d, comm = %s\n",

@@ -69,6 +69,8 @@ struct sg_page_iter {
 #define	SG_MAX_SINGLE_ALLOC	(PAGE_SIZE / sizeof(struct scatterlist))
 
 #define	SG_MAGIC		0x87654321UL
+#define	SG_CHAIN		SG_PAGE_LINK_CHAIN
+#define	SG_END			SG_PAGE_LINK_LAST
 
 #define	sg_is_chain(sg)		((sg)->page_link & SG_PAGE_LINK_CHAIN)
 #define	sg_is_last(sg)		((sg)->page_link & SG_PAGE_LINK_LAST)
@@ -133,6 +135,13 @@ static inline vm_paddr_t
 sg_phys(struct scatterlist *sg)
 {
 	return (VM_PAGE_TO_PHYS(sg_page(sg)) + sg->offset);
+}
+
+static inline void *
+sg_virt(struct scatterlist *sg)
+{
+
+	return ((void *)((unsigned long)page_address(sg_page(sg)) + sg->offset));
 }
 
 static inline void

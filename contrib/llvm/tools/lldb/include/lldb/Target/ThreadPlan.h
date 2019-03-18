@@ -10,13 +10,9 @@
 #ifndef liblldb_ThreadPlan_h_
 #define liblldb_ThreadPlan_h_
 
-// C Includes
-// C++ Includes
 #include <mutex>
 #include <string>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/Process.h"
 #include "lldb/Target/StopInfo.h"
 #include "lldb/Target/Target.h"
@@ -600,10 +596,12 @@ protected:
 
   bool IsUsuallyUnexplainedStopReason(lldb::StopReason);
 
+  Status m_status;
   Thread &m_thread;
   Vote m_stop_vote;
   Vote m_run_vote;
-  bool m_takes_iteration_count = false;
+  bool m_takes_iteration_count;
+  bool m_could_not_resolve_hw_bp;
   int32_t m_iteration_count = 1;
 
 private:
@@ -654,6 +652,8 @@ public:
   bool IsBasePlan() override { return true; }
 
   bool OkayToDiscard() override { return false; }
+
+  const Status &GetStatus() { return m_status; }
 
 protected:
   bool DoPlanExplainsStop(Event *event_ptr) override;

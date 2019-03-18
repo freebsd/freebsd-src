@@ -202,8 +202,6 @@ static struct ibv_context *c4iw_alloc_context(struct ibv_device *ibdev,
 		 * loader tunable "hw.cxl.write_combine=0"
 		 */
 		if (t5_en_wc && !context->status_page->wc_supported) {
-			fprintf(stderr, "iw_cxgb4 driver doesn't support Write "
-				"Combine, so regular DB writes will be used\n");
 			t5_en_wc = 0;
 		}
 	}

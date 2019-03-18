@@ -35,10 +35,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/limits.h>
 
 #ifdef _KERNEL
-#include <sys/param.h>
 #include <sys/fail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -50,17 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
-
-#include <crypto/rijndael/rijndael-api-fst.h>
-#include <crypto/sha2/sha256.h>
-
-#include <dev/random/hash.h>
-#include <dev/random/randomdev.h>
-#include <dev/random/random_harvestq.h>
-#include <dev/random/uint128.h>
-#include <dev/random/fortuna.h>
 #else /* !_KERNEL */
-#include <sys/param.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -69,15 +59,18 @@ __FBSDID("$FreeBSD$");
 #include <threads.h>
 
 #include "unit_test.h"
+#endif /* _KERNEL */
 
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha256.h>
 
 #include <dev/random/hash.h>
 #include <dev/random/randomdev.h>
+#ifdef _KERNEL
+#include <dev/random/random_harvestq.h>
+#endif
 #include <dev/random/uint128.h>
 #include <dev/random/fortuna.h>
-#endif /* _KERNEL */
 
 /* Defined in FS&K */
 #define	RANDOM_FORTUNA_NPOOLS 32		/* The number of accumulation pools */
@@ -116,7 +109,7 @@ static struct fortuna_state {
 	} fs_pool[RANDOM_FORTUNA_NPOOLS];
 	u_int fs_reseedcount;		/* ReseedCnt */
 	uint128_t fs_counter;		/* C */
-	struct randomdev_key fs_key;	/* K */
+	union randomdev_key fs_key;	/* K */
 	u_int fs_minpoolsize;		/* Extras */
 	/* Extras for the OS */
 #ifdef _KERNEL
@@ -278,16 +271,27 @@ random_fortuna_reseed_internal(uint32_t *entropy_data, u_int blockcount)
 {
 	struct randomdev_hash context;
 	uint8_t hash[RANDOM_KEYSIZE];
+	const void *keymaterial;
+	size_t keysz;
+	bool seeded;
 
 	RANDOM_RESEED_ASSERT_LOCK_OWNED();
+
+	seeded = random_fortuna_seeded();
+	if (seeded) {
+		randomdev_getkey(&fortuna_state.fs_key, &keymaterial, &keysz);
+		KASSERT(keysz == RANDOM_KEYSIZE, ("%s: key size %zu not %u",
+			__func__, keysz, (unsigned)RANDOM_KEYSIZE));
+	}
+
 	/*-
 	 * FS&K - K = Hd(K|s) where Hd(m) is H(H(0^512|m))
 	 *      - C = C + 1
 	 */
 	randomdev_hash_init(&context);
 	randomdev_hash_iterate(&context, zero_region, RANDOM_ZERO_BLOCKSIZE);
-	randomdev_hash_iterate(&context, &fortuna_state.fs_key.key.keyMaterial,
-	    fortuna_state.fs_key.key.keyLen / 8);
+	if (seeded)
+		randomdev_hash_iterate(&context, keymaterial, keysz);
 	randomdev_hash_iterate(&context, entropy_data, RANDOM_KEYSIZE*blockcount);
 	randomdev_hash_finish(&context, hash);
 	randomdev_hash_init(&context);
@@ -308,20 +312,16 @@ random_fortuna_reseed_internal(uint32_t *entropy_data, u_int blockcount)
 static __inline void
 random_fortuna_genblocks(uint8_t *buf, u_int blockcount)
 {
-	u_int i;
 
 	RANDOM_RESEED_ASSERT_LOCK_OWNED();
 	KASSERT(!uint128_is_zero(fortuna_state.fs_counter), ("FS&K: C != 0"));
 
-	for (i = 0; i < blockcount; i++) {
-		/*-
-		 * FS&K - r = r|E(K,C)
-		 *      - C = C + 1
-		 */
-		randomdev_encrypt(&fortuna_state.fs_key, &fortuna_state.fs_counter, buf, RANDOM_BLOCKSIZE);
-		buf += RANDOM_BLOCKSIZE;
-		uint128_increment(&fortuna_state.fs_counter);
-	}
+	/*
+	 * Fills buf with RANDOM_BLOCKSIZE * blockcount bytes of keystream.
+	 * Increments fs_counter as it goes.
+	 */
+	randomdev_keystream(&fortuna_state.fs_key, &fortuna_state.fs_counter,
+	    buf, blockcount);
 }
 
 /*-

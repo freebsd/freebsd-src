@@ -71,7 +71,7 @@ struct run_tx_radiotap_header {
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
 	uint8_t		wt_hwqueue;
-} __packed __aligned(8);
+} __packed;
 
 #define IEEE80211_RADIOTAP_HWQUEUE 15
 

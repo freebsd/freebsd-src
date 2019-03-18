@@ -1,7 +1,8 @@
 /*-
- * Copyright (c) 2015-2018 Yandex LLC
- * Copyright (c) 2015-2018 Andrey V. Elsukov <ae@FreeBSD.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
+ * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,9 +42,7 @@
 #define	DP_ALL		0xFFFF
 
 VNET_DECLARE(int, nat64_debug);
-VNET_DECLARE(int, nat64_allow_private);
 #define	V_nat64_debug		VNET(nat64_debug)
-#define	V_nat64_allow_private	VNET(nat64_allow_private)
 
 #if 0
 #define	NAT64NOINLINE	__noinline
@@ -55,5 +54,7 @@ int	nat64stl_init(struct ip_fw_chain *ch, int first);
 void	nat64stl_uninit(struct ip_fw_chain *ch, int last);
 int	nat64lsn_init(struct ip_fw_chain *ch, int first);
 void	nat64lsn_uninit(struct ip_fw_chain *ch, int last);
+int	nat64clat_init(struct ip_fw_chain *ch, int first);
+void	nat64clat_uninit(struct ip_fw_chain *ch, int last);
 
 #endif /* _IP_FW_NAT64_H_ */

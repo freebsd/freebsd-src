@@ -9,10 +9,6 @@
 
 #include "lldb/Interpreter/OptionGroupUInt64.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Host/OptionParser.h"
 
 using namespace lldb;
@@ -31,7 +27,7 @@ OptionGroupUInt64::OptionGroupUInt64(uint32_t usage_mask, bool required,
   m_option_definition.short_option = short_option;
   m_option_definition.validator = nullptr;
   m_option_definition.option_has_arg = OptionParser::eRequiredArgument;
-  m_option_definition.enum_values = nullptr;
+  m_option_definition.enum_values = {};
   m_option_definition.completion_type = completion_type;
   m_option_definition.argument_type = argument_type;
   m_option_definition.usage_text = usage_text;

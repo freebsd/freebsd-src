@@ -462,13 +462,55 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
     u_int level = param;
     u_int is_on;
 
+    HALDEBUG(ah, HAL_DEBUG_ANI, "%s: cmd=%d, param=%d, chan=%p, funcmask=0x%08x\n",
+      __func__,
+      cmd,
+      param,
+      chan,
+      ahp->ah_ani_function);
+
+
     if (chan == NULL && cmd != HAL_ANI_MODE) {
         HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
             "%s: ignoring cmd 0x%02x - no channel\n", __func__, cmd);
         return AH_FALSE;
     }
 
-    switch (cmd & ahp->ah_ani_function) {
+    /*
+     * These two control the top-level cck/ofdm immunity levels and will
+     * program the rest of the values.
+     */
+    if (cmd == HAL_ANI_NOISE_IMMUNITY_LEVEL) {
+        if (param > HAL_ANI_OFDM_NUM_LEVEL)
+          return AH_FALSE;
+        ar9300_ani_set_odfm_noise_immunity_level(ah, param);
+        return AH_TRUE;
+    }
+
+    if (cmd == HAL_ANI_CCK_NOISE_IMMUNITY_LEVEL) {
+        if (param > HAL_ANI_CCK_NUM_LEVEL)
+          return AH_FALSE;
+        ar9300_ani_set_cck_noise_immunity_level(ah, param);
+        return AH_TRUE;
+    }
+
+    /*
+     * Check to see if this command is available in the
+     * current operating mode.
+     */
+    if (((1 << cmd) & ahp->ah_ani_function) == 0) {
+        HALDEBUG(ah, HAL_DEBUG_ANI,
+            "%s: early check: invalid cmd 0x%02x (allowed=0x%02x)\n",
+            __func__, cmd, ahp->ah_ani_function);
+        return AH_FALSE;
+    }
+
+    /*
+     * The rest of these program in the requested parameter values
+     * into the PHY.
+     */
+    switch (cmd) {
+
     case HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION: 
         {
             int m1_thresh_low, m2_thresh_low;
@@ -887,13 +929,16 @@ ar9300_ani_reset(struct ath_hal *ah, HAL_BOOL is_scanning)
     /* only allow a subset of functions in AP mode */
     if (AH_PRIVATE(ah)->ah_opmode == HAL_M_HOSTAP) {
         if (IS_CHAN_2GHZ(ichan)) {
-            ahp->ah_ani_function = (HAL_ANI_SPUR_IMMUNITY_LEVEL |
-                                    HAL_ANI_FIRSTEP_LEVEL |
-                                    HAL_ANI_MRC_CCK);
+            ahp->ah_ani_function = (1 << HAL_ANI_SPUR_IMMUNITY_LEVEL) |
+                                   (1 << HAL_ANI_FIRSTEP_LEVEL) |
+                                   (1 << HAL_ANI_MRC_CCK);
         } else {
             ahp->ah_ani_function = 0;
         }
+    } else {
+      ahp->ah_ani_function = HAL_ANI_ALL;
     }
+
     /* always allow mode (on/off) to be controlled */
     ahp->ah_ani_function |= HAL_ANI_MODE;
 

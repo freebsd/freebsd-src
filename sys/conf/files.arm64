@@ -51,6 +51,7 @@ arm/allwinner/clkng/aw_clk_prediv_mux.c	optional	aw_ccu fdt
 arm/allwinner/clkng/ccu_a64.c		optional	soc_allwinner_a64 aw_ccu fdt
 arm/allwinner/clkng/ccu_h3.c		optional	soc_allwinner_h5 aw_ccu fdt
 arm/allwinner/clkng/ccu_sun8i_r.c	optional	aw_ccu fdt
+arm/allwinner/clkng/ccu_de2.c		optional	aw_ccu fdt
 
 # Allwinner padconf files
 arm/allwinner/a64/a64_padconf.c	optional	soc_allwinner_a64 fdt
@@ -233,7 +234,8 @@ dev/usb/controller/ehci_mv.c	optional	ehci_mv fdt
 dev/usb/controller/generic_ehci.c optional	ehci acpi
 dev/usb/controller/generic_ohci.c optional	ohci fdt
 dev/usb/controller/generic_usb_if.m optional	ohci fdt
-dev/usb/controller/xhci_mv.c	optional	xhci_mv fdt
+dev/usb/controller/usb_nop_xceiv.c	optional fdt ext_resources
+dev/usb/controller/generic_xhci.c	optional	xhci fdt
 dev/vnic/mrml_bridge.c		optional	vnic fdt
 dev/vnic/nic_main.c		optional	vnic pci
 dev/vnic/nicvf_main.c		optional	vnic pci pci_iov

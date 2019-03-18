@@ -28,7 +28,7 @@
 .\"     @(#)chroot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2003
+.Dd March 14, 2019
 .Dt CHROOT 8
 .Os
 .Sh NAME
@@ -36,36 +36,36 @@
 .Nd change root directory
 .Sh SYNOPSIS
 .Nm
-.Op Fl u Ar user
+.Op Fl G Ar group Ns Op Cm \&, Ns Ar group  ...
 .Op Fl g Ar group
-.Op Fl G Ar group,group,...
+.Op Fl u Ar user
 .Ar newroot
-.Op Ar command
+.Op Ar command Op Ar arg ...
 .Sh DESCRIPTION
 The
 .Nm
 utility changes its current and root directories to the supplied directory
 .Ar newroot
 and then exec's
-.Ar command ,
-if supplied,
+.Ar command
+with provided arguments, if supplied,
 or an interactive copy of the user's login shell.
 .Pp
-If the
-.Fl u ,
-.Fl g
-or
-.Fl G
-options are given,
-the user,
-group and group list of the process are set to
-these values after the
-.Nm
-has taken place.
+The options are as follows:
+.Bl -tag -width "-G group[,group ...]"
+.It Fl G Ar group Ns Op Cm \&, Ns Ar group  ...
+Run the command with the permissions of the specified groups.
+.It Fl g Ar group
+Run the command with the permissions of the specified
+.Ar group .
+.It Fl u Ar user
+Run the command as the
+.Ar user .
+.El
 .Sh ENVIRONMENT
 The following environment variable is referenced by
 .Nm :
-.Bl -tag -width ".Ev SHELL"
+.Bl -tag -width "SHELL"
 .It Ev SHELL
 If set,
 the string specified by
@@ -77,6 +77,28 @@ If the variable
 is not set,
 .Pa /bin/sh
 is used.
+.El
+.Sh EXAMPLES
+.Bl -tag -width 0n
+.It Sy Example 1\&: No Chrooting into a New Root Directory
+.Pp
+The following command opens the
+.Xr csh 1
+shell after chrooting to the standard root directory.
+.Bd -literal -offset 2n
+.Li # Ic chroot / /bin/csh
+.Ed
+.It Sy Example 2\&: No Execution of a Command with a Changed Root Directory
+.Pp
+The following command changes a root directory with
+.Nm
+and then runs
+.Xr ls 1
+to list the contents of
+.Pa /sbin .
+.Bd -literal -offset 2n
+.Li # Ic chroot /tmp/testroot ls /sbin
+.Ed
 .El
 .Sh SEE ALSO
 .Xr chdir 2 ,

@@ -13,12 +13,12 @@ v4_body()
 {
 	pft_init
 
-	epair_send=$(pft_mkepair)
+	epair_send=$(vnet_mkepair)
 	ifconfig ${epair_send}a 192.0.2.1/24 up
-	epair_route=$(pft_mkepair)
+	epair_route=$(vnet_mkepair)
 	ifconfig ${epair_route}a 203.0.113.1/24 up
 
-	pft_mkjail alcatraz ${epair_send}b ${epair_route}b
+	vnet_mkjail alcatraz ${epair_send}b ${epair_route}b
 	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
 	jexec alcatraz ifconfig ${epair_route}b 203.0.113.2/24 up
 	jexec alcatraz route add -net 198.51.100.0/24 192.0.2.1
@@ -49,12 +49,12 @@ v6_body()
 {
 	pft_init
 
-	epair_send=$(pft_mkepair)
+	epair_send=$(vnet_mkepair)
 	ifconfig ${epair_send}a inet6 2001:db8:42::1/64 up no_dad -ifdisabled
-	epair_route=$(pft_mkepair)
+	epair_route=$(vnet_mkepair)
 	ifconfig ${epair_route}a inet6 2001:db8:43::1/64 up no_dad -ifdisabled
 
-	pft_mkjail alcatraz ${epair_send}b ${epair_route}b
+	vnet_mkjail alcatraz ${epair_send}b ${epair_route}b
 	jexec alcatraz ifconfig ${epair_send}b inet6 2001:db8:42::2/64 up no_dad
 	jexec alcatraz ifconfig ${epair_route}b inet6 2001:db8:43::2/64 up no_dad
 	jexec alcatraz route add -6 2001:db8:666::/64 2001:db8:42::2
