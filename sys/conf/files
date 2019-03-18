@@ -4398,9 +4398,9 @@ netpfil/ipfw/nat64/nat64clat.c	optional inet inet6 ipfirewall \
 netpfil/ipfw/nat64/nat64clat_control.c	optional inet inet6 ipfirewall \
 	ipfirewall_nat64
 netpfil/ipfw/nat64/nat64lsn.c	optional inet inet6 ipfirewall \
-	ipfirewall_nat64 compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+	ipfirewall_nat64
 netpfil/ipfw/nat64/nat64lsn_control.c	optional inet inet6 ipfirewall \
-	ipfirewall_nat64 compile-with "${NORMAL_C} -I$S/contrib/ck/include"
+	ipfirewall_nat64
 netpfil/ipfw/nat64/nat64stl.c	optional inet inet6 ipfirewall \
 	ipfirewall_nat64
 netpfil/ipfw/nat64/nat64stl_control.c	optional inet inet6 ipfirewall \
