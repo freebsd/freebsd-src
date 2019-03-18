@@ -288,6 +288,10 @@ again:
 	case IP_FW_REASS:
 		goto again;		/* continue with packet */
 	
+	case IP_FW_NAT64:
+		ret = 0;
+		break;
+
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));
 	}

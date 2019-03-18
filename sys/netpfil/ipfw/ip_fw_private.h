@@ -59,6 +59,7 @@ enum {
 	IP_FW_NGTEE,
 	IP_FW_NAT,
 	IP_FW_REASS,
+	IP_FW_NAT64,
 };
 
 /*
