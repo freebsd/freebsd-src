@@ -662,6 +662,21 @@ struct ifdownreason {
 	char		ifdr_msg[IFDR_MSG_SIZE];
 };
 
+struct ifvfstatus_entry {
+	uint8_t		mac_addr[6];
+	int16_t		vlan;
+	uint8_t		active;
+	uint8_t		spare0;
+	uint16_t	spare1;
+	uint32_t	spare2;
+};
+
+struct ifvfstatus {
+	char		ifvfs_name[IFNAMSIZ];
+	int		ifvfs_count;
+	struct ifvfstatus_entry *ifvfs_list;
+};
+
 #endif /* __BSD_VISIBLE */
 
 /*

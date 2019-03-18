@@ -152,4 +152,6 @@
 #define	SIOCSUMBPARAM	 _IOW('i', 158, struct ifreq)	/* set MBIM param */
 #define	SIOCGUMBPARAM	_IOWR('i', 159, struct ifreq)	/* get MBIM param */
 
+#define	SIOCGIFVFSTATUS	_IOWR('i', 163, struct ifvfstatus) /* get VF status */
+
 #endif /* !_SYS_SOCKIO_H_ */

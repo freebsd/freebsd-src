@@ -414,6 +414,8 @@ status_nl(if_ctx *ctx, struct iface *iface)
 		args->afp->af_other_status(ctx);
 
 	print_ifstatus(ctx);
+	if (args->verbose > 0)
+		vf_status(ctx);
 	if (args->drivername || args->verbose) {
 		if (ifconfig_get_orig_name(lifh, link->ifla_ifname,
 		    &drivername) != 0) {
@@ -492,4 +494,3 @@ list_interfaces_nl(struct ifconfig_args *args)
 	close(ctx->io_s);
 	snl_free(&ss);
 }
-

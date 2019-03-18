@@ -112,6 +112,13 @@ CODE {
 		return (ENOTSUP);
 	}
 
+	static int
+	null_vfstat_ioctl(if_ctx_t _ctx __unused,
+	    struct ifvfstatus *_ifvfs __unused)
+	{
+		return (ENOTSUP);
+	}
+
 	static bool
 	null_needs_restart(if_ctx_t _ctx __unused, enum iflib_restart_event _event __unused)
 	{
@@ -375,3 +382,8 @@ METHOD int get_downreason {
 	if_ctx_t _ctx;
 	struct ifdownreason *_ifdr;
 } DEFAULT null_get_downreason;
+
+METHOD int vfstat_ioctl {
+	if_ctx_t _ctx;
+	struct ifvfstatus *_ifvfs;
+} DEFAULT null_vfstat_ioctl;

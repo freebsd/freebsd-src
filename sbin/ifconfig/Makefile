@@ -35,6 +35,7 @@ SRCS+=	ifgif.c			# GIF reversed header workaround
 SRCS+=	ifipsec.c		# IPsec VTI
 
 SRCS+=	sfp.c			# SFP/SFP+ information
+SRCS+=	ifvfstatus.c		# VF status information
 LIBADD+=	ifconfig m util
 CFLAGS+=	-I${SRCTOP}/lib/libifconfig -I${OBJTOP}/lib/libifconfig
 

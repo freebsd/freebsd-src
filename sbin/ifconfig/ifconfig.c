@@ -1892,6 +1892,8 @@ status(if_ctx *ctx, const struct sockaddr_dl *sdl __unused, struct ifaddrs *ifa)
 
 	print_ifstatus(ctx);
 	if (args->verbose > 0)
+		vf_status(ctx);
+	if (args->verbose > 0)
 		sfp_status(ctx);
 
 	close(s);

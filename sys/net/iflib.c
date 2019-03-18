@@ -4657,6 +4657,18 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		err = IFDI_GET_DOWNREASON(ctx, (struct ifdownreason *)data);
 		CTX_UNLOCK(ctx);
 		break;
+	case SIOCGIFVFSTATUS:
+	{
+		struct ifvfstatus *ifvfs;
+
+		ifvfs = (struct ifvfstatus *)data;
+		if (ifvfs->ifvfs_count < 0)
+			return (EINVAL);
+		CTX_LOCK(ctx);
+		err = IFDI_VFSTAT_IOCTL(ctx, ifvfs);
+		CTX_UNLOCK(ctx);
+		break;
+	}
 	default:
 		err = ether_ioctl(ifp, command, data);
 		break;

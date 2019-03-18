@@ -122,6 +122,7 @@ static uint64_t	 ixl_if_get_counter(if_ctx_t ctx, ift_counter cnt);
 static int	 ixl_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req);
 static int	 ixl_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
 static bool	 ixl_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event);
+static int	 ixl_if_vfstat_ioctl(if_ctx_t ctx, struct ifvfstatus *ifvfs);
 #ifdef PCI_IOV
 static void	 ixl_if_vflr_handle(if_ctx_t ctx);
 #endif
@@ -193,6 +194,7 @@ static device_method_t ixl_if_methods[] = {
 	DEVMETHOD(ifdi_i2c_req, ixl_if_i2c_req),
 	DEVMETHOD(ifdi_priv_ioctl, ixl_if_priv_ioctl),
 	DEVMETHOD(ifdi_needs_restart, ixl_if_needs_restart),
+	DEVMETHOD(ifdi_vfstat_ioctl, ixl_if_vfstat_ioctl),
 #ifdef PCI_IOV
 	DEVMETHOD(ifdi_iov_init, ixl_if_iov_init),
 	DEVMETHOD(ifdi_iov_uninit, ixl_if_iov_uninit),
@@ -1908,6 +1910,38 @@ ixl_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 	}
 }
 
+static int
+ixl_if_vfstat_ioctl(if_ctx_t ctx, struct ifvfstatus *ifvfs)
+{
+	struct ixl_pf *pf;
+	struct ifvfstatus_entry ent;
+	struct ixl_vf *vf;
+	int error;
+
+	pf = iflib_get_softc(ctx);
+	if (pf->num_vfs < 1)
+		return (ENXIO);
+	if (ifvfs->ifvfs_count == 0) {
+		ifvfs->ifvfs_count = pf->num_vfs;
+		return (0);
+	}
+	if (ifvfs->ifvfs_count != pf->num_vfs)
+		return (EINVAL);
+
+	for (int i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		memset(&ent, 0, sizeof(ent));
+		ent.active = !!(vf->vf_flags & VF_FLAG_ENABLED);
+		memcpy(ent.mac_addr, vf->mac, sizeof(ent.mac_addr));
+		/* No host VLAN support. */
+		ent.vlan = -1;
+		error = copyout(&ent, &ifvfs->ifvfs_list[i], sizeof(ent));
+		if (error != 0)
+			return (error);
+	}
+	return (0);
+}
+
 /*
  * Sanity check and save off tunable values.
  */
@@ -1976,4 +2010,3 @@ ixl_save_pf_tunables(struct ixl_pf *pf)
 			pf->fc = ixl_flow_control;
 	}
 }
-
