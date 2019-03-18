@@ -33,8 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
-#include <sys/ck.h>
-#include <sys/epoch.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -45,8 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sockopt.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/pfil.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -75,6 +75,12 @@ static void
 nat64lsn_default_config(ipfw_nat64lsn_cfg *uc)
 {
 
+	if (uc->max_ports == 0)
+		uc->max_ports = NAT64LSN_MAX_PORTS;
+	else
+		uc->max_ports = roundup(uc->max_ports, NAT64_CHUNK_SIZE);
+	if (uc->max_ports > NAT64_CHUNK_SIZE * NAT64LSN_MAXPGPTR)
+		uc->max_ports = NAT64_CHUNK_SIZE * NAT64LSN_MAXPGPTR;
 	if (uc->jmaxlen == 0)
 		uc->jmaxlen = NAT64LSN_JMAXLEN;
 	if (uc->jmaxlen > 65536)
@@ -93,13 +99,6 @@ nat64lsn_default_config(ipfw_nat64lsn_cfg *uc)
 		uc->st_udp_ttl = NAT64LSN_UDP_AGE;
 	if (uc->st_icmp_ttl == 0)
 		uc->st_icmp_ttl = NAT64LSN_ICMP_AGE;
-
-	if (uc->states_chunks == 0)
-		uc->states_chunks = 1;
-	else if (uc->states_chunks >= 128)
-		uc->states_chunks = 128;
-	else if (!powerof2(uc->states_chunks))
-		uc->states_chunks = 1 << fls(uc->states_chunks);
 }
 
 /*
@@ -128,20 +127,12 @@ nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	if (ipfw_check_object_name_generic(uc->name) != 0)
 		return (EINVAL);
 
-	if (uc->set >= IPFW_MAX_SETS)
+	if (uc->agg_prefix_len > 127 || uc->set >= IPFW_MAX_SETS)
 		return (EINVAL);
 
 	if (uc->plen4 > 32)
 		return (EINVAL);
-
-	/*
-	 * Unspecified address has special meaning. But it must
-	 * have valid prefix length. This length will be used to
-	 * correctly extract and embedd IPv4 address into IPv6.
-	 */
-	if (nat64_check_prefix6(&uc->prefix6, uc->plen6) != 0 &&
-	    IN6_IS_ADDR_UNSPECIFIED(&uc->prefix6) &&
-	    nat64_check_prefixlen(uc->plen6) != 0)
+	if (nat64_check_prefix6(&uc->prefix6, uc->plen6) != 0)
 		return (EINVAL);
 
 	/* XXX: Check prefix4 to be global */
@@ -149,6 +140,14 @@ nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	mask4 = ~((1 << (32 - uc->plen4)) - 1);
 	if ((addr4 & mask4) != addr4)
 		return (EINVAL);
+	if (uc->min_port == 0)
+		uc->min_port = NAT64_MIN_PORT;
+	if (uc->max_port == 0)
+		uc->max_port = 65535;
+	if (uc->min_port > uc->max_port)
+		return (EINVAL);
+	uc->min_port = roundup(uc->min_port, NAT64_CHUNK_SIZE);
+	uc->max_port = roundup(uc->max_port, NAT64_CHUNK_SIZE);
 
 	nat64lsn_default_config(uc);
 
@@ -160,7 +159,7 @@ nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	}
 	IPFW_UH_RUNLOCK(ch);
 
-	cfg = nat64lsn_init_instance(ch, addr4, uc->plen4);
+	cfg = nat64lsn_init_instance(ch, 1 << (32 - uc->plen4));
 	strlcpy(cfg->name, uc->name, sizeof(cfg->name));
 	cfg->no.name = cfg->name;
 	cfg->no.etlv = IPFW_TLV_NAT64LSN_NAME;
@@ -171,12 +170,20 @@ nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	cfg->base.flags = (uc->flags & NAT64LSN_FLAGSMASK) | NAT64_PLATPFX;
 	if (IN6_IS_ADDR_WKPFX(&cfg->base.plat_prefix))
 		cfg->base.flags |= NAT64_WKPFX;
-	else if (IN6_IS_ADDR_UNSPECIFIED(&cfg->base.plat_prefix))
-		cfg->base.flags |= NAT64LSN_ANYPREFIX;
 
-	cfg->states_chunks = uc->states_chunks;
+	cfg->prefix4 = addr4;
+	cfg->pmask4 = addr4 | ~mask4;
+	cfg->plen4 = uc->plen4;
+
+	cfg->max_chunks = uc->max_ports / NAT64_CHUNK_SIZE;
+	cfg->agg_prefix_len = uc->agg_prefix_len;
+	cfg->agg_prefix_max = uc->agg_prefix_max;
+
+	cfg->min_chunk = uc->min_port / NAT64_CHUNK_SIZE;
+	cfg->max_chunk = uc->max_port / NAT64_CHUNK_SIZE;
+
 	cfg->jmaxlen = uc->jmaxlen;
-	cfg->host_delete_delay = uc->nh_delete_delay;
+	cfg->nh_delete_delay = uc->nh_delete_delay;
 	cfg->pg_delete_delay = uc->pg_delete_delay;
 	cfg->st_syn_ttl = uc->st_syn_ttl;
 	cfg->st_close_ttl = uc->st_close_ttl;
@@ -242,7 +249,7 @@ nat64lsn_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	cfg = nat64lsn_find(CHAIN_TO_SRV(ch), oh->ntlv.name, oh->ntlv.set);
 	if (cfg == NULL) {
 		IPFW_UH_WUNLOCK(ch);
-		return (ENOENT);
+		return (ESRCH);
 	}
 
 	if (cfg->no.refcnt > 0) {
@@ -265,8 +272,6 @@ static void
 export_stats(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg,
     struct ipfw_nat64lsn_stats *stats)
 {
-	struct nat64lsn_alias *alias;
-	int i, j;
 
 	__COPY_STAT_FIELD(cfg, stats, opcnt64);
 	__COPY_STAT_FIELD(cfg, stats, opcnt46);
@@ -294,16 +299,10 @@ export_stats(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg,
 	__COPY_STAT_FIELD(cfg, stats, spgcreated);
 	__COPY_STAT_FIELD(cfg, stats, spgdeleted);
 
-	stats->hostcount = cfg->hosts_count;
-	for (i = 0; i < (1 << (32 - cfg->plen4)); i++) {
-		alias = &cfg->aliases[i];
-		for (j = 0; j < 32 && ISSET32(alias->tcp_chunkmask, j); j++)
-			stats->tcpchunks += bitcount32(alias->tcp_pgmask[j]);
-		for (j = 0; j < 32 && ISSET32(alias->udp_chunkmask, j); j++)
-			stats->udpchunks += bitcount32(alias->udp_pgmask[j]);
-		for (j = 0; j < 32 && ISSET32(alias->icmp_chunkmask, j); j++)
-			stats->icmpchunks += bitcount32(alias->icmp_pgmask[j]);
-	}
+	stats->hostcount = cfg->ihcount;
+	stats->tcpchunks = cfg->protochunks[NAT_PROTO_TCP];
+	stats->udpchunks = cfg->protochunks[NAT_PROTO_UDP];
+	stats->icmpchunks = cfg->protochunks[NAT_PROTO_ICMP];
 }
 #undef	__COPY_STAT_FIELD
 
@@ -313,9 +312,12 @@ nat64lsn_export_config(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg,
 {
 
 	uc->flags = cfg->base.flags & NAT64LSN_FLAGSMASK;
-	uc->states_chunks = cfg->states_chunks;
+	uc->max_ports = cfg->max_chunks * NAT64_CHUNK_SIZE;
+	uc->agg_prefix_len = cfg->agg_prefix_len;
+	uc->agg_prefix_max = cfg->agg_prefix_max;
+
 	uc->jmaxlen = cfg->jmaxlen;
-	uc->nh_delete_delay = cfg->host_delete_delay;
+	uc->nh_delete_delay = cfg->nh_delete_delay;
 	uc->pg_delete_delay = cfg->pg_delete_delay;
 	uc->st_syn_ttl = cfg->st_syn_ttl;
 	uc->st_close_ttl = cfg->st_close_ttl;
@@ -423,7 +425,7 @@ nat64lsn_config(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 		cfg = nat64lsn_find(ni, oh->ntlv.name, oh->ntlv.set);
 		if (cfg == NULL) {
 			IPFW_UH_RUNLOCK(ch);
-			return (ENOENT);
+			return (EEXIST);
 		}
 		nat64lsn_export_config(ch, cfg, uc);
 		IPFW_UH_RUNLOCK(ch);
@@ -436,18 +438,18 @@ nat64lsn_config(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	cfg = nat64lsn_find(ni, oh->ntlv.name, oh->ntlv.set);
 	if (cfg == NULL) {
 		IPFW_UH_WUNLOCK(ch);
-		return (ENOENT);
+		return (EEXIST);
 	}
 
 	/*
 	 * For now allow to change only following values:
 	 *  jmaxlen, nh_del_age, pg_del_age, tcp_syn_age, tcp_close_age,
-	 *  tcp_est_age, udp_age, icmp_age, flags, states_chunks.
+	 *  tcp_est_age, udp_age, icmp_age, flags, max_ports.
 	 */
 
-	cfg->states_chunks = uc->states_chunks;
+	cfg->max_chunks = uc->max_ports / NAT64_CHUNK_SIZE;
 	cfg->jmaxlen = uc->jmaxlen;
-	cfg->host_delete_delay = uc->nh_delete_delay;
+	cfg->nh_delete_delay = uc->nh_delete_delay;
 	cfg->pg_delete_delay = uc->pg_delete_delay;
 	cfg->st_syn_ttl = uc->st_syn_ttl;
 	cfg->st_close_ttl = uc->st_close_ttl;
@@ -494,7 +496,7 @@ nat64lsn_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	cfg = nat64lsn_find(CHAIN_TO_SRV(ch), oh->ntlv.name, oh->ntlv.set);
 	if (cfg == NULL) {
 		IPFW_UH_RUNLOCK(ch);
-		return (ENOENT);
+		return (ESRCH);
 	}
 
 	export_stats(ch, cfg, &stats);
@@ -536,7 +538,7 @@ nat64lsn_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	cfg = nat64lsn_find(CHAIN_TO_SRV(ch), oh->ntlv.name, oh->ntlv.set);
 	if (cfg == NULL) {
 		IPFW_UH_WUNLOCK(ch);
-		return (ENOENT);
+		return (ESRCH);
 	}
 	COUNTER_ARRAY_ZERO(cfg->base.stats.cnt, NAT64STATS);
 	IPFW_UH_WUNLOCK(ch);
@@ -548,122 +550,131 @@ nat64lsn_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
  *	ipfw_nat64lsn_state x count, ... ] ]
  */
 static int
-nat64lsn_export_states_v1(struct nat64lsn_cfg *cfg, union nat64lsn_pgidx *idx,
-    struct nat64lsn_pg *pg, struct sockopt_data *sd, uint32_t *ret_count)
+export_pg_states(struct nat64lsn_cfg *cfg, struct nat64lsn_portgroup *pg,
+    ipfw_nat64lsn_stg *stg, struct sockopt_data *sd)
 {
-	ipfw_nat64lsn_state_v1 *s;
-	struct nat64lsn_state *state;
-	uint64_t mask;
-	uint32_t i, count;
+	ipfw_nat64lsn_state *ste;
+	struct nat64lsn_state *st;
+	int i, count;
 
-	/* validate user input */
-	if (idx->chunk > pg->chunks_count - 1)
-		return (EINVAL);
-
-	mask = pg->chunks_count == 1 ? ~pg->freemask :
-	    ~pg->freemask_chunk[idx->chunk];
-	count = bitcount64(mask);
-	if (count == 0)
-		return (0);	/* Try next PG/chunk */
-
-	DPRINTF(DP_STATE, "EXPORT PG 0x%16jx, count %d",
-	    (uintmax_t)idx->index, count);
-
-	s = (ipfw_nat64lsn_state_v1 *)ipfw_get_sopt_space(sd,
-	    count * sizeof(ipfw_nat64lsn_state_v1));
-	if (s == NULL)
-		return (ENOMEM);
-
+	NAT64_LOCK(pg->host);
+	count = 0;
 	for (i = 0; i < 64; i++) {
-		if (!ISSET64(mask, i))
-			continue;
-		state = pg->chunks_count == 1 ? &pg->states->state[i] :
-		    &pg->states_chunk[idx->chunk]->state[i];
-
-		s->host6 = state->host->addr;
-		s->daddr.s_addr = htonl(state->ip_dst);
-		s->dport = state->dport;
-		s->sport = state->sport;
-		s->aport = state->aport;
-		s->flags = (uint8_t)(state->flags & 7);
-		s->proto = state->proto;
-		s->idle = GET_AGE(state->timestamp);
-		s++;
+		if (PG_IS_BUSY_IDX(pg, i))
+			count++;
 	}
-	*ret_count = count;
+	DPRINTF(DP_STATE, "EXPORT PG %d, count %d", pg->idx, count);
+
+	if (count == 0) {
+		stg->count = 0;
+		NAT64_UNLOCK(pg->host);
+		return (0);
+	}
+	ste = (ipfw_nat64lsn_state *)ipfw_get_sopt_space(sd,
+	    count * sizeof(ipfw_nat64lsn_state));
+	if (ste == NULL) {
+		NAT64_UNLOCK(pg->host);
+		return (1);
+	}
+
+	stg->alias4.s_addr = pg->aaddr;
+	stg->proto = nat64lsn_rproto_map[pg->nat_proto];
+	stg->flags = 0;
+	stg->host6 = pg->host->addr;
+	stg->count = count;
+	for (i = 0; i < 64; i++) {
+		if (PG_IS_FREE_IDX(pg, i))
+			continue;
+		st = &pg->states[i];
+		ste->daddr.s_addr = st->u.s.faddr;
+		ste->dport = st->u.s.fport;
+		ste->aport = pg->aport + i;
+		ste->sport = st->u.s.lport;
+		ste->flags = st->flags; /* XXX filter flags */
+		ste->idle = GET_AGE(st->timestamp);
+		ste++;
+	}
+	NAT64_UNLOCK(pg->host);
+
 	return (0);
 }
 
-#define	LAST_IDX	0xFF
 static int
-nat64lsn_next_pgidx(struct nat64lsn_cfg *cfg, struct nat64lsn_pg *pg,
-    union nat64lsn_pgidx *idx)
+get_next_idx(struct nat64lsn_cfg *cfg, uint32_t *addr, uint8_t *nat_proto,
+    uint16_t *port)
 {
 
-	/* First iterate over chunks */
-	if (pg != NULL) {
-		if (idx->chunk < pg->chunks_count - 1) {
-			idx->chunk++;
-			return (0);
-		}
-	}
-	idx->chunk = 0;
-	/* Then over PGs */
-	if (idx->port < UINT16_MAX - 64) {
-		idx->port += 64;
+	if (*port < 65536 - NAT64_CHUNK_SIZE) {
+		*port += NAT64_CHUNK_SIZE;
 		return (0);
 	}
-	idx->port = NAT64_MIN_PORT;
-	/* Then over supported protocols */
-	switch (idx->proto) {
-	case IPPROTO_ICMP:
-		idx->proto = IPPROTO_TCP;
+	*port = 0;
+
+	if (*nat_proto < NAT_MAX_PROTO - 1) {
+		*nat_proto += 1;
 		return (0);
-	case IPPROTO_TCP:
-		idx->proto = IPPROTO_UDP;
+	}
+	*nat_proto = 1;
+
+	if (*addr < cfg->pmask4) {
+		*addr += 1;
 		return (0);
-	default:
-		idx->proto = IPPROTO_ICMP;
 	}
-	/* And then over IPv4 alias addresses */
-	if (idx->addr < cfg->pmask4) {
-		idx->addr++;
-		return (1);	/* New states group is needed */
-	}
-	idx->index = LAST_IDX;
-	return (-1);		/* No more states */
+
+	/* End of space. */
+	return (1);
 }
 
-static struct nat64lsn_pg*
-nat64lsn_get_pg_byidx(struct nat64lsn_cfg *cfg, union nat64lsn_pgidx *idx)
+#define	PACK_IDX(addr, proto, port)	\
+	((uint64_t)addr << 32) | ((uint32_t)port << 16) | (proto << 8)
+#define	UNPACK_IDX(idx, addr, proto, port)		\
+	(addr) = (uint32_t)((idx) >> 32);		\
+	(port) = (uint16_t)(((idx) >> 16) & 0xFFFF);	\
+	(proto) = (uint8_t)(((idx) >> 8) & 0xFF)
+
+static struct nat64lsn_portgroup *
+get_next_pg(struct nat64lsn_cfg *cfg, uint32_t *addr, uint8_t *nat_proto,
+  uint16_t *port)
 {
-	struct nat64lsn_alias *alias;
-	int pg_idx;
+	struct nat64lsn_portgroup *pg;
+	uint64_t pre_pack, post_pack;
 
-	alias = &cfg->aliases[idx->addr & ((1 << (32 - cfg->plen4)) - 1)];
-	MPASS(alias->addr == idx->addr);
+	pg = NULL;
+	pre_pack = PACK_IDX(*addr, *nat_proto, *port);
+	for (;;) {
+		if (get_next_idx(cfg, addr, nat_proto, port) != 0) {
+			/* End of states */
+			return (pg);
+		}
 
-	pg_idx = (idx->port - NAT64_MIN_PORT) / 64;
-	switch (idx->proto) {
-	case IPPROTO_ICMP:
-		if (ISSET32(alias->icmp_pgmask[pg_idx / 32], pg_idx % 32))
-			return (alias->icmp[pg_idx / 32]->pgptr[pg_idx % 32]);
-		break;
-	case IPPROTO_TCP:
-		if (ISSET32(alias->tcp_pgmask[pg_idx / 32], pg_idx % 32))
-			return (alias->tcp[pg_idx / 32]->pgptr[pg_idx % 32]);
-		break;
-	case IPPROTO_UDP:
-		if (ISSET32(alias->udp_pgmask[pg_idx / 32], pg_idx % 32))
-			return (alias->udp[pg_idx / 32]->pgptr[pg_idx % 32]);
-		break;
+		pg = GET_PORTGROUP(cfg, *addr, *nat_proto, *port);
+		if (pg != NULL)
+			break;
 	}
-	return (NULL);
+
+	post_pack = PACK_IDX(*addr, *nat_proto, *port);
+	if (pre_pack == post_pack)
+		DPRINTF(DP_STATE, "XXX: PACK_IDX %u %d %d",
+		    *addr, *nat_proto, *port);
+	return (pg);
+}
+
+static NAT64NOINLINE struct nat64lsn_portgroup *
+get_first_pg(struct nat64lsn_cfg *cfg, uint32_t *addr, uint8_t *nat_proto,
+  uint16_t *port)
+{
+	struct nat64lsn_portgroup *pg;
+
+	pg = GET_PORTGROUP(cfg, *addr, *nat_proto, *port);
+	if (pg == NULL)
+		pg = get_next_pg(cfg, addr, nat_proto, port);
+
+	return (pg);
 }
 
 /*
  * Lists nat64lsn states.
- * Data layout (v0):
+ * Data layout (v0)(current):
  * Request: [ ipfw_obj_header ipfw_obj_data [ uint64_t ]]
  * Reply: [ ipfw_obj_header ipfw_obj_data [
  *		ipfw_nat64lsn_stg ipfw_nat64lsn_state x N] ]
@@ -671,36 +682,19 @@ nat64lsn_get_pg_byidx(struct nat64lsn_cfg *cfg, union nat64lsn_pgidx *idx)
  * Returns 0 on success
  */
 static int
-nat64lsn_states_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
-{
-
-	/* TODO: implement states listing for old ipfw(8) binaries  */
-	return (EOPNOTSUPP);
-}
-
-/*
- * Lists nat64lsn states.
- * Data layout (v1)(current):
- * Request: [ ipfw_obj_header ipfw_obj_data [ uint64_t ]]
- * Reply: [ ipfw_obj_header ipfw_obj_data [
- *		ipfw_nat64lsn_stg_v1 ipfw_nat64lsn_state_v1 x N] ]
- *
- * Returns 0 on success
- */
-static int
-nat64lsn_states_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+nat64lsn_states(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	ipfw_obj_header *oh;
 	ipfw_obj_data *od;
-	ipfw_nat64lsn_stg_v1 *stg;
+	ipfw_nat64lsn_stg *stg;
 	struct nat64lsn_cfg *cfg;
-	struct nat64lsn_pg *pg;
-	union nat64lsn_pgidx idx;
+	struct nat64lsn_portgroup *pg, *pg_next;
+	uint64_t next_idx;
 	size_t sz;
-	uint32_t count, total;
-	int ret;
+	uint32_t addr, states;
+	uint16_t port;
+	uint8_t nat_proto;
 
 	sz = sizeof(ipfw_obj_header) + sizeof(ipfw_obj_data) +
 	    sizeof(uint64_t);
@@ -714,96 +708,78 @@ nat64lsn_states_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	    od->head.length != sz - sizeof(ipfw_obj_header))
 		return (EINVAL);
 
-	idx.index = *(uint64_t *)(od + 1);
-	if (idx.index != 0 && idx.proto != IPPROTO_ICMP &&
-	    idx.proto != IPPROTO_TCP && idx.proto != IPPROTO_UDP)
+	next_idx = *(uint64_t *)(od + 1);
+	/* Translate index to the request position to start from */
+	UNPACK_IDX(next_idx, addr, nat_proto, port);
+	if (nat_proto >= NAT_MAX_PROTO)
 		return (EINVAL);
-	if (idx.index == LAST_IDX)
+	if (nat_proto == 0 && addr != 0)
 		return (EINVAL);
 
 	IPFW_UH_RLOCK(ch);
 	cfg = nat64lsn_find(CHAIN_TO_SRV(ch), oh->ntlv.name, oh->ntlv.set);
 	if (cfg == NULL) {
 		IPFW_UH_RUNLOCK(ch);
-		return (ENOENT);
+		return (ESRCH);
 	}
-	if (idx.index == 0) {	/* Fill in starting point */
-		idx.addr = cfg->prefix4;
-		idx.proto = IPPROTO_ICMP;
-		idx.port = NAT64_MIN_PORT;
+	/* Fill in starting point */
+	if (addr == 0) {
+		addr = cfg->prefix4;
+		nat_proto = 1;
+		port = 0;
 	}
-	if (idx.addr < cfg->prefix4 || idx.addr > cfg->pmask4 ||
-	    idx.port < NAT64_MIN_PORT) {
+	if (addr < cfg->prefix4 || addr > cfg->pmask4) {
 		IPFW_UH_RUNLOCK(ch);
+		DPRINTF(DP_GENERIC | DP_STATE, "XXX: %ju %u %u",
+		    (uintmax_t)next_idx, addr, cfg->pmask4);
 		return (EINVAL);
 	}
+
 	sz = sizeof(ipfw_obj_header) + sizeof(ipfw_obj_data) +
-	    sizeof(ipfw_nat64lsn_stg_v1);
-	if (sd->valsize < sz) {
-		IPFW_UH_RUNLOCK(ch);
+	    sizeof(ipfw_nat64lsn_stg);
+	if (sd->valsize < sz)
 		return (ENOMEM);
-	}
 	oh = (ipfw_obj_header *)ipfw_get_sopt_space(sd, sz);
 	od = (ipfw_obj_data *)(oh + 1);
 	od->head.type = IPFW_TLV_OBJDATA;
 	od->head.length = sz - sizeof(ipfw_obj_header);
-	stg = (ipfw_nat64lsn_stg_v1 *)(od + 1);
-	stg->count = total = 0;
-	stg->next.index = idx.index;
-	/*
-	 * Acquire CALLOUT_LOCK to avoid races with expiration code.
-	 * Thus states, hosts and PGs will not expire while we hold it.
-	 */
-	CALLOUT_LOCK(cfg);
-	ret = 0;
-	do {
-		pg = nat64lsn_get_pg_byidx(cfg, &idx);
-		if (pg != NULL) {
-			count = 0;
-			ret = nat64lsn_export_states_v1(cfg, &idx, pg,
-			    sd, &count);
-			if (ret != 0)
-				break;
-			if (count > 0) {
-				stg->count += count;
-				total += count;
-				/* Update total size of reply */
-				od->head.length +=
-				    count * sizeof(ipfw_nat64lsn_state_v1);
-				sz += count * sizeof(ipfw_nat64lsn_state_v1);
-			}
-			stg->alias4.s_addr = htonl(idx.addr);
+	stg = (ipfw_nat64lsn_stg *)(od + 1);
+
+	pg = get_first_pg(cfg, &addr, &nat_proto, &port);
+	if (pg == NULL) {
+		/* No states */
+		stg->next_idx = 0xFF;
+		stg->count = 0;
+		IPFW_UH_RUNLOCK(ch);
+		return (0);
+	}
+	states = 0;
+	pg_next = NULL;
+	while (pg != NULL) {
+		pg_next = get_next_pg(cfg, &addr, &nat_proto, &port);
+		if (pg_next == NULL)
+			stg->next_idx = 0xFF;
+		else
+			stg->next_idx = PACK_IDX(addr, nat_proto, port);
+
+		if (export_pg_states(cfg, pg, stg, sd) != 0) {
+			IPFW_UH_RUNLOCK(ch);
+			return (states == 0 ? ENOMEM: 0);
 		}
-		/* Determine new index */
-		switch (nat64lsn_next_pgidx(cfg, pg, &idx)) {
-		case -1:
-			ret = ENOENT; /* End of search */
-			break;
-		case 1: /*
-			 * Next alias address, new group may be needed.
-			 * If states count is zero, use this group.
-			 */
-			if (stg->count == 0)
-				continue;
-			/* Otherwise try to create new group */
-			sz += sizeof(ipfw_nat64lsn_stg_v1);
-			if (sd->valsize < sz) {
-				ret = ENOMEM;
+		states += stg->count;
+		od->head.length += stg->count * sizeof(ipfw_nat64lsn_state);
+		sz += stg->count * sizeof(ipfw_nat64lsn_state);
+		if (pg_next != NULL) {
+			sz += sizeof(ipfw_nat64lsn_stg);
+			if (sd->valsize < sz)
 				break;
-			}
-			/* Save next index in current group */
-			stg->next.index = idx.index;
-			stg = (ipfw_nat64lsn_stg_v1 *)ipfw_get_sopt_space(sd,
-			    sizeof(ipfw_nat64lsn_stg_v1));
-			od->head.length += sizeof(ipfw_nat64lsn_stg_v1);
-			stg->count = 0;
-			break;
+			stg = (ipfw_nat64lsn_stg *)ipfw_get_sopt_space(sd,
+			    sizeof(ipfw_nat64lsn_stg));
 		}
-		stg->next.index = idx.index;
-	} while (ret == 0);
-	CALLOUT_UNLOCK(cfg);
+		pg = pg_next;
+	}
 	IPFW_UH_RUNLOCK(ch);
-	return ((total > 0 || idx.index == LAST_IDX) ? 0: ret);
+	return (0);
 }
 
 static struct ipfw_sopt_handler	scodes[] = {
@@ -813,8 +789,7 @@ static struct ipfw_sopt_handler	scodes[] = {
 	{ IP_FW_NAT64LSN_LIST,	 0,	HDIR_GET,	nat64lsn_list },
 	{ IP_FW_NAT64LSN_STATS,	 0,	HDIR_GET,	nat64lsn_stats },
 	{ IP_FW_NAT64LSN_RESET_STATS,0,	HDIR_SET,	nat64lsn_reset_stats },
-	{ IP_FW_NAT64LSN_LIST_STATES,0,	HDIR_GET,	nat64lsn_states_v0 },
-	{ IP_FW_NAT64LSN_LIST_STATES,1,	HDIR_GET,	nat64lsn_states_v1 },
+	{ IP_FW_NAT64LSN_LIST_STATES,0,	HDIR_GET,	nat64lsn_states },
 };
 
 static int
