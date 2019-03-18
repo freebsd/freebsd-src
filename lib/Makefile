@@ -196,9 +196,7 @@ _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
-.if !defined(COMPAT_32BIT)
 SUBDIR.${MK_OPENMP}+=	libomp
-.endif
 SUBDIR.${MK_OPENSSL}+=	libmp
 SUBDIR.${MK_PMC}+=	libpmc libpmcstat
 SUBDIR.${MK_RADIUS_SUPPORT}+=	libradius

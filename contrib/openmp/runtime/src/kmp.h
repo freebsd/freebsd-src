@@ -3666,8 +3666,13 @@ extern int __kmp_read_from_file(char const *path, char const *format, ...);
 
 extern void __kmp_query_cpuid(kmp_cpuinfo_t *p);
 
-#define __kmp_load_mxcsr(p) _mm_setcsr(*(p))
+#if __SSE__
+static inline void __kmp_load_mxcsr(const kmp_uint32 *p) { _mm_setcsr(*(p)); }
 static inline void __kmp_store_mxcsr(kmp_uint32 *p) { *p = _mm_getcsr(); }
+#else
+static inline void __kmp_load_mxcsr(const kmp_uint32 *) {}
+static inline void __kmp_store_mxcsr(kmp_uint32 *) {}
+#endif
 
 extern void __kmp_load_x87_fpu_control_word(kmp_int16 *p);
 extern void __kmp_store_x87_fpu_control_word(kmp_int16 *p);
