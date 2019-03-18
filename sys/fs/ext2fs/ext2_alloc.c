@@ -457,7 +457,7 @@ noinodes:
 /*
  * 64-bit compatible getters and setters for struct ext2_gd from ext2fs.h
  */
-static uint64_t
+uint64_t
 e2fs_gd_get_b_bitmap(struct ext2_gd *gd)
 {
 
@@ -465,7 +465,7 @@ e2fs_gd_get_b_bitmap(struct ext2_gd *gd)
 	    gd->ext2bgd_b_bitmap);
 }
 
-static uint64_t
+uint64_t
 e2fs_gd_get_i_bitmap(struct ext2_gd *gd)
 {
 
@@ -754,7 +754,7 @@ ext2_hashalloc(struct inode *ip, int cg, long pref, int size,
 	return (0);
 }
 
-static unsigned long
+static uint64_t
 ext2_cg_number_gdb_nometa(struct m_ext2fs *fs, int cg)
 {
 
@@ -768,7 +768,7 @@ ext2_cg_number_gdb_nometa(struct m_ext2fs *fs, int cg)
 	    EXT2_DESCS_PER_BLOCK(fs));
 }
 
-static unsigned long
+static uint64_t
 ext2_cg_number_gdb_meta(struct m_ext2fs *fs, int cg)
 {
 	unsigned long metagroup;
@@ -784,7 +784,7 @@ ext2_cg_number_gdb_meta(struct m_ext2fs *fs, int cg)
 	return (0);
 }
 
-static unsigned long
+uint64_t
 ext2_cg_number_gdb(struct m_ext2fs *fs, int cg)
 {
 	unsigned long first_meta_bg, metagroup;
