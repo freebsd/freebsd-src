@@ -429,6 +429,8 @@ ipfw_main(int oldac, char **oldav)
 	if (co.use_set || try_next) {
 		if (_substrcmp(*av, "delete") == 0)
 			ipfw_delete(av);
+		else if (!strncmp(*av, "nat64clat", strlen(*av)))
+			ipfw_nat64clat_handler(ac, av);
 		else if (!strncmp(*av, "nat64stl", strlen(*av)))
 			ipfw_nat64stl_handler(ac, av);
 		else if (!strncmp(*av, "nat64lsn", strlen(*av)))

@@ -45,6 +45,19 @@ struct ipfw_nat64stl_stats {
 	uint64_t	dropped;	/* dropped due to some errors */
 };
 
+struct ipfw_nat64clat_stats {
+	uint64_t	opcnt64;	/* 6to4 of packets translated */
+	uint64_t	opcnt46;	/* 4to6 of packets translated */
+	uint64_t	ofrags;		/* number of fragments generated */
+	uint64_t	ifrags;		/* number of fragments received */
+	uint64_t	oerrors;	/* number of output errors */
+	uint64_t	noroute4;
+	uint64_t	noroute6;
+	uint64_t	noproto;	/* Protocol not supported */
+	uint64_t	nomem;		/* mbuf allocation failed */
+	uint64_t	dropped;	/* dropped due to some errors */
+};
+
 struct ipfw_nat64lsn_stats {
 	uint64_t	opcnt64;	/* 6to4 of packets translated */
 	uint64_t	opcnt46;	/* 4to6 of packets translated */
@@ -94,6 +107,17 @@ typedef struct _ipfw_nat64stl_cfg {
 	uint8_t		spare[2];
 	uint32_t	flags;
 } ipfw_nat64stl_cfg;
+
+typedef struct _ipfw_nat64clat_cfg {
+	char		name[64];	/* NAT name			*/
+	struct in6_addr	plat_prefix;	/* NAT64 (PLAT) prefix */
+	struct in6_addr	clat_prefix;	/* Client (CLAT) prefix */
+	uint8_t		plat_plen;	/* PLAT Prefix length */
+	uint8_t		clat_plen;	/* CLAT Prefix length */
+	uint8_t		set;		/* Named instance set [0..31] */
+	uint8_t		spare;
+	uint32_t	flags;
+} ipfw_nat64clat_cfg;
 
 /*
  * NAT64LSN default configuration values
