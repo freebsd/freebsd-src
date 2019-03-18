@@ -56,9 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
-static int ufs_readindir(struct vnode *, ufs_lbn_t, ufs2_daddr_t,
-    struct buf **);
-
 /*
  * Bmap converts the logical block number of a file to its physical block
  * number on the disk. The conversion is done by using the logical block
@@ -91,51 +88,6 @@ ufs_bmap(ap)
 	    ap->a_runp, ap->a_runb);
 	*ap->a_bnp = blkno;
 	return (error);
-}
-
-static int
-ufs_readindir(vp, lbn, daddr, bpp)
-	struct vnode *vp;
-	ufs_lbn_t lbn;
-	ufs2_daddr_t daddr;
-	struct buf **bpp;
-{
-	struct buf *bp;
-	struct mount *mp;
-	struct ufsmount *ump;
-	int error;
-
-	mp = vp->v_mount;
-	ump = VFSTOUFS(mp);
-
-	bp = getblk(vp, lbn, mp->mnt_stat.f_iosize, 0, 0, 0);
-	if ((bp->b_flags & B_CACHE) == 0) {
-		KASSERT(daddr != 0,
-		    ("ufs_readindir: indirect block not in cache"));
-
-		bp->b_blkno = blkptrtodb(ump, daddr);
-		bp->b_iocmd = BIO_READ;
-		bp->b_flags &= ~B_INVAL;
-		bp->b_ioflags &= ~BIO_ERROR;
-		vfs_busy_pages(bp, 0);
-		bp->b_iooffset = dbtob(bp->b_blkno);
-		bstrategy(bp);
-#ifdef RACCT
-		if (racct_enable) {
-			PROC_LOCK(curproc);
-			racct_add_buf(curproc, bp, 0);
-			PROC_UNLOCK(curproc);
-		}
-#endif
-		curthread->td_ru.ru_inblock++;
-		error = bufwait(bp);
-		if (error != 0) {
-			brelse(bp);
-			return (error);
-		}
-	}
-	*bpp = bp;
-	return (0);
 }
 
 /*
@@ -260,9 +212,34 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 		 */
 		if (bp)
 			bqrelse(bp);
-		error = ufs_readindir(vp, metalbn, daddr, &bp);
-		if (error != 0)
-			return (error);
+
+		bp = getblk(vp, metalbn, mp->mnt_stat.f_iosize, 0, 0, 0);
+		if ((bp->b_flags & B_CACHE) == 0) {
+#ifdef INVARIANTS
+			if (!daddr)
+				panic("ufs_bmaparray: indirect block not in cache");
+#endif
+			bp->b_blkno = blkptrtodb(ump, daddr);
+			bp->b_iocmd = BIO_READ;
+			bp->b_flags &= ~B_INVAL;
+			bp->b_ioflags &= ~BIO_ERROR;
+			vfs_busy_pages(bp, 0);
+			bp->b_iooffset = dbtob(bp->b_blkno);
+			bstrategy(bp);
+#ifdef RACCT
+			if (racct_enable) {
+				PROC_LOCK(curproc);
+				racct_add_buf(curproc, bp, 0);
+				PROC_UNLOCK(curproc);
+			}
+#endif /* RACCT */
+			curthread->td_ru.ru_inblock++;
+			error = bufwait(bp);
+			if (error) {
+				brelse(bp);
+				return (error);
+			}
+		}
 
 		if (I_IS_UFS1(ip)) {
 			daddr = ((ufs1_daddr_t *)bp->b_data)[ap->in_off];
@@ -324,93 +301,6 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 			*bnp = -1;
 	}
 	return (0);
-}
-
-int
-ufs_bmap_seekdata(vp, offp)
-	struct vnode *vp;
-	off_t *offp;
-{
-	struct buf *bp;
-	struct indir a[UFS_NIADDR + 1], *ap;
-	struct inode *ip;
-	struct mount *mp;
-	struct ufsmount *ump;
-	ufs2_daddr_t blockcnt, bn, daddr;
-	uint64_t bsize;
-	off_t numblks;
-	int error, num, num1;
-
-	bp = NULL;
-	ip = VTOI(vp);
-	mp = vp->v_mount;
-	ump = VFSTOUFS(mp);
-
-	if (vp->v_type != VREG || (ip->i_flags & SF_SNAPSHOT) != 0)
-		return (EINVAL);
-	if (*offp < 0)
-		return (ENXIO);
-
-	bsize = mp->mnt_stat.f_iosize;
-	for (bn = *offp / bsize, numblks = howmany(ip->i_size, bsize);
-	    bn < numblks;) {
-		if (bn < UFS_NDADDR) {
-			daddr = DIP(ip, i_db[bn]);
-			if (daddr != 0)
-				break;
-			bn++;
-			continue;
-		}
-
-		ap = a;
-		error = ufs_getlbns(vp, bn, ap, &num);
-		if (error != 0)
-			break;
-		MPASS(num >= 2);
-		daddr = DIP(ip, i_ib[ap->in_off]);
-		ap++, num--;
-		if (daddr == 0) {
-			for (blockcnt = 1; num > 0; num--)
-				blockcnt *= MNINDIR(ump);
-			bn += blockcnt;
-			continue;
-		}
-
-		for (; num > 0 && daddr != 0; ap++, num--) {
-			if (bp != NULL)
-				bqrelse(bp);
-			error = ufs_readindir(vp, ap->in_lbn, daddr, &bp);
-			if (error != 0)
-				return (error);
-
-			/*
-			 * Precompute the number of blocks addressed by an entry
-			 * of the current indirect block.
-			 */
-			for (blockcnt = 1, num1 = num; num1 > 1; num1--)
-				blockcnt *= MNINDIR(ump);
-
-			for (; ap->in_off < MNINDIR(ump); ap->in_off++,
-			    bn += blockcnt) {
-				daddr = I_IS_UFS1(ip) ?
-				    ((ufs1_daddr_t *)bp->b_data)[ap->in_off] :
-				    ((ufs2_daddr_t *)bp->b_data)[ap->in_off];
-				if (daddr != 0)
-					break;
-			}
-		}
-		if (daddr != 0) {
-			MPASS(num == 0);
-			break;
-		}
-	}
-	if (bp != NULL)
-		bqrelse(bp);
-	if (bn >= numblks)
-		error = ENXIO;
-	if (error == 0)
-		*offp = bn * bsize;
-	return (error);
 }
 
 /*
