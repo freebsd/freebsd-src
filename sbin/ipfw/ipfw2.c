@@ -237,6 +237,7 @@ static struct _s_x ether_types[] = {
 };
 
 static struct _s_x rule_eactions[] = {
+	{ "nat64clat",		TOK_NAT64CLAT },
 	{ "nat64lsn",		TOK_NAT64LSN },
 	{ "nat64stl",		TOK_NAT64STL },
 	{ "nptv6",		TOK_NPTV6 },

@@ -134,6 +134,13 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_NPTV6_STATS	154	/* Get NPTv6 instance statistics */
 #define	IP_FW_NPTV6_RESET_STATS	155	/* Reset NPTv6 instance statistics */
 
+#define	IP_FW_NAT64CLAT_CREATE	160	/* Create clat NAT64 instance */
+#define	IP_FW_NAT64CLAT_DESTROY	161	/* Destroy clat NAT64 instance */
+#define	IP_FW_NAT64CLAT_CONFIG	162	/* Modify clat NAT64 instance */
+#define	IP_FW_NAT64CLAT_LIST	163	/* List clat NAT64 instances */
+#define	IP_FW_NAT64CLAT_STATS	164	/* Get NAT64CLAT instance statistics */
+#define	IP_FW_NAT64CLAT_RESET_STATS 165	/* Reset NAT64CLAT instance statistics */
+
 /*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
