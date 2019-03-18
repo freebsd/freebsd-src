@@ -3036,10 +3036,17 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 				    R92C_TXDW4_HWRTSEN);
 			}
 
-			/* XXX TODO: rtsrate is configurable? 24mbit may
-			 * be a bit high for RTS rate? */
-			txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
-			    URTWN_RIDX_OFDM24));
+			if (!(sc->chip & URTWN_CHIP_88E)) {
+				/* XXX other rates will not work without
+				 * urtwn_ra_init() */
+				txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
+				    URTWN_RIDX_CCK1));
+			} else {
+				/* XXX TODO: rtsrate is configurable? 24mbit
+				 * may be a bit high for RTS rate? */
+				txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
+				    URTWN_RIDX_OFDM24));
+			}
 
 			txd->txdw5 |= htole32(0x0001ff00);
 		} else	/* IEEE80211_FC0_TYPE_MGT */
@@ -5498,6 +5505,9 @@ urtwn_init(struct urtwn_softc *sc)
 		urtwn_write_1(sc, R88E_TX_RPT_CTRL,
 		    urtwn_read_1(sc, R88E_TX_RPT_CTRL) | R88E_TX_RPT1_ENA);
 	}
+
+	if (!(sc->chip & URTWN_CHIP_88E))
+		urtwn_write_4(sc, R92C_POWER_STATUS, 0x5);
 
 	/* Perform LO and IQ calibrations. */
 	urtwn_iq_calib(sc);
