@@ -163,6 +163,7 @@
 #define R92C_RD_RESP_PKT_TH		0x463
 #define R92C_INIRTS_RATE_SEL		0x480
 #define R92C_INIDATA_RATE_SEL(macid)	(0x484 + (macid))
+#define R92C_POWER_STATUS		0x4a4
 #define R92C_MAX_AGGR_NUM		0x4ca
 #define R88E_TX_RPT_CTRL		0x4ec
 #define R88E_TX_RPT_MACID_MAX		0x4ed
