@@ -58,7 +58,6 @@ CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
 
 LDFLAGS+=	-Wl,--warn-shared-textrel
-LDFLAGS+=	-Wl,--as-needed
 LDFLAGS+=	-Wl,--gc-sections
 LDFLAGS+=	-Wl,-z,noexecstack
 LDFLAGS+=	-Wl,-fini=__kmp_internal_end_fini
