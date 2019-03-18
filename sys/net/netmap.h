@@ -41,9 +41,9 @@
 #ifndef _NET_NETMAP_H_
 #define _NET_NETMAP_H_
 
-#define	NETMAP_API	13		/* current API version */
+#define	NETMAP_API	14		/* current API version */
 
-#define	NETMAP_MIN_API	13		/* min and max versions accepted */
+#define	NETMAP_MIN_API	14		/* min and max versions accepted */
 #define	NETMAP_MAX_API	15
 /*
  * Some fields should be cache-aligned to reduce contention.
@@ -64,34 +64,34 @@
    KERNEL (opaque, obviously)
 
   ====================================================================
-                                         |
-   USERSPACE                             |      struct netmap_ring
-                                         +---->+---------------+
-                                             / | head,cur,tail |
-   struct netmap_if (nifp, 1 per fd)        /  | buf_ofs       |
-    +---------------+                      /   | other fields  |
-    | ni_tx_rings   |                     /    +===============+
-    | ni_rx_rings   |                    /     | buf_idx, len  | slot[0]
-    |               |                   /      | flags, ptr    |
-    |               |                  /       +---------------+
-    +===============+                 /        | buf_idx, len  | slot[1]
-    | txring_ofs[0] | (rel.to nifp)--'         | flags, ptr    |
-    | txring_ofs[1] |                          +---------------+
-     (tx+1 entries)                           (num_slots entries)
-    | txring_ofs[t] |                          | buf_idx, len  | slot[n-1]
-    +---------------+                          | flags, ptr    |
-    | rxring_ofs[0] |                          +---------------+
-    | rxring_ofs[1] |
-     (rx+1 entries)
-    | rxring_ofs[r] |
-    +---------------+
+                                          |
+   USERSPACE                              |      struct netmap_ring
+                                          +---->+---------------+
+                                              / | head,cur,tail |
+   struct netmap_if (nifp, 1 per fd)         /  | buf_ofs       |
+    +----------------+                      /   | other fields  |
+    | ni_tx_rings    |                     /    +===============+
+    | ni_rx_rings    |                    /     | buf_idx, len  | slot[0]
+    |                |                   /      | flags, ptr    |
+    |                |                  /       +---------------+
+    +================+                 /        | buf_idx, len  | slot[1]
+    | txring_ofs[0]  | (rel.to nifp)--'         | flags, ptr    |
+    | txring_ofs[1]  |                          +---------------+
+     (tx+htx entries)                           (num_slots entries)
+    | txring_ofs[t]  |                          | buf_idx, len  | slot[n-1]
+    +----------------+                          | flags, ptr    |
+    | rxring_ofs[0]  |                          +---------------+
+    | rxring_ofs[1]  |
+     (rx+hrx entries)
+    | rxring_ofs[r]  |
+    +----------------+
 
  * For each "interface" (NIC, host stack, PIPE, VALE switch port) bound to
  * a file descriptor, the mmap()ed region contains a (logically readonly)
  * struct netmap_if pointing to struct netmap_ring's.
  *
- * There is one netmap_ring per physical NIC ring, plus one tx/rx ring
- * pair attached to the host stack (this pair is unused for non-NIC ports).
+ * There is one netmap_ring per physical NIC ring, plus at least one tx/rx ring
+ * pair attached to the host stack (these pairs are unused for non-NIC ports).
  *
  * All physical/host stack ports share the same memory region,
  * so that zero-copy can be implemented between them.
@@ -117,11 +117,6 @@
  *   as the index. On close, ni_bufs_head must point to the list of
  *   buffers to be released.
  *
- * + NIOCREGIF can request space for extra rings (and buffers)
- *   allocated in the same memory space. The number of extra rings
- *   is in nr_arg1, and is advisory. This is a no-op on NICs where
- *   the size of the memory space is fixed.
- *
  * + NIOCREGIF can attach to PIPE rings sharing the same memory
  *   space with a parent device. The ifname indicates the parent device,
  *   which must already exist. Flags in nr_flags indicate if we want to
@@ -133,21 +128,22 @@
  *
  *   Extra flags in nr_flags support the above functions.
  *   Application libraries may use the following naming scheme:
- *	netmap:foo			all NIC ring pairs
- *	netmap:foo^			only host ring pair
- *	netmap:foo+			all NIC ring + host ring pairs
- *	netmap:foo-k			the k-th NIC ring pair
- *	netmap:foo{k			PIPE ring pair k, master side
- *	netmap:foo}k			PIPE ring pair k, slave side
+ *	netmap:foo			all NIC rings pairs
+ *	netmap:foo^			only host rings pairs
+ *	netmap:foo^k			the k-th host rings pair
+ *	netmap:foo+			all NIC rings + host rings pairs
+ *	netmap:foo-k			the k-th NIC rings pair
+ *	netmap:foo{k			PIPE rings pair k, master side
+ *	netmap:foo}k			PIPE rings pair k, slave side
  *
  * Some notes about host rings:
  *
- * + The RX host ring is used to store those packets that the host network
+ * + The RX host rings are used to store those packets that the host network
  *   stack is trying to transmit through a NIC queue, but only if that queue
  *   is currently in netmap mode. Netmap will not intercept host stack mbufs
  *   designated to NIC queues that are not in netmap mode. As a consequence,
  *   registering a netmap port with netmap:foo^ is not enough to intercept
- *   mbufs in the RX host ring; the netmap port should be registered with
+ *   mbufs in the RX host rings; the netmap port should be registered with
  *   netmap:foo*, or another registration should be done to open at least a
  *   NIC TX queue in netmap mode.
  *
@@ -157,7 +153,7 @@
  *   ifconfig on FreeBSD or ethtool -K on Linux) for an interface that is being
  *   used in netmap mode. If the offloadings are not disabled, GSO and/or
  *   unchecksummed packets may be dropped immediately or end up in the host RX
- *   ring, and will be dropped as soon as the packet reaches another netmap
+ *   rings, and will be dropped as soon as the packet reaches another netmap
  *   adapter.
  */
 
@@ -366,7 +362,7 @@ struct netmap_if {
 	/*
 	 * The number of packet rings available in netmap mode.
 	 * Physical NICs can have different numbers of tx and rx rings.
-	 * Physical NICs also have a 'host' ring pair.
+	 * Physical NICs also have at least a 'host' rings pair.
 	 * Additionally, clients can request additional ring pairs to
 	 * be used for internal communication.
 	 */
@@ -374,14 +370,18 @@ struct netmap_if {
 	const uint32_t	ni_rx_rings;	/* number of HW rx rings */
 
 	uint32_t	ni_bufs_head;	/* head index for extra bufs */
-	uint32_t	ni_spare1[5];
+	const uint32_t	ni_host_tx_rings; /* number of SW tx rings */
+	const uint32_t	ni_host_rx_rings; /* number of SW rx rings */
+	uint32_t	ni_spare1[3];
 	/*
 	 * The following array contains the offset of each netmap ring
 	 * from this structure, in the following order:
-	 * NIC tx rings (ni_tx_rings); host tx ring (1); extra tx rings;
-	 * NIC rx rings (ni_rx_rings); host tx ring (1); extra rx rings.
+	 *     - NIC tx rings (ni_tx_rings);
+	 *     - host tx rings (ni_host_tx_rings);
+	 *     - NIC rx rings (ni_rx_rings);
+	 *     - host rx ring (ni_host_rx_rings);
 	 *
-	 * The area is filled up by the kernel on NIOCREGIF,
+	 * The area is filled up by the kernel on NETMAP_REQ_REGISTER,
 	 * and then only read by userspace code.
 	 */
 	const ssize_t	ring_ofs[0];
@@ -422,7 +422,8 @@ struct netmap_if {
  * The request body (struct nmreq_register) has several arguments to
  * specify how the port is to be registered.
  *
- *	nr_tx_slots, nr_tx_slots, nr_tx_rings, nr_rx_rings (in/out)
+ *	nr_tx_slots, nr_tx_slots, nr_tx_rings, nr_rx_rings,
+ *	nr_host_tx_rings, nr_host_rx_rings (in/out)
  *		On input, non-zero values may be used to reconfigure the port
  *		according to the requested values, but this is not guaranteed.
  *		On output the actual values in use are reported.
@@ -574,6 +575,8 @@ struct nmreq_register {
 	uint32_t	nr_rx_slots;	/* slots in rx rings */
 	uint16_t	nr_tx_rings;	/* number of tx rings */
 	uint16_t	nr_rx_rings;	/* number of rx rings */
+	uint16_t	nr_host_tx_rings; /* number of host tx rings */
+	uint16_t	nr_host_rx_rings; /* number of host rx rings */
 
 	uint16_t	nr_mem_id;	/* id of the memory allocator */
 	uint16_t	nr_ringid;	/* ring(s) we care about */
@@ -592,9 +595,9 @@ struct nmreq_register {
 #define NR_TX_RINGS_ONLY	0x4000
 /* Applications set this flag if they are able to deal with virtio-net headers,
  * that is send/receive frames that start with a virtio-net header.
- * If not set, NIOCREGIF will fail with netmap ports that require applications
- * to use those headers. If the flag is set, the application can use the
- * NETMAP_VNET_HDR_GET command to figure out the header length. */
+ * If not set, NETMAP_REQ_REGISTER will fail with netmap ports that require
+ * applications to use those headers. If the flag is set, the application can
+ * use the NETMAP_VNET_HDR_GET command to figure out the header length. */
 #define NR_ACCEPT_VNET_HDR	0x8000
 /* The following two have the same meaning of NETMAP_NO_TX_POLL and
  * NETMAP_DO_RX_POLL. */
@@ -611,6 +614,7 @@ enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
 	NR_REG_PIPE_MASTER = 5, /* deprecated, use "x{y" port name syntax */
 	NR_REG_PIPE_SLAVE = 6,  /* deprecated, use "x}y" port name syntax */
 	NR_REG_NULL     = 7,
+	NR_REG_ONE_SW	= 8,
 };
 
 /* A single ioctl number is shared by all the new API command.
@@ -622,7 +626,7 @@ enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
 
 /* The ioctl commands to sync TX/RX netmap rings.
  * NIOCTXSYNC, NIOCRXSYNC synchronize tx or rx queues,
- *	whose identity is set in NIOCREGIF through nr_ringid.
+ *	whose identity is set in NETMAP_REQ_REGISTER through nr_ringid.
  *	These are non blocking and take no argument. */
 #define NIOCTXSYNC	_IO('i', 148) /* sync tx queues */
 #define NIOCRXSYNC	_IO('i', 149) /* sync rx queues */
@@ -640,8 +644,10 @@ struct nmreq_port_info_get {
 	uint32_t	nr_rx_slots;	/* slots in rx rings */
 	uint16_t	nr_tx_rings;	/* number of tx rings */
 	uint16_t	nr_rx_rings;	/* number of rx rings */
+	uint16_t	nr_host_tx_rings; /* number of host tx rings */
+	uint16_t	nr_host_rx_rings; /* number of host rx rings */
 	uint16_t	nr_mem_id;	/* memory allocator id (in/out) */
-	uint16_t	pad1;
+	uint16_t	pad[3];
 };
 
 #define	NM_BDG_NAME		"vale"	/* prefix for bridge port name */

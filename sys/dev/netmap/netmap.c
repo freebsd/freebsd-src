@@ -1035,6 +1035,10 @@ netmap_do_unregif(struct netmap_priv_d *priv)
 		}
 
 		na->nm_krings_delete(na);
+
+		/* restore the default number of host tx and rx rings */
+		na->num_host_tx_rings = 1;
+		na->num_host_rx_rings = 1;
 	}
 
 	/* possibily decrement counter of tx_si/rx_si users */
@@ -1575,6 +1579,19 @@ netmap_get_na(struct nmreq_header *hdr,
 	*na = ret;
 	netmap_adapter_get(ret);
 
+	/*
+	 * if the adapter supports the host rings and it is not alread open,
+	 * try to set the number of host rings as requested by the user
+	 */
+	if (((*na)->na_flags & NAF_HOST_RINGS) && (*na)->active_fds == 0) {
+		if (req->nr_host_tx_rings)
+			(*na)->num_host_tx_rings = req->nr_host_tx_rings;
+		if (req->nr_host_rx_rings)
+			(*na)->num_host_rx_rings = req->nr_host_rx_rings;
+	}
+	nm_prdis("%s: host tx %d rx %u", (*na)->name, (*na)->num_host_tx_rings,
+			(*na)->num_host_rx_rings);
+
 out:
 	if (error) {
 		if (ret)
@@ -1854,6 +1871,25 @@ netmap_interp_ringid(struct netmap_priv_d *priv, uint32_t nr_mode,
 			priv->np_qfirst[t] = j;
 			priv->np_qlast[t] = j + 1;
 			nm_prdis("ONE_NIC: %s %d %d", nm_txrx2str(t),
+				priv->np_qfirst[t], priv->np_qlast[t]);
+			break;
+		case NR_REG_ONE_SW:
+			if (!(na->na_flags & NAF_HOST_RINGS)) {
+				nm_prerr("host rings not supported");
+				return EINVAL;
+			}
+			if (nr_ringid >= na->num_host_tx_rings &&
+					nr_ringid >= na->num_host_rx_rings) {
+				nm_prerr("invalid ring id %d", nr_ringid);
+				return EINVAL;
+			}
+			/* if not enough rings, use the first one */
+			j = nr_ringid;
+			if (j >= nma_get_host_nrings(na, t))
+				j = 0;
+			priv->np_qfirst[t] = nma_get_nrings(na, t) + j;
+			priv->np_qlast[t] = nma_get_nrings(na, t) + j + 1;
+			nm_prdis("ONE_SW: %s %d %d", nm_txrx2str(t),
 				priv->np_qfirst[t], priv->np_qlast[t]);
 			break;
 		default:
@@ -2546,6 +2582,8 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 				req->nr_tx_rings = na->num_tx_rings;
 				req->nr_rx_slots = na->num_rx_desc;
 				req->nr_tx_slots = na->num_tx_desc;
+				req->nr_host_tx_rings = na->num_host_tx_rings;
+				req->nr_host_rx_rings = na->num_host_rx_rings;
 				error = netmap_mem_get_info(na->nm_mem, &req->nr_memsize, &memflags,
 					&req->nr_mem_id);
 				if (error) {
@@ -2610,6 +2648,8 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 					regreq.nr_rx_slots = req->nr_rx_slots;
 					regreq.nr_tx_rings = req->nr_tx_rings;
 					regreq.nr_rx_rings = req->nr_rx_rings;
+					regreq.nr_host_tx_rings = req->nr_host_tx_rings;
+					regreq.nr_host_rx_rings = req->nr_host_rx_rings;
 					regreq.nr_mem_id = req->nr_mem_id;
 
 					/* get a refcount */
@@ -2647,6 +2687,8 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 				req->nr_tx_rings = na->num_tx_rings;
 				req->nr_rx_slots = na->num_rx_desc;
 				req->nr_tx_slots = na->num_tx_desc;
+				req->nr_host_tx_rings = na->num_host_tx_rings;
+				req->nr_host_rx_rings = na->num_host_rx_rings;
 			} while (0);
 			netmap_unget_na(na, ifp);
 			NMG_UNLOCK();
