@@ -15,7 +15,7 @@ device		pcf2123_rtc
 
 # GEOM modules
 device		geom_redboot	# to get access to the SPI flash partitions
-device		geom_uzip	# compressed in-memory filesystem hackery!
+device		xz
 options 	GEOM_UZIP
 
 # Boot from the first MFS uzip
