@@ -478,6 +478,7 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 	struct ucred *cred = ap->a_cred;
 	struct thread *td = curthread;
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct fuse_attr_out *fao;
 
 	int err = 0;
 	int dataflags;
@@ -509,7 +510,9 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 		goto out;
 	}
 
-	cache_attrs(vp, (struct fuse_attr_out *)fdi.answ, vap);
+	fao = (struct fuse_attr_out *)fdi.answ;
+	fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
+		fao->attr_valid_nsec, vap);
 	if (vap->va_type != vnode_vtype(vp)) {
 		fuse_internal_vnode_disappear(vp);
 		err = ENOENT;
@@ -975,11 +978,17 @@ calldaemon:
 		}
 
 		if (op == FUSE_GETATTR) {
-			cache_attrs(*vpp, (struct fuse_attr_out *)fdi.answ,
-			    NULL);
+			struct fuse_attr_out *fao =
+				(struct fuse_attr_out*)fdi.answ;
+			fuse_internal_cache_attrs(*vpp,
+				&fao->attr, fao->attr_valid,
+				fao->attr_valid_nsec, NULL);
 		} else {
-			cache_attrs(*vpp, (struct fuse_entry_out *)fdi.answ,
-			    NULL);
+			struct fuse_entry_out *feo =
+				(struct fuse_entry_out*)fdi.answ;
+			fuse_internal_cache_attrs(*vpp,
+				&feo->attr, feo->attr_valid,
+				feo->attr_valid_nsec, NULL);
 		}
 
 		/* Insert name into cache if appropriate. */
@@ -1636,8 +1645,11 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 			err = EAGAIN;
 		}
 	}
-	if (err == 0)
-		cache_attrs(vp, (struct fuse_attr_out *)fdi.answ, NULL);
+	if (err == 0) {
+		struct fuse_attr_out *fao = (struct fuse_attr_out*)fdi.answ;
+		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
+			fao->attr_valid_nsec, NULL);
+	}
 
 out:
 	fdisp_destroy(&fdi);
