@@ -207,6 +207,66 @@ fuse_internal_access(struct vnode *vp,
 	return err;
 }
 
+/*
+ * Cache FUSE attributes from feo, in attr cache associated with vnode 'vp'.
+ * Optionally, if argument 'vap' is not NULL, store a copy of the converted
+ * attributes there as well.
+ *
+ * If the nominal attribute cache TTL is zero, do not cache on the 'vp' (but do
+ * return the result to the caller).
+ */
+void
+fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
+	uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap)
+{
+	struct mount *mp;
+	struct fuse_vnode_data *fvdat;
+	struct vattr *vp_cache_at;
+
+	mp = vnode_mount(vp);
+	fvdat = VTOFUD(vp);
+
+	/* Honor explicit do-not-cache requests from user filesystems. */
+	if (attr_valid == 0 && attr_valid_nsec == 0)
+		fvdat->valid_attr_cache = false;
+	else
+		fvdat->valid_attr_cache = true;
+
+	vp_cache_at = VTOVA(vp);
+
+	if (vap == NULL && vp_cache_at == NULL)
+		return;
+
+	if (vap == NULL)
+		vap = vp_cache_at;
+
+	vattr_null(vap);
+
+	vap->va_fsid = mp->mnt_stat.f_fsid.val[0];
+	vap->va_fileid = attr->ino;
+	vap->va_mode = attr->mode & ~S_IFMT;
+	vap->va_nlink     = attr->nlink;
+	vap->va_uid       = attr->uid;
+	vap->va_gid       = attr->gid;
+	vap->va_rdev      = attr->rdev;
+	vap->va_size      = attr->size;
+	/* XXX on i386, seconds are truncated to 32 bits */
+	vap->va_atime.tv_sec  = attr->atime;
+	vap->va_atime.tv_nsec = attr->atimensec;
+	vap->va_mtime.tv_sec  = attr->mtime;
+	vap->va_mtime.tv_nsec = attr->mtimensec;
+	vap->va_ctime.tv_sec  = attr->ctime;
+	vap->va_ctime.tv_nsec = attr->ctimensec;
+	vap->va_blocksize = PAGE_SIZE;
+	vap->va_type = IFTOVT(attr->mode);
+	vap->va_bytes = attr->blocks * S_BLKSIZE;
+	vap->va_flags = 0;
+
+	if (vap != vp_cache_at && vp_cache_at != NULL)
+		memcpy(vp_cache_at, vap, sizeof(*vap));
+}
+
+
 /* fsync */
 
 int
@@ -472,7 +532,8 @@ fuse_internal_newentry_core(struct vnode *dvp,
 		    feo->nodeid, 1);
 		return err;
 	}
-	cache_attrs(*vpp, feo, NULL);
+	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
+		feo->attr_valid_nsec, NULL);
 
 	return err;
 }
