@@ -3276,9 +3276,14 @@ defrag:
 				txq->ift_mbuf_defrag++;
 				m_head = m_defrag(*m_headp, M_NOWAIT);
 			}
-			remap++;
-			if (__predict_false(m_head == NULL))
+			/*
+			 * remap should never be >1 unless bus_dmamap_load_mbuf_sg
+			 * failed to map an mbuf that was run through m_defrag
+			 */
+			MPASS(remap <= 1);
+			if (__predict_false(m_head == NULL || remap > 1))
 				goto defrag_failed;
+			remap++;
 			*m_headp = m_head;
 			goto retry;
 			break;
