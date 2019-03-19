@@ -6257,8 +6257,8 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 						      CTLFLAG_RD, NULL, "IFLIB fields");
 	oid_list = SYSCTL_CHILDREN(node);
 
-	SYSCTL_ADD_STRING(ctx_list, oid_list, OID_AUTO, "driver_version",
-		       CTLFLAG_RD, ctx->ifc_sctx->isc_driver_version, 0,
+	SYSCTL_ADD_CONST_STRING(ctx_list, oid_list, OID_AUTO, "driver_version",
+		       CTLFLAG_RD, ctx->ifc_sctx->isc_driver_version,
 		       "driver version");
 
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_ntxqs",
