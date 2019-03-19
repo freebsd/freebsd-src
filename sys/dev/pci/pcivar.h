@@ -259,6 +259,14 @@ typedef struct {
 
 extern uint32_t pci_numdevs;
 
+/*
+ * The bitfield has to be stable an match the fields below (so that
+ * match_flag_vendor must be bit 0) so we have to do the endian
+ * dance. We can't use enums or #define constants because then the
+ * the macros for subsetting matches wouldn't work. These tables
+ * are parsed by devmatch and others to connect modules with
+ * devices on the PCI bus.
+ */
 struct pci_device_table {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	uint16_t
