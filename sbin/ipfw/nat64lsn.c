@@ -783,7 +783,7 @@ nat64lsn_show_cb(ipfw_nat64lsn_cfg *cfg, const char *name, uint8_t set)
 	if (co.verbose || cfg->nh_delete_delay != NAT64LSN_HOST_AGE)
 		printf(" host_del_age %u", cfg->nh_delete_delay);
 	if (co.verbose || cfg->pg_delete_delay != NAT64LSN_PG_AGE)
-		printf(" pg_del_age %u ", cfg->pg_delete_delay);
+		printf(" pg_del_age %u", cfg->pg_delete_delay);
 	if (co.verbose || cfg->st_syn_ttl != NAT64LSN_TCP_SYN_AGE)
 		printf(" tcp_syn_age %u", cfg->st_syn_ttl);
 	if (co.verbose || cfg->st_close_ttl != NAT64LSN_TCP_FIN_AGE)
@@ -795,7 +795,7 @@ nat64lsn_show_cb(ipfw_nat64lsn_cfg *cfg, const char *name, uint8_t set)
 	if (co.verbose || cfg->st_icmp_ttl != NAT64LSN_ICMP_AGE)
 		printf(" icmp_age %u", cfg->st_icmp_ttl);
 	if (co.verbose || cfg->jmaxlen != NAT64LSN_JMAXLEN)
-		printf(" jmaxlen %u ", cfg->jmaxlen);
+		printf(" jmaxlen %u", cfg->jmaxlen);
 	if (cfg->flags & NAT64_LOG)
 		printf(" log");
 	if (cfg->flags & NAT64_ALLOW_PRIVATE)
