@@ -46,10 +46,6 @@ CONFS=	DAEMON \
 	hostname \
 	iovctl \
 	ip6addrctl \
-	ipfilter \
-	ipfs \
-	ipmon \
-	ipnat \
 	ipsec \
 	${_kadmind} \
 	${_kdc} \
@@ -213,6 +209,13 @@ HASTPACKAGE=	hast
 
 .if ${MK_INETD} != "no"
 CONFS+=		inetd
+.endif
+
+.if ${MK_IPFILTER} != "no"
+CONFS+=	ipfilter \
+	ipfs \
+	ipmon \
+	ipnat
 .endif
 
 .if ${MK_IPFW} != "no"
