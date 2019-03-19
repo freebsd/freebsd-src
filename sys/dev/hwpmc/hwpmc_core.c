@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
+#include <sys/smp.h>
 #include <sys/systm.h>
 
 #include <machine/intr_machdep.h>
@@ -102,6 +103,9 @@ static int core_iaf_npmc;
 static int core_iap_width;
 static int core_iap_npmc;
 static int core_iap_wroffset;
+
+static u_int pmc_alloc_refs;
+static bool pmc_tsx_force_abort_set;
 
 static int
 core_pcpu_noop(struct pmc_mdep *md, int cpu)
@@ -216,6 +220,15 @@ iaf_reload_count_to_perfctr_value(pmc_value_t rlc)
 	return (1ULL << core_iaf_width) - rlc;
 }
 
+static void
+tweak_tsx_force_abort(void *arg)
+{
+	u_int val;
+
+	val = (uintptr_t)arg;
+	wrmsr(MSR_TSX_FORCE_ABORT, val);
+}
+
 static int
 iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
@@ -253,6 +266,12 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (ev == 0x0 && umask == 0x3 && ri != 2)
 		return (EINVAL);
 
+	pmc_alloc_refs++;
+	if ((cpu_stdext_feature3 & CPUID_STDEXT3_TSXFA) != 0 &&
+	    !pmc_tsx_force_abort_set) {
+		pmc_tsx_force_abort_set = true;
+		smp_rendezvous(NULL, tweak_tsx_force_abort, NULL, (void *)1);
+	}
 
 	flags = 0;
 	if (config & IAP_OS)
@@ -388,6 +407,12 @@ iaf_release_pmc(int cpu, int ri, struct pmc *pmc)
 
 	KASSERT(core_pcpu[cpu]->pc_corepmcs[ri + core_iaf_ri].phw_pmc == NULL,
 	    ("[core,%d] PHW pmc non-NULL", __LINE__));
+
+	MPASS(pmc_alloc_refs > 0);
+	if (pmc_alloc_refs-- == 1 && pmc_tsx_force_abort_set) {
+		pmc_tsx_force_abort_set = false;
+		smp_rendezvous(NULL, tweak_tsx_force_abort, NULL, (void *)0);
+	}
 
 	return (0);
 }
