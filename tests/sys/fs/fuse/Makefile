@@ -7,35 +7,35 @@ TESTSDIR=	${TESTSBASE}/sys/fs/fuse
 # We could simply link all of these files into a single executable.  But since
 # Kyua treats googletest programs as plain tests, it's better to separate them
 # out, so we get more granular reporting.
-ATF_TESTS_CXX+=	access
-ATF_TESTS_CXX+=	create
-ATF_TESTS_CXX+=	default_permissions
-ATF_TESTS_CXX+=	destroy
-ATF_TESTS_CXX+=	flush
-ATF_TESTS_CXX+=	fsync
-ATF_TESTS_CXX+=	fsyncdir
-ATF_TESTS_CXX+=	getattr
-ATF_TESTS_CXX+=	interrupt
-ATF_TESTS_CXX+=	link
-ATF_TESTS_CXX+=	locks
-ATF_TESTS_CXX+=	lookup
-ATF_TESTS_CXX+=	mkdir
-ATF_TESTS_CXX+=	mknod
-ATF_TESTS_CXX+=	open
-ATF_TESTS_CXX+=	opendir
-ATF_TESTS_CXX+=	read
-ATF_TESTS_CXX+=	readdir
-ATF_TESTS_CXX+=	readlink
-ATF_TESTS_CXX+=	release
-ATF_TESTS_CXX+=	releasedir
-ATF_TESTS_CXX+=	rename
-ATF_TESTS_CXX+=	rmdir
-ATF_TESTS_CXX+=	setattr
-ATF_TESTS_CXX+=	statfs
-ATF_TESTS_CXX+=	symlink
-ATF_TESTS_CXX+=	unlink
-ATF_TESTS_CXX+=	write
-ATF_TESTS_CXX+=	xattr
+GTESTS+=	access
+GTESTS+=	create
+GTESTS+=	default_permissions
+GTESTS+=	destroy
+GTESTS+=	flush
+GTESTS+=	fsync
+GTESTS+=	fsyncdir
+GTESTS+=	getattr
+GTESTS+=	interrupt
+GTESTS+=	link
+GTESTS+=	locks
+GTESTS+=	lookup
+GTESTS+=	mkdir
+GTESTS+=	mknod
+GTESTS+=	open
+GTESTS+=	opendir
+GTESTS+=	read
+GTESTS+=	readdir
+GTESTS+=	readlink
+GTESTS+=	release
+GTESTS+=	releasedir
+GTESTS+=	rename
+GTESTS+=	rmdir
+GTESTS+=	setattr
+GTESTS+=	statfs
+GTESTS+=	symlink
+GTESTS+=	unlink
+GTESTS+=	write
+GTESTS+=	xattr
 
 SRCS.access+=	access.cc
 SRCS.access+=	getmntopts.c
@@ -51,6 +51,7 @@ SRCS.default_permissions+=	default_permissions.cc
 SRCS.default_permissions+=	getmntopts.c
 SRCS.default_permissions+=	mockfs.cc
 SRCS.default_permissions+=	utils.cc
+TEST_METADATA.default_permissions+=	required_user="unprivileged"
 
 SRCS.destroy+=	destroy.cc
 SRCS.destroy+=	getmntopts.c
@@ -106,6 +107,7 @@ SRCS.mknod+=	getmntopts.c
 SRCS.mknod+=	mockfs.cc
 SRCS.mknod+=	mknod.cc
 SRCS.mknod+=	utils.cc
+TEST_METADATA.mknod+=	required_user="root"
 
 SRCS.open+=	getmntopts.c
 SRCS.open+=	mockfs.cc
@@ -191,22 +193,16 @@ CFLAGS+=	-I${.CURDIR:H:H:H}
 CFLAGS+=	-I${FUSEFS}
 CFLAGS+=	-I${MOUNT}
 .PATH:		${MOUNT}
+CXXSTD=		c++14
 
-LIBADD+=	util pthread
-WARNS?=	6
-NO_WTHREAD_SAFETY=	# GoogleTest fails Clang's thread safety check
+# XXX Setting CXXFLAGS globally seems to be necessary to get mockfs.cc and
+# utils.cc to build correctly.
+CXXFLAGS+=	${GTESTS_CXXFLAGS}
 
-# Use googlemock from ports until after the import-googletest-1.8.1 branch
-# merges to head.
-CXXFLAGS+=	-I/usr/local/include
-CXXFLAGS+=	-DGTEST_HAS_POSIX_RE=1
-CXXFLAGS+=	-DGTEST_HAS_PTHREAD=1
-CXXFLAGS+=	-DGTEST_HAS_STREAM_REDIRECTION=1
-CXXFLAGS+=	-frtti
-CXXFLAGS+=	-std=c++14
-LDADD+=		${LOCALBASE}/lib/libgmock.a
-LDADD+=		${LOCALBASE}/lib/libgtest.a
-# Without -lpthread, gtest fails at _runtime_ with the error pthread_key_create(&key, &DeleteThreadLocalValue)failed with error 78
 LIBADD+=	pthread
+LIBADD+=	gmock gtest
+LIBADD+=	util
+
+WARNS?=	6
 
 .include <bsd.test.mk>
