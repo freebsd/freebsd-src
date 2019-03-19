@@ -517,7 +517,7 @@ phy_get_by_ofw_property(device_t consumer_dev, phandle_t cnode, char *name,
 	ncells = OF_getencprop_alloc_multi(cnode, name, sizeof(pcell_t),
 	    (void **)&cells);
 	if (ncells < 1)
-		return (ENXIO);
+		return (ENOENT);
 
 	/* Tranlate provider to device. */
 	phydev = OF_device_from_xref(cells[0]);
