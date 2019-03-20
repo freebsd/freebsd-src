@@ -46,11 +46,12 @@ using namespace testing;
 class DefaultPermissions: public FuseTest {
 
 virtual void SetUp() {
+	FuseTest::SetUp();
+
 	if (geteuid() == 0) {
-		FAIL() << "This test requires an unprivileged user";
+		GTEST_SKIP() << "This test requires an unprivileged user";
 	}
 	m_default_permissions = true;
-	FuseTest::SetUp();
 }
 
 public:

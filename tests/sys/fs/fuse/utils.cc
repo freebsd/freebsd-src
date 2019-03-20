@@ -40,31 +40,36 @@
 
 using namespace testing;
 
+/* Check that fuse(4) is accessible and the current user can mount(2) */
+void check_environment()
+{
+	const char *mod_name = "fuse";
+	const char *devnode = "/dev/fuse";
+	const char *usermount_node = "vfs.usermount";
+	int usermount_val = 0;
+	size_t usermount_size = sizeof(usermount_val);
+	if (modfind(mod_name) == -1) {
+		GTEST_SKIP() << "Module " << mod_name <<
+			" could not be resolved";
+	}
+	if (eaccess(devnode, R_OK | W_OK)) {
+		if (errno == ENOENT) {
+			GTEST_SKIP() << devnode << " does not exist";
+		} else if (errno == EACCES) {
+			GTEST_SKIP() << devnode <<
+			    " is not accessible by the current user";
+		} else {
+			GTEST_SKIP() << strerror(errno);
+		}
+	}
+	sysctlbyname(usermount_node, &usermount_val, &usermount_size,
+		     NULL, 0);
+	if (geteuid() != 0 && !usermount_val)
+		GTEST_SKIP() << "current user is not allowed to mount";
+}
+
 class FuseEnv: public Environment {
 	virtual void SetUp() {
-		const char *mod_name = "fuse";
-		const char *devnode = "/dev/fuse";
-		const char *usermount_node = "vfs.usermount";
-		int usermount_val = 0;
-		size_t usermount_size = sizeof(usermount_val);
-		if (modfind(mod_name) == -1) {
-			FAIL() << "Module " << mod_name <<
-				" could not be resolved";
-		}
-		if (eaccess(devnode, R_OK | W_OK)) {
-			if (errno == ENOENT) {
-				FAIL() << devnode << " does not exist";
-			} else if (errno == EACCES) {
-				FAIL() << devnode <<
-				    " is not accessible by the current user";
-			} else {
-				FAIL() << strerror(errno);
-			}
-		}
-		sysctlbyname(usermount_node, &usermount_val, &usermount_size,
-			     NULL, 0);
-		if (geteuid() != 0 && !usermount_val)
-			FAIL() << "current user is not allowed to mount";
 	}
 };
 
@@ -72,6 +77,14 @@ void FuseTest::SetUp() {
 	const char *node = "vfs.maxbcachebuf";
 	int val = 0;
 	size_t size = sizeof(val);
+
+	/*
+	 * XXX check_environment should be called from FuseEnv::SetUp, but
+	 * can't due to https://github.com/google/googletest/issues/2189
+	 */
+	check_environment();
+	if (IsSkipped())
+		return;
 
 	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
 		<< strerror(errno);

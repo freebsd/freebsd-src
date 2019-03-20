@@ -42,11 +42,11 @@ class Mknod: public FuseTest {
 public:
 
 virtual void SetUp() {
-	if (geteuid() != 0) {
-		// TODO: With GoogleTest 1.8.2, use SKIP instead
-		FAIL() << "Only root may use most mknod(2) variations";
-	}
 	FuseTest::SetUp();
+
+	if (geteuid() != 0) {
+		GTEST_SKIP() << "Only root may use most mknod(2) variations";
+	}
 }
 
 /* Test an OK creation of a file with the given mode and device number */
