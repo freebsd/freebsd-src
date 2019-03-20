@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-HAVE_ZFS=		${MK_ZFS}
+HAVE_ZFS=		${MK_LOADER_ZFS}
 
 LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
@@ -21,7 +21,7 @@ NEWVERSWHAT?=	"bootstrap loader" sparc64
 VERSION_FILE=	${.CURDIR}/../loader/version
 INSTALLFLAGS=	-b
 
-.if ${MK_ZFS} != "no"
+.if ${MK_LOADER_ZFS} != "no"
 HAVE_ZFS=	yes
 .endif
 
@@ -42,7 +42,7 @@ HELP_FILES=	${.CURDIR}/help.sparc64
 
 LDFLAGS+=	-static
 
-.if ${MK_ZFS} == "yes"
+.if ${MK_LOADER_ZFS} == "yes"
 LINKS=		${BINDIR}/loader ${BINDIR}/zfsloader
 .endif
 
