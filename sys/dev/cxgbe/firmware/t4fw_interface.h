@@ -4798,6 +4798,7 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_RI_WRITE_CMPL_WR	= 0x24,
 	FW_PARAMS_PARAM_DEV_ADD_SMAC = 0x25,
 	FW_PARAMS_PARAM_DEV_HPFILTER_REGION_SUPPORT = 0x26,
+	FW_PARAMS_PARAM_DEV_OPAQUE_VIID_SMT_EXTN = 0x27,
 };
 
 /*
@@ -6502,6 +6503,19 @@ struct fw_vi_cmd {
     (((x) >> S_FW_VI_CMD_FREE) & M_FW_VI_CMD_FREE)
 #define F_FW_VI_CMD_FREE		V_FW_VI_CMD_FREE(1U)
 
+#define S_FW_VI_CMD_VFVLD		24
+#define M_FW_VI_CMD_VFVLD		0x1
+#define V_FW_VI_CMD_VFVLD(x)		((x) << S_FW_VI_CMD_VFVLD)
+#define G_FW_VI_CMD_VFVLD(x)		\
+    (((x) >> S_FW_VI_CMD_VFVLD) & M_FW_VI_CMD_VFVLD)
+#define F_FW_VI_CMD_VFVLD		V_FW_VI_CMD_VFVLD(1U)
+
+#define S_FW_VI_CMD_VIN			16
+#define M_FW_VI_CMD_VIN			0xff
+#define V_FW_VI_CMD_VIN(x)		((x) << S_FW_VI_CMD_VIN)
+#define G_FW_VI_CMD_VIN(x)		\
+    (((x) >> S_FW_VI_CMD_VIN) & M_FW_VI_CMD_VIN)
+
 #define S_FW_VI_CMD_TYPE		15
 #define M_FW_VI_CMD_TYPE		0x1
 #define V_FW_VI_CMD_TYPE(x)		((x) << S_FW_VI_CMD_TYPE)
@@ -6607,6 +6621,12 @@ struct fw_vi_mac_cmd {
 		} exact_vni[2];
 	} u;
 };
+
+#define S_FW_VI_MAC_CMD_SMTID		12
+#define M_FW_VI_MAC_CMD_SMTID		0xff
+#define V_FW_VI_MAC_CMD_SMTID(x)	((x) << S_FW_VI_MAC_CMD_SMTID)
+#define G_FW_VI_MAC_CMD_SMTID(x)	\
+    (((x) >> S_FW_VI_MAC_CMD_SMTID) & M_FW_VI_MAC_CMD_SMTID)
 
 #define S_FW_VI_MAC_CMD_VIID		0
 #define M_FW_VI_MAC_CMD_VIID		0xfff

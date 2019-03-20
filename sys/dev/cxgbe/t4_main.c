@@ -2486,17 +2486,13 @@ alloc_extra_vi(struct adapter *sc, struct port_info *pi, struct vi_info *vi)
 	    device_get_nameunit(vi->dev)));
 	func = vi_mac_funcs[index];
 	rc = t4_alloc_vi_func(sc, sc->mbox, pi->tx_chan, sc->pf, 0, 1,
-	    vi->hw_addr, &vi->rss_size, func, 0);
+	    vi->hw_addr, &vi->rss_size, &vi->vfvld, &vi->vin, func, 0);
 	if (rc < 0) {
 		device_printf(vi->dev, "failed to allocate virtual interface %d"
 		    "for port %d: %d\n", index, pi->port_id, -rc);
 		return (-rc);
 	}
 	vi->viid = rc;
-	if (chip_id(sc) <= CHELSIO_T5)
-		vi->smt_idx = (rc & 0x7f) << 1;
-	else
-		vi->smt_idx = (rc & 0x7f);
 
 	if (vi->rss_size == 1) {
 		/*
@@ -4113,6 +4109,15 @@ set_params__pre_init(struct adapter *sc)
 		}
 	}
 
+	/* Enable opaque VIIDs with firmwares that support it. */
+	param = FW_PARAM_DEV(OPAQUE_VIID_SMT_EXTN);
+	val = 1;
+	rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+	if (rc == 0 && val == 1)
+		sc->params.viid_smt_extn_support = true;
+	else
+		sc->params.viid_smt_extn_support = false;
+
 	return (rc);
 }
 
@@ -4825,7 +4830,7 @@ update_mac_settings(struct ifnet *ifp, int flags)
 
 		bcopy(IF_LLADDR(ifp), ucaddr, sizeof(ucaddr));
 		rc = t4_change_mac(sc, sc->mbox, vi->viid, vi->xact_addr_filt,
-		    ucaddr, true, true);
+		    ucaddr, true, &vi->smt_idx);
 		if (rc < 0) {
 			rc = -rc;
 			if_printf(ifp, "change_mac failed: %d\n", rc);
@@ -5746,7 +5751,7 @@ get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 #define	A_PL_INDIR_DATA	0x1fc
 
 static uint64_t
-read_vf_stat(struct adapter *sc, unsigned int viid, int reg)
+read_vf_stat(struct adapter *sc, u_int vin, int reg)
 {
 	u32 stats[2];
 
@@ -5756,8 +5761,7 @@ read_vf_stat(struct adapter *sc, unsigned int viid, int reg)
 		stats[1] = t4_read_reg(sc, VF_MPS_REG(reg + 4));
 	} else {
 		t4_write_reg(sc, A_PL_INDIR_CMD, V_PL_AUTOINC(1) |
-		    V_PL_VFID(G_FW_VIID_VIN(viid)) |
-		    V_PL_ADDR(VF_MPS_REG(reg)));
+		    V_PL_VFID(vin) | V_PL_ADDR(VF_MPS_REG(reg)));
 		stats[0] = t4_read_reg(sc, A_PL_INDIR_DATA);
 		stats[1] = t4_read_reg(sc, A_PL_INDIR_DATA);
 	}
@@ -5765,12 +5769,11 @@ read_vf_stat(struct adapter *sc, unsigned int viid, int reg)
 }
 
 static void
-t4_get_vi_stats(struct adapter *sc, unsigned int viid,
-    struct fw_vi_stats_vf *stats)
+t4_get_vi_stats(struct adapter *sc, u_int vin, struct fw_vi_stats_vf *stats)
 {
 
 #define GET_STAT(name) \
-	read_vf_stat(sc, viid, A_MPS_VF_STAT_##name##_L)
+	read_vf_stat(sc, vin, A_MPS_VF_STAT_##name##_L)
 
 	stats->tx_bcast_bytes    = GET_STAT(TX_VF_BCAST_BYTES);
 	stats->tx_bcast_frames   = GET_STAT(TX_VF_BCAST_FRAMES);
@@ -5793,12 +5796,11 @@ t4_get_vi_stats(struct adapter *sc, unsigned int viid,
 }
 
 static void
-t4_clr_vi_stats(struct adapter *sc, unsigned int viid)
+t4_clr_vi_stats(struct adapter *sc, u_int vin)
 {
 	int reg;
 
-	t4_write_reg(sc, A_PL_INDIR_CMD, V_PL_AUTOINC(1) |
-	    V_PL_VFID(G_FW_VIID_VIN(viid)) |
+	t4_write_reg(sc, A_PL_INDIR_CMD, V_PL_AUTOINC(1) | V_PL_VFID(vin) |
 	    V_PL_ADDR(VF_MPS_REG(A_MPS_VF_STAT_TX_VF_BCAST_BYTES_L)));
 	for (reg = A_MPS_VF_STAT_TX_VF_BCAST_BYTES_L;
 	     reg <= A_MPS_VF_STAT_RX_VF_ERR_FRAMES_H; reg += 4)
@@ -5820,7 +5822,7 @@ vi_refresh_stats(struct adapter *sc, struct vi_info *vi)
 		return;
 
 	mtx_lock(&sc->reg_lock);
-	t4_get_vi_stats(sc, vi->viid, &vi->stats);
+	t4_get_vi_stats(sc, vi->vin, &vi->stats);
 	getmicrotime(&vi->last_refreshed);
 	mtx_unlock(&sc->reg_lock);
 }
@@ -10055,7 +10057,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		mtx_lock(&sc->reg_lock);
 		for_each_vi(pi, v, vi) {
 			if (vi->flags & VI_INIT_DONE)
-				t4_clr_vi_stats(sc, vi->viid);
+				t4_clr_vi_stats(sc, vi->vin);
 		}
 		bg_map = pi->mps_bg_map;
 		v = 0;	/* reuse */
