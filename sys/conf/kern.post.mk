@@ -140,6 +140,8 @@ kernel-obj:
 
 .if !defined(NO_MODULES)
 modules: modules-all
+modules-depend: beforebuild
+modules-all: beforebuild
 
 .if !defined(NO_MODULES_OBJ)
 modules-all modules-depend: modules-obj
