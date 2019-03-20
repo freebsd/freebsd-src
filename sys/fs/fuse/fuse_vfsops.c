@@ -115,16 +115,16 @@ struct vfsops fuse_vfsops = {
 	.vfs_statfs = fuse_vfsop_statfs,
 };
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, init_backgrounded, CTLFLAG_RD,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, init_backgrounded, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, 1, "indicate async handshake");
 static int fuse_enforce_dev_perms = 0;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, enforce_dev_perms, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, enforce_dev_perms, CTLFLAG_RW,
     &fuse_enforce_dev_perms, 0,
     "enforce fuse device permissions for secondary mounts");
 static unsigned sync_unmount = 1;
 
-SYSCTL_UINT(_vfs_fuse, OID_AUTO, sync_unmount, CTLFLAG_RW,
+SYSCTL_UINT(_vfs_fusefs, OID_AUTO, sync_unmount, CTLFLAG_RW,
     &sync_unmount, 0, "specify when to use synchronous unmount");
 
 MALLOC_DEFINE(M_FUSEVFS, "fuse_filesystem", "buffer for fuse vfs layer");

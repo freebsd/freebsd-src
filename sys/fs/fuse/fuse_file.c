@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 
 static int fuse_fh_count = 0;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, filehandle_count, CTLFLAG_RD,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, filehandle_count, CTLFLAG_RD,
     &fuse_fh_count, 0, "number of open FUSE filehandles");
 
 int

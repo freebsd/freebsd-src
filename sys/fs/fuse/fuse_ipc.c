@@ -99,21 +99,21 @@ static int fuse_body_audit(struct fuse_ticket *ftick, size_t blen);
 
 static fuse_handler_t fuse_standard_handler;
 
-SYSCTL_NODE(_vfs, OID_AUTO, fuse, CTLFLAG_RW, 0, "FUSE tunables");
-SYSCTL_STRING(_vfs_fuse, OID_AUTO, version, CTLFLAG_RD,
+SYSCTL_NODE(_vfs, OID_AUTO, fusefs, CTLFLAG_RW, 0, "FUSE tunables");
+SYSCTL_STRING(_vfs_fusefs, OID_AUTO, version, CTLFLAG_RD,
     FUSE_FREEBSD_VERSION, 0, "fuse-freebsd version");
 static int fuse_ticket_count = 0;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, ticket_count, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, ticket_count, CTLFLAG_RW,
     &fuse_ticket_count, 0, "number of allocated tickets");
 static long fuse_iov_permanent_bufsize = 1 << 19;
 
-SYSCTL_LONG(_vfs_fuse, OID_AUTO, iov_permanent_bufsize, CTLFLAG_RW,
+SYSCTL_LONG(_vfs_fusefs, OID_AUTO, iov_permanent_bufsize, CTLFLAG_RW,
     &fuse_iov_permanent_bufsize, 0,
     "limit for permanently stored buffer size for fuse_iovs");
 static int fuse_iov_credit = 16;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, iov_credit, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, iov_credit, CTLFLAG_RW,
     &fuse_iov_credit, 0,
     "how many times is an oversized fuse_iov tolerated");
 

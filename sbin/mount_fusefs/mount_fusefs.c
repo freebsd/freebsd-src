@@ -501,7 +501,7 @@ init_backgrounded(void)
 
 	len = sizeof(ibg);
 
-	if (sysctlbyname("vfs.fuse.init_backgrounded", &ibg, &len, NULL, 0))
+	if (sysctlbyname("vfs.fusefs.init_backgrounded", &ibg, &len, NULL, 0))
 		return (0);
 
 	return (ibg);
