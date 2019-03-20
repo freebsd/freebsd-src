@@ -307,6 +307,10 @@ MockFS::MockFS(int max_readahead, bool push_symlinks_in,
 MockFS::~MockFS() {
 	kill_daemon();
 	::unmount("mountpoint", MNT_FORCE);
+	if (m_daemon_id != NULL) {
+		pthread_join(m_daemon_id, NULL);
+		m_daemon_id = NULL;
+	}
 	rmdir("mountpoint");
 }
 
@@ -353,8 +357,6 @@ void MockFS::kill_daemon() {
 		// to succeed even if the daemon doesn't correctly respond to
 		// commands during the unmount sequence.
 		close(m_fuse_fd);
-		pthread_join(m_daemon_id, NULL);
-		m_daemon_id = NULL;
 	}
 }
 
