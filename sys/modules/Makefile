@@ -429,6 +429,7 @@ SUBDIR=	\
 	${_x86bios} \
 	${_xe} \
 	xl \
+	xz \
 	zlib
 
 .if ${MK_AUTOFS} != "no" || defined(ALL_MODULES)

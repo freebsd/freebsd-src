@@ -36,7 +36,7 @@ options         SOFTUPDATES             #Enable FFS soft updates support
 options         UFS_ACL                 #Support for access control lists
 options         UFS_DIRHASH             #Improve performance on big directories
 
-device		geom_uzip
+device		xz
 options		GEOM_UZIP
 options		GEOM_LABEL		# Providers labelization.
 options		ROOTDEVNAME=\"ufs:ufs/FBSD\"	# assumes FW built by 
