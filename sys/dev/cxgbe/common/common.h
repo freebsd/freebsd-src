@@ -375,8 +375,9 @@ struct adapter_params {
 
 	uint32_t mps_bg_map;	/* rx buffer group map for all ports (upto 4) */
 
-	bool ulptx_memwrite_dsgl;        /* use of T5 DSGL allowed */
-	bool fr_nsmr_tpte_wr_support;    /* FW support for FR_NSMR_TPTE_WR */
+	bool ulptx_memwrite_dsgl;	/* use of T5 DSGL allowed */
+	bool fr_nsmr_tpte_wr_support;	/* FW support for FR_NSMR_TPTE_WR */
+	bool viid_smt_extn_support;	/* FW returns vin, vfvld & smt index? */
 };
 
 #define CHELSIO_T4		0x4
@@ -756,10 +757,11 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 		     unsigned int port, unsigned int pf, unsigned int vf,
 		     unsigned int nmac, u8 *mac, u16 *rss_size,
+		     uint8_t *vfvld, uint16_t *vin,
 		     unsigned int portfunc, unsigned int idstype);
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
-		u16 *rss_size);
+		u16 *rss_size, uint8_t *vfvld, uint16_t *vin);
 int t4_free_vi(struct adapter *adap, unsigned int mbox,
 	       unsigned int pf, unsigned int vf,
 	       unsigned int viid);
@@ -770,7 +772,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox, unsigned int viid
 		      bool free, unsigned int naddr, const u8 **addr, u16 *idx,
 		      u64 *hash, bool sleep_ok);
 int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		  int idx, const u8 *addr, bool persist, bool add_smt);
+		  int idx, const u8 *addr, bool persist, uint16_t *smt_idx);
 int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     bool ucast, u64 vec, bool sleep_ok);
 int t4_enable_vi_params(struct adapter *adap, unsigned int mbox,

@@ -2880,10 +2880,7 @@ ixgbe_if_init(if_ctx_t ctx)
 	ixgbe_if_multi_set(ctx);
 
 	/* Determine the correct mbuf pool, based on frame size */
-	if (adapter->max_frame_size <= MCLBYTES)
-		adapter->rx_mbuf_sz = MCLBYTES;
-	else
-		adapter->rx_mbuf_sz = MJUMPAGESIZE;
+	adapter->rx_mbuf_sz = iflib_get_rx_mbuf_sz(ctx);
 
 	/* Configure RX settings */
 	ixgbe_initialize_receive_units(ctx);

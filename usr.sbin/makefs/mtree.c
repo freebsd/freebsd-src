@@ -644,14 +644,17 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 				st->st_atime = num;
 				st->st_ctime = num;
 				st->st_mtime = num;
+#if HAVE_STRUCT_STAT_ST_MTIMENSEC
 				if (p == NULL)
 					break;
 				error = read_number(p, 10, &num, 0,
 				    INTMAX_MAX);
 				if (error)
 					break;
-				if (num != 0)
-					error = EINVAL;
+				st->st_atimensec = num;
+				st->st_ctimensec = num;
+				st->st_mtimensec = num;
+#endif
 			} else if (strcmp(keyword, "type") == 0) {
 				if (value == NULL) {
 					error = ENOATTR;

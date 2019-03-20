@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2019
+.Dd March 19, 2019
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -3300,6 +3300,7 @@ See
 .Sx SYSCTL VARIABLES
 for more info.
 .Sh IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+.Ss Stateful translation
 .Nm
 supports in-kernel IPv6/IPv4 network address and protocol translation.
 Stateful NAT64 translation allows IPv6-only clients to contact IPv4 servers
@@ -3317,7 +3318,8 @@ to be able use stateful NAT64 translator.
 Stateful NAT64 uses a bunch of memory for several types of objects.
 When IPv6 client initiates connection, NAT64 translator creates a host entry
 in the states table.
-Each host entry has a number of ports group entries allocated on demand.
+Each host entry uses preallocated IPv4 alias entry.
+Each alias entry has a number of ports group entries allocated on demand.
 Ports group entries contains connection state entries.
 There are several options to control limits and lifetime for these objects.
 .Pp
@@ -3337,6 +3339,11 @@ First time an original packet is handled and consumed by translator,
 and then it is handled again as translated packet.
 This behavior can be changed by sysctl variable 
 .Va net.inet.ip.fw.nat64_direct_output .
+Also translated packet can be tagged using
+.Cm tag
+rule action, and then matched by
+.Cm tagged
+opcode to avoid loops and extra overhead.
 .Pp
 The stateful NAT64 configuration command is the following:
 .Bd -ragged -offset indent
@@ -3364,15 +3371,16 @@ to represent IPv4 addresses. This IPv6 prefix should be configured in DNS64.
 The translator implementation follows RFC6052, that restricts the length of
 prefixes to one of following: 32, 40, 48, 56, 64, or 96.
 The Well-Known IPv6 Prefix 64:ff9b:: must be 96 bits long.
-.It Cm max_ports Ar number
-Maximum number of ports reserved for upper level protocols to one IPv6 client.
-All reserved ports are divided into chunks between supported protocols.
-The number of connections from one IPv6 client is limited by this option.
-Note that closed TCP connections still remain in the list of connections until
-.Cm tcp_close_age
-interval will not expire.
-Default value is
-.Ar 2048 .
+The special
+.Ar ::/length
+prefix can be used to handle several IPv6 prefixes with one NAT64 instance.
+The NAT64 instance will determine a destination IPv4 address from prefix
+.Ar length .
+.It Cm states_chunks Ar number
+The number of states chunks in single ports group.
+Each ports group by default can keep 64 state entries in single chunk.
+The above value affects the maximum number of states that can be associated with single IPv4 alias address and port.
+The value must be power of 2, and up to 128.
 .It Cm host_del_age Ar seconds
 The number of seconds until the host entry for a IPv6 client will be deleted
 and all its resources will be released due to inactivity.

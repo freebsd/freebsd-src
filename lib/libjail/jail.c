@@ -1050,14 +1050,8 @@ kldload_param(const char *name)
 		kl = kldload(name);
 	else if (strncmp(name, "allow.mount.", 12) == 0) {
 		/* Load the matching filesystem */
-		const char *modname;
+		const char *modname = name + 12;
 
-		if (strcmp("fusefs", name + 12) == 0 ||
-		    strcmp("nofusefs", name + 12) == 0) {
-			modname = "fuse";
-		} else {
-			modname = name + 12;
-		}
 		kl = kldload(modname);
 		if (kl < 0 && errno == ENOENT &&
 		    strncmp(modname, "no", 2) == 0)

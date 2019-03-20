@@ -220,7 +220,7 @@ static struct if_shared_ctx ixv_sctx_init = {
 	.isc_vendor_info = ixv_vendor_info_array,
 	.isc_driver_version = ixv_driver_version,
 	.isc_driver = &ixv_if_driver,
-	.isc_flags = IFLIB_TSO_INIT_IP,
+	.isc_flags = IFLIB_IS_VF | IFLIB_TSO_INIT_IP,
 
 	.isc_nrxd_min = {MIN_RXD},
 	.isc_ntxd_min = {MIN_TXD},
@@ -629,14 +629,7 @@ ixv_if_init(if_ctx_t ctx)
 	/* Setup Multicast table */
 	ixv_if_multi_set(ctx);
 
-	/*
-	 * Determine the correct mbuf pool
-	 * for doing jumbo/headersplit
-	 */
-	if (ifp->if_mtu > ETHERMTU)
-		adapter->rx_mbuf_sz = MJUMPAGESIZE;
-	else
-		adapter->rx_mbuf_sz = MCLBYTES;
+	adapter->rx_mbuf_sz = iflib_get_rx_mbuf_sz(ctx);
 
 	/* Configure RX settings */
 	ixv_initialize_receive_units(ctx);

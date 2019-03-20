@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190320:
+	The fuse(4) module has been renamed to fusefs(4) for consistency with
+	other filesystems.  You should update any kld_load="fuse" entries in
+	/etc/rc.conf, fuse_load="YES" entries in /boot/loader.conf, and
+	"options FUSE" enties in kernel config files.
+
 20190304:
 	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
 	8.0.0.  Please see the 20141231 entry below for information about

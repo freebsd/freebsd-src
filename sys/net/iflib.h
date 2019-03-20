@@ -248,7 +248,7 @@ struct if_shared_ctx {
 
 	/* fields necessary for probe */
 	pci_vendor_info_t *isc_vendor_info;
-	char *isc_driver_version;
+	const char *isc_driver_version;
 	/* optional function to transform the read values to match the table*/
 	void (*isc_parse_devinfo) (uint16_t *device_id, uint16_t *subvendor_id,
 				   uint16_t *subdevice_id, uint16_t *rev_id);
@@ -380,6 +380,8 @@ if_shared_ctx_t iflib_get_sctx(if_ctx_t ctx);
 void iflib_set_mac(if_ctx_t ctx, uint8_t mac[ETHER_ADDR_LEN]);
 void iflib_request_reset(if_ctx_t ctx);
 uint8_t iflib_in_detach(if_ctx_t ctx);
+
+uint32_t iflib_get_rx_mbuf_sz(if_ctx_t ctx);
 
 /*
  * If the driver can plug cleanly in to newbus use these

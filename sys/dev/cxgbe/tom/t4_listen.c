@@ -356,7 +356,7 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	struct sge_wrq *ofld_txq;
 	struct sge_ofld_rxq *ofld_rxq;
 	const int nparams = 6;
-	unsigned int pfvf = G_FW_VIID_PFN(vi->viid) << S_FW_VIID_PFN;
+	const u_int pfvf = sc->pf << S_FW_VIID_PFN;
 
 	INP_WLOCK_ASSERT(synqe->lctx->inp);
 

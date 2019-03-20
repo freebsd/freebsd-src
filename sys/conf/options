@@ -253,7 +253,7 @@ CD9660		opt_dontuse.h
 EXT2FS		opt_dontuse.h
 FDESCFS		opt_dontuse.h
 FFS		opt_dontuse.h
-FUSE		opt_dontuse.h
+FUSEFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NANDFS		opt_dontuse.h
 NULLFS		opt_dontuse.h

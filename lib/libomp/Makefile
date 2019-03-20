@@ -58,7 +58,6 @@ CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
 
 LDFLAGS+=	-Wl,--warn-shared-textrel
-LDFLAGS+=	-Wl,--as-needed
 LDFLAGS+=	-Wl,--gc-sections
 LDFLAGS+=	-Wl,-z,noexecstack
 LDFLAGS+=	-Wl,-fini=__kmp_internal_end_fini
@@ -67,5 +66,6 @@ LDFLAGS+=	-Wl,-soname,libomp.so
 VERSION_MAP=	${OMPSRC}/exports_so.txt
 
 LIBADD+=	pthread
+LIBADD+=	m
 
 .include <bsd.lib.mk>

@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #define	ID_LEWISBURG			0xa1a3
 #define	ID_LEWISBURG2			0xa223
 #define	ID_KABYLAKE			0xa2a3
+#define	ID_CANNONLAKE			0xa323
 
 static const struct ichsmb_device {
 	uint16_t	id;
@@ -148,6 +149,7 @@ static const struct ichsmb_device {
 	{ ID_LEWISBURG,	"Intel Lewisburg SMBus controller"		},
 	{ ID_LEWISBURG2,"Intel Lewisburg SMBus controller"		},
 	{ ID_KABYLAKE,	"Intel Kaby Lake SMBus controller"		},
+	{ ID_CANNONLAKE,"Intel Cannon Lake SMBus controller"		},
 	{ 0, NULL },
 };
 

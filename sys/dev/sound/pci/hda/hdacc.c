@@ -368,7 +368,7 @@ static const struct {
 	{ HDA_CODEC_INTELHSW, 0,	"Intel Haswell" },
 	{ HDA_CODEC_INTELBDW, 0,	"Intel Broadwell" },
 	{ HDA_CODEC_INTELSKLK, 0,	"Intel Skylake" },
-	{ HDA_CODEC_INTELKBLK, 0,	"Intel Kabylake" },
+	{ HDA_CODEC_INTELKBLK, 0,	"Intel Kaby Lake" },
 	{ HDA_CODEC_INTELCL, 0,		"Intel Crestline" },
 	{ HDA_CODEC_SII1390, 0,		"Silicon Image SiI1390" },
 	{ HDA_CODEC_SII1392, 0,		"Silicon Image SiI1392" },
