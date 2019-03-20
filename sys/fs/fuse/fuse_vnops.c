@@ -179,17 +179,17 @@ struct vop_vector fuse_vnops = {
 
 static u_long fuse_lookup_cache_hits = 0;
 
-SYSCTL_ULONG(_vfs_fuse, OID_AUTO, lookup_cache_hits, CTLFLAG_RD,
+SYSCTL_ULONG(_vfs_fusefs, OID_AUTO, lookup_cache_hits, CTLFLAG_RD,
     &fuse_lookup_cache_hits, 0, "number of positive cache hits in lookup");
 
 static u_long fuse_lookup_cache_misses = 0;
 
-SYSCTL_ULONG(_vfs_fuse, OID_AUTO, lookup_cache_misses, CTLFLAG_RD,
+SYSCTL_ULONG(_vfs_fusefs, OID_AUTO, lookup_cache_misses, CTLFLAG_RD,
     &fuse_lookup_cache_misses, 0, "number of cache misses in lookup");
 
 int	fuse_lookup_cache_enable = 1;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, lookup_cache_enable, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, lookup_cache_enable, CTLFLAG_RW,
     &fuse_lookup_cache_enable, 0, "if non-zero, enable lookup cache");
 
 /*
@@ -198,7 +198,7 @@ SYSCTL_INT(_vfs_fuse, OID_AUTO, lookup_cache_enable, CTLFLAG_RW,
  */
 static int fuse_reclaim_revoked = 0;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, reclaim_revoked, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, reclaim_revoked, CTLFLAG_RW,
     &fuse_reclaim_revoked, 0, "");
 
 uma_zone_t fuse_pbuf_zone;

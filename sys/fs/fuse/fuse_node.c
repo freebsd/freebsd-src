@@ -98,47 +98,47 @@ static int sysctl_fuse_cache_mode(SYSCTL_HANDLER_ARGS);
 
 static int fuse_node_count = 0;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, node_count, CTLFLAG_RD,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, node_count, CTLFLAG_RD,
     &fuse_node_count, 0, "Count of FUSE vnodes");
 
 int	fuse_data_cache_mode = FUSE_CACHE_WT;
 
-SYSCTL_PROC(_vfs_fuse, OID_AUTO, data_cache_mode, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_vfs_fusefs, OID_AUTO, data_cache_mode, CTLTYPE_INT|CTLFLAG_RW,
     &fuse_data_cache_mode, 0, sysctl_fuse_cache_mode, "I",
     "Zero: disable caching of FUSE file data; One: write-through caching "
     "(default); Two: write-back caching (generally unsafe)");
 
 int	fuse_data_cache_invalidate = 0;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, data_cache_invalidate, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, data_cache_invalidate, CTLFLAG_RW,
     &fuse_data_cache_invalidate, 0,
     "If non-zero, discard cached clean file data when there are no active file"
     " users");
 
 int	fuse_mmap_enable = 1;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, mmap_enable, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, mmap_enable, CTLFLAG_RW,
     &fuse_mmap_enable, 0,
     "If non-zero, and data_cache_mode is also non-zero, enable mmap(2) of "
     "FUSE files");
 
 int	fuse_refresh_size = 0;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, refresh_size, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, refresh_size, CTLFLAG_RW,
     &fuse_refresh_size, 0,
     "If non-zero, and no dirty file extension data is buffered, fetch file "
     "size before write operations");
 
 int	fuse_sync_resize = 1;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, sync_resize, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, sync_resize, CTLFLAG_RW,
     &fuse_sync_resize, 0,
     "If a cached write extended a file, inform FUSE filesystem of the changed"
     "size immediately subsequent to the issued writes");
 
 int	fuse_fix_broken_io = 0;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, fix_broken_io, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, fix_broken_io, CTLFLAG_RW,
     &fuse_fix_broken_io, 0,
     "If non-zero, print a diagnostic warning if a userspace filesystem returns"
     " EIO on reads of recently extended portions of files");
