@@ -35,7 +35,8 @@ int
 main(int argc, char **argv)
 {
 	for (;;) {
-		(void) __syscall(SYS_mmap, NULL, 1, 2, 3, -1, 0x12345678);
+		(void) __syscall(SYS_mmap, NULL, (size_t)1, 2, 3, -1,
+		    (off_t)0x12345678);
 	}
 
 	return (0);
