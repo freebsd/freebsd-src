@@ -818,6 +818,7 @@ install_check_params () {
 		echo "No updates are available to install."
 		if [ $ISFETCHED -eq 0 ]; then
 			echo "Run '$0 fetch' first."
+			exit 1
 		fi
 		exit 0
 	fi
