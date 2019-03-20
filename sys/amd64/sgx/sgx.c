@@ -1075,6 +1075,12 @@ sgx_get_epc_area(struct sgx_softc *sc)
 	    (cp[2] & 0xfffff000);
 	sc->npages = sc->epc_size / SGX_PAGE_SIZE;
 
+	if (sc->epc_size == 0 || sc->epc_base == 0) {
+		printf("%s: Incorrect EPC data: EPC base %lx, size %lu\n",
+		    __func__, sc->epc_base, sc->epc_size);
+		return (EINVAL);
+	}
+
 	if (cp[3] & 0xffff)
 		sc->enclave_size_max = (1 << ((cp[3] >> 8) & 0xff));
 	else

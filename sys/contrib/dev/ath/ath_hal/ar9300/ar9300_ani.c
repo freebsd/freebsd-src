@@ -1217,6 +1217,7 @@ ar9300_ani_ar_poll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
     cck_phy_err_cnt = OS_REG_READ(ah, AR_PHY_ERR_2);
 
     /* Populate HAL_ANISTATS */
+    /* XXX TODO: are these correct? */
     if (ani_stats) {
             ani_stats->cckphyerr_cnt =
                cck_phy_err_cnt - ani_state->cck_phy_err_count;
@@ -1257,18 +1258,32 @@ ar9300_ani_ar_poll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
         return;
     }
 
+    /*
+     * Calculate the OFDM/CCK phy error rate over the listen time interval.
+     * This is used in subsequent math to see if the OFDM/CCK phy error rate
+     * is above or below the threshold checks.
+     */
+
     ofdm_phy_err_rate =
         ani_state->ofdm_phy_err_count * 1000 / ani_state->listen_time;
     cck_phy_err_rate =
         ani_state->cck_phy_err_count * 1000 / ani_state->listen_time;
 
     HALDEBUG(ah, HAL_DEBUG_ANI,
-        "%s: listen_time=%d OFDM:%d errs=%d/s CCK:%d errs=%d/s ofdm_turn=%d\n",
+        "%s: listen_time=%d (total: %d) OFDM:%d errs=%d/s CCK:%d errs=%d/s ofdm_turn=%d\n",
         __func__, listen_time,
+        ani_state->listen_time,
         ani_state->ofdm_noise_immunity_level, ofdm_phy_err_rate,
         ani_state->cck_noise_immunity_level, cck_phy_err_rate,
         ani_state->ofdms_turn);
 
+    /*
+     * Check for temporary noise spurs.  This is intended to be used by
+     * rate control to check if we should try higher packet rates or not.
+     * If the noise period is short enough then we shouldn't avoid trying
+     * higher rates but if the noise is high/sustained then it's likely
+     * not a great idea to try the higher MCS rates.
+     */
     if (ani_state->listen_time >= HAL_NOISE_DETECT_PERIOD) {
         old_phy_noise_spur = ani_state->phy_noise_spur;
         if (ofdm_phy_err_rate <= ani_state->ofdm_trig_low &&
@@ -1281,7 +1296,7 @@ ar9300_ani_ar_poll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
         }
         if (old_phy_noise_spur != ani_state->phy_noise_spur) {
             HALDEBUG(ah, HAL_DEBUG_ANI,
-                     "%s: enviroment change from %d to %d\n",
+                     "%s: environment change from %d to %d\n",
                      __func__, old_phy_noise_spur, ani_state->phy_noise_spur);
         }
     }
@@ -1304,6 +1319,10 @@ ar9300_ani_ar_poll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
             ar9300_ani_lower_immunity(ah);
             ani_state->ofdms_turn = !ani_state->ofdms_turn;
         }
+        /*
+         * Force an ANI restart regardless of whether the lower immunity
+         * level was met.
+         */
         HALDEBUG(ah, HAL_DEBUG_ANI,
             "%s: 1 listen_time=%d ofdm=%d/s cck=%d/s - "
             "calling ar9300_ani_restart\n",
@@ -1337,6 +1356,13 @@ ar9300_ani_ar_poll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
             ani_state->ofdms_turn = AH_TRUE;
         }
     }
+
+    /*
+     * Note that currently this poll function doesn't reset the listen
+     * time after it accumulates a second worth of error samples.
+     * It will continue to accumulate samples until a counter overflows,
+     * or a raise threshold is met, or 5 seconds passes.
+     */
 }
 
 /*

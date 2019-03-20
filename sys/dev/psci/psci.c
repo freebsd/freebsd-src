@@ -79,9 +79,9 @@ struct psci_softc {
 };
 
 #ifdef FDT
-static int psci_v0_1_init(device_t dev);
+static int psci_v0_1_init(device_t dev, int default_version);
 #endif
-static int psci_v0_2_init(device_t dev);
+static int psci_v0_2_init(device_t dev, int default_version);
 
 struct psci_softc *psci_softc = NULL;
 
@@ -96,15 +96,35 @@ struct psci_softc *psci_softc = NULL;
 #endif
 
 #ifdef FDT
+struct psci_init_def {
+	int		default_version;
+	psci_initfn_t	psci_init;
+};
+
+static struct psci_init_def psci_v1_0_init_def = {
+	.default_version = (1 << 16) | 0,
+	.psci_init = psci_v0_2_init
+};
+
+static struct psci_init_def psci_v0_2_init_def = {
+	.default_version = (0 << 16) | 2,
+	.psci_init = psci_v0_2_init
+};
+
+static struct psci_init_def psci_v0_1_init_def = {
+	.default_version = (0 << 16) | 1,
+	.psci_init = psci_v0_1_init
+};
+
 static struct ofw_compat_data compat_data[] = {
-	{"arm,psci-1.0",        (uintptr_t)psci_v0_2_init},
-	{"arm,psci-0.2",        (uintptr_t)psci_v0_2_init},
-	{"arm,psci",            (uintptr_t)psci_v0_1_init},
+	{"arm,psci-1.0",        (uintptr_t)&psci_v1_0_init_def},
+	{"arm,psci-0.2",        (uintptr_t)&psci_v0_2_init_def},
+	{"arm,psci",            (uintptr_t)&psci_v0_1_init_def},
 	{NULL,                  0}
 };
 #endif
 
-static int psci_attach(device_t, psci_initfn_t);
+static int psci_attach(device_t, psci_initfn_t, int);
 static void psci_shutdown(void *, int);
 
 static int psci_find_callfn(psci_callfn_t *);
@@ -198,12 +218,13 @@ static int
 psci_fdt_attach(device_t dev)
 {
 	const struct ofw_compat_data *ocd;
-	psci_initfn_t psci_init;
+	struct psci_init_def *psci_init_def;
 
 	ocd = ofw_bus_search_compatible(dev, compat_data);
-	psci_init = (psci_initfn_t)ocd->ocd_data;
+	psci_init_def = (struct psci_init_def *)ocd->ocd_data;
 
-	return (psci_attach(dev, psci_init));
+	return (psci_attach(dev, psci_init_def->psci_init,
+	    psci_init_def->default_version));
 }
 #endif
 
@@ -304,12 +325,12 @@ static int
 psci_acpi_attach(device_t dev)
 {
 
-	return (psci_attach(dev, psci_v0_2_init));
+	return (psci_attach(dev, psci_v0_2_init, PSCI_RETVAL_NOT_SUPPORTED));
 }
 #endif
 
 static int
-psci_attach(device_t dev, psci_initfn_t psci_init)
+psci_attach(device_t dev, psci_initfn_t psci_init, int default_version)
 {
 	struct psci_softc *sc = device_get_softc(dev);
 
@@ -317,7 +338,7 @@ psci_attach(device_t dev, psci_initfn_t psci_init)
 		return (ENXIO);
 
 	KASSERT(psci_init != NULL, ("PSCI init function cannot be NULL"));
-	if (psci_init(dev))
+	if (psci_init(dev, default_version))
 		return (ENXIO);
 
 	psci_softc = sc;
@@ -464,7 +485,7 @@ psci_reset(void)
 #ifdef FDT
 /* Only support PSCI 0.1 on FDT */
 static int
-psci_v0_1_init(device_t dev)
+psci_v0_1_init(device_t dev, int default_version __unused)
 {
 	struct psci_softc *sc = device_get_softc(dev);
 	int psci_fn;
@@ -510,7 +531,7 @@ psci_v0_1_init(device_t dev)
 #endif
 
 static int
-psci_v0_2_init(device_t dev)
+psci_v0_2_init(device_t dev, int default_version)
 {
 	struct psci_softc *sc = device_get_softc(dev);
 	int version;
@@ -529,8 +550,20 @@ psci_v0_2_init(device_t dev)
 
 	version = _psci_get_version(sc);
 
-	if (version == PSCI_RETVAL_NOT_SUPPORTED)
-		return (1);
+	/*
+	 * U-Boot PSCI implementation doesn't have psci_get_version()
+	 * method implemented for many boards. In this case, use the version
+	 * readed from FDT as fallback. No fallback method for ACPI.
+	 */
+	if (version == PSCI_RETVAL_NOT_SUPPORTED) {
+		if (default_version == PSCI_RETVAL_NOT_SUPPORTED)
+			return (1);
+
+		version = default_version;
+		printf("PSCI get_version() function is not implemented, "
+		    " assuming v%d.%d\n", PSCI_VER_MAJOR(version),
+		    PSCI_VER_MINOR(version));
+	}
 
 	sc->psci_version = version;
 	if ((PSCI_VER_MAJOR(version) == 0 && PSCI_VER_MINOR(version) == 2) ||

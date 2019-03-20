@@ -3640,9 +3640,8 @@ alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
 	nm_txq->nid = idx;
 	nm_txq->iqidx = iqidx;
 	nm_txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
-	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(G_FW_VIID_PFN(vi->viid)) |
-	    V_TXPKT_VF(G_FW_VIID_VIN(vi->viid)) |
-	    V_TXPKT_VF_VLD(G_FW_VIID_VIVLD(vi->viid)));
+	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+	    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
 	nm_txq->cntxt_id = INVALID_NM_TXQ_CNTXT_ID;
 
 	snprintf(name, sizeof(name), "%d", idx);
@@ -4043,10 +4042,8 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 		    V_TXPKT_INTF(pi->tx_chan));
 	else
 		txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
-		    V_TXPKT_INTF(pi->tx_chan) |
-		    V_TXPKT_PF(G_FW_VIID_PFN(vi->viid)) |
-		    V_TXPKT_VF(G_FW_VIID_VIN(vi->viid)) |
-		    V_TXPKT_VF_VLD(G_FW_VIID_VIVLD(vi->viid)));
+		    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+		    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
 	txq->tc_idx = -1;
 	txq->sdesc = malloc(eq->sidx * sizeof(struct tx_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
@@ -5657,7 +5654,7 @@ send_etid_flowc_wr(struct cxgbe_snd_tag *cst, struct port_info *pi,
     struct vi_info *vi)
 {
 	struct wrq_cookie cookie;
-	u_int pfvf = G_FW_VIID_PFN(vi->viid) << S_FW_VIID_PFN;
+	u_int pfvf = pi->adapter->pf << S_FW_VIID_PFN;
 	struct fw_flowc_wr *flowc;
 
 	mtx_assert(&cst->lock, MA_OWNED);

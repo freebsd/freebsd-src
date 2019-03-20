@@ -29,13 +29,7 @@
 
 KB=1024
 : ${TMPDIR=/tmp}
-# TODO: add mtree `time` support; get a lot of errors like this right now when
-# passing generating disk images with keyword mtree support, like:
-#
-# `[...]/mtree.spec:8: error: time: invalid value '1446458503'`
-#
-#DEFAULT_MTREE_KEYWORDS="type,mode,gid,uid,size,link,time"
-DEFAULT_MTREE_KEYWORDS="type,mode,gid,uid,size,link"
+DEFAULT_MTREE_KEYWORDS="type,mode,gid,uid,size,link,time"
 TEST_IMAGE="$TMPDIR/test.img"
 TEST_INPUTS_DIR="$TMPDIR/inputs"
 TEST_MD_DEVICE_FILE="$TMPDIR/md.output"

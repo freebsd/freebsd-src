@@ -328,7 +328,7 @@ again:
 		if (dbi.id[0]) {
 			run_change("rem", &c, dbi.id, 0);
 			sockaddr_snprintf(buf, sizeof(buf), "%a", ss);
-			syslog(LOG_INFO, "released %s/%d:%d after %d seconds",
+			(*lfun)(LOG_INFO, "released %s/%d:%d after %d seconds",
 			    buf, c.c_lmask, c.c_port, c.c_duration);
 		}
 		state_del(state, &c);

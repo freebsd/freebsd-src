@@ -859,7 +859,6 @@ struct c4iw_ep {
 	unsigned int mpa_pkt_len;
 	u32 ird;
 	u32 ord;
-	u32 smac_idx;
 	u32 tx_chan;
 	u32 mtu;
 	u16 mss;
