@@ -93,6 +93,7 @@ options 	FFS			#Berkeley Fast Filesystem
 options         MROUTING                # Multicast routing
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT
 
+device		xz
 options		GEOM_UZIP
 options		MD_ROOT
 options		ROOTDEVNAME=\"ufs:da0s1\"

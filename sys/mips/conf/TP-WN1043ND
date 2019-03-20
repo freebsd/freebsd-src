@@ -37,7 +37,7 @@ options 	MSDOSFS
 options 	AR71XX_ENV_UBOOT
 
 # uncompress - to boot natively from flash
-device         geom_uzip
+device		xz
 options        GEOM_UZIP
 
 # Used for the static uboot partition map

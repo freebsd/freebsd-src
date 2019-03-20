@@ -55,6 +55,7 @@ options 	ALT_BREAK_TO_DEBUGGER
 #options 	LOCK_DEBUG
 #options 	LOCK_PROFILING
 
+device		xz
 options 	GEOM_UZIP
 
 # Device tree

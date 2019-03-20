@@ -32,7 +32,7 @@ options 	AR71XX_REALMEM=64*1024*1024
 options 	MSDOSFS
 
 # uncompress - to boot read-only lzma natively from flash
-device		geom_uzip
+device		xz
 options 	GEOM_UZIP
 
 # Used for the static uboot partition map

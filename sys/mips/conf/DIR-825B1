@@ -54,7 +54,7 @@ options 	NO_SYSCTL_DESCR
 
 # GEOM modules
 device		geom_map	# to get access to the SPI flash partitions
-device		geom_uzip	# compressed in-memory filesystem hackery!
+device		xz
 options 	GEOM_UZIP
 options 	GEOM_PART_GPT
 
