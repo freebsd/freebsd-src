@@ -107,7 +107,7 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	struct vi_info *vi = toep->vi;
 	struct port_info *pi = vi->pi;
 	struct adapter *sc = pi->adapter;
-	unsigned int pfvf = G_FW_VIID_PFN(vi->viid) << S_FW_VIID_PFN;
+	unsigned int pfvf = sc->pf << S_FW_VIID_PFN;
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 
 	KASSERT(!(toep->flags & TPF_FLOWC_WR_SENT),
