@@ -72,12 +72,10 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_NAT64LSN, "NAT64LSN", "NAT64LSN");
 
-static epoch_t nat64lsn_epoch;
-#define	NAT64LSN_EPOCH_ENTER(et)  epoch_enter_preempt(nat64lsn_epoch, &(et))
-#define	NAT64LSN_EPOCH_EXIT(et)   epoch_exit_preempt(nat64lsn_epoch, &(et))
-#define	NAT64LSN_EPOCH_WAIT()     epoch_wait_preempt(nat64lsn_epoch)
-#define	NAT64LSN_EPOCH_ASSERT()   MPASS(in_epoch(nat64lsn_epoch))
-#define	NAT64LSN_EPOCH_CALL(c, f) epoch_call(nat64lsn_epoch, (c), (f))
+#define	NAT64LSN_EPOCH_ENTER(et)  NET_EPOCH_ENTER(et)
+#define	NAT64LSN_EPOCH_EXIT(et)   NET_EPOCH_EXIT(et)
+#define	NAT64LSN_EPOCH_ASSERT()   NET_EPOCH_ASSERT()
+#define	NAT64LSN_EPOCH_CALL(c, f) epoch_call(net_epoch_preempt, (c), (f))
 
 static uma_zone_t nat64lsn_host_zone;
 static uma_zone_t nat64lsn_pgchunk_zone;
@@ -1578,8 +1576,6 @@ void
 nat64lsn_init_internal(void)
 {
 
-	nat64lsn_epoch = epoch_alloc(EPOCH_PREEMPT);
-
 	nat64lsn_host_zone = uma_zcreate("NAT64LSN hosts",
 	    sizeof(struct nat64lsn_host), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
@@ -1606,8 +1602,6 @@ nat64lsn_uninit_internal(void)
 {
 
 	/* XXX: epoch_task drain */
-	epoch_free(nat64lsn_epoch);
-
 	JQUEUE_LOCK_DESTROY();
 	uma_zdestroy(nat64lsn_host_zone);
 	uma_zdestroy(nat64lsn_pgchunk_zone);
