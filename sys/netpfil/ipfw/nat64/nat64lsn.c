@@ -1514,7 +1514,6 @@ int
 ipfw_nat64lsn(struct ip_fw_chain *ch, struct ip_fw_args *args,
     ipfw_insn *cmd, int *done)
 {
-	struct epoch_tracker et;
 	struct nat64lsn_cfg *cfg;
 	ipfw_insn *icmd;
 	int ret;
@@ -1531,7 +1530,6 @@ ipfw_nat64lsn(struct ip_fw_chain *ch, struct ip_fw_args *args,
 
 	*done = 1;	/* terminate the search */
 
-	NAT64LSN_EPOCH_ENTER(et);
 	switch (args->f_id.addr_type) {
 	case 4:
 		ret = nat64lsn_translate4(cfg, &args->f_id, &args->m);
@@ -1551,7 +1549,6 @@ ipfw_nat64lsn(struct ip_fw_chain *ch, struct ip_fw_args *args,
 	default:
 		ret = cfg->nomatch_verdict;
 	}
-	NAT64LSN_EPOCH_EXIT(et);
 
 	if (ret != IP_FW_PASS && args->m != NULL) {
 		m_freem(args->m);
