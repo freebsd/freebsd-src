@@ -73,7 +73,8 @@ void require_sync_resize_0() {
 	ASSERT_EQ(0, sysctlbyname(sync_resize_node, &val, &size, NULL, 0))
 		<< strerror(errno);
 	if (val != 0)
-		FAIL() << "vfs.fuse.sync_resize must be set to 0 for this test."
+		GTEST_SKIP() <<
+			"vfs.fuse.sync_resize must be set to 0 for this test."
 			"  That sysctl will probably be removed soon.";
 }
 
@@ -85,12 +86,13 @@ virtual void SetUp() {
 	int val = 0;
 	size_t size = sizeof(val);
 
+	FuseTest::SetUp();
+
 	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
 		<< strerror(errno);
-	// TODO: With GoogleTest 1.8.2, use SKIP instead
 	if (!val)
-		FAIL() << "vfs.aio.enable_unsafe must be set for this test";
-	FuseTest::SetUp();
+		GTEST_SKIP() <<
+			"vfs.aio.enable_unsafe must be set for this test";
 }
 };
 
@@ -102,14 +104,15 @@ virtual void SetUp() {
 	int val = 0;
 	size_t size = sizeof(val);
 
+	FuseTest::SetUp();
+	if (IsSkipped())
+		return;
+
 	ASSERT_EQ(0, sysctlbyname(cache_mode_node, &val, &size, NULL, 0))
 		<< strerror(errno);
-	// TODO: With GoogleTest 1.8.2, use SKIP instead
 	if (val != 1)
-		FAIL() << "vfs.fuse.data_cache_mode must be set to 1 "
+		GTEST_SKIP() << "vfs.fuse.data_cache_mode must be set to 1 "
 			"(writethrough) for this test";
-
-	FuseTest::SetUp();
 }
 
 };
@@ -122,13 +125,15 @@ virtual void SetUp() {
 	int val = 0;
 	size_t size = sizeof(val);
 
+	FuseTest::SetUp();
+	if (IsSkipped())
+		return;
+
 	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
 		<< strerror(errno);
-	// TODO: With GoogleTest 1.8.2, use SKIP instead
 	if (val != 2)
-		FAIL() << "vfs.fuse.data_cache_mode must be set to 2 "
+		GTEST_SKIP() << "vfs.fuse.data_cache_mode must be set to 2 "
 			"(writeback) for this test";
-	FuseTest::SetUp();
 }
 
 };

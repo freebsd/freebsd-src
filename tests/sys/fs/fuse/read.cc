@@ -61,12 +61,13 @@ virtual void SetUp() {
 	int val = 0;
 	size_t size = sizeof(val);
 
+	FuseTest::SetUp();
+
 	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
 		<< strerror(errno);
-	// TODO: With GoogleTest 1.8.2, use SKIP instead
 	if (!val)
-		FAIL() << "vfs.aio.enable_unsafe must be set for this test";
-	FuseTest::SetUp();
+		GTEST_SKIP() <<
+			"vfs.aio.enable_unsafe must be set for this test";
 }
 };
 
