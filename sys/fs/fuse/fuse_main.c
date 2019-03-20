@@ -94,9 +94,9 @@ static struct vfsconf fuse_vfsconf = {
 	.vfc_flags = VFCF_JAIL | VFCF_SYNTHETIC
 };
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, kernelabi_major, CTLFLAG_RD,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, kernelabi_major, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, FUSE_KERNEL_VERSION, "FUSE kernel abi major version");
-SYSCTL_INT(_vfs_fuse, OID_AUTO, kernelabi_minor, CTLFLAG_RD,
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, kernelabi_minor, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, FUSE_KERNEL_MINOR_VERSION, "FUSE kernel abi minor version");
 
 /******************************
@@ -156,10 +156,10 @@ fuse_loader(struct module *m, int what, void *arg)
 /* Registering the module */
 
 static moduledata_t fuse_moddata = {
-	"fuse",
+	"fusefs",
 	fuse_loader,
 	&fuse_vfsconf
 };
 
-DECLARE_MODULE(fuse, fuse_moddata, SI_SUB_VFS, SI_ORDER_MIDDLE);
-MODULE_VERSION(fuse, 1);
+DECLARE_MODULE(fusefs, fuse_moddata, SI_SUB_VFS, SI_ORDER_MIDDLE);
+MODULE_VERSION(fusefs, 1);

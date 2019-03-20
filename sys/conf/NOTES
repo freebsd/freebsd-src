@@ -1071,7 +1071,7 @@ options 	NFSCL			#Network File System client
 options 	AUTOFS			#Automounter filesystem
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
-options 	FUSE			#FUSE support module
+options 	FUSEFS			#FUSEFS support module
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSLOCKD		#Network Lock Manager
 options 	NFSD			#Network Filesystem Server

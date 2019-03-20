@@ -3494,15 +3494,15 @@ fs/fdescfs/fdesc_vfsops.c	optional fdescfs
 fs/fdescfs/fdesc_vnops.c	optional fdescfs
 fs/fifofs/fifo_vnops.c		standard
 fs/cuse/cuse.c			optional cuse
-fs/fuse/fuse_device.c		optional fuse
-fs/fuse/fuse_file.c		optional fuse
-fs/fuse/fuse_internal.c		optional fuse
-fs/fuse/fuse_io.c		optional fuse
-fs/fuse/fuse_ipc.c		optional fuse
-fs/fuse/fuse_main.c		optional fuse
-fs/fuse/fuse_node.c		optional fuse
-fs/fuse/fuse_vfsops.c		optional fuse
-fs/fuse/fuse_vnops.c		optional fuse
+fs/fuse/fuse_device.c		optional fusefs
+fs/fuse/fuse_file.c		optional fusefs
+fs/fuse/fuse_internal.c		optional fusefs
+fs/fuse/fuse_io.c		optional fusefs
+fs/fuse/fuse_ipc.c		optional fusefs
+fs/fuse/fuse_main.c		optional fusefs
+fs/fuse/fuse_node.c		optional fusefs
+fs/fuse/fuse_vfsops.c		optional fusefs
+fs/fuse/fuse_vnops.c		optional fusefs
 fs/msdosfs/msdosfs_conv.c	optional msdosfs
 fs/msdosfs/msdosfs_denode.c	optional msdosfs
 fs/msdosfs/msdosfs_fat.c	optional msdosfs
