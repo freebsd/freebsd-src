@@ -135,7 +135,7 @@ static int	tun_clone_match(struct if_clone *ifc, const char *name);
 static int	tun_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static int	tun_clone_destroy(struct if_clone *, struct ifnet *);
 static struct unrhdr	*tun_unrhdr;
-VNET_DEFINE_STATIC(struct if_clone *, tun_cloner);
+static VNET_DEFINE(struct if_clone *, tun_cloner);
 #define V_tun_cloner VNET(tun_cloner)
 
 static d_open_t		tunopen;
