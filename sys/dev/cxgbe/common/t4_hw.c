@@ -7794,6 +7794,7 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 		     unsigned int port, unsigned int pf, unsigned int vf,
 		     unsigned int nmac, u8 *mac, u16 *rss_size,
+		     uint8_t *vfvld, uint16_t *vin,
 		     unsigned int portfunc, unsigned int idstype)
 {
 	int ret;
@@ -7814,6 +7815,7 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret)
 		return ret;
+	ret = G_FW_VI_CMD_VIID(be16_to_cpu(c.type_to_viid));
 
 	if (mac) {
 		memcpy(mac, c.mac, sizeof(c.mac));
@@ -7830,7 +7832,18 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 	}
 	if (rss_size)
 		*rss_size = G_FW_VI_CMD_RSSSIZE(be16_to_cpu(c.norss_rsssize));
-	return G_FW_VI_CMD_VIID(be16_to_cpu(c.type_to_viid));
+	if (vfvld) {
+		*vfvld = adap->params.viid_smt_extn_support ?
+		    G_FW_VI_CMD_VFVLD(be32_to_cpu(c.alloc_to_len16)) :
+		    G_FW_VIID_VIVLD(ret);
+	}
+	if (vin) {
+		*vin = adap->params.viid_smt_extn_support ?
+		    G_FW_VI_CMD_VIN(be32_to_cpu(c.alloc_to_len16)) :
+		    G_FW_VIID_VIN(ret);
+	}
+
+	return ret;
 }
 
 /**
@@ -7850,10 +7863,10 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
  */
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
-		u16 *rss_size)
+		u16 *rss_size, uint8_t *vfvld, uint16_t *vin)
 {
 	return t4_alloc_vi_func(adap, mbox, port, pf, vf, nmac, mac, rss_size,
-				FW_VI_FUNC_ETH, 0);
+				vfvld, vin, FW_VI_FUNC_ETH, 0);
 }
 
 /**
@@ -8030,7 +8043,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
  *	@idx: index of existing filter for old value of MAC address, or -1
  *	@addr: the new MAC address value
  *	@persist: whether a new MAC allocation should be persistent
- *	@add_smt: if true also add the address to the HW SMT
+ *	@smt_idx: add MAC to SMT and return its index, or NULL
  *
  *	Modifies an exact-match filter and sets it to the new MAC address if
  *	@idx >= 0, or adds the MAC address to a new filter if @idx < 0.  In the
@@ -8045,7 +8058,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
  *	MAC value.  Note that this index may differ from @idx.
  */
 int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		  int idx, const u8 *addr, bool persist, bool add_smt)
+		  int idx, const u8 *addr, bool persist, uint16_t *smt_idx)
 {
 	int ret, mode;
 	struct fw_vi_mac_cmd c;
@@ -8054,7 +8067,7 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 
 	if (idx < 0)		/* new allocation */
 		idx = persist ? FW_VI_MAC_ADD_PERSIST_MAC : FW_VI_MAC_ADD_MAC;
-	mode = add_smt ? FW_VI_MAC_SMT_AND_MPSTCAM : FW_VI_MAC_MPS_TCAM_ENTRY;
+	mode = smt_idx ? FW_VI_MAC_SMT_AND_MPSTCAM : FW_VI_MAC_MPS_TCAM_ENTRY;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
@@ -8071,6 +8084,16 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		ret = G_FW_VI_MAC_CMD_IDX(be16_to_cpu(p->valid_to_idx));
 		if (ret >= max_mac_addr)
 			ret = -ENOMEM;
+		if (smt_idx) {
+			if (adap->params.viid_smt_extn_support)
+				*smt_idx = G_FW_VI_MAC_CMD_SMTID(be32_to_cpu(c.op_to_viid));
+			else {
+				if (chip_id(adap) <= CHELSIO_T5)
+					*smt_idx = (viid & M_FW_VIID_VIN) << 1;
+				else
+					*smt_idx = viid & M_FW_VIID_VIN;
+			}
+		}
 	}
 	return ret;
 }
@@ -9331,9 +9354,9 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 {
 	u8 addr[6];
 	int ret, i, j;
-	u16 rss_size;
 	struct port_info *p = adap2pinfo(adap, port_id);
 	u32 param, val;
+	struct vi_info *vi = &p->vi[0];
 
 	for (i = 0, j = -1; i <= p->port_id; i++) {
 		do {
@@ -9351,27 +9374,23 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
  		t4_update_port_info(p);
 	}
 
-	ret = t4_alloc_vi(adap, mbox, j, pf, vf, 1, addr, &rss_size);
+	ret = t4_alloc_vi(adap, mbox, j, pf, vf, 1, addr, &vi->rss_size,
+	    &vi->vfvld, &vi->vin);
 	if (ret < 0)
 		return ret;
 
-	p->vi[0].viid = ret;
-	if (chip_id(adap) <= CHELSIO_T5)
-		p->vi[0].smt_idx = (ret & 0x7f) << 1;
-	else
-		p->vi[0].smt_idx = (ret & 0x7f);
-	p->vi[0].rss_size = rss_size;
+	vi->viid = ret;
 	t4_os_set_hw_addr(p, addr);
 
 	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
 	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_RSSINFO) |
-	    V_FW_PARAMS_PARAM_YZ(p->vi[0].viid);
+	    V_FW_PARAMS_PARAM_YZ(vi->viid);
 	ret = t4_query_params(adap, mbox, pf, vf, 1, &param, &val);
 	if (ret)
-		p->vi[0].rss_base = 0xffff;
+		vi->rss_base = 0xffff;
 	else {
 		/* MPASS((val >> 16) == rss_size); */
-		p->vi[0].rss_base = val & 0xffff;
+		vi->rss_base = val & 0xffff;
 	}
 
 	return 0;
