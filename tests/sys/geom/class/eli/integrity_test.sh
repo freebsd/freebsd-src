@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+. $(atf_get_srcdir)/conf.sh
+
 copy_test() {
 	cipher=$1
 	aalgo=$2
@@ -51,18 +53,17 @@ copy_head()
 }
 copy_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=2
 
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
 	dd if=/dev/random of=rnd bs=${MAX_SECSIZE} count=${sectors} status=none
-	
+
 	for_each_geli_config copy_test backing_file
 }
 copy_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -98,7 +99,7 @@ data_head()
 }
 data_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=2
 
@@ -108,7 +109,6 @@ data_body()
 }
 data_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -143,7 +143,7 @@ hmac_head()
 }
 hmac_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=2
 
@@ -153,7 +153,6 @@ hmac_body()
 }
 hmac_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
