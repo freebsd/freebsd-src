@@ -300,7 +300,7 @@ getcharacter(FILE *pfile)
 
 	for(i = 0; i < encoding_size; i++) {
 		c = getc(pfile);
-		if (feof(pfile) != 0)
+		if (c == EOF)
 			return (EOF);
 		buf[i] = c;
 	}
@@ -358,7 +358,7 @@ find_strings(const char *name, FILE *pfile, off_t offset, off_t size)
 		memset(obuf, 0, min_len + 1);
 		for(i = 0; i < min_len; i++) {
 			c = getcharacter(pfile);
-			if (c == EOF && feof(pfile) != 0)
+			if (c == EOF)
 				goto _exit1;
 			if (PRINTABLE(c)) {
 				obuf[i] = c;
