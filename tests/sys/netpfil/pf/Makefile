@@ -20,6 +20,7 @@ ATF_TESTS_SH+=	anchor \
 
 ${PACKAGE}FILES+=	utils.subr \
 			echo_inetd.conf \
+			sniffer.py \
 			pft_ping.py \
 			CVE-2019-5597.py
 
