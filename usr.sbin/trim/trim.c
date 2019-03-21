@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2019 Eugene Grosbein <eugen@FreeBSD.org>.
- * All rights reserved.
+ * Contains code written by Alan Somers <asomers@FreeBSD.org>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,12 +40,14 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+static bool	candelete(int fd);
 static off_t	getsize(const char *path);
 static int	opendev(const char *path, int flags);
 static int	trim(const char *path, off_t offset, off_t length, bool dryrun, bool verbose);
@@ -104,6 +106,23 @@ main(int argc, char **argv)
 			/* NOTREACHED */
 		}
 
+	/*
+	 * Safety net: do not allow mistakes like
+	 *
+	 *	trim -f /dev/da0 -r rfile
+	 *
+	 * This would trim whole device then error on non-existing file -r.
+	 * Following check prevents this while allowing this form still:
+	 *
+	 *	trim -f -- /dev/da0 -r rfile
+	 */
+	
+	if (strcmp(argv[optind-1], "--") != 0) {
+		for (ch = optind; ch < argc; ch++)
+			if (argv[ch][0] == '-')
+				usage(name);
+	}
+
 	argv += optind;
 	argc -= optind;
 
@@ -115,6 +134,19 @@ main(int argc, char **argv)
 			error++;
 
 	return (error ? EXIT_FAILURE : EXIT_SUCCESS);
+}
+
+static bool
+candelete(int fd)
+{
+	struct diocgattr_arg arg;
+
+	strlcpy(arg.name, "GEOM::candelete", sizeof(arg.name));
+	arg.len = sizeof(arg.value.i);
+	if (ioctl(fd, DIOCGATTR, &arg) == 0)
+		return (arg.value.i != 0);
+	else
+		return (false);
 }
 
 static int
@@ -193,9 +225,12 @@ trim(const char *path, off_t offset, off_t length, bool dryrun, bool verbose)
 	arg[1] = length;
 
 	error = ioctl(fd, DIOCGDELETE, arg);
-	if (error < 0)
-		warn("ioctl(DIOCGDELETE) failed: %s", path);
-
+	if (error < 0) {
+		if (errno == EOPNOTSUPP && verbose && !candelete(fd))
+			warnx("%s: TRIM/UNMAP not supported by driver", path);
+		else
+			warn("ioctl(DIOCGDELETE) failed: %s", path);
+	}
 	close(fd);
 	return (error);
 }
