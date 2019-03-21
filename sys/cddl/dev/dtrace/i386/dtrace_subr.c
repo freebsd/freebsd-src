@@ -321,6 +321,9 @@ dtrace_gethrtime_init(void *arg)
 	int i;
 #endif
 
+	if (vm_guest)
+		return;
+
 	/* The current CPU is the reference one. */
 	sched_pin();
 	tsc_skew[curcpu] = 0;
