@@ -28,7 +28,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2016
+.Dd December 5, 2018
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -151,45 +151,53 @@ are as follows:
 .Bl -tag -width ".Va st_birthtim"
 .It Va st_atim
 Time when file data last accessed.
-Changed by the
-.Xr mknod 2 ,
-.Xr utimes 2 ,
+Changed implicitly by syscalls such as
 .Xr read 2
 and
-.Xr readv 2
-system calls.
+.Xr readv 2 ,
+and explicitly by
+.Xr utimes 2 .
 .It Va st_mtim
 Time when file data last modified.
-Changed by the
-.Xr mkdir 2 ,
-.Xr mkfifo 2 ,
-.Xr mknod 2 ,
-.Xr utimes 2 ,
-.Xr write 2
+Changed implicitly by syscalls such as
+.Xr truncate 2 ,
+.Xr write 2 ,
 and
-.Xr writev 2
-system calls.
+.Xr writev 2 ,
+and explicitly by
+.Xr utimes 2 .
+Also, any syscall which modifies directory content changes the
+.Va st_mtim
+for the affected directory.
+For instance,
+.Xr creat 2 ,
+.Xr mkdir 2 ,
+.Xr rename 2 ,
+.Xr link 2 ,
+and
+.Xr unlink 2 .
 .It Va st_ctim
 Time when file status was last changed (inode data modification).
-Changed by the
+Changed implicitly by any syscall that affects file metadata, including
+.Va st_mtim ,
+such as
 .Xr chflags 2 ,
 .Xr chmod 2 ,
 .Xr chown 2 ,
-.Xr creat 2 ,
-.Xr link 2 ,
-.Xr mkdir 2 ,
-.Xr mkfifo 2 ,
-.Xr mknod 2 ,
-.Xr rename 2 ,
-.Xr rmdir 2 ,
-.Xr symlink 2 ,
 .Xr truncate 2 ,
-.Xr unlink 2 ,
 .Xr utimes 2 ,
-.Xr write 2
 and
-.Xr writev 2
-system calls.
+.Xr write 2 .
+Also, any syscall which modifies directory content changes the
+.Va st_ctim
+for the affected directory.
+For instance,
+.Xr creat 2 ,
+.Xr mkdir 2 ,
+.Xr rename 2 ,
+.Xr link 2 ,
+and
+.Xr unlink 2 .
 .It Va st_birthtim
 Time when the inode was created.
 .El
