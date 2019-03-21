@@ -185,8 +185,7 @@ TEST_F(Create, DISABLED_Enosys)
 /*
  * Creating a new file after FUSE_LOOKUP returned a negative cache entry
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236231 */
-TEST_F(Create, DISABLED_entry_cache_negative)
+TEST_F(Create, entry_cache_negative)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -240,8 +239,7 @@ TEST_F(Create, DISABLED_entry_cache_negative)
 /*
  * Creating a new file should purge any negative namecache entries
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236231 */
-TEST_F(Create, DISABLED_entry_cache_negative_purge)
+TEST_F(Create, entry_cache_negative_purge)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";

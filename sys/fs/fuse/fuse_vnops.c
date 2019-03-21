@@ -747,6 +747,7 @@ calldaemon:
 	                 * but it's also cacheable (which we keep
 	                 * keep on doing not as of writing this)
 	                 */
+			fdi.answ_stat = ENOENT;
 			lookup_err = ENOENT;
 		} else if (nid == FUSE_ROOT_ID) {
 			lookup_err = EINVAL;
