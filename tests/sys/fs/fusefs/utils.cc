@@ -43,15 +43,10 @@ using namespace testing;
 /* Check that fusefs(4) is accessible and the current user can mount(2) */
 void check_environment()
 {
-	const char *mod_name = "fusefs";
 	const char *devnode = "/dev/fuse";
 	const char *usermount_node = "vfs.usermount";
 	int usermount_val = 0;
 	size_t usermount_size = sizeof(usermount_val);
-	if (modfind(mod_name) == -1) {
-		GTEST_SKIP() << "Module " << mod_name <<
-			" could not be resolved";
-	}
 	if (eaccess(devnode, R_OK | W_OK)) {
 		if (errno == ENOENT) {
 			GTEST_SKIP() << devnode << " does not exist";
