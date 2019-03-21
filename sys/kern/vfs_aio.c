@@ -212,7 +212,7 @@ typedef struct oaiocb {
 /*
  * If the routine that services an AIO request blocks while running in an
  * AIO kernel process it can starve other I/O requests.  BIO requests
- * queued via aio_qphysio() complete in GEOM and do not use AIO kernel
+ * queued via aio_qbio() complete asynchronously and do not use AIO kernel
  * processes at all.  Socket I/O requests use a separate pool of
  * kprocs and also force non-blocking I/O.  Other file I/O requests
  * use the generic fo_read/fo_write operations which can block.  The
@@ -268,7 +268,7 @@ struct kaioinfo {
 	int	kaio_flags;		/* (a) per process kaio flags */
 	int	kaio_active_count;	/* (c) number of currently used AIOs */
 	int	kaio_count;		/* (a) size of AIO queue */
-	int	kaio_buffer_count;	/* (a) number of physio buffers */
+	int	kaio_buffer_count;	/* (a) number of bio buffers */
 	TAILQ_HEAD(,kaiocb) kaio_all;	/* (a) all AIOs in a process */
 	TAILQ_HEAD(,kaiocb) kaio_done;	/* (a) done queue for process */
 	TAILQ_HEAD(,aioliojob) kaio_liojoblist; /* (a) list of lio jobs */
@@ -318,11 +318,11 @@ static int	aio_newproc(int *);
 int		aio_aqueue(struct thread *td, struct aiocb *ujob,
 		    struct aioliojob *lio, int type, struct aiocb_ops *ops);
 static int	aio_queue_file(struct file *fp, struct kaiocb *job);
-static void	aio_physwakeup(struct bio *bp);
+static void	aio_biowakeup(struct bio *bp);
 static void	aio_proc_rundown(void *arg, struct proc *p);
 static void	aio_proc_rundown_exec(void *arg, struct proc *p,
 		    struct image_params *imgp);
-static int	aio_qphysio(struct proc *p, struct kaiocb *job);
+static int	aio_qbio(struct proc *p, struct kaiocb *job);
 static void	aio_daemon(void *param);
 static void	aio_bio_done_notify(struct proc *userp, struct kaiocb *job);
 static bool	aio_clear_cancel_function_locked(struct kaiocb *job);
@@ -741,9 +741,9 @@ drop:
 
 /*
  * The AIO processing activity for LIO_READ/LIO_WRITE.  This is the code that
- * does the I/O request for the non-physio version of the operations.  The
- * normal vn operations are used, and this code should work in all instances
- * for every type of file, including pipes, sockets, fifos, and regular files.
+ * does the I/O request for the non-bio version of the operations.  The normal
+ * vn operations are used, and this code should work in all instances for every
+ * type of file, including pipes, sockets, fifos, and regular files.
  *
  * XXX I don't think it works well for socket, pipe, and fifo.
  */
@@ -1197,7 +1197,7 @@ aio_newproc(int *start)
 }
 
 /*
- * Try the high-performance, low-overhead physio method for eligible
+ * Try the high-performance, low-overhead bio method for eligible
  * VCHR devices.  This method doesn't use an aio helper thread, and
  * thus has very low overhead.
  *
@@ -1206,7 +1206,7 @@ aio_newproc(int *start)
  * duration of this call.
  */
 static int
-aio_qphysio(struct proc *p, struct kaiocb *job)
+aio_qbio(struct proc *p, struct kaiocb *job)
 {
 	struct aiocb *cb;
 	struct file *fp;
@@ -1279,7 +1279,7 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 
 	bp->bio_length = cb->aio_nbytes;
 	bp->bio_bcount = cb->aio_nbytes;
-	bp->bio_done = aio_physwakeup;
+	bp->bio_done = aio_biowakeup;
 	bp->bio_data = (void *)(uintptr_t)cb->aio_buf;
 	bp->bio_offset = cb->aio_offset;
 	bp->bio_cmd = cb->aio_lio_opcode == LIO_WRITE ? BIO_WRITE : BIO_READ;
@@ -1444,7 +1444,7 @@ static struct aiocb_ops aiocb_ops_osigevent = {
 #endif
 
 /*
- * Queue a new AIO request.  Choosing either the threaded or direct physio VCHR
+ * Queue a new AIO request.  Choosing either the threaded or direct bio VCHR
  * technique is done in this code.
  */
 int
@@ -1704,7 +1704,7 @@ aio_queue_file(struct file *fp, struct kaiocb *job)
 
 	lj = job->lio;
 	ki = job->userproc->p_aioinfo;
-	error = aio_qphysio(job->userproc, job);
+	error = aio_qbio(job->userproc, job);
 	if (error >= 0)
 		return (error);
 	safe = false;
@@ -1954,8 +1954,7 @@ sys_aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 }
 
 /*
- * aio_cancel cancels any non-physio aio operations not currently in
- * progress.
+ * aio_cancel cancels any non-bio aio operations not currently in progress.
  */
 int
 sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
@@ -2339,7 +2338,7 @@ sys_lio_listio(struct thread *td, struct lio_listio_args *uap)
 }
 
 static void
-aio_physwakeup(struct bio *bp)
+aio_biowakeup(struct bio *bp)
 {
 	struct kaiocb *job = (struct kaiocb *)bp->bio_caller1;
 	struct proc *userp;
