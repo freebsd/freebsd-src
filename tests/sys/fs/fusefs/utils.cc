@@ -91,11 +91,25 @@ void FuseTest::SetUp() {
 	m_maxbcachebuf = val;
 
 	try {
-		m_mock = new MockFS(m_maxreadahead, m_push_symlinks_in,
-			m_default_permissions, m_init_flags);
+		m_mock = new MockFS(m_maxreadahead, m_allow_other,
+			m_default_permissions, m_push_symlinks_in,
+			m_init_flags);
 	} catch (std::system_error err) {
 		FAIL() << err.what();
 	}
+}
+
+void
+FuseTest::expect_access(uint64_t ino, mode_t access_mode, int error)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_ACCESS &&
+				in->header.nodeid == ino &&
+				in->body.access.mask == access_mode);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(error)));
 }
 
 void FuseTest::expect_getattr(uint64_t ino, uint64_t size)

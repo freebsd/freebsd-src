@@ -243,12 +243,13 @@ void debug_fuseop(const mockfs_buf_in *in)
 	printf("\n");
 }
 
-MockFS::MockFS(int max_readahead, bool push_symlinks_in,
-	bool default_permissions, uint32_t flags)
+MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
+	bool push_symlinks_in, uint32_t flags)
 {
 	struct iovec *iov = NULL;
 	int iovlen = 0;
 	char fdstr[15];
+	const bool trueval = true;
 
 	m_daemon_id = NULL;
 	m_maxreadahead = max_readahead;
@@ -262,31 +263,34 @@ MockFS::MockFS(int max_readahead, bool push_symlinks_in,
 	 * googletest doesn't allow ASSERT_ in constructors, so we must throw
 	 * instead.
 	 */
-	if (mkdir("mountpoint" , 0644) && errno != EEXIST)
+	if (mkdir("mountpoint" , 0755) && errno != EEXIST)
 		throw(std::system_error(errno, std::system_category(),
 			"Couldn't make mountpoint directory"));
 
-	m_fuse_fd = open("/dev/fuse", O_RDWR);
+	m_fuse_fd = open("/dev/fuse", O_CLOEXEC | O_RDWR);
 	if (m_fuse_fd < 0)
 		throw(std::system_error(errno, std::system_category(),
 			"Couldn't open /dev/fuse"));
 	sprintf(fdstr, "%d", m_fuse_fd);
 
 	m_pid = getpid();
+	m_child_pid = -1;
 
 	build_iovec(&iov, &iovlen, "fstype", __DECONST(void *, "fusefs"), -1);
 	build_iovec(&iov, &iovlen, "fspath",
 		    __DECONST(void *, "mountpoint"), -1);
 	build_iovec(&iov, &iovlen, "from", __DECONST(void *, "/dev/fuse"), -1);
 	build_iovec(&iov, &iovlen, "fd", fdstr, -1);
-	if (push_symlinks_in) {
-		const bool trueval = true;
-		build_iovec(&iov, &iovlen, "push_symlinks_in",
+	if (allow_other) {
+		build_iovec(&iov, &iovlen, "allow_other",
 			__DECONST(void*, &trueval), sizeof(bool));
 	}
 	if (default_permissions) {
-		const bool trueval = true;
 		build_iovec(&iov, &iovlen, "default_permissions",
+			__DECONST(void*, &trueval), sizeof(bool));
+	}
+	if (push_symlinks_in) {
+		build_iovec(&iov, &iovlen, "push_symlinks_in",
 			__DECONST(void*, &trueval), sizeof(bool));
 	}
 	if (nmount(iov, iovlen, 0))
@@ -396,6 +400,8 @@ void MockFS::loop() {
 
 bool MockFS::pid_ok(pid_t pid) {
 	if (pid == m_pid) {
+		return (true);
+	} else if (pid == m_child_pid) {
 		return (true);
 	} else {
 		struct kinfo_proc *ki;

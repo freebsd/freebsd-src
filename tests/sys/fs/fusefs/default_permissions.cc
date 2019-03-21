@@ -84,7 +84,8 @@ TEST_F(Access, DISABLED_eaccess)
 	ASSERT_EQ(EACCES, errno);
 }
 
-TEST_F(Access, ok)
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236291 */
+TEST_F(Access, DISABLED_ok)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -92,10 +93,10 @@ TEST_F(Access, ok)
 	mode_t	access_mode = R_OK;
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644);
+	expect_access(ino, access_mode, 0);
 	/* 
 	 * Once default_permissions is properly implemented, there might be
-	 * another FUSE_GETATTR or something in here.  But there should not be
-	 * a FUSE_ACCESS
+	 * another FUSE_GETATTR or something in here.
 	 */
 
 	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);

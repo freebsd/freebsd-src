@@ -40,18 +40,6 @@ using namespace testing;
 
 class Access: public FuseTest {
 public:
-void expect_access(uint64_t ino, mode_t access_mode, int error)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_ACCESS &&
-				in->header.nodeid == ino &&
-				in->body.access.mask == access_mode);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(error)));
-}
-
 void expect_lookup(const char *relpath, uint64_t ino)
 {
 	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, 1);
