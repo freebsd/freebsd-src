@@ -76,7 +76,6 @@ void expect_write(uint64_t ino, uint64_t size, const void *contents)
 };
 
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236379 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236473 */
 TEST_F(Fsync, DISABLED_aio_fsync)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -227,8 +226,7 @@ TEST_F(Fsync, fdatasync)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236473 */
-TEST_F(Fsync, DISABLED_fsync)
+TEST_F(Fsync, fsync)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -248,38 +246,5 @@ TEST_F(Fsync, DISABLED_fsync)
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, fsync(fd)) << strerror(errno);
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
-}
-
-/* Fsync should sync a file with dirty metadata but clean data */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236473 */
-TEST_F(Fsync, DISABLED_fsync_metadata_only)
-{
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
-	uint64_t ino = 42;
-	int fd;
-	mode_t mode = 0755;
-
-	expect_lookup(RELPATH, ino);
-	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | mode;
-	})));
-
-	expect_fsync(ino, 0, 0);
-
-	fd = open(FULLPATH, O_RDWR);
-	ASSERT_LE(0, fd) << strerror(errno);
-	ASSERT_EQ(0, fchmod(fd, mode)) << strerror(errno);
-	ASSERT_EQ(0, fsync(fd)) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }

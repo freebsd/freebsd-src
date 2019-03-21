@@ -120,6 +120,7 @@ static vop_access_t fuse_vnop_access;
 static vop_close_t fuse_vnop_close;
 static vop_create_t fuse_vnop_create;
 static vop_deleteextattr_t fuse_vnop_deleteextattr;
+static vop_fdatasync_t fuse_vnop_fdatasync;
 static vop_fsync_t fuse_vnop_fsync;
 static vop_getattr_t fuse_vnop_getattr;
 static vop_getextattr_t fuse_vnop_getextattr;
@@ -154,6 +155,7 @@ struct vop_vector fuse_vnops = {
 	.vop_create = fuse_vnop_create,
 	.vop_deleteextattr = fuse_vnop_deleteextattr,
 	.vop_fsync = fuse_vnop_fsync,
+	.vop_fdatasync = fuse_vnop_fdatasync,
 	.vop_getattr = fuse_vnop_getattr,
 	.vop_getextattr = fuse_vnop_getextattr,
 	.vop_inactive = fuse_vnop_inactive,
@@ -410,22 +412,34 @@ out:
 }
 
 /*
- * Our vnop_fsync roughly corresponds to the FUSE_FSYNC method. The Linux
- * version of FUSE also has a FUSE_FLUSH method.
- *
- * On Linux, fsync() synchronizes a file's complete in-core state with that
- * on disk. The call is not supposed to return until the system has completed
- * that action or until an error is detected.
- *
- * Linux also has an fdatasync() call that is similar to fsync() but is not
- * required to update the metadata such as access time and modification time.
- */
+    struct vnop_fdatasync_args {
+	struct vop_generic_args a_gen;
+	struct vnode * a_vp;
+	struct thread * a_td;
+    };
+*/
+static int
+fuse_vnop_fdatasync(struct vop_fdatasync_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct thread *td = ap->a_td;
+	int waitfor = MNT_WAIT;
+
+	int err = 0;
+
+	if (fuse_isdeadfs(vp)) {
+		return 0;
+	}
+	if ((err = vop_stdfdatasync_buf(ap)))
+		return err;
+
+	return fuse_internal_fsync(vp, td, waitfor, true);
+}
 
 /*
     struct vnop_fsync_args {
-	struct vnodeop_desc *a_desc;
+	struct vop_generic_args a_gen;
 	struct vnode * a_vp;
-	struct ucred * a_cred;
 	int  a_waitfor;
 	struct thread * a_td;
     };
@@ -436,11 +450,7 @@ fuse_vnop_fsync(struct vop_fsync_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
 	int waitfor = ap->a_waitfor;
-
-	struct fuse_filehandle *fufh;
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-
-	int type, err = 0;
+	int err = 0;
 
 	if (fuse_isdeadfs(vp)) {
 		return 0;
@@ -448,19 +458,7 @@ fuse_vnop_fsync(struct vop_fsync_args *ap)
 	if ((err = vop_stdfsync(ap)))
 		return err;
 
-	if (!fsess_isimpl(vnode_mount(vp),
-	    (vnode_vtype(vp) == VDIR ? FUSE_FSYNCDIR : FUSE_FSYNC))) {
-		goto out;
-	}
-	for (type = 0; type < FUFH_MAXTYPE; type++) {
-		fufh = &(fvdat->fufh[type]);
-		if (FUFH_IS_VALID(fufh)) {
-			err = fuse_internal_fsync(vp, td, NULL, fufh, waitfor);
-		}
-	}
-
-out:
-	return err;
+	return fuse_internal_fsync(vp, td, waitfor, false);
 }
 
 /*
