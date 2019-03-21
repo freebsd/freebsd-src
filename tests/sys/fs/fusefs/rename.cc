@@ -86,8 +86,7 @@ TEST_F(Rename, enoent)
 /*
  * Renaming a file after FUSE_LOOKUP returned a negative cache entry for dst
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236231 */
-TEST_F(Rename, DISABLED_entry_cache_negative)
+TEST_F(Rename, entry_cache_negative)
 {
 	const char FULLDST[] = "mountpoint/dst";
 	const char RELDST[] = "dst";
@@ -126,8 +125,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative)
 /*
  * Renaming a file should purge any negative namecache entries for the dst
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236231 */
-TEST_F(Rename, DISABLED_entry_cache_negative_purge)
+TEST_F(Rename, entry_cache_negative_purge)
 {
 	const char FULLDST[] = "mountpoint/dst";
 	const char RELDST[] = "dst";
@@ -136,12 +134,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative_purge)
 	// FUSE hardcodes the mountpoint to inode 1
 	uint64_t dst_dir_ino = 1;
 	uint64_t ino = 42;
-	/* 
-	 * Set entry_valid = 0 because this test isn't concerned with whether
-	 * or not we actually cache negative entries, only with whether we
-	 * interpret negative cache responses correctly.
-	 */
-	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
+	struct timespec entry_valid = {.tv_sec = TIME_T_MAX, .tv_nsec = 0};
 
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	/* LOOKUP returns a negative cache entry for dst */
@@ -164,7 +157,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative_purge)
 	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
 
 	/* Finally, a subsequent lookup should query the daemon */
-	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
+	expect_lookup(RELDST, ino, S_IFREG | 0644, 0, 1);
 
 	ASSERT_EQ(0, access(FULLDST, F_OK)) << strerror(errno);
 }

@@ -69,8 +69,7 @@ TEST_F(Mkdir, emlink)
 /*
  * Creating a new directory after FUSE_LOOKUP returned a negative cache entry
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236231 */
-TEST_F(Mkdir, DISABLED_entry_cache_negative)
+TEST_F(Mkdir, entry_cache_negative)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -109,8 +108,7 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative)
 /*
  * Creating a new directory should purge any negative namecache entries
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236231 */
-TEST_F(Mkdir, DISABLED_entry_cache_negative_purge)
+TEST_F(Mkdir, entry_cache_negative_purge)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
