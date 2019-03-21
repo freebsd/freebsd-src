@@ -435,6 +435,7 @@ fuse_vnop_fsync(struct vop_fsync_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
+	int waitfor = ap->a_waitfor;
 
 	struct fuse_filehandle *fufh;
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
@@ -454,7 +455,7 @@ fuse_vnop_fsync(struct vop_fsync_args *ap)
 	for (type = 0; type < FUFH_MAXTYPE; type++) {
 		fufh = &(fvdat->fufh[type]);
 		if (FUFH_IS_VALID(fufh)) {
-			err = fuse_internal_fsync(vp, td, NULL, fufh);
+			err = fuse_internal_fsync(vp, td, NULL, fufh, waitfor);
 		}
 	}
 
