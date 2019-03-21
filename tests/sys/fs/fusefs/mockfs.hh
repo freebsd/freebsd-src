@@ -208,12 +208,16 @@ class MockFS {
 	void read_request(mockfs_buf_in*);
 
 	public:
+	/* pid of child process, for two-process test cases */
+	pid_t m_child_pid;
+
 	/* Maximum size of a FUSE_WRITE write */
 	uint32_t m_max_write;
 
 	/* Create a new mockfs and mount it to a tempdir */
-	MockFS(int max_readahead, bool push_symlinks_in,
-		bool default_permissions, uint32_t flags);
+	MockFS(int max_readahead, bool allow_other,
+		bool default_permissions, bool push_symlinks_in,
+		uint32_t flags);
 	virtual ~MockFS();
 
 	/* Kill the filesystem daemon without unmounting the filesystem */

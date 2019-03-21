@@ -41,6 +41,7 @@ class FuseTest : public ::testing::Test {
 	protected:
 	uint32_t m_maxreadahead;
 	uint32_t m_init_flags;
+	bool m_allow_other;
 	bool m_default_permissions;
 	bool m_push_symlinks_in;
 	MockFS *m_mock = NULL;
@@ -56,6 +57,7 @@ class FuseTest : public ::testing::Test {
 		 */
 		m_maxreadahead(UINT_MAX),
 		m_init_flags(0),
+		m_allow_other(false),
 		m_default_permissions(false),
 		m_push_symlinks_in(false)
 	{}
@@ -66,6 +68,12 @@ class FuseTest : public ::testing::Test {
 		if (m_mock)
 			delete m_mock;
 	}
+
+	/*
+	 * Create an expectation that FUSE_ACCESS will be called oncde for the
+	 * given inode with the given access_mode, returning the given errno
+	 */
+	void expect_access(uint64_t ino, mode_t access_mode, int error);
 
 	/*
 	 * Create an expectation that FUSE_GETATTR will be called for the given

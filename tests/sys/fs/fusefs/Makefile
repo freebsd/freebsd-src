@@ -8,6 +8,7 @@ TESTSDIR=	${TESTSBASE}/sys/fs/fusefs
 # Kyua treats googletest programs as plain tests, it's better to separate them
 # out, so we get more granular reporting.
 GTESTS+=	access
+GTESTS+=	allow_other
 GTESTS+=	create
 GTESTS+=	default_permissions
 GTESTS+=	destroy
@@ -41,6 +42,11 @@ SRCS.access+=	access.cc
 SRCS.access+=	getmntopts.c
 SRCS.access+=	mockfs.cc
 SRCS.access+=	utils.cc
+
+SRCS.allow_other+=	allow_other.cc
+SRCS.allow_other+=	getmntopts.c
+SRCS.allow_other+=	mockfs.cc
+SRCS.allow_other+=	utils.cc
 
 SRCS.create+=	create.cc
 SRCS.create+=	getmntopts.c
