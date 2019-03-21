@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2018
+.Dd Nov 15, 2018
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -562,6 +562,10 @@ or
 and the data to which
 .Fa arg
 points is not valid.
+.Pp
+The argument
+.Fa cmd
+is invalid.
 .It Bq Er EMFILE
 The argument
 .Fa cmd
