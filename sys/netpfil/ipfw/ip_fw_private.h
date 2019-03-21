@@ -151,8 +151,8 @@ int ipfw_chk(struct ip_fw_args *args);
 struct mbuf *ipfw_send_pkt(struct mbuf *, struct ipfw_flow_id *,
     u_int32_t, u_int32_t, int);
 
-/* attach (arg = 1) or detach (arg = 0) hooks */
-int ipfw_attach_hooks(int);
+int ipfw_attach_hooks(void);
+void ipfw_detach_hooks(void);
 #ifdef NOTYET
 void ipfw_nat_destroy(void);
 #endif

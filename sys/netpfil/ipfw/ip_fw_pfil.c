@@ -536,21 +536,16 @@ VNET_DEFINE_STATIC(pfil_hook_t, ipfw_inet6_hook);
 VNET_DEFINE_STATIC(pfil_hook_t, ipfw_link_hook);
 #define	V_ipfw_link_hook	VNET(ipfw_link_hook)
 
-static int
-ipfw_hook(int onoff, int pf)
+static void
+ipfw_hook(int pf)
 {
 	struct pfil_hook_args pha;
-	struct pfil_link_args pla;
 	pfil_hook_t *h;
 
 	pha.pa_version = PFIL_VERSION;
-	pha.pa_flags = PFIL_IN | PFIL_OUT | PFIL_MEMPTR;
+	pha.pa_flags = PFIL_IN | PFIL_OUT;
 	pha.pa_modname = "ipfw";
 	pha.pa_ruleset = NULL;
-
-	pla.pa_version = PFIL_VERSION;
-	pla.pa_flags = PFIL_IN | PFIL_OUT |
-	    PFIL_HEADPTR | PFIL_HOOKPTR;
 
 	switch (pf) {
 	case AF_INET:
@@ -558,7 +553,6 @@ ipfw_hook(int onoff, int pf)
 		pha.pa_type = PFIL_TYPE_IP4;
 		pha.pa_rulname = "default";
 		h = &V_ipfw_inet_hook;
-		pla.pa_head = V_inet_pfil_head;
 		break;
 #ifdef INET6
 	case AF_INET6:
@@ -566,55 +560,101 @@ ipfw_hook(int onoff, int pf)
 		pha.pa_type = PFIL_TYPE_IP6;
 		pha.pa_rulname = "default6";
 		h = &V_ipfw_inet6_hook;
-		pla.pa_head = V_inet6_pfil_head;
 		break;
 #endif
 	case AF_LINK:
 		pha.pa_func = ipfw_check_frame;
 		pha.pa_type = PFIL_TYPE_ETHERNET;
 		pha.pa_rulname = "default-link";
+		pha.pa_flags |= PFIL_MEMPTR;
 		h = &V_ipfw_link_hook;
-		pla.pa_head = V_link_pfil_head;
 		break;
 	}
 
-	if (onoff) {
-		*h = pfil_add_hook(&pha);
-		pla.pa_hook = *h;
-		(void)pfil_link(&pla);
-	} else
-		if (*h != NULL)
-			pfil_remove_hook(*h);
+	*h = pfil_add_hook(&pha);
+}
 
-	return 0;
+static void
+ipfw_unhook(int pf)
+{
+
+	switch (pf) {
+	case AF_INET:
+		pfil_remove_hook(V_ipfw_inet_hook);
+		break;
+#ifdef INET6
+	case AF_INET6:
+		pfil_remove_hook(V_ipfw_inet6_hook);
+		break;
+#endif
+	case AF_LINK:
+		pfil_remove_hook(V_ipfw_link_hook);
+		break;
+	}
+}
+
+static int
+ipfw_link(int pf, bool unlink)
+{
+	struct pfil_link_args pla;
+
+	pla.pa_version = PFIL_VERSION;
+	pla.pa_flags = PFIL_IN | PFIL_OUT | PFIL_HEADPTR | PFIL_HOOKPTR;
+	if (unlink)
+		pla.pa_flags |= PFIL_UNLINK;
+
+	switch (pf) {
+	case AF_INET:
+		pla.pa_head = V_inet_pfil_head;
+		pla.pa_hook = V_ipfw_inet_hook;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		pla.pa_head = V_inet6_pfil_head;
+		pla.pa_hook = V_ipfw_inet6_hook;
+		break;
+#endif
+	case AF_LINK:
+		pla.pa_head = V_link_pfil_head;
+		pla.pa_hook = V_ipfw_link_hook;
+		break;
+	}
+
+	return (pfil_link(&pla));
 }
 
 int
-ipfw_attach_hooks(int arg)
+ipfw_attach_hooks(void)
 {
 	int error = 0;
 
-	if (arg == 0) /* detach */
-		ipfw_hook(0, AF_INET);
-	else if (V_fw_enable && ipfw_hook(1, AF_INET) != 0) {
-                error = ENOENT; /* see ip_fw_pfil.c::ipfw_hook() */
+	ipfw_hook(AF_INET);
+	TUNABLE_INT_FETCH("net.inet.ip.fw.enable", &V_fw_enable);
+	if (V_fw_enable && (error = ipfw_link(AF_INET, false)) != 0)
                 printf("ipfw_hook() error\n");
-        }
 #ifdef INET6
-	if (arg == 0) /* detach */
-		ipfw_hook(0, AF_INET6);
-	else if (V_fw6_enable && ipfw_hook(1, AF_INET6) != 0) {
-                error = ENOENT;
+	ipfw_hook(AF_INET6);
+	TUNABLE_INT_FETCH("net.inet6.ip6.fw.enable", &V_fw6_enable);
+	if (V_fw6_enable && (error = ipfw_link(AF_INET6, false)) != 0)
                 printf("ipfw6_hook() error\n");
-        }
 #endif
-	if (arg == 0) /* detach */
-		ipfw_hook(0, AF_LINK);
-	else if (V_fwlink_enable && ipfw_hook(1, AF_LINK) != 0) {
-                error = ENOENT;
+	ipfw_hook(AF_LINK);
+	TUNABLE_INT_FETCH("net.link.ether.ipfw", &V_fwlink_enable);
+	if (V_fwlink_enable && (error = ipfw_link(AF_LINK, false)) != 0)
                 printf("ipfw_link_hook() error\n");
-        }
-	return error;
+
+	return (error);
+}
+
+void
+ipfw_detach_hooks(void)
+{
+
+	ipfw_unhook(AF_INET);
+#ifdef INET6
+	ipfw_unhook(AF_INET6);
+#endif
+	ipfw_unhook(AF_LINK);
 }
 
 int
@@ -648,7 +688,7 @@ ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 	if (*(int *)arg1 == newval)
 		return (0);
 
-	error = ipfw_hook(newval, af);
+	error = ipfw_link(af, newval == 0 ? true : false);
 	if (error)
 		return (error);
 	*(int *)arg1 = newval;
