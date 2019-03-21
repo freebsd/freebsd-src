@@ -454,12 +454,12 @@ fuse_vnop_fsync(struct vop_fsync_args *ap)
 	for (type = 0; type < FUFH_MAXTYPE; type++) {
 		fufh = &(fvdat->fufh[type]);
 		if (FUFH_IS_VALID(fufh)) {
-			fuse_internal_fsync(vp, td, NULL, fufh);
+			err = fuse_internal_fsync(vp, td, NULL, fufh);
 		}
 	}
 
 out:
-	return 0;
+	return err;
 }
 
 /*

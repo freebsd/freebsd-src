@@ -77,7 +77,6 @@ void expect_write(uint64_t ino, uint64_t size, const void *contents)
 
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236379 */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236473 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
 TEST_F(Fsync, DISABLED_aio_fsync)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -149,8 +148,7 @@ TEST_F(Fsync, close)
 	close(fd);
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
-TEST_F(Fsync, DISABLED_eio)
+TEST_F(Fsync, eio)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -179,7 +177,6 @@ TEST_F(Fsync, DISABLED_eio)
  * subsequent calls to VOP_FSYNC will succeed automatically without being sent
  * to the filesystem daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
 TEST_F(Fsync, DISABLED_enosys)
 {
@@ -207,8 +204,7 @@ TEST_F(Fsync, DISABLED_enosys)
 }
 
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
-TEST_F(Fsync, DISABLED_fdatasync)
+TEST_F(Fsync, fdatasync)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -232,7 +228,6 @@ TEST_F(Fsync, DISABLED_fdatasync)
 }
 
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236473 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
 TEST_F(Fsync, DISABLED_fsync)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -258,7 +253,6 @@ TEST_F(Fsync, DISABLED_fsync)
 
 /* Fsync should sync a file with dirty metadata but clean data */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236473 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
 TEST_F(Fsync, DISABLED_fsync_metadata_only)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -289,25 +283,3 @@ TEST_F(Fsync, DISABLED_fsync_metadata_only)
 	ASSERT_EQ(0, fsync(fd)) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
-
-// fsync()ing a file that isn't dirty should be a no-op
-TEST_F(Fsync, nop)
-{
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
-	uint64_t ino = 42;
-	int fd;
-
-	expect_lookup(RELPATH, ino);
-	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
-
-	fd = open(FULLPATH, O_WRONLY);
-	ASSERT_LE(0, fd) << strerror(errno);
-
-	ASSERT_EQ(0, fsync(fd)) << strerror(errno);
-
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
-}
-
-// TODO: ENOSYS test

@@ -287,6 +287,7 @@ fuse_internal_fsync(struct vnode *vp,
 	int op = FUSE_FSYNC;
 	struct fuse_fsync_in *ffsi;
 	struct fuse_dispatcher fdi;
+	int err;
 
 	if (vnode_isdir(vp)) {
 		op = FUSE_FSYNCDIR;
@@ -298,13 +299,10 @@ fuse_internal_fsync(struct vnode *vp,
 
 	ffsi->fsync_flags = 1;		/* datasync */
 
-	fuse_insert_callback(fdi.tick, fuse_internal_fsync_callback);
-	fuse_insert_message(fdi.tick);
-
+	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);
 
-	return 0;
-
+	return err;
 }
 
 /* readdir */
