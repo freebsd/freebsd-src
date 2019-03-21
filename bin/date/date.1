@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd March 12, 2019
+.Dd March 20, 2019
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -52,13 +52,13 @@
 .Ar ...
 .Op Cm + Ns Ar output_fmt
 .Nm
-.Op Fl jnu
+.Op Fl ju
 .Sm off
 .Op Oo Oo Oo Oo Ar cc Oc Ar yy Oc Ar mm Oc Ar dd Oc Ar HH
 .Ar MM Op Ar .ss
 .Sm on
 .Nm
-.Op Fl jnRu
+.Op Fl jRu
 .Fl f Ar input_fmt new_date
 .Op Cm + Ns Ar output_fmt
 .Nm
@@ -142,16 +142,6 @@ This allows you to use the
 flag in addition to the
 .Cm +
 option to convert one date format to another.
-.It Fl n
-By default, if the
-.Xr timed 8
-daemon is running,
-.Nm
-sets the time on all of the machines in the local group.
-The
-.Fl n
-option suppresses this behavior and causes the time to be set only on the
-current machine.
 .It Fl R
 Use RFC 2822 date and time output format.
 This is equivalent to using
@@ -431,23 +421,6 @@ can be used to parse the output from
 .Nm
 and express it in Epoch time.
 .Sh DIAGNOSTICS
-Occasionally, when
-.Xr timed 8
-synchronizes the time on many hosts, the setting of a new time value may
-require more than a few seconds.
-On these occasions,
-.Nm
-prints:
-.Ql Network time being set .
-The message
-.Ql Communication error with timed
-occurs when the communication
-between
-.Nm
-and
-.Xr timed 8
-fails.
-.Pp
 It is invalid to combine the
 .Fl I
 flag with either
@@ -465,8 +438,7 @@ and exits with an error status.
 .Xr gettimeofday 2 ,
 .Xr getutxent 3 ,
 .Xr strftime 3 ,
-.Xr strptime 3 ,
-.Xr timed 8
+.Xr strptime 3
 .Rs
 .%T "TSP: The Time Synchronization Protocol for UNIX 4.3BSD"
 .%A R. Gusella
@@ -478,7 +450,7 @@ The
 utility is expected to be compatible with
 .St -p1003.2 .
 The
-.Fl d , f , I , j , n , r , t ,
+.Fl d , f , I , j , r , t ,
 and
 .Fl v
 options are all extensions to the standard.
