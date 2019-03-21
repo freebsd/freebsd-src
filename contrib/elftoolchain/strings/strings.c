@@ -295,8 +295,8 @@ long
 getcharacter(FILE *pfile)
 {
 	long rt;
-	int i;
-	char buf[4], c;
+	int i, c;
+	char buf[4];
 
 	for(i = 0; i < encoding_size; i++) {
 		c = getc(pfile);
