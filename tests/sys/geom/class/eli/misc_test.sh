@@ -24,6 +24,8 @@
 #
 # $FreeBSD$
 
+. $(atf_get_srcdir)/conf.sh
+
 atf_test_case preserve_props cleanup
 preserve_props_head()
 {
@@ -33,7 +35,8 @@ preserve_props_head()
 }
 preserve_props_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
+
 	md=$(attach_md -s1m)
 	atf_check geli onetime /dev/${md}
 	md_secsize=$(diskinfo ${md} | cut -wf 2)
@@ -45,7 +48,6 @@ preserve_props_body()
 }
 preserve_props_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -59,7 +61,8 @@ preserve_disk_props_head()
 }
 preserve_disk_props_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
+
 	disks=`atf_config_get disks`
 	disk=${disks%% *}
 	if [ -z "$disk" ]; then
@@ -82,7 +85,6 @@ preserve_disk_props_body()
 }
 preserve_disk_props_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	disk_cleanup
 	geli_test_cleanup
 }
@@ -96,8 +98,10 @@ physpath_head()
 }
 physpath_body()
 {
-	. $(atf_get_srcdir)/conf.sh
-	load_gnop
+	geli_test_setup
+	if ! error_message=$(geom_load_class_if_needed nop); then
+		atf_skip "$error_message"
+	fi
 
 	md=$(attach_md -s1m)
 	# If the underlying device has no physical path, then geli should not
@@ -116,8 +120,6 @@ physpath_body()
 }
 physpath_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
-
 	if [ -f "$TEST_MDS_FILE" ]; then
 		while read md; do
 			[ -c /dev/${md}.nop.eli ] && \
@@ -166,12 +168,5 @@ disk_cleanup()
 	disk=${disks%% *}
 	if [ -n "$disk" ]; then
 		geli kill ${disk} 2>/dev/null
-	fi
-}
-
-load_gnop()
-{
-	if ! kldstat -q -m g_nop; then
-		geom nop load || atf_skip "could not load module for geom nop"
 	fi
 }
