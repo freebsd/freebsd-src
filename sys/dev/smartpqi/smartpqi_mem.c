@@ -28,7 +28,7 @@
 
 #include "smartpqi_includes.h"
 
-MALLOC_DEFINE(M_SMARTRAID, "smartraidbuf", "Buffers for the smartraid driver");
+MALLOC_DEFINE(M_SMARTPQI, "smartpqi", "Buffers for the smartpqi(4) driver");
 
 /*
  * DMA map load callback function
@@ -133,7 +133,7 @@ void  *os_mem_alloc(pqisrc_softstate_t *softs, size_t size)
 
 	/* DBG_FUNC("IN\n");  */
 
-	addr = malloc((unsigned long)size, M_SMARTRAID,
+	addr = malloc((unsigned long)size, M_SMARTPQI,
 			M_NOWAIT | M_ZERO);
 
 /*	DBG_FUNC("OUT\n"); */
@@ -149,7 +149,7 @@ void os_mem_free(pqisrc_softstate_t *softs,
 {
 	/* DBG_FUNC("IN\n"); */
 
-	free((void*)addr, M_SMARTRAID);
+	free((void*)addr, M_SMARTPQI);
 
 	/* DBG_FUNC("OUT\n"); */
 }
