@@ -282,12 +282,13 @@ int
 fuse_internal_fsync(struct vnode *vp,
     struct thread *td,
     struct ucred *cred,
-    struct fuse_filehandle *fufh)
+    struct fuse_filehandle *fufh,
+    int waitfor)
 {
 	int op = FUSE_FSYNC;
 	struct fuse_fsync_in *ffsi;
 	struct fuse_dispatcher fdi;
-	int err;
+	int err = 0;
 
 	if (vnode_isdir(vp)) {
 		op = FUSE_FSYNCDIR;
@@ -299,7 +300,12 @@ fuse_internal_fsync(struct vnode *vp,
 
 	ffsi->fsync_flags = 1;		/* datasync */
 
-	err = fdisp_wait_answ(&fdi);
+	if (waitfor == MNT_WAIT) {
+		err = fdisp_wait_answ(&fdi);
+	} else {
+		fuse_insert_callback(fdi.tick, fuse_internal_fsync_callback);
+		fuse_insert_message(fdi.tick);
+	}
 	fdisp_destroy(&fdi);
 
 	return err;
