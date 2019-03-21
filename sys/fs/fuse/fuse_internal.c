@@ -281,32 +281,45 @@ fuse_internal_fsync_callback(struct fuse_ticket *tick, struct uio *uio)
 int
 fuse_internal_fsync(struct vnode *vp,
     struct thread *td,
-    struct ucred *cred,
-    struct fuse_filehandle *fufh,
-    int waitfor)
+    int waitfor,
+    bool datasync)
 {
-	int op = FUSE_FSYNC;
 	struct fuse_fsync_in *ffsi;
 	struct fuse_dispatcher fdi;
+	struct fuse_filehandle *fufh;
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	int op = FUSE_FSYNC;
+	int type = 0;
 	int err = 0;
 
-	if (vnode_isdir(vp)) {
-		op = FUSE_FSYNCDIR;
+	if (!fsess_isimpl(vnode_mount(vp),
+	    (vnode_vtype(vp) == VDIR ? FUSE_FSYNCDIR : FUSE_FSYNC))) {
+		return 0;
 	}
-	fdisp_init(&fdi, sizeof(*ffsi));
-	fdisp_make_vp(&fdi, op, vp, td, cred);
-	ffsi = fdi.indata;
-	ffsi->fh = fufh->fh_id;
+	for (type = 0; type < FUFH_MAXTYPE; type++) {
+		fufh = &(fvdat->fufh[type]);
+		if (FUFH_IS_VALID(fufh)) {
+			if (vnode_isdir(vp)) {
+				op = FUSE_FSYNCDIR;
+			}
+			fdisp_init(&fdi, sizeof(*ffsi));
+			fdisp_make_vp(&fdi, op, vp, td, NULL);
+			ffsi = fdi.indata;
+			ffsi->fh = fufh->fh_id;
 
-	ffsi->fsync_flags = 1;		/* datasync */
+			if (datasync)
+				ffsi->fsync_flags = 1;
 
-	if (waitfor == MNT_WAIT) {
-		err = fdisp_wait_answ(&fdi);
-	} else {
-		fuse_insert_callback(fdi.tick, fuse_internal_fsync_callback);
-		fuse_insert_message(fdi.tick);
+			if (waitfor == MNT_WAIT) {
+				err = fdisp_wait_answ(&fdi);
+			} else {
+				fuse_insert_callback(fdi.tick,
+					fuse_internal_fsync_callback);
+				fuse_insert_message(fdi.tick);
+			}
+			fdisp_destroy(&fdi);
+		}
 	}
-	fdisp_destroy(&fdi);
 
 	return err;
 }

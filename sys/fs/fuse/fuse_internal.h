@@ -198,8 +198,8 @@ void fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 
 /* fsync */
 
-int fuse_internal_fsync(struct vnode *vp, struct thread *td,
-    struct ucred *cred, struct fuse_filehandle *fufh, int waitfor);
+int fuse_internal_fsync(struct vnode *vp, struct thread *td, int waitfor,
+	bool datasync);
 int fuse_internal_fsync_callback(struct fuse_ticket *tick, struct uio *uio);
 
 /* readdir */
