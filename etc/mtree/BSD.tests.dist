@@ -713,7 +713,7 @@
         file
         ..
         fs
-            fuse
+            fusefs
             ..
             tmpfs
             ..
