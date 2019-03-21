@@ -319,7 +319,7 @@ dtrace_gethrtime_init(void *arg)
 	int i;
 #endif
 
-	if (vm_guest)
+	if (vm_guest != VM_GUEST_NO)
 		return;
 
 	/* The current CPU is the reference one. */
