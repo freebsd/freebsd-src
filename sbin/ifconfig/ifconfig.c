@@ -1363,7 +1363,7 @@ print_vhid(const struct ifaddrs *ifa, const char *s)
 	if (ifd->ifi_vhid == 0)
 		return;
 	
-	printf("vhid %d ", ifd->ifi_vhid);
+	printf(" vhid %d", ifd->ifi_vhid);
 }
 
 void
