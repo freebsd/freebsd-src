@@ -40,10 +40,10 @@
 
 using namespace testing;
 
-/* Check that fuse(4) is accessible and the current user can mount(2) */
+/* Check that fusefs(4) is accessible and the current user can mount(2) */
 void check_environment()
 {
-	const char *mod_name = "fuse";
+	const char *mod_name = "fusefs";
 	const char *devnode = "/dev/fuse";
 	const char *usermount_node = "vfs.usermount";
 	int usermount_val = 0;

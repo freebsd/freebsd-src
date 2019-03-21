@@ -171,7 +171,7 @@ ProcessMockerT ReturnImmediate(
  * "Mounts" a filesystem to a temporary directory and services requests
  * according to the programmed expectations.
  *
- * Operates directly on the fuse(4) kernel API, not the libfuse(3) user api.
+ * Operates directly on the fusefs(4) kernel API, not the libfuse(3) user api.
  */
 class MockFS {
 	/*

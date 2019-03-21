@@ -66,7 +66,7 @@ void expect_release(uint64_t ino, ProcessMockerT r)
 }
 
 void require_sync_resize_0() {
-	const char *sync_resize_node = "vfs.fuse.sync_resize";
+	const char *sync_resize_node = "vfs.fusefs.sync_resize";
 	int val = 0;
 	size_t size = sizeof(val);
 
@@ -74,7 +74,7 @@ void require_sync_resize_0() {
 		<< strerror(errno);
 	if (val != 0)
 		GTEST_SKIP() <<
-			"vfs.fuse.sync_resize must be set to 0 for this test."
+			"vfs.fusefs.sync_resize must be set to 0 for this test."
 			"  That sysctl will probably be removed soon.";
 }
 
@@ -100,7 +100,7 @@ virtual void SetUp() {
 class WriteThrough: public Write {
 
 virtual void SetUp() {
-	const char *cache_mode_node = "vfs.fuse.data_cache_mode";
+	const char *cache_mode_node = "vfs.fusefs.data_cache_mode";
 	int val = 0;
 	size_t size = sizeof(val);
 
@@ -111,7 +111,7 @@ virtual void SetUp() {
 	ASSERT_EQ(0, sysctlbyname(cache_mode_node, &val, &size, NULL, 0))
 		<< strerror(errno);
 	if (val != 1)
-		GTEST_SKIP() << "vfs.fuse.data_cache_mode must be set to 1 "
+		GTEST_SKIP() << "vfs.fusefs.data_cache_mode must be set to 1 "
 			"(writethrough) for this test";
 }
 
@@ -121,7 +121,7 @@ virtual void SetUp() {
 class WriteBack: public Write {
 
 virtual void SetUp() {
-	const char *node = "vfs.fuse.data_cache_mode";
+	const char *node = "vfs.fusefs.data_cache_mode";
 	int val = 0;
 	size_t size = sizeof(val);
 
@@ -132,7 +132,7 @@ virtual void SetUp() {
 	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
 		<< strerror(errno);
 	if (val != 2)
-		GTEST_SKIP() << "vfs.fuse.data_cache_mode must be set to 2 "
+		GTEST_SKIP() << "vfs.fusefs.data_cache_mode must be set to 2 "
 			"(writeback) for this test";
 }
 
@@ -343,7 +343,7 @@ TEST_F(Write, DISABLED_direct_io_short_write_iov)
  * write, then it must set the FUSE_WRITE_CACHE bit
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236378 */
-// TODO: check vfs.fuse.mmap_enable
+// TODO: check vfs.fusefs.mmap_enable
 TEST_F(Write, DISABLED_mmap)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";

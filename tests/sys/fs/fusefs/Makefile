@@ -2,7 +2,7 @@
 
 PACKAGE=	tests
 
-TESTSDIR=	${TESTSBASE}/sys/fs/fuse
+TESTSDIR=	${TESTSBASE}/sys/fs/fusefs
 
 # We could simply link all of these files into a single executable.  But since
 # Kyua treats googletest programs as plain tests, it's better to separate them
