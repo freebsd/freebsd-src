@@ -32,8 +32,8 @@ ippool_start()
 ippool_reload()
 {
 	echo "Reloading IP Pools."
-	${ippool_program} -F
-	ippool_start
+	${stop_cmd}
+	${start_cmd}
 }
 
 
