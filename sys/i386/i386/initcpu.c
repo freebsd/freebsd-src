@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/pcpu.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
@@ -768,6 +769,9 @@ initializecpu(void)
 		elf32_nxstack = 1;
 	}
 #endif
+	if ((amd_feature & AMDID_RDTSCP) != 0 ||
+	    (cpu_stdext_feature2 & CPUID_STDEXT2_RDPID) != 0)
+		wrmsr(MSR_TSC_AUX, PCPU_GET(cpuid));
 }
 
 void
