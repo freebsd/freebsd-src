@@ -239,13 +239,8 @@ vdev_file_io_start(zio_t *zio)
 
 		switch (zio->io_cmd) {
 		case DKIOCFLUSHWRITECACHE:
-#ifdef illumos
 			zio->io_error = VOP_FSYNC(vf->vf_vnode, FSYNC | FDSYNC,
 			    kcred, NULL);
-#else
-			zio->io_error = VOP_FSYNC(vf->vf_vnode, MNT_WAIT,
-			    kcred, NULL);
-#endif
 			break;
 		default:
 			zio->io_error = SET_ERROR(ENOTSUP);
