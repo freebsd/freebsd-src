@@ -139,7 +139,8 @@ TLBIE(uint64_t vpn)
 {
 	vpn <<= ADDR_PIDX_SHFT;
 
-	__asm __volatile("tlbie %0" :: "r"(vpn) : "memory");
+	__asm __volatile(".long 0x7c000264 | (%0 << 11) | (%1 << 21)"
+	    :: "r"(vpn), "r"(0) : "memory");
 	__asm __volatile("eieio; tlbsync; ptesync" ::: "memory");
 }
 
