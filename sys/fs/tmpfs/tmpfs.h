@@ -325,6 +325,11 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
  */
 struct tmpfs_mount {
 	/*
+	 * Original value of the "size" parameter, for reference purposes,
+	 * mostly.
+	 */
+	off_t			tm_size_max;
+	/*
 	 * Maximum number of memory pages available for use by the file
 	 * system, set during mount time.  This variable must never be
 	 * used directly as it may be bigger than the current amount of
