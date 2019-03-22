@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ippool
+# REQUIRE: FILESYSTEMS
+# BEFORE:  ipfilter
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ippool"
+desc="user interface to the IPFilter pools"
+rcvar="ippool_enable"
+load_rc_config $name
+start_cmd="ippool_start"
+stop_cmd="${ippool_program} -F"
+reload_cmd="ippool_reload"
+extra_commands="reload"
+required_files="${ippool_rules}"
+required_modules="ipl:ipfilter"
+
+ippool_start()
+{
+	if [ -r "${ippool_rules}" ]; then
+		echo "Loading IP Pools."
+		${ippool_program} -f ${ippool_rules} ${ippool_flags}
+	fi
+}
+
+ippool_reload()
+{
+	echo "Reloading IP Pools."
+	${ippool_program} -F
+	ippool_start
+}
+
+
+run_rc_command "$1"
