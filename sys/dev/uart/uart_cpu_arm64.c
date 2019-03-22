@@ -149,7 +149,7 @@ uart_cpu_acpi_probe(struct uart_class **classp, bus_space_tag_t *bst,
 
 	*classp = cd->cd_class;
 	*rclk = 0;
-	*shiftp = 2;
+	*shiftp = spcr->SerialPort.AccessWidth - 1;
 	*iowidthp = spcr->SerialPort.BitWidth / 8;
 
 out:
