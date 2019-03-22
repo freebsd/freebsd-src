@@ -171,6 +171,11 @@ device		da
 # ATA/SCSI peripherals
 device		pass		# Passthrough device (direct ATA/SCSI access)
 
+# NVM Express (NVMe) support
+device		nvme		# base NVMe driver
+options 	NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
+device		nvd		# expose NVMe namespaces as disks, depends on nvme
+
 # MMC/SD/SDIO Card slot support
 device		sdhci
 device		sdhci_xenon		# Marvell Xenon SD/MMC controller
