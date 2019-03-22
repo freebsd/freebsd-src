@@ -134,7 +134,8 @@ __FBSDID("$FreeBSD$");
 /* POWER9 only permits a 64k partition table size. */
 #define	PART_SIZE	0x10000
 
-static int moea64_crop_tlbie;
+static bool moea64_crop_tlbie;
+static bool moea64_need_lock;
 
 static __inline void
 TLBIE(uint64_t vpn) {
@@ -149,14 +150,26 @@ TLBIE(uint64_t vpn) {
 	vpn <<= ADDR_PIDX_SHFT;
 
 	/* Hobo spinlock: we need stronger guarantees than mutexes provide */
-	while (!atomic_cmpset_int(&tlbie_lock, 0, 1));
-	isync(); /* Flush instruction queue once lock acquired */
+	if (moea64_need_lock) {
+		while (!atomic_cmpset_int(&tlbie_lock, 0, 1));
+		isync(); /* Flush instruction queue once lock acquired */
+	}
 
 	if (moea64_crop_tlbie)
 		vpn &= ~(0xffffULL << 48);
 
 #ifdef __powerpc64__
-	__asm __volatile("li 0, 0; tlbie %0" :: "r"(vpn) : "0","memory");
+	/*
+	 * Explicitly clobber r0.  The tlbie instruction has two forms: an old
+	 * one used by PowerISA 2.03 and prior, and a newer one used by PowerISA
+	 * 2.06 (maybe 2.05?) and later.  We need to support both, and it just
+	 * so happens that since we use 4k pages we can simply zero out r0, and
+	 * clobber it, and the assembler will interpret the single-operand form
+	 * of tlbie as having RB set, and everything else as 0.  The RS operand
+	 * in the newer form is in the same position as the L(page size) bit of
+	 * the old form, so a slong as RS is 0, we're good on both sides.
+	 */
+	__asm __volatile("li 0, 0 \n tlbie %0" :: "r"(vpn) : "r0", "memory");
 	__asm __volatile("eieio; tlbsync; ptesync" ::: "memory");
 #else
 	vpn_hi = (uint32_t)(vpn >> 32);
@@ -183,7 +196,8 @@ TLBIE(uint64_t vpn) {
 #endif
 
 	/* No barriers or special ops -- taken care of by ptesync above */
-	tlbie_lock = 0;
+	if (moea64_need_lock)
+		tlbie_lock = 0;
 }
 
 #define DISABLE_TRANS(msr)	msr = mfmsr(); mtmsr(msr & ~PSL_DR)
@@ -194,6 +208,8 @@ TLBIE(uint64_t vpn) {
  */
 static volatile struct lpte *moea64_pteg_table;
 static struct rwlock moea64_eviction_lock;
+
+static volatile struct pate *moea64_part_table;
 
 /*
  * PTE calls.
@@ -409,9 +425,14 @@ moea64_cpu_bootstrap_native(mmu_t mmup, int ap)
 	 * Install page table
 	 */
 
-	__asm __volatile ("ptesync; mtsdr1 %0; isync"
-	    :: "r"(((uintptr_t)moea64_pteg_table & ~DMAP_BASE_ADDRESS)
-		     | (uintptr_t)(flsl(moea64_pteg_mask >> 11))));
+	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00)
+		mtspr(SPR_PTCR,
+		    ((uintptr_t)moea64_part_table & ~DMAP_BASE_ADDRESS) |
+		     flsl((PART_SIZE >> 12) - 1));
+	else
+		__asm __volatile ("ptesync; mtsdr1 %0; isync"
+		    :: "r"(((uintptr_t)moea64_pteg_table & ~DMAP_BASE_ADDRESS)
+			     | (uintptr_t)(flsl(moea64_pteg_mask >> 11))));
 	tlbia();
 }
 
@@ -427,13 +448,18 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	moea64_early_bootstrap(mmup, kernelstart, kernelend);
 
 	switch (mfpvr() >> 16) {
+	case IBMPOWER9:
+		moea64_need_lock = false;
+		break;
 	case IBMPOWER4:
 	case IBMPOWER4PLUS:
 	case IBM970:
 	case IBM970FX:
 	case IBM970GX:
 	case IBM970MP:
-	    	moea64_crop_tlbie = true;
+		moea64_crop_tlbie = true;
+	default:
+		moea64_need_lock = true;
 	}
 	/*
 	 * Allocate PTEG table.
@@ -463,9 +489,23 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	if (hw_direct_map)
 		moea64_pteg_table =
 		    (struct lpte *)PHYS_TO_DMAP((vm_offset_t)moea64_pteg_table);
+	/* Allocate partition table (ISA 3.0). */
+	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00) {
+		moea64_part_table =
+		    (struct pate *)moea64_bootstrap_alloc(PART_SIZE, PART_SIZE);
+		if (hw_direct_map)
+			moea64_part_table =
+			    (struct pate *)PHYS_TO_DMAP((vm_offset_t)moea64_part_table);
+	}
 	DISABLE_TRANS(msr);
 	bzero(__DEVOLATILE(void *, moea64_pteg_table), moea64_pteg_count *
 	    sizeof(struct lpteg));
+	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00) {
+		bzero(__DEVOLATILE(void *, moea64_part_table), PART_SIZE);
+		moea64_part_table[0].pagetab =
+			(DMAP_TO_PHYS((vm_offset_t)moea64_pteg_table)) |
+			(uintptr_t)(flsl((moea64_pteg_count - 1) >> 11));
+	}
 	ENABLE_TRANS(msr);
 
 	CTR1(KTR_PMAP, "moea64_bootstrap: PTEG table at %p", moea64_pteg_table);
@@ -512,7 +552,7 @@ tlbia(void)
 
 	TLBSYNC();
 
-	for (; i < 0x200000; i += 0x00001000) {
+	for (; i < 0x400000; i += 0x00001000) {
 		#ifdef __powerpc64__
 		__asm __volatile("tlbiel %0" :: "r"(i));
 		#else
