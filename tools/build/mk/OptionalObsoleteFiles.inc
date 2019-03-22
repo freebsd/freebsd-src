@@ -3262,6 +3262,7 @@ OLD_FILES+=etc/rc.d/ipfilter
 OLD_FILES+=etc/rc.d/ipfs
 OLD_FILES+=etc/rc.d/ipmon
 OLD_FILES+=etc/rc.d/ipnat
+OLD_FILES+=etc/rc.d/ippool
 OLD_FILES+=rescue/ipf
 OLD_FILES+=sbin/ipf
 OLD_FILES+=sbin/ipfs
