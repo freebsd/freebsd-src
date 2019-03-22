@@ -156,7 +156,7 @@ TLBIE(uint64_t vpn) {
 		vpn &= ~(0xffffULL << 48);
 
 #ifdef __powerpc64__
-	__asm __volatile("tlbie %0" :: "r"(vpn) : "memory");
+	__asm __volatile("li 0, 0; tlbie %0" :: "r"(vpn) : "0","memory");
 	__asm __volatile("eieio; tlbsync; ptesync" ::: "memory");
 #else
 	vpn_hi = (uint32_t)(vpn >> 32);
