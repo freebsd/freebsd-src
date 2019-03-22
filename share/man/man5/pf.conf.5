@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 5, 2019
+.Dd March 10, 2019
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -3053,6 +3053,8 @@ include        = "include" filename
 Host name database.
 .It Pa /etc/pf.conf
 Default location of the ruleset file.
+The file has to be created manually as it is not installed with a
+standard installation.
 .It Pa /etc/pf.os
 Default location of OS fingerprints.
 .It Pa /etc/protocols
