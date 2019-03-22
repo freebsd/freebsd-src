@@ -37,6 +37,13 @@ extern "C" {
 
 using namespace testing;
 
+#ifndef VNOVAL
+#define VNOVAL (-1)	/* Defined in sys/vnode.h */
+#endif
+
+const char FULLPATH[] = "mountpoint/some_file.txt";
+const char RELPATH[] = "some_file.txt";
+
 class Mknod: public FuseTest {
 
 public:
@@ -50,9 +57,7 @@ virtual void SetUp() {
 }
 
 /* Test an OK creation of a file with the given mode and device number */
-void test_ok(mode_t mode, dev_t dev) {
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
+void expect_mknod(mode_t mode, dev_t dev) {
 	uint64_t ino = 42;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
@@ -63,19 +68,18 @@ void test_ok(mode_t mode, dev_t dev) {
 				sizeof(fuse_mknod_in);
 			return (in->header.opcode == FUSE_MKNOD &&
 				in->body.mknod.mode == mode &&
-				in->body.mknod.rdev == dev &&
+				in->body.mknod.rdev == (uint32_t)dev &&
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, create);
-		out->body.create.entry.attr.mode = mode;
-		out->body.create.entry.nodeid = ino;
-		out->body.create.entry.entry_valid = UINT64_MAX;
-		out->body.create.entry.attr_valid = UINT64_MAX;
-		out->body.create.entry.attr.rdev = dev;
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = mode;
+		out->body.entry.nodeid = ino;
+		out->body.entry.entry_valid = UINT64_MAX;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.attr.rdev = dev;
 	})));
-	EXPECT_EQ(0, mknod(FULLPATH, mode, dev)) << strerror(errno);
 }
 
 };
@@ -85,27 +89,28 @@ void test_ok(mode_t mode, dev_t dev) {
  * though FreeBSD doesn't use block devices, this is useful when copying media
  * from or preparing media for other operating systems.
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236236 */
-TEST_F(Mknod, DISABLED_blk)
+TEST_F(Mknod, blk)
 {
-	test_ok(S_IFBLK | 0755, 0xfe00); /* /dev/vda's device number on Linux */
+	mode_t mode = S_IFBLK | 0755;
+	dev_t rdev = 0xfe00; /* /dev/vda's device number on Linux */
+	expect_mknod(mode, rdev);
+	EXPECT_EQ(0, mknod(FULLPATH, mode, rdev)) << strerror(errno);
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236236 */
-TEST_F(Mknod, DISABLED_chr)
+TEST_F(Mknod, chr)
 {
-	test_ok(S_IFCHR | 0755, 0x64);	/* /dev/fuse's device number */
+	mode_t mode = S_IFCHR | 0755;
+	dev_t rdev = 54;			/* /dev/fuse's device number */
+	expect_mknod(mode, rdev);
+	EXPECT_EQ(0, mknod(FULLPATH, mode, rdev)) << strerror(errno);
 }
 
 /* 
  * The daemon is responsible for checking file permissions (unless the
  * default_permissions mount option was used)
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236236 */
-TEST_F(Mknod, DISABLED_eperm)
+TEST_F(Mknod, eperm)
 {
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
 	mode_t mode = S_IFIFO | 0755;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
@@ -120,19 +125,26 @@ TEST_F(Mknod, DISABLED_eperm)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(EPERM)));
-	EXPECT_NE(0, mknod(FULLPATH, mode, 0));
+	EXPECT_NE(0, mkfifo(FULLPATH, mode));
 	EXPECT_EQ(EPERM, errno);
 }
 
-
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236236 */
-TEST_F(Mknod, DISABLED_fifo)
+TEST_F(Mknod, fifo)
 {
-	test_ok(S_IFIFO | 0755, 0);
+	mode_t mode = S_IFIFO | 0755;
+	dev_t rdev = VNOVAL;		/* Fifos don't have device numbers */
+	expect_mknod(mode, rdev);
+	EXPECT_EQ(0, mkfifo(FULLPATH, mode)) << strerror(errno);
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236236 */
+/* 
+ * fusefs(5) lacks VOP_WHITEOUT support.  No bugzilla entry, because that's a
+ * feature, not a bug
+ */
 TEST_F(Mknod, DISABLED_whiteout)
 {
-	test_ok(S_IFWHT | 0755, 0);
+	mode_t mode = S_IFWHT | 0755;
+	dev_t rdev = VNOVAL;	/* whiteouts don't have device numbers */
+	expect_mknod(mode, rdev);
+	EXPECT_EQ(0, mknod(FULLPATH, mode, 0)) << strerror(errno);
 }

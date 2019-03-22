@@ -1134,9 +1134,20 @@ static int
 fuse_vnop_mknod(struct vop_mknod_args *ap)
 {
 
-	return (EINVAL);
-}
+	struct vnode *dvp = ap->a_dvp;
+	struct vnode **vpp = ap->a_vpp;
+	struct componentname *cnp = ap->a_cnp;
+	struct vattr *vap = ap->a_vap;
+	struct fuse_mknod_in fmni;
 
+	if (fuse_isdeadfs(dvp))
+		return ENXIO;
+
+	fmni.mode = MAKEIMODE(vap->va_type, vap->va_mode);
+	fmni.rdev = vap->va_rdev;
+	return (fuse_internal_newentry(dvp, vpp, cnp, FUSE_MKNOD, &fmni,
+	    sizeof(fmni), vap->va_type));
+}
 
 /*
     struct vnop_open_args {
@@ -1161,9 +1172,10 @@ fuse_vnop_open(struct vop_open_args *ap)
 	int error, isdir = 0;
 	int32_t fuse_open_flags;
 
-	if (fuse_isdeadfs(vp)) {
+	if (fuse_isdeadfs(vp))
 		return ENXIO;
-	}
+	if (vp->v_type == VCHR || vp->v_type == VBLK || vp->v_type == VFIFO)
+		return (EOPNOTSUPP);
 	if ((mode & (FREAD | FWRITE)) == 0)
 		return EINVAL;
 

@@ -175,6 +175,10 @@ void debug_fuseop(const mockfs_buf_in *in)
 		case FUSE_LOOKUP:
 			printf(" %s", in->body.lookup);
 			break;
+		case FUSE_MKNOD:
+			printf(" mode=%#o rdev=%x", in->body.mknod.mode,
+				in->body.mknod.rdev);
+			break;
 		case FUSE_OPEN:
 			printf(" flags=%#x mode=%#o",
 				in->body.open.flags, in->body.open.mode);

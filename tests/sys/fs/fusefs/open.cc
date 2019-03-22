@@ -82,6 +82,30 @@ void test_ok(int os_flags, int fuse_flags) {
 
 
 /* 
+ * fusefs(5) does not support I/O on device nodes (neither does UFS).  But it
+ * shouldn't crash
+ */
+TEST_F(Open, chr)
+{
+	const char FULLPATH[] = "mountpoint/zero";
+	const char RELPATH[] = "zero";
+	uint64_t ino = 42;
+
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFCHR | 0644;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 1;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.attr.rdev = 44;	/* /dev/zero's rdev */
+	})));
+
+	ASSERT_EQ(-1, open(FULLPATH, O_RDONLY));
+	EXPECT_EQ(EOPNOTSUPP, errno);
+}
+
+/* 
  * The fuse daemon fails the request with enoent.  This usually indicates a
  * race condition: some other FUSE client removed the file in between when the
  * kernel checked for it with lookup and tried to open it
@@ -124,6 +148,26 @@ TEST_F(Open, eperm)
 	).WillOnce(Invoke(ReturnErrno(EPERM)));
 	EXPECT_NE(0, open(FULLPATH, O_RDONLY));
 	EXPECT_EQ(EPERM, errno);
+}
+
+/* fusefs(5) does not yet support I/O on fifos.  But it shouldn't crash. */
+TEST_F(Open, fifo)
+{
+	const char FULLPATH[] = "mountpoint/zero";
+	const char RELPATH[] = "zero";
+	uint64_t ino = 42;
+
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFIFO | 0644;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 1;
+		out->body.entry.attr_valid = UINT64_MAX;
+	})));
+
+	ASSERT_EQ(-1, open(FULLPATH, O_RDONLY));
+	EXPECT_EQ(EOPNOTSUPP, errno);
 }
 
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236340 */
