@@ -160,6 +160,14 @@ void debug_fuseop(const mockfs_buf_in *in)
 			in->header.unique, in->header.len);
 	}
 	switch (in->header.opcode) {
+		const char *name, *value;
+
+		case FUSE_CREATE:
+			name = (const char*)in->body.bytes +
+				sizeof(fuse_open_in);
+			printf(" flags=%#x name=%s",
+				in->body.open.flags, name);
+			break;
 		case FUSE_FLUSH:
 			printf(" lock_owner=%lu", in->body.flush.lock_owner);
 			break;
@@ -229,12 +237,10 @@ void debug_fuseop(const mockfs_buf_in *in)
 			 * In theory neither the xattr name and value need be
 			 * ASCII, but in this test suite they always are.
 			 */
-			{
-				const char *attr = (const char*)in->body.bytes +
-					sizeof(fuse_setxattr_in);
-				const char *v = attr + strlen(attr) + 1;
-				printf(" %s=%s", attr, v);
-			}
+			name = (const char*)in->body.bytes +
+				sizeof(fuse_setxattr_in);
+			value = name + strlen(name) + 1;
+			printf(" %s=%s", name, value);
 			break;
 		case FUSE_WRITE:
 			printf(" offset=%lu size=%u flags=%u",
