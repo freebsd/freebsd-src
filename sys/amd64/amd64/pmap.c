@@ -2858,6 +2858,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde,
 void
 pmap_pinit0(pmap_t pmap)
 {
+	struct proc *p;
 	int i;
 
 	PMAP_LOCK_INIT(pmap);
@@ -2876,6 +2877,12 @@ pmap_pinit0(pmap_t pmap)
 		pmap->pm_pcids[i].pm_gen = 1;
 	}
 	pmap_activate_boot(pmap);
+	if (pti) {
+		p = curproc;
+		PROC_LOCK(p);
+		p->p_amd64_md_flags |= P_MD_KPTI;
+		PROC_UNLOCK(p);
+	}
 
 	if ((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0) {
 		pmap_pkru_ranges_zone = uma_zcreate("pkru ranges",
@@ -2962,7 +2969,7 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	if (pm_type == PT_X86) {
 		pmap->pm_cr3 = pml4phys;
 		pmap_pinit_pml4(pml4pg);
-		if (pti) {
+		if ((curproc->p_amd64_md_flags & P_MD_KPTI) != 0) {
 			pml4pgu = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
 			    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
 			pmap->pm_pml4u = (pml4_entry_t *)PHYS_TO_DMAP(

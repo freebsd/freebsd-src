@@ -181,6 +181,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/* Point mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
 	bcopy(&p1->p_md, mdp2, sizeof(*mdp2));
+	p2->p_amd64_md_flags = p1->p_amd64_md_flags;
 
 	/*
 	 * Create a new fresh stack for the new process.
@@ -367,6 +368,14 @@ cpu_thread_free(struct thread *td)
 {
 
 	cpu_thread_clean(td);
+}
+
+bool
+cpu_exec_vmspace_reuse(struct proc *p, vm_map_t map)
+{
+
+	return (((curproc->p_amd64_md_flags & P_MD_KPTI) != 0) ==
+	    (vm_map_pmap(map)->pm_ucr3 != PMAP_NO_CR3));
 }
 
 void
