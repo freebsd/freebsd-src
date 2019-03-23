@@ -309,6 +309,29 @@ fuse_vnop_close(struct vop_close_args *ap)
 	return 0;
 }
 
+static void
+fdisp_make_mknod_for_fallback(
+	struct fuse_dispatcher *fdip,
+	struct componentname *cnp,
+	struct vnode *dvp,
+	uint64_t parentnid,
+	struct thread *td,
+	struct ucred *cred,
+	mode_t mode,
+	enum fuse_opcode *op)
+{
+	struct fuse_mknod_in *fmni;
+
+	fdisp_init(fdip, sizeof(*fmni) + cnp->cn_namelen + 1);
+	*op = FUSE_MKNOD;
+	fdisp_make(fdip, *op, vnode_mount(dvp), parentnid, td, cred);
+	fmni = fdip->indata;
+	fmni->mode = mode;
+	fmni->rdev = 0;
+	memcpy((char *)fdip->indata + sizeof(*fmni), cnp->cn_nameptr,
+	    cnp->cn_namelen);
+	((char *)fdip->indata)[sizeof(*fmni) + cnp->cn_namelen] = '\0';
+}
 /*
     struct vnop_create_args {
 	struct vnode *a_dvp;
@@ -329,51 +352,54 @@ fuse_vnop_create(struct vop_create_args *ap)
 
 	struct fuse_open_in *foi;
 	struct fuse_entry_out *feo;
-	struct fuse_dispatcher fdi;
+	struct fuse_open_out *foo;
+	struct fuse_dispatcher fdi, fdi2;
 	struct fuse_dispatcher *fdip = &fdi;
+	struct fuse_dispatcher *fdip2 = NULL;
 
 	int err;
 
 	struct mount *mp = vnode_mount(dvp);
 	uint64_t parentnid = VTOFUD(dvp)->nid;
 	mode_t mode = MAKEIMODE(vap->va_type, vap->va_mode);
-	uint64_t x_fh_id;
-	uint32_t x_open_flags;
+	enum fuse_opcode op;
 
 	if (fuse_isdeadfs(dvp)) {
 		return ENXIO;
 	}
 	bzero(&fdi, sizeof(fdi));
 
-	/* XXX:	Will we ever want devices ? */
-	if ((vap->va_type != VREG)) {
-		printf("fuse_vnop_create: unsupported va_type %d\n",
-		    vap->va_type);
+	if ((vap->va_type != VREG))
 		return (EINVAL);
-	}
 
-	fdisp_init(fdip, sizeof(*foi) + cnp->cn_namelen + 1);
 	if (!fsess_isimpl(mp, FUSE_CREATE)) {
-		SDT_PROBE2(fuse, , vnops, trace, 1,
-			"eh, daemon doesn't implement create?");
-		return (EINVAL);
+		/* Fallback to FUSE_MKNOD/FUSE_OPEN */
+		fdisp_make_mknod_for_fallback(fdip, cnp, dvp, parentnid, td,
+			cred, mode, &op);
+	} else {
+		/* Use FUSE_CREATE */
+		op = FUSE_CREATE;
+		fdisp_init(fdip, sizeof(*foi) + cnp->cn_namelen + 1);
+		fdisp_make(fdip, op, vnode_mount(dvp), parentnid, td, cred);
+		foi = fdip->indata;
+		foi->mode = mode;
+		foi->flags = O_CREAT | O_RDWR;
+		memcpy((char *)fdip->indata + sizeof(*foi), cnp->cn_nameptr,
+		    cnp->cn_namelen);
+		((char *)fdip->indata)[sizeof(*foi) + cnp->cn_namelen] = '\0';
 	}
-	fdisp_make(fdip, FUSE_CREATE, vnode_mount(dvp), parentnid, td, cred);
-
-	foi = fdip->indata;
-	foi->mode = mode;
-	foi->flags = O_CREAT | O_RDWR;
-
-	memcpy((char *)fdip->indata + sizeof(*foi), cnp->cn_nameptr,
-	    cnp->cn_namelen);
-	((char *)fdip->indata)[sizeof(*foi) + cnp->cn_namelen] = '\0';
 
 	err = fdisp_wait_answ(fdip);
 
 	if (err) {
-		if (err == ENOSYS)
+		if (err == ENOSYS && op == FUSE_CREATE) {
 			fsess_set_notimpl(mp, FUSE_CREATE);
-		goto out;
+			fdisp_make_mknod_for_fallback(fdip, cnp, dvp,
+				parentnid, td, cred, mode, &op);
+			err = fdisp_wait_answ(fdip);
+		}
+		if (err)
+			goto out;
 	}
 
 	feo = fdip->answ;
@@ -381,11 +407,28 @@ fuse_vnop_create(struct vop_create_args *ap)
 	if ((err = fuse_internal_checkentry(feo, VREG))) {
 		goto out;
 	}
+
+	if (op == FUSE_CREATE) {
+		foo = (struct fuse_open_out*)(feo + 1);
+	} else {
+		/* Issue a separate FUSE_OPEN */
+		fdip2 = &fdi2;
+		fdisp_init(fdip2, sizeof(*foi));
+		fdisp_make(fdip2, FUSE_OPEN, vnode_mount(dvp), feo->nodeid, td,
+			cred);
+		foi = fdip2->indata;
+		foi->mode = mode;
+		foi->flags = O_RDWR;
+		err = fdisp_wait_answ(fdip2);
+		if (err)
+			goto out;
+		foo = fdip2->answ;
+	}
 	err = fuse_vnode_get(mp, feo, feo->nodeid, dvp, vpp, cnp, VREG);
 	if (err) {
 		struct fuse_release_in *fri;
 		uint64_t nodeid = feo->nodeid;
-		uint64_t fh_id = ((struct fuse_open_out *)(feo + 1))->fh;
+		uint64_t fh_id = foo->fh;
 
 		fdisp_init(fdip, sizeof(*fri));
 		fdisp_make(fdip, FUSE_RELEASE, mp, nodeid, td, cred);
@@ -394,19 +437,17 @@ fuse_vnop_create(struct vop_create_args *ap)
 		fri->flags = OFLAGS(mode);
 		fuse_insert_callback(fdip->tick, fuse_internal_forget_callback);
 		fuse_insert_message(fdip->tick);
-		return err;
+		goto out;
 	}
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnop_create");
 
-	fdip->answ = feo + 1;
-
-	x_fh_id = ((struct fuse_open_out *)(feo + 1))->fh;
-	x_open_flags = ((struct fuse_open_out *)(feo + 1))->open_flags;
-	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, x_fh_id);
-	fuse_vnode_open(*vpp, x_open_flags, td);
+	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, foo->fh);
+	fuse_vnode_open(*vpp, foo->open_flags, td);
 	cache_purge_negative(dvp);
 
 out:
+	if (fdip2)
+		fdisp_destroy(fdip2);
 	fdisp_destroy(fdip);
 	return err;
 }
@@ -1165,12 +1206,10 @@ fuse_vnop_open(struct vop_open_args *ap)
 	int mode = ap->a_mode;
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
+	int32_t fuse_open_flags = 0;
 
 	fufh_type_t fufh_type;
 	struct fuse_vnode_data *fvdat;
-
-	int error, isdir = 0;
-	int32_t fuse_open_flags;
 
 	if (fuse_isdeadfs(vp))
 		return ENXIO;
@@ -1182,31 +1221,25 @@ fuse_vnop_open(struct vop_open_args *ap)
 	fvdat = VTOFUD(vp);
 
 	if (vnode_isdir(vp)) {
-		isdir = 1;
-	}
-	fuse_open_flags = 0;
-	if (isdir) {
 		fufh_type = FUFH_RDONLY;
 	} else {
 		fufh_type = fuse_filehandle_xlate_from_fflags(mode);
-		/*
-		 * For WRONLY opens, force DIRECT_IO.  This is necessary
-		 * since writing a partial block through the buffer cache
-		 * will result in a read of the block and that read won't
-		 * be allowed by the WRONLY open.
-		 */
-		if (fufh_type == FUFH_WRONLY ||
-		    (fvdat->flag & FN_DIRECTIO) != 0)
-			fuse_open_flags = FOPEN_DIRECT_IO;
 	}
+
+	/*
+	 * For WRONLY opens, force DIRECT_IO.  This is necessary since writing
+	 * a partial block through the buffer cache will result in a read of
+	 * the block and that read won't be allowed by the WRONLY open.
+	 */
+	if (fufh_type == FUFH_WRONLY || (fvdat->flag & FN_DIRECTIO) != 0)
+		fuse_open_flags = FOPEN_DIRECT_IO;
 
 	if (fuse_filehandle_validrw(vp, fufh_type) != FUFH_INVALID) {
 		fuse_vnode_open(vp, fuse_open_flags, td);
 		return 0;
 	}
-	error = fuse_filehandle_open(vp, fufh_type, NULL, td, cred);
 
-	return error;
+	return fuse_filehandle_open(vp, fufh_type, NULL, td, cred);
 }
 
 static int

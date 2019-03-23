@@ -113,9 +113,7 @@ TEST_F(Create, eexist)
  * If the daemon doesn't implement FUSE_CREATE, then the kernel should fallback
  * to FUSE_MKNOD/FUSE_OPEN
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236236 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
-TEST_F(Create, DISABLED_Enosys)
+TEST_F(Create, Enosys)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -146,11 +144,11 @@ TEST_F(Create, DISABLED_Enosys)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, create);
-		out->body.create.entry.attr.mode = S_IFREG | mode;
-		out->body.create.entry.nodeid = ino;
-		out->body.create.entry.entry_valid = UINT64_MAX;
-		out->body.create.entry.attr_valid = UINT64_MAX;
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | mode;
+		out->body.entry.nodeid = ino;
+		out->body.entry.entry_valid = UINT64_MAX;
+		out->body.entry.attr_valid = UINT64_MAX;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
