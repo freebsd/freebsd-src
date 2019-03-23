@@ -71,8 +71,10 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_PCI_MAP_PE_DMA_WINDOW_REAL	45
 #define	OPAL_RETURN_CPU			69
 #define	OPAL_REINIT_CPUS		70
+#define	OPAL_CHECK_TOKEN		80
 #define	OPAL_CHECK_ASYNC_COMPLETION	86
 #define	OPAL_SENSOR_READ		88
+#define	OPAL_HANDLE_HMI			98
 #define	OPAL_IPMI_SEND			107
 #define	OPAL_IPMI_RECV			108
 #define	OPAL_I2C_REQUEST		109
@@ -102,6 +104,7 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_SENSOR_GROUP_CLEAR		156
 #define	OPAL_SENSOR_READ_U64		162
 #define	OPAL_SENSOR_GROUP_ENABLE	163
+#define	OPAL_HANDLE_HMI2		166
 
 /* For OPAL_PCI_SET_PE */
 #define	OPAL_UNMAP_PE			0
@@ -133,6 +136,15 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_EMPTY			-16
 #define	OPAL_XIVE_PROVISIONING		-31
 #define	OPAL_XIVE_FREE_ACTIVE		-32
+
+#define	OPAL_TOKEN_ABSENT		0
+#define	OPAL_TOKEN_PRESENT		1
+
+#define	OPAL_HMI_FLAGS_TB_RESYNC	(1ull << 0)
+#define	OPAL_HMI_FLAGS_DEC_LOST		(1ull << 1)
+#define	OPAL_HMI_FLAGS_HDEC_LOST	(1ull << 2)
+#define	OPAL_HMI_FLAGS_TOD_TB_FAIL	(1ull << 3)
+#define	OPAL_HMI_FLAGS_NEW_EVENT	(1ull << 63)
 
 #define	OPAL_XIVE_XICS_MODE_EMU	0
 #define	OPAL_XIVE_XICS_MODE_EXP	1
