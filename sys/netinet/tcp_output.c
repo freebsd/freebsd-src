@@ -1284,15 +1284,9 @@ send:
 		m->m_pkthdr.tso_segsz = tp->t_maxseg - optlen;
 	}
 
-#if defined(IPSEC) || defined(IPSEC_SUPPORT)
-	KASSERT(len + hdrlen + ipoptlen - ipsec_optlen == m_length(m, NULL),
-	    ("%s: mbuf chain shorter than expected: %d + %u + %u - %u != %u",
-	    __func__, len, hdrlen, ipoptlen, ipsec_optlen, m_length(m, NULL)));
-#else
-	KASSERT(len + hdrlen + ipoptlen == m_length(m, NULL),
-	    ("%s: mbuf chain shorter than expected: %d + %u + %u != %u",
-	    __func__, len, hdrlen, ipoptlen, m_length(m, NULL)));
-#endif
+	KASSERT(len + hdrlen == m_length(m, NULL),
+	    ("%s: mbuf chain shorter than expected: %d + %u != %u",
+	    __func__, len, hdrlen, m_length(m, NULL)));
 
 #ifdef TCP_HHOOK
 	/* Run HHOOK_TCP_ESTABLISHED_OUT helper hooks. */
