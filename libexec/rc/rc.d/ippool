@@ -14,19 +14,16 @@ name="ippool"
 desc="user interface to the IPFilter pools"
 rcvar="ippool_enable"
 load_rc_config $name
-start_cmd="ippool_start"
+start_precmd="ippool_start_precmd"
 stop_cmd="${ippool_program} -F"
 reload_cmd="ippool_reload"
 extra_commands="reload"
 required_files="${ippool_rules}"
 required_modules="ipl:ipfilter"
 
-ippool_start()
+ippool_start_precmd()
 {
-	if [ -r "${ippool_rules}" ]; then
-		echo "Loading IP Pools."
-		${ippool_program} -f ${ippool_rules} ${ippool_flags}
-	fi
+	rc_flags="-f ${ippool_rules} ${rc_flags}"
 }
 
 ippool_reload()
