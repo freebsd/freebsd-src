@@ -43,6 +43,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	prerequisites and upgrading, if you are not already using clang 3.5.0
 	or higher.
 
+20190226:
+	geom_uzip(4) depends on the new module xz.  If geom_uzip is statically
+	compiled into your custom kernel, add 'device xz' statement to the
+	kernel config.
+
 20190219:
 	drm and drm2 have been removed from the tree. Please see
 	https://wiki.freebsd.org/Graphics for the latest information on
