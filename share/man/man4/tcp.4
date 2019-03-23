@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2018
+.Dd March 23, 2019
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -459,7 +459,7 @@ The actual limit applied to a session's reassembly queue will be the lower of
 the system-calculated automatic limit and the user-specified
 .Va reass.maxqueuelen
 limit.
-.It Va rexmit_min , rexmit_slop
+.It Va rexmit_initial , rexmit_min , rexmit_slop
 Adjust the retransmit timer calculation for
 .Tn TCP .
 The slop is
@@ -481,6 +481,7 @@ code.
 For this reason, we use 200ms of slop and a near-0
 minimum, which gives us an effective minimum of 200ms (similar to
 .Tn Linux ) .
+The initial value is used before an RTT measurement has been performed.
 .It Va initcwnd_segments
 Enable the ability to specify initial congestion window in number of segments.
 The default value is 10 as suggested by RFC 6928.
