@@ -189,6 +189,7 @@ STATIC void mvneta_clear_mib(struct mvneta_softc *);
 STATIC void mvneta_update_mib(struct mvneta_softc *);
 
 /* Switch */
+STATIC boolean_t mvneta_find_ethernet_prop_switch(phandle_t, phandle_t);
 STATIC boolean_t mvneta_has_switch(device_t);
 
 #define	mvneta_sc_lock(sc) mtx_lock(&sc->mtx)
@@ -412,23 +413,39 @@ mvneta_get_mac_address(struct mvneta_softc *sc, uint8_t *addr)
 }
 
 STATIC boolean_t
+mvneta_find_ethernet_prop_switch(phandle_t ethernet, phandle_t node)
+{
+	boolean_t ret;
+	phandle_t child, switch_eth_handle, switch_eth;
+
+	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		if (OF_getencprop(child, "ethernet", (void*)&switch_eth_handle,
+		    sizeof(switch_eth_handle)) > 0) {
+			if (switch_eth_handle > 0) {
+				switch_eth = OF_node_from_xref(
+				    switch_eth_handle);
+
+				if (switch_eth == ethernet)
+					return (true);
+			}
+		}
+
+		ret = mvneta_find_ethernet_prop_switch(ethernet, child);
+		if (ret != 0)
+			return (ret);
+	}
+
+	return (false);
+}
+
+STATIC boolean_t
 mvneta_has_switch(device_t self)
 {
-	phandle_t node, switch_node, switch_eth, switch_eth_handle;
+	phandle_t node;
 
 	node = ofw_bus_get_node(self);
-	switch_node =
-	    ofw_bus_find_compatible(OF_finddevice("/"), "marvell,dsa");
-	switch_eth = 0;
 
-	OF_getencprop(switch_node, "dsa,ethernet",
-	    (void*)&switch_eth_handle, sizeof(switch_eth_handle));
-
-	if (switch_eth_handle > 0)
-		switch_eth = OF_node_from_xref(switch_eth_handle);
-
-	/* Return true if dsa,ethernet cell points to us */
-	return (node == switch_eth);
+	return mvneta_find_ethernet_prop_switch(node, OF_finddevice("/"));
 }
 
 STATIC int
@@ -799,6 +816,8 @@ mvneta_attach(device_t self)
 		if_link_state_change(sc->ifp, LINK_STATE_UP);
 
 		if (mvneta_has_switch(self)) {
+			if (bootverbose)
+				device_printf(self, "This device is attached to a switch\n");
 			child = device_add_child(sc->dev, "mdio", -1);
 			if (child == NULL) {
 				ether_ifdetach(sc->ifp);
