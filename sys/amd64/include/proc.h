@@ -40,7 +40,8 @@
 
 /*
  * List of locks
- *	k - only accessed by curthread
+ *	c  - proc lock
+ *	k  - only accessed by curthread
  *	pp - pmap.c:invl_gen_mtx
  */
 
@@ -70,6 +71,8 @@ struct mdproc {
 	struct proc_ldt *md_ldt;	/* (t) per-process ldt */
 	struct system_segment_descriptor md_ldt_sd;
 };
+
+#define	P_MD_KPTI		0x00000001	/* Enable KPTI on exec */
 
 #define	KINFO_PROC_SIZE 1088
 #define	KINFO_PROC32_SIZE 768
