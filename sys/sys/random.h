@@ -87,6 +87,7 @@ enum random_entropy_source {
 	RANDOM_PURE_BROADCOM,
 	RANDOM_PURE_CCP,
 	RANDOM_PURE_DARN,
+	RANDOM_PURE_TPM,
 	ENTROPYSOURCE
 };
 _Static_assert(ENTROPYSOURCE <= 32,

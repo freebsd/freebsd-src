@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include "opt_acpi.h"
 
+#include "opt_tpm.h"
+
 #define	BIT(x) (1 << (x))
 
 /* Timeouts in us */
@@ -120,6 +122,10 @@ struct tpm_sc {
 	size_t		pending_data_length;
 
 	struct callout 	discard_buffer_callout;
+#ifdef TPM_HARVEST
+	struct callout 	harvest_callout;
+	int		harvest_ticks;
+#endif
 
 	int		(*transmit)(struct tpm_sc *, size_t);
 };
