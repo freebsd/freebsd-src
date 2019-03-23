@@ -18,6 +18,6 @@ $f: $f.gz.uu
 CLEANFILES+=	${${PACKAGE}FILES}}
 
 rebase: .PHONY
-	(cd ${.CURDIR}; atf-sh ${_REBASE_SCRIPT}.sh rebase)
+	(cd ${.CURDIR}; /usr/libexec/atf-sh ${_REBASE_SCRIPT}.sh rebase)
 
 .include <bsd.test.mk>
