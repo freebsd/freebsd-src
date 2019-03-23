@@ -84,7 +84,7 @@ static struct option strings_longopts[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
-long	getcharacter(FILE *);
+int	getcharacter(FILE *, long *);
 int	handle_file(const char *);
 int	handle_elf(const char *, FILE *);
 int	handle_binary(const char *, FILE *, size_t);
@@ -291,42 +291,43 @@ handle_elf(const char *name, FILE *pfile)
  * Retrieves a character from input stream based on the encoding
  * type requested.
  */
-long
-getcharacter(FILE *pfile)
+int
+getcharacter(FILE *pfile, long *rt)
 {
-	long rt;
 	int i, c;
 	char buf[4];
 
 	for(i = 0; i < encoding_size; i++) {
 		c = getc(pfile);
 		if (c == EOF)
-			return (EOF);
+			return (-1);
 		buf[i] = c;
 	}
 
-	rt = EOF;
 	switch (encoding) {
 	case ENCODING_7BIT:
 	case ENCODING_8BIT:
-		rt = buf[0];
+		*rt = buf[0];
 		break;
 	case ENCODING_16BIT_BIG:
-		rt = (buf[0] << 8) | buf[1];
+		*rt = (buf[0] << 8) | buf[1];
 		break;
 	case ENCODING_16BIT_LITTLE:
-		 rt = buf[0] | (buf[1] << 8);
-		 break;
+		*rt = buf[0] | (buf[1] << 8);
+		break;
 	case ENCODING_32BIT_BIG:
-		rt = ((long) buf[0] << 24) | ((long) buf[1] << 16) |
+		*rt = ((long) buf[0] << 24) | ((long) buf[1] << 16) |
 		    ((long) buf[2] << 8) | buf[3];
 		break;
 	case ENCODING_32BIT_LITTLE:
-		rt = buf[0] | ((long) buf[1] << 8) | ((long) buf[2] << 16) |
+		*rt = buf[0] | ((long) buf[1] << 8) | ((long) buf[2] << 16) |
 		    ((long) buf[3] << 24);
 		break;
+	default:
+		return (-1);
 	}
-	return (rt);
+
+	return (0);
 }
 
 /*
@@ -357,8 +358,7 @@ find_strings(const char *name, FILE *pfile, off_t offset, off_t size)
 		start_off = cur_off;
 		memset(obuf, 0, min_len + 1);
 		for(i = 0; i < min_len; i++) {
-			c = getcharacter(pfile);
-			if (c == EOF)
+			if (getcharacter(pfile, &c) < 0)
 				goto _exit1;
 			if (PRINTABLE(c)) {
 				obuf[i] = c;
@@ -400,15 +400,16 @@ find_strings(const char *name, FILE *pfile, off_t offset, off_t size)
 				if ((offset + size) &&
 				    (cur_off >= offset + size))
 					break;
-				c = getcharacter(pfile);
-				cur_off += encoding_size;
-				if (!PRINTABLE(c) || c == EOF)
+				if (getcharacter(pfile, &c) < 0)
 					break;
+				cur_off += encoding_size;
 				if (encoding == ENCODING_8BIT &&
 				    (uint8_t)c > 127) {
 					putchar(c);
 					continue;
 				}
+				if (!PRINTABLE(c))
+					break;
 				putchar(c);
 			}
 			putchar('\n');
