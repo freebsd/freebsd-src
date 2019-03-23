@@ -158,9 +158,7 @@ SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, honor_sbrk, CTLFLAG_RW,
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
-#define	trunc_page_ps(va, ps)	rounddown2(va, ps)
-#define	round_page_ps(va, ps)	roundup2(va, ps)
-#define	aligned(a, t)	(trunc_page_ps((u_long)(a), sizeof(t)) == (u_long)(a))
+#define	aligned(a, t)	(rounddown2((u_long)(a), sizeof(t)) == (u_long)(a))
 
 static const char FREEBSD_ABI_VENDOR[] = "FreeBSD";
 
@@ -568,8 +566,8 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 
 	object = imgp->object;
 	map = &imgp->proc->p_vmspace->vm_map;
-	map_addr = trunc_page_ps((vm_offset_t)vmaddr, PAGE_SIZE);
-	file_addr = trunc_page_ps(offset, PAGE_SIZE);
+	map_addr = trunc_page((vm_offset_t)vmaddr);
+	file_addr = trunc_page(offset);
 
 	/*
 	 * We have two choices.  We can either clear the data in the last page
@@ -580,9 +578,9 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	if (filsz == 0)
 		map_len = 0;
 	else if (memsz > filsz)
-		map_len = trunc_page_ps(offset + filsz, PAGE_SIZE) - file_addr;
+		map_len = trunc_page(offset + filsz) - file_addr;
 	else
-		map_len = round_page_ps(offset + filsz, PAGE_SIZE) - file_addr;
+		map_len = round_page(offset + filsz) - file_addr;
 
 	if (map_len != 0) {
 		/* cow flags: don't dump readonly sections in core */
@@ -611,11 +609,10 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	 * segment in the file is extended to provide bss.  It's a neat idea
 	 * to try and save a page, but it's a pain in the behind to implement.
 	 */
-	copy_len = filsz == 0 ? 0 : (offset + filsz) - trunc_page_ps(offset +
-	    filsz, PAGE_SIZE);
-	map_addr = trunc_page_ps((vm_offset_t)vmaddr + filsz, PAGE_SIZE);
-	map_len = round_page_ps((vm_offset_t)vmaddr + memsz, PAGE_SIZE) -
-	    map_addr;
+	copy_len = filsz == 0 ? 0 : (offset + filsz) - trunc_page(offset +
+	    filsz);
+	map_addr = trunc_page((vm_offset_t)vmaddr + filsz);
+	map_len = round_page((vm_offset_t)vmaddr + memsz) - map_addr;
 
 	/* This had damn well better be true! */
 	if (map_len != 0) {
@@ -631,8 +628,7 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 			return (EIO);
 
 		/* send the page fragment to user space */
-		off = trunc_page_ps(offset + filsz, PAGE_SIZE) -
-		    trunc_page(offset + filsz);
+		off = trunc_page(offset + filsz) - trunc_page(offset + filsz);
 		error = copyout((caddr_t)sf_buf_kva(sf) + off,
 		    (caddr_t)map_addr, copy_len);
 		vm_imgact_unmap_page(sf);
