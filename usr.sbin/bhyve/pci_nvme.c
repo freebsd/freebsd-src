@@ -358,7 +358,7 @@ pci_nvme_init_nsdata(struct pci_nvme_softc *sc)
 	nd->nuse = nd->nsze;
 
 	/* Get LBA and backstore information from backing store */
-	nd->nlbaf = 1;
+	nd->nlbaf = 0; /* NLBAF is a 0's based value (i.e. 1 LBA Format) */
 	/* LBA data-sz = 2^lbads */
 	nd->lbaf[0] = sc->nvstore.sectsz_bits << NVME_NS_DATA_LBAF_LBADS_SHIFT;
 
