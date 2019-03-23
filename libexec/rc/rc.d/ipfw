@@ -34,6 +34,15 @@ ipfw_prestart()
 	if checkyesno firewall_nat_enable; then
 		required_modules="$required_modules ipfw_nat"
 	fi
+	if checkyesno firewall_nat64_enable; then
+		required_modules="$required_modules ipfw_nat64"
+	fi
+	if checkyesno firewall_nptv6_enable; then
+		required_modules="$required_modules ipfw_nptv6"
+	fi
+	if checkyesno firewall_pmod_enable; then
+		required_modules="$required_modules ipfw_pmod"
+	fi
 }
 
 ipfw_start()
