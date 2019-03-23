@@ -978,10 +978,9 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	basetable->gpt_first = table->hdr->hdr_lba_start;
 	basetable->gpt_last = table->hdr->hdr_lba_end;
-	basetable->gpt_entries = (table->hdr->hdr_lba_start - 2) *
-	    pp->sectorsize / table->hdr->hdr_entsz;
+	basetable->gpt_entries = table->hdr->hdr_entries;
 
-	for (index = table->hdr->hdr_entries - 1; index >= 0; index--) {
+	for (index = basetable->gpt_entries - 1; index >= 0; index--) {
 		if (EQUUID(&tbl[index].ent_type, &gpt_uuid_unused))
 			continue;
 		entry = (struct g_part_gpt_entry *)g_part_new_entry(
