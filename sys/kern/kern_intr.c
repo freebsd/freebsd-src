@@ -197,7 +197,7 @@ intr_event_update(struct intr_event *ie)
 
 	/* Run through all the handlers updating values. */
 	CK_SLIST_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (strlen(ie->ie_fullname) + strlen(ih->ih_name) + 2 <
+		if (strlen(ie->ie_fullname) + strlen(ih->ih_name) + 1 <
 		    sizeof(ie->ie_fullname)) {
 			strcat(ie->ie_fullname, " ");
 			strcat(ie->ie_fullname, ih->ih_name);
