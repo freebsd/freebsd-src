@@ -2481,7 +2481,7 @@ mps_intr_locked(void *data)
 			} else {
 				cm = &sc->commands[
 				    le16toh(desc->AddressReply.SMID)];
-				if (cm->cm_state != MPS_MPS_STATE_TIMEDOUT)
+				if (cm->cm_state != MPS_CM_STATE_TIMEDOUT)
 					cm->cm_state = MPS_CM_STATE_BUSY;
 				cm->cm_reply = reply;
 				cm->cm_reply_data = le32toh(
