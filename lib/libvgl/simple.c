@@ -148,11 +148,9 @@ VGLGetXY(VGLBitmap *object, int x, int y)
 {
   int offset;
   byte b[4];
-#if 0
   int i;
   u_long color;
   byte mask;
-#endif
 
   VGLCheckSwitch();
   if (x<0 || x>=object->VXsize || y<0 || y>=object->VYsize)
@@ -185,17 +183,14 @@ VGLGetXY(VGLBitmap *object, int x, int y)
     case VIDBUF4:
       offset = y*VGLAdpInfo.va_line_width + x/8;
 get_planar:
-#if 1
-      return (object->Bitmap[offset]&(0x80>>(x%8))) ? 1 : 0;	/* XXX */
-#else
       color = 0;
       mask = 0x80 >> (x%8);
       for (i = 0; i < VGLModeInfo.vi_planes; i++) {
 	outb(0x3ce, 0x04); outb(0x3cf, i);
-	color |= (object->Bitmap[offset] & mask) ? (1 << i) : 0;
+	color |= (((volatile VGLBitmap *)object)->Bitmap[offset] & mask) ?
+		 (1 << i) : 0;
       }
       return color;
-#endif
   }
   return 0;		/* XXX black? */
 }
