@@ -137,8 +137,8 @@ userdisk_print(int verbose)
 			break;
 		dev.dd.d_dev = &userboot_disk;
 		dev.dd.d_unit = i;
-		dev.d_slice = -1;
-		dev.d_partition = -1;
+		dev.d_slice = D_SLICENONE;
+		dev.d_partition = D_PARTNONE;
 		if (disk_open(&dev, ud_info[i].mediasize,
 		    ud_info[i].sectorsize) == 0) {
 			snprintf(line, sizeof(line), "    disk%d", i);

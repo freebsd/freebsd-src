@@ -129,15 +129,8 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 		dev.dd.d_dev = pa->dev->dd.d_dev;
 		dev.dd.d_unit = pa->dev->dd.d_unit;
 		dev.d_slice = part->index;
-		dev.d_partition = -1;
+		dev.d_partition = D_PARTNONE;
 		if (disk_open(&dev, partsize, sectsize) == 0) {
-			/*
-			 * disk_open() for partition -1 on a bsd slice assumes
-			 * you want the first bsd partition.  Reset things so
-			 * that we're looking at the start of the raw slice.
-			 */
-			dev.d_partition = -1;
-			dev.d_offset = part->start;
 			table = ptable_open(&dev, partsize, sectsize, ptblread);
 			if (table != NULL) {
 				sprintf(line, "  %s%s", pa->prefix, pname);
@@ -244,8 +237,8 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 	 */
 	memcpy(&partdev, dev, sizeof(partdev));
 	partdev.d_offset = 0;
-	partdev.d_slice = -1;
-	partdev.d_partition = -1;
+	partdev.d_slice = D_SLICENONE;
+	partdev.d_partition = D_PARTNONE;
 
 	dev->d_offset = 0;
 	table = NULL;
@@ -373,9 +366,9 @@ disk_fmtdev(struct disk_devdesc *dev)
 	char *cp;
 
 	cp = buf + sprintf(buf, "%s%d", dev->dd.d_dev->dv_name, dev->dd.d_unit);
-	if (dev->d_slice >= 0) {
+	if (dev->d_slice > D_SLICENONE) {
 #ifdef LOADER_GPT_SUPPORT
-		if (dev->d_partition == 255) {
+		if (dev->d_partition == D_PARTISGPT) {
 			sprintf(cp, "p%d:", dev->d_slice);
 			return (buf);
 		} else
@@ -384,7 +377,7 @@ disk_fmtdev(struct disk_devdesc *dev)
 			cp += sprintf(cp, "s%d", dev->d_slice);
 #endif
 	}
-	if (dev->d_partition >= 0)
+	if (dev->d_partition > D_PARTNONE)
 		cp += sprintf(cp, "%c", dev->d_partition + 'a');
 	strcat(cp, ":");
 	return (buf);
@@ -398,7 +391,9 @@ disk_parsedev(struct disk_devdesc *dev, const char *devspec, const char **path)
 	char *cp;
 
 	np = devspec;
-	unit = slice = partition = -1;
+	unit = -1;
+	slice = D_SLICEWILD;
+	partition = D_PARTWILD;
 	if (*np != '\0' && *np != ':') {
 		unit = strtol(np, &cp, 10);
 		if (cp == np)
