@@ -74,7 +74,7 @@ FILE *fd;
 
 void
 VGLBitmapPutChar(VGLBitmap *Object, int x, int y, byte ch, 
-		 byte fgcol, byte bgcol, int fill, int dir)
+		 u_long fgcol, u_long bgcol, int fill, int dir)
 {
   int b, Bpc, Bpl, lin, bit, topbit;
 
@@ -126,7 +126,7 @@ VGLBitmapPutChar(VGLBitmap *Object, int x, int y, byte ch,
 
 void
 VGLBitmapString(VGLBitmap *Object, int x, int y, char *str, 
-		byte fgcol, byte bgcol, int fill, int dir)
+		u_long fgcol, u_long bgcol, int fill, int dir)
 {
   int pos;
 
