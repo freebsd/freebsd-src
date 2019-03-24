@@ -146,7 +146,7 @@ void VGLRestorePalette(void);
 void VGLSavePalette(void);
 void VGLSetPalette(byte *red, byte *green, byte *blue);
 void VGLSetPaletteIndex(byte color, byte red, byte green, byte blue);
-void VGLSetBorder(u_long color);
+void VGLSetBorder(byte color);
 void VGLBlankDisplay(int blank);
 /* text.c */
 int VGLTextSetFontFile(char *filename);
