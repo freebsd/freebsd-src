@@ -80,6 +80,9 @@ struct cfi_softc {
 	u_int		sc_wrbufsz;
 	u_int		sc_wrofs;
 	u_int		sc_writing;
+
+	u_int		sc_manid;
+	u_int		sc_devid;
 };
 
 extern char cfi_driver_name[];
