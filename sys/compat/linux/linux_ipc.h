@@ -141,7 +141,6 @@ struct linux_shmat_args
 	l_int		shmid;
 	char		*shmaddr;
 	l_int		shmflg;
-	l_ulong		*raddr;
 };
 
 struct linux_shmctl_args
