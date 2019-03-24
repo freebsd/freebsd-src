@@ -49,7 +49,7 @@ typedef struct {
 } VGLBitmap;
 
 #define VGLBITMAP_INITIALIZER(t, x, y, bits)	\
-	{ (t), (x), (y), (x), (y), 0, 0, (bits) }
+	{ (t), (x), (y), (x), (y), 0, 0, (bits), -1 }
 
 /*
  * Defined Type's

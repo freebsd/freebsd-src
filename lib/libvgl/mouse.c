@@ -82,7 +82,7 @@ static VGLBitmap VGLMouseStdAndMask =
 static VGLBitmap VGLMouseStdOrMask = 
     VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, StdOrMask);
 static VGLBitmap *VGLMouseAndMask, *VGLMouseOrMask;
-static byte map[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE];
+static byte map[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE*4];
 static VGLBitmap VGLMouseSave = 
     VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, map);
 static int VGLMouseVisible = 0;
@@ -95,7 +95,7 @@ static int VGLMouseButtons = 0;
 void
 VGLMousePointerShow()
 {
-  byte buf[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE];
+  byte buf[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE*4];
   VGLBitmap buffer =
     VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, buf);
   byte crtcidx, crtcval, gdcidx, gdcval;
