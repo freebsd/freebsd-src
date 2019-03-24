@@ -301,7 +301,7 @@ VGLInit(int mode)
   VGLDisplay->Yorigin = 0;
 
   VGLMem = (byte*)mmap(0, VGLAdpInfo.va_window_size, PROT_READ|PROT_WRITE,
-		       MAP_FILE, 0, 0);
+		       MAP_FILE | MAP_SHARED, 0, 0);
   if (VGLMem == MAP_FAILED) {
     VGLEnd();
     return -7;
@@ -350,7 +350,7 @@ VGLCheckSwitch()
       ioctl(0, VGLMode, 0);
       VGLCurWindow = 0;
       VGLMem = (byte*)mmap(0, VGLAdpInfo.va_window_size, PROT_READ|PROT_WRITE,
-			   MAP_FILE, 0, 0);
+			   MAP_FILE | MAP_SHARED, 0, 0);
 
       /* XXX: what if mmap() has failed! */
       VGLDisplay->Type = VIDBUF8;	/* XXX */
