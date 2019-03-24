@@ -421,6 +421,16 @@ cfi_attach(device_t dev)
 		}
 	}
 
+	if (sc->sc_cmdset == CFI_VEND_AMD_ECS  ||
+	    sc->sc_cmdset == CFI_VEND_AMD_SCS) {
+		cfi_amd_write(sc, 0, AMD_ADDR_START, CFI_AMD_AUTO_SELECT);
+		sc->sc_manid = cfi_read(sc, 0);
+		sc->sc_devid = cfi_read(sc, 2);
+		device_printf(dev, "Manufacturer ID:%x Device ID:%x\n",
+		    sc->sc_manid, sc->sc_devid);
+		cfi_write(sc, 0, CFI_BCS_READ_ARRAY2);
+	}
+
 	u = device_get_unit(dev);
 	sc->sc_nod = make_dev(&cfi_cdevsw, u, UID_ROOT, GID_WHEEL, 0600,
 	    "%s%u", cfi_driver_name, u);
@@ -498,6 +508,37 @@ cfi_detach(device_t dev)
 	free(sc->sc_region, M_TEMP);
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_res);
 	return (0);
+}
+
+static bool
+cfi_check_erase(struct cfi_softc *sc, u_int ofs, u_int sz)
+{
+	bool result;
+	int i;
+	uint32_t val;
+
+	result = FALSE;
+	for (i = 0; i < sz; i += sc->sc_width) {
+		val = cfi_read(sc, ofs + i);
+		switch (sc->sc_width) {
+		case 1:
+			if (val != 0xff)
+				goto out;
+			continue;
+		case 2:
+			if (val != 0xffff)
+				goto out;
+			continue;
+		case 4:
+			if (val != 0xffffffff)
+				goto out;
+			continue;
+		}
+	}
+	result = TRUE;
+
+out:
+	return (result);
 }
 
 static int
@@ -581,10 +622,12 @@ cfi_write_block(struct cfi_softc *sc)
 		uint32_t	*x32;
 	} ptr, cpyprt;
 	register_t intr;
-	int error, i, neederase = 0;
+	int error, i, j, neederase = 0;
 	uint32_t st;
 	u_int wlen;
 	sbintime_t start;
+	u_int minsz;
+	uint32_t val;
 
 	/* Intel flash must be unlocked before modification */
 	switch (sc->sc_cmdset) {
@@ -615,9 +658,27 @@ cfi_write_block(struct cfi_softc *sc)
 			break;
 		case CFI_VEND_AMD_SCS:
 		case CFI_VEND_AMD_ECS:
+			/* find minimum sector size */
+			minsz = sc->sc_region[0].r_blksz;
+			for (i = 1; i < sc->sc_regions; i++) {
+				if (sc->sc_region[i].r_blksz < minsz)
+					minsz = sc->sc_region[i].r_blksz;
+			}
 			cfi_amd_write(sc, sc->sc_wrofs, AMD_ADDR_START,
 			    CFI_AMD_ERASE_SECTOR);
-			cfi_amd_write(sc, sc->sc_wrofs, 0, CFI_AMD_BLOCK_ERASE);
+			cfi_amd_write(sc, sc->sc_wrofs, 
+			    sc->sc_wrofs >> (ffs(minsz) - 1),
+			    CFI_AMD_BLOCK_ERASE);
+			for (i = 0; i < CFI_AMD_MAXCHK; ++i) {
+				if (cfi_check_erase(sc, sc->sc_wrofs,
+				    sc->sc_wrbufsz))
+					break;
+				DELAY(10);
+			}
+			if (i == CFI_AMD_MAXCHK) {
+				printf("\nCFI Sector Erase time out error\n");
+				return (ENODEV);
+			}
 			break;
 		default:
 			/* Better safe than sorry... */
@@ -749,10 +810,37 @@ cfi_write_block(struct cfi_softc *sc)
 		
 		intr_restore(intr);
 
-		error = cfi_wait_ready(sc, sc->sc_wrofs, start,
-		   CFI_TIMEOUT_WRITE);
-		if (error)
-			goto out;
+		if (sc->sc_cmdset == CFI_VEND_AMD_ECS  ||
+		    sc->sc_cmdset == CFI_VEND_AMD_SCS) {
+			for (j = 0; j < CFI_AMD_MAXCHK; ++j) {
+				switch (sc->sc_width) {
+				case 1:
+					val = *(ptr.x8 + i);
+					break;
+				case 2:
+					val = *(ptr.x16 + i / 2);
+					break;
+				case 4:
+					val = *(ptr.x32 + i / 4);
+					break;
+				}
+
+				if (cfi_read(sc, sc->sc_wrofs + i) == val)
+					break;
+					
+				DELAY(10);
+			}
+			if (j == CFI_AMD_MAXCHK) {
+				printf("\nCFI Program Verify time out error\n");
+				error = ENXIO;
+				goto out;
+			}
+		} else {
+			error = cfi_wait_ready(sc, sc->sc_wrofs, start,
+			   CFI_TIMEOUT_WRITE);
+			if (error)
+				goto out;
+		}
 	}
 
 	/* error is 0. */
