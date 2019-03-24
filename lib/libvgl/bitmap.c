@@ -338,8 +338,8 @@ __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
     byte buffer[2048];	/* XXX */
     byte *p;
 
-    if (width > sizeof(buffer)) {
-      p = malloc(width);
+    if (width * src->PixelBytes > sizeof(buffer)) {
+      p = malloc(width * src->PixelBytes);
       if (p == NULL)
 	return 1;
     } else {
@@ -349,7 +349,7 @@ __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
       ReadVerticalLine(src, srcx, srcline, width, p);
       WriteVerticalLine(dst, dstx, dstline, width, p);
     }
-    if (width > sizeof(buffer))
+    if (width * src->PixelBytes > sizeof(buffer))
       free(p);
   }
   return 0;
@@ -387,6 +387,7 @@ VGLBitmap
   object->Xorigin = 0;
   object->Yorigin = 0;
   object->Bitmap = bits;
+  object->PixelBytes = VGLDisplay->PixelBytes;
   return object;
 }
 
@@ -401,7 +402,7 @@ VGLBitmapDestroy(VGLBitmap *object)
 int
 VGLBitmapAllocateBits(VGLBitmap *object)
 {
-  object->Bitmap = (byte *)malloc(object->VXsize*object->VYsize);
+  object->Bitmap = malloc(object->VXsize*object->VYsize*object->PixelBytes);
   if (object->Bitmap == NULL)
     return -1;
   return 0;
