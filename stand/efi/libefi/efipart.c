@@ -813,8 +813,8 @@ efipart_print_common(struct devsw *dev, pdinfo_list_t *pdlist, int verbose)
 			pd->pd_blkio = blkio;
 			pd_dev.dd.d_dev = dev;
 			pd_dev.dd.d_unit = pd->pd_unit;
-			pd_dev.d_slice = -1;
-			pd_dev.d_partition = -1;
+			pd_dev.d_slice = D_SLICENONE;
+			pd_dev.d_partition = D_PARTNONE;
 			ret = disk_open(&pd_dev, blkio->Media->BlockSize *
 			    (blkio->Media->LastBlock + 1),
 			    blkio->Media->BlockSize);

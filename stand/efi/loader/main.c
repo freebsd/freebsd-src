@@ -217,12 +217,12 @@ set_currdev_pdinfo(pdinfo_t *dp)
 		currdev.dd.d_dev = dp->pd_devsw;
 		if (dp->pd_parent == NULL) {
 			currdev.dd.d_unit = dp->pd_unit;
-			currdev.d_slice = -1;
-			currdev.d_partition = -1;
+			currdev.d_slice = D_SLICENONE;
+			currdev.d_partition = D_PARTNONE;
 		} else {
 			currdev.dd.d_unit = dp->pd_parent->pd_unit;
 			currdev.d_slice = dp->pd_unit;
-			currdev.d_partition = 255;	/* Assumes GPT */
+			currdev.d_partition = D_PARTISGPT; /* XXX Assumes GPT */
 		}
 		set_currdev_devdesc((struct devdesc *)&currdev);
 	} else {
