@@ -313,4 +313,11 @@
 #define	LINUX_SYS_linux_pkey_mprotect	329
 #define	LINUX_SYS_linux_pkey_alloc	330
 #define	LINUX_SYS_linux_pkey_free	331
-#define	LINUX_SYS_MAXSYSCALL	333
+#define	LINUX_SYS_linux_statx	332
+#define	LINUX_SYS_linux_io_pgetevents	333
+#define	LINUX_SYS_linux_rseq	334
+#define	LINUX_SYS_linux_pidfd_send_signal	424
+#define	LINUX_SYS_linux_io_uring_setup	425
+#define	LINUX_SYS_linux_io_uring_enter	426
+#define	LINUX_SYS_linux_io_uring_register	427
+#define	LINUX_SYS_MAXSYSCALL	429
