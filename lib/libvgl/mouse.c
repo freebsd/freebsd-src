@@ -234,7 +234,7 @@ VGLMouseStatus(int *x, int *y, char *buttons)
 }
 
 int
-VGLMouseFreeze(int x, int y, int width, int hight, byte color)
+VGLMouseFreeze(int x, int y, int width, int hight, u_long color)
 {
   if (!VGLMouseFrozen) {
     VGLMouseFrozen = 1;
