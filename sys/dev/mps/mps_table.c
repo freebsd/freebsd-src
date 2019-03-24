@@ -431,6 +431,16 @@ mps_print_evt_sas(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 		mps_print_field(sc, "SASAddress: 0x%jx\n",
 		    mps_to_u64(&data->SASAddress));
 	}
+	case MPI2_EVENT_SAS_BROADCAST_PRIMITIVE:
+	{
+		MPI2_EVENT_DATA_SAS_BROADCAST_PRIMITIVE *data;
+
+		data = (MPI2_EVENT_DATA_SAS_BROADCAST_PRIMITIVE *)&event->EventData;
+		MPS_PRINTFIELD(sc, data, PhyNum, %d);
+		MPS_PRINTFIELD(sc, data, Port, %d);
+		MPS_PRINTFIELD(sc, data, PortWidth, %d);
+		MPS_PRINTFIELD(sc, data, Primitive, 0x%x);
+	}
 	default:
 		break;
 	}
