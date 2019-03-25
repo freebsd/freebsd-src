@@ -256,6 +256,8 @@ endif
 
 if INC_BLAKE2
 libarchive_la_SOURCES+= \
+	libarchive/archive_blake2.h \
+	libarchive/archive_blake2_impl.h \
 	libarchive/archive_blake2s_ref.c \
 	libarchive/archive_blake2sp_ref.c
 endif

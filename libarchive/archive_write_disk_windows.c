@@ -474,6 +474,11 @@ permissive_name_w(struct archive_write_disk *a)
 	{
 		archive_wstrncpy(&(a->_name_data), wsp, l);
 	}
+	else if (l > 2 && wsp[0] == L'\\' && wsp[1] == L'\\' && wsp[2] != L'\\')
+	{
+		archive_wstrncpy(&(a->_name_data), L"\\\\?\\UNC\\", 8);
+		archive_wstrncat(&(a->_name_data), wsp+2, l-2);
+	}
 	else
 	{
 		archive_wstrncpy(&(a->_name_data), L"\\\\?\\", 4);

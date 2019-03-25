@@ -1,5 +1,8 @@
 #
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW) #3.12.0 `find_package()`` uses ``<PackageName>_ROOT`` variables.
+endif()
 #
 PROJECT(libarchive C)
 #
@@ -84,6 +87,11 @@ SET(CMAKE_REQUIRED_DEFINITIONS)
 SET(CMAKE_REQUIRED_INCLUDES)
 SET(CMAKE_REQUIRED_LIBRARIES)
 SET(CMAKE_REQUIRED_FLAGS)
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+  OPTION(ENABLE_WERROR "Treat warnings as errors - default is ON for Debug, OFF otherwise." ON)
+else ()
+  OPTION(ENABLE_WERROR "Treat warnings as errors - default is ON for Debug, OFF otherwise." OFF)
+endif ()
 
 # Especially for early development, we want to be a little
 # aggressive about diagnosing build problems; this can get
@@ -93,10 +101,12 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$")
   #################################################################
   # Set compile flags for all build types.
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wformat -Wformat-security")
+  if (ENABLE_WERROR)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+  endif ()
   #################################################################
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wunused")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wshadow")
@@ -108,11 +118,13 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^Clang$")
   #################################################################
   # Set compile flags for all build types.
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wformat -Wformat-security")
+  if (ENABLE_WERROR)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+  endif ()
   #################################################################
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wunused")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wshadow")
@@ -125,15 +137,21 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
   #################################################################
   # Set compile flags for all build types.
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qflag=e:e -qformat=sec")
+  if (ENABLE_WERROR)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qhalt=w")
+  endif ()
   #################################################################
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -qhalt=w")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -qflag=w:w")
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -qinfo=pro:use")
 ENDIF(CMAKE_C_COMPILER_ID MATCHES "^XL$")
 IF (MSVC)
+  if (ENABLE_WERROR)
+    # /WX option is the same as gcc's -Werror option.
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
+  endif ()
   #################################################################
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
@@ -165,8 +183,6 @@ IF (MSVC)
   # Enable level 4 C4706: The test value in a conditional expression was the
   #                       result of an assignment.
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4706")
-  # /WX option is the same as gcc's -Werror option.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /WX")
   # /Oi option enables built-in functions.
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Oi")
   #################################################################
