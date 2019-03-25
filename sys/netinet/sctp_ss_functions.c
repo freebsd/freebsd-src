@@ -838,6 +838,8 @@ sctp_ss_fcfs_init_stream(struct sctp_tcb *stcb, struct sctp_stream_out *strq, st
 			stcb->asoc.ss_data.last_out_stream = strq;
 		}
 	}
+	strq->ss_params.fb.next_spoke.tqe_next = NULL;
+	strq->ss_params.fb.next_spoke.tqe_prev = NULL;
 	return;
 }
 
