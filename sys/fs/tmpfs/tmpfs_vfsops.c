@@ -42,6 +42,9 @@
  * memory-specific data structures and algorithms to automatically
  * allocate and release resources.
  */
+
+#include "opt_tmpfs.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
