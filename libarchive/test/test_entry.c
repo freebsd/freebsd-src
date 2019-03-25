@@ -336,7 +336,7 @@ DEFINE_TEST(test_entry)
 	/* Converting fflags bitmap to string is currently system-dependent. */
 	/* TODO: Make this system-independent. */
 	assertEqualString(archive_entry_fflags_text(e),
-	    "uappnd,nouchg,nodump,noopaque,uunlnk");
+	    "uappnd,nouchg,nodump,noopaque,uunlnk,nosystem");
 	/* Test archive_entry_copy_fflags_text_w() */
 	archive_entry_copy_fflags_text_w(e, L" ,nouappnd, nouchg, dump,uunlnk");
 	archive_entry_fflags(e, &set, &clear);
