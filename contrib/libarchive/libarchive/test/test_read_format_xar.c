@@ -799,7 +799,7 @@ static void verify(unsigned char *d, size_t s,
 static void verifyB(unsigned char *d, size_t s) {
 	struct archive* a;
 	struct archive_entry *entry = NULL;
-	la_int64_t buf_size;
+	size_t buf_size;
 	unsigned char *buf;
 
 	assert((a = archive_read_new()) != NULL);
@@ -826,20 +826,20 @@ static void verifyB(unsigned char *d, size_t s) {
 
 	// f1, content "onetwothree\n", size 12 bytes
 	assertA(0 == archive_read_next_header(a, &entry));
-	buf_size = archive_entry_size(entry);
+	buf_size = (size_t) archive_entry_size(entry);
 	assertA(buf_size == 12);
 	buf = (unsigned char*) malloc(buf_size);
 	assertA(NULL != buf);
-	assertA(buf_size == archive_read_data(a, buf, buf_size));
+	assertA(buf_size == (size_t) archive_read_data(a, buf, buf_size));
 	free(buf);
 
 	// f2, content "fourfivesix\n", size 12 bytes
 	assertA(0 == archive_read_next_header(a, &entry));
-	buf_size = archive_entry_size(entry);
+	buf_size = (size_t) archive_entry_size(entry);
 	assertA(buf_size == 12);
 	buf = (unsigned char*) malloc(buf_size);
 	assertA(NULL != buf);
-	assertA(buf_size == archive_read_data(a, buf, buf_size));
+	assertA(buf_size == (size_t) archive_read_data(a, buf, buf_size));
 	free(buf);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
