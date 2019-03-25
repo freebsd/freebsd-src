@@ -55,6 +55,7 @@
 
 #define	AR71XX_GPIO_PINS	12
 #define	AR724X_GPIO_PINS	18
+#define	AR7241_GPIO_PINS	20
 #define	AR91XX_GPIO_PINS	22
 
 struct ar71xx_gpio_softc {
