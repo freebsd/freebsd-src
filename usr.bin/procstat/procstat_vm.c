@@ -53,7 +53,7 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 
 	ptrwidth = 2*sizeof(void *) + 2;
 	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
-		xo_emit("{T:/%5s %*s %*s %3s %4s %4s %3s %3s %-4s %-2s %-s}\n",
+		xo_emit("{T:/%5s %*s %*s %3s %4s %4s %3s %3s %-5s %-2s %-s}\n",
 		    "PID", ptrwidth, "START", ptrwidth, "END", "PRT", "RES",
 		    "PRES", "REF", "SHD", "FLAG", "TP", "PATH");
 
@@ -98,9 +98,11 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 		    KVME_FLAG_NEEDS_COPY ? "N" : "-");
 		xo_emit("{d:super_pages/%-1s}", kve->kve_flags &
 		    KVME_FLAG_SUPER ? "S" : "-");
-		xo_emit("{d:grows_down/%-1s} ", kve->kve_flags &
+		xo_emit("{d:grows_down/%-1s}", kve->kve_flags &
 		    KVME_FLAG_GROWS_UP ? "U" : kve->kve_flags &
 		    KVME_FLAG_GROWS_DOWN ? "D" : "-");
+		xo_emit("{d:wired/%-1s} ", kve->kve_flags &
+		    KVME_FLAG_USER_WIRED ? "W" : "-");
 		xo_open_container("kve_flags");
 		xo_emit("{en:copy_on_write/%s}", kve->kve_flags &
 		    KVME_FLAG_COW ? "true" : "false");
@@ -112,6 +114,8 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 		    KVME_FLAG_GROWS_UP ? "true" : "false");
 		xo_emit("{en:grows_down/%s}", kve->kve_flags &
 		    KVME_FLAG_GROWS_DOWN ? "true" : "false");
+		xo_emit("{en:wired/%s}", kve->kve_flags &
+		    KVME_FLAG_USER_WIRED ? "true" : "false");
 		xo_close_container("kve_flags");
 		switch (kve->kve_type) {
 		case KVME_TYPE_NONE:
