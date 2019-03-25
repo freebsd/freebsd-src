@@ -640,6 +640,9 @@ NFS_MINDIRATTRTIMO	opt_nfs.h
 NFS_MAXDIRATTRTIMO	opt_nfs.h
 NFS_DEBUG		opt_nfs.h
 
+# TMPFS options
+TMPFS_PAGES_MINRESERVED		opt_tmpfs.h
+
 # For the Bt848/Bt848A/Bt849/Bt878/Bt879 driver
 OVERRIDE_CARD			opt_bktr.h
 OVERRIDE_TUNER			opt_bktr.h
