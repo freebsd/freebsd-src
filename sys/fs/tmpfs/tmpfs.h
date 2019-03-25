@@ -487,7 +487,9 @@ struct tmpfs_dirent *tmpfs_dir_next(struct tmpfs_node *dnode,
  * Amount of memory pages to reserve for the system (e.g., to not use by
  * tmpfs).
  */
+#if !defined(TMPFS_PAGES_MINRESERVED)
 #define TMPFS_PAGES_MINRESERVED		(4 * 1024 * 1024 / PAGE_SIZE)
+#endif
 
 size_t tmpfs_mem_avail(void);
 
