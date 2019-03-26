@@ -4353,7 +4353,7 @@ pf_load(void)
 
 	pf_mtag_initialize();
 
-	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
+	pf_dev = make_dev(&pf_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, PF_NAME);
 	if (pf_dev == NULL)
 		return (ENOMEM);
 
