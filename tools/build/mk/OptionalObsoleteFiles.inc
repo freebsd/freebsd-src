@@ -225,12 +225,14 @@ OLD_DIRS+=usr/share/examples/bhyve
 .endif
 
 .if ${MK_BINUTILS} == no
+.if !defined(WITH_PORT_BASE_BINUTILS)
 OLD_FILES+=usr/bin/as
 .if ${MK_LLD_IS_LD} == no
 OLD_FILES+=usr/bin/ld
 OLD_FILES+=usr/share/man/man1/ld.1.gz
 .endif
 OLD_FILES+=usr/bin/objdump
+.endif
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.x
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xbn
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xc
@@ -426,6 +428,7 @@ OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsc
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsw
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
+.if !defined(WITH_PORT_BASE_BINUTILS)
 OLD_FILES+=usr/share/man/man1/as.1.gz
 OLD_FILES+=usr/share/man/man1/objdump.1.gz
 OLD_FILES+=usr/share/man/man7/as.7.gz
@@ -433,8 +436,11 @@ OLD_FILES+=usr/share/man/man7/ld.7.gz
 OLD_FILES+=usr/share/man/man7/ldint.7.gz
 OLD_FILES+=usr/share/man/man7/binutils.7.gz
 .endif
+.endif
+.if !defined(WITH_PORT_BASE_BINUTILS)
 .if ${MK_BINUTILS} == no || ${MK_LLD_IS_LD} == yes
 OLD_FILES+=usr/bin/ld.bfd
+.endif
 .endif
 
 .if ${MK_BLACKLIST} == no
@@ -1700,7 +1706,9 @@ OLD_FILES+=usr/share/man/man8/ftpd.8.gz
 .endif
 
 .if ${MK_GNUCXX} == no
+.if !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/g++
+.endif
 OLD_FILES+=usr/include/c++/4.2/algorithm
 OLD_FILES+=usr/include/c++/4.2/backward/algo.h
 OLD_FILES+=usr/include/c++/4.2/backward/algobase.h
@@ -2708,8 +2716,10 @@ OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
 .if ${MK_GCC} == no
+.if !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
+.endif
 OLD_FILES+=usr/bin/gcpp
 OLD_FILES+=usr/bin/gperf
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
@@ -2746,14 +2756,17 @@ OLD_LIBS+=usr/lib32/libgomp.so.1
 OLD_FILES+=usr/lib32/libgomp_p.a
 OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
+.if !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/share/man/man1/g++.1.gz
 OLD_FILES+=usr/share/man/man1/gcc.1.gz
+.endif
 OLD_FILES+=usr/share/man/man1/gcpp.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.7.gz
 .endif
 
-.if (${MK_GCOV} == no || ${MK_GCC} == no) && ${MK_LLVM_COV} == no
+.if (${MK_GCOV} == no || ${MK_GCC} == no) && ${MK_LLVM_COV} == no && \
+    !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
 .endif
