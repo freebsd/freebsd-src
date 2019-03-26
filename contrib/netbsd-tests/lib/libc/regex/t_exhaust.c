@@ -1,4 +1,4 @@
-/*	$NetBSD: t_exhaust.c,v 1.8 2017/01/14 00:50:56 christos Exp $	*/
+/*	$NetBSD: t_exhaust.c,v 1.9 2019/03/16 21:57:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_exhaust.c,v 1.8 2017/01/14 00:50:56 christos Exp $");
+__RCSID("$NetBSD: t_exhaust.c,v 1.9 2019/03/16 21:57:15 christos Exp $");
 
 #include <sys/resource.h>
 #include <atf-c.h>
@@ -56,7 +56,7 @@ mkstr(const char *str, size_t len)
 {
 	size_t slen = strlen(str);
 	char *p = malloc(slen * len + 1);
-	ATF_REQUIRE(p != NULL);
+	ATF_REQUIRE_MSG(p != NULL, "slen=%zu, len=%zu", slen, len);
 	for (size_t i = 0; i < len; i++)
 		strcpy(&p[i * slen], str);
 	return p;
@@ -183,11 +183,12 @@ ATF_TC_HEAD(regcomp_too_big, tc)
 ATF_TC_BODY(regcomp_too_big, tc)
 {
 	regex_t re;
-	struct rlimit limit;
 	int e;
+	struct rlimit limit;
 
-	limit.rlim_cur = limit.rlim_max = 64 * 1024 * 1024;
+	limit.rlim_cur = limit.rlim_max = 256 * 1024 * 1024;
 	ATF_REQUIRE(setrlimit(RLIMIT_VMEM, &limit) != -1);
+
 	for (size_t i = 0; i < __arraycount(tests); i++) {
 		char *d = (*tests[i].pattern)(REGEX_MAXSIZE);
 		e = regcomp(&re, d, tests[i].type);
