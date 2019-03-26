@@ -537,7 +537,7 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 	if (ctx == NULL)
 		return (NULL);		/* be NULL safe */
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_width_vid_pid enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_with_vid_pid enter");
 
 	if ((i = libusb_get_device_list(ctx, &devs)) < 0)
 		return (NULL);
@@ -561,7 +561,7 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 	}
 
 	libusb_free_device_list(devs, 1);
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_width_vid_pid leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_with_vid_pid leave");
 	return (pdev);
 }
 
