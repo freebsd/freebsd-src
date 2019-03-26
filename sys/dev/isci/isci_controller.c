@@ -428,7 +428,8 @@ int isci_controller_allocate_memory(struct ISCI_CONTROLLER *controller)
 	uncached_controller_memory->size = sci_mdl_decorator_get_memory_size(
 	    controller->mdl, SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS);
 
-	error = isci_allocate_dma_buffer(device, uncached_controller_memory);
+	error = isci_allocate_dma_buffer(device, controller,
+	    uncached_controller_memory);
 
 	if (error != 0)
 	    return (error);
@@ -443,7 +444,8 @@ int isci_controller_allocate_memory(struct ISCI_CONTROLLER *controller)
 	    SCI_MDE_ATTRIBUTE_CACHEABLE | SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS
 	);
 
-	error = isci_allocate_dma_buffer(device, cached_controller_memory);
+	error = isci_allocate_dma_buffer(device, controller,
+	    cached_controller_memory);
 
 	if (error != 0)
 	    return (error);
@@ -456,7 +458,7 @@ int isci_controller_allocate_memory(struct ISCI_CONTROLLER *controller)
 	request_memory->size =
 	    controller->queue_depth * isci_io_request_get_object_size();
 
-	error = isci_allocate_dma_buffer(device, request_memory);
+	error = isci_allocate_dma_buffer(device, controller, request_memory);
 
 	if (error != 0)
 	    return (error);
@@ -478,7 +480,8 @@ int isci_controller_allocate_memory(struct ISCI_CONTROLLER *controller)
 	status = bus_dma_tag_create(bus_get_dma_tag(device), 0x1, 0x0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    isci_io_request_get_max_io_size(),
-	    SCI_MAX_SCATTER_GATHER_ELEMENTS, max_segment_size, 0, NULL, NULL,
+	    SCI_MAX_SCATTER_GATHER_ELEMENTS, max_segment_size, 0,
+	    busdma_lock_mutex, &controller->lock,
 	    &controller->buffer_dma_tag);
 
 	sci_pool_initialize(controller->request_pool);
