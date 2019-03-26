@@ -204,10 +204,10 @@
 #	current -- the update time stamp, the data and the name of the file
 #	will not change.
 #
-#	Updated through IERS Bulletin C56
-#	File expires on:  28 June 2019
+#	Updated through IERS Bulletin C57
+#	File expires on:  28 December 2019
 #
-#@	3770668800
+#@	3786480000
 #
 2272060800	10	# 1 Jan 1972
 2287785600	11	# 1 Jul 1972
@@ -252,4 +252,4 @@
 #	the hash line is also ignored in the
 #	computation.
 #
-#h 	62ca19f6 96a4ae0a 3708451c 9f8693f4 016604eb
+#h 	83c68138 d3650221 07dbbbcd 11fcc859 ced1106a
