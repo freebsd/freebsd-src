@@ -146,17 +146,18 @@ TLBIE(uint64_t vpn) {
 #endif
 
 	static volatile u_int tlbie_lock = 0;
+	bool need_lock = moea64_need_lock;
 
 	vpn <<= ADDR_PIDX_SHFT;
 
 	/* Hobo spinlock: we need stronger guarantees than mutexes provide */
-	if (moea64_need_lock) {
+	if (need_lock) {
 		while (!atomic_cmpset_int(&tlbie_lock, 0, 1));
 		isync(); /* Flush instruction queue once lock acquired */
-	}
 
-	if (moea64_crop_tlbie)
-		vpn &= ~(0xffffULL << 48);
+		if (moea64_crop_tlbie)
+			vpn &= ~(0xffffULL << 48);
+	}
 
 #ifdef __powerpc64__
 	/*
@@ -196,7 +197,7 @@ TLBIE(uint64_t vpn) {
 #endif
 
 	/* No barriers or special ops -- taken care of by ptesync above */
-	if (moea64_need_lock)
+	if (need_lock)
 		tlbie_lock = 0;
 }
 
