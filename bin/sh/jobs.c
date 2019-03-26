@@ -362,7 +362,7 @@ showjob(struct job *jp, int mode)
 	const char *statestr, *coredump;
 	struct procstat *ps;
 	struct job *j;
-	int col, curr, i, jobno, prev, procno;
+	int col, curr, i, jobno, prev, procno, status;
 	char c;
 
 	procno = (mode == SHOWJOBS_PGIDS) ? 1 : jp->nprocs;
@@ -376,11 +376,12 @@ showjob(struct job *jp, int mode)
 	}
 #endif
 	coredump = "";
-	ps = jp->ps + jp->nprocs - 1;
+	status = jp->ps[jp->nprocs - 1].status;
 	if (jp->state == 0) {
 		statestr = "Running";
 #if JOBS
 	} else if (jp->state == JOBSTOPPED) {
+		ps = jp->ps + jp->nprocs - 1;
 		while (!WIFSTOPPED(ps->status) && ps > jp->ps)
 			ps--;
 		if (WIFSTOPPED(ps->status))
@@ -391,20 +392,20 @@ showjob(struct job *jp, int mode)
 		if (statestr == NULL)
 			statestr = "Suspended";
 #endif
-	} else if (WIFEXITED(ps->status)) {
-		if (WEXITSTATUS(ps->status) == 0)
+	} else if (WIFEXITED(status)) {
+		if (WEXITSTATUS(status) == 0)
 			statestr = "Done";
 		else {
 			fmtstr(statebuf, sizeof(statebuf), "Done(%d)",
-			    WEXITSTATUS(ps->status));
+			    WEXITSTATUS(status));
 			statestr = statebuf;
 		}
 	} else {
-		i = WTERMSIG(ps->status);
+		i = WTERMSIG(status);
 		statestr = strsignal(i);
 		if (statestr == NULL)
 			statestr = "Unknown signal";
-		if (WCOREDUMP(ps->status))
+		if (WCOREDUMP(status))
 			coredump = " (core dumped)";
 	}
 
