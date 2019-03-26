@@ -27,6 +27,11 @@ from older version of current across the gcc/clang cutover is a bit fragile.
 	prerequisites and upgrading, if you are not already using clang 3.5.0
 	or higher.
 
+20190226:
+	geom_uzip(4) depends on the new module xz.  If geom_uzip is statically
+	compiled into your custom kernel, add 'device xz' statement to the
+	kernel config.
+
 20190214:
 	Iflib is no longer unconditionally compiled into the kernel.  Drivers
 	using iflib and statically compiled into the kernel, now require
