@@ -137,8 +137,6 @@ tmpfs_node_fini(void *mem, int size)
 	mtx_destroy(&node->tn_interlock);
 }
 
-#define TMPFS_SC(mp) ((struct tmpfs_mount *)(mp)->mnt_data)
-
 static int
 tmpfs_mount(struct mount *mp)
 {
@@ -174,11 +172,11 @@ tmpfs_mount(struct mount *mp)
 			 * parameter, say trying to change rw to ro or vice
 			 * versa, would cause vfs_filteropt() to bail.
 			 */
-			if (size_max != TMPFS_SC(mp)->tm_size_max)
+			if (size_max != VFS_TO_TMPFS(mp)->tm_size_max)
 				return (EOPNOTSUPP);
 		}
 		if (vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
-		    !(TMPFS_SC(mp)->tm_ronly)) {
+		    !(VFS_TO_TMPFS(mp)->tm_ronly)) {
 			/* RW -> RO */
 			error = VFS_SYNC(mp, MNT_WAIT);
 			if (error)
@@ -189,14 +187,14 @@ tmpfs_mount(struct mount *mp)
 			error = vflush(mp, 0, flags, curthread);
 			if (error)
 				return (error);
-			TMPFS_SC(mp)->tm_ronly = 1;
+			VFS_TO_TMPFS(mp)->tm_ronly = 1;
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_RDONLY;
 			MNT_IUNLOCK(mp);
 		} else if (!vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
-		    TMPFS_SC(mp)->tm_ronly) {
+		    VFS_TO_TMPFS(mp)->tm_ronly) {
 			/* RO -> RW */
-			TMPFS_SC(mp)->tm_ronly = 0;
+			VFS_TO_TMPFS(mp)->tm_ronly = 0;
 			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_RDONLY;
 			MNT_IUNLOCK(mp);
