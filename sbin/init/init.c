@@ -1083,7 +1083,7 @@ execute_script(char *argv[])
 	error = access(script, X_OK);
 	if (error == 0) {
 		execv(script, argv + 1);
-		warning("can't exec %s: %m", script);
+		warning("can't directly exec %s: %m", script);
 	} else if (errno != EACCES) {
 		warning("can't access %s: %m", script);
 	}
