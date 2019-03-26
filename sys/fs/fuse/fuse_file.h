@@ -85,19 +85,6 @@ struct fuse_filehandle {
 #define FUFH_IS_VALID(f)  ((f)->fh_type != FUFH_INVALID)
 
 static inline fufh_type_t
-fuse_filehandle_xlate_from_mmap(int fflags)
-{
-	if (fflags & (PROT_READ | PROT_WRITE))
-		return FUFH_RDWR;
-	else if (fflags & (PROT_WRITE))
-		return FUFH_WRONLY;
-	else if ((fflags & PROT_READ) || (fflags & PROT_EXEC))
-		return FUFH_RDONLY;
-	else
-		return FUFH_INVALID;
-}
-
-static inline fufh_type_t
 fuse_filehandle_xlate_from_fflags(int fflags)
 {
 	if ((fflags & FREAD) && (fflags & FWRITE))

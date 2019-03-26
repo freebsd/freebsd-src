@@ -92,7 +92,6 @@ __FBSDID("$FreeBSD$");
 #include "fuse_ipc.h"
 #include "fuse_node.h"
 #include "fuse_file.h"
-#include "fuse_param.h"
 
 SDT_PROVIDER_DECLARE(fuse);
 /* 
@@ -354,7 +353,11 @@ fuse_internal_readdir(struct vnode *vp,
 		fri = fdi.indata;
 		fri->fh = fufh->fh_id;
 		fri->offset = uio_offset(uio);
-		fri->size = min(uio_resid(uio), FUSE_DEFAULT_IOSIZE);
+		/*
+		 * XXX AWS Try removing the min(...,4096).  I'm pretty sure
+		 * there's no reason for it to be there.
+		 */
+		fri->size = min(uio_resid(uio), 4096);
 		/* mp->max_read */
 
 		    if ((err = fdisp_wait_answ(&fdi))) {
@@ -686,7 +689,8 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	fiii = fdi.indata;
 	fiii->major = FUSE_KERNEL_VERSION;
 	fiii->minor = FUSE_KERNEL_MINOR_VERSION;
-	fiii->max_readahead = FUSE_DEFAULT_IOSIZE * 16;
+	//XXX should probably be maxbcachebuf * 16
+	fiii->max_readahead = 4096 * 16;
 	fiii->flags = 0;
 
 	fuse_insert_callback(fdi.tick, fuse_internal_init_callback);

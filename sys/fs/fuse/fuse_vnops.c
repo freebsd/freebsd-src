@@ -102,10 +102,12 @@ __FBSDID("$FreeBSD$");
 #include "fuse_internal.h"
 #include "fuse_ipc.h"
 #include "fuse_node.h"
-#include "fuse_param.h"
 #include "fuse_io.h"
 
 #include <sys/priv.h>
+
+/* Maximum number of hardlinks to a single FUSE file */
+#define FUSE_LINK_MAX                      UINT32_MAX
 
 SDT_PROVIDER_DECLARE(fuse);
 /* 
