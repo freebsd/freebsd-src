@@ -78,6 +78,3 @@ zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o
 SRCS=	zfsboot.c
 
 .include <bsd.prog.mk>
-
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS.zfsldr.S=	${CLANG_NO_IAS}
