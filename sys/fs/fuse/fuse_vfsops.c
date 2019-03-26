@@ -81,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 
 #include "fuse.h"
-#include "fuse_param.h"
 #include "fuse_node.h"
 #include "fuse_ipc.h"
 #include "fuse_internal.h"
@@ -523,7 +522,7 @@ fake:
 	sbp->f_files = 0;
 	sbp->f_ffree = 0;
 	sbp->f_namemax = 0;
-	sbp->f_bsize = FUSE_DEFAULT_BLOCKSIZE;
+	sbp->f_bsize = S_BLKSIZE;
 
 	return 0;
 }

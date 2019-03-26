@@ -134,12 +134,6 @@ uio_setoffset(struct uio *uio, off_t offset)
 	uio->uio_offset = offset;
 }
 
-static inline void
-uio_setresid(struct uio *uio, ssize_t resid)
-{
-	uio->uio_resid = resid;
-}
-
 /* miscellaneous */
 
 static inline bool
