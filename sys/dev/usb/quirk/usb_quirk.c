@@ -526,6 +526,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(MAUDIO, FASTTRACKULTRA8R, 0x0000, 0xffff, UQ_AU_VENDOR_CLASS),
 	USB_QUIRK(CMEDIA, CM6206, 0x0000, 0xffff, UQ_AU_SET_SPDIF_CM6206),
 	USB_QUIRK(PLOYTEC, SPL_CRIMSON_1, 0x0000, 0xffff, UQ_CFG_INDEX_1),
+	USB_QUIRK(ROLAND, UA25EX_AD, 0x0000, 0xffff, UQ_AU_VENDOR_CLASS),
 
 	/*
 	 * Quirks for manufacturers which USB devices does not respond
