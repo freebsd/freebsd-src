@@ -95,6 +95,13 @@
 	sge_timer_value = 5, 10, 20, 50, 100, 200 # SGE_TIMER_VALUE* in usecs
 	reg[0x10c4] = 0x20000000/0x20000000 # GK_CONTROL, enable 5th thread
 
+	# Set the SGE Doorbell Queue Timer "tick" to 5us and initialize
+	# the Timer Table to a default set of values (which are multiples
+	# of the Timer Tick).
+	#
+	sge_dbq_timertick = 5
+	sge_dbq_timer = 1, 2, 3, 5, 7, 9, 12, 16
+
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
 
@@ -397,7 +404,7 @@
 	wx_caps = all		# write/execute permissions for all commands
 	r_caps = all		# read permissions for all commands
 	nvi = 28		# NVI_UNIFIED
-	niqflint = 202		# NFLIQ_UNIFIED + NLFIQ_WD + NFLIQ_CRYPTO (32)
+	niqflint = 218		# NFLIQ_UNIFIED + NLFIQ_WD + NFLIQ_CRYPTO (32)
 	nethctrl = 116		# NETHCTRL_UNIFIED + NETHCTRL_WD + ncrypto_lookaside
 	neq = 256		# NEQ_UNIFIED + NEQ_WD
 	nqpcq = 12288
@@ -412,7 +419,7 @@
 	nserver = 496		# number of server region entries
 	nhash = 12288		# number of hash region entries
 	nhpfilter = 64		# number of high priority filter region entries
-	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside, ipsec_inline
+	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside, ipsec_inline, nic_hashfilter
 	tp_l2t = 3072
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
@@ -573,8 +580,8 @@
 	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [fini]
-	version = 0x1425001c
-	checksum = 0x64f3def4
+	version = 0x1425001d
+	checksum = 0xdbff9437
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104
