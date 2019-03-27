@@ -325,13 +325,13 @@ __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
   if (src->Type == MEMBUF) {
     for (srcline=srcy, dstline=dsty; srcline<srcy+hight; srcline++, dstline++) {
       WriteVerticalLine(dst, dstx, dstline, width, 
-	(src->Bitmap+(srcline*src->VXsize)+srcx));
+        src->Bitmap+(srcline*src->VXsize+srcx)*dst->PixelBytes);
     }
   }
   else if (dst->Type == MEMBUF) {
     for (srcline=srcy, dstline=dsty; srcline<srcy+hight; srcline++, dstline++) {
       ReadVerticalLine(src, srcx, srcline, width,
-	 (dst->Bitmap+(dstline*dst->VXsize)+dstx));
+        dst->Bitmap+(dstline*dst->VXsize+dstx)*src->PixelBytes);
     }
   }
   else {

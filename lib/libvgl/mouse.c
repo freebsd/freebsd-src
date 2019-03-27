@@ -99,7 +99,7 @@ VGLMousePointerShow()
   VGLBitmap buffer =
     VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, buf);
   byte crtcidx, crtcval, gdcidx, gdcval;
-  int pos;
+  int i, pos, pos1;
 
   if (!VGLMouseVisible) {
     VGLMouseVisible = 1;
@@ -109,10 +109,15 @@ VGLMousePointerShow()
     gdcval = inb(0x3cf);
     __VGLBitmapCopy(VGLDisplay, VGLMouseXpos, VGLMouseYpos, 
 		  &VGLMouseSave, 0, 0, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
-    bcopy(VGLMouseSave.Bitmap, buffer.Bitmap, MOUSE_IMG_SIZE*MOUSE_IMG_SIZE);
+    bcopy(VGLMouseSave.Bitmap, buffer.Bitmap,
+          MOUSE_IMG_SIZE*MOUSE_IMG_SIZE*VGLDisplay->PixelBytes);
     for (pos = 0; pos <  MOUSE_IMG_SIZE*MOUSE_IMG_SIZE; pos++)
-      buffer.Bitmap[pos]=(buffer.Bitmap[pos]&~(VGLMouseAndMask->Bitmap[pos])) |
-			   VGLMouseOrMask->Bitmap[pos];
+      for (i = 0; i < VGLDisplay->PixelBytes; i++) {
+        pos1 = pos * VGLDisplay->PixelBytes + i;
+        buffer.Bitmap[pos1] = (buffer.Bitmap[pos1] &
+                               ~VGLMouseAndMask->Bitmap[pos]) |
+                              VGLMouseOrMask->Bitmap[pos];
+      }
     __VGLBitmapCopy(&buffer, 0, 0, VGLDisplay, 
 		  VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
     outb(0x3c4, crtcidx);
@@ -205,8 +210,22 @@ int
 VGLMouseInit(int mode)
 {
   struct mouse_info mouseinfo;
-  int error;
+  int error, i, mask;
 
+  switch (VGLModeInfo.vi_mem_model) {
+  case V_INFO_MM_PACKED:
+  case V_INFO_MM_PLANAR:
+    mask = 0x0f;
+    break;
+  case V_INFO_MM_VGAX:
+    mask = 0x3f;
+    break;
+  default:
+    mask = 0xff;
+    break;
+  }
+  for (i = 0; i < 256; i++)
+    VGLMouseStdOrMask.Bitmap[i] &= mask;
   VGLMouseSetStdImage();
   mouseinfo.operation = MOUSE_MODE;
   mouseinfo.u.mode.signal = SIGUSR2;
@@ -236,6 +255,8 @@ VGLMouseStatus(int *x, int *y, char *buttons)
 int
 VGLMouseFreeze(int x, int y, int width, int hight, u_long color)
 {
+  int i, xstride, ystride;
+
   if (!VGLMouseFrozen) {
     VGLMouseFrozen = 1;
     if (width > 1 || hight > 1) {		/* bitmap */
@@ -260,8 +281,11 @@ VGLMouseFreeze(int x, int y, int width, int hight, u_long color)
       if (VGLMouseShown &&
           x >= VGLMouseXpos && x < VGLMouseXpos + MOUSE_IMG_SIZE &&
           y >= VGLMouseYpos && y < VGLMouseYpos + MOUSE_IMG_SIZE) {
-        VGLMouseSave.Bitmap[(y-VGLMouseYpos)*MOUSE_IMG_SIZE+(x-VGLMouseXpos)] =
-          (color);
+        xstride = VGLDisplay->PixelBytes;
+        ystride = MOUSE_IMG_SIZE * xstride;
+        for (i = 0; i < xstride; i++, color >>= 8)
+          VGLMouseSave.Bitmap[(y-VGLMouseYpos)*ystride+
+                              (x-VGLMouseXpos)*xstride+i] = color;
         if (VGLMouseAndMask->Bitmap 
           [(y-VGLMouseYpos)*MOUSE_IMG_SIZE+(x-VGLMouseXpos)]) {
           return 1;
