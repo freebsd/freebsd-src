@@ -102,6 +102,7 @@ VGLMousePointerShow()
   int i, pos, pos1;
 
   if (!VGLMouseVisible) {
+    VGLMouseFrozen++;
     VGLMouseVisible = 1;
     crtcidx = inb(0x3c4);
     crtcval = inb(0x3c5);
@@ -124,6 +125,7 @@ VGLMousePointerShow()
     outb(0x3c5, crtcval);
     outb(0x3ce, gdcidx);
     outb(0x3cf, gdcval);
+    VGLMouseFrozen--;
   }
 }
 
@@ -133,6 +135,7 @@ VGLMousePointerHide()
   byte crtcidx, crtcval, gdcidx, gdcval;
 
   if (VGLMouseVisible) {
+    VGLMouseFrozen++;
     VGLMouseVisible = 0;
     crtcidx = inb(0x3c4);
     crtcval = inb(0x3c5);
@@ -144,6 +147,7 @@ VGLMousePointerHide()
     outb(0x3c5, crtcval);
     outb(0x3ce, gdcidx);
     outb(0x3cf, gdcval);
+    VGLMouseFrozen--;
   }
 }
 
@@ -170,7 +174,7 @@ VGLMouseAction(int dummy)
   struct mouse_info mouseinfo;
 
   if (VGLMouseFrozen) {
-    VGLMouseFrozen++;
+    VGLMouseFrozen += 8;
     return;
   }
   mouseinfo.operation = MOUSE_GETINFO;
@@ -257,9 +261,8 @@ VGLMouseFreeze(int x, int y, int width, int hight, u_long color)
 {
   int i, xstride, ystride;
 
-  if (!VGLMouseFrozen) {
-    VGLMouseFrozen = 1;
-    if (width > 1 || hight > 1) {		/* bitmap */
+    VGLMouseFrozen++;
+    if (width > 1 || hight > 1 || (color & 0xc0000000) == 0) { /* bitmap */
       if (VGLMouseShown == 1) {
         int overlap;
 
@@ -283,29 +286,38 @@ VGLMouseFreeze(int x, int y, int width, int hight, u_long color)
           y >= VGLMouseYpos && y < VGLMouseYpos + MOUSE_IMG_SIZE) {
         xstride = VGLDisplay->PixelBytes;
         ystride = MOUSE_IMG_SIZE * xstride;
-        for (i = 0; i < xstride; i++, color >>= 8)
-          VGLMouseSave.Bitmap[(y-VGLMouseYpos)*ystride+
-                              (x-VGLMouseXpos)*xstride+i] = color;
-        if (VGLMouseAndMask->Bitmap 
-          [(y-VGLMouseYpos)*MOUSE_IMG_SIZE+(x-VGLMouseXpos)]) {
-          return 1;
+        if (color & 0x40000000) {	/* Get */
+          color = 0;
+          for (i = xstride - 1; i >= 0; i--)
+            color = (color << 8) |
+                    VGLMouseSave.Bitmap[(y-VGLMouseYpos)*ystride+
+                                        (x-VGLMouseXpos)*xstride+i];
+          return 0x40000000 | (color & 0xffffff);
+        } else {			/* Set */
+          color &= 0xffffff;		/* discard flag and other garbage */
+          for (i = 0; i < xstride; i++, color >>= 8)
+            VGLMouseSave.Bitmap[(y-VGLMouseYpos)*ystride+
+                                (x-VGLMouseXpos)*xstride+i] = color;
+          if (VGLMouseAndMask->Bitmap 
+            [(y-VGLMouseYpos)*MOUSE_IMG_SIZE+(x-VGLMouseXpos)]) {
+            return 1;
+          }   
         }   
       }       
     }
-  }
   return 0;
 }
 
 void
 VGLMouseUnFreeze()
 {
-  if (VGLMouseFrozen > 1) {
+  if (VGLMouseFrozen > 8) {
     VGLMouseFrozen = 0;
     VGLMouseAction(0);
   }
   else {
-    VGLMouseFrozen = 0;
     if (VGLMouseShown == VGL_MOUSESHOW && !VGLMouseVisible)
       VGLMousePointerShow();
+    VGLMouseFrozen = 0;
   }
 }

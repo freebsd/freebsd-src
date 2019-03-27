@@ -98,7 +98,8 @@ VGLSetXY(VGLBitmap *object, int x, int y, u_long color)
 
   VGLCheckSwitch();
   if (x>=0 && x<object->VXsize && y>=0 && y<object->VYsize) {
-    if (!VGLMouseFreeze(x, y, 1, 1, color)) {
+    if (object->Type == MEMBUF ||
+        !VGLMouseFreeze(x, y, 1, 1, 0x80000000 | color)) {
       switch (object->Type) {
       case MEMBUF:
       case VIDBUF8:
@@ -139,12 +140,13 @@ set_planar:
 	object->Bitmap[offset] |= (byte)color;
       }
     }
-    VGLMouseUnFreeze();
+    if (object->Type != MEMBUF)
+      VGLMouseUnFreeze();
   }
 }
 
-u_long
-VGLGetXY(VGLBitmap *object, int x, int y)
+static u_long
+__VGLGetXY(VGLBitmap *object, int x, int y)
 {
   int offset;
   byte b[4];
@@ -152,9 +154,6 @@ VGLGetXY(VGLBitmap *object, int x, int y)
   u_long color;
   byte mask;
 
-  VGLCheckSwitch();
-  if (x<0 || x>=object->VXsize || y<0 || y>=object->VYsize)
-    return 0;
   switch (object->Type) {
     case MEMBUF:
     case VIDBUF8:
@@ -193,6 +192,27 @@ get_planar:
       return color;
   }
   return 0;		/* XXX black? */
+}
+
+u_long
+VGLGetXY(VGLBitmap *object, int x, int y)
+{
+  u_long color;
+
+  VGLCheckSwitch();
+  if (x<0 || x>=object->VXsize || y<0 || y>=object->VYsize)
+    return 0;
+  if (object->Type != MEMBUF) {
+    color = VGLMouseFreeze(x, y, 1, 1, 0x40000000);
+    if (color & 0x40000000) {
+      VGLMouseUnFreeze();
+      return color & 0xffffff;
+    }
+  }
+  color = __VGLGetXY(object, x, y);
+  if (object->Type != MEMBUF)
+    VGLMouseUnFreeze();
+  return color;
 }
 
  /*
@@ -501,7 +521,8 @@ VGLClear(VGLBitmap *object, u_long color)
   byte b[4];
 
   VGLCheckSwitch();
-  VGLMouseFreeze(0, 0, object->Xsize, object->Ysize, color); /* XXX */
+  if (object->Type != MEMBUF)
+    VGLMouseFreeze(0, 0, object->Xsize, object->Ysize, color);
   switch (object->Type) {
   case MEMBUF:
   case VIDBUF8:
@@ -565,7 +586,8 @@ VGLClear(VGLBitmap *object, u_long color)
     outb(0x3ce, 0x05); outb(0x3cf, 0x00);
     break;
   }
-  VGLMouseUnFreeze();
+  if (object->Type != MEMBUF)
+    VGLMouseUnFreeze();
 }
 
 void

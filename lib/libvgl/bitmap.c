@@ -361,9 +361,13 @@ VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
 {
   int error;
 
-  VGLMouseFreeze(dstx, dsty, width, hight, 0);
+  if (src->Type != MEMBUF)
+    VGLMouseFreeze(srcx, srcy, width, hight, 0);
+  if (dst->Type != MEMBUF)
+    VGLMouseFreeze(dstx, dsty, width, hight, 0);
   error = __VGLBitmapCopy(src, srcx, srcy, dst, dstx, dsty, width, hight);
-  VGLMouseUnFreeze();
+  if (src->Type != MEMBUF || dst->Type != MEMBUF)
+    VGLMouseUnFreeze();
   return error;
 }
 
