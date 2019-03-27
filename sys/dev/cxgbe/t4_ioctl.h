@@ -209,7 +209,7 @@ struct t4_filter_specification {
 	uint32_t rpttid:1;	/* report TID in RSS hash field */
 	uint32_t dirsteer:1;	/* 0 => RSS, 1 => steer to iq */
 	uint32_t iq:10;		/* ingress queue */
-	uint32_t maskhash:1;	/* dirsteer=0: store RSS hash in TCB */
+	uint32_t maskhash:1;	/* dirsteer=0: steer to an RSS sub-region */
 	uint32_t dirsteerhash:1;/* dirsteer=1: 0 => TCB contains RSS hash */
 				/*             1 => TCB contains IQ ID */
 
