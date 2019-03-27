@@ -1712,20 +1712,23 @@ fuse_vnop_strategy(struct vop_strategy_args *ap)
 		bufdone(bp);
 		return ENXIO;
 	}
-	if (bp->b_iocmd == BIO_WRITE)
-		fuse_vnode_refreshsize(vp, NOCRED);
+	if (bp->b_iocmd == BIO_WRITE) {
+		int err;
 
-	(void)fuse_io_strategy(vp, bp);
+		err = fuse_vnode_refreshsize(vp, NOCRED);
+		if (err) {
+			bp->b_ioflags |= BIO_ERROR;
+			bp->b_error = err;
+			return 0;
+		}
+	}
 
 	/*
-	 * This is a dangerous function. If returns error, that might mean a
-	 * panic. We prefer pretty much anything over being forced to panic
-	 * by a malicious daemon (a demon?). So we just return 0 anyway. You
-	 * should never mind this: this function has its own error
-	 * propagation mechanism via the argument buffer, so
-	 * not-that-melodramatic residents of the call chain still will be
-	 * able to know what to do.
+	 * VOP_STRATEGY always returns zero and signals error via bp->b_ioflags.
+	 * fuse_io_strategy sets bp's error fields
 	 */
+	(void)fuse_io_strategy(vp, bp);
+
 	return 0;
 }
 
@@ -1791,11 +1794,14 @@ fuse_vnop_write(struct vop_write_args *ap)
 	struct uio *uio = ap->a_uio;
 	int ioflag = ap->a_ioflag;
 	struct ucred *cred = ap->a_cred;
+	int err;
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
 	}
-	fuse_vnode_refreshsize(vp, cred);
+	err = fuse_vnode_refreshsize(vp, cred);
+	if (err)
+		return err;
 
 	if (VTOFUD(vp)->flag & FN_DIRECTIO) {
 		ioflag |= IO_DIRECT;
