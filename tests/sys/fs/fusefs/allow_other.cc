@@ -107,7 +107,7 @@ TEST_F(AllowOther, allowed)
 	int mflags = MAP_ANON | MAP_SHARED;
 	
 	sem = (sem_t*)mmap(NULL, sizeof(*sem), mprot, mflags, -1, 0);
-	ASSERT_NE(NULL, sem) << strerror(errno);
+	ASSERT_NE(MAP_FAILED, sem) << strerror(errno);
 	ASSERT_EQ(0, sem_init(sem, 1, 0)) << strerror(errno);
 
 	if ((child = fork()) == 0) {
@@ -126,6 +126,7 @@ TEST_F(AllowOther, allowed)
 		}
 		_exit(0);
 
+		sem_destroy(sem);
 		/* Deliberately leak fd */
 	} else if (child > 0) {
 		int child_status;
@@ -149,6 +150,7 @@ TEST_F(AllowOther, allowed)
 	} else {
 		FAIL() << strerror(errno);
 	}
+	munmap(sem, sizeof(*sem));
 }
 
 TEST_F(NoAllowOther, disallowed)
@@ -161,7 +163,7 @@ TEST_F(NoAllowOther, disallowed)
 	int mflags = MAP_ANON | MAP_SHARED;
 
 	sem = (sem_t*)mmap(NULL, sizeof(*sem), mprot, mflags, -1, 0);
-	ASSERT_NE(NULL, sem) << strerror(errno);
+	ASSERT_NE(MAP_FAILED, sem) << strerror(errno);
 	ASSERT_EQ(0, sem_init(sem, 1, 0)) << strerror(errno);
 
 	if ((child = fork()) == 0) {
@@ -184,6 +186,7 @@ TEST_F(NoAllowOther, disallowed)
 		}
 		_exit(0);
 
+		sem_destroy(sem);
 		/* Deliberately leak fd */
 	} else if (child > 0) {
 		/* 
@@ -200,4 +203,5 @@ TEST_F(NoAllowOther, disallowed)
 	} else {
 		FAIL() << strerror(errno);
 	}
+	munmap(sem, sizeof(*sem));
 }
