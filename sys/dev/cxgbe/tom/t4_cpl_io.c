@@ -373,18 +373,15 @@ assign_rxopt(struct tcpcb *tp, unsigned int opt)
  * Completes some final bits of initialization for just established connections
  * and changes their state to TCPS_ESTABLISHED.
  *
- * The ISNs are from after the exchange of SYNs.  i.e., the true ISN + 1.
+ * The ISNs are from the exchange of SYNs.
  */
 void
-make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
-    uint16_t opt)
+make_established(struct toepcb *toep, uint32_t iss, uint32_t irs, uint16_t opt)
 {
 	struct inpcb *inp = toep->inp;
 	struct socket *so = inp->inp_socket;
 	struct tcpcb *tp = intotcpcb(inp);
 	long bufsize;
-	uint32_t iss = be32toh(snd_isn) - 1;	/* true ISS */
-	uint32_t irs = be32toh(rcv_isn) - 1;	/* true IRS */
 	uint16_t tcpopt = be16toh(opt);
 	struct flowc_tx_params ftxp;
 
@@ -1245,22 +1242,12 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 
 	if (__predict_false(toep->flags & TPF_SYNQE)) {
-#ifdef INVARIANTS
-		struct synq_entry *synqe = (void *)toep;
-
-		INP_WLOCK(synqe->lctx->inp);
-		if (synqe->flags & TPF_SYNQE_HAS_L2TE) {
-			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
-			    ("%s: listen socket closed but tid %u not aborted.",
-			    __func__, tid));
-		} else {
-			/*
-			 * do_pass_accept_req is still running and will
-			 * eventually take care of this tid.
-			 */
-		}
-		INP_WUNLOCK(synqe->lctx->inp);
-#endif
+		/*
+		 * do_pass_establish must have run before do_peer_close and if
+		 * this is still a synqe instead of a toepcb then the connection
+		 * must be getting aborted.
+		 */
+		MPASS(toep->flags & TPF_ABORT_SHUTDOWN);
 		CTR4(KTR_CXGBE, "%s: tid %u, synqe %p (0x%x)", __func__, tid,
 		    toep, toep->flags);
 		return (0);
@@ -1568,22 +1555,12 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	uint32_t ddp_placed = 0;
 
 	if (__predict_false(toep->flags & TPF_SYNQE)) {
-#ifdef INVARIANTS
-		struct synq_entry *synqe = (void *)toep;
-
-		INP_WLOCK(synqe->lctx->inp);
-		if (synqe->flags & TPF_SYNQE_HAS_L2TE) {
-			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
-			    ("%s: listen socket closed but tid %u not aborted.",
-			    __func__, tid));
-		} else {
-			/*
-			 * do_pass_accept_req is still running and will
-			 * eventually take care of this tid.
-			 */
-		}
-		INP_WUNLOCK(synqe->lctx->inp);
-#endif
+		/*
+		 * do_pass_establish must have run before do_rx_data and if this
+		 * is still a synqe instead of a toepcb then the connection must
+		 * be getting aborted.
+		 */
+		MPASS(toep->flags & TPF_ABORT_SHUTDOWN);
 		CTR4(KTR_CXGBE, "%s: tid %u, synqe %p (0x%x)", __func__, tid,
 		    toep, toep->flags);
 		m_freem(m);

@@ -87,9 +87,6 @@ static struct listen_ctx *listen_hash_find(struct adapter *, struct inpcb *);
 static struct listen_ctx *listen_hash_del(struct adapter *, struct inpcb *);
 static struct inpcb *release_lctx(struct adapter *, struct listen_ctx *);
 
-static inline void save_qids_in_mbuf(struct mbuf *, struct vi_info *,
-    struct offload_settings *);
-static inline void get_qids_from_mbuf(struct mbuf *m, int *, int *);
 static void send_reset_synqe(struct toedev *, struct synq_entry *);
 
 static int
@@ -223,7 +220,6 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct vi_info *vi)
 	lctx->ctrlq = &sc->sge.ctrlq[vi->pi->port_id];
 	lctx->ofld_rxq = &sc->sge.ofld_rxq[vi->first_ofld_rxq];
 	refcount_init(&lctx->refcount, 1);
-	TAILQ_INIT(&lctx->synq);
 
 	lctx->inp = inp;
 	lctx->vnet = inp->inp_socket->so_vnet;
@@ -241,8 +237,6 @@ free_lctx(struct adapter *sc, struct listen_ctx *lctx)
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(lctx->refcount == 0,
 	    ("%s: refcount %d", __func__, lctx->refcount));
-	KASSERT(TAILQ_EMPTY(&lctx->synq),
-	    ("%s: synq not empty.", __func__));
 	KASSERT(lctx->stid >= 0, ("%s: bad stid %d.", __func__, lctx->stid));
 
 	CTR4(KTR_CXGBE, "%s: stid %u, lctx %p, inp %p",
@@ -358,7 +352,7 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	struct wrqe *wr;
 	struct fw_flowc_wr *flowc;
 	struct cpl_abort_req *req;
-	int txqid, rxqid, flowclen;
+	int flowclen;
 	struct sge_wrq *ofld_txq;
 	struct sge_ofld_rxq *ofld_rxq;
 	const int nparams = 6;
@@ -374,9 +368,8 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 		return;	/* abort already in progress */
 	synqe->flags |= TPF_ABORT_SHUTDOWN;
 
-	get_qids_from_mbuf(m, &txqid, &rxqid);
-	ofld_txq = &sc->sge.ofld_txq[txqid];
-	ofld_rxq = &sc->sge.ofld_rxq[rxqid];
+	ofld_txq = &sc->sge.ofld_txq[synqe->txqid];
+	ofld_rxq = &sc->sge.ofld_rxq[synqe->rxqid];
 
 	/* The wrqe will have two WRs - a flowc followed by an abort_req */
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
@@ -606,7 +599,6 @@ t4_listen_stop(struct toedev *tod, struct tcpcb *tp)
 	struct listen_ctx *lctx;
 	struct adapter *sc = tod->tod_softc;
 	struct inpcb *inp = tp->t_inpcb;
-	struct synq_entry *synqe;
 
 	INP_WLOCK_ASSERT(inp);
 
@@ -622,23 +614,31 @@ t4_listen_stop(struct toedev *tod, struct tcpcb *tp)
 	 * arrive and clean up when it does.
 	 */
 	if (lctx->flags & LCTX_RPL_PENDING) {
-		KASSERT(TAILQ_EMPTY(&lctx->synq),
-		    ("%s: synq not empty.", __func__));
 		return (EINPROGRESS);
-	}
-
-	/*
-	 * The host stack will abort all the connections on the listening
-	 * socket's so_comp.  It doesn't know about the connections on the synq
-	 * so we need to take care of those.
-	 */
-	TAILQ_FOREACH(synqe, &lctx->synq, link) {
-		if (synqe->flags & TPF_SYNQE_HAS_L2TE)
-			send_reset_synqe(tod, synqe);
 	}
 
 	destroy_server(sc, lctx);
 	return (0);
+}
+
+static inline struct synq_entry *
+alloc_synqe(struct adapter *sc __unused, struct listen_ctx *lctx, int flags)
+{
+	struct synq_entry *synqe;
+
+	INP_WLOCK_ASSERT(lctx->inp);
+	MPASS(flags == M_WAITOK || flags == M_NOWAIT);
+
+	synqe = malloc(sizeof(*synqe), M_CXGBE, flags);
+	if (__predict_true(synqe != NULL)) {
+		synqe->flags = TPF_SYNQE;
+		refcount_init(&synqe->refcnt, 1);
+		synqe->lctx = lctx;
+		hold_lctx(lctx);	/* Every synqe has a ref on its lctx. */
+		synqe->syn = NULL;
+	}
+
+	return (synqe);
 }
 
 static inline void
@@ -648,17 +648,25 @@ hold_synqe(struct synq_entry *synqe)
 	refcount_acquire(&synqe->refcnt);
 }
 
-static inline void
-release_synqe(struct synq_entry *synqe)
+static inline struct inpcb *
+release_synqe(struct adapter *sc, struct synq_entry *synqe)
 {
+	struct inpcb *inp;
+
+	MPASS(synqe->flags & TPF_SYNQE);
+	MPASS(synqe->lctx != NULL);
+
+	inp = synqe->lctx->inp;
+	MPASS(inp != NULL);
+	INP_WLOCK_ASSERT(inp);
 
 	if (refcount_release(&synqe->refcnt)) {
-		int needfree = synqe->flags & TPF_SYNQE_NEEDFREE;
-
+		inp = release_lctx(sc, synqe->lctx);
 		m_freem(synqe->syn);
-		if (needfree)
-			free(synqe, M_CXGBE);
+		free(synqe, M_CXGBE);
 	}
+
+	return (inp);
 }
 
 void
@@ -670,50 +678,44 @@ t4_syncache_added(struct toedev *tod __unused, void *arg)
 }
 
 void
-t4_syncache_removed(struct toedev *tod __unused, void *arg)
+t4_syncache_removed(struct toedev *tod, void *arg)
 {
+	struct adapter *sc = tod->tod_softc;
 	struct synq_entry *synqe = arg;
+	struct inpcb *inp = synqe->lctx->inp;
 
-	release_synqe(synqe);
+	/*
+	 * XXX: this is a LOR but harmless when running from the softclock.
+	 */
+	INP_WLOCK(inp);
+	inp = release_synqe(sc, synqe);
+	if (inp != NULL)
+		INP_WUNLOCK(inp);
 }
 
 int
 t4_syncache_respond(struct toedev *tod, void *arg, struct mbuf *m)
 {
-	struct adapter *sc = tod->tod_softc;
 	struct synq_entry *synqe = arg;
-	struct wrqe *wr;
-	struct l2t_entry *e;
-	struct tcpopt to;
-	struct ip *ip = mtod(m, struct ip *);
-	struct tcphdr *th;
 
-	wr = (struct wrqe *)atomic_readandclear_ptr(&synqe->wr);
-	if (wr == NULL) {
-		m_freem(m);
-		return (EALREADY);
+	if (atomic_fetchadd_int(&synqe->ok_to_respond, 1) == 0) {
+		struct tcpopt to;
+		struct ip *ip = mtod(m, struct ip *);
+		struct tcphdr *th;
+
+		if (ip->ip_v == IPVERSION)
+			th = (void *)(ip + 1);
+		else
+			th = (void *)((struct ip6_hdr *)ip + 1);
+		bzero(&to, sizeof(to));
+		tcp_dooptions(&to, (void *)(th + 1),
+		    (th->th_off << 2) - sizeof(*th), TO_SYN);
+
+		/* save these for later */
+		synqe->iss = be32toh(th->th_seq);
+		synqe->irs = be32toh(th->th_ack) - 1;
+		synqe->ts = to.to_tsval;
 	}
-
-	if (ip->ip_v == IPVERSION)
-		th = (void *)(ip + 1);
-	else
-		th = (void *)((struct ip6_hdr *)ip + 1);
-	bzero(&to, sizeof(to));
-	tcp_dooptions(&to, (void *)(th + 1), (th->th_off << 2) - sizeof(*th),
-	    TO_SYN);
-
-	/* save these for later */
-	synqe->iss = be32toh(th->th_seq);
-	synqe->ts = to.to_tsval;
-
-	if (chip_id(sc) >= CHELSIO_T5) {
-		struct cpl_t5_pass_accept_rpl *rpl5 = wrtod(wr);
-
-		rpl5->iss = th->th_seq;
-	}
-
-	e = &sc->l2t->l2tab[synqe->l2e_idx];
-	t4_l2t_send(sc, wr, e);
 
 	m_freem(m);	/* don't need this any more */
 	return (0);
@@ -834,21 +836,27 @@ done_with_synqe(struct adapter *sc, struct synq_entry *synqe)
 {
 	struct listen_ctx *lctx = synqe->lctx;
 	struct inpcb *inp = lctx->inp;
-	struct vi_info *vi = synqe->syn->m_pkthdr.rcvif->if_softc;
 	struct l2t_entry *e = &sc->l2t->l2tab[synqe->l2e_idx];
 	int ntids;
 
 	INP_WLOCK_ASSERT(inp);
 	ntids = inp->inp_vflag & INP_IPV6 ? 2 : 1;
 
-	TAILQ_REMOVE(&lctx->synq, synqe, link);
-	inp = release_lctx(sc, lctx);
+	remove_tid(sc, synqe->tid, ntids);
+	release_tid(sc, synqe->tid, lctx->ctrlq);
+	t4_l2t_release(e);
+	inp = release_synqe(sc, synqe);
 	if (inp)
 		INP_WUNLOCK(inp);
-	remove_tid(sc, synqe->tid, ntids);
-	release_tid(sc, synqe->tid, &sc->sge.ctrlq[vi->pi->port_id]);
-	t4_l2t_release(e);
-	release_synqe(synqe);	/* removed from synq list */
+}
+
+void
+synack_failure_cleanup(struct adapter *sc, int tid)
+{
+	struct synq_entry *synqe = lookup_tid(sc, tid);
+
+	INP_WLOCK(synqe->lctx->inp);
+	done_with_synqe(sc, synqe);
 }
 
 int
@@ -861,7 +869,6 @@ do_abort_req_synqe(struct sge_iq *iq, const struct rss_header *rss,
 	struct synq_entry *synqe = lookup_tid(sc, tid);
 	struct listen_ctx *lctx = synqe->lctx;
 	struct inpcb *inp = lctx->inp;
-	int txqid;
 	struct sge_wrq *ofld_txq;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
@@ -880,8 +887,7 @@ do_abort_req_synqe(struct sge_iq *iq, const struct rss_header *rss,
 
 	INP_WLOCK(inp);
 
-	get_qids_from_mbuf(synqe->syn, &txqid, NULL);
-	ofld_txq = &sc->sge.ofld_txq[txqid];
+	ofld_txq = &sc->sge.ofld_txq[synqe->txqid];
 
 	/*
 	 * If we'd initiated an abort earlier the reply to it is responsible for
@@ -941,23 +947,23 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 #ifdef INVARIANTS
 	struct inpcb *inp = sotoinpcb(so);
 #endif
-	struct cpl_pass_establish *cpl = mtod(synqe->syn, void *);
-	struct toepcb *toep = *(struct toepcb **)(cpl + 1);
+	struct toepcb *toep = synqe->toep;
 
 	INP_INFO_RLOCK_ASSERT(&V_tcbinfo); /* prevents bad race with accept() */
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(synqe->flags & TPF_SYNQE,
 	    ("%s: %p not a synq_entry?", __func__, arg));
+	MPASS(toep->tid == synqe->tid);
 
 	offload_socket(so, toep);
-	make_established(toep, cpl->snd_isn, cpl->rcv_isn, cpl->tcp_opt);
+	make_established(toep, synqe->iss, synqe->irs, synqe->tcp_opt);
 	toep->flags |= TPF_CPL_PENDING;
 	update_tid(sc, synqe->tid, toep);
 	synqe->flags |= TPF_SYNQE_EXPANDED;
 }
 
 static inline void
-save_qids_in_mbuf(struct mbuf *m, struct vi_info *vi,
+save_qids_in_synqe(struct synq_entry *synqe, struct vi_info *vi,
     struct offload_settings *s)
 {
 	uint32_t txqid, rxqid;
@@ -974,41 +980,8 @@ save_qids_in_mbuf(struct mbuf *m, struct vi_info *vi,
 		rxqid = arc4random() % vi->nofldrxq;
 	rxqid += vi->first_ofld_rxq;
 
-	m->m_pkthdr.flowid = (txqid << 16) | (rxqid & 0xffff);
-}
-
-static inline void
-get_qids_from_mbuf(struct mbuf *m, int *txqid, int *rxqid)
-{
-
-	if (txqid)
-		*txqid = m->m_pkthdr.flowid >> 16;
-	if (rxqid)
-		*rxqid = m->m_pkthdr.flowid & 0xffff;
-}
-
-/*
- * Use the trailing space in the mbuf in which the PASS_ACCEPT_REQ arrived to
- * store some state temporarily.
- */
-static struct synq_entry *
-mbuf_to_synqe(struct mbuf *m)
-{
-	int len = roundup2(sizeof (struct synq_entry), 8);
-	int tspace = M_TRAILINGSPACE(m);
-	struct synq_entry *synqe = NULL;
-
-	if (tspace < len) {
-		synqe = malloc(sizeof(*synqe), M_CXGBE, M_NOWAIT);
-		if (synqe == NULL)
-			return (NULL);
-		synqe->flags = TPF_SYNQE | TPF_SYNQE_NEEDFREE;
-	} else {
-		synqe = (void *)(m->m_data + m->m_len + tspace - len);
-		synqe->flags = TPF_SYNQE;
-	}
-
-	return (synqe);
+	synqe->txqid = txqid;
+	synqe->rxqid = rxqid;
 }
 
 static void
@@ -1210,7 +1183,39 @@ get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
 	return (e);
 }
 
-#define REJECT_PASS_ACCEPT()	do { \
+static int
+send_synack(struct adapter *sc, struct synq_entry *synqe, uint64_t opt0,
+    uint32_t opt2, int tid)
+{
+	struct wrqe *wr;
+	struct cpl_pass_accept_rpl *rpl;
+	struct l2t_entry *e = &sc->l2t->l2tab[synqe->l2e_idx];
+
+	wr = alloc_wrqe(is_t4(sc) ? sizeof(struct cpl_pass_accept_rpl) :
+	    sizeof(struct cpl_t5_pass_accept_rpl), &sc->sge.ctrlq[0]);
+	if (wr == NULL)
+		return (ENOMEM);
+	rpl = wrtod(wr);
+
+	if (is_t4(sc))
+		INIT_TP_WR_MIT_CPL(rpl, CPL_PASS_ACCEPT_RPL, tid);
+	else {
+		struct cpl_t5_pass_accept_rpl *rpl5 = (void *)rpl;
+
+		INIT_TP_WR_MIT_CPL(rpl5, CPL_PASS_ACCEPT_RPL, tid);
+		rpl5->iss = htobe32(synqe->iss);
+	}
+	rpl->opt0 = opt0;
+	rpl->opt2 = opt2;
+
+	return (t4_l2t_send(sc, wr, e));
+}
+
+#define REJECT_PASS_ACCEPT_REQ(tunnel)	do { \
+	if (!tunnel) { \
+		m_freem(m); \
+		m = NULL; \
+	} \
 	reject_reason = __LINE__; \
 	goto reject; \
 } while (0)
@@ -1234,8 +1239,6 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	struct adapter *sc = iq->adapter;
 	struct toedev *tod;
 	const struct cpl_pass_accept_req *cpl = mtod(m, const void *);
-	struct cpl_pass_accept_rpl *rpl;
-	struct wrqe *wr;
 	unsigned int stid = G_PASS_OPEN_TID(be32toh(cpl->tos_stid));
 	unsigned int tid = GET_TID(cpl);
 	struct listen_ctx *lctx = lookup_stid(sc, stid);
@@ -1248,11 +1251,9 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	struct vi_info *vi;
 	struct ifnet *hw_ifp, *ifp;
 	struct l2t_entry *e = NULL;
-	int rscale, mtu_idx, rx_credits, rxqid, ulp_mode;
 	struct synq_entry *synqe = NULL;
 	int reject_reason, v, ntids;
-	uint16_t vid;
-	u_int wnd;
+	uint16_t vid, l2info;
 	struct epoch_tracker et;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
@@ -1266,34 +1267,33 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	CTR4(KTR_CXGBE, "%s: stid %u, tid %u, lctx %p", __func__, stid, tid,
 	    lctx);
 
-	pass_accept_req_to_protohdrs(sc, m, &inc, &th);
-	t4opt_to_tcpopt(&cpl->tcpopt, &to);
-
-	pi = sc->port[G_SYN_INTF(be16toh(cpl->l2info))];
-
-	CURVNET_SET(lctx->vnet);
+	CURVNET_SET(lctx->vnet);	/* before any potential REJECT */
 
 	/*
-	 * Use the MAC index to lookup the associated VI.  If this SYN
-	 * didn't match a perfect MAC filter, punt.
+	 * Use the MAC index to lookup the associated VI.  If this SYN didn't
+	 * match a perfect MAC filter, punt.
 	 */
-	if (!(be16toh(cpl->l2info) & F_SYN_XACT_MATCH)) {
-		m_freem(m);
-		m = NULL;
-		REJECT_PASS_ACCEPT();
+	l2info = be16toh(cpl->l2info);
+	pi = sc->port[G_SYN_INTF(l2info)];
+	if (!(l2info & F_SYN_XACT_MATCH)) {
+		REJECT_PASS_ACCEPT_REQ(false);
 	}
 	for_each_vi(pi, v, vi) {
-		if (vi->xact_addr_filt == G_SYN_MAC_IDX(be16toh(cpl->l2info)))
+		if (vi->xact_addr_filt == G_SYN_MAC_IDX(l2info))
 			goto found;
 	}
-	m_freem(m);
-	m = NULL;
-	REJECT_PASS_ACCEPT();
-
+	REJECT_PASS_ACCEPT_REQ(false);
 found:
-	hw_ifp = vi->ifp;	/* the (v)cxgbeX ifnet */
+	hw_ifp = vi->ifp;	/* the cxgbe ifnet */
 	m->m_pkthdr.rcvif = hw_ifp;
 	tod = TOEDEV(hw_ifp);
+
+	/*
+	 * Don't offload if the peer requested a TCP option that's not known to
+	 * the silicon.  Send the SYN to the kernel instead.
+	 */
+	if (__predict_false(cpl->tcpopt.unknown))
+		REJECT_PASS_ACCEPT_REQ(true);
 
 	/*
 	 * Figure out if there is a pseudo interface (vlan, lagg, etc.)
@@ -1306,75 +1306,57 @@ found:
 	if (vid != 0xfff && vid != 0) {
 		ifp = VLAN_DEVAT(hw_ifp, vid);
 		if (ifp == NULL)
-			REJECT_PASS_ACCEPT();
+			REJECT_PASS_ACCEPT_REQ(true);
 	} else
 		ifp = hw_ifp;
-
-	/*
-	 * Don't offload if the peer requested a TCP option that's not known to
-	 * the silicon.
-	 */
-	if (cpl->tcpopt.unknown)
-		REJECT_PASS_ACCEPT();
-
-	if (inc.inc_flags & INC_ISIPV6) {
-
-		/* Don't offload if the ifcap isn't enabled */
-		if ((ifp->if_capenable & IFCAP_TOE6) == 0)
-			REJECT_PASS_ACCEPT();
-
-		/*
-		 * SYN must be directed to an IP6 address on this ifnet.  This
-		 * is more restrictive than in6_localip.
-		 */
-		if (!in6_ifhasaddr(ifp, &inc.inc6_laddr))
-			REJECT_PASS_ACCEPT();
-
-		ntids = 2;
-	} else {
-
-		/* Don't offload if the ifcap isn't enabled */
-		if ((ifp->if_capenable & IFCAP_TOE4) == 0)
-			REJECT_PASS_ACCEPT();
-
-		/*
-		 * SYN must be directed to an IP address on this ifnet.  This
-		 * is more restrictive than in_localip.
-		 */
-		if (!in_ifhasaddr(ifp, inc.inc_laddr))
-			REJECT_PASS_ACCEPT();
-
-		ntids = 1;
-	}
 
 	/*
 	 * Don't offload if the ifnet that the SYN came in on is not in the same
 	 * vnet as the listening socket.
 	 */
 	if (lctx->vnet != ifp->if_vnet)
-		REJECT_PASS_ACCEPT();
+		REJECT_PASS_ACCEPT_REQ(true);
+
+	pass_accept_req_to_protohdrs(sc, m, &inc, &th);
+	if (inc.inc_flags & INC_ISIPV6) {
+
+		/* Don't offload if the ifcap isn't enabled */
+		if ((ifp->if_capenable & IFCAP_TOE6) == 0)
+			REJECT_PASS_ACCEPT_REQ(true);
+
+		/*
+		 * SYN must be directed to an IP6 address on this ifnet.  This
+		 * is more restrictive than in6_localip.
+		 */
+		if (!in6_ifhasaddr(ifp, &inc.inc6_laddr))
+			REJECT_PASS_ACCEPT_REQ(true);
+
+		ntids = 2;
+	} else {
+
+		/* Don't offload if the ifcap isn't enabled */
+		if ((ifp->if_capenable & IFCAP_TOE4) == 0)
+			REJECT_PASS_ACCEPT_REQ(true);
+
+		/*
+		 * SYN must be directed to an IP address on this ifnet.  This
+		 * is more restrictive than in_localip.
+		 */
+		if (!in_ifhasaddr(ifp, inc.inc_laddr))
+			REJECT_PASS_ACCEPT_REQ(true);
+
+		ntids = 1;
+	}
 
 	e = get_l2te_for_nexthop(pi, ifp, &inc);
 	if (e == NULL)
-		REJECT_PASS_ACCEPT();
-
-	synqe = mbuf_to_synqe(m);
-	if (synqe == NULL)
-		REJECT_PASS_ACCEPT();
-
-	wr = alloc_wrqe(is_t4(sc) ? sizeof(struct cpl_pass_accept_rpl) :
-	    sizeof(struct cpl_t5_pass_accept_rpl), &sc->sge.ctrlq[pi->port_id]);
-	if (wr == NULL)
-		REJECT_PASS_ACCEPT();
-	rpl = wrtod(wr);
-
-	INP_INFO_RLOCK_ET(&V_tcbinfo, et);	/* for 4-tuple check */
+		REJECT_PASS_ACCEPT_REQ(true);
 
 	/* Don't offload if the 4-tuple is already in use */
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);	/* for 4-tuple check */
 	if (toe_4tuple_check(&inc, &th, ifp) != 0) {
 		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
-		free(wr, M_CXGBE);
-		REJECT_PASS_ACCEPT();
+		REJECT_PASS_ACCEPT_REQ(false);
 	}
 	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 
@@ -1383,14 +1365,8 @@ found:
 
 	/* Don't offload if the listening socket has closed */
 	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
-		/*
-		 * The listening socket has closed.  The reply from the TOE to
-		 * our CPL_CLOSE_LISTSRV_REQ will ultimately release all
-		 * resources tied to this listen context.
-		 */
 		INP_WUNLOCK(inp);
-		free(wr, M_CXGBE);
-		REJECT_PASS_ACCEPT();
+		REJECT_PASS_ACCEPT_REQ(false);
 	}
 	so = inp->inp_socket;
 	rw_rlock(&sc->policy_lock);
@@ -1399,119 +1375,65 @@ found:
 	rw_runlock(&sc->policy_lock);
 	if (!settings.offload) {
 		INP_WUNLOCK(inp);
-		free(wr, M_CXGBE);
-		REJECT_PASS_ACCEPT();
+		REJECT_PASS_ACCEPT_REQ(true);	/* Rejected by COP. */
 	}
 
-	mtu_idx = find_best_mtu_idx(sc, &inc, &settings);
-	rscale = cpl->tcpopt.wsf && V_tcp_do_rfc1323 ? select_rcv_wscale() : 0;
-	/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
-	wnd = max(so->sol_sbrcv_hiwat, MIN_RCV_WND);
-	wnd = min(wnd, MAX_RCV_WND);
-	rx_credits = min(wnd >> 10, M_RCV_BUFSIZ);
-
-	save_qids_in_mbuf(m, vi, &settings);
-	get_qids_from_mbuf(m, NULL, &rxqid);
-
-	if (is_t4(sc))
-		INIT_TP_WR_MIT_CPL(rpl, CPL_PASS_ACCEPT_RPL, tid);
-	else {
-		struct cpl_t5_pass_accept_rpl *rpl5 = (void *)rpl;
-
-		INIT_TP_WR_MIT_CPL(rpl5, CPL_PASS_ACCEPT_RPL, tid);
+	synqe = alloc_synqe(sc, lctx, M_NOWAIT);
+	if (synqe == NULL) {
+		INP_WUNLOCK(inp);
+		REJECT_PASS_ACCEPT_REQ(true);
 	}
-	ulp_mode = select_ulp_mode(so, sc, &settings);
-	switch (ulp_mode) {
-	case ULP_MODE_TCPDDP:
-		synqe->flags |= TPF_SYNQE_TCPDDP;
-		break;
-	case ULP_MODE_TLS:
-		synqe->flags |= TPF_SYNQE_TLS;
-		break;
-	}
-	rpl->opt0 = calc_opt0(so, vi, e, mtu_idx, rscale, rx_credits, ulp_mode,
-	    &settings);
-	rpl->opt2 = calc_opt2p(sc, pi, rxqid, &cpl->tcpopt, &th, ulp_mode,
-	    CC_ALGO(intotcpcb(inp)), &settings);
-
-	synqe->tid = tid;
-	synqe->lctx = lctx;
-	synqe->syn = m;
-	m = NULL;
-	refcount_init(&synqe->refcnt, 1);	/* 1 means extra hold */
-	synqe->l2e_idx = e->idx;
-	synqe->rcv_bufsize = rx_credits;
-	atomic_store_rel_ptr(&synqe->wr, (uintptr_t)wr);
-
-	insert_tid(sc, tid, synqe, ntids);
-	TAILQ_INSERT_TAIL(&lctx->synq, synqe, link);
-	hold_synqe(synqe);	/* hold for the duration it's in the synq */
-	hold_lctx(lctx);	/* A synqe on the list has a ref on its lctx */
+	atomic_store_int(&synqe->ok_to_respond, 0);
 
 	/*
 	 * If all goes well t4_syncache_respond will get called during
 	 * syncache_add.  Note that syncache_add releases the pcb lock.
 	 */
+	t4opt_to_tcpopt(&cpl->tcpopt, &to);
 	toe_syncache_add(&inc, &to, &th, inp, tod, synqe);
-	INP_UNLOCK_ASSERT(inp);	/* ok to assert, we have a ref on the inp */
 
-	/*
-	 * If we replied during syncache_add (synqe->wr has been consumed),
-	 * good.  Otherwise, set it to 0 so that further syncache_respond
-	 * attempts by the kernel will be ignored.
-	 */
-	if (atomic_cmpset_ptr(&synqe->wr, (uintptr_t)wr, 0)) {
+	if (atomic_load_int(&synqe->ok_to_respond) > 0) {
+		uint64_t opt0;
+		uint32_t opt2;
+		u_int wnd;
+		int rscale, mtu_idx, rx_credits;
 
-		/*
-		 * syncache may or may not have a hold on the synqe, which may
-		 * or may not be stashed in the original SYN mbuf passed to us.
-		 * Just copy it over instead of dealing with all possibilities.
-		 */
-		m = m_dup(synqe->syn, M_NOWAIT);
-		if (m)
-			m->m_pkthdr.rcvif = hw_ifp;
+		mtu_idx = find_best_mtu_idx(sc, &inc, &settings);
+		rscale = cpl->tcpopt.wsf && V_tcp_do_rfc1323 ?  select_rcv_wscale() : 0;
+		/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
+		wnd = max(so->sol_sbrcv_hiwat, MIN_RCV_WND);
+		wnd = min(wnd, MAX_RCV_WND);
+		rx_credits = min(wnd >> 10, M_RCV_BUFSIZ);
 
-		remove_tid(sc, synqe->tid, ntids);
-		free(wr, M_CXGBE);
+		save_qids_in_synqe(synqe, vi, &settings);
+		synqe->ulp_mode = select_ulp_mode(so, sc, &settings);
 
-		/* Yank the synqe out of the lctx synq. */
-		INP_WLOCK(inp);
-		TAILQ_REMOVE(&lctx->synq, synqe, link);
-		release_synqe(synqe);	/* removed from synq list */
-		inp = release_lctx(sc, lctx);
-		if (inp)
-			INP_WUNLOCK(inp);
+		opt0 = calc_opt0(so, vi, e, mtu_idx, rscale, rx_credits,
+		    synqe->ulp_mode, &settings);
+		opt2 = calc_opt2p(sc, pi, synqe->rxqid, &cpl->tcpopt, &th,
+		    synqe->ulp_mode, CC_ALGO(intotcpcb(inp)), &settings);
 
-		release_synqe(synqe);	/* extra hold */
-		REJECT_PASS_ACCEPT();
-	}
+		insert_tid(sc, tid, synqe, ntids);
+		synqe->tid = tid;
+		synqe->l2e_idx = e->idx;
+		synqe->rcv_bufsize = rx_credits;
+		synqe->syn = m;
+		m = NULL;
 
-	CTR6(KTR_CXGBE, "%s: stid %u, tid %u, lctx %p, synqe %p, SYNACK mode %d",
-	    __func__, stid, tid, lctx, synqe, ulp_mode);
+		if (send_synack(sc, synqe, opt0, opt2, tid) != 0) {
+			remove_tid(sc, tid, ntids);
+			m = synqe->syn;
+			synqe->syn = NULL;
+			REJECT_PASS_ACCEPT_REQ(true);
+		}
 
-	INP_WLOCK(inp);
-	synqe->flags |= TPF_SYNQE_HAS_L2TE;
-	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
-		/*
-		 * Listening socket closed but tod_listen_stop did not abort
-		 * this tid because there was no L2T entry for the tid at that
-		 * time.  Abort it now.  The reply to the abort will clean up.
-		 */
 		CTR6(KTR_CXGBE,
-		    "%s: stid %u, tid %u, lctx %p, synqe %p (0x%x), ABORT",
-		    __func__, stid, tid, lctx, synqe, synqe->flags);
-		if (!(synqe->flags & TPF_SYNQE_EXPANDED))
-			send_reset_synqe(tod, synqe);
-		INP_WUNLOCK(inp);
-		CURVNET_RESTORE();
+		    "%s: stid %u, tid %u, lctx %p, synqe %p, mode %d, SYNACK",
+		    __func__, stid, tid, lctx, synqe, synqe->ulp_mode);
+	} else
+		REJECT_PASS_ACCEPT_REQ(false);
 
-		release_synqe(synqe);	/* extra hold */
-		return (__LINE__);
-	}
-	INP_WUNLOCK(inp);
 	CURVNET_RESTORE();
-
-	release_synqe(synqe);	/* extra hold */
 	return (0);
 reject:
 	CURVNET_RESTORE();
@@ -1521,8 +1443,19 @@ reject:
 	if (e)
 		t4_l2t_release(e);
 	release_tid(sc, tid, lctx->ctrlq);
+	if (synqe) {
+		inp = synqe->lctx->inp;
+		INP_WLOCK(inp);
+		inp = release_synqe(sc, synqe);
+		if (inp)
+			INP_WUNLOCK(inp);
+	}
 
-	if (__predict_true(m != NULL)) {
+	if (m) {
+		/*
+		 * The connection request hit a TOE listener but is being passed
+		 * on to the kernel sw stack instead of getting offloaded.
+		 */
 		m_adj(m, sizeof(*cpl));
 		m->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED | CSUM_IP_VALID |
 		    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
@@ -1575,7 +1508,6 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	struct in_conninfo inc;
 	struct toepcb *toep;
 	struct epoch_tracker et;
-	u_int txqid, rxqid;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -1595,72 +1527,45 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	    "%s: stid %u, tid %u, synqe %p (0x%x), inp_flags 0x%x",
 	    __func__, stid, tid, synqe, synqe->flags, inp->inp_flags);
 
-	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
-
-		if (synqe->flags & TPF_SYNQE_HAS_L2TE) {
-			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
-			    ("%s: listen socket closed but tid %u not aborted.",
-			    __func__, tid));
-		}
-
-		INP_WUNLOCK(inp);
-		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
-		CURVNET_RESTORE();
-		return (0);
-	}
-
 	ifp = synqe->syn->m_pkthdr.rcvif;
 	vi = ifp->if_softc;
 	KASSERT(vi->pi->adapter == sc,
 	    ("%s: vi %p, sc %p mismatch", __func__, vi, sc));
 
-	get_qids_from_mbuf(synqe->syn, &txqid, &rxqid);
-	KASSERT(rxqid == iq_to_ofld_rxq(iq) - &sc->sge.ofld_rxq[0],
-	    ("%s: CPL arrived on unexpected rxq.  %d %d", __func__, rxqid,
-	    (int)(iq_to_ofld_rxq(iq) - &sc->sge.ofld_rxq[0])));
-
-	toep = alloc_toepcb(vi, txqid, rxqid, M_NOWAIT);
-	if (toep == NULL) {
+	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
 reset:
-		/*
-		 * The reply to this abort will perform final cleanup.  There is
-		 * no need to check for HAS_L2TE here.  We can be here only if
-		 * we responded to the PASS_ACCEPT_REQ, and our response had the
-		 * L2T idx.
-		 */
 		send_reset_synqe(TOEDEV(ifp), synqe);
 		INP_WUNLOCK(inp);
 		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 		CURVNET_RESTORE();
 		return (0);
 	}
+
+	KASSERT(synqe->rxqid == iq_to_ofld_rxq(iq) - &sc->sge.ofld_rxq[0],
+	    ("%s: CPL arrived on unexpected rxq.  %d %d", __func__,
+	    synqe->rxqid, (int)(iq_to_ofld_rxq(iq) - &sc->sge.ofld_rxq[0])));
+
+	toep = alloc_toepcb(vi, synqe->txqid, synqe->rxqid, M_NOWAIT);
+	if (toep == NULL)
+		goto reset;
 	toep->tid = tid;
 	toep->l2te = &sc->l2t->l2tab[synqe->l2e_idx];
-	if (synqe->flags & TPF_SYNQE_TCPDDP)
-		set_ulp_mode(toep, ULP_MODE_TCPDDP);
-	else if (synqe->flags & TPF_SYNQE_TLS)
-		set_ulp_mode(toep, ULP_MODE_TLS);
-	else
-		set_ulp_mode(toep, ULP_MODE_NONE);
+	toep->vnet = lctx->vnet;
+	set_ulp_mode(toep, synqe->ulp_mode);
 	/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
 	toep->rx_credits = synqe->rcv_bufsize;
 
-	so = inp->inp_socket;
-	KASSERT(so != NULL, ("%s: socket is NULL", __func__));
+	MPASS(be32toh(cpl->snd_isn) - 1 == synqe->iss);
+	MPASS(be32toh(cpl->rcv_isn) - 1 == synqe->irs);
+	synqe->tcp_opt = cpl->tcp_opt;
+	synqe->toep = toep;
 
 	/* Come up with something that syncache_expand should be ok with. */
 	synqe_to_protohdrs(sc, synqe, cpl, &inc, &th, &to);
-
-	/*
-	 * No more need for anything in the mbuf that carried the
-	 * CPL_PASS_ACCEPT_REQ.  Drop the CPL_PASS_ESTABLISH and toep pointer
-	 * there.  XXX: bad form but I don't want to increase the size of synqe.
-	 */
-	m = synqe->syn;
-	KASSERT(sizeof(*cpl) + sizeof(toep) <= m->m_len,
-	    ("%s: no room in mbuf %p (m_len %d)", __func__, m, m->m_len));
-	bcopy(cpl, mtod(m, void *), sizeof(*cpl));
-	*(struct toepcb **)(mtod(m, struct cpl_pass_establish *) + 1) = toep;
+	if (inc.inc_flags & INC_ISIPV6)
+		toep->ce = t4_hold_lip(sc, &inc.inc6_laddr, lctx->ce);
+	so = inp->inp_socket;
+	KASSERT(so != NULL, ("%s: socket is NULL", __func__));
 
 	if (!toe_syncache_expand(&inc, &to, &th, &so) || so == NULL) {
 		free_toepcb(toep);
@@ -1671,14 +1576,9 @@ reset:
 	new_inp = sotoinpcb(so);
 	INP_WLOCK_ASSERT(new_inp);
 	MPASS(so->so_vnet == lctx->vnet);
-	toep->vnet = lctx->vnet;
-	if (inc.inc_flags & INC_ISIPV6)
-		toep->ce = t4_hold_lip(sc, &inc.inc6_laddr, lctx->ce);
 
 	/*
-	 * This is for the unlikely case where the syncache entry that we added
-	 * has been evicted from the syncache, but the syncache_expand above
-	 * works because of syncookies.
+	 * This is for expansion from syncookies.
 	 *
 	 * XXX: we've held the tcbinfo lock throughout so there's no risk of
 	 * anyone accept'ing a connection before we've installed our hooks, but
@@ -1692,13 +1592,11 @@ reset:
 	INP_WUNLOCK(new_inp);
 
 	/* Done with the synqe */
-	TAILQ_REMOVE(&lctx->synq, synqe, link);
-	inp = release_lctx(sc, lctx);
+	inp = release_synqe(sc, synqe);
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 	CURVNET_RESTORE();
-	release_synqe(synqe);
 
 	return (0);
 }
