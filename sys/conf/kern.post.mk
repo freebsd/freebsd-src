@@ -368,11 +368,6 @@ CFLAGS+= -fdebug-prefix-map=./${_link}=${SYSDIR}/${_link}/include
 .endif
 .endfor
 
-.if defined(_MAP_DEBUG_PREFIX)
-# Ensure that DWARF info contains a full path for auto-generated headers.
-CFLAGS+= -fdebug-prefix-map=.=${.OBJDIR}
-.endif
-
 ${_ILINKS}:
 	@case ${.TARGET} in \
 	machine) \
