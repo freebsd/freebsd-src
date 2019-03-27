@@ -2956,14 +2956,14 @@ resolve_object_ifunc(Obj_Entry *obj, bool bind_now, int flags,
 	if (obj->ifuncs_resolved)
 		return (0);
 	obj->ifuncs_resolved = true;
-	if (obj->irelative && reloc_iresolve(obj, lockstate) == -1)
+	if (!obj->irelative && !((obj->bind_now || bind_now) && obj->gnu_ifunc))
+		return (0);
+	if (obj_disable_relro(obj) == -1 ||
+	    (obj->irelative && reloc_iresolve(obj, lockstate) == -1) ||
+	    ((obj->bind_now || bind_now) && obj->gnu_ifunc &&
+	    reloc_gnu_ifunc(obj, flags, lockstate) == -1) ||
+	    obj_enforce_relro(obj) == -1)
 		return (-1);
-	if ((obj->bind_now || bind_now) && obj->gnu_ifunc) {
-		if (obj_disable_relro(obj) ||
-		    reloc_gnu_ifunc(obj, flags, lockstate) == -1 ||
-		    obj_enforce_relro(obj))
-			return (-1);
-	}
 	return (0);
 }
 
