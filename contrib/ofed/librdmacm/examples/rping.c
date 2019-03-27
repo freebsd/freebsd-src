@@ -1177,9 +1177,13 @@ int main(int argc, char *argv[])
 	cb->server = -1;
 	cb->state = IDLE;
 	cb->size = 64;
-	cb->sin.ss_family = PF_INET;
 	cb->port = htobe16(7174);
 	sem_init(&cb->sem, 0, 0);
+
+	/* initialize sockaddr structure with defaults */
+	ret = get_addr("0.0.0.0", (struct sockaddr *) &cb->sin);
+	if (ret)
+		goto out;
 
 	opterr = 0;
 	while ((op=getopt(argc, argv, "a:I:Pp:C:S:t:scvVd")) != -1) {
