@@ -187,6 +187,40 @@ TEST_F(Readdir, eio)
 	/* Deliberately leak dir.  RELEASEDIR will be tested separately */
 }
 
+/* getdirentries(2) can use a larger buffer size than readdir(3) */
+TEST_F(Readdir, getdirentries)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	uint64_t ino = 42;
+	int fd;
+	char buf[8192];
+	ssize_t r;
+
+	expect_lookup(RELPATH, ino);
+	expect_opendir(ino);
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_READDIR &&
+				in->header.nodeid == ino &&
+				in->body.readdir.size == 8192);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		out->header.error = 0;
+		out->header.len = sizeof(out->header);
+	})));
+
+	errno = 0;
+	fd = open(FULLPATH, O_DIRECTORY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	r = getdirentries(fd, buf, sizeof(buf), 0);
+	ASSERT_EQ(0, r);
+
+	/* Deliberately leak dir.  RELEASEDIR will be tested separately */
+}
+
 /*
  * FUSE_READDIR returns nothing, not even "." and "..".  This is legal, though
  * the filesystem obviously won't be fully functional.

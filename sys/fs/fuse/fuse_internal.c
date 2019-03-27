@@ -353,12 +353,8 @@ fuse_internal_readdir(struct vnode *vp,
 		fri = fdi.indata;
 		fri->fh = fufh->fh_id;
 		fri->offset = uio_offset(uio);
-		/*
-		 * XXX AWS Try removing the min(...,4096).  I'm pretty sure
-		 * there's no reason for it to be there.
-		 */
-		fri->size = min(uio_resid(uio), 4096);
-		/* mp->max_read */
+		fri->size = MIN(uio->uio_resid,
+		    fuse_get_mpdata(vp->v_mount)->max_read);
 
 		    if ((err = fdisp_wait_answ(&fdi))) {
 			break;
