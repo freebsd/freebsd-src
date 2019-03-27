@@ -106,8 +106,7 @@ static int isbzero(void *buf, size_t len);
 
 #endif
 
-/* access */
-
+/* Synchronously send a FUSE_ACCESS operation */
 int
 fuse_internal_access(struct vnode *vp,
     mode_t mode,

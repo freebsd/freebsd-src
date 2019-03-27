@@ -1582,7 +1582,6 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
 	struct thread *td = curthread;
-
 	struct fuse_dispatcher fdi;
 	struct fuse_setattr_in *fsai;
 	struct fuse_access_param facp;
@@ -1658,19 +1657,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		err = EROFS;
 		goto out;
 	}
-	if (fsai->valid & ~FATTR_SIZE) {
-	  /*err = fuse_internal_access(vp, VADMIN, context, &facp); */
-	  /*XXX */
-		    err = 0;
-	}
-	facp.facc_flags &= ~FACCESS_XQUERIES;
 
-	if (err && !(fsai->valid & ~(FATTR_ATIME | FATTR_MTIME)) &&
-	    vap->va_vaflags & VA_UTIMES_NULL) {
-		err = fuse_internal_access(vp, VWRITE, &facp, td, cred);
-	}
-	if (err)
-		goto out;
 	if ((err = fdisp_wait_answ(&fdi)))
 		goto out;
 	vtyp = IFTOVT(((struct fuse_attr_out *)fdi.answ)->attr.mode);
