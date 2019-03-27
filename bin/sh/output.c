@@ -345,6 +345,12 @@ doformat(struct output *dest, const char *f, va_list ap)
 	}
 }
 
+FILE *
+out1fp(void)
+{
+	return fwopen(out1, doformat_wr);
+}
+
 /*
  * Version of write which resumes after a signal is caught.
  */
