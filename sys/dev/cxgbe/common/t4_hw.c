@@ -211,9 +211,11 @@ static void t4_report_fw_error(struct adapter *adap)
 	u32 pcie_fw;
 
 	pcie_fw = t4_read_reg(adap, A_PCIE_FW);
-	if (pcie_fw & F_PCIE_FW_ERR)
+	if (pcie_fw & F_PCIE_FW_ERR) {
 		CH_ERR(adap, "Firmware reports adapter error: %s\n",
 			reason[G_PCIE_FW_EVAL(pcie_fw)]);
+		adap->flags &= ~FW_OK;
+	}
 }
 
 /*
