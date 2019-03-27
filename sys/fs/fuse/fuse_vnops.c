@@ -436,7 +436,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		fdisp_make(fdip, FUSE_RELEASE, mp, nodeid, td, cred);
 		fri = fdip->indata;
 		fri->fh = fh_id;
-		fri->flags = OFLAGS(mode);
+		fri->flags = fuse_filehandle_xlate_to_oflags(FUFH_RDWR);
 		fuse_insert_callback(fdip->tick, fuse_internal_forget_callback);
 		fuse_insert_message(fdip->tick);
 		goto out;

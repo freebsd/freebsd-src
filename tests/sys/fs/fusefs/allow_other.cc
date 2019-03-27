@@ -136,7 +136,7 @@ TEST_F(AllowOther, allowed)
 		 */
 		expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 		expect_open(ino, 0, 1);
-		expect_release(ino, 1, 0, 0);
+		expect_release(ino);
 		/* Until the attr cache is working, we may send an additional
 		 * GETATTR */
 		expect_getattr(ino, 0);
