@@ -199,20 +199,18 @@ void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 	}))).RetiresOnSaturation();
 }
 
-void FuseTest::expect_release(uint64_t ino, int times, uint64_t lock_owner,
-	int error)
+void FuseTest::expect_release(uint64_t ino)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_RELEASE &&
 				in->header.nodeid == ino &&
-				in->body.release.lock_owner == lock_owner &&
 				in->body.release.fh == FH);
 		}, Eq(true)),
 		_)
-	).Times(times)
-	.WillRepeatedly(Invoke(ReturnErrno(error)));
+	).WillOnce(Invoke(ReturnErrno(0)));
 }
+
 void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 	uint64_t osize, uint32_t flags, const void *contents)
 {

@@ -45,6 +45,22 @@ void expect_lookup(const char *relpath, uint64_t ino, int times)
 {
 	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, times);
 }
+
+void expect_release(uint64_t ino, uint64_t lock_owner,
+	uint32_t flags, int error)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_RELEASE &&
+				in->header.nodeid == ino &&
+				in->body.release.lock_owner == lock_owner &&
+				in->body.release.fh == FH &&
+				in->body.release.flags == flags);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(error)))
+	.RetiresOnSaturation();
+}
 };
 
 class ReleaseWithLocks: public Release {
@@ -66,7 +82,7 @@ TEST_F(Release, dup)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
-	expect_release(ino, 1, 0, 0);
+	expect_release(ino, 0, O_RDONLY, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -95,12 +111,34 @@ TEST_F(Release, eio)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
-	expect_release(ino, 1, 0, EIO);
+	expect_release(ino, 0, O_WRONLY, EIO);
 	
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_TRUE(0 == close(fd) || errno == EIO) << strerror(errno);
+}
+
+/*
+ * FUSE_RELEASE should contain the same flags used for FUSE_OPEN
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236340 */
+TEST_F(Release, DISABLED_flags)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, ino, 1);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
+	expect_release(ino, 0, O_RDWR | O_APPEND, 0);
+	
+	fd = open(FULLPATH, O_RDWR | O_APPEND);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(0, close(fd)) << strerror(errno);
 }
 
 /*
@@ -118,11 +156,12 @@ TEST_F(Release, multiple_opens)
 	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 2);
 	expect_getattr(ino, 0);
-	expect_release(ino, 2, 0, 0);
+	expect_release(ino, 0, O_RDONLY, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
 
+	expect_release(ino, 0, O_WRONLY, 0);
 	fd2 = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd2) << strerror(errno);
 
@@ -140,7 +179,7 @@ TEST_F(Release, ok)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
-	expect_release(ino, 1, 0, 0);
+	expect_release(ino, 0, O_RDONLY, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -173,7 +212,7 @@ TEST_F(ReleaseWithLocks, DISABLED_unlock_on_close)
 		SET_OUT_HEADER_LEN(out, setlk);
 		out->body.setlk.lk = in->body.setlk.lk;
 	})));
-	expect_release(ino, 1, (uint64_t)pid, 0);
+	expect_release(ino, (uint64_t)pid, O_RDWR, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
