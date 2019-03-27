@@ -100,8 +100,9 @@ pidfile_read(int dirfd, const char *filename, pid_t *pidptr)
 }
 
 struct pidfh *
-pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
+pidfile_open(const char *pathp, mode_t mode, pid_t *pidptr)
 {
+	char path[MAXPATHLEN];
 	struct pidfh *pfh;
 	struct stat sb;
 	int error, fd, dirfd, dirlen, filenamelen, count;
@@ -112,19 +113,22 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 	if (pfh == NULL)
 		return (NULL);
 
-	if (path == NULL) {
+	if (pathp == NULL) {
 		dirlen = snprintf(pfh->pf_dir, sizeof(pfh->pf_dir),
 		    "/var/run/");
 		filenamelen = snprintf(pfh->pf_filename,
 		    sizeof(pfh->pf_filename), "%s.pid", getprogname());
 	} else {
-		dirlen = snprintf(pfh->pf_dir, sizeof(pfh->pf_dir),
-		    "%s", path);
-		filenamelen = snprintf(pfh->pf_filename,
-		    sizeof(pfh->pf_filename), "%s", path);
-
-		dirname(pfh->pf_dir);
-		basename(pfh->pf_filename);
+		if (strlcpy(path, pathp, sizeof(path)) >= sizeof(path)) {
+			free(pfh);
+			errno = ENAMETOOLONG;
+			return (NULL);
+		}
+		dirlen = strlcpy(pfh->pf_dir, dirname(path),
+		    sizeof(pfh->pf_dir));
+		(void)strlcpy(path, pathp, sizeof(path));
+		filenamelen = strlcpy(pfh->pf_filename, basename(path),
+		    sizeof(pfh->pf_filename));
 	}
 
 	if (dirlen >= (int)sizeof(pfh->pf_dir) ||
