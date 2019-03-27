@@ -661,6 +661,7 @@ static void		urtw_scan_end(struct ieee80211com *);
 static void		urtw_getradiocaps(struct ieee80211com *, int, int *,
 			   struct ieee80211_channel[]);
 static void		urtw_set_channel(struct ieee80211com *);
+static void		urtw_update_promisc(struct ieee80211com *);
 static void		urtw_update_mcast(struct ieee80211com *);
 static int		urtw_tx_start(struct urtw_softc *,
 			    struct ieee80211_node *, struct mbuf *,
@@ -888,6 +889,7 @@ urtw_attach(device_t dev)
 	ic->ic_updateslot = urtw_updateslot;
 	ic->ic_vap_create = urtw_vap_create;
 	ic->ic_vap_delete = urtw_vap_delete;
+	ic->ic_update_promisc = urtw_update_promisc;
 	ic->ic_update_mcast = urtw_update_mcast;
 	ic->ic_parent = urtw_parent;
 	ic->ic_transmit = urtw_transmit;
@@ -1620,6 +1622,17 @@ fail:
 
 	if (error != 0)
 		device_printf(sc->sc_dev, "could not change the channel\n");
+}
+
+static void
+urtw_update_promisc(struct ieee80211com *ic)
+{
+	struct urtw_softc *sc = ic->ic_softc;
+
+	URTW_LOCK(sc);
+	if (sc->sc_flags & URTW_RUNNING)
+		urtw_rx_setconf(sc);
+	URTW_UNLOCK(sc);
 }
 
 static void
@@ -3882,7 +3895,6 @@ urtw_rx_setconf(struct urtw_softc *sc)
 	if (sc->sc_flags & URTW_RTL8187B) {
 		data = data | URTW_RX_FILTER_MNG | URTW_RX_FILTER_DATA |
 		    URTW_RX_FILTER_MCAST | URTW_RX_FILTER_BCAST |
-		    URTW_RX_FILTER_NICMAC | URTW_RX_CHECK_BSSID |
 		    URTW_RX_FIFO_THRESHOLD_NONE |
 		    URTW_MAX_RX_DMA_2048 |
 		    URTW_RX_AUTORESETPHY | URTW_RCR_ONLYERLPKT;
@@ -3897,19 +3909,21 @@ urtw_rx_setconf(struct urtw_softc *sc)
 		if (sc->sc_crcmon == 1 && ic->ic_opmode == IEEE80211_M_MONITOR)
 			data = data | URTW_RX_FILTER_CRCERR;
 
-		if (ic->ic_opmode == IEEE80211_M_MONITOR ||
-		    ic->ic_promisc > 0 || ic->ic_allmulti > 0) {
-			data = data | URTW_RX_FILTER_ALLMAC;
-		} else {
-			data = data | URTW_RX_FILTER_NICMAC;
-			data = data | URTW_RX_CHECK_BSSID;
-		}
-
 		data = data &~ URTW_RX_FIFO_THRESHOLD_MASK;
 		data = data | URTW_RX_FIFO_THRESHOLD_NONE |
 		    URTW_RX_AUTORESETPHY;
 		data = data &~ URTW_MAX_RX_DMA_MASK;
 		data = data | URTW_MAX_RX_DMA_2048 | URTW_RCR_ONLYERLPKT;
+	}
+
+	/* XXX allmulti should not be checked here... */
+	if (ic->ic_opmode == IEEE80211_M_MONITOR ||
+	    ic->ic_promisc > 0 || ic->ic_allmulti > 0) {
+		data = data | URTW_RX_FILTER_CTL;
+		data = data | URTW_RX_FILTER_ALLMAC;
+	} else {
+		data = data | URTW_RX_FILTER_NICMAC;
+		data = data | URTW_RX_CHECK_BSSID;
 	}
 
 	urtw_write32_m(sc, URTW_RX, data);
