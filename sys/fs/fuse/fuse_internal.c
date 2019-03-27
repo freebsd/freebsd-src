@@ -689,8 +689,12 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	fiii = fdi.indata;
 	fiii->major = FUSE_KERNEL_VERSION;
 	fiii->minor = FUSE_KERNEL_MINOR_VERSION;
-	//XXX should probably be maxbcachebuf * 16
-	fiii->max_readahead = 4096 * 16;
+	/* 
+	 * fusefs currently doesn't do any readahead other than fetching whole
+	 * buffer cache block sized regions at once.  So the max readahead is
+	 * the size of a buffer cache block.
+	 */
+	fiii->max_readahead = maxbcachebuf;
 	fiii->flags = 0;
 
 	fuse_insert_callback(fdi.tick, fuse_internal_init_callback);
