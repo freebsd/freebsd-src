@@ -35,10 +35,11 @@
 
 extern "C" {
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <pwd.h>
-#include <signal.h>
+#include <semaphore.h>
 }
 
 #include "mockfs.hh"
@@ -101,12 +102,17 @@ TEST_F(AllowOther, allowed)
 	uint64_t ino = 42;
 	int fd;
 	pid_t child;
+	sem_t *sem;
+	int mprot = PROT_READ | PROT_WRITE;
+	int mflags = MAP_ANON | MAP_SHARED;
 	
-	signal(SIGUSR2, sighandler);
+	sem = (sem_t*)mmap(NULL, sizeof(*sem), mprot, mflags, -1, 0);
+	ASSERT_NE(NULL, sem) << strerror(errno);
+	ASSERT_EQ(0, sem_init(sem, 1, 0)) << strerror(errno);
 
 	if ((child = fork()) == 0) {
 		/* In child */
-		pause();
+		ASSERT_EQ(0, sem_wait(sem)) << strerror(errno);
 
 		/* Drop privileges before accessing */
 		if (0 != setreuid(-1, m_uid)) {
@@ -122,6 +128,8 @@ TEST_F(AllowOther, allowed)
 
 		/* Deliberately leak fd */
 	} else if (child > 0) {
+		int child_status;
+
 		/* 
 		 * In parent.  Cleanup must happen here, because it's still
 		 * privileged.
@@ -134,8 +142,7 @@ TEST_F(AllowOther, allowed)
 		expect_getattr(ino, 0);
 		m_mock->m_child_pid = child;
 		/* Signal the child process to go */
-		kill(child, SIGUSR2);
-		int child_status;
+		ASSERT_EQ(0, sem_post(sem)) << strerror(errno);
 
 		wait(&child_status);
 		ASSERT_EQ(0, WEXITSTATUS(child_status));
@@ -149,12 +156,17 @@ TEST_F(NoAllowOther, disallowed)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	int fd;
 	pid_t child;
-	
-	signal(SIGUSR2, sighandler);
+	sem_t *sem;
+	int mprot = PROT_READ | PROT_WRITE;
+	int mflags = MAP_ANON | MAP_SHARED;
+
+	sem = (sem_t*)mmap(NULL, sizeof(*sem), mprot, mflags, -1, 0);
+	ASSERT_NE(NULL, sem) << strerror(errno);
+	ASSERT_EQ(0, sem_init(sem, 1, 0)) << strerror(errno);
 
 	if ((child = fork()) == 0) {
 		/* In child */
-		pause();
+		ASSERT_EQ(0, sem_wait(sem)) << strerror(errno);
 
 		/* Drop privileges before accessing */
 		if (0 != setreuid(-1, m_uid)) {
@@ -180,7 +192,7 @@ TEST_F(NoAllowOther, disallowed)
 		 */
 		m_mock->m_child_pid = child;
 		/* Signal the child process to go */
-		kill(child, SIGUSR2);
+		ASSERT_EQ(0, sem_post(sem)) << strerror(errno);
 		int child_status;
 
 		wait(&child_status);
