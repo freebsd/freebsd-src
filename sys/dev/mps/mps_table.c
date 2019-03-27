@@ -430,6 +430,7 @@ mps_print_evt_sas(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 		MPS_PRINTFIELD(sc, data, DevHandle, 0x%x);
 		mps_print_field(sc, "SASAddress: 0x%jx\n",
 		    mps_to_u64(&data->SASAddress));
+		break;
 	}
 	case MPI2_EVENT_SAS_BROADCAST_PRIMITIVE:
 	{
@@ -440,6 +441,7 @@ mps_print_evt_sas(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 		MPS_PRINTFIELD(sc, data, Port, %d);
 		MPS_PRINTFIELD(sc, data, PortWidth, %d);
 		MPS_PRINTFIELD(sc, data, Primitive, 0x%x);
+		break;
 	}
 	default:
 		break;
