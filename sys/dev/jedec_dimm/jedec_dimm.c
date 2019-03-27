@@ -270,12 +270,16 @@ jedec_dimm_attach(device_t dev)
 	}
 
 	/* The MSBit of the TSOD-presence byte reports whether or not the TSOD
-	 * is in fact present. If it is, read manufacturer and device info from
-	 * it to confirm that it's a valid TSOD device. It's an error if any of
-	 * those bytes are unreadable; it's not an error if the device is simply
-	 * not known to us (tsod_match == NULL).
-	 * While DDR3 and DDR4 don't explicitly require a TSOD, essentially all
-	 * DDR3 and DDR4 DIMMs include one.
+	 * is in fact present. (While DDR3 and DDR4 don't explicitly require a
+	 * TSOD, essentially all DDR3 and DDR4 DIMMs include one.) But, as
+	 * discussed in [PR 235944], it turns out that some DIMMs claim to have
+	 * a TSOD when they actually don't. (Or maybe the firmware blocks it?)
+	 * <sigh>
+	 * If the SPD data says the TSOD is present, try to read manufacturer
+	 * and device info from it to confirm that it's a valid TSOD device.
+	 * If the data is unreadable, just continue as if the TSOD isn't there.
+	 * If the data was read successfully, see if it is a known TSOD device;
+	 * it's okay if it isn't (tsod_match == NULL).
 	 */
 	rc = smbus_readb(sc->smbus, sc->spd_addr, tsod_present_offset, &byte);
 	if (rc != 0) {
@@ -289,12 +293,14 @@ jedec_dimm_attach(device_t dev)
 		if (rc != 0) {
 			device_printf(dev,
 			    "failed to read TSOD Manufacturer ID\n");
-			goto out;
+			rc = 0;
+			goto no_tsod;
 		}
 		rc = jedec_dimm_readw_be(sc, TSOD_REG_DEV_REV, &devid);
 		if (rc != 0) {
 			device_printf(dev, "failed to read TSOD Device ID\n");
-			goto out;
+			rc = 0;
+			goto no_tsod;
 		}
 
 		tsod_match = jedec_dimm_tsod_match(vendorid, devid);
@@ -309,6 +315,7 @@ jedec_dimm_attach(device_t dev)
 			}
 		}
 	} else {
+no_tsod:
 		tsod_match = NULL;
 		tsod_present = false;
 	}
@@ -621,9 +628,12 @@ jedec_dimm_dump(struct jedec_dimm_softc *sc, enum dram_type type)
 		rc = smbus_writeb(sc->smbus,
 		    (JEDEC_DTI_PAGE | JEDEC_LSA_PAGE_SET1), 0, 0);
 		if (rc != 0) {
+			/* Some SPD devices (or SMBus controllers?) claim the
+			 * page-change command failed when it actually
+			 * succeeded. Log a message but soldier on.
+			 */
 			device_printf(sc->dev, "unable to change page: %d\n",
 			    rc);
-			goto out;
 		}
 		/* Add 256 to the store location, because we're in the second
 		 * page.
