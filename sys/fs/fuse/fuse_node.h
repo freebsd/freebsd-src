@@ -123,7 +123,7 @@ int fuse_vnode_get(struct mount *mp, struct fuse_entry_out *feo,
 void fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags,
     struct thread *td);
 
-void fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred);
+int fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred);
 
 int fuse_vnode_savesize(struct vnode *vp, struct ucred *cred);
 

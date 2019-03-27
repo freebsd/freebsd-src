@@ -392,20 +392,22 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred)
 	return err;
 }
 
-void
+int
 fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
 {
 
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct vattr va;
+	int err;
 
 	if ((fvdat->flag & FN_SIZECHANGE) != 0 ||
 	    fuse_data_cache_mode == FUSE_CACHE_UC ||
 	    (fuse_refresh_size == 0 && fvdat->filesize != 0))
-		return;
+		return 0;
 
-	VOP_GETATTR(vp, &va, cred);
+	err = VOP_GETATTR(vp, &va, cred);
 	SDT_PROBE2(fuse, , node, trace, 1, "refreshed file size");
+	return err;
 }
 
 int
