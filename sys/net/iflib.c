@@ -3898,7 +3898,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	if (__predict_false((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || !LINK_ACTIVE(ctx))) {
 		DBG_COUNTER_INC(tx_frees);
 		m_freem(m);
-		return (ENOBUFS);
+		return (ENETDOWN);
 	}
 
 	MPASS(m->m_nextpkt == NULL);
