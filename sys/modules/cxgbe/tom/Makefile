@@ -15,6 +15,7 @@ SRCS+=	t4_connect.c
 SRCS+=	t4_cpl_io.c
 SRCS+=	t4_ddp.c
 SRCS+=	t4_listen.c
+SRCS+=	t4_tls.c
 SRCS+=	t4_tom.c
 SRCS+=	t4_tom_l2t.c
 

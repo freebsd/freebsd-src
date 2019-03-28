@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_tcb.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
+#include "tom/t4_tls.h"
 
 static struct protosw toe_protosw;
 static struct pr_usrreqs toe_usrreqs;
@@ -195,6 +196,7 @@ free_toepcb(struct toepcb *toep)
 
 	if (toep->ulp_mode == ULP_MODE_TCPDDP)
 		ddp_uninit_toep(toep);
+	tls_uninit_toep(toep);
 	free(toep, M_CXGBE);
 }
 
@@ -382,9 +384,9 @@ t4_ctloutput(struct toedev *tod, struct tcpcb *tp, int dir, int name)
 	case TCP_NODELAY:
 		if (tp->t_state != TCPS_ESTABLISHED)
 			break;
-		t4_set_tcb_field(sc, toep->ctrlq, toep->tid, W_TCB_T_FLAGS,
+		t4_set_tcb_field(sc, toep->ctrlq, toep, W_TCB_T_FLAGS,
 		    V_TF_NAGLE(1), V_TF_NAGLE(tp->t_flags & TF_NODELAY ? 0 : 1),
-		    0, 0, toep->ofld_rxq->iq.abs_id);
+		    0, 0);
 		break;
 	default:
 		break;
@@ -611,12 +613,48 @@ select_ntuple(struct vi_info *vi, struct l2t_entry *e)
 		return (htobe64(V_FILTER_TUPLE(ntuple)));
 }
 
-void
-set_tcpddp_ulp_mode(struct toepcb *toep)
+static int
+is_tls_sock(struct socket *so, struct adapter *sc)
+{
+	struct inpcb *inp = sotoinpcb(so);
+	int i, rc;
+
+	/* XXX: Eventually add a SO_WANT_TLS socket option perhaps? */
+	rc = 0;
+	ADAPTER_LOCK(sc);
+	for (i = 0; i < sc->tt.num_tls_rx_ports; i++) {
+		if (inp->inp_lport == htons(sc->tt.tls_rx_ports[i]) ||
+		    inp->inp_fport == htons(sc->tt.tls_rx_ports[i])) {
+			rc = 1;
+			break;
+		}
+	}
+	ADAPTER_UNLOCK(sc);
+	return (rc);
+}
+
+int
+select_ulp_mode(struct socket *so, struct adapter *sc)
 {
 
-	toep->ulp_mode = ULP_MODE_TCPDDP;
-	ddp_init_toep(toep);
+	if (can_tls_offload(sc) && is_tls_sock(so, sc))
+		return (ULP_MODE_TLS);
+	else if (sc->tt.ddp && (so->so_options & SO_NO_DDP) == 0)
+		return (ULP_MODE_TCPDDP);
+	else
+		return (ULP_MODE_NONE);
+}
+
+void
+set_ulp_mode(struct toepcb *toep, int ulp_mode)
+{
+
+	CTR4(KTR_CXGBE, "%s: toep %p (tid %d) ulp_mode %d",
+	    __func__, toep, toep->tid, ulp_mode);
+	toep->ulp_mode = ulp_mode;
+	tls_init_toep(toep);
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		ddp_init_toep(toep);
 }
 
 int
@@ -1160,6 +1198,24 @@ t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 }
 
 static int
+t4_ctloutput_tom(struct socket *so, struct sockopt *sopt)
+{
+
+	if (sopt->sopt_level != IPPROTO_TCP)
+		return (tcp_ctloutput(so, sopt));
+
+	switch (sopt->sopt_name) {
+	case TCP_TLSOM_SET_TLS_CONTEXT:
+	case TCP_TLSOM_GET_TLS_TOM:
+	case TCP_TLSOM_CLR_TLS_TOM:
+	case TCP_TLSOM_CLR_QUIES:
+		return (t4_ctloutput_tls(so, sopt));
+	default:
+		return (tcp_ctloutput(so, sopt));
+	}
+}
+
+static int
 t4_tom_mod_load(void)
 {
 	struct protosw *tcp_protosw, *tcp6_protosw;
@@ -1170,6 +1226,7 @@ t4_tom_mod_load(void)
 	t4_init_cpl_io_handlers();
 
 	t4_ddp_mod_load();
+	t4_tls_mod_load();
 
 	tcp_protosw = pffindproto(PF_INET, IPPROTO_TCP, SOCK_STREAM);
 	if (tcp_protosw == NULL)
@@ -1177,6 +1234,7 @@ t4_tom_mod_load(void)
 	bcopy(tcp_protosw, &toe_protosw, sizeof(toe_protosw));
 	bcopy(tcp_protosw->pr_usrreqs, &toe_usrreqs, sizeof(toe_usrreqs));
 	toe_usrreqs.pru_aio_queue = t4_aio_queue_tom;
+	toe_protosw.pr_ctloutput = t4_ctloutput_tom;
 	toe_protosw.pr_usrreqs = &toe_usrreqs;
 
 	tcp6_protosw = pffindproto(PF_INET6, IPPROTO_TCP, SOCK_STREAM);
@@ -1185,6 +1243,7 @@ t4_tom_mod_load(void)
 	bcopy(tcp6_protosw, &toe6_protosw, sizeof(toe6_protosw));
 	bcopy(tcp6_protosw->pr_usrreqs, &toe6_usrreqs, sizeof(toe6_usrreqs));
 	toe6_usrreqs.pru_aio_queue = t4_aio_queue_tom;
+	toe6_protosw.pr_ctloutput = t4_ctloutput_tom;
 	toe6_protosw.pr_usrreqs = &toe6_usrreqs;
 
 	TIMEOUT_TASK_INIT(taskqueue_thread, &clip_task, 0, t4_clip_task, NULL);
@@ -1220,6 +1279,7 @@ t4_tom_mod_unload(void)
 		taskqueue_cancel_timeout(taskqueue_thread, &clip_task, NULL);
 	}
 
+	t4_tls_mod_unload();
 	t4_ddp_mod_unload();
 
 	t4_uninit_connect_cpl_handlers();

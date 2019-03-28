@@ -816,14 +816,13 @@ enable_ddp(struct adapter *sc, struct toepcb *toep)
 
 	DDP_ASSERT_LOCKED(toep);
 	toep->ddp.flags |= DDP_SC_REQ;
-	t4_set_tcb_field(sc, toep->ctrlq, toep->tid, W_TCB_RX_DDP_FLAGS,
+	t4_set_tcb_field(sc, toep->ctrlq, toep, W_TCB_RX_DDP_FLAGS,
 	    V_TF_DDP_OFF(1) | V_TF_DDP_INDICATE_OUT(1) |
 	    V_TF_DDP_BUF0_INDICATE(1) | V_TF_DDP_BUF1_INDICATE(1) |
 	    V_TF_DDP_BUF0_VALID(1) | V_TF_DDP_BUF1_VALID(1),
-	    V_TF_DDP_BUF0_INDICATE(1) | V_TF_DDP_BUF1_INDICATE(1), 0, 0,
-	    toep->ofld_rxq->iq.abs_id);
-	t4_set_tcb_field(sc, toep->ctrlq, toep->tid, W_TCB_T_FLAGS,
-	    V_TF_RCV_COALESCE_ENABLE(1), 0, 0, 0, toep->ofld_rxq->iq.abs_id);
+	    V_TF_DDP_BUF0_INDICATE(1) | V_TF_DDP_BUF1_INDICATE(1), 0, 0);
+	t4_set_tcb_field(sc, toep->ctrlq, toep, W_TCB_T_FLAGS,
+	    V_TF_RCV_COALESCE_ENABLE(1), 0, 0, 0);
 }
 
 static int
@@ -1873,10 +1872,9 @@ t4_aio_cancel_active(struct kaiocb *job)
 			 */
 			valid_flag = i == 0 ? V_TF_DDP_BUF0_VALID(1) :
 			    V_TF_DDP_BUF1_VALID(1);
-			t4_set_tcb_field(sc, toep->ctrlq, toep->tid,
+			t4_set_tcb_field(sc, toep->ctrlq, toep,
 			    W_TCB_RX_DDP_FLAGS, valid_flag, 0, 1,
-			    i + DDP_BUF0_INVALIDATED,
-			    toep->ofld_rxq->iq.abs_id);
+			    i + DDP_BUF0_INVALIDATED);
 			toep->ddp.db[i].cancel_pending = 1;
 			CTR2(KTR_CXGBE, "%s: request %p marked pending",
 			    __func__, job);
