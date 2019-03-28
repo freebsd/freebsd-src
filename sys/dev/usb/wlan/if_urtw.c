@@ -1686,11 +1686,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct urtw_tx_radiotap_header *tap = &sc->sc_txtap;
 
-		/* XXX Are variables correct?  */
 		tap->wt_flags = 0;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
-
 		ieee80211_radiotap_tx(vap, m0);
 	}
 
@@ -3995,9 +3991,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 	if (ieee80211_radiotap_active(ic)) {
 		struct urtw_rx_radiotap_header *tap = &sc->sc_rxtap;
 
-		/* XXX Are variables correct?  */
-		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
+		tap->wr_flags = 0;
 		tap->wr_dbm_antsignal = (int8_t)rssi;
 	}
 

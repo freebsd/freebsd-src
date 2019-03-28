@@ -900,7 +900,7 @@ struct otus_rx_radiotap_header {
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
 	uint8_t		wr_antsignal;
-} __packed;
+} __packed __aligned(8);
 
 #define OTUS_RX_RADIOTAP_PRESENT			\
 	(1 << IEEE80211_RADIOTAP_FLAGS |		\
