@@ -35,11 +35,8 @@
 
 extern "C" {
 #include <sys/types.h>
-#include <sys/mman.h>
-#include <sys/wait.h>
 #include <fcntl.h>
-#include <pwd.h>
-#include <semaphore.h>
+#include <unistd.h>
 }
 
 #include "mockfs.hh"
@@ -47,26 +44,8 @@ extern "C" {
 
 using namespace testing;
 
-void sighandler(int __unused sig) {}
-
-static void
-get_unprivileged_uid(int *uid)
-{
-	struct passwd *pw;
-
-	/* 
-	 * First try "tests", Kyua's default unprivileged user.  XXX after
-	 * GoogleTest gains a proper Kyua wrapper, get this with the Kyua API
-	 */
-	pw = getpwnam("tests");
-	if (pw == NULL) {
-		/* Fall back to "nobody" */
-		pw = getpwnam("nobody");
-	}
-	if (pw == NULL)
-		GTEST_SKIP() << "Test requires an unprivileged user";
-	*uid = pw->pw_uid;
-}
+const static char FULLPATH[] = "mountpoint/some_file.txt";
+const static char RELPATH[] = "some_file.txt";
 
 class NoAllowOther: public FuseTest {
 
@@ -78,9 +57,6 @@ virtual void SetUp() {
 	if (geteuid() != 0) {
 		GTEST_SKIP() << "This test must be run as root";
 	}
-	get_unprivileged_uid(&m_uid);
-	if (IsSkipped())
-		return;
 
 	FuseTest::SetUp();
 }
@@ -97,119 +73,42 @@ virtual void SetUp() {
 
 TEST_F(AllowOther, allowed)
 {
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
-	uint64_t ino = 42;
-	int fd;
-	pid_t child;
-	sem_t *sem;
-	int mprot = PROT_READ | PROT_WRITE;
-	int mflags = MAP_ANON | MAP_SHARED;
-	
-	sem = (sem_t*)mmap(NULL, sizeof(*sem), mprot, mflags, -1, 0);
-	ASSERT_NE(MAP_FAILED, sem) << strerror(errno);
-	ASSERT_EQ(0, sem_init(sem, 1, 0)) << strerror(errno);
+	fork(true, [&] {
+			uint64_t ino = 42;
 
-	if ((child = fork()) == 0) {
-		/* In child */
-		int err = 0;
+			expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+			expect_open(ino, 0, 1);
+			expect_release(ino);
+			expect_getattr(ino, 0);
+		}, []() {
+			int fd;
 
-		ASSERT_EQ(0, sem_wait(sem)) << strerror(errno);
-
-		/* Drop privileges before accessing */
-		if (0 != setreuid(-1, m_uid)) {
-			perror("setreuid");
-			err = 1;
-			goto out;
+			fd = open(FULLPATH, O_RDONLY);
+			if (fd < 0) {
+				perror("open");
+				return(1);
+			}
+			return 0;
 		}
-		fd = open(FULLPATH, O_RDONLY);
-		if (fd < 0) {
-			perror("open");
-			err = 1;
-		}
-
-out:
-		sem_destroy(sem);
-		_exit(err);
-		/* Deliberately leak fd */
-	} else if (child > 0) {
-		int child_status;
-
-		/* 
-		 * In parent.  Cleanup must happen here, because it's still
-		 * privileged.
-		 */
-		expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
-		expect_open(ino, 0, 1);
-		expect_release(ino);
-		/* Until the attr cache is working, we may send an additional
-		 * GETATTR */
-		expect_getattr(ino, 0);
-		m_mock->m_child_pid = child;
-		/* Signal the child process to go */
-		ASSERT_EQ(0, sem_post(sem)) << strerror(errno);
-
-		wait(&child_status);
-		ASSERT_EQ(0, WEXITSTATUS(child_status));
-	} else {
-		FAIL() << strerror(errno);
-	}
-	munmap(sem, sizeof(*sem));
+	);
 }
 
 TEST_F(NoAllowOther, disallowed)
 {
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	int fd;
-	pid_t child;
-	sem_t *sem;
-	int mprot = PROT_READ | PROT_WRITE;
-	int mflags = MAP_ANON | MAP_SHARED;
+	fork(true, [] {
+		}, []() {
+			int fd;
 
-	sem = (sem_t*)mmap(NULL, sizeof(*sem), mprot, mflags, -1, 0);
-	ASSERT_NE(MAP_FAILED, sem) << strerror(errno);
-	ASSERT_EQ(0, sem_init(sem, 1, 0)) << strerror(errno);
-
-	if ((child = fork()) == 0) {
-		/* In child */
-		int err = 0;
-
-		ASSERT_EQ(0, sem_wait(sem)) << strerror(errno);
-
-		/* Drop privileges before accessing */
-		if (0 != setreuid(-1, m_uid)) {
-			perror("setreuid");
-			err = 1;
-			goto out;
+			fd = open(FULLPATH, O_RDONLY);
+			if (fd >= 0) {
+				fprintf(stderr, "open should've failed\n");
+				return(1);
+			} else if (errno != EPERM) {
+				fprintf(stderr, "Unexpected error: %s\n",
+					strerror(errno));
+				return(1);
+			}
+			return 0;
 		}
-		fd = open(FULLPATH, O_RDONLY);
-		if (fd >= 0) {
-			fprintf(stderr, "open should've failed\n");
-			err = 1;
-		} else if (errno != EPERM) {
-			fprintf(stderr,
-				"Unexpected error: %s\n", strerror(errno));
-			err = 1;
-		}
-
-out:
-		sem_destroy(sem);
-		_exit(0);
-		/* Deliberately leak fd */
-	} else if (child > 0) {
-		/* 
-		 * In parent.  Cleanup must happen here, because it's still
-		 * privileged.
-		 */
-		m_mock->m_child_pid = child;
-		/* Signal the child process to go */
-		ASSERT_EQ(0, sem_post(sem)) << strerror(errno);
-		int child_status;
-
-		wait(&child_status);
-		ASSERT_EQ(0, WEXITSTATUS(child_status));
-	} else {
-		FAIL() << strerror(errno);
-	}
-	munmap(sem, sizeof(*sem));
+	);
 }

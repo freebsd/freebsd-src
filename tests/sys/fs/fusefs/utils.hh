@@ -124,4 +124,22 @@ class FuseTest : public ::testing::Test {
 	 */
 	void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 		uint64_t osize, uint32_t flags, const void *contents);
+
+	/*
+	 * Helper that runs code in a child process.
+	 *
+	 * First, parent_func runs in the parent process.
+	 * Then, child_func runs in the child process, dropping privileges if
+	 * desired.
+	 * Finally, fusetest_fork returns.
+	 *
+	 * # Returns
+	 *
+	 * fusetest_fork will FAIL the test if child_func returns nonzero.
+	 * It may SKIP the test, which the caller should detect with the
+	 * IsSkipped() method.
+	 */
+	void fork(bool drop_privs,
+		std::function<void()> parent_func,
+		std::function<int()> child_func);
 };
