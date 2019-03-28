@@ -112,21 +112,25 @@ TEST_F(AllowOther, allowed)
 
 	if ((child = fork()) == 0) {
 		/* In child */
+		int err = 0;
+
 		ASSERT_EQ(0, sem_wait(sem)) << strerror(errno);
 
 		/* Drop privileges before accessing */
 		if (0 != setreuid(-1, m_uid)) {
 			perror("setreuid");
-			_exit(1);
+			err = 1;
+			goto out;
 		}
 		fd = open(FULLPATH, O_RDONLY);
 		if (fd < 0) {
 			perror("open");
-			_exit(1);
+			err = 1;
 		}
-		_exit(0);
 
+out:
 		sem_destroy(sem);
+		_exit(err);
 		/* Deliberately leak fd */
 	} else if (child > 0) {
 		int child_status;
@@ -168,25 +172,29 @@ TEST_F(NoAllowOther, disallowed)
 
 	if ((child = fork()) == 0) {
 		/* In child */
+		int err = 0;
+
 		ASSERT_EQ(0, sem_wait(sem)) << strerror(errno);
 
 		/* Drop privileges before accessing */
 		if (0 != setreuid(-1, m_uid)) {
 			perror("setreuid");
-			_exit(1);
+			err = 1;
+			goto out;
 		}
 		fd = open(FULLPATH, O_RDONLY);
 		if (fd >= 0) {
 			fprintf(stderr, "open should've failed\n");
-			_exit(1);
+			err = 1;
 		} else if (errno != EPERM) {
 			fprintf(stderr,
 				"Unexpected error: %s\n", strerror(errno));
-			_exit(1);
+			err = 1;
 		}
-		_exit(0);
 
+out:
 		sem_destroy(sem);
+		_exit(0);
 		/* Deliberately leak fd */
 	} else if (child > 0) {
 		/* 
