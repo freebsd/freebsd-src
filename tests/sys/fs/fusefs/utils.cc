@@ -206,13 +206,13 @@ void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 	}))).RetiresOnSaturation();
 }
 
-void FuseTest::expect_release(uint64_t ino)
+void FuseTest::expect_release(uint64_t ino, uint64_t fh)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_RELEASE &&
 				in->header.nodeid == ino &&
-				in->body.release.fh == FH);
+				in->body.release.fh == fh);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(0)));

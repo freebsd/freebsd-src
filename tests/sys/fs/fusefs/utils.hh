@@ -113,9 +113,9 @@ class FuseTest : public ::testing::Test {
 
 	/* 
 	 * Create an expectation that FUSE_RELEASE will be called exactly once
-	 * for the given inode, returning success
+	 * for the given inode and filehandle, returning success
 	 */
-	void expect_release(uint64_t ino);
+	void expect_release(uint64_t ino, uint64_t fh);
 
 	/*
 	 * Create an expectation that FUSE_WRITE will be called exactly once

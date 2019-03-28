@@ -204,7 +204,8 @@ void debug_fuseop(const mockfs_buf_in *in)
 				in->body.readdir.size);
 			break;
 		case FUSE_RELEASE:
-			printf(" flags=%#x lock_owner=%lu",
+			printf(" fh=%#lx flags=%#x lock_owner=%lu",
+				in->body.release.fh,
 				in->body.release.flags,
 				in->body.release.lock_owner);
 			break;
