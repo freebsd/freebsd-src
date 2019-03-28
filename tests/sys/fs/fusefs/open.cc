@@ -62,17 +62,7 @@ void test_ok(int os_flags, int fuse_flags) {
 	})));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-	})));
+	expect_getattr(ino, 0);
 
 	fd = open(FULLPATH, os_flags);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -168,6 +158,72 @@ TEST_F(Open, fifo)
 
 	ASSERT_EQ(-1, open(FULLPATH, O_RDONLY));
 	EXPECT_EQ(EOPNOTSUPP, errno);
+}
+
+/* 
+ * fusefs must issue multiple FUSE_OPEN operations if clients with different
+ * credentials open the same file, even if they use the same mode.  This is
+ * necessary so that the daemon can validate each set of credentials.
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236844 */
+TEST_F(Open, DISABLED_multiple_creds)
+{
+	const static char FULLPATH[] = "mountpoint/some_file.txt";
+	const static char RELPATH[] = "some_file.txt";
+	int fd1;
+	const static uint64_t ino = 42;
+	const static uint64_t fh0 = 100, fh1 = 200;
+
+	/* Fork a child to open the file with different credentials */
+	fork(false, [&] {
+
+		expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in->header.opcode == FUSE_OPEN &&
+					in->header.pid == (uint32_t)getpid() &&
+					in->header.nodeid == ino);
+			}, Eq(true)),
+			_)
+		).WillOnce(Invoke(
+			ReturnImmediate([](auto in __unused, auto out) {
+			out->body.open.fh = fh0;
+			out->header.len = sizeof(out->header);
+			SET_OUT_HEADER_LEN(out, open);
+		})));
+
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in->header.opcode == FUSE_OPEN &&
+					in->header.pid != (uint32_t)getpid() &&
+					in->header.nodeid == ino);
+			}, Eq(true)),
+			_)
+		).WillOnce(Invoke(
+			ReturnImmediate([](auto in __unused, auto out) {
+			out->body.open.fh = fh1;
+			out->header.len = sizeof(out->header);
+			SET_OUT_HEADER_LEN(out, open);
+		})));
+		expect_getattr(ino, 0);
+		expect_release(ino, fh0);
+		expect_release(ino, fh1);
+
+		fd1 = open(FULLPATH, O_RDONLY);
+		EXPECT_LE(0, fd1) << strerror(errno);
+	}, [] {
+		int fd0;
+
+		fd0 = open(FULLPATH, O_RDONLY);
+		if (fd0 < 0) {
+			perror("open");
+			return(1);
+		}
+		return 0;
+	}
+	);
+
+	close(fd1);
 }
 
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236340 */
