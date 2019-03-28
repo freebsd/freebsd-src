@@ -102,6 +102,15 @@ VGLSetXY(VGLBitmap *object, int x, int y, u_long color)
         !VGLMouseFreeze(x, y, 1, 1, 0x80000000 | color)) {
       switch (object->Type) {
       case MEMBUF:
+      switch (object->PixelBytes) {
+      case 2:
+        goto vidbuf16;
+      case 3:
+        goto vidbuf24;
+      case 4:
+        goto vidbuf32;
+      }
+      /* fallthrough */
       case VIDBUF8:
         object->Bitmap[y*object->VXsize+x]=((byte)color);
         break;
@@ -109,8 +118,11 @@ VGLSetXY(VGLBitmap *object, int x, int y, u_long color)
 	object->Bitmap[VGLSetSegment(y*object->VXsize+x)]=((byte)color);
 	break;
       case VIDBUF16:
+vidbuf16:
       case VIDBUF24:
+vidbuf24:
       case VIDBUF32:
+vidbuf32:
 	color2mem(color, b, object->PixelBytes);
         bcopy(b, &object->Bitmap[(y*object->VXsize+x) * object->PixelBytes],
 		object->PixelBytes);
@@ -156,13 +168,25 @@ __VGLGetXY(VGLBitmap *object, int x, int y)
 
   switch (object->Type) {
     case MEMBUF:
+    switch (object->PixelBytes) {
+    case 2:
+      goto vidbuf16;
+    case 3:
+      goto vidbuf24;
+    case 4:
+      goto vidbuf32;
+    }
+    /* fallthrough */
     case VIDBUF8:
       return object->Bitmap[((y*object->VXsize)+x)];
     case VIDBUF8S:
       return object->Bitmap[VGLSetSegment(y*object->VXsize+x)];
     case VIDBUF16:
+vidbuf16:
     case VIDBUF24:
+vidbuf24:
     case VIDBUF32:
+vidbuf32:
       bcopy(&object->Bitmap[(y*object->VXsize+x) * object->PixelBytes],
 		b, object->PixelBytes);
       return (mem2color(b, object->PixelBytes));
@@ -525,6 +549,15 @@ VGLClear(VGLBitmap *object, u_long color)
     VGLMouseFreeze(0, 0, object->Xsize, object->Ysize, color);
   switch (object->Type) {
   case MEMBUF:
+  switch (object->PixelBytes) {
+  case 2:
+    goto vidbuf16;
+  case 3:
+    goto vidbuf24;
+  case 4:
+    goto vidbuf32;
+  }
+  /* fallthrough */
   case VIDBUF8:
     memset(object->Bitmap, (byte)color, object->VXsize*object->VYsize);
     break;
@@ -539,8 +572,11 @@ VGLClear(VGLBitmap *object, u_long color)
     }
     break;
   case VIDBUF16:
+vidbuf16:
   case VIDBUF24:
+vidbuf24:
   case VIDBUF32:
+vidbuf32:
     color2mem(color, b, object->PixelBytes);
     total = object->VXsize*object->VYsize*object->PixelBytes;
     for (i = 0; i < total; i += object->PixelBytes)
