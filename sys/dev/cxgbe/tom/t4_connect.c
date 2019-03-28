@@ -140,6 +140,10 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 	}
 
 	make_established(toep, cpl->snd_isn, cpl->rcv_isn, cpl->tcp_opt);
+
+	if (toep->ulp_mode == ULP_MODE_TLS)
+		tls_establish(toep);
+
 done:
 	INP_WUNLOCK(inp);
 	CURVNET_RESTORE();
@@ -266,6 +270,11 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 	if (toep->ulp_mode == ULP_MODE_TCPDDP)
 		opt2 |= F_RX_FC_VALID | F_RX_FC_DDP;
 #endif
+	if (toep->ulp_mode == ULP_MODE_TLS) {
+		opt2 |= F_RX_FC_VALID;
+		opt2 &= ~V_RX_COALESCE(M_RX_COALESCE);
+		opt2 |= F_RX_FC_DISABLE;
+	}
 
 	return (htobe32(opt2));
 }
@@ -376,10 +385,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
 	toep->vnet = so->so_vnet;
-	if (sc->tt.ddp && (so->so_options & SO_NO_DDP) == 0)
-		set_tcpddp_ulp_mode(toep);
-	else
-		toep->ulp_mode = ULP_MODE_NONE;
+	set_ulp_mode(toep, select_ulp_mode(so, sc));
 	SOCKBUF_LOCK(&so->so_rcv);
 	/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
 	toep->rx_credits = min(select_rcv_wnd(so) >> 10, M_RCV_BUFSIZ);

@@ -31,6 +31,7 @@
 #ifndef __T4_TOM_H__
 #define __T4_TOM_H__
 #include <sys/vmem.h>
+#include "tom/t4_tls.h"
 
 #define LISTEN_HASH_SIZE 32
 
@@ -69,6 +70,8 @@ enum {
 	TPF_SYNQE_TCPDDP   = (1 << 10),	/* ulp_mode TCPDDP in toepcb */
 	TPF_SYNQE_EXPANDED = (1 << 11),	/* toepcb ready, tid context updated */
 	TPF_SYNQE_HAS_L2TE = (1 << 12),	/* we've replied to PASS_ACCEPT_REQ */
+	TPF_SYNQE_TLS      = (1 << 13), /* ulp_mode TLS in toepcb */
+	TPF_FORCE_CREDITS  = (1 << 14), /* always send credits */
 };
 
 enum {
@@ -81,9 +84,12 @@ enum {
 	DDP_DEAD	= (1 << 6),	/* toepcb is shutting down */
 };
 
+struct sockopt;
+
 struct ofld_tx_sdesc {
 	uint32_t plen;		/* payload length */
 	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
+	void *iv_buffer;	/* optional buffer holding IVs for TLS */
 };
 
 struct ppod_region {
@@ -122,6 +128,9 @@ TAILQ_HEAD(pagesetq, pageset);
 #define	PS_PPODS_WRITTEN	0x0002	/* Page pods written to the card. */
 
 #define	EXT_FLAG_AIOTX		EXT_FLAG_VENDOR1
+
+#define	IS_AIOTX_MBUF(m)						\
+	((m)->m_flags & M_EXT && (m)->m_ext.ext_flags & EXT_FLAG_AIOTX)
 
 struct ddp_buffer {
 	struct pageset *ps;
@@ -182,6 +191,7 @@ struct toepcb {
 	struct mbufq ulp_pdu_reclaimq;
 
 	struct ddp_pcb ddp;
+	struct tls_ofld_info tls;
 
 	TAILQ_HEAD(, kaiocb) aiotx_jobq;
 	struct task aiotx_task;
@@ -324,7 +334,8 @@ int select_rcv_wscale(void);
 uint64_t calc_opt0(struct socket *, struct vi_info *, struct l2t_entry *,
     int, int, int, int);
 uint64_t select_ntuple(struct vi_info *, struct l2t_entry *);
-void set_tcpddp_ulp_mode(struct toepcb *);
+int select_ulp_mode(struct socket *, struct adapter *);
+void set_ulp_mode(struct toepcb *, int);
 int negative_advice(int);
 struct clip_entry *hold_lip(struct tom_data *, struct in6_addr *,
     struct clip_entry *);
@@ -359,14 +370,17 @@ void t4_uninit_cpl_io_handlers(void);
 void send_abort_rpl(struct adapter *, struct sge_wrq *, int , int);
 void send_flowc_wr(struct toepcb *, struct flowc_tx_params *);
 void send_reset(struct adapter *, struct toepcb *, uint32_t);
+int send_rx_credits(struct adapter *, struct toepcb *, int);
+void send_rx_modulate(struct adapter *, struct toepcb *);
 void make_established(struct toepcb *, uint32_t, uint32_t, uint16_t);
+int t4_close_conn(struct adapter *, struct toepcb *);
 void t4_rcvd(struct toedev *, struct tcpcb *);
 void t4_rcvd_locked(struct toedev *, struct tcpcb *);
 int t4_tod_output(struct toedev *, struct tcpcb *);
 int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
-void t4_set_tcb_field(struct adapter *, struct sge_wrq *, int, uint16_t,
-    uint64_t, uint64_t, int, int, int);
+void t4_set_tcb_field(struct adapter *, struct sge_wrq *, struct toepcb *,
+    uint16_t, uint64_t, uint64_t, int, int);
 void t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop);
 void t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop);
 int do_set_tcb_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
@@ -397,5 +411,18 @@ void handle_ddp_close(struct toepcb *, struct tcpcb *, uint32_t);
 void handle_ddp_indicate(struct toepcb *);
 void handle_ddp_tcb_rpl(struct toepcb *, const struct cpl_set_tcb_rpl *);
 void insert_ddp_data(struct toepcb *, uint32_t);
+
+/* t4_tls.c */
+bool can_tls_offload(struct adapter *);
+int t4_ctloutput_tls(struct socket *, struct sockopt *);
+void t4_push_tls_records(struct adapter *, struct toepcb *, int);
+void t4_tls_mod_load(void);
+void t4_tls_mod_unload(void);
+void tls_establish(struct toepcb *);
+void tls_init_toep(struct toepcb *);
+int tls_rx_key(struct toepcb *);
+void tls_stop_handshake_timer(struct toepcb *);
+int tls_tx_key(struct toepcb *);
+void tls_uninit_toep(struct toepcb *);
 
 #endif
