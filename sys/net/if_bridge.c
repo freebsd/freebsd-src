@@ -2422,22 +2422,6 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	if (memcmp(IF_LLADDR((iface)), eh->ether_dhost,  ETHER_ADDR_LEN) == 0 \
 	    OR_CARP_CHECK_WE_ARE_DST((iface))				\
 	    ) {								\
-		if ((iface)->if_type == IFT_BRIDGE) {			\
-			ETHER_BPF_MTAP(iface, m);			\
-			if_inc_counter(iface, IFCOUNTER_IPACKETS, 1);				\
-			if_inc_counter(iface, IFCOUNTER_IBYTES, m->m_pkthdr.len);		\
-			/* Filter on the physical interface. */		\
-			if (V_pfil_local_phys &&			\
-			    (PFIL_HOOKED_IN(V_inet_pfil_head)		\
-			     OR_PFIL_HOOKED_INET6)) {			\
-				if (bridge_pfil(&m, NULL, ifp,		\
-				    PFIL_IN) != 0 || m == NULL) {	\
-					BRIDGE_UNLOCK(sc);		\
-					return (NULL);			\
-				}					\
-				eh = mtod(m, struct ether_header *);	\
-			}						\
-		}							\
 		if (bif->bif_flags & IFBIF_LEARNING) {			\
 			error = bridge_rtupdate(sc, eh->ether_shost,	\
 			    vlan, bif, 0, IFBAF_DYNAMIC);		\
@@ -2448,6 +2432,24 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 			}						\
 		}							\
 		m->m_pkthdr.rcvif = iface;				\
+		if ((iface) == ifp) {					\
+			/* Skip bridge processing... src == dest */	\
+			BRIDGE_UNLOCK(sc);				\
+			return (m);					\
+		}							\
+		/* It's passing over or to the bridge, locally. */	\
+		ETHER_BPF_MTAP(bifp, m);				\
+		if_inc_counter(bifp, IFCOUNTER_IPACKETS, 1);		\
+		if_inc_counter(bifp, IFCOUNTER_IBYTES, m->m_pkthdr.len); \
+		/* Filter on the physical interface. */			\
+		if (V_pfil_local_phys && (PFIL_HOOKED_IN(V_inet_pfil_head) \
+		     OR_PFIL_HOOKED_INET6)) {				\
+			if (bridge_pfil(&m, NULL, ifp,			\
+			    PFIL_IN) != 0 || m == NULL) {		\
+				BRIDGE_UNLOCK(sc);			\
+				return (NULL);				\
+			}						\
+		}							\
 		BRIDGE_UNLOCK(sc);					\
 		return (m);						\
 	}								\
