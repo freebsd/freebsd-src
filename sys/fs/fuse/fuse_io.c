@@ -652,6 +652,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		printf("FUSE: strategy: filehandles are closed\n");
 		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = error;
+		bufdone(bp);
 		return (error);
 	}
 	cred = bp->b_iocmd == BIO_READ ? bp->b_rcred : bp->b_wcred;
