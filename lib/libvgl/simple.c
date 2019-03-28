@@ -556,8 +556,8 @@ VGLClear(VGLBitmap *object, u_long color)
       VGLSetSegment(offset);
       len = min(total - offset, VGLAdpInfo.va_window_size);
       for (i = 0; i < len; i += object->PixelBytes)
-	bcopy(object->Bitmap + (offset + i) % VGLAdpInfo.va_window_size, b,
-	      object->PixelBytes);
+        bcopy(b, object->Bitmap + (offset + i) % VGLAdpInfo.va_window_size,
+              object->PixelBytes);
       offset += len;
     }
     break;
