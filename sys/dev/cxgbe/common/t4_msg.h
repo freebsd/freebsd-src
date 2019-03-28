@@ -3102,7 +3102,8 @@ struct cpl_rx_mps_pkt {
 struct cpl_tx_tls_sfo {
 	__be32 op_to_seg_len;
 	__be32 pld_len;
-	__be64 rsvd;
+	__be32 type_protover;
+	__be32 r1_lo;
 	__be32 seqno_numivs;
 	__be32 ivgen_hdrlen;
 	__be64 scmd1;
@@ -3126,15 +3127,28 @@ struct cpl_tx_tls_sfo {
 #define V_CPL_TX_TLS_SFO_CPL_LEN(x)     ((x) << S_CPL_TX_TLS_SFO_CPL_LEN)
 #define G_CPL_TX_TLS_SFO_CPL_LEN(x)     \
 	(((x) >> S_CPL_TX_TLS_SFO_CPL_LEN) & M_CPL_TX_TLS_SFO_CPL_LEN)
+
 #define S_CPL_TX_TLS_SFO_SEG_LEN        0
 #define M_CPL_TX_TLS_SFO_SEG_LEN        0xffff
 #define V_CPL_TX_TLS_SFO_SEG_LEN(x)     ((x) << S_CPL_TX_TLS_SFO_SEG_LEN)
 #define G_CPL_TX_TLS_SFO_SEG_LEN(x)     \
 	(((x) >> S_CPL_TX_TLS_SFO_SEG_LEN) & M_CPL_TX_TLS_SFO_SEG_LEN)
 
+#define S_CPL_TX_TLS_SFO_TYPE           24
+#define M_CPL_TX_TLS_SFO_TYPE           0xff
+#define V_CPL_TX_TLS_SFO_TYPE(x)        ((x) << S_CPL_TX_TLS_SFO_TYPE)
+#define G_CPL_TX_TLS_SFO_TYPE(x)        \
+    (((x) >> S_CPL_TX_TLS_SFO_TYPE) & M_CPL_TX_TLS_SFO_TYPE)
+
+#define S_CPL_TX_TLS_SFO_PROTOVER       8
+#define M_CPL_TX_TLS_SFO_PROTOVER       0xffff
+#define V_CPL_TX_TLS_SFO_PROTOVER(x)    ((x) << S_CPL_TX_TLS_SFO_PROTOVER)
+#define G_CPL_TX_TLS_SFO_PROTOVER(x)    \
+    (((x) >> S_CPL_TX_TLS_SFO_PROTOVER) & M_CPL_TX_TLS_SFO_PROTOVER)
+
 struct cpl_tls_data {
 	RSS_HDR
-	__be32 op_tid;
+	union opcode_tid ot;
 	__be32 length_pkd;
 	__be32 seq;
 	__be32 r1;
@@ -3160,7 +3174,7 @@ struct cpl_tls_data {
 
 struct cpl_rx_tls_cmp {
 	RSS_HDR
-	__be32 op_tid;
+	union opcode_tid ot;
 	__be32 pdulength_length;
 	__be32 seq;
 	__be32 ddp_report;
