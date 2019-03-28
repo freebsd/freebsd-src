@@ -248,7 +248,7 @@ VGLGetXY(VGLBitmap *object, int x, int y)
 #define SL_ABSOLUTE(i,j,k)     ( (i-j)*(k = ( (i-j)<0 ? -1 : 1)))
 
 void
-plot(VGLBitmap * object, int x, int y, int flag, byte color)
+plot(VGLBitmap * object, int x, int y, int flag, u_long color)
 {
   /* non-zero flag indicates the pixels need swapping back. */
   if (flag)
