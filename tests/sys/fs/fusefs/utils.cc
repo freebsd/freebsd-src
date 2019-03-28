@@ -28,12 +28,19 @@
  * SUCH DAMAGE.
  */
 
+extern "C" {
 #include <sys/param.h>
+#include <sys/mman.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
+#include <sys/wait.h>
+
+#include <pwd.h>
+#include <semaphore.h>
+#include <unistd.h>
+}
 
 #include <gtest/gtest.h>
-#include <unistd.h>
 
 #include "mockfs.hh"
 #include "utils.hh"
@@ -239,6 +246,86 @@ void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 		SET_OUT_HEADER_LEN(out, write);
 		out->body.write.size = osize;
 	})));
+}
+
+static void
+get_unprivileged_uid(uid_t *uid)
+{
+	struct passwd *pw;
+
+	/* 
+	 * First try "tests", Kyua's default unprivileged user.  XXX after
+	 * GoogleTest gains a proper Kyua wrapper, get this with the Kyua API
+	 */
+	pw = getpwnam("tests");
+	if (pw == NULL) {
+		/* Fall back to "nobody" */
+		pw = getpwnam("nobody");
+	}
+	if (pw == NULL)
+		GTEST_SKIP() << "Test requires an unprivileged user";
+	*uid = pw->pw_uid;
+}
+
+void
+FuseTest::fork(bool drop_privs, std::function<void()> parent_func,
+	std::function<int()> child_func)
+{
+	sem_t *sem;
+	int mprot = PROT_READ | PROT_WRITE;
+	int mflags = MAP_ANON | MAP_SHARED;
+	pid_t child;
+	uid_t uid;
+	
+	if (drop_privs) {
+		get_unprivileged_uid(&uid);
+		if (IsSkipped())
+			return;
+	}
+
+	sem = (sem_t*)mmap(NULL, sizeof(*sem), mprot, mflags, -1, 0);
+	ASSERT_NE(MAP_FAILED, sem) << strerror(errno);
+	ASSERT_EQ(0, sem_init(sem, 1, 0)) << strerror(errno);
+
+	if ((child = ::fork()) == 0) {
+		/* In child */
+		int err = 0;
+
+		if (sem_wait(sem)) {
+			perror("sem_wait");
+			err = 1;
+			goto out;
+		}
+
+		if (drop_privs && 0 != setreuid(-1, uid)) {
+			perror("setreuid");
+			err = 1;
+			goto out;
+		}
+		err = child_func();
+
+out:
+		sem_destroy(sem);
+		_exit(err);
+	} else if (child > 0) {
+		int child_status;
+
+		/* 
+		 * In parent.  Cleanup must happen here, because it's still
+		 * privileged.
+		 */
+		m_mock->m_child_pid = child;
+		ASSERT_NO_FATAL_FAILURE(parent_func());
+
+		/* Signal the child process to go */
+		ASSERT_EQ(0, sem_post(sem)) << strerror(errno);
+
+		wait(&child_status);
+		ASSERT_EQ(0, WEXITSTATUS(child_status));
+	} else {
+		FAIL() << strerror(errno);
+	}
+	munmap(sem, sizeof(*sem));
 }
 
 static void usage(char* progname) {
