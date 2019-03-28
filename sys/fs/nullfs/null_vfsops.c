@@ -236,7 +236,7 @@ nullfs_unmount(mp, mntflags)
 {
 	struct null_mount *mntdata;
 	struct mount *ump;
-	int error, flags;
+	int error, flags, rootrefs;
 
 	NULLFSDEBUG("nullfs_unmount: mp = %p\n", (void *)mp);
 
@@ -245,10 +245,20 @@ nullfs_unmount(mp, mntflags)
 	else
 		flags = 0;
 
-	/* There is 1 extra root vnode reference (nullm_rootvp). */
-	error = vflush(mp, 1, flags, curthread);
-	if (error)
-		return (error);
+	for (rootrefs = 1;; rootrefs = 0) {
+		/* There is 1 extra root vnode reference (nullm_rootvp). */
+		error = vflush(mp, rootrefs, flags, curthread);
+		if (error)
+			return (error);
+		MNT_ILOCK(mp);
+		if (mp->mnt_nvnodelistsize == 0) {
+			MNT_IUNLOCK(mp);
+			break;
+		}
+		MNT_IUNLOCK(mp);
+		if ((mntflags & MNT_FORCE) == 0)
+			return (EBUSY);
+	}
 
 	/*
 	 * Finally, throw away the null_mount structure
