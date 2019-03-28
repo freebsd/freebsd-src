@@ -1710,7 +1710,7 @@ fuse_vnop_strategy(struct vop_strategy_args *ap)
 		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = ENXIO;
 		bufdone(bp);
-		return ENXIO;
+		return 0;
 	}
 	if (bp->b_iocmd == BIO_WRITE) {
 		int err;
@@ -1719,6 +1719,7 @@ fuse_vnop_strategy(struct vop_strategy_args *ap)
 		if (err) {
 			bp->b_ioflags |= BIO_ERROR;
 			bp->b_error = err;
+			bufdone(bp);
 			return 0;
 		}
 	}
