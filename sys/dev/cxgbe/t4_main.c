@@ -6031,6 +6031,9 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, INTR_CPUS,
 	    sysctl_cpus, "A", "preferred CPUs for interrupts");
 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "swintr", CTLFLAG_RW,
+	    &sc->swintr, 0, "software triggered interrupts");
+
 	/*
 	 * dev.t4nex.X.misc.  Marked CTLFLAG_SKIP to avoid information overload.
 	 */
