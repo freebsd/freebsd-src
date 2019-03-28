@@ -769,9 +769,9 @@ phdr(void)
 					(void)printf(" blk xfr msps ");
 			} else {
 				if (Iflag == 0)
-					printf("  KB/t tps  MB/s ");
+					printf(" KB/t  tps  MB/s ");
 				else
-					printf("  KB/t xfrs   MB ");
+					printf(" KB/t xfrs    MB ");
 			}
 			printed++;
 		}
@@ -945,7 +945,7 @@ devstats(int perf_select, long double etime, int havelast)
 				       ms_per_transaction);
 		} else {
 			if (Iflag == 0)
-				printf(" %5.2Lf %3.0Lf %5.2Lf ",
+				printf(" %4.1Lf %4.0Lf %5.2Lf ",
 				       kb_per_transfer,
 				       transfers_per_second,
 				       mb_per_second);
@@ -953,7 +953,7 @@ devstats(int perf_select, long double etime, int havelast)
 				total_mb = total_bytes;
 				total_mb /= 1024 * 1024;
 
-				printf(" %5.2Lf %3.1" PRIu64 " %5.2Lf ",
+				printf(" %4.1Lf %4.1" PRIu64 " %5.2Lf ",
 				       kb_per_transfer,
 				       total_transfers,
 				       total_mb);
