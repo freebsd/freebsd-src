@@ -37,8 +37,32 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
 
 using std::string;
+
+namespace {
+
+void write(dtc::byte_buffer &buffer, int fd)
+{
+	size_t size = buffer.size();
+	uint8_t *data = buffer.data();
+	while (size > 0)
+	{
+		ssize_t r = ::write(fd, data, size);
+		if (r >= 0)
+		{
+			data += r;
+			size -= r;
+		}
+		else if (errno != EAGAIN)
+		{
+			fprintf(stderr, "Writing to file failed\n");
+			exit(-1);
+		}
+	}
+}
+}
 
 namespace dtc
 {
@@ -90,8 +114,7 @@ binary_writer::write_data(uint64_t v)
 void
 binary_writer::write_to_file(int fd)
 {
-	// FIXME: Check return
-	write(fd, buffer.data(), buffer.size());
+	write(buffer, fd);
 }
 
 uint32_t
@@ -222,8 +245,7 @@ asm_writer::write_data(uint64_t v)
 void
 asm_writer::write_to_file(int fd)
 {
-	// FIXME: Check return
-	write(fd, buffer.data(), buffer.size());
+	write(buffer, fd);
 }
 
 uint32_t

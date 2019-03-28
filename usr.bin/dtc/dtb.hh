@@ -109,6 +109,8 @@ inline const char *token_type_name(token_type t)
 			return "FDT_END";
 	}
 	assert(0);
+	// Not reached.
+	return nullptr;
 }
 
 /**
