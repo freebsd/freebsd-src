@@ -895,6 +895,8 @@ struct adapter {
 	const char *last_op;
 	const void *last_op_thr;
 	int last_op_flags;
+
+	int swintr;
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
