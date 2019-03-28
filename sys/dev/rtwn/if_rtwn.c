@@ -1540,8 +1540,6 @@ rtwn_rx_frame(struct rtwn_softc *sc, struct r92c_rx_desc *rx_desc,
 			tap->wr_rate = 0x80 | (rate - 12);
 		}
 		tap->wr_dbm_antsignal = rssi;
-		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 	}
 
 	RTWN_UNLOCK(sc);
@@ -1734,8 +1732,6 @@ rtwn_tx(struct rtwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		struct rtwn_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 
 		ieee80211_radiotap_tx(vap, m);
 	}

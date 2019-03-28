@@ -1200,7 +1200,7 @@ struct zyd_tx_radiotap_header {
 	uint8_t			wt_rate;
 	uint16_t		wt_chan_freq;
 	uint16_t		wt_chan_flags;
-} __packed __aligned(8);
+} __packed;
 
 #define ZYD_TX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\

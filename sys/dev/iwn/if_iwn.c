@@ -8892,18 +8892,12 @@ iwn_scan_end(struct ieee80211com *ic)
 static void
 iwn_set_channel(struct ieee80211com *ic)
 {
-	const struct ieee80211_channel *c = ic->ic_curchan;
 	struct iwn_softc *sc = ic->ic_softc;
 	int error;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
 
 	IWN_LOCK(sc);
-	sc->sc_rxtap.wr_chan_freq = htole16(c->ic_freq);
-	sc->sc_rxtap.wr_chan_flags = htole16(c->ic_flags);
-	sc->sc_txtap.wt_chan_freq = htole16(c->ic_freq);
-	sc->sc_txtap.wt_chan_flags = htole16(c->ic_flags);
-
 	/*
 	 * Only need to set the channel in Monitor mode. AP scanning and auth
 	 * are already taken care of by their respective firmware commands.

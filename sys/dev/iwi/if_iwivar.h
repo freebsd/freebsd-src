@@ -36,7 +36,7 @@ struct iwi_rx_radiotap_header {
 	int8_t		wr_antsignal;
 	int8_t		wr_antnoise;
 	uint8_t		wr_antenna;
-};
+} __packed __aligned(8);
 
 #define IWI_RX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -49,9 +49,10 @@ struct iwi_rx_radiotap_header {
 struct iwi_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
 	uint8_t		wt_flags;
+	uint8_t		wt_pad;
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
-};
+} __packed;
 
 #define IWI_TX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\

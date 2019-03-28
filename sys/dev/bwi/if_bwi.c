@@ -1727,15 +1727,6 @@ bwi_set_channel(struct ieee80211com *ic)
 	bwi_rf_set_chan(mac, ieee80211_chan2ieee(ic, c), 0);
 
 	sc->sc_rates = ieee80211_get_ratetable(c);
-
-	/*
-	 * Setup radio tap channel freq and flags
-	 */
-	sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
-		htole16(c->ic_freq);
-	sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags =
-		htole16(c->ic_flags & 0xffff);
-
 	BWI_UNLOCK(sc);
 }
 

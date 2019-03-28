@@ -1831,14 +1831,6 @@ bwn_set_channel(struct ieee80211com *ic)
 	bwn_mac_enable(mac);
 
 fail:
-	/*
-	 * Setup radio tap channel freq and flags
-	 */
-	sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
-		htole16(ic->ic_curchan->ic_freq);
-	sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags =
-		htole16(ic->ic_curchan->ic_flags & 0xffff);
-
 	BWN_UNLOCK(sc);
 }
 
