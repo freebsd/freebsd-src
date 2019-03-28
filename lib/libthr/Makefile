@@ -9,7 +9,6 @@ PACKAGE=	clibs
 SHLIBDIR?= /lib
 
 .include <src.opts.mk>
-MK_BIND_NOW= no
 MK_SSP=	no
 
 LIB=thr
