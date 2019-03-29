@@ -151,7 +151,7 @@ SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_VNET | CTLFLAG_RW,
 
 static VNET_DEFINE(int, icmptstamprepl) = 1;
 #define	V_icmptstamprepl		VNET(icmptstamprepl)
-SYSCTL_INT(_net_inet_icmp, OID_AUTO, tstamprepl, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, tstamprepl, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmptstamprepl), 0,
 	"Respond to ICMP Timestamp packets");
 
