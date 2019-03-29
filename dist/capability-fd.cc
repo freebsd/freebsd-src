@@ -25,7 +25,7 @@ typedef struct {
   uint64_t right;
   const char* name;
 } right_info;
-right_info known_rights[] = {
+static right_info known_rights[] = {
   /* Rights that are common to all versions of Capsicum */
   RIGHTS_INFO(CAP_READ),
   RIGHTS_INFO(CAP_WRITE),
@@ -713,22 +713,34 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
   EXPECT_OK(close(rc));
   rc = openat(dfd_cap, "cap_fsync", O_FSYNC | O_RDONLY);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_READ, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   rc = openat(dfd_cap, "cap_fsync", O_FSYNC | O_WRONLY | O_APPEND);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_WRITE, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   rc = openat(dfd_cap, "cap_fsync", O_FSYNC | O_RDWR | O_APPEND);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_READ, CAP_WRITE, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   rc = openat(dfd_cap, "cap_fsync", O_SYNC | O_RDONLY);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_READ, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   rc = openat(dfd_cap, "cap_fsync", O_SYNC | O_WRONLY | O_APPEND);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_WRITE, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   rc = openat(dfd_cap, "cap_fsync", O_SYNC | O_RDWR | O_APPEND);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FSYNC, CAP_READ, CAP_WRITE, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   EXPECT_OK(unlinkat(dirfd, "cap_fsync", 0));
 
   rc = openat(dirfd, "cap_ftruncate", O_CREAT, 0600);
@@ -736,13 +748,19 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
   EXPECT_OK(close(rc));
   rc = openat(dfd_cap, "cap_ftruncate", O_TRUNC | O_RDONLY);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FTRUNCATE, CAP_READ, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   rc = openat(dfd_cap, "cap_ftruncate", O_TRUNC | O_WRONLY);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FTRUNCATE, CAP_WRITE, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   rc = openat(dfd_cap, "cap_ftruncate", O_TRUNC | O_RDWR);
   CHECK_RIGHT_RESULT(rc, rights, CAP_FTRUNCATE, CAP_READ, CAP_WRITE, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   EXPECT_OK(unlinkat(dirfd, "cap_ftruncate", 0));
 
   rc = openat(dfd_cap, "cap_create", O_CREAT | O_WRONLY, 0600);
@@ -764,19 +782,27 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
   rc = openat(dfd_cap, "cap_fsync", O_FSYNC | O_WRONLY);
   CHECK_RIGHT_RESULT(rc,
                rights, CAP_FSYNC, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   rc = openat(dfd_cap, "cap_fsync", O_FSYNC | O_RDWR);
   CHECK_RIGHT_RESULT(rc,
                rights, CAP_FSYNC, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   rc = openat(dfd_cap, "cap_fsync", O_SYNC | O_WRONLY);
   CHECK_RIGHT_RESULT(rc,
                rights, CAP_FSYNC, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   rc = openat(dfd_cap, "cap_fsync", O_SYNC | O_RDWR);
   CHECK_RIGHT_RESULT(rc,
                rights, CAP_FSYNC, CAP_READ, CAP_WRITE, CAP_SEEK, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(close(rc));
+  if (rc >= 0) {
+    EXPECT_OK(close(rc));
+  }
   EXPECT_OK(unlinkat(dirfd, "cap_fsync", 0));
 
 #ifdef HAVE_CHFLAGSAT
@@ -826,28 +852,38 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
 
   rc = linkat(dirfd, "cap_linkat_src", dfd_cap, "cap_linkat_dst", 0);
   CHECK_RIGHT_RESULT(rc, rights, CAP_LINKAT_TARGET);
-  if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_linkat_dst", 0));
+  if (rc >= 0) {
+    EXPECT_OK(unlinkat(dirfd, "cap_linkat_dst", 0));
+  }
 
   rc = linkat(dfd_cap, "cap_linkat_src", dirfd, "cap_linkat_dst", 0);
   CHECK_RIGHT_RESULT(rc, rights, CAP_LINKAT_SOURCE);
-  if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_linkat_dst", 0));
+  if (rc >= 0) {
+    EXPECT_OK(unlinkat(dirfd, "cap_linkat_dst", 0));
+  }
 
   EXPECT_OK(unlinkat(dirfd, "cap_linkat_src", 0));
 
   rc = mkdirat(dfd_cap, "cap_mkdirat", 0700);
   CHECK_RIGHT_RESULT(rc, rights, CAP_MKDIRAT, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_mkdirat", AT_REMOVEDIR));
+  if (rc >= 0) {
+    EXPECT_OK(unlinkat(dirfd, "cap_mkdirat", AT_REMOVEDIR));
+  }
 
 #ifdef HAVE_MKFIFOAT
   rc = mkfifoat(dfd_cap, "cap_mkfifoat", 0600);
   CHECK_RIGHT_RESULT(rc, rights, CAP_MKFIFOAT, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_mkfifoat", 0));
+  if (rc >= 0) {
+    EXPECT_OK(unlinkat(dirfd, "cap_mkfifoat", 0));
+  }
 #endif
 
   if (getuid() == 0) {
     rc = mknodat(dfd_cap, "cap_mknodat", S_IFCHR | 0600, 0);
     CHECK_RIGHT_RESULT(rc, rights, CAP_MKNODAT, CAP_LOOKUP);
-    if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_mknodat", 0));
+    if (rc >= 0) {
+      EXPECT_OK(unlinkat(dirfd, "cap_mknodat", 0));
+    }
   }
 
   // For renameat(2), need:
@@ -880,7 +916,9 @@ static void TryDirOps(int dirfd, cap_rights_t rights) {
 
   rc = symlinkat("test", dfd_cap, "cap_symlinkat");
   CHECK_RIGHT_RESULT(rc, rights, CAP_SYMLINKAT, CAP_LOOKUP);
-  if (rc >= 0) EXPECT_OK(unlinkat(dirfd, "cap_symlinkat", 0));
+  if (rc >= 0) {
+    EXPECT_OK(unlinkat(dirfd, "cap_symlinkat", 0));
+  }
 
   rc = openat(dirfd, "cap_unlinkat", O_CREAT, 0600);
   EXPECT_OK(rc);

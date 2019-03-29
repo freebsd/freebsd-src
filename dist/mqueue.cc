@@ -24,7 +24,7 @@
     static void test_case_name##_##test_name##_ForkTest()
 
 static bool invoked;
-void seen_it_done_it(int v) {
+void seen_it_done_it(int) {
   invoked = true;
 }
 

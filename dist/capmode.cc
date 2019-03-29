@@ -132,7 +132,9 @@ FORK_TEST_F(WithFiles, AllowedFileSyscalls) {
 
 #ifdef HAVE_CHFLAGS
   rc = fchflags(fd_file_, UF_NODUMP);
-  if (rc < 0)  EXPECT_NE(ECAPMODE, errno);
+  if (rc < 0) {
+    EXPECT_NE(ECAPMODE, errno);
+  }
 #endif
 
   char buf[1024];
@@ -173,7 +175,9 @@ FORK_TEST_F(WithFiles, AllowedSocketSyscalls) {
 
   // recvfrom() either returns -1 with EAGAIN, or 0.
   int rc = recvfrom(fd_socket_, NULL, 0, MSG_DONTWAIT, NULL, NULL);
-  if (rc < 0) EXPECT_EQ(EAGAIN, errno);
+  if (rc < 0) {
+    EXPECT_EQ(EAGAIN, errno);
+  }
   char ch;
   EXPECT_OK(write(fd_file_, &ch, sizeof(ch)));
 
@@ -558,8 +562,7 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   long sysarch_arg = 0;
   EXPECT_CAPMODE(sysarch(I386_SET_IOPERM, &sysarch_arg));
 #else
-  // TOOD(jra): write a test for arm
-  FAIL("capmode:no sysarch() test for current architecture");
+  // TOOD(jra): write a test for other architectures, like arm
 #endif
 #endif
 }
@@ -627,7 +630,7 @@ FORK_TEST(Capmode, NewThread) {
 }
 
 static int had_signal = 0;
-static void handle_signal(int x) { had_signal = 1; }
+static void handle_signal(int) { had_signal = 1; }
 
 FORK_TEST(Capmode, SelfKill) {
   pid_t me = getpid();

@@ -11,9 +11,9 @@
 
 // Check an open call works and close the resulting fd.
 #define EXPECT_OPEN_OK(f) do { \
-    int fd = f;                \
-    EXPECT_OK(fd);             \
-    close(fd);                 \
+    int _fd = f;               \
+    EXPECT_OK(_fd);            \
+    close(_fd);                \
   } while (0)
 
 static void CreateFile(const char *filename, const char *contents) {
@@ -176,10 +176,14 @@ class OpenatTest : public ::testing::Test {
     // Create a couple of nested directories
     int rc = mkdir(TmpFile(TOPDIR), 0755);
     EXPECT_OK(rc);
-    if (rc < 0) EXPECT_EQ(EEXIST, errno);
+    if (rc < 0) {
+      EXPECT_EQ(EEXIST, errno);
+    }
     rc = mkdir(TmpFile(SUBDIR_ABS), 0755);
     EXPECT_OK(rc);
-    if (rc < 0) EXPECT_EQ(EEXIST, errno);
+    if (rc < 0) {
+      EXPECT_EQ(EEXIST, errno);
+    }
 
     // Figure out a path prefix (like "../..") that gets us to the root
     // directory from TmpFile(TOPDIR).
