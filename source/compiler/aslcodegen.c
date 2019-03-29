@@ -523,6 +523,8 @@ CgWriteAmlOpcode (
  *
  * DESCRIPTION: Write a table header corresponding to the DEFINITIONBLOCK
  *
+ * NOTE: Input strings should be validated before this function is invoked.
+ *
  ******************************************************************************/
 
 static void
@@ -533,6 +535,8 @@ CgWriteTableHeader (
     UINT32                  CommentLength;
     ACPI_COMMENT_NODE       *Current;
 
+
+    memset (&AslGbl_TableHeader, 0, sizeof (ACPI_TABLE_HEADER));
 
     /* AML filename */
 
@@ -552,11 +556,11 @@ CgWriteTableHeader (
      */
     if (AcpiGbl_CaptureComments)
     {
-        strncpy(AcpiGbl_TableSig, Child->Asl.Value.String, ACPI_NAME_SIZE);
+        ACPI_COPY_NAMESEG (AcpiGbl_TableSig, Child->Asl.Value.String);
         Child->Asl.Value.String = ACPI_SIG_XXXX;
     }
 
-    strncpy (AslGbl_TableHeader.Signature, Child->Asl.Value.String, ACPI_NAME_SIZE);
+    ACPI_COPY_NAMESEG (AslGbl_TableHeader.Signature, Child->Asl.Value.String);
 
     /* Revision */
 
@@ -573,12 +577,14 @@ CgWriteTableHeader (
     /* OEMID */
 
     Child = Child->Asl.Next;
-    strncpy (AslGbl_TableHeader.OemId, Child->Asl.Value.String, ACPI_OEM_ID_SIZE);
+    memcpy (AslGbl_TableHeader.OemId, Child->Asl.Value.String,
+        strlen (Child->Asl.Value.String));
 
     /* OEM TableID */
 
     Child = Child->Asl.Next;
-    strncpy (AslGbl_TableHeader.OemTableId, Child->Asl.Value.String, ACPI_OEM_TABLE_ID_SIZE);
+    memcpy (AslGbl_TableHeader.OemTableId, Child->Asl.Value.String,
+        strlen (Child->Asl.Value.String));
 
     /* OEM Revision */
 
@@ -587,7 +593,7 @@ CgWriteTableHeader (
 
     /* Compiler ID */
 
-    ACPI_MOVE_NAME (AslGbl_TableHeader.AslCompilerId, ASL_CREATOR_ID);
+    ACPI_COPY_NAMESEG (AslGbl_TableHeader.AslCompilerId, ASL_CREATOR_ID);
 
     /* Compiler version */
 

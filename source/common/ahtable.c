@@ -183,7 +183,7 @@ AcpiAhGetTableInfo (
 
     for (Info = AcpiGbl_SupportedTables; Info->Signature; Info++)
     {
-        if (ACPI_COMPARE_NAME (Signature, Info->Signature))
+        if (ACPI_COMPARE_NAMESEG (Signature, Info->Signature))
         {
             return (Info);
         }

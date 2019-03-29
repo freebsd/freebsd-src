@@ -319,8 +319,8 @@ AcpiOsGetTableByName (
     /* Instance is only valid for SSDT/UEFI tables */
 
     if (Instance &&
-        !ACPI_COMPARE_NAME (Signature, ACPI_SIG_SSDT) &&
-        !ACPI_COMPARE_NAME (Signature, ACPI_SIG_UEFI))
+        !ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_SSDT) &&
+        !ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_UEFI))
     {
         return (AE_LIMIT);
     }
@@ -337,7 +337,7 @@ AcpiOsGetTableByName (
      * If one of the main ACPI tables was requested (RSDT/XSDT/FADT),
      * simply return it immediately.
      */
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_XSDT))
+    if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_XSDT))
     {
         if (!Gbl_Revision)
         {
@@ -349,7 +349,7 @@ AcpiOsGetTableByName (
         return (AE_OK);
     }
 
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_RSDT))
+    if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_RSDT))
     {
         if (!Gbl_Rsdp.RsdtPhysicalAddress)
         {
@@ -361,7 +361,7 @@ AcpiOsGetTableByName (
         return (AE_OK);
     }
 
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_FADT))
+    if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_FADT))
     {
         *Address = Gbl_FadtAddress;
         *Table = (ACPI_TABLE_HEADER *) Gbl_Fadt;
@@ -688,15 +688,15 @@ OslGetTableViaRoot (
 
     /* DSDT and FACS address must be extracted from the FADT */
 
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_DSDT) ||
-        ACPI_COMPARE_NAME (Signature, ACPI_SIG_FACS))
+    if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_DSDT) ||
+        ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_FACS))
     {
         /*
          * Get the appropriate address, either 32-bit or 64-bit. Be very
          * careful about the FADT length and validate table addresses.
          * Note: The 64-bit addresses have priority.
          */
-        if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_DSDT))
+        if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_DSDT))
         {
             if ((Gbl_Fadt->Header.Length >= MIN_FADT_FOR_XDSDT) &&
                 Gbl_Fadt->XDsdt)
@@ -759,7 +759,7 @@ OslGetTableViaRoot (
 
             /* Does this table match the requested signature? */
 
-            if (ACPI_COMPARE_NAME (MappedTable->Signature, Signature))
+            if (ACPI_COMPARE_NAMESEG (MappedTable->Signature, Signature))
             {
 
                 /* Match table instance (for SSDT/UEFI tables) */
@@ -862,18 +862,18 @@ OslAddTablesToList(
 
         case 1:
 
-            ACPI_MOVE_NAME (NewInfo->Signature,
+            ACPI_COPY_NAMESEG (NewInfo->Signature,
                 Gbl_Revision ? ACPI_SIG_XSDT : ACPI_SIG_RSDT);
             break;
 
         case 2:
 
-            ACPI_MOVE_NAME (NewInfo->Signature, ACPI_SIG_FACS);
+            ACPI_COPY_NAMESEG (NewInfo->Signature, ACPI_SIG_FACS);
             break;
 
         default:
 
-            ACPI_MOVE_NAME (NewInfo->Signature, ACPI_SIG_DSDT);
+            ACPI_COPY_NAMESEG (NewInfo->Signature, ACPI_SIG_DSDT);
 
         }
 
@@ -919,7 +919,7 @@ OslAddTablesToList(
         while (NewInfo->Next != NULL)
         {
             NewInfo = NewInfo->Next;
-            if (ACPI_COMPARE_NAME (Table->Signature, NewInfo->Signature))
+            if (ACPI_COMPARE_NAMESEG (Table->Signature, NewInfo->Signature))
             {
                 Instance++;
             }
@@ -932,7 +932,7 @@ OslAddTablesToList(
             return (AE_NO_MEMORY);
         }
 
-        ACPI_MOVE_NAME (NewInfo->Signature, Table->Signature);
+        ACPI_COPY_NAMESEG (NewInfo->Signature, Table->Signature);
 
         AcpiOsUnmapMemory (Table, sizeof (*Table));
 
@@ -994,7 +994,7 @@ OslMapTable (
     /* If specified, signature must match */
 
     if (Signature &&
-        !ACPI_COMPARE_NAME (Signature, MappedTable->Signature))
+        !ACPI_COMPARE_NAMESEG (Signature, MappedTable->Signature))
     {
         AcpiOsUnmapMemory (MappedTable, sizeof (*MappedTable));
         return (AE_NOT_EXIST);

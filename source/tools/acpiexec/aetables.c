@@ -220,14 +220,14 @@ AeTableOverride (
 
     /* This code exercises the table override mechanism in the core */
 
-    if (ACPI_COMPARE_NAME (ExistingTable->Signature, ACPI_SIG_DSDT))
+    if (ACPI_COMPARE_NAMESEG (ExistingTable->Signature, ACPI_SIG_DSDT))
     {
         *NewTable = DsdtToInstallOverride;
     }
 
     /* This code tests override of dynamically loaded tables */
 
-    else if (ACPI_COMPARE_NAME (ExistingTable->Signature, "OEM9"))
+    else if (ACPI_COMPARE_NAMESEG (ExistingTable->Signature, "OEM9"))
     {
         *NewTable = ACPI_CAST_PTR (ACPI_TABLE_HEADER, Ssdt3Code);
     }
@@ -255,13 +255,13 @@ AeInitializeTableHeader (
     UINT32                  Length)
 {
 
-    ACPI_MOVE_NAME (Header->Signature, Signature);
+    ACPI_COPY_NAMESEG (Header->Signature, Signature);
     Header->Length = Length;
 
     Header->OemRevision = 0x1001;
     memcpy (Header->OemId, "Intel ", ACPI_OEM_ID_SIZE);
     memcpy (Header->OemTableId, "AcpiExec", ACPI_OEM_TABLE_ID_SIZE);
-    ACPI_MOVE_NAME (Header->AslCompilerId, "INTL");
+    ACPI_COPY_NAMESEG (Header->AslCompilerId, "INTL");
     Header->AslCompilerRevision = ACPI_CA_VERSION;
 
     /* Set the checksum, must set to zero first */
@@ -306,8 +306,8 @@ AeBuildLocalTables (
     NextTable = ListHead;
     while (NextTable)
     {
-        if (!ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_DSDT) &&
-            !ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_FADT))
+        if (!ACPI_COMPARE_NAMESEG (NextTable->Table->Signature, ACPI_SIG_DSDT) &&
+            !ACPI_COMPARE_NAMESEG (NextTable->Table->Signature, ACPI_SIG_FADT))
         {
             TableCount++;
         }
@@ -345,7 +345,7 @@ AeBuildLocalTables (
          * Incoming DSDT or FADT are special cases. All other tables are
          * just immediately installed into the XSDT.
          */
-        if (ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_DSDT))
+        if (ACPI_COMPARE_NAMESEG (NextTable->Table->Signature, ACPI_SIG_DSDT))
         {
             if (DsdtAddress)
             {
@@ -358,7 +358,7 @@ AeBuildLocalTables (
             DsdtAddress = ACPI_PTR_TO_PHYSADDR (NextTable->Table);
             DsdtToInstallOverride = NextTable->Table;
         }
-        else if (ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_FADT))
+        else if (ACPI_COMPARE_NAMESEG (NextTable->Table->Signature, ACPI_SIG_FADT))
         {
             ExternalFadt = ACPI_CAST_PTR (ACPI_TABLE_FADT, NextTable->Table);
             LocalXSDT->TableOffsetEntry[0] = ACPI_PTR_TO_PHYSADDR (NextTable->Table);
@@ -531,7 +531,7 @@ AeBuildLocalTables (
     /* Build a FACS */
 
     memset (&LocalFACS, 0, sizeof (ACPI_TABLE_FACS));
-    ACPI_MOVE_NAME (LocalFACS.Signature, ACPI_SIG_FACS);
+    ACPI_COPY_NAMESEG (LocalFACS.Signature, ACPI_SIG_FACS);
 
     LocalFACS.Length = sizeof (ACPI_TABLE_FACS);
     LocalFACS.GlobalLock = 0x11AA0011;
@@ -545,7 +545,7 @@ AeBuildLocalTables (
          * ACPICA core ignores it
          */
         memset (&LocalTEST, 0, sizeof (ACPI_TABLE_HEADER));
-        ACPI_MOVE_NAME (LocalTEST.Signature, "TEST");
+        ACPI_COPY_NAMESEG (LocalTEST.Signature, "TEST");
 
         LocalTEST.Revision = 1;
         LocalTEST.Length = sizeof (ACPI_TABLE_HEADER);
@@ -559,7 +559,7 @@ AeBuildLocalTables (
          * sure that the ACPICA core ignores it
          */
         memset (&LocalBADTABLE, 0, sizeof (ACPI_TABLE_HEADER));
-        ACPI_MOVE_NAME (LocalBADTABLE.Signature, "BAD!");
+        ACPI_COPY_NAMESEG (LocalBADTABLE.Signature, "BAD!");
 
         LocalBADTABLE.Revision = 1;
         LocalBADTABLE.Length = sizeof (ACPI_TABLE_HEADER);
