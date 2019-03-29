@@ -1021,6 +1021,17 @@ struct pfr_tstats {
 	int		 pfrts_cnt;
 	int		 pfrts_refcnt[PFR_REFCNT_MAX];
 };
+
+struct pfr_ktstats {
+	struct pfr_table pfrts_t;
+	counter_u64_t	 pfrkts_packets[PFR_DIR_MAX][PFR_OP_TABLE_MAX];
+	counter_u64_t	 pfrkts_bytes[PFR_DIR_MAX][PFR_OP_TABLE_MAX];
+	counter_u64_t	 pfrkts_match;
+	counter_u64_t	 pfrkts_nomatch;
+	long		 pfrkts_tzero;
+	int		 pfrkts_cnt;
+	int		 pfrkts_refcnt[PFR_REFCNT_MAX];
+};
 #define	pfrts_name	pfrts_t.pfrt_name
 #define pfrts_flags	pfrts_t.pfrt_flags
 
@@ -1034,8 +1045,9 @@ union sockaddr_union {
 #endif /* _SOCKADDR_UNION_DEFINED */
 
 struct pfr_kcounters {
-	u_int64_t		 pfrkc_packets[PFR_DIR_MAX][PFR_OP_ADDR_MAX];
-	u_int64_t		 pfrkc_bytes[PFR_DIR_MAX][PFR_OP_ADDR_MAX];
+	counter_u64_t		 pfrkc_packets[PFR_DIR_MAX][PFR_OP_ADDR_MAX];
+	counter_u64_t		 pfrkc_bytes[PFR_DIR_MAX][PFR_OP_ADDR_MAX];
+	long			 pfrkc_tzero;
 };
 
 SLIST_HEAD(pfr_kentryworkq, pfr_kentry);
@@ -1043,8 +1055,7 @@ struct pfr_kentry {
 	struct radix_node	 pfrke_node[2];
 	union sockaddr_union	 pfrke_sa;
 	SLIST_ENTRY(pfr_kentry)	 pfrke_workq;
-	struct pfr_kcounters	*pfrke_counters;
-	long			 pfrke_tzero;
+	struct pfr_kcounters	 pfrke_counters;
 	u_int8_t		 pfrke_af;
 	u_int8_t		 pfrke_net;
 	u_int8_t		 pfrke_not;
@@ -1054,7 +1065,7 @@ struct pfr_kentry {
 SLIST_HEAD(pfr_ktableworkq, pfr_ktable);
 RB_HEAD(pfr_ktablehead, pfr_ktable);
 struct pfr_ktable {
-	struct pfr_tstats	 pfrkt_ts;
+	struct pfr_ktstats	 pfrkt_kts;
 	RB_ENTRY(pfr_ktable)	 pfrkt_tree;
 	SLIST_ENTRY(pfr_ktable)	 pfrkt_workq;
 	struct radix_node_head	*pfrkt_ip4;
@@ -1065,18 +1076,18 @@ struct pfr_ktable {
 	long			 pfrkt_larg;
 	int			 pfrkt_nflags;
 };
-#define pfrkt_t		pfrkt_ts.pfrts_t
+#define pfrkt_t		pfrkt_kts.pfrts_t
 #define pfrkt_name	pfrkt_t.pfrt_name
 #define pfrkt_anchor	pfrkt_t.pfrt_anchor
 #define pfrkt_ruleset	pfrkt_t.pfrt_ruleset
 #define pfrkt_flags	pfrkt_t.pfrt_flags
-#define pfrkt_cnt	pfrkt_ts.pfrts_cnt
-#define pfrkt_refcnt	pfrkt_ts.pfrts_refcnt
-#define pfrkt_packets	pfrkt_ts.pfrts_packets
-#define pfrkt_bytes	pfrkt_ts.pfrts_bytes
-#define pfrkt_match	pfrkt_ts.pfrts_match
-#define pfrkt_nomatch	pfrkt_ts.pfrts_nomatch
-#define pfrkt_tzero	pfrkt_ts.pfrts_tzero
+#define pfrkt_cnt	pfrkt_kts.pfrkts_cnt
+#define pfrkt_refcnt	pfrkt_kts.pfrkts_refcnt
+#define pfrkt_packets	pfrkt_kts.pfrkts_packets
+#define pfrkt_bytes	pfrkt_kts.pfrkts_bytes
+#define pfrkt_match	pfrkt_kts.pfrkts_match
+#define pfrkt_nomatch	pfrkt_kts.pfrkts_nomatch
+#define pfrkt_tzero	pfrkt_kts.pfrkts_tzero
 
 /* keep synced with pfi_kif, used in RB_FIND */
 struct pfi_kif_cmp {
