@@ -61,12 +61,14 @@ static int VGLAbortPending;
 static int VGLOnDisplay;
 static unsigned int VGLCurWindow;
 static int VGLInitDone = 0;
+static video_info_t VGLOldModeInfo;
 static vid_info_t VGLOldVInfo;
 
 void
 VGLEnd()
 {
 struct vt_mode smode;
+  int size[3];
 
   if (!VGLInitDone)
     return;
@@ -81,18 +83,15 @@ struct vt_mode smode;
     munmap(VGLMem, VGLAdpInfo.va_window_size);
   }
 
-  if (VGLOldMode >= M_VESA_BASE) {
-    /* ugly, but necessary */
+  if (VGLOldMode >= M_VESA_BASE)
     ioctl(0, _IO('V', VGLOldMode - M_VESA_BASE), 0);
-    if (VGLOldMode == M_VESA_800x600) {
-      int size[3];
-      size[0] = VGLOldVInfo.mv_csz;
-      size[1] = VGLOldVInfo.mv_rsz;
-      size[2] = 16;
-      ioctl(0, KDRASTER, size);
-    }
-  } else {
+  else
     ioctl(0, _IO('S', VGLOldMode), 0);
+  if (VGLOldModeInfo.vi_flags & V_INFO_GRAPHICS) {
+    size[0] = VGLOldVInfo.mv_csz;
+    size[1] = VGLOldVInfo.mv_rsz;
+    size[2] = VGLOldVInfo.font_size;;
+    ioctl(0, KDRASTER, size);
   }
   ioctl(0, KDDISABIO, 0);
   ioctl(0, KDSETMODE, KD_TEXT);
@@ -165,12 +164,13 @@ VGLInit(int mode)
   if (ioctl(0, CONS_MODEINFO, &VGLModeInfo))	/* FBIO_MODEINFO */
     return -1;
 
-  /* If current mode is VESA_800x600 then save its geometry to restore later */
-  if ((VGLOldMode >= M_VESA_BASE) && (VGLOldMode == M_VESA_800x600)) {
-    VGLOldVInfo.size = sizeof(VGLOldVInfo);
-    if (ioctl(0, CONS_GETINFO, &VGLOldVInfo))
-      return -1;
-  }
+  /* Save info for old mode to restore font size if old mode is graphics. */
+  VGLOldModeInfo.vi_mode = VGLOldMode;
+  if (ioctl(0, CONS_MODEINFO, &VGLOldModeInfo))
+    return -1;
+  VGLOldVInfo.size = sizeof(VGLOldVInfo);
+  if (ioctl(0, CONS_GETINFO, &VGLOldVInfo))
+    return -1;
 
   VGLDisplay = (VGLBitmap *)malloc(sizeof(VGLBitmap));
   if (VGLDisplay == NULL)
