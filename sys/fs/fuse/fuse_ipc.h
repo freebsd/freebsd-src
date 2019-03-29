@@ -136,7 +136,6 @@ fticket_resp(struct fuse_ticket *ftick)
 static inline bool
 fticket_answered(struct fuse_ticket *ftick)
 {
-	DEBUGX(FUSE_DEBUG_IPC, "-> ftick=%p\n", ftick);
 	mtx_assert(&ftick->tk_aw_mtx, MA_OWNED);
 	return (ftick->tk_flag & FT_ANSW);
 }
@@ -144,7 +143,6 @@ fticket_answered(struct fuse_ticket *ftick)
 static inline void
 fticket_set_answered(struct fuse_ticket *ftick)
 {
-	DEBUGX(FUSE_DEBUG_IPC, "-> ftick=%p\n", ftick);
 	mtx_assert(&ftick->tk_aw_mtx, MA_OWNED);
 	ftick->tk_flag |= FT_ANSW;
 }
@@ -152,7 +150,6 @@ fticket_set_answered(struct fuse_ticket *ftick)
 static inline enum fuse_opcode
 fticket_opcode(struct fuse_ticket *ftick)
 {
-	DEBUGX(FUSE_DEBUG_IPC, "-> ftick=%p\n", ftick);
 	return (((struct fuse_in_header *)(ftick->tk_ms_fiov.base))->opcode);
 }
 
@@ -273,8 +270,6 @@ fsess_opt_brokenio(struct mount *mp)
 static inline void
 fuse_ms_push(struct fuse_ticket *ftick)
 {
-	DEBUGX(FUSE_DEBUG_IPC, "ftick=%p refcount=%d\n", ftick,
-	    ftick->tk_refcount + 1);
 	mtx_assert(&ftick->tk_data->ms_mtx, MA_OWNED);
 	refcount_acquire(&ftick->tk_refcount);
 	STAILQ_INSERT_TAIL(&ftick->tk_data->ms_head, ftick, tk_ms_link);
@@ -293,8 +288,6 @@ fuse_ms_pop(struct fuse_data *data)
 		ftick->tk_ms_link.stqe_next = NULL;
 #endif
 	}
-	DEBUGX(FUSE_DEBUG_IPC, "ftick=%p refcount=%d\n", ftick,
-	    ftick ? ftick->tk_refcount : -1);
 
 	return (ftick);
 }
@@ -302,8 +295,6 @@ fuse_ms_pop(struct fuse_data *data)
 static inline void
 fuse_aw_push(struct fuse_ticket *ftick)
 {
-	DEBUGX(FUSE_DEBUG_IPC, "ftick=%p refcount=%d\n", ftick,
-	    ftick->tk_refcount + 1);
 	mtx_assert(&ftick->tk_data->aw_mtx, MA_OWNED);
 	refcount_acquire(&ftick->tk_refcount);
 	TAILQ_INSERT_TAIL(&ftick->tk_data->aw_head, ftick, tk_aw_link);
@@ -312,8 +303,6 @@ fuse_aw_push(struct fuse_ticket *ftick)
 static inline void
 fuse_aw_remove(struct fuse_ticket *ftick)
 {
-	DEBUGX(FUSE_DEBUG_IPC, "ftick=%p refcount=%d\n",
-	    ftick, ftick->tk_refcount);
 	mtx_assert(&ftick->tk_data->aw_mtx, MA_OWNED);
 	TAILQ_REMOVE(&ftick->tk_data->aw_head, ftick, tk_aw_link);
 #ifdef INVARIANTS
@@ -331,8 +320,6 @@ fuse_aw_pop(struct fuse_data *data)
 
 	if ((ftick = TAILQ_FIRST(&data->aw_head)) != NULL)
 		fuse_aw_remove(ftick);
-	DEBUGX(FUSE_DEBUG_IPC, "ftick=%p refcount=%d\n", ftick,
-	    ftick ? ftick->tk_refcount : -1);
 
 	return (ftick);
 }
@@ -374,7 +361,6 @@ struct fuse_dispatcher {
 static inline void
 fdisp_init(struct fuse_dispatcher *fdisp, size_t iosize)
 {
-	DEBUGX(FUSE_DEBUG_IPC, "-> fdisp=%p, iosize=%zx\n", fdisp, iosize);
 	fdisp->iosize = iosize;
 	fdisp->tick = NULL;
 }
@@ -382,7 +368,6 @@ fdisp_init(struct fuse_dispatcher *fdisp, size_t iosize)
 static inline void
 fdisp_destroy(struct fuse_dispatcher *fdisp)
 {
-	DEBUGX(FUSE_DEBUG_IPC, "-> fdisp=%p, ftick=%p\n", fdisp, fdisp->tick);
 	fuse_ticket_drop(fdisp->tick);
 #ifdef INVARIANTS
 	fdisp->tick = NULL;
@@ -404,7 +389,6 @@ static inline int
 fdisp_simple_putget_vp(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct vnode *vp, struct thread *td, struct ucred *cred)
 {
-	DEBUGX(FUSE_DEBUG_IPC, "-> fdip=%p, opcode=%d, vp=%p\n", fdip, op, vp);
 	fdisp_make_vp(fdip, op, vp, td, cred);
 	return (fdisp_wait_answ(fdip));
 }
