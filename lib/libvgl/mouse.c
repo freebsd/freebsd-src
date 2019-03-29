@@ -86,11 +86,18 @@ static byte map[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE*4];
 static VGLBitmap VGLMouseSave = 
     VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, map);
 static int VGLMouseVisible = 0;
-static int VGLMouseFrozen = 0;
 static int VGLMouseShown = 0;
 static int VGLMouseXpos = 0;
 static int VGLMouseYpos = 0;
 static int VGLMouseButtons = 0;
+static volatile sig_atomic_t VGLMintpending;
+static volatile sig_atomic_t VGLMsuppressint;
+
+#define	INTOFF()	(VGLMsuppressint++)
+#define	INTON()		do { 						\
+				if (--VGLMsuppressint == 0 && VGLMintpending) \
+					VGLMouseAction(0);		\
+			} while (0)
 
 void
 VGLMousePointerShow()
@@ -102,7 +109,7 @@ VGLMousePointerShow()
   int i, pos, pos1;
 
   if (!VGLMouseVisible) {
-    VGLMouseFrozen++;
+    INTOFF();
     VGLMouseVisible = 1;
     crtcidx = inb(0x3c4);
     crtcval = inb(0x3c5);
@@ -125,7 +132,7 @@ VGLMousePointerShow()
     outb(0x3c5, crtcval);
     outb(0x3ce, gdcidx);
     outb(0x3cf, gdcval);
-    VGLMouseFrozen--;
+    INTON();
   }
 }
 
@@ -135,7 +142,7 @@ VGLMousePointerHide()
   byte crtcidx, crtcval, gdcidx, gdcval;
 
   if (VGLMouseVisible) {
-    VGLMouseFrozen++;
+    INTOFF();
     VGLMouseVisible = 0;
     crtcidx = inb(0x3c4);
     crtcval = inb(0x3c5);
@@ -147,7 +154,7 @@ VGLMousePointerHide()
     outb(0x3c5, crtcval);
     outb(0x3ce, gdcidx);
     outb(0x3cf, gdcval);
-    VGLMouseFrozen--;
+    INTON();
   }
 }
 
@@ -173,10 +180,13 @@ VGLMouseAction(int dummy)
 {
   struct mouse_info mouseinfo;
 
-  if (VGLMouseFrozen) {
-    VGLMouseFrozen += 8;
+  if (VGLMsuppressint) {
+    VGLMintpending = 1;
     return;
   }
+again:
+  INTOFF();
+  VGLMintpending = 0;
   mouseinfo.operation = MOUSE_GETINFO;
   ioctl(0, CONS_MOUSECTL, &mouseinfo);
   if (VGLMouseShown == VGL_MOUSESHOW)
@@ -186,6 +196,15 @@ VGLMouseAction(int dummy)
   VGLMouseButtons = mouseinfo.u.data.buttons;
   if (VGLMouseShown == VGL_MOUSESHOW)
     VGLMousePointerShow();
+
+  /* 
+   * Loop to handle any new (suppressed) signals.  This is INTON() without
+   * recursion.  !SA_RESTART prevents recursion in signal handling.  So the
+   * maximum recursion is 2 levels.
+   */
+  VGLMsuppressint = 0;
+  if (VGLMintpending)
+    goto again;
 }
 
 void
@@ -248,11 +267,11 @@ VGLMouseInit(int mode)
 int
 VGLMouseStatus(int *x, int *y, char *buttons)
 {
-  signal(SIGUSR2, SIG_IGN);
+  INTOFF();
   *x =  VGLMouseXpos;
   *y =  VGLMouseYpos;
   *buttons =  VGLMouseButtons;
-  signal(SIGUSR2, VGLMouseAction);
+  INTON();
   return VGLMouseShown;
 }
 
@@ -261,7 +280,7 @@ VGLMouseFreeze(int x, int y, int width, int hight, u_long color)
 {
   int i, xstride, ystride;
 
-    VGLMouseFrozen++;
+    INTOFF();
     if (width > 1 || hight > 1 || (color & 0xc0000000) == 0) { /* bitmap */
       if (VGLMouseShown == 1) {
         int overlap;
@@ -311,13 +330,8 @@ VGLMouseFreeze(int x, int y, int width, int hight, u_long color)
 void
 VGLMouseUnFreeze()
 {
-  if (VGLMouseFrozen > 8) {
-    VGLMouseFrozen = 0;
-    VGLMouseAction(0);
-  }
-  else {
-    if (VGLMouseShown == VGL_MOUSESHOW && !VGLMouseVisible)
-      VGLMousePointerShow();
-    VGLMouseFrozen = 0;
-  }
+  if (VGLMouseShown == VGL_MOUSESHOW && !VGLMouseVisible && !VGLMintpending)
+    VGLMousePointerShow();
+  while (VGLMsuppressint)
+    INTON();
 }
