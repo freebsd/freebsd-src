@@ -58,11 +58,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
-#include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
@@ -73,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
+#include <sys/sdt.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
@@ -84,8 +84,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse_ipc.h"
 #include "fuse_internal.h"
 
-#define FUSE_DEBUG_MODULE IPC
-#include "fuse_debug.h"
+SDT_PROVIDER_DECLARE(fuse);
+/* 
+ * Fuse trace probe:
+ * arg0: verbosity.  Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(fuse, , ipc, trace, "int", "char*");
 
 static struct fuse_ticket *fticket_alloc(struct fuse_data *data);
 static void fticket_refresh(struct fuse_ticket *ftick);
@@ -146,8 +151,6 @@ fiov_init(struct fuse_iov *fiov, size_t size)
 {
 	uint32_t msize = FU_AT_LEAST(size);
 
-	debug_printf("fiov=%p, size=%zd\n", fiov, size);
-
 	fiov->len = 0;
 
 	fiov->base = malloc(msize, M_FUSEMSG, M_WAITOK | M_ZERO);
@@ -159,8 +162,6 @@ fiov_init(struct fuse_iov *fiov, size_t size)
 void
 fiov_teardown(struct fuse_iov *fiov)
 {
-	debug_printf("fiov=%p\n", fiov);
-
 	MPASS(fiov->base != NULL);
 	free(fiov->base, M_FUSEMSG);
 }
@@ -168,8 +169,6 @@ fiov_teardown(struct fuse_iov *fiov)
 void
 fiov_adjust(struct fuse_iov *fiov, size_t size)
 {
-	debug_printf("fiov=%p, size=%zd\n", fiov, size);
-
 	if (fiov->allocated_size < size ||
 	    (fuse_iov_permanent_bufsize >= 0 &&
 	    fiov->allocated_size - size > fuse_iov_permanent_bufsize &&
@@ -189,8 +188,6 @@ fiov_adjust(struct fuse_iov *fiov, size_t size)
 void
 fiov_refresh(struct fuse_iov *fiov)
 {
-	debug_printf("fiov=%p\n", fiov);
-
 	bzero(fiov->base, fiov->len);
 	fiov_adjust(fiov, 0);
 }
@@ -200,8 +197,6 @@ fticket_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct fuse_ticket *ftick = mem;
 	struct fuse_data *data = arg;
-
-	debug_printf("ftick=%p data=%p\n", ftick, data);
 
 	FUSE_ASSERT_MS_DONE(ftick);
 	FUSE_ASSERT_AW_DONE(ftick);
@@ -227,8 +222,6 @@ fticket_dtor(void *mem, int size, void *arg)
 {
 	struct fuse_ticket *ftick = mem;
 
-	debug_printf("ftick=%p\n", ftick);
-
 	FUSE_ASSERT_MS_DONE(ftick);
 	FUSE_ASSERT_AW_DONE(ftick);
 
@@ -239,8 +232,6 @@ static int
 fticket_init(void *mem, int size, int flags)
 {
 	struct fuse_ticket *ftick = mem;
-
-	FS_DEBUG("ftick=%p\n", ftick);
 
 	bzero(ftick, sizeof(struct fuse_ticket));
 
@@ -258,8 +249,6 @@ static void
 fticket_fini(void *mem, int size)
 {
 	struct fuse_ticket *ftick = mem;
-
-	FS_DEBUG("ftick=%p\n", ftick);
 
 	fiov_teardown(&ftick->tk_ms_fiov);
 	fiov_teardown(&ftick->tk_aw_fiov);
@@ -282,8 +271,6 @@ static	inline
 void
 fticket_refresh(struct fuse_ticket *ftick)
 {
-	debug_printf("ftick=%p\n", ftick);
-
 	FUSE_ASSERT_MS_DONE(ftick);
 	FUSE_ASSERT_AW_DONE(ftick);
 
@@ -310,7 +297,6 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 	int err = 0;
 	struct fuse_data *data;
 
-	debug_printf("ftick=%p\n", ftick);
 	fuse_lck_mtx_lock(ftick->tk_aw_mtx);
 
 	if (fticket_answered(ftick)) {
@@ -338,7 +324,8 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 	}
 out:
 	if (!(err || fticket_answered(ftick))) {
-		debug_printf("FUSE: requester was woken up but still no answer");
+		SDT_PROBE2(fuse, , ipc, trace, 1,
+			"FUSE: requester was woken up but still no answer");
 		err = ENXIO;
 	}
 	fuse_lck_mtx_unlock(ftick->tk_aw_mtx);
@@ -353,29 +340,16 @@ fticket_aw_pull_uio(struct fuse_ticket *ftick, struct uio *uio)
 	int err = 0;
 	size_t len = uio_resid(uio);
 
-	debug_printf("ftick=%p, uio=%p\n", ftick, uio);
-
 	if (len) {
 		switch (ftick->tk_aw_type) {
 		case FT_A_FIOV:
 			fiov_adjust(fticket_resp(ftick), len);
 			err = uiomove(fticket_resp(ftick)->base, len, uio);
-			if (err) {
-				debug_printf("FUSE: FT_A_FIOV: error is %d"
-					     " (%p, %zd, %p)\n",
-					     err, fticket_resp(ftick)->base, 
-					     len, uio);
-			}
 			break;
 
 		case FT_A_BUF:
 			ftick->tk_aw_bufsize = len;
 			err = uiomove(ftick->tk_aw_bufdata, len, uio);
-			if (err) {
-				debug_printf("FUSE: FT_A_BUF: error is %d"
-					     " (%p, %zd, %p)\n",
-					     err, ftick->tk_aw_bufdata, len, uio);
-			}
 			break;
 
 		default:
@@ -389,8 +363,6 @@ int
 fticket_pull(struct fuse_ticket *ftick, struct uio *uio)
 {
 	int err = 0;
-
-	debug_printf("ftick=%p, uio=%p\n", ftick, uio);
 
 	if (ftick->tk_aw_ohead.error) {
 		return 0;
@@ -406,8 +378,6 @@ struct fuse_data *
 fdata_alloc(struct cdev *fdev, struct ucred *cred)
 {
 	struct fuse_data *data;
-
-	debug_printf("fdev=%p\n", fdev);
 
 	data = malloc(sizeof(struct fuse_data), M_FUSEMSG, M_WAITOK | M_ZERO);
 
@@ -427,10 +397,6 @@ fdata_alloc(struct cdev *fdev, struct ucred *cred)
 void
 fdata_trydestroy(struct fuse_data *data)
 {
-	FS_DEBUG("data=%p data.mp=%p data.fdev=%p data.flags=%04x\n",
-	    data, data->mp, data->fdev, data->dataflags);
-
-	FS_DEBUG("destroy: data=%p\n", data);
 	data->ref--;
 	MPASS(data->ref >= 0);
 	if (data->ref != 0)
@@ -449,8 +415,6 @@ fdata_trydestroy(struct fuse_data *data)
 void
 fdata_set_dead(struct fuse_data *data)
 {
-	debug_printf("data=%p\n", data);
-
 	FUSE_LOCK();
 	if (fdata_get_dead(data)) {
 		FUSE_UNLOCK();
@@ -470,8 +434,6 @@ fuse_ticket_fetch(struct fuse_data *data)
 {
 	int err = 0;
 	struct fuse_ticket *ftick;
-
-	debug_printf("data=%p\n", data);
 
 	ftick = fticket_alloc(data);
 
@@ -495,7 +457,6 @@ fuse_ticket_drop(struct fuse_ticket *ftick)
 	int die;
 
 	die = refcount_release(&ftick->tk_refcount);
-	debug_printf("ftick=%p refcount=%d\n", ftick, ftick->tk_refcount);
 	if (die)
 		fticket_destroy(ftick);
 
@@ -505,9 +466,6 @@ fuse_ticket_drop(struct fuse_ticket *ftick)
 void
 fuse_insert_callback(struct fuse_ticket *ftick, fuse_handler_t * handler)
 {
-	debug_printf("ftick=%p, handler=%p data=%p\n", ftick, ftick->tk_data, 
-		     handler);
-
 	if (fdata_get_dead(ftick->tk_data)) {
 		return;
 	}
@@ -521,8 +479,6 @@ fuse_insert_callback(struct fuse_ticket *ftick, fuse_handler_t * handler)
 void
 fuse_insert_message(struct fuse_ticket *ftick)
 {
-	debug_printf("ftick=%p\n", ftick);
-
 	if (ftick->tk_flag & FT_DIRTY) {
 		panic("FUSE: ticket reused without being refreshed");
 	}
@@ -543,8 +499,6 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 {
 	int err = 0;
 	enum fuse_opcode opcode;
-
-	debug_printf("ftick=%p, blen = %zu\n", ftick, blen);
 
 	opcode = fticket_opcode(ftick);
 
@@ -719,9 +673,6 @@ fuse_setup_ihead(struct fuse_in_header *ihead, struct fuse_ticket *ftick,
 	ihead->nodeid = nid;
 	ihead->opcode = op;
 
-	debug_printf("ihead=%p, ftick=%p, nid=%ju, op=%d, blen=%zu\n",
-	    ihead, ftick, (uintmax_t)nid, op, blen);
-
 	ihead->pid = pid;
 	ihead->uid = cred->cr_uid;
 	ihead->gid = cred->cr_rgid;
@@ -737,8 +688,6 @@ static int
 fuse_standard_handler(struct fuse_ticket *ftick, struct uio *uio)
 {
 	int err = 0;
-
-	debug_printf("ftick=%p, uio=%p\n", ftick, uio);
 
 	err = fticket_pull(ftick, uio);
 
@@ -759,9 +708,6 @@ fdisp_make_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct mount *mp, uint64_t nid, pid_t pid, struct ucred *cred)
 {
 	struct fuse_data *data = fuse_get_mpdata(mp);
-
-	debug_printf("fdip=%p, op=%d, mp=%p, nid=%ju\n",
-	    fdip, op, mp, (uintmax_t)nid);
 
 	if (fdip->tick) {
 		fticket_refresh(fdip->tick);
@@ -788,11 +734,12 @@ void
 fdisp_make_vp(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct vnode *vp, struct thread *td, struct ucred *cred)
 {
-	debug_printf("fdip=%p, op=%d, vp=%p\n", fdip, op, vp);
 	RECTIFY_TDCR(td, cred);
 	return fdisp_make_pid(fdip, op, vnode_mount(vp), VTOI(vp),
 	    td->td_proc->p_pid, cred);
 }
+
+SDT_PROBE_DEFINE2(fuse, , ipc, fdisp_wait_answ_error, "char*", "int");
 
 int
 fdisp_wait_answ(struct fuse_dispatcher *fdip)
@@ -804,8 +751,6 @@ fdisp_wait_answ(struct fuse_dispatcher *fdip)
 	fuse_insert_message(fdip->tick);
 
 	if ((err = fticket_wait_answer(fdip->tick))) {
-		debug_printf("IPC: interrupted, err = %d\n", err);
-
 		fuse_lck_mtx_lock(fdip->tick->tk_aw_mtx);
 
 		if (fticket_answered(fdip->tick)) {
@@ -814,7 +759,8 @@ fdisp_wait_answ(struct fuse_dispatcher *fdip)
 	                 * the standard handler has completed his job.
 	                 * So we drop the ticket and exit as usual.
 	                 */
-			debug_printf("IPC: already answered\n");
+			SDT_PROBE2(fuse, , ipc, fdisp_wait_answ_error,
+				"IPC: interrupted, already answered", err);
 			fuse_lck_mtx_unlock(fdip->tick->tk_aw_mtx);
 			goto out;
 		} else {
@@ -823,23 +769,23 @@ fdisp_wait_answ(struct fuse_dispatcher *fdip)
 	                 * Then by setting the answered flag we get *him*
 	                 * to drop the ticket.
 	                 */
-			debug_printf("IPC: setting to answered\n");
+			SDT_PROBE2(fuse, , ipc, fdisp_wait_answ_error,
+				"IPC: interrupted, setting to answered", err);
 			fticket_set_answered(fdip->tick);
 			fuse_lck_mtx_unlock(fdip->tick->tk_aw_mtx);
 			return err;
 		}
 	}
-	debug_printf("IPC: not interrupted, err = %d\n", err);
 
 	if (fdip->tick->tk_aw_errno) {
-		debug_printf("IPC: explicit EIO-ing, tk_aw_errno = %d\n",
-		    fdip->tick->tk_aw_errno);
+		SDT_PROBE2(fuse, , ipc, fdisp_wait_answ_error,
+			"IPC: explicit EIO-ing", fdip->tick->tk_aw_errno);
 		err = EIO;
 		goto out;
 	}
 	if ((err = fdip->tick->tk_aw_ohead.error)) {
-		debug_printf("IPC: setting status to %d\n",
-		    fdip->tick->tk_aw_ohead.error);
+		SDT_PROBE2(fuse, , ipc, fdisp_wait_answ_error,
+			"IPC: setting status", fdip->tick->tk_aw_ohead.error);
 		/*
 	         * This means a "proper" fuse syscall error.
 	         * We record this value so the caller will
@@ -855,13 +801,9 @@ fdisp_wait_answ(struct fuse_dispatcher *fdip)
 	fdip->answ = fticket_resp(fdip->tick)->base;
 	fdip->iosize = fticket_resp(fdip->tick)->len;
 
-	debug_printf("IPC: all is well\n");
-
 	return 0;
 
 out:
-	debug_printf("IPC: dropping ticket, err = %d\n", err);
-
 	return err;
 }
 
