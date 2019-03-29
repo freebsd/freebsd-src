@@ -70,7 +70,7 @@ map_table(vm_paddr_t pa, int offset, const char *sig)
 	void *table;
 
 	header = pmap_mapbios(pa, sizeof(ACPI_TABLE_HEADER));
-	if (strncmp(header->Signature, sig, ACPI_NAME_SIZE) != 0) {
+	if (strncmp(header->Signature, sig, ACPI_NAMESEG_SIZE) != 0) {
 		pmap_unmapbios((vm_offset_t)header, sizeof(ACPI_TABLE_HEADER));
 		return (NULL);
 	}
@@ -109,7 +109,7 @@ probe_table(vm_paddr_t address, const char *sig)
 		printf("Table '%.4s' at 0x%jx\n", table->Signature,
 		    (uintmax_t)address);
 
-	if (strncmp(table->Signature, sig, ACPI_NAME_SIZE) != 0) {
+	if (strncmp(table->Signature, sig, ACPI_NAMESEG_SIZE) != 0) {
 		pmap_unmapbios((vm_offset_t)table, sizeof(ACPI_TABLE_HEADER));
 		return (0);
 	}
