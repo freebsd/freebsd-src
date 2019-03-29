@@ -53,7 +53,7 @@ inline ssize_t flistxattr_(int fd, char *list, size_t size) {
 inline ssize_t fgetxattr_(int fd, const char *name, void *value, size_t size) {
   return extattr_get_fd(fd, EXTATTR_NAMESPACE_USER, name, value, size);
 }
-inline int fsetxattr_(int fd, const char *name, const void *value, size_t size, int flags) {
+inline int fsetxattr_(int fd, const char *name, const void *value, size_t size, int) {
   return extattr_set_fd(fd, EXTATTR_NAMESPACE_USER, name, value, size);
 }
 inline int fremovexattr_(int fd, const char *name) {

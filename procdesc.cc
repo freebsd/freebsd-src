@@ -223,7 +223,7 @@ TEST(Pdfork, NonProcessDescriptor) {
   close(fd);
 }
 
-static void *SubThreadMain(void *data) {
+static void *SubThreadMain(void *) {
   while (true) {
     if (verbose) fprintf(stderr, "      subthread: \"I aten't dead\"\n");
     usleep(100000);
@@ -231,7 +231,7 @@ static void *SubThreadMain(void *data) {
   return NULL;
 }
 
-static void *ThreadMain(void *data) {
+static void *ThreadMain(void *) {
   int pd;
   pid_t child = pdfork(&pd, 0);
   if (child == 0) {
