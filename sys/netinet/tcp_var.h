@@ -754,7 +754,6 @@ extern	int tcp_log_in_vain;
 VNET_DECLARE(int, drop_synfin);
 VNET_DECLARE(int, path_mtu_discovery);
 VNET_DECLARE(int, tcp_abc_l_var);
-VNET_DECLARE(int, tcp_autorcvbuf_inc);
 VNET_DECLARE(int, tcp_autorcvbuf_max);
 VNET_DECLARE(int, tcp_autosndbuf_inc);
 VNET_DECLARE(int, tcp_autosndbuf_max);
@@ -789,7 +788,6 @@ VNET_DECLARE(struct inpcbinfo, tcbinfo);
 #define	V_tcb				VNET(tcb)
 #define	V_tcbinfo			VNET(tcbinfo)
 #define	V_tcp_abc_l_var			VNET(tcp_abc_l_var)
-#define	V_tcp_autorcvbuf_inc		VNET(tcp_autorcvbuf_inc)
 #define	V_tcp_autorcvbuf_max		VNET(tcp_autorcvbuf_max)
 #define	V_tcp_autosndbuf_inc		VNET(tcp_autosndbuf_inc)
 #define	V_tcp_autosndbuf_max		VNET(tcp_autosndbuf_max)
