@@ -57,7 +57,7 @@ growfs_start ()
 		;;
 	zfs)
 		pool=${FSDEV%%/*}
-		rootdev=$(zpool list -v $pool | tail -n 1 | awk '{ print $1 }')
+		rootdev=$(zpool list -v $pool | awk 'END { print $1 }')
 		;;
 	*)
 		echo "Don't know how to grow root filesystem type: $FSTYPE"
