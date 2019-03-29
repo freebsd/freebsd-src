@@ -6266,6 +6266,11 @@ t4_sysctls(struct adapter *sc)
 		    &sc->tt.cop_managed_offloading, 0,
 		    "COP (Connection Offload Policy) controls all TOE offload");
 
+		sc->tt.autorcvbuf_inc = 16 * 1024;
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "autorcvbuf_inc",
+		    CTLFLAG_RW, &sc->tt.autorcvbuf_inc, 0,
+		    "autorcvbuf increment");
+
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timer_tick",
 		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0, sysctl_tp_tick, "A",
 		    "TP timer tick (us)");
