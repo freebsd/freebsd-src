@@ -1,4 +1,4 @@
-/*	$Id: mansearch.h,v 1.28 2017/04/17 20:05:08 schwarze Exp $ */
+/*	$Id: mansearch.h,v 1.29 2018/11/22 12:01:46 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -93,7 +93,6 @@ struct	manpage {
 	char		*names; /* a list of names with sections */
 	char		*output; /* user-defined additional output */
 	size_t		 ipath; /* number of the manpath */
-	uint64_t	 bits; /* name type mask */
 	int		 sec; /* section number, 10 means invalid */
 	enum form	 form;
 };

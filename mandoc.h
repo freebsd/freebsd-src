@@ -1,7 +1,7 @@
-/*	$Id: mandoc.h,v 1.248 2018/07/28 18:34:15 schwarze Exp $ */
+/*	$Id: mandoc.h,v 1.262 2018/12/16 00:17:02 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2018 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2012-2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Error handling, escape sequence, and character utilities.
  */
 
 #define ASCII_NBRSP	 31  /* non-breaking space */
@@ -158,6 +160,7 @@ enum	mandocerr {
 	MANDOCERR_LB_BAD, /* unknown library name: Lb ... */
 	MANDOCERR_RS_BAD, /* invalid content in Rs block: macro */
 	MANDOCERR_SM_BAD, /* invalid Boolean argument: macro arg */
+	MANDOCERR_CHAR_FONT, /* argument contains two font escapes */
 	MANDOCERR_FT_BAD, /* unknown font, skipping request: ft font */
 	MANDOCERR_TR_ODD, /* odd number of characters in request: tr char */
 
@@ -166,6 +169,7 @@ enum	mandocerr {
 	MANDOCERR_FI_TAB, /* tab in filled text */
 	MANDOCERR_EOS, /* new sentence, new line */
 	MANDOCERR_ESC_BAD, /* invalid escape sequence: esc */
+	MANDOCERR_ESC_UNDEF, /* undefined escape, printing literally: char */
 	MANDOCERR_STR_UNDEF, /* undefined string, using "": name */
 
 	/* related to tables */
@@ -195,6 +199,7 @@ enum	mandocerr {
 	MANDOCERR_ROFFLOOP, /* input stack limit exceeded, infinite loop? */
 	MANDOCERR_CHAR_BAD, /* skipping bad character: number */
 	MANDOCERR_MACRO, /* skipping unknown macro: macro */
+	MANDOCERR_REQ_NOMAC, /* skipping request outside macro: ... */
 	MANDOCERR_REQ_INSEC, /* skipping insecure request: request */
 	MANDOCERR_IT_STRAY, /* skipping item outside list: It ... */
 	MANDOCERR_TA_STRAY, /* skipping column outside column list: Ta */
@@ -205,14 +210,18 @@ enum	mandocerr {
 
 	/* related to request and macro arguments */
 	MANDOCERR_NAMESC, /* escaped character not allowed in a name: name */
+	MANDOCERR_ARG_UNDEF, /* using macro argument outside macro */
+	MANDOCERR_ARG_NONUM, /* argument number is not numeric */
 	MANDOCERR_BD_FILE, /* NOT IMPLEMENTED: Bd -file */
 	MANDOCERR_BD_NOARG, /* skipping display without arguments: Bd */
 	MANDOCERR_BL_NOTYPE, /* missing list type, using -item: Bl */
 	MANDOCERR_CE_NONUM, /* argument is not numeric, using 1: ce ... */
+	MANDOCERR_CHAR_ARG, /* argument is not a character: char ... */
 	MANDOCERR_NM_NONAME, /* missing manual name, using "": Nm */
 	MANDOCERR_OS_UNAME, /* uname(3) system call failed, using UNKNOWN */
 	MANDOCERR_ST_BAD, /* unknown standard specifier: St standard */
 	MANDOCERR_IT_NONUM, /* skipping request without numeric argument */
+	MANDOCERR_SHIFT, /* excessive shift: ..., but max is ... */
 	MANDOCERR_SO_PATH, /* NOT IMPLEMENTED: .so with absolute path or ".." */
 	MANDOCERR_SO_FAIL, /* .so request failed */
 	MANDOCERR_ARG_SKIP, /* skipping all arguments: macro args */
@@ -223,7 +232,12 @@ enum	mandocerr {
 
 	MANDOCERR_TOOLARGE, /* input too large */
 	MANDOCERR_CHAR_UNSUPP, /* unsupported control character: number */
+	MANDOCERR_ESC_UNSUPP, /* unsupported escape sequence: escape */
 	MANDOCERR_REQ_UNSUPP, /* unsupported roff request: request */
+	MANDOCERR_WHILE_NEST, /* nested .while loops */
+	MANDOCERR_WHILE_OUTOF, /* end of scope with open .while loop */
+	MANDOCERR_WHILE_INTO, /* end of .while loop in inner scope */
+	MANDOCERR_WHILE_FAIL, /* cannot continue this .while loop */
 	MANDOCERR_TBLOPT_EQN, /* eqn delim option in tbl: arg */
 	MANDOCERR_TBLLAYOUT_MOD, /* unsupported tbl layout modifier: m */
 	MANDOCERR_TBLMACRO, /* ignoring macro in table: macro */
@@ -231,206 +245,22 @@ enum	mandocerr {
 	MANDOCERR_MAX
 };
 
-struct	tbl_opts {
-	char		  tab; /* cell-separator */
-	char		  decimal; /* decimal point */
-	int		  opts;
-#define	TBL_OPT_CENTRE	 (1 << 0)
-#define	TBL_OPT_EXPAND	 (1 << 1)
-#define	TBL_OPT_BOX	 (1 << 2)
-#define	TBL_OPT_DBOX	 (1 << 3)
-#define	TBL_OPT_ALLBOX	 (1 << 4)
-#define	TBL_OPT_NOKEEP	 (1 << 5)
-#define	TBL_OPT_NOSPACE	 (1 << 6)
-#define	TBL_OPT_NOWARN	 (1 << 7)
-	int		  cols; /* number of columns */
-	int		  lvert; /* width of left vertical line */
-	int		  rvert; /* width of right vertical line */
-};
-
-enum	tbl_cellt {
-	TBL_CELL_CENTRE, /* c, C */
-	TBL_CELL_RIGHT, /* r, R */
-	TBL_CELL_LEFT, /* l, L */
-	TBL_CELL_NUMBER, /* n, N */
-	TBL_CELL_SPAN, /* s, S */
-	TBL_CELL_LONG, /* a, A */
-	TBL_CELL_DOWN, /* ^ */
-	TBL_CELL_HORIZ, /* _, - */
-	TBL_CELL_DHORIZ, /* = */
-	TBL_CELL_MAX
-};
-
-/*
- * A cell in a layout row.
- */
-struct	tbl_cell {
-	struct tbl_cell	 *next;
-	char		 *wstr; /* min width represented as a string */
-	size_t		  width; /* minimum column width */
-	size_t		  spacing; /* to the right of the column */
-	int		  vert; /* width of subsequent vertical line */
-	int		  col; /* column number, starting from 0 */
-	int		  flags;
-#define	TBL_CELL_TALIGN	 (1 << 0) /* t, T */
-#define	TBL_CELL_BALIGN	 (1 << 1) /* d, D */
-#define	TBL_CELL_BOLD	 (1 << 2) /* fB, B, b */
-#define	TBL_CELL_ITALIC	 (1 << 3) /* fI, I, i */
-#define	TBL_CELL_EQUAL	 (1 << 4) /* e, E */
-#define	TBL_CELL_UP	 (1 << 5) /* u, U */
-#define	TBL_CELL_WIGN	 (1 << 6) /* z, Z */
-#define	TBL_CELL_WMAX	 (1 << 7) /* x, X */
-	enum tbl_cellt	  pos;
-};
-
-/*
- * A layout row.
- */
-struct	tbl_row {
-	struct tbl_row	 *next;
-	struct tbl_cell	 *first;
-	struct tbl_cell	 *last;
-	int		  vert; /* width of left vertical line */
-};
-
-enum	tbl_datt {
-	TBL_DATA_NONE, /* has no data */
-	TBL_DATA_DATA, /* consists of data/string */
-	TBL_DATA_HORIZ, /* horizontal line */
-	TBL_DATA_DHORIZ, /* double-horizontal line */
-	TBL_DATA_NHORIZ, /* squeezed horizontal line */
-	TBL_DATA_NDHORIZ /* squeezed double-horizontal line */
-};
-
-/*
- * A cell within a row of data.  The "string" field contains the actual
- * string value that's in the cell.  The rest is layout.
- */
-struct	tbl_dat {
-	struct tbl_cell	 *layout; /* layout cell */
-	struct tbl_dat	 *next;
-	char		 *string; /* data (NULL if not TBL_DATA_DATA) */
-	int		  spans; /* how many spans follow */
-	int		  block; /* T{ text block T} */
-	enum tbl_datt	  pos;
-};
-
-enum	tbl_spant {
-	TBL_SPAN_DATA, /* span consists of data */
-	TBL_SPAN_HORIZ, /* span is horizontal line */
-	TBL_SPAN_DHORIZ /* span is double horizontal line */
-};
-
-/*
- * A row of data in a table.
- */
-struct	tbl_span {
-	struct tbl_opts	 *opts;
-	struct tbl_row	 *layout; /* layout row */
-	struct tbl_dat	 *first;
-	struct tbl_dat	 *last;
-	struct tbl_span	 *prev;
-	struct tbl_span	 *next;
-	int		  line; /* parse line */
-	enum tbl_spant	  pos;
-};
-
-enum	eqn_boxt {
-	EQN_TEXT, /* text (number, variable, whatever) */
-	EQN_SUBEXPR, /* nested `eqn' subexpression */
-	EQN_LIST, /* list (braces, etc.) */
-	EQN_PILE, /* vertical pile */
-	EQN_MATRIX /* pile of piles */
-};
-
-enum	eqn_fontt {
-	EQNFONT_NONE = 0,
-	EQNFONT_ROMAN,
-	EQNFONT_BOLD,
-	EQNFONT_FAT,
-	EQNFONT_ITALIC,
-	EQNFONT__MAX
-};
-
-enum	eqn_post {
-	EQNPOS_NONE = 0,
-	EQNPOS_SUP,
-	EQNPOS_SUBSUP,
-	EQNPOS_SUB,
-	EQNPOS_TO,
-	EQNPOS_FROM,
-	EQNPOS_FROMTO,
-	EQNPOS_OVER,
-	EQNPOS_SQRT,
-	EQNPOS__MAX
-};
-
-enum	eqn_pilet {
-	EQNPILE_NONE = 0,
-	EQNPILE_PILE,
-	EQNPILE_CPILE,
-	EQNPILE_RPILE,
-	EQNPILE_LPILE,
-	EQNPILE_COL,
-	EQNPILE_CCOL,
-	EQNPILE_RCOL,
-	EQNPILE_LCOL,
-	EQNPILE__MAX
-};
-
- /*
- * A "box" is a parsed mathematical expression as defined by the eqn.7
- * grammar.
- */
-struct	eqn_box {
-	int		  size; /* font size of expression */
-#define	EQN_DEFSIZE	  INT_MIN
-	enum eqn_boxt	  type; /* type of node */
-	struct eqn_box	 *first; /* first child node */
-	struct eqn_box	 *last; /* last child node */
-	struct eqn_box	 *next; /* node sibling */
-	struct eqn_box	 *prev; /* node sibling */
-	struct eqn_box	 *parent; /* node sibling */
-	char		 *text; /* text (or NULL) */
-	char		 *left; /* fence left-hand */
-	char		 *right; /* fence right-hand */
-	char		 *top; /* expression over-symbol */
-	char		 *bottom; /* expression under-symbol */
-	size_t		  args; /* arguments in parent */
-	size_t		  expectargs; /* max arguments in parent */
-	enum eqn_post	  pos; /* position of next box */
-	enum eqn_fontt	  font; /* font of box */
-	enum eqn_pilet	  pile; /* equation piling */
-};
-
-/*
- * Parse options.
- */
-#define	MPARSE_MDOC	1  /* assume -mdoc */
-#define	MPARSE_MAN	2  /* assume -man */
-#define	MPARSE_SO	4  /* honour .so requests */
-#define	MPARSE_QUICK	8  /* abort the parse early */
-#define	MPARSE_UTF8	16 /* accept UTF-8 input */
-#define	MPARSE_LATIN1	32 /* accept ISO-LATIN-1 input */
-
-enum	mandoc_os {
-	MANDOC_OS_OTHER = 0,
-	MANDOC_OS_NETBSD,
-	MANDOC_OS_OPENBSD
-};
-
 enum	mandoc_esc {
 	ESCAPE_ERROR = 0, /* bail! unparsable escape */
+	ESCAPE_UNSUPP, /* unsupported escape; ignore it */
 	ESCAPE_IGNORE, /* escape to be ignored */
+	ESCAPE_UNDEF, /* undefined escape; print literal character */
 	ESCAPE_SPECIAL, /* a regular special character */
 	ESCAPE_FONT, /* a generic font mode */
 	ESCAPE_FONTBOLD, /* bold font mode */
 	ESCAPE_FONTITALIC, /* italic font mode */
 	ESCAPE_FONTBI, /* bold italic font mode */
 	ESCAPE_FONTROMAN, /* roman font mode */
+	ESCAPE_FONTCW, /* constant width font mode */
 	ESCAPE_FONTPREV, /* previous font mode */
 	ESCAPE_NUMBERED, /* a numbered glyph */
 	ESCAPE_UNICODE, /* a unicode codepoint */
+	ESCAPE_DEVICE, /* print the output device name */
 	ESCAPE_BREAK, /* break the output line */
 	ESCAPE_NOSPACE, /* suppress space if the last on a line */
 	ESCAPE_HORIZ, /* horizontal movement */
@@ -439,14 +269,18 @@ enum	mandoc_esc {
 	ESCAPE_OVERSTRIKE /* overstrike all chars in the argument */
 };
 
-typedef	void	(*mandocmsg)(enum mandocerr, enum mandoclevel,
-			const char *, int, int, const char *);
 
-
-struct	mparse;
-struct	roff_man;
-
+enum mandoc_esc	  mandoc_font(const char *, int sz);
 enum mandoc_esc	  mandoc_escape(const char **, const char **, int *);
+void		  mandoc_msg_setoutfile(FILE *);
+const char	 *mandoc_msg_getinfilename(void);
+void		  mandoc_msg_setinfilename(const char *);
+enum mandocerr	  mandoc_msg_getmin(void);
+void		  mandoc_msg_setmin(enum mandocerr);
+enum mandoclevel  mandoc_msg_getrc(void);
+void		  mandoc_msg_setrc(enum mandoclevel);
+void		  mandoc_msg(enum mandocerr, int, int, const char *, ...)
+			__attribute__((__format__ (__printf__, 4, 5)));
 void		  mchars_alloc(void);
 void		  mchars_free(void);
 int		  mchars_num2char(const char *, size_t);
@@ -454,18 +288,3 @@ const char	 *mchars_uc2str(int);
 int		  mchars_num2uc(const char *, size_t);
 int		  mchars_spec2cp(const char *, size_t);
 const char	 *mchars_spec2str(const char *, size_t, size_t *);
-struct mparse	 *mparse_alloc(int, enum mandocerr, mandocmsg,
-			enum mandoc_os, const char *);
-void		  mparse_free(struct mparse *);
-void		  mparse_keep(struct mparse *);
-int		  mparse_open(struct mparse *, const char *);
-enum mandoclevel  mparse_readfd(struct mparse *, int, const char *);
-enum mandoclevel  mparse_readmem(struct mparse *, void *, size_t,
-			const char *);
-void		  mparse_reset(struct mparse *);
-void		  mparse_result(struct mparse *,
-			struct roff_man **, char **);
-const char	 *mparse_getkeep(const struct mparse *);
-const char	 *mparse_strerror(enum mandocerr);
-const char	 *mparse_strlevel(enum mandoclevel);
-void		  mparse_updaterc(struct mparse *, enum mandoclevel *);

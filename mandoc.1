@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.1,v 1.226 2018/07/28 18:34:15 schwarze Exp $
+.\"	$Id: mandoc.1,v 1.237 2019/02/23 18:53:54 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2012, 2014-2018 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 28 2018 $
+.Dd $Mdocdate: February 23 2019 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -256,10 +256,28 @@ where
 is the back-space character number 8.
 Emboldened characters are rendered as
 .Sq c Ns \e[bs] Ns c .
+This markup is typically converted to appropriate terminal sequences by
+the pager or
+.Xr ul 1 .
+To remove the markup, pipe the output to
+.Xr col 1
+.Fl b
+instead.
 .Pp
 The special characters documented in
 .Xr mandoc_char 7
 are rendered best-effort in an ASCII equivalent.
+In particular, opening and closing
+.Sq single quotes
+are represented as characters number 0x60 and 0x27, respectively,
+which agrees with all ASCII standards from 1965 to the latest
+revision (2012) and which matches the traditional way in which
+.Xr roff 7
+formatters represent single quotes in ASCII output.
+This correct ASCII rendering may look strange with modern
+Unicode-compatible fonts because contrary to ASCII, Unicode uses
+the code point U+0060 for the grave accent only, never for an opening
+quote.
 .Pp
 The following
 .Fl O
@@ -290,6 +308,26 @@ One useful application is for checking that
 output formats in the same way as the
 .Xr mdoc 7
 source it was generated from.
+.It Cm tag Ns Op = Ns Ar term
+If the formatted manual page is opened in a pager,
+go to the definition of the
+.Ar term
+rather than showing the manual page from the beginning.
+If no
+.Ar term
+is specified, reuse the first command line argument that is not a
+.Ar section
+number.
+If that argument is in
+.Xr apropos 1
+.Ar key Ns = Ns Ar val
+format, only the
+.Ar val
+is used rather than the argument as a whole.
+This is useful for commands like
+.Ql man -akO tag Ic=ulimit
+to search for a keyword and jump right to its definition
+in the matching manual pages.
 .It Cm width Ns = Ns Ar width
 The output width is set to
 .Ar width
@@ -308,9 +346,9 @@ Equations rendered from
 .Xr eqn 7
 blocks use MathML.
 .Pp
-The
-.Pa mandoc.css
-file documents style-sheet classes available for customising output.
+The file
+.Pa /usr/share/misc/mandoc.css
+documents style-sheet classes available for customising output.
 If a style-sheet is not specified with
 .Fl O Cm style ,
 .Fl T Cm html
@@ -345,7 +383,7 @@ Instances of
 are replaced with the include filename.
 The default is not to present a
 hyperlink.
-.It Cm man Ns = Ns Ar fmt
+.It Cm man Ns = Ns Ar fmt Ns Op ; Ns Ar fmt
 The string
 .Ar fmt ,
 for example,
@@ -361,12 +399,19 @@ are replaced with the linked manual's name and section, respectively.
 If no section is included, section 1 is assumed.
 The default is not to
 present a hyperlink.
+If two formats are given and a file
+.Ar %N.%S
+exists in the current directory, the first format is used;
+otherwise, the second format is used.
 .It Cm style Ns = Ns Ar style.css
 The file
 .Ar style.css
 is used for an external style-sheet.
 This must be a valid absolute or
 relative URI.
+.It Cm toc
+If an input file contains at least two non-standard sections,
+print a table of contents near the beginning of the output.
 .El
 .Ss Locale Output
 By default,
@@ -667,10 +712,10 @@ To page manuals to the terminal:
 .Dl $ mandoc -l mandoc.1 man.1 apropos.1 makewhatis.8
 .Pp
 To produce HTML manuals with
-.Pa mandoc.css
+.Pa /usr/share/misc/mandoc.css
 as the style-sheet:
 .Pp
-.Dl $ mandoc \-T html -O style=mandoc.css mdoc.7 \*(Gt mdoc.7.html
+.Dl $ mandoc \-T html -O style=/usr/share/misc/mandoc.css mdoc.7 > mdoc.7.html
 .Pp
 To check over a large set of manuals:
 .Pp
@@ -678,7 +723,7 @@ To check over a large set of manuals:
 .Pp
 To produce a series of PostScript manuals for A4 paper:
 .Pp
-.Dl $ mandoc \-T ps \-O paper=a4 mdoc.7 man.7 \*(Gt manuals.ps
+.Dl $ mandoc \-T ps \-O paper=a4 mdoc.7 man.7 > manuals.ps
 .Pp
 Convert a modern
 .Xr mdoc 7
@@ -688,20 +733,36 @@ format, for use on systems lacking an
 .Xr mdoc 7
 parser:
 .Pp
-.Dl $ mandoc \-T man foo.mdoc \*(Gt foo.man
+.Dl $ mandoc \-T man foo.mdoc > foo.man
 .Sh DIAGNOSTICS
 Messages displayed by
 .Nm
 follow this format:
 .Bd -ragged -offset indent
 .Nm :
-.Ar file : Ns Ar line : Ns Ar column : level : message : macro args
+.Ar file : Ns Ar line : Ns Ar column : level : message : macro arguments
 .Pq Ar os
 .Ed
 .Pp
-Line and column numbers start at 1.
+The first three fields identify the
+.Ar file
+name,
+.Ar line
+number, and
+.Ar column
+number of the input file where the message was triggered.
+The line and column numbers start at 1.
 Both are omitted for messages referring to an input file as a whole.
-Macro names and arguments are omitted where meaningless.
+All
+.Ar level
+and
+.Ar message
+strings are explained below.
+The name of the
+.Ar macro
+triggering the message and its
+.Ar arguments
+are omitted where meaningless.
 The
 .Ar os
 operating system specifier is omitted for messages that are relevant
@@ -1606,6 +1667,12 @@ or
 .Cm off .
 The invalid argument is moved out of the macro, which leaves the macro
 empty, causing it to toggle the spacing mode.
+.It Sy "argument contains two font escapes"
+.Pq roff
+The second argument of a
+.Ic char
+request contains more than one font escape sequence.
+A wrong font may remain active after using the character.
 .It Sy "unknown font, skipping request"
 .Pq man , tbl
 A
@@ -1651,7 +1718,8 @@ Start it on a new input line to help formatters produce correct spacing.
 .It Sy "invalid escape sequence"
 .Pq roff
 An escape sequence has an invalid opening argument delimiter, lacks the
-closing argument delimiter, or the argument has too few characters.
+closing argument delimiter, the argument is of an invalid form, or it is
+a character escape sequence with an invalid name.
 If the argument is incomplete,
 .Ic \e*
 and
@@ -1664,6 +1732,12 @@ and
 .Ic \ew
 to the length of the incomplete argument.
 All other invalid escape sequences are ignored.
+.It Sy "undefined escape, printing literally"
+.Pq roff
+In an escape sequence, the first character
+right after the leading backslash is invalid.
+That character is printed literally,
+which is equivalent to ignoring the backslash.
 .It Sy "undefined string, using \(dq\(dq"
 .Pq roff
 If a string is used without being defined before,
@@ -1807,6 +1881,13 @@ or
 macro.
 It may be mistyped or unsupported.
 The request or macro is discarded including its arguments.
+.It Sy "skipping request outside macro"
+.Pq roff
+A
+.Ic shift
+or
+.Ic return
+request occurs outside any macro definition and has no effect.
 .It Sy "skipping insecure request"
 .Pq roff
 An input file attempted to run a shell command
@@ -1916,6 +1997,14 @@ When parsing for a request or a user-defined macro name to be called,
 only the escape sequence is discarded.
 The characters preceding it are used as the request or macro name,
 the characters following it are used as the arguments to the request or macro.
+.It Sy "using macro argument outside macro"
+.Pq roff
+The escape sequence \e$ occurs outside any macro definition
+and expands to the empty string.
+.It Sy "argument number is not numeric"
+.Pq roff
+The argument of the escape sequence \e$ is not a digit;
+the escape sequence expands to the empty string.
 .It Sy "NOT IMPLEMENTED: Bd -file"
 .Pq mdoc
 For security reasons, the
@@ -1944,6 +2033,13 @@ macro fails to specify the list type.
 The argument of a
 .Ic \&ce
 request is not a number.
+.It Sy "argument is not a character"
+.Pq roff
+The first argument of a
+.Ic char
+request is neither a single ASCII character
+nor a single character escape sequence.
+The request is ignored including all its arguments.
 .It Sy "missing manual name, using \(dq\(dq"
 .Pq mdoc
 The first call to
@@ -1978,6 +2074,13 @@ or
 .Ic \&gsize
 statement has a non-numeric or negative argument or no argument at all.
 The invalid request or statement is ignored.
+.It Sy "excessive shift"
+.Pq roff
+The argument of a
+.Ic shift
+request is larger than the number of arguments of the macro that is
+currently being executed.
+All macro arguments are deleted and \en(.$ is set to zero.
 .It Sy "NOT IMPLEMENTED: .so with absolute path or \(dq..\(dq"
 .Pq roff
 For security reasons,
@@ -2100,6 +2203,13 @@ implementations but not by
 .Nm
 was found in an input file.
 It is replaced by a question mark.
+.It Sy "unsupported escape sequence"
+.Pq roff
+An input file contains an escape sequence supported by GNU troff
+or Heirloom troff but not by
+.Nm ,
+and it is likely that this will cause information loss
+or considerable misformatting.
 .It Sy "unsupported roff request"
 .Pq roff
 An input file contains a

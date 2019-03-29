@@ -1,4 +1,4 @@
-/*	$Id: dbm.c,v 1.5 2016/10/18 22:27:25 schwarze Exp $ */
+/*	$Id: dbm.c,v 1.6 2018/11/19 19:22:07 schwarze Exp $ */
 /*
  * Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -151,17 +151,17 @@ dbm_page_get(int32_t ip)
 	assert(ip < npages);
 	res.name = dbm_get(pages[ip].name);
 	if (res.name == NULL)
-		res.name = "(NULL)";
+		res.name = "(NULL)\0";
 	res.sect = dbm_get(pages[ip].sect);
 	if (res.sect == NULL)
-		res.sect = "(NULL)";
+		res.sect = "(NULL)\0";
 	res.arch = pages[ip].arch ? dbm_get(pages[ip].arch) : NULL;
 	res.desc = dbm_get(pages[ip].desc);
 	if (res.desc == NULL)
 		res.desc = "(NULL)";
 	res.file = dbm_get(pages[ip].file);
 	if (res.file == NULL)
-		res.file = " (NULL)";
+		res.file = " (NULL)\0";
 	res.addr = dbm_addr(pages + ip);
 	return &res;
 }

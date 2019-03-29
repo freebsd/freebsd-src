@@ -1,7 +1,7 @@
-/*	$Id: man.h,v 1.79 2018/08/23 19:33:27 schwarze Exp $ */
+/*	$Id: tbl_parse.h,v 1.2 2018/12/14 06:33:14 schwarze Exp $ */
 /*
- * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2011, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,8 +14,17 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * External interface of the tbl(7) parser.
+ * For use in the roff(7) and tbl(7) parsers only.
  */
 
-struct	roff_man;
+struct tbl_node;
+struct tbl_span;
 
-void			 man_validate(struct roff_man *);
+struct tbl_node	*tbl_alloc(int, int, struct tbl_node *);
+int		 tbl_end(struct tbl_node *, int);
+void		 tbl_free(struct tbl_node *);
+void		 tbl_read(struct tbl_node *, int, const char *, int);
+void		 tbl_restart(int, int, struct tbl_node *);
+struct tbl_span	*tbl_span(struct tbl_node *);
