@@ -31,9 +31,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <signal.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/signal.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -107,14 +107,22 @@ struct vt_mode smode;
 }
 
 static void 
-VGLAbort(int arg __unused)
+VGLAbort(int arg)
 {
+  sigset_t mask;
+
   VGLAbortPending = 1;
   signal(SIGINT, SIG_IGN);
   signal(SIGTERM, SIG_IGN);
-  signal(SIGSEGV, SIG_IGN);
-  signal(SIGBUS, SIG_IGN);
   signal(SIGUSR2, SIG_IGN);
+  if (arg == SIGBUS || arg == SIGSEGV) {
+    signal(arg, SIG_DFL);
+    sigemptyset(&mask);
+    sigaddset(&mask, arg);
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+    VGLEnd();
+    kill(getpid(), arg);
+  }
 }
 
 static void
