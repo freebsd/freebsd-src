@@ -196,8 +196,8 @@ umass_disk_print(int verbose)
 		return (ret);
 	dev.d_dev = &umass_disk;
 	dev.d_unit = 0;
-	dev.d_slice = -1;
-	dev.d_partition = -1;
+	dev.d_slice = D_SLICENONE;
+	dev.d_partition = D_PARTNONE;
 
 	if (umass_disk_open_sub(&dev) == 0) {
 		ret = disk_print(&dev, "    umass0", verbose);

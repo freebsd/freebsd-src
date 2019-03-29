@@ -49,7 +49,7 @@ typedef struct {
 } VGLBitmap;
 
 #define VGLBITMAP_INITIALIZER(t, x, y, bits)	\
-	{ (t), (x), (y), (x), (y), 0, 0, (bits) }
+	{ (t), (x), (y), (x), (y), 0, 0, (bits), -1 }
 
 /*
  * Defined Type's
@@ -131,7 +131,7 @@ void VGLMouseSetImage(VGLBitmap *AndMask, VGLBitmap *OrMask);
 void VGLMouseSetStdImage(void);
 int VGLMouseInit(int mode);
 int VGLMouseStatus(int *x, int *y, char *buttons);
-int VGLMouseFreeze(int x, int y, int width, int hight, byte color);
+int VGLMouseFreeze(int x, int y, int width, int hight, u_long color);
 void VGLMouseUnFreeze(void);
 /* simple.c */
 void VGLSetXY(VGLBitmap *object, int x, int y, u_long color);
@@ -150,7 +150,7 @@ void VGLSetBorder(byte color);
 void VGLBlankDisplay(int blank);
 /* text.c */
 int VGLTextSetFontFile(char *filename);
-void VGLBitmapPutChar(VGLBitmap *Object, int x, int y, byte ch, byte fgcol, byte bgcol, int fill, int dir);
-void VGLBitmapString(VGLBitmap *Object, int x, int y, char *str, byte fgcol, byte bgcol, int fill, int dir);
+void VGLBitmapPutChar(VGLBitmap *Object, int x, int y, byte ch, u_long fgcol, u_long bgcol, int fill, int dir);
+void VGLBitmapString(VGLBitmap *Object, int x, int y, char *str, u_long fgcol, u_long bgcol, int fill, int dir);
 
 #endif /* !_VGL_H_ */

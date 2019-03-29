@@ -8,6 +8,16 @@
 # should be defined in the kern.pre.mk so that port makefiles can
 # override or augment them.
 
+.if defined(DTS) || defined(DTSO)
+.include "dtb.build.mk"
+
+KERNEL_EXTRA+=	${DTB} ${DTBO}
+CLEAN+=		${DTB} ${DTBO}
+
+kernel-install: _dtbinstall
+.ORDER: beforeinstall _dtbinstall
+.endif
+
 # In case the config had a makeoptions DESTDIR...
 .if defined(DESTDIR)
 MKMODULESENV+=	DESTDIR="${DESTDIR}"
@@ -357,11 +367,6 @@ CFLAGS+= -fdebug-prefix-map=./${_link}=${SYSDIR}/${_link}/include
 .endif
 .endif
 .endfor
-
-.if defined(_MAP_DEBUG_PREFIX)
-# Ensure that DWARF info contains a full path for auto-generated headers.
-CFLAGS+= -fdebug-prefix-map=.=${.OBJDIR}
-.endif
 
 ${_ILINKS}:
 	@case ${.TARGET} in \

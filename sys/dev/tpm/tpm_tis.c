@@ -162,6 +162,7 @@ tpmtis_detach(device_t dev)
 	struct tpm_sc *sc;
 
 	sc = device_get_softc(dev);
+	tpm20_release(sc);
 
 	if (sc->intr_cookie != NULL)
 		bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
@@ -174,7 +175,6 @@ tpmtis_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    sc->mem_rid, sc->mem_res);
 
-	tpm20_release(sc);
 	return (0);
 }
 

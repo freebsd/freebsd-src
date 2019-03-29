@@ -458,6 +458,15 @@ void os_aio_response_error(rcb_t *rcb, aio_path_error_info_elem_t *err_info)
 	DBG_IO("OUT\n");
 }
 
+static void
+pqi_freeze_ccb(union ccb *ccb)
+{
+	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+	}
+}
+
 /*
  * Command-mapping helper function - populate this command's s/g table.
  */
@@ -472,9 +481,8 @@ pqi_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	if(  error || nseg > softs->pqi_cap.max_sg_elem )
 	{
-		xpt_freeze_simq(softs->os_specific.sim, 1);
-		rcb->cm_ccb->ccb_h.status |= (CAM_REQUEUE_REQ|
-						CAM_RELEASE_SIMQ);
+		rcb->cm_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		pqi_freeze_ccb(rcb->cm_ccb);
 		DBG_ERR_BTL(rcb->dvp, "map failed err = %d or nseg(%d) > sgelem(%d)\n", 
 			error, nseg, softs->pqi_cap.max_sg_elem);
 		pqi_unmap_request(rcb);
@@ -484,9 +492,8 @@ pqi_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	rcb->sgt = os_mem_alloc(softs, nseg * sizeof(rcb_t));
 	if (rcb->sgt == NULL) {
-		xpt_freeze_simq(softs->os_specific.sim, 1);
-		rcb->cm_ccb->ccb_h.status |= (CAM_REQUEUE_REQ|
-						CAM_RELEASE_SIMQ);
+		rcb->cm_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		pqi_freeze_ccb(rcb->cm_ccb);
 		DBG_ERR_BTL(rcb->dvp, "os_mem_alloc() failed; nseg = %d\n", nseg);
 		pqi_unmap_request(rcb);
 		xpt_done((union ccb *)rcb->cm_ccb);
@@ -514,9 +521,8 @@ pqi_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	if (error) {
 		rcb->req_pending = false;
-		xpt_freeze_simq(softs->os_specific.sim, 1);
-		rcb->cm_ccb->ccb_h.status |= (CAM_REQUEUE_REQ
-						|CAM_RELEASE_SIMQ);
+		rcb->cm_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		pqi_freeze_ccb(rcb->cm_ccb);
 		DBG_ERR_BTL(rcb->dvp, "Build IO failed, error = %d\n", error);
 	   	pqi_unmap_request(rcb);
 		xpt_done((union ccb *)rcb->cm_ccb);

@@ -209,10 +209,20 @@ intr_event_update(struct intr_event *ie)
 	}
 
 	/*
-	 * If the handler names were too long, add +'s to indicate missing
-	 * names. If we run out of room and still have +'s to add, change
-	 * the last character from a + to a *.
+	 * If there is only one handler and its name is too long, just copy in
+	 * as much of the end of the name (includes the unit number) as will
+	 * fit.  Otherwise, we have multiple handlers and not all of the names
+	 * will fit.  Add +'s to indicate missing names.  If we run out of room
+	 * and still have +'s to add, change the last character from a + to a *.
 	 */
+	if (missed == 1 && space == 1) {
+		ih = CK_SLIST_FIRST(&ie->ie_handlers);
+		missed = strlen(ie->ie_fullname) + strlen(ih->ih_name) + 2 -
+		    sizeof(ie->ie_fullname);
+		strcat(ie->ie_fullname, (missed == 0) ? " " : "-");
+		strcat(ie->ie_fullname, &ih->ih_name[missed]);
+		missed = 0;
+	}
 	last = &ie->ie_fullname[sizeof(ie->ie_fullname) - 2];
 	while (missed-- > 0) {
 		if (strlen(ie->ie_fullname) + 1 == sizeof(ie->ie_fullname)) {

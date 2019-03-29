@@ -464,6 +464,7 @@ static void	run_usb_timeout_cb(void *);
 static void	run_reset_livelock(struct run_softc *);
 static void	run_enable_tsf_sync(struct run_softc *);
 static void	run_enable_tsf(struct run_softc *);
+static void	run_disable_tsf(struct run_softc *);
 static void	run_get_tsf(struct run_softc *, uint64_t *);
 static void	run_enable_mrr(struct run_softc *);
 static void	run_set_txpreamble(struct run_softc *);
@@ -2090,7 +2091,6 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct run_vap *rvp = RUN_VAP(vap);
 	enum ieee80211_state ostate;
 	uint32_t sta[3];
-	uint32_t tmp;
 	uint8_t ratectl;
 	uint8_t restart_ratectl = 0;
 	uint8_t bid = 1 << rvp->rvp_id;
@@ -2123,12 +2123,8 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		sc->runbmap &= ~bid;
 
 		/* abort TSF synchronization if there is no vap running */
-		if (--sc->running == 0) {
-			run_read(sc, RT2860_BCN_TIME_CFG, &tmp);
-			run_write(sc, RT2860_BCN_TIME_CFG,
-			    tmp & ~(RT2860_BCN_TX_EN | RT2860_TSF_TIMER_EN |
-			    RT2860_TBTT_TIMER_EN));
-		}
+		if (--sc->running == 0)
+			run_disable_tsf(sc);
 		break;
 
 	case IEEE80211_S_RUN:
@@ -4863,15 +4859,11 @@ static void
 run_scan_start(struct ieee80211com *ic)
 {
 	struct run_softc *sc = ic->ic_softc;
-	uint32_t tmp;
 
 	RUN_LOCK(sc);
 
 	/* abort TSF synchronization */
-	run_read(sc, RT2860_BCN_TIME_CFG, &tmp);
-	run_write(sc, RT2860_BCN_TIME_CFG,
-	    tmp & ~(RT2860_BCN_TX_EN | RT2860_TSF_TIMER_EN |
-	    RT2860_TBTT_TIMER_EN));
+	run_disable_tsf(sc);
 	run_set_bssid(sc, ieee80211broadcastaddr);
 
 	RUN_UNLOCK(sc);
@@ -5153,6 +5145,18 @@ run_enable_tsf(struct run_softc *sc)
 	if (run_read(sc, RT2860_BCN_TIME_CFG, &tmp) == 0) {
 		tmp &= ~(RT2860_BCN_TX_EN | RT2860_TBTT_TIMER_EN);
 		tmp |= RT2860_TSF_TIMER_EN;
+		run_write(sc, RT2860_BCN_TIME_CFG, tmp);
+	}
+}
+
+static void
+run_disable_tsf(struct run_softc *sc)
+{
+	uint32_t tmp;
+
+	if (run_read(sc, RT2860_BCN_TIME_CFG, &tmp) == 0) {
+		tmp &= ~(RT2860_BCN_TX_EN | RT2860_TSF_TIMER_EN |
+		    RT2860_TBTT_TIMER_EN);
 		run_write(sc, RT2860_BCN_TIME_CFG, tmp);
 	}
 }
@@ -6108,10 +6112,7 @@ run_init_locked(struct run_softc *sc)
 	}
 
 	/* abort TSF synchronization */
-	run_read(sc, RT2860_BCN_TIME_CFG, &tmp);
-	tmp &= ~(RT2860_BCN_TX_EN | RT2860_TSF_TIMER_EN |
-	    RT2860_TBTT_TIMER_EN);
-	run_write(sc, RT2860_BCN_TIME_CFG, tmp);
+	run_disable_tsf(sc);
 
 	/* clear RX WCID search table */
 	run_set_region_4(sc, RT2860_WCID_ENTRY(0), 0, 512);

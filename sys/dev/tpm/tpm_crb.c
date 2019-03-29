@@ -165,7 +165,8 @@ tpmcrb_attach(device_t dev)
 		return (ENXIO);
 
 	if(!tpmcrb_request_locality(sc, 0)) {
-		tpmcrb_detach(dev);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->mem_rid, sc->mem_res);
 		return (ENXIO);
 	}
 
@@ -231,12 +232,12 @@ tpmcrb_detach(device_t dev)
 	struct tpm_sc *sc;
 
 	sc = device_get_softc(dev);
+	tpm20_release(sc);
 
 	if (sc->mem_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    sc->mem_rid, sc->mem_res);
 
-	tpm20_release(sc);
 	return (0);
 }
 

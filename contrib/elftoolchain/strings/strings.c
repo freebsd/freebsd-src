@@ -84,11 +84,11 @@ static struct option strings_longopts[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
-long	getcharacter(void);
+int	getcharacter(FILE *, long *);
 int	handle_file(const char *);
-int	handle_elf(const char *, int);
-int	handle_binary(const char *, int);
-int	find_strings(const char *, off_t, off_t);
+int	handle_elf(const char *, FILE *);
+int	handle_binary(const char *, FILE *, size_t);
+int	find_strings(const char *, FILE *, off_t, off_t);
 void	show_version(void);
 void	usage(void);
 
@@ -190,7 +190,7 @@ main(int argc, char **argv)
 	if (min_len == 0)
 		min_len = 4;
 	if (*argv == NULL)
-		rc = find_strings("{standard input}", 0, 0);
+		rc = find_strings("{standard input}", stdin, 0, 0);
 	else while (*argv != NULL) {
 		if (handle_file(*argv) != 0)
 			rc = 1;
@@ -202,19 +202,19 @@ main(int argc, char **argv)
 int
 handle_file(const char *name)
 {
-	int fd, rt;
+	FILE *pfile;
+	int rt;
 
 	if (name == NULL)
 		return (1);
-	if (freopen(name, "rb", stdin) == NULL) {
+	pfile = fopen(name, "rb");
+	if (pfile == NULL) {
 		warnx("'%s': %s", name, strerror(errno));
 		return (1);
 	}
 
-	fd = fileno(stdin);
-	if (fd < 0)
-		return (1);
-	rt = handle_elf(name, fd);
+	rt = handle_elf(name, pfile);
+	fclose(pfile);
 	return (rt);
 }
 
@@ -223,15 +223,11 @@ handle_file(const char *name)
  * treated as a binary file. This would include text file, core dumps ...
  */
 int
-handle_binary(const char *name, int fd)
+handle_binary(const char *name, FILE *pfile, size_t size)
 {
-	struct stat buf;
 
-	memset(&buf, 0, sizeof(buf));
-	(void)lseek(fd, 0, SEEK_SET);
-	if (!fstat(fd, &buf))
-		return (find_strings(name, 0, buf.st_size));
-	return (1);
+	(void)fseeko(pfile, 0, SEEK_SET);
+	return (find_strings(name, pfile, 0, size));
 }
 
 /*
@@ -241,24 +237,29 @@ handle_binary(const char *name, int fd)
  * different archs as flat binary files(has to overridden using -a).
  */
 int
-handle_elf(const char *name, int fd)
+handle_elf(const char *name, FILE *pfile)
 {
+	struct stat buf;
 	GElf_Ehdr elfhdr;
 	GElf_Shdr shdr;
 	Elf *elf;
 	Elf_Scn *scn;
-	int rc;
+	int rc, fd;
 
 	rc = 0;
+	fd = fileno(pfile);
+	if (fstat(fd, &buf) < 0)
+		return (1);
+
 	/* If entire file is chosen, treat it as a binary file */
 	if (entire_file)
-		return (handle_binary(name, fd));
+		return (handle_binary(name, pfile, buf.st_size));
 
 	(void)lseek(fd, 0, SEEK_SET);
 	elf = elf_begin(fd, ELF_C_READ, NULL);
 	if (elf_kind(elf) != ELF_K_ELF) {
 		(void)elf_end(elf);
-		return (handle_binary(name, fd));
+		return (handle_binary(name, pfile, buf.st_size));
 	}
 
 	if (gelf_getehdr(elf, &elfhdr) == NULL) {
@@ -269,7 +270,7 @@ handle_elf(const char *name, int fd)
 
 	if (elfhdr.e_shnum == 0 && elfhdr.e_type == ET_CORE) {
 		(void)elf_end(elf);
-		return (handle_binary(name, fd));
+		return (handle_binary(name, pfile, buf.st_size));
 	} else {
 		scn = NULL;
 		while ((scn = elf_nextscn(elf, scn)) != NULL) {
@@ -277,7 +278,7 @@ handle_elf(const char *name, int fd)
 				continue;
 			if (shdr.sh_type != SHT_NOBITS &&
 			    (shdr.sh_flags & SHF_ALLOC) != 0) {
-				rc = find_strings(name, shdr.sh_offset,
+				rc = find_strings(name, pfile, shdr.sh_offset,
 				    shdr.sh_size);
 			}
 		}
@@ -290,51 +291,52 @@ handle_elf(const char *name, int fd)
  * Retrieves a character from input stream based on the encoding
  * type requested.
  */
-long
-getcharacter(void)
+int
+getcharacter(FILE *pfile, long *rt)
 {
-	long rt;
-	int i;
-	char buf[4], c;
+	int i, c;
+	char buf[4];
 
-	rt = EOF;
 	for(i = 0; i < encoding_size; i++) {
-		c = getc(stdin);
-		if (feof(stdin))
-			return (EOF);
+		c = getc(pfile);
+		if (c == EOF)
+			return (-1);
 		buf[i] = c;
 	}
 
 	switch (encoding) {
 	case ENCODING_7BIT:
 	case ENCODING_8BIT:
-		rt = buf[0];
+		*rt = buf[0];
 		break;
 	case ENCODING_16BIT_BIG:
-		rt = (buf[0] << 8) | buf[1];
+		*rt = (buf[0] << 8) | buf[1];
 		break;
 	case ENCODING_16BIT_LITTLE:
-		 rt = buf[0] | (buf[1] << 8);
-		 break;
+		*rt = buf[0] | (buf[1] << 8);
+		break;
 	case ENCODING_32BIT_BIG:
-		rt = ((long) buf[0] << 24) | ((long) buf[1] << 16) |
+		*rt = ((long) buf[0] << 24) | ((long) buf[1] << 16) |
 		    ((long) buf[2] << 8) | buf[3];
 		break;
 	case ENCODING_32BIT_LITTLE:
-		rt = buf[0] | ((long) buf[1] << 8) | ((long) buf[2] << 16) |
+		*rt = buf[0] | ((long) buf[1] << 8) | ((long) buf[2] << 16) |
 		    ((long) buf[3] << 24);
 		break;
+	default:
+		return (-1);
 	}
-	return (rt);
+
+	return (0);
 }
 
 /*
- * Input stream stdin is read until the end of file is reached or until
+ * Input stream is read until the end of file is reached or until
  * the section size is reached in case of ELF files. Contiguous
  * characters of >= min_size(default 4) will be displayed.
  */
 int
-find_strings(const char *name, off_t offset, off_t size)
+find_strings(const char *name, FILE *pfile, off_t offset, off_t size)
 {
 	off_t cur_off, start_off;
 	char *obuf;
@@ -347,7 +349,7 @@ find_strings(const char *name, off_t offset, off_t size)
 		return (1);
 	}
 
-	(void)fseeko(stdin, offset, SEEK_SET);
+	(void)fseeko(pfile, offset, SEEK_SET);
 	cur_off = offset;
 	start_off = 0;
 	for (;;) {
@@ -356,8 +358,7 @@ find_strings(const char *name, off_t offset, off_t size)
 		start_off = cur_off;
 		memset(obuf, 0, min_len + 1);
 		for(i = 0; i < min_len; i++) {
-			c = getcharacter();
-			if (c == EOF && feof(stdin))
+			if (getcharacter(pfile, &c) < 0)
 				goto _exit1;
 			if (PRINTABLE(c)) {
 				obuf[i] = c;
@@ -399,14 +400,15 @@ find_strings(const char *name, off_t offset, off_t size)
 				if ((offset + size) &&
 				    (cur_off >= offset + size))
 					break;
-				c = getcharacter();
+				if (getcharacter(pfile, &c) < 0)
+					break;
 				cur_off += encoding_size;
 				if (encoding == ENCODING_8BIT &&
 				    (uint8_t)c > 127) {
 					putchar(c);
 					continue;
 				}
-				if (!PRINTABLE(c) || c == EOF)
+				if (!PRINTABLE(c))
 					break;
 				putchar(c);
 			}

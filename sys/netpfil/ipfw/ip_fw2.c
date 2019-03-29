@@ -3360,7 +3360,7 @@ vnet_ipfw_init(const void *unused)
 	 * is checked on each packet because there are no pfil hooks.
 	 */
 	V_ip_fw_ctl_ptr = ipfw_ctl3;
-	error = ipfw_attach_hooks(1);
+	error = ipfw_attach_hooks();
 	return (error);
 }
 
@@ -3380,7 +3380,7 @@ vnet_ipfw_uninit(const void *unused)
 	 * Then grab, release and grab again the WLOCK so we make
 	 * sure the update is propagated and nobody will be in.
 	 */
-	(void)ipfw_attach_hooks(0 /* detach */);
+	ipfw_detach_hooks();
 	V_ip_fw_ctl_ptr = NULL;
 
 	last = IS_DEFAULT_VNET(curvnet) ? 1 : 0;

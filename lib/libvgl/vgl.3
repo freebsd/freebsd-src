@@ -117,9 +117,9 @@
 .Ft int
 .Fn VGLBitmapCopy "VGLBitmap *src" "int srcx" "int srcy" "VGLBitmap *dst" "int dstx" "int dsty" "int width" "int hight"
 .Ft void
-.Fn VGLBitmapPutChar "VGLBitmap *Object" "int x" "int y" "byte ch" "byte fgcol" "byte bgcol" "int fill" "int dir"
+.Fn VGLBitmapPutChar "VGLBitmap *Object" "int x" "int y" "byte ch" "u_long fgcol" "u_long bgcol" "int fill" "int dir"
 .Ft void
-.Fn VGLBitmapString "VGLBitmap *Object" "int x" "int y" "char *str" "byte fgcol" "byte bgcol" "int fill" "int dir"
+.Fn VGLBitmapString "VGLBitmap *Object" "int x" "int y" "char *str" "u_long fgcol" "u_long bgcol" "int fill" "int dir"
 .Ft void
 .Fn VGLClear "VGLBitmap *object" "u_long color"
 .Ft void
@@ -238,7 +238,7 @@ retrieves the color of the pixel located at
 .Va x , y ,
 coordinates of the
 .Va object
-argument, and returns it as a byte value.
+argument, and returns it as a u_long value.
 .Pp
 .Fn VGLSetXY
 sets the color of the pixel located at
@@ -247,7 +247,7 @@ coordinates of the
 .Va object
 argument to
 .Va color
-byte value.
+u_long value.
 .Pp
 .Fn VGLLine
 draw a line from

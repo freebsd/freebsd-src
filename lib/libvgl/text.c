@@ -66,7 +66,7 @@ FILE *fd;
     VGLTextFont->BitmapArray = 
       (byte*)malloc(256*((VGLTextFont->Width + 7)/8)*VGLTextFont->Height);
     fread(VGLTextFont->BitmapArray, 1, 
-      (256*VGLTextFont->Width* VGLTextFont->Height), fd);
+      (256*((VGLTextFont->Width + 7)/8)*VGLTextFont->Height), fd);
     fclose(fd);
   }
   return 0;
@@ -74,46 +74,50 @@ FILE *fd;
 
 void
 VGLBitmapPutChar(VGLBitmap *Object, int x, int y, byte ch, 
-		 byte fgcol, byte bgcol, int fill, int dir)
+		 u_long fgcol, u_long bgcol, int fill, int dir)
 {
-  int lin, bit;
+  int b, Bpc, Bpl, lin, bit, topbit;
 
+  Bpl = (VGLTextFont->Width + 7) / 8;
+  Bpc = Bpl * VGLTextFont->Height;
+  topbit = VGLTextFont->Width - 1;
   for(lin = 0; lin < VGLTextFont->Height; lin++) {
     for(bit = 0; bit < VGLTextFont->Width; bit++) {
-      if (VGLTextFont->BitmapArray[((ch*VGLTextFont->Height)+lin)]&(1<<bit))
+      b = bit + (-VGLTextFont->Width & 7);
+      if (VGLTextFont->BitmapArray[(ch*Bpc)+(lin*Bpl)+(b/8)]&(1<<(b%8)))
         switch (dir) {
           case 0:
-            VGLSetXY(Object, (x+7-bit), (y+lin), fgcol);
+            VGLSetXY(Object, (x+topbit-bit), (y+lin), fgcol);
 	    break;
           case 1:
-            VGLSetXY(Object, (x+lin), (y-7+bit), fgcol);
+            VGLSetXY(Object, (x+lin), (y-topbit+bit), fgcol);
 	    break;
           case 2:
-            VGLSetXY(Object, (x-7+bit), (y-lin), fgcol);
+            VGLSetXY(Object, (x-topbit+bit), (y-lin), fgcol);
 	    break;
           case 3:
-            VGLSetXY(Object, (x-lin), (y+7-bit), fgcol);
+            VGLSetXY(Object, (x-lin), (y+topbit-bit), fgcol);
 	    break;
           case 4:
-            VGLSetXY(Object, (x+lin+7-bit), (y+lin+bit), fgcol);
+            VGLSetXY(Object, (x+lin+topbit-bit), (y+lin+bit), fgcol);
 	    break;
         }
       else if (fill)
         switch (dir) {
           case 0:
-            VGLSetXY(Object, (x+7-bit), (y+lin), bgcol);
+            VGLSetXY(Object, (x+topbit-bit), (y+lin), bgcol);
 	    break;
           case 1:
-            VGLSetXY(Object, (x+lin), (y-7+bit), bgcol);
+            VGLSetXY(Object, (x+lin), (y-topbit+bit), bgcol);
 	    break;
           case 2:
-            VGLSetXY(Object, (x-7+bit), (y-lin), bgcol);
+            VGLSetXY(Object, (x-topbit+bit), (y-lin), bgcol);
 	    break;
           case 3:
-            VGLSetXY(Object, (x-lin), (y+7-bit), bgcol);
+            VGLSetXY(Object, (x-lin), (y+topbit-bit), bgcol);
 	    break;
           case 4:
-            VGLSetXY(Object, (x+lin+7-bit), (y+lin+bit), bgcol);
+            VGLSetXY(Object, (x+lin+topbit-bit), (y+lin+bit), bgcol);
 	    break;
         }
     }
@@ -122,7 +126,7 @@ VGLBitmapPutChar(VGLBitmap *Object, int x, int y, byte ch,
 
 void
 VGLBitmapString(VGLBitmap *Object, int x, int y, char *str, 
-		byte fgcol, byte bgcol, int fill, int dir)
+		u_long fgcol, u_long bgcol, int fill, int dir)
 {
   int pos;
 

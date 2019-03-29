@@ -65,8 +65,9 @@ __FBSDID("$FreeBSD$");
 /*
  * UART console routines.
  */
+extern struct bus_space memmap_bus;
 bus_space_tag_t uart_bus_space_io;
-bus_space_tag_t uart_bus_space_mem;
+bus_space_tag_t uart_bus_space_mem = &memmap_bus;
 
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
@@ -149,7 +150,7 @@ uart_cpu_acpi_probe(struct uart_class **classp, bus_space_tag_t *bst,
 
 	*classp = cd->cd_class;
 	*rclk = 0;
-	*shiftp = 2;
+	*shiftp = spcr->SerialPort.AccessWidth - 1;
 	*iowidthp = spcr->SerialPort.BitWidth / 8;
 
 out:

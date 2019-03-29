@@ -132,7 +132,7 @@ int
 VGLInit(int mode)
 {
   struct vt_mode smode;
-  int adptype;
+  int adptype, depth;
 
   if (VGLInitDone)
     return -1;
@@ -188,6 +188,7 @@ VGLInit(int mode)
       return -4;
     }
     VGLDisplay->Type = VIDBUF4;
+    VGLDisplay->PixelBytes = 1;
     break;
   case V_INFO_MM_PACKED:
     /* we can do only 256 color packed modes */
@@ -294,14 +295,17 @@ VGLInit(int mode)
 
   VGLDisplay->Xsize = VGLModeInfo.vi_width;
   VGLDisplay->Ysize = VGLModeInfo.vi_height;
+  depth = VGLModeInfo.vi_depth;
+  if (depth == 15)
+    depth = 16;
   VGLDisplay->VXsize = VGLAdpInfo.va_line_width
-			   *8/(VGLModeInfo.vi_depth/VGLModeInfo.vi_planes);
+			   *8/(depth/VGLModeInfo.vi_planes);
   VGLDisplay->VYsize = VGLBufSize/VGLModeInfo.vi_planes/VGLAdpInfo.va_line_width;
   VGLDisplay->Xorigin = 0;
   VGLDisplay->Yorigin = 0;
 
   VGLMem = (byte*)mmap(0, VGLAdpInfo.va_window_size, PROT_READ|PROT_WRITE,
-		       MAP_FILE, 0, 0);
+		       MAP_FILE | MAP_SHARED, 0, 0);
   if (VGLMem == MAP_FAILED) {
     VGLEnd();
     return -7;
@@ -350,7 +354,7 @@ VGLCheckSwitch()
       ioctl(0, VGLMode, 0);
       VGLCurWindow = 0;
       VGLMem = (byte*)mmap(0, VGLAdpInfo.va_window_size, PROT_READ|PROT_WRITE,
-			   MAP_FILE, 0, 0);
+			   MAP_FILE | MAP_SHARED, 0, 0);
 
       /* XXX: what if mmap() has failed! */
       VGLDisplay->Type = VIDBUF8;	/* XXX */
@@ -530,6 +534,8 @@ VGLSetSegment(unsigned int offset)
 int
 VGLSetVScreenSize(VGLBitmap *object, int VXsize, int VYsize)
 {
+  int depth;
+
   if (VXsize < object->Xsize || VYsize < object->Ysize)
     return -1;
   if (object->Type == MEMBUF)
@@ -537,8 +543,11 @@ VGLSetVScreenSize(VGLBitmap *object, int VXsize, int VYsize)
   if (ioctl(0, FBIO_SETLINEWIDTH, &VXsize))
     return -1;
   ioctl(0, CONS_ADPINFO, &VGLAdpInfo);	/* FBIO_ADPINFO */
+  depth = VGLModeInfo.vi_depth;
+  if (depth == 15)
+    depth = 16;
   object->VXsize = VGLAdpInfo.va_line_width
-			   *8/(VGLModeInfo.vi_depth/VGLModeInfo.vi_planes);
+			   *8/(depth/VGLModeInfo.vi_planes);
   object->VYsize = VGLBufSize/VGLModeInfo.vi_planes/VGLAdpInfo.va_line_width;
   if (VYsize < object->VYsize)
     object->VYsize = VYsize;

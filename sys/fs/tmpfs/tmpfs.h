@@ -325,6 +325,11 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
  */
 struct tmpfs_mount {
 	/*
+	 * Original value of the "size" parameter, for reference purposes,
+	 * mostly.
+	 */
+	off_t			tm_size_max;
+	/*
 	 * Maximum number of memory pages available for use by the file
 	 * system, set during mount time.  This variable must never be
 	 * used directly as it may be bigger than the current amount of
@@ -482,7 +487,9 @@ struct tmpfs_dirent *tmpfs_dir_next(struct tmpfs_node *dnode,
  * Amount of memory pages to reserve for the system (e.g., to not use by
  * tmpfs).
  */
+#if !defined(TMPFS_PAGES_MINRESERVED)
 #define TMPFS_PAGES_MINRESERVED		(4 * 1024 * 1024 / PAGE_SIZE)
+#endif
 
 size_t tmpfs_mem_avail(void);
 
