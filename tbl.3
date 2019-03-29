@@ -1,6 +1,6 @@
-.\"	$Id: tbl.3,v 1.2 2015/01/30 04:11:50 schwarze Exp $
+.\"	$Id: tbl.3,v 1.6 2018/12/14 06:33:14 schwarze Exp $
 .\"
-.\" Copyright (c) 2013 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2013, 2015, 2018 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 30 2015 $
+.Dd $Mdocdate: December 14 2018 $
 .Dt TBL 3
 .Os
 .Sh NAME
@@ -26,16 +26,15 @@
 .Nm tbl_free
 .Nd roff table parser library for mandoc
 .Sh SYNOPSIS
-.In mandoc.h
-.In libmandoc.h
-.In libroff.h
+.In sys/types.h
+.In tbl.h
+.In tbl_parse.h
 .Ft struct tbl_node *
 .Fo tbl_alloc
 .Fa "int pos"
 .Fa "int line"
-.Fa "struct mparse *parse"
 .Fc
-.Ft enum rofferr
+.Ft void
 .Fo tbl_read
 .Fa "struct tbl_node *tbl"
 .Fa "int ln"
@@ -67,15 +66,15 @@ utility and not designed for stand-alone use.
 The present manual is intended as a reference for developers working on
 .Xr mandoc 1 .
 .Ss Data structures
-Unless otherwise noted, all of the following data structures are defined in
-.In mandoc.h
+Unless otherwise noted, all of the following data structures are declared in
+.In tbl.h
 and are deleted in
 .Fn tbl_free .
 .Bl -tag -width Ds
 .It Vt struct tbl_node
 This structure describes a complete table.
-It is defined in
-.In libroff.h ,
+It is declared in
+.In tbl_int.h ,
 created in
 .Fn tbl_alloc ,
 and stored in the members
@@ -103,12 +102,6 @@ members may be
 but if there is a span, the function
 .Fn tbl_layout
 guarantees that these pointers are not
-.Dv NULL .
-The function
-.Fn tbl_alloc
-guarantees that the
-.Fa parse
-member is not
 .Dv NULL .
 .It Vt struct tbl_opts
 This structure describes the options of one table.
@@ -226,7 +219,7 @@ member is not
 .Ss Interface functions
 The following functions are implemented in
 .Pa tbl.c ,
-and all callers in
+and all callers are in
 .Pa roff.c .
 .Bl -tag -width Ds
 .It Fn tbl_alloc
@@ -279,6 +272,8 @@ and
 .Fn roff_reset .
 .El
 .Ss Private functions
+The following functions are declared in
+.In tbl_int.h .
 .Bl -tag -width Ds
 .It Ft int Fn tbl_options "struct tbl_node *tbl" "int ln" "const char *p"
 Parses the options line into

@@ -1,7 +1,7 @@
-/*	$Id: cgi.c,v 1.158 2018/05/29 20:32:45 schwarze Exp $ */
+/*	$Id: cgi.c,v 1.166 2019/03/06 12:32:41 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@usta.de>
+ * Copyright (c) 2014, 2015, 2016, 2017, 2018 Ingo Schwarze <schwarze@usta.de>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -38,6 +38,7 @@
 #include "roff.h"
 #include "mdoc.h"
 #include "man.h"
+#include "mandoc_parse.h"
 #include "main.h"
 #include "manconf.h"
 #include "mansearch.h"
@@ -69,6 +70,7 @@ enum	focus {
 static	void		 html_print(const char *);
 static	void		 html_putchar(char);
 static	int		 http_decode(char *);
+static	void		 http_encode(const char *p);
 static	void		 parse_manpath_conf(struct req *);
 static	void		 parse_path_info(struct req *req, const char *path);
 static	void		 parse_query_string(struct req *, const char *);
@@ -90,6 +92,7 @@ static	void		 resp_format(const struct req *, const char *);
 static	void		 resp_searchform(const struct req *, enum focus);
 static	void		 resp_show(const struct req *, const char *);
 static	void		 set_query_attr(char **, char **);
+static	int		 validate_arch(const char *);
 static	int		 validate_filename(const char *);
 static	int		 validate_manpath(const struct req *, const char *);
 static	int		 validate_urifrag(const char *);
@@ -316,6 +319,18 @@ http_decode(char *p)
 }
 
 static void
+http_encode(const char *p)
+{
+	for (; *p != '\0'; p++) {
+		if (isalnum((unsigned char)*p) == 0 &&
+		    strchr("-._~", *p) == NULL)
+			printf("%%%2.2X", (unsigned char)*p);
+		else
+			putchar(*p);
+	}
+}
+
+static void
 resp_begin_http(int code, const char *msg)
 {
 
@@ -490,6 +505,18 @@ validate_manpath(const struct req *req, const char* manpath)
 }
 
 static int
+validate_arch(const char *arch)
+{
+	int	 i;
+
+	for (i = 0; i < arch_MAX; i++)
+		if (strcmp(arch, arch_names[i]) == 0)
+			return 1;
+
+	return 0;
+}
+
+static int
 validate_filename(const char *file)
 {
 
@@ -562,9 +589,11 @@ pg_redirect(const struct req *req, const char *name)
 		printf("%s/", req->q.manpath);
 	if (req->q.arch != NULL)
 		printf("%s/", req->q.arch);
-	printf("%s", name);
-	if (req->q.sec != NULL)
-		printf(".%s", req->q.sec);
+	http_encode(name);
+	if (req->q.sec != NULL) {
+		putchar('.');
+		http_encode(req->q.sec);
+	}
 	printf("\r\nContent-Type: text/html; charset=utf-8\r\n\r\n");
 }
 
@@ -820,7 +849,7 @@ resp_format(const struct req *req, const char *file)
 {
 	struct manoutput conf;
 	struct mparse	*mp;
-	struct roff_man	*man;
+	struct roff_meta *meta;
 	void		*vp;
 	int		 fd;
 	int		 usepath;
@@ -831,37 +860,26 @@ resp_format(const struct req *req, const char *file)
 	}
 
 	mchars_alloc();
-	mp = mparse_alloc(MPARSE_SO | MPARSE_UTF8 | MPARSE_LATIN1,
-	    MANDOCERR_MAX, NULL, MANDOC_OS_OTHER, req->q.manpath);
+	mp = mparse_alloc(MPARSE_SO | MPARSE_UTF8 | MPARSE_LATIN1 |
+	    MPARSE_VALIDATE, MANDOC_OS_OTHER, req->q.manpath);
 	mparse_readfd(mp, fd, file);
 	close(fd);
+	meta = mparse_result(mp);
 
 	memset(&conf, 0, sizeof(conf));
 	conf.fragment = 1;
 	conf.style = mandoc_strdup(CSS_DIR "/mandoc.css");
+	conf.toc = 1;
 	usepath = strcmp(req->q.manpath, req->p[0]);
 	mandoc_asprintf(&conf.man, "/%s%s%s%s%%N.%%S",
 	    scriptname, *scriptname == '\0' ? "" : "/",
 	    usepath ? req->q.manpath : "", usepath ? "/" : "");
 
-	mparse_result(mp, &man, NULL);
-	if (man == NULL) {
-		warnx("fatal mandoc error: %s/%s", req->q.manpath, file);
-		pg_error_internal();
-		mparse_free(mp);
-		mchars_free();
-		return;
-	}
-
 	vp = html_alloc(&conf);
-
-	if (man->macroset == MACROSET_MDOC) {
-		mdoc_validate(man);
-		html_mdoc(vp, man);
-	} else {
-		man_validate(man);
-		html_man(vp, man);
-	}
+	if (meta->macroset == MACROSET_MDOC)
+		html_mdoc(vp, meta);
+	else
+		html_man(vp, meta);
 
 	html_free(vp);
 	mparse_free(mp);
@@ -1089,7 +1107,7 @@ main(void)
 		return EXIT_FAILURE;
 	}
 
-	if ( ! (NULL == req.q.arch || validate_urifrag(req.q.arch))) {
+	if (req.q.arch != NULL && validate_arch(req.q.arch) == 0) {
 		pg_error_badrequest(
 		    "You specified an invalid architecture.");
 		return EXIT_FAILURE;
@@ -1115,80 +1133,74 @@ main(void)
 }
 
 /*
- * If PATH_INFO is not a file name, translate it to a query.
+ * Translate PATH_INFO to a query.
  */
 static void
 parse_path_info(struct req *req, const char *path)
 {
-	char	*dir[4];
-	int	 i;
+	const char	*name, *sec, *end;
 
 	req->isquery = 0;
 	req->q.equal = 1;
-	req->q.manpath = mandoc_strdup(path);
+	req->q.manpath = NULL;
 	req->q.arch = NULL;
 
 	/* Mandatory manual page name. */
-	if ((req->q.query = strrchr(req->q.manpath, '/')) == NULL) {
-		req->q.query = req->q.manpath;
-		req->q.manpath = NULL;
-	} else
-		*req->q.query++ = '\0';
+	if ((name = strrchr(path, '/')) == NULL)
+		name = path;
+	else
+		name++;
 
 	/* Optional trailing section. */
-	if ((req->q.sec = strrchr(req->q.query, '.')) != NULL) {
-		if(isdigit((unsigned char)req->q.sec[1])) {
-			*req->q.sec++ = '\0';
-			req->q.sec = mandoc_strdup(req->q.sec);
-		} else
-			req->q.sec = NULL;
+	sec = strrchr(name, '.');
+	if (sec != NULL && isdigit((unsigned char)*++sec)) {
+		req->q.query = mandoc_strndup(name, sec - name - 1);
+		req->q.sec = mandoc_strdup(sec);
+	} else {
+		req->q.query = mandoc_strdup(name);
+		req->q.sec = NULL;
 	}
 
 	/* Handle the case of name[.section] only. */
-	if (req->q.manpath == NULL)
+	if (name == path)
 		return;
-	req->q.query = mandoc_strdup(req->q.query);
-
-	/* Split directory components. */
-	dir[i = 0] = req->q.manpath;
-	while ((dir[i + 1] = strchr(dir[i], '/')) != NULL) {
-		if (++i == 3) {
-			pg_error_badrequest(
-			    "You specified too many directory components.");
-			exit(EXIT_FAILURE);
-		}
-		*dir[i]++ = '\0';
-	}
 
 	/* Optional manpath. */
-	if ((i = validate_manpath(req, req->q.manpath)) == 0)
+	end = strchr(path, '/');
+	req->q.manpath = mandoc_strndup(path, end - path);
+	if (validate_manpath(req, req->q.manpath)) {
+		path = end + 1;
+		if (name == path)
+			return;
+	} else {
+		free(req->q.manpath);
 		req->q.manpath = NULL;
-	else if (dir[1] == NULL)
-		return;
+	}
 
 	/* Optional section. */
-	if (strncmp(dir[i], "man", 3) == 0) {
+	if (strncmp(path, "man", 3) == 0 || strncmp(path, "cat", 3) == 0) {
+		path += 3;
+		end = strchr(path, '/');
 		free(req->q.sec);
-		req->q.sec = mandoc_strdup(dir[i++] + 3);
+		req->q.sec = mandoc_strndup(path, end - path);
+		path = end + 1;
+		if (name == path)
+			return;
 	}
-	if (dir[i] == NULL) {
-		if (req->q.manpath == NULL)
-			free(dir[0]);
-		return;
+
+	/* Optional architecture. */
+	end = strchr(path, '/');
+	if (end + 1 != name) {
+		pg_error_badrequest(
+		    "You specified too many directory components.");
+		exit(EXIT_FAILURE);
 	}
-	if (dir[i + 1] != NULL) {
+	req->q.arch = mandoc_strndup(path, end - path);
+	if (validate_arch(req->q.arch) == 0) {
 		pg_error_badrequest(
 		    "You specified an invalid directory component.");
 		exit(EXIT_FAILURE);
 	}
-
-	/* Optional architecture. */
-	if (i) {
-		req->q.arch = mandoc_strdup(dir[i]);
-		if (req->q.manpath == NULL)
-			free(dir[0]);
-	} else
-		req->q.arch = dir[0];
 }
 
 /*

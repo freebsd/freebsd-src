@@ -1,7 +1,7 @@
-/*	$Id: roff.h,v 1.59 2018/04/11 17:11:13 schwarze Exp $	*/
+/*	$Id: roff.h,v 1.69 2019/03/04 13:01:57 schwarze Exp $	*/
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013-2015, 2017-2019 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,11 +14,15 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Common data types for all syntax trees and related functions.
  */
 
 struct	ohash;
 struct	mdoc_arg;
 union	mdoc_data;
+struct	tbl_span;
+struct	eqn_box;
 
 enum	roff_macroset {
 	MACROSET_NONE = 0,
@@ -69,9 +73,11 @@ enum	roff_type {
 enum	roff_tok {
 	ROFF_br = 0,
 	ROFF_ce,
+	ROFF_fi,
 	ROFF_ft,
 	ROFF_ll,
 	ROFF_mc,
+	ROFF_nf,
 	ROFF_po,
 	ROFF_rj,
 	ROFF_sp,
@@ -156,7 +162,6 @@ enum	roff_tok {
 	ROFF_fcolor,
 	ROFF_fdeferlig,
 	ROFF_feature,
-	/* MAN_fi; ignored in mdoc(7) */
 	ROFF_fkern,
 	ROFF_fl,
 	ROFF_flig,
@@ -216,7 +221,6 @@ enum	roff_tok {
 	ROFF_mso,
 	ROFF_na,
 	ROFF_ne,
-	/* MAN_nf; ignored in mdoc(7) */
 	ROFF_nh,
 	ROFF_nhychar,
 	ROFF_nm,
@@ -438,6 +442,7 @@ enum	roff_tok {
 	MAN_SH,
 	MAN_SS,
 	MAN_TP,
+	MAN_TQ,
 	MAN_LP,
 	MAN_PP,
 	MAN_P,
@@ -454,8 +459,6 @@ enum	roff_tok {
 	MAN_I,
 	MAN_IR,
 	MAN_RI,
-	MAN_nf,
-	MAN_fi,
 	MAN_RE,
 	MAN_RS,
 	MAN_DT,
@@ -463,6 +466,8 @@ enum	roff_tok {
 	MAN_PD,
 	MAN_AT,
 	MAN_in,
+	MAN_SY,
+	MAN_YS,
 	MAN_OP,
 	MAN_EX,
 	MAN_EE,
@@ -473,11 +478,6 @@ enum	roff_tok {
 	MAN_MAX
 };
 
-enum	roff_next {
-	ROFF_NEXT_SIBLING = 0,
-	ROFF_NEXT_CHILD
-};
-
 /*
  * Indicates that a BODY's formatting has ended, but
  * the scope is still open.  Used for badly nested blocks.
@@ -485,6 +485,12 @@ enum	roff_next {
 enum	mdoc_endbody {
 	ENDBODY_NOT = 0,
 	ENDBODY_SPACE	/* Is broken: append a space. */
+};
+
+enum	mandoc_os {
+	MANDOC_OS_OTHER = 0,
+	MANDOC_OS_NETBSD,
+	MANDOC_OS_OPENBSD
 };
 
 struct	roff_node {
@@ -499,21 +505,22 @@ struct	roff_node {
 	struct mdoc_arg	 *args;    /* BLOCK/ELEM */
 	union mdoc_data	 *norm;    /* Normalized arguments. */
 	char		 *string;  /* TEXT */
-	const struct tbl_span *span; /* TBL */
+	struct tbl_span	 *span;    /* TBL */
 	struct eqn_box	 *eqn;     /* EQN */
 	int		  line;    /* Input file line number. */
 	int		  pos;     /* Input file column number. */
 	int		  flags;
 #define	NODE_VALID	 (1 << 0)  /* Has been validated. */
 #define	NODE_ENDED	 (1 << 1)  /* Gone past body end mark. */
-#define	NODE_EOS	 (1 << 2)  /* At sentence boundary. */
+#define	NODE_BROKEN	 (1 << 2)  /* Must validate parent when ending. */
 #define	NODE_LINE	 (1 << 3)  /* First macro/text on line. */
-#define	NODE_SYNPRETTY	 (1 << 4)  /* SYNOPSIS-style formatting. */
-#define	NODE_BROKEN	 (1 << 5)  /* Must validate parent when ending. */
-#define	NODE_DELIMO	 (1 << 6)
-#define	NODE_DELIMC	 (1 << 7)
-#define	NODE_NOSRC	 (1 << 8)  /* Generated node, not in input file. */
-#define	NODE_NOPRT	 (1 << 9)  /* Shall not print anything. */
+#define	NODE_DELIMO	 (1 << 4)
+#define	NODE_DELIMC	 (1 << 5)
+#define	NODE_EOS	 (1 << 6)  /* At sentence boundary. */
+#define	NODE_SYNPRETTY	 (1 << 7)  /* SYNOPSIS-style formatting. */
+#define	NODE_NOFILL	 (1 << 8)  /* Fill mode switched off. */
+#define	NODE_NOSRC	 (1 << 9)  /* Generated node, not in input file. */
+#define	NODE_NOPRT	 (1 << 10) /* Shall not print anything. */
 	int		  prev_font; /* Before entering this node. */
 	int		  aux;     /* Decoded node data, type-dependent. */
 	enum roff_tok	  tok;     /* Request or macro ID. */
@@ -523,6 +530,7 @@ struct	roff_node {
 };
 
 struct	roff_meta {
+	struct roff_node *first;   /* The first node parsed. */
 	char		 *msec;    /* Manual section, usually a digit. */
 	char		 *vol;     /* Manual volume title. */
 	char		 *os;      /* Operating system. */
@@ -530,51 +538,15 @@ struct	roff_meta {
 	char		 *title;   /* Manual title, usually CAPS. */
 	char		 *name;    /* Leading manual name. */
 	char		 *date;    /* Normalized date. */
+	char		 *sodest;  /* .so target file name or NULL. */
 	int		  hasbody; /* Document is not empty. */
 	int		  rcsids;  /* Bits indexed by enum mandoc_os. */
 	enum mandoc_os	  os_e;    /* Operating system. */
-};
-
-struct	roff_man {
-	struct roff_meta  meta;    /* Document meta-data. */
-	struct mparse	 *parse;   /* Parse pointer. */
-	struct roff	 *roff;    /* Roff parser state data. */
-	struct ohash	 *mdocmac; /* Mdoc macro lookup table. */
-	struct ohash	 *manmac;  /* Man macro lookup table. */
-	const char	 *os_s;    /* Default operating system. */
-	struct roff_node *first;   /* The first node parsed. */
-	struct roff_node *last;    /* The last node parsed. */
-	struct roff_node *last_es; /* The most recent Es node. */
-	int		  quick;   /* Abort parse early. */
-	int		  flags;   /* Parse flags. */
-#define	MDOC_LITERAL	 (1 << 1)  /* In a literal scope. */
-#define	MDOC_PBODY	 (1 << 2)  /* In the document body. */
-#define	MDOC_NEWLINE	 (1 << 3)  /* First macro/text in a line. */
-#define	MDOC_PHRASE	 (1 << 4)  /* In a Bl -column phrase. */
-#define	MDOC_PHRASELIT	 (1 << 5)  /* Literal within a phrase. */
-#define	MDOC_FREECOL	 (1 << 6)  /* `It' invocation should close. */
-#define	MDOC_SYNOPSIS	 (1 << 7)  /* SYNOPSIS-style formatting. */
-#define	MDOC_KEEP	 (1 << 8)  /* In a word keep. */
-#define	MDOC_SMOFF	 (1 << 9)  /* Spacing is off. */
-#define	MDOC_NODELIMC	 (1 << 10) /* Disable closing delimiter handling. */
-#define	MAN_ELINE	 (1 << 11) /* Next-line element scope. */
-#define	MAN_BLINE	 (1 << 12) /* Next-line block scope. */
-#define	MDOC_PHRASEQF	 (1 << 13) /* Quote first word encountered. */
-#define	MDOC_PHRASEQL	 (1 << 14) /* Quote last word of this phrase. */
-#define	MDOC_PHRASEQN	 (1 << 15) /* Quote first word of the next phrase. */
-#define	MAN_LITERAL	  MDOC_LITERAL
-#define	MAN_NEWLINE	  MDOC_NEWLINE
 	enum roff_macroset macroset; /* Kind of high-level macros used. */
-	enum roff_sec	  lastsec; /* Last section seen. */
-	enum roff_sec	  lastnamed; /* Last standard section seen. */
-	enum roff_next	  next;    /* Where to put the next node. */
 };
 
 extern	const char *const *roff_name;
 
 
+int		 arch_valid(const char *, enum mandoc_os);
 void		 deroff(char **, const struct roff_node *);
-struct ohash	*roffhash_alloc(enum roff_tok, enum roff_tok);
-enum roff_tok	 roffhash_find(struct ohash *, const char *, size_t);
-void		 roffhash_free(struct ohash *);
-void		 roff_validate(struct roff_man *);

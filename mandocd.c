@@ -1,7 +1,7 @@
-/*	$Id: mandocd.c,v 1.6 2017/06/24 14:38:32 schwarze Exp $ */
+/*	$Id: mandocd.c,v 1.11 2019/03/03 13:02:11 schwarze Exp $ */
 /*
  * Copyright (c) 2017 Michael Stapelberg <stapelberg@debian.org>
- * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2017, 2019 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -38,6 +38,7 @@
 #include "roff.h"
 #include "mdoc.h"
 #include "man.h"
+#include "mandoc_parse.h"
 #include "main.h"
 #include "manconf.h"
 
@@ -170,8 +171,8 @@ main(int argc, char *argv[])
 		errx(1, "file descriptor %s %s", argv[1], errstr);
 
 	mchars_alloc();
-	parser = mparse_alloc(MPARSE_SO | MPARSE_UTF8 | MPARSE_LATIN1,
-	    MANDOCERR_MAX, NULL, MANDOC_OS_OTHER, defos);
+	parser = mparse_alloc(MPARSE_SO | MPARSE_UTF8 | MPARSE_LATIN1 |
+	    MPARSE_VALIDATE, MANDOC_OS_OTHER, defos);
 
 	memset(&options, 0, sizeof(options));
 	switch (outtype) {
@@ -212,6 +213,8 @@ main(int argc, char *argv[])
 
 		process(parser, outtype, formatter);
 		mparse_reset(parser);
+		if (outtype == OUTT_HTML)
+			html_reset(formatter);
 
 		fflush(stdout);
 		fflush(stderr);
@@ -243,35 +246,29 @@ main(int argc, char *argv[])
 static void
 process(struct mparse *parser, enum outt outtype, void *formatter)
 {
-	struct roff_man	 *man;
+	struct roff_meta *meta;
 
 	mparse_readfd(parser, STDIN_FILENO, "<unixfd>");
-	mparse_result(parser, &man, NULL);
-
-	if (man == NULL)
-		return;
-
-	if (man->macroset == MACROSET_MDOC) {
-		mdoc_validate(man);
+	meta = mparse_result(parser);
+	if (meta->macroset == MACROSET_MDOC) {
 		switch (outtype) {
 		case OUTT_ASCII:
 		case OUTT_UTF8:
-			terminal_mdoc(formatter, man);
+			terminal_mdoc(formatter, meta);
 			break;
 		case OUTT_HTML:
-			html_mdoc(formatter, man);
+			html_mdoc(formatter, meta);
 			break;
 		}
 	}
-	if (man->macroset == MACROSET_MAN) {
-		man_validate(man);
+	if (meta->macroset == MACROSET_MAN) {
 		switch (outtype) {
 		case OUTT_ASCII:
 		case OUTT_UTF8:
-			terminal_man(formatter, man);
+			terminal_man(formatter, meta);
 			break;
 		case OUTT_HTML:
-			html_man(formatter, man);
+			html_man(formatter, meta);
 			break;
 		}
 	}

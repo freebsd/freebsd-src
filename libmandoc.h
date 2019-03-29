@@ -1,7 +1,7 @@
-/*	$Id: libmandoc.h,v 1.71 2018/04/09 22:27:04 schwarze Exp $ */
+/*	$Id: libmandoc.h,v 1.77 2018/12/21 17:15:18 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013,2014,2015,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,31 +16,38 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-enum	rofferr {
-	ROFF_CONT, /* continue processing line */
-	ROFF_RERUN, /* re-run roff interpreter with offset */
-	ROFF_APPEND, /* re-run main parser, appending next line */
-	ROFF_REPARSE, /* re-run main parser on the result */
-	ROFF_SO, /* include another file */
-	ROFF_IGN, /* ignore current line */
-};
+/*
+ * Return codes passed from the roff parser to the main parser.
+ */
+
+/* Main instruction: what to do with the returned line. */
+#define	ROFF_IGN	0x000	/* Don't do anything with it. */
+#define	ROFF_CONT	0x001	/* Give it to the high-level parser. */
+#define	ROFF_RERUN	0x002	/* Re-run the roff parser with an offset. */
+#define	ROFF_REPARSE	0x004	/* Recursively run the main parser on it. */
+#define	ROFF_SO		0x008	/* Include the named file. */
+#define	ROFF_MASK	0x00f	/* Only one of these bits should be set. */
+
+/* Options for further parsing, to be OR'ed with the above. */
+#define	ROFF_APPEND	0x010	/* Append the next line to this one. */
+#define	ROFF_USERCALL	0x020	/* Start execution of a new macro. */
+#define	ROFF_USERRET	0x040	/* Abort execution of the current macro. */
+#define	ROFF_WHILE	0x100	/* Start a new .while loop. */
+#define	ROFF_LOOPCONT	0x200	/* Iterate the current .while loop. */
+#define	ROFF_LOOPEXIT	0x400	/* Exit the current .while loop. */
+#define	ROFF_LOOPMASK	0xf00
+
 
 struct	buf {
-	char	*buf;
-	size_t	 sz;
+	char		*buf;
+	size_t		 sz;
+	struct buf	*next;
 };
 
 
-struct	mparse;
 struct	roff;
 struct	roff_man;
 
-void		 mandoc_msg(enum mandocerr, struct mparse *,
-			int, int, const char *);
-void		 mandoc_vmsg(enum mandocerr, struct mparse *,
-			int, int, const char *, ...)
-			__attribute__((__format__ (__printf__, 5, 6)));
-char		*mandoc_getarg(struct mparse *, char **, int, int *);
 char		*mandoc_normdate(struct roff_man *, char *, int, int);
 int		 mandoc_eos(const char *, size_t);
 int		 mandoc_strntoi(const char *, size_t, int);
@@ -57,17 +64,18 @@ int		 preconv_encode(const struct buf *, size_t *,
 			struct buf *, size_t *, int *);
 
 void		 roff_free(struct roff *);
-struct roff	*roff_alloc(struct mparse *, int);
+struct roff	*roff_alloc(int);
 void		 roff_reset(struct roff *);
 void		 roff_man_free(struct roff_man *);
-struct roff_man	*roff_man_alloc(struct roff *, struct mparse *,
-			const char *, int);
+struct roff_man	*roff_man_alloc(struct roff *, const char *, int);
 void		 roff_man_reset(struct roff_man *);
-enum rofferr	 roff_parseln(struct roff *, int, struct buf *, int *);
+int		 roff_parseln(struct roff *, int, struct buf *, int *);
+void		 roff_userret(struct roff *);
 void		 roff_endparse(struct roff *);
 void		 roff_setreg(struct roff *, const char *, int, char sign);
 int		 roff_getreg(struct roff *, const char *);
 char		*roff_strdup(const struct roff *, const char *);
+char		*roff_getarg(struct roff *, char **, int, int *);
 int		 roff_getcontrol(const struct roff *,
 			const char *, int *);
 int		 roff_getformat(const struct roff *);

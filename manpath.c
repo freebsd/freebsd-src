@@ -1,6 +1,6 @@
-/*	$Id: manpath.c,v 1.35 2017/07/01 09:47:30 schwarze Exp $ */
+/*	$Id: manpath.c,v 1.37 2018/11/22 11:30:23 schwarze Exp $ */
 /*
- * Copyright (c) 2011, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011,2014,2015,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -232,8 +232,8 @@ int
 manconf_output(struct manoutput *conf, const char *cp, int fromfile)
 {
 	const char *const toks[] = {
-	    "includes", "man", "paper", "style",
-	    "indent", "width", "fragment", "mdoc", "noval"
+	    "includes", "man", "paper", "style", "indent", "width",
+	    "tag", "fragment", "mdoc", "noval", "toc"
 	};
 
 	const char	*errstr;
@@ -257,7 +257,7 @@ manconf_output(struct manoutput *conf, const char *cp, int fromfile)
 		warnx("-O %s=?: Missing argument value", toks[tok]);
 		return -1;
 	}
-	if ((tok == 6 || tok == 7) && *cp != '\0') {
+	if (tok > 6 && *cp != '\0') {
 		warnx("-O %s: Does not take a value: %s", toks[tok], cp);
 		return -1;
 	}
@@ -312,13 +312,23 @@ manconf_output(struct manoutput *conf, const char *cp, int fromfile)
 		warnx("-O width=%s is %s", cp, errstr);
 		return -1;
 	case 6:
-		conf->fragment = 1;
+		if (conf->tag != NULL) {
+			oldval = mandoc_strdup(conf->tag);
+			break;
+		}
+		conf->tag = mandoc_strdup(cp);
 		return 0;
 	case 7:
-		conf->mdoc = 1;
+		conf->fragment = 1;
 		return 0;
 	case 8:
+		conf->mdoc = 1;
+		return 0;
+	case 9:
 		conf->noval = 1;
+		return 0;
+	case 10:
+		conf->toc = 1;
 		return 0;
 	default:
 		if (fromfile)

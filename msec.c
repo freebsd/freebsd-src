@@ -1,4 +1,4 @@
-/*	$Id: msec.c,v 1.15 2015/10/06 18:32:19 schwarze Exp $ */
+/*	$Id: msec.c,v 1.16 2018/12/14 01:18:26 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -18,6 +18,7 @@
 
 #include <sys/types.h>
 
+#include <stdio.h>
 #include <string.h>
 
 #include "mandoc.h"

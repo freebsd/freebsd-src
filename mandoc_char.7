@@ -1,8 +1,8 @@
-.\"	$Id: mandoc_char.7,v 1.72 2018/08/08 14:30:48 schwarze Exp $
+.\"	$Id: mandoc_char.7,v 1.75 2018/12/15 19:30:26 schwarze Exp $
 .\"
 .\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011, 2013, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011,2013,2015,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: August 8 2018 $
+.Dd $Mdocdate: December 15 2018 $
 .Dt MANDOC_CHAR 7
 .Os
 .Sh NAME
@@ -266,11 +266,13 @@ Spacing:
 .It Em Input Ta Em Description
 .It Sq \e\ \& Ta unpaddable non-breaking space
 .It \e\(ti   Ta paddable non-breaking space
-.It \e0      Ta unpaddable, breaking digit-width space
+.It \e0      Ta digit-width space allowing line break
 .It \e|      Ta one-sixth \e(em narrow space, zero width in nroff mode
 .It \e^      Ta one-twelfth \e(em half-narrow space, zero width in nroff
-.It \e&      Ta zero-width space
+.It \e&      Ta zero-width non-breaking space
+.It \e)      Ta zero-width space transparent to end-of-sentence detection
 .It \e%      Ta zero-width space allowing hyphenation
+.It \e:      Ta zero-width space allowing line break
 .El
 .Pp
 Lines:
@@ -543,11 +545,13 @@ Accented letters:
 .It \e(\(aqI Ta \('I        Ta acute I
 .It \e(\(aqO Ta \('O        Ta acute O
 .It \e(\(aqU Ta \('U        Ta acute U
+.It \e(\(aqY Ta \('Y        Ta acute Y
 .It \e(\(aqa Ta \('a        Ta acute a
 .It \e(\(aqe Ta \('e        Ta acute e
 .It \e(\(aqi Ta \('i        Ta acute i
 .It \e(\(aqo Ta \('o        Ta acute o
 .It \e(\(aqu Ta \('u        Ta acute u
+.It \e(\(aqy Ta \('y        Ta acute y
 .It \e(\(gaA Ta \(`A        Ta grave A
 .It \e(\(gaE Ta \(`E        Ta grave E
 .It \e(\(gaI Ta \(`I        Ta grave I
@@ -761,14 +765,16 @@ For backward compatibility with existing manuals,
 .Xr mandoc 1
 also supports the
 .Pp
-.Dl \eN\(aq Ns Ar number Ns \(aq
+.Dl \eN\(aq Ns Ar number Ns \(aq and \e[ Ns Cm char Ns Ar number ]
 .Pp
-escape sequence, inserting the character
+escape sequences, inserting the character
 .Ar number
 from the current character set into the output.
 Of course, this is inherently non-portable and is already marked
-as deprecated in the Heirloom roff manual.
-For example, do not use \eN\(aq34\(aq, use \e(dq, or even the plain
+as deprecated in the Heirloom roff manual;
+on top of that, the second form is a GNU extension.
+For example, do not use \eN\(aq34\(aq or \e[char34], use \e(dq,
+or even the plain
 .Sq \(dq
 character where possible.
 .Sh COMPATIBILITY

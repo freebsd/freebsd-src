@@ -1,7 +1,7 @@
-/*	$Id: out.h,v 1.32 2018/06/25 16:54:59 schwarze Exp $ */
+/*	$Id: out.h,v 1.33 2018/08/18 20:18:14 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -32,6 +32,7 @@ enum	roffscale {
 
 struct	roffcol {
 	size_t		 width; /* width of cell */
+	size_t		 nwidth; /* max. width of number in cell */
 	size_t		 decimal; /* decimal position in cell */
 	size_t		 spacing; /* spacing after the column */
 	int		 flags; /* layout flags, see tbl_cell */

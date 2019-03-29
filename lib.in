@@ -1,4 +1,4 @@
-/*	$Id: lib.in,v 1.20 2017/08/20 02:30:27 schwarze Exp $ */
+/*	$Id: lib.in,v 1.21 2019/03/04 17:35:21 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2009, 2012 Joerg Sonnenberger <joerg@netbsd.org>
@@ -29,6 +29,7 @@ LINE("libalias",	"Packet Aliasing Library (libalias, \\-lalias)")
 LINE("libarchive",	"Streaming Archive Library (libarchive, \\-larchive)")
 LINE("libarm",		"ARM Architecture Library (libarm, \\-larm)")
 LINE("libarm32",	"ARM32 Architecture Library (libarm32, \\-larm32)")
+LINE("libbe",		"Boot Environment Library (libbe, \\-lbe)")
 LINE("libbluetooth",	"Bluetooth Library (libbluetooth, \\-lbluetooth)")
 LINE("libbsdxml",	"eXpat XML parser library (libbsdxml, \\-lbsdxml)")
 LINE("libbsm",		"Basic Security Module Library (libbsm, \\-lbsm)")
