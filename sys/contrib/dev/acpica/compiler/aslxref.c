@@ -613,7 +613,8 @@ XfNamespaceLocateBegin (
         (Op->Asl.ParseOpcode != PARSEOP_NAMESTRING) &&
         (Op->Asl.ParseOpcode != PARSEOP_NAMESEG)    &&
         (Op->Asl.ParseOpcode != PARSEOP_METHODCALL) &&
-        (Op->Asl.ParseOpcode != PARSEOP_EXTERNAL))
+        (Op->Asl.ParseOpcode != PARSEOP_EXTERNAL)   &&
+        (OpInfo->Type != AML_TYPE_NAMED_FIELD))
     {
         return_ACPI_STATUS (AE_OK);
     }
@@ -637,7 +638,8 @@ XfNamespaceLocateBegin (
     if ((Op->Asl.ParseOpcode == PARSEOP_NAMESTRING) ||
         (Op->Asl.ParseOpcode == PARSEOP_NAMESEG)    ||
         (Op->Asl.ParseOpcode == PARSEOP_METHODCALL) ||
-        (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL))
+        (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL)   ||
+        (OpInfo->Type == AML_TYPE_NAMED_FIELD))
     {
         /*
          * These are name references, do not push the scope stack
@@ -674,6 +676,10 @@ XfNamespaceLocateBegin (
 
         Path = NextOp->Asl.Value.String;
     }
+    else if (OpInfo->Type == AML_TYPE_NAMED_FIELD)
+    {
+        Path = Op->Asl.Child->Asl.Value.String;
+    }
     else
     {
         Path = Op->Asl.Value.String;
@@ -702,7 +708,7 @@ XfNamespaceLocateBegin (
              * We didn't find the name reference by path -- we can qualify this
              * a little better before we print an error message
              */
-            if (strlen (Path) == ACPI_NAME_SIZE)
+            if (strlen (Path) == ACPI_NAMESEG_SIZE)
             {
                 /* A simple, one-segment ACPI name */
 
@@ -764,7 +770,7 @@ XfNamespaceLocateBegin (
                      * doesn't exist or just can't be reached. However, we
                      * can differentiate between a NameSeg vs. NamePath.
                      */
-                    if (strlen (Op->Asl.ExternalName) == ACPI_NAME_SIZE)
+                    if (strlen (Op->Asl.ExternalName) == ACPI_NAMESEG_SIZE)
                     {
                         AslError (ASL_ERROR, ASL_MSG_NOT_FOUND, Op,
                             Op->Asl.ExternalName);
