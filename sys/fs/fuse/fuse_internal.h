@@ -193,74 +193,8 @@ int fuse_internal_access(struct vnode *vp, mode_t mode,
     struct fuse_access_param *facp, struct thread *td, struct ucred *cred);
 
 /* attributes */
-
-/*
- * Cache FUSE attributes 'fat', with nominal expiration
- * 'attr_valid'.'attr_valid_nsec', in attr cache associated with vnode 'vp'.
- * Optionally, if argument 'vap' is not NULL, store a copy of the converted
- * attributes there as well.
- *
- * If the nominal attribute cache TTL is zero, do not cache on the 'vp' (but do
- * return the result to the caller).
- */
-static inline void
-fuse_internal_attr_fat2vat(struct vnode *vp, struct fuse_attr *fat,
-    uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap)
-{
-	struct mount *mp;
-	struct fuse_vnode_data *fvdat;
-	struct vattr *vp_cache_at;
-
-	mp = vnode_mount(vp);
-	fvdat = VTOFUD(vp);
-
-	DEBUGX(FUSE_DEBUG_INTERNAL, "node #%ju, mode 0%o\n",
-	    (uintmax_t)fat->ino, fat->mode);
-
-	/* Honor explicit do-not-cache requests from user filesystems. */
-	if (attr_valid == 0 && attr_valid_nsec == 0)
-		fvdat->valid_attr_cache = false;
-	else
-		fvdat->valid_attr_cache = true;
-
-	vp_cache_at = VTOVA(vp);
-
-	if (vap == NULL && vp_cache_at == NULL)
-		return;
-
-	if (vap == NULL)
-		vap = vp_cache_at;
-
-	vattr_null(vap);
-
-	vap->va_fsid = mp->mnt_stat.f_fsid.val[0];
-	vap->va_fileid = fat->ino;
-	vap->va_mode = fat->mode & ~S_IFMT;
-	vap->va_nlink     = fat->nlink;
-	vap->va_uid       = fat->uid;
-	vap->va_gid       = fat->gid;
-	vap->va_rdev      = fat->rdev;
-	vap->va_size      = fat->size;
-	/* XXX on i386, seconds are truncated to 32 bits */
-	vap->va_atime.tv_sec  = fat->atime;
-	vap->va_atime.tv_nsec = fat->atimensec;
-	vap->va_mtime.tv_sec  = fat->mtime;
-	vap->va_mtime.tv_nsec = fat->mtimensec;
-	vap->va_ctime.tv_sec  = fat->ctime;
-	vap->va_ctime.tv_nsec = fat->ctimensec;
-	vap->va_blocksize = PAGE_SIZE;
-	vap->va_type = IFTOVT(fat->mode);
-	vap->va_bytes = fat->blocks * S_BLKSIZE;
-	vap->va_flags = 0;
-
-	if (vap != vp_cache_at && vp_cache_at != NULL)
-		memcpy(vp_cache_at, vap, sizeof(*vap));
-}
-
-
-#define	cache_attrs(vp, fuse_out, vap_out)				\
-	fuse_internal_attr_fat2vat((vp), &(fuse_out)->attr,		\
-	    (fuse_out)->attr_valid, (fuse_out)->attr_valid_nsec, (vap_out))
+void fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
+	uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap);
 
 /* fsync */
 
@@ -300,24 +234,15 @@ void fuse_internal_vnode_disappear(struct vnode *vp);
 static inline int
 fuse_internal_checkentry(struct fuse_entry_out *feo, enum vtype vtyp)
 {
-	DEBUGX(FUSE_DEBUG_INTERNAL,
-	    "feo=%p, vtype=%d\n", feo, vtyp);
-
 	if (vtyp != IFTOVT(feo->attr.mode)) {
-		DEBUGX(FUSE_DEBUG_INTERNAL,
-		    "EINVAL -- %x != %x\n", vtyp, IFTOVT(feo->attr.mode));
 		return (EINVAL);
 	}
 
 	if (feo->nodeid == FUSE_NULL_ID) {
-		DEBUGX(FUSE_DEBUG_INTERNAL,
-		    "EINVAL -- feo->nodeid is NULL\n");
 		return (EINVAL);
 	}
 
 	if (feo->nodeid == FUSE_ROOT_ID) {
-		DEBUGX(FUSE_DEBUG_INTERNAL,
-		    "EINVAL -- feo->nodeid is FUSE_ROOT_ID\n");
 		return (EINVAL);
 	}
 

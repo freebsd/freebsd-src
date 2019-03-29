@@ -98,9 +98,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse_ipc.h"
 #include "fuse_io.h"
 
-#define FUSE_DEBUG_MODULE IO
-#include "fuse_debug.h"
-
+SDT_PROVIDER_DECLARE(fuse);
+/* 
+ * Fuse trace probe:
+ * arg0: verbosity.  Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(fuse, , io, trace, "int", "char*");
 
 static int 
 fuse_read_directbackend(struct vnode *vp, struct uio *uio,
@@ -115,6 +119,8 @@ static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag);
 
+SDT_PROBE_DEFINE5(fuse, , io, io_dispatch, "struct vnode*", "struct uio*",
+		"int", "struct ucred*", "struct fuse_filehandle*");
 int
 fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
     struct ucred *cred)
@@ -130,6 +136,8 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		printf("FUSE: io dispatch: filehandles are closed\n");
 		return err;
 	}
+	SDT_PROBE5(fuse, , io, io_dispatch, vp, uio, ioflag, cred, fufh);
+
 	/*
          * Ideally, when the daemon asks for direct io at open time, the
          * standard file flag should be set according to this, so that would
@@ -145,12 +153,12 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 	switch (uio->uio_rw) {
 	case UIO_READ:
 		if (directio) {
-			FS_DEBUG("direct read of vnode %ju via file handle %ju\n",
-			    (uintmax_t)VTOILLU(vp), (uintmax_t)fufh->fh_id);
+			SDT_PROBE2(fuse, , io, trace, 1,
+				"direct read of vnode");
 			err = fuse_read_directbackend(vp, uio, cred, fufh);
 		} else {
-			FS_DEBUG("buffered read of vnode %ju\n", 
-			      (uintmax_t)VTOILLU(vp));
+			SDT_PROBE2(fuse, , io, trace, 1,
+				"buffered read of vnode");
 			err = fuse_read_biobackend(vp, uio, cred, fufh);
 		}
 		break;
@@ -162,12 +170,12 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		 * cached.
 		 */
 		if (directio || fuse_data_cache_mode == FUSE_CACHE_WT) {
-			FS_DEBUG("direct write of vnode %ju via file handle %ju\n",
-			    (uintmax_t)VTOILLU(vp), (uintmax_t)fufh->fh_id);
+			SDT_PROBE2(fuse, , io, trace, 1,
+				"direct write of vnode");
 			err = fuse_write_directbackend(vp, uio, cred, fufh, ioflag);
 		} else {
-			FS_DEBUG("buffered write of vnode %ju\n", 
-			      (uintmax_t)VTOILLU(vp));
+			SDT_PROBE2(fuse, , io, trace, 1,
+				"buffered write of vnode");
 			err = fuse_write_biobackend(vp, uio, cred, fufh, ioflag);
 		}
 		break;
@@ -178,6 +186,9 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 	return (err);
 }
 
+SDT_PROBE_DEFINE3(fuse, , io, read_bio_backend_start, "int", "int", "int");
+SDT_PROBE_DEFINE2(fuse, , io, read_bio_backend_feed, "int", "int");
+SDT_PROBE_DEFINE3(fuse, , io, read_bio_backend_end, "int", "ssize_t", "int");
 static int
 fuse_read_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh)
@@ -189,9 +200,6 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 	off_t filesize;
 
 	const int biosize = fuse_iosize(vp);
-
-	FS_DEBUG("resid=%zx offset=%jx fsize=%jx\n",
-	    uio->uio_resid, uio->uio_offset, VTOFUD(vp)->filesize);
 
 	if (uio->uio_resid == 0)
 		return (0);
@@ -209,7 +217,8 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset & (biosize - 1);
 
-		FS_DEBUG2G("biosize %d, lbn %d, on %d\n", biosize, (int)lbn, on);
+		SDT_PROBE3(fuse, , io, read_bio_backend_start,
+			biosize, (int)lbn, on);
 
 		/*
 	         * Obtain the buffer cache block.  Figure out the buffer size
@@ -258,18 +267,21 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 		if (on < bcount)
 			n = MIN((unsigned)(bcount - on), uio->uio_resid);
 		if (n > 0) {
-			FS_DEBUG2G("feeding buffeater with %d bytes of buffer %p,"
-				" saying %d was asked for\n",
-				n, bp->b_data + on, n + (int)bp->b_resid);
+			SDT_PROBE2(fuse, , io, read_bio_backend_feed,
+				n, n + (int)bp->b_resid);
 			err = uiomove(bp->b_data + on, n, uio);
 		}
 		brelse(bp);
-		FS_DEBUG2G("end of turn, err %d, uio->uio_resid %zd, n %d\n",
-		    err, uio->uio_resid, n);
+		SDT_PROBE3(fuse, , io, read_bio_backend_end, err,
+			uio->uio_resid, n);
 	} while (err == 0 && uio->uio_resid > 0 && n > 0);
 
 	return (err);
 }
+
+SDT_PROBE_DEFINE1(fuse, , io, read_directbackend_start, "struct fuse_read_in*");
+SDT_PROBE_DEFINE2(fuse, , io, read_directbackend_complete,
+	"struct fuse_dispatcher*", "struct uio*");
 
 static int
 fuse_read_directbackend(struct vnode *vp, struct uio *uio,
@@ -301,17 +313,13 @@ fuse_read_directbackend(struct vnode *vp, struct uio *uio,
 		fri->size = MIN(uio->uio_resid,
 		    fuse_get_mpdata(vp->v_mount)->max_read);
 
-		FS_DEBUG2G("fri->fh %ju, fri->offset %ju, fri->size %ju\n",
-			(uintmax_t)fri->fh, (uintmax_t)fri->offset, 
-			(uintmax_t)fri->size);
+		SDT_PROBE1(fuse, , io, read_directbackend_start, fri);
 
 		if ((err = fdisp_wait_answ(&fdi)))
 			goto out;
 
-		FS_DEBUG2G("complete: got iosize=%d, requested fri.size=%zd; "
-			"resid=%zd offset=%ju\n",
-			fri->size, fdi.iosize, uio->uio_resid, 
-			(uintmax_t)uio->uio_offset);
+		SDT_PROBE2(fuse, , io, read_directbackend_complete,
+			fdi.iosize, uio);
 
 		if ((err = uiomove(fdi.answ, MIN(fri->size, fdi.iosize), uio)))
 			break;
@@ -361,13 +369,24 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 		if ((err = fdisp_wait_answ(&fdi)))
 			break;
 
+		/* Adjust the uio in the case of short writes */
 		diff = chunksize - ((struct fuse_write_out *)fdi.answ)->size;
 		if (diff < 0) {
 			err = EINVAL;
 			break;
+		} else if (diff > 0 && !(ioflag & IO_DIRECT)) {
+			/* 
+			 * XXX We really should be directly checking whether
+			 * the file was opened with FOPEN_DIRECT_IO, not
+			 * IO_DIRECT.  IO_DIRECT can be set in multiple ways.
+			 */
+			SDT_PROBE2(fuse, , io, trace, 1,
+				"misbehaving filesystem: short writes are only "
+				"allowed with direct_io");
 		}
 		uio->uio_resid += diff;
 		uio->uio_offset -= diff;
+
 		if (uio->uio_offset > fvdat->filesize &&
 		    fuse_data_cache_mode != FUSE_CACHE_UC) {
 			fuse_vnode_setsize(vp, cred, uio->uio_offset);
@@ -379,6 +398,10 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 
 	return (err);
 }
+
+SDT_PROBE_DEFINE6(fuse, , io, write_biobackend_start, "int64_t", "int", "int",
+		"struct uio*", "int", "bool");
+SDT_PROBE_DEFINE2(fuse, , io, write_biobackend_append_race, "long", "int");
 
 static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
@@ -393,8 +416,6 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 	const int biosize = fuse_iosize(vp);
 
 	KASSERT(uio->uio_rw == UIO_WRITE, ("ncl_write mode"));
-	FS_DEBUG("resid=%zx offset=%jx fsize=%jx\n",
-	    uio->uio_resid, uio->uio_offset, fvdat->filesize);
 	if (vp->v_type != VREG)
 		return (EIO);
 	if (uio->uio_offset < 0)
@@ -421,10 +442,6 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 		on = uio->uio_offset & (biosize - 1);
 		n = MIN((unsigned)(biosize - on), uio->uio_resid);
 
-		FS_DEBUG2G("lbn %ju, on %d, n %d, uio offset %ju, uio resid %zd\n",
-			(uintmax_t)lbn, on, n, 
-			(uintmax_t)uio->uio_offset, uio->uio_resid);
-
 again:
 		/*
 	         * Handle direct append and file extension cases, calculate
@@ -438,7 +455,8 @@ again:
 	                 * readers from reading garbage.
 	                 */
 			bcount = on;
-			FS_DEBUG("getting block from OS, bcount %d\n", bcount);
+			SDT_PROBE6(fuse, , io, write_biobackend_start,
+				lbn, on, n, uio, bcount, true);
 			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
 
 			if (bp != NULL) {
@@ -468,7 +486,8 @@ again:
 					bcount = fvdat->filesize - 
 					  (off_t)lbn *biosize;
 			}
-			FS_DEBUG("getting block from OS, bcount %d\n", bcount);
+			SDT_PROBE6(fuse, , io, write_biobackend_start,
+				lbn, on, n, uio, bcount, false);
 			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
 			if (bp && uio->uio_offset + n > fvdat->filesize) {
 				err = fuse_vnode_setsize(vp, cred, 
@@ -530,7 +549,7 @@ again:
 	         */
 
 		if (bp->b_dirtyend > bcount) {
-			FS_DEBUG("FUSE append race @%lx:%d\n",
+			SDT_PROBE2(fuse, , io, write_biobackend_append_race,
 			    (long)bp->b_blkno * biosize,
 			    bp->b_dirtyend - bcount);
 			bp->b_dirtyend = bcount;
@@ -626,9 +645,6 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 
 	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 	MPASS(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE);
-	FS_DEBUG("inode=%ju offset=%jd resid=%ld\n",
-	    (uintmax_t)VTOI(vp), (intmax_t)(((off_t)bp->b_blkno) * biosize),
-	    bp->b_bcount);
 
 	error = fuse_filehandle_getrw(vp,
 	    (bp->b_iocmd == BIO_READ) ? FUFH_RDONLY : FUFH_WRONLY, &fufh);
@@ -701,7 +717,8 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 	         * If we only need to commit, try to commit
 	         */
 		if (bp->b_flags & B_NEEDCOMMIT) {
-			FS_DEBUG("write: B_NEEDCOMMIT flags set\n");
+			SDT_PROBE2(fuse, , io, trace, 1,
+				"write: B_NEEDCOMMIT flags set");
 		}
 		/*
 	         * Setup for actual write

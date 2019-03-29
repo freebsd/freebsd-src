@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
+#include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/fcntl.h>
 #include <sys/sysctl.h>
@@ -82,8 +83,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse.h"
 #include "fuse_ipc.h"
 
-#define FUSE_DEBUG_MODULE DEVICE
-#include "fuse_debug.h"
+SDT_PROVIDER_DECLARE(fuse);
+/* 
+ * Fuse trace probe:
+ * arg0: verbosity.  Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(fuse, , device, trace, "int", "char*");
 
 static struct cdev *fuse_dev;
 
@@ -127,15 +133,14 @@ fuse_device_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	struct fuse_data *fdata;
 	int error;
 
-	FS_DEBUG("device %p\n", dev);
+	SDT_PROBE2(fuse, , device, trace, 1, "device open");
 
 	fdata = fdata_alloc(dev, td->td_ucred);
 	error = devfs_set_cdevpriv(fdata, fdata_dtor);
 	if (error != 0)
 		fdata_trydestroy(fdata);
 	else
-		FS_DEBUG("%s: device opened by thread %d.\n", dev->si_name,
-		    td->td_tid);
+		SDT_PROBE2(fuse, , device, trace, 1, "device open success");
 	return (error);
 }
 
@@ -170,7 +175,7 @@ fuse_device_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	fuse_lck_mtx_unlock(data->aw_mtx);
 	FUSE_UNLOCK();
 
-	FS_DEBUG("%s: device closed by thread %d.\n", dev->si_name, td->td_tid);
+	SDT_PROBE2(fuse, , device, trace, 1, "device close");
 	return (0);
 }
 
@@ -214,7 +219,7 @@ fuse_device_read(struct cdev *dev, struct uio *uio, int ioflag)
 	int buflen[3];
 	int i;
 
-	FS_DEBUG("fuse device being read on thread %d\n", uio->uio_td->td_tid);
+	SDT_PROBE2(fuse, , device, trace, 1, "fuse device read");
 
 	err = devfs_get_cdevpriv((void **)&data);
 	if (err != 0)
@@ -223,7 +228,9 @@ fuse_device_read(struct cdev *dev, struct uio *uio, int ioflag)
 	fuse_lck_mtx_lock(data->ms_mtx);
 again:
 	if (fdata_get_dead(data)) {
-		FS_DEBUG2G("we know early on that reader should be kicked so we don't wait for news\n");
+		SDT_PROBE2(fuse, , device, trace, 2,
+			"we know early on that reader should be kicked so we "
+			"don't wait for news");
 		fuse_lck_mtx_unlock(data->ms_mtx);
 		return (ENODEV);
 	}
@@ -249,7 +256,7 @@ again:
 		 * -- and some other cases, too, tho not totally clear, when
 		 * (cv_signal/wakeup_one signals the whole process ?)
 		 */
-		FS_DEBUG("no message on thread #%d\n", uio->uio_td->td_tid);
+		SDT_PROBE2(fuse, , device, trace, 1, "no message on thread");
 		goto again;
 	}
 	fuse_lck_mtx_unlock(data->ms_mtx);
@@ -259,16 +266,18 @@ again:
 		 * somebody somewhere -- eg., umount routine --
 		 * wants this liaison finished off
 		 */
-		FS_DEBUG2G("reader is to be sacked\n");
+		SDT_PROBE2(fuse, , device, trace, 2, "reader is to be sacked");
 		if (tick) {
-			FS_DEBUG2G("weird -- \"kick\" is set tho there is message\n");
+			SDT_PROBE2(fuse, , device, trace, 2, "weird -- "
+				"\"kick\" is set tho there is message");
 			FUSE_ASSERT_MS_DONE(tick);
 			fuse_ticket_drop(tick);
 		}
 		return (ENODEV);	/* This should make the daemon get off
 					 * of us */
 	}
-	FS_DEBUG("message got on thread #%d\n", uio->uio_td->td_tid);
+	SDT_PROBE2(fuse, , device, trace, 1,
+		"fuse device read message successfully");
 
 	KASSERT(tick->tk_ms_bufdata || tick->tk_ms_bufsize == 0,
 	    ("non-null buf pointer with positive size"));
@@ -302,7 +311,8 @@ again:
 		 */
 		if (uio->uio_resid < buflen[i]) {
 			fdata_set_dead(data);
-			FS_DEBUG2G("daemon is stupid, kick it off...\n");
+			SDT_PROBE2(fuse, , device, trace, 2,
+			    "daemon is stupid, kick it off...");
 			err = ENODEV;
 			break;
 		}
@@ -320,16 +330,14 @@ again:
 static inline int
 fuse_ohead_audit(struct fuse_out_header *ohead, struct uio *uio)
 {
-	FS_DEBUG("Out header -- len: %i, error: %i, unique: %llu; iovecs: %d\n",
-	    ohead->len, ohead->error, (unsigned long long)ohead->unique,
-	    uio->uio_iovcnt);
-
 	if (uio->uio_resid + sizeof(struct fuse_out_header) != ohead->len) {
-		FS_DEBUG("Format error: body size differs from size claimed by header\n");
+		SDT_PROBE2(fuse, , device, trace, 1, "Format error: body size "
+			"differs from size claimed by header");
 		return (EINVAL);
 	}
 	if (uio->uio_resid && ohead->error) {
-		FS_DEBUG("Format error: non zero error but message had a body\n");
+		SDT_PROBE2(fuse, , device, trace, 1, 
+			"Format error: non zero error but message had a body");
 		return (EINVAL);
 	}
 	/* Sanitize the linuxism of negative errnos */
@@ -338,6 +346,8 @@ fuse_ohead_audit(struct fuse_out_header *ohead, struct uio *uio)
 	return (0);
 }
 
+SDT_PROBE_DEFINE1(fuse, , device, fuse_device_write_bumped_into_callback,
+		"uint64_t");
 /*
  * fuse_device_write first reads the header sent by the daemon.
  * If that's OK, looks up ticket/callback node by the unique id seen in header.
@@ -353,15 +363,13 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	struct fuse_ticket *tick, *x_tick;
 	int found = 0;
 
-	FS_DEBUG("resid: %zd, iovcnt: %d, thread: %d\n",
-	    uio->uio_resid, uio->uio_iovcnt, uio->uio_td->td_tid);
-
 	err = devfs_get_cdevpriv((void **)&data);
 	if (err != 0)
 		return (err);
 
 	if (uio->uio_resid < sizeof(struct fuse_out_header)) {
-		FS_DEBUG("got less than a header!\n");
+		SDT_PROBE2(fuse, , device, trace, 1,
+			"fuse_device_write got less than a header!");
 		fdata_set_dead(data);
 		return (EINVAL);
 	}
@@ -385,8 +393,9 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	fuse_lck_mtx_lock(data->aw_mtx);
 	TAILQ_FOREACH_SAFE(tick, &data->aw_head, tk_aw_link,
 	    x_tick) {
-		FS_DEBUG("bumped into callback #%llu\n",
-		    (unsigned long long)tick->tk_unique);
+		SDT_PROBE1(fuse, , device,
+			fuse_device_write_bumped_into_callback,
+			tick->tk_unique);
 		if (tick->tk_unique == ohead.unique) {
 			found = 1;
 			fuse_aw_remove(tick);
@@ -405,12 +414,14 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 			 * via ticket_drop(), so no manual mucking
 			 * around...)
 			 */
-			FS_DEBUG("pass ticket to a callback\n");
+			SDT_PROBE2(fuse, , device, trace, 1,
+				"pass ticket to a callback");
 			memcpy(&tick->tk_aw_ohead, &ohead, sizeof(ohead));
 			err = tick->tk_aw_handler(tick, uio);
 		} else {
 			/* pretender doesn't wanna do anything with answer */
-			FS_DEBUG("stuff devalidated, so we drop it\n");
+			SDT_PROBE2(fuse, , device, trace, 1,
+				"stuff devalidated, so we drop it");
 		}
 
 		/*
@@ -421,7 +432,8 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		fuse_ticket_drop(tick);
 	} else {
 		/* no callback at all! */
-		FS_DEBUG("erhm, no handler for this response\n");
+		SDT_PROBE2(fuse, , device, trace, 1,
+			"erhm, no handler for this response");
 		err = EINVAL;
 	}
 
