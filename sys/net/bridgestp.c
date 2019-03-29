@@ -2271,4 +2271,7 @@ bstp_destroy(struct bstp_port *bp)
 	taskqueue_drain(taskqueue_swi, &bp->bp_statetask);
 	taskqueue_drain(taskqueue_swi, &bp->bp_rtagetask);
 	taskqueue_drain(taskqueue_swi, &bp->bp_mediatask);
+
+	if (bp->bp_bs->bs_root_port == bp)
+		bstp_assign_roles(bp->bp_bs);
 }
