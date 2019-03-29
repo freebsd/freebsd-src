@@ -945,7 +945,7 @@ devstats(int perf_select, long double etime, int havelast)
 				       ms_per_transaction);
 		} else {
 			if (Iflag == 0)
-				printf(" %4.1Lf %4.0Lf %5.2Lf ",
+				printf(" %4.1Lf %4.0Lf %5.1Lf ",
 				       kb_per_transfer,
 				       transfers_per_second,
 				       mb_per_second);
