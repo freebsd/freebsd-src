@@ -1,7 +1,7 @@
 README for the tz distribution
 
-"What time is it?" -- Richard Deacon as The King
-"Any time you want it to be." -- Frank Baxter as The Scientist
+"Where do I set the hands of the clock?" -- Les Tremayne as The King
+"Oh that--you can set them any place you want." -- Frank Baxter as The Scientist
 					(from the Bell System film "About Time")
 
 The Time Zone Database (called tz, tzdb or zoneinfo) contains code and

@@ -204,7 +204,7 @@ Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
 			2:00	1:00	SAST	1944 Mar 19  2:00
 			2:00	-	SAST
 
-# Swaziland
+# Eswatini (formerly Swaziland)
 Zone	Africa/Mbabane	2:04:24 -	LMT	1903 Mar
 			2:00	-	SAST
 
@@ -625,7 +625,7 @@ Zone	Europe/Sarajevo	1:13:40	-	LMT	1884
 			1:00	-	CET	1982 Nov 27
 			1:00	EU	CE%sT
 
-# Macedonia
+# North Macedonia
 Zone	Europe/Skopje	1:25:44	-	LMT	1884
 			1:00	-	CET	1941 Apr 18 23:00
 			1:00	C-Eur	CE%sT	1945 May  8  2:00s

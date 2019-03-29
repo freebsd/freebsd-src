@@ -1,5 +1,53 @@
 News for the tz database
 
+Release 20198 - 2019-03-25 22:01:33 -0700
+
+  Briefly:
+    Palestine "springs forward" on 2019-03-30 instead of 2019-03-23.
+    Metlakatla "fell back" to rejoin Alaska Time on 2019-01-20 at 02:00.
+
+  Changes to past and future timestamps
+
+    Palestine will not start DST until 2019-03-30, instead of 2019-03-23 as
+    previously predicted.  Adjust our prediction by guessing that spring
+    transitions will be between 24 and 30 March, which matches recent practice
+    since 2016.  (Thanks to Even Scharning and Tim Parenti.)
+
+    Metlakatla ended its observance of Pacific standard time,
+    rejoining Alaska Time, on 2019-01-20 at 02:00.  (Thanks to Ryan
+    Stanley and Tim Parenti.)
+
+  Changes to past timestamps
+
+    Israel observed DST in 1980 (08-02/09-13) and 1984 (05-05/08-25).
+    (Thanks to Alois Treindl and Isaac Starkman.)
+
+  Changes to time zone abbreviations
+
+    Etc/UCT is now a backward-compatibility link to Etc/UTC, instead
+    of being a separate zone that generates the abbreviation "UCT",
+    which nowadays is typically a typo.  (Problem reported by Isiah
+    Meadows.)
+
+  Changes to code
+
+    zic now has an -r option to limit the time range of output data.
+    For example, 'zic -r @1000000000' limits the output data to
+    timestamps starting 1000000000 seconds after the Epoch.
+    This helps shrink output size and can be useful for applications
+    not needing the full timestamp history, such as TZDIST truncation;
+    see Internet RFC 8536 section 5.1.  (Inspired by a feature request
+    from Christopher Wong, helped along by bug reports from Wong and
+    from Tim Parenti.)
+
+  Changes to documentation
+
+    Mention Internet RFC 8536 (February 2019), which documents TZif.
+
+    tz-link.html now cites tzdata-meta
+    <https://tzdata-meta.timtimeonline.com/>.
+
+
 Release 2018i - 2018-12-30 11:05:43 -0800
 
   Briefly:
@@ -400,8 +448,9 @@ Release 2018d - 2018-03-22 07:05:46 -0700
       downstream parsers do not support it.
 
     * The build procedure constructs three files vanguard.zi, main.zi,
-      and rearguard.zi, one for each format.  The files represent the
-      same data as closely as the formats allow.  These three files
+      and rearguard.zi, one for each format.  Although the files
+      represent essentially the same data, they may have minor
+      discrepancies that users are not likely to notice.  The files
       are intended for downstream data consumers and are not
       installed.  Zoneinfo parsers that do not support negative SAVE values
       should start using rearguard.zi, so that they will be unaffected

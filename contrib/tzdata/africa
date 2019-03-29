@@ -364,6 +364,11 @@ Zone	Africa/Cairo	2:05:09 -	LMT	1900 Oct
 # See Africa/Lagos.
 
 # Eritrea
+# See Africa/Nairobi.
+
+# Eswatini (formerly Swaziland)
+# See Africa/Johannesburg.
+
 # Ethiopia
 # See Africa/Nairobi.
 #
@@ -1188,7 +1193,7 @@ Zone Africa/Johannesburg 1:52:00 -	LMT	1892 Feb 8
 			1:30	-	SAST	1903 Mar
 			2:00	SA	SAST
 Link Africa/Johannesburg Africa/Maseru	   # Lesotho
-Link Africa/Johannesburg Africa/Mbabane    # Swaziland
+Link Africa/Johannesburg Africa/Mbabane    # Eswatini
 #
 # Marion and Prince Edward Is
 # scientific station since 1947
@@ -1229,9 +1234,6 @@ Zone	Africa/Khartoum	2:10:08 -	LMT	1931
 Zone	Africa/Juba	2:06:28 -	LMT	1931
 			2:00	Sudan	CA%sT	2000 Jan 15 12:00
 			3:00	-	EAT
-
-# Swaziland
-# See Africa/Johannesburg.
 
 # Tanzania
 # See Africa/Nairobi.
