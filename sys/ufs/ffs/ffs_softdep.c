@@ -13902,6 +13902,8 @@ softdep_bp_to_mp(bp)
 	if (LIST_EMPTY(&bp->b_dep))
 		return (NULL);
 	vp = bp->b_vp;
+	KASSERT(vp != NULL,
+	    ("%s, buffer with dependencies lacks vnode", __func__));
 
 	/*
 	 * The ump mount point is stable after we get a correct
@@ -13911,17 +13913,33 @@ softdep_bp_to_mp(bp)
 	 * workitem might be freed while dereferenced.
 	 */
 retry:
-	if (vp->v_type == VCHR) {
+	switch (vp->v_type) {
+	case VCHR:
 		VI_LOCK(vp);
 		mp = vp->v_type == VCHR ? vp->v_rdev->si_mountpt : NULL;
 		VI_UNLOCK(vp);
 		if (mp == NULL)
 			goto retry;
-	} else if (vp->v_type == VREG || vp->v_type == VDIR ||
-	    vp->v_type == VLNK) {
+		break;
+	case VREG:
+	case VDIR:
+	case VLNK:
+	case VFIFO:
+	case VSOCK:
 		mp = vp->v_mount;
-	} else {
-		return (NULL);
+		break;
+	case VBLK:
+		vn_printf(vp, "softdep_bp_to_mp: unexpected block device\n");
+		/* FALLTHROUGH */
+	case VNON:
+	case VBAD:
+	case VMARKER:
+		mp = NULL;
+		break;
+	default:
+		vn_printf(vp, "unknown vnode type");
+		mp = NULL;
+		break;
 	}
 	return (VFSTOUFS(mp));
 }
