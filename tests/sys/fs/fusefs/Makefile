@@ -201,10 +201,6 @@ CFLAGS+=	-I${MOUNT}
 .PATH:		${MOUNT}
 CXXSTD=		c++14
 
-# XXX Setting CXXFLAGS globally seems to be necessary to get mockfs.cc and
-# utils.cc to build correctly.
-CXXFLAGS+=	${GTESTS_CXXFLAGS}
-
 LIBADD+=	pthread
 LIBADD+=	gmock gtest
 LIBADD+=	util
