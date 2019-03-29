@@ -542,6 +542,7 @@ FBSDprivate_1.0 {
 	__libc_tcdrain;
 
 	__elf_aux_vector;
+	__pthread_distribute_static_tls;
 	__pthread_map_stacks_exec;
 	__fillcontextx;
 	__fillcontextx2;
