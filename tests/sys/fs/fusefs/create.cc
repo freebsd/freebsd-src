@@ -37,7 +37,23 @@ extern "C" {
 
 using namespace testing;
 
-class Create: public FuseTest {};
+class Create: public FuseTest {
+public:
+
+void expect_create(const char *relpath, ProcessMockerT r)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *name = (const char*)in->body.bytes +
+				sizeof(fuse_open_in);
+			return (in->header.opcode == FUSE_CREATE &&
+				(0 == strcmp(relpath, name)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(r));
+}
+
+};
 
 /*
  * If FUSE_CREATE sets the attr_valid, then subsequent GETATTRs should use the
@@ -53,22 +69,13 @@ TEST_F(Create, DISABLED_attr_cache)
 	int fd;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
-				sizeof(fuse_open_in);
-			return (in->header.opcode == FUSE_CREATE &&
-				(0 == strcmp(RELPATH, name)));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	expect_create(RELPATH, ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	})));
+	}));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -95,16 +102,7 @@ TEST_F(Create, eexist)
 	mode_t mode = 0755;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
-				sizeof(fuse_open_in);
-			return (in->header.opcode == FUSE_CREATE &&
-				(0 == strcmp(RELPATH, name)));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(EEXIST)));
+	expect_create(RELPATH, ReturnErrno(EEXIST));
 	EXPECT_NE(0, open(FULLPATH, O_CREAT | O_EXCL, mode));
 	EXPECT_EQ(EEXIST, errno);
 }
@@ -122,16 +120,7 @@ TEST_F(Create, Enosys)
 	int fd;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
-				sizeof(fuse_open_in);
-			return (in->header.opcode == FUSE_CREATE &&
-				(0 == strcmp(RELPATH, name)));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(ENOSYS)));
+	expect_create(RELPATH, ReturnErrno(ENOSYS));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -199,22 +188,13 @@ TEST_F(Create, entry_cache_negative)
 
 	/* create will first do a LOOKUP, adding a negative cache entry */
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(ReturnNegativeCache(&entry_valid));
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
-				sizeof(fuse_open_in);
-			return (in->header.opcode == FUSE_CREATE &&
-				(0 == strcmp(RELPATH, name)));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	expect_create(RELPATH, ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	})));
+	}));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
@@ -252,20 +232,12 @@ TEST_F(Create, entry_cache_negative_purge)
 	.RetiresOnSaturation();
 
 	/* Then the CREATE should purge the negative cache entry */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
-				sizeof(fuse_open_in);
-			return (in->header.opcode == FUSE_CREATE &&
-				(0 == strcmp(RELPATH, name)));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	expect_create(RELPATH, ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	})));
+	}));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
@@ -301,16 +273,8 @@ TEST_F(Create, eperm)
 	mode_t mode = 0755;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_create(RELPATH, ReturnErrno(EPERM));
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
-				sizeof(fuse_open_in);
-			return (in->header.opcode == FUSE_CREATE &&
-				(0 == strcmp(RELPATH, name)));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(EPERM)));
 	EXPECT_NE(0, open(FULLPATH, O_CREAT | O_EXCL, mode));
 	EXPECT_EQ(EPERM, errno);
 }
@@ -324,22 +288,13 @@ TEST_F(Create, ok)
 	int fd;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
-				sizeof(fuse_open_in);
-			return (in->header.opcode == FUSE_CREATE &&
-				(0 == strcmp(RELPATH, name)));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	expect_create(RELPATH, ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	})));
+	}));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
@@ -351,10 +306,53 @@ TEST_F(Create, ok)
 	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
+		out->body.attr.attr.mode = S_IFREG | mode;
 	})));
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
+	EXPECT_LE(0, fd) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/*
+ * A regression test for a bug that affected old FUSE implementations:
+ * open(..., O_WRONLY | O_CREAT, 0444) should work despite the seeming
+ * contradiction between O_WRONLY and 0444
+ *
+ * For example:
+ * https://bugs.launchpad.net/ubuntu/+source/sshfs-fuse/+bug/44886
+ */
+TEST_F(Create, wronly_0444)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	mode_t mode = 0444;
+	uint64_t ino = 42;
+	int fd;
+
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_create(RELPATH, ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, create);
+		out->body.create.entry.attr.mode = S_IFREG | mode;
+		out->body.create.entry.nodeid = ino;
+		out->body.create.entry.entry_valid = UINT64_MAX;
+		out->body.create.entry.attr_valid = UINT64_MAX;
+	}));
+
+	/* Until the attr cache is working, we may send an additional GETATTR */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | mode;
+	})));
+
+	fd = open(FULLPATH, O_CREAT | O_WRONLY, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
