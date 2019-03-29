@@ -658,7 +658,7 @@ AcpiDbExecute (
 
             /* Dump a _PLD buffer if present */
 
-            if (ACPI_COMPARE_NAME ((ACPI_CAST_PTR (ACPI_NAMESPACE_NODE,
+            if (ACPI_COMPARE_NAMESEG ((ACPI_CAST_PTR (ACPI_NAMESPACE_NODE,
                 AcpiGbl_DbMethodInfo.Method)->Name.Ascii),
                 METHOD_NAME__PLD))
             {

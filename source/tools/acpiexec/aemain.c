@@ -840,6 +840,7 @@ NormalExit:
     ExitCode = 0;
 
 ErrorExit:
+    AeLateTest ();
     (void) AcpiTerminate ();
     AcDeleteTableList (ListHead);
     AcpiOsFree (AcpiGbl_InitEntries);

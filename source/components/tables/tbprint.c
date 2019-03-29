@@ -225,10 +225,10 @@ AcpiTbCleanupTableHeader (
 
     memcpy (OutHeader, Header, sizeof (ACPI_TABLE_HEADER));
 
-    AcpiTbFixString (OutHeader->Signature, ACPI_NAME_SIZE);
+    AcpiTbFixString (OutHeader->Signature, ACPI_NAMESEG_SIZE);
     AcpiTbFixString (OutHeader->OemId, ACPI_OEM_ID_SIZE);
     AcpiTbFixString (OutHeader->OemTableId, ACPI_OEM_TABLE_ID_SIZE);
-    AcpiTbFixString (OutHeader->AslCompilerId, ACPI_NAME_SIZE);
+    AcpiTbFixString (OutHeader->AslCompilerId, ACPI_NAMESEG_SIZE);
 }
 
 
@@ -253,7 +253,7 @@ AcpiTbPrintTableHeader (
     ACPI_TABLE_HEADER       LocalHeader;
 
 
-    if (ACPI_COMPARE_NAME (Header->Signature, ACPI_SIG_FACS))
+    if (ACPI_COMPARE_NAMESEG (Header->Signature, ACPI_SIG_FACS))
     {
         /* FACS only has signature and length fields */
 
@@ -320,8 +320,8 @@ AcpiTbVerifyChecksum (
      * They are the odd tables, have no standard ACPI header and no checksum
      */
 
-    if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_S3PT) ||
-        ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FACS))
+    if (ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_S3PT) ||
+        ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_FACS))
     {
         return (AE_OK);
     }

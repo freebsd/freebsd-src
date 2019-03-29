@@ -204,7 +204,7 @@ AxExtractTables (
 
     if (Signature)
     {
-        strncpy (UpperSignature, Signature, ACPI_NAME_SIZE);
+        strncpy (UpperSignature, Signature, ACPI_NAMESEG_SIZE);
         AcpiUtStrupr (UpperSignature);
 
         /* Are there enough instances of the table to continue? */
@@ -262,12 +262,12 @@ AxExtractTables (
                 continue;
             }
 
-            ACPI_MOVE_NAME (ThisSignature, Gbl_LineBuffer);
+            ACPI_COPY_NAMESEG (ThisSignature, Gbl_LineBuffer);
             if (Signature)
             {
                 /* Ignore signatures that don't match */
 
-                if (!ACPI_COMPARE_NAME (ThisSignature, UpperSignature))
+                if (!ACPI_COMPARE_NAMESEG (ThisSignature, UpperSignature))
                 {
                     continue;
                 }
@@ -466,12 +466,12 @@ AxExtractToMultiAmlFile (
                 continue;
             }
 
-            ACPI_MOVE_NAME (ThisSignature, Gbl_LineBuffer);
+            ACPI_COPY_NAMESEG (ThisSignature, Gbl_LineBuffer);
 
             /* Only want DSDT and SSDTs */
 
-            if (!ACPI_COMPARE_NAME (ThisSignature, ACPI_SIG_DSDT) &&
-                !ACPI_COMPARE_NAME (ThisSignature, ACPI_SIG_SSDT))
+            if (!ACPI_COMPARE_NAMESEG (ThisSignature, ACPI_SIG_DSDT) &&
+                !ACPI_COMPARE_NAMESEG (ThisSignature, ACPI_SIG_SSDT))
             {
                 continue;
             }

@@ -206,7 +206,7 @@ AeExceptionHandler (
 
         if (Name)
         {
-            if (ACPI_COMPARE_NAME (&Name, ACPI_ROOT_PATHNAME))
+            if (ACPI_COMPARE_NAMESEG (&Name, ACPI_ROOT_PATHNAME))
             {
                 AcpiOsPrintf (AE_PREFIX
                     "Evaluating executable code at [%s]\n", ACPI_NAMESPACE_ROOT);

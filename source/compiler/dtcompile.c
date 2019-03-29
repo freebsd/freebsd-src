@@ -418,7 +418,7 @@ DtCompileDataTable (
      * Currently, these are the FACS and RSDP. Also check for an OEMx table,
      * these tables have user-defined contents.
      */
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_FACS))
+    if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_FACS))
     {
         Status = DtCompileFacs (FieldList);
         if (ACPI_FAILURE (Status))
@@ -434,7 +434,7 @@ DtCompileDataTable (
         Status = DtCompileRsdp (FieldList);
         return (Status);
     }
-    else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_S3PT))
+    else if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_S3PT))
     {
         Status = DtCompileS3pt (FieldList);
         if (ACPI_FAILURE (Status))

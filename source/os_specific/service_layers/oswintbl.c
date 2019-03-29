@@ -299,7 +299,8 @@ AcpiOsGetTableByIndex (
     {
         *Instance = Index;
     }
-    else if (Status == AE_NOT_FOUND && ACPI_COMPARE_NAME (Signature, ACPI_SIG_SSDT))
+    else if (Status == AE_NOT_FOUND &&
+        ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_SSDT))
     {
         /* Treat SSDTs that are not found as invalid index. */
         Status = (AE_LIMIT);
@@ -353,7 +354,7 @@ AcpiOsGetTableByName (
 
     /* Multiple instances are only supported for SSDT tables. */
 
-    if (Instance > 0 && !ACPI_COMPARE_NAME (Signature, ACPI_SIG_SSDT))
+    if (Instance > 0 && !ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_SSDT))
     {
         return (AE_LIMIT);
     }
@@ -374,7 +375,7 @@ AcpiOsGetTableByName (
          * OEM ID, Table ID and Revision, then the 29th entry will overwrite the
          * first entry... Let's hope that we do not have that many entries.
          */
-        if (Instance > 0 && ACPI_COMPARE_NAME (Signature, ACPI_SIG_SSDT))
+        if (Instance > 0 && ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_SSDT))
         {
             if (Instance < 10)
             {
@@ -403,15 +404,15 @@ AcpiOsGetTableByName (
              *
              * This code allows for both.
              */
-            if (ACPI_COMPARE_NAME (Signature, "FACP"))
+            if (ACPI_COMPARE_NAMESEG (Signature, "FACP"))
             {
                 Signature = "FADT";
             }
-            else if (ACPI_COMPARE_NAME (Signature, "XSDT"))
+            else if (ACPI_COMPARE_NAMESEG (Signature, "XSDT"))
             {
                 Signature = "RSDT";
             }
-            else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_SSDT))
+            else if (ACPI_COMPARE_NAMESEG (Signature, ACPI_SIG_SSDT))
             {
                 /* SSDT may not be present on older Windows versions, but it is
                  * also possible that the index is not found. */

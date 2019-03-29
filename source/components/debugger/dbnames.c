@@ -557,7 +557,7 @@ AcpiDbFindNameInNamespace (
     char                    *AcpiNamePtr = AcpiName;
 
 
-    if (strlen (NameArg) > ACPI_NAME_SIZE)
+    if (strlen (NameArg) > ACPI_NAMESEG_SIZE)
     {
         AcpiOsPrintf ("Name must be no longer than 4 characters\n");
         return (AE_OK);
