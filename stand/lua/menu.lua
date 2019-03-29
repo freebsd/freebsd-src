@@ -494,7 +494,7 @@ function menu.autoboot(delay)
 end
 
 -- CLI commands
-function cli.menu(...)
+function cli.menu()
 	menu.run()
 end
 

@@ -100,6 +100,17 @@ xsave(char *addr, uint64_t mask)
 	    "memory");
 }
 
+static __inline void
+xsaveopt(char *addr, uint64_t mask)
+{
+	uint32_t low, hi;
+
+	low = mask;
+	hi = mask >> 32;
+	__asm __volatile("xsaveopt %0" : "=m" (*addr) : "a" (low), "d" (hi) :
+	    "memory");
+}
+
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
 void	fldcw(u_short cw);
@@ -113,6 +124,7 @@ void	ldmxcsr(u_int csr);
 void	stmxcsr(u_int *csr);
 void	xrstor(char *addr, uint64_t mask);
 void	xsave(char *addr, uint64_t mask);
+void	xsaveopt(char *addr, uint64_t mask);
 
 #endif	/* __GNUCLIKE_ASM && !lint */
 
@@ -158,6 +170,13 @@ struct xsave_area_elm_descr {
 } *xsave_area_desc;
 
 static void
+fpusave_xsaveopt(void *addr)
+{
+
+	xsaveopt((char *)addr, xsave_mask);
+}
+
+static void
 fpusave_xsave(void *addr)
 {
 
@@ -201,7 +220,10 @@ DEFINE_IFUNC(, void, fpusave, (void *), static)
 {
 
 	init_xsave();
-	return (use_xsave ? fpusave_xsave : fpusave_fxsave);
+	if (use_xsave)
+		return ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
+		    fpusave_xsaveopt : fpusave_xsave);
+	return (fpusave_fxsave);
 }
 
 DEFINE_IFUNC(, void, fpurestore, (void *), static)
@@ -356,7 +378,7 @@ fpuinitstate(void *arg __unused)
 	saveintr = intr_disable();
 	stop_emulating();
 
-	fpusave(fpu_initialstate);
+	fpusave_fxsave(fpu_initialstate);
 	if (fpu_initialstate->sv_env.en_mxcsr_mask)
 		cpu_mxcsr_mask = fpu_initialstate->sv_env.en_mxcsr_mask;
 	else

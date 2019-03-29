@@ -242,6 +242,8 @@
 #define	  LPCR_PECE_ME            (1ULL << 12) /* Machine Check and Hypervisor */
                                                /* Maintenance exceptions */
 #define	SPR_LPID		0x13f	/* Logical Partitioning Control */
+#define	SPR_HMER		0x150	/* Hypervisor Maintenance Exception Register */
+#define	SPR_HMEER		0x151	/* Hypervisor Maintenance Exception Enable Register */
 
 #define	SPR_PTCR		0x1d0	/* Partition Table Control Register */
 #define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */

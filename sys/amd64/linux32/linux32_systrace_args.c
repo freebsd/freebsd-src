@@ -785,9 +785,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->what; /* l_uint */
 		iarg[1] = p->arg1; /* l_int */
 		iarg[2] = p->arg2; /* l_int */
-		iarg[3] = p->arg3; /* l_int */
-		uarg[4] = (intptr_t) p->ptr; /* void * */
-		iarg[5] = p->arg5; /* l_long */
+		iarg[3] = p->arg3; /* l_uint */
+		iarg[4] = p->ptr; /* l_uintptr_t */
+		iarg[5] = p->arg5; /* l_uint */
 		*n_args = 6;
 		break;
 	}
@@ -2708,6 +2708,251 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* linux_statx */
+	case 383: {
+		struct linux_statx_args *p = params;
+		iarg[0] = p->dirfd; /* l_int */
+		uarg[1] = (intptr_t) p->pathname; /* const char * */
+		iarg[2] = p->flags; /* l_uint */
+		iarg[3] = p->mask; /* l_uint */
+		uarg[4] = (intptr_t) p->statxbuf; /* void * */
+		*n_args = 5;
+		break;
+	}
+	/* linux_arch_prctl */
+	case 384: {
+		struct linux_arch_prctl_args *p = params;
+		iarg[0] = p->option; /* l_int */
+		iarg[1] = p->arg2; /* l_ulong */
+		*n_args = 2;
+		break;
+	}
+	/* linux_io_pgetevents */
+	case 385: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_rseq */
+	case 386: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_semget */
+	case 393: {
+		struct linux_semget_args *p = params;
+		iarg[0] = p->key; /* l_key_t */
+		iarg[1] = p->nsems; /* l_int */
+		iarg[2] = p->semflg; /* l_int */
+		*n_args = 3;
+		break;
+	}
+	/* linux_semctl */
+	case 394: {
+		struct linux_semctl_args *p = params;
+		iarg[0] = p->semid; /* l_int */
+		iarg[1] = p->semnum; /* l_int */
+		iarg[2] = p->cmd; /* l_int */
+		uarg[3] = p->arg.buf; /* union l_semun */
+		*n_args = 4;
+		break;
+	}
+	/* linux_shmget */
+	case 395: {
+		struct linux_shmget_args *p = params;
+		iarg[0] = p->key; /* l_key_t */
+		iarg[1] = p->size; /* l_size_t */
+		iarg[2] = p->shmflg; /* l_int */
+		*n_args = 3;
+		break;
+	}
+	/* linux_shmctl */
+	case 396: {
+		struct linux_shmctl_args *p = params;
+		iarg[0] = p->shmid; /* l_int */
+		iarg[1] = p->cmd; /* l_int */
+		uarg[2] = (intptr_t) p->buf; /* struct l_shmid_ds * */
+		*n_args = 3;
+		break;
+	}
+	/* linux_shmat */
+	case 397: {
+		struct linux_shmat_args *p = params;
+		iarg[0] = p->shmid; /* l_int */
+		uarg[1] = (intptr_t) p->shmaddr; /* char * */
+		iarg[2] = p->shmflg; /* l_int */
+		*n_args = 3;
+		break;
+	}
+	/* linux_shmdt */
+	case 398: {
+		struct linux_shmdt_args *p = params;
+		uarg[0] = (intptr_t) p->shmaddr; /* char * */
+		*n_args = 1;
+		break;
+	}
+	/* linux_msgget */
+	case 399: {
+		struct linux_msgget_args *p = params;
+		iarg[0] = p->key; /* l_key_t */
+		iarg[1] = p->msgflg; /* l_int */
+		*n_args = 2;
+		break;
+	}
+	/* linux_msgsnd */
+	case 400: {
+		struct linux_msgsnd_args *p = params;
+		iarg[0] = p->msqid; /* l_int */
+		uarg[1] = (intptr_t) p->msgp; /* struct l_msgbuf * */
+		iarg[2] = p->msgsz; /* l_size_t */
+		iarg[3] = p->msgflg; /* l_int */
+		*n_args = 4;
+		break;
+	}
+	/* linux_msgrcv */
+	case 401: {
+		struct linux_msgrcv_args *p = params;
+		iarg[0] = p->msqid; /* l_int */
+		uarg[1] = (intptr_t) p->msgp; /* struct l_msgbuf * */
+		iarg[2] = p->msgsz; /* l_size_t */
+		iarg[3] = p->msgtyp; /* l_long */
+		iarg[4] = p->msgflg; /* l_int */
+		*n_args = 5;
+		break;
+	}
+	/* linux_msgctl */
+	case 402: {
+		struct linux_msgctl_args *p = params;
+		iarg[0] = p->msqid; /* l_int */
+		iarg[1] = p->cmd; /* l_int */
+		uarg[2] = (intptr_t) p->buf; /* struct l_msqid_ds * */
+		*n_args = 3;
+		break;
+	}
+	/* linux_clock_gettime64 */
+	case 403: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_clock_settime64 */
+	case 404: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_clock_adjtime64 */
+	case 405: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_clock_getres_time64 */
+	case 406: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_clock_nanosleep_time64 */
+	case 407: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_timer_gettime64 */
+	case 408: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_timer_settime64 */
+	case 409: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_timerfd_gettime64 */
+	case 410: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_timerfd_settime64 */
+	case 411: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_utimensat_time64 */
+	case 412: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_pselect6_time64 */
+	case 413: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_ppoll_time64 */
+	case 414: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_io_pgetevents_time64 */
+	case 416: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_recvmmsg_time64 */
+	case 417: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_mq_timedsend_time64 */
+	case 418: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_mq_timedreceive_time64 */
+	case 419: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_semtimedop_time64 */
+	case 420: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_rt_sigtimedwait_time64 */
+	case 421: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_futex_time64 */
+	case 422: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_sched_rr_get_interval_time64 */
+	case 423: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_pidfd_send_signal */
+	case 424: {
+		struct linux_pidfd_send_signal_args *p = params;
+		iarg[0] = p->pidfd; /* l_int */
+		iarg[1] = p->sig; /* l_int */
+		uarg[2] = (intptr_t) p->info; /* l_siginfo_t * */
+		iarg[3] = p->flags; /* l_uint */
+		*n_args = 4;
+		break;
+	}
+	/* linux_io_uring_setup */
+	case 425: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_io_uring_enter */
+	case 426: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_io_uring_register */
+	case 427: {
+		*n_args = 0;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -3894,13 +4139,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 3:
-			p = "l_int";
+			p = "l_uint";
 			break;
 		case 4:
-			p = "userland void *";
+			p = "l_uintptr_t";
 			break;
 		case 5:
-			p = "l_long";
+			p = "l_uint";
 			break;
 		default:
 			break;
@@ -6919,6 +7164,298 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* linux_statx */
+	case 383:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		case 4:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_arch_prctl */
+	case 384:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_ulong";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_io_pgetevents */
+	case 385:
+		break;
+	/* linux_rseq */
+	case 386:
+		break;
+	/* linux_semget */
+	case 393:
+		switch(ndx) {
+		case 0:
+			p = "l_key_t";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_semctl */
+	case 394:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		case 3:
+			p = "union l_semun";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_shmget */
+	case 395:
+		switch(ndx) {
+		case 0:
+			p = "l_key_t";
+			break;
+		case 1:
+			p = "l_size_t";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_shmctl */
+	case 396:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland struct l_shmid_ds *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_shmat */
+	case 397:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland char *";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_shmdt */
+	case 398:
+		switch(ndx) {
+		case 0:
+			p = "userland char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_msgget */
+	case 399:
+		switch(ndx) {
+		case 0:
+			p = "l_key_t";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_msgsnd */
+	case 400:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland struct l_msgbuf *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		case 3:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_msgrcv */
+	case 401:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland struct l_msgbuf *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		case 3:
+			p = "l_long";
+			break;
+		case 4:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_msgctl */
+	case 402:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland struct l_msqid_ds *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_clock_gettime64 */
+	case 403:
+		break;
+	/* linux_clock_settime64 */
+	case 404:
+		break;
+	/* linux_clock_adjtime64 */
+	case 405:
+		break;
+	/* linux_clock_getres_time64 */
+	case 406:
+		break;
+	/* linux_clock_nanosleep_time64 */
+	case 407:
+		break;
+	/* linux_timer_gettime64 */
+	case 408:
+		break;
+	/* linux_timer_settime64 */
+	case 409:
+		break;
+	/* linux_timerfd_gettime64 */
+	case 410:
+		break;
+	/* linux_timerfd_settime64 */
+	case 411:
+		break;
+	/* linux_utimensat_time64 */
+	case 412:
+		break;
+	/* linux_pselect6_time64 */
+	case 413:
+		break;
+	/* linux_ppoll_time64 */
+	case 414:
+		break;
+	/* linux_io_pgetevents_time64 */
+	case 416:
+		break;
+	/* linux_recvmmsg_time64 */
+	case 417:
+		break;
+	/* linux_mq_timedsend_time64 */
+	case 418:
+		break;
+	/* linux_mq_timedreceive_time64 */
+	case 419:
+		break;
+	/* linux_semtimedop_time64 */
+	case 420:
+		break;
+	/* linux_rt_sigtimedwait_time64 */
+	case 421:
+		break;
+	/* linux_futex_time64 */
+	case 422:
+		break;
+	/* linux_sched_rr_get_interval_time64 */
+	case 423:
+		break;
+	/* linux_pidfd_send_signal */
+	case 424:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland l_siginfo_t *";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_io_uring_setup */
+	case 425:
+		break;
+	/* linux_io_uring_enter */
+	case 426:
+		break;
+	/* linux_io_uring_register */
+	case 427:
+		break;
 	default:
 		break;
 	};
@@ -8415,6 +8952,121 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* linux_statx */
+	case 383:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_arch_prctl */
+	case 384:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_io_pgetevents */
+	case 385:
+	/* linux_rseq */
+	case 386:
+	/* linux_semget */
+	case 393:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_semctl */
+	case 394:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_shmget */
+	case 395:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_shmctl */
+	case 396:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_shmat */
+	case 397:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_shmdt */
+	case 398:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_msgget */
+	case 399:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_msgsnd */
+	case 400:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_msgrcv */
+	case 401:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_msgctl */
+	case 402:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_clock_gettime64 */
+	case 403:
+	/* linux_clock_settime64 */
+	case 404:
+	/* linux_clock_adjtime64 */
+	case 405:
+	/* linux_clock_getres_time64 */
+	case 406:
+	/* linux_clock_nanosleep_time64 */
+	case 407:
+	/* linux_timer_gettime64 */
+	case 408:
+	/* linux_timer_settime64 */
+	case 409:
+	/* linux_timerfd_gettime64 */
+	case 410:
+	/* linux_timerfd_settime64 */
+	case 411:
+	/* linux_utimensat_time64 */
+	case 412:
+	/* linux_pselect6_time64 */
+	case 413:
+	/* linux_ppoll_time64 */
+	case 414:
+	/* linux_io_pgetevents_time64 */
+	case 416:
+	/* linux_recvmmsg_time64 */
+	case 417:
+	/* linux_mq_timedsend_time64 */
+	case 418:
+	/* linux_mq_timedreceive_time64 */
+	case 419:
+	/* linux_semtimedop_time64 */
+	case 420:
+	/* linux_rt_sigtimedwait_time64 */
+	case 421:
+	/* linux_futex_time64 */
+	case 422:
+	/* linux_sched_rr_get_interval_time64 */
+	case 423:
+	/* linux_pidfd_send_signal */
+	case 424:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_io_uring_setup */
+	case 425:
+	/* linux_io_uring_enter */
+	case 426:
+	/* linux_io_uring_register */
+	case 427:
 	default:
 		break;
 	};

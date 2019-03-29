@@ -53,7 +53,8 @@ ASENTRY(opal_call)
 
 	/* Load OPAL entry information */
 	mr	%r0,%r3
-	ld	%r3,TOC_REF(opal_entrypoint)(%r2)
+	addis	%r3,%r2,TOC_REF(opal_entrypoint)@ha
+	ld	%r3,TOC_REF(opal_entrypoint)@l(%r3)
 	ld	%r3,0(%r3)
 	mtctr	%r3
 
@@ -62,9 +63,11 @@ ASENTRY(opal_call)
 	mfmsr	%r31
 
 	/* Load last bits from the TOC */
-	ld	%r3,TOC_REF(opal_msr)(%r2)
+	addis	%r3,%r2,TOC_REF(opal_msr)@ha
+	ld	%r3,TOC_REF(opal_msr)@l(%r3)
 	ld	%r3,0(%r3)
-	ld	%r2,TOC_REF(opal_data)(%r2)
+	addis	%r2,%r2,TOC_REF(opal_data)@ha
+	ld	%r2,TOC_REF(opal_data)@l(%r2)
 	ld	%r2,0(%r2)
 
 	mtmsrd	%r3

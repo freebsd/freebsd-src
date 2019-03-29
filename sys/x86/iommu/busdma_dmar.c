@@ -527,7 +527,8 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 			gas_flags |= DMAR_GM_CANSPLIT;
 
 		error = dmar_gas_map(domain, &tag->common, size, offset,
-		    DMAR_MAP_ENTRY_READ | DMAR_MAP_ENTRY_WRITE,
+		    DMAR_MAP_ENTRY_READ |
+		    ((flags & BUS_DMA_NOWRITE) == 0 ? DMAR_MAP_ENTRY_WRITE : 0),
 		    gas_flags, ma + idx, &entry);
 		if (error != 0)
 			break;

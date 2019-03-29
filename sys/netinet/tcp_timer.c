@@ -110,6 +110,11 @@ int	tcp_msl;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_msl, 0, sysctl_msec_to_ticks, "I", "Maximum segment lifetime");
 
+int	tcp_rexmit_initial;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_initial, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_rexmit_initial, 0, sysctl_msec_to_ticks, "I",
+    "Initial Retransmission Timeout");
+
 int	tcp_rexmit_min;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_min, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_rexmit_min, 0, sysctl_msec_to_ticks, "I",
@@ -668,7 +673,7 @@ tcp_timer_rexmt(void * xtp)
 	TCPSTAT_INC(tcps_rexmttimeo);
 	if ((tp->t_state == TCPS_SYN_SENT) ||
 	    (tp->t_state == TCPS_SYN_RECEIVED))
-		rexmt = TCPTV_RTOBASE * tcp_backoff[tp->t_rxtshift];
+		rexmt = tcp_rexmit_initial * tcp_backoff[tp->t_rxtshift];
 	else
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,

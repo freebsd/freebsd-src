@@ -182,7 +182,6 @@ __DEFAULT_YES_OPTIONS = \
     TELNET \
     TEXTPROC \
     TFTP \
-    TIMED \
     UNBOUND \
     USB \
     UTMPX \

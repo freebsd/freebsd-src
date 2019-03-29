@@ -4594,7 +4594,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 {
 	struct pf_addr  *saddr = pd->src, *daddr = pd->dst;
 	u_int16_t	 icmpid = 0, *icmpsum;
-	u_int8_t	 icmptype;
+	u_int8_t	 icmptype, icmpcode;
 	int		 state_icmp = 0;
 	struct pf_state_key_cmp key;
 
@@ -4603,6 +4603,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 #ifdef INET
 	case IPPROTO_ICMP:
 		icmptype = pd->hdr.icmp->icmp_type;
+		icmpcode = pd->hdr.icmp->icmp_code;
 		icmpid = pd->hdr.icmp->icmp_id;
 		icmpsum = &pd->hdr.icmp->icmp_cksum;
 
@@ -4617,6 +4618,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 #ifdef INET6
 	case IPPROTO_ICMPV6:
 		icmptype = pd->hdr.icmp6->icmp6_type;
+		icmpcode = pd->hdr.icmp6->icmp6_code;
 		icmpid = pd->hdr.icmp6->icmp6_id;
 		icmpsum = &pd->hdr.icmp6->icmp6_cksum;
 
@@ -4815,6 +4817,23 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 #endif /* INET6 */
 		}
 
+		if (PF_ANEQ(pd->dst, pd2.src, pd->af)) {
+			if (V_pf_status.debug >= PF_DEBUG_MISC) {
+				printf("pf: BAD ICMP %d:%d outer dst: ",
+				    icmptype, icmpcode);
+				pf_print_host(pd->src, 0, pd->af);
+				printf(" -> ");
+				pf_print_host(pd->dst, 0, pd->af);
+				printf(" inner src: ");
+				pf_print_host(pd2.src, 0, pd2.af);
+				printf(" -> ");
+				pf_print_host(pd2.dst, 0, pd2.af);
+				printf("\n");
+			}
+			REASON_SET(reason, PFRES_BADSTATE);
+			return (PF_DROP);
+		}
+
 		switch (pd2.proto) {
 		case IPPROTO_TCP: {
 			struct tcphdr		 th;
@@ -4871,7 +4890,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			    !SEQ_GEQ(seq, src->seqlo - (dst->max_win << dws)))) {
 				if (V_pf_status.debug >= PF_DEBUG_MISC) {
 					printf("pf: BAD ICMP %d:%d ",
-					    icmptype, pd->hdr.icmp->icmp_code);
+					    icmptype, icmpcode);
 					pf_print_host(pd->src, 0, pd->af);
 					printf(" -> ");
 					pf_print_host(pd->dst, 0, pd->af);
@@ -4884,7 +4903,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			} else {
 				if (V_pf_status.debug >= PF_DEBUG_MISC) {
 					printf("pf: OK ICMP %d:%d ",
-					    icmptype, pd->hdr.icmp->icmp_code);
+					    icmptype, icmpcode);
 					pf_print_host(pd->src, 0, pd->af);
 					printf(" -> ");
 					pf_print_host(pd->dst, 0, pd->af);

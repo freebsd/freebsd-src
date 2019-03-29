@@ -44,11 +44,7 @@ device          geom_map
 # uzip - to boot natively from flash
 options 	GEOM_UZIP
 options         GEOM_PART_GPT
-
-# yes, this board has a PCI connected atheros device
-options         AR71XX_ATH_EEPROM
-device          firmware                # Used by the above
-options         ATH_EEPROM_FIRMWARE
+device		xz
 
 # Boot off of the rootfs, as defined in the geom_map setup.
 options         ROOTDEVNAME=\"ufs:map/rootfs.uzip\"

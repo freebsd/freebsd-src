@@ -42,6 +42,9 @@
  * memory-specific data structures and algorithms to automatically
  * allocate and release resources.
  */
+
+#include "opt_tmpfs.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -88,7 +91,7 @@ static const char *tmpfs_opts[] = {
 };
 
 static const char *tmpfs_updateopts[] = {
-	"from", "export", NULL
+	"from", "export", "size", NULL
 };
 
 static int
@@ -141,7 +144,7 @@ tmpfs_mount(struct mount *mp)
 	    sizeof(struct tmpfs_dirent) + sizeof(struct tmpfs_node));
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
-	int error;
+	int error, flags;
 	bool nonc;
 	/* Size counters. */
 	u_quad_t pages;
@@ -161,9 +164,41 @@ tmpfs_mount(struct mount *mp)
 		/* Only support update mounts for certain options. */
 		if (vfs_filteropt(mp->mnt_optnew, tmpfs_updateopts) != 0)
 			return (EOPNOTSUPP);
-		if (vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) !=
-		    ((struct tmpfs_mount *)mp->mnt_data)->tm_ronly)
-			return (EOPNOTSUPP);
+		if (vfs_getopt_size(mp->mnt_optnew, "size", &size_max) == 0) {
+			/*
+			 * On-the-fly resizing is not supported (yet). We still
+			 * need to have "size" listed as "supported", otherwise
+			 * trying to update fs that is listed in fstab with size
+			 * parameter, say trying to change rw to ro or vice
+			 * versa, would cause vfs_filteropt() to bail.
+			 */
+			if (size_max != VFS_TO_TMPFS(mp)->tm_size_max)
+				return (EOPNOTSUPP);
+		}
+		if (vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
+		    !(VFS_TO_TMPFS(mp)->tm_ronly)) {
+			/* RW -> RO */
+			error = VFS_SYNC(mp, MNT_WAIT);
+			if (error)
+				return (error);
+			flags = WRITECLOSE;
+			if (mp->mnt_flag & MNT_FORCE)
+				flags |= FORCECLOSE;
+			error = vflush(mp, 0, flags, curthread);
+			if (error)
+				return (error);
+			VFS_TO_TMPFS(mp)->tm_ronly = 1;
+			MNT_ILOCK(mp);
+			mp->mnt_flag |= MNT_RDONLY;
+			MNT_IUNLOCK(mp);
+		} else if (!vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
+		    VFS_TO_TMPFS(mp)->tm_ronly) {
+			/* RO -> RW */
+			VFS_TO_TMPFS(mp)->tm_ronly = 0;
+			MNT_ILOCK(mp);
+			mp->mnt_flag &= ~MNT_RDONLY;
+			MNT_IUNLOCK(mp);
+		}
 		return (0);
 	}
 
@@ -229,6 +264,7 @@ tmpfs_mount(struct mount *mp)
 	tmp->tm_maxfilesize = maxfilesize > 0 ? maxfilesize : OFF_MAX;
 	LIST_INIT(&tmp->tm_nodes_used);
 
+	tmp->tm_size_max = size_max;
 	tmp->tm_pages_max = pages;
 	tmp->tm_pages_used = 0;
 	new_unrhdr64(&tmp->tm_ino_unr, 2);

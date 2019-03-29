@@ -2741,6 +2741,7 @@ dump_flags(struct flag_desc *desc, uint64_t val)
 	}
 	if (val != 0)
 		printf(" unknown (0x%jx)", (uintmax_t)val);
+	printf("\n");
 }
 
 static struct flag_desc dt_flags[] = {
@@ -3524,7 +3525,6 @@ dump_notes_data(const char *name, uint32_t type, const char *buf, size_t sz)
 				goto unknown;
 			printf("   Features:");
 			dump_flags(note_feature_ctl_flags, ubuf[0]);
-			printf("\n");
 			return;
 		}
 	}

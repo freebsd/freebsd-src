@@ -263,6 +263,40 @@ test_pidfile_inherited(void)
 	return (result);
 }
 
+/*
+ * Make sure we handle relative pidfile paths correctly.
+ */
+static const char *
+test_pidfile_relative(void)
+{
+	char path[PATH_MAX], pid[32], tmpdir[PATH_MAX];
+	struct pidfh *pfh;
+	int fd;
+
+	(void)snprintf(tmpdir, sizeof(tmpdir), "%s.XXXXXX", __func__);
+	if (mkdtemp(tmpdir) == NULL)
+		return (strerror(errno));
+	(void)snprintf(path, sizeof(path), "%s/pidfile", tmpdir);
+
+	pfh = pidfile_open(path, 0600, NULL);
+	if (pfh == NULL)
+		return (strerror(errno));
+	if (pidfile_write(pfh) != 0)
+		return (strerror(errno));
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return (strerror(errno));
+	if (read(fd, pid, sizeof(pid)) < 0)
+		return (strerror(errno));
+	if (atoi(pid) != getpid())
+		return ("pid mismatch");
+	if (close(fd) != 0)
+		return (strerror(errno));
+	if (pidfile_close(pfh) != 0)
+		return (strerror(errno));
+	return (NULL);
+}
+
 static struct test {
 	const char *name;
 	const char *(*func)(void);
@@ -271,6 +305,7 @@ static struct test {
 	{ "pidfile_self", test_pidfile_self },
 	{ "pidfile_contested", test_pidfile_contested },
 	{ "pidfile_inherited", test_pidfile_inherited },
+	{ "pidfile_relative", test_pidfile_relative },
 };
 
 int

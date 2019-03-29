@@ -1510,9 +1510,10 @@ swp_pager_async_iodone(struct buf *bp)
 	vm_object_t object = NULL;
 
 	/*
-	 * report error
+	 * Report error - unless we ran out of memory, in which case
+	 * we've already logged it in swapgeom_strategy().
 	 */
-	if (bp->b_ioflags & BIO_ERROR) {
+	if (bp->b_ioflags & BIO_ERROR && bp->b_error != ENOMEM) {
 		printf(
 		    "swap_pager: I/O error - %s failed; blkno %ld,"
 			"size %ld, error %d\n",
@@ -2692,6 +2693,7 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 		mtx_unlock(&sw_dev_mtx);
 		bp->b_error = ENOMEM;
 		bp->b_ioflags |= BIO_ERROR;
+		printf("swap_pager: cannot allocate bio\n");
 		bufdone(bp);
 		return;
 	}

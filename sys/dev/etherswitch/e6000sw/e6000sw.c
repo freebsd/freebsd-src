@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "e6000swreg.h"
 #include "etherswitch_if.h"
@@ -92,6 +92,8 @@ static etherswitch_info_t etherswitch_info = {
 
 static void e6000sw_identify(driver_t *, device_t);
 static int e6000sw_probe(device_t);
+static int e6000sw_parse_fixed_link(e6000sw_softc_t *, phandle_t, uint32_t);
+static int e6000sw_parse_ethernet(e6000sw_softc_t *, phandle_t, uint32_t);
 static int e6000sw_attach(device_t);
 static int e6000sw_detach(device_t);
 static int e6000sw_readphy(device_t, int, int);
@@ -197,14 +199,16 @@ e6000sw_probe(device_t dev)
 {
 	e6000sw_softc_t *sc;
 	const char *description;
-	phandle_t dsa_node, switch_node;
+	phandle_t switch_node;
 
-	dsa_node = fdt_find_compatible(OF_finddevice("/"),
-	    "marvell,dsa", 0);
-	switch_node = OF_child(dsa_node);
+	switch_node = ofw_bus_find_compatible(OF_finddevice("/"),
+	    "marvell,mv88e6085");
 
 	if (switch_node == 0)
 		return (ENXIO);
+
+	if (bootverbose)
+		device_printf(dev, "Found switch_node: 0x%x\n", switch_node);
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -214,8 +218,12 @@ e6000sw_probe(device_t dev)
 	    sizeof(sc->sw_addr)) < 0)
 		return (ENXIO);
 
-	if (!OF_hasprop(sc->node, "single-chip-addressing") &&
-	    (sc->sw_addr != 0 && (sc->sw_addr % 2) == 0))
+	/*
+	 * According to the Linux source code, all of the Switch IDs we support
+	 * are multi_chip capable, and should go into multi-chip mode if the
+	 * sw_addr != 0.
+	 */
+	if (!OF_hasprop(sc->node, "single-chip-addressing") && sc->sw_addr != 0)
 		sc->multi_chip = true;
 
 	/*
@@ -262,11 +270,58 @@ e6000sw_probe(device_t dev)
 }
 
 static int
-e6000sw_parse_child_fdt(e6000sw_softc_t *sc, phandle_t child, int *pport)
+e6000sw_parse_fixed_link(e6000sw_softc_t *sc, phandle_t node, uint32_t port)
 {
-	char *name, *portlabel;
 	int speed;
 	phandle_t fixed_link;
+
+	fixed_link = ofw_bus_find_child(node, "fixed-link");
+
+	if (fixed_link != 0) {
+		sc->fixed_mask |= (1 << port);
+
+		if (OF_getencprop(fixed_link, "speed", &speed, sizeof(speed))> 0) {
+			if (speed == 2500 &&
+			    (MVSWITCH(sc, MV88E6141) ||
+			     MVSWITCH(sc, MV88E6341)))
+				sc->fixed25_mask |= (1 << port);
+		} else {
+		    device_printf(sc->dev,
+			    "Port %d has a fixed-link node without a speed "
+			    "property\n", port);
+
+		    return (ENXIO);
+		}
+	}
+
+	return (0);
+}
+
+static int
+e6000sw_parse_ethernet(e6000sw_softc_t *sc, phandle_t port_handle, uint32_t port) {
+	phandle_t switch_eth, switch_eth_handle;
+
+	if (OF_getencprop(port_handle, "ethernet", (void*)&switch_eth_handle,
+	    sizeof(switch_eth_handle)) > 0) {
+		if (switch_eth_handle > 0) {
+			switch_eth = OF_node_from_xref(switch_eth_handle);
+
+			device_printf(sc->dev, "CPU port at %d\n", port);
+			sc->cpuports_mask |= (1 << port);
+
+			return (e6000sw_parse_fixed_link(sc, switch_eth, port));
+		} else
+			device_printf(sc->dev,
+				"Port %d has ethernet property but it points "
+				"to an invalid location\n", port);
+	}
+
+	return (0);
+}
+
+static int
+e6000sw_parse_child_fdt(e6000sw_softc_t *sc, phandle_t child, int *pport)
+{
 	uint32_t port;
 
 	if (pport == NULL)
@@ -278,32 +333,12 @@ e6000sw_parse_child_fdt(e6000sw_softc_t *sc, phandle_t child, int *pport)
 		return (ENXIO);
 	*pport = port;
 
-	if (OF_getprop_alloc(child, "label", (void **)&portlabel) > 0) {
-		if (strncmp(portlabel, "cpu", 3) == 0) {
-			device_printf(sc->dev, "CPU port at %d\n", port);
-			sc->cpuports_mask |= (1 << port);
-			sc->fixed_mask |= (1 << port);
-		}
-		free(portlabel, M_OFWPROP);
-	}
+	if (e6000sw_parse_fixed_link(sc, child, port) != 0)
+		return (ENXIO);
 
-	fixed_link = OF_child(child);
-	if (fixed_link != 0 &&
-	    OF_getprop_alloc(fixed_link, "name", (void **)&name) > 0) {
-		if (strncmp(name, "fixed-link", 10) == 0) {
-			/* Assume defaults: 1g - full-duplex. */
-			sc->fixed_mask |= (1 << port);
-			if (OF_getencprop(fixed_link, "speed", &speed,
-			     sizeof(speed)) > 0) {
-				if (speed == 2500 &&
-				    (MVSWITCH(sc, MV88E6141) ||
-				     MVSWITCH(sc, MV88E6341))) {
-					sc->fixed25_mask |= (1 << port);
-				}
-			}
-		}
-		free(name, M_OFWPROP);
-	}
+	if (e6000sw_parse_ethernet(sc, child, port) != 0)
+		return (ENXIO);
+
 	if ((sc->fixed_mask & (1 << port)) != 0)
 		device_printf(sc->dev, "fixed port at %d\n", port);
 	else
@@ -354,7 +389,7 @@ static int
 e6000sw_attach(device_t dev)
 {
 	e6000sw_softc_t *sc;
-	phandle_t child;
+	phandle_t child, ports;
 	int err, port;
 	uint32_t reg;
 
@@ -371,7 +406,15 @@ e6000sw_attach(device_t dev)
 	E6000SW_LOCK(sc);
 	e6000sw_setup(dev, sc);
 
-	for (child = OF_child(sc->node); child != 0; child = OF_peer(child)) {
+	ports = ofw_bus_find_child(sc->node, "ports");
+
+	if (ports == 0) {
+		device_printf(dev, "failed to parse DTS: no ports found for "
+		    "switch\n");
+		return (ENXIO);
+	}
+
+	for (child = OF_child(ports); child != 0; child = OF_peer(child)) {
 		err = e6000sw_parse_child_fdt(sc, child, &port);
 		if (err != 0) {
 			device_printf(sc->dev, "failed to parse DTS\n");

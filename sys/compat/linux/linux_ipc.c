@@ -785,23 +785,11 @@ linux_shmat(struct thread *td, struct linux_shmat_args *args)
 		void *shmaddr;
 		int shmflg;
 	} */ bsd_args;
-	int error;
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-	l_uintptr_t addr;
-#endif
 
 	bsd_args.shmid = args->shmid;
 	bsd_args.shmaddr = PTRIN(args->shmaddr);
 	bsd_args.shmflg = args->shmflg;
-	if ((error = sys_shmat(td, &bsd_args)))
-		return (error);
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-	addr = td->td_retval[0];
-	if ((error = copyout(&addr, PTRIN(args->raddr), sizeof(addr))))
-		return (error);
-	td->td_retval[0] = 0;
-#endif
-	return (0);
+	return (sys_shmat(td, &bsd_args));
 }
 
 int

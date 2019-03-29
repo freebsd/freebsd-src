@@ -313,7 +313,7 @@ cleanup:
 }
 
 static void
-npxsave_xsaveopt(union savefpu *addr)
+fpusave_xsaveopt(union savefpu *addr)
 {
 
 	xsaveopt((char *)addr, xsave_mask);
@@ -352,24 +352,13 @@ init_xsave(void)
 	TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
 }
 
-DEFINE_IFUNC(, void, npxsave_core, (union savefpu *), static)
-{
-
-	init_xsave();
-	if (use_xsave)
-		return ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
-		    npxsave_xsaveopt : fpusave_xsave);
-	if (cpu_fxsr)
-		return (fpusave_fxsave);
-	return (fpusave_fnsave);
-}
-
 DEFINE_IFUNC(, void, fpusave, (union savefpu *), static)
 {
 
 	init_xsave();
 	if (use_xsave)
-		return (fpusave_xsave);
+		return ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
+		    fpusave_xsaveopt : fpusave_xsave);
 	if (cpu_fxsr)
 		return (fpusave_fxsave);
 	return (fpusave_fnsave);
@@ -494,7 +483,10 @@ npxinitstate(void *arg __unused)
 	saveintr = intr_disable();
 	stop_emulating();
 
-	fpusave(npx_initialstate);
+	if (cpu_fxsr)
+		fpusave_fxsave(npx_initialstate);
+	else
+		fpusave_fnsave(npx_initialstate);
 	if (cpu_fxsr) {
 		if (npx_initialstate->sv_xmm.sv_env.en_mxcsr_mask)
 			cpu_mxcsr_mask = 
@@ -922,7 +914,7 @@ npxsave(union savefpu *addr)
 {
 
 	stop_emulating();
-	npxsave_core(addr);
+	fpusave(addr);
 }
 
 void npxswitch(struct thread *td, struct pcb *pcb);

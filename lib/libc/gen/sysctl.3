@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2017
+.Dd March 22, 2019
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -284,6 +284,7 @@ privilege may change the value.
 .It Dv HW_FLOATINGPT Ta integer Ta no
 .It Dv HW_MACHINE_ARCH Ta string Ta no
 .It Dv HW_REALMEM Ta integer Ta no
+.It Dv HW_AVAILPAGES Ta integer Ta no
 .El
 .Bl -tag -width 6n
 .It Li HW_MACHINE
@@ -295,9 +296,10 @@ The number of cpus.
 .It Li HW_BYTEORDER
 The byteorder (4321 or 1234).
 .It Li HW_PHYSMEM
-The bytes of physical memory.
+Amount of physical memory (in bytes), minus the amount used by the kernel,
+pre-loaded modules, and (on x86) the dcons buffer.
 .It Li HW_USERMEM
-The bytes of non-kernel memory.
+Amount of memory (in bytes) which is not wired.
 .It Li HW_PAGESIZE
 The software page size.
 .\".It Fa HW_DISKNAMES
@@ -307,7 +309,13 @@ Nonzero if the floating point support is in hardware.
 .It Li HW_MACHINE_ARCH
 The machine dependent architecture type.
 .It Li HW_REALMEM
-The bytes of real memory.
+Amount of memory (in bytes) reported by the firmware.
+That value is sometimes not sane; in that case, the kernel reports the max
+memory address instead.
+.It Li HW_AVAILPAGES
+The same value as
+.Li HW_PHYSMEM ,
+measured in pages rather than bytes.
 .El
 .Ss CTL_KERN
 The string and integer information available for the CTL_KERN level

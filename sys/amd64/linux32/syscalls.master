@@ -212,8 +212,8 @@
 115	AUE_SWAPOFF	STD	{ int linux_swapoff(void); }
 116	AUE_NULL	STD	{ int linux_sysinfo(struct l_sysinfo *info); }
 117	AUE_NULL	STD	{ int linux_ipc(l_uint what, l_int arg1, \
-				    l_int arg2, l_int arg3, void *ptr, \
-				    l_long arg5); }
+				    l_int arg2, l_uint arg3, l_uintptr_t ptr, \
+				    l_uint arg5); }
 118	AUE_FSYNC	NOPROTO	{ int fsync(int fd); }
 119	AUE_SIGRETURN	STD	{ int linux_sigreturn( \
 				    struct l_sigframe *sfp); }
@@ -686,7 +686,64 @@
 381	AUE_NULL	STD	{ int linux_pkey_alloc(l_ulong flags,		\
 				    l_ulong init_val); }
 382	AUE_NULL	STD	{ int linux_pkey_free(l_int pkey); }
+; Linux 4.11:
+383	AUE_NULL	STD	{ int linux_statx(l_int dirfd,			\
+				    const char *pathname, l_uint flags,		\
+				    l_uint mask, void *statxbuf); }
+384	AUE_NULL	STD	{ int linux_arch_prctl(l_int option,
+				    l_ulong arg2); }
+; Linux 4.18:
+385	AUE_NULL	STD	{ int linux_io_pgetevents(void); }
+386	AUE_NULL	STD	{ int linux_rseq(void); }
+387-392	AUE_NULL	UNIMPL	nosys
+393	AUE_NULL	STD	{ int linux_semget(l_key_t key, l_int nsems,	\
+				    l_int semflg); }
+394	AUE_NULL	STD	{ int linux_semctl(l_int semid, l_int semnum,	\
+				    l_int cmd, union l_semun arg); }
+395	AUE_NULL	STD	{ int linux_shmget(l_key_t key, l_size_t size,	\
+				    l_int shmflg); }
+396	AUE_NULL	STD	{ int linux_shmctl(l_int shmid, l_int cmd,	\
+				    struct l_shmid_ds *buf); }
+397	AUE_NULL	STD	{ int linux_shmat(l_int shmid, char *shmaddr,	\
+				    l_int shmflg); }
+398	AUE_NULL	STD	{ int linux_shmdt(char *shmaddr); }
+399	AUE_NULL	STD	{ int linux_msgget(l_key_t key, l_int msgflg); }
+400	AUE_NULL	STD	{ int linux_msgsnd(l_int msqid, \
+				    struct l_msgbuf *msgp, l_size_t msgsz, \
+				    l_int msgflg); }
+401	AUE_NULL	STD	{ int linux_msgrcv(l_int msqid, \
+				    struct l_msgbuf *msgp, l_size_t msgsz, \
+				    l_long msgtyp, l_int msgflg); }
+402	AUE_NULL	STD	{ int linux_msgctl(l_int msqid, l_int cmd, \
+				    struct l_msqid_ds *buf); }
+; Linux 5.0:
+403	AUE_NULL	STD	{ int linux_clock_gettime64(void); }
+404	AUE_NULL	STD	{ int linux_clock_settime64(void); }
+405	AUE_NULL	STD	{ int linux_clock_adjtime64(void); }
+406	AUE_NULL	STD	{ int linux_clock_getres_time64(void); }
+407	AUE_NULL	STD	{ int linux_clock_nanosleep_time64(void); }
+408	AUE_NULL	STD	{ int linux_timer_gettime64(void); }
+409	AUE_NULL	STD	{ int linux_timer_settime64(void); }
+410	AUE_NULL	STD	{ int linux_timerfd_gettime64(void); }
+411	AUE_NULL	STD	{ int linux_timerfd_settime64(void); }
+412	AUE_NULL	STD	{ int linux_utimensat_time64(void); }
+413	AUE_NULL	STD	{ int linux_pselect6_time64(void); }
+414	AUE_NULL	STD	{ int linux_ppoll_time64(void); }
+415	AUE_NULL	UNIMPL	nosys
+416	AUE_NULL	STD	{ int linux_io_pgetevents_time64(void); }
+417	AUE_NULL	STD	{ int linux_recvmmsg_time64(void); }
+418	AUE_NULL	STD	{ int linux_mq_timedsend_time64(void); }
+419	AUE_NULL	STD	{ int linux_mq_timedreceive_time64(void); }
+420	AUE_NULL	STD	{ int linux_semtimedop_time64(void); }
+421	AUE_NULL	STD	{ int linux_rt_sigtimedwait_time64(void); }
+422	AUE_NULL	STD	{ int linux_futex_time64(void); }
+423	AUE_NULL	STD	{ int linux_sched_rr_get_interval_time64(void); }
+424	AUE_NULL	STD	{ int linux_pidfd_send_signal(l_int pidfd,	\
+				    l_int sig, l_siginfo_t *info, l_uint flags); }
+425	AUE_NULL	STD	{ int linux_io_uring_setup(void); }
+426	AUE_NULL	STD	{ int linux_io_uring_enter(void); }
+427	AUE_NULL	STD	{ int linux_io_uring_register(void); }
 
 ; please, keep this line at the end.
-383	AUE_NULL	UNIMPL	nosys
+428	AUE_NULL	UNIMPL	nosys
 ; vim: syntax=off

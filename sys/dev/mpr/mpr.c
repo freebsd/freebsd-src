@@ -2617,10 +2617,8 @@ mpr_intr_locked(void *data)
 			} else {
 				cm = &sc->commands[
 				    le16toh(desc->AddressReply.SMID)];
-				KASSERT(cm->cm_state == MPR_CM_STATE_INQUEUE,
-				    ("command SMID %d not inqueue\n",
-				    desc->AddressReply.SMID));
-				cm->cm_state = MPR_CM_STATE_BUSY;
+				if (cm->cm_state != MPR_CM_STATE_TIMEDOUT)
+					cm->cm_state = MPR_CM_STATE_BUSY;
 				cm->cm_reply = reply;
 				cm->cm_reply_data =
 				    le32toh(desc->AddressReply.

@@ -3898,7 +3898,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	if (__predict_false((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || !LINK_ACTIVE(ctx))) {
 		DBG_COUNTER_INC(tx_frees);
 		m_freem(m);
-		return (ENOBUFS);
+		return (ENETDOWN);
 	}
 
 	MPASS(m->m_nextpkt == NULL);
@@ -4662,10 +4662,10 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	 * XXX sanity check that ntxd & nrxd are a power of 2
 	 */
 	iflib_reset_qvalues(ctx);
-
+	CTX_LOCK(ctx);
 	if ((err = IFDI_ATTACH_PRE(ctx)) != 0) {
 		device_printf(dev, "IFDI_ATTACH_PRE failed %d\n", err);
-		goto fail_ctx_free;
+		goto fail_unlock;
 	}
 	if (sctx->isc_flags & IFLIB_GEN_MAC)
 		iflib_gen_mac(ctx);
@@ -4819,6 +4819,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	if_setgetcounterfn(ctx->ifc_ifp, iflib_if_get_counter);
 	iflib_add_device_sysctl_post(ctx);
 	ctx->ifc_flags |= IFC_INIT_DONE;
+	CTX_UNLOCK(ctx);
 	return (0);
 fail_detach:
 	ether_ifdetach(ctx->ifc_ifp);
@@ -4827,6 +4828,8 @@ fail_queues:
 	iflib_rx_structures_free(ctx);
 fail_iflib_detach:
 	IFDI_DETACH(ctx);
+fail_unlock:
+	CTX_UNLOCK(ctx);
 fail_ctx_free:
 	free(ctx->ifc_softc, M_IFLIB);
 	free(ctx, M_IFLIB);

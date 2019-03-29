@@ -31,7 +31,7 @@
 .\" Manual page, using -mandoc macros
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2014
+.Dd March 21, 2019
 .Dt ARC4RANDOM 3
 .Os
 .Sh NAME
@@ -116,7 +116,7 @@ and
 functions using
 .Fn arc4random :
 .Pp
-.Dl "#define foo4random() (arc4random() % ((unsigned)RAND_MAX + 1))"
+.Dl "#define foo4random() (arc4random_uniform(RAND_MAX + 1))"
 .Sh SEE ALSO
 .Xr rand 3 ,
 .Xr rand48 3 ,

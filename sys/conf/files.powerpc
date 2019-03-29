@@ -103,7 +103,6 @@ libkern/qdivrem.c		optional	powerpc | powerpcspe
 libkern/ucmpdi2.c		optional	powerpc | powerpcspe
 libkern/udivdi3.c		optional	powerpc | powerpcspe
 libkern/umoddi3.c		optional	powerpc | powerpcspe
-powerpc/aim/isa3_hashtb.c	optional	aim powerpc64
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/aim_machdep.c	optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
@@ -193,6 +192,7 @@ powerpc/powernv/opal_async.c	optional	powernv
 powerpc/powernv/opal_console.c	optional	powernv
 powerpc/powernv/opal_dev.c	optional	powernv
 powerpc/powernv/opal_flash.c	optional	powernv
+powerpc/powernv/opal_hmi.c	optional	powernv
 powerpc/powernv/opal_i2c.c	optional	iicbus fdt powernv
 powerpc/powernv/opal_i2cm.c	optional	iicbus fdt powernv
 powerpc/powernv/opal_pci.c	optional	powernv pci
