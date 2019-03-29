@@ -6,12 +6,17 @@ OUTPUT_ARCH(powerpc:common64)
 ENTRY(__start)
 SEARCH_DIR(/usr/lib);
 PROVIDE (__stack = 0);
+PHDRS
+{
+	text PT_LOAD ;
+	dynamic PT_DYNAMIC ;
+}
 SECTIONS
 {
 
   /* Low-address wrapper for bootloaders (kexec/kboot) that can't parse ELF */
   . = kernbase - 0x100;
-  .kboot : { *(.text.kboot) }
+  .kboot : { *(.text.kboot) } :text
 
   /* Read-only sections, merged into text segment: */
   . = kernbase;
@@ -19,6 +24,7 @@ SECTIONS
 
   .text      :
   {
+    *(.glink)
     *(.text)
     *(.stub)
     /* .gnu.warning sections are handled specially by elf32.em.  */
@@ -29,7 +35,6 @@ SECTIONS
   PROVIDE (etext = .);
 
   /* Do not emit PT_INTERP section, which confuses some loaders (kexec-lite) */
-  .interpX    : { *(.interp) 	} : NONE
   /DISCARD/   : { *(.interp)	} 
 
   /* Also delete notes */
@@ -95,7 +100,7 @@ SECTIONS
   . = ALIGN(4096);
   .got       : ALIGN(8) { __tocbase = .; *(.got .toc) }
 
-  .dynamic        : { *(.dynamic) }
+  .dynamic        : { *(.dynamic) } :text :dynamic
   /* Put .ctors and .dtors next to the .got2 section, so that the pointers
      get relocated with -mrelocatable. Also put in the .fixup pointers.
      The current compiler no longer needs this, but keep it around for 2.7.2  */
