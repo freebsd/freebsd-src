@@ -1673,11 +1673,12 @@ again:
 			    (max_addr == 0 || max_addr > MAP_32BIT_MAX_ADDR) ?
 			    aslr_pages_rnd_64[pidx] : aslr_pages_rnd_32[pidx];
 			if (vm_map_findspace(map, curr_min_addr, length +
-			    gap * pagesizes[pidx], addr) ||
-			    (max_addr != 0 && *addr + length > max_addr))
+			    gap * pagesizes[pidx], addr))
 				goto again;
 			/* And randomize the start address. */
 			*addr += (arc4random() % gap) * pagesizes[pidx];
+			if (max_addr != 0 && *addr + length > max_addr)
+				goto again;
 		} else if (vm_map_findspace(map, curr_min_addr, length, addr) ||
 		    (max_addr != 0 && *addr + length > max_addr)) {
 			if (cluster) {
