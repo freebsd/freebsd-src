@@ -724,6 +724,7 @@ stf_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		ifp->if_flags |= IFF_UP;
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		break;
 
 	case SIOCADDMULTI:

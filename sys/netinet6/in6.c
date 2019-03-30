@@ -1951,26 +1951,14 @@ in6_if_up(struct ifnet *ifp)
 int
 in6if_do_dad(struct ifnet *ifp)
 {
+
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0)
 		return (0);
-
-	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) ||
-	    (ND_IFINFO(ifp)->flags & ND6_IFF_NO_DAD))
+	if ((ifp->if_flags & IFF_MULTICAST) == 0)
 		return (0);
-
-	/*
-	 * Our DAD routine requires the interface up and running.
-	 * However, some interfaces can be up before the RUNNING
-	 * status.  Additionally, users may try to assign addresses
-	 * before the interface becomes up (or running).
-	 * This function returns EAGAIN in that case.
-	 * The caller should mark "tentative" on the address instead of
-	 * performing DAD immediately.
-	 */
-	if (!((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
-		return (EAGAIN);
-
+	if ((ND_IFINFO(ifp)->flags &
+	    (ND6_IFF_IFDISABLED | ND6_IFF_NO_DAD)) != 0)
+		return (0);
 	return (1);
 }
 
