@@ -78,7 +78,7 @@ class AsyncRead: public AioRead {
 	}
 };
 
-class ReadMmap: public Read {
+class ReadCacheable: public Read {
 public:
 virtual void SetUp() {
 	const char *node = "vfs.fusefs.data_cache_mode";
@@ -95,7 +95,7 @@ virtual void SetUp() {
 }
 };
 
-class ReadAhead: public Read, public WithParamInterface<uint32_t> {
+class ReadAhead: public ReadCacheable, public WithParamInterface<uint32_t> {
 	virtual void SetUp() {
 		m_maxreadahead = GetParam();
 		Read::SetUp();
@@ -467,7 +467,7 @@ TEST_F(Read, keep_cache_disabled)
 	/* Deliberately leak fd0 and fd1. */
 }
 
-TEST_F(ReadMmap, mmap)
+TEST_F(ReadCacheable, mmap)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -600,7 +600,7 @@ TEST_F(Read, read)
 }
 
 /* If the filesystem allows it, the kernel should try to readahead */
-TEST_F(Read, default_readahead)
+TEST_F(ReadCacheable, default_readahead)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -638,7 +638,7 @@ TEST_F(Read, default_readahead)
 }
 
 /* Reading with sendfile should work (though it obviously won't be 0-copy) */
-TEST_F(ReadMmap, sendfile)
+TEST_F(ReadCacheable, sendfile)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -685,7 +685,7 @@ TEST_F(ReadMmap, sendfile)
 
 /* sendfile should fail gracefully if fuse declines the read */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236466 */
-TEST_F(ReadMmap, DISABLED_sendfile_eio)
+TEST_F(ReadCacheable, DISABLED_sendfile_eio)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
