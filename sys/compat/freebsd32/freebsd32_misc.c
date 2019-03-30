@@ -1160,8 +1160,8 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 				cm = NULL;
 			}
 
-			msg->msg_controllen += FREEBSD32_ALIGN(sizeof(*cm)) +
-			    datalen_out;
+			msg->msg_controllen +=
+			    FREEBSD32_CMSG_SPACE(datalen_out);
 		}
 	}
 	if (len == 0 && m != NULL) {
