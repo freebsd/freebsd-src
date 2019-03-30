@@ -648,6 +648,15 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 
 	error = fuse_filehandle_getrw(vp,
 	    (bp->b_iocmd == BIO_READ) ? FUFH_RDONLY : FUFH_WRONLY, &fufh);
+	if (bp->b_iocmd == BIO_READ && error == EBADF) {
+		/* 
+		 * This may be a read-modify-write operation on a cached file
+		 * opened O_WRONLY.  The FUSE protocol allows this.
+		 *
+		 * TODO: eliminate this hacky check once the FUFH table is gone
+		 */
+		error = fuse_filehandle_get(vp, FUFH_WRONLY, &fufh);
+	}
 	if (error) {
 		printf("FUSE: strategy: filehandles are closed\n");
 		bp->b_ioflags |= BIO_ERROR;

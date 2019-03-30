@@ -1208,7 +1208,6 @@ fuse_vnop_open(struct vop_open_args *ap)
 	int mode = ap->a_mode;
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
-	int32_t fuse_open_flags = 0;
 
 	fufh_type_t fufh_type;
 	struct fuse_vnode_data *fvdat;
@@ -1228,16 +1227,8 @@ fuse_vnop_open(struct vop_open_args *ap)
 		fufh_type = fuse_filehandle_xlate_from_fflags(mode);
 	}
 
-	/*
-	 * For WRONLY opens, force DIRECT_IO.  This is necessary since writing
-	 * a partial block through the buffer cache will result in a read of
-	 * the block and that read won't be allowed by the WRONLY open.
-	 */
-	if (fufh_type == FUFH_WRONLY || (fvdat->flag & FN_DIRECTIO) != 0)
-		fuse_open_flags = FOPEN_DIRECT_IO;
-
 	if (fuse_filehandle_validrw(vp, fufh_type) != FUFH_INVALID) {
-		fuse_vnode_open(vp, fuse_open_flags, td);
+		fuse_vnode_open(vp, 0, td);
 		return 0;
 	}
 
