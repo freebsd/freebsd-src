@@ -34,6 +34,11 @@ $v += ${${v}.${PROG}}
 $v += ${${v}_${PROG}}
 .endif
 .else
+.if defined(${v}.${PROG})
+$v = ${${v}.${PROG}}
+.elif defined(${v}_${PROG})
+$v = ${${v}_${PROG}}
+.endif
 $v ?=
 .endif
 .endfor
