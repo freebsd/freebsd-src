@@ -391,7 +391,7 @@ TEST_F(Write, DISABLED_mmap)
 	free(zeros);
 }
 
-TEST_F(Write, pwrite)
+TEST_F(WriteThrough, pwrite)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -519,6 +519,36 @@ TEST_F(WriteBack, close)
 
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 	close(fd);
+}
+
+/*
+ * In writeback mode, writes to an O_WRONLY file could trigger reads from the
+ * server.  The FUSE protocol explicitly allows that.
+ */
+TEST_F(WriteBack, rmw)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	const char *INITIAL   = "XXXXXXXXXX";
+	uint64_t ino = 42;
+	uint64_t offset = 1;
+	off_t fsize = 10;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, fsize);
+	expect_read(ino, 0, fsize, fsize, INITIAL);
+	expect_write(ino, offset, bufsize, bufsize, 0, CONTENTS);
+
+	fd = open(FULLPATH, O_WRONLY);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(bufsize, pwrite(fd, CONTENTS, bufsize, offset))
+		<< strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
 /*
