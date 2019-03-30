@@ -93,6 +93,73 @@ TEST_F(AllowOther, allowed)
 	);
 }
 
+/*
+ * A variation of the Open.multiple_creds test showing how the bug can lead to a
+ * privilege elevation.  The first process is privileged and opens a file only
+ * visible to root.  The second process is unprivileged and shouldn't be able
+ * to open the file, but does thanks to the bug
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236844 */
+TEST_F(AllowOther, DISABLED_privilege_escalation)
+{
+	const static char FULLPATH[] = "mountpoint/some_file.txt";
+	const static char RELPATH[] = "some_file.txt";
+	int fd1;
+	const static uint64_t ino = 42;
+	const static uint64_t fh = 100;
+
+	/* Fork a child to open the file with different credentials */
+	fork(true, [&] {
+
+		expect_lookup(RELPATH, ino, S_IFREG | 0600, 0, 2);
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in->header.opcode == FUSE_OPEN &&
+					in->header.pid == (uint32_t)getpid() &&
+					in->header.uid == (uint32_t)geteuid() &&
+					in->header.nodeid == ino);
+			}, Eq(true)),
+			_)
+		).WillOnce(Invoke(
+			ReturnImmediate([](auto in __unused, auto out) {
+			out->body.open.fh = fh;
+			out->header.len = sizeof(out->header);
+			SET_OUT_HEADER_LEN(out, open);
+		})));
+
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in->header.opcode == FUSE_OPEN &&
+					in->header.pid != (uint32_t)getpid() &&
+					in->header.uid != (uint32_t)geteuid() &&
+					in->header.nodeid == ino);
+			}, Eq(true)),
+			_)
+		).Times(AnyNumber())
+		.WillRepeatedly(Invoke(ReturnErrno(EPERM)));
+		expect_getattr(ino, 0);
+
+		fd1 = open(FULLPATH, O_RDONLY);
+		EXPECT_LE(0, fd1) << strerror(errno);
+	}, [] {
+		int fd0;
+
+		fd0 = open(FULLPATH, O_RDONLY);
+		if (fd0 >= 0) {
+			fprintf(stderr, "Privilege escalation!\n");
+			return 1;
+		}
+		if (errno != EPERM) {
+			fprintf(stderr, "Unexpected error %s\n",
+				strerror(errno));
+			return 1;
+		}
+		return 0;
+	}
+	);
+	/* Deliberately leak fd1.  close(2) will be tested in release.cc */
+}
+
 TEST_F(NoAllowOther, disallowed)
 {
 	fork(true, [] {
