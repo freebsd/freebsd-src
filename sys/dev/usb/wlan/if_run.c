@@ -2865,8 +2865,8 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 
 	wh = mtod(m, struct ieee80211_frame *);
 
-	/* XXX wrong for monitor mode */
-	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
+	if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) != 0 &&
+	    (flags & RT2860_RX_DEC) != 0) {
 		wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		m->m_flags |= M_WEP;
 	}
