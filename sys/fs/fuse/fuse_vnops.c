@@ -606,8 +606,7 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 	int type, need_flush = 1;
 
 	for (type = 0; type < FUFH_MAXTYPE; type++) {
-		fufh = &(fvdat->fufh[type]);
-		if (FUFH_IS_VALID(fufh)) {
+		if (!fuse_filehandle_get(vp, type, &fufh)) {
 			if (need_flush && vp->v_type == VREG) {
 				if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
 					fuse_vnode_savesize(vp, NULL);
@@ -1396,7 +1395,6 @@ fuse_vnop_reclaim(struct vop_reclaim_args *ap)
 	struct thread *td = ap->a_td;
 
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-	struct fuse_filehandle *fufh = NULL;
 
 	int type;
 
@@ -1404,8 +1402,7 @@ fuse_vnop_reclaim(struct vop_reclaim_args *ap)
 		panic("FUSE: no vnode data during recycling");
 	}
 	for (type = 0; type < FUFH_MAXTYPE; type++) {
-		fufh = &(fvdat->fufh[type]);
-		if (FUFH_IS_VALID(fufh)) {
+		if (fuse_filehandle_get(vp, type, NULL) == 0) {
 			printf("FUSE: vnode being reclaimed but fufh (type=%d) is valid",
 			    type);
 			fuse_filehandle_close(vp, type, td, NULL);

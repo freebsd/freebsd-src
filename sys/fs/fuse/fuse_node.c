@@ -174,18 +174,14 @@ static void
 fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
     uint64_t nodeid, enum vtype vtyp)
 {
-	int i;
-
 	fvdat->nid = nodeid;
+	LIST_INIT(&fvdat->handles);
 	vattr_null(&fvdat->cached_attrs);
 	if (nodeid == FUSE_ROOT_ID) {
 		vp->v_vflag |= VV_ROOT;
 	}
 	vp->v_type = vtyp;
 	vp->v_data = fvdat;
-
-	for (i = 0; i < FUFH_MAXTYPE; i++)
-		fvdat->fufh[i].fh_type = FUFH_INVALID;
 
 	atomic_add_acq_int(&fuse_node_count, 1);
 }
@@ -196,6 +192,8 @@ fuse_vnode_destroy(struct vnode *vp)
 	struct fuse_vnode_data *fvdat = vp->v_data;
 
 	vp->v_data = NULL;
+	KASSERT(LIST_EMPTY(&fvdat->handles),
+		("Destroying fuse vnode with open files!"));
 	free(fvdat, M_FUSEVN);
 
 	atomic_subtract_acq_int(&fuse_node_count, 1);
@@ -314,7 +312,7 @@ void
 fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags, struct thread *td)
 {
 	/*
-	 * Funcation is called for every vnode open.
+	 * Function is called for every vnode open.
 	 * Merge fuse_open_flags it may be 0
 	 */
 	/*
