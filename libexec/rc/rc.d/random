@@ -25,7 +25,8 @@ save_dev_random()
 	for f ; do
 		debug "saving entropy to $f"
 		dd if=/dev/random of="$f" bs=4096 count=1 status=none &&
-			chmod 600 "$f"
+			chmod 600 "$f" &&
+			fsync "$f" "$(dirname "$f")"
 	done
 	umask ${oumask}
 }
@@ -120,6 +121,9 @@ random_stop()
 			dd if=/dev/random of=${entropy_file_confirmed} \
 			    bs=4096 count=1 2> /dev/null ||
 			    warn 'write failed (unwriteable file or full fs?)'
+			fsync "${entropy_file_confirmed}" \
+			    "$(dirname "${entropy_file_confirmed}")" \
+			    2> /dev/null
 			echo '.'
 			;;
 		esac
@@ -145,6 +149,9 @@ random_stop()
 			dd if=/dev/random of=${entropy_boot_file_confirmed} \
 			    bs=4096 count=1 2> /dev/null ||
 			    warn 'write failed (unwriteable file or full fs?)'
+			fsync "${entropy_boot_file_confirmed}" \
+			    "$(dirname "${entropy_boot_file_confirmed}")" \
+			    2> /dev/null
 			echo '.'
 			;;
 		esac
