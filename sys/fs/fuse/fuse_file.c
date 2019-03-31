@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #include "fuse_ipc.h"
 #include "fuse_node.h"
 
+MALLOC_DEFINE(M_FUSE_FILEHANDLE, "fuse_filefilehandle", "FUSE file handle");
+
 SDT_PROVIDER_DECLARE(fuse);
 /* 
  * Fuse trace probe:
@@ -157,16 +159,14 @@ fuse_filehandle_close(struct vnode *vp, fufh_type_t fufh_type,
 {
 	struct fuse_dispatcher fdi;
 	struct fuse_release_in *fri;
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh = NULL;
 
 	int err = 0;
 	int op = FUSE_RELEASE;
 
-	fufh = &(fvdat->fufh[fufh_type]);
-	if (!FUFH_IS_VALID(fufh)) {
-		panic("FUSE: filehandle_put called on invalid fufh (type=%d)",
-		    fufh_type);
+	if (fuse_filehandle_get(vp, fufh_type, &fufh)) {
+		panic("FUSE: fuse_filehandle_close called on invalid fufh "
+		    "(type=%d)", fufh_type);
 		/* NOTREACHED */
 	}
 	if (fuse_isdeadfs(vp)) {
@@ -185,8 +185,8 @@ fuse_filehandle_close(struct vnode *vp, fufh_type_t fufh_type,
 
 out:
 	atomic_subtract_acq_int(&fuse_fh_count, 1);
-	fufh->fh_id = (uint64_t)-1;
-	fufh->fh_type = FUFH_INVALID;
+	LIST_REMOVE(fufh, next);
+	free(fufh, M_FUSE_FILEHANDLE);
 
 	return err;
 }
@@ -194,31 +194,22 @@ out:
 int
 fuse_filehandle_valid(struct vnode *vp, fufh_type_t fufh_type)
 {
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-	struct fuse_filehandle *fufh;
-
-	fufh = &(fvdat->fufh[fufh_type]);
-	return FUFH_IS_VALID(fufh);
+	return (0 == fuse_filehandle_get(vp, fufh_type, NULL));
 }
 
 /*
  * Check for a valid file handle, first the type requested, but if that
  * isn't valid, try for FUFH_RDWR.
  * Return the FUFH type that is valid or FUFH_INVALID if there are none.
- * This is a variant of fuse_filehandle_vaild() analogous to
+ * This is a variant of fuse_filehandle_valid() analogous to
  * fuse_filehandle_getrw().
  */
 fufh_type_t
 fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type)
 {
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-	struct fuse_filehandle *fufh;
-
-	fufh = &fvdat->fufh[fufh_type];
-	if (FUFH_IS_VALID(fufh) != 0)
+	if (fuse_filehandle_get(vp, fufh_type, NULL) == 0)
 		return (fufh_type);
-	fufh = &fvdat->fufh[FUFH_RDWR];
-	if (FUFH_IS_VALID(fufh) != 0)
+	if (fuse_filehandle_get(vp, FUFH_RDWR, NULL) == 0)
 		return (FUFH_RDWR);
 	return (FUFH_INVALID);
 }
@@ -230,8 +221,14 @@ fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
 
-	fufh = &(fvdat->fufh[fufh_type]);
-	if (!FUFH_IS_VALID(fufh))
+	/* TODO: Find a list entry with the same mode, pid, gid, and uid */
+	/* Fallback: find a list entry with the right mode */
+	LIST_FOREACH(fufh, &fvdat->handles, next) {
+		if (fufh->mode == fufh_type)
+			break;
+	}
+
+	if (fufh == NULL)
 		return EBADF;
 	if (fufhp != NULL)
 		*fufhp = fufh;
@@ -242,14 +239,12 @@ int
 fuse_filehandle_getrw(struct vnode *vp, fufh_type_t fufh_type,
     struct fuse_filehandle **fufhp)
 {
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-	struct fuse_filehandle *fufh;
+	int err;
 
-	fufh = &(fvdat->fufh[fufh_type]);
-	if (!FUFH_IS_VALID(fufh)) {
-		fufh_type = FUFH_RDWR;
-	}
-	return fuse_filehandle_get(vp, fufh_type, fufhp);
+	err = fuse_filehandle_get(vp, fufh_type, fufhp);
+	if (err)
+		err = fuse_filehandle_get(vp, FUFH_RDWR, fufhp);
+	return err;
 }
 
 void
@@ -259,13 +254,16 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
 
-	fufh = &(fvdat->fufh[fufh_type]);
-	MPASS(!FUFH_IS_VALID(fufh));
+	fufh = malloc(sizeof(struct fuse_filehandle), M_FUSE_FILEHANDLE,
+		M_WAITOK);
+	MPASS(fufh != NULL);
 	fufh->fh_id = fh_id;
-	fufh->fh_type = fufh_type;
+	fufh->mode = fufh_type;
+	/* TODO: initialize fufh credentials and open flags */
 	if (!FUFH_IS_VALID(fufh)) {
 		panic("FUSE: init: invalid filehandle id (type=%d)", fufh_type);
 	}
+	LIST_INSERT_HEAD(&fvdat->handles, fufh, next);
 	if (fufhp != NULL)
 		*fufhp = fufh;
 

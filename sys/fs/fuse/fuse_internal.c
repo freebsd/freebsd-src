@@ -285,7 +285,6 @@ fuse_internal_fsync(struct vnode *vp,
 	struct fuse_fsync_in *ffsi;
 	struct fuse_dispatcher fdi;
 	struct fuse_filehandle *fufh;
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	int op = FUSE_FSYNC;
 	int type = 0;
 	int err = 0;
@@ -295,8 +294,7 @@ fuse_internal_fsync(struct vnode *vp,
 		return 0;
 	}
 	for (type = 0; type < FUFH_MAXTYPE; type++) {
-		fufh = &(fvdat->fufh[type]);
-		if (FUFH_IS_VALID(fufh)) {
+		if (fuse_filehandle_get(vp, type, &fufh) == 0) {
 			if (vnode_isdir(vp)) {
 				op = FUSE_FSYNCDIR;
 			}
@@ -454,11 +452,7 @@ fuse_internal_remove(struct vnode *dvp,
     enum fuse_opcode op)
 {
 	struct fuse_dispatcher fdi;
-	struct fuse_vnode_data *fvdat;
-	int err;
-
-	err = 0;
-	fvdat = VTOFUD(vp);
+	int err = 0;
 
 	fdisp_init(&fdi, cnp->cn_namelen + 1);
 	fdisp_make_vp(&fdi, op, dvp, cnp->cn_thread, cnp->cn_cred);

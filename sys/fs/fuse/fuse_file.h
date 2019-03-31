@@ -78,11 +78,24 @@ _Static_assert(FUFH_WRONLY == O_WRONLY, "WRONLY");
 _Static_assert(FUFH_RDWR == O_RDWR, "RDWR");
 
 struct fuse_filehandle {
+	LIST_ENTRY(fuse_filehandle) next;
+
+	/* The filehandle returned by FUSE_OPEN */
 	uint64_t fh_id;
-	fufh_type_t fh_type;
+
+	/* flags returned by FUSE_OPEN */
+	uint32_t fuse_open_flags;
+
+	/* The mode used to open(2) the file (using O_RDONLY, not FREAD) */
+	uint32_t mode;
+
+	/* Credentials used to open the file */
+	gid_t gid;
+	pid_t pid;
+	uid_t uid;
 };
 
-#define FUFH_IS_VALID(f)  ((f)->fh_type != FUFH_INVALID)
+#define FUFH_IS_VALID(f)  ((f)->mode != FUFH_INVALID)
 
 static inline fufh_type_t
 fuse_filehandle_xlate_from_fflags(int fflags)
