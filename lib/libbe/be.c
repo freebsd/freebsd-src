@@ -265,6 +265,16 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 		    zfs_prop_get(fs, ZFS_PROP_ORIGIN, origin, sizeof(origin),
 		    NULL, NULL, 0, 1) != 0)
 			return (set_error(lbh, BE_ERR_NOORIGIN));
+
+		/* Don't destroy a mounted dataset unless force is specified */
+		if ((mounted = zfs_is_mounted(fs, NULL)) != 0) {
+			if (force) {
+				zfs_unmount(fs, NULL, 0);
+			} else {
+				free(bdd.snapname);
+				return (set_error(lbh, BE_ERR_DESTROYMNT));
+			}
+		}
 	} else {
 		if (!zfs_dataset_exists(lbh->lzh, path, ZFS_TYPE_SNAPSHOT))
 			return (set_error(lbh, BE_ERR_NOENT));
@@ -277,16 +287,6 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 		if (fs == NULL) {
 			free(bdd.snapname);
 			return (set_error(lbh, BE_ERR_ZFSOPEN));
-		}
-	}
-
-	/* Check if mounted, unmount if force is specified */
-	if ((mounted = zfs_is_mounted(fs, NULL)) != 0) {
-		if (force) {
-			zfs_unmount(fs, NULL, 0);
-		} else {
-			free(bdd.snapname);
-			return (set_error(lbh, BE_ERR_DESTROYMNT));
 		}
 	}
 
