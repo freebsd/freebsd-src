@@ -109,11 +109,6 @@ fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
 	int oflags = 0;
 	int op = FUSE_OPEN;
 
-	if (fuse_filehandle_valid(vp, fufh_type)) {
-		panic("FUSE: filehandle_open called despite valid fufh (type=%d)",
-		    fufh_type);
-		/* NOTREACHED */
-	}
 	/*
 	 * Note that this means we are effectively FILTERING OUT open() flags.
 	 */
@@ -140,7 +135,8 @@ fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
 	}
 	foo = fdi.answ;
 
-	fuse_filehandle_init(vp, fufh_type, fufhp, foo->fh);
+	fuse_filehandle_init(vp, fufh_type, fufhp, td->td_proc->p_pid, cred,
+		foo->fh);
 
 	fuse_vnode_open(vp, foo->open_flags, td);
 
@@ -181,37 +177,66 @@ out:
 	return err;
 }
 
-int
-fuse_filehandle_valid(struct vnode *vp, fufh_type_t fufh_type)
-{
-	return (0 == fuse_filehandle_get(vp, fufh_type, NULL));
-}
-
 /*
  * Check for a valid file handle, first the type requested, but if that
  * isn't valid, try for FUFH_RDWR.
- * Return the FUFH type that is valid or FUFH_INVALID if there are none.
- * This is a variant of fuse_filehandle_valid() analogous to
- * fuse_filehandle_getrw().
+ * Return true if there is any file handle with the correct credentials and
+ * a fufh type that includes the provided one.
+ * A pid of 0 means "don't care"
  */
-fufh_type_t
-fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type)
-{
-	if (fuse_filehandle_get(vp, fufh_type, NULL) == 0)
-		return (fufh_type);
-	if (fuse_filehandle_get(vp, FUFH_RDWR, NULL) == 0)
-		return (FUFH_RDWR);
-	return (FUFH_INVALID);
-}
-
-int
-fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
-    struct fuse_filehandle **fufhp)
+bool
+fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type,
+	struct ucred *cred, pid_t pid)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
 
-	/* TODO: Find a list entry with the same flags, pid, gid, and uid */
+	/* 
+	 * Unlike fuse_filehandle_get, we want to search for a filehandle with
+	 * the exact cred, and no fallback
+	 */
+	LIST_FOREACH(fufh, &fvdat->handles, next) {
+		if (fufh->flags == fufh_type &&
+		    fufh->uid == cred->cr_uid &&
+		    fufh->gid == cred->cr_rgid &&
+		    (pid == 0 || fufh->pid == pid))
+			return true;
+	}
+
+	if (fufh_type == FUFH_EXEC)
+		return false;
+
+	/* Fallback: find a RDWR list entry with the right cred */
+	LIST_FOREACH(fufh, &fvdat->handles, next) {
+		if (fufh->flags == FUFH_RDWR &&
+		    fufh->uid == cred->cr_uid &&
+		    fufh->gid == cred->cr_rgid &&
+		    (pid == 0 || fufh->pid == pid))
+			return true;
+	}
+
+	return false;
+}
+
+int
+fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
+    struct fuse_filehandle **fufhp, struct ucred *cred, pid_t pid)
+{
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct fuse_filehandle *fufh;
+
+	if (cred == NULL)
+		goto fallback;
+
+	LIST_FOREACH(fufh, &fvdat->handles, next) {
+		if (fufh->flags == fufh_type &&
+		    fufh->uid == cred->cr_uid &&
+		    fufh->gid == cred->cr_rgid &&
+		    (pid == 0 || fufh->pid == pid))
+			goto found;
+	}
+
+fallback:
 	/* Fallback: find a list entry with the right flags */
 	LIST_FOREACH(fufh, &fvdat->handles, next) {
 		if (fufh->flags == fufh_type)
@@ -220,6 +245,8 @@ fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
 
 	if (fufh == NULL)
 		return EBADF;
+
+found:
 	if (fufhp != NULL)
 		*fufhp = fufh;
 	return 0;
@@ -227,19 +254,20 @@ fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
 
 int
 fuse_filehandle_getrw(struct vnode *vp, fufh_type_t fufh_type,
-    struct fuse_filehandle **fufhp)
+    struct fuse_filehandle **fufhp, struct ucred *cred, pid_t pid)
 {
 	int err;
 
-	err = fuse_filehandle_get(vp, fufh_type, fufhp);
+	err = fuse_filehandle_get(vp, fufh_type, fufhp, cred, pid);
 	if (err)
-		err = fuse_filehandle_get(vp, FUFH_RDWR, fufhp);
+		err = fuse_filehandle_get(vp, FUFH_RDWR, fufhp, cred, pid);
 	return err;
 }
 
 void
 fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
-    struct fuse_filehandle **fufhp, uint64_t fh_id)
+    struct fuse_filehandle **fufhp, pid_t pid, struct ucred *cred,
+    uint64_t fh_id)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
@@ -249,7 +277,10 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 	MPASS(fufh != NULL);
 	fufh->fh_id = fh_id;
 	fufh->flags = fufh_type;
-	/* TODO: initialize fufh credentials and open flags */
+	fufh->gid = cred->cr_rgid;
+	fufh->uid = cred->cr_uid;
+	fufh->pid = pid;
+	/* TODO: initialize open flags */
 	if (!FUFH_IS_VALID(fufh)) {
 		panic("FUSE: init: invalid filehandle id (type=%d)", fufh_type);
 	}

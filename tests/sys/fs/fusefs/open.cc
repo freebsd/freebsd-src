@@ -165,8 +165,7 @@ TEST_F(Open, fifo)
  * credentials open the same file, even if they use the same mode.  This is
  * necessary so that the daemon can validate each set of credentials.
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236844 */
-TEST_F(Open, DISABLED_multiple_creds)
+TEST_F(Open, multiple_creds)
 {
 	const static char FULLPATH[] = "mountpoint/some_file.txt";
 	const static char RELPATH[] = "some_file.txt";

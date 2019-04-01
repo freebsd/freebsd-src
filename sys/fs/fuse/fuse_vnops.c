@@ -216,6 +216,16 @@ uma_zone_t fuse_pbuf_zone;
 #define fuse_vm_page_lock_queues()	((void)0)
 #define fuse_vm_page_unlock_queues()	((void)0)
 
+/* Get a filehandle for a directory */
+static int
+fuse_filehandle_get_dir(struct vnode *vp, struct fuse_filehandle **fufhp,
+	struct ucred *cred, pid_t pid)
+{
+	if (fuse_filehandle_get(vp, FUFH_RDONLY, fufhp, cred, pid) == 0)
+		return 0;
+	return fuse_filehandle_get(vp, FUFH_EXEC, fufhp, cred, pid);
+}
+
 /*
     struct vnop_access_args {
 	struct vnode *a_vp;
@@ -278,6 +288,8 @@ fuse_vnop_close(struct vop_close_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct ucred *cred = ap->a_cred;
 	int fflag = ap->a_fflag;
+	struct thread *td = ap->a_td;
+	pid_t pid = td->td_proc->p_pid;
 
 	if (fuse_isdeadfs(vp)) {
 		return 0;
@@ -285,8 +297,7 @@ fuse_vnop_close(struct vop_close_args *ap)
 	if (vnode_isdir(vp)) {
 		struct fuse_filehandle *fufh;
 
-		if ((fuse_filehandle_get(vp, O_RDONLY, &fufh) == 0) ||
-		    (fuse_filehandle_get(vp, O_EXEC, &fufh) == 0))
+		if (fuse_filehandle_get_dir(vp, &fufh, cred, pid) == 0)
 			fuse_filehandle_close(vp, fufh, NULL, cred);
 		return 0;
 	}
@@ -295,7 +306,7 @@ fuse_vnop_close(struct vop_close_args *ap)
 	}
 	/* TODO: close the file handle, if we're sure it's no longer used */
 	if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
-		fuse_vnode_savesize(vp, cred);
+		fuse_vnode_savesize(vp, cred, td->td_proc->p_pid);
 	}
 	return 0;
 }
@@ -432,7 +443,8 @@ fuse_vnop_create(struct vop_create_args *ap)
 	}
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnop_create");
 
-	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, foo->fh);
+	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, td->td_proc->p_pid, cred,
+		foo->fh);
 	fuse_vnode_open(*vpp, foo->open_flags, td);
 	cache_purge_negative(dvp);
 
@@ -597,7 +609,7 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 	LIST_FOREACH_SAFE(fufh, &fvdat->handles, next, fufh_tmp) {
 		if (need_flush && vp->v_type == VREG) {
 			if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
-				fuse_vnode_savesize(vp, NULL);
+				fuse_vnode_savesize(vp, NULL, 0);
 			}
 			if (fuse_data_cache_invalidate ||
 			    (fvdat->flag & FN_REVOKED) != 0)
@@ -1194,6 +1206,7 @@ fuse_vnop_open(struct vop_open_args *ap)
 	int mode = ap->a_mode;
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
+	pid_t pid = td->td_proc->p_pid;
 
 	fufh_type_t fufh_type;
 	struct fuse_vnode_data *fvdat;
@@ -1209,7 +1222,7 @@ fuse_vnop_open(struct vop_open_args *ap)
 
 	fufh_type = fuse_filehandle_xlate_from_fflags(mode);
 
-	if (fuse_filehandle_validrw(vp, fufh_type) != FUFH_INVALID) {
+	if (fuse_filehandle_validrw(vp, fufh_type, cred, pid)) {
 		fuse_vnode_open(vp, 0, td);
 		return 0;
 	}
@@ -1257,6 +1270,7 @@ fuse_vnop_read(struct vop_read_args *ap)
 	struct uio *uio = ap->a_uio;
 	int ioflag = ap->a_ioflag;
 	struct ucred *cred = ap->a_cred;
+	pid_t pid = curthread->td_proc->p_pid;
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1266,7 +1280,7 @@ fuse_vnop_read(struct vop_read_args *ap)
 		ioflag |= IO_DIRECT;
 	}
 
-	return fuse_io_dispatch(vp, uio, ioflag, cred);
+	return fuse_io_dispatch(vp, uio, ioflag, cred, pid);
 }
 
 /*
@@ -1285,12 +1299,11 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
 	struct ucred *cred = ap->a_cred;
-
 	struct fuse_filehandle *fufh = NULL;
 	struct fuse_iov cookediov;
-
 	int err = 0;
 	int freefufh = 0;
+	pid_t pid = curthread->td_proc->p_pid;
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1300,7 +1313,7 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 		return EINVAL;
 	}
 
-	if ((err = fuse_filehandle_get(vp, FUFH_RDONLY, &fufh)) != 0) {
+	if ((err = fuse_filehandle_get_dir(vp, &fufh, cred, pid)) != 0) {
 		SDT_PROBE2(fuse, , vnops, trace, 1,
 			"calling readdir() before open()");
 		err = fuse_filehandle_open(vp, O_RDONLY, &fufh, NULL, cred);
@@ -1550,6 +1563,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	struct fuse_dispatcher fdi;
 	struct fuse_setattr_in *fsai;
 	struct fuse_access_param facp;
+	pid_t pid = td->td_proc->p_pid;
 
 	int err = 0;
 	enum vtype vtyp;
@@ -1589,7 +1603,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		newsize = vap->va_size;
 		fsai->valid |= FATTR_SIZE;
 
-		fuse_filehandle_getrw(vp, FUFH_WRONLY, &fufh);
+		fuse_filehandle_getrw(vp, FUFH_WRONLY, &fufh, cred, pid);
 		if (fufh) {
 			fsai->fh = fufh->fh_id;
 			fsai->valid |= FATTR_FH;
@@ -1760,6 +1774,7 @@ fuse_vnop_write(struct vop_write_args *ap)
 	struct uio *uio = ap->a_uio;
 	int ioflag = ap->a_ioflag;
 	struct ucred *cred = ap->a_cred;
+	pid_t pid = curthread->td_proc->p_pid;
 	int err;
 
 	if (fuse_isdeadfs(vp)) {
@@ -1773,7 +1788,7 @@ fuse_vnop_write(struct vop_write_args *ap)
 		ioflag |= IO_DIRECT;
 	}
 
-	return fuse_io_dispatch(vp, uio, ioflag, cred);
+	return fuse_io_dispatch(vp, uio, ioflag, cred, pid);
 }
 
 SDT_PROBE_DEFINE1(fuse, , vnops, vnop_getpages_error, "int");
@@ -1797,6 +1812,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	struct thread *td;
 	struct ucred *cred;
 	vm_page_t *pages;
+	pid_t pid = curthread->td_proc->p_pid;
 
 	vp = ap->a_vp;
 	KASSERT(vp->v_object, ("objectless vp passed to getpages"));
@@ -1846,7 +1862,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = td;
 
-	error = fuse_io_dispatch(vp, &uio, IO_DIRECT, cred);
+	error = fuse_io_dispatch(vp, &uio, IO_DIRECT, cred, pid);
 	pmap_qremove(kva, npages);
 
 	uma_zfree(fuse_pbuf_zone, bp);
@@ -1929,6 +1945,7 @@ fuse_vnop_putpages(struct vop_putpages_args *ap)
 	struct ucred *cred;
 	vm_page_t *pages;
 	vm_ooffset_t fsize;
+	pid_t pid = curthread->td_proc->p_pid;
 
 	vp = ap->a_vp;
 	KASSERT(vp->v_object, ("objectless vp passed to putpages"));
@@ -1978,7 +1995,7 @@ fuse_vnop_putpages(struct vop_putpages_args *ap)
 	uio.uio_rw = UIO_WRITE;
 	uio.uio_td = td;
 
-	error = fuse_io_dispatch(vp, &uio, IO_DIRECT, cred);
+	error = fuse_io_dispatch(vp, &uio, IO_DIRECT, cred, pid);
 
 	pmap_qremove(kva, npages);
 	uma_zfree(fuse_pbuf_zone, bp);

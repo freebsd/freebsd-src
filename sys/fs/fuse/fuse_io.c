@@ -111,27 +111,28 @@ fuse_read_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh);
 static int 
 fuse_read_biobackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh);
+    struct ucred *cred, struct fuse_filehandle *fufh, pid_t pid);
 static int 
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag);
 static int 
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag);
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag, pid_t pid);
 
 SDT_PROBE_DEFINE5(fuse, , io, io_dispatch, "struct vnode*", "struct uio*",
 		"int", "struct ucred*", "struct fuse_filehandle*");
 int
 fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
-    struct ucred *cred)
+    struct ucred *cred, pid_t pid)
 {
 	struct fuse_filehandle *fufh;
 	int err, directio;
+	fufh_type_t fufh_type;
 
 	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 
-	err = fuse_filehandle_getrw(vp,
-	    (uio->uio_rw == UIO_READ) ? FUFH_RDONLY : FUFH_WRONLY, &fufh);
+	fufh_type = (uio->uio_rw == UIO_READ) ? FUFH_RDONLY : FUFH_WRONLY;
+	err = fuse_filehandle_getrw(vp, fufh_type, &fufh, cred, pid);
 	if (err) {
 		printf("FUSE: io dispatch: filehandles are closed\n");
 		return err;
@@ -159,7 +160,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		} else {
 			SDT_PROBE2(fuse, , io, trace, 1,
 				"buffered read of vnode");
-			err = fuse_read_biobackend(vp, uio, cred, fufh);
+			err = fuse_read_biobackend(vp, uio, cred, fufh, pid);
 		}
 		break;
 	case UIO_WRITE:
@@ -172,11 +173,13 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		if (directio || fuse_data_cache_mode == FUSE_CACHE_WT) {
 			SDT_PROBE2(fuse, , io, trace, 1,
 				"direct write of vnode");
-			err = fuse_write_directbackend(vp, uio, cred, fufh, ioflag);
+			err = fuse_write_directbackend(vp, uio, cred, fufh,
+				ioflag);
 		} else {
 			SDT_PROBE2(fuse, , io, trace, 1,
 				"buffered write of vnode");
-			err = fuse_write_biobackend(vp, uio, cred, fufh, ioflag);
+			err = fuse_write_biobackend(vp, uio, cred, fufh, ioflag,
+				pid);
 		}
 		break;
 	default:
@@ -191,7 +194,7 @@ SDT_PROBE_DEFINE2(fuse, , io, read_bio_backend_feed, "int", "int");
 SDT_PROBE_DEFINE3(fuse, , io, read_bio_backend_end, "int", "ssize_t", "int");
 static int
 fuse_read_biobackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh)
+    struct ucred *cred, struct fuse_filehandle *fufh, pid_t pid)
 {
 	struct buf *bp;
 	daddr_t lbn;
@@ -405,7 +408,7 @@ SDT_PROBE_DEFINE2(fuse, , io, write_biobackend_append_race, "long", "int");
 
 static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag)
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag, pid_t pid)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct buf *bp;
@@ -625,7 +628,7 @@ again:
 	} while (uio->uio_resid > 0 && n > 0);
 
 	if (fuse_sync_resize && (fvdat->flag & FN_SIZECHANGE) != 0)
-		fuse_vnode_savesize(vp, cred);
+		fuse_vnode_savesize(vp, cred, pid);
 
 	return (err);
 }
@@ -640,14 +643,18 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 	struct uio uio;
 	struct iovec io;
 	int error = 0;
+	fufh_type_t fufh_type;
+	/* We don't know the true pid when we're dealing with the cache */
+	pid_t pid = 0;
 
 	const int biosize = fuse_iosize(vp);
 
 	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 	MPASS(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE);
 
-	error = fuse_filehandle_getrw(vp,
-	    (bp->b_iocmd == BIO_READ) ? FUFH_RDONLY : FUFH_WRONLY, &fufh);
+	fufh_type = bp->b_iocmd == BIO_READ ? FUFH_RDONLY : FUFH_WRONLY;
+	cred = bp->b_iocmd == BIO_READ ? bp->b_rcred : bp->b_wcred;
+	error = fuse_filehandle_getrw(vp, fufh_type, &fufh, cred, pid);
 	if (bp->b_iocmd == BIO_READ && error == EBADF) {
 		/* 
 		 * This may be a read-modify-write operation on a cached file
@@ -655,7 +662,8 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		 *
 		 * TODO: eliminate this hacky check once the FUFH table is gone
 		 */
-		error = fuse_filehandle_get(vp, FUFH_WRONLY, &fufh);
+		fufh_type = FUFH_WRONLY;
+		error = fuse_filehandle_get(vp, fufh_type, &fufh, cred, pid);
 	}
 	if (error) {
 		printf("FUSE: strategy: filehandles are closed\n");
@@ -664,7 +672,6 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		bufdone(bp);
 		return (error);
 	}
-	cred = bp->b_iocmd == BIO_READ ? bp->b_rcred : bp->b_wcred;
 
 	uiop = &uio;
 	uiop->uio_iov = &io;

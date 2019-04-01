@@ -345,7 +345,7 @@ fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags, struct thread *td)
 }
 
 int
-fuse_vnode_savesize(struct vnode *vp, struct ucred *cred)
+fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct thread *td = curthread;
@@ -377,7 +377,7 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred)
 	fsai->size = fvdat->filesize;
 	fsai->valid |= FATTR_SIZE;
 
-	fuse_filehandle_getrw(vp, FUFH_WRONLY, &fufh);
+	fuse_filehandle_getrw(vp, FUFH_WRONLY, &fufh, cred, pid);
 	if (fufh) {
 		fsai->fh = fufh->fh_id;
 		fsai->valid |= FATTR_FH;
