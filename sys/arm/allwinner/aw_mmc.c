@@ -256,6 +256,8 @@ aw_mmc_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cts->proto_specific.mmc.host_f_min = sc->aw_host.f_min;
 		cts->proto_specific.mmc.host_f_max = sc->aw_host.f_max;
 		cts->proto_specific.mmc.host_caps = sc->aw_host.caps;
+		cts->proto_specific.mmc.host_max_data = (sc->aw_mmc_conf->dma_xferlen *
+		    AW_MMC_DMA_SEGS) / MMC_SECTOR_SIZE;
 		memcpy(&cts->proto_specific.mmc.ios, &sc->aw_host.ios, sizeof(struct mmc_ios));
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;

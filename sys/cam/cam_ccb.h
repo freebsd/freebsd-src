@@ -1051,6 +1051,7 @@ struct ccb_trans_settings_mmc {
 #define MMC_CAP_8_BIT_DATA	(1 << 1) /* Can do 8-bit data transfers */
 #define MMC_CAP_HSPEED		(1 << 2) /* Can do High Speed transfers */
 	uint32_t host_caps;
+	uint32_t host_max_data;
 };
 
 /* Get/Set transfer rate/width/disconnection/tag queueing settings */
