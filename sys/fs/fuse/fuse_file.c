@@ -154,21 +154,15 @@ out:
 }
 
 int
-fuse_filehandle_close(struct vnode *vp, fufh_type_t fufh_type,
+fuse_filehandle_close(struct vnode *vp, struct fuse_filehandle *fufh,
     struct thread *td, struct ucred *cred)
 {
 	struct fuse_dispatcher fdi;
 	struct fuse_release_in *fri;
-	struct fuse_filehandle *fufh = NULL;
 
 	int err = 0;
 	int op = FUSE_RELEASE;
 
-	if (fuse_filehandle_get(vp, fufh_type, &fufh)) {
-		panic("FUSE: fuse_filehandle_close called on invalid fufh "
-		    "(type=%d)", fufh_type);
-		/* NOTREACHED */
-	}
 	if (fuse_isdeadfs(vp)) {
 		goto out;
 	}
@@ -178,7 +172,7 @@ fuse_filehandle_close(struct vnode *vp, fufh_type_t fufh_type,
 	fdisp_make_vp(&fdi, op, vp, td, cred);
 	fri = fdi.indata;
 	fri->fh = fufh->fh_id;
-	fri->flags = fuse_filehandle_xlate_to_oflags(fufh_type);
+	fri->flags = fufh->flags;
 
 	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);
@@ -221,10 +215,10 @@ fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
 
-	/* TODO: Find a list entry with the same mode, pid, gid, and uid */
-	/* Fallback: find a list entry with the right mode */
+	/* TODO: Find a list entry with the same flags, pid, gid, and uid */
+	/* Fallback: find a list entry with the right flags */
 	LIST_FOREACH(fufh, &fvdat->handles, next) {
-		if (fufh->mode == fufh_type)
+		if (fufh->flags == fufh_type)
 			break;
 	}
 
@@ -258,7 +252,7 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 		M_WAITOK);
 	MPASS(fufh != NULL);
 	fufh->fh_id = fh_id;
-	fufh->mode = fufh_type;
+	fufh->flags = fufh_type;
 	/* TODO: initialize fufh credentials and open flags */
 	if (!FUFH_IS_VALID(fufh)) {
 		panic("FUSE: init: invalid filehandle id (type=%d)", fufh_type);
