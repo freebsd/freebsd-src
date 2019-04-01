@@ -2580,6 +2580,7 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_GET_TRAN_SETTINGS:
 	{
 		struct ccb_trans_settings *cts = &ccb->cts;
+		uint32_t max_data;
 
 		if (sdhci_debug > 1)
 			slot_printf(slot, "Got XPT_GET_TRAN_SETTINGS\n");
@@ -2593,6 +2594,19 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cts->proto_specific.mmc.host_f_min = slot->host.f_min;
 		cts->proto_specific.mmc.host_f_max = slot->host.f_max;
 		cts->proto_specific.mmc.host_caps = slot->host.caps;
+		/*
+		 * Re-tuning modes 1 and 2 restrict the maximum data length
+		 * per read/write command to 4 MiB.
+		 */
+		if (slot->opt & SDHCI_TUNING_ENABLED &&
+		    (slot->retune_mode == SDHCI_RETUNE_MODE_1 ||
+		    slot->retune_mode == SDHCI_RETUNE_MODE_2)) {
+			max_data = 4 * 1024 * 1024 / MMC_SECTOR_SIZE;
+		} else {
+			max_data = 65535;
+		}
+		cts->proto_specific.mmc.host_max_data = max_data;
+
 		memcpy(&cts->proto_specific.mmc.ios, &slot->host.ios, sizeof(struct mmc_ios));
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
