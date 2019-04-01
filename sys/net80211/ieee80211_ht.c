@@ -1567,7 +1567,7 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 	int ret = 0;
 
 	ieee80211_parse_htcap(ni, htcapie);
-	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
+	if (vap->iv_htcaps & IEEE80211_HTC_SMPS)
 		htcap_update_mimo_ps(ni);
 	htcap_update_shortgi(ni);
 
@@ -1609,7 +1609,7 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 	int htflags;
 
 	ieee80211_parse_htcap(ni, htcapie);
-	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
+	if (vap->iv_htcaps & IEEE80211_HTC_SMPS)
 		htcap_update_mimo_ps(ni);
 	htcap_update_shortgi(ni);
 
