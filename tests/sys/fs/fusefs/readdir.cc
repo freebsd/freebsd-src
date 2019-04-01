@@ -52,6 +52,7 @@ void expect_readdir(uint64_t ino, uint64_t off, vector<struct dirent> &ents)
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_READDIR &&
 				in->header.nodeid == ino &&
+				in->body.readdir.fh == FH &&
 				in->body.readdir.offset == off);
 		}, Eq(true)),
 		_)

@@ -285,7 +285,8 @@ fuse_vnop_close(struct vop_close_args *ap)
 	if (vnode_isdir(vp)) {
 		struct fuse_filehandle *fufh;
 
-		if (fuse_filehandle_get(vp, O_RDONLY, &fufh) == 0)
+		if ((fuse_filehandle_get(vp, O_RDONLY, &fufh) == 0) ||
+		    (fuse_filehandle_get(vp, O_EXEC, &fufh) == 0))
 			fuse_filehandle_close(vp, fufh, NULL, cred);
 		return 0;
 	}
@@ -1201,16 +1202,12 @@ fuse_vnop_open(struct vop_open_args *ap)
 		return ENXIO;
 	if (vp->v_type == VCHR || vp->v_type == VBLK || vp->v_type == VFIFO)
 		return (EOPNOTSUPP);
-	if ((mode & (FREAD | FWRITE)) == 0)
+	if ((mode & (FREAD | FWRITE | FEXEC)) == 0)
 		return EINVAL;
 
 	fvdat = VTOFUD(vp);
 
-	if (vnode_isdir(vp)) {
-		fufh_type = FUFH_RDONLY;
-	} else {
-		fufh_type = fuse_filehandle_xlate_from_fflags(mode);
-	}
+	fufh_type = fuse_filehandle_xlate_from_fflags(mode);
 
 	if (fuse_filehandle_validrw(vp, fufh_type) != FUFH_INVALID) {
 		fuse_vnode_open(vp, 0, td);
@@ -1303,7 +1300,7 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 		return EINVAL;
 	}
 
-	if ((err = fuse_filehandle_get(vp, O_RDONLY, &fufh)) != 0) {
+	if ((err = fuse_filehandle_get(vp, FUFH_RDONLY, &fufh)) != 0) {
 		SDT_PROBE2(fuse, , vnops, trace, 1,
 			"calling readdir() before open()");
 		err = fuse_filehandle_open(vp, O_RDONLY, &fufh, NULL, cred);

@@ -250,8 +250,7 @@ TEST_F(Open, o_excl)
 	test_ok(O_WRONLY | O_EXCL, O_WRONLY);
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236329 */
-TEST_F(Open, DISABLED_o_exec)
+TEST_F(Open, o_exec)
 {
 	test_ok(O_EXEC, O_EXEC);
 }

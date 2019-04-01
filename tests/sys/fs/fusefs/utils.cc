@@ -166,6 +166,7 @@ void FuseTest::expect_open(uint64_t ino, uint32_t flags, int times)
 
 void FuseTest::expect_opendir(uint64_t ino)
 {
+	/* opendir(3) calls fstatfs */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_STATFS);
