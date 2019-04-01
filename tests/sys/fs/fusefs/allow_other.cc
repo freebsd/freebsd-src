@@ -99,8 +99,7 @@ TEST_F(AllowOther, allowed)
  * visible to root.  The second process is unprivileged and shouldn't be able
  * to open the file, but does thanks to the bug
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236844 */
-TEST_F(AllowOther, DISABLED_privilege_escalation)
+TEST_F(AllowOther, privilege_escalation)
 {
 	const static char FULLPATH[] = "mountpoint/some_file.txt";
 	const static char RELPATH[] = "some_file.txt";

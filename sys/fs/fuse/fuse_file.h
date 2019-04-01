@@ -78,6 +78,56 @@ typedef enum fufh_type {
 	FUFH_EXEC    = O_EXEC,
 } fufh_type_t;
 
+/*
+ * FUSE File Handles
+ *
+ * The FUSE protocol says that a server may assign a unique 64-bit file handle
+ * every time that a file is opened.  Effectively, that's once for each file
+ * descriptor.
+ *
+ * Unfortunately, the VFS doesn't help us here.  VOPs don't have a
+ * struct file* argument.  fileops do, but many syscalls bypass the fileops
+ * layer and go straight to a vnode.  Some, like writing from cache, can't
+ * track a file handle even in theory.  The entire concept of the file handle
+ * is a product of FUSE's Linux origins; Linux lacks vnodes and almost every
+ * file system operation takes a struct file* argument.
+ *
+ * Since FreeBSD's VFS is more file descriptor-agnostic, we must store FUSE
+ * filehandles in the vnode.  One option would be to only store a single file
+ * handle and never open FUSE files concurrently.  That's what NetBSD does.
+ * But that violates FUSE's security model.  FUSE expects the server to do all
+ * authorization (except when mounted with -o default_permissions).  In order
+ * to do that, the server needs us to send FUSE_OPEN every time somebody opens
+ * a new file descriptor.
+ *
+ * Another option would be to never open FUSE files concurrently, but send a
+ * FUSE_ACCESS prior to every open after the first.  That would give the server
+ * the opportunity to authorize the access.  Unfortunately, the FUSE protocol
+ * makes ACCESS optional.  File systems that don't implement it are assumed to
+ * authorize everything.  A survey of 32 fuse file systems showed that only 14
+ * implemented access.  Among the laggards were a few that really ought to be
+ * doing server-side authorization.
+ *
+ * So we do something hacky, similar to what OpenBSD, Illumos, and OSXFuse do.
+ * we store a list of file handles, one for each combination of vnode, uid,
+ * gid, pid, and access mode.  When opening a file, we first check whether
+ * there's already a matching file handle.  If so, we reuse it.  If not, we
+ * send FUSE_OPEN and create a new file handle.  That minimizes the number of
+ * open file handles while still allowing the server to authorize stuff.
+ *
+ * VOPs that need a file handle search through the list for a close match.
+ * They can't be guaranteed of finding an exact match because, for example, a
+ * process may have changed its UID since opening the file.  Also, most VOPs
+ * don't know exactly what permission they need.  Is O_RDWR required or is
+ * O_RDONLY good enough?  So the file handle we end up using may not be exactly
+ * the one we're supposed to use with that file descriptor.  But if the FUSE
+ * file system isn't too picky, it will work.  (FWIW even Linux sometimes
+ * guesses the file handle, during writes from cache or most SETATTR
+ * operations).
+ *
+ * I suspect this mess is part of the reason why neither NFS nor 9P have an
+ * equivalent of FUSE file handles.
+ */
 struct fuse_filehandle {
 	LIST_ENTRY(fuse_filehandle) next;
 
@@ -132,15 +182,18 @@ fuse_filehandle_xlate_to_oflags(fufh_type_t type)
 	return oflags;
 }
 
-int fuse_filehandle_valid(struct vnode *vp, fufh_type_t fufh_type);
-fufh_type_t fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type);
+bool fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type,
+	struct ucred *cred, pid_t pid);
 int fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
-                        struct fuse_filehandle **fufhp);
+                        struct fuse_filehandle **fufhp, struct ucred *cred,
+			pid_t pid);
 int fuse_filehandle_getrw(struct vnode *vp, fufh_type_t fufh_type,
-                          struct fuse_filehandle **fufhp);
+                          struct fuse_filehandle **fufhp, struct ucred *cred,
+			  pid_t pid);
 
 void fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
-		          struct fuse_filehandle **fufhp, uint64_t fh_id);
+		          struct fuse_filehandle **fufhp, pid_t pid,
+			  struct ucred *cred, uint64_t fh_id);
 int fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
                          struct fuse_filehandle **fufhp, struct thread *td,
                          struct ucred *cred);
