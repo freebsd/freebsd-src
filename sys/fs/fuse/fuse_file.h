@@ -66,12 +66,16 @@
 #include <sys/mman.h>
 #include <sys/vnode.h>
 
+/* 
+ * The fufh type is the access mode of the fuse file handle.  It's the portion
+ * of the open(2) flags related to permission.
+ */
 typedef enum fufh_type {
 	FUFH_INVALID = -1,
 	FUFH_RDONLY  = 0,
 	FUFH_WRONLY  = 1,
 	FUFH_RDWR    = 2,
-	FUFH_MAXTYPE = 3,
+	/* TODO: add FUFH_EXEC */
 } fufh_type_t;
 _Static_assert(FUFH_RDONLY == O_RDONLY, "RDONLY");
 _Static_assert(FUFH_WRONLY == O_WRONLY, "WRONLY");
@@ -86,8 +90,8 @@ struct fuse_filehandle {
 	/* flags returned by FUSE_OPEN */
 	uint32_t fuse_open_flags;
 
-	/* The mode used to open(2) the file (using O_RDONLY, not FREAD) */
-	uint32_t mode;
+	/* The flags used to open(2) the file (using O_RDONLY, not FREAD) */
+	uint32_t flags;
 
 	/* Credentials used to open the file */
 	gid_t gid;
@@ -95,7 +99,7 @@ struct fuse_filehandle {
 	uid_t uid;
 };
 
-#define FUFH_IS_VALID(f)  ((f)->mode != FUFH_INVALID)
+#define FUFH_IS_VALID(f)  ((f)->flags != FUFH_INVALID)
 
 static inline fufh_type_t
 fuse_filehandle_xlate_from_fflags(int fflags)
@@ -140,7 +144,7 @@ void fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 int fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
                          struct fuse_filehandle **fufhp, struct thread *td,
                          struct ucred *cred);
-int fuse_filehandle_close(struct vnode *vp, fufh_type_t fufh_type,
+int fuse_filehandle_close(struct vnode *vp, struct fuse_filehandle *fufh,
                           struct thread *td, struct ucred *cred);
 
 #endif /* _FUSE_FILE_H_ */

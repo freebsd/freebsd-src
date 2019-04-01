@@ -285,36 +285,37 @@ fuse_internal_fsync(struct vnode *vp,
 	struct fuse_fsync_in *ffsi;
 	struct fuse_dispatcher fdi;
 	struct fuse_filehandle *fufh;
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	int op = FUSE_FSYNC;
-	int type = 0;
 	int err = 0;
 
 	if (!fsess_isimpl(vnode_mount(vp),
 	    (vnode_vtype(vp) == VDIR ? FUSE_FSYNCDIR : FUSE_FSYNC))) {
 		return 0;
 	}
-	for (type = 0; type < FUFH_MAXTYPE; type++) {
-		if (fuse_filehandle_get(vp, type, &fufh) == 0) {
-			if (vnode_isdir(vp)) {
-				op = FUSE_FSYNCDIR;
-			}
-			fdisp_init(&fdi, sizeof(*ffsi));
-			fdisp_make_vp(&fdi, op, vp, td, NULL);
-			ffsi = fdi.indata;
-			ffsi->fh = fufh->fh_id;
+	if (vnode_isdir(vp))
+		op = FUSE_FSYNCDIR;
+	/*
+	 * fsync every open file handle for this file, because we can't be sure
+	 * which file handle the caller is really referring to.
+	 */
+	LIST_FOREACH(fufh, &fvdat->handles, next) {
+		fdisp_init(&fdi, sizeof(*ffsi));
+		fdisp_make_vp(&fdi, op, vp, td, NULL);
+		ffsi = fdi.indata;
+		ffsi->fh = fufh->fh_id;
 
-			if (datasync)
-				ffsi->fsync_flags = 1;
+		if (datasync)
+			ffsi->fsync_flags = 1;
 
-			if (waitfor == MNT_WAIT) {
-				err = fdisp_wait_answ(&fdi);
-			} else {
-				fuse_insert_callback(fdi.tick,
-					fuse_internal_fsync_callback);
-				fuse_insert_message(fdi.tick);
-			}
-			fdisp_destroy(&fdi);
+		if (waitfor == MNT_WAIT) {
+			err = fdisp_wait_answ(&fdi);
+		} else {
+			fuse_insert_callback(fdi.tick,
+				fuse_internal_fsync_callback);
+			fuse_insert_message(fdi.tick);
 		}
+		fdisp_destroy(&fdi);
 	}
 
 	return err;

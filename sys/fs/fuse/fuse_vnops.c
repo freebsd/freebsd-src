@@ -278,33 +278,22 @@ fuse_vnop_close(struct vop_close_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct ucred *cred = ap->a_cred;
 	int fflag = ap->a_fflag;
-	fufh_type_t fufh_type;
 
 	if (fuse_isdeadfs(vp)) {
 		return 0;
 	}
 	if (vnode_isdir(vp)) {
-		if (fuse_filehandle_valid(vp, FUFH_RDONLY)) {
-			fuse_filehandle_close(vp, FUFH_RDONLY, NULL, cred);
+		struct fuse_filehandle *fufh;
+
+		if (fuse_filehandle_get(vp, O_RDONLY, &fufh)) {
+			fuse_filehandle_close(vp, fufh, NULL, cred);
 		}
 		return 0;
 	}
 	if (fflag & IO_NDELAY) {
 		return 0;
 	}
-	fufh_type = fuse_filehandle_xlate_from_fflags(fflag);
-
-	if (!fuse_filehandle_valid(vp, fufh_type)) {
-		int i;
-
-		for (i = 0; i < FUFH_MAXTYPE; i++)
-			if (fuse_filehandle_valid(vp, i))
-				break;
-		if (i == FUFH_MAXTYPE)
-			panic("FUSE: fufh type %d found to be invalid in close"
-			      " (fflag=0x%x)\n",
-			      fufh_type, fflag);
-	}
+	/* TODO: close the file handle, if we're sure it's no longer used */
 	if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
 		fuse_vnode_savesize(vp, cred);
 	}
@@ -601,25 +590,23 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 	struct thread *td = ap->a_td;
 
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-	struct fuse_filehandle *fufh = NULL;
+	struct fuse_filehandle *fufh, *fufh_tmp;
 
-	int type, need_flush = 1;
+	int need_flush = 1;
 
-	for (type = 0; type < FUFH_MAXTYPE; type++) {
-		if (!fuse_filehandle_get(vp, type, &fufh)) {
-			if (need_flush && vp->v_type == VREG) {
-				if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
-					fuse_vnode_savesize(vp, NULL);
-				}
-				if (fuse_data_cache_invalidate ||
-				    (fvdat->flag & FN_REVOKED) != 0)
-					fuse_io_invalbuf(vp, td);
-				else
-					fuse_io_flushbuf(vp, MNT_WAIT, td);
-				need_flush = 0;
+	LIST_FOREACH_SAFE(fufh, &fvdat->handles, next, fufh_tmp) {
+		if (need_flush && vp->v_type == VREG) {
+			if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
+				fuse_vnode_savesize(vp, NULL);
 			}
-			fuse_filehandle_close(vp, type, td, NULL);
+			if (fuse_data_cache_invalidate ||
+			    (fvdat->flag & FN_REVOKED) != 0)
+				fuse_io_invalbuf(vp, td);
+			else
+				fuse_io_flushbuf(vp, MNT_WAIT, td);
+			need_flush = 0;
 		}
+		fuse_filehandle_close(vp, fufh, td, NULL);
 	}
 
 	if ((fvdat->flag & FN_REVOKED) != 0 && fuse_reclaim_revoked) {
@@ -1317,13 +1304,11 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 		return EINVAL;
 	}
 
-	if (!fuse_filehandle_valid(vp, FUFH_RDONLY)) {
+	if ((err = fuse_filehandle_get(vp, O_RDONLY, &fufh)) != 0) {
 		SDT_PROBE2(fuse, , vnops, trace, 1,
 			"calling readdir() before open()");
-		err = fuse_filehandle_open(vp, FUFH_RDONLY, &fufh, NULL, cred);
+		err = fuse_filehandle_open(vp, O_RDONLY, &fufh, NULL, cred);
 		freefufh = 1;
-	} else {
-		err = fuse_filehandle_get(vp, FUFH_RDONLY, &fufh);
 	}
 	if (err) {
 		return (err);
@@ -1334,9 +1319,9 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	err = fuse_internal_readdir(vp, uio, fufh, &cookediov);
 
 	fiov_teardown(&cookediov);
-	if (freefufh) {
-		fuse_filehandle_close(vp, FUFH_RDONLY, NULL, cred);
-	}
+	if (freefufh)
+		fuse_filehandle_close(vp, fufh, NULL, cred);
+
 	return err;
 }
 
@@ -1393,20 +1378,16 @@ fuse_vnop_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
-
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-
-	int type;
+	struct fuse_filehandle *fufh, *fufh_tmp;
 
 	if (!fvdat) {
 		panic("FUSE: no vnode data during recycling");
 	}
-	for (type = 0; type < FUFH_MAXTYPE; type++) {
-		if (fuse_filehandle_get(vp, type, NULL) == 0) {
-			printf("FUSE: vnode being reclaimed but fufh (type=%d) is valid",
-			    type);
-			fuse_filehandle_close(vp, type, td, NULL);
-		}
+	LIST_FOREACH_SAFE(fufh, &fvdat->handles, next, fufh_tmp) {
+		printf("FUSE: vnode being reclaimed with open fufh "
+			"(flags=%#x)", fufh->flags);
+		fuse_filehandle_close(vp, fufh, td, NULL);
 	}
 
 	if ((!fuse_isdeadfs(vp)) && (fvdat->nlookup)) {
