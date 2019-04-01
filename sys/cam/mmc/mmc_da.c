@@ -1195,6 +1195,27 @@ sdda_get_host_caps(struct cam_periph *periph, union ccb *ccb)
 	return (cts->host_caps);
 }
 
+static uint32_t
+sdda_get_max_data(struct cam_periph *periph, union ccb *ccb)
+{
+	struct ccb_trans_settings_mmc *cts;
+
+	cts = &ccb->cts.proto_specific.mmc;
+	memset(cts, 0, sizeof(struct ccb_trans_settings_mmc));
+
+	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	ccb->ccb_h.flags = CAM_DIR_NONE;
+	ccb->ccb_h.retry_count = 0;
+	ccb->ccb_h.timeout = 100;
+	ccb->ccb_h.cbfcnp = NULL;
+	xpt_action(ccb);
+
+	if (ccb->ccb_h.status != CAM_REQ_CMP)
+		panic("Cannot get host max data");
+	KASSERT(cts->host_max_data != 0, ("host_max_data == 0?!"));
+	return (cts->host_max_data);
+}
+
 static void
 sdda_start_init(void *context, union ccb *start_ccb)
 {
@@ -1420,7 +1441,6 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	struct sdda_softc *sc = (struct sdda_softc *)periph->softc;
 	struct sdda_part *part;
 	struct ccb_pathinq cpi;
-	u_int maxio;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 	    ("Partition type '%s', size %ju %s\n",
@@ -1479,12 +1499,9 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	part->disk->d_gone = sddadiskgonecb;
 	part->disk->d_name = part->name;
 	part->disk->d_drv1 = part;
-	maxio = cpi.maxio;		/* Honor max I/O size of SIM */
-	if (maxio == 0)
-		maxio = DFLTPHYS;	/* traditional default */
-	else if (maxio > MAXPHYS)
-		maxio = MAXPHYS;	/* for safety */
-	part->disk->d_maxsize = maxio;
+	part->disk->d_maxsize =
+	    MIN(MAXPHYS, sdda_get_max_data(periph,
+		    (union ccb *)&cpi) * mmc_get_sector_size(periph));
 	part->disk->d_unit = cnt;
 	part->disk->d_flags = 0;
 	strlcpy(part->disk->d_descr, sc->card_id_string,
