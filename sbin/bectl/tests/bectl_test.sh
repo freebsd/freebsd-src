@@ -123,12 +123,21 @@ bectl_destroy_body()
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
 	mount=${cwd}/mnt
+	root=${mount}/root
 
 	bectl_create_setup ${zpool} ${disk} ${mount}
 	atf_check bectl -r ${zpool}/ROOT create -e default default2
 	atf_check -o not-empty zfs get mountpoint ${zpool}/ROOT/default2
 	atf_check -e ignore bectl -r ${zpool}/ROOT destroy default2
 	atf_check -e not-empty -s not-exit:0 zfs get mountpoint ${zpool}/ROOT/default2
+
+	# Test origin snapshot deletion when the snapshot to be destroyed
+	# belongs to a mounted dataset, see PR 236043.
+	atf_check mkdir -p ${root}
+	atf_check -o not-empty bectl -r ${zpool}/ROOT mount default ${root}
+	atf_check bectl -r ${zpool}/ROOT create -e default default3
+	atf_check bectl -r ${zpool}/ROOT destroy -o default3
+	atf_check bectl -r ${zpool}/ROOT unmount default
 }
 bectl_destroy_cleanup()
 {
