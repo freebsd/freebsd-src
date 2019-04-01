@@ -285,9 +285,8 @@ fuse_vnop_close(struct vop_close_args *ap)
 	if (vnode_isdir(vp)) {
 		struct fuse_filehandle *fufh;
 
-		if (fuse_filehandle_get(vp, O_RDONLY, &fufh)) {
+		if (fuse_filehandle_get(vp, O_RDONLY, &fufh) == 0)
 			fuse_filehandle_close(vp, fufh, NULL, cred);
-		}
 		return 0;
 	}
 	if (fflag & IO_NDELAY) {
