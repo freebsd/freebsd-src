@@ -72,14 +72,11 @@
  */
 typedef enum fufh_type {
 	FUFH_INVALID = -1,
-	FUFH_RDONLY  = 0,
-	FUFH_WRONLY  = 1,
-	FUFH_RDWR    = 2,
-	/* TODO: add FUFH_EXEC */
+	FUFH_RDONLY  = O_RDONLY,
+	FUFH_WRONLY  = O_WRONLY,
+	FUFH_RDWR    = O_RDWR,
+	FUFH_EXEC    = O_EXEC,
 } fufh_type_t;
-_Static_assert(FUFH_RDONLY == O_RDONLY, "RDONLY");
-_Static_assert(FUFH_WRONLY == O_WRONLY, "WRONLY");
-_Static_assert(FUFH_RDWR == O_RDWR, "RDWR");
 
 struct fuse_filehandle {
 	LIST_ENTRY(fuse_filehandle) next;
@@ -110,6 +107,8 @@ fuse_filehandle_xlate_from_fflags(int fflags)
 		return FUFH_WRONLY;
 	else if (fflags & (FREAD))
 		return FUFH_RDONLY;
+	else if (fflags & (FEXEC))
+		return FUFH_EXEC;
 	else
 		panic("FUSE: What kind of a flag is this (%x)?", fflags);
 }
@@ -123,6 +122,7 @@ fuse_filehandle_xlate_to_oflags(fufh_type_t type)
 	case FUFH_RDONLY:
 	case FUFH_WRONLY:
 	case FUFH_RDWR:
+	case FUFH_EXEC:
 		oflags = type;
 		break;
 	default:

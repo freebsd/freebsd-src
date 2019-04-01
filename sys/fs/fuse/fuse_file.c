@@ -121,12 +121,8 @@ fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
 
 	if (vnode_isdir(vp)) {
 		op = FUSE_OPENDIR;
-		if (fufh_type != FUFH_RDONLY) {
-			SDT_PROBE2(fuse, , file, trace, 1,
-				"non-rdonly fh requested for a directory?");
-			printf("FUSE:non-rdonly fh requested for a directory?\n");
-			fufh_type = FUFH_RDONLY;
-		}
+		/* vn_open_vnode already rejects FWRITE on directories */
+		MPASS(fufh_type == FUFH_RDONLY || fufh_type == FUFH_EXEC);
 	}
 	fdisp_init(&fdi, sizeof(*foi));
 	fdisp_make_vp(&fdi, op, vp, td, cred);

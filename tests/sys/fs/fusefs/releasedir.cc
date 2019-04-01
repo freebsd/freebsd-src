@@ -30,6 +30,7 @@
 
 extern "C" {
 #include <dirent.h>
+#include <fcntl.h>
 }
 
 #include "mockfs.hh"
@@ -106,4 +107,22 @@ TEST_F(ReleaseDir, ok)
 	ASSERT_NE(NULL, dir) << strerror(errno);
 
 	ASSERT_EQ(0, closedir(dir)) << strerror(errno);
+}
+
+/* Directories opened O_EXEC should be properly released, too */
+TEST_F(ReleaseDir, o_exec)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, ino);
+	expect_opendir(ino);
+	expect_releasedir(ino, ReturnErrno(0));
+	
+	fd = open(FULLPATH, O_EXEC | O_DIRECTORY);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(0, close(fd)) << strerror(errno);
 }

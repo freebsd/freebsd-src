@@ -200,7 +200,8 @@ void debug_fuseop(const mockfs_buf_in *in)
 				in->body.read.size);
 			break;
 		case FUSE_READDIR:
-			printf(" offset=%lu size=%u", in->body.readdir.offset,
+			printf(" fh=%#lx offset=%lu size=%u",
+				in->body.readdir.fh, in->body.readdir.offset,
 				in->body.readdir.size);
 			break;
 		case FUSE_RELEASE:

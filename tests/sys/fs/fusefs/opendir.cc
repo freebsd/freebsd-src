@@ -44,6 +44,29 @@ void expect_lookup(const char *relpath, uint64_t ino)
 {
 	FuseTest::expect_lookup(relpath, ino, S_IFDIR | 0755, 0, 1);
 }
+
+void expect_opendir(uint64_t ino, uint32_t flags, ProcessMockerT r)
+{
+	/* opendir(3) calls fstatfs */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_STATFS);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, statfs);
+	})));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_OPENDIR &&
+				in->header.nodeid == ino &&
+				in->body.opendir.flags == flags);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(r));
+}
+
 };
 
 
@@ -59,14 +82,8 @@ TEST_F(Opendir, enoent)
 	uint64_t ino = 42;
 
 	expect_lookup(RELPATH, ino);
+	expect_opendir(ino, O_RDONLY, ReturnErrno(ENOENT));
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPENDIR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(ENOENT)));
 	EXPECT_NE(0, open(FULLPATH, O_DIRECTORY));
 	EXPECT_EQ(ENOENT, errno);
 }
@@ -82,14 +99,7 @@ TEST_F(Opendir, eperm)
 	uint64_t ino = 42;
 
 	expect_lookup(RELPATH, ino);
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPENDIR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(EPERM)));
+	expect_opendir(ino, O_RDONLY, ReturnErrno(EPERM));
 
 	EXPECT_NE(0, open(FULLPATH, O_DIRECTORY));
 	EXPECT_EQ(EPERM, errno);
@@ -102,18 +112,30 @@ TEST_F(Opendir, open)
 	uint64_t ino = 42;
 
 	expect_lookup(RELPATH, ino);
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPENDIR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	expect_opendir(ino, O_RDONLY,
+	ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, open);
-	})));
+	}));
 
 	EXPECT_LE(0, open(FULLPATH, O_DIRECTORY)) << strerror(errno);
+}
+
+/* Directories can be opened O_EXEC for stuff like fchdir(2) */
+TEST_F(Opendir, open_exec)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, ino);
+	expect_opendir(ino, O_EXEC,
+	ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, open);
+	}));
+
+	fd = open(FULLPATH, O_EXEC | O_DIRECTORY);
+	ASSERT_LE(0, fd) << strerror(errno);
 }
 
 TEST_F(Opendir, opendir)
@@ -123,24 +145,10 @@ TEST_F(Opendir, opendir)
 	uint64_t ino = 42;
 
 	expect_lookup(RELPATH, ino);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_STATFS);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, statfs);
-	})));
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPENDIR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	expect_opendir(ino, O_RDONLY,
+	ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, open);
-	})));
+	}));
 
 	errno = 0;
 	EXPECT_NE(NULL, opendir(FULLPATH)) << strerror(errno);
