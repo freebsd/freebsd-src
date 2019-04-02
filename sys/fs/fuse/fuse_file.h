@@ -137,8 +137,8 @@ struct fuse_filehandle {
 	/* flags returned by FUSE_OPEN */
 	uint32_t fuse_open_flags;
 
-	/* The flags used to open(2) the file (using O_RDONLY, not FREAD) */
-	uint32_t flags;
+	/* The access mode of the file handle */
+	fufh_type_t fufh_type;
 
 	/* Credentials used to open the file */
 	gid_t gid;
@@ -146,43 +146,9 @@ struct fuse_filehandle {
 	uid_t uid;
 };
 
-#define FUFH_IS_VALID(f)  ((f)->flags != FUFH_INVALID)
+#define FUFH_IS_VALID(f)  ((f)->fufh_type != FUFH_INVALID)
 
-static inline fufh_type_t
-fuse_filehandle_xlate_from_fflags(int fflags)
-{
-	if ((fflags & FREAD) && (fflags & FWRITE))
-		return FUFH_RDWR;
-	else if (fflags & (FWRITE))
-		return FUFH_WRONLY;
-	else if (fflags & (FREAD))
-		return FUFH_RDONLY;
-	else if (fflags & (FEXEC))
-		return FUFH_EXEC;
-	else
-		panic("FUSE: What kind of a flag is this (%x)?", fflags);
-}
-
-static inline int
-fuse_filehandle_xlate_to_oflags(fufh_type_t type)
-{
-	int oflags = -1;
-
-	switch (type) {
-	case FUFH_RDONLY:
-	case FUFH_WRONLY:
-	case FUFH_RDWR:
-	case FUFH_EXEC:
-		oflags = type;
-		break;
-	default:
-		break;
-	}
-
-	return oflags;
-}
-
-bool fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type,
+bool fuse_filehandle_validrw(struct vnode *vp, int mode,
 	struct ucred *cred, pid_t pid);
 int fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
                         struct fuse_filehandle **fufhp, struct ucred *cred,
@@ -193,8 +159,8 @@ int fuse_filehandle_getrw(struct vnode *vp, fufh_type_t fufh_type,
 
 void fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 		          struct fuse_filehandle **fufhp, pid_t pid,
-			  struct ucred *cred, uint64_t fh_id);
-int fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
+			  struct ucred *cred, struct fuse_open_out *foo);
+int fuse_filehandle_open(struct vnode *vp, int mode,
                          struct fuse_filehandle **fufhp, struct thread *td,
                          struct ucred *cred);
 int fuse_filehandle_close(struct vnode *vp, struct fuse_filehandle *fufh,
