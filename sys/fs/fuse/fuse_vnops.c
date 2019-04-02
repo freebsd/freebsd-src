@@ -365,6 +365,14 @@ fuse_vnop_create(struct vop_create_args *ap)
 	uint64_t parentnid = VTOFUD(dvp)->nid;
 	mode_t mode = MAKEIMODE(vap->va_type, vap->va_mode);
 	enum fuse_opcode op;
+	int flags;
+
+	/* 
+	 * VOP_CREATE doesn't tell us the open(2) flags, so we guess.  Only a
+	 * writable mode makes sense, and we might as well include readability
+	 * too.
+	 */
+	flags = O_RDWR;
 
 	if (fuse_isdeadfs(dvp)) {
 		return ENXIO;
@@ -385,7 +393,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		fdisp_make(fdip, op, vnode_mount(dvp), parentnid, td, cred);
 		foi = fdip->indata;
 		foi->mode = mode;
-		foi->flags = O_CREAT | O_RDWR;
+		foi->flags = O_CREAT | flags;
 		memcpy((char *)fdip->indata + sizeof(*foi), cnp->cn_nameptr,
 		    cnp->cn_namelen);
 		((char *)fdip->indata)[sizeof(*foi) + cnp->cn_namelen] = '\0';
@@ -420,7 +428,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 			cred);
 		foi = fdip2->indata;
 		foi->mode = mode;
-		foi->flags = O_RDWR;
+		foi->flags = flags;
 		err = fdisp_wait_answ(fdip2);
 		if (err)
 			goto out;
@@ -436,7 +444,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		fdisp_make(fdip, FUSE_RELEASE, mp, nodeid, td, cred);
 		fri = fdip->indata;
 		fri->fh = fh_id;
-		fri->flags = fuse_filehandle_xlate_to_oflags(FUFH_RDWR);
+		fri->flags = flags;
 		fuse_insert_callback(fdip->tick, fuse_internal_forget_callback);
 		fuse_insert_message(fdip->tick);
 		goto out;
@@ -444,7 +452,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnop_create");
 
 	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, td->td_proc->p_pid, cred,
-		foo->fh);
+		foo);
 	fuse_vnode_open(*vpp, foo->open_flags, td);
 	cache_purge_negative(dvp);
 
@@ -1203,31 +1211,27 @@ static int
 fuse_vnop_open(struct vop_open_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	int mode = ap->a_mode;
+	int a_mode = ap->a_mode;
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
 	pid_t pid = td->td_proc->p_pid;
-
-	fufh_type_t fufh_type;
 	struct fuse_vnode_data *fvdat;
 
 	if (fuse_isdeadfs(vp))
 		return ENXIO;
 	if (vp->v_type == VCHR || vp->v_type == VBLK || vp->v_type == VFIFO)
 		return (EOPNOTSUPP);
-	if ((mode & (FREAD | FWRITE | FEXEC)) == 0)
+	if ((a_mode & (FREAD | FWRITE | FEXEC)) == 0)
 		return EINVAL;
 
 	fvdat = VTOFUD(vp);
 
-	fufh_type = fuse_filehandle_xlate_from_fflags(mode);
-
-	if (fuse_filehandle_validrw(vp, fufh_type, cred, pid)) {
+	if (fuse_filehandle_validrw(vp, a_mode, cred, pid)) {
 		fuse_vnode_open(vp, 0, td);
 		return 0;
 	}
 
-	return fuse_filehandle_open(vp, fufh_type, NULL, td, cred);
+	return fuse_filehandle_open(vp, a_mode, NULL, td, cred);
 }
 
 static int
@@ -1395,7 +1399,7 @@ fuse_vnop_reclaim(struct vop_reclaim_args *ap)
 	}
 	LIST_FOREACH_SAFE(fufh, &fvdat->handles, next, fufh_tmp) {
 		printf("FUSE: vnode being reclaimed with open fufh "
-			"(flags=%#x)", fufh->flags);
+			"(type=%#x)", fufh->fufh_type);
 		fuse_filehandle_close(vp, fufh, td, NULL);
 	}
 

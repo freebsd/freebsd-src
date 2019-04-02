@@ -97,22 +97,75 @@ static int fuse_fh_count = 0;
 SYSCTL_INT(_vfs_fusefs, OID_AUTO, filehandle_count, CTLFLAG_RD,
     &fuse_fh_count, 0, "number of open FUSE filehandles");
 
+/* Get the FUFH type for a particular access mode */
+static inline fufh_type_t
+fflags_2_fufh_type(int fflags)
+{
+	if ((fflags & FREAD) && (fflags & FWRITE))
+		return FUFH_RDWR;
+	else if (fflags & (FWRITE))
+		return FUFH_WRONLY;
+	else if (fflags & (FREAD))
+		return FUFH_RDONLY;
+	else if (fflags & (FEXEC))
+		return FUFH_EXEC;
+	else
+		panic("FUSE: What kind of a flag is this (%x)?", fflags);
+}
+
+/*
+ * Get the flags to use for FUSE_CREATE, FUSE_OPEN and FUSE_RELEASE
+ *
+ * These are supposed to be the same as the flags argument to open(2).
+ * However, since we can't reliably associate a fuse_filehandle with a specific
+ * file descriptor it would would be dangerous to include anything more than
+ * the access mode flags.  For example, suppose we open a file twice, once with
+ * O_APPEND and once without.  Then the user pwrite(2)s to offset using the
+ * second file descriptor.  If fusefs uses the first file handle, then the
+ * server may append the write to the end of the file rather than at offset 0.
+ * To prevent problems like this, we only ever send the portion of flags
+ * related to access mode.
+ *
+ * It's essential to send that portion, because FUSE uses it for server-side
+ * authorization.
+ *
+ * TODO: consider sending O_APPEND after upgrading to protocol 7.9, which
+ * includes flags in fuse_write_in.
+ */
+static inline int
+fufh_type_2_fflags(fufh_type_t type)
+{
+	int oflags = -1;
+
+	switch (type) {
+	case FUFH_RDONLY:
+	case FUFH_WRONLY:
+	case FUFH_RDWR:
+	case FUFH_EXEC:
+		oflags = type;
+		break;
+	default:
+		break;
+	}
+
+	return oflags;
+}
+
 int
-fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
+fuse_filehandle_open(struct vnode *vp, int a_mode,
     struct fuse_filehandle **fufhp, struct thread *td, struct ucred *cred)
 {
 	struct fuse_dispatcher fdi;
 	struct fuse_open_in *foi;
 	struct fuse_open_out *foo;
+	fufh_type_t fufh_type;
 
 	int err = 0;
 	int oflags = 0;
 	int op = FUSE_OPEN;
 
-	/*
-	 * Note that this means we are effectively FILTERING OUT open() flags.
-	 */
-	oflags = fuse_filehandle_xlate_to_oflags(fufh_type);
+	fufh_type = fflags_2_fufh_type(a_mode);
+	oflags = fufh_type_2_fflags(fufh_type);
 
 	if (vnode_isdir(vp)) {
 		op = FUSE_OPENDIR;
@@ -136,7 +189,7 @@ fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
 	foo = fdi.answ;
 
 	fuse_filehandle_init(vp, fufh_type, fufhp, td->td_proc->p_pid, cred,
-		foo->fh);
+		foo);
 
 	fuse_vnode_open(vp, foo->open_flags, td);
 
@@ -164,7 +217,7 @@ fuse_filehandle_close(struct vnode *vp, struct fuse_filehandle *fufh,
 	fdisp_make_vp(&fdi, op, vp, td, cred);
 	fri = fdi.indata;
 	fri->fh = fufh->fh_id;
-	fri->flags = fufh->flags;
+	fri->flags = fufh_type_2_fflags(fufh->fufh_type);
 
 	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);
@@ -185,18 +238,19 @@ out:
  * A pid of 0 means "don't care"
  */
 bool
-fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type,
+fuse_filehandle_validrw(struct vnode *vp, int mode,
 	struct ucred *cred, pid_t pid)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
+	fufh_type_t fufh_type = fflags_2_fufh_type(mode);
 
 	/* 
 	 * Unlike fuse_filehandle_get, we want to search for a filehandle with
 	 * the exact cred, and no fallback
 	 */
 	LIST_FOREACH(fufh, &fvdat->handles, next) {
-		if (fufh->flags == fufh_type &&
+		if (fufh->fufh_type == fufh_type &&
 		    fufh->uid == cred->cr_uid &&
 		    fufh->gid == cred->cr_rgid &&
 		    (pid == 0 || fufh->pid == pid))
@@ -208,7 +262,7 @@ fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type,
 
 	/* Fallback: find a RDWR list entry with the right cred */
 	LIST_FOREACH(fufh, &fvdat->handles, next) {
-		if (fufh->flags == FUFH_RDWR &&
+		if (fufh->fufh_type == FUFH_RDWR &&
 		    fufh->uid == cred->cr_uid &&
 		    fufh->gid == cred->cr_rgid &&
 		    (pid == 0 || fufh->pid == pid))
@@ -229,7 +283,7 @@ fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
 		goto fallback;
 
 	LIST_FOREACH(fufh, &fvdat->handles, next) {
-		if (fufh->flags == fufh_type &&
+		if (fufh->fufh_type == fufh_type &&
 		    fufh->uid == cred->cr_uid &&
 		    fufh->gid == cred->cr_rgid &&
 		    (pid == 0 || fufh->pid == pid))
@@ -239,7 +293,7 @@ fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
 fallback:
 	/* Fallback: find a list entry with the right flags */
 	LIST_FOREACH(fufh, &fvdat->handles, next) {
-		if (fufh->flags == fufh_type)
+		if (fufh->fufh_type == fufh_type)
 			break;
 	}
 
@@ -267,7 +321,7 @@ fuse_filehandle_getrw(struct vnode *vp, fufh_type_t fufh_type,
 void
 fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
     struct fuse_filehandle **fufhp, pid_t pid, struct ucred *cred,
-    uint64_t fh_id)
+    struct fuse_open_out *foo)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
@@ -275,12 +329,12 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 	fufh = malloc(sizeof(struct fuse_filehandle), M_FUSE_FILEHANDLE,
 		M_WAITOK);
 	MPASS(fufh != NULL);
-	fufh->fh_id = fh_id;
-	fufh->flags = fufh_type;
+	fufh->fh_id = foo->fh;
+	fufh->fufh_type = fufh_type;
 	fufh->gid = cred->cr_rgid;
 	fufh->uid = cred->cr_uid;
 	fufh->pid = pid;
-	/* TODO: initialize open flags */
+	fufh->fuse_open_flags = foo->open_flags;
 	if (!FUFH_IS_VALID(fufh)) {
 		panic("FUSE: init: invalid filehandle id (type=%d)", fufh_type);
 	}
