@@ -321,7 +321,7 @@ out:
 		/* Signal the child process to go */
 		ASSERT_EQ(0, sem_post(sem)) << strerror(errno);
 
-		wait(&child_status);
+		ASSERT_LE(0, wait(&child_status)) << strerror(errno);
 		ASSERT_EQ(0, WEXITSTATUS(child_status));
 	} else {
 		FAIL() << strerror(errno);
