@@ -1320,7 +1320,11 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	if ((err = fuse_filehandle_get_dir(vp, &fufh, cred, pid)) != 0) {
 		SDT_PROBE2(fuse, , vnops, trace, 1,
 			"calling readdir() before open()");
-		err = fuse_filehandle_open(vp, O_RDONLY, &fufh, NULL, cred);
+		/* 
+		 * This was seen to happen in getdirentries as used by
+		 * shells/fish, but I can't reproduce it.
+		 */
+		err = fuse_filehandle_open(vp, FREAD, &fufh, NULL, cred);
 		freefufh = 1;
 	}
 	if (err) {
