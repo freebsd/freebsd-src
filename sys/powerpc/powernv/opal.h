@@ -31,6 +31,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/eventhandler.h>
 
 /* Check if OPAL is correctly instantiated. Will try to instantiate it. */
 int opal_check(void);
@@ -72,6 +73,7 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_RETURN_CPU			69
 #define	OPAL_REINIT_CPUS		70
 #define	OPAL_CHECK_TOKEN		80
+#define	OPAL_GET_MSG			85
 #define	OPAL_CHECK_ASYNC_COMPLETION	86
 #define	OPAL_SENSOR_READ		88
 #define	OPAL_HANDLE_HMI			98
@@ -140,6 +142,19 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_TOKEN_ABSENT		0
 #define	OPAL_TOKEN_PRESENT		1
 
+#define	OPAL_EVENT_OPAL_INTERNAL	0x1
+#define	OPAL_EVENT_NVRAM		0x2
+#define	OPAL_EVENT_RTC			0x4
+#define	OPAL_EVENT_CONSOLE_INPUT	0x8
+#define	OPAL_EVENT_CONSOLE_OUTPUT	0x10
+#define	OPAL_EVENT_ERROR_LOG_AVAIL	0x20
+#define	OPAL_EVENT_ERROR_LOG		0x40
+#define	OPAL_EVENT_EPOW			0x80
+#define	OPAL_EVENT_LED_STATUS		0x100
+#define	OPAL_EVENT_PCI_ERROR		0x200
+#define	OPAL_EVENT_DUMP_AVAIL		0x400
+#define	OPAL_EVENT_MSG_PENDING		0x800
+
 #define	OPAL_HMI_FLAGS_TB_RESYNC	(1ull << 0)
 #define	OPAL_HMI_FLAGS_DEC_LOST		(1ull << 1)
 #define	OPAL_HMI_FLAGS_HDEC_LOST	(1ull << 2)
@@ -188,4 +203,17 @@ int	opal_alloc_async_token(void);
 void	opal_free_async_token(int);
 int	opal_wait_completion(void *, uint64_t, uint64_t);
 
+typedef void (*opal_msg_handler_fn)(void *, struct opal_msg *);
+EVENTHANDLER_DECLARE(OPAL_ASYNC_COMP, opal_msg_handler_fn);
+EVENTHANDLER_DECLARE(OPAL_EPOW, opal_msg_handler_fn);
+EVENTHANDLER_DECLARE(OPAL_SHUTDOWN, opal_msg_handler_fn);
+EVENTHANDLER_DECLARE(OPAL_HMI_EVT, opal_msg_handler_fn);
+EVENTHANDLER_DECLARE(OPAL_DPO, opal_msg_handler_fn);
+EVENTHANDLER_DECLARE(OPAL_OCC, opal_msg_handler_fn);
+EVENTHANDLER_LIST_DECLARE(OPAL_ASYNC_COMP);
+EVENTHANDLER_LIST_DECLARE(OPAL_EPOW);
+EVENTHANDLER_LIST_DECLARE(OPAL_SHUTDOWN);
+EVENTHANDLER_LIST_DECLARE(OPAL_HMI_EVT);
+EVENTHANDLER_LIST_DECLARE(OPAL_DPO);
+EVENTHANDLER_LIST_DECLARE(OPAL_OCC);
 #endif
