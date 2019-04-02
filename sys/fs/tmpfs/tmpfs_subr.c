@@ -1110,7 +1110,8 @@ tmpfs_dir_destroy(struct tmpfs_mount *tmp, struct tmpfs_node *dnode)
  * error happens.
  */
 static int
-tmpfs_dir_getdotdent(struct tmpfs_node *node, struct uio *uio)
+tmpfs_dir_getdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
+    struct uio *uio)
 {
 	int error;
 	struct dirent dent;
@@ -1130,7 +1131,7 @@ tmpfs_dir_getdotdent(struct tmpfs_node *node, struct uio *uio)
 	else
 		error = uiomove(&dent, dent.d_reclen, uio);
 
-	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
+	tmpfs_set_status(tm, node, TMPFS_NODE_ACCESSED);
 
 	return (error);
 }
@@ -1143,7 +1144,8 @@ tmpfs_dir_getdotdent(struct tmpfs_node *node, struct uio *uio)
  * error happens.
  */
 static int
-tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
+tmpfs_dir_getdotdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
+    struct uio *uio)
 {
 	int error;
 	struct dirent dent;
@@ -1174,7 +1176,7 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
 	else
 		error = uiomove(&dent, dent.d_reclen, uio);
 
-	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
+	tmpfs_set_status(tm, node, TMPFS_NODE_ACCESSED);
 
 	return (error);
 }
@@ -1187,8 +1189,8 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
  * error code if another error happens.
  */
 int
-tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int maxcookies,
-    u_long *cookies, int *ncookies)
+tmpfs_dir_getdents(struct tmpfs_mount *tm, struct tmpfs_node *node,
+    struct uio *uio, int maxcookies, u_long *cookies, int *ncookies)
 {
 	struct tmpfs_dir_cursor dc;
 	struct tmpfs_dirent *de;
@@ -1209,7 +1211,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int maxcookies,
 	 */
 	switch (uio->uio_offset) {
 	case TMPFS_DIRCOOKIE_DOT:
-		error = tmpfs_dir_getdotdent(node, uio);
+		error = tmpfs_dir_getdotdent(tm, node, uio);
 		if (error != 0)
 			return (error);
 		uio->uio_offset = TMPFS_DIRCOOKIE_DOTDOT;
@@ -1217,7 +1219,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int maxcookies,
 			cookies[(*ncookies)++] = off = uio->uio_offset;
 		/* FALLTHROUGH */
 	case TMPFS_DIRCOOKIE_DOTDOT:
-		error = tmpfs_dir_getdotdotdent(node, uio);
+		error = tmpfs_dir_getdotdotdent(tm, node, uio);
 		if (error != 0)
 			return (error);
 		de = tmpfs_dir_first(node, &dc);
@@ -1319,7 +1321,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int maxcookies,
 	node->tn_dir.tn_readdir_lastn = off;
 	node->tn_dir.tn_readdir_lastp = de;
 
-	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
+	tmpfs_set_status(tm, node, TMPFS_NODE_ACCESSED);
 	return error;
 }
 
@@ -1774,10 +1776,10 @@ tmpfs_chtimes(struct vnode *vp, struct vattr *vap,
 }
 
 void
-tmpfs_set_status(struct tmpfs_node *node, int status)
+tmpfs_set_status(struct tmpfs_mount *tm, struct tmpfs_node *node, int status)
 {
 
-	if ((node->tn_status & status) == status)
+	if ((node->tn_status & status) == status || tm->tm_ronly)
 		return;
 	TMPFS_NODE_LOCK(node);
 	node->tn_status |= status;
