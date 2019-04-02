@@ -414,6 +414,11 @@ struct bus_dmadesc {
 struct ioat_descriptor {
 	struct bus_dmadesc	bus_dmadesc;
 	uint32_t		id;
+	bus_dmamap_t		src_dmamap;
+	bus_dmamap_t		dst_dmamap;
+	bus_dmamap_t		src2_dmamap;
+	bus_dmamap_t		dst2_dmamap;
+	bus_dmamap_t		crc_dmamap;
 };
 
 /* Unused by this driver at this time. */
@@ -456,6 +461,9 @@ struct ioat_softc {
 
 	bus_dma_tag_t		hw_desc_tag;
 	bus_dmamap_t		hw_desc_map;
+
+	bus_dma_tag_t		data_tag;
+	bus_dma_tag_t		data_crc_tag;
 
 	bus_dma_tag_t		comp_update_tag;
 	bus_dmamap_t		comp_update_map;
