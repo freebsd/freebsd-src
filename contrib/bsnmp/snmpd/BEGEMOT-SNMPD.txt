@@ -3,6 +3,10 @@
 --	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 --	All rights reserved.
 --
+-- Copyright (c) 2018
+--	Hartmut Brandt.
+--	All rights reserved.
+--
 -- Author: Harti Brandt <harti@freebsd.org>
 --
 -- Redistribution and use in source and binary forms, with or without
@@ -34,17 +38,17 @@ BEGEMOT-SNMPD-MIB DEFINITIONS ::= BEGIN
 
 IMPORTS
     MODULE-IDENTITY, OBJECT-TYPE, OBJECT-IDENTITY, Counter32,
-    Unsigned32, IpAddress
+    Integer32, Unsigned32, IpAddress
 	FROM SNMPv2-SMI
     TEXTUAL-CONVENTION, TruthValue, RowStatus
 	FROM SNMPv2-TC
-    MODULE-COMPLIANCE, OBJECT-GROUP
-	FROM SNMPv2-CONF
+    InetAddressType, InetAddress, InetPortNumber
+	FROM INET-ADDRESS-MIB
     begemot
 	FROM BEGEMOT-MIB;
 
 begemotSnmpd MODULE-IDENTITY
-    LAST-UPDATED "201801190000Z"
+    LAST-UPDATED "201808080000Z"
     ORGANIZATION "Fraunhofer FOKUS, CATS"
     CONTACT-INFO
 	    "		Hartmut Brandt
@@ -59,6 +63,9 @@ begemotSnmpd MODULE-IDENTITY
 	     E-mail:	harti@freebsd.org"
     DESCRIPTION
 	    "The MIB module for the Begemot SNMP daemon."
+    REVISION	"201808080000Z"
+    DESCRIPTION
+	    "Add the begemotSnmpdTransInetTable."
     ::= { begemot 1 }
 
 begemotSnmpdObjects	OBJECT IDENTIFIER ::= { begemotSnmpd 1 }
@@ -93,7 +100,7 @@ begemotSnmpdAgentFreeBSD OBJECT-IDENTITY
 begemotSnmpdConfig	OBJECT IDENTIFIER ::= { begemotSnmpdObjects 1 }
 
 begemotSnmpdTransmitBuffer OBJECT-TYPE
-    SYNTAX	INTEGER (484..65535)
+    SYNTAX	Integer32 (484..65535)
     MAX-ACCESS	read-write
     STATUS	current
     DESCRIPTION
@@ -103,7 +110,7 @@ begemotSnmpdTransmitBuffer OBJECT-TYPE
     ::= { begemotSnmpdConfig 1 }
 
 begemotSnmpdReceiveBuffer OBJECT-TYPE
-    SYNTAX	INTEGER (484..65535)
+    SYNTAX	Integer32 (484..65535)
     MAX-ACCESS	read-write
     STATUS	current
     DESCRIPTION
@@ -181,7 +188,7 @@ begemotTrapSinkAddr OBJECT-TYPE
     ::= { begemotTrapSinkEntry 1 }
 
 begemotTrapSinkPort OBJECT-TYPE
-    SYNTAX	INTEGER (1..65535)
+    SYNTAX	Integer32 (1..65535)
     MAX-ACCESS	not-accessible
     STATUS	current
     DESCRIPTION
@@ -203,7 +210,7 @@ begemotTrapSinkStatus OBJECT-TYPE
 begemotSnmpdPortTable OBJECT-TYPE
     SYNTAX	SEQUENCE OF BegemotSnmpdPortEntry
     MAX-ACCESS	not-accessible
-    STATUS	current
+    STATUS	deprecated
     DESCRIPTION
 	    "A table with descriptions of UDP ports to listen on
 	    for SNMP messages."
@@ -212,7 +219,7 @@ begemotSnmpdPortTable OBJECT-TYPE
 begemotSnmpdPortEntry OBJECT-TYPE
     SYNTAX	BegemotSnmpdPortEntry
     MAX-ACCESS	not-accessible
-    STATUS	current
+    STATUS	deprecated
     DESCRIPTION
 	    "An entry in the table with descriptions of UDP ports to
 	    listen on for SNMP messages."
@@ -228,15 +235,15 @@ BegemotSnmpdPortEntry ::= SEQUENCE {
 begemotSnmpdPortAddress OBJECT-TYPE
     SYNTAX	IpAddress
     MAX-ACCESS	not-accessible
-    STATUS	current
+    STATUS	deprecated
     DESCRIPTION
 	    "The IP address to bind to."
     ::= { begemotSnmpdPortEntry 1 }
 
 begemotSnmpdPortPort OBJECT-TYPE
-    SYNTAX	INTEGER (1..65535)
+    SYNTAX	Integer32 (1..65535)
     MAX-ACCESS	not-accessible
-    STATUS	current
+    STATUS	deprecated
     DESCRIPTION
 	    "The UDP port to listen on for SNMP messages."
     ::= { begemotSnmpdPortEntry 2 }
@@ -244,7 +251,7 @@ begemotSnmpdPortPort OBJECT-TYPE
 begemotSnmpdPortStatus OBJECT-TYPE
     SYNTAX	INTEGER { valid(1), invalid(2) }
     MAX-ACCESS	read-create
-    STATUS	current
+    STATUS	deprecated
     DESCRIPTION
 	    "Set status to 1 to create entry, set it to 2 to delete it."
     ::= { begemotSnmpdPortEntry 3 }
@@ -275,7 +282,7 @@ BegemotSnmpdCommunityEntry ::= SEQUENCE {
     begemotSnmpdCommunityIndex	Unsigned32,
     begemotSnmpdCommunityString	OCTET STRING,
     begemotSnmpdCommunityDescr	OCTET STRING,
-    begemotSnmpdCommunityPermission INTEGER
+    begemotSnmpdCommunityPermission Unsigned32
 }
 
 begemotSnmpdCommunityModule OBJECT-TYPE
@@ -312,7 +319,7 @@ begemotSnmpdCommunityDescr OBJECT-TYPE
     ::= { begemotSnmpdCommunityEntry 4 }
 
 begemotSnmpdCommunityPermission OBJECT-TYPE
-    SYNTAX	INTEGER (1..4294967295)
+    SYNTAX	Unsigned32 (1..4294967295)
     MAX-ACCESS	not-accessible
     STATUS	current
     DESCRIPTION
@@ -449,7 +456,7 @@ begemotSnmpdDebugSnmpTrace OBJECT-TYPE
     ::= { begemotSnmpdDebug 2 }
 
 begemotSnmpdDebugSyslogPri OBJECT-TYPE
-    SYNTAX	INTEGER (0..8)
+    SYNTAX	Integer32 (0..8)
     MAX-ACCESS	read-write
     STATUS	current
     DESCRIPTION
@@ -570,10 +577,115 @@ begemotSnmpdTransportOid OBJECT-TYPE
 	    "A pointer to the group with the transport-dependend stuff."
     ::= { begemotSnmpdTransportEntry 3 }
 
+-- ----------------------------------------------------------------------
+--
+-- Internet port table.
+--
+BegemotSnmpdTransportProto ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	    "A value that represents the type of protocol to be used for
+	     listening on a socket. The following protocols are currently
+	     used:
+
+	     udp(1)	Use UDP for IPv4 and IPv6 sockets."
+    SYNTAX	INTEGER {
+		    udp(1)
+		}
+
+begemotSnmpdTransInetTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotSnmpdTransInetEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "This table contains all the ports the daemon should listen on.
+	     Entries can be created at initialization time via the config
+	     file or at run time via a SET. One row can map to several open
+	     sockets in the case of InetAddressType::dns rows. These rows
+	     open one socket for each address returned by getaddrinfo(3).
+	    for SNMP messages."
+    ::= { begemotSnmpdObjects 11 }
+
+begemotSnmpdTransInetEntry OBJECT-TYPE
+    SYNTAX	BegemotSnmpdTransInetEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A row of the internet port table. Each row may map to one or
+	     more listening sockets."
+    INDEX	{
+			begemotSnmpdTransInetAddressType,
+			begemotSnmpdTransInetAddress,
+			begemotSnmpdTransInetPort,
+			begemotSnmpdTransInetProto
+		}
+    ::= { begemotSnmpdTransInetTable 1 }
+
+BegemotSnmpdTransInetEntry ::= SEQUENCE {
+    begemotSnmpdTransInetAddressType	InetAddressType,
+    begemotSnmpdTransInetAddress	InetAddress,
+    begemotSnmpdTransInetPort		InetPortNumber,
+    begemotSnmpdTransInetProto		BegemotSnmpdTransportProto,
+    begemotSnmpdTransInetStatus		RowStatus
+}
+
+begemotSnmpdTransInetAddressType OBJECT-TYPE
+    SYNTAX	InetAddressType
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The type of the address. Only ipv4, ipv6, ipv6z and dns are
+	     supported."
+    ::= { begemotSnmpdTransInetEntry 1 }
+
+begemotSnmpdTransInetAddress OBJECT-TYPE
+    SYNTAX	InetAddress (SIZE (0..64))
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The address. For ipv4 addresses the length must be 4, ipv6
+	     addresses have a length of 16 and ipv6z addresses a length of
+	     20 where the last four bytes are the interface index in big
+	     endian format. dns addresses may be of zero-length in which case
+	     getaddrinfo() generates INADDR_ANY and its IPv6 equivalent. dns
+	     addresses will open a socket for all addresses returned by
+	     getaddrinfo()."
+    ::= { begemotSnmpdTransInetEntry 2 }
+
+begemotSnmpdTransInetPort OBJECT-TYPE
+    SYNTAX	InetPortNumber (1..65535)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The port to listen on for SNMP messages."
+    ::= { begemotSnmpdTransInetEntry 3 }
+
+begemotSnmpdTransInetProto OBJECT-TYPE
+    SYNTAX	BegemotSnmpdTransportProto
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The protocol to use. Currently only the value udp(1) is supported."
+    ::= { begemotSnmpdTransInetEntry 4 }
+
+begemotSnmpdTransInetStatus OBJECT-TYPE
+    SYNTAX	RowStatus
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	    "The status of the conceptual row. A row may be created using
+	     createAndGo(4) or createAndWait(5). An inactive row can be
+	     activated writing active(1) and an active row can be inactivated
+	     by writing notInService(2). Finally active or inactive rows can be
+	     deleted by writing the value destroy(6). The value of this field
+	     will never read as notReady(3)."
+    ::= { begemotSnmpdTransInetEntry 5 }
+
 --
 -- XXX These should go into their own MIB
 --
 begemotSnmpdTransUdp	OBJECT IDENTIFIER ::= { begemotSnmpdTransportMappings 2 }
 begemotSnmpdTransLsock	OBJECT IDENTIFIER ::= { begemotSnmpdTransportMappings 3 }
+begemotSnmpdTransInet	OBJECT IDENTIFIER ::= { begemotSnmpdTransportMappings 4 }
 
 END
