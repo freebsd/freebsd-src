@@ -68,3 +68,7 @@ extern int use_kvm;
 #define NVAL(indx)  namelist[(indx)].n_value
 #define NPTR(indx)  (void *)NVAL((indx))
 #define NREAD(indx, buf, len) kvm_ckread(NPTR((indx)), (buf), (len))
+
+extern void putint(int, int, int, int);
+extern void putfloat(double, int, int, int, int, int);
+extern void putlongdouble(long double, int, int, int, int, int);
