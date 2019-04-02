@@ -3,6 +3,10 @@
 #	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 #	All rights reserved.
 #
+# Copyright (c) 2018
+#	Hartmut Brandt.
+#	All rights reserved.
+#
 # Author: Harti Brandt <harti@freebsd.org>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +36,10 @@
 #
 
 include "tc.def"
+
+typedef BegemotSnmpdTransportProto ENUM (
+	1 udp
+)
 
 (1 internet
   (2 mgmt
@@ -172,13 +180,24 @@ include "tc.def"
                 ))
                 (2 begemotSnmpdTransUdp OID op_transport_dummy)
                 (3 begemotSnmpdTransLsock OID op_transport_dummy)
+                (4 begemotSnmpdTransInet OID op_transport_dummy)
               )
+              (11 begemotSnmpdTransInetTable
+                (1 begemotSnmpdTransInetEntry : INTEGER OCTETSTRING INTEGER INTEGER op_snmp_trans_inet
+                  (1 begemotSnmpdTransInetAddressType InetAddressType)
+                  (2 begemotSnmpdTransInetAddress OCTETSTRING)
+                  (3 begemotSnmpdTransInetPort INTEGER)
+                  (4 begemotSnmpdTransInetProto BegemotSnmpdTransportProto)
+                  (5 begemotSnmpdTransInetStatus RowStatus GET SET)
+
+                ))
  	    )
             (2 begemotSnmpdDefs
               (1 begemotSnmpdAgent
                 (1 begemotSnmpdAgentFreeBSD OID op_dummy)
               )
             )
+	    (3 begemotSnmpdCompliance)
           )
       ))
     )
