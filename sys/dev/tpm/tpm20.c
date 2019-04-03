@@ -263,6 +263,8 @@ tpm20_harvest(void *arg)
 
 	sc = arg;
 	sx_xlock(&sc->dev_lock);
+	while (sc->pending_data_length != 0)
+		cv_wait(&sc->buf_cv, &sc->dev_lock);
 
 	memcpy(sc->buf, cmd, sizeof(cmd));
 	result = sc->transmit(sc, sizeof(cmd));
