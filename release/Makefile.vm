@@ -39,6 +39,24 @@ VAGRANT-VMWARE_FORMAT=	vmdk
 VAGRANT-VMWARE_DESC=	Vagrant Image for VMWare
 VAGRANT-VMWARE_DISK=	${OSRELEASE}.vmware.${VAGRANT_FORMAT}
 
+emulator-portinstall:
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
+.if !exists(/usr/local/bin/qemu-${TARGET_ARCH}-static)
+.if exists(${PORTSDIR}/emulators/qemu-user-static/Makefile)
+	env - PATH=$$PATH make -C ${PORTSDIR}/emulators/qemu-user-static BATCH=1 all install clean
+.else
+.if !exists(/usr/local/sbin/pkg-static)
+	env ASSUME_ALWAYS_YES=yes pkg bootstrap -y
+.endif
+	env ASSUME_ALWAYS_YES=yes pkg install -y emulators/qemu-user-static
+.endif
+.endif
+
+QEMUSTATIC=/usr/local/bin/qemu-${TARGET_ARCH}-static
+.endif
+.endif
+
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
 CLOUDTARGETS+=	cw-${_CW:tl}
@@ -53,9 +71,10 @@ ${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
 ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
 .  endif
 
-cw-${_CW:tl}:
+cw-${_CW:tl}: emulator-portinstall
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
+		QEMUSTATIC=${QEMUSTATIC} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
 		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW:tu}_FORMAT} \
