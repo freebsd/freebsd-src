@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/fnv_hash.h>
 #include <sys/priv.h>
+#include <sys/buf.h>
 #include <security/mac/mac_framework.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -413,17 +414,45 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	off_t oldsize;
+	size_t iosize;
+	struct buf *bp = NULL;
 	int err = 0;
 
 	ASSERT_VOP_ELOCKED(vp, "fuse_vnode_setsize");
 
+	iosize = fuse_iosize(vp);
 	oldsize = fvdat->filesize;
 	fvdat->filesize = newsize;
 	fvdat->flag |= FN_SIZECHANGE;
 
 	if (newsize < oldsize) {
+		daddr_t lbn;
+		size_t zsize;
+
 		err = vtruncbuf(vp, cred, newsize, fuse_iosize(vp));
+		if (err)
+			goto out;
+		if (newsize % iosize == 0)
+			goto out;
+		/* 
+		 * Zero the contents of the last partial block.
+		 * Sure seems like vtruncbuf should do this for us.
+		 */
+
+		lbn = newsize / iosize;
+		bp = getblk(vp, lbn, iosize, PCATCH, 0, 0);
+		if (!bp) {
+			err = EINTR;
+			goto out;
+		}
+		if (!(bp->b_flags & B_CACHE))
+			goto out;	/* Nothing to do */
+		zsize = (lbn + 1) * iosize - newsize;
+		bzero(bp->b_data + newsize - lbn * iosize, zsize);
 	}
+out:
+	if (bp)
+		brelse(bp);
 	vnode_pager_setsize(vp, newsize);
 	return err;
 }
