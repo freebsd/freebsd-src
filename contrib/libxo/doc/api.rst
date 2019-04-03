@@ -400,28 +400,28 @@ string, since an inappropriate cast can ruin your day.  The vap
 argument to `xo_emit_hv` points to a variable argument list that can
 be used to retrieve arguments via `va_arg`.
 
-.. c:function:: int xo_emit (const char *fmt, ...)
+.. c:function:: xo_ssize_t xo_emit (const char *fmt, ...)
 
   :param fmt: The format string, followed by zero or more arguments
   :returns: If XOF_COLUMNS is set, the number of columns used; otherwise the number of bytes emitted
-  :rtype: int
+  :rtype: xo_ssize_t
 
-.. c:function:: int xo_emit_h (xo_handle_t *xop, const char *fmt, ...)
+.. c:function:: xo_ssize_t xo_emit_h (xo_handle_t *xop, const char *fmt, ...)
 
   :param xop: Handle for modify (or NULL for default handle)
   :type xop: xo_handle_t \*
   :param fmt: The format string, followed by zero or more arguments
   :returns: If XOF_COLUMNS is set, the number of columns used; otherwise the number of bytes emitted
-  :rtype: int
+  :rtype: xo_ssize_t
 
-.. c:function:: int xo_emit_hv (xo_handle_t *xop, const char *fmt, va_list vap)
+.. c:function:: xo_ssize_t xo_emit_hv (xo_handle_t *xop, const char *fmt, va_list vap)
 
   :param xop: Handle for modify (or NULL for default handle)
   :type xop: xo_handle_t \*
   :param fmt: The format string
   :param va_list vap: A set of variadic arguments
   :returns: If XOF_COLUMNS is set, the number of columns used; otherwise the number of bytes emitted
-  :rtype: int
+  :rtype: xo_ssize_t
 
 .. index:: xo_emit_field
 
@@ -434,7 +434,7 @@ scenario where one would otherwise need to compose a format
 descriptors using `snprintf`.  The individual parts of the format
 descriptor are passed in distinctly.
 
-.. c:function:: int xo_emit_field (const char *rolmod, const char *contents, const char *fmt, const char *efmt, ...)
+.. c:function:: xo_ssize_t xo_emit_field (const char *rolmod, const char *contents, const char *fmt, const char *efmt, ...)
 
   :param rolmod: A comma-separated list of field roles and field modifiers
   :type rolmod: const char *
@@ -445,7 +445,7 @@ descriptor are passed in distinctly.
   :param efmt: Encoding format string, followed by additional arguments
   :type efmt: const char *
   :returns: If XOF_COLUMNS is set, the number of columns used; otherwise the number of bytes emitted
-  :rtype: int
+  :rtype: xo_ssize_t
 
   ::
 
@@ -453,7 +453,7 @@ descriptor are passed in distinctly.
         xo_emit_field("T", "Host name is ", NULL, NULL);
         xo_emit_field("V", "host-name", NULL, NULL, host-name);
 
-.. c:function:: int xo_emit_field_h (xo_handle_t *xop, const char *rolmod, const char *contents, const char *fmt, const char *efmt, ...)
+.. c:function:: xo_ssize_t xo_emit_field_h (xo_handle_t *xop, const char *rolmod, const char *contents, const char *fmt, const char *efmt, ...)
 
   :param xop: Handle for modify (or NULL for default handle)
   :type xop: xo_handle_t \*
@@ -466,9 +466,9 @@ descriptor are passed in distinctly.
   :param efmt: Encoding format string, followed by additional arguments
   :type efmt: const char *
   :returns: If XOF_COLUMNS is set, the number of columns used; otherwise the number of bytes emitted
-  :rtype: int
+  :rtype: xo_ssize_t
 
-.. c:function:: int xo_emit_field_hv (xo_handle_t *xop, const char *rolmod, const char *contents, const char *fmt, const char *efmt, va_list vap)
+.. c:function:: xo_ssize_t xo_emit_field_hv (xo_handle_t *xop, const char *rolmod, const char *contents, const char *fmt, const char *efmt, va_list vap)
 
   :param xop: Handle for modify (or NULL for default handle)
   :type xop: xo_handle_t \*
@@ -482,7 +482,7 @@ descriptor are passed in distinctly.
   :type efmt: const char *
   :param va_list vap: A set of variadic arguments
   :returns: If XOF_COLUMNS is set, the number of columns used; otherwise the number of bytes emitted
-  :rtype: int
+  :rtype: xo_ssize_t
 
 .. index:: xo_attr
 .. _xo_attr:
@@ -505,14 +505,14 @@ Since attributes are only emitted in XML, their use should be limited
 to meta-data and additional or redundant representations of data
 already emitted in other form.
 
-.. c:function:: int xo_attr (const char *name, const char *fmt, ...)
+.. c:function:: xo_ssize_t xo_attr (const char *name, const char *fmt, ...)
 
   :param name: Attribute name
   :type name: const char *
   :param fmt: Attribute value, as variadic arguments
   :type fmt: const char *
   :returns: -1 for error, or the number of bytes in the formatted attribute value
-  :rtype: int
+  :rtype: xo_ssize_t
 
   ::
 
@@ -525,7 +525,7 @@ already emitted in other form.
         <login-time seconds="1408336270">00:14</login-time>
 
 
-.. c:function:: int xo_attr_h (xo_handle_t *xop, const char *name, const char *fmt, ...)
+.. c:function:: xo_ssize_t xo_attr_h (xo_handle_t *xop, const char *name, const char *fmt, ...)
 
   :param xop: Handle for modify (or NULL for default handle)
   :type xop: xo_handle_t \*
@@ -533,7 +533,7 @@ already emitted in other form.
   The `xo_attr_h` function follows the conventions of `xo_attr` but
   adds an explicit libxo handle.
 
-.. c:function:: int xo_attr_hv (xo_handle_t *xop, const char *name, const char *fmt, va_list vap)
+.. c:function:: xo_ssize_t xo_attr_hv (xo_handle_t *xop, const char *name, const char *fmt, va_list vap)
 
   The `xo_attr_h` function follows the conventions of `xo_attr_h`
   but replaced the variadic list with a variadic pointer.
