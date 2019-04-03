@@ -1874,38 +1874,47 @@ snmp_client_set_port(struct snmp_client *cl, const char *p)
 	return (0);
 }
 
+static const char *const trans_list[] = {
+	[SNMP_TRANS_UDP]	= "udp::",
+	[SNMP_TRANS_LOC_DGRAM]	= "dgram::",
+	[SNMP_TRANS_LOC_STREAM]	= "stream::",
+	[SNMP_TRANS_UDP6]	= "udp6::",
+};
+
 /**
  * Try to get a transport identifier which is a leading alphanumeric string
- * (starting with '_' or a letter and including also '_') terminated by
- * a double colon. The string may not be empty. The transport identifier
- * is optional.
+ * terminated by a double colon. The string may not be empty. The transport
+ * identifier is optional.
  *
  * \param sc	client struct to set errors
  * \param strp	possible start of transport; updated to point to
  *		the next character to parse
  *
- * \return	end of transport; equals *strp if there is none; NULL if there
- *		was an error
+ * \return	transport identifier
  */
-static inline const char *
+static inline int
 get_transp(struct snmp_client *sc, const char **strp)
 {
-	const char *p = *strp;
+	const char *p;
+	size_t i;
 
-	if (isascii(*p) && (isalpha(*p) || *p == '_')) {
-		p++;
-		while (isascii(*p) && (isalnum(*p) || *p == '_'))
-			p++;
-		if (p[0] == ':' && p[1] == ':') {
-			*strp = p + 2;
-			return (p);
+	for (i = 0; i < nitems(trans_list); i++) {
+		if (trans_list[i] == NULL || *trans_list[i] == '\0')
+			continue;
+		p = strstr(*strp, trans_list[i]);
+		if (p == *strp) {
+			*strp += strlen(trans_list[i]);
+			return ((int)i);
 		}
 	}
+
+	p = *strp;
 	if (p[0] == ':' && p[1] == ':') {
 		seterr(sc, "empty transport specifier");
-		return (NULL);
+		return (-1);
 	}
-	return (*strp);
+	/* by default assume UDP */
+	return (SNMP_TRANS_UDP);
 }
 
 /**
@@ -2143,24 +2152,13 @@ save_str(struct snmp_client *sc, const char *const s[2])
 int
 snmp_parse_server(struct snmp_client *sc, const char *str)
 {
-#if DEBUG_PARSE
 	const char *const orig = str;
-#endif
-
-	const char *const trans_list[] = {
-		[SNMP_TRANS_UDP]	= "udp",
-		[SNMP_TRANS_LOC_DGRAM]	= "dgram",
-		[SNMP_TRANS_LOC_STREAM]	= "stream",
-		[SNMP_TRANS_UDP6]	= "udp6",
-	};
-
 	/* parse input */
-	const char *const transp[2] = {
-		str,
-		get_transp(sc, &str),
-	};
-	if (transp[1] == NULL)
+	int i, trans = get_transp(sc, &str);
+	if (trans < 0)
 		return (-1);
+	/* choose automatically */
+	i = orig == str ? -1: trans;
 
 	const char *const comm[2] = {
 		str,
@@ -2206,7 +2204,7 @@ snmp_parse_server(struct snmp_client *sc, const char *str)
 	}
 
 #if DEBUG_PARSE
-	printf("transp: %zu %zu\n", transp[0] - orig, transp[1] - orig);
+	printf("transp: %u\n", trans);
 	printf("comm:   %zu %zu\n", comm[0] - orig, comm[1] - orig);
 	printf("ipv6:   %zu %zu\n", ipv6[0] - orig, ipv6[1] - orig);
 	printf("ipv4:   %zu %zu\n", ipv4[0] - orig, ipv4[1] - orig);
@@ -2215,69 +2213,73 @@ snmp_parse_server(struct snmp_client *sc, const char *str)
 #endif
 
 	/* analyse and allocate */
-	int i = -1;
-	if (transp[0] != transp[1]) {
-		for (i = 0; i < (int)nitems(trans_list); i++) {
-			if (trans_list[i] != NULL &&
-			    strlen(trans_list[i]) == (size_t)(transp[1] -
-			    transp[0]) && !strncmp(trans_list[i], transp[0],
-			    transp[1] - transp[0]))
-				break;
-		}
-
-		if (i == (int)nitems(trans_list)) {
-			seterr(sc, "unknown transport specifier '%.*s'",
-			    transp[1] - transp[0], transp[0]);
-			return (-1);
-		}
-	}
-
 	char *chost;
 
 	if (ipv6[0] != ipv6[1]) {
 		if ((chost = save_str(sc, ipv6)) == NULL)
 			return (-1);
-		if (i == -1)
-			i = SNMP_TRANS_UDP6;
+		if (i == -1 || trans == SNMP_TRANS_UDP)
+			trans = SNMP_TRANS_UDP6;
 	} else if (ipv4[0] != ipv4[1]) {
 		if ((chost = save_str(sc, ipv4)) == NULL)
 			return (-1);
 		if (i == -1)
-			i = SNMP_TRANS_UDP;
+			trans = SNMP_TRANS_UDP;
 	} else {
 		if ((chost = save_str(sc, host)) == NULL)
 			return (-1);
 
 		if (i == -1) {
-			/* Default transport is UDP unless the host contains
-			 * a slash in which case we default to DGRAM. */
-			i = SNMP_TRANS_UDP;
+			/*
+			 * Default transport is UDP unless the host contains
+			 * a slash in which case we default to DGRAM.
+			 */
 			for (const char *p = host[0]; p < host[1]; p++)
 				if (*p == '/') {
-					i = SNMP_TRANS_LOC_DGRAM;
+					trans = SNMP_TRANS_LOC_DGRAM;
 					break;
 				}
 		}
 	}
 
-	char *cport = save_str(sc, port);
+	char *cport;
+
+	if (port[0] == port[1] && (
+	    trans == SNMP_TRANS_UDP || trans == SNMP_TRANS_UDP6)) {
+		/* If port was not specified, use "snmp" name by default */
+		cport = strdup("snmp");
+	} else
+		cport = save_str(sc, port);
+
 	if (cport == NULL) {
 		free(chost);
 		return (-1);
 	}
 
 	/* commit */
-	sc->trans = i;
-
-	strncpy(sc->read_community, comm[0], comm[1] - comm[0]);
-	sc->read_community[comm[1] - comm[0]] = '\0';
-	strncpy(sc->write_community, comm[0], comm[1] - comm[0]);
-	sc->write_community[comm[1] - comm[0]] = '\0';
+	sc->trans = trans;
+	/*
+	 * If community string was specified and it is empty, overwrite it.
+	 * If it was not specified, use default.
+	 */
+	if (comm[0] != comm[1] || strrchr(comm[0], '@') != NULL) {
+		strncpy(sc->read_community, comm[0], comm[1] - comm[0]);
+		sc->read_community[comm[1] - comm[0]] = '\0';
+		strncpy(sc->write_community, comm[0], comm[1] - comm[0]);
+		sc->write_community[comm[1] - comm[0]] = '\0';
+	}
 
 	free(sc->chost);
 	sc->chost = chost;
 	free(sc->cport);
 	sc->cport = cport;
 
+#if DEBUG_PARSE
+	printf("Committed values:\n");
+	printf("trans:	%u\n", sc->trans);
+	printf("comm:   '%s'/'%s'\n", sc->read_community, sc->write_community);
+	printf("host:   '%s'\n", sc->chost);
+	printf("port:   '%s'\n", sc->cport);
+#endif
 	return (0);
 }
