@@ -29,6 +29,11 @@ CFLAGS+= \
 	-I${SRCTOP}/stand/efi/include/${MACHINE}
 .endif
 
+.if ${MK_LOADER_VERIEXEC_PASS_MANIFEST} == "yes"
+SRCS+= \
+	pass_manifest.c
+.endif
+
 # this is the list of paths (relative to a file
 # that we need to verify) used to find a signed manifest.
 # the signature extensions in VE_SIGNATURE_EXT_LIST
