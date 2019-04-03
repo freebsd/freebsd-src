@@ -366,6 +366,116 @@ TEST_F(Setattr, truncate) {
 	EXPECT_EQ(0, truncate(FULLPATH, newsize)) << strerror(errno);
 }
 
+/*
+ * Truncating a file should discard cached data past the truncation point.
+ * This is a regression test for bug 233783.  The bug only applies when
+ * vfs.fusefs.data_cache_mode=1 or 2, but the test should pass regardless.
+ */
+TEST_F(Setattr, truncate_discards_cached_data) {
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	void *w0buf, *rbuf, *expected;
+	off_t w0_offset = 0x1b8df;
+	size_t w0_size = 0x61e8;
+	off_t r_offset = 0xe1e6;
+	off_t r_size = 0xe229;
+	size_t trunc0_size = 0x10016;
+	size_t trunc1_size = 131072;
+	size_t cur_size = 0;
+	const uint64_t ino = 42;
+	mode_t mode = S_IFREG | 0644;
+	int fd;
+
+	w0buf = malloc(w0_size);
+	ASSERT_NE(NULL, w0buf) << strerror(errno);
+	memset(w0buf, 'X', w0_size);
+
+	rbuf = malloc(r_size);
+	ASSERT_NE(NULL, rbuf) << strerror(errno);
+
+	expected = malloc(r_size);
+	ASSERT_NE(NULL, expected) << strerror(errno);
+	memset(expected, 0, r_size);
+
+	expect_lookup(RELPATH, ino, mode, 0, 1);
+	expect_open(ino, O_RDWR, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([&](auto i __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;
+		out->body.attr.attr.mode = mode;
+		out->body.attr.attr.size = cur_size;
+	})));
+	/* 
+	 * The exact pattern of FUSE_WRITE operations depends on the setting of
+	 * vfs.fusefs.data_cache_mode.  But it's not important for this test.
+	 * Just set the mocks to accept anything
+	 */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_WRITE);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([&](auto in, auto out) {
+		SET_OUT_HEADER_LEN(out, write);
+		out->body.attr.attr.ino = ino;
+		out->body.write.size = in->body.write.size;
+		cur_size = std::max(cur_size,
+			in->body.write.size + in->body.write.offset);
+	})));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				(in->body.setattr.valid & FATTR_SIZE));
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([&](auto in, auto out) {
+		auto trunc_size = in->body.setattr.size;
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;
+		out->body.attr.attr.mode = mode;
+		out->body.attr.attr.size = trunc_size;
+		cur_size = trunc_size;
+	})));
+
+	/* exact pattern of FUSE_READ depends on vfs.fusefs.data_cache_mode */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_READ);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([&](auto in, auto out) {
+		auto osize = std::min(cur_size - in->body.read.offset,
+			(size_t)in->body.read.size);
+		out->header.len = sizeof(struct fuse_out_header) + osize;
+		bzero(out->body.bytes, osize);
+	})));
+
+	fd = open(FULLPATH, O_RDWR, 0644);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ((ssize_t)w0_size, pwrite(fd, w0buf, w0_size, w0_offset));
+	/* 1st truncate should discard cached data */
+	EXPECT_EQ(0, ftruncate(fd, trunc0_size)) << strerror(errno);
+	/* 2nd truncate extends file into previously cached data */
+	EXPECT_EQ(0, ftruncate(fd, trunc1_size)) << strerror(errno);
+	/* Read should return all zeros */
+	ASSERT_EQ((ssize_t)r_size, pread(fd, rbuf, r_size, r_offset));
+
+	ASSERT_EQ(0, memcmp(expected, rbuf, r_size));
+
+	free(expected);
+	free(rbuf);
+	free(w0buf);
+}
+
 /* Change a file's timestamps */
 TEST_F(Setattr, utimensat) {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
