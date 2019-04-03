@@ -96,7 +96,7 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
  * attach [-Cdprv] [-n keyno] [-j passfile] [-k keyfile] prov ...
  * detach [-fl] prov ...
  * stop - alias for 'detach'
- * onetime [-d] [-a aalgo] [-e ealgo] [-l keylen] prov
+ * onetime [-dT] [-a aalgo] [-e ealgo] [-l keylen] prov
  * configure [-bBgGtT] prov ...
  * setkey [-pPv] [-n keyno] [-j passfile] [-J newpassfile] [-k keyfile] [-K newkeyfile] prov
  * delkey [-afv] [-n keyno] prov
@@ -145,6 +145,7 @@ struct g_command class_commands[] = {
 		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
+		{ 'T', "notrim", NULL, G_TYPE_BOOL },
 		{ 'V', "mdversion", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
