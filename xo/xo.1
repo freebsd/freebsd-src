@@ -36,6 +36,10 @@ using the same commands that emit text output.
 .Bl -tag -width indent
 .It Ic --close Ar path
 Close tags for the given path
+.It Ic -C | Ic --continuation
+Indicates this output is a continuation of the previous output data
+and should appear on the same line.
+This is allows HTML output to be constructed correctly.
 .It Ic --depth Ar num
 Set the depth for pretty printing
 .It Ic --help
@@ -46,6 +50,10 @@ Generate HTML output
 Generate JSON output
 .It Ic --leading-xpath Ar path
 Add a prefix to generated XPaths (HTML)
+.It Ic --not-first
+Indicate that this content is not the first in a series of sibling
+objects, which is vital information for "JSON" output, which requires
+a comma between such objects.
 .It Ic --open Ar path
 Open tags for the given path
 .It Ic -p | Ic --pretty
@@ -54,6 +62,9 @@ Make 'pretty' output (add indent, newlines)
 Generate given style (xml, json, text, html)
 .It Ic -T | Ic --text
 Generate text output (the default style)
+.It Ic --top-warp
+Indicates the entire object should be placed inside a top-level
+object wrapper, specifically when generating JSON output.
 .It Ic --version
 Display version information
 .It Ic -W | Ic --warn

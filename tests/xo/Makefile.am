@@ -12,14 +12,8 @@ AM_CFLAGS = -I${top_srcdir} -I${top_srcdir}/libxo
 
 # Ick: maintained by hand!
 TEST_CASES = \
-xo_01.sh
-
-X=\
-xo_02.sh \
-xo_03.sh \
-xo_04.sh \
-xo_05.sh \
-xo_06.sh
+xo_01.sh \
+xo_02.sh
 
 # TEST_CASES := $(shell cd ${srcdir} ; echo *.c )
 

@@ -20,37 +20,37 @@
 .Lb libxo
 .Sh SYNOPSIS
 .In libxo/xo.h
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_list_h "xo_handle_t *xop" "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_list "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_list_hd "xo_handle_t *xop" "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_list_d "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_instance_h "xo_handle_t *xop" "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_instance "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_instance_hd "xo_handle_t *xop" "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_instance_d "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_instance_h "xo_handle_t *xop" "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_instance "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_instance_hd "xo_handle_t *xop"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_instance_d "void"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_list_h "xo_handle_t *xop" "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_list "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_list_hd "xo_handle_t *xop"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_list_d "void"
 .Sh DESCRIPTION
 Lists are sequences of instances of homogeneous data objects.
