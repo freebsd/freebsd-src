@@ -82,6 +82,7 @@ TEST_F(Release, dup)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
+	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, 0, O_RDONLY, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
@@ -111,6 +112,7 @@ TEST_F(Release, eio)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
+	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, 0, O_WRONLY, EIO);
 	
 	fd = open(FULLPATH, O_WRONLY);
@@ -133,6 +135,7 @@ TEST_F(Release, DISABLED_flags)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
+	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, 0, O_RDWR | O_APPEND, 0);
 	
 	fd = open(FULLPATH, O_RDWR | O_APPEND);
@@ -156,6 +159,7 @@ TEST_F(Release, multiple_opens)
 	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 2);
 	expect_getattr(ino, 0);
+	expect_flush(ino, 2, ReturnErrno(0));
 	expect_release(ino, 0, O_RDONLY, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
@@ -179,6 +183,7 @@ TEST_F(Release, ok)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
+	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, 0, O_RDONLY, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
@@ -212,6 +217,7 @@ TEST_F(ReleaseWithLocks, DISABLED_unlock_on_close)
 		SET_OUT_HEADER_LEN(out, setlk);
 		out->body.setlk.lk = in->body.setlk.lk;
 	})));
+	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, (uint64_t)pid, O_RDWR, 0);
 
 	fd = open(FULLPATH, O_RDWR);

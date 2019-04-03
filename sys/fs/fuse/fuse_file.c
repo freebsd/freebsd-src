@@ -273,12 +273,14 @@ fuse_filehandle_validrw(struct vnode *vp, int mode,
 }
 
 int
-fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
+fuse_filehandle_get(struct vnode *vp, int fflag,
     struct fuse_filehandle **fufhp, struct ucred *cred, pid_t pid)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
+	fufh_type_t fufh_type;
 
+	fufh_type = fflags_2_fufh_type(fflag);
 	if (cred == NULL)
 		goto fallback;
 
@@ -307,14 +309,14 @@ found:
 }
 
 int
-fuse_filehandle_getrw(struct vnode *vp, fufh_type_t fufh_type,
+fuse_filehandle_getrw(struct vnode *vp, int fflag,
     struct fuse_filehandle **fufhp, struct ucred *cred, pid_t pid)
 {
 	int err;
 
-	err = fuse_filehandle_get(vp, fufh_type, fufhp, cred, pid);
+	err = fuse_filehandle_get(vp, fflag, fufhp, cred, pid);
 	if (err)
-		err = fuse_filehandle_get(vp, FUFH_RDWR, fufhp, cred, pid);
+		err = fuse_filehandle_get(vp, FREAD | FWRITE, fufhp, cred, pid);
 	return err;
 }
 

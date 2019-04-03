@@ -205,6 +205,7 @@ TEST_F(Open, multiple_creds)
 			SET_OUT_HEADER_LEN(out, open);
 		})));
 		expect_getattr(ino, 0);
+		expect_flush(ino, 2, ReturnErrno(0));
 		expect_release(ino, fh0);
 		expect_release(ino, fh1);
 

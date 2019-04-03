@@ -127,12 +127,12 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 {
 	struct fuse_filehandle *fufh;
 	int err, directio;
-	fufh_type_t fufh_type;
+	int fflag;
 
 	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 
-	fufh_type = (uio->uio_rw == UIO_READ) ? FUFH_RDONLY : FUFH_WRONLY;
-	err = fuse_filehandle_getrw(vp, fufh_type, &fufh, cred, pid);
+	fflag = (uio->uio_rw == UIO_READ) ? FREAD : FWRITE;
+	err = fuse_filehandle_getrw(vp, fflag, &fufh, cred, pid);
 	if (err) {
 		printf("FUSE: io dispatch: filehandles are closed\n");
 		return err;
@@ -643,7 +643,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 	struct uio uio;
 	struct iovec io;
 	int error = 0;
-	fufh_type_t fufh_type;
+	int fflag;
 	/* We don't know the true pid when we're dealing with the cache */
 	pid_t pid = 0;
 
@@ -652,9 +652,9 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 	MPASS(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE);
 
-	fufh_type = bp->b_iocmd == BIO_READ ? FUFH_RDONLY : FUFH_WRONLY;
+	fflag = bp->b_iocmd == BIO_READ ? FREAD : FWRITE;
 	cred = bp->b_iocmd == BIO_READ ? bp->b_rcred : bp->b_wcred;
-	error = fuse_filehandle_getrw(vp, fufh_type, &fufh, cred, pid);
+	error = fuse_filehandle_getrw(vp, fflag, &fufh, cred, pid);
 	if (bp->b_iocmd == BIO_READ && error == EBADF) {
 		/* 
 		 * This may be a read-modify-write operation on a cached file
@@ -662,8 +662,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		 *
 		 * TODO: eliminate this hacky check once the FUFH table is gone
 		 */
-		fufh_type = FUFH_WRONLY;
-		error = fuse_filehandle_get(vp, fufh_type, &fufh, cred, pid);
+		error = fuse_filehandle_get(vp, FWRITE, &fufh, cred, pid);
 	}
 	if (error) {
 		printf("FUSE: strategy: filehandles are closed\n");

@@ -169,7 +169,8 @@ void debug_fuseop(const mockfs_buf_in *in)
 				in->body.open.flags, name);
 			break;
 		case FUSE_FLUSH:
-			printf(" lock_owner=%lu", in->body.flush.lock_owner);
+			printf(" fh=%#lx lock_owner=%lu", in->body.flush.fh,
+				in->body.flush.lock_owner);
 			break;
 		case FUSE_FORGET:
 			printf(" nlookup=%lu", in->body.forget.nlookup);

@@ -150,10 +150,10 @@ struct fuse_filehandle {
 
 bool fuse_filehandle_validrw(struct vnode *vp, int mode,
 	struct ucred *cred, pid_t pid);
-int fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
+int fuse_filehandle_get(struct vnode *vp, int fflag,
                         struct fuse_filehandle **fufhp, struct ucred *cred,
 			pid_t pid);
-int fuse_filehandle_getrw(struct vnode *vp, fufh_type_t fufh_type,
+int fuse_filehandle_getrw(struct vnode *vp, int fflag,
                           struct fuse_filehandle **fufhp, struct ucred *cred,
 			  pid_t pid);
 

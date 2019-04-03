@@ -78,6 +78,7 @@ TEST_F(AllowOther, allowed)
 
 			expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 			expect_open(ino, 0, 1);
+			expect_flush(ino, 1, ReturnErrno(0));
 			expect_release(ino, FH);
 			expect_getattr(ino, 0);
 		}, []() {

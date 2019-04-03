@@ -221,9 +221,41 @@ static int
 fuse_filehandle_get_dir(struct vnode *vp, struct fuse_filehandle **fufhp,
 	struct ucred *cred, pid_t pid)
 {
-	if (fuse_filehandle_get(vp, FUFH_RDONLY, fufhp, cred, pid) == 0)
+	if (fuse_filehandle_get(vp, FREAD, fufhp, cred, pid) == 0)
 		return 0;
-	return fuse_filehandle_get(vp, FUFH_EXEC, fufhp, cred, pid);
+	return fuse_filehandle_get(vp, FEXEC, fufhp, cred, pid);
+}
+
+/* Send FUSE_FLUSH for this vnode */
+static int
+fuse_flush(struct vnode *vp, struct ucred *cred, pid_t pid, int fflag)
+{
+	struct fuse_flush_in *ffi;
+	struct fuse_filehandle *fufh;
+	struct fuse_dispatcher fdi;
+	struct thread *td = curthread;
+	struct mount *mp = vnode_mount(vp);
+	int err;
+
+	if (!fsess_isimpl(vnode_mount(vp), FUSE_FLUSH))
+		return 0;
+
+	err = fuse_filehandle_get(vp, fflag, &fufh, cred, pid);
+	if (err)
+		return err;
+
+	fdisp_init(&fdi, sizeof(*ffi));
+	fdisp_make_vp(&fdi, FUSE_FLUSH, vp, td, cred);
+	ffi = fdi.indata;
+	ffi->fh = fufh->fh_id;
+
+	err = fdisp_wait_answ(&fdi);
+	if (err == ENOSYS) {
+		fsess_set_notimpl(mp, FUSE_FLUSH);
+		err = 0;
+	}
+	fdisp_destroy(&fdi);
+	return err;
 }
 
 /*
@@ -275,7 +307,7 @@ fuse_vnop_access(struct vop_access_args *ap)
 }
 
 /*
-    struct vnop_close_args {
+    struct vop_close_args {
 	struct vnode *a_vp;
 	int  a_fflag;
 	struct ucred *a_cred;
@@ -290,6 +322,7 @@ fuse_vnop_close(struct vop_close_args *ap)
 	int fflag = ap->a_fflag;
 	struct thread *td = ap->a_td;
 	pid_t pid = td->td_proc->p_pid;
+	int err = 0;
 
 	if (fuse_isdeadfs(vp)) {
 		return 0;
@@ -297,6 +330,8 @@ fuse_vnop_close(struct vop_close_args *ap)
 	if (vnode_isdir(vp)) {
 		struct fuse_filehandle *fufh;
 
+		// XXX: what if two file descriptors have the same directory
+		// opened?  We shouldn't close the file handle too soon.
 		if (fuse_filehandle_get_dir(vp, &fufh, cred, pid) == 0)
 			fuse_filehandle_close(vp, fufh, NULL, cred);
 		return 0;
@@ -304,11 +339,12 @@ fuse_vnop_close(struct vop_close_args *ap)
 	if (fflag & IO_NDELAY) {
 		return 0;
 	}
+	err = fuse_flush(vp, cred, pid, fflag);
 	/* TODO: close the file handle, if we're sure it's no longer used */
 	if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
 		fuse_vnode_savesize(vp, cred, td->td_proc->p_pid);
 	}
-	return 0;
+	return err;
 }
 
 static void
@@ -1611,7 +1647,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		newsize = vap->va_size;
 		fsai->valid |= FATTR_SIZE;
 
-		fuse_filehandle_getrw(vp, FUFH_WRONLY, &fufh, cred, pid);
+		fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
 		if (fufh) {
 			fsai->fh = fufh->fh_id;
 			fsai->valid |= FATTR_FH;

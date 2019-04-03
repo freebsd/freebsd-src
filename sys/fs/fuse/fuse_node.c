@@ -378,7 +378,7 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid)
 	fsai->size = fvdat->filesize;
 	fsai->valid |= FATTR_SIZE;
 
-	fuse_filehandle_getrw(vp, FUFH_WRONLY, &fufh, cred, pid);
+	fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
 	if (fufh) {
 		fsai->fh = fufh->fh_id;
 		fsai->valid |= FATTR_FH;

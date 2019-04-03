@@ -139,6 +139,7 @@ TEST_F(Fsync, close)
 		}, Eq(true)),
 		_)
 	).Times(0);
+	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, FH);
 
 	fd = open(FULLPATH, O_RDWR);

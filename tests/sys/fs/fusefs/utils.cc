@@ -114,6 +114,19 @@ FuseTest::expect_access(uint64_t ino, mode_t access_mode, int error)
 	).WillOnce(Invoke(ReturnErrno(error)));
 }
 
+void
+FuseTest::expect_flush(uint64_t ino, int times, ProcessMockerT r)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_FLUSH &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).Times(times)
+	.WillRepeatedly(Invoke(r));
+}
+
 void FuseTest::expect_getattr(uint64_t ino, uint64_t size)
 {
 	/* Until the attr cache is working, we may send an additional GETATTR */
