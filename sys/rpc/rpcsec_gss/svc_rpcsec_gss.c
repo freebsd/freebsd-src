@@ -568,6 +568,11 @@ svc_rpc_gss_create_client(void)
 
 	client = mem_alloc(sizeof(struct svc_rpc_gss_client));
 	memset(client, 0, sizeof(struct svc_rpc_gss_client));
+
+	/*
+	 * Set the initial value of cl_refs to two.  One for the caller
+	 * and the other to hold onto the client structure until it expires.
+	 */
 	refcount_init(&client->cl_refs, 2);
 	sx_init(&client->cl_lock, "GSS-client");
 	getcredhostid(curthread->td_ucred, &hostid);
