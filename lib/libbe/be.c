@@ -56,6 +56,9 @@ static int be_create_child_noent(libbe_handle_t *lbh, const char *active,
 static int be_create_child_cloned(libbe_handle_t *lbh, const char *active);
 #endif
 
+/* Arbitrary... should tune */
+#define	BE_SNAP_SERIAL_MAX	1024
+
 /*
  * Iterator function for locating the rootfs amongst the children of the
  * zfs_be_root set by loader(8).  data is expected to be a libbe_handle_t *.
@@ -320,13 +323,32 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 	    options & ~BE_DESTROY_ORIGIN));
 }
 
+static void
+be_setup_snapshot_name(libbe_handle_t *lbh, char *buf, size_t buflen)
+{
+	time_t rawtime;
+	int len, serial;
+
+	time(&rawtime);
+	len = strlen(buf);
+	len += strftime(buf + len, buflen - len, "@%F-%T", localtime(&rawtime));
+	/* No room for serial... caller will do its best */
+	if (buflen - len < 2)
+		return;
+
+	for (serial = 0; serial < BE_SNAP_SERIAL_MAX; ++serial) {
+		snprintf(buf + len, buflen - len, "-%d", serial);
+		if (!zfs_dataset_exists(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT))
+			return;
+	}
+}
+
 int
 be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
     bool recursive, char *result)
 {
 	char buf[BE_MAXPATHLEN];
-	time_t rawtime;
-	int len, err;
+	int err;
 
 	be_root_concat(lbh, source, buf);
 
@@ -344,10 +366,8 @@ be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
 			snprintf(result, BE_MAXPATHLEN, "%s@%s", source,
 			    snap_name);
 	} else {
-		time(&rawtime);
-		len = strlen(buf);
-		strftime(buf + len, sizeof(buf) - len,
-		    "@%F-%T", localtime(&rawtime));
+		be_setup_snapshot_name(lbh, buf, sizeof(buf));
+
 		if (result != NULL && strlcpy(result, strrchr(buf, '/') + 1,
 		    sizeof(buf)) >= sizeof(buf))
 			return (set_error(lbh, BE_ERR_INVALIDNAME));
