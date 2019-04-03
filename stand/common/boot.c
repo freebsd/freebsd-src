@@ -108,6 +108,9 @@ command_boot(int argc, char *argv[])
 
 #ifdef LOADER_VERIEXEC
 	verify_pcr_export();		/* for measured boot */
+#ifdef LOADER_VERIEXEC_PASS_MANIFEST
+	pass_manifest_export_envs();
+#endif
 #endif
 
 	/* Call the exec handler from the loader matching the kernel */
