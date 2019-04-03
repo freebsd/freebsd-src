@@ -280,12 +280,12 @@ Cd $CWD/dist
 run "autoreconf" "autoreconf --install --force"
 
 Cd $CWD/dist/build
-run "configure for testing" "../configure --prefix $CWD/dist/build/root"
+run "configure for testing" "env MAKE=gmake ../configure --prefix $CWD/dist/build/root"
 run "build and test" \
         "${GMAKE} clean && ${GMAKE} && ${GMAKE} install && ${GMAKE} test"
 
 # Freebsd lacks stock gettext, so don't build it
-run "configure for real" "../configure --disable-gettext --prefix /usr"
+run "configure for real" "env MAKE=gmake ../configure --disable-gettext --prefix /usr"
 run "build for real" \
         "${GMAKE} clean && ${GMAKE}"
 
