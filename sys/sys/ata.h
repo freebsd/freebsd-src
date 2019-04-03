@@ -397,8 +397,8 @@ struct ata_params {
 #define	ATA_TRUSTED_NON_DATA		0x5b	/* TRUSTED NON-DATA */
 #define	ATA_TRUSTED_RECEIVE		0x5c	/* TRUSTED RECEIVE */
 #define	ATA_TRUSTED_RECEIVE_DMA		0x5d	/* TRUSTED RECEIVE DMA */
-#define	ATA_TRUSTED_SEND		0x5c	/* TRUSTED SEND */
-#define	ATA_TRUSTED_SEND_DMA		0x5d	/* TRUSTED SEND DMA */
+#define	ATA_TRUSTED_SEND		0x5e	/* TRUSTED SEND */
+#define	ATA_TRUSTED_SEND_DMA		0x5f	/* TRUSTED SEND DMA */
 #define ATA_READ_FPDMA_QUEUED           0x60    /* read DMA NCQ */
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
 #define ATA_NCQ_NON_DATA		0x63	/* NCQ non-data command */
