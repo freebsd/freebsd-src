@@ -18,21 +18,21 @@
 .Lb libxo
 .Sh SYNOPSIS
 .In libxo/xo.h
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_container "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_container_h "xo_handle_t *handle" "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_container_hd "xo_handle_t *handle" "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_open_container_d "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_container "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn  xo_close_container_h "xo_handle_t *handle" "const char *name"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_container_hd "xo_handle_t *handle"
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_close_container_d "void"
 .Sh DESCRIPTION
 .Nm libxo

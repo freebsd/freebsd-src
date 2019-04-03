@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Juniper Networks, Inc.
+ * Copyright (c) 2014-2018, Juniper Networks, Inc.
  * All rights reserved.
  * This SOFTWARE is licensed under the LICENSE provided in the
  * ../Copyright file. By downloading, installing, copying, or otherwise
@@ -15,6 +15,7 @@
 
 #include "xo_config.h"
 #include "xo.h"
+#include "xo_explicit.h"
 
 #include <getopt.h>		/* Include after xo.h for testing */
 
@@ -194,18 +195,25 @@ print_help (void)
     fprintf(stderr,
 "Usage: xo [options] format [fields]\n"
 "    --close <path>        Close tags for the given path\n"
+"    --close-instance <name> Close an open instance name\n"
+"    --close-list <name>   Close an open list name\n"
+"    --continuation OR -C  Output belongs on same line as previous output\n"
 "    --depth <num>         Set the depth for pretty printing\n"
 "    --help                Display this help text\n"
 "    --html OR -H          Generate HTML output\n"
 "    --json OR -J          Generate JSON output\n"
 "    --leading-xpath <path> OR -l <path> "
 	    "Add a prefix to generated XPaths (HTML)\n"
+"    --not-first           Indicate this object is not the first (JSON)\n"
 "    --open <path>         Open tags for the given path\n"
+"    --open-instance <name> Open an instance given by name\n"
+"    --open-list <name>   Open a list given by name\n"
 "    --option <opts> -or -O <opts>  Give formatting options\n"
 "    --pretty OR -p        Make 'pretty' output (add indent, newlines)\n"
 "    --style <style> OR -s <style>  "
 	    "Generate given style (xml, json, text, html)\n"
 "    --text OR -T          Generate text output (the default style)\n"
+"    --top-wrap            Generate a top-level object wrapper (JSON)\n"
 "    --version             Display version information\n"
 "    --warn OR -W          Display warnings in text on stderr\n"
 "    --warn-xml            Display warnings in xml on stdout\n"
@@ -215,17 +223,25 @@ print_help (void)
 }
 
 static struct opts {
+    int o_close_instance;
+    int o_close_list;
     int o_depth;
     int o_help;
     int o_not_first;
-    int o_xpath;
+    int o_open_instance;
+    int o_open_list;
+    int o_top_wrap;
     int o_version;
     int o_warn_xml;
     int o_wrap;
+    int o_xpath;
 } opts;
 
 static struct option long_opts[] = {
     { "close", required_argument, NULL, 'c' },
+    { "close-instance", required_argument, &opts.o_close_instance, 1 },
+    { "close-list", required_argument, &opts.o_close_list, 1 },
+    { "continuation", no_argument, NULL, 'C' },
     { "depth", required_argument, &opts.o_depth, 1 },
     { "help", no_argument, &opts.o_help, 1 },
     { "html", no_argument, NULL, 'H' },
@@ -233,10 +249,13 @@ static struct option long_opts[] = {
     { "leading-xpath", required_argument, NULL, 'l' },
     { "not-first", no_argument, &opts.o_not_first, 1 },
     { "open", required_argument, NULL, 'o' },
+    { "open-instance", required_argument, &opts.o_open_instance, 1 },
+    { "open-list", required_argument, &opts.o_open_list, 1 },
     { "option", required_argument, NULL, 'O' },
     { "pretty", no_argument, NULL, 'p' },
     { "style", required_argument, NULL, 's' },
     { "text", no_argument, NULL, 'T' },
+    { "top-wrap", no_argument, &opts.o_top_wrap, 1 },
     { "xml", no_argument, NULL, 'X' },
     { "xpath", no_argument, &opts.o_xpath, 1 },
     { "version", no_argument, &opts.o_version, 1 },
@@ -252,17 +271,24 @@ main (int argc UNUSED, char **argv)
     char *fmt = NULL, *cp, *np;
     char *opt_opener = NULL, *opt_closer = NULL, *opt_wrapper = NULL;
     char *opt_options = NULL;
+    char *opt_name = NULL;
+    xo_state_t new_state = 0;
     int opt_depth = 0;
     int opt_not_first = 0;
+    int opt_top_wrap = 0;
     int rc;
 
     argc = xo_parse_args(argc, argv);
     if (argc < 0)
 	return 1;
 
-    while ((rc = getopt_long(argc, argv, "c:HJl:O:o:ps:TXW",
+    while ((rc = getopt_long(argc, argv, "Cc:HJl:O:o:ps:TXW",
 				long_opts, NULL)) != -1) {
 	switch (rc) {
+	case 'C':
+	    xo_set_flags(NULL, XOF_CONTINUATION);
+	    break;
+
 	case 'c':
 	    opt_closer = optarg;
 	    xo_set_flags(NULL, XOF_IGNORE_CLOSE);
@@ -339,6 +365,41 @@ main (int argc UNUSED, char **argv)
 	    } else if (opts.o_wrap) {
 		opt_wrapper = optarg;
 
+	    } else if (opts.o_top_wrap) {
+		opt_top_wrap = 1;
+
+	    } else if (opts.o_open_list) {
+		if (opt_name)
+		    xo_errx(1, "only one open/close list/instance allowed: %s",
+			    optarg);
+
+		opt_name = optarg;
+		new_state = XSS_OPEN_LIST;
+
+	    } else if (opts.o_open_instance) {
+		if (opt_name)
+		    xo_errx(1, "only one open/close list/instance allowed: %s",
+			    optarg);
+
+		opt_name = optarg;
+		new_state = XSS_OPEN_INSTANCE;
+
+	    } else if (opts.o_close_list) {
+		if (opt_name)
+		    xo_errx(1, "only one open/close list/instance allowed: %s",
+			    optarg);
+
+		opt_name = optarg;
+		new_state = XSS_CLOSE_LIST;
+
+	    } else if (opts.o_close_instance) {
+		if (opt_name)
+		    xo_errx(1, "only one open/close list/instance allowed: %s",
+			    optarg);
+
+		opt_name = optarg;
+		new_state = XSS_CLOSE_INSTANCE;
+
 	    } else {
 		print_help();
 		return 1;
@@ -365,14 +426,34 @@ main (int argc UNUSED, char **argv)
     xo_set_formatter(NULL, formatter, checkpoint);
     xo_set_flags(NULL, XOF_NO_VA_ARG | XOF_NO_TOP | XOF_NO_CLOSE);
 
+    /*
+     * If we have some explicit state change, handle it
+     */
+    if (new_state) {
+	if (opt_depth > 0)
+	    xo_set_depth(NULL, opt_depth);
+
+	if (opt_not_first)
+	    xo_set_flags(NULL, XOF_NOT_FIRST);
+
+	xo_explicit_transition(NULL, new_state, opt_name, 0);
+	xo_finish();
+	exit(0);
+    }
+
     fmt = *argv++;
     if (opt_opener == NULL && opt_closer == NULL && fmt == NULL) {
 	print_help();
 	return 1;
     }
 
-    if (opt_not_first)
-	xo_set_flags(NULL, XOF_NOT_FIRST);
+    if (opt_top_wrap) {
+	/* If we have a closing path, we'll be one extra level deeper */
+	if (opt_closer && xo_get_style(NULL) == XO_STYLE_JSON)
+	    opt_depth += 1;
+	else
+	    xo_clear_flags(NULL, XOF_NO_TOP);
+    }
 
     if (opt_closer) {
 	opt_depth += 1;
@@ -388,6 +469,10 @@ main (int argc UNUSED, char **argv)
     if (opt_depth > 0)
 	xo_set_depth(NULL, opt_depth);
 
+    if (opt_not_first)
+	xo_set_flags(NULL, XOF_NOT_FIRST);
+
+    /* If there's an opening hierarchy, open each element as a container */
     if (opt_opener) {
 	for (cp = opt_opener; cp && *cp; cp = np) {
 	    np = strchr(cp, '/');
@@ -395,10 +480,11 @@ main (int argc UNUSED, char **argv)
 		*np = '\0';
 	    xo_open_container(cp);
 	    if (np)
-		*np++ = '/';
+		np += 1;
 	}
     }
 
+    /* If there's an wrapper hierarchy, open each element as a container */
     if (opt_wrapper) {
 	for (cp = opt_wrapper; cp && *cp; cp = np) {
 	    np = strchr(cp, '/');
@@ -406,16 +492,18 @@ main (int argc UNUSED, char **argv)
 		*np = '\0';
 	    xo_open_container(cp);
 	    if (np)
-		*np++ = '/';
+		*np++ = '/';	/* Put it back */
 	}
     }
 
+    /* If there's a format string, call xo_emit to emit the contents */
     if (fmt && *fmt) {
 	save_argv = argv;
 	prep_arg(fmt);
-	xo_emit(fmt);
+	xo_emit(fmt);		/* This call does the real formatting */
     }
-
+    
+    /* If there's an wrapper hierarchy, close each element's container */
     while (opt_wrapper) {
 	np = strrchr(opt_wrapper, '/');
 	xo_close_container(np ? np + 1 : opt_wrapper);
@@ -425,6 +513,10 @@ main (int argc UNUSED, char **argv)
 	    opt_wrapper = NULL;
     }
 
+    /* Remember to undo the depth before calling xo_finish() */
+    opt_depth = (opt_closer && opt_top_wrap) ? -1 : 0;
+
+    /* If there's an closing hierarchy, close each element's container */
     while (opt_closer) {
 	np = strrchr(opt_closer, '/');
 	xo_close_container(np ? np + 1 : opt_closer);
@@ -433,6 +525,16 @@ main (int argc UNUSED, char **argv)
 	else
 	    opt_closer = NULL;
     }
+
+    /* If there's a closer and a wrapper, we need to clean it up */
+    if (opt_depth) {
+	xo_set_depth(NULL, opt_depth);
+	xo_clear_flags(NULL, XOF_NO_TOP);
+    }
+
+    /* If we're wrapping the entire content, skip the closer */
+    if (opt_top_wrap && opt_opener)
+	xo_set_flags(NULL, XOF_NO_TOP);
 
     xo_finish();
 

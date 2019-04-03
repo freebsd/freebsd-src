@@ -466,3 +466,7 @@ msgstr ""
 # 96 - EOWNERDEAD
 msgid "Previous owner died"
 msgstr ""
+
+# 97 - EINTEGRITY
+msgid "Integrity check failed"
+msgstr ""

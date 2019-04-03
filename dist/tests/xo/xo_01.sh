@@ -30,4 +30,7 @@ ${XOAN} "{[:/18}{:address/%p}..{:foo/%u}{]:}\n" 0xdeadbeef 1
 ${XOAN} "{[:/%d}{:address/%p}..{:foo/%u}{]:}\n" 18 0xdeadbeef 1
 ${XOAN} "{[:/%s}{:address/%p}..{:foo/%u}{]:}\n" 18 0xdeadbeef 1
 
+${XO} "partial line"
+${XO} -C " -- rest of line\n"
+
 ${XO} --close top
