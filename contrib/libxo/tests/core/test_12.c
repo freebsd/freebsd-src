@@ -78,6 +78,11 @@ main (int argc, char **argv)
 	xo_emit_f(flags, fmt2, "left", "blue", "blue", 3, 45);
     }
 
+    xo_open_container("2by4");
+    xo_emit("There is {:4x4} in {:2morrow}\n", "truck", "tomorrow");
+    xo_close_container("2by4");
+
+
     xo_close_container("data");
     xo_close_container_h(NULL, "top");
 

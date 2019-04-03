@@ -1,0 +1,4 @@
+test_12.test: invalid XML tag name: '2by4'
+test_12.test: invalid XML tag name: '4x4'
+test_12.test: invalid XML tag name: '2morrow'
+test_12.test: invalid XML tag name: '2by4'

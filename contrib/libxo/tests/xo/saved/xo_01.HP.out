@@ -74,3 +74,7 @@
   <div class="text">..</div>
   <div class="data" data-tag="foo">1</div>
 </div>
+<div class="line">
+  <div class="text">partial line</div>
+  <div class="text"> -- rest of line</div>
+</div>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, Juniper Networks, Inc.
+ * Copyright (c) 2014-2018, Juniper Networks, Inc.
  * All rights reserved.
  * This SOFTWARE is licensed under the LICENSE provided in the
  * ../Copyright file. By downloading, installing, copying, or otherwise
@@ -102,6 +102,7 @@ typedef unsigned long long xo_xof_flags_t;
 #define XOF_RETAIN_NONE	XOF_BIT(31) /** Prevent use of XOEF_RETAIN */
 
 #define XOF_COLOR_MAP	XOF_BIT(32) /** Color map has been initialized */
+#define XOF_CONTINUATION XOF_BIT(33) /** Continuation of previous line */
 
 typedef unsigned xo_emit_flags_t; /* Flags to xo_emit() and friends */
 #define XOEF_RETAIN	(1<<0)	  /* Retain parsed formatting information */
@@ -126,11 +127,11 @@ typedef struct xo_handle_s xo_handle_t; /* Handle for XO output */
  * sizes.  We want to fix this but allow for backwards compatibility
  * where needed.
  */
-#ifdef USE_INT_RETURN_CODES
+#ifdef XO_USE_INT_RETURN_CODES
 typedef int xo_ssize_t;		/* Buffer size */
-#else /* USE_INT_RETURN_CODES */
+#else /* XO_USE_INT_RETURN_CODES */
 typedef ssize_t xo_ssize_t;	/* Buffer size */
-#endif /* USE_INT_RETURN_CODES */
+#endif /* XO_USE_INT_RETURN_CODES */
 
 typedef xo_ssize_t (*xo_write_func_t)(void *, const char *);
 typedef void (*xo_close_func_t)(void *);
@@ -219,36 +220,36 @@ xo_ssize_t
 xo_emit_f (xo_emit_flags_t flags, const char *fmt, ...);
 
 PRINTFLIKE(2, 0)
-static inline int
+static inline xo_ssize_t
 xo_emit_hvp (xo_handle_t *xop, const char *fmt, va_list vap)
 {
     return xo_emit_hv(xop, fmt, vap);
 }
 
 PRINTFLIKE(2, 3)
-static inline int
+static inline xo_ssize_t
 xo_emit_hp (xo_handle_t *xop, const char *fmt, ...)
 {
     va_list vap;
     va_start(vap, fmt);
-    int rc = xo_emit_hv(xop, fmt, vap);
+    xo_ssize_t rc = xo_emit_hv(xop, fmt, vap);
     va_end(vap);
     return rc;
 }
 
 PRINTFLIKE(1, 2)
-static inline int
+static inline xo_ssize_t
 xo_emit_p (const char *fmt, ...)
 {
     va_list vap;
     va_start(vap, fmt);
-    int rc = xo_emit_hv(NULL, fmt, vap);
+    xo_ssize_t rc = xo_emit_hv(NULL, fmt, vap);
     va_end(vap);
     return rc;
 }
 
 PRINTFLIKE(3, 0)
-static inline int
+static inline xo_ssize_t
 xo_emit_hvfp (xo_handle_t *xop, xo_emit_flags_t flags,
 	      const char *fmt, va_list vap)
 {
@@ -256,26 +257,29 @@ xo_emit_hvfp (xo_handle_t *xop, xo_emit_flags_t flags,
 }
 
 PRINTFLIKE(3, 4)
-static inline int
+static inline xo_ssize_t
 xo_emit_hfp (xo_handle_t *xop, xo_emit_flags_t flags, const char *fmt, ...)
 {
     va_list vap;
     va_start(vap, fmt);
-    int rc = xo_emit_hvf(xop, flags, fmt, vap);
+    xo_ssize_t rc = xo_emit_hvf(xop, flags, fmt, vap);
     va_end(vap);
     return rc;
 }
 
 PRINTFLIKE(2, 3)
-static inline int
+static inline xo_ssize_t
 xo_emit_fp (xo_emit_flags_t flags, const char *fmt, ...)
 {
     va_list vap;
     va_start(vap, fmt);
-    int rc = xo_emit_hvf(NULL, flags, fmt, vap);
+    xo_ssize_t rc = xo_emit_hvf(NULL, flags, fmt, vap);
     va_end(vap);
     return rc;
 }
+
+xo_ssize_t
+xo_open_container_hf (xo_handle_t *xop, xo_xof_flags_t flags, const char *name);
 
 xo_ssize_t
 xo_open_container_h (xo_handle_t *xop, const char *name);
@@ -302,6 +306,9 @@ xo_ssize_t
 xo_close_container_d (void);
 
 xo_ssize_t
+xo_open_list_hf (xo_handle_t *xop, xo_xof_flags_t flags, const char *name);
+
+xo_ssize_t
 xo_open_list_h (xo_handle_t *xop, const char *name);
 
 xo_ssize_t
@@ -324,6 +331,9 @@ xo_close_list_hd (xo_handle_t *xop);
 
 xo_ssize_t
 xo_close_list_d (void);
+
+xo_ssize_t
+xo_open_instance_hf (xo_handle_t *xop, xo_xof_flags_t flags, const char *name);
 
 xo_ssize_t
 xo_open_instance_h (xo_handle_t *xop, const char *name);

@@ -17,11 +17,11 @@
 .Lb libxo
 .Sh SYNOPSIS
 .In libxo/xo.h
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_emit_f "xo_emit_flags_t flags" "const char *fmt"  "..."
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_emit_hf "xo_handle_t *xop" "xo_emit_flags_t flags" "const char *fmt" "..."
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_emit_hvf "xo_handle_t *xop" "xo_emit_flags_t flags" "const char *fmt" "va_list vap"
 .Ft void
 .Fn xo_retain_clear_all "void"
