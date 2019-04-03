@@ -213,13 +213,59 @@ TEST_F(Readdir, getdirentries)
 		out->header.len = sizeof(out->header);
 	})));
 
-	errno = 0;
 	fd = open(FULLPATH, O_DIRECTORY);
 	ASSERT_LE(0, fd) << strerror(errno);
 	r = getdirentries(fd, buf, sizeof(buf), 0);
-	ASSERT_EQ(0, r);
+	ASSERT_EQ(0, r) << strerror(errno);
 
 	/* Deliberately leak fd.  RELEASEDIR will be tested separately */
+}
+
+/* 
+ * Nothing bad should happen if getdirentries is called on two file descriptors
+ * which were concurrently open, but one has already been closed.
+ * This is a regression test for a specific bug dating from r238402.
+ */
+TEST_F(Readdir, getdirentries_concurrent)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	uint64_t ino = 42;
+	int fd0, fd1;
+	char buf[8192];
+	ssize_t r;
+
+	FuseTest::expect_lookup(RELPATH, ino, S_IFDIR | 0755, 0, 2);
+	expect_opendir(ino);
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_READDIR &&
+				in->header.nodeid == ino &&
+				in->body.readdir.size == 8192);
+		}, Eq(true)),
+		_)
+	).Times(2)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		out->header.error = 0;
+		out->header.len = sizeof(out->header);
+	})));
+
+	fd0 = open(FULLPATH, O_DIRECTORY);
+	ASSERT_LE(0, fd0) << strerror(errno);
+
+	fd1 = open(FULLPATH, O_DIRECTORY);
+	ASSERT_LE(0, fd1) << strerror(errno);
+
+	r = getdirentries(fd0, buf, sizeof(buf), 0);
+	ASSERT_EQ(0, r) << strerror(errno);
+
+	EXPECT_EQ(0, close(fd0)) << strerror(errno);
+
+	r = getdirentries(fd1, buf, sizeof(buf), 0);
+	ASSERT_EQ(0, r) << strerror(errno);
+
+	/* Deliberately leak fd1. */
 }
 
 /*

@@ -45,18 +45,6 @@ void expect_lookup(const char *relpath, uint64_t ino)
 {
 	FuseTest::expect_lookup(relpath, ino, S_IFDIR | 0755, 0, 1);
 }
-
-void expect_releasedir(uint64_t ino, ProcessMockerT r)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_RELEASEDIR &&
-				in->header.nodeid == ino &&
-				in->body.release.fh == FH);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(r));
-}
 };
 
 /* If a file descriptor is duplicated, only the last close causes RELEASE */
