@@ -399,6 +399,9 @@ fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 
 	*phy_addr = phy_reg;
 
+	if (phy_sc == NULL)
+		return (0);
+
 	/*
 	 * Search for softc used to communicate with phy.
 	 */
