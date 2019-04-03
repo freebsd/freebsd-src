@@ -70,10 +70,16 @@ class FuseTest : public ::testing::Test {
 	}
 
 	/*
-	 * Create an expectation that FUSE_ACCESS will be called oncde for the
+	 * Create an expectation that FUSE_ACCESS will be called once for the
 	 * given inode with the given access_mode, returning the given errno
 	 */
 	void expect_access(uint64_t ino, mode_t access_mode, int error);
+
+	/*
+	 * Create an expectation that FUSE_FLUSH will be called times times for
+	 * the given inode
+	 */
+	void expect_flush(uint64_t ino, int times, ProcessMockerT r);
 
 	/*
 	 * Create an expectation that FUSE_GETATTR will be called for the given

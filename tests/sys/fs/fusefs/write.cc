@@ -374,6 +374,7 @@ TEST_F(Write, DISABLED_mmap)
 	 * pid, so they must set FUSE_WRITE_CACHE
 	 */
 	expect_write(ino, 0, len, len, FUSE_WRITE_CACHE, expected);
+	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, ReturnErrno(0));
 
 	fd = open(FULLPATH, O_RDWR);
@@ -512,6 +513,7 @@ TEST_F(WriteBack, close)
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 	})));
+	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, ReturnErrno(0));
 
 	fd = open(FULLPATH, O_RDWR);

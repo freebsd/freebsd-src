@@ -41,7 +41,8 @@ using namespace testing;
 class Flush: public FuseTest {
 
 public:
-void expect_flush(uint64_t ino, int times, pid_t lo, ProcessMockerT r)
+void
+expect_flush(uint64_t ino, int times, pid_t lo, ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -55,9 +56,9 @@ void expect_flush(uint64_t ino, int times, pid_t lo, ProcessMockerT r)
 	.WillRepeatedly(Invoke(r));
 }
 
-void expect_lookup(const char *relpath, uint64_t ino)
+void expect_lookup(const char *relpath, uint64_t ino, int times)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, times);
 }
 
 /*
@@ -82,16 +83,18 @@ class FlushWithLocks: public Flush {
 	}
 };
 
-/* If a file descriptor is duplicated, every close causes FLUSH */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236405 */
-TEST_F(Flush, DISABLED_dup)
+/*
+ * If multiple file descriptors refer to the same file handle, closing each
+ * should send FUSE_FLUSH
+ */
+TEST_F(Flush, open_twice)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 	int fd, fd2;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_flush(ino, 2, 0, ReturnErrno(0));
@@ -100,10 +103,11 @@ TEST_F(Flush, DISABLED_dup)
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
 
-	fd2 = dup(fd);
+	fd2 = open(FULLPATH, O_WRONLY);
+	EXPECT_LE(0, fd2) << strerror(errno);
 
-	ASSERT_EQ(0, close(fd2)) << strerror(errno);
-	ASSERT_EQ(0, close(fd)) << strerror(errno);
+	EXPECT_EQ(0, close(fd2)) << strerror(errno);
+	EXPECT_EQ(0, close(fd)) << strerror(errno);
 }
 
 /*
@@ -114,15 +118,14 @@ TEST_F(Flush, DISABLED_dup)
  * all.
  */
 /* http://pubs.opengroup.org/onlinepubs/9699919799/functions/close.html */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236405 */
-TEST_F(Flush, DISABLED_eio)
+TEST_F(Flush, eio)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 	int fd;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_flush(ino, 1, 0, ReturnErrno(EIO));
@@ -138,41 +141,48 @@ TEST_F(Flush, DISABLED_eio)
  * If the filesystem returns ENOSYS, it will be treated as success and
  * no more FUSE_FLUSH operations will be sent to the daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236405 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
-TEST_F(Flush, DISABLED_enosys)
+TEST_F(Flush, enosys)
 {
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
-	uint64_t ino = 42;
-	int fd, fd2;
+	const char FULLPATH0[] = "mountpoint/some_file.txt";
+	const char RELPATH0[] = "some_file.txt";
+	const char FULLPATH1[] = "mountpoint/other_file.txt";
+	const char RELPATH1[] = "other_file.txt";
+	uint64_t ino0 = 42;
+	uint64_t ino1 = 43;
+	int fd0, fd1;
 
-	expect_lookup(RELPATH, ino);
-	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
+	expect_lookup(RELPATH0, ino0, 1);
+	expect_open(ino0, 0, 1);
+	expect_getattr(ino0, 0);
 	/* On the 2nd close, FUSE_FLUSH won't be sent at all */
-	expect_flush(ino, 1, 0, ReturnErrno(ENOSYS));
+	expect_flush(ino0, 1, 0, ReturnErrno(ENOSYS));
 	expect_release();
 
-	fd = open(FULLPATH, O_WRONLY);
-	EXPECT_LE(0, fd) << strerror(errno);
+	expect_lookup(RELPATH1, ino1, 1);
+	expect_open(ino1, 0, 1);
+	expect_getattr(ino1, 0);
+	/* On the 2nd close, FUSE_FLUSH won't be sent at all */
+	expect_release();
 
-	fd2 = dup(fd);
+	fd0 = open(FULLPATH0, O_WRONLY);
+	ASSERT_LE(0, fd0) << strerror(errno);
 
-	EXPECT_EQ(0, close(fd2)) << strerror(errno);
-	EXPECT_EQ(0, close(fd)) << strerror(errno);
+	fd1 = open(FULLPATH1, O_WRONLY);
+	ASSERT_LE(0, fd1) << strerror(errno);
+
+	EXPECT_EQ(0, close(fd0)) << strerror(errno);
+	EXPECT_EQ(0, close(fd1)) << strerror(errno);
 }
 
 /* A FUSE_FLUSH should be sent on close(2) */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236405 */
-TEST_F(Flush, DISABLED_flush)
+TEST_F(Flush, flush)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 	int fd;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_flush(ino, 1, 0, ReturnErrno(0));
@@ -188,7 +198,6 @@ TEST_F(Flush, DISABLED_flush)
  * When closing a file with a POSIX file lock, flush should release the lock,
  * _even_if_ it's not the process's last file descriptor for this file.
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236405 */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
 TEST_F(FlushWithLocks, DISABLED_unlock_on_close)
 {
@@ -199,7 +208,7 @@ TEST_F(FlushWithLocks, DISABLED_unlock_on_close)
 	struct flock fl;
 	pid_t pid = getpid();
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
