@@ -232,6 +232,8 @@ static const struct {
 	{0xa2828086, 0x00, "Intel Union Point",	0},
 	{0xa2868086, 0x00, "Intel Union Point (RAID)",	0},
 	{0xa28e8086, 0x00, "Intel Union Point (RAID)",	0},
+	{0xa3528086, 0x00, "Intel Cannon Lake",	0},
+	{0xa3538086, 0x00, "Intel Cannon Lake",	0},
 	{0x23238086, 0x00, "Intel DH89xxCC",	0},
 	{0x2360197b, 0x00, "JMicron JMB360",	0},
 	{0x2361197b, 0x00, "JMicron JMB361",	AHCI_Q_NOFORCE | AHCI_Q_1CH},
