@@ -124,6 +124,12 @@ class FuseTest : public ::testing::Test {
 	void expect_release(uint64_t ino, uint64_t fh);
 
 	/*
+	 * Create an expectation that FUSE_RELEASEDIR will be called exactly
+	 * once for the given inode
+	 */
+	void expect_releasedir(uint64_t ino, ProcessMockerT r);
+
+	/*
 	 * Create an expectation that FUSE_WRITE will be called exactly once
 	 * for the given inode, at offset offset, with write_flags flags, 
 	 * size isize and buffer contents.  It will return osize

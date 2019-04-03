@@ -324,21 +324,13 @@ fuse_vnop_close(struct vop_close_args *ap)
 	pid_t pid = td->td_proc->p_pid;
 	int err = 0;
 
-	if (fuse_isdeadfs(vp)) {
+	if (fuse_isdeadfs(vp))
 		return 0;
-	}
-	if (vnode_isdir(vp)) {
-		struct fuse_filehandle *fufh;
+	if (vnode_isdir(vp))
+		return 0;
+	if (fflag & IO_NDELAY)
+		return 0;
 
-		// XXX: what if two file descriptors have the same directory
-		// opened?  We shouldn't close the file handle too soon.
-		if (fuse_filehandle_get_dir(vp, &fufh, cred, pid) == 0)
-			fuse_filehandle_close(vp, fufh, NULL, cred);
-		return 0;
-	}
-	if (fflag & IO_NDELAY) {
-		return 0;
-	}
 	err = fuse_flush(vp, cred, pid, fflag);
 	/* TODO: close the file handle, if we're sure it's no longer used */
 	if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
@@ -1342,7 +1334,6 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	struct fuse_filehandle *fufh = NULL;
 	struct fuse_iov cookediov;
 	int err = 0;
-	int freefufh = 0;
 	pid_t pid = curthread->td_proc->p_pid;
 
 	if (fuse_isdeadfs(vp)) {
@@ -1353,27 +1344,15 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 		return EINVAL;
 	}
 
-	if ((err = fuse_filehandle_get_dir(vp, &fufh, cred, pid)) != 0) {
-		SDT_PROBE2(fuse, , vnops, trace, 1,
-			"calling readdir() before open()");
-		/* 
-		 * This was seen to happen in getdirentries as used by
-		 * shells/fish, but I can't reproduce it.
-		 */
-		err = fuse_filehandle_open(vp, FREAD, &fufh, NULL, cred);
-		freefufh = 1;
-	}
-	if (err) {
+	err = fuse_filehandle_get_dir(vp, &fufh, cred, pid);
+	if (err)
 		return (err);
-	}
 #define DIRCOOKEDSIZE FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET + MAXNAMLEN + 1)
 	fiov_init(&cookediov, DIRCOOKEDSIZE);
 
 	err = fuse_internal_readdir(vp, uio, fufh, &cookediov);
 
 	fiov_teardown(&cookediov);
-	if (freefufh)
-		fuse_filehandle_close(vp, fufh, NULL, cred);
 
 	return err;
 }

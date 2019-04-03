@@ -232,6 +232,18 @@ void FuseTest::expect_release(uint64_t ino, uint64_t fh)
 	).WillOnce(Invoke(ReturnErrno(0)));
 }
 
+void FuseTest::expect_releasedir(uint64_t ino, ProcessMockerT r)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_RELEASEDIR &&
+				in->header.nodeid == ino &&
+				in->body.release.fh == FH);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(r));
+}
+
 void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 	uint64_t osize, uint32_t flags, const void *contents)
 {
