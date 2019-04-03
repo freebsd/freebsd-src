@@ -35,6 +35,7 @@ libxoinc_HEADERS = \
 
 noinst_HEADERS = \
      xo_buf.h \
+     xo_explicit.h \
      xo_humanize.h \
      xo_wcwidth.h
 

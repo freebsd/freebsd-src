@@ -460,4 +460,4 @@ msgstr "Eviouspray ownerway iedday"
 
 # 97 - EINTEGRITY
 msgid "Integrity check failed"
-msgstr "integrityyay eckchay ailedfay"
+msgstr "Integrityway eckchey ailedfey"
