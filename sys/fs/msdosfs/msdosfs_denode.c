@@ -405,19 +405,21 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 			bn = cntobn(pmp, eofentry);
 			error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster,
 			    NOCRED, &bp);
-			if (error) {
-				brelse(bp);
-#ifdef MSDOSFS_DEBUG
-				printf("detrunc(): bread fails %d\n", error);
-#endif
-				return (error);
-			}
-			memset(bp->b_data + boff, 0, pmp->pm_bpcluster - boff);
-			if (flags & IO_SYNC)
-				bwrite(bp);
-			else
-				bdwrite(bp);
+		} else {
+			error = bread(DETOV(dep), de_cluster(pmp, length),
+			    pmp->pm_bpcluster, cred, &bp);
 		}
+		if (error) {
+#ifdef MSDOSFS_DEBUG
+			printf("detrunc(): bread fails %d\n", error);
+#endif
+			return (error);
+		}
+		memset(bp->b_data + boff, 0, pmp->pm_bpcluster - boff);
+		if ((flags & IO_SYNC) != 0)
+			bwrite(bp);
+		else
+			bdwrite(bp);
 	}
 
 	/*
