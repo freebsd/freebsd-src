@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190404:
+	r345895 reverts r320698. This implies that an nfsuserd(8) daemon
+	built from head sources between r320757 (July 6, 2017) and
+	r338192 (Aug. 22, 2018) will not work unless the "-use-udpsock"
+	is added to the command line.
+	nfsuserd daemons built from head sources that are post-r338192 are
+	not affected and should continue to work.
+
 20190320:
 	The fuse(4) module has been renamed to fusefs(4) for consistency with
 	other filesystems.  You should update any kld_load="fuse" entries in
