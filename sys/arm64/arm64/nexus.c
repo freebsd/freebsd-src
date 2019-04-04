@@ -110,6 +110,8 @@ static	int nexus_set_resource(device_t, device_t, int, int,
     rman_res_t, rman_res_t);
 static	int nexus_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
+static int nexus_release_resource(device_t, device_t, int, int,
+    struct resource *);
 
 static int nexus_setup_intr(device_t dev, device_t child, struct resource *res,
     int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep);
@@ -134,6 +136,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_get_resource_list, nexus_get_reslist),
 	DEVMETHOD(bus_set_resource,	nexus_set_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
+	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 	DEVMETHOD(bus_get_bus_tag,	nexus_get_bus_tag),
@@ -265,6 +268,20 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	return (rv);
+}
+
+static int
+nexus_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+	int error;
+
+	if (rman_get_flags(res) & RF_ACTIVE) {
+		error = bus_deactivate_resource(child, type, rid, res);
+		if (error)
+			return (error);
+	}
+	return (rman_release_resource(res));
 }
 
 static int
