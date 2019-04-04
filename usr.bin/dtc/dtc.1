@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd April 7, 2018
+.Dd March 27, 2019
 .Dt DTC 1
 .Os
 .Sh NAME
@@ -304,7 +304,18 @@ Overlay blobs can be applied at boot time by setting
 in
 .Xr loader.conf 5 .
 Multiple overlays may be specified, and they will be applied in the order given.
-.El
+.Sh NODE OMISSION
+This utility supports the
+.Va /omit-if-no-ref/
+statement to mark nodes for omission if they are ultimately not referenced
+elsewhere in the device tree.
+This may be used in more space-constrained environments to remove nodes that may
+not be applicable to the specific device the tree is being compiled for.
+.Pp
+When the
+.Fl @
+flag is used to write symbols, nodes with labels will be considered referenced
+and will not be removed from the tree.
 .Sh EXAMPLES
 The command:
 .Pp
@@ -403,7 +414,11 @@ A dtc tool first appeared in
 This version of the tool first appeared in
 .Fx 10.0 .
 .Sh AUTHORS
-.An David T. Chisnall
+.Nm
+was written by
+.An David T. Chisnall .
+Some features were added later by
+.An Kyle Evans .
 .Pp
 Note: The fact that the tool and the author share the same initials is entirely
 coincidental.
