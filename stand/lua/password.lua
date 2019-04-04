@@ -38,6 +38,13 @@ local INCORRECT_PASSWORD = "loader: incorrect password"
 -- Asterisks as a password mask
 local show_password_mask = false
 local twiddle_chars = {"/", "-", "\\", "|"}
+local screen_setup = false
+
+local function setup_screen()
+	screen.clear()
+	screen.defcursor()
+	screen_setup = true
+end
 
 -- Module exports
 function password.read(prompt_length)
@@ -80,14 +87,16 @@ function password.read(prompt_length)
 end
 
 function password.check()
-	screen.clear()
-	screen.defcursor()
 	-- pwd is optionally supplied if we want to check it
 	local function doPrompt(prompt, pwd)
 		local attempts = 1
 
 		local function clear_incorrect_text_prompt()
 			printc("\r" .. string.rep(" ", #INCORRECT_PASSWORD))
+		end
+
+		if not screen_setup then
+			setup_screen()
 		end
 
 		while true do
@@ -126,6 +135,11 @@ function password.check()
 	local pwd = loader.getenv("password")
 	if pwd ~= nil then
 		core.autoboot()
+		-- The autoboot sequence was interrupted, so we'll need to
+		-- prompt for a password.  Put the screen back into a known
+		-- good state, otherwise we're drawing back a couple lines
+		-- in the middle of other text.
+		setup_screen()
 	end
 	compare("Loader password:", pwd)
 end
