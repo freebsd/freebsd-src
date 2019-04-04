@@ -374,13 +374,15 @@ fdisp_destroy(struct fuse_dispatcher *fdisp)
 #endif
 }
 
+void fdisp_refresh(struct fuse_dispatcher *fdip);
+
 void fdisp_make(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct mount *mp, uint64_t nid, struct thread *td, struct ucred *cred);
 
-void fdisp_make_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
-    struct mount *mp, uint64_t nid, pid_t pid, struct ucred *cred);
-
 void fdisp_make_vp(struct fuse_dispatcher *fdip, enum fuse_opcode op,
+    struct vnode *vp, struct thread *td, struct ucred *cred);
+
+void fdisp_refresh_vp(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct vnode *vp, struct thread *td, struct ucred *cred);
 
 int fdisp_wait_answ(struct fuse_dispatcher *fdip);

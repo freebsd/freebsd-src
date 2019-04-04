@@ -282,7 +282,7 @@ fuse_internal_fsync(struct vnode *vp,
     int waitfor,
     bool datasync)
 {
-	struct fuse_fsync_in *ffsi;
+	struct fuse_fsync_in *ffsi = NULL;
 	struct fuse_dispatcher fdi;
 	struct fuse_filehandle *fufh;
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
@@ -295,15 +295,20 @@ fuse_internal_fsync(struct vnode *vp,
 	}
 	if (vnode_isdir(vp))
 		op = FUSE_FSYNCDIR;
+
+	fdisp_init(&fdi, sizeof(*ffsi));
 	/*
 	 * fsync every open file handle for this file, because we can't be sure
 	 * which file handle the caller is really referring to.
 	 */
 	LIST_FOREACH(fufh, &fvdat->handles, next) {
-		fdisp_init(&fdi, sizeof(*ffsi));
-		fdisp_make_vp(&fdi, op, vp, td, NULL);
+		if (ffsi == NULL)
+			fdisp_make_vp(&fdi, op, vp, td, NULL);
+		else
+			fdisp_refresh_vp(&fdi, op, vp, td, NULL);
 		ffsi = fdi.indata;
 		ffsi->fh = fufh->fh_id;
+		ffsi->fsync_flags = 0;
 
 		if (datasync)
 			ffsi->fsync_flags = 1;
@@ -315,8 +320,8 @@ fuse_internal_fsync(struct vnode *vp,
 				fuse_internal_fsync_callback);
 			fuse_insert_message(fdi.tick);
 		}
-		fdisp_destroy(&fdi);
 	}
+	fdisp_destroy(&fdi);
 
 	return err;
 }
@@ -331,7 +336,7 @@ fuse_internal_readdir(struct vnode *vp,
 {
 	int err = 0;
 	struct fuse_dispatcher fdi;
-	struct fuse_read_in *fri;
+	struct fuse_read_in *fri = NULL;
 
 	if (uio_resid(uio) == 0) {
 		return 0;
@@ -344,9 +349,11 @@ fuse_internal_readdir(struct vnode *vp,
 	 */
 
 	while (uio_resid(uio) > 0) {
-
 		fdi.iosize = sizeof(*fri);
-		fdisp_make_vp(&fdi, FUSE_READDIR, vp, NULL, NULL);
+		if (fri == NULL)
+			fdisp_make_vp(&fdi, FUSE_READDIR, vp, NULL, NULL);
+		else
+			fdisp_refresh_vp(&fdi, FUSE_READDIR, vp, NULL, NULL);
 
 		fri = fdi.indata;
 		fri->fh = fufh->fh_id;
@@ -419,8 +426,8 @@ fuse_internal_readdir_processdata(struct uio *uio,
 			err = -1;
 			break;
 		}
-		fiov_refresh(cookediov);
 		fiov_adjust(cookediov, bytesavail);
+		bzero(cookediov->base, bytesavail);
 
 		de = (struct dirent *)cookediov->base;
 		de->d_fileno = fudge->ino;

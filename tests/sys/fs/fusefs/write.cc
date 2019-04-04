@@ -270,12 +270,13 @@ TEST_F(Write, DISABLED_direct_io_evicts_cache)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-/* 
- * When the direct_io option is used, filesystems are allowed to write less
- * data than requested
+/*
+ * If the server doesn't return FOPEN_DIRECT_IO during FUSE_OPEN, then it's not
+ * allowed to return a short write for that file handle.  However, if it does
+ * then we should still do our darndest to handle it by resending the unwritten
+ * portion.
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236381 */
-TEST_F(Write, DISABLED_direct_io_short_write)
+TEST_F(Write, indirect_io_short_write)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -283,15 +284,16 @@ TEST_F(Write, DISABLED_direct_io_short_write)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
-	ssize_t halfbufsize = bufsize / 2;
-	const char *halfcontents = CONTENTS + halfbufsize;
+	ssize_t bufsize0 = 11;
+	ssize_t bufsize1 = strlen(CONTENTS) - bufsize0;
+	const char *contents1 = CONTENTS + bufsize0;
 
 	expect_lookup(RELPATH, ino, 0);
-	expect_open(ino, FOPEN_DIRECT_IO, 1);
+	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
-	expect_write(ino, 0, bufsize, halfbufsize, 0, CONTENTS);
-	expect_write(ino, halfbufsize, halfbufsize, halfbufsize, 0,
-		halfcontents);
+	expect_write(ino, 0, bufsize, bufsize0, 0, CONTENTS);
+	expect_write(ino, bufsize0, bufsize1, bufsize1, 0,
+		contents1);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -300,20 +302,44 @@ TEST_F(Write, DISABLED_direct_io_short_write)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
+/* 
+ * When the direct_io option is used, filesystems are allowed to write less
+ * data than requested.  We should return the short write to userland.
+ */
+TEST_F(Write, direct_io_short_write)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefghijklmnop";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+	ssize_t halfbufsize = bufsize / 2;
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, FOPEN_DIRECT_IO, 1);
+	expect_getattr(ino, 0);
+	expect_write(ino, 0, bufsize, halfbufsize, 0, CONTENTS);
+
+	fd = open(FULLPATH, O_WRONLY);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(halfbufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
 /*
  * An insidious edge case: the filesystem returns a short write, and the
  * difference between what we requested and what it actually wrote crosses an
  * iov element boundary
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236381 */
-TEST_F(Write, DISABLED_direct_io_short_write_iov)
+TEST_F(Write, direct_io_short_write_iov)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	const char *CONTENTS0 = "abcdefgh";
 	const char *CONTENTS1 = "ijklmnop";
 	const char *EXPECTED0 = "abcdefghijklmnop";
-	const char *EXPECTED1 = "hijklmnop";
 	uint64_t ino = 42;
 	int fd;
 	ssize_t size0 = strlen(CONTENTS0) - 1;
@@ -325,7 +351,6 @@ TEST_F(Write, DISABLED_direct_io_short_write_iov)
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, 0, totalsize, size0, 0, EXPECTED0);
-	expect_write(ino, size0, size1, size1, 0, EXPECTED1);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -334,7 +359,7 @@ TEST_F(Write, DISABLED_direct_io_short_write_iov)
 	iov[0].iov_len = strlen(CONTENTS0);
 	iov[1].iov_base = (void*)CONTENTS1;
 	iov[1].iov_len = strlen(CONTENTS1);
-	ASSERT_EQ(totalsize, writev(fd, iov, 2)) << strerror(errno);
+	ASSERT_EQ(size0, writev(fd, iov, 2)) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 

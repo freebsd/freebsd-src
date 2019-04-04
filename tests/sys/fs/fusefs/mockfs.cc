@@ -246,7 +246,8 @@ void debug_fuseop(const mockfs_buf_in *in)
 			printf(" %s=%s", name, value);
 			break;
 		case FUSE_WRITE:
-			printf(" offset=%lu size=%u flags=%u",
+			printf(" fh=%#lx offset=%lu size=%u flags=%u",
+				in->body.write.fh,
 				in->body.write.offset, in->body.write.size,
 				in->body.write.write_flags);
 			break;
