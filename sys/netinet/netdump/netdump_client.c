@@ -557,8 +557,8 @@ netdump_handle_ip(struct mbuf **mb)
 	}
 
 #ifdef INVARIANTS
-	if (((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
-	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) &&
+	if ((IN_LOOPBACK(ntohl(ip->ip_dst.s_addr)) ||
+	    IN_LOOPBACK(ntohl(ip->ip_src.s_addr))) &&
 	    (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
 		NETDDEBUG("Bad IP header (RFC1122)\n");
 		return;
