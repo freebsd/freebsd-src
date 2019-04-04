@@ -4337,16 +4337,12 @@ sppp_chap_tld(struct sppp *sp)
 static void
 sppp_chap_scr(struct sppp *sp)
 {
-	u_long *ch, seed;
+	u_long *ch;
 	u_char clen;
 
 	/* Compute random challenge. */
 	ch = (u_long *)sp->myauth.challenge;
-	read_random(&seed, sizeof seed);
-	ch[0] = seed ^ random();
-	ch[1] = seed ^ random();
-	ch[2] = seed ^ random();
-	ch[3] = seed ^ random();
+	arc4random_buf(ch, 4 * sizeof(*ch));
 	clen = AUTHKEYLEN;
 
 	sp->confid[IDX_CHAP] = ++sp->pp_seq[IDX_CHAP];

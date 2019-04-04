@@ -14631,7 +14631,7 @@ dtrace_state_create(struct cdev *dev, struct ucred *cred __unused)
 	 * SI_SUB_RANDOM < SI_SUB_DTRACE_ANON therefore entropy device is
          * assumed to be seeded at this point (if from Fortuna seed file).
 	 */
-	(void) read_random(&state->dts_rstate[0], 2 * sizeof(uint64_t));
+	arc4random_buf(&state->dts_rstate[0], 2 * sizeof(uint64_t));
 	for (cpu_it = 1; cpu_it < NCPU; cpu_it++) {
 		/*
 		 * Each CPU is assigned a 2^64 period, non-overlapping
