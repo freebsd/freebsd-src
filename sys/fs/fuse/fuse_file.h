@@ -158,7 +158,7 @@ int fuse_filehandle_getrw(struct vnode *vp, int fflag,
 			  pid_t pid);
 
 void fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
-		          struct fuse_filehandle **fufhp, pid_t pid,
+		          struct fuse_filehandle **fufhp, struct thread *td,
 			  struct ucred *cred, struct fuse_open_out *foo);
 int fuse_filehandle_open(struct vnode *vp, int mode,
                          struct fuse_filehandle **fufhp, struct thread *td,

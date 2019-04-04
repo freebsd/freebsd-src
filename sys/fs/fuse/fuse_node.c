@@ -329,16 +329,6 @@ fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags, struct thread *td)
 	 *
 	 * XXXIP: Handle fd based DIRECT_IO
 	 */
-	if (fuse_open_flags & FOPEN_DIRECT_IO) {
-		ASSERT_VOP_ELOCKED(vp, __func__);
-		VTOFUD(vp)->flag |= FN_DIRECTIO;
-		fuse_io_invalbuf(vp, td);
-	} else {
-		if ((fuse_open_flags & FOPEN_KEEP_CACHE) == 0)
-			fuse_io_invalbuf(vp, td);
-	        VTOFUD(vp)->flag &= ~FN_DIRECTIO;
-	}
-
 	if (vnode_vtype(vp) == VREG) {
 		/* XXXIP prevent getattr, by using cached node size */
 		vnode_create_vobject(vp, 0, td);

@@ -479,8 +479,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	}
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnop_create");
 
-	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, td->td_proc->p_pid, cred,
-		foo);
+	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, td, cred, foo);
 	fuse_vnode_open(*vpp, foo->open_flags, td);
 	cache_purge_negative(dvp);
 
