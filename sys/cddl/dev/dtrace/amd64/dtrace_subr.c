@@ -405,6 +405,9 @@ dtrace_gethrtime_init(void *arg)
 	 */
 	nsec_scale = ((uint64_t)NANOSEC << SCALE_SHIFT) / tsc_f;
 
+	if (vm_guest != VM_GUEST_NO)
+		return;
+
 	/* The current CPU is the reference one. */
 	sched_pin();
 	tsc_skew[curcpu] = 0;
