@@ -991,6 +991,7 @@ randomcoll(struct key_value *kv1, struct key_value *kv2,
 	struct bwstring *s1, *s2;
 	MD5_CTX ctx1, ctx2;
 	char *b1, *b2;
+	int cmp_res;
 
 	s1 = kv1->k;
 	s2 = kv2->k;
@@ -1010,28 +1011,17 @@ randomcoll(struct key_value *kv1, struct key_value *kv2,
 	MD5Update(&ctx2, bwsrawdata(s2), bwsrawlen(s2));
 	b1 = MD5End(&ctx1, NULL);
 	b2 = MD5End(&ctx2, NULL);
-	if (b1 == NULL) {
-		if (b2 == NULL)
-			return (0);
-		else {
-			sort_free(b2);
-			return (-1);
-		}
-	} else if (b2 == NULL) {
-		sort_free(b1);
-		return (+1);
-	} else {
-		int cmp_res;
+	if (b1 == NULL || b2 == NULL)
+		err(2, "MD5End");
 
-		cmp_res = strcmp(b1,b2);
-		sort_free(b1);
-		sort_free(b2);
+	cmp_res = strcmp(b1,b2);
+	sort_free(b1);
+	sort_free(b2);
 
-		if (!cmp_res)
-			cmp_res = bwscoll(s1, s2, 0);
+	if (!cmp_res)
+		cmp_res = bwscoll(s1, s2, 0);
 
-		return (cmp_res);
-	}
+	return (cmp_res);
 }
 
 /*
