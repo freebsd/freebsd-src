@@ -341,10 +341,14 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_write_in *fwi;
+	struct fuse_write_out *fwo;
 	struct fuse_dispatcher fdi;
 	size_t chunksize;
+	void *fwi_data;
+	off_t as_written_offset;
 	int diff;
 	int err = 0;
+	bool direct_io = fufh->fuse_open_flags & FOPEN_DIRECT_IO;
 
 	if (uio->uio_resid == 0)
 		return (0);
@@ -364,36 +368,61 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 		fwi->fh = fufh->fh_id;
 		fwi->offset = uio->uio_offset;
 		fwi->size = chunksize;
+		fwi_data = (char *)fdi.indata + sizeof(*fwi);
 
-		if ((err = uiomove((char *)fdi.indata + sizeof(*fwi),
-		    chunksize, uio)))
+		if ((err = uiomove(fwi_data, chunksize, uio)))
 			break;
 
+retry:
 		if ((err = fdisp_wait_answ(&fdi)))
 			break;
 
+		fwo = ((struct fuse_write_out *)fdi.answ);
+
 		/* Adjust the uio in the case of short writes */
-		diff = chunksize - ((struct fuse_write_out *)fdi.answ)->size;
+		diff = fwi->size - fwo->size;
+		as_written_offset = uio->uio_offset - diff;
+
+		if (as_written_offset - diff > fvdat->filesize &&
+		    fuse_data_cache_mode != FUSE_CACHE_UC) {
+			fuse_vnode_setsize(vp, cred, as_written_offset);
+			fvdat->flag &= ~FN_SIZECHANGE;
+		}
+
 		if (diff < 0) {
+			printf("WARNING: misbehaving FUSE filesystem "
+				"wrote more data than we provided it\n");
 			err = EINVAL;
 			break;
-		} else if (diff > 0 && !(ioflag & IO_DIRECT)) {
-			/* 
-			 * XXX We really should be directly checking whether
-			 * the file was opened with FOPEN_DIRECT_IO, not
-			 * IO_DIRECT.  IO_DIRECT can be set in multiple ways.
-			 */
-			SDT_PROBE2(fuse, , io, trace, 1,
-				"misbehaving filesystem: short writes are only "
-				"allowed with direct_io");
-		}
-		uio->uio_resid += diff;
-		uio->uio_offset -= diff;
-
-		if (uio->uio_offset > fvdat->filesize &&
-		    fuse_data_cache_mode != FUSE_CACHE_UC) {
-			fuse_vnode_setsize(vp, cred, uio->uio_offset);
-			fvdat->flag &= ~FN_SIZECHANGE;
+		} else if (diff > 0) {
+			/* Short write */
+			if (!direct_io) {
+				printf("WARNING: misbehaving FUSE filesystem: "
+					"short writes are only allowed with "
+					"direct_io\n");
+			}
+			if (ioflag & IO_DIRECT) {
+				/* Return early */
+				uio->uio_resid += diff;
+				uio->uio_offset -= diff;
+				break;
+			} else {
+				/* Resend the unwritten portion of data */
+				fdi.iosize = sizeof(*fwi) + diff;
+				/* Refresh fdi without clearing data buffer */
+				fdisp_refresh_vp(&fdi, FUSE_WRITE, vp,
+					uio->uio_td, cred);
+				fwi = fdi.indata;
+				MPASS2(fwi == fdi.indata, "FUSE dispatcher "
+					"reallocated despite no increase in "
+					"size?");
+				void *src = (char*)fwi_data + fwo->size;
+				memmove(fwi_data, src, diff);
+				fwi->fh = fufh->fh_id;
+				fwi->offset = as_written_offset;
+				fwi->size = diff;
+				goto retry;
+			}
 		}
 	}
 

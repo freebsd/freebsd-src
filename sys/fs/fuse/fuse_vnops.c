@@ -2313,9 +2313,10 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	/*
 	 * Retrieve Linux / FUSE compatible list values.
 	 */
-	fdisp_make_vp(&fdi, FUSE_LISTXATTR, vp, td, cred);
+	fdisp_refresh_vp(&fdi, FUSE_LISTXATTR, vp, td, cred);
 	list_xattr_in = fdi.indata;
 	list_xattr_in->size = linux_list_len + sizeof(*list_xattr_out);
+	list_xattr_in->flags = 0;
 	attr_str = (char *)fdi.indata + sizeof(*list_xattr_in);
 	snprintf(attr_str, len, "%s%c", prefix, extattr_namespace_separator);
 

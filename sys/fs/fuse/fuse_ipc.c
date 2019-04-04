@@ -92,6 +92,7 @@ SDT_PROVIDER_DECLARE(fuse);
  */
 SDT_PROBE_DEFINE2(fuse, , ipc, trace, "int", "char*");
 
+static void fiov_clear(struct fuse_iov *fiov);
 static struct fuse_ticket *fticket_alloc(struct fuse_data *data);
 static void fticket_refresh(struct fuse_ticket *ftick);
 static void fticket_destroy(struct fuse_ticket *ftick);
@@ -185,11 +186,19 @@ fiov_adjust(struct fuse_iov *fiov, size_t size)
 	fiov->len = size;
 }
 
+/* Clear the fiov's data buffer */
+static void
+fiov_clear(struct fuse_iov *fiov)
+{
+	bzero(fiov->base, fiov->len);
+}
+
+/* Resize the fiov if needed, and clear it's buffer */
 void
 fiov_refresh(struct fuse_iov *fiov)
 {
-	bzero(fiov->base, fiov->len);
 	fiov_adjust(fiov, 0);
+	bzero(fiov->base, fiov->len);
 }
 
 static int
@@ -267,7 +276,7 @@ fticket_destroy(struct fuse_ticket *ftick)
 	return uma_zfree(ticket_zone, ftick);
 }
 
-static	inline
+static inline
 void
 fticket_refresh(struct fuse_ticket *ftick)
 {
@@ -282,6 +291,27 @@ fticket_refresh(struct fuse_ticket *ftick)
 	bzero(&ftick->tk_aw_ohead, sizeof(struct fuse_out_header));
 
 	fiov_refresh(&ftick->tk_aw_fiov);
+	ftick->tk_aw_errno = 0;
+	ftick->tk_aw_bufdata = NULL;
+	ftick->tk_aw_bufsize = 0;
+	ftick->tk_aw_type = FT_A_FIOV;
+
+	ftick->tk_flag = 0;
+}
+
+/* Prepar the ticket to be reused, but don't clear its data buffers */
+static inline void
+fticket_reset(struct fuse_ticket *ftick)
+{
+	FUSE_ASSERT_MS_DONE(ftick);
+	FUSE_ASSERT_AW_DONE(ftick);
+
+	ftick->tk_ms_bufdata = NULL;
+	ftick->tk_ms_bufsize = 0;
+	ftick->tk_ms_type = FT_M_FIOV;
+
+	bzero(&ftick->tk_aw_ohead, sizeof(struct fuse_out_header));
+
 	ftick->tk_aw_errno = 0;
 	ftick->tk_aw_bufdata = NULL;
 	ftick->tk_aw_bufsize = 0;
@@ -703,7 +733,26 @@ fuse_standard_handler(struct fuse_ticket *ftick, struct uio *uio)
 	return err;
 }
 
-void
+/*
+ * Reinitialize a dispatcher from a pid and node id, without resizing or
+ * clearing its data buffers
+ */
+static void
+fdisp_refresh_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
+    struct mount *mp, uint64_t nid, pid_t pid, struct ucred *cred)
+{
+	MPASS(fdip->tick);
+	fticket_reset(fdip->tick);
+
+	FUSE_DIMALLOC(&fdip->tick->tk_ms_fiov, fdip->finh,
+	    fdip->indata, fdip->iosize);
+
+	fuse_setup_ihead(fdip->finh, fdip->tick, nid, op, fdip->iosize, pid,
+		cred);
+}
+
+/* Initialize a dispatcher from a pid and node id */
+static void
 fdisp_make_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct mount *mp, uint64_t nid, pid_t pid, struct ucred *cred)
 {
@@ -737,6 +786,22 @@ fdisp_make_vp(struct fuse_dispatcher *fdip, enum fuse_opcode op,
 	RECTIFY_TDCR(td, cred);
 	return fdisp_make_pid(fdip, op, vnode_mount(vp), VTOI(vp),
 	    td->td_proc->p_pid, cred);
+}
+
+/* Refresh a fuse_dispatcher so it can be reused, but don't zero its data */
+void
+fdisp_refresh_vp(struct fuse_dispatcher *fdip, enum fuse_opcode op,
+    struct vnode *vp, struct thread *td, struct ucred *cred)
+{
+	RECTIFY_TDCR(td, cred);
+	return fdisp_refresh_pid(fdip, op, vnode_mount(vp), VTOI(vp),
+	    td->td_proc->p_pid, cred);
+}
+
+void
+fdisp_refresh(struct fuse_dispatcher *fdip)
+{
+	fticket_refresh(fdip->tick);
 }
 
 SDT_PROBE_DEFINE2(fuse, , ipc, fdisp_wait_answ_error, "char*", "int");
