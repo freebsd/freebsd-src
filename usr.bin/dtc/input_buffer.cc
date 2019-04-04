@@ -126,7 +126,7 @@ mmap_input_buffer::~mmap_input_buffer()
 {
 	if (buffer != 0)
 	{
-		munmap((void*)buffer, size);
+		munmap(const_cast<char*>(buffer), size);
 	}
 }
 
