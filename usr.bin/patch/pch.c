@@ -179,6 +179,9 @@ there_is_another_patch(void)
 			say("done\n");
 		return false;
 	}
+	if (p_filesize == 0)
+		return false;
+	nonempty_patchf_seen = true;
 	if (verbose)
 		say("Hmm...");
 	diff_type = intuit_diff_type();
