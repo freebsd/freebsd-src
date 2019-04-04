@@ -38,6 +38,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -65,7 +66,7 @@ int version_minor_compatible = 4;
  * The current patch level of the tool.
  */
 int version_patch = 0;
-int version_patch_compatible = 0;
+int version_patch_compatible = 7;
 
 void usage(const string &argv0)
 {
@@ -105,7 +106,7 @@ main(int argc, char **argv)
 	bool debug_mode = false;
 	auto write_fn = &device_tree::write_binary;
 	auto read_fn = &device_tree::parse_dts;
-	uint32_t boot_cpu;
+	uint32_t boot_cpu = 0;
 	bool boot_cpu_specified = false;
 	bool keep_going = false;
 	bool sort = false;
