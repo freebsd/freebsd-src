@@ -182,6 +182,11 @@ fiov_adjust(struct fuse_iov *fiov, size_t size)
 		}
 		fiov->allocated_size = FU_AT_LEAST(size);
 		fiov->credit = fuse_iov_credit;
+		/* Clear data buffer after reallocation */
+		bzero(fiov->base, size);
+	} else if (size > fiov->len) {
+		/* Clear newly extended portion of data buffer */
+		bzero((char*)fiov->base + fiov->len, size - fiov->len);
 	}
 	fiov->len = size;
 }
@@ -198,7 +203,6 @@ void
 fiov_refresh(struct fuse_iov *fiov)
 {
 	fiov_adjust(fiov, 0);
-	bzero(fiov->base, fiov->len);
 }
 
 static int
@@ -744,6 +748,8 @@ fdisp_refresh_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct mount *mp, uint64_t nid, pid_t pid, struct ucred *cred)
 {
 	MPASS(fdip->tick);
+	MPASS2(sizeof(fdip->finh) + fdip->iosize <= fdip->tick->tk_ms_fiov.len,
+		"Must use fdisp_make_pid to increase the size of the fiov");
 	fticket_reset(fdip->tick);
 
 	FUSE_DIMALLOC(&fdip->tick->tk_ms_fiov, fdip->finh,
@@ -766,6 +772,7 @@ fdisp_make_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
 		fdip->tick = fuse_ticket_fetch(data);
 	}
 
+	/* FUSE_DIMALLOC will bzero the fiovs when it enlarges them */
 	FUSE_DIMALLOC(&fdip->tick->tk_ms_fiov, fdip->finh,
 	    fdip->indata, fdip->iosize);
 
