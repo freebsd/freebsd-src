@@ -39,8 +39,7 @@ static inline void
 get_random_bytes(void *buf, int nbytes)
 {
 
-	if (read_random(buf, nbytes) == 0)
-		arc4rand(buf, nbytes, 0);
+	arc4random_buf(buf, nbytes);
 }
 
 static inline u_int
