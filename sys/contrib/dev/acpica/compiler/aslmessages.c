@@ -342,7 +342,7 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_RANGE */                      "Constant out of range",
 /*    ASL_MSG_BUFFER_ALLOCATION */          "Could not allocate line buffer",
 /*    ASL_MSG_MISSING_DEPENDENCY */         "Missing dependency",
-/*    ASL_MSG_ILLEGAL_FORWARD_REF */        "Illegal forward reference",
+/*    ASL_MSG_ILLEGAL_FORWARD_REF */        "Forward references are not supported by the ASL language",
 /*    ASL_MSG_ILLEGAL_METHOD_REF */         "Object is declared in a different method",
 /*    ASL_MSG_LOCAL_NOT_USED */             "Method Local is set but never used",
 /*    ASL_MSG_ARG_AS_LOCAL_NOT_USED */      "Method Argument (as a local) is set but never used",

@@ -22,8 +22,8 @@ PROGS += ${PROGS_CXX}
 
 .if defined(PROG)
 # just one of many
-PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE DPSRCS MAN NO_WERROR \
-			PROGNAME SRCS STRIP WARNS
+PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE CSTD CXXSTD DPSRCS MAN \
+			NO_SHARED NO_WERROR PROGNAME SRCS STRIP WARNS
 PROG_VARS +=	CFLAGS CXXFLAGS DEBUG_FLAGS DPADD INTERNALPROG LDADD LIBADD \
 		LINKS LDFLAGS MLINKS ${PROG_OVERRIDE_VARS}
 .for v in ${PROG_VARS:O:u}
@@ -34,6 +34,11 @@ $v += ${${v}.${PROG}}
 $v += ${${v}_${PROG}}
 .endif
 .else
+.if defined(${v}.${PROG})
+$v = ${${v}.${PROG}}
+.elif defined(${v}_${PROG})
+$v = ${${v}_${PROG}}
+.endif
 $v ?=
 .endif
 .endfor

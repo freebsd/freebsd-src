@@ -320,10 +320,26 @@ err:
 	return (error);
 }
 
+static inline int
+ioat_bus_dmamap_destroy(struct ioat_softc *ioat, const char *func,
+    bus_dma_tag_t dmat, bus_dmamap_t map)
+{
+	int error;
+
+	error = bus_dmamap_destroy(dmat, map);
+	if (error != 0) {
+		ioat_log_message(0,
+		    "%s: bus_dmamap_destroy failed %d\n", func, error);
+	}
+
+	return (error);
+}
+
 static int
 ioat_detach(device_t device)
 {
 	struct ioat_softc *ioat;
+	int i, error;
 
 	ioat = DEVICE2SOFTC(device);
 
@@ -358,6 +374,47 @@ ioat_detach(device_t device)
 	if (ioat->pci_resource != NULL)
 		bus_release_resource(device, SYS_RES_MEMORY,
 		    ioat->pci_resource_id, ioat->pci_resource);
+
+	if (ioat->data_tag != NULL) {
+		for (i = 0; i < 1 << ioat->ring_size_order; i++) {
+			error = ioat_bus_dmamap_destroy(ioat, __func__,
+			    ioat->data_tag, ioat->ring[i].src_dmamap);
+			if (error != 0)
+				return (error);
+		}
+		for (i = 0; i < 1 << ioat->ring_size_order; i++) {
+			error = ioat_bus_dmamap_destroy(ioat, __func__,
+			    ioat->data_tag, ioat->ring[i].dst_dmamap);
+			if (error != 0)
+				return (error);
+		}
+
+		for (i = 0; i < 1 << ioat->ring_size_order; i++) {
+			error = ioat_bus_dmamap_destroy(ioat, __func__,
+			    ioat->data_tag, ioat->ring[i].src2_dmamap);
+			if (error != 0)
+				return (error);
+		}
+		for (i = 0; i < 1 << ioat->ring_size_order; i++) {
+			error = ioat_bus_dmamap_destroy(ioat, __func__,
+			    ioat->data_tag, ioat->ring[i].dst2_dmamap);
+			if (error != 0)
+				return (error);
+		}
+
+		bus_dma_tag_destroy(ioat->data_tag);
+	}
+
+	if (ioat->data_crc_tag != NULL) {
+		for (i = 0; i < 1 << ioat->ring_size_order; i++) {
+			error = ioat_bus_dmamap_destroy(ioat, __func__,
+			    ioat->data_crc_tag, ioat->ring[i].crc_dmamap);
+			if (error != 0)
+				return (error);
+		}
+
+		bus_dma_tag_destroy(ioat->data_crc_tag);
+	}
 
 	if (ioat->ring != NULL)
 		ioat_free_ring(ioat, 1 << ioat->ring_size_order, ioat->ring);
@@ -523,6 +580,25 @@ ioat3_attach(device_t device)
 
 	ioat->hw_desc_ring = hw_desc;
 
+	error = bus_dma_tag_create(bus_get_dma_tag(ioat->device),
+	    1, 0, BUS_SPACE_MAXADDR_40BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    ioat->max_xfer_size, 1, ioat->max_xfer_size, 0, NULL, NULL,
+	    &ioat->data_crc_tag);
+	if (error != 0) {
+		ioat_log_message(0, "%s: bus_dma_tag_create failed %d\n",
+		    __func__, error);
+		return (error);
+	}
+
+	error = bus_dma_tag_create(bus_get_dma_tag(ioat->device),
+	    1, 0, BUS_SPACE_MAXADDR_48BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    ioat->max_xfer_size, 1, ioat->max_xfer_size, 0, NULL, NULL,
+	    &ioat->data_tag);
+	if (error != 0) {
+		ioat_log_message(0, "%s: bus_dma_tag_create failed %d\n",
+		    __func__, error);
+		return (error);
+	}
 	ioat->ring = malloc(num_descriptors * sizeof(*ring), M_IOAT,
 	    M_ZERO | M_WAITOK);
 
@@ -530,6 +606,46 @@ ioat3_attach(device_t device)
 	for (i = 0; i < num_descriptors; i++) {
 		memset(&ring[i].bus_dmadesc, 0, sizeof(ring[i].bus_dmadesc));
 		ring[i].id = i;
+		error = bus_dmamap_create(ioat->data_tag, 0,
+                    &ring[i].src_dmamap);
+		if (error != 0) {
+			ioat_log_message(0,
+			    "%s: bus_dmamap_create failed %d\n", __func__,
+			    error);
+			return (error);
+		}
+		error = bus_dmamap_create(ioat->data_tag, 0,
+                    &ring[i].dst_dmamap);
+		if (error != 0) {
+			ioat_log_message(0,
+			    "%s: bus_dmamap_create failed %d\n", __func__,
+			    error);
+			return (error);
+		}
+		error = bus_dmamap_create(ioat->data_tag, 0,
+                    &ring[i].src2_dmamap);
+		if (error != 0) {
+			ioat_log_message(0,
+			    "%s: bus_dmamap_create failed %d\n", __func__,
+			    error);
+			return (error);
+		}
+		error = bus_dmamap_create(ioat->data_tag, 0,
+                    &ring[i].dst2_dmamap);
+		if (error != 0) {
+			ioat_log_message(0,
+			    "%s: bus_dmamap_create failed %d\n", __func__,
+			    error);
+			return (error);
+		}
+		error = bus_dmamap_create(ioat->data_crc_tag, 0,
+                    &ring[i].crc_dmamap);
+		if (error != 0) {
+			ioat_log_message(0,
+			    "%s: bus_dmamap_create failed %d\n", __func__,
+			    error);
+			return (error);
+		}
 	}
 
 	for (i = 0; i < num_descriptors; i++) {
@@ -723,6 +839,12 @@ ioat_process_events(struct ioat_softc *ioat, boolean_t intr)
 		CTR5(KTR_IOAT, "channel=%u completing desc idx %u (%p) ok  cb %p(%p)",
 		    ioat->chan_idx, ioat->tail, dmadesc, dmadesc->callback_fn,
 		    dmadesc->callback_arg);
+
+		bus_dmamap_unload(ioat->data_tag, desc->src_dmamap);
+		bus_dmamap_unload(ioat->data_tag, desc->dst_dmamap);
+		bus_dmamap_unload(ioat->data_tag, desc->src2_dmamap);
+		bus_dmamap_unload(ioat->data_tag, desc->dst2_dmamap);
+		bus_dmamap_unload(ioat->data_crc_tag, desc->crc_dmamap);
 
 		if (dmadesc->callback_fn != NULL)
 			dmadesc->callback_fn(dmadesc->callback_arg, 0);
@@ -999,7 +1121,8 @@ ioat_op_generic(struct ioat_softc *ioat, uint8_t op,
 {
 	struct ioat_generic_hw_descriptor *hw_desc;
 	struct ioat_descriptor *desc;
-	int mflags;
+	bus_dma_segment_t seg;
+	int mflags, nseg, error;
 
 	mtx_assert(&ioat->submit_lock, MA_OWNED);
 
@@ -1032,8 +1155,30 @@ ioat_op_generic(struct ioat_softc *ioat, uint8_t op,
 		hw_desc->u.control_generic.fence = 1;
 
 	hw_desc->size = size;
-	hw_desc->src_addr = src;
-	hw_desc->dest_addr = dst;
+
+	if (src != 0) {
+		nseg = -1;
+		error = _bus_dmamap_load_phys(ioat->data_tag, desc->src_dmamap,
+		    src, size, 0, &seg, &nseg);
+		if (error != 0) {
+			ioat_log_message(0, "%s: _bus_dmamap_load_phys"
+			    " failed %d\n", __func__, error);
+			return (NULL);
+		}
+		hw_desc->src_addr = seg.ds_addr;
+	}
+
+	if (dst != 0) {
+		nseg = -1;
+		error = _bus_dmamap_load_phys(ioat->data_tag, desc->dst_dmamap,
+		    dst, size, 0, &seg, &nseg);
+		if (error != 0) {
+			ioat_log_message(0, "%s: _bus_dmamap_load_phys"
+			    " failed %d\n", __func__, error);
+			return (NULL);
+		}
+		hw_desc->dest_addr = seg.ds_addr;
+	}
 
 	desc->bus_dmadesc.callback_fn = callback_fn;
 	desc->bus_dmadesc.callback_arg = callback_arg;
@@ -1102,6 +1247,9 @@ ioat_copy_8k_aligned(bus_dmaengine_t dmaengine, bus_addr_t dst1,
 	struct ioat_dma_hw_descriptor *hw_desc;
 	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
+	bus_size_t src1_len, dst1_len;
+	bus_dma_segment_t seg;
+	int nseg, error;
 
 	ioat = to_ioat_softc(dmaengine);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
@@ -1117,19 +1265,57 @@ ioat_copy_8k_aligned(bus_dmaengine_t dmaengine, bus_addr_t dst1,
 		return (NULL);
 	}
 
-	desc = ioat_op_generic(ioat, IOAT_OP_COPY, 2 * PAGE_SIZE, src1, dst1,
+	desc = ioat_op_generic(ioat, IOAT_OP_COPY, 2 * PAGE_SIZE, 0, 0,
 	    callback_fn, callback_arg, flags);
 	if (desc == NULL)
 		return (NULL);
 
 	hw_desc = &ioat_get_descriptor(ioat, desc->id)->dma;
-	if (src2 != src1 + PAGE_SIZE) {
-		hw_desc->u.control.src_page_break = 1;
-		hw_desc->next_src_addr = src2;
+
+	src1_len = (src2 != src1 + PAGE_SIZE) ? PAGE_SIZE : 2 * PAGE_SIZE;
+	nseg = -1;
+	error = _bus_dmamap_load_phys(ioat->data_tag,
+	    desc->src_dmamap, src1, src1_len, 0, &seg, &nseg);
+	if (error != 0) {
+		ioat_log_message(0, "%s: _bus_dmamap_load_phys"
+		    " failed %d\n", __func__, error);
+		return (NULL);
 	}
-	if (dst2 != dst1 + PAGE_SIZE) {
+	hw_desc->src_addr = seg.ds_addr;
+	if (src1_len != 2 * PAGE_SIZE) {
+		hw_desc->u.control.src_page_break = 1;
+		nseg = -1;
+		error = _bus_dmamap_load_phys(ioat->data_tag,
+		    desc->src2_dmamap, src2, PAGE_SIZE, 0, &seg, &nseg);
+		if (error != 0) {
+			ioat_log_message(0, "%s: _bus_dmamap_load_phys"
+			    " failed %d\n", __func__, error);
+			return (NULL);
+		}
+		hw_desc->next_src_addr = seg.ds_addr;
+	}
+
+	dst1_len = (dst2 != dst1 + PAGE_SIZE) ? PAGE_SIZE : 2 * PAGE_SIZE;
+	nseg = -1;
+	error = _bus_dmamap_load_phys(ioat->data_tag,
+	    desc->dst_dmamap, dst1, dst1_len, 0, &seg, &nseg);
+	if (error != 0) {
+		ioat_log_message(0, "%s: _bus_dmamap_load_phys"
+		    " failed %d\n", __func__, error);
+		return (NULL);
+	}
+	hw_desc->dest_addr = seg.ds_addr;
+	if (dst1_len != 2 * PAGE_SIZE) {
 		hw_desc->u.control.dest_page_break = 1;
-		hw_desc->next_dest_addr = dst2;
+		nseg = -1;
+		error = _bus_dmamap_load_phys(ioat->data_tag,
+		    desc->dst2_dmamap, dst2, PAGE_SIZE, 0, &seg, &nseg);
+		if (error != 0) {
+			ioat_log_message(0, "%s: _bus_dmamap_load_phys"
+			    " failed %d\n", __func__, error);
+			return (NULL);
+		}
+		hw_desc->next_dest_addr = seg.ds_addr;
 	}
 
 	if (g_ioat_debug_level >= 3)
@@ -1149,6 +1335,8 @@ ioat_copy_crc(bus_dmaengine_t dmaengine, bus_addr_t dst, bus_addr_t src,
 	struct ioat_softc *ioat;
 	uint32_t teststore;
 	uint8_t op;
+	bus_dma_segment_t seg;
+	int nseg, error;
 
 	ioat = to_ioat_softc(dmaengine);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
@@ -1201,9 +1389,18 @@ ioat_copy_crc(bus_dmaengine_t dmaengine, bus_addr_t dst, bus_addr_t src,
 
 	hw_desc = &ioat_get_descriptor(ioat, desc->id)->crc32;
 
-	if ((flags & DMA_CRC_INLINE) == 0)
-		hw_desc->crc_address = crcptr;
-	else
+	if ((flags & DMA_CRC_INLINE) == 0) {
+		nseg = -1;
+		error = _bus_dmamap_load_phys(ioat->data_crc_tag,
+		    desc->crc_dmamap, crcptr, sizeof(uint32_t), 0,
+		    &seg, &nseg);
+		if (error != 0) {
+			ioat_log_message(0, "%s: _bus_dmamap_load_phys"
+			    " failed %d\n", __func__, error);
+			return (NULL);
+		}
+		hw_desc->crc_address = seg.ds_addr;
+	} else
 		hw_desc->u.control.crc_location = 1;
 
 	if (initialseed != NULL) {
@@ -1228,6 +1425,8 @@ ioat_crc(bus_dmaengine_t dmaengine, bus_addr_t src, bus_size_t len,
 	struct ioat_softc *ioat;
 	uint32_t teststore;
 	uint8_t op;
+	bus_dma_segment_t seg;
+	int nseg, error;
 
 	ioat = to_ioat_softc(dmaengine);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
@@ -1280,9 +1479,18 @@ ioat_crc(bus_dmaengine_t dmaengine, bus_addr_t src, bus_size_t len,
 
 	hw_desc = &ioat_get_descriptor(ioat, desc->id)->crc32;
 
-	if ((flags & DMA_CRC_INLINE) == 0)
-		hw_desc->crc_address = crcptr;
-	else
+	if ((flags & DMA_CRC_INLINE) == 0) {
+		nseg = -1;
+		error = _bus_dmamap_load_phys(ioat->data_crc_tag,
+		    desc->crc_dmamap, crcptr, sizeof(uint32_t), 0,
+		    &seg, &nseg);
+		if (error != 0) {
+			ioat_log_message(0, "%s: _bus_dmamap_load_phys"
+			    " failed %d\n", __func__, error);
+			return (NULL);
+		}
+		hw_desc->crc_address = seg.ds_addr;
+	} else
 		hw_desc->u.control.crc_location = 1;
 
 	if (initialseed != NULL) {
@@ -1321,12 +1529,13 @@ ioat_blockfill(bus_dmaengine_t dmaengine, bus_addr_t dst, uint64_t fillpattern,
 		return (NULL);
 	}
 
-	desc = ioat_op_generic(ioat, IOAT_OP_FILL, len, fillpattern, dst,
+	desc = ioat_op_generic(ioat, IOAT_OP_FILL, len, 0, dst,
 	    callback_fn, callback_arg, flags);
 	if (desc == NULL)
 		return (NULL);
 
 	hw_desc = &ioat_get_descriptor(ioat, desc->id)->fill;
+	hw_desc->src_data = fillpattern;
 	if (g_ioat_debug_level >= 3)
 		dump_descriptor(hw_desc);
 

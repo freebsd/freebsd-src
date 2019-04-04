@@ -65,6 +65,8 @@
 #include "tree.h"
 #include "oid.h"
 
+#include "trans_inet.h"
+
 #define	PATH_PID	"/var/run/%s.pid"
 #define PATH_CONFIG	"/etc/%s.config"
 #define	PATH_ENGINE	"/var/%s.engine"
@@ -1038,7 +1040,7 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	ssize_t ret, slen;
 	int32_t vi;
 #ifdef USE_TCPWRAPPERS
-	char client[16];
+	char client[INET6_ADDRSTRLEN];
 #endif
 
 	ret = tport->transport->vtab->recv(tport, pi);
@@ -1184,8 +1186,12 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	    sndbuf, &sndlen, "SNMP", ierr, vi, NULL);
 
 	if (ferr == SNMPD_INPUT_OK) {
-		slen = tport->transport->vtab->send(tport, sndbuf, sndlen,
-		    pi->peer, pi->peerlen);
+		if (tport->transport->vtab->send != NULL)
+			slen = tport->transport->vtab->send(tport, sndbuf,
+			    sndlen, pi->peer, pi->peerlen);
+		else
+			slen = tport->transport->vtab->send2(tport, sndbuf,
+			    sndlen, pi);
 		if (slen == -1)
 			syslog(LOG_ERR, "send*: %m");
 		else if ((size_t)slen != sndlen)
@@ -1201,7 +1207,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 }
 
 /*
- * Send a PDU to a given port
+ * Send a PDU to a given port. If this is a multi-socket port, use the
+ * first socket.
  */
 void
 snmp_send_port(void *targ, const struct asn_oid *port, struct snmp_pdu *pdu,
@@ -1224,7 +1231,10 @@ snmp_send_port(void *targ, const struct asn_oid *port, struct snmp_pdu *pdu,
 
 	snmp_output(pdu, sndbuf, &sndlen, "SNMP PROXY");
 
-	len = trans->vtab->send(tp, sndbuf, sndlen, addr, addrlen);
+	if (trans->vtab->send != NULL)
+		len = trans->vtab->send(tp, sndbuf, sndlen, addr, addrlen);
+	else
+		len = trans->vtab->send2(tp, sndbuf, sndlen, NULL);
 
 	if (len == -1)
 		syslog(LOG_ERR, "sendto: %m");
@@ -1238,16 +1248,37 @@ snmp_send_port(void *targ, const struct asn_oid *port, struct snmp_pdu *pdu,
 
 /*
  * Close an input source
+ *
+ * \param pi	input instance
  */
 void
 snmpd_input_close(struct port_input *pi)
 {
-	if (pi->id != NULL)
+	if (pi->id != NULL) {
 		fd_deselect(pi->id);
-	if (pi->fd >= 0)
+		pi->id = NULL;
+	}
+	if (pi->fd >= 0) {
 		(void)close(pi->fd);
-	if (pi->buf != NULL)
+		pi->fd = -1;
+	}
+	if (pi->buf != NULL) {
 		free(pi->buf);
+		pi->buf = NULL;
+	}
+}
+
+/*
+ * Initialize an input source.
+ *
+ * \param pi	input instance
+ */
+void
+snmpd_input_init(struct port_input *pi)
+{
+	pi->id = NULL;
+	pi->fd = -1;
+	pi->buf = NULL;
 }
 
 /*
@@ -1633,6 +1664,8 @@ main(int argc, char *argv[])
 		syslog(LOG_WARNING, "cannot start UDP transport");
 	if (lsock_trans.start() != SNMP_ERR_NOERROR)
 		syslog(LOG_WARNING, "cannot start LSOCK transport");
+	if (inet_trans.start() != SNMP_ERR_NOERROR)
+		syslog(LOG_WARNING, "cannot start INET transport");
 
 #ifdef USE_LIBBEGEMOT
 	if (debug.evdebug > 0)

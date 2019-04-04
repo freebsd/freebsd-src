@@ -99,6 +99,8 @@ opal_ipmi_polled_request(struct opal_ipmi_softc *sc, struct ipmi_request *req,
 	timo *= 10; /* Timeout is in milliseconds, we delay in 100us */
 	do {
 		msg_len = sizeof(struct opal_ipmi_msg) + IPMI_MAX_RX;
+		/* Crank the OPAL state machine while we poll for a reply. */
+		opal_call(OPAL_POLL_EVENTS, NULL);
 		err = opal_call(OPAL_IPMI_RECV, sc->sc_interface,
 		    vtophys(sc->sc_msg), vtophys(&msg_len));
 		if (err != OPAL_EMPTY)
@@ -113,6 +115,7 @@ opal_ipmi_polled_request(struct opal_ipmi_softc *sc, struct ipmi_request *req,
 		req->ir_replylen = min(req->ir_replylen, req->ir_replybuflen);
 		memcpy(req->ir_reply, &sc->sc_msg->data[1], req->ir_replylen);
 		req->ir_compcode = sc->sc_msg->data[0];
+		err = 0;
 		break;
 	case OPAL_RESOURCE:
 		err = ENOMEM;
@@ -223,7 +226,15 @@ opal_ipmi_attach(device_t dev)
 static int
 opal_ipmi_detach(device_t dev)
 {
-	return (EBUSY);
+	struct opal_ipmi_softc *sc;
+	int err;
+
+	sc = device_get_softc(dev);
+	err = ipmi_detach(dev);
+	if (err == 0)
+		free(sc->sc_msg, M_IPMI);
+
+	return (err);
 }
 
 static device_method_t	opal_ipmi_methods[] = {

@@ -53,9 +53,9 @@ CFLAGS+=	-I${ITTSRC}
 CFLAGS+=	-ffunction-sections
 CFLAGS+=	-fdata-sections
 CXXFLAGS+=	-fvisibility-inlines-hidden
-CXXFLAGS+=	-std=c++11
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
+CXXSTD=		c++11
 
 LDFLAGS+=	-Wl,--warn-shared-textrel
 LDFLAGS+=	-Wl,--gc-sections

@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 
 #include <atf-c.h>
 
+#include "freebsd_test_suite/macros.h"
+
 /*
  * A variant of ATF_REQUIRE that is suitable for use in child
  * processes.  This only works if the parent process is tripped up by
@@ -72,6 +74,8 @@ ATF_TC_BODY(cap_ioctls__listen_copy, tc)
 	pid_t pid;
 	char dummy;
 	int s[2], status;
+
+	ATF_REQUIRE_FEATURE("security_capabilities");
 
 	s[0] = socket(AF_INET, SOCK_STREAM, 0);
 	ATF_REQUIRE(s[0] > 0);

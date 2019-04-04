@@ -25,8 +25,10 @@
  */
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -43,6 +45,9 @@
 #include <libelf.h>
 #include <libelftc.h>
 #include <gelf.h>
+
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 
 #include "_elftc.h"
 
@@ -85,7 +90,7 @@ static struct option strings_longopts[] = {
 };
 
 int	getcharacter(FILE *, long *);
-int	handle_file(const char *);
+int	handle_file(fileargs_t *fa, const char *);
 int	handle_elf(const char *, FILE *);
 int	handle_binary(const char *, FILE *, size_t);
 int	find_strings(const char *, FILE *, off_t, off_t);
@@ -99,6 +104,8 @@ void	usage(void);
 int
 main(int argc, char **argv)
 {
+	fileargs_t *fa;
+	cap_rights_t rights;
 	int ch, rc;
 
 	rc = 0;
@@ -187,27 +194,41 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	cap_rights_init(&rights, CAP_READ, CAP_SEEK, CAP_FSTAT, CAP_FCNTL);
+	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights);
+	if (fa == NULL)
+		err(1, "Unable to initialize casper fileargs");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0 && caph_enter_casper() < 0) {
+		fileargs_free(fa);
+		err(1, "Unable to enter capability mode");
+	}
+
 	if (min_len == 0)
 		min_len = 4;
 	if (*argv == NULL)
 		rc = find_strings("{standard input}", stdin, 0, 0);
 	else while (*argv != NULL) {
-		if (handle_file(*argv) != 0)
+		if (handle_file(fa, *argv) != 0)
 			rc = 1;
 		argv++;
 	}
+
+	fileargs_free(fa);
+
 	return (rc);
 }
 
 int
-handle_file(const char *name)
+handle_file(fileargs_t *fa, const char *name)
 {
 	FILE *pfile;
 	int rt;
 
 	if (name == NULL)
 		return (1);
-	pfile = fopen(name, "rb");
+	pfile = fileargs_fopen(fa, name, "rb");
 	if (pfile == NULL) {
 		warnx("'%s': %s", name, strerror(errno));
 		return (1);

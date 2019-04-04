@@ -4,10 +4,11 @@
 
 LIB=		egacy
 SRC=
-INCSGROUPS=	INCS SYSINCS
+INCSGROUPS=	INCS SYSINCS CASPERINC
 INCS=
 
 SYSINCSDIR=	${INCLUDEDIR}/sys
+CASPERINCDIR=	${INCLUDEDIR}/casper
 
 BOOTSTRAPPING?=	0
 
@@ -56,6 +57,10 @@ _WITH_CAPH_ENTER!= grep -c caph_enter /usr/include/capsicum_helpers.h || true
 INCS+=		capsicum_helpers.h
 .PATH: ${SRCTOP}/lib/libcasper/libcasper
 INCS+=		libcasper.h
+.endif
+
+.if !exists(/usr/include/casper/cap_fileargs.h)
+CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_fileargs/cap_fileargs.h
 .endif
 
 .if empty(SRCS)
@@ -116,7 +121,7 @@ host-symlinks:
 # and cross-tools stages. We do this here using mkdir since mtree may not exist
 # yet (this happens if we are crossbuilding from Linux/Mac).
 installdirs:
-.for _dir in bin usr/lib usr/include lib/geom lib/casper
+.for _dir in bin usr/lib usr/include usr/include/casper lib/geom lib/casper
 	mkdir -p "${DESTDIR}/${_dir}"
 .endfor
 # Link usr/bin, sbin, and usr/sbin to bin so that it doesn't matter whether a

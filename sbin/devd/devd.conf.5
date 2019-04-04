@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd July 20, 2018
+.Dd March 29, 2019
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -432,15 +432,19 @@ only includes disk-like devices.
 .It Li CREATE
 A
 .Xr geom 4
-device node is created.
+provider is created.
 .It Li DESTROY
 A
 .Xr geom 4
-device node is destroyed.
+provider is destroyed.
 .It Li GEOM::physpath
 The physical path of a device has changed.
 .It Li MEDIACHANGE
 Physical media has changed.
+.It Li SIZECHANGE
+A
+.Xr geom 4
+provider size has changed.
 .El
 .El
 .Pp

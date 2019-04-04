@@ -279,7 +279,7 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	boolean_t ret;
 	int i, interp_name_len;
 
-	interp_name_len = interp != NULL ? strlen(interp) : 0;
+	interp_name_len = interp != NULL ? strlen(interp) + 1 : 0;
 
 	/*
 	 * We support four types of branding -- (1) the ELF EI_OSABI field

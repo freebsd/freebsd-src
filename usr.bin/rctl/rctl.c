@@ -378,8 +378,9 @@ print_rules(char *rules, int hflag, int nflag)
 static void
 enosys(void)
 {
-	int error, racct_enable;
 	size_t racct_enable_len;
+	int error;
+	bool racct_enable;
 
 	racct_enable_len = sizeof(racct_enable);
 	error = sysctlbyname("kern.racct.enable",
@@ -392,7 +393,7 @@ enosys(void)
 		err(1, "sysctlbyname");
 	}
 
-	if (racct_enable == 0)
+	if (!racct_enable)
 		errx(1, "RACCT/RCTL present, but disabled; enable using kern.racct.enable=1 tunable");
 }
 

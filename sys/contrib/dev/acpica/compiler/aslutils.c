@@ -752,7 +752,7 @@ UtPadNameWithUnderscores (
     UINT32                  i;
 
 
-    for (i = 0; (i < ACPI_NAME_SIZE); i++)
+    for (i = 0; (i < ACPI_NAMESEG_SIZE); i++)
     {
         if (*NameSeg)
         {
@@ -823,7 +823,7 @@ UtAttachNameseg (
         UtPadNameWithUnderscores (Name, PaddedNameSeg);
     }
 
-    ACPI_MOVE_NAME (Op->Asl.NameSeg, PaddedNameSeg);
+    ACPI_COPY_NAMESEG (Op->Asl.NameSeg, PaddedNameSeg);
 }
 
 

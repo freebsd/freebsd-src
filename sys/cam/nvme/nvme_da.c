@@ -770,10 +770,6 @@ ndaregister(struct cam_periph *periph, void *arg)
 	softc->quirks = quirks;
 	cam_iosched_set_sort_queue(softc->cam_iosched, 0);
 	softc->disk = disk = disk_alloc();
-	strlcpy(softc->disk->d_descr, cd->mn,
-	    MIN(sizeof(softc->disk->d_descr), sizeof(cd->mn)));
-	strlcpy(softc->disk->d_ident, cd->sn,
-	    MIN(sizeof(softc->disk->d_ident), sizeof(cd->sn)));
 	disk->d_rotation_rate = DISK_RR_NON_ROTATING;
 	disk->d_open = ndaopen;
 	disk->d_close = ndaclose;
@@ -812,9 +808,9 @@ ndaregister(struct cam_periph *periph, void *arg)
 	 * d_ident and d_descr are both far bigger than the length of either
 	 *  the serial or model number strings.
 	 */
-	nvme_strvis(disk->d_descr, cd->mn,
+	cam_strvis(disk->d_descr, cd->mn,
 	    sizeof(disk->d_descr), NVME_MODEL_NUMBER_LENGTH);
-	nvme_strvis(disk->d_ident, cd->sn,
+	cam_strvis(disk->d_ident, cd->sn,
 	    sizeof(disk->d_ident), NVME_SERIAL_NUMBER_LENGTH);
 	disk->d_hba_vendor = cpi.hba_vendor;
 	disk->d_hba_device = cpi.hba_device;

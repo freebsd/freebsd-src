@@ -148,10 +148,15 @@ vm_install_base() {
 	hostname="$(echo $(uname -o) | tr '[:upper:]' '[:lower:]')"
 	echo "hostname=\"${hostname}\"" >> ${DESTDIR}/etc/rc.conf
 
+	if ! [ -z "${QEMUSTATIC}" ]; then
+		export EMULATOR=/qemu
+		cp ${QEMUSTATIC} ${DESTDIR}/${EMULATOR}
+	fi
+
 	mkdir -p ${DESTDIR}/dev
 	mount -t devfs devfs ${DESTDIR}/dev
-	chroot ${DESTDIR} /usr/bin/newaliases
-	chroot ${DESTDIR} /etc/rc.d/ldconfig forcestart
+	chroot ${DESTDIR} ${EMULATOR} /usr/bin/newaliases
+	chroot ${DESTDIR} ${EMULATOR} /bin/sh /etc/rc.d/ldconfig forcestart
 	umount_loop ${DESTDIR}/dev
 
 	cp /etc/resolv.conf ${DESTDIR}/etc/resolv.conf
@@ -188,9 +193,9 @@ vm_extra_install_packages() {
 	fi
 	mkdir -p ${DESTDIR}/dev
 	mount -t devfs devfs ${DESTDIR}/dev
-	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
+	chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
 		/usr/sbin/pkg bootstrap -y
-	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
+	chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
 		/usr/sbin/pkg install -y ${VM_EXTRA_PACKAGES}
 	umount_loop ${DESTDIR}/dev
 
@@ -210,13 +215,16 @@ vm_extra_pre_umount() {
 	# Note: When overriding this function, removing resolv.conf in the
 	# disk image must be included.
 
+	if ! [ -z "${QEMUSTATIC}" ]; then
+		rm -f ${DESTDIR}/${EMULATOR}
+	fi
 	rm -f ${DESTDIR}/etc/resolv.conf
 	return 0
 }
 
 vm_extra_pkg_rmcache() {
 	if [ -e ${DESTDIR}/usr/local/sbin/pkg ]; then
-		chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
+		chroot ${DESTDIR} ${EMULATOR} env ASSUME_ALWAYS_YES=yes \
 			/usr/local/sbin/pkg clean -y -a
 	fi
 

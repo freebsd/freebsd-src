@@ -1513,6 +1513,7 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
     int *openings, u_int32_t *relsim_flags,
     u_int32_t *timeout, u_int32_t *action, const char **action_string)
 {
+	struct cam_periph *periph;
 	int error;
 
 	switch (ccb->csio.scsi_status) {
@@ -1595,14 +1596,21 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
 		 * Restart the queue after either another
 		 * command completes or a 1 second timeout.
 		 */
-		if ((sense_flags & SF_RETRY_BUSY) != 0 ||
-		    (ccb->ccb_h.retry_count--) > 0) {
+		periph = xpt_path_periph(ccb->ccb_h.path);
+		if (periph->flags & CAM_PERIPH_INVALID) {
+			error = EIO;
+			*action_string = "Periph was invalidated";
+		} else if ((sense_flags & SF_RETRY_BUSY) != 0 ||
+		    ccb->ccb_h.retry_count > 0) {
+			if ((sense_flags & SF_RETRY_BUSY) == 0)
+				ccb->ccb_h.retry_count--;
 			error = ERESTART;
 			*relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT
 				      | RELSIM_RELEASE_AFTER_CMDCMPLT;
 			*timeout = 1000;
 		} else {
 			error = EIO;
+			*action_string = "Retries exhausted";
 		}
 		break;
 	case SCSI_STATUS_RESERV_CONFLICT:

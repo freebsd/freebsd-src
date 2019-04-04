@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 1998 Kenneth D. Merry.
+ *               2015 Yoshihiro Ota
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +70,6 @@ static const char sccsid[] = "@(#)disks.c	8.1 (Berkeley) 6/6/93";
 #include <sys/resource.h>
 
 #include <ctype.h>
-#include <devstat.h>
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,6 +83,8 @@ typedef enum {
 	DS_MATCHTYPE_SPEC,
 	DS_MATCHTYPE_PATTERN
 } last_match_type;
+
+struct statinfo cur_dev, last_dev, run_dev;
 
 last_match_type last_type;
 struct device_selection *dev_select;
@@ -101,10 +103,8 @@ static int dsselect(const char *args, devstat_select_mode select_mode,
 		    int maxshowdevs, struct statinfo *s1);
 
 int
-dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2 __unused,
-       struct statinfo *s3 __unused)
+dsinit(int maxshowdevs)
 {
-
 	/*
 	 * Make sure that the userland devstat version matches the kernel
 	 * devstat version.  If not, exit and print a message informing
@@ -113,6 +113,18 @@ dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2 __unused,
 	if (devstat_checkversion(NULL) < 0)
 		errx(1, "%s", devstat_errbuf);
 
+	if( cur_dev.dinfo ) // init was alreay ran
+		return(1);
+
+	if ((num_devices = devstat_getnumdevs(NULL)) < 0) {
+		warnx("%s", devstat_errbuf);
+		return(0);
+	}
+
+	cur_dev.dinfo = calloc(1, sizeof(struct devinfo));
+	last_dev.dinfo = calloc(1, sizeof(struct devinfo));
+	run_dev.dinfo = calloc(1, sizeof(struct devinfo));
+
 	generation = 0;
 	num_devices = 0;
 	num_selected = 0;
@@ -120,11 +132,11 @@ dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2 __unused,
 	select_generation = 0;
 	last_type = DS_MATCHTYPE_NONE;
 
-	if (devstat_getdevs(NULL, s1) == -1)
+	if (devstat_getdevs(NULL, &cur_dev) == -1)
 		errx(1, "%s", devstat_errbuf);
 
-	num_devices = s1->dinfo->numdevs;
-	generation = s1->dinfo->generation;
+	num_devices = cur_dev.dinfo->numdevs;
+	generation = cur_dev.dinfo->generation;
 
 	dev_select = NULL;
 
@@ -134,11 +146,29 @@ dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2 __unused,
 	 * or 1.  If we get back -1, though, there is an error.
 	 */
 	if (devstat_selectdevs(&dev_select, &num_selected, &num_selections,
-	    &select_generation, generation, s1->dinfo->devices, num_devices,
+	    &select_generation, generation, cur_dev.dinfo->devices, num_devices,
 	    NULL, 0, NULL, 0, DS_SELECT_ADD, maxshowdevs, 0) == -1)
 		errx(1, "%d %s", __LINE__, devstat_errbuf);
 
 	return(1);
+}
+
+
+void
+dsgetinfo(struct statinfo* dev)
+{
+	switch (devstat_getdevs(NULL, dev)) {
+	case -1:
+		errx(1, "%s", devstat_errbuf);
+		break;
+	case 1:
+		num_devices = dev->dinfo->numdevs;
+		generation = dev->dinfo->generation;
+		cmdkre("refresh", NULL);
+		break;
+	default:
+		break;
+	}
 }
 
 int
@@ -330,4 +360,84 @@ dsselect(const char *args, devstat_select_mode select_mode, int maxshowdevs,
 			return(2);
 	}
 	return(1);
+}
+
+
+void
+dslabel(int maxdrives, int diskcol, int diskrow)
+{
+	int i, j;
+
+	mvprintw(diskrow, diskcol, "Disks");
+	mvprintw(diskrow + 1, diskcol, "KB/t");
+	mvprintw(diskrow + 2, diskcol, "tps");
+	mvprintw(diskrow + 3, diskcol, "MB/s");
+	mvprintw(diskrow + 4, diskcol, "%%busy");
+	/*
+	 * For now, we don't support a fourth disk statistic.  So there's
+	 * no point in providing a label for it.  If someone can think of a
+	 * fourth useful disk statistic, there is room to add it.
+	 */
+	/* mvprintw(diskrow + 4, diskcol, " msps"); */
+	j = 0;
+	for (i = 0; i < num_devices && j < maxdrives; i++)
+		if (dev_select[i].selected) {
+			char tmpstr[80];
+			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
+				dev_select[i].unit_number);
+			mvprintw(diskrow, diskcol + 5 + 6 * j,
+				" %5.5s", tmpstr);
+			j++;
+		}
+}
+
+static void
+dsshow2(int diskcol, int diskrow, int dn, int lc, struct statinfo *now, struct statinfo *then)
+{
+	long double transfers_per_second;
+	long double kb_per_transfer, mb_per_second;
+	long double elapsed_time, device_busy;
+	int di;
+
+	di = dev_select[dn].position;
+
+	if (then != NULL) {
+		/* Calculate relative to previous sample */
+		elapsed_time = now->snap_time - then->snap_time;
+	} else {
+		/* Calculate relative to device creation */
+		elapsed_time = now->snap_time - devstat_compute_etime(
+		    &now->dinfo->devices[di].creation_time, NULL);
+	}
+
+	if (devstat_compute_statistics(&now->dinfo->devices[di], then ?
+	    &then->dinfo->devices[di] : NULL, elapsed_time,
+	    DSM_KB_PER_TRANSFER, &kb_per_transfer,
+	    DSM_TRANSFERS_PER_SECOND, &transfers_per_second,
+	    DSM_MB_PER_SECOND, &mb_per_second,
+	    DSM_BUSY_PCT, &device_busy,
+	    DSM_NONE) != 0)
+		errx(1, "%s", devstat_errbuf);
+
+	lc = diskcol + lc * 6;
+	putlongdouble(kb_per_transfer, diskrow + 1, lc, 5, 2, 0);
+	putlongdouble(transfers_per_second, diskrow + 2, lc, 5, 0, 0);
+	putlongdouble(mb_per_second, diskrow + 3, lc, 5, 2, 0);
+	putlongdouble(device_busy, diskrow + 4, lc, 5, 0, 0);
+}
+
+static void
+dsshow3(int diskcol, int diskrow, int dn, int lc, struct statinfo *now, struct statinfo *then)
+{
+	dsshow2(diskcol, diskrow, dn, lc, now, then);
+}
+
+void
+dsshow(int maxdrives, int diskcol, int diskrow, struct statinfo *now, struct statinfo *then)
+{
+	int i, lc;
+
+	for (i = 0, lc = 0; i < num_devices && lc < maxdrives; i++)
+		if (dev_select[i].selected)
+			dsshow3(diskcol, diskrow, i, ++lc, now, then);
 }

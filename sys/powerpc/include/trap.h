@@ -152,10 +152,10 @@
 
 #ifndef LOCORE
 struct	trapframe;
-struct	pcb;
+struct	thread;
 extern int	(*hmi_handler)(struct trapframe *);
 void    trap(struct trapframe *);
-int	ppc_instr_emulate(struct trapframe *, struct pcb *);
+int	ppc_instr_emulate(struct trapframe *, struct thread *);
 #endif
 
 #endif	/* _POWERPC_TRAP_H_ */

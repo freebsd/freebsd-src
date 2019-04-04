@@ -79,8 +79,6 @@ static const char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
 #include "extern.h"
 #include "devs.h"
 
-struct statinfo cur, last;
-
 static  int linesperregion;
 static  double etime;
 static  int numbers = 0;		/* default display bar graphs */
@@ -111,17 +109,11 @@ closeiostat(WINDOW *w)
 int
 initiostat(void)
 {
-	if ((num_devices = devstat_getnumdevs(NULL)) < 0)
-		return(0);
-
-	cur.dinfo = calloc(1, sizeof(struct devinfo));
-	last.dinfo = calloc(1, sizeof(struct devinfo));
-
 	/*
 	 * This value for maxshowdevs (100) is bogus.  I'm not sure exactly
 	 * how to calculate it, though.
 	 */
-	if (dsinit(100, &cur, &last, NULL) != 1)
+	if (dsinit(7) != 1)
 		return(0);
 
 	return(1);
@@ -133,17 +125,17 @@ fetchiostat(void)
 	struct devinfo *tmp_dinfo;
 	size_t len;
 
-	len = sizeof(cur.cp_time);
-	if (sysctlbyname("kern.cp_time", &cur.cp_time, &len, NULL, 0)
-	    || len != sizeof(cur.cp_time)) {
+	len = sizeof(cur_dev.cp_time);
+	if (sysctlbyname("kern.cp_time", &cur_dev.cp_time, &len, NULL, 0)
+	    || len != sizeof(cur_dev.cp_time)) {
 		perror("kern.cp_time");
 		exit (1);
 	}
-	tmp_dinfo = last.dinfo;
-	last.dinfo = cur.dinfo;
-	cur.dinfo = tmp_dinfo;
+	tmp_dinfo = last_dev.dinfo;
+	last_dev.dinfo = cur_dev.dinfo;
+	cur_dev.dinfo = tmp_dinfo;
 
-	last.snap_time = cur.snap_time;
+	last_dev.snap_time = cur_dev.snap_time;
 
 	/*
 	 * Here what we want to do is refresh our device stats.
@@ -152,7 +144,7 @@ fetchiostat(void)
 	 * the selection process again, in case a device that we
 	 * were previously displaying has gone away.
 	 */
-	switch (devstat_getdevs(NULL, &cur)) {
+	switch (devstat_getdevs(NULL, &cur_dev)) {
 	case -1:
 		errx(1, "%s", devstat_errbuf);
 		break;
@@ -162,8 +154,8 @@ fetchiostat(void)
 	default:
 		break;
 	}
-	num_devices = cur.dinfo->numdevs;
-	generation = cur.dinfo->generation;
+	num_devices = cur_dev.dinfo->numdevs;
+	generation = cur_dev.dinfo->generation;
 
 }
 
@@ -260,11 +252,11 @@ showiostat(void)
 	long t;
 	int i, row, _col;
 
-#define X(fld)	t = cur.fld[i]; cur.fld[i] -= last.fld[i]; last.fld[i] = t
+#define X(fld)	t = cur_dev.fld[i]; cur_dev.fld[i] -= last_dev.fld[i]; last_dev.fld[i] = t
 	etime = 0;
 	for(i = 0; i < CPUSTATES; i++) {
 		X(cp_time);
-		etime += cur.cp_time[i];
+		etime += cur_dev.cp_time[i];
 	}
 	if (etime == 0.0)
 		etime = 1.0;
@@ -313,10 +305,10 @@ devstats(int row, int _col, int dn)
 
 	di = dev_select[dn].position;
 
-	busy_seconds = cur.snap_time - last.snap_time;
+	busy_seconds = cur_dev.snap_time - last_dev.snap_time;
 
-	if (devstat_compute_statistics(&cur.dinfo->devices[di],
-	    &last.dinfo->devices[di], busy_seconds,
+	if (devstat_compute_statistics(&cur_dev.dinfo->devices[di],
+	    &last_dev.dinfo->devices[di], busy_seconds,
 	    DSM_KB_PER_TRANSFER, &kb_per_transfer,
 	    DSM_TRANSFERS_PER_SECOND, &transfers_per_second,
 	    DSM_MB_PER_SECOND, &mb_per_second, DSM_NONE) != 0)
@@ -349,12 +341,12 @@ stat1(int row, int o)
 
 	dtime = 0.0;
 	for (i = 0; i < CPUSTATES; i++)
-		dtime += cur.cp_time[i];
+		dtime += cur_dev.cp_time[i];
 	if (dtime == 0.0)
 		dtime = 1.0;
 	wmove(wnd, row, INSET);
 #define CPUSCALE	0.5
-	histogram(100.0 * cur.cp_time[o] / dtime, 50, CPUSCALE);
+	histogram(100.0 * cur_dev.cp_time[o] / dtime, 50, CPUSCALE);
 }
 
 static void
@@ -388,7 +380,7 @@ cmdiostat(const char *cmd, const char *args)
 		numbers = 1;
 	else if (prefix(cmd, "bars"))
 		numbers = 0;
-	else if (!dscmd(cmd, args, 100, &cur))
+	else if (!dscmd(cmd, args, 100, &cur_dev))
 		return (0);
 	wclear(wnd);
 	labeliostat();

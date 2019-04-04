@@ -19,6 +19,7 @@ GTESTS+=	gtest_sole_header_test
 GTESTS+=	googletest-test-part-test
 GTESTS+=	gtest-typed-test_test
 GTESTS+=	gtest_skip_test
+GTESTS+=	gtest_skip_in_environment_setup_test
 GTESTS+=	gtest_unittest
 
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}/include

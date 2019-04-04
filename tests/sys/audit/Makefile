@@ -55,4 +55,6 @@ WARNS?=	6
 
 LDFLAGS+=	-lbsm -lutil
 
+CFLAGS.process-control.c+=	-I${SRCTOP}/tests
+
 .include <bsd.test.mk>

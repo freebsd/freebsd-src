@@ -138,8 +138,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto_lowat, CTLFLAG_VNET | CTLFLAG_R
  * non-ACK.
  */
 #define TCP_XMIT_TIMER_ASSERT(tp, len, th_flags)			\
-	KASSERT(((len) == 0 && ((th_flags) &				\
-				(TH_SYN | TH_FIN | TH_RST)) != 0) ||	\
+	KASSERT(((len) == 0 && ((th_flags) & (TH_SYN | TH_FIN)) == 0) ||\
 	    tcp_timer_active((tp), TT_REXMT) ||				\
 	    tcp_timer_active((tp), TT_PERSIST),				\
 	    ("neither rexmt nor persist timer is set"))

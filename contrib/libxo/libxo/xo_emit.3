@@ -17,11 +17,11 @@
 .Lb libxo
 .Sh SYNOPSIS
 .In libxo/xo.h
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_emit "const char *fmt"  "..."
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_emit_h "xo_handle_t *xop" "const char *fmt" "..."
-.Ft int
+.Ft xo_ssize_t
 .Fn xo_emit_hv "xo_handle_t *xop" "const char *fmt" "va_list vap"
 .Sh DESCRIPTION
 The

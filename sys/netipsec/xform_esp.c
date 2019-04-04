@@ -768,7 +768,7 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	 */
 	switch (sav->flags & SADB_X_EXT_PMASK) {
 	case SADB_X_EXT_PRAND:
-		(void) read_random(pad, padding - 2);
+		arc4random_buf(pad, padding - 2);
 		break;
 	case SADB_X_EXT_PZERO:
 		bzero(pad, padding - 2);

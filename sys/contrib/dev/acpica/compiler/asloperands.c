@@ -1087,13 +1087,13 @@ OpnDoDefinitionBlock (
     if (Child->Asl.Value.String)
     {
         AslGbl_TableSignature = Child->Asl.Value.String;
-        if (strlen (AslGbl_TableSignature) != ACPI_NAME_SIZE)
+        if (strlen (AslGbl_TableSignature) != ACPI_NAMESEG_SIZE)
         {
             AslError (ASL_ERROR, ASL_MSG_TABLE_SIGNATURE, Child,
                 "Length must be exactly 4 characters");
         }
 
-        for (i = 0; i < ACPI_NAME_SIZE; i++)
+        for (i = 0; i < ACPI_NAMESEG_SIZE; i++)
         {
             if (!isalnum ((int) AslGbl_TableSignature[i]))
             {

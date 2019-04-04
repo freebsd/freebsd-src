@@ -31,6 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
 #include "opt_bus.h"
 
 #include <sys/param.h>
@@ -5693,6 +5694,26 @@ pci_get_resource_list (device_t dev, device_t child)
 	return (&dinfo->resources);
 }
 
+#ifdef ACPI_DMAR
+bus_dma_tag_t dmar_get_dma_tag(device_t dev, device_t child);
+bus_dma_tag_t
+pci_get_dma_tag(device_t bus, device_t dev)
+{
+	bus_dma_tag_t tag;
+	struct pci_softc *sc;
+
+	if (device_get_parent(dev) == bus) {
+		/* try dmar and return if it works */
+		tag = dmar_get_dma_tag(bus, dev);
+	} else
+		tag = NULL;
+	if (tag == NULL) {
+		sc = device_get_softc(bus);
+		tag = sc->sc_dma_tag;
+	}
+	return (tag);
+}
+#else
 bus_dma_tag_t
 pci_get_dma_tag(device_t bus, device_t dev)
 {
@@ -5700,6 +5721,7 @@ pci_get_dma_tag(device_t bus, device_t dev)
 
 	return (sc->sc_dma_tag);
 }
+#endif
 
 uint32_t
 pci_read_config_method(device_t dev, device_t child, int reg, int width)

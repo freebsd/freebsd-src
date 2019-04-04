@@ -18,7 +18,7 @@
 .Sh SYNOPSIS
 .In libxo/xo.h
 .Ft void
-.Sy typedef int (*xo_write_func_t)(void *, const char *);
+.Sy typedef xo_ssize_t (*xo_write_func_t)(void *, const char *);
 .Pp
 .Sy typedef void (*xo_close_func_t)(void *);
 .Pp
