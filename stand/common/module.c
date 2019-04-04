@@ -159,6 +159,13 @@ command_load(int argc, char *argv[])
 				ve_debug_set(dflag);
 			return (load_manifest(argv[1], prefix, skip, NULL));
 		}
+#ifdef LOADER_VERIEXEC_PASS_MANIFEST
+		if (strncmp(typestr, "pass_manifest", 13) == 0) {
+			if (dflag > 0)
+				ve_debug_set(dflag);
+		    return (pass_manifest(argv[1], prefix));
+		}
+#endif
 #endif
 
 		fp = file_findfile(argv[1], typestr);

@@ -401,7 +401,7 @@ AcpiGetTableHeader (
 
     for (i = 0, j = 0; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
-        if (!ACPI_COMPARE_NAME (
+        if (!ACPI_COMPARE_NAMESEG (
                 &(AcpiGbl_RootTableList.Tables[i].Signature), Signature))
         {
             continue;
@@ -504,7 +504,7 @@ AcpiGetTable (
     {
         TableDesc = &AcpiGbl_RootTableList.Tables[i];
 
-        if (!ACPI_COMPARE_NAME (&TableDesc->Signature, Signature))
+        if (!ACPI_COMPARE_NAMESEG (&TableDesc->Signature, Signature))
         {
             continue;
         }

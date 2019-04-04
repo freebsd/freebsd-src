@@ -602,7 +602,7 @@ AcpiDmGetTableData (
 
     for (Info = AcpiDmTableData; Info->Signature; Info++)
     {
-        if (ACPI_COMPARE_NAME (Signature, Info->Signature))
+        if (ACPI_COMPARE_NAMESEG (Signature, Info->Signature))
         {
             return (Info);
         }
@@ -657,7 +657,7 @@ AcpiDmDumpDataTable (
      * Handle tables that don't use the common ACPI table header structure.
      * Currently, these are the FACS, RSDP, and S3PT.
      */
-    if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FACS))
+    if (ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_FACS))
     {
         Length = Table->Length;
         Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoFacs);
@@ -670,7 +670,7 @@ AcpiDmDumpDataTable (
     {
         Length = AcpiDmDumpRsdp (Table);
     }
-    else if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_S3PT))
+    else if (ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_S3PT))
     {
         Length = AcpiDmDumpS3pt (Table);
     }

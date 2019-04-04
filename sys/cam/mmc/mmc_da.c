@@ -150,6 +150,17 @@ struct sdda_softc {
 	struct timeval log_time;
 };
 
+static const char *mmc_errmsg[] =
+{
+	"None",
+	"Timeout",
+	"Bad CRC",
+	"Fifo",
+	"Failed",
+	"Invalid",
+	"NO MEMORY"
+};
+
 #define ccb_bp		ppriv_ptr1
 
 static	disk_strategy_t	sddastrategy;
@@ -165,6 +176,7 @@ static	void		sddadone(struct cam_periph *periph,
 static  int		sddaerror(union ccb *ccb, u_int32_t cam_flags,
 				u_int32_t sense_flags);
 
+static int mmc_handle_reply(union ccb *ccb);
 static uint16_t get_rca(struct cam_periph *periph);
 static void sdda_start_init(void *context, union ccb *start_ccb);
 static void sdda_start_init_task(void *context, int pending);
@@ -217,6 +229,37 @@ static uint16_t
 get_rca(struct cam_periph *periph) {
 	return periph->path->device->mmc_ident_data.card_rca;
 }
+
+/*
+ * Figure out if CCB execution resulted in error.
+ * Look at both CAM-level errors and on MMC protocol errors.
+*/
+static int
+mmc_handle_reply(union ccb *ccb)
+{
+
+	KASSERT(ccb->ccb_h.func_code == XPT_MMC_IO,
+	    ("ccb %p: cannot handle non-XPT_MMC_IO errors, got func_code=%d",
+		ccb, ccb->ccb_h.func_code));
+
+	/* TODO: maybe put MMC-specific handling into cam.c/cam_error_print altogether */
+	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
+		if (ccb->mmcio.cmd.error != 0) {
+			xpt_print_path(ccb->ccb_h.path);
+			printf("CMD%d failed, err %d (%s)\n",
+			       ccb->mmcio.cmd.opcode,
+			       ccb->mmcio.cmd.error,
+			       mmc_errmsg[ccb->mmcio.cmd.error]);
+			return (EIO);
+		}
+	} else {
+		cam_error_print(ccb, CAM_ESF_ALL, CAM_EPF_ALL);
+		return (EIO);
+	}
+
+	return (0); /* Normal return */
+}
+
 
 static uint32_t
 mmc_get_bits(uint32_t *bits, int bit_len, int start, int size)
@@ -777,11 +820,12 @@ mmc_exec_app_cmd(struct cam_periph *periph, union ccb *ccb,
 		       /*mmc_data*/ NULL,
 		       /*timeout*/ 0);
 
-	err = cam_periph_runccb(ccb, sddaerror, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
+	cam_periph_runccb(ccb, sddaerror, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
+	err = mmc_handle_reply(ccb);
 	if (err != 0)
-		return err;
+		return (err);
 	if (!(ccb->mmcio.cmd.resp[0] & R1_APP_CMD))
-		return MMC_ERR_FAILED;
+		return (EIO);
 
 	/* Now exec actual command */
 	int flags = 0;
@@ -803,12 +847,14 @@ mmc_exec_app_cmd(struct cam_periph *periph, union ccb *ccb,
 		       /*mmc_data*/ cmd->data,
 		       /*timeout*/ 0);
 
-	err = cam_periph_runccb(ccb, sddaerror, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
+	cam_periph_runccb(ccb, sddaerror, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
+	err = mmc_handle_reply(ccb);
+	if (err != 0)
+		return (err);
 	memcpy(cmd->resp, ccb->mmcio.cmd.resp, sizeof(cmd->resp));
 	cmd->error = ccb->mmcio.cmd.error;
-	if (err != 0)
-		return err;
-	return 0;
+
+	return (0);
 }
 
 static int
@@ -858,10 +904,9 @@ mmc_send_ext_csd(struct cam_periph *periph, union ccb *ccb,
 		       /*mmc_data*/ &d,
 		       /*timeout*/ 0);
 
-	err = cam_periph_runccb(ccb, sddaerror, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
-	if (err != 0)
-		return (err);
-	return (MMC_ERR_NONE);
+	cam_periph_runccb(ccb, sddaerror, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
+	err = mmc_handle_reply(ccb);
+	return (err);
 }
 
 static void
@@ -904,7 +949,7 @@ mmc_switch_fill_mmcio(union ccb *ccb,
 static int
 mmc_select_card(struct cam_periph *periph, union ccb *ccb, uint32_t rca)
 {
-	int flags;
+	int flags, err;
 
 	flags = (rca ? MMC_RSP_R1B : MMC_RSP_NONE) | MMC_CMD_AC;
 	cam_fill_mmcio(&ccb->mmcio,
@@ -918,42 +963,20 @@ mmc_select_card(struct cam_periph *periph, union ccb *ccb, uint32_t rca)
 		       /*timeout*/ 0);
 
 	cam_periph_runccb(ccb, sddaerror, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
-
-	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
-		if (ccb->mmcio.cmd.error != 0) {
-			CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_PERIPH,
-				  ("%s: MMC_SELECT command failed", __func__));
-			return EIO;
-		}
-		return 0; /* Normal return */
-	} else {
-		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_PERIPH,
-			  ("%s: CAM request failed\n", __func__));
-		return EIO;
-	}
+	err = mmc_handle_reply(ccb);
+	return (err);
 }
 
 static int
 mmc_switch(struct cam_periph *periph, union ccb *ccb,
     uint8_t set, uint8_t index, uint8_t value, u_int timeout)
 {
+	int err;
 
 	mmc_switch_fill_mmcio(ccb, set, index, value, timeout);
 	cam_periph_runccb(ccb, sddaerror, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
-
-	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
-		if (ccb->mmcio.cmd.error != 0) {
-			CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_PERIPH,
-				  ("%s: MMC command failed", __func__));
-			return (EIO);
-		}
-		return (0); /* Normal return */
-	} else {
-		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_PERIPH,
-			  ("%s: CAM request failed\n", __func__));
-		return (EIO);
-	}
-
+	err = mmc_handle_reply(ccb);
+	return (err);
 }
 
 static uint32_t
@@ -987,6 +1010,7 @@ mmc_sd_switch(struct cam_periph *periph, union ccb *ccb,
 
 	struct mmc_data mmc_d;
 	uint32_t arg;
+	int err;
 
 	memset(res, 0, 64);
 	mmc_d.len = 64;
@@ -1009,19 +1033,8 @@ mmc_sd_switch(struct cam_periph *periph, union ccb *ccb,
 		       /*timeout*/ 0);
 
 	cam_periph_runccb(ccb, sddaerror, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
-
-	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
-		if (ccb->mmcio.cmd.error != 0) {
-			CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_PERIPH,
-				  ("%s: MMC command failed", __func__));
-			return EIO;
-		}
-		return 0; /* Normal return */
-	} else {
-		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_PERIPH,
-			  ("%s: CAM request failed\n", __func__));
-		return EIO;
-	}
+	err = mmc_handle_reply(ccb);
+	return (err);
 }
 
 static int
@@ -1193,6 +1206,27 @@ sdda_get_host_caps(struct cam_periph *periph, union ccb *ccb)
 	if (ccb->ccb_h.status != CAM_REQ_CMP)
 		panic("Cannot get host caps");
 	return (cts->host_caps);
+}
+
+static uint32_t
+sdda_get_max_data(struct cam_periph *periph, union ccb *ccb)
+{
+	struct ccb_trans_settings_mmc *cts;
+
+	cts = &ccb->cts.proto_specific.mmc;
+	memset(cts, 0, sizeof(struct ccb_trans_settings_mmc));
+
+	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	ccb->ccb_h.flags = CAM_DIR_NONE;
+	ccb->ccb_h.retry_count = 0;
+	ccb->ccb_h.timeout = 100;
+	ccb->ccb_h.cbfcnp = NULL;
+	xpt_action(ccb);
+
+	if (ccb->ccb_h.status != CAM_REQ_CMP)
+		panic("Cannot get host max data");
+	KASSERT(cts->host_max_data != 0, ("host_max_data == 0?!"));
+	return (cts->host_max_data);
 }
 
 static void
@@ -1420,7 +1454,6 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	struct sdda_softc *sc = (struct sdda_softc *)periph->softc;
 	struct sdda_part *part;
 	struct ccb_pathinq cpi;
-	u_int maxio;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 	    ("Partition type '%s', size %ju %s\n",
@@ -1479,12 +1512,9 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	part->disk->d_gone = sddadiskgonecb;
 	part->disk->d_name = part->name;
 	part->disk->d_drv1 = part;
-	maxio = cpi.maxio;		/* Honor max I/O size of SIM */
-	if (maxio == 0)
-		maxio = DFLTPHYS;	/* traditional default */
-	else if (maxio > MAXPHYS)
-		maxio = MAXPHYS;	/* for safety */
-	part->disk->d_maxsize = maxio;
+	part->disk->d_maxsize =
+	    MIN(MAXPHYS, sdda_get_max_data(periph,
+		    (union ccb *)&cpi) * mmc_get_sector_size(periph));
 	part->disk->d_unit = cnt;
 	part->disk->d_flags = 0;
 	strlcpy(part->disk->d_descr, sc->card_id_string,

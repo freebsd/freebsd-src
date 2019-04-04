@@ -150,7 +150,7 @@ options 	BOOTHOWTO=RB_MULTIPLE
 #
 # Default boot tag; may use 'kern.boot_tag' loader tunable to override.  The
 # current boot's tag is also exposed via the 'kern.boot_tag' sysctl.
-options 	BOOT_TAG=\"---<<BOOT>>---\"
+options 	BOOT_TAG=\"\"
 # Maximum boot tag size the kernel's static buffer should accomodate.  Maximum
 # size for both BOOT_TAG and the assocated tunable.
 options 	BOOT_TAG_SZ=32

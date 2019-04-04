@@ -110,6 +110,7 @@
 
 #define MD_SHUTDOWN	0x10000		/* Tell worker thread to terminate. */
 #define	MD_EXITING	0x20000		/* Worker thread is exiting. */
+#define MD_PROVIDERGONE	0x40000		/* Safe to free the softc */
 
 #ifndef MD_NSECT
 #define MD_NSECT (10000 * 2)
@@ -199,6 +200,7 @@ static g_start_t g_md_start;
 static g_access_t g_md_access;
 static void g_md_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp);
+static g_provgone_t g_md_providergone;
 
 static struct cdev *status_dev = NULL;
 static struct sx md_sx;
@@ -220,6 +222,7 @@ struct g_class g_md_class = {
 	.start = g_md_start,
 	.access = g_md_access,
 	.dumpconf = g_md_dumpconf,
+	.providergone = g_md_providergone,
 };
 
 DECLARE_GEOM_CLASS(g_md_class, g_md);
@@ -481,8 +484,8 @@ g_md_start(struct bio *bp)
 	}
 	mtx_lock(&sc->queue_mtx);
 	bioq_disksort(&sc->bio_queue, bp);
-	mtx_unlock(&sc->queue_mtx);
 	wakeup(sc);
+	mtx_unlock(&sc->queue_mtx);
 }
 
 #define	MD_MALLOC_MOVE_ZERO	1
@@ -1496,17 +1499,30 @@ bad:
 	return (error);
 }
 
+static void
+g_md_providergone(struct g_provider *pp)
+{
+	struct md_s *sc = pp->geom->softc;
+
+	mtx_lock(&sc->queue_mtx);
+	sc->flags |= MD_PROVIDERGONE;
+	wakeup(&sc->flags);
+	mtx_unlock(&sc->queue_mtx);
+}
+
 static int
 mddestroy(struct md_s *sc, struct thread *td)
 {
 
 	if (sc->gp) {
-		sc->gp->softc = NULL;
 		g_topology_lock();
 		g_wither_geom(sc->gp, ENXIO);
 		g_topology_unlock();
-		sc->gp = NULL;
-		sc->pp = NULL;
+
+		mtx_lock(&sc->queue_mtx);
+		while (!(sc->flags & MD_PROVIDERGONE))
+			msleep(&sc->flags, &sc->queue_mtx, PRIBIO, "mddestroy", 0);
+		mtx_unlock(&sc->queue_mtx);
 	}
 	if (sc->devstat) {
 		devstat_remove_entry(sc->devstat);

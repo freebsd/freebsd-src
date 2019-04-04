@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/clock.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
@@ -59,6 +60,8 @@ static const struct ofw_bus_devinfo *opaldev_get_devinfo(device_t dev,
     device_t child);
 
 static void	opal_shutdown(void *arg, int howto);
+static void	opal_handle_shutdown_message(void *unused,
+    struct opal_msg *msg);
 static void	opal_intr(void *);
 
 static device_method_t  opaldev_methods[] = {
@@ -93,6 +96,49 @@ static driver_t opaldev_driver = {
 static devclass_t opaldev_devclass;
 
 DRIVER_MODULE(opaldev, ofwbus, opaldev_driver, opaldev_devclass, 0, 0);
+
+static void opal_heartbeat(void);
+static void opal_handle_messages(void);
+
+static struct proc *opal_hb_proc;
+static struct kproc_desc opal_heartbeat_kp = {
+	"opal_heartbeat",
+	opal_heartbeat,
+	&opal_hb_proc
+};
+
+SYSINIT(opal_heartbeat_setup, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start,
+    &opal_heartbeat_kp);
+
+static int opal_heartbeat_ms;
+EVENTHANDLER_LIST_DEFINE(OPAL_ASYNC_COMP);
+EVENTHANDLER_LIST_DEFINE(OPAL_EPOW);
+EVENTHANDLER_LIST_DEFINE(OPAL_SHUTDOWN);
+EVENTHANDLER_LIST_DEFINE(OPAL_HMI_EVT);
+EVENTHANDLER_LIST_DEFINE(OPAL_DPO);
+EVENTHANDLER_LIST_DEFINE(OPAL_OCC);
+
+#define	OPAL_SOFT_OFF		0
+#define	OPAL_SOFT_REBOOT	1
+
+static void
+opal_heartbeat(void)
+{
+	uint64_t events;
+
+	if (opal_heartbeat_ms == 0)
+		kproc_exit(0);
+
+	while (1) {
+		events = 0;
+		/* Turn the OPAL state crank */
+		opal_call(OPAL_POLL_EVENTS, vtophys(&events));
+		if (events & OPAL_EVENT_MSG_PENDING)
+			opal_handle_messages();
+		tsleep(opal_hb_proc, 0, "opal",
+		    MSEC_2_TICKS(opal_heartbeat_ms));
+	}
+}
 
 static int
 opaldev_probe(device_t dev)
@@ -150,9 +196,13 @@ opaldev_attach(device_t dev)
 	if (rv == OPAL_SUCCESS)
 		clock_register(dev, 2000);
 	
+	EVENTHANDLER_REGISTER(OPAL_SHUTDOWN, opal_handle_shutdown_message,
+	    NULL, EVENTHANDLER_PRI_ANY);
 	EVENTHANDLER_REGISTER(shutdown_final, opal_shutdown, NULL,
 	    SHUTDOWN_PRI_LAST);
 
+	OF_getencprop(ofw_bus_get_node(dev), "ibm,heartbeat-ms",
+	    &opal_heartbeat_ms, sizeof(opal_heartbeat_ms));
 	/* Bind to interrupts */
 	for (i = 0; (irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
 	    RF_ACTIVE)) != NULL; i++)
@@ -306,13 +356,68 @@ opal_shutdown(void *arg, int howto)
 }
 
 static void
+opal_handle_shutdown_message(void *unused, struct opal_msg *msg)
+{
+	int howto;
+
+	switch (be64toh(msg->params[0])) {
+	case OPAL_SOFT_OFF:
+		howto = RB_POWEROFF;
+		break;
+	case OPAL_SOFT_REBOOT:
+		howto = RB_REROOT;
+		break;
+	}
+	shutdown_nice(howto);
+}
+
+static void
+opal_handle_messages(void)
+{
+	static struct opal_msg msg;
+	uint64_t rv;
+	uint32_t type;
+
+	rv = opal_call(OPAL_GET_MSG, vtophys(&msg), sizeof(msg));
+	
+	if (rv != OPAL_SUCCESS)
+		return;
+
+	type = be32toh(msg.msg_type);
+	switch (type) {
+	case OPAL_MSG_ASYNC_COMP:
+		EVENTHANDLER_DIRECT_INVOKE(OPAL_ASYNC_COMP, &msg);
+		break;
+	case OPAL_MSG_EPOW:
+		EVENTHANDLER_DIRECT_INVOKE(OPAL_EPOW, &msg);
+		break;
+	case OPAL_MSG_SHUTDOWN:
+		EVENTHANDLER_DIRECT_INVOKE(OPAL_SHUTDOWN, &msg);
+		break;
+	case OPAL_MSG_HMI_EVT:
+		EVENTHANDLER_DIRECT_INVOKE(OPAL_HMI_EVT, &msg);
+		break;
+	case OPAL_MSG_DPO:
+		EVENTHANDLER_DIRECT_INVOKE(OPAL_DPO, &msg);
+		break;
+	case OPAL_MSG_OCC:
+		EVENTHANDLER_DIRECT_INVOKE(OPAL_OCC, &msg);
+		break;
+	default:
+		printf("Unknown OPAL message type %d\n", type);
+	}
+}
+
+static void
 opal_intr(void *xintr)
 {
 	uint64_t events = 0;
 
 	opal_call(OPAL_HANDLE_INTERRUPT, (uint32_t)(uint64_t)xintr,
 	    vtophys(&events));
-	/* XXX: do something useful with this information */
+	/* Wake up the heartbeat, if it's been setup. */
+	if (events != 0 && opal_hb_proc != NULL)
+		wakeup(opal_hb_proc);
 
 }
 

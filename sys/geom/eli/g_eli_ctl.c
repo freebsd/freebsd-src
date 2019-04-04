@@ -264,7 +264,7 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 	const char *name;
 	intmax_t *keylen, *sectorsize;
 	u_char mkey[G_ELI_DATAIVKEYLEN];
-	int *nargs, *detach, *notrim;
+	int *nargs, *detach, *noautoresize, *notrim;
 
 	g_topology_assert();
 	bzero(&md, sizeof(md));
@@ -282,10 +282,15 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 	strlcpy(md.md_magic, G_ELI_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_ELI_VERSION;
 	md.md_flags |= G_ELI_FLAG_ONETIME;
+	md.md_flags |= G_ELI_FLAG_AUTORESIZE;
 
 	detach = gctl_get_paraml(req, "detach", sizeof(*detach));
 	if (detach != NULL && *detach)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
+	noautoresize = gctl_get_paraml(req, "noautoresize",
+	    sizeof(*noautoresize));
+	if (noautoresize != NULL && *noautoresize)
+		md.md_flags &= ~G_ELI_FLAG_AUTORESIZE;
 	notrim = gctl_get_paraml(req, "notrim", sizeof(*notrim));
 	if (notrim != NULL && *notrim)
 		md.md_flags |= G_ELI_FLAG_NODELETE;
@@ -405,7 +410,7 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	const char *prov;
 	u_char *sector;
 	int *nargs, *boot, *noboot, *trim, *notrim, *geliboot, *nogeliboot;
-	int *displaypass, *nodisplaypass;
+	int *displaypass, *nodisplaypass, *autoresize, *noautoresize;
 	int zero, error, changed;
 	u_int i;
 
@@ -474,6 +479,20 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*displaypass || *nodisplaypass)
+		changed = 1;
+
+	autoresize = gctl_get_paraml(req, "autoresize", sizeof(*autoresize));
+	if (autoresize == NULL)
+		autoresize = &zero;
+	noautoresize = gctl_get_paraml(req, "noautoresize",
+	    sizeof(*noautoresize));
+	if (noautoresize == NULL)
+		noautoresize = &zero;
+	if (*autoresize && *noautoresize) {
+		gctl_error(req, "Options -r and -R are mutually exclusive.");
+		return;
+	}
+	if (*autoresize || *noautoresize)
 		changed = 1;
 
 	if (!changed) {
@@ -545,6 +564,17 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			continue;
 		}
 
+		if (*autoresize && (sc->sc_flags & G_ELI_FLAG_AUTORESIZE)) {
+			G_ELI_DEBUG(1, "AUTORESIZE flag already configured for %s.",
+			    prov);
+			continue;
+		} else if (*noautoresize &&
+		    !(sc->sc_flags & G_ELI_FLAG_AUTORESIZE)) {
+			G_ELI_DEBUG(1, "AUTORESIZE flag not configured for %s.",
+			    prov);
+			continue;
+		}
+
 		if (!(sc->sc_flags & G_ELI_FLAG_ONETIME)) {
 			/*
 			 * ONETIME providers don't write metadata to
@@ -594,6 +624,14 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		} else if (*nodisplaypass) {
 			md.md_flags &= ~G_ELI_FLAG_GELIDISPLAYPASS;
 			sc->sc_flags &= ~G_ELI_FLAG_GELIDISPLAYPASS;
+		}
+
+		if (*autoresize) {
+			md.md_flags |= G_ELI_FLAG_AUTORESIZE;
+			sc->sc_flags |= G_ELI_FLAG_AUTORESIZE;
+		} else if (*noautoresize) {
+			md.md_flags &= ~G_ELI_FLAG_AUTORESIZE;
+			sc->sc_flags &= ~G_ELI_FLAG_AUTORESIZE;
 		}
 
 		if (sc->sc_flags & G_ELI_FLAG_ONETIME) {

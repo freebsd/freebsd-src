@@ -35,6 +35,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <assert.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -520,7 +521,8 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 							   empcl, empty - buffer,
 							   cl, p - buffer, 1) == FSFATAL)
 							return FSFATAL;
-						q = empcl == cl ? empty : buffer;
+						q = ((empcl == cl) ? empty : buffer);
+						assert(q != NULL);
 						for (; q < p; q += 32)
 							*q = SLOT_DELETED;
 						mod |= THISMOD|FSDIRMOD;

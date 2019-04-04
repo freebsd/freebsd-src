@@ -95,7 +95,7 @@ CFLAGS+=	-ffunction-sections
 CFLAGS+=	-fdata-sections
 LDFLAGS+=	-Wl,--gc-sections
 
-CXXFLAGS+=	-std=c++11
+CXXSTD?=	c++11
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
 CXXFLAGS.clang+= -stdlib=libc++

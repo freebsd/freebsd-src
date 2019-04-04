@@ -2851,10 +2851,6 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 	}
 
 	if (flags & RT2860_RX_L2PAD) {
-		/*
-		 * XXX OpenBSD removes padding between header
-		 * and payload here...
-		 */
 		RUN_DPRINTF(sc, RUN_DEBUG_RECV,
 		    "received RT2860_RX_L2PAD frame\n");
 		len += 2;
@@ -2865,8 +2861,8 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 
 	wh = mtod(m, struct ieee80211_frame *);
 
-	/* XXX wrong for monitor mode */
-	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
+	if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) != 0 &&
+	    (flags & RT2860_RX_DEC) != 0) {
 		wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		m->m_flags |= M_WEP;
 	}
@@ -2896,6 +2892,8 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 		uint16_t phy;
 
 		tap->wr_flags = 0;
+		if (flags & RT2860_RX_L2PAD)
+			tap->wr_flags |= IEEE80211_RADIOTAP_F_DATAPAD;
 		tap->wr_antsignal = rssi;
 		tap->wr_antenna = ant;
 		tap->wr_dbm_antsignal = run_rssi2dbm(sc, rssi, ant);
@@ -3162,14 +3160,23 @@ tr_setup:
 
 		vap = data->ni->ni_vap;
 		if (ieee80211_radiotap_active_vap(vap)) {
+			const struct ieee80211_frame *wh;
 			struct run_tx_radiotap_header *tap = &sc->sc_txtap;
 			struct rt2860_txwi *txwi = 
 			    (struct rt2860_txwi *)(&data->desc + sizeof(struct rt2870_txd));
+			int has_l2pad;
+
+			wh = mtod(m, struct ieee80211_frame *);
+			has_l2pad = IEEE80211_HAS_ADDR4(wh) !=
+			    IEEE80211_QOS_HAS_SEQ(wh);
+
 			tap->wt_flags = 0;
 			tap->wt_rate = rt2860_rates[data->ridx].rate;
 			tap->wt_hwqueue = index;
 			if (le16toh(txwi->phy) & RT2860_PHY_SHPRE)
 				tap->wt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
+			if (has_l2pad)
+				tap->wt_flags |= IEEE80211_RADIOTAP_F_DATAPAD;
 
 			ieee80211_radiotap_tx(vap, m);
 		}

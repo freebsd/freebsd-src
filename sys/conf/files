@@ -86,9 +86,9 @@ cam/cam_xpt.c			optional scbus
 cam/ata/ata_all.c		optional scbus
 cam/ata/ata_xpt.c		optional scbus
 cam/ata/ata_pmp.c		optional scbus
-cam/nvme/nvme_all.c		optional scbus nvme
-cam/nvme/nvme_da.c		optional scbus nvme da
-cam/nvme/nvme_xpt.c		optional scbus nvme
+cam/nvme/nvme_all.c		optional scbus
+cam/nvme/nvme_da.c		optional nda | da
+cam/nvme/nvme_xpt.c		optional scbus
 cam/scsi/scsi_xpt.c		optional scbus
 cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
@@ -4890,14 +4890,15 @@ security/mac_portacl/mac_portacl.c optional mac_portacl
 security/mac_seeotheruids/mac_seeotheruids.c optional mac_seeotheruids
 security/mac_stub/mac_stub.c	optional mac_stub
 security/mac_test/mac_test.c	optional mac_test
-security/mac_veriexec/mac_veriexec.c		optional mac_veriexec
-security/mac_veriexec/veriexec_fingerprint.c	optional mac_veriexec
-security/mac_veriexec/veriexec_metadata.c	optional mac_veriexec
-security/mac_veriexec/mac_veriexec_rmd160.c	optional mac_veriexec_rmd160
-security/mac_veriexec/mac_veriexec_sha1.c	optional mac_veriexec_sha1
-security/mac_veriexec/mac_veriexec_sha256.c	optional mac_veriexec_sha256
-security/mac_veriexec/mac_veriexec_sha384.c	optional mac_veriexec_sha384
-security/mac_veriexec/mac_veriexec_sha512.c	optional mac_veriexec_sha512
+security/mac_veriexec/mac_veriexec.c			optional mac_veriexec
+security/mac_veriexec/veriexec_fingerprint.c		optional mac_veriexec
+security/mac_veriexec/veriexec_metadata.c		optional mac_veriexec
+security/mac_veriexec_parser/mac_veriexec_parser.c	optional mac_veriexec mac_veriexec_parser
+security/mac_veriexec/mac_veriexec_rmd160.c		optional mac_veriexec_rmd160
+security/mac_veriexec/mac_veriexec_sha1.c		optional mac_veriexec_sha1
+security/mac_veriexec/mac_veriexec_sha256.c		optional mac_veriexec_sha256
+security/mac_veriexec/mac_veriexec_sha384.c		optional mac_veriexec_sha384
+security/mac_veriexec/mac_veriexec_sha512.c		optional mac_veriexec_sha512
 teken/teken.c			optional sc !SC_NO_TERM_TEKEN | vt
 ufs/ffs/ffs_alloc.c		optional ffs
 ufs/ffs/ffs_balloc.c		optional ffs

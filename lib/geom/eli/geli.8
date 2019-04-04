@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
+.\" Copyright (c) 2005-2019 Pawel Jakub Dawidek <pawel@dawidek.net>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2018
+.Dd April 3, 2019
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@ utility:
 .Pp
 .Nm
 .Cm init
-.Op Fl bdgPTv
+.Op Fl bdgPRTv
 .Op Fl a Ar aalgo
 .Op Fl B Ar backupfile
 .Op Fl e Ar ealgo
@@ -81,7 +81,7 @@ utility:
 .Cm detach
 .Nm
 .Cm onetime
-.Op Fl dT
+.Op Fl dRT
 .Op Fl a Ar aalgo
 .Op Fl e Ar ealgo
 .Op Fl l Ar keylen
@@ -89,7 +89,7 @@ utility:
 .Ar prov
 .Nm
 .Cm configure
-.Op Fl bBdDgGtT
+.Op Fl bBdDgGrRtT
 .Ar prov ...
 .Nm
 .Cm setkey
@@ -375,6 +375,18 @@ Change decrypted provider's sector size.
 Increasing the sector size allows increased performance,
 because encryption/decryption which requires an initialization vector
 is done per sector; fewer sectors means less computational work.
+.It Fl R
+Turn off automatic expansion.
+By default, if the underlying provider grows, the encrypted provider will
+grow automatically too.
+The metadata will be moved to the new location.
+If automatic expansion if turned off and the underlying provider changes
+size, attaching encrypted provider will no longer be possible as the metadata
+will no longer be located in the last sector.
+In this case
+.Nm GELI
+will only log the previous size of the underlying provider, so metadata can
+be found easier, if resize was done by mistake.
 .It Fl T
 Don't pass through
 .Dv BIO_DELETE
@@ -506,6 +518,11 @@ Change decrypted provider's sector size.
 For more information, see the description of the
 .Cm init
 subcommand.
+.It Fl R
+Turn off automatic expansion.
+For more information, see the description of the
+.Cm init
+subcommand.
 .It Fl T
 Disable TRIM/UNMAP passthru.
 For more information, see the description of the
@@ -540,6 +557,13 @@ The boot loader prompts for the passphrase and loads
 from the encrypted partition.
 .It Fl G
 Deactivate booting from this encrypted root partition.
+.It Fl r
+Turn on automatic expansion.
+For more information, see the description of the
+.Cm init
+subcommand.
+.It Fl R
+Turn off automatic expansion.
 .It Fl t
 Enable TRIM/UNMAP passthru.
 For more information, see the description of the

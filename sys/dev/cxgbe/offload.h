@@ -230,6 +230,7 @@ struct tom_tunables {
 	int tx_align;
 	int tx_zcopy;
 	int cop_managed_offloading;
+	int autorcvbuf_inc;
 };
 /* iWARP driver tunables */
 struct iw_tunables {

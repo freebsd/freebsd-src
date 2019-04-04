@@ -393,6 +393,12 @@ struct ata_params {
 #define ATA_READ_LOG_DMA_EXT            0x47    /* read log DMA ext - PIO Data-In */
 #define	ATA_ZAC_MANAGEMENT_IN		0x4a	/* ZAC management in */
 #define		ATA_ZM_REPORT_ZONES	0x00	/* report zones */
+#define	ATA_WRITE_LOG_DMA_EXT		0x57	/* WRITE LOG DMA EXT */
+#define	ATA_TRUSTED_NON_DATA		0x5b	/* TRUSTED NON-DATA */
+#define	ATA_TRUSTED_RECEIVE		0x5c	/* TRUSTED RECEIVE */
+#define	ATA_TRUSTED_RECEIVE_DMA		0x5d	/* TRUSTED RECEIVE DMA */
+#define	ATA_TRUSTED_SEND		0x5e	/* TRUSTED SEND */
+#define	ATA_TRUSTED_SEND_DMA		0x5f	/* TRUSTED SEND DMA */
 #define ATA_READ_FPDMA_QUEUED           0x60    /* read DMA NCQ */
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
 #define ATA_NCQ_NON_DATA		0x63	/* NCQ non-data command */
@@ -417,6 +423,8 @@ struct ata_params {
 #define		ATA_ZM_FINISH_ZONE	0x02	/* finish zone */
 #define		ATA_ZM_OPEN_ZONE	0x03	/* open zone */
 #define		ATA_ZM_RWP		0x04	/* reset write pointer */
+#define	ATA_DOWNLOAD_MICROCODE		0x92	/* DOWNLOAD MICROCODE */
+#define	ATA_DOWNLOAD_MICROCODE_DMA	0x93	/* DOWNLOAD MICROCODE DMA */
 #define ATA_PACKET_CMD                  0xa0    /* packet command */
 #define ATA_ATAPI_IDENTIFY              0xa1    /* get ATAPI params*/
 #define ATA_SERVICE                     0xa2    /* service command */
@@ -439,8 +447,11 @@ struct ata_params {
 #define ATA_CHECK_POWER_MODE            0xe5    /* device power mode */
 #define ATA_SLEEP                       0xe6    /* sleep */
 #define ATA_FLUSHCACHE                  0xe7    /* flush cache to disk */
+#define	ATA_WRITE_BUFFER		0xe8    /* write buffer */
 #define ATA_WRITE_PM                    0xe8    /* write portmultiplier */
+#define	ATA_READ_BUFFER_DMA		0xe9    /* read buffer DMA */
 #define ATA_FLUSHCACHE48                0xea    /* flush cache to disk */
+#define	ATA_WRITE_BUFFER_DMA		0xeb    /* write buffer DMA */
 #define ATA_ATA_IDENTIFY                0xec    /* get ATA params */
 #define ATA_SETFEATURES                 0xef    /* features command */
 #define         ATA_SF_ENAB_WCACHE      0x02    /* enable write cache */

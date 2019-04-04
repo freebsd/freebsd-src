@@ -1081,8 +1081,9 @@ emulate_mtspr(int spr, int reg, struct trapframe *frame){
 
 #define XFX 0xFC0007FF
 int
-ppc_instr_emulate(struct trapframe *frame, struct pcb *pcb)
+ppc_instr_emulate(struct trapframe *frame, struct thread *td)
 {
+	struct pcb *pcb;
 	uint32_t instr;
 	int reg, sig;
 	int rs, spr;
@@ -1109,12 +1110,16 @@ ppc_instr_emulate(struct trapframe *frame, struct pcb *pcb)
 		return (0);
 	}
 
+	pcb = td->td_pcb;
 #ifdef FPU_EMU
 	if (!(pcb->pcb_flags & PCB_FPREGS)) {
 		bzero(&pcb->pcb_fpu, sizeof(pcb->pcb_fpu));
 		pcb->pcb_flags |= PCB_FPREGS;
-	}
+	} else if (pcb->pcb_flags & PCB_FPU)
+		save_fpu(td);
 	sig = fpu_emulate(frame, &pcb->pcb_fpu);
+	if ((sig == 0 || sig == SIGFPE) && pcb->pcb_flags & PCB_FPU)
+		enable_fpu(td);
 #endif
 	if (sig == SIGILL) {
 		if (pcb->pcb_lastill != frame->srr0) {

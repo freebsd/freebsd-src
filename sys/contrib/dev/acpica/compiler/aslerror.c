@@ -1239,7 +1239,7 @@ AslElevateException (
         return (AE_LIMIT);
     }
 
-    AslGbl_ElevatedMessages[AslGbl_ExpectedMessagesIndex] = MessageId;
+    AslGbl_ElevatedMessages[AslGbl_ElevatedMessagesIndex] = MessageId;
     AslGbl_ElevatedMessagesIndex++;
     return (AE_OK);
 }

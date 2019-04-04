@@ -578,7 +578,7 @@ ApCheckForPredefinedName (
     ThisName = AcpiGbl_PredefinedMethods;
     for (i = 0; ThisName->Info.Name[0]; i++)
     {
-        if (ACPI_COMPARE_NAME (Name, ThisName->Info.Name))
+        if (ACPI_COMPARE_NAMESEG (Name, ThisName->Info.Name))
         {
             /* Return index into predefined array */
             return (i);
@@ -592,7 +592,7 @@ ApCheckForPredefinedName (
     ThisName = AcpiGbl_ResourceNames;
     while (ThisName->Info.Name[0])
     {
-        if (ACPI_COMPARE_NAME (Name, ThisName->Info.Name))
+        if (ACPI_COMPARE_NAMESEG (Name, ThisName->Info.Name))
         {
             return (ACPI_PREDEFINED_NAME);
         }
@@ -603,7 +603,7 @@ ApCheckForPredefinedName (
     ThisName = AcpiGbl_ScopeNames;
     while (ThisName->Info.Name[0])
     {
-        if (ACPI_COMPARE_NAME (Name, ThisName->Info.Name))
+        if (ACPI_COMPARE_NAMESEG (Name, ThisName->Info.Name))
         {
             return (ACPI_PREDEFINED_NAME);
         }
