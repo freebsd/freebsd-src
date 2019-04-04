@@ -53,6 +53,7 @@ size_t		buf_size;		/* size of the general purpose buffer */
 
 bool		using_plan_a = true;	/* try to keep everything in memory */
 bool		out_of_mem = false;	/* ran out of memory in plan a */
+bool		nonempty_patchf_seen = false;	/* seen nonempty patch file? */
 
 #define MAXFILEC 2
 
@@ -419,7 +420,7 @@ main(int argc, char *argv[])
 		set_signals(1);
 	}
 
-	if (!patch_seen)
+	if (!patch_seen && nonempty_patchf_seen)
 		error = 2;
 
 	my_exit(error);
