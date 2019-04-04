@@ -145,6 +145,9 @@ privcmd_hypercall(long op, long a1, long a2, long a3, long a4, long a5)
 	register long __arg5 __asm__("r8") = (long)(a5);
 	long __call = (long)&hypercall_page + (op * 32);
 
+	if (op >= PAGE_SIZE / 32)
+		return -EINVAL;
+
 	__asm__ volatile (
 		"call *%[call]"
 		: "=a" (__res), "=D" (__ign1), "=S" (__ign2),
