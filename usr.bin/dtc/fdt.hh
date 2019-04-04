@@ -56,6 +56,7 @@ namespace fdt
 {
 class property;
 class node;
+class device_tree;
 /**
  * Type for (owned) pointers to properties.
  */
@@ -418,6 +419,17 @@ class node
 	 */
 	std::string unit_address;
 	/**
+	 * A flag indicating that this node has been marked /omit-if-no-ref/ and
+	 * will be omitted if it is not referenced, either directly or indirectly,
+	 * by a node that is not similarly denoted.
+	 */
+	bool omit_if_no_ref = false;
+	/**
+	 * A flag indicating that this node has been referenced, either directly
+	 * or indirectly, by a node that is not marked /omit-if-no-ref/.
+	 */
+	bool used = false;
+	/**
 	 * The type for the property vector.
 	 */
 	typedef std::vector<property_ptr> property_vector;
@@ -507,6 +519,7 @@ class node
 	 * already been parsed.
 	 */
 	node(text_input_buffer &input,
+	     device_tree &tree,
 	     std::string &&n,
 	     std::unordered_set<std::string> &&l,
 	     std::string &&a,
@@ -603,6 +616,7 @@ class node
 	 * have been parsed.
 	 */
 	static node_ptr parse(text_input_buffer &input,
+	                      device_tree &tree,
 	                      std::string &&name,
 	                      std::unordered_set<std::string> &&label=std::unordered_set<std::string>(),
 	                      std::string &&address=std::string(),
@@ -638,6 +652,13 @@ class node
 	inline void add_child(node_ptr &&n)
 	{
 		children.push_back(std::move(n));
+	}
+	/**
+	 * Deletes any children from this node.
+	 */
+	inline void delete_children_if(bool (*predicate)(node_ptr &))
+	{
+		children.erase(std::remove_if(children.begin(), children.end(), predicate), children.end());
 	}
 	/**
 	 * Merges a node into this one.  Any properties present in both are
@@ -710,6 +731,11 @@ class device_tree
 	 */
 	bool valid = true;
 	/**
+	 * Flag indicating that this tree requires garbage collection.  This will be
+	 * set to true if a node marked /omit-if-no-ref/ is encountered.
+	 */
+	bool garbage_collect = false;
+	/**
 	 * Type used for memory reservations.  A reservation is two 64-bit
 	 * values indicating a base address and length in memory that the
 	 * kernel should not use.  The high 32 bits are ignored on 32-bit
@@ -735,6 +761,12 @@ class device_tree
 	 * with the full path to its target.
 	 */
 	std::unordered_map<std::string, node_path> node_paths;
+	/**
+	 * All of the elements in `node_paths` in the order that they were
+	 * created.  This is used for emitting the `__symbols__` section, where
+	 * we want to guarantee stable ordering.
+	 */
+	std::vector<std::pair<std::string, node_path>> ordered_node_paths;
 	/**
 	 * A collection of property values that are references to other nodes.
 	 * These should be expanded to the full path of their targets.
@@ -847,9 +879,19 @@ class device_tree
 	 * node must have their values replaced by either the node path or
 	 * phandle value.  The phandle parameter holds the next phandle to be
 	 * assigned, should the need arise.  It will be incremented upon each
-	 * assignment of a phandle.
+	 * assignment of a phandle.  Garbage collection of unreferenced nodes
+	 * marked for "delete if unreferenced" will also occur here.
 	 */
 	void resolve_cross_references(uint32_t &phandle);
+	/**
+	 * Garbage collects nodes that have been marked /omit-if-no-ref/ and do not
+	 * have any references to them from nodes that are similarly marked.  This
+	 * is a fairly expensive operation.  The return value indicates whether the
+	 * tree has been dirtied as a result of this operation, so that the caller
+	 * may take appropriate measures to bring the device tree into a consistent
+	 * state as needed.
+	 */
+	bool garbage_collect_marked_nodes();
 	/**
 	 * Parses a dts file in the given buffer and adds the roots to the parsed
 	 * set.  The `read_header` argument indicates whether the header has
@@ -931,6 +973,14 @@ class device_tree
 	inline bool is_valid()
 	{
 		return valid;
+	}
+	/**
+	 * Mark this tree as needing garbage collection, because an /omit-if-no-ref/
+	 * node has been encountered.
+	 */
+	void set_needs_garbage_collection()
+	{
+		garbage_collect = true;
 	}
 	/**
 	 * Sets the format for writing phandle properties.
