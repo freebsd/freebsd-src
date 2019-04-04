@@ -1944,14 +1944,6 @@ ena_request_mgmnt_irq(struct ena_adapter *adapter)
 		return (ENXIO);
 	}
 
-	rc = bus_activate_resource(adapter->pdev, SYS_RES_IRQ,
-	    irq->vector, irq->res);
-	if (unlikely(rc != 0)) {
-		device_printf(adapter->pdev, "could not activate "
-		    "irq vector: %d\n", irq->vector);
-		goto err_res_free;
-	}
-
 	rc = bus_setup_intr(adapter->pdev, irq->res,
 	    INTR_TYPE_NET | INTR_MPSAFE, NULL, ena_intr_msix_mgmnt,
 	    irq->data, &irq->cookie);
