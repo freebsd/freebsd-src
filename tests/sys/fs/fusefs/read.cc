@@ -398,8 +398,7 @@ TEST_F(Read, eio)
  * With the keep_cache option, the kernel may keep its read cache across
  * multiple open(2)s.
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236560 */
-TEST_F(Read, DISABLED_keep_cache)
+TEST_F(Read, keep_cache)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -410,7 +409,7 @@ TEST_F(Read, DISABLED_keep_cache)
 	char buf[bufsize];
 
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, bufsize, 2);
-	expect_open(ino, FOPEN_KEEP_CACHE, 1);
+	expect_open(ino, FOPEN_KEEP_CACHE, 2);
 	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
 
@@ -418,7 +417,7 @@ TEST_F(Read, DISABLED_keep_cache)
 	ASSERT_LE(0, fd0) << strerror(errno);
 	ASSERT_EQ(bufsize, read(fd0, buf, bufsize)) << strerror(errno);
 
-	fd1 = open(FULLPATH, O_RDONLY);
+	fd1 = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd1) << strerror(errno);
 
 	/*
@@ -445,7 +444,7 @@ TEST_F(Read, keep_cache_disabled)
 	char buf[bufsize];
 
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, bufsize, 2);
-	expect_open(ino, FOPEN_KEEP_CACHE, 1);
+	expect_open(ino, 0, 2);
 	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
 
@@ -453,7 +452,7 @@ TEST_F(Read, keep_cache_disabled)
 	ASSERT_LE(0, fd0) << strerror(errno);
 	ASSERT_EQ(bufsize, read(fd0, buf, bufsize)) << strerror(errno);
 
-	fd1 = open(FULLPATH, O_RDONLY);
+	fd1 = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd1) << strerror(errno);
 
 	/*

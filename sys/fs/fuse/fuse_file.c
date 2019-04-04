@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include "fuse.h"
 #include "fuse_file.h"
 #include "fuse_internal.h"
+#include "fuse_io.h"
 #include "fuse_ipc.h"
 #include "fuse_node.h"
 
@@ -188,9 +189,7 @@ fuse_filehandle_open(struct vnode *vp, int a_mode,
 	}
 	foo = fdi.answ;
 
-	fuse_filehandle_init(vp, fufh_type, fufhp, td->td_proc->p_pid, cred,
-		foo);
-
+	fuse_filehandle_init(vp, fufh_type, fufhp, td, cred, foo);
 	fuse_vnode_open(vp, foo->open_flags, td);
 
 out:
@@ -322,7 +321,7 @@ fuse_filehandle_getrw(struct vnode *vp, int fflag,
 
 void
 fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
-    struct fuse_filehandle **fufhp, pid_t pid, struct ucred *cred,
+    struct fuse_filehandle **fufhp, struct thread *td, struct ucred *cred,
     struct fuse_open_out *foo)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
@@ -335,7 +334,7 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 	fufh->fufh_type = fufh_type;
 	fufh->gid = cred->cr_rgid;
 	fufh->uid = cred->cr_uid;
-	fufh->pid = pid;
+	fufh->pid = td->td_proc->p_pid;
 	fufh->fuse_open_flags = foo->open_flags;
 	if (!FUFH_IS_VALID(fufh)) {
 		panic("FUSE: init: invalid filehandle id (type=%d)", fufh_type);
@@ -345,4 +344,15 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 		*fufhp = fufh;
 
 	atomic_add_acq_int(&fuse_fh_count, 1);
+
+	if (foo->open_flags & FOPEN_DIRECT_IO) {
+		ASSERT_VOP_ELOCKED(vp, __func__);
+		VTOFUD(vp)->flag |= FN_DIRECTIO;
+		fuse_io_invalbuf(vp, td);
+	} else {
+		if ((foo->open_flags & FOPEN_KEEP_CACHE) == 0)
+			fuse_io_invalbuf(vp, td);
+	        VTOFUD(vp)->flag &= ~FN_DIRECTIO;
+	}
+
 }
