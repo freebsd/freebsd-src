@@ -973,6 +973,7 @@ reconnect(int dosfs, struct bootblock *boot, struct fatEntry *fat, cl_t head)
 		if (lfcl < CLUST_FIRST || lfcl >= boot->NumClusters) {
 			/* Extend LOSTDIR?				XXX */
 			pwarn("No space in %s\n", LOSTDIR);
+			lfcl = (lostDir->head < boot->NumClusters) ? lostDir->head : 0;
 			return FSERROR;
 		}
 		lfoff = lfcl * boot->ClusterSize
