@@ -258,7 +258,7 @@ void debug_fuseop(const mockfs_buf_in *in)
 }
 
 MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
-	bool push_symlinks_in, uint32_t flags)
+	bool push_symlinks_in, bool ro, uint32_t flags)
 {
 	struct iovec *iov = NULL;
 	int iovlen = 0;
@@ -305,6 +305,10 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	}
 	if (push_symlinks_in) {
 		build_iovec(&iov, &iovlen, "push_symlinks_in",
+			__DECONST(void*, &trueval), sizeof(bool));
+	}
+	if (ro) {
+		build_iovec(&iov, &iovlen, "ro",
 			__DECONST(void*, &trueval), sizeof(bool));
 	}
 	if (nmount(iov, iovlen, 0))

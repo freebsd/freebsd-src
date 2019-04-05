@@ -216,7 +216,7 @@ class MockFS {
 
 	/* Create a new mockfs and mount it to a tempdir */
 	MockFS(int max_readahead, bool allow_other,
-		bool default_permissions, bool push_symlinks_in,
+		bool default_permissions, bool push_symlinks_in, bool ro,
 		uint32_t flags);
 	virtual ~MockFS();
 
