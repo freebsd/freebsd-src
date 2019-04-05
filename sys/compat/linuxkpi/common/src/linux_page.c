@@ -69,6 +69,14 @@ __FBSDID("$FreeBSD$");
 #undef	LINUXKPI_HAVE_DMAP
 #endif
 
+void
+si_meminfo(struct sysinfo *si)
+{
+	si->totalram = physmem;
+	si->totalhigh = 0;
+	si->mem_unit = PAGE_SIZE;
+}
+
 void *
 linux_page_address(struct page *page)
 {
