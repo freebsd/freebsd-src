@@ -532,14 +532,18 @@ count (
     {
     case 2:
 
-        AslGbl_TotalKeywords++;
-        AslGbl_TotalNamedObjects++;
+        ++AslGbl_TotalKeywords;
+        ++AslGbl_TotalNamedObjects;
+        ++AslGbl_FilesList->TotalKeywords;
+        ++AslGbl_FilesList->TotalNamedObjects;
         break;
 
     case 3:
 
-        AslGbl_TotalKeywords++;
-        AslGbl_TotalExecutableOpcodes++;
+        ++AslGbl_TotalKeywords;
+        ++AslGbl_TotalExecutableOpcodes;
+        ++AslGbl_FilesList->TotalKeywords;
+        ++AslGbl_FilesList->TotalExecutableOpcodes;
         break;
 
     default:

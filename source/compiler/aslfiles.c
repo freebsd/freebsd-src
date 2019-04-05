@@ -172,6 +172,257 @@ FlParseInputPathname (
 
 /*******************************************************************************
  *
+ * FUNCTION:    FlInitOneFile
+ *
+ * PARAMETERS:  InputFilename       - The user-specified ASL source file to be
+ *                                    compiled
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Initialize global file structure for one input file. This file
+ *              structure contains references to input, output, debugging, and
+ *              other miscellaneous files that are associated for a single
+ *              input ASL file.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+FlInitOneFile (
+    char                    *InputFilename)
+{
+    UINT32                  i;
+    ASL_GLOBAL_FILE_NODE    *NewFileNode;
+
+
+    if (FlInputFileExists (InputFilename))
+    {
+        AslError (ASL_ERROR, ASL_MSG_DUPLICATE_INPUT_FILE, NULL, InputFilename);
+        return (AE_ALREADY_EXISTS);
+    }
+
+    NewFileNode = ACPI_CAST_PTR (ASL_GLOBAL_FILE_NODE,
+        UtLocalCacheCalloc (sizeof (ASL_GLOBAL_FILE_NODE)));
+
+    if (!NewFileNode)
+    {
+        AslError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION, NULL, NULL);
+        return (AE_NO_MEMORY);
+    }
+
+    NewFileNode->ParserErrorDetected = FALSE;
+    NewFileNode->Next = AslGbl_FilesList;
+
+    AslGbl_FilesList = NewFileNode;
+    AslGbl_Files = NewFileNode->Files;
+
+    for (i = 0; i < ASL_NUM_FILES; i++)
+    {
+        AslGbl_Files[i].Handle = NULL;
+        AslGbl_Files[i].Filename = NULL;
+    }
+
+    AslGbl_Files[ASL_FILE_STDOUT].Handle   = stdout;
+    AslGbl_Files[ASL_FILE_STDOUT].Filename = "STDOUT";
+
+    if (AslGbl_VerboseErrors)
+    {
+        AslGbl_Files[ASL_FILE_STDERR].Handle = stderr;
+    }
+    else
+    {
+        AslGbl_Files[ASL_FILE_STDERR].Handle = stdout;
+    }
+
+    AslGbl_Files[ASL_FILE_STDERR].Filename = "STDERR";
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlInputFileExists
+ *
+ * PARAMETERS:  Filename       - File name to be searched
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Returns true if the file name already exists.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+FlInputFileExists (
+    char                    *Filename)
+{
+    ASL_GLOBAL_FILE_NODE    *Current = AslGbl_FilesList;
+
+
+    while (Current)
+    {
+        if (!strcmp (Filename, Current->Files[ASL_FILE_INPUT].Filename))
+        {
+            return (TRUE);
+        }
+
+        Current = Current->Next;
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlSwitchFileSet
+ *
+ * PARAMETERS:  Op        - Parse node for the LINE asl statement
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Set the current line number
+ *
+ ******************************************************************************/
+
+ASL_FILE_SWITCH_STATUS
+FlSwitchFileSet (
+    char                    *InputFilename)
+{
+    ASL_GLOBAL_FILE_NODE    *Current = AslGbl_FilesList;
+    char                    *PrevFilename = Current->Files[ASL_FILE_INPUT].Filename;
+
+
+    while (Current)
+    {
+        if (!strcmp(Current->Files[ASL_FILE_INPUT].Filename, InputFilename))
+        {
+            AslGbl_Files = Current->Files;
+            AslGbl_TableSignature = Current->TableSignature;
+            AslGbl_TableId = Current->TableId;
+
+            if (!strcmp (InputFilename, PrevFilename))
+            {
+                return (SWITCH_TO_SAME_FILE);
+            }
+            else
+            {
+                return (SWITCH_TO_DIFFERENT_FILE);
+            }
+        }
+
+        Current = Current->Next;
+    }
+
+    return (FILE_NOT_FOUND);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlGetFileHandle
+ *
+ * PARAMETERS:  OutFileId       - denotes file type of output handle
+ *              InFileId        - denotes file type of the input Filename
+ *              Filename
+ *
+ * RETURN:      File handle
+ *
+ * DESCRIPTION: Get the file handle for a particular filename/FileId. This
+ *              function also allows the caller to specify the file Id of the
+ *              desired type.
+ *
+ ******************************************************************************/
+
+FILE *
+FlGetFileHandle (
+    UINT32                  OutFileId,
+    UINT32                  InFileId,
+    char                    *Filename)
+{
+    ASL_GLOBAL_FILE_NODE    *Current = AslGbl_FilesList;
+
+
+    if (!Filename)
+    {
+        return (NULL);
+    }
+
+    while (Current)
+    {
+        if (!strcmp (Current->Files[InFileId].Filename, Filename))
+        {
+            return (Current->Files[OutFileId].Handle);
+        }
+
+        Current = Current->Next;
+    }
+
+    return (NULL);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlGetFileNode
+ *
+ * PARAMETERS:  FileId        - File type (ID) of the input Filename
+ *              Filename      - File to search for
+ *
+ * RETURN:      A global file node
+ *
+ * DESCRIPTION: Get the file node for a particular filename/FileId.
+ *
+ ******************************************************************************/
+
+ASL_GLOBAL_FILE_NODE *
+FlGetFileNode (
+    UINT32                  FileId,
+    char                    *Filename)
+{
+    ASL_GLOBAL_FILE_NODE    *Current = AslGbl_FilesList;
+
+
+    if (!Filename)
+    {
+        return (NULL);
+    }
+
+    while (Current)
+    {
+        if (!strcmp (Current->Files[FileId].Filename, Filename))
+        {
+            return (Current);
+        }
+
+        Current = Current->Next;
+    }
+
+    return (NULL);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlGetCurrentFileNode
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Global file node
+ *
+ * DESCRIPTION: Get the current input file node
+ *
+ ******************************************************************************/
+
+ASL_GLOBAL_FILE_NODE *
+FlGetCurrentFileNode (
+    void)
+{
+    return (FlGetFileNode (
+        ASL_FILE_INPUT,AslGbl_Files[ASL_FILE_INPUT].Filename));
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    FlSetLineNumber
  *
  * PARAMETERS:  Op        - Parse node for the LINE asl statement
@@ -426,8 +677,6 @@ FlOpenIncludeWithPrefix (
     IncludeFile = fopen (Pathname, "r");
     if (!IncludeFile)
     {
-        fprintf (stderr, "Could not open include file %s\n", Pathname);
-        ACPI_FREE (Pathname);
         return (NULL);
     }
 

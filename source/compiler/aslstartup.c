@@ -165,10 +165,6 @@ static UINT8
 AslDetectSourceFileType (
     ASL_FILE_INFO           *Info);
 
-static ACPI_STATUS
-AslDoDisassembly (
-    void);
-
 
 /* Globals */
 
@@ -225,12 +221,6 @@ AslInitializeGlobals (
     for (i = 0; i < ASL_NUM_REPORT_LEVELS; i++)
     {
         AslGbl_ExceptionCount[i] = 0;
-    }
-
-    for (i = ASL_FILE_INPUT; i <= ASL_MAX_FILE_TYPE; i++)
-    {
-        AslGbl_Files[i].Handle = NULL;
-        AslGbl_Files[i].Filename = NULL;
     }
 
     if (AcpiGbl_CaptureComments)
@@ -343,24 +333,18 @@ Cleanup:
  * RETURN:      Status
  *
  * DESCRIPTION: Initiate AML file disassembly. Uses ACPICA subsystem to build
- *              namespace.
+ *              namespace. This function assumes that the ACPI subsystem has
+ *              been initialized. The caller of the initialization will also
+ *              terminate the ACPI subsystem.
  *
  ******************************************************************************/
 
-static ACPI_STATUS
+ACPI_STATUS
 AslDoDisassembly (
     void)
 {
     ACPI_STATUS             Status;
 
-
-    /* ACPICA subsystem initialization */
-
-    Status = AdInitialize ();
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
 
     Status = AcpiAllocateRootTable (4);
     if (ACPI_FAILURE (Status))
@@ -369,11 +353,6 @@ AslDoDisassembly (
             AcpiFormatException (Status));
         return (Status);
     }
-
-    /* Handle additional output files for disassembler */
-
-    AslGbl_FileType = ASL_INPUT_TYPE_BINARY_ACPI_TABLE;
-    Status = FlOpenMiscOutputFiles (AslGbl_OutputFilenamePrefix);
 
     /* This is where the disassembly happens */
 
@@ -390,10 +369,9 @@ AslDoDisassembly (
 
     AcpiDmUnresolvedWarning (0);
 
-    /* Shutdown compiler and ACPICA subsystem */
+    /* Clear Error log */
 
     AeClearErrorLog ();
-    (void) AcpiTerminate ();
 
     /*
      * AslGbl_Files[ASL_FILE_INPUT].Filename was replaced with the
@@ -406,11 +384,6 @@ AslDoDisassembly (
         return (AE_CTRL_CONTINUE);
     }
 
-    /* No need to free the filename string */
-
-    AslGbl_Files[ASL_FILE_INPUT].Filename = NULL;
-
-    UtDeleteLocalCaches ();
     return (AE_OK);
 }
 
@@ -432,6 +405,8 @@ AslDoOneFile (
     char                    *Filename)
 {
     ACPI_STATUS             Status;
+    UINT8                   Event;
+    ASL_GLOBAL_FILE_NODE    *FileNode;
 
 
     /* Re-initialize "some" compiler/preprocessor globals */
@@ -450,6 +425,18 @@ AslDoOneFile (
         return (Status);
     }
 
+    /*
+     * There was an input file detected at this point. Each input ASL file is
+     * associated with one global file node consisting of the input file and
+     * all output files associated with it. This is useful when compiling
+     * multiple files in one command.
+     */
+    Status = FlInitOneFile(Filename);
+    if (ACPI_FAILURE (Status))
+    {
+        return (AE_ERROR);
+    }
+
     /* Take a copy of the input filename, convert any backslashes */
 
     AslGbl_Files[ASL_FILE_INPUT].Filename =
@@ -457,18 +444,6 @@ AslDoOneFile (
 
     strcpy (AslGbl_Files[ASL_FILE_INPUT].Filename, Filename);
     UtConvertBackslashes (AslGbl_Files[ASL_FILE_INPUT].Filename);
-
-    /*
-     * AML Disassembly (Optional)
-     */
-    if (AcpiGbl_DisasmFlag)
-    {
-        Status = AslDoDisassembly ();
-        if (Status != AE_CTRL_CONTINUE)
-        {
-            return (Status);
-        }
-    }
 
     /*
      * Open the input file. Here, this should be an ASCII source file,
@@ -481,7 +456,13 @@ AslDoOneFile (
         return (AE_ERROR);
     }
 
-    AslGbl_OriginalInputFileSize = FlGetFileSize (ASL_FILE_INPUT);
+    FileNode = FlGetCurrentFileNode();
+    if (!FileNode)
+    {
+        return (AE_ERROR);
+    }
+
+    FileNode->OriginalInputFileSize = FlGetFileSize (ASL_FILE_INPUT);
 
     /* Determine input file type */
 
@@ -498,6 +479,22 @@ AslDoOneFile (
     if (AslGbl_UseDefaultAmlFilename)
     {
         AslGbl_OutputFilenamePrefix = AslGbl_Files[ASL_FILE_INPUT].Filename;
+    }
+
+    /*
+     * Open the output file. Note: by default, the name of this file comes from
+     * the table descriptor within the input file.
+     */
+    if (AslGbl_FileType == ASL_INPUT_TYPE_ASCII_ASL)
+    {
+        Event = UtBeginEvent ("Open AML output file");
+        Status = FlOpenAmlOutputFile (AslGbl_OutputFilenamePrefix);
+        UtEndEvent (Event);
+        if (ACPI_FAILURE (Status))
+        {
+            AePrintErrorLog (ASL_FILE_STDERR);
+            return (AE_ERROR);
+        }
     }
 
     /* Open the optional output files (listings, etc.) */
@@ -550,20 +547,7 @@ AslDoOneFile (
      */
     case ASL_INPUT_TYPE_ASCII_ASL:
 
-        /* ACPICA subsystem initialization */
-
-        Status = AdInitialize ();
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
-
-        (void) CmDoCompile ();
-        (void) AcpiTerminate ();
-
-        /* Check if any errors occurred during compile */
-
-        Status = AslCheckForErrorExit ();
+        Status = CmDoCompile ();
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -574,27 +558,11 @@ AslDoOneFile (
         AeClearErrorLog ();
         PrTerminatePreprocessor ();
 
-        /* ASL-to-ASL+ conversion - Perform immediate disassembly */
-
-        if (AslGbl_DoAslConversion)
-        {
-            /*
-             * New input file is the output AML file from above.
-             * New output is from the input ASL file from above.
-             */
-            AslGbl_OutputFilenamePrefix = AslGbl_Files[ASL_FILE_INPUT].Filename;
-            CvDbgPrint ("OUTPUTFILENAME: %s\n", AslGbl_OutputFilenamePrefix);
-            AslGbl_Files[ASL_FILE_INPUT].Filename =
-                AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename;
-            AcpiGbl_DisasmFlag = TRUE;
-            fprintf (stderr, "\n");
-            AslDoDisassembly ();
-
-            /* delete the AML file. This AML file should never be utilized by AML interpreters. */
-
-            FlDeleteFile (ASL_FILE_AML_OUTPUT);
-        }
-
+        /*
+         * At this point, we know how many lines are in the input file. Save it
+         * to display for post-compilation summary.
+         */
+        FileNode->TotalLineCount = AslGbl_CurrentLineNumber;
         return (AE_OK);
 
     /*
@@ -661,6 +629,8 @@ AslCheckForErrorExit (
                 (AslGbl_ExceptionCount[ASL_WARNING2] > 0) ||
                 (AslGbl_ExceptionCount[ASL_WARNING3] > 0))
             {
+                AslError (ASL_ERROR, ASL_MSG_WARNING_AS_ERROR, NULL,
+                    "(reporting warnings as errors)");
                 return (AE_ERROR);
             }
         }
