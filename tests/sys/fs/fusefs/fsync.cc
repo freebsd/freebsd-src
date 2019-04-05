@@ -56,6 +56,11 @@ void expect_fsync(uint64_t ino, uint32_t flags, int error)
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_FSYNC &&
 				in->header.nodeid == ino &&
+				/* 
+				 * TODO: reenable pid check after fixing
+				 * bug 236379
+				 */
+				//(pid_t)in->header.pid == getpid() &&
 				in->body.fsync.fh == FH &&
 				in->body.fsync.fsync_flags == flags);
 		}, Eq(true)),
@@ -76,7 +81,7 @@ void expect_write(uint64_t ino, uint64_t size, const void *contents)
 };
 
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236379 */
-TEST_F(Fsync, DISABLED_aio_fsync)
+TEST_F(Fsync, aio_fsync)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
