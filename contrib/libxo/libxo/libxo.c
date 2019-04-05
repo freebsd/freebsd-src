@@ -600,7 +600,7 @@ xo_no_setlocale (void)
 static const char *
 xo_xml_leader_len (xo_handle_t *xop, const char *name, xo_ssize_t nlen)
 {
-    if (isalpha(name[0]) || name[0] == '_')
+    if (name == NULL || isalpha(name[0]) || name[0] == '_')
         return "";
 
     xo_failure(xop, "invalid XML tag name: '%.*s'", nlen, name);
