@@ -56,6 +56,10 @@ void expect_fsyncdir(uint64_t ino, uint32_t flags, int error)
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_FSYNCDIR &&
 				in->header.nodeid == ino &&
+				/* 
+				 * TODO: reenable pid check after fixing
+				 * bug 236379
+				 */
 				//(pid_t)in->header.pid == getpid() &&
 				in->body.fsyncdir.fh == FH &&
 				in->body.fsyncdir.fsync_flags == flags);
@@ -72,9 +76,7 @@ void expect_lookup(const char *relpath, uint64_t ino)
 };
 
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236379 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236473 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
-TEST_F(FsyncDir, DISABLED_aio_fsync)
+TEST_F(FsyncDir, aio_fsync)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -98,9 +100,7 @@ TEST_F(FsyncDir, DISABLED_aio_fsync)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236473 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
-TEST_F(FsyncDir, DISABLED_eio)
+TEST_F(FsyncDir, eio)
 {
 	const char FULLPATH[] = "mountpoint/some_dir";
 	const char RELPATH[] = "some_dir";
@@ -124,7 +124,6 @@ TEST_F(FsyncDir, DISABLED_eio)
  * subsequent calls to VOP_FSYNC will succeed automatically without being sent
  * to the filesystem daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
 TEST_F(FsyncDir, DISABLED_enosys)
 {
@@ -147,8 +146,7 @@ TEST_F(FsyncDir, DISABLED_enosys)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
-TEST_F(FsyncDir, DISABLED_fsyncdata)
+TEST_F(FsyncDir, fsyncdata)
 {
 	const char FULLPATH[] = "mountpoint/some_dir";
 	const char RELPATH[] = "some_dir";
@@ -170,9 +168,7 @@ TEST_F(FsyncDir, DISABLED_fsyncdata)
  * Unlike regular files, the kernel doesn't know whether a directory is or
  * isn't dirty, so fuse(4) should always send FUSE_FSYNCDIR on fsync(2)
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236473 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
-TEST_F(FsyncDir, DISABLED_fsync)
+TEST_F(FsyncDir, fsync)
 {
 	const char FULLPATH[] = "mountpoint/some_dir";
 	const char RELPATH[] = "some_dir";
