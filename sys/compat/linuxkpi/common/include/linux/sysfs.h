@@ -132,10 +132,14 @@ out:
 static inline int
 sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
 {
+	struct sysctl_oid *oid;
 
-	SYSCTL_ADD_OID(NULL, SYSCTL_CHILDREN(kobj->oidp), OID_AUTO,
+	oid = SYSCTL_ADD_OID(NULL, SYSCTL_CHILDREN(kobj->oidp), OID_AUTO,
 	    attr->name, CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE, kobj,
 	    (uintptr_t)attr, sysctl_handle_attr, "A", "");
+	if (!oid) {
+		return (-ENOMEM);
+	}
 
 	return (0);
 }
@@ -176,9 +180,14 @@ sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
 static inline int
 sysfs_create_dir(struct kobject *kobj)
 {
+	struct sysctl_oid *oid;
 
-	kobj->oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->parent->oidp),
+	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->parent->oidp),
 	    OID_AUTO, kobj->name, CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, kobj->name);
+	if (!oid) {
+		return (-ENOMEM);
+	}
+	kobj->oidp = oid;
 
 	return (0);
 }
