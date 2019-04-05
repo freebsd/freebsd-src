@@ -621,7 +621,6 @@ twsi_intr_start(void *pdev)
 		device_printf(pdev, "unable to register interrupt handler\n");
 
 	sc->have_intr = true;
-	config_intrhook_disestablish(&sc->intr_hook);
 }
 
 int
@@ -648,11 +647,7 @@ twsi_attach(device_t dev)
 	}
 	bus_generic_attach(dev);
 
-	sc->intr_hook.ich_func = twsi_intr_start;
-	sc->intr_hook.ich_arg = dev;
-
-	if (config_intrhook_establish(&sc->intr_hook) != 0)
-		return (ENOMEM);
+	config_intrhook_oneshot(twsi_intr_start, dev);
 
 	return (0);
 }
