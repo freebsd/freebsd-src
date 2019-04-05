@@ -137,6 +137,13 @@ sg_phys(struct scatterlist *sg)
 	return (VM_PAGE_TO_PHYS(sg_page(sg)) + sg->offset);
 }
 
+static inline void *
+sg_virt(struct scatterlist *sg)
+{
+
+	return ((void *)((unsigned long)page_address(sg_page(sg)) + sg->offset));
+}
+
 static inline void
 sg_chain(struct scatterlist *prv, unsigned int prv_nents,
     struct scatterlist *sgl)
