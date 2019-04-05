@@ -1835,7 +1835,7 @@ again:
 			*addr = vm_map_findspace(map, curr_min_addr,
 			    length + gap * pagesizes[pidx]);
 			if (*addr + length + gap * pagesizes[pidx] >
-+			    vm_map_max(map))
+			    vm_map_max(map))
 				goto again;
 			/* And randomize the start address. */
 			*addr += (arc4random() % gap) * pagesizes[pidx];
