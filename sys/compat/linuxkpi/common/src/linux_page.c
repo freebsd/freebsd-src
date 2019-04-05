@@ -63,6 +63,14 @@ __FBSDID("$FreeBSD$");
 #include <linux/preempt.h>
 #include <linux/fs.h>
 
+void
+si_meminfo(struct sysinfo *si)
+{
+	si->totalram = physmem;
+	si->totalhigh = 0;
+	si->mem_unit = PAGE_SIZE;
+}
+
 void *
 linux_page_address(struct page *page)
 {
