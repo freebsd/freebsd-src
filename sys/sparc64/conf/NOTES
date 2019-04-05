@@ -85,6 +85,11 @@ options 	SUNKBD_EMULATE_ATKBD	# allows to use the AT keyboard maps
 options 	SUNKBD_DFLT_KEYMAP	# specify the built-in keymap
 makeoptions	SUNKBD_DFLT_KEYMAP=fr.dvorak
 
+# LSI-Logic MPT-Fusion drivers
+device		mpt			# LSI-Logic MPT-Fusion
+device		mps			# LSI-Logic MPT-Fusion 2
+device		mpr			# LSI-Logic MPT-Fusion 3
+
 
 #####################################################################
 # Devices we don't want to deal with
