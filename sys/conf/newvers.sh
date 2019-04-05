@@ -140,7 +140,6 @@ done
 if [ -z "$COPYRIGHT" ]; then
 	COPYRIGHT="/*-
  * Copyright (c) 1992-$year The FreeBSD Project.
- * All rights reserved.
  *
  */"
 fi
