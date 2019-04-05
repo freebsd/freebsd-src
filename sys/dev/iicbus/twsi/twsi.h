@@ -55,7 +55,6 @@ struct twsi_softc {
 	clk_t		clk_reg;
 #endif
 	void *			intrhand;
-	struct intr_config_hook	intr_hook;
 	bool			have_intr;
 
 	struct iic_msg		*msg;
