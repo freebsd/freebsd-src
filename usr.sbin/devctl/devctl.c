@@ -397,14 +397,14 @@ reset_usage(void)
 static int
 reset(int ac, char **av)
 {
-	bool detach;
+	bool detach_drv;
 	int ch;
 
-	detach = false;
+	detach_drv = false;
 	while ((ch = getopt(ac, av, "d")) != -1)
 		switch (ch) {
 		case 'd':
-			detach = true;
+			detach_drv = true;
 			break;
 		default:
 			reset_usage();
@@ -414,7 +414,7 @@ reset(int ac, char **av)
 
 	if (ac != 1)
 		reset_usage();
-	if (devctl_reset(av[0], detach) < 0)
+	if (devctl_reset(av[0], detach_drv) < 0)
 		err(1, "Failed to reset %s", av[0]);
 	return (0);
 }
