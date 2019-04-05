@@ -96,6 +96,21 @@ void FuseTest::SetUp() {
 		m_mock = new MockFS(m_maxreadahead, m_allow_other,
 			m_default_permissions, m_push_symlinks_in, m_ro,
 			m_init_flags);
+		/* 
+		 * FUSE_ACCESS is called almost universally.  Expecting it in
+		 * each test case would be super-annoying.  Instead, set a
+		 * default expectation for FUSE_ACCESS and return ENOSYS.
+		 *
+		 * Individual test cases can override this expectation since
+		 * googlemock evaluates expectations in LIFO order.
+		 */
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in->header.opcode == FUSE_ACCESS);
+			}, Eq(true)),
+			_)
+		).Times(AnyNumber())
+		.WillRepeatedly(Invoke(ReturnErrno(ENOSYS)));
 	} catch (std::system_error err) {
 		FAIL() << err.what();
 	}

@@ -115,20 +115,13 @@ fuse_internal_access(struct vnode *vp,
     struct ucred *cred)
 {
 	int err = 0;
-	uint32_t mask = 0;
+	uint32_t mask = F_OK;
 	int dataflags;
 	int vtype;
 	struct mount *mp;
 	struct fuse_dispatcher fdi;
 	struct fuse_access_in *fai;
 	struct fuse_data *data;
-
-	/* NOT YET DONE */
-	/*
-	 * If this vnop gives you trouble, just return 0 here for a lazy
-	 * kludge.
-	 */
-	/* return 0;*/
 
 	mp = vnode_mount(vp);
 	vtype = vnode_vtype(vp);
@@ -139,65 +132,37 @@ fuse_internal_access(struct vnode *vp,
 	if ((mode & VWRITE) && vfs_isrdonly(mp)) {
 		return EROFS;
 	}
-	/* Unless explicitly permitted, deny everyone except the fs owner. */
-	if (!(facp->facc_flags & FACCESS_NOCHECKSPY)) {
-		if (!(dataflags & FSESS_DAEMON_CAN_SPY)) {
-			int denied = fuse_match_cred(data->daemoncred,
-			    cred);
 
-			if (denied) {
+	/* Unless explicitly permitted, deny everyone except the fs owner. */
+	if (!(facp->facc_flags)) {
+		if (!(dataflags & FSESS_DAEMON_CAN_SPY)) {
+			int denied = fuse_match_cred(data->daemoncred, cred);
+
+			if (denied)
 				return EPERM;
-			}
 		}
-		/* 
-		 * Set the "skip cred check" flag so future callers that share
-		 * facp can skip fuse_match_cred.
-		 */
-		facp->facc_flags |= FACCESS_NOCHECKSPY;
 	}
-	if (!(facp->facc_flags & FACCESS_DO_ACCESS)) {
+
+	if (dataflags & FSESS_DEFAULT_PERMISSIONS) {
+		/* TODO: Implement me!  Bug 216391 */
 		return 0;
 	}
-	if (((vtype == VREG) && (mode & VEXEC))) {
-#ifdef NEED_MOUNT_ARGUMENT_FOR_THIS
-		/* Let	 the kernel handle this through open / close heuristics.*/
-		    return ENOTSUP;
-#else
-		    /* 	Let the kernel handle this. */
-		    return 0;
-#endif
-	}
-	if (!fsess_isimpl(mp, FUSE_ACCESS)) {
-		/* Let the kernel handle this. */
-		    return 0;
-	}
-	if (dataflags & FSESS_DEFAULT_PERMISSIONS) {
-		/* Let the kernel handle this. */
-		    return 0;
-	}
-	if ((mode & VADMIN) != 0) {
-		err = priv_check_cred(cred, PRIV_VFS_ADMIN);
-		if (err) {
-			return err;
-		}
-	}
-	if ((mode & (VWRITE | VAPPEND | VADMIN)) != 0) {
+
+	if (!fsess_isimpl(mp, FUSE_ACCESS))
+		return 0;
+
+	if ((mode & (VWRITE | VAPPEND | VADMIN)) != 0)
 		mask |= W_OK;
-	}
-	if ((mode & VREAD) != 0) {
+	if ((mode & VREAD) != 0)
 		mask |= R_OK;
-	}
-	if ((mode & VEXEC) != 0) {
+	if ((mode & VEXEC) != 0)
 		mask |= X_OK;
-	}
-	bzero(&fdi, sizeof(fdi));
 
 	fdisp_init(&fdi, sizeof(*fai));
 	fdisp_make_vp(&fdi, FUSE_ACCESS, vp, td, cred);
 
 	fai = fdi.indata;
-	fai->mask = F_OK;
-	fai->mask |= mask;
+	fai->mask = mask;
 
 	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);

@@ -55,14 +55,14 @@ virtual void SetUp() {
 };
 
 /* The error case of FUSE_ACCESS.  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236291 */
-TEST_F(Access, DISABLED_eaccess)
+TEST_F(Access, eaccess)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 	mode_t	access_mode = X_OK;
 
+	expect_access(1, X_OK, 0);
 	expect_lookup(RELPATH, ino);
 	expect_access(ino, access_mode, EACCES);
 
@@ -75,17 +75,15 @@ TEST_F(Access, DISABLED_eaccess)
  * and subsequent VOP_ACCESS calls will succeed automatically without querying
  * the daemon.
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236291 */
-TEST_F(Access, DISABLED_enosys)
+TEST_F(Access, enosys)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 	mode_t	access_mode = R_OK;
 
-	expect_lookup(RELPATH, ino);
-	expect_access(ino, access_mode, ENOSYS);
+	expect_access(1, X_OK, ENOSYS);
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 
 	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
 	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
@@ -98,6 +96,7 @@ TEST_F(RofsAccess, erofs)
 	uint64_t ino = 42;
 	mode_t	access_mode = W_OK;
 
+	expect_access(1, X_OK, 0);
 	expect_lookup(RELPATH, ino);
 
 	ASSERT_NE(0, access(FULLPATH, access_mode));
@@ -105,14 +104,14 @@ TEST_F(RofsAccess, erofs)
 }
 
 /* The successful case of FUSE_ACCESS.  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236291 */
-TEST_F(Access, DISABLED_ok)
+TEST_F(Access, ok)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 	mode_t	access_mode = R_OK;
 
+	expect_access(1, X_OK, 0);
 	expect_lookup(RELPATH, ino);
 	expect_access(ino, access_mode, 0);
 
