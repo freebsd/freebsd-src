@@ -155,7 +155,6 @@ fuse_iosize(struct vnode *vp)
 #define FVP_ACCESS_NOOP		0x01
 
 #define FACCESS_VA_VALID	0x01
-#define FACCESS_DO_ACCESS	0x02
 /* 
  * Caller must be the directory's owner, or the superuser, or the sticky bit
  * must not be set
@@ -163,7 +162,6 @@ fuse_iosize(struct vnode *vp)
 #define FACCESS_STICKY		0x04
 /* Caller requires access to change file's owner */
 #define FACCESS_CHOWN		0x08
-#define FACCESS_NOCHECKSPY	0x10
 #define FACCESS_SETGID		0x12
 
 #define FACCESS_XQUERIES	(FACCESS_STICKY | FACCESS_CHOWN | FACCESS_SETGID)

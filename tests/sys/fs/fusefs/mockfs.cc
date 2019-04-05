@@ -162,6 +162,9 @@ void debug_fuseop(const mockfs_buf_in *in)
 	switch (in->header.opcode) {
 		const char *name, *value;
 
+		case FUSE_ACCESS:
+			printf(" mask=%#x", in->body.access.mask);
+			break;
 		case FUSE_CREATE:
 			name = (const char*)in->body.bytes +
 				sizeof(fuse_open_in);
