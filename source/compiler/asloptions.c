@@ -896,7 +896,6 @@ AslDoOptions (
              */
             AslGbl_VerboseErrors = FALSE;
             AslGbl_DoSignon = FALSE;
-            AslGbl_Files[ASL_FILE_STDERR].Handle = stdout;
             break;
 
         case 'o':

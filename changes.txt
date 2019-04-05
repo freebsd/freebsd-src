@@ -1,4 +1,38 @@
 ----------------------------------------
+05 April 2019. Summary of changes for version 20190405:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Event Manager: History: Commit 18996f2db918 ("ACPICA: Events: Stop 
+unconditionally clearing ACPI IRQs during suspend/resume") was added 
+earlier to stop clearing of event status bits unconditionally on suspend 
+and resume paths. Though this change fixed an issue on suspend path, it 
+introduced regressions on several resume paths. In the case of S0ix, 
+events are enabled as part of device suspend path. If status bits for the 
+events are set when they are enabled, it could result in premature wake 
+from S0ix. If status is cleared for any event that is being enabled so 
+that any stale events are cleared out. In case of S0ix, events are 
+enabled as part of device suspend path. If status bits for the events are 
+set when they are enabled, it could result in premature wake from S0ix.
+
+This change ensures that status is cleared for any event that is being 
+enabled so that any stale events are cleared out.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+iASL: Implemented an enhanced multiple file compilation that combines 
+named objects from all input files to a single namespace. With this 
+feature, any unresolved external declarations as well as duplicate named 
+object declarations can be detected during compilation rather than 
+generating errors much later at runtime. The following commands are 
+examples that utilize this feature:
+    iasl dsdt.asl ssdt.asl
+    iasl dsdt.asl ssdt1.asl ssdt2.asl
+    iasl dsdt.asl ssdt*.asl
+
+----------------------------------------
 29 March 2019. Summary of changes for version 20190329:
 
 

@@ -1185,6 +1185,24 @@ XfNamespaceLocateBegin (
         }
     }
 
+    /*
+     * 5) Check for external resolution
+     * By this point, everything should be loaded in the namespace. If a
+     * namespace lookup results in a namespace node that is an external, it
+     * means that this named object was not defined in the input ASL. This
+     * causes issues because there are plenty of incidents where developers
+     * use the external keyword to suppress compiler errors about undefined
+     * objects. Note: this only applies when compiling multiple definition
+     * blocks.
+     */
+    if (AslGbl_ParseTreeRoot->Asl.Child && AslGbl_ParseTreeRoot->Asl.Child->Asl.Next &&
+        (Op->Asl.ParseOpcode != PARSEOP_EXTERNAL &&
+        Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_EXTERNAL) &&
+        (Node->Flags & ANOBJ_IS_EXTERNAL))
+    {
+        AslError (ASL_ERROR, ASL_MSG_UNDEFINED_EXTERNAL, Op, NULL);
+    }
+
     /* 5) Check for a connection object */
 #if 0
     else if (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CONNECTION)

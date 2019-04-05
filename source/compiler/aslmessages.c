@@ -353,8 +353,8 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_NULL_RESOURCE_TEMPLATE */     "Empty Resource Template (END_TAG only)",
 /*    ASL_MSG_FOUND_HERE */                 "Original name creation/declaration below: ",
 /*    ASL_MSG_ILLEGAL_RECURSION */          "Illegal recursive call to method that creates named objects",
-/*    ASL_MSG_PLACE_HOLDER_00 */            "", /* TODO: fill in this slot with a new error message */
-/*    ASL_MSG_PLACE_HOLDER_01 */            "", /* TODO: fill in this slot with a new error message */
+/*    ASL_MSG_DUPLICATE_INPUT_FILE */       "Duplicate input files detected:",
+/*    ASL_MSG_WARNING_AS_ERROR */           "Warnings detected during compilation",
 /*    ASL_MSG_OEM_TABLE_ID */               "Invalid OEM Table ID",
 /*    ASL_MSG_OEM_ID */                     "Invalid OEM ID",
 /*    ASL_MSG_UNLOAD */                     "Unload is not supported by all operating systems",
@@ -363,7 +363,8 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_PREFIX_NOT_EXIST */           "One or more prefix Scopes do not exist",
 /*    ASL_MSG_NAMEPATH_NOT_EXIST */         "One or more objects within the Pathname do not exist",
 /*    ASL_MSG_REGION_LENGTH */              "Operation Region declared with zero length",
-/*    ASL_MSG_TEMPORARY_OBJECT */           "Object is created temporarily in another method and cannot be accessed"
+/*    ASL_MSG_TEMPORARY_OBJECT */           "Object is created temporarily in another method and cannot be accessed",
+/*    ASL_MSG_UNDEFINED_EXTERNAL */         "Named object was declared external but the actual definition does not exist"
 };
 
 /* Table compiler */
