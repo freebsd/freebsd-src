@@ -179,3 +179,48 @@ TEST_F(NoAllowOther, disallowed)
 		}
 	);
 }
+
+/* 
+ * When -o allow_other is not used, users other than the owner aren't allowed
+ * to open anything inside of the mount point, not just the mountpoint itself
+ * This is a regression test for bug 237052
+ */
+TEST_F(NoAllowOther, disallowed_beneath_root)
+{
+	const static char FULLPATH[] = "mountpoint/some_dir";
+	const static char RELPATH[] = "some_dir";
+	const static char RELPATH2[] = "other_dir";
+	const static uint64_t ino = 42;
+	const static uint64_t ino2 = 43;
+	int dfd;
+
+	expect_lookup(RELPATH, ino, S_IFDIR | 0755, 0, 1);
+	EXPECT_LOOKUP(ino, RELPATH2)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = ino2;
+		out->body.entry.attr.nlink = 1;
+		out->body.entry.attr_valid = UINT64_MAX;
+	})));
+	expect_opendir(ino);
+	dfd = open(FULLPATH, O_DIRECTORY);
+	ASSERT_LE(0, dfd) << strerror(errno);
+
+	fork(true, [] {
+		}, [&]() {
+			int fd;
+
+			fd = openat(dfd, RELPATH2, O_RDONLY);
+			if (fd >= 0) {
+				fprintf(stderr, "openat should've failed\n");
+				return(1);
+			} else if (errno != EPERM) {
+				fprintf(stderr, "Unexpected error: %s\n",
+					strerror(errno));
+				return(1);
+			}
+			return 0;
+		}
+	);
+}

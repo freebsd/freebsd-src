@@ -140,7 +140,7 @@ fuse_internal_access(struct vnode *vp,
 		return EROFS;
 	}
 	/* Unless explicitly permitted, deny everyone except the fs owner. */
-	    if (vnode_isvroot(vp) && !(facp->facc_flags & FACCESS_NOCHECKSPY)) {
+	if (!(facp->facc_flags & FACCESS_NOCHECKSPY)) {
 		if (!(dataflags & FSESS_DAEMON_CAN_SPY)) {
 			int denied = fuse_match_cred(data->daemoncred,
 			    cred);
@@ -149,6 +149,10 @@ fuse_internal_access(struct vnode *vp,
 				return EPERM;
 			}
 		}
+		/* 
+		 * Set the "skip cred check" flag so future callers that share
+		 * facp can skip fuse_match_cred.
+		 */
 		facp->facc_flags |= FACCESS_NOCHECKSPY;
 	}
 	if (!(facp->facc_flags & FACCESS_DO_ACCESS)) {
