@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2016 Emmanuel Vadot <manu@freebsd.org>
- * All rights reserved.
+ * Copyright (c) 2016-2019 Emmanuel Vadot <manu@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -90,6 +89,7 @@ a10_twsi_attach(device_t dev)
 	struct twsi_softc *sc;
 	clk_t clk;
 	hwreset_t rst;
+	uint64_t freq;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -124,10 +124,31 @@ a10_twsi_attach(device_t dev)
 	sc->reg_soft_reset = TWI_SRST;
 
 	/* Setup baud rate params */
-	sc->baud_rate[IIC_SLOW].param = TWSI_BAUD_RATE_PARAM(11, 2);
-	sc->baud_rate[IIC_FAST].param = TWSI_BAUD_RATE_PARAM(11, 2);
-	sc->baud_rate[IIC_FASTEST].param = TWSI_BAUD_RATE_PARAM(2, 2);
+	clk_get_freq(clk, &freq);
+	switch (freq) {
+		/* 
+		 * Formula is
+		 * F0 = FINT / 2 ^ CLK_N
+		 * F1 = F0 / (CLK_M + 1)
+		 * 
+		 * Doc says that the output freq is F1/10 but my logic analyzer says otherwise
+		 */
+	case 48000000:
+		sc->baud_rate[IIC_SLOW].param = TWSI_BAUD_RATE_PARAM(11, 1);
+		sc->baud_rate[IIC_FAST].param = TWSI_BAUD_RATE_PARAM(11, 1);
+		sc->baud_rate[IIC_FASTEST].param = TWSI_BAUD_RATE_PARAM(2, 1);
+		break;
+	case 24000000:
+		sc->baud_rate[IIC_SLOW].param = TWSI_BAUD_RATE_PARAM(5, 2);
+		sc->baud_rate[IIC_FAST].param = TWSI_BAUD_RATE_PARAM(5, 2);
+		sc->baud_rate[IIC_FASTEST].param = TWSI_BAUD_RATE_PARAM(2, 2);
+		break;
+	default:
+		device_printf(dev, "Non supported frequency\n");
+		return (ENXIO);
+	}
 
+	sc->need_ack = true;
 	return (twsi_attach(dev));
 }
 
@@ -154,7 +175,7 @@ DEFINE_CLASS_1(iichb, a10_twsi_driver, a10_twsi_methods,
 static devclass_t a10_twsi_devclass;
 
 EARLY_DRIVER_MODULE(a10_twsi, simplebus, a10_twsi_driver, a10_twsi_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 EARLY_DRIVER_MODULE(iicbus, a10_twsi, iicbus_driver, iicbus_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 MODULE_DEPEND(a10_twsi, iicbus, 1, 1, 1);
