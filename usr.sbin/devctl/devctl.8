@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2016
+.Dd April 4, 2019
 .Dt DEVCTL 8
 .Os
 .Sh NAME
@@ -65,6 +65,10 @@
 .Nm
 .Cm delete
 .Op Fl f
+.Ar device
+.Nm
+.Cm reset
+.Op Fl d
 .Ar device
 .Sh DESCRIPTION
 The
@@ -166,7 +170,35 @@ the device will be deleted even if it is physically present.
 This command should be used with care as a device that is deleted but present
 can no longer be used unless the parent bus device rediscovers the device via
 a rescan request.
+.It Xo Cm reset
+.Op Fl d
+.Ar device
+.Xc
+Reset the device, using bus-specific reset method.
+Drivers for the devices being reset are suspended around the reset.
+If the
+.Fl d
+option is specified, drivers are detached instead.
+.Pp
+Currently, resets are implemented for PCIe buses and PCI devices.
+For PCIe bus, the link is disabled and then re-trained, causing all
+children of the bus to reset.
+Use
+.Fl p
+option of
+.Xr devinfo 8
+tool to report parent bus for the device.
+For PCI device, if Function-Level Reset is implemented by it, FLR is
+tried first; if failed or not implemented, power reset is tried.
+.Pp
+If you have detached or suspended a child device explicitly and then
+do a reset, the child device will end up attached.
 .El
+.Sh BUGS
+Currently there is no administrative flag to prevent re-attach or resume
+of the manually detached or suspended devices after reset.
+Similarly, there is no flag to prevent un-suspending of the the manually
+suspended devices after system resume.
 .Sh SEE ALSO
 .Xr devctl 3 ,
 .Xr devinfo 8
