@@ -228,6 +228,10 @@ list_del_init(struct list_head *entry)
 
 #define	list_for_each_prev(p, h) for (p = (h)->prev; p != (h); p = (p)->prev)
 
+#define	list_for_each_entry_from_reverse(p, h, field)	\
+	for (; &p->field != (h);			\
+	     p = list_prev_entry(p, field))
+
 static inline void
 list_add(struct list_head *new, struct list_head *head)
 {
@@ -256,6 +260,18 @@ list_move_tail(struct list_head *entry, struct list_head *head)
 
 	list_del(entry);
 	list_add_tail(entry, head);
+}
+
+static inline void
+list_bulk_move_tail(struct list_head *head, struct list_head *first,
+    struct list_head *last)
+{
+	first->prev->next = last->next;
+	last->next->prev = first->prev;
+	head->prev->next = first;
+	first->prev = head->prev;
+	last->next = head;
+	head->prev = last;
 }
 
 static inline void
