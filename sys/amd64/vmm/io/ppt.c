@@ -356,25 +356,12 @@ ppt_is_mmio(struct vm *vm, vm_paddr_t gpa)
 static void
 ppt_pci_reset(device_t dev)
 {
-	int ps;
 
 	if (pcie_flr(dev,
-		     max(pcie_get_max_completion_timeout(dev) / 1000, 10),
-		     true))
+	     max(pcie_get_max_completion_timeout(dev) / 1000, 10), true))
 		return;
 
-	/*
-	 * If FLR fails, attempt a power-management reset by cycling
-	 * the device in/out of D3 state.
-	 * PCI spec says we can only go into D3 state from D0 state.
-	 * Transition from D[12] into D0 before going to D3 state.
-	 */
-	ps = pci_get_powerstate(dev);
-	if (ps != PCI_POWERSTATE_D0 && ps != PCI_POWERSTATE_D3)
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3)
-		pci_set_powerstate(dev, PCI_POWERSTATE_D3);
-	pci_set_powerstate(dev, ps);
+	pci_power_reset(dev);
 }
 
 int
