@@ -137,7 +137,7 @@ fuse_internal_access(struct vnode *vp,
 	dataflags = data->dataflags;
 
 	if ((mode & VWRITE) && vfs_isrdonly(mp)) {
-		return EACCES;
+		return EROFS;
 	}
 	/* Unless explicitly permitted, deny everyone except the fs owner. */
 	    if (vnode_isvroot(vp) && !(facp->facc_flags & FACCESS_NOCHECKSPY)) {

@@ -46,6 +46,14 @@ void expect_lookup(const char *relpath, uint64_t ino)
 }
 };
 
+class RofsAccess: public Access {
+public:
+virtual void SetUp() {
+	m_ro = true;
+	Access::SetUp();
+}
+};
+
 /* The error case of FUSE_ACCESS.  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236291 */
 TEST_F(Access, DISABLED_eaccess)
@@ -81,6 +89,19 @@ TEST_F(Access, DISABLED_enosys)
 
 	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
 	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
+}
+
+TEST_F(RofsAccess, erofs)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	mode_t	access_mode = W_OK;
+
+	expect_lookup(RELPATH, ino);
+
+	ASSERT_NE(0, access(FULLPATH, access_mode));
+	ASSERT_EQ(EROFS, errno);
 }
 
 /* The successful case of FUSE_ACCESS.  */

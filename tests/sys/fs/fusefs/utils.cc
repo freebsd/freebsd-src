@@ -94,7 +94,7 @@ void FuseTest::SetUp() {
 
 	try {
 		m_mock = new MockFS(m_maxreadahead, m_allow_other,
-			m_default_permissions, m_push_symlinks_in,
+			m_default_permissions, m_push_symlinks_in, m_ro,
 			m_init_flags);
 	} catch (std::system_error err) {
 		FAIL() << err.what();

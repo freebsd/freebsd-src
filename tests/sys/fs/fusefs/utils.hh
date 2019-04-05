@@ -44,6 +44,7 @@ class FuseTest : public ::testing::Test {
 	bool m_allow_other;
 	bool m_default_permissions;
 	bool m_push_symlinks_in;
+	bool m_ro;
 	MockFS *m_mock = NULL;
 	const static uint64_t FH = 0xdeadbeef1a7ebabe;
 
@@ -59,7 +60,8 @@ class FuseTest : public ::testing::Test {
 		m_init_flags(0),
 		m_allow_other(false),
 		m_default_permissions(false),
-		m_push_symlinks_in(false)
+		m_push_symlinks_in(false),
+		m_ro(false)
 	{}
 
 	virtual void SetUp();
