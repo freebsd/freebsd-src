@@ -128,7 +128,7 @@ pctrie_init(struct pctrie *ptree)
 	ptree->pt_root = 0;
 }
 
-static __inline boolean_t
+static __inline bool
 pctrie_is_empty(struct pctrie *ptree)
 {
 
