@@ -175,16 +175,22 @@ opalflash_read(struct opalflash_softc *sc, off_t off,
 	 * Read one page at a time.  It's not guaranteed that the buffer is
 	 * physically contiguous.
 	 */
+	rv = 0;
 	while (count > 0) {
 		size = MIN(count, PAGE_SIZE);
+		size = MIN(size, PAGE_SIZE - ((u_long)data & PAGE_MASK));
 		rv = opal_call(OPAL_FLASH_READ, sc->sc_opal_id, off,
 		    vtophys(data), size, token);
-		if (rv == OPAL_ASYNC_COMPLETION)
+		if (rv == OPAL_ASYNC_COMPLETION) {
 			rv = opal_wait_completion(&msg, sizeof(msg), token);
+			if (rv == OPAL_SUCCESS)
+				rv = msg.params[1];
+		}
 		if (rv != OPAL_SUCCESS)
 			break;
 		count -= size;
 		off += size;
+		data += size;
 	}
 	opal_free_async_token(token);
 	if (rv == OPAL_SUCCESS)
@@ -209,8 +215,11 @@ opalflash_erase(struct opalflash_softc *sc, off_t off, off_t count)
 	token = opal_alloc_async_token();
 
 	rv = opal_call(OPAL_FLASH_ERASE, sc->sc_opal_id, off, count, token);
-	if (rv == OPAL_ASYNC_COMPLETION)
+	if (rv == OPAL_ASYNC_COMPLETION) {
 		rv = opal_wait_completion(&msg, sizeof(msg), token);
+		if (rv == OPAL_SUCCESS)
+			rv = msg.params[1];
+	}
 	opal_free_async_token(token);
 
 	if (rv == OPAL_SUCCESS)
@@ -246,14 +255,19 @@ opalflash_write(struct opalflash_softc *sc, off_t off,
 	 */
 	while (count > 0) {
 		size = MIN(count, PAGE_SIZE);
+		size = MIN(size, PAGE_SIZE - ((u_long)data & PAGE_MASK));
 		rv = opal_call(OPAL_FLASH_WRITE, sc->sc_opal_id, off,
 		    vtophys(data), size, token);
-		if (rv == OPAL_ASYNC_COMPLETION)
+		if (rv == OPAL_ASYNC_COMPLETION) {
 			rv = opal_wait_completion(&msg, sizeof(msg), token);
+			if (rv == OPAL_SUCCESS)
+				rv = msg.params[1];
+		}
 		if (rv != OPAL_SUCCESS)
 			break;
 		count -= size;
 		off += size;
+		data += size;
 	}
 	opal_free_async_token(token);
 
