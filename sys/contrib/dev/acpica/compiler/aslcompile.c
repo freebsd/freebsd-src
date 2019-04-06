@@ -178,6 +178,10 @@ static void
 CmDumpAllEvents (
     void);
 
+static void
+CmFinishFiles(
+    BOOLEAN                 DeleteAmlFile);
+
 
 /*******************************************************************************
  *
@@ -191,13 +195,13 @@ CmDumpAllEvents (
  *
  ******************************************************************************/
 
-int
+ACPI_STATUS
 CmDoCompile (
     void)
 {
-    ACPI_STATUS             Status;
     UINT8                   FullCompile;
     UINT8                   Event;
+    ASL_GLOBAL_FILE_NODE    *FileNode;
 
 
     FullCompile = UtBeginEvent ("*** Total Compile time ***");
@@ -221,7 +225,7 @@ CmDoCompile (
         {
             UtEndEvent (Event);
             CmCleanupAndExit ();
-            return (0);
+            return (AE_OK);
         }
     }
     UtEndEvent (Event);
@@ -239,6 +243,12 @@ CmDoCompile (
     {
         fprintf (stderr,
             "Compiler aborting due to parser-detected syntax error(s)\n");
+
+        /* Flag this error in the FileNode for compilation summary */
+
+        FileNode = FlGetCurrentFileNode ();
+        FileNode->ParserErrorDetected = TRUE;
+        AslGbl_ParserErrorDetected = TRUE;
         LsDumpParseTree ();
         goto ErrorExit;
     }
@@ -292,19 +302,35 @@ CmDoCompile (
         OpcAmlOpcodeWalk, NULL);
     UtEndEvent (Event);
 
-    /*
-     * Now that the input is parsed, we can open the AML output file.
-     * Note: by default, the name of this file comes from the table
-     * descriptor within the input file.
-     */
-    Event = UtBeginEvent ("Open AML output file");
-    Status = FlOpenAmlOutputFile (AslGbl_OutputFilenamePrefix);
-    UtEndEvent (Event);
-    if (ACPI_FAILURE (Status))
-    {
-        AePrintErrorLog (ASL_FILE_STDERR);
-        return (-1);
-    }
+    UtEndEvent (FullCompile);
+    return (AE_OK);
+
+ErrorExit:
+    UtEndEvent (FullCompile);
+    return (AE_ERROR);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    CmDoAslMiddleAndBackEnd
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status of middle-end and back-end
+ *
+ * DESCRIPTION: Perform compiler middle-end (type checking and semantic
+ *              analysis) and back-end (code generation)
+ *
+ ******************************************************************************/
+
+int
+CmDoAslMiddleAndBackEnd (
+    void)
+{
+    UINT8                   Event;
+    ACPI_STATUS             Status;
+
 
     /* Interpret and generate all compile-time constants */
 
@@ -351,7 +377,6 @@ CmDoCompile (
             AePrintErrorLog (ASL_FILE_STDOUT);
             UtDisplaySummary (ASL_FILE_STDOUT);
         }
-        UtEndEvent (FullCompile);
         return (0);
     }
 
@@ -367,7 +392,7 @@ CmDoCompile (
     UtEndEvent (Event);
     if (ACPI_FAILURE (Status))
     {
-        goto ErrorExit;
+        return (-1);
     }
 
     /* Namespace cross-reference */
@@ -378,7 +403,7 @@ CmDoCompile (
     Status = XfCrossReferenceNamespace ();
     if (ACPI_FAILURE (Status))
     {
-        goto ErrorExit;
+        return (-1);
     }
 
     /* Namespace - Check for non-referenced objects */
@@ -486,22 +511,47 @@ CmDoCompile (
 
     Event = UtBeginEvent ("Generate AML code and write output files");
     DbgPrint (ASL_DEBUG_OUTPUT, "Writing AML byte code\n\n");
-    CgGenerateAmlOutput ();
+
+    AslGbl_CurrentDB = AslGbl_ParseTreeRoot->Asl.Child;
+
+    while (AslGbl_CurrentDB)
+    {
+        switch  (FlSwitchFileSet(AslGbl_CurrentDB->Asl.Filename))
+        {
+            case SWITCH_TO_DIFFERENT_FILE:
+                /*
+                 * Reset these parameters when definition blocks belong in
+                 * different files. If they belong in the same file, there is
+                 * no need to reset these parameters
+                 */
+                FlSeekFile (ASL_FILE_SOURCE_OUTPUT, 0);
+                AslGbl_SourceLine = 0;
+                AslGbl_NextError = AslGbl_ErrorLog;
+
+                /* fall-through */
+
+            case SWITCH_TO_SAME_FILE:
+
+                CgGenerateAmlOutput ();
+                CmDoOutputFiles ();
+                AslGbl_CurrentDB = AslGbl_CurrentDB->Asl.Next;
+
+                break;
+
+            default: /* FILE_NOT_FOUND */
+
+                /* The requested file could not be found. Get out of here */
+
+                AslGbl_CurrentDB = NULL;
+                break;
+        }
+    }
     UtEndEvent (Event);
 
     Event = UtBeginEvent ("Write optional output files");
-    CmDoOutputFiles ();
     UtEndEvent (Event);
 
-    UtEndEvent (FullCompile);
-    AslCheckExpectedExceptions ();
-    CmCleanupAndExit ();
     return (0);
-
-ErrorExit:
-    UtEndEvent (FullCompile);
-    CmCleanupAndExit ();
-    return (-1);
 }
 
 
@@ -808,9 +858,13 @@ void
 CmCleanupAndExit (
     void)
 {
-    UINT32                  i;
     BOOLEAN                 DeleteAmlFile = FALSE;
+    ASL_GLOBAL_FILE_NODE    *CurrentFileNode = AslGbl_FilesList;
 
+
+    /* Check if any errors occurred during compile */
+
+    (void) AslCheckForErrorExit ();
 
     AePrintErrorLog (ASL_FILE_STDERR);
     if (AslGbl_DebugFlag)
@@ -865,14 +919,62 @@ CmCleanupAndExit (
      * We will delete the AML file if there are errors and the
      * force AML output option has not been used.
      */
-    if ((AslGbl_ExceptionCount[ASL_ERROR] > 0) &&
+    if (AslGbl_ParserErrorDetected || ((AslGbl_ExceptionCount[ASL_ERROR] > 0) &&
         (!AslGbl_IgnoreErrors) &&
-        AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle)
+        AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle))
     {
         DeleteAmlFile = TRUE;
     }
 
     /* Close all open files */
+
+    while (CurrentFileNode)
+    {
+        switch  (FlSwitchFileSet (CurrentFileNode->Files[ASL_FILE_INPUT].Filename))
+        {
+            case SWITCH_TO_SAME_FILE:
+            case SWITCH_TO_DIFFERENT_FILE:
+
+                CmFinishFiles (DeleteAmlFile);
+                CurrentFileNode = CurrentFileNode->Next;
+                break;
+
+            case FILE_NOT_FOUND:
+            default:
+
+                CurrentFileNode = NULL;
+                break;
+        }
+    }
+
+    /* Final cleanup after compiling one file */
+
+    if (!AslGbl_DoAslConversion)
+    {
+        UtDeleteLocalCaches ();
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    CmFinishFiles
+ *
+ * PARAMETERS:  DeleteAmlFile
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Close all open files, delete AML files depending on the
+ *              function parameter is true.
+ *
+ ******************************************************************************/
+
+static void
+CmFinishFiles(
+    BOOLEAN                 DeleteAmlFile)
+{
+    UINT32                  i;
+
 
     /*
      * Take care with the preprocessor file (.pre), it might be the same
@@ -890,7 +992,15 @@ CmCleanupAndExit (
 
     for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
     {
-        FlCloseFile (i);
+        /*
+         * Some files such as debug output files could be pointing to
+         * stderr or stdout. Leave these alone.
+         */
+        if (AslGbl_Files[i].Handle != stderr &&
+            AslGbl_Files[i].Handle != stdout)
+        {
+            FlCloseFile (i);
+        }
     }
 
     /* Delete AML file if there are errors */
@@ -922,12 +1032,5 @@ CmCleanupAndExit (
     if (!AslGbl_SourceOutputFlag)
     {
         FlDeleteFile (ASL_FILE_SOURCE_OUTPUT);
-    }
-
-    /* Final cleanup after compiling one file */
-
-    if (!AslGbl_DoAslConversion)
-    {
-        UtDeleteLocalCaches ();
     }
 }

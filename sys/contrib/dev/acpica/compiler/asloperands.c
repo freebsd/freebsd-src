@@ -1045,6 +1045,7 @@ OpnDoDefinitionBlock (
     ACPI_SIZE               Length;
     UINT32                  i;
     char                    *Filename;
+    ACPI_STATUS             Status;
 
 
     /*
@@ -1063,6 +1064,12 @@ OpnDoDefinitionBlock (
         (AslGbl_UseDefaultAmlFilename))
     {
         /*
+         * The walk may traverse multiple definition blocks. Switch files
+         * to ensure that the correct files are manipulated.
+         */
+        FlSwitchFileSet (Op->Asl.Filename);
+
+        /*
          * We will use the AML filename that is embedded in the source file
          * for the output filename.
          */
@@ -1076,6 +1083,22 @@ OpnDoDefinitionBlock (
 
         AslGbl_OutputFilenamePrefix = Filename;
         UtConvertBackslashes (AslGbl_OutputFilenamePrefix);
+
+        /*
+         * Use the definition block file parameter instead of the input
+         * filename. Since all files were opened previously, remove the
+         * existing file and open a new file with the name of this
+         * definiton block parameter. Since AML code generation has yet
+         * to happen, the previous file can be removed without any impacts.
+         */
+        FlCloseFile (ASL_FILE_AML_OUTPUT);
+        FlDeleteFile (ASL_FILE_AML_OUTPUT);
+        Status = FlOpenAmlOutputFile (AslGbl_OutputFilenamePrefix);
+        if (ACPI_FAILURE (Status))
+        {
+            AslError (ASL_ERROR, ASL_MSG_OUTPUT_FILE_OPEN, NULL, NULL);
+            return;
+        }
     }
 
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
@@ -1086,6 +1109,7 @@ OpnDoDefinitionBlock (
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
     if (Child->Asl.Value.String)
     {
+        AslGbl_FilesList->TableSignature = Child->Asl.Value.String;
         AslGbl_TableSignature = Child->Asl.Value.String;
         if (strlen (AslGbl_TableSignature) != ACPI_NAMESEG_SIZE)
         {
@@ -1138,6 +1162,7 @@ OpnDoDefinitionBlock (
 
         AslGbl_TableId = UtLocalCacheCalloc (Length + 1);
         strcpy (AslGbl_TableId, Child->Asl.Value.String);
+        AslGbl_FilesList->TableId = AslGbl_TableId;
 
         /*
          * Convert anything non-alphanumeric to an underscore. This
