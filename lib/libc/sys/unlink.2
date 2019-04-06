@@ -28,7 +28,7 @@
 .\"     @(#)unlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2018
+.Dd April 6, 2019
 .Dt UNLINK 2
 .Os
 .Sh NAME
@@ -42,7 +42,9 @@
 .Ft int
 .Fn unlink "const char *path"
 .Ft int
-.Fn unlinkat "int fd" "const char *path" "int flag"
+.Fn unlinkat "int dfd" "const char *path" "int flag"
+.Ft int
+.Fn funlinkat "int dfd" "const char *path" "int fd" "int flag"
 .Sh DESCRIPTION
 The
 .Fn unlink
@@ -74,7 +76,7 @@ except in the case where
 specifies a relative path.
 In this case the directory entry to be removed is determined
 relative to the directory associated with the file descriptor
-.Fa fd
+.Fa dfd
 instead of the current working directory.
 .Pp
 The values for
@@ -113,6 +115,26 @@ or
 respectively, depending on whether or not the
 .Dv AT_REMOVEDIR
 bit is set in flag.
+.Pp
+The
+.Fn funlinkat
+system call can be used to unlink an already-opened file, unless that
+file has been replaced since it was opened.
+It is equivalent to
+.Fn unlinkat
+in the case where
+.Fa path
+is already open as the file descriptor
+.Fa fd .
+Otherwise, the path will not be removed and an error will be returned.
+The
+.Fa fd
+can be set the
+.Dv FD_NONE .
+In that case
+.Fn funlinkat
+behaves exactly like
+.Fn unlinkat .
 .Sh RETURN VALUES
 .Rv -std unlink
 .Sh ERRORS
@@ -227,6 +249,15 @@ or the relative
 .Fa path
 escapes it.
 .El
+.Pp
+In addition to the errors returned by
+.Fn unlinkat ,
+.Fn funlinkat
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EDEADLK
+The file descriptor is not associated with the path.
+.El
 .Sh SEE ALSO
 .Xr chflags 2 ,
 .Xr close 2 ,
@@ -246,6 +277,10 @@ The
 .Fn unlinkat
 system call appeared in
 .Fx 8.0 .
+The
+.Fn funlinkat
+system call appeared in
+.Fx 13.0 .
 .Pp
 The
 .Fn unlink

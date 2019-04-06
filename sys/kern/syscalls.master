@@ -3167,6 +3167,14 @@
 		    size_t bufsize
 		);
 	}
+568	AUE_UNLINKAT	STD {
+		int funlinkat(
+		    int dfd,
+		    _In_z_ const char *path,
+		    int fd,
+		    int flag
+		);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

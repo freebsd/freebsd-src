@@ -316,6 +316,16 @@ struct __oflock {
 #define	POSIX_FADV_NOREUSE	5	/* access data only once */
 #endif
 
+
+#ifdef __BSD_VISIBLE
+/*
+ * Magic value that specify that corresponding file descriptor to filename
+ * is unknown and sanitary check should be omitted in the funlinkat() and
+ * similar syscalls.
+ */
+#define	FD_NONE			-200
+#endif
+
 #ifndef _KERNEL
 __BEGIN_DECLS
 int	open(const char *, int, ...);

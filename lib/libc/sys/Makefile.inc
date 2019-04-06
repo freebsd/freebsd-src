@@ -485,6 +485,7 @@ MLINKS+=timer_settime.2 timer_getoverrun.2 \
 MLINKS+=thr_kill.2 thr_kill2.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=unlink.2 unlinkat.2
+MLINKS+=unlink.2 funlinkat.2
 MLINKS+=utimensat.2 futimens.2
 MLINKS+=utimes.2 futimes.2 \
 	utimes.2 futimesat.2 \

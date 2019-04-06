@@ -1145,5 +1145,7 @@
 				    const char *to); }
 567	AUE_NULL	NOPROTO { int fhreadlink( struct fhandle *fhp, char *buf, \
 				    size_t bufsize); }
+568	AUE_UNLINKAT	NOPROTO { int funlinkat(int dfd, const char *path, int fd, \
+				    int flag); }
 
 ; vim: syntax=off
