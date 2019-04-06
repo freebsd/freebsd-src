@@ -631,14 +631,24 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		goto out;
 	} else if (uap->flag & NFSSVC_NFSUSERDPORT) {
 		u_short sockport;
+		struct nfsuserd_args nargs;
 
-		if ((uap->flag & NFSSVC_NEWSTRUCT) == 0)
+		if ((uap->flag & NFSSVC_NEWSTRUCT) == 0) {
 			error = copyin(uap->argp, (caddr_t)&sockport,
 			    sizeof (u_short));
-		else
-			error = ENXIO;
+			if (error == 0) {
+				nargs.nuserd_family = AF_INET;
+				nargs.nuserd_port = sockport;
+			}
+		} else {
+			/*
+			 * New nfsuserd_args structure, which indicates
+			 * which IP version to use along with the port#.
+			 */
+			error = copyin(uap->argp, &nargs, sizeof(nargs));
+		}
 		if (!error)
-			error = nfsrv_nfsuserdport(sockport, p);
+			error = nfsrv_nfsuserdport(&nargs, p);
 	} else if (uap->flag & NFSSVC_NFSUSERDDELPORT) {
 		nfsrv_nfsuserddelport();
 		error = 0;
