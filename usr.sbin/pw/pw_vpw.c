@@ -47,6 +47,25 @@ static FILE * pwd_fp = NULL;
 static int pwd_scanflag;
 static const char *pwd_filename;
 
+static void
+free_gr(struct group *gr)
+{
+	free(gr->gr_name);
+	free(gr->gr_passwd);
+	free(gr->gr_mem);
+}
+
+static void
+free_pw(struct passwd *pw)
+{
+	free(pw->pw_name);
+	free(pw->pw_passwd);
+	free(pw->pw_class);
+	free(pw->pw_gecos);
+	free(pw->pw_dir);
+	free(pw->pw_shell);
+}
+
 void
 vendpwent(void)
 {
@@ -105,7 +124,7 @@ vnextpwent(char const *nam, uid_t uid, int doclose)
 					break;
 			} else
 				break;
-			free(pw);
+			free_pw(pw);
 			pw = NULL;
 		}
 		if (doclose)
@@ -184,7 +203,7 @@ vnextgrent(char const *nam, gid_t gid, int doclose)
 					break;
 			} else
 				break;
-			free(gr);
+			free_gr(gr);
 			gr = NULL;
 		}
 		if (doclose)
