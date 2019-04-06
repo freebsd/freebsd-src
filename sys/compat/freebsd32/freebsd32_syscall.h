@@ -494,4 +494,5 @@
 #define	FREEBSD32_SYS_fhlink	565
 #define	FREEBSD32_SYS_fhlinkat	566
 #define	FREEBSD32_SYS_fhreadlink	567
-#define	FREEBSD32_SYS_MAXSYSCALL	568
+#define	FREEBSD32_SYS_funlinkat	568
+#define	FREEBSD32_SYS_MAXSYSCALL	569
