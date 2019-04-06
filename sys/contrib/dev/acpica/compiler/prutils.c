@@ -455,7 +455,6 @@ PrOpenIncludeWithPrefix (
     IncludeFile = fopen (Pathname, OpenMode);
     if (!IncludeFile)
     {
-        fprintf (stderr, "Could not open include file %s\n", Pathname);
         return (NULL);
     }
 

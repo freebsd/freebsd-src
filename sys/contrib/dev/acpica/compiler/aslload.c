@@ -324,6 +324,7 @@ LdLoadFieldElements (
                     (Node->Flags & ANOBJ_IS_EXTERNAL))
                 {
                     Node->Type = (UINT8) ACPI_TYPE_LOCAL_REGION_FIELD;
+                    Node->Flags &= ~ANOBJ_IS_EXTERNAL;
                 }
                 else
                 {

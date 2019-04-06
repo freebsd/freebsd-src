@@ -232,6 +232,11 @@ AcpiNsDeleteNode (
     ACPI_FUNCTION_NAME (NsDeleteNode);
 
 
+    if (!Node)
+    {
+        return_VOID;
+    }
+
     /* Detach an object if there is one */
 
     AcpiNsDetachObject (Node);

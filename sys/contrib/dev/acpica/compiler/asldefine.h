@@ -298,5 +298,4 @@
 #define COMMENT_CAPTURE_ON    AslGbl_CommentState.CaptureComments = TRUE;
 #define COMMENT_CAPTURE_OFF   AslGbl_CommentState.CaptureComments = FALSE;
 
-
 #endif /* ASLDEFINE.H */
