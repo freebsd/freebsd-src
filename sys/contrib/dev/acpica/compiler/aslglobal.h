@@ -172,28 +172,27 @@
 UINT32                              AslGbl_ExceptionCount[ASL_NUM_REPORT_LEVELS] = {0,0,0,0,0,0};
 
 /* Table below must match ASL_FILE_TYPES in asltypes.h */
-
-ASL_FILE_INFO                       AslGbl_Files [ASL_NUM_FILES] =
+ASL_FILE_DESC                       AslGbl_FileDescs [ASL_NUM_FILES] =
 {
-    {NULL, NULL, "stdout:       ", "Standard Output"},
-    {NULL, NULL, "stderr:       ", "Standard Error"},
-    {NULL, NULL, "Table Input:  ", "Source Input"},
-    {NULL, NULL, "Binary Output:", "AML Output"},
-    {NULL, NULL, "Source Output:", "Source Output"},
-    {NULL, NULL, "Preprocessor: ", "Preprocessor Output"},
-    {NULL, NULL, "Preprocessor: ", "Preprocessor Temp File"},
-    {NULL, NULL, "Listing File: ", "Listing Output"},
-    {NULL, NULL, "Hex Dump:     ", "Hex Table Output"},
-    {NULL, NULL, "Namespace:    ", "Namespace Output"},
-    {NULL, NULL, "Debug File:   ", "Debug Output"},
-    {NULL, NULL, "ASM Source:   ", "Assembly Code Output"},
-    {NULL, NULL, "C Source:     ", "C Code Output"},
-    {NULL, NULL, "ASM Include:  ", "Assembly Header Output"},
-    {NULL, NULL, "C Include:    ", "C Header Output"},
-    {NULL, NULL, "Offset Table: ", "C Offset Table Output"},
-    {NULL, NULL, "Device Map:   ", "Device Map Output"},
-    {NULL, NULL, "Cross Ref:    ", "Cross-reference Output"},
-    {NULL, NULL, "Converter db :", "Converter debug Output"}
+    {"stdout:       ", "Standard Output"},
+    {"stderr:       ", "Standard Error"},
+    {"Table Input:  ", "Source Input"},
+    {"Binary Output:", "AML Output"},
+    {"Source Output:", "Source Output"},
+    {"Preprocessor: ", "Preprocessor Output"},
+    {"Preprocessor: ", "Preprocessor Temp File"},
+    {"Listing File: ", "Listing Output"},
+    {"Hex Dump:     ", "Hex Table Output"},
+    {"Namespace:    ", "Namespace Output"},
+    {"Debug File:   ", "Debug Output"},
+    {"ASM Source:   ", "Assembly Code Output"},
+    {"C Source:     ", "C Code Output"},
+    {"ASM Include:  ", "Assembly Header Output"},
+    {"C Include:    ", "C Header Output"},
+    {"Offset Table: ", "C Offset Table Output"},
+    {"Device Map:   ", "Device Map Output"},
+    {"Cross Ref:    ", "Cross-reference Output"},
+    {"Converter dbg:", "Converter debug Output"}
 };
 
 /* Table below must match the defines with the same names in actypes.h */
@@ -225,8 +224,8 @@ const char                          *AslGbl_OpFlagNames[ACPI_NUM_OP_FLAGS] =
 };
 
 #else
+extern ASL_FILE_DESC                AslGbl_FileDescs [ASL_NUM_FILES];
 extern UINT32                       AslGbl_ExceptionCount[ASL_NUM_REPORT_LEVELS];
-extern ASL_FILE_INFO                AslGbl_Files [ASL_NUM_FILES];
 extern const char                   *AslGbl_OpFlagNames[ACPI_NUM_OP_FLAGS];
 #endif
 
@@ -269,7 +268,6 @@ ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentColumn, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentLineNumber, 1);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_LogicalLineNumber, 1);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentLineOffset, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_OriginalInputFileSize, 0);
 ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (AslGbl_SyntaxError, 0);
 
 /* Exception reporting */
@@ -300,6 +298,7 @@ ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_ListingFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_IgnoreErrors, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_SourceOutputFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_ParseOnlyFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_ParserErrorDetected, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_CompileTimesFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_FoldConstants, TRUE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_VerboseErrors, TRUE);
@@ -385,6 +384,7 @@ ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_SourceLine, 0);
 ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (AslGbl_FileType, 0);
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_Signature, NULL);
 ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*AslGbl_ParseTreeRoot, NULL);
+ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*AslGbl_CurrentDB, NULL);
 ASL_EXTERN ACPI_PARSE_OBJECT        ASL_INIT_GLOBAL (*AslGbl_ExternalsListHead, NULL);
 ASL_EXTERN ASL_LISTING_NODE         ASL_INIT_GLOBAL (*AslGbl_ListingNode, NULL);
 ASL_EXTERN ACPI_PARSE_OBJECT        *AslGbl_FirstLevelInsertionNode;
@@ -403,6 +403,8 @@ ASL_EXTERN UINT16                   ASL_INIT_GLOBAL (AslGbl_PruneType, 0);
 ASL_EXTERN ASL_FILE_NODE            ASL_INIT_GLOBAL (*AslGbl_IncludeFileStack, NULL);
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_TableSignature, "NO_SIG");
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*AslGbl_TableId, "NO_ID");
+ASL_EXTERN ASL_FILE_INFO            ASL_INIT_GLOBAL (*AslGbl_Files, NULL);
+ASL_EXTERN ASL_GLOBAL_FILE_NODE     ASL_INIT_GLOBAL (*AslGbl_FilesList, NULL);
 
 /* Specific to the -q option */
 

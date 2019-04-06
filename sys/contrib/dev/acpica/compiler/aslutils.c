@@ -174,6 +174,10 @@ UtAttachNameseg (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name);
 
+static void
+UtDisplayErrorSummary (
+    UINT32                  FileId);
+
 
 /*******************************************************************************
  *
@@ -520,21 +524,23 @@ UtSetParseOpName (
 
 /*******************************************************************************
  *
- * FUNCTION:    UtDisplaySummary
+ * FUNCTION:    UtDisplayOneSummary
  *
  * PARAMETERS:  FileID              - ID of outpout file
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display compilation statistics
+ * DESCRIPTION: Display compilation statistics for one input file
  *
  ******************************************************************************/
 
 void
-UtDisplaySummary (
-    UINT32                  FileId)
+UtDisplayOneSummary (
+    UINT32                  FileId,
+    BOOLEAN                 DisplayErrorSummary)
 {
     UINT32                  i;
+    ASL_GLOBAL_FILE_NODE    *FileNode;
 
 
     if (FileId != ASL_FILE_STDOUT)
@@ -565,25 +571,41 @@ UtDisplaySummary (
     }
     else
     {
-        FlPrintFile (FileId,
-            "%-14s %s - %u lines, %u bytes, %u keywords\n",
-            "ASL Input:",
-            AslGbl_Files[ASL_FILE_INPUT].Filename, AslGbl_CurrentLineNumber,
-            AslGbl_OriginalInputFileSize, AslGbl_TotalKeywords);
-
-        /* AML summary */
-
-        if ((AslGbl_ExceptionCount[ASL_ERROR] == 0) || (AslGbl_IgnoreErrors))
+        FileNode = FlGetCurrentFileNode ();
+        if (!FileNode)
         {
-            if (AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle)
+            fprintf (stderr, "Summary could not be generated");
+            return;
+        }
+        if (FileNode->ParserErrorDetected)
+        {
+            FlPrintFile (FileId,
+                "%-14s %s - Compilation aborted due to parser-detected syntax error(s)\n",
+                "ASL Input:", AslGbl_Files[ASL_FILE_INPUT].Filename);
+        }
+        else
+        {
+            FlPrintFile (FileId,
+                "%-14s %s - %7u bytes %6u keywords %6u source lines\n",
+                "ASL Input:",
+                AslGbl_Files[ASL_FILE_INPUT].Filename,
+                FileNode->OriginalInputFileSize,
+                FileNode->TotalKeywords,
+                FileNode->TotalLineCount);
+
+            /* AML summary */
+
+            if (!AslGbl_ParserErrorDetected &&
+                ((AslGbl_ExceptionCount[ASL_ERROR] == 0) || AslGbl_IgnoreErrors) &&
+                AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle)
             {
                 FlPrintFile (FileId,
-                    "%-14s %s - %u bytes, %u named objects, "
-                    "%u executable opcodes\n",
+                    "%-14s %s - %7u bytes %6u opcodes  %6u named objects\n",
                     "AML Output:",
                     AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename,
                     FlGetFileSize (ASL_FILE_AML_OUTPUT),
-                    AslGbl_TotalNamedObjects, AslGbl_TotalExecutableOpcodes);
+                    FileNode->TotalExecutableOpcodes,
+                    FileNode->TotalNamedObjects);
             }
         }
     }
@@ -612,14 +634,55 @@ UtDisplaySummary (
         }
 
         FlPrintFile (FileId, "%14s %s - %u bytes\n",
-            AslGbl_Files[i].ShortDescription,
+            AslGbl_FileDescs[i].ShortDescription,
             AslGbl_Files[i].Filename, FlGetFileSize (i));
     }
 
-    /* Error summary */
+
+    /*
+     * Optionally emit an error summary for a file. This is used to enhance the
+     * appearance of listing files.
+     */
+    if (DisplayErrorSummary)
+    {
+        UtDisplayErrorSummary (FileId);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtDisplayErrorSummary
+ *
+ * PARAMETERS:  FileID              - ID of outpout file
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display compilation statistics for all input files
+ *
+ ******************************************************************************/
+
+static void
+UtDisplayErrorSummary (
+    UINT32                  FileId)
+{
+    BOOLEAN                 ErrorDetected;
+
+
+    ErrorDetected = AslGbl_ParserErrorDetected ||
+        ((AslGbl_ExceptionCount[ASL_ERROR] > 0) && !AslGbl_IgnoreErrors);
+
+    if (ErrorDetected)
+    {
+        FlPrintFile (FileId, "\nCompilation failed. ");
+    }
+    else
+    {
+        FlPrintFile (FileId, "\nCompilation successful. ");
+    }
 
     FlPrintFile (FileId,
-        "\nCompilation complete. %u Errors, %u Warnings, %u Remarks",
+        "%u Errors, %u Warnings, %u Remarks",
         AslGbl_ExceptionCount[ASL_ERROR],
         AslGbl_ExceptionCount[ASL_WARNING] +
             AslGbl_ExceptionCount[ASL_WARNING2] +
@@ -628,6 +691,19 @@ UtDisplaySummary (
 
     if (AslGbl_FileType != ASL_INPUT_TYPE_ASCII_DATA)
     {
+        if (AslGbl_ParserErrorDetected)
+        {
+            FlPrintFile (FileId,
+                "\nNo AML files were generated due to syntax error(s)\n");
+            return;
+        }
+        else if (ErrorDetected)
+        {
+            FlPrintFile (FileId,
+                "\nNo AML files were generated due to compiler error(s)\n");
+            return;
+        }
+
         FlPrintFile (FileId, ", %u Optimizations",
             AslGbl_ExceptionCount[ASL_OPTIMIZATION]);
 
@@ -640,6 +716,46 @@ UtDisplaySummary (
     FlPrintFile (FileId, "\n");
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtDisplaySummary
+ *
+ * PARAMETERS:  FileID              - ID of outpout file
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display compilation statistics for all input files
+ *
+ ******************************************************************************/
+
+void
+UtDisplaySummary (
+    UINT32                  FileId)
+{
+    ASL_GLOBAL_FILE_NODE    *Current = AslGbl_FilesList;
+
+
+    while (Current)
+    {
+        switch  (FlSwitchFileSet(Current->Files[ASL_FILE_INPUT].Filename))
+        {
+            case SWITCH_TO_SAME_FILE:
+            case SWITCH_TO_DIFFERENT_FILE:
+
+                UtDisplayOneSummary (FileId, FALSE);
+                Current = Current->Next;
+                break;
+
+            case FILE_NOT_FOUND:
+            default:
+
+                Current = NULL;
+                break;
+        }
+    }
+    UtDisplayErrorSummary (FileId);
+}
 
 /*******************************************************************************
  *
