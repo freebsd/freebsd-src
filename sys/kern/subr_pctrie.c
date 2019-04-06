@@ -385,7 +385,8 @@ pctrie_lookup_ge(struct pctrie *ptree, uint64_t index)
 #ifdef INVARIANTS
 	int loops = 0;
 #endif
-	int slot, tos;
+	unsigned tos;
+	int slot;
 
 	node = pctrie_getroot(ptree);
 	if (node == NULL)
@@ -496,7 +497,8 @@ pctrie_lookup_le(struct pctrie *ptree, uint64_t index)
 #ifdef INVARIANTS
 	int loops = 0;
 #endif
-	int slot, tos;
+	unsigned tos;
+	int slot;
 
 	node = pctrie_getroot(ptree);
 	if (node == NULL)
