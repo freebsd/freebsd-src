@@ -406,6 +406,7 @@ FBSD_1.6 {
 	fhlinkat;
 	fhreadlink;
 	getfhat;
+	funlinkat;
 };
 
 FBSDprivate_1.0 {
