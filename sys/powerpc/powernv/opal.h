@@ -201,7 +201,7 @@ struct opal_ipmi_msg {
 int	opal_init_async_tokens(int);
 int	opal_alloc_async_token(void);
 void	opal_free_async_token(int);
-int	opal_wait_completion(void *, uint64_t, uint64_t);
+int	opal_wait_completion(void *, uint64_t, int);
 
 typedef void (*opal_msg_handler_fn)(void *, struct opal_msg *);
 EVENTHANDLER_DECLARE(OPAL_ASYNC_COMP, opal_msg_handler_fn);
