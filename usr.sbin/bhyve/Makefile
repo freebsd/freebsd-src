@@ -9,8 +9,6 @@ CFLAGS+=-I${SRCTOP}/sys
 PROG=	bhyve
 PACKAGE=	bhyve
 
-DEBUG_FLAGS= -g -O0
-
 MAN=	bhyve.8
 
 BHYVE_SYSDIR?=${SRCTOP}
