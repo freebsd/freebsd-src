@@ -926,10 +926,9 @@ file_addmodule(struct preloaded_file *fp, char *modname, int version,
 	mp = file_findmodule(fp, modname, &mdepend);
 	if (mp)
 		return (EEXIST);
-	mp = malloc(sizeof(struct kernel_module));
+	mp = calloc(1, sizeof(struct kernel_module));
 	if (mp == NULL)
 		return (ENOMEM);
-	bzero(mp, sizeof(struct kernel_module));
 	mp->m_name = strdup(modname);
 	mp->m_version = version;
 	mp->m_fp = fp;
@@ -980,12 +979,8 @@ file_discard(struct preloaded_file *fp)
 struct preloaded_file *
 file_alloc(void)
 {
-	struct preloaded_file	*fp;
 
-	if ((fp = malloc(sizeof(struct preloaded_file))) != NULL) {
-		bzero(fp, sizeof(struct preloaded_file));
-	}
-	return (fp);
+	return (calloc(1, sizeof(struct preloaded_file)));
 }
 
 /*
