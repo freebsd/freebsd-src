@@ -34,11 +34,11 @@ evdev_enabled()
 bthidd_prestart()
 {
 	if evdev_enabled; then
-		load_kld -m uinput uinput
+		load_kld uinput
 	fi
-	load_kld -m kbdmux kbdmux
-	load_kld -m vkbd vkbd
-	load_kld -m ng_btsocket ng_btsocket
+	load_kld kbdmux
+	load_kld vkbd
+	load_kld ng_btsocket
 	return 0
 }
 
