@@ -46,7 +46,7 @@ kld_start()
 
 	echo 'Loading kernel modules:'
 	for _kld in $kld_list ; do
-		load_kld -e ${_kld}.ko $_kld
+		load_kld $_kld
 	done
 }
 

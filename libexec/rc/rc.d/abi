@@ -27,10 +27,10 @@ linux_start()
 	local _tmpdir
 
 	echo -n ' linux'
-	load_kld -e 'linux(aout|elf)' linux
+	load_kld linux
 	case `sysctl -n hw.machine_arch` in
 	amd64)
-		load_kld -e 'linux64elf' linux64
+		load_kld linux64
 		;;
 	esac
 	if [ -x /compat/linux/sbin/ldconfigDisabled ]; then
