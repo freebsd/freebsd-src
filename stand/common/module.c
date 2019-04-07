@@ -534,8 +534,7 @@ mod_load(char *modname, struct mod_depend *verinfo, int argc, char *argv[])
 	mp = file_findmodule(NULL, modname, verinfo);
 	if (mp) {
 #ifdef moduleargs
-		if (mp->m_args)
-			free(mp->m_args);
+		free(mp->m_args);
 		mp->m_args = unargv(argc, argv);
 #endif
 		snprintf(command_errbuf, sizeof(command_errbuf),
@@ -961,18 +960,14 @@ file_discard(struct preloaded_file *fp)
 	}
 	mp = fp->f_modules;
 	while (mp) {
-		if (mp->m_name)
-			free(mp->m_name);
+		free(mp->m_name);
 		mp1 = mp;
 		mp = mp->m_next;
 		free(mp1);
 	}
-	if (fp->f_name != NULL)
-		free(fp->f_name);
-	if (fp->f_type != NULL)
-		free(fp->f_type);
-	if (fp->f_args != NULL)
-		free(fp->f_args);
+	free(fp->f_name);
+	free(fp->f_type);
+	free(fp->f_args);
 	free(fp);
 }
 
@@ -1055,10 +1050,8 @@ moduledir_readhints(struct moduledir *mdp)
 	return;
 bad:
 	close(fd);
-	if (mdp->d_hints) {
-		free(mdp->d_hints);
-		mdp->d_hints = NULL;
-	}
+	free(mdp->d_hints);
+	mdp->d_hints = NULL;
 	mdp->d_flags |= MDIR_NOHINTS;
 	return;
 }
@@ -1119,8 +1112,7 @@ moduledir_rebuild(void)
 		if ((mdp->d_flags & MDIR_REMOVED) == 0) {
 			mdp = STAILQ_NEXT(mdp, d_link);
 		} else {
-			if (mdp->d_hints)
-				free(mdp->d_hints);
+			free(mdp->d_hints);
 			mtmp = mdp;
 			mdp = STAILQ_NEXT(mdp, d_link);
 			STAILQ_REMOVE(&moduledir_list, mtmp, moduledir, d_link);
