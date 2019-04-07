@@ -6394,6 +6394,11 @@ pcie_flr(device_t dev, u_int max_delay, bool force)
 	return (true);
 }
 
+/*
+ * Attempt a power-management reset by cycling the device in/out of D3
+ * state.  PCI spec says we can only go into D3 state from D0 state.
+ * Transition from D[12] into D0 before going to D3 state.
+ */
 int
 pci_power_reset(device_t dev)
 {
