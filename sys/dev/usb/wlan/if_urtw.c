@@ -1891,11 +1891,13 @@ static void
 urtw_watchdog(void *arg)
 {
 	struct urtw_softc *sc = arg;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	if (sc->sc_txtimer > 0) {
 		if (--sc->sc_txtimer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
-			counter_u64_add(sc->sc_ic.ic_oerrors, 1);
+			counter_u64_add(ic->ic_oerrors, 1);
+			ieee80211_restart_all(ic);
 			return;
 		}
 		callout_reset(&sc->sc_watchdog_ch, hz, urtw_watchdog, sc);
