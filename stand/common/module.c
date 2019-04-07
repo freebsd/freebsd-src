@@ -677,10 +677,12 @@ file_addmetadata(struct preloaded_file *fp, int type, size_t size, void *p)
 	struct file_metadata	*md;
 
 	md = malloc(sizeof(struct file_metadata) - sizeof(md->md_data) + size);
-	md->md_size = size;
-	md->md_type = type;
-	bcopy(p, md->md_data, size);
-	md->md_next = fp->f_metadata;
+	if (md != NULL) {
+		md->md_size = size;
+		md->md_type = type;
+		bcopy(p, md->md_data, size);
+		md->md_next = fp->f_metadata;
+	}
 	fp->f_metadata = md;
 }
 
