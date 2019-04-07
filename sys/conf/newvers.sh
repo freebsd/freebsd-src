@@ -44,6 +44,9 @@
 #                      checkout from a version control system.  Metadata is
 #                      included if the tree is modified.
 
+# Note: usr.sbin/amd/include/newvers.sh assumes all variable assignments of
+# upper case variables starting in column 1 are on one line w/o continuation.
+
 TYPE="FreeBSD"
 REVISION="13.0"
 BRANCH=${BRANCH_OVERRIDE:-CURRENT}
@@ -105,8 +108,7 @@ if [ -z "${SYSDIR}" ]; then
     SYSDIR=$(dirname $0)/..
 fi
 
-RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' \
-	      ${PARAMFILE:-${SYSDIR}/sys/param.h})
+RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' ${PARAMFILE:-${SYSDIR}/sys/param.h})
 
 if [ -r "${SYSDIR}/../COPYRIGHT" ]; then
 	year=$(sed -Ee '/^Copyright .* The FreeBSD Project/!d;s/^.*1992-([0-9]*) .*$/\1/g' ${SYSDIR}/../COPYRIGHT)
