@@ -52,16 +52,18 @@ struct moduledir {
 	STAILQ_ENTRY(moduledir) d_link;
 };
 
-static int			file_load(char *filename, vm_offset_t dest, struct preloaded_file **result);
-static int			file_load_dependencies(struct preloaded_file *base_mod);
-static char *			file_search(const char *name, char **extlist);
-static struct kernel_module *	file_findmodule(struct preloaded_file *fp, char *modname, struct mod_depend *verinfo);
-static int			file_havepath(const char *name);
-static char			*mod_searchmodule(char *name, struct mod_depend *verinfo);
-static void			file_insert_tail(struct preloaded_file *mp);
-struct file_metadata*		metadata_next(struct file_metadata *base_mp, int type);
-static void			moduledir_readhints(struct moduledir *mdp);
-static void			moduledir_rebuild(void);
+static int file_load(char *, vm_offset_t, struct preloaded_file **);
+static int file_load_dependencies(struct preloaded_file *);
+static char * file_search(const char *, char **);
+static struct kernel_module *file_findmodule(struct preloaded_file *, char *,
+    struct mod_depend *);
+static int file_havepath(const char *);
+static char *mod_searchmodule(char *, struct mod_depend *);
+static void file_insert_tail(struct preloaded_file *);
+static void file_remove(struct preloaded_file *);
+struct file_metadata *metadata_next(struct file_metadata *, int);
+static void moduledir_readhints(struct moduledir *);
+static void moduledir_rebuild(void);
 
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
@@ -70,10 +72,11 @@ static vm_offset_t	loadaddr = 0;
 static const char	*default_searchpath =
     "/boot/kernel;/boot/modules;/boot/dtb";
 #else
-static const char	*default_searchpath ="/boot/kernel;/boot/modules";
+static const char	*default_searchpath = "/boot/kernel;/boot/modules";
 #endif
 
-static STAILQ_HEAD(, moduledir) moduledir_list = STAILQ_HEAD_INITIALIZER(moduledir_list);
+static STAILQ_HEAD(, moduledir) moduledir_list =
+    STAILQ_HEAD_INITIALIZER(moduledir_list);
 
 struct preloaded_file *preloaded_files = NULL;
 
@@ -591,10 +594,10 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
 		fp->f_args = unargv(argc, argv);
 		loadaddr_saved = loadaddr;
 		loadaddr = fp->f_addr + fp->f_size;
-		file_insert_tail(fp);		/* Add to the list of loaded files */
+		file_insert_tail(fp);	/* Add to the list of loaded files */
 		if (file_load_dependencies(fp) != 0) {
 			err = ENOENT;
-			last_file->f_next = NULL;
+			file_remove(fp);
 			loadaddr = loadaddr_saved;
 			fp = NULL;
 			break;
@@ -998,6 +1001,29 @@ file_insert_tail(struct preloaded_file *fp)
 		for (cm = preloaded_files; cm->f_next != NULL; cm = cm->f_next)
 			;
 		cm->f_next = fp;
+	}
+}
+
+/*
+ * Remove module from the chain
+ */
+static void
+file_remove(struct preloaded_file *fp)
+{
+	struct preloaded_file   *cm;
+
+	if (preloaded_files == NULL)
+		return;
+
+	if (preloaded_files == fp) {
+		preloaded_files = fp->f_next;
+		return;
+        }
+        for (cm = preloaded_files; cm->f_next != NULL; cm = cm->f_next) {
+		if (cm->f_next == fp) {
+			cm->f_next = fp->f_next;
+			return;
+		}
 	}
 }
 
