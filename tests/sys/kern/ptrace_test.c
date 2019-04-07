@@ -452,6 +452,67 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 }
 
 /*
+ * Make sure that we can collect the exit status of an orphaned process.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__parent_exits_before_child);
+ATF_TC_BODY(ptrace__parent_exits_before_child, tc)
+{
+	ssize_t n;
+	int cpipe1[2], cpipe2[2], gcpipe[2], status;
+	pid_t child, gchild;
+
+	ATF_REQUIRE(pipe(cpipe1) == 0);
+	ATF_REQUIRE(pipe(cpipe2) == 0);
+	ATF_REQUIRE(pipe(gcpipe) == 0);
+
+	ATF_REQUIRE(procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == 0);
+
+	ATF_REQUIRE((child = fork()) != -1);
+	if (child == 0) {
+		CHILD_REQUIRE((gchild = fork()) != -1);
+		if (gchild == 0) {
+			status = 1;
+			do {
+				n = read(gcpipe[0], &status, sizeof(status));
+			} while (n == -1 && errno == EINTR);
+			_exit(status);
+		}
+
+		CHILD_REQUIRE(write(cpipe1[1], &gchild, sizeof(gchild)) ==
+		    sizeof(gchild));
+		CHILD_REQUIRE(read(cpipe2[0], &status, sizeof(status)) ==
+		    sizeof(status));
+		_exit(status);
+	}
+
+	ATF_REQUIRE(read(cpipe1[0], &gchild, sizeof(gchild)) == sizeof(gchild));
+
+	ATF_REQUIRE(ptrace(PT_ATTACH, gchild, NULL, 0) == 0);
+
+	status = 0;
+	ATF_REQUIRE(write(cpipe2[1], &status, sizeof(status)) ==
+	    sizeof(status));
+	ATF_REQUIRE(waitpid(child, &status, 0) == child);
+	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+
+	status = 0;
+	ATF_REQUIRE(write(gcpipe[1], &status, sizeof(status)) ==
+	    sizeof(status));
+	ATF_REQUIRE(waitpid(gchild, &status, 0) == gchild);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(ptrace(PT_DETACH, gchild, (caddr_t)1, 0) == 0);
+	ATF_REQUIRE(waitpid(gchild, &status, 0) == gchild);
+	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+
+	ATF_REQUIRE(close(cpipe1[0]) == 0);
+	ATF_REQUIRE(close(cpipe1[1]) == 0);
+	ATF_REQUIRE(close(cpipe2[0]) == 0);
+	ATF_REQUIRE(close(cpipe2[1]) == 0);
+	ATF_REQUIRE(close(gcpipe[0]) == 0);
+	ATF_REQUIRE(close(gcpipe[1]) == 0);
+}
+
+/*
  * The parent process should always act the same regardless of how the
  * debugger is attached to it.
  */
@@ -3850,6 +3911,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__parent_wait_after_attach);
 	ATF_TP_ADD_TC(tp, ptrace__parent_sees_exit_after_child_debugger);
 	ATF_TP_ADD_TC(tp, ptrace__parent_sees_exit_after_unrelated_debugger);
+	ATF_TP_ADD_TC(tp, ptrace__parent_exits_before_child);
 	ATF_TP_ADD_TC(tp, ptrace__follow_fork_both_attached);
 	ATF_TP_ADD_TC(tp, ptrace__follow_fork_child_detached);
 	ATF_TP_ADD_TC(tp, ptrace__follow_fork_parent_detached);
