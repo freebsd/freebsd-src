@@ -1217,7 +1217,7 @@ command_lsefi(int argc __unused, char *argv[] __unused)
 	EFI_HANDLE handle;
 	UINTN bufsz = 0, i, j;
 	EFI_STATUS status;
-	int ret;
+	int ret = 0;
 
 	status = BS->LocateHandle(AllHandles, NULL, NULL, &bufsz, buffer);
 	if (status != EFI_BUFFER_TOO_SMALL) {
