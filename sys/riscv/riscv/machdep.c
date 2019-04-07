@@ -120,8 +120,6 @@ int64_t idcache_line_size;	/* The minimum cache line size */
 extern int *end;
 extern int *initstack_end;
 
-struct pcpu *pcpup;
-
 uintptr_t mcall_trap(uintptr_t mcause, uintptr_t* regs);
 
 uintptr_t
@@ -627,6 +625,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 static void
 init_proc0(vm_offset_t kstack)
 {
+	struct pcpu *pcpup;
 
 	pcpup = &__pcpu[0];
 
@@ -798,6 +797,7 @@ void
 initriscv(struct riscv_bootparams *rvbp)
 {
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
+	struct pcpu *pcpup;
 	vm_offset_t rstart, rend;
 	vm_offset_t s, e;
 	int mem_regions_sz;
@@ -805,6 +805,15 @@ initriscv(struct riscv_bootparams *rvbp)
 	vm_size_t kernlen;
 	caddr_t kmdp;
 	int i;
+
+	/* Set the pcpu data, this is needed by pmap_bootstrap */
+	pcpup = &__pcpu[0];
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+
+	/* Set the pcpu pointer */
+	__asm __volatile("mv gp, %0" :: "r"(pcpup));
+
+	PCPU_SET(curthread, &thread0);
 
 	/* Set the module data location */
 	lastaddr = fake_preload_metadata(rvbp);
@@ -848,15 +857,6 @@ initriscv(struct riscv_bootparams *rvbp)
 		}
 	}
 #endif
-
-	/* Set the pcpu data, this is needed by pmap_bootstrap */
-	pcpup = &__pcpu[0];
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-
-	/* Set the pcpu pointer */
-	__asm __volatile("mv gp, %0" :: "r"(pcpup));
-
-	PCPU_SET(curthread, &thread0);
 
 	/* Do basic tuning, hz etc */
 	init_param1();
