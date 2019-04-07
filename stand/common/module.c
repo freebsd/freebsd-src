@@ -930,6 +930,10 @@ file_addmodule(struct preloaded_file *fp, char *modname, int version,
 	if (mp == NULL)
 		return (ENOMEM);
 	mp->m_name = strdup(modname);
+	if (mp->m_name == NULL) {
+		free(mp);
+		return (ENOMEM);
+	}
 	mp->m_version = version;
 	mp->m_fp = fp;
 	mp->m_next = fp->f_modules;
