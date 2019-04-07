@@ -559,9 +559,10 @@ mod_load(char *modname, struct mod_depend *verinfo, int argc, char *argv[])
 int
 mod_loadkld(const char *kldname, int argc, char *argv[])
 {
-	struct preloaded_file	*fp, *last_file;
-	int				err;
+	struct preloaded_file	*fp;
+	int			err;
 	char			*filename;
+	vm_offset_t		loadaddr_saved;
 
 	/*
 	 * Get fully qualified KLD name
@@ -582,22 +583,19 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
 		free(filename);
 		return (0);
 	}
-	for (last_file = preloaded_files;
-	     last_file != NULL && last_file->f_next != NULL;
-	     last_file = last_file->f_next)
-		;
 
 	do {
 		err = file_load(filename, loadaddr, &fp);
 		if (err)
 			break;
 		fp->f_args = unargv(argc, argv);
+		loadaddr_saved = loadaddr;
 		loadaddr = fp->f_addr + fp->f_size;
 		file_insert_tail(fp);		/* Add to the list of loaded files */
 		if (file_load_dependencies(fp) != 0) {
 			err = ENOENT;
 			last_file->f_next = NULL;
-			loadaddr = last_file->f_addr + last_file->f_size;
+			loadaddr = loadaddr_saved;
 			fp = NULL;
 			break;
 		}
