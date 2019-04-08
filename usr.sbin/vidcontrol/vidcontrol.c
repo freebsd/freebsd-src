@@ -171,9 +171,8 @@ revert(void)
 		else
 			ioctl(0, _IO('S', cur_info.video_mode_number), NULL);
 		if (cur_info.video_mode_info.vi_flags & V_INFO_GRAPHICS) {
-			size[0] = cur_info.video_mode_info.vi_width / 8;
-			size[1] = cur_info.video_mode_info.vi_height /
-			    cur_info.console_info.font_size;
+			size[0] = cur_info.console_info.mv_csz;
+			size[1] = cur_info.console_info.mv_rsz;
 			size[2] = cur_info.console_info.font_size;
 			ioctl(0, KDRASTER, size);
 		}
