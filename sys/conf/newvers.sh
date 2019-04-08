@@ -120,12 +120,12 @@ b=share/examples/etc/bsd-style-copyright
 for bsd_copyright in ../$b ../../$b ../../../$b /usr/src/$b /usr/$b
 do
 	if [ -r "$bsd_copyright" ]; then
-		COPYRIGHT=`sed \
+		COPYRIGHT=$(sed \
 		    -e "s/\[year\]/1992-$year/" \
 		    -e 's/\[your name here\]\.* /The FreeBSD Project./' \
 		    -e 's/\[your name\]\.*/The FreeBSD Project./' \
 		    -e '/\[id for your version control system, if any\]/d' \
-		    $bsd_copyright` 
+		    $bsd_copyright)
 		break
 	fi
 done
@@ -153,19 +153,19 @@ then
 fi
 
 touch version
-v=`cat version`
+v=$(cat version)
 u=${USER:-root}
-d=`pwd`
-h=${HOSTNAME:-`hostname`}
+d=$(pwd)
+h=${HOSTNAME:-$(hostname)}
 if [ -n "$SOURCE_DATE_EPOCH" ]; then
-	if ! t=`date -r $SOURCE_DATE_EPOCH 2>/dev/null`; then
+	if ! t=$(date -r $SOURCE_DATE_EPOCH 2>/dev/null); then
 		echo "Invalid SOURCE_DATE_EPOCH" >&2
 		exit 1
 	fi
 else
-	t=`date`
+	t=$(date)
 fi
-i=`${MAKE:-make} -V KERN_IDENT`
+i=$(${MAKE:-make} -V KERN_IDENT)
 compiler_v=$($(${MAKE:-make} -V CC) -v 2>&1 | grep -w 'version')
 
 for dir in /usr/bin /usr/local/bin; do
@@ -212,7 +212,7 @@ if findvcs .hg; then
 fi
 
 if [ -n "$svnversion" ] ; then
-	svn=`cd ${SYSDIR} && $svnversion 2>/dev/null`
+	svn=$(cd ${SYSDIR} && $svnversion 2>/dev/null)
 	case "$svn" in
 	[0-9]*[MSP]|*:*)
 		svn=" r${svn}"
@@ -228,8 +228,8 @@ if [ -n "$svnversion" ] ; then
 fi
 
 if [ -n "$git_cmd" ] ; then
-	git=`$git_cmd rev-parse --verify --short HEAD 2>/dev/null`
-	gitsvn=`$git_cmd svn find-rev $git 2>/dev/null`
+	git=$($git_cmd rev-parse --verify --short HEAD 2>/dev/null)
+	gitsvn=$($git_cmd svn find-rev $git 2>/dev/null)
 	if [ -n "$gitsvn" ] ; then
 		svn=" r${gitsvn}"
 		git="=${git}"
@@ -238,13 +238,13 @@ if [ -n "$git_cmd" ] ; then
 #		We assume that if a tree is more than 10k commits out-of-sync
 #		with FreeBSD, it has forked the the OS and the SVN rev no
 #		longer matters.
-		gitsvn=`$git_cmd log -n 10000 |
+		gitsvn=$($git_cmd log -n 10000 |
 		    grep '^    git-svn-id:' | head -1 | \
-		    sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
+		    sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p')
 		if [ -z "$gitsvn" ] ; then
-			gitsvn=`$git_cmd log -n 10000 --format='format:%N' | \
+			gitsvn=$($git_cmd log -n 10000 --format='format:%N' | \
 			     grep '^svn ' | head -1 | \
-			     sed -n 's/^.*revision=\([0-9][0-9]*\).*$/\1/p'`
+			     sed -n 's/^.*revision=\([0-9][0-9]*\).*$/\1/p')
 		fi
 		if [ -n "$gitsvn" ] ; then
 			svn=" r${gitsvn}"
@@ -253,7 +253,7 @@ if [ -n "$git_cmd" ] ; then
 			git=" ${git}"
 		fi
 	fi
-	git_b=`$git_cmd rev-parse --abbrev-ref HEAD`
+	git_b=$($git_cmd rev-parse --abbrev-ref HEAD)
 	if [ -n "$git_b" ] ; then
 		git="${git}(${git_b})"
 	fi
@@ -264,9 +264,9 @@ if [ -n "$git_cmd" ] ; then
 fi
 
 if [ -n "$hg_cmd" ] ; then
-	hg=`$hg_cmd id 2>/dev/null`
-	hgsvn=`$hg_cmd svn info 2>/dev/null | \
-		awk -F': ' '/Revision/ { print $2 }'`
+	hg=$($hg_cmd id 2>/dev/null)
+	hgsvn=$($hg_cmd svn info 2>/dev/null | \
+		awk -F': ' '/Revision/ { print $2 }')
 	if [ -n "$hgsvn" ] ; then
 		svn=" r${hgsvn}"
 	fi
