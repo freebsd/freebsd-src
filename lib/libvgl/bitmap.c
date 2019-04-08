@@ -136,16 +136,6 @@ WriteVerticalLine(VGLBitmap *dst, int x, int y, int width, byte *line)
     }
     break;
   case VIDBUF8S:
-    pos = dst->VXsize * y + x;
-    while (width > 0) {
-      offset = VGLSetSegment(pos);
-      i = min(VGLAdpInfo.va_window_size - offset, width);
-      bcopy(line, dst->Bitmap + offset, i);
-      line += i;
-      pos += i;
-      width -= i;
-    }
-    break;
   case VIDBUF16S:
   case VIDBUF24S:
   case VIDBUF32S:
@@ -160,11 +150,8 @@ WriteVerticalLine(VGLBitmap *dst, int x, int y, int width, byte *line)
       width -= i;
     }
     break;
-  case VIDBUF8:
   case MEMBUF:
-    address = dst->Bitmap + dst->VXsize * y + x;
-    bcopy(line, address, width);
-    break;
+  case VIDBUF8:
   case VIDBUF16:
   case VIDBUF24:
   case VIDBUF32:
@@ -251,16 +238,6 @@ read_planar:
     }
     break;
   case VIDBUF8S:
-    pos = src->VXsize * y + x;
-    while (width > 0) {
-      offset = VGLSetSegment(pos);
-      i = min(VGLAdpInfo.va_window_size - offset, width);
-      bcopy(src->Bitmap + offset, line, i);
-      line += i;
-      pos += i;
-      width -= i;
-    }
-    break;
   case VIDBUF16S:
   case VIDBUF24S:
   case VIDBUF32S:
@@ -275,11 +252,8 @@ read_planar:
       width -= i;
     }
     break;
-  case VIDBUF8:
   case MEMBUF:
-    address = src->Bitmap + src->VXsize * y + x;
-    bcopy(address, line, width);
-    break;
+  case VIDBUF8:
   case VIDBUF16:
   case VIDBUF24:
   case VIDBUF32:
