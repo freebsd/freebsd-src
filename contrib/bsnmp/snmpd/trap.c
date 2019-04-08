@@ -724,8 +724,7 @@ target_activate_address(struct target_address *addrs)
 	sa.sin_addr.s_addr = htonl((addrs->address[0] << 24) |
 	    (addrs->address[1] << 16) | (addrs->address[2] << 8) |
 	    (addrs->address[3] << 0));
-	sa.sin_port = htons(addrs->address[4]) << 8 |
-	     htons(addrs->address[5]) << 0;
+	sa.sin_port = htons(addrs->address[4] << 8 | addrs->address[5]);
 
 	if (connect(addrs->socket, (struct sockaddr *)&sa, sa.sin_len) == -1) {
 		syslog(LOG_ERR, "connect(%s,%u): %m",
