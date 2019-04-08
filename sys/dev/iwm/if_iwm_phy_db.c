@@ -390,7 +390,7 @@ static uint8_t
 ch_id_to_ch_index(uint16_t ch_id)
 {
 	if (!is_valid_channel(ch_id))
-                return 0xff;
+		return 0xff;
 
 	if (ch_id <= 14)
 		return ch_id - 1;
@@ -509,7 +509,7 @@ iwm_phy_db_send_all_channel_groups(struct iwm_phy_db *phy_db,
 	int err;
 	struct iwm_phy_db_entry *entry;
 
-	/* Send all the  channel specific groups to operational fw */
+	/* Send all the channel specific groups to operational fw */
 	for (i = 0; i < max_ch_groups; i++) {
 		entry = iwm_phy_db_get_section(phy_db,
                                                type,

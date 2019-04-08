@@ -309,7 +309,12 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	 *     iwm_mvm_mac_ctxt_changed() when already authenticating or
 	 *     associating, ni->ni_bssid should always make sense here.
 	 */
-	IEEE80211_ADDR_COPY(cmd->bssid_addr, ni->ni_bssid);
+	if (ivp->iv_auth) {
+		IEEE80211_ADDR_COPY(cmd->bssid_addr, ni->ni_bssid);
+	} else {
+		/* XXX Or maybe all zeroes address? */
+		IEEE80211_ADDR_COPY(cmd->bssid_addr, ieee80211broadcastaddr);
+	}
 #endif
 
 	/*
