@@ -122,13 +122,15 @@ net_open(struct open_file *f, ...)
 {
 	struct iodesc *d;
 	va_list args;
-	char *devname;		/* Device part of file name (or NULL). */
+	struct devdesc *dev;
+	const char *devname;	/* Device part of file name (or NULL). */
 	int error = 0;
 
 	va_start(args, f);
-	devname = va_arg(args, char*);
+	dev = va_arg(args, struct devdesc *);
 	va_end(args);
 
+	devname = dev->d_dev->dv_name;
 	/* Before opening another interface, close the previous one first. */
 	if (netdev_sock >= 0 && strcmp(devname, netdev_name) != 0)
 		net_cleanup();
@@ -137,7 +139,7 @@ net_open(struct open_file *f, ...)
 	if (netdev_opens == 0) {
 		/* Find network interface. */
 		if (netdev_sock < 0) {
-			netdev_sock = netif_open(devname);
+			netdev_sock = netif_open(dev);
 			if (netdev_sock < 0) {
 				printf("net_open: netif_open() failed\n");
 				return (ENXIO);
