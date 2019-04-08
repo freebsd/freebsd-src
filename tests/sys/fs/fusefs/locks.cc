@@ -80,7 +80,6 @@ TEST_F(GetlkFallback, local)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -110,7 +109,6 @@ TEST_F(Getlk, DISABLED_no_locks)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_GETLK &&
@@ -156,7 +154,6 @@ TEST_F(Getlk, DISABLED_lock_exists)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_GETLK &&
@@ -209,7 +206,6 @@ TEST_F(SetlkFallback, local)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -236,7 +232,6 @@ TEST_F(Setlk, DISABLED_set)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&
@@ -279,7 +274,6 @@ TEST_F(Setlk, DISABLED_set_eof)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&
@@ -322,7 +316,6 @@ TEST_F(Setlk, DISABLED_eagain)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&
@@ -364,7 +357,6 @@ TEST_F(SetlkwFallback, local)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -395,7 +387,6 @@ TEST_F(Setlkw, DISABLED_set)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&

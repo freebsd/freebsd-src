@@ -199,6 +199,10 @@ int fuse_internal_fsync(struct vnode *vp, struct thread *td, int waitfor,
 	bool datasync);
 int fuse_internal_fsync_callback(struct fuse_ticket *tick, struct uio *uio);
 
+/* getattr */
+int fuse_internal_getattr(struct vnode *vp, struct vattr *vap,
+	struct ucred *cred, struct thread *td);
+
 /* readdir */
 
 struct pseudo_dirent {

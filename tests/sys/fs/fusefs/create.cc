@@ -59,8 +59,7 @@ void expect_create(const char *relpath, ProcessMockerT r)
  * If FUSE_CREATE sets the attr_valid, then subsequent GETATTRs should use the
  * attribute cache
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235775 */
-TEST_F(Create, DISABLED_attr_cache)
+TEST_F(Create, attr_cache)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -151,19 +150,6 @@ TEST_F(Create, Enosys)
 		SET_OUT_HEADER_LEN(out, open);
 	})));
 
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-	})));
-
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
@@ -196,19 +182,6 @@ TEST_F(Create, entry_cache_negative)
 		out->body.create.entry.attr_valid = UINT64_MAX;
 	}));
 
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-	})));
-
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	ASSERT_LE(0, fd) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
@@ -238,19 +211,6 @@ TEST_F(Create, entry_cache_negative_purge)
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.attr_valid = UINT64_MAX;
 	}));
-
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-	})));
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -296,19 +256,6 @@ TEST_F(Create, ok)
 		out->body.create.entry.attr_valid = UINT64_MAX;
 	}));
 
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | mode;
-	})));
-
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
@@ -338,19 +285,6 @@ TEST_F(Create, wronly_0444)
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
 	}));
-
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | mode;
-	})));
 
 	fd = open(FULLPATH, O_CREAT | O_WRONLY, mode);
 	EXPECT_LE(0, fd) << strerror(errno);

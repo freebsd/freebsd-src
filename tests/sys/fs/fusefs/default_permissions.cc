@@ -111,8 +111,6 @@ TEST_F(Open, ok)
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644);
 	expect_open(ino, 0, 1);
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	expect_getattr(ino, 0);
 
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);

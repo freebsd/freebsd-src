@@ -33,14 +33,32 @@
 
 using namespace testing;
 
-class Getattr : public FuseTest {};
+class Getattr : public FuseTest {
+public:
+void expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
+	uint64_t size, int times, uint64_t attr_valid, uint32_t attr_valid_nsec)
+{
+	EXPECT_LOOKUP(1, relpath)
+	.Times(times)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = mode;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 1;
+		out->body.entry.attr_valid = attr_valid;
+		out->body.entry.attr_valid_nsec = attr_valid_nsec;
+		out->body.entry.attr.size = size;
+		out->body.entry.entry_valid = UINT64_MAX;
+	})));
+}
+};
+
 
 /*
  * If getattr returns a non-zero cache timeout, then subsequent VOP_GETATTRs
  * should use the cached attributes, rather than query the daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235775 */
-TEST_F(Getattr, DISABLED_attr_cache)
+TEST_F(Getattr, attr_cache)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -52,6 +70,7 @@ TEST_F(Getattr, DISABLED_attr_cache)
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
+		out->body.entry.entry_valid = UINT64_MAX;
 	})));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -76,7 +95,7 @@ TEST_F(Getattr, DISABLED_attr_cache)
  * period passes.
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235773 */
-TEST_F(Getattr, attr_cache_timeout)
+TEST_F(Getattr, DISABLED_attr_cache_timeout)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -88,7 +107,7 @@ TEST_F(Getattr, attr_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2, 0, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
@@ -116,7 +135,7 @@ TEST_F(Getattr, enoent)
 	struct stat sb;
 	const uint64_t ino = 42;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1, 0, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
@@ -135,7 +154,7 @@ TEST_F(Getattr, ok)
 	const uint64_t ino = 42;
 	struct stat sb;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1, 1, 0, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&

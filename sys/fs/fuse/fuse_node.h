@@ -80,7 +80,7 @@ struct fuse_vnode_data {
 	uint64_t	parent_nid;
 
 	/** I/O **/
-	/* List of file data for each of the vnode's open file descriptors */
+	/* List of file handles for all of the vnode's open file descriptors */
 	LIST_HEAD(, fuse_filehandle)	handles;
 
 	/** flags **/
