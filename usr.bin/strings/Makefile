@@ -10,7 +10,7 @@ PROG=	strings
 
 LIBADD=	elftc elf
 
-.if ${MK_CASPER} != "no" && !defined(BOOTSTRAPPING)
+.if ${MK_CASPER} != "no" && !defined(BOOTSTRAPPING) && !defined(NXB_TARGET)
 LIBADD+=	casper
 LIBADD+=	cap_fileargs
 CFLAGS+=	-DWITH_CASPER
