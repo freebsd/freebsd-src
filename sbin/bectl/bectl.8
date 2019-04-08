@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2018
+.Dd February 10, 2019
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Ar beName@snapshot
 .Nm
 .Cm destroy
-.Op Fl F
+.Op Fl \&Fo
 .Brq Ar beName | beName@snapshot
 .Nm
 .Cm export
@@ -124,7 +124,7 @@ If the
 flag is given, a recursive boot environment will be made.
 .It Xo
 .Cm destroy
-.Op Fl F
+.Op Fl \&Fo
 .Brq Ar beName | beName@snapshot
 .Xc
 Destroys the given
@@ -136,6 +136,14 @@ snapshot without confirmation, unlike in
 Specifying
 .Fl F
 will automatically unmount without confirmation.
+.Pp
+By default,
+.Nm
+will warn that it is not destroying the origin of
+.Ar beName .
+The
+.Fl o
+flag may be specified to destroy the origin as well.
 .It Cm export Ar sourceBe
 Export
 .Ar sourceBe
