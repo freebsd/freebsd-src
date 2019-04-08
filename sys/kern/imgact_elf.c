@@ -945,6 +945,41 @@ __elfN(get_interp)(struct image_params *imgp, const Elf_Phdr *phdr,
 	return (0);
 }
 
+static int
+__elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
+    const char *interp, u_long *addr, u_long *entry)
+{
+	char *path;
+	int error;
+
+	if (brand_info->emul_path != NULL &&
+	    brand_info->emul_path[0] != '\0') {
+		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+		snprintf(path, MAXPATHLEN, "%s%s",
+		    brand_info->emul_path, interp);
+		error = __elfN(load_file)(imgp->proc, path, addr, entry);
+		free(path, M_TEMP);
+		if (error == 0)
+			return (0);
+	}
+
+	if (brand_info->interp_newpath != NULL &&
+	    (brand_info->interp_path == NULL ||
+	    strcmp(interp, brand_info->interp_path) == 0)) {
+		error = __elfN(load_file)(imgp->proc,
+		    brand_info->interp_newpath, addr, entry);
+		if (error == 0)
+			return (0);
+	}
+
+	error = __elfN(load_file)(imgp->proc, interp, addr, entry);
+	if (error == 0)
+		return (0);
+
+	uprintf("ELF interpreter %s not found, error %d\n", interp, error);
+	return (error);
+}
+
 /*
  * Impossible et_dyn_addr initial value indicating that the real base
  * must be calculated later with some randomization applied.
@@ -960,8 +995,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	Elf_Auxargs *elf_auxargs;
 	struct vmspace *vmspace;
 	vm_map_t map;
-	const char *newinterp;
-	char *interp, *path;
+	char *interp;
 	Elf_Brandinfo *brand_info;
 	struct sysentvec *sv;
 	vm_prot_t prot;
@@ -970,7 +1004,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	uint32_t fctl0;
 	int32_t osrel;
 	bool free_interp;
-	int error, i, n, have_interp;
+	int error, i, n;
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
 
@@ -1006,7 +1040,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	osrel = 0;
 	fctl0 = 0;
 	entry = proghdr = 0;
-	newinterp = interp = NULL;
+	interp = NULL;
 	free_interp = false;
 	td = curthread;
 	maxalign = PAGE_SIZE;
@@ -1074,8 +1108,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				et_dyn_addr = ET_DYN_LOAD_ADDR;
 		}
 	}
-	if (interp != NULL && brand_info->interp_newpath != NULL)
-		newinterp = brand_info->interp_newpath;
 
 	/*
 	 * Avoid a possible deadlock if the current address space is destroyed
@@ -1200,7 +1232,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->entry_addr = entry;
 
 	if (interp != NULL) {
-		have_interp = FALSE;
 		VOP_UNLOCK(imgp->vp, 0);
 		if ((map->flags & MAP_ASLR) != 0) {
 			/* Assume that interpeter fits into 1/4 of AS */
@@ -1209,35 +1240,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			addr = __CONCAT(rnd_, __elfN(base))(map, addr,
 			    maxv1, PAGE_SIZE);
 		}
-		if (brand_info->emul_path != NULL &&
-		    brand_info->emul_path[0] != '\0') {
-			path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-			snprintf(path, MAXPATHLEN, "%s%s",
-			    brand_info->emul_path, interp);
-			error = __elfN(load_file)(imgp->proc, path, &addr,
-			    &imgp->entry_addr);
-			free(path, M_TEMP);
-			if (error == 0)
-				have_interp = TRUE;
-		}
-		if (!have_interp && newinterp != NULL &&
-		    (brand_info->interp_path == NULL ||
-		    strcmp(interp, brand_info->interp_path) == 0)) {
-			error = __elfN(load_file)(imgp->proc, newinterp, &addr,
-			    &imgp->entry_addr);
-			if (error == 0)
-				have_interp = TRUE;
-		}
-		if (!have_interp) {
-			error = __elfN(load_file)(imgp->proc, interp, &addr,
-			    &imgp->entry_addr);
-		}
+		error = __elfN(load_interp)(imgp, brand_info, interp, &addr,
+		    &imgp->entry_addr);
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
-		if (error != 0) {
-			uprintf("ELF interpreter %s not found, error %d\n",
-			    interp, error);
+		if (error != 0)
 			goto ret;
-		}
 	} else
 		addr = et_dyn_addr;
 
