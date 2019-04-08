@@ -81,7 +81,6 @@ TEST_F(Release, dup)
 
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, 0, O_RDONLY, 0);
 	
@@ -111,7 +110,6 @@ TEST_F(Release, eio)
 
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, 0, O_WRONLY, EIO);
 	
@@ -134,7 +132,6 @@ TEST_F(Release, DISABLED_flags)
 
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, 0, O_RDWR | O_APPEND, 0);
 	
@@ -158,7 +155,6 @@ TEST_F(Release, multiple_opens)
 
 	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 2);
-	expect_getattr(ino, 0);
 	expect_flush(ino, 2, ReturnErrno(0));
 	expect_release(ino, 0, O_RDONLY, 0);
 	
@@ -182,7 +178,6 @@ TEST_F(Release, ok)
 
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, 0, O_RDONLY, 0);
 	
@@ -205,7 +200,6 @@ TEST_F(ReleaseWithLocks, DISABLED_unlock_on_close)
 
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&

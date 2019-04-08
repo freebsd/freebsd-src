@@ -43,8 +43,7 @@ class Lookup: public FuseTest {};
  * If lookup returns a non-zero cache timeout, then subsequent VOP_GETATTRs
  * should use the cached attributes, rather than query the daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235775 */
-TEST_F(Lookup, DISABLED_attr_cache)
+TEST_F(Lookup, attr_cache)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -106,7 +105,7 @@ TEST_F(Lookup, DISABLED_attr_cache)
  * the cached attributes and requery the daemon.
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235773 */
-TEST_F(Lookup, attr_cache_timeout)
+TEST_F(Lookup, DISABLED_attr_cache_timeout)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";

@@ -93,7 +93,6 @@ TEST_F(Fsync, aio_fsync)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	expect_fsync(ino, 0, 0);
 
@@ -127,7 +126,6 @@ TEST_F(Fsync, close)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -164,7 +162,6 @@ TEST_F(Fsync, eio)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	expect_fsync(ino, FUSE_FSYNC_FDATASYNC, EIO);
 
@@ -194,7 +191,6 @@ TEST_F(Fsync, DISABLED_enosys)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	expect_fsync(ino, FUSE_FSYNC_FDATASYNC, ENOSYS);
 
@@ -220,7 +216,6 @@ TEST_F(Fsync, fdatasync)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	expect_fsync(ino, FUSE_FSYNC_FDATASYNC, 0);
 
@@ -243,7 +238,6 @@ TEST_F(Fsync, fsync)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	expect_fsync(ino, 0, 0);
 

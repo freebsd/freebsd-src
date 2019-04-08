@@ -117,7 +117,6 @@ TEST_F(AioRead, aio_read)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDONLY);
@@ -152,7 +151,6 @@ TEST_F(AioRead, async_read_disabled)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, bufsize);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_READ &&
@@ -230,7 +228,6 @@ TEST_F(AsyncRead, DISABLED_async_read)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, bufsize);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_READ &&
@@ -299,7 +296,6 @@ TEST_F(Read, direct_io_read_nothing)
 
 	expect_lookup(RELPATH, ino, offset + 1000);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
-	expect_getattr(ino, offset + 1000);
 
 	fd = open(FULLPATH, O_RDONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -325,7 +321,6 @@ TEST_F(Read, direct_io_pread)
 
 	expect_lookup(RELPATH, ino, offset + bufsize);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
-	expect_getattr(ino, offset + bufsize);
 	expect_read(ino, offset, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDONLY);
@@ -354,7 +349,6 @@ TEST_F(Read, direct_io_short_read)
 
 	expect_lookup(RELPATH, ino, offset + bufsize);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
-	expect_getattr(ino, offset + bufsize);
 	expect_read(ino, offset, bufsize, halfbufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDONLY);
@@ -378,7 +372,6 @@ TEST_F(Read, eio)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, bufsize);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_READ);
@@ -410,7 +403,6 @@ TEST_F(Read, keep_cache)
 
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, bufsize, 2);
 	expect_open(ino, FOPEN_KEEP_CACHE, 2);
-	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd0 = open(FULLPATH, O_RDONLY);
@@ -445,7 +437,6 @@ TEST_F(Read, keep_cache_disabled)
 
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, bufsize, 2);
 	expect_open(ino, 0, 2);
-	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd0 = open(FULLPATH, O_RDONLY);
@@ -482,7 +473,6 @@ TEST_F(ReadCacheable, mmap)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, bufsize);
 	/* mmap may legitimately try to read more data than is available */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -526,7 +516,6 @@ TEST_F(Read, o_direct)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDONLY);
@@ -563,7 +552,6 @@ TEST_F(Read, pread)
 
 	expect_lookup(RELPATH, ino, offset + bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, offset + bufsize);
 	expect_read(ino, offset, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDONLY);
@@ -586,7 +574,6 @@ TEST_F(Read, read)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDONLY);
@@ -620,7 +607,6 @@ TEST_F(ReadCacheable, default_readahead)
 
 	expect_lookup(RELPATH, ino, filesize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, filesize);
 	expect_read(ino, 0, default_maxreadahead, default_maxreadahead,
 		contents);
 
@@ -651,7 +637,6 @@ TEST_F(ReadCacheable, sendfile)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, bufsize);
 	/* Like mmap, sendfile may request more data than is available */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -697,7 +682,6 @@ TEST_F(ReadCacheable, DISABLED_sendfile_eio)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, bufsize);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_READ);
@@ -739,7 +723,6 @@ TEST_P(ReadAhead, DISABLED_readahead) {
 
 	expect_lookup(RELPATH, ino, filesize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, filesize);
 	/* fuse(4) should only read ahead the allowed amount */
 	expect_read(ino, 0, GetParam(), GetParam(), contents);
 

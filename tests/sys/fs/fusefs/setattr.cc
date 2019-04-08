@@ -46,8 +46,7 @@ class Setattr : public FuseTest {};
  * If setattr returns a non-zero cache timeout, then subsequent VOP_GETATTRs
  * should use the cached attributes, rather than query the daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235775 */
-TEST_F(Setattr, DISABLED_attr_cache)
+TEST_F(Setattr, attr_cache)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -60,11 +59,11 @@ TEST_F(Setattr, DISABLED_attr_cache)
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
+		out->body.entry.entry_valid = UINT64_MAX;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
 			return (in->header.opcode == FUSE_SETATTR &&
 				in->header.nodeid == ino);
 		}, Eq(true)),
@@ -73,6 +72,7 @@ TEST_F(Setattr, DISABLED_attr_cache)
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | newmode;
+		out->body.attr.attr_valid = UINT64_MAX;
 	})));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -227,19 +227,6 @@ TEST_F(Setattr, fchmod)
 		SET_OUT_HEADER_LEN(out, open);
 	})));
 
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | oldmode;
-	})));
-
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			/* In protocol 7.23, ctime will be changed too */
@@ -292,20 +279,6 @@ TEST_F(Setattr, ftruncate)
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
 		out->body.open.fh = fh;
-	})));
-
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0755;
-		out->body.attr.attr.size = oldsize;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
@@ -502,26 +475,6 @@ TEST_F(Setattr, utimensat) {
 		out->body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
 	})));
 
-	/* 
-	 * Until bug 235775 is fixed, utimensat will make an extra FUSE_GETATTR
-	 * call
-	 */ 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.atime = oldtimes[0].tv_sec;
-		out->body.attr.attr.atimensec = oldtimes[0].tv_nsec;
-		out->body.attr.attr.mtime = oldtimes[1].tv_sec;
-		out->body.attr.attr.mtimensec = oldtimes[1].tv_nsec;
-	})));
-
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			/* In protocol 7.23, ctime will be changed too */
@@ -574,26 +527,6 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		out->body.entry.attr.atimensec = oldtimes[0].tv_nsec;
 		out->body.entry.attr.mtime = oldtimes[1].tv_sec;
 		out->body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
-	})));
-
-	/* 
-	 * Until bug 235775 is fixed, utimensat will make an extra FUSE_GETATTR
-	 * call
-	 */ 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.atime = oldtimes[0].tv_sec;
-		out->body.attr.attr.atimensec = oldtimes[0].tv_nsec;
-		out->body.attr.attr.mtime = oldtimes[1].tv_sec;
-		out->body.attr.attr.mtimensec = oldtimes[1].tv_nsec;
 	})));
 
 	EXPECT_CALL(*m_mock, process(

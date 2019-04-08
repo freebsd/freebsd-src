@@ -61,9 +61,6 @@ void test_ok(int os_flags, int fuse_flags) {
 		SET_OUT_HEADER_LEN(out, open);
 	})));
 
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	expect_getattr(ino, 0);
-
 	fd = open(FULLPATH, os_flags);
 	EXPECT_LE(0, fd) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
@@ -204,7 +201,6 @@ TEST_F(Open, multiple_creds)
 			out->header.len = sizeof(out->header);
 			SET_OUT_HEADER_LEN(out, open);
 		})));
-		expect_getattr(ino, 0);
 		expect_flush(ino, 2, ReturnErrno(0));
 		expect_release(ino, fh0);
 		expect_release(ino, fh1);

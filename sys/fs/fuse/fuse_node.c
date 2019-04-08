@@ -403,6 +403,7 @@ int
 fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct vattr *attrs;
 	off_t oldsize;
 	size_t iosize;
 	struct buf *bp = NULL;
@@ -413,6 +414,8 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 	iosize = fuse_iosize(vp);
 	oldsize = fvdat->filesize;
 	fvdat->filesize = newsize;
+	if ((attrs = VTOVA(vp)) != NULL)
+		attrs->va_size = newsize;
 	fvdat->flag |= FN_SIZECHANGE;
 
 	if (newsize < oldsize) {

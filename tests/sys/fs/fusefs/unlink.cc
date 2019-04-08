@@ -92,7 +92,6 @@ TEST_F(Unlink, open_but_deleted)
 
 	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_unlink(1, RELPATH, 0);
 
 	fd = open(FULLPATH, O_RDWR);

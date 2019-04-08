@@ -96,7 +96,6 @@ TEST_F(Flush, open_twice)
 
 	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_flush(ino, 2, 0, ReturnErrno(0));
 	expect_release();
 
@@ -127,7 +126,6 @@ TEST_F(Flush, eio)
 
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_flush(ino, 1, 0, ReturnErrno(EIO));
 	expect_release();
 
@@ -153,14 +151,12 @@ TEST_F(Flush, enosys)
 
 	expect_lookup(RELPATH0, ino0, 1);
 	expect_open(ino0, 0, 1);
-	expect_getattr(ino0, 0);
 	/* On the 2nd close, FUSE_FLUSH won't be sent at all */
 	expect_flush(ino0, 1, 0, ReturnErrno(ENOSYS));
 	expect_release();
 
 	expect_lookup(RELPATH1, ino1, 1);
 	expect_open(ino1, 0, 1);
-	expect_getattr(ino1, 0);
 	/* On the 2nd close, FUSE_FLUSH won't be sent at all */
 	expect_release();
 
@@ -184,7 +180,6 @@ TEST_F(Flush, flush)
 
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_flush(ino, 1, 0, ReturnErrno(0));
 	expect_release();
 
@@ -210,7 +205,6 @@ TEST_F(FlushWithLocks, DISABLED_unlock_on_close)
 
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&

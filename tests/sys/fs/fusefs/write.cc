@@ -153,7 +153,6 @@ TEST_F(AioWrite, DISABLED_aio_write)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, offset, bufsize, bufsize, 0, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -197,7 +196,6 @@ TEST_F(Write, append)
 
 	expect_lookup(RELPATH, ino, initial_offset);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, initial_offset);
 	expect_write(ino, initial_offset, BUFSIZE, BUFSIZE, 0, CONTENTS);
 
 	/* Must open O_RDWR or fuse(4) implicitly sets direct_io */
@@ -220,7 +218,6 @@ TEST_F(Write, append_direct_io)
 
 	expect_lookup(RELPATH, ino, initial_offset);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
-	expect_getattr(ino, initial_offset);
 	expect_write(ino, initial_offset, BUFSIZE, BUFSIZE, 0, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY | O_APPEND);
@@ -245,7 +242,6 @@ TEST_F(Write, DISABLED_direct_io_evicts_cache)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS1);
 
@@ -290,7 +286,6 @@ TEST_F(Write, indirect_io_short_write)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize0, 0, CONTENTS);
 	expect_write(ino, bufsize0, bufsize1, bufsize1, 0,
 		contents1);
@@ -318,7 +313,6 @@ TEST_F(Write, direct_io_short_write)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, halfbufsize, 0, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -349,7 +343,6 @@ TEST_F(Write, direct_io_short_write_iov)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, 0, totalsize, size0, 0, EXPECTED0);
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -392,7 +385,6 @@ TEST_F(Write, DISABLED_mmap)
 
 	expect_lookup(RELPATH, ino, len);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, len);
 	expect_read(ino, 0, len, len, zeros);
 	/* 
 	 * Writes from the pager may or may not be associated with the correct
@@ -429,7 +421,6 @@ TEST_F(WriteThrough, pwrite)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, offset, bufsize, bufsize, 0, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -451,7 +442,6 @@ TEST_F(Write, write)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -481,7 +471,6 @@ TEST_F(Write, write_large)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, 0, halfbufsize, halfbufsize, 0, contents);
 	expect_write(ino, halfbufsize, halfbufsize, halfbufsize, 0,
 		&contents[halfbufsize / sizeof(int)]);
@@ -506,7 +495,6 @@ TEST_F(Write, write_nothing)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -527,7 +515,6 @@ TEST_F(WriteBack, close)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -564,9 +551,8 @@ TEST_F(WriteBack, rmw)
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
 
-	expect_lookup(RELPATH, ino, 0);
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, fsize, 1);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, fsize);
 	expect_read(ino, 0, fsize, fsize, INITIAL);
 	expect_write(ino, offset, bufsize, bufsize, 0, CONTENTS);
 
@@ -593,7 +579,6 @@ TEST_F(WriteBack, writeback)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
 
 	fd = open(FULLPATH, O_RDWR);
@@ -626,7 +611,6 @@ TEST_F(WriteBack, o_direct)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
 
@@ -660,7 +644,6 @@ TEST_F(WriteThrough, DISABLED_writethrough)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
 
 	fd = open(FULLPATH, O_RDWR);
@@ -676,8 +659,7 @@ TEST_F(WriteThrough, DISABLED_writethrough)
 }
 
 /* With writethrough caching, writes update the cached file size */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235775 */
-TEST_F(WriteThrough, DISABLED_update_file_size)
+TEST_F(WriteThrough, update_file_size)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -689,20 +671,6 @@ TEST_F(WriteThrough, DISABLED_update_file_size)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).Times(2)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.size = 0;
-		out->body.attr.attr_valid = UINT64_MAX;
-	})));
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
 
 	fd = open(FULLPATH, O_RDWR);

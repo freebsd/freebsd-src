@@ -144,14 +144,13 @@ FuseTest::expect_flush(uint64_t ino, int times, ProcessMockerT r)
 
 void FuseTest::expect_getattr(uint64_t ino, uint64_t size)
 {
-	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;

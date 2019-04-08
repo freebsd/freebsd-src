@@ -80,7 +80,6 @@ TEST_F(AllowOther, allowed)
 			expect_open(ino, 0, 1);
 			expect_flush(ino, 1, ReturnErrno(0));
 			expect_release(ino, FH);
-			expect_getattr(ino, 0);
 		}, []() {
 			int fd;
 
@@ -137,7 +136,6 @@ TEST_F(AllowOther, privilege_escalation)
 			_)
 		).Times(AnyNumber())
 		.WillRepeatedly(Invoke(ReturnErrno(EPERM)));
-		expect_getattr(ino, 0);
 
 		fd1 = open(FULLPATH, O_RDONLY);
 		EXPECT_LE(0, fd1) << strerror(errno);

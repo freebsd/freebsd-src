@@ -478,6 +478,8 @@ fuse_vnop_create(struct vop_create_args *ap)
 		goto out;
 	}
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnop_create");
+	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
+		feo->attr_valid_nsec, NULL);
 
 	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, td, cred, foo);
 	fuse_vnode_open(*vpp, foo->open_flags, td);
@@ -555,12 +557,9 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
 	struct thread *td = curthread;
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-	struct fuse_attr_out *fao;
 
 	int err = 0;
 	int dataflags;
-	struct fuse_dispatcher fdi;
 
 	dataflags = fuse_get_mpdata(vnode_mount(vp))->dataflags;
 
@@ -575,47 +574,13 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 			goto fake;
 		}
 	}
-	fdisp_init(&fdi, 0);
-	if ((err = fdisp_simple_putget_vp(&fdi, FUSE_GETATTR, vp, td, cred))) {
-		if ((err == ENOTCONN) && vnode_isvroot(vp)) {
-			/* see comment in fuse_vfsop_statfs() */
-			fdisp_destroy(&fdi);
-			goto fake;
-		}
-		if (err == ENOENT) {
-			fuse_internal_vnode_disappear(vp);
-		}
-		goto out;
+	err = fuse_internal_getattr(vp, vap, cred, td);
+	if (err == ENOTCONN && vnode_isvroot(vp)) {
+		/* see comment in fuse_vfsop_statfs() */
+		goto fake;
+	} else {
+		return err;
 	}
-
-	fao = (struct fuse_attr_out *)fdi.answ;
-	fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
-		fao->attr_valid_nsec, vap);
-	if (vap->va_type != vnode_vtype(vp)) {
-		fuse_internal_vnode_disappear(vp);
-		err = ENOENT;
-		goto out;
-	}
-	if ((fvdat->flag & FN_SIZECHANGE) != 0)
-		vap->va_size = fvdat->filesize;
-
-	if (vnode_isreg(vp) && (fvdat->flag & FN_SIZECHANGE) == 0) {
-		/*
-	         * This is for those cases when the file size changed without us
-	         * knowing, and we want to catch up.
-	         */
-		off_t new_filesize = ((struct fuse_attr_out *)
-				      fdi.answ)->attr.size;
-
-		if (fvdat->filesize != new_filesize) {
-			fuse_vnode_setsize(vp, cred, new_filesize);
-			fvdat->flag &= ~FN_SIZECHANGE;
-		}
-	}
-
-out:
-	fdisp_destroy(&fdi);
-	return err;
 
 fake:
 	bzero(vap, sizeof(*vap));
