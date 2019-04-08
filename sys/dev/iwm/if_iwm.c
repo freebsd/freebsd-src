@@ -1032,7 +1032,8 @@ iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 	 * The hw rx ring index in shared memory must also be cleared,
 	 * otherwise the discrepancy can cause reprocessing chaos.
 	 */
-	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
+	if (sc->rxq.stat)
+		memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
 }
 
 static void
