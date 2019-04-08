@@ -105,6 +105,9 @@ libbe_error_description(libbe_handle_t *lbh)
 	case BE_ERR_UNKNOWN:
 		return ("unknown error");
 
+	case BE_ERR_INVORIGIN:
+		return ("invalid origin");
+
 	default:
 		assert(lbh->error == BE_ERR_SUCCESS);
 		return ("no error");

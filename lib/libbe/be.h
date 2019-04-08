@@ -59,6 +59,7 @@ typedef enum be_error {
 	BE_ERR_NOPOOL,		/* operation not supported on this pool */
 	BE_ERR_NOMEM,		/* insufficient memory */
 	BE_ERR_UNKNOWN,         /* unknown error */
+	BE_ERR_INVORIGIN,       /* invalid origin */
 } be_error_t;
 
 
@@ -93,7 +94,8 @@ int be_rename(libbe_handle_t *, const char *, const char *);
 /* Bootenv removal functions */
 
 typedef enum {
-	BE_DESTROY_FORCE = 1 << 0,
+	BE_DESTROY_FORCE	= 1 << 0,
+	BE_DESTROY_ORIGIN	= 1 << 1,
 } be_destroy_opt_t;
 
 int be_destroy(libbe_handle_t *, const char *, int);
@@ -102,7 +104,7 @@ int be_destroy(libbe_handle_t *, const char *, int);
 
 typedef enum {
 	BE_MNT_FORCE		= 1 << 0,
-		BE_MNT_DEEP	= 1 << 1,
+	BE_MNT_DEEP		= 1 << 1,
 } be_mount_opt_t;
 
 int be_mount(libbe_handle_t *, char *, char *, int, char *);
