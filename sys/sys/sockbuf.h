@@ -98,7 +98,7 @@ struct	sockbuf {
 	u_int	sb_ctl;		/* (a) non-data chars in buffer */
 	int	sb_lowat;	/* (a) low water mark */
 	sbintime_t	sb_timeo;	/* (a) timeout for read/write */
-	short	sb_flags;	/* (a) flags, see below */
+	short	sb_flags;	/* (a) flags, see above */
 	int	(*sb_upcall)(struct socket *, void *, int); /* (a) */
 	void	*sb_upcallarg;	/* (a) */
 	TAILQ_HEAD(, kaiocb) sb_aiojobq; /* (a) pending AIO ops */
