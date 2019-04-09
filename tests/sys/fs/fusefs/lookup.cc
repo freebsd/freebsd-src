@@ -104,8 +104,7 @@ TEST_F(Lookup, attr_cache)
  * If lookup returns a finite but non-zero cache timeout, then we should discard
  * the cached attributes and requery the daemon.
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235773 */
-TEST_F(Lookup, DISABLED_attr_cache_timeout)
+TEST_F(Lookup, attr_cache_timeout)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -118,6 +117,7 @@ TEST_F(Lookup, DISABLED_attr_cache_timeout)
 	long timeout_ns = 250'000'000;
 
 	EXPECT_LOOKUP(1, RELPATH)
+	.Times(2)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.nodeid = ino;
@@ -125,10 +125,10 @@ TEST_F(Lookup, DISABLED_attr_cache_timeout)
 		out->body.entry.attr.ino = ino;	// Must match nodeid
 		out->body.entry.attr.mode = S_IFREG | 0644;
 	})));
-	expect_getattr(ino, 0);
 
-	/* access(2) will issue a VOP_LOOKUP but not a VOP_GETATTR */
+	/* access(2) will issue a VOP_LOOKUP and fill the attr cache */
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+	/* Next access(2) will use the cached attributes */
 	usleep(2 * timeout_ns / 1000);
 	/* The cache has timed out; VOP_GETATTR should query the daemon*/
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
@@ -222,16 +222,21 @@ TEST_F(Lookup, DISABLED_entry_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	EXPECT_LOOKUP(1, RELPATH).Times(2)
+	EXPECT_LOOKUP(1, RELPATH)
+	.Times(2)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.entry_valid_nsec = timeout_ns;
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = 14;
 	})));
+
+	/* access(2) will issue a VOP_LOOKUP and fill the entry cache */
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+	/* Next access(2) will use the cached entry */
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 	usleep(2 * timeout_ns / 1000);
-	/* The cache has timed out; VOP_LOOKUP should query the daemon*/
+	/* The cache has timed out; VOP_LOOKUP should requery the daemon*/
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
 
