@@ -94,8 +94,7 @@ TEST_F(Getattr, attr_cache)
  * discard the cached attributes and requery the daemon after the timeout
  * period passes.
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235773 */
-TEST_F(Getattr, DISABLED_attr_cache_timeout)
+TEST_F(Getattr, attr_cache_timeout)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -107,7 +106,7 @@ TEST_F(Getattr, DISABLED_attr_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2, 0, 0);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1, 0, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
@@ -118,13 +117,14 @@ TEST_F(Getattr, DISABLED_attr_cache_timeout)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr_valid_nsec = timeout_ns;
-		out->body.attr.attr_valid = UINT64_MAX;
+		out->body.attr.attr_valid = 0;
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
 	})));
+
 	EXPECT_EQ(0, stat(FULLPATH, &sb));
 	usleep(2 * timeout_ns / 1000);
-	/* Timeout has expire. stat(2) should requery the daemon */
+	/* Timeout has expired. stat(2) should requery the daemon */
 	EXPECT_EQ(0, stat(FULLPATH, &sb));
 }
 

@@ -195,10 +195,11 @@ static u_long fuse_lookup_cache_misses = 0;
 SYSCTL_ULONG(_vfs_fusefs, OID_AUTO, lookup_cache_misses, CTLFLAG_RD,
     &fuse_lookup_cache_misses, 0, "number of cache misses in lookup");
 
-int	fuse_lookup_cache_enable = 1;
+int	fuse_lookup_cache_expire = 0;
 
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, lookup_cache_enable, CTLFLAG_RW,
-    &fuse_lookup_cache_enable, 0, "if non-zero, enable lookup cache");
+SYSCTL_INT(_vfs_fusefs, OID_AUTO, lookup_cache_expire, CTLFLAG_RW,
+    &fuse_lookup_cache_expire, 0,
+    "if non-zero, expire fuse lookup cache entries at the proper time");
 
 /*
  * XXX: This feature is highly experimental and can bring to instabilities,
@@ -749,7 +750,43 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		fdisp_init(&fdi, 0);
 		op = FUSE_GETATTR;
 		goto calldaemon;
-	} else if (fuse_lookup_cache_enable) {
+	} else if (fuse_lookup_cache_expire) {
+		struct timespec now, timeout;
+
+		err = cache_lookup(dvp, vpp, cnp, &timeout, NULL);
+		switch (err) {
+
+		case -1:		/* positive match */
+			getnanouptime(&now);
+			if (timespeccmp(&timeout, &now, <=)) {
+				atomic_add_acq_long(&fuse_lookup_cache_hits, 1);
+			} else {
+				/* Cache timeout */
+				atomic_add_acq_long(&fuse_lookup_cache_misses,
+					1);
+				cache_purge(*vpp);
+				break;
+			}
+			return 0;
+
+		case 0:		/* no match in cache */
+			atomic_add_acq_long(&fuse_lookup_cache_misses, 1);
+			break;
+
+		case ENOENT:		/* negative match */
+			getnanouptime(&now);
+			if (timespeccmp(&timeout, &now, >)) {
+				/* Cache timeout */
+				printf("Purging vnode %p name=%s\n", *vpp,
+					cnp->cn_nameptr);
+				fuse_internal_vnode_disappear(*vpp);
+				break;
+			}
+			/* fall through */
+		default:
+			return err;
+		}
+	} else {
 		err = cache_lookup(dvp, vpp, cnp, NULL, NULL);
 		switch (err) {
 

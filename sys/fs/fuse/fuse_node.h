@@ -87,7 +87,8 @@ struct fuse_vnode_data {
 	uint32_t	flag;
 
 	/** meta **/
-	bool		valid_attr_cache;
+	/* The monotonic time after which the attr cache is invalid */
+	struct bintime	attr_cache_timeout;
 	struct vattr	cached_attrs;
 	off_t		filesize;
 	uint64_t	nlookup;
@@ -97,9 +98,18 @@ struct fuse_vnode_data {
 #define VTOFUD(vp) \
 	((struct fuse_vnode_data *)((vp)->v_data))
 #define VTOI(vp)    (VTOFUD(vp)->nid)
-#define VTOVA(vp) \
-	(VTOFUD(vp)->valid_attr_cache ? \
-	&(VTOFUD(vp)->cached_attrs) : NULL)
+static inline struct vattr*
+VTOVA(struct vnode *vp)
+{
+	struct bintime now;
+
+	getbinuptime(&now);
+	if (bintime_cmp(&(VTOFUD(vp)->attr_cache_timeout), &now, >))
+		return &(VTOFUD(vp)->cached_attrs);
+	else
+		return NULL;
+}
+
 #define VTOILLU(vp) ((uint64_t)(VTOFUD(vp) ? VTOI(vp) : 0))
 
 #define FUSE_NULL_ID 0
