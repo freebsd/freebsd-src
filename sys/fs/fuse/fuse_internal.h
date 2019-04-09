@@ -150,6 +150,52 @@ fuse_iosize(struct vnode *vp)
 	return (vp->v_mount->mnt_stat.f_iosize);
 }
 
+/*
+ * Make a cacheable timeout in bintime format value based on a fuse_attr_out
+ * response
+ */
+static inline void
+fuse_validity_2_bintime(uint64_t attr_valid, uint32_t attr_valid_nsec,
+	struct bintime *timeout)
+{
+	struct timespec now, duration, timeout_ts;
+
+	getnanouptime(&now);
+	/* "+ 2" is the bound of attr_valid_nsec + now.tv_nsec */
+	/* Why oh why isn't there a TIME_MAX defined? */
+	if (attr_valid >= INT_MAX || attr_valid + now.tv_sec + 2 >= INT_MAX) {
+		timeout->sec = INT_MAX;
+	} else {
+		duration.tv_sec = attr_valid;
+		duration.tv_nsec = attr_valid_nsec;
+		timespecadd(&duration, &now, &timeout_ts);
+		timespec2bintime(&timeout_ts, timeout);
+	}
+}
+
+/*
+ * Make a cacheable timeout value in timespec format based on the fuse_entry_out
+ * response
+ */
+static inline void
+fuse_validity_2_timespec(const struct fuse_entry_out *feo,
+	struct timespec *timeout)
+{
+	struct timespec duration, now;
+
+	getnanouptime(&now);
+	/* "+ 2" is the bound of entry_valid_nsec + now.tv_nsec */
+	if (feo->entry_valid >= INT_MAX ||
+	    feo->entry_valid + now.tv_sec + 2 >= INT_MAX) {
+		timeout->tv_sec = INT_MAX;
+	} else {
+		duration.tv_sec = feo->entry_valid;
+		duration.tv_nsec = feo->entry_valid_nsec;
+		timespecadd(&duration, &now, timeout);
+	}
+}
+
+
 /* access */
 
 #define FVP_ACCESS_NOOP		0x01

@@ -189,22 +189,12 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 	struct mount *mp;
 	struct fuse_vnode_data *fvdat;
 	struct vattr *vp_cache_at;
-	struct timespec now, duration, timeout;
 
 	mp = vnode_mount(vp);
 	fvdat = VTOFUD(vp);
 
-	getnanouptime(&now);
-	/* "+ 2" is the bound of attr_valid_nsec + now.tv_nsec */
-	/* Why oh why isn't there a TIME_MAX defined? */
-	if (attr_valid >= INT_MAX || attr_valid + now.tv_sec + 2 >= INT_MAX) {
-		fvdat->attr_cache_timeout.sec = INT_MAX;
-	} else {
-		duration.tv_sec = attr_valid;
-		duration.tv_nsec = attr_valid_nsec;
-		timespecadd(&duration, &now, &timeout);
-		timespec2bintime(&timeout, &fvdat->attr_cache_timeout);
-	}
+	fuse_validity_2_bintime(attr_valid, attr_valid_nsec,
+		&fvdat->attr_cache_timeout);
 
 	vp_cache_at = VTOVA(vp);
 

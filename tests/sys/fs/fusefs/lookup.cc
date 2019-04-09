@@ -169,8 +169,7 @@ TEST_F(Lookup, entry_cache)
  * If the daemon returns an error of 0 and an inode of 0, that's a flag for
  * "ENOENT and cache it" with the given entry_timeout
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236226 */
-TEST_F(Lookup, DISABLED_entry_cache_negative)
+TEST_F(Lookup, entry_cache_negative)
 {
 	struct timespec entry_valid = {.tv_sec = TIME_T_MAX, .tv_nsec = 0};
 

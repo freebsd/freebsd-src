@@ -706,6 +706,9 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 
 	struct fuse_dispatcher fdi;
 	enum fuse_opcode op;
+	struct fuse_entry_out *feo = NULL;
+	struct fuse_attr_out *fao = NULL;
+	struct fuse_attr *fattr = NULL;
 
 	uint64_t nid;
 	struct fuse_access_param facp;
@@ -802,15 +805,18 @@ calldaemon:
 	if ((op == FUSE_LOOKUP) && !lookup_err) {
 		/* lookup call succeeded */
 		nid = ((struct fuse_entry_out *)fdi.answ)->nodeid;
-		if (!nid) {
-			/*
-	                 * zero nodeid is the same as "not found",
-	                 * but it's also cacheable (which we keep
-	                 * keep on doing not as of writing this)
-			 * See PR 236226
-	                 */
+		if (nid == 0) {
+			/* zero nodeid means ENOENT and cache it */
+			struct timespec timeout;
+
 			fdi.answ_stat = ENOENT;
 			lookup_err = ENOENT;
+			if (cnp->cn_flags & MAKEENTRY) {
+				feo = (struct fuse_entry_out *)fdi.answ;
+				fuse_validity_2_timespec(feo, &timeout);
+				cache_enter_time(dvp, *vpp, cnp, &timeout,
+					NULL);
+			}
 		} else if (nid == FUSE_ROOT_ID) {
 			lookup_err = EINVAL;
 		}
@@ -849,33 +855,13 @@ calldaemon:
 			err = EJUSTRETURN;
 			goto out;
 		}
-		/* Consider inserting name into cache. */
 
-		/*
-	         * No we can't use negative caching, as the fs
-	         * changes are out of our control.
-	         * False positives' falseness turns out just as things
-	         * go by, but false negatives' falseness doesn't.
-	         * (and aiding the caching mechanism with extra control
-	         * mechanisms comes quite close to beating the whole purpose
-	         * caching...)
-	         */
-#if 0
-		if ((cnp->cn_flags & MAKEENTRY) != 0) {
-			SDT_PROBE2(fuse, , vnops, trace, 1,
-				"inserting NULL into cache");
-			cache_enter(dvp, NULL, cnp);
-		}
-#endif
 		err = ENOENT;
 		goto out;
 
 	} else {
 
 		/* !lookup_err */
-
-		struct fuse_entry_out *feo = NULL;
-		struct fuse_attr *fattr = NULL;
 
 		if (op == FUSE_GETATTR) {
 			fattr = &((struct fuse_attr_out *)fdi.answ)->attr;
@@ -1040,47 +1026,16 @@ calldaemon:
 		}
 
 		if (op == FUSE_GETATTR) {
-			struct fuse_attr_out *fao =
-				(struct fuse_attr_out*)fdi.answ;
+			fao = (struct fuse_attr_out*)fdi.answ;
 			fuse_internal_cache_attrs(*vpp,
 				&fao->attr, fao->attr_valid,
 				fao->attr_valid_nsec, NULL);
 		} else {
-			struct fuse_entry_out *feo =
-				(struct fuse_entry_out*)fdi.answ;
+			feo = (struct fuse_entry_out*)fdi.answ;
 			fuse_internal_cache_attrs(*vpp,
 				&feo->attr, feo->attr_valid,
 				feo->attr_valid_nsec, NULL);
 		}
-
-		/* Insert name into cache if appropriate. */
-
-		/*
-	         * Nooo, caching is evil. With caching, we can't avoid stale
-	         * information taking over the playground (cached info is not
-	         * just positive/negative, it does have qualitative aspects,
-	         * too). And a (VOP/FUSE)_GETATTR is always thrown anyway, when
-	         * walking down along cached path components, and that's not
-	         * any cheaper than FUSE_LOOKUP. This might change with
-	         * implementing kernel side attr caching, but... In Linux,
-	         * lookup results are not cached, and the daemon is bombarded
-	         * with FUSE_LOOKUPS on and on. This shows that by design, the
-	         * daemon is expected to handle frequent lookup queries
-	         * efficiently, do its caching in userspace, and so on.
-	         *
-	         * So just leave the name cache alone.
-	         */
-
-		/*
-	         * Well, now I know, Linux caches lookups, but with a
-	         * timeout... So it's the same thing as attribute caching:
-	         * we can deal with it when implement timeouts.
-	         */
-#if 0
-		if (cnp->cn_flags & MAKEENTRY) {
-			cache_enter(dvp, *vpp, cnp);
-		}
-#endif
 	}
 out:
 	if (!lookup_err) {
