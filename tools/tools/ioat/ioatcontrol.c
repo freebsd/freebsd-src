@@ -49,7 +49,7 @@ static void
 usage(void)
 {
 
-	printf("Usage: %s [-c period] [-EfmVz] channel-number num-txns [<bufsize> "
+	printf("Usage: %s [-c period] [-EefmVxXz] channel-number num-txns [<bufsize> "
 	    "[<chain-len> [duration]]]\n", getprogname());
 	printf("       %s -r [-c period] [-vVwz] channel-number address [<bufsize>]\n\n",
 	    getprogname());
@@ -154,9 +154,11 @@ main(int argc, char **argv)
 			break;
 		case 'x':
 			xflag = true;
+			modeflags++;
 			break;
 		case 'X':
 			Xflag = true;
+			modeflags++;
 			break;
 		case 'z':
 			t.zero_stats = true;
@@ -172,7 +174,7 @@ main(int argc, char **argv)
 		usage();
 
 	if (modeflags > 1) {
-		printf("Invalid: Cannot use >1 mode flag (-E, -f, -m, or -r)\n");
+		printf("Invalid: Cannot use >1 mode flag (-E, -e, -f, -m, -r, -x or -X)\n");
 		usage();
 	}
 
@@ -191,7 +193,7 @@ main(int argc, char **argv)
 		t.testkind = IOAT_TEST_MEMCPY;
 	else if (xflag)
 		t.testkind = IOAT_TEST_DMA_CRC;
-	else if (xflag)
+	else if (Xflag)
 		t.testkind = IOAT_TEST_DMA_CRC_COPY;
 
 	t.channel_index = atoi(argv[0]);
