@@ -46,8 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
+#include <dev/pci/pcireg.h>
 
 #include <machine/clock.h>
+#include <machine/pci_cfgreg.h>
 #include <machine/resource.h>
 #include <x86/legacyvar.h>
 
@@ -111,10 +113,52 @@ legacy_probe(device_t dev)
 	return (0);
 }
 
+/*
+ * Grope around in the PCI config space to see if this is a chipset
+ * that is capable of doing memory-mapped config cycles.  This also
+ * implies that it can do PCIe extended config cycles.
+ */
+static void
+legacy_pci_cfgregopen(device_t dev)
+{
+	uint64_t pciebar;
+	u_int16_t did, vid;
+
+	if (cfgmech == CFGMECH_NONE || cfgmech == CFGMECH_PCIE)
+		return;
+
+	/* Check for supported chipsets */
+	vid = pci_cfgregread(0, 0, 0, PCIR_VENDOR, 2);
+	did = pci_cfgregread(0, 0, 0, PCIR_DEVICE, 2);
+	switch (vid) {
+	case 0x8086:
+		switch (did) {
+		case 0x3590:
+		case 0x3592:
+			/* Intel 7520 or 7320 */
+			pciebar = pci_cfgregread(0, 0, 0, 0xce, 2) << 16;
+			pcie_cfgregopen(pciebar, 0, 255);
+			break;
+		case 0x2580:
+		case 0x2584:
+		case 0x2590:
+			/* Intel 915, 925, or 915GM */
+			pciebar = pci_cfgregread(0, 0, 0, 0x48, 4);
+			pcie_cfgregopen(pciebar, 0, 255);
+			break;
+		}
+	}
+
+	if (bootverbose && cfgmech == CFGMECH_PCIE)
+		device_printf(dev, "Enabled ECAM PCIe accesses\n");
+}
+
 static int
 legacy_attach(device_t dev)
 {
 	device_t child;
+
+	legacy_pci_cfgregopen(dev);
 
 	/*
 	 * Let our child drivers identify any child devices that they

@@ -48,6 +48,15 @@
 #define CONF2_ENABLE_CHK   0x0e
 #define CONF2_ENABLE_RES   0x0e
 
+enum {
+	CFGMECH_NONE = 0,
+	CFGMECH_1,
+	CFGMECH_2,
+	CFGMECH_PCIE,
+};
+
+extern int cfgmech;
+
 rman_res_t	hostb_alloc_start(int type, rman_res_t start, rman_res_t end, rman_res_t count);
 int		pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus);
 int		pci_cfgregopen(void);

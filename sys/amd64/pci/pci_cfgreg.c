@@ -44,12 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <machine/pci_cfgreg.h>
 
-enum {
-	CFGMECH_NONE = 0,
-	CFGMECH_1,
-	CFGMECH_PCIE,
-};
-
 static uint32_t	pci_docfgregread(int bus, int slot, int func, int reg,
 		    int bytes);
 static int	pciereg_cfgread(int bus, unsigned slot, unsigned func,
@@ -61,7 +55,13 @@ static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int 
 
 SYSCTL_DECL(_hw_pci);
 
-static int cfgmech;
+/*
+ * For amd64 we assume that type 1 I/O port-based access always works.
+ * If an ACPI MCFG table exists, pcie_cfgregopen() will be called to
+ * switch to memory-mapped access.
+ */
+int cfgmech = CFGMECH_1;
+
 static vm_offset_t pcie_base;
 static int pcie_minbus, pcie_maxbus;
 static uint32_t pcie_badslots;
@@ -71,46 +71,9 @@ static int mcfg_enable = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, mcfg, CTLFLAG_RDTUN, &mcfg_enable, 0,
     "Enable support for PCI-e memory mapped config access");
 
-/* 
- * Initialise access to PCI configuration space 
- */
 int
 pci_cfgregopen(void)
 {
-	uint64_t pciebar;
-	uint16_t did, vid;
-
-	if (cfgmech != CFGMECH_NONE)
-		return (1);
-	cfgmech = CFGMECH_1;
-
-	/*
-	 * Grope around in the PCI config space to see if this is a
-	 * chipset that is capable of doing memory-mapped config cycles.
-	 * This also implies that it can do PCIe extended config cycles.
-	 */
-
-	/* Check for supported chipsets */
-	vid = pci_cfgregread(0, 0, 0, PCIR_VENDOR, 2);
-	did = pci_cfgregread(0, 0, 0, PCIR_DEVICE, 2);
-	switch (vid) {
-	case 0x8086:
-		switch (did) {
-		case 0x3590:
-		case 0x3592:
-			/* Intel 7520 or 7320 */
-			pciebar = pci_cfgregread(0, 0, 0, 0xce, 2) << 16;
-			pcie_cfgregopen(pciebar, 0, 255);
-			break;
-		case 0x2580:
-		case 0x2584:
-		case 0x2590:
-			/* Intel 915, 925, or 915GM */
-			pciebar = pci_cfgregread(0, 0, 0, 0x48, 4);
-			pcie_cfgregopen(pciebar, 0, 255);
-			break;
-		}
-	}
 
 	return (1);
 }
@@ -135,9 +98,6 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 {
 	uint32_t line;
 
-	if (cfgmech == CFGMECH_NONE)
-		return (0xffffffff);
-
 	/*
 	 * Some BIOS writers seem to want to ignore the spec and put
 	 * 0 in the intline rather than 255 to indicate none.  Some use
@@ -161,9 +121,6 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 void
 pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 {
-
-	if (cfgmech == CFGMECH_NONE)
-		return;
 
 	if (cfgmech == CFGMECH_PCIE &&
 	    (bus >= pcie_minbus && bus <= pcie_maxbus) &&
