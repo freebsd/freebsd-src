@@ -246,7 +246,12 @@
 /* Process management via process descriptors. */
 /* Allows for pdgetpid(2). */
 #define	CAP_PDGETPID		CAPRIGHT(1, 0x0000000000000200ULL)
-/* Allows for pdwait4(2). */
+/*
+ * Allows for pdwait4(2).
+ *
+ * XXX: this constant was imported unused, but is targeted to be implemented
+ *      in the future (bug 235871).
+ */
 #define	CAP_PDWAIT		CAPRIGHT(1, 0x0000000000000400ULL)
 /* Allows for pdkill(2). */
 #define	CAP_PDKILL		CAPRIGHT(1, 0x0000000000000800ULL)
