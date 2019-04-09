@@ -1353,6 +1353,14 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 	return (0);
 
     /*
+     * Don't reserve resources for CPU devices.  Some of these
+     * resources need to be allocated as shareable, but reservations
+     * are always non-shareable.
+     */
+    if (device_get_devclass(child) == devclass_find("cpu"))
+	return (0);
+
+    /*
      * Reserve the resource.
      *
      * XXX: Ignores failure for now.  Failure here is probably a
