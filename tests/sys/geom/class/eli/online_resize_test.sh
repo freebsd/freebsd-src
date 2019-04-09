@@ -172,22 +172,18 @@ online_resize_body()
 		atf_check -s exit:0 -o match:'^Flags: .*AUTORESIZE' geli list ${md}p1.eli
 		atf_check -s exit:0 -o match:resized gpart resize -i 1 -s 30${prefix} ${md}
 		atf_check -s exit:0 -o match:"^[[:space:]]${osize30}[[:space:]]+# mediasize in bytes" diskinfo -v ${md}p1.eli
-		atf_check geli detach ${md}p1.eli
-
-		# Cleanup.
-		atf_check -s exit:0 -o match:deleted gpart delete -i 1 ${md}
-		atf_check -s exit:0 -o match:destroyed gpart destroy ${md}
-		atf_check -s exit:0 -o ignore mdconfig -d -u ${md}
 	done
 }
 online_resize_cleanup()
 {
 	if [ -f "$TEST_MDS_FILE" ]; then
 		while read md; do
-			[ -c /dev/${md}p1.eli ] && geli detach ${md}p1.eli
-			mdconfig -d -u ${md} 2>/dev/null
+			atf_check -s ignore -e ignore -o ignore geli detach ${md}p1.eli
+			atf_check -s ignore -e ignore -o ignore gpart delete -i 1 ${md}
+			atf_check -s ignore -e ignore -o ignore gpart destroy ${md}
 		done < $TEST_MDS_FILE
 	fi
+	geli_test_cleanup
 }
 
 atf_init_test_cases()
