@@ -195,12 +195,6 @@ static u_long fuse_lookup_cache_misses = 0;
 SYSCTL_ULONG(_vfs_fusefs, OID_AUTO, lookup_cache_misses, CTLFLAG_RD,
     &fuse_lookup_cache_misses, 0, "number of cache misses in lookup");
 
-int	fuse_lookup_cache_expire = 0;
-
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, lookup_cache_expire, CTLFLAG_RW,
-    &fuse_lookup_cache_expire, 0,
-    "if non-zero, expire fuse lookup cache entries at the proper time");
-
 /*
  * XXX: This feature is highly experimental and can bring to instabilities,
  * needs revisiting before to be enabled by default.
@@ -681,6 +675,8 @@ out:
 	return err;
 }
 
+SDT_PROBE_DEFINE3(fuse, , vnops, cache_lookup,
+	"int", "struct timespec*", "struct timespec*");
 /*
     struct vnop_lookup_args {
 	struct vnodeop_desc *a_desc;
@@ -750,21 +746,26 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		fdisp_init(&fdi, 0);
 		op = FUSE_GETATTR;
 		goto calldaemon;
-	} else if (fuse_lookup_cache_expire) {
+	} else {
 		struct timespec now, timeout;
 
 		err = cache_lookup(dvp, vpp, cnp, &timeout, NULL);
+		getnanouptime(&now);
+		SDT_PROBE3(fuse, , vnops, cache_lookup, err, &timeout, &now);
 		switch (err) {
-
 		case -1:		/* positive match */
-			getnanouptime(&now);
-			if (timespeccmp(&timeout, &now, <=)) {
+			if (timespeccmp(&timeout, &now, >)) {
 				atomic_add_acq_long(&fuse_lookup_cache_hits, 1);
 			} else {
 				/* Cache timeout */
 				atomic_add_acq_long(&fuse_lookup_cache_misses,
 					1);
-				cache_purge(*vpp);
+				fuse_internal_vnode_disappear(*vpp);
+				if (dvp != *vpp)
+					vput(*vpp);
+				else 
+					vrele(*vpp);
+				*vpp = NULL;
 				break;
 			}
 			return 0;
@@ -775,30 +776,11 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 
 		case ENOENT:		/* negative match */
 			getnanouptime(&now);
-			if (timespeccmp(&timeout, &now, >)) {
+			if (timespeccmp(&timeout, &now, <=)) {
 				/* Cache timeout */
-				printf("Purging vnode %p name=%s\n", *vpp,
-					cnp->cn_nameptr);
-				fuse_internal_vnode_disappear(*vpp);
+				cache_purge_negative(dvp);
 				break;
 			}
-			/* fall through */
-		default:
-			return err;
-		}
-	} else {
-		err = cache_lookup(dvp, vpp, cnp, NULL, NULL);
-		switch (err) {
-
-		case -1:		/* positive match */
-			atomic_add_acq_long(&fuse_lookup_cache_hits, 1);
-			return 0;
-
-		case 0:		/* no match in cache */
-			atomic_add_acq_long(&fuse_lookup_cache_misses, 1);
-			break;
-
-		case ENOENT:		/* negative match */
 			/* fall through */
 		default:
 			return err;
@@ -817,13 +799,15 @@ calldaemon:
 	}
 	lookup_err = fdisp_wait_answ(&fdi);
 
-	if ((op == FUSE_LOOKUP) && !lookup_err) {	/* lookup call succeeded */
+	if ((op == FUSE_LOOKUP) && !lookup_err) {
+		/* lookup call succeeded */
 		nid = ((struct fuse_entry_out *)fdi.answ)->nodeid;
 		if (!nid) {
 			/*
 	                 * zero nodeid is the same as "not found",
 	                 * but it's also cacheable (which we keep
 	                 * keep on doing not as of writing this)
+			 * See PR 236226
 	                 */
 			fdi.answ_stat = ENOENT;
 			lookup_err = ENOENT;
