@@ -202,6 +202,7 @@ struct acpi_resource_context {
     struct acpi_parse_resource_set *set;
     device_t	dev;
     void	*context;
+    bool	ignore_producer_flag;
 };
 
 #ifdef ACPI_DEBUG_OUTPUT
@@ -385,7 +386,7 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	}
 	if (length <= 0)
 	    break;
-	if (res->Type == ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64 &&
+	if (!arc->ignore_producer_flag &&
 	    res->Data.Address.ProducerConsumer != ACPI_CONSUMER) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
 		"ignored %s %s producer\n", name,
@@ -474,6 +475,12 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
     set->set_init(dev, arg, &arc.context);
     arc.set = set;
     arc.dev = dev;
+    arc.ignore_producer_flag = false;
+
+    /* UARTs on ThunderX2 set ResourceProducer on memory resources. */
+    if (acpi_MatchHid(handle, "ARMH0011") != ACPI_MATCHHID_NOMATCH)
+	    arc.ignore_producer_flag = true;
+
     status = AcpiWalkResources(handle, "_CRS", acpi_parse_resource, &arc);
     if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
 	printf("can't fetch resources for %s - %s\n",
