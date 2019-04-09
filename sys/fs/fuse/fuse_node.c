@@ -291,24 +291,21 @@ fuse_vnode_get(struct mount *mp,
 	if (dvp != NULL && cnp != NULL && (cnp->cn_flags & MAKEENTRY) != 0 &&
 	    feo != NULL &&
 	    (feo->entry_valid != 0 || feo->entry_valid_nsec != 0)) {
+		struct timespec duration, now, timeout;
+
 		ASSERT_VOP_LOCKED(*vpp, "fuse_vnode_get");
 		ASSERT_VOP_LOCKED(dvp, "fuse_vnode_get");
-		if (fuse_lookup_cache_expire) {
-			struct timespec duration, now, timeout;
 
-			getnanouptime(&now);
-			if (feo->entry_valid >= INT_MAX ||
-			    feo->entry_valid + now.tv_sec + 2 >= INT_MAX) {
-				timeout.tv_sec = INT_MAX;
-			} else {
-				duration.tv_sec = feo->entry_valid;
-				duration.tv_nsec = feo->entry_valid_nsec;
-				timespecadd(&duration, &now, &timeout);
-			}
-			cache_enter_time(dvp, *vpp, cnp, &timeout, NULL);
+		getnanouptime(&now);
+		if (feo->entry_valid >= INT_MAX ||
+		    feo->entry_valid + now.tv_sec + 2 >= INT_MAX) {
+			timeout.tv_sec = INT_MAX;
 		} else {
-			cache_enter(dvp, *vpp, cnp);
+			duration.tv_sec = feo->entry_valid;
+			duration.tv_nsec = feo->entry_valid_nsec;
+			timespecadd(&duration, &now, &timeout);
 		}
+		cache_enter_time(dvp, *vpp, cnp, &timeout, NULL);
 	}
 
 	/*

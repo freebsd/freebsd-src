@@ -211,8 +211,7 @@ TEST_F(Lookup, entry_cache_negative_timeout)
  * If lookup returns a finite but non-zero entry cache timeout, then we should
  * discard the cached inode and requery the daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235773 */
-TEST_F(Lookup, DISABLED_entry_cache_timeout)
+TEST_F(Lookup, entry_cache_timeout)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
