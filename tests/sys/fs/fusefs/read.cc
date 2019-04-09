@@ -391,7 +391,7 @@ TEST_F(Read, eio)
  * With the keep_cache option, the kernel may keep its read cache across
  * multiple open(2)s.
  */
-TEST_F(Read, keep_cache)
+TEST_F(ReadCacheable, keep_cache)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
