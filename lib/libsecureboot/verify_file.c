@@ -366,7 +366,7 @@ verify_file(int fd, const char *filename, off_t off, int severity)
 			return (rc);
 		}
 
-		if (severity || verbose)
+		if (severity || verbose || rc == VE_FINGERPRINT_WRONG)
 			printf("Unverified: %s\n", ve_error_get());
 		if (rc == VE_FINGERPRINT_UNKNOWN && severity < VE_MUST)
 			rc = VE_UNVERIFIED_OK;
