@@ -197,7 +197,10 @@ struct mmc_data {
 #define	MMC_DATA_READ	(1UL << 1)
 #define	MMC_DATA_STREAM	(1UL << 2)
 #define	MMC_DATA_MULTI	(1UL << 3)
+#define MMC_DATA_BLOCK_SIZE (1UL << 4)
 	struct mmc_request *mrq;
+	size_t block_size;      /* block size for CMD53 */
+	size_t block_count;     /* block count for CMD53 */
 };
 
 struct mmc_request {
