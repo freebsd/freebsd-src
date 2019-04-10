@@ -75,7 +75,7 @@ cfumass_start()
 		return "${err}"
 	fi
 
-	load_kld cfumass
+	load_kld -e cfumass cfumass
 
 	# If the template is already switched to Mass Storage, then reset
 	# it to -1 to force the host to reenumerate it; otherwise it might

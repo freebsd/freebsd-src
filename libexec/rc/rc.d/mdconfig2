@@ -123,7 +123,7 @@ mdconfig2_start()
 		# been created.
 		if [ "${_type}" = "vnode" -a "${_fs}" != "/" ]; then
 			if [ "${_file}" != "${_file%.uzip}" ]; then
-				load_kld geom_uzip || return 3
+				load_kld -m g_uzip geom_uzip || return 3
 			fi
 			if is_readonly ${_fs}; then
 				warn "${_fs} is mounted read-only, skipping ${_md}."
