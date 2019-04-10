@@ -658,6 +658,8 @@ __elfN(load_sections)(struct image_params *imgp, const Elf_Ehdr *hdr,
 	bool first;
 	int error, i;
 
+	ASSERT_VOP_LOCKED(imgp->vp, __func__);
+
 	base_addr = 0;
 	first = true;
 
@@ -924,8 +926,7 @@ __elfN(get_interp)(struct image_params *imgp, const Elf_Phdr *phdr,
 
 	KASSERT(phdr->p_type == PT_INTERP,
 	    ("%s: p_type %u != PT_INTERP", __func__, phdr->p_type));
-	KASSERT(VOP_ISLOCKED(imgp->vp),
-	    ("%s: vp %p is not locked", __func__, imgp->vp));
+	ASSERT_VOP_LOCKED(imgp->vp, __func__);
 
 	td = curthread;
 
