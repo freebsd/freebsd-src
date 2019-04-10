@@ -439,7 +439,8 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 
 	r = file_new(a, entry, &file);
 	if (r < ARCHIVE_WARN) {
-		file_free(file);
+		if (file != NULL)
+			file_free(file);
 		return (r);
 	}
 	if (file->size == 0 && file->dir) {
