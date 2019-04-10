@@ -593,6 +593,9 @@ be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 	if (strlen(snap_name) >= BE_MAXPATHLEN)
 		return (BE_ERR_PATHLEN);
 
+	if (!zfs_name_valid(snap_name, ZFS_TYPE_SNAPSHOT))
+		return (BE_ERR_INVALIDNAME);
+
 	if (!zfs_dataset_exists(lbh->lzh, snap_name,
 	    ZFS_TYPE_SNAPSHOT))
 		return (BE_ERR_NOENT);
@@ -646,12 +649,6 @@ be_root_concat(libbe_handle_t *lbh, const char *name, char *result)
 int
 be_validate_name(libbe_handle_t *lbh, const char *name)
 {
-	for (int i = 0; *name; i++) {
-		char c = *(name++);
-		if (isalnum(c) || (c == '-') || (c == '_') || (c == '.'))
-			continue;
-		return (BE_ERR_INVALIDNAME);
-	}
 
 	/*
 	 * Impose the additional restriction that the entire dataset name must
@@ -659,6 +656,10 @@ be_validate_name(libbe_handle_t *lbh, const char *name)
 	 */
 	if (strlen(lbh->root) + 1 + strlen(name) > MAXNAMELEN)
 		return (BE_ERR_PATHLEN);
+
+	if (!zfs_name_valid(name, ZFS_TYPE_DATASET))
+		return (BE_ERR_INVALIDNAME);
+
 	return (BE_ERR_SUCCESS);
 }
 
