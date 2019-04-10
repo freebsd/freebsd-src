@@ -517,15 +517,16 @@ static int run_e8e9_filter(struct rar5* rar, struct filter_info* flt,
     const uint32_t file_size = 0x1000000;
     ssize_t i;
 
+    const int mask = (int)rar->cstate.window_mask;
     circular_memcpy(rar->cstate.filtered_buf,
         rar->cstate.window_buf,
-        rar->cstate.window_mask,
+        mask,
         rar->cstate.solid_offset + flt->block_start,
         rar->cstate.solid_offset + flt->block_start + flt->block_length);
 
     for(i = 0; i < flt->block_length - 4;) {
         uint8_t b = rar->cstate.window_buf[(rar->cstate.solid_offset +
-                flt->block_start + i++) & rar->cstate.window_mask];
+                flt->block_start + i++) & mask];
 
         /* 0xE8 = x86's call <relative_addr_uint32> (function call)
          * 0xE9 = x86's jmp <relative_addr_uint32> (unconditional jump) */
@@ -534,17 +535,17 @@ static int run_e8e9_filter(struct rar5* rar, struct filter_info* flt,
             uint32_t addr;
             uint32_t offset = (i + flt->block_start) % file_size;
 
-            addr = read_filter_data(rar, (rar->cstate.solid_offset +
+            addr = read_filter_data(rar, (uint32_t)(rar->cstate.solid_offset +
                         flt->block_start + i) & rar->cstate.window_mask);
 
             if(addr & 0x80000000) {
                 if(((addr + offset) & 0x80000000) == 0) {
-                    write_filter_data(rar, i, addr + file_size);
+                    write_filter_data(rar, (uint32_t)i, addr + file_size);
                 }
             } else {
                 if((addr - file_size) & 0x80000000) {
                     uint32_t naddr = addr - offset;
-                    write_filter_data(rar, i, naddr);
+                    write_filter_data(rar, (uint32_t)i, naddr);
                 }
             }
 
@@ -558,11 +559,11 @@ static int run_e8e9_filter(struct rar5* rar, struct filter_info* flt,
 static int run_arm_filter(struct rar5* rar, struct filter_info* flt) {
     ssize_t i = 0;
     uint32_t offset;
-    const int mask = rar->cstate.window_mask;
+    const int mask = (int)rar->cstate.window_mask;
 
     circular_memcpy(rar->cstate.filtered_buf,
         rar->cstate.window_buf,
-        rar->cstate.window_mask,
+        mask,
         rar->cstate.solid_offset + flt->block_start,
         rar->cstate.solid_offset + flt->block_start + flt->block_length);
 
@@ -577,7 +578,7 @@ static int run_arm_filter(struct rar5* rar, struct filter_info* flt) {
 
             offset -= (uint32_t) ((i + flt->block_start) / 4);
             offset = (offset & 0x00ffffff) | 0xeb000000;
-            write_filter_data(rar, i, offset);
+            write_filter_data(rar, (uint32_t)i, offset);
         }
     }
 
@@ -643,7 +644,7 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
 static void push_data(struct archive_read* a, struct rar5* rar,
         const uint8_t* buf, int64_t idx_begin, int64_t idx_end)
 {
-    const int wmask = rar->cstate.window_mask;
+    const int wmask = (int)rar->cstate.window_mask;
     const ssize_t solid_write_ptr = (rar->cstate.solid_offset +
         rar->cstate.last_write_ptr) & wmask;
 
@@ -1716,8 +1717,8 @@ static int process_base_block(struct archive_read* a,
 
     rar->generic.split_after = (header_flags & HFL_SPLIT_AFTER) > 0;
     rar->generic.split_before = (header_flags & HFL_SPLIT_BEFORE) > 0;
-    rar->generic.size = hdr_size;
-    rar->generic.last_header_id = header_id;
+    rar->generic.size = (int)hdr_size;
+    rar->generic.last_header_id = (int)header_id;
     rar->main.endarc = 0;
 
     /* Those are possible header ids in RARv5. */
@@ -1933,7 +1934,7 @@ static int create_decode_tables(uint8_t* bit_length,
         }
     }
 
-    quick_data_size = 1 << table->quick_bits;
+    quick_data_size = (int64_t)1 << table->quick_bits;
     cur_len = 1;
     for(code = 0; code < quick_data_size; code++) {
         int bit_field = code << (16 - table->quick_bits);
@@ -2364,7 +2365,7 @@ static int decode_code_length(struct rar5* rar, const uint8_t* p,
 
 static int copy_string(struct archive_read* a, int len, int dist) {
     struct rar5* rar = get_context(a);
-    const int cmask = rar->cstate.window_mask;
+    const int cmask = (int)rar->cstate.window_mask;
     const int64_t write_ptr = rar->cstate.write_ptr + rar->cstate.solid_offset;
     int i;
 
@@ -2390,7 +2391,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
     uint16_t num;
     int ret;
 
-    const int cmask = rar->cstate.window_mask;
+    const int cmask = (int)rar->cstate.window_mask;
     const struct compressed_block_header* hdr = &rar->last_block_hdr;
     const uint8_t bit_size = 1 + bf_bit_size(hdr);
 
