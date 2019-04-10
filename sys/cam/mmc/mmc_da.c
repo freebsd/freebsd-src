@@ -791,6 +791,11 @@ sddaregister(struct cam_periph *periph, void *arg)
 	softc->state = SDDA_STATE_INIT;
 	softc->mmcdata =
 		(struct mmc_data *)malloc(sizeof(struct mmc_data), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (softc->mmcdata == NULL) {
+		printf("sddaregister: Unable to probe new device. "
+		    "Unable to allocate mmcdata\n");
+		return (CAM_REQ_CMP_ERR);
+	}
 	periph->softc = softc;
 	softc->periph = periph;
 
@@ -889,6 +894,7 @@ mmc_send_ext_csd(struct cam_periph *periph, union ccb *ccb,
 	struct mmc_data d;
 
 	KASSERT(buf_len == 512, ("Buffer for ext csd must be 512 bytes"));
+	memset(&d, 0, sizeof(d));
 	d.data = rawextcsd;
 	d.len = buf_len;
 	d.flags = MMC_DATA_READ;
@@ -1013,6 +1019,7 @@ mmc_sd_switch(struct cam_periph *periph, union ccb *ccb,
 	int err;
 
 	memset(res, 0, 64);
+	memset(&mmc_d, 0, sizeof(mmc_d));
 	mmc_d.len = 64;
 	mmc_d.data = res;
 	mmc_d.flags = MMC_DATA_READ;
@@ -1804,6 +1811,7 @@ sddastart(struct cam_periph *periph, union ccb *start_ccb)
 
 		mmcio->cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 		mmcio->cmd.data = softc->mmcdata;
+		memset(mmcio->cmd.data, 0, sizeof(struct mmc_data));
 		mmcio->cmd.data->data = bp->bio_data;
 		mmcio->cmd.data->len = 512 * count;
 		mmcio->cmd.data->flags = (bp->bio_cmd == BIO_READ ? MMC_DATA_READ : MMC_DATA_WRITE);

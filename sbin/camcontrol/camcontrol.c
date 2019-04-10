@@ -7788,6 +7788,7 @@ mmcsdcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		flags |= CAM_DIR_IN;
 		mmc_data = malloc(mmc_data_len);
 		memset(mmc_data, 0, mmc_data_len);
+		memset(&mmc_d, 0, sizeof(mmc_d));
 		mmc_d.len = mmc_data_len;
 		mmc_d.data = mmc_data;
 		mmc_d.flags = MMC_DATA_READ;
