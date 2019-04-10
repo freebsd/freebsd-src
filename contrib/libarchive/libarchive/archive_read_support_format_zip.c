@@ -194,6 +194,7 @@ struct zip {
 	ssize_t			zipx_ppmd_read_compressed;
 	CPpmd8			ppmd8;
 	char			ppmd8_valid;
+	char			ppmd8_stream_failed;
 
 	struct archive_string_conv *sconv;
 	struct archive_string_conv *sconv_default;
@@ -254,9 +255,15 @@ ppmd_read(void* p) {
 	/* Get the handle to current decompression context. */
 	struct archive_read *a = ((IByteIn*)p)->a;
 	struct zip *zip = (struct zip*) a->format->data;
+	ssize_t bytes_avail = 0;
 
 	/* Fetch next byte. */
-	const uint8_t* data = __archive_read_ahead(a, 1, NULL);
+	const uint8_t* data = __archive_read_ahead(a, 1, &bytes_avail);
+	if(bytes_avail < 1) {
+		zip->ppmd8_stream_failed = 1;
+		return 0;
+	}
+
 	__archive_read_consume(a, 1);
 
 	/* Increment the counter. */
@@ -1750,6 +1757,7 @@ zipx_ppmd8_init(struct archive_read *a, struct zip *zip)
 
 	/* Create a new decompression context. */
 	__archive_ppmd8_functions.Ppmd8_Construct(&zip->ppmd8);
+	zip->ppmd8_stream_failed = 0;
 
 	/* Setup function pointers required by Ppmd8 decompressor. The
 	 * 'ppmd_read' function will feed new bytes to the decompressor,
@@ -1869,6 +1877,14 @@ zip_read_data_zipx_ppmd(struct archive_read *a, const void **buff,
 			break;
 		}
 
+		/* This field is set by ppmd_read() when there was no more data
+		 * to be read. */
+		if(zip->ppmd8_stream_failed) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				"Truncated PPMd8 file body");
+			return (ARCHIVE_FATAL);
+		}
+
 		zip->uncompressed_buffer[consumed_bytes] = (uint8_t) sym;
 		++consumed_bytes;
 	} while(consumed_bytes < zip->uncompressed_buffer_size);
@@ -1902,7 +1918,7 @@ zipx_bzip2_init(struct archive_read *a, struct zip *zip)
 {
 	int r;
 
-	/* Deallocate already existing BZ2 decompression context if it 
+	/* Deallocate already existing BZ2 decompression context if it
 	 * exists. */
 	if(zip->bzstream_valid) {
 		BZ2_bzDecompressEnd(&zip->bzstream);
@@ -1968,6 +1984,15 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
 	}
 
 	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
+	if(in_bytes < 1) {
+		/* libbz2 doesn't complain when caller feeds avail_in == 0. It will
+		 * actually return success in this case, which is undesirable. This is
+		 * why we need to make this check manually. */
+
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated bzip2 file body");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Setup buffer boundaries. */
 	zip->bzstream.next_in = (char*)(uintptr_t) compressed_buff;
