@@ -108,6 +108,13 @@ class Getxattr: public Xattr {};
 class Listxattr: public Xattr {};
 class Removexattr: public Xattr {};
 class Setxattr: public Xattr {};
+class RofsXattr: public Xattr {
+public:
+virtual void SetUp() {
+	m_ro = true;
+	Xattr::SetUp();
+}
+};
 
 /* 
  * If the extended attribute does not exist on this file, the daemon should
@@ -602,6 +609,32 @@ TEST_F(Setxattr, system)
 
 	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
 	ASSERT_EQ(value_len, r) << strerror(errno);
+}
+
+TEST_F(RofsXattr, deleteextattr_erofs)
+{
+	uint64_t ino = 42;
+	int ns = EXTATTR_NAMESPACE_USER;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+
+	ASSERT_EQ(-1, extattr_delete_file(FULLPATH, ns, "foo"));
+	ASSERT_EQ(EROFS, errno);
+}
+
+TEST_F(RofsXattr, setextattr_erofs)
+{
+	uint64_t ino = 42;
+	const char value[] = "whatever";
+	ssize_t value_len = strlen(value) + 1;
+	int ns = EXTATTR_NAMESPACE_USER;
+	ssize_t r;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+
+	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	ASSERT_EQ(-1, r);
+	EXPECT_EQ(EROFS, errno);
 }
 
 // TODO: EROFS tests

@@ -197,27 +197,6 @@ fuse_validity_2_timespec(const struct fuse_entry_out *feo,
 
 
 /* access */
-
-#define FVP_ACCESS_NOOP		0x01
-
-#define FACCESS_VA_VALID	0x01
-/* 
- * Caller must be the directory's owner, or the superuser, or the sticky bit
- * must not be set
- */
-#define FACCESS_STICKY		0x04
-/* Caller requires access to change file's owner */
-#define FACCESS_CHOWN		0x08
-#define FACCESS_SETGID		0x12
-
-#define FACCESS_XQUERIES	(FACCESS_STICKY | FACCESS_CHOWN | FACCESS_SETGID)
-
-struct fuse_access_param {
-	uid_t		xuid;
-	gid_t		xgid;
-	uint32_t	facc_flags;
-};
-
 static inline int
 fuse_match_cred(struct ucred *basecred, struct ucred *usercred)
 {
@@ -233,7 +212,7 @@ fuse_match_cred(struct ucred *basecred, struct ucred *usercred)
 }
 
 int fuse_internal_access(struct vnode *vp, accmode_t mode,
-    struct fuse_access_param *facp, struct thread *td, struct ucred *cred);
+    struct thread *td, struct ucred *cred);
 
 /* attributes */
 void fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,

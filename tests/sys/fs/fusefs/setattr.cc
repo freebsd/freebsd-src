@@ -41,6 +41,14 @@ using namespace testing;
 
 class Setattr : public FuseTest {};
 
+class RofsSetattr: public Setattr {
+public:
+virtual void SetUp() {
+	m_ro = true;
+	Setattr::SetUp();
+}
+};
+
 
 /*
  * If setattr returns a non-zero cache timeout, then subsequent VOP_GETATTRs
@@ -103,7 +111,6 @@ TEST_F(Setattr, chmod)
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | oldmode;
 		out->body.entry.nodeid = ino;
-		out->body.entry.attr.mode = S_IFREG | oldmode;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
@@ -554,4 +561,22 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		<< strerror(errno);
 }
 
-// TODO: test for erofs
+/* On a read-only mount, no attributes may be changed */
+TEST_F(RofsSetattr, erofs)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	const mode_t oldmode = 0755;
+	const mode_t newmode = 0644;
+
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | oldmode;
+		out->body.entry.nodeid = ino;
+	})));
+
+	ASSERT_EQ(-1, chmod(FULLPATH, newmode));
+	ASSERT_EQ(EROFS, errno);
+}

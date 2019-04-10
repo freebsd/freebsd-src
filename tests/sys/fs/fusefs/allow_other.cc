@@ -35,6 +35,7 @@
 
 extern "C" {
 #include <sys/types.h>
+#include <sys/extattr.h>
 #include <fcntl.h>
 #include <unistd.h>
 }
@@ -212,6 +213,52 @@ TEST_F(NoAllowOther, disallowed_beneath_root)
 			fd = openat(dfd, RELPATH2, O_RDONLY);
 			if (fd >= 0) {
 				fprintf(stderr, "openat should've failed\n");
+				return(1);
+			} else if (errno != EPERM) {
+				fprintf(stderr, "Unexpected error: %s\n",
+					strerror(errno));
+				return(1);
+			}
+			return 0;
+		}
+	);
+}
+
+/* 
+ * Provide coverage for the extattr methods, which have a slightly different
+ * code path
+ */
+TEST_F(NoAllowOther, setextattr)
+{
+	int ino = 42;
+
+	fork(true, [&] {
+			EXPECT_LOOKUP(1, RELPATH)
+			.WillOnce(Invoke(
+			ReturnImmediate([=](auto in __unused, auto out) {
+				SET_OUT_HEADER_LEN(out, entry);
+				out->body.entry.attr_valid = UINT64_MAX;
+				out->body.entry.entry_valid = UINT64_MAX;
+				out->body.entry.attr.mode = S_IFREG | 0644;
+				out->body.entry.nodeid = ino;
+			})));
+
+			/*
+			 * lookup the file to get it into the cache.
+			 * Otherwise, the unprivileged lookup will fail with
+			 * EACCES
+			 */
+			ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+		}, [&]() {
+			const char value[] = "whatever";
+			ssize_t value_len = strlen(value) + 1;
+			int ns = EXTATTR_NAMESPACE_USER;
+			ssize_t r;
+
+			r = extattr_set_file(FULLPATH, ns, "foo",
+				(void*)value, value_len);
+			if (r >= 0) {
+				fprintf(stderr, "should've failed\n");
 				return(1);
 			} else if (errno != EPERM) {
 				fprintf(stderr, "Unexpected error: %s\n",
