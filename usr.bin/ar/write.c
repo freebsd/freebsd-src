@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #define _ARMAG_LEN 8		/* length of ar magic string */
 #define _ARHDR_LEN 60		/* length of ar header */
 #define _INIT_AS_CAP 128	/* initial archive string table size */
-#define _INIT_SYMOFF_CAP (256*(sizeof(uint32_t))) /* initial so table size */
+#define _INIT_SYMOFF_CAP (256*(sizeof(uint64_t))) /* initial so table size */
 #define _INIT_SYMNAME_CAP 1024			  /* initial sn table size */
 #define _MAXNAMELEN_SVR4 15	/* max member name length in svr4 variant */
 #define _TRUNCATE_LEN 15	/* number of bytes to keep for member name */
@@ -557,6 +557,7 @@ write_cleanup(struct bsdar *bsdar)
 	free(bsdar->s_sn);
 	bsdar->as = NULL;
 	bsdar->s_so = NULL;
+	bsdar->s_so_max = 0;
 	bsdar->s_sn = NULL;
 }
 
@@ -613,7 +614,9 @@ write_objs(struct bsdar *bsdar)
 	struct archive_entry	*entry;
 	size_t s_sz;		/* size of archive symbol table. */
 	size_t pm_sz;		/* size of pseudo members */
-	int			 i, nr;
+	size_t w_sz;		/* size of words in symbol table */
+	uint64_t		 nr;
+	int			 i;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0,
@@ -628,9 +631,6 @@ write_objs(struct bsdar *bsdar)
 		if (strlen(obj->name) > _MAXNAMELEN_SVR4)
 			add_to_ar_str_table(bsdar, obj->name);
 		bsdar->rela_off += _ARHDR_LEN + obj->size + obj->size % 2;
-		if (bsdar->rela_off > UINT32_MAX)
-			bsdar_errc(bsdar, EX_SOFTWARE, 0,
-			    "Symbol table offset overflow");
 	}
 
 	/*
@@ -657,17 +657,30 @@ write_objs(struct bsdar *bsdar)
 	 * absolute_offset = htobe32(relative_offset + size_of_pseudo_members)
 	 */
 
+	w_sz = sizeof(uint32_t);
+	if (bsdar->s_so_max > UINT32_MAX)
+		w_sz = sizeof(uint64_t);
 	if (bsdar->s_cnt != 0) {
 		s_sz = (bsdar->s_cnt + 1) * sizeof(uint32_t) + bsdar->s_sn_sz;
 		pm_sz = _ARMAG_LEN + (_ARHDR_LEN + s_sz);
 		if (bsdar->as != NULL)
 			pm_sz += _ARHDR_LEN + bsdar->as_sz;
+		/* Use the 64-bit word size format if necessary. */
+		if (bsdar->s_so_max > UINT32_MAX - pm_sz) {
+			w_sz = sizeof(uint64_t);
+			pm_sz -= s_sz;
+			s_sz = (bsdar->s_cnt + 1) * sizeof(uint64_t) +
+			    bsdar->s_sn_sz;
+			pm_sz += s_sz;
+		}
+
 		for (i = 0; (size_t)i < bsdar->s_cnt; i++) {
-			if (*(bsdar->s_so + i) > UINT32_MAX - pm_sz)
-				bsdar_errc(bsdar, EX_SOFTWARE, 0,
-				    "Symbol table offset overflow");
-			*(bsdar->s_so + i) = htobe32(*(bsdar->s_so + i) +
-			    pm_sz);
+			if (w_sz == sizeof(uint32_t))
+				*(bsdar->s_so + i) =
+				    htobe32((uint32_t)(*(bsdar->s_so + i)) + pm_sz);
+			else
+				*(bsdar->s_so + i) =
+				    htobe64(*(bsdar->s_so + i) + pm_sz);
 		}
 	}
 
@@ -689,16 +702,28 @@ write_objs(struct bsdar *bsdar)
 		if (entry == NULL)
 			bsdar_errc(bsdar, EX_SOFTWARE, 0,
 			    "archive_entry_new failed");
-		archive_entry_copy_pathname(entry, "/");
+		if (w_sz == sizeof(uint64_t))
+			archive_entry_copy_pathname(entry, "/SYM64/");
+		else
+			archive_entry_copy_pathname(entry, "/");
 		if ((bsdar->options & AR_D) == 0)
 			archive_entry_set_mtime(entry, time(NULL), 0);
-		archive_entry_set_size(entry, (bsdar->s_cnt + 1) *
-		    sizeof(uint32_t) + bsdar->s_sn_sz);
+		archive_entry_set_size(entry, (bsdar->s_cnt + 1) * w_sz +
+		    bsdar->s_sn_sz);
 		AC(archive_write_header(a, entry));
-		nr = htobe32(bsdar->s_cnt);
-		write_data(bsdar, a, &nr, sizeof(uint32_t));
-		write_data(bsdar, a, bsdar->s_so, sizeof(uint32_t) *
-		    bsdar->s_cnt);
+		if (w_sz == sizeof(uint32_t))
+			nr = (uint64_t)htobe32((uint32_t)bsdar->s_cnt);
+		else
+			nr = htobe64(bsdar->s_cnt);
+		write_data(bsdar, a, &nr, w_sz);
+		if (w_sz == sizeof(uint64_t))
+			write_data(bsdar, a, bsdar->s_so, sizeof(uint64_t) *
+			    bsdar->s_cnt);
+		else
+			for (i = 0; (size_t)i < bsdar->s_cnt; i++)
+				write_data(bsdar, a,
+				    (uint32_t *)&bsdar->s_so[i],
+				    sizeof(uint32_t));
 		write_data(bsdar, a, bsdar->s_sn, bsdar->s_sn_sz);
 		archive_entry_free(entry);
 	}
@@ -904,13 +929,15 @@ add_to_ar_sym_table(struct bsdar *bsdar, const char *name)
 		bsdar->s_sn_sz = 0;
 	}
 
-	if (bsdar->s_cnt * sizeof(uint32_t) >= bsdar->s_so_cap) {
+	if (bsdar->s_cnt * sizeof(uint64_t) >= bsdar->s_so_cap) {
 		bsdar->s_so_cap *= 2;
 		bsdar->s_so = realloc(bsdar->s_so, bsdar->s_so_cap);
 		if (bsdar->s_so == NULL)
 			bsdar_errc(bsdar, EX_SOFTWARE, errno, "realloc failed");
 	}
 	bsdar->s_so[bsdar->s_cnt] = bsdar->rela_off;
+	if ((uint64_t)bsdar->rela_off > bsdar->s_so_max)
+		bsdar->s_so_max = (uint64_t)bsdar->rela_off;
 	bsdar->s_cnt++;
 
 	/*
