@@ -144,7 +144,22 @@ TEST_F(Lookup, enoent)
 	EXPECT_EQ(ENOENT, errno);
 }
 
-//TODO: test ENOTDIR
+TEST_F(Lookup, enotdir)
+{
+	const char FULLPATH[] = "mountpoint/not_a_dir/some_file.txt";
+	const char RELPATH[] = "not_a_dir";
+
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.entry_valid = UINT64_MAX;
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = 42;
+	})));
+
+	ASSERT_EQ(-1, access(FULLPATH, F_OK));
+	ASSERT_EQ(ENOTDIR, errno);
+}
 
 /*
  * If lookup returns a non-zero entry timeout, then subsequent VOP_LOOKUPs
@@ -291,5 +306,3 @@ TEST_F(Lookup, subdir)
 	 */
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
-
-

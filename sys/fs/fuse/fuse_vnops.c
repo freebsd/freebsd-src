@@ -211,6 +211,37 @@ uma_zone_t fuse_pbuf_zone;
 #define fuse_vm_page_lock_queues()	((void)0)
 #define fuse_vm_page_unlock_queues()	((void)0)
 
+/* Check permission for extattr operations, much like extattr_check_cred */
+static int
+fuse_extattr_check_cred(struct vnode *vp, int ns, struct ucred *cred,
+	struct thread *td, accmode_t accmode)
+{
+	struct mount *mp = vnode_mount(vp);
+	struct fuse_data *data = fuse_get_mpdata(mp);
+
+	/*
+	 * Kernel-invoked always succeeds.
+	 */
+	if (cred == NOCRED)
+		return (0);
+
+	/*
+	 * Do not allow privileged processes in jail to directly manipulate
+	 * system attributes.
+	 */
+	switch (ns) {
+	case EXTATTR_NAMESPACE_SYSTEM:
+		if (data->dataflags & FSESS_DEFAULT_PERMISSIONS) {
+			return (priv_check_cred(cred, PRIV_VFS_EXTATTR_SYSTEM));
+		}
+		/* FALLTHROUGH */
+	case EXTATTR_NAMESPACE_USER:
+		return (fuse_internal_access(vp, accmode, td, cred));
+	default:
+		return (EPERM);
+	}
+}
+
 /* Get a filehandle for a directory */
 static int
 fuse_filehandle_get_dir(struct vnode *vp, struct fuse_filehandle **fufhp,
@@ -272,7 +303,6 @@ fuse_vnop_access(struct vop_access_args *ap)
 	int accmode = ap->a_accmode;
 	struct ucred *cred = ap->a_cred;
 
-	struct fuse_access_param facp;
 	struct fuse_data *data = fuse_get_mpdata(vnode_mount(vp));
 
 	int err;
@@ -295,9 +325,8 @@ fuse_vnop_access(struct vop_access_args *ap)
 	if (vnode_islnk(vp)) {
 		return 0;
 	}
-	bzero(&facp, sizeof(facp));
 
-	err = fuse_internal_access(vp, accmode, &facp, ap->a_td, ap->a_cred);
+	err = fuse_internal_access(vp, accmode, ap->a_td, ap->a_cred);
 	return err;
 }
 
@@ -711,7 +740,6 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	struct fuse_attr *fattr = NULL;
 
 	uint64_t nid;
-	struct fuse_access_param facp;
 
 	if (fuse_isdeadfs(dvp)) {
 		*vpp = NULL;
@@ -730,9 +758,9 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	 * See further comments at further access checks.
 	 */
 
-	bzero(&facp, sizeof(facp));
+	/* TODO: consider eliminating this.  Is there any good reason for it? */
 	if (vnode_isvroot(dvp)) {	/* early permission check hack */
-		if ((err = fuse_internal_access(dvp, VEXEC, &facp, td, cred))) {
+		if ((err = fuse_internal_access(dvp, VEXEC, td, cred))) {
 			return err;
 		}
 	}
@@ -831,8 +859,7 @@ calldaemon:
 	if (lookup_err) {
 		/* Entry not found */
 		if ((nameiop == CREATE || nameiop == RENAME) && islastcn) {
-			err = fuse_internal_access(dvp, VWRITE, &facp, td,
-				cred);
+			err = fuse_internal_access(dvp, VWRITE, td, cred);
 			if (err)
 				goto out;
 
@@ -861,11 +888,8 @@ calldaemon:
 			fattr = &(feo->attr);
 		}
 		
-		/* TODO: check for ENOTDIR */
-
 		if ((nameiop == DELETE || nameiop == RENAME) && islastcn) {
-			err = fuse_internal_access(dvp, VWRITE, &facp,
-				td, cred);
+			err = fuse_internal_access(dvp, VWRITE, td, cred);
 			if (err != 0)
 				goto out;
 			/* 
@@ -878,10 +902,8 @@ calldaemon:
 			struct vattr dvattr;
 			fuse_internal_getattr(dvp, &dvattr, cred, td);
 			if ((dvattr.va_mode & S_ISTXT) &&
-				fuse_internal_access(dvp, VADMIN, &facp,
-					cnp->cn_thread, cnp->cn_cred) &&
-				fuse_internal_access(*vpp, VADMIN, &facp,
-					cnp->cn_thread, cnp->cn_cred)) {
+				fuse_internal_access(dvp, VADMIN, td, cred) &&
+				fuse_internal_access(*vpp, VADMIN, td, cred)) {
 				err = EPERM;
 				goto out;
 			}
@@ -933,10 +955,6 @@ calldaemon:
 			if (err) {
 				goto out;
 			}
-			/*err = fuse_lookup_check(dvp, vp, &facp, td, cred,*/
-				/*nameiop, islastcn);*/
-			/*if (err)*/
-				/*goto out;*/
 			*vpp = vp;
 			/*
 	                 * Save the name for use in VOP_RENAME later.
@@ -1088,15 +1106,12 @@ out:
 				 */
 				int tmpvtype = vnode_vtype(*vpp);
 
-				bzero(&facp, sizeof(facp));
-				/*the early perm check hack */
-				    facp.facc_flags |= FACCESS_VA_VALID;
-
 				if ((tmpvtype != VDIR) && (tmpvtype != VLNK)) {
 					err = ENOTDIR;
 				}
 				if (!err && !vnode_mountedhere(*vpp)) {
-					err = fuse_internal_access(*vpp, VEXEC, &facp, td, cred);
+					err = fuse_internal_access(*vpp, VEXEC,
+						td, cred);
 				}
 				if (err) {
 					if (tmpvtype == VLNK)
@@ -1528,7 +1543,6 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	struct thread *td = curthread;
 	struct fuse_dispatcher fdi;
 	struct fuse_setattr_in *fsai;
-	struct fuse_access_param facp;
 	pid_t pid = td->td_proc->p_pid;
 
 	int err = 0;
@@ -1545,19 +1559,12 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	fsai = fdi.indata;
 	fsai->valid = 0;
 
-	bzero(&facp, sizeof(facp));
-
-	facp.xuid = vap->va_uid;
-	facp.xgid = vap->va_gid;
-
 	if (vap->va_uid != (uid_t)VNOVAL) {
-		facp.facc_flags |= FACCESS_CHOWN;
 		fsai->uid = vap->va_uid;
 		fsai->valid |= FATTR_UID;
 		accmode |= VADMIN;
 	}
 	if (vap->va_gid != (gid_t)VNOVAL) {
-		facp.facc_flags |= FACCESS_CHOWN;
 		fsai->gid = vap->va_gid;
 		fsai->valid |= FATTR_GID;
 		accmode |= VADMIN;
@@ -1615,7 +1622,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		err = EROFS;
 		goto out;
 	}
-	err = fuse_internal_access(vp, accmode, &facp, td, cred);
+	err = fuse_internal_access(vp, accmode, td, cred);
 	if (err)
 		goto out;
 
@@ -2028,7 +2035,7 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
-	err = extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
+	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
 	if (err)
 		return err;
 
@@ -2109,11 +2116,15 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
+	if (vfs_isrdonly(mp))
+		return EROFS;
+
 	/* Deleting xattrs must use VOP_DELETEEXTATTR instead */
 	if (ap->a_uio == NULL)
 		return (EINVAL);
 
-	err = extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VWRITE);
+	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td,
+		VWRITE);
 	if (err)
 		return err;
 
@@ -2244,7 +2255,7 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
-	err = extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
+	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
 	if (err)
 		return err;
 
@@ -2352,7 +2363,11 @@ fuse_vnop_deleteextattr(struct vop_deleteextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
-	err = extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VWRITE);
+	if (vfs_isrdonly(mp))
+		return EROFS;
+
+	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td,
+		VWRITE);
 	if (err)
 		return err;
 

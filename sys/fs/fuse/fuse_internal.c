@@ -110,7 +110,6 @@ static int isbzero(void *buf, size_t len);
 int
 fuse_internal_access(struct vnode *vp,
     accmode_t mode,
-    struct fuse_access_param *facp,
     struct thread *td,
     struct ucred *cred)
 {
@@ -143,13 +142,9 @@ fuse_internal_access(struct vnode *vp,
 	}
 
 	/* Unless explicitly permitted, deny everyone except the fs owner. */
-	if (!(facp->facc_flags)) {
-		if (!(dataflags & FSESS_DAEMON_CAN_SPY)) {
-			int denied = fuse_match_cred(data->daemoncred, cred);
-
-			if (denied)
-				return EPERM;
-		}
+	if (!(dataflags & FSESS_DAEMON_CAN_SPY)) {
+		if (fuse_match_cred(data->daemoncred, cred))
+			return EPERM;
 	}
 
 	if (dataflags & FSESS_DEFAULT_PERMISSIONS) {
