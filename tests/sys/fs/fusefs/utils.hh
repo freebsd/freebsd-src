@@ -84,6 +84,12 @@ class FuseTest : public ::testing::Test {
 	void expect_flush(uint64_t ino, int times, ProcessMockerT r);
 
 	/*
+	 * Create an expectation that FUSE_FORGET will be called for the given
+	 * inode.  There will be no response
+	 */
+	void expect_forget(uint64_t ino, uint64_t nlookup);
+
+	/*
 	 * Create an expectation that FUSE_GETATTR will be called for the given
 	 * inode any number of times.  It will respond with a few basic
 	 * attributes, like the given size and the mode S_IFREG | 0644
@@ -92,11 +98,12 @@ class FuseTest : public ::testing::Test {
 
 	/*
 	 * Create an expectation that FUSE_LOOKUP will be called for the given
-	 * path exactly times times.  It will respond with inode ino, mode
-	 * mode, filesize size, and cache validity forever.
+	 * path exactly times times and cache validity period.  It will respond
+	 * with inode ino, mode mode, filesize size.
 	 */
 	void expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
-		uint64_t size, int times);
+		uint64_t size, int times, uint64_t attr_valid = UINT64_MAX,
+		uid_t uid = 0);
 
 	/*
 	 * Create an expectation that FUSE_GETATTR will be called for the given
@@ -130,6 +137,12 @@ class FuseTest : public ::testing::Test {
 	 * once for the given inode
 	 */
 	void expect_releasedir(uint64_t ino, ProcessMockerT r);
+
+	/*
+	 * Create an expectation that FUSE_UNLINK will be called exactly once
+	 * for the given path, returning an errno
+	 */
+	void expect_unlink(uint64_t parent, const char *path, int error);
 
 	/*
 	 * Create an expectation that FUSE_WRITE will be called exactly once

@@ -109,7 +109,7 @@ static int isbzero(void *buf, size_t len);
 /* Synchronously send a FUSE_ACCESS operation */
 int
 fuse_internal_access(struct vnode *vp,
-    mode_t mode,
+    accmode_t mode,
     struct fuse_access_param *facp,
     struct thread *td,
     struct ucred *cred)
@@ -129,8 +129,17 @@ fuse_internal_access(struct vnode *vp,
 	data = fuse_get_mpdata(mp);
 	dataflags = data->dataflags;
 
-	if ((mode & VWRITE) && vfs_isrdonly(mp)) {
-		return EROFS;
+	if (mode & VMODIFY_PERMS && vfs_isrdonly(mp)) {
+		switch (vp->v_type) {
+		case VDIR:
+			/* FALLTHROUGH */
+		case VLNK:
+			/* FALLTHROUGH */
+		case VREG:
+			return EROFS;
+		default:
+			break;
+		}
 	}
 
 	/* Unless explicitly permitted, deny everyone except the fs owner. */
@@ -144,8 +153,11 @@ fuse_internal_access(struct vnode *vp,
 	}
 
 	if (dataflags & FSESS_DEFAULT_PERMISSIONS) {
-		/* TODO: Implement me!  Bug 216391 */
-		return 0;
+		struct vattr va;
+
+		fuse_internal_getattr(vp, &va, cred, td);
+		return vaccess(vp->v_type, va.va_mode, va.va_uid,
+		    va.va_gid, mode, cred, NULL);
 	}
 
 	if (!fsess_isimpl(mp, FUSE_ACCESS))

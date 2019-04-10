@@ -603,3 +603,5 @@ TEST_F(Setxattr, system)
 	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
 	ASSERT_EQ(value_len, r) << strerror(errno);
 }
+
+// TODO: EROFS tests
