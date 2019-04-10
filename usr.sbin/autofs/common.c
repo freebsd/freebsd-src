@@ -365,7 +365,7 @@ expand_ampersand(char *string, const char *key)
 		 * of characters before the '&'.
 		 */
 		before_len = i;
-		//assert(i + 1 < (int)strlen(string));
+		//assert(i < (int)strlen(string));
 
 		ret = asprintf(&expanded, "%.*s%s%s",
 		    before_len, string, key, string + before_len + 1);
@@ -380,6 +380,8 @@ expand_ampersand(char *string, const char *key)
 		 */
 		string = expanded;
 		i = before_len + strlen(key);
+		if (i == (int)strlen(string))
+			break;
 		backslashed = false;
 		//assert(i < (int)strlen(string));
 	}
