@@ -232,7 +232,7 @@ fuse_match_cred(struct ucred *basecred, struct ucred *usercred)
 	return (EPERM);
 }
 
-int fuse_internal_access(struct vnode *vp, mode_t mode,
+int fuse_internal_access(struct vnode *vp, accmode_t mode,
     struct fuse_access_param *facp, struct thread *td, struct ucred *cred);
 
 /* attributes */

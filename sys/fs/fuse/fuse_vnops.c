@@ -829,19 +829,12 @@ calldaemon:
 	/* lookup_err, if non-zero, must be ENOENT at this point */
 
 	if (lookup_err) {
-
-		if ((nameiop == CREATE || nameiop == RENAME) && islastcn
-		     /* && directory dvp has not been removed */ ) {
-
-			if (vfs_isrdonly(mp)) {
-				err = EROFS;
+		/* Entry not found */
+		if ((nameiop == CREATE || nameiop == RENAME) && islastcn) {
+			err = fuse_internal_access(dvp, VWRITE, &facp, td,
+				cred);
+			if (err)
 				goto out;
-			}
-#if 0 /* THINK_ABOUT_THIS */
-			if ((err = fuse_internal_access(dvp, VWRITE, cred, td, &facp))) {
-				goto out;
-			}
-#endif
 
 			/*
 	                 * Possibly record the position of a slot in the
@@ -860,14 +853,39 @@ calldaemon:
 		goto out;
 
 	} else {
-
-		/* !lookup_err */
-
+		/* Entry was found */
 		if (op == FUSE_GETATTR) {
 			fattr = &((struct fuse_attr_out *)fdi.answ)->attr;
 		} else {
 			feo = (struct fuse_entry_out *)fdi.answ;
 			fattr = &(feo->attr);
+		}
+		
+		/* TODO: check for ENOTDIR */
+
+		if ((nameiop == DELETE || nameiop == RENAME) && islastcn) {
+			err = fuse_internal_access(dvp, VWRITE, &facp,
+				td, cred);
+			if (err != 0)
+				goto out;
+			/* 
+			 * TODO: if the parent's sticky bit is set, check
+			 * whether we're allowed to remove the file.
+			 * Need to figure out the vnode locking to make this
+			 * work.
+			 */
+#if defined(NOT_YET)
+			struct vattr dvattr;
+			fuse_internal_getattr(dvp, &dvattr, cred, td);
+			if ((dvattr.va_mode & S_ISTXT) &&
+				fuse_internal_access(dvp, VADMIN, &facp,
+					cnp->cn_thread, cnp->cn_cred) &&
+				fuse_internal_access(*vpp, VADMIN, &facp,
+					cnp->cn_thread, cnp->cn_cred)) {
+				err = EPERM;
+				goto out;
+			}
+#endif
 		}
 
 		/*
@@ -877,17 +895,6 @@ calldaemon:
 	         * and lock the inode, being careful with ".".
 	         */
 		if (nameiop == DELETE && islastcn) {
-			/*
-	                 * Check for write access on directory.
-	                 */
-			facp.xuid = fattr->uid;
-			facp.facc_flags |= FACCESS_STICKY;
-			err = fuse_internal_access(dvp, VWRITE, &facp, td, cred);
-			facp.facc_flags &= ~FACCESS_XQUERIES;
-
-			if (err) {
-				goto out;
-			}
 			if (nid == VTOI(dvp)) {
 				vref(dvp);
 				*vpp = dvp;
@@ -914,13 +921,6 @@ calldaemon:
 	         * regular file, or empty directory.
 	         */
 		if (nameiop == RENAME && wantparent && islastcn) {
-
-#if 0 /* THINK_ABOUT_THIS */
-			if ((err = fuse_internal_access(dvp, VWRITE, cred, td, &facp))) {
-				goto out;
-			}
-#endif
-
 			/*
 	                 * Check for "."
 	                 */
@@ -933,6 +933,10 @@ calldaemon:
 			if (err) {
 				goto out;
 			}
+			/*err = fuse_lookup_check(dvp, vp, &facp, td, cred,*/
+				/*nameiop, islastcn);*/
+			/*if (err)*/
+				/*goto out;*/
 			*vpp = vp;
 			/*
 	                 * Save the name for use in VOP_RENAME later.
@@ -1031,7 +1035,6 @@ calldaemon:
 				&fao->attr, fao->attr_valid,
 				fao->attr_valid_nsec, NULL);
 		} else {
-			feo = (struct fuse_entry_out*)fdi.answ;
 			fuse_internal_cache_attrs(*vpp,
 				&feo->attr, feo->attr_valid,
 				feo->attr_valid_nsec, NULL);
@@ -1532,6 +1535,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	enum vtype vtyp;
 	int sizechanged = 0;
 	uint64_t newsize = 0;
+	accmode_t accmode = 0;
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1550,21 +1554,24 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		facp.facc_flags |= FACCESS_CHOWN;
 		fsai->uid = vap->va_uid;
 		fsai->valid |= FATTR_UID;
+		accmode |= VADMIN;
 	}
 	if (vap->va_gid != (gid_t)VNOVAL) {
 		facp.facc_flags |= FACCESS_CHOWN;
 		fsai->gid = vap->va_gid;
 		fsai->valid |= FATTR_GID;
+		accmode |= VADMIN;
 	}
 	if (vap->va_size != VNOVAL) {
 
 		struct fuse_filehandle *fufh = NULL;
 
 		/*Truncate to a new value. */
-		    fsai->size = vap->va_size;
+		fsai->size = vap->va_size;
 		sizechanged = 1;
 		newsize = vap->va_size;
 		fsai->valid |= FATTR_SIZE;
+		accmode |= VWRITE;
 
 		fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
 		if (fufh) {
@@ -1576,15 +1583,24 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		fsai->atime = vap->va_atime.tv_sec;
 		fsai->atimensec = vap->va_atime.tv_nsec;
 		fsai->valid |= FATTR_ATIME;
+		accmode |= VADMIN;
+		/*
+		 * TODO: only require VWRITE if UTIMENS_NULL is set. PR 237181
+		 */
 	}
 	if (vap->va_mtime.tv_sec != VNOVAL) {
 		fsai->mtime = vap->va_mtime.tv_sec;
 		fsai->mtimensec = vap->va_mtime.tv_nsec;
 		fsai->valid |= FATTR_MTIME;
+		accmode |= VADMIN;
+		/*
+		 * TODO: only require VWRITE if UTIMENS_NULL is set. PR 237181
+		 */
 	}
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		fsai->mode = vap->va_mode & ALLPERMS;
 		fsai->valid |= FATTR_MODE;
+		accmode |= VADMIN;
 	}
 	if (!fsai->valid) {
 		goto out;
@@ -1599,6 +1615,9 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		err = EROFS;
 		goto out;
 	}
+	err = fuse_internal_access(vp, accmode, &facp, td, cred);
+	if (err)
+		goto out;
 
 	if ((err = fdisp_wait_answ(&fdi)))
 		goto out;
@@ -2009,6 +2028,10 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
+	err = extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
+	if (err)
+		return err;
+
 	/* Default to looking for user attributes. */
 	if (ap->a_attrnamespace == EXTATTR_NAMESPACE_SYSTEM)
 		prefix = EXTATTR_NAMESPACE_SYSTEM_STRING;
@@ -2085,6 +2108,14 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 	
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
+
+	/* Deleting xattrs must use VOP_DELETEEXTATTR instead */
+	if (ap->a_uio == NULL)
+		return (EINVAL);
+
+	err = extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VWRITE);
+	if (err)
+		return err;
 
 	/* Default to looking for user attributes. */
 	if (ap->a_attrnamespace == EXTATTR_NAMESPACE_SYSTEM)
@@ -2213,6 +2244,10 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
+	err = extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
+	if (err)
+		return err;
+
 	/*
 	 * Add space for a NUL and the period separator if enabled.
 	 * Default to looking for user attributes.
@@ -2316,6 +2351,10 @@ fuse_vnop_deleteextattr(struct vop_deleteextattr_args *ap)
 
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
+
+	err = extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VWRITE);
+	if (err)
+		return err;
 
 	/* Default to looking for user attributes. */
 	if (ap->a_attrnamespace == EXTATTR_NAMESPACE_SYSTEM)

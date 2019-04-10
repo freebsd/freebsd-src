@@ -144,6 +144,8 @@ TEST_F(Lookup, enoent)
 	EXPECT_EQ(ENOENT, errno);
 }
 
+//TODO: test ENOTDIR
+
 /*
  * If lookup returns a non-zero entry timeout, then subsequent VOP_LOOKUPs
  * should use the cached inode rather than requery the daemon

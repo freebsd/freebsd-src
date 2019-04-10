@@ -43,18 +43,6 @@ void expect_lookup(const char *relpath, uint64_t ino, int times)
 	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, times);
 }
 
-void expect_unlink(uint64_t parent, const char *path, int error)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_UNLINK &&
-				0 == strcmp(path, in->body.unlink) &&
-				in->header.nodeid == parent);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(error)));
-}
-
 };
 
 TEST_F(Unlink, eperm)

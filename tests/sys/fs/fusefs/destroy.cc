@@ -45,19 +45,6 @@ void expect_destroy(int error)
 	).WillOnce(Invoke(ReturnErrno(error)));
 }
 
-void expect_forget(uint64_t ino, uint64_t nlookup)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_FORGET &&
-				in->header.nodeid == ino &&
-				in->body.forget.nlookup == nlookup);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in __unused, auto &out __unused) {
-		/* FUSE_FORGET has no response! */
-	}));
-}
 };
 
 /*
