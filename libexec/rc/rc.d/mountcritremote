@@ -27,7 +27,7 @@ mountcritremote_precmd()
 	case "`mount -d -a -t nfs 2> /dev/null`" in
 	*mount_nfs*)
 		# Handle absent nfs client support
-		load_kld nfscl || return 1
+		load_kld -m nfs nfscl || return 1
 		;;
 	esac
 	return 0

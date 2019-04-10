@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2019
+.Dd March 21, 2019
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -249,7 +249,9 @@ Default
 .It Va kld_list
 .Pq Vt str
 A whitespace-separated list of kernel modules to load right after
-the local disks are mounted, with optional path.
+the local disks are mounted, without any
+.Pa .ko
+extension or path.
 Loading modules at this point in the boot process is
 much faster than doing it via
 .Pa /boot/loader.conf
