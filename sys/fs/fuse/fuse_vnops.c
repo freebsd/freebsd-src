@@ -745,25 +745,15 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		*vpp = NULL;
 		return ENXIO;
 	}
-	if (!vnode_isdir(dvp)) {
+	if (!vnode_isdir(dvp))
 		return ENOTDIR;
-	}
-	if (islastcn && vfs_isrdonly(mp) && (nameiop != LOOKUP)) {
-		return EROFS;
-	}
-	/*
-	 * We do access check prior to doing anything else only in the case
-	 * when we are at fs root (we'd like to say, "we are at the first
-	 * component", but that's not exactly the same... nevermind).
-	 * See further comments at further access checks.
-	 */
 
-	/* TODO: consider eliminating this.  Is there any good reason for it? */
-	if (vnode_isvroot(dvp)) {	/* early permission check hack */
-		if ((err = fuse_internal_access(dvp, VEXEC, td, cred))) {
-			return err;
-		}
-	}
+	if (islastcn && vfs_isrdonly(mp) && (nameiop != LOOKUP))
+		return EROFS;
+
+	if ((err = fuse_internal_access(dvp, VEXEC, td, cred)))
+		return err;
+
 	if (flags & ISDOTDOT) {
 		nid = VTOFUD(dvp)->parent_nid;
 		if (nid == 0) {
@@ -1071,58 +1061,6 @@ out:
 			fdisp_destroy(&fdi);
 			return err;
 		} else {
-#ifndef NO_EARLY_PERM_CHECK_HACK
-			if (!islastcn) {
-				/*
-				 * We have the attributes of the next item
-				 * *now*, and it's a fact, and we do not
-				 * have to do extra work for it (ie, beg the
-				 * daemon), and it neither depends on such
-				 * accidental things like attr caching. So
-				 * the big idea: check credentials *now*,
-				 * not at the beginning of the next call to
-				 * lookup.
-				 * 
-				 * The first item of the lookup chain (fs root)
-				 * won't be checked then here, of course, as
-				 * its never "the next". But go and see that
-				 * the root is taken care about at the very
-				 * beginning of this function.
-				 * 
-				 * Now, given we want to do the access check
-				 * this way, one might ask: so then why not
-				 * do the access check just after fetching
-				 * the inode and its attributes from the
-				 * daemon? Why bother with producing the
-				 * corresponding vnode at all if something
-				 * is not OK? We know what's the deal as
-				 * soon as we get those attrs... There is
-				 * one bit of info though not given us by
-				 * the daemon: whether his response is
-				 * authoritative or not... His response should
-				 * be ignored if something is mounted over
-				 * the dir in question. But that can be
-				 * known only by having the vnode...
-				 */
-				int tmpvtype = vnode_vtype(*vpp);
-
-				if ((tmpvtype != VDIR) && (tmpvtype != VLNK)) {
-					err = ENOTDIR;
-				}
-				if (!err && !vnode_mountedhere(*vpp)) {
-					err = fuse_internal_access(*vpp, VEXEC,
-						td, cred);
-				}
-				if (err) {
-					if (tmpvtype == VLNK)
-						SDT_PROBE2(fuse, , vnops, trace,
-						    1, "weird, permission "
-						    "error with a symlink?");
-					vput(*vpp);
-					*vpp = NULL;
-				}
-			}
-#endif
 		}
 	}
 	fdisp_destroy(&fdi);
