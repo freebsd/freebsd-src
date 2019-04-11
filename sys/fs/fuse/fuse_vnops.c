@@ -797,12 +797,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				/* Cache timeout */
 				atomic_add_acq_long(&fuse_lookup_cache_misses,
 					1);
-				/* 
-				 * XXX is fuse_internal_vnode_disappear ok to
-				 * call if another process is still using the
-				 * vnode?
-				 */
-				fuse_internal_vnode_disappear(*vpp);
+				cache_purge(*vpp);
 				if (dvp != *vpp)
 					vput(*vpp);
 				else 
