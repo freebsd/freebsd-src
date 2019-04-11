@@ -213,8 +213,10 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0xe5: return ("CHECK_POWER_MODE");
 	case 0xe6: return ("SLEEP");
 	case 0xe7: return ("FLUSHCACHE");
-	case 0xe8: return ("WRITE_PM");
+	case 0xe8: return ("WRITE_BUFFER/PM");
+	case 0xe9: return ("READ_BUFFER_DMA");
 	case 0xea: return ("FLUSHCACHE48");
+	case 0xeb: return ("WRITE_BUFFER_DMA");
 	case 0xec: return ("ATA_IDENTIFY");
 	case 0xed: return ("MEDIA_EJECT");
 	case 0xef:
@@ -498,7 +500,12 @@ ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
 	if (cmd == ATA_READ_DMA ||
 	    cmd == ATA_READ_DMA_QUEUED ||
 	    cmd == ATA_WRITE_DMA ||
-	    cmd == ATA_WRITE_DMA_QUEUED)
+	    cmd == ATA_WRITE_DMA_QUEUED ||
+	    cmd == ATA_TRUSTED_RECEIVE_DMA ||
+	    cmd == ATA_TRUSTED_SEND_DMA ||
+	    cmd == ATA_DOWNLOAD_MICROCODE_DMA ||
+	    cmd == ATA_READ_BUFFER_DMA ||
+	    cmd == ATA_WRITE_BUFFER_DMA)
 		ataio->cmd.flags |= CAM_ATAIO_DMA;
 	ataio->cmd.command = cmd;
 	ataio->cmd.features = features;
@@ -524,7 +531,8 @@ ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
 	    cmd == ATA_WRITE_DMA_QUEUED_FUA48 ||
 	    cmd == ATA_WRITE_STREAM_DMA48 ||
 	    cmd == ATA_DATA_SET_MANAGEMENT ||
-	    cmd == ATA_READ_LOG_DMA_EXT)
+	    cmd == ATA_READ_LOG_DMA_EXT ||
+	    cmd == ATA_WRITE_LOG_DMA_EXT)
 		ataio->cmd.flags |= CAM_ATAIO_DMA;
 	ataio->cmd.command = cmd;
 	ataio->cmd.features = features;
