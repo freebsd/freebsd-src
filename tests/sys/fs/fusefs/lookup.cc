@@ -349,3 +349,23 @@ TEST_F(Lookup, subdir)
 	 */
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
+
+/* 
+ * The server returns two different vtypes for the same nodeid.  This is a bad
+ * server!  But we shouldn't crash.
+ */
+TEST_F(Lookup, vtype_conflict)
+{
+	const char FIRSTFULLPATH[] = "mountpoint/foo";
+	const char SECONDFULLPATH[] = "mountpoint/bar";
+	const char FIRSTRELPATH[] = "foo";
+	const char SECONDRELPATH[] = "bar";
+	uint64_t ino = 42;
+
+	expect_lookup(FIRSTRELPATH, ino, S_IFREG | 0644, 0, 1, UINT64_MAX);
+	expect_lookup(SECONDRELPATH, ino, S_IFDIR | 0755, 0, 1, UINT64_MAX);
+
+	ASSERT_EQ(0, access(FIRSTFULLPATH, F_OK)) << strerror(errno);
+	ASSERT_EQ(-1, access(SECONDFULLPATH, F_OK));
+	ASSERT_EQ(EAGAIN, errno);
+}
