@@ -233,7 +233,17 @@ fuse_vnode_alloc(struct mount *mp,
 		return (err);
 
 	if (*vpp) {
-		MPASS((*vpp)->v_type == vtyp && (*vpp)->v_data != NULL);
+		if ((*vpp)->v_type != vtyp) {
+			/*
+			 * STALE vnode!  This probably indicates a buggy
+			 * server, but it could also be the result of a race
+			 * between FUSE_LOOKUP and another client's
+			 * FUSE_UNLINK/FUSE_CREATE
+			 */
+			fuse_internal_vnode_disappear(*vpp);
+			return (EAGAIN);
+		}
+		MPASS((*vpp)->v_data != NULL);
 		SDT_PROBE2(fuse, , node, trace, 1, "vnode taken from hash");
 		return (0);
 	}
