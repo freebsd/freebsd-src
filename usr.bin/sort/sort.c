@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <limits.h>
 #include <locale.h>
@@ -61,13 +62,7 @@ nl_catd catalog;
 
 #define	OPTIONS	"bcCdfghik:Mmno:RrsS:t:T:uVz"
 
-#define DEFAULT_RANDOM_SORT_SEED_FILE ("/dev/random")
-#define MAX_DEFAULT_RANDOM_SEED_DATA_SIZE (1024)
-
 static bool need_random;
-static const char *random_source = DEFAULT_RANDOM_SORT_SEED_FILE;
-static const void *random_seed;
-static size_t random_seed_size;
 
 MD5_CTX md5_ctx;
 
@@ -907,55 +902,76 @@ fix_obsolete_keys(int *argc, char **argv)
 }
 
 /*
- * Set random seed
+ * Seed random sort
  */
 static void
-set_random_seed(void)
+get_random_seed(const char *random_source)
 {
-	if (strcmp(random_source, DEFAULT_RANDOM_SORT_SEED_FILE) == 0) {
-		FILE* fseed;
-		MD5_CTX ctx;
-		char rsd[MAX_DEFAULT_RANDOM_SEED_DATA_SIZE];
-		size_t sz = 0;
+	char randseed[32];
+	struct stat fsb, rsb;
+	ssize_t rd;
+	int rsfd;
 
-		fseed = openfile(random_source, "r");
-		while (!feof(fseed)) {
-			int cr;
+	rsfd = -1;
+	rd = sizeof(randseed);
 
-			cr = fgetc(fseed);
-			if (cr == EOF)
-				break;
-
-			rsd[sz++] = (char) cr;
-
-			if (sz >= MAX_DEFAULT_RANDOM_SEED_DATA_SIZE)
-				break;
-		}
-
-		closefile(fseed, random_source);
-
-		MD5Init(&ctx);
-		MD5Update(&ctx, rsd, sz);
-
-		random_seed = MD5End(&ctx, NULL);
-		random_seed_size = strlen(random_seed);
-
-	} else {
-		MD5_CTX ctx;
-		char *b;
-
-		MD5Init(&ctx);
-		b = MD5File(random_source, NULL);
-		if (b == NULL)
-			err(2, NULL);
-
-		random_seed = b;
-		random_seed_size = strlen(b);
+	if (random_source == NULL) {
+		if (getentropy(randseed, sizeof(randseed)) < 0)
+			err(EX_SOFTWARE, "getentropy");
+		goto out;
 	}
+
+	rsfd = open(random_source, O_RDONLY | O_CLOEXEC);
+	if (rsfd < 0)
+		err(EX_NOINPUT, "open: %s", random_source);
+
+	if (fstat(rsfd, &fsb) != 0)
+		err(EX_SOFTWARE, "fstat");
+
+	if (!S_ISREG(fsb.st_mode) && !S_ISCHR(fsb.st_mode))
+		err(EX_USAGE,
+		    "random seed isn't a regular file or /dev/random");
+
+	/*
+	 * Regular files: read up to maximum seed size and explicitly
+	 * reject longer files.
+	 */
+	if (S_ISREG(fsb.st_mode)) {
+		if (fsb.st_size > (off_t)sizeof(randseed))
+			errx(EX_USAGE, "random seed is too large (%jd >"
+			    " %zu)!", (intmax_t)fsb.st_size,
+			    sizeof(randseed));
+		else if (fsb.st_size < 1)
+			errx(EX_USAGE, "random seed is too small ("
+			    "0 bytes)");
+
+		memset(randseed, 0, sizeof(randseed));
+
+		rd = read(rsfd, randseed, fsb.st_size);
+		if (rd < 0)
+			err(EX_SOFTWARE, "reading random seed file %s",
+			    random_source);
+		if (rd < (ssize_t)fsb.st_size)
+			errx(EX_SOFTWARE, "short read from %s", random_source);
+	} else if (S_ISCHR(fsb.st_mode)) {
+		if (stat("/dev/random", &rsb) < 0)
+			err(EX_SOFTWARE, "stat");
+
+		if (fsb.st_dev != rsb.st_dev ||
+		    fsb.st_ino != rsb.st_ino)
+			errx(EX_USAGE, "random seed is a character "
+			    "device other than /dev/random");
+
+		if (getentropy(randseed, sizeof(randseed)) < 0)
+			err(EX_SOFTWARE, "getentropy");
+	}
+
+out:
+	if (rsfd >= 0)
+		close(rsfd);
+
 	MD5Init(&md5_ctx);
-	if(random_seed_size>0) {
-		MD5Update(&md5_ctx, random_seed, random_seed_size);
-	}
+	MD5Update(&md5_ctx, randseed, rd);
 }
 
 /*
@@ -965,6 +981,7 @@ int
 main(int argc, char **argv)
 {
 	char *outfile, *real_outfile;
+	char *random_source = NULL;
 	int c, result;
 	bool mef_flags[NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS] =
 	    { false, false, false, false, false, false };
@@ -1225,7 +1242,7 @@ main(int argc, char **argv)
 	}
 
 	if (need_random)
-		set_random_seed();
+		get_random_seed(random_source);
 
 	/* Case when the outfile equals one of the input files: */
 	if (strcmp(outfile, "-")) {
