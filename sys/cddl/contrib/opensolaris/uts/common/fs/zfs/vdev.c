@@ -1476,15 +1476,19 @@ vdev_open_children(vdev_t *vd)
 	taskq_t *tq;
 	int children = vd->vdev_children;
 
+	vd->vdev_nonrot = B_TRUE;
+
 	/*
 	 * in order to handle pools on top of zvols, do the opens
 	 * in a single thread so that the same thread holds the
 	 * spa_namespace_lock
 	 */
 	if (B_TRUE || vdev_uses_zvols(vd)) {
-		for (int c = 0; c < children; c++)
+		for (int c = 0; c < children; c++) {
 			vd->vdev_child[c]->vdev_open_error =
 			    vdev_open(vd->vdev_child[c]);
+			vd->vdev_nonrot &= vd->vdev_child[c]->vdev_nonrot;
+		}
 		return;
 	}
 	tq = taskq_create("vdev_open", children, minclsyspri,
@@ -1495,6 +1499,9 @@ vdev_open_children(vdev_t *vd)
 		    TQ_SLEEP) != 0);
 
 	taskq_destroy(tq);
+
+	for (int c = 0; c < children; c++)
+		vd->vdev_nonrot &= vd->vdev_child[c]->vdev_nonrot;
 }
 
 /*

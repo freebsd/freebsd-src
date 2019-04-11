@@ -235,6 +235,7 @@ struct vdev {
 	vdev_stat_t	vdev_stat;	/* virtual device statistics	*/
 	boolean_t	vdev_expanding;	/* expand the vdev?		*/
 	boolean_t	vdev_reopening;	/* reopen in progress?		*/
+	boolean_t	vdev_nonrot;	/* true if solid state		*/
 	int		vdev_open_error; /* error on last open		*/
 	kthread_t	*vdev_open_thread; /* thread opening children	*/
 	uint64_t	vdev_crtxg;	/* txg when top-level was added */
@@ -372,9 +373,6 @@ struct vdev {
 	zio_t		*vdev_probe_zio; /* root of current probe	*/
 	vdev_aux_t	vdev_label_aux;	/* on-disk aux state		*/
 	struct trim_map	*vdev_trimmap;	/* map on outstanding trims	*/ 
-	uint16_t	vdev_rotation_rate; /* rotational rate of the media */
-#define	VDEV_RATE_UNKNOWN	0
-#define	VDEV_RATE_NON_ROTATING	1
 	uint64_t	vdev_leaf_zap;
 
 	/*
