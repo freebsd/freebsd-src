@@ -52,8 +52,14 @@ fdt_platform_load_dtb(void)
 		return (1);
 	printf("Using DTB provided by EFI at %p.\n", hdr);
 
-	fdt_load_dtb_overlays(NULL);
 	return (0);
+}
+
+void
+fdt_platform_load_overlays(void)
+{
+
+	fdt_load_dtb_overlays(NULL);
 }
 
 void
