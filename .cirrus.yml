@@ -16,4 +16,4 @@ task:
   script:
   - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
   test_script:
-  - sh tools/boot/ci-qemu-test.sh
+  - OVMF=$(pwd)/OVMF.fd sh tools/boot/ci-qemu-test.sh
