@@ -134,6 +134,49 @@ TEST_F(Lookup, attr_cache_timeout)
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
 }
 
+TEST_F(Lookup, dot)
+{
+	const char FULLPATH[] = "mountpoint/some_dir/.";
+	const char RELDIRPATH[] = "some_dir";
+	uint64_t ino = 42;
+
+	EXPECT_LOOKUP(1, RELDIRPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFDIR | 0755;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	/*
+	 * access(2) is one of the few syscalls that will not (always) follow
+	 * up a successful VOP_LOOKUP with another VOP.
+	 */
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+}
+
+TEST_F(Lookup, dotdot)
+{
+	const char FULLPATH[] = "mountpoint/some_dir/..";
+	const char RELDIRPATH[] = "some_dir";
+
+	EXPECT_LOOKUP(1, RELDIRPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFDIR | 0755;
+		out->body.entry.nodeid = 14;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	/*
+	 * access(2) is one of the few syscalls that will not (always) follow
+	 * up a successful VOP_LOOKUP with another VOP.
+	 */
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+}
+
 TEST_F(Lookup, enoent)
 {
 	const char FULLPATH[] = "mountpoint/does_not_exist";

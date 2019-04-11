@@ -734,10 +734,10 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	struct vnode *vp = NULL;
 
 	struct fuse_dispatcher fdi;
-	enum fuse_opcode op;
+	bool did_lookup = false;
 	struct fuse_entry_out *feo = NULL;
-	struct fuse_attr_out *fao = NULL;
-	struct fuse_attr *fattr = NULL;
+	enum vtype vtyp;	/* vnode type of target */
+	off_t filesize;		/* filesize of target */
 
 	uint64_t nid;
 
@@ -756,17 +756,16 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 
 	if (flags & ISDOTDOT) {
 		nid = VTOFUD(dvp)->parent_nid;
-		if (nid == 0) {
+		if (nid == 0)
 			return ENOENT;
-		}
-		fdisp_init(&fdi, 0);
-		op = FUSE_GETATTR;
-		goto calldaemon;
+		/* .. is obviously a directory */
+		vtyp = VDIR;
+		filesize = 0;
 	} else if (cnp->cn_namelen == 1 && *(cnp->cn_nameptr) == '.') {
 		nid = VTOI(dvp);
-		fdisp_init(&fdi, 0);
-		op = FUSE_GETATTR;
-		goto calldaemon;
+		/* . is obviously a directory */
+		vtyp = VDIR;
+		filesize = 0;
 	} else {
 		struct timespec now, timeout;
 
@@ -806,43 +805,41 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		default:
 			return err;
 		}
-	}
-	nid = VTOI(dvp);
-	fdisp_init(&fdi, cnp->cn_namelen + 1);
-	op = FUSE_LOOKUP;
 
-calldaemon:
-	fdisp_make(&fdi, op, mp, nid, td, cred);
+		nid = VTOI(dvp);
+		fdisp_init(&fdi, cnp->cn_namelen + 1);
+		fdisp_make(&fdi, FUSE_LOOKUP, mp, nid, td, cred);
 
-	if (op == FUSE_LOOKUP) {
 		memcpy(fdi.indata, cnp->cn_nameptr, cnp->cn_namelen);
 		((char *)fdi.indata)[cnp->cn_namelen] = '\0';
-	}
-	lookup_err = fdisp_wait_answ(&fdi);
+		lookup_err = fdisp_wait_answ(&fdi);
+		did_lookup = true;
 
-	if ((op == FUSE_LOOKUP) && !lookup_err) {
-		/* lookup call succeeded */
-		nid = ((struct fuse_entry_out *)fdi.answ)->nodeid;
-		if (nid == 0) {
-			/* zero nodeid means ENOENT and cache it */
-			struct timespec timeout;
+		if (!lookup_err) {
+			/* lookup call succeeded */
+			nid = ((struct fuse_entry_out *)fdi.answ)->nodeid;
+			feo = (struct fuse_entry_out *)fdi.answ;
+			if (nid == 0) {
+				/* zero nodeid means ENOENT and cache it */
+				struct timespec timeout;
 
-			fdi.answ_stat = ENOENT;
-			lookup_err = ENOENT;
-			if (cnp->cn_flags & MAKEENTRY) {
-				feo = (struct fuse_entry_out *)fdi.answ;
-				fuse_validity_2_timespec(feo, &timeout);
-				cache_enter_time(dvp, *vpp, cnp, &timeout,
-					NULL);
+				fdi.answ_stat = ENOENT;
+				lookup_err = ENOENT;
+				if (cnp->cn_flags & MAKEENTRY) {
+					fuse_validity_2_timespec(feo, &timeout);
+					cache_enter_time(dvp, *vpp, cnp,
+						&timeout, NULL);
+				}
+			} else if (nid == FUSE_ROOT_ID) {
+				lookup_err = EINVAL;
 			}
-		} else if (nid == FUSE_ROOT_ID) {
-			lookup_err = EINVAL;
+			vtyp = IFTOVT(feo->attr.mode);
+			filesize = feo->attr.size;
 		}
-	}
-	if (lookup_err &&
-	    (!fdi.answ_stat || lookup_err != ENOENT || op != FUSE_LOOKUP)) {
-		fdisp_destroy(&fdi);
-		return lookup_err;
+		if (lookup_err && (!fdi.answ_stat || lookup_err != ENOENT)) {
+			fdisp_destroy(&fdi);
+			return lookup_err;
+		}
 	}
 	/* lookup_err, if non-zero, must be ENOENT at this point */
 
@@ -871,13 +868,6 @@ calldaemon:
 
 	} else {
 		/* Entry was found */
-		if (op == FUSE_GETATTR) {
-			fattr = &((struct fuse_attr_out *)fdi.answ)->attr;
-		} else {
-			feo = (struct fuse_entry_out *)fdi.answ;
-			fattr = &(feo->attr);
-		}
-		
 		if ((nameiop == DELETE || nameiop == RENAME) && islastcn) {
 			err = fuse_internal_access(dvp, VWRITE, td, cred);
 			if (err != 0)
@@ -912,7 +902,7 @@ calldaemon:
 				*vpp = dvp;
 			} else {
 				err = fuse_vnode_get(dvp->v_mount, feo, nid,
-				    dvp, &vp, cnp, IFTOVT(fattr->mode));
+				    dvp, &vp, cnp, vtyp);
 				if (err)
 					goto out;
 				*vpp = vp;
@@ -941,7 +931,7 @@ calldaemon:
 				goto out;
 			}
 			err = fuse_vnode_get(vnode_mount(dvp), feo, nid, dvp,
-			    &vp, cnp, IFTOVT(fattr->mode));
+			    &vp, cnp, vtyp);
 			if (err) {
 				goto out;
 			}
@@ -980,7 +970,7 @@ calldaemon:
 			}
 			VOP_UNLOCK(dvp, 0);
 			err = fuse_vnode_get(vnode_mount(dvp), feo, nid, NULL,
-			    &vp, cnp, IFTOVT(fattr->mode));
+			    &vp, cnp, vtyp);
 			vfs_unbusy(mp);
 			vn_lock(dvp, ltype | LK_RETRY);
 			if ((dvp->v_iflag & VI_DOOMED) != 0) {
@@ -998,7 +988,7 @@ calldaemon:
 			struct fuse_vnode_data *fvdat;
 
 			err = fuse_vnode_get(vnode_mount(dvp), feo, nid, dvp,
-			    &vp, cnp, IFTOVT(fattr->mode));
+			    &vp, cnp, vtyp);
 			if (err) {
 				goto out;
 			}
@@ -1016,7 +1006,7 @@ calldaemon:
 			 */
 			fvdat = VTOFUD(vp);
 			if (vnode_isreg(vp) &&
-			    fattr->size != fvdat->filesize) {
+			    filesize != fvdat->filesize) {
 				/*
 				 * The FN_SIZECHANGE flag reflects a dirty
 				 * append.  If userspace lets us know our cache
@@ -1031,21 +1021,15 @@ calldaemon:
 					    "%s!\n", __func__,
 					    vnode_mount(vp)->mnt_stat.f_mntonname);
 
-				(void)fuse_vnode_setsize(vp, cred, fattr->size);
+				(void)fuse_vnode_setsize(vp, cred, filesize);
 				fvdat->flag &= ~FN_SIZECHANGE;
 			}
 			*vpp = vp;
 		}
 
-		if (op == FUSE_GETATTR) {
-			fao = (struct fuse_attr_out*)fdi.answ;
-			fuse_internal_cache_attrs(*vpp,
-				&fao->attr, fao->attr_valid,
-				fao->attr_valid_nsec, NULL);
-		} else {
-			fuse_internal_cache_attrs(*vpp,
-				&feo->attr, feo->attr_valid,
-				feo->attr_valid_nsec, NULL);
+		if (feo != NULL) {
+			fuse_internal_cache_attrs(*vpp, &feo->attr,
+				feo->attr_valid, feo->attr_valid_nsec, NULL);
 		}
 	}
 out:
@@ -1054,16 +1038,17 @@ out:
 		/* No lookup error; need to clean up. */
 
 		if (err) {		/* Found inode; exit with no vnode. */
-			if (op == FUSE_LOOKUP) {
-				fuse_internal_forget_send(vnode_mount(dvp), td, cred,
-				    nid, 1);
+			if (feo != NULL) {
+				fuse_internal_forget_send(vnode_mount(dvp), td,
+					cred, nid, 1);
 			}
-			fdisp_destroy(&fdi);
+			if (did_lookup)
+				fdisp_destroy(&fdi);
 			return err;
-		} else {
 		}
 	}
-	fdisp_destroy(&fdi);
+	if (did_lookup)
+		fdisp_destroy(&fdi);
 
 	return err;
 }
