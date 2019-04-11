@@ -561,6 +561,70 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		<< strerror(errno);
 }
 
+/* Set a file's mtime and atime to now */
+/* TODO: enable this test after updating protocol to version 7.9 */
+#if 0
+TEST_F(Setattr, utimensat_utime_now) {
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	const timespec oldtimes[2] = {
+		{.tv_sec = 1, .tv_nsec = 2},
+		{.tv_sec = 3, .tv_nsec = 4},
+	};
+	const timespec newtimes[2] = {
+		{.tv_sec = 0, .tv_nsec = UTIME_NOW},
+		{.tv_sec = 0, .tv_nsec = UTIME_NOW},
+	};
+	/* "now" is whatever the server says it is */
+	const timespec now[2] = {
+		{.tv_sec = 5, .tv_nsec = 7},
+		{.tv_sec = 6, .tv_nsec = 8},
+	};
+	struct stat sb;
+
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.attr.atime = oldtimes[0].tv_sec;
+		out->body.entry.attr.atimensec = oldtimes[0].tv_nsec;
+		out->body.entry.attr.mtime = oldtimes[1].tv_sec;
+		out->body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
+	})));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			/* In protocol 7.23, ctime will be changed too */
+			uint32_t valid = FATTR_ATIME | FATTR_ATIME_NOW |
+				FATTR_MTIME | FATTR_MTIME_NOW;
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				in->body.setattr.valid == valid);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | 0644;
+		out->body.attr.attr.atime = now[0].tv_sec;
+		out->body.attr.attr.atimensec = now[0].tv_nsec;
+		out->body.attr.attr.mtime = now[1].tv_sec;
+		out->body.attr.attr.mtimensec = now[1].tv_nsec;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+	ASSERT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &newtimes[0], 0))
+		<< strerror(errno);
+	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
+	EXPECT_EQ(now[0].tv_sec, sb.st_atim.tv_sec);
+	EXPECT_EQ(now[0].tv_nsec, sb.st_atim.tv_nsec);
+	EXPECT_EQ(now[1].tv_sec, sb.st_mtim.tv_sec);
+	EXPECT_EQ(now[1].tv_nsec, sb.st_mtim.tv_nsec);
+}
+#endif
+
 /* On a read-only mount, no attributes may be changed */
 TEST_F(RofsSetattr, erofs)
 {
