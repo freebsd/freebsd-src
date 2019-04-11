@@ -51,6 +51,7 @@ int fdt_setup_fdtp(void);
 
 /* The platform library needs to implement these functions */
 int fdt_platform_load_dtb(void);
+void fdt_platform_load_overlays(void);
 void fdt_platform_fixups(void);
 
 #endif /* FDT_PLATFORM_H */
