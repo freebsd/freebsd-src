@@ -71,7 +71,6 @@ public:
 void expect_getattr(uint64_t ino, mode_t mode, uint64_t attr_valid, int times,
 	uid_t uid = 0)
 {
-	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
@@ -453,7 +452,6 @@ TEST_F(Lookup, eacces)
 {
 	const char FULLPATH[] = "mountpoint/some_dir/some_file.txt";
 	const char RELDIRPATH[] = "some_dir";
-	//const char FINALPATH[] = "some_file.txt";
 	uint64_t dir_ino = 42;
 
 	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
@@ -548,32 +546,25 @@ TEST_F(Rename, eacces_on_dstdir_for_removing)
 	ASSERT_EQ(EACCES, errno);
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=216391 */
-TEST_F(Rename, DISABLED_eperm_on_sticky_srcdir)
+TEST_F(Rename, eperm_on_sticky_srcdir)
 {
 	const char FULLDST[] = "mountpoint/d/dst";
-	const char RELDSTDIR[] = "d";
-	const char RELDST[] = "dst";
 	const char FULLSRC[] = "mountpoint/src";
 	const char RELSRC[] = "src";
 	uint64_t ino = 42;
-	uint64_t dstdir_ino = 43;
 
 	expect_getattr(1, S_IFDIR | 01777, UINT64_MAX, 1, 0);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, UINT64_MAX);
-	expect_lookup(RELDSTDIR, dstdir_ino, S_IFDIR | 0777, UINT64_MAX);
-	EXPECT_LOOKUP(dstdir_ino, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	ASSERT_EQ(-1, rename(FULLSRC, FULLDST));
 	ASSERT_EQ(EPERM, errno);
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=216391 */
-TEST_F(Rename, DISABLED_eperm_on_sticky_dstdir)
+TEST_F(Rename, eperm_on_sticky_dstdir)
 {
 	const char FULLDST[] = "mountpoint/d/dst";
 	const char RELDSTDIR[] = "d";
-	const char RELDST[] = "d/dst";
+	const char RELDST[] = "dst";
 	const char FULLSRC[] = "mountpoint/src";
 	const char RELSRC[] = "src";
 	uint64_t src_ino = 42;
@@ -583,7 +574,15 @@ TEST_F(Rename, DISABLED_eperm_on_sticky_dstdir)
 	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1, 0);
 	expect_lookup(RELSRC, src_ino, S_IFREG | 0644, UINT64_MAX);
 	expect_lookup(RELDSTDIR, dstdir_ino, S_IFDIR | 01777, UINT64_MAX);
-	expect_lookup(RELDST, dst_ino, S_IFREG | 0644, UINT64_MAX, 0);
+	EXPECT_LOOKUP(dstdir_ino, RELDST)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = dst_ino;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.entry_valid = UINT64_MAX;
+		out->body.entry.attr.uid = 0;
+	})));
 
 	ASSERT_EQ(-1, rename(FULLSRC, FULLDST));
 	ASSERT_EQ(EPERM, errno);
@@ -755,6 +754,38 @@ TEST_F(Unlink, ok)
 	ASSERT_EQ(0, unlink(FULLPATH)) << strerror(errno);
 }
 
+/*
+ * Ensure that a cached name doesn't cause unlink to bypass permission checks
+ * in VOP_LOOKUP.
+ *
+ * This test should pass because lookup(9) purges the namecache entry by doing
+ * a vfs_cache_lookup with ~MAKEENTRY when nameiop == DELETE.
+ */
+TEST_F(Unlink, cached_unwritable_directory)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	EXPECT_LOOKUP(1, RELPATH)
+	.Times(AnyNumber())
+	.WillRepeatedly(Invoke(
+		ReturnImmediate([=](auto i __unused, auto out) {
+			SET_OUT_HEADER_LEN(out, entry);
+			out->body.entry.attr.mode = S_IFREG | 0644;
+			out->body.entry.nodeid = ino;
+			out->body.entry.entry_valid = UINT64_MAX;
+		}))
+	);
+
+	/* Fill name cache */
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+	/* Despite cached name , unlink should fail */
+	ASSERT_EQ(-1, unlink(FULLPATH));
+	ASSERT_EQ(EACCES, errno);
+}
+
 TEST_F(Unlink, unwritable_directory)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -768,8 +799,7 @@ TEST_F(Unlink, unwritable_directory)
 	ASSERT_EQ(EACCES, errno);
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=216391 */
-TEST_F(Unlink, DISABLED_sticky_directory)
+TEST_F(Unlink, sticky_directory)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";

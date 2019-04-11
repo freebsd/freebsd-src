@@ -38,6 +38,22 @@ using namespace testing;
 
 class Unlink: public FuseTest {
 public:
+void expect_getattr(uint64_t ino, mode_t mode)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = mode;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+}
+
 void expect_lookup(const char *relpath, uint64_t ino, int times)
 {
 	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, times);
@@ -51,6 +67,7 @@ TEST_F(Unlink, eperm)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino, 1);
 	expect_unlink(1, RELPATH, EPERM);
 
@@ -64,6 +81,7 @@ TEST_F(Unlink, ok)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino, 1);
 	expect_unlink(1, RELPATH, 0);
 
@@ -78,6 +96,7 @@ TEST_F(Unlink, open_but_deleted)
 	uint64_t ino = 42;
 	int fd;
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 1);
 	expect_unlink(1, RELPATH, 0);

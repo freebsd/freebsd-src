@@ -39,6 +39,22 @@ using namespace testing;
 
 class Rmdir: public FuseTest {
 public:
+void expect_getattr(uint64_t ino, mode_t mode)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = mode;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+}
+
 void expect_lookup(const char *relpath, uint64_t ino)
 {
 	EXPECT_LOOKUP(1, relpath)
@@ -57,6 +73,7 @@ TEST_F(Rmdir, enotempty)
 	const char RELPATH[] = "some_dir";
 	uint64_t ino = 42;
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -77,6 +94,7 @@ TEST_F(Rmdir, ok)
 	const char RELPATH[] = "some_dir";
 	uint64_t ino = 42;
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {

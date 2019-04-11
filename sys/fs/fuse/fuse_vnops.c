@@ -797,6 +797,11 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				/* Cache timeout */
 				atomic_add_acq_long(&fuse_lookup_cache_misses,
 					1);
+				/* 
+				 * XXX is fuse_internal_vnode_disappear ok to
+				 * call if another process is still using the
+				 * vnode?
+				 */
 				fuse_internal_vnode_disappear(*vpp);
 				if (dvp != *vpp)
 					vput(*vpp);
@@ -864,99 +869,21 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		/* Entry not found */
 		if ((nameiop == CREATE || nameiop == RENAME) && islastcn) {
 			err = fuse_internal_access(dvp, VWRITE, td, cred);
-			if (err)
-				goto out;
+			if (!err) {
+				/*
+				 * Set the SAVENAME flag to hold onto the
+				 * pathname for use later in VOP_CREATE or
+				 * VOP_RENAME.
+				 */
+				cnp->cn_flags |= SAVENAME;
 
-			/*
-	                 * Set the SAVENAME flag to hold onto the
-	                 * pathname for use later in VOP_CREATE or VOP_RENAME.
-	                 */
-			cnp->cn_flags |= SAVENAME;
-
-			err = EJUSTRETURN;
-			goto out;
+				err = EJUSTRETURN;
+			}
+		} else {
+			err = ENOENT;
 		}
-
-		err = ENOENT;
-		goto out;
-
 	} else {
 		/* Entry was found */
-		if ((nameiop == DELETE || nameiop == RENAME) && islastcn) {
-			err = fuse_internal_access(dvp, VWRITE, td, cred);
-			if (err != 0)
-				goto out;
-			/* 
-			 * TODO: if the parent's sticky bit is set, check
-			 * whether we're allowed to remove the file.
-			 * Need to figure out the vnode locking to make this
-			 * work.
-			 */
-#if defined(NOT_YET)
-			struct vattr dvattr;
-			fuse_internal_getattr(dvp, &dvattr, cred, td);
-			if ((dvattr.va_mode & S_ISTXT) &&
-				fuse_internal_access(dvp, VADMIN, td, cred) &&
-				fuse_internal_access(*vpp, VADMIN, td, cred)) {
-				err = EPERM;
-				goto out;
-			}
-#endif
-		}
-
-		/*
-	         * If deleting, and at end of pathname, return parameters
-	         * which can be used to remove file.  If the wantparent flag
-	         * isn't set, we return only the directory, otherwise we go on
-	         * and lock the inode, being careful with ".".
-	         */
-		if (nameiop == DELETE && islastcn) {
-			if (nid == VTOI(dvp)) {
-				vref(dvp);
-				*vpp = dvp;
-			} else {
-				err = fuse_vnode_get(dvp->v_mount, feo, nid,
-				    dvp, &vp, cnp, vtyp);
-				if (err)
-					goto out;
-				*vpp = vp;
-			}
-
-			/*
-			 * Save the name for use in VOP_RMDIR and VOP_REMOVE
-			 * later.
-			 */
-			cnp->cn_flags |= SAVENAME;
-			goto out;
-
-		}
-		/*
-	         * If rewriting (RENAME), return the inode and the
-	         * information required to rewrite the present directory
-	         * Must get inode of directory entry to verify it's a
-	         * regular file, or empty directory.
-	         */
-		if (nameiop == RENAME && wantparent && islastcn) {
-			/*
-	                 * Check for "."
-	                 */
-			if (nid == VTOI(dvp)) {
-				err = EISDIR;
-				goto out;
-			}
-			err = fuse_vnode_get(vnode_mount(dvp), feo, nid, dvp,
-			    &vp, cnp, vtyp);
-			if (err) {
-				goto out;
-			}
-			*vpp = vp;
-			/*
-	                 * Save the name for use in VOP_RENAME later.
-	                 */
-			cnp->cn_flags |= SAVENAME;
-
-			goto out;
-		}
 		if (flags & ISDOTDOT) {
 			struct fuse_lookup_alloc_arg flaa;
 
@@ -966,8 +893,6 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			flaa.vtyp = vtyp;
 			err = vn_vget_ino_gen(dvp, fuse_lookup_alloc, &flaa, 0,
 				&vp);
-			if (err)
-				goto out;
 			*vpp = vp;
 		} else if (nid == VTOI(dvp)) {
 			vref(dvp);
@@ -977,9 +902,10 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 
 			err = fuse_vnode_get(vnode_mount(dvp), feo, nid, dvp,
 			    &vp, cnp, vtyp);
-			if (err) {
+			if (err)
 				goto out;
-			}
+			*vpp = vp;
+
 			fuse_vnode_setparent(vp, dvp);
 
 			/*
@@ -989,8 +915,10 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			 * the vnode's cached size, fix the vnode cache to
 			 * match the real object size.
 			 *
-			 * This can occur via FUSE distributed filesystems,
-			 * irregular files, etc.
+			 * We can get here:
+			 * * following attribute cache expiration, or
+			 * * due a bug in the daemon, or
+			 * * the first time that we looked up the file.
 			 */
 			fvdat = VTOFUD(vp);
 			if (vnode_isreg(vp) &&
@@ -1012,28 +940,52 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				(void)fuse_vnode_setsize(vp, cred, filesize);
 				fvdat->flag &= ~FN_SIZECHANGE;
 			}
-			*vpp = vp;
-		}
 
-		if (feo != NULL) {
+			MPASS(feo != NULL);
 			fuse_internal_cache_attrs(*vpp, &feo->attr,
 				feo->attr_valid, feo->attr_valid_nsec, NULL);
+
+			if ((nameiop == DELETE || nameiop == RENAME) &&
+				islastcn)
+			{
+				struct vattr dvattr;
+
+				err = fuse_internal_access(dvp, VWRITE, td,
+					cred);
+				if (err != 0)
+					goto out;
+				/* 
+				 * if the parent's sticky bit is set, check
+				 * whether we're allowed to remove the file.
+				 * Need to figure out the vnode locking to make
+				 * this work.
+				 */
+				fuse_internal_getattr(dvp, &dvattr, cred, td);
+				if ((dvattr.va_mode & S_ISTXT) &&
+					fuse_internal_access(dvp, VADMIN, td,
+						cred) &&
+					fuse_internal_access(*vpp, VADMIN, td,
+						cred)) {
+					err = EPERM;
+					goto out;
+				}
+			}
+
+			if (islastcn && (
+				(nameiop == DELETE) ||
+				(nameiop == RENAME && wantparent))) {
+				cnp->cn_flags |= SAVENAME;
+			}
+
 		}
 	}
 out:
-	if (!lookup_err) {
-
-		/* No lookup error; need to clean up. */
-
-		if (err) {		/* Found inode; exit with no vnode. */
-			if (feo != NULL) {
-				fuse_internal_forget_send(vnode_mount(dvp), td,
-					cred, nid, 1);
-			}
-			if (did_lookup)
-				fdisp_destroy(&fdi);
-			return err;
-		}
+	if (err) {
+		if (vp != NULL && dvp != vp)
+			vput(vp);
+		else if (vp != NULL)
+			vrele(vp);
+		*vpp = NULL;
 	}
 	if (did_lookup)
 		fdisp_destroy(&fdi);

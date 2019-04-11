@@ -90,6 +90,7 @@ struct fuse_vnode_data {
 	/* The monotonic time after which the attr cache is invalid */
 	struct bintime	attr_cache_timeout;
 	struct vattr	cached_attrs;
+	/* TODO: use cached_attrs.size instead */
 	off_t		filesize;
 	uint64_t	nlookup;
 	enum vtype	vtype;

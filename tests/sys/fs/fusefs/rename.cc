@@ -51,6 +51,24 @@ class Rename: public FuseTest {
 
 		FuseTest::TearDown();
 	}
+
+	void expect_getattr(uint64_t ino, mode_t mode)
+	{
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in->header.opcode == FUSE_GETATTR &&
+					in->header.nodeid == ino);
+			}, Eq(true)),
+			_)
+		).WillOnce(Invoke(
+			ReturnImmediate([=](auto i __unused, auto out) {
+			SET_OUT_HEADER_LEN(out, attr);
+			out->body.attr.attr.ino = ino;	// Must match nodeid
+			out->body.attr.attr.mode = mode;
+			out->body.attr.attr_valid = UINT64_MAX;
+		})));
+	}
+
 };
 
 // EINVAL, dst is subdir of src
@@ -62,6 +80,7 @@ TEST_F(Rename, einval)
 	const char RELSRC[] = "src";
 	uint64_t src_ino = 42;
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELSRC, src_ino, S_IFDIR | 0755, 0, 2);
 	EXPECT_LOOKUP(src_ino, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
@@ -102,6 +121,7 @@ TEST_F(Rename, entry_cache_negative)
 	 */
 	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	/* LOOKUP returns a negative cache entry for dst */
 	EXPECT_LOOKUP(1, RELDST).WillOnce(ReturnNegativeCache(&entry_valid));
@@ -136,6 +156,7 @@ TEST_F(Rename, entry_cache_negative_purge)
 	uint64_t ino = 42;
 	struct timespec entry_valid = {.tv_sec = TIME_T_MAX, .tv_nsec = 0};
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	/* LOOKUP returns a negative cache entry for dst */
 	EXPECT_LOOKUP(1, RELDST).WillOnce(ReturnNegativeCache(&entry_valid))
@@ -172,6 +193,7 @@ TEST_F(Rename, exdev)
 	tmpfd = mkstemp(tmpfile);
 	ASSERT_LE(0, tmpfd) << strerror(errno);
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELB, b_ino, S_IFREG | 0644, 0, 2);
 
 	ASSERT_NE(0, rename(tmpfile, FULLB));
@@ -191,6 +213,7 @@ TEST_F(Rename, ok)
 	uint64_t dst_dir_ino = 1;
 	uint64_t ino = 42;
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
@@ -223,6 +246,7 @@ TEST_F(Rename, overwrite)
 	uint64_t dst_dir_ino = 1;
 	uint64_t ino = 42;
 
+	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	expect_lookup(RELDST, dst_ino, S_IFREG | 0644, 0, 1);
 	EXPECT_CALL(*m_mock, process(
