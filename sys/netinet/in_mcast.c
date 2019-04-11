@@ -2556,10 +2556,14 @@ out_in_multi_locked:
 
 	if (is_final) {
 		/* Remove the gap in the membership and filter array. */
+		KASSERT(RB_EMPTY(&imf->imf_sources),
+		    ("%s: imf_sources not empty", __func__));
 		for (++idx; idx < imo->imo_num_memberships; ++idx) {
-			imo->imo_membership[idx-1] = imo->imo_membership[idx];
-			imo->imo_mfilters[idx-1] = imo->imo_mfilters[idx];
+			imo->imo_membership[idx - 1] = imo->imo_membership[idx];
+			imo->imo_mfilters[idx - 1] = imo->imo_mfilters[idx];
 		}
+		imf_init(&imo->imo_mfilters[idx - 1], MCAST_UNDEFINED,
+		    MCAST_EXCLUDE);
 		imo->imo_num_memberships--;
 	}
 
