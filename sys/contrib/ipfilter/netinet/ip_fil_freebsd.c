@@ -1344,13 +1344,14 @@ int ipf_pfil_hook(void) {
 	pha.pa_version = PFIL_VERSION;
 	pha.pa_flags = PFIL_IN | PFIL_OUT;
 	pha.pa_modname = "ipfilter";
-	pha.pa_rulname = "default";
+	pha.pa_rulname = "default-ip4";
 	pha.pa_func = ipf_check_wrapper;
 	pha.pa_ruleset = NULL;
 	pha.pa_type = PFIL_TYPE_IP4;
 	V_ipf_inet_hook = pfil_add_hook(&pha);
 
 #ifdef USE_INET6
+	pha.pa_rulname = "default-ip6";
 	pha.pa_func = ipf_check_wrapper6;
 	pha.pa_type = PFIL_TYPE_IP6;
 	V_ipf_inet6_hook = pfil_add_hook(&pha);
