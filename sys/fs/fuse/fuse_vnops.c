@@ -704,6 +704,23 @@ out:
 	return err;
 }
 
+struct fuse_lookup_alloc_arg {
+	struct fuse_entry_out *feo;
+	struct componentname *cnp;
+	uint64_t nid;
+	enum vtype vtyp;
+};
+
+/* Callback for vn_get_ino */
+static int
+fuse_lookup_alloc(struct mount *mp, void *arg, int lkflags, struct vnode **vpp)
+{
+	struct fuse_lookup_alloc_arg *flaa = arg;
+
+	return fuse_vnode_get(mp, flaa->feo, flaa->nid, NULL, vpp, flaa->cnp,
+		flaa->vtyp);
+}
+
 SDT_PROBE_DEFINE3(fuse, , vnops, cache_lookup,
 	"int", "struct timespec*", "struct timespec*");
 /*
@@ -851,10 +868,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				goto out;
 
 			/*
-	                 * Possibly record the position of a slot in the
-	                 * directory large enough for the new component name.
-	                 * This can be recorded in the vnode private data for
-	                 * dvp. Set the SAVENAME flag to hold onto the
+	                 * Set the SAVENAME flag to hold onto the
 	                 * pathname for use later in VOP_CREATE or VOP_RENAME.
 	                 */
 			cnp->cn_flags |= SAVENAME;
@@ -944,40 +958,14 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			goto out;
 		}
 		if (flags & ISDOTDOT) {
-			struct mount *mp;
-			int ltype;
+			struct fuse_lookup_alloc_arg flaa;
 
-			/*
-			 * Expanded copy of vn_vget_ino() so that
-			 * fuse_vnode_get() can be used.
-			 */
-			mp = dvp->v_mount;
-			ltype = VOP_ISLOCKED(dvp);
-			err = vfs_busy(mp, MBF_NOWAIT);
-			if (err != 0) {
-				vfs_ref(mp);
-				VOP_UNLOCK(dvp, 0);
-				err = vfs_busy(mp, 0);
-				vn_lock(dvp, ltype | LK_RETRY);
-				vfs_rel(mp);
-				if (err)
-					goto out;
-				if ((dvp->v_iflag & VI_DOOMED) != 0) {
-					err = ENOENT;
-					vfs_unbusy(mp);
-					goto out;
-				}
-			}
-			VOP_UNLOCK(dvp, 0);
-			err = fuse_vnode_get(vnode_mount(dvp), feo, nid, NULL,
-			    &vp, cnp, vtyp);
-			vfs_unbusy(mp);
-			vn_lock(dvp, ltype | LK_RETRY);
-			if ((dvp->v_iflag & VI_DOOMED) != 0) {
-				if (err == 0)
-					vput(vp);
-				err = ENOENT;
-			}
+			flaa.nid = nid;
+			flaa.feo = feo;
+			flaa.cnp = cnp;
+			flaa.vtyp = vtyp;
+			err = vn_vget_ino_gen(dvp, fuse_lookup_alloc, &flaa, 0,
+				&vp);
 			if (err)
 				goto out;
 			*vpp = vp;
