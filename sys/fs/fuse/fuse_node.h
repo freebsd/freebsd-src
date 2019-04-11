@@ -76,7 +76,6 @@ struct fuse_vnode_data {
 	uint64_t	nid;
 
 	/** parent **/
-	/* XXXIP very likely to be stale, it's not updated in rename() */
 	uint64_t	parent_nid;
 
 	/** I/O **/

@@ -233,6 +233,61 @@ TEST_F(Rename, ok)
 	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
 }
 
+/* When moving a file to a new directory, update its parent */
+TEST_F(Rename, parent)
+{
+	const char FULLDST[] = "mountpoint/dstdir/dst";
+	const char RELDSTDIR[] = "dstdir";
+	const char RELDST[] = "dst";
+	const char FULLSRC[] = "mountpoint/src";
+	const char RELSRC[] = "src";
+	const char FULLDSTPARENT[] = "mountpoint/dstdir/dst/..";
+	Sequence seq;
+	uint64_t dst_dir_ino = 43;
+	uint64_t ino = 42;
+	struct stat sb;
+
+	expect_lookup(RELSRC, ino, S_IFDIR | 0755, 0, 1);
+	expect_getattr(1, S_IFDIR | 0755);
+	EXPECT_LOOKUP(1, RELDSTDIR)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.nodeid = dst_dir_ino;
+		out->body.entry.entry_valid = UINT64_MAX;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.attr.mode = S_IFDIR | 0755;
+		out->body.entry.attr.ino = dst_dir_ino;
+	})));
+	EXPECT_LOOKUP(dst_dir_ino, RELDST)
+	.InSequence(seq)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *src = (const char*)in->body.bytes +
+				sizeof(fuse_rename_in);
+			const char *dst = src + strlen(src) + 1;
+			return (in->header.opcode == FUSE_RENAME &&
+				in->body.rename.newdir == dst_dir_ino &&
+				(0 == strcmp(RELDST, dst)) &&
+				(0 == strcmp(RELSRC, src)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(0)));
+	EXPECT_LOOKUP(dst_dir_ino, RELDST)
+	.InSequence(seq)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFDIR | 0755;
+		out->body.entry.nodeid = ino;
+		out->body.entry.entry_valid = UINT64_MAX;
+		out->body.entry.attr_valid = UINT64_MAX;
+	})));
+
+	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
+	ASSERT_EQ(0, stat(FULLDSTPARENT, &sb)) << strerror(errno);
+	ASSERT_EQ(dst_dir_ino, sb.st_ino);
+}
+
 // Rename overwrites an existing destination file
 TEST_F(Rename, overwrite)
 {
