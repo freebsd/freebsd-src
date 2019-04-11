@@ -636,5 +636,3 @@ TEST_F(RofsXattr, setextattr_erofs)
 	ASSERT_EQ(-1, r);
 	EXPECT_EQ(EROFS, errno);
 }
-
-// TODO: EROFS tests
