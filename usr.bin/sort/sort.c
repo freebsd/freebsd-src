@@ -566,55 +566,57 @@ static bool
 set_sort_modifier(struct sort_mods *sm, int c)
 {
 
-	if (sm) {
-		switch (c){
-		case 'b':
-			sm->bflag = true;
-			break;
-		case 'd':
-			sm->dflag = true;
-			break;
-		case 'f':
-			sm->fflag = true;
-			break;
-		case 'g':
-			sm->gflag = true;
-			need_hint = true;
-			break;
-		case 'i':
-			sm->iflag = true;
-			break;
-		case 'R':
-			sm->Rflag = true;
-			need_random = true;
-			break;
-		case 'M':
-			initialise_months();
-			sm->Mflag = true;
-			need_hint = true;
-			break;
-		case 'n':
-			sm->nflag = true;
-			need_hint = true;
-			print_symbols_on_debug = true;
-			break;
-		case 'r':
-			sm->rflag = true;
-			break;
-		case 'V':
-			sm->Vflag = true;
-			break;
-		case 'h':
-			sm->hflag = true;
-			need_hint = true;
-			print_symbols_on_debug = true;
-			break;
-		default:
-			return false;
-		}
-		sort_opts_vals.complex_sort = true;
-		sm->func = get_sort_func(sm);
+	if (sm == NULL)
+		return (true);
+
+	switch (c){
+	case 'b':
+		sm->bflag = true;
+		break;
+	case 'd':
+		sm->dflag = true;
+		break;
+	case 'f':
+		sm->fflag = true;
+		break;
+	case 'g':
+		sm->gflag = true;
+		need_hint = true;
+		break;
+	case 'i':
+		sm->iflag = true;
+		break;
+	case 'R':
+		sm->Rflag = true;
+		need_random = true;
+		break;
+	case 'M':
+		initialise_months();
+		sm->Mflag = true;
+		need_hint = true;
+		break;
+	case 'n':
+		sm->nflag = true;
+		need_hint = true;
+		print_symbols_on_debug = true;
+		break;
+	case 'r':
+		sm->rflag = true;
+		break;
+	case 'V':
+		sm->Vflag = true;
+		break;
+	case 'h':
+		sm->hflag = true;
+		need_hint = true;
+		print_symbols_on_debug = true;
+		break;
+	default:
+		return (false);
 	}
+
+	sort_opts_vals.complex_sort = true;
+	sm->func = get_sort_func(sm);
 	return (true);
 }
 
@@ -910,53 +912,49 @@ fix_obsolete_keys(int *argc, char **argv)
 static void
 set_random_seed(void)
 {
-	if (need_random) {
+	if (strcmp(random_source, DEFAULT_RANDOM_SORT_SEED_FILE) == 0) {
+		FILE* fseed;
+		MD5_CTX ctx;
+		char rsd[MAX_DEFAULT_RANDOM_SEED_DATA_SIZE];
+		size_t sz = 0;
 
-		if (strcmp(random_source, DEFAULT_RANDOM_SORT_SEED_FILE) == 0) {
-			FILE* fseed;
-			MD5_CTX ctx;
-			char rsd[MAX_DEFAULT_RANDOM_SEED_DATA_SIZE];
-			size_t sz = 0;
+		fseed = openfile(random_source, "r");
+		while (!feof(fseed)) {
+			int cr;
 
-			fseed = openfile(random_source, "r");
-			while (!feof(fseed)) {
-				int cr;
+			cr = fgetc(fseed);
+			if (cr == EOF)
+				break;
 
-				cr = fgetc(fseed);
-				if (cr == EOF)
-					break;
+			rsd[sz++] = (char) cr;
 
-				rsd[sz++] = (char) cr;
-
-				if (sz >= MAX_DEFAULT_RANDOM_SEED_DATA_SIZE)
-					break;
-			}
-
-			closefile(fseed, random_source);
-
-			MD5Init(&ctx);
-			MD5Update(&ctx, rsd, sz);
-
-			random_seed = MD5End(&ctx, NULL);
-			random_seed_size = strlen(random_seed);
-
-		} else {
-			MD5_CTX ctx;
-			char *b;
-
-			MD5Init(&ctx);
-			b = MD5File(random_source, NULL);
-			if (b == NULL)
-				err(2, NULL);
-
-			random_seed = b;
-			random_seed_size = strlen(b);
+			if (sz >= MAX_DEFAULT_RANDOM_SEED_DATA_SIZE)
+				break;
 		}
 
-		MD5Init(&md5_ctx);
-		if(random_seed_size>0) {
-			MD5Update(&md5_ctx, random_seed, random_seed_size);
-		}
+		closefile(fseed, random_source);
+
+		MD5Init(&ctx);
+		MD5Update(&ctx, rsd, sz);
+
+		random_seed = MD5End(&ctx, NULL);
+		random_seed_size = strlen(random_seed);
+
+	} else {
+		MD5_CTX ctx;
+		char *b;
+
+		MD5Init(&ctx);
+		b = MD5File(random_source, NULL);
+		if (b == NULL)
+			err(2, NULL);
+
+		random_seed = b;
+		random_seed_size = strlen(b);
+	}
+	MD5Init(&md5_ctx);
+	if(random_seed_size>0) {
+		MD5Update(&md5_ctx, random_seed, random_seed_size);
 	}
 }
 
@@ -1226,7 +1224,8 @@ main(int argc, char **argv)
 		}
 	}
 
-	set_random_seed();
+	if (need_random)
+		set_random_seed();
 
 	/* Case when the outfile equals one of the input files: */
 	if (strcmp(outfile, "-")) {
