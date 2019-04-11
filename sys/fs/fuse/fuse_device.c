@@ -445,7 +445,7 @@ fuse_device_init(void)
 {
 
 	fuse_dev = make_dev(&fuse_device_cdevsw, 0, UID_ROOT, GID_OPERATOR,
-	    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP, "fuse");
+	    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, "fuse");
 	if (fuse_dev == NULL)
 		return (ENOMEM);
 	return (0);
