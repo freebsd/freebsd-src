@@ -1916,10 +1916,10 @@ zone_dtor(void *arg, int size, void *udata)
 	 */
 	zone_drain_wait(zone, M_WAITOK);
 	/*
-	 * We only destroy kegs from non secondary zones.
+	 * We only destroy kegs from non secondary/non cache zones.
 	 */
-	if ((keg = zone->uz_keg) != NULL &&
-	    (zone->uz_flags & UMA_ZONE_SECONDARY) == 0)  {
+	if ((zone->uz_flags & (UMA_ZONE_SECONDARY | UMA_ZFLAG_CACHE)) == 0) {
+		keg = zone->uz_keg;
 		rw_wlock(&uma_rwlock);
 		LIST_REMOVE(keg, uk_link);
 		rw_wunlock(&uma_rwlock);
