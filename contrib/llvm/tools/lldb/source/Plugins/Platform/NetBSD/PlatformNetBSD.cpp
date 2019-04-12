@@ -10,23 +10,19 @@
 #include "PlatformNetBSD.h"
 #include "lldb/Host/Config.h"
 
-// C Includes
 #include <stdio.h>
 #ifndef LLDB_DISABLE_POSIX
 #include <sys/utsname.h>
 #endif
 
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/State.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/StreamString.h"
 
@@ -50,7 +46,7 @@ PlatformSP PlatformNetBSD::CreateInstance(bool force, const ArchSpec *arch) {
            arch ? arch->GetTriple().getTriple() : "<null>");
 
   bool create = force;
-  if (create == false && arch && arch->IsValid()) {
+  if (!create && arch && arch->IsValid()) {
     const llvm::Triple &triple = arch->GetTriple();
     switch (triple.getOS()) {
     case llvm::Triple::NetBSD:
@@ -271,8 +267,8 @@ PlatformNetBSD::DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
   if (target == nullptr) {
     LLDB_LOG(log, "creating new target");
     TargetSP new_target_sp;
-    error = debugger.GetTargetList().CreateTarget(debugger, "", "", false,
-                                                  nullptr, new_target_sp);
+    error = debugger.GetTargetList().CreateTarget(
+        debugger, "", "", eLoadDependentsNo, nullptr, new_target_sp);
     if (error.Fail()) {
       LLDB_LOG(log, "failed to create new target: {0}", error);
       return process_sp;
@@ -291,8 +287,8 @@ PlatformNetBSD::DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
 
   // Now create the gdb-remote process.
   LLDB_LOG(log, "having target create process with gdb-remote plugin");
-  process_sp = target->CreateProcess(
-      launch_info.GetListenerForProcess(debugger), "gdb-remote", nullptr);
+  process_sp =
+      target->CreateProcess(launch_info.GetListener(), "gdb-remote", nullptr);
 
   if (!process_sp) {
     error.SetErrorString("CreateProcess() failed for gdb-remote process");

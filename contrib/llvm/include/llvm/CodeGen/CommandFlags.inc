@@ -74,7 +74,8 @@ static cl::opt<ThreadModel::Model> TMModel(
 
 static cl::opt<llvm::CodeModel::Model> CMModel(
     "code-model", cl::desc("Choose code model"),
-    cl::values(clEnumValN(CodeModel::Small, "small", "Small code model"),
+    cl::values(clEnumValN(CodeModel::Tiny, "tiny", "Tiny code model"),
+               clEnumValN(CodeModel::Small, "small", "Small code model"),
                clEnumValN(CodeModel::Kernel, "kernel", "Kernel code model"),
                clEnumValN(CodeModel::Medium, "medium", "Medium code model"),
                clEnumValN(CodeModel::Large, "large", "Large code model")));
@@ -113,10 +114,16 @@ static cl::opt<TargetMachine::CodeGenFileType> FileType(
                clEnumValN(TargetMachine::CGFT_Null, "null",
                           "Emit nothing, for performance testing")));
 
-static cl::opt<bool>
-    DisableFPElim("disable-fp-elim",
-                  cl::desc("Disable frame pointer elimination optimization"),
-                  cl::init(false));
+static cl::opt<llvm::FramePointer::FP> FramePointerUsage(
+    "frame-pointer", cl::desc("Specify frame pointer elimination optimization"),
+    cl::init(llvm::FramePointer::None),
+    cl::values(
+        clEnumValN(llvm::FramePointer::All, "all",
+                   "Disable frame pointer elimination"),
+        clEnumValN(llvm::FramePointer::NonLeaf, "non-leaf",
+                   "Disable frame pointer elimination for non-leaf frame"),
+        clEnumValN(llvm::FramePointer::None, "none",
+                   "Enable frame pointer elimination")));
 
 static cl::opt<bool> EnableUnsafeFPMath(
     "enable-unsafe-fp-math",
@@ -367,9 +374,14 @@ setFunctionAttributes(StringRef CPU, StringRef Features, Module &M) {
       NewAttrs.addAttribute("target-cpu", CPU);
     if (!Features.empty())
       NewAttrs.addAttribute("target-features", Features);
-    if (DisableFPElim.getNumOccurrences() > 0)
-      NewAttrs.addAttribute("no-frame-pointer-elim",
-                            DisableFPElim ? "true" : "false");
+    if (FramePointerUsage.getNumOccurrences() > 0) {
+      if (FramePointerUsage == llvm::FramePointer::All)
+        NewAttrs.addAttribute("frame-pointer", "all");
+      else if (FramePointerUsage == llvm::FramePointer::NonLeaf)
+        NewAttrs.addAttribute("frame-pointer", "non-leaf");
+      else if (FramePointerUsage == llvm::FramePointer::None)
+        NewAttrs.addAttribute("frame-pointer", "none");
+    }
     if (DisableTailCalls.getNumOccurrences() > 0)
       NewAttrs.addAttribute("disable-tail-calls",
                             toStringRef(DisableTailCalls));

@@ -13,17 +13,24 @@
 #include "sanitizer_common.h"
 #include "sanitizer_procmaps.h"
 
+// Before Solaris 11.4, <procfs.h> doesn't work in a largefile environment.
+#undef _FILE_OFFSET_BITS
 #include <procfs.h>
 #include <limits.h>
 
 namespace __sanitizer {
 
 void ReadProcMaps(ProcSelfMapsBuff *proc_maps) {
-  ReadFileToBuffer("/proc/self/xmap", &proc_maps->data, &proc_maps->mmaped_size,
-                   &proc_maps->len);
+  if (!ReadFileToBuffer("/proc/self/xmap", &proc_maps->data,
+                        &proc_maps->mmaped_size, &proc_maps->len)) {
+    proc_maps->data = nullptr;
+    proc_maps->mmaped_size = 0;
+    proc_maps->len = 0;
+  }
 }
 
 bool MemoryMappingLayout::Next(MemoryMappedSegment *segment) {
+  if (Error()) return false; // simulate empty maps
   char *last = data_.proc_self_maps.data + data_.proc_self_maps.len;
   if (data_.current >= last) return false;
 

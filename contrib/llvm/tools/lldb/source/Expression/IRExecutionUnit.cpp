@@ -553,6 +553,8 @@ lldb::SectionType IRExecutionUnit::GetSectionTypeFromSectionName(
           sect_type = lldb::eSectionTypeDWARFDebugLine;
         else if (dwarf_name.equals("loc"))
           sect_type = lldb::eSectionTypeDWARFDebugLoc;
+        else if (dwarf_name.equals("loclists"))
+          sect_type = lldb::eSectionTypeDWARFDebugLocLists;
         break;
 
       case 'm':
@@ -707,9 +709,10 @@ FindBestAlternateMangledName(const ConstString &demangled,
 
 struct IRExecutionUnit::SearchSpec {
   ConstString name;
-  uint32_t mask;
+  lldb::FunctionNameType mask;
 
-  SearchSpec(ConstString n, uint32_t m = lldb::eFunctionNameTypeFull)
+  SearchSpec(ConstString n,
+             lldb::FunctionNameType m = lldb::eFunctionNameTypeFull)
       : name(n), mask(m) {}
 };
 
@@ -1010,7 +1013,7 @@ IRExecutionUnit::MemoryManager::getSymbolAddress(const std::string &Name) {
           Name.c_str());
 
     m_parent.ReportSymbolLookupError(name_cs);
-    return 0xbad0bad0;
+    return 0;
   } else {
     if (log)
       log->Printf("IRExecutionUnit::getSymbolAddress(Name=\"%s\") = %" PRIx64,
@@ -1088,6 +1091,7 @@ bool IRExecutionUnit::CommitOneAllocation(lldb::ProcessSP &process_sp,
   case lldb::eSectionTypeDWARFDebugInfo:
   case lldb::eSectionTypeDWARFDebugLine:
   case lldb::eSectionTypeDWARFDebugLoc:
+  case lldb::eSectionTypeDWARFDebugLocLists:
   case lldb::eSectionTypeDWARFDebugMacInfo:
   case lldb::eSectionTypeDWARFDebugPubNames:
   case lldb::eSectionTypeDWARFDebugPubTypes:
@@ -1213,14 +1217,11 @@ void IRExecutionUnit::PopulateSectionList(
   }
 }
 
-bool IRExecutionUnit::GetArchitecture(lldb_private::ArchSpec &arch) {
+ArchSpec IRExecutionUnit::GetArchitecture() {
   ExecutionContext exe_ctx(GetBestExecutionContextScope());
-  Target *target = exe_ctx.GetTargetPtr();
-  if (target)
-    arch = target->GetArchitecture();
-  else
-    arch.Clear();
-  return arch.IsValid();
+  if(Target *target = exe_ctx.GetTargetPtr())
+    return target->GetArchitecture();
+  return ArchSpec();
 }
 
 lldb::ModuleSP IRExecutionUnit::GetJITModule() {

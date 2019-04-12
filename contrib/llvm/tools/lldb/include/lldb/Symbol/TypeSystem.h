@@ -10,18 +10,14 @@
 #ifndef liblldb_TypeSystem_h_
 #define liblldb_TypeSystem_h_
 
-// C Includes
-// C++ Includes
 #include <functional>
 #include <map>
 #include <mutex>
 #include <string>
 
-// Other libraries and framework includes
 #include "llvm/ADT/APSInt.h"
 #include "llvm/Support/Casting.h"
 
-// Project includes
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Expression/Expression.h"
 #include "lldb/Symbol/CompilerDecl.h"
@@ -72,8 +68,6 @@ public:
   enum LLVMCastKind {
     eKindClang,
     eKindSwift,
-    eKindGo,
-    eKindJava,
     eKindOCaml,
     kNumKinds
   };
@@ -286,7 +280,8 @@ public:
   virtual lldb::Format GetFormat(lldb::opaque_compiler_type_t type) = 0;
 
   virtual uint32_t GetNumChildren(lldb::opaque_compiler_type_t type,
-                                  bool omit_empty_base_classes) = 0;
+                                  bool omit_empty_base_classes,
+                                  const ExecutionContext *exe_ctx) = 0;
 
   virtual CompilerType GetBuiltinTypeByName(const ConstString &name);
 
@@ -347,7 +342,7 @@ public:
                                 const char *name, bool omit_empty_base_classes,
                                 std::vector<uint32_t> &child_indexes) = 0;
 
-  virtual size_t GetNumTemplateArguments(lldb::opaque_compiler_type_t type) = 0;
+  virtual size_t GetNumTemplateArguments(lldb::opaque_compiler_type_t type);
 
   virtual lldb::TemplateArgumentKind
   GetTemplateArgumentKind(lldb::opaque_compiler_type_t type, size_t idx);

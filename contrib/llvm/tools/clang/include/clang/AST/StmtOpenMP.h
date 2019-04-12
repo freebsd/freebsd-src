@@ -165,10 +165,8 @@ public:
   }
 
   /// Returns starting location of directive kind.
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const { return StartLoc; }
   /// Returns ending location of directive.
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const { return EndLoc; }
 
   /// Set starting location of directive kind.
@@ -394,9 +392,11 @@ class OMPLoopDirective : public OMPExecutableDirective {
     CombinedConditionOffset = 25,
     CombinedNextLowerBoundOffset = 26,
     CombinedNextUpperBoundOffset = 27,
+    CombinedDistConditionOffset = 28,
+    CombinedParForInDistConditionOffset = 29,
     // Offset to the end (and start of the following counters/updates/finals
     // arrays) for combined distribute loop directives.
-    CombinedDistributeEnd = 28,
+    CombinedDistributeEnd = 30,
   };
 
   /// Get the counters storage.
@@ -607,6 +607,17 @@ protected:
            "expected loop bound sharing directive");
     *std::next(child_begin(), CombinedNextUpperBoundOffset) = CombNUB;
   }
+  void setCombinedDistCond(Expr *CombDistCond) {
+    assert(isOpenMPLoopBoundSharingDirective(getDirectiveKind()) &&
+           "expected loop bound distribute sharing directive");
+    *std::next(child_begin(), CombinedDistConditionOffset) = CombDistCond;
+  }
+  void setCombinedParForInDistCond(Expr *CombParForInDistCond) {
+    assert(isOpenMPLoopBoundSharingDirective(getDirectiveKind()) &&
+           "expected loop bound distribute sharing directive");
+    *std::next(child_begin(),
+               CombinedParForInDistConditionOffset) = CombParForInDistCond;
+  }
   void setCounters(ArrayRef<Expr *> A);
   void setPrivateCounters(ArrayRef<Expr *> A);
   void setInits(ArrayRef<Expr *> A);
@@ -639,6 +650,13 @@ public:
     /// Update of UpperBound for statically scheduled omp loops for
     /// outer loop in combined constructs (e.g. 'distribute parallel for')
     Expr *NUB;
+    /// Distribute Loop condition used when composing 'omp distribute'
+    ///  with 'omp for' in a same construct when schedule is chunked.
+    Expr *DistCond;
+    /// 'omp parallel for' loop condition used when composed with
+    /// 'omp distribute' in the same construct and when schedule is
+    /// chunked and the chunk size is 1.
+    Expr *ParForInDistCond;
   };
 
   /// The expressions built for the OpenMP loop CodeGen for the
@@ -756,6 +774,8 @@ public:
       DistCombinedFields.Cond = nullptr;
       DistCombinedFields.NLB = nullptr;
       DistCombinedFields.NUB = nullptr;
+      DistCombinedFields.DistCond = nullptr;
+      DistCombinedFields.ParForInDistCond = nullptr;
     }
   };
 
@@ -923,6 +943,18 @@ public:
            "expected loop bound sharing directive");
     return const_cast<Expr *>(reinterpret_cast<const Expr *>(
         *std::next(child_begin(), CombinedNextUpperBoundOffset)));
+  }
+  Expr *getCombinedDistCond() const {
+    assert(isOpenMPLoopBoundSharingDirective(getDirectiveKind()) &&
+           "expected loop bound distribute sharing directive");
+    return const_cast<Expr *>(reinterpret_cast<const Expr *>(
+        *std::next(child_begin(), CombinedDistConditionOffset)));
+  }
+  Expr *getCombinedParForInDistCond() const {
+    assert(isOpenMPLoopBoundSharingDirective(getDirectiveKind()) &&
+           "expected loop bound distribute sharing directive");
+    return const_cast<Expr *>(reinterpret_cast<const Expr *>(
+        *std::next(child_begin(), CombinedParForInDistConditionOffset)));
   }
   const Stmt *getBody() const {
     // This relies on the loop form is already checked by Sema.

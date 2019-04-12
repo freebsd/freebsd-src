@@ -103,8 +103,9 @@ static ExFunc lookupFunction(const Function *F) {
   // composite function name should be.
   std::string ExtName = "lle_";
   FunctionType *FT = F->getFunctionType();
-  for (unsigned i = 0, e = FT->getNumContainedTypes(); i != e; ++i)
-    ExtName += getTypeID(FT->getContainedType(i));
+  ExtName += getTypeID(FT->getReturnType());
+  for (Type *T : FT->params())
+    ExtName += getTypeID(T);
   ExtName += ("_" + F->getName()).str();
 
   sys::ScopedLock Writer(*FunctionsLock);
@@ -227,7 +228,8 @@ static bool ffiInvoke(RawFunc Fn, Function *F, ArrayRef<GenericValue> ArgVals,
   Type *RetTy = FTy->getReturnType();
   ffi_type *rtype = ffiTypeFor(RetTy);
 
-  if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, NumArgs, rtype, &args[0]) == FFI_OK) {
+  if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, NumArgs, rtype, args.data()) ==
+      FFI_OK) {
     SmallVector<uint8_t, 128> ret;
     if (RetTy->getTypeID() != Type::VoidTyID)
       ret.resize(TD.getTypeStoreSize(RetTy));

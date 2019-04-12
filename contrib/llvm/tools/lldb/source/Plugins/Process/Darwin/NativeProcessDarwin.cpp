@@ -19,10 +19,10 @@
 
 // C++ includes
 // LLDB includes
-#include "lldb/Core/State.h"
 #include "lldb/Host/PseudoTerminal.h"
 #include "lldb/Target/ProcessLaunchInfo.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/StreamString.h"
 
 #include "CFBundle.h"
@@ -63,12 +63,13 @@ Status NativeProcessProtocol::Launch(
 
   // Verify the working directory is valid if one was specified.
   FileSpec working_dir(launch_info.GetWorkingDirectory());
-  if (working_dir &&
-      (!working_dir.ResolvePath() ||
-       !llvm::sys::fs::is_directory(working_dir.GetPath())) {
-    error.SetErrorStringWithFormat("No such file or directory: %s",
+  if (working_dir) {
+    FileInstance::Instance().Resolve(working_dir);
+    if (!FileSystem::Instance().IsDirectory(working_dir)) {
+      error.SetErrorStringWithFormat("No such file or directory: %s",
                                    working_dir.GetCString());
-    return error;
+      return error;
+    }
   }
 
   // Launch the inferior.

@@ -25,7 +25,7 @@ namespace llvm {
   // Code model types.
   namespace CodeModel {
     // Sync changes with CodeGenCWrappers.h.
-  enum Model { Small, Kernel, Medium, Large };
+  enum Model { Tiny, Small, Kernel, Medium, Large };
   }
 
   namespace PICLevel {
@@ -55,6 +55,11 @@ namespace llvm {
       Default,     // -O2, -Os
       Aggressive   // -O3
     };
+  }
+
+  // Specify effect of frame pointer elimination optimization.
+  namespace FramePointer {
+    enum FP {All, NonLeaf, None};
   }
 
 }  // end llvm namespace

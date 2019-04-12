@@ -106,6 +106,62 @@ void __ubsan::__ubsan_handle_type_mismatch_v1_abort(TypeMismatchData *Data,
   Die();
 }
 
+static void handleAlignmentAssumptionImpl(AlignmentAssumptionData *Data,
+                                          ValueHandle Pointer,
+                                          ValueHandle Alignment,
+                                          ValueHandle Offset,
+                                          ReportOptions Opts) {
+  Location Loc = Data->Loc.acquire();
+  SourceLocation AssumptionLoc = Data->AssumptionLoc.acquire();
+
+  ErrorType ET = ErrorType::AlignmentAssumption;
+
+  if (ignoreReport(Loc.getSourceLocation(), Opts, ET))
+    return;
+
+  ScopedReport R(Opts, Loc, ET);
+
+  uptr RealPointer = Pointer - Offset;
+  uptr LSB = LeastSignificantSetBitIndex(RealPointer);
+  uptr ActualAlignment = uptr(1) << LSB;
+
+  uptr Mask = Alignment - 1;
+  uptr MisAlignmentOffset = RealPointer & Mask;
+
+  if (!Offset) {
+    Diag(Loc, DL_Error, ET,
+         "assumption of %0 byte alignment for pointer of type %1 failed")
+        << Alignment << Data->Type;
+  } else {
+    Diag(Loc, DL_Error, ET,
+         "assumption of %0 byte alignment (with offset of %1 byte) for pointer "
+         "of type %2 failed")
+        << Alignment << Offset << Data->Type;
+  }
+
+  if (!AssumptionLoc.isInvalid())
+    Diag(AssumptionLoc, DL_Note, ET, "alignment assumption was specified here");
+
+  Diag(RealPointer, DL_Note, ET,
+       "%0address is %1 aligned, misalignment offset is %2 bytes")
+      << (Offset ? "offset " : "") << ActualAlignment << MisAlignmentOffset;
+}
+
+void __ubsan::__ubsan_handle_alignment_assumption(AlignmentAssumptionData *Data,
+                                                  ValueHandle Pointer,
+                                                  ValueHandle Alignment,
+                                                  ValueHandle Offset) {
+  GET_REPORT_OPTIONS(false);
+  handleAlignmentAssumptionImpl(Data, Pointer, Alignment, Offset, Opts);
+}
+void __ubsan::__ubsan_handle_alignment_assumption_abort(
+    AlignmentAssumptionData *Data, ValueHandle Pointer, ValueHandle Alignment,
+    ValueHandle Offset) {
+  GET_REPORT_OPTIONS(true);
+  handleAlignmentAssumptionImpl(Data, Pointer, Alignment, Offset, Opts);
+  Die();
+}
+
 /// \brief Common diagnostic emission for various forms of integer overflow.
 template <typename T>
 static void handleIntegerOverflowImpl(OverflowData *Data, ValueHandle LHS,
@@ -119,7 +175,9 @@ static void handleIntegerOverflowImpl(OverflowData *Data, ValueHandle LHS,
   if (ignoreReport(Loc, Opts, ET))
     return;
 
-  if (!IsSigned && flags()->silence_unsigned_overflow)
+  // If this is an unsigned overflow in non-fatal mode, potentially ignore it.
+  if (!IsSigned && !Opts.FromUnrecoverableHandler &&
+      flags()->silence_unsigned_overflow)
     return;
 
   ScopedReport R(Opts, Loc, ET);
@@ -457,17 +515,40 @@ static void handleImplicitConversion(ImplicitConversionData *Data,
   SourceLocation Loc = Data->Loc.acquire();
   ErrorType ET = ErrorType::GenericUB;
 
+  const TypeDescriptor &SrcTy = Data->FromType;
+  const TypeDescriptor &DstTy = Data->ToType;
+
+  bool SrcSigned = SrcTy.isSignedIntegerTy();
+  bool DstSigned = DstTy.isSignedIntegerTy();
+
   switch (Data->Kind) {
-  case ICCK_IntegerTruncation:
-    ET = ErrorType::ImplicitIntegerTruncation;
+  case ICCK_IntegerTruncation: { // Legacy, no longer used.
+    // Let's figure out what it should be as per the new types, and upgrade.
+    // If both types are unsigned, then it's an unsigned truncation.
+    // Else, it is a signed truncation.
+    if (!SrcSigned && !DstSigned) {
+      ET = ErrorType::ImplicitUnsignedIntegerTruncation;
+    } else {
+      ET = ErrorType::ImplicitSignedIntegerTruncation;
+    }
+    break;
+  }
+  case ICCK_UnsignedIntegerTruncation:
+    ET = ErrorType::ImplicitUnsignedIntegerTruncation;
+    break;
+  case ICCK_SignedIntegerTruncation:
+    ET = ErrorType::ImplicitSignedIntegerTruncation;
+    break;
+  case ICCK_IntegerSignChange:
+    ET = ErrorType::ImplicitIntegerSignChange;
+    break;
+  case ICCK_SignedIntegerTruncationOrSignChange:
+    ET = ErrorType::ImplicitSignedIntegerTruncationOrSignChange;
     break;
   }
 
   if (ignoreReport(Loc, Opts, ET))
     return;
-
-  const TypeDescriptor &SrcTy = Data->FromType;
-  const TypeDescriptor &DstTy = Data->ToType;
 
   ScopedReport R(Opts, Loc, ET);
 
@@ -477,8 +558,8 @@ static void handleImplicitConversion(ImplicitConversionData *Data,
        "implicit conversion from type %0 of value %1 (%2-bit, %3signed) to "
        "type %4 changed the value to %5 (%6-bit, %7signed)")
       << SrcTy << Value(SrcTy, Src) << SrcTy.getIntegerBitWidth()
-      << (SrcTy.isSignedIntegerTy() ? "" : "un") << DstTy << Value(DstTy, Dst)
-      << DstTy.getIntegerBitWidth() << (DstTy.isSignedIntegerTy() ? "" : "un");
+      << (SrcSigned ? "" : "un") << DstTy << Value(DstTy, Dst)
+      << DstTy.getIntegerBitWidth() << (DstSigned ? "" : "un");
 }
 
 void __ubsan::__ubsan_handle_implicit_conversion(ImplicitConversionData *Data,

@@ -7,16 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
 #include <stdio.h>
 
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/Module.h"
-#include "lldb/Core/Scalar.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Scalar.h"
 #include "lldb/Utility/StreamString.h"
 
 #include "lldb/Symbol/CompilerType.h"
@@ -325,15 +321,16 @@ uint64_t Type::GetByteSize() {
       if (encoding_type)
         m_byte_size = encoding_type->GetByteSize();
       if (m_byte_size == 0)
-        m_byte_size = GetLayoutCompilerType().GetByteSize(nullptr);
+        if (llvm::Optional<uint64_t> size =
+                GetLayoutCompilerType().GetByteSize(nullptr))
+          m_byte_size = *size;
     } break;
 
     // If we are a pointer or reference, then this is just a pointer size;
     case eEncodingIsPointerUID:
     case eEncodingIsLValueReferenceUID:
     case eEncodingIsRValueReferenceUID: {
-      ArchSpec arch;
-      if (m_symbol_file->GetObjectFile()->GetArchitecture(arch))
+      if (ArchSpec arch = m_symbol_file->GetObjectFile()->GetArchitecture())
         m_byte_size = arch.GetAddressByteSize();
     } break;
     }
@@ -342,7 +339,7 @@ uint64_t Type::GetByteSize() {
 }
 
 uint32_t Type::GetNumChildren(bool omit_empty_base_classes) {
-  return GetForwardCompilerType().GetNumChildren(omit_empty_base_classes);
+  return GetForwardCompilerType().GetNumChildren(omit_empty_base_classes, nullptr);
 }
 
 bool Type::IsAggregateType() {
@@ -714,11 +711,7 @@ bool TypeAndOrName::operator==(const TypeAndOrName &other) const {
 }
 
 bool TypeAndOrName::operator!=(const TypeAndOrName &other) const {
-  if (m_type_pair != other.m_type_pair)
-    return true;
-  if (m_type_name != other.m_type_name)
-    return true;
-  return false;
+  return !(*this == other);
 }
 
 ConstString TypeAndOrName::GetName() const {
@@ -750,10 +743,7 @@ void TypeAndOrName::SetCompilerType(CompilerType compiler_type) {
 }
 
 bool TypeAndOrName::IsEmpty() const {
-  if ((bool)m_type_name || (bool)m_type_pair)
-    return false;
-  else
-    return true;
+  return !((bool)m_type_name || (bool)m_type_pair);
 }
 
 void TypeAndOrName::Clear() {
@@ -878,8 +868,7 @@ bool TypeImpl::operator==(const TypeImpl &rhs) const {
 }
 
 bool TypeImpl::operator!=(const TypeImpl &rhs) const {
-  return m_static_type != rhs.m_static_type ||
-         m_dynamic_type != rhs.m_dynamic_type;
+  return !(*this == rhs);
 }
 
 bool TypeImpl::IsValid() const {

@@ -7,24 +7,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "CommandObjectWatchpoint.h"
 #include "CommandObjectWatchpointCommand.h"
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
 #include "lldb/Breakpoint/Watchpoint.h"
 #include "lldb/Core/IOHandler.h"
-#include "lldb/Core/State.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/State.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -38,20 +34,23 @@ using namespace lldb_private;
 // language to lldb and have it pickable here without having to change this
 // enumeration by hand and rebuild lldb proper.
 
-static OptionEnumValueElement g_script_option_enumeration[4] = {
+static constexpr OptionEnumValueElement g_script_option_enumeration[] = {
     {eScriptLanguageNone, "command",
      "Commands are in the lldb command interpreter language"},
     {eScriptLanguagePython, "python", "Commands are in the Python language."},
     {eSortOrderByName, "default-script",
-     "Commands are in the default scripting language."},
-    {0, nullptr, nullptr}};
+     "Commands are in the default scripting language."} };
 
-static OptionDefinition g_watchpoint_command_add_options[] = {
+static constexpr OptionEnumValues ScriptOptionEnum() {
+  return OptionEnumValues(g_script_option_enumeration);
+}
+
+static constexpr OptionDefinition g_watchpoint_command_add_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_1,   false, "one-liner",       'o', OptionParser::eRequiredArgument, nullptr, nullptr,                     0, eArgTypeOneLiner,       "Specify a one-line watchpoint command inline. Be sure to surround it with quotes." },
-  { LLDB_OPT_SET_ALL, false, "stop-on-error",   'e', OptionParser::eRequiredArgument, nullptr, nullptr,                     0, eArgTypeBoolean,        "Specify whether watchpoint command execution should terminate on error." },
-  { LLDB_OPT_SET_ALL, false, "script-type",     's', OptionParser::eRequiredArgument, nullptr, g_script_option_enumeration, 0, eArgTypeNone,           "Specify the language for the commands - if none is specified, the lldb command interpreter will be used." },
-  { LLDB_OPT_SET_2,   false, "python-function", 'F', OptionParser::eRequiredArgument, nullptr, nullptr,                     0, eArgTypePythonFunction, "Give the name of a Python function to run as command for this watchpoint. Be sure to give a module name if appropriate." }
+  { LLDB_OPT_SET_1,   false, "one-liner",       'o', OptionParser::eRequiredArgument, nullptr, {},                 0, eArgTypeOneLiner,       "Specify a one-line watchpoint command inline. Be sure to surround it with quotes." },
+  { LLDB_OPT_SET_ALL, false, "stop-on-error",   'e', OptionParser::eRequiredArgument, nullptr, {},                 0, eArgTypeBoolean,        "Specify whether watchpoint command execution should terminate on error." },
+  { LLDB_OPT_SET_ALL, false, "script-type",     's', OptionParser::eRequiredArgument, nullptr, ScriptOptionEnum(), 0, eArgTypeNone,           "Specify the language for the commands - if none is specified, the lldb command interpreter will be used." },
+  { LLDB_OPT_SET_2,   false, "python-function", 'F', OptionParser::eRequiredArgument, nullptr, {},                 0, eArgTypePythonFunction, "Give the name of a Python function to run as command for this watchpoint. Be sure to give a module name if appropriate." }
     // clang-format on
 };
 

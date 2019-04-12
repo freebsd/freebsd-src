@@ -19,7 +19,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/IndirectCallPromotionAnalysis.h"
-#include "llvm/Analysis/IndirectCallSiteVisitor.h"
+#include "llvm/Analysis/IndirectCallVisitor.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/IR/Attributes.h"
@@ -41,8 +41,8 @@
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Error.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/Instrumentation/PGOInstrumentation.h"
@@ -269,7 +269,8 @@ ICallPromotionFunc::getPromotionCandidatesForCallSite(
       LLVM_DEBUG(dbgs() << " Not promote: Cannot find the target\n");
       ORE.emit([&]() {
         return OptimizationRemarkMissed(DEBUG_TYPE, "UnableToFindTarget", Inst)
-               << "Cannot promote indirect call: target not found";
+               << "Cannot promote indirect call: target with md5sum "
+               << ore::NV("target md5sum", Target) << " not found";
       });
       break;
     }
@@ -351,7 +352,7 @@ uint32_t ICallPromotionFunc::tryToPromote(
 bool ICallPromotionFunc::processFunction(ProfileSummaryInfo *PSI) {
   bool Changed = false;
   ICallPromotionAnalysis ICallAnalysis;
-  for (auto &I : findIndirectCallSites(F)) {
+  for (auto &I : findIndirectCalls(F)) {
     uint32_t NumVals, NumCandidates;
     uint64_t TotalCount;
     auto ICallProfDataRef = ICallAnalysis.getPromotionCandidatesForInstruction(
@@ -426,7 +427,7 @@ static bool promoteIndirectCalls(Module &M, ProfileSummaryInfo *PSI,
 
 bool PGOIndirectCallPromotionLegacyPass::runOnModule(Module &M) {
   ProfileSummaryInfo *PSI =
-      getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
+      &getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
 
   // Command-line option has the priority for InLTO.
   return promoteIndirectCalls(M, PSI, InLTO | ICPLTOMode,

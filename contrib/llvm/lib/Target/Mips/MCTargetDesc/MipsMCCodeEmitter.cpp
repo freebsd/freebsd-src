@@ -213,6 +213,12 @@ encodeInstruction(const MCInst &MI, raw_ostream &OS,
       TmpInst.setOpcode (NewOpcode);
       Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
     }
+
+    if (((MI.getOpcode() == Mips::MOVEP_MM) ||
+         (MI.getOpcode() == Mips::MOVEP_MMR6))) {
+      unsigned RegPair = getMovePRegPairOpValue(MI, 0, Fixups, STI);
+      Binary = (Binary & 0xFFFFFC7F) | (RegPair << 7);
+    }
   }
 
   const MCInstrDesc &Desc = MCII.get(TmpInst.getOpcode());
@@ -607,6 +613,10 @@ getExprOpValue(const MCExpr *Expr, SmallVectorImpl<MCFixup> &Fixups,
     case MipsMCExpr::MEK_Special:
       llvm_unreachable("Unhandled fixup kind!");
       break;
+    case MipsMCExpr::MEK_DTPREL:
+      // MEK_DTPREL is used for marking TLS DIEExpr only
+      // and contains a regular sub-expression.
+      return getExprOpValue(MipsExpr->getSubExpr(), Fixups, STI);
     case MipsMCExpr::MEK_CALL_HI16:
       FixupKind = Mips::fixup_Mips_CALL_HI16;
       break;

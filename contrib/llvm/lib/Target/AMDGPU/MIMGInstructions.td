@@ -29,6 +29,7 @@ class MIMGBaseOpcode {
   bit Atomic = 0;
   bit AtomicX2 = 0; // (f)cmpswap
   bit Sampler = 0;
+  bit Gather4 = 0;
   bits<8> NumExtraArgs = 0;
   bit Gradients = 0;
   bit Coordinates = 1;
@@ -43,7 +44,7 @@ def MIMGBaseOpcode : GenericEnum {
 def MIMGBaseOpcodesTable : GenericTable {
   let FilterClass = "MIMGBaseOpcode";
   let CppTypeName = "MIMGBaseOpcodeInfo";
-  let Fields = ["BaseOpcode", "Store", "Atomic", "AtomicX2", "Sampler",
+  let Fields = ["BaseOpcode", "Store", "Atomic", "AtomicX2", "Sampler", "Gather4",
                 "NumExtraArgs", "Gradients", "Coordinates", "LodOrClampOrMip",
                 "HasD16"];
   GenericEnum TypeOf_BaseOpcode = MIMGBaseOpcode;
@@ -141,7 +142,7 @@ class MIMG_NoSampler_Helper <bits<7> op, string asm,
 
   let InOperandList = !con((ins addr_rc:$vaddr, SReg_256:$srsrc,
                                 DMask:$dmask, UNorm:$unorm, GLC:$glc, SLC:$slc,
-                                R128:$r128, TFE:$tfe, LWE:$lwe, DA:$da),
+                                R128A16:$r128, TFE:$tfe, LWE:$lwe, DA:$da),
                            !if(BaseOpcode.HasD16, (ins D16:$d16), (ins)));
   let AsmString = asm#" $vdata, $vaddr, $srsrc$dmask$unorm$glc$slc$r128$tfe$lwe$da"
                       #!if(BaseOpcode.HasD16, "$d16", "");
@@ -179,6 +180,8 @@ multiclass MIMG_NoSampler <bits<7> op, string asm, bit has_d16, bit mip = 0,
     defm _V3 : MIMG_NoSampler_Src_Helper <op, asm, VReg_96, 0>;
     let VDataDwords = 4 in
     defm _V4 : MIMG_NoSampler_Src_Helper <op, asm, VReg_128, 0>;
+    let VDataDwords = 8 in
+    defm _V8 : MIMG_NoSampler_Src_Helper <op, asm, VReg_256, 0>;
   }
 }
 
@@ -199,7 +202,7 @@ class MIMG_Store_Helper <bits<7> op, string asm,
 
   let InOperandList = !con((ins data_rc:$vdata, addr_rc:$vaddr, SReg_256:$srsrc,
                                 DMask:$dmask, UNorm:$unorm, GLC:$glc, SLC:$slc,
-                                R128:$r128, TFE:$tfe, LWE:$lwe, DA:$da),
+                                R128A16:$r128, TFE:$tfe, LWE:$lwe, DA:$da),
                            !if(BaseOpcode.HasD16, (ins D16:$d16), (ins)));
   let AsmString = asm#" $vdata, $vaddr, $srsrc$dmask$unorm$glc$slc$r128$tfe$lwe$da"
                       #!if(BaseOpcode.HasD16, "$d16", "");
@@ -252,7 +255,7 @@ class MIMG_Atomic_Helper <string asm, RegisterClass data_rc,
 
   let InOperandList = (ins data_rc:$vdata, addr_rc:$vaddr, SReg_256:$srsrc,
                            DMask:$dmask, UNorm:$unorm, GLC:$glc, SLC:$slc,
-                           R128:$r128, TFE:$tfe, LWE:$lwe, DA:$da);
+                           R128A16:$r128, TFE:$tfe, LWE:$lwe, DA:$da);
   let AsmString = asm#" $vdst, $vaddr, $srsrc$dmask$unorm$glc$slc$r128$tfe$lwe$da";
 }
 
@@ -316,7 +319,7 @@ class MIMG_Sampler_Helper <bits<7> op, string asm, RegisterClass dst_rc,
 
   let InOperandList = !con((ins src_rc:$vaddr, SReg_256:$srsrc, SReg_128:$ssamp,
                                 DMask:$dmask, UNorm:$unorm, GLC:$glc, SLC:$slc,
-                                R128:$r128, TFE:$tfe, LWE:$lwe, DA:$da),
+                                R128A16:$r128, TFE:$tfe, LWE:$lwe, DA:$da),
                            !if(BaseOpcode.HasD16, (ins D16:$d16), (ins)));
   let AsmString = asm#" $vdata, $vaddr, $srsrc, $ssamp$dmask$unorm$glc$slc$r128$tfe$lwe$da"
                       #!if(BaseOpcode.HasD16, "$d16", "");
@@ -411,6 +414,8 @@ multiclass MIMG_Sampler <bits<7> op, AMDGPUSampleVariant sample, bit wqm = 0,
     defm _V3 : MIMG_Sampler_Src_Helper<op, asm, sample, VReg_96>;
     let VDataDwords = 4 in
     defm _V4 : MIMG_Sampler_Src_Helper<op, asm, sample, VReg_128>;
+    let VDataDwords = 8 in
+    defm _V8 : MIMG_Sampler_Src_Helper<op, asm, sample, VReg_256>;
   }
 }
 
@@ -421,6 +426,7 @@ multiclass MIMG_Gather <bits<7> op, AMDGPUSampleVariant sample, bit wqm = 0,
                         string asm = "image_gather4"#sample.LowerCaseMod> {
   def "" : MIMG_Sampler_BaseOpcode<sample> {
     let HasD16 = 1;
+    let Gather4 = 1;
   }
 
   let BaseOpcode = !cast<MIMGBaseOpcode>(NAME), WQM = wqm,
@@ -429,6 +435,8 @@ multiclass MIMG_Gather <bits<7> op, AMDGPUSampleVariant sample, bit wqm = 0,
     defm _V2 : MIMG_Sampler_Src_Helper<op, asm, sample, VReg_64>; /* for packed D16 only */
     let VDataDwords = 4 in
     defm _V4 : MIMG_Sampler_Src_Helper<op, asm, sample, VReg_128, 1>;
+    let VDataDwords = 8 in
+    defm _V8 : MIMG_Sampler_Src_Helper<op, asm, sample, VReg_256>;
   }
 }
 

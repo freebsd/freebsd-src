@@ -356,7 +356,7 @@ public:
   basic_symbol_iterator symbol_end() const override;
 
   // MachO specific.
-  basic_symbol_iterator getSymbolByIndex(unsigned Index) const;
+  symbol_iterator getSymbolByIndex(unsigned Index) const;
   uint64_t getSymbolIndex(DataRefImpl Symb) const;
 
   section_iterator section_begin() const override;
@@ -616,6 +616,9 @@ public:
     case MachO::PLATFORM_TVOS: return "tvos";
     case MachO::PLATFORM_WATCHOS: return "watchos";
     case MachO::PLATFORM_BRIDGEOS: return "bridgeos";
+    case MachO::PLATFORM_IOSSIMULATOR: return "iossimulator";
+    case MachO::PLATFORM_TVOSSIMULATOR: return "tvossimulator";
+    case MachO::PLATFORM_WATCHOSSIMULATOR: return "watchossimulator";
     default:
       std::string ret;
       raw_string_ostream ss(ret);
