@@ -494,7 +494,7 @@ spinlock_enter(void)
 
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
-		__asm __volatile("or 2,2,2"); /* Set high thread priority */
+		nop_prio_mhigh();
 		msr = intr_disable();
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_msr = msr;
@@ -515,7 +515,7 @@ spinlock_exit(void)
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0) {
 		intr_restore(msr);
-		__asm __volatile("or 6,6,6"); /* Set normal thread priority */
+		nop_prio_medium();
 	}
 }
 
