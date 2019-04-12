@@ -161,7 +161,14 @@
     <sect2 xml:id="userland-config">
       <title>Userland Configuration Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="342103">The system &man.crontab.5;,
+	<filename>/etc/crontab</filename>, has been updated to set
+	<varname>PATH</varname> for consistency with the &man.cron.8;
+	daemon.</para>
+
+      <para revision="343469">The default &man.devd.conf.5; has been
+	updated to prevent duplicated &man.hostapd.8; and
+	&man.wpa.supplicant.8; startup via &man.devd.8;.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -230,14 +237,33 @@
       <title><filename class="directory">/etc/rc.d</filename>
 	Scripts</title>
 
-      <para>&nbsp;</para>
+      <para revision="340611">Support for auxiliary
+	<acronym>RAM</acronym> has been added to
+	<filename>/etc/rc.initdiskless</filename>.</para>
+
+      <para revision="340966">The &man.rcorder.8; utility has been
+	updated to add support for
+	<filename>/etc/rc.resume</filename>.</para>
+
+      <para revision="341792">The <literal>jail_conf</literal>
+	definition, which defaults to
+	<filename>/etc/jail.conf</filename>, has been moved from
+	the &man.jail.8; &man.rc.8; script to
+	<filename>/etc/defaults/rc.conf</filename>.</para>
+
+      <para revision="343046">The <varname>rc_service</varname>
+	variable has been added to &man.rc.subr.8;, which defaults to
+	the path of the service being executed in case the service
+	needs to re-invoke itself.</para>
     </sect2>
 
     <sect2 xml:id="userland-periodic">
       <title><filename class="directory">/etc/periodic</filename>
 	Scripts</title>
 
-      <para>&nbsp;</para>
+      <para revision="341794">The &man.periodic.8; weekly
+	<filename>340.noid</filename> script has been updated to
+	prevent decending into the root directory of jails.</para>
     </sect2>
 
     <sect2 xml:id="userland-libraries">
