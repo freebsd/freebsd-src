@@ -259,6 +259,7 @@ fuse_internal_fsync(struct vnode *vp,
 	struct fuse_dispatcher fdi;
 	struct fuse_filehandle *fufh;
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct mount *mp = vnode_mount(vp);
 	int op = FUSE_FSYNC;
 	int err = 0;
 
@@ -268,6 +269,9 @@ fuse_internal_fsync(struct vnode *vp,
 	}
 	if (vnode_isdir(vp))
 		op = FUSE_FSYNCDIR;
+
+	if (!fsess_isimpl(mp, op))
+		return 0;
 
 	fdisp_init(&fdi, sizeof(*ffsi));
 	/*
@@ -292,6 +296,12 @@ fuse_internal_fsync(struct vnode *vp,
 			fuse_insert_callback(fdi.tick,
 				fuse_internal_fsync_callback);
 			fuse_insert_message(fdi.tick);
+		}
+		if (err == ENOSYS) {
+			/* ENOSYS means "success, and don't call again" */
+			fsess_set_notimpl(mp, op);
+			err = 0;
+			break;
 		}
 	}
 	fdisp_destroy(&fdi);

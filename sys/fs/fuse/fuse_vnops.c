@@ -1893,6 +1893,9 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
+	if (!fsess_isimpl(mp, FUSE_GETXATTR))
+		return EOPNOTSUPP;
+
 	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
 	if (err)
 		return err;
@@ -1927,8 +1930,10 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 
 	err = fdisp_wait_answ(&fdi);
 	if (err != 0) {
-		if (err == ENOSYS)
+		if (err == ENOSYS) {
 			fsess_set_notimpl(mp, FUSE_GETXATTR);
+			err = EOPNOTSUPP;
+		}
 		goto out;
 	}
 
@@ -1974,12 +1979,23 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
+	if (!fsess_isimpl(mp, FUSE_SETXATTR))
+		return EOPNOTSUPP;
+
 	if (vfs_isrdonly(mp))
 		return EROFS;
 
 	/* Deleting xattrs must use VOP_DELETEEXTATTR instead */
-	if (ap->a_uio == NULL)
-		return (EINVAL);
+	if (ap->a_uio == NULL) {
+		/*
+		 * If we got here as fallback from VOP_DELETEEXTATTR, then
+		 * return EOPNOTSUPP.
+		 */
+		if (!fsess_isimpl(mp, FUSE_REMOVEXATTR))
+			return (EOPNOTSUPP);
+		else
+			return (EINVAL);
+	}
 
 	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td,
 		VWRITE);
@@ -2013,10 +2029,9 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 
 	err = fdisp_wait_answ(&fdi);
 
-	if (err != 0) {
-		if (err == ENOSYS)
-			fsess_set_notimpl(mp, FUSE_SETXATTR);
-		goto out;
+	if (err == ENOSYS) {
+		fsess_set_notimpl(mp, FUSE_SETXATTR);
+		err = EOPNOTSUPP;
 	}
 
 out:
@@ -2113,6 +2128,9 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
+	if (!fsess_isimpl(mp, FUSE_LISTXATTR))
+		return EOPNOTSUPP;
+
 	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
 	if (err)
 		return err;
@@ -2141,8 +2159,10 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 
 	err = fdisp_wait_answ(&fdi);
 	if (err != 0) {
-		if (err == ENOSYS)
+		if (err == ENOSYS) {
 			fsess_set_notimpl(mp, FUSE_LISTXATTR);
+			err = EOPNOTSUPP;
+		}
 		goto out;
 	}
 
@@ -2221,6 +2241,9 @@ fuse_vnop_deleteextattr(struct vop_deleteextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
+	if (!fsess_isimpl(mp, FUSE_REMOVEXATTR))
+		return EOPNOTSUPP;
+
 	if (vfs_isrdonly(mp))
 		return EROFS;
 
@@ -2246,9 +2269,9 @@ fuse_vnop_deleteextattr(struct vop_deleteextattr_args *ap)
 	    ap->a_name);
 
 	err = fdisp_wait_answ(&fdi);
-	if (err != 0) {
-		if (err == ENOSYS)
-			fsess_set_notimpl(mp, FUSE_REMOVEXATTR);
+	if (err == ENOSYS) {
+		fsess_set_notimpl(mp, FUSE_REMOVEXATTR);
+		err = EOPNOTSUPP;
 	}
 
 	fdisp_destroy(&fdi);

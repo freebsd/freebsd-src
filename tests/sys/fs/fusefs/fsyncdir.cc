@@ -124,8 +124,7 @@ TEST_F(FsyncDir, eio)
  * subsequent calls to VOP_FSYNC will succeed automatically without being sent
  * to the filesystem daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
-TEST_F(FsyncDir, DISABLED_enosys)
+TEST_F(FsyncDir, enosys)
 {
 	const char FULLPATH[] = "mountpoint/some_dir";
 	const char RELPATH[] = "some_dir";
@@ -134,7 +133,7 @@ TEST_F(FsyncDir, DISABLED_enosys)
 
 	expect_lookup(RELPATH, ino);
 	expect_opendir(ino);
-	expect_fsyncdir(ino, FUSE_FSYNC_FDATASYNC, ENOSYS);
+	expect_fsyncdir(ino, 0, ENOSYS);
 
 	fd = open(FULLPATH, O_DIRECTORY);
 	ASSERT_LE(0, fd) << strerror(errno);
