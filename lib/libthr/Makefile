@@ -19,8 +19,10 @@ SHLIB_MAJOR= 3
 WARNS?=	3
 NO_WTHREAD_SAFETY=1
 CFLAGS+=-DPTHREAD_KERNEL
-CFLAGS+=-I${SRCTOP}/lib/libc/include -I${.CURDIR}/thread \
-	-I${SRCTOP}/include
+CFLAGS+=-I${SRCTOP}/lib/libc/include
+CFLAGS+=-I${SRCTOP}/lib/libc/${MACHINE_CPUARCH}
+CFLAGS+=-I${.CURDIR}/thread
+CFLAGS+=-I${SRCTOP}/include
 CFLAGS+=-I${.CURDIR}/arch/${MACHINE_CPUARCH}/include
 CFLAGS+=-I${.CURDIR}/sys
 CFLAGS+=-I${SRCTOP}/libexec/rtld-elf
