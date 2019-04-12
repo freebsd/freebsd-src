@@ -8,19 +8,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Core/ValueObjectMemory.h"
-#include "lldb/Core/Scalar.h" // for Scalar, operator!=
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Symbol/Type.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Target.h"
-#include "lldb/Utility/DataExtractor.h" // for DataExtractor
-#include "lldb/Utility/Status.h"        // for Status
-#include "lldb/lldb-types.h"            // for addr_t
-#include "llvm/Support/ErrorHandling.h" // for llvm_unreachable
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Scalar.h"
+#include "lldb/Utility/Status.h"
+#include "lldb/lldb-types.h"
+#include "llvm/Support/ErrorHandling.h"
 
-#include <assert.h> // for assert
-#include <memory>   // for shared_ptr
+#include <assert.h>
+#include <memory>
 
 namespace lldb_private {
 class ExecutionContextScope;
@@ -128,15 +128,19 @@ size_t ValueObjectMemory::CalculateNumChildren(uint32_t max) {
     return child_count <= max ? child_count : max;
   }
 
+  ExecutionContext exe_ctx(GetExecutionContextRef());
   const bool omit_empty_base_classes = true;
-  auto child_count = m_compiler_type.GetNumChildren(omit_empty_base_classes);
+  auto child_count =
+      m_compiler_type.GetNumChildren(omit_empty_base_classes, &exe_ctx);
   return child_count <= max ? child_count : max;
 }
 
 uint64_t ValueObjectMemory::GetByteSize() {
   if (m_type_sp)
     return m_type_sp->GetByteSize();
-  return m_compiler_type.GetByteSize(nullptr);
+  if (llvm::Optional<uint64_t> size = m_compiler_type.GetByteSize(nullptr))
+    return *size;
+  return 0;
 }
 
 lldb::ValueType ValueObjectMemory::GetValueType() const {

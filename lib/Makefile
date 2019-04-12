@@ -199,6 +199,7 @@ _librtld_db=	librtld_db
 _libdl=		libdl
 .endif
 
+SUBDIR.${MK_OPENMP}+=	libomp
 SUBDIR.${MK_OPENSSL}+=	libmp
 SUBDIR.${MK_PMC}+=	libpmc libpmcstat
 SUBDIR.${MK_RADIUS_SUPPORT}+=	libradius

@@ -14,6 +14,9 @@
 /* Define to 1 to enable crash overrides, and to 0 otherwise. */
 #define ENABLE_CRASH_OVERRIDES 1
 
+/* Define to 1 to enable crash memory dumps, and to 0 otherwise. */
+#define LLVM_ENABLE_CRASH_DUMPS 0
+
 /* Define to 1 if you have the `backtrace' function. */
 #define HAVE_BACKTRACE TRUE
 
@@ -208,6 +211,12 @@
 /* Define to 1 if you have the <sys/time.h> header file. */
 #define HAVE_SYS_TIME_H 1
 
+/* Define to 1 if stat struct has st_mtimespec member .*/
+#define HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
+
+/* Define to 1 if stat struct has st_mtim member. */
+#define HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC 1
+
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
@@ -321,10 +330,10 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 7.0.1"
+#define PACKAGE_STRING "LLVM 8.0.0"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "7.0.1"
+#define PACKAGE_VERSION "8.0.0"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */

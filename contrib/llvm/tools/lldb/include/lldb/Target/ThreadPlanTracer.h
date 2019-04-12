@@ -11,13 +11,9 @@
 #ifndef liblldb_ThreadPlanTracer_h_
 #define liblldb_ThreadPlanTracer_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Symbol/TaggedASTType.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/lldb-private.h"
 
 namespace lldb_private {

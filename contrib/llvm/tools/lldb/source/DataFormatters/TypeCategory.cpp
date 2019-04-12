@@ -10,10 +10,6 @@
 #include "lldb/DataFormatters/TypeCategory.h"
 #include "lldb/Target/Language.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 
 using namespace lldb;
 using namespace lldb_private;
@@ -161,10 +157,7 @@ bool TypeCategoryImpl::Get(ValueObject &valobj,
 
   else /*if (filter_sp.get() && synth.get())*/
   {
-    if (filter_sp->GetRevision() > synth->GetRevision())
-      pick_synth = false;
-    else
-      pick_synth = true;
+    pick_synth = filter_sp->GetRevision() <= synth->GetRevision();
   }
   if (pick_synth) {
     if (regex_synth && reason)

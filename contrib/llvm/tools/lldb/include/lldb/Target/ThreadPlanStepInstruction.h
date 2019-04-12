@@ -10,10 +10,6 @@
 #ifndef liblldb_ThreadPlanStepInstruction_h_
 #define liblldb_ThreadPlanStepInstruction_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/lldb-private.h"
@@ -43,7 +39,8 @@ protected:
 
 private:
   friend lldb::ThreadPlanSP Thread::QueueThreadPlanForStepSingleInstruction(
-      bool step_over, bool abort_other_plans, bool stop_other_threads);
+      bool step_over, bool abort_other_plans, bool stop_other_threads,
+      Status &status);
 
   lldb::addr_t m_instruction_addr;
   bool m_stop_other_threads;
