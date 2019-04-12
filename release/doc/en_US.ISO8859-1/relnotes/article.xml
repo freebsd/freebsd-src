@@ -174,7 +174,60 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="336040">The &man.cpuset.1;, &man.sockstat.1;,
+	&man.ipfw.8;, and &man.ugidfw.8; utilities have been updated
+	to support &man.jail.8; names.</para>
+
+      <para revision="336328">The &man.newfs.msdos.8; utililty has
+	been updated to include a new flag, <literal>-T</literal>,
+	which is used to specify the timestamp for build
+	reproducibility.</para>
+
+      <para revision="338451">The &man.last.1; utility has been
+	updated to include &man.libxo.3; support.</para>
+
+      <para revision="338364">The &man.dd.1; utility has been updated
+	to add a new <literal>status</literal>operand,
+	<literal>progress</literal>, which reports the current status
+	on a single line every second.</para>
+
+      <para revision="339160">The &man.diff.1; utility has been
+	updated to implement <literal>-B</literal> and
+	<literal>--ignore-blank-lines</literal> support.</para>
+
+      <para revision="344490">The &man.fdisk.8; utility has been
+	updated to support sectors larger than 2048 bytes.</para>
+
+      <para revision="342706">The &man.ktrdump.8; utility has been
+	updated to include the <literal>-l</literal> flag which
+	enables &quot;live&quot; mode when specified.</para>
+
+      <para revision="343251">The &man.gzip.1; utility has been
+	updated to add <literal>-l</literal> support for &man.xz.1;
+	files.</para>
+
+      <para revision="343538" contrib="sponsor"
+	sponsor="&netflix;">The &man.newfs.8; and &man.tunefs.8;
+	utilities have been updated to allow underscores in label
+	names.</para>
+
+      <para revision="344020">The &man.pfctl.8; utility has been
+	updated to provide more clear output and reference the
+	<literal>net.pf.request_maxcount</literal> &man.sysctl.8;
+	if a defined table is too large.</para>
+
+      <para revision="344052">The &man.newfs.8; and &man.tunefs.8;
+	utilities have been updated to allow dashes in label
+	names.</para>
+
+      <para revision="345561">The &man.sh.1; utility has been updated
+	to add the <literal>pipefail</literal> option which allows
+	checking the exit status of all commands in a pipeline more
+	easily.</para>
+
+      <para revision="345878">The &man.patch.1; utility has been
+	updated to exit successfully if the input patch file is
+	zero-length.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -365,8 +418,10 @@
     <sect2 xml:id="hardware-virtualization">
       <title>Virtualization Support</title>
 
-      <para revision="321413">Support for &man.virtio.console.4; has
-	been added to &man.bhyve.4;.</para>
+      <para revision="341758" contrib="sponsor" sponsor="&ix;">Support
+	for <acronym>PS/2</acronym> scan codes for
+	<literal>NumLock</literal>, <literal>ScrollLock</literal>, and
+	numerical keypad keys has been added to &man.bhyve.8;.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
@@ -435,7 +490,10 @@
     <sect2 xml:id="network-general">
       <title>General Network Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="337461">The &man.ipfw.8; firewall has been
+	updated to include new rule options,
+	<literal>record-state</literal>, <literal>set-limit</literal>,
+	and <literal>defer-action</literal>.</para>
     </sect2>
 
     <sect2 xml:id="network-protocols">
