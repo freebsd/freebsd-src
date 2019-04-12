@@ -228,8 +228,7 @@ TEST_F(Write, append_direct_io)
 }
 
 /* A direct write should evict any overlapping cached data */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235774 */
-TEST_F(Write, DISABLED_direct_io_evicts_cache)
+TEST_F(Write, direct_io_evicts_cache)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -407,6 +406,42 @@ TEST_F(Write, DISABLED_mmap)
 
 	free(expected);
 	free(zeros);
+}
+
+/* In WriteThrough mode, a write should evict overlapping cached data */
+TEST_F(WriteThrough, evicts_read_cache)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char CONTENTS0[] = "abcdefgh";
+	const char CONTENTS1[] = "ijklmnop";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS0) + 1;
+	char readbuf[bufsize];
+
+	expect_lookup(RELPATH, ino, bufsize);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS0);
+	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS1);
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	// Prime cache
+	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
+
+	// Write directly, evicting cache
+	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
+	ASSERT_EQ(bufsize, write(fd, CONTENTS1, bufsize)) << strerror(errno);
+
+	// Read again.  Cache should be bypassed
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS1);
+	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
+	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
+	ASSERT_STREQ(readbuf, CONTENTS1);
+
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
 TEST_F(WriteThrough, pwrite)
