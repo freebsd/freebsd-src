@@ -173,7 +173,7 @@ tmpfs_update_mtime(struct mount *mp, bool lazy)
 		 * metadata changes now.
 		 */
 		if (!lazy || (obj->flags & OBJ_TMPFS_DIRTY) != 0) {
-			if (vget(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK,
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK,
 			    curthread) != 0)
 				continue;
 			tmpfs_check_mtime(vp);
