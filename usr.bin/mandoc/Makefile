@@ -97,6 +97,8 @@ SRCS=		${LIB_SRCS} \
 WARNS?=	3
 CFLAGS+= -DHAVE_CONFIG_H \
 	 -I${SRCTOP}/lib/libopenbsd/
+# This can be removed after swtiching to newer gcc
+CFLAGS.gcc+=	-Wno-format
 LIBADD=	openbsd z
 
 .include <bsd.prog.mk>
