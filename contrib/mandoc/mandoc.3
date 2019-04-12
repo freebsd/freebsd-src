@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.3,v 1.41 2017/07/04 23:40:01 schwarze Exp $
+.\"	$Id: mandoc.3,v 1.44 2018/12/30 00:49:55 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,30 +15,23 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 4 2017 $
+.Dd $Mdocdate: December 30 2018 $
 .Dt MANDOC 3
 .Os
 .Sh NAME
 .Nm mandoc ,
 .Nm deroff ,
-.Nm mandocmsg ,
-.Nm man_mparse ,
-.Nm man_validate ,
-.Nm mdoc_validate ,
 .Nm mparse_alloc ,
+.Nm mparse_copy ,
 .Nm mparse_free ,
-.Nm mparse_getkeep ,
-.Nm mparse_keep ,
 .Nm mparse_open ,
 .Nm mparse_readfd ,
 .Nm mparse_reset ,
-.Nm mparse_result ,
-.Nm mparse_strerror ,
-.Nm mparse_strlevel ,
-.Nm mparse_updaterc
+.Nm mparse_result
 .Nd mandoc macro compiler library
 .Sh SYNOPSIS
 .In sys/types.h
+.In stdio.h
 .In mandoc.h
 .Pp
 .Fd "#define ASCII_NBRSP"
@@ -47,38 +40,23 @@
 .Ft struct mparse *
 .Fo mparse_alloc
 .Fa "int options"
-.Fa "enum mandocerr mmin"
-.Fa "mandocmsg mmsg"
 .Fa "enum mandoc_os oe_e"
 .Fa "char *os_s"
-.Fc
-.Ft void
-.Fo (*mandocmsg)
-.Fa "enum mandocerr errtype"
-.Fa "enum mandoclevel level"
-.Fa "const char *file"
-.Fa "int line"
-.Fa "int col"
-.Fa "const char *msg"
 .Fc
 .Ft void
 .Fo mparse_free
 .Fa "struct mparse *parse"
 .Fc
-.Ft const char *
-.Fo mparse_getkeep
-.Fa "const struct mparse *parse"
-.Fc
 .Ft void
-.Fo mparse_keep
-.Fa "struct mparse *parse"
+.Fo mparse_copy
+.Fa "const struct mparse *parse"
 .Fc
 .Ft int
 .Fo mparse_open
 .Fa "struct mparse *parse"
 .Fa "const char *fname"
 .Fc
-.Ft "enum mandoclevel"
+.Ft void
 .Fo mparse_readfd
 .Fa "struct mparse *parse"
 .Fa "int fd"
@@ -88,24 +66,9 @@
 .Fo mparse_reset
 .Fa "struct mparse *parse"
 .Fc
-.Ft void
+.Ft struct roff_meta *
 .Fo mparse_result
 .Fa "struct mparse *parse"
-.Fa "struct roff_man **man"
-.Fa "char **sodest"
-.Fc
-.Ft "const char *"
-.Fo mparse_strerror
-.Fa "enum mandocerr"
-.Fc
-.Ft "const char *"
-.Fo mparse_strlevel
-.Fa "enum mandoclevel"
-.Fc
-.Ft void
-.Fo mparse_updaterc
-.Fa "struct mparse *parse"
-.Fa "enum mandoclevel *rc"
 .Fc
 .In roff.h
 .Ft void
@@ -118,22 +81,10 @@
 .In mdoc.h
 .Vt extern const char * const * mdoc_argnames;
 .Vt extern const char * const * mdoc_macronames;
-.Ft void
-.Fo mdoc_validate
-.Fa "struct roff_man *mdoc"
-.Fc
 .In sys/types.h
 .In mandoc.h
 .In man.h
 .Vt extern const char * const * man_macronames;
-.Ft "const struct mparse *"
-.Fo man_mparse
-.Fa "const struct roff_man *man"
-.Fc
-.Ft void
-.Fo man_validate
-.Fa "struct roff_man *man"
-.Fc
 .Sh DESCRIPTION
 The
 .Nm mandoc
@@ -174,27 +125,13 @@ close it with
 retrieve the syntax tree with
 .Fn mparse_result ;
 .It
-depending on whether the
-.Fa macroset
-member of the returned
-.Vt struct roff_man
-is
-.Dv MACROSET_MDOC
-or
-.Dv MACROSET_MAN ,
-validate it with
-.Fn mdoc_validate
-or
-.Fn man_validate ,
-respectively;
-.It
 if information about the validity of the input is needed, fetch it with
 .Fn mparse_updaterc ;
 .It
 iterate over parse nodes with starting from the
 .Fa first
 member of the returned
-.Vt struct roff_man ;
+.Vt struct roff_meta ;
 .It
 free all allocated memory with
 .Fn mparse_free
@@ -232,9 +169,6 @@ and freed with
 This may be used across parsed input if
 .Fn mparse_reset
 is called between parses.
-.It Vt "mandocmsg"
-A prototype for a function to handle error and warning
-messages emitted by the parser.
 .El
 .Ss Functions
 .Bl -ohang
@@ -245,35 +179,11 @@ including text contained in its child nodes.
 To be used on children of the
 .Fa first
 member of
-.Vt struct roff_man .
+.Vt struct roff_meta .
 When it is no longer needed, the pointer returned from
 .Fn deroff
 can be passed to
 .Xr free 3 .
-.It Fn man_mparse
-Get the parser used for the current output.
-Declared in
-.In man.h ,
-implemented in
-.Pa man.c .
-.It Fn man_validate
-Validate the
-.Dv MACROSET_MAN
-parse tree obtained with
-.Fn mparse_result .
-Declared in
-.In man.h ,
-implemented in
-.Pa man.c .
-.It Fn mdoc_validate
-Validate the
-.Dv MACROSET_MDOC
-parse tree obtained with
-.Fn mparse_result .
-Declared in
-.In mdoc.h ,
-implemented in
-.Pa mdoc.c .
 .It Fn mparse_alloc
 Allocate a parser.
 The arguments have the following effect:
@@ -295,8 +205,8 @@ file inclusion requests are always honoured.
 Otherwise, if the request is the only content in an input file,
 only the file name is remembered, to be returned in the
 .Fa sodest
-argument of
-.Fn mparse_result .
+field of
+.Vt struct roff_meta .
 .Pp
 When the
 .Dv MPARSE_QUICK
@@ -305,24 +215,14 @@ This is for example useful in
 .Xr makewhatis 8
 .Fl Q
 to quickly build minimal databases.
-.It Ar mmin
-Can be set to
-.Dv MANDOCERR_BASE ,
-.Dv MANDOCERR_STYLE ,
-.Dv MANDOCERR_WARNING ,
-.Dv MANDOCERR_ERROR ,
-.Dv MANDOCERR_UNSUPP ,
-or
-.Dv MANDOCERR_MAX .
-Messages below the selected level will be suppressed.
-.It Ar mmsg
-A callback function to handle errors and warnings.
-See
-.Pa main.c
-for an example.
-If printing of error messages is not desired,
-.Dv NULL
-may be passed.
+.Pp
+When the
+.Dv MARSE_VALIDATE
+bit is set,
+.Fn mparse_result
+runs the validation functions before returning the syntax tree.
+This is almost always required, except in certain debugging scenarios,
+for example to dump unvalidated syntax trees.
 .It Ar os_e
 Operating system to check base system conventions for.
 If
@@ -361,19 +261,9 @@ Declared in
 .In mandoc.h ,
 implemented in
 .Pa read.c .
-.It Fn mparse_getkeep
-Acquire the keep buffer.
-Must follow a call of
-.Fn mparse_keep .
-Declared in
-.In mandoc.h ,
-implemented in
-.Pa read.c .
-.It Fn mparse_keep
-Instruct the parser to retain a copy of its parsed input.
-This can be acquired with subsequent
-.Fn mparse_getkeep
-calls.
+.It Fn mparse_copy
+Dump a copy of the input to the standard output; used for
+.Fl man T Ns Cm man .
 Declared in
 .In mandoc.h ,
 implemented in
@@ -421,35 +311,6 @@ implemented in
 .Pa read.c .
 .It Fn mparse_result
 Obtain the result of a parse.
-One of the two pointers will be filled in.
-Declared in
-.In mandoc.h ,
-implemented in
-.Pa read.c .
-.It Fn mparse_strerror
-Return a statically-allocated string representation of an error code.
-Declared in
-.In mandoc.h ,
-implemented in
-.Pa read.c .
-.It Fn mparse_strlevel
-Return a statically-allocated string representation of a level code.
-Declared in
-.In mandoc.h ,
-implemented in
-.Pa read.c .
-.It Fn mparse_updaterc
-If the highest warning or error level that occurred during the current
-.Fa parse
-is higher than
-.Pf * Fa rc ,
-update
-.Pf * Fa rc
-accordingly.
-This is useful after calling
-.Fn mdoc_validate
-or
-.Fn man_validate .
 Declared in
 .In mandoc.h ,
 implemented in

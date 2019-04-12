@@ -1,4 +1,4 @@
-/*	$Id: mdoc_state.c,v 1.9 2017/11/29 20:05:33 schwarze Exp $ */
+/*	$Id: mdoc_state.c,v 1.15 2019/01/01 07:42:04 schwarze Exp $ */
 /*
  * Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -17,6 +17,7 @@
 #include <sys/types.h>
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -24,19 +25,18 @@
 #include "roff.h"
 #include "mdoc.h"
 #include "libmandoc.h"
+#include "roff_int.h"
 #include "libmdoc.h"
 
 #define STATE_ARGS  struct roff_man *mdoc, struct roff_node *n
 
 typedef	void	(*state_handler)(STATE_ARGS);
 
-static	void	 state_bd(STATE_ARGS);
 static	void	 state_bl(STATE_ARGS);
-static	void	 state_dl(STATE_ARGS);
 static	void	 state_sh(STATE_ARGS);
 static	void	 state_sm(STATE_ARGS);
 
-static	const state_handler __state_handlers[MDOC_MAX - MDOC_Dd] = {
+static	const state_handler state_handlers[MDOC_MAX - MDOC_Dd] = {
 	NULL,		/* Dd */
 	NULL,		/* Dt */
 	NULL,		/* Os */
@@ -44,8 +44,8 @@ static	const state_handler __state_handlers[MDOC_MAX - MDOC_Dd] = {
 	NULL,		/* Ss */
 	NULL,		/* Pp */
 	NULL,		/* D1 */
-	state_dl,	/* Dl */
-	state_bd,	/* Bd */
+	NULL,		/* Dl */
+	NULL,		/* Bd */
 	NULL,		/* Ed */
 	state_bl,	/* Bl */
 	NULL,		/* El */
@@ -158,7 +158,6 @@ static	const state_handler __state_handlers[MDOC_MAX - MDOC_Dd] = {
 	NULL,		/* %U */
 	NULL,		/* Ta */
 };
-static const state_handler *const state_handlers = __state_handlers - MDOC_Dd;
 
 
 void
@@ -170,39 +169,12 @@ mdoc_state(struct roff_man *mdoc, struct roff_node *n)
 		return;
 
 	assert(n->tok >= MDOC_Dd && n->tok < MDOC_MAX);
-	if ( ! (mdoc_macros[n->tok].flags & MDOC_PROLOGUE))
+	if ((mdoc_macro(n->tok)->flags & MDOC_PROLOGUE) == 0)
 		mdoc->flags |= MDOC_PBODY;
 
-	handler = state_handlers[n->tok];
+	handler = state_handlers[n->tok - MDOC_Dd];
 	if (*handler)
 		(*handler)(mdoc, n);
-}
-
-void
-mdoc_state_reset(struct roff_man *mdoc)
-{
-
-	roff_setreg(mdoc->roff, "nS", 0, '=');
-	mdoc->flags = 0;
-}
-
-static void
-state_bd(STATE_ARGS)
-{
-	enum mdocargt arg;
-
-	if (n->type != ROFFT_HEAD &&
-	    (n->type != ROFFT_BODY || n->end != ENDBODY_NOT))
-		return;
-
-	if (n->parent->args == NULL)
-		return;
-
-	arg = n->parent->args->argv[0].arg;
-	if (arg != MDOC_Literal && arg != MDOC_Unfilled)
-		return;
-
-	state_dl(mdoc, n);
 }
 
 static void
@@ -226,22 +198,6 @@ state_bl(STATE_ARGS)
 		default:
 			break;
 		}
-	}
-}
-
-static void
-state_dl(STATE_ARGS)
-{
-
-	switch (n->type) {
-	case ROFFT_HEAD:
-		mdoc->flags |= MDOC_LITERAL;
-		break;
-	case ROFFT_BODY:
-		mdoc->flags &= ~MDOC_LITERAL;
-		break;
-	default:
-		break;
 	}
 }
 

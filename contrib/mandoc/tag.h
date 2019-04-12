@@ -1,4 +1,4 @@
-/*      $Id: tag.h,v 1.7 2015/11/20 21:59:54 schwarze Exp $    */
+/*      $Id: tag.h,v 1.8 2018/11/22 11:30:23 schwarze Exp $    */
 /*
  * Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -18,6 +18,7 @@
 struct	tag_files {
 	char	 ofn[20];
 	char	 tfn[20];
+	char	*tagname;
 	int	 ofd;
 	int	 tfd;
 	pid_t	 tcpgid;

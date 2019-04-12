@@ -36,7 +36,7 @@ elif [ "X$1" = "X-u" ]; then
   MOPT="-Ios=OpenBSD -Wall -Tutf8 $MOPT"
   COLPIPE="cat"
 else
-  ROFF="groff -et -ww -mtty-char -Tascii -P -c"
+  ROFF="groff -ket -ww -mtty-char -Tascii -P -c"
   MOPT="-Ios=OpenBSD -Wall -Tascii $MOPT"
   COLPIPE="cat"
 fi
@@ -51,7 +51,7 @@ while [ -n "$1" ]; do
   for i in roff mandoc; do
     [ -s /tmp/$i.err ] && echo "$i errors:" && cat /tmp/$i.err
   done
-  diff -au /tmp/roff.out /tmp/mandoc.out 2>&1
+  diff -au $DIFFOPT /tmp/roff.out /tmp/mandoc.out 2>&1
 done
 
 exit 0
