@@ -634,7 +634,7 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
     struct pci_vtscsi_queue *queue, int num)
 {
 	struct pci_vtscsi_worker *worker;
-	char threadname[16];
+	char tname[MAXCOMLEN + 1];
 	int i;
 
 	queue->vsq_sc = sc;
@@ -653,8 +653,8 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
 		pthread_create(&worker->vsw_thread, NULL, &pci_vtscsi_proc,
 		    (void *)worker);
 
-		sprintf(threadname, "virtio-scsi:%d-%d", num, i);
-		pthread_set_name_np(worker->vsw_thread, threadname);
+		snprintf(tname, sizeof(tname), "vtscsi:%d-%d", num, i);
+		pthread_set_name_np(worker->vsw_thread, tname);
 		LIST_INSERT_HEAD(&queue->vsq_workers, worker, vsw_link);
 	}
 
