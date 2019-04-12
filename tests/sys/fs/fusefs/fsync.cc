@@ -179,8 +179,7 @@ TEST_F(Fsync, eio)
  * subsequent calls to VOP_FSYNC will succeed automatically without being sent
  * to the filesystem daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
-TEST_F(Fsync, DISABLED_enosys)
+TEST_F(Fsync, enosys)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";

@@ -141,15 +141,14 @@ TEST_F(Getxattr, enoattr)
  * failure and all future VOP_GETEXTATTR calls will fail with EOPNOTSUPP
  * without querying the filesystem daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
-TEST_F(Getxattr, DISABLED_enosys)
+TEST_F(Getxattr, enosys)
 {
 	char data[80];
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 	expect_getxattr(ino, "user.foo", ReturnErrno(ENOSYS));
 
 	r = extattr_get_file(FULLPATH, ns, "foo", data, sizeof(data));
@@ -265,13 +264,12 @@ TEST_F(Getxattr, user)
  * failure and all future VOP_LISTEXTATTR calls will fail with EOPNOTSUPP
  * without querying the filesystem daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
-TEST_F(Listxattr, DISABLED_enosys)
+TEST_F(Listxattr, enosys)
 {
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 	expect_listxattr(ino, 0, ReturnErrno(ENOSYS));
 
 	ASSERT_EQ(-1, extattr_list_file(FULLPATH, ns, NULL, 0));
@@ -485,13 +483,12 @@ TEST_F(Removexattr, enoattr)
  * failure and all future VOP_DELETEEXTATTR calls will fail with EOPNOTSUPP
  * without querying the filesystem daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
-TEST_F(Removexattr, DISABLED_enosys)
+TEST_F(Removexattr, enosys)
 {
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 	expect_removexattr(ino, "user.foo", ENOSYS);
 
 	ASSERT_EQ(-1, extattr_delete_file(FULLPATH, ns, "foo"));
@@ -533,8 +530,7 @@ TEST_F(Removexattr, system)
  * failure and all future VOP_SETEXTATTR calls will fail with EOPNOTSUPP
  * without querying the filesystem daemon
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
-TEST_F(Setxattr, DISABLED_enosys)
+TEST_F(Setxattr, enosys)
 {
 	uint64_t ino = 42;
 	const char value[] = "whatever";
@@ -542,7 +538,7 @@ TEST_F(Setxattr, DISABLED_enosys)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 	expect_setxattr(ino, "user.foo", value, ReturnErrno(ENOSYS));
 
 	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
