@@ -1,6 +1,6 @@
-/*	$Id: mdoc_man.c,v 1.126 2018/04/11 17:11:13 schwarze Exp $ */
+/*	$Id: mdoc_man.c,v 1.132 2019/01/04 03:17:36 schwarze Exp $ */
 /*
- * Copyright (c) 2011-2018 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2019 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -36,7 +36,7 @@
 typedef	int	(*int_fp)(DECL_ARGS);
 typedef	void	(*void_fp)(DECL_ARGS);
 
-struct	manact {
+struct	mdoc_man_act {
 	int_fp		  cond; /* DON'T run actions */
 	int_fp		  pre; /* pre-node action */
 	void_fp		  post; /* post-node action */
@@ -75,6 +75,7 @@ static	void	  post_pf(DECL_ARGS);
 static	void	  post_sect(DECL_ARGS);
 static	void	  post_vt(DECL_ARGS);
 static	int	  pre__t(DECL_ARGS);
+static	int	  pre_abort(DECL_ARGS);
 static	int	  pre_an(DECL_ARGS);
 static	int	  pre_ap(DECL_ARGS);
 static	int	  pre_aq(DECL_ARGS);
@@ -103,6 +104,7 @@ static	int	  pre_lk(DECL_ARGS);
 static	int	  pre_li(DECL_ARGS);
 static	int	  pre_nm(DECL_ARGS);
 static	int	  pre_no(DECL_ARGS);
+static	void	  pre_noarg(DECL_ARGS);
 static	int	  pre_ns(DECL_ARGS);
 static	void	  pre_onearg(DECL_ARGS);
 static	int	  pre_pp(DECL_ARGS);
@@ -124,12 +126,14 @@ static	void	  print_width(const struct mdoc_bl *,
 static	void	  print_count(int *);
 static	void	  print_node(DECL_ARGS);
 
-static	const void_fp roff_manacts[ROFF_MAX] = {
+static const void_fp roff_man_acts[ROFF_MAX] = {
 	pre_br,		/* br */
 	pre_onearg,	/* ce */
+	pre_noarg,	/* fi */
 	pre_ft,		/* ft */
 	pre_onearg,	/* ll */
 	pre_onearg,	/* mc */
+	pre_noarg,	/* nf */
 	pre_onearg,	/* po */
 	pre_onearg,	/* rj */
 	pre_sp,		/* sp */
@@ -137,7 +141,7 @@ static	const void_fp roff_manacts[ROFF_MAX] = {
 	pre_onearg,	/* ti */
 };
 
-static	const struct manact __manacts[MDOC_MAX - MDOC_Dd] = {
+static const struct mdoc_man_act mdoc_man_acts[MDOC_MAX - MDOC_Dd] = {
 	{ NULL, NULL, NULL, NULL, NULL }, /* Dd */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Dt */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Os */
@@ -172,7 +176,7 @@ static	const struct manact __manacts[MDOC_MAX - MDOC_Dd] = {
 	{ cond_head, pre_enc, NULL, "\\- ", NULL }, /* Nd */
 	{ NULL, pre_nm, post_nm, NULL, NULL }, /* Nm */
 	{ cond_body, pre_enc, post_enc, "[", "]" }, /* Op */
-	{ NULL, pre_Ft, post_font, NULL, NULL }, /* Ot */
+	{ NULL, pre_abort, NULL, NULL, NULL }, /* Ot */
 	{ NULL, pre_em, post_font, NULL, NULL }, /* Pa */
 	{ NULL, pre_ex, NULL, NULL, NULL }, /* Rv */
 	{ NULL, NULL, NULL, NULL, NULL }, /* St */
@@ -245,7 +249,7 @@ static	const struct manact __manacts[MDOC_MAX - MDOC_Dd] = {
 	{ NULL, pre_em, post_font, NULL, NULL }, /* Fr */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Ud */
 	{ NULL, NULL, post_lb, NULL, NULL }, /* Lb */
-	{ NULL, pre_pp, NULL, NULL, NULL }, /* Lp */
+	{ NULL, pre_abort, NULL, NULL, NULL }, /* Lp */
 	{ NULL, pre_lk, NULL, NULL, NULL }, /* Lk */
 	{ NULL, pre_em, post_font, NULL, NULL }, /* Mt */
 	{ cond_body, pre_enc, post_enc, "{", "}" }, /* Brq */
@@ -259,7 +263,7 @@ static	const struct manact __manacts[MDOC_MAX - MDOC_Dd] = {
 	{ NULL, NULL, post_percent, NULL, NULL }, /* %U */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Ta */
 };
-static	const struct manact *const manacts = __manacts - MDOC_Dd;
+static const struct mdoc_man_act *mdoc_man_act(enum roff_tok);
 
 static	int		outflags;
 #define	MMAN_spc	(1 << 0)  /* blank character before next word */
@@ -290,6 +294,13 @@ static	struct {
 }	fontqueue;
 
 
+static const struct mdoc_man_act *
+mdoc_man_act(enum roff_tok tok)
+{
+	assert(tok >= MDOC_Dd && tok <= MDOC_MAX);
+	return mdoc_man_acts + (tok - MDOC_Dd);
+}
+
 static int
 man_strlen(const char *cp)
 {
@@ -317,6 +328,7 @@ man_strlen(const char *cp)
 		case ESCAPE_UNICODE:
 		case ESCAPE_NUMBERED:
 		case ESCAPE_SPECIAL:
+		case ESCAPE_UNDEF:
 		case ESCAPE_OVERSTRIKE:
 			if (skip)
 				skip = 0;
@@ -593,20 +605,7 @@ print_count(int *count)
 }
 
 void
-man_man(void *arg, const struct roff_man *man)
-{
-
-	/*
-	 * Dump the keep buffer.
-	 * We're guaranteed by now that this exists (is non-NULL).
-	 * Flush stdout afterward, just in case.
-	 */
-	fputs(mparse_getkeep(man_mparse(man)), stdout);
-	fflush(stdout);
-}
-
-void
-man_mdoc(void *arg, const struct roff_man *mdoc)
+man_mdoc(void *arg, const struct roff_meta *mdoc)
 {
 	struct roff_node *n;
 
@@ -619,9 +618,8 @@ man_mdoc(void *arg, const struct roff_man *mdoc)
 	}
 
 	printf(".TH \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"\n",
-	    mdoc->meta.title,
-	    (mdoc->meta.msec == NULL ? "" : mdoc->meta.msec),
-	    mdoc->meta.date, mdoc->meta.os, mdoc->meta.vol);
+	    mdoc->title, (mdoc->msec == NULL ? "" : mdoc->msec),
+	    mdoc->date, mdoc->os, mdoc->vol);
 
 	/* Disable hyphenation and if nroff, disable justification. */
 	printf(".nh\n.if n .ad l");
@@ -633,16 +631,16 @@ man_mdoc(void *arg, const struct roff_man *mdoc)
 		*fontqueue.tail = 'R';
 	}
 	for (; n != NULL; n = n->next)
-		print_node(&mdoc->meta, n);
+		print_node(mdoc, n);
 	putchar('\n');
 }
 
 static void
 print_node(DECL_ARGS)
 {
-	const struct manact	*act;
-	struct roff_node	*sub;
-	int			 cond, do_sub;
+	const struct mdoc_man_act	*act;
+	struct roff_node		*sub;
+	int				 cond, do_sub;
 
 	if (n->flags & NODE_NOPRT)
 		return;
@@ -680,15 +678,14 @@ print_node(DECL_ARGS)
 		else if (outflags & MMAN_Sm)
 			outflags |= MMAN_spc;
 	} else if (n->tok < ROFF_MAX) {
-		(*roff_manacts[n->tok])(meta, n);
+		(*roff_man_acts[n->tok])(meta, n);
 		return;
 	} else {
-		assert(n->tok >= MDOC_Dd && n->tok < MDOC_MAX);
 		/*
 		 * Conditionally run the pre-node action handler for a
 		 * node.
 		 */
-		act = manacts + n->tok;
+		act = mdoc_man_act(n->tok);
 		cond = act->cond == NULL || (*act->cond)(meta, n);
 		if (cond && act->pre != NULL &&
 		    (n->end == ENDBODY_NOT || n->child != NULL))
@@ -732,11 +729,17 @@ cond_body(DECL_ARGS)
 }
 
 static int
+pre_abort(DECL_ARGS)
+{
+	abort();
+}
+
+static int
 pre_enc(DECL_ARGS)
 {
 	const char	*prefix;
 
-	prefix = manacts[n->tok].prefix;
+	prefix = mdoc_man_act(n->tok)->prefix;
 	if (NULL == prefix)
 		return 1;
 	print_word(prefix);
@@ -749,7 +752,7 @@ post_enc(DECL_ARGS)
 {
 	const char *suffix;
 
-	suffix = manacts[n->tok].suffix;
+	suffix = mdoc_man_act(n->tok)->suffix;
 	if (NULL == suffix)
 		return;
 	outflags &= ~(MMAN_spc | MMAN_nl);
@@ -774,7 +777,7 @@ static void
 post_percent(DECL_ARGS)
 {
 
-	if (pre_em == manacts[n->tok].pre)
+	if (mdoc_man_act(n->tok)->pre == pre_em)
 		font_pop();
 	if (n->next) {
 		print_word(",");
@@ -820,7 +823,7 @@ pre_sect(DECL_ARGS)
 
 	if (n->type == ROFFT_HEAD) {
 		outflags |= MMAN_sp;
-		print_block(manacts[n->tok].prefix, 0);
+		print_block(mdoc_man_act(n->tok)->prefix, 0);
 		print_word("");
 		putchar('\"');
 		outflags &= ~MMAN_spc;
@@ -936,7 +939,6 @@ post_aq(DECL_ARGS)
 static int
 pre_bd(DECL_ARGS)
 {
-
 	outflags &= ~(MMAN_PP | MMAN_sp | MMAN_br);
 
 	if (DISP_unfilled == n->norm->Bd.type ||
@@ -951,12 +953,27 @@ pre_bd(DECL_ARGS)
 static void
 post_bd(DECL_ARGS)
 {
+	enum roff_tok	 bef, now;
 
 	/* Close out this display. */
 	print_line(".RE", MMAN_nl);
-	if (DISP_unfilled == n->norm->Bd.type ||
-	    DISP_literal  == n->norm->Bd.type)
-		print_line(".fi", MMAN_nl);
+	bef = n->flags & NODE_NOFILL ? ROFF_nf : ROFF_fi;
+	if (n->last == NULL)
+		now = n->norm->Bd.type == DISP_unfilled ||
+		    n->norm->Bd.type == DISP_literal ? ROFF_nf : ROFF_fi;
+	else if (n->last->tok == ROFF_nf)
+		now = ROFF_nf;
+	else if (n->last->tok == ROFF_fi)
+		now = ROFF_fi;
+	else
+		now = n->last->flags & NODE_NOFILL ? ROFF_nf : ROFF_fi;
+	if (bef != now) {
+		outflags |= MMAN_nl;
+		print_word(".");
+		outflags &= ~MMAN_spc;
+		print_word(roff_name[bef]);
+		outflags |= MMAN_nl;
+	}
 
 	/* Maybe we are inside an enclosing list? */
 	if (NULL != n->parent->next)
@@ -1607,7 +1624,6 @@ pre_onearg(DECL_ARGS)
 static int
 pre_li(DECL_ARGS)
 {
-
 	font_push('R');
 	return 1;
 }
@@ -1640,7 +1656,6 @@ pre_nm(DECL_ARGS)
 static void
 post_nm(DECL_ARGS)
 {
-
 	switch (n->type) {
 	case ROFFT_BLOCK:
 		outflags &= ~MMAN_Bk;
@@ -1658,15 +1673,23 @@ post_nm(DECL_ARGS)
 static int
 pre_no(DECL_ARGS)
 {
-
 	outflags |= MMAN_spc_force;
 	return 1;
+}
+
+static void
+pre_noarg(DECL_ARGS)
+{
+	outflags |= MMAN_nl;
+	print_word(".");
+	outflags &= ~MMAN_spc;
+	print_word(roff_name[n->tok]);
+	outflags |= MMAN_nl;
 }
 
 static int
 pre_ns(DECL_ARGS)
 {
-
 	outflags &= ~MMAN_spc;
 	return 0;
 }

@@ -1,6 +1,6 @@
-.\"	$Id: man.conf.5,v 1.5 2017/08/22 18:17:52 schwarze Exp $
+.\"	$Id: man.conf.5,v 1.6 2018/10/02 14:56:47 schwarze Exp $
 .\"
-.\" Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: August 22 2017 $
+.Dd $Mdocdate: October 2 2018 $
 .Dt MAN.CONF 5
 .Os
 .Sh NAME
@@ -98,6 +98,7 @@ manual.
 .It Ic man      Ta string   Ta Cm html Ta path for \&Xr links
 .It Ic paper    Ta string   Ta Cm ps , pdf Ta paper size
 .It Ic style    Ta string   Ta Cm html Ta CSS file
+.It Ic toc      Ta none     Ta Cm html Ta print table of contents
 .It Ic width    Ta integer  Ta Cm ascii , utf8 Ta right margin
 .El
 .It Ic _whatdb Ar path Ns Cm /whatis.db

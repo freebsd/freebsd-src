@@ -1,6 +1,11 @@
-/* $Id: mandoc.css,v 1.36 2018/07/23 22:51:26 schwarze Exp $ */
+/* $Id: mandoc.css,v 1.45 2019/03/01 10:57:18 schwarze Exp $ */
 /*
  * Standard style sheet for mandoc(1) -Thtml and man.cgi(8).
+ *
+ * Written by Ingo Schwarze <schwarze@openbsd.org>.
+ * I place this file into the public domain.
+ * Permission to use, copy, modify, and distribute it for any purpose
+ * with or without fee is hereby granted, without any conditions.
  */
 
 /* Global defaults. */
@@ -8,8 +13,16 @@
 html {		max-width: 65em; }
 body {		font-family: Helvetica,Arial,sans-serif; }
 table {		margin-top: 0em;
-		margin-bottom: 0em; }
-td {		vertical-align: top; }
+		margin-bottom: 0em;
+		border-collapse: collapse; }
+/* Some browsers set border-color in a browser style for tbody,
+ * but not for table, resulting in inconsistent border styling. */
+tbody {		border-color: inherit; }
+tr {		border-color: inherit; }
+td {		vertical-align: top;
+		padding-left: 0.2em;
+		padding-right: 0.2em;
+		border-color: inherit; }
 ul, ol, dl {	margin-top: 0em;
 		margin-bottom: 0em; }
 li, dt {	margin-top: 1em; }
@@ -52,12 +65,14 @@ td.foot-os {	text-align: right; }
 
 .manual-text {
 		margin-left: 3.8em; }
-.Nd {		display: inline; }
-.Sh {		margin-top: 1.2em;
+.Nd { }
+section.Sh { }
+h1.Sh {		margin-top: 1.2em;
 		margin-bottom: 0.6em;
 		margin-left: -3.2em;
 		font-size: 110%; }
-.Ss {		margin-top: 1.2em;
+section.Ss { }
+h2.Ss {		margin-top: 1.2em;
 		margin-bottom: 0.6em;
 		margin-left: -1.2em;
 		font-size: 105%; }
@@ -106,20 +121,25 @@ td.foot-os {	text-align: right; }
 .Bl-ohang > dt { }
 .Bl-ohang > dd {
 		margin-left: 0em; }
-.Bl-tag {	margin-left: 5.5em; }
+.Bl-tag {	margin-top: 0.6em;
+		margin-left: 5.5em; }
 .Bl-tag > dt {
 		float: left;
 		margin-top: 0em;
 		margin-left: -5.5em;
-		padding-right: 1.2em;
+		padding-right: 0.5em;
 		vertical-align: top; }
 .Bl-tag > dd {
 		clear: right;
 		width: 100%;
 		margin-top: 0em;
 		margin-left: 0em;
+		margin-bottom: 0.6em;
 		vertical-align: top;
 		overflow: auto; }
+.Bl-compact {	margin-top: 0em; }
+.Bl-compact > dd {
+		margin-bottom: 0em; }
 .Bl-compact > dt {
 		margin-top: 0em; }
 
@@ -151,7 +171,7 @@ td.foot-os {	text-align: right; }
 .RsV { }
 
 .eqn { }
-.tbl { }
+.tbl td {	vertical-align: middle; }
 
 .HP {		margin-left: 3.8em;
 		text-indent: -3.8em; }
@@ -236,12 +256,86 @@ a.In { }
 		font-weight: normal;
 		font-family: monospace; }
 
+/* Tooltip support. */
+
+h1.Sh, h2.Ss {	position: relative; }
+.An, .Ar, .Cd, .Cm, .Dv, .Em, .Er, .Ev, .Fa, .Fd, .Fl, .Fn, .Ft,
+.Ic, code.In, .Lb, .Lk, .Ms, .Mt, .Nd, code.Nm, .Pa, .Rs,
+.St, .Sx, .Sy, .Va, .Vt, .Xr {
+		display: inline-block;
+		position: relative; }
+
+.An::before {	content: "An"; }
+.Ar::before {	content: "Ar"; }
+.Cd::before {	content: "Cd"; }
+.Cm::before {	content: "Cm"; }
+.Dv::before {	content: "Dv"; }
+.Em::before {	content: "Em"; }
+.Er::before {	content: "Er"; }
+.Ev::before {	content: "Ev"; }
+.Fa::before {	content: "Fa"; }
+.Fd::before {	content: "Fd"; }
+.Fl::before {	content: "Fl"; }
+.Fn::before {	content: "Fn"; }
+.Ft::before {	content: "Ft"; }
+.Ic::before {	content: "Ic"; }
+code.In::before { content: "In"; }
+.Lb::before {	content: "Lb"; }
+.Lk::before {	content: "Lk"; }
+.Ms::before {	content: "Ms"; }
+.Mt::before {	content: "Mt"; }
+.Nd::before {	content: "Nd"; }
+code.Nm::before { content: "Nm"; }
+.Pa::before {	content: "Pa"; }
+.Rs::before {	content: "Rs"; }
+h1.Sh::before {	content: "Sh"; }
+h2.Ss::before {	content: "Ss"; }
+.St::before {	content: "St"; }
+.Sx::before {	content: "Sx"; }
+.Sy::before {	content: "Sy"; }
+.Va::before {	content: "Va"; }
+.Vt::before {	content: "Vt"; }
+.Xr::before {	content: "Xr"; }
+
+.An::before, .Ar::before, .Cd::before, .Cm::before,
+.Dv::before, .Em::before, .Er::before, .Ev::before,
+.Fa::before, .Fd::before, .Fl::before, .Fn::before, .Ft::before,
+.Ic::before, code.In::before, .Lb::before, .Lk::before,
+.Ms::before, .Mt::before, .Nd::before, code.Nm::before,
+.Pa::before, .Rs::before,
+h1.Sh::before, h2.Ss::before, .St::before, .Sx::before, .Sy::before,
+.Va::before, .Vt::before, .Xr::before {
+		opacity: 0;
+		transition: .15s ease opacity;
+		pointer-events: none;
+		position: absolute;
+		bottom: 100%;
+		box-shadow: 0 0 .35em #000;
+		padding: .15em .25em;
+		white-space: nowrap;
+		font-family: Helvetica,Arial,sans-serif;
+		font-style: normal;
+		font-weight: bold;
+		color: black;
+		background: #fff; }
+.An:hover::before, .Ar:hover::before, .Cd:hover::before, .Cm:hover::before,
+.Dv:hover::before, .Em:hover::before, .Er:hover::before, .Ev:hover::before,
+.Fa:hover::before, .Fd:hover::before, .Fl:hover::before, .Fn:hover::before,
+.Ft:hover::before, .Ic:hover::before, code.In:hover::before,
+.Lb:hover::before, .Lk:hover::before, .Ms:hover::before, .Mt:hover::before,
+.Nd:hover::before, code.Nm:hover::before, .Pa:hover::before,
+.Rs:hover::before, h1.Sh:hover::before, h2.Ss:hover::before, .St:hover::before,
+.Sx:hover::before, .Sy:hover::before, .Va:hover::before, .Vt:hover::before,
+.Xr:hover::before {
+		opacity: 1;
+		pointer-events: inherit; }
+
 /* Overrides to avoid excessive margins on small devices. */
 
 @media (max-width: 37.5em) {
 .manual-text {
 		margin-left: 0.5em; }
-.Sh, .Ss {	margin-left: 0em; }
+h1.Sh, h2.Ss {	margin-left: 0em; }
 .Bd-indent {	margin-left: 2em; }
 .Bl-hang > dd {
 		margin-left: 2em; }
