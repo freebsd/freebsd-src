@@ -96,7 +96,7 @@ TEST_F(Flush, open_twice)
 
 	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 1);
-	expect_flush(ino, 2, 0, ReturnErrno(0));
+	expect_flush(ino, 2, getpid(), ReturnErrno(0));
 	expect_release();
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -126,7 +126,7 @@ TEST_F(Flush, eio)
 
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
-	expect_flush(ino, 1, 0, ReturnErrno(EIO));
+	expect_flush(ino, 1, getpid(), ReturnErrno(EIO));
 	expect_release();
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -152,7 +152,7 @@ TEST_F(Flush, enosys)
 	expect_lookup(RELPATH0, ino0, 1);
 	expect_open(ino0, 0, 1);
 	/* On the 2nd close, FUSE_FLUSH won't be sent at all */
-	expect_flush(ino0, 1, 0, ReturnErrno(ENOSYS));
+	expect_flush(ino0, 1, getpid(), ReturnErrno(ENOSYS));
 	expect_release();
 
 	expect_lookup(RELPATH1, ino1, 1);
@@ -180,7 +180,7 @@ TEST_F(Flush, flush)
 
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
-	expect_flush(ino, 1, 0, ReturnErrno(0));
+	expect_flush(ino, 1, getpid(), ReturnErrno(0));
 	expect_release();
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -193,8 +193,7 @@ TEST_F(Flush, flush)
  * When closing a file with a POSIX file lock, flush should release the lock,
  * _even_if_ it's not the process's last file descriptor for this file.
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
-TEST_F(FlushWithLocks, DISABLED_unlock_on_close)
+TEST_F(FlushWithLocks, unlock_on_close)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -203,7 +202,7 @@ TEST_F(FlushWithLocks, DISABLED_unlock_on_close)
 	struct flock fl;
 	pid_t pid = getpid();
 
-	expect_lookup(RELPATH, ino, 1);
+	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -212,10 +211,7 @@ TEST_F(FlushWithLocks, DISABLED_unlock_on_close)
 				in->body.setlk.fh == FH);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		SET_OUT_HEADER_LEN(out, setlk);
-		out->body.setlk.lk = in->body.setlk.lk;
-	})));
+	).WillOnce(Invoke(ReturnErrno(0)));
 	expect_flush(ino, 1, pid, ReturnErrno(0));
 
 	fd = open(FULLPATH, O_RDWR);
@@ -228,7 +224,8 @@ TEST_F(FlushWithLocks, DISABLED_unlock_on_close)
 	fl.l_sysid = 0;
 	ASSERT_NE(-1, fcntl(fd, F_SETLKW, &fl)) << strerror(errno);
 
-	fd2 = dup(fd);
+	fd2 = open(FULLPATH, O_WRONLY);
+	ASSERT_LE(0, fd2) << strerror(errno);
 	ASSERT_EQ(0, close(fd2)) << strerror(errno);
 	/* Deliberately leak fd */
 }

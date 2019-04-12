@@ -205,6 +205,7 @@ struct fuse_data {
 #define FSESS_NO_NAMECACHE        0x0400 /* disable name cache */
 #define FSESS_NO_MMAP             0x0800 /* disable mmap */
 #define FSESS_BROKENIO            0x1000 /* fix broken io */
+#define FSESS_POSIX_LOCKS         0x2000 /* daemon supports POSIX locks */
 
 enum fuse_data_cache_mode {
 	FUSE_CACHE_UC,

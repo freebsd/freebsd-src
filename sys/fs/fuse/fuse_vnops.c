@@ -119,6 +119,7 @@ SDT_PROBE_DEFINE2(fuse, , vnops, trace, "int", "char*");
 
 /* vnode ops */
 static vop_access_t fuse_vnop_access;
+static vop_advlock_t fuse_vnop_advlock;
 static vop_close_t fuse_vnop_close;
 static vop_create_t fuse_vnop_create;
 static vop_deleteextattr_t fuse_vnop_deleteextattr;
@@ -153,6 +154,7 @@ static vop_print_t fuse_vnop_print;
 struct vop_vector fuse_vnops = {
 	.vop_default = &default_vnodeops,
 	.vop_access = fuse_vnop_access,
+	.vop_advlock = fuse_vnop_advlock,
 	.vop_close = fuse_vnop_close,
 	.vop_create = fuse_vnop_create,
 	.vop_deleteextattr = fuse_vnop_deleteextattr,
@@ -266,7 +268,7 @@ fuse_flush(struct vnode *vp, struct ucred *cred, pid_t pid, int fflag)
 	if (!fsess_isimpl(vnode_mount(vp), FUSE_FLUSH))
 		return 0;
 
-	err = fuse_filehandle_get(vp, fflag, &fufh, cred, pid);
+	err = fuse_filehandle_getrw(vp, fflag, &fufh, cred, pid);
 	if (err)
 		return err;
 
@@ -274,6 +276,12 @@ fuse_flush(struct vnode *vp, struct ucred *cred, pid_t pid, int fflag)
 	fdisp_make_vp(&fdi, FUSE_FLUSH, vp, td, cred);
 	ffi = fdi.indata;
 	ffi->fh = fufh->fh_id;
+	/* 
+	 * If the file has a POSIX lock then we're supposed to set lock_owner.
+	 * If not, then lock_owner is undefined.  So we may as well always set
+	 * it.
+	 */
+	ffi->lock_owner = td->td_proc->p_pid;
 
 	err = fdisp_wait_answ(&fdi);
 	if (err == ENOSYS) {
@@ -327,6 +335,92 @@ fuse_vnop_access(struct vop_access_args *ap)
 	}
 
 	err = fuse_internal_access(vp, accmode, ap->a_td, ap->a_cred);
+	return err;
+}
+
+/*
+ * struct vop_advlock_args {
+ *	struct vop_generic_args a_gen;
+ *	struct vnode *a_vp;
+ *	void *a_id;
+ *	int a_op;
+ *	struct flock *a_fl;
+ *	int a_flags;
+ * }
+ */
+static int
+fuse_vnop_advlock(struct vop_advlock_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct flock *fl = ap->a_fl;
+	struct thread *td = curthread;
+	struct ucred *cred = td->td_ucred;
+	pid_t pid = td->td_proc->p_pid;
+	struct fuse_filehandle *fufh;
+	struct fuse_dispatcher fdi;
+	struct fuse_lk_in *fli;
+	struct fuse_lk_out *flo;
+	enum fuse_opcode op;
+	int dataflags, err;
+
+	dataflags = fuse_get_mpdata(vnode_mount(vp))->dataflags;
+
+	if (fuse_isdeadfs(vp)) {
+		return ENXIO;
+	}
+
+	if (!(dataflags & FSESS_POSIX_LOCKS))
+		return vop_stdadvlock(ap);
+
+	err = fuse_filehandle_get_anyflags(vp, &fufh, cred, pid);
+	if (err)
+		return err;
+
+	fdisp_init(&fdi, sizeof(*fli));
+
+	switch(ap->a_op) {
+	case F_GETLK:
+		op = FUSE_GETLK;
+		break;
+	case F_SETLK:
+		op = FUSE_SETLK;
+		break;
+	case F_SETLKW:
+		op = FUSE_SETLKW;
+		break;
+	default:
+		return EINVAL;
+	}
+
+	fdisp_make_vp(&fdi, op, vp, td, cred);
+	fli = fdi.indata;
+	fli->fh = fufh->fh_id;
+	fli->owner = fl->l_pid;
+	fli->lk.start = fl->l_start;
+	if (fl->l_len != 0)
+		fli->lk.end = fl->l_start + fl->l_len - 1;
+	else
+		fli->lk.end = INT64_MAX;
+	fli->lk.type = fl->l_type;
+	fli->lk.pid = fl->l_pid;
+
+	err = fdisp_wait_answ(&fdi);
+	fdisp_destroy(&fdi);
+
+	if (err == 0 && op == FUSE_GETLK) {
+		flo = fdi.answ;
+		fl->l_type = flo->lk.type;
+		fl->l_pid = flo->lk.pid;
+		if (flo->lk.type != F_UNLCK) {
+			fl->l_start = flo->lk.start;
+			if (flo->lk.end == INT64_MAX)
+				fl->l_len = 0;
+			else
+				fl->l_len = flo->lk.end - flo->lk.start + 1;
+			fl->l_start = flo->lk.start;
+		}
+	}
+
 	return err;
 }
 

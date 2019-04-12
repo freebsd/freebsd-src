@@ -694,6 +694,8 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 	if (fuse_libabi_geq(data, 7, 5)) {
 		if (fticket_resp(tick)->len == sizeof(struct fuse_init_out)) {
 			data->max_write = fiio->max_write;
+			if (fiio->flags & FUSE_POSIX_LOCKS)
+				data->dataflags |= FSESS_POSIX_LOCKS;
 		} else {
 			err = EINVAL;
 		}
@@ -731,7 +733,7 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 * the size of a buffer cache block.
 	 */
 	fiii->max_readahead = maxbcachebuf;
-	fiii->flags = 0;
+	fiii->flags = FUSE_POSIX_LOCKS;
 
 	fuse_insert_callback(fdi.tick, fuse_internal_init_callback);
 	fuse_insert_message(fdi.tick);

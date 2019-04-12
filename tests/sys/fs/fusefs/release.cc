@@ -82,7 +82,7 @@ TEST_F(Release, dup)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_flush(ino, 1, ReturnErrno(0));
-	expect_release(ino, 0, O_RDONLY, 0);
+	expect_release(ino, getpid(), O_RDONLY, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -111,7 +111,7 @@ TEST_F(Release, eio)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_flush(ino, 1, ReturnErrno(0));
-	expect_release(ino, 0, O_WRONLY, EIO);
+	expect_release(ino, getpid(), O_WRONLY, EIO);
 	
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -133,7 +133,7 @@ TEST_F(Release, DISABLED_flags)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_flush(ino, 1, ReturnErrno(0));
-	expect_release(ino, 0, O_RDWR | O_APPEND, 0);
+	expect_release(ino, getpid(), O_RDWR | O_APPEND, 0);
 	
 	fd = open(FULLPATH, O_RDWR | O_APPEND);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -156,12 +156,12 @@ TEST_F(Release, multiple_opens)
 	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 2);
 	expect_flush(ino, 2, ReturnErrno(0));
-	expect_release(ino, 0, O_RDONLY, 0);
+	expect_release(ino, getpid(), O_RDONLY, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
 
-	expect_release(ino, 0, O_WRONLY, 0);
+	expect_release(ino, getpid(), O_WRONLY, 0);
 	fd2 = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd2) << strerror(errno);
 
@@ -179,7 +179,7 @@ TEST_F(Release, ok)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_flush(ino, 1, ReturnErrno(0));
-	expect_release(ino, 0, O_RDONLY, 0);
+	expect_release(ino, getpid(), O_RDONLY, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -188,8 +188,7 @@ TEST_F(Release, ok)
 }
 
 /* When closing a file with a POSIX file lock, release should release the lock*/
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
-TEST_F(ReleaseWithLocks, DISABLED_unlock_on_close)
+TEST_F(ReleaseWithLocks, unlock_on_close)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -207,10 +206,7 @@ TEST_F(ReleaseWithLocks, DISABLED_unlock_on_close)
 				in->body.setlk.fh == FH);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		SET_OUT_HEADER_LEN(out, setlk);
-		out->body.setlk.lk = in->body.setlk.lk;
-	})));
+	).WillOnce(Invoke(ReturnErrno(0)));
 	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, (uint64_t)pid, O_RDWR, 0);
 

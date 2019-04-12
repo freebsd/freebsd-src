@@ -668,15 +668,15 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		break;
 
 	case FUSE_GETLK:
-		panic("FUSE: no response body format check for FUSE_GETLK");
+		err = (blen == sizeof(struct fuse_lk_out)) ? 0 : EINVAL;
 		break;
 
 	case FUSE_SETLK:
-		panic("FUSE: no response body format check for FUSE_SETLK");
+		err = (blen == 0) ? 0 : EINVAL;
 		break;
 
 	case FUSE_SETLKW:
-		panic("FUSE: no response body format check for FUSE_SETLKW");
+		err = (blen == 0) ? 0 : EINVAL;
 		break;
 
 	case FUSE_ACCESS:
