@@ -116,6 +116,8 @@ static void	vfs_knl_assert_locked(void *arg);
 static void	vfs_knl_assert_unlocked(void *arg);
 static void	vnlru_return_batches(struct vfsops *mnt_op);
 static void	destroy_vpollinfo(struct vpollinfo *vi);
+static int	v_inval_buf_range1(struct vnode *vp, struct bufobj *bo,
+		    daddr_t startlbn, daddr_t endlbn);
 
 /*
  * These fences are intended for cases where some synchronization is
@@ -1865,9 +1867,8 @@ int
 vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length, int blksize)
 {
 	struct buf *bp, *nbp;
-	int anyfreed;
-	daddr_t trunclbn;
 	struct bufobj *bo;
+	daddr_t startlbn;
 
 	CTR5(KTR_VFS, "%s: vp %p with cred %p and block %d:%ju", __func__,
 	    vp, cred, blksize, (uintmax_t)length);
@@ -1875,62 +1876,15 @@ vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length, int blksize)
 	/*
 	 * Round up to the *next* lbn.
 	 */
-	trunclbn = howmany(length, blksize);
+	startlbn = howmany(length, blksize);
 
 	ASSERT_VOP_LOCKED(vp, "vtruncbuf");
+
 restart:
 	bo = &vp->v_bufobj;
 	BO_LOCK(bo);
-	anyfreed = 1;
-	for (;anyfreed;) {
-		anyfreed = 0;
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_bobufs, nbp) {
-			if (bp->b_lblkno < trunclbn)
-				continue;
-			if (BUF_LOCK(bp,
-			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_LOCKPTR(bo)) == ENOLCK)
-				goto restart;
-
-			bremfree(bp);
-			bp->b_flags |= (B_INVAL | B_RELBUF);
-			bp->b_flags &= ~B_ASYNC;
-			brelse(bp);
-			anyfreed = 1;
-
-			BO_LOCK(bo);
-			if (nbp != NULL &&
-			    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
-			    (nbp->b_vp != vp) ||
-			    (nbp->b_flags & B_DELWRI))) {
-				BO_UNLOCK(bo);
-				goto restart;
-			}
-		}
-
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
-			if (bp->b_lblkno < trunclbn)
-				continue;
-			if (BUF_LOCK(bp,
-			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_LOCKPTR(bo)) == ENOLCK)
-				goto restart;
-			bremfree(bp);
-			bp->b_flags |= (B_INVAL | B_RELBUF);
-			bp->b_flags &= ~B_ASYNC;
-			brelse(bp);
-			anyfreed = 1;
-
-			BO_LOCK(bo);
-			if (nbp != NULL &&
-			    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
-			    (nbp->b_vp != vp) ||
-			    (nbp->b_flags & B_DELWRI) == 0)) {
-				BO_UNLOCK(bo);
-				goto restart;
-			}
-		}
-	}
+	if (v_inval_buf_range1(vp, bo, length, INT64_MAX) == EAGAIN)
+		goto restart;
 
 	if (length > 0) {
 restartsync:
@@ -1961,6 +1915,113 @@ restartsync:
 	vnode_pager_setsize(vp, length);
 
 	return (0);
+}
+
+/*
+ * Invalidate the cached pages of a file's buffer within the range of block
+ * numbers [startlbn, endlbn).  Every buffer that overlaps that range will be
+ * invalidated.  This must not result in any dirty data being lost.
+ */
+void
+v_inval_buf_range(struct vnode *vp, off_t start, off_t end, int blksize)
+{
+	struct bufobj *bo;
+	daddr_t startlbn, endlbn;
+
+	/* Round "outwards" */
+	startlbn = start / blksize;
+	endlbn = howmany(end, blksize);
+
+	ASSERT_VOP_LOCKED(vp, "v_inval_buf_range");
+
+restart:
+	bo = &vp->v_bufobj;
+	BO_LOCK(bo);
+
+#ifdef INVARIANTS
+	struct buf *bp, *nbp;
+
+	TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
+		/* 
+		 * Disallow invalidating dirty data outside of the requested
+		 * offsets.  Assume that data within the requested offsets is
+		 * being invalidated for a good reason.
+		 */
+		off_t blkstart, blkend;
+
+		blkstart = bp->b_offset;
+		blkend = bp->b_offset + bp->b_bcount;
+		KASSERT(blkstart >= start && blkend <= end,
+			("Invalidating extra dirty data!"));
+	}
+#endif
+
+	if (v_inval_buf_range1(vp, bo, startlbn, endlbn) == EAGAIN)
+		goto restart;
+
+	BO_UNLOCK(bo);
+	vn_pages_remove(vp, OFF_TO_IDX(start), OFF_TO_IDX(end));
+}
+
+/* Like v_inval_buf_range, but operates on whole buffers instead of offsets */
+static int
+v_inval_buf_range1(struct vnode *vp, struct bufobj *bo,
+    daddr_t startlbn, daddr_t endlbn)
+{
+	struct buf *bp, *nbp;
+	int anyfreed;
+
+	anyfreed = 1;
+	for (;anyfreed;) {
+		anyfreed = 0;
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_bobufs, nbp) {
+			if (bp->b_lblkno < startlbn || bp->b_lblkno >= endlbn)
+				continue;
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+			    BO_LOCKPTR(bo)) == ENOLCK)
+				return EAGAIN;
+
+			bremfree(bp);
+			bp->b_flags |= (B_INVAL | B_RELBUF);
+			bp->b_flags &= ~B_ASYNC;
+			brelse(bp);
+			anyfreed = 1;
+
+			BO_LOCK(bo);
+			if (nbp != NULL &&
+			    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
+			    (nbp->b_vp != vp) ||
+			    (nbp->b_flags & B_DELWRI))) {
+				BO_UNLOCK(bo);
+				return EAGAIN;
+			}
+		}
+
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
+			if (bp->b_lblkno < startlbn || bp->b_lblkno >= endlbn)
+				continue;
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+			    BO_LOCKPTR(bo)) == ENOLCK)
+				return EAGAIN;
+			bremfree(bp);
+			bp->b_flags |= (B_INVAL | B_RELBUF);
+			bp->b_flags &= ~B_ASYNC;
+			brelse(bp);
+			anyfreed = 1;
+
+			BO_LOCK(bo);
+			if (nbp != NULL &&
+			    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
+			    (nbp->b_vp != vp) ||
+			    (nbp->b_flags & B_DELWRI) == 0)) {
+				BO_UNLOCK(bo);
+				return EAGAIN;
+			}
+		}
+	}
+	return 0;
 }
 
 static void

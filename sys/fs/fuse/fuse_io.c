@@ -171,8 +171,13 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		 * cached.
 		 */
 		if (directio || fuse_data_cache_mode == FUSE_CACHE_WT) {
+			off_t start, end;
+
 			SDT_PROBE2(fuse, , io, trace, 1,
 				"direct write of vnode");
+			start = uio->uio_offset;
+			end = start + uio->uio_resid;
+			v_inval_buf_range(vp, start, end, fuse_iosize(vp));
 			err = fuse_write_directbackend(vp, uio, cred, fufh,
 				ioflag);
 		} else {
