@@ -129,6 +129,13 @@ __elfN(obj_loadfile)(char *filename, uint64_t dest,
 		goto oerr;
 	}
 
+#ifdef LOADER_VERIEXEC
+	if (verify_file(ef.fd, filename, bytes_read, VE_MUST) < 0) {
+	    err = EAUTH;
+	    goto oerr;
+	}
+#endif
+
 	kfp = file_findfile(NULL, __elfN(obj_kerneltype));
 	if (kfp == NULL) {
 		printf("elf" __XSTRING(__ELF_WORD_SIZE)
