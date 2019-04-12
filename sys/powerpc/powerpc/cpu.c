@@ -787,7 +787,6 @@ cpu_idle_booke(sbintime_t sbt)
 static void
 cpu_idle_powerx(sbintime_t sbt)
 {
-
 	/* Sleeping when running on one cpu gives no advantages - avoid it */
 	if (smp_started == 0)
 		return;
@@ -816,7 +815,8 @@ cpu_idle_power9(sbintime_t sbt)
 	/* Suspend external interrupts until stop instruction completes. */
 	mtmsr(msr &  ~PSL_EE);
 	/* Set the stop state to lowest latency, wake up to next instruction */
-	mtspr(SPR_PSSCR, 0);
+	/* Set maximum transition level to 2, for deepest lossless sleep. */
+	mtspr(SPR_PSSCR, (2 << PSSCR_MTL_S) | (0 << PSSCR_RL_S));
 	/* "stop" instruction (PowerISA 3.0) */
 	__asm __volatile (".long 0x4c0002e4");
 	/*
