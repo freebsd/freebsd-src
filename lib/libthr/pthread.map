@@ -137,6 +137,7 @@ FBSDprivate_1.0 {
 	__pthread_mutex_lock;
 	__pthread_mutex_timedlock;
 	__pthread_mutex_trylock;
+	__pthread_distribute_static_tls;
 	_pthread_atfork;
 	_pthread_barrier_destroy;
 	_pthread_barrier_init;
