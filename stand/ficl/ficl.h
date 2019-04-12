@@ -1157,6 +1157,10 @@ typedef void ficlCompileFcn(FICL_SYSTEM *);
 	DATA_SET(Xficl_compile_set, func)
 SET_DECLARE(Xficl_compile_set, ficlCompileFcn);
 
+#ifdef LOADER_VERIEXEC
+#include <verify_file.h>
+#endif
+
 #ifdef __cplusplus
 }
 #endif

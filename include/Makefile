@@ -47,7 +47,7 @@ LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
 	dev/hwpmc dev/hyperv \
 	dev/ic dev/iicbus dev/io dev/mfi dev/mmc dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
-	dev/speaker dev/tcp_log dev/vkbd dev/wi \
+	dev/speaker dev/tcp_log dev/veriexec dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
@@ -60,6 +60,7 @@ LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
+	security/mac_veriexec \
 	sys/disk \
 	ufs/ffs ufs/ufs
 
@@ -157,7 +158,7 @@ copies: .PHONY .META
 		done; \
 	fi
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/hyperv:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/hyperv:Ndev/nand:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/$i
@@ -196,6 +197,9 @@ copies: .PHONY .META
 	cd ${SRCTOP}/sys/dev/pci; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/pci
+	cd ${SRCTOP}/sys/dev/veriexec; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 veriexec_ioctl.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/veriexec
 	cd ${SRCTOP}/sys/fs/cd9660/; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${SDESTDIR}${INCLUDEDIR}/isofs/cd9660
@@ -264,7 +268,7 @@ symlinks: .PHONY .META
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/hyperv:Ndev/nand:Ndev/pci}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/hyperv:Ndev/nand:Ndev/pci:Ndev/veriexec}
 	cd ${SRCTOP}/sys/$i; \
 	for h in *.h; do \
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
@@ -311,6 +315,11 @@ symlinks: .PHONY .META
 	for h in pcireg.h; do \
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/pci/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/dev/pci; \
+	done
+	cd ${SRCTOP}/sys/dev/veriexec; \
+	for h in veriexec_ioctl.h; do \
+		ln -fs ../../../../sys/dev/veriexec/$$h \
+		    ${SDESTDIR}${INCLUDEDIR}/dev/veriexec; \
 	done
 .for i in ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys/$i; \
