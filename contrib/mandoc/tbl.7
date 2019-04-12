@@ -1,7 +1,7 @@
-.\"	$Id: tbl.7,v 1.29 2017/10/17 23:19:12 schwarze Exp $
+.\"	$Id: tbl.7,v 1.34 2019/03/02 21:03:02 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2014,2015,2017,2018,2019 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: October 17 2017 $
+.Dd $Mdocdate: March 2 2019 $
 .Dt TBL 7
 .Os
 .Sh NAME
@@ -147,9 +147,9 @@ The combined cell as a whole consumes only one cell
 of the corresponding data line.
 .It Cm a
 Left-justify a string and pad with one space.
-.It Cm ^
+.It Cm \(ha
 Vertically span rows from the last
-.Pf non- Cm ^
+.Pf non- Cm \(ha
 layout cell.
 It is an error to invoke a vertical span on the first layout line.
 Unlike a horizontal span, a vertical span consumes a data cell
@@ -231,13 +231,19 @@ Each data line consists of one or more data cells, delimited by
 .Cm tab
 characters.
 .Pp
-If a data cells contains only the single character
+If a data cell contains only the two bytes
+.Ql \e\(ha ,
+the cell above spans to this row, as if the layout specification
+of this cell were
+.Cm \(ha .
+.Pp
+If a data cell contains only the single character
 .Ql _
 or
 .Ql = ,
 a single or double horizontal line is drawn across the cell,
 joining its neighbours.
-If a data cells contains only the two character sequence
+If a data cell contains only the two character sequence
 .Ql \e_
 or
 .Ql \e= ,
@@ -323,7 +329,7 @@ _
 AFL:2.39b
 Mutt:1.8.0
 Ruby:1.8.7.374
-TeX Live:2015 
+TeX Live:2015
 .TE
 .Ed
 .sp 2v
@@ -332,8 +338,8 @@ Spans and skipping width calculations:
 \&.TS
 box tab(:);
 lz  s | rt
-lt| cb| ^
-^ | rz  s.
+lt| cb| \(ha
+\(ha | rz  s.
 left:r
 l:center:
 :right
@@ -388,8 +394,8 @@ T}::line 5
 These examples were constructed to demonstrate many
 .Nm
 features in a compact way.
-In real manual pages, keep tables as simple as possible:
-Like that, they usually look better, are less fragile, and more portable.
+In real manual pages, keep tables as simple as possible.
+They usually look better, are less fragile, and are more portable.
 .Sh COMPATIBILITY
 The
 .Xr mandoc 1
@@ -432,3 +438,17 @@ reference was written by
 .An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
 and
 .An Ingo Schwarze Aq Mt schwarze@openbsd.org .
+.Sh BUGS
+In
+.Fl T
+.Cm utf8
+output mode, heavy lines are drawn instead of double lines.
+This cannot be improved because the Unicode standard only provides
+an incomplete set of box drawing characters with double lines,
+whereas it provides a full set of box drawing characters
+with heavy lines.
+It is unlikely this can be improved in the future because the box
+drawing characters are already marked in Unicode as characters
+intended only for backward compatibility with legacy systems,
+and their use is not encouraged.
+So it seems unlikely that the missing ones might get added in the future.

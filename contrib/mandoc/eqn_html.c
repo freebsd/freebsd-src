@@ -1,4 +1,4 @@
-/*	$Id: eqn_html.c,v 1.17 2017/07/14 13:32:35 schwarze Exp $ */
+/*	$Id: eqn_html.c,v 1.18 2018/12/13 05:23:38 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -26,6 +26,7 @@
 #include <string.h>
 
 #include "mandoc.h"
+#include "eqn.h"
 #include "out.h"
 #include "html.h"
 

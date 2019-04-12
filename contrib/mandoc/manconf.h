@@ -1,6 +1,6 @@
-/*	$Id: manconf.h,v 1.5 2017/07/01 09:47:30 schwarze Exp $ */
+/*	$Id: manconf.h,v 1.7 2018/11/22 11:30:23 schwarze Exp $ */
 /*
- * Copyright (c) 2011, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011, 2015, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -30,12 +30,14 @@ struct	manoutput {
 	char	 *man;
 	char	 *paper;
 	char	 *style;
+	char	 *tag;
 	size_t	  indent;
 	size_t	  width;
 	int	  fragment;
 	int	  mdoc;
-	int	  synopsisonly;
 	int	  noval;
+	int	  synopsisonly;
+	int	  toc;
 };
 
 struct	manconf {

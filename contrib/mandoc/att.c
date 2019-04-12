@@ -1,4 +1,4 @@
-/*	$Id: att.c,v 1.16 2017/06/24 14:38:32 schwarze Exp $ */
+/*	$Id: att.c,v 1.18 2018/12/13 11:55:46 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -19,9 +19,7 @@
 #include <sys/types.h>
 #include <string.h>
 
-#include "mandoc.h"
 #include "roff.h"
-#include "mdoc.h"
 #include "libmdoc.h"
 
 #define LINE(x, y) \
