@@ -173,7 +173,51 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para>&nbsp;</para>
+      <para revision="334607">The &man.xz.1; utility has been updated
+	to version 5.2.4.</para>
+
+      <para revision="337817">The <application>WPA</application>
+	utilities have been updated to version 2.6.</para>
+
+      <para revision="337827">The &man.file.1; utility has been
+	updated to version 5.34.</para>
+
+      <para revision="338414" contrib="sponsor" sponsor="&ff;">The
+	<application>ELF Tool Chain</application> has been updated to
+	version r3614.</para>
+
+      <para revision="338795">The &man.libarchive.3; library has been
+	updated to version 3.3.3, with additional fixes from
+	upstream.</para>
+
+      <para revision="339100" contrib="sponsor" sponsor="&ff;">The
+	<application>lld</application> utility has been updated to add
+	<literal>-z interpose</literal>, marking the object file as
+	an interposer.</para>
+
+      <para revision="343079">The &man.file.1; utility has been
+	updated to fix incorrect date reporting for &man.dump.8;
+	files.</para>
+
+      <para revision="344213">The <application>clang</application>,
+	<application>llvm</application>,
+	<application>lld</application>,
+	<application>lldb</application>, and
+	<application>compiler-rt</application> utilities as well as
+	<application>libc++</application> have been updated to
+	upstream version 7.0.1.</para>
+
+      <para revision="344220">The <application>LUA</application>
+	&man.loader.8; has been merged.</para>
+
+      <para revision="344604"><application>OpenSSL</application> has
+	been updated to version 1.0.2r.</para>
+
+      <para revision="344884">The &man.ntpd.8; utilities have been
+	updated to version 4.2.8p13.</para>
+
+      <para revision="345670">Timezone data files have been updated to
+	version 2019a.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
