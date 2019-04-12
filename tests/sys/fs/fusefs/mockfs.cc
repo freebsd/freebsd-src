@@ -238,6 +238,17 @@ void debug_fuseop(const mockfs_buf_in *in)
 			if (in->body.setattr.valid & FATTR_FH)
 				printf(" fh=%zu", in->body.setattr.fh);
 			break;
+		case FUSE_SETLK:
+			printf(" fh=%#lx owner=%lu type=%u pid=%u",
+				in->body.setlk.fh, in->body.setlk.owner,
+				in->body.setlk.lk.type,
+				in->body.setlk.lk.pid);
+			if (verbosity >= 2) {
+				printf(" range=[%lu-%lu]",
+					in->body.setlk.lk.start,
+					in->body.setlk.lk.end);
+			}
+			break;
 		case FUSE_SETXATTR:
 			/* 
 			 * In theory neither the xattr name and value need be

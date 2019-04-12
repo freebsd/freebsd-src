@@ -97,8 +97,7 @@ TEST_F(GetlkFallback, local)
  * If the filesystem has no locks that fit the description, the filesystem
  * should return F_UNLCK
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
-TEST_F(Getlk, DISABLED_no_locks)
+TEST_F(Getlk, no_locks)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -141,8 +140,7 @@ TEST_F(Getlk, DISABLED_no_locks)
 }
 
 /* A different pid does have a lock */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
-TEST_F(Getlk, DISABLED_lock_exists)
+TEST_F(Getlk, lock_exists)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -220,8 +218,7 @@ TEST_F(SetlkFallback, local)
 }
 
 /* Set a new lock with FUSE_SETLK */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
-TEST_F(Setlk, DISABLED_set)
+TEST_F(Setlk, set)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -244,10 +241,7 @@ TEST_F(Setlk, DISABLED_set)
 				in->body.setlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		SET_OUT_HEADER_LEN(out, setlk);
-		out->body.setlk.lk = in->body.setlk.lk;
-	})));
+	).WillOnce(Invoke(ReturnErrno(0)));
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -262,8 +256,7 @@ TEST_F(Setlk, DISABLED_set)
 }
 
 /* l_len = 0 is a flag value that means to lock until EOF */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
-TEST_F(Setlk, DISABLED_set_eof)
+TEST_F(Setlk, set_eof)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -286,10 +279,7 @@ TEST_F(Setlk, DISABLED_set_eof)
 				in->body.setlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		SET_OUT_HEADER_LEN(out, setlk);
-		out->body.setlk.lk = in->body.setlk.lk;
-	})));
+	).WillOnce(Invoke(ReturnErrno(0)));
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -304,8 +294,7 @@ TEST_F(Setlk, DISABLED_set_eof)
 }
 
 /* Fail to set a new lock with FUSE_SETLK due to a conflict */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
-TEST_F(Setlk, DISABLED_eagain)
+TEST_F(Setlk, eagain)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -375,8 +364,7 @@ TEST_F(SetlkwFallback, local)
  * command should block.  But to the kernel, that's the same as just being
  * slow, so we don't need a separate test method
  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
-TEST_F(Setlkw, DISABLED_set)
+TEST_F(Setlkw, set)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -399,10 +387,7 @@ TEST_F(Setlkw, DISABLED_set)
 				in->body.setlkw.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		SET_OUT_HEADER_LEN(out, setlkw);
-		out->body.setlkw.lk = in->body.setlkw.lk;
-	})));
+	).WillOnce(Invoke(ReturnErrno(0)));
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);

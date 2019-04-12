@@ -217,6 +217,12 @@ fuse_filehandle_close(struct vnode *vp, struct fuse_filehandle *fufh,
 	fri = fdi.indata;
 	fri->fh = fufh->fh_id;
 	fri->flags = fufh_type_2_fflags(fufh->fufh_type);
+	/* 
+	 * If the file has a POSIX lock then we're supposed to set lock_owner.
+	 * If not, then lock_owner is undefined.  So we may as well always set
+	 * it.
+	 */
+	fri->lock_owner = td->td_proc->p_pid;
 
 	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);
@@ -297,6 +303,37 @@ fallback:
 		if (fufh->fufh_type == fufh_type)
 			break;
 	}
+
+	if (fufh == NULL)
+		return EBADF;
+
+found:
+	if (fufhp != NULL)
+		*fufhp = fufh;
+	return 0;
+}
+
+/* Get a file handle with any kind of flags */
+int
+fuse_filehandle_get_anyflags(struct vnode *vp,
+    struct fuse_filehandle **fufhp, struct ucred *cred, pid_t pid)
+{
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct fuse_filehandle *fufh;
+
+	if (cred == NULL)
+		goto fallback;
+
+	LIST_FOREACH(fufh, &fvdat->handles, next) {
+		if (fufh->uid == cred->cr_uid &&
+		    fufh->gid == cred->cr_rgid &&
+		    (pid == 0 || fufh->pid == pid))
+			goto found;
+	}
+
+fallback:
+	/* Fallback: find any list entry */
+	fufh = LIST_FIRST(&fvdat->handles);
 
 	if (fufh == NULL)
 		return EBADF;
