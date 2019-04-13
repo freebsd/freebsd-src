@@ -453,7 +453,7 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 	u_long dst;
 	int flags = ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0) |
 	    IP_ALLOWBROADCAST;
-	int cnt;
+	int cnt, hlen;
 	u_char opttype, optlen, *cp;
 
 	va_start(ap, so);
@@ -509,25 +509,32 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 			m_freem(m);
 			return(EMSGSIZE);
 		}
-		INP_RLOCK(inp);
 		ip = mtod(m, struct ip *);
+		hlen = ip->ip_hl << 2;
+		if (m->m_len < hlen) {
+			m = m_pullup(m, hlen);
+			if (m == NULL)
+				return (EINVAL);
+			ip = mtod(m, struct ip *);
+		}
+
+		INP_RLOCK(inp);
+		/*
+		 * Don't allow both user specified and setsockopt options,
+		 * and don't allow packet length sizes that will crash.
+		 */
+		if ((hlen < sizeof (*ip))
+		    || ((hlen > sizeof (*ip)) && inp->inp_options)
+		    || (ntohs(ip->ip_len) != m->m_pkthdr.len)) {
+			INP_RUNLOCK(inp);
+			m_freem(m);
+			return (EINVAL);
+		}
 		error = prison_check_ip4(inp->inp_cred, &ip->ip_src);
 		if (error != 0) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
 			return (error);
-		}
-
-		/*
-		 * Don't allow both user specified and setsockopt options,
-		 * and don't allow packet length sizes that will crash.
-		 */
-		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options)
-		    || (ntohs(ip->ip_len) != m->m_pkthdr.len)
-		    || (ntohs(ip->ip_len) < (ip->ip_hl << 2))) {
-			INP_RUNLOCK(inp);
-			m_freem(m);
-			return (EINVAL);
 		}
 		/*
 		 * Don't allow IP options which do not have the required
@@ -535,7 +542,7 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 		 * pages 15-23.
 		 */
 		cp = (u_char *)(ip + 1);
-		cnt = (ip->ip_hl << 2) - sizeof (struct ip);
+		cnt = hlen - sizeof (struct ip);
 		for (; cnt > 0; cnt -= optlen, cp += optlen) {
 			opttype = cp[IPOPT_OPTVAL];
 			if (opttype == IPOPT_EOL)
