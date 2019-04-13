@@ -192,7 +192,6 @@ device		splash			# Splash screen and screen saver support
 # syscons is the default console driver, resembling an SCO console
 device		sc
 options 	SC_PIXEL_MODE		# add support for the raster text mode
-options 	SC_HISTORY_SIZE=2000	# number of history buffer lines
 
 # vt is the new video console driver
 device		vt
