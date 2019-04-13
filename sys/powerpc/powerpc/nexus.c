@@ -38,11 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/pcpu.h>
 #include <sys/rman.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -67,6 +69,8 @@ static bus_teardown_intr_t nexus_teardown_intr;
 static bus_activate_resource_t nexus_activate_resource;
 static bus_deactivate_resource_t nexus_deactivate_resource;
 static bus_space_tag_t nexus_get_bus_tag(device_t, device_t);
+static int nexus_get_cpus(device_t, device_t, enum cpu_sets, size_t,
+    cpuset_t *);
 #ifdef SMP
 static bus_bind_intr_t nexus_bind_intr;
 #endif
@@ -89,6 +93,7 @@ static device_method_t nexus_methods[] = {
 #endif
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_get_bus_tag,	nexus_get_bus_tag),
+	DEVMETHOD(bus_get_cpus,		nexus_get_cpus),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
@@ -127,11 +132,13 @@ nexus_setup_intr(device_t bus __unused, device_t child, struct resource *r,
     int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg,
     void **cookiep)
 {
-	int error;
+	int error, domain;
 
 	if (r == NULL)
 		panic("%s: NULL interrupt resource!", __func__);
 
+	if (cookiep != NULL)
+		*cookiep = NULL;
 	if ((rman_get_flags(r) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
@@ -140,8 +147,13 @@ nexus_setup_intr(device_t bus __unused, device_t child, struct resource *r,
 	if (error)
 		return (error);
 
+	if (bus_get_domain(child, &domain) != 0) {
+		if(bootverbose)
+			device_printf(child, "no domain found\n");
+		domain = 0;
+	}
 	error = powerpc_setup_intr(device_get_nameunit(child),
-	    rman_get_start(r), filt, intr, arg, flags, cookiep);
+	    rman_get_start(r), filt, intr, arg, flags, cookiep, domain);
 
 	return (error);
 }
@@ -162,6 +174,24 @@ nexus_get_bus_tag(device_t bus __unused, device_t child __unused)
 {
 
 	return(&bs_be_tag);
+}
+
+static int
+nexus_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsize,
+    cpuset_t *cpuset)
+{
+
+	switch (op) {
+#ifdef SMP
+	case INTR_CPUS:
+		if (setsize != sizeof(cpuset_t))
+			return (EINVAL);
+		*cpuset = all_cpus;
+		return (0);
+#endif
+	default:
+		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
+	}
 }
 
 #ifdef SMP

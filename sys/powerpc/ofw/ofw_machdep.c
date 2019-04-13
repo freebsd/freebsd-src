@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -222,9 +223,57 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 
 		j++;
 	}
-	sz = j*sizeof(output[0]);
 
-	return (sz);
+	return (j);
+}
+
+static int
+parse_numa_ofw_memory(phandle_t node, const char *prop,
+    struct numa_mem_region *output)
+{
+	cell_t address_cells, size_cells;
+	cell_t OFmem[4 * PHYS_AVAIL_SZ];
+	int sz, i, j;
+	phandle_t phandle;
+
+	sz = 0;
+
+	/*
+	 * Get #address-cells from root node, defaulting to 1 if it cannot
+	 * be found.
+	 */
+	phandle = OF_finddevice("/");
+	if (OF_getencprop(phandle, "#address-cells", &address_cells,
+	    sizeof(address_cells)) < (ssize_t)sizeof(address_cells))
+		address_cells = 1;
+	if (OF_getencprop(phandle, "#size-cells", &size_cells,
+	    sizeof(size_cells)) < (ssize_t)sizeof(size_cells))
+		size_cells = 1;
+
+	/*
+	 * Get memory.
+	 */
+	if (node == -1 || (sz = OF_getencprop(node, prop,
+	    OFmem, sizeof(OFmem))) <= 0)
+		panic("Physical memory map not found");
+
+	i = 0;
+	j = 0;
+	while (i < sz/sizeof(cell_t)) {
+		output[j].mr_start = OFmem[i++];
+		if (address_cells == 2) {
+			output[j].mr_start <<= 32;
+			output[j].mr_start += OFmem[i++];
+		}
+		output[j].mr_size = OFmem[i++];
+		if (size_cells == 2) {
+			output[j].mr_size <<= 32;
+			output[j].mr_size += OFmem[i++];
+		}
+		j++;
+	}
+
+	return (j);
 }
 
 #ifdef FDT
@@ -408,6 +457,51 @@ excise_fdt_reserved(struct mem_region *avail, int asz)
  * The available regions need not take the kernel into account.
  */
 void
+ofw_numa_mem_regions(struct numa_mem_region *memp, int *memsz)
+{
+	phandle_t phandle;
+	int res, count, msz;
+	char name[31];
+	cell_t associativity[5];
+	struct numa_mem_region *curmemp;
+
+	msz = 0;
+	/*
+	 * Get memory from all the /memory nodes.
+	 */
+	for (phandle = OF_child(OF_peer(0)); phandle != 0;
+	    phandle = OF_peer(phandle)) {
+		if (OF_getprop(phandle, "name", name, sizeof(name)) <= 0)
+			continue;
+		if (strncmp(name, "memory@", strlen("memory@")) != 0)
+			continue;
+
+		count = parse_numa_ofw_memory(phandle, "reg", &memp[msz]);
+		if (count == 0)
+			continue;
+		curmemp = &memp[msz];
+		res = OF_getproplen(phandle, "ibm,associativity");
+		if (res <= 0)
+			continue;
+		MPASS(count == 1);
+		OF_getencprop(phandle, "ibm,associativity",
+			associativity, res);
+		curmemp->mr_domain = associativity[3] - 1;
+		if (bootverbose)
+			printf("%s %#jx-%#jx domain(%ju)\n",
+			    name, (uintmax_t)curmemp->mr_start,
+			    (uintmax_t)curmemp->mr_start + curmemp->mr_size,
+			    (uintmax_t)curmemp->mr_domain);
+		msz += count;
+	}
+	*memsz = msz;
+}
+/*
+ * This is called during powerpc_init, before the system is really initialized.
+ * It shall provide the total and the available regions of RAM.
+ * The available regions need not take the kernel into account.
+ */
+void
 ofw_mem_regions(struct mem_region *memp, int *memsz,
 		struct mem_region *availp, int *availsz)
 {
@@ -430,7 +524,7 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 			continue;
 
 		res = parse_ofw_memory(phandle, "reg", &memp[msz]);
-		msz += res/sizeof(struct mem_region);
+		msz += res;
 
 		/*
 		 * On POWER9 Systems we might have both linux,usable-memory and
@@ -446,7 +540,7 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 			    &availp[asz]);
 		else
 			res = parse_ofw_memory(phandle, "reg", &availp[asz]);
-		asz += res/sizeof(struct mem_region);
+		asz += res;
 	}
 
 #ifdef FDT

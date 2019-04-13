@@ -52,6 +52,7 @@ void	ipi_selected(cpuset_t cpus, int ipi);
 struct cpuref {
 	uintptr_t	cr_hwref;
 	u_int		cr_cpuid;
+	u_int		cr_domain;
 };
 
 void	pmap_cpu_bootstrap(int);

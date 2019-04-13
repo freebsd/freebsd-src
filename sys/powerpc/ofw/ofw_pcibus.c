@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/module.h>
 #include <sys/pciio.h>
+#include <sys/smp.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -80,6 +81,8 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(bus_child_deleted,	ofw_pcibus_child_deleted),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_pcibus_child_pnpinfo_str_method),
 	DEVMETHOD(bus_rescan,		bus_null_rescan),
+	DEVMETHOD(bus_get_cpus,		ofw_pcibus_get_cpus),
+	DEVMETHOD(bus_get_domain,	ofw_pcibus_get_domain),
 
 	/* PCI interface */
 	DEVMETHOD(pci_alloc_devinfo,	ofw_pcibus_alloc_devinfo),
@@ -382,3 +385,76 @@ ofw_pcibus_get_devinfo(device_t bus, device_t dev)
 	return (&dinfo->opd_obdinfo);
 }
 
+static int
+ofw_pcibus_parse_associativity(device_t dev, int *domain)
+{
+	phandle_t node;
+	cell_t associativity[5];
+	int res;
+
+	if ((node = ofw_bus_get_node(dev)) == -1) {
+		device_printf(dev, "no ofw node found\n");
+		return (ENXIO);
+	}
+	res = OF_getproplen(node, "ibm,associativity");
+	if (res <= 0)
+		return (ENXIO);
+	OF_getencprop(node, "ibm,associativity",
+		associativity, res);
+
+	*domain = associativity[3] - 1;
+	if (bootverbose)
+		device_printf(dev, "domain(%d)\n", *domain);
+	return (0);
+}
+
+int
+ofw_pcibus_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsize,
+    cpuset_t *cpuset)
+{
+	int d, error;
+
+	error = ofw_pcibus_parse_associativity(child, &d);
+	if (error)
+		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
+
+	switch (op) {
+	case LOCAL_CPUS:
+		if (setsize != sizeof(cpuset_t))
+			return (EINVAL);
+		*cpuset = cpuset_domain[d];
+		return (0);
+	case INTR_CPUS:
+		error = bus_generic_get_cpus(dev, child, op, setsize, cpuset);
+		if (error != 0)
+			return (error);
+		if (setsize != sizeof(cpuset_t))
+			return (EINVAL);
+		CPU_AND(cpuset, &cpuset_domain[d]);
+		return (0);
+	default:
+		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
+	}
+	return (0);
+}
+
+/*
+ * Fetch the NUMA domain for the given device 'dev'.
+ *
+ * If a device has a _PXM method, map that to a NUMA domain.
+ * Otherwise, pass the request up to the parent.
+ * If there's no matching domain or the domain cannot be
+ * determined, return ENOENT.
+ */
+int
+ofw_pcibus_get_domain(device_t dev, device_t child, int *domain)
+{
+	int d, error;
+
+	error = ofw_pcibus_parse_associativity(child, &d);
+	/* No ofw node; go up a level */
+	if (error)
+		return (bus_generic_get_domain(dev, child, domain));
+	*domain = d;
+	return (0);
+}
