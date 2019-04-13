@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 static ino_t startinum;
 
-static int iblock(struct inodesc *, long ilevel, off_t isize, int type);
+static int iblock(struct inodesc *, off_t isize, int type);
 
 int
 ckinode(union dinode *dp, struct inodesc *idesc)
@@ -70,6 +70,8 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 	if (idesc->id_fix != IGNORE)
 		idesc->id_fix = DONTKNOW;
 	idesc->id_lbn = -1;
+	idesc->id_lballoc = -1;
+	idesc->id_level = 0;
 	idesc->id_entryno = 0;
 	idesc->id_filesize = DIP(dp, di_size);
 	mode = DIP(dp, di_mode) & IFMT;
@@ -122,9 +124,10 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 	sizepb = sblock.fs_bsize;
 	for (i = 0; i < UFS_NIADDR; i++) {
 		sizepb *= NINDIR(&sblock);
+		idesc->id_level = i + 1;
 		if (DIP(&dino, di_ib[i])) {
 			idesc->id_blkno = DIP(&dino, di_ib[i]);
-			ret = iblock(idesc, i + 1, remsize, BT_LEVEL1 + i);
+			ret = iblock(idesc, remsize, BT_LEVEL1 + i);
 			if (ret & STOP)
 				return (ret);
 		} else if (remsize > 0) {
@@ -154,7 +157,7 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 }
 
 static int
-iblock(struct inodesc *idesc, long ilevel, off_t isize, int type)
+iblock(struct inodesc *idesc, off_t isize, int type)
 {
 	struct bufarea *bp;
 	int i, n, (*func)(struct inodesc *), nif;
@@ -172,8 +175,8 @@ iblock(struct inodesc *idesc, long ilevel, off_t isize, int type)
 	if (chkrange(idesc->id_blkno, idesc->id_numfrags))
 		return (SKIP);
 	bp = getdatablk(idesc->id_blkno, sblock.fs_bsize, type);
-	ilevel--;
-	for (sizepb = sblock.fs_bsize, i = 0; i < ilevel; i++)
+	idesc->id_level--;
+	for (sizepb = sblock.fs_bsize, i = 0; i < idesc->id_level; i++)
 		sizepb *= NINDIR(&sblock);
 	if (howmany(isize, sizepb) > NINDIR(&sblock))
 		nif = NINDIR(&sblock);
@@ -195,19 +198,21 @@ iblock(struct inodesc *idesc, long ilevel, off_t isize, int type)
 		flush(fswritefd, bp);
 	}
 	for (i = 0; i < nif; i++) {
-		if (ilevel == 0)
-			idesc->id_lbn++;
 		if (IBLK(bp, i)) {
 			idesc->id_blkno = IBLK(bp, i);
-			if (ilevel == 0)
+			if (idesc->id_level == 0) {
+				idesc->id_lbn++;
 				n = (*func)(idesc);
-			else
-				n = iblock(idesc, ilevel, isize, type);
+			} else {
+				n = iblock(idesc, isize, type);
+				idesc->id_level++;
+			}
 			if (n & STOP) {
 				bp->b_flags &= ~B_INUSE;
 				return (n);
 			}
 		} else {
+			idesc->id_lbn += sizepb / sblock.fs_bsize;
 			if (idesc->id_type == DATA && isize > 0) {
 				/* An empty block in a directory XXX */
 				getpathname(pathbuf, idesc->id_number,
