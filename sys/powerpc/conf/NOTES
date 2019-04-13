@@ -80,6 +80,8 @@ nodevice	ccr
 nodevice	cxgbe		# XXX: builds on powerpc64 only.
 nodevice	cxgbev
 nodevice	fdc
+nodevice	mpr		# no 64-bit atomics
+nodevice	mps		# no 64-bit atomics
 nodevice	ppc
 nodevice	splash
 # when splash works enable *_saver

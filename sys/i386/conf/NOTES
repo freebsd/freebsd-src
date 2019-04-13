@@ -690,11 +690,6 @@ device		ips
 device		isci
 options 	ISCI_LOGGING	# enable debugging in isci HAL
 
-# LSI-Logic MPT-Fusion drivers
-device		mpt			# LSI-Logic MPT-Fusion
-device		mps			# LSI-Logic MPT-Fusion 2
-device		mpr			# LSI-Logic MPT-Fusion 3
-
 #
 # NVM Express (NVMe) support
 device         nvme    # base NVMe driver
