@@ -121,13 +121,14 @@ dump_openstate(void)
 {
 	struct nfsd_dumplist dumplist;
 	int cnt, i;
+	char nbuf[INET6_ADDRSTRLEN];
 
 	dumplist.ndl_size = DUMPSIZE;
 	dumplist.ndl_list = (void *)dp;
 	if (nfssvc(NFSSVC_DUMPCLIENTS, &dumplist) < 0)
 		errx(1, "Can't perform dump clients syscall");
 
-	printf("%-13s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %-15s %s\n",
+	printf("%-13s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %-45s %s\n",
 	    "Flags", "OpenOwner", "Open", "LockOwner",
 	    "Lock", "Deleg", "OldDeleg", "Clientaddr", "ClientID");
 	/*
@@ -143,9 +144,23 @@ dump_openstate(void)
 		    dp[cnt].ndcl_nlocks,
 		    dp[cnt].ndcl_ndelegs,
 		    dp[cnt].ndcl_nolddelegs);
-		if (dp[cnt].ndcl_addrfam == AF_INET)
-			printf("%-15s ",
+		switch (dp[cnt].ndcl_addrfam) {
+#ifdef INET
+		case AF_INET:
+			printf("%-45s ",
 			    inet_ntoa(dp[cnt].ndcl_cbaddr.sin_addr));
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			if (inet_ntop(AF_INET6, &dp[cnt].ndcl_cbaddr.sin6_addr,
+			    nbuf, sizeof(nbuf)) != NULL)
+				printf("%-45s ", nbuf);
+			else
+				printf("%-45s ", " ");
+			break;
+#endif
+		}
 		for (i = 0; i < dp[cnt].ndcl_clid.nclid_idlen; i++)
 			printf("%02x", dp[cnt].ndcl_clid.nclid_id[i]);
 		printf("\n");
