@@ -65,6 +65,7 @@ static int powernv_probe(platform_t);
 static int powernv_attach(platform_t);
 void powernv_mem_regions(platform_t, struct mem_region *phys, int *physsz,
     struct mem_region *avail, int *availsz);
+static void powernv_numa_mem_regions(platform_t plat, struct numa_mem_region *phys, int *physsz);
 static u_long powernv_timebase_freq(platform_t, struct cpuref *cpuref);
 static int powernv_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int powernv_smp_next_cpu(platform_t, struct cpuref *cpuref);
@@ -83,6 +84,7 @@ static platform_method_t powernv_methods[] = {
 	PLATFORMMETHOD(platform_probe, 		powernv_probe),
 	PLATFORMMETHOD(platform_attach,		powernv_attach),
 	PLATFORMMETHOD(platform_mem_regions,	powernv_mem_regions),
+	PLATFORMMETHOD(platform_numa_mem_regions,	powernv_numa_mem_regions),
 	PLATFORMMETHOD(platform_timebase_freq,	powernv_timebase_freq),
 	
 	PLATFORMMETHOD(platform_smp_ap_init,	powernv_smp_ap_init),
@@ -250,6 +252,13 @@ powernv_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 	ofw_mem_regions(phys, physsz, avail, availsz);
 }
 
+static void
+powernv_numa_mem_regions(platform_t plat, struct numa_mem_region *phys, int *physsz)
+{
+
+	ofw_numa_mem_regions(phys, physsz);
+}
+
 static u_long
 powernv_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
@@ -313,15 +322,13 @@ powernv_cpuref_init(void)
 		if (res > 0 && strcmp(buf, "cpu") == 0) {
 			res = OF_getproplen(cpu, "ibm,ppc-interrupt-server#s");
 			if (res > 0) {
-
-
 				OF_getencprop(cpu, "ibm,ppc-interrupt-server#s",
 				    interrupt_servers, res);
 
 				for (a = 0; a < res/sizeof(cell_t); a++) {
 					tmp_cpuref[tmp_cpuref_cnt].cr_hwref = interrupt_servers[a];
 					tmp_cpuref[tmp_cpuref_cnt].cr_cpuid = tmp_cpuref_cnt;
-
+					tmp_cpuref[tmp_cpuref_cnt].cr_domain = interrupt_servers[a] >> 11;
 					if (interrupt_servers[a] == (uint32_t)powernv_boot_pir)
 						bsp = tmp_cpuref_cnt;
 
@@ -335,11 +342,13 @@ powernv_cpuref_init(void)
 	for (a = bsp; a < tmp_cpuref_cnt; a++) {
 		platform_cpuref[platform_cpuref_cnt].cr_hwref = tmp_cpuref[a].cr_hwref;
 		platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+		platform_cpuref[platform_cpuref_cnt].cr_domain = tmp_cpuref[a].cr_domain;
 		platform_cpuref_cnt++;
 	}
 	for (a = 0; a < bsp; a++) {
 		platform_cpuref[platform_cpuref_cnt].cr_hwref = tmp_cpuref[a].cr_hwref;
 		platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+		platform_cpuref[platform_cpuref_cnt].cr_domain = tmp_cpuref[a].cr_domain;
 		platform_cpuref_cnt++;
 	}
 
@@ -356,6 +365,7 @@ powernv_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 
 	cpuref->cr_cpuid = 0;
 	cpuref->cr_hwref = platform_cpuref[0].cr_hwref;
+	cpuref->cr_domain = platform_cpuref[0].cr_domain;
 
 	return (0);
 }
@@ -374,6 +384,7 @@ powernv_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 
 	cpuref->cr_cpuid = platform_cpuref[id].cr_cpuid;
 	cpuref->cr_hwref = platform_cpuref[id].cr_hwref;
+	cpuref->cr_domain = platform_cpuref[id].cr_domain;
 
 	return (0);
 }
@@ -384,6 +395,7 @@ powernv_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 
 	cpuref->cr_cpuid = platform_cpuref[0].cr_cpuid;
 	cpuref->cr_hwref = platform_cpuref[0].cr_hwref;
+	cpuref->cr_domain = platform_cpuref[0].cr_domain;
 	return (0);
 }
 
