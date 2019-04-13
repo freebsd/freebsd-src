@@ -583,6 +583,7 @@ set_sort_modifier(struct sort_mods *sm, int c)
 		break;
 	case 'R':
 		sm->Rflag = true;
+		need_hint = true;
 		need_random = true;
 		break;
 	case 'M':
