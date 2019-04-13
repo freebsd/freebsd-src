@@ -184,8 +184,18 @@ sbttobt(sbintime_t _sbt)
 static __inline int64_t
 sbttons(sbintime_t _sbt)
 {
+	uint64_t ns;
 
-	return ((1000000000 * _sbt) >> 32);
+#ifdef KASSERT
+	KASSERT(_sbt >= 0, ("Negative values illegal for sbttons: %jx", _sbt));
+#endif
+	ns = _sbt;
+	if (ns >= SBT_1S)
+		ns = (ns >> 32) * 1000000000;
+	else
+		ns = 0;
+
+	return (ns + (1000000000 * (_sbt & 0xffffffffu) >> 32));
 }
 
 static __inline sbintime_t
