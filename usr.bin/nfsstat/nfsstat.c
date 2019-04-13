@@ -790,7 +790,7 @@ exp_intpr(int clientOnly, int serverOnly, int nfs41)
 		    (uintmax_t)ext_nfsstats.cllocalopenowners);
 
 		xo_emit("{T:LocalOpen/%13.13s}{T:LocalLown/%13.13s}"
-		    "{T:LocalLock\n");
+		    "{T:LocalLock/%13.13s}\n");
 		xo_emit("{:localopen/%13ju}{:locallown/%13ju}"
 		    "{:locallock/%13ju}\n",
 		    (uintmax_t)ext_nfsstats.cllocalopens,
