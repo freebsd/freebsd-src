@@ -94,11 +94,10 @@ dtrace_sp_inkernel(uintptr_t sp)
 	return (1);
 }
 
-static __inline uintptr_t
-dtrace_next_sp(uintptr_t sp)
+static __inline void
+dtrace_next_sp_pc(uintptr_t sp, uintptr_t *nsp, uintptr_t *pc)
 {
 	vm_offset_t callpc;
-	uintptr_t *r1;
 	struct trapframe *frame;
 
 #ifdef __powerpc64__
@@ -115,39 +114,17 @@ dtrace_next_sp(uintptr_t sp)
 	    callpc + OFFSET == (vm_offset_t) &asttrapexit)) {
 		/* Access the trap frame */
 		frame = (struct trapframe *)(sp + FRAME_OFFSET);
-		r1 = (uintptr_t *)frame->fixreg[1];
-		if (r1 == NULL)
-			return (0);
-		return (*r1);
+
+		if (nsp != NULL)
+			*nsp = frame->fixreg[1];
+		if (pc != NULL)
+			*pc = frame->srr0;
 	}
 
-	return (*(uintptr_t*)sp);
-}
-
-static __inline uintptr_t
-dtrace_get_pc(uintptr_t sp)
-{
-	struct trapframe *frame;
-	vm_offset_t callpc;
-
-#ifdef __powerpc64__
-	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET64);
-#else
-	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET);
-#endif
-
-	/*
-	 * trapexit() and asttrapexit() are sentinels
-	 * for kernel stack tracing.
-	 */
-	if ((callpc + OFFSET == (vm_offset_t) &trapexit ||
-	    callpc + OFFSET == (vm_offset_t) &asttrapexit)) {
-		/* Access the trap frame */
-		frame = (struct trapframe *)(sp + FRAME_OFFSET);
-		return (frame->srr0);
-	}
-
-	return (callpc);
+	if (nsp != NULL)
+		*nsp = *(uintptr_t *)sp;
+	if (pc != NULL)
+		*pc = callpc;
 }
 
 greg_t
@@ -179,7 +156,8 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 
 		if (!dtrace_sp_inkernel(sp))
 			break;
-		callpc = dtrace_get_pc(sp);
+		osp = sp;
+		dtrace_next_sp_pc(osp, &sp, &callpc);
 
 		if (aframes > 0) {
 			aframes--;
@@ -190,9 +168,6 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 		else {
 			pcstack[depth++] = callpc;
 		}
-
-		osp = sp;
-		sp = dtrace_next_sp(sp);
 	}
 
 	for (; depth < pcstack_limit; depth++) {
@@ -546,7 +521,7 @@ dtrace_getstackdepth(int aframes)
 		else
 			aframes--;
 		osp = sp;
-		sp = dtrace_next_sp(sp);
+		dtrace_next_sp_pc(sp, &sp, NULL);
 	}
 	if (depth < aframes)
 		return (0);
