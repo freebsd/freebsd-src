@@ -155,7 +155,7 @@ enum {
 	CHK_MBOX_ACCESS	= (1 << 2),
 	MASTER_PF	= (1 << 3),
 	ADAP_SYSCTL_CTX	= (1 << 4),
-	/* TOM_INIT_DONE= (1 << 5),	No longer used */
+	ADAP_ERR	= (1 << 5),
 	BUF_PACKING_OK	= (1 << 6),
 	IS_VF		= (1 << 7),
 
@@ -175,6 +175,7 @@ enum {
 	DF_LOAD_FW_ANYTIME	= (1 << 1),	/* Allow LOAD_FW after init */
 	DF_DISABLE_TCB_CACHE	= (1 << 2),	/* Disable TCB cache (T6+) */
 	DF_DISABLE_CFG_RETRY	= (1 << 3),	/* Disable fallback config */
+	DF_VERBOSE_SLOWINTR	= (1 << 4),	/* Chatty slow intr handler */
 };
 
 #define IS_DOOMED(vi)	((vi)->flags & DOOMED)
@@ -893,6 +894,8 @@ struct adapter {
 	const char *last_op;
 	const void *last_op_thr;
 	int last_op_flags;
+
+	int swintr;
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
@@ -932,24 +935,6 @@ struct adapter {
 #define TXQ_UNLOCK(txq)			EQ_UNLOCK(&(txq)->eq)
 #define TXQ_LOCK_ASSERT_OWNED(txq)	EQ_LOCK_ASSERT_OWNED(&(txq)->eq)
 #define TXQ_LOCK_ASSERT_NOTOWNED(txq)	EQ_LOCK_ASSERT_NOTOWNED(&(txq)->eq)
-
-#define CH_DUMP_MBOX(sc, mbox, data_reg) \
-	do { \
-		if (sc->debug_flags & DF_DUMP_MBOX) { \
-			log(LOG_NOTICE, \
-			    "%s mbox %u: %016llx %016llx %016llx %016llx " \
-			    "%016llx %016llx %016llx %016llx\n", \
-			    device_get_nameunit(sc->dev), mbox, \
-			    (unsigned long long)t4_read_reg64(sc, data_reg), \
-			    (unsigned long long)t4_read_reg64(sc, data_reg + 8), \
-			    (unsigned long long)t4_read_reg64(sc, data_reg + 16), \
-			    (unsigned long long)t4_read_reg64(sc, data_reg + 24), \
-			    (unsigned long long)t4_read_reg64(sc, data_reg + 32), \
-			    (unsigned long long)t4_read_reg64(sc, data_reg + 40), \
-			    (unsigned long long)t4_read_reg64(sc, data_reg + 48), \
-			    (unsigned long long)t4_read_reg64(sc, data_reg + 56)); \
-		} \
-	} while (0)
 
 #define for_each_txq(vi, iter, q) \
 	for (q = &vi->pi->adapter->sge.txq[vi->first_txq], iter = 0; \
@@ -1106,6 +1091,38 @@ t4_use_ldst(struct adapter *sc)
 #endif
 }
 
+static inline void
+CH_DUMP_MBOX(struct adapter *sc, int mbox, const int reg,
+    const char *msg, const __be64 *const p, const bool err)
+{
+
+	if (!(sc->debug_flags & DF_DUMP_MBOX) && !err)
+		return;
+	if (p != NULL) {
+		log(err ? LOG_ERR : LOG_DEBUG,
+		    "%s: mbox %u %s %016llx %016llx %016llx %016llx "
+		    "%016llx %016llx %016llx %016llx\n",
+		    device_get_nameunit(sc->dev), mbox, msg,
+		    (long long)be64_to_cpu(p[0]), (long long)be64_to_cpu(p[1]),
+		    (long long)be64_to_cpu(p[2]), (long long)be64_to_cpu(p[3]),
+		    (long long)be64_to_cpu(p[4]), (long long)be64_to_cpu(p[5]),
+		    (long long)be64_to_cpu(p[6]), (long long)be64_to_cpu(p[7]));
+	} else {
+		log(err ? LOG_ERR : LOG_DEBUG,
+		    "%s: mbox %u %s %016llx %016llx %016llx %016llx "
+		    "%016llx %016llx %016llx %016llx\n",
+		    device_get_nameunit(sc->dev), mbox, msg,
+		    (long long)t4_read_reg64(sc, reg),
+		    (long long)t4_read_reg64(sc, reg + 8),
+		    (long long)t4_read_reg64(sc, reg + 16),
+		    (long long)t4_read_reg64(sc, reg + 24),
+		    (long long)t4_read_reg64(sc, reg + 32),
+		    (long long)t4_read_reg64(sc, reg + 40),
+		    (long long)t4_read_reg64(sc, reg + 48),
+		    (long long)t4_read_reg64(sc, reg + 56));
+	}
+}
+
 /* t4_main.c */
 extern int t4_ntxq;
 extern int t4_nrxq;
@@ -1150,6 +1167,8 @@ void free_atid(struct adapter *, int);
 void release_tid(struct adapter *, int, struct sge_wrq *);
 int cxgbe_media_change(struct ifnet *);
 void cxgbe_media_status(struct ifnet *, struct ifmediareq *);
+bool t4_os_dump_cimla(struct adapter *, int, bool);
+void t4_os_dump_devlog(struct adapter *);
 
 #ifdef DEV_NETMAP
 /* t4_netmap.c */
