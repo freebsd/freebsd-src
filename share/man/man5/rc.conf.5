@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2017
+.Dd March 21, 2019
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -568,9 +568,11 @@ equivalent of
 .Va natd_enable .
 Setting this to
 .Dq Li YES
-enables kernel NAT.
+will automatically load the
+.Xr ipfw 8
+NAT kernel module if
 .Va firewall_enable
-must also be set to
+is also set to
 .Dq Li YES .
 .It Va firewall_nat_interface
 .Pq Vt str
@@ -583,6 +585,36 @@ kernel NAT should run.
 .It Va firewall_nat_flags
 .Pq Vt str
 Additional configuration parameters for kernel NAT should be placed here.
+.It Va firewall_nat64_enable
+.Pq Vt bool
+Setting this to
+.Dq Li YES
+will automatically load the
+.Xr ipfw 8
+NAT64 kernel module if
+.Va firewall_enable
+is also set to
+.Dq Li YES .
+.It Va firewall_nptv6_enable
+.Pq Vt bool
+Setting this to
+.Dq Li YES
+will automatically load the
+.Xr ipfw 8
+NPTv6 kernel module if
+.Va firewall_enable
+is also set to
+.Dq Li YES .
+.It Va firewall_pmod_enable
+.Pq Vt bool
+Setting this to
+.Dq Li YES
+will automatically load the
+.Xr ipfw 8
+pmod kernel module if
+.Va firewall_enable
+is also set to
+.Dq Li YES .
 .It Va dummynet_enable
 .Pq Vt bool
 Setting this to
