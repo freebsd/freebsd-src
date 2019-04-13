@@ -369,9 +369,6 @@ BROKEN_OPTIONS+=LOADER_UBOOT
 BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 .endif
 
-# clang 7.0
-BROKEN_OPTIONS+=RETPOLINE
-
 .if ${__T:Mmips64*}
 # profiling won't work on MIPS64 because there is only assembly for o32
 BROKEN_OPTIONS+=PROFILE
