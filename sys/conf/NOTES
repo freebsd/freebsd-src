@@ -1565,6 +1565,8 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 #      Qlogic ISP 2300 and ISP 2312 2Gb Fibre Channel host adapters.
 #      Qlogic ISP 2322 and ISP 6322 2Gb Fibre Channel host adapters.
 # ispfw: Firmware module for Qlogic host adapters
+# mpr: LSI-Logic MPT/Fusion Gen 3
+# mps: LSI-Logic MPT/Fusion Gen 2
 # mpt: LSI-Logic MPT/Fusion 53c1020 or 53c1030 Ultra4
 #      or FC9x9 Fibre Channel host adapters.
 # sym: Symbios/Logic 53C8XX family of PCI-SCSI I/O processors:
@@ -1594,7 +1596,9 @@ hint.isp.0.topology="nport-only"
 hint.isp.0.portwnn="w50000000aaaa0000"
 hint.isp.0.nodewnn="w50000000aaaa0001"
 device		ispfw
-device		mpt
+device		mpr			# LSI-Logic MPT-Fusion 3
+device		mps			# LSI-Logic MPT-Fusion 2
+device		mpt			# LSI-Logic MPT-Fusion
 device		sym
 device		trm
 

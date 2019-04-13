@@ -79,3 +79,7 @@ options 	KDTRACE_HOOKS
 
 # Alternatively include all the DTrace modules
 #device		dtraceall
+
+# These aren't known to work on arm and/or don't compile
+nodevice	mpr
+nodevice	mps
