@@ -14,6 +14,7 @@ SRCS=	vnode_if.h \
 	nfs_nfsdport.c \
 	opt_ufs.h \
 	opt_nfs.h \
+	opt_inet.h \
 	opt_inet6.h \
 	opt_kgssapi.h
 
