@@ -940,8 +940,8 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	struct buf *bp;
 	struct vnode *vp;
 	struct thread *td;
-	int i, error;
-	int used_blocks;
+	unsigned int i, used_blocks;
+	int error;
 
 	td = curthread;
 	error = vfs_hash_get(mp, ino, flags, td, vpp, NULL, NULL);
