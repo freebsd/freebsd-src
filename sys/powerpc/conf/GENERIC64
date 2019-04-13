@@ -35,6 +35,7 @@ options 	POWERNV			#Non-virtualized OpenPOWER systems
 
 options		FDT			#Flattened Device Tree
 options 	SCHED_ULE		#ULE scheduler
+options 	NUMA			#Non-Uniform Memory Architecture support
 options 	PREEMPTION		#Enable kernel thread preemption
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			#InterNETworking
