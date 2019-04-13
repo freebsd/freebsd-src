@@ -212,7 +212,7 @@
 	names.</para>
 
       <para revision="344020">The &man.pfctl.8; utility has been
-	updated to provide more clear output and reference the
+	updated to provide clearer output and reference the
 	<literal>net.pf.request_maxcount</literal> &man.sysctl.8;
 	if a defined table is too large.</para>
 
@@ -221,9 +221,8 @@
 	names.</para>
 
       <para revision="345561">The &man.sh.1; utility has been updated
-	to add the <literal>pipefail</literal> option which allows
-	checking the exit status of all commands in a pipeline more
-	easily.</para>
+	to add the <literal>pipefail</literal> option which simplifies
+	checking the exit status of all commands in a pipeline.</para>
 
       <para revision="345878">The &man.patch.1; utility has been
 	updated to exit successfully if the input patch file is
