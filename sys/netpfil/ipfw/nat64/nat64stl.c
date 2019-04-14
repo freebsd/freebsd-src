@@ -99,7 +99,9 @@ nat64stl_handle_ip4(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
 	daddr = TARG_VAL(chain, tablearg, nh6);
 	if (nat64_check_ip6(&daddr) != 0)
 		return (NAT64MFREE);
-	nat64_embed_ip4(&cfg->base, ip->ip_src.s_addr, &saddr);
+
+	saddr = cfg->base.plat_prefix;
+	nat64_embed_ip4(&saddr, cfg->base.plat_plen, ip->ip_src.s_addr);
 	if (cfg->base.flags & NAT64_LOG) {
 		logdata = &loghdr;
 		nat64stl_log(logdata, m, AF_INET, cfg->no.kidx);
@@ -118,7 +120,10 @@ nat64stl_handle_ip6(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
 	uint32_t aaddr;
 
 	aaddr = htonl(TARG_VAL(chain, tablearg, nh4));
-
+	if (nat64_check_private_ip4(&cfg->base, aaddr) != 0) {
+		NAT64STAT_INC(&cfg->base.stats, dropped);
+		return (NAT64MFREE);
+	}
 	/*
 	 * NOTE: we expect ipfw_chk() did m_pullup() up to upper level
 	 * protocol's headers. Also we skip some checks, that ip6_input(),
@@ -126,7 +131,8 @@ nat64stl_handle_ip6(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
 	 */
 	ip6 = mtod(m, struct ip6_hdr *);
 	/* Check ip6_dst matches configured prefix */
-	if (bcmp(&ip6->ip6_dst, &cfg->base.prefix6, cfg->base.plen6 / 8) != 0)
+	if (memcmp(&ip6->ip6_dst, &cfg->base.plat_prefix,
+	    cfg->base.plat_plen / 8) != 0)
 		return (NAT64SKIP);
 
 	if (cfg->base.flags & NAT64_LOG) {
@@ -254,7 +260,7 @@ ipfw_nat64stl(struct ip_fw_chain *chain, struct ip_fw_args *args,
 	if (ret == NAT64MFREE)
 		m_freem(args->m);
 	args->m = NULL;
-	return (IP_FW_DENY);
+	return (IP_FW_NAT64);
 }
 
 

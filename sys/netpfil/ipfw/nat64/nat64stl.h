@@ -43,7 +43,8 @@ struct nat64stl_cfg {
 #define	NAT64STL_KIDX		0x0100
 #define	NAT64STL_46T		0x0200
 #define	NAT64STL_64T		0x0400
-#define	NAT64STL_FLAGSMASK	(NAT64_LOG) /* flags to pass to userland */
+	/* flags to pass to userland */
+#define	NAT64STL_FLAGSMASK	(NAT64_LOG | NAT64_ALLOW_PRIVATE)
 	char			name[64];
 };
 
