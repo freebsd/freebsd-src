@@ -618,6 +618,8 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	if (rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, &info))
 		senderr(EINVAL);
 
+	if (rtm->rtm_flags & RTF_RNH_LOCKED)
+		senderr(EINVAL);
 	info.rti_flags = rtm->rtm_flags;
 	if (info.rti_info[RTAX_DST] == NULL ||
 	    info.rti_info[RTAX_DST]->sa_family >= AF_MAX ||
