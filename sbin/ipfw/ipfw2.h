@@ -37,8 +37,6 @@ struct cmdline_opts {
 	int	do_quiet;	/* Be quiet in add and flush */
 	int	do_pipe;	/* this cmd refers to a pipe/queue/sched */
 	int	do_nat; 	/* this cmd refers to a nat config */
-	int	do_dynamic;	/* display dynamic rules */
-	int	do_expired;	/* display expired dynamic rules */
 	int	do_compact;	/* show rules in compact mode */
 	int	do_force;	/* do not ask for confirmation */
 	int	show_sets;	/* display the set each rule belongs to */
@@ -48,6 +46,8 @@ struct cmdline_opts {
 
 	/* The options below can have multiple values. */
 
+	int	do_dynamic;	/* 1 - display dynamic rules */
+				/* 2 - display/delete only dynamic rules */
 	int	do_sort;	/* field to sort results (0 = no) */
 		/* valid fields are 1 and above */
 
