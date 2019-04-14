@@ -1,8 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2015-2019 Yandex LLC
- * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
+ * Copyright (c) 2019 Yandex LLC
+ * Copyright (c) 2019 Andrey V. Elsukov <ae@FreeBSD.org>
+ * Copyright (c) 2019 Boris N. Lytochkin <lytboris@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,33 +29,26 @@
  * $FreeBSD$
  */
 
-#ifndef	_IP_FW_NAT64_H_
-#define	_IP_FW_NAT64_H_
+#ifndef	_IP_FW_NAT64CLAT_H_
+#define	_IP_FW_NAT64CLAT_H_
 
-#define	DPRINTF(mask, fmt, ...)	\
-    if (V_nat64_debug & (mask))	\
-	printf("NAT64: %s: " fmt "\n", __func__, ## __VA_ARGS__)
-#define	DP_GENERIC	0x0001
-#define	DP_OBJ		0x0002
-#define	DP_JQUEUE	0x0004
-#define	DP_STATE	0x0008
-#define	DP_DROPS	0x0010
-#define	DP_ALL		0xFFFF
+#include "ip_fw_nat64.h"
+#include "nat64_translate.h"
 
-VNET_DECLARE(int, nat64_debug);
-#define	V_nat64_debug		VNET(nat64_debug)
+struct nat64clat_cfg {
+	struct named_object	no;
 
-#if 0
-#define	NAT64NOINLINE	__noinline
-#else
-#define	NAT64NOINLINE
+	struct nat64_config	base;
+#define	NAT64CLAT_FLAGSMASK	\
+	(NAT64_LOG | NAT64_ALLOW_PRIVATE) /* flags to pass to userland */
+	char			name[64];
+};
+
+VNET_DECLARE(uint16_t, nat64clat_eid);
+#define	V_nat64clat_eid	VNET(nat64clat_eid)
+#define	IPFW_TLV_NAT64CLAT_NAME	IPFW_TLV_EACTION_NAME(V_nat64clat_eid)
+
+int ipfw_nat64clat(struct ip_fw_chain *chain, struct ip_fw_args *args,
+    ipfw_insn *cmd, int *done);
+
 #endif
-
-int	nat64stl_init(struct ip_fw_chain *ch, int first);
-void	nat64stl_uninit(struct ip_fw_chain *ch, int last);
-int	nat64lsn_init(struct ip_fw_chain *ch, int first);
-void	nat64lsn_uninit(struct ip_fw_chain *ch, int last);
-int	nat64clat_init(struct ip_fw_chain *ch, int first);
-void	nat64clat_uninit(struct ip_fw_chain *ch, int last);
-
-#endif /* _IP_FW_NAT64_H_ */
