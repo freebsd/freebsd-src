@@ -39,10 +39,10 @@
 #include <string.h>
 #include <unistd.h>
 
-extern void debug_printf(const char *, ...) __printflike(1, 2);
+void debug_printf(const char *, ...) __printflike(1, 2);
 extern int debug;
 
-#ifdef DEBUG
+#ifndef NO_LD_DEBUG
 #define dbg(...)	debug_printf(__VA_ARGS__)
 #else
 #define dbg(...)	((void) 0)
