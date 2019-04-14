@@ -1189,6 +1189,7 @@ set_match(struct ip_fw_args *args, int slot,
 	args->rule.slot = slot + 1; /* we use 0 as a marker */
 	args->rule.rule_id = 1 + chain->map[slot]->id;
 	args->rule.rulenum = chain->map[slot]->rulenum;
+	args->flags |= IPFW_ARGS_REF;
 }
 
 #ifndef LINEAR_SKIPTO
@@ -1374,17 +1375,12 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	Only valid for IPv4 packets.
 	 */
 	uint8_t proto;
-	uint16_t src_port = 0, dst_port = 0;	/* NOTE: host format	*/
+	uint16_t src_port, dst_port;		/* NOTE: host format	*/
 	struct in_addr src_ip, dst_ip;		/* NOTE: network format	*/
 	int iplen = 0;
 	int pktlen;
-	uint16_t	etype = 0;	/* Host order stored ether type */
+	uint16_t etype;			/* Host order stored ether type */
 
-	/*
-	 * dyn_dir = MATCH_UNKNOWN when rules unchecked,
-	 * 	MATCH_NONE when checked and not matched (q = NULL),
-	 *	MATCH_FORWARD or MATCH_REVERSE otherwise (q != NULL)
-	 */
 	struct ipfw_dyn_info dyn_info;
 	struct ip_fw *q = NULL;
 	struct ip_fw_chain *chain = &V_layer3_chain;
@@ -1412,10 +1408,8 @@ ipfw_chk(struct ip_fw_args *args)
 
 	dst_ip.s_addr = 0;		/* make sure it is initialized */
 	src_ip.s_addr = 0;		/* make sure it is initialized */
+	src_port = dst_port = 0;
 	pktlen = m->m_pkthdr.len;
-	args->f_id.fib = M_GETFIB(m); /* note mbuf not altered) */
-	proto = args->f_id.proto = 0;	/* mark f_id invalid */
-		/* XXX 0 is a valid proto: IP/IPv6 Hop-by-Hop Option */
 
 	DYN_INFO_INIT(&dyn_info);
 /*
@@ -1439,18 +1433,19 @@ do {								\
 	/*
 	 * if we have an ether header,
 	 */
-	if (args->eh)
+	if (args->flags & IPFW_ARGS_ETHER)
 		etype = ntohs(args->eh->ether_type);
+	else
+		etype = 0;
 
 	/* Identify IP packets and fill up variables. */
 	if (pktlen >= sizeof(struct ip6_hdr) &&
-	    (args->eh == NULL || etype == ETHERTYPE_IPV6) && ip->ip_v == 6) {
+	    (etype == 0 || etype == ETHERTYPE_IPV6) && ip->ip_v == 6) {
 		struct ip6_hdr *ip6 = (struct ip6_hdr *)ip;
+
 		is_ipv6 = 1;
-		args->f_id.addr_type = 6;
 		hlen = sizeof(struct ip6_hdr);
 		proto = ip6->ip6_nxt;
-
 		/* Search extension headers to find upper layer protocols */
 		while (ulp == NULL && offset == 0) {
 			switch (proto) {
@@ -1623,20 +1618,18 @@ do {								\
 		}
 		ip = mtod(m, struct ip *);
 		ip6 = (struct ip6_hdr *)ip;
+		args->f_id.addr_type = 6;
 		args->f_id.src_ip6 = ip6->ip6_src;
 		args->f_id.dst_ip6 = ip6->ip6_dst;
-		args->f_id.src_ip = 0;
-		args->f_id.dst_ip = 0;
 		args->f_id.flow_id6 = ntohl(ip6->ip6_flow);
 		iplen = ntohs(ip6->ip6_plen) + sizeof(*ip6);
 	} else if (pktlen >= sizeof(struct ip) &&
-	    (args->eh == NULL || etype == ETHERTYPE_IP) && ip->ip_v == 4) {
-	    	is_ipv4 = 1;
+	    (etype == 0 || etype == ETHERTYPE_IP) && ip->ip_v == 4) {
+		is_ipv4 = 1;
 		hlen = ip->ip_hl << 2;
-		args->f_id.addr_type = 4;
-
 		/*
-		 * Collect parameters into local variables for faster matching.
+		 * Collect parameters into local variables for faster
+		 * matching.
 		 */
 		proto = ip->ip_p;
 		src_ip = ip->ip_src;
@@ -1689,23 +1682,30 @@ do {								\
 		}
 
 		ip = mtod(m, struct ip *);
+		args->f_id.addr_type = 4;
 		args->f_id.src_ip = ntohl(src_ip.s_addr);
 		args->f_id.dst_ip = ntohl(dst_ip.s_addr);
+	} else {
+		proto = 0;
+		dst_ip.s_addr = src_ip.s_addr = 0;
+
+		args->f_id.addr_type = 1; /* XXX */
 	}
 #undef PULLUP_TO
 	pktlen = iplen < pktlen ? iplen: pktlen;
-	if (proto) { /* we may have port numbers, store them */
-		args->f_id.proto = proto;
-		args->f_id.src_port = src_port = ntohs(src_port);
-		args->f_id.dst_port = dst_port = ntohs(dst_port);
-	}
+
+	/* Properly initialize the rest of f_id */
+	args->f_id.proto = proto;
+	args->f_id.src_port = src_port = ntohs(src_port);
+	args->f_id.dst_port = dst_port = ntohs(dst_port);
+	args->f_id.fib = M_GETFIB(m);
 
 	IPFW_PF_RLOCK(chain);
 	if (! V_ipfw_vnet_ready) { /* shutting down, leave NOW. */
 		IPFW_PF_RUNLOCK(chain);
 		return (IP_FW_PASS);	/* accept */
 	}
-	if (args->rule.slot) {
+	if (args->flags & IPFW_ARGS_REF) {
 		/*
 		 * Packet has already been tagged as a result of a previous
 		 * match on rule args->rule aka args->rule_id (PIPE, QUEUE,
@@ -1833,7 +1833,7 @@ do {								\
 				break;
 
 			case O_MACADDR2:
-				if (args->eh != NULL) {	/* have MAC header */
+				if (args->flags & IPFW_ARGS_ETHER) {
 					u_int32_t *want = (u_int32_t *)
 						((ipfw_insn_mac *)cmd)->addr;
 					u_int32_t *mask = (u_int32_t *)
@@ -1848,7 +1848,7 @@ do {								\
 				break;
 
 			case O_MAC_TYPE:
-				if (args->eh != NULL) {
+				if (args->flags & IPFW_ARGS_ETHER) {
 					u_int16_t *p =
 					    ((ipfw_insn_u16 *)cmd)->ports;
 					int i;
@@ -1869,19 +1869,21 @@ do {								\
 				break;
 
 			case O_LAYER2:
-				match = (args->eh != NULL);
+				match = (args->flags & IPFW_ARGS_ETHER);
 				break;
 
 			case O_DIVERTED:
-			    {
-				/* For diverted packets, args->rule.info
+				if ((args->flags & IPFW_ARGS_REF) == 0)
+					break;
+				/*
+				 * For diverted packets, args->rule.info
 				 * contains the divert port (in host format)
 				 * reason and direction.
 				 */
-				uint32_t i = args->rule.info;
-				match = (i&IPFW_IS_MASK) == IPFW_IS_DIVERT &&
-				    cmd->arg1 & ((i & IPFW_INFO_IN) ? 1 : 2);
-			    }
+				match = ((args->rule.info & IPFW_IS_MASK) ==
+				    IPFW_IS_DIVERT) && (
+				    ((args->rule.info & IPFW_INFO_IN) ?
+					1: 2) & cmd->arg1);
 				break;
 
 			case O_PROTO:
@@ -2053,7 +2055,8 @@ do {								\
 #ifdef INET6
 				/* FALLTHROUGH */
 			case O_IP6_SRC_ME:
-				match= is_ipv6 && ipfw_localip6(&args->f_id.src_ip6);
+				match = is_ipv6 &&
+				    ipfw_localip6(&args->f_id.src_ip6);
 #endif
 				break;
 
@@ -2089,7 +2092,8 @@ do {								\
 #ifdef INET6
 				/* FALLTHROUGH */
 			case O_IP6_DST_ME:
-				match= is_ipv6 && ipfw_localip6(&args->f_id.dst_ip6);
+				match = is_ipv6 &&
+				    ipfw_localip6(&args->f_id.dst_ip6);
 #endif
 				break;
 
@@ -2687,8 +2691,8 @@ do {								\
 
 			case O_DIVERT:
 			case O_TEE:
-				if (args->eh) /* not on layer 2 */
-				    break;
+				if (args->flags & IPFW_ARGS_ETHER)
+					break;	/* not on layer 2 */
 				/* otherwise this is terminal */
 				l = 0;		/* exit inner loop */
 				done = 1;	/* exit outer loop */
@@ -2864,8 +2868,8 @@ do {								\
 				break;
 
 			case O_FORWARD_IP:
-				if (args->eh)	/* not valid on layer2 pkts */
-					break;
+				if (args->flags & IPFW_ARGS_ETHER)
+					break;	/* not valid on layer2 pkts */
 				if (q != f ||
 				    dyn_info.direction == MATCH_FORWARD) {
 				    struct sockaddr_in *sa;
@@ -2882,32 +2886,22 @@ do {								\
 					 * table_value as next_hop6 address.
 					 */
 					if (is_ipv6) {
-						struct sockaddr_in6 *sa6;
+						struct ip_fw_nh6 *nh6;
 
-						sa6 = args->next_hop6 =
-						    &args->hopstore6;
-						sa6->sin6_family = AF_INET6;
-						sa6->sin6_len = sizeof(*sa6);
-						sa6->sin6_addr = TARG_VAL(
+						args->flags |= IPFW_ARGS_NH6;
+						nh6 = &args->hopstore6;
+						nh6->sin6_addr = TARG_VAL(
 						    chain, tablearg, nh6);
-						sa6->sin6_port = sa->sin_port;
-						/*
-						 * Set sin6_scope_id only for
-						 * link-local unicast addresses.
-						 */
-						if (IN6_IS_ADDR_LINKLOCAL(
-						    &sa6->sin6_addr))
-							sa6->sin6_scope_id =
-							    TARG_VAL(chain,
-								tablearg,
-								zoneid);
+						nh6->sin6_port = sa->sin_port;
+						nh6->sin6_scope_id = TARG_VAL(
+						    chain, tablearg, zoneid);
 					} else
 #endif
 					{
+						args->flags |= IPFW_ARGS_NH4;
 						args->hopstore.sin_port =
 						    sa->sin_port;
-						sa = args->next_hop =
-						    &args->hopstore;
+						sa = &args->hopstore;
 						sa->sin_family = AF_INET;
 						sa->sin_len = sizeof(*sa);
 						sa->sin_addr.s_addr = htonl(
@@ -2915,7 +2909,8 @@ do {								\
 						    nh4));
 					}
 				    } else {
-					args->next_hop = sa;
+					    args->flags |= IPFW_ARGS_NH4PTR;
+					    args->next_hop = sa;
 				    }
 				}
 				retval = IP_FW_PASS;
@@ -2925,13 +2920,14 @@ do {								\
 
 #ifdef INET6
 			case O_FORWARD_IP6:
-				if (args->eh)	/* not valid on layer2 pkts */
-					break;
+				if (args->flags & IPFW_ARGS_ETHER)
+					break;	/* not valid on layer2 pkts */
 				if (q != f ||
 				    dyn_info.direction == MATCH_FORWARD) {
 					struct sockaddr_in6 *sin6;
 
 					sin6 = &(((ipfw_insn_sa6 *)cmd)->sa);
+					args->flags |= IPFW_ARGS_NH6PTR;
 					args->next_hop6 = sin6;
 				}
 				retval = IP_FW_PASS;
@@ -2960,7 +2956,7 @@ do {								\
 				if (fib >= rt_numfibs)
 					fib = 0;
 				M_SETFIB(m, fib);
-				args->f_id.fib = fib;
+				args->f_id.fib = fib; /* XXX */
 				l = 0;		/* exit inner loop */
 				break;
 		        }
@@ -3007,6 +3003,7 @@ do {								\
 				struct cfg_nat *t;
 				int nat_id;
 
+				args->rule.info = 0;
 				set_match(args, f_pos, chain);
 				/* Check if this is 'global' nat rule */
 				if (cmd->arg1 == IP_FW_NAT44_GLOBAL) {
@@ -3059,6 +3056,7 @@ do {								\
 				    else
 					ip->ip_sum = in_cksum(m, hlen);
 				    retval = IP_FW_REASS;
+				    args->rule.info = 0;
 				    set_match(args, f_pos, chain);
 				}
 				done = 1;	/* exit outer loop */
