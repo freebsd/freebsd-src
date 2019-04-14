@@ -41,9 +41,7 @@
 #define	DP_ALL		0xFFFF
 
 VNET_DECLARE(int, nat64_debug);
-VNET_DECLARE(int, nat64_allow_private);
 #define	V_nat64_debug		VNET(nat64_debug)
-#define	V_nat64_allow_private	VNET(nat64_allow_private)
 
 #if 0
 #define	NAT64NOINLINE	__noinline
