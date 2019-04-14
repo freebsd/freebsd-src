@@ -136,6 +136,21 @@ in-kernel NAT.
 .Cm destroy
 .Nm
 .Oo Cm set Ar N Oc Cm nat64stl Ar name Cm stats Op Cm reset
+.Ss XLAT464 CLAT IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+.Nm
+.Oo Cm set Ar N Oc Cm nat64clat Ar name Cm create Ar create-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64clat Ar name Cm config Ar config-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64clat
+.Brq Ar name | all
+.Brq Cm list | show
+.Nm
+.Oo Cm set Ar N Oc Cm nat64clat
+.Brq Ar name | all
+.Cm destroy
+.Nm
+.Oo Cm set Ar N Oc Cm nat64clat Ar name Cm stats Op Cm reset
 .Ss IPv6-to-IPv6 NETWORK PREFIX TRANSLATION
 .Nm
 .Oo Cm set Ar N Oc Cm nptv6 Ar name Cm create Ar create-options
@@ -921,6 +936,11 @@ protocol translation): see the
 Section for further information.
 .It Cm nat64stl Ar name
 Pass packet to a stateless NAT64 instance (for IPv6/IPv4 network address and
+protocol translation): see the
+.Sx IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+Section for further information.
+.It Cm nat64clat Ar name
+Pass packet to a CLAT NAT64 instance (for client-side IPv6/IPv4 network address and
 protocol translation): see the
 .Sx IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
 Section for further information.
@@ -3482,6 +3502,57 @@ Note that the behavior of stateless translator with respect to not matched
 packets differs from stateful translator.
 If corresponding addresses was not found in the lookup tables, the packet
 will not be dropped and the search continues.
+.Pp
+.Pp
+.Ss XLAT464 CLAT translation
+XLAT464 CLAT NAT64 translator implements client-side stateless translation as
+defined in RFC6877 and is very similar to statless NAT64 translator
+explained above. Instead of lookup tables it uses one-to-one mapping
+between IPv4 and IPv6 addresses using configured prefixes.
+This mode can be used as a replacement of DNS64 service for applications
+that are not using it (e.g. VoIP) allowing them to access IPv4-only Internet
+over IPv6-only networks with help of remote NAT64 translator.
+.Pp
+The CLAT NAT64 configuration command is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat64clat
+.Ar name
+.Cm create
+.Ar create-options
+.Ek
+.Ed
+.Pp
+The following parameters can be configured:
+.Bl -tag -width indent
+.It Cm clat_prefix Ar ipv6_prefix/length
+The IPv6 prefix defines IPv4-embedded IPv6 addresses used by translator
+to represent source IPv4 addresses.
+.It Cm plat_prefix Ar ipv6_prefix/length
+The IPv6 prefix defines IPv4-embedded IPv6 addresses used by translator
+to represent destination IPv4 addresses. This IPv6 prefix should be configured
+on a remote NAT64 translator.
+.It Cm log
+Turn on logging of all handled packets via BPF through
+.Ar ipfwlog0
+interface.
+.It Cm -log
+Turn off logging of all handled packets via BPF.
+.It Cm allow_private
+Turn on processing private IPv4 addresses. By default
+.Nm nat64clat
+instance will not process IPv4 packets with destination address from private
+ranges as defined in RFC1918.
+.It Cm -allow_private
+Turn off private address handling in
+.Nm nat64clat
+instance.
+.El
+.Pp
+Note that the behavior of CLAT translator with respect to not matched
+packets differs from stateful translator.
+If corresponding addresses were not matched against prefixes configured,
+the packet will not be dropped and the search continues.
 .Sh IPv6-to-IPv6 NETWORK PREFIX TRANSLATION (NPTv6)
 .Nm
 supports in-kernel IPv6-to-IPv6 network prefix translation as described
