@@ -29,19 +29,21 @@
  */
 
 #include <sys/types.h>
-#include <sys/errno.h>
 #include <sys/sysctl.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <err.h>
-#include <limits.h>
-#include <string.h>
-#include <pmc.h>
-#include <pmclog.h>
 #include <assert.h>
+#include <err.h>
+#include <errno.h>
+#include <limits.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <string>
 #include <sysexits.h>
+
+#include <pmc.h>
 #include <pmcformat.h>
+#include <pmclog.h>
 
 using std::string;
 
