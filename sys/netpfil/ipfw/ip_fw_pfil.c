@@ -124,13 +124,11 @@ ipfw_check_packet(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 {
 	struct ip_fw_args args;
 	struct m_tag *tag;
-	int ipfw;
-	int ret;
+	int ipfw, ret;
 
 	/* convert dir to IPFW values */
 	dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
-	bzero(&args, sizeof(args));
-
+	args.flags = 0;
 again:
 	/*
 	 * extract and remove the tag if present. If we are left
@@ -142,6 +140,7 @@ again:
 		m_tag_delete(*m0, tag);
 		if (args.rule.info & IPFW_ONEPASS)
 			return (0);
+		args.flags |= IPFW_ARGS_REF;
 	}
 
 	args.m = *m0;
@@ -155,53 +154,82 @@ again:
 	    __func__));
 
 	/* breaking out of the switch means drop */
-	ret = 0;	/* default return value for pass */
 	switch (ipfw) {
 	case IP_FW_PASS:
 		/* next_hop may be set by ipfw_chk */
-		if (args.next_hop == NULL && args.next_hop6 == NULL)
-			break; /* pass */
+		if ((args.flags & (IPFW_ARGS_NH4 | IPFW_ARGS_NH4PTR |
+		    IPFW_ARGS_NH6 | IPFW_ARGS_NH6PTR)) == 0) {
+			ret = 0;
+			break;
+		}
 #if (!defined(INET6) && !defined(INET))
 		ret = EACCES;
 #else
 	    {
-		struct m_tag *fwd_tag;
+		void *psa;
 		size_t len;
-
-		KASSERT(args.next_hop == NULL || args.next_hop6 == NULL,
-		    ("%s: both next_hop=%p and next_hop6=%p not NULL", __func__,
-		     args.next_hop, args.next_hop6));
-#ifdef INET6
-		if (args.next_hop6 != NULL)
-			len = sizeof(struct sockaddr_in6);
-#endif
 #ifdef INET
-		if (args.next_hop != NULL)
+		if (args.flags & (IPFW_ARGS_NH4 | IPFW_ARGS_NH4PTR)) {
+			MPASS((args.flags & (IPFW_ARGS_NH4 |
+			    IPFW_ARGS_NH4PTR)) != (IPFW_ARGS_NH4 |
+			    IPFW_ARGS_NH4PTR));
+			MPASS((args.flags & (IPFW_ARGS_NH6 |
+			    IPFW_ARGS_NH6PTR)) == 0);
 			len = sizeof(struct sockaddr_in);
-#endif
-
-		/* Incoming packets should not be tagged so we do not
+			psa = (args.flags & IPFW_ARGS_NH4) ?
+			    &args.hopstore : args.next_hop;
+			if (in_localip(satosin(psa)->sin_addr))
+				(*m0)->m_flags |= M_FASTFWD_OURS;
+			(*m0)->m_flags |= M_IP_NEXTHOP;
+		}
+#endif /* INET */
+#ifdef INET6
+		if (args.flags & (IPFW_ARGS_NH6 | IPFW_ARGS_NH6PTR)) {
+			MPASS((args.flags & (IPFW_ARGS_NH6 |
+			    IPFW_ARGS_NH6PTR)) != (IPFW_ARGS_NH6 |
+			    IPFW_ARGS_NH6PTR));
+			MPASS((args.flags & (IPFW_ARGS_NH4 |
+			    IPFW_ARGS_NH4PTR)) == 0);
+			len = sizeof(struct sockaddr_in6);
+			psa = args.next_hop6;
+			(*m0)->m_flags |= M_IP6_NEXTHOP;
+		}
+#endif /* INET6 */
+		/*
+		 * Incoming packets should not be tagged so we do not
 		 * m_tag_find. Outgoing packets may be tagged, so we
 		 * reuse the tag if present.
 		 */
-		fwd_tag = (dir == DIR_IN) ? NULL :
+		tag = (dir == DIR_IN) ? NULL :
 			m_tag_find(*m0, PACKET_TAG_IPFORWARD, NULL);
-		if (fwd_tag != NULL) {
-			m_tag_unlink(*m0, fwd_tag);
+		if (tag != NULL) {
+			m_tag_unlink(*m0, tag);
 		} else {
-			fwd_tag = m_tag_get(PACKET_TAG_IPFORWARD, len,
+			tag = m_tag_get(PACKET_TAG_IPFORWARD, len,
 			    M_NOWAIT);
-			if (fwd_tag == NULL) {
+			if (tag == NULL) {
 				ret = EACCES;
 				break; /* i.e. drop */
 			}
 		}
+		if ((args.flags & IPFW_ARGS_NH6) == 0)
+			bcopy(psa, tag + 1, len);
+		m_tag_prepend(*m0, tag);
+		ret = 0;
 #ifdef INET6
-		if (args.next_hop6 != NULL) {
+		/* IPv6 next hop needs additional handling */
+		if (args.flags & (IPFW_ARGS_NH6 | IPFW_ARGS_NH6PTR)) {
 			struct sockaddr_in6 *sa6;
 
-			sa6 = (struct sockaddr_in6 *)(fwd_tag + 1);
-			bcopy(args.next_hop6, sa6, len);
+			sa6 = satosin6(tag + 1);
+			if (args.flags & IPFW_ARGS_NH6) {
+				sa6->sin6_family = AF_INET6;
+				sa6->sin6_len = sizeof(*sa6);
+				sa6->sin6_addr = args.hopstore6.sin6_addr;
+				sa6->sin6_port = args.hopstore6.sin6_port;
+				sa6->sin6_scope_id =
+				    args.hopstore6.sin6_scope_id;
+			}
 			/*
 			 * If nh6 address is link-local we should convert
 			 * it to kernel internal form before doing any
@@ -213,18 +241,8 @@ again:
 			}
 			if (in6_localip(&sa6->sin6_addr))
 				(*m0)->m_flags |= M_FASTFWD_OURS;
-			(*m0)->m_flags |= M_IP6_NEXTHOP;
 		}
-#endif
-#ifdef INET
-		if (args.next_hop != NULL) {
-			bcopy(args.next_hop, (fwd_tag+1), len);
-			if (in_localip(args.next_hop->sin_addr))
-				(*m0)->m_flags |= M_FASTFWD_OURS;
-			(*m0)->m_flags |= M_IP_NEXTHOP;
-		}
-#endif
-		m_tag_prepend(*m0, fwd_tag);
+#endif /* INET6 */
 	    }
 #endif /* INET || INET6 */
 		break;
@@ -237,6 +255,7 @@ again:
 		ret = EACCES;
 		if (ip_dn_io_ptr == NULL)
 			break; /* i.e. drop */
+		MPASS(args.flags & IPFW_ARGS_REF);
 		if (mtod(*m0, struct ip *)->ip_v == 4)
 			ret = ip_dn_io_ptr(m0, dir, &args);
 		else if (mtod(*m0, struct ip *)->ip_v == 6)
@@ -260,6 +279,7 @@ again:
 			ret = EACCES;
 			break; /* i.e. drop */
 		}
+		MPASS(args.flags & IPFW_ARGS_REF);
 		ret = ipfw_divert(m0, dir, &args.rule,
 			(ipfw == IP_FW_TEE) ? 1 : 0);
 		/* continue processing for the original packet (tee). */
@@ -273,6 +293,7 @@ again:
 			ret = EACCES;
 			break; /* i.e. drop */
 		}
+		MPASS(args.flags & IPFW_ARGS_REF);
 		ret = ng_ipfw_input_p(m0, dir, &args,
 			(ipfw == IP_FW_NGTEE) ? 1 : 0);
 		if (ipfw == IP_FW_NGTEE) /* ignore errors for NGTEE */
@@ -281,13 +302,15 @@ again:
 
 	case IP_FW_NAT:
 		/* honor one-pass in case of successful nat */
-		if (V_fw_one_pass)
-			break; /* ret is already 0 */
+		if (V_fw_one_pass) {
+			ret = 0;
+			break;
+		}
 		goto again;
 
 	case IP_FW_REASS:
 		goto again;		/* continue with packet */
-	
+
 	case IP_FW_NAT64:
 		ret = 0;
 		break;
@@ -302,7 +325,7 @@ again:
 		*m0 = NULL;
 	}
 
-	return ret;
+	return (ret);
 }
 
 /*
@@ -312,15 +335,14 @@ int
 ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
-	struct ether_header *eh;
+	struct ip_fw_args args;
 	struct ether_header save_eh;
+	struct ether_header *eh;
+	struct m_tag *mtag;
 	struct mbuf *m;
 	int i, ret;
-	struct ip_fw_args args;
-	struct m_tag *mtag;
 
-	bzero(&args, sizeof(args));
-
+	args.flags = IPFW_ARGS_ETHER;
 again:
 	/* fetch start point from rule, if any.  remove the tag if present. */
 	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
@@ -329,6 +351,7 @@ again:
 		m_tag_delete(*m0, mtag);
 		if (args.rule.info & IPFW_ONEPASS)
 			return (0);
+		args.flags |= IPFW_ARGS_REF;
 	}
 
 	/* I need some amt of data to be contiguous */
@@ -347,10 +370,8 @@ again:
 
 	args.m = m;		/* the packet we are looking at		*/
 	args.oif = dir == PFIL_OUT ? ifp: NULL;	/* destination, if any	*/
-	args.next_hop = NULL;	/* we do not support forward yet	*/
-	args.next_hop6 = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
-	args.inp = NULL;	/* used by ipfw uid/gid/jail rules	*/
+	args.inp = inp;	/* used by ipfw uid/gid/jail rules	*/
 	i = ipfw_chk(&args);
 	m = args.m;
 	if (m != NULL) {
@@ -381,14 +402,14 @@ again:
 
 	case IP_FW_DUMMYNET:
 		ret = EACCES;
-		int dir2;
 
 		if (ip_dn_io_ptr == NULL)
 			break; /* i.e. drop */
 
 		*m0 = NULL;
-		dir2 = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
-		ip_dn_io_ptr(&m, dir2 | PROTO_LAYER2, &args);
+		dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
+		MPASS(args.flags & IPFW_ARGS_REF);
+		ip_dn_io_ptr(&m, dir | PROTO_LAYER2, &args);
 		return 0;
 
 	case IP_FW_NGTEE:
@@ -397,6 +418,7 @@ again:
 			ret = EACCES;
 			break; /* i.e. drop */
 		}
+		MPASS(args.flags & IPFW_ARGS_REF);
 		ret = ng_ipfw_input_p(m0, (dir == PFIL_IN) ? DIR_IN : DIR_OUT,
 			&args, (i == IP_FW_NGTEE) ? 1 : 0);
 		if (i == IP_FW_NGTEE) /* ignore errors for NGTEE */
@@ -413,7 +435,7 @@ again:
 		*m0 = NULL;
 	}
 
-	return ret;
+	return (ret);
 }
 
 /* do the divert, return 1 on error 0 on success */
