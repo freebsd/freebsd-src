@@ -159,8 +159,6 @@ static int
 set_legacy_obj_kidx(struct ip_fw_chain *ch, struct ip_fw_rule0 *rule);
 static struct opcode_obj_rewrite *find_op_rw(ipfw_insn *cmd,
     uint16_t *puidx, uint8_t *ptype);
-static int mark_object_kidx(struct ip_fw_chain *ch, struct ip_fw *rule,
-    uint32_t *bmask);
 static int ref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
     struct rule_check_info *ci, struct obj_idx *oib, struct tid_info *ti);
 static int ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd,
@@ -207,14 +205,23 @@ ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize)
 
 	rule = malloc(rulesize, M_IPFW, M_WAITOK | M_ZERO);
 	rule->cntr = uma_zalloc(V_ipfw_cntr_zone, M_WAITOK | M_ZERO);
+	rule->refcnt = 1;
 
 	return (rule);
 }
 
-static void
-free_rule(struct ip_fw *rule)
+void
+ipfw_free_rule(struct ip_fw *rule)
 {
 
+	/*
+	 * We don't release refcnt here, since this function
+	 * can be called without any locks held. The caller
+	 * must release reference under IPFW_UH_WLOCK, and then
+	 * call this function if refcount becomes 1.
+	 */
+	if (rule->refcnt > 1)
+		return;
 	uma_zfree(V_ipfw_cntr_zone, rule->cntr);
 	free(rule, M_IPFW);
 }
@@ -825,7 +832,7 @@ ipfw_reap_add(struct ip_fw_chain *chain, struct ip_fw **head,
 	/* Unlink rule from everywhere */
 	unref_rule_objects(chain, rule);
 
-	*((struct ip_fw **)rule) = *head;
+	rule->next = *head;
 	*head = rule;
 }
 
@@ -840,8 +847,8 @@ ipfw_reap_rules(struct ip_fw *head)
 	struct ip_fw *rule;
 
 	while ((rule = head) != NULL) {
-		head = *((struct ip_fw **)head);
-		free_rule(rule);
+		head = head->next;
+		ipfw_free_rule(rule);
 	}
 }
 
@@ -1022,6 +1029,16 @@ delete_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int *ndel)
 		if (rt->end_rule >= IPFW_DEFAULT_RULE)
 			rt->end_rule = IPFW_DEFAULT_RULE - 1;
 		end = ipfw_find_rule(chain, rt->end_rule, UINT32_MAX);
+	}
+
+	if (rt->flags & IPFW_RCFLAG_DYNAMIC) {
+		/*
+		 * Requested deleting only for dynamic states.
+		 */
+		*ndel = 0;
+		ipfw_expire_dyn_states(chain, rt);
+		IPFW_UH_WUNLOCK(chain);
+		return (0);
 	}
 
 	/* Allocate new map of the same size */
@@ -2185,6 +2202,7 @@ struct dump_args {
 	uint32_t	rsize;	/* rules size */
 	uint32_t	tcount;	/* number of tables */
 	int		rcounters;	/* counters */
+	uint32_t	*bmask;	/* index bitmask of used named objects */
 };
 
 void
@@ -2221,6 +2239,49 @@ export_objhash_ntlv(struct namedobj_instance *ni, uint16_t kidx,
 	return (0);
 }
 
+static int
+export_named_objects(struct namedobj_instance *ni, struct dump_args *da,
+    struct sockopt_data *sd)
+{
+	int error, i;
+
+	for (i = 0; i < IPFW_TABLES_MAX && da->tcount > 0; i++) {
+		if ((da->bmask[i / 32] & (1 << (i % 32))) == 0)
+			continue;
+		if ((error = export_objhash_ntlv(ni, i, sd)) != 0)
+			return (error);
+		da->tcount--;
+	}
+	return (0);
+}
+
+static int
+dump_named_objects(struct ip_fw_chain *ch, struct dump_args *da,
+    struct sockopt_data *sd)
+{
+	ipfw_obj_ctlv *ctlv;
+	int error;
+
+	MPASS(da->tcount > 0);
+	/* Header first */
+	ctlv = (ipfw_obj_ctlv *)ipfw_get_sopt_space(sd, sizeof(*ctlv));
+	if (ctlv == NULL)
+		return (ENOMEM);
+	ctlv->head.type = IPFW_TLV_TBLNAME_LIST;
+	ctlv->head.length = da->tcount * sizeof(ipfw_obj_ntlv) +
+	    sizeof(*ctlv);
+	ctlv->count = da->tcount;
+	ctlv->objsize = sizeof(ipfw_obj_ntlv);
+
+	/* Dump table names first (if any) */
+	error = export_named_objects(ipfw_get_table_objhash(ch), da, sd);
+	if (error != 0)
+		return (error);
+	/* Then dump another named objects */
+	da->bmask += IPFW_TABLES_MAX / 32;
+	return (export_named_objects(CHAIN_TO_SRV(ch), da, sd));
+}
+
 /*
  * Dumps static rules with table TLVs in buffer @sd.
  *
@@ -2228,51 +2289,12 @@ export_objhash_ntlv(struct namedobj_instance *ni, uint16_t kidx,
  */
 static int
 dump_static_rules(struct ip_fw_chain *chain, struct dump_args *da,
-    uint32_t *bmask, struct sockopt_data *sd)
+    struct sockopt_data *sd)
 {
-	int error;
-	int i, l;
-	uint32_t tcount;
 	ipfw_obj_ctlv *ctlv;
 	struct ip_fw *krule;
-	struct namedobj_instance *ni;
 	caddr_t dst;
-
-	/* Dump table names first (if any) */
-	if (da->tcount > 0) {
-		/* Header first */
-		ctlv = (ipfw_obj_ctlv *)ipfw_get_sopt_space(sd, sizeof(*ctlv));
-		if (ctlv == NULL)
-			return (ENOMEM);
-		ctlv->head.type = IPFW_TLV_TBLNAME_LIST;
-		ctlv->head.length = da->tcount * sizeof(ipfw_obj_ntlv) + 
-		    sizeof(*ctlv);
-		ctlv->count = da->tcount;
-		ctlv->objsize = sizeof(ipfw_obj_ntlv);
-	}
-
-	i = 0;
-	tcount = da->tcount;
-	ni = ipfw_get_table_objhash(chain);
-	while (tcount > 0) {
-		if ((bmask[i / 32] & (1 << (i % 32))) == 0) {
-			i++;
-			continue;
-		}
-
-		/* Jump to shared named object bitmask */
-		if (i >= IPFW_TABLES_MAX) {
-			ni = CHAIN_TO_SRV(chain);
-			i -= IPFW_TABLES_MAX;
-			bmask += IPFW_TABLES_MAX / 32;
-		}
-
-		if ((error = export_objhash_ntlv(ni, i, sd)) != 0)
-			return (error);
-
-		i++;
-		tcount--;
-	}
+	int i, l;
 
 	/* Dump rules */
 	ctlv = (ipfw_obj_ctlv *)ipfw_get_sopt_space(sd, sizeof(*ctlv));
@@ -2298,27 +2320,41 @@ dump_static_rules(struct ip_fw_chain *chain, struct dump_args *da,
 	return (0);
 }
 
+int
+ipfw_mark_object_kidx(uint32_t *bmask, uint16_t etlv, uint16_t kidx)
+{
+	uint32_t bidx;
+
+	/*
+	 * Maintain separate bitmasks for table and non-table objects.
+	 */
+	bidx = (etlv == IPFW_TLV_TBL_NAME) ? 0: IPFW_TABLES_MAX / 32;
+	bidx += kidx / 32;
+	if ((bmask[bidx] & (1 << (kidx % 32))) != 0)
+		return (0);
+
+	bmask[bidx] |= 1 << (kidx % 32);
+	return (1);
+}
+
 /*
  * Marks every object index used in @rule with bit in @bmask.
  * Used to generate bitmask of referenced tables/objects for given ruleset
  * or its part.
- *
- * Returns number of newly-referenced objects.
  */
-static int
-mark_object_kidx(struct ip_fw_chain *ch, struct ip_fw *rule,
-    uint32_t *bmask)
+static void
+mark_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
+    struct dump_args *da)
 {
 	struct opcode_obj_rewrite *rw;
 	ipfw_insn *cmd;
-	int bidx, cmdlen, l, count;
+	int cmdlen, l;
 	uint16_t kidx;
 	uint8_t subtype;
 
 	l = rule->cmd_len;
 	cmd = rule->cmd;
 	cmdlen = 0;
-	count = 0;
 	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
 		cmdlen = F_LEN(cmd);
 
@@ -2326,21 +2362,9 @@ mark_object_kidx(struct ip_fw_chain *ch, struct ip_fw *rule,
 		if (rw == NULL)
 			continue;
 
-		bidx = kidx / 32;
-		/*
-		 * Maintain separate bitmasks for table and
-		 * non-table objects.
-		 */
-		if (rw->etlv != IPFW_TLV_TBL_NAME)
-			bidx += IPFW_TABLES_MAX / 32;
-
-		if ((bmask[bidx] & (1 << (kidx % 32))) == 0)
-			count++;
-
-		bmask[bidx] |= 1 << (kidx % 32);
+		if (ipfw_mark_object_kidx(da->bmask, rw->etlv, kidx))
+			da->tcount++;
 	}
-
-	return (count);
 }
 
 /*
@@ -2364,13 +2388,12 @@ static int
 dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
+	struct dump_args da;
 	ipfw_cfg_lheader *hdr;
 	struct ip_fw *rule;
 	size_t sz, rnum;
-	uint32_t hdr_flags;
+	uint32_t hdr_flags, *bmask;
 	int error, i;
-	struct dump_args da;
-	uint32_t *bmask;
 
 	hdr = (ipfw_cfg_lheader *)ipfw_get_sopt_header(sd, sizeof(*hdr));
 	if (hdr == NULL)
@@ -2378,10 +2401,15 @@ dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 
 	error = 0;
 	bmask = NULL;
-	/* Allocate needed state. Note we allocate 2xspace mask, for table&srv  */
-	if (hdr->flags & IPFW_CFG_GET_STATIC)
-		bmask = malloc(IPFW_TABLES_MAX / 4, M_TEMP, M_WAITOK | M_ZERO);
-
+	memset(&da, 0, sizeof(da));
+	/*
+	 * Allocate needed state.
+	 * Note we allocate 2xspace mask, for table & srv
+	 */
+	if (hdr->flags & (IPFW_CFG_GET_STATIC | IPFW_CFG_GET_STATES))
+		da.bmask = bmask = malloc(
+		    sizeof(uint32_t) * IPFW_TABLES_MAX * 2 / 32, M_TEMP,
+		    M_WAITOK | M_ZERO);
 	IPFW_UH_RLOCK(chain);
 
 	/*
@@ -2389,9 +2417,6 @@ dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	 * Prepare used tables bitmask.
 	 */
 	sz = sizeof(ipfw_cfg_lheader);
-	memset(&da, 0, sizeof(da));
-
-	da.b = 0;
 	da.e = chain->n_rules;
 
 	if (hdr->end_rule != 0) {
@@ -2410,24 +2435,25 @@ dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 			da.rsize += RULEUSIZE1(rule) + sizeof(ipfw_obj_tlv);
 			da.rcount++;
 			/* Update bitmask of used objects for given range */
-			da.tcount += mark_object_kidx(chain, rule, bmask);
+			mark_rule_objects(chain, rule, &da);
 		}
 		/* Add counters if requested */
 		if (hdr->flags & IPFW_CFG_GET_COUNTERS) {
 			da.rsize += sizeof(struct ip_fw_bcounter) * da.rcount;
 			da.rcounters = 1;
 		}
-
-		if (da.tcount > 0)
-			sz += da.tcount * sizeof(ipfw_obj_ntlv) +
-			    sizeof(ipfw_obj_ctlv);
 		sz += da.rsize + sizeof(ipfw_obj_ctlv);
 	}
 
-	if (hdr->flags & IPFW_CFG_GET_STATES)
-		sz += ipfw_dyn_get_count() * sizeof(ipfw_obj_dyntlv) +
-		     sizeof(ipfw_obj_ctlv);
+	if (hdr->flags & IPFW_CFG_GET_STATES) {
+		sz += sizeof(ipfw_obj_ctlv) +
+		    ipfw_dyn_get_count(bmask, &i) * sizeof(ipfw_obj_dyntlv);
+		da.tcount += i;
+	}
 
+	if (da.tcount > 0)
+		sz += da.tcount * sizeof(ipfw_obj_ntlv) +
+		    sizeof(ipfw_obj_ctlv);
 
 	/*
 	 * Fill header anyway.
@@ -2445,8 +2471,14 @@ dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 
 	/* STAGE2: Store actual data */
+	if (da.tcount > 0) {
+		error = dump_named_objects(chain, &da, sd);
+		if (error != 0)
+			goto cleanup;
+	}
+
 	if (hdr_flags & IPFW_CFG_GET_STATIC) {
-		error = dump_static_rules(chain, &da, bmask, sd);
+		error = dump_static_rules(chain, &da, sd);
 		if (error != 0)
 			goto cleanup;
 	}
@@ -3025,7 +3057,7 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	if ((error = commit_rules(chain, cbuf, rtlv->count)) != 0) {
 		/* Free allocate krules */
 		for (i = 0, ci = cbuf; i < rtlv->count; i++, ci++)
-			free_rule(ci->krule);
+			ipfw_free_rule(ci->krule);
 	}
 
 	if (cbuf != NULL && cbuf != &rci)
@@ -3849,7 +3881,7 @@ ipfw_ctl(struct sockopt *sopt)
 			import_rule0(&ci);
 			error = commit_rules(chain, &ci, 1);
 			if (error != 0)
-				free_rule(ci.krule);
+				ipfw_free_rule(ci.krule);
 			else if (sopt->sopt_dir == SOPT_GET) {
 				if (is7) {
 					error = convert_rule_to_7(rule);
