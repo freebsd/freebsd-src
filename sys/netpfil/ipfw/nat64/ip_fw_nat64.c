@@ -86,9 +86,15 @@ vnet_ipfw_nat64_init(const void *arg __unused)
 	error = nat64stl_init(ch, first);
 	if (error != 0)
 		return (error);
+	error = nat64clat_init(ch, first);
+	if (error != 0) {
+		nat64stl_uninit(ch, first);
+		return (error);
+	}
 	error = nat64lsn_init(ch, first);
 	if (error != 0) {
 		nat64stl_uninit(ch, first);
+		nat64clat_uninit(ch, first);
 		return (error);
 	}
 	return (0);
@@ -103,6 +109,7 @@ vnet_ipfw_nat64_uninit(const void *arg __unused)
 	ch = &V_layer3_chain;
 	last = IS_DEFAULT_VNET(curvnet) ? 1: 0;
 	nat64stl_uninit(ch, last);
+	nat64clat_uninit(ch, last);
 	nat64lsn_uninit(ch, last);
 	return (0);
 }
