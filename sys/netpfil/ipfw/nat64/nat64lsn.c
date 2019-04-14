@@ -1,8 +1,9 @@
 /*-
- * Copyright (c) 2015-2016 Yandex LLC
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
  * Copyright (c) 2015 Alexander V. Chernikov <melifaro@FreeBSD.org>
- * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2016-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
