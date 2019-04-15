@@ -57,12 +57,18 @@ struct random_algorithm *p_random_alg_context = &random_alg_context;
 
 #if defined(RANDOM_LOADABLE)
 
+static void
+null_read_random(void *dummy __unused, u_int dummy2 __unused)
+{
+	panic("%s: no random module is loaded", __func__);
+}
+
 struct random_readers {
 	int	(*read_random_uio)(struct uio *, bool);
-	u_int	(*read_random)(void *, u_int);
+	void	(*read_random)(void *, u_int);
 } random_reader_context = {
 	(int (*)(struct uio *, bool))nullop,
-	(u_int (*)(void *, u_int))nullop,
+	null_read_random,
 };
 
 struct sx randomdev_config_lock;
@@ -76,7 +82,7 @@ random_infra_sysinit(void *dummy __unused)
 SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_FIRST, random_infra_sysinit, NULL);
 
 void
-random_infra_init(int (*p_random_read_uio)(struct uio *, bool), u_int (*p_random_read)(void *, u_int))
+random_infra_init(int (*p_random_read_uio)(struct uio *, bool), void (*p_random_read)(void *, u_int))
 {
 
 	RANDOM_CONFIG_X_LOCK();
@@ -91,7 +97,7 @@ random_infra_uninit(void)
 
 	RANDOM_CONFIG_X_LOCK();
 	random_reader_context.read_random_uio = (int (*)(struct uio *, bool))nullop;
-	random_reader_context.read_random = (u_int (*)(void *, u_int))nullop;
+	random_reader_context.read_random = null_read_random;
 	RANDOM_CONFIG_X_UNLOCK();
 }
 
@@ -114,15 +120,13 @@ read_random_uio(struct uio *uio, bool nonblock)
 	return (retval);
 }
 
-u_int
+void
 read_random(void *buf, u_int len)
 {
-	u_int retval;
 
 	RANDOM_CONFIG_S_LOCK();
-	retval = random_reader_context.read_random(buf, len);
+	random_reader_context.read_random(buf, len);
 	RANDOM_CONFIG_S_UNLOCK();
-	return (retval);
 }
 
 #endif /* defined(RANDOM_LOADABLE) */

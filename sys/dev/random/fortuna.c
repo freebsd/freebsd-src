@@ -451,16 +451,22 @@ random_fortuna_read(uint8_t *buf, u_int bytecount)
 	RANDOM_RESEED_UNLOCK();
 }
 
+#ifdef _KERNEL
+static bool block_seeded_status = false;
+SYSCTL_BOOL(_kern_random, OID_AUTO, block_seeded_status, CTLFLAG_RWTUN,
+    &block_seeded_status, 0,
+    "If non-zero, pretend Fortuna is in an unseeded state.  By setting "
+    "this as a tunable, boot can be tested as if the random device is "
+    "unavailable.");
+#endif
+
 bool
 random_fortuna_seeded(void)
 {
 
 #ifdef _KERNEL
-	/* When set, act as if we are not seeded. */
-	KFAIL_POINT_CODE(DEBUG_FP, random_fortuna_seeded, {
-		if (RETURN_VALUE != 0)
-			fortuna_state.fs_counter = UINT128_ZERO;
-	});
+	if (block_seeded_status)
+		return (false);
 #endif
 
 	return (!uint128_is_zero(fortuna_state.fs_counter));
