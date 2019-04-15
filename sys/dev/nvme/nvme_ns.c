@@ -357,10 +357,8 @@ nvme_construct_child_bios(struct bio *bp, uint32_t alignment, int *num_bios)
 	caddr_t		data;
 	uint32_t	rem_bcount;
 	int		i;
-#ifdef NVME_UNMAPPED_BIO_SUPPORT
 	struct vm_page	**ma;
 	uint32_t	ma_offset;
-#endif
 
 	*num_bios = nvme_get_num_segments(bp->bio_offset, bp->bio_bcount,
 	    alignment);
@@ -373,10 +371,8 @@ nvme_construct_child_bios(struct bio *bp, uint32_t alignment, int *num_bios)
 	cur_offset = bp->bio_offset;
 	rem_bcount = bp->bio_bcount;
 	data = bp->bio_data;
-#ifdef NVME_UNMAPPED_BIO_SUPPORT
 	ma_offset = bp->bio_ma_offset;
 	ma = bp->bio_ma;
-#endif
 
 	for (i = 0; i < *num_bios; i++) {
 		child = child_bios[i];
@@ -386,7 +382,6 @@ nvme_construct_child_bios(struct bio *bp, uint32_t alignment, int *num_bios)
 		child->bio_bcount = min(rem_bcount,
 		    alignment - (cur_offset & (alignment - 1)));
 		child->bio_flags = bp->bio_flags;
-#ifdef NVME_UNMAPPED_BIO_SUPPORT
 		if (bp->bio_flags & BIO_UNMAPPED) {
 			child->bio_ma_offset = ma_offset;
 			child->bio_ma = ma;
@@ -398,9 +393,7 @@ nvme_construct_child_bios(struct bio *bp, uint32_t alignment, int *num_bios)
 			ma += child->bio_ma_n;
 			if (ma_offset != 0)
 				ma -= 1;
-		} else
-#endif
-		{
+		} else {
 			child->bio_data = data;
 			data += child->bio_bcount;
 		}
@@ -599,9 +592,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	if (res != 0)
 		return (ENXIO);
 
-#ifdef NVME_UNMAPPED_BIO_SUPPORT
 	ns->cdev->si_flags |= SI_UNMAPPED;
-#endif
 
 	return (0);
 }
