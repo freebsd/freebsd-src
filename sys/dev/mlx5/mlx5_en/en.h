@@ -48,6 +48,7 @@
 #include <netinet/tcp_lro.h>
 #include <netinet/udp.h>
 #include <net/ethernet.h>
+#include <net/pfil.h>
 #include <sys/buf_ring.h>
 #include <sys/kthread.h>
 
@@ -838,6 +839,7 @@ struct mlx5e_priv {
 	struct mlx5e_clbr_point clbr_points[2];
 	u_int	clbr_gen;
 
+	struct pfil_head *pfil;
 	struct mlx5e_channel channel[];
 };
 
