@@ -61,7 +61,6 @@ static int    nvme_probe(device_t);
 static int    nvme_attach(device_t);
 static int    nvme_detach(device_t);
 static int    nvme_shutdown(device_t);
-static int    nvme_modevent(module_t mod, int type, void *arg);
 
 static devclass_t nvme_devclass;
 
@@ -80,7 +79,7 @@ static driver_t nvme_pci_driver = {
 	sizeof(struct nvme_controller),
 };
 
-DRIVER_MODULE(nvme, pci, nvme_pci_driver, nvme_devclass, nvme_modevent, 0);
+DRIVER_MODULE(nvme, pci, nvme_pci_driver, nvme_devclass, NULL, NULL);
 MODULE_VERSION(nvme, 1);
 MODULE_DEPEND(nvme, cam, 1, 1, 1);
 
@@ -181,16 +180,6 @@ nvme_uninit(void)
 
 SYSUNINIT(nvme_unregister, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_uninit, NULL);
 
-static void
-nvme_load(void)
-{
-}
-
-static void
-nvme_unload(void)
-{
-}
-
 static int
 nvme_shutdown(device_t dev)
 {
@@ -198,24 +187,6 @@ nvme_shutdown(device_t dev)
 
 	ctrlr = DEVICE2SOFTC(dev);
 	nvme_ctrlr_shutdown(ctrlr);
-
-	return (0);
-}
-
-static int
-nvme_modevent(module_t mod, int type, void *arg)
-{
-
-	switch (type) {
-	case MOD_LOAD:
-		nvme_load();
-		break;
-	case MOD_UNLOAD:
-		nvme_unload();
-		break;
-	default:
-		break;
-	}
 
 	return (0);
 }
