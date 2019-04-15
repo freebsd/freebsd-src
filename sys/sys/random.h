@@ -38,7 +38,7 @@
 struct uio;
 
 #if defined(DEV_RANDOM)
-u_int read_random(void *, u_int);
+void read_random(void *, u_int);
 int read_random_uio(struct uio *, bool);
 #else
 static __inline int
@@ -46,10 +46,9 @@ read_random_uio(void *a __unused, u_int b __unused)
 {
 	return (0);
 }
-static __inline u_int
+static __inline void
 read_random(void *a __unused, u_int b __unused)
 {
-	return (0);
 }
 #endif
 
@@ -95,7 +94,6 @@ _Static_assert(ENTROPYSOURCE <= 32,
 
 #define RANDOM_LEGACY_BOOT_ENTROPY_MODULE	"/boot/entropy"
 #define RANDOM_CACHED_BOOT_ENTROPY_MODULE	"boot_entropy_cache"
-#define	RANDOM_CACHED_SKIP_START	256
 
 #if defined(DEV_RANDOM)
 extern u_int hc_source_mask;
