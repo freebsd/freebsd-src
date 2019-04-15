@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #define READ_RANDOM_UIO	_read_random_uio
 #define READ_RANDOM	_read_random
 static int READ_RANDOM_UIO(struct uio *, bool);
-static u_int READ_RANDOM(void *, u_int);
+static void READ_RANDOM(void *, u_int);
 #else
 #define READ_RANDOM_UIO	read_random_uio
 #define READ_RANDOM	read_random
@@ -124,11 +124,53 @@ randomdev_read(struct cdev *dev __unused, struct uio *uio, int flags)
 	return (READ_RANDOM_UIO(uio, (flags & O_NONBLOCK) != 0));
 }
 
+/*
+ * If the random device is not seeded, blocks until it is seeded.
+ *
+ * Returns zero when the random device is seeded.
+ *
+ * If the 'interruptible' parameter is true, and the device is unseeded, this
+ * routine may be interrupted.  If interrupted, it will return either ERESTART
+ * or EINTR.
+ */
+#define SEEDWAIT_INTERRUPTIBLE		true
+#define SEEDWAIT_UNINTERRUPTIBLE	false
+static int
+randomdev_wait_until_seeded(bool interruptible)
+{
+	int error, spamcount, slpflags;
+
+	slpflags = interruptible ? PCATCH : 0;
+
+	error = 0;
+	spamcount = 0;
+	while (!p_random_alg_context->ra_seeded()) {
+		/* keep tapping away at the pre-read until we seed/unblock. */
+		p_random_alg_context->ra_pre_read();
+		/* Only bother the console every 10 seconds or so */
+		if (spamcount == 0)
+			printf("random: %s unblock wait\n", __func__);
+		spamcount = (spamcount + 1) % 100;
+		error = tsleep(&random_alg_context, slpflags, "randseed",
+		    hz / 10);
+		if (error == ERESTART || error == EINTR) {
+			KASSERT(interruptible,
+			    ("unexpected wake of non-interruptible sleep"));
+			break;
+		}
+		/* Squash tsleep timeout condition */
+		if (error == EWOULDBLOCK)
+			error = 0;
+		KASSERT(error == 0, ("unexpected tsleep error %d", error));
+	}
+	return (error);
+}
+
 int
 READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 {
 	uint8_t *random_buf;
-	int error, spamcount;
+	int error;
 	ssize_t read_len, total_read, c;
 	/* 16 MiB takes about 0.08 s CPU time on my 2017 AMD Zen CPU */
 #define SIGCHK_PERIOD (16 * 1024 * 1024)
@@ -140,26 +182,13 @@ READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 	random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 	p_random_alg_context->ra_pre_read();
 	error = 0;
-	spamcount = 0;
 	/* (Un)Blocking logic */
-	while (!p_random_alg_context->ra_seeded()) {
-		if (nonblock) {
+	if (!p_random_alg_context->ra_seeded()) {
+		if (nonblock)
 			error = EWOULDBLOCK;
-			break;
-		}
-		/* keep tapping away at the pre-read until we seed/unblock. */
-		p_random_alg_context->ra_pre_read();
-		/* Only bother the console every 10 seconds or so */
-		if (spamcount == 0)
-			printf("random: %s unblock wait\n", __func__);
-		spamcount = (spamcount + 1)%100;
-		error = tsleep(&random_alg_context, PCATCH, "randseed", hz/10);
-		if (error == ERESTART || error == EINTR)
-			break;
-		/* Squash tsleep timeout condition */
-		if (error == EWOULDBLOCK)
-			error = 0;
-		KASSERT(error == 0, ("unexpected tsleep error %d", error));
+		else
+			error = randomdev_wait_until_seeded(
+			    SEEDWAIT_INTERRUPTIBLE);
 	}
 	if (error == 0) {
 		read_rate_increment((uio->uio_resid + sizeof(uint32_t))/sizeof(uint32_t));
@@ -210,30 +239,36 @@ READ_RANDOM_UIO(struct uio *uio, bool nonblock)
  * It cannot assumed that random_buf is a multiple of
  * RANDOM_BLOCKSIZE bytes.
  */
-u_int
+void
 READ_RANDOM(void *random_buf, u_int len)
 {
-	u_int read_len;
-	uint8_t local_buf[len + RANDOM_BLOCKSIZE];
+	u_int read_directly_len;
 
 	KASSERT(random_buf != NULL, ("No suitable random buffer in %s", __func__));
 	p_random_alg_context->ra_pre_read();
-	/* (Un)Blocking logic; if not seeded, return nothing. */
-	if (p_random_alg_context->ra_seeded()) {
-		read_rate_increment((len + sizeof(uint32_t))/sizeof(uint32_t));
-		if (len > 0) {
-			/*
-			 * Belt-and-braces.
-			 * Round up the read length to a crypto block size multiple,
-			 * which is what the underlying generator is expecting.
-			 */
-			read_len = roundup(len, RANDOM_BLOCKSIZE);
-			p_random_alg_context->ra_read(local_buf, read_len);
-			memcpy(random_buf, local_buf, len);
-		}
-	} else
-		len = 0;
-	return (len);
+	/* (Un)Blocking logic */
+	if (!p_random_alg_context->ra_seeded())
+		(void)randomdev_wait_until_seeded(SEEDWAIT_UNINTERRUPTIBLE);
+	read_rate_increment(roundup2(len, sizeof(uint32_t)));
+	if (len == 0)
+		return;
+	/*
+	 * The underlying generator expects multiples of
+	 * RANDOM_BLOCKSIZE.
+	 */
+	read_directly_len = rounddown(len, RANDOM_BLOCKSIZE);
+	if (read_directly_len > 0)
+		p_random_alg_context->ra_read(random_buf, read_directly_len);
+	if (read_directly_len < len) {
+		uint8_t remainder_buf[RANDOM_BLOCKSIZE];
+
+		p_random_alg_context->ra_read(remainder_buf,
+		    sizeof(remainder_buf));
+		memcpy((char *)random_buf + read_directly_len, remainder_buf,
+		    len - read_directly_len);
+
+		explicit_bzero(remainder_buf, sizeof(remainder_buf));
+	}
 }
 
 static __inline void

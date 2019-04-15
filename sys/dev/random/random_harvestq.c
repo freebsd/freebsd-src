@@ -421,11 +421,6 @@ random_harvestq_prime(void *unused __unused)
 	if (keyfile != NULL) {
 		data = preload_fetch_addr(keyfile);
 		size = preload_fetch_size(keyfile);
-		/* skip the first bit of the stash so others like arc4 can also have some. */
-		if (size > RANDOM_CACHED_SKIP_START) {
-			data += RANDOM_CACHED_SKIP_START;
-			size -= RANDOM_CACHED_SKIP_START;
-		}
 		/* Trim the size. If the admin has a file with a funny size, we lose some. Tough. */
 		size -= (size % sizeof(event.he_entropy));
 		if (data != NULL && size != 0) {
