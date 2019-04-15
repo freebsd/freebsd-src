@@ -1226,6 +1226,8 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	if (ctrlr->resource == NULL)
 		goto nores;
 
+	nvme_notify_fail_consumers(ctrlr);
+
 	for (i = 0; i < NVME_MAX_NAMESPACES; i++)
 		nvme_ns_destruct(&ctrlr->ns[i]);
 
