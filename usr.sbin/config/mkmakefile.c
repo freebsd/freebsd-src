@@ -62,7 +62,6 @@ static void do_rules(FILE *);
 static void do_xxfiles(char *, FILE *);
 static void do_objs(FILE *);
 static void do_before_depend(FILE *);
-static int opteq(const char *, const char *);
 static void read_files(void);
 static void sanitize_envline(char *result, const char *src);
 static bool preprocess(char *line, char *result);
@@ -565,7 +564,8 @@ next:
 				goto nextparam;
 			}
 		SLIST_FOREACH(op, &opt, op_next)
-			if (op->op_value == 0 && opteq(op->op_name, wd)) {
+			if (op->op_value == 0 &&
+			    strcasecmp(op->op_name, wd) == 0) {
 				if (not)
 					match = 0;
 				goto nextparam;
@@ -625,23 +625,6 @@ read_files(void)
 		tnl = STAILQ_NEXT(nl, f_next);
 		free(nl->f_name);
 		free(nl);
-	}
-}
-
-static int
-opteq(const char *cp, const char *dp)
-{
-	char c, d;
-
-	for (; ; cp++, dp++) {
-		if (*cp != *dp) {
-			c = isupper(*cp) ? tolower(*cp) : *cp;
-			d = isupper(*dp) ? tolower(*dp) : *dp;
-			if (c != d)
-				return (0);
-		}
-		if (*cp == 0)
-			return (1);
 	}
 }
 
