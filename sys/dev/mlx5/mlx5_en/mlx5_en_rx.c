@@ -430,15 +430,18 @@ mlx5e_decompress_cqes(struct mlx5e_cq *cq)
 static int
 mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 {
-	int i;
+	struct pfil_head *pfil;
+	int i, rv;
 
+	CURVNET_SET_QUIET(rq->ifp->if_vnet);
+	pfil = rq->channel->priv->pfil;
 	for (i = 0; i < budget; i++) {
 		struct mlx5e_rx_wqe *wqe;
 		struct mlx5_cqe64 *cqe;
 		struct mbuf *mb;
 		__be16 wqe_counter_be;
 		u16 wqe_counter;
-		u32 byte_cnt;
+		u32 byte_cnt, seglen;
 
 		cqe = mlx5e_get_cqe(&rq->cq);
 		if (!cqe)
@@ -462,6 +465,39 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 			rq->stats.wqe_err++;
 			goto wq_ll_pop;
 		}
+		if (pfil != NULL && PFIL_HOOKED_IN(pfil)) {
+			seglen = MIN(byte_cnt, MLX5E_MAX_RX_BYTES);
+			rv = pfil_run_hooks(rq->channel->priv->pfil,
+			    rq->mbuf[wqe_counter].data, rq->ifp,
+			    seglen | PFIL_MEMPTR | PFIL_IN, NULL);
+
+			switch (rv) {
+			case PFIL_DROPPED:
+			case PFIL_CONSUMED:
+				/*
+				 * Filter dropped or consumed it. In
+				 * either case, we can just recycle
+				 * buffer; there is no more work to do.
+				 */
+				rq->stats.packets++;
+				goto wq_ll_pop;
+			case PFIL_REALLOCED:
+				/*
+				 * Filter copied it; recycle buffer
+				 * and receive the new mbuf allocated
+				 * by the Filter
+				 */
+				mb = pfil_mem2mbuf(rq->mbuf[wqe_counter].data);
+				goto rx_common;
+			default:
+				/*
+				 * The Filter said it was OK, so
+				 * receive like normal.
+				 */
+				KASSERT(rv == PFIL_PASS,
+					("Filter returned %d!\n", rv));
+			}
+		}
 		if ((MHLEN - MLX5E_NET_IP_ALIGN) >= byte_cnt &&
 		    (mb = m_gethdr(M_NOWAIT, MT_DATA)) != NULL) {
 #if (MLX5E_MAX_RX_SEGS != 1)
@@ -480,7 +516,7 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 			bus_dmamap_unload(rq->dma_tag,
 			    rq->mbuf[wqe_counter].dma_map);
 		}
-
+rx_common:
 		mlx5e_build_rx_mbuf(cqe, rq, mb, byte_cnt);
 		rq->stats.bytes += byte_cnt;
 		rq->stats.packets++;
@@ -499,6 +535,7 @@ wq_ll_pop:
 		mlx5_wq_ll_pop(&rq->wq, wqe_counter_be,
 		    &wqe->next.next_wqe_index);
 	}
+	CURVNET_RESTORE();
 
 	mlx5_cqwq_update_db_record(&rq->cq.wq);
 
