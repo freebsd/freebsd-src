@@ -56,7 +56,6 @@ MALLOC_DEFINE(M_CHACHA20RANDOM, "chacha20random", "chacha20random structures");
 struct chacha20_s {
 	struct mtx mtx;
 	int numbytes;
-	int first_time_done;
 	time_t t_reseed;
 	u_int8_t m_buffer[CHACHA20_BUFFER_SIZE];
 	struct chacha_ctx ctx;
@@ -73,35 +72,17 @@ static struct chacha20_s *chacha20inst = NULL;
  * Mix up the current context.
  */
 static void
-chacha20_randomstir(struct chacha20_s* chacha20)
+chacha20_randomstir(struct chacha20_s *chacha20)
 {
 	struct timeval tv_now;
-	size_t n, size;
-	u_int8_t key[CHACHA20_KEYBYTES], *data;
-	caddr_t keyfile;
+	u_int8_t key[CHACHA20_KEYBYTES];
 
 	/*
-	 * This is making the best of what may be an insecure
-	 * Situation. If the loader(8) did not have an entropy
-	 * stash from the previous shutdown to load, then we will
-	 * be improperly seeded. The answer is to make sure there
-	 * is an entropy stash at shutdown time.
+	 * If the loader(8) did not have an entropy stash from the previous
+	 * shutdown to load, then we will block.  The answer is to make sure
+	 * there is an entropy stash at shutdown time.
 	 */
-	(void)read_random(key, CHACHA20_KEYBYTES);
-	if (!chacha20->first_time_done) {
-		keyfile = preload_search_by_type(RANDOM_CACHED_BOOT_ENTROPY_MODULE);
-		if (keyfile != NULL) {
-			data = preload_fetch_addr(keyfile);
-			size = MIN(preload_fetch_size(keyfile), CHACHA20_KEYBYTES);
-			for (n = 0; n < size; n++)
-				key[n] ^= data[n];
-			explicit_bzero(data, size);
-			if (bootverbose)
-				printf("arc4random: read %zu bytes from preloaded cache\n", size);
-		} else
-			printf("arc4random: no preloaded entropy cache\n");
-		chacha20->first_time_done = 1;
-	}
+	read_random(key, CHACHA20_KEYBYTES);
 	getmicrouptime(&tv_now);
 	mtx_lock(&chacha20->mtx);
 	chacha_keysetup(&chacha20->ctx, key, CHACHA20_KEYBYTES*8);
@@ -128,7 +109,6 @@ chacha20_init(void)
 		mtx_init(&chacha20->mtx, "chacha20_mtx", NULL, MTX_DEF);
 		chacha20->t_reseed = -1;
 		chacha20->numbytes = 0;
-		chacha20->first_time_done = 0;
 		explicit_bzero(chacha20->m_buffer, CHACHA20_BUFFER_SIZE);
 		explicit_bzero(&chacha20->ctx, sizeof(chacha20->ctx));
 	}
