@@ -217,6 +217,7 @@ pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 pi [label="Kurt Jaeger\npi@FreeBSD.org\n2014/03/14"]
 pizzamig [label="Luca Pizzamiglio\npizzamig@FreeBSD.org\n2017/08/25"]
+pkubaj [label="Piotr Kubaj\npkubaj@FreeBSD.org\n2019/04/14"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
@@ -519,6 +520,7 @@ ler -> leres
 lifanov -> ultima
 
 linimon -> hrs
+linimon -> pkubaj
 
 lioux -> pat
 
@@ -555,6 +557,7 @@ mat -> thierry
 mat -> tobik
 mat -> woodsb02
 mat -> rigoletto
+mat -> pkubaj
 
 matthew -> leres
 matthew -> lifanov
@@ -719,6 +722,7 @@ tcberner -> fernape
 tcberner -> arrowd
 tcberner -> rigoletto
 tcberner -> kai
+tcberner -> pkubaj
 
 thierry -> jadawin
 thierry -> riggs
