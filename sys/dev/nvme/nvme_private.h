@@ -347,11 +347,6 @@ struct nvme_controller {
 		    (val & 0xFFFFFFFF00000000UL) >> 32);		       \
 	} while (0);
 
-#if __FreeBSD_version < 800054
-#define wmb()	__asm volatile("sfence" ::: "memory")
-#define mb()	__asm volatile("mfence" ::: "memory")
-#endif
-
 #define nvme_printf(ctrlr, fmt, args...)	\
     device_printf(ctrlr->dev, fmt, ##args)
 
