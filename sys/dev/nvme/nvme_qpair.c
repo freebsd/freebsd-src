@@ -823,13 +823,8 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	ctrlr = qpair->ctrlr;
 
 	if (req->timeout)
-#if __FreeBSD_version >= 800030
 		callout_reset_curcpu(&tr->timer, ctrlr->timeout_period * hz,
 		    nvme_timeout, tr);
-#else
-		callout_reset(&tr->timer, ctrlr->timeout_period * hz,
-		    nvme_timeout, tr);
-#endif
 
 	/* Copy the command from the tracker to the submission queue. */
 	memcpy(&qpair->cmd[qpair->sq_tail], &req->cmd, sizeof(req->cmd));
