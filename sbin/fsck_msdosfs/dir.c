@@ -115,7 +115,7 @@ newDosDirEntry(void)
 	struct dosDirEntry *de;
 
 	if (!(de = freede)) {
-		if (!(de = (struct dosDirEntry *)malloc(sizeof *de)))
+		if (!(de = malloc(sizeof *de)))
 			return 0;
 	} else
 		freede = de->next;
@@ -140,7 +140,7 @@ newDirTodo(void)
 	struct dirTodoNode *dt;
 
 	if (!(dt = freedt)) {
-		if (!(dt = (struct dirTodoNode *)malloc(sizeof *dt)))
+		if (!(dt = malloc(sizeof *dt)))
 			return 0;
 	} else
 		freedt = dt->next;
