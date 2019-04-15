@@ -331,7 +331,8 @@ nvme_completion_is_retry(const struct nvme_completion *cpl)
 	 * TODO: spec is not clear how commands that are aborted due
 	 *  to TLER will be marked.  So for now, it seems
 	 *  NAMESPACE_NOT_READY is the only case where we should
-	 *  look at the DNR bit.
+	 *  look at the DNR bit. Requests failed with ABORTED_BY_REQUEST
+	 *  set the DNR bit correctly since the driver controls that.
 	 */
 	switch (sct) {
 	case NVME_SCT_GENERIC:
