@@ -224,6 +224,7 @@ restart_mountd(void)
 	struct pidfh *pfh;
 	pid_t mountdpid;
 
+	mountdpid = 0;
 	pfh = pidfile_open(_PATH_MOUNTDPID, 0600, &mountdpid);
 	if (pfh != NULL) {
 		/* Mountd is not running. */
@@ -234,6 +235,16 @@ restart_mountd(void)
 		/* Cannot open pidfile for some reason. */
 		return;
 	}
+
+	/*
+	 * Refuse to send broadcast or group signals, this has
+	 * happened due to the bugs in pidfile(3).
+	 */
+	if (mountdpid <= 0) {
+		warnx("mountd pid %d, refusing to send SIGHUP", mountdpid);
+		return;
+	}
+
 	/* We have mountd(8) PID in mountdpid varible, let's signal it. */
 	if (kill(mountdpid, SIGHUP) == -1)
 		err(1, "signal mountd");
