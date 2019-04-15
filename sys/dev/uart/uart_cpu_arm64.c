@@ -153,6 +153,11 @@ uart_cpu_acpi_probe(struct uart_class **classp, bus_space_tag_t *bst,
 	*shiftp = spcr->SerialPort.AccessWidth - 1;
 	*iowidthp = spcr->SerialPort.BitWidth / 8;
 
+	if ((cd->cd_quirks & UART_F_IGNORE_SPCR_REGSHFT) ==
+	    UART_F_IGNORE_SPCR_REGSHFT) {
+		*shiftp = cd->cd_regshft;
+	}
+
 out:
 	acpi_unmap_table(spcr);
 	return (err);
