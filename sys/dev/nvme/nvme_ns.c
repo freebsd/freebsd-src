@@ -514,6 +514,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	case 0x09538086:		/* Intel DC PC3500 */
 	case 0x0a538086:		/* Intel DC PC3520 */
 	case 0x0a548086:		/* Intel DC PC4500 */
+	case 0x0a558086:		/* Dell Intel P4600 */
 		if (ctrlr->cdata.vs[3] != 0)
 			ns->stripesize =
 			    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
