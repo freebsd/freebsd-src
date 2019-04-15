@@ -1056,11 +1056,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 			buf->b_data = pt->buf;
 			buf->b_bufsize = pt->len;
 			buf->b_iocmd = pt->is_read ? BIO_READ : BIO_WRITE;
-#ifdef NVME_UNMAPPED_BIO_SUPPORT
 			if (vmapbuf(buf, 1) < 0) {
-#else
-			if (vmapbuf(buf) < 0) {
-#endif
 				ret = EFAULT;
 				goto err;
 			}
