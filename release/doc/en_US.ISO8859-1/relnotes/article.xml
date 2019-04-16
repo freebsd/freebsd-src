@@ -161,6 +161,13 @@
     <sect2 xml:id="userland-config">
       <title>Userland Configuration Changes</title>
 
+      <para revision="339446">The &man.jail.8; utility has been
+	updated to include a new &man.jail.conf.5; parameter,
+	<literal>allow.read_msgbuf</literal>, which prevents jailed
+	processes and users from accessing the &man.dmesg.8; buffer.
+	This parameter is set to <literal>false</literal> by
+	default.</para>
+
       <para revision="342103">The system &man.crontab.5;,
 	<filename>/etc/crontab</filename>, has been updated to set
 	<varname>PATH</varname> for consistency with the &man.cron.8;
@@ -183,24 +190,40 @@
 	which is used to specify the timestamp for build
 	reproducibility.</para>
 
-      <para revision="338451">The &man.last.1; utility has been
-	updated to include &man.libxo.3; support.</para>
-
       <para revision="338364">The &man.dd.1; utility has been updated
 	to add a new <literal>status</literal>operand,
 	<literal>progress</literal>, which reports the current status
 	on a single line every second.</para>
 
+      <para revision="338451">The &man.last.1; utility has been
+	updated to include &man.libxo.3; support.</para>
+
+      <para revision="338452">The &man.lastlogin.8; utility has been
+	updated to include &man.libxo.3; support.</para>
+
+      <para revision="338475">The &man.traceroute.8; utility has been
+	updated to include &man.libcasper.3; support.</para>
+
       <para revision="339160">The &man.diff.1; utility has been
 	updated to implement <literal>-B</literal> and
 	<literal>--ignore-blank-lines</literal> support.</para>
 
-      <para revision="344490">The &man.fdisk.8; utility has been
-	updated to support sectors larger than 2048 bytes.</para>
+      <para revision="340963">The &man.makewhatis.1; utility has been
+	updated to prevent operating within read-only
+	directories.</para>
+
+      <para revision="341790">The &man.jail.8; utility has been
+	updated to add a new flag, <literal>-e</literal>, which takes
+	a &man.jail.conf.5; parameter as an argument and prints a list
+	of non-wildcard jails with the specified parameter.</para>
 
       <para revision="342706">The &man.ktrdump.8; utility has been
 	updated to include the <literal>-l</literal> flag which
 	enables &quot;live&quot; mode when specified.</para>
+
+      <para revision="343118">The &man.trim.8; utility has been added,
+	which deletes content for blocks on flash-based storage
+	devices that use wear-leveling algorithms.</para>
 
       <para revision="343251">The &man.gzip.1; utility has been
 	updated to add <literal>-l</literal> support for &man.xz.1;
@@ -219,6 +242,9 @@
       <para revision="344052">The &man.newfs.8; and &man.tunefs.8;
 	utilities have been updated to allow dashes in label
 	names.</para>
+
+      <para revision="344490">The &man.fdisk.8; utility has been
+	updated to support sectors larger than 2048 bytes.</para>
 
       <para revision="345561">The &man.sh.1; utility has been updated
 	to add the <literal>pipefail</literal> option which simplifies
@@ -321,7 +347,11 @@
     <sect2 xml:id="userland-libraries">
       <title>Runtime Libraries and API</title>
 
-      <para>&nbsp;</para>
+      <para revision="335640">The &man.pcap.3; library has been
+	updated to version 1.9.0 (pre-release).</para>
+
+      <para revision="338707">The &man.pthread.3; library has been
+	updated to improve <acronym>POSIX</acronym> compliance.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
@@ -396,7 +426,9 @@
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="340369">The TP-Link&reg; TL-WN321G&trade;
+	network adapter now uses the &man.run.4; driver instead of the
+	&man.rum.4; driver.</para>
     </sect2>
   </sect1>
 
@@ -411,7 +443,9 @@
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="342254">The &man.vt.4; keyboard mapping has been
+	updated to include <literal>uk.macbook.kbd</literal>
+	support.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
