@@ -77,6 +77,10 @@ tpm20_read(struct cdev *dev, struct uio *uio, int flags)
 
 	callout_stop(&sc->discard_buffer_callout);
 	sx_xlock(&sc->dev_lock);
+	if (sc->owner_tid != uio->uio_td->td_tid) {
+		sx_xunlock(&sc->dev_lock);
+		return (EPERM);
+	}
 
 	bytes_to_transfer = MIN(sc->pending_data_length, uio->uio_resid);
 	if (bytes_to_transfer > 0) {
@@ -128,9 +132,11 @@ tpm20_write(struct cdev *dev, struct uio *uio, int flags)
 
 	result = sc->transmit(sc, byte_count);
 
-	if (result == 0)
+	if (result == 0) {
 		callout_reset(&sc->discard_buffer_callout,
 		    TPM_READ_TIMEOUT / tick, tpm20_discard_buffer, sc);
+		sc->owner_tid = uio->uio_td->td_tid;
+	}
 
 	sx_xunlock(&sc->dev_lock);
 	return (result);

@@ -120,6 +120,7 @@ struct tpm_sc {
 
 	uint8_t 	*buf;
 	size_t		pending_data_length;
+	lwpid_t		owner_tid;
 
 	struct callout 	discard_buffer_callout;
 #ifdef TPM_HARVEST
