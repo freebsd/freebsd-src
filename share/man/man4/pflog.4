@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2007
+.Dd April 9, 2019
 .Dt PFLOG 4
 .Os
 .Sh NAME
@@ -47,13 +47,18 @@ on the
 interface, or stored to disk using
 .Xr pflogd 8 .
 .Pp
-The pflog0 interface is created automatically at boot if both
+The pflog0 interface is created when the
+.Nm
+module is loaded;
+further instances can be created using
+.Xr ifconfig 8 .
+The
+.Nm
+module is loaded automatically if both
 .Xr pf 4
 and
 .Xr pflogd 8
-are enabled;
-further instances can be created using
-.Xr ifconfig 8 .
+are enabled.
 .Pp
 Each packet retrieved on this interface has a header associated
 with it of length
@@ -87,6 +92,8 @@ Create a
 interface
 and monitor all packets logged on it:
 .Bd -literal -offset indent
+# ifconfig pflog create
+pflog1
 # ifconfig pflog1 up
 # tcpdump -n -e -ttt -i pflog1
 .Ed
