@@ -118,7 +118,8 @@ extern struct sx randomdev_config_lock;
 #define	RANDOM_CONFIG_S_LOCK(x)		sx_slock(&randomdev_config_lock)
 #define	RANDOM_CONFIG_S_UNLOCK(x)	sx_sunlock(&randomdev_config_lock)
 #define	RANDOM_CONFIG_DEINIT_LOCK(x)	sx_destroy(&randomdev_config_lock)
-void random_infra_init(int (*)(struct uio *, bool), void (*)(void *, u_int));
+void random_infra_init(int (*)(struct uio *, bool), void (*)(void *, u_int),
+    bool (*)(void));
 void random_infra_uninit(void);
 #endif
 

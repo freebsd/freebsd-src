@@ -62,11 +62,14 @@ __FBSDID("$FreeBSD$");
 #if defined(RANDOM_LOADABLE)
 #define READ_RANDOM_UIO	_read_random_uio
 #define READ_RANDOM	_read_random
+#define IS_RANDOM_SEEDED	_is_random_seeded
 static int READ_RANDOM_UIO(struct uio *, bool);
 static void READ_RANDOM(void *, u_int);
+static bool IS_RANDOM_SEEDED(void);
 #else
 #define READ_RANDOM_UIO	read_random_uio
 #define READ_RANDOM	read_random
+#define IS_RANDOM_SEEDED	is_random_seeded
 #endif
 
 static d_read_t randomdev_read;
@@ -93,7 +96,7 @@ random_alg_context_ra_init_alg(void *data)
 	p_random_alg_context = &random_alg_context;
 	p_random_alg_context->ra_init_alg(data);
 #if defined(RANDOM_LOADABLE)
-	random_infra_init(READ_RANDOM_UIO, READ_RANDOM);
+	random_infra_init(READ_RANDOM_UIO, READ_RANDOM, IS_RANDOM_SEEDED);
 #endif
 }
 
@@ -269,6 +272,12 @@ READ_RANDOM(void *random_buf, u_int len)
 
 		explicit_bzero(remainder_buf, sizeof(remainder_buf));
 	}
+}
+
+bool
+IS_RANDOM_SEEDED(void)
+{
+	return (p_random_alg_context->ra_seeded());
 }
 
 static __inline void

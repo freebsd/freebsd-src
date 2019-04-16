@@ -40,6 +40,7 @@ struct uio;
 #if defined(DEV_RANDOM)
 void read_random(void *, u_int);
 int read_random_uio(struct uio *, bool);
+bool is_random_seeded(void);
 #else
 static __inline int
 read_random_uio(void *a __unused, u_int b __unused)
@@ -49,6 +50,11 @@ read_random_uio(void *a __unused, u_int b __unused)
 static __inline void
 read_random(void *a __unused, u_int b __unused)
 {
+}
+static __inline bool
+is_random_seeded(void)
+{
+	return (false);
 }
 #endif
 
