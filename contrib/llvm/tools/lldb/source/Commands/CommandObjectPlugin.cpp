@@ -7,10 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "CommandObjectPlugin.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -63,7 +59,8 @@ protected:
 
     Status error;
 
-    FileSpec dylib_fspec(command[0].ref, true);
+    FileSpec dylib_fspec(command[0].ref);
+    FileSystem::Instance().Resolve(dylib_fspec);
 
     if (m_interpreter.GetDebugger().LoadPlugin(dylib_fspec, error))
       result.SetStatus(eReturnStatusSuccessFinishResult);

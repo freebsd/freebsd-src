@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
@@ -112,7 +112,7 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
   auto R = llvm::make_unique<BugReport>(*BT, OS.str(), N);
   if (ex) {
     R->addRange(ex->getSourceRange());
-    bugreporter::trackNullOrUndefValue(N, ex, *R);
+    bugreporter::trackExpressionValue(N, ex, *R);
   }
   C.emitReport(std::move(R));
 }

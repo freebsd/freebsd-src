@@ -30,6 +30,10 @@
 # define HWASAN_CONTAINS_UBSAN CAN_SANITIZE_UB
 #endif
 
+#ifndef HWASAN_WITH_INTERCEPTORS
+#define HWASAN_WITH_INTERCEPTORS 0
+#endif
+
 typedef u8 tag_t;
 
 // TBI (Top Byte Ignore) feature of AArch64: bits [63:56] are ignored in address
@@ -37,16 +41,21 @@ typedef u8 tag_t;
 const unsigned kAddressTagShift = 56;
 const uptr kAddressTagMask = 0xFFUL << kAddressTagShift;
 
+// Minimal alignment of the shadow base address. Determines the space available
+// for threads and stack histories. This is an ABI constant.
+const unsigned kShadowBaseAlignment = 32;
+
 static inline tag_t GetTagFromPointer(uptr p) {
   return p >> kAddressTagShift;
 }
 
-static inline uptr GetAddressFromPointer(uptr p) {
-  return p & ~kAddressTagMask;
+static inline uptr UntagAddr(uptr tagged_addr) {
+  return tagged_addr & ~kAddressTagMask;
 }
 
-static inline void * GetAddressFromPointer(const void *p) {
-  return (void *)((uptr)p & ~kAddressTagMask);
+static inline void *UntagPtr(const void *tagged_ptr) {
+  return reinterpret_cast<void *>(
+      UntagAddr(reinterpret_cast<uptr>(tagged_ptr)));
 }
 
 static inline uptr AddTagToPointer(uptr p, tag_t tag) {
@@ -61,12 +70,13 @@ extern int hwasan_report_count;
 
 bool ProtectRange(uptr beg, uptr end);
 bool InitShadow();
+void InitThreads();
+void MadviseShadow();
 char *GetProcSelfMaps();
 void InitializeInterceptors();
 
 void HwasanAllocatorInit();
 void HwasanAllocatorThreadFinish();
-void HwasanDeallocate(StackTrace *stack, void *ptr);
 
 void *hwasan_malloc(uptr size, StackTrace *stack);
 void *hwasan_calloc(uptr nmemb, uptr size, StackTrace *stack);
@@ -77,11 +87,13 @@ void *hwasan_aligned_alloc(uptr alignment, uptr size, StackTrace *stack);
 void *hwasan_memalign(uptr alignment, uptr size, StackTrace *stack);
 int hwasan_posix_memalign(void **memptr, uptr alignment, uptr size,
                         StackTrace *stack);
+void hwasan_free(void *ptr, StackTrace *stack);
 
 void InstallTrapHandler();
 void InstallAtExitHandler();
 
 const char *GetStackOriginDescr(u32 id, uptr *pc);
+const char *GetStackFrameDescr(uptr pc);
 
 void EnterSymbolizer();
 void ExitSymbolizer();
@@ -91,8 +103,6 @@ struct SymbolizerScope {
   SymbolizerScope() { EnterSymbolizer(); }
   ~SymbolizerScope() { ExitSymbolizer(); }
 };
-
-void PrintWarning(uptr pc, uptr bp);
 
 void GetStackTrace(BufferedStackTrace *stack, uptr max_s, uptr pc, uptr bp,
                    void *context, bool request_fast_unwind);
@@ -135,12 +145,16 @@ class ScopedThreadLocalStateBackup {
   u64 va_arg_overflow_size_tls;
 };
 
-void HwasanTSDInit(void (*destructor)(void *tsd));
-void *HwasanTSDGet();
-void HwasanTSDSet(void *tsd);
-void HwasanTSDDtor(void *tsd);
+void HwasanTSDInit();
+void HwasanTSDThreadInit();
 
 void HwasanOnDeadlySignal(int signo, void *info, void *context);
+
+void UpdateMemoryUsage();
+
+void AppendToErrorMessageBuffer(const char *buffer);
+
+void AndroidTestTlsSlot();
 
 }  // namespace __hwasan
 

@@ -15,6 +15,13 @@
 
 using namespace llvm;
 
+// Note: this option is defined here to be visible from libLLVMMipsAsmParser
+//       and libLLVMMipsCodeGen
+cl::opt<bool>
+EmitJalrReloc("mips-jalr-reloc", cl::Hidden,
+              cl::desc("MIPS: Emit R_{MICRO}MIPS_JALR relocation with jalr"),
+              cl::init(true));
+
 namespace {
 static const MCPhysReg O32IntRegs[4] = {Mips::A0, Mips::A1, Mips::A2, Mips::A3};
 
@@ -55,6 +62,8 @@ MipsABIInfo MipsABIInfo::computeTargetABI(const Triple &TT, StringRef CPU,
     return MipsABIInfo::N32();
   if (Options.getABIName().startswith("n64"))
     return MipsABIInfo::N64();
+  if (TT.getEnvironment() == llvm::Triple::GNUABIN32)
+    return MipsABIInfo::N32();
   assert(Options.getABIName().empty() && "Unknown ABI option for MIPS");
 
   if (TT.isMIPS64())

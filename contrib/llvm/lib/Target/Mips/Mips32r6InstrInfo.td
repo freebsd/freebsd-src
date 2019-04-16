@@ -200,6 +200,8 @@ class CRC32CW_ENC : SPECIAL3_2R_SZ_CRC<2,1>;
 class GINVI_ENC : SPECIAL3_GINV<0>;
 class GINVT_ENC : SPECIAL3_GINV<2>;
 
+class SIGRIE_ENC : SIGRIE_FM;
+
 //===----------------------------------------------------------------------===//
 //
 // Instruction Multiclasses
@@ -846,6 +848,14 @@ class GINVI_DESC : GINV_DESC_BASE<"ginvi", GPR32Opnd, II_GINVI> {
 }
 class GINVT_DESC : GINV_DESC_BASE<"ginvt", GPR32Opnd, II_GINVT>;
 
+class SIGRIE_DESC {
+  dag OutOperandList = (outs);
+  dag InOperandList = (ins uimm16:$code_);
+  string AsmString = "sigrie\t$code_";
+  list<dag> Pattern = [];
+  InstrItinClass Itinerary = II_SIGRIE;
+}
+
 //===----------------------------------------------------------------------===//
 //
 // Instruction Definitions
@@ -961,6 +971,7 @@ let AdditionalPredicates = [NotInMicroMips] in {
   def SEL_S : R6MMR6Rel, SEL_S_ENC, SEL_S_DESC, ISA_MIPS32R6, HARDFLOAT;
   def SDC2_R6 : SDC2_R6_ENC, SDC2_R6_DESC, ISA_MIPS32R6;
   def SWC2_R6 : SWC2_R6_ENC, SWC2_R6_DESC, ISA_MIPS32R6;
+  def SIGRIE : SIGRIE_ENC, SIGRIE_DESC, ISA_MIPS32R6;
 }
 
 let AdditionalPredicates = [NotInMicroMips] in {
@@ -988,6 +999,7 @@ def : MipsInstAlias<"evp", (EVP ZERO), 0>, ISA_MIPS32R6;
 
 let AdditionalPredicates = [NotInMicroMips] in {
 def : MipsInstAlias<"sdbbp", (SDBBP_R6 0)>, ISA_MIPS32R6;
+def : MipsInstAlias<"sigrie", (SIGRIE 0)>, ISA_MIPS32R6;
 def : MipsInstAlias<"jr $rs", (JALR ZERO, GPR32Opnd:$rs), 1>, ISA_MIPS32R6, GPR_32;
 }
 
@@ -1093,7 +1105,7 @@ def : MipsPat<(select i32:$cond, immz, i32:$f),
 
 // Pseudo instructions
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1, hasDelaySlot = 1,
-    hasExtraSrcRegAllocReq = 1, isCTI = 1, Defs = [AT] in {
+    hasExtraSrcRegAllocReq = 1, isCTI = 1, Defs = [AT], hasPostISelHook = 1 in {
   class TailCallRegR6<Instruction JumpInst, Register RT, RegisterOperand RO> :
     PseudoSE<(outs), (ins RO:$rs), [(MipsTailCall RO:$rs)], II_JR>,
     PseudoInstExpansion<(JumpInst RT:$rt, RO:$rs)>;

@@ -9,26 +9,27 @@
 
 #include "lldb/Core/SearchFilter.h"
 
-#include "lldb/Breakpoint/Breakpoint.h" // for Breakpoint
+#include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/ModuleList.h" // for ModuleList
+#include "lldb/Core/ModuleList.h"
 #include "lldb/Symbol/CompileUnit.h"
-#include "lldb/Symbol/SymbolContext.h" // for SymbolContext
+#include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Target/Target.h"
-#include "lldb/Utility/ConstString.h" // for ConstString
-#include "lldb/Utility/Status.h"      // for Status
-#include "lldb/Utility/Stream.h"      // for Stream
-#include "lldb/lldb-enumerations.h"   // for SymbolContextItem::eSymbolCo...
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Status.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/lldb-enumerations.h"
 
-#include "llvm/ADT/StringRef.h"         // for StringRef
-#include "llvm/Support/ErrorHandling.h" // for llvm_unreachable
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorHandling.h"
 
-#include <memory> // for shared_ptr
-#include <mutex>  // for recursive_mutex, lock_guard
-#include <string> // for string
+#include <memory>
+#include <mutex>
+#include <string>
 
-#include <inttypes.h> // for PRIu64
-#include <string.h>   // for size_t, strcmp
+#include <inttypes.h>
+#include <string.h>
 
 namespace lldb_private {
 class Address;
@@ -147,6 +148,15 @@ bool SearchFilter::CompUnitPasses(FileSpec &fileSpec) { return true; }
 
 bool SearchFilter::CompUnitPasses(CompileUnit &compUnit) { return true; }
 
+bool SearchFilter::FunctionPasses(Function &function) {
+  // This is a slightly cheesy job, but since we don't have finer grained 
+  // filters yet, just checking that the start address passes is probably
+  // good enough for the base class behavior.
+  Address addr = function.GetAddressRange().GetBaseAddress();
+  return AddressPasses(addr);
+}
+
+
 uint32_t SearchFilter::GetFilterRequiredItems() {
   return (lldb::SymbolContextItem)0;
 }
@@ -207,7 +217,7 @@ void SearchFilter::Search(Searcher &searcher) {
     return;
   empty_sc.target_sp = m_target_sp;
 
-  if (searcher.GetDepth() == Searcher::eDepthTarget)
+  if (searcher.GetDepth() == lldb::eSearchDepthTarget)
     searcher.SearchCallback(*this, empty_sc, nullptr, false);
   else
     DoModuleIteration(empty_sc, searcher);
@@ -220,7 +230,7 @@ void SearchFilter::SearchInModuleList(Searcher &searcher, ModuleList &modules) {
     return;
   empty_sc.target_sp = m_target_sp;
 
-  if (searcher.GetDepth() == Searcher::eDepthTarget)
+  if (searcher.GetDepth() == lldb::eSearchDepthTarget)
     searcher.SearchCallback(*this, empty_sc, nullptr, false);
   else {
     std::lock_guard<std::recursive_mutex> guard(modules.GetMutex());
@@ -247,9 +257,9 @@ SearchFilter::DoModuleIteration(const lldb::ModuleSP &module_sp,
 Searcher::CallbackReturn
 SearchFilter::DoModuleIteration(const SymbolContext &context,
                                 Searcher &searcher) {
-  if (searcher.GetDepth() >= Searcher::eDepthModule) {
+  if (searcher.GetDepth() >= lldb::eSearchDepthModule) {
     if (context.module_sp) {
-      if (searcher.GetDepth() == Searcher::eDepthModule) {
+      if (searcher.GetDepth() == lldb::eSearchDepthModule) {
         SymbolContext matchingContext(context.module_sp.get());
         searcher.SearchCallback(*this, matchingContext, nullptr, false);
       } else {
@@ -267,7 +277,7 @@ SearchFilter::DoModuleIteration(const SymbolContext &context,
         if (!ModulePasses(module_sp))
           continue;
 
-        if (searcher.GetDepth() == Searcher::eDepthModule) {
+        if (searcher.GetDepth() == lldb::eSearchDepthModule) {
           SymbolContext matchingContext(m_target_sp, module_sp);
 
           Searcher::CallbackReturn shouldContinue =
@@ -301,7 +311,7 @@ SearchFilter::DoCUIteration(const ModuleSP &module_sp,
         if (!CompUnitPasses(*(cu_sp.get())))
           continue;
 
-        if (searcher.GetDepth() == Searcher::eDepthCompUnit) {
+        if (searcher.GetDepth() == lldb::eSearchDepthCompUnit) {
           SymbolContext matchingContext(m_target_sp, module_sp, cu_sp.get());
 
           shouldContinue =
@@ -312,7 +322,30 @@ SearchFilter::DoCUIteration(const ModuleSP &module_sp,
           else if (shouldContinue == Searcher::eCallbackReturnStop)
             return shouldContinue;
         } else {
-          // FIXME Descend to block.
+          // First make sure this compile unit's functions are parsed
+          // since CompUnit::ForeachFunction only iterates over already
+          // parsed functions.
+          SymbolVendor *sym_vendor = module_sp->GetSymbolVendor();
+          if (!sym_vendor)
+            continue;
+          if (!sym_vendor->ParseFunctions(*cu_sp))
+            continue;
+          // If we got any functions, use ForeachFunction to do the iteration.
+          cu_sp->ForeachFunction([&](const FunctionSP &func_sp) {
+            if (!FunctionPasses(*func_sp.get()))
+              return false; // Didn't pass the filter, just keep going.
+            if (searcher.GetDepth() == lldb::eSearchDepthFunction) {
+              SymbolContext matchingContext(m_target_sp, module_sp, 
+                                            cu_sp.get(), func_sp.get());
+              shouldContinue = searcher.SearchCallback(*this, 
+                                                       matchingContext, 
+                                                       nullptr, false);
+            } else {
+              shouldContinue = DoFunctionIteration(func_sp.get(), context, 
+                                                   searcher);
+            }
+            return shouldContinue != Searcher::eCallbackReturnContinue;
+          });
         }
       }
     }
@@ -353,10 +386,7 @@ SearchFilterForUnconstrainedSearches::SerializeToStructuredData() {
 
 bool SearchFilterForUnconstrainedSearches::ModulePasses(
     const FileSpec &module_spec) {
-  if (m_target_sp->ModuleIsExcludedForUnconstrainedSearches(module_spec))
-    return false;
-  else
-    return true;
+  return !m_target_sp->ModuleIsExcludedForUnconstrainedSearches(module_spec);
 }
 
 bool SearchFilterForUnconstrainedSearches::ModulePasses(
@@ -421,7 +451,7 @@ void SearchFilterByModule::Search(Searcher &searcher) {
   if (!m_target_sp)
     return;
 
-  if (searcher.GetDepth() == Searcher::eDepthTarget) {
+  if (searcher.GetDepth() == lldb::eSearchDepthTarget) {
     SymbolContext empty_sc;
     empty_sc.target_sp = m_target_sp;
     searcher.SearchCallback(*this, empty_sc, nullptr, false);
@@ -489,7 +519,7 @@ SearchFilterSP SearchFilterByModule::CreateFromStructuredData(
     error.SetErrorString("SFBM::CFSD: filter module item not a string.");
     return nullptr;
   }
-  FileSpec module_spec(module, false);
+  FileSpec module_spec(module);
 
   return std::make_shared<SearchFilterByModule>(target.shared_from_this(),
                                                 module_spec);
@@ -535,22 +565,15 @@ bool SearchFilterByModuleList::ModulePasses(const ModuleSP &module_sp) {
   if (m_module_spec_list.GetSize() == 0)
     return true;
 
-  if (module_sp &&
-      m_module_spec_list.FindFileIndex(0, module_sp->GetFileSpec(), false) !=
-          UINT32_MAX)
-    return true;
-  else
-    return false;
+  return module_sp && m_module_spec_list.FindFileIndex(
+                          0, module_sp->GetFileSpec(), false) != UINT32_MAX;
 }
 
 bool SearchFilterByModuleList::ModulePasses(const FileSpec &spec) {
   if (m_module_spec_list.GetSize() == 0)
     return true;
 
-  if (m_module_spec_list.FindFileIndex(0, spec, true) != UINT32_MAX)
-    return true;
-  else
-    return false;
+  return m_module_spec_list.FindFileIndex(0, spec, true) != UINT32_MAX;
 }
 
 bool SearchFilterByModuleList::AddressPasses(Address &address) {
@@ -570,7 +593,7 @@ void SearchFilterByModuleList::Search(Searcher &searcher) {
   if (!m_target_sp)
     return;
 
-  if (searcher.GetDepth() == Searcher::eDepthTarget) {
+  if (searcher.GetDepth() == lldb::eSearchDepthTarget) {
     SymbolContext empty_sc;
     empty_sc.target_sp = m_target_sp;
     searcher.SearchCallback(*this, empty_sc, nullptr, false);
@@ -645,7 +668,7 @@ SearchFilterSP SearchFilterByModuleList::CreateFromStructuredData(
             "SFBM::CFSD: filter module item %zu not a string.", i);
         return nullptr;
       }
-      modules.Append(FileSpec(module, false));
+      modules.Append(FileSpec(module));
     }
   }
 
@@ -710,7 +733,7 @@ lldb::SearchFilterSP SearchFilterByModuleListAndCU::CreateFromStructuredData(
             "SFBM::CFSD: filter module item %zu not a string.", i);
         return result_sp;
       }
-      modules.Append(FileSpec(module, false));
+      modules.Append(FileSpec(module));
     }
   }
 
@@ -732,7 +755,7 @@ lldb::SearchFilterSP SearchFilterByModuleListAndCU::CreateFromStructuredData(
           "SFBM::CFSD: filter cu item %zu not a string.", i);
       return nullptr;
     }
-    cus.Append(FileSpec(cu, false));
+    cus.Append(FileSpec(cu));
   }
 
   return std::make_shared<SearchFilterByModuleListAndCU>(
@@ -748,7 +771,15 @@ SearchFilterByModuleListAndCU::SerializeToStructuredData() {
 }
 
 bool SearchFilterByModuleListAndCU::AddressPasses(Address &address) {
-  return true;
+  SymbolContext sym_ctx;
+  address.CalculateSymbolContext(&sym_ctx, eSymbolContextEverything);
+  if (!sym_ctx.comp_unit) {
+    if (m_cu_spec_list.GetSize() != 0)
+      return false; // Has no comp_unit so can't pass the file check.
+  }
+  if (m_cu_spec_list.FindFileIndex(0, sym_ctx.comp_unit, false) == UINT32_MAX)
+        return false; // Fails the file check
+  return SearchFilterByModuleList::ModulePasses(sym_ctx.module_sp); 
 }
 
 bool SearchFilterByModuleListAndCU::CompUnitPasses(FileSpec &fileSpec) {
@@ -773,7 +804,7 @@ void SearchFilterByModuleListAndCU::Search(Searcher &searcher) {
   if (!m_target_sp)
     return;
 
-  if (searcher.GetDepth() == Searcher::eDepthTarget) {
+  if (searcher.GetDepth() == lldb::eSearchDepthTarget) {
     SymbolContext empty_sc;
     empty_sc.target_sp = m_target_sp;
     searcher.SearchCallback(*this, empty_sc, nullptr, false);
@@ -797,7 +828,7 @@ void SearchFilterByModuleListAndCU::Search(Searcher &searcher) {
       SymbolContext matchingContext(m_target_sp, module_sp);
       Searcher::CallbackReturn shouldContinue;
 
-      if (searcher.GetDepth() == Searcher::eDepthModule) {
+      if (searcher.GetDepth() == lldb::eSearchDepthModule) {
         shouldContinue = DoModuleIteration(matchingContext, searcher);
         if (shouldContinue == Searcher::eCallbackReturnStop)
           return;

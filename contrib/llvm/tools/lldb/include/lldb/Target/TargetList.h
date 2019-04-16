@@ -10,15 +10,11 @@
 #ifndef liblldb_TargetList_h_
 #define liblldb_TargetList_h_
 
-// C Includes
-// C++ Includes
 #include <mutex>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Core/Broadcaster.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/Broadcaster.h"
 
 namespace lldb_private {
 
@@ -92,7 +88,8 @@ public:
   ///     An error object that indicates success or failure
   //------------------------------------------------------------------
   Status CreateTarget(Debugger &debugger, llvm::StringRef user_exe_path,
-                      llvm::StringRef triple_str, bool get_dependent_modules,
+                      llvm::StringRef triple_str,
+                      LoadDependentFiles get_dependent_modules,
                       const OptionGroupPlatform *platform_options,
                       lldb::TargetSP &target_sp);
 
@@ -103,7 +100,8 @@ public:
   /// platform you will be using
   //------------------------------------------------------------------
   Status CreateTarget(Debugger &debugger, llvm::StringRef user_exe_path,
-                      const ArchSpec &arch, bool get_dependent_modules,
+                      const ArchSpec &arch,
+                      LoadDependentFiles get_dependent_modules,
                       lldb::PlatformSP &platform_sp, lldb::TargetSP &target_sp);
 
   //------------------------------------------------------------------
@@ -217,12 +215,13 @@ private:
 
   Status CreateTargetInternal(Debugger &debugger, llvm::StringRef user_exe_path,
                               llvm::StringRef triple_str,
-                              bool get_dependent_files,
+                              LoadDependentFiles load_dependent_files,
                               const OptionGroupPlatform *platform_options,
                               lldb::TargetSP &target_sp, bool is_dummy_target);
 
   Status CreateTargetInternal(Debugger &debugger, llvm::StringRef user_exe_path,
-                              const ArchSpec &arch, bool get_dependent_modules,
+                              const ArchSpec &arch,
+                              LoadDependentFiles get_dependent_modules,
                               lldb::PlatformSP &platform_sp,
                               lldb::TargetSP &target_sp, bool is_dummy_target);
 

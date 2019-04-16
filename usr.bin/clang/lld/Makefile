@@ -34,19 +34,21 @@ SRCS+=		ELF/Arch/AMDGPU.cpp
 SRCS+=		ELF/Arch/ARM.cpp
 SRCS+=		ELF/Arch/AVR.cpp
 SRCS+=		ELF/Arch/Hexagon.cpp
+SRCS+=		ELF/Arch/MSP430.cpp
 SRCS+=		ELF/Arch/Mips.cpp
 SRCS+=		ELF/Arch/MipsArchTree.cpp
 SRCS+=		ELF/Arch/PPC.cpp
 SRCS+=		ELF/Arch/PPC64.cpp
+SRCS+=		ELF/Arch/RISCV.cpp
 SRCS+=		ELF/Arch/SPARCV9.cpp
 SRCS+=		ELF/Arch/X86.cpp
 SRCS+=		ELF/Arch/X86_64.cpp
 SRCS+=		ELF/CallGraphSort.cpp
+SRCS+=		ELF/DWARF.cpp
 SRCS+=		ELF/Driver.cpp
 SRCS+=		ELF/DriverUtils.cpp
 SRCS+=		ELF/EhFrame.cpp
 SRCS+=		ELF/Filesystem.cpp
-SRCS+=		ELF/GdbIndex.cpp
 SRCS+=		ELF/ICF.cpp
 SRCS+=		ELF/InputFiles.cpp
 SRCS+=		ELF/InputSection.cpp
@@ -82,12 +84,13 @@ LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
 LLVM_TBLGEN?=	llvm-tblgen
-ELF/Options.inc: ${LLD_SRCS}/ELF/Options.td
-	${LLVM_TBLGEN} -gen-opt-parser-defs \
-	    -I ${LLVM_SRCS}/include \
-	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
-	    ${LLVM_SRCS}/tools/lld/ELF/Options.td
-TGHDRS+=	ELF/Options.inc
+INCFILE=	Options.inc
+TDFILE=		${LLD_SRCS}/ELF/Options.td
+GENOPT=		-gen-opt-parser-defs
+${INCFILE}: ${TDFILE}
+	${LLVM_TBLGEN} ${GENOPT} -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${TDFILE}
+TGHDRS+=	${INCFILE}
 
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}

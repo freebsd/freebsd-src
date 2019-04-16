@@ -7,10 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/API/SBBreakpointName.h"
 #include "lldb/API/SBDebugger.h"
 #include "lldb/API/SBError.h"
@@ -168,11 +164,11 @@ const SBBreakpointName &SBBreakpointName::operator=(const SBBreakpointName &rhs)
 }
 
 bool SBBreakpointName::operator==(const lldb::SBBreakpointName &rhs) {
-  return *m_impl_up.get() == *rhs.m_impl_up.get();
+  return *m_impl_up == *rhs.m_impl_up;
 }
 
 bool SBBreakpointName::operator!=(const lldb::SBBreakpointName &rhs) {
-  return *m_impl_up.get() != *rhs.m_impl_up.get();
+  return *m_impl_up != *rhs.m_impl_up;
 }
 
 bool SBBreakpointName::IsValid() const {

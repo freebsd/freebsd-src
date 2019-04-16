@@ -159,6 +159,7 @@ class SYNC_MMR6_ENC : POOL32A_SYNC_FM_MMR6;
 class SYNCI_MMR6_ENC : POOL32I_SYNCI_FM_MMR6, MMR6Arch<"synci">;
 class RDPGPR_MMR6_ENC : POOL32A_RDPGPR_FM_MMR6<0b1110000101>;
 class SDBBP_MMR6_ENC : SDBBP_FM_MM, MMR6Arch<"sdbbp">;
+class SIGRIE_MMR6_ENC : SIGRIE_FM_MM, MMR6Arch<"sigrie">;
 class XOR_MMR6_ENC : ARITH_FM_MMR6<"xor", 0x310>;
 class XORI_MMR6_ENC : ADDI_FM_MMR6<"xori", 0x1c>;
 class ABS_S_MMR6_ENC : POOL32F_ABS_FM_MMR6<"abs.s", 0, 0b0001101>;
@@ -459,6 +460,7 @@ class JALRC16_MMR6_DESC_BASE<string opstr, RegisterOperand RO>
   let isCall = 1;
   let hasDelaySlot = 0;
   let Defs = [RA];
+  let hasPostISelHook = 1;
 }
 class JALRC16_MMR6_DESC : JALRC16_MMR6_DESC_BASE<"jalr", GPR32Opnd>;
 
@@ -1101,7 +1103,9 @@ class BREAK16_MMR6_DESC : BrkSdbbp16MM<"break16", II_BREAK>, MMR6Arch<"break16">
 class LI16_MMR6_DESC : LoadImmMM16<"li16", li16_imm, GPRMM16Opnd>,
       MMR6Arch<"li16">, IsAsCheapAsAMove;
 class MOVE16_MMR6_DESC : MoveMM16<"move16", GPR32Opnd>, MMR6Arch<"move16">;
-class MOVEP_MMR6_DESC : MovePMM16<"movep", GPRMM16OpndMoveP>, MMR6Arch<"movep">;
+class MOVEP_MMR6_DESC : MovePMM16<"movep", GPRMM16OpndMovePPairFirst,
+                                  GPRMM16OpndMovePPairSecond, GPRMM16OpndMoveP>,
+                        MMR6Arch<"movep">;
 class SDBBP16_MMR6_DESC : BrkSdbbp16MM<"sdbbp16", II_SDBBP>, MMR6Arch<"sdbbp16">;
 class SUBU16_MMR6_DESC : ArithRMM16<"subu16", GPRMM16Opnd, 0, II_SUBU, sub>,
       MMR6Arch<"subu16"> {
@@ -1158,6 +1162,14 @@ class SDBBP_MMR6_DESC : MipsR6Inst {
   string AsmString = !strconcat("sdbbp", "\t$code_");
   list<dag> Pattern = [];
   InstrItinClass Itinerary = II_SDBBP;
+}
+
+class SIGRIE_MMR6_DESC : MipsR6Inst {
+  dag OutOperandList = (outs);
+  dag InOperandList = (ins uimm16:$code_);
+  string AsmString = !strconcat("sigrie", "\t$code_");
+  list<dag> Pattern = [];
+  InstrItinClass Itinerary = II_SIGRIE;
 }
 
 class LWM16_MMR6_DESC
@@ -1425,6 +1437,7 @@ def SYNCI_MMR6 : StdMMR6Rel, SYNCI_MMR6_DESC, SYNCI_MMR6_ENC, ISA_MICROMIPS32R6;
 def RDPGPR_MMR6 : R6MMR6Rel, RDPGPR_MMR6_DESC, RDPGPR_MMR6_ENC,
                   ISA_MICROMIPS32R6;
 def SDBBP_MMR6 : R6MMR6Rel, SDBBP_MMR6_DESC, SDBBP_MMR6_ENC, ISA_MICROMIPS32R6;
+def SIGRIE_MMR6 : R6MMR6Rel, SIGRIE_MMR6_DESC, SIGRIE_MMR6_ENC, ISA_MICROMIPS32R6;
 def XOR_MMR6 : StdMMR6Rel, XOR_MMR6_DESC, XOR_MMR6_ENC, ISA_MICROMIPS32R6;
 def XORI_MMR6 : StdMMR6Rel, XORI_MMR6_DESC, XORI_MMR6_ENC, ISA_MICROMIPS32R6;
 let DecoderMethod = "DecodeMemMMImm16" in {
@@ -1633,6 +1646,7 @@ def B_MMR6_Pseudo : MipsAsmPseudoInst<(outs), (ins brtarget_mm:$offset),
 }
 def : MipsInstAlias<"sync", (SYNC_MMR6 0), 1>, ISA_MICROMIPS32R6;
 def : MipsInstAlias<"sdbbp", (SDBBP_MMR6 0), 1>, ISA_MICROMIPS32R6;
+def : MipsInstAlias<"sigrie", (SIGRIE_MMR6 0), 1>, ISA_MICROMIPS32R6;
 def : MipsInstAlias<"rdhwr $rt, $rs",
                     (RDHWR_MMR6 GPR32Opnd:$rt, HWRegsOpnd:$rs, 0), 1>,
                     ISA_MICROMIPS32R6;

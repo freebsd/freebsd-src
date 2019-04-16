@@ -22,6 +22,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/BuryPointer.h"
 #include <cassert>
 #include <list>
 #include <memory>
@@ -83,7 +84,7 @@ class CompilerInstance : public ModuleLoader {
   IntrusiveRefCntPtr<TargetInfo> AuxTarget;
 
   /// The virtual file system.
-  IntrusiveRefCntPtr<vfs::FileSystem> VirtualFileSystem;
+  IntrusiveRefCntPtr<llvm::vfs::FileSystem> VirtualFileSystem;
 
   /// The file manager.
   IntrusiveRefCntPtr<FileManager> FileMgr;
@@ -384,7 +385,7 @@ public:
 
   bool hasVirtualFileSystem() const { return VirtualFileSystem != nullptr; }
 
-  vfs::FileSystem &getVirtualFileSystem() const {
+  llvm::vfs::FileSystem &getVirtualFileSystem() const {
     assert(hasVirtualFileSystem() &&
            "Compiler instance has no virtual file system");
     return *VirtualFileSystem;
@@ -394,7 +395,7 @@ public:
   ///
   /// \note Most clients should use setFileManager, which will implicitly reset
   /// the virtual file system to the one contained in the file manager.
-  void setVirtualFileSystem(IntrusiveRefCntPtr<vfs::FileSystem> FS) {
+  void setVirtualFileSystem(IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS) {
     VirtualFileSystem = std::move(FS);
   }
 
@@ -411,7 +412,7 @@ public:
   }
 
   void resetAndLeakFileManager() {
-    BuryPointer(FileMgr.get());
+    llvm::BuryPointer(FileMgr.get());
     FileMgr.resetWithoutRelease();
   }
 
@@ -431,7 +432,7 @@ public:
   }
 
   void resetAndLeakSourceManager() {
-    BuryPointer(SourceMgr.get());
+    llvm::BuryPointer(SourceMgr.get());
     SourceMgr.resetWithoutRelease();
   }
 
@@ -453,7 +454,7 @@ public:
   std::shared_ptr<Preprocessor> getPreprocessorPtr() { return PP; }
 
   void resetAndLeakPreprocessor() {
-    BuryPointer(new std::shared_ptr<Preprocessor>(PP));
+    llvm::BuryPointer(new std::shared_ptr<Preprocessor>(PP));
   }
 
   /// Replace the current preprocessor.
@@ -471,7 +472,7 @@ public:
   }
 
   void resetAndLeakASTContext() {
-    BuryPointer(Context.get());
+    llvm::BuryPointer(Context.get());
     Context.resetWithoutRelease();
   }
 

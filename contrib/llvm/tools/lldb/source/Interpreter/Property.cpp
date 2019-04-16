@@ -9,10 +9,6 @@
 
 #include "lldb/Interpreter/Property.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/UserSettingsController.h"
 #include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -102,8 +98,10 @@ Property::Property(const PropertyDefinition &definition)
     // "definition.default_uint_value" represents if the
     // "definition.default_cstr_value" should be resolved or not
     const bool resolve = definition.default_uint_value != 0;
-    m_value_sp.reset(new OptionValueFileSpec(
-        FileSpec(definition.default_cstr_value, resolve), resolve));
+    FileSpec file_spec = FileSpec(definition.default_cstr_value);
+    if (resolve)
+      FileSystem::Instance().Resolve(file_spec);
+    m_value_sp.reset(new OptionValueFileSpec(file_spec, resolve));
     break;
   }
 
@@ -233,7 +231,10 @@ void Property::Dump(const ExecutionContext *exe_ctx, Stream &strm,
                     uint32_t dump_mask) const {
   if (m_value_sp) {
     const bool dump_desc = dump_mask & OptionValue::eDumpOptionDescription;
+    const bool dump_cmd = dump_mask & OptionValue::eDumpOptionCommand;
     const bool transparent = m_value_sp->ValueIsTransparent();
+    if (dump_cmd && !transparent)
+      strm << "settings set -f ";
     if (dump_desc || !transparent) {
       if ((dump_mask & OptionValue::eDumpOptionName) && m_name) {
         DumpQualifiedName(strm);
