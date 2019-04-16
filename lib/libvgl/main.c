@@ -264,6 +264,19 @@ VGLInit(int mode)
   else
     VGLBufSize = max(VGLAdpInfo.va_line_width*VGLModeInfo.vi_height,
 		     VGLAdpInfo.va_window_size)*VGLModeInfo.vi_planes;
+  /*
+   * The above is for old -CURRENT.  Current -CURRENT since r203535 and/or
+   * r248799 restricts va_buffer_size to the displayed size in VESA modes to
+   * avoid wasting kva for mapping unused parts of the frame buffer.  But all
+   * parts were usable here.  Applying the same restriction to user mappings
+   * makes our virtualization useless and breaks our panning, but large frame
+   * buffers are also difficult for us to manage (clearing and switching may
+   * be too slow, and malloc() may fail).  Restrict ourselves similarly to
+   * get the same efficiency and bugs for all kernels.
+   */
+  if (0 && VGLModeInfo.vi_mode >= M_VESA_BASE)
+    VGLBufSize = 2*VGLAdpInfo.va_line_width*VGLModeInfo.vi_height*
+                 VGLModeInfo.vi_planes;
   VGLBuf = malloc(VGLBufSize);
   if (VGLBuf == NULL) {
     VGLEnd();
