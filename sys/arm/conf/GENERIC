@@ -181,6 +181,7 @@ device		ti_adc
 # watchdog.
 device		ti_wdt
 device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
+device		aw_wdog			# Allwinner Watchdog
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
@@ -253,6 +254,8 @@ device		ti_mbox
 # DMA controller
 device		fslsdma
 device		ti_sdma
+device		a10_dmac
+device		a31_dmac
 
 # Extensible Firmware Interface
 options 	EFI
@@ -262,8 +265,15 @@ device		cesa
 device		crypto
 device		cryptodev
 
-# imx6 on-chip RTC
-device		imx6_snvs		# On-chip RTC
+# RTC
+device		imx6_snvs		# IMX6 On-chip RTC
+device		aw_rtc			# Allwinner On-chip RTC
+
+# EFUSE
+device		aw_sid		# Allwinner Secure ID EFUSE
+
+# Thermal sensors
+device		aw_thermal	# Allwinner Thermal Sensor Controller
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
