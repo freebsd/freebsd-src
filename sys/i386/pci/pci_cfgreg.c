@@ -64,20 +64,13 @@ struct pcie_cfg_elem {
 	vm_paddr_t	papage;
 };
 
-enum {
-	CFGMECH_NONE = 0,
-	CFGMECH_1,
-	CFGMECH_2,
-	CFGMECH_PCIE,
-};
-
 SYSCTL_DECL(_hw_pci);
 
 static TAILQ_HEAD(pcie_cfg_list, pcie_cfg_elem) pcie_list[MAXCPU];
 static uint64_t pcie_base;
 static int pcie_minbus, pcie_maxbus;
 static uint32_t pcie_badslots;
-static int cfgmech;
+int cfgmech;
 static int devmax;
 static struct mtx pcicfg_mtx;
 static int mcfg_enable = 1;
@@ -136,10 +129,8 @@ pcibios_get_version(void)
 int
 pci_cfgregopen(void)
 {
-	static int		opened = 0;
-	uint64_t		pciebar;
-	u_int16_t		vid, did;
-	u_int16_t		v;
+	uint16_t v;
+	static int opened = 0;
 
 	if (opened)
 		return (1);
@@ -158,38 +149,7 @@ pci_cfgregopen(void)
 	if (v >= 0x0210)
 		pci_pir_open();
 
-	if (cfgmech == CFGMECH_PCIE)
-		return (1);	
-
-	/*
-	 * Grope around in the PCI config space to see if this is a
-	 * chipset that is capable of doing memory-mapped config cycles.
-	 * This also implies that it can do PCIe extended config cycles.
-	 */
-
-	/* Check for supported chipsets */
-	vid = pci_cfgregread(0, 0, 0, PCIR_VENDOR, 2);
-	did = pci_cfgregread(0, 0, 0, PCIR_DEVICE, 2);
-	switch (vid) {
-	case 0x8086:
-		switch (did) {
-		case 0x3590:
-		case 0x3592:
-			/* Intel 7520 or 7320 */
-			pciebar = pci_cfgregread(0, 0, 0, 0xce, 2) << 16;
-			pcie_cfgregopen(pciebar, 0, 255);
-			break;
-		case 0x2580:
-		case 0x2584:
-		case 0x2590:
-			/* Intel 915, 925, or 915GM */
-			pciebar = pci_cfgregread(0, 0, 0, 0x48, 4);
-			pcie_cfgregopen(pciebar, 0, 255);
-			break;
-		}
-	}
-
-	return(1);
+	return (1);
 }
 
 static uint32_t
