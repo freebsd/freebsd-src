@@ -275,7 +275,7 @@ VGLInit(int mode)
    * get the same efficiency and bugs for all kernels.
    */
   if (VGLModeInfo.vi_mode >= M_VESA_BASE)
-    VGLBufSize = 2*VGLAdpInfo.va_line_width*VGLModeInfo.vi_height*
+    VGLBufSize = VGLAdpInfo.va_line_width*VGLModeInfo.vi_height*
                  VGLModeInfo.vi_planes;
   VGLBuf = malloc(VGLBufSize);
   if (VGLBuf == NULL) {
