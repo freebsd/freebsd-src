@@ -26,13 +26,14 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd April 15, 2019
+.Dd April 16, 2019
 .Dt RANDOM 9
 .Os
 .Sh NAME
 .Nm arc4rand ,
 .Nm arc4random ,
 .Nm arc4random_buf ,
+.Nm is_random_seeded ,
 .Nm random ,
 .Nm read_random ,
 .Nm read_random_uio ,
@@ -48,6 +49,8 @@
 .Fn arc4rand "void *ptr" "u_int length" "int reseed"
 .Pp
 .In sys/random.h
+.Ft bool
+.Fn is_random_seeded "void"
 .Ft void
 .Fn read_random "void *buffer" "int count"
 .Ft int
@@ -106,6 +109,13 @@ is not used directly;
 instead, use the
 .Fn arc4rand
 family of functions.
+.Pp
+The
+.Fn is_random_seeded
+function can be used to check in advance if
+.Fn read_random
+will block.
+(If random is seeded, it will not block.)
 .Pp
 The
 .Fn read_random_uio

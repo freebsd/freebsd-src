@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190416:
+	The loadable random module KPI has changed; the random_infra_init()
+	routine now requires a 3rd function pointer for a bool (*)(void)
+	method that returns true if the random device is seeded (and
+	therefore unblocked).
+
 20190404:
 	r345895 reverts r320698. This implies that an nfsuserd(8) daemon
 	built from head sources between r320757 (July 6, 2017) and
