@@ -52,9 +52,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/rwlock.h>
 #include <sys/stat.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_param.h>
 
@@ -82,7 +87,7 @@ static const char *tmpfs_opts[] = {
 };
 
 static const char *tmpfs_updateopts[] = {
-	"from", "export", NULL
+	"from", "export", "size", NULL
 };
 
 static int
@@ -128,6 +133,227 @@ tmpfs_node_fini(void *mem, int size)
 	mtx_destroy(&node->tn_interlock);
 }
 
+/*
+ * Handle updates of time from writes to mmaped regions.  Use
+ * MNT_VNODE_FOREACH_ALL instead of MNT_VNODE_FOREACH_ACTIVE, since
+ * unmap of the tmpfs-backed vnode does not call vinactive(), due to
+ * vm object type is OBJT_SWAP.
+ * If lazy, only handle delayed update of mtime due to the writes to
+ * mapped files.
+ */
+static void
+tmpfs_update_mtime(struct mount *mp, bool lazy)
+{
+	struct vnode *vp, *mvp;
+	struct vm_object *obj;
+
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+		if (vp->v_type != VREG) {
+			VI_UNLOCK(vp);
+			continue;
+		}
+		obj = vp->v_object;
+		KASSERT((obj->flags & (OBJ_TMPFS_NODE | OBJ_TMPFS)) ==
+		    (OBJ_TMPFS_NODE | OBJ_TMPFS), ("non-tmpfs obj"));
+
+		/*
+		 * In lazy case, do unlocked read, avoid taking vnode
+		 * lock if not needed.  Lost update will be handled on
+		 * the next call.
+		 * For non-lazy case, we must flush all pending
+		 * metadata changes now.
+		 */
+		if (!lazy || (obj->flags & OBJ_TMPFS_DIRTY) != 0) {
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK,
+			    curthread) != 0)
+				continue;
+			tmpfs_check_mtime(vp);
+			if (!lazy)
+				tmpfs_update(vp);
+			vput(vp);
+		} else {
+			VI_UNLOCK(vp);
+			continue;
+		}
+	}
+}
+
+struct tmpfs_check_rw_maps_arg {
+	bool found;
+};
+
+static bool
+tmpfs_check_rw_maps_cb(struct mount *mp __unused, vm_map_t map __unused,
+    vm_map_entry_t entry __unused, void *arg)
+{
+	struct tmpfs_check_rw_maps_arg *a;
+
+	a = arg;
+	a->found = true;
+	return (true);
+}
+
+/*
+ * Revoke write permissions from all mappings of regular files
+ * belonging to the specified tmpfs mount.
+ */
+static bool
+tmpfs_revoke_rw_maps_cb(struct mount *mp __unused, vm_map_t map,
+    vm_map_entry_t entry, void *arg __unused)
+{
+
+	/*
+	 * XXXKIB: might be invalidate the mapping
+	 * instead ?  The process is not going to be
+	 * happy in any case.
+	 */
+	entry->max_protection &= ~VM_PROT_WRITE;
+	if ((entry->protection & VM_PROT_WRITE) != 0) {
+		entry->protection &= ~VM_PROT_WRITE;
+		pmap_protect(map->pmap, entry->start, entry->end,
+		    entry->protection);
+	}
+	return (false);
+}
+
+static void
+tmpfs_all_rw_maps(struct mount *mp, bool (*cb)(struct mount *mp, vm_map_t,
+    vm_map_entry_t, void *), void *cb_arg)
+{
+	struct proc *p;
+	struct vmspace *vm;
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t object;
+	struct vnode *vp;
+	int gen;
+	bool terminate;
+
+	terminate = false;
+	sx_slock(&allproc_lock);
+again:
+	gen = allproc_gen;
+	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		if (p->p_state != PRS_NORMAL || (p->p_flag & (P_INEXEC |
+		    P_SYSTEM | P_WEXIT)) != 0) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		vm = vmspace_acquire_ref(p);
+		_PHOLD_LITE(p);
+		PROC_UNLOCK(p);
+		if (vm == NULL) {
+			PRELE(p);
+			continue;
+		}
+		sx_sunlock(&allproc_lock);
+		map = &vm->vm_map;
+
+		vm_map_lock(map);
+		if (map->busy)
+			vm_map_wait_busy(map);
+		for (entry = map->header.next; entry != &map->header;
+		    entry = entry->next) {
+			if ((entry->eflags & (MAP_ENTRY_GUARD |
+			    MAP_ENTRY_IS_SUB_MAP | MAP_ENTRY_COW)) != 0 ||
+			    (entry->max_protection & VM_PROT_WRITE) == 0)
+				continue;
+			object = entry->object.vm_object;
+			if (object == NULL || object->type != OBJT_SWAP ||
+			    (object->flags & OBJ_TMPFS_NODE) == 0)
+				continue;
+			/*
+			 * No need to dig into shadow chain, mapping
+			 * of the object not at top is readonly.
+			 */
+
+			VM_OBJECT_RLOCK(object);
+			if (object->type == OBJT_DEAD) {
+				VM_OBJECT_RUNLOCK(object);
+				continue;
+			}
+			MPASS(object->ref_count > 1);
+			if ((object->flags & (OBJ_TMPFS_NODE | OBJ_TMPFS)) !=
+			    (OBJ_TMPFS_NODE | OBJ_TMPFS)) {
+				VM_OBJECT_RUNLOCK(object);
+				continue;
+			}
+			vp = object->un_pager.swp.swp_tmpfs;
+			if (vp->v_mount != mp) {
+				VM_OBJECT_RUNLOCK(object);
+				continue;
+			}
+
+			terminate = cb(mp, map, entry, cb_arg);
+			VM_OBJECT_RUNLOCK(object);
+			if (terminate)
+				break;
+		}
+		vm_map_unlock(map);
+
+		vmspace_free(vm);
+		sx_slock(&allproc_lock);
+		PRELE(p);
+		if (terminate)
+			break;
+	}
+	if (!terminate && gen != allproc_gen)
+		goto again;
+	sx_sunlock(&allproc_lock);
+}
+
+static bool
+tmpfs_check_rw_maps(struct mount *mp)
+{
+	struct tmpfs_check_rw_maps_arg ca;
+
+	ca.found = false;
+	tmpfs_all_rw_maps(mp, tmpfs_check_rw_maps_cb, &ca);
+	return (ca.found);
+}
+
+static int
+tmpfs_rw_to_ro(struct mount *mp)
+{
+	int error, flags;
+	bool forced;
+
+	forced = (mp->mnt_flag & MNT_FORCE) != 0;
+	flags = WRITECLOSE | (forced ? FORCECLOSE : 0);
+
+	if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
+		return (error);
+	error = vfs_write_suspend_umnt(mp);
+	if (error != 0)
+		return (error);
+	if (!forced && tmpfs_check_rw_maps(mp)) {
+		error = EBUSY;
+		goto out;
+	}
+	VFS_TO_TMPFS(mp)->tm_ronly = 1;
+	MNT_ILOCK(mp);
+	mp->mnt_flag |= MNT_RDONLY;
+	MNT_IUNLOCK(mp);
+	for (;;) {
+		tmpfs_all_rw_maps(mp, tmpfs_revoke_rw_maps_cb, NULL);
+		tmpfs_update_mtime(mp, false);
+		error = vflush(mp, 0, flags, curthread);
+		if (error != 0) {
+			VFS_TO_TMPFS(mp)->tm_ronly = 0;
+			MNT_ILOCK(mp);
+			mp->mnt_flag &= ~MNT_RDONLY;
+			MNT_IUNLOCK(mp);
+			goto out;
+		}
+		if (!tmpfs_check_rw_maps(mp))
+			break;
+	}
+out:
+	vfs_write_resume(mp, 0);
+	return (error);
+}
+
 static int
 tmpfs_mount(struct mount *mp)
 {
@@ -159,9 +385,29 @@ tmpfs_mount(struct mount *mp)
 		/* Only support update mounts for certain options. */
 		if (vfs_filteropt(mp->mnt_optnew, tmpfs_updateopts) != 0)
 			return (EOPNOTSUPP);
-		if (vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) !=
-		    ((struct tmpfs_mount *)mp->mnt_data)->tm_ronly)
-			return (EOPNOTSUPP);
+		if (vfs_getopt_size(mp->mnt_optnew, "size", &size_max) == 0) {
+			/*
+			 * On-the-fly resizing is not supported (yet). We still
+			 * need to have "size" listed as "supported", otherwise
+			 * trying to update fs that is listed in fstab with size
+			 * parameter, say trying to change rw to ro or vice
+			 * versa, would cause vfs_filteropt() to bail.
+			 */
+			if (size_max != VFS_TO_TMPFS(mp)->tm_size_max)
+				return (EOPNOTSUPP);
+		}
+		if (vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
+		    !(VFS_TO_TMPFS(mp)->tm_ronly)) {
+			/* RW -> RO */
+			return (tmpfs_rw_to_ro(mp));
+		} else if (!vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
+		    VFS_TO_TMPFS(mp)->tm_ronly) {
+			/* RO -> RW */
+			VFS_TO_TMPFS(mp)->tm_ronly = 0;
+			MNT_ILOCK(mp);
+			mp->mnt_flag &= ~MNT_RDONLY;
+			MNT_IUNLOCK(mp);
+		}
 		return (0);
 	}
 
@@ -227,6 +473,7 @@ tmpfs_mount(struct mount *mp)
 	tmp->tm_maxfilesize = maxfilesize > 0 ? maxfilesize : OFF_MAX;
 	LIST_INIT(&tmp->tm_nodes_used);
 
+	tmp->tm_size_max = size_max;
 	tmp->tm_pages_max = pages;
 	tmp->tm_pages_used = 0;
 	tmp->tm_ino_unr = new_unrhdr(2, INT_MAX, &tmp->tm_allnode_lock);
@@ -433,45 +680,13 @@ tmpfs_statfs(struct mount *mp, struct statfs *sbp)
 static int
 tmpfs_sync(struct mount *mp, int waitfor)
 {
-	struct vnode *vp, *mvp;
-	struct vm_object *obj;
 
 	if (waitfor == MNT_SUSPEND) {
 		MNT_ILOCK(mp);
 		mp->mnt_kern_flag |= MNTK_SUSPEND2 | MNTK_SUSPENDED;
 		MNT_IUNLOCK(mp);
 	} else if (waitfor == MNT_LAZY) {
-		/*
-		 * Handle lazy updates of mtime from writes to mmaped
-		 * regions.  Use MNT_VNODE_FOREACH_ALL instead of
-		 * MNT_VNODE_FOREACH_ACTIVE, since unmap of the
-		 * tmpfs-backed vnode does not call vinactive(), due
-		 * to vm object type is OBJT_SWAP.
-		 */
-		MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
-			if (vp->v_type != VREG) {
-				VI_UNLOCK(vp);
-				continue;
-			}
-			obj = vp->v_object;
-			KASSERT((obj->flags & (OBJ_TMPFS_NODE | OBJ_TMPFS)) ==
-			    (OBJ_TMPFS_NODE | OBJ_TMPFS), ("non-tmpfs obj"));
-
-			/*
-			 * Unlocked read, avoid taking vnode lock if
-			 * not needed.  Lost update will be handled on
-			 * the next call.
-			 */
-			if ((obj->flags & OBJ_TMPFS_DIRTY) == 0) {
-				VI_UNLOCK(vp);
-				continue;
-			}
-			if (vget(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK,
-			    curthread) != 0)
-				continue;
-			tmpfs_check_mtime(vp);
-			vput(vp);
-		}
+		tmpfs_update_mtime(mp, true);
 	}
 	return (0);
 }

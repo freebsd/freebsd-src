@@ -330,6 +330,11 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
  */
 struct tmpfs_mount {
 	/*
+	 * Original value of the "size" parameter, for reference purposes,
+	 * mostly.
+	 */
+	off_t			tm_size_max;
+	/*
 	 * Maximum number of memory pages available for use by the file
 	 * system, set during mount time.  This variable must never be
 	 * used directly as it may be bigger than the current amount of
@@ -437,8 +442,8 @@ void	tmpfs_dir_destroy(struct tmpfs_mount *, struct tmpfs_node *);
 struct tmpfs_dirent *	tmpfs_dir_lookup(struct tmpfs_node *node,
 			    struct tmpfs_node *f,
 			    struct componentname *cnp);
-int	tmpfs_dir_getdents(struct tmpfs_node *, struct uio *, int,
-	    u_long *, int *);
+int	tmpfs_dir_getdents(struct tmpfs_mount *, struct tmpfs_node *,
+	    struct uio *, int, u_long *, int *);
 int	tmpfs_dir_whiteout_add(struct vnode *, struct componentname *);
 void	tmpfs_dir_whiteout_remove(struct vnode *, struct componentname *);
 int	tmpfs_reg_resize(struct vnode *, off_t, boolean_t);
@@ -452,7 +457,8 @@ int	tmpfs_chtimes(struct vnode *, struct vattr *, struct ucred *cred,
 void	tmpfs_itimes(struct vnode *, const struct timespec *,
 	    const struct timespec *);
 
-void	tmpfs_set_status(struct tmpfs_node *node, int status);
+void	tmpfs_set_status(struct tmpfs_mount *tm, struct tmpfs_node *node,
+	    int status);
 void	tmpfs_update(struct vnode *);
 int	tmpfs_truncate(struct vnode *, off_t);
 struct tmpfs_dirent *tmpfs_dir_first(struct tmpfs_node *dnode,
