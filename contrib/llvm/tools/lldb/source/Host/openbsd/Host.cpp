@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
 #include <sys/types.h>
 
 #include <sys/signal.h>
@@ -19,9 +18,6 @@
 
 #include <stdio.h>
 
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Process.h"
@@ -72,8 +68,7 @@ GetOpenBSDProcessArgs(const ProcessInstanceInfoMatch *match_info_ptr,
 
       cstr = data.GetCStr(&offset);
       if (cstr) {
-        process_info.GetExecutableFile().SetFile(cstr, false,
-                                                 FileSpec::Style::native);
+        process_info.GetExecutableFile().SetFile(cstr, FileSpec::Style::native);
 
         if (!(match_info_ptr == NULL ||
               NameMatches(

@@ -8,16 +8,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Target/Memory.h"
-// C Includes
 #include <inttypes.h>
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/RangeMap.h"
-#include "lldb/Core/State.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 
 using namespace lldb;
 using namespace lldb_private;

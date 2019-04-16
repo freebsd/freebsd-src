@@ -13,7 +13,7 @@
 // A similar flow-sensitive only check exists in Analysis/ReachableCode.cpp
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/SourceManager.h"
@@ -150,7 +150,7 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
     if (const Stmt *S = getUnreachableStmt(CB)) {
       // In macros, 'do {...} while (0)' is often used. Don't warn about the
       // condition 0 when it is unreachable.
-      if (S->getLocStart().isMacroID())
+      if (S->getBeginLoc().isMacroID())
         if (const auto *I = dyn_cast<IntegerLiteral>(S))
           if (I->getValue() == 0ULL)
             if (const Stmt *Parent = PM->getParent(S))
@@ -232,7 +232,7 @@ bool UnreachableCodeChecker::isInvalidPath(const CFGBlock *CB,
   if (!pred)
     return false;
 
-  // Get the predecessor block's terminator conditon
+  // Get the predecessor block's terminator condition
   const Stmt *cond = pred->getTerminatorCondition();
 
   //assert(cond && "CFGBlock's predecessor has a terminator condition");

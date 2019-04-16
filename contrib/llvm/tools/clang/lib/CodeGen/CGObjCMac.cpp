@@ -23,9 +23,9 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
-#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/ADT/CachedHashString.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SetVector.h"
@@ -37,6 +37,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstdio>
 
@@ -1085,9 +1086,14 @@ public:
                                      const CGBlockInfo &blockInfo) override;
   llvm::Constant *BuildRCBlockLayout(CodeGen::CodeGenModule &CGM,
                                      const CGBlockInfo &blockInfo) override;
+  std::string getRCBlockLayoutStr(CodeGen::CodeGenModule &CGM,
+                                  const CGBlockInfo &blockInfo) override;
 
   llvm::Constant *BuildByrefLayout(CodeGen::CodeGenModule &CGM,
                                    QualType T) override;
+
+private:
+  void fillRunSkipBlockVars(CodeGenModule &CGM, const CGBlockInfo &blockInfo);
 };
 
 namespace {
@@ -2795,8 +2801,44 @@ llvm::Constant *CGObjCCommonMac::getBitmapBlockLayout(bool ComputeByrefLayout) {
   return getConstantGEP(VMContext, Entry, 0, 0);
 }
 
-llvm::Constant *CGObjCCommonMac::BuildRCBlockLayout(CodeGenModule &CGM,
-                                                    const CGBlockInfo &blockInfo) {
+static std::string getBlockLayoutInfoString(
+    const SmallVectorImpl<CGObjCCommonMac::RUN_SKIP> &RunSkipBlockVars,
+    bool HasCopyDisposeHelpers) {
+  std::string Str;
+  for (const CGObjCCommonMac::RUN_SKIP &R : RunSkipBlockVars) {
+    if (R.opcode == CGObjCCommonMac::BLOCK_LAYOUT_UNRETAINED) {
+      // Copy/dispose helpers don't have any information about
+      // __unsafe_unretained captures, so unconditionally concatenate a string.
+      Str += "u";
+    } else if (HasCopyDisposeHelpers) {
+      // Information about __strong, __weak, or byref captures has already been
+      // encoded into the names of the copy/dispose helpers. We have to add a
+      // string here only when the copy/dispose helpers aren't generated (which
+      // happens when the block is non-escaping).
+      continue;
+    } else {
+      switch (R.opcode) {
+      case CGObjCCommonMac::BLOCK_LAYOUT_STRONG:
+        Str += "s";
+        break;
+      case CGObjCCommonMac::BLOCK_LAYOUT_BYREF:
+        Str += "r";
+        break;
+      case CGObjCCommonMac::BLOCK_LAYOUT_WEAK:
+        Str += "w";
+        break;
+      default:
+        continue;
+      }
+    }
+    Str += llvm::to_string(R.block_var_bytepos.getQuantity());
+    Str += "l" + llvm::to_string(R.block_var_size.getQuantity());
+  }
+  return Str;
+}
+
+void CGObjCCommonMac::fillRunSkipBlockVars(CodeGenModule &CGM,
+                                           const CGBlockInfo &blockInfo) {
   assert(CGM.getLangOpts().getGC() == LangOptions::NonGC);
 
   RunSkipBlockVars.clear();
@@ -2845,7 +2887,20 @@ llvm::Constant *CGObjCCommonMac::BuildRCBlockLayout(CodeGenModule &CGM,
     UpdateRunSkipBlockVars(CI.isByRef(), getBlockCaptureLifetime(type, false),
                            fieldOffset, fieldSize);
   }
+}
+
+llvm::Constant *
+CGObjCCommonMac::BuildRCBlockLayout(CodeGenModule &CGM,
+                                    const CGBlockInfo &blockInfo) {
+  fillRunSkipBlockVars(CGM, blockInfo);
   return getBitmapBlockLayout(false);
+}
+
+std::string CGObjCCommonMac::getRCBlockLayoutStr(CodeGenModule &CGM,
+                                                 const CGBlockInfo &blockInfo) {
+  fillRunSkipBlockVars(CGM, blockInfo);
+  return getBlockLayoutInfoString(RunSkipBlockVars,
+                                  blockInfo.needsCopyDisposeHelpers());
 }
 
 llvm::Constant *CGObjCCommonMac::BuildByrefLayout(CodeGen::CodeGenModule &CGM,
@@ -6783,8 +6838,9 @@ llvm::Constant *CGObjCNonFragileABIMac::GetOrEmitProtocol(
     return Entry;
 
   // Use the protocol definition, if there is one.
-  if (const ObjCProtocolDecl *Def = PD->getDefinition())
-    PD = Def;
+  assert(PD->hasDefinition() &&
+         "emitting protocol metadata without definition");
+  PD = PD->getDefinition();
 
   auto methodLists = ProtocolMethodLists::get(PD);
 
@@ -7132,15 +7188,21 @@ CGObjCNonFragileABIMac::GetClassGlobal(StringRef Name,
       Weak ? llvm::GlobalValue::ExternalWeakLinkage
            : llvm::GlobalValue::ExternalLinkage;
 
-
-
   llvm::GlobalVariable *GV = CGM.getModule().getGlobalVariable(Name);
-  if (!GV) {
-    GV = new llvm::GlobalVariable(CGM.getModule(), ObjCTypes.ClassnfABITy,
-                                  false, L, nullptr, Name);
+  if (!GV || GV->getType() != ObjCTypes.ClassnfABITy->getPointerTo()) {
+    auto *NewGV = new llvm::GlobalVariable(ObjCTypes.ClassnfABITy, false, L,
+                                           nullptr, Name);
 
     if (DLLImport)
-      GV->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
+      NewGV->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
+
+    if (GV) {
+      GV->replaceAllUsesWith(
+          llvm::ConstantExpr::getBitCast(NewGV, GV->getType()));
+      GV->eraseFromParent();
+    }
+    GV = NewGV;
+    CGM.getModule().getGlobalList().push_back(GV);
   }
 
   assert(GV->getLinkage() == L);

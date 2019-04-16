@@ -10,12 +10,8 @@
 #ifndef liblldb_Block_h_
 #define liblldb_Block_h_
 
-// C Includes
-// C++ Includes
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/AddressRange.h"
 #include "lldb/Core/RangeMap.h"
 #include "lldb/Symbol/CompilerType.h"
@@ -326,6 +322,14 @@ public:
   const InlineFunctionInfo *GetInlinedFunctionInfo() const {
     return m_inlineInfoSP.get();
   }
+
+  //------------------------------------------------------------------
+  /// Get the symbol file which contains debug info for this block's
+  /// symbol context module.
+  ///
+  /// @return A pointer to the symbol file or nullptr.
+  //------------------------------------------------------------------
+  SymbolFile *GetSymbolFile();
 
   CompilerDeclContext GetDeclContext();
 

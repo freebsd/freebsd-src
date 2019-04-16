@@ -3,7 +3,6 @@
 PROG_CXX=	llvm-pdbutil
 
 SRCDIR=		tools/llvm-pdbutil
-SRCS+=		Analyze.cpp
 SRCS+=		BytesOutputStyle.cpp
 SRCS+=		DumpOutputStyle.cpp
 SRCS+=		ExplainOutputStyle.cpp

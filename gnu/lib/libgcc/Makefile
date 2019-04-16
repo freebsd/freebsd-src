@@ -5,8 +5,8 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 CCDIR=	${.CURDIR}/../../usr.bin/cc
 COMPILERRTDIR=	${.CURDIR}/../../../contrib/compiler-rt
-UNWINDINCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/include
-UNWINDSRCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/src
+UNWINDINCDIR=	${.CURDIR}/../../../contrib/libunwind/include
+UNWINDSRCDIR=	${.CURDIR}/../../../contrib/libunwind/src
 
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
@@ -88,6 +88,13 @@ LIB2ADDEH = gcc_personality_v0.c \
 	UnwindRegistersRestore.S \
 	UnwindRegistersSave.S \
 	libunwind.cpp
+
+.for file in ${LIB2ADDEH:M*.c}
+CFLAGS.${file}+=	-fno-exceptions -funwind-tables
+.endfor
+.for file in ${LIB2ADDEH:M*.cpp}
+CXXFLAGS.${file}+=	-fno-exceptions -funwind-tables
+.endfor
 
 CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR} -D_LIBUNWIND_IS_NATIVE_ONLY
 .if empty(CXXFLAGS:M-std=*)

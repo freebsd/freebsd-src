@@ -291,6 +291,8 @@ _librtld_db=	librtld_db
 .endif
 SUBDIR.${MK_OFED}+=	ofed
 
+SUBDIR.${MK_OPENMP}+=	libomp
+
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
 .endif

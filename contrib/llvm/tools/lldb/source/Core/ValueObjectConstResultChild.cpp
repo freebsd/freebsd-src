@@ -9,7 +9,7 @@
 
 #include "lldb/Core/ValueObjectConstResultChild.h"
 
-#include "lldb/lldb-private-enumerations.h" // for AddressType::eAddressType
+#include "lldb/lldb-private-enumerations.h"
 namespace lldb_private {
 class DataExtractor;
 }
@@ -50,6 +50,11 @@ lldb::ValueObjectSP ValueObjectConstResultChild::GetSyntheticChildAtOffset(
 
 lldb::ValueObjectSP ValueObjectConstResultChild::AddressOf(Status &error) {
   return m_impl.AddressOf(error);
+}
+
+lldb::addr_t ValueObjectConstResultChild::GetAddressOf(
+  bool scalar_is_load_address, AddressType* address_type) {
+  return m_impl.GetAddressOf(scalar_is_load_address, address_type);
 }
 
 ValueObject *ValueObjectConstResultChild::CreateChildAtIndex(

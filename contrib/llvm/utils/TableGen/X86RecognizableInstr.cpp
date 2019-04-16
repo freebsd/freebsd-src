@@ -842,6 +842,7 @@ OperandType RecognizableInstr::typeFromString(const std::string &s,
   TYPE("f32mem",              TYPE_M)
   TYPE("ssmem",               TYPE_M)
   TYPE("RST",                 TYPE_ST)
+  TYPE("RSTi",                TYPE_ST)
   TYPE("i128mem",             TYPE_M)
   TYPE("i256mem",             TYPE_M)
   TYPE("i512mem",             TYPE_M)
@@ -964,6 +965,7 @@ OperandEncoding
 RecognizableInstr::rmRegisterEncodingFromString(const std::string &s,
                                                 uint8_t OpSize) {
   ENCODING("RST",             ENCODING_FP)
+  ENCODING("RSTi",            ENCODING_FP)
   ENCODING("GR16",            ENCODING_RM)
   ENCODING("GR32",            ENCODING_RM)
   ENCODING("GR32orGR64",      ENCODING_RM)
@@ -1132,8 +1134,8 @@ RecognizableInstr::relocationEncodingFromString(const std::string &s,
   ENCODING("i64i32imm_pcrel", ENCODING_ID)
   ENCODING("i16imm_pcrel",    ENCODING_IW)
   ENCODING("i32imm_pcrel",    ENCODING_ID)
-  ENCODING("brtarget32",      ENCODING_Iv)
-  ENCODING("brtarget16",      ENCODING_Iv)
+  ENCODING("brtarget32",      ENCODING_ID)
+  ENCODING("brtarget16",      ENCODING_IW)
   ENCODING("brtarget8",       ENCODING_IB)
   ENCODING("i64imm",          ENCODING_IO)
   ENCODING("offset16_8",      ENCODING_Ia)

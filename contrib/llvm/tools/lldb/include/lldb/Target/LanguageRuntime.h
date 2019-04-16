@@ -11,10 +11,6 @@
 #ifndef liblldb_LanguageRuntime_h_
 #define liblldb_LanguageRuntime_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/BreakpointResolver.h"
 #include "lldb/Breakpoint/BreakpointResolverName.h"
 #include "lldb/Core/PluginInterface.h"
@@ -123,6 +119,17 @@ public:
   static Breakpoint::BreakpointPreconditionSP
   CreateExceptionPrecondition(lldb::LanguageType language, bool catch_bp,
                               bool throw_bp);
+
+  virtual lldb::ValueObjectSP GetExceptionObjectForThread(
+      lldb::ThreadSP thread_sp) {
+    return lldb::ValueObjectSP();
+  }
+
+  virtual lldb::ThreadSP GetBacktraceThreadFromException(
+      lldb::ValueObjectSP thread_sp) {
+    return lldb::ThreadSP();
+  }
+
   Process *GetProcess() { return m_process; }
 
   Target &GetTargetRef() { return m_process->GetTarget(); }

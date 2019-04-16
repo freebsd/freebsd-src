@@ -45,7 +45,7 @@
 
 #define AEABI_RTABI __attribute__((__pcs__("aapcs")))
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #define ALWAYS_INLINE __forceinline
 #define NOINLINE __declspec(noinline)
 #define NORETURN __declspec(noreturn)
@@ -99,7 +99,7 @@
  */
 #if defined(__FreeBSD__) && (defined(__sparc64__) || \
     defined(__mips_n32) || defined(__mips_n64) || defined(__mips_o64) || \
-    defined(__riscv__))
+    defined(__riscv))
 si_int __clzsi2(si_int);
 si_int __ctzsi2(si_int);
 #define	__builtin_clz __clzsi2
