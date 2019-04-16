@@ -18,8 +18,6 @@ arm/broadcom/bcm2835/bcm2835_vcio.c		standard
 arm/broadcom/bcm2835/bcm2835_wdog.c		standard
 arm/broadcom/bcm2835/bcm283x_dwc_fdt.c		optional dwcotg fdt
 
-kern/kern_clocksource.c                         standard
-
 dev/mbox/mbox_if.m				standard
 
 arm/broadcom/bcm2835/bcm2835_audio.c		optional sound vchiq \
