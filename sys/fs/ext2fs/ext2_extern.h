@@ -66,7 +66,6 @@ int	ext2_bmaparray(struct vnode *, daddr_t, daddr_t *, int *, int *);
 int	ext4_bmapext(struct vnode *, int32_t, int64_t *, int *, int *);
 void	ext2_clusteracct(struct m_ext2fs *, char *, int, e4fs_daddr_t, int);
 void	ext2_dirbad(struct inode *ip, doff_t offset, char *how);
-void	ext2_fserr(struct m_ext2fs *, uid_t, char *);
 int	ext2_ei2i(struct ext2fs_dinode *, struct inode *);
 int	ext2_getlbns(struct vnode *, daddr_t, struct indir *, int *);
 int	ext2_i2ei(struct inode *, struct ext2fs_dinode *);
@@ -80,7 +79,7 @@ int	ext2_vfree(struct vnode *, ino_t, int);
 int	ext2_vinit(struct mount *, struct vop_vector *, struct vnode **vpp);
 int	ext2_lookup(struct vop_cachedlookup_args *);
 int	ext2_readdir(struct vop_readdir_args *);
-#ifdef EXT2FS_DEBUG
+#ifdef EXT2FS_PRINT_EXTENTS
 void	ext2_print_inode(struct inode *);
 #endif
 int	ext2_direnter(struct inode *, 

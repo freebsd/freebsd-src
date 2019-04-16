@@ -41,6 +41,7 @@
 #include <sys/param.h>
 
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
