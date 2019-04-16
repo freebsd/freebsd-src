@@ -98,6 +98,7 @@ struct mbuf;
 #define	MLEN		((int)(MSIZE - MHSIZE))
 #define	MHLEN		((int)(MSIZE - MPKTHSIZE))
 #define	MINCLSIZE	(MHLEN + 1)
+#define	M_NODOM		255
 
 #ifdef _KERNEL
 /*-
@@ -158,7 +159,7 @@ struct pkthdr {
 	uint32_t	 flowid;	/* packet's 4-tuple system */
 	uint32_t	 csum_flags;	/* checksum and offload features */
 	uint16_t	 fibnum;	/* this packet should use this fib */
-	uint8_t		 cosqos;	/* class/quality of service */
+	uint8_t		 numa_domain;	/* NUMA domain of recvd pkt */
 	uint8_t		 rsstype;	/* hash type */
 	union {
 		uint64_t	rcv_tstmp;	/* timestamp in ns */
@@ -405,33 +406,6 @@ struct mbuf {
 #define	M_HASHTYPE_SET(m, v)	((m)->m_pkthdr.rsstype = (v))
 #define	M_HASHTYPE_TEST(m, v)	(M_HASHTYPE_GET(m) == (v))
 #define	M_HASHTYPE_ISHASH(m)	(M_HASHTYPE_GET(m) & M_HASHTYPE_HASHPROP)
-
-/*
- * COS/QOS class and quality of service tags.
- * It uses DSCP code points as base.
- */
-#define	QOS_DSCP_CS0		0x00
-#define	QOS_DSCP_DEF		QOS_DSCP_CS0
-#define	QOS_DSCP_CS1		0x20
-#define	QOS_DSCP_AF11		0x28
-#define	QOS_DSCP_AF12		0x30
-#define	QOS_DSCP_AF13		0x38
-#define	QOS_DSCP_CS2		0x40
-#define	QOS_DSCP_AF21		0x48
-#define	QOS_DSCP_AF22		0x50
-#define	QOS_DSCP_AF23		0x58
-#define	QOS_DSCP_CS3		0x60
-#define	QOS_DSCP_AF31		0x68
-#define	QOS_DSCP_AF32		0x70
-#define	QOS_DSCP_AF33		0x78
-#define	QOS_DSCP_CS4		0x80
-#define	QOS_DSCP_AF41		0x88
-#define	QOS_DSCP_AF42		0x90
-#define	QOS_DSCP_AF43		0x98
-#define	QOS_DSCP_CS5		0xa0
-#define	QOS_DSCP_EF		0xb8
-#define	QOS_DSCP_CS6		0xc0
-#define	QOS_DSCP_CS7		0xe0
 
 /*
  * External mbuf storage buffer types.
