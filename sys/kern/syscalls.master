@@ -2716,7 +2716,7 @@
 		);
 	}
 500	AUE_READLINKAT	STD {
-		int readlinkat(
+		ssize_t readlinkat(
 		    int fd,
 		    _In_z_ const char *path,
 		    _Out_writes_bytes_(bufsize) char *buf,
