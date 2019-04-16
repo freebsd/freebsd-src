@@ -515,7 +515,7 @@ VGLClear(VGLBitmap *object, u_long color)
     for (i = 0; i < object->VXsize; i++)
       bcopy(&color, src.Bitmap + i * object->PixelBytes, object->PixelBytes);
     for (i = 0; i < object->VYsize; i++)
-      __VGLBitmapCopy(&src, 0, 0, object, 0, i, object->VYsize, 1);
+      __VGLBitmapCopy(&src, 0, 0, object, 0, i, object->VXsize, 1);
     break;
 
   case VIDBUF8X:
