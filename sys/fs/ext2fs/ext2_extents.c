@@ -37,6 +37,7 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/sdt.h>
 #include <sys/stat.h>
 
 #include <fs/ext2fs/ext2_mount.h>
@@ -46,9 +47,17 @@
 #include <fs/ext2fs/ext2_extents.h>
 #include <fs/ext2fs/ext2_extern.h>
 
+SDT_PROVIDER_DECLARE(ext2fs);
+/*
+ * ext2fs trace probe:
+ * arg0: verbosity. Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(ext2fs, , trace, extents, "int", "char*");
+
 static MALLOC_DEFINE(M_EXT2EXTENTS, "ext2_extents", "EXT2 extents");
 
-#ifdef EXT2FS_DEBUG
+#ifdef EXT2FS_PRINT_EXTENTS
 static void
 ext4_ext_print_extent(struct ext4_extent *ep)
 {
@@ -230,22 +239,22 @@ ext4_ext_check_header(struct inode *ip, struct ext4_extent_header *eh)
 	fs = ip->i_e2fs;
 
 	if (eh->eh_magic != EXT4_EXT_MAGIC) {
-		error_msg = "invalid magic";
+		error_msg = "header: invalid magic";
 		goto corrupted;
 	}
 	if (eh->eh_max == 0) {
-		error_msg = "invalid eh_max";
+		error_msg = "header: invalid eh_max";
 		goto corrupted;
 	}
 	if (eh->eh_ecount > eh->eh_max) {
-		error_msg = "invalid eh_entries";
+		error_msg = "header: invalid eh_entries";
 		goto corrupted;
 	}
 
 	return (0);
 
 corrupted:
-	ext2_fserr(fs, ip->i_uid, error_msg);
+	SDT_PROBE2(ext2fs, , trace, extents, 1, error_msg);
 	return (EIO);
 }
 
@@ -412,7 +421,7 @@ ext4_ext_find_extent(struct inode *ip, daddr_t block,
 
 		ppos++;
 		if (ppos > depth) {
-			ext2_fserr(fs, ip->i_uid,
+			SDT_PROBE2(ext2fs, , trace, extents, 1,
 			    "ppos > depth => extent corrupted");
 			error = EIO;
 			brelse(bp);
@@ -643,13 +652,13 @@ ext4_ext_insert_index(struct inode *ip, struct ext4_extent_path *path,
 	fs = ip->i_e2fs;
 
 	if (lblk == path->ep_index->ei_blk) {
-		ext2_fserr(fs, ip->i_uid,
+		SDT_PROBE2(ext2fs, , trace, extents, 1,
 		    "lblk == index blk => extent corrupted");
 		return (EIO);
 	}
 
 	if (path->ep_header->eh_ecount >= path->ep_header->eh_max) {
-		ext2_fserr(fs, ip->i_uid,
+		SDT_PROBE2(ext2fs, , trace, extents, 1,
 		    "ecout > maxcount => extent corrupted");
 		return (EIO);
 	}
@@ -667,7 +676,7 @@ ext4_ext_insert_index(struct inode *ip, struct ext4_extent_path *path,
 		memmove(idx + 1, idx, len * sizeof(struct ext4_extent_index));
 
 	if (idx > EXT_MAX_INDEX(path->ep_header)) {
-		ext2_fserr(fs, ip->i_uid,
+		SDT_PROBE2(ext2fs, , trace, extents, 1,
 		    "index is out of range => extent corrupted");
 		return (EIO);
 	}
@@ -736,7 +745,7 @@ ext4_ext_split(struct inode *ip, struct ext4_extent_path *path,
 	 * We will split at current extent for now.
 	 */
 	if (path[depth].ep_ext > EXT_MAX_EXTENT(path[depth].ep_header)) {
-		ext2_fserr(fs, ip->i_uid,
+		SDT_PROBE2(ext2fs, , trace, extents, 1,
 		    "extent is out of range => extent corrupted");
 		return (EIO);
 	}
@@ -773,7 +782,7 @@ ext4_ext_split(struct inode *ip, struct ext4_extent_path *path,
 	ex = EXT_FIRST_EXTENT(neh);
 
 	if (path[depth].ep_header->eh_ecount != path[depth].ep_header->eh_max) {
-		ext2_fserr(fs, ip->i_uid,
+		SDT_PROBE2(ext2fs, , trace, extents, 1,
 		    "extents count out of range => extent corrupted");
 		error = EIO;
 		goto cleanup;
@@ -1362,7 +1371,7 @@ ext4_ext_rm_leaf(struct inode *ip, struct ext4_extent_path *path,
 
 	eh = path[depth].ep_header;
 	if (!eh) {
-		ext2_fserr(ip->i_e2fs, ip->i_uid,
+		SDT_PROBE2(ext2fs, , trace, extents, 1,
 		    "bad header => extent corrupted");
 		return (EIO);
 	}
@@ -1449,7 +1458,8 @@ ext4_read_extent_tree_block(struct inode *ip, e4fs_daddr_t pblk,
 
 	eh = ext4_ext_block_header(bp->b_data);
 	if (eh->eh_depth != depth) {
-		ext2_fserr(fs, ip->i_uid, "unexpected eh_depth");
+		SDT_PROBE2(ext2fs, , trace, extents, 1,
+		    "unexpected eh_depth");
 		goto err;
 	}
 
