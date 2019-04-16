@@ -142,7 +142,8 @@ tpm20_write(struct cdev *dev, struct uio *uio, int flags)
 	return (result);
 }
 
-static void tpm20_discard_buffer(void *arg)
+static void
+tpm20_discard_buffer(void *arg)
 {
 	struct tpm_sc *sc;
 
@@ -304,9 +305,10 @@ tpm20_save_state(device_t dev, bool suspend)
 {
 	struct tpm_sc *sc;
 	uint8_t save_cmd[] = {
-		0x80, 0x01, /* TPM_ST_NO_SESSIONS tag*/
+		0x80, 0x01,             /* TPM_ST_NO_SESSIONS tag*/
 		0x00, 0x00, 0x00, 0x0C, /* cmd length */
-		0x00, 0x00, 0x01, 0x45, 0x00, 0x00 /* cmd TPM_CC_Shutdown */
+		0x00, 0x00, 0x01, 0x45, /* cmd TPM_CC_Shutdown */
+		0x00, 0x00              /* TPM_SU_STATE */
 	};
 
 	sc = device_get_softc(dev);
@@ -315,7 +317,7 @@ tpm20_save_state(device_t dev, bool suspend)
 	 * Inform the TPM whether we are going to suspend or reboot/shutdown.
 	 */
 	if (suspend)
-		save_cmd[11] = 1;	/* TPM_SU_STATE */
+		save_cmd[11] = 1; /* TPM_SU_STATE */
 
 	if (sc == NULL || sc->buf == NULL)
 		return (0);
