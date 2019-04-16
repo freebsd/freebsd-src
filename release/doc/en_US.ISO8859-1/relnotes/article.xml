@@ -531,7 +531,7 @@
 
       <para revision="341828" contrib="sponsor" sponsor="&klara;">An
 	issue that could result in a system hang during
-	<acronym>ZFS</acronym> vnode reclaimation has been
+	<acronym>ZFS</acronym> vnode reclamation has been
 	fixed.</para>
     </sect2>
 
