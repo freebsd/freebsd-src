@@ -638,98 +638,8 @@ vop_stdfsync(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct vnode *vp;
-	struct buf *bp, *nbp;
-	struct bufobj *bo;
-	struct mount *mp;
-	int error, maxretry;
 
-	error = 0;
-	maxretry = 10000;     /* large, arbitrarily chosen */
-	vp = ap->a_vp;
-	mp = NULL;
-	if (vp->v_type == VCHR) {
-		VI_LOCK(vp);
-		mp = vp->v_rdev->si_mountpt;
-		VI_UNLOCK(vp);
-	}
-	bo = &vp->v_bufobj;
-	BO_LOCK(bo);
-loop1:
-	/*
-	 * MARK/SCAN initialization to avoid infinite loops.
-	 */
-        TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs) {
-                bp->b_vflags &= ~BV_SCANNED;
-		bp->b_error = 0;
-	}
-
-	/*
-	 * Flush all dirty buffers associated with a vnode.
-	 */
-loop2:
-	TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
-		if ((bp->b_vflags & BV_SCANNED) != 0)
-			continue;
-		bp->b_vflags |= BV_SCANNED;
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
-			if (ap->a_waitfor != MNT_WAIT)
-				continue;
-			if (BUF_LOCK(bp,
-			    LK_EXCLUSIVE | LK_INTERLOCK | LK_SLEEPFAIL,
-			    BO_LOCKPTR(bo)) != 0) {
-				BO_LOCK(bo);
-				goto loop1;
-			}
-			BO_LOCK(bo);
-		}
-		BO_UNLOCK(bo);
-		KASSERT(bp->b_bufobj == bo,
-		    ("bp %p wrong b_bufobj %p should be %p",
-		    bp, bp->b_bufobj, bo));
-		if ((bp->b_flags & B_DELWRI) == 0)
-			panic("fsync: not dirty");
-		if ((vp->v_object != NULL) && (bp->b_flags & B_CLUSTEROK)) {
-			vfs_bio_awrite(bp);
-		} else {
-			bremfree(bp);
-			bawrite(bp);
-		}
-		if (maxretry < 1000)
-			pause("dirty", hz < 1000 ? 1 : hz / 1000);
-		BO_LOCK(bo);
-		goto loop2;
-	}
-
-	/*
-	 * If synchronous the caller expects us to completely resolve all
-	 * dirty buffers in the system.  Wait for in-progress I/O to
-	 * complete (which could include background bitmap writes), then
-	 * retry if dirty blocks still exist.
-	 */
-	if (ap->a_waitfor == MNT_WAIT) {
-		bufobj_wwait(bo, 0, 0);
-		if (bo->bo_dirty.bv_cnt > 0) {
-			/*
-			 * If we are unable to write any of these buffers
-			 * then we fail now rather than trying endlessly
-			 * to write them out.
-			 */
-			TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs)
-				if ((error = bp->b_error) != 0)
-					break;
-			if ((mp != NULL && mp->mnt_secondary_writes > 0) ||
-			    (error == 0 && --maxretry >= 0))
-				goto loop1;
-			if (error == 0)
-				error = EAGAIN;
-		}
-	}
-	BO_UNLOCK(bo);
-	if (error != 0)
-		vn_printf(vp, "fsync: giving up on dirty (error = %d) ", error);
-
-	return (error);
+	return (vn_fsync_buf(ap->a_vp, ap->a_waitfor));
 }
 
 static int
@@ -742,12 +652,8 @@ vop_stdfdatasync(struct vop_fdatasync_args *ap)
 int
 vop_stdfdatasync_buf(struct vop_fdatasync_args *ap)
 {
-	struct vop_fsync_args apf;
 
-	apf.a_vp = ap->a_vp;
-	apf.a_waitfor = MNT_WAIT;
-	apf.a_td = ap->a_td;
-	return (vop_stdfsync(&apf));
+	return (vn_fsync_buf(ap->a_vp, MNT_WAIT));
 }
 
 /* XXX Needs good comment and more info in the manpage (VOP_GETPAGES(9)). */

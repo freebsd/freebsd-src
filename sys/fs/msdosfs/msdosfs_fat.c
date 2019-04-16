@@ -980,7 +980,6 @@ extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp,
 	u_long cn, got;
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct buf *bp;
-	struct vop_fsync_args fsync_ap;
 	daddr_t blkno;
 
 	/*
@@ -1092,12 +1091,8 @@ extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp,
 					bdwrite(bp);
 				}
 				if (vm_page_count_severe() ||
-				    buf_dirty_count_severe()) {
-					fsync_ap.a_vp = DETOV(dep);
-					fsync_ap.a_waitfor = MNT_WAIT;
-					fsync_ap.a_td = curthread;
-					vop_stdfsync(&fsync_ap);
-				}
+				    buf_dirty_count_severe())
+					vn_fsync_buf(DETOV(dep), MNT_WAIT);
 			}
 		}
 	}
