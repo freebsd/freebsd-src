@@ -15,10 +15,8 @@
 
 <!ENTITY cavium		"Cavium">
 <!ENTITY chelsio	"Chelsio Communications">
-
 <!ENTITY citrix		"Citrix Systems">
 <!ENTITY citrix.rd	"Citrix Systems R&amp;D">
-
 <!ENTITY clusterhq	"ClusterHQ">
 
 <!ENTITY darpa		"DARPA">
@@ -40,16 +38,21 @@
 <!ENTITY limelight	"Limelight Networks">
 <!ENTITY lsi		"LSI">
 
+<!ENTITY klara		"Klara Systems">
+
 <!ENTITY mellanox	"Mellanox Technologies">
+<!ENTITY mitail		"MIT Computer Science &amp; Artificial Intelligence Laboratory">
+<!ENTITY modirum	"Modirum MDPay">
 <!ENTITY ms		"Microsoft">
 <!ENTITY msostc		"Microsoft Open Source Technology Center">
-<!ENTITY mitail		"MIT Computer Science &amp; Artificial Intelligence Laboratory">
 <!ENTITY multiplay	"Multiplay">
 
 <!ENTITY netflix	"Netflix">
 <!ENTITY netgate	"Rubicon Communications, LLC (Netgate)">
 <!ENTITY nginx		"Nginx, Inc.">
 <!ENTITY norse		"Norse Corporation">
+
+<!ENTITY panzura	"Panzura">
 
 <!ENTITY sandvine	"Sandvine, Inc.">
 <!ENTITY scaleengine	"ScaleEngine, Inc.">

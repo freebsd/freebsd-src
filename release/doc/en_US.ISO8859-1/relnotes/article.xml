@@ -350,6 +350,19 @@
       <para revision="335640">The &man.pcap.3; library has been
 	updated to version 1.9.0 (pre-release).</para>
 
+      <para revision="336449">The &man.setproctitle.fast.3; function
+	has been added, which is optimized for high-frequency process
+	title updates.</para>
+
+      <para revision="337418" contrib="sponsor"
+	sponsor="&dellemc;">The &man.kqueue.2; system call has been
+	updated to allow updating
+	<literal>EVFILT_TIMER</literal>.</para>
+
+      <para revision="338405">The &man.pthread.get.name.np.3; function
+	has been added, which is used to retrieve the function name
+	associated with a thread.</para>
+
       <para revision="338707">The &man.pthread.3; library has been
 	updated to improve <acronym>POSIX</acronym> compliance.</para>
     </sect2>
@@ -377,7 +390,21 @@
     <sect2 xml:id="kernel-general">
       <title>General Kernel Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="339857" contrib="sponsor"
+	sponsor="&panzura;">The &man.ddb.4; debugging utility has been
+	updated to print command-line arguments to a process.</para>
+
+      <para revision="342656">The number of <acronym>MSI</acronym>
+	<acronym>IRQ</acronym>s have been converted from a constant to
+	a tunable.  The default remains at <literal>512</literal>,
+	which can now be changed during boot with the
+	<literal>machdep.num_msi_irqs</literal> &man.sysctl.8;.</para>
+
+      <para revision="343084" contrib="sponsor"
+	sponsor="&modirum;">The kernel will now log the &man.jail.8;
+	<acronym>ID</acronym> when logging a process exit.  The
+	&man.jail.8; <acronym>ID</acronym> <literal>0</literal>
+	represents processes that are not jailed.</para>
     </sect2>
 
     <sect2 xml:id="kernel-bugfix">
@@ -414,7 +441,14 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="340182" contrib="sponsor"
+	sponsor="&panzura;">The &man.ichwd.4; driver has been updated
+	to include support for <acronym>TCO</acronym> watchdog timers
+	in the Lewisburg <acronym>PCH</acronym> (C620) chipset.</para>
+
+      <para revision="345981">The &man.random.4; driver has been
+	updated to improve performance during expensive
+	reseeding.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
@@ -429,6 +463,16 @@
       <para revision="340369">The TP-Link&reg; TL-WN321G&trade;
 	network adapter now uses the &man.run.4; driver instead of the
 	&man.rum.4; driver.</para>
+
+      <para revision="342206" contrib="sponsor" sponsor="&ix;">The
+	&man.lagg.4; driver has been updated to allow changing the
+	<acronym>MTU</acronym> without requiring destroying and
+	recreating the interface.</para>
+
+      <para revision="345040" contrib="sponsor"
+	sponsor="&chelsio;">The &man.ccr.4; driver has been added,
+	providing support for Chelsio&reg; T6&trade; cryptography
+	accelerators.</para>
     </sect2>
   </sect1>
 
@@ -485,7 +529,10 @@
     <sect2 xml:id="storage-zfs">
       <title>ZFS</title>
 
-      <para>&nbsp;</para>
+      <para revision="341828" contrib="sponsor" sponsor="&klara;">An
+	issue that could result in a system hang during
+	<acronym>ZFS</acronym> vnode reclaimation has been
+	fixed.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
@@ -504,7 +551,21 @@
     <sect2 xml:id="boot-loader">
       <title>Boot Loader Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="344399">The functionality provided by
+	<filename>zfsloader</filename> has been added to
+	&man.loader.8;.  Once the system boot blocks have been updated
+	following <filename>UPDATING</filename>,
+	<filename>zfsloader</filename> is no longer needed.  A hard
+	link to &man.loader.8; has been added to ease in the
+	transition.</para>
+
+      <para revision="344399">The &man.loader.8; has been updated to
+	extend &man.geli.8; support to all architectures.</para>
+
+      <para revision="344403">The <acronym>UEFI</acronym> boot
+	&man.loader.8; has been updated to better determine the system
+	console type and device if not defined in
+	&man.loader.conf.5;.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
