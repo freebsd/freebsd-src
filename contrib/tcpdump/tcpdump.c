@@ -2063,7 +2063,8 @@ main(int argc, char **argv)
 	}
 
 #ifdef HAVE_CAPSICUM
-	cansandbox = (VFileName == NULL && zflag == NULL);
+	cansandbox = (VFileName == NULL && zflag == NULL &&
+	    ndo->ndo_espsecret == NULL);
 #ifdef HAVE_CASPER
 	cansandbox = (cansandbox && (ndo->ndo_nflag || capdns != NULL));
 #else
