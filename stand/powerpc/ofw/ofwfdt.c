@@ -198,6 +198,12 @@ fdt_platform_load_dtb(void)
 }
 
 void
+fdt_platform_load_overlays(void)
+{
+
+}
+
+void
 fdt_platform_fixups(void)
 {
 
