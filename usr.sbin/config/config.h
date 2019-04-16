@@ -86,6 +86,7 @@ struct files_name {
 struct device {
 	int	d_done;			/* processed */
 	char	*d_name;		/* name of device (e.g. rk11) */
+	char	*yyfile;		/* name of the file that first include the device */
 #define	UNKNOWN -2	/* -2 means not set yet */
 	STAILQ_ENTRY(device) d_next;	/* Next one in list */
 };
@@ -125,6 +126,7 @@ struct opt {
 	char	*op_name;
 	char	*op_value;
 	int	op_ownfile;	/* true = own file, false = makefile */
+	char	*yyfile;	/* name of the file that first include the option */
 	SLIST_ENTRY(opt) op_next;
 	SLIST_ENTRY(opt) op_append;
 };
