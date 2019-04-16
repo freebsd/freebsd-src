@@ -52,6 +52,7 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
+#include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
 #include <fs/msdosfs/bpb.h>
@@ -977,6 +978,7 @@ extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp,
 	u_long cn, got;
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct buf *bp;
+	struct vop_fsync_args fsync_ap;
 	daddr_t blkno;
 
 	/*
@@ -1086,8 +1088,16 @@ extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp,
 				if (bpp) {
 					*bpp = bp;
 					bpp = NULL;
-				} else
+				} else {
 					bdwrite(bp);
+				}
+				if (vm_page_count_severe() ||
+				    buf_dirty_count_severe()) {
+					fsync_ap.a_vp = DETOV(dep);
+					fsync_ap.a_waitfor = MNT_WAIT;
+					fsync_ap.a_td = curthread;
+					vop_stdfsync(&fsync_ap);
+				}
 			}
 		}
 	}
