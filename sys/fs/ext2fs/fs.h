@@ -164,6 +164,6 @@
 /*
  * Use if additional debug logging is required.
  */
-/* #define EXT2FS_DEBUG */
+/* #define EXT2FS_PRINT_EXTENTS */
 
 #endif	/* !_FS_EXT2FS_FS_H_ */
