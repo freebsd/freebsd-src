@@ -274,7 +274,7 @@ VGLInit(int mode)
    * be too slow, and malloc() may fail).  Restrict ourselves similarly to
    * get the same efficiency and bugs for all kernels.
    */
-  if (0 && VGLModeInfo.vi_mode >= M_VESA_BASE)
+  if (VGLModeInfo.vi_mode >= M_VESA_BASE)
     VGLBufSize = 2*VGLAdpInfo.va_line_width*VGLModeInfo.vi_height*
                  VGLModeInfo.vi_planes;
   VGLBuf = malloc(VGLBufSize);
