@@ -422,7 +422,7 @@ void	ether_vlan_mtap(struct bpf_if *, struct mbuf *,
 struct mbuf  *ether_vlanencap(struct mbuf *, uint16_t);
 bool	ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 	    uint16_t vid, uint8_t pcp);
-void	ether_fakeaddr(struct ether_addr *hwaddr);
+void	ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr);
 
 #ifdef _SYS_EVENTHANDLER_H_
 /* new ethernet interface attached event */
