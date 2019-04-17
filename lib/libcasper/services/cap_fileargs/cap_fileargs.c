@@ -579,7 +579,7 @@ fileargs_command_lstat(const nvlist_t *limits, nvlist_t *nvlin,
 	name = nvlist_get_string(nvlin, "name");
 
 	error = lstat(name, &sb);
-	if (stat < 0)
+	if (error < 0)
 		return (errno);
 
 	if (!allcached && (lastname == NULL ||
