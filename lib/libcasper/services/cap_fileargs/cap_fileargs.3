@@ -120,7 +120,7 @@ For details see
 The
 .Fa fileargs_free
 close connection to the
-.Nm system.filerags
+.Nm system.fileargs
 service and free are structures.
 The function handle
 .Dv NULL
@@ -139,7 +139,7 @@ expect that all arguments are fetched from the
 structure.
 .Sh LIMITS
 This section describe which values and types should be used to pass arguments to the
-.Fa system.filerags
+.Fa system.fileargs
 through the
 .Fn fileargs_ininv
 and
@@ -181,7 +181,7 @@ Any number of
 where the name of the element is name of the file which can be opened.
 .Sh EXAMPLES
 The following example first parse some options and then create the
-.Nm system.filerags
+.Nm system.fileargs
 service with remaining arguments.
 .Bd -literal
 int ch, fd, i;
