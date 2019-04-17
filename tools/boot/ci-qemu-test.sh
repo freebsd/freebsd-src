@@ -2,62 +2,105 @@
 
 # Install loader, kernel, and enough of userland to boot in QEMU and echo
 # "Hello world." from init, as a very quick smoke test for CI.  Uses QEMU's
-# virtual FAT filesystem to avoid the need to create a disk image.
+# virtual FAT filesystem to avoid the need to create a disk image.  While
+# designed for CI automated testing, this script can also be run by hand as
+# a quick smoke-test.  The rootgen.sh and related scripts generate much more
+# extensive tests for many combinations of boot env (ufs, zfs, geli, etc).
 #
 # $FreeBSD$
 
 set -e
 
-# Root directory for minimal FreeBSD installation.
-ROOTDIR=$(pwd)/fat-root
+die()
+{
+	echo "$*" 1>&2
+	exit 1
+}
 
-# Create minimal directory structure.
-rm -f $ROOTDIR/efi/boot/BOOTx64.EFI
-for dir in dev bin efi/boot etc lib libexec sbin usr/libexec; do
-	mkdir -p $ROOTDIR/$dir
-done
+tempdir_cleanup()
+{
+	trap - EXIT SIGINT SIGHUP SIGTERM SIGQUIT
+	rm -rf ${ROOTDIR}
+}
 
-# Install kernel, loader and minimal userland.
-make -DNO_ROOT DESTDIR=$ROOTDIR \
-    MODULES_OVERRIDE= \
-    WITHOUT_DEBUG_FILES=yes \
-    WITHOUT_KERNEL_SYMBOLS=yes \
-    installkernel
-for dir in stand \
-    lib/libc lib/libedit lib/ncurses \
-    libexec/rtld-elf \
-    bin/sh sbin/init sbin/shutdown; do
-	make -DNO_ROOT DESTDIR=$ROOTDIR INSTALL="install -U" \
-	    WITHOUT_MAN= \
-	    WITHOUT_PROFILE= \
-	    WITHOUT_TESTS= \
-	    WITHOUT_TOOLCHAIN= \
-	    -C $dir install
-done
+tempdir_setup()
+{
+	# Create minimal directory structure and populate it.
+	# Caller must cd ${SRCTOP} before calling this function.
 
-# Put loader in standard EFI location.
-mv $ROOTDIR/boot/loader.efi $ROOTDIR/efi/boot/BOOTx64.EFI
+	for dir in dev bin efi/boot etc lib libexec sbin usr/lib usr/libexec; do
+		mkdir -p ${ROOTDIR}/${dir}
+	done
 
-# Configuration files.
-cat > $ROOTDIR/boot/loader.conf <<EOF
+	# Install kernel, loader and minimal userland.
+
+	make -DNO_ROOT DESTDIR=${ROOTDIR} \
+	    MODULES_OVERRIDE= \
+	    WITHOUT_DEBUG_FILES=yes \
+	    WITHOUT_KERNEL_SYMBOLS=yes \
+	    installkernel
+	for dir in stand \
+	    lib/libc lib/libedit lib/ncurses \
+	    libexec/rtld-elf \
+	    bin/sh sbin/init sbin/shutdown; do
+		make -DNO_ROOT DESTDIR=${ROOTDIR} INSTALL="install -U" \
+		    WITHOUT_DEBUG_FILES= \
+		    WITHOUT_MAN= \
+		    WITHOUT_PROFILE= \
+		    WITHOUT_TESTS= \
+		    WITHOUT_TOOLCHAIN= \
+		    -C ${dir} install
+	done
+
+	# Put loader in standard EFI location.
+	mv ${ROOTDIR}/boot/loader.efi ${ROOTDIR}/efi/boot/BOOTx64.EFI
+
+	# Configuration files.
+	cat > ${ROOTDIR}/boot/loader.conf <<EOF
 vfs.root.mountfrom="msdosfs:/dev/ada0s1"
 autoboot_delay=-1
 boot_verbose=YES
 EOF
-cat > $ROOTDIR/etc/rc <<EOF
+	cat > ${ROOTDIR}/etc/rc <<EOF
 #!/bin/sh
 
 echo "Hello world."
 /sbin/shutdown -p now
 EOF
 
-# Remove unnecessary files to keep FAT filesystem size down.
-rm -rf $ROOTDIR/METALOG $ROOTDIR/usr/lib
+	# Remove unnecessary files to keep FAT filesystem size down.
+	rm -rf ${ROOTDIR}/METALOG ${ROOTDIR}/usr/lib
+}
+
+# Locate the top of the source tree, to run make install from.
+: ${SRCTOP:=$(make -V SRCTOP)}
+if [ -z "${SRCTOP}" ]; then
+	die "Cannot locate top of source tree"
+fi
+
+# Locate the uefi bios file used by qemu.
+: ${OVMF:=/usr/local/share/UEFI-firmware/QEMU_UEFI_CODE_x86_64.fd}
+if [ ! -r "${OVMF}" ]; then
+	die "Cannot read UEFI bios file ${OVMF}"
+fi
+
+# Create a temp dir to hold the boot image.
+ROOTDIR=$(mktemp -d -t ci-qemu-test-fat-root)
+trap tempdir_cleanup EXIT SIGINT SIGHUP SIGTERM SIGQUIT
+
+# Populate the boot image in a temp dir.
+( cd ${SRCTOP} && tempdir_setup )
 
 # And, boot in QEMU.
+: ${BOOTLOG:=${TMPDIR}/ci-qemu-test-boot.log}
 timeout 300 \
-    qemu-system-x86_64 -m 256M -bios OVMF.fd \
-    -serial stdio -vga none -nographic -monitor none \
-    -snapshot -hda fat:$ROOTDIR 2>&1 | tee boot.log
-grep -q 'Hello world.' boot.log
-echo OK
+    qemu-system-x86_64 -m 256M -bios ${OVMF} \
+        -serial stdio -vga none -nographic -monitor none \
+        -snapshot -hda fat:${ROOTDIR} 2>&1 | tee ${BOOTLOG}
+
+# Check whether we succesfully booted...
+if grep -q 'Hello world.' ${BOOTLOG}; then
+	echo "OK"
+else
+	die "Did not boot successfully, see ${BOOTLOG}"
+fi
