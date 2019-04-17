@@ -42,6 +42,9 @@ PUBLICSNAP=	--publicsnap
 EC2SNSREL=	${REVISION}-${BRANCH}
 EC2SNSVERS=	${EC2_SVNBRANCH}@${EC2_SVNREV}
 .endif
+.if ${TARGET_ARCH} != "amd64"
+EC2ARCH=	--${TARGET_ARCH:S/aarch64/arm64/}
+.endif
 
 CLEANFILES+=		ec2ami
 
@@ -82,7 +85,8 @@ ec2ami: cw-ec2 ${CW_EC2_PORTINSTALL}
 	@echo "--------------------------------------------------------------"
 	@false
 .endif
-	/usr/local/bin/bsdec2-image-upload ${PUBLISH} ${PUBLICSNAP} --sriov --ena \
+	/usr/local/bin/bsdec2-image-upload ${PUBLISH} ${PUBLICSNAP} \
+	    ${EC2ARCH} --sriov --ena \
 	    ${.OBJDIR}/ec2.raw \
 	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}" \
 	    "${TYPE}/${TARGET} ${EC2_SVNBRANCH}@${EC2_SVNREV}" \
