@@ -337,6 +337,12 @@ __DEFAULT_YES_OPTIONS+=OFED
 __DEFAULT_NO_OPTIONS+=OFED
 .endif
 
+.if ${COMPILER_FEATURES:Mc++11} && (${__T} == "amd64" || ${__T} == "i386")
+__DEFAULT_YES_OPTIONS+=OPENMP
+.else
+__DEFAULT_NO_OPTIONS+=OPENMP
+.endif
+
 .include <bsd.mkopt.mk>
 
 #
