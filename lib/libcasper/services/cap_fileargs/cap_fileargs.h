@@ -108,8 +108,12 @@ fileargs_cinitnv(cap_channel_t *cas __unused, nvlist_t *limits)
 	lstat(name, sb)
 #define	fileargs_open(fa, name)							\
 	open(name, fa->fa_flags, fa->fa_mode)
-#define	fileargs_fopen(fa, name, mode)						\
-	fopen(name, mode)
+static inline
+FILE *fileargs_fopen(fileargs_t *fa, const char *name, const char *mode)
+{
+	(void) fa;
+	return (fopen(name, mode));
+}
 #define	fileargs_free(fa)	(free(fa))
 #endif
 
