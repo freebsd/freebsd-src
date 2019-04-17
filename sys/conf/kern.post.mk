@@ -8,6 +8,9 @@
 # should be defined in the kern.pre.mk so that port makefiles can
 # override or augment them.
 
+.if !empty(FDT_DTS_FILE)
+DTS+=			${FDT_DTS_FILE}
+.endif
 .if defined(DTS) || defined(DTSO)
 .include "dtb.build.mk"
 
