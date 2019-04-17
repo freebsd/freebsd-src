@@ -381,6 +381,8 @@ void iflib_set_mac(if_ctx_t ctx, uint8_t mac[ETHER_ADDR_LEN]);
 void iflib_request_reset(if_ctx_t ctx);
 uint8_t iflib_in_detach(if_ctx_t ctx);
 
+uint32_t iflib_get_rx_mbuf_sz(if_ctx_t ctx);
+
 /*
  * If the driver can plug cleanly in to newbus use these
  */

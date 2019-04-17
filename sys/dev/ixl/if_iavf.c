@@ -614,7 +614,6 @@ iavf_send_vc_msg(struct iavf_sc *sc, u32 op)
 static void
 iavf_init_queues(struct ixl_vsi *vsi)
 {
-	if_softc_ctx_t scctx = vsi->shared;
 	struct ixl_tx_queue *tx_que = vsi->tx_queues;
 	struct ixl_rx_queue *rx_que = vsi->rx_queues;
 	struct rx_ring *rxr;
@@ -625,10 +624,7 @@ iavf_init_queues(struct ixl_vsi *vsi)
 	for (int i = 0; i < vsi->num_rx_queues; i++, rx_que++) {
 		rxr = &rx_que->rxr;
 
-		if (scctx->isc_max_frame_size <= MCLBYTES)
-			rxr->mbuf_sz = MCLBYTES;
-		else
-			rxr->mbuf_sz = MJUMPAGESIZE;
+		rxr->mbuf_sz = iflib_get_rx_mbuf_sz(vsi->ctx);
 
 		wr32(vsi->hw, rxr->tail, 0);
 	}

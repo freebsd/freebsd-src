@@ -1300,10 +1300,7 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 		struct i40e_hmc_obj_rxq rctx;
 
 		/* Next setup the HMC RX Context  */
-		if (scctx->isc_max_frame_size <= MCLBYTES)
-			rxr->mbuf_sz = MCLBYTES;
-		else
-			rxr->mbuf_sz = MJUMPAGESIZE;
+		rxr->mbuf_sz = iflib_get_rx_mbuf_sz(vsi->ctx);
 
 		u16 max_rxmax = rxr->mbuf_sz * hw->func_caps.rx_buf_chain_len;
 

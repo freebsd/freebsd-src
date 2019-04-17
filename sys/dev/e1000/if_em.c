@@ -1270,14 +1270,7 @@ em_if_init(if_ctx_t ctx)
 	/* Setup Multicast table */
 	em_if_multi_set(ctx);
 
-	/*
-	 * Figure out the desired mbuf
-	 * pool for doing jumbos
-	 */
-	if (adapter->hw.mac.max_frame_size <= 2048)
-		adapter->rx_mbuf_sz = MCLBYTES;
-	else
-		adapter->rx_mbuf_sz = MJUMPAGESIZE;
+	adapter->rx_mbuf_sz = iflib_get_rx_mbuf_sz(ctx);
 	em_initialize_receive_unit(ctx);
 
 	/* Use real VLAN Filter support? */
