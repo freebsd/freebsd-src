@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2010
+.Dd March 28, 2019
 .Dt FDT 4
 .Os
 .Sh NAME
@@ -139,6 +139,21 @@ support at the
 .Fx
 kernel level.
 .Bl -tag -width Ar
+.It Va makeoptions DTS+=<board name>.dts
+Specifies device tree source (DTS) files for a given kernel.
+The indicated DTS files will be converted (compiled) into a binary form
+along with building the kernel itself.
+Any DTS file names not written as an absolute path must be specified relative
+to the default location of DTS sources i.e.,
+.Pa sys/dts .
+.It Va makeoptions DTSO+=<overlay name>.dtso
+Specifies device tree source overlay (DTSO) files for a given kernel.
+Overlay files will be built with the kernel as with the makeoption
+.Va DTS
+described above.
+Overlay files specified as relative paths will be relative to the default
+location of DTS overlays for the platform being built i.e.,
+.Pa sys/dts/arm/overlays .
 .It Va options FDT
 The primary option for enabling
 .Nm
@@ -153,10 +168,9 @@ drivers, as well as helper routines and libraries.
 .It Va makeoptions FDT_DTS_FILE=<board name>.dts
 Specifies a preferred (default) device tree source (DTS) file for a given
 kernel.
-The indicated DTS file will be converted (compiled) into a binary form
-along with building the kernel itself.
-The DTS file name is relative to the default location of DTS sources i.e.
-.Pa sys/dts .
+It will be built along with the kernel as if it were supplied via the makeoption
+.Va DTS
+described above.
 This makeoption is not mandatory unless FDT_DTB_STATIC is also defined (see
 below).
 .It Va options FDT_DTB_STATIC
