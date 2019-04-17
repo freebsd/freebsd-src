@@ -566,7 +566,7 @@ static int
 fileargs_command_lstat(const nvlist_t *limits, nvlist_t *nvlin,
     nvlist_t *nvlout)
 {
-	int stat;
+	int error;
 	const char *name;
 	struct stat sb;
 
@@ -578,7 +578,7 @@ fileargs_command_lstat(const nvlist_t *limits, nvlist_t *nvlin,
 
 	name = nvlist_get_string(nvlin, "name");
 
-	stat = lstat(name, &sb);
+	error = lstat(name, &sb);
 	if (stat < 0)
 		return (errno);
 
