@@ -1030,7 +1030,7 @@ init_caps(int argc, char **argv)
 	 */
 	(void)cap_rights_init(&rights, CAP_PREAD, CAP_WRITE, CAP_IOCTL);
 	capfa = fileargs_init(argc, argv, checkfor || keep ? O_RDONLY : O_RDWR,
-	    0, &rights);
+	    0, &rights, FA_OPEN);
 	if (capfa == NULL) {
 		logmsg(LOG_ERR, "fileargs_init(): %m");
 		exit(1);
