@@ -629,14 +629,7 @@ ixv_if_init(if_ctx_t ctx)
 	/* Setup Multicast table */
 	ixv_if_multi_set(ctx);
 
-	/*
-	 * Determine the correct mbuf pool
-	 * for doing jumbo/headersplit
-	 */
-	if (ifp->if_mtu > ETHERMTU)
-		adapter->rx_mbuf_sz = MJUMPAGESIZE;
-	else
-		adapter->rx_mbuf_sz = MCLBYTES;
+	adapter->rx_mbuf_sz = iflib_get_rx_mbuf_sz(ctx);
 
 	/* Configure RX settings */
 	ixv_initialize_receive_units(ctx);
