@@ -370,7 +370,7 @@ static void readelf_usage(int status);
 static void readelf_version(void);
 static void search_loclist_at(struct readelf *re, Dwarf_Die die,
     Dwarf_Unsigned lowpc, struct loc_at **la_list,
-    unsigned int *la_list_len, unsigned int *la_list_cap);
+    size_t *la_list_len, size_t *la_list_cap);
 static void search_ver(struct readelf *re);
 static const char *section_type(unsigned int mach, unsigned int stype);
 static void set_cu_context(struct readelf *re, Dwarf_Half psize,
@@ -6063,8 +6063,7 @@ loc_at_comparator(const void *la1, const void *la2)
 
 static void
 search_loclist_at(struct readelf *re, Dwarf_Die die, Dwarf_Unsigned lowpc,
-    struct loc_at **la_list, unsigned int *la_list_len,
-    unsigned int *la_list_cap)
+    struct loc_at **la_list, size_t *la_list_len, size_t *la_list_cap)
 {
 	struct loc_at *la;
 	Dwarf_Attribute *attr_list;
@@ -6438,7 +6437,8 @@ dump_dwarf_loclist(struct readelf *re)
 	Dwarf_Half tag, version, pointer_size, off_size;
 	Dwarf_Error de;
 	struct loc_at *la_list, *left, *right, *la;
-	unsigned int la_list_len, la_list_cap, duplicates, k;
+	size_t la_list_len, la_list_cap;
+	unsigned int duplicates, k;
 	int i, j, ret, has_content;
 
 	la_list_len = 0;
