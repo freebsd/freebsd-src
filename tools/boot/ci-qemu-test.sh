@@ -68,6 +68,9 @@ echo "Hello world."
 /sbin/shutdown -p now
 EOF
 
+	# Entropy needed to boot, see r346250 and followup commits/discussion.
+	dd if=/dev/random of=${ROOTDIR}/boot/entropy bs=4k count=1
+
 	# Remove unnecessary files to keep FAT filesystem size down.
 	rm -rf ${ROOTDIR}/METALOG ${ROOTDIR}/usr/lib
 }
