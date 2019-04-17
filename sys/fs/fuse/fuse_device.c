@@ -346,8 +346,8 @@ fuse_ohead_audit(struct fuse_out_header *ohead, struct uio *uio)
 	return (0);
 }
 
-SDT_PROBE_DEFINE1(fuse, , device, fuse_device_write_bumped_into_callback,
-		"uint64_t");
+SDT_PROBE_DEFINE1(fuse, , device, fuse_device_write_missing_ticket, "uint64_t");
+SDT_PROBE_DEFINE1(fuse, , device, fuse_device_write_found, "struct fuse_ticket*");
 /*
  * fuse_device_write first reads the header sent by the daemon.
  * If that's OK, looks up ticket/callback node by the unique id seen in header.
@@ -393,10 +393,9 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	fuse_lck_mtx_lock(data->aw_mtx);
 	TAILQ_FOREACH_SAFE(tick, &data->aw_head, tk_aw_link,
 	    x_tick) {
-		SDT_PROBE1(fuse, , device,
-			fuse_device_write_bumped_into_callback,
-			tick->tk_unique);
 		if (tick->tk_unique == ohead.unique) {
+			SDT_PROBE1(fuse, , device, fuse_device_write_found,
+				tick);
 			found = 1;
 			fuse_aw_remove(tick);
 			break;
@@ -432,8 +431,8 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		fuse_ticket_drop(tick);
 	} else {
 		/* no callback at all! */
-		SDT_PROBE2(fuse, , device, trace, 1,
-			"erhm, no handler for this response");
+		SDT_PROBE1(fuse, , device, fuse_device_write_missing_ticket, 
+			ohead.unique);
 		err = EINVAL;
 	}
 

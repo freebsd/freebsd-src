@@ -147,10 +147,16 @@ fticket_set_answered(struct fuse_ticket *ftick)
 	ftick->tk_flag |= FT_ANSW;
 }
 
+static inline struct fuse_in_header*
+fticket_in_header(struct fuse_ticket *ftick)
+{
+	return (struct fuse_in_header *)(ftick->tk_ms_fiov.base);
+}
+
 static inline enum fuse_opcode
 fticket_opcode(struct fuse_ticket *ftick)
 {
-	return (((struct fuse_in_header *)(ftick->tk_ms_fiov.base))->opcode);
+	return fticket_in_header(ftick)->opcode;
 }
 
 int fticket_pull(struct fuse_ticket *ftick, struct uio *uio);
@@ -174,6 +180,11 @@ struct fuse_data {
 	struct mtx			aw_mtx;
 	TAILQ_HEAD(, fuse_ticket)	aw_head;
 
+	/* 
+	 * Holds the next value of the FUSE operation unique value.
+	 * Also, serves as a wakeup channel to prevent any operations from
+	 * being created before INIT completes.
+	 */
 	u_long				ticketer;
 
 	struct sx			rename_lock;
