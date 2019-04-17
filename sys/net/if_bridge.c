@@ -671,7 +671,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	getcredhostid(curthread->td_ucred, &hostid);
 	do {
 		if (fb || hostid == 0) {
-			ether_fakeaddr(&sc->sc_defaddr);
+			ether_gen_addr(ifp, &sc->sc_defaddr);
 		} else {
 			sc->sc_defaddr.octet[0] = 0x2;
 			sc->sc_defaddr.octet[1] = (hostid >> 24) & 0xff;
