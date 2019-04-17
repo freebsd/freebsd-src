@@ -379,8 +379,25 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 			break;
 
 retry:
-		if ((err = fdisp_wait_answ(&fdi)))
+		err = fdisp_wait_answ(&fdi);
+		if (err == ERESTART || err == EINTR || err == EWOULDBLOCK) {
+			/*
+			 * Rewind the uio so dofilewrite will know it's
+			 * incomplete
+			 */
+			uio->uio_resid += fwi->size;
+			uio->uio_offset -= fwi->size;
+			/* 
+			 * Change ERESTART into EINTR because we can't rewind
+			 * uio->uio_iov.  Basically, once uiomove(9) has been
+			 * called, it's impossible to restart a syscall.
+			 */
+			if (err == ERESTART)
+				err = EINTR;
 			break;
+		} else if (err) {
+			break;
+		}
 
 		fwo = ((struct fuse_write_out *)fdi.answ);
 

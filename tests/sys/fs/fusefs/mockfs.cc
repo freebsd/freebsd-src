@@ -184,6 +184,9 @@ void debug_fuseop(const mockfs_buf_in *in)
 		case FUSE_FSYNCDIR:
 			printf(" flags=%#x", in->body.fsyncdir.fsync_flags);
 			break;
+		case FUSE_INTERRUPT:
+			printf(" unique=%lu", in->body.interrupt.unique);
+			break;
 		case FUSE_LOOKUP:
 			printf(" %s", in->body.lookup);
 			break;

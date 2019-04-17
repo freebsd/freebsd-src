@@ -41,8 +41,10 @@ using namespace testing;
 
 /* Don't do anything; all we care about is that the syscall gets interrupted */
 void sigusr2_handler(int __unused sig) {
-	if (verbosity > 1)
-		printf("Signaled!\n");
+	if (verbosity > 1) {
+		printf("Signaled!  thread %p\n", pthread_self());
+	}
+
 }
 
 void* killer(void* target) {
@@ -52,8 +54,8 @@ void* killer(void* target) {
 	 */
 	usleep(250'000);
 	if (verbosity > 1)
-		printf("Signalling!\n");
-	pthread_kill(*(pthread_t*)target, SIGUSR2);
+		printf("Signalling!  thread %p\n", target);
+	pthread_kill((pthread_t)target, SIGUSR2);
 
 	return(NULL);
 }
@@ -94,9 +96,14 @@ void setup_interruptor(pthread_t self)
 }
 
 void TearDown() {
+	struct sigaction sa;
+
 	if (m_child != NULL) {
 		pthread_join(m_child, NULL);
 	}
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sigaction(SIGUSR2, &sa, NULL);
 
 	FuseTest::TearDown();
 }
@@ -107,7 +114,7 @@ void TearDown() {
  * complete should generate an EAGAIN response.
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236530 */
-TEST_F(Interrupt, DISABLED_already_complete)
+TEST_F(Interrupt, already_complete)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -122,7 +129,6 @@ TEST_F(Interrupt, DISABLED_already_complete)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, &write_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
@@ -150,7 +156,7 @@ TEST_F(Interrupt, DISABLED_already_complete)
 	ASSERT_LE(0, fd) << strerror(errno);
 
 	setup_interruptor(self);
-	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	EXPECT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
@@ -160,7 +166,7 @@ TEST_F(Interrupt, DISABLED_already_complete)
  * complete the original operation whenever it damn well pleases.
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236530 */
-TEST_F(Interrupt, DISABLED_ignore)
+TEST_F(Interrupt, ignore)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -175,10 +181,9 @@ TEST_F(Interrupt, DISABLED_ignore)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, &write_unique);
 	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
+		ResultOf([&](auto in) {
 			return (in->header.opcode == FUSE_INTERRUPT &&
 				in->body.interrupt.unique == write_unique);
 		}, Eq(true)),
@@ -208,7 +213,7 @@ TEST_F(Interrupt, DISABLED_ignore)
  * return EINTR to userspace
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236530 */
-TEST_F(Interrupt, DISABLED_in_progress)
+TEST_F(Interrupt, in_progress)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -223,10 +228,9 @@ TEST_F(Interrupt, DISABLED_in_progress)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, &write_unique);
 	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
+		ResultOf([&](auto in) {
 			return (in->header.opcode == FUSE_INTERRUPT &&
 				in->body.interrupt.unique == write_unique);
 		}, Eq(true)),
@@ -260,11 +264,12 @@ TEST_F(Interrupt, DISABLED_in_progress)
  * successfully interrupts the original
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236530 */
-TEST_F(Interrupt, DISABLED_too_soon)
+TEST_F(Interrupt, too_soon)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	const char *CONTENTS = "abcdefgh";
+	Sequence seq;
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
@@ -275,25 +280,25 @@ TEST_F(Interrupt, DISABLED_too_soon)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
 	expect_write(ino, &write_unique);
 
 	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
+		ResultOf([&](auto in) {
 			return (in->header.opcode == FUSE_INTERRUPT &&
 				in->body.interrupt.unique == write_unique);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnErrno(EAGAIN)))
-	.RetiresOnSaturation();
+	).InSequence(seq)
+	.WillOnce(Invoke(ReturnErrno(EAGAIN)));
 
 	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
+		ResultOf([&](auto in) {
 			return (in->header.opcode == FUSE_INTERRUPT &&
 				in->body.interrupt.unique == write_unique);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
+	).InSequence(seq)
+	.WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
 		auto out0 = new mockfs_buf_out;
 		out0->header.error = -EINTR;
 		out0->header.unique = write_unique;
@@ -310,3 +315,14 @@ TEST_F(Interrupt, DISABLED_too_soon)
 
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
+
+
+// TODO: add a test that uses siginterrupt and an interruptible signal
+// TODO: add a test that verifies a process can be cleanly killed even if a
+// FUSE_WRITE command never returns.
+// TODO: write in-progress tests for read and other operations
+// TODO: add a test where write returns EWOULDBLOCK
+// TODO: test that if a fatal signal is received, fticket_wait_answer will
+// return without waiting for a response to the interrupted operation.
+// TODO: test that operations that haven't been received by the server can be
+// interrupted without generating a FUSE_INTERRUPT.
