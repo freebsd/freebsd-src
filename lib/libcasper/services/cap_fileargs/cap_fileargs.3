@@ -105,9 +105,9 @@ is equivalent to
 except that the connection to the Casper needs to be provided.
 .Pp
 The functions
-.Fn fileargs_ininv
+.Fn fileargs_initnv
 and
-.Fn fileargs_cininv
+.Fn fileargs_cinitnv
 are respectively equivalent to
 .Fn fileargs_init
 and
@@ -141,9 +141,9 @@ structure.
 This section describe which values and types should be used to pass arguments to the
 .Fa system.fileargs
 through the
-.Fn fileargs_ininv
+.Fn fileargs_initnv
 and
-.Fn fileargs_cinit
+.Fn fileargs_cinitnv
 functions.
 The
 .Xr nvlist 9
@@ -225,8 +225,8 @@ fileargs_free(fa);
 .Xr open 2 ,
 .Xr cap_rights_init 3 ,
 .Xr err 3 ,
-.Xr fopen 3,
-.Xr getopt 3,
+.Xr fopen 3 ,
+.Xr getopt 3 ,
 .Xr capsicum 4 ,
 .Xr nv 9
 .Sh BUGS
