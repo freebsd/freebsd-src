@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include <dev/fdt/fdt_common.h>
  
 #ifdef CPSW_ETHERSWITCH
 #include <dev/etherswitch/etherswitch.h>
@@ -742,7 +744,7 @@ cpsw_get_fdt_data(struct cpsw_softc *sc, int port)
 	phandle_t child;
 	unsigned long mdio_child_addr;
 
-	/* Find any slave with phy_id */
+	/* Find any slave with phy-handle/phy_id */
 	phy = -1;
 	vlan = -1;
 	for (child = OF_child(sc->node); child != 0; child = OF_peer(child)) {
@@ -756,11 +758,15 @@ cpsw_get_fdt_data(struct cpsw_softc *sc, int port)
 		if (mdio_child_addr != slave_mdio_addr[port])
 			continue;
 
-		len = OF_getproplen(child, "phy_id");
-		if (len / sizeof(pcell_t) == 2) {
-			/* Get phy address from fdt */
-			if (OF_getencprop(child, "phy_id", phy_id, len) > 0)
-				phy = phy_id[1];
+		if (fdt_get_phyaddr(child, NULL, &phy, NULL) != 0){
+			/* Users with old DTB will have phy_id instead */
+			phy = -1;
+			len = OF_getproplen(child, "phy_id");
+			if (len / sizeof(pcell_t) == 2) {
+				/* Get phy address from fdt */
+				if (OF_getencprop(child, "phy_id", phy_id, len) > 0)
+					phy = phy_id[1];
+			}
 		}
 
 		len = OF_getproplen(child, "dual_emac_res_vlan");
