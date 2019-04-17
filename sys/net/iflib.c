@@ -37,15 +37,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
-#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/md5.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/kobj.h>
 #include <sys/rman.h>
-#include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
@@ -207,7 +204,7 @@ struct iflib_ctx {
 #define isc_legacy_intr ifc_txrx.ift_legacy_intr
 	eventhandler_tag ifc_vlan_attach_event;
 	eventhandler_tag ifc_vlan_detach_event;
-	uint8_t ifc_mac[ETHER_ADDR_LEN];
+	struct ether_addr ifc_mac;
 	char ifc_mtx_name[16];
 };
 
@@ -250,7 +247,7 @@ void
 iflib_set_mac(if_ctx_t ctx, uint8_t mac[ETHER_ADDR_LEN])
 {
 
-	bcopy(mac, ctx->ifc_mac, ETHER_ADDR_LEN);
+	bcopy(mac, ctx->ifc_mac.octet, ETHER_ADDR_LEN);
 }
 
 if_softc_ctx_t
@@ -1274,38 +1271,6 @@ prefetch2cachelines(void *x)
 #define prefetch(x)
 #define prefetch2cachelines(x)
 #endif
-
-static void
-iflib_gen_mac(if_ctx_t ctx)
-{
-	struct thread *td;
-	MD5_CTX mdctx;
-	char uuid[HOSTUUIDLEN+1];
-	char buf[HOSTUUIDLEN+16];
-	uint8_t *mac;
-	unsigned char digest[16];
-
-	td = curthread;
-	mac = ctx->ifc_mac;
-	uuid[HOSTUUIDLEN] = 0;
-	bcopy(td->td_ucred->cr_prison->pr_hostuuid, uuid, HOSTUUIDLEN);
-	snprintf(buf, HOSTUUIDLEN+16, "%s-%s", uuid, device_get_nameunit(ctx->ifc_dev));
-	/*
-	 * Generate a pseudo-random, deterministic MAC
-	 * address based on the UUID and unit number.
-	 * The FreeBSD Foundation OUI of 58-9C-FC is used.
-	 */
-	MD5Init(&mdctx);
-	MD5Update(&mdctx, buf, strlen(buf));
-	MD5Final(digest, &mdctx);
-
-	mac[0] = 0x58;
-	mac[1] = 0x9C;
-	mac[2] = 0xFC;
-	mac[3] = digest[0];
-	mac[4] = digest[1];
-	mac[5] = digest[2];
-}
 
 static void
 iru_init(if_rxd_update_t iru, iflib_rxq_t rxq, uint8_t flid)
@@ -4579,7 +4544,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 		}
 	}
 
-	ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac);
+	ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac.octet);
 
 	if ((err = IFDI_ATTACH_POST(ctx)) != 0) {
 		device_printf(dev, "IFDI_ATTACH_POST failed %d\n", err);
@@ -4668,7 +4633,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 		goto fail_unlock;
 	}
 	if (sctx->isc_flags & IFLIB_GEN_MAC)
-		iflib_gen_mac(ctx);
+		ether_gen_addr(ifp, &ctx->ifc_mac);
 	if ((err = IFDI_CLONEATTACH(ctx, clctx->cc_ifc, clctx->cc_name,
 								clctx->cc_params)) != 0) {
 		device_printf(dev, "IFDI_CLONEATTACH failed %d\n", err);
@@ -4689,7 +4654,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 
 	ifp->if_flags |= IFF_NOGROUP;
 	if (sctx->isc_flags & IFLIB_PSEUDO) {
-		ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac);
+		ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac.octet);
 
 		if ((err = IFDI_ATTACH_POST(ctx)) != 0) {
 			device_printf(dev, "IFDI_ATTACH_POST failed %d\n", err);
@@ -4796,7 +4761,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	/*
 	 * XXX What if anything do we want to do about interrupts?
 	 */
-	ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac);
+	ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac.octet);
 	if ((err = IFDI_ATTACH_POST(ctx)) != 0) {
 		device_printf(dev, "IFDI_ATTACH_POST failed %d\n", err);
 		goto fail_detach;
