@@ -251,7 +251,7 @@ dmar_ir_find(device_t src, uint16_t *rid, int *is_dmar)
 	} else if (src_class == devclass_find("hpet")) {
 		unit = dmar_find_hpet(src, rid);
 	} else {
-		unit = dmar_find(src);
+		unit = dmar_find(src, bootverbose);
 		if (unit != NULL && rid != NULL)
 			dmar_get_requester(src, rid);
 	}
