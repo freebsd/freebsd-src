@@ -59,9 +59,7 @@ INCS+=		capsicum_helpers.h
 INCS+=		libcasper.h
 .endif
 
-.if !exists(/usr/include/casper/cap_fileargs.h)
 CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_fileargs/cap_fileargs.h
-.endif
 
 .if empty(SRCS)
 SRCS=		dummy.c
