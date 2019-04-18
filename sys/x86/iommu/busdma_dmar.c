@@ -275,7 +275,7 @@ dmar_get_dma_tag(device_t dev, device_t child)
 	struct dmar_ctx *ctx;
 	bus_dma_tag_t res;
 
-	dmar = dmar_find(child);
+	dmar = dmar_find(child, bootverbose);
 	/* Not in scope of any DMAR ? */
 	if (dmar == NULL)
 		return (NULL);
