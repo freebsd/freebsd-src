@@ -122,6 +122,7 @@ void cpy16to8(const CHAR16 *, char *, size_t);
  * the loader setting / getting FreeBSD specific variables.
  */
 
+EFI_STATUS efi_delenv(EFI_GUID *guid, const char *varname);
 EFI_STATUS efi_freebsd_getenv(const char *v, void *data, __size_t *len);
 EFI_STATUS efi_getenv(EFI_GUID *g, const char *v, void *data, __size_t *len);
 EFI_STATUS efi_global_getenv(const char *v, void *data, __size_t *len);
