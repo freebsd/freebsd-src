@@ -336,7 +336,8 @@ get_unprivileged_uid(uid_t *uid)
 }
 
 void
-FuseTest::fork(bool drop_privs, std::function<void()> parent_func,
+FuseTest::fork(bool drop_privs, int *child_status,
+	std::function<void()> parent_func,
 	std::function<int()> child_func)
 {
 	sem_t *sem;
@@ -376,8 +377,6 @@ out:
 		sem_destroy(sem);
 		_exit(err);
 	} else if (child > 0) {
-		int child_status;
-
 		/* 
 		 * In parent.  Cleanup must happen here, because it's still
 		 * privileged.
@@ -388,12 +387,12 @@ out:
 		/* Signal the child process to go */
 		ASSERT_EQ(0, sem_post(sem)) << strerror(errno);
 
-		ASSERT_LE(0, wait(&child_status)) << strerror(errno);
-		ASSERT_EQ(0, WEXITSTATUS(child_status));
+		ASSERT_LE(0, wait(child_status)) << strerror(errno);
 	} else {
 		FAIL() << strerror(errno);
 	}
 	munmap(sem, sizeof(*sem));
+	return;
 }
 
 static void usage(char* progname) {

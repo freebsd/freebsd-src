@@ -36,6 +36,7 @@
 extern "C" {
 #include <sys/types.h>
 #include <sys/extattr.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <unistd.h>
 }
@@ -74,7 +75,9 @@ virtual void SetUp() {
 
 TEST_F(AllowOther, allowed)
 {
-	fork(true, [&] {
+	int status;
+
+	fork(true, &status, [&] {
 			uint64_t ino = 42;
 
 			expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
@@ -92,6 +95,7 @@ TEST_F(AllowOther, allowed)
 			return 0;
 		}
 	);
+	ASSERT_EQ(0, WEXITSTATUS(status));
 }
 
 /*
@@ -104,12 +108,12 @@ TEST_F(AllowOther, privilege_escalation)
 {
 	const static char FULLPATH[] = "mountpoint/some_file.txt";
 	const static char RELPATH[] = "some_file.txt";
-	int fd1;
+	int fd1, status;
 	const static uint64_t ino = 42;
 	const static uint64_t fh = 100;
 
 	/* Fork a child to open the file with different credentials */
-	fork(true, [&] {
+	fork(true, &status, [&] {
 
 		expect_lookup(RELPATH, ino, S_IFREG | 0600, 0, 2);
 		EXPECT_CALL(*m_mock, process(
@@ -156,12 +160,15 @@ TEST_F(AllowOther, privilege_escalation)
 		return 0;
 	}
 	);
+	ASSERT_EQ(0, WEXITSTATUS(status));
 	/* Deliberately leak fd1.  close(2) will be tested in release.cc */
 }
 
 TEST_F(NoAllowOther, disallowed)
 {
-	fork(true, [] {
+	int status;
+
+	fork(true, &status, [] {
 		}, []() {
 			int fd;
 
@@ -177,6 +184,7 @@ TEST_F(NoAllowOther, disallowed)
 			return 0;
 		}
 	);
+	ASSERT_EQ(0, WEXITSTATUS(status));
 }
 
 /* 
@@ -191,7 +199,7 @@ TEST_F(NoAllowOther, disallowed_beneath_root)
 	const static char RELPATH2[] = "other_dir";
 	const static uint64_t ino = 42;
 	const static uint64_t ino2 = 43;
-	int dfd;
+	int dfd, status;
 
 	expect_lookup(RELPATH, ino, S_IFDIR | 0755, 0, 1);
 	EXPECT_LOOKUP(ino, RELPATH2)
@@ -206,7 +214,7 @@ TEST_F(NoAllowOther, disallowed_beneath_root)
 	dfd = open(FULLPATH, O_DIRECTORY);
 	ASSERT_LE(0, dfd) << strerror(errno);
 
-	fork(true, [] {
+	fork(true, &status, [] {
 		}, [&]() {
 			int fd;
 
@@ -222,6 +230,7 @@ TEST_F(NoAllowOther, disallowed_beneath_root)
 			return 0;
 		}
 	);
+	ASSERT_EQ(0, WEXITSTATUS(status));
 }
 
 /* 
@@ -230,9 +239,9 @@ TEST_F(NoAllowOther, disallowed_beneath_root)
  */
 TEST_F(NoAllowOther, setextattr)
 {
-	int ino = 42;
+	int ino = 42, status;
 
-	fork(true, [&] {
+	fork(true, &status, [&] {
 			EXPECT_LOOKUP(1, RELPATH)
 			.WillOnce(Invoke(
 			ReturnImmediate([=](auto in __unused, auto out) {
@@ -268,4 +277,5 @@ TEST_F(NoAllowOther, setextattr)
 			return 0;
 		}
 	);
+	ASSERT_EQ(0, WEXITSTATUS(status));
 }

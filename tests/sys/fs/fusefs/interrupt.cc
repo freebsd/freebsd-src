@@ -29,6 +29,7 @@
  */
 
 extern "C" {
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
@@ -68,7 +69,24 @@ Interrupt(): m_child(NULL) {};
 
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1000, 1);
+}
+
+/* 
+ * Expect a FUSE_READ but don't reply.  Instead, just record the unique value
+ * to the provided pointer
+ */
+void expect_read(uint64_t ino, uint64_t *read_unique)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_READ &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto &out __unused) {
+		*read_unique = in->header.unique;
+	}));
 }
 
 /* 
@@ -90,7 +108,7 @@ void expect_write(uint64_t ino, uint64_t *write_unique)
 
 void setup_interruptor(pthread_t self)
 {
-	ASSERT_EQ(0, signal(SIGUSR2, sigusr2_handler)) << strerror(errno);
+	ASSERT_NE(SIG_ERR, signal(SIGUSR2, sigusr2_handler)) << strerror(errno);
 	ASSERT_EQ(0, pthread_create(&m_child, NULL, killer, (void*)self))
 		<< strerror(errno);
 }
@@ -157,6 +175,74 @@ TEST_F(Interrupt, already_complete)
 
 	setup_interruptor(self);
 	EXPECT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/*
+ * Upon receipt of a fatal signal, fusefs should return ASAP after sending
+ * FUSE_INTERRUPT.
+ */
+TEST_F(Interrupt, fatal_signal)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	const char RELPATH[] = "some_file.txt";
+	ssize_t bufsize = strlen(CONTENTS);
+	uint64_t ino = 42;
+	int status;
+	pthread_t self;
+	uint64_t write_unique;
+
+	self = pthread_self();
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	expect_write(ino, &write_unique);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([&](auto in) {
+			return (in->header.opcode == FUSE_INTERRUPT &&
+				in->body.interrupt.unique == write_unique);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
+		/* Don't respond.  The process should exit anyway */
+	}));
+	expect_flush(ino, 1, ReturnErrno(0));
+	expect_release(ino, FH);
+
+	fork(false, &status, [&] {
+	}, [&]() {
+		struct sigaction sa;
+		int fd, r;
+		pthread_t killer_th;
+		pthread_t self;
+
+		fd = open(FULLPATH, O_WRONLY);
+		if (fd < 0) {
+			perror("open");
+			return 1;
+		}
+
+		/* SIGUSR2 terminates the process by default */
+		bzero(&sa, sizeof(sa));
+		sa.sa_handler = SIG_DFL;
+		r = sigaction(SIGUSR2, &sa, NULL);
+		if (r != 0) {
+			perror("sigaction");
+			return 1;
+		}
+		self = pthread_self();
+		r = pthread_create(&killer_th, NULL, killer, (void*)self);
+		if (r != 0) {
+			perror("pthread_create");
+			return 1;
+		}
+
+		write(fd, CONTENTS, bufsize);
+		return 1;
+	});
+	ASSERT_EQ(SIGUSR2, WTERMSIG(status));
 
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
@@ -253,6 +339,47 @@ TEST_F(Interrupt, in_progress)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
+/* Reads should also be interruptible */
+TEST_F(Interrupt, in_progress_read)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const size_t bufsize = 80;
+	char buf[bufsize];
+	uint64_t ino = 42;
+	int fd;
+	pthread_t self;
+	uint64_t read_unique;
+
+	self = pthread_self();
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	expect_read(ino, &read_unique);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([&](auto in) {
+			return (in->header.opcode == FUSE_INTERRUPT &&
+				in->body.interrupt.unique == read_unique);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([&](auto in __unused, auto &out) {
+		auto out0 = new mockfs_buf_out;
+		out0->header.error = -EINTR;
+		out0->header.unique = read_unique;
+		out0->header.len = sizeof(out0->header);
+		out.push_back(out0);
+	}));
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	setup_interruptor(self);
+	ASSERT_EQ(-1, read(fd, buf, bufsize));
+	EXPECT_EQ(EINTR, errno);
+
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
 /*
  * If the FUSE filesystem receives the FUSE_INTERRUPT operation before
  * processing the original, then it should wait for "some timeout" for the
@@ -320,9 +447,7 @@ TEST_F(Interrupt, too_soon)
 // TODO: add a test that uses siginterrupt and an interruptible signal
 // TODO: add a test that verifies a process can be cleanly killed even if a
 // FUSE_WRITE command never returns.
-// TODO: write in-progress tests for read and other operations
+// TODO: write in-progress tests for other operations
 // TODO: add a test where write returns EWOULDBLOCK
-// TODO: test that if a fatal signal is received, fticket_wait_answer will
-// return without waiting for a response to the interrupted operation.
 // TODO: test that operations that haven't been received by the server can be
 // interrupted without generating a FUSE_INTERRUPT.
