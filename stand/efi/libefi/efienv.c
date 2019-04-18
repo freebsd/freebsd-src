@@ -103,3 +103,21 @@ efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr)
 	return (rv);
 }
 
+/*
+ * efi_delenv -- deletes the specified env variable
+ */
+EFI_STATUS
+efi_delenv(EFI_GUID *guid, const char *name)
+{
+	CHAR16 *var;
+	size_t len;
+	EFI_STATUS rv;
+
+	var = NULL;
+	if (utf8_to_ucs2(name, &var, &len) != 0)
+		return (EFI_OUT_OF_RESOURCES);
+
+	rv = RS->SetVariable(var, guid, 0, 0, NULL);
+	free(var);
+	return rv;
+}
