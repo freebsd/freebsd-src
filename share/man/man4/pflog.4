@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2019
+.Dd April 18, 2019
 .Dt PFLOG 4
 .Os
 .Sh NAME
@@ -110,5 +110,7 @@ The
 .Nm
 device first appeared in
 .Ox 3.0 .
-.\" .Sh BUGS
-.\" Anything here?
+.Sh BUGS
+FreeBSD does not set a process id in the
+.Fa pid
+field in pfloghdr.
