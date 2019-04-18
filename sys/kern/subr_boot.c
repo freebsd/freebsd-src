@@ -199,13 +199,13 @@ boot_parse_cmdline_delim(char *cmdline, const char *delim)
 }
 
 /**
- * @brief Simplified interface for common 'space separated' args
+ * @brief Simplified interface for common 'space or tab separated' args
  */
 int
 boot_parse_cmdline(char *cmdline)
 {
 
-	return (boot_parse_cmdline_delim(cmdline, " \n"));
+	return (boot_parse_cmdline_delim(cmdline, " \t\n"));
 }
 
 /**
