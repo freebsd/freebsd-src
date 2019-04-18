@@ -29,6 +29,7 @@
  */
 
 extern "C" {
+#include <sys/wait.h>
 #include <fcntl.h>
 }
 
@@ -166,12 +167,12 @@ TEST_F(Open, multiple_creds)
 {
 	const static char FULLPATH[] = "mountpoint/some_file.txt";
 	const static char RELPATH[] = "some_file.txt";
-	int fd1;
+	int fd1, status;
 	const static uint64_t ino = 42;
 	const static uint64_t fh0 = 100, fh1 = 200;
 
 	/* Fork a child to open the file with different credentials */
-	fork(false, [&] {
+	fork(false, &status, [&] {
 
 		expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 		EXPECT_CALL(*m_mock, process(
@@ -218,6 +219,7 @@ TEST_F(Open, multiple_creds)
 		return 0;
 	}
 	);
+	ASSERT_EQ(0, WEXITSTATUS(status));
 
 	close(fd1);
 }

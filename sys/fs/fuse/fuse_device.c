@@ -360,7 +360,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	struct fuse_out_header ohead;
 	int err = 0;
 	struct fuse_data *data;
-	struct fuse_ticket *tick, *x_tick;
+	struct fuse_ticket *tick, *itick, *x_tick;
 	int found = 0;
 
 	err = devfs_get_cdevpriv((void **)&data);
@@ -401,6 +401,20 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 			break;
 		}
 	}
+	if (found && tick->irq_unique > 0) {
+		/* 
+		 * Discard the FUSE_INTERRUPT ticket that tried to interrupt
+		 * this operation
+		 */
+		TAILQ_FOREACH_SAFE(itick, &data->aw_head, tk_aw_link,
+		    x_tick) {
+			if (itick->tk_unique == tick->irq_unique) {
+				fuse_aw_remove(itick);
+				break;
+			}
+		}
+		tick->irq_unique = 0;
+	}
 	fuse_lck_mtx_unlock(data->aw_mtx);
 
 	if (found) {
@@ -433,7 +447,20 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		/* no callback at all! */
 		SDT_PROBE1(fuse, , device, fuse_device_write_missing_ticket, 
 			ohead.unique);
-		err = EINVAL;
+		if (ohead.error == EAGAIN) {
+			/* 
+			 * This was probably a response to a FUSE_INTERRUPT
+			 * operation whose original operation is already
+			 * complete.  We can't store FUSE_INTERRUPT tickets
+			 * indefinitely because their responses are optional.
+			 * So we delete them when the original operation
+			 * completes.  And sadly the fuse_header_out doesn't
+			 * identify the opcode, so we have to guess.
+			 */
+			err = 0;
+		} else {
+			err = EINVAL;
+		}
 	}
 
 	return (err);

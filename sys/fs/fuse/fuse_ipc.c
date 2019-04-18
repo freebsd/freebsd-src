@@ -138,6 +138,32 @@ static uma_zone_t ticket_zone;
 static int
 fuse_interrupt_callback(struct fuse_ticket *tick, struct uio *uio)
 {
+	struct fuse_ticket *otick, *x_tick;
+	struct fuse_interrupt_in *fii;
+	struct fuse_data *data;
+	data = tick->tk_data;
+	bool found = false;
+
+	fii = (struct fuse_interrupt_in*)((char*)tick->tk_ms_fiov.base +
+		sizeof(struct fuse_in_header));
+
+	fuse_lck_mtx_lock(data->aw_mtx);
+	TAILQ_FOREACH_SAFE(otick, &data->aw_head, tk_aw_link, x_tick) {
+		if (otick->tk_unique == fii->unique) {
+			found = true;
+			break;
+		}
+	}
+	fuse_lck_mtx_unlock(data->aw_mtx);
+
+	if (!found) {
+		/* Original is already complete.  Just return */
+		return 0;
+	}
+
+	/* Clear the original ticket's interrupt association */
+	otick->irq_unique = 0;
+
 	if (tick->tk_aw_ohead.error == EAGAIN) {
 		/* 
 		 * There are two reasons we might get this:
@@ -148,28 +174,8 @@ fuse_interrupt_callback(struct fuse_ticket *tick, struct uio *uio)
 		 * In the first case we should re-send the INTERRUPT.  In the
 		 * second, we should ignore it.
 		 */
-		struct fuse_interrupt_in *fii;
-		struct fuse_data *data;
-		struct fuse_ticket *otick, *x_tick;
-		bool found = false;
-
-		data = tick->tk_data;
-		fii = (struct fuse_interrupt_in*)((char*)tick->tk_ms_fiov.base +
-			sizeof(struct fuse_in_header));
-		fuse_lck_mtx_lock(data->aw_mtx);
-		TAILQ_FOREACH_SAFE(otick, &data->aw_head, tk_aw_link, x_tick) {
-			if (otick->tk_unique == fii->unique) {
-				found = true;
-				break;
-			}
-		}
-		fuse_lck_mtx_unlock(data->aw_mtx);
-		if (found) {
-			/* Resend */
-			fuse_interrupt_send(otick);
-		} else {
-			/* Original is already complete; nothing to do */
-		}
+		/* Resend */
+		fuse_interrupt_send(otick);
 		return 0;
 	} else {
 		/* Illegal FUSE_INTERRUPT response */
@@ -186,19 +192,24 @@ fuse_interrupt_send(struct fuse_ticket *otick)
 	struct fuse_data *data = otick->tk_data;
 	struct ucred reused_creds;
 
-	ftick_hdr = fticket_in_header(otick);
-	reused_creds.cr_uid = ftick_hdr->uid;
-	reused_creds.cr_rgid = ftick_hdr->gid;
-	fdisp_init(&fdi, sizeof(*fii));
-	fdisp_make_pid(&fdi, FUSE_INTERRUPT, data, ftick_hdr->nodeid,
-		ftick_hdr->pid, &reused_creds);
+	if (otick->irq_unique == 0) {
+		ftick_hdr = fticket_in_header(otick);
+		reused_creds.cr_uid = ftick_hdr->uid;
+		reused_creds.cr_rgid = ftick_hdr->gid;
+		fdisp_init(&fdi, sizeof(*fii));
+		fdisp_make_pid(&fdi, FUSE_INTERRUPT, data, ftick_hdr->nodeid,
+			ftick_hdr->pid, &reused_creds);
 
-	fii = fdi.indata;
-	fii->unique = otick->tk_unique;
-	fuse_insert_callback(fdi.tick, fuse_interrupt_callback);
+		fii = fdi.indata;
+		fii->unique = otick->tk_unique;
+		fuse_insert_callback(fdi.tick, fuse_interrupt_callback);
 
-	fuse_insert_message(fdi.tick);
-	fdisp_destroy(&fdi);
+		otick->irq_unique = fdi.tick->tk_unique;
+		fuse_insert_message(fdi.tick);
+		fdisp_destroy(&fdi);
+	} else {
+		/* This ticket has already been interrupted */
+	}
 }
 
 void
@@ -277,6 +288,8 @@ fticket_ctor(void *mem, int size, void *arg, int flags)
 	ftick->tk_unique = atomic_fetchadd_long(&data->ticketer, 1);
 	if (ftick->tk_unique == 0)
 		ftick->tk_unique = atomic_fetchadd_long(&data->ticketer, 1);
+
+	ftick->irq_unique = 0;
 
 	refcount_init(&ftick->tk_refcount, 1);
 	atomic_add_acq_int(&fuse_ticket_count, 1);
@@ -436,20 +449,23 @@ retry:
 		fuse_interrupt_send(ftick);
 		fuse_lck_mtx_lock(ftick->tk_aw_mtx);
 
-		/* TODO: return, rather than retry, for fatal signals */
-
-		/* 
-		 * Block the just-delivered signal while we wait for an
-		 * interrupt response
-		 */
 		PROC_LOCK(td->td_proc);
 		mtx_lock(&td->td_proc->p_sigacts->ps_mtx);
 		sig = cursig(td);
 		mtx_unlock(&td->td_proc->p_sigacts->ps_mtx);
 		PROC_UNLOCK(td->td_proc);
-		SIGADDSET(blockedset, sig);
-		kern_sigprocmask(curthread, SIG_BLOCK, &blockedset, NULL, 0);
-		goto retry;
+		if (!sig_isfatal(td->td_proc, sig)) {
+			/* 
+			 * Block the just-delivered signal while we wait for an
+			 * interrupt response
+			 */
+			SIGADDSET(blockedset, sig);
+			kern_sigprocmask(curthread, SIG_BLOCK, &blockedset,
+				NULL, 0);
+			goto retry;
+		} else {
+			/* Return immediately for fatal signals */
+		}
 	} else if (err) {
 		SDT_PROBE2(fuse, , ipc, trace, 6,
 			"fticket_wait_answer: other error");

@@ -106,7 +106,7 @@ class FuseTest : public ::testing::Test {
 		uid_t uid = 0);
 
 	/*
-	 * Create an expectation that FUSE_GETATTR will be called for the given
+	 * Create an expectation that FUSE_OPEN will be called for the given
 	 * inode exactly times times.  It will return with open_flags flags and
 	 * file handle FH.
 	 */
@@ -162,11 +162,11 @@ class FuseTest : public ::testing::Test {
 	 *
 	 * # Returns
 	 *
-	 * fusetest_fork will FAIL the test if child_func returns nonzero.
-	 * It may SKIP the test, which the caller should detect with the
-	 * IsSkipped() method.
+	 * fusetest_fork may SKIP the test, which the caller should detect with
+	 * the IsSkipped() method.  If not, then the child's exit status will
+	 * be returned in status.
 	 */
-	void fork(bool drop_privs,
+	void fork(bool drop_privs, int *status,
 		std::function<void()> parent_func,
 		std::function<int()> child_func);
 };

@@ -103,6 +103,12 @@ struct fuse_ticket {
 	struct fuse_data		*tk_data;
 	int				tk_flag;
 	u_int				tk_refcount;
+	/* 
+	 * If this ticket's operation has been interrupted, this will hold the
+	 * unique value of the FUSE_INTERRUPT operation.  Otherwise, it will be
+	 * 0.
+	 */
+	uint64_t			irq_unique;
 
 	/* fields for initiating an upgoing message */
 	struct fuse_iov			tk_ms_fiov;
