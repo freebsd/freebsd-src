@@ -738,7 +738,7 @@ gss_oid_to_str(OM_uint32 *minor_status, gss_OID oid, gss_buffer_t oid_str)
 	 * here for "{ " and "}\0".
 	 */
 	string_length += 4;
-	if ((bp = (char *) mem_alloc(string_length))) {
+	if ((bp = malloc(string_length, M_GSSAPI, M_WAITOK | M_ZERO))) {
 		strcpy(bp, "{ ");
 		number = (unsigned long) cp[0];
 		sprintf(numstr, "%ld ", number/40);
