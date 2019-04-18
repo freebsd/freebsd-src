@@ -68,6 +68,25 @@ efi_freebsd_getenv(const char *v, void *data, size_t *len)
 	return (efi_getenv(&FreeBSDBootVarGUID, v, data, len));
 }
 
+/*
+ * efi_setenv -- Sets an env variable.
+ */
+EFI_STATUS
+efi_setenv(EFI_GUID *guid, const char *varname, UINT32 attr, void *data, __size_t len)
+{
+	EFI_STATUS rv;
+	CHAR16 *uv;
+	size_t ul;
+
+	uv = NULL;
+	if (utf8_to_ucs2(varname, &uv, &ul) != 0)
+		return (EFI_OUT_OF_RESOURCES);
+
+	rv = RS->SetVariable(uv, guid, attr, len, data);
+	free(uv);
+	return (rv);
+}
+
 EFI_STATUS
 efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr)
 {

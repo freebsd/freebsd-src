@@ -125,6 +125,7 @@ void cpy16to8(const CHAR16 *, char *, size_t);
 EFI_STATUS efi_freebsd_getenv(const char *v, void *data, __size_t *len);
 EFI_STATUS efi_getenv(EFI_GUID *g, const char *v, void *data, __size_t *len);
 EFI_STATUS efi_global_getenv(const char *v, void *data, __size_t *len);
+EFI_STATUS efi_setenv(EFI_GUID *guid, const char *varname, UINT32 attr, void *data, __size_t len);
 EFI_STATUS efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr);
 
 /* guids and names */
