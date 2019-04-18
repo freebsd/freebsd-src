@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <crypto/chacha20/chacha.h>
+#include <crypto/sha2/sha256.h>
+#include <dev/random/randomdev.h>
+#include <machine/cpu.h>
 
 #define	CHACHA20_RESEED_BYTES	65536
 #define	CHACHA20_RESEED_SECONDS	300
@@ -77,12 +80,43 @@ chacha20_randomstir(struct chacha20_s *chacha20)
 	struct timeval tv_now;
 	u_int8_t key[CHACHA20_KEYBYTES];
 
-	/*
-	 * If the loader(8) did not have an entropy stash from the previous
-	 * shutdown to load, then we will block.  The answer is to make sure
-	 * there is an entropy stash at shutdown time.
-	 */
-	read_random(key, CHACHA20_KEYBYTES);
+	if (__predict_false(random_bypass_before_seeding && !is_random_seeded())) {
+		SHA256_CTX ctx;
+		uint64_t cc;
+		uint32_t fver;
+
+		if (!arc4random_bypassed_before_seeding) {
+			arc4random_bypassed_before_seeding = true;
+			if (!random_bypass_disable_warnings)
+				printf("arc4random: WARNING: initial seeding "
+				    "bypassed the cryptographic random device "
+				    "because it was not yet seeded and the "
+				    "knob 'bypass_before_seeding' was "
+				    "enabled.\n");
+		}
+
+		/* Last ditch effort to inject something in a bad condition. */
+		cc = get_cyclecount();
+		SHA256_Init(&ctx);
+		SHA256_Update(&ctx, key, sizeof(key));
+		SHA256_Update(&ctx, &cc, sizeof(cc));
+		fver = __FreeBSD_version;
+		SHA256_Update(&ctx, &fver, sizeof(fver));
+		_Static_assert(sizeof(key) == SHA256_DIGEST_LENGTH,
+		    "make sure 256 bits is still 256 bits");
+		SHA256_Final(key, &ctx);
+	} else {
+		/*
+		* If the loader(8) did not have an entropy stash from the
+		* previous shutdown to load, then we will block.  The answer is
+		* to make sure there is an entropy stash at shutdown time.
+		*
+		* On the other hand, if the random_bypass_before_seeding knob
+		* was set and we landed in this branch, we know this won't
+		* block because we know the random device is seeded.
+		*/
+		read_random(key, CHACHA20_KEYBYTES);
+	}
 	getmicrouptime(&tv_now);
 	mtx_lock(&chacha20->mtx);
 	chacha_keysetup(&chacha20->ctx, key, CHACHA20_KEYBYTES*8);
