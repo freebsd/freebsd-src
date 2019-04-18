@@ -236,11 +236,15 @@ READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 }
 
 /*-
- * Kernel API version of read_random().
- * This is similar to random_alg_read(),
- * except it doesn't interface with uio(9).
- * It cannot assumed that random_buf is a multiple of
- * RANDOM_BLOCKSIZE bytes.
+ * Kernel API version of read_random().  This is similar to read_random_uio(),
+ * except it doesn't interface with uio(9).  It cannot assumed that random_buf
+ * is a multiple of RANDOM_BLOCKSIZE bytes.
+ *
+ * If the tunable 'kern.random.initial_seeding.bypass_before_seeding' is set
+ * non-zero, silently fail to emit random data (matching the pre-r346250
+ * behavior).  If read_random is called prior to seeding and bypassed because
+ * of this tunable, the condition is reported in the read-only sysctl
+ * 'kern.random.initial_seeding.read_random_bypassed_before_seeding'.
  */
 void
 READ_RANDOM(void *random_buf, u_int len)
@@ -249,12 +253,31 @@ READ_RANDOM(void *random_buf, u_int len)
 
 	KASSERT(random_buf != NULL, ("No suitable random buffer in %s", __func__));
 	p_random_alg_context->ra_pre_read();
-	/* (Un)Blocking logic */
-	if (!p_random_alg_context->ra_seeded())
-		(void)randomdev_wait_until_seeded(SEEDWAIT_UNINTERRUPTIBLE);
-	read_rate_increment(roundup2(len, sizeof(uint32_t)));
+
 	if (len == 0)
 		return;
+
+	/* (Un)Blocking logic */
+	if (__predict_false(!p_random_alg_context->ra_seeded())) {
+		if (random_bypass_before_seeding) {
+			if (!read_random_bypassed_before_seeding) {
+				if (!random_bypass_disable_warnings)
+					printf("read_random: WARNING: bypassing"
+					    " request for random data because "
+					    "the random device is not yet "
+					    "seeded and the knob "
+					    "'bypass_before_seeding' was "
+					    "enabled.\n");
+				read_random_bypassed_before_seeding = true;
+			}
+			/* Avoid potentially leaking stack garbage */
+			memset(random_buf, 0, len);
+			return;
+		}
+
+		(void)randomdev_wait_until_seeded(SEEDWAIT_UNINTERRUPTIBLE);
+	}
+	read_rate_increment(roundup2(len, sizeof(uint32_t)));
 	/*
 	 * The underlying generator expects multiples of
 	 * RANDOM_BLOCKSIZE.
