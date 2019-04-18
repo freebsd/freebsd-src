@@ -31,6 +31,30 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190418:
+	The following knobs have been added related to tradeoffs between
+	safe use of the random device and availability in the absence of
+	entropy:
+
+	kern.random.initial_seeding.bypass_before_seeding: tunable; set
+	non-zero to bypass the random device prior to seeding, or zero to
+	block random requests until the random device is initially seeded.
+	For now, set to 1 (unsafe) by default to restore pre-r346250 boot
+	availability properties.
+
+	kern.random.initial_seeding.read_random_bypassed_before_seeding:
+	read-only diagnostic sysctl that is set when bypass is enabled and
+	read_random(9) is bypassed, to enable programmatic handling of this
+	initial condition, if desired.
+
+	kern.random.initial_seeding.arc4random_bypassed_before_seeding:
+	Similar to the above, but for for arc4random(9) initial seeding.
+
+	kern.random.initial_seeding.disable_bypass_warnings: tunable; set
+	non-zero to disable warnings in dmesg when the same conditions are
+	met as for the diagnostic sysctls above.  Defaults to zero, i.e.,
+	produce warnings in dmesg when the conditions are met.
+
 20190416:
 	The tunable "security.stack_protect.permit_nonrandom_cookies" may be
 	set to a non-zero value to boot systems that do not provide early
