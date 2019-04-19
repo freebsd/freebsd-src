@@ -19,7 +19,11 @@
  */
 
 #include <sys/types.h>
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#else
 #include <stdlib.h>
+#endif
 
 /*
  * Calculate a uniformly distributed random number less than upper_bound
