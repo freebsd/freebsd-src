@@ -1014,6 +1014,7 @@ SRCS_MIN+=	Target/BPF/BPFMCInstLower.cpp
 SRCS_MIN+=	Target/BPF/BPFMIChecking.cpp
 SRCS_MIN+=	Target/BPF/BPFMIPeephole.cpp
 SRCS_MIN+=	Target/BPF/BPFRegisterInfo.cpp
+SRCS_MIN+=	Target/BPF/BPFSelectionDAGInfo.cpp
 SRCS_MIN+=	Target/BPF/BPFSubtarget.cpp
 SRCS_MIN+=	Target/BPF/BPFTargetMachine.cpp
 SRCS_MIN+=	Target/BPF/BTFDebug.cpp
