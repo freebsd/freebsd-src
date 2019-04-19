@@ -167,8 +167,6 @@ fticket_opcode(struct fuse_ticket *ftick)
 
 int fticket_pull(struct fuse_ticket *ftick, struct uio *uio);
 
-enum mountpri { FM_NOMOUNTED, FM_PRIMARY, FM_SECONDARY };
-
 /*
  * The data representing a FUSE session.
  */

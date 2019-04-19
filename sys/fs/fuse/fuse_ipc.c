@@ -109,8 +109,6 @@ static int fuse_body_audit(struct fuse_ticket *ftick, size_t blen);
 static fuse_handler_t fuse_standard_handler;
 
 SYSCTL_NODE(_vfs, OID_AUTO, fusefs, CTLFLAG_RW, 0, "FUSE tunables");
-SYSCTL_STRING(_vfs_fusefs, OID_AUTO, version, CTLFLAG_RD,
-    FUSE_FREEBSD_VERSION, 0, "fuse-freebsd version");
 static int fuse_ticket_count = 0;
 
 SYSCTL_INT(_vfs_fusefs, OID_AUTO, ticket_count, CTLFLAG_RW,
