@@ -2127,6 +2127,10 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 		fsess_set_notimpl(mp, FUSE_SETXATTR);
 		err = EOPNOTSUPP;
 	}
+	if (err == ERESTART) {
+		/* Can't restart after calling uiomove */
+		err = EINTR;
+	}
 
 out:
 	fdisp_destroy(&fdi);
