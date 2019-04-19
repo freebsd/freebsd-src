@@ -1655,7 +1655,9 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 				acl_ids->z_fgid = 0;
 		}
 		if (acl_ids->z_fgid == 0) {
+#ifndef __FreeBSD_kernel__
 			if (dzp->z_mode & S_ISGID) {
+#endif
 				char		*domain;
 				uint32_t	rid;
 
@@ -1674,15 +1676,13 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 					    FUID_INDEX(acl_ids->z_fgid),
 					    acl_ids->z_fgid, ZFS_GROUP);
 				}
+#ifndef __FreeBSD_kernel__
 			} else {
 				acl_ids->z_fgid = zfs_fuid_create_cred(zfsvfs,
 				    ZFS_GROUP, cr, &acl_ids->z_fuidp);
-#ifdef __FreeBSD_kernel__
-				gid = acl_ids->z_fgid = dzp->z_gid;
-#else
 				gid = crgetgid(cr);
-#endif
 			}
+#endif
 		}
 	}
 
