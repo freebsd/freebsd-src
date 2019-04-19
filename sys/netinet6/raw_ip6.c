@@ -243,6 +243,12 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			    in6_cksum(m, proto, *offp,
 			    m->m_pkthdr.len - *offp)) {
 				RIP6STAT_INC(rip6s_badsum);
+				/*
+				 * Drop the received message, don't send an
+				 * ICMP6 message. Set proto to IPPROTO_NONE
+				 * to achieve that.
+				 */
+				proto = IPPROTO_NONE;
 				goto skip_2;
 			}
 		}
