@@ -120,6 +120,7 @@ struct devreq {
 #define	DEV_CLEAR_DRIVER _IOW('D', 8, struct devreq)
 #define	DEV_RESCAN	_IOW('D', 9, struct devreq)
 #define	DEV_DELETE	_IOW('D', 10, struct devreq)
+#define	DEV_RESET	_IOW('D', 13, struct devreq)
 
 /* Flags for DEV_DETACH and DEV_DISABLE. */
 #define	DEVF_FORCE_DETACH	0x0000001
