@@ -2886,7 +2886,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
 			cverf[0] = *tl++;
 			cverf[1] = *tl;
-			error = nfsv4_sattr(nd, vp, &nva, &attrbits, aclp, p);
+			error = nfsv4_sattr(nd, NULL, &nva, &attrbits, aclp, p);
 			if (error != 0)
 				goto nfsmout;
 			if (NFSISSET_ATTRBIT(&attrbits,
