@@ -495,7 +495,7 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 			off = offsetof(struct icmp6_hdr, icmp6_cksum);
 		else
 			off = in6p->in6p_cksum;
-		if (plen < off + 1) {
+		if (plen < off + 2) {
 			error = EINVAL;
 			goto bad;
 		}
