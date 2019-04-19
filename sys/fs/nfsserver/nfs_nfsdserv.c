@@ -464,13 +464,18 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 	    }
 	    if (!nd->nd_repstat &&
-		NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODE)) {
+		(NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODE) ||
+		 NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODESETMASKED))) {
 		NFSVNO_ATTRINIT(&nva2);
 		NFSVNO_SETATTRVAL(&nva2, mode, nva.na_mode);
 		nd->nd_repstat = nfsvno_setattr(vp, &nva2, nd->nd_cred, p,
 		    exp);
-		if (!nd->nd_repstat)
-		    NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_MODE);
+		if (!nd->nd_repstat) {
+		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODE))
+			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_MODE);
+		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODESETMASKED))
+			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_MODESETMASKED);
+		}
 	    }
 
 #ifdef NFS4_ACL_EXTATTR_NAME
