@@ -143,6 +143,10 @@ struct devreq {
 /* Flags for DEV_DELETE. */
 #define	DEVF_FORCE_DELETE	0x0000001
 
+/* Flags for DEV_RESET */
+#define	DEVF_RESET_DETACH	0x0000001	/* Detach drivers vs suspend
+						   device */
+
 #ifdef _KERNEL
 
 #include <sys/eventhandler.h>
@@ -494,6 +498,8 @@ int	bus_generic_unmap_resource(device_t dev, device_t child, int type,
 				   struct resource_map *map);
 int	bus_generic_write_ivar(device_t dev, device_t child, int which,
 			       uintptr_t value);
+int	bus_helper_reset_post(device_t dev, int flags);
+int	bus_helper_reset_prepare(device_t dev, int flags);
 int	bus_null_rescan(device_t dev);
 
 /*
