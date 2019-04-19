@@ -1553,23 +1553,23 @@ sdhci_retune(void *arg)
 static void
 sdhci_req_done(struct sdhci_slot *slot)
 {
-        union ccb *ccb;
+	union ccb *ccb;
 
 	if (__predict_false(sdhci_debug > 1))
 		slot_printf(slot, "%s\n", __func__);
 	if (slot->ccb != NULL && slot->curcmd != NULL) {
 		callout_stop(&slot->timeout_callout);
-                ccb = slot->ccb;
-                slot->ccb = NULL;
+		ccb = slot->ccb;
+		slot->ccb = NULL;
 		slot->curcmd = NULL;
 
-                /* Tell CAM the request is finished */
-                struct ccb_mmcio *mmcio;
-                mmcio = &ccb->mmcio;
+		/* Tell CAM the request is finished */
+		struct ccb_mmcio *mmcio;
+		mmcio = &ccb->mmcio;
 
-                ccb->ccb_h.status =
-                        (mmcio->cmd.error == 0 ? CAM_REQ_CMP : CAM_REQ_CMP_ERR);
-                xpt_done(ccb);
+		ccb->ccb_h.status =
+		    (mmcio->cmd.error == 0 ? CAM_REQ_CMP : CAM_REQ_CMP_ERR);
+		xpt_done(ccb);
 	}
 }
 #else
@@ -2483,47 +2483,45 @@ void
 sdhci_start_slot(struct sdhci_slot *slot)
 {
 
-        if ((slot->devq = cam_simq_alloc(1)) == NULL) {
-                goto fail;
-        }
+	if ((slot->devq = cam_simq_alloc(1)) == NULL)
+		goto fail;
 
-        mtx_init(&slot->sim_mtx, "sdhcisim", NULL, MTX_DEF);
-        slot->sim = cam_sim_alloc(sdhci_cam_action, sdhci_cam_poll,
-                                  "sdhci_slot", slot, device_get_unit(slot->bus),
-                                  &slot->sim_mtx, 1, 1, slot->devq);
+	mtx_init(&slot->sim_mtx, "sdhcisim", NULL, MTX_DEF);
+	slot->sim = cam_sim_alloc(sdhci_cam_action, sdhci_cam_poll,
+	    "sdhci_slot", slot, device_get_unit(slot->bus),
+	    &slot->sim_mtx, 1, 1, slot->devq);
 
-        if (slot->sim == NULL) {
-                cam_simq_free(slot->devq);
-                slot_printf(slot, "cannot allocate CAM SIM\n");
-                goto fail;
-        }
+	if (slot->sim == NULL) {
+		cam_simq_free(slot->devq);
+		slot_printf(slot, "cannot allocate CAM SIM\n");
+		goto fail;
+	}
 
-        mtx_lock(&slot->sim_mtx);
-        if (xpt_bus_register(slot->sim, slot->bus, 0) != 0) {
-                slot_printf(slot,
-                              "cannot register SCSI pass-through bus\n");
-                cam_sim_free(slot->sim, FALSE);
-                cam_simq_free(slot->devq);
-                mtx_unlock(&slot->sim_mtx);
-                goto fail;
-        }
+	mtx_lock(&slot->sim_mtx);
+	if (xpt_bus_register(slot->sim, slot->bus, 0) != 0) {
+		slot_printf(slot, "cannot register SCSI pass-through bus\n");
+		cam_sim_free(slot->sim, FALSE);
+		cam_simq_free(slot->devq);
+		mtx_unlock(&slot->sim_mtx);
+		goto fail;
+	}
+	mtx_unlock(&slot->sim_mtx);
 
-        mtx_unlock(&slot->sim_mtx);
-        /* End CAM-specific init */
+	/* End CAM-specific init */
 	slot->card_present = 0;
 	sdhci_card_task(slot, 0);
-        return;
+	return;
 
 fail:
-        if (slot->sim != NULL) {
-                mtx_lock(&slot->sim_mtx);
-                xpt_bus_deregister(cam_sim_path(slot->sim));
-                cam_sim_free(slot->sim, FALSE);
-                mtx_unlock(&slot->sim_mtx);
-        }
+	if (slot->sim != NULL) {
+		mtx_lock(&slot->sim_mtx);
+		xpt_bus_deregister(cam_sim_path(slot->sim));
+		cam_sim_free(slot->sim, FALSE);
+		mtx_unlock(&slot->sim_mtx);
+	}
 
-        if (slot->devq != NULL)
-                cam_simq_free(slot->devq);
+	if (slot->devq != NULL)
+		cam_simq_free(slot->devq);
 }
 
 static void
@@ -2653,15 +2651,13 @@ sdhci_cam_get_possible_host_clock(const struct sdhci_slot *slot,
 	clock = max_clock;
 
 	if (slot->version < SDHCI_SPEC_300) {
-		for (i = 0; i < SDHCI_200_MAX_DIVIDER;
-		     i <<= 1) {
+		for (i = 0; i < SDHCI_200_MAX_DIVIDER; i <<= 1) {
 			if (clock <= proposed_clock)
 				break;
 			clock >>= 1;
 		}
 	} else {
-		for (i = 0; i < SDHCI_300_MAX_DIVIDER;
-		     i += 2) {
+		for (i = 0; i < SDHCI_300_MAX_DIVIDER; i += 2) {
 			if (clock <= proposed_clock)
 				break;
 			clock = max_clock / (i + 2);
@@ -2711,7 +2707,7 @@ sdhci_cam_settran_settings(struct sdhci_slot *slot, union ccb *ccb)
 		slot_printf(slot, "Bus mode => %d\n", ios->bus_mode);
 	}
 
-        /* XXX Provide a way to call a chip-specific IOS update, required for TI */
+	/* XXX Provide a way to call a chip-specific IOS update, required for TI */
 	return (sdhci_cam_update_ios(slot));
 }
 
@@ -2779,7 +2775,7 @@ sdhci_cam_request(struct sdhci_slot *slot, union ccb *ccb)
 	if (mmcio->cmd.data != NULL) {
 		if (mmcio->cmd.data->len == 0 || mmcio->cmd.data->flags == 0)
 			panic("data->len = %d, data->flags = %d -- something is b0rked",
-			      (int)mmcio->cmd.data->len, mmcio->cmd.data->flags);
+			    (int)mmcio->cmd.data->len, mmcio->cmd.data->flags);
 	}
 	slot->ccb = ccb;
 	slot->flags = 0;
