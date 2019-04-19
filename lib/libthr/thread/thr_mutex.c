@@ -945,7 +945,7 @@ mutex_unlock_common(struct pthread_mutex *m, bool cv, int *mtx_defer)
 {
 	struct pthread *curthread;
 	uint32_t id;
-	int deferred, error, robust;
+	int deferred, error, private, robust;
 
 	if (__predict_false(m <= THR_MUTEX_DESTROYED)) {
 		if (m == THR_MUTEX_DESTROYED)
@@ -963,6 +963,7 @@ mutex_unlock_common(struct pthread_mutex *m, bool cv, int *mtx_defer)
 		return (EPERM);
 
 	error = 0;
+	private = (m->m_flags & PMUTEX_FLAG_PRIVATE) != 0;
 	if (__predict_false(PMUTEX_TYPE(m->m_flags) ==
 	    PTHREAD_MUTEX_RECURSIVE && m->m_count > 0)) {
 		m->m_count--;
@@ -987,7 +988,7 @@ mutex_unlock_common(struct pthread_mutex *m, bool cv, int *mtx_defer)
 		if (robust)
 			_mutex_leave_robust(curthread, m);
 	}
-	if (!cv && m->m_flags & PMUTEX_FLAG_PRIVATE)
+	if (!cv && private)
 		THR_CRITICAL_LEAVE(curthread);
 	return (error);
 }
