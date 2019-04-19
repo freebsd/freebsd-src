@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd April 16, 2019
+.Dd April 19, 2019
 .Dt RANDOM 9
 .Os
 .Sh NAME
@@ -45,6 +45,8 @@
 .Fn arc4random "void"
 .Ft void
 .Fn arc4random_buf "void *ptr" "size_t len"
+.Ft uint32_t
+.Fn arc4random_uniform "uint32_t upper_bound"
 .Ft void
 .Fn arc4rand "void *ptr" "u_int length" "int reseed"
 .Pp
@@ -79,6 +81,15 @@ fills
 with
 .Fa len
 bytes of random data.
+.Pp
+.Fn arc4random_uniform
+will return a single 32-bit value, uniformly distributed but less than
+.Fa upper_bound .
+This is recommended over constructions like
+.Dq Li arc4random() % upper_bound
+as it avoids "modulo bias" when the upper bound is not a power of two.
+In the worst case, this function may consume multiple iterations
+to ensure uniformity.
 .Pp
 The
 .Fn arc4rand
