@@ -295,7 +295,7 @@ fuse_internal_fsync(struct vnode *vp,
 		} else {
 			fuse_insert_callback(fdi.tick,
 				fuse_internal_fsync_callback);
-			fuse_insert_message(fdi.tick);
+			fuse_insert_message(fdi.tick, false);
 		}
 		if (err == ENOSYS) {
 			/* ENOSYS means "success, and don't call again" */
@@ -593,7 +593,7 @@ fuse_internal_forget_send(struct mount *mp,
 	ffi = fdi.indata;
 	ffi->nlookup = nlookup;
 
-	fuse_insert_message(fdi.tick);
+	fuse_insert_message(fdi.tick, false);
 	fdisp_destroy(&fdi);
 }
 
@@ -736,7 +736,7 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	fiii->flags = FUSE_POSIX_LOCKS;
 
 	fuse_insert_callback(fdi.tick, fuse_internal_init_callback);
-	fuse_insert_message(fdi.tick);
+	fuse_insert_message(fdi.tick, false);
 	fdisp_destroy(&fdi);
 }
 

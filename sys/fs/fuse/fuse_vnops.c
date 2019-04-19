@@ -592,7 +592,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		fri->fh = fh_id;
 		fri->flags = flags;
 		fuse_insert_callback(fdip->tick, fuse_internal_forget_callback);
-		fuse_insert_message(fdip->tick);
+		fuse_insert_message(fdip->tick, false);
 		goto out;
 	}
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnop_create");
