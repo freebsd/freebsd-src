@@ -1308,8 +1308,7 @@ vtscsi_complete_scsi_cmd_response(struct vtscsi_softc *sc,
 		else
 			csio->sense_resid = 0;
 
-		bzero(&csio->sense_data, sizeof(csio->sense_data));
-		memcpy(cmd_resp->sense, &csio->sense_data,
+		memcpy(&csio->sense_data, cmd_resp->sense,
 		    csio->sense_len - csio->sense_resid);
 	}
 
