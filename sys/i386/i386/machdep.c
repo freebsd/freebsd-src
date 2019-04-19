@@ -1289,7 +1289,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_gran = 1		},
 /* GUFS_SEL	2 %fs Descriptor for user */
 {	.ssd_base = 0x0,
-	.ssd_limit = 0xfffff,
+	.ssd_limit = (VM_MAXUSER_ADDRESS-1)>>PAGE_SHIFT,
 	.ssd_type = SDT_MEMRWA,
 	.ssd_dpl = SEL_UPL,
 	.ssd_p = 1,
@@ -1298,7 +1298,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_gran = 1		},
 /* GUGS_SEL	3 %gs Descriptor for user */
 {	.ssd_base = 0x0,
-	.ssd_limit = 0xfffff,
+	.ssd_limit = (VM_MAXUSER_ADDRESS-1)>>PAGE_SHIFT,
 	.ssd_type = SDT_MEMRWA,
 	.ssd_dpl = SEL_UPL,
 	.ssd_p = 1,
@@ -1325,7 +1325,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_gran = 1		},
 /* GUCODE_SEL	6 Code Descriptor for user */
 {	.ssd_base = 0x0,
-	.ssd_limit = 0xfffff,
+	.ssd_limit = (VM_MAXUSER_ADDRESS-1)>>PAGE_SHIFT,
 	.ssd_type = SDT_MEMERA,
 	.ssd_dpl = SEL_UPL,
 	.ssd_p = 1,
@@ -1334,7 +1334,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_gran = 1		},
 /* GUDATA_SEL	7 Data Descriptor for user */
 {	.ssd_base = 0x0,
-	.ssd_limit = 0xfffff,
+	.ssd_limit = (VM_MAXUSER_ADDRESS-1)>>PAGE_SHIFT,
 	.ssd_type = SDT_MEMRWA,
 	.ssd_dpl = SEL_UPL,
 	.ssd_p = 1,
@@ -2496,10 +2496,10 @@ init386(int first)
 	 */
 	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
-	gdt_segs[GUCODE_SEL].ssd_limit = atop(0 - 1);
-	gdt_segs[GUDATA_SEL].ssd_limit = atop(0 - 1);
-	gdt_segs[GUFS_SEL].ssd_limit = atop(0 - 1);
-	gdt_segs[GUGS_SEL].ssd_limit = atop(0 - 1);
+	//gdt_segs[GUCODE_SEL].ssd_limit = atop(0 - 1);
+	//gdt_segs[GUDATA_SEL].ssd_limit = atop(0 - 1);
+	//gdt_segs[GUFS_SEL].ssd_limit = atop(0 - 1);
+	//gdt_segs[GUGS_SEL].ssd_limit = atop(0 - 1);
 
 	pc = &__pcpu[0];
 	gdt_segs[GPRIV_SEL].ssd_limit = atop(0 - 1);
