@@ -1293,7 +1293,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			if (error)
 			    goto nfsmout;
 			if (compare && !(*retcmpp)) {
-			   NFSSETSUPP_ATTRBIT(&checkattrbits);
+			   NFSSETSUPP_ATTRBIT(&checkattrbits, nd);
 
 			   /* Some filesystem do not support NFSv4ACL   */
 			   if (nfsrv_useacl == 0 || nfs_supportsnfsv4acls(vp) == 0) {
@@ -2129,8 +2129,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			if (error)
 			    goto nfsmout;
 			if (compare && !(*retcmpp)) {
-			   NFSSETSUPP_ATTRBIT(&checkattrbits);
-			   NFSCLRNOTSETABLE_ATTRBIT(&checkattrbits);
+			   NFSSETSUPP_ATTRBIT(&checkattrbits, nd);
+			   NFSCLRNOTSETABLE_ATTRBIT(&checkattrbits, nd);
 			   NFSCLRBIT_ATTRBIT(&checkattrbits,
 				NFSATTRBIT_TIMEACCESSSET);
 			   if (!NFSEQUAL_ATTRBIT(&retattrbits, &checkattrbits)
@@ -2460,10 +2460,10 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	 * reply call.
 	 */
 	if (p == NULL && cred == NULL) {
-		NFSCLRNOTSETABLE_ATTRBIT(retbitp);
+		NFSCLRNOTSETABLE_ATTRBIT(retbitp, nd);
 		aclp = saclp;
 	} else {
-		NFSCLRNOTFILLABLE_ATTRBIT(retbitp);
+		NFSCLRNOTFILLABLE_ATTRBIT(retbitp, nd);
 		naclp = acl_alloc(M_WAITOK);
 		aclp = naclp;
 	}
@@ -2533,7 +2533,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	    if (NFSISSET_ATTRBIT(retbitp, bitpos)) {
 		switch (bitpos) {
 		case NFSATTRBIT_SUPPORTEDATTRS:
-			NFSSETSUPP_ATTRBIT(&attrbits);
+			NFSSETSUPP_ATTRBIT(&attrbits, nd);
 			if (nfsrv_useacl == 0 || ((cred != NULL || p != NULL)
 			    && supports_nfsv4acls == 0)) {
 			    NFSCLRBIT_ATTRBIT(&attrbits,NFSATTRBIT_ACLSUPPORT);
@@ -2935,8 +2935,8 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			retnum += NFSX_HYPER;
 			break;
 		case NFSATTRBIT_SUPPATTREXCLCREAT:
-			NFSSETSUPP_ATTRBIT(&attrbits);
-			NFSCLRNOTSETABLE_ATTRBIT(&attrbits);
+			NFSSETSUPP_ATTRBIT(&attrbits, nd);
+			NFSCLRNOTSETABLE_ATTRBIT(&attrbits, nd);
 			NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESSSET);
 			retnum += nfsrv_putattrbit(nd, &attrbits);
 			break;
