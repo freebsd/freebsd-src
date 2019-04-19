@@ -32,6 +32,7 @@ extern "C" {
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <signal.h>
 }
 
@@ -290,6 +291,88 @@ TEST_F(Interrupt, ignore)
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+void* write0(void* arg) {
+	const char *CONTENTS = "abcdefgh";
+	ssize_t bufsize = strlen(CONTENTS);
+	int fd = (int)(intptr_t)arg;
+	ssize_t r;
+
+	r = write(fd, CONTENTS, bufsize);
+	if (r >= 0)
+		return 0;
+	else
+		return (void*)(intptr_t)errno;
+}
+
+/*
+ * An operation that hasn't yet been sent to userland can be interrupted
+ * without sending FUSE_INTERRUPT
+ */
+TEST_F(Interrupt, in_kernel)
+{
+	const char FULLPATH0[] = "mountpoint/some_file.txt";
+	const char RELPATH0[] = "some_file.txt";
+	const char FULLPATH1[] = "mountpoint/other_file.txt";
+	const char RELPATH1[] = "other_file.txt";
+	const char *CONTENTS = "ijklmnop";
+	ssize_t bufsize = strlen(CONTENTS);
+	uint64_t ino0 = 42, ino1 = 43;
+	int fd0, fd1;
+	pthread_t self, th0;
+	sem_t sem0, sem1;
+	void *thr0_value;
+
+	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
+	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
+	self = pthread_self();
+
+	expect_lookup(RELPATH0, ino0);
+	expect_open(ino0, 0, 1);
+	expect_lookup(RELPATH1, ino1);
+	expect_open(ino1, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_WRITE &&
+				in->header.nodeid == ino0);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
+		/* Let the next write proceed */
+		sem_post(&sem1);
+		/* Pause the daemon thread so it won't read the next op */
+		sem_wait(&sem0);
+
+		SET_OUT_HEADER_LEN(out, write);
+		out->body.write.size = in->body.write.size;
+	})));
+
+	fd0 = open(FULLPATH0, O_WRONLY);
+	ASSERT_LE(0, fd0) << strerror(errno);
+	fd1 = open(FULLPATH1, O_WRONLY);
+	ASSERT_LE(0, fd1) << strerror(errno);
+
+	/* Use a separate thread for the first write */
+	ASSERT_EQ(0, pthread_create(&th0, NULL, write0, (void*)(intptr_t)fd0))
+		<< strerror(errno);
+
+	setup_interruptor(self);
+
+	sem_wait(&sem1);	/* Sequence the two writes */
+	ASSERT_EQ(-1, write(fd1, CONTENTS, bufsize));
+	EXPECT_EQ(EINTR, errno);
+
+	/* Unstick the daemon */
+	ASSERT_EQ(0, sem_post(&sem0)) << strerror(errno);
+
+	/* Wait awhile to make sure the signal generates no FUSE_INTERRUPT */
+	usleep(250'000);
+
+	pthread_join(th0, &thr0_value);
+	EXPECT_EQ(0, (intptr_t)thr0_value);
+	sem_destroy(&sem1);
+	sem_destroy(&sem0);
 }
 
 /* 

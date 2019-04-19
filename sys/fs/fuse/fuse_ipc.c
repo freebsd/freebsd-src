@@ -95,7 +95,7 @@ SDT_PROBE_DEFINE2(fuse, , ipc, trace, "int", "char*");
 static void fdisp_make_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct fuse_data *data, uint64_t nid, pid_t pid, struct ucred *cred);
 static void fiov_clear(struct fuse_iov *fiov);
-static void fuse_interrupt_send(struct fuse_ticket *otick);
+static void fuse_interrupt_send(struct fuse_ticket *otick, int err);
 static struct fuse_ticket *fticket_alloc(struct fuse_data *data);
 static void fticket_refresh(struct fuse_ticket *ftick);
 static void fticket_destroy(struct fuse_ticket *ftick);
@@ -175,7 +175,7 @@ fuse_interrupt_callback(struct fuse_ticket *tick, struct uio *uio)
 		 * second, we should ignore it.
 		 */
 		/* Resend */
-		fuse_interrupt_send(otick);
+		fuse_interrupt_send(otick, EINTR);
 		return 0;
 	} else {
 		/* Illegal FUSE_INTERRUPT response */
@@ -183,16 +183,49 @@ fuse_interrupt_callback(struct fuse_ticket *tick, struct uio *uio)
 	}
 }
 
+/* Interrupt the operation otick.  Return err as its error code */
 void
-fuse_interrupt_send(struct fuse_ticket *otick)
+fuse_interrupt_send(struct fuse_ticket *otick, int err)
 {
 	struct fuse_dispatcher fdi;
 	struct fuse_interrupt_in *fii;
 	struct fuse_in_header *ftick_hdr;
 	struct fuse_data *data = otick->tk_data;
+	struct fuse_ticket *tick, *xtick;
 	struct ucred reused_creds;
 
 	if (otick->irq_unique == 0) {
+		/* 
+		 * If the daemon hasn't yet received otick, then we can answer
+		 * it ourselves and return.
+		 */
+		fuse_lck_mtx_lock(data->ms_mtx);
+		STAILQ_FOREACH_SAFE(tick, &otick->tk_data->ms_head, tk_ms_link,
+			xtick) {
+			if (tick == otick) {
+				STAILQ_REMOVE(&otick->tk_data->ms_head, tick,
+					fuse_ticket, tk_ms_link);
+				otick->tk_ms_link.stqe_next = NULL;
+				fuse_lck_mtx_unlock(data->ms_mtx);
+
+				fuse_lck_mtx_lock(otick->tk_aw_mtx);
+				if (!fticket_answered(otick)) {
+					fticket_set_answered(otick);
+					otick->tk_aw_errno = err;
+					wakeup(otick);
+				}
+				fuse_lck_mtx_unlock(otick->tk_aw_mtx);
+
+				fuse_ticket_drop(tick);
+				return;
+			}
+		}
+		fuse_lck_mtx_unlock(data->ms_mtx);
+
+		/* 
+		 * If the fuse daemon has already received otick, then we must
+		 * send FUSE_INTERRUPT.
+		 */
 		ftick_hdr = fticket_in_header(otick);
 		reused_creds.cr_uid = ftick_hdr->uid;
 		reused_creds.cr_rgid = ftick_hdr->gid;
@@ -400,11 +433,12 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 	sigset_t blockedset, oldset;
 	int err = 0;
 	struct fuse_data *data;
+	SIGEMPTYSET(blockedset);
+
+	kern_sigprocmask(td, SIG_BLOCK, NULL, &oldset, 0);
 
 	fuse_lck_mtx_lock(ftick->tk_aw_mtx);
 
-	SIGEMPTYSET(blockedset);
-	kern_sigprocmask(td, SIG_BLOCK, &blockedset, &oldset, 0);
 retry:
 	if (fticket_answered(ftick)) {
 		goto out;
@@ -416,6 +450,7 @@ retry:
 		fticket_set_answered(ftick);
 		goto out;
 	}
+	kern_sigprocmask(td, SIG_BLOCK, &blockedset, NULL, 0);
 	err = msleep(ftick, &ftick->tk_aw_mtx, PCATCH, "fu_ans",
 	    data->daemon_timeout * hz);
 	kern_sigprocmask(td, SIG_SETMASK, &oldset, NULL, 0);
@@ -446,22 +481,21 @@ retry:
 		SDT_PROBE2(fuse, , ipc, trace, 4,
 			"fticket_wait_answer: interrupt");
 		fuse_lck_mtx_unlock(ftick->tk_aw_mtx);
-		fuse_interrupt_send(ftick);
-		fuse_lck_mtx_lock(ftick->tk_aw_mtx);
+		fuse_interrupt_send(ftick, err);
 
 		PROC_LOCK(td->td_proc);
 		mtx_lock(&td->td_proc->p_sigacts->ps_mtx);
 		sig = cursig(td);
 		mtx_unlock(&td->td_proc->p_sigacts->ps_mtx);
 		PROC_UNLOCK(td->td_proc);
+
+		fuse_lck_mtx_lock(ftick->tk_aw_mtx);
 		if (!sig_isfatal(td->td_proc, sig)) {
 			/* 
 			 * Block the just-delivered signal while we wait for an
 			 * interrupt response
 			 */
 			SIGADDSET(blockedset, sig);
-			kern_sigprocmask(curthread, SIG_BLOCK, &blockedset,
-				NULL, 0);
 			goto retry;
 		} else {
 			/* Return immediately for fatal signals */
