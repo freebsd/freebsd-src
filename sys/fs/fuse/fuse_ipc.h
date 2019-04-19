@@ -285,12 +285,22 @@ fsess_opt_brokenio(struct mount *mp)
 	return (fuse_fix_broken_io || (data->dataflags & FSESS_BROKENIO));
 }
 
+/* Insert a new upgoing message */
 static inline void
 fuse_ms_push(struct fuse_ticket *ftick)
 {
 	mtx_assert(&ftick->tk_data->ms_mtx, MA_OWNED);
 	refcount_acquire(&ftick->tk_refcount);
 	STAILQ_INSERT_TAIL(&ftick->tk_data->ms_head, ftick, tk_ms_link);
+}
+
+/* Insert a new upgoing message to the front of the queue */
+static inline void
+fuse_ms_push_head(struct fuse_ticket *ftick)
+{
+	mtx_assert(&ftick->tk_data->ms_mtx, MA_OWNED);
+	refcount_acquire(&ftick->tk_refcount);
+	STAILQ_INSERT_HEAD(&ftick->tk_data->ms_head, ftick, tk_ms_link);
 }
 
 static inline struct fuse_ticket *
@@ -345,7 +355,7 @@ fuse_aw_pop(struct fuse_data *data)
 struct fuse_ticket *fuse_ticket_fetch(struct fuse_data *data);
 int fuse_ticket_drop(struct fuse_ticket *ftick);
 void fuse_insert_callback(struct fuse_ticket *ftick, fuse_handler_t *handler);
-void fuse_insert_message(struct fuse_ticket *ftick);
+void fuse_insert_message(struct fuse_ticket *ftick, bool irq);
 
 static inline bool
 fuse_libabi_geq(struct fuse_data *data, uint32_t abi_maj, uint32_t abi_min)

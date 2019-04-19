@@ -238,7 +238,8 @@ fuse_interrupt_send(struct fuse_ticket *otick, int err)
 		fuse_insert_callback(fdi.tick, fuse_interrupt_callback);
 
 		otick->irq_unique = fdi.tick->tk_unique;
-		fuse_insert_message(fdi.tick);
+		/* Interrupt ops should be delivered ASAP */
+		fuse_insert_message(fdi.tick, true);
 		fdisp_destroy(&fdi);
 	} else {
 		/* This ticket has already been interrupted */
@@ -660,8 +661,14 @@ fuse_insert_callback(struct fuse_ticket *ftick, fuse_handler_t * handler)
 	fuse_lck_mtx_unlock(ftick->tk_data->aw_mtx);
 }
 
+/*
+ * Insert a new upgoing ticket into the message queue
+ *
+ * If urgent is true, insert at the front of the queue.  Otherwise, insert in
+ * FIFO order.
+ */
 void
-fuse_insert_message(struct fuse_ticket *ftick)
+fuse_insert_message(struct fuse_ticket *ftick, bool urgent)
 {
 	if (ftick->tk_flag & FT_DIRTY) {
 		panic("FUSE: ticket reused without being refreshed");
@@ -672,7 +679,10 @@ fuse_insert_message(struct fuse_ticket *ftick)
 		return;
 	}
 	fuse_lck_mtx_lock(ftick->tk_data->ms_mtx);
-	fuse_ms_push(ftick);
+	if (urgent)
+		fuse_ms_push_head(ftick);
+	else
+		fuse_ms_push(ftick);
 	wakeup_one(ftick->tk_data);
 	selwakeuppri(&ftick->tk_data->ks_rsel, PZERO + 1);
 	fuse_lck_mtx_unlock(ftick->tk_data->ms_mtx);
@@ -972,7 +982,7 @@ fdisp_wait_answ(struct fuse_dispatcher *fdip)
 
 	fdip->answ_stat = 0;
 	fuse_insert_callback(fdip->tick, fuse_standard_handler);
-	fuse_insert_message(fdip->tick);
+	fuse_insert_message(fdip->tick, false);
 
 	if ((err = fticket_wait_answer(fdip->tick))) {
 		fuse_lck_mtx_lock(fdip->tick->tk_aw_mtx);

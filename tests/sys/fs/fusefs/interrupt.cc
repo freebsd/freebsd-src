@@ -46,6 +46,8 @@ using namespace testing;
 /* Initial size of files used by these tests */
 const off_t FILESIZE = 1000;
 
+static sem_t *signaled_semaphore;
+
 /* Don't do anything; all we care about is that the syscall gets interrupted */
 void sigusr2_handler(int __unused sig) {
 	if (verbosity > 1) {
@@ -63,6 +65,8 @@ void* killer(void* target) {
 	if (verbosity > 1)
 		printf("Signalling!  thread %p\n", target);
 	pthread_kill((pthread_t)target, SIGUSR2);
+	if (signaled_semaphore != NULL)
+		sem_post(signaled_semaphore);
 
 	return(NULL);
 }
@@ -112,11 +116,16 @@ void expect_write(uint64_t ino, uint64_t *write_unique)
 	}));
 }
 
-void setup_interruptor(pthread_t self)
+void setup_interruptor(pthread_t target)
 {
 	ASSERT_NE(SIG_ERR, signal(SIGUSR2, sigusr2_handler)) << strerror(errno);
-	ASSERT_EQ(0, pthread_create(&m_child, NULL, killer, (void*)self))
+	ASSERT_EQ(0, pthread_create(&m_child, NULL, killer, (void*)target))
 		<< strerror(errno);
+}
+
+void SetUp() {
+	signaled_semaphore = NULL;
+	FuseTest::SetUp();
 }
 
 void TearDown() {
@@ -624,6 +633,98 @@ TEST_F(Interrupt, in_progress_read)
 	EXPECT_EQ(EINTR, errno);
 
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* FUSE_INTERRUPT operations should take priority over other pending ops */
+TEST_F(Interrupt, priority)
+{
+	const char FULLPATH0[] = "mountpoint/some_file.txt";
+	const char RELPATH0[] = "some_file.txt";
+	const char FULLPATH1[] = "mountpoint/other_file.txt";
+	const char RELPATH1[] = "other_file.txt";
+	const char *CONTENTS = "ijklmnop";
+	Sequence seq;
+	ssize_t bufsize = strlen(CONTENTS);
+	uint64_t ino0 = 42, ino1 = 43;
+	int fd0, fd1;
+	uint64_t write_unique;
+	pthread_t self, th0;
+	sem_t sem0, sem1;
+
+	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
+	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
+	self = pthread_self();
+
+	expect_lookup(RELPATH0, ino0);
+	expect_open(ino0, 0, 1);
+	expect_lookup(RELPATH1, ino1);
+	expect_open(ino1, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_WRITE &&
+				in->header.nodeid == ino0);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
+		write_unique = in->header.unique;
+
+		/* Let the next write proceed */
+		sem_post(&sem1);
+
+		/* Pause the daemon thread so it won't read the next op */
+		sem_wait(&sem0);
+
+		/* Finally, interrupt the original op */
+		out->header.error = -EINTR;
+		out->header.unique = write_unique;
+		out->header.len = sizeof(out->header);
+	})));
+	/* 
+	 * FUSE_INTERRUPT should be received before the second FUSE_WRITE, even
+	 * though it was generated later
+	 */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([&](auto in) {
+			return (in->header.opcode == FUSE_INTERRUPT &&
+				in->body.interrupt.unique == write_unique);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillOnce(Invoke(ReturnErrno(EAGAIN)));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([&](auto in) {
+			return (in->header.opcode == FUSE_WRITE &&
+				in->header.nodeid == ino1);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in , auto out) {
+		SET_OUT_HEADER_LEN(out, write);
+		out->body.write.size = in->body.write.size;
+	})));
+
+	fd0 = open(FULLPATH0, O_WRONLY);
+	ASSERT_LE(0, fd0) << strerror(errno);
+	fd1 = open(FULLPATH1, O_WRONLY);
+	ASSERT_LE(0, fd1) << strerror(errno);
+
+	/* Use a separate thread for the first write */
+	ASSERT_EQ(0, pthread_create(&th0, NULL, write0, (void*)(intptr_t)fd0))
+		<< strerror(errno);
+
+	signaled_semaphore = &sem0;
+
+	sem_wait(&sem1);	/* Sequence the two writes */
+	setup_interruptor(th0);
+	ASSERT_EQ(bufsize, write(fd1, CONTENTS, bufsize)) << strerror(errno);
+
+	/* Wait awhile to make sure the signal generates no FUSE_INTERRUPT */
+	usleep(250'000);
+
+	pthread_join(th0, NULL);
+	sem_destroy(&sem1);
+	sem_destroy(&sem0);
 }
 
 /*
