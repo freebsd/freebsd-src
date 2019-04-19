@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/pciio.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -76,6 +77,7 @@ static void		pcib_pcie_ab_timeout(void *arg);
 static void		pcib_pcie_cc_timeout(void *arg);
 static void		pcib_pcie_dll_timeout(void *arg);
 #endif
+static int		pcib_reset_child(device_t dev, device_t child, int flags);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -102,6 +104,7 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+    DEVMETHOD(bus_reset_child,		pcib_reset_child),
 
     /* pcib interface */
     DEVMETHOD(pcib_maxslots,		pcib_ari_maxslots),
@@ -2828,4 +2831,32 @@ pcib_try_enable_ari(device_t pcib, device_t dev)
 	pcib_enable_ari(sc, pcie_pos);
 
 	return (0);
+}
+
+static int
+pcib_reset_child(device_t dev, device_t child, int flags)
+{
+	struct pci_devinfo *pdinfo;
+	int error;
+
+	error = 0;
+	if (dev == NULL || device_get_parent(child) != dev)
+		goto out;
+	error = ENXIO;
+	if (device_get_devclass(child) != devclass_find("pci"))
+		goto out;
+	pdinfo = device_get_ivars(dev);
+	if (pdinfo->cfg.pcie.pcie_location != 0 &&
+	    (pdinfo->cfg.pcie.pcie_type == PCIEM_TYPE_DOWNSTREAM_PORT ||
+	    pdinfo->cfg.pcie.pcie_type == PCIEM_TYPE_ROOT_PORT)) {
+		error = bus_helper_reset_prepare(child, flags);
+		if (error == 0) {
+			error = pcie_link_reset(dev,
+			    pdinfo->cfg.pcie.pcie_location);
+			/* XXXKIB call _post even if error != 0 ? */
+			bus_helper_reset_post(child, flags);
+		}
+	}
+out:
+	return (error);
 }
