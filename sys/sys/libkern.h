@@ -128,7 +128,6 @@ struct malloc_type;
 uint32_t arc4random(void);
 void	 arc4random_buf(void *, size_t);
 void	 arc4rand(void *, u_int, int);
-uint32_t arc4random_uniform(uint32_t);
 int	 timingsafe_bcmp(const void *, const void *, size_t);
 void	*bsearch(const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *));
