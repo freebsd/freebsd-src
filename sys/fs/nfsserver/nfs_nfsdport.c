@@ -2699,10 +2699,12 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 	int attrsum = 0;
 	int i, j;
 	int error, attrsize, bitpos, aclsize, aceerr, retnotsup = 0;
-	int toclient = 0;
+	int moderet, toclient = 0;
 	u_char *cp, namestr[NFSV4_SMALLSTR + 1];
 	uid_t uid;
 	gid_t gid;
+	u_short mode, mask;		/* Same type as va_mode. */
+	struct vattr va;
 
 	error = nfsrv_getattrbits(nd, attrbitp, NULL, &retnotsup);
 	if (error)
@@ -2720,6 +2722,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 	} else {
 		bitpos = 0;
 	}
+	moderet = 0;
 	for (; bitpos < NFSATTRBIT_MAX; bitpos++) {
 	    if (attrsum > attrsize) {
 		error = NFSERR_BADXDR;
@@ -2769,6 +2772,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			attrsum += (NFSX_UNSIGNED + NFSM_RNDUP(i));
 			break;
 		case NFSATTRBIT_MODE:
+			moderet = NFSERR_INVAL;	/* Can't do MODESETMASKED. */
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			nvap->na_mode = nfstov_mode(*tl);
 			attrsum += NFSX_UNSIGNED;
@@ -2871,6 +2875,32 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			    if (!toclient)
 				nvap->na_vaflags |= VA_UTIMES_NULL;
 			}
+			break;
+		case NFSATTRBIT_MODESETMASKED:
+			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			mode = fxdr_unsigned(u_short, *tl++);
+			mask = fxdr_unsigned(u_short, *tl);
+			/*
+			 * vp == NULL implies an Open/Create operation.
+			 * This attribute can only be used for Setattr and
+			 * only for NFSv4.1 or higher.
+			 * If moderet != 0, a mode attribute has also been
+			 * specified and this attribute cannot be done in the
+			 * same Setattr operation.
+			 */
+			if ((nd->nd_flag & ND_NFSV41) == 0)
+				nd->nd_repstat = NFSERR_ATTRNOTSUPP;
+			else if ((mode & ~07777) != 0 || (mask & ~07777) != 0 ||
+			    vp == NULL)
+				nd->nd_repstat = NFSERR_INVAL;
+			else if (moderet == 0)
+				moderet = VOP_GETATTR(vp, &va, nd->nd_cred);
+			if (moderet == 0)
+				nvap->na_mode = (mode & mask) |
+				    (va.va_mode & ~mask);
+			else
+				nd->nd_repstat = moderet;
+			attrsum += 2 * NFSX_UNSIGNED;
 			break;
 		default:
 			nd->nd_repstat = NFSERR_ATTRNOTSUPP;
