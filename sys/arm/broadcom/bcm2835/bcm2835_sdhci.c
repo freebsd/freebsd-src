@@ -63,8 +63,17 @@ __FBSDID("$FreeBSD$");
 #define	NUM_DMA_SEGS			2
 
 #ifdef DEBUG
-#define dprintf(fmt, args...) do { printf("%s(): ", __func__);   \
-    printf(fmt,##args); } while (0)
+static int bcm2835_sdhci_debug = 0;
+
+TUNABLE_INT("hw.bcm2835.sdhci.debug", &bcm2835_sdhci_debug);
+SYSCTL_INT(_hw_sdhci, OID_AUTO, bcm2835_sdhci_debug, CTLFLAG_RWTUN,
+    &bcm2835_sdhci_debug, 0, "bcm2835 SDHCI debug level");
+
+#define	dprintf(fmt, args...)					\
+	do {							\
+		if (bcm2835_sdhci_debug)			\
+			printf("%s: " fmt, __func__, ##args);	\
+	}  while (0)
 #else
 #define dprintf(fmt, args...)
 #endif
