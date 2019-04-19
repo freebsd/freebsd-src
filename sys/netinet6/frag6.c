@@ -277,12 +277,12 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	offset += sizeof(struct ip6_frag);
 
 	/*
-	 * RFC 6946: Handle "atomic" fragments (offset and m bit set to 0)
-	 * upfront, unrelated to any reassembly.  Just skip the fragment header.
+	 * Handle "atomic" fragments (offset and m bit set to 0) upfront,
+	 * unrelated to any reassembly (see RFC 6946 and section 4.5 of RFC
+	 * 8200).  Just skip the fragment header.
 	 */
 	if ((ip6f->ip6f_offlg & ~IP6F_RESERVED_MASK) == 0) {
-		/* XXX-BZ we want dedicated counters for this. */
-		IP6STAT_INC(ip6s_reassembled);
+		IP6STAT_INC(ip6s_atomicfrags);
 		in6_ifstat_inc(dstifp, ifs6_reass_ok);
 		*offp = offset;
 		m->m_flags |= M_FRAGMENTED;
