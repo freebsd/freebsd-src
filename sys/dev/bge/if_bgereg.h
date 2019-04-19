@@ -3067,3 +3067,11 @@ struct bge_softc {
 #define	BGE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->bge_mtx, MA_OWNED)
 #define	BGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->bge_mtx)
 #define	BGE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->bge_mtx)
+
+#ifdef BUS_SPACE_MAXADDR
+#if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
+#define	BGE_DMA_BOUNDARY	(0x100000000)
+#else
+#define	BGE_DMA_BOUNDARY	0
+#endif
+#endif
