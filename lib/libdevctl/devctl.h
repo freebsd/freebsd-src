@@ -31,6 +31,7 @@
 
 #include <stdbool.h>
 
+__BEGIN_DECLS
 int	devctl_attach(const char *device);
 int	devctl_detach(const char *device, bool force);
 int	devctl_enable(const char *device);
@@ -43,5 +44,6 @@ int	devctl_rescan(const char *device);
 int	devctl_delete(const char *device, bool force);
 int	devctl_freeze(void);
 int	devctl_thaw(void);
+__END_DECLS
 
 #endif /* !__DEVCTL_H__ */
