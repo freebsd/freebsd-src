@@ -29,6 +29,8 @@
  */
 
 extern "C" {
+#include <sys/types.h>
+#include <sys/extattr.h>
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -40,6 +42,9 @@ extern "C" {
 #include "utils.hh"
 
 using namespace testing;
+
+/* Initial size of files used by these tests */
+const off_t FILESIZE = 1000;
 
 /* Don't do anything; all we care about is that the syscall gets interrupted */
 void sigusr2_handler(int __unused sig) {
@@ -70,7 +75,7 @@ Interrupt(): m_child(NULL) {};
 
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1000, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, FILESIZE, 1);
 }
 
 /* 
@@ -306,6 +311,19 @@ void* write0(void* arg) {
 		return (void*)(intptr_t)errno;
 }
 
+void* read1(void* arg) {
+	const size_t bufsize = FILESIZE;
+	char buf[bufsize];
+	int fd = (int)(intptr_t)arg;
+	ssize_t r;
+
+	r = read(fd, buf, bufsize);
+	if (r >= 0)
+		return 0;
+	else
+		return (void*)(intptr_t)errno;
+}
+
 /*
  * An operation that hasn't yet been sent to userland can be interrupted
  * without sending FUSE_INTERRUPT
@@ -361,6 +379,151 @@ TEST_F(Interrupt, in_kernel)
 
 	sem_wait(&sem1);	/* Sequence the two writes */
 	ASSERT_EQ(-1, write(fd1, CONTENTS, bufsize));
+	EXPECT_EQ(EINTR, errno);
+
+	/* Unstick the daemon */
+	ASSERT_EQ(0, sem_post(&sem0)) << strerror(errno);
+
+	/* Wait awhile to make sure the signal generates no FUSE_INTERRUPT */
+	usleep(250'000);
+
+	pthread_join(th0, &thr0_value);
+	EXPECT_EQ(0, (intptr_t)thr0_value);
+	sem_destroy(&sem1);
+	sem_destroy(&sem0);
+}
+
+/*
+ * A restartable operation (basically, anything except write or setextattr)
+ * that hasn't yet been sent to userland can be interrupted without sending
+ * FUSE_INTERRUPT, and will be automatically restarted.
+ */
+TEST_F(Interrupt, in_kernel_restartable)
+{
+	const char FULLPATH0[] = "mountpoint/some_file.txt";
+	const char RELPATH0[] = "some_file.txt";
+	const char FULLPATH1[] = "mountpoint/other_file.txt";
+	const char RELPATH1[] = "other_file.txt";
+	uint64_t ino0 = 42, ino1 = 43;
+	int fd0, fd1;
+	pthread_t self, th0, th1;
+	sem_t sem0, sem1;
+	void *thr0_value, *thr1_value;
+
+	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
+	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
+	self = pthread_self();
+
+	expect_lookup(RELPATH0, ino0);
+	expect_open(ino0, 0, 1);
+	expect_lookup(RELPATH1, ino1);
+	expect_open(ino1, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_WRITE &&
+				in->header.nodeid == ino0);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
+		/* Let the next write proceed */
+		sem_post(&sem1);
+		/* Pause the daemon thread so it won't read the next op */
+		sem_wait(&sem0);
+
+		SET_OUT_HEADER_LEN(out, write);
+		out->body.write.size = in->body.write.size;
+	})));
+	FuseTest::expect_read(ino1, 0, FILESIZE, 0, NULL);
+
+	fd0 = open(FULLPATH0, O_WRONLY);
+	ASSERT_LE(0, fd0) << strerror(errno);
+	fd1 = open(FULLPATH1, O_RDONLY);
+	ASSERT_LE(0, fd1) << strerror(errno);
+
+	/* Use a separate thread for each operation */
+	ASSERT_EQ(0, pthread_create(&th0, NULL, write0, (void*)(intptr_t)fd0))
+		<< strerror(errno);
+
+	sem_wait(&sem1);	/* Sequence the two operations */
+
+	ASSERT_EQ(0, pthread_create(&th1, NULL, read1, (void*)(intptr_t)fd1))
+		<< strerror(errno);
+
+	setup_interruptor(self);
+
+	pause();		/* Wait for signal */
+
+	/* Unstick the daemon */
+	ASSERT_EQ(0, sem_post(&sem0)) << strerror(errno);
+
+	/* Wait awhile to make sure the signal generates no FUSE_INTERRUPT */
+	usleep(250'000);
+
+	pthread_join(th1, &thr1_value);
+	pthread_join(th0, &thr0_value);
+	EXPECT_EQ(0, (intptr_t)thr1_value);
+	EXPECT_EQ(0, (intptr_t)thr0_value);
+	sem_destroy(&sem1);
+	sem_destroy(&sem0);
+}
+
+/* 
+ * Like FUSE_WRITE, FUSE_SETXATTR is non-restartable because it calls uiomove
+ * before blocking in fticket_wait_answ
+ */
+TEST_F(Interrupt, in_kernel_setxattr)
+{
+	const char FULLPATH0[] = "mountpoint/some_file.txt";
+	const char RELPATH0[] = "some_file.txt";
+	const char FULLPATH1[] = "mountpoint/other_file.txt";
+	const char RELPATH1[] = "other_file.txt";
+	const char value[] = "whatever";
+	ssize_t value_len = strlen(value) + 1;
+	uint64_t ino0 = 42, ino1 = 43;
+	int ns = EXTATTR_NAMESPACE_USER;
+	int fd0, fd1;
+	pthread_t self, th0;
+	sem_t sem0, sem1;
+	void *thr0_value;
+	ssize_t r;
+
+	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
+	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
+	self = pthread_self();
+
+	expect_lookup(RELPATH0, ino0);
+	expect_open(ino0, 0, 1);
+	expect_lookup(RELPATH1, ino1);
+	expect_open(ino1, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_WRITE &&
+				in->header.nodeid == ino0);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
+		/* Let the next write proceed */
+		sem_post(&sem1);
+		/* Pause the daemon thread so it won't read the next op */
+		sem_wait(&sem0);
+
+		SET_OUT_HEADER_LEN(out, write);
+		out->body.write.size = in->body.write.size;
+	})));
+
+	fd0 = open(FULLPATH0, O_WRONLY);
+	ASSERT_LE(0, fd0) << strerror(errno);
+	fd1 = open(FULLPATH1, O_WRONLY);
+	ASSERT_LE(0, fd1) << strerror(errno);
+
+	/* Use a separate thread for the first write */
+	ASSERT_EQ(0, pthread_create(&th0, NULL, write0, (void*)(intptr_t)fd0))
+		<< strerror(errno);
+
+	setup_interruptor(self);
+
+	sem_wait(&sem1);	/* Sequence the two operations */
+	r = extattr_set_fd(fd1, ns, "foo", (void*)value, value_len);
 	EXPECT_EQ(EINTR, errno);
 
 	/* Unstick the daemon */
@@ -527,10 +690,4 @@ TEST_F(Interrupt, too_soon)
 }
 
 
-// TODO: add a test that uses siginterrupt and an interruptible signal
-// TODO: add a test that verifies a process can be cleanly killed even if a
-// FUSE_WRITE command never returns.
-// TODO: write in-progress tests for other operations
 // TODO: add a test where write returns EWOULDBLOCK
-// TODO: test that operations that haven't been received by the server can be
-// interrupted without generating a FUSE_INTERRUPT.
