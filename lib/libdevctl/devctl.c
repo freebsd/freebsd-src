@@ -159,3 +159,11 @@ devctl_thaw(void)
 
 	return (devctl_simple_request(DEV_THAW, "", 0));
 }
+
+int
+devctl_reset(const char *device, bool detach)
+{
+
+	return (devctl_simple_request(DEV_RESET, device, detach ?
+	    DEVF_RESET_DETACH : 0));
+}
