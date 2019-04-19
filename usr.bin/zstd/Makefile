@@ -7,6 +7,7 @@ SRCS=	\
 	datagen.c \
 	dibio.c \
 	fileio.c \
+	timefn.c \
 	util.c \
 	zstdcli.c
 
