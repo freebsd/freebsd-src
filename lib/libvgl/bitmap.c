@@ -269,7 +269,7 @@ int
 __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
 	      VGLBitmap *dst, int dstx, int dsty, int width, int hight)
 {
-  int srcline, dstline;
+  int srcline, dstline, yend, yextra, ystep;
 
   if (srcx>src->VXsize || srcy>src->VYsize
 	|| dstx>dst->VXsize || dsty>dst->VYsize)
@@ -296,8 +296,17 @@ __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
      hight=dst->VYsize-dsty;
   if (width < 0 || hight < 0)
      return -1;
+  yend = srcy + hight;
+  yextra = 0;
+  ystep = 1;
+  if (src->Bitmap == dst->Bitmap && srcy < dsty) {
+    yend = srcy;
+    yextra = hight - 1;
+    ystep = -1;
+  }
   if (src->Type == MEMBUF) {
-    for (srcline=srcy, dstline=dsty; srcline<srcy+hight; srcline++, dstline++) {
+    for (srcline = srcy + yextra, dstline = dsty + yextra; srcline != yend;
+         srcline += ystep, dstline += ystep) {
       WriteVerticalLine(dst, dstx, dstline, width, 
         src->Bitmap+(srcline*src->VXsize+srcx)*dst->PixelBytes);
     }
@@ -319,7 +328,8 @@ __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
     } else {
       p = buffer;
     }
-    for (srcline=srcy, dstline=dsty; srcline<srcy+hight; srcline++, dstline++) {
+    for (srcline = srcy + yextra, dstline = dsty + yextra; srcline != yend;
+         srcline += ystep, dstline += ystep) {
       ReadVerticalLine(src, srcx, srcline, width, p);
       WriteVerticalLine(dst, dstx, dstline, width, p);
     }
