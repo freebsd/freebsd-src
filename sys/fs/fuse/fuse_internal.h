@@ -80,12 +80,6 @@ vnode_mount(struct vnode *vp)
 	return (vp->v_mount);
 }
 
-static inline bool
-vnode_mountedhere(struct vnode *vp)
-{
-	return (vp->v_mountedhere != NULL);
-}
-
 static inline enum vtype
 vnode_vtype(struct vnode *vp)
 {

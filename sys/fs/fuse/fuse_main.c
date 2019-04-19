@@ -137,11 +137,6 @@ fuse_loader(struct module *m, int what, void *arg)
 		/* vfs_modevent ignores its first arg */
 		if ((err = vfs_modevent(NULL, what, &fuse_vfsconf)))
 			fuse_bringdown(eh_tag);
-		else
-			printf("fuse-freebsd: version %s, FUSE ABI %d.%d\n",
-			    FUSE_FREEBSD_VERSION,
-			    FUSE_KERNEL_VERSION, FUSE_KERNEL_MINOR_VERSION);
-
 		break;
 	case MOD_UNLOAD:
 		if ((err = vfs_modevent(NULL, what, &fuse_vfsconf)))
