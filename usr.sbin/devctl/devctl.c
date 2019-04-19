@@ -71,7 +71,7 @@ DEVCTL_TABLE(top, set);
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 	    "usage: devctl attach device",
 	    "       devctl detach [-f] device",
 	    "       devctl disable [-f] device",
@@ -81,7 +81,9 @@ usage(void)
 	    "       devctl set driver [-f] device driver",
 	    "       devctl clear driver [-f] device",
 	    "       devctl rescan device",
-	    "       devctl delete [-f] device");
+	    "       devctl delete [-f] device",
+	    "       devctl reset [-d] device"
+	    );
 	exit(1);
 }
 
@@ -342,6 +344,40 @@ delete(int ac, char **av)
 	return (0);
 }
 DEVCTL_COMMAND(top, delete, delete);
+
+static void
+reset_usage(void)
+{
+
+	fprintf(stderr, "usage: devctl reset [-d] device\n");
+	exit(1);
+}
+
+static int
+reset(int ac, char **av)
+{
+	bool detach_drv;
+	int ch;
+
+	detach_drv = false;
+	while ((ch = getopt(ac, av, "d")) != -1)
+		switch (ch) {
+		case 'd':
+			detach_drv = true;
+			break;
+		default:
+			reset_usage();
+		}
+	ac -= optind;
+	av += optind;
+
+	if (ac != 1)
+		reset_usage();
+	if (devctl_reset(av[0], detach_drv) < 0)
+		err(1, "Failed to reset %s", av[0]);
+	return (0);
+}
+DEVCTL_COMMAND(top, reset, reset);
 
 int
 main(int ac, char *av[])

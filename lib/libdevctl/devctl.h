@@ -42,6 +42,7 @@ int	devctl_set_driver(const char *device, const char *driver, bool force);
 int	devctl_clear_driver(const char *device, bool force);
 int	devctl_rescan(const char *device);
 int	devctl_delete(const char *device, bool force);
+int	devctl_reset(const char *device, bool detach);
 __END_DECLS
 
 #endif /* !__DEVCTL_H__ */

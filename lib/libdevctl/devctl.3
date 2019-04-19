@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2016
+.Dd April 4, 2019
 .Dt DEVCTL 3
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nm devctl_disable ,
 .Nm devctl_enable ,
 .Nm devctl_rescan ,
+.Nm devctl_reset ,
 .Nm devctl_resume ,
 .Nm devctl_set_driver ,
 .Nm devctl_suspend
@@ -59,6 +60,8 @@
 .Fn devctl_enable "const char *device"
 .Ft int
 .Fn devctl_rescan "const char *device"
+.Ft int
+.Fn devctl_reset "const char *device" "bool detach"
 .Ft int
 .Fn devctl_resume "const char *device"
 .Ft int
@@ -189,6 +192,15 @@ The
 .Fn devctl_rescan
 function rescans a bus device checking for devices that have been added or
 removed.
+.Pp
+The
+.Fn devctl_reset
+function resets the specified device using bus-specific reset method.
+The
+.Fa detach
+argument, if true, specifies that the device driver is detached before
+the reset, and re-attached afterwards.
+If false, the device is suspended before the reset, and resumed after.
 .Sh RETURN VALUES
 .Rv -std devctl_attach devctl_clear_driver devctl_delete devctl_detach \
 devctl_disable devctl_enable devctl_suspend devctl_rescan devctl_resume \
@@ -362,6 +374,21 @@ is false.
 .Fa dev
 is the root device of the device tree.
 .El
+.Pp
+The
+.Fn devctl_reset
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er ENXIO
+The bus does not implement the reset method.
+.It Bq Er ETIMEDOUT
+The device failed to respond after the reset in the time limits
+specific to the bus.
+.El
+The
+.Fn devctl_reset
+function may also return errors caused by the attach, detach, suspend,
+and resume methods of the device driver.
 .Sh SEE ALSO
 .Xr devinfo 3 ,
 .Xr devstat 3 ,
@@ -376,3 +403,20 @@ If a device is suspended individually via
 .Fn devctl_suspend
 and the entire machine is subsequently suspended,
 the device will be resumed when the machine resumes.
+.Pp
+Similarly, if the device is suspended, and
+.Fn devctl_reset
+is called on the device with
+.Fa detach
+set to
+.Va false ,
+the device is resumed by the
+.Fn devctl_reset
+call.
+Or, if the driver for the device is detached manually, and
+.Fn devctl_reset
+is called on the device with
+.Fa detach
+set to
+.Va true ,
+device reset re-attaches the driver.
