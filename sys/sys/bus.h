@@ -130,6 +130,7 @@ struct devreq {
 #define	DEV_DELETE	_IOW('D', 10, struct devreq)
 #define	DEV_FREEZE	_IOW('D', 11, struct devreq)
 #define	DEV_THAW	_IOW('D', 12, struct devreq)
+#define	DEV_RESET	_IOW('D', 13, struct devreq)
 
 /* Flags for DEV_DETACH and DEV_DISABLE. */
 #define	DEVF_FORCE_DETACH	0x0000001
