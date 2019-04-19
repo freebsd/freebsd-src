@@ -61,7 +61,8 @@ CWARNEXTRA?=	-Wno-error=address				\
 CWARNEXTRA+=	-Wno-error=misleading-indentation		\
 		-Wno-error=nonnull-compare			\
 		-Wno-error=shift-overflow			\
-		-Wno-error=tautological-compare
+		-Wno-error=tautological-compare			\
+		-Wno-format-zero-length
 .endif
 .if ${COMPILER_VERSION} >= 70200
 CWARNEXTRA+=	-Wno-error=memset-elt-size
