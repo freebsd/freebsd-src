@@ -382,8 +382,6 @@ enum pqisrc_ctrl_mode{
 #define IS_AIO_PATH(dev)				(dev->aio_enabled)
 #define IS_RAID_PATH(dev)				(!dev->aio_enabled)
 
-#define DEV_RESET(dvp)                          (dvp->reset_in_progress)
-
 /* SOP data direction flags */
 #define SOP_DATA_DIR_NONE			0x00
 #define SOP_DATA_DIR_FROM_DEVICE		0x01
