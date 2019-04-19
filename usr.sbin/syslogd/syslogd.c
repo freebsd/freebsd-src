@@ -1607,6 +1607,7 @@ iovlist_append(struct iovlist *il, const char *str)
 	}
 }
 
+#if defined(INET) || defined(INET6)
 static void
 iovlist_truncate(struct iovlist *il, size_t size)
 {
@@ -1627,6 +1628,7 @@ iovlist_truncate(struct iovlist *il, size_t size)
 		}
 	}
 }
+#endif
 
 static void
 fprintlog_write(struct filed *f, struct iovlist *il, int flags)
@@ -2945,7 +2947,11 @@ timedout(int sig __unused)
  * Returns -1 on error, 0 if the argument was valid.
  */
 static int
+#if defined(INET) || defined(INET6)
 allowaddr(char *s)
+#else
+allowaddr(char *s __unused)
+#endif
 {
 #if defined(INET) || defined(INET6)
 	char *cp1, *cp2;
@@ -3107,13 +3113,13 @@ allowaddr(char *s)
 		}
 		printf("port = %d\n", ap->port);
 	}
-#endif
 
 	return (0);
 err:
 	if (res != NULL)
 		freeaddrinfo(res);
 	free(ap);
+#endif
 	return (-1);
 }
 

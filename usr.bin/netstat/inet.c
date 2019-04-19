@@ -84,8 +84,10 @@ __FBSDID("$FreeBSD$");
 #include "netstat.h"
 #include "nl_defs.h"
 
-void	inetprint(const char *, struct in_addr *, int, const char *, int,
+#ifdef INET
+static void inetprint(const char *, struct in_addr *, int, const char *, int,
     const int);
+#endif
 #ifdef INET6
 static int udp_done, tcp_done, sdp_done;
 #endif /* INET6 */
@@ -506,6 +508,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 			    so->so_rcv.sb_cc, so->so_snd.sb_cc);
 		}
 		if (numeric_port) {
+#ifdef INET
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint("local", &inp->inp_laddr,
 				    (int)inp->inp_lport, name, 1, af1);
@@ -513,8 +516,12 @@ protopr(u_long off, const char *name, int af1, int proto)
 					inetprint("remote", &inp->inp_faddr,
 					    (int)inp->inp_fport, name, 1, af1);
 			}
+#endif
+#if defined(INET) && defined(INET6)
+			else
+#endif
 #ifdef INET6
-			else if (inp->inp_vflag & INP_IPV6) {
+			if (inp->inp_vflag & INP_IPV6) {
 				inet6print("local", &inp->in6p_laddr,
 				    (int)inp->inp_lport, name, 1);
 				if (!Lflag)
@@ -523,6 +530,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 			} /* else nothing printed now */
 #endif /* INET6 */
 		} else if (inp->inp_flags & INP_ANONPORT) {
+#ifdef INET
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint("local", &inp->inp_laddr,
 				    (int)inp->inp_lport, name, 1, af1);
@@ -530,8 +538,12 @@ protopr(u_long off, const char *name, int af1, int proto)
 					inetprint("remote", &inp->inp_faddr,
 					    (int)inp->inp_fport, name, 0, af1);
 			}
+#endif
+#if defined(INET) && defined(INET6)
+			else
+#endif
 #ifdef INET6
-			else if (inp->inp_vflag & INP_IPV6) {
+			if (inp->inp_vflag & INP_IPV6) {
 				inet6print("local", &inp->in6p_laddr,
 				    (int)inp->inp_lport, name, 1);
 				if (!Lflag)
@@ -540,6 +552,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 			} /* else nothing printed now */
 #endif /* INET6 */
 		} else {
+#ifdef INET
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint("local", &inp->inp_laddr,
 				    (int)inp->inp_lport, name, 0, af1);
@@ -549,8 +562,12 @@ protopr(u_long off, const char *name, int af1, int proto)
 					    inp->inp_lport != inp->inp_fport,
 					    af1);
 			}
+#endif
+#if defined(INET) && defined(INET6)
+			else
+#endif
 #ifdef INET6
-			else if (inp->inp_vflag & INP_IPV6) {
+			if (inp->inp_vflag & INP_IPV6) {
 				inet6print("local", &inp->in6p_laddr,
 				    (int)inp->inp_lport, name, 0);
 				if (!Lflag)
@@ -1415,10 +1432,11 @@ pim_stats(u_long off __unused, const char *name, int af1 __unused,
 	xo_close_container(name);
 }
 
+#ifdef INET
 /*
  * Pretty print an Internet address (net address + port).
  */
-void
+static void
 inetprint(const char *container, struct in_addr *in, int port,
     const char *proto, int num_port, const int af1)
 {
@@ -1505,3 +1523,4 @@ inetname(struct in_addr *inp)
 	}
 	return (line);
 }
+#endif
