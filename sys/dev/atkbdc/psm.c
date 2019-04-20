@@ -1830,7 +1830,7 @@ psm_register_synaptics(device_t dev)
 	if (sc->synhw.capClickPad && sc->synhw.topButtonPad)
 		evdev_support_prop(evdev_a, INPUT_PROP_TOPBUTTONPAD);
 	evdev_support_key(evdev_a, BTN_TOUCH);
-	evdev_support_nfingers(evdev_a, 3);
+	evdev_support_nfingers(evdev_a, sc->synhw.capReportsV ? 5 : 3);
 	psm_support_abs_bulk(evdev_a, synaptics_absinfo_st);
 	if (sc->synhw.capAdvancedGestures || sc->synhw.capReportsV)
 		psm_support_abs_bulk(evdev_a, synaptics_absinfo_mt);
@@ -3212,6 +3212,7 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 {
 	static int touchpad_buttons;
 	static int guest_buttons;
+	static int ew_finger_count;
 	static finger_t f[PSM_FINGERS];
 	int w, id, nfingers, ewcode, extended_buttons, clickpad_pressed;
 
@@ -3372,6 +3373,9 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 					    (pb->ipacket[1] & 0x01)) + 8,
 					.flags = PSM_FINGER_FUZZY,
 				};
+			break;
+		case 2:
+			ew_finger_count = pb->ipacket[1] & 0x0f;
 		default:
 			break;
 		}
@@ -3379,6 +3383,11 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		goto SYNAPTICS_END;
 
 	case 1:
+		if (sc->synhw.capReportsV && ew_finger_count > 3) {
+			nfingers = ew_finger_count;
+			break;
+		}
+		/* FALLTHROUGH */
 	case 0:
 		nfingers = w + 2;
 		break;
