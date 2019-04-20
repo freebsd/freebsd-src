@@ -1144,13 +1144,25 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 
 	error = 0;
 	switch (cmd) {
-	case DIOCSKERNELDUMP:
+#ifdef COMPAT_FREEBSD11
+	case DIOCSKERNELDUMP_FREEBSD11:
 		u = *(u_int *)addr;
 		if (u != 0) {
 			error = ENXIO;
 			break;
 		}
-
+		if (nd_enabled) {
+			nd_enabled = 0;
+			netdump_mbuf_drain();
+		}
+		break;
+#endif
+	case DIOCSKERNELDUMP:
+		kda = (void *)addr;
+		if (kda->kda_enable != 0) {
+			error = ENXIO;
+			break;
+		}
 		if (nd_enabled) {
 			nd_enabled = 0;
 			netdump_mbuf_drain();
