@@ -85,13 +85,13 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_FUSE_FILEHANDLE, "fuse_filefilehandle", "FUSE file handle");
 
-SDT_PROVIDER_DECLARE(fuse);
+SDT_PROVIDER_DECLARE(fusefs);
 /* 
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
  */
-SDT_PROBE_DEFINE2(fuse, , file, trace, "int", "char*");
+SDT_PROBE_DEFINE2(fusefs, , file, trace, "int", "char*");
 
 static int fuse_fh_count = 0;
 
@@ -180,7 +180,7 @@ fuse_filehandle_open(struct vnode *vp, int a_mode,
 	foi->flags = oflags;
 
 	if ((err = fdisp_wait_answ(&fdi))) {
-		SDT_PROBE2(fuse, , file, trace, 1,
+		SDT_PROBE2(fusefs, , file, trace, 1,
 			"OUCH ... daemon didn't give fh");
 		if (err == ENOENT) {
 			fuse_internal_vnode_disappear(vp);

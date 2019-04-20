@@ -88,13 +88,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <security/mac/mac_framework.h>
 
-SDT_PROVIDER_DECLARE(fuse);
+SDT_PROVIDER_DECLARE(fusefs);
 /* 
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
  */
-SDT_PROBE_DEFINE2(fuse, , vfsops, trace, "int", "char*");
+SDT_PROBE_DEFINE2(fusefs, , vfsops, trace, "int", "char*");
 
 /* This will do for privilege types for now */
 #ifndef PRIV_VFS_FUSE_ALLOWOTHER
@@ -207,8 +207,8 @@ fuse_getdevice(const char *fspec, struct thread *td, struct cdev **fdevp)
 	vfs_flagopt(opts, "__" #fnam, &__mntopts, fval);	\
 } while (0)
 
-SDT_PROBE_DEFINE1(fuse, , vfsops, mntopts, "uint64_t");
-SDT_PROBE_DEFINE4(fuse, , vfsops, mount_err, "char*", "struct fuse_data*",
+SDT_PROBE_DEFINE1(fusefs, , vfsops, mntopts, "uint64_t");
+SDT_PROBE_DEFINE4(fusefs, , vfsops, mount_err, "char*", "struct fuse_data*",
 	"struct mount*", "int");
 
 static int
@@ -292,11 +292,11 @@ fuse_vfsop_mount(struct mount *mp)
 	}
 	subtype = vfs_getopts(opts, "subtype=", &err);
 
-	SDT_PROBE1(fuse, , vfsops, mntopts, mntopts);
+	SDT_PROBE1(fusefs, , vfsops, mntopts, mntopts);
 
 	err = fget(td, fd, &cap_read_rights, &fp);
 	if (err != 0) {
-		SDT_PROBE2(fuse, , vfsops, trace, 1,
+		SDT_PROBE2(fusefs, , vfsops, trace, 1,
 			"invalid or not opened device");
 		goto out;
 	}
@@ -308,14 +308,14 @@ fuse_vfsop_mount(struct mount *mp)
 	FUSE_LOCK();
 	if (err != 0 || data == NULL || data->mp != NULL) {
 		err = ENXIO;
-		SDT_PROBE4(fuse, , vfsops, mount_err,
+		SDT_PROBE4(fusefs, , vfsops, mount_err,
 			"invalid or not opened device", data, mp, err);
 		FUSE_UNLOCK();
 		goto out;
 	}
 	if (fdata_get_dead(data)) {
 		err = ENOTCONN;
-		SDT_PROBE4(fuse, , vfsops, mount_err,
+		SDT_PROBE4(fusefs, , vfsops, mount_err,
 			"device is dead during mount", data, mp, err);
 		FUSE_UNLOCK();
 		goto out;
@@ -365,7 +365,7 @@ out:
 			 * Destroy device only if we acquired reference to
 			 * it
 			 */
-			SDT_PROBE4(fuse, , vfsops, mount_err,
+			SDT_PROBE4(fusefs, , vfsops, mount_err,
 				"mount failed, destroy device", data, mp, err);
 			data->mp = NULL;
 			fdata_trydestroy(data);
@@ -453,13 +453,13 @@ fuse_vfsop_root(struct mount *mp, int lkflags, struct vnode **vpp)
 			FUSE_LOCK();
 			MPASS(data->vroot == NULL || data->vroot == *vpp);
 			if (data->vroot == NULL) {
-				SDT_PROBE2(fuse, , vfsops, trace, 1,
+				SDT_PROBE2(fusefs, , vfsops, trace, 1,
 					"new root vnode");
 				data->vroot = *vpp;
 				FUSE_UNLOCK();
 				vref(*vpp);
 			} else if (data->vroot != *vpp) {
-				SDT_PROBE2(fuse, , vfsops, trace, 1,
+				SDT_PROBE2(fusefs, , vfsops, trace, 1,
 					"root vnode race");
 				FUSE_UNLOCK();
 				VOP_UNLOCK(*vpp, 0);

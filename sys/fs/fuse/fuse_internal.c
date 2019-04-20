@@ -93,13 +93,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse_node.h"
 #include "fuse_file.h"
 
-SDT_PROVIDER_DECLARE(fuse);
+SDT_PROVIDER_DECLARE(fusefs);
 /* 
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
  */
-SDT_PROBE_DEFINE2(fuse, , internal, trace, "int", "char*");
+SDT_PROBE_DEFINE2(fusefs, , internal, trace, "int", "char*");
 
 #ifdef ZERO_PAD_INCOMPLETE_BUFS
 static int isbzero(void *buf, size_t len);
@@ -683,7 +683,7 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 
 	/* XXX: Do we want to check anything further besides this? */
 	if (fiio->major < 7) {
-		SDT_PROBE2(fuse, , internal, trace, 1,
+		SDT_PROBE2(fusefs, , internal, trace, 1,
 			"userpace version too low");
 		err = EPROTONOSUPPORT;
 		goto out;

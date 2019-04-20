@@ -83,13 +83,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse.h"
 #include "fuse_ipc.h"
 
-SDT_PROVIDER_DECLARE(fuse);
+SDT_PROVIDER_DECLARE(fusefs);
 /* 
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
  */
-SDT_PROBE_DEFINE2(fuse, , device, trace, "int", "char*");
+SDT_PROBE_DEFINE2(fusefs, , device, trace, "int", "char*");
 
 static struct cdev *fuse_dev;
 
@@ -133,14 +133,14 @@ fuse_device_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	struct fuse_data *fdata;
 	int error;
 
-	SDT_PROBE2(fuse, , device, trace, 1, "device open");
+	SDT_PROBE2(fusefs, , device, trace, 1, "device open");
 
 	fdata = fdata_alloc(dev, td->td_ucred);
 	error = devfs_set_cdevpriv(fdata, fdata_dtor);
 	if (error != 0)
 		fdata_trydestroy(fdata);
 	else
-		SDT_PROBE2(fuse, , device, trace, 1, "device open success");
+		SDT_PROBE2(fusefs, , device, trace, 1, "device open success");
 	return (error);
 }
 
@@ -175,7 +175,7 @@ fuse_device_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	fuse_lck_mtx_unlock(data->aw_mtx);
 	FUSE_UNLOCK();
 
-	SDT_PROBE2(fuse, , device, trace, 1, "device close");
+	SDT_PROBE2(fusefs, , device, trace, 1, "device close");
 	return (0);
 }
 
@@ -219,7 +219,7 @@ fuse_device_read(struct cdev *dev, struct uio *uio, int ioflag)
 	int buflen[3];
 	int i;
 
-	SDT_PROBE2(fuse, , device, trace, 1, "fuse device read");
+	SDT_PROBE2(fusefs, , device, trace, 1, "fuse device read");
 
 	err = devfs_get_cdevpriv((void **)&data);
 	if (err != 0)
@@ -228,7 +228,7 @@ fuse_device_read(struct cdev *dev, struct uio *uio, int ioflag)
 	fuse_lck_mtx_lock(data->ms_mtx);
 again:
 	if (fdata_get_dead(data)) {
-		SDT_PROBE2(fuse, , device, trace, 2,
+		SDT_PROBE2(fusefs, , device, trace, 2,
 			"we know early on that reader should be kicked so we "
 			"don't wait for news");
 		fuse_lck_mtx_unlock(data->ms_mtx);
@@ -256,7 +256,7 @@ again:
 		 * -- and some other cases, too, tho not totally clear, when
 		 * (cv_signal/wakeup_one signals the whole process ?)
 		 */
-		SDT_PROBE2(fuse, , device, trace, 1, "no message on thread");
+		SDT_PROBE2(fusefs, , device, trace, 1, "no message on thread");
 		goto again;
 	}
 	fuse_lck_mtx_unlock(data->ms_mtx);
@@ -266,9 +266,10 @@ again:
 		 * somebody somewhere -- eg., umount routine --
 		 * wants this liaison finished off
 		 */
-		SDT_PROBE2(fuse, , device, trace, 2, "reader is to be sacked");
+		SDT_PROBE2(fusefs, , device, trace, 2,
+			"reader is to be sacked");
 		if (tick) {
-			SDT_PROBE2(fuse, , device, trace, 2, "weird -- "
+			SDT_PROBE2(fusefs, , device, trace, 2, "weird -- "
 				"\"kick\" is set tho there is message");
 			FUSE_ASSERT_MS_DONE(tick);
 			fuse_ticket_drop(tick);
@@ -276,7 +277,7 @@ again:
 		return (ENODEV);	/* This should make the daemon get off
 					 * of us */
 	}
-	SDT_PROBE2(fuse, , device, trace, 1,
+	SDT_PROBE2(fusefs, , device, trace, 1,
 		"fuse device read message successfully");
 
 	KASSERT(tick->tk_ms_bufdata || tick->tk_ms_bufsize == 0,
@@ -311,7 +312,7 @@ again:
 		 */
 		if (uio->uio_resid < buflen[i]) {
 			fdata_set_dead(data);
-			SDT_PROBE2(fuse, , device, trace, 2,
+			SDT_PROBE2(fusefs, , device, trace, 2,
 			    "daemon is stupid, kick it off...");
 			err = ENODEV;
 			break;
@@ -331,12 +332,13 @@ static inline int
 fuse_ohead_audit(struct fuse_out_header *ohead, struct uio *uio)
 {
 	if (uio->uio_resid + sizeof(struct fuse_out_header) != ohead->len) {
-		SDT_PROBE2(fuse, , device, trace, 1, "Format error: body size "
+		SDT_PROBE2(fusefs, , device, trace, 1,
+			"Format error: body size "
 			"differs from size claimed by header");
 		return (EINVAL);
 	}
 	if (uio->uio_resid && ohead->error) {
-		SDT_PROBE2(fuse, , device, trace, 1, 
+		SDT_PROBE2(fusefs, , device, trace, 1, 
 			"Format error: non zero error but message had a body");
 		return (EINVAL);
 	}
@@ -346,8 +348,10 @@ fuse_ohead_audit(struct fuse_out_header *ohead, struct uio *uio)
 	return (0);
 }
 
-SDT_PROBE_DEFINE1(fuse, , device, fuse_device_write_missing_ticket, "uint64_t");
-SDT_PROBE_DEFINE1(fuse, , device, fuse_device_write_found, "struct fuse_ticket*");
+SDT_PROBE_DEFINE1(fusefs, , device, fuse_device_write_missing_ticket,
+	"uint64_t");
+SDT_PROBE_DEFINE1(fusefs, , device, fuse_device_write_found,
+	"struct fuse_ticket*");
 /*
  * fuse_device_write first reads the header sent by the daemon.
  * If that's OK, looks up ticket/callback node by the unique id seen in header.
@@ -368,7 +372,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return (err);
 
 	if (uio->uio_resid < sizeof(struct fuse_out_header)) {
-		SDT_PROBE2(fuse, , device, trace, 1,
+		SDT_PROBE2(fusefs, , device, trace, 1,
 			"fuse_device_write got less than a header!");
 		fdata_set_dead(data);
 		return (EINVAL);
@@ -394,7 +398,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	TAILQ_FOREACH_SAFE(tick, &data->aw_head, tk_aw_link,
 	    x_tick) {
 		if (tick->tk_unique == ohead.unique) {
-			SDT_PROBE1(fuse, , device, fuse_device_write_found,
+			SDT_PROBE1(fusefs, , device, fuse_device_write_found,
 				tick);
 			found = 1;
 			fuse_aw_remove(tick);
@@ -427,13 +431,13 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 			 * via ticket_drop(), so no manual mucking
 			 * around...)
 			 */
-			SDT_PROBE2(fuse, , device, trace, 1,
+			SDT_PROBE2(fusefs, , device, trace, 1,
 				"pass ticket to a callback");
 			memcpy(&tick->tk_aw_ohead, &ohead, sizeof(ohead));
 			err = tick->tk_aw_handler(tick, uio);
 		} else {
 			/* pretender doesn't wanna do anything with answer */
-			SDT_PROBE2(fuse, , device, trace, 1,
+			SDT_PROBE2(fusefs, , device, trace, 1,
 				"stuff devalidated, so we drop it");
 		}
 
@@ -445,7 +449,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		fuse_ticket_drop(tick);
 	} else {
 		/* no callback at all! */
-		SDT_PROBE1(fuse, , device, fuse_device_write_missing_ticket, 
+		SDT_PROBE1(fusefs, , device, fuse_device_write_missing_ticket, 
 			ohead.unique);
 		if (ohead.error == EAGAIN) {
 			/* 

@@ -109,13 +109,13 @@ __FBSDID("$FreeBSD$");
 /* Maximum number of hardlinks to a single FUSE file */
 #define FUSE_LINK_MAX                      UINT32_MAX
 
-SDT_PROVIDER_DECLARE(fuse);
+SDT_PROVIDER_DECLARE(fusefs);
 /* 
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
  */
-SDT_PROBE_DEFINE2(fuse, , vnops, trace, "int", "char*");
+SDT_PROBE_DEFINE2(fusefs, , vnops, trace, "int", "char*");
 
 /* vnode ops */
 static vop_access_t fuse_vnop_access;
@@ -815,7 +815,7 @@ fuse_lookup_alloc(struct mount *mp, void *arg, int lkflags, struct vnode **vpp)
 		flaa->vtyp);
 }
 
-SDT_PROBE_DEFINE3(fuse, , vnops, cache_lookup,
+SDT_PROBE_DEFINE3(fusefs, , vnops, cache_lookup,
 	"int", "struct timespec*", "struct timespec*");
 /*
     struct vnop_lookup_args {
@@ -882,7 +882,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 
 		err = cache_lookup(dvp, vpp, cnp, &timeout, NULL);
 		getnanouptime(&now);
-		SDT_PROBE3(fuse, , vnops, cache_lookup, err, &timeout, &now);
+		SDT_PROBE3(fusefs, , vnops, cache_lookup, err, &timeout, &now);
 		switch (err) {
 		case -1:		/* positive match */
 			if (timespeccmp(&timeout, &now, >)) {
@@ -1404,7 +1404,7 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	}
 	if (fvp->v_mount != tdvp->v_mount ||
 	    (tvp && fvp->v_mount != tvp->v_mount)) {
-		SDT_PROBE2(fuse, , vnops, trace, 1, "cross-device rename");
+		SDT_PROBE2(fusefs, , vnops, trace, 1, "cross-device rename");
 		err = EXDEV;
 		goto out;
 	}
@@ -1584,7 +1584,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 
 	if (vnode_vtype(vp) != vtyp) {
 		if (vnode_vtype(vp) == VNON && vtyp != VNON) {
-			SDT_PROBE2(fuse, , vnops, trace, 1, "FUSE: Dang! "
+			SDT_PROBE2(fusefs, , vnops, trace, 1, "FUSE: Dang! "
 				"vnode_vtype is VNON and vtype isn't.");
 		} else {
 			/*
@@ -1732,7 +1732,7 @@ fuse_vnop_write(struct vop_write_args *ap)
 	return fuse_io_dispatch(vp, uio, ioflag, cred, pid);
 }
 
-SDT_PROBE_DEFINE1(fuse, , vnops, vnop_getpages_error, "int");
+SDT_PROBE_DEFINE1(fusefs, , vnops, vnop_getpages_error, "int");
 /*
     struct vnop_getpages_args {
 	struct vnode *a_vp;
@@ -1763,7 +1763,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	npages = ap->a_count;
 
 	if (!fsess_opt_mmap(vnode_mount(vp))) {
-		SDT_PROBE2(fuse, , vnops, trace, 1,
+		SDT_PROBE2(fusefs, , vnops, trace, 1,
 			"called on non-cacheable vnode??\n");
 		return (VM_PAGER_ERROR);
 	}
@@ -1809,7 +1809,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	uma_zfree(fuse_pbuf_zone, bp);
 
 	if (error && (uio.uio_resid == count)) {
-		SDT_PROBE1(fuse, , vnops, vnop_getpages_error, error);
+		SDT_PROBE1(fusefs, , vnops, vnop_getpages_error, error);
 		return VM_PAGER_ERROR;
 	}
 	/*
@@ -1900,7 +1900,7 @@ fuse_vnop_putpages(struct vop_putpages_args *ap)
 	offset = IDX_TO_OFF(pages[0]->pindex);
 
 	if (!fsess_opt_mmap(vnode_mount(vp))) {
-		SDT_PROBE2(fuse, , vnops, trace, 1,
+		SDT_PROBE2(fusefs, , vnops, trace, 1,
 			"called on non-cacheable vnode??\n");
 	}
 	for (i = 0; i < npages; i++)
