@@ -436,75 +436,75 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 		 */
 		sc->ier = value & 0x0F;
 		break;
-		case REG_FCR:
-			/*
-			 * When moving from FIFO and 16450 mode and vice versa,
-			 * the FIFO contents are reset.
-			 */
-			if ((sc->fcr & FCR_ENABLE) ^ (value & FCR_ENABLE)) {
-				fifosz = (value & FCR_ENABLE) ? FIFOSZ : 1;
-				rxfifo_reset(sc, fifosz);
-			}
+	case REG_FCR:
+		/*
+		 * When moving from FIFO and 16450 mode and vice versa,
+		 * the FIFO contents are reset.
+		 */
+		if ((sc->fcr & FCR_ENABLE) ^ (value & FCR_ENABLE)) {
+			fifosz = (value & FCR_ENABLE) ? FIFOSZ : 1;
+			rxfifo_reset(sc, fifosz);
+		}
 
-			/*
-			 * The FCR_ENABLE bit must be '1' for the programming
-			 * of other FCR bits to be effective.
-			 */
-			if ((value & FCR_ENABLE) == 0) {
-				sc->fcr = 0;
-			} else {
-				if ((value & FCR_RCV_RST) != 0)
-					rxfifo_reset(sc, FIFOSZ);
+		/*
+		 * The FCR_ENABLE bit must be '1' for the programming
+		 * of other FCR bits to be effective.
+		 */
+		if ((value & FCR_ENABLE) == 0) {
+			sc->fcr = 0;
+		} else {
+			if ((value & FCR_RCV_RST) != 0)
+				rxfifo_reset(sc, FIFOSZ);
 
-				sc->fcr = value &
-					 (FCR_ENABLE | FCR_DMA | FCR_RX_MASK);
-			}
-			break;
-		case REG_LCR:
-			sc->lcr = value;
-			break;
-		case REG_MCR:
-			/* Apply mask so that bits 5-7 are 0 */
-			sc->mcr = value & 0x1F;
-			msr = modem_status(sc->mcr);
+			sc->fcr = value &
+				 (FCR_ENABLE | FCR_DMA | FCR_RX_MASK);
+		}
+		break;
+	case REG_LCR:
+		sc->lcr = value;
+		break;
+	case REG_MCR:
+		/* Apply mask so that bits 5-7 are 0 */
+		sc->mcr = value & 0x1F;
+		msr = modem_status(sc->mcr);
 
-			/*
-			 * Detect if there has been any change between the
-			 * previous and the new value of MSR. If there is
-			 * then assert the appropriate MSR delta bit.
-			 */
-			if ((msr & MSR_CTS) ^ (sc->msr & MSR_CTS))
-				sc->msr |= MSR_DCTS;
-			if ((msr & MSR_DSR) ^ (sc->msr & MSR_DSR))
-				sc->msr |= MSR_DDSR;
-			if ((msr & MSR_DCD) ^ (sc->msr & MSR_DCD))
-				sc->msr |= MSR_DDCD;
-			if ((sc->msr & MSR_RI) != 0 && (msr & MSR_RI) == 0)
-				sc->msr |= MSR_TERI;
+		/*
+		 * Detect if there has been any change between the
+		 * previous and the new value of MSR. If there is
+		 * then assert the appropriate MSR delta bit.
+		 */
+		if ((msr & MSR_CTS) ^ (sc->msr & MSR_CTS))
+			sc->msr |= MSR_DCTS;
+		if ((msr & MSR_DSR) ^ (sc->msr & MSR_DSR))
+			sc->msr |= MSR_DDSR;
+		if ((msr & MSR_DCD) ^ (sc->msr & MSR_DCD))
+			sc->msr |= MSR_DDCD;
+		if ((sc->msr & MSR_RI) != 0 && (msr & MSR_RI) == 0)
+			sc->msr |= MSR_TERI;
 
-			/*
-			 * Update the value of MSR while retaining the delta
-			 * bits.
-			 */
-			sc->msr &= MSR_DELTA_MASK;
-			sc->msr |= msr;
-			break;
-		case REG_LSR:
-			/*
-			 * Line status register is not meant to be written to
-			 * during normal operation.
-			 */
-			break;
-		case REG_MSR:
-			/*
-			 * As far as I can tell MSR is a read-only register.
-			 */
-			break;
-		case REG_SCR:
-			sc->scr = value;
-			break;
-		default:
-			break;
+		/*
+		 * Update the value of MSR while retaining the delta
+		 * bits.
+		 */
+		sc->msr &= MSR_DELTA_MASK;
+		sc->msr |= msr;
+		break;
+	case REG_LSR:
+		/*
+		 * Line status register is not meant to be written to
+		 * during normal operation.
+		 */
+		break;
+	case REG_MSR:
+		/*
+		 * As far as I can tell MSR is a read-only register.
+		 */
+		break;
+	case REG_SCR:
+		sc->scr = value;
+		break;
+	default:
+		break;
 	}
 
 done:
