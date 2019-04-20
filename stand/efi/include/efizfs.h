@@ -33,6 +33,8 @@
 #define _EFIZFS_H_
 
 #ifdef EFI_ZFS_BOOT
+#include <libzfs.h>
+
 typedef STAILQ_HEAD(zfsinfo_list, zfsinfo) zfsinfo_list_t;
 
 typedef struct zfsinfo
@@ -50,6 +52,9 @@ bool efizfs_get_guid_by_handle(EFI_HANDLE, uint64_t *);
 zfsinfo_list_t *efizfs_get_zfsinfo_list(void);
 void efizfs_set_preferred(EFI_HANDLE);
 
+#else
+#define efizfs_set_preferred(x)
+#define efi_zfs_probe NULL
 #endif
 
 #endif
