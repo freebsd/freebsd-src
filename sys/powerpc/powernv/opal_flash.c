@@ -239,8 +239,8 @@ opalflash_write(struct opalflash_softc *sc, off_t off,
 	int rv, size, token;
 
 	/* Ensure we write aligned to a full block size. */
-	if (off % sc->sc_disk->d_stripesize != 0 ||
-	    count % sc->sc_disk->d_stripesize != 0)
+	if (off % sc->sc_disk->d_sectorsize != 0 ||
+	    count % sc->sc_disk->d_sectorsize != 0)
 		return (EIO);
 
 	if (sc->sc_erase) {
