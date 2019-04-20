@@ -15,6 +15,6 @@ SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c
 # Enable asserts and other debugging facilities
 # CFLAGS += -DINVARIANTS -DINVARIANTS_SUPPORT -DWITNESS
 
-LINKS=	${KMODDIR}/${KMOD}.ko ${KMODDIR}/if_ixlv.ko
+SYMLINKS=	${KMOD}.ko ${KMODDIR}/if_ixlv.ko
 
 .include <bsd.kmod.mk>
