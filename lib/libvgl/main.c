@@ -93,7 +93,8 @@ struct vt_mode smode;
     size[2] = VGLOldVInfo.font_size;;
     ioctl(0, KDRASTER, size);
   }
-  ioctl(0, KDDISABIO, 0);
+  if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT)
+    ioctl(0, KDDISABIO, 0);
   ioctl(0, KDSETMODE, KD_TEXT);
   smode.mode = VT_AUTO;
   ioctl(0, VT_SETMODE, &smode);
@@ -176,7 +177,7 @@ VGLInit(int mode)
   if (VGLDisplay == NULL)
     return -2;
 
-  if (ioctl(0, KDENABIO, 0)) {
+  if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT && ioctl(0, KDENABIO, 0)) {
     free(VGLDisplay);
     return -3;
   }
@@ -370,7 +371,8 @@ VGLCheckSwitch()
 
     VGLSwitchPending = 0;
     if (VGLOnDisplay) {
-      ioctl(0, KDENABIO, 0);
+      if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT)
+        ioctl(0, KDENABIO, 0);
       ioctl(0, KDSETMODE, KD_GRAPHICS);
       ioctl(0, VGLMode, 0);
       VGLCurWindow = 0;
@@ -531,7 +533,8 @@ VGLCheckSwitch()
       munmap(VGLDisplay->Bitmap, VGLAdpInfo.va_window_size);
       ioctl(0, VGLOldMode, 0);
       ioctl(0, KDSETMODE, KD_TEXT);
-      ioctl(0, KDDISABIO, 0);
+      if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT)
+        ioctl(0, KDDISABIO, 0);
       ioctl(0, VT_RELDISP, VT_TRUE);
       VGLDisplay->Bitmap = VGLBuf;
       VGLDisplay->Type = MEMBUF;

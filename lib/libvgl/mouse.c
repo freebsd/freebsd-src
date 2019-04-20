@@ -111,10 +111,12 @@ VGLMousePointerShow()
   if (!VGLMouseVisible) {
     INTOFF();
     VGLMouseVisible = 1;
-    crtcidx = inb(0x3c4);
-    crtcval = inb(0x3c5);
-    gdcidx = inb(0x3ce);
-    gdcval = inb(0x3cf);
+    if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT) {
+      crtcidx = inb(0x3c4);
+      crtcval = inb(0x3c5);
+      gdcidx = inb(0x3ce);
+      gdcval = inb(0x3cf);
+    }
     __VGLBitmapCopy(VGLDisplay, VGLMouseXpos, VGLMouseYpos, 
 		  &VGLMouseSave, 0, 0, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
     bcopy(VGLMouseSave.Bitmap, buffer.Bitmap,
@@ -128,10 +130,12 @@ VGLMousePointerShow()
       }
     __VGLBitmapCopy(&buffer, 0, 0, VGLDisplay, 
 		  VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
-    outb(0x3c4, crtcidx);
-    outb(0x3c5, crtcval);
-    outb(0x3ce, gdcidx);
-    outb(0x3cf, gdcval);
+    if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT) {
+      outb(0x3c4, crtcidx);
+      outb(0x3c5, crtcval);
+      outb(0x3ce, gdcidx);
+      outb(0x3cf, gdcval);
+    }
     INTON();
   }
 }
@@ -144,16 +148,20 @@ VGLMousePointerHide()
   if (VGLMouseVisible) {
     INTOFF();
     VGLMouseVisible = 0;
-    crtcidx = inb(0x3c4);
-    crtcval = inb(0x3c5);
-    gdcidx = inb(0x3ce);
-    gdcval = inb(0x3cf);
+    if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT) {
+      crtcidx = inb(0x3c4);
+      crtcval = inb(0x3c5);
+      gdcidx = inb(0x3ce);
+      gdcval = inb(0x3cf);
+    }
     __VGLBitmapCopy(&VGLMouseSave, 0, 0, VGLDisplay, 
 		  VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
-    outb(0x3c4, crtcidx);
-    outb(0x3c5, crtcval);
-    outb(0x3ce, gdcidx);
-    outb(0x3cf, gdcval);
+    if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT) {
+      outb(0x3c4, crtcidx);
+      outb(0x3c5, crtcval);
+      outb(0x3ce, gdcidx);
+      outb(0x3cf, gdcval);
+    }
     INTON();
   }
 }
