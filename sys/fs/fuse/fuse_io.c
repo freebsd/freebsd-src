@@ -98,13 +98,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse_ipc.h"
 #include "fuse_io.h"
 
-SDT_PROVIDER_DECLARE(fuse);
+SDT_PROVIDER_DECLARE(fusefs);
 /* 
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
  */
-SDT_PROBE_DEFINE2(fuse, , io, trace, "int", "char*");
+SDT_PROBE_DEFINE2(fusefs, , io, trace, "int", "char*");
 
 static int 
 fuse_read_directbackend(struct vnode *vp, struct uio *uio,
@@ -119,7 +119,7 @@ static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag, pid_t pid);
 
-SDT_PROBE_DEFINE5(fuse, , io, io_dispatch, "struct vnode*", "struct uio*",
+SDT_PROBE_DEFINE5(fusefs, , io, io_dispatch, "struct vnode*", "struct uio*",
 		"int", "struct ucred*", "struct fuse_filehandle*");
 int
 fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
@@ -137,7 +137,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		printf("FUSE: io dispatch: filehandles are closed\n");
 		return err;
 	}
-	SDT_PROBE5(fuse, , io, io_dispatch, vp, uio, ioflag, cred, fufh);
+	SDT_PROBE5(fusefs, , io, io_dispatch, vp, uio, ioflag, cred, fufh);
 
 	/*
          * Ideally, when the daemon asks for direct io at open time, the
@@ -154,11 +154,11 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 	switch (uio->uio_rw) {
 	case UIO_READ:
 		if (directio) {
-			SDT_PROBE2(fuse, , io, trace, 1,
+			SDT_PROBE2(fusefs, , io, trace, 1,
 				"direct read of vnode");
 			err = fuse_read_directbackend(vp, uio, cred, fufh);
 		} else {
-			SDT_PROBE2(fuse, , io, trace, 1,
+			SDT_PROBE2(fusefs, , io, trace, 1,
 				"buffered read of vnode");
 			err = fuse_read_biobackend(vp, uio, cred, fufh, pid);
 		}
@@ -173,7 +173,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		if (directio || fuse_data_cache_mode == FUSE_CACHE_WT) {
 			off_t start, end;
 
-			SDT_PROBE2(fuse, , io, trace, 1,
+			SDT_PROBE2(fusefs, , io, trace, 1,
 				"direct write of vnode");
 			start = uio->uio_offset;
 			end = start + uio->uio_resid;
@@ -181,7 +181,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 			err = fuse_write_directbackend(vp, uio, cred, fufh,
 				ioflag);
 		} else {
-			SDT_PROBE2(fuse, , io, trace, 1,
+			SDT_PROBE2(fusefs, , io, trace, 1,
 				"buffered write of vnode");
 			err = fuse_write_biobackend(vp, uio, cred, fufh, ioflag,
 				pid);
@@ -194,9 +194,9 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 	return (err);
 }
 
-SDT_PROBE_DEFINE3(fuse, , io, read_bio_backend_start, "int", "int", "int");
-SDT_PROBE_DEFINE2(fuse, , io, read_bio_backend_feed, "int", "int");
-SDT_PROBE_DEFINE3(fuse, , io, read_bio_backend_end, "int", "ssize_t", "int");
+SDT_PROBE_DEFINE3(fusefs, , io, read_bio_backend_start, "int", "int", "int");
+SDT_PROBE_DEFINE2(fusefs, , io, read_bio_backend_feed, "int", "int");
+SDT_PROBE_DEFINE3(fusefs, , io, read_bio_backend_end, "int", "ssize_t", "int");
 static int
 fuse_read_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, pid_t pid)
@@ -225,7 +225,7 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset & (biosize - 1);
 
-		SDT_PROBE3(fuse, , io, read_bio_backend_start,
+		SDT_PROBE3(fusefs, , io, read_bio_backend_start,
 			biosize, (int)lbn, on);
 
 		/*
@@ -275,20 +275,21 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 		if (on < bcount)
 			n = MIN((unsigned)(bcount - on), uio->uio_resid);
 		if (n > 0) {
-			SDT_PROBE2(fuse, , io, read_bio_backend_feed,
+			SDT_PROBE2(fusefs, , io, read_bio_backend_feed,
 				n, n + (int)bp->b_resid);
 			err = uiomove(bp->b_data + on, n, uio);
 		}
 		brelse(bp);
-		SDT_PROBE3(fuse, , io, read_bio_backend_end, err,
+		SDT_PROBE3(fusefs, , io, read_bio_backend_end, err,
 			uio->uio_resid, n);
 	} while (err == 0 && uio->uio_resid > 0 && n > 0);
 
 	return (err);
 }
 
-SDT_PROBE_DEFINE1(fuse, , io, read_directbackend_start, "struct fuse_read_in*");
-SDT_PROBE_DEFINE2(fuse, , io, read_directbackend_complete,
+SDT_PROBE_DEFINE1(fusefs, , io, read_directbackend_start,
+	"struct fuse_read_in*");
+SDT_PROBE_DEFINE2(fusefs, , io, read_directbackend_complete,
 	"struct fuse_dispatcher*", "struct uio*");
 
 static int
@@ -321,12 +322,12 @@ fuse_read_directbackend(struct vnode *vp, struct uio *uio,
 		fri->size = MIN(uio->uio_resid,
 		    fuse_get_mpdata(vp->v_mount)->max_read);
 
-		SDT_PROBE1(fuse, , io, read_directbackend_start, fri);
+		SDT_PROBE1(fusefs, , io, read_directbackend_start, fri);
 
 		if ((err = fdisp_wait_answ(&fdi)))
 			goto out;
 
-		SDT_PROBE2(fuse, , io, read_directbackend_complete,
+		SDT_PROBE2(fusefs, , io, read_directbackend_complete,
 			fdi.iosize, uio);
 
 		if ((err = uiomove(fdi.answ, MIN(fri->size, fdi.iosize), uio)))
@@ -453,9 +454,9 @@ retry:
 	return (err);
 }
 
-SDT_PROBE_DEFINE6(fuse, , io, write_biobackend_start, "int64_t", "int", "int",
+SDT_PROBE_DEFINE6(fusefs, , io, write_biobackend_start, "int64_t", "int", "int",
 		"struct uio*", "int", "bool");
-SDT_PROBE_DEFINE2(fuse, , io, write_biobackend_append_race, "long", "int");
+SDT_PROBE_DEFINE2(fusefs, , io, write_biobackend_append_race, "long", "int");
 
 static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
@@ -509,7 +510,7 @@ again:
 	                 * readers from reading garbage.
 	                 */
 			bcount = on;
-			SDT_PROBE6(fuse, , io, write_biobackend_start,
+			SDT_PROBE6(fusefs, , io, write_biobackend_start,
 				lbn, on, n, uio, bcount, true);
 			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
 
@@ -540,7 +541,7 @@ again:
 					bcount = fvdat->filesize - 
 					  (off_t)lbn *biosize;
 			}
-			SDT_PROBE6(fuse, , io, write_biobackend_start,
+			SDT_PROBE6(fusefs, , io, write_biobackend_start,
 				lbn, on, n, uio, bcount, false);
 			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
 			if (bp && uio->uio_offset + n > fvdat->filesize) {
@@ -603,7 +604,7 @@ again:
 	         */
 
 		if (bp->b_dirtyend > bcount) {
-			SDT_PROBE2(fuse, , io, write_biobackend_append_race,
+			SDT_PROBE2(fusefs, , io, write_biobackend_append_race,
 			    (long)bp->b_blkno * biosize,
 			    bp->b_dirtyend - bcount);
 			bp->b_dirtyend = bcount;
@@ -784,7 +785,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 	         * If we only need to commit, try to commit
 	         */
 		if (bp->b_flags & B_NEEDCOMMIT) {
-			SDT_PROBE2(fuse, , io, trace, 1,
+			SDT_PROBE2(fusefs, , io, trace, 1,
 				"write: B_NEEDCOMMIT flags set");
 		}
 		/*

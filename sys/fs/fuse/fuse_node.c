@@ -90,13 +90,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse_io.h"
 #include "fuse_ipc.h"
 
-SDT_PROVIDER_DECLARE(fuse);
+SDT_PROVIDER_DECLARE(fusefs);
 /* 
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
  */
-SDT_PROBE_DEFINE2(fuse, , node, trace, "int", "char*");
+SDT_PROBE_DEFINE2(fusefs, , node, trace, "int", "char*");
 
 MALLOC_DEFINE(M_FUSEVN, "fuse_vnode", "fuse vnode private data");
 
@@ -244,7 +244,7 @@ fuse_vnode_alloc(struct mount *mp,
 			return (EAGAIN);
 		}
 		MPASS((*vpp)->v_data != NULL);
-		SDT_PROBE2(fuse, , node, trace, 1, "vnode taken from hash");
+		SDT_PROBE2(fusefs, , node, trace, 1, "vnode taken from hash");
 		return (0);
 	}
 	fvdat = malloc(sizeof(*fvdat), M_FUSEVN, M_WAITOK | M_ZERO);
@@ -409,7 +409,7 @@ fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
 		return 0;
 
 	err = VOP_GETATTR(vp, &va, cred);
-	SDT_PROBE2(fuse, , node, trace, 1, "refreshed file size");
+	SDT_PROBE2(fusefs, , node, trace, 1, "refreshed file size");
 	return err;
 }
 

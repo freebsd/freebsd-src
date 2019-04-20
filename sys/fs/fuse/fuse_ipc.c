@@ -84,13 +84,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse_ipc.h"
 #include "fuse_internal.h"
 
-SDT_PROVIDER_DECLARE(fuse);
+SDT_PROVIDER_DECLARE(fusefs);
 /* 
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
  */
-SDT_PROBE_DEFINE2(fuse, , ipc, trace, "int", "char*");
+SDT_PROBE_DEFINE2(fusefs, , ipc, trace, "int", "char*");
 
 static void fdisp_make_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct fuse_data *data, uint64_t nid, pid_t pid, struct ucred *cred);
@@ -454,7 +454,7 @@ retry:
 	    data->daemon_timeout * hz);
 	kern_sigprocmask(td, SIG_SETMASK, &oldset, NULL, 0);
 	if (err == EWOULDBLOCK) {
-		SDT_PROBE2(fuse, , ipc, trace, 3,
+		SDT_PROBE2(fusefs, , ipc, trace, 3,
 			"fticket_wait_answer: EWOULDBLOCK");
 #ifdef XXXIP				/* die conditionally */
 		if (!fdata_get_dead(data)) {
@@ -477,7 +477,7 @@ retry:
 		 */
 		int sig;
 
-		SDT_PROBE2(fuse, , ipc, trace, 4,
+		SDT_PROBE2(fusefs, , ipc, trace, 4,
 			"fticket_wait_answer: interrupt");
 		fuse_lck_mtx_unlock(ftick->tk_aw_mtx);
 		fuse_interrupt_send(ftick, err);
@@ -500,14 +500,14 @@ retry:
 			/* Return immediately for fatal signals */
 		}
 	} else if (err) {
-		SDT_PROBE2(fuse, , ipc, trace, 6,
+		SDT_PROBE2(fusefs, , ipc, trace, 6,
 			"fticket_wait_answer: other error");
 	} else {
-		SDT_PROBE2(fuse, , ipc, trace, 7, "fticket_wait_answer: OK");
+		SDT_PROBE2(fusefs, , ipc, trace, 7, "fticket_wait_answer: OK");
 	}
 out:
 	if (!(err || fticket_answered(ftick))) {
-		SDT_PROBE2(fuse, , ipc, trace, 1,
+		SDT_PROBE2(fusefs, , ipc, trace, 1,
 			"FUSE: requester was woken up but still no answer");
 		err = ENXIO;
 	}
@@ -971,7 +971,7 @@ fdisp_refresh(struct fuse_dispatcher *fdip)
 	fticket_refresh(fdip->tick);
 }
 
-SDT_PROBE_DEFINE2(fuse, , ipc, fdisp_wait_answ_error, "char*", "int");
+SDT_PROBE_DEFINE2(fusefs, , ipc, fdisp_wait_answ_error, "char*", "int");
 
 int
 fdisp_wait_answ(struct fuse_dispatcher *fdip)
@@ -991,7 +991,7 @@ fdisp_wait_answ(struct fuse_dispatcher *fdip)
 	                 * the standard handler has completed his job.
 	                 * So we drop the ticket and exit as usual.
 	                 */
-			SDT_PROBE2(fuse, , ipc, fdisp_wait_answ_error,
+			SDT_PROBE2(fusefs, , ipc, fdisp_wait_answ_error,
 				"IPC: interrupted, already answered", err);
 			fuse_lck_mtx_unlock(fdip->tick->tk_aw_mtx);
 			goto out;
@@ -1001,7 +1001,7 @@ fdisp_wait_answ(struct fuse_dispatcher *fdip)
 	                 * Then by setting the answered flag we get *him*
 	                 * to drop the ticket.
 	                 */
-			SDT_PROBE2(fuse, , ipc, fdisp_wait_answ_error,
+			SDT_PROBE2(fusefs, , ipc, fdisp_wait_answ_error,
 				"IPC: interrupted, setting to answered", err);
 			fticket_set_answered(fdip->tick);
 			fuse_lck_mtx_unlock(fdip->tick->tk_aw_mtx);
@@ -1010,13 +1010,13 @@ fdisp_wait_answ(struct fuse_dispatcher *fdip)
 	}
 
 	if (fdip->tick->tk_aw_errno) {
-		SDT_PROBE2(fuse, , ipc, fdisp_wait_answ_error,
+		SDT_PROBE2(fusefs, , ipc, fdisp_wait_answ_error,
 			"IPC: explicit EIO-ing", fdip->tick->tk_aw_errno);
 		err = EIO;
 		goto out;
 	}
 	if ((err = fdip->tick->tk_aw_ohead.error)) {
-		SDT_PROBE2(fuse, , ipc, fdisp_wait_answ_error,
+		SDT_PROBE2(fusefs, , ipc, fdisp_wait_answ_error,
 			"IPC: setting status", fdip->tick->tk_aw_ohead.error);
 		/*
 	         * This means a "proper" fuse syscall error.
