@@ -310,6 +310,11 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 
 .depend: .PRECIOUS ${SRCS}
 
+.if ${COMPILER_TYPE} == "clang" || \
+    (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60000)
+_MAP_DEBUG_PREFIX= yes
+.endif
+
 _ILINKS= machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
 _ILINKS+= ${MACHINE_CPUARCH}
@@ -319,9 +324,17 @@ _ILINKS+= x86
 .endif
 
 # Ensure that the link exists without depending on it when it exists.
+# Ensure that debug info references the path in the source tree.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
 ${SRCS} ${CLEAN:M*.o}: ${_link}
+.endif
+.if defined(_MAP_DEBUG_PREFIX)
+.if ${_link} == "machine"
+CFLAGS+= -fdebug-prefix-map=./machine=${SYSDIR}/${MACHINE}/include
+.else
+CFLAGS+= -fdebug-prefix-map=./${_link}=${SYSDIR}/${_link}/include
+.endif
 .endif
 .endfor
 
