@@ -14,7 +14,7 @@ ATF_TESTS_C+=	blake2_test poly1305_test
 
 PLAIN_TESTS_SH=	runtests
 
-TEST_METADATA.runtests+= required_programs="python"
+TEST_METADATA.runtests+= required_programs="python2"
 TEST_METADATA.runtests+= required_user="root"
 
 PYMODULES=	cryptodev.py cryptodevh.py cryptotest.py dpkt.py
