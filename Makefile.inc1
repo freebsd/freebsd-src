@@ -2155,7 +2155,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
 		${_cddl_lib_libuutil} \
 		${_cddl_lib_libavl} \
-		${_cddl_lib_libzfs_core} \
+		${_cddl_lib_libzfs_core} ${_cddl_lib_libzfs} \
 		${_cddl_lib_libctf} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
@@ -2224,7 +2224,15 @@ _cddl_lib_libavl= cddl/lib/libavl
 _cddl_lib_libuutil= cddl/lib/libuutil
 .if ${MK_ZFS} != "no"
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
+_cddl_lib_libzfs= cddl/lib/libzfs
+
 cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
+
+cddl/lib/libzfs__L: cddl/lib/libzfs_core__L lib/msun__L lib/libutil__L
+cddl/lib/libzfs__L: lib/libthr__L lib/libmd__L lib/libz__L cddl/lib/libumem__L
+cddl/lib/libzfs__L: cddl/lib/libuutil__L cddl/lib/libavl__L lib/libgeom__L
+
+lib/libbe__L: cddl/lib/libzfs__L
 .endif
 _cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib

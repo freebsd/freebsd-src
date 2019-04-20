@@ -59,6 +59,7 @@ _LIBRARIES=	\
 		asn1 \
 		auditd \
 		avl \
+		be \
 		begemot \
 		bluetooth \
 		bsdxml \
@@ -326,6 +327,7 @@ _DP_zfs=	md pthread umem util uutil m nvpair avl bsdxml geom nvpair z \
 		zfs_core
 _DP_zfs_core=	nvpair
 _DP_zpool=	md pthread z nvpair avl umem
+_DP_be=		zfs nvpair
 
 # OFED support
 .if ${MK_OFED} != "no"
@@ -465,6 +467,8 @@ LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
 LIBAMUDIR=	${OBJTOP}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu.a
+
+LIBBE?=		${LIBBEDIR}/libbe.a
 
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no
