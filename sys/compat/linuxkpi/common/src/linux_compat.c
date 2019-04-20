@@ -1773,7 +1773,7 @@ vmmap_remove(void *addr)
 	return (vmmap);
 }
 
-#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__) || defined(__aarch64__)
 void *
 _ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr)
 {
@@ -1796,7 +1796,7 @@ iounmap(void *addr)
 	vmmap = vmmap_remove(addr);
 	if (vmmap == NULL)
 		return;
-#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__) || defined(__aarch64__)
 	pmap_unmapdev((vm_offset_t)addr, vmmap->vm_size);
 #endif
 	kfree(vmmap);
