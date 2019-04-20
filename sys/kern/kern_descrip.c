@@ -602,7 +602,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETLK_REMOTE:
 		error = priv_check(td, PRIV_NFS_LOCKD);
-		if (error)
+		if (error != 0)
 			return (error);
 		flg = F_REMOTE;
 		goto do_setlk;
@@ -613,6 +613,12 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETLK:
 	do_setlk:
+		flp = (struct flock *)arg;
+		if ((flg & F_REMOTE) != 0 && flp->l_sysid == 0) {
+			error = EINVAL;
+			break;
+		}
+
 		error = fget_unlocked(fdp, fd, &cap_flock_rights, &fp, NULL);
 		if (error != 0)
 			break;
@@ -622,7 +628,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			break;
 		}
 
-		flp = (struct flock *)arg;
 		if (flp->l_whence == SEEK_CUR) {
 			foffset = foffset_get(fp);
 			if (foffset < 0 ||
@@ -668,10 +673,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			    flp, flg);
 			break;
 		case F_UNLCKSYS:
-			/*
-			 * Temporary api for testing remote lock
-			 * infrastructure.
-			 */
 			if (flg != F_REMOTE) {
 				error = EINVAL;
 				break;
