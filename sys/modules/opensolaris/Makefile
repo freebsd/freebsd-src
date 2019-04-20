@@ -27,6 +27,8 @@ CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris		\
 		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common	\
 		-I${SYSDIR}
 
+EXPORT_SYMS=	cpu_core
+
 IGNORE_PRAGMA=	1
 
 .include <bsd.kmod.mk>
