@@ -436,6 +436,9 @@ VGLCheckSwitch()
       VGLDisplay->Xsize = VGLModeInfo.vi_width;
       VGLDisplay->Ysize = VGLModeInfo.vi_height;
       VGLSetVScreenSize(VGLDisplay, VGLDisplay->VXsize, VGLDisplay->VYsize);
+      VGLRestoreBlank();
+      VGLRestoreBorder();
+      VGLMouseRestore();
       VGLPanScreen(VGLDisplay, VGLDisplay->Xorigin, VGLDisplay->Yorigin);
       switch (VGLDisplay->Type) {
       case VIDBUF4S:

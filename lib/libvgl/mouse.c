@@ -272,6 +272,22 @@ VGLMouseInit(int mode)
   return 0;
 }
 
+void
+VGLMouseRestore(void)
+{
+  struct mouse_info mouseinfo;
+
+  INTOFF();
+  mouseinfo.operation = MOUSE_GETINFO;
+  if (ioctl(0, CONS_MOUSECTL, &mouseinfo) == 0) {
+    mouseinfo.operation = MOUSE_MOVEABS;
+    mouseinfo.u.data.x = VGLMouseXpos;
+    mouseinfo.u.data.y = VGLMouseYpos;
+    ioctl(0, CONS_MOUSECTL, &mouseinfo);
+  }
+  INTON();
+}
+
 int
 VGLMouseStatus(int *x, int *y, char *buttons)
 {
