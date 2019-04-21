@@ -100,6 +100,7 @@ typedef struct VGLObject {
 extern video_adapter_info_t	VGLAdpInfo;
 extern video_info_t		VGLModeInfo;
 extern VGLBitmap 		*VGLDisplay;
+extern VGLBitmap 		VGLVDisplay;
 extern byte 			*VGLBuf;
 
 /*
