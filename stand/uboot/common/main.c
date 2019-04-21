@@ -310,13 +310,13 @@ print_disk_probe_info()
 	char slice[32];
 	char partition[32];
 
-	if (currdev.d_disk.slice > 0)
-		sprintf(slice, "%d", currdev.d_disk.slice);
+	if (currdev.d_disk.d_slice > 0)
+		sprintf(slice, "%d", currdev.d_disk.d_slice);
 	else
 		strcpy(slice, "<auto>");
 
-	if (currdev.d_disk.partition >= 0)
-		sprintf(partition, "%d", currdev.d_disk.partition);
+	if (currdev.d_disk.d_partition >= 0)
+		sprintf(partition, "%d", currdev.d_disk.d_partition);
 	else
 		strcpy(partition, "<auto>");
 
@@ -332,8 +332,8 @@ probe_disks(int devidx, int load_type, int load_unit, int load_slice,
 	int open_result, unit;
 	struct open_file f;
 
-	currdev.d_disk.slice = load_slice;
-	currdev.d_disk.partition = load_partition;
+	currdev.d_disk.d_slice = load_slice;
+	currdev.d_disk.d_partition = load_partition;
 
 	f.f_devdata = &currdev;
 	open_result = -1;
