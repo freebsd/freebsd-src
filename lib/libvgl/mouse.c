@@ -82,9 +82,6 @@ static VGLBitmap VGLMouseStdAndMask =
 static VGLBitmap VGLMouseStdOrMask = 
     VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, StdOrMask);
 static VGLBitmap *VGLMouseAndMask, *VGLMouseOrMask;
-static byte map[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE*4];
-static VGLBitmap VGLMouseSave = 
-    VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, map);
 static int VGLMouseVisible = 0;
 static int VGLMouseShown = 0;
 static int VGLMouseXpos = 0;
@@ -117,10 +114,9 @@ VGLMousePointerShow()
       gdcidx = inb(0x3ce);
       gdcval = inb(0x3cf);
     }
-    __VGLBitmapCopy(VGLDisplay, VGLMouseXpos, VGLMouseYpos, 
-		  &VGLMouseSave, 0, 0, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
-    bcopy(VGLMouseSave.Bitmap, buffer.Bitmap,
-          MOUSE_IMG_SIZE*MOUSE_IMG_SIZE*VGLDisplay->PixelBytes);
+    buffer.PixelBytes = VGLDisplay->PixelBytes;
+    __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, 
+                    &buffer, 0, 0, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
     for (pos = 0; pos <  MOUSE_IMG_SIZE*MOUSE_IMG_SIZE; pos++)
       for (i = 0; i < VGLDisplay->PixelBytes; i++) {
         pos1 = pos * VGLDisplay->PixelBytes + i;
@@ -154,8 +150,8 @@ VGLMousePointerHide()
       gdcidx = inb(0x3ce);
       gdcval = inb(0x3cf);
     }
-    __VGLBitmapCopy(&VGLMouseSave, 0, 0, VGLDisplay, 
-		  VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
+    __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, VGLDisplay, 
+                    VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
     if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT) {
       outb(0x3c4, crtcidx);
       outb(0x3c5, crtcval);
@@ -302,8 +298,6 @@ VGLMouseStatus(int *x, int *y, char *buttons)
 int
 VGLMouseFreeze(int x, int y, int width, int hight, u_long color)
 {
-  int i, xstride, ystride;
-
     INTOFF();
     if (width > 1 || hight > 1 || (color & 0xc0000000) == 0) { /* bitmap */
       if (VGLMouseShown == 1) {
@@ -327,20 +321,7 @@ VGLMouseFreeze(int x, int y, int width, int hight, u_long color)
       if (VGLMouseShown &&
           x >= VGLMouseXpos && x < VGLMouseXpos + MOUSE_IMG_SIZE &&
           y >= VGLMouseYpos && y < VGLMouseYpos + MOUSE_IMG_SIZE) {
-        xstride = VGLDisplay->PixelBytes;
-        ystride = MOUSE_IMG_SIZE * xstride;
-        if (color & 0x40000000) {	/* Get */
-          color = 0;
-          for (i = xstride - 1; i >= 0; i--)
-            color = (color << 8) |
-                    VGLMouseSave.Bitmap[(y-VGLMouseYpos)*ystride+
-                                        (x-VGLMouseXpos)*xstride+i];
-          return 0x40000000 | (color & 0xffffff);
-        } else {			/* Set */
-          color &= 0xffffff;		/* discard flag and other garbage */
-          for (i = 0; i < xstride; i++, color >>= 8)
-            VGLMouseSave.Bitmap[(y-VGLMouseYpos)*ystride+
-                                (x-VGLMouseXpos)*xstride+i] = color;
+        if (color & 0x80000000) {	/* Set */
           if (VGLMouseAndMask->Bitmap 
             [(y-VGLMouseYpos)*MOUSE_IMG_SIZE+(x-VGLMouseXpos)]) {
             return 1;

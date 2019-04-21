@@ -163,108 +163,6 @@ WriteVerticalLine(VGLBitmap *dst, int x, int y, int width, byte *line)
   }
 }
 
-static void
-ReadVerticalLine(VGLBitmap *src, int x, int y, int width, byte *line)
-{
-  int i, bit, pos, count, planepos, start_offset, end_offset, offset;
-  int width2, len;
-  byte *address;
-  byte *VGLPlane[4];
-
-  switch (src->Type) {
-  case VIDBUF4S:
-    start_offset = (x & 0x07);
-    end_offset = (x + width) & 0x07;
-    count = (width + start_offset) / 8;
-    if (end_offset)
-      count++;
-    VGLPlane[0] = VGLBuf;
-    VGLPlane[1] = VGLPlane[0] + count;
-    VGLPlane[2] = VGLPlane[1] + count;
-    VGLPlane[3] = VGLPlane[2] + count;
-    for (i=0; i<4; i++) {
-      outb(0x3ce, 0x04);
-      outb(0x3cf, i);
-      pos = VGLAdpInfo.va_line_width*y + x/8;
-      for (width2 = count; width2 > 0; ) {
-	offset = VGLSetSegment(pos);
-	len = min(VGLAdpInfo.va_window_size - offset, width2);
-	bcopy(src->Bitmap + offset, &VGLPlane[i][count - width2], len);
-	pos += len;
-	width2 -= len;
-      }
-    }
-    goto read_planar;
-  case VIDBUF4:
-    address = src->Bitmap + VGLAdpInfo.va_line_width * y + x/8;
-    start_offset = (x & 0x07);
-    end_offset = (x + width) & 0x07;
-    count = (width + start_offset) / 8;
-    if (end_offset)
-      count++;
-    VGLPlane[0] = VGLBuf;
-    VGLPlane[1] = VGLPlane[0] + count;
-    VGLPlane[2] = VGLPlane[1] + count;
-    VGLPlane[3] = VGLPlane[2] + count;
-    for (i=0; i<4; i++) {
-      outb(0x3ce, 0x04);
-      outb(0x3cf, i);
-      bcopy(address, &VGLPlane[i][0], count);
-    }
-read_planar:
-    pos = 0;
-    planepos = 0;
-    bit = 7 - start_offset;
-    while (pos < width) {
-      for (; bit >= 0 && pos < width; bit--, pos++) {
-        line[pos] = (VGLPlane[0][planepos] & (1<<bit) ? 1 : 0) |
-                    ((VGLPlane[1][planepos] & (1<<bit) ? 1 : 0) << 1) |
-                    ((VGLPlane[2][planepos] & (1<<bit) ? 1 : 0) << 2) |
-                    ((VGLPlane[3][planepos] & (1<<bit) ? 1 : 0) << 3);
-      }
-      planepos++;
-      bit = 7;
-    }
-    break;
-  case VIDBUF8X:
-    address = src->Bitmap + VGLAdpInfo.va_line_width * y + x/4;
-    for (i=0; i<4; i++) {
-      outb(0x3ce, 0x04);
-      outb(0x3cf, (x + i)%4);
-      for (planepos=0, pos=i; pos<width; planepos++, pos+=4)
-        line[pos] = address[planepos];
-      if ((x + i)%4 == 3)
-	++address;
-    }
-    break;
-  case VIDBUF8S:
-  case VIDBUF16S:
-  case VIDBUF24S:
-  case VIDBUF32S:
-    width = width * src->PixelBytes;
-    pos = (src->VXsize * y + x) * src->PixelBytes;
-    while (width > 0) {
-      offset = VGLSetSegment(pos);
-      i = min(VGLAdpInfo.va_window_size - offset, width);
-      bcopy(src->Bitmap + offset, line, i);
-      line += i;
-      pos += i;
-      width -= i;
-    }
-    break;
-  case MEMBUF:
-  case VIDBUF8:
-  case VIDBUF16:
-  case VIDBUF24:
-  case VIDBUF32:
-    address = src->Bitmap + (src->VXsize * y + x) * src->PixelBytes;
-    bcopy(address, line, width * src->PixelBytes);
-    break;
-  default:
-    ;
-  }
-}
-
 int
 __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
 	      VGLBitmap *dst, int dstx, int dsty, int width, int hight)
@@ -304,37 +202,10 @@ __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
     yextra = hight - 1;
     ystep = -1;
   }
-  if (src->Type == MEMBUF) {
-    for (srcline = srcy + yextra, dstline = dsty + yextra; srcline != yend;
-         srcline += ystep, dstline += ystep) {
-      WriteVerticalLine(dst, dstx, dstline, width, 
-        src->Bitmap+(srcline*src->VXsize+srcx)*dst->PixelBytes);
-    }
-  }
-  else if (dst->Type == MEMBUF) {
-    for (srcline=srcy, dstline=dsty; srcline<srcy+hight; srcline++, dstline++) {
-      ReadVerticalLine(src, srcx, srcline, width,
-        dst->Bitmap+(dstline*dst->VXsize+dstx)*src->PixelBytes);
-    }
-  }
-  else {
-    byte buffer[2048];	/* XXX */
-    byte *p;
-
-    if (width * src->PixelBytes > sizeof(buffer)) {
-      p = malloc(width * src->PixelBytes);
-      if (p == NULL)
-	return 1;
-    } else {
-      p = buffer;
-    }
-    for (srcline = srcy + yextra, dstline = dsty + yextra; srcline != yend;
-         srcline += ystep, dstline += ystep) {
-      ReadVerticalLine(src, srcx, srcline, width, p);
-      WriteVerticalLine(dst, dstx, dstline, width, p);
-    }
-    if (width * src->PixelBytes > sizeof(buffer))
-      free(p);
+  for (srcline = srcy + yextra, dstline = dsty + yextra; srcline != yend;
+       srcline += ystep, dstline += ystep) {
+    WriteVerticalLine(dst, dstx, dstline, width, 
+      src->Bitmap+(srcline*src->VXsize+srcx)*dst->PixelBytes);
   }
   return 0;
 }
@@ -345,12 +216,20 @@ VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
 {
   int error;
 
+  if (src == VGLDisplay)
+    src = &VGLVDisplay;
   if (src->Type != MEMBUF)
-    VGLMouseFreeze(srcx, srcy, width, hight, 0);
-  if (dst->Type != MEMBUF)
+    return -1;		/* invalid */
+  if (dst == VGLDisplay) {
     VGLMouseFreeze(dstx, dsty, width, hight, 0);
+    __VGLBitmapCopy(src, srcx, srcy, &VGLVDisplay, dstx, dsty, width, hight);
+    src = &VGLVDisplay;
+    srcx = dstx;
+    srcy = dsty;
+  } else if (dst->Type != MEMBUF)
+    return -1;		/* invalid */
   error = __VGLBitmapCopy(src, srcx, srcy, dst, dstx, dsty, width, hight);
-  if (src->Type != MEMBUF || dst->Type != MEMBUF)
+  if (dst == VGLDisplay)
     VGLMouseUnFreeze();
   return error;
 }
