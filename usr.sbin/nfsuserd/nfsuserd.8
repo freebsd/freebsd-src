@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2017
+.Dd April 6, 2019
 .Dt NFSUSERD 8
 .Os
 .Sh NAME
@@ -126,9 +126,3 @@ those requests fail and the library functions don't return. See
 and
 .Xr passwd 5
 for more information on how the databases are accessed.
-.Pp
-Since the kernel communicates with the
-.Nm
-daemon via an upcall that uses the IP address 127.0.0.1, it does not work correctly when
-.Xr jail 8
-are used and can crash the system.
