@@ -18,10 +18,11 @@
 #ifndef _BOOT_I386_ARGS_H_
 #define	_BOOT_I386_ARGS_H_
 
-#define	KARGS_FLAGS_CD		0x1
-#define	KARGS_FLAGS_PXE		0x2
-#define	KARGS_FLAGS_ZFS		0x4
-#define	KARGS_FLAGS_EXTARG	0x8	/* variably sized extended argument */
+#define	KARGS_FLAGS_CD		0x0001	/* .bootdev is a bios CD dev */
+#define	KARGS_FLAGS_PXE		0x0002	/* .pxeinfo is valid */
+#define	KARGS_FLAGS_ZFS		0x0004	/* .zfspool is valid, EXTARG is zfs_boot_args */
+#define	KARGS_FLAGS_EXTARG	0x0008	/* variably sized extended argument */
+#define	KARGS_FLAGS_GELI	0x0010	/* EXTARG is geli_boot_args */
 
 #define	BOOTARGS_SIZE	24	/* sizeof(struct bootargs) */
 #define	BA_BOOTFLAGS	8	/* offsetof(struct bootargs, bootflags) */
@@ -84,11 +85,15 @@ struct bootargs
 
 #ifdef LOADER_GELI_SUPPORT
 #include <crypto/intake.h>
+#include "geliboot.h"
 #endif
 
-struct geli_boot_args
+/*
+ * geli_boot_data is embedded in geli_boot_args (passed from gptboot to loader)
+ * and in zfs_boot_args (passed from zfsboot and gptzfsboot to loader).
+ */
+struct geli_boot_data
 {
-    uint32_t		size;
     union {
         char            gelipw[256];
         struct {
@@ -104,6 +109,49 @@ struct geli_boot_args
 #endif
         };
     };
+};
+
+#ifdef LOADER_GELI_SUPPORT
+
+static inline void
+export_geli_boot_data(struct geli_boot_data *gbdata)
+{
+
+	gbdata->notapw = '\0';
+	gbdata->keybuf_sentinel = KEYBUF_SENTINEL;
+	gbdata->keybuf = malloc(sizeof(struct keybuf) +
+	    (GELI_MAX_KEYS * sizeof(struct keybuf_ent)));
+	geli_export_key_buffer(gbdata->keybuf);
+}
+
+static inline void
+import_geli_boot_data(struct geli_boot_data *gbdata)
+{
+
+	if (gbdata->gelipw[0] != '\0') {
+	    setenv("kern.geom.eli.passphrase", gbdata->gelipw, 1);
+	    explicit_bzero(gbdata->gelipw, sizeof(gbdata->gelipw));
+	} else if (gbdata->keybuf_sentinel == KEYBUF_SENTINEL) {
+	    geli_import_key_buffer(gbdata->keybuf);
+	}
+}
+#endif /* LOADER_GELI_SUPPORT */
+
+struct geli_boot_args
+{
+	uint32_t		size;
+	struct geli_boot_data	gelidata;
+};
+
+struct zfs_boot_args
+{
+	uint32_t		size;
+	uint32_t		reserved;
+	uint64_t		pool;
+	uint64_t		root;
+	uint64_t		primary_pool;
+	uint64_t		primary_vdev;
+	struct geli_boot_data	gelidata;
 };
 
 #endif /*__ASSEMBLER__*/
