@@ -16,7 +16,7 @@ NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
-SRCS=		start.S conf.c vers.c
+SRCS=		start.S conf.c vers.c ppc64_elf_freebsd.c
 SRCS+=		ucmpdi2.c
 
 # Always add MI sources

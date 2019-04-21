@@ -142,6 +142,7 @@ bf_command(FICL_VM *vm)
 	switch (result) {
 	case CMD_CRIT:
 		printf("%s\n", command_errmsg);
+		command_errmsg = NULL;
 		break;
 	case CMD_FATAL:
 		panic("%s", command_errmsg);

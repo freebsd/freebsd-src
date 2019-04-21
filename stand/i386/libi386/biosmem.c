@@ -74,6 +74,7 @@ struct bios_getmem_quirks {
 
 static struct bios_getmem_quirks quirks[] = {
 	{"coreboot", "Acer", "Peppy", BQ_DISTRUST_E820_EXTMEM},
+	{"coreboot", "Dell", "Wolf", BQ_DISTRUST_E820_EXTMEM},
 	{NULL, NULL, NULL, 0}
 };
 

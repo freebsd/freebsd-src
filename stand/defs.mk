@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
-WARNS?=1
-
 .if !defined(__BOOT_DEFS_MK__)
 __BOOT_DEFS_MK__=${MFILE}
+
+# We need to define all the MK_ options before including src.opts.mk
+# because it includes bsd.own.mk which needs the right MK_ values,
+# espeically MK_CTF.
 
 MK_CTF=		no
 MK_SSP=		no
@@ -15,6 +15,10 @@ MAN=
 NO_PIC=
 INTERNALLIB=
 .endif
+
+.include <src.opts.mk>
+
+WARNS?=		1
 
 BOOTSRC=	${SRCTOP}/stand
 EFISRC=		${BOOTSRC}/efi
@@ -113,6 +117,11 @@ CFLAGS+=	-mgeneral-regs-only -fPIC
 CFLAGS+=	-march=rv64imac -mabi=lp64
 .else
 CFLAGS+=	-msoft-float
+.endif
+
+# -msoft-float seems to be insufficient for powerpcspe
+.if ${MACHINE_ARCH} == "powerpcspe"
+CFLAGS+=	-mno-spe
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || (${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 1)

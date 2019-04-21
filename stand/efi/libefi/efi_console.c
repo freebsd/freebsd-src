@@ -51,7 +51,8 @@ void HO(void);
 void end_term(void);
 #endif
 
-static EFI_INPUT_KEY key_cur;
+#define	KEYBUFSZ 10
+static unsigned keybuf[KEYBUFSZ];	/* keybuf for extended codes */
 static int key_pending;
 
 static void efi_cons_probe(struct console *);
@@ -438,55 +439,120 @@ efi_cons_putchar(int c)
 #endif
 }
 
-int
-efi_cons_getchar()
+static int
+keybuf_getchar(void)
 {
-	EFI_INPUT_KEY key;
-	EFI_STATUS status;
-	UINTN junk;
+	int i, c = 0;
 
-	if (key_pending) {
-		key = key_cur;
-		key_pending = 0;
-	} else {
-		/* Try to read a key stroke. We wait for one if none is pending. */
-		status = conin->ReadKeyStroke(conin, &key);
-		while (status == EFI_NOT_READY) {
-			/* Some EFI implementation (u-boot for example) do not support WaitForKey */
-			if (conin->WaitForKey != NULL)
-				BS->WaitForEvent(1, &conin->WaitForKey, &junk);
-			status = conin->ReadKeyStroke(conin, &key);
+	for (i = 0; i < KEYBUFSZ; i++) {
+		if (keybuf[i] != 0) {
+			c = keybuf[i];
+			keybuf[i] = 0;
+			break;
 		}
 	}
 
-	switch (key.ScanCode) {
-	case 0x17: /* ESC */
-		return (0x1b);  /* esc */
-	}
+	return (c);
+}
 
-	/* this can return  */
-	return (key.UnicodeChar);
+static bool
+keybuf_ischar(void)
+{
+	int i;
+
+	for (i = 0; i < KEYBUFSZ; i++) {
+		if (keybuf[i] != 0)
+			return (true);
+	}
+	return (false);
+}
+
+/*
+ * We are not reading input before keybuf is empty, so we are safe
+ * just to fill keybuf from the beginning.
+ */
+static void
+keybuf_inschar(EFI_INPUT_KEY *key)
+{
+
+	switch (key->ScanCode) {
+	case 0x1: /* UP */
+		keybuf[0] = 0x1b;	/* esc */
+		keybuf[1] = '[';
+		keybuf[2] = 'A';
+		break;
+	case 0x2: /* DOWN */
+		keybuf[0] = 0x1b;	/* esc */
+		keybuf[1] = '[';
+		keybuf[2] = 'B';
+		break;
+	case 0x3: /* RIGHT */
+		keybuf[0] = 0x1b;	/* esc */
+		keybuf[1] = '[';
+		keybuf[2] = 'C';
+		break;
+	case 0x4: /* LEFT */
+		keybuf[0] = 0x1b;	/* esc */
+		keybuf[1] = '[';
+		keybuf[2] = 'D';
+		break;
+	case 0x17:
+		keybuf[0] = 0x1b;	/* esc */
+		break;
+	default:
+		keybuf[0] = key->UnicodeChar;
+		break;
+	}
+}
+
+static bool
+efi_readkey(void)
+{
+	EFI_STATUS status;
+	EFI_INPUT_KEY key;
+
+	status = conin->ReadKeyStroke(conin, &key);
+	if (status == EFI_SUCCESS) {
+		keybuf_inschar(&key);
+		return (true);
+	}
+	return (false);
 }
 
 int
-efi_cons_poll()
+efi_cons_getchar(void)
 {
-	EFI_INPUT_KEY key;
-	EFI_STATUS status;
+	int c;
 
-	if (conin->WaitForKey == NULL) {
-		if (key_pending)
-			return (1);
-		status = conin->ReadKeyStroke(conin, &key);
-		if (status == EFI_SUCCESS) {
-			key_cur = key;
-			key_pending = 1;
-		}
-		return (key_pending);
-	}
+	if ((c = keybuf_getchar()) != 0)
+		return (c);
 
-	/* This can clear the signaled state. */
-	return (BS->CheckEvent(conin->WaitForKey) == EFI_SUCCESS);
+	key_pending = 0;
+
+	if (efi_readkey())
+		return (keybuf_getchar());
+
+	return (-1);
+}
+
+int
+efi_cons_poll(void)
+{
+
+	if (keybuf_ischar() || key_pending)
+		return (1);
+
+	/*
+	 * Some EFI implementation (u-boot for example) do not support
+	 * WaitForKey().
+	 * CheckEvent() can clear the signaled state.
+	 */
+	if (conin->WaitForKey == NULL)
+		key_pending = efi_readkey();
+	else
+		key_pending = BS->CheckEvent(conin->WaitForKey) == EFI_SUCCESS;
+
+	return (key_pending);
 }
 
 /* Plain direct access to EFI OutputString(). */

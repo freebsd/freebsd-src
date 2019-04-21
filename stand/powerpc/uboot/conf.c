@@ -95,9 +95,11 @@ struct netif_driver *netif_drivers[] = {
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.
  */
+extern struct file_format uboot_elf64;
 
 struct file_format *file_formats[] = {
 	&uboot_elf,
+	&uboot_elf64,
 	NULL
 };
 
