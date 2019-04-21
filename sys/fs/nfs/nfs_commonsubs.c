@@ -898,15 +898,19 @@ nfsm_fhtom(struct nfsrv_descript *nd, u_int8_t *fhp, int size, int set_true)
 APPLESTATIC int
 nfsaddr_match(int family, union nethostaddr *haddr, NFSSOCKADDR_T nam)
 {
+#ifdef INET
 	struct sockaddr_in *inetaddr;
+#endif
 
 	switch (family) {
+#ifdef INET
 	case AF_INET:
 		inetaddr = NFSSOCKADDR(nam, struct sockaddr_in *);
 		if (inetaddr->sin_family == AF_INET &&
 		    inetaddr->sin_addr.s_addr == haddr->had_inet.s_addr)
 			return (1);
 		break;
+#endif
 #ifdef INET6
 	case AF_INET6:
 		{
