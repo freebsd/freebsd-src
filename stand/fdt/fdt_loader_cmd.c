@@ -848,7 +848,6 @@ void
 fdt_fixup_stdout(const char *str)
 {
 	char *ptr;
-	int serialno;
 	int len, no, sero;
 	const struct fdt_property *prop;
 	char *tmp[10];
@@ -860,7 +859,6 @@ fdt_fixup_stdout(const char *str)
 	if (ptr == str)
 		return;
 
-	serialno = (int)strtol(ptr, NULL, 0);
 	no = fdt_path_offset(fdtp, "/chosen");
 	if (no < 0)
 		return;
@@ -917,9 +915,7 @@ fdt_load_dtb_overlays(const char *extras)
 static int
 fdt_fixup(void)
 {
-	int chosen, len;
-
-	len = 0;
+	int chosen;
 
 	debugf("fdt_fixup()\n");
 
@@ -977,7 +973,6 @@ command_fdt_internal(int argc, char *argv[])
 {
 	cmdf_t *cmdh;
 	int flags;
-	char *cmd;
 	int i, err;
 
 	if (argc < 2) {
@@ -988,11 +983,10 @@ command_fdt_internal(int argc, char *argv[])
 	/*
 	 * Validate fdt <command>.
 	 */
-	cmd = strdup(argv[1]);
 	i = 0;
 	cmdh = NULL;
 	while (!(commands[i].name == NULL)) {
-		if (strcmp(cmd, commands[i].name) == 0) {
+		if (strcmp(argv[1], commands[i].name) == 0) {
 			/* found it */
 			cmdh = commands[i].handler;
 			flags = commands[i].flags;
@@ -1516,7 +1510,6 @@ fdt_modprop(int nodeoff, char *propname, void *value, char mode)
 		sprintf(command_errbuf, "property does not exist!");
 		return (CMD_ERROR);
 	}
-	len = strlen(value);
 	rv = 0;
 	buf = value;
 

@@ -675,10 +675,12 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	table->type = PTABLE_NONE;
 	STAILQ_INIT(&table->entries);
 
-	if (ptable_iso9660read(table, dev, dread) != NULL) {
-		if (table->type == PTABLE_ISO9660)
-			goto out;
-	}
+	if (ptable_iso9660read(table, dev, dread) == NULL) {
+		/* Read error. */
+		table = NULL;
+		goto out;
+	} else if (table->type == PTABLE_ISO9660)
+		goto out;
 
 #ifdef LOADER_VTOC8_SUPPORT
 	if (be16dec(buf + offsetof(struct vtoc8, magic)) == VTOC_MAGIC) {

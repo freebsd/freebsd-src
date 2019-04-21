@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2017
+.Dd November 25, 2018
 .Dt PXEBOOT 8
 .Os
 .Sh NAME
@@ -58,7 +58,7 @@ The
 .Nm
 binary is loaded just like any other boot file,
 by specifying it in the DHCP server's configuration file.
-Below is a sample configuration for the ISC DHCP v2 server:
+Below is a sample configuration for the ISC DHCP v3 server:
 .Bd -literal -offset indent
 option domain-name "example.com";
 option routers 10.0.0.1;
@@ -67,6 +67,7 @@ option broadcast-address 10.0.0.255;
 option domain-name-servers 10.0.0.1;
 server-name "DHCPserver";
 server-identifier 10.0.0.1;
+next-server 10.0.0.1;
 
 default-lease-time 120;
 max-lease-time 120;
@@ -80,10 +81,11 @@ subnet 10.0.0.0 netmask 255.255.255.0 {
 }
 
 .Ed
+.Va next-server
+is the IP address of the next server in the bootstrap process, i.e.
+your TFTP server or NFS server.
 .Nm
 recognizes
-.Va next-server
-and
 .Va option root-path
 directives as the server and path to NFS mount for file requests,
 respectively, or the server to make TFTP requests to.

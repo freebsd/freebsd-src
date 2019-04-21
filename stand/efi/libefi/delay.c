@@ -33,15 +33,5 @@ __FBSDID("$FreeBSD$");
 void
 delay(int usecs)
 {
-	static EFI_EVENT ev = 0;
-	UINTN junk;
-
-	if (!ev) {
-		if (BS->CreateEvent(EVT_TIMER, TPL_APPLICATION, 0, 0, &ev)
-		    != EFI_SUCCESS)
-			return;
-	}
-
-	BS->SetTimer(ev, TimerRelative, usecs * 10);
-	BS->WaitForEvent(1, &ev, &junk);
+	BS->Stall(usecs);
 }
