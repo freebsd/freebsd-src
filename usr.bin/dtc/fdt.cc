@@ -1622,7 +1622,10 @@ device_tree::parse_file(text_input_buffer &input,
 			}
 			input.next_token();
 			n = node::parse(input, *this, std::move(name), string_set(), string(), &defines);
-			n->name_is_path_reference = name_is_path_reference;
+			if (n)
+			{
+				n->name_is_path_reference = name_is_path_reference;
+			}
 		}
 		else
 		{
