@@ -130,6 +130,7 @@ void VGLMouseAction(int dummy);
 void VGLMouseSetImage(VGLBitmap *AndMask, VGLBitmap *OrMask);
 void VGLMouseSetStdImage(void);
 int VGLMouseInit(int mode);
+void VGLMouseRestore(void);
 int VGLMouseStatus(int *x, int *y, char *buttons);
 int VGLMouseFreeze(int x, int y, int width, int hight, u_long color);
 void VGLMouseUnFreeze(void);
@@ -142,6 +143,8 @@ void VGLFilledBox(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long colo
 void VGLEllipse(VGLBitmap *object, int xc, int yc, int a, int b, u_long color);
 void VGLFilledEllipse(VGLBitmap *object, int xc, int yc, int a, int b, u_long color);
 void VGLClear(VGLBitmap *object, u_long color);
+void VGLRestoreBlank(void);
+void VGLRestoreBorder(void);
 void VGLRestorePalette(void);
 void VGLSavePalette(void);
 void VGLSetPalette(byte *red, byte *green, byte *blue);
