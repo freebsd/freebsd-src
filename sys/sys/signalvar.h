@@ -384,6 +384,7 @@ int	sigacts_shared(struct sigacts *ps);
 void	sigexit(struct thread *td, int sig) __dead2;
 int	sigev_findtd(struct proc *p, struct sigevent *sigev, struct thread **);
 int	sig_ffs(sigset_t *set);
+bool	sig_isfatal(struct proc *p, int sig);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
 void	sigqueue_delete(struct sigqueue *queue, int sig);
