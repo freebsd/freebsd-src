@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include "vgl.h"
 
+static int VGLBlank;
+static byte VGLBorderColor;
 static byte VGLSavePaletteRed[256];
 static byte VGLSavePaletteGreen[256];
 static byte VGLSavePaletteBlue[256];
@@ -637,6 +639,12 @@ VGLSetPaletteIndex(byte color, byte red, byte green, byte blue)
 }
 
 void
+VGLRestoreBorder(void)
+{
+  VGLSetBorder(VGLBorderColor);
+}
+
+void
 VGLSetBorder(byte color)
 {
   if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT && ioctl(0, KDENABIO, 0))
@@ -646,8 +654,15 @@ VGLSetBorder(byte color)
   outb(0x3C0,0x11); outb(0x3C0, color); 
   inb(0x3DA);
   outb(0x3C0, 0x20);
+  VGLBorderColor = color;
   if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT)
     ioctl(0, KDDISABIO, 0);
+}
+
+void
+VGLRestoreBlank(void)
+{
+  VGLBlankDisplay(VGLBlank);
 }
 
 void
@@ -660,6 +675,7 @@ VGLBlankDisplay(int blank)
   VGLCheckSwitch();
   outb(0x3C4, 0x01); val = inb(0x3C5); outb(0x3C4, 0x01);
   outb(0x3C5, ((blank) ? (val |= 0x20) : (val &= 0xDF)));
+  VGLBlank = blank;
   if (VGLModeInfo.vi_mem_model == V_INFO_MM_DIRECT)
     ioctl(0, KDDISABIO, 0);
 }
