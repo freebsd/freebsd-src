@@ -38,9 +38,9 @@ __FBSDID("$FreeBSD$");
 #include "disk.h"
 
 #ifdef DISK_DEBUG
-# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
+# define DPRINTF(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
 #else
-# define DEBUG(fmt, args...)
+# define DPRINTF(fmt, args...)
 #endif
 
 struct open_disk {
@@ -75,7 +75,7 @@ display_size(uint64_t size, u_int sectorsize)
 		size /= 1024;
 		unit = 'M';
 	}
-	sprintf(buf, "%ld%cB", (long)size, unit);
+	sprintf(buf, "%4ld%cB", (long)size, unit);
 	return (buf);
 }
 
@@ -102,7 +102,6 @@ ptblread(void *d, void *buf, size_t blocks, uint64_t offset)
 	    blocks * od->sectorsize, (char *)buf, NULL));
 }
 
-#define	PWIDTH	35
 static int
 ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 {
@@ -112,16 +111,16 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 	struct ptable *table;
 	char line[80];
 	int res;
+	u_int sectsize;
+	uint64_t partsize;
 
 	pa = (struct print_args *)arg;
 	od = (struct open_disk *)pa->dev->dd.d_opendata;
-	sprintf(line, "  %s%s: %s", pa->prefix, pname,
-	    parttype2str(part->type));
-	if (pa->verbose)
-		sprintf(line, "%-*s%s", PWIDTH, line,
-		    display_size(part->end - part->start + 1,
-		    od->sectorsize));
-	strcat(line, "\n");
+	sectsize = od->sectorsize;
+	partsize = part->end - part->start + 1;
+	sprintf(line, "  %s%s: %s\t%s\n", pa->prefix, pname,
+	    parttype2str(part->type),
+	    pa->verbose ? display_size(partsize, sectsize) : "");
 	if (pager_output(line))
 		return 1;
 	res = 0;
@@ -131,10 +130,15 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 		dev.dd.d_unit = pa->dev->dd.d_unit;
 		dev.d_slice = part->index;
 		dev.d_partition = -1;
-		if (disk_open(&dev, part->end - part->start + 1,
-		    od->sectorsize) == 0) {
-			table = ptable_open(&dev, part->end - part->start + 1,
-			    od->sectorsize, ptblread);
+		if (disk_open(&dev, partsize, sectsize) == 0) {
+			/*
+			 * disk_open() for partition -1 on a bsd slice assumes
+			 * you want the first bsd partition.  Reset things so
+			 * that we're looking at the start of the raw slice.
+			 */
+			dev.d_partition = -1;
+			dev.d_offset = part->start;
+			table = ptable_open(&dev, partsize, sectsize, ptblread);
 			if (table != NULL) {
 				sprintf(line, "  %s%s", pa->prefix, pname);
 				bsd.dev = pa->dev;
@@ -149,7 +153,6 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 
 	return (res);
 }
-#undef PWIDTH
 
 int
 disk_print(struct disk_devdesc *dev, char *prefix, int verbose)
@@ -228,7 +231,7 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 	rc = 0;
 	od = (struct open_disk *)malloc(sizeof(struct open_disk));
 	if (od == NULL) {
-		DEBUG("no memory");
+		DPRINTF("no memory");
 		return (ENOMEM);
 	}
 	dev->dd.d_opendata = od;
@@ -249,14 +252,14 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 	slice = dev->d_slice;
 	partition = dev->d_partition;
 
-	DEBUG("%s unit %d, slice %d, partition %d => %p",
+	DPRINTF("%s unit %d, slice %d, partition %d => %p",
 	    disk_fmtdev(dev), dev->dd.d_unit, dev->d_slice, dev->d_partition, od);
 
 	/* Determine disk layout. */
 	od->table = ptable_open(&partdev, mediasize / sectorsize, sectorsize,
 	    ptblread);
 	if (od->table == NULL) {
-		DEBUG("Can't read partition table");
+		DPRINTF("Can't read partition table");
 		rc = ENXIO;
 		goto out;
 	}
@@ -312,7 +315,7 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 		table = ptable_open(dev, part.end - part.start + 1,
 		    od->sectorsize, ptblread);
 		if (table == NULL) {
-			DEBUG("Can't read BSD label");
+			DPRINTF("Can't read BSD label");
 			rc = ENXIO;
 			goto out;
 		}
@@ -340,12 +343,12 @@ out:
 		if (od->table != NULL)
 			ptable_close(od->table);
 		free(od);
-		DEBUG("%s could not open", disk_fmtdev(dev));
+		DPRINTF("%s could not open", disk_fmtdev(dev));
 	} else {
 		/* Save the slice and partition number to the dev */
 		dev->d_slice = slice;
 		dev->d_partition = partition;
-		DEBUG("%s offset %lld => %p", disk_fmtdev(dev),
+		DPRINTF("%s offset %lld => %p", disk_fmtdev(dev),
 		    (long long)dev->d_offset, od);
 	}
 	return (rc);
@@ -357,7 +360,7 @@ disk_close(struct disk_devdesc *dev)
 	struct open_disk *od;
 
 	od = (struct open_disk *)dev->dd.d_opendata;
-	DEBUG("%s closed => %p", disk_fmtdev(dev), od);
+	DPRINTF("%s closed => %p", disk_fmtdev(dev), od);
 	ptable_close(od->table);
 	free(od);
 	return (0);

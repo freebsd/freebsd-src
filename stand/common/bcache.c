@@ -44,9 +44,9 @@ __FBSDID("$FreeBSD$");
 /* #define BCACHE_DEBUG */
 
 #ifdef BCACHE_DEBUG
-# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
+# define DPRINTF(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
 #else
-# define DEBUG(fmt, args...)
+# define DPRINTF(fmt, args...)
 #endif
 
 struct bcachectl
@@ -369,7 +369,7 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     /* bypass large requests, or when the cache is inactive */
     if (bc == NULL ||
 	((size * 2 / bcache_blksize) > bcache_nblks)) {
-	DEBUG("bypass %zu from %qu", size / bcache_blksize, blk);
+	DPRINTF("bypass %zu from %qu", size / bcache_blksize, blk);
 	bcache_bypasses++;
 	rw &= F_MASK;
 	return (dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize));
@@ -444,7 +444,7 @@ bcache_insert(struct bcache *bc, daddr_t blkno)
     
     cand = BHASH(bc, blkno);
 
-    DEBUG("insert blk %llu -> %u # %d", blkno, cand, bcache_bcount);
+    DPRINTF("insert blk %llu -> %u # %d", blkno, cand, bcache_bcount);
     bc->bcache_ctl[cand].bc_blkno = blkno;
     bc->bcache_ctl[cand].bc_count = bcache_bcount++;
 }
@@ -461,7 +461,7 @@ bcache_invalidate(struct bcache *bc, daddr_t blkno)
     if (bc->bcache_ctl[i].bc_blkno == blkno) {
 	bc->bcache_ctl[i].bc_count = -1;
 	bc->bcache_ctl[i].bc_blkno = -1;
-	DEBUG("invalidate blk %llu", blkno);
+	DPRINTF("invalidate blk %llu", blkno);
     }
 }
 
