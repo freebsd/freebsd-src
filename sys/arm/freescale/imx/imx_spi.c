@@ -424,6 +424,7 @@ spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	}
 
 	mtx_lock(&sc->mtx);
+	device_busy(sc->dev);
 
 	if (sc->debug >= 1) {
 		device_printf(sc->dev,
@@ -448,6 +449,7 @@ spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	spi_set_chipsel(sc, cs, false);
 	WR4(sc, ECSPI_CTLREG, 0);
 
+	device_unbusy(sc->dev);
 	mtx_unlock(&sc->mtx);
 
 	return (err);
@@ -468,11 +470,11 @@ static int
 spi_detach(device_t dev)
 {
 	struct spi_softc *sc = device_get_softc(dev);
-	int idx;
+	int error, idx;
 
-	mtx_lock(&sc->mtx);
+	if ((error = bus_generic_detach(sc->dev)) != 0)
+		return (error);
 
-	bus_generic_detach(sc->dev);
 	if (sc->spibus != NULL)
 		device_delete_child(dev, sc->spibus);
 
@@ -488,7 +490,6 @@ spi_detach(device_t dev)
 	if (sc->memres != NULL)
 		bus_release_resource(sc->dev, SYS_RES_MEMORY, 0, sc->memres);
 
-	mtx_unlock(&sc->mtx);
 	mtx_destroy(&sc->mtx);
 
 	return (0);
