@@ -1155,8 +1155,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_stopTxDma)((_ah), (_qnum)))
 #define	ath_hal_stoppcurecv(_ah) \
 	((*(_ah)->ah_stopPcuReceive)((_ah)))
-#define	ath_hal_startpcurecv(_ah) \
-	((*(_ah)->ah_startPcuReceive)((_ah)))
+#define	ath_hal_startpcurecv(_ah, _is_scanning) \
+	((*(_ah)->ah_startPcuReceive)((_ah), (_is_scanning)))
 #define	ath_hal_stopdmarecv(_ah) \
 	((*(_ah)->ah_stopDmaReceive)((_ah)))
 #define	ath_hal_getdiagstate(_ah, _id, _indata, _insize, _outdata, _outsize) \

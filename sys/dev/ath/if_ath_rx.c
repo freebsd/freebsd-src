@@ -1228,7 +1228,7 @@ rx_proc_next:
 		ath_hal_putrxbuf(ah, bf->bf_daddr, HAL_RX_QUEUE_HP);
 		ath_hal_rxena(ah);		/* enable recv descriptors */
 		ath_mode_init(sc);		/* set filters, etc. */
-		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
+		ath_hal_startpcurecv(ah, (!! sc->sc_scanning));	/* re-enable PCU/DMA engine */
 #endif
 
 		ath_hal_intrset(ah, sc->sc_imask);
@@ -1444,7 +1444,7 @@ ath_legacy_startrecv(struct ath_softc *sc)
 	ath_hal_putrxbuf(ah, bf->bf_daddr, HAL_RX_QUEUE_HP);
 	ath_hal_rxena(ah);		/* enable recv descriptors */
 	ath_mode_init(sc);		/* set filters, etc. */
-	ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
+	ath_hal_startpcurecv(ah, (!! sc->sc_scanning));	/* re-enable PCU/DMA engine */
 
 	ATH_RX_UNLOCK(sc);
 	return 0;
