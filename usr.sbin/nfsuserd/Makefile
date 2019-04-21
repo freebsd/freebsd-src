@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.own.mk>
 
 PROG=	nfsuserd
 MAN=	nfsuserd.8
