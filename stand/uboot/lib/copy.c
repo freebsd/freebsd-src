@@ -133,7 +133,7 @@ uboot_loadaddr(u_int type, void *data, uint64_t addr)
 			}
 		}
 		if (biggest_size == 0)
-			panic("Not enough DRAM to load kernel\n");
+			panic("Not enough DRAM to load kernel");
 #if 0
 		printf("Loading kernel into region 0x%08jx-0x%08jx (%ju MiB)\n",
 		    (uintmax_t)biggest_block, 

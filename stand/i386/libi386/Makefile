@@ -4,7 +4,7 @@
 
 LIB=			i386
 
-SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
+SRCS=	bio.c biosacpi.c biosdisk.c biosmem.c biospnp.c \
 	biospci.c biossmap.c bootinfo.c bootinfo32.c bootinfo64.c \
 	comconsole.c devicename.c elf32_freebsd.c \
 	elf64_freebsd.c multiboot.c multiboot_tramp.S relocater_tramp.S \

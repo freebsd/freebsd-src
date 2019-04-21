@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 1998 Michael Smith
- * All rights reserved.
+ * Copyright 2018 Toomas Soome <tsoome@me.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,41 +26,42 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stand.h>
+#include "libi386.h"
+
 /*
- * Minimal sbrk() emulation required for malloc support.
+ * The idea is borrowed from pxe.c and zfsimpl.c. The original buffer
+ * space in pxe.c was 2x 0x2000. Allocating it from BSS will give us needed
+ * memory below 1MB and usable for real mode calls.
+ *
+ * Note the allocations and frees are to be done in reverse order (LIFO).
  */
 
-#include <string.h>
-#include "stand.h"
-#include "zalloc_defs.h"
+static char bio_buffer[BIO_BUFFER_SIZE];
+static char *bio_buffer_end = bio_buffer + BIO_BUFFER_SIZE;
+static char *bio_buffer_ptr = bio_buffer;
 
-static size_t	maxheap, heapsize = 0;
-static void	*heapbase;
+void *
+bio_alloc(size_t size)
+{
+	char *ptr;
+
+	ptr = bio_buffer_ptr;
+	if (ptr + size > bio_buffer_end)
+		return (NULL);
+	bio_buffer_ptr += size;
+
+	return (ptr);
+}
 
 void
-setheap(void *base, void *top)
+bio_free(void *ptr, size_t size)
 {
-    /* Align start address for the malloc code.  Sigh. */
-    heapbase = (void *)(((uintptr_t)base + MALLOCALIGN_MASK) & 
-        ~MALLOCALIGN_MASK);
-    maxheap = (char *)top - (char *)heapbase;
+
+	if (ptr == NULL)
+		return;
+
+	bio_buffer_ptr -= size;
+	if (bio_buffer_ptr != ptr)
+		panic("bio_alloc()/bio_free() mismatch\n");
 }
-
-char *
-sbrk(int incr)
-{
-    char	*ret;
-    
-    if (heapbase == 0)
-	    panic("No heap setup");
-
-    if ((heapsize + incr) <= maxheap) {
-	ret = (char *)heapbase + heapsize;
-	bzero(ret, incr);
-	heapsize += incr;
-	return(ret);
-    }
-    errno = ENOMEM;
-    return((char *)-1);
-}
-

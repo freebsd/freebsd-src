@@ -103,23 +103,42 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
     }
     if (dv == NULL)
 	return(ENOENT);
-    idev = malloc(sizeof(struct i386_devdesc));
-    err = 0;
+
     np = (devspec + strlen(dv->dv_name));
+    idev = NULL;
+    err = 0;
         
     switch(dv->dv_type) {
-    case DEVT_NONE:			/* XXX what to do here?  Do we care? */
+    case DEVT_NONE:
 	break;
 
     case DEVT_DISK:
+	idev = malloc(sizeof(struct i386_devdesc));
+	if (idev == NULL)
+	    return (ENOMEM);
+
 	err = disk_parsedev((struct disk_devdesc *)idev, np, path);
 	if (err != 0)
 	    goto fail;
 	break;
 
-    case DEVT_CD:
-    case DEVT_NET:
+    case DEVT_ZFS:
+	idev = malloc(sizeof (struct zfs_devdesc));
+	if (idev == NULL)
+	    return (ENOMEM);
+
+	err = zfs_parsedev((struct zfs_devdesc *)idev, np, path);
+	if (err != 0)
+	    goto fail;
+	break;
+
+    default:
+	idev = malloc(sizeof (struct devdesc));
+	if (idev == NULL)
+	    return (ENOMEM);
+
 	unit = 0;
+	cp = (char *)np;
 
 	if (*np && (*np != ':')) {
 	    unit = strtol(np, &cp, 0);	/* get unit number if present */
@@ -127,9 +146,8 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 		err = EUNIT;
 		goto fail;
 	    }
-	} else {
-		cp = (char *)np;
 	}
+
 	if (*cp && (*cp != ':')) {
 	    err = EINVAL;
 	    goto fail;
@@ -139,21 +157,13 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 	if (path != NULL)
 	    *path = (*cp == 0) ? cp : cp + 1;
 	break;
-    case DEVT_ZFS:
-	err = zfs_parsedev((struct zfs_devdesc *)idev, np, path);
-	if (err != 0)
-	    goto fail;
-	break;
-    default:
-	err = EINVAL;
-	goto fail;
     }
     idev->dd.d_dev = dv;
-    if (dev == NULL) {
-	free(idev);
-    } else {
+    if (dev != NULL)
 	*dev = idev;
-    }
+    else
+	free(idev);
+
     return(0);
 
  fail:

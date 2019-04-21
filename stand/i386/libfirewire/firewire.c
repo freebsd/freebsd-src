@@ -107,9 +107,9 @@ fw_probe(int index, struct fwohci_softc *sc)
 	}
 
 	biospci_write_config(sc->locator,
-		0x4	/* command */,
-		0x6	/* enable bus master and memory mapped I/O */,
-		BIOSPCI_16BITS);
+	    0x4	/* command */,
+	    BIOSPCI_16BITS,
+	    0x6	/* enable bus master and memory mapped I/O */);
 
 	biospci_read_config(sc->locator, 0x00 /*devid*/, BIOSPCI_32BITS,
 		&sc->devid);

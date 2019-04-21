@@ -144,7 +144,7 @@ bf_command(FICL_VM *vm)
 		printf("%s\n", command_errmsg);
 		break;
 	case CMD_FATAL:
-		panic("%s\n", command_errmsg);
+		panic("%s", command_errmsg);
 	}
 
 	free(line);

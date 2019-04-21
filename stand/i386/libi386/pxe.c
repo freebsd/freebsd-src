@@ -48,17 +48,9 @@ __FBSDID("$FreeBSD$");
 
 #include <bootp.h>
 #include <bootstrap.h>
+#include "libi386.h"
 #include "btxv86.h"
 #include "pxe.h"
-
-/*
- * Allocate the PXE buffers statically instead of sticking grimy fingers into
- * BTX's private data area. The scratch buffer is used to send information to
- * the PXE BIOS, and the data buffer is used to receive data from the PXE BIOS.
- */
-#define	PXE_BUFFER_SIZE		0x2000
-static char	scratch_buffer[PXE_BUFFER_SIZE];
-static char	data_buffer[PXE_BUFFER_SIZE];
 
 static pxenv_t *pxenv_p = NULL;	/* PXENV+ */
 static pxe_t *pxe_p = NULL;		/* !PXE */
@@ -68,9 +60,9 @@ static int	pxe_debug = 0;
 #endif
 
 void		pxe_enable(void *pxeinfo);
-static void	(*pxe_call)(int func);
-static void	pxenv_call(int func);
-static void	bangpxe_call(int func);
+static void	(*pxe_call)(int func, void *ptr);
+static void	pxenv_call(int func, void *ptr);
+static void	bangpxe_call(int func, void *ptr);
 
 static int	pxe_init(void);
 static int	pxe_print(int verbose);
@@ -225,12 +217,17 @@ pxe_init(void)
 		printf("@%04x:%04x\n",
 		    pxenv_p->RMEntry.segment, pxenv_p->RMEntry.offset);
 
-	gci_p = (t_PXENV_GET_CACHED_INFO *) scratch_buffer;
+	gci_p = bio_alloc(sizeof(*gci_p));
+	if (gci_p == NULL) {
+		pxe_p = NULL;
+		return (0);
+	}
 	bzero(gci_p, sizeof(*gci_p));
 	gci_p->PacketType = PXENV_PACKET_TYPE_BINL_REPLY;
-	pxe_call(PXENV_GET_CACHED_INFO);
+	pxe_call(PXENV_GET_CACHED_INFO, gci_p);
 	if (gci_p->Status != 0) {
 		pxe_perror(gci_p->Status);
+		bio_free(gci_p, sizeof(*gci_p));
 		pxe_p = NULL;
 		return (0);
 	}
@@ -240,6 +237,7 @@ pxe_init(void)
 		bcopy(PTOV((gci_p->Buffer.segment << 4) + gci_p->Buffer.offset),
 		    bootp_response, bootp_response_size);
 	}
+	bio_free(gci_p, sizeof(*gci_p));
 	return (1);
 }
 
@@ -262,31 +260,37 @@ pxe_print(int verbose)
 static void
 pxe_cleanup(void)
 {
-#ifdef PXE_DEBUG
-	t_PXENV_UNLOAD_STACK *unload_stack_p =
-		(t_PXENV_UNLOAD_STACK *)scratch_buffer;
-	t_PXENV_UNDI_SHUTDOWN *undi_shutdown_p =
-		(t_PXENV_UNDI_SHUTDOWN *)scratch_buffer;
-#endif
+	t_PXENV_UNLOAD_STACK *unload_stack_p;
+	t_PXENV_UNDI_SHUTDOWN *undi_shutdown_p;
 
 	if (pxe_call == NULL)
 		return;
 
-	pxe_call(PXENV_UNDI_SHUTDOWN);
+	undi_shutdown_p = bio_alloc(sizeof(*undi_shutdown_p));
+	if (undi_shutdown_p != NULL) {
+		bzero(undi_shutdown_p, sizeof(*undi_shutdown_p));
+		pxe_call(PXENV_UNDI_SHUTDOWN, undi_shutdown_p);
 
 #ifdef PXE_DEBUG
-	if (pxe_debug && undi_shutdown_p->Status != 0)
-		printf("pxe_cleanup: UNDI_SHUTDOWN failed %x\n",
-		    undi_shutdown_p->Status);
+		if (pxe_debug && undi_shutdown_p->Status != 0)
+			printf("pxe_cleanup: UNDI_SHUTDOWN failed %x\n",
+			    undi_shutdown_p->Status);
 #endif
+		bio_free(undi_shutdown_p, sizeof(*undi_shutdown_p));
+	}
 
-	pxe_call(PXENV_UNLOAD_STACK);
+	unload_stack_p = bio_alloc(sizeof(*unload_stack_p));
+	if (unload_stack_p != NULL) {
+		bzero(unload_stack_p, sizeof(*unload_stack_p));
+		pxe_call(PXENV_UNLOAD_STACK, unload_stack_p);
 
 #ifdef PXE_DEBUG
-	if (pxe_debug && unload_stack_p->Status != 0)
-		printf("pxe_cleanup: UNLOAD_STACK failed %x\n",
-		    unload_stack_p->Status);
+		if (pxe_debug && unload_stack_p->Status != 0)
+			printf("pxe_cleanup: UNLOAD_STACK failed %x\n",
+			    unload_stack_p->Status);
 #endif
+		bio_free(unload_stack_p, sizeof(*unload_stack_p));
+	}
 }
 
 void
@@ -296,7 +300,7 @@ pxe_perror(int err)
 }
 
 void
-pxenv_call(int func)
+pxenv_call(int func, void *ptr)
 {
 #ifdef PXE_DEBUG
 	if (pxe_debug)
@@ -304,14 +308,13 @@ pxenv_call(int func)
 #endif
 	
 	bzero(&v86, sizeof(v86));
-	bzero(data_buffer, sizeof(data_buffer));
 
 	__pxenvseg = pxenv_p->RMEntry.segment;
 	__pxenvoff = pxenv_p->RMEntry.offset;
 	
 	v86.ctl  = V86_ADDR | V86_CALLF | V86_FLAGS;
-	v86.es   = VTOPSEG(scratch_buffer);
-	v86.edi  = VTOPOFF(scratch_buffer);
+	v86.es   = VTOPSEG(ptr);
+	v86.edi  = VTOPOFF(ptr);
 	v86.addr = (VTOPSEG(__pxenventry) << 16) | VTOPOFF(__pxenventry);
 	v86.ebx  = func;
 	v86int();
@@ -319,7 +322,7 @@ pxenv_call(int func)
 }
 
 void
-bangpxe_call(int func)
+bangpxe_call(int func, void *ptr)
 {
 #ifdef PXE_DEBUG
 	if (pxe_debug)
@@ -327,14 +330,13 @@ bangpxe_call(int func)
 #endif
 
 	bzero(&v86, sizeof(v86));
-	bzero(data_buffer, sizeof(data_buffer));
 
 	__bangpxeseg = pxe_p->EntryPointSP.segment;
 	__bangpxeoff = pxe_p->EntryPointSP.offset;
 
 	v86.ctl  = V86_ADDR | V86_CALLF | V86_FLAGS;
-	v86.edx  = VTOPSEG(scratch_buffer);
-	v86.eax  = VTOPOFF(scratch_buffer);
+	v86.edx  = VTOPSEG(ptr);
+	v86.eax  = VTOPOFF(ptr);
 	v86.addr = (VTOPSEG(__bangpxeentry) << 16) | VTOPOFF(__bangpxeentry);
 	v86.ebx  = func;
 	v86int();
@@ -362,11 +364,14 @@ pxe_netif_end(struct netif *nif)
 {
 	t_PXENV_UNDI_CLOSE *undi_close_p;
 
-	undi_close_p = (t_PXENV_UNDI_CLOSE *)scratch_buffer;
-	bzero(undi_close_p, sizeof(*undi_close_p));
-	pxe_call(PXENV_UNDI_CLOSE);
-	if (undi_close_p->Status != 0)
-		printf("undi close failed: %x\n", undi_close_p->Status);
+	undi_close_p = bio_alloc(sizeof(*undi_close_p));
+	if (undi_close_p != NULL) {
+		bzero(undi_close_p, sizeof(*undi_close_p));
+		pxe_call(PXENV_UNDI_CLOSE, undi_close_p);
+		if (undi_close_p->Status != 0)
+			printf("undi close failed: %x\n", undi_close_p->Status);
+		bio_free(undi_close_p, sizeof(*undi_close_p));
+	}
 }
 
 static void
@@ -377,11 +382,15 @@ pxe_netif_init(struct iodesc *desc, void *machdep_hint)
 	uint8_t *mac;
 	int i, len;
 
-	undi_info_p = (t_PXENV_UNDI_GET_INFORMATION *)scratch_buffer;
+	undi_info_p = bio_alloc(sizeof(*undi_info_p));
+	if (undi_info_p == NULL)
+		return;
+
 	bzero(undi_info_p, sizeof(*undi_info_p));
-	pxe_call(PXENV_UNDI_GET_INFORMATION);
+	pxe_call(PXENV_UNDI_GET_INFORMATION, undi_info_p);
 	if (undi_info_p->Status != 0) {
 		printf("undi get info failed: %x\n", undi_info_p->Status);
+		bio_free(undi_info_p, sizeof(*undi_info_p));
 		return;
 	}
 
@@ -410,32 +419,44 @@ pxe_netif_init(struct iodesc *desc, void *machdep_hint)
 	else
 		desc->xid = 0;
 
-	undi_open_p = (t_PXENV_UNDI_OPEN *)scratch_buffer;
+	bio_free(undi_info_p, sizeof(*undi_info_p));
+	undi_open_p = bio_alloc(sizeof(*undi_open_p));
+	if (undi_open_p == NULL)
+		return;
 	bzero(undi_open_p, sizeof(*undi_open_p));
 	undi_open_p->PktFilter = FLTR_DIRECTED | FLTR_BRDCST;
-	pxe_call(PXENV_UNDI_OPEN);
+	pxe_call(PXENV_UNDI_OPEN, undi_open_p);
 	if (undi_open_p->Status != 0)
 		printf("undi open failed: %x\n", undi_open_p->Status);
+	bio_free(undi_open_p, sizeof(*undi_open_p));
 }
 
 static int
 pxe_netif_receive(void **pkt)
 {
-	t_PXENV_UNDI_ISR *isr = (t_PXENV_UNDI_ISR *)scratch_buffer;
+	t_PXENV_UNDI_ISR *isr;
 	char *buf, *ptr, *frame;
 	size_t size, rsize;
 
-	bzero(isr, sizeof(*isr));
-	isr->FuncFlag = PXENV_UNDI_ISR_IN_START;
-	pxe_call(PXENV_UNDI_ISR);
-	if (isr->Status != 0)
+	isr = bio_alloc(sizeof(*isr));
+	if (isr == NULL)
 		return (-1);
 
 	bzero(isr, sizeof(*isr));
-	isr->FuncFlag = PXENV_UNDI_ISR_IN_PROCESS;
-	pxe_call(PXENV_UNDI_ISR);
-	if (isr->Status != 0)
+	isr->FuncFlag = PXENV_UNDI_ISR_IN_START;
+	pxe_call(PXENV_UNDI_ISR, isr);
+	if (isr->Status != 0) {
+		bio_free(isr, sizeof(*isr));
 		return (-1);
+	}
+
+	bzero(isr, sizeof(*isr));
+	isr->FuncFlag = PXENV_UNDI_ISR_IN_PROCESS;
+	pxe_call(PXENV_UNDI_ISR, isr);
+	if (isr->Status != 0) {
+		bio_free(isr, sizeof(*isr));
+		return (-1);
+	}
 
 	while (isr->FuncFlag == PXENV_UNDI_ISR_OUT_TRANSMIT) {
 		/*
@@ -443,26 +464,31 @@ pxe_netif_receive(void **pkt)
 		 */
 		bzero(isr, sizeof(*isr));
 		isr->FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
-		pxe_call(PXENV_UNDI_ISR);
+		pxe_call(PXENV_UNDI_ISR, isr);
 		if (isr->Status != 0 ||
-		    isr->FuncFlag == PXENV_UNDI_ISR_OUT_DONE)
+		    isr->FuncFlag == PXENV_UNDI_ISR_OUT_DONE) {
+			bio_free(isr, sizeof(*isr));
 			return (-1);
+		}
 	}
 
 	while (isr->FuncFlag != PXENV_UNDI_ISR_OUT_RECEIVE) {
 		if (isr->Status != 0 ||
 		    isr->FuncFlag == PXENV_UNDI_ISR_OUT_DONE) {
+			bio_free(isr, sizeof(*isr));
 			return (-1);
 		}
 		bzero(isr, sizeof(*isr));
 		isr->FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
-		pxe_call(PXENV_UNDI_ISR);
+		pxe_call(PXENV_UNDI_ISR, isr);
 	}
 
 	size = isr->FrameLength;
 	buf = malloc(size + ETHER_ALIGN);
-	if (buf == NULL)
+	if (buf == NULL) {
+		bio_free(isr, sizeof(*isr));
 		return (-1);
+	}
 	ptr = buf + ETHER_ALIGN;
 	rsize = 0;
 
@@ -475,8 +501,9 @@ pxe_netif_receive(void **pkt)
 
 		bzero(isr, sizeof(*isr));
 		isr->FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
-		pxe_call(PXENV_UNDI_ISR);
+		pxe_call(PXENV_UNDI_ISR, isr);
 		if (isr->Status != 0) {
+			bio_free(isr, sizeof(*isr));
 			free(buf);
 			return (-1);
 		}
@@ -488,6 +515,7 @@ pxe_netif_receive(void **pkt)
 	}
 
 	*pkt = buf;
+	bio_free(isr, sizeof(*isr));
 	return (rsize);
 }
 
@@ -515,26 +543,31 @@ pxe_netif_put(struct iodesc *desc, void *pkt, size_t len)
 	t_PXENV_UNDI_TRANSMIT *trans_p;
 	t_PXENV_UNDI_TBD *tbd_p;
 	char *data;
+	ssize_t rv = -1;
 
-	trans_p = (t_PXENV_UNDI_TRANSMIT *)scratch_buffer;
-	bzero(trans_p, sizeof(*trans_p));
-	tbd_p = (t_PXENV_UNDI_TBD *)(scratch_buffer + sizeof(*trans_p));
-	bzero(tbd_p, sizeof(*tbd_p));
+	trans_p = bio_alloc(sizeof(*trans_p));
+	tbd_p = bio_alloc(sizeof(*tbd_p));
+	data = bio_alloc(len);
 
-	data = scratch_buffer + sizeof(*trans_p) + sizeof(*tbd_p);
+	if (trans_p != NULL && tbd_p != NULL && data != NULL) {
+		bzero(trans_p, sizeof(*trans_p));
+		bzero(tbd_p, sizeof(*tbd_p));
 
-	trans_p->TBD.segment = VTOPSEG(tbd_p);
-	trans_p->TBD.offset  = VTOPOFF(tbd_p);
+		trans_p->TBD.segment = VTOPSEG(tbd_p);
+		trans_p->TBD.offset  = VTOPOFF(tbd_p);
 
-	tbd_p->ImmedLength = len;
-	tbd_p->Xmit.segment = VTOPSEG(data);
-	tbd_p->Xmit.offset  = VTOPOFF(data);
-	bcopy(pkt, data, len);
+		tbd_p->ImmedLength = len;
+		tbd_p->Xmit.segment = VTOPSEG(data);
+		tbd_p->Xmit.offset  = VTOPOFF(data);
+		bcopy(pkt, data, len);
 
-	pxe_call(PXENV_UNDI_TRANSMIT);
-	if (trans_p->Status != 0) {
-		return (-1);
+		pxe_call(PXENV_UNDI_TRANSMIT, trans_p);
+		if (trans_p->Status == 0)
+			rv = len;
 	}
 
-	return (len);
+	bio_free(data, len);
+	bio_free(tbd_p, sizeof(*tbd_p));
+	bio_free(trans_p, sizeof(*trans_p));
+	return (rv);
 }
