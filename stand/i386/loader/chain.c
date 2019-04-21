@@ -92,24 +92,26 @@ command_chain(int argc, char *argv[])
 	i386_getdev((void **)(&rootdev), argv[1], NULL);
 	if (rootdev == NULL) {
 		command_errmsg = "can't determine root device";
+		close(fd);
 		return (CMD_ERROR);
 	}
 
-	if (archsw.arch_readin(fd, mem, SECTOR_SIZE) != SECTOR_SIZE) {
+	if (archsw.arch_readin(fd, mem, size) != size) {
 		command_errmsg = "failed to read disk";
 		close(fd);
 		return (CMD_ERROR);
 	}
 	close(fd);
 
-	if (*((uint16_t *)PTOV(mem + DOSMAGICOFFSET)) != DOSMAGIC) {
+	if (argv[1][len-1] == ':' &&
+	    *((uint16_t *)PTOV(mem + DOSMAGICOFFSET)) != DOSMAGIC) {
 		command_errmsg = "wrong magic";
 		return (CMD_ERROR);
 	}
 
 	relocater_data[0].src = mem;
 	relocater_data[0].dest = 0x7C00;
-	relocater_data[0].size = SECTOR_SIZE;
+	relocater_data[0].size = size;
 
 	relocator_edx = bd_unit2bios(rootdev->dd.d_unit);
 	relocator_esi = relocater_size;
