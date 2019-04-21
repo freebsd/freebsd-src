@@ -230,7 +230,7 @@ bcm2835_intc_intr(void *arg)
 		}
 		arm_irq_memory_barrier(0); /* XXX */
 	}
-	if (num == 0)
+	if (num == 0 && bootverbose)
 		device_printf(sc->sc_dev, "Spurious interrupt detected\n");
 
 	return (FILTER_HANDLED);
