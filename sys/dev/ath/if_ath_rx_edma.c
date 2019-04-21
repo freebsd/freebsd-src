@@ -282,7 +282,7 @@ ath_edma_startrecv(struct ath_softc *sc)
 	    sc->sc_rxedma[HAL_RX_QUEUE_LP].m_fifolen);
 
 	ath_mode_init(sc);
-	ath_hal_startpcurecv(ah);
+	ath_hal_startpcurecv(ah, (!! sc->sc_scanning));
 
 	/*
 	 * We're now doing RX DMA!
