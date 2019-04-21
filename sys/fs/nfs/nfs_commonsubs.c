@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
  * copy data between mbuf chains and uio lists.
  */
 #ifndef APPLEKEXT
+#include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <fs/nfs/nfsport.h>
@@ -3071,10 +3072,16 @@ nfsrv_cmpmixedcase(u_char *cp, u_char *cp2, int len)
  * Set the port for the nfsuserd.
  */
 APPLESTATIC int
-nfsrv_nfsuserdport(u_short port, NFSPROC_T *p)
+nfsrv_nfsuserdport(struct nfsuserd_args *nargs, NFSPROC_T *p)
 {
 	struct nfssockreq *rp;
+#ifdef INET
 	struct sockaddr_in *ad;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *ad6;
+	const struct in6_addr in6loopback = IN6ADDR_LOOPBACK_INIT;
+#endif
 	int error;
 
 	NFSLOCKNAMEID();
@@ -3094,17 +3101,39 @@ nfsrv_nfsuserdport(u_short port, NFSPROC_T *p)
 	rp->nr_soproto = IPPROTO_UDP;
 	rp->nr_lock = (NFSR_RESERVEDPORT | NFSR_LOCALHOST);
 	rp->nr_cred = NULL;
-	NFSSOCKADDRALLOC(rp->nr_nam);
-	NFSSOCKADDRSIZE(rp->nr_nam, sizeof (struct sockaddr_in));
-	ad = NFSSOCKADDR(rp->nr_nam, struct sockaddr_in *);
-	ad->sin_family = AF_INET;
-	ad->sin_addr.s_addr = htonl((u_int32_t)0x7f000001);	/* 127.0.0.1 */
-	ad->sin_port = port;
 	rp->nr_prog = RPCPROG_NFSUSERD;
+	error = 0;
+	switch (nargs->nuserd_family) {
+#ifdef INET
+	case AF_INET:
+		rp->nr_nam = malloc(sizeof(struct sockaddr_in), M_SONAME,
+		    M_WAITOK | M_ZERO);
+ 		ad = (struct sockaddr_in *)rp->nr_nam;
+		ad->sin_len = sizeof(struct sockaddr_in);
+ 		ad->sin_family = AF_INET;
+		ad->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		ad->sin_port = nargs->nuserd_port;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		rp->nr_nam = malloc(sizeof(struct sockaddr_in6), M_SONAME,
+		    M_WAITOK | M_ZERO);
+		ad6 = (struct sockaddr_in6 *)rp->nr_nam;
+		ad6->sin6_len = sizeof(struct sockaddr_in6);
+		ad6->sin6_family = AF_INET6;
+		ad6->sin6_addr = in6loopback;
+		ad6->sin6_port = nargs->nuserd_port;
+		break;
+#endif
+	default:
+		error = ENXIO;
+ 	}
 	rp->nr_vers = RPCNFSUSERD_VERS;
-	error = newnfs_connect(NULL, rp, NFSPROCCRED(p), p, 0);
+	if (error == 0)
+		error = newnfs_connect(NULL, rp, NFSPROCCRED(p), p, 0);
 	if (error) {
-		NFSSOCKADDRFREE(rp->nr_nam);
+		free(rp->nr_nam, M_SONAME);
 		nfsrv_nfsuserd = 0;
 	}
 out:

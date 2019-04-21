@@ -212,6 +212,11 @@ struct nfsd_oidargs {
 	int		nid_namelen;	/* and its length */
 };
 
+struct nfsuserd_args {
+	sa_family_t	nuserd_family;	/* Address family to use */
+	u_short		nuserd_port;	/* Port# */
+};
+
 struct nfsd_clid {
 	int		nclid_idlen;	/* Length of client id */
 	u_char		nclid_id[NFSV4_OPAQUELIMIT]; /* and name */
