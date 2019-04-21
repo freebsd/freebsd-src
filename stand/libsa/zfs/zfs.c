@@ -33,15 +33,16 @@ __FBSDID("$FreeBSD$");
  *	Stand-alone file reading package.
  */
 
+#include <stand.h>
 #include <sys/disk.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/queue.h>
+#include <disk.h>
 #include <part.h>
 #include <stddef.h>
 #include <stdarg.h>
 #include <string.h>
-#include <stand.h>
 #include <bootstrap.h>
 
 #include "libzfs.h"
@@ -362,51 +363,100 @@ static int
 vdev_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t bytes)
 {
 	int fd, ret;
-	size_t res, size, remainder, rb_size, blksz;
-	unsigned secsz;
-	off_t off;
-	char *bouncebuf, *rb_buf;
+	size_t res, head, tail, total_size, full_sec_size;
+	unsigned secsz, do_tail_read;
+	off_t start_sec;
+	char *outbuf, *bouncebuf;
 
 	fd = (uintptr_t) priv;
+	outbuf = (char *) buf;
 	bouncebuf = NULL;
 
 	ret = ioctl(fd, DIOCGSECTORSIZE, &secsz);
 	if (ret != 0)
 		return (ret);
 
-	off = offset / secsz;
-	remainder = offset % secsz;
-	if (lseek(fd, off * secsz, SEEK_SET) == -1)
-		return (errno);
+	/*
+	 * Handling reads of arbitrary offset and size - multi-sector case
+	 * and single-sector case.
+	 *
+	 *                        Multi-sector Case
+	 *                (do_tail_read = true if tail > 0)
+	 *
+	 *   |<----------------------total_size--------------------->|
+	 *   |                                                       |
+	 *   |<--head-->|<--------------bytes------------>|<--tail-->|
+	 *   |          |                                 |          |
+	 *   |          |       |<~full_sec_size~>|       |          |
+	 *   +------------------+                 +------------------+
+	 *   |          |0101010|     .  .  .     |0101011|          |
+	 *   +------------------+                 +------------------+
+	 *         start_sec                         start_sec + n
+	 *
+	 *
+	 *                      Single-sector Case
+	 *                    (do_tail_read = false)
+	 *
+	 *              |<------total_size = secsz----->|
+	 *              |                               |
+	 *              |<-head->|<---bytes--->|<-tail->|
+	 *              +-------------------------------+
+	 *              |        |0101010101010|        |
+	 *              +-------------------------------+
+	 *                          start_sec
+	 */
+	start_sec = offset / secsz;
+	head = offset % secsz;
+	total_size = roundup2(head + bytes, secsz);
+	tail = total_size - (head + bytes);
+	do_tail_read = ((tail > 0) && (head + bytes > secsz));
+	full_sec_size = total_size;
+	if (head > 0)
+		full_sec_size -= secsz;
+	if (do_tail_read)
+		full_sec_size -= secsz;
 
-	rb_buf = buf;
-	rb_size = bytes;
-	size = roundup2(bytes + remainder, secsz);
-	blksz = size;
-	if (remainder != 0 || size != bytes) {
+	/* Return of partial sector data requires a bounce buffer. */
+	if ((head > 0) || do_tail_read) {
 		bouncebuf = zfs_alloc(secsz);
 		if (bouncebuf == NULL) {
 			printf("vdev_read: out of memory\n");
 			return (ENOMEM);
 		}
-		rb_buf = bouncebuf;
-		blksz = rb_size - remainder;
 	}
 
-	while (bytes > 0) {
-		res = read(fd, rb_buf, rb_size);
-		if (res != rb_size) {
+	if (lseek(fd, start_sec * secsz, SEEK_SET) == -1)
+		return (errno);
+
+	/* Partial data return from first sector */
+	if (head > 0) {
+		res = read(fd, bouncebuf, secsz);
+		if (res != secsz) {
 			ret = EIO;
 			goto error;
 		}
-		if (bytes < blksz)
-			blksz = bytes;
-		if (bouncebuf != NULL)
-			memcpy(buf, rb_buf + remainder, blksz);
-		buf = (void *)((uintptr_t)buf + blksz);
-		bytes -= blksz;
-		remainder = 0;
-		blksz = rb_size;
+		memcpy(outbuf, bouncebuf + head, min(secsz - head, bytes));
+		outbuf += min(secsz - head, bytes);
+	}
+
+	/* Full data return from read sectors */
+	if (full_sec_size > 0) {
+		res = read(fd, outbuf, full_sec_size);
+		if (res != full_sec_size) {
+			ret = EIO;
+			goto error;
+		}
+		outbuf += full_sec_size;
+	}
+
+	/* Partial data return from last sector */
+	if (do_tail_read) {
+		res = read(fd, bouncebuf, secsz);
+		if (res != secsz) {
+			ret = EIO;
+			goto error;
+		}
+		memcpy(outbuf, bouncebuf, secsz - tail);
 	}
 
 	ret = 0;
@@ -517,6 +567,7 @@ zfs_probe_partition(void *arg, const char *partname,
 int
 zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 {
+	struct disk_devdesc *dev;
 	struct ptable *table;
 	struct zfs_probe_args pa;
 	uint64_t mediasz;
@@ -527,10 +578,22 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 	pa.fd = open(devname, O_RDONLY);
 	if (pa.fd == -1)
 		return (ENXIO);
-	/* Probe the whole disk */
-	ret = zfs_probe(pa.fd, pool_guid);
-	if (ret == 0)
-		return (0);
+	/*
+	 * We will not probe the whole disk, we can not boot from such
+	 * disks and some systems will misreport the disk sizes and will
+	 * hang while accessing the disk.
+	 */
+	if (archsw.arch_getdev((void **)&dev, devname, NULL) == 0) {
+		int partition = dev->d_partition;
+		int slice = dev->d_slice;
+
+		free(dev);
+		if (partition != -1 && slice != -1) {
+			ret = zfs_probe(pa.fd, pool_guid);
+			if (ret == 0)
+				return (0);
+		}
+	}
 
 	/* Probe each partition */
 	ret = ioctl(pa.fd, DIOCGMEDIASIZE, &mediasz);
