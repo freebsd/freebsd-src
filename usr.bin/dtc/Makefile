@@ -8,6 +8,8 @@ WARNS?=	3
 
 CXXFLAGS+=	-fno-rtti -fno-exceptions
 
+CXXSTD=	c++11
+
 NO_SHARED?=NO
 
 .include <bsd.prog.mk>
