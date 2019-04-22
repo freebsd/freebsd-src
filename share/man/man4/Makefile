@@ -522,6 +522,7 @@ MAN=	aac.4 \
 	snd_vibes.4 \
 	snp.4 \
 	spic.4 \
+	spigen.4 \
 	${_spkr.4} \
 	splash.4 \
 	sppp.4 \

@@ -609,3 +609,4 @@ static devclass_t spi_devclass;
 DRIVER_MODULE(imx_spi, simplebus, spi_driver, spi_devclass, 0, 0);
 DRIVER_MODULE(ofw_spibus, imx_spi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
 MODULE_DEPEND(imx_spi, ofw_spibus, 1, 1, 1);
+SIMPLEBUS_PNP_INFO(compat_data);
