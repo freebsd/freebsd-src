@@ -73,6 +73,7 @@ struct snvs_softc {
 };
 
 static struct ofw_compat_data compat_data[] = {
+	{"fsl,sec-v4.0-mon-rtc-lp", true},
 	{"fsl,sec-v4.0-mon", true},
 	{NULL,               false}
 };
