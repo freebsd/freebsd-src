@@ -203,3 +203,5 @@ static driver_t efirtc_driver = {
 };
 
 DRIVER_MODULE(efirtc, nexus, efirtc_driver, efirtc_devclass, 0, 0);
+MODULE_VERSION(efirtc, 1);
+MODULE_DEPEND(efirtc, efirt, 1, 1, 1);
