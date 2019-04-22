@@ -397,7 +397,8 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
 #ifdef CONFIG_IEEE80211AX
 	if (hapd->iconf->ieee80211ax) {
 		buflen += 3 + sizeof(struct ieee80211_he_capabilities) +
-			3 + sizeof(struct ieee80211_he_operation);
+			3 + sizeof(struct ieee80211_he_operation) +
+			3 + sizeof(struct ieee80211_he_mu_edca_parameter_set);
 	}
 #endif /* CONFIG_IEEE80211AX */
 
@@ -510,6 +511,7 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
 	if (hapd->iconf->ieee80211ax) {
 		pos = hostapd_eid_he_capab(hapd, pos);
 		pos = hostapd_eid_he_operation(hapd, pos);
+		pos = hostapd_eid_he_mu_edca_parameter_set(hapd, pos);
 	}
 #endif /* CONFIG_IEEE80211AX */
 
@@ -767,7 +769,7 @@ void handle_probe_req(struct hostapd_data *hapd,
 					    ie, ie_len, ssi_signal) > 0)
 			return;
 
-	if (!hapd->iconf->send_probe_response)
+	if (!hapd->conf->send_probe_response)
 		return;
 
 	if (ieee802_11_parse_elems(ie, ie_len, &elems, 0) == ParseFailed) {
@@ -1085,7 +1087,8 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
 #ifdef CONFIG_IEEE80211AX
 	if (hapd->iconf->ieee80211ax) {
 		tail_len += 3 + sizeof(struct ieee80211_he_capabilities) +
-			3 + sizeof(struct ieee80211_he_operation);
+			3 + sizeof(struct ieee80211_he_operation) +
+			3 + sizeof(struct ieee80211_he_mu_edca_parameter_set);
 	}
 #endif /* CONFIG_IEEE80211AX */
 
@@ -1222,6 +1225,7 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
 	if (hapd->iconf->ieee80211ax) {
 		tailpos = hostapd_eid_he_capab(hapd, tailpos);
 		tailpos = hostapd_eid_he_operation(hapd, tailpos);
+		tailpos = hostapd_eid_he_mu_edca_parameter_set(hapd, tailpos);
 	}
 #endif /* CONFIG_IEEE80211AX */
 
@@ -1357,6 +1361,18 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
 #endif /* CONFIG_HS20 */
 	params->multicast_to_unicast = hapd->conf->multicast_to_unicast;
 	params->pbss = hapd->conf->pbss;
+
+	if (hapd->conf->ftm_responder) {
+		if (hapd->iface->drv_flags & WPA_DRIVER_FLAGS_FTM_RESPONDER) {
+			params->ftm_responder = 1;
+			params->lci = hapd->iface->conf->lci;
+			params->civic = hapd->iface->conf->civic;
+		} else {
+			wpa_printf(MSG_WARNING,
+				   "Not configuring FTM responder as the driver doesn't advertise support for it");
+		}
+	}
+
 	return 0;
 }
 

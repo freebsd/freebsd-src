@@ -1,5 +1,74 @@
 ChangeLog for wpa_supplicant
 
+2019-04-21 - v2.8
+	* SAE changes
+	  - added support for SAE Password Identifier
+	  - changed default configuration to enable only groups 19, 20, 21
+	    (i.e., disable groups 25 and 26) and disable all unsuitable groups
+	    completely based on REVmd changes
+	  - do not regenerate PWE unnecessarily when the AP uses the
+	    anti-clogging token mechanisms
+	  - fixed some association cases where both SAE and FT-SAE were enabled
+	    on both the station and the selected AP
+	  - started to prefer FT-SAE over SAE AKM if both are enabled
+	  - started to prefer FT-SAE over FT-PSK if both are enabled
+	  - fixed FT-SAE when SAE PMKSA caching is used
+	  - reject use of unsuitable groups based on new implementation guidance
+	    in REVmd (allow only FFC groups with prime >= 3072 bits and ECC
+	    groups with prime >= 256)
+	  - minimize timing and memory use differences in PWE derivation
+	    [https://w1.fi/security/2019-1/] (CVE-2019-9494)
+	* EAP-pwd changes
+	  - minimize timing and memory use differences in PWE derivation
+	    [https://w1.fi/security/2019-2/] (CVE-2019-9495)
+	  - verify server scalar/element
+	    [https://w1.fi/security/2019-4/] (CVE-2019-9499)
+	  - fix message reassembly issue with unexpected fragment
+	    [https://w1.fi/security/2019-5/]
+	  - enforce rand,mask generation rules more strictly
+	  - fix a memory leak in PWE derivation
+	  - disallow ECC groups with a prime under 256 bits (groups 25, 26, and
+	    27)
+	* fixed CONFIG_IEEE80211R=y (FT) build without CONFIG_FILS=y
+	* Hotspot 2.0 changes
+	  - do not indicate release number that is higher than the one
+	    AP supports
+	  - added support for release number 3
+	  - enable PMF automatically for network profiles created from
+	    credentials
+	* fixed OWE network profile saving
+	* fixed DPP network profile saving
+	* added support for RSN operating channel validation
+	  (CONFIG_OCV=y and network profile parameter ocv=1)
+	* added Multi-AP backhaul STA support
+	* fixed build with LibreSSL
+	* number of MKA/MACsec fixes and extensions
+	* extended domain_match and domain_suffix_match to allow list of values
+	* fixed dNSName matching in domain_match and domain_suffix_match when
+	  using wolfSSL
+	* started to prefer FT-EAP-SHA384 over WPA-EAP-SUITE-B-192 AKM if both
+	  are enabled
+	* extended nl80211 Connect and external authentication to support
+	  SAE, FT-SAE, FT-EAP-SHA384
+	* fixed KEK2 derivation for FILS+FT
+	* extended client_cert file to allow loading of a chain of PEM
+	  encoded certificates
+	* extended beacon reporting functionality
+	* extended D-Bus interface with number of new properties
+	* fixed a regression in FT-over-DS with mac80211-based drivers
+	* OpenSSL: allow systemwide policies to be overridden
+	* extended driver flags indication for separate 802.1X and PSK
+	  4-way handshake offload capability
+	* added support for random P2P Device/Interface Address use
+	* extended PEAP to derive EMSK to enable use with ERP/FILS
+	* extended WPS to allow SAE configuration to be added automatically
+	  for PSK (wps_cred_add_sae=1)
+	* removed support for the old D-Bus interface (CONFIG_CTRL_IFACE_DBUS)
+	* extended domain_match and domain_suffix_match to allow list of values
+	* added a RSN workaround for misbehaving PMF APs that advertise
+	  IGTK/BIP KeyID using incorrect byte order
+	* fixed PTK rekeying with FILS and FT
+
 2018-12-02 - v2.7
 	* fixed WPA packet number reuse with replayed messages and key
 	  reinstallation

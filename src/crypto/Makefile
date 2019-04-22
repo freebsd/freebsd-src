@@ -62,7 +62,9 @@ LIB_OBJS += crypto_internal-modexp.o
 LIB_OBJS += crypto_internal-rsa.o
 LIB_OBJS += tls_internal.o
 LIB_OBJS += fips_prf_internal.o
+ifndef TEST_FUZZ
 LIB_OBJS += random.o
+endif
 
 
 libcrypto.a: $(LIB_OBJS)

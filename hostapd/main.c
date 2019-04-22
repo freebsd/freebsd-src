@@ -1,6 +1,6 @@
 /*
  * hostapd / main()
- * Copyright (c) 2002-2018, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -18,6 +18,7 @@
 #include "crypto/random.h"
 #include "crypto/tls.h"
 #include "common/version.h"
+#include "common/dpp.h"
 #include "drivers/driver.h"
 #include "eap_server/eap.h"
 #include "eap_server/tncs.h"
@@ -456,7 +457,7 @@ static void show_version(void)
 		"hostapd v" VERSION_STR "\n"
 		"User space daemon for IEEE 802.11 AP management,\n"
 		"IEEE 802.1X/WPA/WPA2/EAP/RADIUS Authenticator\n"
-		"Copyright (c) 2002-2018, Jouni Malinen <j@w1.fi> "
+		"Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi> "
 		"and contributors\n");
 }
 
@@ -671,7 +672,9 @@ int main(int argc, char *argv[])
 	dl_list_init(&interfaces.eth_p_oui);
 #endif /* CONFIG_ETH_P_OUI */
 #ifdef CONFIG_DPP
-	hostapd_dpp_init_global(&interfaces);
+	interfaces.dpp = dpp_global_init();
+	if (!interfaces.dpp)
+		return -1;
 #endif /* CONFIG_DPP */
 
 	for (;;) {
@@ -901,7 +904,7 @@ int main(int argc, char *argv[])
 	os_free(interfaces.iface);
 
 #ifdef CONFIG_DPP
-	hostapd_dpp_deinit_global(&interfaces);
+	dpp_global_deinit(interfaces.dpp);
 #endif /* CONFIG_DPP */
 
 	if (interfaces.eloop_initialized)

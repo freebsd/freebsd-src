@@ -136,6 +136,7 @@ static int hostapd_setup_radius_srv(struct hostapd_data *hapd)
 #ifdef CONFIG_HS20
 	srv.subscr_remediation_url = conf->subscr_remediation_url;
 	srv.subscr_remediation_method = conf->subscr_remediation_method;
+	srv.hs20_sim_provisioning_url = conf->hs20_sim_provisioning_url;
 	srv.t_c_server_url = conf->t_c_server_url;
 #endif /* CONFIG_HS20 */
 	srv.erp = conf->eap_server_erp;
@@ -200,6 +201,16 @@ int authsrv_init(struct hostapd_data *hapd)
 
 		os_memset(&conf, 0, sizeof(conf));
 		conf.tls_session_lifetime = hapd->conf->tls_session_lifetime;
+		if (hapd->conf->crl_reload_interval > 0 &&
+		    hapd->conf->check_crl <= 0) {
+			wpa_printf(MSG_INFO,
+				   "Cannot enable CRL reload functionality - it depends on check_crl being set");
+		} else if (hapd->conf->crl_reload_interval > 0) {
+			conf.crl_reload_interval =
+				hapd->conf->crl_reload_interval;
+			wpa_printf(MSG_INFO,
+				   "Enabled CRL reload functionality");
+		}
 		conf.tls_flags = hapd->conf->tls_flags;
 		conf.event_cb = authsrv_tls_event;
 		conf.cb_ctx = hapd;
@@ -217,10 +228,12 @@ int authsrv_init(struct hostapd_data *hapd)
 		params.private_key_passwd = hapd->conf->private_key_passwd;
 		params.dh_file = hapd->conf->dh_file;
 		params.openssl_ciphers = hapd->conf->openssl_ciphers;
+		params.openssl_ecdh_curves = hapd->conf->openssl_ecdh_curves;
 		params.ocsp_stapling_response =
 			hapd->conf->ocsp_stapling_response;
 		params.ocsp_stapling_response_multi =
 			hapd->conf->ocsp_stapling_response_multi;
+		params.check_cert_subject = hapd->conf->check_cert_subject;
 
 		if (tls_global_set_params(hapd->ssl_ctx, &params)) {
 			wpa_printf(MSG_ERROR, "Failed to set TLS parameters");
@@ -229,7 +242,8 @@ int authsrv_init(struct hostapd_data *hapd)
 		}
 
 		if (tls_global_set_verify(hapd->ssl_ctx,
-					  hapd->conf->check_crl)) {
+					  hapd->conf->check_crl,
+					  hapd->conf->check_crl_strict)) {
 			wpa_printf(MSG_ERROR, "Failed to enable check_crl");
 			authsrv_deinit(hapd);
 			return -1;

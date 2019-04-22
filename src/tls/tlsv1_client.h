@@ -1,6 +1,6 @@
 /*
  * TLS v1.0/v1.1/v1.2 client (RFC 2246, RFC 4346, RFC 5246)
- * Copyright (c) 2006-2011, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -19,6 +19,7 @@ struct tlsv1_client * tlsv1_client_init(void);
 void tlsv1_client_deinit(struct tlsv1_client *conn);
 int tlsv1_client_established(struct tlsv1_client *conn);
 int tlsv1_client_prf(struct tlsv1_client *conn, const char *label,
+		     const u8 *context, size_t context_len,
 		     int server_random_first, u8 *out, size_t out_len);
 u8 * tlsv1_client_handshake(struct tlsv1_client *conn,
 			    const u8 *in_data, size_t in_len,

@@ -941,7 +941,8 @@ int p2p_group_go_discover(struct p2p_group *group, const u8 *dev_id,
 	if (p2p->cfg->send_action(p2p->cfg->cb_ctx, freq, m->addr,
 				  group->cfg->interface_addr,
 				  group->cfg->interface_addr,
-				  wpabuf_head(req), wpabuf_len(req), 200) < 0)
+				  wpabuf_head(req), wpabuf_len(req), 200, NULL)
+	    < 0)
 	{
 		p2p_dbg(p2p, "Failed to send Action frame");
 	}

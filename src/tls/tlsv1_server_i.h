@@ -30,6 +30,8 @@ struct tlsv1_server {
 	u8 alert_level;
 	u8 alert_description;
 
+	int read_alerts, write_alerts;
+
 	struct crypto_public_key *client_rsa_key;
 
 	struct tls_verify_hash verify;

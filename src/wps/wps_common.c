@@ -374,7 +374,7 @@ struct wpabuf * wps_get_oob_cred(struct wps_context *wps, int rf_band,
 	    (rf_band && wps_build_rf_bands_attr(plain, rf_band)) ||
 	    (channel && wps_build_ap_channel(plain, channel)) ||
 	    wps_build_mac_addr(plain, wps->dev.mac_addr) ||
-	    wps_build_wfa_ext(plain, 0, NULL, 0)) {
+	    wps_build_wfa_ext(plain, 0, NULL, 0, 0)) {
 		os_free(data.new_psk);
 		wpabuf_clear_free(plain);
 		return NULL;
@@ -421,7 +421,7 @@ struct wpabuf * wps_build_nfc_pw_token(u16 dev_pw_id,
 
 	if (wps_build_oob_dev_pw(data, dev_pw_id, pubkey,
 				 wpabuf_head(dev_pw), wpabuf_len(dev_pw)) ||
-	    wps_build_wfa_ext(data, 0, NULL, 0)) {
+	    wps_build_wfa_ext(data, 0, NULL, 0, 0)) {
 		wpa_printf(MSG_ERROR, "WPS: Failed to build NFC password "
 			   "token");
 		wpabuf_clear_free(data);
@@ -586,7 +586,7 @@ struct wpabuf * wps_build_wsc_ack(struct wps_data *wps)
 	    wps_build_msg_type(msg, WPS_WSC_ACK) ||
 	    wps_build_enrollee_nonce(wps, msg) ||
 	    wps_build_registrar_nonce(wps, msg) ||
-	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+	    wps_build_wfa_ext(msg, 0, NULL, 0, 0)) {
 		wpabuf_free(msg);
 		return NULL;
 	}
@@ -610,7 +610,7 @@ struct wpabuf * wps_build_wsc_nack(struct wps_data *wps)
 	    wps_build_enrollee_nonce(wps, msg) ||
 	    wps_build_registrar_nonce(wps, msg) ||
 	    wps_build_config_error(msg, wps->config_error) ||
-	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+	    wps_build_wfa_ext(msg, 0, NULL, 0, 0)) {
 		wpabuf_free(msg);
 		return NULL;
 	}
@@ -726,7 +726,7 @@ struct wpabuf * wps_build_nfc_handover_req(struct wps_context *ctx,
 	if (wps_build_oob_dev_pw(msg, DEV_PW_NFC_CONNECTION_HANDOVER,
 				 nfc_dh_pubkey, NULL, 0) ||
 	    wps_build_uuid_e(msg, ctx->uuid) ||
-	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+	    wps_build_wfa_ext(msg, 0, NULL, 0, 0)) {
 		wpabuf_free(msg);
 		return NULL;
 	}
@@ -809,7 +809,7 @@ struct wpabuf * wps_build_nfc_handover_sel(struct wps_context *ctx,
 	    wps_build_ssid(msg, ctx) ||
 	    wps_build_ap_freq(msg, freq) ||
 	    (bssid && wps_build_mac_addr(msg, bssid)) ||
-	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+	    wps_build_wfa_ext(msg, 0, NULL, 0, 0)) {
 		wpabuf_free(msg);
 		return NULL;
 	}
@@ -848,7 +848,7 @@ struct wpabuf * wps_build_nfc_handover_req_p2p(struct wps_context *ctx,
 	    wps_build_rf_bands(&ctx->dev, msg, 0) ||
 	    wps_build_serial_number(&ctx->dev, msg) ||
 	    wps_build_uuid_e(msg, ctx->uuid) ||
-	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+	    wps_build_wfa_ext(msg, 0, NULL, 0, 0)) {
 		wpabuf_free(msg);
 		return NULL;
 	}
@@ -900,7 +900,7 @@ struct wpabuf * wps_build_nfc_handover_sel_p2p(struct wps_context *ctx,
 	    wps_build_rf_bands(&ctx->dev, msg, 0) ||
 	    wps_build_serial_number(&ctx->dev, msg) ||
 	    wps_build_uuid_e(msg, ctx->uuid) ||
-	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+	    wps_build_wfa_ext(msg, 0, NULL, 0, 0)) {
 		wpabuf_free(msg);
 		return NULL;
 	}

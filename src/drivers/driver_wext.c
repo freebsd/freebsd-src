@@ -868,14 +868,16 @@ static int wext_hostap_ifname(struct wpa_driver_wext_data *drv,
 			      const char *ifname)
 {
 	char buf[200], *res;
-	int type;
+	int type, ret;
 	FILE *f;
 
 	if (strcmp(ifname, ".") == 0 || strcmp(ifname, "..") == 0)
 		return -1;
 
-	snprintf(buf, sizeof(buf), "/sys/class/net/%s/device/net/%s/type",
-		 drv->ifname, ifname);
+	ret = snprintf(buf, sizeof(buf), "/sys/class/net/%s/device/net/%s/type",
+		       drv->ifname, ifname);
+	if (os_snprintf_error(sizeof(buf), ret))
+		return -1;
 
 	f = fopen(buf, "r");
 	if (!f)
@@ -1645,7 +1647,8 @@ static int wpa_driver_wext_get_range(void *priv)
 		if (range->enc_capa & IW_ENC_CAPA_CIPHER_CCMP)
 			drv->capa.enc |= WPA_DRIVER_CAPA_ENC_CCMP;
 		if (range->enc_capa & IW_ENC_CAPA_4WAY_HANDSHAKE)
-			drv->capa.flags |= WPA_DRIVER_FLAGS_4WAY_HANDSHAKE;
+			drv->capa.flags |= WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_PSK |
+				WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_8021X;
 		drv->capa.auth = WPA_DRIVER_AUTH_OPEN |
 			WPA_DRIVER_AUTH_SHARED |
 			WPA_DRIVER_AUTH_LEAP;
@@ -1676,7 +1679,7 @@ static int wpa_driver_wext_set_psk(struct wpa_driver_wext_data *drv,
 
 	wpa_printf(MSG_DEBUG, "%s", __FUNCTION__);
 
-	if (!(drv->capa.flags & WPA_DRIVER_FLAGS_4WAY_HANDSHAKE))
+	if (!(drv->capa.flags & WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_8021X))
 		return 0;
 
 	if (!psk)

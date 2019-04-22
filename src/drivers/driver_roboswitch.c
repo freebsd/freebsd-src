@@ -290,21 +290,26 @@ static int wpa_driver_roboswitch_leave(struct wpa_driver_roboswitch_data *drv,
 
 	wpa_driver_roboswitch_addr_be16(addr, addr_be16);
 
-	wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE, ROBO_ARLCTRL_CONF,
-				   &_read, 1);
+	if (wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+				       ROBO_ARLCTRL_CONF, &_read, 1) < 0)
+		return -1;
 	/* If ARL control is disabled, there is nothing to leave. */
 	if (!(_read & (1 << 4))) return -1;
 
-	wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
-				   ROBO_ARLCTRL_ADDR_1, addr_read, 3);
-	wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE, ROBO_ARLCTRL_VEC_1,
-				   &ports_read, 1);
+	if (wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+				       ROBO_ARLCTRL_ADDR_1, addr_read, 3) < 0 ||
+	    wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+				       ROBO_ARLCTRL_VEC_1, &ports_read, 1) < 0)
+		return -1;
 	/* check if we occupy multiport address 1 */
 	if (os_memcmp(addr_read, addr_be16, 6) == 0 && ports_read == ports) {
-		wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
-					   ROBO_ARLCTRL_ADDR_2, addr_read, 3);
-		wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
-					   ROBO_ARLCTRL_VEC_2, &ports_read, 1);
+		if (wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+					       ROBO_ARLCTRL_ADDR_2, addr_read,
+					       3) < 0 ||
+		    wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+					       ROBO_ARLCTRL_VEC_2, &ports_read,
+					       1) < 0)
+			return -1;
 		/* and multiport address 2 */
 		if (os_memcmp(addr_read, addr_be16, 6) == 0 &&
 		    ports_read == ports) {
@@ -327,10 +332,13 @@ static int wpa_driver_roboswitch_leave(struct wpa_driver_roboswitch_data *drv,
 						    &ports_read, 1);
 		}
 	} else {
-		wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
-					   ROBO_ARLCTRL_ADDR_2, addr_read, 3);
-		wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
-					   ROBO_ARLCTRL_VEC_2, &ports_read, 1);
+		if (wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+					       ROBO_ARLCTRL_ADDR_2, addr_read,
+					       3) < 0 ||
+		    wpa_driver_roboswitch_read(drv, ROBO_ARLCTRL_PAGE,
+					       ROBO_ARLCTRL_VEC_2, &ports_read,
+					       1) < 0)
+			return -1;
 		/* or multiport address 2 */
 		if (os_memcmp(addr_read, addr_be16, 6) == 0 &&
 		    ports_read == ports) {

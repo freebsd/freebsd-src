@@ -224,22 +224,25 @@ static int eloop_sock_queue(int sock, eloop_event_type type)
 
 
 #ifdef CONFIG_ELOOP_KQUEUE
-static int eloop_sock_queue(int sock, eloop_event_type type)
-{
-	int filter;
-	struct kevent ke;
 
+static short event_type_kevent_filter(eloop_event_type type)
+{
 	switch (type) {
 	case EVENT_TYPE_READ:
-		filter = EVFILT_READ;
-		break;
+		return EVFILT_READ;
 	case EVENT_TYPE_WRITE:
-		filter = EVFILT_WRITE;
-		break;
+		return EVFILT_WRITE;
 	default:
-		filter = 0;
+		return 0;
 	}
-	EV_SET(&ke, sock, filter, EV_ADD, 0, 0, 0);
+}
+
+
+static int eloop_sock_queue(int sock, eloop_event_type type)
+{
+	struct kevent ke;
+
+	EV_SET(&ke, sock, event_type_kevent_filter(type), EV_ADD, 0, 0, 0);
 	if (kevent(eloop.kqueuefd, &ke, 1, NULL, 0, NULL) == -1) {
 		wpa_printf(MSG_ERROR, "%s: kevent(ADD) for fd=%d failed: %s",
 			   __func__, sock, strerror(errno));
@@ -247,6 +250,7 @@ static int eloop_sock_queue(int sock, eloop_event_type type)
 	}
 	return 0;
 }
+
 #endif /* CONFIG_ELOOP_KQUEUE */
 
 
@@ -301,7 +305,7 @@ static int eloop_sock_table_add_sock(struct eloop_sock_table *table,
 #endif /* CONFIG_ELOOP_POLL */
 #if defined(CONFIG_ELOOP_EPOLL) || defined(CONFIG_ELOOP_KQUEUE)
 	if (new_max_sock >= eloop.max_fd) {
-		next = eloop.max_fd == 0 ? 16 : eloop.max_fd * 2;
+		next = new_max_sock + 16;
 		temp_table = os_realloc_array(eloop.fd_table, next,
 					      sizeof(struct eloop_sock));
 		if (temp_table == NULL)
@@ -411,7 +415,8 @@ static void eloop_sock_table_remove_sock(struct eloop_sock_table *table,
 	os_memset(&eloop.fd_table[sock], 0, sizeof(struct eloop_sock));
 #endif /* CONFIG_ELOOP_EPOLL */
 #ifdef CONFIG_ELOOP_KQUEUE
-	EV_SET(&ke, sock, 0, EV_DELETE, 0, 0, 0);
+	EV_SET(&ke, sock, event_type_kevent_filter(table->type), EV_DELETE, 0,
+	       0, 0);
 	if (kevent(eloop.kqueuefd, &ke, 1, NULL, 0, NULL) < 0) {
 		wpa_printf(MSG_ERROR, "%s: kevent(DEL) for fd=%d failed: %s",
 			   __func__, sock, strerror(errno));

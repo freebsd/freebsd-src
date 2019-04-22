@@ -9,6 +9,21 @@
 #ifndef LINUX_BRIDGE_H
 #define LINUX_BRIDGE_H
 
+/* This ioctl is defined in linux/sockios.h */
+
+#ifndef SIOCBRADDBR
+#define SIOCBRADDBR 0x89a0
+#endif
+#ifndef SIOCBRDELBR
+#define SIOCBRDELBR 0x89a1
+#endif
+#ifndef SIOCBRADDIF
+#define SIOCBRADDIF 0x89a2
+#endif
+#ifndef SIOCBRDELIF
+#define SIOCBRDELIF 0x89a3
+#endif
+
 /* This interface is defined in linux/if_bridge.h */
 
 #define BRCTL_GET_VERSION 0

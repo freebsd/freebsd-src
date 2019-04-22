@@ -10,10 +10,12 @@
 
 #include "utils/common.h"
 #include "common/ieee802_11_defs.h"
+#include "common/ocv.h"
 #include "hostapd.h"
 #include "sta_info.h"
 #include "ap_config.h"
 #include "ap_drv_ops.h"
+#include "wpa_auth.h"
 #include "ieee802_11.h"
 
 
@@ -49,7 +51,12 @@ u8 * hostapd_eid_assoc_comeback_time(struct hostapd_data *hapd,
 void ieee802_11_send_sa_query_req(struct hostapd_data *hapd,
 				  const u8 *addr, const u8 *trans_id)
 {
-	struct ieee80211_mgmt mgmt;
+#ifdef CONFIG_OCV
+	struct sta_info *sta;
+#endif /* CONFIG_OCV */
+	struct ieee80211_mgmt *mgmt;
+	u8 *oci_ie = NULL;
+	u8 oci_ie_len = 0;
 	u8 *end;
 
 	wpa_printf(MSG_DEBUG, "IEEE 802.11: Sending SA Query Request to "
@@ -57,19 +64,61 @@ void ieee802_11_send_sa_query_req(struct hostapd_data *hapd,
 	wpa_hexdump(MSG_DEBUG, "IEEE 802.11: SA Query Transaction ID",
 		    trans_id, WLAN_SA_QUERY_TR_ID_LEN);
 
-	os_memset(&mgmt, 0, sizeof(mgmt));
-	mgmt.frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
-					  WLAN_FC_STYPE_ACTION);
-	os_memcpy(mgmt.da, addr, ETH_ALEN);
-	os_memcpy(mgmt.sa, hapd->own_addr, ETH_ALEN);
-	os_memcpy(mgmt.bssid, hapd->own_addr, ETH_ALEN);
-	mgmt.u.action.category = WLAN_ACTION_SA_QUERY;
-	mgmt.u.action.u.sa_query_req.action = WLAN_SA_QUERY_REQUEST;
-	os_memcpy(mgmt.u.action.u.sa_query_req.trans_id, trans_id,
+#ifdef CONFIG_OCV
+	sta = ap_get_sta(hapd, addr);
+	if (sta && wpa_auth_uses_ocv(sta->wpa_sm)) {
+		struct wpa_channel_info ci;
+
+		if (hostapd_drv_channel_info(hapd, &ci) != 0) {
+			wpa_printf(MSG_WARNING,
+				   "Failed to get channel info for OCI element in SA Query Request");
+			return;
+		}
+
+		oci_ie_len = OCV_OCI_EXTENDED_LEN;
+		oci_ie = os_zalloc(oci_ie_len);
+		if (!oci_ie) {
+			wpa_printf(MSG_WARNING,
+				   "Failed to allocate buffer for OCI element in SA Query Request");
+			return;
+		}
+
+		if (ocv_insert_extended_oci(&ci, oci_ie) < 0) {
+			os_free(oci_ie);
+			return;
+		}
+	}
+#endif /* CONFIG_OCV */
+
+	mgmt = os_zalloc(sizeof(*mgmt) + oci_ie_len);
+	if (!mgmt) {
+		wpa_printf(MSG_DEBUG,
+			   "Failed to allocate buffer for SA Query Response frame");
+		os_free(oci_ie);
+		return;
+	}
+
+	mgmt->frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
+					   WLAN_FC_STYPE_ACTION);
+	os_memcpy(mgmt->da, addr, ETH_ALEN);
+	os_memcpy(mgmt->sa, hapd->own_addr, ETH_ALEN);
+	os_memcpy(mgmt->bssid, hapd->own_addr, ETH_ALEN);
+	mgmt->u.action.category = WLAN_ACTION_SA_QUERY;
+	mgmt->u.action.u.sa_query_req.action = WLAN_SA_QUERY_REQUEST;
+	os_memcpy(mgmt->u.action.u.sa_query_req.trans_id, trans_id,
 		  WLAN_SA_QUERY_TR_ID_LEN);
-	end = mgmt.u.action.u.sa_query_req.trans_id + WLAN_SA_QUERY_TR_ID_LEN;
-	if (hostapd_drv_send_mlme(hapd, &mgmt, end - (u8 *) &mgmt, 0) < 0)
+	end = mgmt->u.action.u.sa_query_req.variable;
+#ifdef CONFIG_OCV
+	if (oci_ie_len > 0) {
+		os_memcpy(end, oci_ie, oci_ie_len);
+		end += oci_ie_len;
+	}
+#endif /* CONFIG_OCV */
+	if (hostapd_drv_send_mlme(hapd, mgmt, end - (u8 *) mgmt, 0) < 0)
 		wpa_printf(MSG_INFO, "ieee802_11_send_sa_query_req: send failed");
+
+	os_free(mgmt);
+	os_free(oci_ie);
 }
 
 
@@ -77,7 +126,9 @@ static void ieee802_11_send_sa_query_resp(struct hostapd_data *hapd,
 					  const u8 *sa, const u8 *trans_id)
 {
 	struct sta_info *sta;
-	struct ieee80211_mgmt resp;
+	struct ieee80211_mgmt *resp;
+	u8 *oci_ie = NULL;
+	u8 oci_ie_len = 0;
 	u8 *end;
 
 	wpa_printf(MSG_DEBUG, "IEEE 802.11: Received SA Query Request from "
@@ -92,30 +143,123 @@ static void ieee802_11_send_sa_query_resp(struct hostapd_data *hapd,
 		return;
 	}
 
+#ifdef CONFIG_OCV
+	if (wpa_auth_uses_ocv(sta->wpa_sm)) {
+		struct wpa_channel_info ci;
+
+		if (hostapd_drv_channel_info(hapd, &ci) != 0) {
+			wpa_printf(MSG_WARNING,
+				   "Failed to get channel info for OCI element in SA Query Response");
+			return;
+		}
+
+		oci_ie_len = OCV_OCI_EXTENDED_LEN;
+		oci_ie = os_zalloc(oci_ie_len);
+		if (!oci_ie) {
+			wpa_printf(MSG_WARNING,
+				   "Failed to allocate buffer for for OCI element in SA Query Response");
+			return;
+		}
+
+		if (ocv_insert_extended_oci(&ci, oci_ie) < 0) {
+			os_free(oci_ie);
+			return;
+		}
+	}
+#endif /* CONFIG_OCV */
+
+	resp = os_zalloc(sizeof(*resp) + oci_ie_len);
+	if (!resp) {
+		wpa_printf(MSG_DEBUG,
+			   "Failed to allocate buffer for SA Query Response frame");
+		os_free(oci_ie);
+		return;
+	}
+
 	wpa_printf(MSG_DEBUG, "IEEE 802.11: Sending SA Query Response to "
 		   MACSTR, MAC2STR(sa));
 
-	os_memset(&resp, 0, sizeof(resp));
-	resp.frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
-					  WLAN_FC_STYPE_ACTION);
-	os_memcpy(resp.da, sa, ETH_ALEN);
-	os_memcpy(resp.sa, hapd->own_addr, ETH_ALEN);
-	os_memcpy(resp.bssid, hapd->own_addr, ETH_ALEN);
-	resp.u.action.category = WLAN_ACTION_SA_QUERY;
-	resp.u.action.u.sa_query_req.action = WLAN_SA_QUERY_RESPONSE;
-	os_memcpy(resp.u.action.u.sa_query_req.trans_id, trans_id,
+	resp->frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
+					   WLAN_FC_STYPE_ACTION);
+	os_memcpy(resp->da, sa, ETH_ALEN);
+	os_memcpy(resp->sa, hapd->own_addr, ETH_ALEN);
+	os_memcpy(resp->bssid, hapd->own_addr, ETH_ALEN);
+	resp->u.action.category = WLAN_ACTION_SA_QUERY;
+	resp->u.action.u.sa_query_req.action = WLAN_SA_QUERY_RESPONSE;
+	os_memcpy(resp->u.action.u.sa_query_req.trans_id, trans_id,
 		  WLAN_SA_QUERY_TR_ID_LEN);
-	end = resp.u.action.u.sa_query_req.trans_id + WLAN_SA_QUERY_TR_ID_LEN;
-	if (hostapd_drv_send_mlme(hapd, &resp, end - (u8 *) &resp, 0) < 0)
+	end = resp->u.action.u.sa_query_req.variable;
+#ifdef CONFIG_OCV
+	if (oci_ie_len > 0) {
+		os_memcpy(end, oci_ie, oci_ie_len);
+		end += oci_ie_len;
+	}
+#endif /* CONFIG_OCV */
+	if (hostapd_drv_send_mlme(hapd, resp, end - (u8 *) resp, 0) < 0)
 		wpa_printf(MSG_INFO, "ieee80211_mgmt_sa_query_request: send failed");
+
+	os_free(resp);
+	os_free(oci_ie);
 }
 
 
-void ieee802_11_sa_query_action(struct hostapd_data *hapd, const u8 *sa,
-				const u8 action_type, const u8 *trans_id)
+void ieee802_11_sa_query_action(struct hostapd_data *hapd,
+				const struct ieee80211_mgmt *mgmt,
+				size_t len)
 {
 	struct sta_info *sta;
 	int i;
+	const u8 *sa = mgmt->sa;
+	const u8 action_type = mgmt->u.action.u.sa_query_resp.action;
+	const u8 *trans_id = mgmt->u.action.u.sa_query_resp.trans_id;
+
+	if (((const u8 *) mgmt) + len <
+	    mgmt->u.action.u.sa_query_resp.variable) {
+		wpa_printf(MSG_DEBUG,
+			   "IEEE 802.11: Too short SA Query Action frame (len=%lu)",
+			   (unsigned long) len);
+		return;
+	}
+
+	sta = ap_get_sta(hapd, sa);
+
+#ifdef CONFIG_OCV
+	if (sta && wpa_auth_uses_ocv(sta->wpa_sm)) {
+		struct ieee802_11_elems elems;
+		struct wpa_channel_info ci;
+		int tx_chanwidth;
+		int tx_seg1_idx;
+		size_t ies_len;
+		const u8 *ies;
+
+		ies = mgmt->u.action.u.sa_query_resp.variable;
+		ies_len = len - (ies - (u8 *) mgmt);
+		if (ieee802_11_parse_elems(ies, ies_len, &elems, 1) ==
+		    ParseFailed) {
+			wpa_printf(MSG_DEBUG,
+				   "SA Query: Failed to parse elements");
+			return;
+		}
+
+		if (hostapd_drv_channel_info(hapd, &ci) != 0) {
+			wpa_printf(MSG_WARNING,
+				   "Failed to get channel info to validate received OCI in SA Query Action frame");
+			return;
+		}
+
+		if (get_sta_tx_parameters(sta->wpa_sm,
+					  channel_width_to_int(ci.chanwidth),
+					  ci.seg1_idx, &tx_chanwidth,
+					  &tx_seg1_idx) < 0)
+			return;
+
+		if (ocv_verify_tx_params(elems.oci, elems.oci_len, &ci,
+					 tx_chanwidth, tx_seg1_idx) != 0) {
+			wpa_printf(MSG_WARNING, "%s", ocv_errorstr);
+			return;
+		}
+	}
+#endif /* CONFIG_OCV */
 
 	if (action_type == WLAN_SA_QUERY_REQUEST) {
 		ieee802_11_send_sa_query_resp(hapd, sa, trans_id);
@@ -135,7 +279,6 @@ void ieee802_11_sa_query_action(struct hostapd_data *hapd, const u8 *sa,
 
 	/* MLME-SAQuery.confirm */
 
-	sta = ap_get_sta(hapd, sa);
 	if (sta == NULL || sta->sa_query_trans_id == NULL) {
 		wpa_printf(MSG_DEBUG, "IEEE 802.11: No matching STA with "
 			   "pending SA Query request found");
@@ -237,6 +380,21 @@ static void hostapd_ext_capab_byte(struct hostapd_data *hapd, u8 *pos, int idx)
 			*pos |= 0x01;
 #endif /* CONFIG_FILS */
 		break;
+	case 10: /* Bits 80-87 */
+#ifdef CONFIG_SAE
+		if (hapd->conf->wpa &&
+		    wpa_key_mgmt_sae(hapd->conf->wpa_key_mgmt)) {
+			int in_use = hostapd_sae_pw_id_in_use(hapd->conf);
+
+			if (in_use)
+				*pos |= 0x02; /* Bit 81 - SAE Password
+					       * Identifiers In Use */
+			if (in_use == 2)
+				*pos |= 0x04; /* Bit 82 - SAE Password
+					       * Identifiers Used Exclusively */
+		}
+#endif /* CONFIG_SAE */
+		break;
 	}
 }
 
@@ -276,6 +434,12 @@ u8 * hostapd_eid_ext_capab(struct hostapd_data *hapd, u8 *eid)
 	     !wpa_key_mgmt_fils(hapd->conf->wpa_key_mgmt)) && len < 10)
 		len = 10;
 #endif /* CONFIG_FILS */
+#ifdef CONFIG_SAE
+	if (len < 11 && hapd->conf->wpa &&
+	    wpa_key_mgmt_sae(hapd->conf->wpa_key_mgmt) &&
+	    hostapd_sae_pw_id_in_use(hapd->conf))
+		len = 11;
+#endif /* CONFIG_SAE */
 	if (len < hapd->iface->extended_capa_len)
 		len = hapd->iface->extended_capa_len;
 	if (len == 0)
@@ -547,6 +711,22 @@ u8 * hostapd_eid_bss_max_idle_period(struct hostapd_data *hapd, u8 *eid)
 
 #ifdef CONFIG_MBO
 
+u8 * hostapd_eid_mbo_rssi_assoc_rej(struct hostapd_data *hapd, u8 *eid,
+				    size_t len, int delta)
+{
+	u8 mbo[4];
+
+	mbo[0] = OCE_ATTR_ID_RSSI_BASED_ASSOC_REJECT;
+	mbo[1] = 2;
+	/* Delta RSSI */
+	mbo[2] = delta;
+	/* Retry delay */
+	mbo[3] = hapd->iconf->rssi_reject_assoc_timeout;
+
+	return eid + mbo_add_ie(eid, len, mbo, 4);
+}
+
+
 u8 * hostapd_eid_mbo(struct hostapd_data *hapd, u8 *eid, size_t len)
 {
 	u8 mbo[9], *mbo_pos = mbo;
@@ -752,3 +932,71 @@ u8 * hostapd_eid_fils_indic(struct hostapd_data *hapd, u8 *eid, int hessid)
 
 	return pos;
 }
+
+
+#ifdef CONFIG_OCV
+int get_tx_parameters(struct sta_info *sta, int ap_max_chanwidth,
+		      int ap_seg1_idx, int *bandwidth, int *seg1_idx)
+{
+	int ht_40mhz = 0;
+	int vht_80p80 = 0;
+	int requested_bw;
+
+	if (sta->ht_capabilities)
+		ht_40mhz = !!(sta->ht_capabilities->ht_capabilities_info &
+			      HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET);
+
+	if (sta->vht_operation) {
+		struct ieee80211_vht_operation *oper = sta->vht_operation;
+
+		/*
+		 * If a VHT Operation element was present, use it to determine
+		 * the supported channel bandwidth.
+		 */
+		if (oper->vht_op_info_chwidth == 0) {
+			requested_bw = ht_40mhz ? 40 : 20;
+		} else if (oper->vht_op_info_chan_center_freq_seg1_idx == 0) {
+			requested_bw = 80;
+		} else {
+			int diff;
+
+			requested_bw = 160;
+			diff = abs((int)
+				   oper->vht_op_info_chan_center_freq_seg0_idx -
+				   (int)
+				   oper->vht_op_info_chan_center_freq_seg1_idx);
+			vht_80p80 = oper->vht_op_info_chan_center_freq_seg1_idx
+				!= 0 &&	diff > 16;
+		}
+	} else if (sta->vht_capabilities) {
+		struct ieee80211_vht_capabilities *capab;
+		int vht_chanwidth;
+
+		capab = sta->vht_capabilities;
+
+		/*
+		 * If only the VHT Capabilities element is present (e.g., for
+		 * normal clients), use it to determine the supported channel
+		 * bandwidth.
+		 */
+		vht_chanwidth = capab->vht_capabilities_info &
+			VHT_CAP_SUPP_CHAN_WIDTH_MASK;
+		vht_80p80 = capab->vht_capabilities_info &
+			VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
+
+		/* TODO: Also take into account Extended NSS BW Support field */
+		requested_bw = vht_chanwidth ? 160 : 80;
+	} else {
+		requested_bw = ht_40mhz ? 40 : 20;
+	}
+
+	*bandwidth = requested_bw < ap_max_chanwidth ?
+		requested_bw : ap_max_chanwidth;
+
+	*seg1_idx = 0;
+	if (ap_seg1_idx && vht_80p80)
+		*seg1_idx = ap_seg1_idx;
+
+	return 0;
+}
+#endif /* CONFIG_OCV */

@@ -32,17 +32,17 @@ def list_interfaces(wpas_obj):
 		if_obj = bus.get_object(WPAS_DBUS_SERVICE, path)
 		ifname = if_obj.Get(WPAS_DBUS_INTERFACES_INTERFACE, 'Ifname',
 			      dbus_interface=dbus.PROPERTIES_IFACE)
-		print ifname
+		print(ifname)
 
 def interfaceAdded(interface, properties):
-	print "InterfaceAdded(%s): Ifname=%s" % (interface, properties['Ifname'])
+	print("InterfaceAdded(%s): Ifname=%s" % (interface, properties['Ifname']))
 
 def interfaceRemoved(interface):
-	print "InterfaceRemoved(%s)" % (interface)
+	print("InterfaceRemoved(%s)" % (interface))
 
 def propertiesChanged(properties):
 	for i in properties:
-		print "PropertiesChanged: %s=%s" % (i, properties[i])
+		print("PropertiesChanged: %s=%s" % (i, properties[i]))
 
 def showBss(bss):
 	net_obj = bus.get_object(WPAS_DBUS_SERVICE, bss)
@@ -80,48 +80,48 @@ def showBss(bss):
 	else:
 		maxrate = 0
 
-	print "  %s  ::  ssid='%s'  wpa=%s  wpa2=%s  signal=%d  rate=%d  freq=%d" % (bssid, ssid, wpa, wpa2, signal, maxrate, freq)
+	print("  %s  ::  ssid='%s'  wpa=%s  wpa2=%s  signal=%d  rate=%d  freq=%d" % (bssid, ssid, wpa, wpa2, signal, maxrate, freq))
 
 def scanDone(success):
 	gobject.MainLoop().quit()
-	print "Scan done: success=%s" % success
+	print("Scan done: success=%s" % success)
 
 def scanDone2(success, path=None):
-	print "Scan done: success=%s [path=%s]" % (success, path)
+	print("Scan done: success=%s [path=%s]" % (success, path))
 
 def bssAdded(bss, properties):
-	print "BSS added: %s" % (bss)
+	print("BSS added: %s" % (bss))
 	showBss(bss)
 
 def bssRemoved(bss):
-	print "BSS removed: %s" % (bss)
+	print("BSS removed: %s" % (bss))
 
 def blobAdded(blob):
-	print "BlobAdded(%s)" % (blob)
+	print("BlobAdded(%s)" % (blob))
 
 def blobRemoved(blob):
-	print "BlobRemoved(%s)" % (blob)
+	print("BlobRemoved(%s)" % (blob))
 
 def networkAdded(network, properties):
-	print "NetworkAdded(%s)" % (network)
+	print("NetworkAdded(%s)" % (network))
 
 def networkRemoved(network):
-	print "NetworkRemoved(%s)" % (network)
+	print("NetworkRemoved(%s)" % (network))
 
 def networkSelected(network):
-	print "NetworkSelected(%s)" % (network)
+	print("NetworkSelected(%s)" % (network))
 
 def propertiesChangedInterface(properties):
 	for i in properties:
-		print "PropertiesChanged(interface): %s=%s" % (i, properties[i])
+		print("PropertiesChanged(interface): %s=%s" % (i, properties[i]))
 
 def propertiesChangedBss(properties):
 	for i in properties:
-		print "PropertiesChanged(BSS): %s=%s" % (i, properties[i])
+		print("PropertiesChanged(BSS): %s=%s" % (i, properties[i]))
 
 def propertiesChangedNetwork(properties):
 	for i in properties:
-		print "PropertiesChanged(Network): %s=%s" % (i, properties[i])
+		print("PropertiesChanged(Network): %s=%s" % (i, properties[i]))
 
 def main():
 	dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)

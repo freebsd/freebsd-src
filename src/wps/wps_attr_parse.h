@@ -97,6 +97,7 @@ struct wps_parse_attr {
 	const u8 *cred[MAX_CRED_COUNT];
 	const u8 *req_dev_type[MAX_REQ_DEV_TYPE_COUNT];
 	const u8 *vendor_ext[MAX_WPS_PARSE_VENDOR_EXT];
+	u8 multi_ap_ext;
 };
 
 int wps_parse_msg(const struct wpabuf *msg, struct wps_parse_attr *attr);

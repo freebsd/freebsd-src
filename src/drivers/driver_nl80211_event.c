@@ -206,7 +206,8 @@ static void nl80211_parse_wmm_params(struct nlattr *wmm_attr,
 
 
 static void mlme_event_assoc(struct wpa_driver_nl80211_data *drv,
-			    const u8 *frame, size_t len, struct nlattr *wmm)
+			     const u8 *frame, size_t len, struct nlattr *wmm,
+			     struct nlattr *req_ie)
 {
 	const struct ieee80211_mgmt *mgmt;
 	union wpa_event_data event;
@@ -261,7 +262,10 @@ static void mlme_event_assoc(struct wpa_driver_nl80211_data *drv,
 			len - 24 - sizeof(mgmt->u.assoc_resp);
 	}
 
-	event.assoc_info.freq = drv->assoc_freq;
+	if (req_ie) {
+		event.assoc_info.req_ies = nla_data(req_ie);
+		event.assoc_info.req_ies_len = nla_len(req_ie);
+	}
 
 	/* When this association was initiated outside of wpa_supplicant,
 	 * drv->ssid needs to be set here to satisfy later checking. */
@@ -272,6 +276,9 @@ static void mlme_event_assoc(struct wpa_driver_nl80211_data *drv,
 			   "nl80211: Set drv->ssid based on scan res info to '%s'",
 			   wpa_ssid_txt(drv->ssid, drv->ssid_len));
 	}
+
+	event.assoc_info.freq = drv->assoc_freq;
+	drv->first_bss->freq = drv->assoc_freq;
 
 	nl80211_parse_wmm_params(wmm, &event.assoc_info.wmm_params);
 
@@ -402,6 +409,7 @@ static void mlme_event_connect(struct wpa_driver_nl80211_data *drv,
 	}
 
 	event.assoc_info.freq = nl80211_get_assoc_freq(drv);
+	drv->first_bss->freq = drv->assoc_freq;
 
 	if ((!ssid || ssid[1] == 0 || ssid[1] > 32) &&
 	    (ssid_len = nl80211_get_assoc_ssid(drv, drv->ssid)) > 0) {
@@ -868,7 +876,7 @@ static void mlme_event(struct i802_bss *bss,
 		       struct nlattr *addr, struct nlattr *timed_out,
 		       struct nlattr *freq, struct nlattr *ack,
 		       struct nlattr *cookie, struct nlattr *sig,
-		       struct nlattr *wmm)
+		       struct nlattr *wmm, struct nlattr *req_ie)
 {
 	struct wpa_driver_nl80211_data *drv = bss->drv;
 	const u8 *data;
@@ -917,7 +925,8 @@ static void mlme_event(struct i802_bss *bss,
 		mlme_event_auth(drv, nla_data(frame), nla_len(frame));
 		break;
 	case NL80211_CMD_ASSOCIATE:
-		mlme_event_assoc(drv, nla_data(frame), nla_len(frame), wmm);
+		mlme_event_assoc(drv, nla_data(frame), nla_len(frame), wmm,
+				 req_ie);
 		break;
 	case NL80211_CMD_DEAUTHENTICATE:
 		mlme_event_deauth_disassoc(drv, EVENT_DEAUTH,
@@ -1429,16 +1438,23 @@ static void nl80211_client_probe_event(struct wpa_driver_nl80211_data *drv,
 				       struct nlattr **tb)
 {
 	union wpa_event_data data;
+	const u8 *addr;
+	u64 cookie = 0;
 
-	wpa_printf(MSG_DEBUG, "nl80211: Probe client event");
-
-	if (!tb[NL80211_ATTR_MAC] || !tb[NL80211_ATTR_ACK])
+	addr = nla_data(tb[NL80211_ATTR_MAC]);
+	if (!addr)
+		return;
+	if (tb[NL80211_ATTR_COOKIE])
+		cookie = nla_get_u64(tb[NL80211_ATTR_COOKIE]);
+	wpa_printf(MSG_DEBUG, "nl80211: Probe client event (addr=" MACSTR
+		   " ack=%d cookie=%llu)", MAC2STR(addr),
+		   tb[NL80211_ATTR_ACK] != NULL,
+		   (long long unsigned int) cookie);
+	if (!tb[NL80211_ATTR_ACK])
 		return;
 
 	os_memset(&data, 0, sizeof(data));
-	os_memcpy(data.client_poll.addr,
-		  nla_data(tb[NL80211_ATTR_MAC]), ETH_ALEN);
-
+	os_memcpy(data.client_poll.addr, addr, ETH_ALEN);
 	wpa_supplicant_event(drv->ctx, EVENT_DRIVER_CLIENT_POLL_OK, &data);
 }
 
@@ -2183,6 +2199,54 @@ static void nl80211_reg_change_event(struct wpa_driver_nl80211_data *drv,
 }
 
 
+static void nl80211_dump_freq(const char *title, struct nlattr *nl_freq)
+{
+	static struct nla_policy freq_policy[NL80211_FREQUENCY_ATTR_MAX + 1] = {
+		[NL80211_FREQUENCY_ATTR_FREQ] = { .type = NLA_U32 },
+		[NL80211_FREQUENCY_ATTR_DISABLED] = { .type = NLA_FLAG },
+		[NL80211_FREQUENCY_ATTR_NO_IR] = { .type = NLA_FLAG },
+		[NL80211_FREQUENCY_ATTR_RADAR] = { .type = NLA_FLAG },
+		[NL80211_FREQUENCY_ATTR_MAX_TX_POWER] = { .type = NLA_U32 },
+	};
+	struct nlattr *tb[NL80211_FREQUENCY_ATTR_MAX + 1];
+	u32 freq = 0, max_tx_power = 0;
+
+	nla_parse(tb, NL80211_FREQUENCY_ATTR_MAX,
+		  nla_data(nl_freq), nla_len(nl_freq), freq_policy);
+
+	if (tb[NL80211_FREQUENCY_ATTR_FREQ])
+		freq = nla_get_u32(tb[NL80211_FREQUENCY_ATTR_FREQ]);
+	if (tb[NL80211_FREQUENCY_ATTR_MAX_TX_POWER])
+		max_tx_power =
+			nla_get_u32(tb[NL80211_FREQUENCY_ATTR_MAX_TX_POWER]);
+
+	wpa_printf(MSG_DEBUG,
+		   "nl80211: Channel (%s): freq=%u max_tx_power=%u%s%s%s",
+		   title, freq, max_tx_power,
+		   tb[NL80211_FREQUENCY_ATTR_DISABLED] ? " disabled" : "",
+		   tb[NL80211_FREQUENCY_ATTR_NO_IR] ? " no-IR" : "",
+		   tb[NL80211_FREQUENCY_ATTR_RADAR] ? " radar" : "");
+}
+
+
+static void nl80211_reg_beacon_hint_event(struct wpa_driver_nl80211_data *drv,
+					   struct nlattr *tb[])
+{
+	union wpa_event_data data;
+
+	wpa_printf(MSG_DEBUG, "nl80211: Regulatory beacon hint");
+	os_memset(&data, 0, sizeof(data));
+	data.channel_list_changed.initiator = REGDOM_BEACON_HINT;
+
+	if (tb[NL80211_ATTR_FREQ_BEFORE])
+		nl80211_dump_freq("before", tb[NL80211_ATTR_FREQ_BEFORE]);
+	if (tb[NL80211_ATTR_FREQ_AFTER])
+		nl80211_dump_freq("after", tb[NL80211_ATTR_FREQ_AFTER]);
+
+	wpa_supplicant_event(drv->ctx, EVENT_CHANNEL_LIST_CHANGED, &data);
+}
+
+
 static void nl80211_external_auth(struct wpa_driver_nl80211_data *drv,
 				  struct nlattr **tb)
 {
@@ -2214,11 +2278,9 @@ static void nl80211_external_auth(struct wpa_driver_nl80211_data *drv,
 	event.external_auth.ssid_len = nla_len(tb[NL80211_ATTR_SSID]);
 	if (event.external_auth.ssid_len > SSID_MAX_LEN)
 		return;
-	os_memcpy(event.external_auth.ssid, nla_data(tb[NL80211_ATTR_SSID]),
-		  event.external_auth.ssid_len);
+	event.external_auth.ssid = nla_data(tb[NL80211_ATTR_SSID]);
 
-	os_memcpy(event.external_auth.bssid, nla_data(tb[NL80211_ATTR_BSSID]),
-		  ETH_ALEN);
+	event.external_auth.bssid = nla_data(tb[NL80211_ATTR_BSSID]);
 
 	wpa_printf(MSG_DEBUG,
 		   "nl80211: External auth action: %u, AKM: 0x%x",
@@ -2327,7 +2389,6 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
 				 struct nlattr **tb)
 {
 	struct wpa_driver_nl80211_data *drv = bss->drv;
-	union wpa_event_data data;
 	int external_scan_event = 0;
 
 	wpa_printf(MSG_DEBUG, "nl80211: Drv Event %d (%s) received for %s",
@@ -2428,7 +2489,8 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
 			   tb[NL80211_ATTR_WIPHY_FREQ], tb[NL80211_ATTR_ACK],
 			   tb[NL80211_ATTR_COOKIE],
 			   tb[NL80211_ATTR_RX_SIGNAL_DBM],
-			   tb[NL80211_ATTR_STA_WME]);
+			   tb[NL80211_ATTR_STA_WME],
+			   tb[NL80211_ATTR_REQ_IE]);
 		break;
 	case NL80211_CMD_CONNECT:
 	case NL80211_CMD_ROAM:
@@ -2480,11 +2542,7 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
 		nl80211_reg_change_event(drv, tb);
 		break;
 	case NL80211_CMD_REG_BEACON_HINT:
-		wpa_printf(MSG_DEBUG, "nl80211: Regulatory beacon hint");
-		os_memset(&data, 0, sizeof(data));
-		data.channel_list_changed.initiator = REGDOM_BEACON_HINT;
-		wpa_supplicant_event(drv->ctx, EVENT_CHANNEL_LIST_CHANGED,
-				     &data);
+		nl80211_reg_beacon_hint_event(drv, tb);
 		break;
 	case NL80211_CMD_NEW_STATION:
 		nl80211_new_station_event(drv, bss, tb);
@@ -2605,7 +2663,7 @@ int process_bss_event(struct nl_msg *msg, void *arg)
 			   tb[NL80211_ATTR_WIPHY_FREQ], tb[NL80211_ATTR_ACK],
 			   tb[NL80211_ATTR_COOKIE],
 			   tb[NL80211_ATTR_RX_SIGNAL_DBM],
-			   tb[NL80211_ATTR_STA_WME]);
+			   tb[NL80211_ATTR_STA_WME], NULL);
 		break;
 	case NL80211_CMD_UNEXPECTED_FRAME:
 		nl80211_spurious_frame(bss, tb, 0);

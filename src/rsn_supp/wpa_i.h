@@ -86,6 +86,7 @@ struct wpa_sm {
 
 	int rsn_enabled; /* Whether RSN is enabled in configuration */
 	int mfp; /* 0 = disabled, 1 = optional, 2 = mandatory */
+	int ocv; /* Operating Channel Validation */
 
 	u8 *assoc_wpa_ie; /* Own WPA/RSN IE from (Re)AssocReq */
 	size_t assoc_wpa_ie_len;
@@ -125,8 +126,9 @@ struct wpa_sm {
 	u8 r0kh_id[FT_R0KH_ID_MAX_LEN];
 	size_t r0kh_id_len;
 	u8 r1kh_id[FT_R1KH_ID_LEN];
-	int ft_completed;
-	int ft_reassoc_completed;
+	unsigned int ft_completed:1;
+	unsigned int ft_reassoc_completed:1;
+	unsigned int ft_protocol:1;
 	int over_the_ds_in_progress;
 	u8 target_ap[ETH_ALEN]; /* over-the-DS target AP */
 	int set_ptk_after_assoc;
@@ -167,6 +169,10 @@ struct wpa_sm {
 	struct crypto_ecdh *owe_ecdh;
 	u16 owe_group;
 #endif /* CONFIG_OWE */
+
+#ifdef CONFIG_DPP2
+	struct wpabuf *dpp_z;
+#endif /* CONFIG_DPP2 */
 };
 
 
@@ -393,6 +399,14 @@ static inline void wpa_sm_fils_hlp_rx(struct wpa_sm *sm,
 {
 	if (sm->ctx->fils_hlp_rx)
 		sm->ctx->fils_hlp_rx(sm->ctx->ctx, dst, src, pkt, pkt_len);
+}
+
+static inline int wpa_sm_channel_info(struct wpa_sm *sm,
+				      struct wpa_channel_info *ci)
+{
+	if (!sm->ctx->channel_info)
+		return -1;
+	return sm->ctx->channel_info(sm->ctx->ctx, ci);
 }
 
 

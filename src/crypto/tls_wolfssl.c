@@ -643,9 +643,9 @@ static int tls_match_alt_subject(WOLFSSL_X509 *cert, const char *match)
 
 
 static int domain_suffix_match(const char *val, size_t len, const char *match,
-			       int full)
+			       size_t match_len, int full)
 {
-	size_t i, match_len;
+	size_t i;
 
 	/* Check for embedded nuls that could mess up suffix matching */
 	for (i = 0; i < len; i++) {
@@ -656,7 +656,6 @@ static int domain_suffix_match(const char *val, size_t len, const char *match,
 		}
 	}
 
-	match_len = os_strlen(match);
 	if (match_len > len || (full && match_len != len))
 		return 0;
 
@@ -674,7 +673,8 @@ static int domain_suffix_match(const char *val, size_t len, const char *match,
 }
 
 
-static int tls_match_suffix(WOLFSSL_X509 *cert, const char *match, int full)
+static int tls_match_suffix_helper(WOLFSSL_X509 *cert, const char *match,
+				   size_t match_len, int full)
 {
 	WOLFSSL_ASN1_OBJECT *gen;
 	void *ext;
@@ -690,14 +690,14 @@ static int tls_match_suffix(WOLFSSL_X509 *cert, const char *match, int full)
 
 	for (j = 0; ext && j < wolfSSL_sk_num(ext); j++) {
 		gen = wolfSSL_sk_value(ext, j);
-		if (gen->type != ALT_NAMES_OID)
+		if (gen->type != ASN_DNS_TYPE)
 			continue;
 		dns_name++;
 		wpa_hexdump_ascii(MSG_DEBUG, "TLS: Certificate dNSName",
 				  gen->obj, os_strlen((char *)gen->obj));
 		if (domain_suffix_match((const char *) gen->obj,
 					os_strlen((char *) gen->obj), match,
-					full) == 1) {
+					match_len, full) == 1) {
 			wpa_printf(MSG_DEBUG, "TLS: %s in dNSName found",
 				   full ? "Match" : "Suffix match");
 			wolfSSL_sk_ASN1_OBJECT_free(ext);
@@ -729,8 +729,8 @@ static int tls_match_suffix(WOLFSSL_X509 *cert, const char *match, int full)
 			continue;
 		wpa_hexdump_ascii(MSG_DEBUG, "TLS: Certificate commonName",
 				  cn->data, cn->length);
-		if (domain_suffix_match(cn->data, cn->length, match, full) == 1)
-		{
+		if (domain_suffix_match(cn->data, cn->length,
+					match, match_len, full) == 1) {
 			wpa_printf(MSG_DEBUG, "TLS: %s in commonName found",
 				   full ? "Match" : "Suffix match");
 			return 1;
@@ -739,6 +739,20 @@ static int tls_match_suffix(WOLFSSL_X509 *cert, const char *match, int full)
 
 	wpa_printf(MSG_DEBUG, "TLS: No CommonName %smatch found",
 		   full ? "" : "suffix ");
+	return 0;
+}
+
+
+static int tls_match_suffix(WOLFSSL_X509 *cert, const char *match, int full)
+{
+	const char *token, *last = NULL;
+
+	/* Process each match alternative separately until a match is found */
+	while ((token = cstr_token(match, ";", &last))) {
+		if (tls_match_suffix_helper(cert, token, last - token, full))
+			return 1;
+	}
+
 	return 0;
 }
 
@@ -1487,6 +1501,9 @@ int tls_global_set_params(void *tls_ctx,
 {
 	wpa_printf(MSG_DEBUG, "SSL: global set params");
 
+	if (params->check_cert_subject)
+		return -1; /* not yet supported */
+
 	if (tls_global_ca_cert(tls_ctx, params->ca_cert) < 0) {
 		wpa_printf(MSG_INFO, "SSL: Failed to load ca cert file '%s'",
 			   params->ca_cert);
@@ -1524,6 +1541,12 @@ int tls_global_set_params(void *tls_ctx,
 		return -1;
 	}
 
+	if (params->openssl_ecdh_curves) {
+		wpa_printf(MSG_INFO,
+			   "wolfSSL: openssl_ecdh_curves not supported");
+		return -1;
+	}
+
 #ifdef HAVE_SESSION_TICKET
 	/* Session ticket is off by default - can't disable once on. */
 	if (!(params->flags & TLS_CONN_DISABLE_SESSION_TICKET))
@@ -1543,7 +1566,7 @@ int tls_global_set_params(void *tls_ctx,
 }
 
 
-int tls_global_set_verify(void *tls_ctx, int check_crl)
+int tls_global_set_verify(void *tls_ctx, int check_crl, int strict)
 {
 	wpa_printf(MSG_DEBUG, "SSL: global set verify: %d", check_crl);
 
@@ -1964,8 +1987,11 @@ int tls_connection_get_random(void *ssl_ctx, struct tls_connection *conn,
 
 
 int tls_connection_export_key(void *tls_ctx, struct tls_connection *conn,
-			      const char *label, u8 *out, size_t out_len)
+			      const char *label, const u8 *context,
+			      size_t context_len, u8 *out, size_t out_len)
 {
+	if (context)
+		return -1;
 	if (!conn || wolfSSL_make_eap_keys(conn->ssl, out, out_len, label) != 0)
 		return -1;
 	return 0;

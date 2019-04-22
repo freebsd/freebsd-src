@@ -1,6 +1,6 @@
 /*
  * BSS table
- * Copyright (c) 2009-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2009-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -148,6 +148,7 @@ int wpa_bss_get_bit_rates(const struct wpa_bss *bss, u8 **rates);
 struct wpa_bss_anqp * wpa_bss_anqp_alloc(void);
 int wpa_bss_anqp_unshare_alloc(struct wpa_bss *bss);
 const u8 * wpa_bss_get_fils_cache_id(struct wpa_bss *bss);
+int wpa_bss_ext_capab(const struct wpa_bss *bss, unsigned int capab);
 
 static inline int bss_is_dmg(const struct wpa_bss *bss)
 {
