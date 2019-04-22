@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2018
+.Dd March 3, 2018
 .Dt "FDT_PINCTRL" 4
 .Os
 .Sh NAME
@@ -36,13 +36,13 @@
 .Pp
 Pin multiplexing is a technology used to re-purpose a single
 physical connection (depending on chip packaging it may be
-pin, ball, or pad) to pull signal from one of SoC internal
-controllers to peripheral devices.
+pin, ball, or pad) by routing its signal to any one of several 
+different SoC internal devices.
 For example, based on the actual device design, a single SoC chip
-pin can perform any of these roles: SPI clock, I2C
+pin might perform any of these roles: SPI clock, I2C
 data, GPIO pin, or PWM signal.
 Function selection is performed by the pinmux controller, a SoC
-hardware block, usually controlled a set of registers.
+hardware block which is usually controlled by a set of registers.
 Pinmux controller capabilities and register format depend
 on the actual hardware implementation.
 .Pp
@@ -104,11 +104,11 @@ backlight@7f000000 {
 }
 .Ed
 .Pp
-The pinctrl driver should implement FDT_PINCTRL_CONFIGURE
-method, register itself as pin configuration handler by
+The pinctrl driver should implement the FDT_PINCTRL_CONFIGURE
+method, register itself as a pin configuration handler by
 calling fdt_pinctrl_register function, and call
 .Xr fdt_pinctrl_configure_tree 9
-to configure pins for all enabled devices (device where
+to configure pins for all enabled devices (devices where
 the "status" property is not set to "disabled").
 .Sh SEE ALSO
 .Xr fdt_pinctrl 9

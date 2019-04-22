@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2018
+.Dd March 3, 2018
 .Dt fdt_pinctrl 9
 .Os
 .Sh NAME
@@ -50,15 +50,17 @@ provides an API for manipulating I/O pin configurations on
 pinmux controllers and pinmux clients.
 On the controller side, the standard newbus probe and
 attach methods are implemented.
-This driver also implements the
-.Fn fdt_pinctrl_configure
-method, in which it calls the
+As part of handling attach, it calls the
 .Fn fdt_pinctrl_register
 function to register itself as a pinmux controller.
 Then
 .Fn fdt_pinctrl_configure_tree
 is used to walk the device tree and configure pins specified by the pinctrl-0
 property for all active devices.
+The driver also implements the
+.Fn fdt_pinctrl_configure
+method, which allows client devices to change their
+pin configurations after startup.
 If a client device requires a pin configuration change at some
 point of its lifecycle, it uses the
 .Fn fdt_pinctrl_configure
@@ -84,14 +86,9 @@ registers a pinctrl driver so that it can be used by other devices which call
 .Fn fdt_pinctrl_configure
 or
 .Fn fdt_pinctrl_configure_by_name .
-The
-.Fa pinprop
-argument is the name of a property that
-identifies each descendant of the pinctrl
-node.
-The pinctrl node is a pin configuration
-node whose xref phandle can be passed to
-.Fn FDT_PINCTRL_CONFIGURE .
+It also registers each child node of the pinctrl driver's node which contains
+a property with the name given in
+.Fa pinprop .
 If
 .Fa pinprop
 is
