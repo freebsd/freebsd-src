@@ -3682,7 +3682,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	    M_MLX5EN, M_WAITOK | M_ZERO);
 	mlx5e_priv_mtx_init(priv);
 
-	ifp = priv->ifp = if_alloc(IFT_ETHER);
+	ifp = priv->ifp = if_alloc_dev(IFT_ETHER, mdev->pdev->dev.bsddev);
 	if (ifp == NULL) {
 		mlx5_core_err(mdev, "if_alloc() failed\n");
 		goto err_free_priv;
