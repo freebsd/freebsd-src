@@ -344,6 +344,7 @@ struct da_softc {
 	da_delete_func_t	*delete_func;
 	int			unmappedio;
 	int			rotating;
+	int			p_type;
 	struct	 disk_params params;
 	struct	 disk *disk;
 	union	 ccb saved_ccb;
@@ -2292,7 +2293,7 @@ dasysctlinit(void *context, int pending)
 		       CTLFLAG_RD,
 		       &softc->unmappedio,
 		       0,
-		       "Unmapped I/O leaf");
+		       "Unmapped I/O support");
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx,
 		       SYSCTL_CHILDREN(softc->sysctl_tree),
@@ -2302,6 +2303,15 @@ dasysctlinit(void *context, int pending)
 		       &softc->rotating,
 		       0,
 		       "Rotating media");
+
+	SYSCTL_ADD_INT(&softc->sysctl_ctx,
+		       SYSCTL_CHILDREN(softc->sysctl_tree),
+		       OID_AUTO,
+		       "p_type",
+		       CTLFLAG_RD,
+		       &softc->p_type,
+		       0,
+		       "DIF protection type");
 
 #ifdef CAM_TEST_FAILURE
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
@@ -4649,7 +4659,7 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 	da_ccb_state state;
 	char *announce_buf;
 	u_int32_t  priority;
-	int lbp;
+	int lbp, n;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_proberc\n"));
 
@@ -4731,11 +4741,17 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 				  rcaplong, sizeof(*rcaplong));
 			lbp = (lalba & SRC16_LBPME_A);
 			dp = &softc->params;
-			snprintf(announce_buf, DA_ANNOUNCETMP_SZ,
-			    "%juMB (%ju %u byte sectors)",
+			n = snprintf(announce_buf, DA_ANNOUNCETMP_SZ,
+			    "%juMB (%ju %u byte sectors",
 			    ((uintmax_t)dp->secsize * dp->sectors) /
 			     (1024 * 1024),
 			    (uintmax_t)dp->sectors, dp->secsize);
+			if (softc->p_type != 0) {
+				n += snprintf(announce_buf + n,
+				    DA_ANNOUNCETMP_SZ - n,
+				    ", DIF type %d", softc->p_type);
+			}
+			snprintf(announce_buf + n, DA_ANNOUNCETMP_SZ - n, ")");
 		}
 	} else {
 		int error;
@@ -5983,9 +5999,15 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 		lbppbe = rcaplong->prot_lbppbe & SRC16_LBPPBE;
 		lalba = scsi_2btoul(rcaplong->lalba_lbp);
 		lalba &= SRC16_LALBA_A;
+		if (rcaplong->prot & SRC16_PROT_EN)
+			softc->p_type = ((rcaplong->prot & SRC16_P_TYPE) >>
+			    SRC16_P_TYPE_SHIFT) + 1;
+		else
+			softc->p_type = 0;
 	} else {
 		lbppbe = 0;
 		lalba = 0;
+		softc->p_type = 0;
 	}
 
 	if (lbppbe > 0) {
