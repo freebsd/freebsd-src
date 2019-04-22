@@ -140,6 +140,7 @@ atexit(void (*func)(void))
 	error = atexit_register(&fn);
 	return (error);
 }
+__weak_reference(atexit, __libc_atexit);
 
 /**
  * Register a block to be performed at exit.
