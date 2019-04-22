@@ -3529,19 +3529,6 @@ install_kld_firmware(struct adapter *sc, struct fw_h *card_fw,
 	load_attempted = false;
 	fw_install = t4_fw_install < 0 ? -t4_fw_install : t4_fw_install;
 
-	if (reason != NULL)
-		goto install;
-
-	if ((sc->flags & FW_OK) == 0) {
-
-		if (c == 0xffffffff) {
-			reason = "missing";
-			goto install;
-		}
-
-		return (0);
-	}
-
 	memcpy(&bundled_fw, drv_fw, sizeof(bundled_fw));
 	if (t4_fw_install < 0) {
 		rc = load_fw_module(sc, &cfg, &fw);
@@ -3557,6 +3544,20 @@ install_kld_firmware(struct adapter *sc, struct fw_h *card_fw,
 		load_attempted = true;
 	}
 	d = be32toh(bundled_fw.fw_ver);
+
+	if (reason != NULL)
+		goto install;
+
+	if ((sc->flags & FW_OK) == 0) {
+
+		if (c == 0xffffffff) {
+			reason = "missing";
+			goto install;
+		}
+
+		rc = 0;
+		goto done;
+	}
 
 	if (!fw_compatible(card_fw, &bundled_fw)) {
 		reason = "incompatible or unusable";
