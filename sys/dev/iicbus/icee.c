@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/resource.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <machine/bus.h>
 
@@ -184,6 +185,8 @@ static int
 icee_attach(device_t dev)
 {
 	struct icee_softc *sc = device_get_softc(dev);
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *tree;
 
 	sc->dev = dev;
 	sc->addr = iicbus_get_addr(dev);
@@ -203,6 +206,16 @@ icee_attach(device_t dev)
 		return (ENOMEM);
 	}
 	sc->cdev->si_drv1 = sc;
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "address_size", CTLFLAG_RD,
+	    &sc->type, 0, "Memory array address size in bits");
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "device_size", CTLFLAG_RD,
+	    &sc->size, 0, "Memory array capacity in bytes");
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "write_size", CTLFLAG_RD,
+	    &sc->wr_sz, 0, "Memory array page write size in bytes");
+
 	return (0);
 }
 
