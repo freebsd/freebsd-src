@@ -656,10 +656,7 @@ write_objs(struct bsdar *bsdar)
 	 *
 	 * absolute_offset = htobe32(relative_offset + size_of_pseudo_members)
 	 */
-
 	w_sz = sizeof(uint32_t);
-	if (bsdar->s_so_max > UINT32_MAX)
-		w_sz = sizeof(uint64_t);
 	if (bsdar->s_cnt != 0) {
 		s_sz = (bsdar->s_cnt + 1) * sizeof(uint32_t) + bsdar->s_sn_sz;
 		pm_sz = _ARMAG_LEN + (_ARHDR_LEN + s_sz);
