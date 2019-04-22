@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2018
+.Dd April 15, 2019
 .Dt CRONTAB 5
 .Os
 .Sh NAME
@@ -116,6 +116,9 @@ If
 .Ev MAILTO
 is defined (and non-empty), mail is
 sent to the user so named.
+If
+.Ev MAILFROM
+is defined (and non-empty), its value will be used as the from address.
 .Ev MAILTO
 may also be used to direct mail to multiple recipients
 by separating recipient users with a comma.
