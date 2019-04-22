@@ -97,43 +97,52 @@ WR2(struct imx_wdog_softc *sc, bus_size_t offs, uint16_t val)
 	bus_write_2(sc->sc_res[MEMRES], offs, val);
 }
 
+static int
+imx_wdog_enable(struct imx_wdog_softc *sc, u_int timeout)
+{
+	uint16_t reg;
+
+	if (timeout < 1 || timeout > 128)
+		return (EINVAL);
+
+	mtx_lock(&sc->sc_mtx);
+	if (timeout != sc->sc_timeout) {
+		sc->sc_timeout = timeout;
+		reg = RD2(sc, WDOG_CR_REG);
+		reg &= ~WDOG_CR_WT_MASK;
+		reg |= ((2 * timeout - 1) << WDOG_CR_WT_SHIFT);
+		WR2(sc, WDOG_CR_REG, reg | WDOG_CR_WDE);
+	}
+	/* Refresh counter */
+	WR2(sc, WDOG_SR_REG, WDOG_SR_STEP1);
+	WR2(sc, WDOG_SR_REG, WDOG_SR_STEP2);
+	/* Watchdog active, can disable rom-boot watchdog. */
+	if (sc->sc_pde_enabled) {
+		sc->sc_pde_enabled = false;
+		reg = RD2(sc, WDOG_MCR_REG);
+		WR2(sc, WDOG_MCR_REG, reg & ~WDOG_MCR_PDE);
+	}
+	mtx_unlock(&sc->sc_mtx);
+
+	return (0);
+}
+
 static void
 imx_watchdog(void *arg, u_int cmd, int *error)
 {
 	struct imx_wdog_softc *sc;
-	uint16_t reg;
 	u_int timeout;
 
 	sc = arg;
-	mtx_lock(&sc->sc_mtx);
 	if (cmd == 0) {
 		if (bootverbose)
 			device_printf(sc->sc_dev, "Can not be disabled.\n");
 		*error = EOPNOTSUPP;
 	} else {
 		timeout = (u_int)((1ULL << (cmd & WD_INTERVAL)) / 1000000000U);
-		if (timeout > 1 && timeout < 128) {
-			if (timeout != sc->sc_timeout) {
-				sc->sc_timeout = timeout;
-				reg = RD2(sc, WDOG_CR_REG);
-				reg &= ~WDOG_CR_WT_MASK;
-				reg |= (timeout << (WDOG_CR_WT_SHIFT + 1)) &
-				    WDOG_CR_WT_MASK;
-				WR2(sc, WDOG_CR_REG, reg | WDOG_CR_WDE);
-			}
-			/* Refresh counter */
-			WR2(sc, WDOG_SR_REG, WDOG_SR_STEP1);
-			WR2(sc, WDOG_SR_REG, WDOG_SR_STEP2);
-			/* Watchdog active, can disable rom-boot watchdog. */
-			if (sc->sc_pde_enabled) {
-				sc->sc_pde_enabled = false;
-				reg = RD2(sc, WDOG_MCR_REG);
-				WR2(sc, WDOG_MCR_REG, reg & ~WDOG_MCR_PDE);
-			}
+		if (imx_wdog_enable(sc, timeout) == 0)
 			*error = 0;
-		}
 	}
-	mtx_unlock(&sc->sc_mtx);
 }
 
 static int
@@ -175,6 +184,7 @@ static int
 imx_wdog_attach(device_t dev)
 {
 	struct imx_wdog_softc *sc;
+	pcell_t timeout;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -208,6 +218,26 @@ imx_wdog_attach(device_t dev)
 		sc->sc_pde_enabled = true;
 
 	EVENTHANDLER_REGISTER(watchdog_list, imx_watchdog, sc, 0);
+
+	/* If there is a timeout-sec property, activate the watchdog. */
+	if (OF_getencprop(ofw_bus_get_node(sc->sc_dev), "timeout-sec",
+	    &timeout, sizeof(timeout)) == sizeof(timeout)) {
+		if (timeout < 1 || timeout > 128) {
+			device_printf(sc->sc_dev, "ERROR: bad timeout-sec "
+			    "property value %u, using 128\n", timeout);
+			timeout = 128;
+		}
+		imx_wdog_enable(sc, timeout);
+		device_printf(sc->sc_dev, "watchdog enabled using "
+		    "timeout-sec property value %u\n", timeout);
+	}
+
+	/*
+	 * The watchdog hardware cannot be disabled, so there's little point in
+	 * coding up a detach() routine to carefully tear everything down, just
+	 * make the device busy so that detach can't happen.
+	 */
+	device_busy(sc->sc_dev);
 	return (0);
 }
 
@@ -225,4 +255,6 @@ static driver_t imx_wdog_driver = {
 
 static devclass_t imx_wdog_devclass;
 
-DRIVER_MODULE(imx_wdog, simplebus, imx_wdog_driver, imx_wdog_devclass, 0, 0);
+EARLY_DRIVER_MODULE(imx_wdog, simplebus, imx_wdog_driver,
+    imx_wdog_devclass, 0, 0, BUS_PASS_TIMER);
+SIMPLEBUS_PNP_INFO(compat_data);
