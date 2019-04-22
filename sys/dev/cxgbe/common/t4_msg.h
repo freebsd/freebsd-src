@@ -923,7 +923,8 @@ struct cpl_get_tcb {
 	WR_HDR;
 	union opcode_tid ot;
 	__be16 reply_ctrl;
-	__be16 cookie;
+	__u8 rsvd;
+	__u8 cookie;
 };
 
 /* cpl_get_tcb.reply_ctrl fields */
