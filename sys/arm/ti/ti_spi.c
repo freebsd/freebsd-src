@@ -447,7 +447,7 @@ ti_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	int err;
 	struct ti_spi_softc *sc;
-	uint32_t reg, cs;
+	uint32_t clockhz, cs, mode, reg;
 
 	sc = device_get_softc(dev);
 
@@ -458,6 +458,8 @@ ti_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	/* Get the proper chip select for this child. */
 	spibus_get_cs(child, &cs);
+	spibus_get_clock(child, &clockhz);
+	spibus_get_mode(child, &mode);
 
 	cs &= ~SPIBUS_CS_HIGH;
 
@@ -465,6 +467,13 @@ ti_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 		device_printf(dev, "Invalid chip select %d requested by %s\n",
 		    cs, device_get_nameunit(child));
 		return (EINVAL);
+	}
+
+	if (mode > 3)
+	{
+	    device_printf(dev, "Invalid mode %d requested by %s\n", mode,
+		    device_get_nameunit(child));
+	    return (EINVAL);
 	}
 
 	TI_SPI_LOCK(sc);
@@ -488,8 +497,8 @@ ti_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	/* Disable FIFO for now. */
 	sc->sc_fifolvl = 1;
 
-	/* Use a safe clock - 500kHz. */
-	ti_spi_set_clock(sc, sc->sc_cs, 500000);
+	/* Set the bus frequency. */
+	ti_spi_set_clock(sc, sc->sc_cs, clockhz);
 
 	/* Disable the FIFO. */
 	TI_SPI_WRITE(sc, MCSPI_XFERLEVEL, 0);
@@ -501,6 +510,7 @@ ti_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	    MCSPI_CONF_DPE1 | MCSPI_CONF_DPE0 | MCSPI_CONF_DMAR |
 	    MCSPI_CONF_DMAW | MCSPI_CONF_EPOL);
 	reg |= MCSPI_CONF_DPE0 | MCSPI_CONF_EPOL | MCSPI_CONF_WL8BITS;
+	reg |= mode; /* POL and PHA are the low bits, we can just OR-in mode */
 	TI_SPI_WRITE(sc, MCSPI_CONF_CH(sc->sc_cs), reg);
 
 #if 0
