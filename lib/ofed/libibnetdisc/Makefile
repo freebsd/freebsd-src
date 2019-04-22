@@ -31,6 +31,9 @@ LIBADD=		osmcomp ibmad ibumad
 CFLAGS+=	-DHAVE_CONFIG_H=1
 CFLAGS+=	-I${_spath}
 CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/infiniband
+.if ${COMPILER_FEATURES:Mc++11}
+CXXSTD=		c++11
+.endif
 VERSION_MAP=	${_spath}/libibnetdisc.map
 
 .include <bsd.lib.mk>
