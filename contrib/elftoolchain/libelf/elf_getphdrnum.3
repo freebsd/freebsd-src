@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf_getphdrnum.3 467 2009-08-05 18:18:49Z jkoshy $
+.\" $Id: elf_getphdrnum.3 3643 2018-10-14 21:09:24Z jkoshy $
 .\"
-.Dd August 5, 2009
-.Os
+.Dd July 25, 2018
 .Dt ELF_GETPHDRNUM 3
+.Os
 .Sh NAME
 .Nm elf_getphdrnum
 .Nd return the number of program headers in an ELF file
@@ -45,14 +45,13 @@ and stores it into the location pointed to by argument
 .Pp
 This routine allows applications to uniformly process both normal ELF
 objects and ELF objects that use extended numbering.
-.Pp
 .Sh RETURN VALUES
 Function
 .Fn elf_getphdrnum
 returns a zero value if successful, or -1 in case of an error.
 .Sh ERRORS
 Function
-.Fn elf_getphnum
+.Fn elf_getphdrnum
 can fail with the following errors:
 .Bl -tag -width "[ELF_E_RESOURCE]"
 .It Bq Er ELF_E_ARGUMENT

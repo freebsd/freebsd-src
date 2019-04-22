@@ -30,7 +30,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_convert.m4 3429 2016-03-12 04:12:39Z emaste $");
+ELFTC_VCSID("$Id: libelf_convert.m4 3632 2018-10-10 21:12:43Z jkoshy $");
 
 /* WARNING: GENERATED FROM __file__. */
 
@@ -1070,17 +1070,26 @@ CONVERTER_NAMES(ELF_TYPE_LIST)
 	}
 };
 
-int (*_libelf_get_translator(Elf_Type t, int direction, int elfclass))
- (unsigned char *_dst, size_t dsz, unsigned char *_src, size_t _cnt,
-  int _byteswap)
+/*
+ * Return a translator function for the specified ELF section type, conversion
+ * direction, ELF class and ELF machine.
+ */
+_libelf_translator_function *
+_libelf_get_translator(Elf_Type t, int direction, int elfclass, int elfmachine)
 {
 	assert(elfclass == ELFCLASS32 || elfclass == ELFCLASS64);
+#if 0
+	assert(elfmachine >= EM_NONE && elfmachine < EM__LAST__);
+#endif
 	assert(direction == ELF_TOFILE || direction == ELF_TOMEMORY);
 
 	if (t >= ELF_T_NUM ||
 	    (elfclass != ELFCLASS32 && elfclass != ELFCLASS64) ||
 	    (direction != ELF_TOFILE && direction != ELF_TOMEMORY))
 		return (NULL);
+
+	/* TODO: Handle MIPS64 REL{,A} sections (ticket #559). */
+	(void) elfmachine;
 
 	return ((elfclass == ELFCLASS32) ?
 	    (direction == ELF_TOFILE ? cvt[t].tof32 : cvt[t].tom32) :

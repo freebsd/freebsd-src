@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_diename.3 2073 2011-10-27 03:30:47Z jkoshy $
+.\" $Id: dwarf_diename.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd March 31, 2010
-.Os
 .Dt DWARF_DIENAME 3
+.Os
 .Sh NAME
 .Nm dwarf_diename
 .Nd retrieve the name associated with a debugging information entry
@@ -51,7 +51,8 @@ pointed to by argument
 Function
 .Fn dwarf_diename
 returns
-.Dv DW_DLV_OK on success.
+.Dv DW_DLV_OK
+on success.
 .Pp
 If the debugging information entry descriptor denoted by argument
 .Ar die
@@ -85,6 +86,6 @@ attribute.
 .El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
-.Xr dwarf_tag 3 ,
+.Xr dwarf_die_abbrev_code 3 ,
 .Xr dwarf_dieoffset 3 ,
-.Xr dwarf_die_abbrev_code 3
+.Xr dwarf_tag 3

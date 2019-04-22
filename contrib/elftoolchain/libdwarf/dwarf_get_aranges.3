@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_get_aranges.3 2122 2011-11-09 15:35:14Z jkoshy $
+.\" $Id: dwarf_get_aranges.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd November 9, 2011
-.Os
 .Dt DWARF_GET_ARANGES 3
+.Os
 .Sh NAME
 .Nm dwarf_get_aranges
 .Nd retrieve program address space mappings
@@ -96,26 +96,7 @@ In case of an error, it returns
 .Dv DW_DLV_ERROR
 and sets the argument
 .Ar err .
-.Sh ERRORS
-Function
-.Fn dwarf_get_aranges
-can fail with:
-.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
-.It Bq Er DW_DLE_ARGUMENT
-One of the arguments
-.Ar dbg ,
-.Ar ar_list
-or
-.Ar ar_cnt
-was NULL.
-.It Bq Er DW_DLE_NO_ENTRY
-The debugging context
-.Ar dbg
-did not contain a
-.Dq ".debug_aranges"
-string section.
-.El
-.Sh EXAMPLE
+.Sh EXAMPLES
 To loop through all the address lookup table entries, use:
 .Bd -literal -offset indent
 Dwarf_Debug dbg;
@@ -140,6 +121,25 @@ for (i = 0; i < cnt; i++) {
 	/* Do something with the returned information. */
 }
 .Ed
+.Sh ERRORS
+Function
+.Fn dwarf_get_aranges
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar dbg ,
+.Ar ar_list
+or
+.Ar ar_cnt
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+The debugging context
+.Ar dbg
+did not contain a
+.Dq ".debug_aranges"
+string section.
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_get_arange 3 ,

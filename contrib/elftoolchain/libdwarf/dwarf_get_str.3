@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_get_str.3 2071 2011-10-27 03:20:00Z jkoshy $
+.\" $Id: dwarf_get_str.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd April 3, 2011
-.Os
 .Dt DWARF_GET_STR 3
+.Os
 .Sh NAME
 .Nm dwarf_get_str
 .Nd retrieve a string from the DWARF string section
@@ -95,6 +95,26 @@ In case of an error, it returns
 .Dv DW_DLV_ERROR
 and sets the argument
 .Ar err .
+.Sh EXAMPLES
+To retrieve all the strings in the DWARF string section, use:
+.Bd -literal -offset indent
+Dwarf_Debug dbg;
+Dwarf_Off offset;
+Dwarf_Signed len;
+Dwarf_Error de;
+char *str;
+int ret
+
+offset = 0;
+while ((ret = dwarf_get_str(dbg, offset, &str, &len, &de)) ==
+	DW_DLV_OK) {
+	/* .. Use the retrieved string. .. */
+	offset += len + 1; /* Account for the terminating NUL. */
+}
+
+if (ret == DW_DLV_ERROR)
+	warnx("dwarf_get_str: %s", dwarf_errmsg(de));
+.Ed
 .Sh ERRORS
 Function
 .Fn dwarf_get_str
@@ -124,26 +144,6 @@ was at the very end of the
 .Dq ".debug_str"
 section.
 .El
-.Sh EXAMPLE
-To retrieve all the strings in the DWARF string section, use:
-.Bd -literal -offset indent
-Dwarf_Debug dbg;
-Dwarf_Off offset;
-Dwarf_Signed len;
-Dwarf_Error de;
-char *str;
-int ret
-
-offset = 0;
-while ((ret = dwarf_get_str(dbg, offset, &str, &len, &de)) ==
-	DW_DLV_OK) {
-	/* .. Use the retrieved string. .. */
-	offset += len + 1; /* Account for the terminating NUL. */
-}
-
-if (ret == DW_DLV_ERROR)
-	warnx("dwarf_get_str: %s", dwarf_errmsg(de));
-.Ed
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_init 3

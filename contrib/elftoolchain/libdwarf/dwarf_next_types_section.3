@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_next_types_section.3 3116 2014-12-20 18:26:55Z jkoshy $
+.\" $Id: dwarf_next_types_section.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd December 20, 2014
-.Os
 .Dt DWARF_NEXT_TYPES_SECTION 3
+.Os
 .Sh NAME
 .Nm dwarf_next_types_section
 .Nd step through .debug_types sections in a debug context
@@ -95,20 +95,6 @@ When there are no more
 .Dq \&.debug_types
 sections left to traverse, it returns
 .Dv DW_DLV_NO_ENTRY .
-.Sh COMPATIBILITY
-This function is an extension to the
-.Xr DWARF 3
-API.
-.Sh ERRORS
-The
-.Fn dwarf_next_types_section
-function may fail with the following errors:
-.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
-.It Bq Er DW_DLE_ARGUMENT
-Argument
-.Va dbg
-was NULL.
-.El
 .Sh EXAMPLES
 To iterate though every type unit in all the
 .Dq \&.debug_types
@@ -128,6 +114,20 @@ do {
 	}
 } while (dwarf_next_types_section(dbg, &de) == DW_DLV_OK);
 .Ed
+.Sh COMPATIBILITY
+This function is an extension to the
+.Xr DWARF 3
+API.
+.Sh ERRORS
+The
+.Fn dwarf_next_types_section
+function may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Va dbg
+was NULL.
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_init 3 ,

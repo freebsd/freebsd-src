@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elftc_version.3 2828 2012-12-30 04:41:27Z jkoshy $
+.\" $Id: elftc_version.3 3645 2018-10-15 20:17:14Z jkoshy $
 .\"
 .Dd December 30, 2012
-.Os
 .Dt ELFTC_VERSION 3
+.Os
 .Sh NAME
 .Nm elftc_version
 .Nd return a project-wide version identifier string
@@ -54,7 +54,7 @@ The operating system that the tool chain was compiled for.
 A tree-wide version number extracted from the version control
 system in use.
 .El
-.Sh RETURN VALUE
+.Sh RETURN VALUES
 Function
 .Fn elftc_program_version
 returns a pointer to an internal character buffer.
@@ -68,7 +68,9 @@ To retrieve and print the current toolchain version identifier, use:
 .Ed
 .Pp
 On the HEAD branch of the project's sources, when checked out using
-Subversion and compiled on a NetBSD host, this would print:
+Subversion and compiled on a
+.Nx
+host, this would print:
 .D1 Dq elftoolchain HEAD NetBSD svn: Ns Em REVINFO
 where
 .Em REVINFO

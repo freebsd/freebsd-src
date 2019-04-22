@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ar.h 2496 2012-04-24 02:33:40Z jkoshy $
+ * $Id: ar.h 3629 2018-09-30 19:26:28Z jkoshy $
  */
 
 #include <libelf.h>
@@ -135,8 +135,8 @@ struct bsdar {
 };
 
 void	ar_mode_script(struct bsdar *ar);
-void	ar_read_archive(struct bsdar *_ar, int _mode);
-void	ar_write_archive(struct bsdar *_ar, int _mode);
+int	ar_read_archive(struct bsdar *_ar, int _mode);
+int	ar_write_archive(struct bsdar *_ar, int _mode);
 void	bsdar_errc(struct bsdar *, int _code, const char *fmt, ...);
 int	bsdar_is_pseudomember(struct bsdar *_ar, const char *_name);
 const char *bsdar_strmode(mode_t m);

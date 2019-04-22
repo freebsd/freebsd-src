@@ -21,11 +21,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: ar.5 3182 2015-04-10 16:08:10Z emaste $
+.\" $Id: ar.5 3642 2018-10-14 14:24:28Z jkoshy $
 .\"
-.Dd November 28, 2010
-.Os
+.Dd September 30, 2018
 .Dt AR 5
+.Os
 .Sh NAME
 .Nm ar
 .Nd archive file format for
@@ -84,6 +84,8 @@ An archive header comprises the following fixed sized fields:
 .Bl -tag -width "Li ar_name"
 .It Ar ar_name
 (16 bytes) The file name of the archive member.
+This field names a leaf file; absolute paths and relative paths containing
+directory names are not supported.
 The format of this field varies between the BSD and SVR4/GNU formats and
 is described in more detail in the section
 .Sx "Representing File Names"

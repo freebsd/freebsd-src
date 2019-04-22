@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2006,2008,2018 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: gelf_xlatetof.3 189 2008-07-20 10:38:08Z jkoshy $
+.\" $Id: gelf_xlatetof.3 3639 2018-10-14 14:07:02Z jkoshy $
 .\"
-.Dd July 24, 2006
-.Os
+.Dd October 11, 2018
 .Dt GELF_XLATETOF 3
+.Os
 .Sh NAME
 .Nm elf32_xlate ,
 .Nm elf64_xlate ,
@@ -36,36 +36,39 @@
 .Sh SYNOPSIS
 .In libelf.h
 .Ft "Elf_Data *"
-.Fn elf32_xlatetof "Elf_Data *dst" "Elf_Data *src" "unsigned int encode"
+.Fn elf32_xlatetof "Elf_Data *dst" "Elf_Data *src" "unsigned int file_encoding"
 .Ft "Elf_Data *"
-.Fn elf32_xlatetom "Elf_Data *dst" "Elf_Data *src" "unsigned int encode"
+.Fn elf32_xlatetom "Elf_Data *dst" "Elf_Data *src" "unsigned int file_encoding"
 .Ft "Elf_Data *"
-.Fn elf64_xlatetof "Elf_Data *dst" "Elf_Data *src" "unsigned int encode"
+.Fn elf64_xlatetof "Elf_Data *dst" "Elf_Data *src" "unsigned int file_encoding"
 .Ft "Elf_Data *"
-.Fn elf64_xlatetom "Elf_Data *dst" "Elf_Data *src" "unsigned int encode"
+.Fn elf64_xlatetom "Elf_Data *dst" "Elf_Data *src" "unsigned int file_encoding"
 .In gelf.h
 .Ft "Elf_Data *"
 .Fo gelf_xlatetof
 .Fa "Elf *elf"
 .Fa "Elf_Data *dst"
 .Fa "Elf_Data *src"
-.Fa "unsigned int encode"
+.Fa "unsigned int file_encoding"
 .Fc
 .Ft "Elf_Data *"
 .Fo gelf_xlatetom
 .Fa "Elf *elf"
 .Fa "Elf_Data *dst"
 .Fa "Elf_Data *src"
-.Fa "unsigned int encode"
+.Fa "unsigned int file_encoding"
 .Fc
 .Sh DESCRIPTION
 These functions translate between the file and memory representations
 of ELF data structures.
-The in-memory representation of an ELF data structure would confirm to
+The in-memory representation of an ELF data structure would conform to
 the byte ordering and data alignment restrictions dictated by the host
 processor.
-A file representation of the same data structure could use a non-native byte
-ordering and in addition may be laid out differently with the file.
+As described in
+.Xr elf 3 ,
+the file representation of this data structure could use a different byte
+ordering from that of the host, or could use a different layout within
+the file.
 .Pp
 Functions
 .Fn elf32_xlatetom ,
@@ -153,7 +156,7 @@ value of the source data descriptor.
 .El
 .Pp
 Argument
-.Ar encode
+.Ar file_encoding
 specifies the encoding in which the file objects are represented.
 It must be one of:
 .Bl -hang -offset indent
@@ -169,14 +172,41 @@ The functions
 .Fn gelf_xlatetof
 and
 .Fn gelf_xlatetom
-select the appropriate 32 or 64 bit translations based on the class of argument
+select the appropriate translation scheme based on the properties of
+argument
 .Ar elf .
 .Sh RETURN VALUES
 These functions return argument
 .Ar dst
 if successful, or NULL in case of an error.
 .Sh EXAMPLES
-TODO
+To translate a
+.Vt GElf_Rel
+structure to its LSB file representation use:
+.Bd -literal -offset indent
+Elf_Data dst, src;
+GElf_Rel rel;
+Elf *e;
+
+e = ...; /* See elf_begin(3). */
+
+/* Set up the 'src' descriptor. */
+memset(&src, 0, sizeof src);
+src.d_buf = &rel;
+src.d_size = sizeof(rel);
+src.d_type = ELF_T_REL;
+src.d_version = EV_CURRENT;
+
+/* Set up the 'dst' descriptor. */
+memset(&dst, 0, sizeof dst);
+dst.d_buf = filebuf;
+dst.d_size = gelf_fsize(e, ELF_T_REL, 1, EV_CURRENT);
+dst.d_version = EV_CURRENT;
+
+if (gelf_xlatetof(e, &dst, &src, ELFDATA2LSB) == NULL) {
+	printf("error: %s", elf_errmsg(0));
+}
+.Ed
 .Sh ERRORS
 These functions may fail with the following errors:
 .Bl -tag -width "[ELF_E_RESOURCE]"

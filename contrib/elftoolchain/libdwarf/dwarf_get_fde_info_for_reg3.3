@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_get_fde_info_for_reg3.3 2122 2011-11-09 15:35:14Z jkoshy $
+.\" $Id: dwarf_get_fde_info_for_reg3.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd November 9, 2011
-.Os
 .Dt DWARF_GET_FDE_INFO_FOR_REG3 3
+.Os
 .Sh NAME
 .Nm dwarf_get_fde_info_for_reg3
 .Nd retrieve register rule
@@ -140,33 +140,7 @@ In case of an error, it returns
 .Dv DW_DLV_ERROR
 and sets the argument
 .Ar err .
-.Sh ERRORS
-Function
-.Fn dwarf_get_fde_info_for_reg3
-can fail with:
-.Bl -tag -width ".Bq Er DW_DLE_FRAME_TABLE_COL_BAD"
-.It Bq Er DW_DLE_ARGUMENT
-One of the arguments
-.Ar block_ptr ,
-.Ar fde ,
-.Ar offset_or_block_len ,
-.Ar offset_relevant ,
-.Ar register_num ,
-.Ar row_pc ,
-or
-.Ar type
-was NULL.
-.It Bq Er DW_DLE_FRAME_TABLE_COL_BAD
-The column number provided in argument
-.Ar table_column
-was too large.
-.It Bq Er DW_DLE_PC_NOT_IN_FDE_RANGE
-The program counter value provided in argument
-.Ar pc
-did not fall in the range covered by argument
-.Ar fde .
-.El
-.Sh EXAMPLE
+.Sh EXAMPLES
 To retrieve the register rules at column 3 from a rule table
 associated with a FDE descriptor:
 .Bd -literal -offset indent
@@ -199,6 +173,32 @@ for (pc = low_pc; pc < low_pc + func_len; pc++) {
 	/* ... use the retrieved register rule ... */
 }
 .Ed
+.Sh ERRORS
+Function
+.Fn dwarf_get_fde_info_for_reg3
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_FRAME_TABLE_COL_BAD"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar block_ptr ,
+.Ar fde ,
+.Ar offset_or_block_len ,
+.Ar offset_relevant ,
+.Ar register_num ,
+.Ar row_pc ,
+or
+.Ar type
+was NULL.
+.It Bq Er DW_DLE_FRAME_TABLE_COL_BAD
+The column number provided in argument
+.Ar table_column
+was too large.
+.It Bq Er DW_DLE_PC_NOT_IN_FDE_RANGE
+The program counter value provided in argument
+.Ar pc
+did not fall in the range covered by argument
+.Ar fde .
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_get_fde_at_pc 3 ,
@@ -208,7 +208,7 @@ for (pc = low_pc; pc < low_pc + func_len; pc++) {
 .Xr dwarf_get_fde_info_for_reg 3 ,
 .Xr dwarf_get_fde_n 3 ,
 .Xr dwarf_set_frame_cfa_value 3 ,
-.Xr dwarf_set_frame_rule_table_size 3 ,
 .Xr dwarf_set_frame_rule_initial_value 3 ,
+.Xr dwarf_set_frame_rule_table_size 3 ,
 .Xr dwarf_set_frame_same_value 3 ,
 .Xr dwarf_set_frame_undefined_value 3
