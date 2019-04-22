@@ -5,6 +5,7 @@ PACKAGE=runtime-manuals
 MAN=	cgem.4 \
 	devcfg.4 \
 	imx6_ahci.4 \
+	imx6_snvs.4 \
 	imx_wdog.4 \
 	mge.4 \
 	npe.4 \
