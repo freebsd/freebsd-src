@@ -47,10 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
-#include <sys/socket.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
 #include <net/rss_config.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
@@ -609,37 +606,6 @@ ipreass_drain(void)
 		IPQ_UNLOCK(i);
 	}
 }
-
-/*
- * Drain off all datagram fragments belonging to
- * the given network interface.
- */
-static void
-ipreass_cleanup(void *arg __unused, struct ifnet *ifp)
-{
-	struct ipq *fp, *temp;
-	struct mbuf *m;
-	int i;
-
-	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
-
-	CURVNET_SET_QUIET(ifp->if_vnet);
-	for (i = 0; i < IPREASS_NHASH; i++) {
-		IPQ_LOCK(i);
-		/* Scan fragment list. */
-		TAILQ_FOREACH_SAFE(fp, &V_ipq[i].head, ipq_list, temp) {
-			for (m = fp->ipq_frags; m != NULL; m = m->m_nextpkt) {
-				if (m->m_pkthdr.rcvif == ifp) {
-					ipq_drop(&V_ipq[i], fp);
-					break;
-				}
-			}
-		}
-		IPQ_UNLOCK(i);
-	}
-	CURVNET_RESTORE();
-}
-EVENTHANDLER_DEFINE(ifnet_departure_event, ipreass_cleanup, NULL, 0);
 
 #ifdef VIMAGE
 /*
