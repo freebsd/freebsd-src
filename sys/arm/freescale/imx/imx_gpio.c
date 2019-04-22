@@ -135,6 +135,8 @@ static struct resource_spec imx_gpio_spec[] = {
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
 	{ -1, 0 }
 };
+#define	FIRST_IRQRES	1
+#define	NUM_IRQRES	2
 
 /*
  * Helpers
@@ -853,9 +855,10 @@ imx51_gpio_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	gpiobus_detach_bus(dev);
-	for (irq = 1; irq <= 2; irq++) {
+	for (irq = 0; irq < NUM_IRQRES; irq++) {
 		if (sc->gpio_ih[irq])
-			bus_teardown_intr(dev, sc->sc_res[irq], sc->gpio_ih[irq]);
+			bus_teardown_intr(dev, sc->sc_res[irq + FIRST_IRQRES],
+			    sc->gpio_ih[irq]);
 	}
 	bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
 	mtx_destroy(&sc->sc_mtx);
