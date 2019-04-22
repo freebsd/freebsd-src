@@ -372,7 +372,6 @@ be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
 		    sizeof(buf)) >= sizeof(buf))
 			return (set_error(lbh, BE_ERR_INVALIDNAME));
 	}
-
 	if ((err = zfs_snapshot(lbh->lzh, buf, recursive, NULL)) != 0) {
 		switch (err) {
 		case EZFS_INVALIDNAME:
@@ -446,43 +445,78 @@ be_deep_clone_prop(int prop, void *cb)
 	return (ZPROP_CONT);
 }
 
+/*
+ * Return the corresponding boot environment path for a given
+ * dataset path, the constructed path is placed in 'result'.
+ *
+ * example: say our new boot environment name is 'bootenv' and
+ *          the dataset path is 'zroot/ROOT/default/data/set'.
+ *
+ * result should produce: 'zroot/ROOT/bootenv/data/set'
+ */
 static int
-be_deep_clone(zfs_handle_t *ds, void *data)
+be_get_path(struct libbe_deep_clone *ldc, const char *dspath, char *result, int result_size)
+{
+	char *pos;
+	char *child_dataset;
+
+	/* match the root path for the boot environments */
+	pos = strstr(dspath, ldc->lbh->root);
+
+	/* no match, different pools? */
+	if (pos == NULL)
+		return (BE_ERR_BADPATH);
+
+	/* root path of the new boot environment */
+	snprintf(result, result_size, "%s/%s", ldc->lbh->root, ldc->bename);
+
+        /* gets us to the parent dataset, the +1 consumes a trailing slash */
+	pos += strlen(ldc->lbh->root) + 1;
+
+	/* skip the parent dataset */
+	if ((child_dataset = strchr(pos, '/')) != NULL)
+		strlcat(result, child_dataset, result_size);
+
+	return (BE_ERR_SUCCESS);
+}
+
+static int
+be_clone_cb(zfs_handle_t *ds, void *data)
 {
 	int err;
 	char be_path[BE_MAXPATHLEN];
 	char snap_path[BE_MAXPATHLEN];
 	const char *dspath;
-	char *dsname;
 	zfs_handle_t *snap_hdl;
 	nvlist_t *props;
-	struct libbe_deep_clone *isdc, sdc;
+	struct libbe_deep_clone *ldc;
 	struct libbe_dccb dccb;
 
-	isdc = (struct libbe_deep_clone *)data;
+	ldc = (struct libbe_deep_clone *)data;
 	dspath = zfs_get_name(ds);
-	if ((dsname = strrchr(dspath, '/')) == NULL)
-		return (BE_ERR_UNKNOWN);
-	dsname++;
 
-	if (isdc->bename == NULL)
-		snprintf(be_path, sizeof(be_path), "%s/%s", isdc->be_root, dsname);
-	else
-		snprintf(be_path, sizeof(be_path), "%s/%s", isdc->be_root, isdc->bename);
+	snprintf(snap_path, sizeof(snap_path), "%s@%s", dspath, ldc->snapname);
 
-	snprintf(snap_path, sizeof(snap_path), "%s@%s", dspath, isdc->snapname);
+	/* construct the boot environment path from the dataset we're cloning */
+	if (be_get_path(ldc, dspath, be_path, sizeof(be_path)) != BE_ERR_SUCCESS)
+		return (set_error(ldc->lbh, BE_ERR_UNKNOWN));
 
-	if (zfs_dataset_exists(isdc->lbh->lzh, be_path, ZFS_TYPE_DATASET))
-		return (set_error(isdc->lbh, BE_ERR_EXISTS));
+	/* the dataset to be created (i.e. the boot environment) already exists */
+	if (zfs_dataset_exists(ldc->lbh->lzh, be_path, ZFS_TYPE_DATASET))
+		return (set_error(ldc->lbh, BE_ERR_EXISTS));
+
+	/* no snapshot found for this dataset, silently skip it */
+	if (!zfs_dataset_exists(ldc->lbh->lzh, snap_path, ZFS_TYPE_SNAPSHOT))
+		return (0);
 
 	if ((snap_hdl =
-	    zfs_open(isdc->lbh->lzh, snap_path, ZFS_TYPE_SNAPSHOT)) == NULL)
-		return (set_error(isdc->lbh, BE_ERR_ZFSOPEN));
+	    zfs_open(ldc->lbh->lzh, snap_path, ZFS_TYPE_SNAPSHOT)) == NULL)
+		return (set_error(ldc->lbh, BE_ERR_ZFSOPEN));
 
 	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 	nvlist_add_string(props, "canmount", "noauto");
 
-	dccb.lbh = isdc->lbh;
+	dccb.lbh = ldc->lbh;
 	dccb.zhp = ds;
 	dccb.props = props;
 	if (zprop_iter(be_deep_clone_prop, &dccb, B_FALSE, B_FALSE,
@@ -490,58 +524,55 @@ be_deep_clone(zfs_handle_t *ds, void *data)
 		return (-1);
 
 	if ((err = zfs_clone(snap_hdl, be_path, props)) != 0)
-		err = BE_ERR_ZFSCLONE;
+		return (set_error(ldc->lbh, BE_ERR_ZFSCLONE));
 
 	nvlist_free(props);
 	zfs_close(snap_hdl);
 
-	/* Failed to clone */
-	if (err != BE_ERR_SUCCESS)
-		return (set_error(isdc->lbh, err));
+	if (ldc->depth_limit == -1 || ldc->depth < ldc->depth_limit) {
+		ldc->depth++;
+		err = zfs_iter_filesystems(ds, be_clone_cb, ldc);
+		ldc->depth--;
+	}
 
-	sdc.lbh = isdc->lbh;
-	sdc.bename = NULL;
-	sdc.snapname = isdc->snapname;
-	sdc.be_root = (char *)&be_path;
-
-	err = zfs_iter_filesystems(ds, be_deep_clone, &sdc);
-
-	return (err);
+	return (set_error(ldc->lbh, err));
 }
 
 /*
- * Create the boot environment from pre-existing snapshot
- */
-int
-be_create_from_existing_snap(libbe_handle_t *lbh, const char *name,
-    const char *snap)
+ * Create a boot environment with a given name from a given snapshot.
+ * Snapshots can be in the format 'zroot/ROOT/default@snapshot' or
+ * 'default@snapshot'. In the latter case, 'default@snapshot' will be prepended
+ * with the root path that libbe was initailized with.
+*/
+static int
+be_clone(libbe_handle_t *lbh, const char *bename, const char *snapshot, int depth)
 {
 	int err;
-	char be_path[BE_MAXPATHLEN];
 	char snap_path[BE_MAXPATHLEN];
-	const char *bename;
 	char *parentname, *snapname;
 	zfs_handle_t *parent_hdl;
-	struct libbe_deep_clone sdc;
+	struct libbe_deep_clone ldc;
 
-	if ((err = be_validate_name(lbh, name)) != 0)
+        /* ensure the boot environment name is valid */
+	if ((err = be_validate_name(lbh, bename)) != 0)
 		return (set_error(lbh, err));
-	if ((err = be_root_concat(lbh, snap, snap_path)) != 0)
+
+	/*
+	 * prepend the boot environment root path if we're
+	 * given a partial snapshot name.
+	 */
+	if ((err = be_root_concat(lbh, snapshot, snap_path)) != 0)
 		return (set_error(lbh, err));
+
+	/* ensure the snapshot exists */
 	if ((err = be_validate_snap(lbh, snap_path)) != 0)
 		return (set_error(lbh, err));
 
-	if ((err = be_root_concat(lbh, name, be_path)) != 0)
-		return (set_error(lbh, err));
-
-	if ((bename = strrchr(name, '/')) == NULL)
-		bename = name;
-	else
-		bename++;
-
+        /* get a copy of the snapshot path so we can disect it */
 	if ((parentname = strdup(snap_path)) == NULL)
 		return (set_error(lbh, BE_ERR_UNKNOWN));
 
+        /* split dataset name from snapshot name */
 	snapname = strchr(parentname, '@');
 	if (snapname == NULL) {
 		free(parentname);
@@ -550,16 +581,40 @@ be_create_from_existing_snap(libbe_handle_t *lbh, const char *name,
 	*snapname = '\0';
 	snapname++;
 
-	sdc.lbh = lbh;
-	sdc.bename = bename;
-	sdc.snapname = snapname;
-	sdc.be_root = lbh->root;
+        /* set-up the boot environment */
+        ldc.lbh = lbh;
+        ldc.bename = bename;
+        ldc.snapname = snapname;
+	ldc.depth = 0;
+	ldc.depth_limit = depth;
 
+        /* the boot environment will be cloned from this dataset */
 	parent_hdl = zfs_open(lbh->lzh, parentname, ZFS_TYPE_DATASET);
-	err = be_deep_clone(parent_hdl, &sdc);
+
+        /* create the boot environment */
+	err = be_clone_cb(parent_hdl, &ldc);
 
 	free(parentname);
 	return (set_error(lbh, err));
+}
+
+/*
+ * Create a boot environment from pre-existing snapshot, specifying a depth.
+ */
+int be_create_depth(libbe_handle_t *lbh, const char *bename,
+		    const char *snap, int depth)
+{
+	return (be_clone(lbh, bename, snap, depth));
+}
+
+/*
+ * Create the boot environment from pre-existing snapshot
+ */
+int
+be_create_from_existing_snap(libbe_handle_t *lbh, const char *bename,
+    const char *snap)
+{
+	return (be_clone(lbh, bename, snap, -1));
 }
 
 
@@ -567,15 +622,15 @@ be_create_from_existing_snap(libbe_handle_t *lbh, const char *name,
  * Create a boot environment from an existing boot environment
  */
 int
-be_create_from_existing(libbe_handle_t *lbh, const char *name, const char *old)
+be_create_from_existing(libbe_handle_t *lbh, const char *bename, const char *old)
 {
 	int err;
-	char buf[BE_MAXPATHLEN];
+	char snap[BE_MAXPATHLEN];
 
-	if ((err = be_snapshot(lbh, old, NULL, true, (char *)&buf)) != 0)
+	if ((err = be_snapshot(lbh, old, NULL, true, snap)) != 0)
 		return (set_error(lbh, err));
 
-	err = be_create_from_existing_snap(lbh, name, (char *)buf);
+        err = be_clone(lbh, bename, snap, -1);
 
 	return (set_error(lbh, err));
 }
