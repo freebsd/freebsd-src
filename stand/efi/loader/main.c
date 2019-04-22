@@ -765,6 +765,17 @@ main(int argc, CHAR16 *argv[])
         /* Get our loaded image protocol interface structure. */
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
+	/*
+	 * Chicken-and-egg problem; we want to have console output early, but
+	 * some console attributes may depend on reading from eg. the boot
+	 * device, which we can't do yet.  We can use printf() etc. once this is
+	 * done. So, we set it to the efi console, then call console init. This
+	 * gets us printf early, but also primes the pump for all future console
+	 * changes to take effect, regardless of where they come from.
+	 */
+	setenv("console", "efi", 1);
+	cons_probe();
+
 	/* Tell ZFS probe code where we booted from, if zfs configured */
 	efizfs_set_preferred(img->DeviceHandle);
 
@@ -772,15 +783,6 @@ main(int argc, CHAR16 *argv[])
 	efi_time_init();
 
 	has_kbd = has_keyboard();
-
-	/*
-	 * XXX Chicken-and-egg problem; we want to have console output
-	 * early, but some console attributes may depend on reading from
-	 * eg. the boot device, which we can't do yet.  We can use
-	 * printf() etc. once this is done.
-	 */
-	setenv("console", "efi", 1);
-	cons_probe();
 
 	/*
 	 * Initialise the block cache. Set the upper limit.
@@ -806,17 +808,15 @@ main(int argc, CHAR16 *argv[])
 		if ((howto & CON_MASK) == 0) {
 			/* No override, uhowto is controlling and efi cons is perfect */
 			howto = howto | (uhowto & CON_MASK);
-			setenv("console", "efi", 1);
 		} else if ((howto & CON_MASK) == (uhowto & CON_MASK)) {
 			/* override matches what UEFI told us, efi console is perfect */
-			setenv("console", "efi", 1);
 		} else if ((uhowto & (CON_MASK)) != 0) {
 			/*
 			 * We detected a serial console on ConOut. All possible
 			 * overrides include serial. We can't really override what efi
 			 * gives us, so we use it knowing it's the best choice.
 			 */
-			setenv("console", "efi", 1);
+			/* Do nothing */
 		} else {
 			/*
 			 * We detected some kind of serial in the override, but ConOut
