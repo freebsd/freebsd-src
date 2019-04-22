@@ -34,16 +34,20 @@
 #include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: read.c 3180 2015-04-09 15:13:57Z emaste $");
+ELFTC_VCSID("$Id: read.c 3629 2018-09-30 19:26:28Z jkoshy $");
 
 /*
  * Handle read modes: 'x', 't' and 'p'.
+ *
+ * Returns EXIT_SUCCESS if all operations completed successfully or returns
+ * EXIT_FAILURE otherwise.
  */
-void
+int
 ar_read_archive(struct bsdar *bsdar, int mode)
 {
 	FILE			 *out;
@@ -60,8 +64,8 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 	gid_t			  gid;
 	char			**av;
 	char			  buf[25];
-	char			  find;
-	int			  i, flags, r;
+	int			  found;
+	int			  exitcode, i, flags, r;
 
 	assert(mode == 'p' || mode == 't' || mode == 'x');
 
@@ -70,6 +74,7 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_filename(a, bsdar->filename, DEF_BLKSZ));
 
+	exitcode = EXIT_SUCCESS;
 	out = bsdar->output;
 
 	for (;;) {
@@ -96,12 +101,27 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 		if (bsdar_is_pseudomember(bsdar, name))
 			continue;
 
+		/* The ar(5) format only supports 'leaf' file names. */
+		if (strchr(name, '/')) {
+			bsdar_warnc(bsdar, 0, "ignoring entry: %s",
+			    name);
+			continue;
+		}
+
+		/*
+		 * If we had been given a list of file names to process, check
+		 * that the current entry is present in this list.
+		 */
 		if (bsdar->argc > 0) {
-			find = 0;
+			found = 0;
 			for(i = 0; i < bsdar->argc; i++) {
 				av = &bsdar->argv[i];
 				if (*av == NULL)
 					continue;
+				/*
+				 * Per POSIX, only the basename of a file
+				 * argument should be compared.
+				 */
 				if ((bname = basename(*av)) == NULL)
 					bsdar_errc(bsdar, errno,
 					    "basename failed");
@@ -109,10 +129,10 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 					continue;
 
 				*av = NULL;
-				find = 1;
+				found = 1;
 				break;
 			}
-			if (!find)
+			if (!found)
 				continue;
 		}
 
@@ -157,7 +177,7 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 				/* mode == 'x' */
 				if (stat(name, &sb) != 0) {
 					if (errno != ENOENT) {
-						bsdar_warnc(bsdar, 0,
+						bsdar_warnc(bsdar, errno,
 						    "stat %s failed",
 						    bsdar->filename);
 						continue;
@@ -174,12 +194,6 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 
 				if (bsdar->options & AR_V)
 					(void)fprintf(out, "x - %s\n", name);
-				/* Disallow absolute paths. */
-				if (name[0] == '/') {
-					bsdar_warnc(bsdar, 0,
-					    "Absolute path '%s'", name);
-					continue;
-				}
 				/* Basic path security flags. */
 				flags = ARCHIVE_EXTRACT_SECURE_SYMLINKS |
 	 			    ARCHIVE_EXTRACT_SECURE_NODOTDOT;
@@ -189,11 +203,19 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 				r = archive_read_extract(a, entry, flags);
 			}
 
-			if (r)
+			if (r) {
 				bsdar_warnc(bsdar, 0, "%s",
 				    archive_error_string(a));
+				exitcode = EXIT_FAILURE;
+			}
 		}
 	}
+
+	if (r == ARCHIVE_FATAL)
+		exitcode = EXIT_FAILURE;
+
 	AC(archive_read_close(a));
 	ACV(archive_read_free(a));
+
+	return (exitcode);
 }

@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_next_cu_header.3 3182 2015-04-10 16:08:10Z emaste $
+.\" $Id: dwarf_next_cu_header.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd December 21, 2014
-.Os
 .Dt DWARF_NEXT_CU_HEADER 3
+.Os
 .Sh NAME
 .Nm dwarf_next_cu_header ,
 .Nm dwarf_next_cu_header_b ,
@@ -198,7 +198,6 @@ and
 .Ar err
 if the caller is not interested in the respective value.
 .Ss Iterating Through Compilation Units in a Debug Context
-.Pp
 The first call to function
 .Fn dwarf_next_cu_header_c
 for a given debug context with argument

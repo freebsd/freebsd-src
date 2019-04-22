@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_get_loclist_entry.3 2071 2011-10-27 03:20:00Z jkoshy $
+.\" $Id: dwarf_get_loclist_entry.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd July 6, 2011
-.Os
 .Dt DWARF_GET_LOCLIST_ENTRY 3
+.Os
 .Sh NAME
 .Nm dwarf_get_loclist_entry
 .Nd retrieve DWARF location list entry
@@ -108,26 +108,7 @@ In case of an error, it returns
 .Dv DW_DLV_ERROR
 and sets the argument
 .Ar err .
-.Sh ERRORS
-Function
-.Fn dwarf_get_loclist_entry
-can fail with:
-.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
-.It Bq Er DW_DLE_ARGUMENT
-One of the arguments
-.Ar dbg ,
-.Ar hipc ,
-.Ar lopc ,
-.Ar data ,
-.Ar entry_len
-or
-.Ar next_entry
-was NULL.
-.It Bq Er DW_DLE_NO_ENTRY
-There is no location list at the specified offset
-.Ar offset .
-.El
-.Sh EXAMPLE
+.Sh EXAMPLES
 To iterate through all the location list entries in the
 .Dq ".debug_loc"
 section, use:
@@ -148,9 +129,28 @@ while ((ret = dwarf_get_loclist_entry(dbg, off, &hipc, &lopc, &data,
 if (ret == DW_DLV_ERROR)
 	warnx("dwarf_get_loclist_entry failed: %s", dwarf_errmsg(de));
 .Ed
+.Sh ERRORS
+Function
+.Fn dwarf_get_loclist_entry
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar dbg ,
+.Ar hipc ,
+.Ar lopc ,
+.Ar data ,
+.Ar entry_len
+or
+.Ar next_entry
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+There is no location list at the specified offset
+.Ar offset .
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_loclist 3 ,
-.Xr dwarf_loclist_n 3 ,
 .Xr dwarf_loclist_from_expr 3 ,
-.Xr dwarf_loclist_from_expr_a 3
+.Xr dwarf_loclist_from_expr_a 3 ,
+.Xr dwarf_loclist_n 3

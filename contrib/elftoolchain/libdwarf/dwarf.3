@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: dwarf.3 3295 2016-01-08 22:08:10Z jkoshy $
+.\" $Id: dwarf.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd December 21, 2014
-.Os
 .Dt DWARF 3
+.Os
 .Sh NAME
 .Nm dwarf
 .Nd access debugging information in object files
@@ -34,7 +34,6 @@
 .Sh SYNOPSIS
 .In libdwarf.h
 .Sh DESCRIPTION
-.Pp
 The
 .Lb libdwarf
 provides functions that allow an application to read and write debugging
@@ -129,7 +128,6 @@ A descriptor representing a static variable.
 A descriptor representing a weak name.
 .El
 .Ss Error Handling
-.Pp
 Library functions that encounter an error will return with a value
 other than
 .Dv DW_DLV_OK .
@@ -173,7 +171,7 @@ below.
 .Pp
 .Bl -tag -compact -width "CCCC"
 .It Abbreviations
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_get_abbrev
 Retrieve abbreviation information at a given offset.
 .It Fn dwarf_get_abbrev_children_flag
@@ -187,7 +185,7 @@ descriptor.
 Retrieve the tag for an abbreviation entry.
 .El
 .It Addresses
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_get_address_size
 Return the number of bytes needed to represent an address.
 .It Fn dwarf_get_arange
@@ -206,7 +204,7 @@ Retrieve information about non-contiguous address ranges for
 a debugging information entry.
 .El
 .It Attributes
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_arrayorder
 Retrieve the value of a
 .Dv DW_AT_ordering
@@ -279,7 +277,7 @@ Retrieve the attribute code for an attribute.
 Retrieve the form of an attribute.
 .El
 .It Call Information Entries and Frame Descriptor Entries
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_get_cie_index
 Retrieve the index for a CIE descriptor.
 .It Fn dwarf_get_cie_info
@@ -308,7 +306,7 @@ Retrieve an FDE descriptor.
 Retrieve range information from an FDE descriptor.
 .El
 .It Compilation Units
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Xo
 .Fn dwarf_get_cu_die_offset_given_cu_header_offset ,
 .Fn dwarf_get_cu_die_offset_given_cu_header_offset_b
@@ -323,7 +321,7 @@ compilation or type unit.
 Step through compilation units in a debug context.
 .El
 .It Debugging Information Entries
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_child
 Returns the child of a debugging information entry.
 .It Fn dwarf_die_abbrev_code
@@ -353,7 +351,7 @@ entry.
 Retrieve the tag for a debugging information entry.
 .El
 .It Functions
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_func_cu_offset
 Retrieves the offset for the compilation unit for a function.
 .It Fn dwarf_func_die_offset
@@ -367,7 +365,7 @@ Retrieve both the name and offsets for a function.
 Retrieve information about static functions.
 .El
 .It Globals
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_get_globals
 Retrieve a list of globals.
 .It Fn dwarf_global_cu_offset
@@ -396,7 +394,7 @@ and
 allow an application to specify alternate low-level file access
 routines.
 .It Line Numbers
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_lineaddr
 Retrieve the program address for a source line.
 .It Fn dwarf_linebeginstatement
@@ -420,7 +418,7 @@ Retrieve source files for a compilation unit.
 Return line number information for a compilation unit.
 .El
 .It Location Lists
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_get_loclist_entry
 Retrieve a location list entry.
 .It Fn dwarf_loclist , Fn dwarf_loclist_n
@@ -433,7 +431,7 @@ Retrieve location expressions.
 Translate a location expression into a location descriptor.
 .El
 .It Error Handling
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_errmsg
 Retrieve a human-readable error message.
 .It Fn dwarf_errno
@@ -444,7 +442,7 @@ Set the argument passed to a callback error handler.
 Set the callback handler to be called in case of an error.
 .El
 .It Frame Handling
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_expand_frame_instructions
 Translate frame instruction bytes.
 .It Fn dwarf_set_frame_cfa_value
@@ -464,7 +462,7 @@ Set the register number representing the
 rule.
 .El
 .It Macros
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_find_macro_value_start
 Return the macro value part of a macro string.
 .It Fn dwarf_get_macro_details
@@ -523,7 +521,7 @@ for DWARF constants:
 and
 .Fn dwarf_get_VIS_name .
 .It Types
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_get_pubtypes , Fn dwarf_get_types
 Retrieve descriptors for user-defined types.
 .It Fn dwarf_next_types_section
@@ -540,7 +538,7 @@ Retrieve the name of a type.
 Retrieve the name and offsets for a type.
 .El
 .It Variables
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_get_vars
 Retrieve descriptors for static variables.
 .It Fn dwarf_var_cu_offset
@@ -553,7 +551,7 @@ Retrieve the name of a variable.
 Retrieve the name and offsets for a variable.
 .El
 .It Weak Symbols
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_get_weaks
 Retrieve information about weak symbols.
 .It Fn dwarf_weak_cu_offset
@@ -566,7 +564,7 @@ Retrieve the name of a weak symbol.
 Retrieve the name and offsets for a weak symbol.
 .El
 .It Miscellaneous
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_get_elf
 Retrieve the ELF descriptor for a debug context, see
 .Xr elf 3 .
@@ -605,7 +603,7 @@ information entry:
 and
 .Fn dwarf_add_AT_unsigned_const .
 .It Debugging Information Entry Management
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_add_die_to_debug
 Set the root debugging information entry for a DWARF producer instance.
 .It Fn dwarf_die_link
@@ -623,7 +621,7 @@ are used to initialize a producer instance.
 When done, applications release resources using the function
 .Fn dwarf_producer_finish .
 .It Relocations and Sections
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_get_relocation_info
 Retrieve a relocation array from a producer instance.
 .It Fn dwarf_get_relocation_info_count
@@ -636,7 +634,7 @@ Reset internal state for a producer instance.
 Prepare byte streams for writing out.
 .El
 .It Macros
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_def_macro
 Add a macro definition.
 .It Fn dwarf_end_macro_file , Fn dwarf_start_macro_file
@@ -647,7 +645,7 @@ Note the removal of a macro definition.
 Enables storing macro information as specified in the DWARF standard.
 .El
 .It Symbols, Expressions, Addresses and Offsets
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn dwarf_add_arange , Fn dwarf_add_arange_b
 Add address range information.
 .It Fn dwarf_add_directory_decl
@@ -741,7 +739,9 @@ The DWARF(3) API originated at Silicon Graphics Inc.
 .Pp
 A BSD-licensed implementation of a subset of the API was written by
 .An John Birrell Aq Mt jb@FreeBSD.org
-for the FreeBSD project.
+for the
+.Fx
+project.
 The implementation was subsequently revised and completed by
 .An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .
 .Pp

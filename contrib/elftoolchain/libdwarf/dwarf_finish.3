@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: dwarf_finish.3 2122 2011-11-09 15:35:14Z jkoshy $
+.\" $Id: dwarf_finish.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd November 9, 2011
-.Os
 .Dt DWARF_FINISH 3
+.Os
 .Sh NAME
 .Nm dwarf_finish ,
 .Nm dwarf_object_finish
@@ -133,8 +133,8 @@ if (dwarf_finish(dbg, &de) != DW_DLV_OK)
 (void) elf_end(e);
 .Ed
 .Sh SEE ALSO
-.Xr elf_end 3 ,
 .Xr dwarf_elf_init 3 ,
 .Xr dwarf_get_elf 3 ,
 .Xr dwarf_init 3 ,
-.Xr dwarf_object_init 3
+.Xr dwarf_object_init 3 ,
+.Xr elf_end 3

@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_child.3 3127 2014-12-21 19:09:19Z jkoshy $
+.\" $Id: dwarf_child.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd December 21, 2014
-.Os
 .Dt DWARF_CHILD 3
+.Os
 .Sh NAME
 .Nm dwarf_child ,
 .Nm dwarf_offdie ,
@@ -215,27 +215,6 @@ there was no debugging information entry at the offset specified by
 argument
 .Ar offset .
 .El
-.Sh ERRORS
-These functions may fail with the following errors:
-.Bl -tag -width ".Bq Er DW_DLE_DIE_NO_CU_CONTEXT"
-.It Bq Er DW_DLE_ARGUMENT
-Arguments
-.Ar dbg ,
-.Ar die
-or
-.Ar ret_die
-were NULL.
-.It Bq Er DW_DLE_DIE_NO_CU_CONTEXT
-Argument
-.Ar dbg
-was not associated with a compilation unit.
-.It Bq Er DW_DLE_NO_ENTRY
-The descriptor denoted by argument
-.Ar die
-had no child or sibling, or there was no DWARF debugging information
-entry at the offset specified by argument
-.Va offset .
-.El
 .Sh EXAMPLES
 To retrieve the first DWARF Debugging Information Entry descriptor for
 the first compilation unit associated with a
@@ -271,8 +250,29 @@ do {
 		    dwarf_errmsg(de));
 } while (die0 != NULL);
 .Ed
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_DIE_NO_CU_CONTEXT"
+.It Bq Er DW_DLE_ARGUMENT
+Arguments
+.Ar dbg ,
+.Ar die
+or
+.Ar ret_die
+were NULL.
+.It Bq Er DW_DLE_DIE_NO_CU_CONTEXT
+Argument
+.Ar dbg
+was not associated with a compilation unit.
+.It Bq Er DW_DLE_NO_ENTRY
+The descriptor denoted by argument
+.Ar die
+had no child or sibling, or there was no DWARF debugging information
+entry at the offset specified by argument
+.Va offset .
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_errmsg 3 ,
-.Xr dwarf_get_die_infotypes_flag.3 ,
+.Xr dwarf_get_die_infotypes_flag 3 ,
 .Xr dwarf_next_cu_header 3

@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: dwarf_srclines.3 2122 2011-11-09 15:35:14Z jkoshy $
+.\" $Id: dwarf_srclines.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd November 9, 2011
-.Os
 .Dt DWARF_SRCLINES 3
+.Os
 .Sh NAME
 .Nm dwarf_srclines
 .Nd retrieve line number information for a debugging information entry
@@ -93,27 +93,7 @@ In case of an error, it returns
 .Dv DW_DLV_ERROR
 and sets the argument
 .Ar err .
-.Sh ERRORS
-Function
-.Fn dwarf_srclines
-can fail with:
-.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
-.It Bq Er DW_DLE_ARGUMENT
-One of the arguments
-.Ar die ,
-.Ar lines
-or
-.Ar nlines
-was NULL.
-.It Bq Er DW_DLE_NO_ENTRY
-The compilation unit referenced by argument
-.Ar die
-does not have associated line number information.
-.It Bq Er DW_DLE_MEMORY
-An out of memory condition was encountered during the execution of
-this function.
-.El
-.Sh EXAMPLE
+.Sh EXAMPLES
 To obtain an array of
 .Vt Dwarf_Line
 descriptors and to retrieve the source file, line number, and virtual address
@@ -149,6 +129,26 @@ for (n = 0; n < nlines; n++) {
 		    dwarf_errmsg(de));
 	}
 .Ed
+.Sh ERRORS
+Function
+.Fn dwarf_srclines
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar die ,
+.Ar lines
+or
+.Ar nlines
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+The compilation unit referenced by argument
+.Ar die
+does not have associated line number information.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of
+this function.
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_line_srcfileno 3 ,

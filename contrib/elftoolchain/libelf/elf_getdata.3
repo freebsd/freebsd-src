@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf_getdata.3 3181 2015-04-10 13:22:51Z emaste $
+.\" $Id: elf_getdata.3 3643 2018-10-14 21:09:24Z jkoshy $
 .\"
 .Dd January 26, 2011
-.Os
 .Dt ELF_GETDATA 3
+.Os
 .Sh NAME
 .Nm elf_getdata ,
 .Nm elf_newdata ,
@@ -144,7 +144,7 @@ structures of type
 .Dv ELF_T_BYTE .
 .Ss Special handling of zero-sized and SHT_NOBITS sections
 For sections of type
-.Dv SHT_NOBITS,
+.Dv SHT_NOBITS ,
 and for zero-sized sections,
 the functions
 .Fn elf_getdata

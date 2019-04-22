@@ -46,7 +46,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: strings.c 3571 2017-09-14 02:04:50Z emaste $");
+ELFTC_VCSID("$Id: strings.c 3648 2018-11-22 23:26:43Z emaste $");
 
 enum radix_style {
 	RADIX_DECIMAL,
