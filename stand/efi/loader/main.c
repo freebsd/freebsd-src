@@ -88,6 +88,11 @@ static int fail_timeout = 5;
  */
 UINT16 boot_current;
 
+/*
+ * Image that we booted from.
+ */
+EFI_LOADED_IMAGE *boot_img;
+
 static bool
 has_keyboard(void)
 {
@@ -300,7 +305,7 @@ fix_dosisms(char *p)
 
 enum { BOOT_INFO_OK = 0, BAD_CHOICE = 1, NOT_SPECIFIC = 2  };
 static int
-match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
+match_boot_info(char *boot_info, size_t bisz)
 {
 	uint32_t attr;
 	uint16_t fplen;
@@ -448,7 +453,7 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
  * a drop to the OK boot loader prompt is possible.
  */
 static int
-find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
+find_currdev(bool do_bootmgr, bool is_last,
     char *boot_info, size_t boot_info_sz)
 {
 	pdinfo_t *dp, *pp;
@@ -481,7 +486,7 @@ find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
 	 * loader.conf.
 	 */
 	if (do_bootmgr) {
-		rv = match_boot_info(img, boot_info, boot_info_sz);
+		rv = match_boot_info(boot_info, boot_info_sz);
 		switch (rv) {
 		case BOOT_INFO_OK:	/* We found it */
 			return (0);
@@ -514,7 +519,7 @@ find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
 	 * boot protocol to do so. We fail and let UEFI go on to
 	 * the next candidate.
 	 */
-	dp = efiblk_get_pdinfo_by_handle(img->DeviceHandle);
+	dp = efiblk_get_pdinfo_by_handle(boot_img->DeviceHandle);
 	if (dp != NULL) {
 		text = efi_devpath_name(dp->pd_devpath);
 		if (text != NULL) {
@@ -553,7 +558,7 @@ find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
 	 * any of the nodes in that path match one of the enumerated
 	 * handles. Currently, this handle list is only for netboot.
 	 */
-	if (efi_handle_lookup(img->DeviceHandle, &dev, &unit, &extra) == 0) {
+	if (efi_handle_lookup(boot_img->DeviceHandle, &dev, &unit, &extra) == 0) {
 		set_currdev_devsw(dev, unit);
 		if (sanity_check_currdev())
 			return (0);
@@ -751,7 +756,6 @@ main(int argc, CHAR16 *argv[])
 	size_t sz, bosz = 0, bisz = 0;
 	UINT16 boot_order[100];
 	char boot_info[4096];
-	EFI_LOADED_IMAGE *img;
 	char buf[32];
 	bool uefi_boot_mgr;
 
@@ -763,7 +767,7 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_zfs_probe = efi_zfs_probe;
 
         /* Get our loaded image protocol interface structure. */
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
+	BS->HandleProtocol(IH, &imgid, (VOID**)&boot_img);
 
 	/*
 	 * Chicken-and-egg problem; we want to have console output early, but
@@ -775,9 +779,6 @@ main(int argc, CHAR16 *argv[])
 	 */
 	setenv("console", "efi", 1);
 	cons_probe();
-
-	/* Tell ZFS probe code where we booted from, if zfs configured */
-	efizfs_set_preferred(img->DeviceHandle);
 
 	/* Init the time source */
 	efi_time_init();
@@ -880,14 +881,14 @@ main(int argc, CHAR16 *argv[])
 
 
 	/* Determine the devpath of our image so we can prefer it. */
-	text = efi_devpath_name(img->FilePath);
+	text = efi_devpath_name(boot_img->FilePath);
 	if (text != NULL) {
 		printf("   Load Path: %S\n", text);
 		efi_setenv_freebsd_wcs("LoaderPath", text);
 		efi_free_devpath_name(text);
 	}
 
-	rv = BS->HandleProtocol(img->DeviceHandle, &devid, (void **)&imgpath);
+	rv = BS->HandleProtocol(boot_img->DeviceHandle, &devid, (void **)&imgpath);
 	if (rv == EFI_SUCCESS) {
 		text = efi_devpath_name(imgpath);
 		if (text != NULL) {
@@ -974,7 +975,7 @@ main(int argc, CHAR16 *argv[])
 	 * the boot protocol and also allow an escape hatch for users wishing
 	 * to try something different.
 	 */
-	if (find_currdev(img, uefi_boot_mgr, is_last, boot_info, bisz) != 0)
+	if (find_currdev(uefi_boot_mgr, is_last, boot_info, bisz) != 0)
 		if (!interactive_interrupt("Failed to find bootable partition"))
 			return (EFI_NOT_FOUND);
 
