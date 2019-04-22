@@ -937,9 +937,21 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 static int
 vt_allocate_keyboard(struct vt_device *vd)
 {
-	int		 idx0, idx;
+	int		 grabbed, i, idx0, idx;
 	keyboard_t	*k0, *k;
 	keyboard_info_t	 ki;
+
+	/*
+	 * If vt_upgrade() happens while the console is grabbed, we are
+	 * potentially going to switch keyboard devices while the keyboard is in
+	 * use. Unwind the grabbing of the current keyboard first, then we will
+	 * re-grab the new keyboard below, before we return.
+	 */
+	if (vd->vd_curwindow == &vt_conswindow) {
+		grabbed = vd->vd_curwindow->vw_grabbed;
+		for (i = 0; i < grabbed; ++i)
+			vtterm_cnungrab(vd->vd_curwindow->vw_terminal);
+	}
 
 	idx0 = kbd_allocate("kbdmux", -1, vd, vt_kbdevent, vd);
 	if (idx0 >= 0) {
@@ -971,6 +983,11 @@ vt_allocate_keyboard(struct vt_device *vd)
 	}
 	vd->vd_keyboard = idx0;
 	DPRINTF(20, "%s: vd_keyboard = %d\n", __func__, vd->vd_keyboard);
+
+	if (vd->vd_curwindow == &vt_conswindow) {
+		for (i = 0; i < grabbed; ++i)
+			vtterm_cngrab(vd->vd_curwindow->vw_terminal);
+	}
 
 	return (idx0);
 }
