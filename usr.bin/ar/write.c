@@ -616,6 +616,7 @@ write_objs(struct bsdar *bsdar)
 	size_t pm_sz;		/* size of pseudo members */
 	size_t w_sz;		/* size of words in symbol table */
 	uint64_t		 nr;
+	uint32_t		 nr32;
 	int			 i;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
@@ -669,15 +670,18 @@ write_objs(struct bsdar *bsdar)
 			s_sz = (bsdar->s_cnt + 1) * sizeof(uint64_t) +
 			    bsdar->s_sn_sz;
 			pm_sz += s_sz;
-		}
-
-		for (i = 0; (size_t)i < bsdar->s_cnt; i++) {
-			if (w_sz == sizeof(uint32_t))
-				bsdar->s_so[i] =
-				    htobe32(bsdar->s_so[i] + pm_sz);
-			else
+			/* Convert to big-endian. */
+			for (i = 0; (size_t)i < bsdar->s_cnt; i++)
 				bsdar->s_so[i] =
 				    htobe64(bsdar->s_so[i] + pm_sz);
+		} else {
+			/*
+			 * Convert to big-endian and shuffle in-place to
+			 * the front of the allocation. XXX UB
+			 */
+			for (i = 0; (size_t)i < bsdar->s_cnt; i++)
+				((uint32_t *)(bsdar->s_so))[i] =
+				    htobe32(bsdar->s_so[i] + pm_sz);
 		}
 	}
 
@@ -708,19 +712,14 @@ write_objs(struct bsdar *bsdar)
 		archive_entry_set_size(entry, (bsdar->s_cnt + 1) * w_sz +
 		    bsdar->s_sn_sz);
 		AC(archive_write_header(a, entry));
-		if (w_sz == sizeof(uint32_t))
-			nr = (uint64_t)htobe32((uint32_t)bsdar->s_cnt);
-		else
+		if (w_sz == sizeof(uint64_t)) {
 			nr = htobe64(bsdar->s_cnt);
-		write_data(bsdar, a, &nr, w_sz);
-		if (w_sz == sizeof(uint64_t))
-			write_data(bsdar, a, bsdar->s_so, sizeof(uint64_t) *
-			    bsdar->s_cnt);
-		else
-			for (i = 0; (size_t)i < bsdar->s_cnt; i++)
-				write_data(bsdar, a,
-				    (uint32_t *)&bsdar->s_so[i],
-				    sizeof(uint32_t));
+			write_data(bsdar, a, &nr, sizeof(nr));
+		} else {
+			nr32 = htobe32((uint32_t)bsdar->s_cnt);
+			write_data(bsdar, a, &nr32, sizeof(nr32));
+		}
+		write_data(bsdar, a, bsdar->s_so, w_sz * bsdar->s_cnt);
 		write_data(bsdar, a, bsdar->s_sn, bsdar->s_sn_sz);
 		archive_entry_free(entry);
 	}
