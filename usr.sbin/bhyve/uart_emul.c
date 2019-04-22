@@ -100,8 +100,8 @@ struct fifo {
 
 struct ttyfd {
 	bool	opened;
-	int	fd;		/* tty device file descriptor */
-	struct termios tio_orig, tio_new;    /* I/O Terminals */
+	int	rfd;		/* fd for reading */
+	int	wfd;		/* fd for writing, may be == rfd */
 };
 
 struct uart_softc {
@@ -141,16 +141,15 @@ ttyclose(void)
 static void
 ttyopen(struct ttyfd *tf)
 {
+	struct termios orig, new;
 
-	tcgetattr(tf->fd, &tf->tio_orig);
-
-	tf->tio_new = tf->tio_orig;
-	cfmakeraw(&tf->tio_new);
-	tf->tio_new.c_cflag |= CLOCAL;
-	tcsetattr(tf->fd, TCSANOW, &tf->tio_new);
-
-	if (tf->fd == STDIN_FILENO) {
-		tio_stdio_orig = tf->tio_orig;
+	tcgetattr(tf->rfd, &orig);
+	new = orig;
+	cfmakeraw(&new);
+	new.c_cflag |= CLOCAL;
+	tcsetattr(tf->rfd, TCSANOW, &new);
+	if (uart_stdio) {
+		tio_stdio_orig = orig;
 		atexit(ttyclose);
 	}
 }
@@ -160,7 +159,7 @@ ttyread(struct ttyfd *tf)
 {
 	unsigned char rb;
 
-	if (read(tf->fd, &rb, 1) == 1)
+	if (read(tf->rfd, &rb, 1) == 1)
 		return (rb);
 	else
 		return (-1);
@@ -170,7 +169,7 @@ static void
 ttywrite(struct ttyfd *tf, unsigned char wb)
 {
 
-	(void)write(tf->fd, &wb, 1);
+	(void)write(tf->wfd, &wb, 1);
 }
 
 static void
@@ -190,7 +189,7 @@ rxfifo_reset(struct uart_softc *sc, int size)
 		 * Flush any unread input from the tty buffer.
 		 */
 		while (1) {
-			nread = read(sc->tty.fd, flushbuf, sizeof(flushbuf));
+			nread = read(sc->tty.rfd, flushbuf, sizeof(flushbuf));
 			if (nread != sizeof(flushbuf))
 				break;
 		}
@@ -277,7 +276,7 @@ uart_opentty(struct uart_softc *sc)
 {
 
 	ttyopen(&sc->tty);
-	sc->mev = mevent_add(sc->tty.fd, EVF_READ, uart_drain, sc);
+	sc->mev = mevent_add(sc->tty.rfd, EVF_READ, uart_drain, sc);
 	assert(sc->mev != NULL);
 }
 
@@ -374,7 +373,7 @@ uart_drain(int fd, enum ev_type ev, void *arg)
 
 	sc = arg;	
 
-	assert(fd == sc->tty.fd);
+	assert(fd == sc->tty.rfd);
 	assert(ev == EVF_READ);
 	
 	/*
@@ -637,68 +636,79 @@ uart_init(uart_intr_func_t intr_assert, uart_intr_func_t intr_deassert,
 }
 
 static int
+uart_stdio_backend(struct uart_softc *sc)
+{
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
+#endif
+
+	if (uart_stdio)
+		return (-1);
+
+	sc->tty.rfd = STDIN_FILENO;
+	sc->tty.wfd = STDOUT_FILENO;
+	sc->tty.opened = true;
+
+	if (fcntl(sc->tty.rfd, F_SETFL, O_NONBLOCK) != 0)
+		return (-1);
+	if (fcntl(sc->tty.wfd, F_SETFL, O_NONBLOCK) != 0)
+		return (-1);
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ);
+	if (caph_rights_limit(sc->tty.rfd, &rights) == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+	if (caph_ioctls_limit(sc->tty.rfd, cmds, nitems(cmds)) == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+
+	uart_stdio = true;
+
+	return (0);
+}
+
+static int
 uart_tty_backend(struct uart_softc *sc, const char *opts)
 {
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
+#endif
 	int fd;
-	int retval;
-
-	retval = -1;
 
 	fd = open(opts, O_RDWR | O_NONBLOCK);
-	if (fd > 0 && isatty(fd)) {
-		sc->tty.fd = fd;
-		sc->tty.opened = true;
-		retval = 0;
-	}
+	if (fd < 0 || !isatty(fd))
+		return (-1);
 
-	return (retval);
+	sc->tty.rfd = sc->tty.wfd = fd;
+	sc->tty.opened = true;
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ, CAP_WRITE);
+	if (caph_rights_limit(fd, &rights) == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+	if (caph_ioctls_limit(fd, cmds, nitems(cmds)) == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+
+	return (0);
 }
 
 int
 uart_set_backend(struct uart_softc *sc, const char *opts)
 {
 	int retval;
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_t rights;
-	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
-#endif
-
-	retval = -1;
 
 	if (opts == NULL)
 		return (0);
 
-	if (strcmp("stdio", opts) == 0) {
-		if (!uart_stdio) {
-			sc->tty.fd = STDIN_FILENO;
-			sc->tty.opened = true;
-			uart_stdio = true;
-			retval = 0;
-		}
-	} else if (uart_tty_backend(sc, opts) == 0) {
-		retval = 0;
-	}
-
-	/* Make the backend file descriptor non-blocking */
+	if (strcmp("stdio", opts) == 0)
+		retval = uart_stdio_backend(sc);
+	else
+		retval = uart_tty_backend(sc, opts);
 	if (retval == 0)
-		retval = fcntl(sc->tty.fd, F_SETFL, O_NONBLOCK);
-
-	if (retval == 0) {
-#ifndef WITHOUT_CAPSICUM
-		cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ,
-		    CAP_WRITE);
-		if (caph_rights_limit(sc->tty.fd, &rights) == -1)
-			errx(EX_OSERR, "Unable to apply rights for sandbox");
-		if (caph_ioctls_limit(sc->tty.fd, cmds, nitems(cmds)) == -1)
-			errx(EX_OSERR, "Unable to apply rights for sandbox");
-		if (!uart_stdio) {
-			if (caph_limit_stdin() == -1)
-				errx(EX_OSERR,
-				    "Unable to apply rights for sandbox");
-		}
-#endif
 		uart_opentty(sc);
-	}
 
 	return (retval);
 }
