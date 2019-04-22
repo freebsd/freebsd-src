@@ -81,7 +81,7 @@ static void frag6_deq(struct ip6asfrag *, uint32_t bucket __unused);
 static void frag6_insque_head(struct ip6q *, struct ip6q *,
     uint32_t bucket);
 static void frag6_remque(struct ip6q *, uint32_t bucket);
-static void frag6_freef(struct ip6q *, uint32_t bucket);
+static void frag6_freef(struct ip6q *, uint32_t bucket, bool send_icmp);
 
 struct ip6qbucket {
 	struct ip6q	ip6q;
@@ -594,7 +594,7 @@ insert:
 		if (af6->ip6af_off != next) {
 			if (q6->ip6q_nfrag > V_ip6_maxfragsperpacket) {
 				IP6STAT_ADD(ip6s_fragdropped, q6->ip6q_nfrag);
-				frag6_freef(q6, hash);
+				frag6_freef(q6, hash, true);
 			}
 			IP6Q_UNLOCK(hash);
 			return IPPROTO_DONE;
@@ -604,7 +604,7 @@ insert:
 	if (af6->ip6af_up->ip6af_mff) {
 		if (q6->ip6q_nfrag > V_ip6_maxfragsperpacket) {
 			IP6STAT_ADD(ip6s_fragdropped, q6->ip6q_nfrag);
-			frag6_freef(q6, hash);
+			frag6_freef(q6, hash, true);
 		}
 		IP6Q_UNLOCK(hash);
 		return IPPROTO_DONE;
@@ -731,7 +731,7 @@ insert:
  * associated datagrams.
  */
 static void
-frag6_freef(struct ip6q *q6, uint32_t bucket)
+frag6_freef(struct ip6q *q6, uint32_t bucket, bool send_icmp)
 {
 	struct ip6asfrag *af6, *down6;
 
@@ -748,7 +748,7 @@ frag6_freef(struct ip6q *q6, uint32_t bucket)
 		 * Return ICMP time exceeded error for the 1st fragment.
 		 * Just free other fragments.
 		 */
-		if (af6->ip6af_off == 0) {
+		if (af6->ip6af_off == 0 && send_icmp != false) {
 			struct ip6_hdr *ip6;
 
 			/* adjust pointer */
@@ -864,7 +864,7 @@ frag6_slowtimo(void)
 					IP6STAT_ADD(ip6s_fragtimeout,
 						q6->ip6q_prev->ip6q_nfrag);
 					/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
-					frag6_freef(q6->ip6q_prev, i);
+					frag6_freef(q6->ip6q_prev, i, true);
 				}
 			}
 			/*
@@ -883,7 +883,7 @@ frag6_slowtimo(void)
 				IP6STAT_ADD(ip6s_fragoverflow,
 					q6->ip6q_prev->ip6q_nfrag);
 				/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
-				frag6_freef(head->ip6q_prev, i);
+				frag6_freef(head->ip6q_prev, i, true);
 			}
 			IP6Q_UNLOCK(i);
 		}
@@ -901,7 +901,7 @@ frag6_slowtimo(void)
 				IP6STAT_ADD(ip6s_fragoverflow,
 					q6->ip6q_prev->ip6q_nfrag);
 				/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
-				frag6_freef(head->ip6q_prev, i);
+				frag6_freef(head->ip6q_prev, i, true);
 			}
 			IP6Q_UNLOCK(i);
 			i = (i + 1) % IP6REASS_NHASH;
@@ -931,7 +931,7 @@ frag6_drain(void)
 			while (head->ip6q_next != head) {
 				IP6STAT_INC(ip6s_fragdropped);
 				/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
-				frag6_freef(head->ip6q_next, i);
+				frag6_freef(head->ip6q_next, i, true);
 			}
 			IP6Q_UNLOCK(i);
 		}
@@ -939,6 +939,45 @@ frag6_drain(void)
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
 }
+
+/*
+ * Drain off all datagram fragments belonging to
+ * the given network interface.
+ */
+static void
+frag6_cleanup(void *arg __unused, struct ifnet *ifp)
+{
+	struct ip6q *q6, *q6n, *head;
+	struct ip6asfrag *af6;
+	struct mbuf *m;
+	int i;
+
+	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
+
+	CURVNET_SET_QUIET(ifp->if_vnet);
+	for (i = 0; i < IP6REASS_NHASH; i++) {
+		IP6Q_LOCK(i);
+		head = IP6Q_HEAD(i);
+		/* Scan fragment list. */
+		for (q6 = head->ip6q_next; q6 != head; q6 = q6n) {
+			q6n = q6->ip6q_next;
+
+			for (af6 = q6->ip6q_down; af6 != (struct ip6asfrag *)q6;
+			     af6 = af6->ip6af_down) {
+				m = IP6_REASS_MBUF(af6);
+
+				if (m->m_pkthdr.rcvif == ifp) {
+					IP6STAT_INC(ip6s_fragdropped);
+					frag6_freef(q6, i, false);
+					break;
+				}
+			}
+		}
+		IP6Q_UNLOCK(i);
+	}
+	CURVNET_RESTORE();
+}
+EVENTHANDLER_DEFINE(ifnet_departure_event, frag6_cleanup, NULL, 0);
 
 int
 ip6_deletefraghdr(struct mbuf *m, int offset, int wait)
