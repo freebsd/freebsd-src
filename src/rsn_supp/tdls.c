@@ -1594,7 +1594,7 @@ static int copy_supp_rates(const struct wpa_eapol_ie_parse *kde,
 		peer->supp_rates, sizeof(peer->supp_rates),
 		kde->supp_rates + 2, kde->supp_rates_len - 2,
 		kde->ext_supp_rates ? kde->ext_supp_rates + 2 : NULL,
-		kde->ext_supp_rates_len - 2);
+		kde->ext_supp_rates ? kde->ext_supp_rates_len - 2 : 0);
 	return 0;
 }
 

@@ -796,6 +796,10 @@ static void eap_aka_fullauth(struct eap_sm *sm, struct eap_aka_data *data)
 		return;
 	}
 
+	if (data->permanent[0] == EAP_AKA_PERMANENT_PREFIX ||
+	    data->permanent[0] == EAP_AKA_PRIME_PERMANENT_PREFIX)
+		os_strlcpy(sm->imsi, &data->permanent[1], sizeof(sm->imsi));
+
 #ifdef EAP_SERVER_AKA_PRIME
 	if (data->eap_method == EAP_TYPE_AKA_PRIME) {
 		/* Note: AUTN = (SQN ^ AK) || AMF || MAC which gives us the

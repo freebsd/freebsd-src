@@ -255,6 +255,8 @@ static int wpa_config_read_global(struct wpa_config *config, HKEY hk)
 		errors++;
 	wpa_config_read_reg_dword(hk, TEXT("wps_cred_processing"),
 				  &config->wps_cred_processing);
+	wpa_config_read_reg_dword(hk, TEXT("wps_cred_add_sae"),
+				  &config->wps_cred_add_sae);
 #endif /* CONFIG_WPS */
 #ifdef CONFIG_P2P
 	config->p2p_ssid_postfix = wpa_config_read_reg_string(
@@ -604,6 +606,8 @@ static int wpa_config_write_global(struct wpa_config *config, HKEY hk)
 	}
 	wpa_config_write_reg_dword(hk, TEXT("wps_cred_processing"),
 				   config->wps_cred_processing, 0);
+	wpa_config_write_reg_dword(hk, TEXT("wps_cred_add_sae"),
+				   config->wps_cred_add_sae, 0);
 #endif /* CONFIG_WPS */
 #ifdef CONFIG_P2P
 	wpa_config_write_reg_string(hk, "p2p_ssid_postfix",
@@ -892,6 +896,7 @@ static int wpa_config_write_network(HKEY hk, struct wpa_ssid *ssid, int id)
 	STR(private_key_passwd);
 	STR(dh_file);
 	STR(subject_match);
+	STR(check_cert_subject);
 	STR(altsubject_match);
 	STR(ca_cert2);
 	STR(ca_path2);
@@ -900,6 +905,7 @@ static int wpa_config_write_network(HKEY hk, struct wpa_ssid *ssid, int id)
 	STR(private_key2_passwd);
 	STR(dh_file2);
 	STR(subject_match2);
+	STR(check_cert_subject2);
 	STR(altsubject_match2);
 	STR(phase1);
 	STR(phase2);

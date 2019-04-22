@@ -55,7 +55,6 @@ ALL += systemd/wpa_supplicant.service
 ALL += systemd/wpa_supplicant@.service
 ALL += systemd/wpa_supplicant-nl80211@.service
 ALL += systemd/wpa_supplicant-wired@.service
-ALL += dbus/fi.epitest.hostap.WPASupplicant.service
 ALL += dbus/fi.w1.wpa_supplicant1.service
 ifdef CONFIG_BUILD_WPA_CLIENT_SO
 ALL += libwpa_client.so
@@ -240,6 +239,12 @@ CFLAGS += -DCONFIG_SUITEB192
 NEED_SHA384=y
 endif
 
+ifdef CONFIG_OCV
+CFLAGS += -DCONFIG_OCV
+OBJS += ../src/common/ocv.o
+CONFIG_IEEE80211W=y
+endif
+
 ifdef CONFIG_IEEE80211W
 CFLAGS += -DCONFIG_IEEE80211W
 NEED_SHA256=y
@@ -286,6 +291,9 @@ NEED_SHA512=y
 NEED_JSON=y
 NEED_GAS_SERVER=y
 NEED_BASE64=y
+ifdef CONFIG_DPP2
+CFLAGS += -DCONFIG_DPP2
+endif
 endif
 
 ifdef CONFIG_OWE
@@ -1526,6 +1534,9 @@ endif
 ifdef CONFIG_NO_RANDOM_POOL
 CFLAGS += -DCONFIG_NO_RANDOM_POOL
 else
+ifdef CONFIG_GETRANDOM
+CFLAGS += -DCONFIG_GETRANDOM
+endif
 OBJS += ../src/crypto/random.o
 endif
 
@@ -1567,35 +1578,17 @@ endif
 OBJS += ctrl_iface.o ctrl_iface_$(CONFIG_CTRL_IFACE).o
 endif
 
-ifdef CONFIG_CTRL_IFACE_DBUS
-DBUS=y
-DBUS_CFLAGS += -DCONFIG_CTRL_IFACE_DBUS -DDBUS_API_SUBJECT_TO_CHANGE
-DBUS_OBJS += dbus/dbus_old.o dbus/dbus_old_handlers.o
-ifdef CONFIG_WPS
-DBUS_OBJS += dbus/dbus_old_handlers_wps.o
-endif
-DBUS_OBJS += dbus/dbus_dict_helpers.o
-ifndef DBUS_LIBS
-DBUS_LIBS := $(shell $(PKG_CONFIG) --libs dbus-1)
-endif
-ifndef DBUS_INCLUDE
-DBUS_INCLUDE := $(shell $(PKG_CONFIG) --cflags dbus-1)
-endif
-DBUS_CFLAGS += $(DBUS_INCLUDE)
-DBUS_INTERFACE=fi.epitest.hostap.WPASupplicant
-endif
-
 ifdef CONFIG_CTRL_IFACE_DBUS_NEW
-DBUS=y
-DBUS_CFLAGS += -DCONFIG_CTRL_IFACE_DBUS_NEW
-DBUS_OBJS ?= dbus/dbus_dict_helpers.o
-DBUS_OBJS += dbus/dbus_new_helpers.o
-DBUS_OBJS += dbus/dbus_new.o dbus/dbus_new_handlers.o
+CFLAGS += -DCONFIG_CTRL_IFACE_DBUS_NEW
+OBJS += dbus/dbus_dict_helpers.o
+OBJS += dbus/dbus_new_helpers.o
+OBJS += dbus/dbus_new.o dbus/dbus_new_handlers.o
+OBJS += dbus/dbus_common.o
 ifdef CONFIG_WPS
-DBUS_OBJS += dbus/dbus_new_handlers_wps.o
+OBJS += dbus/dbus_new_handlers_wps.o
 endif
 ifdef CONFIG_P2P
-DBUS_OBJS += dbus/dbus_new_handlers_p2p.o
+OBJS += dbus/dbus_new_handlers_p2p.o
 endif
 ifndef DBUS_LIBS
 DBUS_LIBS := $(shell $(PKG_CONFIG) --libs dbus-1)
@@ -1604,21 +1597,12 @@ ifndef DBUS_INCLUDE
 DBUS_INCLUDE := $(shell $(PKG_CONFIG) --cflags dbus-1)
 endif
 ifdef CONFIG_CTRL_IFACE_DBUS_INTRO
-DBUS_OBJS += dbus/dbus_new_introspect.o
-DBUS_CFLAGS += -DCONFIG_CTRL_IFACE_DBUS_INTRO
+OBJS += dbus/dbus_new_introspect.o
+CFLAGS += -DCONFIG_CTRL_IFACE_DBUS_INTRO
 endif
-DBUS_CFLAGS += $(DBUS_INCLUDE)
-DBUS_INTERFACE=fi.w1.wpa_supplicant1
-endif
-
-ifdef DBUS
-DBUS_CFLAGS += -DCONFIG_DBUS
-DBUS_OBJS += dbus/dbus_common.o
-endif
-
-OBJS += $(DBUS_OBJS)
-CFLAGS += $(DBUS_CFLAGS)
+CFLAGS += $(DBUS_INCLUDE)
 LIBS += $(DBUS_LIBS)
+endif
 
 ifdef CONFIG_READLINE
 OBJS_c += ../src/utils/edit_readline.o
@@ -1981,13 +1965,11 @@ else
 endif
 
 %.service: %.service.in
-	$(Q)sed -e 's|\@BINDIR\@|$(BINDIR)|g' \
-		-e 's|\@DBUS_INTERFACE\@|$(DBUS_INTERFACE)|g' $< >$@
+	$(Q)sed -e 's|\@BINDIR\@|$(BINDIR)|g' $< >$@
 	@$(E) "  sed" $<
 
 %@.service: %.service.arg.in
-	$(Q)sed -e 's|\@BINDIR\@|$(BINDIR)|g' \
-		-e 's|\@DBUS_INTERFACE\@|$(DBUS_INTERFACE)|g' $< >$@
+	$(Q)sed -e 's|\@BINDIR\@|$(BINDIR)|g' $< >$@
 	@$(E) "  sed" $<
 
 wpa_supplicant.exe: wpa_supplicant

@@ -15,23 +15,23 @@ WPAS_DBUS_WPS_INTERFACE = "fi.w1.wpa_supplicant1.Interface.WPS"
 
 def propertiesChanged(properties):
 	if properties.has_key("State"):
-		print "PropertiesChanged: State: %s" % (properties["State"])
+		print("PropertiesChanged: State: %s" % (properties["State"]))
 
 def scanDone(success):
-	print "Scan done: success=%s" % success
+	print("Scan done: success=%s" % success)
 
 def bssAdded(bss, properties):
-	print "BSS added: %s" % (bss)
+	print("BSS added: %s" % (bss))
 
 def bssRemoved(bss):
-	print "BSS removed: %s" % (bss)
+	print("BSS removed: %s" % (bss))
 
 def wpsEvent(name, args):
-	print "WPS event: %s" % (name)
-	print args
+	print("WPS event: %s" % (name))
+	print(args)
 
 def credentials(cred):
-	print "WPS credentials: %s" % (cred)
+	print("WPS credentials: %s" % (cred))
 
 def main():
 	dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
@@ -40,7 +40,7 @@ def main():
 	wpas_obj = bus.get_object(WPAS_DBUS_SERVICE, WPAS_DBUS_OPATH)
 
 	if len(sys.argv) != 2:
-		print "Missing ifname argument"
+		print("Missing ifname argument")
 		os._exit(1)
 
 	wpas = dbus.Interface(wpas_obj, WPAS_DBUS_INTERFACE)

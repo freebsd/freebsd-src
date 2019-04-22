@@ -12,6 +12,7 @@
 #include <net/if_arp.h>
 
 #include "utils/common.h"
+#include "common/linux_bridge.h"
 #include "linux_ioctl.h"
 
 
@@ -119,25 +120,14 @@ int linux_set_ifhwaddr(int sock, const char *ifname, const u8 *addr)
 }
 
 
-#ifndef SIOCBRADDBR
-#define SIOCBRADDBR 0x89a0
-#endif
-#ifndef SIOCBRDELBR
-#define SIOCBRDELBR 0x89a1
-#endif
-#ifndef SIOCBRADDIF
-#define SIOCBRADDIF 0x89a2
-#endif
-#ifndef SIOCBRDELIF
-#define SIOCBRDELIF 0x89a3
-#endif
-
-
 int linux_br_add(int sock, const char *brname)
 {
 	if (ioctl(sock, SIOCBRADDBR, brname) < 0) {
+		int saved_errno = errno;
+
 		wpa_printf(MSG_DEBUG, "Could not add bridge %s: %s",
 			   brname, strerror(errno));
+		errno = saved_errno;
 		return -1;
 	}
 
@@ -170,8 +160,11 @@ int linux_br_add_if(int sock, const char *brname, const char *ifname)
 	os_strlcpy(ifr.ifr_name, brname, IFNAMSIZ);
 	ifr.ifr_ifindex = ifindex;
 	if (ioctl(sock, SIOCBRADDIF, &ifr) < 0) {
+		int saved_errno = errno;
+
 		wpa_printf(MSG_DEBUG, "Could not add interface %s into bridge "
 			   "%s: %s", ifname, brname, strerror(errno));
+		errno = saved_errno;
 		return -1;
 	}
 

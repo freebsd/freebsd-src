@@ -30,7 +30,7 @@ summary_file = None
 success_file = None
 
 def summary(txt):
-    print txt
+    print(txt)
     if summary_file:
         with open(summary_file, 'a') as f:
             f.write(txt + "\n")
@@ -46,19 +46,19 @@ def wpas_connect():
     if os.path.isdir(wpas_ctrl):
         try:
             ifaces = [os.path.join(wpas_ctrl, i) for i in os.listdir(wpas_ctrl)]
-        except OSError, error:
-            print "Could not find wpa_supplicant: ", error
+        except OSError as error:
+            print("Could not find wpa_supplicant: ", error)
             return None
 
     if len(ifaces) < 1:
-        print "No wpa_supplicant control interface found"
+        print("No wpa_supplicant control interface found")
         return None
 
     for ctrl in ifaces:
         try:
             wpas = wpaspy.Ctrl(ctrl)
             return wpas
-        except Exception, e:
+        except Exception as e:
             pass
     return None
 
@@ -163,22 +163,22 @@ class HandoverServer(nfc.handover.HandoverServer):
         self.ho_server_processing = True
         summary("HandoverServer - request received")
         try:
-            print "Parsed handover request: " + request.pretty()
-        except Exception, e:
-            print e
+            print("Parsed handover request: " + request.pretty())
+        except Exception as e:
+            print(e)
 
         sel = nfc.ndef.HandoverSelectMessage(version="1.2")
 
         for carrier in request.carriers:
-            print "Remote carrier type: " + carrier.type
+            print("Remote carrier type: " + carrier.type)
             if carrier.type == "application/vnd.wfa.wsc":
                 summary("WPS carrier type match - add WPS carrier record")
                 data = wpas_get_handover_sel(self.uuid)
                 if data is None:
                     summary("Could not get handover select carrier record from wpa_supplicant")
                     continue
-                print "Handover select carrier record from wpa_supplicant:"
-                print data.encode("hex")
+                print("Handover select carrier record from wpa_supplicant:")
+                print(data.encode("hex"))
                 self.sent_carrier = data
                 if "OK" in wpas_report_handover(carrier.record, self.sent_carrier, "RESP"):
                     success_report("Handover reported successfully (responder)")
@@ -188,12 +188,12 @@ class HandoverServer(nfc.handover.HandoverServer):
                 message = nfc.ndef.Message(data);
                 sel.add_carrier(message[0], "active", message[1:])
 
-        print "Handover select:"
+        print("Handover select:")
         try:
-            print sel.pretty()
-        except Exception, e:
-            print e
-        print str(sel).encode("hex")
+            print(sel.pretty())
+        except Exception as e:
+            print(e)
+        print(str(sel).encode("hex"))
 
         summary("Sending handover select")
         self.success = True
@@ -207,19 +207,19 @@ def wps_handover_init(llc):
     if (data == None):
         summary("Could not get handover request carrier record from wpa_supplicant")
         return
-    print "Handover request carrier record from wpa_supplicant: " + data.encode("hex")
+    print("Handover request carrier record from wpa_supplicant: " + data.encode("hex"))
 
     message = nfc.ndef.HandoverRequestMessage(version="1.2")
     message.nonce = random.randint(0, 0xffff)
     datamsg = nfc.ndef.Message(data)
     message.add_carrier(datamsg[0], "active", datamsg[1:])
 
-    print "Handover request:"
+    print("Handover request:")
     try:
-        print message.pretty()
-    except Exception, e:
-        print e
-    print str(message).encode("hex")
+        print(message.pretty())
+    except Exception as e:
+        print(e)
+    print(str(message).encode("hex"))
 
     client = nfc.handover.HandoverClient(llc)
     try:
@@ -230,7 +230,7 @@ def wps_handover_init(llc):
         summary("Handover connection refused")
         client.close()
         return
-    except Exception, e:
+    except Exception as e:
         summary("Other exception: " + str(e))
         client.close()
         return
@@ -253,23 +253,23 @@ def wps_handover_init(llc):
         client.close()
         return
 
-    print "Received message"
+    print("Received message")
     try:
-        print message.pretty()
-    except Exception, e:
-        print e
-    print str(message).encode("hex")
+        print(message.pretty())
+    except Exception as e:
+        print(e)
+    print(str(message).encode("hex"))
     message = nfc.ndef.HandoverSelectMessage(message)
     summary("Handover select received")
     try:
-        print message.pretty()
-    except Exception, e:
-        print e
+        print(message.pretty())
+    except Exception as e:
+        print(e)
 
     for carrier in message.carriers:
-        print "Remote carrier type: " + carrier.type
+        print("Remote carrier type: " + carrier.type)
         if carrier.type == "application/vnd.wfa.wsc":
-            print "WPS carrier type match - send to wpa_supplicant"
+            print("WPS carrier type match - send to wpa_supplicant")
             if "OK" in wpas_report_handover(data, carrier.record, "INIT"):
                 success_report("Handover reported successfully (initiator)")
             else:
@@ -278,9 +278,9 @@ def wps_handover_init(llc):
             #wifi = nfc.ndef.WifiConfigRecord(carrier.record)
             #print wifi.pretty()
 
-    print "Remove peer"
+    print("Remove peer")
     client.close()
-    print "Done with handover"
+    print("Done with handover")
     global only_one
     if only_one:
         global continue_loop
@@ -288,7 +288,7 @@ def wps_handover_init(llc):
 
     global no_wait
     if no_wait:
-        print "Trying to exit.."
+        print("Trying to exit..")
         global terminate_now
         terminate_now = True
 
@@ -296,7 +296,7 @@ def wps_tag_read(tag, wait_remove=True):
     success = False
     if len(tag.ndef.message):
         for record in tag.ndef.message:
-            print "record type " + record.type
+            print("record type " + record.type)
             if record.type == "application/vnd.wfa.wsc":
                 summary("WPS tag - send to wpa_supplicant")
                 success = wpas_tag_read(tag.ndef.message)
@@ -308,7 +308,7 @@ def wps_tag_read(tag, wait_remove=True):
         success_report("Tag read succeeded")
 
     if wait_remove:
-        print "Remove tag"
+        print("Remove tag")
         while tag.is_present:
             time.sleep(0.1)
 
@@ -320,7 +320,7 @@ def rdwr_connected_write(tag):
     global write_data
     tag.ndef.message = str(write_data)
     success_report("Tag write succeeded")
-    print "Done - remove tag"
+    print("Done - remove tag")
     global only_one
     if only_one:
         global continue_loop
@@ -330,41 +330,41 @@ def rdwr_connected_write(tag):
         time.sleep(0.1)
 
 def wps_write_config_tag(clf, id=None, wait_remove=True):
-    print "Write WPS config token"
+    print("Write WPS config token")
     global write_data, write_wait_remove
     write_wait_remove = wait_remove
     write_data = wpas_get_config_token(id)
     if write_data == None:
-        print "Could not get WPS config token from wpa_supplicant"
+        print("Could not get WPS config token from wpa_supplicant")
         sys.exit(1)
         return
-    print "Touch an NFC tag"
+    print("Touch an NFC tag")
     clf.connect(rdwr={'on-connect': rdwr_connected_write})
 
 
 def wps_write_er_config_tag(clf, uuid, wait_remove=True):
-    print "Write WPS ER config token"
+    print("Write WPS ER config token")
     global write_data, write_wait_remove
     write_wait_remove = wait_remove
     write_data = wpas_get_er_config_token(uuid)
     if write_data == None:
-        print "Could not get WPS config token from wpa_supplicant"
+        print("Could not get WPS config token from wpa_supplicant")
         return
 
-    print "Touch an NFC tag"
+    print("Touch an NFC tag")
     clf.connect(rdwr={'on-connect': rdwr_connected_write})
 
 
 def wps_write_password_tag(clf, wait_remove=True):
-    print "Write WPS password token"
+    print("Write WPS password token")
     global write_data, write_wait_remove
     write_wait_remove = wait_remove
     write_data = wpas_get_password_token()
     if write_data == None:
-        print "Could not get WPS password token from wpa_supplicant"
+        print("Could not get WPS password token from wpa_supplicant")
         return
 
-    print "Touch an NFC tag"
+    print("Touch an NFC tag")
     clf.connect(rdwr={'on-connect': rdwr_connected_write})
 
 
@@ -373,11 +373,11 @@ def rdwr_connected(tag):
     summary("Tag connected: " + str(tag))
 
     if tag.ndef:
-        print "NDEF tag: " + tag.type
+        print("NDEF tag: " + tag.type)
         try:
-            print tag.ndef.message.pretty()
-        except Exception, e:
-            print e
+            print(tag.ndef.message.pretty())
+        except Exception as e:
+            print(e)
         success = wps_tag_read(tag, not only_one)
         if only_one and success:
             global continue_loop
@@ -393,7 +393,7 @@ def llcp_worker(llc):
     global arg_uuid
     if arg_uuid is None:
         wps_handover_init(llc)
-        print "Exiting llcp_worker thread"
+        print("Exiting llcp_worker thread")
         return
 
     global srv
@@ -405,19 +405,19 @@ def llcp_worker(llc):
 def llcp_startup(clf, llc):
     global arg_uuid
     if arg_uuid:
-        print "Start LLCP server"
+        print("Start LLCP server")
         global srv
         srv = HandoverServer(llc)
         if arg_uuid is "ap":
-            print "Trying to handle WPS handover"
+            print("Trying to handle WPS handover")
             srv.uuid = None
         else:
-            print "Trying to handle WPS handover with AP " + arg_uuid
+            print("Trying to handle WPS handover with AP " + arg_uuid)
             srv.uuid = arg_uuid
     return llc
 
 def llcp_connected(llc):
-    print "P2P LLCP connected"
+    print("P2P LLCP connected")
     global wait_connection
     wait_connection = False
     global arg_uuid
@@ -426,7 +426,7 @@ def llcp_connected(llc):
         srv.start()
     else:
         threading.Thread(target=llcp_worker, args=(llc,)).start()
-    print "llcp_connected returning"
+    print("llcp_connected returning")
     return True
 
 
@@ -482,7 +482,7 @@ def main():
 
     try:
         if not clf.open("usb"):
-            print "Could not open connection with an NFC device"
+            print("Could not open connection with an NFC device")
             raise SystemExit
 
         if args.command == "write-config":
@@ -499,7 +499,7 @@ def main():
 
         global continue_loop
         while continue_loop:
-            print "Waiting for a tag or peer to be touched"
+            print("Waiting for a tag or peer to be touched")
             wait_connection = True
             try:
                 if not clf.connect(rdwr={'on-connect': rdwr_connected},
@@ -507,8 +507,8 @@ def main():
                                          'on-connect': llcp_connected},
                                    terminate=terminate_loop):
                     break
-            except Exception, e:
-                print "clf.connect failed"
+            except Exception as e:
+                print("clf.connect failed")
 
             global srv
             if only_one and srv and srv.success:

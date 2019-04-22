@@ -109,10 +109,7 @@ CONFIG_EAP_PEAP=y
 CONFIG_EAP_TTLS=y
 
 # EAP-FAST
-# Note: If OpenSSL is used as the TLS library, OpenSSL 1.0 or newer is needed
-# for EAP-FAST support. Older OpenSSL releases would need to be patched, e.g.,
-# with openssl-0.9.8x-tls-extensions.patch, to add the needed functions.
-#CONFIG_EAP_FAST=y
+CONFIG_EAP_FAST=y
 
 # EAP-GTC
 CONFIG_EAP_GTC=y
@@ -127,10 +124,10 @@ CONFIG_EAP_OTP=y
 #CONFIG_EAP_PSK=y
 
 # EAP-pwd (secure authentication using only a password)
-#CONFIG_EAP_PWD=y
+CONFIG_EAP_PWD=y
 
 # EAP-PAX
-#CONFIG_EAP_PAX=y
+CONFIG_EAP_PAX=y
 
 # LEAP
 CONFIG_EAP_LEAP=y
@@ -146,18 +143,18 @@ CONFIG_EAP_LEAP=y
 #CONFIG_USIM_SIMULATOR=y
 
 # EAP-SAKE
-#CONFIG_EAP_SAKE=y
+CONFIG_EAP_SAKE=y
 
 # EAP-GPSK
-#CONFIG_EAP_GPSK=y
+CONFIG_EAP_GPSK=y
 # Include support for optional SHA256 cipher suite in EAP-GPSK
-#CONFIG_EAP_GPSK_SHA256=y
+CONFIG_EAP_GPSK_SHA256=y
 
 # EAP-TNC and related Trusted Network Connect support (experimental)
-#CONFIG_EAP_TNC=y
+CONFIG_EAP_TNC=y
 
 # Wi-Fi Protected Setup (WPS)
-#CONFIG_WPS=y
+CONFIG_WPS=y
 # Enable WPS external registrar functionality
 #CONFIG_WPS_ER=y
 # Disable credentials for an open network by default when acting as a WPS
@@ -167,7 +164,7 @@ CONFIG_EAP_LEAP=y
 #CONFIG_WPS_NFC=y
 
 # EAP-IKEv2
-#CONFIG_EAP_IKEV2=y
+CONFIG_EAP_IKEV2=y
 
 # EAP-EKE
 #CONFIG_EAP_EKE=y
@@ -235,6 +232,9 @@ CONFIG_CTRL_IFACE=y
 # wpa_passphrase). This saves about 0.5 kB in code size.
 #CONFIG_NO_WPA_PASSPHRASE=y
 
+# Simultaneous Authentication of Equals (SAE), WPA3-Personal
+CONFIG_SAE=y
+
 # Disable scan result processing (ap_mode=1) to save code size by about 1 kB.
 # This can be used if ap_scan=1 mode is never enabled.
 #CONFIG_NO_SCAN_PROCESSING=y
@@ -299,7 +299,10 @@ CONFIG_BACKEND=file
 
 # IEEE 802.11w (management frame protection), also known as PMF
 # Driver support is also needed for IEEE 802.11w.
-#CONFIG_IEEE80211W=y
+CONFIG_IEEE80211W=y
+
+# Support Operating Channel Validation
+#CONFIG_OCV=y
 
 # Select TLS implementation
 # openssl = OpenSSL (default)
@@ -349,16 +352,12 @@ CONFIG_BACKEND=file
 #CONFIG_NDIS_EVENTS_INTEGRATED=y
 #PLATFORMSDKLIB="/opt/Program Files/Microsoft Platform SDK/Lib"
 
-# Add support for old DBus control interface
-# (fi.epitest.hostap.WPASupplicant)
-#CONFIG_CTRL_IFACE_DBUS=y
-
 # Add support for new DBus control interface
 # (fi.w1.hostap.wpa_supplicant1)
-#CONFIG_CTRL_IFACE_DBUS_NEW=y
+CONFIG_CTRL_IFACE_DBUS_NEW=y
 
 # Add introspection support for new DBus control interface
-#CONFIG_CTRL_IFACE_DBUS_INTRO=y
+CONFIG_CTRL_IFACE_DBUS_INTRO=y
 
 # Add support for loading EAP methods dynamically as shared libraries.
 # When this option is enabled, each EAP method can be either included
@@ -382,13 +381,13 @@ CONFIG_BACKEND=file
 #CONFIG_DYNAMIC_EAP_METHODS=y
 
 # IEEE Std 802.11r-2008 (Fast BSS Transition) for station mode
-#CONFIG_IEEE80211R=y
+CONFIG_IEEE80211R=y
 
 # Add support for writing debug log to a file (/tmp/wpa_supplicant-log-#.txt)
-#CONFIG_DEBUG_FILE=y
+CONFIG_DEBUG_FILE=y
 
 # Send debug messages to syslog instead of stdout
-#CONFIG_DEBUG_SYSLOG=y
+CONFIG_DEBUG_SYSLOG=y
 # Set syslog facility for debug messages
 #CONFIG_DEBUG_SYSLOG_FACILITY=LOG_DAEMON
 
@@ -458,12 +457,17 @@ CONFIG_BACKEND=file
 # that meet the requirements described above.
 #CONFIG_NO_RANDOM_POOL=y
 
+# Should we attempt to use the getrandom(2) call that provides more reliable
+# yet secure randomness source than /dev/random on Linux 3.17 and newer.
+# Requires glibc 2.25 to build, falls back to /dev/random if unavailable.
+#CONFIG_GETRANDOM=y
+
 # IEEE 802.11n (High Throughput) support (mainly for AP mode)
-#CONFIG_IEEE80211N=y
+CONFIG_IEEE80211N=y
 
 # IEEE 802.11ac (Very High Throughput) support (mainly for AP mode)
 # (depends on CONFIG_IEEE80211N)
-#CONFIG_IEEE80211AC=y
+CONFIG_IEEE80211AC=y
 
 # Wireless Network Management (IEEE Std 802.11v-2011)
 # Note: This is experimental and not complete implementation.
@@ -473,10 +477,10 @@ CONFIG_BACKEND=file
 # This can be used to enable functionality to improve interworking with
 # external networks (GAS/ANQP to learn more about the networks and network
 # selection based on available credentials).
-#CONFIG_INTERWORKING=y
+CONFIG_INTERWORKING=y
 
 # Hotspot 2.0
-#CONFIG_HS20=y
+CONFIG_HS20=y
 
 # Enable interface matching in wpa_supplicant
 #CONFIG_MATCH_IFACE=y
@@ -489,20 +493,20 @@ CONFIG_BACKEND=file
 # should be noted that this is mainly aimed at simple cases like
 # WPA2-Personal while more complex configurations like WPA2-Enterprise with an
 # external RADIUS server can be supported with hostapd.
-#CONFIG_AP=y
+CONFIG_AP=y
 
 # P2P (Wi-Fi Direct)
 # This can be used to enable P2P support in wpa_supplicant. See README-P2P for
 # more information on P2P operations.
-#CONFIG_P2P=y
+CONFIG_P2P=y
 
 # Enable TDLS support
 #CONFIG_TDLS=y
 
-# Wi-Fi Direct
-# This can be used to enable Wi-Fi Direct extensions for P2P using an external
+# Wi-Fi Display
+# This can be used to enable Wi-Fi Display extensions for P2P using an external
 # program to control the additional information exchanges in the messages.
-#CONFIG_WIFI_DISPLAY=y
+CONFIG_WIFI_DISPLAY=y
 
 # Autoscan
 # This can be used to enable automatic scan support in wpa_supplicant.
@@ -561,8 +565,6 @@ CONFIG_BACKEND=file
 #CONFIG_MBO=y
 
 # Fast Initial Link Setup (FILS) (IEEE 802.11ai)
-# Note: This is an experimental and not yet complete implementation. This
-# should not be enabled for production use.
 #CONFIG_FILS=y
 # FILS shared key authentication with PFS
 #CONFIG_FILS_SK_PFS=y
@@ -570,7 +572,7 @@ CONFIG_BACKEND=file
 # Support RSN on IBSS networks
 # This is needed to be able to use mode=1 network profile with proto=RSN and
 # key_mgmt=WPA-PSK (i.e., full key management instead of WPA-None).
-#CONFIG_IBSS_RSN=y
+CONFIG_IBSS_RSN=y
 
 # External PMKSA cache control
 # This can be used to enable control interface commands that allow the current
@@ -585,7 +587,7 @@ CONFIG_BACKEND=file
 # operations for roaming within an ESS (same SSID). See the bgscan parameter in
 # the wpa_supplicant.conf file for more details.
 # Periodic background scans based on signal strength
-#CONFIG_BGSCAN_SIMPLE=y
+CONFIG_BGSCAN_SIMPLE=y
 # Learn channels used by the network and try to avoid bgscans on other
 # channels (experimental)
 #CONFIG_BGSCAN_LEARN=y
@@ -593,3 +595,8 @@ CONFIG_BACKEND=file
 # Opportunistic Wireless Encryption (OWE)
 # Experimental implementation of draft-harkins-owe-07.txt
 #CONFIG_OWE=y
+
+# Device Provisioning Protocol (DPP)
+# This requires CONFIG_IEEE80211W=y to be enabled, too. (see
+# wpa_supplicant/README-DPP for details)
+CONFIG_DPP=y

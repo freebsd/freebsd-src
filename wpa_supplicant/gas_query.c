@@ -272,7 +272,7 @@ static void gas_query_tx_status(struct wpa_supplicant *wpa_s,
 }
 
 
-static int pmf_in_use(struct wpa_supplicant *wpa_s, const u8 *addr)
+int pmf_in_use(struct wpa_supplicant *wpa_s, const u8 *addr)
 {
 	if (wpa_s->current_ssid == NULL ||
 	    wpa_s->wpa_state < WPA_4WAY_HANDSHAKE ||

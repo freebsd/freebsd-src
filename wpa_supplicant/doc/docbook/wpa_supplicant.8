@@ -3,7 +3,7 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_SUPPLICANT" "8" "02 December 2018" "" ""
+.TH "WPA_SUPPLICANT" "8" "21 April 2019" "" ""
 
 .SH NAME
 wpa_supplicant \- Wi-Fi Protected Access client and IEEE 802.1X supplicant
@@ -217,8 +217,13 @@ list of supported driver backends that may be used with the -D option on
 your system, refer to the help output of wpa_supplicant
 (\fBwpa_supplicant -h\fR).
 .TP
+\fBnl80211\fR
+Uses the modern Linux nl80211/cfg80211 netlink-based
+interface (most new drivers).
+.TP
 \fBwext\fR
-Linux wireless extensions (generic).
+Uses the legacy Linux wireless extensions ioctl-based
+interface (older hardware/drivers).
 .TP
 \fBwired\fR
 wpa_supplicant wired Ethernet driver
@@ -325,7 +330,7 @@ Include timestamp in debug messages.
 Enable DBus control interface. If enabled, interface
 definitions may be omitted. (This is only available
 if \fBwpa_supplicant\fR was built with
-the CONFIG_DBUS option.)
+the CONFIG_CTRL_IFACE_DBUS_NEW option.)
 .TP
 \fB-v\fR
 Show version.
@@ -392,7 +397,11 @@ wpa_supplicant \\
 Current hardware/software requirements:
 .TP 0.2i
 \(bu
-Linux kernel 2.4.x or 2.6.x with Linux Wireless
+Linux kernel 2.6.30 or higher with
+nl80211/cfg80211 support
+.TP 0.2i
+\(bu
+Linux kernel 2.4.x or higher with Linux Wireless
 Extensions v15 or newer
 .TP 0.2i
 \(bu
@@ -402,6 +411,9 @@ FreeBSD 6-CURRENT
 Microsoft Windows with WinPcap (at least WinXP, may work
 with other versions)
 .SH "SUPPORTED DRIVERS"
+.TP
+\fBLinux nl80211/cfg80211\fR
+This is the preferred driver for Linux.
 .TP
 \fBLinux wireless extensions\fR
 In theory, any driver that supports Linux wireless
@@ -532,7 +544,7 @@ in.
 \fBwpa_passphrase\fR(8)
 .SH "LEGAL"
 .PP
-wpa_supplicant is copyright (c) 2003-2018,
+wpa_supplicant is copyright (c) 2003-2019,
 Jouni Malinen <j@w1.fi> and
 contributors.
 All Rights Reserved.

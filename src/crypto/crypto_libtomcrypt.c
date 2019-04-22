@@ -278,6 +278,9 @@ int crypto_hash_finish(struct crypto_hash *ctx, u8 *mac, size_t *len)
 
 	os_free(ctx);
 
+	if (TEST_FAIL())
+		return -1;
+
 	return ret;
 }
 
@@ -721,10 +724,12 @@ int crypto_dh_init(u8 generator, const u8 *prime, size_t prime_len, u8 *privkey,
 
 
 int crypto_dh_derive_secret(u8 generator, const u8 *prime, size_t prime_len,
+			    const u8 *order, size_t order_len,
 			    const u8 *privkey, size_t privkey_len,
 			    const u8 *pubkey, size_t pubkey_len,
 			    u8 *secret, size_t *len)
 {
+	/* TODO: check pubkey */
 	return crypto_mod_exp(pubkey, pubkey_len, privkey, privkey_len,
 			      prime, prime_len, secret, len);
 }

@@ -114,6 +114,7 @@ DECLARE_ACCESSOR(wpas_dbus_getter_p2p_peer_vendor_extension);
 DECLARE_ACCESSOR(wpas_dbus_getter_p2p_peer_ies);
 DECLARE_ACCESSOR(wpas_dbus_getter_p2p_peer_device_address);
 DECLARE_ACCESSOR(wpas_dbus_getter_p2p_peer_groups);
+DECLARE_ACCESSOR(wpas_dbus_getter_p2p_peer_vsie);
 
 /*
  * P2P Group properties

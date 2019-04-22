@@ -492,6 +492,14 @@ static inline int wpa_drv_signal_poll(struct wpa_supplicant *wpa_s,
 	return -1;
 }
 
+static inline int wpa_drv_channel_info(struct wpa_supplicant *wpa_s,
+				       struct wpa_channel_info *ci)
+{
+	if (wpa_s->driver->channel_info)
+		return wpa_s->driver->channel_info(wpa_s->drv_priv, ci);
+	return -1;
+}
+
 static inline int wpa_drv_pktcnt_poll(struct wpa_supplicant *wpa_s,
 				      struct hostap_sta_driver_data *sta)
 {
@@ -796,6 +804,14 @@ static inline int wpa_drv_set_transmit_next_pn(struct wpa_supplicant *wpa_s,
 	return wpa_s->driver->set_transmit_next_pn(wpa_s->drv_priv, sa);
 }
 
+static inline int wpa_drv_set_receive_lowest_pn(struct wpa_supplicant *wpa_s,
+						struct receive_sa *sa)
+{
+	if (!wpa_s->driver->set_receive_lowest_pn)
+		return -1;
+	return wpa_s->driver->set_receive_lowest_pn(wpa_s->drv_priv, sa);
+}
+
 static inline int
 wpa_drv_create_receive_sc(struct wpa_supplicant *wpa_s, struct receive_sc *sc,
 			  unsigned int conf_offset, int validation)
@@ -1044,6 +1060,14 @@ wpa_drv_send_external_auth_status(struct wpa_supplicant *wpa_s,
 		return -1;
 	return wpa_s->driver->send_external_auth_status(wpa_s->drv_priv,
 							params);
+}
+
+static inline int wpa_drv_set_4addr_mode(struct wpa_supplicant *wpa_s, int val)
+{
+	if (!wpa_s->driver->set_4addr_mode)
+		return -1;
+	return wpa_s->driver->set_4addr_mode(wpa_s->drv_priv,
+					     wpa_s->bridge_ifname, val);
 }
 
 #endif /* DRIVER_I_H */

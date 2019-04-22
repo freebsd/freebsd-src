@@ -286,10 +286,14 @@ DBusMessage * wpas_dbus_handler_wps_start(DBusMessage *message,
 		ret = wpas_wps_start_pin(wpa_s, params.bssid,
 					 params.pin, 0,
 					 DEV_PW_DEFAULT);
-		if (ret > 0)
-			os_snprintf(npin, sizeof(npin), "%08d", ret);
+		if (ret > 0) {
+			ret = os_snprintf(npin, sizeof(npin), "%08d", ret);
+			if (os_snprintf_error(sizeof(npin), ret))
+				return wpas_dbus_error_unknown_error(
+					message, "invalid PIN");
+		}
 	} else {
-		ret = wpas_wps_start_pbc(wpa_s, params.bssid, 0);
+		ret = wpas_wps_start_pbc(wpa_s, params.bssid, 0, 0);
 	}
 
 	if (ret < 0) {

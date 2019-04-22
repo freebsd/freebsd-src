@@ -6,6 +6,11 @@ ifndef CFLAGS
 CFLAGS = -MMD -O2 -Wall -g
 endif
 
+ifdef TEST_FUZZ
+CFLAGS += -DCONFIG_NO_RANDOM_POOL
+CFLAGS += -DTEST_FUZZ
+endif
+
 CFLAGS += -I.. -I../utils
 
 

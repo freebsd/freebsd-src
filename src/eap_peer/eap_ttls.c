@@ -196,8 +196,8 @@ static void eap_ttls_deinit(struct eap_sm *sm, void *priv)
 	eap_peer_tls_ssl_deinit(sm, &data->ssl);
 	eap_ttls_free_key(data);
 	os_free(data->session_id);
-	wpabuf_free(data->pending_phase2_req);
-	wpabuf_free(data->pending_resp);
+	wpabuf_clear_free(data->pending_phase2_req);
+	wpabuf_clear_free(data->pending_resp);
 	os_free(data);
 }
 
@@ -248,7 +248,7 @@ static int eap_ttls_avp_encapsulate(struct wpabuf **resp, u32 avp_code,
 
 	msg = wpabuf_alloc(sizeof(struct ttls_avp) + wpabuf_len(*resp) + 4);
 	if (msg == NULL) {
-		wpabuf_free(*resp);
+		wpabuf_clear_free(*resp);
 		*resp = NULL;
 		return -1;
 	}
@@ -258,7 +258,7 @@ static int eap_ttls_avp_encapsulate(struct wpabuf **resp, u32 avp_code,
 	os_memcpy(pos, wpabuf_head(*resp), wpabuf_len(*resp));
 	pos += wpabuf_len(*resp);
 	AVP_PAD(avp, pos);
-	wpabuf_free(*resp);
+	wpabuf_clear_free(*resp);
 	wpabuf_put(msg, pos - avp);
 	*resp = msg;
 	return 0;
@@ -271,6 +271,7 @@ static int eap_ttls_v0_derive_key(struct eap_sm *sm,
 	eap_ttls_free_key(data);
 	data->key_data = eap_peer_tls_derive_key(sm, &data->ssl,
 						 "ttls keying material",
+						 NULL, 0,
 						 EAP_TLS_KEY_LEN +
 						 EAP_EMSK_LEN);
 	if (!data->key_data) {
@@ -303,7 +304,8 @@ static int eap_ttls_v0_derive_key(struct eap_sm *sm,
 static u8 * eap_ttls_implicit_challenge(struct eap_sm *sm,
 					struct eap_ttls_data *data, size_t len)
 {
-	return eap_peer_tls_derive_key(sm, &data->ssl, "ttls challenge", len);
+	return eap_peer_tls_derive_key(sm, &data->ssl, "ttls challenge",
+				       NULL, 0, len);
 }
 #endif /* CONFIG_FIPS */
 
@@ -510,7 +512,7 @@ static int eap_ttls_phase2_request_mschapv2(struct eap_sm *sm,
 	challenge = eap_ttls_implicit_challenge(
 		sm, data, EAP_TTLS_MSCHAPV2_CHALLENGE_LEN + 1);
 	if (challenge == NULL) {
-		wpabuf_free(msg);
+		wpabuf_clear_free(msg);
 		wpa_printf(MSG_ERROR, "EAP-TTLS/MSCHAPV2: Failed to derive "
 			   "implicit challenge");
 		return -1;
@@ -529,7 +531,7 @@ static int eap_ttls_phase2_request_mschapv2(struct eap_sm *sm,
 	*pos++ = 0; /* Flags */
 	if (os_get_random(pos, EAP_TTLS_MSCHAPV2_CHALLENGE_LEN) < 0) {
 		os_free(challenge);
-		wpabuf_free(msg);
+		wpabuf_clear_free(msg);
 		wpa_printf(MSG_ERROR, "EAP-TTLS/MSCHAPV2: Failed to get "
 			   "random data for peer challenge");
 		return -1;
@@ -543,7 +545,7 @@ static int eap_ttls_phase2_request_mschapv2(struct eap_sm *sm,
 				     peer_challenge, pos, data->auth_response,
 				     data->master_key)) {
 		os_free(challenge);
-		wpabuf_free(msg);
+		wpabuf_clear_free(msg);
 		wpa_printf(MSG_ERROR, "EAP-TTLS/MSCHAPV2: Failed to derive "
 			   "response");
 		return -1;
@@ -604,7 +606,7 @@ static int eap_ttls_phase2_request_mschap(struct eap_sm *sm,
 	challenge = eap_ttls_implicit_challenge(
 		sm, data, EAP_TTLS_MSCHAP_CHALLENGE_LEN + 1);
 	if (challenge == NULL) {
-		wpabuf_free(msg);
+		wpabuf_clear_free(msg);
 		wpa_printf(MSG_ERROR, "EAP-TTLS/MSCHAP: Failed to derive "
 			   "implicit challenge");
 		return -1;
@@ -628,7 +630,7 @@ static int eap_ttls_phase2_request_mschap(struct eap_sm *sm,
 		if (challenge_response(challenge, password, pos)) {
 			wpa_printf(MSG_ERROR,
 				   "EAP-TTLS/MSCHAP: Failed derive password hash");
-			wpabuf_free(msg);
+			wpabuf_clear_free(msg);
 			os_free(challenge);
 			return -1;
 		}
@@ -641,7 +643,7 @@ static int eap_ttls_phase2_request_mschap(struct eap_sm *sm,
 					  pos)) {
 			wpa_printf(MSG_ERROR,
 				   "EAP-TTLS/MSCHAP: Failed derive password");
-			wpabuf_free(msg);
+			wpabuf_clear_free(msg);
 			os_free(challenge);
 			return -1;
 		}
@@ -760,7 +762,7 @@ static int eap_ttls_phase2_request_chap(struct eap_sm *sm,
 	challenge = eap_ttls_implicit_challenge(
 		sm, data, EAP_TTLS_CHAP_CHALLENGE_LEN + 1);
 	if (challenge == NULL) {
-		wpabuf_free(msg);
+		wpabuf_clear_free(msg);
 		wpa_printf(MSG_ERROR, "EAP-TTLS/CHAP: Failed to derive "
 			   "implicit challenge");
 		return -1;
@@ -1073,10 +1075,10 @@ static int eap_ttls_encrypt_response(struct eap_sm *sm,
 				 resp, out_data)) {
 		wpa_printf(MSG_INFO, "EAP-TTLS: Failed to encrypt a Phase 2 "
 			   "frame");
-		wpabuf_free(resp);
+		wpabuf_clear_free(resp);
 		return -1;
 	}
-	wpabuf_free(resp);
+	wpabuf_clear_free(resp);
 
 	return 0;
 }
@@ -1297,7 +1299,7 @@ static int eap_ttls_process_decrypted(struct eap_sm *sm,
 		   config->pending_req_otp ||
 		   config->pending_req_new_password ||
 		   config->pending_req_sim) {
-		wpabuf_free(data->pending_phase2_req);
+		wpabuf_clear_free(data->pending_phase2_req);
 		data->pending_phase2_req = wpabuf_dup(in_decrypted);
 	}
 
@@ -1340,7 +1342,7 @@ static int eap_ttls_implicit_identity_request(struct eap_sm *sm,
 			 * processing when EAP request is re-processed after
 			 * user input.
 			 */
-			wpabuf_free(data->pending_phase2_req);
+			wpabuf_clear_free(data->pending_phase2_req);
 			data->pending_phase2_req = wpabuf_alloc(0);
 		}
 
@@ -1413,7 +1415,7 @@ static int eap_ttls_decrypt(struct eap_sm *sm, struct eap_ttls_data *data,
 		in_decrypted = data->pending_phase2_req;
 		data->pending_phase2_req = NULL;
 		if (wpabuf_len(in_decrypted) == 0) {
-			wpabuf_free(in_decrypted);
+			wpabuf_clear_free(in_decrypted);
 			return eap_ttls_implicit_identity_request(
 				sm, data, ret, identifier, out_data);
 		}
@@ -1449,7 +1451,7 @@ continue_req:
 					    &parse, in_decrypted, out_data);
 
 done:
-	wpabuf_free(in_decrypted);
+	wpabuf_clear_free(in_decrypted);
 	os_free(parse.eapdata);
 
 	if (retval < 0) {
@@ -1509,7 +1511,7 @@ static int eap_ttls_process_handshake(struct eap_sm *sm,
 	if (sm->waiting_ext_cert_check) {
 		wpa_printf(MSG_DEBUG,
 			   "EAP-TTLS: Waiting external server certificate validation");
-		wpabuf_free(data->pending_resp);
+		wpabuf_clear_free(data->pending_resp);
 		data->pending_resp = *out_data;
 		*out_data = NULL;
 		return 0;
@@ -1543,7 +1545,7 @@ static int eap_ttls_process_handshake(struct eap_sm *sm,
 		/*
 		 * Application data included in the handshake message.
 		 */
-		wpabuf_free(data->pending_phase2_req);
+		wpabuf_clear_free(data->pending_phase2_req);
 		data->pending_phase2_req = *out_data;
 		*out_data = NULL;
 		res = eap_ttls_decrypt(sm, data, ret, identifier, in_data,
@@ -1646,7 +1648,7 @@ static struct wpabuf * eap_ttls_process(struct eap_sm *sm, void *priv,
 	/* FIX: what about res == -1? Could just move all error processing into
 	 * the other functions and get rid of this res==1 case here. */
 	if (res == 1) {
-		wpabuf_free(resp);
+		wpabuf_clear_free(resp);
 		return eap_peer_tls_build_ack(id, EAP_TYPE_TTLS,
 					      data->ttls_version);
 	}
@@ -1669,9 +1671,9 @@ static void eap_ttls_deinit_for_reauth(struct eap_sm *sm, void *priv)
 	if (data->phase2_priv && data->phase2_method &&
 	    data->phase2_method->deinit_for_reauth)
 		data->phase2_method->deinit_for_reauth(sm, data->phase2_priv);
-	wpabuf_free(data->pending_phase2_req);
+	wpabuf_clear_free(data->pending_phase2_req);
 	data->pending_phase2_req = NULL;
-	wpabuf_free(data->pending_resp);
+	wpabuf_clear_free(data->pending_resp);
 	data->pending_resp = NULL;
 	data->decision_succ = DECISION_FAIL;
 #ifdef EAP_TNC

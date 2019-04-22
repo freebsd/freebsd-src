@@ -109,8 +109,13 @@ static const u64 K[80] = {
 /* compress 1024-bits */
 static int sha512_compress(struct sha512_state *md, unsigned char *buf)
 {
-	u64 S[8], W[80], t0, t1;
+	u64 S[8], t0, t1;
+	u64 *W;
 	int i;
+
+	W = os_malloc(80 * sizeof(u64));
+	if (!W)
+		return -1;
 
 	/* copy state into S */
 	for (i = 0; i < 8; i++) {
@@ -146,6 +151,7 @@ static int sha512_compress(struct sha512_state *md, unsigned char *buf)
 		md->state[i] = md->state[i] + S[i];
 	}
 
+	os_free(W);
 	return 0;
 }
 

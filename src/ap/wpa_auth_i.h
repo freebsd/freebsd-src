@@ -22,6 +22,7 @@ struct wpa_state_machine {
 
 	u8 addr[ETH_ALEN];
 	u8 p2p_dev_addr[ETH_ALEN];
+	u16 auth_alg;
 
 	enum {
 		WPA_PTK_INITIALIZE, WPA_PTK_DISCONNECT, WPA_PTK_DISCONNECTED,
@@ -92,6 +93,9 @@ struct wpa_state_machine {
 #endif /* CONFIG_IEEE80211R_AP */
 	unsigned int is_wnmsleep:1;
 	unsigned int pmkid_set:1;
+#ifdef CONFIG_OCV
+	unsigned int ocv_enabled:1;
+#endif /* CONFIG_OCV */
 
 	u8 req_replay_counter[WPA_REPLAY_COUNTER_LEN];
 	int req_replay_counter_used;
@@ -115,6 +119,8 @@ struct wpa_state_machine {
 	u8 xxkey[PMK_LEN_MAX]; /* PSK or the second 256 bits of MSK, or the
 				* first 384 bits of MSK */
 	size_t xxkey_len;
+	u8 pmk_r1[PMK_LEN_MAX];
+	unsigned int pmk_r1_len;
 	u8 pmk_r1_name[WPA_PMK_NAME_LEN]; /* PMKR1Name derived from FT Auth
 					   * Request */
 	u8 r0kh_id[FT_R0KH_ID_MAX_LEN]; /* R0KH-ID from FT Auth Request */
@@ -146,6 +152,10 @@ struct wpa_state_machine {
 	size_t fils_key_auth_len;
 	unsigned int fils_completed:1;
 #endif /* CONFIG_FILS */
+
+#ifdef CONFIG_DPP2
+	struct wpabuf *dpp_z;
+#endif /* CONFIG_DPP2 */
 
 #ifdef CONFIG_TESTING_OPTIONS
 	void (*eapol_status_cb)(void *ctx1, void *ctx2);
@@ -282,8 +292,7 @@ int wpa_write_ftie(struct wpa_auth_config *conf, int use_sha384,
 		   const u8 *anonce, const u8 *snonce,
 		   u8 *buf, size_t len, const u8 *subelem,
 		   size_t subelem_len);
-int wpa_auth_derive_ptk_ft(struct wpa_state_machine *sm, const u8 *pmk,
-			   struct wpa_ptk *ptk);
+int wpa_auth_derive_ptk_ft(struct wpa_state_machine *sm, struct wpa_ptk *ptk);
 struct wpa_ft_pmk_cache * wpa_ft_pmk_cache_init(void);
 void wpa_ft_pmk_cache_deinit(struct wpa_ft_pmk_cache *cache);
 void wpa_ft_install_ptk(struct wpa_state_machine *sm);

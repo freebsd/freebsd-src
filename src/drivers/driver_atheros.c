@@ -1218,8 +1218,7 @@ atheros_new_sta(struct atheros_driver_data *drv, u8 addr[IEEE80211_ADDR_LEN])
 
 #ifdef ATH_WPS_IE
 	/* if WPS IE is present, preference is given to WPS */
-	if (ie.wps_ie &&
-	    (ie.wps_ie[1] > 0 && (ie.wps_ie[0] == WLAN_EID_VENDOR_SPECIFIC))) {
+	if (ie.wps_ie[0] == WLAN_EID_VENDOR_SPECIFIC && ie.wps_ie[1] > 0) {
 		iebuf = ie.wps_ie;
 		ielen = ie.wps_ie[1];
 	}

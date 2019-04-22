@@ -1,6 +1,6 @@
 /*
  * EAP server/peer: EAP-SAKE shared routines
- * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -201,14 +201,15 @@ int eap_sake_parse_attributes(const u8 *buf, size_t len,
  * @data2_len: Length of the data2
  * @buf: Buffer for the generated pseudo-random key
  * @buf_len: Number of bytes of key to generate
+ * Returns: 0 on success or -1 on failure
  *
  * This function is used to derive new, cryptographically separate keys from a
  * given key (e.g., SMS). This is identical to the PRF used in IEEE 802.11i.
  */
-static void eap_sake_kdf(const u8 *key, size_t key_len, const char *label,
-			 const u8 *data, size_t data_len,
-			 const u8 *data2, size_t data2_len,
-			 u8 *buf, size_t buf_len)
+static int eap_sake_kdf(const u8 *key, size_t key_len, const char *label,
+			const u8 *data, size_t data_len,
+			const u8 *data2, size_t data2_len,
+			u8 *buf, size_t buf_len)
 {
 	u8 counter = 0;
 	size_t pos, plen;
@@ -230,17 +231,21 @@ static void eap_sake_kdf(const u8 *key, size_t key_len, const char *label,
 	while (pos < buf_len) {
 		plen = buf_len - pos;
 		if (plen >= SHA1_MAC_LEN) {
-			hmac_sha1_vector(key, key_len, 4, addr, len,
-					 &buf[pos]);
+			if (hmac_sha1_vector(key, key_len, 4, addr, len,
+					     &buf[pos]) < 0)
+				return -1;
 			pos += SHA1_MAC_LEN;
 		} else {
-			hmac_sha1_vector(key, key_len, 4, addr, len,
-					 hash);
+			if (hmac_sha1_vector(key, key_len, 4, addr, len,
+					     hash) < 0)
+				return -1;
 			os_memcpy(&buf[pos], hash, plen);
 			break;
 		}
 		counter++;
 	}
+
+	return 0;
 }
 
 
@@ -253,12 +258,13 @@ static void eap_sake_kdf(const u8 *key, size_t key_len, const char *label,
  * @tek: Buffer for Temporary EAK Keys (TEK-Auth[16] | TEK-Cipher[16])
  * @msk: Buffer for 64-byte MSK
  * @emsk: Buffer for 64-byte EMSK
+ * Returns: 0 on success or -1 on failure
  *
  * This function derives EAP-SAKE keys as defined in RFC 4763, section 3.2.6.
  */
-void eap_sake_derive_keys(const u8 *root_secret_a, const u8 *root_secret_b,
-			  const u8 *rand_s, const u8 *rand_p, u8 *tek, u8 *msk,
-			  u8 *emsk)
+int eap_sake_derive_keys(const u8 *root_secret_a, const u8 *root_secret_b,
+			 const u8 *rand_s, const u8 *rand_p, u8 *tek, u8 *msk,
+			 u8 *emsk)
 {
 	u8 sms_a[EAP_SAKE_SMS_LEN];
 	u8 sms_b[EAP_SAKE_SMS_LEN];
@@ -268,14 +274,16 @@ void eap_sake_derive_keys(const u8 *root_secret_a, const u8 *root_secret_b,
 
 	wpa_hexdump_key(MSG_DEBUG, "EAP-SAKE: Root-Secret-A",
 			root_secret_a, EAP_SAKE_ROOT_SECRET_LEN);
-	eap_sake_kdf(root_secret_a, EAP_SAKE_ROOT_SECRET_LEN,
-		     "SAKE Master Secret A",
-		     rand_p, EAP_SAKE_RAND_LEN, rand_s, EAP_SAKE_RAND_LEN,
-		     sms_a, EAP_SAKE_SMS_LEN);
+	if (eap_sake_kdf(root_secret_a, EAP_SAKE_ROOT_SECRET_LEN,
+			 "SAKE Master Secret A",
+			 rand_p, EAP_SAKE_RAND_LEN, rand_s, EAP_SAKE_RAND_LEN,
+			 sms_a, EAP_SAKE_SMS_LEN) < 0)
+		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "EAP-SAKE: SMS-A", sms_a, EAP_SAKE_SMS_LEN);
-	eap_sake_kdf(sms_a, EAP_SAKE_SMS_LEN, "Transient EAP Key",
-		     rand_s, EAP_SAKE_RAND_LEN, rand_p, EAP_SAKE_RAND_LEN,
-		     tek, EAP_SAKE_TEK_LEN);
+	if (eap_sake_kdf(sms_a, EAP_SAKE_SMS_LEN, "Transient EAP Key",
+			 rand_s, EAP_SAKE_RAND_LEN, rand_p, EAP_SAKE_RAND_LEN,
+			 tek, EAP_SAKE_TEK_LEN) < 0)
+		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "EAP-SAKE: TEK-Auth",
 			tek, EAP_SAKE_TEK_AUTH_LEN);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-SAKE: TEK-Cipher",
@@ -283,18 +291,21 @@ void eap_sake_derive_keys(const u8 *root_secret_a, const u8 *root_secret_b,
 
 	wpa_hexdump_key(MSG_DEBUG, "EAP-SAKE: Root-Secret-B",
 			root_secret_b, EAP_SAKE_ROOT_SECRET_LEN);
-	eap_sake_kdf(root_secret_b, EAP_SAKE_ROOT_SECRET_LEN,
-		     "SAKE Master Secret B",
-		     rand_p, EAP_SAKE_RAND_LEN, rand_s, EAP_SAKE_RAND_LEN,
-		     sms_b, EAP_SAKE_SMS_LEN);
+	if (eap_sake_kdf(root_secret_b, EAP_SAKE_ROOT_SECRET_LEN,
+			 "SAKE Master Secret B",
+			 rand_p, EAP_SAKE_RAND_LEN, rand_s, EAP_SAKE_RAND_LEN,
+			 sms_b, EAP_SAKE_SMS_LEN) < 0)
+		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "EAP-SAKE: SMS-B", sms_b, EAP_SAKE_SMS_LEN);
-	eap_sake_kdf(sms_b, EAP_SAKE_SMS_LEN, "Master Session Key",
-		     rand_s, EAP_SAKE_RAND_LEN, rand_p, EAP_SAKE_RAND_LEN,
-		     key_buf, sizeof(key_buf));
+	if (eap_sake_kdf(sms_b, EAP_SAKE_SMS_LEN, "Master Session Key",
+			 rand_s, EAP_SAKE_RAND_LEN, rand_p, EAP_SAKE_RAND_LEN,
+			 key_buf, sizeof(key_buf)) < 0)
+		return -1;
 	os_memcpy(msk, key_buf, EAP_MSK_LEN);
 	os_memcpy(emsk, key_buf + EAP_MSK_LEN, EAP_EMSK_LEN);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-SAKE: MSK", msk, EAP_MSK_LEN);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-SAKE: EMSK", emsk, EAP_EMSK_LEN);
+	return 0;
 }
 
 
@@ -312,6 +323,7 @@ void eap_sake_derive_keys(const u8 *root_secret_a, const u8 *root_secret_b,
  * @eap_len: EAP packet length
  * @mic_pos: MIC position in the EAP packet (must be [eap .. eap + eap_len])
  * @mic: Buffer for the computed 16-byte MIC
+ * Returns: 0 on success or -1 on failure
  */
 int eap_sake_compute_mic(const u8 *tek_auth,
 			 const u8 *rand_s, const u8 *rand_p,
@@ -323,6 +335,7 @@ int eap_sake_compute_mic(const u8 *tek_auth,
 	u8 _rand[2 * EAP_SAKE_RAND_LEN];
 	u8 *tmp, *pos;
 	size_t tmplen;
+	int ret;
 
 	tmplen = serverid_len + 1 + peerid_len + 1 + eap_len;
 	tmp = os_malloc(tmplen);
@@ -364,14 +377,14 @@ int eap_sake_compute_mic(const u8 *tek_auth,
 	os_memcpy(pos, eap, eap_len);
 	os_memset(pos + (mic_pos - eap), 0, EAP_SAKE_MIC_LEN);
 
-	eap_sake_kdf(tek_auth, EAP_SAKE_TEK_AUTH_LEN,
-		     peer ? "Peer MIC" : "Server MIC",
-		     _rand, 2 * EAP_SAKE_RAND_LEN, tmp, tmplen,
-		     mic, EAP_SAKE_MIC_LEN);
+	ret = eap_sake_kdf(tek_auth, EAP_SAKE_TEK_AUTH_LEN,
+			   peer ? "Peer MIC" : "Server MIC",
+			   _rand, 2 * EAP_SAKE_RAND_LEN, tmp, tmplen,
+			   mic, EAP_SAKE_MIC_LEN);
 
 	os_free(tmp);
 
-	return 0;
+	return ret;
 }
 
 

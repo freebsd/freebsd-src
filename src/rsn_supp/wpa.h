@@ -18,6 +18,7 @@ struct wpa_sm;
 struct eapol_sm;
 struct wpa_config_blob;
 struct hostapd_freq_params;
+struct wpa_channel_info;
 
 struct wpa_sm_ctx {
 	void *ctx; /* pointer to arbitrary upper level context */
@@ -82,6 +83,7 @@ struct wpa_sm_ctx {
 	int (*key_mgmt_set_pmk)(void *ctx, const u8 *pmk, size_t pmk_len);
 	void (*fils_hlp_rx)(void *ctx, const u8 *dst, const u8 *src,
 			    const u8 *pkt, size_t pkt_len);
+	int (*channel_info)(void *ctx, struct wpa_channel_info *ci);
 };
 
 
@@ -95,7 +97,8 @@ enum wpa_sm_conf_params {
 	WPA_PARAM_KEY_MGMT,
 	WPA_PARAM_MGMT_GROUP,
 	WPA_PARAM_RSN_ENABLED,
-	WPA_PARAM_MFP
+	WPA_PARAM_MFP,
+	WPA_PARAM_OCV
 };
 
 struct rsn_supp_config {
@@ -141,6 +144,7 @@ int wpa_sm_set_param(struct wpa_sm *sm, enum wpa_sm_conf_params param,
 int wpa_sm_get_status(struct wpa_sm *sm, char *buf, size_t buflen,
 		      int verbose);
 int wpa_sm_pmf_enabled(struct wpa_sm *sm);
+int wpa_sm_ocv_enabled(struct wpa_sm *sm);
 
 void wpa_sm_key_request(struct wpa_sm *sm, int error, int pairwise);
 
@@ -275,6 +279,11 @@ static inline int wpa_sm_get_status(struct wpa_sm *sm, char *buf,
 }
 
 static inline int wpa_sm_pmf_enabled(struct wpa_sm *sm)
+{
+	return 0;
+}
+
+static inline int wpa_sm_ocv_enabled(struct wpa_sm *sm)
 {
 	return 0;
 }
@@ -456,5 +465,6 @@ int owe_process_assoc_resp(struct wpa_sm *sm, const u8 *bssid,
 
 void wpa_sm_set_reset_fils_completed(struct wpa_sm *sm, int set);
 void wpa_sm_set_fils_cache_id(struct wpa_sm *sm, const u8 *fils_cache_id);
+void wpa_sm_set_dpp_z(struct wpa_sm *sm, const struct wpabuf *z);
 
 #endif /* WPA_H */
