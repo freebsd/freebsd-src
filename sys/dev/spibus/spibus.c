@@ -216,6 +216,7 @@ spibus_hinted_child(device_t bus, const char *dname, int dunit)
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
 	devi = SPIBUS_IVAR(child);
 	devi->mode = SPIBUS_MODE_NONE;
+	resource_int_value(dname, dunit, "clock", &devi->clock);
 	resource_int_value(dname, dunit, "cs", &devi->cs);
 	resource_int_value(dname, dunit, "mode", &devi->mode);
 }
