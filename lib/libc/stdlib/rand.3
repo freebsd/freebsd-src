@@ -32,7 +32,7 @@
 .\"     @(#)rand.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2013
+.Dd April 22, 2019
 .Dt RAND 3
 .Os
 .Sh NAME
@@ -57,7 +57,7 @@
 .Bf -symbolic
 The functions described in this manual page are not cryptographically
 secure.
-Cryptographic applications should use
+Applications which require unpredictable random numbers should use
 .Xr arc4random 3
 instead.
 .Ef
