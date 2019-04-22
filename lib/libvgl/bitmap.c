@@ -274,3 +274,27 @@ VGLBitmapAllocateBits(VGLBitmap *object)
     return -1;
   return 0;
 }
+
+void
+VGLBitmapCvt(VGLBitmap *src, VGLBitmap *dst)
+{
+  u_long color;
+  int dstpos, i, pb, size, srcpb, srcpos;
+
+  size = src->VXsize * src->VYsize;
+  srcpb = src->PixelBytes;
+  if (srcpb <= 0)
+    srcpb = 1;
+  pb = dst->PixelBytes;
+  if (pb == srcpb) {
+    bcopy(src->Bitmap, dst->Bitmap, size * pb);
+    return;
+  }
+  if (srcpb != 1)
+    return;		/* not supported */
+  for (srcpos = dstpos = 0; srcpos < size; srcpos++) {
+    color = VGLrgb332ToNative(src->Bitmap[srcpos]);
+    for (i = 0; i < pb; i++, color >>= 8)
+        dst->Bitmap[dstpos++] = color;
+  }
+}

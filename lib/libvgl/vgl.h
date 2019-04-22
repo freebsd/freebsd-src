@@ -112,6 +112,7 @@ int VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy, VGLBitmap *dst, int dstx, 
 VGLBitmap *VGLBitmapCreate(int type, int xsize, int ysize, byte *bits);
 void VGLBitmapDestroy(VGLBitmap *object);
 int VGLBitmapAllocateBits(VGLBitmap *object);
+void VGLBitmapCvt(VGLBitmap *src, VGLBitmap *dst);
 /* keyboard.c */
 int VGLKeyboardInit(int mode);
 void VGLKeyboardEnd(void);
@@ -144,6 +145,7 @@ void VGLFilledBox(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long colo
 void VGLEllipse(VGLBitmap *object, int xc, int yc, int a, int b, u_long color);
 void VGLFilledEllipse(VGLBitmap *object, int xc, int yc, int a, int b, u_long color);
 void VGLClear(VGLBitmap *object, u_long color);
+u_long VGLrgb332ToNative(byte c);
 void VGLRestoreBlank(void);
 void VGLRestoreBorder(void);
 void VGLRestorePalette(void);
