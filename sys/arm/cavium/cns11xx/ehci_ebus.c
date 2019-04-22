@@ -244,5 +244,5 @@ static driver_t ehci_driver = {
 
 static devclass_t ehci_devclass;
 
-DRIVER_MODULE(ehci, econaarm, ehci_driver, ehci_devclass, 0, 0);
-MODULE_DEPEND(ehci, usb, 1, 1, 1);
+DRIVER_MODULE(ebus_ehci, econaarm, ehci_driver, ehci_devclass, 0, 0);
+MODULE_DEPEND(ebus_ehci, usb, 1, 1, 1);
