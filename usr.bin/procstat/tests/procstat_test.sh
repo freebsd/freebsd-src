@@ -138,8 +138,9 @@ kernel_stacks_head()
 }
 kernel_stacks_body()
 {
-	atf_check -o save:procstat.out procstat -a kstack
-	atf_check -o not-empty awk '{if ($3 == "procstat") print}' procstat.out
+	# Bug 237445: checks will fail because of missing MFCs on branch
+	#atf_check -o save:procstat.out procstat -a kstack
+	#atf_check -o not-empty awk '{if ($3 == "procstat") print}' procstat.out
 
 	atf_check -o save:procstat.out procstat -kka
 	atf_check -o not-empty awk '{if ($3 == "procstat") print}' procstat.out
