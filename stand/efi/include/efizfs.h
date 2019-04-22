@@ -50,10 +50,8 @@ void efi_zfs_probe(void);
 EFI_HANDLE efizfs_get_handle_by_guid(uint64_t);
 bool efizfs_get_guid_by_handle(EFI_HANDLE, uint64_t *);
 zfsinfo_list_t *efizfs_get_zfsinfo_list(void);
-void efizfs_set_preferred(EFI_HANDLE);
 
 #else
-#define efizfs_set_preferred(x)
 #define efi_zfs_probe NULL
 #endif
 
