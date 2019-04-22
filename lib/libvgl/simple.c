@@ -513,6 +513,31 @@ VGLClear(VGLBitmap *object, u_long color)
     VGLMouseUnFreeze();
 }
 
+static inline u_long
+VGLrgbToNative(uint16_t r, uint16_t g, uint16_t b)
+{
+  int nr, ng, nb;
+
+  nr = VGLModeInfo.vi_pixel_fsizes[2];
+  ng = VGLModeInfo.vi_pixel_fsizes[1];
+  nb = VGLModeInfo.vi_pixel_fsizes[0];
+  return (r >> (16 - nr) << (ng + nb)) | (g >> (16 - ng) << nb) |
+	 (b >> (16 - nb) << 0);
+}
+
+u_long
+VGLrgb332ToNative(byte c)
+{
+  uint16_t r, g, b;
+
+  /* 3:3:2 to 16:16:16 */
+  r = ((c & 0xe0) >> 5) * 0xffff / 7;
+  g = ((c & 0x1c) >> 2) * 0xffff / 7;
+  b = ((c & 0x03) >> 0) * 0xffff / 3;
+
+  return VGLrgbToNative(r, g, b);
+}
+
 void
 VGLRestorePalette()
 {
