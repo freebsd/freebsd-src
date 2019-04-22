@@ -3074,4 +3074,7 @@ options 	EVDEV_DEBUG	# enable event debug msgs
 device		uinput		# install /dev/uinput cdev
 options 	UINPUT_DEBUG	# enable uinput debug msgs
 
+# Enable legacy /dev/spigenN name aliases for /dev/spigenX.Y devices.
+options 	SPIGEN_LEGACY_CDEVNAME # legacy device names for spigen
+
 device		xz		# xz_embedded LZMA de-compression library
