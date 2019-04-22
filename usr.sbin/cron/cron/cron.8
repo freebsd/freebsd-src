@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2017
+.Dd April 15, 2019
 .Dt CRON 8
 .Os
 .Sh NAME
@@ -79,6 +79,9 @@ commands, any output is mailed to the owner of the crontab (or to the user
 named in the
 .Ev MAILTO
 environment variable in the crontab, if such exists).
+The from address of this mail may be set with the
+.Ev MAILFROM
+environment variable.
 .Pp
 Additionally,
 .Nm

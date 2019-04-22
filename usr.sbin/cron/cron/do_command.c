@@ -93,7 +93,7 @@ child_process(e, u)
 {
 	int		stdin_pipe[2], stdout_pipe[2];
 	register char	*input_data;
-	char		*usernm, *mailto;
+	char		*usernm, *mailto, *mailfrom;
 	int		children = 0;
 # if defined(LOGIN_CAP)
 	struct passwd	*pwd;
@@ -111,6 +111,7 @@ child_process(e, u)
 	 */
 	usernm = env_get("LOGNAME", e->envp);
 	mailto = env_get("MAILTO", e->envp);
+	mailfrom = env_get("MAILFROM", e->envp);
 
 #ifdef PAM
 	/* use PAM to see if the user's account is available,
@@ -503,8 +504,12 @@ child_process(e, u)
 					warn("%s", MAILCMD);
 					(void) _exit(ERROR_EXIT);
 				}
-				fprintf(mail, "From: Cron Daemon <%s@%s>\n",
-					usernm, hostname);
+				if (mailfrom == NULL || *mailfrom == '\0')
+					fprintf(mail, "From: Cron Daemon <%s@%s>\n",
+					    usernm, hostname);
+				else
+					fprintf(mail, "From: Cron Daemon <%s>\n",
+					    mailfrom);
 				fprintf(mail, "To: %s\n", mailto);
 				fprintf(mail, "Subject: Cron <%s@%s> %s\n",
 					usernm, first_word(hostname, "."),
