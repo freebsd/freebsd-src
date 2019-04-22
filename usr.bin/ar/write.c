@@ -673,11 +673,11 @@ write_objs(struct bsdar *bsdar)
 
 		for (i = 0; (size_t)i < bsdar->s_cnt; i++) {
 			if (w_sz == sizeof(uint32_t))
-				*(bsdar->s_so + i) =
-				    htobe32((uint32_t)(*(bsdar->s_so + i)) + pm_sz);
+				bsdar->s_so[i] =
+				    htobe32(bsdar->s_so[i] + pm_sz);
 			else
-				*(bsdar->s_so + i) =
-				    htobe64(*(bsdar->s_so + i) + pm_sz);
+				bsdar->s_so[i] =
+				    htobe64(bsdar->s_so[i] + pm_sz);
 		}
 	}
 
