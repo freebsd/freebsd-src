@@ -1275,7 +1275,6 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 */
 	pr = inp->inp_socket->so_proto->pr_protocol;
 	pcbinfo = udp_get_inpcbinfo(pr);
-	sin = (struct sockaddr_in *)addr;
 	if (sin != NULL &&
 	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0)) {
 		INP_HASH_WLOCK(pcbinfo);
