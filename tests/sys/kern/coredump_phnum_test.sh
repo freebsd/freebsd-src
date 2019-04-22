@@ -65,7 +65,7 @@ EOF
 	    -x 'readelf -h coredump_phnum_helper.core | grep "Number of program headers:"'
 	atf_check -o "match:There are 66[0-9]{3} program headers" \
 	    -x 'readelf -l coredump_phnum_helper.core | grep -1 "program headers"'
-	atf_check -o "match: 0000000000000001 .* 66[0-9]{3} " \
+	atf_check -o "match: 00000(0000000000)?1 .* 66[0-9]{3} " \
 	    -x 'readelf -S coredump_phnum_helper.core | grep -A1 "^  \[ 0\] "'
 
 	atf_check -o "match:66[0-9]{3}" \
