@@ -56,7 +56,7 @@ typedef int (*flash_slicer_t)(device_t dev, const char *provider,
 #define	FLASH_SLICES_TYPE_SPI		2
 #define	FLASH_SLICES_TYPE_MMC		3
 
-/* Use NULL for deregistering a slicer */
+/* Use NULL and set force to true for deregistering a slicer */
 void flash_register_slicer(flash_slicer_t slicer, u_int type, bool force);
 
 #endif /* _KERNEL */

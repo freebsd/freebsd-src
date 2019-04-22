@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/slicer.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -43,42 +44,34 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
-static int fdt_flash_fill_slices(device_t dev, const char *provider,
+static int fill_slices(device_t dev, const char *provider,
     struct flash_slice *slices, int *slices_num);
 static void fdt_slicer_init(void);
 
 static int
-fdt_flash_fill_slices(device_t dev, const char *provider __unused,
-    struct flash_slice *slices, int *slices_num)
+fill_slices_from_node(phandle_t node, struct flash_slice *slices, int *count)
 {
-	char *slice_name;
-	phandle_t dt_node, dt_child;
+	char *label;
+	phandle_t child;
 	u_long base, size;
-	int i;
-	ssize_t name_len;
+	int flags, i;
+	ssize_t nmlen;
 
-	/*
-	 * We assume the caller provides buffer for FLASH_SLICES_MAX_NUM
-	 * flash_slice structures.
-	 */
-	if (slices == NULL) {
-		*slices_num = 0;
-		return (ENOMEM);
-	}
+	i = 0;
+	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		flags = FLASH_SLICES_FLAG_NONE;
 
-	dt_node = ofw_bus_get_node(dev);
-	for (dt_child = OF_child(dt_node), i = 0; dt_child != 0;
-	    dt_child = OF_peer(dt_child)) {
+		/* Nodes with a compatible property are not slices. */
+		if (OF_hasprop(child, "compatible"))
+			continue;
 
 		if (i == FLASH_SLICES_MAX_NUM) {
 			debugf("not enough buffer for slice i=%d\n", i);
 			break;
 		}
 
-		/*
-		 * Retrieve start and size of the slice.
-		 */
-		if (fdt_regsize(dt_child, &base, &size) != 0) {
+		/* Retrieve start and size of the slice. */
+		if (fdt_regsize(child, &base, &size) != 0) {
 			debugf("error during processing reg property, i=%d\n",
 			    i);
 			continue;
@@ -89,44 +82,80 @@ fdt_flash_fill_slices(device_t dev, const char *provider __unused,
 			continue;
 		}
 
-		/*
-		 * Retrieve label.
-		 */
-		name_len = OF_getprop_alloc(dt_child, "label", sizeof(char),
-		    (void **)&slice_name);
-		if (name_len <= 0) {
+		/* Retrieve label. */
+		nmlen = OF_getprop_alloc(child, "label", sizeof(char),
+		    (void **)&label);
+		if (nmlen <= 0) {
 			/* Use node name if no label defined */
-			name_len = OF_getprop_alloc(dt_child, "name",
-			    sizeof(char), (void **)&slice_name);
-			if (name_len <= 0) {
+			nmlen = OF_getprop_alloc(child, "name", sizeof(char),
+			    (void **)&label);
+			if (nmlen <= 0) {
 				debugf("slice i=%d with no name\n", i);
-				slice_name = NULL;
+				label = NULL;
 			}
 		}
 
-		/*
-		 * Fill slice entry data.
-		 */
+		if (OF_hasprop(child, "read-only"))
+			flags |= FLASH_SLICES_FLAG_RO;
+
+		/* Fill slice entry data. */
 		slices[i].base = base;
 		slices[i].size = size;
-		slices[i].label = slice_name;
+		slices[i].label = label;
+		slices[i].flags = flags;
 		i++;
 	}
 
-	*slices_num = i;
+	*count = i;
 	return (0);
+}
+
+static int
+fill_slices(device_t dev, const char *provider __unused,
+    struct flash_slice *slices, int *slices_num)
+{
+	phandle_t child, node;
+
+	/*
+	 * We assume the caller provides buffer for FLASH_SLICES_MAX_NUM
+	 * flash_slice structures.
+	 */
+	if (slices == NULL) {
+		*slices_num = 0;
+		return (ENOMEM);
+	}
+
+	node = ofw_bus_get_node(dev);
+
+	/*
+	 * If there is a child node whose compatible is "fixed-partitions" then
+	 * we have new-style data where all partitions are the children of that
+	 * node.  Otherwise we have old-style data where all the children of the
+	 * device node are the partitions.
+	 */
+	child = fdt_find_compatible(node, "fixed-partitions", false);
+	if (child == 0)
+		return fill_slices_from_node(node, slices, slices_num);
+	else
+		return fill_slices_from_node(child, slices, slices_num);
 }
 
 static void
 fdt_slicer_init(void)
 {
 
-	flash_register_slicer(fdt_flash_fill_slices, FLASH_SLICES_TYPE_NAND,
-	   FALSE);
-	flash_register_slicer(fdt_flash_fill_slices, FLASH_SLICES_TYPE_CFI,
-	   FALSE);
-	flash_register_slicer(fdt_flash_fill_slices, FLASH_SLICES_TYPE_SPI,
-	   FALSE);
+	flash_register_slicer(fill_slices, FLASH_SLICES_TYPE_NAND, false);
+	flash_register_slicer(fill_slices, FLASH_SLICES_TYPE_CFI, false);
+	flash_register_slicer(fill_slices, FLASH_SLICES_TYPE_SPI, false);
+}
+
+static void
+fdt_slicer_cleanup(void)
+{
+
+	flash_register_slicer(NULL, FLASH_SLICES_TYPE_NAND, true);
+	flash_register_slicer(NULL, FLASH_SLICES_TYPE_CFI, true);
+	flash_register_slicer(NULL, FLASH_SLICES_TYPE_SPI, true);
 }
 
 /*
@@ -134,5 +163,23 @@ fdt_slicer_init(void)
  * i. e. after g_init() is called, due to the use of the GEOM topology_lock
  * in flash_register_slicer().  However, must be before SI_SUB_CONFIGURE.
  */
-SYSINIT(fdt_slicer_rootconf, SI_SUB_DRIVERS, SI_ORDER_SECOND, fdt_slicer_init,
-    NULL);
+SYSINIT(fdt_slicer, SI_SUB_DRIVERS, SI_ORDER_SECOND, fdt_slicer_init, NULL);
+SYSUNINIT(fdt_slicer, SI_SUB_DRIVERS, SI_ORDER_SECOND, fdt_slicer_cleanup, NULL);
+
+static int
+mod_handler(module_t mod, int type, void *data)
+{
+
+	/*
+	 * Nothing to do here: the SYSINIT/SYSUNINIT defined above run
+	 * automatically at module load/unload time.
+	 */
+	return (0);
+}
+
+static moduledata_t fdt_slicer_mod = {
+	"fdt_slicer", mod_handler, NULL
+};
+
+DECLARE_MODULE(fdt_slicer, fdt_slicer_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+MODULE_VERSION(fdt_slicer, 1);

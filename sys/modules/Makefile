@@ -500,6 +500,10 @@ SUBDIR+=	iscsi
 SUBDIR+=	iscsi_initiator
 .endif
 
+.if !empty(OPT_FDT)
+SUBDIR+=	fdt
+.endif
+
 .if ${MK_NAND} != "no" || defined(ALL_MODULES)
 _nandfs=	nandfs
 _nandsim=	nandsim
