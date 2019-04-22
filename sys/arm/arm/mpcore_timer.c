@@ -415,7 +415,7 @@ arm_tmr_attach(device_t dev)
 			tc_err = attach_tc(sc);
 		else if (bootverbose)
 			device_printf(sc->dev,
-			    "not using variable-frequency device as timecounter");
+			    "not using variable-frequency device as timecounter\n");
 		sc->memrid++;
 		sc->irqrid++;
 	}
