@@ -93,6 +93,7 @@ const struct g_label_desc *g_labels[] = {
 	&g_label_reiserfs,
 	&g_label_ntfs,
 	&g_label_disk_ident,
+	&g_label_flashmap,
 #endif
 	NULL
 };
