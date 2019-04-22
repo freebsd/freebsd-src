@@ -97,6 +97,42 @@ g_nop_resize(struct g_consumer *cp)
 		g_resize_provider(pp, size);
 }
 
+static int
+g_nop_dumper(void *priv, void *virtual, vm_offset_t physical, off_t offset,
+    size_t length)
+{
+	return (0);
+}
+
+static void
+g_nop_kerneldump(struct bio *bp, struct g_nop_softc *sc)
+{
+	struct g_kerneldump *gkd;
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	gkd = (struct g_kerneldump *)bp->bio_data;
+	gp = bp->bio_to->geom;
+	g_trace(G_T_TOPOLOGY, "%s(%s, %jd, %jd)", __func__, gp->name,
+	    (intmax_t)gkd->offset, (intmax_t)gkd->length);
+
+	pp = LIST_FIRST(&gp->provider);
+
+	gkd->di.dumper = g_nop_dumper;
+	gkd->di.priv = sc;
+	gkd->di.blocksize = pp->sectorsize;
+	gkd->di.maxiosize = DFLTPHYS;
+	gkd->di.mediaoffset = sc->sc_offset + gkd->offset;
+	if (gkd->offset > sc->sc_explicitsize) {
+		g_io_deliver(bp, ENODEV);
+		return;
+	}
+	if (gkd->offset + gkd->length > sc->sc_explicitsize)
+		gkd->length = sc->sc_explicitsize - gkd->offset;
+	gkd->di.mediasize = gkd->length;
+	g_io_deliver(bp, 0);
+}
+
 static void
 g_nop_start(struct bio *bp)
 {
@@ -127,11 +163,18 @@ g_nop_start(struct bio *bp)
 	case BIO_GETATTR:
 		sc->sc_getattrs++;
 		if (sc->sc_physpath && 
-		    g_handleattr_str(bp, "GEOM::physpath", sc->sc_physpath)) {
-			mtx_unlock(&sc->sc_lock);
-			return;
-		}
-		break;
+		    g_handleattr_str(bp, "GEOM::physpath", sc->sc_physpath))
+			;
+		else if (strcmp(bp->bio_attribute, "GEOM::kerneldump") == 0)
+			g_nop_kerneldump(bp, sc);
+		else
+			/*
+			 * Fallthrough to forwarding the GETATTR down to the
+			 * lower level device.
+			 */
+			break;
+		mtx_unlock(&sc->sc_lock);
+		return;
 	case BIO_FLUSH:
 		sc->sc_flushes++;
 		break;
