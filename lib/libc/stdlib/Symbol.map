@@ -129,4 +129,5 @@ FBSDprivate_1.0 {
 	_system;
 	__libc_system;
 	__cxa_thread_call_dtors;
+	__libc_atexit;
 };
