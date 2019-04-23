@@ -1258,20 +1258,22 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	}
 
 	/*
-	 * Depending on whether or not the application has bound or connected
-	 * the socket, we may have to do varying levels of work.  The optimal
-	 * case is for a connected UDP socket, as a global lock isn't
-	 * required at all.
-	 *
-	 * In order to decide which we need, we require stability of the
-	 * inpcb binding, which we ensure by acquiring a read lock on the
-	 * inpcb.  This doesn't strictly follow the lock order, so we play
-	 * the trylock and retry game; note that we may end up with more
-	 * conservative locks than required the second time around, so later
-	 * assertions have to accept that.  Further analysis of the number of
-	 * misses under contention is required.
-	 *
-	 * XXXRW: Check that hash locking update here is correct.
+	 * In the old days, depending on whether or not the application had
+	 * bound or connected the socket, we had to do varying levels of work.
+	 * The optimal case was for a connected UDP socket, as a global lock
+	 * wasn't required at all.
+	 * In order to decide which we need, we required stability of the
+	 * inpcb binding, which we ensured by acquiring a read lock on the
+	 * inpcb.  This didn't strictly follow the lock order, so we played
+	 * the trylock and retry game.
+	 * With the re-introduction of the route-cache in some cases, we started
+	 * to acquire an early inp wlock and a possible race during re-lock
+	 * went away.  With the introduction of epoch(9) some read locking
+	 * became epoch(9) and the lock-order issues also went away.
+	 * Due to route-cache we may now hold more conservative locks than
+	 * otherwise required and have split up the 2nd case in case 2 and 3
+	 * in order to keep the udpinfo lock level in sync with the inp one
+	 * for the IP_SENDSRCADDR case below.
 	 */
 	pr = inp->inp_socket->so_proto->pr_protocol;
 	pcbinfo = udp_get_inpcbinfo(pr);
@@ -1279,14 +1281,21 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0)) {
 		INP_HASH_WLOCK(pcbinfo);
 		unlock_udbinfo = UH_WLOCKED;
-	} else if ((sin != NULL &&
-		(sin->sin_addr.s_addr == INADDR_ANY ||
-		sin->sin_addr.s_addr == INADDR_BROADCAST ||
-		inp->inp_laddr.s_addr == INADDR_ANY ||
-		inp->inp_lport == 0)) ||
-	    src.sin_family == AF_INET) {
+	} else if (sin != NULL &&
+	    (sin->sin_addr.s_addr == INADDR_ANY ||
+	    sin->sin_addr.s_addr == INADDR_BROADCAST ||
+	    inp->inp_laddr.s_addr == INADDR_ANY ||
+	    inp->inp_lport == 0)) {
 		INP_HASH_RLOCK_ET(pcbinfo, et);
 		unlock_udbinfo = UH_RLOCKED;
+	} else if (src.sin_family == AF_INET) {
+		if (unlock_inp == UH_WLOCKED) {
+			INP_HASH_WLOCK(pcbinfo);
+			unlock_udbinfo = UH_WLOCKED;
+		} else {
+			INP_HASH_RLOCK_ET(pcbinfo, et);
+			unlock_udbinfo = UH_RLOCKED;
+		}
 	} else
 		unlock_udbinfo = UH_UNLOCKED;
 
