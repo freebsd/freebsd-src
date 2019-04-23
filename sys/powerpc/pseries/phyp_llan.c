@@ -425,7 +425,7 @@ llan_send_packet(void *xsc, bus_dma_segment_t *segs, int nsegs,
 {
 	struct llan_softc *sc = xsc;
 	uint64_t bufdescs[6];
-	int i;
+	int i, err;
 
 	bzero(bufdescs, sizeof(bufdescs));
 
@@ -435,7 +435,7 @@ llan_send_packet(void *xsc, bus_dma_segment_t *segs, int nsegs,
 		bufdescs[i] |= segs[i].ds_addr;
 	}
 
-	phyp_hcall(H_SEND_LOGICAL_LAN, sc->unit, bufdescs[0],
+	err = phyp_hcall(H_SEND_LOGICAL_LAN, sc->unit, bufdescs[0],
 	    bufdescs[1], bufdescs[2], bufdescs[3], bufdescs[4], bufdescs[5], 0);
 	/*
 	 * The hypercall returning implies completion -- or that the call will
@@ -443,6 +443,10 @@ llan_send_packet(void *xsc, bus_dma_segment_t *segs, int nsegs,
 	 * H_BUSY based on the continuation token in R4. For now, just drop
 	 * the packet in such cases.
 	 */
+	if (err == H_SUCCESS)
+		if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
+	else
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 }
 
 static void
