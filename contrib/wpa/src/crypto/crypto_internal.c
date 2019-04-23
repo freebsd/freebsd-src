@@ -310,6 +310,9 @@ int crypto_hash_finish(struct crypto_hash *ctx, u8 *mac, size_t *len)
 
 	os_free(ctx);
 
+	if (TEST_FAIL())
+		return -1;
+
 	return 0;
 }
 

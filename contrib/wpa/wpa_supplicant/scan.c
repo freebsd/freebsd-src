@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant - Scanning
- * Copyright (c) 2003-2014, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -581,8 +581,8 @@ static struct wpabuf * wpa_supplicant_extra_ies(struct wpa_supplicant *wpa_s)
 #endif /* CONFIG_WPS */
 
 #ifdef CONFIG_HS20
-	if (wpa_s->conf->hs20 && wpabuf_resize(&extra_ie, 7) == 0)
-		wpas_hs20_add_indication(extra_ie, -1);
+	if (wpa_s->conf->hs20 && wpabuf_resize(&extra_ie, 9) == 0)
+		wpas_hs20_add_indication(extra_ie, -1, 0);
 #endif /* CONFIG_HS20 */
 
 #ifdef CONFIG_FST
@@ -1993,7 +1993,8 @@ static int wpa_scan_result_compar(const void *a, const void *b)
 	/* if SNR is close, decide by max rate or frequency band */
 	if (snr_a && snr_b && abs(snr_b - snr_a) < 7) {
 		if (wa->est_throughput != wb->est_throughput)
-			return wb->est_throughput - wa->est_throughput;
+			return (int) wb->est_throughput -
+				(int) wa->est_throughput;
 	}
 	if ((snr_a && snr_b && abs(snr_b - snr_a) < 5) ||
 	    (wa->qual && wb->qual && abs(wb->qual - wa->qual) < 10)) {
@@ -2805,6 +2806,13 @@ int wpas_mac_addr_rand_scan_set(struct wpa_supplicant *wpa_s,
 				const u8 *mask)
 {
 	u8 *tmp = NULL;
+
+	if ((wpa_s->mac_addr_rand_supported & type) != type ) {
+		wpa_printf(MSG_INFO,
+			   "scan: MAC randomization type %u != supported=%u",
+			   type, wpa_s->mac_addr_rand_supported);
+		return -1;
+	}
 
 	wpas_mac_addr_rand_scan_clear(wpa_s, type);
 

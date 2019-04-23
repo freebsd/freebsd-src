@@ -289,6 +289,9 @@ int hostapd_allowed_address(struct hostapd_data *hapd, const u8 *addr,
 			return HOSTAPD_ACL_ACCEPT;
 		};
 
+		if (hapd->conf->ssid.dynamic_vlan == DYNAMIC_VLAN_DISABLED)
+			vlan_id = NULL;
+
 		/* Check whether ACL cache has an entry for this station */
 		res = hostapd_acl_cache_get(hapd, addr, session_timeout,
 					    acct_interim_interval, vlan_id, psk,
@@ -516,7 +519,6 @@ hostapd_acl_recv_radius(struct radius_msg *msg, struct radius_msg *req,
 	struct hostapd_acl_query_data *query, *prev;
 	struct hostapd_cached_radius_acl *cache;
 	struct radius_hdr *hdr = radius_msg_get_hdr(msg);
-	int *untagged, *tagged, *notempty;
 
 	query = hapd->acl_queries;
 	prev = NULL;
@@ -574,12 +576,10 @@ hostapd_acl_recv_radius(struct radius_msg *msg, struct radius_msg *req,
 			cache->acct_interim_interval = 0;
 		}
 
-		notempty = &cache->vlan_id.notempty;
-		untagged = &cache->vlan_id.untagged;
-		tagged = cache->vlan_id.tagged;
-		*notempty = !!radius_msg_get_vlanid(msg, untagged,
-						    MAX_NUM_TAGGED_VLAN,
-						    tagged);
+		if (hapd->conf->ssid.dynamic_vlan != DYNAMIC_VLAN_DISABLED)
+			cache->vlan_id.notempty = !!radius_msg_get_vlanid(
+				msg, &cache->vlan_id.untagged,
+				MAX_NUM_TAGGED_VLAN, cache->vlan_id.tagged);
 
 		decode_tunnel_passwords(hapd, shared_secret, shared_secret_len,
 					msg, req, cache);

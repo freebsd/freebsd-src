@@ -413,17 +413,30 @@ int p2p_channel_select(struct p2p_channels *chans, const int *classes,
 
 
 int p2p_channel_random_social(struct p2p_channels *chans, u8 *op_class,
-			      u8 *op_channel)
+			      u8 *op_channel,
+			      struct wpa_freq_range_list *avoid_list,
+			      struct wpa_freq_range_list *disallow_list)
 {
 	u8 chan[4];
 	unsigned int num_channels = 0;
 
-	/* Try to find available social channels from 2.4 GHz */
-	if (p2p_channels_includes(chans, 81, 1))
+	/* Try to find available social channels from 2.4 GHz.
+	 * If the avoid_list includes any of the 2.4 GHz social channels, that
+	 * channel is not allowed by p2p_channels_includes() rules. However, it
+	 * is assumed to allow minimal traffic for P2P negotiation, so allow it
+	 * here for social channel selection unless explicitly disallowed in the
+	 * disallow_list. */
+	if (p2p_channels_includes(chans, 81, 1) ||
+	    (freq_range_list_includes(avoid_list, 2412) &&
+	     !freq_range_list_includes(disallow_list, 2412)))
 		chan[num_channels++] = 1;
-	if (p2p_channels_includes(chans, 81, 6))
+	if (p2p_channels_includes(chans, 81, 6) ||
+	    (freq_range_list_includes(avoid_list, 2437) &&
+	     !freq_range_list_includes(disallow_list, 2437)))
 		chan[num_channels++] = 6;
-	if (p2p_channels_includes(chans, 81, 11))
+	if (p2p_channels_includes(chans, 81, 11) ||
+	    (freq_range_list_includes(avoid_list, 2462) &&
+	     !freq_range_list_includes(disallow_list, 2462)))
 		chan[num_channels++] = 11;
 
 	/* Try to find available social channels from 60 GHz */

@@ -707,7 +707,9 @@ void p2p_channels_dump(struct p2p_data *p2p, const char *title,
 int p2p_channel_select(struct p2p_channels *chans, const int *classes,
 		       u8 *op_class, u8 *op_channel);
 int p2p_channel_random_social(struct p2p_channels *chans, u8 *op_class,
-			      u8 *op_channel);
+			      u8 *op_channel,
+			      struct wpa_freq_range_list *avoid_list,
+			      struct wpa_freq_range_list *disallow_list);
 
 /* p2p_parse.c */
 void p2p_copy_filter_devname(char *dst, size_t dst_len,

@@ -11,30 +11,30 @@ import threading
 from dbus.mainloop.glib import DBusGMainLoop
 
 def usage():
-	print "Usage:"
-	print "  %s -i <interface_name> [-p <persistent>] \ " \
-		% sys.argv[0]
-	print "		[-f <frequency>] [-o <group_object_path>] \ "
-	print "  		[-w <wpas_dbus_interface>]"
-	print "Options:"
-	print "  -i = interface name"
-	print "  -p = persistant group = 0 (0=false, 1=true)"
-	print "  -f = frequency"
-	print "  -o = persistent group object path"
-	print "  -w = wpas dbus interface = fi.w1.wpa_supplicant1"
-	print "Example:"
-	print "  %s -i wlan0" % sys.argv[0]
+	print("Usage:")
+	print("  %s -i <interface_name> [-p <persistent>] \ " \
+		% sys.argv[0])
+	print("		[-f <frequency>] [-o <group_object_path>] \ ")
+	print("  		[-w <wpas_dbus_interface>]")
+	print("Options:")
+	print("  -i = interface name")
+	print("  -p = persistant group = 0 (0=false, 1=true)")
+	print("  -f = frequency")
+	print("  -o = persistent group object path")
+	print("  -w = wpas dbus interface = fi.w1.wpa_supplicant1")
+	print("Example:")
+	print("  %s -i wlan0" % sys.argv[0])
 
 # Required Signals
 def GroupStarted(properties):
 	if properties.has_key("group_object"):
-		print 'Group Formation Complete %s' \
-			% properties["group_object"]
+		print('Group Formation Complete %s' \
+			% properties["group_object"])
 	os._exit(0)
 
 def WpsFailure(status, etc):
-	print "WPS Authentication Failure".format(status)
-	print etc
+	print("WPS Authentication Failure".format(status))
+	print(etc)
 	os._exit(0)
 
 class P2P_Group_Add (threading.Thread):
@@ -99,10 +99,10 @@ class P2P_Group_Add (threading.Thread):
 		try:
 			self.path = self.wpas.GetInterface(
 					self.interface_name)
-		except dbus.DBusException, exc:
+		except dbus.DBusException as exc:
 			error = 'Error:\n  Interface ' + self.interface_name \
 				+ ' was not found'
-			print error
+			print(error)
 			usage()
 			os._exit(0)
 
@@ -127,7 +127,7 @@ class P2P_Group_Add (threading.Thread):
 			if (int(self.frequency) > 0):
 				self.P2PDictionary.update({'frequency':int(self.frequency)})
 			else:
-				print "Error:\n  Frequency must be greater than 0"
+				print("Error:\n  Frequency must be greater than 0")
 				usage()
 				os._exit(0)
 
@@ -141,7 +141,7 @@ class P2P_Group_Add (threading.Thread):
 			self.p2p_interface.GroupAdd(self.P2PDictionary)
 
 		except:
-			print "Error:\n  Could not preform group add"
+			print("Error:\n  Could not preform group add")
 			usage()
 			os._exit(0)
 
@@ -188,7 +188,7 @@ if __name__ == "__main__":
 			elif (value == '1'):
 				persistent = True
 			else:
-				print "Error:\n  Persistent can only be 1 or 0"
+				print("Error:\n  Persistent can only be 1 or 0")
 				usage()
 				os._exit(0)
 		# Frequency
@@ -205,7 +205,7 @@ if __name__ == "__main__":
 
 	# Interface name is required and was not given
 	if (interface_name == None):
-		print "Error:\n  interface_name is required"
+		print("Error:\n  interface_name is required")
 		usage()
 		quit()
 
@@ -213,10 +213,10 @@ if __name__ == "__main__":
 		p2p_group_add_test = P2P_Group_Add(interface_name,wpas_dbus_interface,
 					persistent,frequency,persistent_group_object)
 	except:
-		print "Error:\n  Invalid Arguements"
+		print("Error:\n  Invalid Arguements")
 
 	p2p_group_add_test.constructArguements()
 	p2p_group_add_test.start()
 	time.sleep(5)
-	print "Error:\n  Group formation timed out"
+	print("Error:\n  Group formation timed out")
 	os._exit(0)

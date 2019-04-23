@@ -28,7 +28,7 @@ if __name__ == "__main__":
         input = sys.argv[1]
         pcap = sys.argv[2]
     except IndexError:
-        print "Usage: %s <log file> <pcap file>" % sys.argv[0]
+        print("Usage: %s <log file> <pcap file>" % sys.argv[0])
         sys.exit(2)
 
     input_file = open(input, 'r')

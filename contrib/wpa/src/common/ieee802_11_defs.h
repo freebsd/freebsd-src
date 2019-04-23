@@ -1,6 +1,6 @@
 /*
  * IEEE 802.11 Frame type definitions
- * Copyright (c) 2002-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2007-2008 Intel Corporation
  *
  * This software may be distributed under the terms of the BSD license.
@@ -334,7 +334,7 @@
 #define WLAN_EID_LOCATION_PARAMETERS 82
 #define WLAN_EID_NONTRANSMITTED_BSSID_CAPA 83
 #define WLAN_EID_SSID_LIST 84
-#define WLAN_EID_MLTIPLE_BSSID_INDEX 85
+#define WLAN_EID_MULTIPLE_BSSID_INDEX 85
 #define WLAN_EID_FMS_DESCRIPTOR 86
 #define WLAN_EID_FMS_REQUEST 87
 #define WLAN_EID_FMS_RESPONSE 88
@@ -467,7 +467,89 @@
 #define WLAN_EID_EXT_PASSWORD_IDENTIFIER 33
 #define WLAN_EID_EXT_HE_CAPABILITIES 35
 #define WLAN_EID_EXT_HE_OPERATION 36
+#define WLAN_EID_EXT_HE_MU_EDCA_PARAMS 38
+#define WLAN_EID_EXT_OCV_OCI 54
 
+/* Extended Capabilities field */
+#define WLAN_EXT_CAPAB_20_40_COEX 0
+#define WLAN_EXT_CAPAB_GLK 1
+#define WLAN_EXT_CAPAB_EXT_CHAN_SWITCH 2
+#define WLAN_EXT_CAPAB_GLK_GCR 3
+#define WLAN_EXT_CAPAB_PSMP 4
+/* 5 - Reserved */
+#define WLAN_EXT_CAPAB_S_PSMP 6
+#define WLAN_EXT_CAPAB_EVENT 7
+#define WLAN_EXT_CAPAB_DIAGNOSTICS 8
+#define WLAN_EXT_CAPAB_MULTICAST_DIAGNOSTICS 9
+#define WLAN_EXT_CAPAB_LOCATION_TRACKING 10
+#define WLAN_EXT_CAPAB_FMS 11
+#define WLAN_EXT_CAPAB_PROXY_ARP 12
+#define WLAN_EXT_CAPAB_COLL_INTERF_REP 13
+#define WLAN_EXT_CAPAB_CIVIC_LOCATION 14
+#define WLAN_EXT_CAPAB_GEOSPATIAL_LOCATION 15
+#define WLAN_EXT_CAPAB_TFS 16
+#define WLAN_EXT_CAPAB_WNM_SLEEP_MODE 17
+#define WLAN_EXT_CAPAB_TIM_BROADCAST 18
+#define WLAN_EXT_CAPAB_BSS_TRANSITION 19
+#define WLAN_EXT_CAPAB_QOS_TRAFFIC 20
+#define WLAN_EXT_CAPAB_AC_STA_COUNT 21
+#define WLAN_EXT_CAPAB_MULTIPLE_BSSID 22
+#define WLAN_EXT_CAPAB_TIMING_MEASUREMENT 23
+#define WLAN_EXT_CAPAB_CHANNEL_USAGE 24
+#define WLAN_EXT_CAPAB_SSID_LIST 25
+#define WLAN_EXT_CAPAB_DMS 26
+#define WLAN_EXT_CAPAB_UTF_TSF_OFFSET 27
+#define WLAN_EXT_CAPAB_TPU_BUFFER_STA 28
+#define WLAN_EXT_CAPAB_TDLS_PEER_PSM 29
+#define WLAN_EXT_CAPAB_TDLS_CHANNEL_SWITCH 30
+#define WLAN_EXT_CAPAB_INTERWORKING 31
+#define WLAN_EXT_CAPAB_QOS_MAP 32
+#define WLAN_EXT_CAPAB_EBR 33
+#define WLAN_EXT_CAPAB_SSPN_INTERFACE 34
+/* 35 - Reserved */
+#define WLAN_EXT_CAPAB_MSGCF 36
+#define WLAN_EXT_CAPAB_TDLS 37
+#define WLAN_EXT_CAPAB_TDLS_PROHIBITED 38
+#define WLAN_EXT_CAPAB_TDLS_CHANNEL_SWITCH_PROHIBITED 39
+#define WLAN_EXT_CAPAB_REJECT_UNADMITTED_FRAME 40
+#define WLAN_EXT_CAPAB_
+/* 41-43 - Service Interval Granularity */
+#define WLAN_EXT_CAPAB_IDENTIFIER_LOCATION 44
+#define WLAN_EXT_CAPAB_U_APSD_COEX 45
+#define WLAN_EXT_CAPAB_WNM_NOTIFCATION 46
+#define WLAN_EXT_CAPAB_QAB 47
+#define WLAN_EXT_CAPAB_UTF_8_SSID 48
+#define WLAN_EXT_CAPAB_QMF 49
+#define WLAN_EXT_CAPAB_QMF_RECONFIG 50
+#define WLAN_EXT_CAPAB_ROBUST_AV_STREAMING 51
+#define WLAN_EXT_CAPAB_ADVANCED_GCR 52
+#define WLAN_EXT_CAPAB_MESH_GCR 53
+#define WLAN_EXT_CAPAB_SCS 54
+#define WLAN_EXT_CAPAB_QLOAD_REPORT 55
+#define WLAN_EXT_CAPAB_ALT_EDCA 56
+#define WLAN_EXT_CAPAB_UNPROT_TXOP_NEG 57
+#define WLAN_EXT_CAPAB_PROT_TXOP_NEG 58
+/* 59 - Reserved */
+#define WLAN_EXT_CAPAB_PROT_QLOAD_REPORT 60
+#define WLAN_EXT_CAPAB_TDLS_WIDER_BW 61
+#define WLAN_EXT_CAPAB_OPMODE_NOTIF 62
+#define WLAN_EXT_CAPAB_
+/* 63-64 - Max Number of MSDUs In A-MSDU */
+#define WLAN_EXT_CAPAB_CHANNEL_SCHEDULE_MGMT 65
+#define WLAN_EXT_CAPAB_GEODB_INBAND_ENABLING_SIGNAL 66
+#define WLAN_EXT_CAPAB_NETWORK_CHANNEL_CTRL 67
+#define WLAN_EXT_CAPAB_WHITE_SPACE_MAP 68
+#define WLAN_EXT_CAPAB_CHANNEL_AVAIL_QUERY 69
+#define WLAN_EXT_CAPAB_FTM_RESPONDER 70
+#define WLAN_EXT_CAPAB_FTM_INITIATOR 71
+#define WLAN_EXT_CAPAB_FILS 72
+#define WLAN_EXT_CAPAB_EXT_SPECTRUM_MGMT 73
+#define WLAN_EXT_CAPAB_FUTURE_CHANNEL_GUIDANCE 74
+#define WLAN_EXT_CAPAB_PAD 75
+/* 76-79 - Reserved */
+#define WLAN_EXT_CAPAB_COMPLETE_NON_TX_BSSID_PROFILE 80
+#define WLAN_EXT_CAPAB_SAE_PW_ID 81
+#define WLAN_EXT_CAPAB_SAE_PW_ID_EXCLUSIVELY 82
 
 /* Action frame categories (IEEE Std 802.11-2016, 9.4.1.11, Table 9-76) */
 #define WLAN_ACTION_SPECTRUM_MGMT 0
@@ -865,10 +947,12 @@ struct ieee80211_mgmt {
 				struct {
 					u8 action;
 					u8 trans_id[WLAN_SA_QUERY_TR_ID_LEN];
+					u8 variable[]; /* OCI element */
 				} STRUCT_PACKED sa_query_req;
 				struct {
 					u8 action; /* */
 					u8 trans_id[WLAN_SA_QUERY_TR_ID_LEN];
+					u8 variable[]; /* OCI element */
 				} STRUCT_PACKED sa_query_resp;
 				struct {
 					u8 action;
@@ -1210,6 +1294,13 @@ struct ieee80211_ampe_ie {
 #define MBO_OUI_TYPE 22
 #define OWE_IE_VENDOR_TYPE 0x506f9a1c
 #define OWE_OUI_TYPE 28
+#define MULTI_AP_OUI_TYPE 0x1B
+
+#define MULTI_AP_SUB_ELEM_TYPE 0x06
+#define MULTI_AP_TEAR_DOWN BIT(4)
+#define MULTI_AP_FRONTHAUL_BSS BIT(5)
+#define MULTI_AP_BACKHAUL_BSS BIT(6)
+#define MULTI_AP_BACKHAUL_STA BIT(7)
 
 #define WMM_OUI_TYPE 2
 #define WMM_OUI_SUBTYPE_INFORMATION_ELEMENT 0
@@ -1347,13 +1438,15 @@ enum wmm_ac {
 #define HS20_PPS_MO_ID_PRESENT 0x02
 #define HS20_ANQP_DOMAIN_ID_PRESENT 0x04
 #ifndef HS20_VERSION
-#define HS20_VERSION 0x10 /* Release 2 */
+#define HS20_VERSION 0x20 /* Release 3 */
 #endif /* HS20_VERSION */
 
 /* WNM-Notification WFA vendors specific subtypes */
 #define HS20_WNM_SUB_REM_NEEDED 0
 #define HS20_WNM_DEAUTH_IMMINENT_NOTICE 1
-#define HS20_WNM_T_C_ACCEPTANCE 2
+#define WFA_WNM_NOTIF_SUBELEM_NON_PREF_CHAN_REPORT 2
+#define WFA_WNM_NOTIF_SUBELEM_CELL_DATA_CAPA 3
+#define HS20_WNM_T_C_ACCEPTANCE 4
 
 #define HS20_DEAUTH_REASON_CODE_BSS 0
 #define HS20_DEAUTH_REASON_CODE_ESS 1
@@ -1440,12 +1533,6 @@ enum mbo_transition_reject_reason {
 	MBO_TRANSITION_REJECT_REASON_RSSI = 4,
 	MBO_TRANSITION_REJECT_REASON_INTERFERENCE = 5,
 	MBO_TRANSITION_REJECT_REASON_SERVICES = 6,
-};
-
-/* MBO v0.0_r19, 4.4: WNM-Notification vendor subelements */
-enum wfa_wnm_notif_subelem_id {
-	WFA_WNM_NOTIF_SUBELEM_NON_PREF_CHAN_REPORT = 2,
-	WFA_WNM_NOTIF_SUBELEM_CELL_DATA_CAPA = 3,
 };
 
 /* MBO v0.0_r27, 4.3: MBO ANQP-elements */
@@ -1841,11 +1928,14 @@ enum beacon_report_mode {
 };
 
 /* IEEE Std 802.11-2016, Table 9-88 - Beacon Request subelement IDs */
+/* IEEE P802.11-REVmd/D2.0, Table 9-106 - Optional subelement IDs for
+ * Beacon request */
 #define WLAN_BEACON_REQUEST_SUBELEM_SSID	0
 #define WLAN_BEACON_REQUEST_SUBELEM_INFO	1 /* Beacon Reporting */
 #define WLAN_BEACON_REQUEST_SUBELEM_DETAIL	2 /* Reporting Detail */
 #define WLAN_BEACON_REQUEST_SUBELEM_REQUEST	10
 #define WLAN_BEACON_REQUEST_SUBELEM_AP_CHANNEL	51 /* AP Channel Report */
+#define WLAN_BEACON_REQUEST_SUBELEM_LAST_INDICATION	164
 #define WLAN_BEACON_REQUEST_SUBELEM_VENDOR	221
 
 /*
@@ -1895,8 +1985,20 @@ struct rrm_measurement_beacon_report {
 } STRUCT_PACKED;
 
 /* IEEE Std 802.11-2016, Table 9-112 - Beacon report Subelement IDs */
+/* IEEE P802.11-REVmd/D2.0, Table 9-130 - Optional subelement IDs for
+ * Beacon report */
 #define WLAN_BEACON_REPORT_SUBELEM_FRAME_BODY	1
+#define WLAN_BEACON_REPORT_SUBELEM_FRAME_BODY_FRAGMENT_ID	2
+#define WLAN_BEACON_REPORT_SUBELEM_LAST_INDICATION	164
 #define WLAN_BEACON_REPORT_SUBELEM_VENDOR	221
+
+/* IEEE P802.11-REVmd/D2.0, Table 9-232 - Data field format of the
+ * Reported Frame Body Fragment ID subelement */
+#define REPORTED_FRAME_BODY_SUBELEM_LEN		4
+#define REPORTED_FRAME_BODY_MORE_FRAGMENTS	BIT(7)
+
+/* IEEE P802.11-REVmd/D2.0, 9.4.2.21.7 - Beacon report  */
+#define BEACON_REPORT_LAST_INDICATION_SUBELEM_LEN	3
 
 /* IEEE Std 802.11ad-2012 - Multi-band element */
 struct multi_band_ie {
@@ -2000,14 +2102,15 @@ enum nr_chan_width {
 };
 
 struct ieee80211_he_capabilities {
-	u8 he_mac_capab_info[5];
-	u8 he_phy_capab_info[9];
+	u8 he_mac_capab_info[6];
+	u8 he_phy_capab_info[11];
 	u8 he_txrx_mcs_support[12]; /* TODO: 4, 8, or 12 octets */
 	/* PPE Thresholds (optional) */
 } STRUCT_PACKED;
 
 struct ieee80211_he_operation {
-	u32 he_oper_params;
+	u32 he_oper_params; /* HE Operation Parameters[3] and
+			     * BSS Color Information[1] */
 	u8 he_mcs_nss_set[2];
 	u8 vht_op_info_chwidth;
 	u8 vht_op_info_chan_center_freq_seg0_idx;
@@ -2024,28 +2127,55 @@ struct ieee80211_he_operation {
 #define HE_PHYCAP_MU_BEAMFORMER_CAPAB		((u8) BIT(1))
 
 /* HE Operation defines */
+/* HE Operation Parameters and BSS Color Information fields */
 #define HE_OPERATION_BSS_COLOR_MASK		((u32) (BIT(0) | BIT(1) | \
 							BIT(2) | BIT(3) | \
 							BIT(4) | BIT(5)))
-#define HE_OPERATION_DFLT_PE_DURATION_MASK	((u32) (BIT(6) | BIT(7) | \
-							BIT(8)))
-#define HE_OPERATION_DFLT_PE_DURATION_OFFSET	6
-#define HE_OPERATION_TWT_REQUIRED		((u32) BIT(9))
-#define HE_OPERATION_RTS_THRESHOLD_MASK	((u32) (BIT(10) | BIT(11) | \
-						BIT(12) | BIT(13) | \
+#define HE_OPERATION_PARTIAL_BSS_COLOR		((u32) BIT(6))
+#define HE_OPERATION_BSS_COLOR_DISABLED		((u32) BIT(7))
+#define HE_OPERATION_DFLT_PE_DURATION_MASK	((u32) (BIT(8) | BIT(9) | \
+							BIT(10)))
+#define HE_OPERATION_DFLT_PE_DURATION_OFFSET	8
+#define HE_OPERATION_TWT_REQUIRED		((u32) BIT(11))
+#define HE_OPERATION_RTS_THRESHOLD_MASK	((u32) (BIT(12) | BIT(13) | \
 						BIT(14) | BIT(15) | \
 						BIT(16) | BIT(17) | \
-						BIT(18) | BIT(19)))
-#define HE_OPERATION_RTS_THRESHOLD_OFFSET	10
-#define HE_OPERATION_PARTIAL_BSS_COLOR		((u32) BIT(20))
-#define HE_OPERATION_MAX_BSSID_INDICATOR_MASK	((u32) (BIT(21) | BIT(22) | \
-							BIT(23) | BIT(24) | \
-							BIT(25) | BIT(26) | \
-							BIT(27) | BIT(28)))
-#define HE_OPERATION_MAX_BSSID_INDICATOR_OFFSET 21
-#define HE_OPERATION_TX_BSSID_INDICATOR		((u32) BIT(29))
-#define HE_OPERATION_BSS_COLOR_DISABLED		((u32) BIT(30))
-#define HE_OPERATION_BSS_DUAL_BEACON		((u32) BIT(31))
+						BIT(18) | BIT(19) | \
+						BIT(20) | BIT(21)))
+#define HE_OPERATION_RTS_THRESHOLD_OFFSET	12
+
+struct ieee80211_he_mu_edca_parameter_set {
+	u8 he_qos_info;
+	u8 he_mu_ac_be_param[3];
+	u8 he_mu_ac_bk_param[3];
+	u8 he_mu_ac_vi_param[3];
+	u8 he_mu_ac_vo_param[3];
+} STRUCT_PACKED;
+
+/* HE MU AC parameter record field format */
+/* ACI/AIFSN */
+#define HE_MU_AC_PARAM_ACI_IDX 0
+#define HE_MU_AC_PARAM_AIFSN ((u8) (BIT(0) | BIT(1) | BIT(2) | BIT(3)))
+#define HE_MU_AC_PARAM_ACM ((u8) BIT(4))
+#define HE_MU_AC_PARAM_ACI ((u8) (BIT(5) | BIT(6)))
+/* B7: Reserved */
+
+/* ECWmin/ECWmax */
+#define HE_MU_AC_PARAM_ECW_IDX 1
+#define HE_MU_AC_PARAM_ECWMIN ((u8) (BIT(0) | BIT(1) | BIT(2) | BIT(3)))
+#define HE_MU_AC_PARAM_ECWMAX ((u8) (BIT(4) | BIT(5) | BIT(6) | BIT(7)))
+
+/* MU EDCA Timer */
+#define HE_MU_AC_PARAM_TIMER_IDX 2
+
+/* HE QoS Info field */
+#define HE_QOS_INFO_EDCA_PARAM_SET_COUNT ((u8) (BIT(0) | BIT(1) | \
+						BIT(2) | BIT(3)))
+#define HE_QOS_INFO_Q_ACK ((u8) (BIT(4)))
+#define HE_QOS_INFO_QUEUE_REQUEST ((u8) (BIT(5)))
+#define HE_QOS_INFO_TXOP_REQUEST ((u8) (BIT(6)))
+/* B7: Reserved if sent by an AP; More Data Ack if sent by a non-AP STA */
+#define HE_QOS_INFO_MORE_DATA_ACK ((u8) (BIT(7)))
 
 /* DPP Public Action frame identifiers - OUI_WFA */
 #define DPP_OUI_TYPE 0x1A
