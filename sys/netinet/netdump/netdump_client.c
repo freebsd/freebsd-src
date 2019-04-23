@@ -1140,7 +1140,9 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 	struct netdump_conf *conf;
 	uint8_t *encryptedkey;
 	int error;
+#ifdef COMPAT_FREEBSD11
 	u_int u;
+#endif
 
 	error = 0;
 	switch (cmd) {
