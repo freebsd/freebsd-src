@@ -36,8 +36,13 @@
 ASENTRY(phyp_hcall)
 	mflr	%r0
 	std	%r0,16(%r1)
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+	ld	%r11,96(%r1)		/* Last couple args into volatile regs*/
+	ld	%r12,104(%r1)
+#else
 	ld	%r11,112(%r1)		/* Last couple args into volatile regs*/
 	ld	%r12,120(%r1)
+#endif
 	hc				/* invoke the hypervisor */
 	ld	%r0,16(%r1)
 	mtlr	%r0
