@@ -434,7 +434,6 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 
 	if (newsize < oldsize) {
 		daddr_t lbn;
-		size_t zsize;
 
 		err = vtruncbuf(vp, cred, newsize, fuse_iosize(vp));
 		if (err)
@@ -454,8 +453,8 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 		}
 		if (!(bp->b_flags & B_CACHE))
 			goto out;	/* Nothing to do */
-		zsize = (lbn + 1) * iosize - newsize;
-		bzero(bp->b_data + newsize - lbn * iosize, zsize);
+		MPASS(bp->b_flags & B_VMIO);
+		vfs_bio_clrbuf(bp);
 	}
 out:
 	if (bp)
