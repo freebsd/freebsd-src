@@ -310,14 +310,23 @@ buf_ring_peek_clear_sc(struct buf_ring *br)
 	if (!mtx_owned(br->br_lock))
 		panic("lock not held on single consumer dequeue");
 #endif	
-	/*
-	 * I believe it is safe to not have a memory barrier
-	 * here because we control cons and tail is worst case
-	 * a lagging indicator so we worst case we might
-	 * return NULL immediately after a buffer has been enqueued
-	 */
+
 	if (br->br_cons_head == br->br_prod_tail)
 		return (NULL);
+
+#if defined(__arm__) || defined(__aarch64__)
+	/*
+	 * The barrier is required there on ARM and ARM64 to ensure, that
+	 * br->br_ring[br->br_cons_head] will not be fetched before the above
+	 * condition is checked.
+	 * Without the barrier, it is possible, that buffer will be fetched
+	 * before the enqueue will put mbuf into br, then, in the meantime, the
+	 * enqueue will update the array and the br_prod_tail, and the
+	 * conditional check will be true, so we will return previously fetched
+	 * (and invalid) buffer.
+	 */
+	atomic_thread_fence_acq();
+#endif
 
 #ifdef DEBUG_BUFRING
 	/*
