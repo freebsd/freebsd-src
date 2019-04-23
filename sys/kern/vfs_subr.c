@@ -1883,7 +1883,7 @@ vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length, int blksize)
 restart:
 	bo = &vp->v_bufobj;
 	BO_LOCK(bo);
-	if (v_inval_buf_range1(vp, bo, length, INT64_MAX) == EAGAIN)
+	if (v_inval_buf_range1(vp, bo, startlbn, INT64_MAX) == EAGAIN)
 		goto restart;
 
 	if (length > 0) {
