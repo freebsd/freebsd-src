@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+ATF_TEST=true
+class=mirror
+. $(atf_get_srcdir)/conf.sh
+
 atf_test_case run_latest_genid cleanup
 run_latest_genid_head()
 {
@@ -9,7 +13,10 @@ run_latest_genid_head()
 }
 run_latest_genid_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geom_atf_test_setup
+	if ! error_message=$(geom_load_class_if_needed nop); then
+		atf_skip "$error_message"
+	fi
 
 	f1=$(mktemp ${base}.XXXXXX)
 	f2=$(mktemp ${base}.XXXXXX)
