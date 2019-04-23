@@ -211,7 +211,7 @@ FILES+=		inetd
 .endif
 
 .if ${MK_IPFILTER} != "no"
-CONFS+=	ipfilter \
+FILES+=	ipfilter \
 	ipfs \
 	ipmon \
 	ipnat
