@@ -500,8 +500,6 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	ifp = TUN2IFP(tp);
 
 	mtx_lock(&tp->tun_mtx);
-	tp->tun_flags &= ~TUN_OPEN;
-	tp->tun_pid = 0;
 
 	/*
 	 * junk all pending output
@@ -540,6 +538,8 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	selwakeuppri(&tp->tun_rsel, PZERO + 1);
 	KNOTE_LOCKED(&tp->tun_rsel.si_note, 0);
 	TUNDEBUG (ifp, "closed\n");
+	tp->tun_flags &= ~TUN_OPEN;
+	tp->tun_pid = 0;
 
 	cv_broadcast(&tp->tun_cv);
 	mtx_unlock(&tp->tun_mtx);
