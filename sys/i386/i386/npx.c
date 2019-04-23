@@ -313,7 +313,7 @@ cleanup:
 }
 
 static void
-npxsave_xsaveopt(union savefpu *addr)
+fpusave_xsaveopt(union savefpu *addr)
 {
 
 	xsaveopt((char *)addr, xsave_mask);
@@ -352,24 +352,13 @@ init_xsave(void)
 	TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
 }
 
-DEFINE_IFUNC(, void, npxsave_core, (union savefpu *), static)
-{
-
-	init_xsave();
-	if (use_xsave)
-		return ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
-		    npxsave_xsaveopt : fpusave_xsave);
-	if (cpu_fxsr)
-		return (fpusave_fxsave);
-	return (fpusave_fnsave);
-}
-
 DEFINE_IFUNC(, void, fpusave, (union savefpu *), static)
 {
 
 	init_xsave();
 	if (use_xsave)
-		return (fpusave_xsave);
+		return ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
+		    fpusave_xsaveopt : fpusave_xsave);
 	if (cpu_fxsr)
 		return (fpusave_fxsave);
 	return (fpusave_fnsave);
@@ -483,6 +472,7 @@ npxinit(bool bsp)
 static void
 npxinitstate(void *arg __unused)
 {
+	uint64_t *xstate_bv;
 	register_t saveintr;
 	int cp[4], i, max_ext_n;
 
@@ -494,7 +484,10 @@ npxinitstate(void *arg __unused)
 	saveintr = intr_disable();
 	stop_emulating();
 
-	fpusave(npx_initialstate);
+	if (cpu_fxsr)
+		fpusave_fxsave(npx_initialstate);
+	else
+		fpusave_fnsave(npx_initialstate);
 	if (cpu_fxsr) {
 		if (npx_initialstate->sv_xmm.sv_env.en_mxcsr_mask)
 			cpu_mxcsr_mask = 
@@ -515,6 +508,7 @@ npxinitstate(void *arg __unused)
 		    sizeof(npx_initialstate->sv_xmm.sv_fp));
 		bzero(npx_initialstate->sv_xmm.sv_xmm,
 		    sizeof(npx_initialstate->sv_xmm.sv_xmm));
+
 	} else
 		bzero(npx_initialstate->sv_87.sv_ac,
 		    sizeof(npx_initialstate->sv_87.sv_ac));
@@ -524,6 +518,10 @@ npxinitstate(void *arg __unused)
 	 * Save Area.
 	 */
 	if (use_xsave) {
+		xstate_bv = (uint64_t *)((char *)(npx_initialstate + 1) +
+		    offsetof(struct xstate_hdr, xstate_bv));
+		*xstate_bv = XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE;
+
 		if (xsave_mask >> 32 != 0)
 			max_ext_n = fls(xsave_mask >> 32) + 32;
 		else
@@ -922,7 +920,7 @@ npxsave(union savefpu *addr)
 {
 
 	stop_emulating();
-	npxsave_core(addr);
+	fpusave(addr);
 }
 
 void npxswitch(struct thread *td, struct pcb *pcb);
