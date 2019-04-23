@@ -350,32 +350,50 @@ TEST_F(Setattr, truncate) {
  * Truncating a file should discard cached data past the truncation point.
  * This is a regression test for bug 233783.  The bug only applies when
  * vfs.fusefs.data_cache_mode=1 or 2, but the test should pass regardless.
+ *
+ * There are two distinct failure modes.  The first one is a failure to zero
+ * the portion of the file's final buffer past EOF.  It can be reproduced by
+ * fsx -WR -P /tmp -S10 fsx.bin
+ *
+ * The second is a failure to drop buffers beyond that.  It can be reproduced by
+ * fsx -WR -P /tmp -S18 -n fsx.bin
+ * Also reproducible in sh with:
+ * $> /path/to/libfuse/build/example/passthrough -d /tmp/mnt
+ * $> cd /tmp/mnt/tmp
+ * $> dd if=/dev/random of=randfile bs=1k count=192
+ * $> truncate -s 1k randfile && truncate -s 192k randfile
+ * $> xxd randfile | less # xxd will wrongly show random data at offset 0x8000
  */
 TEST_F(Setattr, truncate_discards_cached_data) {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	void *w0buf, *rbuf, *expected;
-	off_t w0_offset = 0x1b8df;
-	size_t w0_size = 0x61e8;
-	off_t r_offset = 0xe1e6;
-	off_t r_size = 0xe229;
-	size_t trunc0_size = 0x10016;
-	size_t trunc1_size = 131072;
+	void *w0buf, *r0buf, *r1buf, *expected;
+	off_t w0_offset = 0;
+	size_t w0_size = 0x30000;
+	off_t r0_offset = 0;
+	off_t r0_size = w0_size;
+	size_t trunc0_size = 0x400;
+	size_t trunc1_size = w0_size;
+	off_t r1_offset = trunc0_size;
+	off_t r1_size = w0_size - trunc0_size;
 	size_t cur_size = 0;
 	const uint64_t ino = 42;
 	mode_t mode = S_IFREG | 0644;
-	int fd;
+	int fd, r;
+	bool should_have_data = false;
 
 	w0buf = malloc(w0_size);
 	ASSERT_NE(NULL, w0buf) << strerror(errno);
 	memset(w0buf, 'X', w0_size);
 
-	rbuf = malloc(r_size);
-	ASSERT_NE(NULL, rbuf) << strerror(errno);
+	r0buf = malloc(r0_size);
+	ASSERT_NE(NULL, r0buf) << strerror(errno);
+	r1buf = malloc(r1_size);
+	ASSERT_NE(NULL, r1buf) << strerror(errno);
 
-	expected = malloc(r_size);
+	expected = malloc(r1_size);
 	ASSERT_NE(NULL, expected) << strerror(errno);
-	memset(expected, 0, r_size);
+	memset(expected, 0, r1_size);
 
 	expect_lookup(RELPATH, ino, mode, 0, 1);
 	expect_open(ino, O_RDWR, 1);
@@ -435,24 +453,34 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 		auto osize = std::min(cur_size - in->body.read.offset,
 			(size_t)in->body.read.size);
 		out->header.len = sizeof(struct fuse_out_header) + osize;
-		bzero(out->body.bytes, osize);
+		if (should_have_data)
+			memset(out->body.bytes, 'X', osize);
+		else
+			bzero(out->body.bytes, osize);
 	})));
 
 	fd = open(FULLPATH, O_RDWR, 0644);
 	ASSERT_LE(0, fd) << strerror(errno);
 
+	/* Fill the file with Xs */
 	ASSERT_EQ((ssize_t)w0_size, pwrite(fd, w0buf, w0_size, w0_offset));
+	should_have_data = true;
+	/* Fill the cache, if data_cache_mode == 1 */
+	ASSERT_EQ((ssize_t)r0_size, pread(fd, r0buf, r0_size, r0_offset));
 	/* 1st truncate should discard cached data */
 	EXPECT_EQ(0, ftruncate(fd, trunc0_size)) << strerror(errno);
+	should_have_data = false;
 	/* 2nd truncate extends file into previously cached data */
 	EXPECT_EQ(0, ftruncate(fd, trunc1_size)) << strerror(errno);
 	/* Read should return all zeros */
-	ASSERT_EQ((ssize_t)r_size, pread(fd, rbuf, r_size, r_offset));
+	ASSERT_EQ((ssize_t)r1_size, pread(fd, r1buf, r1_size, r1_offset));
 
-	ASSERT_EQ(0, memcmp(expected, rbuf, r_size));
+	r = memcmp(expected, r1buf, r1_size);
+	ASSERT_EQ(0, r);
 
 	free(expected);
-	free(rbuf);
+	free(r1buf);
+	free(r0buf);
 	free(w0buf);
 }
 
