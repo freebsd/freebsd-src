@@ -558,7 +558,7 @@ int hostapd_send_range_req(struct hostapd_data *hapd, const u8 *addr,
 
 void hostapd_clean_rrm(struct hostapd_data *hapd)
 {
-	hostpad_free_neighbor_db(hapd);
+	hostapd_free_neighbor_db(hapd);
 	eloop_cancel_timeout(hostapd_lci_rep_timeout_handler, hapd, NULL);
 	hapd->lci_req_active = 0;
 	eloop_cancel_timeout(hostapd_range_rep_timeout_handler, hapd, NULL);

@@ -236,7 +236,7 @@ static void eap_pwd_build_commit_req(struct eap_sm *sm,
 				     struct eap_pwd_data *data, u8 id)
 {
 	struct crypto_bignum *mask = NULL;
-	u8 *scalar = NULL, *element = NULL;
+	u8 *scalar, *element;
 	size_t prime_len, order_len;
 
 	wpa_printf(MSG_DEBUG, "EAP-pwd: Commit/Request");
@@ -261,18 +261,9 @@ static void eap_pwd_build_commit_req(struct eap_sm *sm,
 		goto fin;
 	}
 
-	if (crypto_bignum_rand(data->private_value,
-			       crypto_ec_get_order(data->grp->group)) < 0 ||
-	    crypto_bignum_rand(mask,
-			       crypto_ec_get_order(data->grp->group)) < 0 ||
-	    crypto_bignum_add(data->private_value, mask, data->my_scalar) < 0 ||
-	    crypto_bignum_mod(data->my_scalar,
-			      crypto_ec_get_order(data->grp->group),
-			      data->my_scalar) < 0) {
-		wpa_printf(MSG_INFO,
-			   "EAP-pwd (server): unable to get randomness");
+	if (eap_pwd_get_rand_mask(data->grp, data->private_value, mask,
+				  data->my_scalar) < 0)
 		goto fin;
-	}
 
 	if (crypto_ec_point_mul(data->grp->group, data->grp->pwe, mask,
 				data->my_element) < 0) {
@@ -288,22 +279,6 @@ static void eap_pwd_build_commit_req(struct eap_sm *sm,
 		goto fin;
 	}
 
-	scalar = os_malloc(order_len);
-	element = os_malloc(prime_len * 2);
-	if (!scalar || !element) {
-		wpa_printf(MSG_INFO, "EAP-PWD (server): data allocation fail");
-		goto fin;
-	}
-
-	if (crypto_ec_point_to_bin(data->grp->group, data->my_element, element,
-				   element + prime_len) < 0) {
-		wpa_printf(MSG_INFO, "EAP-PWD (server): point assignment "
-			   "fail");
-		goto fin;
-	}
-
-	crypto_bignum_to_bin(data->my_scalar, scalar, order_len, order_len);
-
 	data->outbuf = wpabuf_alloc(2 * prime_len + order_len +
 				    (data->salt ? 1 + data->salt_len : 0));
 	if (data->outbuf == NULL)
@@ -316,13 +291,18 @@ static void eap_pwd_build_commit_req(struct eap_sm *sm,
 	}
 
 	/* We send the element as (x,y) followed by the scalar */
-	wpabuf_put_data(data->outbuf, element, 2 * prime_len);
-	wpabuf_put_data(data->outbuf, scalar, order_len);
+	element = wpabuf_put(data->outbuf, 2 * prime_len);
+	scalar = wpabuf_put(data->outbuf, order_len);
+	crypto_bignum_to_bin(data->my_scalar, scalar, order_len, order_len);
+	if (crypto_ec_point_to_bin(data->grp->group, data->my_element, element,
+				   element + prime_len) < 0) {
+		wpa_printf(MSG_INFO, "EAP-PWD (server): point assignment "
+			   "fail");
+		goto fin;
+	}
 
 fin:
 	crypto_bignum_deinit(mask, 1);
-	os_free(scalar);
-	os_free(element);
 	if (data->outbuf == NULL)
 		eap_pwd_state(data, FAILURE);
 }
@@ -331,7 +311,7 @@ fin:
 static void eap_pwd_build_confirm_req(struct eap_sm *sm,
 				      struct eap_pwd_data *data, u8 id)
 {
-	struct crypto_hash *hash;
+	struct crypto_hash *hash = NULL;
 	u8 conf[SHA256_MAC_LEN], *cruft = NULL, *ptr;
 	u16 grp;
 	size_t prime_len, order_len;
@@ -412,6 +392,7 @@ static void eap_pwd_build_confirm_req(struct eap_sm *sm,
 
 	/* all done with the random function */
 	eap_pwd_h_final(hash, conf);
+	hash = NULL;
 	os_memcpy(data->my_confirm, conf, SHA256_MAC_LEN);
 
 	data->outbuf = wpabuf_alloc(SHA256_MAC_LEN);
@@ -424,6 +405,7 @@ fin:
 	bin_clear_free(cruft, prime_len * 2);
 	if (data->outbuf == NULL)
 		eap_pwd_state(data, FAILURE);
+	eap_pwd_h_final(hash, NULL);
 }
 
 
@@ -668,8 +650,7 @@ eap_pwd_process_commit_resp(struct eap_sm *sm, struct eap_pwd_data *data,
 			    const u8 *payload, size_t payload_len)
 {
 	const u8 *ptr;
-	struct crypto_bignum *cofactor = NULL;
-	struct crypto_ec_point *K = NULL, *point = NULL;
+	struct crypto_ec_point *K = NULL;
 	int res = 0;
 	size_t prime_len, order_len;
 
@@ -687,50 +668,36 @@ eap_pwd_process_commit_resp(struct eap_sm *sm, struct eap_pwd_data *data,
 	}
 
 	data->k = crypto_bignum_init();
-	cofactor = crypto_bignum_init();
-	point = crypto_ec_point_init(data->grp->group);
 	K = crypto_ec_point_init(data->grp->group);
-	if (!data->k || !cofactor || !point || !K) {
+	if (!data->k || !K) {
 		wpa_printf(MSG_INFO, "EAP-PWD (server): peer data allocation "
 			   "fail");
 		goto fin;
 	}
 
-	if (crypto_ec_cofactor(data->grp->group, cofactor) < 0) {
-		wpa_printf(MSG_INFO, "EAP-PWD (server): unable to get "
-			   "cofactor for curve");
-		goto fin;
-	}
-
 	/* element, x then y, followed by scalar */
 	ptr = payload;
-	data->peer_element = crypto_ec_point_from_bin(data->grp->group, ptr);
+	data->peer_element = eap_pwd_get_element(data->grp, ptr);
 	if (!data->peer_element) {
 		wpa_printf(MSG_INFO, "EAP-PWD (server): setting peer element "
 			   "fail");
 		goto fin;
 	}
 	ptr += prime_len * 2;
-	data->peer_scalar = crypto_bignum_init_set(ptr, order_len);
+	data->peer_scalar = eap_pwd_get_scalar(data->grp, ptr);
 	if (!data->peer_scalar) {
 		wpa_printf(MSG_INFO, "EAP-PWD (server): peer data allocation "
 			   "fail");
 		goto fin;
 	}
 
-	/* check to ensure peer's element is not in a small sub-group */
-	if (!crypto_bignum_is_one(cofactor)) {
-		if (crypto_ec_point_mul(data->grp->group, data->peer_element,
-					cofactor, point) != 0) {
-			wpa_printf(MSG_INFO, "EAP-PWD (server): cannot "
-				   "multiply peer element by order");
-			goto fin;
-		}
-		if (crypto_ec_point_is_at_infinity(data->grp->group, point)) {
-			wpa_printf(MSG_INFO, "EAP-PWD (server): peer element "
-				   "is at infinity!\n");
-			goto fin;
-		}
+	/* detect reflection attacks */
+	if (crypto_bignum_cmp(data->my_scalar, data->peer_scalar) == 0 ||
+	    crypto_ec_point_cmp(data->grp->group, data->my_element,
+				data->peer_element) == 0) {
+		wpa_printf(MSG_INFO,
+			   "EAP-PWD (server): detected reflection attack!");
+		goto fin;
 	}
 
 	/* compute the shared key, k */
@@ -745,18 +712,8 @@ eap_pwd_process_commit_resp(struct eap_sm *sm, struct eap_pwd_data *data,
 		goto fin;
 	}
 
-	/* ensure that the shared key isn't in a small sub-group */
-	if (!crypto_bignum_is_one(cofactor)) {
-		if (crypto_ec_point_mul(data->grp->group, K, cofactor,
-					K) != 0) {
-			wpa_printf(MSG_INFO, "EAP-PWD (server): cannot "
-				   "multiply shared key point by order!\n");
-			goto fin;
-		}
-	}
-
 	/*
-	 * This check is strictly speaking just for the case above where
+	 * This check is strictly speaking just for the case where
 	 * co-factor > 1 but it was suggested that even though this is probably
 	 * never going to happen it is a simple and safe check "just to be
 	 * sure" so let's be safe.
@@ -775,8 +732,6 @@ eap_pwd_process_commit_resp(struct eap_sm *sm, struct eap_pwd_data *data,
 
 fin:
 	crypto_ec_point_deinit(K, 1);
-	crypto_ec_point_deinit(point, 1);
-	crypto_bignum_deinit(cofactor, 1);
 
 	if (res)
 		eap_pwd_state(data, PWD_Confirm_Req);
@@ -789,7 +744,7 @@ static void
 eap_pwd_process_confirm_resp(struct eap_sm *sm, struct eap_pwd_data *data,
 			     const u8 *payload, size_t payload_len)
 {
-	struct crypto_hash *hash;
+	struct crypto_hash *hash = NULL;
 	u32 cs;
 	u16 grp;
 	u8 conf[SHA256_MAC_LEN], *cruft = NULL, *ptr;
@@ -864,6 +819,7 @@ eap_pwd_process_confirm_resp(struct eap_sm *sm, struct eap_pwd_data *data,
 
 	/* all done */
 	eap_pwd_h_final(hash, conf);
+	hash = NULL;
 
 	ptr = (u8 *) payload;
 	if (os_memcmp_const(conf, ptr, SHA256_MAC_LEN)) {
@@ -883,6 +839,7 @@ eap_pwd_process_confirm_resp(struct eap_sm *sm, struct eap_pwd_data *data,
 
 fin:
 	bin_clear_free(cruft, prime_len * 2);
+	eap_pwd_h_final(hash, NULL);
 }
 
 
@@ -955,6 +912,12 @@ static void eap_pwd_process(struct eap_sm *sm, void *priv,
 	 * the first and all intermediate fragments have the M bit set
 	 */
 	if (EAP_PWD_GET_MORE_BIT(lm_exch) || data->in_frag_pos) {
+		if (!data->inbuf) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-pwd: No buffer for reassembly");
+			eap_pwd_state(data, FAILURE);
+			return;
+		}
 		if ((data->in_frag_pos + len) > wpabuf_size(data->inbuf)) {
 			wpa_printf(MSG_DEBUG, "EAP-pwd: Buffer overflow "
 				   "attack detected! (%d+%d > %d)",
@@ -975,7 +938,7 @@ static void eap_pwd_process(struct eap_sm *sm, void *priv,
 	 * last fragment won't have the M bit set (but we're obviously
 	 * buffering fragments so that's how we know it's the last)
 	 */
-	if (data->in_frag_pos) {
+	if (data->in_frag_pos && data->inbuf) {
 		pos = wpabuf_head_u8(data->inbuf);
 		len = data->in_frag_pos;
 		wpa_printf(MSG_DEBUG, "EAP-pwd: Last fragment, %d bytes",
@@ -1075,14 +1038,6 @@ static u8 * eap_pwd_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 int eap_server_pwd_register(void)
 {
 	struct eap_method *eap;
-	struct timeval tp;
-	struct timezone tz;
-	u32 sr;
-
-	sr = 0xdeaddada;
-	(void) gettimeofday(&tp, &tz);
-	sr ^= (tp.tv_sec ^ tp.tv_usec);
-	srandom(sr);
 
 	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
 				      EAP_VENDOR_IETF, EAP_TYPE_PWD,

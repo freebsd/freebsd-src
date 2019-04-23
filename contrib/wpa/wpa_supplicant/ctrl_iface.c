@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / Control interface (shared code for all backends)
- * Copyright (c) 2004-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -56,6 +56,7 @@
 #include "drivers/driver.h"
 #include "mesh.h"
 #include "dpp_supplicant.h"
+#include "sme.h"
 
 static int wpa_supplicant_global_iface_list(struct wpa_global *global,
 					    char *buf, int len);
@@ -1167,8 +1168,11 @@ static int wpa_supplicant_ctrl_iface_wps_pbc(struct wpa_supplicant *wpa_s,
 #ifdef CONFIG_AP
 	u8 *_p2p_dev_addr = NULL;
 #endif /* CONFIG_AP */
+	char *pos;
+	int multi_ap = 0;
 
-	if (cmd == NULL || os_strcmp(cmd, "any") == 0) {
+	if (!cmd || os_strcmp(cmd, "any") == 0 ||
+	    os_strncmp(cmd, "any ", 4) == 0) {
 		_bssid = NULL;
 #ifdef CONFIG_P2P
 	} else if (os_strncmp(cmd, "p2p_dev_addr=", 13) == 0) {
@@ -1180,10 +1184,21 @@ static int wpa_supplicant_ctrl_iface_wps_pbc(struct wpa_supplicant *wpa_s,
 		}
 		_p2p_dev_addr = p2p_dev_addr;
 #endif /* CONFIG_P2P */
+	} else if (os_strncmp(cmd, "multi_ap=", 9) == 0) {
+		_bssid = NULL;
+		multi_ap = atoi(cmd + 9);
 	} else if (hwaddr_aton(cmd, bssid)) {
 		wpa_printf(MSG_DEBUG, "CTRL_IFACE WPS_PBC: invalid BSSID '%s'",
 			   cmd);
 		return -1;
+	}
+
+	if (cmd) {
+		pos = os_strstr(cmd, " multi_ap=");
+		if (pos) {
+			pos += 10;
+			multi_ap = atoi(pos);
+		}
 	}
 
 #ifdef CONFIG_AP
@@ -1191,7 +1206,7 @@ static int wpa_supplicant_ctrl_iface_wps_pbc(struct wpa_supplicant *wpa_s,
 		return wpa_supplicant_ap_wps_pbc(wpa_s, _bssid, _p2p_dev_addr);
 #endif /* CONFIG_AP */
 
-	return wpas_wps_start_pbc(wpa_s, _bssid, 0);
+	return wpas_wps_start_pbc(wpa_s, _bssid, 0, multi_ap);
 }
 
 
@@ -2117,6 +2132,18 @@ static int wpa_supplicant_ctrl_iface_status(struct wpa_supplicant *wpa_s,
 			pos += ret;
 		}
 
+		if (wpa_s->connection_set &&
+		    (wpa_s->connection_ht || wpa_s->connection_vht ||
+		     wpa_s->connection_he)) {
+			ret = os_snprintf(pos, end - pos,
+					  "wifi_generation=%u\n",
+					  wpa_s->connection_he ? 6 :
+					  (wpa_s->connection_vht ? 5 : 4));
+			if (os_snprintf_error(end - pos, ret))
+				return pos - buf;
+			pos += ret;
+		}
+
 #ifdef CONFIG_AP
 		if (wpa_s->ap_iface) {
 			pos += ap_ctrl_iface_wpa_get_status(wpa_s, pos,
@@ -2912,6 +2939,12 @@ static int wpa_supplicant_ctrl_iface_scan_result(
 		pos += ret;
 	}
 #endif /* CONFIG_FST */
+	if (wpa_bss_ext_capab(bss, WLAN_EXT_CAPAB_UTF_8_SSID)) {
+		ret = os_snprintf(pos, end - pos, "[UTF-8]");
+		if (os_snprintf_error(end - pos, ret))
+			return -1;
+		pos += ret;
+	}
 
 	ret = os_snprintf(pos, end - pos, "\t%s",
 			  wpa_ssid_txt(bss->ssid, bss->ssid_len));
@@ -3987,6 +4020,22 @@ static int ctrl_iface_get_capability_key_mgmt(int res, char *strict,
 	}
 #endif /* CONFIG_IEEE80211R */
 #endif /* CONFIG_FILS */
+#ifdef CONFIG_IEEE80211R
+	if (capa->key_mgmt & WPA_DRIVER_CAPA_KEY_MGMT_FT_PSK) {
+		ret = os_snprintf(pos, end - pos, " FT-PSK");
+		if (os_snprintf_error(end - pos, ret))
+			return pos - buf;
+		pos += ret;
+	}
+#endif /* CONFIG_IEEE80211R */
+#ifdef CONFIG_SAE
+	if (capa->key_mgmt & WPA_DRIVER_CAPA_KEY_MGMT_SAE) {
+		ret = os_snprintf(pos, end - pos, " SAE");
+		if (os_snprintf_error(end - pos, ret))
+			return pos - buf;
+		pos += ret;
+	}
+#endif /* CONFIG_SAE */
 
 	return pos - buf;
 }
@@ -4387,6 +4436,26 @@ static int wpa_supplicant_ctrl_iface_get_capability(
 	}
 #endif /* CONFIG_FILS */
 
+	if (os_strcmp(field, "multibss") == 0 && wpa_s->multi_bss_support) {
+		res = os_snprintf(buf, buflen, "MULTIBSS-STA");
+		if (os_snprintf_error(buflen, res))
+			return -1;
+		return res;
+	}
+
+#ifdef CONFIG_DPP
+	if (os_strcmp(field, "dpp") == 0) {
+#ifdef CONFIG_DPP2
+		res = os_snprintf(buf, buflen, "DPP=2");
+#else /* CONFIG_DPP2 */
+		res = os_snprintf(buf, buflen, "DPP=1");
+#endif /* CONFIG_DPP2 */
+		if (os_snprintf_error(buflen, res))
+			return -1;
+		return res;
+	}
+#endif /* CONFIG_DPP */
+
 	wpa_printf(MSG_DEBUG, "CTRL_IFACE: Unknown GET_CAPABILITY field '%s'",
 		   field);
 
@@ -4717,6 +4786,20 @@ static int print_bss_info(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 			pos += ret;
 		}
 #endif /* CONFIG_FILS */
+#ifdef CONFIG_FST
+		if (wpa_bss_get_ie(bss, WLAN_EID_MULTI_BAND)) {
+			ret = os_snprintf(pos, end - pos, "[FST]");
+			if (os_snprintf_error(end - pos, ret))
+				return 0;
+			pos += ret;
+		}
+#endif /* CONFIG_FST */
+		if (wpa_bss_ext_capab(bss, WLAN_EXT_CAPAB_UTF_8_SSID)) {
+			ret = os_snprintf(pos, end - pos, "[UTF-8]");
+			if (os_snprintf_error(end - pos, ret))
+				return 0;
+			pos += ret;
+		}
 
 		ret = os_snprintf(pos, end - pos, "\n");
 		if (os_snprintf_error(end - pos, ret))
@@ -5013,10 +5096,11 @@ static int wpa_supplicant_ctrl_iface_bss(struct wpa_supplicant *wpa_s,
 		bss = NULL;
 		dl_list_for_each(tmp, &wpa_s->bss_id, struct wpa_bss, list_id)
 		{
-			if (i-- == 0) {
+			if (i == 0) {
 				bss = tmp;
 				break;
 			}
+			i--;
 		}
 	}
 
@@ -5502,6 +5586,7 @@ static int p2p_ctrl_connect(struct wpa_supplicant *wpa_s, char *cmd,
 	int ht40, vht, max_oper_chwidth, chwidth = 0, freq2 = 0;
 	u8 _group_ssid[SSID_MAX_LEN], *group_ssid = NULL;
 	size_t group_ssid_len = 0;
+	int he;
 
 	if (!wpa_s->global->p2p_init_wpa_s)
 		return -1;
@@ -5514,7 +5599,7 @@ static int p2p_ctrl_connect(struct wpa_supplicant *wpa_s, char *cmd,
 	/* <addr> <"pbc" | "pin" | PIN> [label|display|keypad|p2ps]
 	 * [persistent|persistent=<network id>]
 	 * [join] [auth] [go_intent=<0..15>] [freq=<in MHz>] [provdisc]
-	 * [ht40] [vht] [auto] [ssid=<hexdump>] */
+	 * [ht40] [vht] [he] [auto] [ssid=<hexdump>] */
 
 	if (hwaddr_aton(cmd, addr))
 		return -1;
@@ -5545,6 +5630,7 @@ static int p2p_ctrl_connect(struct wpa_supplicant *wpa_s, char *cmd,
 	vht = (os_strstr(cmd, " vht") != NULL) || wpa_s->conf->p2p_go_vht;
 	ht40 = (os_strstr(cmd, " ht40") != NULL) || wpa_s->conf->p2p_go_ht40 ||
 		vht;
+	he = (os_strstr(cmd, " he") != NULL) || wpa_s->conf->p2p_go_he;
 
 	pos2 = os_strstr(pos, " go_intent=");
 	if (pos2) {
@@ -5615,7 +5701,7 @@ static int p2p_ctrl_connect(struct wpa_supplicant *wpa_s, char *cmd,
 	new_pin = wpas_p2p_connect(wpa_s, addr, pin, wps_method,
 				   persistent_group, automatic, join,
 				   auth, go_intent, freq, freq2, persistent_id,
-				   pd, ht40, vht, max_oper_chwidth,
+				   pd, ht40, vht, max_oper_chwidth, he,
 				   group_ssid, group_ssid_len);
 	if (new_pin == -2) {
 		os_memcpy(buf, "FAIL-CHANNEL-UNAVAILABLE\n", 25);
@@ -6171,7 +6257,7 @@ static int p2p_ctrl_invite_persistent(struct wpa_supplicant *wpa_s, char *cmd)
 	struct wpa_ssid *ssid;
 	u8 *_peer = NULL, peer[ETH_ALEN];
 	int freq = 0, pref_freq = 0;
-	int ht40, vht, max_oper_chwidth, chwidth = 0, freq2 = 0;
+	int ht40, vht, he, max_oper_chwidth, chwidth = 0, freq2 = 0;
 
 	id = atoi(cmd);
 	pos = os_strstr(cmd, " peer=");
@@ -6208,6 +6294,7 @@ static int p2p_ctrl_invite_persistent(struct wpa_supplicant *wpa_s, char *cmd)
 	vht = (os_strstr(cmd, " vht") != NULL) || wpa_s->conf->p2p_go_vht;
 	ht40 = (os_strstr(cmd, " ht40") != NULL) || wpa_s->conf->p2p_go_ht40 ||
 		vht;
+	he = (os_strstr(cmd, " he") != NULL) || wpa_s->conf->p2p_go_he;
 
 	pos = os_strstr(cmd, "freq2=");
 	if (pos)
@@ -6222,7 +6309,7 @@ static int p2p_ctrl_invite_persistent(struct wpa_supplicant *wpa_s, char *cmd)
 		return -1;
 
 	return wpas_p2p_invite(wpa_s, _peer, ssid, NULL, freq, freq2, ht40, vht,
-			       max_oper_chwidth, pref_freq);
+			       max_oper_chwidth, pref_freq, he);
 }
 
 
@@ -6270,7 +6357,8 @@ static int p2p_ctrl_invite(struct wpa_supplicant *wpa_s, char *cmd)
 
 static int p2p_ctrl_group_add_persistent(struct wpa_supplicant *wpa_s,
 					 int id, int freq, int vht_center_freq2,
-					 int ht40, int vht, int vht_chwidth)
+					 int ht40, int vht, int vht_chwidth,
+					 int he)
 {
 	struct wpa_ssid *ssid;
 
@@ -6284,7 +6372,7 @@ static int p2p_ctrl_group_add_persistent(struct wpa_supplicant *wpa_s,
 
 	return wpas_p2p_group_add_persistent(wpa_s, ssid, 0, freq,
 					     vht_center_freq2, 0, ht40, vht,
-					     vht_chwidth, NULL, 0, 0);
+					     vht_chwidth, he, NULL, 0, 0);
 }
 
 
@@ -6293,6 +6381,7 @@ static int p2p_ctrl_group_add(struct wpa_supplicant *wpa_s, char *cmd)
 	int freq = 0, persistent = 0, group_id = -1;
 	int vht = wpa_s->conf->p2p_go_vht;
 	int ht40 = wpa_s->conf->p2p_go_ht40 || vht;
+	int he = wpa_s->conf->p2p_go_he;
 	int max_oper_chwidth, chwidth = 0, freq2 = 0;
 	char *token, *context = NULL;
 #ifdef CONFIG_ACS
@@ -6315,6 +6404,8 @@ static int p2p_ctrl_group_add(struct wpa_supplicant *wpa_s, char *cmd)
 		} else if (os_strcmp(token, "vht") == 0) {
 			vht = 1;
 			ht40 = 1;
+		} else if (os_strcmp(token, "he") == 0) {
+			he = 1;
 		} else if (os_strcmp(token, "persistent") == 0) {
 			persistent = 1;
 		} else {
@@ -6340,6 +6431,8 @@ static int p2p_ctrl_group_add(struct wpa_supplicant *wpa_s, char *cmd)
 			wpa_s->p2p_go_acs_band = HOSTAPD_MODE_IEEE80211ANY;
 			wpa_s->p2p_go_do_acs = 1;
 		}
+	} else {
+		wpa_s->p2p_go_do_acs = 0;
 	}
 #endif /* CONFIG_ACS */
 
@@ -6350,10 +6443,10 @@ static int p2p_ctrl_group_add(struct wpa_supplicant *wpa_s, char *cmd)
 	if (group_id >= 0)
 		return p2p_ctrl_group_add_persistent(wpa_s, group_id,
 						     freq, freq2, ht40, vht,
-						     max_oper_chwidth);
+						     max_oper_chwidth, he);
 
 	return wpas_p2p_group_add(wpa_s, persistent, freq, freq2, ht40, vht,
-				  max_oper_chwidth);
+				  max_oper_chwidth, he);
 }
 
 
@@ -7622,7 +7715,7 @@ static int wpas_ctrl_iface_get_pref_freq_list(
 
 	wpa_printf(MSG_DEBUG,
 		   "CTRL_IFACE: GET_PREF_FREQ_LIST iface_type=%d (%s)",
-		   iface_type, buf);
+		   iface_type, cmd);
 
 	ret = wpa_drv_get_pref_freq_list(wpa_s, iface_type, &num, freq_list);
 	if (ret)
@@ -7941,6 +8034,10 @@ static void wpa_supplicant_ctrl_iface_flush(struct wpa_supplicant *wpa_s)
 
 	wpabuf_free(wpa_s->ric_ies);
 	wpa_s->ric_ies = NULL;
+
+	wpa_supplicant_update_channel_list(wpa_s, NULL);
+
+	free_bss_tmp_disallowed(wpa_s);
 }
 
 
@@ -8763,26 +8860,39 @@ static void wpas_data_test_rx(void *ctx, const u8 *src_addr, const u8 *buf,
 	struct iphdr ip;
 	const u8 *pos;
 	unsigned int i;
+	char extra[30];
 
-	if (len != HWSIM_PACKETLEN)
+	if (len < sizeof(*eth) + sizeof(ip) || len > HWSIM_PACKETLEN) {
+		wpa_printf(MSG_DEBUG,
+			   "test data: RX - ignore unexpected length %d",
+			   (int) len);
 		return;
+	}
 
 	eth = (const struct ether_header *) buf;
 	os_memcpy(&ip, eth + 1, sizeof(ip));
 	pos = &buf[sizeof(*eth) + sizeof(ip)];
 
 	if (ip.ihl != 5 || ip.version != 4 ||
-	    ntohs(ip.tot_len) != HWSIM_IP_LEN)
+	    ntohs(ip.tot_len) > HWSIM_IP_LEN) {
+		wpa_printf(MSG_DEBUG,
+			   "test data: RX - ignore unexpect IP header");
 		return;
-
-	for (i = 0; i < HWSIM_IP_LEN - sizeof(ip); i++) {
-		if (*pos != (u8) i)
-			return;
-		pos++;
 	}
 
-	wpa_msg(wpa_s, MSG_INFO, "DATA-TEST-RX " MACSTR " " MACSTR,
-		MAC2STR(eth->ether_dhost), MAC2STR(eth->ether_shost));
+	for (i = 0; i < ntohs(ip.tot_len) - sizeof(ip); i++) {
+		if (*pos != (u8) i) {
+			wpa_printf(MSG_DEBUG,
+				   "test data: RX - ignore mismatching payload");
+			return;
+		}
+		pos++;
+	}
+	extra[0] = '\0';
+	if (ntohs(ip.tot_len) != HWSIM_IP_LEN)
+		os_snprintf(extra, sizeof(extra), " len=%d", ntohs(ip.tot_len));
+	wpa_msg(wpa_s, MSG_INFO, "DATA-TEST-RX " MACSTR " " MACSTR "%s",
+		MAC2STR(eth->ether_dhost), MAC2STR(eth->ether_shost), extra);
 }
 
 
@@ -8826,7 +8936,7 @@ static int wpas_ctrl_iface_data_test_config(struct wpa_supplicant *wpa_s,
 static int wpas_ctrl_iface_data_test_tx(struct wpa_supplicant *wpa_s, char *cmd)
 {
 	u8 dst[ETH_ALEN], src[ETH_ALEN];
-	char *pos;
+	char *pos, *pos2;
 	int used;
 	long int val;
 	u8 tos;
@@ -8835,11 +8945,12 @@ static int wpas_ctrl_iface_data_test_tx(struct wpa_supplicant *wpa_s, char *cmd)
 	struct iphdr *ip;
 	u8 *dpos;
 	unsigned int i;
+	size_t send_len = HWSIM_IP_LEN;
 
 	if (wpa_s->l2_test == NULL)
 		return -1;
 
-	/* format: <dst> <src> <tos> */
+	/* format: <dst> <src> <tos> [len=<length>] */
 
 	pos = cmd;
 	used = hwaddr_aton2(pos, dst);
@@ -8853,10 +8964,18 @@ static int wpas_ctrl_iface_data_test_tx(struct wpa_supplicant *wpa_s, char *cmd)
 		return -1;
 	pos += used;
 
-	val = strtol(pos, NULL, 0);
+	val = strtol(pos, &pos2, 0);
 	if (val < 0 || val > 0xff)
 		return -1;
 	tos = val;
+
+	pos = os_strstr(pos2, " len=");
+	if (pos) {
+		i = atoi(pos + 5);
+		if (i < sizeof(*ip) || i > HWSIM_IP_LEN)
+			return -1;
+		send_len = i;
+	}
 
 	eth = (struct ether_header *) &buf[2];
 	os_memcpy(eth->ether_dhost, dst, ETH_ALEN);
@@ -8868,17 +8987,17 @@ static int wpas_ctrl_iface_data_test_tx(struct wpa_supplicant *wpa_s, char *cmd)
 	ip->version = 4;
 	ip->ttl = 64;
 	ip->tos = tos;
-	ip->tot_len = htons(HWSIM_IP_LEN);
+	ip->tot_len = htons(send_len);
 	ip->protocol = 1;
 	ip->saddr = htonl(192U << 24 | 168 << 16 | 1 << 8 | 1);
 	ip->daddr = htonl(192U << 24 | 168 << 16 | 1 << 8 | 2);
 	ip->check = ipv4_hdr_checksum(ip, sizeof(*ip));
 	dpos = (u8 *) (ip + 1);
-	for (i = 0; i < HWSIM_IP_LEN - sizeof(*ip); i++)
+	for (i = 0; i < send_len - sizeof(*ip); i++)
 		*dpos++ = i;
 
 	if (l2_packet_send(wpa_s->l2_test, dst, ETHERTYPE_IP, &buf[2],
-			   HWSIM_PACKETLEN) < 0)
+			   sizeof(struct ether_header) + send_len) < 0)
 		return -1;
 
 	wpa_dbg(wpa_s, MSG_DEBUG, "test data: TX dst=" MACSTR " src=" MACSTR
@@ -9458,13 +9577,6 @@ static int wpas_ctrl_iface_mac_rand_scan(struct wpa_supplicant *wpa_s,
 		return -1;
 	}
 
-	if ((wpa_s->mac_addr_rand_supported & type) != type) {
-		wpa_printf(MSG_INFO,
-			   "CTRL: MAC_RAND_SCAN types=%u != supported=%u",
-			   type, wpa_s->mac_addr_rand_supported);
-		return -1;
-	}
-
 	if (enable > 1) {
 		wpa_printf(MSG_INFO,
 			   "CTRL: MAC_RAND_SCAN enable=<0/1> not specified");
@@ -9498,21 +9610,25 @@ static int wpas_ctrl_iface_mac_rand_scan(struct wpa_supplicant *wpa_s,
 	}
 
 	if (type & MAC_ADDR_RAND_SCAN) {
-		wpas_mac_addr_rand_scan_set(wpa_s, MAC_ADDR_RAND_SCAN,
-					    addr, mask);
+		if (wpas_mac_addr_rand_scan_set(wpa_s, MAC_ADDR_RAND_SCAN,
+					    addr, mask))
+			return -1;
 	}
 
 	if (type & MAC_ADDR_RAND_SCHED_SCAN) {
-		wpas_mac_addr_rand_scan_set(wpa_s, MAC_ADDR_RAND_SCHED_SCAN,
-					    addr, mask);
+		if (wpas_mac_addr_rand_scan_set(wpa_s, MAC_ADDR_RAND_SCHED_SCAN,
+					    addr, mask))
+			return -1;
 
 		if (wpa_s->sched_scanning && !wpa_s->pno)
 			wpas_scan_restart_sched_scan(wpa_s);
 	}
 
 	if (type & MAC_ADDR_RAND_PNO) {
-		wpas_mac_addr_rand_scan_set(wpa_s, MAC_ADDR_RAND_PNO,
-					    addr, mask);
+		if (wpas_mac_addr_rand_scan_set(wpa_s, MAC_ADDR_RAND_PNO,
+					    addr, mask))
+			return -1;
+
 		if (wpa_s->pno) {
 			wpas_stop_pno(wpa_s);
 			wpas_start_pno(wpa_s);
@@ -9858,6 +9974,11 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 			reply_len += eapol_sm_get_mib(wpa_s->eapol,
 						      reply + reply_len,
 						      reply_size - reply_len);
+#ifdef CONFIG_MACSEC
+			reply_len += ieee802_1x_kay_get_mib(
+				wpa_s->kay, reply + reply_len,
+				reply_size - reply_len);
+#endif /* CONFIG_MACSEC */
 		}
 	} else if (os_strncmp(buf, "STATUS", 6) == 0) {
 		reply_len = wpa_supplicant_ctrl_iface_status(
@@ -10506,6 +10627,12 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 	} else if (os_strcmp(buf, "RESEND_ASSOC") == 0) {
 		if (wpas_ctrl_resend_assoc(wpa_s) < 0)
 			reply_len = -1;
+#ifdef CONFIG_IEEE80211W
+	} else if (os_strcmp(buf, "UNPROT_DEAUTH") == 0) {
+		sme_event_unprot_disconnect(
+			wpa_s, wpa_s->bssid, NULL,
+			WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA);
+#endif /* CONFIG_IEEE80211W */
 #endif /* CONFIG_TESTING_OPTIONS */
 	} else if (os_strncmp(buf, "VENDOR_ELEM_ADD ", 16) == 0) {
 		if (wpas_ctrl_vendor_elem_add(wpa_s, buf + 16) < 0)
@@ -10549,7 +10676,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 	} else if (os_strncmp(buf, "DPP_BOOTSTRAP_GEN ", 18) == 0) {
 		int res;
 
-		res = wpas_dpp_bootstrap_gen(wpa_s, buf + 18);
+		res = dpp_bootstrap_gen(wpa_s->dpp, buf + 18);
 		if (res < 0) {
 			reply_len = -1;
 		} else {
@@ -10558,12 +10685,12 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 				reply_len = -1;
 		}
 	} else if (os_strncmp(buf, "DPP_BOOTSTRAP_REMOVE ", 21) == 0) {
-		if (wpas_dpp_bootstrap_remove(wpa_s, buf + 21) < 0)
+		if (dpp_bootstrap_remove(wpa_s->dpp, buf + 21) < 0)
 			reply_len = -1;
 	} else if (os_strncmp(buf, "DPP_BOOTSTRAP_GET_URI ", 22) == 0) {
 		const char *uri;
 
-		uri = wpas_dpp_bootstrap_get_uri(wpa_s, atoi(buf + 22));
+		uri = dpp_bootstrap_get_uri(wpa_s->dpp, atoi(buf + 22));
 		if (!uri) {
 			reply_len = -1;
 		} else {
@@ -10572,8 +10699,8 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 				reply_len = -1;
 		}
 	} else if (os_strncmp(buf, "DPP_BOOTSTRAP_INFO ", 19) == 0) {
-		reply_len = wpas_dpp_bootstrap_info(wpa_s, atoi(buf + 19),
-						    reply, reply_size);
+		reply_len = dpp_bootstrap_info(wpa_s->dpp, atoi(buf + 19),
+					       reply, reply_size);
 	} else if (os_strncmp(buf, "DPP_AUTH_INIT ", 14) == 0) {
 		if (wpas_dpp_auth_init(wpa_s, buf + 13) < 0)
 			reply_len = -1;
@@ -10586,7 +10713,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 	} else if (os_strncmp(buf, "DPP_CONFIGURATOR_ADD", 20) == 0) {
 		int res;
 
-		res = wpas_dpp_configurator_add(wpa_s, buf + 20);
+		res = dpp_configurator_add(wpa_s->dpp, buf + 20);
 		if (res < 0) {
 			reply_len = -1;
 		} else {
@@ -10595,14 +10722,15 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 				reply_len = -1;
 		}
 	} else if (os_strncmp(buf, "DPP_CONFIGURATOR_REMOVE ", 24) == 0) {
-		if (wpas_dpp_configurator_remove(wpa_s, buf + 24) < 0)
+		if (dpp_configurator_remove(wpa_s->dpp, buf + 24) < 0)
 			reply_len = -1;
 	} else if (os_strncmp(buf, "DPP_CONFIGURATOR_SIGN ", 22) == 0) {
-		if (wpas_dpp_configurator_sign(wpa_s, buf + 22) < 0)
+		if (wpas_dpp_configurator_sign(wpa_s, buf + 21) < 0)
 			reply_len = -1;
 	} else if (os_strncmp(buf, "DPP_CONFIGURATOR_GET_KEY ", 25) == 0) {
-		reply_len = wpas_dpp_configurator_get_key(wpa_s, atoi(buf + 25),
-							  reply, reply_size);
+		reply_len = dpp_configurator_get_key_id(wpa_s->dpp,
+							atoi(buf + 25),
+							reply, reply_size);
 	} else if (os_strncmp(buf, "DPP_PKEX_ADD ", 13) == 0) {
 		int res;
 

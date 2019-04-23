@@ -187,7 +187,7 @@ int secy_get_transmit_next_pn(struct ieee802_1x_kay *kay,
 	ops = kay->ctx;
 	if (!ops || !ops->get_transmit_next_pn) {
 		wpa_printf(MSG_ERROR,
-			   "KaY: secy get_receive_lowest_pn operation not supported");
+			   "KaY: secy get_transmit_next_pn operation not supported");
 		return -1;
 	}
 
@@ -208,11 +208,32 @@ int secy_set_transmit_next_pn(struct ieee802_1x_kay *kay,
 	ops = kay->ctx;
 	if (!ops || !ops->set_transmit_next_pn) {
 		wpa_printf(MSG_ERROR,
-			   "KaY: secy get_receive_lowest_pn operation not supported");
+			   "KaY: secy set_transmit_next_pn operation not supported");
 		return -1;
 	}
 
 	return ops->set_transmit_next_pn(ops->ctx, txsa);
+}
+
+
+int secy_set_receive_lowest_pn(struct ieee802_1x_kay *kay,
+			       struct receive_sa *rxsa)
+{
+	struct ieee802_1x_kay_ctx *ops;
+
+	if (!kay || !rxsa) {
+		wpa_printf(MSG_ERROR, "KaY: %s params invalid", __func__);
+		return -1;
+	}
+
+	ops = kay->ctx;
+	if (!ops || !ops->set_receive_lowest_pn) {
+		wpa_printf(MSG_ERROR,
+			   "KaY: secy set_receive_lowest_pn operation not supported");
+		return -1;
+	}
+
+	return ops->set_receive_lowest_pn(ops->ctx, rxsa);
 }
 
 

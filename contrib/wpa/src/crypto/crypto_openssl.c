@@ -24,6 +24,7 @@
 #endif /* CONFIG_ECC */
 
 #include "common.h"
+#include "utils/const_time.h"
 #include "wpabuf.h"
 #include "dh_group5.h"
 #include "sha1.h"
@@ -110,6 +111,31 @@ static BIGNUM * get_group5_prime(void)
         return BN_bin2bn(RFC3526_PRIME_1536, sizeof(RFC3526_PRIME_1536), NULL);
 #endif
 }
+
+
+static BIGNUM * get_group5_order(void)
+{
+	static const unsigned char RFC3526_ORDER_1536[] = {
+		0x7F,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xE4,0x87,0xED,0x51,
+		0x10,0xB4,0x61,0x1A,0x62,0x63,0x31,0x45,0xC0,0x6E,0x0E,0x68,
+		0x94,0x81,0x27,0x04,0x45,0x33,0xE6,0x3A,0x01,0x05,0xDF,0x53,
+		0x1D,0x89,0xCD,0x91,0x28,0xA5,0x04,0x3C,0xC7,0x1A,0x02,0x6E,
+		0xF7,0xCA,0x8C,0xD9,0xE6,0x9D,0x21,0x8D,0x98,0x15,0x85,0x36,
+		0xF9,0x2F,0x8A,0x1B,0xA7,0xF0,0x9A,0xB6,0xB6,0xA8,0xE1,0x22,
+		0xF2,0x42,0xDA,0xBB,0x31,0x2F,0x3F,0x63,0x7A,0x26,0x21,0x74,
+		0xD3,0x1B,0xF6,0xB5,0x85,0xFF,0xAE,0x5B,0x7A,0x03,0x5B,0xF6,
+		0xF7,0x1C,0x35,0xFD,0xAD,0x44,0xCF,0xD2,0xD7,0x4F,0x92,0x08,
+		0xBE,0x25,0x8F,0xF3,0x24,0x94,0x33,0x28,0xF6,0x72,0x2D,0x9E,
+		0xE1,0x00,0x3E,0x5C,0x50,0xB1,0xDF,0x82,0xCC,0x6D,0x24,0x1B,
+		0x0E,0x2A,0xE9,0xCD,0x34,0x8B,0x1F,0xD4,0x7E,0x92,0x67,0xAF,
+		0xC1,0xB2,0xAE,0x91,0xEE,0x51,0xD6,0xCB,0x0E,0x31,0x79,0xAB,
+		0x10,0x42,0xA9,0x5D,0xCF,0x6A,0x94,0x83,0xB8,0x4B,0x4B,0x36,
+		0xB3,0x86,0x1A,0xA7,0x25,0x5E,0x4C,0x02,0x78,0xBA,0x36,0x04,
+		0x65,0x11,0xB9,0x93,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
+	};
+	return BN_bin2bn(RFC3526_ORDER_1536, sizeof(RFC3526_ORDER_1536), NULL);
+}
+
 
 #ifdef OPENSSL_NO_SHA256
 #define NO_SHA256_WRAPPER
@@ -518,12 +544,45 @@ int crypto_dh_init(u8 generator, const u8 *prime, size_t prime_len, u8 *privkey,
 
 
 int crypto_dh_derive_secret(u8 generator, const u8 *prime, size_t prime_len,
+			    const u8 *order, size_t order_len,
 			    const u8 *privkey, size_t privkey_len,
 			    const u8 *pubkey, size_t pubkey_len,
 			    u8 *secret, size_t *len)
 {
-	return crypto_mod_exp(pubkey, pubkey_len, privkey, privkey_len,
-			      prime, prime_len, secret, len);
+	BIGNUM *pub, *p;
+	int res = -1;
+
+	pub = BN_bin2bn(pubkey, pubkey_len, NULL);
+	p = BN_bin2bn(prime, prime_len, NULL);
+	if (!pub || !p || BN_is_zero(pub) || BN_is_one(pub) ||
+	    BN_cmp(pub, p) >= 0)
+		goto fail;
+
+	if (order) {
+		BN_CTX *ctx;
+		BIGNUM *q, *tmp;
+		int failed;
+
+		/* verify: pubkey^q == 1 mod p */
+		q = BN_bin2bn(order, order_len, NULL);
+		ctx = BN_CTX_new();
+		tmp = BN_new();
+		failed = !q || !ctx || !tmp ||
+			!BN_mod_exp(tmp, pub, q, p, ctx) ||
+			!BN_is_one(tmp);
+		BN_clear(q);
+		BN_clear(tmp);
+		BN_CTX_free(ctx);
+		if (failed)
+			goto fail;
+	}
+
+	res = crypto_mod_exp(pubkey, pubkey_len, privkey, privkey_len,
+			     prime, prime_len, secret, len);
+fail:
+	BN_clear(pub);
+	BN_clear(p);
+	return res;
 }
 
 
@@ -549,7 +608,8 @@ int crypto_mod_exp(const u8 *base, size_t base_len,
 	    bn_result == NULL)
 		goto error;
 
-	if (BN_mod_exp(bn_result, bn_base, bn_exp, bn_modulus, ctx) != 1)
+	if (BN_mod_exp_mont_consttime(bn_result, bn_base, bn_exp, bn_modulus,
+				      ctx, NULL) != 1)
 		goto error;
 
 	*result_len = BN_bn2bin(bn_result, result);
@@ -709,6 +769,10 @@ void * dh5_init(struct wpabuf **priv, struct wpabuf **publ)
 	if (dh->p == NULL)
 		goto err;
 
+	dh->q = get_group5_order();
+	if (!dh->q)
+		goto err;
+
 	if (DH_generate_key(dh) != 1)
 		goto err;
 
@@ -737,7 +801,7 @@ err:
 	DH *dh;
 	struct wpabuf *pubkey = NULL, *privkey = NULL;
 	size_t publen, privlen;
-	BIGNUM *p = NULL, *g;
+	BIGNUM *p, *g, *q;
 	const BIGNUM *priv_key = NULL, *pub_key = NULL;
 
 	*priv = NULL;
@@ -750,10 +814,12 @@ err:
 
 	g = BN_new();
 	p = get_group5_prime();
-	if (!g || BN_set_word(g, 2) != 1 || !p ||
-	    DH_set0_pqg(dh, p, NULL, g) != 1)
+	q = get_group5_order();
+	if (!g || BN_set_word(g, 2) != 1 || !p || !q ||
+	    DH_set0_pqg(dh, p, q, g) != 1)
 		goto err;
 	p = NULL;
+	q = NULL;
 	g = NULL;
 
 	if (DH_generate_key(dh) != 1)
@@ -778,6 +844,7 @@ err:
 
 err:
 	BN_free(p);
+	BN_free(q);
 	BN_free(g);
 	wpabuf_clear_free(pubkey);
 	wpabuf_clear_free(privkey);
@@ -986,6 +1053,9 @@ int crypto_hash_finish(struct crypto_hash *ctx, u8 *mac, size_t *len)
 	res = HMAC_Final(ctx->ctx, mac, &mdlen);
 	HMAC_CTX_free(ctx->ctx);
 	bin_clear_free(ctx, sizeof(*ctx));
+
+	if (TEST_FAIL())
+		return -1;
 
 	if (res == 1) {
 		*len = mdlen;
@@ -1250,6 +1320,8 @@ int crypto_bignum_to_bin(const struct crypto_bignum *a,
 
 int crypto_bignum_rand(struct crypto_bignum *r, const struct crypto_bignum *m)
 {
+	if (TEST_FAIL())
+		return -1;
 	return BN_rand_range((BIGNUM *) r, (const BIGNUM *) m) == 1 ? 0 : -1;
 }
 
@@ -1295,8 +1367,9 @@ int crypto_bignum_exptmod(const struct crypto_bignum *a,
 	bnctx = BN_CTX_new();
 	if (bnctx == NULL)
 		return -1;
-	res = BN_mod_exp((BIGNUM *) d, (const BIGNUM *) a, (const BIGNUM *) b,
-			 (const BIGNUM *) c, bnctx);
+	res = BN_mod_exp_mont_consttime((BIGNUM *) d, (const BIGNUM *) a,
+					(const BIGNUM *) b, (const BIGNUM *) c,
+					bnctx, NULL);
 	BN_CTX_free(bnctx);
 
 	return res ? 0 : -1;
@@ -1315,6 +1388,11 @@ int crypto_bignum_inverse(const struct crypto_bignum *a,
 	bnctx = BN_CTX_new();
 	if (bnctx == NULL)
 		return -1;
+#ifdef OPENSSL_IS_BORINGSSL
+	/* TODO: use BN_mod_inverse_blinded() ? */
+#else /* OPENSSL_IS_BORINGSSL */
+	BN_set_flags((BIGNUM *) a, BN_FLG_CONSTTIME);
+#endif /* OPENSSL_IS_BORINGSSL */
 	res = BN_mod_inverse((BIGNUM *) c, (const BIGNUM *) a,
 			     (const BIGNUM *) b, bnctx);
 	BN_CTX_free(bnctx);
@@ -1348,6 +1426,9 @@ int crypto_bignum_div(const struct crypto_bignum *a,
 	bnctx = BN_CTX_new();
 	if (bnctx == NULL)
 		return -1;
+#ifndef OPENSSL_IS_BORINGSSL
+	BN_set_flags((BIGNUM *) a, BN_FLG_CONSTTIME);
+#endif /* OPENSSL_IS_BORINGSSL */
 	res = BN_div((BIGNUM *) c, NULL, (const BIGNUM *) a,
 		     (const BIGNUM *) b, bnctx);
 	BN_CTX_free(bnctx);
@@ -1425,6 +1506,7 @@ int crypto_bignum_legendre(const struct crypto_bignum *a,
 	BN_CTX *bnctx;
 	BIGNUM *exp = NULL, *tmp = NULL;
 	int res = -2;
+	unsigned int mask;
 
 	if (TEST_FAIL())
 		return -2;
@@ -1439,16 +1521,17 @@ int crypto_bignum_legendre(const struct crypto_bignum *a,
 	    /* exp = (p-1) / 2 */
 	    !BN_sub(exp, (const BIGNUM *) p, BN_value_one()) ||
 	    !BN_rshift1(exp, exp) ||
-	    !BN_mod_exp(tmp, (const BIGNUM *) a, exp, (const BIGNUM *) p,
-			bnctx))
+	    !BN_mod_exp_mont_consttime(tmp, (const BIGNUM *) a, exp,
+				       (const BIGNUM *) p, bnctx, NULL))
 		goto fail;
 
-	if (BN_is_word(tmp, 1))
-		res = 1;
-	else if (BN_is_zero(tmp))
-		res = 0;
-	else
-		res = -1;
+	/* Return 1 if tmp == 1, 0 if tmp == 0, or -1 otherwise. Need to use
+	 * constant time selection to avoid branches here. */
+	res = -1;
+	mask = const_time_eq(BN_is_word(tmp, 1), 1);
+	res = const_time_select_int(mask, 1, res);
+	mask = const_time_eq(BN_is_zero(tmp), 1);
+	res = const_time_select_int(mask, 0, res);
 
 fail:
 	BN_clear_free(tmp);
@@ -1550,13 +1633,6 @@ void crypto_ec_deinit(struct crypto_ec *e)
 	EC_GROUP_free(e->group);
 	BN_CTX_free(e->bnctx);
 	os_free(e);
-}
-
-
-int crypto_ec_cofactor(struct crypto_ec *e, struct crypto_bignum *cofactor)
-{
-	return EC_GROUP_get_cofactor(e->group, (BIGNUM *) cofactor,
-				     e->bnctx) == 0 ? -1 : 0;
 }
 
 

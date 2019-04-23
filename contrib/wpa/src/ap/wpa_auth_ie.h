@@ -33,6 +33,10 @@ struct wpa_eapol_ie_parse {
 	const u8 *ip_addr_req;
 	const u8 *ip_addr_alloc;
 #endif /* CONFIG_P2P */
+#ifdef CONFIG_OCV
+	const u8 *oci;
+	size_t oci_len;
+#endif /* CONFIG_OCV */
 
 	const u8 *osen;
 	size_t osen_len;

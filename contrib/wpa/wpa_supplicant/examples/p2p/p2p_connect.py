@@ -13,40 +13,40 @@ from dbus.mainloop.glib import DBusGMainLoop
 
 
 def usage():
-	print "Usage:"
-	print "  %s -i <interface_name> -m <wps_method> \ " \
-		% sys.argv[0]
-	print "		-a <addr> [-p <pin>] [-g <go_intent>] \ "
-	print "  		[-w <wpas_dbus_interface>]"
-	print "Options:"
-	print "  -i = interface name"
-	print "  -m = wps method"
-	print "  -a = peer address"
-	print "  -p = pin number (8 digits)"
-	print "  -g = group owner intent"
-	print "  -w = wpas dbus interface = fi.w1.wpa_supplicant1"
-	print "Example:"
-	print "  %s -i wlan0 -a 0015008352c0 -m display -p 12345670" % sys.argv[0]
+	print("Usage:")
+	print("  %s -i <interface_name> -m <wps_method> \ " \
+		% sys.argv[0])
+	print("		-a <addr> [-p <pin>] [-g <go_intent>] \ ")
+	print("  		[-w <wpas_dbus_interface>]")
+	print("Options:")
+	print("  -i = interface name")
+	print("  -m = wps method")
+	print("  -a = peer address")
+	print("  -p = pin number (8 digits)")
+	print("  -g = group owner intent")
+	print("  -w = wpas dbus interface = fi.w1.wpa_supplicant1")
+	print("Example:")
+	print("  %s -i wlan0 -a 0015008352c0 -m display -p 12345670" % sys.argv[0])
 
 
 # Required Signals
 def GONegotiationSuccess(status):
-	print "Go Negotiation Success"
+	print("Go Negotiation Success")
 
 def GONegotiationFailure(status):
-	print 'Go Negotiation Failed. Status:'
-	print format(status)
+	print('Go Negotiation Failed. Status:')
+	print(format(status))
 	os._exit(0)
 
 def GroupStarted(properties):
 	if properties.has_key("group_object"):
-		print 'Group Formation Complete %s' \
-			% properties["group_object"]
+		print('Group Formation Complete %s' \
+			% properties["group_object"])
 	os._exit(0)
 
 def WpsFailure(status, etc):
-	print "WPS Authentication Failure".format(status)
-	print etc
+	print("WPS Authentication Failure".format(status))
+	print(etc)
 	os._exit(0)
 
 class P2P_Connect():
@@ -118,7 +118,7 @@ class P2P_Connect():
 					{'Ifname': ifname, 'Driver': 'test'})
 				time.sleep(1)
 
-			except dbus.DBusException, exc:
+			except dbus.DBusException as exc:
 				if not str(exc).startswith(
 					self.wpas_dbus_interface + \
 					".InterfaceExists:"):
@@ -157,12 +157,12 @@ class P2P_Connect():
 			if (self.pin != None):
 				self.p2p_connect_arguements.update({'pin':self.pin})
 			else:
-				print "Error:\n  Pin required for wps_method=display"
+				print("Error:\n  Pin required for wps_method=display")
 				usage()
 				quit()
 
 			if (self.go_intent != None and int(self.go_intent) != 15):
-				print "go_intent overwritten to 15"
+				print("go_intent overwritten to 15")
 
 			self.go_intent = '15'
 
@@ -171,14 +171,14 @@ class P2P_Connect():
 			if (self.pin != None):
 				self.p2p_connect_arguements.update({'pin':self.pin})
 			else:
-				print "Error:\n  Pin required for wps_method=keypad"
+				print("Error:\n  Pin required for wps_method=keypad")
 				usage()
 				quit()
 
 			if (self.go_intent != None and int(self.go_intent) == 15):
 				error = "Error :\n Group Owner intent cannot be" + \
 					" 15 for wps_method=keypad"
-				print error
+				print(error)
 				usage()
 				quit()
 
@@ -186,15 +186,15 @@ class P2P_Connect():
 		# for ./wpa_cli, p2p_connect [mac] [pin#], wps_method=keypad
 		elif (self.wps_method == 'pin'):
 			if (self.pin != None):
-				print "pin ignored"
+				print("pin ignored")
 
 		# No pin is required for pbc so it is ignored
 		elif (self.wps_method == 'pbc'):
 			if (self.pin != None):
-				print "pin ignored"
+				print("pin ignored")
 
 		else:
-			print "Error:\n  wps_method not supported or does not exist"
+			print("Error:\n  wps_method not supported or does not exist")
 			usage()
 			quit()
 
@@ -209,12 +209,12 @@ class P2P_Connect():
 			result_pin = self.p2p_interface.Connect(
 				self.p2p_connect_arguements)
 
-		except dbus.DBusException, exc:
+		except dbus.DBusException as exc:
 				raise exc
 
 		if (self.wps_method == 'pin' and \
 		not self.p2p_connect_arguements.has_key('pin') ):
-			print "Connect return with pin value of %d " % int(result_pin)
+			print("Connect return with pin value of %d " % int(result_pin))
 		gobject.MainLoop().run()
 
 if __name__ == "__main__":
@@ -268,19 +268,19 @@ if __name__ == "__main__":
 
 	# Required Arguements check
 	if (interface_name == None or wps_method == None or addr == None):
-		print "Error:\n  Required arguements not specified"
+		print("Error:\n  Required arguements not specified")
 		usage()
 		quit()
 
 	# Group Owner Intent Check
 	if (go_intent != None and (int(go_intent) > 15 or int(go_intent) < 0) ):
-		print "Error:\n  Group Owner Intent must be between 0 and 15 inclusive"
+		print("Error:\n  Group Owner Intent must be between 0 and 15 inclusive")
 		usage()
 		quit()
 
 	# Pin Check
 	if (pin != None and len(pin) != 8):
-		print "Error:\n  Pin is not 8 digits"
+		print("Error:\n  Pin is not 8 digits")
 		usage()
 		quit()
 
@@ -289,7 +289,7 @@ if __name__ == "__main__":
 			addr,pin,wps_method,go_intent)
 
 	except:
-		print "Error:\n  Invalid Arguements"
+		print("Error:\n  Invalid Arguements")
 		usage()
 		quit()
 

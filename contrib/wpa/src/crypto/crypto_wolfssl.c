@@ -826,6 +826,7 @@ done:
 
 
 int crypto_dh_derive_secret(u8 generator, const u8 *prime, size_t prime_len,
+			    const u8 *order, size_t order_len,
 			    const u8 *privkey, size_t privkey_len,
 			    const u8 *pubkey, size_t pubkey_len,
 			    u8 *secret, size_t *len)
@@ -952,6 +953,8 @@ int crypto_hash_finish(struct crypto_hash *ctx, u8 *mac, size_t *len)
 	ret = 0;
 done:
 	bin_clear_free(ctx, sizeof(*ctx));
+	if (TEST_FAIL())
+		return -1;
 	return ret;
 }
 
@@ -1082,6 +1085,8 @@ int crypto_bignum_rand(struct crypto_bignum *r, const struct crypto_bignum *m)
 	int ret = 0;
 	WC_RNG rng;
 
+	if (TEST_FAIL())
+		return -1;
 	if (wc_InitRng(&rng) != 0)
 		return -1;
 	if (mp_rand_prime((mp_int *) r,
@@ -1344,16 +1349,6 @@ void crypto_ec_deinit(struct crypto_ec* e)
 	mp_clear(&e->a);
 	wc_ecc_free(&e->key);
 	os_free(e);
-}
-
-
-int crypto_ec_cofactor(struct crypto_ec *e, struct crypto_bignum *cofactor)
-{
-	if (!e || !cofactor)
-		return -1;
-
-	mp_set((mp_int *) cofactor, e->key.dp->cofactor);
-	return 0;
 }
 
 

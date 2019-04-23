@@ -10,12 +10,6 @@
 #define DPP_HOSTAPD_H
 
 int hostapd_dpp_qr_code(struct hostapd_data *hapd, const char *cmd);
-int hostapd_dpp_bootstrap_gen(struct hostapd_data *hapd, const char *cmd);
-int hostapd_dpp_bootstrap_remove(struct hostapd_data *hapd, const char *id);
-const char * hostapd_dpp_bootstrap_get_uri(struct hostapd_data *hapd,
-					   unsigned int id);
-int hostapd_dpp_bootstrap_info(struct hostapd_data *hapd, int id,
-			       char *reply, int reply_size);
 int hostapd_dpp_auth_init(struct hostapd_data *hapd, const char *cmd);
 int hostapd_dpp_listen(struct hostapd_data *hapd, const char *cmd);
 void hostapd_dpp_listen_stop(struct hostapd_data *hapd);

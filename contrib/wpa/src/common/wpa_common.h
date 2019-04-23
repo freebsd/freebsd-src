@@ -110,6 +110,7 @@ WPA_CIPHER_BIP_CMAC_256)
 #define RSN_KEY_DATA_KEYID RSN_SELECTOR(0x00, 0x0f, 0xac, 10)
 #define RSN_KEY_DATA_MULTIBAND_GTK RSN_SELECTOR(0x00, 0x0f, 0xac, 11)
 #define RSN_KEY_DATA_MULTIBAND_KEYID RSN_SELECTOR(0x00, 0x0f, 0xac, 12)
+#define RSN_KEY_DATA_OCI RSN_SELECTOR(0x00, 0x0f, 0xac, 13)
 
 #define WFA_KEY_DATA_IP_ADDR_REQ RSN_SELECTOR(0x50, 0x6f, 0x9a, 4)
 #define WFA_KEY_DATA_IP_ADDR_ALLOC RSN_SELECTOR(0x50, 0x6f, 0x9a, 5)
@@ -148,7 +149,8 @@ WPA_CIPHER_BIP_CMAC_256)
 #define WPA_CAPABILITY_SPP_A_MSDU_REQUIRED BIT(11)
 #define WPA_CAPABILITY_PBAC BIT(12)
 #define WPA_CAPABILITY_EXT_KEY_ID_FOR_UNICAST BIT(13)
-/* B14-B15: Reserved */
+#define WPA_CAPABILITY_OCVC BIT(14)
+/* B15: Reserved */
 
 
 /* IEEE 802.11r */
@@ -326,6 +328,7 @@ struct rsn_ftie_sha384 {
 #define FTIE_SUBELEM_GTK 2
 #define FTIE_SUBELEM_R0KH_ID 3
 #define FTIE_SUBELEM_IGTK 4
+#define FTIE_SUBELEM_OCI 5
 
 struct rsn_rdie {
 	u8 id;
@@ -344,7 +347,8 @@ int wpa_eapol_key_mic(const u8 *key, size_t key_len, int akmp, int ver,
 int wpa_pmk_to_ptk(const u8 *pmk, size_t pmk_len, const char *label,
 		   const u8 *addr1, const u8 *addr2,
 		   const u8 *nonce1, const u8 *nonce2,
-		   struct wpa_ptk *ptk, int akmp, int cipher);
+		   struct wpa_ptk *ptk, int akmp, int cipher,
+		   const u8 *z, size_t z_len);
 int fils_rmsk_to_pmk(int akmp, const u8 *rmsk, size_t rmsk_len,
 		     const u8 *snonce, const u8 *anonce, const u8 *dh_ss,
 		     size_t dh_ss_len, u8 *pmk, size_t *pmk_len);
@@ -389,7 +393,9 @@ int wpa_pmk_r1_to_ptk(const u8 *pmk_r1, size_t pmk_r1_len, const u8 *snonce,
 struct wpa_ie_data {
 	int proto;
 	int pairwise_cipher;
+	int has_pairwise;
 	int group_cipher;
+	int has_group;
 	int key_mgmt;
 	int capabilities;
 	size_t num_pmkid;
@@ -402,6 +408,7 @@ int wpa_parse_wpa_ie_rsn(const u8 *rsn_ie, size_t rsn_ie_len,
 			 struct wpa_ie_data *data);
 int wpa_parse_wpa_ie_wpa(const u8 *wpa_ie, size_t wpa_ie_len,
 			 struct wpa_ie_data *data);
+int wpa_default_rsn_cipher(int freq);
 
 void rsn_pmkid(const u8 *pmk, size_t pmk_len, const u8 *aa, const u8 *spa,
 	       u8 *pmkid, int akmp);
@@ -451,6 +458,10 @@ struct wpa_ft_ies {
 	size_t tie_len;
 	const u8 *igtk;
 	size_t igtk_len;
+#ifdef CONFIG_OCV
+	const u8 *oci;
+	size_t oci_len;
+#endif /* CONFIG_OCV */
 	const u8 *ric;
 	size_t ric_len;
 	int key_mgmt;

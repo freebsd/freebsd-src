@@ -15,7 +15,6 @@
 #include "wps_supplicant.h"
 #include "binder/binder.h"
 #include "dbus/dbus_common.h"
-#include "dbus/dbus_old.h"
 #include "dbus/dbus_new.h"
 #include "rsn_supp/wpa.h"
 #include "fst/fst.h"
@@ -27,13 +26,13 @@
 
 int wpas_notify_supplicant_initialized(struct wpa_global *global)
 {
-#ifdef CONFIG_DBUS
+#ifdef CONFIG_CTRL_IFACE_DBUS_NEW
 	if (global->params.dbus_ctrl_interface) {
 		global->dbus = wpas_dbus_init(global);
 		if (global->dbus == NULL)
 			return -1;
 	}
-#endif /* CONFIG_DBUS */
+#endif /* CONFIG_CTRL_IFACE_DBUS_NEW */
 
 #ifdef CONFIG_BINDER
 	global->binder = wpas_binder_init(global);
@@ -47,10 +46,10 @@ int wpas_notify_supplicant_initialized(struct wpa_global *global)
 
 void wpas_notify_supplicant_deinitialized(struct wpa_global *global)
 {
-#ifdef CONFIG_DBUS
+#ifdef CONFIG_CTRL_IFACE_DBUS_NEW
 	if (global->dbus)
 		wpas_dbus_deinit(global->dbus);
-#endif /* CONFIG_DBUS */
+#endif /* CONFIG_CTRL_IFACE_DBUS_NEW */
 
 #ifdef CONFIG_BINDER
 	if (global->binder)
@@ -64,9 +63,6 @@ int wpas_notify_iface_added(struct wpa_supplicant *wpa_s)
 	if (wpa_s->p2p_mgmt)
 		return 0;
 
-	if (wpas_dbus_register_iface(wpa_s))
-		return -1;
-
 	if (wpas_dbus_register_interface(wpa_s))
 		return -1;
 
@@ -79,9 +75,6 @@ void wpas_notify_iface_removed(struct wpa_supplicant *wpa_s)
 	if (wpa_s->p2p_mgmt)
 		return;
 
-	/* unregister interface in old DBus ctrl iface */
-	wpas_dbus_unregister_iface(wpa_s);
-
 	/* unregister interface in new DBus ctrl iface */
 	wpas_dbus_unregister_interface(wpa_s);
 }
@@ -93,10 +86,6 @@ void wpas_notify_state_changed(struct wpa_supplicant *wpa_s,
 {
 	if (wpa_s->p2p_mgmt)
 		return;
-
-	/* notify the old DBus API */
-	wpa_supplicant_dbus_notify_state_change(wpa_s, new_state,
-						old_state);
 
 	/* notify the new DBus API */
 	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_STATE);
@@ -140,12 +129,57 @@ void wpas_notify_disconnect_reason(struct wpa_supplicant *wpa_s)
 }
 
 
+void wpas_notify_auth_status_code(struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_AUTH_STATUS_CODE);
+}
+
+
 void wpas_notify_assoc_status_code(struct wpa_supplicant *wpa_s)
 {
 	if (wpa_s->p2p_mgmt)
 		return;
 
 	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_ASSOC_STATUS_CODE);
+}
+
+
+void wpas_notify_roam_time(struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_ROAM_TIME);
+}
+
+
+void wpas_notify_roam_complete(struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_ROAM_COMPLETE);
+}
+
+
+void wpas_notify_session_length(struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_SESSION_LENGTH);
+}
+
+
+void wpas_notify_bss_tm_status(struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_BSS_TM_STATUS);
 }
 
 
@@ -222,9 +256,6 @@ void wpas_notify_scanning(struct wpa_supplicant *wpa_s)
 	if (wpa_s->p2p_mgmt)
 		return;
 
-	/* notify the old DBus API */
-	wpa_supplicant_dbus_notify_scanning(wpa_s);
-
 	/* notify the new DBus API */
 	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_SCANNING);
 }
@@ -244,9 +275,6 @@ void wpas_notify_scan_results(struct wpa_supplicant *wpa_s)
 	if (wpa_s->p2p_mgmt)
 		return;
 
-	/* notify the old DBus API */
-	wpa_supplicant_dbus_notify_scan_results(wpa_s);
-
 	wpas_wps_notify_scan_results(wpa_s);
 }
 
@@ -258,8 +286,6 @@ void wpas_notify_wps_credential(struct wpa_supplicant *wpa_s,
 		return;
 
 #ifdef CONFIG_WPS
-	/* notify the old DBus API */
-	wpa_supplicant_dbus_notify_wps_cred(wpa_s, cred);
 	/* notify the new DBus API */
 	wpas_dbus_signal_wps_cred(wpa_s, cred);
 #endif /* CONFIG_WPS */
@@ -720,6 +746,9 @@ static void wpas_notify_ap_sta_authorized(struct wpa_supplicant *wpa_s,
 		wpas_dbus_signal_p2p_peer_joined(wpa_s, p2p_dev_addr);
 #endif /* CONFIG_P2P */
 
+	/* Register the station */
+	wpas_dbus_register_sta(wpa_s, sta);
+
 	/* Notify listeners a new station has been authorized */
 	wpas_dbus_signal_sta_authorized(wpa_s, sta);
 }
@@ -740,6 +769,9 @@ static void wpas_notify_ap_sta_deauthorized(struct wpa_supplicant *wpa_s,
 
 	/* Notify listeners a station has been deauthorized */
 	wpas_dbus_signal_sta_deauthorized(wpa_s, sta);
+
+	/* Unregister the station */
+	wpas_dbus_unregister_sta(wpa_s, sta);
 }
 
 
@@ -787,9 +819,6 @@ void wpas_notify_certification(struct wpa_supplicant *wpa_s, int depth,
 				"depth=%d %s", depth, altsubject[i]);
 	}
 
-	/* notify the old DBus API */
-	wpa_supplicant_dbus_notify_certification(wpa_s, depth, subject,
-						 cert_hash, cert);
 	/* notify the new DBus API */
 	wpas_dbus_signal_certification(wpa_s, depth, subject, altsubject,
 				       num_altsubject, cert_hash, cert);

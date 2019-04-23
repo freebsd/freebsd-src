@@ -1,6 +1,6 @@
 /*
  * EAP peer method: EAP-SAKE (RFC 4763)
- * Copyright (c) 2006-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -235,9 +235,13 @@ static struct wpabuf * eap_sake_process_challenge(struct eap_sm *sm,
 		data->serverid_len = attr.serverid_len;
 	}
 
-	eap_sake_derive_keys(data->root_secret_a, data->root_secret_b,
-			     data->rand_s, data->rand_p,
-			     (u8 *) &data->tek, data->msk, data->emsk);
+	if (eap_sake_derive_keys(data->root_secret_a, data->root_secret_b,
+				 data->rand_s, data->rand_p,
+				 (u8 *) &data->tek, data->msk,
+				 data->emsk) < 0) {
+		wpa_printf(MSG_INFO, "EAP-SAKE: Failed to derive keys");
+		return NULL;
+	}
 
 	wpa_printf(MSG_DEBUG, "EAP-SAKE: Sending Response/Challenge");
 

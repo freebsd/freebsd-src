@@ -107,7 +107,8 @@ void eap_server_tls_ssl_deinit(struct eap_sm *sm, struct eap_ssl_data *data)
 
 
 u8 * eap_server_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
-			       const char *label, size_t len)
+			       const char *label, const u8 *context,
+			       size_t context_len, size_t len)
 {
 	u8 *out;
 
@@ -115,8 +116,8 @@ u8 * eap_server_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
 	if (out == NULL)
 		return NULL;
 
-	if (tls_connection_export_key(sm->ssl_ctx, data->conn, label, out,
-				      len)) {
+	if (tls_connection_export_key(sm->ssl_ctx, data->conn, label,
+				      context, context_len, out, len)) {
 		os_free(out);
 		return NULL;
 	}
@@ -146,10 +147,26 @@ u8 * eap_server_tls_derive_session_id(struct eap_sm *sm,
 	u8 *out;
 
 	if (eap_type == EAP_TYPE_TLS && data->tls_v13) {
-		*len = 64;
-		return eap_server_tls_derive_key(sm, data,
-						 "EXPORTER_EAP_TLS_Session-Id",
-						 64);
+		u8 *id, *method_id;
+
+		/* Session-Id = <EAP-Type> || Method-Id
+		 * Method-Id = TLS-Exporter("EXPORTER_EAP_TLS_Method-Id",
+		 *                          "", 64)
+		 */
+		*len = 1 + 64;
+		id = os_malloc(*len);
+		if (!id)
+			return NULL;
+		method_id = eap_server_tls_derive_key(
+			sm, data, "EXPORTER_EAP_TLS_Method-Id", NULL, 0, 64);
+		if (!method_id) {
+			os_free(id);
+			return NULL;
+		}
+		id[0] = eap_type;
+		os_memcpy(id + 1, method_id, 64);
+		os_free(method_id);
+		return id;
 	}
 
 	if (tls_connection_get_random(sm->ssl_ctx, data->conn, &keys))

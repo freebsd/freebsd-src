@@ -208,16 +208,77 @@ enum chan_allowed verify_channel(struct hostapd_hw_modes *mode, u8 channel,
 
 
 static int wpas_op_class_supported(struct wpa_supplicant *wpa_s,
+				   struct wpa_ssid *ssid,
 				   const struct oper_class_map *op_class)
 {
 	int chan;
 	size_t i;
 	struct hostapd_hw_modes *mode;
 	int found;
+	int z;
+	int freq2 = 0;
+	int freq5 = 0;
 
 	mode = get_mode(wpa_s->hw.modes, wpa_s->hw.num_modes, op_class->mode);
 	if (!mode)
 		return 0;
+
+	/* If we are configured to disable certain things, take that into
+	 * account here. */
+	if (ssid->freq_list && ssid->freq_list[0]) {
+		for (z = 0; ; z++) {
+			int f = ssid->freq_list[z];
+
+			if (f == 0)
+				break; /* end of list */
+			if (f > 4000 && f < 6000)
+				freq5 = 1;
+			else if (f > 2400 && f < 2500)
+				freq2 = 1;
+		}
+	} else {
+		/* No frequencies specified, can use anything hardware supports.
+		 */
+		freq2 = freq5 = 1;
+	}
+
+	if (op_class->op_class >= 115 && op_class->op_class <= 130 && !freq5)
+		return 0;
+	if (op_class->op_class >= 81 && op_class->op_class <= 84 && !freq2)
+		return 0;
+
+#ifdef CONFIG_HT_OVERRIDES
+	if (ssid->disable_ht) {
+		switch (op_class->op_class) {
+		case 83:
+		case 84:
+		case 104:
+		case 105:
+		case 116:
+		case 117:
+		case 119:
+		case 120:
+		case 122:
+		case 123:
+		case 126:
+		case 127:
+		case 128:
+		case 129:
+		case 130:
+			/* Disable >= 40 MHz channels if HT is disabled */
+			return 0;
+		}
+	}
+#endif /* CONFIG_HT_OVERRIDES */
+
+#ifdef CONFIG_VHT_OVERRIDES
+	if (ssid->disable_vht) {
+		if (op_class->op_class >= 128 && op_class->op_class <= 130) {
+			/* Disable >= 80 MHz channels if VHT is disabled */
+			return 0;
+		}
+	}
+#endif /* CONFIG_VHT_OVERRIDES */
 
 	if (op_class->op_class == 128) {
 		u8 channels[] = { 42, 58, 106, 122, 138, 155 };
@@ -273,8 +334,9 @@ static int wpas_op_class_supported(struct wpa_supplicant *wpa_s,
 }
 
 
-size_t wpas_supp_op_class_ie(struct wpa_supplicant *wpa_s, int freq, u8 *pos,
-			      size_t len)
+size_t wpas_supp_op_class_ie(struct wpa_supplicant *wpa_s,
+			     struct wpa_ssid *ssid,
+			     int freq, u8 *pos, size_t len)
 {
 	struct wpabuf *buf;
 	u8 op, current, chan;
@@ -304,7 +366,7 @@ size_t wpas_supp_op_class_ie(struct wpa_supplicant *wpa_s, int freq, u8 *pos,
 	wpabuf_put_u8(buf, current);
 
 	for (op = 0; global_op_class[op].op_class; op++) {
-		if (wpas_op_class_supported(wpa_s, &global_op_class[op]))
+		if (wpas_op_class_supported(wpa_s, ssid, &global_op_class[op]))
 			wpabuf_put_u8(buf, global_op_class[op].op_class);
 	}
 

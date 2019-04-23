@@ -1249,6 +1249,7 @@ struct wpabuf * dh_derive_shared(const struct wpabuf *peer_public,
 	if (shared == NULL)
 		return NULL;
 	if (crypto_dh_derive_secret(*dh->generator, dh->prime, dh->prime_len,
+				    dh->order, dh->order_len,
 				    wpabuf_head(own_private),
 				    wpabuf_len(own_private),
 				    wpabuf_head(peer_public),

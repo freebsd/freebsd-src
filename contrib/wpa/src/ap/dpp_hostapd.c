@@ -28,34 +28,6 @@ static int hostapd_dpp_auth_init_next(struct hostapd_data *hapd);
 static const u8 broadcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 
-static struct dpp_configurator *
-hostapd_dpp_configurator_get_id(struct hostapd_data *hapd, unsigned int id)
-{
-	struct dpp_configurator *conf;
-
-	dl_list_for_each(conf, &hapd->iface->interfaces->dpp_configurator,
-			 struct dpp_configurator, list) {
-		if (conf->id == id)
-			return conf;
-	}
-	return NULL;
-}
-
-
-static unsigned int hapd_dpp_next_id(struct hostapd_data *hapd)
-{
-	struct dpp_bootstrap_info *bi;
-	unsigned int max_id = 0;
-
-	dl_list_for_each(bi, &hapd->iface->interfaces->dpp_bootstrap,
-			 struct dpp_bootstrap_info, list) {
-		if (bi->id > max_id)
-			max_id = bi->id;
-	}
-	return max_id + 1;
-}
-
-
 /**
  * hostapd_dpp_qr_code - Parse and add DPP bootstrapping info from a QR Code
  * @hapd: Pointer to hostapd_data
@@ -67,12 +39,9 @@ int hostapd_dpp_qr_code(struct hostapd_data *hapd, const char *cmd)
 	struct dpp_bootstrap_info *bi;
 	struct dpp_authentication *auth = hapd->dpp_auth;
 
-	bi = dpp_parse_qr_code(cmd);
+	bi = dpp_add_qr_code(hapd->iface->interfaces->dpp, cmd);
 	if (!bi)
 		return -1;
-
-	bi->id = hapd_dpp_next_id(hapd);
-	dl_list_add(&hapd->iface->interfaces->dpp_bootstrap, &bi->list);
 
 	if (auth && auth->response_pending &&
 	    dpp_notify_new_qr_code(auth, bi) == 1) {
@@ -89,195 +58,6 @@ int hostapd_dpp_qr_code(struct hostapd_data *hapd, const char *cmd)
 	}
 
 	return bi->id;
-}
-
-
-static char * get_param(const char *cmd, const char *param)
-{
-	const char *pos, *end;
-	char *val;
-	size_t len;
-
-	pos = os_strstr(cmd, param);
-	if (!pos)
-		return NULL;
-
-	pos += os_strlen(param);
-	end = os_strchr(pos, ' ');
-	if (end)
-		len = end - pos;
-	else
-		len = os_strlen(pos);
-	val = os_malloc(len + 1);
-	if (!val)
-		return NULL;
-	os_memcpy(val, pos, len);
-	val[len] = '\0';
-	return val;
-}
-
-
-int hostapd_dpp_bootstrap_gen(struct hostapd_data *hapd, const char *cmd)
-{
-	char *chan = NULL, *mac = NULL, *info = NULL, *pk = NULL, *curve = NULL;
-	char *key = NULL;
-	u8 *privkey = NULL;
-	size_t privkey_len = 0;
-	size_t len;
-	int ret = -1;
-	struct dpp_bootstrap_info *bi;
-
-	bi = os_zalloc(sizeof(*bi));
-	if (!bi)
-		goto fail;
-
-	if (os_strstr(cmd, "type=qrcode"))
-		bi->type = DPP_BOOTSTRAP_QR_CODE;
-	else if (os_strstr(cmd, "type=pkex"))
-		bi->type = DPP_BOOTSTRAP_PKEX;
-	else
-		goto fail;
-
-	chan = get_param(cmd, " chan=");
-	mac = get_param(cmd, " mac=");
-	info = get_param(cmd, " info=");
-	curve = get_param(cmd, " curve=");
-	key = get_param(cmd, " key=");
-
-	if (key) {
-		privkey_len = os_strlen(key) / 2;
-		privkey = os_malloc(privkey_len);
-		if (!privkey ||
-		    hexstr2bin(key, privkey, privkey_len) < 0)
-			goto fail;
-	}
-
-	pk = dpp_keygen(bi, curve, privkey, privkey_len);
-	if (!pk)
-		goto fail;
-
-	len = 4; /* "DPP:" */
-	if (chan) {
-		if (dpp_parse_uri_chan_list(bi, chan) < 0)
-			goto fail;
-		len += 3 + os_strlen(chan); /* C:...; */
-	}
-	if (mac) {
-		if (dpp_parse_uri_mac(bi, mac) < 0)
-			goto fail;
-		len += 3 + os_strlen(mac); /* M:...; */
-	}
-	if (info) {
-		if (dpp_parse_uri_info(bi, info) < 0)
-			goto fail;
-		len += 3 + os_strlen(info); /* I:...; */
-	}
-	len += 4 + os_strlen(pk);
-	bi->uri = os_malloc(len + 1);
-	if (!bi->uri)
-		goto fail;
-	os_snprintf(bi->uri, len + 1, "DPP:%s%s%s%s%s%s%s%s%sK:%s;;",
-		    chan ? "C:" : "", chan ? chan : "", chan ? ";" : "",
-		    mac ? "M:" : "", mac ? mac : "", mac ? ";" : "",
-		    info ? "I:" : "", info ? info : "", info ? ";" : "",
-		    pk);
-	bi->id = hapd_dpp_next_id(hapd);
-	dl_list_add(&hapd->iface->interfaces->dpp_bootstrap, &bi->list);
-	ret = bi->id;
-	bi = NULL;
-fail:
-	os_free(curve);
-	os_free(pk);
-	os_free(chan);
-	os_free(mac);
-	os_free(info);
-	str_clear_free(key);
-	bin_clear_free(privkey, privkey_len);
-	dpp_bootstrap_info_free(bi);
-	return ret;
-}
-
-
-static struct dpp_bootstrap_info *
-dpp_bootstrap_get_id(struct hostapd_data *hapd, unsigned int id)
-{
-	struct dpp_bootstrap_info *bi;
-
-	dl_list_for_each(bi, &hapd->iface->interfaces->dpp_bootstrap,
-			 struct dpp_bootstrap_info, list) {
-		if (bi->id == id)
-			return bi;
-	}
-	return NULL;
-}
-
-
-static int dpp_bootstrap_del(struct hapd_interfaces *ifaces, unsigned int id)
-{
-	struct dpp_bootstrap_info *bi, *tmp;
-	int found = 0;
-
-	dl_list_for_each_safe(bi, tmp, &ifaces->dpp_bootstrap,
-			      struct dpp_bootstrap_info, list) {
-		if (id && bi->id != id)
-			continue;
-		found = 1;
-		dl_list_del(&bi->list);
-		dpp_bootstrap_info_free(bi);
-	}
-
-	if (id == 0)
-		return 0; /* flush succeeds regardless of entries found */
-	return found ? 0 : -1;
-}
-
-
-int hostapd_dpp_bootstrap_remove(struct hostapd_data *hapd, const char *id)
-{
-	unsigned int id_val;
-
-	if (os_strcmp(id, "*") == 0) {
-		id_val = 0;
-	} else {
-		id_val = atoi(id);
-		if (id_val == 0)
-			return -1;
-	}
-
-	return dpp_bootstrap_del(hapd->iface->interfaces, id_val);
-}
-
-
-const char * hostapd_dpp_bootstrap_get_uri(struct hostapd_data *hapd,
-					   unsigned int id)
-{
-	struct dpp_bootstrap_info *bi;
-
-	bi = dpp_bootstrap_get_id(hapd, id);
-	if (!bi)
-		return NULL;
-	return bi->uri;
-}
-
-
-int hostapd_dpp_bootstrap_info(struct hostapd_data *hapd, int id,
-			       char *reply, int reply_size)
-{
-	struct dpp_bootstrap_info *bi;
-
-	bi = dpp_bootstrap_get_id(hapd, id);
-	if (!bi)
-		return -1;
-	return os_snprintf(reply, reply_size, "type=%s\n"
-			   "mac_addr=" MACSTR "\n"
-			   "info=%s\n"
-			   "num_freq=%u\n"
-			   "curve=%s\n",
-			   dpp_bootstrap_type_txt(bi->type),
-			   MAC2STR(bi->mac_addr),
-			   bi->info ? bi->info : "",
-			   bi->num_freq,
-			   bi->curve->name);
 }
 
 
@@ -353,6 +133,16 @@ void hostapd_dpp_tx_status(struct hostapd_data *hapd, const u8 *dst,
 			   "DPP: Ignore TX status since there is no ongoing authentication exchange");
 		return;
 	}
+
+#ifdef CONFIG_DPP2
+	if (auth->connect_on_tx_status) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Complete exchange on configuration result");
+		dpp_auth_deinit(hapd->dpp_auth);
+		hapd->dpp_auth = NULL;
+		return;
+	}
+#endif /* CONFIG_DPP2 */
 
 	if (hapd->dpp_auth->remove_on_tx_status) {
 		wpa_printf(MSG_DEBUG,
@@ -505,178 +295,6 @@ static void hostapd_dpp_set_testing_options(struct hostapd_data *hapd,
 }
 
 
-static int hostapd_dpp_set_configurator(struct hostapd_data *hapd,
-					struct dpp_authentication *auth,
-					const char *cmd)
-{
-	const char *pos, *end;
-	struct dpp_configuration *conf_sta = NULL, *conf_ap = NULL;
-	struct dpp_configurator *conf = NULL;
-	u8 ssid[32] = { "test" };
-	size_t ssid_len = 4;
-	char pass[64] = { };
-	size_t pass_len = 0;
-	u8 psk[PMK_LEN];
-	int psk_set = 0;
-	char *group_id = NULL;
-
-	if (!cmd)
-		return 0;
-
-	wpa_printf(MSG_DEBUG, "DPP: Set configurator parameters: %s", cmd);
-	pos = os_strstr(cmd, " ssid=");
-	if (pos) {
-		pos += 6;
-		end = os_strchr(pos, ' ');
-		ssid_len = end ? (size_t) (end - pos) : os_strlen(pos);
-		ssid_len /= 2;
-		if (ssid_len > sizeof(ssid) ||
-		    hexstr2bin(pos, ssid, ssid_len) < 0)
-			goto fail;
-	}
-
-	pos = os_strstr(cmd, " pass=");
-	if (pos) {
-		pos += 6;
-		end = os_strchr(pos, ' ');
-		pass_len = end ? (size_t) (end - pos) : os_strlen(pos);
-		pass_len /= 2;
-		if (pass_len > sizeof(pass) - 1 || pass_len < 8 ||
-		    hexstr2bin(pos, (u8 *) pass, pass_len) < 0)
-			goto fail;
-	}
-
-	pos = os_strstr(cmd, " psk=");
-	if (pos) {
-		pos += 5;
-		if (hexstr2bin(pos, psk, PMK_LEN) < 0)
-			goto fail;
-		psk_set = 1;
-	}
-
-	pos = os_strstr(cmd, " group_id=");
-	if (pos) {
-		size_t group_id_len;
-
-		pos += 10;
-		end = os_strchr(pos, ' ');
-		group_id_len = end ? (size_t) (end - pos) : os_strlen(pos);
-		group_id = os_malloc(group_id_len + 1);
-		if (!group_id)
-			goto fail;
-		os_memcpy(group_id, pos, group_id_len);
-		group_id[group_id_len] = '\0';
-	}
-
-	if (os_strstr(cmd, " conf=sta-")) {
-		conf_sta = os_zalloc(sizeof(struct dpp_configuration));
-		if (!conf_sta)
-			goto fail;
-		os_memcpy(conf_sta->ssid, ssid, ssid_len);
-		conf_sta->ssid_len = ssid_len;
-		if (os_strstr(cmd, " conf=sta-psk") ||
-		    os_strstr(cmd, " conf=sta-sae") ||
-		    os_strstr(cmd, " conf=sta-psk-sae")) {
-			if (os_strstr(cmd, " conf=sta-psk-sae"))
-				conf_sta->akm = DPP_AKM_PSK_SAE;
-			else if (os_strstr(cmd, " conf=sta-sae"))
-				conf_sta->akm = DPP_AKM_SAE;
-			else
-				conf_sta->akm = DPP_AKM_PSK;
-			if (psk_set) {
-				os_memcpy(conf_sta->psk, psk, PMK_LEN);
-			} else {
-				conf_sta->passphrase = os_strdup(pass);
-				if (!conf_sta->passphrase)
-					goto fail;
-			}
-		} else if (os_strstr(cmd, " conf=sta-dpp")) {
-			conf_sta->akm = DPP_AKM_DPP;
-		} else {
-			goto fail;
-		}
-		if (os_strstr(cmd, " group_id=")) {
-			conf_sta->group_id = group_id;
-			group_id = NULL;
-		}
-	}
-
-	if (os_strstr(cmd, " conf=ap-")) {
-		conf_ap = os_zalloc(sizeof(struct dpp_configuration));
-		if (!conf_ap)
-			goto fail;
-		os_memcpy(conf_ap->ssid, ssid, ssid_len);
-		conf_ap->ssid_len = ssid_len;
-		if (os_strstr(cmd, " conf=ap-psk") ||
-		    os_strstr(cmd, " conf=ap-sae") ||
-		    os_strstr(cmd, " conf=ap-psk-sae")) {
-			if (os_strstr(cmd, " conf=ap-psk-sae"))
-				conf_ap->akm = DPP_AKM_PSK_SAE;
-			else if (os_strstr(cmd, " conf=ap-sae"))
-				conf_ap->akm = DPP_AKM_SAE;
-			else
-				conf_ap->akm = DPP_AKM_PSK;
-			if (psk_set) {
-				os_memcpy(conf_ap->psk, psk, PMK_LEN);
-			} else if (pass_len > 0) {
-				conf_ap->passphrase = os_strdup(pass);
-				if (!conf_ap->passphrase)
-					goto fail;
-			} else {
-				goto fail;
-			}
-		} else if (os_strstr(cmd, " conf=ap-dpp")) {
-			conf_ap->akm = DPP_AKM_DPP;
-		} else {
-			goto fail;
-		}
-		if (os_strstr(cmd, " group_id=")) {
-			conf_ap->group_id = group_id;
-			group_id = NULL;
-		}
-	}
-
-	pos = os_strstr(cmd, " expiry=");
-	if (pos) {
-		long int val;
-
-		pos += 8;
-		val = strtol(pos, NULL, 0);
-		if (val <= 0)
-			goto fail;
-		if (conf_sta)
-			conf_sta->netaccesskey_expiry = val;
-		if (conf_ap)
-			conf_ap->netaccesskey_expiry = val;
-	}
-
-	pos = os_strstr(cmd, " configurator=");
-	if (pos) {
-		auth->configurator = 1;
-		pos += 14;
-		conf = hostapd_dpp_configurator_get_id(hapd, atoi(pos));
-		if (!conf) {
-			wpa_printf(MSG_INFO,
-				   "DPP: Could not find the specified configurator");
-			goto fail;
-		}
-	}
-	auth->conf_sta = conf_sta;
-	auth->conf_ap = conf_ap;
-	auth->conf = conf;
-	os_free(group_id);
-	return 0;
-
-fail:
-	wpa_msg(hapd->msg_ctx, MSG_INFO,
-		"DPP: Failed to set configurator parameters");
-	dpp_configuration_free(conf_sta);
-	dpp_configuration_free(conf_ap);
-	os_free(group_id);
-	return -1;
-}
-
-
 static void hostapd_dpp_init_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	struct hostapd_data *hapd = eloop_ctx;
@@ -786,7 +404,7 @@ int hostapd_dpp_auth_init(struct hostapd_data *hapd, const char *cmd)
 	if (!pos)
 		return -1;
 	pos += 6;
-	peer_bi = dpp_bootstrap_get_id(hapd, atoi(pos));
+	peer_bi = dpp_bootstrap_get_id(hapd->iface->interfaces->dpp, atoi(pos));
 	if (!peer_bi) {
 		wpa_printf(MSG_INFO,
 			   "DPP: Could not find bootstrapping info for the identified peer");
@@ -796,7 +414,8 @@ int hostapd_dpp_auth_init(struct hostapd_data *hapd, const char *cmd)
 	pos = os_strstr(cmd, " own=");
 	if (pos) {
 		pos += 5;
-		own_bi = dpp_bootstrap_get_id(hapd, atoi(pos));
+		own_bi = dpp_bootstrap_get_id(hapd->iface->interfaces->dpp,
+					      atoi(pos));
 		if (!own_bi) {
 			wpa_printf(MSG_INFO,
 				   "DPP: Could not find bootstrapping info for the identified local entry");
@@ -846,7 +465,8 @@ int hostapd_dpp_auth_init(struct hostapd_data *hapd, const char *cmd)
 	if (!hapd->dpp_auth)
 		goto fail;
 	hostapd_dpp_set_testing_options(hapd, hapd->dpp_auth);
-	if (hostapd_dpp_set_configurator(hapd, hapd->dpp_auth, cmd) < 0) {
+	if (dpp_set_configurator(hapd->iface->interfaces->dpp, hapd->msg_ctx,
+				 hapd->dpp_auth, cmd) < 0) {
 		dpp_auth_deinit(hapd->dpp_auth);
 		hapd->dpp_auth = NULL;
 		goto fail;
@@ -905,7 +525,10 @@ static void hostapd_dpp_rx_auth_req(struct hostapd_data *hapd, const u8 *src,
 {
 	const u8 *r_bootstrap, *i_bootstrap;
 	u16 r_bootstrap_len, i_bootstrap_len;
-	struct dpp_bootstrap_info *bi, *own_bi = NULL, *peer_bi = NULL;
+	struct dpp_bootstrap_info *own_bi = NULL, *peer_bi = NULL;
+
+	if (!hapd->iface->interfaces->dpp)
+		return;
 
 	wpa_printf(MSG_DEBUG, "DPP: Authentication Request from " MACSTR,
 		   MAC2STR(src));
@@ -932,28 +555,8 @@ static void hostapd_dpp_rx_auth_req(struct hostapd_data *hapd, const u8 *src,
 
 	/* Try to find own and peer bootstrapping key matches based on the
 	 * received hash values */
-	dl_list_for_each(bi, &hapd->iface->interfaces->dpp_bootstrap,
-			 struct dpp_bootstrap_info, list) {
-		if (!own_bi && bi->own &&
-		    os_memcmp(bi->pubkey_hash, r_bootstrap,
-			      SHA256_MAC_LEN) == 0) {
-			wpa_printf(MSG_DEBUG,
-				   "DPP: Found matching own bootstrapping information");
-			own_bi = bi;
-		}
-
-		if (!peer_bi && !bi->own &&
-		    os_memcmp(bi->pubkey_hash, i_bootstrap,
-			      SHA256_MAC_LEN) == 0) {
-			wpa_printf(MSG_DEBUG,
-				   "DPP: Found matching peer bootstrapping information");
-			peer_bi = bi;
-		}
-
-		if (own_bi && peer_bi)
-			break;
-	}
-
+	dpp_bootstrap_find_pair(hapd->iface->interfaces->dpp, i_bootstrap,
+				r_bootstrap, &own_bi, &peer_bi);
 	if (!own_bi) {
 		wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_FAIL
 			"No matching own bootstrapping key found - ignore message");
@@ -975,8 +578,9 @@ static void hostapd_dpp_rx_auth_req(struct hostapd_data *hapd, const u8 *src,
 		return;
 	}
 	hostapd_dpp_set_testing_options(hapd, hapd->dpp_auth);
-	if (hostapd_dpp_set_configurator(hapd, hapd->dpp_auth,
-					 hapd->dpp_configurator_params) < 0) {
+	if (dpp_set_configurator(hapd->iface->interfaces->dpp, hapd->msg_ctx,
+				 hapd->dpp_auth,
+				 hapd->dpp_configurator_params) < 0) {
 		dpp_auth_deinit(hapd->dpp_auth);
 		hapd->dpp_auth = NULL;
 		return;
@@ -1072,6 +676,7 @@ static void hostapd_dpp_gas_resp_cb(void *ctx, const u8 *addr, u8 dialog_token,
 	struct hostapd_data *hapd = ctx;
 	const u8 *pos;
 	struct dpp_authentication *auth = hapd->dpp_auth;
+	enum dpp_status_error status = DPP_STATUS_CONFIG_REJECTED;
 
 	if (!auth || !auth->auth_success) {
 		wpa_printf(MSG_DEBUG, "DPP: No matching exchange in progress");
@@ -1107,12 +712,41 @@ static void hostapd_dpp_gas_resp_cb(void *ctx, const u8 *addr, u8 dialog_token,
 	}
 
 	hostapd_dpp_handle_config_obj(hapd, auth);
-	dpp_auth_deinit(hapd->dpp_auth);
-	hapd->dpp_auth = NULL;
-	return;
-
+	status = DPP_STATUS_OK;
+#ifdef CONFIG_TESTING_OPTIONS
+	if (dpp_test == DPP_TEST_REJECT_CONFIG) {
+		wpa_printf(MSG_INFO, "DPP: TESTING - Reject Config Object");
+		status = DPP_STATUS_CONFIG_REJECTED;
+	}
+#endif /* CONFIG_TESTING_OPTIONS */
 fail:
-	wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_CONF_FAILED);
+	if (status != DPP_STATUS_OK)
+		wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_CONF_FAILED);
+#ifdef CONFIG_DPP2
+	if (auth->peer_version >= 2 &&
+	    auth->conf_resp_status == DPP_STATUS_OK) {
+		struct wpabuf *msg;
+
+		wpa_printf(MSG_DEBUG, "DPP: Send DPP Configuration Result");
+		msg = dpp_build_conf_result(auth, status);
+		if (!msg)
+			goto fail2;
+
+		wpa_msg(hapd->msg_ctx, MSG_INFO,
+			DPP_EVENT_TX "dst=" MACSTR " freq=%u type=%d",
+			MAC2STR(addr), auth->curr_freq,
+			DPP_PA_CONFIGURATION_RESULT);
+		hostapd_drv_send_action(hapd, auth->curr_freq, 0,
+					addr, wpabuf_head(msg),
+					wpabuf_len(msg));
+		wpabuf_free(msg);
+
+		/* This exchange will be terminated in the TX status handler */
+		auth->connect_on_tx_status = 1;
+		return;
+	}
+fail2:
+#endif /* CONFIG_DPP2 */
 	dpp_auth_deinit(hapd->dpp_auth);
 	hapd->dpp_auth = NULL;
 }
@@ -1121,7 +755,7 @@ fail:
 static void hostapd_dpp_start_gas_client(struct hostapd_data *hapd)
 {
 	struct dpp_authentication *auth = hapd->dpp_auth;
-	struct wpabuf *buf, *conf_req;
+	struct wpabuf *buf;
 	char json[100];
 	int res;
 	int netrole_ap = 1;
@@ -1133,33 +767,12 @@ static void hostapd_dpp_start_gas_client(struct hostapd_data *hapd)
 		    netrole_ap ? "ap" : "sta");
 	wpa_printf(MSG_DEBUG, "DPP: GAS Config Attributes: %s", json);
 
-	conf_req = dpp_build_conf_req(auth, json);
-	if (!conf_req) {
+	buf = dpp_build_conf_req(auth, json);
+	if (!buf) {
 		wpa_printf(MSG_DEBUG,
 			   "DPP: No configuration request data available");
 		return;
 	}
-
-	buf = gas_build_initial_req(0, 10 + 2 + wpabuf_len(conf_req));
-	if (!buf) {
-		wpabuf_free(conf_req);
-		return;
-	}
-
-	/* Advertisement Protocol IE */
-	wpabuf_put_u8(buf, WLAN_EID_ADV_PROTO);
-	wpabuf_put_u8(buf, 8); /* Length */
-	wpabuf_put_u8(buf, 0x7f);
-	wpabuf_put_u8(buf, WLAN_EID_VENDOR_SPECIFIC);
-	wpabuf_put_u8(buf, 5);
-	wpabuf_put_be24(buf, OUI_WFA);
-	wpabuf_put_u8(buf, DPP_OUI_TYPE);
-	wpabuf_put_u8(buf, 0x01);
-
-	/* GAS Query */
-	wpabuf_put_le16(buf, wpabuf_len(conf_req));
-	wpabuf_put_buf(buf, conf_req);
-	wpabuf_free(conf_req);
 
 	wpa_printf(MSG_DEBUG, "DPP: GAS request to " MACSTR " (freq %u MHz)",
 		   MAC2STR(auth->peer_mac_addr), auth->curr_freq);
@@ -1279,6 +892,63 @@ static void hostapd_dpp_rx_auth_conf(struct hostapd_data *hapd, const u8 *src,
 
 	hostapd_dpp_auth_success(hapd, 0);
 }
+
+
+#ifdef CONFIG_DPP2
+
+static void hostapd_dpp_config_result_wait_timeout(void *eloop_ctx,
+						   void *timeout_ctx)
+{
+	struct hostapd_data *hapd = eloop_ctx;
+	struct dpp_authentication *auth = hapd->dpp_auth;
+
+	if (!auth || !auth->waiting_conf_result)
+		return;
+
+	wpa_printf(MSG_DEBUG,
+		   "DPP: Timeout while waiting for Configuration Result");
+	wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_CONF_FAILED);
+	dpp_auth_deinit(auth);
+	hapd->dpp_auth = NULL;
+}
+
+
+static void hostapd_dpp_rx_conf_result(struct hostapd_data *hapd, const u8 *src,
+				       const u8 *hdr, const u8 *buf, size_t len)
+{
+	struct dpp_authentication *auth = hapd->dpp_auth;
+	enum dpp_status_error status;
+
+	wpa_printf(MSG_DEBUG, "DPP: Configuration Result from " MACSTR,
+		   MAC2STR(src));
+
+	if (!auth || !auth->waiting_conf_result) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: No DPP Configuration waiting for result - drop");
+		return;
+	}
+
+	if (os_memcmp(src, auth->peer_mac_addr, ETH_ALEN) != 0) {
+		wpa_printf(MSG_DEBUG, "DPP: MAC address mismatch (expected "
+			   MACSTR ") - drop", MAC2STR(auth->peer_mac_addr));
+		return;
+	}
+
+	status = dpp_conf_result_rx(auth, hdr, buf, len);
+
+	hostapd_drv_send_action_cancel_wait(hapd);
+	hostapd_dpp_listen_stop(hapd);
+	if (status == DPP_STATUS_OK)
+		wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_CONF_SENT);
+	else
+		wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_CONF_FAILED);
+	dpp_auth_deinit(auth);
+	hapd->dpp_auth = NULL;
+	eloop_cancel_timeout(hostapd_dpp_config_result_wait_timeout, hapd,
+			     NULL);
+}
+
+#endif /* CONFIG_DPP2 */
 
 
 static void hostapd_dpp_send_peer_disc_resp(struct hostapd_data *hapd,
@@ -1596,24 +1266,10 @@ hostapd_dpp_rx_pkex_commit_reveal_req(struct hostapd_data *hapd, const u8 *src,
 				wpabuf_head(msg), wpabuf_len(msg));
 	wpabuf_free(msg);
 
-	bi = os_zalloc(sizeof(*bi));
+	bi = dpp_pkex_finish(hapd->iface->interfaces->dpp, pkex, src, freq);
 	if (!bi)
 		return;
-	bi->id = hapd_dpp_next_id(hapd);
-	bi->type = DPP_BOOTSTRAP_PKEX;
-	os_memcpy(bi->mac_addr, src, ETH_ALEN);
-	bi->num_freq = 1;
-	bi->freq[0] = freq;
-	bi->curve = pkex->own_bi->curve;
-	bi->pubkey = pkex->peer_bootstrap_key;
-	pkex->peer_bootstrap_key = NULL;
-	dpp_pkex_free(pkex);
 	hapd->dpp_pkex = NULL;
-	if (dpp_bootstrap_key_hash(bi) < 0) {
-		dpp_bootstrap_info_free(bi);
-		return;
-	}
-	dl_list_add(&hapd->iface->interfaces->dpp_bootstrap, &bi->list);
 }
 
 
@@ -1623,7 +1279,7 @@ hostapd_dpp_rx_pkex_commit_reveal_resp(struct hostapd_data *hapd, const u8 *src,
 				       unsigned int freq)
 {
 	int res;
-	struct dpp_bootstrap_info *bi, *own_bi;
+	struct dpp_bootstrap_info *bi;
 	struct dpp_pkex *pkex = hapd->dpp_pkex;
 	char cmd[500];
 
@@ -1641,26 +1297,10 @@ hostapd_dpp_rx_pkex_commit_reveal_resp(struct hostapd_data *hapd, const u8 *src,
 		return;
 	}
 
-	own_bi = pkex->own_bi;
-
-	bi = os_zalloc(sizeof(*bi));
+	bi = dpp_pkex_finish(hapd->iface->interfaces->dpp, pkex, src, freq);
 	if (!bi)
 		return;
-	bi->id = hapd_dpp_next_id(hapd);
-	bi->type = DPP_BOOTSTRAP_PKEX;
-	os_memcpy(bi->mac_addr, src, ETH_ALEN);
-	bi->num_freq = 1;
-	bi->freq[0] = freq;
-	bi->curve = own_bi->curve;
-	bi->pubkey = pkex->peer_bootstrap_key;
-	pkex->peer_bootstrap_key = NULL;
-	dpp_pkex_free(pkex);
 	hapd->dpp_pkex = NULL;
-	if (dpp_bootstrap_key_hash(bi) < 0) {
-		dpp_bootstrap_info_free(bi);
-		return;
-	}
-	dl_list_add(&hapd->iface->interfaces->dpp_bootstrap, &bi->list);
 
 	os_snprintf(cmd, sizeof(cmd), " peer=%u %s",
 		    bi->id,
@@ -1744,6 +1384,11 @@ void hostapd_dpp_rx_action(struct hostapd_data *hapd, const u8 *src,
 		hostapd_dpp_rx_pkex_commit_reveal_resp(hapd, src, hdr, buf, len,
 						       freq);
 		break;
+#ifdef CONFIG_DPP2
+	case DPP_PA_CONFIGURATION_RESULT:
+		hostapd_dpp_rx_conf_result(hapd, src, hdr, buf, len);
+		break;
+#endif /* CONFIG_DPP2 */
 	default:
 		wpa_printf(MSG_DEBUG,
 			   "DPP: Ignored unsupported frame subtype %d", type);
@@ -1790,11 +1435,28 @@ hostapd_dpp_gas_req_handler(struct hostapd_data *hapd, const u8 *sa,
 
 void hostapd_dpp_gas_status_handler(struct hostapd_data *hapd, int ok)
 {
-	if (!hapd->dpp_auth)
+	struct dpp_authentication *auth = hapd->dpp_auth;
+
+	if (!auth)
 		return;
 
+	wpa_printf(MSG_DEBUG, "DPP: Configuration exchange completed (ok=%d)",
+		   ok);
 	eloop_cancel_timeout(hostapd_dpp_reply_wait_timeout, hapd, NULL);
 	eloop_cancel_timeout(hostapd_dpp_auth_resp_retry_timeout, hapd, NULL);
+#ifdef CONFIG_DPP2
+	if (ok && auth->peer_version >= 2 &&
+	    auth->conf_resp_status == DPP_STATUS_OK) {
+		wpa_printf(MSG_DEBUG, "DPP: Wait for Configuration Result");
+		auth->waiting_conf_result = 1;
+		eloop_cancel_timeout(hostapd_dpp_config_result_wait_timeout,
+				     hapd, NULL);
+		eloop_register_timeout(2, 0,
+				       hostapd_dpp_config_result_wait_timeout,
+				       hapd, NULL);
+		return;
+	}
+#endif /* CONFIG_DPP2 */
 	hostapd_drv_send_action_cancel_wait(hapd);
 
 	if (ok)
@@ -1803,93 +1465,6 @@ void hostapd_dpp_gas_status_handler(struct hostapd_data *hapd, int ok)
 		wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_CONF_FAILED);
 	dpp_auth_deinit(hapd->dpp_auth);
 	hapd->dpp_auth = NULL;
-}
-
-
-static unsigned int hostapd_dpp_next_configurator_id(struct hostapd_data *hapd)
-{
-	struct dpp_configurator *conf;
-	unsigned int max_id = 0;
-
-	dl_list_for_each(conf, &hapd->iface->interfaces->dpp_configurator,
-			 struct dpp_configurator, list) {
-		if (conf->id > max_id)
-			max_id = conf->id;
-	}
-	return max_id + 1;
-}
-
-
-int hostapd_dpp_configurator_add(struct hostapd_data *hapd, const char *cmd)
-{
-	char *curve = NULL;
-	char *key = NULL;
-	u8 *privkey = NULL;
-	size_t privkey_len = 0;
-	int ret = -1;
-	struct dpp_configurator *conf = NULL;
-
-	curve = get_param(cmd, " curve=");
-	key = get_param(cmd, " key=");
-
-	if (key) {
-		privkey_len = os_strlen(key) / 2;
-		privkey = os_malloc(privkey_len);
-		if (!privkey ||
-		    hexstr2bin(key, privkey, privkey_len) < 0)
-			goto fail;
-	}
-
-	conf = dpp_keygen_configurator(curve, privkey, privkey_len);
-	if (!conf)
-		goto fail;
-
-	conf->id = hostapd_dpp_next_configurator_id(hapd);
-	dl_list_add(&hapd->iface->interfaces->dpp_configurator, &conf->list);
-	ret = conf->id;
-	conf = NULL;
-fail:
-	os_free(curve);
-	str_clear_free(key);
-	bin_clear_free(privkey, privkey_len);
-	dpp_configurator_free(conf);
-	return ret;
-}
-
-
-static int dpp_configurator_del(struct hapd_interfaces *ifaces, unsigned int id)
-{
-	struct dpp_configurator *conf, *tmp;
-	int found = 0;
-
-	dl_list_for_each_safe(conf, tmp, &ifaces->dpp_configurator,
-			      struct dpp_configurator, list) {
-		if (id && conf->id != id)
-			continue;
-		found = 1;
-		dl_list_del(&conf->list);
-		dpp_configurator_free(conf);
-	}
-
-	if (id == 0)
-		return 0; /* flush succeeds regardless of entries found */
-	return found ? 0 : -1;
-}
-
-
-int hostapd_dpp_configurator_remove(struct hostapd_data *hapd, const char *id)
-{
-	unsigned int id_val;
-
-	if (os_strcmp(id, "*") == 0) {
-		id_val = 0;
-	} else {
-		id_val = atoi(id);
-		if (id_val == 0)
-			return -1;
-	}
-
-	return dpp_configurator_del(hapd->iface->interfaces, id_val);
 }
 
 
@@ -1905,7 +1480,8 @@ int hostapd_dpp_configurator_sign(struct hostapd_data *hapd, const char *cmd)
 
 	curve = get_param(cmd, " curve=");
 	hostapd_dpp_set_testing_options(hapd, auth);
-	if (hostapd_dpp_set_configurator(hapd, auth, cmd) == 0 &&
+	if (dpp_set_configurator(hapd->iface->interfaces->dpp, hapd->msg_ctx,
+				 auth, cmd) == 0 &&
 	    dpp_configurator_own_config(auth, curve, 1) == 0) {
 		hostapd_dpp_handle_config_obj(hapd, auth);
 		ret = 0;
@@ -1918,19 +1494,6 @@ int hostapd_dpp_configurator_sign(struct hostapd_data *hapd, const char *cmd)
 }
 
 
-int hostapd_dpp_configurator_get_key(struct hostapd_data *hapd, unsigned int id,
-				     char *buf, size_t buflen)
-{
-	struct dpp_configurator *conf;
-
-	conf = hostapd_dpp_configurator_get_id(hapd, id);
-	if (!conf)
-		return -1;
-
-	return dpp_configurator_get_key(conf, buf, buflen);
-}
-
-
 int hostapd_dpp_pkex_add(struct hostapd_data *hapd, const char *cmd)
 {
 	struct dpp_bootstrap_info *own_bi;
@@ -1940,7 +1503,7 @@ int hostapd_dpp_pkex_add(struct hostapd_data *hapd, const char *cmd)
 	if (!pos)
 		return -1;
 	pos += 5;
-	own_bi = dpp_bootstrap_get_id(hapd, atoi(pos));
+	own_bi = dpp_bootstrap_get_id(hapd->iface->interfaces->dpp, atoi(pos));
 	if (!own_bi) {
 		wpa_printf(MSG_DEBUG,
 			   "DPP: Identified bootstrap info not found");
@@ -2070,27 +1633,14 @@ void hostapd_dpp_deinit(struct hostapd_data *hapd)
 	eloop_cancel_timeout(hostapd_dpp_reply_wait_timeout, hapd, NULL);
 	eloop_cancel_timeout(hostapd_dpp_init_timeout, hapd, NULL);
 	eloop_cancel_timeout(hostapd_dpp_auth_resp_retry_timeout, hapd, NULL);
+#ifdef CONFIG_DPP2
+	eloop_cancel_timeout(hostapd_dpp_config_result_wait_timeout, hapd,
+			     NULL);
+#endif /* CONFIG_DPP2 */
 	dpp_auth_deinit(hapd->dpp_auth);
 	hapd->dpp_auth = NULL;
 	hostapd_dpp_pkex_remove(hapd, "*");
 	hapd->dpp_pkex = NULL;
 	os_free(hapd->dpp_configurator_params);
 	hapd->dpp_configurator_params = NULL;
-}
-
-
-void hostapd_dpp_init_global(struct hapd_interfaces *ifaces)
-{
-	dl_list_init(&ifaces->dpp_bootstrap);
-	dl_list_init(&ifaces->dpp_configurator);
-	ifaces->dpp_init_done = 1;
-}
-
-
-void hostapd_dpp_deinit_global(struct hapd_interfaces *ifaces)
-{
-	if (!ifaces->dpp_init_done)
-		return;
-	dpp_bootstrap_del(ifaces, 0);
-	dpp_configurator_del(ifaces, 0);
 }
