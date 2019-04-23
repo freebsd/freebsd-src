@@ -110,7 +110,7 @@ static int
 fuse_read_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh);
 static int 
-fuse_read_biobackend(struct vnode *vp, struct uio *uio,
+fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
     struct ucred *cred, struct fuse_filehandle *fufh, pid_t pid);
 static int 
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
@@ -160,7 +160,8 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		} else {
 			SDT_PROBE2(fusefs, , io, trace, 1,
 				"buffered read of vnode");
-			err = fuse_read_biobackend(vp, uio, cred, fufh, pid);
+			err = fuse_read_biobackend(vp, uio, ioflag, cred, fufh,
+				pid);
 		}
 		break;
 	case UIO_WRITE:
@@ -198,71 +199,51 @@ SDT_PROBE_DEFINE3(fusefs, , io, read_bio_backend_start, "int", "int", "int");
 SDT_PROBE_DEFINE2(fusefs, , io, read_bio_backend_feed, "int", "int");
 SDT_PROBE_DEFINE3(fusefs, , io, read_bio_backend_end, "int", "ssize_t", "int");
 static int
-fuse_read_biobackend(struct vnode *vp, struct uio *uio,
+fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
     struct ucred *cred, struct fuse_filehandle *fufh, pid_t pid)
 {
 	struct buf *bp;
 	daddr_t lbn;
 	int bcount;
-	int err = 0, n = 0, on = 0;
+	int err, n = 0, on = 0;
 	off_t filesize;
 
 	const int biosize = fuse_iosize(vp);
 
-	if (uio->uio_resid == 0)
-		return (0);
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 
-	bcount = biosize;
 	filesize = VTOFUD(vp)->filesize;
 
-	do {
+	for (err = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if (fuse_isdeadfs(vp)) {
 			err = ENXIO;
 			break;
 		}
+		if (filesize - uio->uio_offset <= 0)
+			break;
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset & (biosize - 1);
 
 		SDT_PROBE3(fusefs, , io, read_bio_backend_start,
 			biosize, (int)lbn, on);
 
-		/*
-	         * Obtain the buffer cache block.  Figure out the buffer size
-	         * when we are at EOF.  If we are modifying the size of the
-	         * buffer based on an EOF condition we need to hold
-	         * nfs_rslock() through obtaining the buffer to prevent
-	         * a potential writer-appender from messing with n_size.
-	         * Otherwise we may accidentally truncate the buffer and
-	         * lose dirty data.
-	         *
-	         * Note that bcount is *not* DEV_BSIZE aligned.
-	         */
 		if ((off_t)lbn * biosize >= filesize) {
 			bcount = 0;
 		} else if ((off_t)(lbn + 1) * biosize > filesize) {
 			bcount = filesize - (off_t)lbn *biosize;
+		} else {
+			bcount = biosize;
 		}
-		bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
 
-		if (!bp)
-			return (EINTR);
-
-		/*
-	         * If B_CACHE is not set, we must issue the read.  If this
-	         * fails, we return an error.
-	         */
-
-		if ((bp->b_flags & B_CACHE) == 0) {
-			bp->b_iocmd = BIO_READ;
-			vfs_busy_pages(bp, 0);
-			err = fuse_io_strategy(vp, bp);
-			if (err) {
-				brelse(bp);
-				return (err);
-			}
+		/* TODO: readahead.  See ext2_read for an example */
+		err = bread(vp, lbn, bcount, NOCRED, &bp);
+		if (err) {
+			brelse(bp);
+			bp = NULL;
+			break;
 		}
+
 		/*
 	         * on is the offset into the current bp.  Figure out how many
 	         * bytes we can copy out of the bp.  Note that bcount is
@@ -279,10 +260,10 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 				n, n + (int)bp->b_resid);
 			err = uiomove(bp->b_data + on, n, uio);
 		}
-		brelse(bp);
+		vfs_bio_brelse(bp, ioflag);
 		SDT_PROBE3(fusefs, , io, read_bio_backend_end, err,
 			uio->uio_resid, n);
-	} while (err == 0 && uio->uio_resid > 0 && n > 0);
+	}
 
 	return (err);
 }
