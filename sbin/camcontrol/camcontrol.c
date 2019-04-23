@@ -109,7 +109,8 @@ typedef enum {
 	CAM_CMD_ZONE		= 0x00000026,
 	CAM_CMD_EPC		= 0x00000027,
 	CAM_CMD_TIMESTAMP	= 0x00000028,
-	CAM_CMD_MMCSD_CMD	= 0x00000029
+	CAM_CMD_MMCSD_CMD	= 0x00000029,
+	CAM_CMD_POWER_MODE	= 0x0000002a,
 } cam_cmdmask;
 
 typedef enum {
@@ -236,6 +237,7 @@ static struct camcontrol_opts option_table[] = {
 	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
 	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
 	{"sleep", CAM_CMD_SLEEP, CAM_ARG_NONE, ""},
+	{"powermode", CAM_CMD_POWER_MODE, CAM_ARG_NONE, ""},
 	{"apm", CAM_CMD_APM, CAM_ARG_NONE, "l:"},
 	{"aam", CAM_CMD_AAM, CAM_ARG_NONE, "l:"},
 	{"fwdownload", CAM_CMD_DOWNLOAD_FW, CAM_ARG_NONE, "f:qsy"},
@@ -8885,6 +8887,61 @@ bailout:
 }
 
 static int
+atapm_proc_resp(struct cam_device *device, union ccb *ccb)
+{
+    struct ata_res *res;
+
+    res = &ccb->ataio.res;
+    if (res->status & ATA_STATUS_ERROR) {
+        if (arglist & CAM_ARG_VERBOSE) {
+            cam_error_print(device, ccb, CAM_ESF_ALL,
+                    CAM_EPF_ALL, stderr);
+            printf("error = 0x%02x, sector_count = 0x%04x, "
+                   "device = 0x%02x, status = 0x%02x\n",
+                   res->error, res->sector_count,
+                   res->device, res->status);
+        }
+
+        return (1);
+    }
+
+    if (arglist & CAM_ARG_VERBOSE) {
+        fprintf(stdout, "%s%d: Raw native check power data:\n",
+            device->device_name, device->dev_unit_num);
+        /* res is 4 byte aligned */
+        dump_data((uint16_t*)(uintptr_t)res, sizeof(struct ata_res));
+
+        printf("error = 0x%02x, sector_count = 0x%04x, device = 0x%02x, "
+               "status = 0x%02x\n", res->error, res->sector_count,
+               res->device, res->status);
+    }
+
+    printf("%s%d: ", device->device_name, device->dev_unit_num);
+    switch (res->sector_count) {
+    case 0x00:
+       printf("Standby mode\n");
+       break;
+    case 0x40:
+       printf("NV Cache Power Mode and the spindle is spun down or spinning down\n");
+       break;
+    case 0x41:
+       printf("NV Cache Power Mode and the spindle is spun up or spinning up\n");
+       break;
+    case 0x80:
+       printf("Idle mode\n");
+       break;
+    case 0xff:
+       printf("Active or Idle mode\n");
+       break;
+    default:
+       printf("Unknown mode 0x%02x\n", res->sector_count);
+       break;
+    }
+
+    return (0);
+}
+
+static int
 atapm(struct cam_device *device, int argc, char **argv,
 		 char *combinedopt, int retry_count, int timeout)
 {
@@ -8892,6 +8949,7 @@ atapm(struct cam_device *device, int argc, char **argv,
 	int retval = 0;
 	int t = -1;
 	int c;
+	u_int8_t ata_flags = 0;
 	u_char cmd, sc;
 
 	ccb = cam_getccb(device);
@@ -8920,6 +8978,10 @@ atapm(struct cam_device *device, int argc, char **argv,
 			cmd = ATA_STANDBY_IMMEDIATE;
 		else
 			cmd = ATA_STANDBY_CMD;
+	} else if (strcmp(argv[1], "powermode") == 0) {
+		cmd = ATA_CHECK_POWER_MODE;
+		ata_flags = AP_FLAG_CHK_COND;
+		t = -1;
 	} else {
 		cmd = ATA_SLEEP;
 		t = -1;
@@ -8937,11 +8999,12 @@ atapm(struct cam_device *device, int argc, char **argv,
 	else
 		sc = 253;
 
-	retval = ata_do_28bit_cmd(device,
+	retval = ata_do_cmd(device,
 	    ccb,
 	    /*retries*/retry_count,
 	    /*flags*/CAM_DIR_NONE,
 	    /*protocol*/AP_PROTO_NON_DATA,
+	    /*ata_flags*/ata_flags,
 	    /*tag_action*/MSG_SIMPLE_Q_TAG,
 	    /*command*/cmd,
 	    /*features*/0,
@@ -8953,7 +9016,11 @@ atapm(struct cam_device *device, int argc, char **argv,
 	    /*quiet*/1);
 
 	cam_freeccb(ccb);
-	return (retval);
+
+	if (retval || cmd != ATA_CHECK_POWER_MODE)
+		return (retval);
+
+	return (atapm_proc_resp(device, ccb));
 }
 
 static int
@@ -9566,6 +9633,7 @@ usage(int printlong)
 "        camcontrol idle       [dev_id][generic args][-t time]\n"
 "        camcontrol standby    [dev_id][generic args][-t time]\n"
 "        camcontrol sleep      [dev_id][generic args]\n"
+"        camcontrol powermode  [dev_id][generic args]\n"
 "        camcontrol apm        [dev_id][generic args][-l level]\n"
 "        camcontrol aam        [dev_id][generic args][-l level]\n"
 "        camcontrol fwdownload [dev_id][generic args] <-f fw_image> [-q]\n"
@@ -9629,6 +9697,7 @@ usage(int printlong)
 "idle        send the ATA IDLE command to the named device\n"
 "standby     send the ATA STANDBY command to the named device\n"
 "sleep       send the ATA SLEEP command to the named device\n"
+"powermode   send the ATA CHECK POWER MODE command to the named device\n"
 "fwdownload  program firmware of the named device with the given image\n"
 "security    report or send ATA security commands to the named device\n"
 "persist     send the SCSI PERSISTENT RESERVE IN or OUT commands\n"
@@ -10199,6 +10268,7 @@ main(int argc, char **argv)
 	case CAM_CMD_IDLE:
 	case CAM_CMD_STANDBY:
 	case CAM_CMD_SLEEP:
+	case CAM_CMD_POWER_MODE:
 		error = atapm(cam_dev, argc, argv,
 			      combinedopt, retry_count, timeout);
 		break;
