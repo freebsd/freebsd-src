@@ -343,10 +343,14 @@ verify_file(int fd, const char *filename, off_t off, int severity)
 		if ((rc = verify_fd(fd, filename, off, &st)) >= 0) {
 			if (verbose || severity > VE_WANT) {
 #if defined(VE_DEBUG_LEVEL) && VE_DEBUG_LEVEL > 0
-				printf("Verified %s %llu,%llu\n", filename,
+				printf("%serified %s %llu,%llu\n",
+				    (rc == VE_FINGERPRINT_IGNORE) ? "Unv" : "V",
+				    filename,
 				    (long long)st.st_dev, (long long)st.st_ino);
 #else
-				printf("Verified %s\n", filename);
+				printf("%serified %s\n",
+				    (rc == VE_FINGERPRINT_IGNORE) ? "Unv" : "V",
+				    filename);
 #endif
 			}
 			if (severity < VE_MUST) { /* not a kernel or module */
