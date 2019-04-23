@@ -25,6 +25,9 @@
 #include "utils/includes.h"
 #ifdef __linux__
 #include <fcntl.h>
+#ifdef CONFIG_GETRANDOM
+#include <sys/random.h>
+#endif /* CONFIG_GETRANDOM */
 #endif /* __linux__ */
 
 #include "utils/common.h"
@@ -228,30 +231,52 @@ int random_pool_ready(void)
 		return 1; /* Already initialized - good to continue */
 
 	/*
-	 * Try to fetch some more data from the kernel high quality
-	 * /dev/random. There may not be enough data available at this point,
+	 * Try to fetch some more data from the kernel high quality RNG.
+	 * There may not be enough data available at this point,
 	 * so use non-blocking read to avoid blocking the application
 	 * completely.
 	 */
-	fd = open("/dev/random", O_RDONLY | O_NONBLOCK);
-	if (fd < 0) {
-		wpa_printf(MSG_ERROR, "random: Cannot open /dev/random: %s",
-			   strerror(errno));
-		return -1;
+
+#ifdef CONFIG_GETRANDOM
+	res = getrandom(dummy_key + dummy_key_avail,
+			sizeof(dummy_key) - dummy_key_avail, GRND_NONBLOCK);
+	if (res < 0) {
+		if (errno == ENOSYS) {
+			wpa_printf(MSG_DEBUG,
+				   "random: getrandom() not supported, falling back to /dev/random");
+		} else {
+			wpa_printf(MSG_INFO,
+				   "random: no data from getrandom(): %s",
+				   strerror(errno));
+			res = 0;
+		}
+	}
+#else /* CONFIG_GETRANDOM */
+	res = -1;
+#endif /* CONFIG_GETRANDOM */
+	if (res < 0) {
+		fd = open("/dev/random", O_RDONLY | O_NONBLOCK);
+		if (fd < 0) {
+			wpa_printf(MSG_ERROR,
+				   "random: Cannot open /dev/random: %s",
+				   strerror(errno));
+			return -1;
+		}
+
+		res = read(fd, dummy_key + dummy_key_avail,
+			   sizeof(dummy_key) - dummy_key_avail);
+		if (res < 0) {
+			wpa_printf(MSG_ERROR,
+				   "random: Cannot read from /dev/random: %s",
+				   strerror(errno));
+			res = 0;
+		}
+		close(fd);
 	}
 
-	res = read(fd, dummy_key + dummy_key_avail,
-		   sizeof(dummy_key) - dummy_key_avail);
-	if (res < 0) {
-		wpa_printf(MSG_ERROR, "random: Cannot read from /dev/random: "
-			   "%s", strerror(errno));
-		res = 0;
-	}
-	wpa_printf(MSG_DEBUG, "random: Got %u/%u bytes from "
-		   "/dev/random", (unsigned) res,
+	wpa_printf(MSG_DEBUG, "random: Got %u/%u random bytes", (unsigned) res,
 		   (unsigned) (sizeof(dummy_key) - dummy_key_avail));
 	dummy_key_avail += res;
-	close(fd);
 
 	if (dummy_key_avail == sizeof(dummy_key)) {
 		if (own_pool_ready < MIN_READY_MARK)
@@ -261,7 +286,7 @@ int random_pool_ready(void)
 	}
 
 	wpa_printf(MSG_INFO, "random: Only %u/%u bytes of strong "
-		   "random data available from /dev/random",
+		   "random data available",
 		   (unsigned) dummy_key_avail, (unsigned) sizeof(dummy_key));
 
 	if (own_pool_ready >= MIN_READY_MARK ||
@@ -412,6 +437,19 @@ void random_init(const char *entropy_file)
 #ifdef __linux__
 	if (random_fd >= 0)
 		return;
+
+#ifdef CONFIG_GETRANDOM
+	{
+		u8 dummy;
+
+		if (getrandom(&dummy, 0, GRND_NONBLOCK) == 0 ||
+		    errno != ENOSYS) {
+			wpa_printf(MSG_DEBUG,
+				   "random: getrandom() support available");
+			return;
+		}
+	}
+#endif /* CONFIG_GETRANDOM */
 
 	random_fd = open("/dev/random", O_RDONLY | O_NONBLOCK);
 	if (random_fd < 0) {

@@ -24,19 +24,19 @@ def wpas_connect():
     if os.path.isdir(wpas_ctrl):
         try:
             ifaces = [os.path.join(wpas_ctrl, i) for i in os.listdir(wpas_ctrl)]
-        except OSError, error:
-            print "Could not find wpa_supplicant: ", error
+        except OSError as error:
+            print("Could not find wpa_supplicant: ", error)
             return None
 
     if len(ifaces) < 1:
-        print "No wpa_supplicant control interface found"
+        print("No wpa_supplicant control interface found")
         return None
 
     for ctrl in ifaces:
         try:
             wpas = wpaspy.Ctrl(ctrl)
             return wpas
-        except Exception, e:
+        except Exception as e:
             pass
     return None
 
@@ -55,27 +55,27 @@ def dpp_logcat():
             continue
         if not uri.startswith('DPP:'):
             continue
-        print "Found DPP bootstrap info URI:"
-        print uri
+        print("Found DPP bootstrap info URI:")
+        print(uri)
         wpas = wpas_connect()
         if not wpas:
-            print "Could not connect to wpa_supplicant"
-            print
+            print("Could not connect to wpa_supplicant")
+            print('')
             continue
         res = wpas.request("DPP_QR_CODE " + uri);
         try:
             id = int(res)
         except ValueError:
-            print "QR Code URI rejected"
+            print("QR Code URI rejected")
             continue
-        print "QR Code URI accepted - ID=%d" % id
-        print wpas.request("DPP_BOOTSTRAP_INFO %d" % id)
+        print("QR Code URI accepted - ID=%d" % id)
+        print(wpas.request("DPP_BOOTSTRAP_INFO %d" % id))
         del wpas
 
 def dpp_display(curve):
         wpas = wpas_connect()
         if not wpas:
-            print "Could not connect to wpa_supplicant"
+            print("Could not connect to wpa_supplicant")
             return
         res = wpas.request("STATUS")
         addr = None
@@ -93,18 +93,18 @@ def dpp_display(curve):
         try:
             id = int(res)
         except ValueError:
-            print "Failed to generate bootstrap info URI"
+            print("Failed to generate bootstrap info URI")
             return
-        print "Bootstrap information - ID=%d" % id
-        print wpas.request("DPP_BOOTSTRAP_INFO %d" % id)
+        print("Bootstrap information - ID=%d" % id)
+        print(wpas.request("DPP_BOOTSTRAP_INFO %d" % id))
         uri = wpas.request("DPP_BOOTSTRAP_GET_URI %d" % id)
-        print uri
-        print "ID=%d" % id
+        print(uri)
+        print("ID=%d" % id)
         qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M,
                            border=3)
         qr.add_data(uri, optimize=5)
         qr.print_ascii(tty=True)
-        print "ID=%d" % id
+        print("ID=%d" % id)
         del wpas
 
 def main():

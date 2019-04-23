@@ -150,7 +150,7 @@ join-a-group style PD instead of GO Negotiation style PD.
 
 p2p_connect <peer device address> <pbc|pin|PIN#|p2ps> [display|keypad|p2ps]
 	[persistent|persistent=<network id>] [join|auth]
-	[go_intent=<0..15>] [freq=<in MHz>] [ht40] [vht] [provdisc] [auto]
+	[go_intent=<0..15>] [freq=<in MHz>] [ht40] [vht] [he] [provdisc] [auto]
 	[ssid=<hexdump>]
 
 Start P2P group formation with a discovered P2P peer. This includes
@@ -262,7 +262,7 @@ Parameters definition:
     session_mac - Mandatory MAC address that owns/initiated the session
 
 p2p_group_add [persistent|persistent=<network id>] [freq=<freq in MHz>]
-	[ht40] [vht]
+	[ht40] [vht] [he]
 
 Set up a P2P group owner manually (i.e., without group owner
 negotiation with a specific peer). This is also known as autonomous
@@ -558,7 +558,7 @@ Remove all local services from internal SD query processing.
 Invitation
 
 p2p_invite [persistent=<network id>|group=<group ifname>] [peer=address]
-	[go_dev_addr=address] [freq=<freq in MHz>] [ht40] [vht]
+	[go_dev_addr=address] [freq=<freq in MHz>] [ht40] [vht] [he]
 	[pref=<MHz>]
 
 Invite a peer to join a group (e.g., group=wlan1) or to reinvoke a

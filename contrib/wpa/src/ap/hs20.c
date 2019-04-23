@@ -25,17 +25,20 @@ u8 * hostapd_eid_hs20_indication(struct hostapd_data *hapd, u8 *eid)
 	if (!hapd->conf->hs20)
 		return eid;
 	*eid++ = WLAN_EID_VENDOR_SPECIFIC;
-	*eid++ = 7;
+	*eid++ = hapd->conf->hs20_release < 2 ? 5 : 7;
 	WPA_PUT_BE24(eid, OUI_WFA);
 	eid += 3;
 	*eid++ = HS20_INDICATION_OUI_TYPE;
-	conf = HS20_VERSION; /* Release Number */
-	conf |= HS20_ANQP_DOMAIN_ID_PRESENT;
+	conf = (hapd->conf->hs20_release - 1) << 4; /* Release Number */
+	if (hapd->conf->hs20_release >= 2)
+		conf |= HS20_ANQP_DOMAIN_ID_PRESENT;
 	if (hapd->conf->disable_dgaf)
 		conf |= HS20_DGAF_DISABLED;
 	*eid++ = conf;
-	WPA_PUT_LE16(eid, hapd->conf->anqp_domain_id);
-	eid += 2;
+	if (hapd->conf->hs20_release >= 2) {
+		WPA_PUT_LE16(eid, hapd->conf->anqp_domain_id);
+		eid += 2;
+	}
 
 	return eid;
 }
@@ -84,6 +87,10 @@ u8 * hostapd_eid_osen(struct hostapd_data *hapd, u8 *eid)
 			capab |= WPA_CAPABILITY_MFPR;
 	}
 #endif /* CONFIG_IEEE80211W */
+#ifdef CONFIG_OCV
+	if (hapd->conf->ocv)
+		capab |= WPA_CAPABILITY_OCVC;
+#endif /* CONFIG_OCV */
 	WPA_PUT_LE16(eid, capab);
 	eid += 2;
 

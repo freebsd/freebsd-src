@@ -92,6 +92,12 @@ static int wpas_set_transmit_next_pn(void *wpa_s, struct transmit_sa *sa)
 }
 
 
+static int wpas_set_receive_lowest_pn(void *wpa_s, struct receive_sa *sa)
+{
+	return wpa_drv_set_receive_lowest_pn(wpa_s, sa);
+}
+
+
 static unsigned int conf_offset_val(enum confidentiality_offset co)
 {
 	switch (co) {
@@ -219,6 +225,7 @@ int ieee802_1x_alloc_kay_sm(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
 	kay_ctx->get_receive_lowest_pn = wpas_get_receive_lowest_pn;
 	kay_ctx->get_transmit_next_pn = wpas_get_transmit_next_pn;
 	kay_ctx->set_transmit_next_pn = wpas_set_transmit_next_pn;
+	kay_ctx->set_receive_lowest_pn = wpas_set_receive_lowest_pn;
 	kay_ctx->create_receive_sc = wpas_create_receive_sc;
 	kay_ctx->delete_receive_sc = wpas_delete_receive_sc;
 	kay_ctx->create_receive_sa = wpas_create_receive_sa;
@@ -232,7 +239,8 @@ int ieee802_1x_alloc_kay_sm(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
 	kay_ctx->enable_transmit_sa = wpas_enable_transmit_sa;
 	kay_ctx->disable_transmit_sa = wpas_disable_transmit_sa;
 
-	res = ieee802_1x_kay_init(kay_ctx, policy, ssid->macsec_port,
+	res = ieee802_1x_kay_init(kay_ctx, policy, ssid->macsec_replay_protect,
+				  ssid->macsec_replay_window, ssid->macsec_port,
 				  ssid->mka_priority, wpa_s->ifname,
 				  wpa_s->own_addr);
 	/* ieee802_1x_kay_init() frees kay_ctx on failure */
@@ -349,8 +357,8 @@ void * ieee802_1x_notify_create_actor(struct wpa_supplicant *wpa_s,
 
 	/* Derive CAK from MSK */
 	cak->len = DEFAULT_KEY_LEN;
-	if (ieee802_1x_cak_128bits_aes_cmac(msk->key, wpa_s->own_addr,
-					    peer_addr, cak->key)) {
+	if (ieee802_1x_cak_aes_cmac(msk->key, msk->len, wpa_s->own_addr,
+				    peer_addr, cak->key, cak->len)) {
 		wpa_printf(MSG_ERROR,
 			   "IEEE 802.1X: Deriving CAK failed");
 		goto fail;
@@ -359,9 +367,8 @@ void * ieee802_1x_notify_create_actor(struct wpa_supplicant *wpa_s,
 
 	/* Derive CKN from MSK */
 	ckn->len = DEFAULT_CKN_LEN;
-	if (ieee802_1x_ckn_128bits_aes_cmac(msk->key, wpa_s->own_addr,
-					    peer_addr, sid, sid_len,
-					    ckn->name)) {
+	if (ieee802_1x_ckn_aes_cmac(msk->key, msk->len, wpa_s->own_addr,
+				    peer_addr, sid, sid_len, ckn->name)) {
 		wpa_printf(MSG_ERROR,
 			   "IEEE 802.1X: Deriving CKN failed");
 		goto fail;
@@ -411,10 +418,10 @@ void * ieee802_1x_create_preshared_mka(struct wpa_supplicant *wpa_s,
 	if (wpa_s->kay->policy == DO_NOT_SECURE)
 		goto dealloc;
 
-	cak->len = MACSEC_CAK_LEN;
+	cak->len = ssid->mka_cak_len;
 	os_memcpy(cak->key, ssid->mka_cak, cak->len);
 
-	ckn->len = MACSEC_CKN_LEN;
+	ckn->len = ssid->mka_ckn_len;
 	os_memcpy(ckn->name, ssid->mka_ckn, ckn->len);
 
 	res = ieee802_1x_kay_create_mka(wpa_s->kay, ckn, cak, 0, PSK, FALSE);

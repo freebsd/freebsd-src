@@ -9,6 +9,7 @@
 #include "utils/includes.h"
 
 #include "utils/common.h"
+#include "utils/const_time.h"
 #include "common/ieee802_11_defs.h"
 #include "utils/bitfield.h"
 #include "utils/ext_password.h"
@@ -919,6 +920,294 @@ static int json_tests(void)
 }
 
 
+static int const_time_tests(void)
+{
+	struct const_time_fill_msb_test {
+		unsigned int val;
+		unsigned int expected;
+	} const_time_fill_msb_tests[] = {
+		{ 0, 0 },
+		{ 1, 0 },
+		{ 2, 0 },
+		{ 1 << (sizeof(unsigned int) * 8 - 1), ~0 },
+		{ ~0 - 1, ~0 },
+		{ ~0, ~0 }
+	};
+	struct const_time_is_zero_test {
+		unsigned int val;
+		unsigned int expected;
+	} const_time_is_zero_tests[] = {
+		{ 0, ~0 },
+		{ 1, 0 },
+		{ 2, 0 },
+		{ 1 << (sizeof(unsigned int) * 8 - 1), 0 },
+		{ ~0 - 1, 0 },
+		{ ~0, 0 }
+	};
+	struct const_time_eq_test {
+		unsigned int a;
+		unsigned int b;
+		unsigned int expected;
+		unsigned int expected_u8;
+	} const_time_eq_tests[] = {
+		{ 0, 1, 0, 0 },
+		{ 1, 2, 0, 0 },
+		{ 1, 1, ~0, 0xff },
+		{ ~0, ~0, ~0, 0xff },
+		{ ~0, ~0 - 1, 0, 0 },
+		{ 0, 0, ~0, 0xff }
+	};
+	struct const_time_eq_bin_test {
+		u8 *a;
+		u8 *b;
+		size_t len;
+		unsigned int expected;
+	} const_time_eq_bin_tests[] = {
+		{ (u8 *) "", (u8 *) "", 0, ~0 },
+		{ (u8 *) "abcde", (u8 *) "abcde", 5, ~0 },
+		{ (u8 *) "abcde", (u8 *) "Abcde", 5, 0 },
+		{ (u8 *) "abcde", (u8 *) "aBcde", 5, 0 },
+		{ (u8 *) "abcde", (u8 *) "abCde", 5, 0 },
+		{ (u8 *) "abcde", (u8 *) "abcDe", 5, 0 },
+		{ (u8 *) "abcde", (u8 *) "abcdE", 5, 0 },
+		{ (u8 *) "\x00", (u8 *) "\x01", 1, 0 },
+		{ (u8 *) "\x00", (u8 *) "\x80", 1, 0 },
+		{ (u8 *) "\x00", (u8 *) "\x00", 1, ~0 }
+	};
+	struct const_time_select_test {
+		unsigned int mask;
+		unsigned int true_val;
+		unsigned int false_val;
+		unsigned int expected;
+	} const_time_select_tests[] = {
+		{ ~0, ~0, ~0, ~0 },
+		{ 0, ~0, ~0, ~0 },
+		{ ~0, ~0, 0, ~0 },
+		{ 0, ~0, 0, 0 },
+		{ ~0, 0xaaaaaaaa, 0x55555555, 0xaaaaaaaa },
+		{ 0, 0xaaaaaaaa, 0x55555555, 0x55555555 },
+		{ ~0, 3, 3, 3 },
+		{ 0, 3, 3, 3 },
+		{ ~0, 1, 2, 1 },
+		{ 0, 1, 2, 2 }
+	};
+	struct const_time_select_int_test {
+		unsigned int mask;
+		int true_val;
+		int false_val;
+		int expected;
+	} const_time_select_int_tests[] = {
+		{ ~0, -128, 127, -128 },
+		{ 0, -128, 127, 127 },
+		{ ~0, -2147483648, 2147483647, -2147483648 },
+		{ 0, -2147483648, 2147483647, 2147483647 },
+		{ ~0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ ~0, -1, 1, -1 },
+		{ 0, -1, 1, 1 }
+	};
+	struct const_time_select_u8_test {
+		u8 mask;
+		u8 true_val;
+		u8 false_val;
+		u8 expected;
+	} const_time_select_u8_tests[] = {
+		{ ~0, ~0, ~0, ~0 },
+		{ 0, ~0, ~0, ~0 },
+		{ ~0, ~0, 0, ~0 },
+		{ 0, ~0, 0, 0 },
+		{ ~0, 0xaa, 0x55, 0xaa },
+		{ 0, 0xaa, 0x55, 0x55 },
+		{ ~0, 1, 2, 1 },
+		{ 0, 1, 2, 2 }
+	};
+	struct const_time_select_s8_test {
+		u8 mask;
+		s8 true_val;
+		s8 false_val;
+		s8 expected;
+	} const_time_select_s8_tests[] = {
+		{ ~0, -128, 127, -128 },
+		{ 0, -128, 127, 127 },
+		{ ~0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ ~0, -1, 1, -1 },
+		{ 0, -1, 1, 1 }
+	};
+	struct const_time_select_bin_test {
+		u8 mask;
+		u8 *true_val;
+		u8 *false_val;
+		size_t len;
+		u8 *expected;
+	} const_time_select_bin_tests[] = {
+		{ ~0, (u8 *) "abcde", (u8 *) "ABCDE", 5, (u8 *) "abcde" },
+		{ 0, (u8 *) "abcde", (u8 *) "ABCDE", 5, (u8 *) "ABCDE" },
+		{ ~0, (u8 *) "", (u8 *) "", 0, (u8 *) "" },
+		{ 0, (u8 *) "", (u8 *) "", 0, (u8 *) "" }
+	};
+	struct const_time_memcmp_test {
+		char *a;
+		char *b;
+		size_t len;
+		int expected;
+	} const_time_memcmp_tests[] = {
+		{ "abcde", "abcde", 5, 0 },
+		{ "abcde", "bbcde", 5, -1 },
+		{ "bbcde", "abcde", 5, 1 },
+		{ "accde", "abcde", 5, 1 },
+		{ "abcee", "abcde", 5, 1 },
+		{ "abcdf", "abcde", 5, 1 },
+		{ "cbcde", "aXXXX", 5, 2 },
+		{ "a", "d", 1, -3 },
+		{ "", "", 0, 0 }
+	};
+	unsigned int i;
+	int ret = 0;
+
+	wpa_printf(MSG_INFO, "constant time tests");
+
+	for (i = 0; i < ARRAY_SIZE(const_time_fill_msb_tests); i++) {
+		struct const_time_fill_msb_test *test;
+
+		test = &const_time_fill_msb_tests[i];
+		if (const_time_fill_msb(test->val) != test->expected) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_fill_msb(0x%x) test failed",
+				   test->val);
+			ret = -1;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(const_time_is_zero_tests); i++) {
+		struct const_time_is_zero_test *test;
+
+		test = &const_time_is_zero_tests[i];
+		if (const_time_is_zero(test->val) != test->expected) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_is_zero(0x%x) test failed",
+				   test->val);
+			ret = -1;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(const_time_eq_tests); i++) {
+		struct const_time_eq_test *test;
+
+		test = &const_time_eq_tests[i];
+		if (const_time_eq(test->a, test->b) != test->expected) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_eq(0x%x,0x%x) test failed",
+				   test->a, test->b);
+			ret = -1;
+		}
+		if (const_time_eq_u8(test->a, test->b) != test->expected_u8) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_eq_u8(0x%x,0x%x) test failed",
+				   test->a, test->b);
+			ret = -1;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(const_time_eq_bin_tests); i++) {
+		struct const_time_eq_bin_test *test;
+
+		test = &const_time_eq_bin_tests[i];
+		if (const_time_eq_bin(test->a, test->b, test->len) !=
+		    test->expected) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_eq_bin(len=%u) test failed",
+				   (unsigned int) test->len);
+			ret = -1;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(const_time_select_tests); i++) {
+		struct const_time_select_test *test;
+
+		test = &const_time_select_tests[i];
+		if (const_time_select(test->mask, test->true_val,
+				      test->false_val) != test->expected) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_select(0x%x,0x%x,0x%x) test failed",
+				   test->mask, test->true_val, test->false_val);
+			ret = -1;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(const_time_select_int_tests); i++) {
+		struct const_time_select_int_test *test;
+
+		test = &const_time_select_int_tests[i];
+		if (const_time_select_int(test->mask, test->true_val,
+					  test->false_val) != test->expected) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_select_int(0x%x,%d,%d) test failed",
+				   test->mask, test->true_val, test->false_val);
+			ret = -1;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(const_time_select_u8_tests); i++) {
+		struct const_time_select_u8_test *test;
+
+		test = &const_time_select_u8_tests[i];
+		if (const_time_select_u8(test->mask, test->true_val,
+					 test->false_val) != test->expected) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_select_u8(0x%x,0x%x,0x%x) test failed",
+				   test->mask, test->true_val, test->false_val);
+			ret = -1;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(const_time_select_s8_tests); i++) {
+		struct const_time_select_s8_test *test;
+
+		test = &const_time_select_s8_tests[i];
+		if (const_time_select_s8(test->mask, test->true_val,
+					 test->false_val) != test->expected) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_select_s8(0x%x,0x%x,0x%x) test failed",
+				   test->mask, test->true_val, test->false_val);
+			ret = -1;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(const_time_select_bin_tests); i++) {
+		struct const_time_select_bin_test *test;
+		u8 dst[100];
+
+		test = &const_time_select_bin_tests[i];
+		const_time_select_bin(test->mask, test->true_val,
+				      test->false_val, test->len, dst);
+		if (os_memcmp(dst, test->expected, test->len) != 0) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_select_bin(0x%x,%u) test failed",
+				   test->mask, (unsigned int) test->len);
+			ret = -1;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(const_time_memcmp_tests); i++) {
+		struct const_time_memcmp_test *test;
+		int res;
+
+		test = &const_time_memcmp_tests[i];
+		res = const_time_memcmp(test->a, test->b, test->len);
+		if (res != test->expected) {
+			wpa_printf(MSG_ERROR,
+				   "const_time_memcmp(%s,%s,%d) test failed (%d != %d)",
+				   test->a, test->b, (int) test->len,
+				   res, test->expected);
+			ret = -1;
+		}
+	}
+
+	return ret;
+}
+
+
 int utils_module_tests(void)
 {
 	int ret = 0;
@@ -936,6 +1225,7 @@ int utils_module_tests(void)
 	    ip_addr_tests() < 0 ||
 	    eloop_tests() < 0 ||
 	    json_tests() < 0 ||
+	    const_time_tests() < 0 ||
 	    int_array_tests() < 0)
 		ret = -1;
 

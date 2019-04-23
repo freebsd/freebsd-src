@@ -567,6 +567,7 @@ int is_ctrl_char(char c);
 int str_starts(const char *str, const char *start);
 
 u8 rssi_to_rcpi(int rssi);
+char * get_param(const char *cmd, const char *param);
 
 /*
  * gcc 4.4 ends up generating strict-aliasing warnings about some very common

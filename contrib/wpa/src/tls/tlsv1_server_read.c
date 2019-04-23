@@ -139,8 +139,11 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	pos = in_data;
 	left = *in_len;
 
-	if (left < 4)
+	if (left < 4) {
+		tlsv1_server_log(conn,
+				 "Truncated handshake message (expected ClientHello)");
 		goto decode_error;
+	}
 
 	/* HandshakeType msg_type */
 	if (*pos != TLS_HANDSHAKE_TYPE_CLIENT_HELLO) {
@@ -157,8 +160,12 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	pos += 3;
 	left -= 4;
 
-	if (len > left)
+	if (len > left) {
+		tlsv1_server_log(conn,
+				 "Truncated ClientHello (len=%d left=%d)",
+				 (int) len, (int) left);
 		goto decode_error;
+	}
 
 	/* body - ClientHello */
 
@@ -166,8 +173,10 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	end = pos + len;
 
 	/* ProtocolVersion client_version */
-	if (end - pos < 2)
+	if (end - pos < 2) {
+		tlsv1_server_log(conn, "Truncated ClientHello/client_version");
 		goto decode_error;
+	}
 	conn->client_version = WPA_GET_BE16(pos);
 	tlsv1_server_log(conn, "Client version %d.%d",
 			 conn->client_version >> 8,
@@ -196,8 +205,10 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 			 tls_version_str(conn->rl.tls_version));
 
 	/* Random random */
-	if (end - pos < TLS_RANDOM_LEN)
+	if (end - pos < TLS_RANDOM_LEN) {
+		tlsv1_server_log(conn, "Truncated ClientHello/client_random");
 		goto decode_error;
+	}
 
 	os_memcpy(conn->client_random, pos, TLS_RANDOM_LEN);
 	pos += TLS_RANDOM_LEN;
@@ -205,25 +216,36 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 		    conn->client_random, TLS_RANDOM_LEN);
 
 	/* SessionID session_id */
-	if (end - pos < 1)
+	if (end - pos < 1) {
+		tlsv1_server_log(conn, "Truncated ClientHello/session_id len");
 		goto decode_error;
-	if (end - pos < 1 + *pos || *pos > TLS_SESSION_ID_MAX_LEN)
+	}
+	if (end - pos < 1 + *pos || *pos > TLS_SESSION_ID_MAX_LEN) {
+		tlsv1_server_log(conn, "Truncated ClientHello/session_id");
 		goto decode_error;
+	}
 	wpa_hexdump(MSG_MSGDUMP, "TLSv1: client session_id", pos + 1, *pos);
 	pos += 1 + *pos;
 	/* TODO: add support for session resumption */
 
 	/* CipherSuite cipher_suites<2..2^16-1> */
-	if (end - pos < 2)
+	if (end - pos < 2) {
+		tlsv1_server_log(conn,
+				 "Truncated ClientHello/cipher_suites len");
 		goto decode_error;
+	}
 	num_suites = WPA_GET_BE16(pos);
 	pos += 2;
-	if (end - pos < num_suites)
+	if (end - pos < num_suites) {
+		tlsv1_server_log(conn, "Truncated ClientHello/cipher_suites");
 		goto decode_error;
+	}
 	wpa_hexdump(MSG_MSGDUMP, "TLSv1: client cipher suites",
 		    pos, num_suites);
-	if (num_suites & 1)
+	if (num_suites & 1) {
+		tlsv1_server_log(conn, "Odd len ClientHello/cipher_suites");
 		goto decode_error;
+	}
 	num_suites /= 2;
 
 	cipher_suite = 0;
@@ -259,11 +281,17 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	conn->cipher_suite = cipher_suite;
 
 	/* CompressionMethod compression_methods<1..2^8-1> */
-	if (end - pos < 1)
+	if (end - pos < 1) {
+		tlsv1_server_log(conn,
+				 "Truncated ClientHello/compression_methods len");
 		goto decode_error;
+	}
 	num_suites = *pos++;
-	if (end - pos < num_suites)
+	if (end - pos < num_suites) {
+		tlsv1_server_log(conn,
+				 "Truncated ClientHello/compression_methods");
 		goto decode_error;
+	}
 	wpa_hexdump(MSG_MSGDUMP, "TLSv1: client compression_methods",
 		    pos, num_suites);
 	compr_null_found = 0;
@@ -1217,6 +1245,7 @@ static int tls_process_client_finished(struct tlsv1_server *conn, u8 ct,
 
 	if (os_memcmp_const(pos, verify_data, TLS_VERIFY_DATA_LEN) != 0) {
 		tlsv1_server_log(conn, "Mismatch in verify_data");
+		conn->state = FAILED;
 		return -1;
 	}
 

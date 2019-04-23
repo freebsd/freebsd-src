@@ -26,7 +26,7 @@ static size_t tls_server_cert_chain_der_len(struct tlsv1_server *conn)
 	size_t len = 0;
 	struct x509_certificate *cert;
 
-	cert = conn->cred->cert;
+	cert = conn->cred ? conn->cred->cert : NULL;
 	while (cert) {
 		len += 3 + cert->cert_len;
 		if (x509_certificate_self_signed(cert))
@@ -53,6 +53,9 @@ static int tls_write_server_hello(struct tlsv1_server *conn,
 	pos += TLS_RECORD_HEADER_LEN;
 
 	os_get_time(&now);
+#ifdef TEST_FUZZ
+	now.sec = 0xfffefdfc;
+#endif /* TEST_FUZZ */
 	WPA_PUT_BE32(conn->server_random, now.sec);
 	if (random_get_bytes(conn->server_random + 4, TLS_RANDOM_LEN - 4)) {
 		wpa_printf(MSG_ERROR, "TLSv1: Could not generate "

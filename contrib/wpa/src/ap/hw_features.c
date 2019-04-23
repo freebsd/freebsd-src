@@ -229,9 +229,6 @@ static int ieee80211n_allowed_ht40_channel_pair(struct hostapd_iface *iface)
 {
 	int pri_chan, sec_chan;
 
-	if (!iface->conf->secondary_channel)
-		return 1; /* HT40 not used */
-
 	pri_chan = iface->conf->channel;
 	sec_chan = pri_chan + iface->conf->secondary_channel * 4;
 
@@ -697,30 +694,25 @@ int hostapd_check_ht_capab(struct hostapd_iface *iface)
 static int hostapd_is_usable_chan(struct hostapd_iface *iface,
 				  int channel, int primary)
 {
-	int i;
 	struct hostapd_channel_data *chan;
 
 	if (!iface->current_mode)
 		return 0;
 
-	for (i = 0; i < iface->current_mode->num_channels; i++) {
-		chan = &iface->current_mode->channels[i];
-		if (chan->chan != channel)
-			continue;
+	chan = hw_get_channel_chan(iface->current_mode, channel, NULL);
+	if (!chan)
+		return 0;
 
-		if (!(chan->flag & HOSTAPD_CHAN_DISABLED))
-			return 1;
+	if ((primary && chan_pri_allowed(chan)) ||
+	    (!primary && !(chan->flag & HOSTAPD_CHAN_DISABLED)))
+		return 1;
 
-		wpa_printf(MSG_DEBUG,
-			   "%schannel [%i] (%i) is disabled for use in AP mode, flags: 0x%x%s%s",
-			   primary ? "" : "Configured HT40 secondary ",
-			   i, chan->chan, chan->flag,
-			   chan->flag & HOSTAPD_CHAN_NO_IR ? " NO-IR" : "",
-			   chan->flag & HOSTAPD_CHAN_RADAR ? " RADAR" : "");
-	}
-
-	wpa_printf(MSG_INFO, "Channel %d (%s) not allowed for AP mode",
-		   channel, primary ? "primary" : "secondary");
+	wpa_printf(MSG_INFO,
+		   "Channel %d (%s) not allowed for AP mode, flags: 0x%x%s%s",
+		   channel, primary ? "primary" : "secondary",
+		   chan->flag,
+		   chan->flag & HOSTAPD_CHAN_NO_IR ? " NO-IR" : "",
+		   chan->flag & HOSTAPD_CHAN_RADAR ? " RADAR" : "");
 	return 0;
 }
 
@@ -728,6 +720,12 @@ static int hostapd_is_usable_chan(struct hostapd_iface *iface,
 static int hostapd_is_usable_chans(struct hostapd_iface *iface)
 {
 	int secondary_chan;
+	struct hostapd_channel_data *pri_chan;
+
+	pri_chan = hw_get_channel_chan(iface->current_mode,
+				       iface->conf->channel, NULL);
+	if (!pri_chan)
+		return 0;
 
 	if (!hostapd_is_usable_chan(iface, iface->conf->channel, 1))
 		return 0;
@@ -742,13 +740,15 @@ static int hostapd_is_usable_chans(struct hostapd_iface *iface)
 
 	/* Both HT40+ and HT40- are set, pick a valid secondary channel */
 	secondary_chan = iface->conf->channel + 4;
-	if (hostapd_is_usable_chan(iface, secondary_chan, 0)) {
+	if (hostapd_is_usable_chan(iface, secondary_chan, 0) &&
+	    (pri_chan->allowed_bw & HOSTAPD_CHAN_WIDTH_40P)) {
 		iface->conf->secondary_channel = 1;
 		return 1;
 	}
 
 	secondary_chan = iface->conf->channel - 4;
-	if (hostapd_is_usable_chan(iface, secondary_chan, 0)) {
+	if (hostapd_is_usable_chan(iface, secondary_chan, 0) &&
+	    (pri_chan->allowed_bw & HOSTAPD_CHAN_WIDTH_40M)) {
 		iface->conf->secondary_channel = -1;
 		return 1;
 	}

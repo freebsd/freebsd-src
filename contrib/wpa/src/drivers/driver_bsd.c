@@ -142,7 +142,7 @@ bsd_get80211(void *priv, struct ieee80211req *ireq, int op, void *arg,
 	ireq->i_data = arg;
 
 	if (ioctl(drv->global->sock, SIOCG80211, ireq) < 0) {
-		wpa_printf(MSG_ERROR, "ioctl[SIOCS80211, op=%u, "
+		wpa_printf(MSG_ERROR, "ioctl[SIOCG80211, op=%u, "
 			   "arg_len=%u]: %s", op, arg_len, strerror(errno));
 		return -1;
 	}

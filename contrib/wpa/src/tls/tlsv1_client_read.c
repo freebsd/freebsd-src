@@ -290,7 +290,7 @@ static void tls_peer_cert_event(struct tlsv1_client *conn, int depth,
 		return;
 
 	os_memset(&ev, 0, sizeof(ev));
-	if (conn->cred->cert_probe || conn->cert_in_cb) {
+	if ((conn->cred && conn->cred->cert_probe) || conn->cert_in_cb) {
 		cert_buf = wpabuf_alloc_copy(cert->cert_start,
 					     cert->cert_len);
 		ev.peer_cert.cert = cert_buf;

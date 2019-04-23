@@ -1,6 +1,6 @@
 /*
  * BSS table
- * Copyright (c) 2009-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2009-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -1337,3 +1337,10 @@ const u8 * wpa_bss_get_fils_cache_id(struct wpa_bss *bss)
 	return NULL;
 }
 #endif /* CONFIG_FILS */
+
+
+int wpa_bss_ext_capab(const struct wpa_bss *bss, unsigned int capab)
+{
+	return ieee802_11_ext_capab(wpa_bss_get_ie(bss, WLAN_EID_EXT_CAPAB),
+				    capab);
+}

@@ -21,6 +21,7 @@ struct macsec_init_params;
 
 /* MKA timer, unit: millisecond */
 #define MKA_HELLO_TIME		2000
+#define MKA_BOUNDED_HELLO_TIME	 500
 #define MKA_LIFE_TIME		6000
 #define MKA_SAK_RETIRE_TIME	3000
 
@@ -38,7 +39,7 @@ struct ieee802_1x_mka_ki {
 struct ieee802_1x_mka_sci {
 	u8 addr[ETH_ALEN];
 	be16 port;
-};
+} STRUCT_PACKED;
 
 struct mka_key {
 	u8 key[MAX_KEY_LEN];
@@ -149,6 +150,7 @@ struct ieee802_1x_kay_ctx {
 	int (*get_receive_lowest_pn)(void *ctx, struct receive_sa *sa);
 	int (*get_transmit_next_pn)(void *ctx, struct transmit_sa *sa);
 	int (*set_transmit_next_pn)(void *ctx, struct transmit_sa *sa);
+	int (*set_receive_lowest_pn)(void *ctx, struct receive_sa *sa);
 	int (*create_receive_sc)(void *ctx, struct receive_sc *sc,
 				 enum validate_frames vf,
 				 enum confidentiality_offset co);
@@ -187,6 +189,7 @@ struct ieee802_1x_kay {
 	u32 macsec_replay_window;
 	enum validate_frames macsec_validate;
 	enum confidentiality_offset macsec_confidentiality;
+	u32 mka_hello_time;
 
 	u32 ltx_kn;
 	u8 ltx_an;
@@ -236,6 +239,7 @@ u64 mka_sci_u64(struct ieee802_1x_mka_sci *sci);
 
 struct ieee802_1x_kay *
 ieee802_1x_kay_init(struct ieee802_1x_kay_ctx *ctx, enum macsec_policy policy,
+		    Boolean macsec_replay_protect, u32 macsec_replay_window,
 		    u16 port, u8 priority, const char *ifname, const u8 *addr);
 void ieee802_1x_kay_deinit(struct ieee802_1x_kay *kay);
 
@@ -271,5 +275,7 @@ int ieee802_1x_kay_enable_rx_sas(struct ieee802_1x_kay *kay,
 int ieee802_1x_kay_enable_new_info(struct ieee802_1x_kay *kay);
 int ieee802_1x_kay_get_status(struct ieee802_1x_kay *kay, char *buf,
 			      size_t buflen);
+int ieee802_1x_kay_get_mib(struct ieee802_1x_kay *kay, char *buf,
+			   size_t buflen);
 
 #endif /* IEEE802_1X_KAY_H */

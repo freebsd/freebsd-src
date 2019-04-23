@@ -117,8 +117,8 @@ static int android_update_permission(const char *path, mode_t mode)
 
 	/* Allow processes running with Group ID as AID_WIFI,
 	 * to read files from SP, SP/<fqdn>, Cert and osu-info directories */
-	if (chown(path, -1, AID_WIFI)) {
-		wpa_printf(MSG_INFO, "CTRL: Could not chown directory: %s",
+	if (lchown(path, -1, AID_WIFI)) {
+		wpa_printf(MSG_INFO, "CTRL: Could not lchown directory: %s",
 			   strerror(errno));
 		return -1;
 	}
@@ -612,8 +612,8 @@ int hs20_add_pps_mo(struct hs20_osu_client *ctx, const char *uri,
 		}
 	}
 
-	android_update_permission("SP", S_IRWXU | S_IRGRP | S_IXGRP);
-	android_update_permission(fname, S_IRWXU | S_IRGRP | S_IXGRP);
+	android_update_permission("SP", S_IRWXU | S_IRWXG);
+	android_update_permission(fname, S_IRWXU | S_IRWXG);
 
 	snprintf(fname, fname_len, "SP/%s/pps.xml", fqdn);
 

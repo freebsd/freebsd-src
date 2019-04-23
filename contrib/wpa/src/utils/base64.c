@@ -1,12 +1,13 @@
 /*
  * Base64 encoding/decoding (RFC1341)
- * Copyright (c) 2005-2011, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
  */
 
 #include "includes.h"
+#include <stdint.h>
 
 #include "os.h"
 #include "base64.h"
@@ -27,6 +28,8 @@ static unsigned char * base64_gen_encode(const unsigned char *src, size_t len,
 	size_t olen;
 	int line_len;
 
+	if (len >= SIZE_MAX / 4)
+		return NULL;
 	olen = len * 4 / 3 + 4; /* 3-byte blocks to 4-byte */
 	if (add_pad)
 		olen += olen / 72; /* line feeds */

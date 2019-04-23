@@ -181,7 +181,7 @@ static struct wpabuf * eap_gpsk_build_gpsk_3(struct eap_sm *sm,
 	if (eap_gpsk_compute_mic(data->sk, data->sk_len, data->vendor,
 				 data->specifier, start, pos - start, pos) < 0)
 	{
-		os_free(req);
+		wpabuf_free(req);
 		eap_gpsk_state(data, FAILURE);
 		return NULL;
 	}
@@ -379,7 +379,7 @@ static void eap_gpsk_process_gpsk_2(struct eap_sm *sm,
 	data->specifier = WPA_GET_BE16(csuite->specifier);
 	wpa_printf(MSG_DEBUG, "EAP-GPSK: CSuite_Sel %d:%d",
 		   data->vendor, data->specifier);
-	pos += sizeof(*csuite);	
+	pos += sizeof(*csuite);
 
 	if (end - pos < 2) {
 		wpa_printf(MSG_DEBUG, "EAP-GPSK: Too short message for "

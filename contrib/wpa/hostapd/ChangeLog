@@ -1,5 +1,60 @@
 ChangeLog for hostapd
 
+2019-04-21 - v2.8
+	* SAE changes
+	  - added support for SAE Password Identifier
+	  - changed default configuration to enable only group 19
+	    (i.e., disable groups 20, 21, 25, 26 from default configuration) and
+	    disable all unsuitable groups completely based on REVmd changes
+	  - improved anti-clogging token mechanism and SAE authentication
+	    frame processing during heavy CPU load; this mitigates some issues
+	    with potential DoS attacks trying to flood an AP with large number
+	    of SAE messages
+	  - added Finite Cyclic Group field in status code 77 responses
+	  - reject use of unsuitable groups based on new implementation guidance
+	    in REVmd (allow only FFC groups with prime >= 3072 bits and ECC
+	    groups with prime >= 256)
+	  - minimize timing and memory use differences in PWE derivation
+	    [https://w1.fi/security/2019-1/] (CVE-2019-9494)
+	  - fixed confirm message validation in error cases
+	    [https://w1.fi/security/2019-3/] (CVE-2019-9496)
+	* EAP-pwd changes
+	  - minimize timing and memory use differences in PWE derivation
+	    [https://w1.fi/security/2019-2/] (CVE-2019-9495)
+	  - verify peer scalar/element
+	    [https://w1.fi/security/2019-4/] (CVE-2019-9497 and CVE-2019-9498)
+	  - fix message reassembly issue with unexpected fragment
+	    [https://w1.fi/security/2019-5/]
+	  - enforce rand,mask generation rules more strictly
+	  - fix a memory leak in PWE derivation
+	  - disallow ECC groups with a prime under 256 bits (groups 25, 26, and
+	    27)
+	* Hotspot 2.0 changes
+	  - added support for release number 3
+	  - reject release 2 or newer association without PMF
+	* added support for RSN operating channel validation
+	  (CONFIG_OCV=y and configuration parameter ocv=1)
+	* added Multi-AP protocol support
+	* added FTM responder configuration
+	* fixed build with LibreSSL
+	* added FT/RRB workaround for short Ethernet frame padding
+	* fixed KEK2 derivation for FILS+FT
+	* added RSSI-based association rejection from OCE
+	* extended beacon reporting functionality
+	* VLAN changes
+	  - allow local VLAN management with remote RADIUS authentication
+	  - add WPA/WPA2 passphrase/PSK -based VLAN assignment
+	* OpenSSL: allow systemwide policies to be overridden
+	* extended PEAP to derive EMSK to enable use with ERP/FILS
+	* extended WPS to allow SAE configuration to be added automatically
+	  for PSK (wps_cred_add_sae=1)
+	* fixed FT and SA Query Action frame with AP-MLME-in-driver cases
+	* OWE: allow Diffie-Hellman Parameter element to be included with DPP
+	  in preparation for DPP protocol extension
+	* RADIUS server: started to accept ERP keyName-NAI as user identity
+	  automatically without matching EAP database entry
+	* fixed PTK rekeying with FILS and FT
+
 2018-12-02 - v2.7
 	* fixed WPA packet number reuse with replayed messages and key
 	  reinstallation

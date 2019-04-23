@@ -15,7 +15,7 @@
 
 #define MKA_VERSION_ID              1
 
-/* IEEE Std 802.1X-2010, 11.11.1, Table 11-7 */
+/* IEEE Std 802.1X-2010, 11.11.1, Table 11-7 (MKPDU parameter sets) */
 enum mka_packet_type {
 	MKA_BASIC_PARAMETER_SET = MKA_VERSION_ID,
 	MKA_LIVE_PEER_LIST = 1,
@@ -39,7 +39,7 @@ struct ieee802_1x_kay;
 struct ieee802_1x_mka_peer_id {
 	u8 mi[MI_LEN];
 	be32 mn;
-};
+} STRUCT_PACKED;
 
 struct ieee802_1x_kay_peer {
 	struct ieee802_1x_mka_sci sci;
@@ -51,6 +51,7 @@ struct ieee802_1x_kay_peer {
 	Boolean macsec_desired;
 	enum macsec_cap macsec_capability;
 	Boolean sak_used;
+	int missing_sak_use_count;
 	struct dl_list list;
 };
 
@@ -59,25 +60,24 @@ struct macsec_ciphersuite {
 	char name[32];
 	enum macsec_cap capable;
 	int sak_len; /* unit: byte */
-
-	u32 index;
 };
 
 struct mka_alg {
 	u8 parameter[4];
-	size_t cak_len;
-	size_t kek_len;
-	size_t ick_len;
 	size_t icv_len;
 
-	int (*cak_trfm)(const u8 *msk, const u8 *mac1, const u8 *mac2, u8 *cak);
-	int (*ckn_trfm)(const u8 *msk, const u8 *mac1, const u8 *mac2,
-			const u8 *sid, size_t sid_len, u8 *ckn);
-	int (*kek_trfm)(const u8 *cak, const u8 *ckn, size_t ckn_len, u8 *kek);
-	int (*ick_trfm)(const u8 *cak, const u8 *ckn, size_t ckn_len, u8 *ick);
-	int (*icv_hash)(const u8 *ick, const u8 *msg, size_t msg_len, u8 *icv);
-
-	int index; /* index for configuring */
+	int (*cak_trfm)(const u8 *msk, size_t msk_bytes, const u8 *mac1,
+			const u8 *mac2, u8 *cak, size_t cak_bytes);
+	int (*ckn_trfm)(const u8 *msk, size_t msk_bytes, const u8 *mac1,
+			const u8 *mac2, const u8 *sid, size_t sid_len, u8 *ckn);
+	int (*kek_trfm)(const u8 *cak, size_t cak_bytes,
+			const u8 *ckn, size_t ckn_len,
+			u8 *kek, size_t kek_bytes);
+	int (*ick_trfm)(const u8 *cak, size_t cak_bytes,
+			const u8 *ckn, size_t ckn_len,
+			u8 *ick, size_t ick_bytes);
+	int (*icv_hash)(const u8 *ick, size_t ick_bytes,
+			const u8 *msg, size_t msg_len, u8 *icv);
 };
 
 #define DEFAULT_MKA_ALG_INDEX 0
@@ -95,7 +95,7 @@ struct ieee802_1x_mka_participant {
 	Boolean retain;
 	enum mka_created_mode mode;
 
-	enum { DEFAULT, DISABLED, ON_OPER_UP, ALWAYS } activate;
+	enum activate_ctrl { DEFAULT, DISABLED, ON_OPER_UP, ALWAYS } activate;
 
 	/* used for active participant */
 	Boolean principal;
@@ -131,8 +131,10 @@ struct ieee802_1x_mka_participant {
 	u8 mi[MI_LEN];
 	u32 mn;
 
+	/* Current peer MI and SCI during MKPDU processing */
 	struct ieee802_1x_mka_peer_id current_peer_id;
 	struct ieee802_1x_mka_sci current_peer_sci;
+
 	time_t cak_life;
 	time_t mka_life;
 	Boolean to_dist_sak;
@@ -165,7 +167,7 @@ struct ieee802_1x_mka_hdr {
 #endif
 	/* octet 4 */
 	u8 length1;
-};
+} STRUCT_PACKED;
 
 #define MKA_HDR_LEN sizeof(struct ieee802_1x_mka_hdr)
 
@@ -210,9 +212,9 @@ struct ieee802_1x_mka_basic_body {
 	be32 actor_mn;
 	u8 algo_agility[4];
 
-	/* followed by CAK Name*/
+	/* followed by CAK Name */
 	u8 ckn[0];
-};
+} STRUCT_PACKED;
 
 /**
  * struct ieee802_1x_mka_peer_body - Live Peer List and Potential Peer List
@@ -238,9 +240,9 @@ struct ieee802_1x_mka_peer_body {
 	/* octet 4 */
 	u8 length1;
 
-	u8 peer[0];
 	/* followed by Peers */
-};
+	u8 peer[0];
+} STRUCT_PACKED;
 
 /**
  * struct ieee802_1x_mka_sak_use_body - MACsec SAK Use parameter set (Figure
@@ -315,7 +317,7 @@ struct ieee802_1x_mka_sak_use_body {
 	be32 okn;
 	/* octet 41 - 44 */
 	be32 olpn;
-};
+} STRUCT_PACKED;
 
 /**
  * struct ieee802_1x_mka_dist_sak_body - Distributed SAK parameter set
@@ -362,7 +364,7 @@ struct ieee802_1x_mka_dist_sak_body {
 	 * for other cipher suite: octet 9-16: cipher suite id, octet 17-: SAK
 	 */
 	u8 sak[0];
-};
+} STRUCT_PACKED;
 
 /**
  * struct ieee802_1x_mka_dist_cak_body - Distributed CAK parameter set (Figure
@@ -398,7 +400,7 @@ struct ieee802_1x_mka_dist_cak_body {
 
 	/* followed by CAK Name, 29- */
 	u8 ckn[0];
-};
+} STRUCT_PACKED;
 
 struct ieee802_1x_mka_icv_body {
 	/* octet 1 */
@@ -418,6 +420,6 @@ struct ieee802_1x_mka_icv_body {
 
 	/* octet 5 - */
 	u8 icv[0];
-};
+} STRUCT_PACKED;
 
 #endif /* IEEE802_1X_KAY_I_H */

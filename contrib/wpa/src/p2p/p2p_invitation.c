@@ -488,7 +488,7 @@ void p2p_process_invitation_resp(struct p2p_data *p2p, const u8 *sa,
 	if (*msg.status == P2P_SC_FAIL_NO_COMMON_CHANNELS &&
 	    p2p->retry_invite_req &&
 	    p2p_channel_random_social(&p2p->cfg->channels, &p2p->op_reg_class,
-				      &p2p->op_channel) == 0) {
+				      &p2p->op_channel, NULL, NULL) == 0) {
 		p2p->retry_invite_req = 0;
 		p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
 		p2p->cfg->stop_listen(p2p->cfg->cb_ctx);
