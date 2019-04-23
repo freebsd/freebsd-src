@@ -698,7 +698,7 @@
 383	AUE_NULL	STD	{ int linux_statx(l_int dirfd,			\
 				    const char *pathname, l_uint flags,		\
 				    l_uint mask, void *statxbuf); }
-384	AUE_PRCTL	STD	{ int linux_arch_prctl(l_int option,
+384	AUE_PRCTL	STD	{ int linux_arch_prctl(l_int option,		\
 				    l_ulong arg2); }
 ; Linux 4.18:
 385	AUE_NULL	STD	{ int linux_io_pgetevents(void); }
