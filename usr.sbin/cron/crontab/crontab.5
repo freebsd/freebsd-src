@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 15, 2019
+.Dd April 19, 2019
 .Dt CRONTAB 5
 .Os
 .Sh NAME
@@ -245,12 +245,14 @@ string		meaning
 The
 .Sq @
 symbol followed by a numeric value has a special notion of running
-a job that much seconds after completion of previous invocation of
+a job that many seconds after completion of the previous invocation of
 the job.
 Unlike regular syntax, it guarantees not to overlap two or more
-invocations of the same job.
-The first run is scheduled specified amount of seconds after cron
-has started.
+invocations of the same job during normal cron execution.
+Note, however, that overlap may occur if the job is running when the file
+containing the job is modified and subsequently reloaded.
+The first run is scheduled for the specified number of seconds after cron
+is started or the crontab entry is reloaded.
 .Sh EXAMPLE CRON FILE
 .Bd -literal
 
