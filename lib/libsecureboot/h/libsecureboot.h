@@ -86,6 +86,7 @@ ssize_t ve_pcr_get(unsigned char *, size_t);
 #define VEF_VERBOSE		1
 
 #define VE_FINGERPRINT_OK	1
+#define VE_FINGERPRINT_IGNORE	2
 /* errors from verify_fd */
 #define VE_FINGERPRINT_NONE	-2
 #define VE_FINGERPRINT_WRONG	-3
