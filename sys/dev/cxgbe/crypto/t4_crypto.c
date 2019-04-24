@@ -537,8 +537,9 @@ ccr_hash(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	dst = (char *)(crwr + 1) + kctx_len + DUMMY_BYTES;
 	if (crd->crd_len == 0) {
 		dst[0] = 0x80;
-		*(uint64_t *)(dst + axf->blocksize - sizeof(uint64_t)) =
-		    htobe64(axf->blocksize << 3);
+		if (s->mode == HMAC)
+			*(uint64_t *)(dst + axf->blocksize - sizeof(uint64_t)) =
+			    htobe64(axf->blocksize << 3);
 	} else if (imm_len != 0)
 		crypto_copydata(crp->crp_flags, crp->crp_buf, crd->crd_skip,
 		    crd->crd_len, dst);
