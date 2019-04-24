@@ -130,16 +130,13 @@ static uma_zone_t ticket_zone;
 /* 
  * TODO: figure out how to timeout INTERRUPT requests, because the daemon may
  * leagally never respond
- * 
- * TODO: remove an INTERRUPT request if the daemon responds to the original
  */
 static int
 fuse_interrupt_callback(struct fuse_ticket *tick, struct uio *uio)
 {
 	struct fuse_ticket *otick, *x_tick;
 	struct fuse_interrupt_in *fii;
-	struct fuse_data *data;
-	data = tick->tk_data;
+	struct fuse_data *data = tick->tk_data;
 	bool found = false;
 
 	fii = (struct fuse_interrupt_in*)((char*)tick->tk_ms_fiov.base +
@@ -162,7 +159,10 @@ fuse_interrupt_callback(struct fuse_ticket *tick, struct uio *uio)
 	/* Clear the original ticket's interrupt association */
 	otick->irq_unique = 0;
 
-	if (tick->tk_aw_ohead.error == EAGAIN) {
+	if (tick->tk_aw_ohead.error == ENOSYS) {
+		fsess_set_notimpl(data->mp, FUSE_INTERRUPT);
+		return 0;
+	} else if (tick->tk_aw_ohead.error == EAGAIN) {
 		/* 
 		 * There are two reasons we might get this:
 		 * 1) the daemon received the INTERRUPT request before the
@@ -219,6 +219,13 @@ fuse_interrupt_send(struct fuse_ticket *otick, int err)
 			}
 		}
 		fuse_lck_mtx_unlock(data->ms_mtx);
+
+		/*
+		 * If the fuse daemon doesn't support interrupts, then there's
+		 * nothing more that we can do
+		 */
+		if (!fsess_isimpl(data->mp, FUSE_INTERRUPT))
+			return;
 
 		/* 
 		 * If the fuse daemon has already received otick, then we must

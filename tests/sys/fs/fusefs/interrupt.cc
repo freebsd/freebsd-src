@@ -49,6 +49,8 @@ const off_t FILESIZE = 1000;
 const mode_t MODE = 0755;
 const char FULLDIRPATH0[] = "mountpoint/some_dir";
 const char RELDIRPATH0[] = "some_dir";
+const char FULLDIRPATH1[] = "mountpoint/other_dir";
+const char RELDIRPATH1[] = "other_dir";
 
 static sem_t *signaled_semaphore;
 
@@ -163,6 +165,29 @@ void TearDown() {
 }
 };
 
+static void* mkdir0(void* arg __unused) {
+	ssize_t r;
+
+	r = mkdir(FULLDIRPATH0, MODE);
+	if (r >= 0)
+		return 0;
+	else
+		return (void*)(intptr_t)errno;
+}
+
+static void* read1(void* arg) {
+	const size_t bufsize = FILESIZE;
+	char buf[bufsize];
+	int fd = (int)(intptr_t)arg;
+	ssize_t r;
+
+	r = read(fd, buf, bufsize);
+	if (r >= 0)
+		return 0;
+	else
+		return (void*)(intptr_t)errno;
+}
+
 /* 
  * An interrupt operation that gets received after the original command is
  * complete should generate an EAGAIN response.
@@ -203,6 +228,89 @@ TEST_F(Interrupt, already_complete)
 
 	setup_interruptor(self);
 	EXPECT_EQ(0, mkdir(FULLDIRPATH0, MODE)) << strerror(errno);
+}
+
+/*
+ * If a FUSE file system returns ENOSYS for a FUSE_INTERRUPT operation, the
+ * kernel should not attempt to interrupt any other operations on that mount
+ * point.
+ */
+TEST_F(Interrupt, enosys)
+{
+	uint64_t ino0 = 42, ino1 = 43;;
+	uint64_t mkdir_unique;
+	pthread_t self, th0;
+	sem_t sem0, sem1;
+	void *thr0_value;
+	Sequence seq;
+
+	self = pthread_self();
+	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
+	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
+
+	EXPECT_LOOKUP(1, RELDIRPATH1).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_mkdir(&mkdir_unique);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([&](auto in) {
+			return (in->header.opcode == FUSE_INTERRUPT &&
+				in->body.interrupt.unique == mkdir_unique);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillOnce(Invoke([&](auto in, auto &out) {
+		// reject FUSE_INTERRUPT and respond to the FUSE_WRITE
+		auto out0 = new mockfs_buf_out;
+		auto out1 = new mockfs_buf_out;
+
+		out0->header.unique = in->header.unique;
+		out0->header.error = -ENOSYS;
+		out0->header.len = sizeof(out0->header);
+		out.push_back(out0);
+
+		SET_OUT_HEADER_LEN(out1, entry);
+		out1->body.create.entry.attr.mode = S_IFDIR | MODE;
+		out1->body.create.entry.nodeid = ino1;
+		out1->header.unique = mkdir_unique;
+		out.push_back(out1);
+	}));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([&](auto in) {
+			return (in->header.opcode == FUSE_MKDIR);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillOnce(Invoke([&](auto in, auto &out) {
+		auto out0 = new mockfs_buf_out;
+
+		sem_post(&sem0);
+		sem_wait(&sem1);
+
+		SET_OUT_HEADER_LEN(out0, entry);
+		out0->body.create.entry.attr.mode = S_IFDIR | MODE;
+		out0->body.create.entry.nodeid = ino0;
+		out0->header.unique = in->header.unique;
+		out.push_back(out0);
+	}));
+
+	setup_interruptor(self);
+	/* First mkdir operation should finish synchronously */
+	ASSERT_EQ(0, mkdir(FULLDIRPATH1, MODE)) << strerror(errno);
+
+	ASSERT_EQ(0, pthread_create(&th0, NULL, mkdir0, NULL))
+		<< strerror(errno);
+
+	sem_wait(&sem0);
+	/*
+	 * th0 should be blocked waiting for the fuse daemon thread.
+	 * Signal it.  No FUSE_INTERRUPT should result
+	 */
+	pthread_kill(th0, SIGUSR1);
+	/* Allow the daemon thread to proceed */
+	sem_post(&sem1);
+	pthread_join(th0, &thr0_value);
+	/* Second mkdir should've finished without error */
+	EXPECT_EQ(0, (intptr_t)thr0_value);
 }
 
 /*
@@ -279,7 +387,7 @@ TEST_F(Interrupt, ignore)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([&](auto in __unused, auto &out) {
-		// Ignore FUSE_INTERRUPT; respond to the FUSE_WRITE
+		// Ignore FUSE_INTERRUPT; respond to the FUSE_MKDIR
 		auto out0 = new mockfs_buf_out;
 		out0->header.unique = mkdir_unique;
 		SET_OUT_HEADER_LEN(out0, entry);
@@ -290,42 +398,6 @@ TEST_F(Interrupt, ignore)
 
 	setup_interruptor(self);
 	ASSERT_EQ(0, mkdir(FULLDIRPATH0, MODE)) << strerror(errno);
-}
-
-void* mkdir0(void* arg __unused) {
-	ssize_t r;
-
-	r = mkdir(FULLDIRPATH0, MODE);
-	if (r >= 0)
-		return 0;
-	else
-		return (void*)(intptr_t)errno;
-}
-
-void* setxattr0(void* arg) {
-	const char *CONTENTS = "abcdefgh";
-	ssize_t bufsize = strlen(CONTENTS);
-	int fd = (int)(intptr_t)arg;
-	ssize_t r;
-
-	r = write(fd, CONTENTS, bufsize);
-	if (r >= 0)
-		return 0;
-	else
-		return (void*)(intptr_t)errno;
-}
-
-void* read1(void* arg) {
-	const size_t bufsize = FILESIZE;
-	char buf[bufsize];
-	int fd = (int)(intptr_t)arg;
-	ssize_t r;
-
-	r = read(fd, buf, bufsize);
-	if (r >= 0)
-		return 0;
-	else
-		return (void*)(intptr_t)errno;
 }
 
 /*
@@ -536,15 +608,11 @@ TEST_F(Interrupt, in_progress_read)
 	setup_interruptor(self);
 	ASSERT_EQ(-1, read(fd, buf, bufsize));
 	EXPECT_EQ(EINTR, errno);
-
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
 /* FUSE_INTERRUPT operations should take priority over other pending ops */
 TEST_F(Interrupt, priority)
 {
-	const char FULLPATH1[] = "mountpoint/other_dir";
-	const char RELPATH1[] = "other_dir";
 	Sequence seq;
 	uint64_t ino1 = 43;
 	uint64_t mkdir_unique;
@@ -556,8 +624,7 @@ TEST_F(Interrupt, priority)
 	self = pthread_self();
 
 	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	EXPECT_LOOKUP(1, RELPATH1).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	//expect_mkdir(&mkdir_unique);
+	EXPECT_LOOKUP(1, RELDIRPATH1).WillOnce(Invoke(ReturnErrno(ENOENT)));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_MKDIR);
@@ -579,8 +646,8 @@ TEST_F(Interrupt, priority)
 		out->header.len = sizeof(out->header);
 	})));
 	/* 
-	 * FUSE_INTERRUPT should be received before the second FUSE_MKDIR, even
-	 * though it was generated later
+	 * FUSE_INTERRUPT should be received before the second FUSE_MKDIR,
+	 * even though it was generated later
 	 */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
@@ -610,7 +677,7 @@ TEST_F(Interrupt, priority)
 
 	sem_wait(&sem1);	/* Sequence the two mkdirs */
 	setup_interruptor(th0);
-	ASSERT_EQ(0, mkdir(FULLPATH1, MODE)) << strerror(errno);
+	ASSERT_EQ(0, mkdir(FULLDIRPATH1, MODE)) << strerror(errno);
 
 	/* Wait awhile to make sure the signal generates no FUSE_INTERRUPT */
 	usleep(250'000);
@@ -669,8 +736,6 @@ TEST_F(Interrupt, too_soon)
 	setup_interruptor(self);
 	ASSERT_EQ(-1, mkdir(FULLDIRPATH0, MODE));
 	EXPECT_EQ(EINTR, errno);
-
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
 
