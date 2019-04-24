@@ -27,6 +27,8 @@ espsize=33292
 # vars should likely be conditionally set to allow better automation.
 #
 
+. $(dirname $0)/install-boot.sh
+
 cpsys() {
     src=$1
     dst=$2
@@ -56,7 +58,7 @@ mk_nogeli_gpt_ufs_uefi() {
     cat > ${src}/etc/fstab <<EOF
 /dev/ada0p2	/		ufs	rw	1	1
 EOF
-    make_esp_file ${img}.p1 ${espsize} ${src}
+    make_esp_file ${img}.p1 ${espsize} ${src}/boot/loader.efi
     makefs -t ffs -B little -s 200m ${img}.p2 ${src}
     mkimg -s gpt \
 	  -p efi:=${img}.p1 \
@@ -71,7 +73,7 @@ mk_nogeli_gpt_ufs_both() {
     cat > ${src}/etc/fstab <<EOF
 /dev/ada0p3	/		ufs	rw	1	1
 EOF
-    make_esp_file ${img}.p1 ${espsize} ${src}
+    make_esp_file ${img}.p1 ${espsize} ${src}/boot/loader.efi
     makefs -t ffs -B little -s 200m ${img}.p3 ${src}
     # p1 is boot for uefi, p2 is boot for gpt, p3 is /
     mkimg -b ${src}/boot/pmbr -s gpt \
@@ -217,7 +219,7 @@ mk_nogeli_mbr_ufs_uefi() {
     cat > ${src}/etc/fstab <<EOF
 /dev/ada0s2a	/		ufs	rw	1	1
 EOF
-    make_esp_file ${img}.s1 ${espsize} ${src}
+    make_esp_file ${img}.s1 ${espsize} ${src}/boot/loader.efi
     makefs -t ffs -B little -s 200m ${img}.s2a ${src}
     mkimg -s bsd -p freebsd-ufs:=${img}.s2a -o ${img}.s2
     mkimg -a 1 -s mbr -p efi:=${img}.s1 -p freebsd:=${img}.s2 -o ${img}
@@ -231,7 +233,7 @@ mk_nogeli_mbr_ufs_both() {
     cat > ${src}/etc/fstab <<EOF
 /dev/ada0s2a	/		ufs	rw	1	1
 EOF
-    make_esp_file ${img}.s1 ${espsize} ${src}
+    make_esp_file ${img}.s1 ${espsize} ${src}/boot/loader.efi
     makefs -t ffs -B little -s 200m ${img}.s2a ${src}
     mkimg -s bsd -b ${src}/boot/boot -p freebsd-ufs:=${img}.s2a -o ${img}.s2
     mkimg -a 2 -s mbr -b ${src}/boot/mbr -p efi:=${img}.s1 -p freebsd:=${img}.s2 -o ${img}
