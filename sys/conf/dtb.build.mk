@@ -43,7 +43,7 @@ DTBO=${DTSO:T:R:S/$/.dtbo/}
 
 # Add dependencies on the source file so that out-of-tree things can be included
 # without any .PATH additions.
-.for _dts in ${DTS}
+.for _dts in ${DTS} ${FDT_DTS_FILE}
 ${_dts:R:T}.dtb: ${_dts}
 .endfor
 
