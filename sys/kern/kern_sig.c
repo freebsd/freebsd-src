@@ -929,16 +929,16 @@ osigreturn(struct thread *td, struct osigreturn_args *uap)
 #endif
 #endif /* COMPAT_43 */
 
-/* Will this signal be fatal to the current process ? */
+/* Would this signal be fatal to the current process, if it were caught ? */
 bool
 sig_isfatal(struct proc *p, int sig)
 {
 	intptr_t act;
+	int prop;
 
+	mtx_assert(&p->p_sigacts->ps_mtx, MA_OWNED);
 	act = (intptr_t)p->p_sigacts->ps_sigact[_SIG_IDX(sig)];
 	if ((intptr_t)SIG_DFL == act) {
-		int prop;
-
 		prop = sigprop(sig);
 		return (0 != (prop & (SIGPROP_KILL | SIGPROP_CORE)));
 	} else {

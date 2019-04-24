@@ -430,10 +430,11 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 {
 	struct thread *td = curthread;
 	sigset_t blockedset, oldset;
-	int err = 0;
+	int err = 0, stops_deferred;
 	struct fuse_data *data;
-	SIGEMPTYSET(blockedset);
 
+	SIGEMPTYSET(blockedset);
+	stops_deferred = sigdeferstop(SIGDEFERSTOP_SILENT);
 	kern_sigprocmask(td, SIG_BLOCK, NULL, &oldset, 0);
 
 	fuse_lck_mtx_lock(ftick->tk_aw_mtx);
@@ -476,6 +477,7 @@ retry:
 		 * or EAGAIN to the interrupt.
 		 */
 		int sig;
+		bool fatal;
 
 		SDT_PROBE2(fusefs, , ipc, trace, 4,
 			"fticket_wait_answer: interrupt");
@@ -485,11 +487,12 @@ retry:
 		PROC_LOCK(td->td_proc);
 		mtx_lock(&td->td_proc->p_sigacts->ps_mtx);
 		sig = cursig(td);
+		fatal = sig_isfatal(td->td_proc, sig);
 		mtx_unlock(&td->td_proc->p_sigacts->ps_mtx);
 		PROC_UNLOCK(td->td_proc);
 
 		fuse_lck_mtx_lock(ftick->tk_aw_mtx);
-		if (!sig_isfatal(td->td_proc, sig)) {
+		if (!fatal) {
 			/* 
 			 * Block the just-delivered signal while we wait for an
 			 * interrupt response
@@ -512,6 +515,7 @@ out:
 		err = ENXIO;
 	}
 	fuse_lck_mtx_unlock(ftick->tk_aw_mtx);
+	sigallowstop(stops_deferred);
 
 	return err;
 }
