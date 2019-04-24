@@ -381,6 +381,112 @@ class KATParser:
 
 			yield values
 
+# The CCM files use a bit of a different syntax that doesn't quite fit
+# the generic KATParser.  In particular, some keys are set globally at
+# the start of the file, and some are set globally at the start of a
+# section.
+class KATCCMParser:
+	def __init__(self, fname):
+		self.fp = open(fname)
+		self._pending = None
+		self.read_globals()
+
+	def read_globals(self):
+		self.global_values = {}
+		while True:
+			line = self.fp.readline()
+			if not line:
+				return
+			if line[0] == '#' or not line.strip():
+				continue
+			if line[0] == '[':
+				self._pending = line
+				return
+
+			try:
+				f, v = line.split(' =')
+			except:
+				print('line:', repr(line))
+				raise
+
+			v = v.strip()
+
+			if f in self.global_values:
+				raise ValueError('already present: %r' % repr(f))
+			self.global_values[f] = v
+
+	def read_section_values(self, kwpairs):
+		self.section_values = self.global_values.copy()
+		for pair in kwpairs.split(', '):
+			f, v = pair.split(' = ')
+			if f in self.section_values:
+				raise ValueError('already present: %r' % repr(f))
+			self.section_values[f] = v
+
+		while True:
+			line = self.fp.readline()
+			if not line:
+				return
+			if line[0] == '#' or not line.strip():
+				continue
+			if line[0] == '[':
+				self._pending = line
+				return
+
+			try:
+				f, v = line.split(' =')
+			except:
+				print('line:', repr(line))
+				raise
+
+			if f == 'Count':
+				self._pending = line
+				return
+
+			v = v.strip()
+
+			if f in self.section_values:
+				raise ValueError('already present: %r' % repr(f))
+			self.section_values[f] = v
+
+	def __iter__(self):
+		while True:
+			if self._pending:
+				line = self._pending
+				self._pending = None
+			else:
+				line = self.fp.readline()
+				if not line:
+					return
+
+			if (line and line[0] == '#') or not line.strip():
+				continue
+
+			if line[0] == '[':
+				section = line[1:].split(']', 1)[0]
+				self.read_section_values(section)
+				continue
+
+			values = self.section_values.copy()
+
+			while True:
+				try:
+					f, v = line.split(' =')
+				except:
+					print('line:', repr(line))
+					raise
+				v = v.strip()
+
+				if f in values:
+					raise ValueError('already present: %r' % repr(f))
+				values[f] = v
+				line = self.fp.readline().strip()
+				if not line:
+					break
+
+			yield values
+
+
 def _spdechex(s):
 	return ''.join(s.split()).decode('hex')
 
