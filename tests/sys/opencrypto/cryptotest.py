@@ -61,17 +61,17 @@ def GenTestCase(cname):
 		###############
 		##### AES #####
 		###############
-		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
+		@unittest.skipIf(cname not in aesmodules, 'skipping AES-XTS on %s' % (cname))
 		def test_xts(self):
 			for i in katg('XTSTestVectors/format tweak value input - data unit seq no', '*.rsp'):
 				self.runXTS(i, cryptodev.CRYPTO_AES_XTS)
 
-		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
+		@unittest.skipIf(cname not in aesmodules, 'skipping AES-CBC on %s' % (cname))
 		def test_cbc(self):
 			for i in katg('KAT_AES', 'CBC[GKV]*.rsp'):
 				self.runCBC(i)
 
-		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
+		@unittest.skipIf(cname not in aesmodules, 'skipping AES-GCM on %s' % (cname))
 		def test_gcm(self):
 			for i in katg('gcmtestvectors', 'gcmEncrypt*'):
 				self.runGCM(i, 'ENCRYPT')
@@ -265,7 +265,7 @@ def GenTestCase(cname):
 			#for i in iglob('SHA1*'):
 			#	self.runSHA(i)
 
-		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % str(cname))
+		@unittest.skipIf(cname not in shamodules, 'skipping SHA-HMAC on %s' % str(cname))
 		def test_sha1hmac(self):
 			for i in katg('hmactestvectors', 'HMAC.rsp'):
 				self.runSHA1HMAC(i)
