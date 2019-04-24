@@ -151,8 +151,9 @@ class Crypto:
 		return _findop(crid, '')[1]
 
 	def __init__(self, cipher=0, key=None, mac=0, mackey=None,
-	    crid=CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_HARDWARE):
+	    crid=CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_HARDWARE, maclen=None):
 		self._ses = None
+		self._maclen = maclen
 		ses = SessionOp2()
 		ses.cipher = cipher
 		ses.mac = mac
@@ -168,9 +169,6 @@ class Crypto:
 			ses.mackeylen = len(mackey)
 			mk = array.array('B', mackey)
 			ses.mackey = mk.buffer_info()[0]
-			self._maclen = 16	# parameterize?
-		else:
-			self._maclen = None
 
 		if not cipher and not mac:
 			raise ValueError('one of cipher or mac MUST be specified.')
