@@ -863,6 +863,7 @@ g_dev_orphan(struct g_consumer *cp)
 		(void)clear_dumper(curthread);
 
 	/* Destroy the struct cdev *so we get no more requests */
+	delist_dev(dev);
 	destroy_dev_sched_cb(dev, g_dev_callback, cp);
 }
 
