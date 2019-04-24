@@ -258,7 +258,7 @@ class Crypto:
         return s, tag.tostring()
 
     def perftest(self, op, size, timeo=3):
-        inp = array.array('B', (random.randint(0, 255) for x in xrange(size)))
+        inp = array.array('B', (random.randint(0, 255) for x in range(size)))
         out = array.array('B', inp)
 
         # prep ioctl
@@ -273,7 +273,7 @@ class Crypto:
         if self._maclen is not None:
             m = array.array('B', [0] * self._maclen)
             cop.mac = m.buffer_info()[0]
-        ivbuf = array.array('B', (random.randint(0, 255) for x in xrange(16)))
+        ivbuf = array.array('B', (random.randint(0, 255) for x in range(16)))
         cop.iv = ivbuf.buffer_info()[0]
 
         exit = [ False ]
@@ -503,7 +503,7 @@ if __name__ == '__main__':
         except IOError:
             print('aesni0 not found')
 
-        for i in xrange(10):
+        for i in range(10):
             try:
                 name = Crypto.getcridname(i)
                 print('%2d: %r' % (i, repr(name)))
@@ -637,7 +637,7 @@ if __name__ == '__main__':
         print('tag:', tag.encode('hex'))
         assert enctag == tag
     elif False:
-        for i in xrange(100000):
+        for i in range(100000):
             c = Crypto(CRYPTO_AES_XTS, '1bbfeadf539daedcae33ced497343f3ca1f2474ad932b903997d44707db41382'.decode('hex'))
             data = '52a42bca4e9425a25bbc8c8bf6129dec'.decode('hex')
             ct = '517e602becd066b65fa4f4f56ddfe240'.decode('hex')
