@@ -167,8 +167,17 @@ int
 __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
 	      VGLBitmap *dst, int dstx, int dsty, int width, int hight)
 {
-  int srcline, dstline, yend, yextra, ystep;
-
+  byte *buffer, *p;
+  int mousemerge, srcline, dstline, yend, yextra, ystep;
+  
+  mousemerge = 0;
+  if (hight < 0) {
+    hight = -hight;
+    mousemerge = (dst == VGLDisplay &&
+		  VGLMouseOverlap(dstx, dsty, width, hight));
+    if (mousemerge)
+      buffer = alloca(width*src->PixelBytes);
+  }
   if (srcx>src->VXsize || srcy>src->VYsize
 	|| dstx>dst->VXsize || dsty>dst->VYsize)
     return -1;  
@@ -204,8 +213,13 @@ __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
   }
   for (srcline = srcy + yextra, dstline = dsty + yextra; srcline != yend;
        srcline += ystep, dstline += ystep) {
-    WriteVerticalLine(dst, dstx, dstline, width, 
-      src->Bitmap+(srcline*src->VXsize+srcx)*dst->PixelBytes);
+    p = src->Bitmap+(srcline*src->VXsize+srcx)*dst->PixelBytes;
+    if (mousemerge && VGLMouseOverlap(dstx, dstline, width, 1)) {
+      bcopy(p, buffer, width*src->PixelBytes);
+      p = buffer;
+      VGLMouseMerge(dstx, dstline, width, p);
+    }
+    WriteVerticalLine(dst, dstx, dstline, width, p);
   }
   return 0;
 }
@@ -214,36 +228,29 @@ int
 VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
 	      VGLBitmap *dst, int dstx, int dsty, int width, int hight)
 {
-  int error, mouseoverlap;
+  int error;
 
+  if (hight < 0)
+    return -1;
   if (src == VGLDisplay)
     src = &VGLVDisplay;
   if (src->Type != MEMBUF)
     return -1;		/* invalid */
   if (dst == VGLDisplay) {
     VGLMouseFreeze();
-    mouseoverlap = VGLMouseOverlap(dstx, dsty, width, hight);
-    if (mouseoverlap)
-      VGLMousePointerHide();
+    __VGLBitmapCopy(src, srcx, srcy, &VGLVDisplay, dstx, dsty, width, hight);
     error = __VGLBitmapCopy(src, srcx, srcy, &VGLVDisplay, dstx, dsty,
                             width, hight);
-    if (error != 0) {
-      if (mouseoverlap)
-        VGLMousePointerShow();
-      VGLMouseUnFreeze();
+    if (error != 0)
       return error;
-    }
     src = &VGLVDisplay;
     srcx = dstx;
     srcy = dsty;
   } else if (dst->Type != MEMBUF)
     return -1;		/* invalid */
-  error = __VGLBitmapCopy(src, srcx, srcy, dst, dstx, dsty, width, hight);
-  if (dst == VGLDisplay) {
-    if (mouseoverlap)
-      VGLMousePointerShow();
+  error = __VGLBitmapCopy(src, srcx, srcy, dst, dstx, dsty, width, -hight);
+  if (dst == VGLDisplay)
     VGLMouseUnFreeze();
-  }
   return error;
 }
 
