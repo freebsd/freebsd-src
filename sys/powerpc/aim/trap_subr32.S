@@ -68,7 +68,7 @@
 	lwzu	sr,PM_SR(pmap); \
 	RESTORE_SRS(pmap,sr) \
 	/* Restore SR 12 */ \
-	lwz	sr,12*4(pmap);	mtsr	12,sr
+	lwz	sr,12*4(pmap);	mtsr	12,sr; isync
 
 /*
  * Kernel SRs are loaded directly from kernel_pmap_
@@ -799,6 +799,7 @@ CNAME(trapexit):
 	mfmsr	%r3
 	andi.	%r3,%r3,~PSL_EE@l
 	mtmsr	%r3
+	isync
 /* Test AST pending: */
 	lwz	%r5,FRAME_SRR1+8(%r1)
 	mtcr	%r5
