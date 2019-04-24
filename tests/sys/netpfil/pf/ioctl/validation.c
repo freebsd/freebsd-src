@@ -305,6 +305,11 @@ ATF_TC_BODY(settflags, tc)
 	io.pfrio_size = 1 << 28;
 	if (ioctl(dev, DIOCRSETTFLAGS, &io) != 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+
+	/* NULL buffer */
+	io.pfrio_buffer = NULL;
+	if (ioctl(dev, DIOCRSETTFLAGS, &io) != -1)
+		atf_tc_fail("Request with NULL buffer succeeded");
 }
 
 ATF_TC_CLEANUP(settflags, tc)
