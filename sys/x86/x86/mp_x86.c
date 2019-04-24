@@ -1406,8 +1406,17 @@ cpustop_handler(void)
 	CPU_SET_ATOMIC(cpu, &stopped_cpus);
 
 	/* Wait for restart */
-	while (!CPU_ISSET(cpu, &started_cpus))
-	    ia32_pause();
+	while (!CPU_ISSET(cpu, &started_cpus)) {
+		ia32_pause();
+
+		/*
+		 * Halt non-BSP CPUs on panic -- we're never going to need them
+		 * again, and might as well save power / release resources
+		 * (e.g., overprovisioned VM infrastructure).
+		 */
+		while (__predict_false(!IS_BSP() && panicstr != NULL))
+			halt();
+	}
 
 	cpustop_handler_post(cpu);
 }
