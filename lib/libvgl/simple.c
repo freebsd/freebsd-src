@@ -51,14 +51,18 @@ static byte VGLSavePaletteBlue[256];
 void
 VGLSetXY(VGLBitmap *object, int x, int y, u_long color)
 {
-  int offset;
+  int offset, undermouse;
 
   VGLCheckSwitch();
   if (x>=0 && x<object->VXsize && y>=0 && y<object->VYsize) {
-    if (object == VGLDisplay)
+    if (object == VGLDisplay) {
+      undermouse = VGLMouseFreezeXY(x, y);
       VGLSetXY(&VGLVDisplay, x, y, color);
-    if (object->Type == MEMBUF ||
-        !VGLMouseFreeze(x, y, 1, 1, 0x80000000 | color)) {
+    } else if (object->Type != MEMBUF)
+      return;		/* invalid */
+    else
+      undermouse = 0;
+    if (!undermouse) {
       offset = (y * object->VXsize + x) * object->PixelBytes;
       switch (object->Type) {
       case VIDBUF8S:
@@ -106,7 +110,7 @@ set_planar:
 	object->Bitmap[offset] |= (byte)color;
       }
     }
-    if (object->Type != MEMBUF)
+    if (object == VGLDisplay)
       VGLMouseUnFreeze();
   }
 }
@@ -143,7 +147,7 @@ VGLGetXY(VGLBitmap *object, int x, int y)
     return 0;
   if (object == VGLDisplay)
     object = &VGLVDisplay;
-  if (object->Type != MEMBUF)
+  else if (object->Type != MEMBUF)
     return 0;		/* invalid */
   return __VGLGetXY(object, x, y);
 }
@@ -449,13 +453,14 @@ void
 VGLClear(VGLBitmap *object, u_long color)
 {
   VGLBitmap src;
-  int offset;
-  int len;
-  int i;
+  int i, len, mouseoverlap, offset;
 
   VGLCheckSwitch();
   if (object == VGLDisplay) {
-    VGLMouseFreeze(0, 0, object->Xsize, object->Ysize, color);
+    VGLMouseFreeze();
+    mouseoverlap = VGLMouseOverlap(0, 0, object->Xsize, object->Ysize);
+    if (mouseoverlap)
+      VGLMousePointerHide();
     VGLClear(&VGLVDisplay, color);
   } else if (object->Type != MEMBUF)
     return;		/* invalid */
@@ -509,8 +514,11 @@ VGLClear(VGLBitmap *object, u_long color)
     outb(0x3ce, 0x05); outb(0x3cf, 0x00);
     break;
   }
-  if (object == VGLDisplay)
+  if (object == VGLDisplay) {
+    if (mouseoverlap)
+      VGLMousePointerShow();
     VGLMouseUnFreeze();
+  }
 }
 
 static inline u_long
