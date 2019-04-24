@@ -122,10 +122,12 @@ CIOCFINDDEV = 3223610220
 CIOCCRYPTAEAD = 3225445229
 
 def _getdev():
-    fd = os.open('/dev/crypto', os.O_RDWR)
     buf = array.array('I', [0])
-    ioctl(fd, CRIOGET, buf, 1)
-    os.close(fd)
+    fd = os.open('/dev/crypto', os.O_RDWR)
+    try:
+        ioctl(fd, CRIOGET, buf, 1)
+    finally:
+        os.close(fd)
 
     return buf[0]
 
