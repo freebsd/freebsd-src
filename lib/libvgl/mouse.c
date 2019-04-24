@@ -89,7 +89,7 @@ static VGLBitmap VGLMouseStdOrMask =
     VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, StdOrMask);
 static VGLBitmap *VGLMouseAndMask, *VGLMouseOrMask;
 static int VGLMouseVisible = 0;
-static int VGLMouseShown = 0;
+static int VGLMouseShown = VGL_MOUSEHIDE;
 static int VGLMouseXpos = 0;
 static int VGLMouseYpos = 0;
 static int VGLMouseButtons = 0;
@@ -316,48 +316,47 @@ VGLMouseStatus(int *x, int *y, char *buttons)
   return VGLMouseShown;
 }
 
-int
-VGLMouseFreeze(int x, int y, int width, int hight, u_long color)
+void
+VGLMouseFreeze(void)
 {
-    INTOFF();
-    if (width > 1 || hight > 1 || (color & 0xc0000000) == 0) { /* bitmap */
-      if (VGLMouseShown == 1) {
-        int overlap;
+  INTOFF();
+}
 
-        if (x > VGLMouseXpos)
-          overlap = (VGLMouseXpos + MOUSE_IMG_SIZE) - x;
-        else
-          overlap = (x + width) - VGLMouseXpos;
-        if (overlap > 0) {
-          if (y > VGLMouseYpos)
-            overlap = (VGLMouseYpos + MOUSE_IMG_SIZE) - y;
-          else
-            overlap = (y + hight) - VGLMouseYpos;
-          if (overlap > 0)
-            VGLMousePointerHide();
-        } 
-      }
-    }
-    else {				/* bit */
-      if (VGLMouseShown &&
-          x >= VGLMouseXpos && x < VGLMouseXpos + MOUSE_IMG_SIZE &&
-          y >= VGLMouseYpos && y < VGLMouseYpos + MOUSE_IMG_SIZE) {
-        if (color & 0x80000000) {	/* Set */
-          if (VGLMouseAndMask->Bitmap 
-            [(y-VGLMouseYpos)*MOUSE_IMG_SIZE+(x-VGLMouseXpos)]) {
-            return 1;
-          }   
-        }   
-      }       
-    }
+int
+VGLMouseFreezeXY(int x, int y)
+{
+  INTOFF();
+  if (VGLMouseShown != VGL_MOUSESHOW)
+    return 0;
+  if (x >= VGLMouseXpos && x < VGLMouseXpos + MOUSE_IMG_SIZE &&
+      y >= VGLMouseYpos && y < VGLMouseYpos + MOUSE_IMG_SIZE &&
+      VGLMouseAndMask->Bitmap[(y-VGLMouseYpos)*MOUSE_IMG_SIZE+(x-VGLMouseXpos)])
+    return 1;
   return 0;
+}
+
+int
+VGLMouseOverlap(int x, int y, int width, int hight)
+{
+  int overlap;
+
+  if (VGLMouseShown != VGL_MOUSESHOW)
+    return 0;
+  if (x > VGLMouseXpos)
+    overlap = (VGLMouseXpos + MOUSE_IMG_SIZE) - x;
+  else
+    overlap = (x + width) - VGLMouseXpos;
+  if (overlap <= 0)
+    return 0;
+  if (y > VGLMouseYpos)
+    overlap = (VGLMouseYpos + MOUSE_IMG_SIZE) - y;
+  else
+    overlap = (y + hight) - VGLMouseYpos;
+  return overlap > 0;
 }
 
 void
 VGLMouseUnFreeze()
 {
-  if (VGLMouseShown == VGL_MOUSESHOW && !VGLMouseVisible && !VGLMintpending)
-    VGLMousePointerShow();
-  while (VGLMsuppressint)
-    INTON();
+  INTON();
 }

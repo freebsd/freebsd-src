@@ -214,23 +214,36 @@ int
 VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
 	      VGLBitmap *dst, int dstx, int dsty, int width, int hight)
 {
-  int error;
+  int error, mouseoverlap;
 
   if (src == VGLDisplay)
     src = &VGLVDisplay;
   if (src->Type != MEMBUF)
     return -1;		/* invalid */
   if (dst == VGLDisplay) {
-    VGLMouseFreeze(dstx, dsty, width, hight, 0);
-    __VGLBitmapCopy(src, srcx, srcy, &VGLVDisplay, dstx, dsty, width, hight);
+    VGLMouseFreeze();
+    mouseoverlap = VGLMouseOverlap(dstx, dsty, width, hight);
+    if (mouseoverlap)
+      VGLMousePointerHide();
+    error = __VGLBitmapCopy(src, srcx, srcy, &VGLVDisplay, dstx, dsty,
+                            width, hight);
+    if (error != 0) {
+      if (mouseoverlap)
+        VGLMousePointerShow();
+      VGLMouseUnFreeze();
+      return error;
+    }
     src = &VGLVDisplay;
     srcx = dstx;
     srcy = dsty;
   } else if (dst->Type != MEMBUF)
     return -1;		/* invalid */
   error = __VGLBitmapCopy(src, srcx, srcy, dst, dstx, dsty, width, hight);
-  if (dst == VGLDisplay)
+  if (dst == VGLDisplay) {
+    if (mouseoverlap)
+      VGLMousePointerShow();
     VGLMouseUnFreeze();
+  }
   return error;
 }
 
