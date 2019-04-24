@@ -219,7 +219,6 @@ struct pci_dev {
 	struct list_head	links;
 	struct pci_driver	*pdrv;
 	struct pci_bus		*bus;
-	uint64_t		dma_mask;
 	uint16_t		device;
 	uint16_t		vendor;
 	uint16_t		subsystem_vendor;
