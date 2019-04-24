@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 	(void) setlocale(LC_TIME, "");
 	rflag = 0;
 	Iflag = jflag = Rflag = 0;
-	while ((ch = getopt(argc, argv, "f:I::jRr:uv:")) != -1)
+	while ((ch = getopt(argc, argv, "f:I::jnRr:uv:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			fmt = optarg;
@@ -131,6 +131,8 @@ main(int argc, char *argv[])
 			break;
 		case 'j':
 			jflag = 1;	/* don't set time */
+			break;
+		case 'n':
 			break;
 		case 'R':		/* RFC 2822 datetime format */
 			if (Iflag)
