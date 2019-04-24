@@ -783,7 +783,11 @@ EOF
 # XXX
 cp /boot/device.hints ${DESTDIR}/boot/device.hints
 # Assume we're already built
-make install DESTDIR=${DESTDIR} MK_MAN=no MK_INSTALL_AS_USER=yes
+make install DESTDIR=${DESTDIR} MK_MAN=no MK_INSTALL_AS_USER=yes WITHOUT_DEBUG_FILES=yes
+if [ $? -ne 0 ]; then
+        echo "make install failed"
+        exit 1
+fi
 # Copy init, /bin/sh, minimal libraries and testing /etc/rc
 mkdir -p ${DESTDIR}/sbin ${DESTDIR}/bin \
       ${DESTDIR}/lib ${DESTDIR}/libexec \
