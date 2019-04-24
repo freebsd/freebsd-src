@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2019
+.Dd April 23, 2019
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd display or set date and time
 .Sh SYNOPSIS
 .Nm
-.Op Fl jRu
+.Op Fl jnRu
 .Op Fl r Ar seconds | Ar filename
 .Oo
 .Fl v
@@ -142,6 +142,8 @@ This allows you to use the
 flag in addition to the
 .Cm +
 option to convert one date format to another.
+.It Fl n
+Obsolete flag, accepted and ignored for compatibility.
 .It Fl R
 Use RFC 2822 date and time output format.
 This is equivalent to using
