@@ -90,6 +90,16 @@ struct dma_map_ops {
 
 #define	DMA_BIT_MASK(n)	((2ULL << ((n) - 1)) - 1ULL)
 
+int linux_dma_tag_init(struct device *dev, u64 mask);
+void *linux_dma_alloc_coherent(struct device *dev, size_t size,
+    dma_addr_t *dma_handle, gfp_t flag);
+dma_addr_t linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len);
+void linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t size);
+int linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
+    int nents, enum dma_data_direction dir, struct dma_attrs *attrs);
+void linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg,
+    int nents, enum dma_data_direction dir, struct dma_attrs *attrs);
+
 static inline int
 dma_supported(struct device *dev, u64 mask)
 {
@@ -102,11 +112,10 @@ static inline int
 dma_set_mask(struct device *dev, u64 dma_mask)
 {
 
-	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
+	if (!dev->dma_priv || !dma_supported(dev, dma_mask))
 		return -EIO;
 
-	*dev->dma_mask = dma_mask;
-	return (0);
+	return (linux_dma_tag_init(dev, dma_mask));
 }
 
 static inline int
@@ -134,24 +143,7 @@ static inline void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
     gfp_t flag)
 {
-	vm_paddr_t high;
-	size_t align;
-	void *mem;
-
-	if (dev != NULL && dev->dma_mask)
-		high = *dev->dma_mask;
-	else if (flag & GFP_DMA32)
-		high = BUS_SPACE_MAXADDR_32BIT;
-	else
-		high = BUS_SPACE_MAXADDR;
-	align = PAGE_SIZE << get_order(size);
-	mem = (void *)kmem_alloc_contig(size, flag, 0, high, align, 0,
-	    VM_MEMATTR_DEFAULT);
-	if (mem)
-		*dma_handle = vtophys(mem);
-	else
-		*dma_handle = 0;
-	return (mem);
+	return (linux_dma_alloc_coherent(dev, size, dma_handle, flag));
 }
 
 static inline void *
@@ -164,25 +156,27 @@ dma_zalloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 static inline void
 dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
-    dma_addr_t dma_handle)
+    dma_addr_t dma_addr)
 {
 
+	linux_dma_unmap(dev, dma_addr, size);
 	kmem_free((vm_offset_t)cpu_addr, size);
 }
 
-/* XXX This only works with no iommu. */
 static inline dma_addr_t
 dma_map_single_attrs(struct device *dev, void *ptr, size_t size,
     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 
-	return vtophys(ptr);
+	return (linux_dma_map_phys(dev, vtophys(ptr), size));
 }
 
 static inline void
-dma_unmap_single_attrs(struct device *dev, dma_addr_t addr, size_t size,
+dma_unmap_single_attrs(struct device *dev, dma_addr_t dma_addr, size_t size,
     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
+
+	linux_dma_unmap(dev, dma_addr, size);
 }
 
 static inline dma_addr_t
@@ -190,26 +184,23 @@ dma_map_page_attrs(struct device *dev, struct page *page, size_t offset,
     size_t size, enum dma_data_direction dir, unsigned long attrs)
 {
 
-	return (VM_PAGE_TO_PHYS(page) + offset);
+	return (linux_dma_map_phys(dev, VM_PAGE_TO_PHYS(page) + offset, size));
 }
 
 static inline int
 dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
-	struct scatterlist *sg;
-	int i;
 
-	for_each_sg(sgl, sg, nents, i)
-		sg_dma_address(sg) = sg_phys(sg);
-
-	return (nents);
+	return (linux_dma_map_sg_attrs(dev, sgl, nents, dir, attrs));
 }
 
 static inline void
 dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg, int nents,
     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
+
+	linux_dma_unmap_sg_attrs(dev, sg, nents, dir, attrs);
 }
 
 static inline dma_addr_t
@@ -217,13 +208,15 @@ dma_map_page(struct device *dev, struct page *page,
     unsigned long offset, size_t size, enum dma_data_direction direction)
 {
 
-	return VM_PAGE_TO_PHYS(page) + offset;
+	return (linux_dma_map_phys(dev, VM_PAGE_TO_PHYS(page) + offset, size));
 }
 
 static inline void
 dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
     enum dma_data_direction direction)
 {
+
+	linux_dma_unmap(dev, dma_address, size);
 }
 
 static inline void
@@ -273,7 +266,7 @@ static inline int
 dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 
-	return (0);
+	return (dma_addr == 0);
 }
 
 static inline unsigned int dma_set_max_seg_size(struct device *dev,
