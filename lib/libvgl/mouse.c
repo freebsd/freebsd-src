@@ -356,6 +356,25 @@ VGLMouseOverlap(int x, int y, int width, int hight)
 }
 
 void
+VGLMouseMerge(int x, int y, int width, byte *line)
+{
+  int pos, x1, xend, xstart;
+
+  xstart = x;
+  if (xstart < VGLMouseXpos)
+    xstart = VGLMouseXpos;
+  xend = x + width;
+  if (xend > VGLMouseXpos + MOUSE_IMG_SIZE)
+    xend = VGLMouseXpos + MOUSE_IMG_SIZE;
+  for (x1 = xstart; x1 < xend; x1++) {
+    pos = (y - VGLMouseYpos) * MOUSE_IMG_SIZE + x1 - VGLMouseXpos;
+    if (VGLMouseAndMask->Bitmap[pos])
+      bcopy(&VGLMouseOrMask->Bitmap[pos * VGLDisplay->PixelBytes],
+            &line[(x1 - x) * VGLDisplay->PixelBytes], VGLDisplay->PixelBytes);
+  }
+}
+
+void
 VGLMouseUnFreeze()
 {
   INTON();

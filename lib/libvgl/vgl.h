@@ -136,6 +136,7 @@ void VGLMouseRestore(void);
 int VGLMouseStatus(int *x, int *y, char *buttons);
 void VGLMouseFreeze(void);
 int VGLMouseFreezeXY(int x, int y);
+void VGLMouseMerge(int x, int y, int width, byte *line);
 int VGLMouseOverlap(int x, int y, int width, int hight);
 void VGLMouseUnFreeze(void);
 /* simple.c */
