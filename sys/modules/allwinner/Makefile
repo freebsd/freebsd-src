@@ -4,6 +4,7 @@
 SUBDIR = \
 	aw_sid \
 	aw_spi \
-	aw_thermal
+	aw_thermal \
+	axp81x
 
 .include <bsd.subdir.mk>

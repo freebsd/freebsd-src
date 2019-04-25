@@ -1619,3 +1619,4 @@ EARLY_DRIVER_MODULE(ofw_gpiobus, axp8xx_pmu, ofw_gpiobus_driver,
 DRIVER_MODULE(gpioc, axp8xx_pmu, gpioc_driver, gpioc_devclass, 0, 0);
 MODULE_VERSION(axp8xx, 1);
 MODULE_DEPEND(axp8xx, iicbus, 1, 1, 1);
+SIMPLEBUS_PNP_INFO(compat_data);
