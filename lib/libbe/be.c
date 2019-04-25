@@ -431,8 +431,12 @@ be_deep_clone_prop(int prop, void *cb)
 		/* Just continue if we fail to read a property */
 		return (ZPROP_CONT);
 
-	/* Only copy locally defined properties */
-	if (src != ZPROP_SRC_LOCAL)
+	/*
+	 * Only copy locally defined or received properties.  This continues
+	 * to avoid temporary/default/local properties intentionally without
+	 * breaking received datasets.
+	 */
+	if (src != ZPROP_SRC_LOCAL && src != ZPROP_SRC_RECEIVED)
 		return (ZPROP_CONT);
 
 	/* Augment mountpoint with altroot, if needed */
