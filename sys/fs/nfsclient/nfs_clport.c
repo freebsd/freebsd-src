@@ -957,8 +957,7 @@ nfscl_getmyip(struct nfsmount *nmp, struct in6_addr *paddr, int *isinet6p)
 		if (error != 0)
 			return (NULL);
 
-		if ((ntohl(nh_ext.nh_src.s_addr) >> IN_CLASSA_NSHIFT) ==
-		    IN_LOOPBACKNET) {
+		if (IN_LOOPBACK(ntohl(nh_ext.nh_src.s_addr))) {
 			/* Ignore loopback addresses */
 			return (NULL);
 		}

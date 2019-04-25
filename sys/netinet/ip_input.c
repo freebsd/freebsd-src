@@ -501,10 +501,10 @@ ip_input(struct mbuf *m)
 
 	IP_PROBE(receive, NULL, NULL, ip, m->m_pkthdr.rcvif, ip, NULL);
 
-	/* 127/8 must not appear on wire - RFC1122 */
+	/* IN_LOOPBACK must not appear on the wire - RFC1122 */
 	ifp = m->m_pkthdr.rcvif;
-	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
-	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
+	if (IN_LOOPBACK(ntohl(ip->ip_dst.s_addr)) ||
+	    IN_LOOPBACK(ntohl(ip->ip_src.s_addr))) {
 		if ((ifp->if_flags & IFF_LOOPBACK) == 0) {
 			IPSTAT_INC(ips_badaddr);
 			goto bad;
