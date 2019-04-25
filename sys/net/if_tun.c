@@ -20,6 +20,7 @@
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
@@ -30,6 +31,7 @@
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/sockio.h>
+#include <sys/sx.h>
 #include <sys/ttycom.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
@@ -114,6 +116,9 @@ static int tundclone = 1;
 static struct clonedevs *tunclones;
 static TAILQ_HEAD(,tun_softc)	tunhead = TAILQ_HEAD_INITIALIZER(tunhead);
 SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
+
+static struct sx tun_ioctl_sx;
+SX_SYSINIT(tun_ioctl_sx, &tun_ioctl_sx, "tun_ioctl");
 
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, OID_AUTO, tun, CTLFLAG_RW, 0,
@@ -278,6 +283,10 @@ tun_destroy(struct tun_softc *tp)
 		mtx_unlock(&tp->tun_mtx);
 
 	CURVNET_SET(TUN2IFP(tp)->if_vnet);
+	sx_xlock(&tun_ioctl_sx);
+	TUN2IFP(tp)->if_softc = NULL;
+	sx_xunlock(&tun_ioctl_sx);
+
 	dev = tp->tun_dev;
 	bpfdetach(TUN2IFP(tp));
 	if_detach(TUN2IFP(tp));
@@ -588,10 +597,16 @@ static int
 tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct tun_softc *tp = ifp->if_softc;
+	struct tun_softc *tp;
 	struct ifstat *ifs;
 	int		error = 0;
 
+	sx_xlock(&tun_ioctl_sx);
+	tp = ifp->if_softc;
+	if (tp == NULL) {
+		error = ENXIO;
+		goto bad;
+	}
 	switch(cmd) {
 	case SIOCGIFSTATUS:
 		ifs = (struct ifstat *)data;
@@ -618,6 +633,8 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	default:
 		error = EINVAL;
 	}
+bad:
+	sx_xunlock(&tun_ioctl_sx);
 	return (error);
 }
 
