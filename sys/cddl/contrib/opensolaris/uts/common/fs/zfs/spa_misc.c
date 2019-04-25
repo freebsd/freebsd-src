@@ -716,6 +716,7 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	mutex_init(&spa->spa_scrub_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_suspend_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_vdev_top_lock, NULL, MUTEX_DEFAULT, NULL);
+	mutex_init(&spa->spa_feat_stats_lock, NULL, MUTEX_DEFAULT, NULL);
 
 	cv_init(&spa->spa_async_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&spa->spa_evicting_os_cv, NULL, CV_DEFAULT, NULL);
@@ -889,6 +890,7 @@ spa_remove(spa_t *spa)
 
 	nvlist_free(spa->spa_label_features);
 	nvlist_free(spa->spa_load_info);
+	nvlist_free(spa->spa_feat_stats);
 	spa_config_set(spa, NULL);
 
 #ifdef illumos
@@ -930,6 +932,7 @@ spa_remove(spa_t *spa)
 	mutex_destroy(&spa->spa_scrub_lock);
 	mutex_destroy(&spa->spa_suspend_lock);
 	mutex_destroy(&spa->spa_vdev_top_lock);
+	mutex_destroy(&spa->spa_feat_stats_lock);
 
 	kmem_free(spa, sizeof (spa_t));
 }
