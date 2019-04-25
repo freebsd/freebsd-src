@@ -2,6 +2,7 @@
 # Build modules specific to Allwinner.
 
 SUBDIR = \
+	aw_pwm \
 	aw_rtc \
 	aw_rsb \
 	aw_sid \
