@@ -520,6 +520,9 @@ rx_common:
 		mlx5e_build_rx_mbuf(cqe, rq, mb, byte_cnt);
 		rq->stats.bytes += byte_cnt;
 		rq->stats.packets++;
+#ifdef NUMA
+		mb->m_pkthdr.numa_domain = rq->ifp->if_numa_domain;
+#endif
 
 #if !defined(HAVE_TCP_LRO_RX)
 		tcp_lro_queue_mbuf(&rq->lro, mb);

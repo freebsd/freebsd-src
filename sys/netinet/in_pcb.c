@@ -510,6 +510,9 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	if (inp == NULL)
 		return (ENOBUFS);
 	bzero(&inp->inp_start_zero, inp_zero_size);
+#ifdef NUMA
+	inp->inp_numa_domain = M_NODOM;
+#endif
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
 	inp->inp_cred = crhold(so->so_cred);
