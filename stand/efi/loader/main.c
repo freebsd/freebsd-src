@@ -783,13 +783,30 @@ main(int argc, CHAR16 *argv[])
 	/* Init the time source */
 	efi_time_init();
 
-	has_kbd = has_keyboard();
-
 	/*
 	 * Initialise the block cache. Set the upper limit.
 	 */
 	bcache_init(32768, 512);
 
+	/*
+	 * Scan the BLOCK IO MEDIA handles then
+	 * march through the device switch probing for things.
+	 */
+	i = efipart_inithandles();
+	if (i != 0 && i != ENOENT) {
+		printf("efipart_inithandles failed with ERRNO %d, expect "
+		    "failures\n", i);
+	}
+
+	for (i = 0; devsw[i] != NULL; i++)
+		if (devsw[i]->dv_init != NULL)
+			(devsw[i]->dv_init)();
+
+	/*
+	 * Detect console settings two different ways: one via the command
+	 * args (eg -h) or via the UEFI ConOut variable.
+	 */
+	has_kbd = has_keyboard();
 	howto = parse_args(argc, argv);
 	if (!has_kbd && (howto & RB_PROBE))
 		howto |= RB_SERIAL | RB_MULTIPLE;
@@ -852,20 +869,6 @@ main(int argc, CHAR16 *argv[])
 	if ((s = getenv("fail_timeout")) != NULL)
 		fail_timeout = strtol(s, NULL, 10);
 
-	/*
-	 * Scan the BLOCK IO MEDIA handles then
-	 * march through the device switch probing for things.
-	 */
-	i = efipart_inithandles();
-	if (i != 0 && i != ENOENT) {
-		printf("efipart_inithandles failed with ERRNO %d, expect "
-		    "failures\n", i);
-	}
-
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
-
 	printf("%s\n", bootprog_info);
 	printf("   Command line arguments:");
 	for (i = 0; i < argc; i++)
@@ -877,8 +880,6 @@ main(int argc, CHAR16 *argv[])
 	printf("   EFI Firmware: %S (rev %d.%02d)\n", ST->FirmwareVendor,
 	    ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
 	printf("   Console: %s (%#x)\n", getenv("console"), howto);
-
-
 
 	/* Determine the devpath of our image so we can prefer it. */
 	text = efi_devpath_name(boot_img->FilePath);
