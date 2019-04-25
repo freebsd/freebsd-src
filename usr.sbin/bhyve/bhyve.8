@@ -309,7 +309,11 @@ Emergency write is advertised, but no-op at present.
 .Pp
 Framebuffer devices:
 .Bl -tag -width 10n
-.It Oo rfb= Ns Oo Ar IP: Oc Ns Ar port Oc Ns Oo ,w= Ns Ar width Oc Ns Oo ,h= Ns Ar height Oc Ns Oo ,vga= Ns Ar vgaconf Oc Ns Oo Ns ,wait Oc Ns Oo ,password= Ns Ar password Oc
+.It Xo
+.Oo rfb= Ns Oo Ar IP\&: Oc Ns Ar port Oc Ns Oo ,w= Ns Ar width Oc Ns Oo ,h= Ns
+.Ar height Oc Ns Oo ,vga= Ns Ar vgaconf Oc Ns Oo Ns ,wait Oc Ns Oo ,password= Ns
+.Ar password Oc
+.Xc
 .Bl -tag -width 8n
 .It Ar IPv4:port No or Ar [IPv6%zone]:port
 An
@@ -340,8 +344,8 @@ and memory space
 .Pq 64KB at Ad 0xA0000 .
 The default
 .Dq io
-option should be used for guests that attempt to issue BIOS
-calls which result in I/O port queries, and fail to boot if I/O decode is disabled.
+option should be used for guests that attempt to issue BIOS calls which result
+in I/O port queries, and fail to boot if I/O decode is disabled.
 .Pp
 The
 .Dq on
@@ -366,8 +370,8 @@ for configuration notes of particular guests.
 .It wait
 Instruct
 .Nm
-to only boot upon the initiation of a VNC connection, simplifying the installation
-of operating systems that require immediate keyboard input.
+to only boot upon the initiation of a VNC connection, simplifying the
+installation of operating systems that require immediate keyboard input.
 This can be removed for post-installation use.
 .It password
 This type of authentication is known to be cryptographically weak and is not
@@ -512,6 +516,12 @@ bhyve -c 2 -m 4G -w -H \\
 .Xr ethers 5 ,
 .Xr bhyvectl 8 ,
 .Xr bhyveload 8
+.Pp
+.Rs
+.%A Intel
+.%B 64 and IA-32 Architectures Software Developer’s Manual
+.%V Volume 3
+.Re
 .Sh HISTORY
 .Nm
 first appeared in
