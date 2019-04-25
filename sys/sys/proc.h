@@ -617,7 +617,6 @@ struct proc {
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
 	int		p_sigparent;	/* (c) Signal to parent on exit. */
 	int		p_sig;		/* (n) For core dump/debugger XXX. */
-	u_long		p_code;		/* (n) For core dump/debugger XXX. */
 	u_int		p_stops;	/* (c) Stop event bitmask. */
 	u_int		p_stype;	/* (c) Stop event type. */
 	char		p_step;		/* (c) Process is stopped. */
