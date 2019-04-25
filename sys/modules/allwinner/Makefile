@@ -4,5 +4,6 @@
 SUBDIR = \
 	aw_sid \
 	aw_spi \
+	aw_thermal
 
 .include <bsd.subdir.mk>
