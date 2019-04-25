@@ -2470,10 +2470,14 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 
 	if (is_final) {
 		/* Remove the gap in the membership array. */
+		KASSERT(RB_EMPTY(&imf->im6f_sources),
+		    ("%s: im6f_sources not empty", __func__));
 		for (++idx; idx < imo->im6o_num_memberships; ++idx) {
-			imo->im6o_membership[idx-1] = imo->im6o_membership[idx];
-			imo->im6o_mfilters[idx-1] = imo->im6o_mfilters[idx];
+			imo->im6o_membership[idx - 1] = imo->im6o_membership[idx];
+			imo->im6o_mfilters[idx - 1] = imo->im6o_mfilters[idx];
 		}
+		im6f_init(&imo->im6o_mfilters[idx - 1], MCAST_UNDEFINED,
+		    MCAST_EXCLUDE);
 		imo->im6o_num_memberships--;
 	}
 
