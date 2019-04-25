@@ -1881,7 +1881,7 @@ again:
 	} else if ((cow & MAP_REMAP) != 0) {
 		if (*addr < vm_map_min(map) ||
 		    *addr + length > vm_map_max(map) ||
-		    *addr + length <= length) {
+		    *addr + length <= *addr) {
 			rv = KERN_INVALID_ADDRESS;
 			goto done;
 		}
