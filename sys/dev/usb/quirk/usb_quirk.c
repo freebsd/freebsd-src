@@ -94,6 +94,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(TELEX, MIC1, 0x009, 0x009, UQ_AU_NO_FRAC),
 	USB_QUIRK(SILICONPORTALS, YAPPHONE, 0x100, 0x100, UQ_AU_INP_ASYNC),
 	USB_QUIRK(LOGITECH, UN53B, 0x0000, 0xffff, UQ_NO_STRINGS),
+	USB_QUIRK(LOGITECH, G510S, 0x0000, 0xFFFF, UQ_KBD_BOOTPROTO),
 	USB_QUIRK(REALTEK, RTL8196EU, 0x0000, 0xffff, UQ_CFG_INDEX_1),
 	USB_QUIRK(REALTEK, RTL8153, 0x0000, 0xffff, UQ_CFG_INDEX_1),
 	USB_QUIRK(ELSA, MODEM1, 0x0000, 0xffff, UQ_CFG_INDEX_1),
@@ -134,6 +135,8 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(MICROSOFT, WLINTELLIMOUSE, 0x0000, 0xffff, UQ_MS_LEADING_BYTE),
 	/* Quirk for Corsair Vengeance K60 keyboard */
 	USB_QUIRK(CORSAIR, K60, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
+	/* Quirk for Corsair Gaming K68 keyboard */
+	USB_QUIRK(CORSAIR, K68, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
 	/* Quirk for Corsair Vengeance K70 keyboard */
 	USB_QUIRK(CORSAIR, K70, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
 	/* Quirk for Corsair K70 RGB keyboard */

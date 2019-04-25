@@ -1522,6 +1522,7 @@ product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
 
 /* Corsair products */
 product CORSAIR K60		0x0a60	Corsair Vengeance K60 keyboard
+product CORSAIR K68		0x1b3f	Corsair Gaming K68 keyboard
 product CORSAIR K70		0x1b09	Corsair Vengeance K70 keyboard
 product CORSAIR K70_RGB		0x1b13	Corsair K70 RGB Keyboard
 product CORSAIR STRAFE		0x1b15	Corsair STRAFE Gaming keyboard
@@ -2746,6 +2747,7 @@ product LOGITECH UN58A		0xc030	iFeel Mouse
 product LOGITECH UN53B		0xc032	iFeel MouseMan
 product LOGITECH WMPAD		0xc208	WingMan GamePad Extreme
 product LOGITECH WMRPAD		0xc20a	WingMan RumblePad
+product LOGITECH G510S		0xc22d  G510s Keyboard
 product LOGITECH WMJOY		0xc281	WingMan Force joystick
 product LOGITECH BB13		0xc401	USB-PS/2 Trackball
 product LOGITECH RK53		0xc501	Cordless mouse
