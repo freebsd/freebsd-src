@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2017
+.Dd February 15, 2018
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -184,7 +184,7 @@
 .Ar bookmark
 .Nm
 .Cm send
-.Op Fl DLPRcenpv
+.Op Fl DLPRVcenpv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
@@ -194,7 +194,7 @@
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
 .Cm send
-.Op Fl Penv
+.Op Fl PVenv
 .Fl t Ar receive_resume_token
 .Nm
 .Cm receive Ns | Ns Cm recv
@@ -2604,7 +2604,7 @@ feature.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DLPRcenpv
+.Op Fl DLPRVcenpv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2748,6 +2748,8 @@ Print machine-parsable verbose information about the stream package generated.
 .It Fl v, -verbose
 Print verbose information about the stream package generated.
 This information includes a per-second report of how much data has been sent.
+.It Fl V
+Set the process title to a per-second report of how much data has been sent.
 .El
 .Pp
 The format of the stream is committed. You will be able to receive your streams
