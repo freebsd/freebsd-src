@@ -137,9 +137,9 @@ linux_dma_tag_init(struct device *dev, u64 dma_mask)
 	    dma_mask,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filtfunc, filtfuncarg */
-	    BUS_SPACE_MAXADDR,		/* maxsize */
+	    BUS_SPACE_MAXSIZE,		/* maxsize */
 	    1,				/* nsegments */
-	    BUS_SPACE_MAXADDR,		/* maxsegsz */
+	    BUS_SPACE_MAXSIZE,		/* maxsegsz */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockfuncarg */
 	    &priv->dmat);
