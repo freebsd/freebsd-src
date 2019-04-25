@@ -670,12 +670,23 @@ _vm_map_assert_locked(vm_map_t map, const char *file, int line)
 #define	VM_MAP_ASSERT_LOCKED(map) \
     _vm_map_assert_locked(map, LOCK_FILE, LOCK_LINE)
 
+#ifdef DIAGNOSTIC
+static int enable_vmmap_check = 1;
+#else
+static int enable_vmmap_check = 0;
+#endif
+SYSCTL_INT(_debug, OID_AUTO, vmmap_check, CTLFLAG_RWTUN,
+    &enable_vmmap_check, 0, "Enable vm map consistency checking");
+
 static void
 _vm_map_assert_consistent(vm_map_t map)
 {
 	vm_map_entry_t entry;
 	vm_map_entry_t child;
 	vm_size_t max_left, max_right;
+
+	if (!enable_vmmap_check)
+		return;
 
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
@@ -714,7 +725,7 @@ _vm_map_assert_consistent(vm_map_t map)
 #else
 #define	VM_MAP_ASSERT_LOCKED(map)
 #define VM_MAP_ASSERT_CONSISTENT(map)
-#endif
+#endif /* INVARIANTS */
 
 /*
  *	_vm_map_unlock_and_wait:
