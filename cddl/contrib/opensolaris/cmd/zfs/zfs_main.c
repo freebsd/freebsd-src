@@ -3813,7 +3813,7 @@ zfs_do_send(int argc, char **argv)
 	};
 
 	/* check options */
-	while ((c = getopt_long(argc, argv, ":i:I:RbDpvnPLet:c", long_options,
+	while ((c = getopt_long(argc, argv, ":i:I:RbDpVvnPLet:c", long_options,
 	    NULL)) != -1) {
 		switch (c) {
 		case 'i':
@@ -3836,6 +3836,10 @@ zfs_do_send(int argc, char **argv)
 		case 'P':
 			flags.parsable = B_TRUE;
 			flags.verbose = B_TRUE;
+			break;
+		case 'V':
+			flags.progress = B_TRUE;
+			flags.progressastitle = B_TRUE;
 			break;
 		case 'v':
 			if (flags.verbose)
