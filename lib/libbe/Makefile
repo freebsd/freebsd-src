@@ -4,7 +4,7 @@
 
 PACKAGE=	lib${LIB}
 LIB=		be
-SHLIBDIR?= /lib
+SHLIBDIR=	/lib
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
 
