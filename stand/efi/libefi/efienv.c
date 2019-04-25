@@ -119,5 +119,11 @@ efi_delenv(EFI_GUID *guid, const char *name)
 
 	rv = RS->SetVariable(var, guid, 0, 0, NULL);
 	free(var);
-	return rv;
+	return (rv);
+}
+
+EFI_STATUS
+efi_freebsd_delenv(const char *name)
+{
+	return (efi_delenv(&FreeBSDBootVarGUID, name));
 }
