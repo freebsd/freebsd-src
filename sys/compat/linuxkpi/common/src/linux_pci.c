@@ -406,9 +406,11 @@ linux_pci_unregister_driver(struct pci_driver *pdrv)
 	mtx_unlock(&Giant);
 }
 
+CTASSERT(sizeof(dma_addr_t) <= sizeof(uint64_t));
+
 struct linux_dma_obj {
 	void		*vaddr;
-	dma_addr_t	dma_addr;
+	uint64_t	dma_addr;
 	bus_dmamap_t	dmamap;
 };
 
