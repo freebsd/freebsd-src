@@ -728,3 +728,5 @@ static devclass_t aw_thermal_devclass;
 DRIVER_MODULE(aw_thermal, simplebus, aw_thermal_driver, aw_thermal_devclass,
     0, 0);
 MODULE_VERSION(aw_thermal, 1);
+MODULE_DEPEND(aw_thermal, aw_sid, 1, 1, 1);
+SIMPLEBUS_PNP_INFO(compat_data);
