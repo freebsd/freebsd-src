@@ -2328,7 +2328,7 @@ __register_chrdev(unsigned int major, unsigned int baseminor,
 
 	for (i = baseminor; i < baseminor + count; i++) {
 		cdev = cdev_alloc();
-		cdev_init(cdev, fops);
+		cdev->ops = fops;
 		kobject_set_name(&cdev->kobj, name);
 
 		ret = cdev_add(cdev, makedev(major, i), 1);
@@ -2350,7 +2350,7 @@ __register_chrdev_p(unsigned int major, unsigned int baseminor,
 
 	for (i = baseminor; i < baseminor + count; i++) {
 		cdev = cdev_alloc();
-		cdev_init(cdev, fops);
+		cdev->ops = fops;
 		kobject_set_name(&cdev->kobj, name);
 
 		ret = cdev_add_ext(cdev, makedev(major, i), uid, gid, mode);
