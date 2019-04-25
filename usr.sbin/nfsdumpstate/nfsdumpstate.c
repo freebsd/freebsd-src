@@ -176,6 +176,7 @@ dump_lockstate(char *fname)
 {
 	struct nfsd_dumplocklist dumplocklist;
 	int cnt, i;
+	char nbuf[INET6_ADDRSTRLEN];
 
 	dumplocklist.ndllck_size = DUMPSIZE;
 	dumplocklist.ndllck_list = (void *)lp;
@@ -183,7 +184,7 @@ dump_lockstate(char *fname)
 	if (nfssvc(NFSSVC_DUMPLOCKS, &dumplocklist) < 0)
 		errx(1, "Can't dump locks for %s\n", fname);
 
-	printf("%-11s %-36s %-15s %s\n",
+	printf("%-11s %-36s %-45s %s\n",
 	    "Open/Lock",
 	    "          Stateid or Lock Range",
 	    "Clientaddr",
@@ -213,11 +214,26 @@ dump_lockstate(char *fname)
 			    lock_flags(lp[cnt].ndlck_flags),
 			    lp[cnt].ndlck_first,
 			    lp[cnt].ndlck_end);
-		if (lp[cnt].ndlck_addrfam == AF_INET)
-			printf("%-15s ",
+		switch (lp[cnt].ndlck_addrfam) {
+#ifdef INET
+		case AF_INET:
+			printf("%-45s ",
 			    inet_ntoa(lp[cnt].ndlck_cbaddr.sin_addr));
-		else
-			printf("%-15s ", "  ");
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			if (inet_ntop(AF_INET6, &lp[cnt].ndlck_cbaddr.sin6_addr,
+			    nbuf, sizeof(nbuf)) != NULL)
+				printf("%-45s ", nbuf);
+			else
+				printf("%-45s ", " ");
+			break;
+#endif
+		default:
+			printf("%-45s ", "  ");
+			break;
+		}
 		for (i = 0; i < lp[cnt].ndlck_owner.nclid_idlen; i++)
 			printf("%02x", lp[cnt].ndlck_owner.nclid_id[i]);
 		printf(" ");
