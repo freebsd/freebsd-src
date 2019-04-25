@@ -73,6 +73,7 @@ struct vt_mode smode;
 
   if (!VGLInitDone)
     return;
+  VGLInitDone = 0;
   signal(SIGUSR1, SIG_IGN);
   signal(SIGUSR2, SIG_IGN);
   VGLSwitchPending = 0;
