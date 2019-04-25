@@ -192,7 +192,7 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		case GPIOACCESS32:
 			a32 = (struct gpio_access_32 *)arg;
 			res = GPIO_PIN_ACCESS_32(sc->sc_pdev, a32->first_pin,
-			    a32->clear_pins, a32->orig_pins, &a32->orig_pins);
+			    a32->clear_pins, a32->change_pins, &a32->orig_pins);
 			break;
 		case GPIOCONFIG32:
 			c32 = (struct gpio_config_32 *)arg;
