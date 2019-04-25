@@ -53,6 +53,7 @@
 #include <sys/vnode.h>
 #include <sys/selinfo.h>
 #include <sys/ptrace.h>
+#include <sys/sysent.h>
 
 #include <machine/bus.h>
 
@@ -538,7 +539,10 @@ cuse_client_send_command_locked(struct cuse_client_command *pccmd,
 
 	if (ioflag & IO_NDELAY)
 		cuse_fflags |= CUSE_FFLAG_NONBLOCK;
-
+#if defined(__LP64__)
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		cuse_fflags |= CUSE_FFLAG_COMPAT32;
+#endif
 	pccmd->sub.fflags = cuse_fflags;
 	pccmd->sub.data_pointer = data_ptr;
 	pccmd->sub.argument = arg;
