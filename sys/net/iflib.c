@@ -189,6 +189,9 @@ struct iflib_ctx {
 	uint16_t ifc_sysctl_qs_eq_override;
 	uint16_t ifc_sysctl_rx_budget;
 	uint16_t ifc_sysctl_tx_abdicate;
+	uint16_t ifc_sysctl_core_offset;
+#define	CORE_OFFSET_UNSPECIFIED	0xffff
+	uint8_t  ifc_sysctl_separate_txrx;
 
 	qidx_t ifc_sysctl_ntxds[8];
 	qidx_t ifc_sysctl_nrxds[8];
@@ -722,6 +725,18 @@ static void iflib_free_intr_mem(if_ctx_t ctx);
 #ifndef __NO_STRICT_ALIGNMENT
 static struct mbuf * iflib_fixup_rx(struct mbuf *m);
 #endif
+
+static SLIST_HEAD(cpu_offset_list, cpu_offset) cpu_offsets =
+    SLIST_HEAD_INITIALIZER(cpu_offsets);
+struct cpu_offset {
+	SLIST_ENTRY(cpu_offset) entries;
+	cpuset_t	set;
+	unsigned int	refcount;
+	uint16_t	offset;
+};
+static struct mtx cpu_offset_mtx;
+MTX_SYSINIT(iflib_cpu_offset, &cpu_offset_mtx, "iflib_cpu_offset lock",
+    MTX_DEF);
 
 NETDUMP_DEFINE(iflib);
 
@@ -4461,6 +4476,71 @@ iflib_rem_pfil(if_ctx_t ctx)
 	pfil_head_unregister(pfil);
 }
 
+static uint16_t
+get_ctx_core_offset(if_ctx_t ctx)
+{
+	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
+	struct cpu_offset *op;
+	uint16_t qc;
+	uint16_t ret = ctx->ifc_sysctl_core_offset;
+
+	if (ret != CORE_OFFSET_UNSPECIFIED)
+		return (ret);
+
+	if (ctx->ifc_sysctl_separate_txrx)
+		qc = scctx->isc_ntxqsets + scctx->isc_nrxqsets;
+	else
+		qc = max(scctx->isc_ntxqsets, scctx->isc_nrxqsets);
+
+	mtx_lock(&cpu_offset_mtx);
+	SLIST_FOREACH(op, &cpu_offsets, entries) {
+		if (CPU_CMP(&ctx->ifc_cpus, &op->set) == 0) {
+			ret = op->offset;
+			op->offset += qc;
+			MPASS(op->refcount < UINT_MAX);
+			op->refcount++;
+			break;
+		}
+	}
+	if (ret == CORE_OFFSET_UNSPECIFIED) {
+		ret = 0;
+		op = malloc(sizeof(struct cpu_offset), M_IFLIB,
+		    M_NOWAIT | M_ZERO);
+		if (op == NULL) {
+			device_printf(ctx->ifc_dev,
+			    "allocation for cpu offset failed.\n");
+		} else {
+			op->offset = qc;
+			op->refcount = 1;
+			CPU_COPY(&ctx->ifc_cpus, &op->set);
+			SLIST_INSERT_HEAD(&cpu_offsets, op, entries);
+		}
+	}
+	mtx_unlock(&cpu_offset_mtx);
+
+	return (ret);
+}
+
+static void
+unref_ctx_core_offset(if_ctx_t ctx)
+{
+	struct cpu_offset *op, *top;
+
+	mtx_lock(&cpu_offset_mtx);
+	SLIST_FOREACH_SAFE(op, &cpu_offsets, entries, top) {
+		if (CPU_CMP(&ctx->ifc_cpus, &op->set) == 0) {
+			MPASS(op->refcount > 0);
+			op->refcount--;
+			if (op->refcount == 0) {
+				SLIST_REMOVE(&cpu_offsets, op, cpu_offset, entries);
+				free(op, M_IFLIB);
+			}
+			break;
+		}
+	}
+	mtx_unlock(&cpu_offset_mtx);
+}
+
 int
 iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ctxp)
 {
@@ -4611,6 +4691,11 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 
 	if ((err = iflib_qset_structures_setup(ctx)))
 		goto fail_queues;
+
+	/*
+	 * Now that we know how many queues there are, get the core offset.
+	 */
+	ctx->ifc_sysctl_core_offset = get_ctx_core_offset(ctx);
 
 	/*
 	 * Group taskqueues aren't properly set up until SMP is started,
@@ -5037,6 +5122,7 @@ iflib_device_deregister(if_ctx_t ctx)
 	iflib_rx_structures_free(ctx);
 	if (ctx->ifc_flags & IFC_SC_ALLOCATED)
 		free(ctx->ifc_softc, M_IFLIB);
+	unref_ctx_core_offset(ctx);
 	STATE_LOCK_DESTROY(ctx);
 	free(ctx, M_IFLIB);
 	return (0);
@@ -5655,7 +5741,7 @@ find_child_with_core(int cpu, struct cpu_group *grp)
  * Find the nth "close" core to the specified core
  * "close" is defined as the deepest level that shares
  * at least an L2 cache.  With threads, this will be
- * threads on the same core.  If the sahred cache is L3
+ * threads on the same core.  If the shared cache is L3
  * or higher, simply returns the same core.
  */
 static int
@@ -5739,10 +5825,13 @@ iflib_irq_set_affinity(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,
     const char *name)
 {
 	device_t dev;
-	int err, cpuid, tid;
+	int co, cpuid, err, tid;
 
 	dev = ctx->ifc_dev;
-	cpuid = find_nth(ctx, qid);
+	co = ctx->ifc_sysctl_core_offset;
+	if (ctx->ifc_sysctl_separate_txrx && type == IFLIB_INTR_TX)
+		co += ctx->ifc_softc_ctx.isc_nrxqsets;
+	cpuid = find_nth(ctx, qid + co);
 	tid = get_core_offset(ctx, type, qid);
 	MPASS(tid >= 0);
 	cpuid = find_close_core(cpuid, tid);
@@ -6344,6 +6433,13 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "tx_abdicate",
 		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_tx_abdicate, 0,
 		       "cause tx to abdicate instead of running to completion");
+	ctx->ifc_sysctl_core_offset = CORE_OFFSET_UNSPECIFIED;
+	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "core_offset",
+		       CTLFLAG_RDTUN, &ctx->ifc_sysctl_core_offset, 0,
+		       "offset to start using cores at");
+	SYSCTL_ADD_U8(ctx_list, oid_list, OID_AUTO, "separate_txrx",
+		       CTLFLAG_RDTUN, &ctx->ifc_sysctl_separate_txrx, 0,
+		       "use separate cores for TX and RX");
 
 	/* XXX change for per-queue sizes */
 	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_ntxds",
