@@ -392,8 +392,20 @@ disk_parsedev(struct disk_devdesc *dev, const char *devspec, const char **path)
 
 	np = devspec;
 	unit = -1;
-	slice = D_SLICEWILD;
-	partition = D_PARTWILD;
+	/*
+	 * If there is path/file info after the device info, then any missing
+	 * slice or partition info should be considered a request to search for
+	 * an appropriate partition.  Otherwise we want to open the raw device
+	 * itself and not try to fill in missing info by searching.
+	 */
+	if ((cp = strchr(np, ':')) != NULL && cp[1] != '\0') {
+		slice = D_SLICEWILD;
+		partition = D_PARTWILD;
+	} else {
+		slice = D_SLICENONE;
+		partition = D_PARTNONE;
+	}
+
 	if (*np != '\0' && *np != ':') {
 		unit = strtol(np, &cp, 10);
 		if (cp == np)
