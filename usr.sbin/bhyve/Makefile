@@ -3,6 +3,7 @@
 #
 
 .include <src.opts.mk>
+CFLAGS+=-I${SRCTOP}/sys
 
 PROG=	bhyve
 PACKAGE=	bhyve
