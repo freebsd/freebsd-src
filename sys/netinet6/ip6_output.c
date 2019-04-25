@@ -322,6 +322,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			M_HASHTYPE_SET(m, inp->inp_flowtype);
 		}
+#ifdef NUMA
+		m->m_pkthdr.numa_domain = inp->inp_numa_domain;
+#endif
 	}
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
