@@ -458,22 +458,30 @@ extern uint64_t x86_64_call5(void *, uint64_t, uint64_t, uint64_t, uint64_t,
 extern uint64_t x86_64_call6(void *, uint64_t, uint64_t, uint64_t, uint64_t,
 	uint64_t, uint64_t);
 
+uint64_t _x86_64_call1(void *, uint64_t);
+uint64_t _x86_64_call2(void *, uint64_t, uint64_t);
+uint64_t _x86_64_call3(void *, uint64_t, uint64_t, uint64_t);
+uint64_t _x86_64_call4(void *, uint64_t, uint64_t, uint64_t, uint64_t);
+uint64_t _x86_64_call5(void *, uint64_t, uint64_t, uint64_t, uint64_t,
+    uint64_t);
+uint64_t _x86_64_call6(void *, uint64_t, uint64_t, uint64_t, uint64_t,
+    uint64_t, uint64_t);
 
 #define	MSCALL1(fn, a)						\
-	x86_64_call1((fn), (uint64_t)(a))
+	_x86_64_call1((fn), (uint64_t)(a))
 #define	MSCALL2(fn, a, b)					\
-	x86_64_call2((fn), (uint64_t)(a), (uint64_t)(b))
+	_x86_64_call2((fn), (uint64_t)(a), (uint64_t)(b))
 #define	MSCALL3(fn, a, b, c)					\
-	x86_64_call3((fn), (uint64_t)(a), (uint64_t)(b),		\
+	_x86_64_call3((fn), (uint64_t)(a), (uint64_t)(b),		\
 	(uint64_t)(c))
 #define	MSCALL4(fn, a, b, c, d)					\
-	x86_64_call4((fn), (uint64_t)(a), (uint64_t)(b),		\
+	_x86_64_call4((fn), (uint64_t)(a), (uint64_t)(b),		\
 	(uint64_t)(c), (uint64_t)(d))
 #define	MSCALL5(fn, a, b, c, d, e)				\
-	x86_64_call5((fn), (uint64_t)(a), (uint64_t)(b),		\
+	_x86_64_call5((fn), (uint64_t)(a), (uint64_t)(b),		\
 	(uint64_t)(c), (uint64_t)(d), (uint64_t)(e))
 #define	MSCALL6(fn, a, b, c, d, e, f)				\
-	x86_64_call6((fn), (uint64_t)(a), (uint64_t)(b),		\
+	_x86_64_call6((fn), (uint64_t)(a), (uint64_t)(b),		\
 	(uint64_t)(c), (uint64_t)(d), (uint64_t)(e), (uint64_t)(f))
 
 #endif /* __amd64__ */
