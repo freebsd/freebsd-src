@@ -128,6 +128,13 @@ uart_cpu_acpi_probe(struct uart_class **classp, bus_space_tag_t *bst,
 		goto out;
 
 	switch(spcr->BaudRate) {
+	case 0:
+		/*
+		 * A BaudRate of 0 is a special value which means not to
+		 * change the rate that's already programmed.
+		 */
+		*baud = 0;
+		break;
 	case 3:
 		*baud = 9600;
 		break;
