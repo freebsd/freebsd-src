@@ -48,6 +48,7 @@ int fdt_load_dtb_addr(struct fdt_header *);
 int fdt_load_dtb_file(const char *);
 void fdt_load_dtb_overlays(const char *);
 int fdt_setup_fdtp(void);
+int fdt_is_setup(void);
 
 /* The platform library needs to implement these functions */
 int fdt_platform_load_dtb(void);
