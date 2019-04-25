@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
 #include <x86/include/busdma_impl.h>
 #include <x86/iommu/intel_reg.h>
 #include <x86/iommu/busdma_dmar.h>
@@ -203,7 +205,9 @@ dmar_flush_for_ctx_entry(struct dmar_unit *dmar, bool force)
 }
 
 static int
-domain_init_rmrr(struct dmar_domain *domain, device_t dev)
+domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
+    int slot, int func, int dev_domain, int dev_busno,
+    const void *dev_path, int dev_path_len)
 {
 	struct dmar_map_entries_tailq rmrr_entries;
 	struct dmar_map_entry *entry, *entry1;
@@ -214,7 +218,8 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev)
 
 	error = 0;
 	TAILQ_INIT(&rmrr_entries);
-	dmar_dev_parse_rmrr(domain, dev, &rmrr_entries);
+	dmar_dev_parse_rmrr(domain, dev_domain, dev_busno, dev_path,
+	    dev_path_len, &rmrr_entries);
 	TAILQ_FOREACH_SAFE(entry, &rmrr_entries, unroll_link, entry1) {
 		/*
 		 * VT-d specification requires that the start of an
@@ -227,12 +232,19 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev)
 		 */
 		start = entry->start;
 		end = entry->end;
+		if (bootverbose)
+			printf("dmar%d ctx pci%d:%d:%d RMRR [%#jx, %#jx]\n",
+			    domain->dmar->unit, bus, slot, func,
+			    (uintmax_t)start, (uintmax_t)end);
 		entry->start = trunc_page(start);
 		entry->end = round_page(end);
 		if (entry->start == entry->end) {
 			/* Workaround for some AMI (?) BIOSes */
 			if (bootverbose) {
-				device_printf(dev, "BIOS bug: dmar%d RMRR "
+				if (dev != NULL)
+					device_printf(dev, "");
+				printf("pci%d:%d:%d ", bus, slot, func);
+				printf("BIOS bug: dmar%d RMRR "
 				    "region (%jx, %jx) corrected\n",
 				    domain->dmar->unit, start, end);
 			}
@@ -260,9 +272,13 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev)
 			DMAR_UNLOCK(domain->dmar);
 		} else {
 			if (error1 != 0) {
-				device_printf(dev,
+				if (dev != NULL)
+					device_printf(dev, "");
+				printf("pci%d:%d:%d ", bus, slot, func);
+				printf(
 			    "dmar%d failed to map RMRR region (%jx, %jx) %d\n",
-				    domain->dmar->unit, start, end, error1);
+				    domain->dmar->unit, start, end,
+				    error1);
 				error = error1;
 			}
 			TAILQ_REMOVE(&rmrr_entries, entry, unroll_link);
@@ -404,8 +420,9 @@ dmar_domain_destroy(struct dmar_domain *domain)
 	free(domain, M_DMAR_DOMAIN);
 }
 
-struct dmar_ctx *
-dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
+static struct dmar_ctx *
+dmar_get_ctx_for_dev1(struct dmar_unit *dmar, device_t dev, uint16_t rid,
+    int dev_domain, int dev_busno, const void *dev_path, int dev_path_len,
     bool id_mapped, bool rmrr_init)
 {
 	struct dmar_domain *domain, *domain1;
@@ -415,9 +432,15 @@ dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 	int bus, slot, func, error;
 	bool enable;
 
-	bus = pci_get_bus(dev);
-	slot = pci_get_slot(dev);
-	func = pci_get_function(dev);
+	if (dev != NULL) {
+		bus = pci_get_bus(dev);
+		slot = pci_get_slot(dev);
+		func = pci_get_function(dev);
+	} else {
+		bus = PCI_RID2BUS(rid);
+		slot = PCI_RID2SLOT(rid);
+		func = PCI_RID2FUNC(rid);
+	}
 	enable = false;
 	TD_PREP_PINNED_ASSERT;
 	DMAR_LOCK(dmar);
@@ -436,7 +459,9 @@ dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 			return (NULL);
 		}
 		if (!id_mapped) {
-			error = domain_init_rmrr(domain1, dev);
+			error = domain_init_rmrr(domain1, dev, bus,
+			    slot, func, dev_domain, dev_busno, dev_path,
+			    dev_path_len);
 			if (error != 0) {
 				dmar_domain_destroy(domain1);
 				TD_PINNED_ASSERT;
@@ -468,12 +493,14 @@ dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 				enable = true;
 			LIST_INSERT_HEAD(&dmar->domains, domain, link);
 			ctx_id_entry_init(ctx, ctxp, false);
-			device_printf(dev,
+			if (dev != NULL) {
+				device_printf(dev,
 			    "dmar%d pci%d:%d:%d:%d rid %x domain %d mgaw %d "
-			    "agaw %d %s-mapped\n",
-			    dmar->unit, dmar->segment, bus, slot,
-			    func, rid, domain->domain, domain->mgaw,
-			    domain->agaw, id_mapped ? "id" : "re");
+				    "agaw %d %s-mapped\n",
+				    dmar->unit, dmar->segment, bus, slot,
+				    func, rid, domain->domain, domain->mgaw,
+				    domain->agaw, id_mapped ? "id" : "re");
+			}
 			dmar_unmap_pgtbl(sf);
 		} else {
 			dmar_unmap_pgtbl(sf);
@@ -485,6 +512,8 @@ dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 		}
 	} else {
 		domain = ctx->domain;
+		if (ctx->ctx_tag.owner == NULL)
+			ctx->ctx_tag.owner = dev;
 		ctx->refs++; /* tag referenced us */
 	}
 
@@ -502,7 +531,14 @@ dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 	 */
 	if (enable && !rmrr_init && (dmar->hw_gcmd & DMAR_GCMD_TE) == 0) {
 		error = dmar_enable_translation(dmar);
-		if (error != 0) {
+		if (error == 0) {
+			if (bootverbose) {
+				printf("dmar%d: enabled translation\n",
+				    dmar->unit);
+			}
+		} else {
+			printf("dmar%d: enabling translation failed, "
+			    "error %d\n", dmar->unit, error);
 			dmar_free_ctx_locked(dmar, ctx);
 			TD_PINNED_ASSERT;
 			return (NULL);
@@ -511,6 +547,31 @@ dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 	DMAR_UNLOCK(dmar);
 	TD_PINNED_ASSERT;
 	return (ctx);
+}
+
+struct dmar_ctx *
+dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
+    bool id_mapped, bool rmrr_init)
+{
+	int dev_domain, dev_path_len, dev_busno;
+
+	dev_domain = pci_get_domain(dev);
+	dev_path_len = dmar_dev_depth(dev);
+	ACPI_DMAR_PCI_PATH dev_path[dev_path_len];
+	dmar_dev_path(dev, &dev_busno, dev_path, dev_path_len);
+	return (dmar_get_ctx_for_dev1(dmar, dev, rid, dev_domain, dev_busno,
+	    dev_path, dev_path_len, id_mapped, rmrr_init));
+}
+
+struct dmar_ctx *
+dmar_get_ctx_for_devpath(struct dmar_unit *dmar, uint16_t rid,
+    int dev_domain, int dev_busno,
+    const void *dev_path, int dev_path_len,
+    bool id_mapped, bool rmrr_init)
+{
+
+	return (dmar_get_ctx_for_dev1(dmar, NULL, rid, dev_domain, dev_busno,
+	    dev_path, dev_path_len, id_mapped, rmrr_init));
 }
 
 int
