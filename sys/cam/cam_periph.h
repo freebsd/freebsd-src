@@ -149,6 +149,7 @@ struct cam_periph {
 
 struct cam_periph_map_info {
 	int		num_bufs_used;
+	void		*orig[CAM_PERIPH_MAXMAPS];
 	struct buf	*bp[CAM_PERIPH_MAXMAPS];
 };
 
