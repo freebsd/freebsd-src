@@ -81,10 +81,10 @@ if [ -z "${SRCTOP}" ]; then
 	die "Cannot locate top of source tree"
 fi
 
-# Locate the uefi bios file used by qemu.
-: ${OVMF:=/usr/local/share/UEFI-firmware/QEMU_UEFI_CODE_x86_64.fd}
+# Locate the uefi firmware file used by qemu.
+: ${OVMF:=/usr/local/share/uefi-edk2-qemu/QEMU_UEFI_CODE-x86_64.fd}
 if [ ! -r "${OVMF}" ]; then
-	die "Cannot read UEFI bios file ${OVMF}"
+	die "Cannot read UEFI firmware file ${OVMF}"
 fi
 
 # Create a temp dir to hold the boot image.
@@ -97,7 +97,8 @@ trap tempdir_cleanup EXIT SIGINT SIGHUP SIGTERM SIGQUIT
 # And, boot in QEMU.
 : ${BOOTLOG:=${TMPDIR:-/tmp}/ci-qemu-test-boot.log}
 timeout 300 \
-    qemu-system-x86_64 -m 256M -bios ${OVMF} \
+    qemu-system-x86_64 -M q35 -m 256M -nodefaults \
+   	-drive if=pflash,format=raw,readonly,file=${OVMF} \
         -serial stdio -vga none -nographic -monitor none \
         -snapshot -hda fat:${ROOTDIR} 2>&1 | tee ${BOOTLOG}
 
