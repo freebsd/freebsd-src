@@ -105,24 +105,11 @@ static volatile sig_atomic_t VGLMsuppressint;
 void
 VGLMousePointerShow()
 {
-  byte buf[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE*4];
-  VGLBitmap buffer =
-    VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, buf);
-  int pos;
-
   if (!VGLMouseVisible) {
     INTOFF();
     VGLMouseVisible = 1;
-    buffer.PixelBytes = VGLDisplay->PixelBytes;
-    __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, 
-                    &buffer, 0, 0, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
-    for (pos = 0; pos <  MOUSE_IMG_SIZE*MOUSE_IMG_SIZE; pos++)
-      if (VGLMouseAndMask->Bitmap[pos])
-        bcopy(&VGLMouseOrMask->Bitmap[pos*VGLDisplay->PixelBytes],
-              &buffer.Bitmap[pos*VGLDisplay->PixelBytes],
-              VGLDisplay->PixelBytes);
-    __VGLBitmapCopy(&buffer, 0, 0, VGLDisplay, 
-		  VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
+    __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, VGLDisplay, 
+		  VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, -MOUSE_IMG_SIZE);
     INTON();
   }
 }
