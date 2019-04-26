@@ -207,7 +207,7 @@ __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
   yextra = 0;
   ystep = 1;
   if (src->Bitmap == dst->Bitmap && srcy < dsty) {
-    yend = srcy;
+    yend = srcy - 1;
     yextra = hight - 1;
     ystep = -1;
   }
