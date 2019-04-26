@@ -361,7 +361,7 @@ TEST_F(Write, direct_io_short_write_iov)
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236378 */
 // TODO: check vfs.fusefs.mmap_enable
-TEST_F(Write, DISABLED_mmap)
+TEST_F(Write, mmap)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -387,9 +387,10 @@ TEST_F(Write, DISABLED_mmap)
 	expect_read(ino, 0, len, len, zeros);
 	/* 
 	 * Writes from the pager may or may not be associated with the correct
-	 * pid, so they must set FUSE_WRITE_CACHE
+	 * pid, so they must set FUSE_WRITE_CACHE.
+	 * TODO: expect FUSE_WRITE_CACHE after upgrading to protocol 7.9
 	 */
-	expect_write(ino, 0, len, len, FUSE_WRITE_CACHE, expected);
+	expect_write(ino, 0, len, len, 0, expected);
 	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, ReturnErrno(0));
 
