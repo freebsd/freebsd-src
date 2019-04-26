@@ -51,7 +51,7 @@ static byte VGLSavePaletteBlue[256];
 void
 VGLSetXY(VGLBitmap *object, int x, int y, u_long color)
 {
-  int offset, undermouse;
+  int offset, soffset, undermouse;
 
   VGLCheckSwitch();
   if (x>=0 && x<object->VXsize && y>=0 && y<object->VYsize) {
@@ -67,7 +67,6 @@ VGLSetXY(VGLBitmap *object, int x, int y, u_long color)
       switch (object->Type) {
       case VIDBUF8S:
       case VIDBUF16S:
-      case VIDBUF24S:
       case VIDBUF32S:
         offset = VGLSetSegment(offset);
         /* FALLTHROUGH */
@@ -89,6 +88,25 @@ VGLSetXY(VGLBitmap *object, int x, int y, u_long color)
           break;
         case 4:
           memcpy(&object->Bitmap[offset], &color, 4);
+          break;
+        }
+        break;
+      case VIDBUF24S:
+        soffset = VGLSetSegment(offset);
+        color = htole32(color);
+        switch (VGLAdpInfo.va_window_size - soffset) {
+        case 1:
+          memcpy(&object->Bitmap[soffset], &color, 1);
+          soffset = VGLSetSegment(offset + 1);
+          memcpy(&object->Bitmap[soffset], (byte *)&color + 1, 2);
+          break;
+        case 2:
+          memcpy(&object->Bitmap[soffset], &color, 2);
+          soffset = VGLSetSegment(offset + 2);
+          memcpy(&object->Bitmap[soffset], (byte *)&color + 2, 1);
+          break;
+        default:
+          memcpy(&object->Bitmap[soffset], &color, 3);
           break;
         }
         break;
