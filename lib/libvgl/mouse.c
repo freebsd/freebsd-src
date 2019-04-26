@@ -108,18 +108,11 @@ VGLMousePointerShow()
   byte buf[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE*4];
   VGLBitmap buffer =
     VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, buf);
-  byte crtcidx, crtcval, gdcidx, gdcval;
   int pos;
 
   if (!VGLMouseVisible) {
     INTOFF();
     VGLMouseVisible = 1;
-    if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT) {
-      crtcidx = inb(0x3c4);
-      crtcval = inb(0x3c5);
-      gdcidx = inb(0x3ce);
-      gdcval = inb(0x3cf);
-    }
     buffer.PixelBytes = VGLDisplay->PixelBytes;
     __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, 
                     &buffer, 0, 0, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
@@ -130,12 +123,6 @@ VGLMousePointerShow()
               VGLDisplay->PixelBytes);
     __VGLBitmapCopy(&buffer, 0, 0, VGLDisplay, 
 		  VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
-    if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT) {
-      outb(0x3c4, crtcidx);
-      outb(0x3c5, crtcval);
-      outb(0x3ce, gdcidx);
-      outb(0x3cf, gdcval);
-    }
     INTON();
   }
 }
@@ -143,25 +130,11 @@ VGLMousePointerShow()
 void
 VGLMousePointerHide()
 {
-  byte crtcidx, crtcval, gdcidx, gdcval;
-
   if (VGLMouseVisible) {
     INTOFF();
     VGLMouseVisible = 0;
-    if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT) {
-      crtcidx = inb(0x3c4);
-      crtcval = inb(0x3c5);
-      gdcidx = inb(0x3ce);
-      gdcval = inb(0x3cf);
-    }
     __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, VGLDisplay, 
                     VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
-    if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT) {
-      outb(0x3c4, crtcidx);
-      outb(0x3c5, crtcval);
-      outb(0x3ce, gdcidx);
-      outb(0x3cf, gdcval);
-    }
     INTON();
   }
 }
