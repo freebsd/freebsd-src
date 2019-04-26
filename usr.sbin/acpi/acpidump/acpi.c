@@ -977,7 +977,7 @@ static void acpi_handle_tpm2(ACPI_TABLE_HEADER *sdp)
 	printf (BEGIN_COMMENT);
 	acpi_print_sdt(sdp);
 	tpm2 = (ACPI_TABLE_TPM2 *) sdp;
-	printf ("\t\tControlArea=%lx\n", tpm2->ControlAddress);
+	printf ("\t\tControlArea=%jx\n", tpm2->ControlAddress);
 	printf ("\t\tStartMethod=%x\n", tpm2->StartMethod);	
 	printf (END_COMMENT);
 }
