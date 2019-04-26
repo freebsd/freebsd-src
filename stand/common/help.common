@@ -99,6 +99,13 @@
 	List loaded modules. If [-v] is specified, print more details.
 
 ################################################################################
+# Tmap-vdisk DMap virtual disk
+
+	map-vdisk filename
+
+	Map file as virtual disk.
+
+################################################################################
 # Tmore DPage files
 
 	more <filename> [<filename> ...]
@@ -395,6 +402,13 @@
 	unload
 
 	This command removes any kernel and all loaded modules from memory.
+
+################################################################################
+# Tunmap-vdisk DUnmap virtual disk
+
+	unmap-vdisk diskname
+
+	Delete virtual disk mapping.
 
 ################################################################################
 # Tunset DUnset a variable
