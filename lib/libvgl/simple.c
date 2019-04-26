@@ -476,7 +476,7 @@ VGLClear(VGLBitmap *object, u_long color)
   VGLCheckSwitch();
   if (object == VGLDisplay) {
     VGLMouseFreeze();
-    mouseoverlap = VGLMouseOverlap(0, 0, object->Xsize, object->Ysize);
+    mouseoverlap = VGLMouseOverlap(0, 0, object->VXsize, object->VYsize);
     if (mouseoverlap)
       VGLMousePointerHide();
     VGLClear(&VGLVDisplay, color);
