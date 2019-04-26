@@ -102,6 +102,7 @@ struct ip6_hdr {
 #define IPV6_FLOWLABEL_MASK	0xffff0f00	/* flow label (20 bits) */
 #endif /* LITTLE_ENDIAN */
 #endif
+#define IPV6_FLOWLABEL_LEN	20
 #if 1
 /* ECN bits proposed by Sally Floyd */
 #define IP6TOS_CE		0x01	/* congestion experienced */

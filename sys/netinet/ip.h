@@ -92,6 +92,11 @@ struct ip {
 #define	IPTOS_PREC_ROUTINE		IPTOS_DSCP_CS0
 
 /*
+ * Offset of Diffserv decimal value to convert it to tos value .
+ */
+#define	IPTOS_DSCP_OFFSET		2
+
+/*
  * Definitions for DiffServ Codepoints as per RFC2474 and RFC5865.
  */
 #define	IPTOS_DSCP_CS0		0x00

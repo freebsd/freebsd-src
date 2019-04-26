@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190426:
+	CARP now sets DSCP value CS7(Network Traffic) in the flowlabel field
+	of packets by default instead of only setting TOS_LOWDELAY in IPv4,
+	which was deprecated in 1998.  Original behavior can be restored by
+	setting sysctl net.inet.carp.dscp=4.
+
 20190416:
 	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
 	8.0.0.  Please see the 20141231 entry below for information about
