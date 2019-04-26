@@ -93,9 +93,11 @@ Additionally, there are a number of global parameters which can be set using
 .Xr sysctl 8 :
 .Bl -tag -width ".Va net.inet.carp.ifdown_demotion_factor"
 .It Va net.inet.carp.allow
-Accept incoming
+Allow
 .Nm
-packets.
+operation.
+When disabled, virtual hosts remain in initial state, neither sending nor
+receiving announcements or traffic.
 Enabled by default.
 .It Va net.inet.carp.preempt
 Allow virtual hosts to preempt each other.
