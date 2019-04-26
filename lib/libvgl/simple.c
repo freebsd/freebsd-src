@@ -133,12 +133,19 @@ set_planar:
   }
 }
 
-static u_long
-__VGLGetXY(VGLBitmap *object, int x, int y)
+u_long
+VGLGetXY(VGLBitmap *object, int x, int y)
 {
-  int offset;
   u_long color;
+  int offset;
 
+  VGLCheckSwitch();
+  if (x<0 || x>=object->VXsize || y<0 || y>=object->VYsize)
+    return 0;
+  if (object == VGLDisplay)
+    object = &VGLVDisplay;
+  else if (object->Type != MEMBUF)
+    return 0;		/* invalid */
   offset = (y * object->VXsize + x) * object->PixelBytes;
   switch (object->PixelBytes) {
   case 1:
@@ -155,19 +162,6 @@ __VGLGetXY(VGLBitmap *object, int x, int y)
     return le32toh(color);
   }
   return 0;		/* invalid */
-}
-
-u_long
-VGLGetXY(VGLBitmap *object, int x, int y)
-{
-  VGLCheckSwitch();
-  if (x<0 || x>=object->VXsize || y<0 || y>=object->VYsize)
-    return 0;
-  if (object == VGLDisplay)
-    object = &VGLVDisplay;
-  else if (object->Type != MEMBUF)
-    return 0;		/* invalid */
-  return __VGLGetXY(object, x, y);
 }
 
  /*
