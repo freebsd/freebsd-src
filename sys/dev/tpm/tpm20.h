@@ -93,6 +93,12 @@ __FBSDID("$FreeBSD$");
 #define	TPM_CDEV_NAME		"tpm0"
 #define	TPM_CDEV_PERM_FLAG	0600
 
+
+#define TPM2_START_METHOD_ACPI 2
+#define TPM2_START_METHOD_TIS 6
+#define TPM2_START_METHOD_CRB 7
+#define TPM2_START_METHOD_CRB_ACPI 8
+
 struct tpm_sc {
 	device_t	dev;
 
