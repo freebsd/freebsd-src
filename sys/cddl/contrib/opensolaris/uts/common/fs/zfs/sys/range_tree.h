@@ -84,7 +84,7 @@ void range_tree_init(void);
 void range_tree_fini(void);
 range_tree_t *range_tree_create_impl(range_tree_ops_t *ops, void *arg,
     int (*avl_compare)(const void*, const void*), uint64_t gap);
-	range_tree_t *range_tree_create(range_tree_ops_t *ops, void *arg);
+range_tree_t *range_tree_create(range_tree_ops_t *ops, void *arg);
 void range_tree_destroy(range_tree_t *rt);
 boolean_t range_tree_contains(range_tree_t *rt, uint64_t start, uint64_t size);
 range_seg_t *range_tree_find(range_tree_t *rt, uint64_t start, uint64_t size);
@@ -108,13 +108,6 @@ void range_tree_clear(range_tree_t *rt, uint64_t start, uint64_t size);
 void range_tree_vacate(range_tree_t *rt, range_tree_func_t *func, void *arg);
 void range_tree_walk(range_tree_t *rt, range_tree_func_t *func, void *arg);
 range_seg_t *range_tree_first(range_tree_t *rt);
-
-void rt_avl_create(range_tree_t *rt, void *arg);
-void rt_avl_destroy(range_tree_t *rt, void *arg);
-void rt_avl_add(range_tree_t *rt, range_seg_t *rs, void *arg);
-void rt_avl_remove(range_tree_t *rt, range_seg_t *rs, void *arg);
-void rt_avl_vacate(range_tree_t *rt, void *arg);
-extern struct range_tree_ops rt_avl_ops;
 
 void rt_avl_create(range_tree_t *rt, void *arg);
 void rt_avl_destroy(range_tree_t *rt, void *arg);
