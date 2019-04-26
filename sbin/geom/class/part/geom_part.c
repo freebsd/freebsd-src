@@ -75,6 +75,7 @@ volatile sig_atomic_t undo_restore;
 
 static struct gclass *find_class(struct gmesh *, const char *);
 static struct ggeom * find_geom(struct gclass *, const char *);
+static int geom_is_withered(struct ggeom *);
 static const char *find_geomcfg(struct ggeom *, const char *);
 static const char *find_provcfg(struct gprovider *, const char *);
 static struct gprovider *find_provider(struct ggeom *, off_t);
@@ -217,12 +218,24 @@ find_geom(struct gclass *classp, const char *name)
 	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
 		if (strcmp(gp->lg_name, name) != 0)
 			continue;
-		if (find_geomcfg(gp, "wither") == NULL)
+		if (!geom_is_withered(gp))
 			return (gp);
 		else
 			wgp = gp;
 	}
 	return (wgp);
+}
+
+static int
+geom_is_withered(struct ggeom *gp)
+{
+	struct gconfig *gc;
+
+	LIST_FOREACH(gc, &gp->lg_config, lg_config) {
+		if (!strcmp(gc->lg_name, "wither"))
+			return (1);
+	}
+	return (0);
 }
 
 static const char *
@@ -616,7 +629,7 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 	off_t length, secsz;
 	int idx, wblocks, wname, wmax;
 
-	if (find_geomcfg(gp, "wither"))
+	if (geom_is_withered(gp))
 		return;
 	scheme = find_geomcfg(gp, "scheme");
 	if (scheme == NULL)
