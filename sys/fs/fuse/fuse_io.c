@@ -122,7 +122,7 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 SDT_PROBE_DEFINE5(fusefs, , io, io_dispatch, "struct vnode*", "struct uio*",
 		"int", "struct ucred*", "struct fuse_filehandle*");
 int
-fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
+fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
     struct ucred *cred, pid_t pid)
 {
 	struct fuse_filehandle *fufh;
@@ -172,13 +172,20 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		 * cached.
 		 */
 		if (directio || fuse_data_cache_mode == FUSE_CACHE_WT) {
+			const int iosize = fuse_iosize(vp);
 			off_t start, end;
 
 			SDT_PROBE2(fusefs, , io, trace, 1,
 				"direct write of vnode");
 			start = uio->uio_offset;
 			end = start + uio->uio_resid;
-			v_inval_buf_range(vp, start, end, fuse_iosize(vp));
+			/* 
+			 * Invalidate the write cache unless we're coming from
+			 * VOP_PUTPAGES, in which case we're writing _from_ the
+			 * write cache
+			 */
+			if (!pages )
+				v_inval_buf_range(vp, start, end, iosize);
 			err = fuse_write_directbackend(vp, uio, cred, fufh,
 				ioflag);
 		} else {

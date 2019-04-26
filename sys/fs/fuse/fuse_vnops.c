@@ -1222,7 +1222,7 @@ fuse_vnop_read(struct vop_read_args *ap)
 		ioflag |= IO_DIRECT;
 	}
 
-	return fuse_io_dispatch(vp, uio, ioflag, cred, pid);
+	return fuse_io_dispatch(vp, uio, ioflag, false, cred, pid);
 }
 
 /*
@@ -1729,7 +1729,7 @@ fuse_vnop_write(struct vop_write_args *ap)
 		ioflag |= IO_DIRECT;
 	}
 
-	return fuse_io_dispatch(vp, uio, ioflag, cred, pid);
+	return fuse_io_dispatch(vp, uio, ioflag, false, cred, pid);
 }
 
 SDT_PROBE_DEFINE1(fusefs, , vnops, vnop_getpages_error, "int");
@@ -1803,7 +1803,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = td;
 
-	error = fuse_io_dispatch(vp, &uio, IO_DIRECT, cred, pid);
+	error = fuse_io_dispatch(vp, &uio, IO_DIRECT, true, cred, pid);
 	pmap_qremove(kva, npages);
 
 	uma_zfree(fuse_pbuf_zone, bp);
@@ -1936,7 +1936,7 @@ fuse_vnop_putpages(struct vop_putpages_args *ap)
 	uio.uio_rw = UIO_WRITE;
 	uio.uio_td = td;
 
-	error = fuse_io_dispatch(vp, &uio, IO_DIRECT, cred, pid);
+	error = fuse_io_dispatch(vp, &uio, IO_DIRECT, true, cred, pid);
 
 	pmap_qremove(kva, npages);
 	uma_zfree(fuse_pbuf_zone, bp);
