@@ -16,6 +16,19 @@ SRCS+= \
 	vepcr.c \
 	verify_file.c \
 
+# Build library with support for the UEFI based authentication
+.if ${MK_LOADER_EFI_SECUREBOOT} == "yes"
+SRCS+= \
+	efi/efi_variables.c \
+	efi/efi_init.c
+
+# Add includes required by efi part
+CFLAGS+= \
+	-I${SRCTOP}/stand/efi/include \
+	-I${SRCTOP}/lib/libsecureboot/efi/include \
+	-I${SRCTOP}/stand/efi/include/${MACHINE}
+.endif
+
 # this is the list of paths (relative to a file
 # that we need to verify) used to find a signed manifest.
 # the signature extensions in VE_SIGNATURE_EXT_LIST

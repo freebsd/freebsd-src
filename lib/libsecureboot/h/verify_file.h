@@ -40,6 +40,7 @@ struct stat;
 
 void    ve_debug_set(int);
 int     ve_status_get(int);
+void    ve_efi_init(void);
 int     load_manifest(const char *, const char *, const char *, struct stat *);
 int     verify_file(int, const char *, off_t, int);
 void    verify_pcr_export(void);
