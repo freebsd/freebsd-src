@@ -663,6 +663,9 @@ cpu_powerx_setup(int cpuid, uint16_t vers)
 	if ((mfmsr() & PSL_HV) == 0)
 		return;
 
+	/* Nuke the FSCR, to disable all facilities. */
+	mtspr(SPR_FSCR, 0);
+
 	/* Configure power-saving */
 	switch (vers) {
 	case IBMPOWER8:
