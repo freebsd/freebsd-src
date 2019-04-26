@@ -64,6 +64,7 @@ static unsigned int VGLCurWindow;
 static int VGLInitDone = 0;
 static video_info_t VGLOldModeInfo;
 static vid_info_t VGLOldVInfo;
+static int VGLOldVXsize;
 
 void
 VGLEnd()
@@ -84,6 +85,8 @@ struct vt_mode smode;
     VGLClear(VGLDisplay, 0);
     munmap(VGLMem, VGLAdpInfo.va_window_size);
   }
+
+  ioctl(0, FBIO_SETLINEWIDTH, &VGLOldVXsize);
 
   if (VGLOldMode >= M_VESA_BASE)
     ioctl(0, _IO('V', VGLOldMode - M_VESA_BASE), 0);
@@ -322,6 +325,7 @@ VGLInit(int mode)
   depth = VGLModeInfo.vi_depth;
   if (depth == 15)
     depth = 16;
+  VGLOldVXsize =
   VGLDisplay->VXsize = VGLAdpInfo.va_line_width
 			   *8/(depth/VGLModeInfo.vi_planes);
   VGLDisplay->VYsize = VGLBufSize/VGLModeInfo.vi_planes/VGLAdpInfo.va_line_width;
