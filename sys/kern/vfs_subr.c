@@ -1927,10 +1927,13 @@ v_inval_buf_range(struct vnode *vp, off_t start, off_t end, int blksize)
 {
 	struct bufobj *bo;
 	daddr_t startlbn, endlbn;
+	vm_pindex_t startp, endp;
 
 	/* Round "outwards" */
 	startlbn = start / blksize;
 	endlbn = howmany(end, blksize);
+	startp = OFF_TO_IDX(start);
+	endp = OFF_TO_IDX(end + PAGE_SIZE - 1);
 
 	ASSERT_VOP_LOCKED(vp, "v_inval_buf_range");
 
@@ -1960,7 +1963,7 @@ restart:
 		goto restart;
 
 	BO_UNLOCK(bo);
-	vn_pages_remove(vp, OFF_TO_IDX(start), OFF_TO_IDX(end));
+	vn_pages_remove(vp, startp, endp);
 }
 
 /* Like v_inval_buf_range, but operates on whole buffers instead of offsets */
