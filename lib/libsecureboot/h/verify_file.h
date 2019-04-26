@@ -32,6 +32,7 @@
 #define VE_WANT         1            /* we want this verified */
 #define VE_MUST         2            /* this must be verified */
 
+#define VE_NOT_CHECKED -42
 #define VE_VERIFIED     1            /* all good */
 #define VE_UNVERIFIED_OK 0           /* not verified but that's ok */
 #define VE_NOT_VERIFYING 2	     /* we are not verifying */
@@ -42,6 +43,8 @@ void    ve_debug_set(int);
 int     ve_status_get(int);
 void    ve_efi_init(void);
 int     load_manifest(const char *, const char *, const char *, struct stat *);
+int     pass_manifest(const char *, const char *);
+int     pass_manifest_export_envs(void);
 int     verify_file(int, const char *, off_t, int);
 void    verify_pcr_export(void);
 

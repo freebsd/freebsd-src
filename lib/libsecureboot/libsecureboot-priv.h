@@ -31,6 +31,8 @@
 /* public api */
 #include "libsecureboot.h"
 
+struct stat;
+
 typedef struct {
 	unsigned char	*data;
 	size_t		hash_size;
@@ -49,6 +51,9 @@ int verify_rsa_digest(br_rsa_public_key *pkey,
     const unsigned char *hash_oid,
     unsigned char *mdata, size_t mlen,
     unsigned char *sdata, size_t slen);
+
+int is_verified(struct stat *stp);
+void add_verify_status(struct stat *stp, int status);
 
 int openpgp_self_tests(void);
 
