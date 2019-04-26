@@ -288,6 +288,7 @@ static const char *(random_source_descr[]) = {
 	"PURE_RDRAND",
 	"PURE_NEHEMIAH",
 	"PURE_RNDTEST",
+	[RANDOM_PURE_TPM] = "PURE_TPM",
 	/* "ENTROPYSOURCE" */
 };
 
