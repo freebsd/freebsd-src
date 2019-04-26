@@ -202,6 +202,7 @@ main(int argc, char **argv)
 		signal(SIGHUP, SIG_IGN);
 	}
 	signal(SIGTERM, gssd_terminate);
+	signal(SIGPIPE, gssd_terminate);
 
 	memset(&sun, 0, sizeof sun);
 	sun.sun_family = AF_LOCAL;
