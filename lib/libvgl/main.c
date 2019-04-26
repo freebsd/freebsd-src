@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/consio.h>
 #include "vgl.h"
 
-/* XXX Direct Color 24bits modes unsupported */
-
 #define min(x, y)	(((x) < (y)) ? (x) : (y))
 #define max(x, y)	(((x) > (y)) ? (x) : (y))
 
@@ -223,11 +221,9 @@ VGLInit(int mode)
     case 2:
       VGLDisplay->Type = VIDBUF16;
       break;
-#if notyet
     case 3:
       VGLDisplay->Type = VIDBUF24;
       break;
-#endif
     case 4:
       VGLDisplay->Type = VIDBUF32;
       break;
