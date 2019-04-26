@@ -98,6 +98,12 @@ cpudep_ap_early_bootstrap(void)
 
 			mtspr(SPR_LPCR, lpcr);
 			isync();
+
+			/*
+			 * Nuke FSCR, to be managed on a per-process basis
+			 * later.
+			 */
+			mtspr(SPR_FSCR, 0);
 		}
 #endif
 		break;
