@@ -4424,7 +4424,7 @@ bufwait(struct buf *bp)
  *	read error occurred, or if the op was a write.  B_CACHE is never
  *	set if the buffer is invalid or otherwise uncacheable.
  *
- *	biodone does not mess with B_INVAL, allowing the I/O routine or the
+ *	bufdone does not mess with B_INVAL, allowing the I/O routine or the
  *	initiator to leave B_INVAL set to brelse the buffer out of existence
  *	in the biodone routine.
  */
