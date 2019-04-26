@@ -36,8 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <verify_file.h>
 #include <manifests.h>
 
-#define VE_NOT_CHECKED -42
-
 #ifdef UNIT_TEST
 # include <err.h>
 # define panic warn
@@ -112,7 +110,7 @@ struct verify_status {
 	struct verify_status *vs_next;
 };
 
-static int
+int
 is_verified(struct stat *stp)
 {
 	struct verify_status *vsp;
@@ -126,7 +124,7 @@ is_verified(struct stat *stp)
 }
 
 /* most recent first, since most likely to see repeated calls. */
-static void
+void
 add_verify_status(struct stat *stp, int status)
 {
 	struct verify_status *vsp;
