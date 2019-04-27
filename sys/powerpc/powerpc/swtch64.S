@@ -134,6 +134,27 @@ ENTRY(cpu_switch)
 	beq	1f
 	mfspr	%r6, SPR_FSCR
 	std	%r6, PCB_FSCR(%r17)
+save_ebb:
+	andi.	%r0, %r6, FSCR_EBB
+	beq	save_lm
+	mfspr	%r7, SPR_EBBHR
+	std	%r7, PCB_EBB_EBBHR(%r17)
+	mfspr	%r7, SPR_EBBRR
+	std	%r7, PCB_EBB_EBBRR(%r17)
+	mfspr	%r7, SPR_BESCR
+	std	%r7, PCB_EBB_BESCR(%r17)
+save_lm:
+	andi.	%r0, %r6, FSCR_LM
+	beq	save_tar
+	mfspr	%r7, SPR_LMRR
+	std	%r7, PCB_LMON_LMRR(%r17)
+	mfspr	%r7, SPR_LMSER
+	std	%r7, PCB_LMON_LMSER(%r17)
+save_tar:
+	andi.	%r0, %r6, FSCR_TAR
+	beq	1f
+	mfspr	%r7, SPR_TAR
+	std	%r7, PCB_TAR(%r17)
 1:
 	andi.	%r7, %r18, PCB_CDSCR
 	beq	.L0
@@ -223,6 +244,27 @@ blocked_loop:
 	beq	.L4
 	ld	%r7, PCB_FSCR(%r17)	/* Load the FSCR register*/
 	mtspr	SPR_FSCR, %r7
+restore_ebb:
+	andi.	%r0, %r7, FSCR_EBB
+	beq	restore_lm
+	ld	%r6, PCB_EBB_EBBHR(%r17)
+	mtspr	SPR_EBBHR, %r6
+	ld	%r6, PCB_EBB_EBBRR(%r17)
+	mtspr	SPR_EBBRR, %r6
+	ld	%r6, PCB_EBB_BESCR(%r17)
+	mtspr	SPR_BESCR, %r6
+restore_lm:
+	andi.	%r0, %r7, FSCR_LM
+	beq	restore_tar
+	ld	%r6, PCB_LMON_LMRR(%r17)
+	mtspr	SPR_LMRR, %r6
+	ld	%r6, PCB_LMON_LMSER(%r17)
+	mtspr	SPR_LMSER, %r6
+restore_tar:
+	andi.	%r0, %r7, FSCR_TAR
+	beq	.L4
+	ld	%r6, PCB_TAR(%r17)
+	mtspr	SPR_TAR, %r6
 
 	/* thread to restore is in r3 */
 .L4:
