@@ -125,26 +125,24 @@ ENTRY(cpu_switch)
 	
 	stdu	%r1,-48(%r1)
 
-	lwz	%r7, PCB_FLAGS(%r17)
-	andi.	%r7, %r7, PCB_CDSCR
+	lwz	%r18, PCB_FLAGS(%r17)
+	andi.	%r7, %r18, PCB_CDSCR
 	beq	.L0
 	/* Custom DSCR was set. Reseting it to enter kernel */
-	li	%r7, 0x0
-	mtspr   SPR_DSCR, %r7
+	li	%r6, 0x0
+	mtspr   SPR_DSCR, %r6
 
 .L0:
-	lwz	%r7,PCB_FLAGS(%r17)
 	/* Save FPU context if needed */
-	andi.	%r7, %r7, PCB_FPU
+	andi.	%r7, %r18, PCB_FPU
 	beq	.L1
 	bl	save_fpu
 	nop
 
 .L1:
 	mr	%r3,%r14		/* restore old thread ptr */
-	lwz	%r7,PCB_FLAGS(%r17)
 	/* Save Altivec context if needed */
-	andi.	%r7, %r7, PCB_VEC
+	andi.	%r7, %r18, PCB_VEC
 	beq	.L2
 	bl	save_vec
 	nop
@@ -186,30 +184,28 @@ blocked_loop:
 	bl	pmap_activate		/* Activate the new address space */
 	nop
 
-	lwz	%r6, PCB_FLAGS(%r17)
+	lwz	%r19, PCB_FLAGS(%r17)
 	/* Restore FPU context if needed */
-	andi.	%r6, %r6, PCB_FPU
+	andi.	%r6, %r19, PCB_FPU
 	beq	.L3
 	mr	%r3,%r13		/* Pass curthread to enable_fpu */
 	bl	enable_fpu
 	nop
 
 .L3:
-	lwz	%r6, PCB_FLAGS(%r17)
 	/* Restore Altivec context if needed */
-	andi.	%r6, %r6, PCB_VEC
+	andi.	%r6, %r19, PCB_VEC
 	beq	.L31
 	mr	%r3,%r13		/* Pass curthread to enable_vec */
 	bl	enable_vec
 	nop
 
 .L31:
-	lwz	%r6, PCB_FLAGS(%r17)
 	/* Restore Custom DSCR if needed */
-	andi.	%r6, %r6, PCB_CDSCR
+	andi.	%r6, %r19, PCB_CDSCR
 	beq	.L4
-	ld	%r6, PCB_DSCR(%r17)	/* Load the DSCR register*/
-	mtspr	SPR_DSCR, %r6
+	ld	%r7, PCB_DSCR(%r17)	/* Load the DSCR register*/
+	mtspr	SPR_DSCR, %r7
 
 	/* thread to restore is in r3 */
 .L4:
