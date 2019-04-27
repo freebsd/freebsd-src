@@ -124,6 +124,8 @@ static int	grab_mcontext32(struct thread *td, mcontext32_t *, int flags);
 
 static int	grab_mcontext(struct thread *, mcontext_t *, int);
 
+static void	cleanup_power_extras(struct thread *);
+
 #ifdef __powerpc64__
 extern struct sysentvec elf64_freebsd_sysvec_v2;
 #endif
@@ -506,6 +508,30 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 }
 
 /*
+ * Clean up extra POWER state.  Some per-process registers and states are not
+ * managed by the MSR, so must be cleaned up explicitly on thread exit.
+ *
+ * Currently this includes:
+ * DSCR -- Data stream control register (PowerISA 2.06+)
+ * FSCR -- Facility Status and Control Register (PowerISA 2.07+)
+ */
+static void
+cleanup_power_extras(struct thread *td)
+{
+	uint32_t pcb_flags;
+
+	if (td != curthread)
+		return;
+
+	pcb_flags = td->td_pcb->pcb_flags;
+	/* Clean up registers not managed by MSR. */
+	if (pcb_flags & PCB_CFSCR)
+		mtspr(SPR_FSCR, 0);
+	if (pcb_flags & PCB_CDSCR) 
+		mtspr(SPR_DSCRP, 0);
+}
+
+/*
  * Set set up registers on exec.
  */
 void
@@ -549,6 +575,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->fixreg[12] = imgp->entry_addr;
 	#endif
 	tf->srr1 = psl_userset | PSL_FE_DFLT;
+	cleanup_power_extras(td);
 	td->td_pcb->pcb_flags = 0;
 }
 
@@ -574,6 +601,7 @@ ppc32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	tf->srr0 = imgp->entry_addr;
 	tf->srr1 = psl_userset32 | PSL_FE_DFLT;
+	cleanup_power_extras(td);
 	td->td_pcb->pcb_flags = 0;
 }
 #endif
@@ -912,6 +940,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 void
 cpu_thread_exit(struct thread *td)
 {
+	cleanup_power_extras(td);
 }
 
 void
@@ -1052,10 +1081,10 @@ emulate_mfspr(int spr, int reg, struct trapframe *frame){
 
 	td = curthread;
 
-	if (spr == SPR_DSCR) {
+	if (spr == SPR_DSCR || spr == SPR_DSCRP) {
 		// If DSCR was never set, get the default DSCR
 		if ((td->td_pcb->pcb_flags & PCB_CDSCR) == 0)
-			td->td_pcb->pcb_dscr = mfspr(SPR_DSCR);
+			td->td_pcb->pcb_dscr = mfspr(SPR_DSCRP);
 
 		frame->fixreg[reg] = td->td_pcb->pcb_dscr;
 		frame->srr0 += 4;
@@ -1070,9 +1099,10 @@ emulate_mtspr(int spr, int reg, struct trapframe *frame){
 
 	td = curthread;
 
-	if (spr == SPR_DSCR) {
+	if (spr == SPR_DSCR || spr == SPR_DSCRP) {
 		td->td_pcb->pcb_flags |= PCB_CDSCR;
 		td->td_pcb->pcb_dscr = frame->fixreg[reg];
+		mtspr(SPR_DSCRP, frame->fixreg[reg]);
 		frame->srr0 += 4;
 		return 0;
 	} else

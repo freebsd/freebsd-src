@@ -307,6 +307,12 @@ trap(struct trapframe *frame)
 			fscr = mfspr(SPR_FSCR);
 			if ((fscr & FSCR_IC_MASK) == FSCR_IC_HTM) {
 				CTR0(KTR_TRAP, "Hardware Transactional Memory subsystem disabled");
+			} else if ((fscr & FSCR_IC_MASK) == FSCR_IC_DSCR) {
+				td->td_pcb->pcb_flags |= PCB_CFSCR | PCB_CDSCR;
+				fscr &= ~FSCR_IC_MASK;
+				mtspr(SPR_FSCR, fscr | FSCR_DSCR);
+				mtspr(SPR_DSCR, 0);
+				break;
 			}
 			sig = SIGILL;
 			ucode =	ILL_ILLOPC;
