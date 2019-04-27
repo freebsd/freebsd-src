@@ -98,17 +98,16 @@ ENTRY(cpu_switch)
 	mr	%r16,%r5		/* and the new lock */
 	mr	%r17,%r6		/* and the PCB */
 	
-	lwz	%r7,PCB_FLAGS(%r17)
+	lwz	%r18,PCB_FLAGS(%r17)
 	/* Save FPU context if needed */
-	andi.	%r7, %r7, PCB_FPU
+	andi.	%r7, %r18, PCB_FPU
 	beq	.L1
 	bl	save_fpu
 
 .L1:
 	mr	%r3,%r14		/* restore old thread ptr */
-	lwz	%r7,PCB_FLAGS(%r17)
 	/* Save Altivec context if needed */
-	andi.	%r7, %r7, PCB_VEC
+	andi.	%r7, %r18, PCB_VEC
 	beq	.L2
 	bl	save_vec
 	
@@ -151,17 +150,16 @@ blocked_loop:
 	mr	%r3,%r2			/* Get new thread ptr */
 	bl	pmap_activate		/* Activate the new address space */
 
-	lwz	%r6, PCB_FLAGS(%r17)
+	lwz	%r19, PCB_FLAGS(%r17)
 	/* Restore FPU context if needed */
-	andi.	%r6, %r6, PCB_FPU
+	andi.	%r6, %r19, PCB_FPU
 	beq	.L3
 	mr	%r3,%r2			/* Pass curthread to enable_fpu */
 	bl	enable_fpu
 
 .L3:
-	lwz	%r6, PCB_FLAGS(%r17)
 	/* Restore Altivec context if needed */
-	andi.	%r6, %r6, PCB_VEC
+	andi.	%r6, %r19, PCB_VEC
 	beq	.L4
 	mr	%r3,%r2			/* Pass curthread to enable_vec */
 	bl	enable_vec
