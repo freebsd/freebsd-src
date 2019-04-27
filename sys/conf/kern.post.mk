@@ -8,7 +8,7 @@
 # should be defined in the kern.pre.mk so that port makefiles can
 # override or augment them.
 
-.if defined(DTS) || defined(DTSO)
+.if defined(DTS) || defined(DTSO) || defined(FDT_DTS_FILE)
 .include "dtb.build.mk"
 
 KERNEL_EXTRA+=	${DTB} ${DTBO}
