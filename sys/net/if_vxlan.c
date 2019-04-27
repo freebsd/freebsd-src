@@ -177,7 +177,7 @@ struct vxlan_softc {
 	struct sysctl_oid		*vxl_sysctl_node;
 	struct sysctl_ctx_list		 vxl_sysctl_ctx;
 	struct callout			 vxl_callout;
-	uint8_t				 vxl_hwaddr[ETHER_ADDR_LEN];
+	struct ether_addr		 vxl_hwaddr;
 	int				 vxl_mc_ifindex;
 	struct ifnet			*vxl_mc_ifp;
 	struct ifmedia 			 vxl_media;
@@ -345,7 +345,6 @@ static int	vxlan_clone_create(struct if_clone *, int, caddr_t);
 static void	vxlan_clone_destroy(struct ifnet *);
 
 static uint32_t vxlan_mac_hash(struct vxlan_softc *, const uint8_t *);
-static void	vxlan_fakeaddr(struct vxlan_softc *);
 static int	vxlan_media_change(struct ifnet *);
 static void	vxlan_media_status(struct ifnet *, struct ifmediareq *);
 
@@ -2754,8 +2753,8 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifmedia_add(&sc->vxl_media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->vxl_media, IFM_ETHER | IFM_AUTO);
 
-	vxlan_fakeaddr(sc);
-	ether_ifattach(ifp, sc->vxl_hwaddr);
+	ether_gen_addr(ifp, &sc->vxl_hwaddr);
+	ether_ifattach(ifp, sc->vxl_hwaddr.octet);
 
 	ifp->if_baudrate = 0;
 	ifp->if_hdrlen = 0;
@@ -2824,20 +2823,6 @@ do {									\
 #undef mix
 
 	return (c);
-}
-
-static void
-vxlan_fakeaddr(struct vxlan_softc *sc)
-{
-
-	/*
-	 * Generate a non-multicast, locally administered address.
-	 *
-	 * BMV: Should we use the FreeBSD OUI range instead?
-	 */
-	arc4rand(sc->vxl_hwaddr, ETHER_ADDR_LEN, 1);
-	sc->vxl_hwaddr[0] &= ~1;
-	sc->vxl_hwaddr[0] |= 2;
 }
 
 static int

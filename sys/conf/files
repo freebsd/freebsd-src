@@ -656,8 +656,8 @@ crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
 crypto/rijndael/rijndael-api-fst.c optional geom_bde | random !random_loadable
 crypto/rijndael/rijndael-api.c	optional crypto | ipsec | ipsec_support | \
 	wlan_ccmp
-crypto/sha1.c			optional carp | crypto | ipsec | \
-	ipsec_support | netgraph_mppc_encryption | sctp 
+crypto/sha1.c			optional carp | crypto | ether | ipsec | \
+	ipsec_support | netgraph_mppc_encryption | sctp
 crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | \
 	ipsec_support | random !random_loadable | sctp | zfs
 crypto/sha2/sha512c.c		optional crypto | geom_bde | ipsec | \
