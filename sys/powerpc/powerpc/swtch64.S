@@ -87,6 +87,10 @@ ENTRY(cpu_throw)
  *		   struct mutex *mtx); 
  *
  * Switch to a new thread saving the current state in the old thread.
+ *
+ * Internally clobbers (not visible outside of this file):
+ * r18	- old thread pcb_flags
+ * r19	- new thread pcb_flags
  */
 ENTRY(cpu_switch)
 	ld	%r6,TD_PCB(%r3)		/* Get the old thread's PCB ptr */
@@ -126,11 +130,15 @@ ENTRY(cpu_switch)
 	stdu	%r1,-48(%r1)
 
 	lwz	%r18, PCB_FLAGS(%r17)
+	andi.	%r7, %r18, PCB_CFSCR
+	beq	1f
+	mfspr	%r6, SPR_FSCR
+	std	%r6, PCB_FSCR(%r17)
+1:
 	andi.	%r7, %r18, PCB_CDSCR
 	beq	.L0
-	/* Custom DSCR was set. Reseting it to enter kernel */
-	li	%r6, 0x0
-	mtspr   SPR_DSCR, %r6
+	mfspr	%r6, SPR_DSCRP
+	std	%r6, PCB_DSCR(%r17)
 
 .L0:
 	/* Save FPU context if needed */
@@ -201,11 +209,20 @@ blocked_loop:
 	nop
 
 .L31:
-	/* Restore Custom DSCR if needed */
-	andi.	%r6, %r19, PCB_CDSCR
-	beq	.L4
+	/* Load custom DSCR on PowerISA 2.06+ CPUs. */
+	/* Load changed FSCR on PowerISA 2.07+ CPUs. */
+	or	%r18,%r18,%r19
+	/* Restore Custom DSCR if needed (zeroes if in old but not new) */
+	andi.	%r6, %r18, PCB_CDSCR
+	beq	.L32
 	ld	%r7, PCB_DSCR(%r17)	/* Load the DSCR register*/
-	mtspr	SPR_DSCR, %r7
+	mtspr	SPR_DSCRP, %r7
+.L32:
+	/* Restore FSCR if needed (zeroes if in old but not new) */
+	andi.	%r6, %r18, PCB_CFSCR
+	beq	.L4
+	ld	%r7, PCB_FSCR(%r17)	/* Load the FSCR register*/
+	mtspr	SPR_FSCR, %r7
 
 	/* thread to restore is in r3 */
 .L4:

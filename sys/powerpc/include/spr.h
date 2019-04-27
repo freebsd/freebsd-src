@@ -93,11 +93,12 @@
 
 #define	SPR_MQ			0x000	/* .6. 601 MQ register */
 #define	SPR_XER			0x001	/* 468 Fixed Point Exception Register */
+#define	SPR_DSCR		0x003	/* .6. Data Stream Control Register (Unprivileged) */
 #define	SPR_RTCU_R		0x004	/* .6. 601 RTC Upper - Read */
 #define	SPR_RTCL_R		0x005	/* .6. 601 RTC Lower - Read */
 #define	SPR_LR			0x008	/* 468 Link Register */
 #define	SPR_CTR			0x009	/* 468 Count Register */
-#define	SPR_DSCR		0x011   /* Data Stream Control Register */
+#define	SPR_DSCRP		0x011   /* Data Stream Control Register (Privileged) */
 #define	SPR_DSISR		0x012	/* .68 DSI exception source */
 #define	  DSISR_DIRECT		  0x80000000 /* Direct-store error exception */
 #define	  DSISR_NOTFOUND	  0x40000000 /* Translation not found */
@@ -135,6 +136,7 @@
 #define	  FSCR_IC_STOP		  0x0900000000000000ULL	/* Access to the 'stop' instruction in privileged non-hypervisor state */
 #define	  FSCR_IC_MSG		  0x0A00000000000000ULL	/* Access to 'msgsndp' or 'msgclrp' instructions */
 #define	  FSCR_IC_SCV		  0x0C00000000000000ULL	/* Execution of a 'scv' instruction */
+#define	  FSCR_DSCR		  0x0000000000000004ULL	/* DSCR available in PR state */
 #define	SPR_USPRG0		0x100	/* 4.. User SPR General 0 */
 #define	SPR_VRSAVE		0x100	/* .6. AltiVec VRSAVE */
 #define	SPR_SPRG0		0x110	/* 468 SPR General 0 */
