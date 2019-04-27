@@ -48,6 +48,7 @@ struct pcb {
 	register_t	pcb_lr;			/* link register */
 	register_t	pcb_dscr;		/* dscr value */
 	register_t	pcb_fscr;		
+	register_t	pcb_tar;
 	struct		pmap *pcb_pm;		/* pmap of our vmspace */
 	jmp_buf		*pcb_onfault;		/* For use during
 						    copyin/copyout */
@@ -81,6 +82,17 @@ struct pcb {
 		uint64_t texasr;
 		uint64_t tfiar;
 	} pcb_htm;
+	
+	struct ebb {
+		uint64_t ebbhr;
+		uint64_t ebbrr;
+		uint64_t bescr;
+	} pcb_ebb;
+
+	struct lmon {
+		uint64_t lmrr;
+		uint64_t lmser;
+	} pcb_lm;
 
 	union {
 		struct {

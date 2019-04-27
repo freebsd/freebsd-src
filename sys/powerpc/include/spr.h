@@ -135,13 +135,14 @@
 #define	  FSCR_IC_TAR		  0x0800000000000000ULL	/* Access to Target Address Register */
 #define	  FSCR_IC_STOP		  0x0900000000000000ULL	/* Access to the 'stop' instruction in privileged non-hypervisor state */
 #define	  FSCR_IC_MSG		  0x0A00000000000000ULL	/* Access to 'msgsndp' or 'msgclrp' instructions */
+#define	  FSCR_IC_LM		  0x0A00000000000000ULL	/* Access to load monitored facility */
 #define	  FSCR_IC_SCV		  0x0C00000000000000ULL	/* Execution of a 'scv' instruction */
-#define	  FSCR_SCV		  0x0000000000001000ULL /* scv instruction available */
-#define	  FSCR_LM		  0x0000000000000800ULL /* Load monitored facilities available */
-#define	  FSCR_MSGP		  0x0000000000000400ULL /* msgsndp and SPRs available */
-#define	  FSCR_TAR		  0x0000000000000100ULL /* TAR register available */
-#define	  FSCR_EBB		  0x0000000000000080ULL /* Event-based branch available */
-#define	  FSCR_DSCR		  0x0000000000000004ULL	/* DSCR available in PR state */
+#define	  FSCR_SCV		  0x0000000000001000 /* scv instruction available */
+#define	  FSCR_LM		  0x0000000000000800 /* Load monitored facilities available */
+#define	  FSCR_MSGP		  0x0000000000000400 /* msgsndp and SPRs available */
+#define	  FSCR_TAR		  0x0000000000000100 /* TAR register available */
+#define	  FSCR_EBB		  0x0000000000000080 /* Event-based branch available */
+#define	  FSCR_DSCR		  0x0000000000000004 /* DSCR available in PR state */
 #define	SPR_DPDES		0x0b0	/* .6. Directed Privileged Doorbell Exception State Register */
 #define	SPR_USPRG0		0x100	/* 4.. User SPR General 0 */
 #define	SPR_VRSAVE		0x100	/* .6. AltiVec VRSAVE */
