@@ -53,6 +53,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun8i-a83t-system-controller", 1},
 	{"allwinner,sun8i-h3-system-controller", 1},
 	{"allwinner,sun8i-h3-system-control", 1},
+	{"allwinner,sun50i-h5-system-control", 1},
 	{NULL,             0}
 };
 
