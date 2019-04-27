@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+.if ${MACHINE} != "amd64" && ${MACHINE} != "i386"
+PKGCONFBRANCH?=	quarterly
+.endif
 PKGCONFBRANCH?=	latest
 CONFS=		FreeBSD.conf.${PKGCONFBRANCH}
 CONFSNAME=	FreeBSD.conf
