@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
 #ifndef APPLEKEXT
 #include <fs/nfs/nfsport.h>
 
@@ -182,7 +184,12 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	struct nfsclient *clp = NULL, *new_clp = *new_clpp;
 	int i, error = 0, ret;
 	struct nfsstate *stp, *tstp;
-	struct sockaddr_in *sad, *rad;
+#ifdef INET
+	struct sockaddr_in *sin, *rin;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *sin6, *rin6;
+#endif
 	struct nfsdsession *sep, *nsep;
 	int zapit = 0, gotit, hasstate = 0, igotlock;
 	static u_int64_t confirm_index = 0;
@@ -334,10 +341,24 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		 * If the uid doesn't match, return NFSERR_CLIDINUSE after
 		 * filling out the correct ipaddr and portnum.
 		 */
-		sad = NFSSOCKADDR(new_clp->lc_req.nr_nam, struct sockaddr_in *);
-		rad = NFSSOCKADDR(clp->lc_req.nr_nam, struct sockaddr_in *);
-		sad->sin_addr.s_addr = rad->sin_addr.s_addr;
-		sad->sin_port = rad->sin_port;
+		switch (clp->lc_req.nr_nam->sa_family) {
+#ifdef INET
+		case AF_INET:
+			sin = (struct sockaddr_in *)new_clp->lc_req.nr_nam;
+			rin = (struct sockaddr_in *)clp->lc_req.nr_nam;
+			sin->sin_addr.s_addr = rin->sin_addr.s_addr;
+			sin->sin_port = rin->sin_port;
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			sin6 = (struct sockaddr_in6 *)new_clp->lc_req.nr_nam;
+			rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
+			sin6->sin6_addr = rin6->sin6_addr;
+			sin6->sin6_port = rin6->sin6_port;
+			break;
+#endif
+		}
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_unlock(&nfsv4rootfs_lock, 1);
 		NFSUNLOCKV4ROOTMUTEX();
@@ -884,9 +905,13 @@ nfsrv_dumpaclient(struct nfsclient *clp, struct nfsd_dumpclients *dumpp)
 {
 	struct nfsstate *stp, *openstp, *lckownstp;
 	struct nfslock *lop;
-	struct sockaddr *sad;
-	struct sockaddr_in *rad;
-	struct sockaddr_in6 *rad6;
+	sa_family_t af;
+#ifdef INET
+	struct sockaddr_in *rin;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *rin6;
+#endif
 
 	dumpp->ndcl_nopenowners = dumpp->ndcl_nlockowners = 0;
 	dumpp->ndcl_nopens = dumpp->ndcl_nlocks = 0;
@@ -894,14 +919,21 @@ nfsrv_dumpaclient(struct nfsclient *clp, struct nfsd_dumpclients *dumpp)
 	dumpp->ndcl_flags = clp->lc_flags;
 	dumpp->ndcl_clid.nclid_idlen = clp->lc_idlen;
 	NFSBCOPY(clp->lc_id, dumpp->ndcl_clid.nclid_id, clp->lc_idlen);
-	sad = NFSSOCKADDR(clp->lc_req.nr_nam, struct sockaddr *);
-	dumpp->ndcl_addrfam = sad->sa_family;
-	if (sad->sa_family == AF_INET) {
-		rad = (struct sockaddr_in *)sad;
-		dumpp->ndcl_cbaddr.sin_addr = rad->sin_addr;
-	} else {
-		rad6 = (struct sockaddr_in6 *)sad;
-		dumpp->ndcl_cbaddr.sin6_addr = rad6->sin6_addr;
+	af = clp->lc_req.nr_nam->sa_family;
+	dumpp->ndcl_addrfam = af;
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		rin = (struct sockaddr_in *)clp->lc_req.nr_nam;
+		dumpp->ndcl_cbaddr.sin_addr = rin->sin_addr;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
+		dumpp->ndcl_cbaddr.sin6_addr = rin6->sin6_addr;
+		break;
+#endif
 	}
 
 	/*
@@ -942,9 +974,13 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 	struct nfslock *lop;
 	int cnt = 0;
 	struct nfslockfile *lfp;
-	struct sockaddr *sad;
-	struct sockaddr_in *rad;
-	struct sockaddr_in6 *rad6;
+	sa_family_t af;
+#ifdef INET
+	struct sockaddr_in *rin;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *rin6;
+#endif
 	int ret;
 	fhandle_t nfh;
 
@@ -986,14 +1022,22 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 		ldumpp[cnt].ndlck_clid.nclid_idlen = stp->ls_clp->lc_idlen;
 		NFSBCOPY(stp->ls_clp->lc_id, ldumpp[cnt].ndlck_clid.nclid_id,
 		    stp->ls_clp->lc_idlen);
-		sad=NFSSOCKADDR(stp->ls_clp->lc_req.nr_nam, struct sockaddr *);
-		ldumpp[cnt].ndlck_addrfam = sad->sa_family;
-		if (sad->sa_family == AF_INET) {
-			rad = (struct sockaddr_in *)sad;
-			ldumpp[cnt].ndlck_cbaddr.sin_addr = rad->sin_addr;
-		} else {
-			rad6 = (struct sockaddr_in6 *)sad;
-			ldumpp[cnt].ndlck_cbaddr.sin6_addr = rad6->sin6_addr;
+		af = stp->ls_clp->lc_req.nr_nam->sa_family;
+		ldumpp[cnt].ndlck_addrfam = af;
+		switch (af) {
+#ifdef INET
+		case AF_INET:
+			rin = (struct sockaddr_in *)stp->ls_clp->lc_req.nr_nam;
+			ldumpp[cnt].ndlck_cbaddr.sin_addr = rin->sin_addr;
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			rin6 = (struct sockaddr_in6 *)
+			    stp->ls_clp->lc_req.nr_nam;
+			ldumpp[cnt].ndlck_cbaddr.sin6_addr = rin6->sin6_addr;
+			break;
+#endif
 		}
 		stp = LIST_NEXT(stp, ls_file);
 		cnt++;
@@ -1018,14 +1062,22 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 		ldumpp[cnt].ndlck_clid.nclid_idlen = stp->ls_clp->lc_idlen;
 		NFSBCOPY(stp->ls_clp->lc_id, ldumpp[cnt].ndlck_clid.nclid_id,
 		    stp->ls_clp->lc_idlen);
-		sad=NFSSOCKADDR(stp->ls_clp->lc_req.nr_nam, struct sockaddr *);
-		ldumpp[cnt].ndlck_addrfam = sad->sa_family;
-		if (sad->sa_family == AF_INET) {
-			rad = (struct sockaddr_in *)sad;
-			ldumpp[cnt].ndlck_cbaddr.sin_addr = rad->sin_addr;
-		} else {
-			rad6 = (struct sockaddr_in6 *)sad;
-			ldumpp[cnt].ndlck_cbaddr.sin6_addr = rad6->sin6_addr;
+		af = stp->ls_clp->lc_req.nr_nam->sa_family;
+		ldumpp[cnt].ndlck_addrfam = af;
+		switch (af) {
+#ifdef INET
+		case AF_INET:
+			rin = (struct sockaddr_in *)stp->ls_clp->lc_req.nr_nam;
+			ldumpp[cnt].ndlck_cbaddr.sin_addr = rin->sin_addr;
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			rin6 = (struct sockaddr_in6 *)
+			    stp->ls_clp->lc_req.nr_nam;
+			ldumpp[cnt].ndlck_cbaddr.sin6_addr = rin6->sin6_addr;
+			break;
+#endif
 		}
 		lop = LIST_NEXT(lop, lo_lckfile);
 		cnt++;
@@ -1045,14 +1097,22 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 		ldumpp[cnt].ndlck_clid.nclid_idlen = stp->ls_clp->lc_idlen;
 		NFSBCOPY(stp->ls_clp->lc_id, ldumpp[cnt].ndlck_clid.nclid_id,
 		    stp->ls_clp->lc_idlen);
-		sad=NFSSOCKADDR(stp->ls_clp->lc_req.nr_nam, struct sockaddr *);
-		ldumpp[cnt].ndlck_addrfam = sad->sa_family;
-		if (sad->sa_family == AF_INET) {
-			rad = (struct sockaddr_in *)sad;
-			ldumpp[cnt].ndlck_cbaddr.sin_addr = rad->sin_addr;
-		} else {
-			rad6 = (struct sockaddr_in6 *)sad;
-			ldumpp[cnt].ndlck_cbaddr.sin6_addr = rad6->sin6_addr;
+		af = stp->ls_clp->lc_req.nr_nam->sa_family;
+		ldumpp[cnt].ndlck_addrfam = af;
+		switch (af) {
+#ifdef INET
+		case AF_INET:
+			rin = (struct sockaddr_in *)stp->ls_clp->lc_req.nr_nam;
+			ldumpp[cnt].ndlck_cbaddr.sin_addr = rin->sin_addr;
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			rin6 = (struct sockaddr_in6 *)
+			    stp->ls_clp->lc_req.nr_nam;
+			ldumpp[cnt].ndlck_cbaddr.sin6_addr = rin6->sin6_addr;
+			break;
+#endif
 		}
 		stp = LIST_NEXT(stp, ls_file);
 		cnt++;
@@ -3910,9 +3970,15 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 {
 	u_int32_t *tl;
 	u_char *cp, *cp2;
-	int i, j;
-	struct sockaddr_in *rad, *sad;
-	u_char protocol[5], addr[24];
+	int i, j, maxalen = 0, minalen = 0;
+	sa_family_t af;
+#ifdef INET
+	struct sockaddr_in *rin, *sin;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *rin6, *sin6;
+#endif
+	u_char *addr;
 	int error = 0, cantparse = 0;
 	union {
 		in_addr_t ival;
@@ -3923,27 +3989,44 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 		u_char cval[2];
 	} port;
 
-	rad = NFSSOCKADDR(clp->lc_req.nr_nam, struct sockaddr_in *);
-	rad->sin_family = AF_INET;
-	rad->sin_len = sizeof (struct sockaddr_in);
-	rad->sin_addr.s_addr = 0;
-	rad->sin_port = 0;
+	/* 8 is the maximum length of the port# string. */
+	addr = malloc(INET6_ADDRSTRLEN + 8, M_TEMP, M_WAITOK);
 	clp->lc_req.nr_client = NULL;
 	clp->lc_req.nr_lock = 0;
+	af = AF_UNSPEC;
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	i = fxdr_unsigned(int, *tl);
 	if (i >= 3 && i <= 4) {
-		error = nfsrv_mtostr(nd, protocol, i);
+		error = nfsrv_mtostr(nd, addr, i);
 		if (error)
 			goto nfsmout;
-		if (!strcmp(protocol, "tcp")) {
+#ifdef INET
+		if (!strcmp(addr, "tcp")) {
 			clp->lc_flags |= LCL_TCPCALLBACK;
 			clp->lc_req.nr_sotype = SOCK_STREAM;
 			clp->lc_req.nr_soproto = IPPROTO_TCP;
-		} else if (!strcmp(protocol, "udp")) {
+			af = AF_INET;
+		} else if (!strcmp(addr, "udp")) {
 			clp->lc_req.nr_sotype = SOCK_DGRAM;
 			clp->lc_req.nr_soproto = IPPROTO_UDP;
-		} else {
+			af = AF_INET;
+		}
+#endif
+#ifdef INET6
+		if (af == AF_UNSPEC) {
+			if (!strcmp(addr, "tcp6")) {
+				clp->lc_flags |= LCL_TCPCALLBACK;
+				clp->lc_req.nr_sotype = SOCK_STREAM;
+				clp->lc_req.nr_soproto = IPPROTO_TCP;
+				af = AF_INET6;
+			} else if (!strcmp(addr, "udp6")) {
+				clp->lc_req.nr_sotype = SOCK_DGRAM;
+				clp->lc_req.nr_soproto = IPPROTO_UDP;
+				af = AF_INET6;
+			}
+		}
+#endif
+		if (af == AF_UNSPEC) {
 			cantparse = 1;
 		}
 	} else {
@@ -3954,6 +4037,36 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 				goto nfsmout;
 		}
 	}
+	/*
+	 * The caller has allocated clp->lc_req.nr_nam to be large enough
+	 * for either AF_INET or AF_INET6 and zeroed out the contents.
+	 * maxalen is set to the maximum length of the host IP address string
+	 * plus 8 for the maximum length of the port#.
+	 * minalen is set to the minimum length of the host IP address string
+	 * plus 4 for the minimum length of the port#.
+	 * These lengths do not include NULL termination,
+	 * so INET[6]_ADDRSTRLEN - 1 is used in the calculations.
+	 */
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		rin = (struct sockaddr_in *)clp->lc_req.nr_nam;
+		rin->sin_family = AF_INET;
+		rin->sin_len = sizeof(struct sockaddr_in);
+		maxalen = INET_ADDRSTRLEN - 1 + 8;
+		minalen = 7 + 4;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
+		rin6->sin6_family = AF_INET6;
+		rin6->sin6_len = sizeof(struct sockaddr_in6);
+		maxalen = INET6_ADDRSTRLEN - 1 + 8;
+		minalen = 3 + 4;
+		break;
+#endif
+	}
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	i = fxdr_unsigned(int, *tl);
 	if (i < 0) {
@@ -3961,18 +4074,43 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 		goto nfsmout;
 	} else if (i == 0) {
 		cantparse = 1;
-	} else if (!cantparse && i <= 23 && i >= 11) {
+	} else if (!cantparse && i <= maxalen && i >= minalen) {
 		error = nfsrv_mtostr(nd, addr, i);
 		if (error)
 			goto nfsmout;
 
 		/*
 		 * Parse out the address fields. We expect 6 decimal numbers
-		 * separated by '.'s.
+		 * separated by '.'s for AF_INET and two decimal numbers
+		 * preceeded by '.'s for AF_INET6.
 		 */
-		cp = addr;
-		i = 0;
-		while (*cp && i < 6) {
+		cp = NULL;
+		switch (af) {
+#ifdef INET6
+		/*
+		 * For AF_INET6, first parse the host address.
+		 */
+		case AF_INET6:
+			cp = strchr(addr, '.');
+			if (cp != NULL) {
+				*cp++ = '\0';
+				if (inet_pton(af, addr, &rin6->sin6_addr) == 1)
+					i = 4;
+				else {
+					cp = NULL;
+					cantparse = 1;
+				}
+			}
+			break;
+#endif
+#ifdef INET
+		case AF_INET:
+			cp = addr;
+			i = 0;
+			break;
+#endif
+		}
+		while (cp != NULL && *cp && i < 6) {
 			cp2 = cp;
 			while (*cp2 && *cp2 != '.')
 				cp2++;
@@ -3996,11 +4134,30 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 			i++;
 		}
 		if (!cantparse) {
-			if (ip.ival != 0x0) {
-				rad->sin_addr.s_addr = htonl(ip.ival);
-				rad->sin_port = htons(port.sval);
-			} else {
-				cantparse = 1;
+			/*
+			 * The host address INADDR_ANY is (mis)used to indicate
+			 * "there is no valid callback address".
+			 */
+			switch (af) {
+#ifdef INET6
+			case AF_INET6:
+				if (!IN6_ARE_ADDR_EQUAL(&rin6->sin6_addr,
+				    &in6addr_any))
+					rin6->sin6_port = htons(port.sval);
+				else
+					cantparse = 1;
+				break;
+#endif
+#ifdef INET
+			case AF_INET:
+				if (ip.ival != INADDR_ANY) {
+					rin->sin_addr.s_addr = htonl(ip.ival);
+					rin->sin_port = htons(port.sval);
+				} else {
+					cantparse = 1;
+				}
+				break;
+#endif
 			}
 		}
 	} else {
@@ -4012,14 +4169,32 @@ nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 		}
 	}
 	if (cantparse) {
-		sad = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in *);
-		if (sad->sin_family == AF_INET) {
-			rad->sin_addr.s_addr = sad->sin_addr.s_addr;
-			rad->sin_port = 0x0;
+		switch (nd->nd_nam->sa_family) {
+#ifdef INET
+		case AF_INET:
+			sin = (struct sockaddr_in *)nd->nd_nam;
+			rin = (struct sockaddr_in *)clp->lc_req.nr_nam;
+			rin->sin_family = AF_INET;
+			rin->sin_len = sizeof(struct sockaddr_in);
+			rin->sin_addr.s_addr = sin->sin_addr.s_addr;
+			rin->sin_port = 0x0;
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			sin6 = (struct sockaddr_in6 *)nd->nd_nam;
+			rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
+			rin6->sin6_family = AF_INET6;
+			rin6->sin6_len = sizeof(struct sockaddr_in6);
+			rin6->sin6_addr = sin6->sin6_addr;
+			rin6->sin6_port = 0x0;
+			break;
+#endif
 		}
 		clp->lc_program = 0;
 	}
 nfsmout:
+	free(addr, M_TEMP);
 	NFSEXITCODE2(error, nd);
 	return (error);
 }
