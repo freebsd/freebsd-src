@@ -158,7 +158,7 @@
 #define	IRQ_DISABLED		-4
 
 /*
- * An APIC enumerator is a psuedo bus driver that enumerates APIC's including
+ * An APIC enumerator is a pseudo bus driver that enumerates APIC's including
  * CPU's and I/O APIC's.
  */
 struct apic_enumerator {
