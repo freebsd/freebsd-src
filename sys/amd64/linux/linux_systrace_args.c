@@ -2447,6 +2447,52 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* linux_statx */
+	case 332: {
+		struct linux_statx_args *p = params;
+		iarg[0] = p->dirfd; /* l_int */
+		uarg[1] = (intptr_t) p->pathname; /* const char * */
+		iarg[2] = p->flags; /* l_uint */
+		iarg[3] = p->mask; /* l_uint */
+		uarg[4] = (intptr_t) p->statxbuf; /* void * */
+		*n_args = 5;
+		break;
+	}
+	/* linux_io_pgetevents */
+	case 333: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_rseq */
+	case 334: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_pidfd_send_signal */
+	case 424: {
+		struct linux_pidfd_send_signal_args *p = params;
+		iarg[0] = p->pidfd; /* l_int */
+		iarg[1] = p->sig; /* l_int */
+		uarg[2] = (intptr_t) p->info; /* l_siginfo_t * */
+		iarg[3] = p->flags; /* l_uint */
+		*n_args = 4;
+		break;
+	}
+	/* linux_io_uring_setup */
+	case 425: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_io_uring_enter */
+	case 426: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_io_uring_register */
+	case 427: {
+		*n_args = 0;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -6305,6 +6351,62 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* linux_statx */
+	case 332:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		case 4:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_io_pgetevents */
+	case 333:
+		break;
+	/* linux_rseq */
+	case 334:
+		break;
+	/* linux_pidfd_send_signal */
+	case 424:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland l_siginfo_t *";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_io_uring_setup */
+	case 425:
+		break;
+	/* linux_io_uring_enter */
+	case 426:
+		break;
+	/* linux_io_uring_register */
+	case 427:
+		break;
 	default:
 		break;
 	};
@@ -7647,6 +7749,26 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* linux_statx */
+	case 332:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_io_pgetevents */
+	case 333:
+	/* linux_rseq */
+	case 334:
+	/* linux_pidfd_send_signal */
+	case 424:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_io_uring_setup */
+	case 425:
+	/* linux_io_uring_enter */
+	case 426:
+	/* linux_io_uring_register */
+	case 427:
 	default:
 		break;
 	};

@@ -1213,6 +1213,34 @@ struct linux_pkey_alloc_args {
 struct linux_pkey_free_args {
 	char pkey_l_[PADL_(l_int)]; l_int pkey; char pkey_r_[PADR_(l_int)];
 };
+struct linux_statx_args {
+	char dirfd_l_[PADL_(l_int)]; l_int dirfd; char dirfd_r_[PADR_(l_int)];
+	char pathname_l_[PADL_(const char *)]; const char * pathname; char pathname_r_[PADR_(const char *)];
+	char flags_l_[PADL_(l_uint)]; l_uint flags; char flags_r_[PADR_(l_uint)];
+	char mask_l_[PADL_(l_uint)]; l_uint mask; char mask_r_[PADR_(l_uint)];
+	char statxbuf_l_[PADL_(void *)]; void * statxbuf; char statxbuf_r_[PADR_(void *)];
+};
+struct linux_io_pgetevents_args {
+	register_t dummy;
+};
+struct linux_rseq_args {
+	register_t dummy;
+};
+struct linux_pidfd_send_signal_args {
+	char pidfd_l_[PADL_(l_int)]; l_int pidfd; char pidfd_r_[PADR_(l_int)];
+	char sig_l_[PADL_(l_int)]; l_int sig; char sig_r_[PADR_(l_int)];
+	char info_l_[PADL_(l_siginfo_t *)]; l_siginfo_t * info; char info_r_[PADR_(l_siginfo_t *)];
+	char flags_l_[PADL_(l_uint)]; l_uint flags; char flags_r_[PADR_(l_uint)];
+};
+struct linux_io_uring_setup_args {
+	register_t dummy;
+};
+struct linux_io_uring_enter_args {
+	register_t dummy;
+};
+struct linux_io_uring_register_args {
+	register_t dummy;
+};
 #define	nosys	linux_nosys
 int	linux_open(struct thread *, struct linux_open_args *);
 int	linux_newstat(struct thread *, struct linux_newstat_args *);
@@ -1479,6 +1507,13 @@ int	linux_pwritev2(struct thread *, struct linux_pwritev2_args *);
 int	linux_pkey_mprotect(struct thread *, struct linux_pkey_mprotect_args *);
 int	linux_pkey_alloc(struct thread *, struct linux_pkey_alloc_args *);
 int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
+int	linux_statx(struct thread *, struct linux_statx_args *);
+int	linux_io_pgetevents(struct thread *, struct linux_io_pgetevents_args *);
+int	linux_rseq(struct thread *, struct linux_rseq_args *);
+int	linux_pidfd_send_signal(struct thread *, struct linux_pidfd_send_signal_args *);
+int	linux_io_uring_setup(struct thread *, struct linux_io_uring_setup_args *);
+int	linux_io_uring_enter(struct thread *, struct linux_io_uring_enter_args *);
+int	linux_io_uring_register(struct thread *, struct linux_io_uring_register_args *);
 
 #ifdef COMPAT_43
 
@@ -1786,6 +1821,13 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 #define	LINUX_SYS_AUE_linux_pkey_mprotect	AUE_NULL
 #define	LINUX_SYS_AUE_linux_pkey_alloc	AUE_NULL
 #define	LINUX_SYS_AUE_linux_pkey_free	AUE_NULL
+#define	LINUX_SYS_AUE_linux_statx	AUE_NULL
+#define	LINUX_SYS_AUE_linux_io_pgetevents	AUE_NULL
+#define	LINUX_SYS_AUE_linux_rseq	AUE_NULL
+#define	LINUX_SYS_AUE_linux_pidfd_send_signal	AUE_NULL
+#define	LINUX_SYS_AUE_linux_io_uring_setup	AUE_NULL
+#define	LINUX_SYS_AUE_linux_io_uring_enter	AUE_NULL
+#define	LINUX_SYS_AUE_linux_io_uring_register	AUE_NULL
 
 #undef PAD_
 #undef PADL_

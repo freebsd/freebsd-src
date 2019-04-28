@@ -595,7 +595,21 @@
 330	AUE_NULL	STD	{ int linux_pkey_alloc(l_ulong flags,		\
 				    l_ulong init_val); }
 331	AUE_NULL	STD	{ int linux_pkey_free(l_int pkey); }
+; Linux 4.11:
+332	AUE_NULL	STD	{ int linux_statx(l_int dirfd,			\
+				    const char *pathname, l_uint flags,		\
+				    l_uint mask, void *statxbuf); }
+; Linux 4.18:
+333	AUE_NULL	STD	{ int linux_io_pgetevents(void); }
+334	AUE_NULL	STD	{ int linux_rseq(void); }
+; Linux 5.0:
+335-423	AUE_NULL	UNIMPL	nosys
+424	AUE_NULL	STD	{ int linux_pidfd_send_signal(l_int pidfd,	\
+				    l_int sig, l_siginfo_t *info, l_uint flags); }
+425	AUE_NULL	STD	{ int linux_io_uring_setup(void); }
+426	AUE_NULL	STD	{ int linux_io_uring_enter(void); }
+427	AUE_NULL	STD	{ int linux_io_uring_register(void); }
 
 ; please, keep this line at the end.
-332	AUE_NULL	UNIMPL	nosys
+428	AUE_NULL	UNIMPL	nosys
 ; vim: syntax=off
