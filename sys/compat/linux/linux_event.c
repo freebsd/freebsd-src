@@ -263,6 +263,7 @@ epoll_create_common(struct thread *td, int flags)
 	return (0);
 }
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_epoll_create(struct thread *td, struct linux_epoll_create_args *args)
 {
@@ -276,6 +277,7 @@ linux_epoll_create(struct thread *td, struct linux_epoll_create_args *args)
 
 	return (epoll_create_common(td, 0));
 }
+#endif
 
 int
 linux_epoll_create1(struct thread *td, struct linux_epoll_create1_args *args)
@@ -616,6 +618,7 @@ leave1:
 	return (error);
 }
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_epoll_wait(struct thread *td, struct linux_epoll_wait_args *args)
 {
@@ -623,6 +626,7 @@ linux_epoll_wait(struct thread *td, struct linux_epoll_wait_args *args)
 	return (linux_epoll_wait_common(td, args->epfd, args->events,
 	    args->maxevents, args->timeout, NULL));
 }
+#endif
 
 int
 linux_epoll_pwait(struct thread *td, struct linux_epoll_pwait_args *args)
@@ -707,12 +711,14 @@ eventfd_create(struct thread *td, uint32_t initval, int flags)
 	return (error);
 }
 
+#ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_eventfd(struct thread *td, struct linux_eventfd_args *args)
 {
 
 	return (eventfd_create(td, args->initval, 0));
 }
+#endif
 
 int
 linux_eventfd2(struct thread *td, struct linux_eventfd2_args *args)
