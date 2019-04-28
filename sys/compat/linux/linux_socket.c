@@ -83,7 +83,7 @@ static int linux_recvmsg_common(struct thread *, l_int, struct l_msghdr *,
 static int linux_set_socket_flags(int, int *);
 
 /*
- * Reads a linux sockaddr and does any necessary translation.
+ * Reads a Linux sockaddr and does any necessary translation.
  * Linux sockaddrs don't have a length field, only a family.
  * Copy the osockaddr structure pointed to by osa to kernel, adjust
  * family and convert to sockaddr.
