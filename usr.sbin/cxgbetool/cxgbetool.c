@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pcap.h>
 
 #include "t4_ioctl.h"
 #include "tcb_common.h"
@@ -106,6 +107,8 @@ usage(FILE *fp)
 	    "\tloadfw <fw-image.bin>               install firmware\n"
 	    "\tmemdump <addr> <len>                dump a memory range\n"
 	    "\tmodinfo <port> [raw]                optics/cable information\n"
+	    "\tpolicy <policy.txt>                 install offload policy\n"
+	    "\tpolicy clear                        remove offload policy\n"
 	    "\treg <address>[=<val>]               read/write register\n"
 	    "\treg64 <address>[=<val>]             read/write 64 bit register\n"
 	    "\tregdump [<module>] ...              dump registers\n"
@@ -2890,6 +2893,453 @@ sched_queue(int argc, const char *argv[])
 }
 
 static int
+parse_offload_settings_word(const char *s, char **pnext, const char *ws,
+    int *pneg, struct offload_settings *os)
+{
+
+	while (*s == '!') {
+		(*pneg)++;
+		s++;
+	}
+
+	if (!strcmp(s, "not")) {
+		(*pneg)++;
+		return (0);
+	}
+
+	if (!strcmp(s, "offload")) {
+		os->offload = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s , "coalesce")) {
+		os->rx_coalesce = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "timestamp") || !strcmp(s, "tstamp")) {
+		os->tstamp = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "sack")) {
+		os->sack = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "nagle")) {
+		os->nagle = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "ecn")) {
+		os->ecn = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "ddp")) {
+		os->ddp = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else if (!strcmp(s, "tls")) {
+		os->tls = (*pneg + 1) & 1;
+		*pneg = 0;
+	} else {
+		char *param, *p;
+		long val;
+
+		/* Settings with additional parameter handled here. */
+
+		if (*pneg) {
+			warnx("\"%s\" is not a valid keyword, or it does not "
+			    "support negation.", s);
+			return (EINVAL);
+		}
+
+		while ((param = strsep(pnext, ws)) != NULL) {
+			if (*param != '\0')
+				break;
+		}
+		if (param == NULL) {
+			warnx("\"%s\" is not a valid keyword, or it requires a "
+			    "parameter that has not been provided.", s);
+			return (EINVAL);
+		}
+
+		if (!strcmp(s, "cong")) {
+			if (!strcmp(param, "reno"))
+				os->cong_algo = 0;
+			else if (!strcmp(param, "tahoe"))
+				os->cong_algo = 1;
+			else if (!strcmp(param, "newreno"))
+				os->cong_algo = 2;
+			else if (!strcmp(param, "highspeed"))
+				os->cong_algo = 3;
+			else {
+				warnx("unknown congestion algorithm \"%s\".", s);
+				return (EINVAL);
+			}
+		} else if (!strcmp(s, "class")) {
+			val = -1;
+			p = str_to_number(param, &val, NULL);
+			/* (nsched_cls - 1) is spelled 15 here. */
+			if (*p || val < 0 || val > 15) {
+				warnx("invalid scheduling class \"%s\".  "
+				    "\"class\" needs an integer value where "
+				    "0 <= value <= 15", param);
+				return (EINVAL);
+			}
+			os->sched_class = val;
+		} else if (!strcmp(s, "bind") || !strcmp(s, "txq") ||
+		    !strcmp(s, "rxq")) {
+			val = -1;
+			if (strcmp(param, "random")) {
+				p = str_to_number(param, &val, NULL);
+				if (*p || val < 0 || val > 0xffff) {
+					warnx("invalid queue specification "
+					    "\"%s\".  \"%s\" needs an integer"
+					    " value, or \"random\".",
+					    param, s);
+					return (EINVAL);
+				}
+			}
+			if (!strcmp(s, "bind")) {
+				os->txq = val;
+				os->rxq = val;
+			} else if (!strcmp(s, "txq")) {
+				os->txq = val;
+			} else if (!strcmp(s, "rxq")) {
+				os->rxq = val;
+			} else {
+				return (EDOOFUS);
+			}
+		} else if (!strcmp(s, "mss")) {
+			val = -1;
+			p = str_to_number(param, &val, NULL);
+			if (*p || val <= 0) {
+				warnx("invalid MSS specification \"%s\".  "
+				    "\"mss\" needs a positive integer value",
+				    param);
+				return (EINVAL);
+			}
+			os->mss = val;
+		} else  {
+			warnx("unknown settings keyword: \"%s\"", s);
+			return (EINVAL);
+		}
+	}
+
+	return (0);
+}
+
+static int
+parse_offload_settings(const char *settings_ro, struct offload_settings *os)
+{
+	const char *ws = " \f\n\r\v\t";
+	char *settings, *s, *next;
+	int rc, nsettings, neg;
+	static const struct offload_settings default_settings = {
+		.offload = 0,	/* No settings imply !offload */
+		.rx_coalesce = -1,
+		.cong_algo = -1,
+		.sched_class = -1,
+		.tstamp = -1,
+		.sack = -1,
+		.nagle = -1,
+		.ecn = -1,
+		.ddp = -1,
+		.tls = -1,
+		.txq = -1,
+		.rxq = -1,
+		.mss = -1,
+	};
+
+	*os = default_settings;
+
+	next = settings = strdup(settings_ro);
+	if (settings == NULL) {
+		warn (NULL);
+		return (errno);
+	}
+
+	nsettings = 0;
+	rc = 0;
+	neg = 0;
+	while ((s = strsep(&next, ws)) != NULL) {
+		if (*s == '\0')
+			continue;
+		nsettings++;
+		rc = parse_offload_settings_word(s, &next, ws, &neg, os);
+		if (rc != 0)
+			goto done;
+	}
+	if (nsettings == 0) {
+		warnx("no settings provided");
+		rc = EINVAL;
+		goto done;
+	}
+	if (neg > 0) {
+		warnx("%d stray negation(s) at end of offload settings", neg);
+		rc = EINVAL;
+		goto done;
+	}
+done:
+	free(settings);
+	return (rc);
+}
+
+static int
+isempty_line(char *line, size_t llen)
+{
+
+	/* skip leading whitespace */
+	while (isspace(*line)) {
+		line++;
+		llen--;
+	}
+	if (llen == 0 || *line == '#' || *line == '\n')
+		return (1);
+
+	return (0);
+}
+
+static int
+special_offload_rule(char *str)
+{
+
+	/* skip leading whitespaces */
+	while (isspace(*str))
+		str++;
+
+	/* check for special strings: "-", "all", "any" */
+	if (*str == '-') {
+		str++;
+	} else if (!strncmp(str, "all", 3) || !strncmp(str, "any", 3)) {
+		str += 3;
+	} else {
+		return (0);
+	}
+
+	/* skip trailing whitespaces */
+	while (isspace(*str))
+		str++;
+
+	return (*str == '\0');
+}
+
+/*
+ * A rule has 3 parts: an open-type, a match expression, and offload settings.
+ *
+ * [<open-type>] <expr> => <settings>
+ */
+static int
+parse_offload_policy_line(size_t lno, char *line, size_t llen, pcap_t *pd,
+    struct offload_rule *r)
+{
+	char *expr, *settings, *s;
+
+	bzero(r, sizeof(*r));
+
+	/* Skip leading whitespace. */
+	while (isspace(*line))
+		line++;
+	/* Trim trailing whitespace */
+	s = &line[llen - 1];
+	while (isspace(*s)) {
+		*s-- = '\0';
+		llen--;
+	}
+
+	/*
+	 * First part of the rule: '[X]' where X = A/D/L/P
+	 */
+	if (*line++ != '[') {
+		warnx("missing \"[\" on line %zd", lno);
+		return (EINVAL);
+	}
+	switch (*line) {
+	case 'A':
+	case 'D':
+	case 'L':
+	case 'P':
+		r->open_type = *line;
+		break;
+	default:
+		warnx("invalid socket-type \"%c\" on line %zd.", *line, lno);
+		return (EINVAL);
+	}
+	line++;
+	if (*line++ != ']') {
+		warnx("missing \"]\" after \"[%c\" on line %zd",
+		    r->open_type, lno);
+		return (EINVAL);
+	}
+
+	/* Skip whitespace. */
+	while (isspace(*line))
+		line++;
+
+	/*
+	 * Rest of the rule: <expr> => <settings>
+	 */
+	expr = line;
+	s = strstr(line, "=>");
+	if (s == NULL)
+		return (EINVAL);
+	settings = s + 2;
+	while (isspace(*settings))
+		settings++;
+	*s = '\0';
+
+	/*
+	 * <expr> is either a special name (all, any) or a pcap-filter(7).
+	 * In case of a special name the bpf_prog stays all-zero.
+	 */
+	if (!special_offload_rule(expr)) {
+		if (pcap_compile(pd, &r->bpf_prog, expr, 1,
+		    PCAP_NETMASK_UNKNOWN) < 0) {
+			warnx("failed to compile \"%s\" on line %zd: %s", expr,
+			    lno, pcap_geterr(pd));
+			return (EINVAL);
+		}
+	}
+
+	/* settings to apply on a match. */
+	if (parse_offload_settings(settings, &r->settings) != 0) {
+		warnx("failed to parse offload settings \"%s\" on line %zd",
+		    settings, lno);
+		pcap_freecode(&r->bpf_prog);
+		return (EINVAL);
+	}
+
+	return (0);
+
+}
+
+/*
+ * Note that op itself is not dynamically allocated.
+ */
+static void
+free_offload_policy(struct t4_offload_policy *op)
+{
+	int i;
+
+	for (i = 0; i < op->nrules; i++) {
+		/*
+		 * pcap_freecode can cope with empty bpf_prog, which is the case
+		 * for an rule that matches on 'any/all/-'.
+		 */
+		pcap_freecode(&op->rule[i].bpf_prog);
+	}
+	free(op->rule);
+	op->nrules = 0;
+	op->rule = NULL;
+}
+
+#define REALLOC_STRIDE 32
+
+/*
+ * Fills up op->nrules and op->rule.
+ */
+static int
+parse_offload_policy(const char *fname, struct t4_offload_policy *op)
+{
+	FILE *fp;
+	char *line;
+	int lno, maxrules, rc;
+	size_t lcap, llen;
+	struct offload_rule *r;
+	pcap_t *pd;
+
+	fp = fopen(fname, "r");
+	if (fp == NULL) {
+		warn("Unable to open file \"%s\"", fname);
+		return (errno);
+	}
+	pd = pcap_open_dead(DLT_EN10MB, 128);
+	if (pd == NULL) {
+		warnx("Failed to open pcap device");
+		fclose(fp);
+		return (EIO);
+	}
+
+	rc = 0;
+	lno = 0;
+	lcap = 0;
+	maxrules = 0;
+	op->nrules = 0;
+	op->rule = NULL;
+	line = NULL;
+
+	while ((llen = getline(&line, &lcap, fp)) != -1) {
+		lno++;
+
+		/* Skip empty lines. */
+		if (isempty_line(line, llen))
+			continue;
+
+		if (op->nrules == maxrules) {
+			maxrules += REALLOC_STRIDE;
+			r = realloc(op->rule,
+			    maxrules * sizeof(struct offload_rule));
+			if (r == NULL) {
+				warnx("failed to allocate memory for %d rules",
+				    maxrules);
+				rc = ENOMEM;
+				goto done;
+			}
+			op->rule = r;
+		}
+
+		r = &op->rule[op->nrules];
+		rc = parse_offload_policy_line(lno, line, llen, pd, r);
+		if (rc != 0) {
+			warnx("Error parsing line %d of \"%s\"", lno, fname);
+			goto done;
+		}
+
+		op->nrules++;
+	}
+	free(line);
+
+	if (!feof(fp)) {
+		warn("Error while reading from file \"%s\" at line %d",
+		    fname, lno);
+		rc = errno;
+		goto done;
+	}
+
+	if (op->nrules == 0) {
+		warnx("No valid rules found in \"%s\"", fname);
+		rc = EINVAL;
+	}
+done:
+	pcap_close(pd);
+	fclose(fp);
+	if (rc != 0) {
+		free_offload_policy(op);
+	}
+
+	return (rc);
+}
+
+static int
+load_offload_policy(int argc, const char *argv[])
+{
+	int rc = 0;
+	const char *fname = argv[0];
+	struct t4_offload_policy op = {0};
+
+	if (argc != 1) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	if (!strcmp(fname, "clear") || !strcmp(fname, "none")) {
+		/* op.nrules is 0 and that means clear policy */
+		return (doit(CHELSIO_T4_SET_OFLD_POLICY, &op));
+	}
+
+	rc = parse_offload_policy(fname, &op);
+	if (rc != 0) {
+		/* Error message displayed already */
+		return (EINVAL);
+	}
+
+	rc = doit(CHELSIO_T4_SET_OFLD_POLICY, &op);
+	free_offload_policy(&op);
+
+	return (rc);
+}
+
+static int
 run_cmd(int argc, const char *argv[])
 {
 	int rc = -1;
@@ -2935,6 +3385,8 @@ run_cmd(int argc, const char *argv[])
 		rc = loadbootcfg(argc, argv);
 	else if (!strcmp(cmd, "dumpstate"))
 		rc = dumpstate(argc, argv);
+	else if (!strcmp(cmd, "policy"))
+		rc = load_offload_policy(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);

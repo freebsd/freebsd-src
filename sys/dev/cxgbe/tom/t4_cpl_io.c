@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #ifdef TCP_OFFLOAD
 #include <sys/param.h>
@@ -130,6 +131,11 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		nparams++;
 	if (toep->tls.fcplenmax != 0)
 		nparams++;
+	if (toep->tc_idx != -1) {
+		MPASS(toep->tc_idx >= 0 &&
+		    toep->tc_idx < sc->chip_params->nsched_cls);
+		nparams++;
+	}
 
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
@@ -181,6 +187,8 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		FLOWC_PARAM(ULP_MODE, toep->ulp_mode);
 	if (toep->tls.fcplenmax != 0)
 		FLOWC_PARAM(TXDATAPLEN_MAX, toep->tls.fcplenmax);
+	if (toep->tc_idx != -1)
+		FLOWC_PARAM(SCHEDCLASS, toep->tc_idx);
 #undef FLOWC_PARAM
 
 	KASSERT(paramidx == nparams, ("nparams mismatch"));
@@ -197,6 +205,76 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	toep->flags |= TPF_FLOWC_WR_SENT;
         t4_wrq_tx(sc, wr);
 }
+
+#ifdef RATELIMIT
+/*
+ * Input is Bytes/second (so_max_pacing-rate), chip counts in Kilobits/second.
+ */
+static int
+update_tx_rate_limit(struct adapter *sc, struct toepcb *toep, u_int Bps)
+{
+	int tc_idx, rc;
+	const u_int kbps = (u_int) (uint64_t)Bps * 8ULL / 1000;
+	const int port_id = toep->vi->pi->port_id;
+
+	CTR3(KTR_CXGBE, "%s: tid %u, rate %uKbps", __func__, toep->tid, kbps);
+
+	if (kbps == 0) {
+		/* unbind */
+		tc_idx = -1;
+	} else {
+		rc = t4_reserve_cl_rl_kbps(sc, port_id, kbps, &tc_idx);
+		if (rc != 0)
+			return (rc);
+		MPASS(tc_idx >= 0 && tc_idx < sc->chip_params->nsched_cls);
+	}
+
+	if (toep->tc_idx != tc_idx) {
+		struct wrqe *wr;
+		struct fw_flowc_wr *flowc;
+		int nparams = 1, flowclen, flowclen16;
+		struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
+
+		flowclen = sizeof(*flowc) + nparams * sizeof(struct
+		    fw_flowc_mnemval);
+		flowclen16 = howmany(flowclen, 16);
+		if (toep->tx_credits < flowclen16 || toep->txsd_avail == 0 ||
+		    (wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq)) == NULL) {
+			if (tc_idx >= 0)
+				t4_release_cl_rl_kbps(sc, port_id, tc_idx);
+			return (ENOMEM);
+		}
+
+		flowc = wrtod(wr);
+		memset(flowc, 0, wr->wr_len);
+
+		flowc->op_to_nparams = htobe32(V_FW_WR_OP(FW_FLOWC_WR) |
+		    V_FW_FLOWC_WR_NPARAMS(nparams));
+		flowc->flowid_len16 = htonl(V_FW_WR_LEN16(flowclen16) |
+		    V_FW_WR_FLOWID(toep->tid));
+
+		flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_SCHEDCLASS;
+		if (tc_idx == -1)
+			flowc->mnemval[0].val = htobe32(0xff);
+		else
+			flowc->mnemval[0].val = htobe32(tc_idx);
+
+		txsd->tx_credits = flowclen16;
+		txsd->plen = 0;
+		toep->tx_credits -= txsd->tx_credits;
+		if (__predict_false(++toep->txsd_pidx == toep->txsd_total))
+			toep->txsd_pidx = 0;
+		toep->txsd_avail--;
+		t4_wrq_tx(sc, wr);
+	}
+
+	if (toep->tc_idx >= 0)
+		t4_release_cl_rl_kbps(sc, port_id, toep->tc_idx);
+	toep->tc_idx = tc_idx;
+
+	return (0);
+}
+#endif
 
 void
 send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
@@ -272,18 +350,18 @@ assign_rxopt(struct tcpcb *tp, unsigned int opt)
 		n = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
 	else
 		n = sizeof(struct ip) + sizeof(struct tcphdr);
-	if (V_tcp_do_rfc1323)
-		n += TCPOLEN_TSTAMP_APPA;
 	tp->t_maxseg = sc->params.mtus[G_TCPOPT_MSS(opt)] - n;
-
-	CTR4(KTR_CXGBE, "%s: tid %d, mtu_idx %u (%u)", __func__, toep->tid,
-	    G_TCPOPT_MSS(opt), sc->params.mtus[G_TCPOPT_MSS(opt)]);
 
 	if (G_TCPOPT_TSTAMP(opt)) {
 		tp->t_flags |= TF_RCVD_TSTMP;	/* timestamps ok */
 		tp->ts_recent = 0;		/* hmmm */
 		tp->ts_recent_age = tcp_ts_getticks();
+		tp->t_maxseg -= TCPOLEN_TSTAMP_APPA;
 	}
+
+	CTR5(KTR_CXGBE, "%s: tid %d, mtu_idx %u (%u), mss %u", __func__,
+	    toep->tid, G_TCPOPT_MSS(opt), sc->params.mtus[G_TCPOPT_MSS(opt)],
+	    tp->t_maxseg);
 
 	if (G_TCPOPT_SACK(opt))
 		tp->t_flags |= TF_SACK_PERMIT;	/* should already be set */
@@ -661,7 +739,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_snd;
 	int tx_credits, shove, compl, sowwakeup;
-	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
+	struct ofld_tx_sdesc *txsd;
 	bool aiotx_mbuf_seen;
 
 	INP_WLOCK_ASSERT(inp);
@@ -681,6 +759,13 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	if (__predict_false(toep->flags & TPF_ABORT_SHUTDOWN))
 		return;
 
+#ifdef RATELIMIT
+	if (__predict_false(inp->inp_flags2 & INP_RATE_LIMIT_CHANGED) &&
+	    (update_tx_rate_limit(sc, toep, so->so_max_pacing_rate) == 0)) {
+		inp->inp_flags2 &= ~INP_RATE_LIMIT_CHANGED;
+	}
+#endif
+
 	/*
 	 * This function doesn't resume by itself.  Someone else must clear the
 	 * flag and call this function.
@@ -691,6 +776,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		return;
 	}
 
+	txsd = &toep->txsd[toep->txsd_pidx];
 	do {
 		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
 		max_imm = max_imm_payload(tx_credits);

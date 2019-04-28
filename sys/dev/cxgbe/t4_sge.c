@@ -965,8 +965,10 @@ mtu_to_max_payload(struct adapter *sc, int mtu, const int toe)
 
 #ifdef TCP_OFFLOAD
 	if (toe) {
-		payload = sc->tt.rx_coalesce ?
-		    G_RXCOALESCESIZE(t4_read_reg(sc, A_TP_PARA_REG2)) : mtu;
+		int rxcs = G_RXCOALESCESIZE(t4_read_reg(sc, A_TP_PARA_REG2));
+
+		/* Note that COP can set rx_coalesce on/off per connection. */
+		payload = max(mtu, rxcs);
 	} else {
 #endif
 		/* large enough even when hw VLAN extraction is disabled */

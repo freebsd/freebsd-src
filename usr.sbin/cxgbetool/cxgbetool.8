@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2017
+.Dd April 13, 2018
 .Dt CXGBETOOL 8
 .Os
 .Sh NAME
@@ -63,6 +63,10 @@
 .Nm Ar nexus Cm loadfw Ar fw-image.bin
 .It
 .Nm Ar nexus Cm memdump Ar addr len
+.It
+.Nm Ar nexus Cm policy Ar cop.txt
+.It
+.Nm Ar nexus Cm policy clear
 .It
 .Nm Ar nexus Bro Cm reg | reg64 Brc Ar addr Ns Op Ar =val
 .It
@@ -378,6 +382,144 @@ bytes of data of the card's memory starting at
 .Ar addr Ns .
 The card's memory map is available in
 .Va dev.t4nex.%d.misc.meminfo Ns .
+.It Cm policy Ar cop.txt
+Install the Connection Offload Policy (COP) in
+.Ar cop.txt Ns .
+A COP offers fine-grained control over which connections get offloaded and with
+what parameters.
+Set
+.Cm hw.cxgbe.cop_managed_offloading="1"
+in loader.conf to ensure that t4_tom will not offload any connection before a
+COP is installed.
+Note that t4_tom must be loaded and operational (IFCAP_TOE enabled) as always
+for any kind of offload based on the hardware TOE.
+.Bl -column -offset indent "COP installed" "cop_managed_offloading" "Behavior"
+.It Sy COP installed Ta Sy cop_managed_offloading Ta Sy Behavior
+.It NO Ta 0 Ta offload all [Default]
+.It NO Ta 1 Ta no offload
+.It YES Ta Don't Care Ta Rule based offload
+.El
+.Pp
+The policy file consists of empty lines, comments (lines begining with #) and
+any number of rules.
+Rules are applied in the order they appear in the file and processing stops at
+the first match.
+There is an implicit rule that disables offload for connections that do not
+match anything in the policy.
+.Pp
+Each rule consists of a filter part, which determines what connections the
+rule applies to, and a settings part, which determines whether whether matching
+connections will be offloaded and, if so, with what settings.
+The general form of a rule is
+.Bl -ohang -offset indent
+.It Cm \&[ Ar socket-type Cm \&] Ar pcap-filter Cm => Ar settings
+.Pp
+.Ar socket-type
+is one of the following.
+.Bl -tag -width "X" -compact
+.It Sy A
+Active open.
+Connection is being opened by this host.
+.It Sy P
+Passive open.
+Connection was requested by a peer.
+.It Sy L
+Listen called on a socket.
+Disabling offload in such a rule will prevent a hardware listener from being started.
+.It Sy D
+Don't care.
+Matches all of the above.
+.El
+.Pp
+.Ar pcap-filter
+is an expression that follows the
+.Xr pcap-filter 7
+syntax, or it is the keyword
+.Cm all
+that matches everything.
+.Pp
+.Ar settings
+determine whether connections matching
+.Ar socket-type
+and
+.Ar pcap-filter
+are offloaded and optionally sets some per-connection properties if they are.
+A combination of the following is allowed.
+.Bl -tag -width "timestamp" -compact
+.It Cm offload
+Connection should be offloaded.
+Use
+.Cm !offload
+or
+.Cm not offload
+to disable offload instead.
+.It Cm coalesce
+Enable rx payload coalescing.
+Negate to disable.
+.It Cm timestamp
+Enable TCP timestamp option.
+Negate to disable.
+.It Cm sack
+Enable TCP Selective Acknowledgements (SACK).
+Negate to disable.
+.It Cm nagle
+Enable Nagle's algorithm.
+Negate to disable.
+.It Cm ecn
+Enable Explicit Congestion Notification (ECN).
+Negate to disable.
+.It Cm ddp
+Use Direct Data Placement (zero copy receive) and zero copy transmit on the
+connection to service AIO requests on the socket.
+Negate to disable.
+.It Cm tls
+Set ULP mode to ULP_MODE_TLS.
+.It Cm cong Ar algo
+Use the specified congestion control algorithm.
+.Ar algo
+must be one of
+.Cm reno Ns , Cm tahoe Ns , Cm newreno Ns , or Cm highspeed Ns .
+.It Cm class Ar sc
+Bind the connection to the specified tx scheduling class.
+Valid range is 0 to 14 (for T4) and 0 to 15 (T5 onwards).
+.It Cm rxq Ar qid
+Use the specified offload rx queue.
+.Ar qid
+should be between 0 and nofldrxq for the ifnet.
+.It Cm txq Ar qnum
+Use the specified offload tx queue.
+.Ar qid
+should be between 0 and nofldtxq for the ifnet.
+.It Cm bind Ar qnum
+Shorthand for
+.Cm rxq Ar qnum Cm txq Ar qnum Ns .
+Use only when nofldrxq is the same as nofldtxq.
+.It Cm mss Ar val
+Set the advertised TCP MSS in the SYN for this connection to
+.Ar val
+(in bytes).
+The hardware MTU table must already have an entry that is suitable for the MSS.
+.El
+.Pp
+.It Example of a COP.
+Note that hardware listener for port 22 will be IPv4 only because the rule
+before it will prevent any IPv6 servers other than the first two.  Also note
+that outgoing connections to 192.168/16 are the only outgoing connections that
+will get offloaded.
+.Bd -literal
+[L] port 80 => offload
+[L] port 443 => offload
+[L] ip6 => !offload
+[L] port 22 => offload
+[P] dst port 80 => offload cong highspeed !sack !ecn
+[P] dst port 443 => offload tls
+[A] dst net 192.168/16 => offload
+[A] all => !offload
+[D] port 22 => offload !nagle
+.Ed
+.El
+.It Cm policy clear
+Remove the Connection Offload Policy (COP) if one is in use.
 .It Bro Cm reg | reg64 Brc Ar addr Ns Op Ar =val
 .It Cm regdump Op Ar register-block ...
 Display contents of device registers.
