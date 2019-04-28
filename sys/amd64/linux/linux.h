@@ -459,7 +459,7 @@ struct l_pollfd {
 struct linux_robust_list {
 	l_uintptr_t			next;
 };
- 
+
 struct linux_robust_list_head {
 	struct linux_robust_list	list;
 	l_long				futex_offset;

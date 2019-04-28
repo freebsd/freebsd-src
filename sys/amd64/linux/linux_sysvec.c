@@ -736,7 +736,7 @@ linux_vsyscall(struct thread *td)
 	struct trapframe *frame;
 	uint64_t retqaddr;
 	int code, traced;
-	int error; 
+	int error;
 
 	frame = td->td_frame;
 
@@ -810,7 +810,7 @@ linux_vdso_install(void *param)
 
 	amd64_lower_shared_page(&elf_linux_sysvec);
 
-	linux_szsigcode = (&_binary_linux_locore_o_end - 
+	linux_szsigcode = (&_binary_linux_locore_o_end -
 	    &_binary_linux_locore_o_start);
 
 	if (linux_szsigcode > elf_linux_sysvec.sv_shared_page_len)

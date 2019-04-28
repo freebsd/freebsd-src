@@ -280,7 +280,7 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 	} else {
 		idx = info.entry_number;
 
-		/* 
+		/*
 		 * looks like we're getting the idx we returned
 		 * in the set_thread_area() syscall
 		 */
@@ -291,8 +291,8 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 
 		/* this doesnt happen in practice */
 		if (idx == 6) {
-	   		/* we might copy out the entry_number as 3 */
-		   	info.entry_number = 3;
+			/* we might copy out the entry_number as 3 */
+			info.entry_number = 3;
 			error = copyout(&info, desc, sizeof(struct l_user_desc));
 			if (error)
 				printf(LMSG("copyout failed!"));
@@ -636,51 +636,51 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 
 #ifdef DEBUG
 	if (ldebug(set_thread_area))
-	   	printf(ARGS(set_thread_area, "%i, %x, %x, %i, %i, %i, %i, %i, %i\n"),
+		printf(ARGS(set_thread_area, "%i, %x, %x, %i, %i, %i, %i, %i, %i\n"),
 		      info.entry_number,
-      		      info.base_addr,
-      		      info.limit,
-      		      info.seg_32bit,
+		      info.base_addr,
+		      info.limit,
+		      info.seg_32bit,
 		      info.contents,
-      		      info.read_exec_only,
-      		      info.limit_in_pages,
-      		      info.seg_not_present,
-      		      info.useable);
+		      info.read_exec_only,
+		      info.limit_in_pages,
+		      info.seg_not_present,
+		      info.useable);
 #endif
 
 	idx = info.entry_number;
-	/* 
+	/*
 	 * Semantics of linux version: every thread in the system has array of
-	 * 3 tls descriptors. 1st is GLIBC TLS, 2nd is WINE, 3rd unknown. This 
+	 * 3 tls descriptors. 1st is GLIBC TLS, 2nd is WINE, 3rd unknown. This
 	 * syscall loads one of the selected tls decriptors with a value and
 	 * also loads GDT descriptors 6, 7 and 8 with the content of the
 	 * per-thread descriptors.
 	 *
-	 * Semantics of fbsd version: I think we can ignore that linux has 3 
+	 * Semantics of fbsd version: I think we can ignore that linux has 3
 	 * per-thread descriptors and use just the 1st one. The tls_array[]
 	 * is used only in set/get-thread_area() syscalls and for loading the
 	 * GDT descriptors. In fbsd we use just one GDT descriptor for TLS so
-	 * we will load just one. 
+	 * we will load just one.
 	 *
 	 * XXX: this doesn't work when a user space process tries to use more
 	 * than 1 TLS segment. Comment in the linux sources says wine might do
 	 * this.
 	 */
 
-	/* 
-	 * we support just GLIBC TLS now 
+	/*
+	 * we support just GLIBC TLS now
 	 * we should let 3 proceed as well because we use this segment so
 	 * if code does two subsequent calls it should succeed
 	 */
 	if (idx != 6 && idx != -1 && idx != 3)
 		return (EINVAL);
 
-	/* 
+	/*
 	 * we have to copy out the GDT entry we use
 	 * FreeBSD uses GDT entry #3 for storing %gs so load that
 	 *
 	 * XXX: what if a user space program doesn't check this value and tries
-	 * to use 6, 7 or 8? 
+	 * to use 6, 7 or 8?
 	 */
 	idx = info.entry_number = 3;
 	error = copyout(&info, args->desc, sizeof(struct l_user_desc));
@@ -698,7 +698,7 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 	memcpy(&sd, &a, sizeof(a));
 #ifdef DEBUG
 	if (ldebug(set_thread_area))
-	   	printf("Segment created in set_thread_area: lobase: %x, hibase: %x, lolimit: %x, hilimit: %x, type: %i, dpl: %i, p: %i, xx: %i, def32: %i, gran: %i\n", sd.sd_lobase,
+		printf("Segment created in set_thread_area: lobase: %x, hibase: %x, lolimit: %x, hilimit: %x, type: %i, dpl: %i, p: %i, xx: %i, def32: %i, gran: %i\n", sd.sd_lobase,
 			sd.sd_hibase,
 			sd.sd_lolimit,
 			sd.sd_hilimit,
@@ -717,14 +717,14 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 	PCPU_GET(fsgs_gdt)[1] = sd;
 	load_gs(GSEL(GUGS_SEL, SEL_UPL));
 	critical_exit();
-   
+
 	return (0);
 }
 
 int
 linux_get_thread_area(struct thread *td, struct linux_get_thread_area_args *args)
 {
-   	
+
 	struct l_user_desc info;
 	int error;
 	int idx;
@@ -765,7 +765,7 @@ linux_get_thread_area(struct thread *td, struct linux_get_thread_area_args *args
 
 	error = copyout(&info, args->desc, sizeof(struct l_user_desc));
 	if (error)
-	   	return (EFAULT);
+		return (EFAULT);
 
 	return (0);
 }
@@ -775,7 +775,7 @@ int
 linux_mq_open(struct thread *td, struct linux_mq_open_args *args)
 {
 #ifdef P1003_1B_MQUEUE
-   	return sys_kmq_open(td, (struct kmq_open_args *) args);
+	return sys_kmq_open(td, (struct kmq_open_args *) args);
 #else
 	return (ENOSYS);
 #endif
@@ -785,7 +785,7 @@ int
 linux_mq_unlink(struct thread *td, struct linux_mq_unlink_args *args)
 {
 #ifdef P1003_1B_MQUEUE
-   	return sys_kmq_unlink(td, (struct kmq_unlink_args *) args);
+	return sys_kmq_unlink(td, (struct kmq_unlink_args *) args);
 #else
 	return (ENOSYS);
 #endif
@@ -795,7 +795,7 @@ int
 linux_mq_timedsend(struct thread *td, struct linux_mq_timedsend_args *args)
 {
 #ifdef P1003_1B_MQUEUE
-   	return sys_kmq_timedsend(td, (struct kmq_timedsend_args *) args);
+	return sys_kmq_timedsend(td, (struct kmq_timedsend_args *) args);
 #else
 	return (ENOSYS);
 #endif
@@ -805,7 +805,7 @@ int
 linux_mq_timedreceive(struct thread *td, struct linux_mq_timedreceive_args *args)
 {
 #ifdef P1003_1B_MQUEUE
-   	return sys_kmq_timedreceive(td, (struct kmq_timedreceive_args *) args);
+	return sys_kmq_timedreceive(td, (struct kmq_timedreceive_args *) args);
 #else
 	return (ENOSYS);
 #endif
@@ -825,7 +825,7 @@ int
 linux_mq_getsetattr(struct thread *td, struct linux_mq_getsetattr_args *args)
 {
 #ifdef P1003_1B_MQUEUE
-   	return sys_kmq_setattr(td, (struct kmq_setattr_args *) args);
+	return sys_kmq_setattr(td, (struct kmq_setattr_args *) args);
 #else
 	return (ENOSYS);
 #endif

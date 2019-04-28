@@ -114,7 +114,7 @@ int stclohz;				/* Statistics clock frequency */
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
 	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
 	RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
-	RLIMIT_MEMLOCK, RLIMIT_AS 
+	RLIMIT_MEMLOCK, RLIMIT_AS
 };
 
 struct l_sysinfo {
@@ -837,7 +837,7 @@ linux_utimensat_nsec_valid(l_long nsec)
 	return (1);
 }
 
-int 
+int
 linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 {
 	struct l_timespec l_times[2];
@@ -912,7 +912,7 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 		error = kern_futimens(td, dfd, timesp, UIO_SYSSPACE);
 	else {
 		error = kern_utimensat(td, dfd, path, UIO_SYSSPACE, timesp,
-	    		UIO_SYSSPACE, flags);
+			UIO_SYSSPACE, flags);
 		LFREEPATH(path);
 	}
 
@@ -1219,7 +1219,7 @@ struct l_itimerval {
 	l_timeval it_value;
 };
 
-#define	B2L_ITIMERVAL(bip, lip) 					\
+#define	B2L_ITIMERVAL(bip, lip)						\
 	(bip)->it_interval.tv_sec = (lip)->it_interval.tv_sec;		\
 	(bip)->it_interval.tv_usec = (lip)->it_interval.tv_usec;	\
 	(bip)->it_value.tv_sec = (lip)->it_value.tv_sec;		\

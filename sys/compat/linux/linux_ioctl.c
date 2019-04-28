@@ -241,7 +241,7 @@ linux_ioctl_hdio(struct thread *td, struct linux_ioctl_args *args)
 #if defined(DEBUG)
 		linux_msg(td, "HDIO_GET_GEO: mediasize %jd, c/h/s %d/%d/%d, "
 			  "bpc %jd",
-			  (intmax_t)mediasize, fwcylinders, fwheads, fwsectors, 
+			  (intmax_t)mediasize, fwcylinders, fwheads, fwsectors,
 			  (intmax_t)bytespercyl);
 #endif
 		if ((args->cmd & 0xffff) == LINUX_HDIO_GET_GEO) {
@@ -1052,7 +1052,7 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		break;
 	case LINUX_TIOCGPTN: {
 		int nb;
-		
+
 		error = fo_ioctl(fp, TIOCGPTN, (caddr_t)&nb, td->td_ucred, td);
 		if (!error)
 			error = copyout(&nb, (void *)args->arg,
@@ -2321,7 +2321,7 @@ again:
 		goto again;
 	}
 
-	ifc.ifc_len = valid_len; 
+	ifc.ifc_len = valid_len;
 	sbuf_finish(sb);
 	error = copyout(sbuf_data(sb), PTRIN(ifc.ifc_buf), ifc.ifc_len);
 	if (error == 0)
@@ -2395,12 +2395,12 @@ bsd_to_linux_ifreq(struct ifreq *arg)
 	struct ifreq ifr;
 	size_t ifr_len = sizeof(struct ifreq);
 	int error;
-	
+
 	if ((error = copyin(arg, &ifr, ifr_len)))
 		return (error);
-	
+
 	*(u_short *)&ifr.ifr_addr = ifr.ifr_addr.sa_family;
-	
+
 	error = copyout(&ifr, arg, ifr_len);
 
 	return (error);
@@ -2985,7 +2985,7 @@ linux_v4l_cliplist_copy(struct l_video_window *lvw, struct video_window *vw)
 				}
 			}
 			ppvc = &((*ppvc)->next);
-		        plvc = PTRIN(((struct l_video_clip *) plvc)->next);
+			plvc = PTRIN(((struct l_video_clip *) plvc)->next);
 		}
 	} else {
 		/*

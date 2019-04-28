@@ -735,8 +735,8 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 		return (error);
 	}
 
-	/* 
-	 * TODO: implement this 
+	/*
+	 * TODO: implement this
 	 * case LINUX_MSG_STAT:
 	 */
 	case LINUX_IPC_STAT:

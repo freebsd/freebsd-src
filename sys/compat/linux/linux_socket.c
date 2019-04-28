@@ -168,7 +168,7 @@ linux_getsockaddr(struct sockaddr **sap, const struct osockaddr *osa, int salen)
 		name = ((struct sockaddr_un *)kosa)->sun_path;
 		if (*name == '\0') {
 			/*
-		 	 * Linux abstract namespace starts with a NULL byte.
+			 * Linux abstract namespace starts with a NULL byte.
 			 * XXX We do not support abstract namespace yet.
 			 */
 			namelen = strnlen(name + 1, salen - hdrlen - 1) + 1;
@@ -759,7 +759,7 @@ linux_bind(struct thread *td, struct linux_bind_args *args)
 	error = kern_bindat(td, AT_FDCWD, args->s, sa);
 	free(sa, M_SONAME);
 	if (error == EADDRNOTAVAIL && args->namelen != sizeof(struct sockaddr_in))
-	   	return (EINVAL);
+		return (EINVAL);
 	return (error);
 }
 

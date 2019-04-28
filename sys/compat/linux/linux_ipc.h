@@ -84,7 +84,7 @@
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
-struct linux_msgctl_args 
+struct linux_msgctl_args
 {
 	l_int		msqid;
 	l_int		cmd;

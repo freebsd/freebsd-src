@@ -62,7 +62,7 @@ int linux_emul_convpath(struct thread *, const char *, enum uio_seg, char **, in
 			return (_error);				\
 	} while (0)
 
-#define LCONVPATH(td, upath, pathp, i) 	\
+#define LCONVPATH(td, upath, pathp, i)	\
    LCONVPATH_AT(td, upath, pathp, i, AT_FDCWD)
 
 #define LCONVPATHEXIST(td, upath, pathp) LCONVPATH(td, upath, pathp, 0)

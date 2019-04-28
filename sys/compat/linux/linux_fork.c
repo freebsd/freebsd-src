@@ -122,7 +122,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 
 	linux_proc_init(td, td2, 0);
 
-   	td->td_retval[0] = p2->p_pid;
+	td->td_retval[0] = p2->p_pid;
 
 	/*
 	 * Make this runnable after we are finished with it.
@@ -197,12 +197,12 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 	if (args->flags & LINUX_CLONE_CHILD_SETTID)
 		em->child_set_tid = args->child_tidptr;
 	else
-	   	em->child_set_tid = NULL;
+		em->child_set_tid = NULL;
 
 	if (args->flags & LINUX_CLONE_CHILD_CLEARTID)
 		em->child_clear_tid = args->child_tidptr;
 	else
-	   	em->child_clear_tid = NULL;
+		em->child_clear_tid = NULL;
 
 	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
 		error = copyout(&p2->p_pid, args->parent_tidptr,
@@ -225,7 +225,7 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		linux_set_cloned_tls(td2, args->tls);
 
 	/*
-	 * If CLONE_PARENT is set, then the parent of the new process will be 
+	 * If CLONE_PARENT is set, then the parent of the new process will be
 	 * the same as that of the calling process.
 	 */
 	if (args->flags & LINUX_CLONE_PARENT) {
@@ -324,15 +324,15 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	if (args->flags & LINUX_CLONE_CHILD_SETTID)
 		em->child_set_tid = args->child_tidptr;
 	else
-	   	em->child_set_tid = NULL;
+		em->child_set_tid = NULL;
 
 	if (args->flags & LINUX_CLONE_CHILD_CLEARTID)
 		em->child_clear_tid = args->child_tidptr;
 	else
-	   	em->child_clear_tid = NULL;
+		em->child_clear_tid = NULL;
 
 	cpu_thread_clean(newtd);
-	
+
 	linux_set_upcall_kse(newtd, PTROUT(args->stack));
 
 	PROC_LOCK(p);
@@ -468,7 +468,7 @@ linux_thread_detach(struct thread *td)
 
 		LINUX_CTR2(thread_detach, "thread(%d) %p",
 		    em->em_tid, child_clear_tid);
-	
+
 		error = suword32(child_clear_tid, 0);
 		if (error != 0)
 			return;

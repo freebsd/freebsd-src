@@ -435,7 +435,7 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 	}
 
 	/*
-	 * Check user supplied clock id in case of per-process 
+	 * Check user supplied clock id in case of per-process
 	 * or thread-specific cpu-time clock.
 	 */
 	switch (nwhich) {
@@ -462,7 +462,7 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 	if (args->tp == NULL) {
 		LIN_SDT_PROBE0(time, linux_clock_getres, nullcall);
 		LIN_SDT_PROBE1(time, linux_clock_getres, return, 0);
-	  	return (0);
+		return (0);
 	}
 
 	switch (nwhich) {

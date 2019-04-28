@@ -250,7 +250,7 @@
 #define	LINUX_IOCTL_SOCKET_MAX	LINUX_SIOCGIFCOUNT
 
 /*
- * Device private ioctl calls 
+ * Device private ioctl calls
  */
 #define LINUX_SIOCDEVPRIVATE	0x89F0  /* to 89FF */
 #define LINUX_IOCTL_PRIVATE_MIN	LINUX_SIOCDEVPRIVATE
@@ -428,7 +428,7 @@
 /* In addition to the termio values */
 #define	LINUX_VSTART		8
 #define	LINUX_VSTOP		9
-#define	LINUX_VSUSP 		10
+#define	LINUX_VSUSP		10
 #define	LINUX_VEOL		11
 #define	LINUX_VREPRINT		12
 #define	LINUX_VDISCARD		13
