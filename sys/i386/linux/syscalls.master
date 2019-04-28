@@ -121,10 +121,10 @@
 61	AUE_CHROOT	NOPROTO	{ int chroot(char *path); }
 62	AUE_NULL	STD	{ int linux_ustat(l_dev_t dev, \
 				    struct l_ustat *ubuf); }
-63	AUE_DUP2	NOPROTO { int dup2(u_int from, u_int to); }
+63	AUE_DUP2	NOPROTO	{ int dup2(u_int from, u_int to); }
 64	AUE_GETPPID	STD	{ int linux_getppid(void); }
-65	AUE_GETPGRP	NOPROTO { int getpgrp(void); }
-66	AUE_SETSID	NOPROTO { int setsid(void); }
+65	AUE_GETPGRP	NOPROTO	{ int getpgrp(void); }
+66	AUE_SETSID	NOPROTO	{ int setsid(void); }
 67	AUE_NULL	STD	{ int linux_sigaction(l_int sig, \
 				    l_osigaction_t *nsa, \
 				    l_osigaction_t *osa); }
