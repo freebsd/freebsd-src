@@ -212,8 +212,8 @@
 115	AUE_SWAPOFF	STD	{ int linux_swapoff(void); }
 116	AUE_NULL	STD	{ int linux_sysinfo(struct l_sysinfo *info); }
 117	AUE_NULL	STD	{ int linux_ipc(l_uint what, l_int arg1, \
-				    l_int arg2, l_int arg3, void *ptr, \
-				    l_long arg5); }
+				    l_int arg2, l_uint arg3, l_uintptr_t ptr, \
+				    l_uint arg5); }
 118	AUE_FSYNC	NOPROTO	{ int fsync(int fd); }
 119	AUE_SIGRETURN	STD	{ int linux_sigreturn( \
 				    struct l_sigframe *sfp); }
