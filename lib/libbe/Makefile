@@ -1,8 +1,11 @@
 # $FreeBSD$
 
+SHLIBDIR?=	/lib
+
+.include <src.opts.mk>
+
 PACKAGE=	lib${LIB}
 LIB=		be
-SHLIBDIR?= /lib
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
 
@@ -27,5 +30,8 @@ CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
 CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
 
 CFLAGS+= -DNEED_SOLARIS_BOOLEAN
+
+HAS_TESTS=	YES
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>
