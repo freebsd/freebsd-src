@@ -114,7 +114,7 @@ linux_driver_get_name_dev(device_t dev)
 	const char *device_name = device_get_name(dev);
 
 	if (device_name == NULL)
-		return NULL;
+		return (NULL);
 	TAILQ_FOREACH(de, &devices, list) {
 		if (strcmp(device_name, de->entry.bsd_driver_name) == 0)
 			return (de->entry.linux_driver_name);
@@ -131,7 +131,7 @@ linux_driver_get_major_minor(const char *node, int *major, int *minor)
 	size_t sz;
 
 	if (node == NULL || major == NULL || minor == NULL)
-		return 1;
+		return (1);
 
 	sz = sizeof("pts/") - 1;
 	if (strncmp(node, "pts/", sz) == 0 && node[sz] != '\0') {
