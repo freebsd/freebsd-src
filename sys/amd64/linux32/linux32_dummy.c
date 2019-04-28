@@ -161,6 +161,37 @@ DUMMY(pwritev2);
 DUMMY(pkey_mprotect);
 DUMMY(pkey_alloc);
 DUMMY(pkey_free);
+/* Linux 4.11: */
+DUMMY(statx);
+DUMMY(arch_prctl);
+/* Linux 4.18: */
+DUMMY(io_pgetevents);
+DUMMY(rseq);
+/* Linux 5.0: */
+DUMMY(clock_gettime64);
+DUMMY(clock_settime64);
+DUMMY(clock_adjtime64);
+DUMMY(clock_getres_time64);
+DUMMY(clock_nanosleep_time64);
+DUMMY(timer_gettime64);
+DUMMY(timer_settime64);
+DUMMY(timerfd_gettime64);
+DUMMY(timerfd_settime64);
+DUMMY(utimensat_time64);
+DUMMY(pselect6_time64);
+DUMMY(ppoll_time64);
+DUMMY(io_pgetevents_time64);
+DUMMY(recvmmsg_time64);
+DUMMY(mq_timedsend_time64);
+DUMMY(mq_timedreceive_time64);
+DUMMY(semtimedop_time64);
+DUMMY(rt_sigtimedwait_time64);
+DUMMY(futex_time64);
+DUMMY(sched_rr_get_interval_time64);
+DUMMY(pidfd_send_signal);
+DUMMY(io_uring_setup);
+DUMMY(io_uring_enter);
+DUMMY(io_uring_register);
 
 #define DUMMY_XATTR(s)						\
 int								\
