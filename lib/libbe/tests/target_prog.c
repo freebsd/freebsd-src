@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2017 Kyle J. Kneitinger <kyle@kneit.in>
+ * Copyright (c) 2019 Rob Wing
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,54 +24,30 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _LIBBE_IMPL_H
-#define _LIBBE_IMPL_H
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <libzfs.h>
+#include <be.h>
 
-#include "be.h"
+/*
+ * argv[1] = root boot environment (e.g. zroot/ROOT),
+ * argv[2] = name of boot environment to create
+ * argv[3] = snapshot to create boot environment from
+ * argv[4] = depth
+ */
+int main(int argc, char *argv[]) {
 
-struct libbe_handle {
-	char root[BE_MAXPATHLEN];
-	char rootfs[BE_MAXPATHLEN];
-	char bootfs[BE_MAXPATHLEN];
-	size_t altroot_len;
-	zpool_handle_t *active_phandle;
-	libzfs_handle_t *lzh;
-	be_error_t error;
-	bool print_on_err;
-};
+        libbe_handle_t *lbh;
 
-struct libbe_deep_clone {
-	libbe_handle_t *lbh;
-	const char *bename;
-	const char *snapname;
-	int depth;
-	int depth_limit;
-};
+	if (argc != 5)
+		return -1;
 
-struct libbe_dccb {
-	libbe_handle_t *lbh;
-	zfs_handle_t *zhp;
-	nvlist_t *props;
-};
+        if ((lbh = libbe_init(argv[1])) == NULL)
+                return -1;
 
-typedef struct prop_data {
-	nvlist_t *list;
-	libbe_handle_t *lbh;
-	bool single_object;	/* list will contain props directly */
-} prop_data_t;
+	libbe_print_on_error(lbh, true);
 
-int prop_list_builder_cb(zfs_handle_t *, void *);
-int be_proplist_update(prop_data_t *);
-
-char *be_mountpoint_augmented(libbe_handle_t *lbh, char *mountpoint);
-
-/* Clobbers any previous errors */
-int set_error(libbe_handle_t *, be_error_t);
-
-#endif  /* _LIBBE_IMPL_H */
+	return (be_create_depth(lbh, argv[2], argv[3], atoi(argv[4])));
+}

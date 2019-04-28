@@ -264,6 +264,8 @@
         ..
         libarchive
         ..
+        libbe
+        ..
         libc
             c063
             ..
