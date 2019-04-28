@@ -158,12 +158,23 @@ enum {
 				  RSS subtable */
 };
 
+enum {
+	NAT_MODE_NONE = 0,	/* No NAT performed */
+	NAT_MODE_DIP,		/* NAT on Dst IP */
+	NAT_MODE_DIP_DP,	/* NAT on Dst IP, Dst Port */
+	NAT_MODE_DIP_DP_SIP,	/* NAT on Dst IP, Dst Port and Src IP */
+	NAT_MODE_DIP_DP_SP,	/* NAT on Dst IP, Dst Port and Src Port */
+	NAT_MODE_SIP_SP,	/* NAT on Src IP and Src Port */
+	NAT_MODE_DIP_SIP_SP,	/* NAT on Dst IP, Src IP and Src Port */
+	NAT_MODE_ALL		/* NAT on entire 4-tuple */
+};
+
 struct t4_filter_tuple {
 	/*
 	 * These are always available.
 	 */
 	uint8_t sip[16];	/* source IP address (IPv4 in [3:0]) */
-	uint8_t dip[16];	/* destinatin IP address (IPv4 in [3:0]) */
+	uint8_t dip[16];	/* destination IP address (IPv4 in [3:0]) */
 	uint16_t sport;		/* source port */
 	uint16_t dport;		/* destination port */
 
@@ -191,6 +202,7 @@ struct t4_filter_specification {
 	uint32_t hitcnts:1;	/* count filter hits in TCB */
 	uint32_t prio:1;	/* filter has priority over active/server */
 	uint32_t type:1;	/* 0 => IPv4, 1 => IPv6 */
+	uint32_t hash:1;	/* 0 => LE TCAM, 1 => Hash */
 	uint32_t action:2;	/* drop, pass, switch */
 	uint32_t rpttid:1;	/* report TID in RSS hash field */
 	uint32_t dirsteer:1;	/* 0 => RSS, 1 => steer to iq */
@@ -207,10 +219,19 @@ struct t4_filter_specification {
 	uint32_t eport:2;	/* egress port to switch packet out */
 	uint32_t newdmac:1;	/* rewrite destination MAC address */
 	uint32_t newsmac:1;	/* rewrite source MAC address */
+	uint32_t swapmac:1;	/* swap SMAC/DMAC for loopback packet */
 	uint32_t newvlan:2;	/* rewrite VLAN Tag */
+	uint32_t nat_mode:3;	/* NAT operation mode */
+	uint32_t nat_flag_chk:1;/* check TCP flags before NAT'ing */
+	uint32_t nat_seq_chk;	/* sequence value to use for NAT check*/
 	uint8_t dmac[ETHER_ADDR_LEN];	/* new destination MAC address */
 	uint8_t smac[ETHER_ADDR_LEN];	/* new source MAC address */
 	uint16_t vlan;		/* VLAN Tag to insert */
+
+	uint8_t nat_dip[16];	/* destination IP to use after NAT'ing */
+	uint8_t nat_sip[16];	/* source IP to use after NAT'ing */
+	uint16_t nat_dport;	/* destination port to use after NAT'ing */
+	uint16_t nat_sport;	/* source port to use after NAT'ing */
 
 	/*
 	 * Filter rule value/mask pairs.
@@ -387,7 +408,7 @@ struct t4_offload_policy {
 #define CHELSIO_T4_GET_FILTER_MODE _IOWR('f', T4_GET_FILTER_MODE, uint32_t)
 #define CHELSIO_T4_SET_FILTER_MODE _IOW('f', T4_SET_FILTER_MODE, uint32_t)
 #define CHELSIO_T4_GET_FILTER	_IOWR('f', T4_GET_FILTER, struct t4_filter)
-#define CHELSIO_T4_SET_FILTER	_IOW('f', T4_SET_FILTER, struct t4_filter)
+#define CHELSIO_T4_SET_FILTER	_IOWR('f', T4_SET_FILTER, struct t4_filter)
 #define CHELSIO_T4_DEL_FILTER	_IOW('f', T4_DEL_FILTER, struct t4_filter)
 #define CHELSIO_T4_GET_SGE_CONTEXT _IOWR('f', T4_GET_SGE_CONTEXT, \
     struct t4_sge_context)

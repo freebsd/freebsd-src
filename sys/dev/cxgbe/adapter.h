@@ -372,7 +372,7 @@ enum {
 	CPL_COOKIE_DDP0,
 	CPL_COOKIE_DDP1,
 	CPL_COOKIE_TOM,
-	CPL_COOKIE_AVAILABLE1,
+	CPL_COOKIE_HASHFILTER,
 	CPL_COOKIE_AVAILABLE2,
 	CPL_COOKIE_AVAILABLE3,
 
@@ -823,6 +823,7 @@ struct adapter {
 	void *iscsi_ulp_softc;	/* (struct cxgbei_data *) */
 	void *ccr_softc;	/* (struct ccr_softc *) */
 	struct l2t_data *l2t;	/* L2 table */
+	struct smt_data *smt;	/* Source MAC Table */
 	struct tid_info tids;
 	vmem_t *key_map;
 
@@ -1113,7 +1114,6 @@ void t4_init_devnames(struct adapter *);
 void t4_add_adapter(struct adapter *);
 void t4_aes_getdeckey(void *, const void *, unsigned int);
 int t4_detach_common(device_t);
-int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 int t4_map_bars_0_and_4(struct adapter *);
 int t4_map_bar_2(struct adapter *);
 int t4_setup_intr_handlers(struct adapter *);
@@ -1192,6 +1192,18 @@ int t4_free_tx_sched(struct adapter *);
 void t4_update_tx_sched(struct adapter *);
 int t4_reserve_cl_rl_kbps(struct adapter *, int, u_int, int *);
 void t4_release_cl_rl_kbps(struct adapter *, int, int);
+
+/* t4_filter.c */
+int get_filter_mode(struct adapter *, uint32_t *);
+int set_filter_mode(struct adapter *, uint32_t);
+int get_filter(struct adapter *, struct t4_filter *);
+int set_filter(struct adapter *, struct t4_filter *);
+int del_filter(struct adapter *, struct t4_filter *);
+int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int t4_hashfilter_ao_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int t4_hashfilter_tcb_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int t4_del_hashfilter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+void free_hftid_tab(struct tid_info *);
 
 static inline struct wrqe *
 alloc_wrqe(int wr_len, struct sge_wrq *wrq)
