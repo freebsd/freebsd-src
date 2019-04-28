@@ -175,6 +175,7 @@ SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tapdclone, 0,
 SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tapdebug, 0, "");
 
 DEV_MODULE(if_tap, tapmodevent, NULL);
+MODULE_VERSION(if_tap, 1);
 
 static int
 tap_clone_create(struct if_clone *ifc, int unit, caddr_t params)
