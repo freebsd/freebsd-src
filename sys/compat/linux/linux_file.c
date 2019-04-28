@@ -569,7 +569,7 @@ linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 	LCONVPATHEXIST_AT(td, args->filename, &path, dfd);
 
 #ifdef DEBUG
-	if (ldebug(access))
+	if (ldebug(faccessat))
 		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
 
