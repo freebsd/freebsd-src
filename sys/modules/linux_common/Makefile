@@ -8,8 +8,8 @@ SRCS=	linux_common.c linux_mib.c linux_mmap.c linux_util.c linux_emul.c \
 	linux.c opt_compat.h device_if.h vnode_if.h bus_if.h
 
 EXPORT_SYMS=
-EXPORT_SYMS+=	bsd_to_linux_errno_generic
 EXPORT_SYMS+=	linux_emul_path
+EXPORT_SYMS+=	linux_errtbl
 EXPORT_SYMS+=	linux_ioctl_register_handler
 EXPORT_SYMS+=	linux_ioctl_unregister_handler
 EXPORT_SYMS+=	linux_get_osname
