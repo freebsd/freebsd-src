@@ -119,7 +119,7 @@ extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
 static register_t * linux_copyout_strings(struct image_params *imgp);
-static int	linux_elf_fixup(register_t **stack_base,
+static int	linux_fixup_elf(register_t **stack_base,
 		    struct image_params *iparams);
 static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(void *param);
