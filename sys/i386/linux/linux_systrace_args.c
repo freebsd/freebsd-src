@@ -814,9 +814,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->what; /* l_uint */
 		iarg[1] = p->arg1; /* l_int */
 		iarg[2] = p->arg2; /* l_int */
-		iarg[3] = p->arg3; /* l_int */
-		uarg[4] = (intptr_t) p->ptr; /* void * */
-		iarg[5] = p->arg5; /* l_long */
+		iarg[3] = p->arg3; /* l_uint */
+		iarg[4] = p->ptr; /* l_uintptr_t */
+		iarg[5] = p->arg5; /* l_uint */
 		*n_args = 6;
 		break;
 	}
@@ -4012,13 +4012,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 3:
-			p = "l_int";
+			p = "l_uint";
 			break;
 		case 4:
-			p = "userland void *";
+			p = "l_uintptr_t";
 			break;
 		case 5:
-			p = "l_long";
+			p = "l_uint";
 			break;
 		default:
 			break;
