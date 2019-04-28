@@ -132,7 +132,7 @@ const int linux_errtbl[ELAST + 1] = {
 	-125,
 	-84,
 	-61,
-	-16,	/* EDOOFUS -> EBUSY */
+	-22,	/* EDOOFUS -> EINVAL */
 	-74,
 
 	-72,
