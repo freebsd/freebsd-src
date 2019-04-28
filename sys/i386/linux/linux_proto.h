@@ -371,9 +371,9 @@ struct linux_ipc_args {
 	char what_l_[PADL_(l_uint)]; l_uint what; char what_r_[PADR_(l_uint)];
 	char arg1_l_[PADL_(l_int)]; l_int arg1; char arg1_r_[PADR_(l_int)];
 	char arg2_l_[PADL_(l_int)]; l_int arg2; char arg2_r_[PADR_(l_int)];
-	char arg3_l_[PADL_(l_int)]; l_int arg3; char arg3_r_[PADR_(l_int)];
-	char ptr_l_[PADL_(void *)]; void * ptr; char ptr_r_[PADR_(void *)];
-	char arg5_l_[PADL_(l_long)]; l_long arg5; char arg5_r_[PADR_(l_long)];
+	char arg3_l_[PADL_(l_uint)]; l_uint arg3; char arg3_r_[PADR_(l_uint)];
+	char ptr_l_[PADL_(l_uintptr_t)]; l_uintptr_t ptr; char ptr_r_[PADR_(l_uintptr_t)];
+	char arg5_l_[PADL_(l_uint)]; l_uint arg5; char arg5_r_[PADR_(l_uint)];
 };
 struct linux_sigreturn_args {
 	char sfp_l_[PADL_(struct l_sigframe *)]; struct l_sigframe * sfp; char sfp_r_[PADR_(struct l_sigframe *)];
