@@ -139,7 +139,7 @@ __elfN(linux_vdso_fixup)(struct sysentvec *sv)
 }
 
 void
-__elfN(linux_vdso_reloc)(struct sysentvec *sv, long vdso_adjust)
+__elfN(linux_vdso_reloc)(struct sysentvec *sv)
 {
 	struct linux_vdso_sym *lsym;
 	Elf_Ehdr *ehdr;
@@ -152,13 +152,13 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv, long vdso_adjust)
 	ehdr = (Elf_Ehdr *) sv->sv_sigcode;
 
 	/* Adjust our so relative to the sigcode_base */
-	if (vdso_adjust != 0) {
-		ehdr->e_entry += vdso_adjust;
+	if (sv->sv_shared_page_base != 0) {
+		ehdr->e_entry += sv->sv_shared_page_base;
 		phdr = (Elf_Phdr *)((caddr_t)ehdr + ehdr->e_phoff);
 
 		/* phdrs */
 		for (i = 0; i < ehdr->e_phnum; i++) {
-			phdr[i].p_vaddr += vdso_adjust;
+			phdr[i].p_vaddr += sv->sv_shared_page_base;
 			if (phdr[i].p_type != PT_DYNAMIC)
 				continue;
 			dyn = (Elf_Dyn *)((caddr_t)ehdr + phdr[i].p_offset);
@@ -178,13 +178,13 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv, long vdso_adjust)
 				case DT_VERDEF:
 				case DT_VERNEED:
 				case DT_ADDRRNGLO ... DT_ADDRRNGHI:
-					dyn->d_un.d_ptr += vdso_adjust;
+					dyn->d_un.d_ptr += sv->sv_shared_page_base;
 					break;
 				case DT_ENCODING ... DT_LOOS-1:
 				case DT_LOOS ... DT_HIOS:
 					if (dyn->d_tag >= DT_ENCODING &&
 					    (dyn->d_tag & 1) == 0)
-						dyn->d_un.d_ptr += vdso_adjust;
+						dyn->d_un.d_ptr += sv->sv_shared_page_base;
 					break;
 				default:
 					break;
@@ -197,7 +197,7 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv, long vdso_adjust)
 		for(i = 0; i < ehdr->e_shnum; i++) {
 			if (!(shdr[i].sh_flags & SHF_ALLOC))
 				continue;
-			shdr[i].sh_addr += vdso_adjust;
+			shdr[i].sh_addr += sv->sv_shared_page_base;
 			if (shdr[i].sh_type != SHT_SYMTAB &&
 			    shdr[i].sh_type != SHT_DYNSYM)
 				continue;
@@ -209,7 +209,7 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv, long vdso_adjust)
 				if (sym->st_shndx == SHN_UNDEF ||
 				    sym->st_shndx == SHN_ABS)
 					continue;
-				sym->st_value += vdso_adjust;
+				sym->st_value += sv->sv_shared_page_base;
 			}
 		}
 	}
