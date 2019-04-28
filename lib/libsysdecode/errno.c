@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
  * Linux syscalls return negative errno's, we do positive and map them
  * Reference:
  *   FreeBSD: src/sys/sys/errno.h
- *   Linux:   linux-2.6.17.8/include/asm-generic/errno-base.h
- *            linux-2.6.17.8/include/asm-generic/errno.h
+ *   Linux:   include/uapi/asm-generic/errno-base.h
+ *            include/uapi/asm-generic/errno.h
  */
 static int bsd_to_linux_errno[ELAST + 1] = {
 	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
@@ -54,7 +54,7 @@ static int bsd_to_linux_errno[ELAST + 1] = {
 	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
 	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
 	  -6,  -6, -43, -42, -75,-125, -84, -61, -16, -74,
-	 -72, -67, -71
+	 -72, -67, -71,  -1,  -1, -131, -130
 };
 #endif
 
