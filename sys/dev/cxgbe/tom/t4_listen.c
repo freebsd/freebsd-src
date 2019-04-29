@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include "common/common.h"
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
+#include "t4_clip.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
@@ -210,9 +211,7 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct vi_info *vi)
 
 	if (inp->inp_vflag & INP_IPV6 &&
 	    !IN6_ARE_ADDR_EQUAL(&in6addr_any, &inp->in6p_laddr)) {
-		struct tom_data *td = sc->tom_softc;
-
-		lctx->ce = hold_lip(td, &inp->in6p_laddr, NULL);
+		lctx->ce = t4_hold_lip(sc, &inp->in6p_laddr, NULL);
 		if (lctx->ce == NULL) {
 			free(lctx, M_CXGBE);
 			return (NULL);
@@ -236,7 +235,6 @@ static int
 free_lctx(struct adapter *sc, struct listen_ctx *lctx)
 {
 	struct inpcb *inp = lctx->inp;
-	struct tom_data *td = sc->tom_softc;
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(lctx->refcount == 0,
@@ -249,7 +247,7 @@ free_lctx(struct adapter *sc, struct listen_ctx *lctx)
 	    __func__, lctx->stid, lctx, lctx->inp);
 
 	if (lctx->ce)
-		release_lip(td, lctx->ce);
+		t4_release_lip(sc, lctx->ce);
 	free_stid(sc, lctx);
 	free(lctx, M_CXGBE);
 
@@ -1669,7 +1667,7 @@ reset:
 	MPASS(so->so_vnet == lctx->vnet);
 	toep->vnet = lctx->vnet;
 	if (inc.inc_flags & INC_ISIPV6)
-		toep->ce = hold_lip(sc->tom_softc, &inc.inc6_laddr, lctx->ce);
+		toep->ce = t4_hold_lip(sc, &inc.inc6_laddr, lctx->ce);
 
 	/*
 	 * This is for the unlikely case where the syncache entry that we added
