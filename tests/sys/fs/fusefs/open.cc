@@ -138,26 +138,6 @@ TEST_F(Open, eperm)
 	EXPECT_EQ(EPERM, errno);
 }
 
-/* fusefs(5) does not yet support I/O on fifos.  But it shouldn't crash. */
-TEST_F(Open, fifo)
-{
-	const char FULLPATH[] = "mountpoint/zero";
-	const char RELPATH[] = "zero";
-	uint64_t ino = 42;
-
-	EXPECT_LOOKUP(1, RELPATH)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFIFO | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 1;
-		out->body.entry.attr_valid = UINT64_MAX;
-	})));
-
-	ASSERT_EQ(-1, open(FULLPATH, O_RDONLY));
-	EXPECT_EQ(EOPNOTSUPP, errno);
-}
-
 /* 
  * fusefs must issue multiple FUSE_OPEN operations if clients with different
  * credentials open the same file, even if they use the same mode.  This is
