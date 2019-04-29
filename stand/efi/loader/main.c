@@ -1027,36 +1027,41 @@ main(int argc, CHAR16 *argv[])
 		}
 	}
 
-	uefi_boot_mgr = true;
-	boot_current = 0;
-	sz = sizeof(boot_current);
-	rv = efi_global_getenv("BootCurrent", &boot_current, &sz);
-	if (rv == EFI_SUCCESS)
-		printf("   BootCurrent: %04x\n", boot_current);
-	else {
-		boot_current = 0xffff;
+	if (getenv("uefi_ignore_boot_mgr") != NULL) {
+		printf("    Ignoring UEFI boot manager\n");
 		uefi_boot_mgr = false;
-	}
+	} else {
+		uefi_boot_mgr = true;
+		boot_current = 0;
+		sz = sizeof(boot_current);
+		rv = efi_global_getenv("BootCurrent", &boot_current, &sz);
+		if (rv == EFI_SUCCESS)
+			printf("   BootCurrent: %04x\n", boot_current);
+		else {
+			boot_current = 0xffff;
+			uefi_boot_mgr = false;
+		}
 
-	sz = sizeof(boot_order);
-	rv = efi_global_getenv("BootOrder", &boot_order, &sz);
-	if (rv == EFI_SUCCESS) {
-		printf("   BootOrder:");
-		for (i = 0; i < sz / sizeof(boot_order[0]); i++)
-			printf(" %04x%s", boot_order[i],
-			    boot_order[i] == boot_current ? "[*]" : "");
-		printf("\n");
-		is_last = boot_order[(sz / sizeof(boot_order[0])) - 1] == boot_current;
-		bosz = sz;
-	} else if (uefi_boot_mgr) {
-		/*
-		 * u-boot doesn't set BootOrder, but otherwise participates in the
-		 * boot manager protocol. So we fake it here and don't consider it
-		 * a failure.
-		 */
-		bosz = sizeof(boot_order[0]);
-		boot_order[0] = boot_current;
-		is_last = true;
+		sz = sizeof(boot_order);
+		rv = efi_global_getenv("BootOrder", &boot_order, &sz);
+		if (rv == EFI_SUCCESS) {
+			printf("   BootOrder:");
+			for (i = 0; i < sz / sizeof(boot_order[0]); i++)
+				printf(" %04x%s", boot_order[i],
+				    boot_order[i] == boot_current ? "[*]" : "");
+			printf("\n");
+			is_last = boot_order[(sz / sizeof(boot_order[0])) - 1] == boot_current;
+			bosz = sz;
+		} else if (uefi_boot_mgr) {
+			/*
+			 * u-boot doesn't set BootOrder, but otherwise participates in the
+			 * boot manager protocol. So we fake it here and don't consider it
+			 * a failure.
+			 */
+			bosz = sizeof(boot_order[0]);
+			boot_order[0] = boot_current;
+			is_last = true;
+		}
 	}
 
 	/*
@@ -1105,7 +1110,8 @@ main(int argc, CHAR16 *argv[])
 	 * to try something different.
 	 */
 	if (find_currdev(uefi_boot_mgr, is_last, boot_info, bisz) != 0)
-		if (!interactive_interrupt("Failed to find bootable partition"))
+		if (uefi_boot_mgr &&
+		    !interactive_interrupt("Failed to find bootable partition"))
 			return (EFI_NOT_FOUND);
 
 	efi_init_environment();
