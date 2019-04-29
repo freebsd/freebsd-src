@@ -969,7 +969,7 @@ start_worker_threads(void)
 			    i + 1, worker_thread_count, rc);
 			mtx_destroy(&cwt->cwt_lock);
 			cv_destroy(&cwt->cwt_cv);
-			bzero(&cwt, sizeof(*cwt));
+			bzero(cwt, sizeof(*cwt));
 			if (i == 0) {
 				free(cwt_softc, M_CXGBE);
 				worker_thread_count = 0;
