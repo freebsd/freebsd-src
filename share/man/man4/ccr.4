@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2017
+.Dd March 11, 2019
 .Dt CCR 4
 .Os
 .Sh NAME
@@ -49,13 +49,14 @@ The
 .Nm
 driver provides support for the crypto accelerator engine included on
 PCI Express Ethernet adapters based on the Chelsio Terminator 6 ASIC (T6).
-The driver accelerates AES-CBC, AES-CTR, AES-GCM, AES-XTS, SHA1-HMAC,
+The driver accelerates AES-CBC, AES-CTR, AES-GCM, AES-XTS, SHA1, SHA2-224,
+SHA2-256, SHA2-384, SHA2-512, SHA1-HMAC, SHA2-224-HMAC,
 SHA2-256-HMAC, SHA2-384-HMAC, and SHA2-512-HMAC operations for
 .Xr crypto 4
 and
 .Xr ipsec 4 .
 The driver also supports chaining one of AES-CBC, AES-CTR, or AES-XTS with
-SHA1-HMAC, SHA2-256-HMAC, SHA2-384-HMAC, or SHA2-512-HMAC for
+SHA1-HMAC, SHA2-224-HMAC, SHA2-256-HMAC, SHA2-384-HMAC, or SHA2-512-HMAC for
 encrypt-then-authenticate operations.
 For further hardware information and questions related to hardware
 requirements, see
