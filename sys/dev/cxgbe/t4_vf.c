@@ -637,6 +637,10 @@ t4vf_attach(device_t dev)
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
 		sc->chan_map[pi->tx_chan] = i;
 
+		/* All VIs on this port share this media. */
+		ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
+		    cxgbe_media_status);
+
 		pi->dev = device_add_child(dev, sc->names->vf_ifnet_name, -1);
 		if (pi->dev == NULL) {
 			device_printf(dev,

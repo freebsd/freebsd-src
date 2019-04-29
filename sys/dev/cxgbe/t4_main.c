@@ -219,13 +219,11 @@ static driver_t vcc_driver = {
 	sizeof(struct vi_info)
 };
 
-/* ifnet + media interface */
+/* ifnet interface */
 static void cxgbe_init(void *);
 static int cxgbe_ioctl(struct ifnet *, unsigned long, caddr_t);
 static int cxgbe_transmit(struct ifnet *, struct mbuf *);
 static void cxgbe_qflush(struct ifnet *);
-static int cxgbe_media_change(struct ifnet *);
-static void cxgbe_media_status(struct ifnet *, struct ifmediareq *);
 
 MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4/T5 Ethernet driver and services");
 
@@ -2150,7 +2148,7 @@ cxgbe_get_counter(struct ifnet *ifp, ift_counter c)
  * The kernel picks a media from the list we had provided but we still validate
  * the requeste.
  */
-static int
+int
 cxgbe_media_change(struct ifnet *ifp)
 {
 	struct vi_info *vi = ifp->if_softc;
@@ -2339,7 +2337,7 @@ port_mword(struct port_info *pi, uint32_t speed)
 	return (IFM_UNKNOWN);
 }
 
-static void
+void
 cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct vi_info *vi = ifp->if_softc;
@@ -4532,7 +4530,9 @@ apply_link_config(struct port_info *pi)
 #endif
 	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 	if (rc != 0) {
-		device_printf(pi->dev, "l1cfg failed: %d\n", rc);
+		/* Don't complain if the VF driver gets back an EPERM. */
+		if (!(sc->flags & IS_VF) || rc != FW_EPERM)
+			device_printf(pi->dev, "l1cfg failed: %d\n", rc);
 	} else {
 		/*
 		 * An L1_CFG will almost always result in a link-change event if
