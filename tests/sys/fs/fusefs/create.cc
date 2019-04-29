@@ -30,6 +30,8 @@
 
 extern "C" {
 #include <fcntl.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 }
 
 #include "mockfs.hh"
@@ -40,13 +42,14 @@ using namespace testing;
 class Create: public FuseTest {
 public:
 
-void expect_create(const char *relpath, ProcessMockerT r)
+void expect_create(const char *relpath, mode_t mode, ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			const char *name = (const char*)in->body.bytes +
 				sizeof(fuse_open_in);
 			return (in->header.opcode == FUSE_CREATE &&
+				in->body.open.mode == mode &&
 				(0 == strcmp(relpath, name)));
 		}, Eq(true)),
 		_)
@@ -63,14 +66,15 @@ TEST_F(Create, attr_cache)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	mode_t mode = 0755;
+	mode_t mode = S_IFREG | 0755;
 	uint64_t ino = 42;
 	int fd;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	expect_create(RELPATH, ReturnImmediate([=](auto in __unused, auto out) {
+	expect_create(RELPATH, mode,
+		ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
-		out->body.create.entry.attr.mode = S_IFREG | mode;
+		out->body.create.entry.attr.mode = mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
@@ -98,10 +102,10 @@ TEST_F(Create, eexist)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	mode_t mode = 0755;
+	mode_t mode = S_IFREG | 0755;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	expect_create(RELPATH, ReturnErrno(EEXIST));
+	expect_create(RELPATH, mode, ReturnErrno(EEXIST));
 	EXPECT_NE(0, open(FULLPATH, O_CREAT | O_EXCL, mode));
 	EXPECT_EQ(EEXIST, errno);
 }
@@ -114,12 +118,12 @@ TEST_F(Create, Enosys)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	mode_t mode = 0755;
+	mode_t mode = S_IFREG | 0755;
 	uint64_t ino = 42;
 	int fd;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	expect_create(RELPATH, ReturnErrno(ENOSYS));
+	expect_create(RELPATH, mode, ReturnErrno(ENOSYS));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -133,7 +137,7 @@ TEST_F(Create, Enosys)
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | mode;
+		out->body.entry.attr.mode = mode;
 		out->body.entry.nodeid = ino;
 		out->body.entry.entry_valid = UINT64_MAX;
 		out->body.entry.attr_valid = UINT64_MAX;
@@ -162,7 +166,7 @@ TEST_F(Create, entry_cache_negative)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	mode_t mode = 0755;
+	mode_t mode = S_IFREG | 0755;
 	uint64_t ino = 42;
 	int fd;
 	/* 
@@ -174,9 +178,10 @@ TEST_F(Create, entry_cache_negative)
 
 	/* create will first do a LOOKUP, adding a negative cache entry */
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(ReturnNegativeCache(&entry_valid));
-	expect_create(RELPATH, ReturnImmediate([=](auto in __unused, auto out) {
+	expect_create(RELPATH, mode,
+		ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
-		out->body.create.entry.attr.mode = S_IFREG | mode;
+		out->body.create.entry.attr.mode = mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
@@ -194,7 +199,7 @@ TEST_F(Create, entry_cache_negative_purge)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	mode_t mode = 0755;
+	mode_t mode = S_IFREG | 0755;
 	uint64_t ino = 42;
 	int fd;
 	struct timespec entry_valid = {.tv_sec = TIME_T_MAX, .tv_nsec = 0};
@@ -205,9 +210,10 @@ TEST_F(Create, entry_cache_negative_purge)
 	.RetiresOnSaturation();
 
 	/* Then the CREATE should purge the negative cache entry */
-	expect_create(RELPATH, ReturnImmediate([=](auto in __unused, auto out) {
+	expect_create(RELPATH, mode,
+		ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
-		out->body.create.entry.attr.mode = S_IFREG | mode;
+		out->body.create.entry.attr.mode = mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.attr_valid = UINT64_MAX;
 	}));
@@ -230,10 +236,10 @@ TEST_F(Create, eperm)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	mode_t mode = 0755;
+	mode_t mode = S_IFREG | 0755;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	expect_create(RELPATH, ReturnErrno(EPERM));
+	expect_create(RELPATH, mode, ReturnErrno(EPERM));
 
 	EXPECT_NE(0, open(FULLPATH, O_CREAT | O_EXCL, mode));
 	EXPECT_EQ(EPERM, errno);
@@ -243,14 +249,15 @@ TEST_F(Create, ok)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	mode_t mode = 0755;
+	mode_t mode = S_IFREG | 0755;
 	uint64_t ino = 42;
 	int fd;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	expect_create(RELPATH, ReturnImmediate([=](auto in __unused, auto out) {
+	expect_create(RELPATH, mode,
+		ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
-		out->body.create.entry.attr.mode = S_IFREG | mode;
+		out->body.create.entry.attr.mode = mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
@@ -259,6 +266,34 @@ TEST_F(Create, ok)
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* Create a unix-domain socket */
+TEST_F(Create, socket)
+{
+	const char FULLPATH[] = "mountpoint/some_sock";
+	const char RELPATH[] = "some_sock";
+	mode_t mode = S_IFSOCK | 0755;
+	struct sockaddr_un sa;
+	uint64_t ino = 42;
+	int fd;
+
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_create(RELPATH, mode,
+		ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, create);
+		out->body.create.entry.attr.mode = mode;
+		out->body.create.entry.nodeid = ino;
+		out->body.create.entry.entry_valid = UINT64_MAX;
+		out->body.create.entry.attr_valid = UINT64_MAX;
+	}));
+
+	fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	ASSERT_LE(0, fd) << strerror(errno);
+	sa.sun_family = AF_UNIX;
+	strlcpy(sa.sun_path, FULLPATH, sizeof(sa.sun_path));
+	ASSERT_EQ(0, bind(fd, (struct sockaddr*)&sa, sizeof(sa)))
+		<< strerror(errno);
 }
 
 /*
@@ -273,14 +308,15 @@ TEST_F(Create, wronly_0444)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	mode_t mode = 0444;
+	mode_t mode = S_IFREG | 0444;
 	uint64_t ino = 42;
 	int fd;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	expect_create(RELPATH, ReturnImmediate([=](auto in __unused, auto out) {
+	expect_create(RELPATH, mode,
+		ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
-		out->body.create.entry.attr.mode = S_IFREG | mode;
+		out->body.create.entry.attr.mode = mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;

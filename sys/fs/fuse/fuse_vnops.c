@@ -548,7 +548,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	}
 	bzero(&fdi, sizeof(fdi));
 
-	if ((vap->va_type != VREG))
+	if ((vap->va_type != VREG && vap->va_type != VSOCK))
 		return (EINVAL);
 
 	if (!fsess_isimpl(mp, FUSE_CREATE)) {
@@ -583,7 +583,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 
 	feo = fdip->answ;
 
-	if ((err = fuse_internal_checkentry(feo, VREG))) {
+	if ((err = fuse_internal_checkentry(feo, vap->va_type))) {
 		goto out;
 	}
 
@@ -603,7 +603,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 			goto out;
 		foo = fdip2->answ;
 	}
-	err = fuse_vnode_get(mp, feo, feo->nodeid, dvp, vpp, cnp, VREG);
+	err = fuse_vnode_get(mp, feo, feo->nodeid, dvp, vpp, cnp, vap->va_type);
 	if (err) {
 		struct fuse_release_in *fri;
 		uint64_t nodeid = feo->nodeid;
