@@ -236,6 +236,7 @@ device		powermac_nvram	# Open Firmware configuration NVRAM
 device		smu		# Apple System Management Unit
 device		atibl		# ATI-based backlight driver for PowerBooks/iBooks
 device		nvbl		# nVidia-based backlight driver for PowerBooks/iBooks
+device		opalflash	# PowerNV embedded flash memory
 
 # ADB support
 device		adb
