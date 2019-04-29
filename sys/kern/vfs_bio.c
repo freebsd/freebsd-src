@@ -2073,7 +2073,10 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize, int cnt,
     struct ucred * cred, int flags, void (*ckhashfunc)(struct buf *))
 {
 	struct buf *rabp;
+	struct thread *td;
 	int i;
+
+	td = curthread;
 
 	for (i = 0; i < cnt; i++, rablkno++, rabsize++) {
 		if (inmem(vp, *rablkno))
@@ -2083,16 +2086,14 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize, int cnt,
 			brelse(rabp);
 			continue;
 		}
-		if (!TD_IS_IDLETHREAD(curthread)) {
 #ifdef RACCT
-			if (racct_enable) {
-				PROC_LOCK(curproc);
-				racct_add_buf(curproc, rabp, 0);
-				PROC_UNLOCK(curproc);
-			}
-#endif /* RACCT */
-			curthread->td_ru.ru_inblock++;
+		if (racct_enable) {
+			PROC_LOCK(curproc);
+			racct_add_buf(curproc, rabp, 0);
+			PROC_UNLOCK(curproc);
 		}
+#endif /* RACCT */
+		td->td_ru.ru_inblock++;
 		rabp->b_flags |= B_ASYNC;
 		rabp->b_flags &= ~B_INVAL;
 		if ((flags & GB_CKHASH) != 0) {
@@ -2148,16 +2149,14 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 	 */
 	readwait = 0;
 	if ((bp->b_flags & B_CACHE) == 0) {
-		if (!TD_IS_IDLETHREAD(td)) {
 #ifdef RACCT
-			if (racct_enable) {
-				PROC_LOCK(td->td_proc);
-				racct_add_buf(td->td_proc, bp, 0);
-				PROC_UNLOCK(td->td_proc);
-			}
-#endif /* RACCT */
-			td->td_ru.ru_inblock++;
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			racct_add_buf(td->td_proc, bp, 0);
+			PROC_UNLOCK(td->td_proc);
 		}
+#endif /* RACCT */
+		td->td_ru.ru_inblock++;
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
 		if ((flags & GB_CKHASH) != 0) {
@@ -2258,16 +2257,14 @@ bufwrite(struct buf *bp)
 	bp->b_runningbufspace = bp->b_bufsize;
 	space = atomic_fetchadd_long(&runningbufspace, bp->b_runningbufspace);
 
-	if (!TD_IS_IDLETHREAD(curthread)) {
 #ifdef RACCT
-		if (racct_enable) {
-			PROC_LOCK(curproc);
-			racct_add_buf(curproc, bp, 1);
-			PROC_UNLOCK(curproc);
-		}
-#endif /* RACCT */
-		curthread->td_ru.ru_oublock++;
+	if (racct_enable) {
+		PROC_LOCK(curproc);
+		racct_add_buf(curproc, bp, 1);
+		PROC_UNLOCK(curproc);
 	}
+#endif /* RACCT */
+	curthread->td_ru.ru_oublock++;
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
@@ -4019,9 +4016,6 @@ loop:
 		 */
 		if (flags & GB_NOCREAT)
 			return (EEXIST);
-		if (bdomain[bo->bo_domain].bd_freebuffers == 0 &&
-		    TD_IS_IDLETHREAD(curthread))
-			return (EBUSY);
 
 		bsize = vn_isdisk(vp, NULL) ? DEV_BSIZE : bo->bo_bsize;
 		KASSERT(bsize != 0, ("bsize == 0, check bo->bo_bsize"));
