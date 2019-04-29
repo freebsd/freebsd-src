@@ -78,44 +78,52 @@ union aopen_entry {
 };
 
 /*
- * Holds the size, base address, free list start, etc of the TID, server TID,
- * and active-open TID tables.  The tables themselves are allocated dynamically.
+ * Holds the size, base address, start, end, etc. of various types of TIDs.  The
+ * tables themselves are allocated dynamically.
  */
 struct tid_info {
-	void **tid_tab;
+	u_int nstids;
+	u_int stid_base;
+
+	u_int natids;
+
+	u_int nftids;
+	u_int ftid_base;
+	u_int ftid_end;
+
 	u_int ntids;
-	u_int tids_in_use;
+
+	u_int netids;
+	u_int etid_base;
+	u_int etid_end;
 
 	struct mtx stid_lock __aligned(CACHE_LINE_SIZE);
 	struct listen_ctx **stid_tab;
-	u_int nstids;
-	u_int stid_base;
 	u_int stids_in_use;
 	u_int nstids_free_head;	/* # of available stids at the beginning */
 	struct stid_head stids;
 
 	struct mtx atid_lock __aligned(CACHE_LINE_SIZE);
 	union aopen_entry *atid_tab;
-	u_int natids;
 	union aopen_entry *afree;
 	u_int atids_in_use;
 
 	struct mtx ftid_lock __aligned(CACHE_LINE_SIZE);
 	struct cv ftid_cv;
 	struct filter_entry *ftid_tab;
-	u_int nftids;
-	u_int ftid_base;
 	u_int ftids_in_use;
 
+	/*
+	 * hashfilter and TOE are mutually exclusive and both use ntids and
+	 * tids_in_use.  The lock and cv are used only by hashfilter.
+	 */
 	struct mtx hftid_lock __aligned(CACHE_LINE_SIZE);
 	struct cv hftid_cv;
-	void **hftid_tab;
-	/* ntids, tids_in_use */
-
-	struct mtx etid_lock __aligned(CACHE_LINE_SIZE);
-	struct etid_entry *etid_tab;
-	u_int netids;
-	u_int etid_base;
+	union {
+		void **hftid_tab;
+		void **tid_tab;
+	};
+	u_int tids_in_use;
 };
 
 struct t4_range {
