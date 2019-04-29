@@ -35,17 +35,19 @@ makes a commit to the specified subtree.
 
 subsystem	login	notes
 -----------------------------
-atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
 ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+contrib/atf		ngie,#test		Pre-commit review requested.
+contrib/capsicum-test	ngie,#capsicum,#test	Pre-commit review requested.
 contrib/compiler-rt	dim	Pre-commit review preferred.
+contrib/googletest	ngie,#test		Pre-commit review requested.
 contrib/ipfilter	cy	Pre-commit review requested.
 contrib/libc++		dim	Pre-commit review preferred.
 contrib/libcxxrt	dim	Pre-commit review preferred.
 contrib/libunwind	dim,emaste,jhb	Pre-commit review preferred.
 contrib/llvm		dim	Pre-commit review preferred.
 contrib/llvm/tools/lldb	dim,emaste	Pre-commit review preferred.
-contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
-contrib/pjdfstest	freebsd-testing,asomers,ngie,pjd	Pre-commit review requested.
+contrib/netbsd-tests	ngie,#test		Pre-commit review requested.
+contrib/pjdfstest	asomers,ngie,pjd,#test	Pre-commit review requested.
 *env(3)		secteam	Due to the problematic security history of this
 			code, please have patches reviewed by secteam.
 etc/mail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
@@ -86,14 +88,15 @@ sh(1)		jilles		Pre-commit review requested. This also applies
 				to kill(1), printf(1) and test(1) which are
 				compiled in as builtins.
 share/mk	imp, bapt, bdrewery, emaste, sjg	Make is hard.
-share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit review requested.
+share/mk/*.test.mk	imp,bapt,bdrewery,	Pre-commit review requested.
+			emaste,ngie,sjg,#test
 stand/forth		dteske	Pre-commit review requested.
 stand/lua		kevans	Pre-commit review requested
-sys/compat/linuxkpi	hselasky	If in doubt, ask.
+sys/compat/linuxkpi	hselasky		If in doubt, ask.
 			zeising, johalun	pre-commit review requested via
 						#x11 phabricator group.
 						(to avoid drm graphics drivers
-						inpact)
+						impact)
 sys/contrib/ipfilter	cy	Pre-commit review requested.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
@@ -105,7 +108,7 @@ sys/netinet/ip_carp.c	glebius	Pre-commit review recommended.
 sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
 sys/x86/xen	royger		Pre-commit review recommended.
 sys/xen		royger		Pre-commit review recommended.
-tests			freebsd-testing,ngie	Pre-commit review requested.
+tests			ngie,#test		Pre-commit review requested.
 tools/build	imp	Pre-commit review requested, especially to fix bootstrap issues.
 top(1)		eadler	Pre-commit review requested.
 usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
