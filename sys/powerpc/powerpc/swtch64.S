@@ -78,6 +78,7 @@ TOC_ENTRY(blocked_lock)
 ENTRY(cpu_throw)
 	mr	%r13, %r4
 	li	%r14,0	/* Tell cpu_switchin not to release a thread */
+	li	%r18,0	/* No old pcb flags.  The old thread is extinguished. */
 
 	b	cpu_switchin
 
