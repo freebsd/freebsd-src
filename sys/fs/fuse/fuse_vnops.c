@@ -120,6 +120,7 @@ SDT_PROBE_DEFINE2(fusefs, , vnops, trace, "int", "char*");
 /* vnode ops */
 static vop_access_t fuse_vnop_access;
 static vop_advlock_t fuse_vnop_advlock;
+static vop_close_t fuse_fifo_close;
 static vop_close_t fuse_vnop_close;
 static vop_create_t fuse_vnop_create;
 static vop_deleteextattr_t fuse_vnop_deleteextattr;
@@ -150,6 +151,21 @@ static vop_write_t fuse_vnop_write;
 static vop_getpages_t fuse_vnop_getpages;
 static vop_putpages_t fuse_vnop_putpages;
 static vop_print_t fuse_vnop_print;
+
+struct vop_vector fuse_fifoops = {
+	.vop_default =		&fifo_specops,
+	.vop_access =		fuse_vnop_access,
+	.vop_close =		fuse_fifo_close,
+	.vop_fsync =		fuse_vnop_fsync,
+	.vop_getattr =		fuse_vnop_getattr,
+	.vop_inactive =		fuse_vnop_inactive,
+	.vop_pathconf =		fuse_vnop_pathconf,
+	.vop_print =		fuse_vnop_print,
+	.vop_read =		VOP_PANIC,
+	.vop_reclaim =		fuse_vnop_reclaim,
+	.vop_setattr =		fuse_vnop_setattr,
+	.vop_write =		VOP_PANIC,
+};
 
 struct vop_vector fuse_vnops = {
 	.vop_default = &default_vnodeops,
@@ -290,6 +306,13 @@ fuse_flush(struct vnode *vp, struct ucred *cred, pid_t pid, int fflag)
 	}
 	fdisp_destroy(&fdi);
 	return err;
+}
+
+/* Close wrapper for fifos.  */
+static int
+fuse_fifo_close(struct vop_close_args *ap)
+{
+	return (fifo_specops.vop_close(ap));
 }
 
 /*

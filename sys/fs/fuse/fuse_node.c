@@ -248,7 +248,14 @@ fuse_vnode_alloc(struct mount *mp,
 		return (0);
 	}
 	fvdat = malloc(sizeof(*fvdat), M_FUSEVN, M_WAITOK | M_ZERO);
-	err = getnewvnode("fuse", mp, &fuse_vnops, vpp);
+	switch (vtyp) {
+	case VFIFO:
+		err = getnewvnode("fuse", mp, &fuse_fifoops, vpp);
+		break;
+	default:
+		err = getnewvnode("fuse", mp, &fuse_vnops, vpp);
+		break;
+	}
 	if (err) {
 		free(fvdat, M_FUSEVN);
 		return (err);

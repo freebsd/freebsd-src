@@ -12,6 +12,7 @@ GTESTS+=	allow_other
 GTESTS+=	create
 GTESTS+=	default_permissions
 GTESTS+=	destroy
+GTESTS+=	fifo
 GTESTS+=	flush
 GTESTS+=	fsync
 GTESTS+=	fsyncdir
