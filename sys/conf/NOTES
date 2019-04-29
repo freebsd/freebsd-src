@@ -559,8 +559,10 @@ options 	INVARIANT_SUPPORT
 
 #
 # The DIAGNOSTIC option is used to enable extra debugging information
-# from some parts of the kernel.  As this makes everything more noisy,
-# it is disabled by default.
+# and invariants checking.  The added checks are too expensive or noisy
+# for an INVARIANTS kernel and thus are disabled by default.  It is
+# expected that a kernel configured with DIAGNOSTIC will also have the
+# INVARIANTS option enabled.
 #
 options 	DIAGNOSTIC
 
