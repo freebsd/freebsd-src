@@ -191,7 +191,7 @@ powerpc/powernv/opal.c		optional	powernv
 powerpc/powernv/opal_async.c	optional	powernv
 powerpc/powernv/opal_console.c	optional	powernv
 powerpc/powernv/opal_dev.c	optional	powernv
-powerpc/powernv/opal_flash.c	optional	powernv
+powerpc/powernv/opal_flash.c	optional	powernv opalflash
 powerpc/powernv/opal_hmi.c	optional	powernv
 powerpc/powernv/opal_i2c.c	optional	iicbus fdt powernv
 powerpc/powernv/opal_i2cm.c	optional	iicbus fdt powernv
