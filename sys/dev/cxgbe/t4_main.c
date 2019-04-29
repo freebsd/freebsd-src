@@ -620,7 +620,8 @@ static void cxgbe_tick(void *);
 static void cxgbe_vlan_config(void *, struct ifnet *, uint16_t);
 static void cxgbe_sysctls(struct port_info *);
 static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
-static int sysctl_bitfield(SYSCTL_HANDLER_ARGS);
+static int sysctl_bitfield_8b(SYSCTL_HANDLER_ARGS);
+static int sysctl_bitfield_16b(SYSCTL_HANDLER_ARGS);
 static int sysctl_btphy(SYSCTL_HANDLER_ARGS);
 static int sysctl_noflowq(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS);
@@ -5629,8 +5630,8 @@ t4_sysctls(struct adapter *sc)
 	    sc->params.nports, "# of ports");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "doorbells",
-	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, sc->doorbells,
-	    sysctl_bitfield, "A", "available doorbells");
+	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, (uintptr_t)&sc->doorbells,
+	    sysctl_bitfield_8b, "A", "available doorbells");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD, NULL,
 	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
@@ -5701,8 +5702,8 @@ t4_sysctls(struct adapter *sc)
 
 #define SYSCTL_CAP(name, n, text) \
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, #name, \
-	    CTLTYPE_STRING | CTLFLAG_RD, caps_decoder[n], sc->name, \
-	    sysctl_bitfield, "A", "available " text " capabilities")
+	    CTLTYPE_STRING | CTLFLAG_RD, caps_decoder[n], (uintptr_t)&sc->name, \
+	    sysctl_bitfield_16b, "A", "available " text " capabilities")
 
 	SYSCTL_CAP(nbmcaps, 0, "NBM");
 	SYSCTL_CAP(linkcaps, 1, "link");
@@ -6390,7 +6391,7 @@ sysctl_int_array(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-sysctl_bitfield(SYSCTL_HANDLER_ARGS)
+sysctl_bitfield_8b(SYSCTL_HANDLER_ARGS)
 {
 	int rc;
 	struct sbuf *sb;
@@ -6403,7 +6404,28 @@ sysctl_bitfield(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	sbuf_printf(sb, "%b", (int)arg2, (char *)arg1);
+	sbuf_printf(sb, "%b", *(uint8_t *)(uintptr_t)arg2, (char *)arg1);
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
+sysctl_bitfield_16b(SYSCTL_HANDLER_ARGS)
+{
+	int rc;
+	struct sbuf *sb;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return(rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	sbuf_printf(sb, "%b", *(uint16_t *)(uintptr_t)arg2, (char *)arg1);
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 
