@@ -472,13 +472,35 @@ find_currdev(bool do_bootmgr, bool is_last,
 	 */
 	rootdev = getenv("rootdev");
 	if (rootdev != NULL) {
-		printf("Setting currdev to configured rootdev %s\n", rootdev);
+		printf("    Setting currdev to configured rootdev %s\n",
+		    rootdev);
 		set_currdev(rootdev);
 		return (0);
 	}
 
 	/*
-	 * Second choice: If we can find out image boot_info, and there's
+	 * Second choice: If uefi_rootdev is set, translate that UEFI device
+	 * path to the loader's internal name and use that.
+	 */
+	do {
+		rootdev = getenv("uefi_rootdev");
+		if (rootdev == NULL)
+			break;
+		devpath = efi_name_to_devpath(rootdev);
+		if (devpath == NULL)
+			break;
+		dp = efiblk_get_pdinfo_by_device_path(devpath);
+		efi_devpath_free(devpath);
+		if (dp == NULL)
+			break;
+		printf("    Setting currdev to UEFI path %s\n",
+		    rootdev);
+		set_currdev_pdinfo(dp);
+		return (0);
+	} while (0);
+
+	/*
+	 * Third choice: If we can find out image boot_info, and there's
 	 * a follow-on boot image in that boot_info, use that. In this
 	 * case root will be the partition specified in that image and
 	 * we'll load the kernel specified by the file path. Should there
