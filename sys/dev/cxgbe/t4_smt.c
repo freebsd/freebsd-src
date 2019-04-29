@@ -210,7 +210,7 @@ t4_smt_set_switching(struct adapter *sc, struct smt_entry *e, uint16_t pfvf,
 	if (atomic_load_acq_int(&e->refcnt) == 1) {
 		/* Setup the entry for the first time */
 		mtx_lock(&e->lock);
-		e->wrq = &sc->sge.mgmtq;
+		e->wrq = &sc->sge.ctrlq[0];
 		e->iqid = sc->sge.fwq.abs_id;
 		e->pfvf =  pfvf;
 		e->state = SMT_STATE_SWITCHING;
