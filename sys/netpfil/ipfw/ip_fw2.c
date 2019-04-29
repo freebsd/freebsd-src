@@ -2191,9 +2191,11 @@ do {								\
 				break;
 
 			case O_IPID:
-			case O_IPLEN:
 			case O_IPTTL:
-				if (is_ipv4) {	/* only for IP packets */
+				if (!is_ipv4)
+					break;
+			case O_IPLEN:
+				{	/* only for IP packets */
 				    uint16_t x;
 				    uint16_t *p;
 				    int i;
