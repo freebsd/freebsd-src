@@ -3067,7 +3067,14 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 
 #if defined(KTR) && (KTR_COMPILE & KTR_IGMPV3)
 
-static const char *inm_modestrs[] = { "un", "in", "ex" };
+static const char *inm_modestrs[] = {
+	[MCAST_UNDEFINED] = "un",
+	[MCAST_INCLUDE] = "in",
+	[MCAST_EXCLUDE] = "ex",
+};
+_Static_assert(MCAST_UNDEFINED == 0 &&
+	       MCAST_EXCLUDE + 1 == nitems(inm_modestrs),
+	       "inm_modestrs: no longer matches #defines");
 
 static const char *
 inm_mode_str(const int mode)
@@ -3079,16 +3086,20 @@ inm_mode_str(const int mode)
 }
 
 static const char *inm_statestrs[] = {
-	"not-member",
-	"silent",
-	"idle",
-	"lazy",
-	"sleeping",
-	"awakening",
-	"query-pending",
-	"sg-query-pending",
-	"leaving"
+	[IGMP_NOT_MEMBER] = "not-member",
+	[IGMP_SILENT_MEMBER] = "silent",
+	[IGMP_REPORTING_MEMBER] = "reporting",
+	[IGMP_IDLE_MEMBER] = "idle",
+	[IGMP_LAZY_MEMBER] = "lazy",
+	[IGMP_SLEEPING_MEMBER] = "sleeping",
+	[IGMP_AWAKENING_MEMBER] = "awakening",
+	[IGMP_G_QUERY_PENDING_MEMBER] = "query-pending",
+	[IGMP_SG_QUERY_PENDING_MEMBER] = "sg-query-pending",
+	[IGMP_LEAVING_MEMBER] = "leaving",
 };
+_Static_assert(IGMP_NOT_MEMBER == 0 &&
+	       IGMP_LEAVING_MEMBER + 1 == nitems(inm_statestrs),
+	       "inm_statetrs: no longer matches #defines");
 
 static const char *
 inm_state_str(const int state)
