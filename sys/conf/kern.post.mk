@@ -122,6 +122,8 @@ kernel-obj:
 
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
 modules: modules-all
+modules-depend: beforebuild
+modules-all: beforebuild
 
 .if !defined(NO_MODULES_OBJ)
 modules-all modules-depend: modules-obj
