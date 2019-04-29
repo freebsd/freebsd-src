@@ -593,13 +593,8 @@ set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te,
 		}
 	}
 	mtx_unlock(&sc->tids.ftid_lock);
-	if (rc != 0) {
-		if (l2te)
-			t4_l2t_release(l2te);
-		if (smt)
-			t4_smt_release(smt);
+	if (rc != 0)
 		return (rc);
-	}
 
 	/*
 	 * Can't fail now.  A set-filter WR will definitely be sent.
@@ -817,8 +812,8 @@ int
 set_filter(struct adapter *sc, struct t4_filter *t)
 {
 	struct tid_info *ti = &sc->tids;
-	struct l2t_entry *l2te;
-	struct smt_entry *smt;
+	struct l2t_entry *l2te = NULL;
+	struct smt_entry *smt = NULL;
 	uint64_t ftuple;
 	int rc;
 
@@ -942,43 +937,41 @@ done:
 	 * Allocate L2T entry, SMT entry, etc.
 	 */
 
-	l2te = NULL;
 	if (t->fs.newdmac || t->fs.newvlan) {
 		/* This filter needs an L2T entry; allocate one. */
-		l2te = t4_l2t_alloc_switching(sc->l2t);
-		if (__predict_false(l2te == NULL))
-			return (EAGAIN);
-		rc = t4_l2t_set_switching(sc, l2te, t->fs.vlan, t->fs.eport,
+		l2te = t4_l2t_alloc_switching(sc, t->fs.vlan, t->fs.eport,
 		    t->fs.dmac);
-		if (rc) {
-			t4_l2t_release(l2te);
-			return (ENOMEM);
+		if (__predict_false(l2te == NULL)) {
+			rc = EAGAIN;
+			goto error;
 		}
 	}
 
-	smt = NULL;
 	if (t->fs.newsmac) {
 		/* This filter needs an SMT entry; allocate one. */
 		smt = t4_smt_alloc_switching(sc->smt, t->fs.smac);
 		if (__predict_false(smt == NULL)) {
-			if (l2te != NULL)
-				t4_l2t_release(l2te);
-			return (EAGAIN);
+			rc = EAGAIN;
+			goto error;
 		}
 		rc = t4_smt_set_switching(sc, smt, 0x0, t->fs.smac);
-		if (rc) {
-			t4_smt_release(smt);
-			if (l2te != NULL)
-				t4_l2t_release(l2te);
-			return (rc);
-		}
+		if (rc)
+			goto error;
 	}
 
 	if (t->fs.hash)
-		return (set_hashfilter(sc, t, ftuple, l2te, smt));
+		rc = set_hashfilter(sc, t, ftuple, l2te, smt);
 	else
-		return (set_tcamfilter(sc, t, l2te, smt));
+		rc = set_tcamfilter(sc, t, l2te, smt);
 
+	if (rc != 0 && rc != EINPROGRESS) {
+error:
+		if (l2te)
+			t4_l2t_release(l2te);
+		if (smt)
+			t4_smt_release(smt);
+	}
+	return (rc);
 }
 
 static int
@@ -1552,10 +1545,6 @@ set_hashfilter(struct adapter *sc, struct t4_filter *t, uint64_t ftuple,
 
 	f = malloc(sizeof(*f), M_CXGBE, M_ZERO | M_NOWAIT);
 	if (__predict_false(f == NULL)) {
-		if (l2te)
-			t4_l2t_release(l2te);
-		if (smt)
-			t4_smt_release(smt);
 		rc = ENOMEM;
 		goto done;
 	}
@@ -1565,10 +1554,6 @@ set_hashfilter(struct adapter *sc, struct t4_filter *t, uint64_t ftuple,
 
 	atid = alloc_atid(sc, f);
 	if (__predict_false(atid) == -1) {
-		if (l2te)
-			t4_l2t_release(l2te);
-		if (smt)
-			t4_smt_release(smt);
 		free(f, M_CXGBE);
 		rc = EAGAIN;
 		goto done;
@@ -1579,10 +1564,6 @@ set_hashfilter(struct adapter *sc, struct t4_filter *t, uint64_t ftuple,
 	    &cookie);
 	if (wr == NULL) {
 		free_atid(sc, atid);
-		if (l2te)
-			t4_l2t_release(l2te);
-		if (smt)
-			t4_smt_release(smt);
 		free(f, M_CXGBE);
 		rc = ENOMEM;
 		goto done;
