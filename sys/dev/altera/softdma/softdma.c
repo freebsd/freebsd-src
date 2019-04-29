@@ -190,6 +190,18 @@ softdma_fill_level(struct softdma_softc *sc)
 	return (val);
 }
 
+static uint32_t
+fifo_fill_level_wait(struct softdma_softc *sc)
+{
+	uint32_t val;
+
+	do
+		val = softdma_fill_level(sc);
+	while (val == AVALON_FIFO_TX_BASIC_OPTS_DEPTH);
+
+	return (val);
+}
+
 static void
 softdma_intr(void *arg)
 {
@@ -287,86 +299,96 @@ static int
 softdma_process_tx(struct softdma_channel *chan, struct softdma_desc *desc)
 {
 	struct softdma_softc *sc;
-	uint32_t src_offs, dst_offs;
+	uint64_t addr;
+	uint64_t buf;
+	uint32_t word;
+	uint32_t missing;
 	uint32_t reg;
-	uint32_t fill_level;
-	uint32_t leftm;
-	uint32_t tmp;
-	uint32_t val;
-	uint32_t c;
+	int got_bits;
+	int len;
 
 	sc = chan->sc;
 
-	fill_level = softdma_fill_level(sc);
-	while (fill_level == AVALON_FIFO_TX_BASIC_OPTS_DEPTH)
-		fill_level = softdma_fill_level(sc);
+	fifo_fill_level_wait(sc);
 
 	/* Set start of packet. */
-	if (desc->control & CONTROL_GEN_SOP) {
-		reg = 0;
-		reg |= A_ONCHIP_FIFO_MEM_CORE_SOP;
+	if (desc->control & CONTROL_GEN_SOP)
+		softdma_mem_write(sc, A_ONCHIP_FIFO_MEM_CORE_METADATA,
+		    A_ONCHIP_FIFO_MEM_CORE_SOP);
+
+	got_bits = 0;
+	buf = 0;
+
+	addr = desc->src_addr;
+	len = desc->len;
+
+	if (addr & 1) {
+		buf = (buf << 8) | *(uint8_t *)addr;
+		got_bits += 8;
+		addr += 1;
+		len -= 1;
+	}
+
+	if (len >= 2 && addr & 2) {
+		buf = (buf << 16) | *(uint16_t *)addr;
+		got_bits += 16;
+		addr += 2;
+		len -= 2;
+	}
+
+	while (len >= 4) {
+		buf = (buf << 32) | (uint64_t)*(uint32_t *)addr;
+		addr += 4;
+		len -= 4;
+		word = (uint32_t)((buf >> got_bits) & 0xffffffff);
+
+		fifo_fill_level_wait(sc);
+		if (len == 0 && got_bits == 0 &&
+		    (desc->control & CONTROL_GEN_EOP) != 0)
+			softdma_mem_write(sc, A_ONCHIP_FIFO_MEM_CORE_METADATA,
+			    A_ONCHIP_FIFO_MEM_CORE_EOP);
+		bus_write_4(sc->res[0], A_ONCHIP_FIFO_MEM_CORE_DATA, word);
+	}
+
+	if (len & 2) {
+		buf = (buf << 16) | *(uint16_t *)addr;
+		got_bits += 16;
+		addr += 2;
+		len -= 2;
+	}
+
+	if (len & 1) {
+		buf = (buf << 8) | *(uint8_t *)addr;
+		got_bits += 8;
+		addr += 1;
+		len -= 1;
+	}
+
+	if (got_bits >= 32) {
+		got_bits -= 32;
+		word = (uint32_t)((buf >> got_bits) & 0xffffffff);
+
+		fifo_fill_level_wait(sc);
+		if (len == 0 && got_bits == 0 &&
+		    (desc->control & CONTROL_GEN_EOP) != 0)
+			softdma_mem_write(sc, A_ONCHIP_FIFO_MEM_CORE_METADATA,
+			    A_ONCHIP_FIFO_MEM_CORE_EOP);
+		bus_write_4(sc->res[0], A_ONCHIP_FIFO_MEM_CORE_DATA, word);
+	}
+
+	if (got_bits) {
+		missing = 32 - got_bits;
+		got_bits /= 8;
+
+		fifo_fill_level_wait(sc);
+		reg = A_ONCHIP_FIFO_MEM_CORE_EOP |
+		    ((4 - got_bits) << A_ONCHIP_FIFO_MEM_CORE_EMPTY_SHIFT);
 		softdma_mem_write(sc, A_ONCHIP_FIFO_MEM_CORE_METADATA, reg);
+		word = (uint32_t)((buf << missing) & 0xffffffff);
+		bus_write_4(sc->res[0], A_ONCHIP_FIFO_MEM_CORE_DATA, word);
 	}
 
-	src_offs = dst_offs = 0;
-	c = 0;
-	while ((desc->len - c) >= 4) {
-		val = *(uint32_t *)(desc->src_addr + src_offs);
-		bus_write_4(sc->res[0], A_ONCHIP_FIFO_MEM_CORE_DATA, val);
-		if (desc->src_incr)
-			src_offs += 4;
-		if (desc->dst_incr)
-			dst_offs += 4;
-		fill_level += 1;
-
-		while (fill_level == AVALON_FIFO_TX_BASIC_OPTS_DEPTH) {
-			fill_level = softdma_fill_level(sc);
-		}
-		c += 4;
-	}
-
-	val = 0;
-	leftm = (desc->len - c);
-
-	switch (leftm) {
-	case 1:
-		val = *(uint8_t *)(desc->src_addr + src_offs);
-		val <<= 24;
-		src_offs += 1;
-		break;
-	case 2:
-	case 3:
-		val = *(uint16_t *)(desc->src_addr + src_offs);
-		val <<= 16;
-		src_offs += 2;
-
-		if (leftm == 3) {
-			tmp = *(uint8_t *)(desc->src_addr + src_offs);
-			val |= (tmp << 8);
-			src_offs += 1;
-		}
-		break;
-	case 0:
-	default:
-		break;
-	}
-
-	/* Set end of packet. */
-	reg = 0;
-	if (desc->control & CONTROL_GEN_EOP)
-		reg |= A_ONCHIP_FIFO_MEM_CORE_EOP;
-	reg |= ((4 - leftm) << A_ONCHIP_FIFO_MEM_CORE_EMPTY_SHIFT);
-	softdma_mem_write(sc, A_ONCHIP_FIFO_MEM_CORE_METADATA, reg);
-
-	/* Ensure there is a FIFO entry available. */
-	fill_level = softdma_fill_level(sc);
-	while (fill_level == AVALON_FIFO_TX_BASIC_OPTS_DEPTH)
-		fill_level = softdma_fill_level(sc);
-
-	/* Final write */
-	bus_write_4(sc->res[0], A_ONCHIP_FIFO_MEM_CORE_DATA, val);
-
-	return (dst_offs);
+	return (desc->len);
 }
 
 static int
@@ -594,6 +616,8 @@ softdma_channel_alloc(device_t dev, struct xdma_channel *xchan)
 		if (chan->used == 0) {
 			chan->xchan = xchan;
 			xchan->chan = (void *)chan;
+			xchan->caps |= XCHAN_CAP_NOBUFS;
+			xchan->caps |= XCHAN_CAP_NOSEG;
 			chan->index = i;
 			chan->idx_head = 0;
 			chan->idx_tail = 0;
