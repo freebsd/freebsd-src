@@ -125,10 +125,8 @@ int VGLSetVScreenSize(VGLBitmap *object, int VXsize, int VYsize);
 int VGLPanScreen(VGLBitmap *object, int x, int y);
 int VGLSetSegment(unsigned int offset);
 /* mouse.c */
-void VGLMousePointerShow(void);
-void VGLMousePointerHide(void);
+int __VGLMouseMode(int mode);
 void VGLMouseMode(int mode);
-void VGLMouseAction(int dummy);
 void VGLMouseSetImage(VGLBitmap *AndMask, VGLBitmap *OrMask);
 void VGLMouseSetStdImage(void);
 int VGLMouseInit(int mode);

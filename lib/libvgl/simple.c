@@ -465,14 +465,11 @@ void
 VGLClear(VGLBitmap *object, u_long color)
 {
   VGLBitmap src;
-  int i, len, mouseoverlap, offset;
+  int i, len, mousemode, offset;
 
   VGLCheckSwitch();
   if (object == VGLDisplay) {
     VGLMouseFreeze();
-    mouseoverlap = VGLMouseOverlap(0, 0, object->VXsize, object->VYsize);
-    if (mouseoverlap)
-      VGLMousePointerHide();
     VGLClear(&VGLVDisplay, color);
   } else if (object->Type != MEMBUF)
     return;		/* invalid */
@@ -503,14 +500,17 @@ VGLClear(VGLBitmap *object, u_long color)
     break;
 
   case VIDBUF8X:
+    mousemode = __VGLMouseMode(VGL_MOUSEHIDE);
     /* XXX works only for Xsize % 4 = 0 */
     outb(0x3c6, 0xff);
     outb(0x3c4, 0x02); outb(0x3c5, 0x0f);
     memset(object->Bitmap, (byte)color, VGLAdpInfo.va_line_width*object->VYsize);
+    __VGLMouseMode(mousemode);
     break;
 
   case VIDBUF4:
   case VIDBUF4S:
+    mousemode = __VGLMouseMode(VGL_MOUSEHIDE);
     /* XXX works only for Xsize % 8 = 0 */
     outb(0x3c4, 0x02); outb(0x3c5, 0x0f);
     outb(0x3ce, 0x05); outb(0x3cf, 0x02);		/* mode 2 */
@@ -524,13 +524,11 @@ VGLClear(VGLBitmap *object, u_long color)
       offset += len;
     }
     outb(0x3ce, 0x05); outb(0x3cf, 0x00);
+    __VGLMouseMode(mousemode);
     break;
   }
-  if (object == VGLDisplay) {
-    if (mouseoverlap)
-      VGLMousePointerShow();
+  if (object == VGLDisplay)
     VGLMouseUnFreeze();
-  }
 }
 
 static inline u_long
