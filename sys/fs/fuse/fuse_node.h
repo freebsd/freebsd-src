@@ -114,6 +114,7 @@ VTOVA(struct vnode *vp)
 
 #define FUSE_NULL_ID 0
 
+extern struct vop_vector fuse_fifoops;
 extern struct vop_vector fuse_vnops;
 
 static inline void
