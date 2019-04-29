@@ -236,18 +236,21 @@ struct tx_ch_rl_params {
 };
 
 enum {
-	TX_CLRL_REFRESH	= (1 << 0),	/* Need to update hardware state. */
-	TX_CLRL_ERROR	= (1 << 1),	/* Error, hardware state unknown. */
+	CLRL_USER	= (1 << 0),	/* allocated manually. */
+	CLRL_SYNC	= (1 << 1),	/* sync hw update in progress. */
+	CLRL_ASYNC	= (1 << 2),	/* async hw update requested. */
+	CLRL_ERR	= (1 << 3),	/* last hw setup ended in error. */
 };
 
 struct tx_cl_rl_params {
 	int refcount;
-	u_int flags;
+	uint8_t flags;
 	enum fw_sched_params_rate ratemode;	/* %port REL or ABS value */
 	enum fw_sched_params_unit rateunit;	/* kbps or pps (when ABS) */
 	enum fw_sched_params_mode mode;		/* aggr or per-flow */
 	uint32_t maxrate;
 	uint16_t pktsize;
+	uint16_t burstsize;
 };
 
 /* Tx scheduler parameters for a channel/port */
@@ -258,7 +261,9 @@ struct tx_sched_params {
 	/* Class WRR */
 	/* XXX */
 
-	/* Class Rate Limiter */
+	/* Class Rate Limiter (including the default pktsize and burstsize). */
+	int pktsize;
+	int burstsize;
 	struct tx_cl_rl_params cl_rl[];
 };
 
@@ -1186,7 +1191,9 @@ int t4_init_tx_sched(struct adapter *);
 int t4_free_tx_sched(struct adapter *);
 void t4_update_tx_sched(struct adapter *);
 int t4_reserve_cl_rl_kbps(struct adapter *, int, u_int, int *);
-void t4_release_cl_rl_kbps(struct adapter *, int, int);
+void t4_release_cl_rl(struct adapter *, int, int);
+int sysctl_tc(SYSCTL_HANDLER_ARGS);
+int sysctl_tc_params(SYSCTL_HANDLER_ARGS);
 
 /* t4_filter.c */
 int get_filter_mode(struct adapter *, uint32_t *);
