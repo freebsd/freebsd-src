@@ -339,8 +339,6 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	nm_set_native_flags(na);
 
 	for_each_nm_rxq(vi, i, nm_rxq) {
-		struct irq *irq = &sc->irq[vi->first_intr + i];
-
 		alloc_nm_rxq_hwq(vi, nm_rxq, tnl_cong(vi->pi, nm_cong_drop));
 		nm_rxq->fl_hwidx = hwidx;
 		slot = netmap_reset(na, NR_RX, i, 0);
@@ -363,7 +361,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    nm_rxq->fl_db_val | V_PIDX(j));
 
-		atomic_cmpset_int(&irq->nm_state, NM_OFF, NM_ON);
+		atomic_cmpset_int(&nm_rxq->nm_state, NM_OFF, NM_ON);
 	}
 
 	for_each_nm_txq(vi, i, nm_txq) {
@@ -424,9 +422,7 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 		free_nm_txq_hwq(vi, nm_txq);
 	}
 	for_each_nm_rxq(vi, i, nm_rxq) {
-		struct irq *irq = &sc->irq[vi->first_intr + i];
-
-		while (!atomic_cmpset_int(&irq->nm_state, NM_ON, NM_OFF))
+		while (!atomic_cmpset_int(&nm_rxq->nm_state, NM_ON, NM_OFF))
 			pause("nmst", 1);
 
 		free_nm_rxq_hwq(vi, nm_rxq);
@@ -902,9 +898,8 @@ handle_nm_sge_egr_update(struct adapter *sc, struct ifnet *ifp,
 }
 
 void
-t4_nm_intr(void *arg)
+service_nm_rxq(struct sge_nm_rxq *nm_rxq)
 {
-	struct sge_nm_rxq *nm_rxq = arg;
 	struct vi_info *vi = nm_rxq->vi;
 	struct adapter *sc = vi->pi->adapter;
 	struct ifnet *ifp = vi->ifp;
