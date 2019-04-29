@@ -122,7 +122,7 @@ static void	nonfs(int);
 static void	reapchild(int);
 static int	setbindhost(struct addrinfo **ia, const char *bindhost,
 		    struct addrinfo hints);
-static void	start_server(int, struct nfsd_nfsd_args *);
+static void	start_server(int, struct nfsd_nfsd_args *, const char *vhost);
 static void	unregistration(void);
 static void	usage(void);
 static void	open_stable(int *, int *);
@@ -176,6 +176,7 @@ main(int argc, char **argv)
 	char **bindhost = NULL;
 	pid_t pid;
 	struct nfsd_nfsd_args nfsdargs;
+	const char *vhostname = NULL;
 
 	nfsdargs.mirrorcnt = 1;
 	nfsdargs.addr = NULL;
@@ -183,16 +184,24 @@ main(int argc, char **argv)
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = maxsock = 0;
 	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
-	getopt_shortopts = "ah:n:rdtuep:m:";
+	getopt_shortopts = "ah:n:rdtuep:m:V:";
 	getopt_usage =
 	    "usage:\n"
 	    "  nfsd [-ardtue] [-h bindip]\n"
 	    "       [-n numservers] [--minthreads #] [--maxthreads #]\n"
-	    "       [-p/--pnfs dsserver0:/dsserver0-mounted-on-dir,...,"
-	    "dsserverN:/dsserverN-mounted-on-dir] [-m mirrorlevel]\n";
+	    "       [-p/--pnfs dsserver0:/dsserver0-mounted-on-dir,...,\n"
+	    "       [-V virtual_hostname]\n"
+	    "       dsserverN:/dsserverN-mounted-on-dir] [-m mirrorlevel]\n";
 	while ((ch = getopt_long(argc, argv, getopt_shortopts, longopts,
 		    &longindex)) != -1)
 		switch (ch) {
+		case 'V':
+			if (strlen(optarg) <= MAXHOSTNAMELEN)
+				vhostname = optarg;
+			else
+				warnx("Virtual host name (%s) is too long",
+				    optarg);
+			break;
 		case 'a':
 			bindanyflag = 1;
 			break;
@@ -473,7 +482,7 @@ main(int argc, char **argv)
 		} else {
 			(void)signal(SIGUSR1, child_cleanup);
 			setproctitle("server");
-			start_server(0, &nfsdargs);
+			start_server(0, &nfsdargs, vhostname);
 		}
 	}
 
@@ -790,7 +799,7 @@ main(int argc, char **argv)
 	 * a "server" too. start_server will not return.
 	 */
 	if (!tcpflag)
-		start_server(1, &nfsdargs);
+		start_server(1, &nfsdargs, vhostname);
 
 	/*
 	 * Loop forever accepting connections and passing the sockets
@@ -987,7 +996,7 @@ get_tuned_nfsdcount(void)
 }
 
 static void
-start_server(int master, struct nfsd_nfsd_args *nfsdargp)
+start_server(int master, struct nfsd_nfsd_args *nfsdargp, const char *vhost)
 {
 	char principal[MAXHOSTNAMELEN + 5];
 	int status, error;
@@ -995,7 +1004,10 @@ start_server(int master, struct nfsd_nfsd_args *nfsdargp)
 	struct addrinfo *aip, hints;
 
 	status = 0;
-	gethostname(hostname, sizeof (hostname));
+	if (vhost == NULL)
+		gethostname(hostname, sizeof (hostname));
+	else
+		strlcpy(hostname, vhost, sizeof (hostname));
 	snprintf(principal, sizeof (principal), "nfs@%s", hostname);
 	if ((cp = strchr(hostname, '.')) == NULL ||
 	    *(cp + 1) == '\0') {

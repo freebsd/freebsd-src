@@ -13,6 +13,7 @@ name="nfsd"
 desc="Remote NFS server"
 rcvar="nfs_server_enable"
 command="/usr/sbin/${name}"
+nfs_server_vhost=""
 
 load_rc_config $name
 start_precmd="nfsd_precmd"
@@ -20,6 +21,7 @@ sig_stop="USR1"
 
 nfsd_precmd()
 {
+	local	_vhost
 	rc_flags="${nfs_server_flags}"
 
 	# Load the modules now, so that the vfs.nfsd sysctl
@@ -46,6 +48,9 @@ nfsd_precmd()
 
 	force_depend rpcbind || return 1
 	force_depend mountd || return 1
+	if [ -n "${nfs_server_vhost}" ]; then
+		command_args="-V \"${nfs_server_vhost}\""
+	fi
 }
 
 run_rc_command "$1"
