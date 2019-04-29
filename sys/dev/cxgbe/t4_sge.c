@@ -2053,14 +2053,7 @@ needs_tso(struct mbuf *m)
 
 	M_ASSERTPKTHDR(m);
 
-	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
-		KASSERT(m->m_pkthdr.tso_segsz > 0,
-		    ("%s: TSO requested in mbuf %p but MSS not provided",
-		    __func__, m));
-		return (1);
-	}
-
-	return (0);
+	return (m->m_pkthdr.csum_flags & CSUM_TSO);
 }
 
 static inline int
@@ -2069,9 +2062,7 @@ needs_l3_csum(struct mbuf *m)
 
 	M_ASSERTPKTHDR(m);
 
-	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TSO))
-		return (1);
-	return (0);
+	return (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TSO));
 }
 
 static inline int
@@ -2080,10 +2071,8 @@ needs_l4_csum(struct mbuf *m)
 
 	M_ASSERTPKTHDR(m);
 
-	if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_UDP_IPV6 |
-	    CSUM_TCP_IPV6 | CSUM_TSO))
-		return (1);
-	return (0);
+	return (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_UDP_IPV6 |
+	    CSUM_TCP_IPV6 | CSUM_TSO));
 }
 
 static inline int
@@ -2092,13 +2081,7 @@ needs_vlan_insertion(struct mbuf *m)
 
 	M_ASSERTPKTHDR(m);
 
-	if (m->m_flags & M_VLANTAG) {
-		KASSERT(m->m_pkthdr.ether_vtag != 0,
-		    ("%s: HWVLAN requested in mbuf %p but tag not provided",
-		    __func__, m));
-		return (1);
-	}
-	return (0);
+	return (m->m_flags & M_VLANTAG);
 }
 
 static void *
