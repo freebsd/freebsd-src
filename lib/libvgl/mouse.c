@@ -43,52 +43,132 @@ static void VGLMouseAction(int dummy);
 
 #define BORDER	0xff	/* default border -- light white in rgb 3:3:2 */
 #define INTERIOR 0xa0	/* default interior -- red in rgb 3:3:2 */
+#define LARGE_MOUSE_IMG_XSIZE	19
+#define LARGE_MOUSE_IMG_YSIZE	32
+#define SMALL_MOUSE_IMG_XSIZE	10
+#define SMALL_MOUSE_IMG_YSIZE	16
 #define X	0xff	/* any nonzero in And mask means part of cursor */
 #define B	BORDER
 #define I	INTERIOR
-static byte StdAndMask[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE] = {
-	X,X,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	X,X,X,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	X,X,X,X,0,0,0,0,0,0,0,0,0,0,0,0,
-	X,X,X,X,X,0,0,0,0,0,0,0,0,0,0,0,
-	X,X,X,X,X,X,0,0,0,0,0,0,0,0,0,0,
-	X,X,X,X,X,X,X,0,0,0,0,0,0,0,0,0,
-	X,X,X,X,X,X,X,X,0,0,0,0,0,0,0,0,
-	X,X,X,X,X,X,X,X,X,0,0,0,0,0,0,0,
-	X,X,X,X,X,X,X,X,X,X,0,0,0,0,0,0,
-	X,X,X,X,X,X,X,X,X,X,0,0,0,0,0,0,
-	X,X,X,X,X,X,X,0,0,0,0,0,0,0,0,0,
-	X,X,X,0,X,X,X,X,0,0,0,0,0,0,0,0,
-	X,X,0,0,X,X,X,X,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,X,X,X,X,0,0,0,0,0,0,0,
-	0,0,0,0,0,X,X,X,X,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,X,X,0,0,0,0,0,0,0,0,
+static byte LargeAndMask[] = {
+  X,X,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  X,X,X,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  X,X,X,X,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  X,X,X,X,X,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  X,X,X,X,X,X,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  X,X,X,X,X,X,X,0,0,0,0,0,0,0,0,0,0,0,0,
+  X,X,X,X,X,X,X,X,0,0,0,0,0,0,0,0,0,0,0,
+  X,X,X,X,X,X,X,X,X,0,0,0,0,0,0,0,0,0,0,
+  X,X,X,X,X,X,X,X,X,X,0,0,0,0,0,0,0,0,0,
+  X,X,X,X,X,X,X,X,X,X,X,0,0,0,0,0,0,0,0,
+  X,X,X,X,X,X,X,X,X,X,X,X,0,0,0,0,0,0,0,
+  X,X,X,X,X,X,X,X,X,X,X,X,X,0,0,0,0,0,0,
+  X,X,X,X,X,X,X,X,X,X,X,X,X,X,0,0,0,0,0,
+  X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,0,0,0,0,
+  X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,0,0,0,
+  X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,0,0,
+  X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,0,
+  X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,
+  X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,
+  X,X,X,X,X,X,X,X,X,X,X,X,0,0,0,0,0,0,0,
+  X,X,X,X,X,X,X,X,X,X,X,X,0,0,0,0,0,0,0,
+  X,X,X,X,X,X,0,X,X,X,X,X,X,0,0,0,0,0,0,
+  X,X,X,X,X,0,0,X,X,X,X,X,X,0,0,0,0,0,0,
+  X,X,X,X,0,0,0,0,X,X,X,X,X,X,0,0,0,0,0,
+  X,X,X,0,0,0,0,0,X,X,X,X,X,X,0,0,0,0,0,
+  X,X,0,0,0,0,0,0,0,X,X,X,X,X,X,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,X,X,X,X,X,X,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,X,X,X,X,X,X,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,X,X,X,X,X,X,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,X,X,X,X,X,X,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,X,X,X,X,X,X,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,X,X,X,X,0,0,0,
 };
-static byte StdOrMask[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE] = {
-	B,B,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	B,I,B,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	B,I,I,B,0,0,0,0,0,0,0,0,0,0,0,0,
-	B,I,I,I,B,0,0,0,0,0,0,0,0,0,0,0,
-	B,I,I,I,I,B,0,0,0,0,0,0,0,0,0,0,
-	B,I,I,I,I,I,B,0,0,0,0,0,0,0,0,0,
-	B,I,I,I,I,I,I,B,0,0,0,0,0,0,0,0,
-	B,I,I,I,I,I,I,I,B,0,0,0,0,0,0,0,
-	B,I,I,I,I,I,I,I,I,B,0,0,0,0,0,0,
-	B,I,I,I,I,I,B,B,B,B,0,0,0,0,0,0,
-	B,I,I,B,I,I,B,0,0,0,0,0,0,0,0,0,
-	B,I,B,0,B,I,I,B,0,0,0,0,0,0,0,0,
-	B,B,0,0,B,I,I,B,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,B,I,I,B,0,0,0,0,0,0,0,
-	0,0,0,0,0,B,I,I,B,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,B,B,0,0,0,0,0,0,0,0,
+static byte LargeOrMask[] = {
+  B,B,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  B,I,B,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  B,I,I,B,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  B,I,I,I,B,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  B,I,I,I,I,B,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  B,I,I,I,I,I,B,0,0,0,0,0,0,0,0,0,0,0,0,
+  B,I,I,I,I,I,I,B,0,0,0,0,0,0,0,0,0,0,0,
+  B,I,I,I,I,I,I,I,B,0,0,0,0,0,0,0,0,0,0,
+  B,I,I,I,I,I,I,I,I,B,0,0,0,0,0,0,0,0,0,
+  B,I,I,I,I,I,I,I,I,I,B,0,0,0,0,0,0,0,0,
+  B,I,I,I,I,I,I,I,I,I,I,B,0,0,0,0,0,0,0,
+  B,I,I,I,I,I,I,I,I,I,I,I,B,0,0,0,0,0,0,
+  B,I,I,I,I,I,I,I,I,I,I,I,I,B,0,0,0,0,0,
+  B,I,I,I,I,I,I,I,I,I,I,I,I,I,B,0,0,0,0,
+  B,I,I,I,I,I,I,I,I,I,I,I,I,I,I,B,0,0,0,
+  B,I,I,I,I,I,I,I,I,I,I,I,I,I,I,I,B,0,0,
+  B,I,I,I,I,I,I,I,I,I,I,I,I,I,I,I,I,B,0,
+  B,I,I,I,I,I,I,I,I,I,I,I,I,I,I,I,I,I,B,
+  B,I,I,I,I,I,I,I,I,I,I,B,B,B,B,B,B,B,B,
+  B,I,I,I,I,I,I,I,I,I,I,B,0,0,0,0,0,0,0,
+  B,I,I,I,I,I,B,I,I,I,I,B,0,0,0,0,0,0,0,
+  B,I,I,I,I,B,0,B,I,I,I,I,B,0,0,0,0,0,0,
+  B,I,I,I,B,0,0,B,I,I,I,I,B,0,0,0,0,0,0,
+  B,I,I,B,0,0,0,0,B,I,I,I,I,B,0,0,0,0,0,
+  B,I,B,0,0,0,0,0,B,I,I,I,I,B,0,0,0,0,0,
+  B,B,0,0,0,0,0,0,0,B,I,I,I,I,B,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,B,I,I,I,I,B,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,B,I,I,I,I,B,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,B,I,I,I,I,B,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,B,I,I,I,I,B,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,B,I,I,I,I,B,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,B,B,B,B,0,0,0,
+};
+static byte SmallAndMask[] = {
+  X,X,0,0,0,0,0,0,0,0,
+  X,X,X,0,0,0,0,0,0,0,
+  X,X,X,X,0,0,0,0,0,0,
+  X,X,X,X,X,0,0,0,0,0,
+  X,X,X,X,X,X,0,0,0,0,
+  X,X,X,X,X,X,X,0,0,0,
+  X,X,X,X,X,X,X,X,0,0,
+  X,X,X,X,X,X,X,X,X,0,
+  X,X,X,X,X,X,X,X,X,X,
+  X,X,X,X,X,X,X,X,X,X,
+  X,X,X,X,X,X,X,0,0,0,
+  X,X,X,0,X,X,X,X,0,0,
+  X,X,0,0,X,X,X,X,0,0,
+  0,0,0,0,0,X,X,X,X,0,
+  0,0,0,0,0,X,X,X,X,0,
+  0,0,0,0,0,0,X,X,0,0,
+};
+static byte SmallOrMask[] = {
+  B,B,0,0,0,0,0,0,0,0,
+  B,I,B,0,0,0,0,0,0,0,
+  B,I,I,B,0,0,0,0,0,0,
+  B,I,I,I,B,0,0,0,0,0,
+  B,I,I,I,I,B,0,0,0,0,
+  B,I,I,I,I,I,B,0,0,0,
+  B,I,I,I,I,I,I,B,0,0,
+  B,I,I,I,I,I,I,I,B,0,
+  B,I,I,I,I,I,I,I,I,B,
+  B,I,I,I,I,I,B,B,B,B,
+  B,I,I,B,I,I,B,0,0,0,
+  B,I,B,0,B,I,I,B,0,0,
+  B,B,0,0,B,I,I,B,0,0,
+  0,0,0,0,0,B,I,I,B,0,
+  0,0,0,0,0,B,I,I,B,0,
+  0,0,0,0,0,0,B,B,0,0,
 };
 #undef X
 #undef B
 #undef I
-static VGLBitmap VGLMouseStdAndMask = 
-    VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, StdAndMask);
-static VGLBitmap VGLMouseStdOrMask = 
-    VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, StdOrMask);
+static VGLBitmap VGLMouseLargeAndMask = 
+  VGLBITMAP_INITIALIZER(MEMBUF, LARGE_MOUSE_IMG_XSIZE, LARGE_MOUSE_IMG_YSIZE,
+                        LargeAndMask);
+static VGLBitmap VGLMouseLargeOrMask = 
+  VGLBITMAP_INITIALIZER(MEMBUF, LARGE_MOUSE_IMG_XSIZE, LARGE_MOUSE_IMG_YSIZE,
+                        LargeOrMask);
+static VGLBitmap VGLMouseSmallAndMask = 
+  VGLBITMAP_INITIALIZER(MEMBUF, SMALL_MOUSE_IMG_XSIZE, SMALL_MOUSE_IMG_YSIZE,
+                        SmallAndMask);
+static VGLBitmap VGLMouseSmallOrMask = 
+  VGLBITMAP_INITIALIZER(MEMBUF, SMALL_MOUSE_IMG_XSIZE, SMALL_MOUSE_IMG_YSIZE,
+                        SmallOrMask);
 static VGLBitmap *VGLMouseAndMask, *VGLMouseOrMask;
 static int VGLMouseShown = VGL_MOUSEHIDE;
 static int VGLMouseXpos = 0;
@@ -113,17 +193,17 @@ __VGLMouseMode(int mode)
   if (mode == VGL_MOUSESHOW) {
     if (VGLMouseShown == VGL_MOUSEHIDE) {
       VGLMouseShown = VGL_MOUSESHOW;
-      __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, VGLDisplay, 
-                      VGLMouseXpos, VGLMouseYpos,
-                      MOUSE_IMG_SIZE, -MOUSE_IMG_SIZE);
+      __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos,
+                      VGLDisplay, VGLMouseXpos, VGLMouseYpos,
+                      VGLMouseAndMask->VXsize, -VGLMouseAndMask->VYsize);
     }
   }
   else {
     if (VGLMouseShown == VGL_MOUSESHOW) {
       VGLMouseShown = VGL_MOUSEHIDE;
-      __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, VGLDisplay, 
-                      VGLMouseXpos, VGLMouseYpos,
-                      MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
+      __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos,
+                      VGLDisplay, VGLMouseXpos, VGLMouseYpos,
+                      VGLMouseAndMask->VXsize, VGLMouseAndMask->VYsize);
     }
   }
   INTON();
@@ -193,13 +273,17 @@ VGLMouseSetImage(VGLBitmap *AndMask, VGLBitmap *OrMask)
 void
 VGLMouseSetStdImage()
 {
-  VGLMouseSetImage(&VGLMouseStdAndMask, &VGLMouseStdOrMask);
+  if (VGLDisplay->VXsize > 800)
+    VGLMouseSetImage(&VGLMouseLargeAndMask, &VGLMouseLargeOrMask);
+  else
+    VGLMouseSetImage(&VGLMouseSmallAndMask, &VGLMouseSmallOrMask);
 }
 
 int
 VGLMouseInit(int mode)
 {
   struct mouse_info mouseinfo;
+  VGLBitmap *ormask;
   int andmask, border, error, i, interior;
 
   switch (VGLModeInfo.vi_mem_model) {
@@ -226,9 +310,14 @@ VGLMouseInit(int mode)
     border = strtoul(getenv("VGLMOUSEBORDERCOLOR"), NULL, 0);
   if (getenv("VGLMOUSEINTERIORCOLOR") != NULL)
     interior = strtoul(getenv("VGLMOUSEINTERIORCOLOR"), NULL, 0);
-  for (i = 0; i < MOUSE_IMG_SIZE*MOUSE_IMG_SIZE; i++)
-    VGLMouseStdOrMask.Bitmap[i] = VGLMouseStdOrMask.Bitmap[i] == BORDER ?
-      border : VGLMouseStdOrMask.Bitmap[i] == INTERIOR ? interior : 0;
+  ormask = &VGLMouseLargeOrMask;
+  for (i = 0; i < ormask->VXsize * ormask->VYsize; i++)
+    ormask->Bitmap[i] = ormask->Bitmap[i] == BORDER ?  border :
+                        ormask->Bitmap[i] == INTERIOR ? interior : 0;
+  ormask = &VGLMouseSmallOrMask;
+  for (i = 0; i < ormask->VXsize * ormask->VYsize; i++)
+    ormask->Bitmap[i] = ormask->Bitmap[i] == BORDER ?  border :
+                        ormask->Bitmap[i] == INTERIOR ? interior : 0;
   VGLMouseSetStdImage();
   mouseinfo.operation = MOUSE_MODE;
   mouseinfo.u.mode.signal = SIGUSR2;
@@ -283,9 +372,10 @@ VGLMouseFreezeXY(int x, int y)
   INTOFF();
   if (VGLMouseShown != VGL_MOUSESHOW)
     return 0;
-  if (x >= VGLMouseXpos && x < VGLMouseXpos + MOUSE_IMG_SIZE &&
-      y >= VGLMouseYpos && y < VGLMouseYpos + MOUSE_IMG_SIZE &&
-      VGLMouseAndMask->Bitmap[(y-VGLMouseYpos)*MOUSE_IMG_SIZE+(x-VGLMouseXpos)])
+  if (x >= VGLMouseXpos && x < VGLMouseXpos + VGLMouseAndMask->VXsize &&
+      y >= VGLMouseYpos && y < VGLMouseYpos + VGLMouseAndMask->VYsize &&
+      VGLMouseAndMask->Bitmap[(y-VGLMouseYpos)*VGLMouseAndMask->VXsize+
+                              (x-VGLMouseXpos)])
     return 1;
   return 0;
 }
@@ -298,13 +388,13 @@ VGLMouseOverlap(int x, int y, int width, int hight)
   if (VGLMouseShown != VGL_MOUSESHOW)
     return 0;
   if (x > VGLMouseXpos)
-    overlap = (VGLMouseXpos + MOUSE_IMG_SIZE) - x;
+    overlap = (VGLMouseXpos + VGLMouseAndMask->VXsize) - x;
   else
     overlap = (x + width) - VGLMouseXpos;
   if (overlap <= 0)
     return 0;
   if (y > VGLMouseYpos)
-    overlap = (VGLMouseYpos + MOUSE_IMG_SIZE) - y;
+    overlap = (VGLMouseYpos + VGLMouseAndMask->VYsize) - y;
   else
     overlap = (y + hight) - VGLMouseYpos;
   return overlap > 0;
@@ -319,10 +409,10 @@ VGLMouseMerge(int x, int y, int width, byte *line)
   if (xstart < VGLMouseXpos)
     xstart = VGLMouseXpos;
   xend = x + width;
-  if (xend > VGLMouseXpos + MOUSE_IMG_SIZE)
-    xend = VGLMouseXpos + MOUSE_IMG_SIZE;
+  if (xend > VGLMouseXpos + VGLMouseAndMask->VXsize)
+    xend = VGLMouseXpos + VGLMouseAndMask->VXsize;
   for (x1 = xstart; x1 < xend; x1++) {
-    pos = (y - VGLMouseYpos) * MOUSE_IMG_SIZE + x1 - VGLMouseXpos;
+    pos = (y - VGLMouseYpos) * VGLMouseAndMask->VXsize + x1 - VGLMouseXpos;
     if (VGLMouseAndMask->Bitmap[pos])
       bcopy(&VGLMouseOrMask->Bitmap[pos * VGLDisplay->PixelBytes],
             &line[(x1 - x) * VGLDisplay->PixelBytes], VGLDisplay->PixelBytes);
