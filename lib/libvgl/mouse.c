@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/fbio.h>
 #include "vgl.h"
 
+static void VGLMouseAction(int dummy);
+
 #define BORDER	0xff	/* default border -- light white in rgb 3:3:2 */
 #define INTERIOR 0xa0	/* default interior -- red in rgb 3:3:2 */
 #define X	0xff	/* any nonzero in And mask means part of cursor */
@@ -88,7 +90,6 @@ static VGLBitmap VGLMouseStdAndMask =
 static VGLBitmap VGLMouseStdOrMask = 
     VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, StdOrMask);
 static VGLBitmap *VGLMouseAndMask, *VGLMouseOrMask;
-static int VGLMouseVisible = 0;
 static int VGLMouseShown = VGL_MOUSEHIDE;
 static int VGLMouseXpos = 0;
 static int VGLMouseYpos = 0;
@@ -102,51 +103,44 @@ static volatile sig_atomic_t VGLMsuppressint;
 					VGLMouseAction(0);		\
 			} while (0)
 
-void
-VGLMousePointerShow()
+int
+__VGLMouseMode(int mode)
 {
-  if (!VGLMouseVisible) {
-    INTOFF();
-    VGLMouseVisible = 1;
-    __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, VGLDisplay, 
-		  VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, -MOUSE_IMG_SIZE);
-    INTON();
-  }
-}
+  int oldmode;
 
-void
-VGLMousePointerHide()
-{
-  if (VGLMouseVisible) {
-    INTOFF();
-    VGLMouseVisible = 0;
-    __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, VGLDisplay, 
-                    VGLMouseXpos, VGLMouseYpos, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
-    INTON();
+  INTOFF();
+  oldmode = VGLMouseShown;
+  if (mode == VGL_MOUSESHOW) {
+    if (VGLMouseShown == VGL_MOUSEHIDE) {
+      VGLMouseShown = VGL_MOUSESHOW;
+      __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, VGLDisplay, 
+                      VGLMouseXpos, VGLMouseYpos,
+                      MOUSE_IMG_SIZE, -MOUSE_IMG_SIZE);
+    }
   }
+  else {
+    if (VGLMouseShown == VGL_MOUSESHOW) {
+      VGLMouseShown = VGL_MOUSEHIDE;
+      __VGLBitmapCopy(&VGLVDisplay, VGLMouseXpos, VGLMouseYpos, VGLDisplay, 
+                      VGLMouseXpos, VGLMouseYpos,
+                      MOUSE_IMG_SIZE, MOUSE_IMG_SIZE);
+    }
+  }
+  INTON();
+  return oldmode;
 }
 
 void
 VGLMouseMode(int mode)
 {
-  if (mode == VGL_MOUSESHOW) {
-    if (VGLMouseShown == VGL_MOUSEHIDE) {
-      VGLMousePointerShow();
-      VGLMouseShown = VGL_MOUSESHOW;
-    }
-  }
-  else {
-    if (VGLMouseShown == VGL_MOUSESHOW) {
-      VGLMousePointerHide();
-      VGLMouseShown = VGL_MOUSEHIDE;
-    }
-  }
+  __VGLMouseMode(mode);
 }
 
-void
+static void
 VGLMouseAction(int dummy)	
 {
   struct mouse_info mouseinfo;
+  int mousemode;
 
   if (VGLMsuppressint) {
     VGLMintpending = 1;
@@ -157,13 +151,14 @@ again:
   VGLMintpending = 0;
   mouseinfo.operation = MOUSE_GETINFO;
   ioctl(0, CONS_MOUSECTL, &mouseinfo);
-  if (VGLMouseShown == VGL_MOUSESHOW)
-    VGLMousePointerHide();
-  VGLMouseXpos = mouseinfo.u.data.x;
-  VGLMouseYpos = mouseinfo.u.data.y;
+  if (VGLMouseXpos != mouseinfo.u.data.x ||
+      VGLMouseYpos != mouseinfo.u.data.y) {
+    mousemode = __VGLMouseMode(VGL_MOUSEHIDE);
+    VGLMouseXpos = mouseinfo.u.data.x;
+    VGLMouseYpos = mouseinfo.u.data.y;
+    __VGLMouseMode(mousemode);
+  }
   VGLMouseButtons = mouseinfo.u.data.buttons;
-  if (VGLMouseShown == VGL_MOUSESHOW)
-    VGLMousePointerShow();
 
   /* 
    * Loop to handle any new (suppressed) signals.  This is INTON() without
@@ -178,8 +173,9 @@ again:
 void
 VGLMouseSetImage(VGLBitmap *AndMask, VGLBitmap *OrMask)
 {
-  if (VGLMouseShown == VGL_MOUSESHOW)
-    VGLMousePointerHide();
+  int mousemode;
+
+  mousemode = __VGLMouseMode(VGL_MOUSEHIDE);
 
   VGLMouseAndMask = AndMask;
 
@@ -191,8 +187,7 @@ VGLMouseSetImage(VGLBitmap *AndMask, VGLBitmap *OrMask)
   VGLBitmapAllocateBits(VGLMouseOrMask);
   VGLBitmapCvt(OrMask, VGLMouseOrMask);
 
-  if (VGLMouseShown == VGL_MOUSESHOW)
-    VGLMousePointerShow();
+  __VGLMouseMode(mousemode);
 }
 
 void

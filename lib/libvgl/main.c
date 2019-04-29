@@ -77,7 +77,7 @@ struct vt_mode smode;
   signal(SIGUSR2, SIG_IGN);
   VGLSwitchPending = 0;
   VGLAbortPending = 0;
-  VGLMousePointerHide();
+  VGLMouseMode(VGL_MOUSEHIDE);
 
   if (VGLMem != MAP_FAILED) {
     VGLClear(VGLDisplay, 0);
