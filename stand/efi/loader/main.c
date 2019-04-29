@@ -742,6 +742,80 @@ out:
 	return (how);
 }
 
+void
+parse_loader_efi_config(EFI_HANDLE h, const char *env_fn)
+{
+	pdinfo_t *dp;
+	struct stat st;
+	int fd = -1;
+	char *env = NULL;
+
+	dp = efiblk_get_pdinfo_by_handle(h);
+	if (dp == NULL)
+		return;
+	set_currdev_pdinfo(dp);
+	if (stat(env_fn, &st) != 0)
+		return;
+	fd = open(env_fn, O_RDONLY);
+	if (fd == -1)
+		return;
+	env = malloc(st.st_size + 1);
+	if (env == NULL)
+		goto out;
+	if (read(fd, env, st.st_size) != st.st_size)
+		goto out;
+	env[st.st_size] = '\0';
+	boot_parse_cmdline(env);
+out:
+	free(env);
+	close(fd);
+}
+
+static void
+read_loader_env(const char *name, char *def_fn, bool once)
+{
+	UINTN len;
+	char *fn, *freeme = NULL;
+
+	len = 0;
+	fn = def_fn;
+	if (efi_freebsd_getenv(name, NULL, &len) == EFI_BUFFER_TOO_SMALL) {
+		freeme = fn = malloc(len + 1);
+		if (fn != NULL) {
+			if (efi_freebsd_getenv(name, fn, &len) != EFI_SUCCESS) {
+				free(fn);
+				fn = NULL;
+				printf(
+			    "Can't fetch FreeBSD::%s we know is there\n", name);
+			} else {
+				/*
+				 * if tagged as 'once' delete the env variable so we
+				 * only use it once.
+				 */
+				if (once)
+					efi_freebsd_delenv(name);
+				/*
+				 * We malloced 1 more than len above, then redid the call.
+				 * so now we have room at the end of the string to NUL terminate
+				 * it here, even if the typical idium would have '- 1' here to
+				 * not overflow. len should be the same on return both times.
+				 */
+				fn[len] = '\0';
+			}
+		} else {
+			printf(
+		    "Can't allocate %d bytes to fetch FreeBSD::%s env var\n",
+			    len, name);
+		}
+	}
+	if (fn) {
+		printf("    Reading loader env vars from %s\n", fn);
+		parse_loader_efi_config(boot_img->DeviceHandle, fn);
+	}
+}
+
+
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
@@ -812,6 +886,38 @@ main(int argc, CHAR16 *argv[])
 		howto |= RB_SERIAL | RB_MULTIPLE;
 	howto &= ~RB_PROBE;
 	uhowto = parse_uefi_con_out();
+
+	/*
+	 * Scan the BLOCK IO MEDIA handles then
+	 * march through the device switch probing for things.
+	 */
+	i = efipart_inithandles();
+	if (i != 0 && i != ENOENT) {
+		printf("efipart_inithandles failed with ERRNO %d, expect "
+		    "failures\n", i);
+	}
+
+	for (i = 0; devsw[i] != NULL; i++)
+		if (devsw[i]->dv_init != NULL)
+			(devsw[i]->dv_init)();
+
+	/*
+	 * Read additional environment variables from the boot device's
+	 * "LoaderEnv" file. Any boot loader environment variable may be set
+	 * there, which are subtly different than loader.conf variables. Only
+	 * the 'simple' ones may be set so things like foo_load="YES" won't work
+	 * for two reasons.  First, the parser is simplistic and doesn't grok
+	 * quotes.  Second, because the variables that cause an action to happen
+	 * are parsed by the lua, 4th or whatever code that's not yet
+	 * loaded. This is relative to the root directory when loader.efi is
+	 * loaded off the UFS root drive (when chain booted), or from the ESP
+	 * when directly loaded by the BIOS.
+	 *
+	 * We also read in NextLoaderEnv if it was specified. This allows next boot
+	 * functionality to be implemented and to override anything in LoaderEnv.
+	 */
+	read_loader_env("LoaderEnv", "/efi/freebsd/loader.env", false);
+	read_loader_env("NextLoaderEnv", NULL, true);
 
 	/*
 	 * We now have two notions of console. howto should be viewed as
