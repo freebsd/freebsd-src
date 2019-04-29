@@ -287,7 +287,6 @@ do_smt_write_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	return (0);
 }
 
-#ifdef SBUF_DRAIN
 static char
 smt_state(const struct smt_entry *e)
 {
@@ -343,4 +342,3 @@ skip:
 
 	return (rc);
 }
-#endif
