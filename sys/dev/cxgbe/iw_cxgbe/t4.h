@@ -488,13 +488,13 @@ t4_ring_sq_db(struct t4_wq *wq, u16 inc, union t4_wr *wqe, u8 wc)
 	/* Flush host queue memory writes. */
 	wmb();
 	if (wc && inc == 1 && wq->sq.bar2_qid == 0 && wqe) {
-		CTR2(KTR_IW_CXGBE, "%s: WC wq->sq.pidx = %d\n",
+		CTR2(KTR_IW_CXGBE, "%s: WC wq->sq.pidx = %d",
 				__func__, wq->sq.pidx);
 		pio_copy((u64 __iomem *)
 				((u64)wq->sq.bar2_va + SGE_UDB_WCDOORBELL),
 				(u64 *)wqe);
 	} else {
-		CTR2(KTR_IW_CXGBE, "%s: DB wq->sq.pidx = %d\n",
+		CTR2(KTR_IW_CXGBE, "%s: DB wq->sq.pidx = %d",
 				__func__, wq->sq.pidx);
 		writel(V_PIDX_T5(inc) | V_QID(wq->sq.bar2_qid),
 				(void __iomem *)((u64)wq->sq.bar2_va +
@@ -513,12 +513,12 @@ t4_ring_rq_db(struct t4_wq *wq, u16 inc, union t4_recv_wr *wqe, u8 wc)
 	/* Flush host queue memory writes. */
 	wmb();
 	if (wc && inc == 1 && wq->rq.bar2_qid == 0 && wqe) {
-		CTR2(KTR_IW_CXGBE, "%s: WC wq->rq.pidx = %d\n",
+		CTR2(KTR_IW_CXGBE, "%s: WC wq->rq.pidx = %d",
 				__func__, wq->rq.pidx);
 		pio_copy((u64 __iomem *)((u64)wq->rq.bar2_va +
 					SGE_UDB_WCDOORBELL), (u64 *)wqe);
 	} else {
-		CTR2(KTR_IW_CXGBE, "%s: DB wq->rq.pidx = %d\n",
+		CTR2(KTR_IW_CXGBE, "%s: DB wq->rq.pidx = %d",
 				__func__, wq->rq.pidx);
 		writel(V_PIDX_T5(inc) | V_QID(wq->rq.bar2_qid),
 				(void __iomem *)((u64)wq->rq.bar2_va +
@@ -602,7 +602,7 @@ static inline void t4_swcq_produce(struct t4_cq *cq)
 {
 	cq->sw_in_use++;
 	if (cq->sw_in_use == cq->size) {
-		CTR2(KTR_IW_CXGBE, "%s cxgb4 sw cq overflow cqid %u\n",
+		CTR2(KTR_IW_CXGBE, "%s cxgb4 sw cq overflow cqid %u",
 			 __func__, cq->cqid);
 		cq->error = 1;
 		BUG_ON(1);
@@ -674,7 +674,7 @@ static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 static inline struct t4_cqe *t4_next_sw_cqe(struct t4_cq *cq)
 {
 	if (cq->sw_in_use == cq->size) {
-		CTR2(KTR_IW_CXGBE, "%s cxgb4 sw cq overflow cqid %u\n",
+		CTR2(KTR_IW_CXGBE, "%s cxgb4 sw cq overflow cqid %u",
 			 __func__, cq->cqid);
 		cq->error = 1;
 		BUG_ON(1);

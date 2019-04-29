@@ -68,6 +68,9 @@
 #define KTR_IW_CXGBE	KTR_SPARE3
 
 extern int c4iw_debug;
+extern int use_dsgl;
+extern int inline_threshold;
+
 #define PDBG(fmt, args...) \
 do { \
 	if (c4iw_debug) \

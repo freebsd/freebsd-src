@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include "iw_cxgbe.h"
 #include "user.h"
-extern int use_dsgl;
+
 static int fastreg_support = 1;
 module_param(fastreg_support, int, 0644);
 MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default = 1)");
