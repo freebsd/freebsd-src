@@ -90,6 +90,10 @@ share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit r
 stand/forth		dteske	Pre-commit review requested.
 stand/lua		kevans	Pre-commit review requested
 sys/compat/linuxkpi	hselasky	If in doubt, ask.
+			zeising, johalun	pre-commit review requested via
+						#x11 phabricator group.
+						(to avoid drm graphics drivers
+						inpact)
 sys/contrib/ipfilter	cy	Pre-commit review requested.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
