@@ -28,7 +28,7 @@
 .\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2018
+.Dd February 14, 2019
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@ server
 .Op Fl h Ar bindip
 .Op Fl p Ar pnfs_setup
 .Op Fl m Ar mirror_level
+.Op Fl V Ar virtual_hostname
 .Op Fl Fl maxthreads Ar max_threads
 .Op Fl Fl minthreads Ar min_threads
 .Sh DESCRIPTION
@@ -78,6 +79,9 @@ Unregister the
 service with
 .Xr rpcbind 8
 without creating any servers.
+.It Fl V Ar virtual_hostname
+Specifies a hostname to be used as a principal name, instead of
+the default hostname.
 .It Fl n Ar threads
 Specifies how many servers to create.  This option is equivalent to specifying
 .Fl Fl maxthreads
