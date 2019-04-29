@@ -1364,7 +1364,7 @@ nvlist_first_nvpair(const nvlist_t *nvl)
 }
 
 nvpair_t *
-nvlist_next_nvpair(const nvlist_t *nvl, const nvpair_t *nvp)
+nvlist_next_nvpair(const nvlist_t *nvl __unused, const nvpair_t *nvp)
 {
 	nvpair_t *retnvp;
 
@@ -1380,7 +1380,7 @@ nvlist_next_nvpair(const nvlist_t *nvl, const nvpair_t *nvp)
 }
 
 nvpair_t *
-nvlist_prev_nvpair(const nvlist_t *nvl, const nvpair_t *nvp)
+nvlist_prev_nvpair(const nvlist_t *nvl __unused, const nvpair_t *nvp)
 {
 	nvpair_t *retnvp;
 
