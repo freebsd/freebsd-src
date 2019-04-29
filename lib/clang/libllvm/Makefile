@@ -10,14 +10,15 @@ CFLAGS+=	-I${.OBJDIR}
 
 .if ${MK_LLVM_TARGET_AARCH64} == "no" && ${MK_LLVM_TARGET_ARM} == "no" && \
     ${MK_LLVM_TARGET_BPF} == "no" && ${MK_LLVM_TARGET_MIPS} == "no" && \
-    ${MK_LLVM_TARGET_POWERPC} == "no" && ${MK_LLVM_TARGET_SPARC} == "no" && \
-    ${MK_LLVM_TARGET_X86} == "no"
+    ${MK_LLVM_TARGET_POWERPC} == "no" && ${MK_LLVM_TARGET_RISCV} == "no" && \
+    ${MK_LLVM_TARGET_SPARC} == "no" && ${MK_LLVM_TARGET_X86} == "no"
 .error Please enable at least one of: MK_LLVM_TARGET_AARCH64,\
  MK_LLVM_TARGET_ARM, MK_LLVM_TARGET_BPF, MK_LLVM_TARGET_MIPS, \
- MK_LLVM_TARGET_POWERPC, MK_LLVM_TARGET_SPARC, or MK_LLVM_TARGET_X86
+ MK_LLVM_TARGET_POWERPC, MK_LLVM_TARGET_RISCV, MK_LLVM_TARGET_SPARC, \
+ or MK_LLVM_TARGET_X86
 .endif
 
-.for arch in AArch64 ARM BPF Mips PowerPC Sparc X86
+.for arch in AArch64 ARM BPF Mips PowerPC RISCV Sparc X86
 . if ${MK_LLVM_TARGET_${arch:tu}} != "no"
 CFLAGS+=	-I${LLVM_SRCS}/lib/Target/${arch}
 . endif
@@ -1128,6 +1129,34 @@ SRCS_MIN+=	Target/PowerPC/PPCVSXFMAMutate.cpp
 SRCS_MIN+=	Target/PowerPC/PPCVSXSwapRemoval.cpp
 SRCS_MIN+=	Target/PowerPC/TargetInfo/PowerPCTargetInfo.cpp
 .endif # MK_LLVM_TARGET_POWERPC
+.if ${MK_LLVM_TARGET_RISCV} != "no"
+SRCS_MIN+=	Target/RISCV/AsmParser/RISCVAsmParser.cpp
+SRCS_MIN+=	Target/RISCV/Disassembler/RISCVDisassembler.cpp
+SRCS_MIN+=	Target/RISCV/InstPrinter/RISCVInstPrinter.cpp
+SRCS_MIN+=	Target/RISCV/MCTargetDesc/RISCVAsmBackend.cpp
+SRCS_MIN+=	Target/RISCV/MCTargetDesc/RISCVELFObjectWriter.cpp
+SRCS_MIN+=	Target/RISCV/MCTargetDesc/RISCVELFStreamer.cpp
+SRCS_MIN+=	Target/RISCV/MCTargetDesc/RISCVMCAsmInfo.cpp
+SRCS_MIN+=	Target/RISCV/MCTargetDesc/RISCVMCCodeEmitter.cpp
+SRCS_MIN+=	Target/RISCV/MCTargetDesc/RISCVMCExpr.cpp
+SRCS_MIN+=	Target/RISCV/MCTargetDesc/RISCVMCTargetDesc.cpp
+SRCS_MIN+=	Target/RISCV/MCTargetDesc/RISCVTargetStreamer.cpp
+SRCS_MIN+=	Target/RISCV/RISCVAsmPrinter.cpp
+SRCS_MIN+=	Target/RISCV/RISCVExpandPseudoInsts.cpp
+SRCS_MIN+=	Target/RISCV/RISCVFrameLowering.cpp
+SRCS_MIN+=	Target/RISCV/RISCVInstrInfo.cpp
+SRCS_MIN+=	Target/RISCV/RISCVISelDAGToDAG.cpp
+SRCS_MIN+=	Target/RISCV/RISCVISelLowering.cpp
+SRCS_MIN+=	Target/RISCV/RISCVMCInstLower.cpp
+SRCS_MIN+=	Target/RISCV/RISCVMergeBaseOffset.cpp
+SRCS_MIN+=	Target/RISCV/RISCVRegisterInfo.cpp
+SRCS_MIN+=	Target/RISCV/RISCVSubtarget.cpp
+SRCS_MIN+=	Target/RISCV/RISCVTargetMachine.cpp
+SRCS_MIN+=	Target/RISCV/RISCVTargetObjectFile.cpp
+SRCS_MIN+=	Target/RISCV/TargetInfo/RISCVTargetInfo.cpp
+SRCS_MIN+=	Target/RISCV/Utils/RISCVBaseInfo.cpp
+SRCS_MIN+=	Target/RISCV/Utils/RISCVMatInt.cpp
+.endif # MK_LLVM_TARGET_RISCV
 .if ${MK_LLVM_TARGET_SPARC} != "no"
 SRCS_MIN+=	Target/Sparc/AsmParser/SparcAsmParser.cpp
 SRCS_MIN+=	Target/Sparc/DelaySlotFiller.cpp
@@ -1542,13 +1571,15 @@ beforebuild:
 
 # Note: some rules are superfluous, not every combination is valid.
 .for arch in \
-	AArch64/AArch64 ARM/ARM BPF/BPF Mips/Mips PowerPC/PPC Sparc/Sparc X86/X86
+	AArch64/AArch64 ARM/ARM BPF/BPF Mips/Mips PowerPC/PPC Sparc/Sparc \
+	RISCV/RISCV X86/X86
 . for hdr in \
 	AsmMatcher/-gen-asm-matcher \
 	AsmWriter1/-gen-asm-writer,-asmwriternum=1 \
 	AsmWriter/-gen-asm-writer \
 	CallingConv/-gen-callingconv \
 	CodeEmitter/-gen-emitter \
+	CompressInstEmitter/-gen-compress-inst-emitter \
 	DAGISel/-gen-dag-isel \
 	DisassemblerTables/-gen-disassembler \
 	EVEX2VEXTables/-gen-x86-EVEX2VEX-tables \
@@ -1640,6 +1671,21 @@ TGHDRS+=	PPCGenMCCodeEmitter.inc
 TGHDRS+=	PPCGenRegisterInfo.inc
 TGHDRS+=	PPCGenSubtargetInfo.inc
 .endif # MK_LLVM_TARGET_POWERPC
+.if ${MK_LLVM_TARGET_RISCV} != "no"
+TGHDRS+=	RISCVGenAsmMatcher.inc
+TGHDRS+=	RISCVGenAsmWriter.inc
+TGHDRS+=	RISCVGenCallingConv.inc
+TGHDRS+=	RISCVGenCompressInstEmitter.inc
+TGHDRS+=	RISCVGenDAGISel.inc
+TGHDRS+=	RISCVGenDisassemblerTables.inc
+TGHDRS+=	RISCVGenDAGISel.inc
+TGHDRS+=	RISCVGenInstrInfo.inc
+TGHDRS+=	RISCVGenMCCodeEmitter.inc
+TGHDRS+=	RISCVGenMCPseudoLowering.inc
+TGHDRS+=	RISCVGenRegisterInfo.inc
+TGHDRS+=	RISCVGenSubtargetInfo.inc
+TGHDRS+=	RISCVGenSystemOperands.inc
+.endif # MK_LLVM_TARGET_RISCV
 .if ${MK_LLVM_TARGET_SPARC} != "no"
 TGHDRS+=	SparcGenAsmMatcher.inc
 TGHDRS+=	SparcGenAsmWriter.inc
