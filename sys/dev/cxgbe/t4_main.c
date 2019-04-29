@@ -544,6 +544,8 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, pcie_relaxed_ordering, CTLFLAG_RDTUN,
     &pcie_relaxed_ordering, 0,
     "PCIe Relaxed Ordering: 0 = disable, 1 = enable, 2 = leave alone");
 
+static int t4_panic_on_fatal_err = 0;
+TUNABLE_INT("hw.cxgbe.panic_on_fatal_err", &t4_panic_on_fatal_err);
 
 #ifdef TCP_OFFLOAD
 /*
@@ -2509,6 +2511,8 @@ t4_fatal_err(struct adapter *sc)
 	t4_intr_disable(sc);
 	log(LOG_EMERG, "%s: encountered fatal error, adapter stopped.\n",
 	    device_get_nameunit(sc->dev));
+	if (t4_panic_on_fatal_err)
+		panic("panic requested on fatal error");
 }
 
 void
