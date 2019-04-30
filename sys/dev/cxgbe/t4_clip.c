@@ -324,7 +324,9 @@ t4_destroy_clip_table(struct adapter *sc)
 			    ("%s: CLIP entry %p still in use (%d)", __func__,
 			    ce, ce->refcount));
 			TAILQ_REMOVE(&sc->clip_table, ce, link);
+#if 0
 			delete_lip(sc, &ce->lip);
+#endif
 			free(ce, M_CXGBE);
 		}
 		mtx_unlock(&sc->clip_table_lock);
