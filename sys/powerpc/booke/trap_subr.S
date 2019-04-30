@@ -765,7 +765,8 @@ search_failed:
 	mtspr	SPR_MAS2, %r27
 	mtspr	SPR_MAS3, %r23
 
-	bl	zero_mas7
+	li	%r23, 0
+	mtspr	SPR_MAS7, %r23
 	bl	zero_mas8
 
 	isync
