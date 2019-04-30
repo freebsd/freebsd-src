@@ -7,7 +7,7 @@
 
 VMTARGETS=	vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
-VMSIZE?=	30G
+VMSIZE?=	3072M
 SWAPSIZE?=	1G
 VMBASE?=	vm
 
