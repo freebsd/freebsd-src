@@ -1229,6 +1229,7 @@ t4_hashfilter_ao_rpl(struct sge_iq *iq, const struct rss_header *rss,
 		/* provide errno instead of tid to ioctl */
 		f->tid = act_open_rpl_status_to_errno(status);
 		f->valid = 0;
+		f->pending = 0;
 		if (act_open_has_tid(status))
 			release_tid(sc, GET_TID(cpl), &sc->sge.ctrlq[0]);
 		free_filter_resources(f);
@@ -1587,7 +1588,6 @@ set_hashfilter(struct adapter *sc, struct t4_filter *t, uint64_t ftuple,
 				f->locked = 0;
 				t->idx = f->tid;
 			} else {
-				remove_hf(sc, f);
 				rc = f->tid;
 				free(f, M_CXGBE);
 			}
