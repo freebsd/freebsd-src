@@ -500,8 +500,13 @@ static int t4_switchcaps_allowed = FW_CAPS_CONFIG_SWITCH_INGRESS |
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, switchcaps_allowed, CTLFLAG_RDTUN,
     &t4_switchcaps_allowed, 0, "Default switch capabilities");
 
+#ifdef RATELIMIT
+static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC |
+	FW_CAPS_CONFIG_NIC_HASHFILTER | FW_CAPS_CONFIG_NIC_ETHOFLD;
+#else
 static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC |
 	FW_CAPS_CONFIG_NIC_HASHFILTER;
+#endif
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, niccaps_allowed, CTLFLAG_RDTUN,
     &t4_niccaps_allowed, 0, "Default NIC capabilities");
 

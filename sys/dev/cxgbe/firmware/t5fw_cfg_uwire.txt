@@ -415,7 +415,7 @@
 	nfilter = 496		# number of filter region entries
 	nserver = 496		# number of server region entries
 	nhash = 12288		# number of hash region entries
-	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif
+	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, nic_hashfilter
 	tp_l2t = 3072
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
@@ -601,8 +601,8 @@
 
 
 [fini]
-	version = 0x01000028
-	checksum = 0x36228c7d
+	version = 0x1425001d
+	checksum = 0xd8c8fbd8
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104
