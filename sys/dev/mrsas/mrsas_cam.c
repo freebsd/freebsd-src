@@ -468,11 +468,20 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 		return (0);
 	}
 	ccb_h->status |= CAM_SIM_QUEUED;
+
+	if (mrsas_atomic_inc_return(&sc->fw_outstanding) > sc->max_scsi_cmds) {
+		ccb_h->status |= CAM_REQUEUE_REQ;
+		xpt_done(ccb);
+		mrsas_atomic_dec(&sc->fw_outstanding); 
+		return (0);
+	}
+
 	cmd = mrsas_get_mpt_cmd(sc);
 
 	if (!cmd) {
 		ccb_h->status |= CAM_REQUEUE_REQ;
 		xpt_done(ccb);
+		mrsas_atomic_dec(&sc->fw_outstanding); 
 		return (0);
 	}
 
@@ -639,7 +648,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	    mrsas_scsiio_timeout, cmd);
 #endif
 
-	if (mrsas_atomic_inc_return(&sc->fw_outstanding) > sc->io_cmds_highwater)
+	if (mrsas_atomic_read(&sc->fw_outstanding) > sc->io_cmds_highwater)
 		sc->io_cmds_highwater++;
 
 	/*
@@ -654,7 +663,6 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	 * new command
 	 */
 	if (cmd->r1_alt_dev_handle != MR_DEVHANDLE_INVALID) {
-		mrsas_atomic_inc(&sc->fw_outstanding);
 		mrsas_prepare_secondRaid1_IO(sc, cmd);
 		mrsas_fire_cmd(sc, req_desc->addr.u.low,
 			req_desc->addr.u.high);
@@ -670,6 +678,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 
 done:
 	xpt_done(ccb);
+	mrsas_atomic_dec(&sc->fw_outstanding); 
 	return (0);
 }
 
@@ -1093,14 +1102,20 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 				(io_info.r1_alt_dev_handle != MR_DEVHANDLE_INVALID) &&
 				(raid->level == 1) && !io_info.isRead) {
 			r1_cmd = mrsas_get_mpt_cmd(sc);
-			if (!r1_cmd) {
+			if (mrsas_atomic_inc_return(&sc->fw_outstanding) > sc->max_scsi_cmds) {
 				fp_possible = FALSE;
-				printf("Avago debug fp disable from %s %d \n",
-					__func__, __LINE__);
+				mrsas_atomic_dec(&sc->fw_outstanding); 
 			} else {
-				cmd->peer_cmd = r1_cmd;
-				r1_cmd->peer_cmd = cmd;
-			}
+				r1_cmd = mrsas_get_mpt_cmd(sc);
+				if (!r1_cmd) {
+					fp_possible = FALSE;
+					mrsas_atomic_dec(&sc->fw_outstanding); 
+				}
+				else {
+					cmd->peer_cmd = r1_cmd;
+					r1_cmd->peer_cmd = cmd;
+				}
+ 			}
 		}
 	}
 

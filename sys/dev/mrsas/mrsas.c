@@ -1712,6 +1712,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 				mrsas_map_mpt_cmd_status(cmd_mpt, cmd_mpt->ccb_ptr, status,
 				    extStatus, data_length, sense);
 				mrsas_cmd_done(sc, cmd_mpt);
+				mrsas_atomic_dec(&sc->fw_outstanding);
 			} else {
 				/*
 				 * If the peer  Raid  1/10 fast path failed,
@@ -1735,12 +1736,13 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 						r1_cmd->callout_owner  = false;
 					}
 					mrsas_release_mpt_cmd(r1_cmd);
+					mrsas_atomic_dec(&sc->fw_outstanding);
 					mrsas_map_mpt_cmd_status(cmd_mpt, cmd_mpt->ccb_ptr, status,
 					    extStatus, data_length, sense);
 					mrsas_cmd_done(sc, cmd_mpt);
+					mrsas_atomic_dec(&sc->fw_outstanding);
 				}
 			}
-			mrsas_atomic_dec(&sc->fw_outstanding);
 			break;
 		case MRSAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST:	/* MFI command */
 			cmd_mfi = sc->mfi_cmd_list[cmd_mpt->sync_cmd_idx];
@@ -2526,6 +2528,9 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		else
 			sc->fast_path_io = 0;
 	}
+		
+	device_printf(sc->mrsas_dev, "max_fw_cmds: %u  max_scsi_cmds: %u\n",
+		sc->max_fw_cmds, sc->max_scsi_cmds);
 	return (0);
 }
 
@@ -2553,8 +2558,7 @@ mrsas_init_adapter(struct mrsas_softc *sc)
 
 	/* Decrement the max supported by 1, to correlate with FW */
 	sc->max_fw_cmds = sc->max_fw_cmds - 1;
-	sc->max_scsi_cmds = sc->max_fw_cmds -
-	    (MRSAS_FUSION_INT_CMDS + MRSAS_MAX_IOCTL_CMDS);
+	sc->max_scsi_cmds = sc->max_fw_cmds - MRSAS_MAX_MFI_CMDS;
 
 	/* Determine allocation size of command frames */
 	sc->reply_q_depth = ((sc->max_fw_cmds + 1 + 15) / 16 * 16) * 2;
