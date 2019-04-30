@@ -97,7 +97,8 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 		goto done;
 	}
 
-	make_established(toep, cpl->snd_isn, cpl->rcv_isn, cpl->tcp_opt);
+	make_established(toep, be32toh(cpl->snd_isn) - 1,
+	    be32toh(cpl->rcv_isn) - 1, cpl->tcp_opt);
 
 	if (toep->ulp_mode == ULP_MODE_TLS)
 		tls_establish(toep);

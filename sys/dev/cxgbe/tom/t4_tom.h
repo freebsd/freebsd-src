@@ -66,12 +66,8 @@ enum {
 	TPF_ABORT_SHUTDOWN = (1 << 6),	/* connection abort is in progress */
 	TPF_CPL_PENDING    = (1 << 7),	/* haven't received the last CPL */
 	TPF_SYNQE	   = (1 << 8),	/* synq_entry, not really a toepcb */
-	TPF_SYNQE_NEEDFREE = (1 << 9),	/* synq_entry was malloc'd separately */
-	TPF_SYNQE_TCPDDP   = (1 << 10),	/* ulp_mode TCPDDP in toepcb */
-	TPF_SYNQE_EXPANDED = (1 << 11),	/* toepcb ready, tid context updated */
-	TPF_SYNQE_HAS_L2TE = (1 << 12),	/* we've replied to PASS_ACCEPT_REQ */
-	TPF_SYNQE_TLS      = (1 << 13), /* ulp_mode TLS in toepcb */
-	TPF_FORCE_CREDITS  = (1 << 14), /* always send credits */
+	TPF_SYNQE_EXPANDED = (1 << 9),	/* toepcb ready, tid context updated */
+	TPF_FORCE_CREDITS  = (1 << 10), /* always send credits */
 };
 
 enum {
@@ -219,21 +215,25 @@ struct flowc_tx_params {
 };
 
 /*
- * Compressed state for embryonic connections for a listener.  Barely fits in
- * 64B, try not to grow it further.
+ * Compressed state for embryonic connections for a listener.
  */
 struct synq_entry {
-	TAILQ_ENTRY(synq_entry) link;	/* listen_ctx's synq link */
-	int flags;			/* same as toepcb's tp_flags */
-	int tid;
 	struct listen_ctx *lctx;	/* backpointer to listen ctx */
 	struct mbuf *syn;
-	uint32_t iss;
-	uint32_t ts;
-	volatile uintptr_t wr;
+	int flags;			/* same as toepcb's tp_flags */
+	volatile int ok_to_respond;
 	volatile u_int refcnt;
+	int tid;
+	uint32_t iss;
+	uint32_t irs;
+	uint32_t ts;
+	uint16_t txqid;
+	uint16_t rxqid;
 	uint16_t l2e_idx;
+	uint16_t ulp_mode;
 	uint16_t rcv_bufsize;
+	__be16 tcp_opt; /* from cpl_pass_establish */
+	struct toepcb *toep;
 };
 
 /* listen_ctx flags */
@@ -250,7 +250,6 @@ struct listen_ctx {
 	struct sge_wrq *ctrlq;
 	struct sge_ofld_rxq *ofld_rxq;
 	struct clip_entry *ce;
-	TAILQ_HEAD(, synq_entry) synq;
 };
 
 struct tom_data {
@@ -346,6 +345,7 @@ int do_abort_req_synqe(struct sge_iq *, const struct rss_header *,
 int do_abort_rpl_synqe(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 void t4_offload_socket(struct toedev *, void *, struct socket *);
+void synack_failure_cleanup(struct adapter *, int);
 
 /* t4_cpl_io.c */
 void aiotx_init_toep(struct toepcb *);
