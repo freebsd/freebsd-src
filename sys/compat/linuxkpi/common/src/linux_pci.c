@@ -78,11 +78,12 @@ static device_method_t pci_methods[] = {
 
 struct linux_dma_priv {
 	uint64_t	dma_mask;
-	struct mtx	dma_lock;
+	struct mtx	lock;
 	bus_dma_tag_t	dmat;
-	struct mtx	ptree_lock;
 	struct pctrie	ptree;
 };
+#define	DMA_PRIV_LOCK(priv) mtx_lock(&(priv)->lock)
+#define	DMA_PRIV_UNLOCK(priv) mtx_unlock(&(priv)->lock)
 
 static int
 linux_pdev_dma_init(struct pci_dev *pdev)
@@ -92,9 +93,8 @@ linux_pdev_dma_init(struct pci_dev *pdev)
 	priv = malloc(sizeof(*priv), M_DEVBUF, M_WAITOK | M_ZERO);
 	pdev->dev.dma_priv = priv;
 
-	mtx_init(&priv->dma_lock, "linux_dma", NULL, MTX_DEF);
+	mtx_init(&priv->lock, "lkpi-priv-dma", NULL, MTX_DEF);
 
-	mtx_init(&priv->ptree_lock, "linux_dma_ptree", NULL, MTX_DEF);
 	pctrie_init(&priv->ptree);
 
 	return (0);
@@ -108,8 +108,7 @@ linux_pdev_dma_uninit(struct pci_dev *pdev)
 	priv = pdev->dev.dma_priv;
 	if (priv->dmat)
 		bus_dma_tag_destroy(priv->dmat);
-	mtx_destroy(&priv->dma_lock);
-	mtx_destroy(&priv->ptree_lock);
+	mtx_destroy(&priv->lock);
 	free(priv, M_DEVBUF);
 	pdev->dev.dma_priv = NULL;
 	return (0);
@@ -500,37 +499,34 @@ linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len)
 
 	obj = uma_zalloc(linux_dma_obj_zone, 0);
 
+	DMA_PRIV_LOCK(priv);
 	if (bus_dmamap_create(priv->dmat, 0, &obj->dmamap) != 0) {
+		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
 		return (0);
 	}
 
 	nseg = -1;
-	mtx_lock(&priv->dma_lock);
 	if (_bus_dmamap_load_phys(priv->dmat, obj->dmamap, phys, len,
 	    BUS_DMA_NOWAIT, &seg, &nseg) != 0) {
 		bus_dmamap_destroy(priv->dmat, obj->dmamap);
-		mtx_unlock(&priv->dma_lock);
+		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
 		return (0);
 	}
-	mtx_unlock(&priv->dma_lock);
 
 	KASSERT(++nseg == 1, ("More than one segment (nseg=%d)", nseg));
 	obj->dma_addr = seg.ds_addr;
 
-	mtx_lock(&priv->ptree_lock);
 	error = LINUX_DMA_PCTRIE_INSERT(&priv->ptree, obj);
-	mtx_unlock(&priv->ptree_lock);
 	if (error != 0) {
-		mtx_lock(&priv->dma_lock);
 		bus_dmamap_unload(priv->dmat, obj->dmamap);
 		bus_dmamap_destroy(priv->dmat, obj->dmamap);
-		mtx_unlock(&priv->dma_lock);
+		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
 		return (0);
 	}
-
+	DMA_PRIV_UNLOCK(priv);
 	return (obj->dma_addr);
 }
 
@@ -542,19 +538,16 @@ linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len)
 
 	priv = dev->dma_priv;
 
-	mtx_lock(&priv->ptree_lock);
+	DMA_PRIV_LOCK(priv);
 	obj = LINUX_DMA_PCTRIE_LOOKUP(&priv->ptree, dma_addr);
 	if (obj == NULL) {
-		mtx_unlock(&priv->ptree_lock);
+		DMA_PRIV_UNLOCK(priv);
 		return;
 	}
 	LINUX_DMA_PCTRIE_REMOVE(&priv->ptree, dma_addr);
-	mtx_unlock(&priv->ptree_lock);
-
-	mtx_lock(&priv->dma_lock);
 	bus_dmamap_unload(priv->dmat, obj->dmamap);
 	bus_dmamap_destroy(priv->dmat, obj->dmamap);
-	mtx_unlock(&priv->dma_lock);
+	DMA_PRIV_UNLOCK(priv);
 
 	uma_zfree(linux_dma_obj_zone, obj);
 }
@@ -575,7 +568,9 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 
 	obj = uma_zalloc(linux_dma_obj_zone, 0);
 
+	DMA_PRIV_LOCK(priv);
 	if (bus_dmamap_create(priv->dmat, 0, &obj->dmamap) != 0) {
+		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
 		return (0);
 	}
@@ -583,6 +578,7 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 	sg = sgl;
 	dma_sg = sg;
 	dma_nents = 0;
+
 	while (nents > 0) {
 		seg_phys = sg_phys(sg);
 		seg_len = sg->length;
@@ -595,17 +591,15 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 		}
 
 		nseg = -1;
-		mtx_lock(&priv->dma_lock);
 		if (_bus_dmamap_load_phys(priv->dmat, obj->dmamap,
 		    seg_phys, seg_len, BUS_DMA_NOWAIT,
 		    &seg, &nseg) != 0) {
 			bus_dmamap_unload(priv->dmat, obj->dmamap);
 			bus_dmamap_destroy(priv->dmat, obj->dmamap);
-			mtx_unlock(&priv->dma_lock);
+			DMA_PRIV_UNLOCK(priv);
 			uma_zfree(linux_dma_obj_zone, obj);
 			return (0);
 		}
-		mtx_unlock(&priv->dma_lock);
 		KASSERT(++nseg == 1, ("More than one segment (nseg=%d)", nseg));
 
 		sg_dma_address(dma_sg) = seg.ds_addr;
@@ -617,18 +611,15 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 
 	obj->dma_addr = sg_dma_address(sgl);
 
-	mtx_lock(&priv->ptree_lock);
 	error = LINUX_DMA_PCTRIE_INSERT(&priv->ptree, obj);
-	mtx_unlock(&priv->ptree_lock);
 	if (error != 0) {
-		mtx_lock(&priv->dma_lock);
 		bus_dmamap_unload(priv->dmat, obj->dmamap);
 		bus_dmamap_destroy(priv->dmat, obj->dmamap);
-		mtx_unlock(&priv->dma_lock);
+		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
 		return (0);
 	}
-
+	DMA_PRIV_UNLOCK(priv);
 	return (dma_nents);
 }
 
@@ -641,19 +632,16 @@ linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
 
 	priv = dev->dma_priv;
 
-	mtx_lock(&priv->ptree_lock);
+	DMA_PRIV_LOCK(priv);
 	obj = LINUX_DMA_PCTRIE_LOOKUP(&priv->ptree, sg_dma_address(sgl));
 	if (obj == NULL) {
-		mtx_unlock(&priv->ptree_lock);
+		DMA_PRIV_UNLOCK(priv);
 		return;
 	}
 	LINUX_DMA_PCTRIE_REMOVE(&priv->ptree, sg_dma_address(sgl));
-	mtx_unlock(&priv->ptree_lock);
-
-	mtx_lock(&priv->dma_lock);
 	bus_dmamap_unload(priv->dmat, obj->dmamap);
 	bus_dmamap_destroy(priv->dmat, obj->dmamap);
-	mtx_unlock(&priv->dma_lock);
+	DMA_PRIV_UNLOCK(priv);
 
 	uma_zfree(linux_dma_obj_zone, obj);
 }
@@ -661,12 +649,14 @@ linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
 struct dma_pool {
 	struct device  *pool_device;
 	uma_zone_t	pool_zone;
-	struct mtx	pool_dma_lock;
+	struct mtx	pool_lock;
 	bus_dma_tag_t	pool_dmat;
 	size_t		pool_entry_size;
-	struct mtx	pool_ptree_lock;
 	struct pctrie	pool_ptree;
 };
+
+#define	DMA_POOL_LOCK(pool) mtx_lock(&(pool)->pool_lock)
+#define	DMA_POOL_UNLOCK(pool) mtx_unlock(&(pool)->pool_lock)
 
 static inline int
 dma_pool_obj_ctor(void *mem, int size, void *arg, int flags)
@@ -677,11 +667,11 @@ dma_pool_obj_ctor(void *mem, int size, void *arg, int flags)
 	bus_dma_segment_t seg;
 
 	nseg = -1;
-	mtx_lock(&pool->pool_dma_lock);
+	DMA_POOL_LOCK(pool);
 	error = _bus_dmamap_load_phys(pool->pool_dmat, obj->dmamap,
 	    vtophys(obj->vaddr), pool->pool_entry_size, BUS_DMA_NOWAIT,
 	    &seg, &nseg);
-	mtx_unlock(&pool->pool_dma_lock);
+	DMA_POOL_UNLOCK(pool);
 	if (error != 0) {
 		return (error);
 	}
@@ -697,9 +687,9 @@ dma_pool_obj_dtor(void *mem, int size, void *arg)
 	struct linux_dma_obj *obj = mem;
 	struct dma_pool *pool = arg;
 
-	mtx_lock(&pool->pool_dma_lock);
+	DMA_POOL_LOCK(pool);
 	bus_dmamap_unload(pool->pool_dmat, obj->dmamap);
-	mtx_unlock(&pool->pool_dma_lock);
+	DMA_POOL_UNLOCK(pool);
 }
 
 static int
@@ -778,10 +768,7 @@ linux_dma_pool_create(char *name, struct device *dev, size_t size,
 	    dma_pool_obj_dtor, NULL, NULL, dma_pool_obj_import,
 	    dma_pool_obj_release, pool, 0);
 
-	mtx_init(&pool->pool_dma_lock, "linux_dma_pool", NULL, MTX_DEF);
-
-	mtx_init(&pool->pool_ptree_lock, "linux_dma_pool_ptree", NULL,
-	    MTX_DEF);
+	mtx_init(&pool->pool_lock, "lkpi-dma-pool", NULL, MTX_DEF);
 	pctrie_init(&pool->pool_ptree);
 
 	return (pool);
@@ -793,8 +780,7 @@ linux_dma_pool_destroy(struct dma_pool *pool)
 
 	uma_zdestroy(pool->pool_zone);
 	bus_dma_tag_destroy(pool->pool_dmat);
-	mtx_destroy(&pool->pool_ptree_lock);
-	mtx_destroy(&pool->pool_dma_lock);
+	mtx_destroy(&pool->pool_lock);
 	kfree(pool);
 }
 
@@ -808,13 +794,13 @@ linux_dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 	if (obj == NULL)
 		return (NULL);
 
-	mtx_lock(&pool->pool_ptree_lock);
+	DMA_POOL_LOCK(pool);
 	if (LINUX_DMA_PCTRIE_INSERT(&pool->pool_ptree, obj) != 0) {
-		mtx_unlock(&pool->pool_ptree_lock);
+		DMA_POOL_UNLOCK(pool);
 		uma_zfree_arg(pool->pool_zone, obj, pool);
 		return (NULL);
 	}
-	mtx_unlock(&pool->pool_ptree_lock);
+	DMA_POOL_UNLOCK(pool);
 
 	*handle = obj->dma_addr;
 	return (obj->vaddr);
@@ -825,14 +811,14 @@ linux_dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma_addr)
 {
 	struct linux_dma_obj *obj;
 
-	mtx_lock(&pool->pool_ptree_lock);
+	DMA_POOL_LOCK(pool);
 	obj = LINUX_DMA_PCTRIE_LOOKUP(&pool->pool_ptree, dma_addr);
 	if (obj == NULL) {
-		mtx_unlock(&pool->pool_ptree_lock);
+		DMA_POOL_UNLOCK(pool);
 		return;
 	}
 	LINUX_DMA_PCTRIE_REMOVE(&pool->pool_ptree, dma_addr);
-	mtx_unlock(&pool->pool_ptree_lock);
+	DMA_POOL_UNLOCK(pool);
 
 	uma_zfree_arg(pool->pool_zone, obj, pool);
 }
