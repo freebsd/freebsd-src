@@ -205,7 +205,7 @@ _c4iw_write_mem_dma(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 		if (ret)
 			goto out;
 		addr += dmalen >> 5;
-		data = (u64 *)data + dmalen;
+		data = (u8 *)data + dmalen;
 		daddr = daddr + dmalen;
 	}
 	if (remain)
