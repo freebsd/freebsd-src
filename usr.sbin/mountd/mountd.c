@@ -2824,18 +2824,27 @@ static void
 nextfield(char **cp, char **endcp)
 {
 	char *p;
+	char quot = 0;
 
 	p = *cp;
 	while (*p == ' ' || *p == '\t')
 		p++;
-	if (*p == '\n' || *p == '\0')
-		*cp = *endcp = p;
-	else {
-		*cp = p++;
-		while (*p != ' ' && *p != '\t' && *p != '\n' && *p != '\0')
-			p++;
-		*endcp = p;
-	}
+	*cp = p;
+	while (*p != '\0') {
+		if (quot) {
+			if (*p == quot)
+				quot = 0;
+		} else {
+			if (*p == '\\' && *(p + 1) != '\0')
+				p++;
+			else if (*p == '\'' || *p == '"')
+				quot = *p;
+			else if (*p == ' ' || *p == '\t')
+				break;
+		}
+		p++;
+	};
+	*endcp = p;
 }
 
 /*
@@ -2907,8 +2916,8 @@ parsecred(char *namelist, struct xucred *cr)
 	/*
 	 * Get the user's password table entry.
 	 */
-	names = strsep_quote(&namelist, " \t\n");
-	name = strsep(&names, ":");
+	names = namelist;
+	name = strsep_quote(&names, ":");
 	/* Bug?  name could be NULL here */
 	if (isdigit(*name) || *name == '-')
 		pw = getpwuid(atoi(name));
@@ -2952,7 +2961,7 @@ parsecred(char *namelist, struct xucred *cr)
 	}
 	cr->cr_ngroups = 0;
 	while (names != NULL && *names != '\0' && cr->cr_ngroups < XU_NGROUPS) {
-		name = strsep(&names, ":");
+		name = strsep_quote(&names, ":");
 		if (isdigit(*name) || *name == '-') {
 			cr->cr_groups[cr->cr_ngroups++] = atoi(name);
 		} else {
