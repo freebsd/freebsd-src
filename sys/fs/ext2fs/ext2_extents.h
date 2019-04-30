@@ -129,7 +129,7 @@ int ext4_ext_remove_space(struct inode *ip, off_t length, int flags,
 int ext4_ext_get_blocks(struct inode *ip, int64_t iblock,
     unsigned long max_blocks, struct ucred *cred, struct buf **bpp,
     int *allocate, daddr_t *);
-#ifdef EXT2FS_DEBUG
+#ifdef EXT2FS_PRINT_EXTENTS
 void ext4_ext_print_extent_tree_status(struct inode *ip);
 #endif
 

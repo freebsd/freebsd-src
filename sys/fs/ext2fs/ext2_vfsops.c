@@ -52,6 +52,7 @@
 #include <sys/endian.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
+#include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/mutex.h>
 
@@ -66,6 +67,16 @@
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_extents.h>
+
+SDT_PROVIDER_DECLARE(ext2fs);
+/*
+ * ext2fs trace probe:
+ * arg0: verbosity. Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(ext2fs, , vfsops, trace, "int", "char*");
+SDT_PROBE_DEFINE2(ext2fs, , vfsops, ext2_cg_validate_error, "char*", "int");
+SDT_PROBE_DEFINE1(ext2fs, , vfsops, ext2_compute_sb_data_error, "char*");
 
 
 static int	ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
@@ -381,48 +392,54 @@ ext2_cg_validate(struct m_ext2fs *fs)
 
 		b_bitmap = e2fs_gd_get_b_bitmap(gd);
 		if (b_bitmap == 0) {
-			printf("ext2fs: cg %u: block bitmap is zero\n", i);
+			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
+			    "block bitmap is zero", i);
 			return (EINVAL);
 
 		}
 		if (b_bitmap <= last_cg_block) {
-			printf("ext2fs: cg %u: block bitmap overlaps gds\n", i);
+			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
+			    "block bitmap overlaps gds", i);
 			return (EINVAL);
 		}
 		if (b_bitmap < first_block || b_bitmap > last_block) {
-			printf("ext2fs: cg %u: block bitmap not in group, blk=%ju\n",
-			    i, b_bitmap);
+			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
+			    "block bitmap not in group", i);
 			return (EINVAL);
 		}
 
 		i_bitmap = e2fs_gd_get_i_bitmap(gd);
 		if (i_bitmap == 0) {
-			printf("ext2fs: cg %u: inode bitmap is zero\n", i);
+			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
+			    "inode bitmap is zero", i);
 			return (EINVAL);
 		}
 		if (i_bitmap <= last_cg_block) {
-			printf("ext2fs: cg %u: inode bitmap overlaps gds\n", i);
+			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
+			    "inode bitmap overlaps gds", i);
 			return (EINVAL);
 		}
 		if (i_bitmap < first_block || i_bitmap > last_block) {
-			printf("ext2fs: cg %u: inode bitmap not in group blk=%ju\n",
-			    i, i_bitmap);
+			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
+			    "inode bitmap not in group blk", i);
 			return (EINVAL);
 		}
 
 		i_tables = e2fs_gd_get_i_tables(gd);
 		if (i_tables == 0) {
-			printf("ext2fs: cg %u: inode table is zero\n", i);
+			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
+			    "inode table is zero", i);
 			return (EINVAL);
 		}
 		if (i_tables <= last_cg_block) {
-			printf("ext2fs: cg %u: inode talbes overlaps gds\n", i);
+			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
+			    "inode talbes overlaps gds", i);
 			return (EINVAL);
 		}
 		if (i_tables < first_block ||
 		    i_tables + fs->e2fs_itpg - 1 > last_block) {
-			printf("ext2fs: cg %u: inode tables not in group blk=%ju\n",
-			    i, i_tables);
+			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
+			    "inode tables not in group blk", i);
 			return (EINVAL);
 		}
 
@@ -450,7 +467,8 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	/* Check checksum features */
 	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) &&
 	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
-		printf("ext2fs: incorrect checksum features combination\n");
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "incorrect checksum features combination");
 		return (EINVAL);
 	}
 
@@ -467,7 +485,8 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 
 	/* Check for block size = 1K|2K|4K */
 	if (es->e2fs_log_bsize > 2) {
-		printf("ext2fs: bad block size: %d\n", es->e2fs_log_bsize);
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "bad block size");
 		return (EINVAL);
 	}
 
@@ -479,15 +498,15 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	/* Check for fragment size */
 	if (es->e2fs_log_fsize >
 	    (EXT2_MAX_FRAG_LOG_SIZE - EXT2_MIN_BLOCK_LOG_SIZE)) {
-		printf("ext2fs: invalid log cluster size: %u\n",
-		    es->e2fs_log_fsize);
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "invalid log cluster size");
 		return (EINVAL);
 	}
 
 	fs->e2fs_fsize = EXT2_MIN_FRAG_SIZE << es->e2fs_log_fsize;
 	if (fs->e2fs_fsize != fs->e2fs_bsize) {
-		printf("ext2fs: fragment size (%u) != block size %u\n",
-		    fs->e2fs_fsize, fs->e2fs_bsize);
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "fragment size != block size");
 		return (EINVAL);
 	}
 
@@ -495,8 +514,8 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 
 	/* Check reserved gdt blocks for future filesystem expansion */
 	if (es->e2fs_reserved_ngdb > (fs->e2fs_bsize / 4)) {
-		printf("ext2fs: number of reserved GDT blocks too large: %u\n",
-		    es->e2fs_reserved_ngdb);
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "number of reserved GDT blocks too large");
 		return (EINVAL);
 	}
 
@@ -509,8 +528,8 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		 * Check first ino.
 		 */
 		if (es->e2fs_first_ino < EXT2_FIRSTINO) {
-			printf("ext2fs: invalid first ino: %u\n",
-			    es->e2fs_first_ino);
+			SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+			    "invalid first ino");
 			return (EINVAL);
 		}
 
@@ -520,8 +539,8 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		if (EXT2_INODE_SIZE(fs) < E2FS_REV0_INODE_SIZE ||
 		    EXT2_INODE_SIZE(fs) > fs->e2fs_bsize ||
 		    (fs->e2fs_isize & (fs->e2fs_isize - 1)) != 0) {
-			printf("ext2fs: invalid inode size %u\n",
-			    fs->e2fs_isize);
+			SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+			    "invalid inode size");
 			return (EINVAL);
 		}
 	}
@@ -529,33 +548,36 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	/* Check group descriptors */
 	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT) &&
 	    es->e3fs_desc_size != E2FS_64BIT_GD_SIZE) {
-			printf("ext2fs: unsupported 64bit descriptor size %u\n",
-			    es->e3fs_desc_size);
-			return (EINVAL);
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "unsupported 64bit descriptor size");
+		return (EINVAL);
 	}
 
 	fs->e2fs_bpg = es->e2fs_bpg;
 	fs->e2fs_fpg = es->e2fs_fpg;
 	if (fs->e2fs_bpg == 0 || fs->e2fs_fpg == 0) {
-		printf("ext2fs: zero blocks/fragments per group\n");
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "zero blocks/fragments per group");
 		return (EINVAL);
 	}
 	if (fs->e2fs_bpg != fs->e2fs_bsize * 8) {
-		printf("ext2fs: non-standard group size unsupported %d\n",
-		    fs->e2fs_bpg);
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "non-standard group size unsupported");
 		return (EINVAL);
 	}
 
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	if (fs->e2fs_ipb == 0 ||
 	    fs->e2fs_ipb > fs->e2fs_bsize / E2FS_REV0_INODE_SIZE) {
-		printf("ext2fs: bad inodes per block size\n");
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "bad inodes per block size");
 		return (EINVAL);
 	}
 
 	fs->e2fs_ipg = es->e2fs_ipg;
 	if (fs->e2fs_ipg < fs->e2fs_ipb || fs->e2fs_ipg >  fs->e2fs_bsize * 8) {
-		printf("ext2fs: invalid inodes per group: %u\n", fs->e2fs_ipb);
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "invalid inodes per group");
 		return (EINVAL);
 	}
 
@@ -571,25 +593,29 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	}
 	if (fs->e2fs_rbcount > fs->e2fs_bcount ||
 	    fs->e2fs_fbcount > fs->e2fs_bcount) {
-		printf("ext2fs: invalid block count\n");
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "invalid block count");
 		return (EINVAL);
 	}
 	if (es->e2fs_first_dblock >= fs->e2fs_bcount) {
-		printf("ext2fs: first data block out of range\n");
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "first data block out of range");
 		return (EINVAL);
 	}
 
 	fs->e2fs_gcount = howmany(fs->e2fs_bcount - es->e2fs_first_dblock,
 	    EXT2_BLOCKS_PER_GROUP(fs));
 	if (fs->e2fs_gcount > ((uint64_t)1 << 32) - EXT2_DESCS_PER_BLOCK(fs)) {
-		printf("ext2fs: groups count too large: %u\n", fs->e2fs_gcount);
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "groups count too large");
 		return (EINVAL);
 	}
 
 	/* Check for extra isize in big inodes. */
 	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_EXTRA_ISIZE) &&
 	    EXT2_INODE_SIZE(fs) < sizeof(struct ext2fs_dinode)) {
-		printf("ext2fs: no space for extra inode timestamps\n");
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "no space for extra inode timestamps");
 		return (EINVAL);
 	}
 
@@ -1095,8 +1121,7 @@ ext2_sync(struct mount *mp, int waitfor)
 	td = curthread;
 	fs = ump->um_e2fs;
 	if (fs->e2fs_fmod != 0 && fs->e2fs_ronly != 0) {		/* XXX */
-		printf("fs = %s\n", fs->e2fs_fsmnt);
-		panic("ext2_sync: rofs mod");
+		panic("ext2_sync: rofs mod fs=%s", fs->e2fs_fsmnt);
 	}
 
 	/*
@@ -1242,7 +1267,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		for (i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
 			ip->i_db[i] = 0;
 	}
-#ifdef EXT2FS_DEBUG
+#ifdef EXT2FS_PRINT_EXTENTS
 	ext2_print_inode(ip);
 	ext4_ext_print_extent_tree_status(ip);
 #endif
