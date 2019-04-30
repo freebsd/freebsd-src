@@ -701,7 +701,7 @@ dma_pool_obj_import(void *arg, void **store, int count, int domain __unused,
 	struct linux_dma_obj *obj;
 	int error, i;
 
-	priv = pool->pool_pdev->dev.dma_priv;
+	priv = pool->pool_device->dma_priv;
 	for (i = 0; i < count; i++) {
 		obj = uma_zalloc(linux_dma_obj_zone, flags);
 		if (obj == NULL)
@@ -728,7 +728,7 @@ dma_pool_obj_release(void *arg, void **store, int count)
 	struct linux_dma_obj *obj;
 	int i;
 
-	priv = pool->pool_pdev->dev.dma_priv;
+	priv = pool->pool_device->dma_priv;
 	for (i = 0; i < count; i++) {
 		obj = store[i];
 		bus_dmamem_free(pool->pool_dmat, obj->vaddr, obj->dmamap);
@@ -746,7 +746,7 @@ linux_dma_pool_create(char *name, struct device *dev, size_t size,
 	priv = dev->dma_priv;
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
-	pool->pool_pdev = to_pci_dev(dev);
+	pool->pool_device = dev;
 	pool->pool_entry_size = size;
 
 	if (bus_dma_tag_create(bus_get_dma_tag(dev->bsddev),

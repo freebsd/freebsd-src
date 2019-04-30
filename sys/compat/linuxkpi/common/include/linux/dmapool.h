@@ -46,7 +46,7 @@ void linux_dma_pool_free(struct dma_pool *pool, void *vaddr,
     dma_addr_t dma_addr);
 
 struct dma_pool {
-	struct pci_dev	*pool_pdev;
+	struct device  *pool_device;
 	uma_zone_t	pool_zone;
 	struct mtx	pool_dma_lock;
 	bus_dma_tag_t	pool_dmat;
