@@ -492,6 +492,9 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
+	if (!nm_netmap_on(na))
+		return (0);
+
 	if ((vi->flags & VI_INIT_DONE) == 0)
 		return (0);
 
