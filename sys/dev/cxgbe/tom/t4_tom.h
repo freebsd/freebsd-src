@@ -218,10 +218,6 @@ struct flowc_tx_params {
 	unsigned int mss;
 };
 
-#define	DDP_RETRY_WAIT	5	/* seconds to wait before re-enabling DDP */
-#define	DDP_LOW_SCORE	1
-#define	DDP_HIGH_SCORE	3
-
 /*
  * Compressed state for embryonic connections for a listener.  Barely fits in
  * 64B, try not to grow it further.
