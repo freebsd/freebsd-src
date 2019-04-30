@@ -40,7 +40,6 @@ struct linux_emuldata {
 	int    *child_set_tid;	/* in clone(): Child's TID to set on clone */
 	int    *child_clear_tid;/* in clone(): Child's TID to clear on exit */
 
-	int	pdeath_signal;		/* parent death signal */
 	int	flags;			/* thread emuldata flags */
 	int	em_tid;			/* thread id */
 
