@@ -658,6 +658,16 @@ linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
 	uma_zfree(linux_dma_obj_zone, obj);
 }
 
+struct dma_pool {
+	struct device  *pool_device;
+	uma_zone_t	pool_zone;
+	struct mtx	pool_dma_lock;
+	bus_dma_tag_t	pool_dmat;
+	size_t		pool_entry_size;
+	struct mtx	pool_ptree_lock;
+	struct pctrie	pool_ptree;
+};
+
 static inline int
 dma_pool_obj_ctor(void *mem, int size, void *arg, int flags)
 {
