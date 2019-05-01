@@ -34,6 +34,9 @@ const struct wpa_driver_ops *const wpa_drivers[] =
 #ifdef CONFIG_DRIVER_WIRED
 	&wpa_driver_wired_ops,
 #endif /* CONFIG_DRIVER_WIRED */
+#ifdef CONFIG_DRIVER_MACSEC_LINUX
+	&wpa_driver_macsec_linux_ops,
+#endif /* CONFIG_DRIVER_MACSEC_LINUX */
 #ifdef CONFIG_DRIVER_MACSEC_QCA
 	&wpa_driver_macsec_qca_ops,
 #endif /* CONFIG_DRIVER_MACSEC_QCA */

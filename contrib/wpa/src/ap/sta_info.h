@@ -1,6 +1,6 @@
 /*
  * hostapd / Station table
- * Copyright (c) 2002-2011, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2017, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -9,14 +9,11 @@
 #ifndef STA_INFO_H
 #define STA_INFO_H
 
-#ifdef CONFIG_MESH
-/* needed for mesh_plink_state enum */
 #include "common/defs.h"
-#include "common/wpa_common.h"
-#endif /* CONFIG_MESH */
-
 #include "list.h"
 #include "vlan.h"
+#include "common/wpa_common.h"
+#include "common/ieee802_11_defs.h"
 
 /* STA flags */
 #define WLAN_STA_AUTH BIT(0)
@@ -38,6 +35,8 @@
 #define WLAN_STA_WNM_SLEEP_MODE BIT(19)
 #define WLAN_STA_VHT_OPMODE_ENABLED BIT(20)
 #define WLAN_STA_VENDOR_VHT BIT(21)
+#define WLAN_STA_PENDING_FILS_ERP BIT(22)
+#define WLAN_STA_MULTI_AP BIT(23)
 #define WLAN_STA_PENDING_DISASSOC_CB BIT(29)
 #define WLAN_STA_PENDING_DEAUTH_CB BIT(30)
 #define WLAN_STA_NONERP BIT(31)
@@ -46,6 +45,7 @@
  * Supported Rates IEs). */
 #define WLAN_SUPP_RATES_MAX 32
 
+struct hostapd_data;
 
 struct mbo_non_pref_chan_info {
 	struct mbo_non_pref_chan_info *next;
@@ -68,6 +68,7 @@ struct sta_info {
 	be32 ipaddr;
 	struct dl_list ip6addr; /* list head for struct ip6addr */
 	u16 aid; /* STA's unique AID (1 .. 2007) or 0 if not yet assigned */
+	u16 disconnect_reason_code; /* RADIUS server override */
 	u32 flags; /* Bitfield of WLAN_STA_* */
 	u16 capability;
 	u16 listen_interval; /* or beacon_int for APs */
@@ -113,6 +114,11 @@ struct sta_info {
 	unsigned int radius_das_match:1;
 	unsigned int ecsa_supported:1;
 	unsigned int added_unassoc:1;
+	unsigned int pending_wds_enable:1;
+	unsigned int power_capab:1;
+	unsigned int agreed_to_steer:1;
+	unsigned int hs20_t_c_filtering:1;
+	unsigned int ft_over_ds:1;
 
 	u16 auth_alg;
 
@@ -158,6 +164,7 @@ struct sta_info {
 
 	struct ieee80211_ht_capabilities *ht_capabilities;
 	struct ieee80211_vht_capabilities *vht_capabilities;
+	struct ieee80211_vht_operation *vht_operation;
 	u8 vht_opmode;
 
 #ifdef CONFIG_IEEE80211W
@@ -170,17 +177,20 @@ struct sta_info {
 	struct os_reltime sa_query_start;
 #endif /* CONFIG_IEEE80211W */
 
-#ifdef CONFIG_INTERWORKING
+#if defined(CONFIG_INTERWORKING) || defined(CONFIG_DPP)
 #define GAS_DIALOG_MAX 8 /* Max concurrent dialog number */
 	struct gas_dialog_info *gas_dialog;
 	u8 gas_dialog_next;
-#endif /* CONFIG_INTERWORKING */
+#endif /* CONFIG_INTERWORKING || CONFIG_DPP */
 
 	struct wpabuf *wps_ie; /* WPS IE from (Re)Association Request */
 	struct wpabuf *p2p_ie; /* P2P IE from (Re)Association Request */
 	struct wpabuf *hs20_ie; /* HS 2.0 IE from (Re)Association Request */
+	/* Hotspot 2.0 Roaming Consortium from (Re)Association Request */
+	struct wpabuf *roaming_consortium;
 	u8 remediation_method;
 	char *remediation_url; /* HS 2.0 Subscription Remediation Server URL */
+	char *t_c_url; /* HS 2.0 Terms and Conditions Server URL */
 	struct wpabuf *hs20_deauth_req;
 	char *hs20_session_info_url;
 	int hs20_disassoc_timer;
@@ -195,7 +205,8 @@ struct sta_info {
 	unsigned int mesh_sae_pmksa_caching:1;
 #endif /* CONFIG_SAE */
 
-	u32 session_timeout; /* valid only if session_timeout_set == 1 */
+	/* valid only if session_timeout_set == 1 */
+	struct os_reltime session_timeout;
 
 	/* Last Authentication/(Re)Association Request/Action frame sequence
 	 * control */
@@ -207,6 +218,7 @@ struct sta_info {
 	u8 cell_capa; /* 0 = unknown (not an MBO STA); otherwise,
 		       * enum mbo_cellular_capa values */
 	struct mbo_non_pref_chan_info *non_pref_chan;
+	int auth_rssi; /* Last Authentication frame RSSI */
 #endif /* CONFIG_MBO */
 
 	u8 *supp_op_classes; /* Supported Operating Classes element, if
@@ -214,10 +226,55 @@ struct sta_info {
 
 	u8 rrm_enabled_capa[5];
 
+	s8 min_tx_power;
+	s8 max_tx_power;
+
 #ifdef CONFIG_TAXONOMY
 	struct wpabuf *probe_ie_taxonomy;
 	struct wpabuf *assoc_ie_taxonomy;
 #endif /* CONFIG_TAXONOMY */
+
+#ifdef CONFIG_FILS
+	u8 fils_snonce[FILS_NONCE_LEN];
+	u8 fils_session[FILS_SESSION_LEN];
+	u8 fils_erp_pmkid[PMKID_LEN];
+	u8 *fils_pending_assoc_req;
+	size_t fils_pending_assoc_req_len;
+	unsigned int fils_pending_assoc_is_reassoc:1;
+	unsigned int fils_dhcp_rapid_commit_proxy:1;
+	unsigned int fils_erp_pmkid_set:1;
+	unsigned int fils_drv_assoc_finish:1;
+	struct wpabuf *fils_hlp_resp;
+	struct wpabuf *hlp_dhcp_discover;
+	void (*fils_pending_cb)(struct hostapd_data *hapd, struct sta_info *sta,
+				u16 resp, struct wpabuf *data, int pub);
+#ifdef CONFIG_FILS_SK_PFS
+	struct crypto_ecdh *fils_ecdh;
+#endif /* CONFIG_FILS_SK_PFS */
+	struct wpabuf *fils_dh_ss;
+	struct wpabuf *fils_g_sta;
+#endif /* CONFIG_FILS */
+
+#ifdef CONFIG_OWE
+	u8 *owe_pmk;
+	size_t owe_pmk_len;
+	struct crypto_ecdh *owe_ecdh;
+	u16 owe_group;
+#endif /* CONFIG_OWE */
+
+	u8 *ext_capability;
+	char *ifname_wds; /* WDS ifname, if in use */
+
+#ifdef CONFIG_DPP2
+	struct dpp_pfs *dpp_pfs;
+#endif /* CONFIG_DPP2 */
+
+#ifdef CONFIG_TESTING_OPTIONS
+	enum wpa_alg last_tk_alg;
+	int last_tk_key_idx;
+	u8 last_tk[WPA_TK_MAX_LEN];
+	size_t last_tk_len;
+#endif /* CONFIG_TESTING_OPTIONS */
 };
 
 
@@ -236,8 +293,6 @@ struct sta_info {
 /* Number of seconds to keep STA entry after it has been deauthenticated. */
 #define AP_MAX_INACTIVITY_AFTER_DEAUTH (1 * 5)
 
-
-struct hostapd_data;
 
 int ap_for_each_sta(struct hostapd_data *hapd,
 		    int (*cb)(struct hostapd_data *hapd, struct sta_info *sta,
@@ -273,6 +328,8 @@ int ap_sta_set_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 void ap_sta_start_sa_query(struct hostapd_data *hapd, struct sta_info *sta);
 void ap_sta_stop_sa_query(struct hostapd_data *hapd, struct sta_info *sta);
 int ap_check_sa_query_timeout(struct hostapd_data *hapd, struct sta_info *sta);
+const char * ap_sta_wpa_get_keyid(struct hostapd_data *hapd,
+				  struct sta_info *sta);
 void ap_sta_disconnect(struct hostapd_data *hapd, struct sta_info *sta,
 		       const u8 *addr, u16 reason);
 
@@ -289,5 +346,9 @@ void ap_sta_clear_disconnect_timeouts(struct hostapd_data *hapd,
 				      struct sta_info *sta);
 
 int ap_sta_flags_txt(u32 flags, char *buf, size_t buflen);
+void ap_sta_delayed_1x_auth_fail_disconnect(struct hostapd_data *hapd,
+					    struct sta_info *sta);
+int ap_sta_pending_delayed_1x_auth_fail_disconnect(struct hostapd_data *hapd,
+						   struct sta_info *sta);
 
 #endif /* STA_INFO_H */

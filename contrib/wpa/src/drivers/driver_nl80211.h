@@ -60,11 +60,13 @@ struct i802_bss {
 	char brname[IFNAMSIZ];
 	unsigned int beacon_set:1;
 	unsigned int added_if_into_bridge:1;
+	unsigned int already_in_bridge:1;
 	unsigned int added_bridge:1;
 	unsigned int in_deinit:1;
 	unsigned int wdev_id_set:1;
 	unsigned int added_if:1;
 	unsigned int static_ap:1;
+	unsigned int use_nl_connect:1;
 
 	u8 addr[ETH_ALEN];
 
@@ -73,11 +75,12 @@ struct i802_bss {
 	int if_dynamic;
 
 	void *ctx;
-	struct nl_handle *nl_preq, *nl_mgmt;
+	struct nl_handle *nl_preq, *nl_mgmt, *nl_connect;
 	struct nl_cb *nl_cb;
 
 	struct nl80211_wiphy_data *wiphy_data;
 	struct dl_list wiphy_list;
+	u8 rand_addr[ETH_ALEN];
 };
 
 struct wpa_driver_nl80211_data {
@@ -160,6 +163,10 @@ struct wpa_driver_nl80211_data {
 	unsigned int scan_vendor_cmd_avail:1;
 	unsigned int connect_reassoc:1;
 	unsigned int set_wifi_conf_vendor_cmd_avail:1;
+	unsigned int he_capab_vendor_cmd_avail:1;
+	unsigned int fetch_bss_trans_status:1;
+	unsigned int roam_vendor_cmd_avail:1;
+	unsigned int get_supported_akm_suites_avail:1;
 
 	u64 vendor_scan_cookie;
 	u64 remain_on_chan_cookie;
@@ -208,6 +215,8 @@ struct wpa_driver_nl80211_data {
 	 * (NL80211_CMD_VENDOR). 0 if no pending scan request.
 	 */
 	int last_scan_cmd;
+
+	struct he_capabilities he_capab;
 };
 
 struct nl_msg;
@@ -228,6 +237,7 @@ int nl80211_create_iface(struct wpa_driver_nl80211_data *drv,
 			 void *arg, int use_existing);
 void nl80211_remove_iface(struct wpa_driver_nl80211_data *drv, int ifidx);
 unsigned int nl80211_get_assoc_freq(struct wpa_driver_nl80211_data *drv);
+int nl80211_get_assoc_ssid(struct wpa_driver_nl80211_data *drv, u8 *ssid);
 enum chan_width convert2width(int width);
 void nl80211_mark_disconnected(struct wpa_driver_nl80211_data *drv);
 struct i802_bss * get_bss_ifindex(struct wpa_driver_nl80211_data *drv,
@@ -244,7 +254,8 @@ int wpa_driver_nl80211_set_mode(struct i802_bss *bss,
 				enum nl80211_iftype nlmode);
 int wpa_driver_nl80211_mlme(struct wpa_driver_nl80211_data *drv,
 			    const u8 *addr, int cmd, u16 reason_code,
-			    int local_state_change);
+			    int local_state_change,
+			    struct nl_handle *nl_connect);
 
 int nl80211_create_monitor_interface(struct wpa_driver_nl80211_data *drv);
 void nl80211_remove_monitor_interface(struct wpa_driver_nl80211_data *drv);
@@ -254,7 +265,8 @@ int nl80211_send_monitor(struct wpa_driver_nl80211_data *drv,
 
 int wpa_driver_nl80211_capa(struct wpa_driver_nl80211_data *drv);
 struct hostapd_hw_modes *
-nl80211_get_hw_feature_data(void *priv, u16 *num_modes, u16 *flags);
+nl80211_get_hw_feature_data(void *priv, u16 *num_modes, u16 *flags,
+			    u8 *dfs_domain);
 
 int process_global_event(struct nl_msg *msg, void *arg);
 int process_bss_event(struct nl_msg *msg, void *arg);
@@ -282,15 +294,6 @@ int wpa_driver_set_ap_wps_p2p_ie(void *priv, const struct wpabuf *beacon,
 
 /* driver_nl80211_scan.c */
 
-struct nl80211_bss_info_arg {
-	struct wpa_driver_nl80211_data *drv;
-	struct wpa_scan_results *res;
-	unsigned int assoc_freq;
-	unsigned int ibss_freq;
-	u8 assoc_bssid[ETH_ALEN];
-};
-
-int bss_info_handler(struct nl_msg *msg, void *arg);
 void wpa_driver_nl80211_scan_timeout(void *eloop_ctx, void *timeout_ctx);
 int wpa_driver_nl80211_scan(struct i802_bss *bss,
 			    struct wpa_driver_scan_params *params);
@@ -299,7 +302,7 @@ int wpa_driver_nl80211_sched_scan(void *priv,
 int wpa_driver_nl80211_stop_sched_scan(void *priv);
 struct wpa_scan_results * wpa_driver_nl80211_get_scan_results(void *priv);
 void nl80211_dump_scan(struct wpa_driver_nl80211_data *drv);
-int wpa_driver_nl80211_abort_scan(void *priv);
+int wpa_driver_nl80211_abort_scan(void *priv, u64 scan_cookie);
 int wpa_driver_nl80211_vendor_scan(struct i802_bss *bss,
 				   struct wpa_driver_scan_params *params);
 int nl80211_set_default_scan_ies(void *priv, const u8 *ies, size_t ies_len);

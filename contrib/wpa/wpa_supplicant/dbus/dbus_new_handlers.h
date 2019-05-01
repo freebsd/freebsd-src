@@ -22,6 +22,11 @@ struct bss_handler_args {
 	unsigned int id;
 };
 
+struct sta_handler_args {
+	struct wpa_supplicant *wpa_s;
+	const u8 *sta;
+};
+
 dbus_bool_t wpas_dbus_simple_property_getter(DBusMessageIter *iter,
 					     const int type,
 					     const void *val,
@@ -42,6 +47,10 @@ dbus_bool_t wpas_dbus_simple_array_array_property_getter(DBusMessageIter *iter,
 							 struct wpabuf **array,
 							 size_t array_len,
 							 DBusError *error);
+
+dbus_bool_t wpas_dbus_string_property_getter(DBusMessageIter *iter,
+					     const void *val,
+					     DBusError *error);
 
 DBusMessage * wpas_dbus_handler_create_interface(DBusMessage *message,
 						 struct wpa_global *global);
@@ -69,6 +78,9 @@ DECLARE_ACCESSOR(wpas_dbus_setter_iface_global);
 
 DBusMessage * wpas_dbus_handler_scan(DBusMessage *message,
 				     struct wpa_supplicant *wpa_s);
+
+DBusMessage * wpas_dbus_handler_abort_scan(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s);
 
 DBusMessage * wpas_dbus_handler_signal_poll(DBusMessage *message,
 					    struct wpa_supplicant *wpa_s);
@@ -138,7 +150,12 @@ DECLARE_ACCESSOR(wpas_dbus_getter_fast_reauth);
 DECLARE_ACCESSOR(wpas_dbus_setter_fast_reauth);
 DECLARE_ACCESSOR(wpas_dbus_getter_disconnect_reason);
 DECLARE_ACCESSOR(wpas_dbus_getter_disassociate_reason);
+DECLARE_ACCESSOR(wpas_dbus_getter_auth_status_code);
 DECLARE_ACCESSOR(wpas_dbus_getter_assoc_status_code);
+DECLARE_ACCESSOR(wpas_dbus_getter_roam_time);
+DECLARE_ACCESSOR(wpas_dbus_getter_roam_complete);
+DECLARE_ACCESSOR(wpas_dbus_getter_session_length);
+DECLARE_ACCESSOR(wpas_dbus_getter_bss_tm_status);
 DECLARE_ACCESSOR(wpas_dbus_getter_bss_expire_age);
 DECLARE_ACCESSOR(wpas_dbus_setter_bss_expire_age);
 DECLARE_ACCESSOR(wpas_dbus_getter_bss_expire_count);
@@ -159,6 +176,14 @@ DECLARE_ACCESSOR(wpas_dbus_getter_networks);
 DECLARE_ACCESSOR(wpas_dbus_getter_pkcs11_engine_path);
 DECLARE_ACCESSOR(wpas_dbus_getter_pkcs11_module_path);
 DECLARE_ACCESSOR(wpas_dbus_getter_blobs);
+DECLARE_ACCESSOR(wpas_dbus_getter_stas);
+DECLARE_ACCESSOR(wpas_dbus_getter_sta_address);
+DECLARE_ACCESSOR(wpas_dbus_getter_sta_aid);
+DECLARE_ACCESSOR(wpas_dbus_getter_sta_caps);
+DECLARE_ACCESSOR(wpas_dbus_getter_sta_rx_packets);
+DECLARE_ACCESSOR(wpas_dbus_getter_sta_tx_packets);
+DECLARE_ACCESSOR(wpas_dbus_getter_sta_tx_bytes);
+DECLARE_ACCESSOR(wpas_dbus_getter_sta_rx_bytes);
 DECLARE_ACCESSOR(wpas_dbus_getter_bss_bssid);
 DECLARE_ACCESSOR(wpas_dbus_getter_bss_ssid);
 DECLARE_ACCESSOR(wpas_dbus_getter_bss_privacy);
@@ -186,6 +211,21 @@ DECLARE_ACCESSOR(wpas_dbus_getter_process_credentials);
 DECLARE_ACCESSOR(wpas_dbus_setter_process_credentials);
 DECLARE_ACCESSOR(wpas_dbus_getter_config_methods);
 DECLARE_ACCESSOR(wpas_dbus_setter_config_methods);
+DECLARE_ACCESSOR(wpas_dbus_getter_wps_device_name);
+DECLARE_ACCESSOR(wpas_dbus_setter_wps_device_name);
+DECLARE_ACCESSOR(wpas_dbus_getter_wps_manufacturer);
+DECLARE_ACCESSOR(wpas_dbus_setter_wps_manufacturer);
+DECLARE_ACCESSOR(wpas_dbus_getter_wps_device_model_name);
+DECLARE_ACCESSOR(wpas_dbus_setter_wps_device_model_name);
+DECLARE_ACCESSOR(wpas_dbus_getter_wps_device_model_number);
+DECLARE_ACCESSOR(wpas_dbus_setter_wps_device_model_number);
+DECLARE_ACCESSOR(wpas_dbus_getter_wps_device_serial_number);
+DECLARE_ACCESSOR(wpas_dbus_setter_wps_device_serial_number);
+DECLARE_ACCESSOR(wpas_dbus_getter_wps_device_device_type);
+DECLARE_ACCESSOR(wpas_dbus_setter_wps_device_device_type);
+
+DECLARE_ACCESSOR(wpas_dbus_getter_mesh_peers);
+DECLARE_ACCESSOR(wpas_dbus_getter_mesh_group);
 
 DBusMessage * wpas_dbus_handler_tdls_discover(DBusMessage *message,
 					      struct wpa_supplicant *wpa_s);
@@ -195,6 +235,12 @@ DBusMessage * wpas_dbus_handler_tdls_status(DBusMessage *message,
 					    struct wpa_supplicant *wpa_s);
 DBusMessage * wpas_dbus_handler_tdls_teardown(DBusMessage *message,
 					      struct wpa_supplicant *wpa_s);
+DBusMessage *
+wpas_dbus_handler_tdls_channel_switch(DBusMessage *message,
+				      struct wpa_supplicant *wpa_s);
+DBusMessage *
+wpas_dbus_handler_tdls_cancel_channel_switch(DBusMessage *message,
+					     struct wpa_supplicant *wpa_s);
 
 DBusMessage * wpas_dbus_handler_vendor_elem_add(DBusMessage *message,
 						struct wpa_supplicant *wpa_s);

@@ -614,6 +614,18 @@ size_t os_strlcpy(char *dest, const char *src, size_t siz);
  */
 int os_memcmp_const(const void *a, const void *b, size_t len);
 
+
+/**
+ * os_memdup - Allocate duplicate of passed memory chunk
+ * @src: Source buffer to duplicate
+ * @len: Length of source buffer
+ * Returns: %NULL if allocation failed, copy of src buffer otherwise
+ *
+ * This function allocates a memory block like os_malloc() would, and
+ * copies the given source buffer into it.
+ */
+void * os_memdup(const void *src, size_t len);
+
 /**
  * os_exec - Execute an external program
  * @program: Path to the program

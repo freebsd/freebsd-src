@@ -91,6 +91,8 @@ static int get_user_cb(void *ctx, int argc, char *argv[], char *col[])
 			set_user_methods(user, argv[i]);
 		} else if (os_strcmp(col[i], "remediation") == 0 && argv[i]) {
 			user->remediation = strlen(argv[i]) > 0;
+		} else if (os_strcmp(col[i], "t_c_timestamp") == 0 && argv[i]) {
+			user->t_c_timestamp = strtol(argv[i], NULL, 10);
 		}
 	}
 
@@ -137,6 +139,7 @@ eap_user_sqlite_get(struct hostapd_data *hapd, const u8 *identity,
 	struct hostapd_eap_user *user = NULL;
 	char id_str[256], cmd[300];
 	size_t i;
+	int res;
 
 	if (identity_len >= sizeof(id_str)) {
 		wpa_printf(MSG_DEBUG, "%s: identity len too big: %d >= %d",
@@ -172,6 +175,7 @@ eap_user_sqlite_get(struct hostapd_data *hapd, const u8 *identity,
 	if (hapd->tmp_eap_user.identity == NULL)
 		return NULL;
 	os_memcpy(hapd->tmp_eap_user.identity, identity, identity_len);
+	hapd->tmp_eap_user.identity_len = identity_len;
 
 	if (sqlite3_open(hapd->conf->eap_user_sqlite, &db)) {
 		wpa_printf(MSG_INFO, "DB: Failed to open database %s: %s",
@@ -180,9 +184,12 @@ eap_user_sqlite_get(struct hostapd_data *hapd, const u8 *identity,
 		return NULL;
 	}
 
-	os_snprintf(cmd, sizeof(cmd),
-		    "SELECT * FROM users WHERE identity='%s' AND phase2=%d;",
-		    id_str, phase2);
+	res = os_snprintf(cmd, sizeof(cmd),
+			  "SELECT * FROM users WHERE identity='%s' AND phase2=%d;",
+			  id_str, phase2);
+	if (os_snprintf_error(sizeof(cmd), res))
+		goto fail;
+
 	wpa_printf(MSG_DEBUG, "DB: %s", cmd);
 	if (sqlite3_exec(db, cmd, get_user_cb, &hapd->tmp_eap_user, NULL) !=
 	    SQLITE_OK) {
@@ -212,6 +219,7 @@ eap_user_sqlite_get(struct hostapd_data *hapd, const u8 *identity,
 		}
 	}
 
+fail:
 	sqlite3_close(db);
 
 	return user;

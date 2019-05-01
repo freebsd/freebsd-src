@@ -1,6 +1,6 @@
 /*
  * IEEE 802.11 Common routines
- * Copyright (c) 2002-2012, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -10,6 +10,15 @@
 #define IEEE802_11_COMMON_H
 
 #include "defs.h"
+#include "ieee802_11_defs.h"
+
+struct element {
+	u8 id;
+	u8 datalen;
+	u8 data[];
+} STRUCT_PACKED;
+
+struct hostapd_hw_modes;
 
 #define MAX_NOF_MB_IES_SUPPORTED 5
 
@@ -64,6 +73,27 @@ struct ieee802_11_elems {
 	const u8 *pref_freq_list;
 	const u8 *supp_op_classes;
 	const u8 *rrm_enabled;
+	const u8 *cag_number;
+	const u8 *ap_csn;
+	const u8 *fils_indic;
+	const u8 *dils;
+	const u8 *assoc_delay_info;
+	const u8 *fils_req_params;
+	const u8 *fils_key_confirm;
+	const u8 *fils_session;
+	const u8 *fils_hlp;
+	const u8 *fils_ip_addr_assign;
+	const u8 *key_delivery;
+	const u8 *fils_wrapped_data;
+	const u8 *fils_pk;
+	const u8 *fils_nonce;
+	const u8 *owe_dh;
+	const u8 *power_capab;
+	const u8 *roaming_cons_sel;
+	const u8 *password_id;
+	const u8 *oci;
+	const u8 *multi_ap;
+	const u8 *he_capabilities;
 
 	u8 ssid_len;
 	u8 supp_rates_len;
@@ -96,6 +126,23 @@ struct ieee802_11_elems {
 	u8 pref_freq_list_len;
 	u8 supp_op_classes_len;
 	u8 rrm_enabled_len;
+	u8 cag_number_len;
+	u8 fils_indic_len;
+	u8 dils_len;
+	u8 fils_req_params_len;
+	u8 fils_key_confirm_len;
+	u8 fils_hlp_len;
+	u8 fils_ip_addr_assign_len;
+	u8 key_delivery_len;
+	u8 fils_wrapped_data_len;
+	u8 fils_pk_len;
+	u8 owe_dh_len;
+	u8 power_capab_len;
+	u8 roaming_cons_sel_len;
+	u8 password_id_len;
+	u8 oci_len;
+	u8 multi_ap_len;
+	u8 he_capabilities_len;
 
 	struct mb_ies_info mb_ies;
 };
@@ -126,7 +173,10 @@ int ieee80211_chan_to_freq(const char *country, u8 op_class, u8 chan);
 enum hostapd_hw_mode ieee80211_freq_to_channel_ext(unsigned int freq,
 						   int sec_channel, int vht,
 						   u8 *op_class, u8 *channel);
-int ieee80211_is_dfs(int freq);
+int ieee80211_chaninfo_to_channel(unsigned int freq, enum chan_width chanwidth,
+				  int sec_channel, u8 *op_class, u8 *channel);
+int ieee80211_is_dfs(int freq, const struct hostapd_hw_modes *modes,
+		     u16 num_modes);
 enum phy_type ieee80211_get_phy_type(int freq, int ht, int vht);
 
 int supp_rates_11b_only(struct ieee802_11_elems *elems);
@@ -150,7 +200,73 @@ extern const struct oper_class_map global_op_class[];
 extern size_t global_op_class_size;
 
 const u8 * get_ie(const u8 *ies, size_t len, u8 eid);
+const u8 * get_ie_ext(const u8 *ies, size_t len, u8 ext);
+const u8 * get_vendor_ie(const u8 *ies, size_t len, u32 vendor_type);
 
 size_t mbo_add_ie(u8 *buf, size_t len, const u8 *attr, size_t attr_len);
+
+size_t add_multi_ap_ie(u8 *buf, size_t len, u8 value);
+
+struct country_op_class {
+	u8 country_op_class;
+	u8 global_op_class;
+};
+
+u8 country_to_global_op_class(const char *country, u8 op_class);
+
+const struct oper_class_map * get_oper_class(const char *country, u8 op_class);
+int oper_class_bw_to_int(const struct oper_class_map *map);
+
+int ieee802_11_parse_candidate_list(const char *pos, u8 *nei_rep,
+				    size_t nei_rep_len);
+
+int ieee802_11_ext_capab(const u8 *ie, unsigned int capab);
+
+/* element iteration helpers */
+#define for_each_element(_elem, _data, _datalen)			\
+	for (_elem = (const struct element *) (_data);			\
+	     (const u8 *) (_data) + (_datalen) - (const u8 *) _elem >=	\
+		(int) sizeof(*_elem) &&					\
+	     (const u8 *) (_data) + (_datalen) - (const u8 *) _elem >=	\
+		(int) sizeof(*_elem) + _elem->datalen;			\
+	     _elem = (const struct element *) (_elem->data + _elem->datalen))
+
+#define for_each_element_id(element, _id, data, datalen)		\
+	for_each_element(element, data, datalen)			\
+		if (element->id == (_id))
+
+#define for_each_element_extid(element, extid, _data, _datalen)		\
+	for_each_element(element, _data, _datalen)			\
+		if (element->id == WLAN_EID_EXTENSION &&		\
+		    element->datalen > 0 &&				\
+		    element->data[0] == (extid))
+
+#define for_each_subelement(sub, element)				\
+	for_each_element(sub, (element)->data, (element)->datalen)
+
+#define for_each_subelement_id(sub, id, element)			\
+	for_each_element_id(sub, id, (element)->data, (element)->datalen)
+
+#define for_each_subelement_extid(sub, extid, element)			\
+	for_each_element_extid(sub, extid, (element)->data, (element)->datalen)
+
+/**
+ * for_each_element_completed - Determine if element parsing consumed all data
+ * @element: Element pointer after for_each_element() or friends
+ * @data: Same data pointer as passed to for_each_element() or friends
+ * @datalen: Same data length as passed to for_each_element() or friends
+ *
+ * This function returns 1 if all the data was parsed or considered
+ * while walking the elements. Only use this if your for_each_element()
+ * loop cannot be broken out of, otherwise it always returns 0.
+ *
+ * If some data was malformed, this returns %false since the last parsed
+ * element will not fill the whole remaining data.
+ */
+static inline int for_each_element_completed(const struct element *element,
+					     const void *data, size_t datalen)
+{
+	return (const u8 *) element == (const u8 *) data + datalen;
+}
 
 #endif /* IEEE802_11_COMMON_H */

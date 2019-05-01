@@ -16,6 +16,7 @@
 #include "crypto/md5.h"
 #include "common/eapol_common.h"
 #include "eap_peer/eap.h"
+#include "eap_peer/eap_config.h"
 #include "eap_peer/eap_proxy.h"
 #include "eapol_supp_sm.h"
 
@@ -95,7 +96,7 @@ struct eapol_sm {
 		SUPP_BE_RECEIVE = 4,
 		SUPP_BE_RESPONSE = 5,
 		SUPP_BE_FAIL = 6,
-		SUPP_BE_TIMEOUT = 7, 
+		SUPP_BE_TIMEOUT = 7,
 		SUPP_BE_SUCCESS = 8
 	} SUPP_BE_state; /* dot1xSuppBackendPaeState */
 	/* Variables */
@@ -188,8 +189,9 @@ static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
 	}
 
 	if (sm->authWhile | sm->heldWhile | sm->startWhen | sm->idleWhile) {
-		eloop_register_timeout(1, 0, eapol_port_timers_tick, eloop_ctx,
-				       sm);
+		if (eloop_register_timeout(1, 0, eapol_port_timers_tick,
+					   eloop_ctx, sm) < 0)
+			sm->timer_tick_enabled = 0;
 	} else {
 		wpa_printf(MSG_DEBUG, "EAPOL: disable timer tick");
 		sm->timer_tick_enabled = 0;
@@ -203,9 +205,9 @@ static void eapol_enable_timer_tick(struct eapol_sm *sm)
 	if (sm->timer_tick_enabled)
 		return;
 	wpa_printf(MSG_DEBUG, "EAPOL: enable timer tick");
-	sm->timer_tick_enabled = 1;
 	eloop_cancel_timeout(eapol_port_timers_tick, NULL, sm);
-	eloop_register_timeout(1, 0, eapol_port_timers_tick, NULL, sm);
+	if (eloop_register_timeout(1, 0, eapol_port_timers_tick, NULL, sm) == 0)
+		sm->timer_tick_enabled = 1;
 }
 
 
@@ -249,6 +251,8 @@ SM_STATE(SUPP_PAE, CONNECTING)
 	SM_ENTRY(SUPP_PAE, CONNECTING);
 
 	if (sm->eapTriggerStart)
+		send_start = 1;
+	if (sm->ctx->preauth)
 		send_start = 1;
 	sm->eapTriggerStart = FALSE;
 
@@ -490,9 +494,24 @@ SM_STATE(SUPP_BE, SUCCESS)
 #ifdef CONFIG_EAP_PROXY
 	if (sm->use_eap_proxy) {
 		if (eap_proxy_key_available(sm->eap_proxy)) {
+			u8 *session_id, *emsk;
+			size_t session_id_len, emsk_len;
+
 			/* New key received - clear IEEE 802.1X EAPOL-Key replay
 			 * counter */
 			sm->replay_counter_valid = FALSE;
+
+			session_id = eap_proxy_get_eap_session_id(
+				sm->eap_proxy, &session_id_len);
+			emsk = eap_proxy_get_emsk(sm->eap_proxy, &emsk_len);
+			if (sm->config->erp && session_id && emsk) {
+				eap_peer_erp_init(sm->eap, session_id,
+						  session_id_len, emsk,
+						  emsk_len);
+			} else {
+				os_free(session_id);
+				bin_clear_free(emsk, emsk_len);
+			}
 		}
 		return;
 	}
@@ -897,6 +916,9 @@ static void eapol_sm_abortSupp(struct eapol_sm *sm)
 	wpabuf_free(sm->eapReqData);
 	sm->eapReqData = NULL;
 	eap_sm_abort(sm->eap);
+#ifdef CONFIG_EAP_PROXY
+	eap_proxy_sm_abort(sm->eap_proxy);
+#endif /* CONFIG_EAP_PROXY */
 }
 
 
@@ -1998,7 +2020,17 @@ static void eapol_sm_notify_status(void *ctx, const char *status,
 }
 
 
+static void eapol_sm_notify_eap_error(void *ctx, int error_code)
+{
+	struct eapol_sm *sm = ctx;
+
+	if (sm->ctx->eap_error_cb)
+		sm->ctx->eap_error_cb(sm->ctx->ctx, error_code);
+}
+
+
 #ifdef CONFIG_EAP_PROXY
+
 static void eapol_sm_eap_proxy_cb(void *ctx)
 {
 	struct eapol_sm *sm = ctx;
@@ -2006,6 +2038,18 @@ static void eapol_sm_eap_proxy_cb(void *ctx)
 	if (sm->ctx->eap_proxy_cb)
 		sm->ctx->eap_proxy_cb(sm->ctx->ctx);
 }
+
+
+static void
+eapol_sm_eap_proxy_notify_sim_status(void *ctx,
+				     enum eap_proxy_sim_state sim_state)
+{
+	struct eapol_sm *sm = ctx;
+
+	if (sm->ctx->eap_proxy_notify_sim_status)
+		sm->ctx->eap_proxy_notify_sim_status(sm->ctx->ctx, sim_state);
+}
+
 #endif /* CONFIG_EAP_PROXY */
 
 
@@ -2032,8 +2076,11 @@ static const struct eapol_callbacks eapol_cb =
 	eapol_sm_eap_param_needed,
 	eapol_sm_notify_cert,
 	eapol_sm_notify_status,
+	eapol_sm_notify_eap_error,
 #ifdef CONFIG_EAP_PROXY
 	eapol_sm_eap_proxy_cb,
+	eapol_sm_eap_proxy_notify_sim_status,
+	eapol_sm_get_eap_proxy_imsi,
 #endif /* CONFIG_EAP_PROXY */
 	eapol_sm_set_anon_id
 };
@@ -2095,8 +2142,8 @@ struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
 	sm->initialize = FALSE;
 	eapol_sm_step(sm);
 
-	sm->timer_tick_enabled = 1;
-	eloop_register_timeout(1, 0, eapol_port_timers_tick, NULL, sm);
+	if (eloop_register_timeout(1, 0, eapol_port_timers_tick, NULL, sm) == 0)
+		sm->timer_tick_enabled = 1;
 
 	return sm;
 }
@@ -2141,20 +2188,73 @@ int eapol_sm_failed(struct eapol_sm *sm)
 }
 
 
-int eapol_sm_get_eap_proxy_imsi(struct eapol_sm *sm, char *imsi, size_t *len)
-{
 #ifdef CONFIG_EAP_PROXY
+int eapol_sm_get_eap_proxy_imsi(void *ctx, int sim_num, char *imsi, size_t *len)
+{
+	struct eapol_sm *sm = ctx;
+
 	if (sm->eap_proxy == NULL)
 		return -1;
-	return eap_proxy_get_imsi(sm->eap_proxy, imsi, len);
-#else /* CONFIG_EAP_PROXY */
-	return -1;
-#endif /* CONFIG_EAP_PROXY */
+	return eap_proxy_get_imsi(sm->eap_proxy, sim_num, imsi, len);
 }
+#endif /* CONFIG_EAP_PROXY */
 
 
 void eapol_sm_erp_flush(struct eapol_sm *sm)
 {
 	if (sm)
 		eap_peer_erp_free_keys(sm->eap);
+}
+
+
+struct wpabuf * eapol_sm_build_erp_reauth_start(struct eapol_sm *sm)
+{
+#ifdef CONFIG_ERP
+	if (!sm)
+		return NULL;
+	return eap_peer_build_erp_reauth_start(sm->eap, 0);
+#else /* CONFIG_ERP */
+	return NULL;
+#endif /* CONFIG_ERP */
+}
+
+
+void eapol_sm_process_erp_finish(struct eapol_sm *sm, const u8 *buf,
+				 size_t len)
+{
+#ifdef CONFIG_ERP
+	if (!sm)
+		return;
+	eap_peer_finish(sm->eap, (const struct eap_hdr *) buf, len);
+#endif /* CONFIG_ERP */
+}
+
+
+int eapol_sm_update_erp_next_seq_num(struct eapol_sm *sm, u16 next_seq_num)
+{
+#ifdef CONFIG_ERP
+	if (!sm)
+		return -1;
+	return eap_peer_update_erp_next_seq_num(sm->eap, next_seq_num);
+#else /* CONFIG_ERP */
+	return -1;
+#endif /* CONFIG_ERP */
+}
+
+
+int eapol_sm_get_erp_info(struct eapol_sm *sm, struct eap_peer_config *config,
+			  const u8 **username, size_t *username_len,
+			  const u8 **realm, size_t *realm_len,
+			  u16 *erp_next_seq_num, const u8 **rrk,
+			  size_t *rrk_len)
+{
+#ifdef CONFIG_ERP
+	if (!sm)
+		return -1;
+	return eap_peer_get_erp_info(sm->eap, config, username, username_len,
+				     realm, realm_len, erp_next_seq_num, rrk,
+				     rrk_len);
+#else /* CONFIG_ERP */
+	return -1;
+#endif /* CONFIG_ERP */
 }

@@ -390,6 +390,14 @@ int wps_process_os_version(struct wps_device_data *dev, const u8 *ver)
 }
 
 
+void wps_process_vendor_ext_m1(struct wps_device_data *dev, const u8 ext)
+{
+	dev->multi_ap_ext = ext;
+	wpa_printf(MSG_DEBUG, "WPS: Multi-AP extension value %02x",
+		   dev->multi_ap_ext);
+}
+
+
 int wps_process_rf_bands(struct wps_device_data *dev, const u8 *bands)
 {
 	if (bands == NULL) {

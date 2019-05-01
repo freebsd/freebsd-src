@@ -119,10 +119,10 @@ int bignum_cmp(const struct bignum *a, const struct bignum *b)
 
 
 /**
- * bignum_cmd_d - Compare bignum to standard integer
+ * bignum_cmp_d - Compare bignum to standard integer
  * @a: Bignum from bignum_init()
  * @b: Small integer
- * Returns: 0 on success, -1 on failure
+ * Returns: -1 if a < b, 0 if a == b, 1 if a > b
  */
 int bignum_cmp_d(const struct bignum *a, unsigned long b)
 {

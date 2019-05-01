@@ -2,7 +2,7 @@ hostapd - user space IEEE 802.11 AP and IEEE 802.1X/WPA/WPA2/EAP
 	  Authenticator and RADIUS authentication server
 ================================================================
 
-Copyright (c) 2002-2016, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is licensed under the BSD license (the one with
@@ -70,7 +70,7 @@ Requirements
 Current hardware/software requirements:
 - drivers:
 	Host AP driver for Prism2/2.5/3.
-	(http://hostap.epitest.fi/)
+	(http://w1.fi/hostap-driver.html)
 	Please note that station firmware version needs to be 1.7.0 or newer
 	to work in WPA mode.
 
@@ -81,8 +81,7 @@ Current hardware/software requirements:
 	Any wired Ethernet driver for wired IEEE 802.1X authentication
 	(experimental code)
 
-	FreeBSD -current (with some kernel mods that have not yet been
-	committed when hostapd v0.3.0 was released)
+	FreeBSD -current
 	BSD net80211 layer (e.g., Atheros driver)
 
 
@@ -186,23 +185,13 @@ Authenticator and RADIUS encapsulation between the Authenticator and
 the Authentication Server. Other than this, the functionality is similar
 to the case with the co-located Authentication Server.
 
-Authentication Server and Supplicant
-------------------------------------
+Authentication Server
+---------------------
 
 Any RADIUS server supporting EAP should be usable as an IEEE 802.1X
 Authentication Server with hostapd Authenticator. FreeRADIUS
 (http://www.freeradius.org/) has been successfully tested with hostapd
-Authenticator and both Xsupplicant (http://www.open1x.org) and Windows
-XP Supplicants. EAP/TLS was used with Xsupplicant and
-EAP/MD5-Challenge with Windows XP.
-
-http://www.missl.cs.umd.edu/wireless/eaptls/ has useful information
-about using EAP/TLS with FreeRADIUS and Xsupplicant (just replace
-Cisco access point with Host AP driver, hostapd daemon, and a Prism2
-card ;-). http://www.freeradius.org/doc/EAP-MD5.html has information
-about using EAP/MD5 with FreeRADIUS, including instructions for WinXP
-configuration. http://www.denobula.com/EAPTLS.pdf has a HOWTO on
-EAP/TLS use with WinXP Supplicant.
+Authenticator.
 
 Automatic WEP key configuration
 -------------------------------
@@ -243,16 +232,15 @@ networks that require some kind of security. Task group I (Security)
 of IEEE 802.11 working group (http://www.ieee802.org/11/) has worked
 to address the flaws of the base standard and has in practice
 completed its work in May 2004. The IEEE 802.11i amendment to the IEEE
-802.11 standard was approved in June 2004 and this amendment is likely
-to be published in July 2004.
+802.11 standard was approved in June 2004 and this amendment was
+published in July 2004.
 
 Wi-Fi Alliance (http://www.wi-fi.org/) used a draft version of the
 IEEE 802.11i work (draft 3.0) to define a subset of the security
 enhancements that can be implemented with existing wlan hardware. This
 is called Wi-Fi Protected Access<TM> (WPA). This has now become a
 mandatory component of interoperability testing and certification done
-by Wi-Fi Alliance. Wi-Fi provides information about WPA at its web
-site (http://www.wi-fi.org/OpenSection/protected_access.asp).
+by Wi-Fi Alliance.
 
 IEEE 802.11 standard defined wired equivalent privacy (WEP) algorithm
 for protecting wireless networks. WEP uses RC4 with 40-bit keys,

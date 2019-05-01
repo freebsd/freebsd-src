@@ -43,7 +43,10 @@ static void pmksa_cache_free_entry(struct rsn_pmksa_cache *pmksa,
 				   struct rsn_pmksa_cache_entry *entry,
 				   enum pmksa_free_reason reason)
 {
-	wpa_sm_remove_pmkid(pmksa->sm, entry->aa, entry->pmkid);
+	wpa_sm_remove_pmkid(pmksa->sm, entry->network_ctx, entry->aa,
+			    entry->pmkid,
+			    entry->fils_cache_id_set ? entry->fils_cache_id :
+			    NULL);
 	pmksa->pmksa_count--;
 	pmksa->free_cb(entry, pmksa->ctx, reason);
 	_pmksa_cache_free_entry(entry);
@@ -93,7 +96,7 @@ static void pmksa_cache_set_expiration(struct rsn_pmksa_cache *pmksa)
 	eloop_register_timeout(sec + 1, 0, pmksa_cache_expire, pmksa, NULL);
 
 	entry = pmksa->sm->cur_pmksa ? pmksa->sm->cur_pmksa :
-		pmksa_cache_get(pmksa, pmksa->sm->bssid, NULL, NULL);
+		pmksa_cache_get(pmksa, pmksa->sm->bssid, NULL, NULL, 0);
 	if (entry) {
 		sec = pmksa->pmksa->reauth_time - now.sec;
 		if (sec < 0)
@@ -116,6 +119,7 @@ static void pmksa_cache_set_expiration(struct rsn_pmksa_cache *pmksa)
  * @spa: Supplicant address
  * @network_ctx: Network configuration context for this PMK
  * @akmp: WPA_KEY_MGMT_* used in key derivation
+ * @cache_id: Pointer to FILS Cache Identifier or %NULL if not advertised
  * Returns: Pointer to the added PMKSA cache entry or %NULL on error
  *
  * This function create a PMKSA entry for a new PMK and adds it to the PMKSA
@@ -126,9 +130,10 @@ static void pmksa_cache_set_expiration(struct rsn_pmksa_cache *pmksa)
 struct rsn_pmksa_cache_entry *
 pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 		const u8 *pmkid, const u8 *kck, size_t kck_len,
-		const u8 *aa, const u8 *spa, void *network_ctx, int akmp)
+		const u8 *aa, const u8 *spa, void *network_ctx, int akmp,
+		const u8 *cache_id)
 {
-	struct rsn_pmksa_cache_entry *entry, *pos, *prev;
+	struct rsn_pmksa_cache_entry *entry;
 	struct os_reltime now;
 
 	if (pmk_len > PMK_LEN_MAX)
@@ -149,24 +154,38 @@ pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 	else if (wpa_key_mgmt_suite_b(akmp))
 		rsn_pmkid_suite_b(kck, kck_len, aa, spa, entry->pmkid);
 	else
-		rsn_pmkid(pmk, pmk_len, aa, spa, entry->pmkid,
-			  wpa_key_mgmt_sha256(akmp));
+		rsn_pmkid(pmk, pmk_len, aa, spa, entry->pmkid, akmp);
 	os_get_reltime(&now);
 	entry->expiration = now.sec + pmksa->sm->dot11RSNAConfigPMKLifetime;
 	entry->reauth_time = now.sec + pmksa->sm->dot11RSNAConfigPMKLifetime *
 		pmksa->sm->dot11RSNAConfigPMKReauthThreshold / 100;
 	entry->akmp = akmp;
+	if (cache_id) {
+		entry->fils_cache_id_set = 1;
+		os_memcpy(entry->fils_cache_id, cache_id, FILS_CACHE_ID_LEN);
+	}
 	os_memcpy(entry->aa, aa, ETH_ALEN);
 	entry->network_ctx = network_ctx;
+
+	return pmksa_cache_add_entry(pmksa, entry);
+}
+
+
+struct rsn_pmksa_cache_entry *
+pmksa_cache_add_entry(struct rsn_pmksa_cache *pmksa,
+		      struct rsn_pmksa_cache_entry *entry)
+{
+	struct rsn_pmksa_cache_entry *pos, *prev;
 
 	/* Replace an old entry for the same Authenticator (if found) with the
 	 * new entry */
 	pos = pmksa->pmksa;
 	prev = NULL;
 	while (pos) {
-		if (os_memcmp(aa, pos->aa, ETH_ALEN) == 0) {
-			if (pos->pmk_len == pmk_len &&
-			    os_memcmp_const(pos->pmk, pmk, pmk_len) == 0 &&
+		if (os_memcmp(entry->aa, pos->aa, ETH_ALEN) == 0) {
+			if (pos->pmk_len == entry->pmk_len &&
+			    os_memcmp_const(pos->pmk, entry->pmk,
+					    entry->pmk_len) == 0 &&
 			    os_memcmp_const(pos->pmkid, entry->pmkid,
 					    PMKID_LEN) == 0) {
 				wpa_printf(MSG_DEBUG, "WPA: reusing previous "
@@ -192,8 +211,8 @@ pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 				   "the current AP and any PMKSA cache entry "
 				   "that was based on the old PMK");
 			if (!pos->opportunistic)
-				pmksa_cache_flush(pmksa, network_ctx, pos->pmk,
-						  pos->pmk_len);
+				pmksa_cache_flush(pmksa, entry->network_ctx,
+						  pos->pmk, pos->pmk_len);
 			pmksa_cache_free_entry(pmksa, pos, PMKSA_REPLACE);
 			break;
 		}
@@ -244,8 +263,11 @@ pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 	}
 	pmksa->pmksa_count++;
 	wpa_printf(MSG_DEBUG, "RSN: Added PMKSA cache entry for " MACSTR
-		   " network_ctx=%p", MAC2STR(entry->aa), network_ctx);
-	wpa_sm_add_pmkid(pmksa->sm, entry->aa, entry->pmkid);
+		   " network_ctx=%p akmp=0x%x", MAC2STR(entry->aa),
+		   entry->network_ctx, entry->akmp);
+	wpa_sm_add_pmkid(pmksa->sm, entry->network_ctx, entry->aa, entry->pmkid,
+			 entry->fils_cache_id_set ? entry->fils_cache_id : NULL,
+			 entry->pmk, entry->pmk_len);
 
 	return entry;
 }
@@ -320,17 +342,20 @@ void pmksa_cache_deinit(struct rsn_pmksa_cache *pmksa)
  * @aa: Authenticator address or %NULL to match any
  * @pmkid: PMKID or %NULL to match any
  * @network_ctx: Network context or %NULL to match any
+ * @akmp: Specific AKMP to search for or 0 for any
  * Returns: Pointer to PMKSA cache entry or %NULL if no match was found
  */
 struct rsn_pmksa_cache_entry * pmksa_cache_get(struct rsn_pmksa_cache *pmksa,
 					       const u8 *aa, const u8 *pmkid,
-					       const void *network_ctx)
+					       const void *network_ctx,
+					       int akmp)
 {
 	struct rsn_pmksa_cache_entry *entry = pmksa->pmksa;
 	while (entry) {
 		if ((aa == NULL || os_memcmp(entry->aa, aa, ETH_ALEN) == 0) &&
 		    (pmkid == NULL ||
 		     os_memcmp(entry->pmkid, pmkid, PMKID_LEN) == 0) &&
+		    (!akmp || akmp == entry->akmp) &&
 		    (network_ctx == NULL || network_ctx == entry->network_ctx))
 			return entry;
 		entry = entry->next;
@@ -345,16 +370,19 @@ pmksa_cache_clone_entry(struct rsn_pmksa_cache *pmksa,
 			const u8 *aa)
 {
 	struct rsn_pmksa_cache_entry *new_entry;
+	os_time_t old_expiration = old_entry->expiration;
 
 	new_entry = pmksa_cache_add(pmksa, old_entry->pmk, old_entry->pmk_len,
 				    NULL, NULL, 0,
 				    aa, pmksa->sm->own_addr,
-				    old_entry->network_ctx, old_entry->akmp);
+				    old_entry->network_ctx, old_entry->akmp,
+				    old_entry->fils_cache_id_set ?
+				    old_entry->fils_cache_id : NULL);
 	if (new_entry == NULL)
 		return NULL;
 
 	/* TODO: reorder entries based on expiration time? */
-	new_entry->expiration = old_entry->expiration;
+	new_entry->expiration = old_expiration;
 	new_entry->opportunistic = 1;
 
 	return new_entry;
@@ -366,6 +394,7 @@ pmksa_cache_clone_entry(struct rsn_pmksa_cache *pmksa,
  * @pmksa: Pointer to PMKSA cache data from pmksa_cache_init()
  * @network_ctx: Network configuration context
  * @aa: Authenticator address for the new AP
+ * @akmp: Specific AKMP to search for or 0 for any
  * Returns: Pointer to a new PMKSA cache entry or %NULL if not available
  *
  * Try to create a new PMKSA cache entry opportunistically by guessing that the
@@ -374,7 +403,7 @@ pmksa_cache_clone_entry(struct rsn_pmksa_cache *pmksa,
  */
 struct rsn_pmksa_cache_entry *
 pmksa_cache_get_opportunistic(struct rsn_pmksa_cache *pmksa, void *network_ctx,
-			      const u8 *aa)
+			      const u8 *aa, int akmp)
 {
 	struct rsn_pmksa_cache_entry *entry = pmksa->pmksa;
 
@@ -382,7 +411,8 @@ pmksa_cache_get_opportunistic(struct rsn_pmksa_cache *pmksa, void *network_ctx,
 	if (network_ctx == NULL)
 		return NULL;
 	while (entry) {
-		if (entry->network_ctx == network_ctx) {
+		if (entry->network_ctx == network_ctx &&
+		    (!akmp || entry->akmp == akmp)) {
 			entry = pmksa_cache_clone_entry(pmksa, entry, aa);
 			if (entry) {
 				wpa_printf(MSG_DEBUG, "RSN: added "
@@ -393,6 +423,24 @@ pmksa_cache_get_opportunistic(struct rsn_pmksa_cache *pmksa, void *network_ctx,
 		}
 		entry = entry->next;
 	}
+	return NULL;
+}
+
+
+static struct rsn_pmksa_cache_entry *
+pmksa_cache_get_fils_cache_id(struct rsn_pmksa_cache *pmksa,
+			      const void *network_ctx, const u8 *cache_id)
+{
+	struct rsn_pmksa_cache_entry *entry;
+
+	for (entry = pmksa->pmksa; entry; entry = entry->next) {
+		if (network_ctx == entry->network_ctx &&
+		    entry->fils_cache_id_set &&
+		    os_memcmp(cache_id, entry->fils_cache_id,
+			      FILS_CACHE_ID_LEN) == 0)
+			return entry;
+	}
+
 	return NULL;
 }
 
@@ -429,33 +477,44 @@ void pmksa_cache_clear_current(struct wpa_sm *sm)
  * @bssid: BSSID for PMKSA or %NULL if not used
  * @network_ctx: Network configuration context
  * @try_opportunistic: Whether to allow opportunistic PMKSA caching
+ * @fils_cache_id: Pointer to FILS Cache Identifier or %NULL if not used
  * Returns: 0 if PMKSA was found or -1 if no matching entry was found
  */
 int pmksa_cache_set_current(struct wpa_sm *sm, const u8 *pmkid,
 			    const u8 *bssid, void *network_ctx,
-			    int try_opportunistic)
+			    int try_opportunistic, const u8 *fils_cache_id,
+			    int akmp)
 {
 	struct rsn_pmksa_cache *pmksa = sm->pmksa;
 	wpa_printf(MSG_DEBUG, "RSN: PMKSA cache search - network_ctx=%p "
-		   "try_opportunistic=%d", network_ctx, try_opportunistic);
+		   "try_opportunistic=%d akmp=0x%x",
+		   network_ctx, try_opportunistic, akmp);
 	if (pmkid)
 		wpa_hexdump(MSG_DEBUG, "RSN: Search for PMKID",
 			    pmkid, PMKID_LEN);
 	if (bssid)
 		wpa_printf(MSG_DEBUG, "RSN: Search for BSSID " MACSTR,
 			   MAC2STR(bssid));
+	if (fils_cache_id)
+		wpa_printf(MSG_DEBUG,
+			   "RSN: Search for FILS Cache Identifier %02x%02x",
+			   fils_cache_id[0], fils_cache_id[1]);
 
 	sm->cur_pmksa = NULL;
 	if (pmkid)
 		sm->cur_pmksa = pmksa_cache_get(pmksa, NULL, pmkid,
-						network_ctx);
+						network_ctx, akmp);
 	if (sm->cur_pmksa == NULL && bssid)
 		sm->cur_pmksa = pmksa_cache_get(pmksa, bssid, NULL,
-						network_ctx);
+						network_ctx, akmp);
 	if (sm->cur_pmksa == NULL && try_opportunistic && bssid)
 		sm->cur_pmksa = pmksa_cache_get_opportunistic(pmksa,
 							      network_ctx,
-							      bssid);
+							      bssid, akmp);
+	if (sm->cur_pmksa == NULL && fils_cache_id)
+		sm->cur_pmksa = pmksa_cache_get_fils_cache_id(pmksa,
+							      network_ctx,
+							      fils_cache_id);
 	if (sm->cur_pmksa) {
 		wpa_hexdump(MSG_DEBUG, "RSN: PMKSA cache entry found - PMKID",
 			    sm->cur_pmksa->pmkid, PMKID_LEN);
@@ -482,11 +541,20 @@ int pmksa_cache_list(struct rsn_pmksa_cache *pmksa, char *buf, size_t len)
 	char *pos = buf;
 	struct rsn_pmksa_cache_entry *entry;
 	struct os_reltime now;
+	int cache_id_used = 0;
+
+	for (entry = pmksa->pmksa; entry; entry = entry->next) {
+		if (entry->fils_cache_id_set) {
+			cache_id_used = 1;
+			break;
+		}
+	}
 
 	os_get_reltime(&now);
 	ret = os_snprintf(pos, buf + len - pos,
 			  "Index / AA / PMKID / expiration (in seconds) / "
-			  "opportunistic\n");
+			  "opportunistic%s\n",
+			  cache_id_used ? " / FILS Cache Identifier" : "");
 	if (os_snprintf_error(buf + len - pos, ret))
 		return pos - buf;
 	pos += ret;
@@ -501,15 +569,33 @@ int pmksa_cache_list(struct rsn_pmksa_cache *pmksa, char *buf, size_t len)
 		pos += ret;
 		pos += wpa_snprintf_hex(pos, buf + len - pos, entry->pmkid,
 					PMKID_LEN);
-		ret = os_snprintf(pos, buf + len - pos, " %d %d\n",
+		ret = os_snprintf(pos, buf + len - pos, " %d %d",
 				  (int) (entry->expiration - now.sec),
 				  entry->opportunistic);
+		if (os_snprintf_error(buf + len - pos, ret))
+			return pos - buf;
+		pos += ret;
+		if (entry->fils_cache_id_set) {
+			ret = os_snprintf(pos, buf + len - pos, " %02x%02x",
+					  entry->fils_cache_id[0],
+					  entry->fils_cache_id[1]);
+			if (os_snprintf_error(buf + len - pos, ret))
+				return pos - buf;
+			pos += ret;
+		}
+		ret = os_snprintf(pos, buf + len - pos, "\n");
 		if (os_snprintf_error(buf + len - pos, ret))
 			return pos - buf;
 		pos += ret;
 		entry = entry->next;
 	}
 	return pos - buf;
+}
+
+
+struct rsn_pmksa_cache_entry * pmksa_cache_head(struct rsn_pmksa_cache *pmksa)
+{
+	return pmksa->pmksa;
 }
 
 

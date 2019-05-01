@@ -219,7 +219,7 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
 	struct ctrl_iface_priv *priv = sock_ctx;
-	char buf[256], *pos;
+	char buf[4096], *pos;
 	int res;
 #ifdef CONFIG_CTRL_IFACE_UDP_IPV6
 	struct sockaddr_in6 from;
@@ -600,7 +600,7 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 {
 	struct wpa_global *global = eloop_ctx;
 	struct ctrl_iface_global_priv *priv = sock_ctx;
-	char buf[256], *pos;
+	char buf[4096], *pos;
 	int res;
 #ifdef CONFIG_CTRL_IFACE_UDP_IPV6
 	struct sockaddr_in6 from;

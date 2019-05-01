@@ -1,5 +1,144 @@
 ChangeLog for wpa_supplicant
 
+2019-04-21 - v2.8
+	* SAE changes
+	  - added support for SAE Password Identifier
+	  - changed default configuration to enable only groups 19, 20, 21
+	    (i.e., disable groups 25 and 26) and disable all unsuitable groups
+	    completely based on REVmd changes
+	  - do not regenerate PWE unnecessarily when the AP uses the
+	    anti-clogging token mechanisms
+	  - fixed some association cases where both SAE and FT-SAE were enabled
+	    on both the station and the selected AP
+	  - started to prefer FT-SAE over SAE AKM if both are enabled
+	  - started to prefer FT-SAE over FT-PSK if both are enabled
+	  - fixed FT-SAE when SAE PMKSA caching is used
+	  - reject use of unsuitable groups based on new implementation guidance
+	    in REVmd (allow only FFC groups with prime >= 3072 bits and ECC
+	    groups with prime >= 256)
+	  - minimize timing and memory use differences in PWE derivation
+	    [https://w1.fi/security/2019-1/] (CVE-2019-9494)
+	* EAP-pwd changes
+	  - minimize timing and memory use differences in PWE derivation
+	    [https://w1.fi/security/2019-2/] (CVE-2019-9495)
+	  - verify server scalar/element
+	    [https://w1.fi/security/2019-4/] (CVE-2019-9499)
+	  - fix message reassembly issue with unexpected fragment
+	    [https://w1.fi/security/2019-5/]
+	  - enforce rand,mask generation rules more strictly
+	  - fix a memory leak in PWE derivation
+	  - disallow ECC groups with a prime under 256 bits (groups 25, 26, and
+	    27)
+	* fixed CONFIG_IEEE80211R=y (FT) build without CONFIG_FILS=y
+	* Hotspot 2.0 changes
+	  - do not indicate release number that is higher than the one
+	    AP supports
+	  - added support for release number 3
+	  - enable PMF automatically for network profiles created from
+	    credentials
+	* fixed OWE network profile saving
+	* fixed DPP network profile saving
+	* added support for RSN operating channel validation
+	  (CONFIG_OCV=y and network profile parameter ocv=1)
+	* added Multi-AP backhaul STA support
+	* fixed build with LibreSSL
+	* number of MKA/MACsec fixes and extensions
+	* extended domain_match and domain_suffix_match to allow list of values
+	* fixed dNSName matching in domain_match and domain_suffix_match when
+	  using wolfSSL
+	* started to prefer FT-EAP-SHA384 over WPA-EAP-SUITE-B-192 AKM if both
+	  are enabled
+	* extended nl80211 Connect and external authentication to support
+	  SAE, FT-SAE, FT-EAP-SHA384
+	* fixed KEK2 derivation for FILS+FT
+	* extended client_cert file to allow loading of a chain of PEM
+	  encoded certificates
+	* extended beacon reporting functionality
+	* extended D-Bus interface with number of new properties
+	* fixed a regression in FT-over-DS with mac80211-based drivers
+	* OpenSSL: allow systemwide policies to be overridden
+	* extended driver flags indication for separate 802.1X and PSK
+	  4-way handshake offload capability
+	* added support for random P2P Device/Interface Address use
+	* extended PEAP to derive EMSK to enable use with ERP/FILS
+	* extended WPS to allow SAE configuration to be added automatically
+	  for PSK (wps_cred_add_sae=1)
+	* removed support for the old D-Bus interface (CONFIG_CTRL_IFACE_DBUS)
+	* extended domain_match and domain_suffix_match to allow list of values
+	* added a RSN workaround for misbehaving PMF APs that advertise
+	  IGTK/BIP KeyID using incorrect byte order
+	* fixed PTK rekeying with FILS and FT
+
+2018-12-02 - v2.7
+	* fixed WPA packet number reuse with replayed messages and key
+	  reinstallation
+	  [https://w1.fi/security/2017-1/] (CVE-2017-13077, CVE-2017-13078,
+	  CVE-2017-13079, CVE-2017-13080, CVE-2017-13081, CVE-2017-13082,
+	  CVE-2017-13086, CVE-2017-13087, CVE-2017-13088)
+	* fixed unauthenticated EAPOL-Key decryption in wpa_supplicant
+	  [https://w1.fi/security/2018-1/] (CVE-2018-14526)
+	* added support for FILS (IEEE 802.11ai) shared key authentication
+	* added support for OWE (Opportunistic Wireless Encryption, RFC 8110;
+	  and transition mode defined by WFA)
+	* added support for DPP (Wi-Fi Device Provisioning Protocol)
+	* added support for RSA 3k key case with Suite B 192-bit level
+	* fixed Suite B PMKSA caching not to update PMKID during each 4-way
+	  handshake
+	* fixed EAP-pwd pre-processing with PasswordHashHash
+	* added EAP-pwd client support for salted passwords
+	* fixed a regression in TDLS prohibited bit validation
+	* started to use estimated throughput to avoid undesired signal
+	  strength based roaming decision
+	* MACsec/MKA:
+	  - new macsec_linux driver interface support for the Linux
+	    kernel macsec module
+	  - number of fixes and extensions
+	* added support for external persistent storage of PMKSA cache
+	  (PMKSA_GET/PMKSA_ADD control interface commands; and
+	   MESH_PMKSA_GET/MESH_PMKSA_SET for the mesh case)
+	* fixed mesh channel configuration pri/sec switch case
+	* added support for beacon report
+	* large number of other fixes, cleanup, and extensions
+	* added support for randomizing local address for GAS queries
+	  (gas_rand_mac_addr parameter)
+	* fixed EAP-SIM/AKA/AKA' ext auth cases within TLS tunnel
+	* added option for using random WPS UUID (auto_uuid=1)
+	* added SHA256-hash support for OCSP certificate matching
+	* fixed EAP-AKA' to add AT_KDF into Synchronization-Failure
+	* fixed a regression in RSN pre-authentication candidate selection
+	* added option to configure allowed group management cipher suites
+	  (group_mgmt network profile parameter)
+	* removed all PeerKey functionality
+	* fixed nl80211 AP and mesh mode configuration regression with
+	  Linux 4.15 and newer
+	* added ap_isolate configuration option for AP mode
+	* added support for nl80211 to offload 4-way handshake into the driver
+	* added support for using wolfSSL cryptographic library
+	* SAE
+	  - added support for configuring SAE password separately of the
+	    WPA2 PSK/passphrase
+	  - fixed PTK and EAPOL-Key integrity and key-wrap algorithm selection
+	    for SAE;
+	    note: this is not backwards compatible, i.e., both the AP and
+	    station side implementations will need to be update at the same
+	    time to maintain interoperability
+	  - added support for Password Identifier
+	  - fixed FT-SAE PMKID matching
+	* Hotspot 2.0
+	  - added support for fetching of Operator Icon Metadata ANQP-element
+	  - added support for Roaming Consortium Selection element
+	  - added support for Terms and Conditions
+	  - added support for OSEN connection in a shared RSN BSS
+	  - added support for fetching Venue URL information
+	* added support for using OpenSSL 1.1.1
+	* FT
+	  - disabled PMKSA caching with FT since it is not fully functional
+	  - added support for SHA384 based AKM
+	  - added support for BIP ciphers BIP-CMAC-256, BIP-GMAC-128,
+	    BIP-GMAC-256 in addition to previously supported BIP-CMAC-128
+	  - fixed additional IE inclusion in Reassociation Request frame when
+	    using FT protocol
+
 2016-10-02 - v2.6
 	* fixed WNM Sleep Mode processing when PMF is not enabled
 	  [http://w1.fi/security/2015-6/] (CVE-2015-5310)

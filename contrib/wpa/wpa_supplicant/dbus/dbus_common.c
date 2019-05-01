@@ -16,7 +16,6 @@
 #include "dbus_common.h"
 #include "dbus_common_i.h"
 #include "dbus_new.h"
-#include "dbus_old.h"
 #include "../wpa_supplicant_i.h"
 
 
@@ -351,9 +350,6 @@ struct wpas_dbus_priv * wpas_dbus_init(struct wpa_global *global)
 #ifdef CONFIG_CTRL_IFACE_DBUS_NEW
 	    wpas_dbus_ctrl_iface_init(priv) < 0 ||
 #endif /* CONFIG_CTRL_IFACE_DBUS_NEW */
-#ifdef CONFIG_CTRL_IFACE_DBUS
-	    wpa_supplicant_dbus_ctrl_iface_init(priv) < 0 ||
-#endif /* CONFIG_CTRL_IFACE_DBUS */
 	    wpas_dbus_init_common_finish(priv) < 0) {
 		wpas_dbus_deinit(priv);
 		return NULL;
@@ -371,10 +367,6 @@ void wpas_dbus_deinit(struct wpas_dbus_priv *priv)
 #ifdef CONFIG_CTRL_IFACE_DBUS_NEW
 	wpas_dbus_ctrl_iface_deinit(priv);
 #endif /* CONFIG_CTRL_IFACE_DBUS_NEW */
-
-#ifdef CONFIG_CTRL_IFACE_DBUS
-	/* TODO: is any deinit needed? */
-#endif /* CONFIG_CTRL_IFACE_DBUS */
 
 	wpas_dbus_deinit_common(priv);
 }

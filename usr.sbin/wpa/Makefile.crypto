@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
-SRCS+=	crypto_openssl.c random.c sha1-prf.c sha256-prf.c sha256-tlsprf.c
+SRCS+=	crypto_openssl.c random.c sha1-prf.c sha256-prf.c sha256-tlsprf.c \
+	sha512.c
 LIBADD+=	ssl crypto
 CFLAGS+= -DCONFIG_SHA256
 .else
@@ -21,6 +22,7 @@ CONFIG_INTERNAL_DH=y
 NEED_AES_ENC=true
 NEED_AES_CBC=true
 .endif
+NEED_AES_OMAC1=true
 
 .if defined(TLS_FUNCS)
 NEED_TLS_PRF=y
@@ -49,7 +51,7 @@ NEED_MD4=y
 NEED_RC4=y
 .else
 CFLAGS+=-DEAP_TLS_OPENSSL
-SRCS+=	tls_openssl.c
+SRCS+=	tls_openssl.c tls_openssl_ocsp.c
 .endif
 .endif
 

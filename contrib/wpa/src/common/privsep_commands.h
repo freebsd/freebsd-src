@@ -9,6 +9,7 @@
 #ifndef PRIVSEP_COMMANDS_H
 #define PRIVSEP_COMMANDS_H
 
+#include "drivers/driver.h"
 #include "common/ieee802_11_defs.h"
 
 enum privsep_cmd {
@@ -29,8 +30,17 @@ enum privsep_cmd {
 	PRIVSEP_CMD_AUTHENTICATE,
 };
 
-struct privsep_cmd_authenticate
-{
+#define PRIVSEP_MAX_SCAN_FREQS 50
+
+struct privsep_cmd_scan {
+	unsigned int num_ssids;
+	u8 ssids[WPAS_MAX_SCAN_SSIDS][32];
+	u8 ssid_lens[WPAS_MAX_SCAN_SSIDS];
+	unsigned int num_freqs;
+	u16 freqs[PRIVSEP_MAX_SCAN_FREQS];
+};
+
+struct privsep_cmd_authenticate {
 	int freq;
 	u8 bssid[ETH_ALEN];
 	u8 ssid[SSID_MAX_LEN];
@@ -42,13 +52,12 @@ struct privsep_cmd_authenticate
 	int wep_tx_keyidx;
 	int local_state_change;
 	int p2p;
-	size_t sae_data_len;
+	size_t auth_data_len;
 	/* followed by ie_len bytes of ie */
-	/* followed by sae_data_len bytes of sae_data */
+	/* followed by auth_data_len bytes of auth_data */
 };
 
-struct privsep_cmd_associate
-{
+struct privsep_cmd_associate {
 	u8 bssid[ETH_ALEN];
 	u8 ssid[SSID_MAX_LEN];
 	size_t ssid_len;
@@ -64,8 +73,7 @@ struct privsep_cmd_associate
 	/* followed by wpa_ie_len bytes of wpa_ie */
 };
 
-struct privsep_cmd_set_key
-{
+struct privsep_cmd_set_key {
 	int alg;
 	u8 addr[ETH_ALEN];
 	int key_idx;
@@ -84,7 +92,6 @@ enum privsep_event {
 	PRIVSEP_EVENT_MICHAEL_MIC_FAILURE,
 	PRIVSEP_EVENT_INTERFACE_STATUS,
 	PRIVSEP_EVENT_PMKID_CANDIDATE,
-	PRIVSEP_EVENT_STKSTART,
 	PRIVSEP_EVENT_FT_RESPONSE,
 	PRIVSEP_EVENT_RX_EAPOL,
 	PRIVSEP_EVENT_SCAN_STARTED,

@@ -16,6 +16,7 @@
 
 #include "utils/common.h"
 #include "drivers/priv_netlink.h"
+#include "drivers/linux_ioctl.h"
 #include "common/linux_bridge.h"
 #include "common/linux_vlan.h"
 #include "utils/eloop.h"
@@ -143,6 +144,9 @@ static int br_delif(const char *br_name, const char *if_name)
 		return -1;
 	}
 
+	if (linux_br_del_if(fd, br_name, if_name) == 0)
+		goto done;
+
 	if_index = if_nametoindex(if_name);
 
 	if (if_index == 0) {
@@ -168,6 +172,7 @@ static int br_delif(const char *br_name, const char *if_name)
 		return -1;
 	}
 
+done:
 	close(fd);
 	return 0;
 }
@@ -192,6 +197,14 @@ static int br_addif(const char *br_name, const char *if_name)
 		wpa_printf(MSG_ERROR, "VLAN: %s: socket(AF_INET,SOCK_STREAM) "
 			   "failed: %s", __func__, strerror(errno));
 		return -1;
+	}
+
+	if (linux_br_add_if(fd, br_name, if_name) == 0)
+		goto done;
+	if (errno == EBUSY) {
+		/* The interface is already added. */
+		close(fd);
+		return 1;
 	}
 
 	if_index = if_nametoindex(if_name);
@@ -224,6 +237,7 @@ static int br_addif(const char *br_name, const char *if_name)
 		return -1;
 	}
 
+done:
 	close(fd);
 	return 0;
 }
@@ -241,6 +255,9 @@ static int br_delbr(const char *br_name)
 		return -1;
 	}
 
+	if (linux_br_del(fd, br_name) == 0)
+		goto done;
+
 	arg[0] = BRCTL_DEL_BRIDGE;
 	arg[1] = (unsigned long) br_name;
 
@@ -252,6 +269,7 @@ static int br_delbr(const char *br_name)
 		return -1;
 	}
 
+done:
 	close(fd);
 	return 0;
 }
@@ -277,11 +295,19 @@ static int br_addbr(const char *br_name)
 		return -1;
 	}
 
+	if (linux_br_add(fd, br_name) == 0)
+		goto done;
+	if (errno == EEXIST) {
+		/* The bridge is already added. */
+		close(fd);
+		return 1;
+	}
+
 	arg[0] = BRCTL_ADD_BRIDGE;
 	arg[1] = (unsigned long) br_name;
 
 	if (ioctl(fd, SIOCGIFBR, arg) < 0) {
- 		if (errno == EEXIST) {
+		if (errno == EEXIST) {
 			/* The bridge is already added. */
 			close(fd);
 			return 1;
@@ -294,6 +320,7 @@ static int br_addbr(const char *br_name)
 		}
 	}
 
+done:
 	/* Decrease forwarding delay to avoid EAPOL timeouts. */
 	os_memset(&ifr, 0, sizeof(ifr));
 	os_strlcpy(ifr.ifr_name, br_name, IFNAMSIZ);
@@ -363,12 +390,18 @@ static void vlan_newlink_tagged(int vlan_naming, const char *tagged_interface,
 {
 	char vlan_ifname[IFNAMSIZ];
 	int clean;
+	int ret;
 
 	if (vlan_naming == DYNAMIC_VLAN_NAMING_WITH_DEVICE)
-		os_snprintf(vlan_ifname, sizeof(vlan_ifname), "%s.%d",
-			    tagged_interface, vid);
+		ret = os_snprintf(vlan_ifname, sizeof(vlan_ifname), "%s.%d",
+				  tagged_interface, vid);
 	else
-		os_snprintf(vlan_ifname, sizeof(vlan_ifname), "vlan%d", vid);
+		ret = os_snprintf(vlan_ifname, sizeof(vlan_ifname), "vlan%d",
+				  vid);
+	if (ret >= (int) sizeof(vlan_ifname))
+		wpa_printf(MSG_WARNING,
+			   "VLAN: Interface name was truncated to %s",
+			   vlan_ifname);
 
 	clean = 0;
 	ifconfig_up(tagged_interface);
@@ -384,19 +417,28 @@ static void vlan_newlink_tagged(int vlan_naming, const char *tagged_interface,
 }
 
 
-static void vlan_bridge_name(char *br_name, struct hostapd_data *hapd, int vid)
+static void vlan_bridge_name(char *br_name, struct hostapd_data *hapd,
+			     struct hostapd_vlan *vlan, int vid)
 {
 	char *tagged_interface = hapd->conf->ssid.vlan_tagged_interface;
+	int ret;
 
-	if (hapd->conf->vlan_bridge[0]) {
-		os_snprintf(br_name, IFNAMSIZ, "%s%d",
-			    hapd->conf->vlan_bridge, vid);
+	if (vlan->bridge[0]) {
+		os_strlcpy(br_name, vlan->bridge, IFNAMSIZ);
+		ret = 0;
+	} else if (hapd->conf->vlan_bridge[0]) {
+		ret = os_snprintf(br_name, IFNAMSIZ, "%s%d",
+				  hapd->conf->vlan_bridge, vid);
 	} else if (tagged_interface) {
-		os_snprintf(br_name, IFNAMSIZ, "br%s.%d",
-			    tagged_interface, vid);
+		ret = os_snprintf(br_name, IFNAMSIZ, "br%s.%d",
+				  tagged_interface, vid);
 	} else {
-		os_snprintf(br_name, IFNAMSIZ, "brvlan%d", vid);
+		ret = os_snprintf(br_name, IFNAMSIZ, "brvlan%d", vid);
 	}
+	if (ret >= IFNAMSIZ)
+		wpa_printf(MSG_WARNING,
+			   "VLAN: Interface name was truncated to %s",
+			   br_name);
 }
 
 
@@ -445,7 +487,7 @@ void vlan_newlink(const char *ifname, struct hostapd_data *hapd)
 		    !br_addif(hapd->conf->bridge, ifname))
 			vlan->clean |= DVLAN_CLEAN_WLAN_PORT;
 	} else if (untagged > 0 && untagged <= MAX_VLAN_ID) {
-		vlan_bridge_name(br_name, hapd, untagged);
+		vlan_bridge_name(br_name, hapd, vlan, untagged);
 
 		vlan_get_bridge(br_name, hapd, untagged);
 
@@ -458,7 +500,7 @@ void vlan_newlink(const char *ifname, struct hostapd_data *hapd)
 		    tagged[i] <= 0 || tagged[i] > MAX_VLAN_ID ||
 		    (i > 0 && tagged[i] == tagged[i - 1]))
 			continue;
-		vlan_bridge_name(br_name, hapd, tagged[i]);
+		vlan_bridge_name(br_name, hapd, vlan, tagged[i]);
 		vlan_get_bridge(br_name, hapd, tagged[i]);
 		vlan_newlink_tagged(DYNAMIC_VLAN_NAMING_WITH_DEVICE,
 				    ifname, br_name, tagged[i], hapd);
@@ -474,12 +516,19 @@ static void vlan_dellink_tagged(int vlan_naming, const char *tagged_interface,
 {
 	char vlan_ifname[IFNAMSIZ];
 	int clean;
+	int ret;
 
 	if (vlan_naming == DYNAMIC_VLAN_NAMING_WITH_DEVICE)
-		os_snprintf(vlan_ifname, sizeof(vlan_ifname), "%s.%d",
-			    tagged_interface, vid);
+		ret = os_snprintf(vlan_ifname, sizeof(vlan_ifname), "%s.%d",
+				  tagged_interface, vid);
 	else
-		os_snprintf(vlan_ifname, sizeof(vlan_ifname), "vlan%d", vid);
+		ret = os_snprintf(vlan_ifname, sizeof(vlan_ifname), "vlan%d",
+				  vid);
+	if (ret >= (int) sizeof(vlan_ifname))
+		wpa_printf(MSG_WARNING,
+			   "VLAN: Interface name was truncated to %s",
+			   vlan_ifname);
+
 
 	clean = dyn_iface_put(hapd, vlan_ifname);
 
@@ -543,7 +592,7 @@ void vlan_dellink(const char *ifname, struct hostapd_data *hapd)
 			    tagged[i] <= 0 || tagged[i] > MAX_VLAN_ID ||
 			    (i > 0 && tagged[i] == tagged[i - 1]))
 				continue;
-			vlan_bridge_name(br_name, hapd, tagged[i]);
+			vlan_bridge_name(br_name, hapd, vlan, tagged[i]);
 			vlan_dellink_tagged(DYNAMIC_VLAN_NAMING_WITH_DEVICE,
 					    ifname, br_name, tagged[i], hapd);
 			vlan_put_bridge(br_name, hapd, tagged[i]);
@@ -555,7 +604,7 @@ void vlan_dellink(const char *ifname, struct hostapd_data *hapd)
 			    (vlan->clean & DVLAN_CLEAN_WLAN_PORT))
 				br_delif(hapd->conf->bridge, ifname);
 		} else if (untagged > 0 && untagged <= MAX_VLAN_ID) {
-			vlan_bridge_name(br_name, hapd, untagged);
+			vlan_bridge_name(br_name, hapd, vlan, untagged);
 
 			if (vlan->clean & DVLAN_CLEAN_WLAN_PORT)
 				br_delif(br_name, vlan->ifname);

@@ -756,8 +756,6 @@ struct fst_session * fst_session_create(struct fst_group *g)
 	struct fst_session *s;
 	u32 id;
 
-	WPA_ASSERT(!is_zero_ether_addr(own_addr));
-
 	id = fst_find_free_session_id();
 	if (id == FST_INVALID_SESSION_ID) {
 		fst_printf(MSG_ERROR, "Cannot assign new session ID");

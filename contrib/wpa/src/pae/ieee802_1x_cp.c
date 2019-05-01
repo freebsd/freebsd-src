@@ -38,12 +38,10 @@ struct ieee802_1x_cp_sm {
 
 	/* Logon -> CP */
 	enum connect_type connect;
-	u8 *authorization_data;
 
 	/* KaY -> CP */
 	Boolean chgd_server; /* clear by CP */
 	Boolean elected_self;
-	u8 *authorization_data1;
 	enum confidentiality_offset cipher_offset;
 	u64 cipher_suite;
 	Boolean new_sak; /* clear by CP */
@@ -159,6 +157,7 @@ SM_STATE(CP, ALLOWED)
 
 	secy_cp_control_enable_port(sm->kay, sm->controlled_port_enabled);
 	secy_cp_control_protect_frames(sm->kay, sm->protect_frames);
+	secy_cp_control_encrypt(sm->kay, sm->kay->macsec_encrypt);
 	secy_cp_control_validate_frames(sm->kay, sm->validate_frames);
 	secy_cp_control_replay(sm->kay, sm->replay_protect, sm->replay_window);
 }
@@ -177,6 +176,7 @@ SM_STATE(CP, AUTHENTICATED)
 
 	secy_cp_control_enable_port(sm->kay, sm->controlled_port_enabled);
 	secy_cp_control_protect_frames(sm->kay, sm->protect_frames);
+	secy_cp_control_encrypt(sm->kay, sm->kay->macsec_encrypt);
 	secy_cp_control_validate_frames(sm->kay, sm->validate_frames);
 	secy_cp_control_replay(sm->kay, sm->replay_protect, sm->replay_window);
 }
@@ -203,6 +203,7 @@ SM_STATE(CP, SECURED)
 	secy_cp_control_confidentiality_offset(sm->kay,
 					       sm->confidentiality_offset);
 	secy_cp_control_protect_frames(sm->kay, sm->protect_frames);
+	secy_cp_control_encrypt(sm->kay, sm->kay->macsec_encrypt);
 	secy_cp_control_validate_frames(sm->kay, sm->validate_frames);
 	secy_cp_control_replay(sm->kay, sm->replay_protect, sm->replay_window);
 }
@@ -213,6 +214,10 @@ SM_STATE(CP, RECEIVE)
 	SM_ENTRY(CP, RECEIVE);
 	/* RECEIVE state machine not keep with Figure 12-2 in
 	 * IEEE Std 802.1X-2010 */
+	if (sm->oki) {
+		ieee802_1x_kay_delete_sas(sm->kay, sm->oki);
+		os_free(sm->oki);
+	}
 	sm->oki = sm->lki;
 	sm->oan = sm->lan;
 	sm->otx = sm->ltx;
@@ -317,8 +322,11 @@ SM_STATE(CP, RETIRE)
 	SM_ENTRY(CP, RETIRE);
 	/* RETIRE state machine not keep with Figure 12-2 in
 	 * IEEE Std 802.1X-2010 */
-	os_free(sm->oki);
-	sm->oki = NULL;
+	if (sm->oki) {
+		ieee802_1x_kay_delete_sas(sm->kay, sm->oki);
+		os_free(sm->oki);
+		sm->oki = NULL;
+	}
 	sm->orx = FALSE;
 	sm->otx = FALSE;
 	ieee802_1x_kay_set_old_sa_attr(sm->kay, sm->oki, sm->oan,
@@ -380,7 +388,8 @@ SM_STEP(CP)
 		if (!sm->elected_self)
 			SM_ENTER(CP, READY);
 		if (sm->elected_self &&
-		    (sm->all_receiving || !sm->transmit_when))
+		    (sm->all_receiving || !sm->controlled_port_enabled ||
+		     !sm->transmit_when))
 			SM_ENTER(CP, TRANSMIT);
 		break;
 
@@ -403,8 +412,8 @@ SM_STEP(CP)
 
 	case CP_READY:
 		if (sm->new_sak || changed_connect(sm))
-			SM_ENTER(CP, RECEIVE);
-		if (sm->server_transmitting)
+			SM_ENTER(CP, ABANDON);
+		if (sm->server_transmitting || !sm->controlled_port_enabled)
 			SM_ENTER(CP, TRANSMIT);
 		break;
 	case CP_ABANDON:
@@ -461,18 +470,17 @@ struct ieee802_1x_cp_sm * ieee802_1x_cp_sm_init(struct ieee802_1x_kay *kay)
 	sm->retire_delay = MKA_SAK_RETIRE_TIME;
 	sm->CP_state = CP_BEGIN;
 	sm->changed = FALSE;
-	sm->authorization_data = NULL;
 
 	wpa_printf(MSG_DEBUG, "CP: state machine created");
 
 	secy_cp_control_protect_frames(sm->kay, sm->protect_frames);
+	secy_cp_control_encrypt(sm->kay, sm->kay->macsec_encrypt);
 	secy_cp_control_validate_frames(sm->kay, sm->validate_frames);
 	secy_cp_control_replay(sm->kay, sm->replay_protect, sm->replay_window);
 	secy_cp_control_enable_port(sm->kay, sm->controlled_port_enabled);
 	secy_cp_control_confidentiality_offset(sm->kay,
 					       sm->confidentiality_offset);
 
-	SM_ENTER(CP, INIT);
 	SM_STEP_RUN(CP);
 
 	return sm;
@@ -514,7 +522,6 @@ void ieee802_1x_cp_sm_deinit(struct ieee802_1x_cp_sm *sm)
 	eloop_cancel_timeout(ieee802_1x_cp_step_cb, sm, NULL);
 	os_free(sm->lki);
 	os_free(sm->oki);
-	os_free(sm->authorization_data);
 	os_free(sm);
 }
 
@@ -581,19 +588,6 @@ void ieee802_1x_cp_set_electedself(void *cp_ctx, Boolean status)
 {
 	struct ieee802_1x_cp_sm *sm = cp_ctx;
 	sm->elected_self = status;
-}
-
-
-/**
- * ieee802_1x_cp_set_authorizationdata -
- */
-void ieee802_1x_cp_set_authorizationdata(void *cp_ctx, u8 *pdata, int len)
-{
-	struct ieee802_1x_cp_sm *sm = cp_ctx;
-	os_free(sm->authorization_data);
-	sm->authorization_data = os_zalloc(len);
-	if (sm->authorization_data)
-		os_memcpy(sm->authorization_data, pdata, len);
 }
 
 
