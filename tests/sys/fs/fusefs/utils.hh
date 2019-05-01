@@ -103,7 +103,7 @@ class FuseTest : public ::testing::Test {
 	 */
 	void expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 		uint64_t size, int times, uint64_t attr_valid = UINT64_MAX,
-		uid_t uid = 0);
+		uid_t uid = 0, gid_t gid = 0);
 
 	/*
 	 * Create an expectation that FUSE_OPEN will be called for the given

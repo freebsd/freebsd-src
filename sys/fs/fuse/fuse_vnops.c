@@ -1518,13 +1518,19 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	struct thread *td = curthread;
 	struct fuse_dispatcher fdi;
 	struct fuse_setattr_in *fsai;
+	struct mount *mp;
 	pid_t pid = td->td_proc->p_pid;
-
+	struct fuse_data *data;
+	int dataflags;
 	int err = 0;
 	enum vtype vtyp;
 	int sizechanged = 0;
 	uint64_t newsize = 0;
 	accmode_t accmode = 0;
+
+	mp = vnode_mount(vp);
+	data = fuse_get_mpdata(mp);
+	dataflags = data->dataflags;
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1535,11 +1541,28 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	fsai->valid = 0;
 
 	if (vap->va_uid != (uid_t)VNOVAL) {
+		if (dataflags & FSESS_DEFAULT_PERMISSIONS) {
+			/* Only root may change a file's owner */
+			err = priv_check_cred(cred, PRIV_VFS_CHOWN);
+			if (err)
+				return err;
+		}
 		fsai->uid = vap->va_uid;
 		fsai->valid |= FATTR_UID;
 		accmode |= VADMIN;
 	}
 	if (vap->va_gid != (gid_t)VNOVAL) {
+		if (dataflags & FSESS_DEFAULT_PERMISSIONS &&
+		    !groupmember(vap->va_gid, cred))
+		{
+			/*
+			 * Non-root users may only chgrp to one of their own
+			 * groups 
+			 */
+			err = priv_check_cred(cred, PRIV_VFS_CHOWN);
+			if (err)
+				return err;
+		}
 		fsai->gid = vap->va_gid;
 		fsai->valid |= FATTR_GID;
 		accmode |= VADMIN;
