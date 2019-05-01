@@ -112,7 +112,8 @@ __FBSDID("$FreeBSD$");
 	"Device: %Hd,%Ld   Inode: %i    Links: %l%n" \
 	"Access: %Sa%n" \
 	"Modify: %Sm%n" \
-	"Change: %Sc"
+	"Change: %Sc%n"	\
+	" Birth: %SB"
 
 #define TIME_FORMAT	"%b %e %T %Y"
 
