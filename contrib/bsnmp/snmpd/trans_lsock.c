@@ -70,7 +70,8 @@ const struct transport_def lsock_trans = {
 	lsock_close_port,
 	lsock_init_port,
 	lsock_send,
-	lsock_recv
+	lsock_recv,
+	NULL
 };
 static struct transport *my_trans;
 
