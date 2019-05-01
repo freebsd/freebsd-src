@@ -2347,7 +2347,7 @@ int
 vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	       vm_prot_t new_prot, boolean_t set_max)
 {
-	vm_map_entry_t current, entry;
+	vm_map_entry_t current, entry, in_tran;
 	vm_object_t obj;
 	struct ucred *cred;
 	vm_prot_t old_prot;
@@ -2355,6 +2355,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	if (start == end)
 		return (KERN_SUCCESS);
 
+again:
+	in_tran = NULL;
 	vm_map_lock(map);
 
 	/*
@@ -2387,6 +2389,22 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			vm_map_unlock(map);
 			return (KERN_PROTECTION_FAILURE);
 		}
+		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0)
+			in_tran = entry;
+	}
+
+	/*
+	 * Postpone the operation until all in transition map entries
+	 * are stabilized.  In-transition entry might already have its
+	 * pages wired and wired_count incremented, but
+	 * MAP_ENTRY_USER_WIRED flag not yet set, and visible to other
+	 * threads because the map lock is dropped.  In this case we
+	 * would miss our call to vm_fault_copy_entry().
+	 */
+	if (in_tran != NULL) {
+		in_tran->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
+		vm_map_unlock_and_wait(map, 0);
+		goto again;
 	}
 
 	/*
