@@ -69,7 +69,7 @@ virtual void SetUp() {
 
 public:
 void expect_getattr(uint64_t ino, mode_t mode, uint64_t attr_valid, int times,
-	uid_t uid = 0)
+	uid_t uid = 0, gid_t gid = 0)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -84,19 +84,22 @@ void expect_getattr(uint64_t ino, mode_t mode, uint64_t attr_valid, int times,
 		out->body.attr.attr.mode = mode;
 		out->body.attr.attr.size = 0;
 		out->body.attr.attr.uid = uid;
+		out->body.attr.attr.uid = gid;
 		out->body.attr.attr_valid = attr_valid;
 	})));
 }
 
 void expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
-	uint64_t attr_valid, uid_t uid = 0)
+	uint64_t attr_valid, uid_t uid = 0, gid_t gid = 0)
 {
-	FuseTest::expect_lookup(relpath, ino, mode, 0, 1, attr_valid, uid);
+	FuseTest::expect_lookup(relpath, ino, mode, 0, 1, attr_valid, uid, gid);
 }
 
 };
 
 class Access: public DefaultPermissions {};
+class Chown: public DefaultPermissions {};
+class Chgrp: public DefaultPermissions {};
 class Lookup: public DefaultPermissions {};
 class Open: public DefaultPermissions {};
 class Setattr: public DefaultPermissions {};
@@ -252,6 +255,105 @@ TEST_F(Access, ok)
 	 */
 
 	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
+}
+
+/* Only root may change a file's owner */
+TEST_F(Chown, eperm)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	const mode_t mode = 0755;
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, geteuid());
+	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, geteuid());
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_SETATTR);
+		}, Eq(true)),
+		_)
+	).Times(0);
+
+	EXPECT_NE(0, chown(FULLPATH, 0, -1));
+	EXPECT_EQ(EPERM, errno);
+}
+
+/* non-root users may only chgrp a file to a group they belong to */
+TEST_F(Chgrp, eperm)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	const mode_t mode = 0755;
+	int ngroups = 64;
+	gid_t groups[ngroups];
+	uid_t uid;
+	gid_t gid, newgid;
+	int i;
+
+	uid = geteuid();
+	gid = getegid();
+	getgrouplist(getlogin(), getegid(), groups, &ngroups);
+	for (newgid = 0; newgid >= 0; newgid++) {
+		bool belongs = false;
+
+		for (i = 0; i < ngroups; i++) {
+			if (groups[i] == newgid)
+				belongs = true;
+		}
+		if (!belongs)
+			break;
+	}
+	/* newgid is now a group to which the current user does not belong */
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid, gid);
+	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, uid, gid);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_SETATTR);
+		}, Eq(true)),
+		_)
+	).Times(0);
+
+	EXPECT_NE(0, chown(FULLPATH, -1, newgid));
+	EXPECT_EQ(EPERM, errno);
+}
+
+TEST_F(Chgrp, ok)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	const mode_t mode = 0755;
+	uid_t uid;
+	gid_t gid, newgid;
+
+	uid = geteuid();
+	gid = 0;
+	newgid = getegid();
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid, gid);
+	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, uid, gid);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_SETATTR);
+		}, Eq(true)),
+		_)
+	).Times(0);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.mode = S_IFREG | mode;
+		out->body.attr.attr.uid = uid;
+		out->body.attr.attr.gid = newgid;
+	})));
+
+	EXPECT_EQ(0, chown(FULLPATH, -1, newgid)) << strerror(errno);
 }
 
 TEST_F(Create, ok)

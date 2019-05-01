@@ -175,7 +175,7 @@ void FuseTest::expect_getattr(uint64_t ino, uint64_t size)
 }
 
 void FuseTest::expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
-	uint64_t size, int times, uint64_t attr_valid, uid_t uid)
+	uint64_t size, int times, uint64_t attr_valid, uid_t uid, gid_t gid)
 {
 	EXPECT_LOOKUP(1, relpath)
 	.Times(times)
@@ -187,6 +187,7 @@ void FuseTest::expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 		out->body.entry.attr_valid = attr_valid;
 		out->body.entry.attr.size = size;
 		out->body.entry.attr.uid = uid;
+		out->body.entry.attr.gid = gid;
 	})));
 }
 
