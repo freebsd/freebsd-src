@@ -1545,7 +1545,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 			/* Only root may change a file's owner */
 			err = priv_check_cred(cred, PRIV_VFS_CHOWN);
 			if (err)
-				return err;
+				goto out;
 		}
 		fsai->uid = vap->va_uid;
 		fsai->valid |= FATTR_UID;
@@ -1561,7 +1561,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 			 */
 			err = priv_check_cred(cred, PRIV_VFS_CHOWN);
 			if (err)
-				return err;
+				goto out;
 		}
 		fsai->gid = vap->va_gid;
 		fsai->valid |= FATTR_GID;
