@@ -1,6 +1,6 @@
 /*
  * TLS v1.0/v1.1/v1.2 client (RFC 2246, RFC 4346, RFC 5246)
- * Copyright (c) 2006-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -264,7 +264,7 @@ failed:
  * @in_data: Pointer to plaintext data to be encrypted
  * @in_len: Input buffer length
  * @out_data: Pointer to output buffer (encrypted TLS data)
- * @out_len: Maximum out_data length 
+ * @out_len: Maximum out_data length
  * Returns: Number of bytes written to out_data, -1 on failure
  *
  * This function is used after TLS handshake has been completed successfully to
@@ -514,6 +514,8 @@ int tlsv1_client_established(struct tlsv1_client *conn)
  * tlsv1_client_prf - Use TLS-PRF to derive keying material
  * @conn: TLSv1 client connection data from tlsv1_client_init()
  * @label: Label (e.g., description of the key) for PRF
+ * @context: Optional extra upper-layer context (max len 2^16)
+ * @context_len: The length of the context value
  * @server_random_first: seed is 0 = client_random|server_random,
  * 1 = server_random|client_random
  * @out: Buffer for output data from TLS-PRF
@@ -521,11 +523,24 @@ int tlsv1_client_established(struct tlsv1_client *conn)
  * Returns: 0 on success, -1 on failure
  */
 int tlsv1_client_prf(struct tlsv1_client *conn, const char *label,
+		     const u8 *context, size_t context_len,
 		     int server_random_first, u8 *out, size_t out_len)
 {
-	u8 seed[2 * TLS_RANDOM_LEN];
+	u8 *seed, *pos;
+	size_t seed_len = 2 * TLS_RANDOM_LEN;
+	int res;
 
 	if (conn->state != ESTABLISHED)
+		return -1;
+
+	if (context_len > 65535)
+		return -1;
+
+	if (context)
+		seed_len += 2 + context_len;
+
+	seed = os_malloc(seed_len);
+	if (!seed)
 		return -1;
 
 	if (server_random_first) {
@@ -538,9 +553,18 @@ int tlsv1_client_prf(struct tlsv1_client *conn, const char *label,
 			  TLS_RANDOM_LEN);
 	}
 
-	return tls_prf(conn->rl.tls_version,
-		       conn->master_secret, TLS_MASTER_SECRET_LEN,
-		       label, seed, 2 * TLS_RANDOM_LEN, out, out_len);
+	if (context) {
+		pos = seed + 2 * TLS_RANDOM_LEN;
+		WPA_PUT_BE16(pos, context_len);
+		pos += 2;
+		os_memcpy(pos, context, context_len);
+	}
+
+	res = tls_prf(conn->rl.tls_version,
+		      conn->master_secret, TLS_MASTER_SECRET_LEN,
+		      label, seed, seed_len, out, out_len);
+	os_free(seed);
+	return res;
 }
 
 

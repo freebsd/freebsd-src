@@ -1,6 +1,6 @@
 /*
  * HLR/AuC testing gateway for hostapd EAP-SIM/AKA database/authenticator
- * Copyright (c) 2005-2007, 2012-2016, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2007, 2012-2017, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -973,7 +973,7 @@ static void usage(void)
 {
 	printf("HLR/AuC testing gateway for hostapd EAP-SIM/AKA "
 	       "database/authenticator\n"
-	       "Copyright (c) 2005-2016, Jouni Malinen <j@w1.fi>\n"
+	       "Copyright (c) 2005-2017, Jouni Malinen <j@w1.fi>\n"
 	       "\n"
 	       "usage:\n"
 	       "hlr_auc_gw [-hu] [-s<socket path>] [-g<triplet file>] "

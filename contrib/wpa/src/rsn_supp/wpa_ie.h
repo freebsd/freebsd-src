@@ -21,16 +21,6 @@ struct wpa_eapol_ie_parse {
 	size_t gtk_len;
 	const u8 *mac_addr;
 	size_t mac_addr_len;
-#ifdef CONFIG_PEERKEY
-	const u8 *smk;
-	size_t smk_len;
-	const u8 *nonce;
-	size_t nonce_len;
-	const u8 *lifetime;
-	size_t lifetime_len;
-	const u8 *error;
-	size_t error_len;
-#endif /* CONFIG_PEERKEY */
 #ifdef CONFIG_IEEE80211W
 	const u8 *igtk;
 	size_t igtk_len;
@@ -63,6 +53,10 @@ struct wpa_eapol_ie_parse {
 	const u8 *ip_addr_req;
 	const u8 *ip_addr_alloc;
 #endif /* CONFIG_P2P */
+#ifdef CONFIG_OCV
+	const u8 *oci;
+	size_t oci_len;
+#endif /* CONFIG_OCV */
 };
 
 int wpa_supplicant_parse_ies(const u8 *buf, size_t len,

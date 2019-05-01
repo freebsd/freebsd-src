@@ -37,7 +37,7 @@ summary_file = None
 success_file = None
 
 def summary(txt):
-    print txt
+    print(txt)
     if summary_file:
         with open(summary_file, 'a') as f:
             f.write(txt + "\n")
@@ -53,12 +53,12 @@ def wpas_connect():
     if os.path.isdir(wpas_ctrl):
         try:
             ifaces = [os.path.join(wpas_ctrl, i) for i in os.listdir(wpas_ctrl)]
-        except OSError, error:
-            print "Could not find wpa_supplicant: ", error
+        except OSError as error:
+            print("Could not find wpa_supplicant: ", error)
             return None
 
     if len(ifaces) < 1:
-        print "No wpa_supplicant control interface found"
+        print("No wpa_supplicant control interface found")
         return None
 
     for ctrl in ifaces:
@@ -66,10 +66,10 @@ def wpas_connect():
             if ifname not in ctrl:
                 continue
         try:
-            print "Trying to use control interface " + ctrl
+            print("Trying to use control interface " + ctrl)
             wpas = wpaspy.Ctrl(ctrl)
             return wpas
-        except Exception, e:
+        except Exception as e:
             pass
     return None
 
@@ -160,30 +160,30 @@ def p2p_handover_client(llc):
         if (data == None):
             summary("Could not get handover request carrier record from wpa_supplicant")
             return
-        print "Handover request carrier record from wpa_supplicant: " + data.encode("hex")
+        print("Handover request carrier record from wpa_supplicant: " + data.encode("hex"))
         datamsg = nfc.ndef.Message(data)
         message.add_carrier(datamsg[0], "active", datamsg[1:])
 
     global include_wps_req
     if include_wps_req:
-        print "Handover request (pre-WPS):"
+        print("Handover request (pre-WPS):")
         try:
-            print message.pretty()
-        except Exception, e:
-            print e
+            print(message.pretty())
+        except Exception as e:
+            print(e)
 
         data = wpas_get_handover_req_wps()
         if data:
-            print "Add WPS request in addition to P2P"
+            print("Add WPS request in addition to P2P")
             datamsg = nfc.ndef.Message(data)
             message.add_carrier(datamsg[0], "active", datamsg[1:])
 
-    print "Handover request:"
+    print("Handover request:")
     try:
-        print message.pretty()
-    except Exception, e:
-        print e
-    print str(message).encode("hex")
+        print(message.pretty())
+    except Exception as e:
+        print(e)
+    print(str(message).encode("hex"))
 
     client = nfc.handover.HandoverClient(llc)
     try:
@@ -194,7 +194,7 @@ def p2p_handover_client(llc):
         summary("Handover connection refused")
         client.close()
         return
-    except Exception, e:
+    except Exception as e:
         summary("Other exception: " + str(e))
         client.close()
         return
@@ -217,41 +217,41 @@ def p2p_handover_client(llc):
         client.close()
         return
 
-    print "Received message"
+    print("Received message")
     try:
-        print message.pretty()
-    except Exception, e:
-        print e
-    print str(message).encode("hex")
+        print(message.pretty())
+    except Exception as e:
+        print(e)
+    print(str(message).encode("hex"))
     message = nfc.ndef.HandoverSelectMessage(message)
     summary("Handover select received")
     try:
-        print message.pretty()
-    except Exception, e:
-        print e
+        print(message.pretty())
+    except Exception as e:
+        print(e)
 
     for carrier in message.carriers:
-        print "Remote carrier type: " + carrier.type
+        print("Remote carrier type: " + carrier.type)
         if carrier.type == "application/vnd.wfa.p2p":
-            print "P2P carrier type match - send to wpa_supplicant"
+            print("P2P carrier type match - send to wpa_supplicant")
             if "OK" in wpas_report_handover(data, carrier.record, "INIT"):
                 success_report("P2P handover reported successfully (initiator)")
             else:
                 summary("P2P handover report rejected")
             break
 
-    print "Remove peer"
+    print("Remove peer")
     client.close()
-    print "Done with handover"
+    print("Done with handover")
     global only_one
     if only_one:
-        print "only_one -> stop loop"
+        print("only_one -> stop loop")
         global continue_loop
         continue_loop = False
 
     global no_wait
     if no_wait:
-        print "Trying to exit.."
+        print("Trying to exit..")
         global terminate_now
         terminate_now = True
 
@@ -283,33 +283,33 @@ class HandoverServer(nfc.handover.HandoverServer):
     def process_request(self, request):
         self.ho_server_processing = True
         clear_raw_mode()
-        print "HandoverServer - request received"
+        print("HandoverServer - request received")
         try:
-            print "Parsed handover request: " + request.pretty()
-        except Exception, e:
-            print e
+            print("Parsed handover request: " + request.pretty())
+        except Exception as e:
+            print(e)
 
         sel = nfc.ndef.HandoverSelectMessage(version="1.2")
 
         found = False
 
         for carrier in request.carriers:
-            print "Remote carrier type: " + carrier.type
+            print("Remote carrier type: " + carrier.type)
             if carrier.type == "application/vnd.wfa.p2p":
-                print "P2P carrier type match - add P2P carrier record"
+                print("P2P carrier type match - add P2P carrier record")
                 found = True
                 self.received_carrier = carrier.record
-                print "Carrier record:"
+                print("Carrier record:")
                 try:
-                    print carrier.record.pretty()
-                except Exception, e:
-                    print e
+                    print(carrier.record.pretty())
+                except Exception as e:
+                    print(e)
                 data = wpas_get_handover_sel()
                 if data is None:
-                    print "Could not get handover select carrier record from wpa_supplicant"
+                    print("Could not get handover select carrier record from wpa_supplicant")
                     continue
-                print "Handover select carrier record from wpa_supplicant:"
-                print data.encode("hex")
+                print("Handover select carrier record from wpa_supplicant:")
+                print(data.encode("hex"))
                 self.sent_carrier = data
                 if "OK" in wpas_report_handover(self.received_carrier, self.sent_carrier, "RESP"):
                     success_report("P2P handover reported successfully (responder)")
@@ -324,22 +324,22 @@ class HandoverServer(nfc.handover.HandoverServer):
         for carrier in request.carriers:
             if found:
                 break
-            print "Remote carrier type: " + carrier.type
+            print("Remote carrier type: " + carrier.type)
             if carrier.type == "application/vnd.wfa.wsc":
-                print "WSC carrier type match - add WSC carrier record"
+                print("WSC carrier type match - add WSC carrier record")
                 found = True
                 self.received_carrier = carrier.record
-                print "Carrier record:"
+                print("Carrier record:")
                 try:
-                    print carrier.record.pretty()
-                except Exception, e:
-                    print e
+                    print(carrier.record.pretty())
+                except Exception as e:
+                    print(e)
                 data = wpas_get_handover_sel_wps()
                 if data is None:
-                    print "Could not get handover select carrier record from wpa_supplicant"
+                    print("Could not get handover select carrier record from wpa_supplicant")
                     continue
-                print "Handover select carrier record from wpa_supplicant:"
-                print data.encode("hex")
+                print("Handover select carrier record from wpa_supplicant:")
+                print(data.encode("hex"))
                 self.sent_carrier = data
                 if "OK" in wpas_report_handover_wsc(self.received_carrier, self.sent_carrier, "RESP"):
                     success_report("WSC handover reported successfully")
@@ -352,12 +352,12 @@ class HandoverServer(nfc.handover.HandoverServer):
                 found = True
                 break
 
-        print "Handover select:"
+        print("Handover select:")
         try:
-            print sel.pretty()
-        except Exception, e:
-            print e
-        print str(sel).encode("hex")
+            print(sel.pretty())
+        except Exception as e:
+            print(e)
+        print(str(sel).encode("hex"))
 
         summary("Sending handover select")
         self.success = True
@@ -396,7 +396,7 @@ def p2p_tag_read(tag):
     success = False
     if len(tag.ndef.message):
         for record in tag.ndef.message:
-            print "record type " + record.type
+            print("record type " + record.type)
             if record.type == "application/vnd.wfa.wsc":
                 summary("WPS tag - send to wpa_supplicant")
                 success = wpas_tag_read(tag.ndef.message)
@@ -419,7 +419,7 @@ def rdwr_connected_p2p_write(tag):
     global p2p_sel_data
     tag.ndef.message = str(p2p_sel_data)
     success_report("Tag write succeeded")
-    print "Done - remove tag"
+    print("Done - remove tag")
     global only_one
     if only_one:
         global continue_loop
@@ -428,7 +428,7 @@ def rdwr_connected_p2p_write(tag):
     return p2p_sel_wait_remove
 
 def wps_write_p2p_handover_sel(clf, wait_remove=True):
-    print "Write P2P handover select"
+    print("Write P2P handover select")
     data = wpas_get_handover_sel(tag=True)
     if (data == None):
         summary("Could not get P2P handover select from wpa_supplicant")
@@ -440,14 +440,14 @@ def wps_write_p2p_handover_sel(clf, wait_remove=True):
     p2p_sel_data = nfc.ndef.HandoverSelectMessage(version="1.2")
     message = nfc.ndef.Message(data);
     p2p_sel_data.add_carrier(message[0], "active", message[1:])
-    print "Handover select:"
+    print("Handover select:")
     try:
-        print p2p_sel_data.pretty()
-    except Exception, e:
-        print e
-    print str(p2p_sel_data).encode("hex")
+        print(p2p_sel_data.pretty())
+    except Exception as e:
+        print(e)
+    print(str(p2p_sel_data).encode("hex"))
 
-    print "Touch an NFC tag"
+    print("Touch an NFC tag")
     clf.connect(rdwr={'on-connect': rdwr_connected_p2p_write})
 
 
@@ -456,11 +456,11 @@ def rdwr_connected(tag):
     summary("Tag connected: " + str(tag))
 
     if tag.ndef:
-        print "NDEF tag: " + tag.type
+        print("NDEF tag: " + tag.type)
         try:
-            print tag.ndef.message.pretty()
-        except Exception, e:
-            print e
+            print(tag.ndef.message.pretty())
+        except Exception as e:
+            print(e)
         success = p2p_tag_read(tag)
         if only_one and success:
             global continue_loop
@@ -475,15 +475,15 @@ def rdwr_connected(tag):
 def llcp_worker(llc):
     global init_on_touch
     if init_on_touch:
-            print "Starting handover client"
+            print("Starting handover client")
             p2p_handover_client(llc)
             return
 
     global no_input
     if no_input:
-        print "Wait for handover to complete"
+        print("Wait for handover to complete")
     else:
-        print "Wait for handover to complete - press 'i' to initiate ('w' for WPS only, 'p' for P2P only)"
+        print("Wait for handover to complete - press 'i' to initiate ('w' for WPS only, 'p' for P2P only)")
     global srv
     global wait_connection
     while not wait_connection and srv.sent_carrier is None:
@@ -506,21 +506,21 @@ def llcp_worker(llc):
             else:
                 continue
             clear_raw_mode()
-            print "Starting handover client"
+            print("Starting handover client")
             p2p_handover_client(llc)
             return
             
     clear_raw_mode()
-    print "Exiting llcp_worker thread"
+    print("Exiting llcp_worker thread")
 
 def llcp_startup(clf, llc):
-    print "Start LLCP server"
+    print("Start LLCP server")
     global srv
     srv = HandoverServer(llc)
     return llc
 
 def llcp_connected(llc):
-    print "P2P LLCP connected"
+    print("P2P LLCP connected")
     global wait_connection
     wait_connection = False
     global init_on_touch
@@ -587,7 +587,7 @@ def main():
     if args.ifname:
         global ifname
         ifname = args.ifname
-        print "Selected ifname " + ifname
+        print("Selected ifname " + ifname)
 
     if args.no_wps_req:
         global include_wps_req
@@ -610,7 +610,7 @@ def main():
 
     try:
         if not clf.open("usb"):
-            print "Could not open connection with an NFC device"
+            print("Could not open connection with an NFC device")
             raise SystemExit
 
         if args.command == "write-p2p-sel":
@@ -619,7 +619,7 @@ def main():
 
         global continue_loop
         while continue_loop:
-            print "Waiting for a tag or peer to be touched"
+            print("Waiting for a tag or peer to be touched")
             wait_connection = True
             try:
                 if args.tag_read_only:
@@ -636,8 +636,8 @@ def main():
                                              'on-connect': llcp_connected},
                                        terminate=terminate_loop):
                         break
-            except Exception, e:
-                print "clf.connect failed"
+            except Exception as e:
+                print("clf.connect failed")
 
             global srv
             if only_one and srv and srv.success:

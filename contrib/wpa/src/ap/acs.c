@@ -13,6 +13,7 @@
 #include "utils/common.h"
 #include "utils/list.h"
 #include "common/ieee802_11_defs.h"
+#include "common/hw_features_common.h"
 #include "common/wpa_ctrl.h"
 #include "drivers/driver.h"
 #include "hostapd.h"
@@ -260,7 +261,7 @@ static void acs_clean_chan_surveys(struct hostapd_channel_data *chan)
 }
 
 
-static void acs_cleanup(struct hostapd_iface *iface)
+void acs_cleanup(struct hostapd_iface *iface)
 {
 	int i;
 	struct hostapd_channel_data *chan;
@@ -314,7 +315,7 @@ acs_survey_interference_factor(struct freq_survey *survey, s8 min_nf)
 
 	/* TODO: figure out the best multiplier for noise floor base */
 	factor = pow(10, survey->nf / 5.0L) +
-		(busy / total) *
+		(total ? (busy / total) : 0) *
 		pow(2, pow(10, (long double) survey->nf / 10.0L) -
 		    pow(10, (long double) min_nf / 10.0L));
 
@@ -331,10 +332,8 @@ acs_survey_chan_interference_factor(struct hostapd_iface *iface,
 	long double int_factor = 0;
 	unsigned count = 0;
 
-	if (dl_list_empty(&chan->survey_list))
-		return;
-
-	if (chan->flag & HOSTAPD_CHAN_DISABLED)
+	if (dl_list_empty(&chan->survey_list) ||
+	    (chan->flag & HOSTAPD_CHAN_DISABLED))
 		return;
 
 	chan->interference_factor = 0;
@@ -359,13 +358,12 @@ acs_survey_chan_interference_factor(struct hostapd_iface *iface,
 			   (unsigned long) survey->channel_time_rx);
 	}
 
-	if (!count)
-		return;
-	chan->interference_factor /= count;
+	if (count)
+		chan->interference_factor /= count;
 }
 
 
-static int acs_usable_ht40_chan(struct hostapd_channel_data *chan)
+static int acs_usable_ht40_chan(const struct hostapd_channel_data *chan)
 {
 	const int allowed[] = { 36, 44, 52, 60, 100, 108, 116, 124, 132, 149,
 				157, 184, 192 };
@@ -379,9 +377,22 @@ static int acs_usable_ht40_chan(struct hostapd_channel_data *chan)
 }
 
 
-static int acs_usable_vht80_chan(struct hostapd_channel_data *chan)
+static int acs_usable_vht80_chan(const struct hostapd_channel_data *chan)
 {
 	const int allowed[] = { 36, 52, 100, 116, 132, 149 };
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(allowed); i++)
+		if (chan->chan == allowed[i])
+			return 1;
+
+	return 0;
+}
+
+
+static int acs_usable_vht160_chan(const struct hostapd_channel_data *chan)
+{
+	const int allowed[] = { 36, 100 };
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(allowed); i++)
@@ -450,13 +461,9 @@ static int acs_surveys_are_sufficient(struct hostapd_iface *iface)
 
 	for (i = 0; i < iface->current_mode->num_channels; i++) {
 		chan = &iface->current_mode->channels[i];
-		if (chan->flag & HOSTAPD_CHAN_DISABLED)
-			continue;
-
-		if (!acs_survey_list_is_sufficient(chan))
-			continue;
-
-		valid++;
+		if (!(chan->flag & HOSTAPD_CHAN_DISABLED) &&
+		    acs_survey_list_is_sufficient(chan))
+			valid++;
 	}
 
 	/* We need at least survey data for one channel */
@@ -466,13 +473,9 @@ static int acs_surveys_are_sufficient(struct hostapd_iface *iface)
 
 static int acs_usable_chan(struct hostapd_channel_data *chan)
 {
-	if (dl_list_empty(&chan->survey_list))
-		return 0;
-	if (chan->flag & HOSTAPD_CHAN_DISABLED)
-		return 0;
-	if (!acs_survey_list_is_sufficient(chan))
-		return 0;
-	return 1;
+	return !dl_list_empty(&chan->survey_list) &&
+		!(chan->flag & HOSTAPD_CHAN_DISABLED) &&
+		acs_survey_list_is_sufficient(chan);
 }
 
 
@@ -576,6 +579,7 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
 	long double factor, ideal_factor = 0;
 	int i, j;
 	int n_chans = 1;
+	u32 bw;
 	unsigned int k;
 
 	/* TODO: HT40- support */
@@ -590,16 +594,23 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
 	    iface->conf->secondary_channel)
 		n_chans = 2;
 
-	if (iface->conf->ieee80211ac &&
-	    iface->conf->vht_oper_chwidth == 1)
-		n_chans = 4;
+	if (iface->conf->ieee80211ac) {
+		switch (iface->conf->vht_oper_chwidth) {
+		case VHT_CHANWIDTH_80MHZ:
+			n_chans = 4;
+			break;
+		case VHT_CHANWIDTH_160MHZ:
+			n_chans = 8;
+			break;
+		}
+	}
 
-	/* TODO: VHT80+80, VHT160. Update acs_adjust_vht_center_freq() too. */
+	bw = num_chan_to_bw(n_chans);
 
-	wpa_printf(MSG_DEBUG, "ACS: Survey analysis for selected bandwidth %d MHz",
-		   n_chans == 1 ? 20 :
-		   n_chans == 2 ? 40 :
-		   80);
+	/* TODO: VHT80+80. Update acs_adjust_vht_center_freq() too. */
+
+	wpa_printf(MSG_DEBUG,
+		   "ACS: Survey analysis for selected bandwidth %d MHz", bw);
 
 	for (i = 0; i < iface->current_mode->num_channels; i++) {
 		double total_weight;
@@ -607,11 +618,22 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
 
 		chan = &iface->current_mode->channels[i];
 
-		if (chan->flag & HOSTAPD_CHAN_DISABLED)
+		/* Since in the current ACS implementation the first channel is
+		 * always a primary channel, skip channels not available as
+		 * primary until more sophisticated channel selection is
+		 * implemented. */
+		if (!chan_pri_allowed(chan))
 			continue;
 
 		if (!is_in_chanlist(iface, chan))
 			continue;
+
+		if (!chan_bw_allowed(chan, bw, 1, 1)) {
+			wpa_printf(MSG_DEBUG,
+				   "ACS: Channel %d: BW %u is not supported",
+				   chan->chan, bw);
+			continue;
+		}
 
 		/* HT40 on 5 GHz has a limited set of primary channels as per
 		 * 11n Annex J */
@@ -625,12 +647,24 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
 		}
 
 		if (iface->current_mode->mode == HOSTAPD_MODE_IEEE80211A &&
-		    iface->conf->ieee80211ac &&
-		    iface->conf->vht_oper_chwidth == 1 &&
-		    !acs_usable_vht80_chan(chan)) {
-			wpa_printf(MSG_DEBUG, "ACS: Channel %d: not allowed as primary channel for VHT80",
-				   chan->chan);
-			continue;
+		    iface->conf->ieee80211ac) {
+			if (iface->conf->vht_oper_chwidth ==
+			    VHT_CHANWIDTH_80MHZ &&
+			    !acs_usable_vht80_chan(chan)) {
+				wpa_printf(MSG_DEBUG,
+					   "ACS: Channel %d: not allowed as primary channel for VHT80",
+					   chan->chan);
+				continue;
+			}
+
+			if (iface->conf->vht_oper_chwidth ==
+			    VHT_CHANWIDTH_160MHZ &&
+			    !acs_usable_vht160_chan(chan)) {
+				wpa_printf(MSG_DEBUG,
+					   "ACS: Channel %d: not allowed as primary channel for VHT160",
+					   chan->chan);
+				continue;
+			}
 		}
 
 		factor = 0;
@@ -642,6 +676,13 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
 			adj_chan = acs_find_chan(iface, chan->freq + (j * 20));
 			if (!adj_chan)
 				break;
+
+			if (!chan_bw_allowed(adj_chan, bw, 1, 0)) {
+				wpa_printf(MSG_DEBUG,
+					   "ACS: PRI Channel %d: secondary channel %d BW %u is not supported",
+					   chan->chan, adj_chan->chan, bw);
+				break;
+			}
 
 			if (acs_usable_chan(adj_chan)) {
 				factor += adj_chan->interference_factor;
@@ -755,10 +796,14 @@ static void acs_adjust_vht_center_freq(struct hostapd_iface *iface)
 	case VHT_CHANWIDTH_80MHZ:
 		offset = 6;
 		break;
+	case VHT_CHANWIDTH_160MHZ:
+		offset = 14;
+		break;
 	default:
 		/* TODO: How can this be calculated? Adjust
 		 * acs_find_ideal_chan() */
-		wpa_printf(MSG_INFO, "ACS: Only VHT20/40/80 is supported now");
+		wpa_printf(MSG_INFO,
+			   "ACS: Only VHT20/40/80/160 is supported now");
 		return;
 	}
 
@@ -788,10 +833,7 @@ static int acs_study_survey_based(struct hostapd_iface *iface)
 
 static int acs_study_options(struct hostapd_iface *iface)
 {
-	int err;
-
-	err = acs_study_survey_based(iface);
-	if (err == 0)
+	if (acs_study_survey_based(iface) == 0)
 		return 0;
 
 	/* TODO: If no surveys are available/sufficient this is a good
@@ -920,14 +962,11 @@ static int acs_request_scan(struct hostapd_iface *iface)
 
 enum hostapd_chan_status acs_init(struct hostapd_iface *iface)
 {
-	int err;
-
 	wpa_printf(MSG_INFO, "ACS: Automatic channel selection started, this may take a bit");
 
 	if (iface->drv_flags & WPA_DRIVER_FLAGS_ACS_OFFLOAD) {
 		wpa_printf(MSG_INFO, "ACS: Offloading to driver");
-		err = hostapd_drv_do_acs(iface->bss[0]);
-		if (err)
+		if (hostapd_drv_do_acs(iface->bss[0]))
 			return HOSTAPD_CHAN_INVALID;
 		return HOSTAPD_CHAN_ACS;
 	}
@@ -937,8 +976,7 @@ enum hostapd_chan_status acs_init(struct hostapd_iface *iface)
 
 	acs_cleanup(iface);
 
-	err = acs_request_scan(iface);
-	if (err < 0)
+	if (acs_request_scan(iface) < 0)
 		return HOSTAPD_CHAN_INVALID;
 
 	hostapd_set_state(iface, HAPD_IFACE_ACS);

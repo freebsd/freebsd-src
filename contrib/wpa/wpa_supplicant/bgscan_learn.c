@@ -320,9 +320,6 @@ static int bgscan_learn_get_params(struct bgscan_learn_data *data,
 {
 	const char *pos;
 
-	if (params == NULL)
-		return 0;
-
 	data->short_interval = atoi(params);
 
 	pos = os_strchr(params, ':');

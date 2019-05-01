@@ -97,15 +97,31 @@ static int wpa_priv_cmd(struct wpa_driver_privsep_data *drv, int cmd,
 	return 0;
 }
 
-			     
+
 static int wpa_driver_privsep_scan(void *priv,
 				   struct wpa_driver_scan_params *params)
 {
 	struct wpa_driver_privsep_data *drv = priv;
-	const u8 *ssid = params->ssids[0].ssid;
-	size_t ssid_len = params->ssids[0].ssid_len;
+	struct privsep_cmd_scan scan;
+	size_t i;
+
 	wpa_printf(MSG_DEBUG, "%s: priv=%p", __func__, priv);
-	return wpa_priv_cmd(drv, PRIVSEP_CMD_SCAN, ssid, ssid_len,
+	os_memset(&scan, 0, sizeof(scan));
+	scan.num_ssids = params->num_ssids;
+	for (i = 0; i < params->num_ssids; i++) {
+		if (!params->ssids[i].ssid)
+			continue;
+		scan.ssid_lens[i] = params->ssids[i].ssid_len;
+		os_memcpy(scan.ssids[i], params->ssids[i].ssid,
+			  scan.ssid_lens[i]);
+	}
+
+	for (i = 0; i < PRIVSEP_MAX_SCAN_FREQS &&
+		     params->freqs && params->freqs[i]; i++)
+		scan.freqs[i] = params->freqs[i];
+	scan.num_freqs = i;
+
+	return wpa_priv_cmd(drv, PRIVSEP_CMD_SCAN, &scan, sizeof(scan),
 			    NULL, NULL);
 }
 
@@ -168,12 +184,15 @@ wpa_driver_privsep_get_scan_results2(void *priv)
 		if (len < 0 || len > 10000 || len > end - pos)
 			break;
 
-		r = os_malloc(len);
+		r = os_memdup(pos, len);
 		if (r == NULL)
 			break;
-		os_memcpy(r, pos, len);
 		pos += len;
-		if (sizeof(*r) + r->ie_len > (size_t) len) {
+		if (sizeof(*r) + r->ie_len + r->beacon_ie_len > (size_t) len) {
+			wpa_printf(MSG_ERROR,
+				   "privsep: Invalid scan result len (%d + %d + %d > %d)",
+				   (int) sizeof(*r), (int) r->ie_len,
+				   (int) r->beacon_ie_len, len);
 			os_free(r);
 			break;
 		}
@@ -234,7 +253,7 @@ static int wpa_driver_privsep_authenticate(
 		   __func__, priv, params->freq, MAC2STR(params->bssid),
 		   params->auth_alg, params->local_state_change, params->p2p);
 
-	buflen = sizeof(*data) + params->ie_len + params->sae_data_len;
+	buflen = sizeof(*data) + params->ie_len + params->auth_data_len;
 	data = os_zalloc(buflen);
 	if (data == NULL)
 		return -1;
@@ -259,8 +278,8 @@ static int wpa_driver_privsep_authenticate(
 		os_memcpy(pos, params->ie, params->ie_len);
 		pos += params->ie_len;
 	}
-	if (params->sae_data_len)
-		os_memcpy(pos, params->sae_data, params->sae_data_len);
+	if (params->auth_data_len)
+		os_memcpy(pos, params->auth_data, params->auth_data_len);
 
 	res = wpa_priv_cmd(drv, PRIVSEP_CMD_AUTHENTICATE, data, buflen,
 			   NULL, NULL);
@@ -464,19 +483,6 @@ static void wpa_driver_privsep_event_pmkid_candidate(void *ctx, u8 *buf,
 }
 
 
-static void wpa_driver_privsep_event_stkstart(void *ctx, u8 *buf, size_t len)
-{
-	union wpa_event_data data;
-
-	if (len != ETH_ALEN)
-		return;
-
-	os_memset(&data, 0, sizeof(data));
-	os_memcpy(data.stkstart.peer, buf, ETH_ALEN);
-	wpa_supplicant_event(ctx, EVENT_STKSTART, &data);
-}
-
-
 static void wpa_driver_privsep_event_ft_response(void *ctx, u8 *buf,
 						 size_t len)
 {
@@ -569,10 +575,6 @@ static void wpa_driver_privsep_receive(int sock, void *eloop_ctx,
 	case PRIVSEP_EVENT_PMKID_CANDIDATE:
 		wpa_driver_privsep_event_pmkid_candidate(drv->ctx, event_buf,
 							 event_len);
-		break;
-	case PRIVSEP_EVENT_STKSTART:
-		wpa_driver_privsep_event_stkstart(drv->ctx, event_buf,
-						  event_len);
 		break;
 	case PRIVSEP_EVENT_FT_RESPONSE:
 		wpa_driver_privsep_event_ft_response(drv->ctx, event_buf,

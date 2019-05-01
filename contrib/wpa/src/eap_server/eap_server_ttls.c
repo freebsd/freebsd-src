@@ -228,14 +228,13 @@ static int eap_ttls_avp_parse(struct wpabuf *buf, struct eap_ttls_avp *parse)
 		if (vendor_id == 0 && avp_code == RADIUS_ATTR_EAP_MESSAGE) {
 			wpa_printf(MSG_DEBUG, "EAP-TTLS: AVP - EAP Message");
 			if (parse->eap == NULL) {
-				parse->eap = os_malloc(dlen);
+				parse->eap = os_memdup(dpos, dlen);
 				if (parse->eap == NULL) {
 					wpa_printf(MSG_WARNING, "EAP-TTLS: "
 						   "failed to allocate memory "
 						   "for Phase 2 EAP data");
 					goto fail;
 				}
-				os_memcpy(parse->eap, dpos, dlen);
 				parse->eap_len = dlen;
 			} else {
 				u8 *neweap = os_realloc(parse->eap,
@@ -333,7 +332,7 @@ static u8 * eap_ttls_implicit_challenge(struct eap_sm *sm,
 					struct eap_ttls_data *data, size_t len)
 {
 	return eap_server_tls_derive_key(sm, &data->ssl, "ttls challenge",
-					 len);
+					 NULL, 0, len);
 }
 
 
@@ -372,7 +371,7 @@ static void eap_ttls_reset(struct eap_sm *sm, void *priv)
 
 static struct wpabuf * eap_ttls_build_start(struct eap_sm *sm,
 					    struct eap_ttls_data *data, u8 id)
-{	
+{
 	struct wpabuf *req;
 
 	req = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_TTLS, 1,
@@ -666,11 +665,14 @@ static void eap_ttls_process_phase2_mschap(struct eap_sm *sm,
 	}
 	os_free(chal);
 
-	if (sm->user->password_hash)
-		challenge_response(challenge, sm->user->password, nt_response);
-	else
-		nt_challenge_response(challenge, sm->user->password,
-				      sm->user->password_len, nt_response);
+	if ((sm->user->password_hash &&
+	     challenge_response(challenge, sm->user->password, nt_response)) ||
+	    (!sm->user->password_hash &&
+	     nt_challenge_response(challenge, sm->user->password,
+				   sm->user->password_len, nt_response))) {
+		eap_ttls_state(data, FAILURE);
+		return;
+	}
 
 	if (os_memcmp_const(nt_response, response + 2 + 24, 24) == 0) {
 		wpa_printf(MSG_DEBUG, "EAP-TTLS/MSCHAP: Correct response");
@@ -1051,12 +1053,11 @@ static void eap_ttls_process_phase2(struct eap_sm *sm,
 		}
 
 		os_free(sm->identity);
-		sm->identity = os_malloc(parse.user_name_len);
+		sm->identity = os_memdup(parse.user_name, parse.user_name_len);
 		if (sm->identity == NULL) {
 			eap_ttls_state(data, FAILURE);
 			goto done;
 		}
-		os_memcpy(sm->identity, parse.user_name, parse.user_name_len);
 		sm->identity_len = parse.user_name_len;
 		if (eap_user_get(sm, parse.user_name, parse.user_name_len, 1)
 		    != 0) {
@@ -1267,7 +1268,7 @@ static u8 * eap_ttls_getKey(struct eap_sm *sm, void *priv, size_t *len)
 		return NULL;
 
 	eapKeyData = eap_server_tls_derive_key(sm, &data->ssl,
-					       "ttls keying material",
+					       "ttls keying material", NULL, 0,
 					       EAP_TLS_KEY_LEN);
 	if (eapKeyData) {
 		*len = EAP_TLS_KEY_LEN;
@@ -1309,7 +1310,7 @@ static u8 * eap_ttls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 		return NULL;
 
 	eapKeyData = eap_server_tls_derive_key(sm, &data->ssl,
-					       "ttls keying material",
+					       "ttls keying material", NULL, 0,
 					       EAP_TLS_KEY_LEN + EAP_EMSK_LEN);
 	if (eapKeyData) {
 		emsk = os_malloc(EAP_EMSK_LEN);

@@ -173,14 +173,32 @@ static struct wpabuf * eap_tls_failure(struct eap_sm *sm,
 static void eap_tls_success(struct eap_sm *sm, struct eap_tls_data *data,
 			    struct eap_method_ret *ret)
 {
+	const char *label;
+
 	wpa_printf(MSG_DEBUG, "EAP-TLS: Done");
 
-	ret->methodState = METHOD_DONE;
-	ret->decision = DECISION_UNCOND_SUCC;
+	if (data->ssl.tls_out) {
+		wpa_printf(MSG_DEBUG, "EAP-TLS: Fragment(s) remaining");
+		return;
+	}
+
+	if (data->ssl.tls_v13) {
+		label = "EXPORTER_EAP_TLS_Key_Material";
+
+		/* A possible NewSessionTicket may be received before
+		 * EAP-Success, so need to allow it to be received. */
+		ret->methodState = METHOD_MAY_CONT;
+		ret->decision = DECISION_COND_SUCC;
+	} else {
+		label = "client EAP encryption";
+
+		ret->methodState = METHOD_DONE;
+		ret->decision = DECISION_UNCOND_SUCC;
+	}
 
 	eap_tls_free_key(data);
-	data->key_data = eap_peer_tls_derive_key(sm, &data->ssl,
-						 "client EAP encryption",
+	data->key_data = eap_peer_tls_derive_key(sm, &data->ssl, label,
+						 NULL, 0,
 						 EAP_TLS_KEY_LEN +
 						 EAP_EMSK_LEN);
 	if (data->key_data) {
@@ -338,12 +356,11 @@ static u8 * eap_tls_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->key_data == NULL)
 		return NULL;
 
-	key = os_malloc(EAP_TLS_KEY_LEN);
+	key = os_memdup(data->key_data, EAP_TLS_KEY_LEN);
 	if (key == NULL)
 		return NULL;
 
 	*len = EAP_TLS_KEY_LEN;
-	os_memcpy(key, data->key_data, EAP_TLS_KEY_LEN);
 
 	return key;
 }
@@ -357,12 +374,11 @@ static u8 * eap_tls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->key_data == NULL)
 		return NULL;
 
-	key = os_malloc(EAP_EMSK_LEN);
+	key = os_memdup(data->key_data + EAP_TLS_KEY_LEN, EAP_EMSK_LEN);
 	if (key == NULL)
 		return NULL;
 
 	*len = EAP_EMSK_LEN;
-	os_memcpy(key, data->key_data + EAP_TLS_KEY_LEN, EAP_EMSK_LEN);
 
 	return key;
 }
@@ -376,12 +392,11 @@ static u8 * eap_tls_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->session_id == NULL)
 		return NULL;
 
-	id = os_malloc(data->id_len);
+	id = os_memdup(data->session_id, data->id_len);
 	if (id == NULL)
 		return NULL;
 
 	*len = data->id_len;
-	os_memcpy(id, data->session_id, data->id_len);
 
 	return id;
 }

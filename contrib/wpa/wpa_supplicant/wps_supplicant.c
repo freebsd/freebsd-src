@@ -203,6 +203,9 @@ static void wpas_wps_security_workaround(struct wpa_supplicant *wpa_s,
 	if (ssid->ssid == NULL)
 		return;
 	bss = wpa_bss_get(wpa_s, cred->mac_addr, ssid->ssid, ssid->ssid_len);
+	if (!bss)
+		bss = wpa_bss_get(wpa_s, wpa_s->bssid,
+				  ssid->ssid, ssid->ssid_len);
 	if (bss == NULL) {
 		wpa_printf(MSG_DEBUG, "WPS: The AP was not found from BSS "
 			   "table - use credential as-is");
@@ -490,6 +493,16 @@ static int wpa_supplicant_wps_cred(void *ctx,
 			ssid->pairwise_cipher |= WPA_CIPHER_GCMP;
 			ssid->group_cipher |= WPA_CIPHER_GCMP;
 		}
+		if (wpa_s->drv_capa_known &&
+		    (wpa_s->drv_enc & WPA_DRIVER_CAPA_ENC_GCMP_256)) {
+			ssid->pairwise_cipher |= WPA_CIPHER_GCMP_256;
+			ssid->group_cipher |= WPA_CIPHER_GCMP_256;
+		}
+		if (wpa_s->drv_capa_known &&
+		    (wpa_s->drv_enc & WPA_DRIVER_CAPA_ENC_CCMP_256)) {
+			ssid->pairwise_cipher |= WPA_CIPHER_CCMP_256;
+			ssid->group_cipher |= WPA_CIPHER_CCMP_256;
+		}
 		break;
 	}
 
@@ -517,11 +530,18 @@ static int wpa_supplicant_wps_cred(void *ctx,
 	case WPS_AUTH_WPA2PSK:
 		ssid->auth_alg = WPA_AUTH_ALG_OPEN;
 		ssid->key_mgmt = WPA_KEY_MGMT_PSK;
+		if (wpa_s->conf->wps_cred_add_sae &&
+		    cred->key_len != 2 * PMK_LEN) {
+			ssid->key_mgmt |= WPA_KEY_MGMT_SAE;
+#ifdef CONFIG_IEEE80211W
+			ssid->ieee80211w = MGMT_FRAME_PROTECTION_OPTIONAL;
+#endif /* CONFIG_IEEE80211W */
+		}
 		ssid->proto = WPA_PROTO_RSN;
 		break;
 	}
 
-	if (ssid->key_mgmt == WPA_KEY_MGMT_PSK) {
+	if (ssid->key_mgmt & WPA_KEY_MGMT_PSK) {
 		if (cred->key_len == 2 * PMK_LEN) {
 			if (hexstr2bin((const char *) cred->key, ssid->psk,
 				       PMK_LEN)) {
@@ -1027,10 +1047,9 @@ static struct wpa_ssid * wpas_wps_add_network(struct wpa_supplicant *wpa_s,
 				continue;
 
 			os_free(ssid->ssid);
-			ssid->ssid = os_malloc(bss->ssid_len);
+			ssid->ssid = os_memdup(bss->ssid, bss->ssid_len);
 			if (ssid->ssid == NULL)
 				break;
-			os_memcpy(ssid->ssid, bss->ssid, bss->ssid_len);
 			ssid->ssid_len = bss->ssid_len;
 			wpa_hexdump_ascii(MSG_DEBUG, "WPS: Picked SSID from "
 					  "scan results",
@@ -1125,9 +1144,10 @@ static void wpas_wps_reassoc(struct wpa_supplicant *wpa_s,
 
 
 int wpas_wps_start_pbc(struct wpa_supplicant *wpa_s, const u8 *bssid,
-		       int p2p_group)
+		       int p2p_group, int multi_ap_backhaul_sta)
 {
 	struct wpa_ssid *ssid;
+	char phase1[32];
 
 #ifdef CONFIG_AP
 	if (wpa_s->ap_iface) {
@@ -1165,10 +1185,15 @@ int wpas_wps_start_pbc(struct wpa_supplicant *wpa_s, const u8 *bssid,
 		}
 	}
 #endif /* CONFIG_P2P */
-	if (wpa_config_set(ssid, "phase1", "\"pbc=1\"", 0) < 0)
+	os_snprintf(phase1, sizeof(phase1), "pbc=1%s",
+		    multi_ap_backhaul_sta ? " multi_ap=1" : "");
+	if (wpa_config_set_quoted(ssid, "phase1", phase1) < 0)
 		return -1;
 	if (wpa_s->wps_fragment_size)
 		ssid->eap.fragment_size = wpa_s->wps_fragment_size;
+	if (multi_ap_backhaul_sta)
+		ssid->multi_ap_backhaul_sta = 1;
+	wpa_supplicant_wps_event(wpa_s, WPS_EV_PBC_ACTIVE, NULL);
 	eloop_register_timeout(WPS_PBC_WALK_TIME, 0, wpas_wps_timeout,
 			       wpa_s, NULL);
 	wpas_wps_reassoc(wpa_s, ssid, bssid, 0);
@@ -1481,6 +1506,9 @@ static void wpas_wps_set_uuid(struct wpa_supplicant *wpa_s,
 					  wpa_s->global->ifaces->wps->uuid,
 					  WPS_UUID_LEN);
 			src = "from the first interface";
+		} else if (wpa_s->conf->auto_uuid == 1) {
+			uuid_random(wps->uuid);
+			src = "based on random data";
 		} else {
 			uuid_gen_mac_addr(wpa_s->own_addr, wps->uuid);
 			src = "based on MAC address";

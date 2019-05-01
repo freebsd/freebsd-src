@@ -1,6 +1,6 @@
 /*
  * EAP peer method: EAP-SAKE (RFC 4763)
- * Copyright (c) 2006-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -85,12 +85,11 @@ static void * eap_sake_init(struct eap_sm *sm)
 
 	identity = eap_get_config_identity(sm, &identity_len);
 	if (identity) {
-		data->peerid = os_malloc(identity_len);
+		data->peerid = os_memdup(identity, identity_len);
 		if (data->peerid == NULL) {
 			eap_sake_deinit(sm, data);
 			return NULL;
 		}
-		os_memcpy(data->peerid, identity, identity_len);
 		data->peerid_len = identity_len;
 	}
 
@@ -230,16 +229,19 @@ static struct wpabuf * eap_sake_process_challenge(struct eap_sm *sm,
 	if (attr.serverid) {
 		wpa_hexdump_ascii(MSG_MSGDUMP, "EAP-SAKE: SERVERID",
 				  attr.serverid, attr.serverid_len);
-		data->serverid = os_malloc(attr.serverid_len);
+		data->serverid = os_memdup(attr.serverid, attr.serverid_len);
 		if (data->serverid == NULL)
 			return NULL;
-		os_memcpy(data->serverid, attr.serverid, attr.serverid_len);
 		data->serverid_len = attr.serverid_len;
 	}
 
-	eap_sake_derive_keys(data->root_secret_a, data->root_secret_b,
-			     data->rand_s, data->rand_p,
-			     (u8 *) &data->tek, data->msk, data->emsk);
+	if (eap_sake_derive_keys(data->root_secret_a, data->root_secret_b,
+				 data->rand_s, data->rand_p,
+				 (u8 *) &data->tek, data->msk,
+				 data->emsk) < 0) {
+		wpa_printf(MSG_INFO, "EAP-SAKE: Failed to derive keys");
+		return NULL;
+	}
 
 	wpa_printf(MSG_DEBUG, "EAP-SAKE: Sending Response/Challenge");
 
@@ -450,10 +452,9 @@ static u8 * eap_sake_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = os_malloc(EAP_MSK_LEN);
+	key = os_memdup(data->msk, EAP_MSK_LEN);
 	if (key == NULL)
 		return NULL;
-	os_memcpy(key, data->msk, EAP_MSK_LEN);
 	*len = EAP_MSK_LEN;
 
 	return key;
@@ -490,10 +491,9 @@ static u8 * eap_sake_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = os_malloc(EAP_EMSK_LEN);
+	key = os_memdup(data->emsk, EAP_EMSK_LEN);
 	if (key == NULL)
 		return NULL;
-	os_memcpy(key, data->emsk, EAP_EMSK_LEN);
 	*len = EAP_EMSK_LEN;
 
 	return key;

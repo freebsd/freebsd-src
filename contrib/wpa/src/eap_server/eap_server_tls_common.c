@@ -47,7 +47,7 @@ int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 			    int verify_peer, int eap_type)
 {
 	u8 session_ctx[8];
-	unsigned int flags = 0;
+	unsigned int flags = sm->tls_flags;
 
 	if (sm->ssl_ctx == NULL) {
 		wpa_printf(MSG_ERROR, "TLS context not initialized - cannot use TLS-based EAP method");
@@ -107,7 +107,8 @@ void eap_server_tls_ssl_deinit(struct eap_sm *sm, struct eap_ssl_data *data)
 
 
 u8 * eap_server_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
-			       char *label, size_t len)
+			       const char *label, const u8 *context,
+			       size_t context_len, size_t len)
 {
 	u8 *out;
 
@@ -115,8 +116,8 @@ u8 * eap_server_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
 	if (out == NULL)
 		return NULL;
 
-	if (tls_connection_export_key(sm->ssl_ctx, data->conn, label, out,
-				      len)) {
+	if (tls_connection_export_key(sm->ssl_ctx, data->conn, label,
+				      context, context_len, out, len)) {
 		os_free(out);
 		return NULL;
 	}
@@ -144,6 +145,29 @@ u8 * eap_server_tls_derive_session_id(struct eap_sm *sm,
 {
 	struct tls_random keys;
 	u8 *out;
+
+	if (eap_type == EAP_TYPE_TLS && data->tls_v13) {
+		u8 *id, *method_id;
+
+		/* Session-Id = <EAP-Type> || Method-Id
+		 * Method-Id = TLS-Exporter("EXPORTER_EAP_TLS_Method-Id",
+		 *                          "", 64)
+		 */
+		*len = 1 + 64;
+		id = os_malloc(*len);
+		if (!id)
+			return NULL;
+		method_id = eap_server_tls_derive_key(
+			sm, data, "EXPORTER_EAP_TLS_Method-Id", NULL, 0, 64);
+		if (!method_id) {
+			os_free(id);
+			return NULL;
+		}
+		id[0] = eap_type;
+		os_memcpy(id + 1, method_id, 64);
+		os_free(method_id);
+		return id;
+	}
 
 	if (tls_connection_get_random(sm->ssl_ctx, data->conn, &keys))
 		return NULL;
@@ -305,6 +329,8 @@ static int eap_server_tls_process_fragment(struct eap_ssl_data *data,
 
 int eap_server_tls_phase1(struct eap_sm *sm, struct eap_ssl_data *data)
 {
+	char buf[20];
+
 	if (data->tls_out) {
 		/* This should not happen.. */
 		wpa_printf(MSG_INFO, "SSL: pending tls_out data when "
@@ -326,6 +352,16 @@ int eap_server_tls_phase1(struct eap_sm *sm, struct eap_ssl_data *data)
 			   "report error");
 		return -1;
 	}
+
+	if (tls_get_version(sm->ssl_ctx, data->conn, buf, sizeof(buf)) == 0) {
+		wpa_printf(MSG_DEBUG, "SSL: Using TLS version %s", buf);
+		data->tls_v13 = os_strcmp(buf, "TLSv1.3") == 0;
+	}
+
+	if (!sm->serial_num &&
+	    tls_connection_established(sm->ssl_ctx, data->conn))
+		sm->serial_num = tls_connection_peer_serial_num(sm->ssl_ctx,
+								data->conn);
 
 	return 0;
 }
@@ -373,7 +409,7 @@ static int eap_server_tls_reassemble(struct eap_ssl_data *data, u8 flags,
 	if (data->tls_in &&
 	    eap_server_tls_process_cont(data, *pos, end - *pos) < 0)
 		return -1;
-		
+
 	if (flags & EAP_TLS_FLAGS_MORE_FRAGMENTS) {
 		if (eap_server_tls_process_fragment(data, flags, tls_msg_len,
 						    *pos, end - *pos) < 0)

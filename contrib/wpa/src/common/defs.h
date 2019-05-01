@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant - Common definitions
- * Copyright (c) 2004-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2018, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -51,16 +51,35 @@ typedef enum { FALSE = 0, TRUE = 1 } Boolean;
 #define WPA_KEY_MGMT_OSEN BIT(15)
 #define WPA_KEY_MGMT_IEEE8021X_SUITE_B BIT(16)
 #define WPA_KEY_MGMT_IEEE8021X_SUITE_B_192 BIT(17)
+#define WPA_KEY_MGMT_FILS_SHA256 BIT(18)
+#define WPA_KEY_MGMT_FILS_SHA384 BIT(19)
+#define WPA_KEY_MGMT_FT_FILS_SHA256 BIT(20)
+#define WPA_KEY_MGMT_FT_FILS_SHA384 BIT(21)
+#define WPA_KEY_MGMT_OWE BIT(22)
+#define WPA_KEY_MGMT_DPP BIT(23)
+#define WPA_KEY_MGMT_FT_IEEE8021X_SHA384 BIT(24)
+
+#define WPA_KEY_MGMT_FT (WPA_KEY_MGMT_FT_PSK | \
+			 WPA_KEY_MGMT_FT_IEEE8021X | \
+			 WPA_KEY_MGMT_FT_IEEE8021X_SHA384 | \
+			 WPA_KEY_MGMT_FT_SAE | \
+			 WPA_KEY_MGMT_FT_FILS_SHA256 | \
+			 WPA_KEY_MGMT_FT_FILS_SHA384)
 
 static inline int wpa_key_mgmt_wpa_ieee8021x(int akm)
 {
 	return !!(akm & (WPA_KEY_MGMT_IEEE8021X |
 			 WPA_KEY_MGMT_FT_IEEE8021X |
+			 WPA_KEY_MGMT_FT_IEEE8021X_SHA384 |
 			 WPA_KEY_MGMT_CCKM |
 			 WPA_KEY_MGMT_OSEN |
 			 WPA_KEY_MGMT_IEEE8021X_SHA256 |
 			 WPA_KEY_MGMT_IEEE8021X_SUITE_B |
-			 WPA_KEY_MGMT_IEEE8021X_SUITE_B_192));
+			 WPA_KEY_MGMT_IEEE8021X_SUITE_B_192 |
+			 WPA_KEY_MGMT_FILS_SHA256 |
+			 WPA_KEY_MGMT_FILS_SHA384 |
+			 WPA_KEY_MGMT_FT_FILS_SHA256 |
+			 WPA_KEY_MGMT_FT_FILS_SHA384));
 }
 
 static inline int wpa_key_mgmt_wpa_psk(int akm)
@@ -74,9 +93,19 @@ static inline int wpa_key_mgmt_wpa_psk(int akm)
 
 static inline int wpa_key_mgmt_ft(int akm)
 {
-	return !!(akm & (WPA_KEY_MGMT_FT_PSK |
-			 WPA_KEY_MGMT_FT_IEEE8021X |
-			 WPA_KEY_MGMT_FT_SAE));
+	return !!(akm & WPA_KEY_MGMT_FT);
+}
+
+static inline int wpa_key_mgmt_only_ft(int akm)
+{
+	int ft = wpa_key_mgmt_ft(akm);
+	akm &= ~WPA_KEY_MGMT_FT;
+	return ft && !akm;
+}
+
+static inline int wpa_key_mgmt_ft_psk(int akm)
+{
+	return !!(akm & WPA_KEY_MGMT_FT_PSK);
 }
 
 static inline int wpa_key_mgmt_sae(int akm)
@@ -85,17 +114,32 @@ static inline int wpa_key_mgmt_sae(int akm)
 			 WPA_KEY_MGMT_FT_SAE));
 }
 
+static inline int wpa_key_mgmt_fils(int akm)
+{
+	return !!(akm & (WPA_KEY_MGMT_FILS_SHA256 |
+			 WPA_KEY_MGMT_FILS_SHA384 |
+			 WPA_KEY_MGMT_FT_FILS_SHA256 |
+			 WPA_KEY_MGMT_FT_FILS_SHA384));
+}
+
 static inline int wpa_key_mgmt_sha256(int akm)
 {
 	return !!(akm & (WPA_KEY_MGMT_PSK_SHA256 |
 			 WPA_KEY_MGMT_IEEE8021X_SHA256 |
+			 WPA_KEY_MGMT_SAE |
+			 WPA_KEY_MGMT_FT_SAE |
 			 WPA_KEY_MGMT_OSEN |
-			 WPA_KEY_MGMT_IEEE8021X_SUITE_B));
+			 WPA_KEY_MGMT_IEEE8021X_SUITE_B |
+			 WPA_KEY_MGMT_FILS_SHA256 |
+			 WPA_KEY_MGMT_FT_FILS_SHA256));
 }
 
 static inline int wpa_key_mgmt_sha384(int akm)
 {
-	return !!(akm & WPA_KEY_MGMT_IEEE8021X_SUITE_B_192);
+	return !!(akm & (WPA_KEY_MGMT_IEEE8021X_SUITE_B_192 |
+			 WPA_KEY_MGMT_FT_IEEE8021X_SHA384 |
+			 WPA_KEY_MGMT_FILS_SHA384 |
+			 WPA_KEY_MGMT_FT_FILS_SHA384));
 }
 
 static inline int wpa_key_mgmt_suite_b(int akm)
@@ -108,7 +152,10 @@ static inline int wpa_key_mgmt_wpa(int akm)
 {
 	return wpa_key_mgmt_wpa_ieee8021x(akm) ||
 		wpa_key_mgmt_wpa_psk(akm) ||
-		wpa_key_mgmt_sae(akm);
+		wpa_key_mgmt_fils(akm) ||
+		wpa_key_mgmt_sae(akm) ||
+		akm == WPA_KEY_MGMT_OWE ||
+		akm == WPA_KEY_MGMT_DPP;
 }
 
 static inline int wpa_key_mgmt_wpa_any(int akm)
@@ -132,7 +179,13 @@ static inline int wpa_key_mgmt_cckm(int akm)
 #define WPA_AUTH_ALG_LEAP BIT(2)
 #define WPA_AUTH_ALG_FT BIT(3)
 #define WPA_AUTH_ALG_SAE BIT(4)
+#define WPA_AUTH_ALG_FILS BIT(5)
+#define WPA_AUTH_ALG_FILS_SK_PFS BIT(6)
 
+static inline int wpa_auth_alg_fils(int alg)
+{
+	return !!(alg & (WPA_AUTH_ALG_FILS | WPA_AUTH_ALG_FILS_SK_PFS));
+}
 
 enum wpa_alg {
 	WPA_ALG_NONE,
@@ -339,6 +392,31 @@ enum wpa_radio_work_band {
 	BAND_2_4_GHZ = BIT(0),
 	BAND_5_GHZ = BIT(1),
 	BAND_60_GHZ = BIT(2),
+};
+
+enum beacon_rate_type {
+	BEACON_RATE_LEGACY,
+	BEACON_RATE_HT,
+	BEACON_RATE_VHT
+};
+
+enum eap_proxy_sim_state {
+	SIM_STATE_ERROR,
+};
+
+#define OCE_STA BIT(0)
+#define OCE_STA_CFON BIT(1)
+#define OCE_AP BIT(2)
+
+/* enum chan_width - Channel width definitions */
+enum chan_width {
+	CHAN_WIDTH_20_NOHT,
+	CHAN_WIDTH_20,
+	CHAN_WIDTH_40,
+	CHAN_WIDTH_80,
+	CHAN_WIDTH_80P80,
+	CHAN_WIDTH_160,
+	CHAN_WIDTH_UNKNOWN
 };
 
 #endif /* DEFS_H */

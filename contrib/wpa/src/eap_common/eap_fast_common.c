@@ -79,7 +79,7 @@ void eap_fast_derive_master_secret(const u8 *pac_key, const u8 *server_random,
 
 	/*
 	 * RFC 4851, Section 5.1:
-	 * master_secret = T-PRF(PAC-Key, "PAC to master secret label hash", 
+	 * master_secret = T-PRF(PAC-Key, "PAC to master secret label hash",
 	 *                       server_random + client_random, 48)
 	 */
 	os_memcpy(seed, server_random, TLS_RANDOM_LEN);

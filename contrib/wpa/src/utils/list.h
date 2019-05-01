@@ -1,6 +1,6 @@
 /*
  * Doubly-linked list
- * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2009-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -76,8 +76,8 @@ static inline unsigned int dl_list_len(struct dl_list *list)
 	 dl_list_entry((list)->prev, type, member))
 
 #define dl_list_for_each(item, list, type, member) \
-	for (item = dl_list_entry((list)->next, type, member); \
-	     &item->member != (list); \
+	for (item = dl_list_first((list), type, member); \
+	     item && item != dl_list_entry((list), type, member); \
 	     item = dl_list_entry(item->member.next, type, member))
 
 #define dl_list_for_each_safe(item, n, list, type, member) \
