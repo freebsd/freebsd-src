@@ -1,6 +1,6 @@
 /*
  * Driver interface definition
- * Copyright (c) 2003-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2017, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -21,6 +21,10 @@
 
 #include "common/defs.h"
 #include "common/ieee802_11_defs.h"
+#include "common/wpa_common.h"
+#ifdef CONFIG_MACSEC
+#include "pae/ieee802_1x_kay.h"
+#endif /* CONFIG_MACSEC */
 #include "utils/list.h"
 
 #define HOSTAPD_CHAN_DISABLED 0x00000001
@@ -54,12 +58,26 @@
 #define HOSTAPD_CHAN_VHT_130_30 0x04000000
 #define HOSTAPD_CHAN_VHT_150_10 0x08000000
 
+/* Allowed bandwidth mask */
+enum hostapd_chan_width_attr {
+	HOSTAPD_CHAN_WIDTH_10   = BIT(0),
+	HOSTAPD_CHAN_WIDTH_20   = BIT(1),
+	HOSTAPD_CHAN_WIDTH_40P  = BIT(2),
+	HOSTAPD_CHAN_WIDTH_40M  = BIT(3),
+	HOSTAPD_CHAN_WIDTH_80   = BIT(4),
+	HOSTAPD_CHAN_WIDTH_160  = BIT(5),
+};
+
 /* Filter gratuitous ARP */
 #define WPA_DATA_FRAME_FILTER_FLAG_ARP BIT(0)
 /* Filter unsolicited Neighbor Advertisement */
 #define WPA_DATA_FRAME_FILTER_FLAG_NA BIT(1)
 /* Filter unicast IP packets encrypted using the GTK */
 #define WPA_DATA_FRAME_FILTER_FLAG_GTK BIT(2)
+
+#define HOSTAPD_DFS_REGION_FCC	1
+#define HOSTAPD_DFS_REGION_ETSI	2
+#define HOSTAPD_DFS_REGION_JP	3
 
 /**
  * enum reg_change_initiator - Regulatory change initiator
@@ -103,6 +121,13 @@ struct hostapd_channel_data {
 	int flag;
 
 	/**
+	 * allowed_bw - Allowed channel width bitmask
+	 *
+	 * See enum hostapd_chan_width_attr.
+	 */
+	u32 allowed_bw;
+
+	/**
 	 * max_tx_power - Regulatory transmit power limit in dBm
 	 */
 	u8 max_tx_power;
@@ -131,6 +156,29 @@ struct hostapd_channel_data {
 	 * dfs_cac_ms - DFS CAC time in milliseconds
 	 */
 	unsigned int dfs_cac_ms;
+};
+
+#define HE_MAX_NUM_SS 		8
+#define HE_MAX_PHY_CAPAB_SIZE	3
+
+/**
+ * struct he_ppe_threshold - IEEE 802.11ax HE PPE Threshold
+ */
+struct he_ppe_threshold {
+	u32 numss_m1;
+	u32 ru_count;
+	u32 ppet16_ppet8_ru3_ru0[HE_MAX_NUM_SS];
+};
+
+/**
+ * struct he_capabilities - IEEE 802.11ax HE capabilities
+ */
+struct he_capabilities {
+	u8 he_supported;
+	u32 phy_cap[HE_MAX_PHY_CAPAB_SIZE];
+	u32 mac_cap;
+	u32 mcs;
+	struct he_ppe_threshold ppet;
 };
 
 #define HOSTAPD_MODE_FLAG_HT_INFO_KNOWN BIT(0)
@@ -191,6 +239,11 @@ struct hostapd_hw_modes {
 	u8 vht_mcs_set[8];
 
 	unsigned int flags; /* HOSTAPD_MODE_FLAG_* */
+
+	/**
+	 * he_capab - HE (IEEE 802.11ax) capabilities
+	 */
+	struct he_capabilities he_capab;
 };
 
 
@@ -233,6 +286,9 @@ struct hostapd_hw_modes {
  * @est_throughput: Estimated throughput in kbps (this is calculated during
  * scan result processing if left zero by the driver wrapper)
  * @snr: Signal-to-noise ratio in dB (calculated during scan result processing)
+ * @parent_tsf: Time when the Beacon/Probe Response frame was received in terms
+ * of TSF of the BSS specified by %tsf_bssid.
+ * @tsf_bssid: The BSS that %parent_tsf TSF time refers to.
  * @ie_len: length of the following IE field in octets
  * @beacon_ie_len: length of the following Beacon IE field in octets
  *
@@ -263,6 +319,8 @@ struct wpa_scan_res {
 	unsigned int age;
 	unsigned int est_throughput;
 	int snr;
+	u64 parent_tsf;
+	u8 tsf_bssid[ETH_ALEN];
 	size_t ie_len;
 	size_t beacon_ie_len;
 	/* Followed by ie_len + beacon_ie_len octets of IE data */
@@ -447,6 +505,15 @@ struct wpa_driver_scan_params {
 	 unsigned int sched_scan_plans_num;
 
 	/**
+	 * sched_scan_start_delay - Delay to use before starting the first scan
+	 *
+	 * Delay (in seconds) before scheduling first scan plan cycle. The
+	 * driver may ignore this parameter and start immediately (or at any
+	 * other time), if this feature is not supported.
+	 */
+	 u32 sched_scan_start_delay;
+
+	/**
 	 * bssid - Specific BSSID to scan for
 	 *
 	 * This optional parameter can be used to replace the default wildcard
@@ -454,6 +521,80 @@ struct wpa_driver_scan_params {
 	 * only a single BSS.
 	 */
 	const u8 *bssid;
+
+	/**
+	 * scan_cookie - Unique identification representing the scan request
+	 *
+	 * This scan_cookie carries a unique identification representing the
+	 * scan request if the host driver/kernel supports concurrent scan
+	 * requests. This cookie is returned from the corresponding driver
+	 * interface.
+	 *
+	 * Note: Unlike other parameters in this structure, scan_cookie is used
+	 * only to return information instead of setting parameters for the
+	 * scan.
+	 */
+	u64 scan_cookie;
+
+	 /**
+	  * duration - Dwell time on each channel
+	  *
+	  * This optional parameter can be used to set the dwell time on each
+	  * channel. In TUs.
+	  */
+	 u16 duration;
+
+	 /**
+	  * duration_mandatory - Whether the specified duration is mandatory
+	  *
+	  * If this is set, the duration specified by the %duration field is
+	  * mandatory (and the driver should reject the scan request if it is
+	  * unable to comply with the specified duration), otherwise it is the
+	  * maximum duration and the actual duration may be shorter.
+	  */
+	 unsigned int duration_mandatory:1;
+
+	/**
+	 * relative_rssi_set - Whether relative RSSI parameters are set
+	 */
+	unsigned int relative_rssi_set:1;
+
+	/**
+	 * relative_rssi - Relative RSSI for reporting better BSSs
+	 *
+	 * Amount of RSSI by which a BSS should be better than the current
+	 * connected BSS to report the new BSS to user space.
+	 */
+	s8 relative_rssi;
+
+	/**
+	 * relative_adjust_band - Band to which RSSI should be adjusted
+	 *
+	 * The relative_adjust_rssi should be added to the band specified
+	 * by relative_adjust_band.
+	 */
+	enum set_band relative_adjust_band;
+
+	/**
+	 * relative_adjust_rssi - RSSI to be added to relative_adjust_band
+	 *
+	 * An amount of relative_band_rssi should be added to the BSSs that
+	 * belong to the band specified by relative_adjust_band while comparing
+	 * with other bands for BSS reporting.
+	 */
+	s8 relative_adjust_rssi;
+
+	/**
+	 * oce_scan
+	 *
+	 * Enable the following OCE scan features: (WFA OCE TechSpec v1.0)
+	 * - Accept broadcast Probe Response frame.
+	 * - Probe Request frame deferral and suppression.
+	 * - Max Channel Time - driver fills FILS request params IE with
+	 *   Maximum Channel Time.
+	 * - Send 1st Probe Request frame in rate of minimum 5.5 Mbps.
+	 */
+	unsigned int oce_scan:1;
 
 	/*
 	 * NOTE: Whenever adding new parameters here, please make sure
@@ -485,17 +626,18 @@ struct wpa_driver_auth_params {
 	int p2p;
 
 	/**
-	 * sae_data - SAE elements for Authentication frame
+	 * auth_data - Additional elements for Authentication frame
 	 *
 	 * This buffer starts with the Authentication transaction sequence
-	 * number field. If SAE is not used, this pointer is %NULL.
+	 * number field. If no special handling of such elements is needed, this
+	 * pointer is %NULL. This is used with SAE and FILS.
 	 */
-	const u8 *sae_data;
+	const u8 *auth_data;
 
 	/**
-	 * sae_data_len - Length of sae_data buffer in octets
+	 * auth_data_len - Length of auth_data buffer in octets
 	 */
-	size_t sae_data_len;
+	size_t auth_data_len;
 };
 
 /**
@@ -577,6 +719,68 @@ struct hostapd_freq_params {
 };
 
 /**
+ * struct wpa_driver_sta_auth_params - Authentication parameters
+ * Data for struct wpa_driver_ops::sta_auth().
+ */
+struct wpa_driver_sta_auth_params {
+
+	/**
+	 * own_addr - Source address and BSSID for authentication frame
+	 */
+	const u8 *own_addr;
+
+	/**
+	 * addr - MAC address of the station to associate
+	 */
+	const u8 *addr;
+
+	/**
+	 * seq - authentication sequence number
+	 */
+	u16 seq;
+
+	/**
+	 * status - authentication response status code
+	 */
+	u16 status;
+
+	/**
+	 * ie - authentication frame ie buffer
+	 */
+	const u8 *ie;
+
+	/**
+	 * len - ie buffer length
+	 */
+	size_t len;
+
+	/**
+	 * fils_auth - Indicates whether FILS authentication is being performed
+	 */
+	int fils_auth;
+
+	/**
+	 * fils_anonce - ANonce (required for FILS)
+	 */
+	u8 fils_anonce[WPA_NONCE_LEN];
+
+	/**
+	 * fils_snonce - SNonce (required for FILS)
+	*/
+	u8 fils_snonce[WPA_NONCE_LEN];
+
+	/**
+	 * fils_kek - key for encryption (required for FILS)
+	 */
+	u8 fils_kek[WPA_KEK_MAX_LEN];
+
+	/**
+	 * fils_kek_len - Length of the fils_kek in octets (required for FILS)
+	 */
+	size_t fils_kek_len;
+};
+
+/**
  * struct wpa_driver_associate_params - Association parameters
  * Data for struct wpa_driver_ops::associate().
  */
@@ -639,7 +843,7 @@ struct wpa_driver_associate_params {
 	 * WPA information element to be included in (Re)Association
 	 * Request (including information element id and length). Use
 	 * of this WPA IE is optional. If the driver generates the WPA
-	 * IE, it can use pairwise_suite, group_suite, and
+	 * IE, it can use pairwise_suite, group_suite, group_mgmt_suite, and
 	 * key_mgmt_suite to select proper algorithms. In this case,
 	 * the driver has to notify wpa_supplicant about the used WPA
 	 * IE by generating an event that the interface code will
@@ -677,6 +881,13 @@ struct wpa_driver_associate_params {
 	 * This is usually ignored if @wpa_ie is used.
 	 */
 	unsigned int group_suite;
+
+	/**
+	 * mgmt_group_suite - Selected group management cipher suite (WPA_CIPHER_*)
+	 *
+	 * This is usually ignored if @wpa_ie is used.
+	 */
+	unsigned int mgmt_group_suite;
 
 	/**
 	 * key_mgmt_suite - Selected key management suite (WPA_KEY_MGMT_*)
@@ -717,50 +928,13 @@ struct wpa_driver_associate_params {
 	enum mfp_options mgmt_frame_protection;
 
 	/**
-	 * ft_ies - IEEE 802.11r / FT information elements
-	 * If the supplicant is using IEEE 802.11r (FT) and has the needed keys
-	 * for fast transition, this parameter is set to include the IEs that
-	 * are to be sent in the next FT Authentication Request message.
-	 * update_ft_ies() handler is called to update the IEs for further
-	 * FT messages in the sequence.
-	 *
-	 * The driver should use these IEs only if the target AP is advertising
-	 * the same mobility domain as the one included in the MDIE here.
-	 *
-	 * In ap_scan=2 mode, the driver can use these IEs when moving to a new
-	 * AP after the initial association. These IEs can only be used if the
-	 * target AP is advertising support for FT and is using the same MDIE
-	 * and SSID as the current AP.
-	 *
-	 * The driver is responsible for reporting the FT IEs received from the
-	 * AP's response using wpa_supplicant_event() with EVENT_FT_RESPONSE
-	 * type. update_ft_ies() handler will then be called with the FT IEs to
-	 * include in the next frame in the authentication sequence.
-	 */
-	const u8 *ft_ies;
-
-	/**
-	 * ft_ies_len - Length of ft_ies in bytes
-	 */
-	size_t ft_ies_len;
-
-	/**
-	 * ft_md - FT Mobility domain (6 octets) (also included inside ft_ies)
-	 *
-	 * This value is provided to allow the driver interface easier access
-	 * to the current mobility domain. This value is set to %NULL if no
-	 * mobility domain is currently active.
-	 */
-	const u8 *ft_md;
-
-	/**
 	 * passphrase - RSN passphrase for PSK
 	 *
 	 * This value is made available only for WPA/WPA2-Personal (PSK) and
-	 * only for drivers that set WPA_DRIVER_FLAGS_4WAY_HANDSHAKE. This is
-	 * the 8..63 character ASCII passphrase, if available. Please note that
-	 * this can be %NULL if passphrase was not used to generate the PSK. In
-	 * that case, the psk field must be used to fetch the PSK.
+	 * only for drivers that set WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_PSK. This
+	 * is the 8..63 character ASCII passphrase, if available. Please note
+	 * that this can be %NULL if passphrase was not used to generate the
+	 * PSK. In that case, the psk field must be used to fetch the PSK.
 	 */
 	const char *passphrase;
 
@@ -768,9 +942,9 @@ struct wpa_driver_associate_params {
 	 * psk - RSN PSK (alternative for passphrase for PSK)
 	 *
 	 * This value is made available only for WPA/WPA2-Personal (PSK) and
-	 * only for drivers that set WPA_DRIVER_FLAGS_4WAY_HANDSHAKE. This is
-	 * the 32-octet (256-bit) PSK, if available. The driver wrapper should
-	 * be prepared to handle %NULL value as an error.
+	 * only for drivers that set WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_PSK. This
+	 * is the 32-octet (256-bit) PSK, if available. The driver wrapper
+	 * should be prepared to handle %NULL value as an error.
 	 */
 	const u8 *psk;
 
@@ -882,6 +1056,64 @@ struct wpa_driver_associate_params {
 	 * AP as usual. Valid for DMG network only.
 	 */
 	int pbss;
+
+	/**
+	 * fils_kek - KEK for FILS association frame protection (AES-SIV)
+	 */
+	const u8 *fils_kek;
+
+	/**
+	 * fils_kek_len: Length of fils_kek in bytes
+	 */
+	size_t fils_kek_len;
+
+	/**
+	 * fils_nonces - Nonces for FILS association frame protection
+	 * (AES-SIV AAD)
+	 */
+	const u8 *fils_nonces;
+
+	/**
+	 * fils_nonces_len: Length of fils_nonce in bytes
+	 */
+	size_t fils_nonces_len;
+
+	/**
+	 * fils_erp_username - Username part of keyName-NAI
+	 */
+	const u8 *fils_erp_username;
+
+	/**
+	 * fils_erp_username_len - Length of fils_erp_username in bytes
+	 */
+	size_t fils_erp_username_len;
+
+	/**
+	 * fils_erp_realm - Realm/domain name to use in FILS ERP
+	 */
+	const u8 *fils_erp_realm;
+
+	/**
+	 * fils_erp_realm_len - Length of fils_erp_realm in bytes
+	 */
+	size_t fils_erp_realm_len;
+
+	/**
+	 * fils_erp_next_seq_num - The next sequence number to use in FILS ERP
+	 * messages
+	 */
+	u16 fils_erp_next_seq_num;
+
+	/**
+	 * fils_erp_rrk - Re-authentication root key (rRK) for the keyName-NAI
+	 * specified by fils_erp_username@fils_erp_realm.
+	 */
+	const u8 *fils_erp_rrk;
+
+	/**
+	 * fils_erp_rrk_len - Length of fils_erp_rrk in bytes
+	 */
+	size_t fils_erp_rrk_len;
 };
 
 enum hide_ssid {
@@ -938,6 +1170,22 @@ struct wpa_driver_ap_params {
 	 * BSS. If %NULL, default basic rate set is used.
 	 */
 	int *basic_rates;
+
+	/**
+	 * beacon_rate: Beacon frame data rate
+	 *
+	 * This parameter can be used to set a specific Beacon frame data rate
+	 * for the BSS. The interpretation of this value depends on the
+	 * rate_type (legacy: in 100 kbps units, HT: HT-MCS, VHT: VHT-MCS). If
+	 * beacon_rate == 0 and rate_type == 0 (BEACON_RATE_LEGACY), the default
+	 * Beacon frame data rate is used.
+	 */
+	unsigned int beacon_rate;
+
+	/**
+	 * beacon_rate_type: Beacon data rate type (legacy/HT/VHT)
+	 */
+	enum beacon_rate_type rate_type;
 
 	/**
 	 * proberesp - Probe Response template
@@ -1115,6 +1363,44 @@ struct wpa_driver_ap_params {
 	 * infrastructure BSS. Valid only for DMG network.
 	 */
 	int pbss;
+
+	/**
+	 * multicast_to_unicast - Whether to use multicast_to_unicast
+	 *
+	 * If this is non-zero, the AP is requested to perform multicast to
+	 * unicast conversion for ARP, IPv4, and IPv6 frames (possibly within
+	 * 802.1Q). If enabled, such frames are to be sent to each station
+	 * separately, with the DA replaced by their own MAC address rather
+	 * than the group address.
+	 *
+	 * Note that this may break certain expectations of the receiver, such
+	 * as the ability to drop unicast IP packets received within multicast
+	 * L2 frames, or the ability to not send ICMP destination unreachable
+	 * messages for packets received in L2 multicast (which is required,
+	 * but the receiver can't tell the difference if this new option is
+	 * enabled.)
+	 *
+	 * This also doesn't implement the 802.11 DMS (directed multicast
+	 * service).
+	 */
+	int multicast_to_unicast;
+
+	/**
+	 * ftm_responder - Whether FTM responder is enabled
+	 */
+	int ftm_responder;
+
+	/**
+	 * lci - Binary data, the content of an LCI report IE with type 8 as
+	 * defined in IEEE Std 802.11-2016, 9.4.2.22.10
+	 */
+	const struct wpabuf *lci;
+
+	/**
+	 * civic - Binary data, the content of a measurement report IE with
+	 * type 11 as defined in IEEE Std 802.11-2016, 9.4.2.22.13
+	 */
+	const struct wpabuf *civic;
 };
 
 struct wpa_driver_mesh_bss_params {
@@ -1122,6 +1408,7 @@ struct wpa_driver_mesh_bss_params {
 #define WPA_DRIVER_MESH_CONF_FLAG_PEER_LINK_TIMEOUT	0x00000002
 #define WPA_DRIVER_MESH_CONF_FLAG_MAX_PEER_LINKS	0x00000004
 #define WPA_DRIVER_MESH_CONF_FLAG_HT_OP_MODE		0x00000008
+#define WPA_DRIVER_MESH_CONF_FLAG_RSSI_THRESHOLD	0x00000010
 	/*
 	 * TODO: Other mesh configuration parameters would go here.
 	 * See NL80211_MESHCONF_* for all the mesh config parameters.
@@ -1130,6 +1417,7 @@ struct wpa_driver_mesh_bss_params {
 	int auto_plinks;
 	int peer_link_timeout;
 	int max_peer_links;
+	int rssi_threshold;
 	u16 ht_opmode;
 };
 
@@ -1164,6 +1452,13 @@ struct wpa_driver_capa {
 #define WPA_DRIVER_CAPA_KEY_MGMT_WAPI_PSK	0x00000080
 #define WPA_DRIVER_CAPA_KEY_MGMT_SUITE_B	0x00000100
 #define WPA_DRIVER_CAPA_KEY_MGMT_SUITE_B_192	0x00000200
+#define WPA_DRIVER_CAPA_KEY_MGMT_OWE		0x00000400
+#define WPA_DRIVER_CAPA_KEY_MGMT_DPP		0x00000800
+#define WPA_DRIVER_CAPA_KEY_MGMT_FILS_SHA256    0x00001000
+#define WPA_DRIVER_CAPA_KEY_MGMT_FILS_SHA384    0x00002000
+#define WPA_DRIVER_CAPA_KEY_MGMT_FT_FILS_SHA256 0x00004000
+#define WPA_DRIVER_CAPA_KEY_MGMT_FT_FILS_SHA384 0x00008000
+#define WPA_DRIVER_CAPA_KEY_MGMT_SAE 		0x00010000
 	/** Bitfield of supported key management suites */
 	unsigned int key_mgmt;
 
@@ -1197,7 +1492,7 @@ struct wpa_driver_capa {
 #define WPA_DRIVER_FLAGS_DFS_OFFLOAD			0x00000004
 /** Driver takes care of RSN 4-way handshake internally; PMK is configured with
  * struct wpa_driver_ops::set_key using alg = WPA_ALG_PMK */
-#define WPA_DRIVER_FLAGS_4WAY_HANDSHAKE 0x00000008
+#define WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_8021X		0x00000008
 /** Driver is for a wired Ethernet interface */
 #define WPA_DRIVER_FLAGS_WIRED		0x00000010
 /** Driver provides separate commands for authentication and association (SME in
@@ -1286,6 +1581,43 @@ struct wpa_driver_capa {
 #define WPA_DRIVER_FLAGS_FULL_AP_CLIENT_STATE	0x0000010000000000ULL
 /** Driver supports P2P Listen offload */
 #define WPA_DRIVER_FLAGS_P2P_LISTEN_OFFLOAD     0x0000020000000000ULL
+/** Driver supports FILS */
+#define WPA_DRIVER_FLAGS_SUPPORT_FILS		0x0000040000000000ULL
+/** Driver supports Beacon frame TX rate configuration (legacy rates) */
+#define WPA_DRIVER_FLAGS_BEACON_RATE_LEGACY	0x0000080000000000ULL
+/** Driver supports Beacon frame TX rate configuration (HT rates) */
+#define WPA_DRIVER_FLAGS_BEACON_RATE_HT		0x0000100000000000ULL
+/** Driver supports Beacon frame TX rate configuration (VHT rates) */
+#define WPA_DRIVER_FLAGS_BEACON_RATE_VHT	0x0000200000000000ULL
+/** Driver supports mgmt_tx with random TX address in non-connected state */
+#define WPA_DRIVER_FLAGS_MGMT_TX_RANDOM_TA	0x0000400000000000ULL
+/** Driver supports mgmt_tx with random TX addr in connected state */
+#define WPA_DRIVER_FLAGS_MGMT_TX_RANDOM_TA_CONNECTED	0x0000800000000000ULL
+/** Driver supports better BSS reporting with sched_scan in connected mode */
+#define WPA_DRIVER_FLAGS_SCHED_SCAN_RELATIVE_RSSI	0x0001000000000000ULL
+/** Driver supports HE capabilities */
+#define WPA_DRIVER_FLAGS_HE_CAPABILITIES	0x0002000000000000ULL
+/** Driver supports FILS shared key offload */
+#define WPA_DRIVER_FLAGS_FILS_SK_OFFLOAD	0x0004000000000000ULL
+/** Driver supports all OCE STA specific mandatory features */
+#define WPA_DRIVER_FLAGS_OCE_STA		0x0008000000000000ULL
+/** Driver supports all OCE AP specific mandatory features */
+#define WPA_DRIVER_FLAGS_OCE_AP			0x0010000000000000ULL
+/**
+ * Driver supports all OCE STA-CFON specific mandatory features only.
+ * If a driver sets this bit but not the %WPA_DRIVER_FLAGS_OCE_AP, the
+ * userspace shall assume that this driver may not support all OCE AP
+ * functionality but can support only OCE STA-CFON functionality.
+ */
+#define WPA_DRIVER_FLAGS_OCE_STA_CFON		0x0020000000000000ULL
+/** Driver supports MFP-optional in the connect command */
+#define WPA_DRIVER_FLAGS_MFP_OPTIONAL		0x0040000000000000ULL
+/** Driver is a self-managed regulatory device */
+#define WPA_DRIVER_FLAGS_SELF_MANAGED_REGULATORY       0x0080000000000000ULL
+/** Driver supports FTM responder functionality */
+#define WPA_DRIVER_FLAGS_FTM_RESPONDER		0x0100000000000000ULL
+/** Driver support 4-way handshake offload for WPA-Personal */
+#define WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_PSK	0x0200000000000000ULL
 	u64 flags;
 
 #define FULL_AP_CLIENT_STATE_SUPP(drv_flags) \
@@ -1386,6 +1718,11 @@ struct wpa_driver_capa {
  */
 #define WPA_DRIVER_FLAGS_SUPPORT_RRM			0x00000010
 
+/** Driver supports setting the scan dwell time */
+#define WPA_DRIVER_FLAGS_SUPPORT_SET_SCAN_DWELL		0x00000020
+/** Driver supports Beacon Report Measurement */
+#define WPA_DRIVER_FLAGS_SUPPORT_BEACON_REPORT		0x00000040
+
 	u32 rrm_flags;
 
 	/* Driver concurrency capabilities */
@@ -1402,18 +1739,35 @@ struct wpa_driver_capa {
 
 struct hostapd_data;
 
+#define STA_DRV_DATA_TX_MCS BIT(0)
+#define STA_DRV_DATA_RX_MCS BIT(1)
+#define STA_DRV_DATA_TX_VHT_MCS BIT(2)
+#define STA_DRV_DATA_RX_VHT_MCS BIT(3)
+#define STA_DRV_DATA_TX_VHT_NSS BIT(4)
+#define STA_DRV_DATA_RX_VHT_NSS BIT(5)
+#define STA_DRV_DATA_TX_SHORT_GI BIT(6)
+#define STA_DRV_DATA_RX_SHORT_GI BIT(7)
+#define STA_DRV_DATA_LAST_ACK_RSSI BIT(8)
+
 struct hostap_sta_driver_data {
 	unsigned long rx_packets, tx_packets;
 	unsigned long long rx_bytes, tx_bytes;
 	int bytes_64bit; /* whether 64-bit byte counters are supported */
 	unsigned long current_tx_rate;
+	unsigned long current_rx_rate;
 	unsigned long inactive_msec;
-	unsigned long flags;
+	unsigned long flags; /* bitfield of STA_DRV_DATA_* */
 	unsigned long num_ps_buf_frames;
 	unsigned long tx_retry_failed;
 	unsigned long tx_retry_count;
-	int last_rssi;
-	int last_ack_rssi;
+	s8 last_ack_rssi;
+	s8 signal;
+	u8 rx_vhtmcs;
+	u8 tx_vhtmcs;
+	u8 rx_mcs;
+	u8 tx_mcs;
+	u8 rx_vht_nss;
+	u8 tx_vht_nss;
 };
 
 struct hostapd_sta_add_params {
@@ -1576,19 +1930,32 @@ enum wnm_oper {
 	WNM_SLEEP_TFS_IE_DEL        /* AP delete the TFS IE */
 };
 
-/* enum chan_width - Channel width definitions */
-enum chan_width {
-	CHAN_WIDTH_20_NOHT,
-	CHAN_WIDTH_20,
-	CHAN_WIDTH_40,
-	CHAN_WIDTH_80,
-	CHAN_WIDTH_80P80,
-	CHAN_WIDTH_160,
-	CHAN_WIDTH_UNKNOWN
+/* enum smps_mode - SMPS mode definitions */
+enum smps_mode {
+	SMPS_AUTOMATIC,
+	SMPS_OFF,
+	SMPS_DYNAMIC,
+	SMPS_STATIC,
+
+	/* Keep last */
+	SMPS_INVALID,
 };
+
+#define WPA_INVALID_NOISE 9999
 
 /**
  * struct wpa_signal_info - Information about channel signal quality
+ * @frequency: control frequency
+ * @above_threshold: true if the above threshold was crossed
+ *	(relevant for a CQM event)
+ * @current_signal: in dBm
+ * @avg_signal: in dBm
+ * @avg_beacon_signal: in dBm
+ * @current_noise: %WPA_INVALID_NOISE if not supported
+ * @current_txrate: current TX rate
+ * @chanwidth: channel width
+ * @center_frq1: center frequency for the first segment
+ * @center_frq2: center frequency for the second segment (if relevant)
  */
 struct wpa_signal_info {
 	u32 frequency;
@@ -1601,6 +1968,26 @@ struct wpa_signal_info {
 	enum chan_width chanwidth;
 	int center_frq1;
 	int center_frq2;
+};
+
+/**
+ * struct wpa_channel_info - Information about the current channel
+ * @frequency: Center frequency of the primary 20 MHz channel
+ * @chanwidth: Width of the current operating channel
+ * @sec_channel: Location of the secondary 20 MHz channel (either +1 or -1).
+ *	This field is only filled in when using a 40 MHz channel.
+ * @center_frq1: Center frequency of frequency segment 0
+ * @center_frq2: Center frequency of frequency segment 1 (for 80+80 channels)
+ * @seg1_idx: Frequency segment 1 index when using a 80+80 channel. This is
+ *	derived from center_frq2 for convenience.
+ */
+struct wpa_channel_info {
+	u32 frequency;
+	enum chan_width chanwidth;
+	int sec_channel;
+	int center_frq1;
+	int center_frq2;
+	u8 seg1_idx;
 };
 
 /**
@@ -1720,6 +2107,69 @@ struct drv_acs_params {
 	const int *freq_list;
 };
 
+struct wpa_bss_trans_info {
+	u8 mbo_transition_reason;
+	u8 n_candidates;
+	u8 *bssid;
+};
+
+struct wpa_bss_candidate_info {
+	u8 num;
+	struct candidate_list {
+		u8 bssid[ETH_ALEN];
+		u8 is_accept;
+		u32 reject_reason;
+	} *candidates;
+};
+
+struct wpa_pmkid_params {
+	const u8 *bssid;
+	const u8 *ssid;
+	size_t ssid_len;
+	const u8 *fils_cache_id;
+	const u8 *pmkid;
+	const u8 *pmk;
+	size_t pmk_len;
+};
+
+/* Mask used to specify which connection parameters have to be updated */
+enum wpa_drv_update_connect_params_mask {
+	WPA_DRV_UPDATE_ASSOC_IES	= BIT(0),
+	WPA_DRV_UPDATE_FILS_ERP_INFO	= BIT(1),
+	WPA_DRV_UPDATE_AUTH_TYPE	= BIT(2),
+};
+
+/**
+ * struct external_auth - External authentication trigger parameters
+ *
+ * These are used across the external authentication request and event
+ * interfaces.
+ * @action: Action type / trigger for external authentication. Only significant
+ *	for the event interface.
+ * @bssid: BSSID of the peer with which the authentication has to happen. Used
+ *	by both the request and event interface.
+ * @ssid: SSID of the AP. Used by both the request and event interface.
+ * @ssid_len: SSID length in octets.
+ * @key_mgmt_suite: AKM suite of the respective authentication. Optional for
+ *	the request interface.
+ * @status: Status code, %WLAN_STATUS_SUCCESS for successful authentication,
+ *	use %WLAN_STATUS_UNSPECIFIED_FAILURE if wpa_supplicant cannot give
+ *	the real status code for failures. Used only for the request interface
+ *	from user space to the driver.
+ * @pmkid: Generated PMKID as part of external auth exchange (e.g., SAE).
+ */
+struct external_auth {
+	enum {
+		EXT_AUTH_START,
+		EXT_AUTH_ABORT,
+	} action;
+	const u8 *bssid;
+	const u8 *ssid;
+	size_t ssid_len;
+	unsigned int key_mgmt_suite;
+	u16 status;
+	const u8 *pmkid;
+};
 
 /**
  * struct wpa_driver_ops - Driver interface API definition
@@ -1902,13 +2352,14 @@ struct wpa_driver_ops {
 	/**
 	 * add_pmkid - Add PMKSA cache entry to the driver
 	 * @priv: private driver interface data
-	 * @bssid: BSSID for the PMKSA cache entry
-	 * @pmkid: PMKID for the PMKSA cache entry
+	 * @params: PMKSA parameters
 	 *
 	 * Returns: 0 on success, -1 on failure
 	 *
 	 * This function is called when a new PMK is received, as a result of
-	 * either normal authentication or RSN pre-authentication.
+	 * either normal authentication or RSN pre-authentication. The PMKSA
+	 * parameters are either a set of bssid, pmkid, and pmk; or a set of
+	 * ssid, fils_cache_id, pmkid, and pmk.
 	 *
 	 * If the driver generates RSN IE, i.e., it does not use wpa_ie in
 	 * associate(), add_pmkid() can be used to add new PMKSA cache entries
@@ -1916,18 +2367,18 @@ struct wpa_driver_ops {
 	 * driver_ops function does not need to be implemented. Likewise, if
 	 * the driver does not support WPA, this function is not needed.
 	 */
-	int (*add_pmkid)(void *priv, const u8 *bssid, const u8 *pmkid);
+	int (*add_pmkid)(void *priv, struct wpa_pmkid_params *params);
 
 	/**
 	 * remove_pmkid - Remove PMKSA cache entry to the driver
 	 * @priv: private driver interface data
-	 * @bssid: BSSID for the PMKSA cache entry
-	 * @pmkid: PMKID for the PMKSA cache entry
+	 * @params: PMKSA parameters
 	 *
 	 * Returns: 0 on success, -1 on failure
 	 *
 	 * This function is called when the supplicant drops a PMKSA cache
-	 * entry for any reason.
+	 * entry for any reason. The PMKSA parameters are either a set of
+	 * bssid and pmkid; or a set of ssid, fils_cache_id, and pmkid.
 	 *
 	 * If the driver generates RSN IE, i.e., it does not use wpa_ie in
 	 * associate(), remove_pmkid() can be used to synchronize PMKSA caches
@@ -1936,7 +2387,7 @@ struct wpa_driver_ops {
 	 * implemented. Likewise, if the driver does not support WPA, this
 	 * function is not needed.
 	 */
-	int (*remove_pmkid)(void *priv, const u8 *bssid, const u8 *pmkid);
+	int (*remove_pmkid)(void *priv, struct wpa_pmkid_params *params);
 
 	/**
 	 * flush_pmkid - Flush PMKSA cache
@@ -2051,12 +2502,13 @@ struct wpa_driver_ops {
 	 * @priv: Private driver interface data
 	 * @num_modes: Variable for returning the number of returned modes
 	 * flags: Variable for returning hardware feature flags
+	 * @dfs: Variable for returning DFS region (HOSTAPD_DFS_REGION_*)
 	 * Returns: Pointer to allocated hardware data on success or %NULL on
 	 * failure. Caller is responsible for freeing this.
 	 */
 	struct hostapd_hw_modes * (*get_hw_feature_data)(void *priv,
 							 u16 *num_modes,
-							 u16 *flags);
+							 u16 *flags, u8 *dfs);
 
 	/**
 	 * send_mlme - Send management frame from MLME
@@ -2673,6 +3125,9 @@ struct wpa_driver_ops {
 	 * transmitted on that channel; alternatively the frame may be sent on
 	 * the current operational channel (if in associated state in station
 	 * mode or while operating as an AP.)
+	 *
+	 * If @src differs from the device MAC address, use of a random
+	 * transmitter address is requested for this message exchange.
 	 */
 	int (*send_action)(void *priv, unsigned int freq, unsigned int wait,
 			   const u8 *dst, const u8 *src, const u8 *bssid,
@@ -2973,6 +3428,14 @@ struct wpa_driver_ops {
 	int (*signal_poll)(void *priv, struct wpa_signal_info *signal_info);
 
 	/**
+	 * channel_info - Get parameters of the current operating channel
+	 * @priv: Private driver interface data
+	 * @channel_info: Channel info structure
+	 * Returns: 0 on success, negative (<0) on failure
+	 */
+	int (*channel_info)(void *priv, struct wpa_channel_info *channel_info);
+
+	/**
 	 * set_authmode - Set authentication algorithm(s) for static WEP
 	 * @priv: Private driver interface data
 	 * @authmode: 1=Open System, 2=Shared Key, 3=both
@@ -3058,19 +3521,13 @@ struct wpa_driver_ops {
 
 	/**
 	 * sta_auth - Station authentication indication
-	 * @priv: Private driver interface data
-	 * @own_addr: Source address and BSSID for authentication frame
-	 * @addr: MAC address of the station to associate
-	 * @seq: authentication sequence number
-	 * @status: authentication response status code
-	 * @ie: authentication frame ie buffer
-	 * @len: ie buffer length
+	 * @priv: private driver interface data
+	 * @params: Station authentication parameters
 	 *
-	 * This function indicates the driver to send Authentication frame
-	 * to the station.
+	 * Returns: 0 on success, -1 on failure
 	 */
-	 int (*sta_auth)(void *priv, const u8 *own_addr, const u8 *addr,
-			 u16 seq, u16 status, const u8 *ie, size_t len);
+	 int (*sta_auth)(void *priv,
+			 struct wpa_driver_sta_auth_params *params);
 
 	/**
 	 * add_tspec - Add traffic stream
@@ -3259,7 +3716,7 @@ struct wpa_driver_ops {
 	/**
 	 * status - Get driver interface status information
 	 * @priv: Private driver interface data
-	 * @buf: Buffer for printing tou the status information
+	 * @buf: Buffer for printing the status information
 	 * @buflen: Maximum length of the buffer
 	 * Returns: Length of written status information or -1 on failure
 	 */
@@ -3282,6 +3739,17 @@ struct wpa_driver_ops {
 	int (*roaming)(void *priv, int allowed, const u8 *bssid);
 
 	/**
+	 * disable_fils - Enable/disable FILS feature
+	 * @priv: Private driver interface data
+	 * @disable: 0-enable and 1-disable FILS feature
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This callback can be used to configure driver and below layers to
+	 * enable/disable all FILS features.
+	 */
+	int (*disable_fils)(void *priv, int disable);
+
+	/**
 	 * set_mac_addr - Set MAC address
 	 * @priv: Private driver interface data
 	 * @addr: MAC address to use or %NULL for setting back to permanent
@@ -3295,6 +3763,14 @@ struct wpa_driver_ops {
 	int (*macsec_deinit)(void *priv);
 
 	/**
+	 * macsec_get_capability - Inform MKA of this driver's capability
+	 * @priv: Private driver interface data
+	 * @cap: Driver's capability
+	 * Returns: 0 on success, -1 on failure
+	 */
+	int (*macsec_get_capability)(void *priv, enum macsec_cap *cap);
+
+	/**
 	 * enable_protect_frames - Set protect frames status
 	 * @priv: Private driver interface data
 	 * @enabled: TRUE = protect frames enabled
@@ -3302,6 +3778,15 @@ struct wpa_driver_ops {
 	 * Returns: 0 on success, -1 on failure (or if not supported)
 	 */
 	int (*enable_protect_frames)(void *priv, Boolean enabled);
+
+	/**
+	 * enable_encrypt - Set encryption status
+	 * @priv: Private driver interface data
+	 * @enabled: TRUE = encrypt outgoing traffic
+	 *           FALSE = integrity-only protection on outgoing traffic
+	 * Returns: 0 on success, -1 on failure (or if not supported)
+	 */
+	int (*enable_encrypt)(void *priv, Boolean enabled);
 
 	/**
 	 * set_replay_protect - Set replay protect status and window size
@@ -3333,155 +3818,137 @@ struct wpa_driver_ops {
 	/**
 	 * get_receive_lowest_pn - Get receive lowest pn
 	 * @priv: Private driver interface data
-	 * @channel: secure channel
-	 * @an: association number
-	 * @lowest_pn: lowest accept pn
+	 * @sa: secure association
 	 * Returns: 0 on success, -1 on failure (or if not supported)
 	 */
-	int (*get_receive_lowest_pn)(void *priv, u32 channel, u8 an,
-				     u32 *lowest_pn);
+	int (*get_receive_lowest_pn)(void *priv, struct receive_sa *sa);
 
 	/**
 	 * get_transmit_next_pn - Get transmit next pn
 	 * @priv: Private driver interface data
-	 * @channel: secure channel
-	 * @an: association number
-	 * @next_pn: next pn
+	 * @sa: secure association
 	 * Returns: 0 on success, -1 on failure (or if not supported)
 	 */
-	int (*get_transmit_next_pn)(void *priv, u32 channel, u8 an,
-				    u32 *next_pn);
+	int (*get_transmit_next_pn)(void *priv, struct transmit_sa *sa);
 
 	/**
 	 * set_transmit_next_pn - Set transmit next pn
 	 * @priv: Private driver interface data
-	 * @channel: secure channel
-	 * @an: association number
-	 * @next_pn: next pn
+	 * @sa: secure association
 	 * Returns: 0 on success, -1 on failure (or if not supported)
 	 */
-	int (*set_transmit_next_pn)(void *priv, u32 channel, u8 an,
-				    u32 next_pn);
+	int (*set_transmit_next_pn)(void *priv, struct transmit_sa *sa);
 
 	/**
-	 * get_available_receive_sc - get available receive channel
+	 * set_receive_lowest_pn - Set receive lowest PN
 	 * @priv: Private driver interface data
-	 * @channel: secure channel
+	 * @sa: secure association
 	 * Returns: 0 on success, -1 on failure (or if not supported)
 	 */
-	int (*get_available_receive_sc)(void *priv, u32 *channel);
+	int (*set_receive_lowest_pn)(void *priv, struct receive_sa *sa);
 
 	/**
 	 * create_receive_sc - create secure channel for receiving
 	 * @priv: Private driver interface data
-	 * @channel: secure channel
-	 * @sci_addr: secure channel identifier - address
-	 * @sci_port: secure channel identifier - port
+	 * @sc: secure channel
 	 * @conf_offset: confidentiality offset (0, 30, or 50)
 	 * @validation: frame validation policy (0 = Disabled, 1 = Checked,
 	 *	2 = Strict)
 	 * Returns: 0 on success, -1 on failure (or if not supported)
 	 */
-	int (*create_receive_sc)(void *priv, u32 channel, const u8 *sci_addr,
-				 u16 sci_port, unsigned int conf_offset,
+	int (*create_receive_sc)(void *priv, struct receive_sc *sc,
+				 unsigned int conf_offset,
 				 int validation);
 
 	/**
 	 * delete_receive_sc - delete secure connection for receiving
 	 * @priv: private driver interface data from init()
-	 * @channel: secure channel
+	 * @sc: secure channel
 	 * Returns: 0 on success, -1 on failure
 	 */
-	int (*delete_receive_sc)(void *priv, u32 channel);
+	int (*delete_receive_sc)(void *priv, struct receive_sc *sc);
 
 	/**
 	 * create_receive_sa - create secure association for receive
 	 * @priv: private driver interface data from init()
-	 * @channel: secure channel
-	 * @an: association number
-	 * @lowest_pn: the lowest packet number can be received
-	 * @sak: the secure association key
+	 * @sa: secure association
 	 * Returns: 0 on success, -1 on failure
 	 */
-	int (*create_receive_sa)(void *priv, u32 channel, u8 an,
-				 u32 lowest_pn, const u8 *sak);
+	int (*create_receive_sa)(void *priv, struct receive_sa *sa);
+
+	/**
+	 * delete_receive_sa - Delete secure association for receive
+	 * @priv: Private driver interface data from init()
+	 * @sa: Secure association
+	 * Returns: 0 on success, -1 on failure
+	 */
+	int (*delete_receive_sa)(void *priv, struct receive_sa *sa);
 
 	/**
 	 * enable_receive_sa - enable the SA for receive
 	 * @priv: private driver interface data from init()
-	 * @channel: secure channel
-	 * @an: association number
+	 * @sa: secure association
 	 * Returns: 0 on success, -1 on failure
 	 */
-	int (*enable_receive_sa)(void *priv, u32 channel, u8 an);
+	int (*enable_receive_sa)(void *priv, struct receive_sa *sa);
 
 	/**
 	 * disable_receive_sa - disable SA for receive
 	 * @priv: private driver interface data from init()
-	 * @channel: secure channel index
-	 * @an: association number
+	 * @sa: secure association
 	 * Returns: 0 on success, -1 on failure
 	 */
-	int (*disable_receive_sa)(void *priv, u32 channel, u8 an);
-
-	/**
-	 * get_available_transmit_sc - get available transmit channel
-	 * @priv: Private driver interface data
-	 * @channel: secure channel
-	 * Returns: 0 on success, -1 on failure (or if not supported)
-	 */
-	int (*get_available_transmit_sc)(void *priv, u32 *channel);
+	int (*disable_receive_sa)(void *priv, struct receive_sa *sa);
 
 	/**
 	 * create_transmit_sc - create secure connection for transmit
 	 * @priv: private driver interface data from init()
-	 * @channel: secure channel
-	 * @sci_addr: secure channel identifier - address
-	 * @sci_port: secure channel identifier - port
+	 * @sc: secure channel
+	 * @conf_offset: confidentiality offset (0, 30, or 50)
 	 * Returns: 0 on success, -1 on failure
 	 */
-	int (*create_transmit_sc)(void *priv, u32 channel, const u8 *sci_addr,
-				  u16 sci_port, unsigned int conf_offset);
+	int (*create_transmit_sc)(void *priv, struct transmit_sc *sc,
+				  unsigned int conf_offset);
 
 	/**
 	 * delete_transmit_sc - delete secure connection for transmit
 	 * @priv: private driver interface data from init()
-	 * @channel: secure channel
+	 * @sc: secure channel
 	 * Returns: 0 on success, -1 on failure
 	 */
-	int (*delete_transmit_sc)(void *priv, u32 channel);
+	int (*delete_transmit_sc)(void *priv, struct transmit_sc *sc);
 
 	/**
 	 * create_transmit_sa - create secure association for transmit
 	 * @priv: private driver interface data from init()
-	 * @channel: secure channel index
-	 * @an: association number
-	 * @next_pn: the packet number used as next transmit packet
-	 * @confidentiality: True if the SA is to provide confidentiality
-	 *                   as well as integrity
-	 * @sak: the secure association key
+	 * @sa: secure association
 	 * Returns: 0 on success, -1 on failure
 	 */
-	int (*create_transmit_sa)(void *priv, u32 channel, u8 an, u32 next_pn,
-				  Boolean confidentiality, const u8 *sak);
+	int (*create_transmit_sa)(void *priv, struct transmit_sa *sa);
+
+	/**
+	 * delete_transmit_sa - Delete secure association for transmit
+	 * @priv: Private driver interface data from init()
+	 * @sa: Secure association
+	 * Returns: 0 on success, -1 on failure
+	 */
+	int (*delete_transmit_sa)(void *priv, struct transmit_sa *sa);
 
 	/**
 	 * enable_transmit_sa - enable SA for transmit
 	 * @priv: private driver interface data from init()
-	 * @channel: secure channel
-	 * @an: association number
+	 * @sa: secure association
 	 * Returns: 0 on success, -1 on failure
 	 */
-	int (*enable_transmit_sa)(void *priv, u32 channel, u8 an);
+	int (*enable_transmit_sa)(void *priv, struct transmit_sa *sa);
 
 	/**
 	 * disable_transmit_sa - disable SA for transmit
 	 * @priv: private driver interface data from init()
-	 * @channel: secure channel
-	 * @an: association number
+	 * @sa: secure association
 	 * Returns: 0 on success, -1 on failure
 	 */
-	int (*disable_transmit_sa)(void *priv, u32 channel, u8 an);
+	int (*disable_transmit_sa)(void *priv, struct transmit_sa *sa);
 #endif /* CONFIG_MACSEC */
 
 	/**
@@ -3555,9 +4022,12 @@ struct wpa_driver_ops {
 	/**
 	 * abort_scan - Request the driver to abort an ongoing scan
 	 * @priv: Private driver interface data
+	 * @scan_cookie: Cookie identifying the scan request. This is used only
+	 *	when the vendor interface QCA_NL80211_VENDOR_SUBCMD_TRIGGER_SCAN
+	 *	was used to trigger scan. Otherwise, 0 is used.
 	 * Returns 0 on success, -1 on failure
 	 */
-	int (*abort_scan)(void *priv);
+	int (*abort_scan)(void *priv, u64 scan_cookie);
 
 	/**
 	 * configure_data_frame_filters - Request to configure frame filters
@@ -3623,8 +4093,81 @@ struct wpa_driver_ops {
 	 */
 	int (*set_default_scan_ies)(void *priv, const u8 *ies, size_t ies_len);
 
-};
+	/**
+	 * set_tdls_mode - Set TDLS trigger mode to the host driver
+	 * @priv: Private driver interface data
+	 * @tdls_external_control: Represents if TDLS external trigger control
+	 *  mode is enabled/disabled.
+	 *
+	 * This optional callback can be used to configure the TDLS external
+	 * trigger control mode to the host driver.
+	 */
+	int (*set_tdls_mode)(void *priv, int tdls_external_control);
 
+	/**
+	 * get_bss_transition_status - Get candidate BSS's transition status
+	 * @priv: Private driver interface data
+	 * @params: Candidate BSS list
+	 *
+	 * Get the accept or reject reason code for a list of BSS transition
+	 * candidates.
+	 */
+	struct wpa_bss_candidate_info *
+	(*get_bss_transition_status)(void *priv,
+				     struct wpa_bss_trans_info *params);
+	/**
+	 * ignore_assoc_disallow - Configure driver to ignore assoc_disallow
+	 * @priv: Private driver interface data
+	 * @ignore_disallow: 0 to not ignore, 1 to ignore
+	 * Returns: 0 on success, -1 on failure
+	 */
+	int (*ignore_assoc_disallow)(void *priv, int ignore_disallow);
+
+	/**
+	 * set_bssid_blacklist - Set blacklist of BSSIDs to the driver
+	 * @priv: Private driver interface data
+	 * @num_bssid: Number of blacklist BSSIDs
+	 * @bssids: List of blacklisted BSSIDs
+	 */
+	int (*set_bssid_blacklist)(void *priv, unsigned int num_bssid,
+				   const u8 *bssid);
+
+	/**
+	 * update_connect_params - Update the connection parameters
+	 * @priv: Private driver interface data
+	 * @params: Association parameters
+	 * @mask: Bit mask indicating which parameters in @params have to be
+	 *	updated
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * Update the connection parameters when in connected state so that the
+	 * driver uses the updated parameters for subsequent roaming. This is
+	 * used only with drivers that implement internal BSS selection and
+	 * roaming.
+	 */
+	int (*update_connect_params)(
+		void *priv, struct wpa_driver_associate_params *params,
+		enum wpa_drv_update_connect_params_mask mask);
+
+	/**
+	 * send_external_auth_status - Indicate the status of external
+	 * authentication processing to the host driver.
+	 * @priv: Private driver interface data
+	 * @params: Status of authentication processing.
+	 * Returns: 0 on success, -1 on failure
+	 */
+	int (*send_external_auth_status)(void *priv,
+					 struct external_auth *params);
+
+	/**
+	 * set_4addr_mode - Set 4-address mode
+	 * @priv: Private driver interface data
+	 * @bridge_ifname: Bridge interface name
+	 * @val: 0 - disable 4addr mode, 1 - enable 4addr mode
+	 * Returns: 0 on success, < 0 on failure
+	 */
+	int (*set_4addr_mode)(void *priv, const char *bridge_ifname, int val);
+};
 
 /**
  * enum wpa_event_type - Event type for wpa_supplicant_event() calls
@@ -3732,17 +4275,6 @@ enum wpa_event_type {
 	 * struct wpa_driver_ops::add_pmkid() calls.
 	 */
 	EVENT_PMKID_CANDIDATE,
-
-	/**
-	 * EVENT_STKSTART - Request STK handshake (MLME-STKSTART.request)
-	 *
-	 * This event can be used to inform wpa_supplicant about desire to set
-	 * up secure direct link connection between two stations as defined in
-	 * IEEE 802.11e with a new PeerKey mechanism that replaced the original
-	 * STAKey negotiation. The caller will need to set peer address for the
-	 * event.
-	 */
-	EVENT_STKSTART,
 
 	/**
 	 * EVENT_TDLS - Request TDLS operation
@@ -4043,7 +4575,7 @@ enum wpa_event_type {
 	 * EVENT_DFS_CAC_ABORTED - Notify that channel availability check has been aborted
 	 *
 	 * The CAC was not successful, and the channel remains in the previous
-	 * state. This may happen due to a radar beeing detected or other
+	 * state. This may happen due to a radar being detected or other
 	 * external influences.
 	 */
 	EVENT_DFS_CAC_ABORTED,
@@ -4112,6 +4644,65 @@ enum wpa_event_type {
 	 * EVENT_P2P_LO_STOP - Notify that P2P listen offload is stopped
 	 */
 	EVENT_P2P_LO_STOP,
+
+	/**
+	 * EVENT_BEACON_LOSS - Beacon loss detected
+	 *
+	 * This event indicates that no Beacon frames has been received from
+	 * the current AP. This may indicate that the AP is not anymore in
+	 * range.
+	 */
+	EVENT_BEACON_LOSS,
+
+	/**
+	 * EVENT_DFS_PRE_CAC_EXPIRED - Notify that channel availability check
+	 * done previously (Pre-CAC) on the channel has expired. This would
+	 * normally be on a non-ETSI DFS regulatory domain. DFS state of the
+	 * channel will be moved from available to usable. A new CAC has to be
+	 * performed before start operating on this channel.
+	 */
+	EVENT_DFS_PRE_CAC_EXPIRED,
+
+	/**
+	 * EVENT_EXTERNAL_AUTH - This event interface is used by host drivers
+	 * that do not define separate commands for authentication and
+	 * association (~WPA_DRIVER_FLAGS_SME) but offload the 802.11
+	 * authentication to wpa_supplicant. This event carries all the
+	 * necessary information from the host driver for the authentication to
+	 * happen.
+	 */
+	EVENT_EXTERNAL_AUTH,
+
+	/**
+	 * EVENT_PORT_AUTHORIZED - Notification that a connection is authorized
+	 *
+	 * This event should be indicated when the driver completes the 4-way
+	 * handshake. This event should be preceded by an EVENT_ASSOC that
+	 * indicates the completion of IEEE 802.11 association.
+	 */
+	EVENT_PORT_AUTHORIZED,
+
+	/**
+	 * EVENT_STATION_OPMODE_CHANGED - Notify STA's HT/VHT operation mode
+	 * change event.
+	 */
+	EVENT_STATION_OPMODE_CHANGED,
+
+	/**
+	 * EVENT_INTERFACE_MAC_CHANGED - Notify that interface MAC changed
+	 *
+	 * This event is emitted when the MAC changes while the interface is
+	 * enabled. When an interface was disabled and becomes enabled, it
+	 * must be always assumed that the MAC possibly changed.
+	 */
+	EVENT_INTERFACE_MAC_CHANGED,
+
+	/**
+	 * EVENT_WDS_STA_INTERFACE_STATUS - Notify WDS STA interface status
+	 *
+	 * This event is emitted when an interface is added/removed for WDS STA.
+	 */
+	EVENT_WDS_STA_INTERFACE_STATUS,
 };
 
 
@@ -4204,6 +4795,16 @@ union wpa_event_data {
 		size_t resp_ies_len;
 
 		/**
+		 * resp_frame - (Re)Association Response frame
+		 */
+		const u8 *resp_frame;
+
+		/**
+		 * resp_frame_len - (Re)Association Response frame length
+		 */
+		size_t resp_frame_len;
+
+		/**
 		 * beacon_ies - Beacon or Probe Response IEs
 		 *
 		 * Optional Beacon/ProbeResp data: IEs included in Beacon or
@@ -4280,6 +4881,8 @@ union wpa_event_data {
 
 		/**
 		 * ptk_kek - The derived PTK KEK
+		 * This is used in key management offload and also in FILS SK
+		 * offload.
 		 */
 		const u8 *ptk_kek;
 
@@ -4293,6 +4896,36 @@ union wpa_event_data {
 		 * 0 = unknown, 1 = unchanged, 2 = changed
 		 */
 		u8 subnet_status;
+
+		/**
+		 * The following information is used in FILS SK offload
+		 * @fils_erp_next_seq_num
+		 * @fils_pmk
+		 * @fils_pmk_len
+		 * @fils_pmkid
+		 */
+
+		/**
+		 * fils_erp_next_seq_num - The next sequence number to use in
+		 * FILS ERP messages
+		 */
+		u16 fils_erp_next_seq_num;
+
+		/**
+		 * fils_pmk - A new PMK if generated in case of FILS
+		 * authentication
+		 */
+		const u8 *fils_pmk;
+
+		/**
+		 * fils_pmk_len - Length of fils_pmk
+		 */
+		size_t fils_pmk_len;
+
+		/**
+		 * fils_pmkid - PMKID used or generated in FILS authentication
+		 */
+		const u8 *fils_pmkid;
 	} assoc_info;
 
 	/**
@@ -4387,13 +5020,6 @@ union wpa_event_data {
 		/** Whether RSN IE includes pre-authenticate flag */
 		int preauth;
 	} pmkid_candidate;
-
-	/**
-	 * struct stkstart - Data for EVENT_STKSTART
-	 */
-	struct stkstart {
-		u8 peer[ETH_ALEN];
-	} stkstart;
 
 	/**
 	 * struct tdls - Data for EVENT_TDLS
@@ -4503,6 +5129,17 @@ union wpa_event_data {
 		 * than explicit rejection response from the AP.
 		 */
 		int timed_out;
+
+		/**
+		 * timeout_reason - Reason for the timeout
+		 */
+		const char *timeout_reason;
+
+		/**
+		 * fils_erp_next_seq_num - The next sequence number to use in
+		 * FILS ERP messages
+		 */
+		u16 fils_erp_next_seq_num;
 	} assoc_reject;
 
 	struct timeout_event {
@@ -4586,6 +5223,11 @@ union wpa_event_data {
 	 * @external_scan: Whether the scan info is for an external scan
 	 * @nl_scan_event: 1 if the source of this scan event is a normal scan,
 	 * 	0 if the source of the scan event is a vendor scan
+	 * @scan_start_tsf: Time when the scan started in terms of TSF of the
+	 *	BSS that the interface that requested the scan is connected to
+	 *	(if available).
+	 * @scan_start_tsf_bssid: The BSSID according to which %scan_start_tsf
+	 *	is set.
 	 */
 	struct scan_info {
 		int aborted;
@@ -4595,6 +5237,8 @@ union wpa_event_data {
 		size_t num_ssids;
 		int external_scan;
 		int nl_scan_event;
+		u64 scan_start_tsf;
+		u8 scan_start_tsf_bssid[ETH_ALEN];
 	} scan_info;
 
 	/**
@@ -4684,9 +5328,12 @@ union wpa_event_data {
 	/**
 	 * struct low_ack - Data for EVENT_STATION_LOW_ACK events
 	 * @addr: station address
+	 * @num_packets: Number of packets lost (consecutive packets not
+	 * acknowledged)
 	 */
 	struct low_ack {
 		u8 addr[ETH_ALEN];
+		u32 num_packets;
 	} low_ack;
 
 	/**
@@ -4858,6 +5505,37 @@ union wpa_event_data {
 			P2P_LO_STOPPED_REASON_NOT_SUPPORTED,
 		} reason_code;
 	} p2p_lo_stop;
+
+	/* For EVENT_EXTERNAL_AUTH */
+	struct external_auth external_auth;
+
+	/**
+	 * struct sta_opmode - Station's operation mode change event
+	 * @addr: The station MAC address
+	 * @smps_mode: SMPS mode of the station
+	 * @chan_width: Channel width of the station
+	 * @rx_nss: RX_NSS of the station
+	 *
+	 * This is used as data with EVENT_STATION_OPMODE_CHANGED.
+	 */
+	struct sta_opmode {
+		const u8 *addr;
+		enum smps_mode smps_mode;
+		enum chan_width chan_width;
+		u8 rx_nss;
+	} sta_opmode;
+
+	/**
+	 * struct wds_sta_interface - Data for EVENT_WDS_STA_INTERFACE_STATUS.
+	 */
+	struct wds_sta_interface {
+		const u8 *sta_addr;
+		const char *ifname;
+		enum {
+			INTERFACE_ADDED,
+			INTERFACE_REMOVED
+		} istatus;
+	} wds_sta_interface;
 };
 
 /**
@@ -4931,6 +5609,8 @@ const char * event_to_string(enum wpa_event_type event);
 /* Convert chan_width to a string for logging and control interfaces */
 const char * channel_width_to_string(enum chan_width width);
 
+int channel_width_to_int(enum chan_width width);
+
 int ht_supported(const struct hostapd_hw_modes *mode);
 int vht_supported(const struct hostapd_hw_modes *mode);
 
@@ -4973,6 +5653,10 @@ extern const struct wpa_driver_ops wpa_driver_wired_ops; /* driver_wired.c */
 /* driver_macsec_qca.c */
 extern const struct wpa_driver_ops wpa_driver_macsec_qca_ops;
 #endif /* CONFIG_DRIVER_MACSEC_QCA */
+#ifdef CONFIG_DRIVER_MACSEC_LINUX
+/* driver_macsec_linux.c */
+extern const struct wpa_driver_ops wpa_driver_macsec_linux_ops;
+#endif /* CONFIG_DRIVER_MACSEC_LINUX */
 #ifdef CONFIG_DRIVER_ROBOSWITCH
 /* driver_roboswitch.c */
 extern const struct wpa_driver_ops wpa_driver_roboswitch_ops;

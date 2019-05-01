@@ -7,13 +7,10 @@ WPA_SUPPLICANT_DISTDIR?=${WPA_DISTDIR}/wpa_supplicant
 HOSTAPD_DISTDIR?=	${WPA_DISTDIR}/hostapd
 
 .PATH.c:${.CURDIR:H} \
-	${WPA_DISTDIR}/src/ap \
 	${WPA_DISTDIR}/src/common \
 	${WPA_DISTDIR}/src/crypto \
 	${WPA_DISTDIR}/src/eapol_auth \
 	${WPA_DISTDIR}/src/eap_common \
-	${WPA_DISTDIR}/src/eap_peer \
-	${WPA_DISTDIR}/src/eap_server \
 	${WPA_DISTDIR}/src/eapol_supp \
 	${WPA_DISTDIR}/src/l2_packet \
 	${WPA_DISTDIR}/src/radius \
@@ -35,5 +32,6 @@ CFLAGS+=-I${WPA_DISTDIR}/src/wps
 CFLAGS+= -DCONFIG_CTRL_IFACE
 CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX
 CFLAGS+= -DNEED_AP_MLME
+CFLAGS+= -DTLS_DEFAULT_CIPHERS=\"DEFAULT:!EXP:!LOW\"
 
 .include <bsd.own.mk>

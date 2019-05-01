@@ -1,7 +1,7 @@
-WPA Supplicant
+wpa_supplicant
 ==============
 
-Copyright (c) 2003-2016, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2003-2019, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is licensed under the BSD license (the one with
@@ -83,7 +83,7 @@ Supported WPA/IEEE 802.11i features:
 	  authentication)
   (following methods are supported, but since they do not generate keying
    material, they cannot be used with WPA or IEEE 802.1X WEP keying)
-  * EAP-MD5-Challenge 
+  * EAP-MD5-Challenge
   * EAP-MSCHAPv2
   * EAP-GTC
   * EAP-OTP
@@ -964,6 +964,17 @@ can be started when an interface is added (hotplug/udev/etc. scripts).
 wpa_priv can control multiple interface with one process, but it is
 also possible to run multiple wpa_priv processes at the same time, if
 desired.
+
+It should be noted that the interface used between wpa_supplicant and
+wpa_priv does not include all the capabilities of the wpa_supplicant
+driver interface and at times, this interface lacks update especially
+for recent addition. Consequently, use of wpa_priv does come with the
+price of somewhat reduced available functionality. The next section
+describing how wpa_supplicant can be used with reduced privileges
+without having to handle the complexity of separate wpa_priv. While that
+approve does not provide separation for network admin capabilities, it
+does allow other root privileges to be dropped without the drawbacks of
+the wpa_priv process.
 
 
 Linux capabilities instead of privileged process

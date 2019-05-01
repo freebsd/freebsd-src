@@ -28,14 +28,18 @@
 #define DEFAULT_MESH_RETRY_TIMEOUT 40
 #define DEFAULT_MESH_CONFIRM_TIMEOUT 40
 #define DEFAULT_MESH_HOLDING_TIMEOUT 40
+#define DEFAULT_MESH_RSSI_THRESHOLD 1 /* no change */
 #define DEFAULT_DISABLE_HT 0
 #define DEFAULT_DISABLE_HT40 0
 #define DEFAULT_DISABLE_SGI 0
 #define DEFAULT_DISABLE_LDPC 0
+#define DEFAULT_TX_STBC -1 /* no change */
+#define DEFAULT_RX_STBC -1 /* no change */
 #define DEFAULT_DISABLE_MAX_AMSDU -1 /* no change */
 #define DEFAULT_AMPDU_FACTOR -1 /* no change */
 #define DEFAULT_AMPDU_DENSITY -1 /* no change */
 #define DEFAULT_USER_SELECTED_SIM 1
+#define DEFAULT_MAX_OPER_CHWIDTH -1
 
 struct psk_list_entry {
 	struct dl_list list;
@@ -146,6 +150,19 @@ struct wpa_ssid {
 	int bssid_set;
 
 	/**
+	 * bssid_hint - BSSID hint
+	 *
+	 * If set, this is configured to the driver as a preferred initial BSSID
+	 * while connecting to this network.
+	 */
+	u8 bssid_hint[ETH_ALEN];
+
+	/**
+	 * bssid_hint_set - Whether BSSID hint is configured for this network
+	 */
+	int bssid_hint_set;
+
+	/**
 	 * go_p2p_dev_addr - GO's P2P Device Address or all zeros if not set
 	 */
 	u8 go_p2p_dev_addr[ETH_ALEN];
@@ -168,6 +185,24 @@ struct wpa_ssid {
 	 * 63 characters (inclusive).
 	 */
 	char *passphrase;
+
+	/**
+	 * sae_password - SAE password
+	 *
+	 * This parameter can be used to set a password for SAE. By default, the
+	 * passphrase value is used if this separate parameter is not used, but
+	 * passphrase follows the WPA-PSK constraints (8..63 characters) even
+	 * though SAE passwords do not have such constraints.
+	 */
+	char *sae_password;
+
+	/**
+	 * sae_password_id - SAE password identifier
+	 *
+	 * This parameter can be used to identify a specific SAE password. If
+	 * not included, the default SAE password is used instead.
+	 */
+	char *sae_password_id;
 
 	/**
 	 * ext_psk - PSK/passphrase name in external storage
@@ -194,6 +229,15 @@ struct wpa_ssid {
 	 * group_cipher - Bitfield of allowed group ciphers, WPA_CIPHER_*
 	 */
 	int group_cipher;
+
+	/**
+	 * group_mgmt_cipher - Bitfield of allowed group management ciphers
+	 *
+	 * This is a bitfield of WPA_CIPHER_AES_128_CMAC and WPA_CIPHER_BIP_*
+	 * values. If 0, no constraint is used for the cipher, i.e., whatever
+	 * the AP uses is accepted.
+	 */
+	int group_mgmt_cipher;
 
 	/**
 	 * key_mgmt - Bitfield of allowed key management protocols
@@ -392,17 +436,6 @@ struct wpa_ssid {
 	int disabled_for_connect;
 
 	/**
-	 * peerkey -  Whether PeerKey handshake for direct links is allowed
-	 *
-	 * This is only used when both RSN/WPA2 and IEEE 802.11e (QoS) are
-	 * enabled.
-	 *
-	 * 0 = disabled (default)
-	 * 1 = enabled
-	 */
-	int peerkey;
-
-	/**
 	 * id_str - Network identifier string for external scripts
 	 *
 	 * This value is passed to external ctrl_iface monitors in
@@ -426,6 +459,17 @@ struct wpa_ssid {
 	 */
 	enum mfp_options ieee80211w;
 #endif /* CONFIG_IEEE80211W */
+
+#ifdef CONFIG_OCV
+	/**
+	 * ocv - Enable/disable operating channel validation
+	 *
+	 * If this parameter is set to 1, stations will exchange OCI element
+	 * to cryptographically verify the operating channel. Setting this
+	 * parameter to 0 disables this option. Default value: 0.
+	 */
+	int ocv;
+#endif /* CONFIG_OCV */
 
 	/**
 	 * frequency - Channel frequency in megahertz (MHz) for IBSS
@@ -470,12 +514,16 @@ struct wpa_ssid {
 	int dot11MeshConfirmTimeout; /* msec */
 	int dot11MeshHoldingTimeout; /* msec */
 
+	int ht;
 	int ht40;
 
 	int vht;
 
-	u8 max_oper_chwidth;
+	int he;
 
+	int max_oper_chwidth;
+
+	unsigned int vht_center_freq1;
 	unsigned int vht_center_freq2;
 
 	/**
@@ -650,6 +698,22 @@ struct wpa_ssid {
 	 * By default (empty string): Use whatever the OS has configured.
 	 */
 	char *ht_mcs;
+
+	/**
+	 * tx_stbc - Indicate STBC support for TX streams
+	 *
+	 * Value: -1..1, by default (-1): use whatever the OS or card has
+	 * configured. See IEEE Std 802.11-2016, 9.4.2.56.2.
+	 */
+	int tx_stbc;
+
+	/**
+	 * rx_stbc - Indicate STBC support for RX streams
+	 *
+	 * Value: -1..3, by default (-1): use whatever the OS or card has
+	 * configured. See IEEE Std 802.11-2016, 9.4.2.56.2.
+	 */
+	int rx_stbc;
 #endif /* CONFIG_HT_OVERRIDES */
 
 #ifdef CONFIG_VHT_OVERRIDES
@@ -728,10 +792,100 @@ struct wpa_ssid {
 	 *    determine whether to use a secure session or not.
 	 */
 	int macsec_policy;
+
+	/**
+	 * macsec_integ_only - Determines how MACsec are transmitted
+	 *
+	 * This setting applies only when MACsec is in use, i.e.,
+	 *  - macsec_policy is enabled
+	 *  - the key server has decided to enable MACsec
+	 *
+	 * 0: Encrypt traffic (default)
+	 * 1: Integrity only
+	 */
+	int macsec_integ_only;
+
+	/**
+	 * macsec_replay_protect - Enable MACsec replay protection
+	 *
+	 * This setting applies only when MACsec is in use, i.e.,
+	 *  - macsec_policy is enabled
+	 *  - the key server has decided to enable MACsec
+	 *
+	 * 0: Replay protection disabled (default)
+	 * 1: Replay protection enabled
+	 */
+	int macsec_replay_protect;
+
+	/**
+	 * macsec_replay_window - MACsec replay protection window
+	 *
+	 * A window in which replay is tolerated, to allow receipt of frames
+	 * that have been misordered by the network.
+	 *
+	 * This setting applies only when MACsec replay protection active, i.e.,
+	 *  - macsec_replay_protect is enabled
+	 *  - the key server has decided to enable MACsec
+	 *
+	 * 0: No replay window, strict check (default)
+	 * 1..2^32-1: number of packets that could be misordered
+	 */
+	u32 macsec_replay_window;
+
+	/**
+	 * macsec_port - MACsec port (in SCI)
+	 *
+	 * Port component of the SCI.
+	 *
+	 * Range: 1-65534 (default: 1)
+	 */
+	int macsec_port;
+
+	/**
+	 * mka_priority - Priority of MKA Actor
+	 *
+	 * Range: 0-255 (default: 255)
+	 */
+	int mka_priority;
+
+	/**
+	 * mka_ckn - MKA pre-shared CKN
+	 */
+#define MACSEC_CKN_MAX_LEN 32
+	size_t mka_ckn_len;
+	u8 mka_ckn[MACSEC_CKN_MAX_LEN];
+
+	/**
+	 * mka_cak - MKA pre-shared CAK
+	 */
+#define MACSEC_CAK_MAX_LEN 32
+	size_t mka_cak_len;
+	u8 mka_cak[MACSEC_CAK_MAX_LEN];
+
+#define MKA_PSK_SET_CKN BIT(0)
+#define MKA_PSK_SET_CAK BIT(1)
+#define MKA_PSK_SET (MKA_PSK_SET_CKN | MKA_PSK_SET_CAK)
+	/**
+	 * mka_psk_set - Whether mka_ckn and mka_cak are set
+	 */
+	u8 mka_psk_set;
 #endif /* CONFIG_MACSEC */
 
 #ifdef CONFIG_HS20
 	int update_identifier;
+
+	/**
+	 * roaming_consortium_selection - Roaming Consortium Selection
+	 *
+	 * The matching Roaming Consortium OI that was used to generate this
+	 * network profile.
+	 */
+	u8 *roaming_consortium_selection;
+
+	/**
+	 * roaming_consortium_selection_len - roaming_consortium_selection len
+	 */
+	size_t roaming_consortium_selection_len;
 #endif /* CONFIG_HS20 */
 
 	unsigned int wps_run;
@@ -758,12 +912,99 @@ struct wpa_ssid {
 	int no_auto_peer;
 
 	/**
+	 * mesh_rssi_threshold - Set mesh parameter mesh_rssi_threshold (dBm)
+	 *
+	 * -255..-1 = threshold value in dBm
+	 * 0 = not using RSSI threshold
+	 * 1 = do not change driver default
+	 */
+	int mesh_rssi_threshold;
+
+	/**
 	 * wps_disabled - WPS disabled in AP mode
 	 *
 	 * 0 = WPS enabled and configured (default)
 	 * 1 = WPS disabled
 	 */
 	int wps_disabled;
+
+	/**
+	 * fils_dh_group - FILS DH Group
+	 *
+	 * 0 = PFS disabled with FILS shared key authentication
+	 * 1-65535 DH Group to use for FILS PFS
+	 */
+	int fils_dh_group;
+
+	/**
+	 * dpp_connector - DPP Connector (signedConnector as string)
+	 */
+	char *dpp_connector;
+
+	/**
+	 * dpp_netaccesskey - DPP netAccessKey (own private key)
+	 */
+	u8 *dpp_netaccesskey;
+
+	/**
+	 * dpp_netaccesskey_len - DPP netAccessKey length in octets
+	 */
+	size_t dpp_netaccesskey_len;
+
+	/**
+	 * net_access_key_expiry - DPP netAccessKey expiry in UNIX time stamp
+	 *
+	 * 0 indicates no expiration.
+	 */
+	unsigned int dpp_netaccesskey_expiry;
+
+	/**
+	 * dpp_csign - C-sign-key (Configurator public key)
+	 */
+	u8 *dpp_csign;
+
+	/**
+	 * dpp_csign_len - C-sign-key length in octets
+	 */
+	size_t dpp_csign_len;
+
+	/**
+	 * owe_group - OWE DH Group
+	 *
+	 * 0 = use default (19) first and then try all supported groups one by
+	 *	one if AP rejects the selected group
+	 * 1-65535 DH Group to use for OWE
+	 *
+	 * Groups 19 (NIST P-256), 20 (NIST P-384), and 21 (NIST P-521) are
+	 * currently supported.
+	 */
+	int owe_group;
+
+	/**
+	 * owe_only - OWE-only mode (disable transition mode)
+	 *
+	 * 0 = enable transition mode (allow connection to either OWE or open
+	 *	BSS)
+	 * 1 = disable transition mode (allow connection only with OWE)
+	 */
+	int owe_only;
+
+	/**
+	 * owe_transition_bss_select_count - OWE transition BSS select count
+	 *
+	 * This is an internally used variable (i.e., not used in external
+	 * configuration) to track the number of selection attempts done for
+	 * OWE BSS in transition mode. This allows fallback to an open BSS if
+	 * the selection attempts for OWE BSS exceed the configured threshold.
+	 */
+	int owe_transition_bss_select_count;
+
+	/**
+	 * multi_ap_backhaul_sta - Multi-AP backhaul STA
+	 * 0 = normal (non-Multi-AP) station
+	 * 1 = Multi-AP backhaul station
+	 */
+	int multi_ap_backhaul_sta;
 };
 
 #endif /* CONFIG_SSID_H */

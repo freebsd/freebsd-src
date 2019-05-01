@@ -12,7 +12,7 @@
 #include "eap_proxy.h"
 
 struct eap_proxy_sm *
-eap_proxy_init(void *eapol_ctx, struct eapol_callbacks *eapol_cb,
+eap_proxy_init(void *eapol_ctx, const struct eapol_callbacks *eapol_cb,
 	       void *msg_ctx)
 {
 	return NULL;
@@ -63,8 +63,8 @@ int eap_proxy_sm_get_status(struct eap_proxy_sm *sm, char *buf, size_t buflen,
 }
 
 
-int eap_proxy_get_imsi(struct eap_proxy_sm *eap_proxy, char *imsi_buf,
-		       size_t *imsi_len)
+int eap_proxy_get_imsi(struct eap_proxy_sm *eap_proxy, int sim_num,
+		       char *imsi_buf, size_t *imsi_len)
 {
 	return -1;
 }
@@ -74,4 +74,21 @@ int eap_proxy_notify_config(struct eap_proxy_sm *sm,
 			    struct eap_peer_config *config)
 {
 	return -1;
+}
+
+
+u8 * eap_proxy_get_eap_session_id(struct eap_proxy_sm *sm, size_t *len)
+{
+	return NULL;
+}
+
+
+u8 * eap_proxy_get_emsk(struct eap_proxy_sm *sm, size_t *len)
+{
+	return NULL;
+}
+
+
+void eap_proxy_sm_abort(struct eap_proxy_sm *sm)
+{
 }

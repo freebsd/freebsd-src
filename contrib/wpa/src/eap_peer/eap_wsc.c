@@ -255,6 +255,9 @@ static void * eap_wsc_init(struct eap_sm *sm)
 		cfg.new_ap_settings = &new_ap_settings;
 	}
 
+	if (os_strstr(phase1, "multi_ap=1"))
+		cfg.multi_ap_backhaul_sta = 1;
+
 	data->wps = wps_init(&cfg);
 	if (data->wps == NULL) {
 		os_free(data);

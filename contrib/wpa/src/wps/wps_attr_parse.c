@@ -67,6 +67,17 @@ static int wps_set_vendor_ext_wfa_subelem(struct wps_parse_attr *attr,
 		}
 		attr->registrar_configuration_methods = pos;
 		break;
+	case WFA_ELEM_MULTI_AP:
+		if (len != 1) {
+			wpa_printf(MSG_DEBUG,
+				   "WPS: Invalid Multi-AP Extension length %u",
+				   len);
+			return -1;
+		}
+		attr->multi_ap_ext = *pos;
+		wpa_printf(MSG_DEBUG, "WPS: Multi-AP Extension 0x%02x",
+			   attr->multi_ap_ext);
+		break;
 	default:
 		wpa_printf(MSG_MSGDUMP, "WPS: Skipped unknown WFA Vendor "
 			   "Extension subelement %u", id);

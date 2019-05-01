@@ -5,7 +5,7 @@
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
  */
-#include <openssl/ssl.h>
+
 #include "utils/includes.h"
 
 #include "utils/common.h"
@@ -38,9 +38,21 @@ static int wpas_macsec_deinit(void *priv)
 }
 
 
+static int wpas_macsec_get_capability(void *priv, enum macsec_cap *cap)
+{
+	return wpa_drv_macsec_get_capability(priv, cap);
+}
+
+
 static int wpas_enable_protect_frames(void *wpa_s, Boolean enabled)
 {
 	return wpa_drv_enable_protect_frames(wpa_s, enabled);
+}
+
+
+static int wpas_enable_encrypt(void *wpa_s, Boolean enabled)
+{
+	return wpa_drv_enable_encrypt(wpa_s, enabled);
 }
 
 
@@ -62,30 +74,27 @@ static int wpas_enable_controlled_port(void *wpa_s, Boolean enabled)
 }
 
 
-static int wpas_get_receive_lowest_pn(void *wpa_s, u32 channel,
-				      u8 an, u32 *lowest_pn)
+static int wpas_get_receive_lowest_pn(void *wpa_s, struct receive_sa *sa)
 {
-	return wpa_drv_get_receive_lowest_pn(wpa_s, channel, an, lowest_pn);
+	return wpa_drv_get_receive_lowest_pn(wpa_s, sa);
 }
 
 
-static int wpas_get_transmit_next_pn(void *wpa_s, u32 channel,
-				      u8 an, u32 *next_pn)
+static int wpas_get_transmit_next_pn(void *wpa_s, struct transmit_sa *sa)
 {
-	return wpa_drv_get_transmit_next_pn(wpa_s, channel, an, next_pn);
+	return wpa_drv_get_transmit_next_pn(wpa_s, sa);
 }
 
 
-static int wpas_set_transmit_next_pn(void *wpa_s, u32 channel,
-				      u8 an, u32 next_pn)
+static int wpas_set_transmit_next_pn(void *wpa_s, struct transmit_sa *sa)
 {
-	return wpa_drv_set_transmit_next_pn(wpa_s, channel, an, next_pn);
+	return wpa_drv_set_transmit_next_pn(wpa_s, sa);
 }
 
 
-static int wpas_get_available_receive_sc(void *wpa_s, u32 *channel)
+static int wpas_set_receive_lowest_pn(void *wpa_s, struct receive_sa *sa)
 {
-	return wpa_drv_get_available_receive_sc(wpa_s, channel);
+	return wpa_drv_set_receive_lowest_pn(wpa_s, sa);
 }
 
 
@@ -103,83 +112,79 @@ static unsigned int conf_offset_val(enum confidentiality_offset co)
 }
 
 
-static int wpas_create_receive_sc(void *wpa_s, u32 channel,
-				  struct ieee802_1x_mka_sci *sci,
+static int wpas_create_receive_sc(void *wpa_s, struct receive_sc *sc,
 				  enum validate_frames vf,
 				  enum confidentiality_offset co)
 {
-	return wpa_drv_create_receive_sc(wpa_s, channel, sci->addr,
-					 be_to_host16(sci->port),
-					 conf_offset_val(co), vf);
+	return wpa_drv_create_receive_sc(wpa_s, sc, conf_offset_val(co), vf);
 }
 
 
-static int wpas_delete_receive_sc(void *wpa_s, u32 channel)
+static int wpas_delete_receive_sc(void *wpa_s, struct receive_sc *sc)
 {
-	return wpa_drv_delete_receive_sc(wpa_s, channel);
+	return wpa_drv_delete_receive_sc(wpa_s, sc);
 }
 
 
-static int wpas_create_receive_sa(void *wpa_s, u32 channel, u8 an,
-				  u32 lowest_pn, const u8 *sak)
+static int wpas_create_receive_sa(void *wpa_s, struct receive_sa *sa)
 {
-	return wpa_drv_create_receive_sa(wpa_s, channel, an, lowest_pn, sak);
+	return wpa_drv_create_receive_sa(wpa_s, sa);
 }
 
 
-static int wpas_enable_receive_sa(void *wpa_s, u32 channel, u8 an)
+static int wpas_delete_receive_sa(void *wpa_s, struct receive_sa *sa)
 {
-	return wpa_drv_enable_receive_sa(wpa_s, channel, an);
+	return wpa_drv_delete_receive_sa(wpa_s, sa);
 }
 
 
-static int wpas_disable_receive_sa(void *wpa_s, u32 channel, u8 an)
+static int wpas_enable_receive_sa(void *wpa_s, struct receive_sa *sa)
 {
-	return wpa_drv_disable_receive_sa(wpa_s, channel, an);
+	return wpa_drv_enable_receive_sa(wpa_s, sa);
 }
 
 
-static int wpas_get_available_transmit_sc(void *wpa_s, u32 *channel)
+static int wpas_disable_receive_sa(void *wpa_s, struct receive_sa *sa)
 {
-	return wpa_drv_get_available_transmit_sc(wpa_s, channel);
+	return wpa_drv_disable_receive_sa(wpa_s, sa);
 }
 
 
 static int
-wpas_create_transmit_sc(void *wpa_s, u32 channel,
-			const struct ieee802_1x_mka_sci *sci,
+wpas_create_transmit_sc(void *wpa_s, struct transmit_sc *sc,
 			enum confidentiality_offset co)
 {
-	return wpa_drv_create_transmit_sc(wpa_s, channel, sci->addr,
-					  be_to_host16(sci->port),
-					  conf_offset_val(co));
+	return wpa_drv_create_transmit_sc(wpa_s, sc, conf_offset_val(co));
 }
 
 
-static int wpas_delete_transmit_sc(void *wpa_s, u32 channel)
+static int wpas_delete_transmit_sc(void *wpa_s, struct transmit_sc *sc)
 {
-	return wpa_drv_delete_transmit_sc(wpa_s, channel);
+	return wpa_drv_delete_transmit_sc(wpa_s, sc);
 }
 
 
-static int wpas_create_transmit_sa(void *wpa_s, u32 channel, u8 an,
-				   u32 next_pn, Boolean confidentiality,
-				   const u8 *sak)
+static int wpas_create_transmit_sa(void *wpa_s, struct transmit_sa *sa)
 {
-	return wpa_drv_create_transmit_sa(wpa_s, channel, an, next_pn,
-					  confidentiality, sak);
+	return wpa_drv_create_transmit_sa(wpa_s, sa);
 }
 
 
-static int wpas_enable_transmit_sa(void *wpa_s, u32 channel, u8 an)
+static int wpas_delete_transmit_sa(void *wpa_s, struct transmit_sa *sa)
 {
-	return wpa_drv_enable_transmit_sa(wpa_s, channel, an);
+	return wpa_drv_delete_transmit_sa(wpa_s, sa);
 }
 
 
-static int wpas_disable_transmit_sa(void *wpa_s, u32 channel, u8 an)
+static int wpas_enable_transmit_sa(void *wpa_s, struct transmit_sa *sa)
 {
-	return wpa_drv_disable_transmit_sa(wpa_s, channel, an);
+	return wpa_drv_enable_transmit_sa(wpa_s, sa);
+}
+
+
+static int wpas_disable_transmit_sa(void *wpa_s, struct transmit_sa *sa)
+{
+	return wpa_drv_disable_transmit_sa(wpa_s, sa);
 }
 
 
@@ -194,7 +199,14 @@ int ieee802_1x_alloc_kay_sm(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
 	if (!ssid || ssid->macsec_policy == 0)
 		return 0;
 
-	policy = ssid->macsec_policy == 1 ? SHOULD_SECURE : DO_NOT_SECURE;
+	if (ssid->macsec_policy == 1) {
+		if (ssid->macsec_integ_only == 1)
+			policy = SHOULD_SECURE;
+		else
+			policy = SHOULD_ENCRYPT;
+	} else {
+		policy = DO_NOT_SECURE;
+	}
 
 	kay_ctx = os_zalloc(sizeof(*kay_ctx));
 	if (!kay_ctx)
@@ -204,32 +216,36 @@ int ieee802_1x_alloc_kay_sm(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid)
 
 	kay_ctx->macsec_init = wpas_macsec_init;
 	kay_ctx->macsec_deinit = wpas_macsec_deinit;
+	kay_ctx->macsec_get_capability = wpas_macsec_get_capability;
 	kay_ctx->enable_protect_frames = wpas_enable_protect_frames;
+	kay_ctx->enable_encrypt = wpas_enable_encrypt;
 	kay_ctx->set_replay_protect = wpas_set_replay_protect;
 	kay_ctx->set_current_cipher_suite = wpas_set_current_cipher_suite;
 	kay_ctx->enable_controlled_port = wpas_enable_controlled_port;
 	kay_ctx->get_receive_lowest_pn = wpas_get_receive_lowest_pn;
 	kay_ctx->get_transmit_next_pn = wpas_get_transmit_next_pn;
 	kay_ctx->set_transmit_next_pn = wpas_set_transmit_next_pn;
-	kay_ctx->get_available_receive_sc = wpas_get_available_receive_sc;
+	kay_ctx->set_receive_lowest_pn = wpas_set_receive_lowest_pn;
 	kay_ctx->create_receive_sc = wpas_create_receive_sc;
 	kay_ctx->delete_receive_sc = wpas_delete_receive_sc;
 	kay_ctx->create_receive_sa = wpas_create_receive_sa;
+	kay_ctx->delete_receive_sa = wpas_delete_receive_sa;
 	kay_ctx->enable_receive_sa = wpas_enable_receive_sa;
 	kay_ctx->disable_receive_sa = wpas_disable_receive_sa;
-	kay_ctx->get_available_transmit_sc = wpas_get_available_transmit_sc;
 	kay_ctx->create_transmit_sc = wpas_create_transmit_sc;
 	kay_ctx->delete_transmit_sc = wpas_delete_transmit_sc;
 	kay_ctx->create_transmit_sa = wpas_create_transmit_sa;
+	kay_ctx->delete_transmit_sa = wpas_delete_transmit_sa;
 	kay_ctx->enable_transmit_sa = wpas_enable_transmit_sa;
 	kay_ctx->disable_transmit_sa = wpas_disable_transmit_sa;
 
-	res = ieee802_1x_kay_init(kay_ctx, policy, wpa_s->ifname,
+	res = ieee802_1x_kay_init(kay_ctx, policy, ssid->macsec_replay_protect,
+				  ssid->macsec_replay_window, ssid->macsec_port,
+				  ssid->mka_priority, wpa_s->ifname,
 				  wpa_s->own_addr);
-	if (res == NULL) {
-		os_free(kay_ctx);
+	/* ieee802_1x_kay_init() frees kay_ctx on failure */
+	if (res == NULL)
 		return -1;
-	}
 
 	wpa_s->kay = res;
 
@@ -260,7 +276,7 @@ static int ieee802_1x_auth_get_session_id(struct wpa_supplicant *wpa_s,
 		return -1;
 	}
 
-	need_len = 1 + 2 * SSL3_RANDOM_SIZE;
+	need_len = 1 + 2 * 32 /* random size */;
 	if (need_len > id_len) {
 		wpa_printf(MSG_DEBUG, "EAP Session-Id not long enough");
 		return -1;
@@ -341,8 +357,8 @@ void * ieee802_1x_notify_create_actor(struct wpa_supplicant *wpa_s,
 
 	/* Derive CAK from MSK */
 	cak->len = DEFAULT_KEY_LEN;
-	if (ieee802_1x_cak_128bits_aes_cmac(msk->key, wpa_s->own_addr,
-					    peer_addr, cak->key)) {
+	if (ieee802_1x_cak_aes_cmac(msk->key, msk->len, wpa_s->own_addr,
+				    peer_addr, cak->key, cak->len)) {
 		wpa_printf(MSG_ERROR,
 			   "IEEE 802.1X: Deriving CAK failed");
 		goto fail;
@@ -351,9 +367,8 @@ void * ieee802_1x_notify_create_actor(struct wpa_supplicant *wpa_s,
 
 	/* Derive CKN from MSK */
 	ckn->len = DEFAULT_CKN_LEN;
-	if (ieee802_1x_ckn_128bits_aes_cmac(msk->key, wpa_s->own_addr,
-					    peer_addr, sid, sid_len,
-					    ckn->name)) {
+	if (ieee802_1x_ckn_aes_cmac(msk->key, msk->len, wpa_s->own_addr,
+				    peer_addr, sid, sid_len, ckn->name)) {
 		wpa_printf(MSG_ERROR,
 			   "IEEE 802.1X: Deriving CKN failed");
 		goto fail;
@@ -375,5 +390,51 @@ fail:
 		os_free(cak);
 	}
 
+	return res;
+}
+
+
+void * ieee802_1x_create_preshared_mka(struct wpa_supplicant *wpa_s,
+				       struct wpa_ssid *ssid)
+{
+	struct mka_key *cak;
+	struct mka_key_name *ckn;
+	void *res = NULL;
+
+	if ((ssid->mka_psk_set & MKA_PSK_SET) != MKA_PSK_SET)
+		goto end;
+
+	ckn = os_zalloc(sizeof(*ckn));
+	if (!ckn)
+		goto end;
+
+	cak = os_zalloc(sizeof(*cak));
+	if (!cak)
+		goto free_ckn;
+
+	if (ieee802_1x_alloc_kay_sm(wpa_s, ssid) < 0 || !wpa_s->kay)
+		goto free_cak;
+
+	if (wpa_s->kay->policy == DO_NOT_SECURE)
+		goto dealloc;
+
+	cak->len = ssid->mka_cak_len;
+	os_memcpy(cak->key, ssid->mka_cak, cak->len);
+
+	ckn->len = ssid->mka_ckn_len;
+	os_memcpy(ckn->name, ssid->mka_ckn, ckn->len);
+
+	res = ieee802_1x_kay_create_mka(wpa_s->kay, ckn, cak, 0, PSK, FALSE);
+	if (res)
+		goto free_cak;
+
+dealloc:
+	/* Failed to create MKA */
+	ieee802_1x_dealloc_kay_sm(wpa_s);
+free_cak:
+	os_free(cak);
+free_ckn:
+	os_free(ckn);
+end:
 	return res;
 }

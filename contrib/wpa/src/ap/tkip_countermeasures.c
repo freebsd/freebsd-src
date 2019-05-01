@@ -71,6 +71,11 @@ int michael_mic_failure(struct hostapd_data *hapd, const u8 *addr, int local)
 	struct os_reltime now;
 	int ret = 0;
 
+	hostapd_logger(hapd, addr, HOSTAPD_MODULE_IEEE80211,
+		       HOSTAPD_LEVEL_INFO,
+		       "Michael MIC failure detected in received frame%s",
+		       local ? " (local)" : "");
+
 	if (addr && local) {
 		struct sta_info *sta = ap_get_sta(hapd, addr);
 		if (sta != NULL) {

@@ -5,9 +5,9 @@ Wants=network.target
 
 [Service]
 Type=dbus
-BusName=@DBUS_INTERFACE@
+BusName=fi.w1.wpa_supplicant1
 ExecStart=@BINDIR@/wpa_supplicant -u
 
 [Install]
 WantedBy=multi-user.target
-Alias=dbus-@DBUS_INTERFACE@.service
+Alias=dbus-fi.w1.wpa_supplicant1.service

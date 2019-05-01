@@ -26,7 +26,7 @@ summary_file = None
 success_file = None
 
 def summary(txt):
-    print txt
+    print(txt)
     if summary_file:
         with open(summary_file, 'a') as f:
             f.write(txt + "\n")
@@ -42,19 +42,19 @@ def wpas_connect():
     if os.path.isdir(wpas_ctrl):
         try:
             ifaces = [os.path.join(wpas_ctrl, i) for i in os.listdir(wpas_ctrl)]
-        except OSError, error:
-            print "Could not find hostapd: ", error
+        except OSError as error:
+            print("Could not find hostapd: ", error)
             return None
 
     if len(ifaces) < 1:
-        print "No hostapd control interface found"
+        print("No hostapd control interface found")
         return None
 
     for ctrl in ifaces:
         try:
             wpas = wpaspy.Ctrl(ctrl)
             return wpas
-        except Exception, e:
+        except Exception as e:
             pass
     return None
 
@@ -133,23 +133,23 @@ class HandoverServer(nfc.handover.HandoverServer):
     def process_request(self, request):
         summary("HandoverServer - request received")
         try:
-            print "Parsed handover request: " + request.pretty()
-        except Exception, e:
-            print e
-        print str(request).encode("hex")
+            print("Parsed handover request: " + request.pretty())
+        except Exception as e:
+            print(e)
+        print(str(request).encode("hex"))
 
         sel = nfc.ndef.HandoverSelectMessage(version="1.2")
 
         for carrier in request.carriers:
-            print "Remote carrier type: " + carrier.type
+            print("Remote carrier type: " + carrier.type)
             if carrier.type == "application/vnd.wfa.wsc":
                 summary("WPS carrier type match - add WPS carrier record")
                 data = wpas_get_handover_sel()
                 if data is None:
                     summary("Could not get handover select carrier record from hostapd")
                     continue
-                print "Handover select carrier record from hostapd:"
-                print data.encode("hex")
+                print("Handover select carrier record from hostapd:")
+                print(data.encode("hex"))
                 if "OK" in wpas_report_handover(carrier.record, data):
                     success_report("Handover reported successfully")
                 else:
@@ -158,12 +158,12 @@ class HandoverServer(nfc.handover.HandoverServer):
                 message = nfc.ndef.Message(data);
                 sel.add_carrier(message[0], "active", message[1:])
 
-        print "Handover select:"
+        print("Handover select:")
         try:
-            print sel.pretty()
-        except Exception, e:
-            print e
-        print str(sel).encode("hex")
+            print(sel.pretty())
+        except Exception as e:
+            print(e)
+        print(str(sel).encode("hex"))
 
         summary("Sending handover select")
         self.success = True
@@ -174,7 +174,7 @@ def wps_tag_read(tag):
     success = False
     if len(tag.ndef.message):
         for record in tag.ndef.message:
-            print "record type " + record.type
+            print("record type " + record.type)
             if record.type == "application/vnd.wfa.wsc":
                 summary("WPS tag - send to hostapd")
                 success = wpas_tag_read(tag.ndef.message)
@@ -193,7 +193,7 @@ def rdwr_connected_write(tag):
     global write_data
     tag.ndef.message = str(write_data)
     success_report("Tag write succeeded")
-    print "Done - remove tag"
+    print("Done - remove tag")
     global only_one
     if only_one:
         global continue_loop
@@ -211,7 +211,7 @@ def wps_write_config_tag(clf, wait_remove=True):
         summary("Could not get WPS config token from hostapd")
         return
 
-    print "Touch an NFC tag"
+    print("Touch an NFC tag")
     clf.connect(rdwr={'on-connect': rdwr_connected_write})
 
 
@@ -224,7 +224,7 @@ def wps_write_password_tag(clf, wait_remove=True):
         summary("Could not get WPS password token from hostapd")
         return
 
-    print "Touch an NFC tag"
+    print("Touch an NFC tag")
     clf.connect(rdwr={'on-connect': rdwr_connected_write})
 
 
@@ -233,11 +233,11 @@ def rdwr_connected(tag):
     summary("Tag connected: " + str(tag))
 
     if tag.ndef:
-        print "NDEF tag: " + tag.type
+        print("NDEF tag: " + tag.type)
         try:
-            print tag.ndef.message.pretty()
-        except Exception, e:
-            print e
+            print(tag.ndef.message.pretty())
+        except Exception as e:
+            print(e)
         success = wps_tag_read(tag)
         if only_one and success:
             global continue_loop
@@ -250,13 +250,13 @@ def rdwr_connected(tag):
 
 
 def llcp_startup(clf, llc):
-    print "Start LLCP server"
+    print("Start LLCP server")
     global srv
     srv = HandoverServer(llc)
     return llc
 
 def llcp_connected(llc):
-    print "P2P LLCP connected"
+    print("P2P LLCP connected")
     global wait_connection
     wait_connection = False
     global srv
@@ -304,7 +304,7 @@ def main():
 
     try:
         if not clf.open("usb"):
-            print "Could not open connection with an NFC device"
+            print("Could not open connection with an NFC device")
             raise SystemExit
 
         if args.command == "write-config":
@@ -317,15 +317,15 @@ def main():
 
         global continue_loop
         while continue_loop:
-            print "Waiting for a tag or peer to be touched"
+            print("Waiting for a tag or peer to be touched")
             wait_connection = True
             try:
                 if not clf.connect(rdwr={'on-connect': rdwr_connected},
                                    llcp={'on-startup': llcp_startup,
                                          'on-connect': llcp_connected}):
                     break
-            except Exception, e:
-                print "clf.connect failed"
+            except Exception as e:
+                print("clf.connect failed")
 
             global srv
             if only_one and srv and srv.success:

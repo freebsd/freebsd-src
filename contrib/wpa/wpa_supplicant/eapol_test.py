@@ -136,7 +136,7 @@ def main():
             results = res[i].get(False)
         except:
             results = "N/A"
-        print "%d: %s" % (i, results)
+        print("%d: %s" % (i, results))
 
 if __name__ == "__main__":
     main()

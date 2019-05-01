@@ -1151,7 +1151,7 @@ static const u8 dh_group24_order[] = {
 { id, dh_group ## id ## _generator, sizeof(dh_group ## id ## _generator), \
 dh_group ## id ## _prime, sizeof(dh_group ## id ## _prime), \
 dh_group ## id ## _order, sizeof(dh_group ## id ## _order), safe }
-		
+
 
 static const struct dh_group dh_groups[] = {
 	DH_GROUP(5, 1),
@@ -1203,19 +1203,6 @@ struct wpabuf * dh_init(const struct dh_group *dh, struct wpabuf **priv)
 	if (*priv == NULL)
 		return NULL;
 
-	if (random_get_bytes(wpabuf_put(*priv, dh->prime_len), dh->prime_len))
-	{
-		wpabuf_clear_free(*priv);
-		*priv = NULL;
-		return NULL;
-	}
-
-	if (os_memcmp(wpabuf_head(*priv), dh->prime, dh->prime_len) > 0) {
-		/* Make sure private value is smaller than prime */
-		*(wpabuf_mhead_u8(*priv)) = 0;
-	}
-	wpa_hexdump_buf_key(MSG_DEBUG, "DH: private value", *priv);
-
 	pv_len = dh->prime_len;
 	pv = wpabuf_alloc(pv_len);
 	if (pv == NULL) {
@@ -1223,17 +1210,17 @@ struct wpabuf * dh_init(const struct dh_group *dh, struct wpabuf **priv)
 		*priv = NULL;
 		return NULL;
 	}
-	if (crypto_mod_exp(dh->generator, dh->generator_len,
-			   wpabuf_head(*priv), wpabuf_len(*priv),
-			   dh->prime, dh->prime_len, wpabuf_mhead(pv),
-			   &pv_len) < 0) {
+	if (crypto_dh_init(*dh->generator, dh->prime, dh->prime_len,
+			   wpabuf_mhead(*priv), wpabuf_mhead(pv)) < 0) {
 		wpabuf_clear_free(pv);
-		wpa_printf(MSG_INFO, "DH: crypto_mod_exp failed");
+		wpa_printf(MSG_INFO, "DH: crypto_dh_init failed");
 		wpabuf_clear_free(*priv);
 		*priv = NULL;
 		return NULL;
 	}
-	wpabuf_put(pv, pv_len);
+	wpabuf_put(*priv, dh->prime_len);
+	wpabuf_put(pv, dh->prime_len);
+	wpa_hexdump_buf_key(MSG_DEBUG, "DH: private value", *priv);
 	wpa_hexdump_buf(MSG_DEBUG, "DH: public value", pv);
 
 	return pv;
@@ -1261,12 +1248,15 @@ struct wpabuf * dh_derive_shared(const struct wpabuf *peer_public,
 	shared = wpabuf_alloc(shared_len);
 	if (shared == NULL)
 		return NULL;
-	if (crypto_mod_exp(wpabuf_head(peer_public), wpabuf_len(peer_public),
-			   wpabuf_head(own_private), wpabuf_len(own_private),
-			   dh->prime, dh->prime_len,
-			   wpabuf_mhead(shared), &shared_len) < 0) {
+	if (crypto_dh_derive_secret(*dh->generator, dh->prime, dh->prime_len,
+				    dh->order, dh->order_len,
+				    wpabuf_head(own_private),
+				    wpabuf_len(own_private),
+				    wpabuf_head(peer_public),
+				    wpabuf_len(peer_public),
+				    wpabuf_mhead(shared), &shared_len) < 0) {
 		wpabuf_clear_free(shared);
-		wpa_printf(MSG_INFO, "DH: crypto_mod_exp failed");
+		wpa_printf(MSG_INFO, "DH: crypto_dh_derive_secret failed");
 		return NULL;
 	}
 	wpabuf_put(shared, shared_len);

@@ -963,6 +963,14 @@ _cleanobj_fast_depend_hack: .PHONY
 		rm -f ${OBJTOP}/usr.sbin/ntp/libntpevent/.depend.*; \
 	fi
 
+# 20181209  r341759 track migration across wpa update
+	@if [ -e "${OBJTOP}/usr.sbin/wpa/wpa_supplicant/.depend.rrm.o" ] && \
+	    egrep -q 'src/ap/rrm.c' \
+	    ${OBJTOP}/usr.sbin/wpa/wpa_supplicant/.depend.rrm.o; then \
+		echo "Removing stale wpa dependencies"; \
+		rm -f ${OBJTOP}/usr.sbin/wpa/*/.depend*; \
+	fi
+
 _worldtmp: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"

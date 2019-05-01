@@ -31,8 +31,8 @@ int generate_authenticator_response_pwhash(
 int nt_challenge_response(const u8 *challenge, const u8 *password,
 			  size_t password_len, u8 *response);
 
-void challenge_response(const u8 *challenge, const u8 *password_hash,
-			u8 *response);
+int challenge_response(const u8 *challenge, const u8 *password_hash,
+		       u8 *response);
 int challenge_hash(const u8 *peer_challenge, const u8 *auth_challenge,
 		   const u8 *username, size_t username_len, u8 *challenge);
 int nt_password_hash(const u8 *password, size_t password_len,
@@ -50,8 +50,8 @@ int __must_check new_password_encrypted_with_old_nt_password_hash(
 	const u8 *new_password, size_t new_password_len,
 	const u8 *old_password, size_t old_password_len,
 	u8 *encrypted_pw_block);
-void nt_password_hash_encrypted_with_block(const u8 *password_hash,
-					   const u8 *block, u8 *cypher);
+int nt_password_hash_encrypted_with_block(const u8 *password_hash,
+					  const u8 *block, u8 *cypher);
 int old_nt_password_hash_encrypted_with_new_nt_password_hash(
 	const u8 *new_password, size_t new_password_len,
 	const u8 *old_password, size_t old_password_len,

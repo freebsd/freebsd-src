@@ -113,17 +113,53 @@ void sockaddr_print(int level, const char *msg, struct sockaddr_storage *sock,
 }
 
 
+static int ctrl_set_events(struct wpa_ctrl_dst *dst, const char *input)
+{
+	const char *value;
+	int val;
+
+	if (!input)
+		return 0;
+
+	value = os_strchr(input, '=');
+	if (!value)
+		return -1;
+	value++;
+	val = atoi(value);
+	if (val < 0 || val > 1)
+		return -1;
+
+	if (str_starts(input, "probe_rx_events=")) {
+		if (val)
+			dst->events |= WPA_EVENT_RX_PROBE_REQUEST;
+		else
+			dst->events &= ~WPA_EVENT_RX_PROBE_REQUEST;
+	}
+
+	return 0;
+}
+
+
 int ctrl_iface_attach(struct dl_list *ctrl_dst, struct sockaddr_storage *from,
-		      socklen_t fromlen)
+		      socklen_t fromlen, const char *input)
 {
 	struct wpa_ctrl_dst *dst;
 
+	/* Update event registration if already attached */
+	dl_list_for_each(dst, ctrl_dst, struct wpa_ctrl_dst, list) {
+		if (!sockaddr_compare(from, fromlen,
+				      &dst->addr, dst->addrlen))
+			return ctrl_set_events(dst, input);
+	}
+
+	/* New attachment */
 	dst = os_zalloc(sizeof(*dst));
 	if (dst == NULL)
 		return -1;
 	os_memcpy(&dst->addr, from, fromlen);
 	dst->addrlen = fromlen;
 	dst->debug_level = MSG_INFO;
+	ctrl_set_events(dst, input);
 	dl_list_add(ctrl_dst, &dst->list);
 
 	sockaddr_print(MSG_DEBUG, "CTRL_IFACE monitor attached", from, fromlen);

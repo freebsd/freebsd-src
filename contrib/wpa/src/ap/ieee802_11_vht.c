@@ -334,7 +334,7 @@ u16 copy_sta_vht_capab(struct hostapd_data *hapd, struct sta_info *sta,
 {
 	/* Disable VHT caps for STAs associated to no-VHT BSSes. */
 	if (!vht_capab ||
-	    hapd->conf->disable_11ac ||
+	    !hapd->iconf->ieee80211ac || hapd->conf->disable_11ac ||
 	    !check_valid_vht_mcs(hapd->iface->current_mode, vht_capab)) {
 		sta->flags &= ~WLAN_STA_VHT;
 		os_free(sta->vht_capabilities);
@@ -352,6 +352,29 @@ u16 copy_sta_vht_capab(struct hostapd_data *hapd, struct sta_info *sta,
 	sta->flags |= WLAN_STA_VHT;
 	os_memcpy(sta->vht_capabilities, vht_capab,
 		  sizeof(struct ieee80211_vht_capabilities));
+
+	return WLAN_STATUS_SUCCESS;
+}
+
+
+u16 copy_sta_vht_oper(struct hostapd_data *hapd, struct sta_info *sta,
+		      const u8 *vht_oper)
+{
+	if (!vht_oper) {
+		os_free(sta->vht_operation);
+		sta->vht_operation = NULL;
+		return WLAN_STATUS_SUCCESS;
+	}
+
+	if (!sta->vht_operation) {
+		sta->vht_operation =
+			os_zalloc(sizeof(struct ieee80211_vht_operation));
+		if (!sta->vht_operation)
+			return WLAN_STATUS_UNSPECIFIED_FAILURE;
+	}
+
+	os_memcpy(sta->vht_operation, vht_oper,
+		  sizeof(struct ieee80211_vht_operation));
 
 	return WLAN_STATUS_SUCCESS;
 }

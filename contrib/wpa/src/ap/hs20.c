@@ -11,9 +11,11 @@
 
 #include "common.h"
 #include "common/ieee802_11_defs.h"
+#include "common/wpa_ctrl.h"
 #include "hostapd.h"
 #include "ap_config.h"
 #include "ap_drv_ops.h"
+#include "sta_info.h"
 #include "hs20.h"
 
 
@@ -23,17 +25,20 @@ u8 * hostapd_eid_hs20_indication(struct hostapd_data *hapd, u8 *eid)
 	if (!hapd->conf->hs20)
 		return eid;
 	*eid++ = WLAN_EID_VENDOR_SPECIFIC;
-	*eid++ = 7;
+	*eid++ = hapd->conf->hs20_release < 2 ? 5 : 7;
 	WPA_PUT_BE24(eid, OUI_WFA);
 	eid += 3;
 	*eid++ = HS20_INDICATION_OUI_TYPE;
-	conf = HS20_VERSION; /* Release Number */
-	conf |= HS20_ANQP_DOMAIN_ID_PRESENT;
+	conf = (hapd->conf->hs20_release - 1) << 4; /* Release Number */
+	if (hapd->conf->hs20_release >= 2)
+		conf |= HS20_ANQP_DOMAIN_ID_PRESENT;
 	if (hapd->conf->disable_dgaf)
 		conf |= HS20_DGAF_DISABLED;
 	*eid++ = conf;
-	WPA_PUT_LE16(eid, hapd->conf->anqp_domain_id);
-	eid += 2;
+	if (hapd->conf->hs20_release >= 2) {
+		WPA_PUT_LE16(eid, hapd->conf->anqp_domain_id);
+		eid += 2;
+	}
 
 	return eid;
 }
@@ -82,6 +87,10 @@ u8 * hostapd_eid_osen(struct hostapd_data *hapd, u8 *eid)
 			capab |= WPA_CAPABILITY_MFPR;
 	}
 #endif /* CONFIG_IEEE80211W */
+#ifdef CONFIG_OCV
+	if (hapd->conf->ocv)
+		capab |= WPA_CAPABILITY_OCVC;
+#endif /* CONFIG_OCV */
 	WPA_PUT_LE16(eid, capab);
 	eid += 2;
 
@@ -174,4 +183,73 @@ int hs20_send_wnm_notification_deauth_req(struct hostapd_data *hapd,
 	wpabuf_free(buf);
 
 	return ret;
+}
+
+
+int hs20_send_wnm_notification_t_c(struct hostapd_data *hapd,
+				   const u8 *addr, const char *url)
+{
+	struct wpabuf *buf;
+	int ret;
+	size_t url_len;
+
+	if (!url) {
+		wpa_printf(MSG_INFO, "HS 2.0: No T&C Server URL available");
+		return -1;
+	}
+
+	url_len = os_strlen(url);
+	if (5 + url_len > 255) {
+		wpa_printf(MSG_INFO,
+			   "HS 2.0: Too long T&C Server URL for WNM-Notification: '%s'",
+			   url);
+		return -1;
+	}
+
+	buf = wpabuf_alloc(4 + 7 + url_len);
+	if (!buf)
+		return -1;
+
+	wpabuf_put_u8(buf, WLAN_ACTION_WNM);
+	wpabuf_put_u8(buf, WNM_NOTIFICATION_REQ);
+	wpabuf_put_u8(buf, 1); /* Dialog token */
+	wpabuf_put_u8(buf, 1); /* Type - 1 reserved for WFA */
+
+	/* Terms and Conditions Acceptance subelement */
+	wpabuf_put_u8(buf, WLAN_EID_VENDOR_SPECIFIC);
+	wpabuf_put_u8(buf, 4 + 1 + url_len);
+	wpabuf_put_be24(buf, OUI_WFA);
+	wpabuf_put_u8(buf, HS20_WNM_T_C_ACCEPTANCE);
+	wpabuf_put_u8(buf, url_len);
+	wpabuf_put_str(buf, url);
+
+	ret = hostapd_drv_send_action(hapd, hapd->iface->freq, 0, addr,
+				      wpabuf_head(buf), wpabuf_len(buf));
+
+	wpabuf_free(buf);
+
+	return ret;
+}
+
+
+void hs20_t_c_filtering(struct hostapd_data *hapd, struct sta_info *sta,
+			int enabled)
+{
+	if (enabled) {
+		wpa_printf(MSG_DEBUG,
+			   "HS 2.0: Terms and Conditions filtering required for "
+			   MACSTR, MAC2STR(sta->addr));
+		sta->hs20_t_c_filtering = 1;
+		/* TODO: Enable firewall filtering for the STA */
+		wpa_msg(hapd->msg_ctx, MSG_INFO, HS20_T_C_FILTERING_ADD MACSTR,
+			MAC2STR(sta->addr));
+	} else {
+		wpa_printf(MSG_DEBUG,
+			   "HS 2.0: Terms and Conditions filtering not required for "
+			   MACSTR, MAC2STR(sta->addr));
+		sta->hs20_t_c_filtering = 0;
+		/* TODO: Disable firewall filtering for the STA */
+		wpa_msg(hapd->msg_ctx, MSG_INFO,
+			HS20_T_C_FILTERING_REMOVE MACSTR, MAC2STR(sta->addr));
+	}
 }
