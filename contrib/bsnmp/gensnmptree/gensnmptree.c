@@ -110,7 +110,6 @@ static int debug;
 
 static const char usgtxt[] = "\
 Generate SNMP tables.\n\
-$Id$\n\
 usage: gensnmptree [-dEeFfhlt] [-I directory] [-i infile] [-p prefix]\n\
 	    [name]...\n\
 options:\n\
@@ -126,6 +125,37 @@ options:\n\
   -p prefix	prepend prefix to file and variable names\n\
   -t		generate a .def file\n\
 ";
+
+/**
+ * Program operation.
+ */
+enum op {
+	/** generate the tree */
+	OP_GEN,
+
+	/** extract OIDs */
+	OP_EXTRACT,
+
+	/** print the parsed tree */
+	OP_TREE,
+
+	/** extract enums */
+	OP_ENUMS,
+};
+
+/**
+ * Which functions to create.
+ */
+enum gen_funcs {
+	/** none */
+	GEN_FUNCS_NONE,
+
+	/** functions for header files */
+	GEN_FUNCS_H,
+
+	/** functions for C files */
+	GEN_FUNCS_C,
+};
 
 /*
  * A node in the OID tree
@@ -162,15 +192,18 @@ struct node {
 	    uint32_t	index;	/* index for table entry */
 	    char	*func;	/* function for tables */
 	    struct node_list subs;
+	    char	*subtypes[SNMP_INDEXES_MAX];
 	  }		entry;
 
 	  struct leaf {
 	    enum snmp_syntax syntax;	/* syntax for this leaf */
 	    char	*func;		/* function name */
+	    char	*subtype;	/* subtype */
 	  }		leaf;
 
 	  struct column {
 	    enum snmp_syntax syntax;	/* syntax for this column */
+	    char	*subtype;	/* subtype */
 	  }		column;
 	}		u;
 };
@@ -214,7 +247,7 @@ xalloc(size_t size)
 {
 	void *ptr;
 
-	if ((ptr = malloc(size)) == NULL)
+	if ((ptr = calloc(1, size)) == NULL)
 		err(1, "allocing %zu bytes", size);
 
 	return (ptr);
@@ -710,12 +743,14 @@ make_type(const char *s)
  * token.
  */
 static u_int
-parse_type(enum tok *tok, struct type *t, const char *vname)
+parse_type(enum tok *tok, struct type *t, const char *vname, char **subtype)
 {
 	u_int syntax;
 	struct enums *e;
 
 	syntax = val;
+	if (subtype != NULL)
+		*subtype = NULL;
 
 	if (*tok == TOK_ENUM || *tok == TOK_BITS) {
 		if (t == NULL && vname != NULL) {
@@ -759,6 +794,8 @@ parse_type(enum tok *tok, struct type *t, const char *vname)
 		if ((*tok = gettoken()) == '|') {
 			if (gettoken() != TOK_STR)
 				report("subtype expected after '|'");
+			if (subtype != NULL)
+				*subtype = savetok();
 			*tok = gettoken();
 		}
 	}
@@ -794,18 +831,21 @@ parse(enum tok tok)
 	if ((tok = gettoken()) == TOK_TYPE || tok == TOK_DEFTYPE ||
 	    tok == TOK_ENUM || tok == TOK_BITS) {
 		/* LEAF or COLUM */
-		u_int syntax = parse_type(&tok, NULL, node->name);
+		char *subtype;
+		u_int syntax = parse_type(&tok, NULL, node->name, &subtype);
 
 		if (tok == TOK_STR) {
 			/* LEAF */
 			node->type = NODE_LEAF;
 			node->u.leaf.func = savetok();
 			node->u.leaf.syntax = syntax;
+			node->u.leaf.subtype = subtype;
 			tok = gettoken();
 		} else {
 			/* COLUMN */
 			node->type = NODE_COLUMN;
 			node->u.column.syntax = syntax;
+			node->u.column.subtype = subtype;
 		}
 
 		while (tok != ')') {
@@ -825,9 +865,12 @@ parse(enum tok tok)
 		tok = gettoken();
 		while (tok == TOK_TYPE || tok == TOK_DEFTYPE ||
 		    tok == TOK_ENUM || tok == TOK_BITS) {
-			u_int syntax = parse_type(&tok, NULL, node->name);
-			if (index_count++ == SNMP_INDEXES_MAX)
+			char *subtype;
+			u_int syntax = parse_type(&tok, NULL, node->name,
+			    &subtype);
+			if (index_count == SNMP_INDEXES_MAX)
 				report("too many table indexes");
+			node->u.entry.subtypes[index_count++] = subtype;
 			node->u.entry.index |=
 			    syntax << (SNMP_INDEX_SHIFT * index_count);
 		}
@@ -882,7 +925,8 @@ parse_top(enum tok tok)
 		tok = gettoken();
 		t->is_enum = (tok == TOK_ENUM);
 		t->is_bits = (tok == TOK_BITS);
-		t->syntax = parse_type(&tok, t, NULL);
+
+		t->syntax = parse_type(&tok, t, NULL, NULL);
 		pushback(tok);
 
 		return (NULL);
@@ -903,7 +947,7 @@ parse_top(enum tok tok)
  * Generate the C-code table part for one node.
  */
 static void
-gen_node(FILE *fp, struct node *np, struct asn_oid *oid, u_int idx,
+gen_node(FILE *fp, const struct node *np, struct asn_oid *oid, u_int idx,
     const char *func)
 {
 	u_int n;
@@ -1008,7 +1052,7 @@ gen_node(FILE *fp, struct node *np, struct asn_oid *oid, u_int idx,
  * Generate the header file with the function declarations.
  */
 static void
-gen_header(FILE *fp, struct node *np, u_int oidlen, const char *func)
+gen_header(FILE *fp, const struct node *np, u_int oidlen, const char *func)
 {
 	char f[MAXSTR + 4];
 	struct node *sub;
@@ -1058,7 +1102,7 @@ gen_header(FILE *fp, struct node *np, u_int oidlen, const char *func)
  * Generate the OID table.
  */
 static void
-gen_table(FILE *fp, struct node *node)
+gen_table(FILE *fp, const struct node *node)
 {
 	struct asn_oid oid;
 
@@ -1067,7 +1111,6 @@ gen_table(FILE *fp, struct node *node)
 #ifdef HAVE_STDINT_H
 	fprintf(fp, "#include <stdint.h>\n");
 #endif
-	fprintf(fp, "#include <string.h>\n");
 	if (localincs) {
 		fprintf(fp, "#include \"asn1.h\"\n");
 		fprintf(fp, "#include \"snmp.h\"\n");
@@ -1118,6 +1161,8 @@ gen_tree(const struct node *np, int level)
 
 	  case NODE_LEAF:
 		print_syntax(np->u.leaf.syntax);
+		if (np->u.leaf.subtype != NULL)
+			printf(" | %s", np->u.leaf.subtype);
 		printf(" %s%s%s)\n", np->u.leaf.func,
 		    (np->flags & FL_GET) ? " GET" : "",
 		    (np->flags & FL_SET) ? " SET" : "");
@@ -1137,8 +1182,11 @@ gen_tree(const struct node *np, int level)
 	  case NODE_ENTRY:
 		printf(" :");
 
-		for (i = 0; i < SNMP_INDEX_COUNT(np->u.entry.index); i++)
+		for (i = 0; i < SNMP_INDEX_COUNT(np->u.entry.index); i++) {
 			print_syntax(SNMP_INDEX(np->u.entry.index, i));
+			if (np->u.entry.subtypes[i] != NULL)
+				printf(" | %s", np->u.entry.subtypes[i]);
+		}
 		printf(" %s\n", np->u.entry.func);
 		TAILQ_FOREACH(sp, &np->u.entry.subs, link)
 			gen_tree(sp, level + 1);
@@ -1147,6 +1195,8 @@ gen_tree(const struct node *np, int level)
 
 	  case NODE_COLUMN:
 		print_syntax(np->u.column.syntax);
+		if (np->u.column.subtype != NULL)
+			printf(" | %s", np->u.column.subtype);
 		printf("%s%s)\n", (np->flags & FL_GET) ? " GET" : "",
 		    (np->flags & FL_SET) ? " SET" : "");
 		break;
@@ -1194,15 +1244,6 @@ extract(FILE *fp, const struct node *np, struct asn_oid *oid, const char *obj,
 	return (1);
 }
 
-/**
- * Extract the named OID.
- *
- * \param fp		file to extract to
- * \param root		root of the tree
- * \param object	name of the object to extract
- *
- * \return 0 on success, -1 if the object was not found
- */
 static int
 gen_extract(FILE *fp, const struct node *root, char *object)
 {
@@ -1391,45 +1432,6 @@ unminus(FILE *fp, const char *s)
 }
 
 /**
- * Generate a definition for the enum packed into a guard against multiple
- * definitions.
- *
- * \param fp	file to write definition to
- * \param t	type
- */
-static void
-gen_enum(FILE *fp, const struct type *t)
-{
-	const struct enums *e;
-	long min = LONG_MAX;
-
-	fprintf(fp, "\n");
-	fprintf(fp, "#ifndef %s_defined__\n", t->name);
-	fprintf(fp, "#define %s_defined__\n", t->name);
-	fprintf(fp, "/*\n");
-	fprintf(fp, " * From %s:%u\n", t->from_fname, t->from_lno);
-	fprintf(fp, " */\n");
-	fprintf(fp, "enum %s {\n", t->name);
-	TAILQ_FOREACH(e, &t->enums, link) {
-		fprintf(fp, "\t%s_", t->name);
-		unminus(fp, e->name);
-		fprintf(fp, " = %ld,\n", e->value);
-		if (e->value < min)
-			min = e->value;
-	}
-	fprintf(fp, "};\n");
-	fprintf(fp, "#define	STROFF_%s %ld\n", t->name, min);
-	fprintf(fp, "#define	STRING_%s \\\n", t->name);
-	TAILQ_FOREACH(e, &t->enums, link) {
-		fprintf(fp, "\t[%ld] = \"%s_", e->value - min, t->name);
-		unminus(fp, e->name);
-		fprintf(fp, "\",\\\n");
-	}
-	fprintf(fp, "\n");
-	fprintf(fp, "#endif /* %s_defined__ */\n", t->name);
-}
-
-/**
  * Generate helper functions for an enum.
  *
  * We always generate a switch statement for the isok function. The compiler
@@ -1494,6 +1496,54 @@ gen_enum_funcs(FILE *fp, const struct type *t, int ccode)
 }
 
 /**
+ * Generate a definition for the enum packed into a guard against multiple
+ * definitions.
+ *
+ * \param fp	file to write definition to
+ * \param t	type
+ * \param dof	generate functions too
+ */
+static void
+gen_enum(FILE *fp, const struct type *t, int dof)
+{
+	const struct enums *e;
+	long min = LONG_MAX;
+
+	fprintf(fp, "\n");
+	fprintf(fp, "#ifndef %s_defined__\n", t->name);
+	fprintf(fp, "#define %s_defined__\n", t->name);
+	fprintf(fp, "/*\n");
+	fprintf(fp, " * From %s:%u\n", t->from_fname, t->from_lno);
+	fprintf(fp, " */\n");
+	fprintf(fp, "enum %s {\n", t->name);
+	TAILQ_FOREACH(e, &t->enums, link) {
+		fprintf(fp, "\t%s_", t->name);
+		unminus(fp, e->name);
+		fprintf(fp, " = %ld,\n", e->value);
+		if (e->value < min)
+			min = e->value;
+	}
+	fprintf(fp, "};\n");
+	fprintf(fp, "#define	STROFF_%s %ld\n", t->name, min);
+	fprintf(fp, "#define	STRING_%s \\\n", t->name);
+	TAILQ_FOREACH(e, &t->enums, link) {
+		fprintf(fp, "\t[%ld] = \"%s_", e->value - min, t->name);
+		unminus(fp, e->name);
+		fprintf(fp, "\",\\\n");
+	}
+	fprintf(fp, "\n");
+	if (dof) {
+		fprintf(fp, "#ifdef SNMPENUM_FUNCS\n");
+		fprintf(fp, "\n");
+		gen_enum_funcs(fp, t, 0);
+		fprintf(fp, "\n");
+		fprintf(fp, "#endif\n");
+		fprintf(fp, "\n");
+	}
+	fprintf(fp, "#endif /* %s_defined__ */\n", t->name);
+}
+
+/**
  * Generate helper functions for an enum. This generates code for a c file.
  *
  * \param fp		file to write to
@@ -1529,6 +1579,16 @@ gen_all_enum_funcs(FILE *fp, int ccode)
 			gen_enum_funcs(fp, t, ccode);
 }
 
+static void
+gen_enums(FILE *fp, int dof)
+{
+	const struct type *t;
+
+	LIST_FOREACH(t, &types, link)
+		if (t->is_enum || t->is_bits)
+			gen_enum(fp, t, dof);
+}
+
 /**
  * Extract a given enum to the specified file and optionally generate static
  * inline helper functions for them.
@@ -1546,9 +1606,7 @@ extract_enum(FILE *fp, const char *name, int gen_funcs)
 
 	LIST_FOREACH(t, &types, link)
 		if ((t->is_enum || t->is_bits) && strcmp(t->name, name) == 0) {
-			gen_enum(fp, t);
-			if (gen_funcs)
-				gen_enum_funcs(fp, t, 0);
+			gen_enum(fp, t, gen_funcs);
 			return (0);
 		}
 	return (-1);
@@ -1567,11 +1625,8 @@ extract_all_enums(FILE *fp, int gen_funcs)
 	const struct type *t;
 
 	LIST_FOREACH(t, &types, link)
-		if (t->is_enum || t->is_bits) {
-			gen_enum(fp, t);
-			if (gen_funcs)
-				gen_enum_funcs(fp, t, 0);
-		}
+		if (t->is_enum || t->is_bits)
+			gen_enum(fp, t, gen_funcs);
 }
 
 /**
@@ -1579,13 +1634,12 @@ extract_all_enums(FILE *fp, int gen_funcs)
  *
  * \param argc		number of arguments
  * \param argv		arguments (enum names)
- * \param gen_funcs_h	generate functions into the header file
- * \param gen_funcs_c	generate a .c file with functions
+ * \param gen_funcs	which functions to generate
  */
 static void
-make_enums(int argc, char *argv[], int gen_funcs_h, int gen_funcs_c)
+make_enums(int argc, char *argv[], enum gen_funcs gen_funcs)
 {
-	if (gen_funcs_c) {
+	if (gen_funcs == GEN_FUNCS_C) {
 		if (argc == 0)
 			gen_all_enum_funcs(stdout, 1);
 		else {
@@ -1595,30 +1649,58 @@ make_enums(int argc, char *argv[], int gen_funcs_h, int gen_funcs_c)
 		}
 	} else {
 		if (argc == 0)
-			extract_all_enums(stdout, gen_funcs_h);
+			extract_all_enums(stdout, gen_funcs == GEN_FUNCS_H);
 		else {
 			for (int i = 0; i < argc; i++)
-				if (extract_enum(stdout, argv[i], gen_funcs_h))
+				if (extract_enum(stdout, argv[i],
+				    gen_funcs == GEN_FUNCS_H))
 					errx(1, "enum not found: %s", argv[i]);
 		}
 	}
 }
 
+/**
+ * Produce the operation tables for the daemon or a module.
+ *
+ * \param root		tree root
+ * \param gen_funcs	generate enum funcs
+ */
+static void
+make_table(const struct node *root, int gen_funcs)
+{
+	FILE *fp;
+
+	char fname[MAXPATHLEN + 1];
+	sprintf(fname, "%stree.h", file_prefix);
+	if ((fp = fopen(fname, "w")) == NULL)
+		err(1, "%s: ", fname);
+	gen_header(fp, root, PREFIX_LEN, NULL);
+
+	fprintf(fp, "\n#ifdef SNMPTREE_TYPES\n");
+	gen_enums(fp, gen_funcs);
+	fprintf(fp, "\n#endif /* SNMPTREE_TYPES */\n\n");
+
+	fprintf(fp, "#define %sCTREE_SIZE %u\n", file_prefix, tree_size);
+	fprintf(fp, "extern const struct snmp_node %sctree[];\n", file_prefix);
+
+	fclose(fp);
+
+	sprintf(fname, "%stree.c", file_prefix);
+	if ((fp = fopen(fname, "w")) == NULL)
+		err(1, "%s: ", fname);
+	gen_table(fp, root);
+	fclose(fp);
+}
+
 int
 main(int argc, char *argv[])
 {
-	int do_extract = 0;
-	int do_tree = 0;
-	int do_enums = 0;
-	int gen_funcs_h = 0;
-	int gen_funcs_c = 0;
-	int opt;
-	struct node *root;
-	char fname[MAXPATHLEN + 1];
-	int tok;
-	FILE *fp;
+	enum op op = OP_GEN;
+	enum gen_funcs gen_funcs = GEN_FUNCS_NONE;
+
 	char *infile = NULL;
 
+	int opt;
 	while ((opt = getopt(argc, argv, "dEeFfhI:i:lp:t")) != EOF)
 		switch (opt) {
 
@@ -1627,19 +1709,29 @@ main(int argc, char *argv[])
 			break;
 
 		  case 'E':
-			do_enums = 1;
+			if (op != OP_GEN && op != OP_ENUMS)
+				errx(1, "-E conflicts with earlier options");
+			op = OP_ENUMS;
 			break;
 
 		  case 'e':
-			do_extract = 1;
+			if (op != OP_GEN && op != OP_EXTRACT)
+				errx(1, "-e conflicts with earlier options");
+			op = OP_EXTRACT;
 			break;
 
 		  case 'F':
-			gen_funcs_c = 1;
+			if (gen_funcs != GEN_FUNCS_NONE &&
+			    gen_funcs != GEN_FUNCS_C)
+				errx(1, "-F conflicts with -f");
+			gen_funcs = GEN_FUNCS_C;
 			break;
 
 		  case 'f':
-			gen_funcs_h = 1;
+			if (gen_funcs != GEN_FUNCS_NONE &&
+			    gen_funcs != GEN_FUNCS_H)
+				errx(1, "-f conflicts with -F");
+			gen_funcs = GEN_FUNCS_H;
 			break;
 
 		  case 'h':
@@ -1666,75 +1758,61 @@ main(int argc, char *argv[])
 			break;
 
 		  case 't':
-			do_tree = 1;
+			if (op != OP_GEN && op != OP_TREE)
+				errx(1, "-t conflicts with earlier options");
+			op = OP_TREE;
 			break;
 		}
 
-	if (do_extract + do_tree + do_enums > 1)
-		errx(1, "conflicting options -e/-t/-E");
-	if (!do_extract && !do_enums && argc != optind)
-		errx(1, "no arguments allowed");
-	if (do_extract && argc == optind)
-		errx(1, "no objects specified");
+	argc -= optind;
+	argv += optind;
 
-	if ((gen_funcs_h || gen_funcs_c) && (do_extract || do_tree))
-		errx(1, "-f and -F not allowed with -e or -t");
-	if (gen_funcs_c && !do_enums)
-		errx(1, "-F requires -E");
-	if (gen_funcs_h && gen_funcs_c)
-		errx(1, "-f and -F are mutually exclusive");
-
+	/* open input */
 	if (infile == NULL) {
 		input_new(stdin, NULL, "<stdin>");
 	} else {
+		FILE *fp;
 		if ((fp = fopen(infile, "r")) == NULL)
 			err(1, "%s", infile);
 		input_new(fp, NULL, infile);
 	}
 
-	root = parse_top(gettoken());
+	/* parse and check input */
+	struct node *root = parse_top(gettoken());
+
+	int tok;
 	while ((tok = gettoken()) != TOK_EOF)
 		merge(&root, parse_top(tok));
 
 	if (root)
 		check_tree(root);
 
-	if (do_extract) {
-		while (optind < argc) {
-			if (gen_extract(stdout, root, argv[optind]))
-				errx(1, "object not found: %s", argv[optind]);
-			optind++;
-		}
+	/* do what the user has requested */
+	switch (op) {
+
+	  case OP_EXTRACT:
+		if (argc == 0)
+			errx(1, "-e requires arguments");
+
+		for (int i = 0; i < argc; i++)
+			if (gen_extract(stdout, root, argv[i]))
+				errx(1, "object not found: %s", argv[i]);
 		return (0);
-	}
-	if (do_enums) {
-		make_enums(argc - optind, argv + optind,
-		    gen_funcs_h, gen_funcs_c);
+
+	  case OP_ENUMS:
+		make_enums(argc, argv, gen_funcs);
 		return (0);
-	}
-	if (do_tree) {
+
+	  case OP_TREE:
+		if (argc != 0)
+			errx(1, "-t allows no arguments");
 		gen_tree(root, 0);
 		return (0);
+
+	  case OP_GEN:
+		if (argc != 0)
+			errx(1, "tree generation allows no arguments");
+		make_table(root, gen_funcs == GEN_FUNCS_H);
+		return (0);
 	}
-	sprintf(fname, "%stree.h", file_prefix);
-	if ((fp = fopen(fname, "w")) == NULL)
-		err(1, "%s: ", fname);
-	gen_header(fp, root, PREFIX_LEN, NULL);
-
-	fprintf(fp, "\n#ifdef SNMPTREE_TYPES\n");
-	extract_all_enums(fp, gen_funcs_h);
-	fprintf(fp, "\n#endif /* SNMPTREE_TYPES */\n\n");
-
-	fprintf(fp, "#define %sCTREE_SIZE %u\n", file_prefix, tree_size);
-	fprintf(fp, "extern const struct snmp_node %sctree[];\n", file_prefix);
-
-	fclose(fp);
-
-	sprintf(fname, "%stree.c", file_prefix);
-	if ((fp = fopen(fname, "w")) == NULL)
-		err(1, "%s: ", fname);
-	gen_table(fp, root);
-	fclose(fp);
-
-	return (0);
 }

@@ -129,4 +129,8 @@ MLINKS+=	bsnmplib.3	snmp_value_copy.3
 MLINKS+=	bsnmplib.3	snmp_value_free.3
 MLINKS+=	bsnmplib.3	snmp_value_parse.3
 
+FILESGROUPS+=	DEFS
+DEFS=	tc.def
+DEFSDIR?=	${SHAREDIR}/snmp/defs
+
 .include <bsd.lib.mk>
