@@ -286,9 +286,9 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 		od->entrysize = part.end - part.start + 1;
 		slice = part.index;
 		if (ptable_gettype(od->table) == PTABLE_GPT) {
-			partition = 255;
+			partition = D_PARTISGPT;
 			goto out; /* Nothing more to do */
-		} else if (partition == 255) {
+		} else if (partition == D_PARTISGPT) {
 			/*
 			 * When we try to open GPT partition, but partition
 			 * table isn't GPT, reset d_partition value to -1
@@ -419,7 +419,7 @@ disk_parsedev(struct disk_devdesc *dev, const char *devspec, const char **path)
 			/* we don't support nested partitions on GPT */
 			if (*cp != '\0' && *cp != ':')
 				return (EINVAL);
-			partition = 255;
+			partition = D_PARTISGPT;
 		} else
 #endif
 #ifdef LOADER_MBR_SUPPORT
