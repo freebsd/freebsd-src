@@ -95,6 +95,65 @@ INCS+=		atf-c.h
 INCSDIR_atf-c.h= ${INCLUDEDIR}
 
 MAN=		atf-c.3
+MLINKS+=	atf-c.3 ATF_CHECK.3 \
+		atf-c.3 ATF_CHECK_MSG.3 \
+		atf-c.3 ATF_CHECK_EQ.3 \
+		atf-c.3 ATF_CHECK_EQ_MSG.3 \
+		atf-c.3 ATF_CHECK_MATCH.3 \
+		atf-c.3 ATF_CHECK_MATCH_MSG.3 \
+		atf-c.3 ATF_CHECK_STREQ.3 \
+		atf-c.3 ATF_CHECK_STREQ_MSG.3 \
+		atf-c.3 ATF_CHECK_ERRNO.3 \
+		atf-c.3 ATF_REQUIRE.3 \
+		atf-c.3 ATF_REQUIRE_MSG.3 \
+		atf-c.3 ATF_REQUIRE_EQ.3 \
+		atf-c.3 ATF_REQUIRE_EQ_MSG.3 \
+		atf-c.3 ATF_REQUIRE_MATCH.3 \
+		atf-c.3 ATF_REQUIRE_MATCH_MSG.3 \
+		atf-c.3 ATF_REQUIRE_STREQ.3 \
+		atf-c.3 ATF_REQUIRE_STREQ_MSG.3 \
+		atf-c.3 ATF_REQUIRE_ERRNO.3 \
+		atf-c.3 ATF_TC.3 \
+		atf-c.3 ATF_TC_BODY.3 \
+		atf-c.3 ATF_TC_BODY_NAME.3 \
+		atf-c.3 ATF_TC_CLEANUP.3 \
+		atf-c.3 ATF_TC_CLEANUP_NAME.3 \
+		atf-c.3 ATF_TC_HEAD.3 \
+		atf-c.3 ATF_TC_HEAD_NAME.3 \
+		atf-c.3 ATF_TC_NAME.3 \
+		atf-c.3 ATF_TC_WITH_CLEANUP.3 \
+		atf-c.3 ATF_TC_WITHOUT_HEAD.3 \
+		atf-c.3 ATF_TP_ADD_TC.3 \
+		atf-c.3 ATF_TP_ADD_TCS.3 \
+		atf-c.3 atf_tc_get_config_var.3 \
+		atf-c.3 atf_tc_get_config_var_wd.3 \
+		atf-c.3 atf_tc_get_config_var_as_bool.3 \
+		atf-c.3 atf_tc_get_config_var_as_bool_wd.3 \
+		atf-c.3 atf_tc_get_config_var_as_long.3 \
+		atf-c.3 atf_tc_get_config_var_as_long_wd.3 \
+		atf-c.3 atf_no_error.3 \
+		atf-c.3 atf_tc_expect_death.3 \
+		atf-c.3 atf_tc_expect_exit.3 \
+		atf-c.3 atf_tc_expect_fail.3 \
+		atf-c.3 atf_tc_expect_pass.3 \
+		atf-c.3 atf_tc_expect_signal.3 \
+		atf-c.3 atf_tc_expect_timeout.3 \
+		atf-c.3 atf_tc_fail.3 \
+		atf-c.3 atf_tc_fail_nonfatal.3 \
+		atf-c.3 atf_tc_pass.3 \
+		atf-c.3 atf_tc_skip.3 \
+		atf-c.3 atf_utils_cat_file.3 \
+		atf-c.3 atf_utils_compare_file.3 \
+		atf-c.3 atf_utils_copy_file.3 \
+		atf-c.3 atf_utils_create_file.3 \
+		atf-c.3 atf_utils_file_exists.3 \
+		atf-c.3 atf_utils_fork.3 \
+		atf-c.3 atf_utils_free_charpp.3 \
+		atf-c.3 atf_utils_grep_file.3 \
+		atf-c.3 atf_utils_grep_string.3 \
+		atf-c.3 atf_utils_readline.3 \
+		atf-c.3 atf_utils_redirect.3 \
+		atf-c.3 atf_utils_wait.3
 MLINKS+=	atf-c.3 atf-c-api.3  # Backwards compatibility.
 
 HAS_TESTS=
