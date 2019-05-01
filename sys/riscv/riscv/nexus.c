@@ -357,13 +357,17 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	bus_size_t psize;
 	bus_space_handle_t vaddr;
 
-	psize = (bus_size_t)rman_get_size(r);
-	vaddr = rman_get_bushandle(r);
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		psize = (bus_size_t)rman_get_size(r);
+		vaddr = rman_get_bushandle(r);
 
-	if (vaddr != 0) {
-		bus_space_unmap(&memmap_bus, vaddr, psize);
-		rman_set_virtual(r, NULL);
-		rman_set_bushandle(r, 0);
+		if (vaddr != 0) {
+			bus_space_unmap(&memmap_bus, vaddr, psize);
+			rman_set_virtual(r, NULL);
+			rman_set_bushandle(r, 0);
+		}
+	} else if (type == SYS_RES_IRQ) {
+		intr_deactivate_irq(child, r);
 	}
 
 	return (rman_deactivate_resource(r));
