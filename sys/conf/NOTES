@@ -376,6 +376,9 @@ options 	COMPAT_FREEBSD10
 # Enable FreeBSD11 compatibility syscalls
 options 	COMPAT_FREEBSD11
 
+# Enable FreeBSD12 compatibility syscalls
+options 	COMPAT_FREEBSD12
+
 # Enable Linux Kernel Programming Interface
 options 	COMPAT_LINUXKPI
 
