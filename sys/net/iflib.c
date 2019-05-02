@@ -4584,7 +4584,6 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	ctx->ifc_txrx = *scctx->isc_txrx;
 
 #ifdef INVARIANTS
-	MPASS(scctx->isc_capabilities);
 	if (scctx->isc_capabilities & IFCAP_TXCSUM)
 		MPASS(scctx->isc_tx_csum_flags);
 #endif
@@ -4825,7 +4824,6 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	ifmedia_set(&ctx->ifc_media, IFM_ETHER | IFM_AUTO);
 
 #ifdef INVARIANTS
-	MPASS(scctx->isc_capabilities);
 	if (scctx->isc_capabilities & IFCAP_TXCSUM)
 		MPASS(scctx->isc_tx_csum_flags);
 #endif
