@@ -215,11 +215,19 @@ device		muge
 device		smcphy
 device		smsc
 
+# Sound support
+device sound
+device a10_codec
+
+# DMA controller
+device		a31_dmac
+
 # GPIO / PINCTRL
 device		aw_gpio		# Allwinner GPIO controller
 device		gpio
 device		gpioled
 device		fdt_pinctrl
+device		gpioregulator
 device		mv_gpio		# Marvell GPIO controller
 device		mvebu_pinctrl	# Marvell Pinmux Controller
 device		rk_gpio		# RockChip GPIO Controller
