@@ -910,20 +910,6 @@ main(int argc, CHAR16 *argv[])
 	uhowto = parse_uefi_con_out();
 
 	/*
-	 * Scan the BLOCK IO MEDIA handles then
-	 * march through the device switch probing for things.
-	 */
-	i = efipart_inithandles();
-	if (i != 0 && i != ENOENT) {
-		printf("efipart_inithandles failed with ERRNO %d, expect "
-		    "failures\n", i);
-	}
-
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
-
-	/*
 	 * Read additional environment variables from the boot device's
 	 * "LoaderEnv" file. Any boot loader environment variable may be set
 	 * there, which are subtly different than loader.conf variables. Only
