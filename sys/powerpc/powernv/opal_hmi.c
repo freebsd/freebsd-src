@@ -39,25 +39,6 @@ __FBSDID("$FreeBSD$");
 #include "opal.h"
 
 static int
-opal_hmi_handler2(struct trapframe *frame)
-{
-	int64_t flags;
-	int err;
-
-	err = opal_call(OPAL_HANDLE_HMI2, vtophys(&flags));
-
-	/* XXX: At some point, handle the flags outvar. */
-	if (err == OPAL_SUCCESS) {
-		mtspr(SPR_HMER, 0);
-		return (0);
-	}
-
-	printf("HMI handler failed!  OPAL error code: %d\n", err);
-
-	return (-1);
-}
-
-static int
 opal_hmi_handler(struct trapframe *frame)
 {
 	int err;
@@ -81,9 +62,7 @@ opal_setup_hmi(void *data)
 	if (opal_check() != 0)
 		return;
 
-	if (opal_call(OPAL_CHECK_TOKEN, OPAL_HANDLE_HMI2) == OPAL_TOKEN_PRESENT)
-		hmi_handler = opal_hmi_handler2;
-	else if (opal_call(OPAL_CHECK_TOKEN, OPAL_HANDLE_HMI) == OPAL_TOKEN_PRESENT)
+	if (opal_call(OPAL_CHECK_TOKEN, OPAL_HANDLE_HMI) == OPAL_TOKEN_PRESENT)
 		hmi_handler = opal_hmi_handler;
 	else {
 		printf("Warning: No OPAL HMI handler found.\n");
