@@ -436,7 +436,7 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi,
 }
 
 /*
- * Filler function for sys/devices/system/cpu/online
+ * Filler function for sys/devices/system/cpu/{online,possible,present}
  */
 static int
 linsysfs_cpuonline(PFS_FILL_ARGS)
@@ -532,6 +532,10 @@ linsysfs_init(PFS_INIT_ARGS)
 	cpu = pfs_create_dir(sys, "cpu", NULL, NULL, NULL, 0);
 
 	pfs_create_file(cpu, "online", &linsysfs_cpuonline,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(cpu, "possible", &linsysfs_cpuonline,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(cpu, "present", &linsysfs_cpuonline,
 	    NULL, NULL, NULL, PFS_RD);
 
 	linsysfs_listcpus(cpu);
