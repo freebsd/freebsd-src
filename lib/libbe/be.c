@@ -822,7 +822,7 @@ be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 
 	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 	nvlist_add_string(props, "canmount", "noauto");
-	nvlist_add_string(props, "mountpoint", "/");
+	nvlist_add_string(props, "mountpoint", "none");
 
 	err = zfs_prop_set_list(zfs, props);
 	nvlist_free(props);
