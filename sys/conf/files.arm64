@@ -27,6 +27,9 @@ cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
 # Allwinner common files
 arm/allwinner/a10_ehci.c	optional	ehci aw_ehci fdt
 arm/allwinner/a10_timer.c	optional	a10_timer fdt
+arm/allwinner/a10_codec.c	optional	sound a10_codec
+arm/allwinner/a31_dmac.c	optional	a31_dmac
+arm/allwinner/sunxi_dma_if.m	optional	a31_dmac
 arm/allwinner/aw_cir.c		optional	evdev aw_cir fdt
 arm/allwinner/aw_gpio.c		optional	gpio aw_gpio fdt
 arm/allwinner/aw_mmc.c		optional	mmc aw_mmc fdt | mmccam aw_mmc fdt
