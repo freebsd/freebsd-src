@@ -605,7 +605,7 @@ XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
 .endif
 .else
 TARGET_ABI?=	unknown
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.2
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.3
 XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 XCFLAGS+=	--sysroot=${WORLDTMP}
