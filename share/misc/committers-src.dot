@@ -155,6 +155,7 @@ dexuan [label="Dexuan Cui\ndexuan@FreeBSD.org\n2016/10/24"]
 dfr [label="Doug Rabson\ndfr@FreeBSD.org\n????/??/??"]
 dg [label="David Greenman\ndg@FreeBSD.org\n1993/06/14"]
 dim [label="Dimitry Andric\ndim@FreeBSD.org\n2010/08/30"]
+dougm [label="Doug Moore\ndougm@FreeBSD.org\n2019/04/30"]
 dteske [label="Devin Teske\ndteske@FreeBSD.org\n2012/04/10"]
 dumbbell [label="Jean-Sebastien Pedron\ndumbbell@FreeBSD.org\n2004/11/29"]
 dwmalone [label="David Malone\ndwmalone@FreeBSD.org\n2000/07/11"]
@@ -663,6 +664,7 @@ ken -> will
 kib -> ae
 kib -> badger
 kib -> dchagin
+kib -> dougm
 kib -> gjb
 kib -> jah
 kib -> jlh
@@ -694,6 +696,7 @@ marcel -> nwhitehorn
 marcel -> sjg
 
 markj -> cem
+markj -> dougm
 markj -> lwhsu
 markj -> mhorne
 markj -> rlibby
