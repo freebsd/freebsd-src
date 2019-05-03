@@ -825,14 +825,21 @@ ufs_makedirentry(ip, cnp, newdirp)
 	struct componentname *cnp;
 	struct direct *newdirp;
 {
+	u_int namelen;
 
-#ifdef INVARIANTS
-	if ((cnp->cn_flags & SAVENAME) == 0)
-		panic("ufs_makedirentry: missing name");
-#endif
+	namelen = (unsigned)cnp->cn_namelen;
+	KASSERT((cnp->cn_flags & SAVENAME) != 0,
+		("ufs_makedirentry: missing name"));
+	KASSERT(namelen <= UFS_MAXNAMLEN,
+		("ufs_makedirentry: name too long"));
 	newdirp->d_ino = ip->i_number;
-	newdirp->d_namlen = cnp->cn_namelen;
-	bcopy(cnp->cn_nameptr, newdirp->d_name, (unsigned)cnp->cn_namelen + 1);
+	newdirp->d_namlen = namelen;
+
+	/* Zero out after-name padding */
+	*(u_int32_t *)(&newdirp->d_name[namelen & ~(DIR_ROUNDUP - 1)]) = 0;
+
+	bcopy(cnp->cn_nameptr, newdirp->d_name, namelen);
+
 	if (ITOV(ip)->v_mount->mnt_maxsymlinklen > 0)
 		newdirp->d_type = IFTODT(ip->i_mode);
 	else {
