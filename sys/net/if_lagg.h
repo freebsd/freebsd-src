@@ -143,6 +143,7 @@ struct lagg_reqopts {
 #define	LAGG_OPT_USE_FLOWID		0x01		/* enable use of flowid */
 /* Pseudo flags which are used in ro_opts but not stored into sc_opts. */
 #define	LAGG_OPT_FLOWIDSHIFT		0x02		/* set flowid shift */
+#define	LAGG_OPT_USE_NUMA		0x04		/* enable use of numa */
 #define	LAGG_OPT_FLOWIDSHIFT_MASK	0x1f		/* flowid is uint32_t */
 #define	LAGG_OPT_LACP_STRICT		0x10		/* LACP strict mode */
 #define	LAGG_OPT_LACP_TXTEST		0x20		/* LACP debug: txtest */
@@ -158,8 +159,9 @@ struct lagg_reqopts {
 #define	SIOCGLAGGOPTS		_IOWR('i', 152, struct lagg_reqopts)
 #define	SIOCSLAGGOPTS		 _IOW('i', 153, struct lagg_reqopts)
 
-#define	LAGG_OPT_BITS		"\020\001USE_FLOWID\005LACP_STRICT" \
-				"\006LACP_TXTEST\007LACP_RXTEST"
+#define	LAGG_OPT_BITS		"\020\001USE_FLOWID\003USE_NUMA" \
+				"\005LACP_STRICT\006LACP_TXTEST" \
+				"\007LACP_RXTEST"
 
 #ifdef _KERNEL
 
