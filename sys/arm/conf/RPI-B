@@ -80,7 +80,7 @@ device		da
 device		umass
 
 # USB ethernet support
-device		smcphy
+device		smscphy
 device		mii
 device		smsc
 
