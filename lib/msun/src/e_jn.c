@@ -54,7 +54,7 @@ double
 __ieee754_jn(int n, double x)
 {
 	int32_t i,hx,ix,lx, sgn;
-	double a, b, temp, di;
+	double a, b, c, s, temp, di;
 	double z, w;
 
     /* J(-n,x) = (-1)^n * J(n, x), J(n, -x) = (-1)^n * J(n, x)
@@ -91,11 +91,12 @@ __ieee754_jn(int n, double x)
      *		   2	-s+c		-c-s
      *		   3	 s+c		 c-s
      */
+		sincos(x, &s, &c);
 		switch(n&3) {
-		    case 0: temp =  cos(x)+sin(x); break;
-		    case 1: temp = -cos(x)+sin(x); break;
-		    case 2: temp = -cos(x)-sin(x); break;
-		    case 3: temp =  cos(x)-sin(x); break;
+		    case 0: temp =  c+s; break;
+		    case 1: temp = -c+s; break;
+		    case 2: temp = -c-s; break;
+		    case 3: temp =  c-s; break;
 		}
 		b = invsqrtpi*temp/sqrt(x);
 	    } else {
@@ -216,7 +217,7 @@ __ieee754_yn(int n, double x)
 {
 	int32_t i,hx,ix,lx;
 	int32_t sign;
-	double a, b, temp;
+	double a, b, c, s, temp;
 
 	EXTRACT_WORDS(hx,lx,x);
 	ix = 0x7fffffff&hx;
@@ -248,11 +249,12 @@ __ieee754_yn(int n, double x)
      *		   2	-s+c		-c-s
      *		   3	 s+c		 c-s
      */
+		sincos(x, &s, &c);
 		switch(n&3) {
-		    case 0: temp =  sin(x)-cos(x); break;
-		    case 1: temp = -sin(x)-cos(x); break;
-		    case 2: temp = -sin(x)+cos(x); break;
-		    case 3: temp =  sin(x)+cos(x); break;
+		    case 0: temp =  s-c; break;
+		    case 1: temp = -s-c; break;
+		    case 2: temp = -s+c; break;
+		    case 3: temp =  s+c; break;
 		}
 		b = invsqrtpi*temp/sqrt(x);
 	} else {
