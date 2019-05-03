@@ -47,7 +47,7 @@ static int color2bit[16] = {0x00000000, 0x00000001, 0x00000100, 0x00000101,
 static void
 WriteVerticalLine(VGLBitmap *dst, int x, int y, int width, byte *line)
 {
-  int i, pos, last, planepos, start_offset, end_offset, offset;
+  int bwidth, i, pos, last, planepos, start_offset, end_offset, offset;
   int len;
   unsigned int word = 0;
   byte *address;
@@ -58,13 +58,13 @@ WriteVerticalLine(VGLBitmap *dst, int x, int y, int width, byte *line)
   case VIDBUF4S:
     start_offset = (x & 0x07);
     end_offset = (x + width) & 0x07;
-    i = (width + start_offset) / 8;
+    bwidth = (width + start_offset) / 8;
     if (end_offset)
-	i++;
+	bwidth++;
     VGLPlane[0] = VGLBuf;
-    VGLPlane[1] = VGLPlane[0] + i;
-    VGLPlane[2] = VGLPlane[1] + i;
-    VGLPlane[3] = VGLPlane[2] + i;
+    VGLPlane[1] = VGLPlane[0] + bwidth;
+    VGLPlane[2] = VGLPlane[1] + bwidth;
+    VGLPlane[3] = VGLPlane[2] + bwidth;
     pos = 0;
     planepos = 0;
     last = 8 - start_offset;
@@ -87,9 +87,6 @@ WriteVerticalLine(VGLBitmap *dst, int x, int y, int width, byte *line)
       VGLPlane[2][planepos] = word>>16;
       VGLPlane[3][planepos] = word>>24;
     }
-    if (start_offset || end_offset)
-      width+=8;
-    width /= 8;
     outb(0x3ce, 0x01); outb(0x3cf, 0x00);		/* set/reset enable */
     outb(0x3ce, 0x08); outb(0x3cf, 0xff);		/* bit mask */
     for (i=0; i<4; i++) {
@@ -103,7 +100,7 @@ WriteVerticalLine(VGLBitmap *dst, int x, int y, int width, byte *line)
 	  VGLPlane[i][planepos] |= dst->Bitmap[pos+planepos] & mask[end_offset];
 	if (start_offset)
 	  VGLPlane[i][0] |= dst->Bitmap[pos] & ~mask[start_offset];
-	bcopy(&VGLPlane[i][0], dst->Bitmap + pos, width);
+	bcopy(&VGLPlane[i][0], dst->Bitmap + pos, bwidth);
       } else {	/* VIDBUF4S */
 	if (end_offset) {
 	  offset = VGLSetSegment(pos + planepos);
@@ -112,9 +109,9 @@ WriteVerticalLine(VGLBitmap *dst, int x, int y, int width, byte *line)
 	offset = VGLSetSegment(pos);
 	if (start_offset)
 	  VGLPlane[i][0] |= dst->Bitmap[offset] & ~mask[start_offset];
-	for (last = width; ; ) { 
+	for (last = bwidth; ; ) { 
 	  len = min(VGLAdpInfo.va_window_size - offset, last);
-	  bcopy(&VGLPlane[i][width - last], dst->Bitmap + offset, len);
+	  bcopy(&VGLPlane[i][bwidth - last], dst->Bitmap + offset, len);
 	  pos += len;
 	  last -= len;
 	  if (last <= 0)
