@@ -179,6 +179,9 @@ vm_extra_enable_services() {
 	if [ -z "${VMCONFIG}" -o -c "${VMCONFIG}" ]; then
 		echo 'ifconfig_DEFAULT="DHCP inet6 accept_rtadv"' >> \
 			${DESTDIR}/etc/rc.conf
+		# Expand the filesystem to fill the disk.
+		echo 'growfs_enable="YES"' >> ${DESTDIR}/etc/rc.conf
+		touch ${DESTDIR}/firstboot
 	fi
 
 	return 0
