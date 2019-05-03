@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2006, 2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2006, 2009, 2019 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 nCircle Network Security, Inc.
@@ -216,8 +216,24 @@ void	mac_destroy_label(struct label *label);
 int	mac_check_structmac_consistent(struct mac *mac);
 int	mac_allocate_slot(void);
 
-#define MAC_IFNET_LOCK(ifp)	mtx_lock(&mac_ifnet_mtx)
-#define MAC_IFNET_UNLOCK(ifp)	mtx_unlock(&mac_ifnet_mtx)
+/*
+ * Lock ifnets to protect labels only if ifnet labels are in use.
+ */
+#define MAC_IFNET_LOCK(ifp, locked)	do {				\
+	if (mac_labeled & MPC_OBJECT_IFNET) {				\
+		mtx_lock(&mac_ifnet_mtx);				\
+		locked = 1;						\
+	} else {							\
+		locked = 0;						\
+	}								\
+} while (0)
+
+#define MAC_IFNET_UNLOCK(ifp, locked)	do {				\
+	if (locked) {							\
+		mtx_unlock(&mac_ifnet_mtx);				\
+		locked = 0;						\
+	}								\
+} while (0)
 
 /*
  * MAC Framework per-object type functions.  It's not yet clear how the
