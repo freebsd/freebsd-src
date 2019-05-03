@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007, 2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007, 2009, 2019 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
@@ -266,16 +266,17 @@ void
 mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m)
 {
 	struct label *mlabel;
+	int locked;
 
 	if (mac_policy_count == 0)
 		return;
 
 	mlabel = mac_mbuf_to_label(m);
 
-	MAC_IFNET_LOCK(ifp);
+	MAC_IFNET_LOCK(ifp, locked);
 	MAC_POLICY_PERFORM_NOSLEEP(netinet_arp_send, ifp, ifp->if_label, m,
 	    mlabel);
-	MAC_IFNET_UNLOCK(ifp);
+	MAC_IFNET_UNLOCK(ifp, locked);
 }
 
 void
@@ -310,16 +311,17 @@ void
 mac_netinet_igmp_send(struct ifnet *ifp, struct mbuf *m)
 {
 	struct label *mlabel;
+	int locked;
 
 	if (mac_policy_count == 0)
 		return;
 
 	mlabel = mac_mbuf_to_label(m);
 
-	MAC_IFNET_LOCK(ifp);
+	MAC_IFNET_LOCK(ifp, locked);
 	MAC_POLICY_PERFORM_NOSLEEP(netinet_igmp_send, ifp, ifp->if_label, m,
 	    mlabel);
-	MAC_IFNET_UNLOCK(ifp);
+	MAC_IFNET_UNLOCK(ifp, locked);
 }
 
 void
