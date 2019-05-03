@@ -328,7 +328,7 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 		devinfo = malloc(sizeof(*devinfo));
 		if (devinfo == NULL) {
 			DPRINTF("\nFailed to allocate devinfo\n");
-			continue;
+			break;
 		}
 		devinfo->dev = blkio;
 		devinfo->devpath = devpath;
