@@ -130,6 +130,8 @@ setlaggsetopt(const char *val, int d, int s, const struct afswtch *afp)
 	switch (ro.ro_opts) {
 	case LAGG_OPT_USE_FLOWID:
 	case -LAGG_OPT_USE_FLOWID:
+	case LAGG_OPT_USE_NUMA:
+	case -LAGG_OPT_USE_NUMA:
 	case LAGG_OPT_LACP_STRICT:
 	case -LAGG_OPT_LACP_STRICT:
 	case LAGG_OPT_LACP_TXTEST:
@@ -303,6 +305,8 @@ static struct cmd lagg_cmds[] = {
 	DEF_CMD_ARG("lagghash",		setlagghash),
 	DEF_CMD("use_flowid",	LAGG_OPT_USE_FLOWID,	setlaggsetopt),
 	DEF_CMD("-use_flowid",	-LAGG_OPT_USE_FLOWID,	setlaggsetopt),
+	DEF_CMD("use_numa",	LAGG_OPT_USE_NUMA,	setlaggsetopt),
+	DEF_CMD("-use_numa",	-LAGG_OPT_USE_NUMA,	setlaggsetopt),
 	DEF_CMD("lacp_strict",	LAGG_OPT_LACP_STRICT,	setlaggsetopt),
 	DEF_CMD("-lacp_strict",	-LAGG_OPT_LACP_STRICT,	setlaggsetopt),
 	DEF_CMD("lacp_txtest",	LAGG_OPT_LACP_TXTEST,	setlaggsetopt),

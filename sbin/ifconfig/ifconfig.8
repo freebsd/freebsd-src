@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2018
+.Dd May 3, 2019
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2497,6 +2497,22 @@ Use the RSS hash from the network card if available.
 Set a shift parameter for RSS local hash computation.
 Hash is calculated by using flowid bits in a packet header mbuf
 which are shifted by the number of this parameter.
+.It Cm use_numa
+Enable selection of egress ports based on the native
+.Xr NUMA 4
+domain for the packets being transmitted.
+This is currently only implemented for lacp mode.
+This works only on
+.Xr NUMA 4
+hardware, running a kernel compiled with the
+.Xr NUMA 4
+option, and when interfaces from multiple
+.Xr NUMA 4
+domains are ports of the aggregation interface.
+.It Cm -use_numa
+Disable selection of egress ports based on the native
+.Xr NUMA 4
+domain for the packets being transmitted.
 .It Cm lacp_fast_timeout
 Enable lacp fast-timeout on the interface.
 .It Cm -lacp_fast_timeout
