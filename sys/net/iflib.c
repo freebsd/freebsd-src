@@ -182,6 +182,7 @@ struct iflib_ctx {
 	struct grouptask ifc_vflr_task;
 	struct iflib_filter_info ifc_filter_info;
 	struct ifmedia	ifc_media;
+	struct ifmedia	*ifc_mediap;
 
 	struct sysctl_oid *ifc_sysctl_node;
 	uint16_t ifc_sysctl_ntxqs;
@@ -238,7 +239,7 @@ struct ifmedia *
 iflib_get_media(if_ctx_t ctx)
 {
 
-	return (&ctx->ifc_media);
+	return (ctx->ifc_mediap);
 }
 
 uint32_t
@@ -4184,7 +4185,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		/* falls thru */
 	case SIOCGIFMEDIA:
 	case SIOCGIFXMEDIA:
-		err = ifmedia_ioctl(ifp, ifr, &ctx->ifc_media, command);
+		err = ifmedia_ioctl(ifp, ifr, ctx->ifc_mediap, command);
 		break;
 	case SIOCGI2C:
 	{
@@ -4583,6 +4584,9 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	_iflib_pre_assert(scctx);
 	ctx->ifc_txrx = *scctx->isc_txrx;
 
+	if (sctx->isc_flags & IFLIB_DRIVER_MEDIA)
+		ctx->ifc_mediap = scctx->isc_media;
+
 #ifdef INVARIANTS
 	if (scctx->isc_capabilities & IFCAP_TXCSUM)
 		MPASS(scctx->isc_tx_csum_flags);
@@ -4819,9 +4823,9 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 		device_printf(dev, "IFDI_CLONEATTACH failed %d\n", err);
 		goto fail_ctx_free;
 	}
-	ifmedia_add(&ctx->ifc_media, IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
-	ifmedia_add(&ctx->ifc_media, IFM_ETHER | IFM_AUTO, 0, NULL);
-	ifmedia_set(&ctx->ifc_media, IFM_ETHER | IFM_AUTO);
+	ifmedia_add(ctx->ifc_mediap, IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
+	ifmedia_add(ctx->ifc_mediap, IFM_ETHER | IFM_AUTO, 0, NULL);
+	ifmedia_set(ctx->ifc_mediap, IFM_ETHER | IFM_AUTO);
 
 #ifdef INVARIANTS
 	if (scctx->isc_capabilities & IFCAP_TXCSUM)
@@ -5348,9 +5352,11 @@ iflib_register(if_ctx_t ctx)
 		EVENTHANDLER_REGISTER(vlan_unconfig, iflib_vlan_unregister, ctx,
 							  EVENTHANDLER_PRI_FIRST);
 
-	ifmedia_init(&ctx->ifc_media, IFM_IMASK,
-					 iflib_media_change, iflib_media_status);
-
+	if ((sctx->isc_flags & IFLIB_DRIVER_MEDIA) == 0) {
+		ctx->ifc_mediap = &ctx->ifc_media;
+		ifmedia_init(ctx->ifc_mediap, IFM_IMASK,
+		    iflib_media_change, iflib_media_status);
+	}
 	return (0);
 }
 
