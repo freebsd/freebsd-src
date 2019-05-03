@@ -197,8 +197,15 @@ enum lacp_mux_state {
 
 #define	LACP_MAX_PORTS		32
 
+struct lacp_numa {
+	int			count;
+	struct lacp_port	*map[LACP_MAX_PORTS];
+};
+
 struct lacp_portmap {
 	int			pm_count;
+	int			pm_num_dom;
+	struct lacp_numa	pm_numa[MAXMEMDOM];
 	struct lacp_port	*pm_map[LACP_MAX_PORTS];
 };
 
