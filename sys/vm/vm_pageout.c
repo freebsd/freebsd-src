@@ -928,9 +928,7 @@ isqrt(u_int num)
 {
 	u_int bit, root, tmp;
 
-	bit = 1u << ((NBBY * sizeof(u_int)) - 2);
-	while (bit > num)
-		bit >>= 2;
+	bit = num != 0 ? (1u << ((fls(num) - 1) & ~1)) : 0;
 	root = 0;
 	while (bit != 0) {
 		tmp = root + bit;
