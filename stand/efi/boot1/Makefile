@@ -2,7 +2,8 @@
 
 .include <bsd.init.mk>
 
-PROG=		boot1.sym
+BOOT1?=		boot1
+PROG=		${BOOT1}.sym
 INTERNALPROG=
 WARNS?=		6
 
@@ -51,8 +52,8 @@ CFLAGS+=	-DEFI_DEBUG
 .PATH:		${LDRSRC}
 CFLAGS+=	-I${LDRSRC}
 
-FILES=	boot1.efi boot1.efifat
-FILESMODE_boot1.efi=	${BINMODE}
+FILES=	${BOOT1}.efi ${BOOT1}.efifat
+FILESMODE_${BOOT1}.efi=	${BINMODE}
 
 LDSCRIPT=	${EFISRC}/loader/arch/${MACHINE}/ldscript.${MACHINE}
 LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -shared
@@ -77,7 +78,7 @@ LDADD+=		${LIBEFI} ${LIBSA}
 
 DPADD+=		${LDSCRIPT}
 
-boot1.efi: ${PROG}
+${BOOT1}.efi: ${PROG}
 	if ${NM} ${.ALLSRC} | grep ' U '; then \
 		echo "Undefined symbols in ${.ALLSRC}"; \
 		exit 1; \
@@ -93,7 +94,7 @@ boot1.efi: ${PROG}
 
 .include "Makefile.fat"
 
-boot1.efifat: boot1.efi
+${BOOT1}.efifat: ${BOOT1}.efi
 	@set -- `ls -l ${.ALLSRC}`; \
 	x=$$(($$5-${BOOT1_MAXSIZE})); \
 	if [ $$x -ge 0 ]; then \
@@ -104,6 +105,6 @@ boot1.efifat: boot1.efi
 	xz -d -c ${BOOTSRC}/efi/boot1/fat-${MACHINE}.tmpl.xz > ${.TARGET}
 	${DD} if=${.ALLSRC} of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
 
-CLEANFILES+= boot1.efi boot1.efifat
+CLEANFILES+= ${BOOT1}.efi ${BOOT1}.efifat
 
 .include <bsd.prog.mk>
