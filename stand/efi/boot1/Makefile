@@ -25,7 +25,7 @@ CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
 CWARNFLAGS.zfs_module.c += -Wno-unused-function
 
 # architecture-specific loader code
-SRCS=	boot1.c self_reloc.c start.S ufs_module.c
+SRCS+=	boot1.c self_reloc.c start.S ufs_module.c
 .if ${MK_LOADER_ZFS} != "no"
 SRCS+=		zfs_module.c
 CFLAGS.zfs_module.c+=	-I${ZFSSRC}
