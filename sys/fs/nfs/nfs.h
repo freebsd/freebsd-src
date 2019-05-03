@@ -423,10 +423,14 @@ typedef struct {
 	(t)->bits[2] = (f)->bits[2];					\
 } while (0)
 
-#define	NFSSETSUPP_ATTRBIT(b) do { 					\
+#define	NFSSETSUPP_ATTRBIT(b, n) do { 					\
 	(b)->bits[0] = NFSATTRBIT_SUPP0; 				\
-	(b)->bits[1] = (NFSATTRBIT_SUPP1 | NFSATTRBIT_SUPPSETONLY);	\
-	(b)->bits[2] = NFSATTRBIT_SUPP2;				\
+	(b)->bits[1] = (NFSATTRBIT_SUPP1 | NFSATTRBIT_SUPPSETONLY1);	\
+	(b)->bits[2] = (NFSATTRBIT_SUPP2 | NFSATTRBIT_SUPPSETONLY2);	\
+	if (((n)->nd_flag & ND_NFSV41) == 0) {				\
+		(b)->bits[1] &= ~NFSATTRBIT_NFSV41_1;			\
+		(b)->bits[2] &= ~NFSATTRBIT_NFSV41_2;			\
+	}								\
 } while (0)
 
 #define	NFSISSET_ATTRBIT(b, p)	((b)->bits[(p) / 32] & (1 << ((p) % 32)))
@@ -445,16 +449,22 @@ typedef struct {
 	(b)->bits[2] &= ((a)->bits[2]);		 			\
 } while (0)
 
-#define	NFSCLRNOTFILLABLE_ATTRBIT(b) do { 				\
+#define	NFSCLRNOTFILLABLE_ATTRBIT(b, n) do { 				\
 	(b)->bits[0] &= NFSATTRBIT_SUPP0;	 			\
 	(b)->bits[1] &= NFSATTRBIT_SUPP1;				\
 	(b)->bits[2] &= NFSATTRBIT_SUPP2;				\
+	if (((n)->nd_flag & ND_NFSV41) == 0) {				\
+		(b)->bits[1] &= ~NFSATTRBIT_NFSV41_1;			\
+		(b)->bits[2] &= ~NFSATTRBIT_NFSV41_2;			\
+	}								\
 } while (0)
 
-#define	NFSCLRNOTSETABLE_ATTRBIT(b) do { 				\
+#define	NFSCLRNOTSETABLE_ATTRBIT(b, n) do { 				\
 	(b)->bits[0] &= NFSATTRBIT_SETABLE0;	 			\
 	(b)->bits[1] &= NFSATTRBIT_SETABLE1;				\
 	(b)->bits[2] &= NFSATTRBIT_SETABLE2;				\
+	if (((n)->nd_flag & ND_NFSV41) == 0)				\
+		(b)->bits[2] &= ~NFSATTRBIT_NFSV41_2;			\
 } while (0)
 
 #define	NFSNONZERO_ATTRBIT(b)	((b)->bits[0] || (b)->bits[1] || (b)->bits[2])
