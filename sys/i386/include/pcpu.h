@@ -43,7 +43,8 @@
 
 struct monitorbuf {
 	int idle_state;		/* Used by cpu_idle_mwait. */
-	char padding[128 - (1 * sizeof(int))];
+	int stop_state;		/* Used by cpustop_handler. */
+	char padding[128 - (2 * sizeof(int))];
 };
 _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 
@@ -89,6 +90,9 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	char	__pad[3610]
 
 #ifdef _KERNEL
+
+#define MONITOR_STOPSTATE_RUNNING	0
+#define MONITOR_STOPSTATE_STOPPED	1
 
 #if defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF)
 
