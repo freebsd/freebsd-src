@@ -562,70 +562,39 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	struct linux_dma_priv *priv;
-	struct linux_dma_obj *obj;
-	struct scatterlist *dma_sg, *sg;
-	int dma_nents, error, nseg;
-	size_t seg_len;
-	vm_paddr_t seg_phys, prev_phys_end;
+	struct scatterlist *sg;
+	int i, nseg;
 	bus_dma_segment_t seg;
 
 	priv = dev->dma_priv;
 
-	obj = uma_zalloc(linux_dma_obj_zone, 0);
-
 	DMA_PRIV_LOCK(priv);
-	if (bus_dmamap_create(priv->dmat, 0, &obj->dmamap) != 0) {
+
+	/* create common DMA map in the first S/G entry */
+	if (bus_dmamap_create(priv->dmat, 0, &sgl->dma_map) != 0) {
 		DMA_PRIV_UNLOCK(priv);
-		uma_zfree(linux_dma_obj_zone, obj);
 		return (0);
 	}
 
-	sg = sgl;
-	dma_sg = sg;
-	dma_nents = 0;
-
-	while (nents > 0) {
-		seg_phys = sg_phys(sg);
-		seg_len = sg->length;
-		while (--nents > 0) {
-			prev_phys_end = sg_phys(sg) + sg->length;
-			sg = sg_next(sg);
-			if (prev_phys_end != sg_phys(sg))
-				break;
-			seg_len += sg->length;
-		}
-
+	/* load all S/G list entries */
+	for_each_sg(sgl, sg, nents, i) {
 		nseg = -1;
-		if (_bus_dmamap_load_phys(priv->dmat, obj->dmamap,
-		    seg_phys, seg_len, BUS_DMA_NOWAIT,
+		if (_bus_dmamap_load_phys(priv->dmat, sgl->dma_map,
+		    sg_phys(sg), sg->length, BUS_DMA_NOWAIT,
 		    &seg, &nseg) != 0) {
-			bus_dmamap_unload(priv->dmat, obj->dmamap);
-			bus_dmamap_destroy(priv->dmat, obj->dmamap);
+			bus_dmamap_unload(priv->dmat, sgl->dma_map);
+			bus_dmamap_destroy(priv->dmat, sgl->dma_map);
 			DMA_PRIV_UNLOCK(priv);
-			uma_zfree(linux_dma_obj_zone, obj);
 			return (0);
 		}
-		KASSERT(++nseg == 1, ("More than one segment (nseg=%d)", nseg));
+		KASSERT(nseg == 0,
+		    ("More than one segment (nseg=%d)", nseg + 1));
 
-		sg_dma_address(dma_sg) = seg.ds_addr;
-		sg_dma_len(dma_sg) = seg.ds_len;
-
-		dma_sg = sg_next(dma_sg);
-		dma_nents++;
-        }
-
-	obj->dma_addr = sg_dma_address(sgl);
-
-	error = LINUX_DMA_PCTRIE_INSERT(&priv->ptree, obj);
-	if (error != 0) {
-		bus_dmamap_unload(priv->dmat, obj->dmamap);
-		bus_dmamap_destroy(priv->dmat, obj->dmamap);
-		DMA_PRIV_UNLOCK(priv);
-		uma_zfree(linux_dma_obj_zone, obj);
-		return (0);
+		sg_dma_address(sg) = seg.ds_addr;
 	}
 	DMA_PRIV_UNLOCK(priv);
-	return (dma_nents);
+
+	return (nents);
 }
 
 void
@@ -633,22 +602,13 @@ linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
     int nents, enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	struct linux_dma_priv *priv;
-	struct linux_dma_obj *obj;
 
 	priv = dev->dma_priv;
 
 	DMA_PRIV_LOCK(priv);
-	obj = LINUX_DMA_PCTRIE_LOOKUP(&priv->ptree, sg_dma_address(sgl));
-	if (obj == NULL) {
-		DMA_PRIV_UNLOCK(priv);
-		return;
-	}
-	LINUX_DMA_PCTRIE_REMOVE(&priv->ptree, sg_dma_address(sgl));
-	bus_dmamap_unload(priv->dmat, obj->dmamap);
-	bus_dmamap_destroy(priv->dmat, obj->dmamap);
+	bus_dmamap_unload(priv->dmat, sgl->dma_map);
+	bus_dmamap_destroy(priv->dmat, sgl->dma_map);
 	DMA_PRIV_UNLOCK(priv);
-
-	uma_zfree(linux_dma_obj_zone, obj);
 }
 
 struct dma_pool {
