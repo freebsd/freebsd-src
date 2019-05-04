@@ -61,6 +61,11 @@ struct cpu_info {
 };
 extern struct cpu_info *cpu_info;
 
+/*
+ * Set if MWAIT does not reliably wake when the MONITORed address is written.
+ */
+extern bool mwait_cpustop_broken;
+
 #ifdef COUNT_IPIS
 extern u_long *ipi_invltlb_counts[MAXCPU];
 extern u_long *ipi_invlrng_counts[MAXCPU];
