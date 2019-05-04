@@ -11,6 +11,7 @@ GTESTS+=	access
 GTESTS+=	allow_other
 GTESTS+=	create
 GTESTS+=	default_permissions
+GTESTS+=	default_permissions_privileged
 GTESTS+=	destroy
 GTESTS+=	fifo
 GTESTS+=	flush
@@ -47,6 +48,7 @@ SRCS.$p+=	utils.cc
 .endfor
 
 TEST_METADATA.default_permissions+=	required_user="unprivileged"
+TEST_METADATA.default_permissions_privileged+=	required_user="root"
 TEST_METADATA.mknod+=	required_user="root"
 
 # TODO: drastically increase timeout after test development is mostly complete
