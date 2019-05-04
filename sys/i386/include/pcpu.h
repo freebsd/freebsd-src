@@ -41,6 +41,12 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+struct monitorbuf {
+	int idle_state;		/* Used by cpu_idle_mwait. */
+	char padding[128 - (1 * sizeof(int))];
+};
+_Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
+
 /*
  * The SMP parts are setup in pmap.c and machdep.c for the BSP, and
  * pmap.c and mp_machdep.c sets up the data for the AP's to "see" when
@@ -50,7 +56,7 @@
  */
 
 #define	PCPU_MD_FIELDS							\
-	char	pc_monitorbuf[128] __aligned(128); /* cache line */	\
+	struct monitorbuf pc_monitorbuf __aligned(128);	/* cache line */\
 	struct	pcpu *pc_prvspace;	/* Self-reference */		\
 	struct	pmap *pc_curpmap;					\
 	struct	segment_descriptor pc_common_tssd;			\
