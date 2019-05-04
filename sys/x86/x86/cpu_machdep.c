@@ -164,7 +164,7 @@ acpi_cpu_idle_mwait(uint32_t mwait_hint)
 	 * but all Intel CPUs provide hardware coordination.
 	 */
 
-	state = (int *)PCPU_PTR(monitorbuf);
+	state = &PCPU_PTR(monitorbuf)->idle_state;
 	KASSERT(atomic_load_int(state) == STATE_SLEEPING,
 	    ("cpu_mwait_cx: wrong monitorbuf state"));
 	atomic_store_int(state, STATE_MWAIT);
@@ -422,7 +422,7 @@ cpu_idle_acpi(sbintime_t sbt)
 {
 	int *state;
 
-	state = (int *)PCPU_PTR(monitorbuf);
+	state = &PCPU_PTR(monitorbuf)->idle_state;
 	atomic_store_int(state, STATE_SLEEPING);
 
 	/* See comments in cpu_idle_hlt(). */
@@ -441,7 +441,7 @@ cpu_idle_hlt(sbintime_t sbt)
 {
 	int *state;
 
-	state = (int *)PCPU_PTR(monitorbuf);
+	state = &PCPU_PTR(monitorbuf)->idle_state;
 	atomic_store_int(state, STATE_SLEEPING);
 
 	/*
@@ -473,7 +473,7 @@ cpu_idle_mwait(sbintime_t sbt)
 {
 	int *state;
 
-	state = (int *)PCPU_PTR(monitorbuf);
+	state = &PCPU_PTR(monitorbuf)->idle_state;
 	atomic_store_int(state, STATE_MWAIT);
 
 	/* See comments in cpu_idle_hlt(). */
@@ -498,7 +498,7 @@ cpu_idle_spin(sbintime_t sbt)
 	int *state;
 	int i;
 
-	state = (int *)PCPU_PTR(monitorbuf);
+	state = &PCPU_PTR(monitorbuf)->idle_state;
 	atomic_store_int(state, STATE_RUNNING);
 
 	/*
@@ -598,9 +598,11 @@ SYSCTL_INT(_machdep, OID_AUTO, idle_apl31, CTLFLAG_RW,
 int
 cpu_idle_wakeup(int cpu)
 {
+	struct monitorbuf *mb;
 	int *state;
 
-	state = (int *)pcpu_find(cpu)->pc_monitorbuf;
+	mb = &pcpu_find(cpu)->pc_monitorbuf;
+	state = &mb->idle_state;
 	switch (atomic_load_int(state)) {
 	case STATE_SLEEPING:
 		return (0);
