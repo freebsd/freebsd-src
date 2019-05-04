@@ -185,7 +185,7 @@ sys_rfork(struct thread *td, struct rfork_args *uap)
 	return (error);
 }
 
-int	nprocs = 1;		/* process 0 */
+int __exclusive_cache_line	nprocs = 1;		/* process 0 */
 int	lastpid = 0;
 SYSCTL_INT(_kern, OID_AUTO, lastpid, CTLFLAG_RD, &lastpid, 0,
     "Last used PID");
