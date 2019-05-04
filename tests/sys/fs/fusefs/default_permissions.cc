@@ -771,6 +771,28 @@ TEST_F(Setattr, eacces)
 	EXPECT_EQ(EPERM, errno);
 }
 
+/* Only the superuser may set the sticky bit on a non-directory */
+TEST_F(Setattr, sticky_regular_file)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	const mode_t oldmode = 0644;
+	const mode_t newmode = 01644;
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, geteuid());
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_SETATTR);
+		}, Eq(true)),
+		_)
+	).Times(0);
+
+	EXPECT_NE(0, chmod(FULLPATH, newmode));
+	EXPECT_EQ(EFTYPE, errno);
+}
+
 TEST_F(Setextattr, ok)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";

@@ -1603,6 +1603,15 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		 */
 	}
 	if (vap->va_mode != (mode_t)VNOVAL) {
+		/* Only root may set the sticky bit on non-directories */
+		if (dataflags & FSESS_DEFAULT_PERMISSIONS &&
+		    vp->v_type != VDIR && (vap->va_mode & S_ISTXT))
+		{
+			if (priv_check_cred(cred, PRIV_VFS_STICKYFILE)) {
+				err = EFTYPE;
+				goto out;
+			}
+		}
 		fsai->mode = vap->va_mode & ALLPERMS;
 		fsai->valid |= FATTR_MODE;
 		accmode |= VADMIN;
