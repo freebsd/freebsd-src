@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/ucred.h>
 
+#ifndef SYSVSHM
 void (*shmfork_hook)(struct proc *, struct proc *) = NULL;
 void (*shmexit_hook)(struct vmspace *) = NULL;
 
@@ -73,6 +74,7 @@ shmexit(struct vmspace *vm)
 		shmexit_hook(vm);
 	return;
 }
+#endif
 
 /*
  * Check for IPC permission.
