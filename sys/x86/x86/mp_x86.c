@@ -161,6 +161,10 @@ struct cache_info {
 
 unsigned int boot_address;
 
+static bool stop_mwait = false;
+SYSCTL_BOOL(_machdep, OID_AUTO, stop_mwait, CTLFLAG_RWTUN, &stop_mwait, 0,
+    "Use MONITOR/MWAIT when stopping CPU, if available");
+
 #define MiB(v)	(v ## ULL << 20)
 
 void
@@ -1390,23 +1394,41 @@ nmi_call_kdb_smp(u_int type, struct trapframe *frame)
 }
 
 /*
- * Handle an IPI_STOP by saving our current context and spinning until we
- * are resumed.
+ * Handle an IPI_STOP by saving our current context and spinning (or mwaiting,
+ * if available) until we are resumed.
  */
 void
 cpustop_handler(void)
 {
+	struct monitorbuf *mb;
 	u_int cpu;
+	bool use_mwait;
 
 	cpu = PCPU_GET(cpuid);
 
 	savectx(&stoppcbs[cpu]);
+
+	use_mwait = (stop_mwait && (cpu_feature2 & CPUID2_MON) != 0 &&
+	    !mwait_cpustop_broken);
+	if (use_mwait) {
+		mb = PCPU_PTR(monitorbuf);
+		atomic_store_int(&mb->stop_state,
+		    MONITOR_STOPSTATE_STOPPED);
+	}
 
 	/* Indicate that we are stopped */
 	CPU_SET_ATOMIC(cpu, &stopped_cpus);
 
 	/* Wait for restart */
 	while (!CPU_ISSET(cpu, &started_cpus)) {
+		if (use_mwait) {
+			cpu_monitor(mb, 0, 0);
+			if (atomic_load_int(&mb->stop_state) ==
+			    MONITOR_STOPSTATE_STOPPED)
+				cpu_mwait(0, MWAIT_C1);
+			continue;
+		}
+
 		ia32_pause();
 
 		/*
