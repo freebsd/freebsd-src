@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 
 /* GATES */
 
+#define	ACLK_EMMC_CORE		241
+#define	ACLK_EMMC_NOC		242
+#define	ACLK_EMMC_GRF		243
 #define	PCLK_GPIO2		336
 #define	PCLK_GPIO3		337
 #define	PCLK_GPIO4		338
@@ -80,6 +83,10 @@ static struct rk_cru_gate rk3399_gates[] = {
 	CRU_GATE(0, "cpll_aclk_perihp_src", "cpll", 0x314, 0)
 	CRU_GATE(0, "gpll_aclk_perihp_src", "gpll", 0x314, 1)
 
+	/* CRU_CLKGATE_CON6 */
+	CRU_GATE(0, "gpll_aclk_emmc_src", "gpll", 0x318, 12)
+	CRU_GATE(0, "cpll_aclk_emmc_src", "cpll", 0x318, 13)
+
 	/* CRU_CLKGATE_CON7 */
 	CRU_GATE(0, "gpll_aclk_perilp0_src", "gpll", 0x31C, 0)
 	CRU_GATE(0, "cpll_aclk_perilp0_src", "cpll", 0x31C, 1)
@@ -100,6 +107,11 @@ static struct rk_cru_gate rk3399_gates[] = {
 	CRU_GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_alive", 0x37c, 3)
 	CRU_GATE(PCLK_GPIO3, "pclk_gpio3", "pclk_alive", 0x37c, 4)
 	CRU_GATE(PCLK_GPIO4, "pclk_gpio4", "pclk_alive", 0x37c, 5)
+
+	/* CRU_CLKGATE_CON32 */
+	CRU_GATE(ACLK_EMMC_CORE, "aclk_emmccore", "aclk_emmc", 0x380, 8)
+	CRU_GATE(ACLK_EMMC_NOC, "aclk_emmc_noc", "aclk_emmc", 0x380, 9)
+	CRU_GATE(ACLK_EMMC_GRF, "aclk_emmcgrf", "aclk_emmc", 0x380, 10)
 
 	/* CRU_CLKGATE_CON33 */
 	CRU_GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_sd", 0x384, 8)
@@ -1443,6 +1455,60 @@ static struct rk_clk_composite_def sclk_sdmmc = {
 	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
 };
 
+/*
+ * emmc
+ */
+
+#define	SCLK_EMMC		78
+
+static const char *sclk_emmc_parents[] = {"cpll", "gpll", "npll"};
+
+static struct rk_clk_composite_def sclk_emmc = {
+	.clkdef = {
+		.id = SCLK_EMMC,
+		.name = "sclk_emmc",
+		.parent_names = sclk_emmc_parents,
+		.parent_cnt = nitems(sclk_emmc_parents),
+	},
+
+	.muxdiv_offset = 0x158,
+	.mux_shift = 8,
+	.mux_width = 3,
+
+	.div_shift = 0,
+	.div_width = 7,
+
+	.gate_offset = 0x318,
+	.gate_shift = 14,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+#define	ACLK_EMMC		240
+
+static const char *aclk_emmc_parents[] = {
+	"cpll_aclk_emmc_src",
+	"gpll_aclk_emmc_src"
+};
+
+static struct rk_clk_composite_def aclk_emmc = {
+	.clkdef = {
+		.id = ACLK_EMMC,
+		.name = "aclk_emmc",
+		.parent_names = aclk_emmc_parents,
+		.parent_cnt = nitems(aclk_emmc_parents),
+	},
+
+	.muxdiv_offset = 0x154,
+	.mux_shift = 7,
+	.mux_width = 1,
+
+	.div_shift = 0,
+	.div_width = 5,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX,
+};
+
 static struct rk_clk rk3399_clks[] = {
 	{
 		.type = RK3399_CLK_PLL,
@@ -1550,6 +1616,15 @@ static struct rk_clk rk3399_clks[] = {
 	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &sclk_sdmmc,
+	},
+
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &sclk_emmc,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &aclk_emmc,
 	},
 };
 
