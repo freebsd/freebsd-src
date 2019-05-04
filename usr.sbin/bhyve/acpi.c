@@ -39,7 +39,9 @@
  *  The tables are placed in the guest's ROM area just below 1MB physical,
  * above the MPTable.
  *
- *  Layout
+ *  Layout (No longer correct at FADT and beyond due to properly
+ *  calculating the size of the MADT to allow for changes to
+ *  VM_MAXCPU above 21 which overflows this layout.)
  *  ------
  *   RSDP  ->   0xf2400    (36 bytes fixed)
  *     RSDT  ->   0xf2440    (36 bytes + 4*7 table addrs, 4 used)
@@ -74,18 +76,31 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 
 /*
- * Define the base address of the ACPI tables, and the offsets to
- * the individual tables
+ * Define the base address of the ACPI tables, the sizes of some tables, 
+ * and the offsets to the individual tables,
  */
 #define BHYVE_ACPI_BASE		0xf2400
 #define RSDT_OFFSET		0x040
 #define XSDT_OFFSET		0x080
 #define MADT_OFFSET		0x100
-#define FADT_OFFSET		0x200
-#define	HPET_OFFSET		0x340
-#define	MCFG_OFFSET		0x380
-#define FACS_OFFSET		0x3C0
-#define DSDT_OFFSET		0x400
+/*
+ * The MADT consists of:
+ *	44		Fixed Header
+ *	8 * maxcpu	Processor Local APIC entries
+ *	12		I/O APIC entry
+ *	2 * 10		Interrupt Source Override entires
+ *	6		Local APIC NMI entry
+ */
+#define	MADT_SIZE		(44 + VM_MAXCPU*8 + 12 + 2*10 + 6)
+#define	FADT_OFFSET		(MADT_OFFSET + MADT_SIZE)
+#define	FADT_SIZE		0x140
+#define	HPET_OFFSET		(FADT_OFFSET + FADT_SIZE)
+#define	HPET_SIZE		0x40
+#define	MCFG_OFFSET		(HPET_OFFSET + HPET_SIZE)
+#define	MCFG_SIZE		0x40
+#define	FACS_OFFSET		(MCFG_OFFSET + MCFG_SIZE)
+#define	FACS_SIZE		0x40
+#define	DSDT_OFFSET		(FACS_OFFSET + FACS_SIZE)
 
 #define	BHYVE_ASL_TEMPLATE	"bhyve.XXXXXXX"
 #define BHYVE_ASL_SUFFIX	".aml"
