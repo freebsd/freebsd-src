@@ -166,7 +166,7 @@ struct sctp_copy_all {
 	struct sctp_inpcb *inp;	/* ep */
 	struct mbuf *m;
 	struct sctp_sndrcvinfo sndrcv;
-	int sndlen;
+	ssize_t sndlen;
 	int cnt_sent;
 	int cnt_failed;
 };
