@@ -6209,6 +6209,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_FIND_STCB(inp, stcb, info->pr_assoc_id);
 
 			if (info->pr_policy > SCTP_PR_SCTP_MAX) {
+				if (stcb) {
+					SCTP_TCB_UNLOCK(stcb);
+				}
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 				error = EINVAL;
 				break;
