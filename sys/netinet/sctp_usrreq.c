@@ -4654,13 +4654,13 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 			for (i = 0; i < strrst->srs_number_streams; i++) {
 				if ((send_in) &&
-				    (strrst->srs_stream_list[i] > stcb->asoc.streamincnt)) {
+				    (strrst->srs_stream_list[i] >= stcb->asoc.streamincnt)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
 				}
 				if ((send_out) &&
-				    (strrst->srs_stream_list[i] > stcb->asoc.streamoutcnt)) {
+				    (strrst->srs_stream_list[i] >= stcb->asoc.streamoutcnt)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
