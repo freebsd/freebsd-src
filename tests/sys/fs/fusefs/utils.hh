@@ -37,6 +37,8 @@
 #define FUSE_WRITE_CACHE 1
 #endif
 
+void get_unprivileged_id(uid_t *uid, gid_t *gid);
+
 class FuseTest : public ::testing::Test {
 	protected:
 	uint32_t m_maxreadahead;
