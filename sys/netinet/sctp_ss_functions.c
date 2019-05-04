@@ -54,6 +54,9 @@ sctp_ss_default_init(struct sctp_tcb *stcb, struct sctp_association *asoc,
 {
 	uint16_t i;
 
+	if (holds_lock == 0) {
+		SCTP_TCB_SEND_LOCK(stcb);
+	}
 	asoc->ss_data.locked_on_sending = NULL;
 	asoc->ss_data.last_out_stream = NULL;
 	TAILQ_INIT(&asoc->ss_data.out.wheel);
@@ -65,7 +68,10 @@ sctp_ss_default_init(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 		stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb, &stcb->asoc,
 		    &stcb->asoc.strmout[i],
-		    NULL, holds_lock);
+		    NULL, 1);
+	}
+	if (holds_lock == 0) {
+		SCTP_TCB_SEND_UNLOCK(stcb);
 	}
 	return;
 }
@@ -396,12 +402,13 @@ sctp_ss_prio_clear(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
 	while (!TAILQ_EMPTY(&asoc->ss_data.out.wheel)) {
-		struct sctp_stream_out *strq = TAILQ_FIRST(&asoc->ss_data.out.wheel);
+		struct sctp_stream_out *strq;
 
+		strq = TAILQ_FIRST(&asoc->ss_data.out.wheel);
 		if (clear_values) {
 			strq->ss_params.prio.priority = 0;
 		}
-		TAILQ_REMOVE(&asoc->ss_data.out.wheel, TAILQ_FIRST(&asoc->ss_data.out.wheel), ss_params.prio.next_spoke);
+		TAILQ_REMOVE(&asoc->ss_data.out.wheel, strq, ss_params.prio.next_spoke);
 		strq->ss_params.prio.next_spoke.tqe_next = NULL;
 		strq->ss_params.prio.next_spoke.tqe_prev = NULL;
 
@@ -586,12 +593,13 @@ sctp_ss_fb_clear(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
 	while (!TAILQ_EMPTY(&asoc->ss_data.out.wheel)) {
-		struct sctp_stream_out *strq = TAILQ_FIRST(&asoc->ss_data.out.wheel);
+		struct sctp_stream_out *strq;
 
+		strq = TAILQ_FIRST(&asoc->ss_data.out.wheel);
 		if (clear_values) {
 			strq->ss_params.fb.rounds = -1;
 		}
-		TAILQ_REMOVE(&asoc->ss_data.out.wheel, TAILQ_FIRST(&asoc->ss_data.out.wheel), ss_params.fb.next_spoke);
+		TAILQ_REMOVE(&asoc->ss_data.out.wheel, strq, ss_params.fb.next_spoke);
 		strq->ss_params.fb.next_spoke.tqe_next = NULL;
 		strq->ss_params.fb.next_spoke.tqe_prev = NULL;
 	}
@@ -764,6 +772,9 @@ sctp_ss_fcfs_init(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	struct sctp_stream_queue_pending *sp;
 	uint16_t i;
 
+	if (holds_lock == 0) {
+		SCTP_TCB_SEND_LOCK(stcb);
+	}
 	TAILQ_INIT(&asoc->ss_data.out.list);
 	/*
 	 * If there is data in the stream queues already, the scheduler of
@@ -781,11 +792,14 @@ sctp_ss_fcfs_init(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				x++;
 			}
 			if (sp != NULL) {
-				sctp_ss_fcfs_add(stcb, &stcb->asoc, &stcb->asoc.strmout[i], sp, holds_lock);
+				sctp_ss_fcfs_add(stcb, &stcb->asoc, &stcb->asoc.strmout[i], sp, 1);
 				add_more = 1;
 			}
 		}
 		n++;
+	}
+	if (holds_lock == 0) {
+		SCTP_TCB_SEND_UNLOCK(stcb);
 	}
 	return;
 }
