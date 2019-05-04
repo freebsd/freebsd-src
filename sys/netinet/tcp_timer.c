@@ -233,9 +233,6 @@ tcp_slowtimo(void)
 	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
-int	tcp_syn_backoff[TCP_MAXRXTSHIFT + 1] =
-    { 1, 1, 1, 1, 1, 2, 4, 8, 16, 32, 64, 64, 64 };
-
 int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
     { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 512, 512, 512 };
 
@@ -671,7 +668,7 @@ tcp_timer_rexmt(void * xtp)
 	TCPSTAT_INC(tcps_rexmttimeo);
 	if ((tp->t_state == TCPS_SYN_SENT) ||
 	    (tp->t_state == TCPS_SYN_RECEIVED))
-		rexmt = TCPTV_RTOBASE * tcp_syn_backoff[tp->t_rxtshift];
+		rexmt = TCPTV_RTOBASE * tcp_backoff[tp->t_rxtshift];
 	else
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
