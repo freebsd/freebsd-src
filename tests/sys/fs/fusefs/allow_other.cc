@@ -98,6 +98,31 @@ TEST_F(AllowOther, allowed)
 	ASSERT_EQ(0, WEXITSTATUS(status));
 }
 
+/* Check that fusefs uses the correct credentials for FUSE operations */
+TEST_F(AllowOther, creds)
+{
+	int status;
+	uid_t uid;
+	gid_t gid;
+
+	get_unprivileged_id(&uid, &gid);
+	fork(true, &status, [=] {
+			EXPECT_CALL(*m_mock, process( ResultOf([=](auto in) {
+				return (in->header.opcode == FUSE_LOOKUP &&
+					in->header.uid == uid &&
+					in->header.gid == gid);
+				}, Eq(true)),
+				_)
+			).Times(1)
+			.WillOnce(Invoke(ReturnErrno(ENOENT)));
+		}, []() {
+			eaccess(FULLPATH, F_OK);
+			return 0;
+		}
+	);
+	ASSERT_EQ(0, WEXITSTATUS(status));
+}
+
 /*
  * A variation of the Open.multiple_creds test showing how the bug can lead to a
  * privilege elevation.  The first process is privileged and opens a file only

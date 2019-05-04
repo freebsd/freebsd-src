@@ -35,6 +35,7 @@ extern "C" {
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 
+#include <grp.h>
 #include <pwd.h>
 #include <semaphore.h>
 #include <unistd.h>
@@ -317,10 +318,11 @@ void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 	})));
 }
 
-static void
-get_unprivileged_uid(uid_t *uid)
+void
+get_unprivileged_id(uid_t *uid, gid_t *gid)
 {
 	struct passwd *pw;
+	struct group *gr;
 
 	/* 
 	 * First try "tests", Kyua's default unprivileged user.  XXX after
@@ -333,7 +335,12 @@ get_unprivileged_uid(uid_t *uid)
 	}
 	if (pw == NULL)
 		GTEST_SKIP() << "Test requires an unprivileged user";
+	/* Use group "nobody", which is Kyua's default unprivileged group */
+	gr = getgrnam("nobody");
+	if (gr == NULL)
+		GTEST_SKIP() << "Test requires an unprivileged group";
 	*uid = pw->pw_uid;
+	*gid = gr->gr_gid;
 }
 
 void
@@ -346,9 +353,10 @@ FuseTest::fork(bool drop_privs, int *child_status,
 	int mflags = MAP_ANON | MAP_SHARED;
 	pid_t child;
 	uid_t uid;
+	gid_t gid;
 	
 	if (drop_privs) {
-		get_unprivileged_uid(&uid);
+		get_unprivileged_id(&uid, &gid);
 		if (IsSkipped())
 			return;
 	}
@@ -367,6 +375,11 @@ FuseTest::fork(bool drop_privs, int *child_status,
 			goto out;
 		}
 
+		if (drop_privs && 0 != setegid(gid)) {
+			perror("setegid");
+			err = 1;
+			goto out;
+		}
 		if (drop_privs && 0 != setreuid(-1, uid)) {
 			perror("setreuid");
 			err = 1;
