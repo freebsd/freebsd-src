@@ -6335,6 +6335,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				}
 			}
 			if (thlds->spt_pathcpthld != 0xffff) {
+				if (stcb != NULL) {
+					SCTP_TCB_UNLOCK(stcb);
+				}
 				error = EINVAL;
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
 				break;
