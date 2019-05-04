@@ -634,6 +634,7 @@ struct vm_exit {
 		} spinup_ap;
 		struct {
 			uint64_t	rflags;
+			uint64_t	intr_status;
 		} hlt;
 		struct {
 			int		vector;
