@@ -194,6 +194,7 @@ extern int tcp_keepintvl;		/* time between keepalive probes */
 extern int tcp_keepcnt;			/* number of keepalives */
 extern int tcp_delacktime;		/* time before sending a delayed ACK */
 extern int tcp_maxpersistidle;
+extern int tcp_rexmit_initial;
 extern int tcp_rexmit_min;
 extern int tcp_rexmit_slop;
 extern int tcp_msl;
