@@ -1218,16 +1218,21 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 	if (ip && rep->d_ino != ip->i_number)
 		panic("ufs_dirremove: ip %ju does not match dirent ino %ju\n",
 		    (uintmax_t)ip->i_number, (uintmax_t)rep->d_ino);
-	if (dp->i_count == 0) {
-		/*
-		 * First entry in block: set d_ino to zero.
-		 */
-		ep->d_ino = 0;
-	} else {
+	/*
+	 * Zero out the file directory entry metadata to reduce disk
+	 * scavenging disclosure.
+	 */
+	bzero(&rep->d_name[0], rep->d_namlen);
+	rep->d_namlen = 0;
+	rep->d_type = 0;
+	rep->d_ino = 0;
+
+	if (dp->i_count != 0) {
 		/*
 		 * Collapse new free space into previous entry.
 		 */
 		ep->d_reclen += rep->d_reclen;
+		rep->d_reclen = 0;
 	}
 #ifdef UFS_DIRHASH
 	if (dp->i_dirhash != NULL)
