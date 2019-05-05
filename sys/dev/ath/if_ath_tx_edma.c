@@ -1012,6 +1012,8 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 			sc->sc_stats.ast_tx_rssi = ts.ts_rssi;
 			ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
 			    ts.ts_rssi);
+			ATH_RSSI_LPF(ATH_NODE(ni)->an_node_stats.ns_avgtxrssi,
+			    ts.ts_rssi);
 		}
 
 		/* Handle frame completion and rate control update */

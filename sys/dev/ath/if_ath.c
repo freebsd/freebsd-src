@@ -3882,6 +3882,10 @@ ath_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	/* XXX setup ath_tid */
 	ath_tx_tid_init(sc, an);
 
+	an->an_node_stats.ns_avgbrssi = ATH_RSSI_DUMMY_MARKER;
+	an->an_node_stats.ns_avgrssi = ATH_RSSI_DUMMY_MARKER;
+	an->an_node_stats.ns_avgtxrssi = ATH_RSSI_DUMMY_MARKER;
+
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: %6D: an %p\n", __func__, mac, ":", an);
 	return &an->an_node;
 }
@@ -4492,6 +4496,8 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 			nacked++;
 			sc->sc_stats.ast_tx_rssi = ts->ts_rssi;
 			ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
+				ts->ts_rssi);
+			ATH_RSSI_LPF(ATH_NODE(ni)->an_node_stats.ns_avgtxrssi,
 				ts->ts_rssi);
 		}
 		ATH_TXQ_UNLOCK(txq);
@@ -5435,6 +5441,16 @@ ath_calibrate(void *arg)
 				__func__, sc->sc_curchan->ic_freq);
 			sc->sc_stats.ast_per_calfail++;
 		}
+		/*
+		 * XXX TODO: get the NF calibration results from the HAL.
+		 * If we failed NF cal then schedule a hard reset to potentially
+		 * un-freeze the PHY.
+		 *
+		 * Note we have to be careful here to not get stuck in an
+		 * infinite NIC restart.  Ideally we'd not restart if we
+		 * failed the first NF cal - that /can/ fail sometimes in
+		 * a noisy environment.
+		 */
 		if (shortCal)
 			sc->sc_lastshortcal = ticks;
 	}
@@ -6090,6 +6106,17 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			taskqueue_block(sc->sc_tq);
 			sc->sc_beacons = 0;
 		}
+
+		/*
+		 * For at least STA mode we likely should clear the ANI
+		 * and NF calibration state and allow the NIC/HAL to figure
+		 * out optimal parameters at runtime.  Otherwise if we
+		 * disassociate due to interference / deafness it may persist
+		 * when we reconnect.
+		 *
+		 * Note: may need to do this for other states too, not just
+		 * _S_INIT.
+		 */
 #ifdef IEEE80211_SUPPORT_TDMA
 		ath_hal_setcca(ah, AH_TRUE);
 #endif
@@ -6119,9 +6146,39 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			}
 			ATH_UNLOCK(sc);
 		}
+
+		/*
+		 * Note - the ANI/calibration timer isn't re-enabled during
+		 * network sleep for now.  One unfortunate side-effect is that
+		 * the PHY/airtime statistics aren't gathered on the channel
+		 * but I haven't yet tested to see if reading those registers
+		 * CAN occur during network sleep.
+		 *
+		 * This should be revisited in a future commit, even if it's
+		 * just to split out the airtime polling from ANI/calibration.
+		 */
 	} else if (nstate == IEEE80211_S_SCAN) {
 		/* Quiet time handling - ensure we resync */
 		memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
+
+		/*
+		 * If we're in scan mode then startpcureceive() is
+		 * hopefully being called with "reset ANI" for this channel;
+		 * but once we attempt to reassociate we program in the previous
+		 * ANI values and.. not do any calibration until we're running.
+		 * This may mean we stay deaf unless we can associate successfully.
+		 *
+		 * So do kick off the cal timer to get NF/ANI going.
+		 */
+		ATH_LOCK(sc);
+		if (ath_longcalinterval != 0) {
+			/* start periodic recalibration timer */
+			callout_reset(&sc->sc_cal_ch, 1, ath_calibrate, sc);
+		} else {
+			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
+			    "%s: calibration disabled\n", __func__);
+		}
+		ATH_UNLOCK(sc);
 	}
 bad:
 	ieee80211_free_node(ni);

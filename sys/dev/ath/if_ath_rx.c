@@ -363,6 +363,11 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	ATH_VAP(vap)->av_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 	switch (subtype) {
 	case IEEE80211_FC0_SUBTYPE_BEACON:
+		/*
+		 * Always update the per-node beacon RSSI if we're hearing
+		 * beacons from that node.
+		 */
+		ATH_RSSI_LPF(ATH_NODE(ni)->an_node_stats.ns_avgbrssi, rssi);
 
 		/*
 		 * Only do the following processing if it's for
@@ -946,6 +951,21 @@ rx_accept:
 			m->m_flags |= M_AMPDU;
 
 		/*
+		 * Inform rate control about the received RSSI.
+		 * It can then use this information to potentially drastically
+		 * alter the available rate based on the RSSI estimate.
+		 *
+		 * This is super important when associating to a far away station;
+		 * you don't want to waste time trying higher rates at some low
+		 * packet exchange rate (like during DHCP) just to establish
+		 * that higher MCS rates aren't available.
+		 */
+		ATH_RSSI_LPF(ATH_NODE(ni)->an_node_stats.ns_avgrssi,
+		    rs->rs_rssi);
+		ath_rate_update_rx_rssi(sc, ATH_NODE(ni),
+		    ATH_RSSI(ATH_NODE(ni)->an_node_stats.ns_avgrssi));
+
+		/*
 		 * Sending station is known, dispatch directly.
 		 */
 		(void) ieee80211_add_rx_params(m, &rxs);
@@ -973,7 +993,7 @@ rx_accept:
 	 */
 
 	/*
-	 * Track rx rssi and do any rx antenna management.
+	 * Track legacy station RX rssi and do any rx antenna management.
 	 */
 	ATH_RSSI_LPF(sc->sc_halstats.ns_avgrssi, rs->rs_rssi);
 	if (sc->sc_diversity) {
