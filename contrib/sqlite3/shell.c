@@ -2177,13 +2177,13 @@ static void readFileContents(sqlite3_context *ctx, const char *zName){
     fclose(in);
     return;
   }
-  pBuf = sqlite3_malloc64( nIn );
+  pBuf = sqlite3_malloc64( nIn ? nIn : 1 );
   if( pBuf==0 ){
     sqlite3_result_error_nomem(ctx);
     fclose(in);
     return;
   }
-  if( 1==fread(pBuf, nIn, 1, in) ){
+  if( nIn==(sqlite3_int64)fread(pBuf, 1, (size_t)nIn, in) ){
     sqlite3_result_blob64(ctx, pBuf, nIn, sqlite3_free);
   }else{
     sqlite3_result_error_code(ctx, SQLITE_IOERR);
@@ -2318,15 +2318,15 @@ static int fileLinkStat(
 ** Argument zFile is the name of a file that will be created and/or written
 ** by SQL function writefile(). This function ensures that the directory
 ** zFile will be written to exists, creating it if required. The permissions
-** for any path components created by this function are set to (mode&0777).
+** for any path components created by this function are set in accordance
+** with the current umask.
 **
 ** If an OOM condition is encountered, SQLITE_NOMEM is returned. Otherwise,
 ** SQLITE_OK is returned if the directory is successfully created, or
 ** SQLITE_ERROR otherwise.
 */
 static int makeDirectory(
-  const char *zFile,
-  mode_t mode
+  const char *zFile
 ){
   char *zCopy = sqlite3_mprintf("%s", zFile);
   int rc = SQLITE_OK;
@@ -2347,7 +2347,7 @@ static int makeDirectory(
 
       rc2 = fileStat(zCopy, &sStat);
       if( rc2!=0 ){
-        if( mkdir(zCopy, mode & 0777) ) rc = SQLITE_ERROR;
+        if( mkdir(zCopy, 0777) ) rc = SQLITE_ERROR;
       }else{
         if( !S_ISDIR(sStat.st_mode) ) rc = SQLITE_ERROR;
       }
@@ -2505,7 +2505,7 @@ static void writefileFunc(
 
   res = writeFile(context, zFile, argv[1], mode, mtime);
   if( res==1 && errno==ENOENT ){
-    if( makeDirectory(zFile, mode)==SQLITE_OK ){
+    if( makeDirectory(zFile)==SQLITE_OK ){
       res = writeFile(context, zFile, argv[1], mode, mtime);
     }
   }
@@ -10430,6 +10430,66 @@ static void restore_debug_trace_modes(void){
 #endif
 }
 
+/* Create the TEMP table used to store parameter bindings */
+static void bind_table_init(ShellState *p){
+  int wrSchema = 0;
+  sqlite3_db_config(p->db, SQLITE_DBCONFIG_WRITABLE_SCHEMA, -1, &wrSchema);
+  sqlite3_db_config(p->db, SQLITE_DBCONFIG_WRITABLE_SCHEMA, 1, 0);
+  sqlite3_exec(p->db,
+    "CREATE TABLE IF NOT EXISTS temp.sqlite_parameters(\n"
+    "  key TEXT PRIMARY KEY,\n"
+    "  value ANY\n"
+    ") WITHOUT ROWID;",
+    0, 0, 0);
+  sqlite3_db_config(p->db, SQLITE_DBCONFIG_WRITABLE_SCHEMA, wrSchema, 0);
+}
+
+/*
+** Bind parameters on a prepared statement.
+**
+** Parameter bindings are taken from a TEMP table of the form:
+**
+**    CREATE TEMP TABLE sqlite_parameters(key TEXT PRIMARY KEY, value)
+**    WITHOUT ROWID;
+**
+** No bindings occur if this table does not exist.  The special character '$'
+** is included in the table name to help prevent collisions with actual tables.
+** The table must be in the TEMP schema.
+*/
+static void bind_prepared_stmt(ShellState *pArg, sqlite3_stmt *pStmt){
+  int nVar;
+  int i;
+  int rc;
+  sqlite3_stmt *pQ = 0;
+
+  nVar = sqlite3_bind_parameter_count(pStmt);
+  if( nVar==0 ) return;  /* Nothing to do */
+  if( sqlite3_table_column_metadata(pArg->db, "TEMP", "sqlite_parameters",
+                                    "key", 0, 0, 0, 0, 0)!=SQLITE_OK ){
+    return; /* Parameter table does not exist */
+  }
+  rc = sqlite3_prepare_v2(pArg->db,
+          "SELECT value FROM temp.sqlite_parameters"
+          " WHERE key=?1", -1, &pQ, 0);
+  if( rc || pQ==0 ) return;
+  for(i=1; i<=nVar; i++){
+    char zNum[30];
+    const char *zVar = sqlite3_bind_parameter_name(pStmt, i);
+    if( zVar==0 ){
+      sqlite3_snprintf(sizeof(zNum),zNum,"?%d",i);
+      zVar = zNum;
+    }
+    sqlite3_bind_text(pQ, 1, zVar, -1, SQLITE_STATIC);
+    if( sqlite3_step(pQ)==SQLITE_ROW ){
+      sqlite3_bind_value(pStmt, i, sqlite3_column_value(pQ, 0));
+    }else{
+      sqlite3_bind_null(pStmt, i);
+    }
+    sqlite3_reset(pQ);
+  }
+  sqlite3_finalize(pQ);
+}
+
 /*
 ** Run a prepared statement
 */
@@ -10682,7 +10742,7 @@ static int shell_exec(
       }
 
       /* Show the EXPLAIN QUERY PLAN if .eqp is on */
-      if( pArg && pArg->autoEQP && sqlite3_strlike("EXPLAIN%",zStmtSql,0)!=0 ){
+      if( pArg && pArg->autoEQP && sqlite3_stmt_isexplain(pStmt)==0 ){
         sqlite3_stmt *pExplain;
         char *zEQP;
         int triggerEQP = 0;
@@ -10731,13 +10791,10 @@ static int shell_exec(
       if( pArg ){
         pArg->cMode = pArg->mode;
         if( pArg->autoExplain ){
-          if( sqlite3_column_count(pStmt)==8
-           && sqlite3_strlike("EXPLAIN%", zStmtSql,0)==0
-          ){
+          if( sqlite3_stmt_isexplain(pStmt)==1 ){
             pArg->cMode = MODE_Explain;
           }
-          if( sqlite3_column_count(pStmt)==4
-           && sqlite3_strlike("EXPLAIN QUERY PLAN%", zStmtSql,0)==0 ){
+          if( sqlite3_stmt_isexplain(pStmt)==2 ){
             pArg->cMode = MODE_EQP;
           }
         }
@@ -10749,6 +10806,7 @@ static int shell_exec(
         }
       }
 
+      bind_prepared_stmt(pArg, pStmt);
       exec_prepared_stmt(pArg, pStmt);
       explain_data_delete(pArg);
       eqp_render(pArg);
@@ -11078,7 +11136,8 @@ static const char *(azHelp[]) = {
   ".archive ...             Manage SQL archives",
   "   Each command must have exactly one of the following options:",
   "     -c, --create               Create a new archive",
-  "     -u, --update               Update or add files to an existing archive",
+  "     -u, --update               Add files or update files with changed mtime",
+  "     -i, --insert               Like -u but always add even if mtime unchanged",
   "     -t, --list                 List contents of archive",
   "     -x, --extract              Extract files from archive",
   "   Optional arguments:",
@@ -11180,6 +11239,13 @@ static const char *(azHelp[]) = {
   "        --zip           FILE is a ZIP archive",
   ".output ?FILE?           Send output to FILE or stdout if FILE is omitted",
   "     If FILE begins with '|' then open it as a pipe.",
+  ".parameter CMD ...       Manage SQL parameter bindings",
+  "   clear                   Erase all bindings",
+  "   init                    Initialize the TEMP table that holds bindings",
+  "   list                    List the current parameter bindings",
+  "   set PARAMETER VALUE     Given SQL parameter PARAMETER a value of VALUE",
+  "                           PARAMETER should start with '$', ':', '@', or '?'",
+  "   unset PARAMETER         Remove PARAMETER from the binding table",
   ".print STRING...         Print literal STRING",
 #ifndef SQLITE_OMIT_PROGRESS_CALLBACK
   ".progress N              Invoke progress handler after every N opcodes",
@@ -12392,7 +12458,7 @@ static int shell_dbinfo_command(ShellState *p, int nArg, char **azArg){
      { "schema size:",
        "SELECT total(length(sql)) FROM %s" },
   };
-  int i;
+  int i, rc;
   unsigned iDataVersion;
   char *zSchemaTab;
   char *zDb = nArg>=2 ? azArg[1] : "main";
@@ -12400,8 +12466,19 @@ static int shell_dbinfo_command(ShellState *p, int nArg, char **azArg){
   unsigned char aHdr[100];
   open_db(p, 0);
   if( p->db==0 ) return 1;
-  sqlite3_prepare_v2(p->db,"SELECT data FROM sqlite_dbpage(?1) WHERE pgno=1",
-                     -1, &pStmt, 0);
+  rc = sqlite3_prepare_v2(p->db,
+             "SELECT data FROM sqlite_dbpage(?1) WHERE pgno=1",
+             -1, &pStmt, 0);
+  if( rc ){
+    if( !sqlite3_compileoption_used("ENABLE_DBPAGE_VTAB") ){
+      utf8_printf(stderr, "the \".dbinfo\" command requires the "
+                          "-DSQLITE_ENABLE_DBPAGE_VTAB compile-time options\n");
+    }else{
+      utf8_printf(stderr, "error: %s\n", sqlite3_errmsg(p->db));
+    }
+    sqlite3_finalize(pStmt);
+    return 1;
+  }
   sqlite3_bind_text(pStmt, 1, zDb, -1, SQLITE_STATIC);
   if( sqlite3_step(pStmt)==SQLITE_ROW
    && sqlite3_column_bytes(pStmt,0)>100
@@ -12995,19 +13072,20 @@ static int arErrorMsg(ArCommand *pAr, const char *zFmt, ...){
 ** Values for ArCommand.eCmd.
 */
 #define AR_CMD_CREATE       1
-#define AR_CMD_EXTRACT      2
-#define AR_CMD_LIST         3
-#define AR_CMD_UPDATE       4
-#define AR_CMD_HELP         5
+#define AR_CMD_UPDATE       2
+#define AR_CMD_INSERT       3
+#define AR_CMD_EXTRACT      4
+#define AR_CMD_LIST         5
+#define AR_CMD_HELP         6
 
 /*
 ** Other (non-command) switches.
 */
-#define AR_SWITCH_VERBOSE     6
-#define AR_SWITCH_FILE        7
-#define AR_SWITCH_DIRECTORY   8
-#define AR_SWITCH_APPEND      9
-#define AR_SWITCH_DRYRUN     10
+#define AR_SWITCH_VERBOSE     7
+#define AR_SWITCH_FILE        8
+#define AR_SWITCH_DIRECTORY   9
+#define AR_SWITCH_APPEND     10
+#define AR_SWITCH_DRYRUN     11
 
 static int arProcessSwitch(ArCommand *pAr, int eSwitch, const char *zArg){
   switch( eSwitch ){
@@ -13015,6 +13093,7 @@ static int arProcessSwitch(ArCommand *pAr, int eSwitch, const char *zArg){
     case AR_CMD_EXTRACT:
     case AR_CMD_LIST:
     case AR_CMD_UPDATE:
+    case AR_CMD_INSERT:
     case AR_CMD_HELP:
       if( pAr->eCmd ){
         return arErrorMsg(pAr, "multiple command options");
@@ -13061,6 +13140,7 @@ static int arParseCommand(
   } aSwitch[] = {
     { "create",    'c', AR_CMD_CREATE,       0 },
     { "extract",   'x', AR_CMD_EXTRACT,      0 },
+    { "insert",    'i', AR_CMD_INSERT,       0 },
     { "list",      't', AR_CMD_LIST,         0 },
     { "update",    'u', AR_CMD_UPDATE,       0 },
     { "help",      'h', AR_CMD_HELP,         0 },
@@ -13396,7 +13476,12 @@ static int arExecSql(ArCommand *pAr, const char *zSql){
 
 
 /*
-** Implementation of .ar "create" and "update" commands.
+** Implementation of .ar "create", "insert", and "update" commands.
+**
+**     create    ->     Create a new SQL archive
+**     insert    ->     Insert or reinsert all files listed
+**     update    ->     Insert files that have changed or that were not
+**                      previously in the archive
 **
 ** Create the "sqlar" table in the database if it does not already exist.
 ** Then add each file in the azFile[] array to the archive. Directories
@@ -13404,11 +13489,14 @@ static int arExecSql(ArCommand *pAr, const char *zSql){
 ** printed on stdout for each file archived.
 **
 ** The create command is the same as update, except that it drops
-** any existing "sqlar" table before beginning.
+** any existing "sqlar" table before beginning.  The "insert" command
+** always overwrites every file named on the command-line, where as
+** "update" only overwrites if the size or mtime or mode has changed.
 */
 static int arCreateOrUpdateCommand(
   ArCommand *pAr,                 /* Command arguments and options */
-  int bUpdate                     /* true for a --create.  false for --update */
+  int bUpdate,                    /* true for a --create. */
+  int bOnlyIfChanged              /* Only update if file has changed */
 ){
   const char *zCreate = 
       "CREATE TABLE IF NOT EXISTS sqlar(\n"
@@ -13430,22 +13518,24 @@ static int arCreateOrUpdateCommand(
      "      WHEN 'd' THEN 0\n"
      "      ELSE -1 END,\n"
      "    sqlar_compress(data)\n"
-     "  FROM fsdir(%Q,%Q)\n"
-     "  WHERE lsmode(mode) NOT LIKE '?%%';",
+     "  FROM fsdir(%Q,%Q) AS disk\n"
+     "  WHERE lsmode(mode) NOT LIKE '?%%'%s;"
+     ,
      "REPLACE INTO %s(name,mode,mtime,data)\n"
      "  SELECT\n"
      "    %s,\n"
      "    mode,\n"
      "    mtime,\n"
      "    data\n"
-     "  FROM fsdir(%Q,%Q)\n"
-     "  WHERE lsmode(mode) NOT LIKE '?%%';"
+     "  FROM fsdir(%Q,%Q) AS disk\n"
+     "  WHERE lsmode(mode) NOT LIKE '?%%'%s;"
   };
   int i;                          /* For iterating through azFile[] */
   int rc;                         /* Return code */
   const char *zTab = 0;           /* SQL table into which to insert */
   char *zSql;
   char zTemp[50];
+  char *zExists = 0;
 
   arExecSql(pAr, "PRAGMA page_size=512");
   rc = arExecSql(pAr, "SAVEPOINT ar;");
@@ -13476,10 +13566,21 @@ static int arCreateOrUpdateCommand(
     }
     rc = arExecSql(pAr, zCreate);
   }
+  if( bOnlyIfChanged ){
+    zExists = sqlite3_mprintf(
+      " AND NOT EXISTS("
+          "SELECT 1 FROM %s AS mem"
+          " WHERE mem.name=disk.name"
+          " AND mem.mtime=disk.mtime"
+          " AND mem.mode=disk.mode)", zTab);
+  }else{
+    zExists = sqlite3_mprintf("");
+  }
+  if( zExists==0 ) rc = SQLITE_NOMEM;
   for(i=0; i<pAr->nArg && rc==SQLITE_OK; i++){
     char *zSql2 = sqlite3_mprintf(zInsertFmt[pAr->bZip], zTab,
         pAr->bVerbose ? "shell_putsnl(name)" : "name",
-        pAr->azArg[i], pAr->zDir);
+        pAr->azArg[i], pAr->zDir, zExists);
     rc = arExecSql(pAr, zSql2);
     sqlite3_free(zSql2);
   }
@@ -13494,6 +13595,7 @@ end_ar_transaction:
       sqlite3_free(zSql);
     }
   }
+  sqlite3_free(zExists);
   return rc;
 }
 
@@ -13532,7 +13634,8 @@ static int arDotCommand(
     }else if( cmd.zFile ){
       int flags;
       if( cmd.bAppend ) eDbType = SHELL_OPEN_APPENDVFS;
-      if( cmd.eCmd==AR_CMD_CREATE || cmd.eCmd==AR_CMD_UPDATE ){
+      if( cmd.eCmd==AR_CMD_CREATE || cmd.eCmd==AR_CMD_INSERT 
+           || cmd.eCmd==AR_CMD_UPDATE ){
         flags = SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE;
       }else{
         flags = SQLITE_OPEN_READONLY;
@@ -13569,7 +13672,7 @@ static int arDotCommand(
 
     switch( cmd.eCmd ){
       case AR_CMD_CREATE:
-        rc = arCreateOrUpdateCommand(&cmd, 0);
+        rc = arCreateOrUpdateCommand(&cmd, 0, 0);
         break;
 
       case AR_CMD_EXTRACT:
@@ -13584,9 +13687,13 @@ static int arDotCommand(
         arUsage(pState->out);
         break;
 
+      case AR_CMD_INSERT:
+        rc = arCreateOrUpdateCommand(&cmd, 1, 0);
+        break;
+
       default:
         assert( cmd.eCmd==AR_CMD_UPDATE );
-        rc = arCreateOrUpdateCommand(&cmd, 1);
+        rc = arCreateOrUpdateCommand(&cmd, 1, 1);
         break;
     }
   }
@@ -14709,6 +14816,114 @@ static int do_meta_command(char *zLine, ShellState *p){
         sqlite3_snprintf(sizeof(p->outfile), p->outfile, "%s", zFile);
       }
     }
+  }else
+
+  if( c=='p' && n>=3 && strncmp(azArg[0], "parameter", n)==0 ){
+    open_db(p,0);
+    if( nArg<=1 ) goto parameter_syntax_error;
+
+    /* .parameter clear
+    ** Clear all bind parameters by dropping the TEMP table that holds them.
+    */
+    if( nArg==2 && strcmp(azArg[1],"clear")==0 ){
+      int wrSchema = 0;
+      sqlite3_db_config(p->db, SQLITE_DBCONFIG_WRITABLE_SCHEMA, -1, &wrSchema);
+      sqlite3_db_config(p->db, SQLITE_DBCONFIG_WRITABLE_SCHEMA, 1, 0);
+      sqlite3_exec(p->db, "DROP TABLE IF EXISTS temp.sqlite_parameters;",
+                   0, 0, 0);
+      sqlite3_db_config(p->db, SQLITE_DBCONFIG_WRITABLE_SCHEMA, wrSchema, 0);
+    }else
+
+    /* .parameter list
+    ** List all bind parameters.
+    */
+    if( nArg==2 && strcmp(azArg[1],"list")==0 ){
+      sqlite3_stmt *pStmt = 0;
+      int rx;
+      int len = 0;
+      rx = sqlite3_prepare_v2(p->db,
+             "SELECT max(length(key)) "
+             "FROM temp.sqlite_parameters;", -1, &pStmt, 0);
+      if( rx==SQLITE_OK && sqlite3_step(pStmt)==SQLITE_ROW ){
+        len = sqlite3_column_int(pStmt, 0);
+        if( len>40 ) len = 40;
+      }
+      sqlite3_finalize(pStmt);
+      pStmt = 0;
+      if( len ){
+        rx = sqlite3_prepare_v2(p->db,
+             "SELECT key, quote(value) "
+             "FROM temp.sqlite_parameters;", -1, &pStmt, 0);
+        while( sqlite3_step(pStmt)==SQLITE_ROW ){
+          utf8_printf(p->out, "%-*s %s\n", len, sqlite3_column_text(pStmt,0),
+                      sqlite3_column_text(pStmt,1));
+        }
+        sqlite3_finalize(pStmt);
+      }
+    }else
+
+    /* .parameter init
+    ** Make sure the TEMP table used to hold bind parameters exists.
+    ** Create it if necessary.
+    */
+    if( nArg==2 && strcmp(azArg[1],"init")==0 ){
+      bind_table_init(p);
+    }else
+
+    /* .parameter set NAME VALUE
+    ** Set or reset a bind parameter.  NAME should be the full parameter
+    ** name exactly as it appears in the query.  (ex: $abc, @def).  The
+    ** VALUE can be in either SQL literal notation, or if not it will be
+    ** understood to be a text string.
+    */
+    if( nArg==4 && strcmp(azArg[1],"set")==0 ){
+      int rx;
+      char *zSql;
+      sqlite3_stmt *pStmt;
+      const char *zKey = azArg[2];
+      const char *zValue = azArg[3];
+      bind_table_init(p);
+      zSql = sqlite3_mprintf(
+                  "REPLACE INTO temp.sqlite_parameters(key,value)"
+                  "VALUES(%Q,%s);", zKey, zValue);
+      if( zSql==0 ) shell_out_of_memory();
+      pStmt = 0;
+      rx = sqlite3_prepare_v2(p->db, zSql, -1, &pStmt, 0);
+      sqlite3_free(zSql);
+      if( rx!=SQLITE_OK ){
+        sqlite3_finalize(pStmt);
+        pStmt = 0;
+        zSql = sqlite3_mprintf(
+                   "REPLACE INTO temp.sqlite_parameters(key,value)"
+                   "VALUES(%Q,%Q);", zKey, zValue);
+        if( zSql==0 ) shell_out_of_memory();
+        rx = sqlite3_prepare_v2(p->db, zSql, -1, &pStmt, 0);
+        sqlite3_free(zSql);
+        if( rx!=SQLITE_OK ){
+          utf8_printf(p->out, "Error: %s\n", sqlite3_errmsg(p->db));
+          sqlite3_finalize(pStmt);
+          pStmt = 0;
+          rc = 1;
+        }
+      }
+      sqlite3_step(pStmt);
+      sqlite3_finalize(pStmt);
+    }else
+
+    /* .parameter unset NAME
+    ** Remove the NAME binding from the parameter binding table, if it
+    ** exists.
+    */
+    if( nArg==3 && strcmp(azArg[1],"unset")==0 ){
+      char *zSql = sqlite3_mprintf(
+          "DELETE FROM temp.sqlite_parameters WHERE key=%Q", azArg[2]);
+      if( zSql==0 ) shell_out_of_memory();
+      sqlite3_exec(p->db, zSql, 0, 0, 0);
+      sqlite3_free(zSql);
+    }else
+    /* If no command name matches, show a syntax error */
+    parameter_syntax_error:
+    showHelp(p->out, "parameter");
   }else
 
   if( c=='p' && n>=3 && strncmp(azArg[0], "print", n)==0 ){
