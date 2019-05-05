@@ -89,8 +89,14 @@ ata_op_string(struct ata_cmd *cmd)
 		case 0x01: return ("DSM TRIM");
 		}
 		return "DSM";
+	case 0x07:
+		switch (cmd->features) {
+		case 0x01: return ("DSM_XL TRIM");
+		}
+		return "DSM_XL";
 	case 0x08: return ("DEVICE_RESET");
 	case 0x0b: return ("REQUEST_SENSE_DATA_EXT");
+	case 0x12: return ("GET_PHYSICAL_ELEMENT_STATUS");
 	case 0x20: return ("READ");
 	case 0x24: return ("READ48");
 	case 0x25: return ("READ_DMA48");
@@ -113,7 +119,11 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x3f: return ("WRITE_LOG_EXT");
 	case 0x40: return ("READ_VERIFY");
 	case 0x42: return ("READ_VERIFY48");
-	case 0x44: return ("ZERO_EXT");
+	case 0x44:
+		switch (cmd->features) {
+		case 0x01: return ("ZERO_EXT TRIM");
+		}
+		return "ZERO_EXT";
 	case 0x45:
 		switch (cmd->features) {
 		case 0x55: return ("WRITE_UNCORRECTABLE48 PSEUDO");
@@ -135,6 +145,9 @@ ata_op_string(struct ata_cmd *cmd)
 		switch (cmd->features & 0xf) {
 		case 0x00: return ("NCQ_NON_DATA ABORT NCQ QUEUE");
 		case 0x01: return ("NCQ_NON_DATA DEADLINE HANDLING");
+		case 0x02: return ("NCQ_NON_DATA HYBRID DEMOTE BY SIZE");
+		case 0x03: return ("NCQ_NON_DATA HYBRID CHANGE BY LBA RANGE");
+		case 0x04: return ("NCQ_NON_DATA HYBRID CONTROL");
 		case 0x05: return ("NCQ_NON_DATA SET FEATURES");
 		/*
 		 * XXX KDM need common decoding between NCQ and non-NCQ
@@ -147,6 +160,7 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x64:
 		switch (cmd->sector_count_exp & 0xf) {
 		case 0x00: return ("SEND_FPDMA_QUEUED DATA SET MANAGEMENT");
+		case 0x01: return ("SEND_FPDMA_QUEUED HYBRID EVICT");
 		case 0x02: return ("SEND_FPDMA_QUEUED WRITE LOG DMA EXT");
 		case 0x03: return ("SEND_FPDMA_QUEUED ZAC MANAGEMENT OUT");
 		case 0x04: return ("SEND_FPDMA_QUEUED DATA SET MANAGEMENT XL");
@@ -171,6 +185,7 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x70: return ("SEEK");
 	case 0x77: return ("SET_DATE_TIME_EXT");
 	case 0x78: return ("ACCESSIBLE_MAX_ADDRESS_CONFIGURATION");
+	case 0x7C: return ("REMOVE_ELEMENT_AND_TRUNCATE");
 	case 0x87: return ("CFA_TRANSLATE_SECTOR");
 	case 0x90: return ("EXECUTE_DEVICE_DIAGNOSTIC");
 	case 0x92: return ("DOWNLOAD_MICROCODE");
@@ -185,13 +200,15 @@ ata_op_string(struct ata_cmd *cmd)
 		case 0xd1: return ("SMART READ ATTR THRESHOLDS");
 		case 0xd3: return ("SMART SAVE ATTR VALUES");
 		case 0xd4: return ("SMART EXECUTE OFFLINE IMMEDIATE");
-		case 0xd5: return ("SMART READ LOG DATA");
+		case 0xd5: return ("SMART READ LOG");
+		case 0xd6: return ("SMART WRITE LOG");
 		case 0xd8: return ("SMART ENABLE OPERATION");
 		case 0xd9: return ("SMART DISABLE OPERATION");
 		case 0xda: return ("SMART RETURN STATUS");
 		}
 		return ("SMART");
 	case 0xb1: return ("DEVICE CONFIGURATION");
+	case 0xb2: return ("SET_SECTOR_CONFIGURATION_EXT");
 	case 0xb4: return ("SANITIZE_DEVICE");
 	case 0xc0: return ("CFA_ERASE");
 	case 0xc4: return ("READ_MUL");
@@ -229,7 +246,7 @@ ata_op_string(struct ata_cmd *cmd)
 		switch (cmd->features) {
 	        case 0x02: return ("SETFEATURES ENABLE WCACHE");
 	        case 0x03: return ("SETFEATURES SET TRANSFER MODE");
-		case 0x04: return ("SETFEATURES ENABLE APM");
+		case 0x05: return ("SETFEATURES ENABLE APM");
 	        case 0x06: return ("SETFEATURES ENABLE PUIS");
 	        case 0x07: return ("SETFEATURES SPIN-UP");
 		case 0x0b: return ("SETFEATURES ENABLE WRITE READ VERIFY");
@@ -239,6 +256,7 @@ ata_op_string(struct ata_cmd *cmd)
 		case 0x43: return ("SETFEATURES SET MAX HOST INT SECT TIMES");
 		case 0x45: return ("SETFEATURES SET RATE BASIS");
 		case 0x4a: return ("SETFEATURES EXTENDED POWER CONDITIONS");
+		case 0x50: return ("SETFEATURES ADVANCED BACKGROUD OPERATION");
 	        case 0x55: return ("SETFEATURES DISABLE RCACHE");
 		case 0x5d: return ("SETFEATURES ENABLE RELIRQ");
 		case 0x5e: return ("SETFEATURES ENABLE SRVIRQ");
