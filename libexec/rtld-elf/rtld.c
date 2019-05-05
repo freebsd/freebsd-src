@@ -458,7 +458,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		 * others x bit is enabled.
 		 * mmap(2) does not allow to mmap with PROT_EXEC if
 		 * binary' file comes from noexec mount.  We cannot
-		 * set VV_TEXT on the binary.
+		 * set a text reference on the binary.
 		 */
 		dir_enable = false;
 		if (st.st_uid == geteuid()) {

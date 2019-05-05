@@ -169,7 +169,8 @@ struct vnode {
 	u_int	v_iflag;			/* i vnode flags (see below) */
 	u_int	v_vflag;			/* v vnode flags */
 	u_int	v_mflag;			/* l mnt-specific vnode flags */
-	int	v_writecount;			/* v ref count of writers */
+	int	v_writecount;			/* I ref count of writers or
+						   (negative) text users */
 	u_int	v_hash;
 	enum	vtype v_type;			/* u vnode type */
 };
@@ -244,7 +245,6 @@ struct xvnode {
 #define	VV_NOSYNC	0x0004	/* unlinked, stop syncing */
 #define	VV_ETERNALDEV	0x0008	/* device that is never destroyed */
 #define	VV_CACHEDLABEL	0x0010	/* Vnode has valid cached MAC label */
-#define	VV_TEXT		0x0020	/* vnode is a pure text prototype */
 #define	VV_COPYONWRITE	0x0040	/* vnode is doing copy-on-write */
 #define	VV_SYSTEM	0x0080	/* vnode being used by kernel */
 #define	VV_PROCDEP	0x0100	/* vnode is process dependent */
@@ -749,6 +749,7 @@ int	vop_stdadvlock(struct vop_advlock_args *ap);
 int	vop_stdadvlockasync(struct vop_advlockasync_args *ap);
 int	vop_stdadvlockpurge(struct vop_advlockpurge_args *ap);
 int	vop_stdallocate(struct vop_allocate_args *ap);
+int	vop_stdset_text(struct vop_set_text_args *ap);
 int	vop_stdpathconf(struct vop_pathconf_args *);
 int	vop_stdpoll(struct vop_poll_args *);
 int	vop_stdvptocnp(struct vop_vptocnp_args *ap);
@@ -828,6 +829,33 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 
 #define VOP_LOCK(vp, flags) VOP_LOCK1(vp, flags, __FILE__, __LINE__)
 
+#ifdef	INVARIANTS
+#define	VOP_ADD_WRITECOUNT_CHECKED(vp, cnt)				\
+do {									\
+	int error_;							\
+									\
+	error_ = VOP_ADD_WRITECOUNT((vp), (cnt));			\
+	MPASS(error_ == 0);						\
+} while (0)
+#define	VOP_SET_TEXT_CHECKED(vp)					\
+do {									\
+	int error_;							\
+									\
+	error_ = VOP_SET_TEXT((vp));					\
+	MPASS(error_ == 0);						\
+} while (0)
+#define	VOP_UNSET_TEXT_CHECKED(vp)					\
+do {									\
+	int error_;							\
+									\
+	error_ = VOP_UNSET_TEXT((vp));					\
+	MPASS(error_ == 0);						\
+} while (0)
+#else
+#define	VOP_ADD_WRITECOUNT_CHECKED(vp, cnt)	VOP_ADD_WRITECOUNT((vp), (cnt))
+#define	VOP_SET_TEXT_CHECKED(vp)		VOP_SET_TEXT((vp))
+#define	VOP_UNSET_TEXT_CHECKED(vp)		VOP_UNSET_TEXT((vp))
+#endif
 
 void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
