@@ -90,6 +90,7 @@ ce.iso2.kbd:de:Zentral Europäisch ISO-8859-2
 ce.iso2.kbd:fr:Centre européen ISO-8859-2
 ce.iso2.kbd:es:Centroeuropeo ISO-8859-2
 
+colemak-dh.iso15.acc.kbd:en:Colemak Mod-DH ergonomic alternative
 colemak.iso15.acc.kbd:en:Colemak ergonomic alternative
 
 cs.latin2.qwertz.kbd:en:Czech ISO-8859-2 (QWERTZ, accent keys)
