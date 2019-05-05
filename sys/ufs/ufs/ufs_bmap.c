@@ -354,6 +354,7 @@ ufs_bmap_seekdata(vp, offp)
 	int error, num, num1, off;
 
 	bp = NULL;
+	error = 0;
 	ip = VTOI(vp);
 	mp = vp->v_mount;
 	ump = VFSTOUFS(mp);
