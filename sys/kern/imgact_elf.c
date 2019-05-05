@@ -957,9 +957,12 @@ __elfN(get_interp)(struct image_params *imgp, const Elf_Phdr *phdr,
 	interp_name_len = phdr->p_filesz;
 	if (phdr->p_offset > PAGE_SIZE ||
 	    interp_name_len > PAGE_SIZE - phdr->p_offset) {
-		VOP_UNLOCK(imgp->vp, 0);
-		interp = malloc(interp_name_len + 1, M_TEMP, M_WAITOK);
-		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+		interp = malloc(interp_name_len + 1, M_TEMP, M_NOWAIT);
+		if (interp == NULL) {
+			VOP_UNLOCK(imgp->vp, 0);
+			interp = malloc(interp_name_len + 1, M_TEMP, M_WAITOK);
+			vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+		}
 		error = vn_rdwr(UIO_READ, imgp->vp, interp,
 		    interp_name_len, phdr->p_offset,
 		    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
@@ -1278,7 +1281,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	/*
 	 * Construct auxargs table (used by the fixup routine)
 	 */
-	elf_auxargs = malloc(sizeof(Elf_Auxargs), M_TEMP, M_WAITOK);
+	elf_auxargs = malloc(sizeof(Elf_Auxargs), M_TEMP, M_NOWAIT);
+	if (elf_auxargs == NULL) {
+		VOP_UNLOCK(imgp->vp, 0);
+		elf_auxargs = malloc(sizeof(Elf_Auxargs), M_TEMP, M_WAITOK);
+		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+	}
 	elf_auxargs->execfd = -1;
 	elf_auxargs->phdr = proghdr + et_dyn_addr;
 	elf_auxargs->phent = hdr->e_phentsize;
@@ -2558,9 +2566,12 @@ __elfN(parse_notes)(struct image_params *imgp, Elf_Note *checknote,
 	ASSERT_VOP_LOCKED(imgp->vp, "parse_notes");
 	if (pnote->p_offset > PAGE_SIZE ||
 	    pnote->p_filesz > PAGE_SIZE - pnote->p_offset) {
-		VOP_UNLOCK(imgp->vp, 0);
-		buf = malloc(pnote->p_filesz, M_TEMP, M_WAITOK);
-		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+		buf = malloc(pnote->p_filesz, M_TEMP, M_NOWAIT);
+		if (buf == NULL) {
+			VOP_UNLOCK(imgp->vp, 0);
+			buf = malloc(pnote->p_filesz, M_TEMP, M_WAITOK);
+			vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+		}
 		error = vn_rdwr(UIO_READ, imgp->vp, buf, pnote->p_filesz,
 		    pnote->p_offset, UIO_SYSSPACE, IO_NODELOCKED,
 		    curthread->td_ucred, NOCRED, NULL, curthread);
