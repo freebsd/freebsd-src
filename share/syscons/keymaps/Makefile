@@ -6,6 +6,7 @@ FILES=	INDEX.keymaps \
 	br275.iso.kbd br275.iso.acc.kbd br275.cp850.kbd \
 	by.cp1131.kbd by.cp1251.kbd by.iso5.kbd \
 	ce.iso2.kbd \
+	colemak-dh.iso15.acc.kbd \
 	colemak.iso15.acc.kbd \
 	cs.latin2.qwertz.kbd \
 	cz.iso2.kbd \
