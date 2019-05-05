@@ -1843,9 +1843,6 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf(" kernstart   = 0x%"PRI0ptrX"\n", kernstart);
 	debugf(" kernsize    = 0x%"PRI0ptrX"\n", kernsize);
 
-	if (sizeof(phys_avail) / sizeof(phys_avail[0]) < availmem_regions_sz)
-		panic("mmu_booke_bootstrap: phys_avail too small");
-
 	/*
 	 * Remove kernel physical address range from avail regions list. Page
 	 * align all regions.  Non-page aligned memory isn't very interesting
@@ -1855,6 +1852,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Retrieve phys/avail mem regions */
 	mem_regions(&physmem_regions, &physmem_regions_sz,
 	    &availmem_regions, &availmem_regions_sz);
+
+	if (nitems(phys_avail) < availmem_regions_sz)
+		panic("mmu_booke_bootstrap: phys_avail too small");
+
 	sz = 0;
 	cnt = availmem_regions_sz;
 	debugf("processing avail regions:\n");
