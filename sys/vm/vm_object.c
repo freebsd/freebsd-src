@@ -1748,7 +1748,8 @@ vm_object_collapse(vm_object_t object)
 		VM_OBJECT_WLOCK(backing_object);
 		if (backing_object->handle != NULL ||
 		    (backing_object->type != OBJT_DEFAULT &&
-		     backing_object->type != OBJT_SWAP) ||
+		    (backing_object->type != OBJT_SWAP ||
+		    (backing_object->flags & OBJ_NOSPLIT) != 0)) ||
 		    (backing_object->flags & OBJ_DEAD) ||
 		    object->handle != NULL ||
 		    (object->type != OBJT_DEFAULT &&
