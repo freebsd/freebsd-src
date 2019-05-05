@@ -3442,8 +3442,7 @@ nfs_set_text(struct vop_set_text_args *ap)
 	np->n_mtime = np->n_vattr.na_mtime;
 	mtx_unlock(&np->n_mtx);
 
-	vp->v_vflag |= VV_TEXT;
-	return (0);
+	return (vop_stdset_text(ap));
 }
 
 /*
