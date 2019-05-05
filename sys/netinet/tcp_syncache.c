@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_var.h>
@@ -1393,6 +1394,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 */
 		mac_syncache_destroy(&maclabel);
 #endif
+		TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
 		/* Retransmit SYN|ACK and reset retransmit count. */
 		if ((s = tcp_log_addrs(&sc->sc_inc, th, NULL, NULL))) {
 			log(LOG_DEBUG, "%s; %s: Received duplicate SYN, "
@@ -1407,7 +1409,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			TCPSTAT_INC(tcps_sndtotal);
 		}
 		SCH_UNLOCK(sch);
-		goto done;
+		goto donenoprobe;
 	}
 
 #ifdef TCP_RFC7413
@@ -1565,6 +1567,7 @@ skip_alloc:
 	}
 #endif
 
+	TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
 	/*
 	 * Do a standard 3-way handshake.
 	 */
@@ -1580,8 +1583,11 @@ skip_alloc:
 			syncache_free(sc);
 		TCPSTAT_INC(tcps_sc_dropped);
 	}
+	goto donenoprobe;
 
 done:
+	TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
+donenoprobe:
 	if (m) {
 		*lsop = NULL;
 		m_freem(m);
@@ -1787,6 +1793,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
 			return (error);
 		}
 #endif
+		TCP_PROBE5(send, NULL, NULL, ip6, NULL, th);
 		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 	}
 #endif
@@ -1807,6 +1814,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
 			return (error);
 		}
 #endif
+		TCP_PROBE5(send, NULL, NULL, ip, NULL, th);
 		error = ip_output(m, sc->sc_ipopts, NULL, 0, NULL, NULL);
 	}
 #endif

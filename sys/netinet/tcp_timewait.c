@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -450,9 +451,14 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to __unused, struct tcphdr *th,
 	 * Acknowledge the segment if it has data or is not a duplicate ACK.
 	 */
 	if (thflags != TH_ACK || tlen != 0 ||
-	    th->th_seq != tw->rcv_nxt || th->th_ack != tw->snd_nxt)
+	    th->th_seq != tw->rcv_nxt || th->th_ack != tw->snd_nxt) {
+		TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
 		tcp_twrespond(tw, TH_ACK);
+		goto dropnoprobe;
+	}
 drop:
+	TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
+dropnoprobe:
 	INP_WUNLOCK(inp);
 	m_freem(m);
 	return (0);
@@ -599,6 +605,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		th->th_sum = in6_cksum_pseudo(ip6,
 		    sizeof(struct tcphdr) + optlen, IPPROTO_TCP, 0);
 		ip6->ip6_hlim = in6_selecthlim(inp, NULL);
+		TCP_PROBE5(send, NULL, NULL, ip6, NULL, th);
 		error = ip6_output(m, inp->in6p_outputopts, NULL,
 		    (tw->tw_so_options & SO_DONTROUTE), NULL, NULL, inp);
 	}
@@ -614,6 +621,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		ip->ip_len = htons(m->m_pkthdr.len);
 		if (V_path_mtu_discovery)
 			ip->ip_off |= htons(IP_DF);
+		TCP_PROBE5(send, NULL, NULL, ip, NULL, th);
 		error = ip_output(m, inp->inp_options, NULL,
 		    ((tw->tw_so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0),
 		    NULL, inp);
