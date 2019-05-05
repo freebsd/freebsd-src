@@ -417,7 +417,7 @@ struct sctp_error_unresolv_addr {
 
 struct sctp_error_unrecognized_chunk {
 	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_UNRECOG_CHUNK */
-	struct sctp_chunkhdr ch;/* header from chunk in error */
+	struct sctp_chunkhdr ch;	/* header from chunk in error */
 }                             SCTP_PACKED;
 
 struct sctp_error_no_user_data {

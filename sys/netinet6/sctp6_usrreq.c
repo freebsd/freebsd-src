@@ -269,6 +269,7 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 	    pktdst->sa_len != sizeof(struct sockaddr_in6)) {
 		return;
 	}
+
 	if ((unsigned)cmd >= PRC_NCMDS) {
 		return;
 	}
@@ -292,6 +293,7 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 		if (ip6cp->ip6c_m == NULL) {
 			return;
 		}
+
 		/*
 		 * Check if we can safely examine the ports and the
 		 * verification tag of the SCTP common header.
@@ -300,6 +302,7 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 		    (int32_t)(ip6cp->ip6c_off + offsetof(struct sctphdr, checksum))) {
 			return;
 		}
+
 		/* Copy out the port numbers and the verification tag. */
 		memset(&sh, 0, sizeof(sh));
 		m_copydata(ip6cp->ip6c_m,
@@ -523,6 +526,7 @@ sctp6_attach(struct socket *so, int proto SCTP_UNUSED, struct thread *p SCTP_UNU
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return (EINVAL);
 	}
+
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		error = SCTP_SORESERVE(so, SCTP_BASE_SYSCTL(sctp_sendspace), SCTP_BASE_SYSCTL(sctp_recvspace));
 		if (error)
@@ -564,6 +568,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return (EINVAL);
 	}
+
 	if (addr) {
 		switch (addr->sa_family) {
 #ifdef INET
@@ -1106,6 +1111,7 @@ sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return (EINVAL);
 	}
+
 	/* allow v6 addresses precedence */
 	error = sctp6_getaddr(so, nam);
 #ifdef INET
@@ -1141,6 +1147,7 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return (EINVAL);
 	}
+
 	/* allow v6 addresses precedence */
 	error = sctp6_peeraddr(so, nam);
 #ifdef INET

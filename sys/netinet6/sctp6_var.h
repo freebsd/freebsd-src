@@ -43,11 +43,11 @@ extern struct pr_usrreqs sctp6_usrreqs;
 
 int sctp6_input(struct mbuf **, int *, int);
 int sctp6_input_with_port(struct mbuf **, int *, uint16_t);
-int 
+int
 sctp6_output(struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
     struct mbuf *, struct proc *);
 void sctp6_ctlinput(int, struct sockaddr *, void *);
-void 
+void
 sctp6_notify(struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *,
     uint8_t, uint8_t, uint32_t);
 #endif

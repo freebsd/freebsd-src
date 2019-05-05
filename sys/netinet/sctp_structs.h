@@ -103,7 +103,7 @@ TAILQ_HEAD(sctp_resethead, sctp_stream_reset_list);
 #define SCTP_ASOC_ANY_STATE	0x00000000
 
 typedef void (*asoc_func) (struct sctp_inpcb *, struct sctp_tcb *, void *ptr,
-         uint32_t val);
+    uint32_t val);
 typedef int (*inp_func) (struct sctp_inpcb *, void *ptr, uint32_t val);
 typedef void (*end_func) (void *ptr, uint32_t val);
 
@@ -142,7 +142,7 @@ struct sctp_iterator {
 	asoc_func function_assoc;	/* per assoc function */
 	inp_func function_inp;	/* per endpoint function */
 	inp_func function_inp_end;	/* end INP function */
-	end_func function_atend;/* iterator completion function */
+	end_func function_atend;	/* iterator completion function */
 	void *pointer;		/* pointer for apply func to use */
 	uint32_t val;		/* value for apply func to use */
 	uint32_t pcb_flags;	/* endpoint flags being checked */
@@ -229,7 +229,7 @@ struct rtcc_cc {
 	uint64_t bw_tot_time;	/* The total time since sending began */
 	uint64_t new_tot_time;	/* temp holding the new value */
 	uint64_t bw_bytes_at_last_rttc;	/* What bw_bytes was at last rtt calc */
-	uint32_t cwnd_at_bw_set;/* Cwnd at last bw saved - lbw */
+	uint32_t cwnd_at_bw_set;	/* Cwnd at last bw saved - lbw */
 	uint32_t vol_reduce;	/* cnt of voluntary reductions */
 	uint16_t steady_step;	/* The number required to be in steady state */
 	uint16_t step_cnt;	/* The current number */
@@ -238,7 +238,8 @@ struct rtcc_cc {
 	uint8_t use_dccc_ecn;	/* Flag to enable DCCC ECN */
 	uint8_t tls_needs_set;	/* Flag to indicate we need to set tls 0 or 1
 				 * means set at send 2 not */
-	uint8_t last_step_state;/* Last state if steady state stepdown is on */
+	uint8_t last_step_state;	/* Last state if steady state stepdown
+					 * is on */
 	uint8_t rtt_set_this_sack;	/* Flag saying this sack had RTT calc
 					 * on it */
 	uint8_t last_inst_ind;	/* Last saved inst indication */
@@ -329,8 +330,8 @@ struct sctp_nets {
 	uint8_t dscp;
 
 	struct timeval start_time;	/* time when this net was created */
-	uint32_t marked_retrans;/* number or DATA chunks marked for timer
-				 * based retransmissions */
+	uint32_t marked_retrans;	/* number or DATA chunks marked for
+					 * timer based retransmissions */
 	uint32_t marked_fastretrans;
 	uint32_t heart_beat_delay;	/* Heart Beat delay in ms */
 
@@ -704,28 +705,28 @@ struct sctp_nonpad_sndrcvinfo {
 struct sctp_cc_functions {
 	void (*sctp_set_initial_cc_param) (struct sctp_tcb *stcb, struct sctp_nets *net);
 	void (*sctp_cwnd_update_after_sack) (struct sctp_tcb *stcb,
-	         struct sctp_association *asoc,
-	         int accum_moved, int reneged_all, int will_exit);
+	    struct sctp_association *asoc,
+	    int accum_moved, int reneged_all, int will_exit);
 	void (*sctp_cwnd_update_exit_pf) (struct sctp_tcb *stcb, struct sctp_nets *net);
 	void (*sctp_cwnd_update_after_fr) (struct sctp_tcb *stcb,
-	         struct sctp_association *asoc);
+	    struct sctp_association *asoc);
 	void (*sctp_cwnd_update_after_timeout) (struct sctp_tcb *stcb,
-	         struct sctp_nets *net);
+	    struct sctp_nets *net);
 	void (*sctp_cwnd_update_after_ecn_echo) (struct sctp_tcb *stcb,
-	         struct sctp_nets *net, int in_window, int num_pkt_lost);
+	    struct sctp_nets *net, int in_window, int num_pkt_lost);
 	void (*sctp_cwnd_update_after_packet_dropped) (struct sctp_tcb *stcb,
-	         struct sctp_nets *net, struct sctp_pktdrop_chunk *cp,
-	         uint32_t *bottle_bw, uint32_t *on_queue);
+	    struct sctp_nets *net, struct sctp_pktdrop_chunk *cp,
+	    uint32_t *bottle_bw, uint32_t *on_queue);
 	void (*sctp_cwnd_update_after_output) (struct sctp_tcb *stcb,
-	         struct sctp_nets *net, int burst_limit);
+	    struct sctp_nets *net, int burst_limit);
 	void (*sctp_cwnd_update_packet_transmitted) (struct sctp_tcb *stcb,
-	         struct sctp_nets *net);
+	    struct sctp_nets *net);
 	void (*sctp_cwnd_update_tsn_acknowledged) (struct sctp_nets *net,
-	         struct sctp_tmit_chunk *);
+	    struct sctp_tmit_chunk *);
 	void (*sctp_cwnd_new_transmission_begins) (struct sctp_tcb *stcb,
-	         struct sctp_nets *net);
+	    struct sctp_nets *net);
 	void (*sctp_cwnd_prepare_net_for_sack) (struct sctp_tcb *stcb,
-	         struct sctp_nets *net);
+	    struct sctp_nets *net);
 	int (*sctp_cwnd_socket_option) (struct sctp_tcb *stcb, int set, struct sctp_cc_option *);
 	void (*sctp_rtt_calculated) (struct sctp_tcb *, struct sctp_nets *, struct timeval *);
 };
@@ -736,25 +737,25 @@ struct sctp_cc_functions {
  */
 struct sctp_ss_functions {
 	void (*sctp_ss_init) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	         int holds_lock);
+	    int holds_lock);
 	void (*sctp_ss_clear) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	         int clear_values, int holds_lock);
+	    int clear_values, int holds_lock);
 	void (*sctp_ss_init_stream) (struct sctp_tcb *stcb, struct sctp_stream_out *strq, struct sctp_stream_out *with_strq);
 	void (*sctp_ss_add_to_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	         struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
+	    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
 	int (*sctp_ss_is_empty) (struct sctp_tcb *stcb, struct sctp_association *asoc);
 	void (*sctp_ss_remove_from_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	         struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
-	struct sctp_stream_out *(*sctp_ss_select_stream) (struct sctp_tcb *stcb,
-	                    struct sctp_nets *net, struct sctp_association *asoc);
+	    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
+struct sctp_stream_out *(*sctp_ss_select_stream) (struct sctp_tcb *stcb,
+	    struct sctp_nets *net, struct sctp_association *asoc);
 	void (*sctp_ss_scheduled) (struct sctp_tcb *stcb, struct sctp_nets *net,
-	         struct sctp_association *asoc, struct sctp_stream_out *strq, int moved_how_much);
+	    struct sctp_association *asoc, struct sctp_stream_out *strq, int moved_how_much);
 	void (*sctp_ss_packet_done) (struct sctp_tcb *stcb, struct sctp_nets *net,
-	         struct sctp_association *asoc);
+	    struct sctp_association *asoc);
 	int (*sctp_ss_get_value) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	        struct sctp_stream_out *strq, uint16_t *value);
+	    struct sctp_stream_out *strq, uint16_t *value);
 	int (*sctp_ss_set_value) (struct sctp_tcb *stcb, struct sctp_association *asoc,
-	        struct sctp_stream_out *strq, uint16_t value);
+	    struct sctp_stream_out *strq, uint16_t value);
 	int (*sctp_ss_is_user_msgs_incomplete) (struct sctp_tcb *stcb, struct sctp_association *asoc);
 };
 

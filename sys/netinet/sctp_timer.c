@@ -647,6 +647,7 @@ start_again:
 					sctp_log_fr(chk->rec.data.tsn, chk->snd_count,
 					    0, SCTP_FR_T3_MARKED);
 				}
+
 				if (chk->rec.data.chunk_was_revoked) {
 					/* deflate the cwnd */
 					chk->whoTo->cwnd -= chk->book_size;
@@ -713,6 +714,7 @@ start_again:
 		/* we did not subtract the same things? */
 		audit_tf = 1;
 	}
+
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 		sctp_log_fr(tsnfirst, tsnlast, num_mk, SCTP_FR_T3_TIMEOUT);
 	}
@@ -787,6 +789,7 @@ start_again:
 					    (uint32_t)(uintptr_t)chk->whoTo,
 					    chk->rec.data.tsn);
 				}
+
 				sctp_flight_size_increase(chk);
 				sctp_total_flight_increase(stcb, chk);
 			}
@@ -907,6 +910,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 	    (net->flight_size == 0)) {
 		(*stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) (stcb, net);
 	}
+
 	/*
 	 * setup the sat loss recovery that prevents satellite cwnd advance.
 	 */
@@ -935,6 +939,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 			RTFREE(net->ro.ro_rt);
 			net->ro.ro_rt = NULL;
 		}
+
 		/* Was it our primary? */
 		if ((stcb->asoc.primary_destination == net) && (alt != net)) {
 			/*
@@ -1208,6 +1213,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			asconf->whoTo = alt;
 			atomic_add_int(&alt->ref_count, 1);
 		}
+
 		/* See if an ECN Echo is also stranded */
 		TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
 			if ((chk->whoTo == net) &&

@@ -387,6 +387,7 @@ sctp_getcred(SYSCTL_HANDLER_ARGS)
 			SCTP_INP_DECR_REF(inp);
 			goto cred_can_cont;
 		}
+
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
 		error = ENOENT;
 		goto out;
@@ -427,6 +428,7 @@ sctp_abort(struct socket *so)
 	if (inp == NULL) {
 		return;
 	}
+
 sctp_must_try_again:
 	flags = inp->sctp_flags;
 #ifdef SCTP_LOG_CLOSING
@@ -1365,11 +1367,13 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 		SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_USRREQ, EADDRINUSE);
 		return (EADDRINUSE);
 	}
+
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) &&
 	    (sctp_is_feature_off(inp, SCTP_PCB_FLAGS_PORTREUSE))) {
 		SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
 	}
+
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) {
 		SCTP_INP_RLOCK(inp);
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
@@ -1434,6 +1438,7 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 			goto out_now;
 		}
 	}
+
 	/* FIX ME: do we want to pass in a vrf on the connect call? */
 	vrf_id = inp->def_vrf_id;
 
@@ -1545,6 +1550,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
 	}
+
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
@@ -2389,6 +2395,7 @@ flags_out:
 					break;
 				}
 			}
+
 			if (stcb != NULL) {
 				/* Applies to the specific association */
 				paddrp->spp_flags = 0;
@@ -3258,6 +3265,7 @@ flags_out:
 					break;
 				}
 			}
+
 			if (stcb != NULL) {
 				if (net != NULL) {
 					thlds->spt_pathmaxrxt = net->failure_threshold;
@@ -3370,6 +3378,7 @@ flags_out:
 					break;
 				}
 			}
+
 			if (stcb != NULL) {
 				if (net) {
 					encaps->sue_port = net->port;
@@ -4395,6 +4404,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				error = EINVAL;
 				break;
 			}
+
 			hmaclist = sctp_alloc_hmaclist((uint16_t)shmac->shmac_number_of_idents);
 			if (hmaclist == NULL) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOMEM);
@@ -4587,6 +4597,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					}
 					SCTP_INP_RUNLOCK(inp);
 				}
+
 			}
 			break;
 		}
@@ -5270,12 +5281,14 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 				return (EINVAL);
 			}
+
 			if ((paddrp->spp_flags & SPP_PMTUD_ENABLE) && (paddrp->spp_flags & SPP_PMTUD_DISABLE)) {
 				if (stcb)
 					SCTP_TCB_UNLOCK(stcb);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 				return (EINVAL);
 			}
+
 			if (stcb != NULL) {
 				/************************TCB SPECIFIC SET ******************/
 				if (net != NULL) {
@@ -5411,6 +5424,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 							net->failure_threshold = paddrp->spp_pathmaxrxt;
 						}
 					}
+
 					if (paddrp->spp_flags & SPP_HB_ENABLE) {
 						if (paddrp->spp_hbinterval != 0) {
 							stcb->asoc.heart_beat_delay = paddrp->spp_hbinterval;
@@ -5521,6 +5535,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					if (paddrp->spp_pathmaxrxt != 0) {
 						inp->sctp_ep.def_net_failure = paddrp->spp_pathmaxrxt;
 					}
+
 					if (paddrp->spp_flags & SPP_HB_TIME_IS_ZERO)
 						inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT] = 0;
 					else if (paddrp->spp_hbinterval != 0) {
@@ -5528,6 +5543,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 							paddrp->spp_hbinterval = SCTP_MAX_HB_INTERVAL;
 						inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT] = MSEC_TO_TICKS(paddrp->spp_hbinterval);
 					}
+
 					if (paddrp->spp_flags & SPP_HB_ENABLE) {
 						if (paddrp->spp_flags & SPP_HB_TIME_IS_ZERO) {
 							inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT] = 0;
@@ -6480,6 +6496,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					break;
 				}
 			}
+
 			if (stcb != NULL) {
 				if (net != NULL) {
 					net->port = encaps->sue_port;
@@ -6867,6 +6884,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return EINVAL;
 	}
+
 	switch (addr->sa_family) {
 #ifdef INET6
 	case AF_INET6:
@@ -6972,6 +6990,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		error = EALREADY;
 		goto out_now;
 	}
+
 	vrf_id = inp->def_vrf_id;
 	/* We are GOOD to go */
 	stcb = sctp_aloc_assoc(inp, addr, &error, 0, vrf_id,
@@ -6998,6 +7017,7 @@ out_now:
 	if (create_lock_on) {
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 	}
+
 	SCTP_INP_DECR_REF(inp);
 	return (error);
 }
@@ -7136,6 +7156,7 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 			return (EADDRINUSE);
 		}
 	}
+
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED)) {
 		/* We are already connected AND the TCP model */
@@ -7338,6 +7359,7 @@ sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
 				SCTP_TCB_UNLOCK(stcb);
 				goto notConn;
 			}
+
 			vrf_id = inp->def_vrf_id;
 			sctp_ifa = sctp_source_address_selection(inp,
 			    stcb,

@@ -305,6 +305,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_CWND_MONITOR_ENABLE | SCTP_CWND_LOGGING_ENABLE)) {
 				sctp_log_cwnd(stcb, lnet, 0, SCTP_CWND_INITIALIZATION);
 			}
+
 		}
 	}
 	SCTP_TCB_SEND_LOCK(stcb);
@@ -491,6 +492,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 			SCTP_FREE(param, SCTP_M_ASC_ADDR);
 		}
 	}
+
 	stcb->asoc.peer_hmac_id = sctp_negotiate_hmacid(stcb->asoc.peer_hmacs,
 	    stcb->asoc.local_hmacs);
 	if (op_err) {
@@ -553,6 +555,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		}
 		return (retval);
 	}
+
 	return (0);
 }
 
@@ -570,6 +573,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 		/* Invalid length */
 		return;
 	}
+
 	memset(&store, 0, sizeof(store));
 	switch (cp->heartbeat.hb_info.addr_family) {
 #ifdef INET
@@ -1717,6 +1721,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			asoc->cookie_how[how_indx] = 5;
 		return (stcb);
 	}
+
 	if (ntohl(initack_cp->init.initiate_tag) != asoc->my_vtag &&
 	    ntohl(init_cp->init.initiate_tag) == asoc->peer_vtag &&
 	    cookie->tie_tag_my_vtag == 0 &&
@@ -2292,6 +2297,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 			stcb->asoc.authenticated = 1;
 		}
 	}
+
 	/*
 	 * if we're doing ASCONFs, check to see if we have any new local
 	 * addresses that need to get added to the peer (eg. addresses
@@ -2589,6 +2595,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		    (uint32_t)offset, cookie_offset, sig_offset);
 		return (NULL);
 	}
+
 	/*
 	 * check the cookie timestamps to be sure it's not stale
 	 */
@@ -2709,6 +2716,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			}
 		}
 	}
+
 	cookie_len -= SCTP_SIGNATURE_SIZE;
 	if (*stcb == NULL) {
 		/* this is the "normal" case... get a new TCB */
@@ -2911,6 +2919,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
 				    (*stcb), 0, (void *)netl, SCTP_SO_NOT_LOCKED);
 			}
+
 			/*
 			 * Pull it from the incomplete queue and wake the
 			 * guy
@@ -2951,6 +2960,7 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 	if ((stcb == NULL) || (net == NULL)) {
 		return;
 	}
+
 	asoc = &stcb->asoc;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 		sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
@@ -3017,6 +3027,7 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 			 */
 			goto closed_socket;
 		}
+
 		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep,
 		    stcb, net);
 
@@ -3795,6 +3806,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
 						sctp_log_map(0, 7, asoc->highest_tsn_inside_map, SCTP_MAP_SLIDE_RESULT);
 					}
+
 					stcb->asoc.tsn_last_delivered = stcb->asoc.cumulative_tsn = stcb->asoc.highest_tsn_inside_map;
 					stcb->asoc.mapping_array_base_tsn = ntohl(resp->senders_next_tsn);
 					memset(stcb->asoc.mapping_array, 0, stcb->asoc.mapping_array_size);
@@ -4394,6 +4406,7 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 	if (trunc_len > limit) {
 		trunc_len = limit;
 	}
+
 	/* now the chunks themselves */
 	while ((ch != NULL) && (chlen >= sizeof(struct sctp_chunkhdr))) {
 		desc.chunk_type = ch->chunk_type;
@@ -4653,6 +4666,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				 */
 				SCTP_INP_DECR_REF(inp);
 			}
+
 			/* now go back and verify any auth chunk to be sure */
 			if (auth_skipped && (stcb != NULL)) {
 				struct sctp_auth_chunk *auth;
@@ -4752,6 +4766,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 		sctp_handle_cookie_ack((struct sctp_cookie_ack_chunk *)ch, stcb,
 		    *netp);
 	}
+
 process_control_chunks:
 	while (IS_SCTP_CONTROL(ch)) {
 		/* validate chunk length */
@@ -4791,6 +4806,7 @@ process_control_chunks:
 			}
 			return (NULL);
 		}
+
 		num_chunks++;
 		/* Save off the last place we got a control from */
 		if (stcb != NULL) {
@@ -5145,6 +5161,7 @@ process_control_chunks:
 						goto abend;
 					}
 				}
+
 				if (netp != NULL) {
 					struct sctp_tcb *locked_stcb;
 
@@ -5317,6 +5334,7 @@ process_control_chunks:
 				*offset = length;
 				return (stcb);
 			}
+
 			if (stcb != NULL) {
 				int abort_flag = 0;
 
@@ -5379,6 +5397,7 @@ process_control_chunks:
 				*offset = length;
 				return (stcb);
 			}
+
 			if ((ch != NULL) && (stcb != NULL) && (netp != NULL) && (*netp != NULL)) {
 				if (stcb->asoc.pktdrop_supported == 0) {
 					goto unknown_chunk;
@@ -5641,6 +5660,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			    vrf_id, port);
 			goto out;
 		}
+
 	}
 	if (IS_SCTP_CONTROL(ch)) {
 		/* process the control portion of the SCTP packet */
@@ -5716,6 +5736,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		 */
 		goto out;
 	}
+
 	/*
 	 * DATA chunk processing
 	 */
@@ -5794,6 +5815,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		 * process_data
 		 */
 	}
+
 	/* take care of ecn */
 	if ((data_processed == 1) &&
 	    (stcb->asoc.ecn_supported == 1) &&
@@ -5801,6 +5823,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		/* Yep, we need to add a ECNE */
 		sctp_send_ecn_echo(stcb, net, high_tsn);
 	}
+
 	if ((data_processed == 0) && (fwd_tsn_seen)) {
 		int was_a_gap;
 		uint32_t highest_tsn;

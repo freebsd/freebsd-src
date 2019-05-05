@@ -72,7 +72,7 @@ int
 int
     sctp_v4src_match_nexthop(struct sctp_ifa *sifa, sctp_route_t *ro);
 
-void 
+void
 sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -115,7 +115,7 @@ void sctp_send_shutdown_ack(struct sctp_tcb *, struct sctp_nets *);
 
 void sctp_send_shutdown_complete(struct sctp_tcb *, struct sctp_nets *, int);
 
-void 
+void
 sctp_send_shutdown_complete2(struct sockaddr *, struct sockaddr *,
     struct sctphdr *,
     uint8_t, uint32_t, uint16_t,
@@ -144,13 +144,13 @@ int
 sctp_output(struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
     struct mbuf *, struct thread *, int);
 
-void 
+void
 sctp_chunk_output(struct sctp_inpcb *, struct sctp_tcb *, int, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
 );
-void 
+void
 sctp_send_abort_tcb(struct sctp_tcb *, struct mbuf *, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -199,7 +199,7 @@ sctp_send_abort(struct mbuf *, int, struct sockaddr *, struct sockaddr *,
     uint8_t, uint32_t, uint16_t,
     uint32_t, uint16_t);
 
-void 
+void
 sctp_send_operr_to(struct sockaddr *, struct sockaddr *,
     struct sctphdr *, uint32_t, struct mbuf *,
     uint8_t, uint32_t, uint16_t,
