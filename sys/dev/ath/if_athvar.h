@@ -204,6 +204,7 @@ struct ath_node {
 					   node */
 	int			clrdmask;	/* has clrdmask been set */
 	uint32_t	an_leak_count;	/* How many frames to leak during pause */
+	HAL_NODE_STATS	an_node_stats;	/* HAL node stats for this node */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
