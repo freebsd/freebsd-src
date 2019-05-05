@@ -325,12 +325,23 @@ vnode_pager_dealloc(vm_object_t object)
 	ASSERT_VOP_ELOCKED(vp, "vnode_pager_dealloc");
 	if (object->un_pager.vnp.writemappings > 0) {
 		object->un_pager.vnp.writemappings = 0;
-		VOP_ADD_WRITECOUNT(vp, -1);
+		VOP_ADD_WRITECOUNT_CHECKED(vp, -1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
 		    __func__, vp, vp->v_writecount);
 	}
 	vp->v_object = NULL;
-	VOP_UNSET_TEXT(vp);
+	VI_LOCK(vp);
+
+	/*
+	 * vm_map_entry_set_vnode_text() cannot reach this vnode by
+	 * following object->handle.  Clear all text references now.
+	 * This also clears the transient references from
+	 * kern_execve(), which is fine because dead_vnodeops uses nop
+	 * for VOP_UNSET_TEXT().
+	 */
+	if (vp->v_writecount < 0)
+		vp->v_writecount = 0;
+	VI_UNLOCK(vp);
 	VM_OBJECT_WUNLOCK(object);
 	while (refs-- > 0)
 		vunref(vp);
@@ -1513,13 +1524,13 @@ vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
 	object->un_pager.vnp.writemappings += (vm_ooffset_t)end - start;
 	vp = object->handle;
 	if (old_wm == 0 && object->un_pager.vnp.writemappings != 0) {
-		ASSERT_VOP_ELOCKED(vp, "v_writecount inc");
-		VOP_ADD_WRITECOUNT(vp, 1);
+		ASSERT_VOP_LOCKED(vp, "v_writecount inc");
+		VOP_ADD_WRITECOUNT_CHECKED(vp, 1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
 		    __func__, vp, vp->v_writecount);
 	} else if (old_wm != 0 && object->un_pager.vnp.writemappings == 0) {
-		ASSERT_VOP_ELOCKED(vp, "v_writecount dec");
-		VOP_ADD_WRITECOUNT(vp, -1);
+		ASSERT_VOP_LOCKED(vp, "v_writecount dec");
+		VOP_ADD_WRITECOUNT_CHECKED(vp, -1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
 		    __func__, vp, vp->v_writecount);
 	}
@@ -1561,7 +1572,7 @@ vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	VM_OBJECT_WUNLOCK(object);
 	mp = NULL;
 	vn_start_write(vp, &mp, V_WAIT);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	/*
 	 * Decrement the object's writemappings, by swapping the start

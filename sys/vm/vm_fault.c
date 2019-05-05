@@ -1667,6 +1667,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	if (src_object != dst_object) {
 		dst_entry->object.vm_object = dst_object;
 		dst_entry->offset = 0;
+		dst_entry->eflags &= ~MAP_ENTRY_VN_EXEC;
 	}
 	if (fork_charge != NULL) {
 		KASSERT(dst_entry->cred == NULL,

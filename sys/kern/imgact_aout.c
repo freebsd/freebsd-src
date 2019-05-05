@@ -247,8 +247,8 @@ exec_aout_imgact(struct image_params *imgp)
 	    /* data + bss can't exceed rlimit */
 	    a_out->a_data + bss_size > lim_cur_proc(imgp->proc, RLIMIT_DATA) ||
 	    racct_set(imgp->proc, RACCT_DATA, a_out->a_data + bss_size) != 0) {
-			PROC_UNLOCK(imgp->proc);
-			return (ENOMEM);
+		PROC_UNLOCK(imgp->proc);
+		return (ENOMEM);
 	}
 	PROC_UNLOCK(imgp->proc);
 
@@ -267,7 +267,7 @@ exec_aout_imgact(struct image_params *imgp)
 	 */
 	error = exec_new_vmspace(imgp, &aout_sysvec);
 
-	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 	if (error)
 		return (error);
 
@@ -286,12 +286,13 @@ exec_aout_imgact(struct image_params *imgp)
 		file_offset,
 		virtual_offset, text_end,
 		VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_ALL,
-		MAP_COPY_ON_WRITE | MAP_PREFAULT);
+		MAP_COPY_ON_WRITE | MAP_PREFAULT | MAP_VN_EXEC);
 	if (error) {
 		vm_map_unlock(map);
 		vm_object_deallocate(object);
 		return (error);
 	}
+	VOP_SET_TEXT_CHECKED(imgp->vp);
 	data_end = text_end + a_out->a_data;
 	if (a_out->a_data) {
 		vm_object_reference(object);
@@ -299,12 +300,13 @@ exec_aout_imgact(struct image_params *imgp)
 			file_offset + a_out->a_text,
 			text_end, data_end,
 			VM_PROT_ALL, VM_PROT_ALL,
-			MAP_COPY_ON_WRITE | MAP_PREFAULT);
+			MAP_COPY_ON_WRITE | MAP_PREFAULT | MAP_VN_EXEC);
 		if (error) {
 			vm_map_unlock(map);
 			vm_object_deallocate(object);
 			return (error);
 		}
+		VOP_SET_TEXT_CHECKED(imgp->vp);
 	}
 
 	if (bss_size) {
