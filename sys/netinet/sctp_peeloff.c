@@ -72,7 +72,7 @@ sctp_can_peel_off(struct socket *head, sctp_assoc_t assoc_id)
 		SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_PEELOFF, ENOENT);
 		return (ENOENT);
 	}
-	state = SCTP_GET_STATE((&stcb->asoc));
+	state = SCTP_GET_STATE(stcb);
 	if ((state == SCTP_STATE_EMPTY) ||
 	    (state == SCTP_STATE_INUSE)) {
 		SCTP_TCB_UNLOCK(stcb);
@@ -102,7 +102,7 @@ sctp_do_peeloff(struct socket *head, struct socket *so, sctp_assoc_t assoc_id)
 		return (ENOTCONN);
 	}
 
-	state = SCTP_GET_STATE((&stcb->asoc));
+	state = SCTP_GET_STATE(stcb);
 	if ((state == SCTP_STATE_EMPTY) ||
 	    (state == SCTP_STATE_INUSE)) {
 		SCTP_TCB_UNLOCK(stcb);
