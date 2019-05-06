@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2017, Matthew Macy <mmacy@nextbsd.org>
+ * Copyright (c) 2014-2018, Matthew Macy <mmacy@mattmacy.io>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,6 +97,11 @@ __FBSDID("$FreeBSD$");
 #include <x86/iommu/busdma_dmar.h>
 #endif
 
+#ifdef PCI_IOV
+#include <dev/pci/pci_iov.h>
+#endif
+
+
 #include <sys/bitstring.h>
 /*
  * enable accounting of every mbuf as it comes in to and goes out of
@@ -150,9 +155,9 @@ typedef struct iflib_filter_info {
 
 struct iflib_ctx {
 	KOBJ_FIELDS;
-   /*
-   * Pointer to hardware driver's softc
-   */
+	/*
+	 * Pointer to hardware driver's softc
+	 */
 	void *ifc_softc;
 	device_t ifc_dev;
 	if_t ifc_ifp;
@@ -161,7 +166,8 @@ struct iflib_ctx {
 	if_shared_ctx_t ifc_sctx;
 	struct if_softc_ctx ifc_softc_ctx;
 
-	struct mtx ifc_mtx;
+	struct mtx ifc_ctx_mtx;
+	struct mtx ifc_state_mtx;
 
 	uint16_t ifc_nhwtxqs;
 
@@ -170,7 +176,6 @@ struct iflib_ctx {
 	uint32_t ifc_if_flags;
 	uint32_t ifc_flags;
 	uint32_t ifc_max_fl_buf_size;
-	int ifc_in_detach;
 
 	int ifc_link_state;
 	int ifc_link_irq;
@@ -315,7 +320,10 @@ typedef struct iflib_sw_tx_desc_array {
 #define	IFC_INIT_DONE		0x020
 #define	IFC_PREFETCH		0x040
 #define	IFC_DO_RESET		0x080
-#define	IFC_CHECK_HUNG		0x100
+#define	IFC_DO_WATCHDOG		0x100
+#define	IFC_CHECK_HUNG		0x200
+#define	IFC_IN_DETACH		0x800
+
 
 #define CSUM_OFFLOAD		(CSUM_IP_TSO|CSUM_IP6_TSO|CSUM_IP| \
 				 CSUM_IP_UDP|CSUM_IP_TCP|CSUM_IP_SCTP| \
@@ -532,16 +540,21 @@ rxd_info_zero(if_rxd_info_t ri)
 
 #define CTX_ACTIVE(ctx) ((if_getdrvflags((ctx)->ifc_ifp) & IFF_DRV_RUNNING))
 
-#define CTX_LOCK_INIT(_sc, _name)  mtx_init(&(_sc)->ifc_mtx, _name, "iflib ctx lock", MTX_DEF)
+#define CTX_LOCK_INIT(_sc, _name)  mtx_init(&(_sc)->ifc_ctx_mtx, _name, "iflib ctx lock", MTX_DEF)
+#define CTX_LOCK(ctx) mtx_lock(&(ctx)->ifc_ctx_mtx)
+#define CTX_UNLOCK(ctx) mtx_unlock(&(ctx)->ifc_ctx_mtx)
+#define CTX_LOCK_DESTROY(ctx) mtx_destroy(&(ctx)->ifc_ctx_mtx)
 
-#define CTX_LOCK(ctx) mtx_lock(&(ctx)->ifc_mtx)
-#define CTX_UNLOCK(ctx) mtx_unlock(&(ctx)->ifc_mtx)
-#define CTX_LOCK_DESTROY(ctx) mtx_destroy(&(ctx)->ifc_mtx)
+
+#define STATE_LOCK_INIT(_sc, _name)  mtx_init(&(_sc)->ifc_state_mtx, _name, "iflib state lock", MTX_DEF)
+#define STATE_LOCK(ctx) mtx_lock(&(ctx)->ifc_state_mtx)
+#define STATE_UNLOCK(ctx) mtx_unlock(&(ctx)->ifc_state_mtx)
+#define STATE_LOCK_DESTROY(ctx) mtx_destroy(&(ctx)->ifc_state_mtx)
+
 
 
 #define CALLOUT_LOCK(txq)	mtx_lock(&txq->ift_mtx)
 #define CALLOUT_UNLOCK(txq) 	mtx_unlock(&txq->ift_mtx)
-
 
 /* Our boot-time initialization hook */
 static int	iflib_module_event_handler(module_t, int, void *);
@@ -720,6 +733,7 @@ static void iflib_ifmp_purge(iflib_txq_t txq);
 static void _iflib_pre_assert(if_softc_ctx_t scctx);
 static void iflib_stop(if_ctx_t ctx);
 static void iflib_if_init_locked(if_ctx_t ctx);
+static void iflib_free_intr_mem(if_ctx_t ctx);
 #ifndef __NO_STRICT_ALIGNMENT
 static struct mbuf * iflib_fixup_rx(struct mbuf *m);
 #endif
@@ -1948,6 +1962,16 @@ __iflib_fl_refill_lt(if_ctx_t ctx, iflib_fl_t fl, int max)
 		_iflib_fl_refill(ctx, fl, min(max, reclaimable));
 }
 
+uint8_t
+iflib_in_detach(if_ctx_t ctx)
+{
+	bool in_detach;
+	STATE_LOCK(ctx);
+	in_detach = !!(ctx->ifc_flags & IFC_IN_DETACH);
+	STATE_UNLOCK(ctx);
+	return (in_detach);
+}
+
 static void
 iflib_fl_bufs_free(iflib_fl_t fl)
 {
@@ -1963,7 +1987,8 @@ iflib_fl_bufs_free(iflib_fl_t fl)
 			if (fl->ifl_sds.ifsd_map != NULL) {
 				bus_dmamap_t sd_map = fl->ifl_sds.ifsd_map[i];
 				bus_dmamap_unload(fl->ifl_desc_tag, sd_map);
-				if (fl->ifl_rxq->ifr_ctx->ifc_in_detach)
+				// XXX: Should this get moved out?
+				if (iflib_in_detach(fl->ifl_rxq->ifr_ctx))
 					bus_dmamap_destroy(fl->ifl_desc_tag, sd_map);
 			}
 			if (*sd_m != NULL) {
@@ -2124,18 +2149,14 @@ iflib_timer(void *arg)
 	if (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING) 
 		callout_reset_on(&txq->ift_timer, hz/2, iflib_timer, txq, txq->ift_timer.c_cpu);
 	return;
-hung:
-	CTX_LOCK(ctx);
-	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
+ hung:
 	device_printf(ctx->ifc_dev,  "TX(%d) desc avail = %d, pidx = %d\n",
 				  txq->ift_id, TXQ_AVAIL(txq), txq->ift_pidx);
-
-	IFDI_WATCHDOG_RESET(ctx);
-	ctx->ifc_watchdog_events++;
-
-	ctx->ifc_flags |= IFC_DO_RESET;
+	STATE_LOCK(ctx);
+	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
+	ctx->ifc_flags |= (IFC_DO_WATCHDOG|IFC_DO_RESET);
 	iflib_admin_intr_deferred(ctx);
-	CTX_UNLOCK(ctx);
+	STATE_UNLOCK(ctx);
 }
 
 static void
@@ -2653,10 +2674,10 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		return true;
 	return (iflib_rxd_avail(ctx, rxq, *cidxp, 1));
 err:
-	CTX_LOCK(ctx);
+	STATE_LOCK(ctx);
 	ctx->ifc_flags |= IFC_DO_RESET;
 	iflib_admin_intr_deferred(ctx);
-	CTX_UNLOCK(ctx);
+	STATE_UNLOCK(ctx);
 	return (false);
 }
 
@@ -3704,12 +3725,21 @@ _task_fn_admin(void *context)
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
 	iflib_txq_t txq;
 	int i;
+	bool oactive, running, do_reset, do_watchdog, in_detach;
 
-	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)) {
-		if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_OACTIVE)) {
-			return;
-		}
-	}
+	STATE_LOCK(ctx);
+	running = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING);
+	oactive = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_OACTIVE);
+	do_reset = (ctx->ifc_flags & IFC_DO_RESET);
+	do_watchdog = (ctx->ifc_flags & IFC_DO_WATCHDOG);
+	in_detach = (ctx->ifc_flags & IFC_IN_DETACH);
+	ctx->ifc_flags &= ~(IFC_DO_RESET|IFC_DO_WATCHDOG);
+	STATE_UNLOCK(ctx);
+
+	if ((!running & !oactive) &&
+	    !(ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN))
+	if (in_detach)
+		return;
 
 	CTX_LOCK(ctx);
 	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++) {
@@ -3717,14 +3747,16 @@ _task_fn_admin(void *context)
 		callout_stop(&txq->ift_timer);
 		CALLOUT_UNLOCK(txq);
 	}
+	if (do_watchdog) {
+		ctx->ifc_watchdog_events++;
+		IFDI_WATCHDOG_RESET(ctx);
+	}
 	IFDI_UPDATE_ADMIN_STATUS(ctx);
 	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++)
 		callout_reset_on(&txq->ift_timer, hz/2, iflib_timer, txq, txq->ift_timer.c_cpu);
 	IFDI_LINK_INTR_ENABLE(ctx);
-	if (ctx->ifc_flags & IFC_DO_RESET) {
-		ctx->ifc_flags &= ~IFC_DO_RESET;
+	if (do_reset)
 		iflib_if_init_locked(ctx);
-	}
 	CTX_UNLOCK(ctx);
 
 	if (LINK_ACTIVE(ctx) == 0)
@@ -3739,7 +3771,8 @@ _task_fn_iov(void *context)
 {
 	if_ctx_t ctx = context;
 
-	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING) &&
+	    !(ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN))
 		return;
 
 	CTX_LOCK(ctx);
@@ -3868,15 +3901,15 @@ iflib_if_qflush(if_t ifp)
 	iflib_txq_t txq = ctx->ifc_txqs;
 	int i;
 
-	CTX_LOCK(ctx);
+	STATE_LOCK(ctx);
 	ctx->ifc_flags |= IFC_QFLUSH;
-	CTX_UNLOCK(ctx);
+	STATE_UNLOCK(ctx);
 	for (i = 0; i < NTXQSETS(ctx); i++, txq++)
 		while (!(ifmp_ring_is_idle(txq->ift_br) || ifmp_ring_is_stalled(txq->ift_br)))
 			iflib_txq_check_drain(txq, 0);
-	CTX_LOCK(ctx);
+	STATE_LOCK(ctx);
 	ctx->ifc_flags &= ~IFC_QFLUSH;
-	CTX_UNLOCK(ctx);
+	STATE_UNLOCK(ctx);
 
 	if_qflush(ifp);
 }
@@ -3933,14 +3966,18 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		iflib_stop(ctx);
 
 		if ((err = IFDI_MTU_SET(ctx, ifr->ifr_mtu)) == 0) {
+			STATE_LOCK(ctx);
 			if (ifr->ifr_mtu > ctx->ifc_max_fl_buf_size)
 				ctx->ifc_flags |= IFC_MULTISEG;
 			else
 				ctx->ifc_flags &= ~IFC_MULTISEG;
+			STATE_UNLOCK(ctx);
 			err = if_setmtu(ifp, ifr->ifr_mtu);
 		}
 		iflib_init_locked(ctx);
+		STATE_LOCK(ctx);
 		if_setdrvflags(ifp, bits);
+		STATE_UNLOCK(ctx);
 		CTX_UNLOCK(ctx);
 		break;
 	case SIOCSIFFLAGS:
@@ -4024,10 +4061,14 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 			bits = if_getdrvflags(ifp);
 			if (bits & IFF_DRV_RUNNING)
 				iflib_stop(ctx);
+			STATE_LOCK(ctx);
 			if_togglecapenable(ifp, setmask);
+			STATE_UNLOCK(ctx);
 			if (bits & IFF_DRV_RUNNING)
 				iflib_init_locked(ctx);
+			STATE_LOCK(ctx);
 			if_setdrvflags(ifp, bits);
+			STATE_UNLOCK(ctx);
 			CTX_UNLOCK(ctx);
 		}
 		break;
@@ -4441,12 +4482,21 @@ iflib_device_deregister(if_ctx_t ctx)
 
 	/* Make sure VLANS are not using driver */
 	if (if_vlantrunkinuse(ifp)) {
-		device_printf(dev,"Vlan in use, detach first\n");
+		device_printf(dev, "Vlan in use, detach first\n");
 		return (EBUSY);
 	}
+#ifdef PCI_IOV
+	if (!CTX_IS_VF(ctx) && pci_iov_detach(dev) != 0) {
+		device_printf(dev, "SR-IOV in use; detach first.\n");
+		return (EBUSY);
+	}
+#endif
+
+	STATE_LOCK(ctx);
+	ctx->ifc_flags |= IFC_IN_DETACH;
+	STATE_UNLOCK(ctx);
 
 	CTX_LOCK(ctx);
-	ctx->ifc_in_detach = 1;
 	iflib_stop(ctx);
 	CTX_UNLOCK(ctx);
 
@@ -4458,8 +4508,6 @@ iflib_device_deregister(if_ctx_t ctx)
 
 	iflib_netmap_detach(ifp);
 	ether_ifdetach(ifp);
-	/* ether_ifdetach calls if_qflush - lock must be destroy afterwards*/
-	CTX_LOCK_DESTROY(ctx);
 	if (ctx->ifc_led_dev != NULL)
 		led_destroy(ctx->ifc_led_dev);
 	/* XXX drain any dependent tasks */
@@ -4482,20 +4530,14 @@ iflib_device_deregister(if_ctx_t ctx)
 		taskqgroup_detach(tqg, &ctx->ifc_admin_task);
 	if (ctx->ifc_vflr_task.gt_uniq != NULL)
 		taskqgroup_detach(tqg, &ctx->ifc_vflr_task);
-
+	CTX_LOCK(ctx);
 	IFDI_DETACH(ctx);
+	CTX_UNLOCK(ctx);
+
+	/* ether_ifdetach calls if_qflush - lock must be destroy afterwards*/
+	CTX_LOCK_DESTROY(ctx);
 	device_set_softc(ctx->ifc_dev, NULL);
-	if (ctx->ifc_softc_ctx.isc_intr != IFLIB_INTR_LEGACY) {
-		pci_release_msi(dev);
-	}
-	if (ctx->ifc_softc_ctx.isc_intr != IFLIB_INTR_MSIX) {
-		iflib_irq_free(ctx, &ctx->ifc_legacy_irq);
-	}
-	if (ctx->ifc_msix_mem != NULL) {
-		bus_release_resource(ctx->ifc_dev, SYS_RES_MEMORY,
-			ctx->ifc_softc_ctx.isc_msix_bar, ctx->ifc_msix_mem);
-		ctx->ifc_msix_mem = NULL;
-	}
+	iflib_free_intr_mem(ctx);
 
 	bus_generic_detach(dev);
 	if_free(ifp);
@@ -4504,10 +4546,27 @@ iflib_device_deregister(if_ctx_t ctx)
 	iflib_rx_structures_free(ctx);
 	if (ctx->ifc_flags & IFC_SC_ALLOCATED)
 		free(ctx->ifc_softc, M_IFLIB);
+	STATE_LOCK_DESTROY(ctx);
 	free(ctx, M_IFLIB);
 	return (0);
 }
 
+static void
+iflib_free_intr_mem(if_ctx_t ctx)
+{
+
+	if (ctx->ifc_softc_ctx.isc_intr != IFLIB_INTR_MSIX) {
+		iflib_irq_free(ctx, &ctx->ifc_legacy_irq);
+	}
+	if (ctx->ifc_softc_ctx.isc_intr != IFLIB_INTR_LEGACY) {
+		pci_release_msi(ctx->ifc_dev);
+	}
+	if (ctx->ifc_msix_mem != NULL) {
+		bus_release_resource(ctx->ifc_dev, SYS_RES_MEMORY,
+		    rman_get_rid(ctx->ifc_msix_mem), ctx->ifc_msix_mem);
+		ctx->ifc_msix_mem = NULL;
+	}
+}
 
 int
 iflib_device_detach(device_t dev)
@@ -4679,7 +4738,7 @@ iflib_register(if_ctx_t ctx)
 
 	CTX_LOCK_INIT(ctx, device_get_nameunit(ctx->ifc_dev));
 
-	ifp = ctx->ifc_ifp = if_gethandle(IFT_ETHER);
+	ifp = ctx->ifc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not allocate ifnet structure\n");
 		return (ENOMEM);
@@ -4857,7 +4916,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 			fl[j].ifl_ifdi = &rxq->ifr_ifdi[j + rxq->ifr_fl_offset];
 			fl[j].ifl_rxd_size = scctx->isc_rxd_size[j];
 		}
-        /* Allocate receive buffers for the ring*/
+		/* Allocate receive buffers for the ring*/
 		if (iflib_rxsd_alloc(rxq)) {
 			device_printf(dev,
 			    "Critical Failure setting up receive buffers\n");
@@ -5012,6 +5071,8 @@ iflib_rx_structures_free(if_ctx_t ctx)
 	for (int i = 0; i < ctx->ifc_softc_ctx.isc_nrxqsets; i++, rxq++) {
 		iflib_rx_sds_free(rxq);
 	}
+	free(ctx->ifc_rxqs, M_IFLIB);
+	ctx->ifc_rxqs = NULL;
 }
 
 static int
@@ -5271,7 +5332,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 }
 
 void
-iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,  void *arg, int qid, char *name)
+iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type, void *arg, int qid, char *name)
 {
 	struct grouptask *gtask;
 	struct taskqgroup *tqg;
@@ -5436,9 +5497,11 @@ iflib_link_state_change(if_ctx_t ctx, int link_state, uint64_t baudrate)
 	iflib_txq_t txq = ctx->ifc_txqs;
 
 	if_setbaudrate(ifp, baudrate);
-	if (baudrate >= IF_Gbps(10))
+	if (baudrate >= IF_Gbps(10)) {
+		STATE_LOCK(ctx);
 		ctx->ifc_flags |= IFC_PREFETCH;
-
+		STATE_UNLOCK(ctx);
+	}
 	/* If link down, disable watchdog */
 	if ((ctx->ifc_link_state == LINK_STATE_UP) && (link_state == LINK_STATE_DOWN)) {
 		for (int i = 0; i < ctx->ifc_softc_ctx.isc_ntxqsets; i++, txq++)
@@ -5497,7 +5560,7 @@ struct mtx *
 iflib_ctx_lock_get(if_ctx_t ctx)
 {
 
-	return (&ctx->ifc_mtx);
+	return (&ctx->ifc_ctx_mtx);
 }
 
 static int
@@ -5624,8 +5687,9 @@ iflib_msix_init(if_ctx_t ctx)
 	if (ctx->ifc_sysctl_qs_eq_override == 0) {
 #ifdef INVARIANTS
 		if (tx_queues != rx_queues)
-			device_printf(dev, "queue equality override not set, capping rx_queues at %d and tx_queues at %d\n",
-				      min(rx_queues, tx_queues), min(rx_queues, tx_queues));
+			device_printf(dev,
+			    "queue equality override not set, capping rx_queues at %d and tx_queues at %d\n",
+			    min(rx_queues, tx_queues), min(rx_queues, tx_queues));
 #endif
 		tx_queues = min(rx_queues, tx_queues);
 		rx_queues = min(rx_queues, tx_queues);
@@ -5635,8 +5699,8 @@ iflib_msix_init(if_ctx_t ctx)
 
 	vectors = rx_queues + admincnt;
 	if ((err = pci_alloc_msix(dev, &vectors)) == 0) {
-		device_printf(dev,
-					  "Using MSIX interrupts with %d vectors\n", vectors);
+		device_printf(dev, "Using MSI-X interrupts with %d vectors\n",
+		    vectors);
 		scctx->isc_vectors = vectors;
 		scctx->isc_nrxqsets = rx_queues;
 		scctx->isc_ntxqsets = tx_queues;
@@ -5644,7 +5708,8 @@ iflib_msix_init(if_ctx_t ctx)
 
 		return (vectors);
 	} else {
-		device_printf(dev, "failed to allocate %d msix vectors, err: %d - using MSI\n", vectors, err);
+		device_printf(dev,
+		    "failed to allocate %d msix vectors, err: %d - using MSI\n", vectors, err);
 	}
 msi:
 	vectors = pci_msi_count(dev);
@@ -5944,6 +6009,15 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 		}
 	}
 
+}
+
+void
+iflib_request_reset(if_ctx_t ctx)
+{
+
+	STATE_LOCK(ctx);
+	ctx->ifc_flags |= IFC_DO_RESET;
+	STATE_UNLOCK(ctx);
 }
 
 #ifndef __NO_STRICT_ALIGNMENT
