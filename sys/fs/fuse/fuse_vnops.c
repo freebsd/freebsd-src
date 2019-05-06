@@ -1589,6 +1589,17 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		if (checkperm && vp->v_type != VDIR && (vap->va_mode & S_ISTXT)
 		    && priv_check_cred(cred, PRIV_VFS_STICKYFILE))
 			return EFTYPE;
+		if (checkperm && (vap->va_mode & S_ISGID)) {
+			struct vattr old_va;
+			err = fuse_internal_getattr(vp, &old_va, cred, td);
+			if (err)
+				return (err);
+			if (!groupmember(old_va.va_gid, cred)) {
+				err = priv_check_cred(cred, PRIV_VFS_SETGID);
+				if (err)
+					return (err);
+			}
+		}
 		accmode |= VADMIN;
 	}
 
