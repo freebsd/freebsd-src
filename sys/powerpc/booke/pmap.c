@@ -77,6 +77,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -122,6 +123,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/mmuvar.h>
 #include <machine/pmap.h>
 #include <machine/pte.h>
+
+#include <ddb/ddb.h>
 
 #include "mmu_if.h"
 
@@ -221,10 +224,12 @@ static vm_offset_t tlb1_map_base = VM_MAXUSER_ADDRESS + PAGE_SIZE;
 static tlbtid_t tid_alloc(struct pmap *);
 static void tid_flush(tlbtid_t tid);
 
+#ifdef DDB
 #ifdef __powerpc64__
 static void tlb_print_entry(int, uint32_t, uint64_t, uint32_t, uint32_t);
 #else
 static void tlb_print_entry(int, uint32_t, uint32_t, uint32_t, uint32_t);
+#endif
 #endif
 
 static void tlb1_read_entry(tlb_entry_t *, unsigned int);
@@ -2968,14 +2973,19 @@ mmu_booke_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 
 	/* XXX KASSERT off and size are within a single page? */
 
-	mtx_lock(&zero_page_mutex);
-	va = zero_page_va;
+	if (hw_direct_map) {
+		va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+		bzero((caddr_t)va + off, size);
+	} else {
+		mtx_lock(&zero_page_mutex);
+		va = zero_page_va;
 
-	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
-	bzero((caddr_t)va + off, size);
-	mmu_booke_kremove(mmu, va);
+		mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
+		bzero((caddr_t)va + off, size);
+		mmu_booke_kremove(mmu, va);
 
-	mtx_unlock(&zero_page_mutex);
+		mtx_unlock(&zero_page_mutex);
+	}
 }
 
 /*
@@ -2986,15 +2996,23 @@ mmu_booke_zero_page(mmu_t mmu, vm_page_t m)
 {
 	vm_offset_t off, va;
 
-	mtx_lock(&zero_page_mutex);
-	va = zero_page_va;
+	if (hw_direct_map) {
+		va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+	} else {
+		va = zero_page_va;
+		mtx_lock(&zero_page_mutex);
 
-	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
+		mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
+	}
+
 	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
 		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
-	mmu_booke_kremove(mmu, va);
 
-	mtx_unlock(&zero_page_mutex);
+	if (!hw_direct_map) {
+		mmu_booke_kremove(mmu, va);
+
+		mtx_unlock(&zero_page_mutex);
+	}
 }
 
 /*
@@ -3010,13 +3028,20 @@ mmu_booke_copy_page(mmu_t mmu, vm_page_t sm, vm_page_t dm)
 	sva = copy_page_src_va;
 	dva = copy_page_dst_va;
 
-	mtx_lock(&copy_page_mutex);
-	mmu_booke_kenter(mmu, sva, VM_PAGE_TO_PHYS(sm));
-	mmu_booke_kenter(mmu, dva, VM_PAGE_TO_PHYS(dm));
+	if (hw_direct_map) {
+		sva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(sm));
+		dva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dm));
+	} else {
+		mtx_lock(&copy_page_mutex);
+		mmu_booke_kenter(mmu, sva, VM_PAGE_TO_PHYS(sm));
+		mmu_booke_kenter(mmu, dva, VM_PAGE_TO_PHYS(dm));
+	}
 	memcpy((caddr_t)dva, (caddr_t)sva, PAGE_SIZE);
-	mmu_booke_kremove(mmu, dva);
-	mmu_booke_kremove(mmu, sva);
-	mtx_unlock(&copy_page_mutex);
+	if (!hw_direct_map) {
+		mmu_booke_kremove(mmu, dva);
+		mmu_booke_kremove(mmu, sva);
+		mtx_unlock(&copy_page_mutex);
+	}
 }
 
 static inline void
@@ -3027,26 +3052,34 @@ mmu_booke_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
 
-	mtx_lock(&copy_page_mutex);
-	while (xfersize > 0) {
-		a_pg_offset = a_offset & PAGE_MASK;
-		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
-		mmu_booke_kenter(mmu, copy_page_src_va,
-		    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]));
-		a_cp = (char *)copy_page_src_va + a_pg_offset;
-		b_pg_offset = b_offset & PAGE_MASK;
-		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		mmu_booke_kenter(mmu, copy_page_dst_va,
-		    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]));
-		b_cp = (char *)copy_page_dst_va + b_pg_offset;
-		bcopy(a_cp, b_cp, cnt);
-		mmu_booke_kremove(mmu, copy_page_dst_va);
-		mmu_booke_kremove(mmu, copy_page_src_va);
-		a_offset += cnt;
-		b_offset += cnt;
-		xfersize -= cnt;
+	if (hw_direct_map) {
+		a_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*ma)) +
+		    a_offset);
+		b_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*mb)) +
+		    b_offset);
+		bcopy(a_cp, b_cp, xfersize);
+	} else {
+		mtx_lock(&copy_page_mutex);
+		while (xfersize > 0) {
+			a_pg_offset = a_offset & PAGE_MASK;
+			cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+			mmu_booke_kenter(mmu, copy_page_src_va,
+			    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]));
+			a_cp = (char *)copy_page_src_va + a_pg_offset;
+			b_pg_offset = b_offset & PAGE_MASK;
+			cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+			mmu_booke_kenter(mmu, copy_page_dst_va,
+			    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]));
+			b_cp = (char *)copy_page_dst_va + b_pg_offset;
+			bcopy(a_cp, b_cp, cnt);
+			mmu_booke_kremove(mmu, copy_page_dst_va);
+			mmu_booke_kremove(mmu, copy_page_src_va);
+			a_offset += cnt;
+			b_offset += cnt;
+			xfersize -= cnt;
+		}
+		mtx_unlock(&copy_page_mutex);
 	}
-	mtx_unlock(&copy_page_mutex);
 }
 
 static vm_offset_t
@@ -3058,6 +3091,9 @@ mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m)
 	pte_t *pte;
 
 	paddr = VM_PAGE_TO_PHYS(m);
+
+	if (hw_direct_map)
+		return (PHYS_TO_DMAP(paddr));
 
 	flags = PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
 	flags |= tlb_calc_wimg(paddr, pmap_page_get_memattr(m)) << PTE_MAS2_SHIFT;
@@ -3091,6 +3127,9 @@ static void
 mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr)
 {
 	pte_t *pte;
+
+	if (hw_direct_map)
+		return;
 
 	pte = pte_find(mmu, kernel_pmap, addr);
 
@@ -3776,45 +3815,6 @@ tid_alloc(pmap_t pmap)
 /* TLB0 handling */
 /**************************************************************************/
 
-static void
-#ifdef __powerpc64__
-tlb_print_entry(int i, uint32_t mas1, uint64_t mas2, uint32_t mas3,
-#else
-tlb_print_entry(int i, uint32_t mas1, uint32_t mas2, uint32_t mas3,
-#endif
-    uint32_t mas7)
-{
-	int as;
-	char desc[3];
-	tlbtid_t tid;
-	vm_size_t size;
-	unsigned int tsize;
-
-	desc[2] = '\0';
-	if (mas1 & MAS1_VALID)
-		desc[0] = 'V';
-	else
-		desc[0] = ' ';
-
-	if (mas1 & MAS1_IPROT)
-		desc[1] = 'P';
-	else
-		desc[1] = ' ';
-
-	as = (mas1 & MAS1_TS_MASK) ? 1 : 0;
-	tid = MAS1_GETTID(mas1);
-
-	tsize = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
-	size = 0;
-	if (tsize)
-		size = tsize2size(tsize);
-
-	debugf("%3d: (%s) [AS=%d] "
-	    "sz = 0x%08x tsz = %d tid = %d mas1 = 0x%08x "
-	    "mas2(va) = 0x%"PRI0ptrX" mas3(pa) = 0x%08x mas7 = 0x%08x\n",
-	    i, desc, as, size, tsize, tid, mas1, mas2, mas3, mas7);
-}
-
 /* Convert TLB0 va and way number to tlb0[] table index. */
 static inline unsigned int
 tlb0_tableidx(vm_offset_t va, unsigned int way)
@@ -3844,40 +3844,6 @@ tlb0_flush_entry(vm_offset_t va)
 	CTR1(KTR_PMAP, "%s: e", __func__);
 }
 
-/* Print out contents of the MAS registers for each TLB0 entry */
-void
-tlb0_print_tlbentries(void)
-{
-	uint32_t mas0, mas1, mas3, mas7;
-#ifdef __powerpc64__
-	uint64_t mas2;
-#else
-	uint32_t mas2;
-#endif
-	int entryidx, way, idx;
-
-	debugf("TLB0 entries:\n");
-	for (way = 0; way < TLB0_WAYS; way ++)
-		for (entryidx = 0; entryidx < TLB0_ENTRIES_PER_WAY; entryidx++) {
-
-			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
-			mtspr(SPR_MAS0, mas0);
-			__asm __volatile("isync");
-
-			mas2 = entryidx << MAS2_TLB0_ENTRY_IDX_SHIFT;
-			mtspr(SPR_MAS2, mas2);
-
-			__asm __volatile("isync; tlbre");
-
-			mas1 = mfspr(SPR_MAS1);
-			mas2 = mfspr(SPR_MAS2);
-			mas3 = mfspr(SPR_MAS3);
-			mas7 = mfspr(SPR_MAS7);
-
-			idx = tlb0_tableidx(mas2, way);
-			tlb_print_entry(idx, mas1, mas2, mas3, mas7);
-		}
-}
 
 /**************************************************************************/
 /* TLB1 handling */
@@ -3948,29 +3914,23 @@ tlb1_write_entry_int(void *arg)
 	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(args->idx);
 
 	mtspr(SPR_MAS0, mas0);
-	__asm __volatile("isync");
 	mtspr(SPR_MAS1, args->e->mas1);
-	__asm __volatile("isync");
 	mtspr(SPR_MAS2, args->e->mas2);
-	__asm __volatile("isync");
 	mtspr(SPR_MAS3, args->e->mas3);
-	__asm __volatile("isync");
 	switch ((mfpvr() >> 16) & 0xFFFF) {
 	case FSL_E500mc:
 	case FSL_E5500:
 	case FSL_E6500:
 		mtspr(SPR_MAS8, 0);
-		__asm __volatile("isync");
 		/* FALLTHROUGH */
 	case FSL_E500v2:
 		mtspr(SPR_MAS7, args->e->mas7);
-		__asm __volatile("isync");
 		break;
 	default:
 		break;
 	}
 
-	__asm __volatile("tlbwe; isync; msync");
+	__asm __volatile("isync; tlbwe; isync; msync");
 
 }
 
@@ -4322,36 +4282,6 @@ set_mas4_defaults(void)
 	__asm __volatile("isync");
 }
 
-/*
- * Print out contents of the MAS registers for each TLB1 entry
- */
-void
-tlb1_print_tlbentries(void)
-{
-	uint32_t mas0, mas1, mas3, mas7;
-#ifdef __powerpc64__
-	uint64_t mas2;
-#else
-	uint32_t mas2;
-#endif
-	int i;
-
-	debugf("TLB1 entries:\n");
-	for (i = 0; i < TLB1_ENTRIES; i++) {
-
-		mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(i);
-		mtspr(SPR_MAS0, mas0);
-
-		__asm __volatile("isync; tlbre");
-
-		mas1 = mfspr(SPR_MAS1);
-		mas2 = mfspr(SPR_MAS2);
-		mas3 = mfspr(SPR_MAS3);
-		mas7 = mfspr(SPR_MAS7);
-
-		tlb_print_entry(i, mas1, mas2, mas3, mas7);
-	}
-}
 
 /*
  * Return 0 if the physical IO range is encompassed by one of the
@@ -4423,12 +4353,26 @@ tid_flush(tlbtid_t tid)
 	msr = mfmsr();
 	__asm __volatile("wrteei 0");
 
+	/*
+	 * Newer (e500mc and later) have tlbilx, which doesn't broadcast, so use
+	 * it for PID invalidation.
+	 */
+	switch ((mfpvr() >> 16) & 0xffff) {
+	case FSL_E500mc:
+	case FSL_E5500:
+	case FSL_E6500:
+		mtspr(SPR_MAS6, tid << MAS6_SPID0_SHIFT);
+		/* tlbilxpid */
+		__asm __volatile("isync; .long 0x7c000024; isync; msync");
+		mtmsr(msr);
+		return;
+	}
+
 	for (way = 0; way < TLB0_WAYS; way++)
 		for (entry = 0; entry < TLB0_ENTRIES_PER_WAY; entry++) {
 
 			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
 			mtspr(SPR_MAS0, mas0);
-			__asm __volatile("isync");
 
 			mas2 = entry << MAS2_TLB0_ENTRY_IDX_SHIFT;
 			mtspr(SPR_MAS2, mas2);
@@ -4447,3 +4391,107 @@ tid_flush(tlbtid_t tid)
 		}
 	mtmsr(msr);
 }
+
+#ifdef DDB
+/* Print out contents of the MAS registers for each TLB0 entry */
+static void
+#ifdef __powerpc64__
+tlb_print_entry(int i, uint32_t mas1, uint64_t mas2, uint32_t mas3,
+#else
+tlb_print_entry(int i, uint32_t mas1, uint32_t mas2, uint32_t mas3,
+#endif
+    uint32_t mas7)
+{
+	int as;
+	char desc[3];
+	tlbtid_t tid;
+	vm_size_t size;
+	unsigned int tsize;
+
+	desc[2] = '\0';
+	if (mas1 & MAS1_VALID)
+		desc[0] = 'V';
+	else
+		desc[0] = ' ';
+
+	if (mas1 & MAS1_IPROT)
+		desc[1] = 'P';
+	else
+		desc[1] = ' ';
+
+	as = (mas1 & MAS1_TS_MASK) ? 1 : 0;
+	tid = MAS1_GETTID(mas1);
+
+	tsize = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
+	size = 0;
+	if (tsize)
+		size = tsize2size(tsize);
+
+	printf("%3d: (%s) [AS=%d] "
+	    "sz = 0x%08x tsz = %d tid = %d mas1 = 0x%08x "
+	    "mas2(va) = 0x%"PRI0ptrX" mas3(pa) = 0x%08x mas7 = 0x%08x\n",
+	    i, desc, as, size, tsize, tid, mas1, mas2, mas3, mas7);
+}
+
+DB_SHOW_COMMAND(tlb0, tlb0_print_tlbentries)
+{
+	uint32_t mas0, mas1, mas3, mas7;
+#ifdef __powerpc64__
+	uint64_t mas2;
+#else
+	uint32_t mas2;
+#endif
+	int entryidx, way, idx;
+
+	printf("TLB0 entries:\n");
+	for (way = 0; way < TLB0_WAYS; way ++)
+		for (entryidx = 0; entryidx < TLB0_ENTRIES_PER_WAY; entryidx++) {
+
+			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
+			mtspr(SPR_MAS0, mas0);
+
+			mas2 = entryidx << MAS2_TLB0_ENTRY_IDX_SHIFT;
+			mtspr(SPR_MAS2, mas2);
+
+			__asm __volatile("isync; tlbre");
+
+			mas1 = mfspr(SPR_MAS1);
+			mas2 = mfspr(SPR_MAS2);
+			mas3 = mfspr(SPR_MAS3);
+			mas7 = mfspr(SPR_MAS7);
+
+			idx = tlb0_tableidx(mas2, way);
+			tlb_print_entry(idx, mas1, mas2, mas3, mas7);
+		}
+}
+
+/*
+ * Print out contents of the MAS registers for each TLB1 entry
+ */
+DB_SHOW_COMMAND(tlb1, tlb1_print_tlbentries)
+{
+	uint32_t mas0, mas1, mas3, mas7;
+#ifdef __powerpc64__
+	uint64_t mas2;
+#else
+	uint32_t mas2;
+#endif
+	int i;
+
+	printf("TLB1 entries:\n");
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+
+		mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(i);
+		mtspr(SPR_MAS0, mas0);
+
+		__asm __volatile("isync; tlbre");
+
+		mas1 = mfspr(SPR_MAS1);
+		mas2 = mfspr(SPR_MAS2);
+		mas3 = mfspr(SPR_MAS3);
+		mas7 = mfspr(SPR_MAS7);
+
+		tlb_print_entry(i, mas1, mas2, mas3, mas7);
+	}
+}
+#endif
