@@ -1,6 +1,10 @@
 {
   "top": {
     "data": {
+      "name": "em0",
+      "flags": "0x8843",
+      "name": "em0",
+      "flags": "0x8843",
       "what": "braces",
       "length": "abcdef",
       "fd": -1,
