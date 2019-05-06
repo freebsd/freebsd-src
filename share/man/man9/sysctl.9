@@ -42,6 +42,7 @@
 .Nm SYSCTL_ADD_S32 ,
 .Nm SYSCTL_ADD_S64 ,
 .Nm SYSCTL_ADD_STRING ,
+.Nm SYSCTL_ADD_CONST_STRING ,
 .Nm SYSCTL_ADD_STRUCT ,
 .Nm SYSCTL_ADD_U8 ,
 .Nm SYSCTL_ADD_U16 ,
@@ -67,6 +68,7 @@
 .Nm SYSCTL_S32 ,
 .Nm SYSCTL_S64 ,
 .Nm SYSCTL_STRING ,
+.Nm SYSCTL_CONST_STRING ,
 .Nm SYSCTL_STRUCT ,
 .Nm SYSCTL_U8 ,
 .Nm SYSCTL_U16 ,
@@ -211,6 +213,16 @@
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_CONST_STRING
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "const char *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
 .Fo SYSCTL_ADD_STRUCT
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
@@ -335,6 +347,7 @@
 .Fn SYSCTL_S32 parent number name ctlflags ptr val descr
 .Fn SYSCTL_S64 parent number name ctlflags ptr val descr
 .Fn SYSCTL_STRING parent number name ctlflags arg len descr
+.Fn SYSCTL_CONST_STRING parent number name ctlflags arg descr
 .Fn SYSCTL_STRUCT parent number name ctlflags ptr struct_type descr
 .Fn SYSCTL_U8 parent number name ctlflags ptr val descr
 .Fn SYSCTL_U16 parent number name ctlflags ptr val descr
@@ -484,6 +497,11 @@ If the
 .Fa len
 argument in zero, the string length is computed at every access to the OID using
 .Xr strlen 3 .
+Use the
+.Fn SYSCTL_CONST_STRING
+macro or the
+.Fn SYSCTL_ADD_CONST_STRING
+function to add a sysctl for a constant string.
 .Sh CREATING OPAQUE SYSCTLS
 The
 .Fn SYSCTL_OPAQUE
@@ -528,6 +546,7 @@ Static sysctls are declared using one of the
 .Fn SYSCTL_S32 ,
 .Fn SYSCTL_S64 ,
 .Fn SYSCTL_STRING ,
+.Fn SYSCTL_CONST_STRING ,
 .Fn SYSCTL_STRUCT ,
 .Fn SYSCTL_U8 ,
 .Fn SYSCTL_U16 ,
@@ -552,6 +571,7 @@ Dynamic nodes are created using one of the
 .Fn SYSCTL_ADD_S32 ,
 .Fn SYSCTL_ADD_S64 ,
 .Fn SYSCTL_ADD_STRING ,
+.Fn SYSCTL_ADD_CONST_STRING ,
 .Fn SYSCTL_ADD_STRUCT ,
 .Fn SYSCTL_ADD_U8 ,
 .Fn SYSCTL_ADD_U16 ,
