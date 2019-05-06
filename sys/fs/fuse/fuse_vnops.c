@@ -1516,44 +1516,33 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
 	struct thread *td = curthread;
-	struct fuse_dispatcher fdi;
-	struct fuse_setattr_in *fsai;
 	struct mount *mp;
-	pid_t pid = td->td_proc->p_pid;
 	struct fuse_data *data;
 	int dataflags;
 	int err = 0;
-	enum vtype vtyp;
-	int sizechanged = 0;
-	uint64_t newsize = 0;
 	accmode_t accmode = 0;
+	bool checkperm;
 
 	mp = vnode_mount(vp);
 	data = fuse_get_mpdata(mp);
 	dataflags = data->dataflags;
+	checkperm = dataflags & FSESS_DEFAULT_PERMISSIONS;
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
 	}
-	fdisp_init(&fdi, sizeof(*fsai));
-	fdisp_make_vp(&fdi, FUSE_SETATTR, vp, td, cred);
-	fsai = fdi.indata;
-	fsai->valid = 0;
 
 	if (vap->va_uid != (uid_t)VNOVAL) {
-		if (dataflags & FSESS_DEFAULT_PERMISSIONS) {
+		if (checkperm) {
 			/* Only root may change a file's owner */
 			err = priv_check_cred(cred, PRIV_VFS_CHOWN);
 			if (err)
-				goto out;
+				return err;;
 		}
-		fsai->uid = vap->va_uid;
-		fsai->valid |= FATTR_UID;
 		accmode |= VADMIN;
 	}
 	if (vap->va_gid != (gid_t)VNOVAL) {
-		if (dataflags & FSESS_DEFAULT_PERMISSIONS &&
-		    !groupmember(vap->va_gid, cred))
+		if (checkperm && !groupmember(vap->va_gid, cred))
 		{
 			/*
 			 * Non-root users may only chgrp to one of their own
@@ -1561,112 +1550,56 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 			 */
 			err = priv_check_cred(cred, PRIV_VFS_CHOWN);
 			if (err)
-				goto out;
+				return err;
 		}
-		fsai->gid = vap->va_gid;
-		fsai->valid |= FATTR_GID;
 		accmode |= VADMIN;
 	}
 	if (vap->va_size != VNOVAL) {
-
-		struct fuse_filehandle *fufh = NULL;
-
-		/*Truncate to a new value. */
-		fsai->size = vap->va_size;
-		sizechanged = 1;
-		newsize = vap->va_size;
-		fsai->valid |= FATTR_SIZE;
-		accmode |= VWRITE;
-
-		fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
-		if (fufh) {
-			fsai->fh = fufh->fh_id;
-			fsai->valid |= FATTR_FH;
+		switch (vp->v_type) {
+		case VDIR:
+			return (EISDIR);
+		case VLNK:
+		case VREG:
+			if (vfs_isrdonly(mp))
+				return (EROFS);
+			break;
+		default:
+			/*
+			 * According to POSIX, the result is unspecified
+			 * for file types other than regular files,
+			 * directories and shared memory objects.  We
+			 * don't support shared memory objects in the file
+			 * system, and have dubious support for truncating
+			 * symlinks.  Just ignore the request in other cases.
+			 */
+			return (0);
 		}
+		accmode |= VWRITE;
 	}
-	if (vap->va_atime.tv_sec != VNOVAL) {
-		fsai->atime = vap->va_atime.tv_sec;
-		fsai->atimensec = vap->va_atime.tv_nsec;
-		fsai->valid |= FATTR_ATIME;
+	/*
+	 * TODO: for atime and mtime, only require VWRITE if UTIMENS_NULL is
+	 * set. PR 237181
+	 */
+	if (vap->va_atime.tv_sec != VNOVAL)
 		accmode |= VADMIN;
-		/*
-		 * TODO: only require VWRITE if UTIMENS_NULL is set. PR 237181
-		 */
-	}
-	if (vap->va_mtime.tv_sec != VNOVAL) {
-		fsai->mtime = vap->va_mtime.tv_sec;
-		fsai->mtimensec = vap->va_mtime.tv_nsec;
-		fsai->valid |= FATTR_MTIME;
+	if (vap->va_mtime.tv_sec != VNOVAL)
 		accmode |= VADMIN;
-		/*
-		 * TODO: only require VWRITE if UTIMENS_NULL is set. PR 237181
-		 */
-	}
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		/* Only root may set the sticky bit on non-directories */
-		if (dataflags & FSESS_DEFAULT_PERMISSIONS &&
-		    vp->v_type != VDIR && (vap->va_mode & S_ISTXT))
-		{
-			if (priv_check_cred(cred, PRIV_VFS_STICKYFILE)) {
-				err = EFTYPE;
-				goto out;
-			}
-		}
-		fsai->mode = vap->va_mode & ALLPERMS;
-		fsai->valid |= FATTR_MODE;
+		if (checkperm && vp->v_type != VDIR && (vap->va_mode & S_ISTXT)
+		    && priv_check_cred(cred, PRIV_VFS_STICKYFILE))
+			return EFTYPE;
 		accmode |= VADMIN;
 	}
-	if (!fsai->valid) {
-		goto out;
-	}
-	vtyp = vnode_vtype(vp);
 
-	if (fsai->valid & FATTR_SIZE && vtyp == VDIR) {
-		err = EISDIR;
-		goto out;
-	}
-	if (vfs_isrdonly(vnode_mount(vp))) {
-		err = EROFS;
-		goto out;
-	}
+	if (vfs_isrdonly(mp))
+		return EROFS;
+
 	err = fuse_internal_access(vp, accmode, td, cred);
 	if (err)
-		goto out;
-
-	if ((err = fdisp_wait_answ(&fdi)))
-		goto out;
-	vtyp = IFTOVT(((struct fuse_attr_out *)fdi.answ)->attr.mode);
-
-	if (vnode_vtype(vp) != vtyp) {
-		if (vnode_vtype(vp) == VNON && vtyp != VNON) {
-			SDT_PROBE2(fusefs, , vnops, trace, 1, "FUSE: Dang! "
-				"vnode_vtype is VNON and vtype isn't.");
-		} else {
-			/*
-	                 * STALE vnode, ditch
-	                 *
-			 * The vnode has changed its type "behind our back".
-			 * There's nothing really we can do, so let us just
-			 * force an internal revocation and tell the caller to
-			 * try again, if interested.
-	                 */
-			fuse_internal_vnode_disappear(vp);
-			err = EAGAIN;
-		}
-	}
-	if (err == 0) {
-		struct fuse_attr_out *fao = (struct fuse_attr_out*)fdi.answ;
-		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
-			fao->attr_valid_nsec, NULL);
-	}
-
-out:
-	fdisp_destroy(&fdi);
-	if (!err && sizechanged) {
-		fuse_vnode_setsize(vp, cred, newsize);
-		VTOFUD(vp)->flag &= ~FN_SIZECHANGE;
-	}
-	return err;
+		return err;
+	else
+		return fuse_internal_setattr(vp, vap, td, cred);
 }
 
 /*

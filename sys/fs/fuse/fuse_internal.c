@@ -740,6 +740,114 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	fdisp_destroy(&fdi);
 }
 
+/* 
+ * Send a FUSE_SETATTR operation with no permissions checks.  If cred is NULL,
+ * send the request with root credentials
+ */
+int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
+	struct thread *td, struct ucred *cred)
+{
+	struct fuse_dispatcher fdi;
+	struct fuse_setattr_in *fsai;
+	struct mount *mp;
+	pid_t pid = td->td_proc->p_pid;
+	struct fuse_data *data;
+	int dataflags;
+	int err = 0;
+	enum vtype vtyp;
+	int sizechanged = -1;
+	uint64_t newsize = 0;
+
+	mp = vnode_mount(vp);
+	data = fuse_get_mpdata(mp);
+	dataflags = data->dataflags;
+
+	fdisp_init(&fdi, sizeof(*fsai));
+	fdisp_make_vp(&fdi, FUSE_SETATTR, vp, td, cred);
+	if (!cred) {
+		fdi.finh->uid = 0;
+		fdi.finh->gid = 0;
+	}
+	fsai = fdi.indata;
+	fsai->valid = 0;
+
+	if (vap->va_uid != (uid_t)VNOVAL) {
+		fsai->uid = vap->va_uid;
+		fsai->valid |= FATTR_UID;
+	}
+	if (vap->va_gid != (gid_t)VNOVAL) {
+		fsai->gid = vap->va_gid;
+		fsai->valid |= FATTR_GID;
+	}
+	if (vap->va_size != VNOVAL) {
+		struct fuse_filehandle *fufh = NULL;
+
+		/*Truncate to a new value. */
+		fsai->size = vap->va_size;
+		sizechanged = 1;
+		newsize = vap->va_size;
+		fsai->valid |= FATTR_SIZE;
+
+		fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
+		if (fufh) {
+			fsai->fh = fufh->fh_id;
+			fsai->valid |= FATTR_FH;
+		}
+	}
+	if (vap->va_atime.tv_sec != VNOVAL) {
+		fsai->atime = vap->va_atime.tv_sec;
+		fsai->atimensec = vap->va_atime.tv_nsec;
+		fsai->valid |= FATTR_ATIME;
+	}
+	if (vap->va_mtime.tv_sec != VNOVAL) {
+		fsai->mtime = vap->va_mtime.tv_sec;
+		fsai->mtimensec = vap->va_mtime.tv_nsec;
+		fsai->valid |= FATTR_MTIME;
+	}
+	if (vap->va_mode != (mode_t)VNOVAL) {
+		fsai->mode = vap->va_mode & ALLPERMS;
+		fsai->valid |= FATTR_MODE;
+	}
+	if (!fsai->valid) {
+		goto out;
+	}
+
+	if ((err = fdisp_wait_answ(&fdi)))
+		goto out;
+	vtyp = IFTOVT(((struct fuse_attr_out *)fdi.answ)->attr.mode);
+
+	if (vnode_vtype(vp) != vtyp) {
+		if (vnode_vtype(vp) == VNON && vtyp != VNON) {
+			SDT_PROBE2(fusefs, , internal, trace, 1, "FUSE: Dang! "
+				"vnode_vtype is VNON and vtype isn't.");
+		} else {
+			/*
+	                 * STALE vnode, ditch
+	                 *
+			 * The vnode has changed its type "behind our back".
+			 * There's nothing really we can do, so let us just
+			 * force an internal revocation and tell the caller to
+			 * try again, if interested.
+	                 */
+			fuse_internal_vnode_disappear(vp);
+			err = EAGAIN;
+		}
+	}
+	if (err == 0) {
+		struct fuse_attr_out *fao = (struct fuse_attr_out*)fdi.answ;
+		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
+			fao->attr_valid_nsec, NULL);
+	}
+
+out:
+	fdisp_destroy(&fdi);
+	if (!err && sizechanged) {
+		fuse_vnode_setsize(vp, cred, newsize);
+		VTOFUD(vp)->flag &= ~FN_SIZECHANGE;
+	}
+	return err;
+}
+
 #ifdef ZERO_PAD_INCOMPLETE_BUFS
 static int
 isbzero(void *buf, size_t len)

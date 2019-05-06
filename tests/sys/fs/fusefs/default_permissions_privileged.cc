@@ -98,7 +98,7 @@ void expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 
 class Setattr: public DefaultPermissionsPrivileged {};
 
-TEST_F(Setattr, sticky_regular_file_eftype)
+TEST_F(Setattr, sticky_regular_file)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";

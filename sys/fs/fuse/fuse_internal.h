@@ -247,6 +247,10 @@ int fuse_internal_rename(struct vnode *fdvp, struct componentname *fcnp,
 
 void fuse_internal_vnode_disappear(struct vnode *vp);
 
+/* setattr */
+int fuse_internal_setattr(struct vnode *vp, struct vattr *va,
+	struct thread *td, struct ucred *cred);
+
 /* strategy */
 
 /* entity creation */

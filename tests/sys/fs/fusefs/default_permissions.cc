@@ -68,6 +68,24 @@ virtual void SetUp() {
 }
 
 public:
+void expect_chmod(uint64_t ino, mode_t mode)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				in->body.setattr.valid == FATTR_MODE &&
+				in->body.setattr.mode == mode);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | mode;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+}
+
 void expect_getattr(uint64_t ino, mode_t mode, uint64_t attr_valid, int times,
 	uid_t uid = 0, gid_t gid = 0)
 {
@@ -104,6 +122,7 @@ class Lookup: public DefaultPermissions {};
 class Open: public DefaultPermissions {};
 class Setattr: public DefaultPermissions {};
 class Unlink: public DefaultPermissions {};
+class Write: public DefaultPermissions {};
 
 /* 
  * Test permission handling during create, mkdir, mknod, link, symlink, and
@@ -934,4 +953,56 @@ TEST_F(Unlink, sticky_directory)
 
 	ASSERT_EQ(-1, unlink(FULLPATH));
 	ASSERT_EQ(EPERM, errno);
+}
+
+/* A write by a non-owner should clear a file's SUID bit */
+TEST_F(Write, clear_suid)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	struct stat sb;
+	uint64_t ino = 42;
+	mode_t oldmode = 04777;
+	mode_t newmode = 0777;
+	char wbuf[1] = {'x'};
+	int fd;
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
+	expect_open(ino, 0, 1);
+	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, wbuf);
+	expect_chmod(ino, newmode);
+
+	fd = open(FULLPATH, O_WRONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(1, write(fd, wbuf, sizeof(wbuf))) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* A write by a non-owner should clear a file's SGID bit */
+TEST_F(Write, clear_sgid)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	struct stat sb;
+	uint64_t ino = 42;
+	mode_t oldmode = 02777;
+	mode_t newmode = 0777;
+	char wbuf[1] = {'x'};
+	int fd;
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
+	expect_open(ino, 0, 1);
+	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, wbuf);
+	expect_chmod(ino, newmode);
+
+	fd = open(FULLPATH, O_WRONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(1, write(fd, wbuf, sizeof(wbuf))) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
