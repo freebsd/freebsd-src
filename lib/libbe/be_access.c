@@ -45,6 +45,7 @@ struct be_mount_info {
 	const char *mountpoint;
 	int mntflags;
 	int deepmount;
+	int depth;
 };
 
 static int
@@ -79,6 +80,7 @@ be_mount_iter(zfs_handle_t *zfs_hdl, void *data)
 	char *mountpoint;
 	char tmp[BE_MAXPATHLEN], zfs_mnt[BE_MAXPATHLEN];
 	struct be_mount_info *info;
+	char opt;
 
 	info = (struct be_mount_info *)data;
 
@@ -94,37 +96,50 @@ be_mount_iter(zfs_handle_t *zfs_hdl, void *data)
 	    NULL, NULL, 0, 1))
 		return (1);
 
-	if (strcmp("none", zfs_mnt) != 0) {
-		char opt = '\0';
+	if (strcmp("none", zfs_mnt) == 0) {
+		/*
+		 * mountpoint=none; we'll mount it at info->mountpoint assuming
+		 * we're at the root.  If we're not at the root... that's less
+		 * than stellar and not entirely sure what to do with that.
+		 * For now, we won't treat it as an error condition -- we just
+		 * won't mount it, and we'll continue on.
+		 */
+		if (info->depth > 0)
+			return (0);
 
+		snprintf(tmp, BE_MAXPATHLEN, "%s", info->mountpoint);
+	} else {
 		mountpoint = be_mountpoint_augmented(info->lbh, zfs_mnt);
-
 		snprintf(tmp, BE_MAXPATHLEN, "%s%s", info->mountpoint,
 		    mountpoint);
+	}
 
-		if ((err = zmount(zfs_get_name(zfs_hdl), tmp, info->mntflags,
-		 __DECONST(char *, MNTTYPE_ZFS), NULL, 0, &opt, 1)) != 0) {
-			switch (errno) {
-			case ENAMETOOLONG:
-				return (set_error(info->lbh, BE_ERR_PATHLEN));
-			case ELOOP:
-			case ENOENT:
-			case ENOTDIR:
-				return (set_error(info->lbh, BE_ERR_BADPATH));
-			case EPERM:
-				return (set_error(info->lbh, BE_ERR_PERMS));
-			case EBUSY:
-				return (set_error(info->lbh, BE_ERR_PATHBUSY));
-			default:
-				return (set_error(info->lbh, BE_ERR_UNKNOWN));
-			}
+	opt = '\0';
+	if ((err = zmount(zfs_get_name(zfs_hdl), tmp, info->mntflags,
+	    __DECONST(char *, MNTTYPE_ZFS), NULL, 0, &opt, 1)) != 0) {
+		switch (errno) {
+		case ENAMETOOLONG:
+			return (set_error(info->lbh, BE_ERR_PATHLEN));
+		case ELOOP:
+		case ENOENT:
+		case ENOTDIR:
+			return (set_error(info->lbh, BE_ERR_BADPATH));
+		case EPERM:
+			return (set_error(info->lbh, BE_ERR_PERMS));
+		case EBUSY:
+			return (set_error(info->lbh, BE_ERR_PATHBUSY));
+		default:
+			return (set_error(info->lbh, BE_ERR_UNKNOWN));
 		}
 	}
 
 	if (!info->deepmount)
 		return (0);
 
-	return (zfs_iter_filesystems(zfs_hdl, be_mount_iter, info));
+	++info->depth;
+	err = zfs_iter_filesystems(zfs_hdl, be_mount_iter, info);
+	--info->depth;
+	return (err);
 }
 
 
@@ -138,9 +153,11 @@ be_umount_iter(zfs_handle_t *zfs_hdl, void *data)
 
 	info = (struct be_mount_info *)data;
 
+	++info->depth;
 	if((err = zfs_iter_filesystems(zfs_hdl, be_umount_iter, info)) != 0) {
 		return (err);
 	}
+	--info->depth;
 
 	if (!zfs_is_mounted(zfs_hdl, &mountpoint)) {
 		return (0);
@@ -248,6 +265,7 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 	info.mountpoint = (mountpoint == NULL) ? mnt_temp : mountpoint;
 	info.mntflags = mntflags;
 	info.deepmount = mntdeep;
+	info.depth = 0;
 
 	if((err = be_mount_iter(zhdl, &info) != 0)) {
 		zfs_close(zhdl);
@@ -283,6 +301,7 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 	info.be = be;
 	info.mountpoint = NULL;
 	info.mntflags = (flags & BE_MNT_FORCE) ? MS_FORCE : 0;
+	info.depth = 0;
 
 	if ((err = be_umount_iter(root_hdl, &info)) != 0) {
 		zfs_close(root_hdl);
