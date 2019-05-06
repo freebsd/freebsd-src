@@ -1,5 +1,9 @@
 <top>
   <data>
+    <name>em0</name>
+    <flags>0x8843</flags>
+    <name>em0</name>
+    <flags>0x8843</flags>
     <what>braces</what>
   <message>abcdef
 </message>

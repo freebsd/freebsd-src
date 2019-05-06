@@ -12,7 +12,7 @@
 #
 
 BASE=/usr/share/libxo
-VERSION=1.0.2
+VERSION=1.0.4
 CMD=cat
 DONE=
 WEB=http://juniper.github.io/libxo/${VERSION}/xohtml

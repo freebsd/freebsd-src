@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Juniper Networks, Inc.
+ * Copyright (c) 2014-2019, Juniper Networks, Inc.
  * All rights reserved.
  * This SOFTWARE is licensed under the LICENSE provided in the
  * ../Copyright file. By downloading, installing, copying, or otherwise
@@ -47,6 +47,12 @@ main (int argc, char **argv)
     xo_open_container_h(NULL, "top");
 
     xo_open_container("data");
+
+    xo_emit("{kt:name/%-*.*s}{eq:flags/0x%x}",
+	    5, 5, "em0", 34883);
+
+    xo_emit("{d:/%-*.*s}{etk:name}{eq:flags/0x%x}",
+	    5, 5, "em0", "em0", 34883);
 
     xo_emit("We are {{emit}}{{ting}} some {:what}\n", "braces");
 
