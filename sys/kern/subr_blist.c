@@ -286,7 +286,7 @@ blist_destroy(blist_t bl)
 daddr_t
 blist_alloc(blist_t bl, daddr_t count)
 {
-	daddr_t blk;
+	daddr_t blk, cursor;
 
 	if (count > BLIST_MAX_ALLOC)
 		panic("allocation too large");
@@ -297,8 +297,9 @@ blist_alloc(blist_t bl, daddr_t count)
 	 * non-zero.  When the cursor is zero, an allocation failure will
 	 * stop further iterations.
 	 */
+	cursor = bl->bl_cursor;
 	for (;;) {
-		blk = blst_meta_alloc(bl->bl_root, bl->bl_cursor, count,
+		blk = blst_meta_alloc(bl->bl_root, cursor, count,
 		    bl->bl_radix);
 		if (blk != SWAPBLK_NONE) {
 			bl->bl_avail -= count;
@@ -306,9 +307,9 @@ blist_alloc(blist_t bl, daddr_t count)
 			if (bl->bl_cursor == bl->bl_blocks)
 				bl->bl_cursor = 0;
 			return (blk);
-		} else if (bl->bl_cursor == 0)
+		} else if (cursor == 0)
 			return (SWAPBLK_NONE);
-		bl->bl_cursor = 0;
+		cursor = 0;
 	}
 }
 
