@@ -1625,7 +1625,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		err = EISDIR;
 		goto out;
 	}
-	if (vfs_isrdonly(vnode_mount(vp)) && (fsai->valid & ~FATTR_SIZE || vtyp == VREG)) {
+	if (vfs_isrdonly(vnode_mount(vp))) {
 		err = EROFS;
 		goto out;
 	}
