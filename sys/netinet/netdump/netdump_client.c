@@ -89,7 +89,8 @@ __FBSDID("$FreeBSD$");
 
 static int	 netdump_arp_gw(void);
 static void	 netdump_cleanup(void);
-static int	 netdump_configure(struct netdump_conf *, struct thread *);
+static int	 netdump_configure(struct diocskerneldump_arg *,
+		    struct thread *);
 static int	 netdump_dumper(void *priv __unused, void *virtual,
 		    vm_offset_t physical __unused, off_t offset, size_t length);
 static int	 netdump_ether_output(struct mbuf *m, struct ifnet *ifp,
@@ -118,10 +119,10 @@ static uint64_t rcvd_acks;
 CTASSERT(sizeof(rcvd_acks) * NBBY == NETDUMP_MAX_IN_FLIGHT);
 
 /* Configuration parameters. */
-static struct netdump_conf nd_conf;
-#define	nd_server	nd_conf.ndc_server
-#define	nd_client	nd_conf.ndc_client
-#define	nd_gateway	nd_conf.ndc_gateway
+static struct diocskerneldump_arg nd_conf;
+#define	nd_server	nd_conf.kda_server.in4
+#define	nd_client	nd_conf.kda_client.in4
+#define	nd_gateway	nd_conf.kda_gateway.in4
 
 /* General dynamic settings. */
 static struct ether_addr nd_gw_mac;
@@ -1059,7 +1060,7 @@ static struct cdevsw netdump_cdevsw = {
 static struct cdev *netdump_cdev;
 
 static int
-netdump_configure(struct netdump_conf *conf, struct thread *td)
+netdump_configure(struct diocskerneldump_arg *conf, struct thread *td)
 {
 	struct epoch_tracker et;
 	struct ifnet *ifp;
@@ -1071,7 +1072,7 @@ netdump_configure(struct netdump_conf *conf, struct thread *td)
 	}
 	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (strcmp(ifp->if_xname, conf->ndc_iface) == 0)
+		if (strcmp(ifp->if_xname, conf->kda_iface) == 0)
 			break;
 	}
 	/* XXX ref */
@@ -1083,7 +1084,7 @@ netdump_configure(struct netdump_conf *conf, struct thread *td)
 	if ((if_getflags(ifp) & IFF_UP) == 0)
 		return (ENXIO);
 	if (!netdump_supported_nic(ifp) || ifp->if_type != IFT_ETHER)
-		return (EINVAL);
+		return (ENODEV);
 
 	nd_ifp = ifp;
 	netdump_reinit(ifp);
@@ -1135,19 +1136,24 @@ static int
 netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
     int flags __unused, struct thread *td)
 {
-	struct diocskerneldump_arg *kda;
+	struct diocskerneldump_arg kda_copy, *conf;
 	struct dumperinfo dumper;
-	struct netdump_conf *conf;
 	uint8_t *encryptedkey;
 	int error;
 #ifdef COMPAT_FREEBSD11
 	u_int u;
 #endif
+#ifdef COMPAT_FREEBSD12
+	struct diocskerneldump_arg_freebsd12 *kda12;
+	struct netdump_conf_freebsd12 *conf12;
+#endif
 
+	conf = NULL;
 	error = 0;
 	switch (cmd) {
 #ifdef COMPAT_FREEBSD11
 	case DIOCSKERNELDUMP_FREEBSD11:
+		gone_in(13, "11.x ABI compatibility");
 		u = *(u_int *)addr;
 		if (u != 0) {
 			error = ENXIO;
@@ -1159,9 +1165,17 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		}
 		break;
 #endif
-	case DIOCSKERNELDUMP:
-		kda = (void *)addr;
-		if (kda->kda_enable != 0) {
+#ifdef COMPAT_FREEBSD12
+		/*
+		 * Used by dumpon(8) in 12.x for clearing previous
+		 * configuration -- then NETDUMPSCONF_FREEBSD12 is used to
+		 * actually configure netdump.
+		 */
+	case DIOCSKERNELDUMP_FREEBSD12:
+		gone_in(14, "12.x ABI compatibility");
+
+		kda12 = (void *)addr;
+		if (kda12->kda12_enable) {
 			error = ENXIO;
 			break;
 		}
@@ -1170,28 +1184,99 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 			netdump_mbuf_drain();
 		}
 		break;
-	case NETDUMPGCONF:
-		conf = (struct netdump_conf *)addr;
+
+	case NETDUMPGCONF_FREEBSD12:
+		gone_in(14, "FreeBSD 12.x ABI compat");
+		conf12 = (void *)addr;
+
 		if (!nd_enabled) {
 			error = ENXIO;
 			break;
 		}
+		if (nd_conf.kda_af != AF_INET) {
+			error = EOPNOTSUPP;
+			break;
+		}
 
-		strlcpy(conf->ndc_iface, nd_ifp->if_xname,
-		    sizeof(conf->ndc_iface));
-		memcpy(&conf->ndc_server, &nd_server, sizeof(nd_server));
-		memcpy(&conf->ndc_client, &nd_client, sizeof(nd_client));
-		memcpy(&conf->ndc_gateway, &nd_gateway, sizeof(nd_gateway));
+		strlcpy(conf12->ndc12_iface, nd_ifp->if_xname,
+		    sizeof(conf12->ndc12_iface));
+		memcpy(&conf12->ndc12_server, &nd_server,
+		    sizeof(conf12->ndc12_server));
+		memcpy(&conf12->ndc12_client, &nd_client,
+		    sizeof(conf12->ndc12_client));
+		memcpy(&conf12->ndc12_gateway, &nd_gateway,
+		    sizeof(conf12->ndc12_gateway));
 		break;
-	case NETDUMPSCONF:
-		conf = (struct netdump_conf *)addr;
-		encryptedkey = NULL;
-		kda = &conf->ndc_kda;
+#endif
+	case DIOCGKERNELDUMP:
+		conf = (void *)addr;
+		/*
+		 * For now, index is ignored; netdump doesn't support multiple
+		 * configurations (yet).
+		 */
+		if (!nd_enabled) {
+			error = ENXIO;
+			conf = NULL;
+			break;
+		}
 
-		conf->ndc_iface[sizeof(conf->ndc_iface) - 1] = '\0';
-		if (kda->kda_enable == 0) {
-			if (nd_enabled) {
-				error = clear_dumper(td);
+		strlcpy(conf->kda_iface, nd_ifp->if_xname,
+		    sizeof(conf->kda_iface));
+		memcpy(&conf->kda_server, &nd_server, sizeof(nd_server));
+		memcpy(&conf->kda_client, &nd_client, sizeof(nd_client));
+		memcpy(&conf->kda_gateway, &nd_gateway, sizeof(nd_gateway));
+		conf->kda_af = nd_conf.kda_af;
+		conf = NULL;
+		break;
+
+#ifdef COMPAT_FREEBSD12
+	case NETDUMPSCONF_FREEBSD12:
+		gone_in(14, "FreeBSD 12.x ABI compat");
+
+		conf12 = (struct netdump_conf_freebsd12 *)addr;
+
+		_Static_assert(offsetof(struct diocskerneldump_arg, kda_server)
+		    == offsetof(struct netdump_conf_freebsd12, ndc12_server),
+		    "simplifying assumption");
+
+		memset(&kda_copy, 0, sizeof(kda_copy));
+		memcpy(&kda_copy, conf12,
+		    offsetof(struct diocskerneldump_arg, kda_server));
+
+		/* 12.x ABI could only configure IPv4 (INET) netdump. */
+		kda_copy.kda_af = AF_INET;
+		memcpy(&kda_copy.kda_server.in4, &conf12->ndc12_server,
+		    sizeof(struct in_addr));
+		memcpy(&kda_copy.kda_client.in4, &conf12->ndc12_client,
+		    sizeof(struct in_addr));
+		memcpy(&kda_copy.kda_gateway.in4, &conf12->ndc12_gateway,
+		    sizeof(struct in_addr));
+
+		kda_copy.kda_index =
+		    (conf12->ndc12_kda.kda12_enable ? 0 : KDA_REMOVE_ALL);
+
+		conf = &kda_copy;
+		explicit_bzero(conf12, sizeof(*conf12));
+		/* FALLTHROUGH */
+#endif
+	case DIOCSKERNELDUMP:
+		encryptedkey = NULL;
+		if (cmd == DIOCSKERNELDUMP) {
+			conf = (void *)addr;
+			memcpy(&kda_copy, conf, sizeof(kda_copy));
+		}
+		/* Netdump only supports IP4 at this time. */
+		if (conf->kda_af != AF_INET) {
+			error = EPROTONOSUPPORT;
+			break;
+		}
+
+		conf->kda_iface[sizeof(conf->kda_iface) - 1] = '\0';
+		if (conf->kda_index == KDA_REMOVE ||
+		    conf->kda_index == KDA_REMOVE_DEV ||
+		    conf->kda_index == KDA_REMOVE_ALL) {
+			if (nd_enabled || conf->kda_index == KDA_REMOVE_ALL) {
+				error = dumper_remove(conf->kda_iface, conf);
 				if (error == 0) {
 					nd_enabled = 0;
 					netdump_mbuf_drain();
@@ -1204,19 +1289,23 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		if (error != 0)
 			break;
 
-		if (kda->kda_encryption != KERNELDUMP_ENC_NONE) {
-			if (kda->kda_encryptedkeysize <= 0 ||
-			    kda->kda_encryptedkeysize >
-			    KERNELDUMP_ENCKEY_MAX_SIZE)
-				return (EINVAL);
-			encryptedkey = malloc(kda->kda_encryptedkeysize, M_TEMP,
-			    M_WAITOK);
-			error = copyin(kda->kda_encryptedkey, encryptedkey,
-			    kda->kda_encryptedkeysize);
+		if (conf->kda_encryption != KERNELDUMP_ENC_NONE) {
+			if (conf->kda_encryptedkeysize <= 0 ||
+			    conf->kda_encryptedkeysize >
+			    KERNELDUMP_ENCKEY_MAX_SIZE) {
+				error = EINVAL;
+				break;
+			}
+			encryptedkey = malloc(conf->kda_encryptedkeysize,
+			    M_TEMP, M_WAITOK);
+			error = copyin(conf->kda_encryptedkey, encryptedkey,
+			    conf->kda_encryptedkeysize);
 			if (error != 0) {
 				free(encryptedkey, M_TEMP);
-				return (error);
+				break;
 			}
+
+			conf->kda_encryptedkey = encryptedkey;
 		}
 
 		memset(&dumper, 0, sizeof(dumper));
@@ -1229,12 +1318,10 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		dumper.mediaoffset = 0;
 		dumper.mediasize = 0;
 
-		error = set_dumper(&dumper, conf->ndc_iface, td,
-		    kda->kda_compression, kda->kda_encryption,
-		    kda->kda_key, kda->kda_encryptedkeysize,
-		    encryptedkey);
+		error = dumper_insert(&dumper, conf->kda_iface, conf);
 		if (encryptedkey != NULL) {
-			explicit_bzero(encryptedkey, kda->kda_encryptedkeysize);
+			explicit_bzero(encryptedkey,
+			    conf->kda_encryptedkeysize);
 			free(encryptedkey, M_TEMP);
 		}
 		if (error != 0) {
@@ -1243,9 +1330,12 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		}
 		break;
 	default:
-		error = EINVAL;
+		error = ENOTTY;
 		break;
 	}
+	explicit_bzero(&kda_copy, sizeof(kda_copy));
+	if (conf != NULL)
+		explicit_bzero(conf, sizeof(*conf));
 	return (error);
 }
 
@@ -1265,7 +1355,7 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 static int
 netdump_modevent(module_t mod __unused, int what, void *priv __unused)
 {
-	struct netdump_conf conf;
+	struct diocskerneldump_arg conf;
 	char *arg;
 	int error;
 
@@ -1278,33 +1368,41 @@ netdump_modevent(module_t mod __unused, int what, void *priv __unused)
 			return (error);
 
 		if ((arg = kern_getenv("net.dump.iface")) != NULL) {
-			strlcpy(conf.ndc_iface, arg, sizeof(conf.ndc_iface));
+			strlcpy(conf.kda_iface, arg, sizeof(conf.kda_iface));
 			freeenv(arg);
 
 			if ((arg = kern_getenv("net.dump.server")) != NULL) {
-				inet_aton(arg, &conf.ndc_server);
+				inet_aton(arg, &conf.kda_server.in4);
 				freeenv(arg);
 			}
 			if ((arg = kern_getenv("net.dump.client")) != NULL) {
-				inet_aton(arg, &conf.ndc_server);
+				inet_aton(arg, &conf.kda_server.in4);
 				freeenv(arg);
 			}
 			if ((arg = kern_getenv("net.dump.gateway")) != NULL) {
-				inet_aton(arg, &conf.ndc_server);
+				inet_aton(arg, &conf.kda_server.in4);
 				freeenv(arg);
 			}
+			conf.kda_af = AF_INET;
 
 			/* Ignore errors; we print a message to the console. */
 			(void)netdump_configure(&conf, curthread);
 		}
 		break;
 	case MOD_UNLOAD:
-		destroy_dev(netdump_cdev);
 		if (nd_enabled) {
+			struct diocskerneldump_arg kda;
+
 			printf("netdump: disabling dump device for unload\n");
-			(void)clear_dumper(curthread);
+
+			bzero(&kda, sizeof(kda));
+			kda.kda_index = KDA_REMOVE_DEV;
+			(void)dumper_remove(nd_conf.kda_iface, &kda);
+
+			netdump_mbuf_drain();
 			nd_enabled = 0;
 		}
+		destroy_dev(netdump_cdev);
 		break;
 	default:
 		error = EOPNOTSUPP;

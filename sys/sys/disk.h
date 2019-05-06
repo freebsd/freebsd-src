@@ -19,6 +19,10 @@
 #include <sys/kerneldump.h>
 #include <sys/types.h>
 #include <sys/disk_zone.h>
+#include <sys/socket.h>
+
+#include <net/if.h>
+#include <netinet/in.h>
 
 #ifdef _KERNEL
 
@@ -143,17 +147,66 @@ struct diocgattr_arg {
 
 #define	DIOCZONECMD	_IOWR('d', 143, struct disk_zone_args)
 
+struct diocskerneldump_arg_freebsd12 {
+	uint8_t		 kda12_enable;
+	uint8_t		 kda12_compression;
+	uint8_t		 kda12_encryption;
+	uint8_t		 kda12_key[KERNELDUMP_KEY_MAX_SIZE];
+	uint32_t	 kda12_encryptedkeysize;
+	uint8_t		*kda12_encryptedkey;
+};
+#define	DIOCSKERNELDUMP_FREEBSD12 \
+	_IOW('d', 144, struct diocskerneldump_arg_freebsd12)
+
+union kd_ip {
+	struct in_addr	in4;
+	struct in6_addr	in6;
+};
+
+/*
+ * Sentinel values for kda_index.
+ *
+ * If kda_index is KDA_REMOVE_ALL, all dump configurations are cleared.
+ *
+ * If kda_index is KDA_REMOVE_DEV, all dump configurations for the specified
+ * device are cleared.
+ *
+ * If kda_index is KDA_REMOVE, only the specified dump configuration for the
+ * given device is removed from the list of fallback dump configurations.
+ *
+ * If kda_index is KDA_APPEND, the dump configuration is added after all
+ * existing dump configurations.
+ *
+ * Otherwise, the new configuration is inserted into the fallback dump list at
+ * index 'kda_index'.
+ */
+#define	KDA_REMOVE		UINT8_MAX
+#define	KDA_REMOVE_ALL		(UINT8_MAX - 1)
+#define	KDA_REMOVE_DEV		(UINT8_MAX - 2)
+#define	KDA_APPEND		(UINT8_MAX - 3)
 struct diocskerneldump_arg {
-	uint8_t		 kda_enable;
+	uint8_t		 kda_index;
 	uint8_t		 kda_compression;
 	uint8_t		 kda_encryption;
 	uint8_t		 kda_key[KERNELDUMP_KEY_MAX_SIZE];
 	uint32_t	 kda_encryptedkeysize;
 	uint8_t		*kda_encryptedkey;
+	char		 kda_iface[IFNAMSIZ];
+	union kd_ip	 kda_server;
+	union kd_ip	 kda_client;
+	union kd_ip	 kda_gateway;
+	uint8_t		 kda_af;
 };
-#define	DIOCSKERNELDUMP _IOW('d', 144, struct diocskerneldump_arg)
+_Static_assert(__offsetof(struct diocskerneldump_arg, kda_iface) ==
+    sizeof(struct diocskerneldump_arg_freebsd12), "simplifying assumption");
+#define	DIOCSKERNELDUMP _IOW('d', 145, struct diocskerneldump_arg)
 	/*
 	 * Enable/Disable the device for kernel core dumps.
+	 */
+
+#define	DIOCGKERNELDUMP _IOWR('d', 146, struct diocskerneldump_arg)
+	/*
+	 * Get current kernel netdump configuration details for a given index.
 	 */
 
 #endif /* _SYS_DISK_H_ */

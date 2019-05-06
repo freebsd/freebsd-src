@@ -86,8 +86,8 @@ static void _Noreturn
 usage(void)
 {
 	fprintf(stderr,
-    "usage: dumpon [-v] [-k <pubkey>] [-Zz] <device>\n"
-    "       dumpon [-v] [-k <pubkey>] [-Zz]\n"
+    "usage: dumpon [-i index] [-r] [-v] [-k <pubkey>] [-Zz] <device>\n"
+    "       dumpon [-i index] [-r] [-v] [-k <pubkey>] [-Zz]\n"
     "              [-g <gateway>] -s <server> -c <client> <iface>\n"
     "       dumpon [-v] off\n"
     "       dumpon [-v] -l\n");
@@ -290,8 +290,10 @@ genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 static void
 listdumpdev(void)
 {
+	static char ip[200];
+
 	char dumpdev[PATH_MAX];
-	struct netdump_conf ndconf;
+	struct diocskerneldump_arg ndconf;
 	size_t len;
 	const char *sysctlname = "kern.shutdown.dumpdevname";
 	int fd;
@@ -308,9 +310,17 @@ listdumpdev(void)
 	if (strlen(dumpdev) == 0)
 		(void)strlcpy(dumpdev, _PATH_DEVNULL, sizeof(dumpdev));
 
-	if (verbose)
-		printf("kernel dumps on ");
-	printf("%s\n", dumpdev);
+	if (verbose) {
+		char *ctx, *dd;
+		unsigned idx;
+
+		printf("kernel dumps on priority: device\n");
+		idx = 0;
+		ctx = dumpdev;
+		while ((dd = strsep(&ctx, ",")) != NULL)
+			printf("%u: %s\n", idx++, dd);
+	} else
+		printf("%s\n", dumpdev);
 
 	/* If netdump is enabled, print the configuration parameters. */
 	if (verbose) {
@@ -320,16 +330,22 @@ listdumpdev(void)
 				err(EX_OSERR, "opening %s", _PATH_NETDUMP);
 			return;
 		}
-		if (ioctl(fd, NETDUMPGCONF, &ndconf) != 0) {
+		if (ioctl(fd, DIOCGKERNELDUMP, &ndconf) != 0) {
 			if (errno != ENXIO)
-				err(EX_OSERR, "ioctl(NETDUMPGCONF)");
+				err(EX_OSERR, "ioctl(DIOCGKERNELDUMP)");
 			(void)close(fd);
 			return;
 		}
 
-		printf("server address: %s\n", inet_ntoa(ndconf.ndc_server));
-		printf("client address: %s\n", inet_ntoa(ndconf.ndc_client));
-		printf("gateway address: %s\n", inet_ntoa(ndconf.ndc_gateway));
+		printf("server address: %s\n",
+		    inet_ntop(ndconf.kda_af, &ndconf.kda_server, ip,
+			sizeof(ip)));
+		printf("client address: %s\n",
+		    inet_ntop(ndconf.kda_af, &ndconf.kda_client, ip,
+			sizeof(ip)));
+		printf("gateway address: %s\n",
+		    inet_ntop(ndconf.kda_af, &ndconf.kda_gateway, ip,
+			sizeof(ip)));
 		(void)close(fd);
 	}
 }
@@ -359,19 +375,20 @@ int
 main(int argc, char *argv[])
 {
 	char dumpdev[PATH_MAX];
-	struct diocskerneldump_arg _kda, *kdap;
-	struct netdump_conf ndconf;
+	struct diocskerneldump_arg ndconf, *kdap;
 	struct addrinfo hints, *res;
 	const char *dev, *pubkeyfile, *server, *client, *gateway;
 	int ch, error, fd;
-	bool enable, gzip, list, netdump, zstd;
+	bool gzip, list, netdump, zstd, insert, rflag;
+	uint8_t ins_idx;
 
-	gzip = list = netdump = zstd = false;
+	gzip = list = netdump = zstd = insert = rflag = false;
 	kdap = NULL;
 	pubkeyfile = NULL;
 	server = client = gateway = NULL;
+	ins_idx = KDA_APPEND;
 
-	while ((ch = getopt(argc, argv, "c:g:k:ls:vZz")) != -1)
+	while ((ch = getopt(argc, argv, "c:g:i:k:lrs:vZz")) != -1)
 		switch ((char)ch) {
 		case 'c':
 			client = optarg;
@@ -379,11 +396,27 @@ main(int argc, char *argv[])
 		case 'g':
 			gateway = optarg;
 			break;
+		case 'i':
+			{
+			int i;
+
+			i = atoi(optarg);
+			if (i < 0 || i >= KDA_APPEND - 1)
+				errx(EX_USAGE,
+				    "-i index must be between zero and %d.",
+				    (int)KDA_APPEND - 2);
+			insert = true;
+			ins_idx = i;
+			}
+			break;
 		case 'k':
 			pubkeyfile = optarg;
 			break;
 		case 'l':
 			list = true;
+			break;
+		case 'r':
+			rflag = true;
 			break;
 		case 's':
 			server = optarg;
@@ -404,6 +437,9 @@ main(int argc, char *argv[])
 	if (gzip && zstd)
 		errx(EX_USAGE, "The -z and -Z options are mutually exclusive.");
 
+	if (insert && rflag)
+		errx(EX_USAGE, "The -i and -r options are mutually exclusive.");
+
 	argc -= optind;
 	argv += optind;
 
@@ -422,31 +458,30 @@ main(int argc, char *argv[])
 #endif
 
 	if (server != NULL && client != NULL) {
-		enable = true;
 		dev = _PATH_NETDUMP;
 		netdump = true;
-		kdap = &ndconf.ndc_kda;
 	} else if (server == NULL && client == NULL && argc > 0) {
-		enable = strcmp(argv[0], "off") != 0;
-		dev = enable ? argv[0] : _PATH_DEVNULL;
+		if (strcmp(argv[0], "off") == 0) {
+			rflag = true;
+			dev = _PATH_DEVNULL;
+		} else
+			dev = argv[0];
 		netdump = false;
-		kdap = &_kda;
 	} else
 		usage();
 
 	fd = opendumpdev(dev, dumpdev);
-	if (!netdump && !gzip)
+	if (!netdump && !gzip && !rflag)
 		check_size(fd, dumpdev);
 
+	kdap = &ndconf;
 	bzero(kdap, sizeof(*kdap));
-	kdap->kda_enable = 0;
-	if (ioctl(fd, DIOCSKERNELDUMP, kdap) != 0)
-		err(EX_OSERR, "ioctl(DIOCSKERNELDUMP)");
-	if (!enable)
-		exit(EX_OK);
 
-	explicit_bzero(kdap, sizeof(*kdap));
-	kdap->kda_enable = 1;
+	if (rflag)
+		kdap->kda_index = KDA_REMOVE;
+	else
+		kdap->kda_index = ins_idx;
+
 	kdap->kda_compression = KERNELDUMP_COMP_NONE;
 	if (zstd)
 		kdap->kda_compression = KERNELDUMP_COMP_ZSTD;
@@ -467,12 +502,12 @@ main(int argc, char *argv[])
 		    ((struct sockaddr_in *)(void *)res->ai_addr)->sin_addr);
 		freeaddrinfo(res);
 
-		if (strlcpy(ndconf.ndc_iface, argv[0],
-		    sizeof(ndconf.ndc_iface)) >= sizeof(ndconf.ndc_iface))
+		if (strlcpy(ndconf.kda_iface, argv[0],
+		    sizeof(ndconf.kda_iface)) >= sizeof(ndconf.kda_iface))
 			errx(EX_USAGE, "invalid interface name '%s'", argv[0]);
-		if (inet_aton(server, &ndconf.ndc_server) == 0)
+		if (inet_aton(server, &ndconf.kda_server.in4) == 0)
 			errx(EX_USAGE, "invalid server address '%s'", server);
-		if (inet_aton(client, &ndconf.ndc_client) == 0)
+		if (inet_aton(client, &ndconf.kda_client.in4) == 0)
 			errx(EX_USAGE, "invalid client address '%s'", client);
 
 		if (gateway == NULL) {
@@ -485,39 +520,41 @@ main(int argc, char *argv[])
 				gateway = server;
 			}
 		}
-		if (inet_aton(gateway, &ndconf.ndc_gateway) == 0)
+		if (inet_aton(gateway, &ndconf.kda_gateway.in4) == 0)
 			errx(EX_USAGE, "invalid gateway address '%s'", gateway);
+		ndconf.kda_af = AF_INET;
+	}
 
 #ifdef HAVE_CRYPTO
-		if (pubkeyfile != NULL)
-			genkey(pubkeyfile, kdap);
+	if (pubkeyfile != NULL)
+		genkey(pubkeyfile, kdap);
 #endif
-		error = ioctl(fd, NETDUMPSCONF, &ndconf);
-		if (error != 0)
-			error = errno;
-		explicit_bzero(kdap->kda_encryptedkey,
-		    kdap->kda_encryptedkeysize);
-		free(kdap->kda_encryptedkey);
-		explicit_bzero(kdap, sizeof(*kdap));
-		if (error != 0)
-			errc(EX_OSERR, error, "ioctl(NETDUMPSCONF)");
-	} else {
-#ifdef HAVE_CRYPTO
-		if (pubkeyfile != NULL)
-			genkey(pubkeyfile, kdap);
-#endif
-		error = ioctl(fd, DIOCSKERNELDUMP, kdap);
-		if (error != 0)
-			error = errno;
-		explicit_bzero(kdap->kda_encryptedkey,
-		    kdap->kda_encryptedkeysize);
-		free(kdap->kda_encryptedkey);
-		explicit_bzero(kdap, sizeof(*kdap));
-		if (error != 0)
-			errc(EX_OSERR, error, "ioctl(DIOCSKERNELDUMP)");
+	error = ioctl(fd, DIOCSKERNELDUMP, kdap);
+	if (error != 0)
+		error = errno;
+	explicit_bzero(kdap->kda_encryptedkey, kdap->kda_encryptedkeysize);
+	free(kdap->kda_encryptedkey);
+	explicit_bzero(kdap, sizeof(*kdap));
+	if (error != 0) {
+		if (netdump) {
+			/*
+			 * Be slightly less user-hostile for some common
+			 * errors, especially as users don't have any great
+			 * discoverability into which NICs support netdump.
+			 */
+			if (error == ENXIO)
+				errx(EX_OSERR, "Unable to configure netdump "
+				    "because the interface's link is down.");
+			else if (error == ENODEV)
+				errx(EX_OSERR, "Unable to configure netdump "
+				    "because the interface driver does not yet "
+				    "support netdump.");
+		}
+		errc(EX_OSERR, error, "ioctl(DIOCSKERNELDUMP)");
 	}
+
 	if (verbose)
-		printf("kernel dumps on %s\n", dumpdev);
+		listdumpdev();
 
 	exit(EX_OK);
 }

@@ -106,15 +106,26 @@ static int
 null_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
     int flags __unused, struct thread *td)
 {
+	struct diocskerneldump_arg kda;
 	int error;
 
 	error = 0;
 	switch (cmd) {
 #ifdef COMPAT_FREEBSD11
 	case DIOCSKERNELDUMP_FREEBSD11:
+		gone_in(13, "FreeBSD 11.x ABI compat");
+		/* FALLTHROUGH */
+#endif
+#ifdef COMPAT_FREEBSD12
+	case DIOCSKERNELDUMP_FREEBSD12:
+		if (cmd == DIOCSKERNELDUMP_FREEBSD12)
+			gone_in(14, "FreeBSD 12.x ABI compat");
+		/* FALLTHROUGH */
 #endif
 	case DIOCSKERNELDUMP:
-		error = clear_dumper(td);
+		bzero(&kda, sizeof(kda));
+		kda.kda_index = KDA_REMOVE_ALL;
+		error = dumper_remove(NULL, &kda);
 		break;
 	case FIONBIO:
 		break;
