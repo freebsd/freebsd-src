@@ -21,7 +21,8 @@ SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
 SRCS+=	opt_apic.h
 .endif
 
-CLEANFILES=	linux_assym.h linux_genassym.o linux_locore.o
+CLEANFILES=	linux_assym.h linux_genassym.o linux_locore.o \
+		genassym.o
 
 OBJS=	${VDSO}.so
 
