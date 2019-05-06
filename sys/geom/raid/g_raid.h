@@ -155,7 +155,6 @@ struct g_raid_disk {
 	struct g_raid_softc	*d_softc;	/* Back-pointer to softc. */
 	struct g_consumer	*d_consumer;	/* GEOM disk consumer. */
 	void			*d_md_data;	/* Disk's metadata storage. */
-	struct g_kerneldump	 d_kd;		/* Kernel dumping method/args. */
 	int			 d_candelete;	/* BIO_DELETE supported. */
 	uint64_t		 d_flags;	/* Additional flags. */
 	u_int			 d_state;	/* Disk state. */
@@ -164,6 +163,7 @@ struct g_raid_disk {
 	int			 d_read_errs;	/* Count of the read errors */
 	TAILQ_HEAD(, g_raid_subdisk)	 d_subdisks; /* List of subdisks. */
 	TAILQ_ENTRY(g_raid_disk)	 d_next;	/* Next disk in the node. */
+	struct g_kerneldump	 d_kd;		/* Kernel dumping method/args. */
 };
 
 #define G_RAID_SUBDISK_S_NONE		0x00	/* Absent. */
