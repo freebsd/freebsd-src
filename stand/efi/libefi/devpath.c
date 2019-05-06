@@ -269,3 +269,25 @@ efi_devpath_length(EFI_DEVICE_PATH  *path)
 		path = NextDevicePathNode(path);
 	return ((UINTN)path - (UINTN)start) + DevicePathNodeLength(path);
 }
+
+EFI_HANDLE
+efi_devpath_to_handle(EFI_DEVICE_PATH *path, EFI_HANDLE *handles, unsigned nhandles)
+{
+	unsigned i;
+	EFI_DEVICE_PATH *media, *devpath;
+	EFI_HANDLE h;
+
+	media = efi_devpath_to_media_path(path);
+	if (media == NULL)
+		return (NULL);
+	for (i = 0; i < nhandles; i++) {
+		h = handles[i];
+		devpath = efi_lookup_devpath(h);
+		if (devpath == NULL)
+			continue;
+		if (!efi_devpath_match_node(media, efi_devpath_to_media_path(devpath)))
+			continue;
+		return (h);
+	}
+	return (NULL);
+}
