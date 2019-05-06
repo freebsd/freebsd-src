@@ -264,24 +264,24 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 	*preferred = efi_devpath_match(imgpath, devpath);
 
 	/* Run through each module, see if it can load this partition */
-	for (i = 0; i < NUM_BOOT_MODULES; i++) {
-		devinfo = malloc(sizeof(*devinfo));
-		if (devinfo == NULL) {
-			DPRINTF("\nFailed to allocate devinfo\n");
-			break;
-		}
-		devinfo->dev = blkio;
-		devinfo->devpath = devpath;
-		devinfo->devhandle = h;
-		devinfo->devdata = NULL;
-		devinfo->preferred = *preferred;
-		devinfo->next = NULL;
+	devinfo = malloc(sizeof(*devinfo));
+	if (devinfo == NULL) {
+		DPRINTF("\nFailed to allocate devinfo\n");
+		return (EFI_UNSUPPORTED);
+	}
+	devinfo->dev = blkio;
+	devinfo->devpath = devpath;
+	devinfo->devhandle = h;
+	devinfo->preferred = *preferred;
+	devinfo->next = NULL;
 
+	for (i = 0; i < NUM_BOOT_MODULES; i++) {
+		devinfo->devdata = NULL;
 		status = boot_modules[i]->probe(devinfo);
 		if (status == EFI_SUCCESS)
 			return (EFI_SUCCESS);
-		free(devinfo);
 	}
+	free(devinfo);
 
 	return (EFI_UNSUPPORTED);
 }
