@@ -1429,15 +1429,8 @@ em_init_locked(struct adapter *adapter)
 	*/
 	if (adapter->hw.mac.max_frame_size <= 2048)
 		adapter->rx_mbuf_sz = MCLBYTES;
-#ifndef CONTIGMALLOC_WORKS
        else
                adapter->rx_mbuf_sz = MJUMPAGESIZE;
-#else
-	else if (adapter->hw.mac.max_frame_size <= 4096)
-		adapter->rx_mbuf_sz = MJUMPAGESIZE;
-	else
-		adapter->rx_mbuf_sz = MJUM9BYTES;
-#endif
 
 	/* Prepare receive descriptors and buffers */
 	if (em_setup_receive_structures(adapter)) {
