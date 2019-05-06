@@ -276,6 +276,7 @@ ENTRY(savectx)
 
 	mfcr	%r4			/* Save the condition register */
 	std	%r4,PCB_CR(%r3)
+	std	%r1,PCB_SP(%r3)		/* Save the stack pointer */
 	std	%r2,PCB_TOC(%r3)	/* Save the TOC pointer */
 	mflr	%r4			/* Save the link register */
 	std	%r4,PCB_LR(%r3)
