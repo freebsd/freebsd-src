@@ -269,16 +269,30 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 void
 linux_ifflags(struct ifnet *ifp, short *flags)
 {
+	unsigned short fl;
 
-	*flags = (ifp->if_flags | ifp->if_drv_flags) & 0xffff;
-	/* these flags have no Linux equivalent */
-	*flags &= ~(IFF_DRV_OACTIVE|IFF_SIMPLEX|
-	    IFF_LINK0|IFF_LINK1|IFF_LINK2);
-	/* Linux' multicast flag is in a different bit */
-	if (*flags & IFF_MULTICAST) {
-		*flags &= ~IFF_MULTICAST;
-		*flags |= 0x1000;
-	}
+	fl = (ifp->if_flags | ifp->if_drv_flags) & 0xffff;
+	*flags = 0;
+	if (fl & IFF_UP)
+		*flags |= LINUX_IFF_UP;
+	if (fl & IFF_BROADCAST)
+		*flags |= LINUX_IFF_BROADCAST;
+	if (fl & IFF_DEBUG)
+		*flags |= LINUX_IFF_DEBUG;
+	if (fl & IFF_LOOPBACK)
+		*flags |= LINUX_IFF_LOOPBACK;
+	if (fl & IFF_POINTOPOINT)
+		*flags |= LINUX_IFF_POINTOPOINT;
+	if (fl & IFF_DRV_RUNNING)
+		*flags |= LINUX_IFF_RUNNING;
+	if (fl & IFF_NOARP)
+		*flags |= LINUX_IFF_NOARP;
+	if (fl & IFF_PROMISC)
+		*flags |= LINUX_IFF_PROMISC;
+	if (fl & IFF_ALLMULTI)
+		*flags |= LINUX_IFF_ALLMULTI;
+	if (fl & IFF_MULTICAST)
+		*flags |= LINUX_IFF_MULTICAST;
 }
 
 int
