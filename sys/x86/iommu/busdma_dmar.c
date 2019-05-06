@@ -689,7 +689,7 @@ dmar_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map1,
 			 */
 			if (fma == NULL) {
 				fma = malloc(sizeof(struct vm_page) * ma_cnt,
-				    M_DEVBUF, mflags);
+				    M_DEVBUF, M_ZERO | mflags);
 				if (fma == NULL) {
 					free(ma, M_DEVBUF);
 					return (ENOMEM);
@@ -743,7 +743,7 @@ dmar_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map1, void *buf,
 			 */
 			if (fma == NULL) {
 				fma = malloc(sizeof(struct vm_page) * ma_cnt,
-				    M_DEVBUF, mflags);
+				    M_DEVBUF, M_ZERO | mflags);
 				if (fma == NULL) {
 					free(ma, M_DEVBUF);
 					return (ENOMEM);

@@ -177,6 +177,7 @@ nvdimm_spa_uio(struct nvdimm_spa_dev *dev, struct uio *uio)
 	error = 0;
 	if (dev->spa_kva == NULL) {
 		mattr = nvdimm_spa_memattr(dev);
+		bzero(&m, sizeof(m));
 		vm_page_initfake(&m, 0, mattr);
 		ma = &m;
 		while (uio->uio_resid > 0) {
@@ -276,7 +277,7 @@ nvdimm_spa_g_all_unmapped(struct nvdimm_spa_dev *dev, struct bio *bp, int rw)
 
 	mattr = nvdimm_spa_memattr(dev);
 	for (i = 0; i < nitems(ma); i++) {
-		maa[i].flags = 0;
+		bzero(&maa[i], sizeof(maa[i]));
 		vm_page_initfake(&maa[i], dev->spa_phys_base +
 		    trunc_page(bp->bio_offset) + PAGE_SIZE * i, mattr);
 		ma[i] = &maa[i];
