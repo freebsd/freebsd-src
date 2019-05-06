@@ -128,6 +128,9 @@ fuse_internal_access(struct vnode *vp,
 	data = fuse_get_mpdata(mp);
 	dataflags = data->dataflags;
 
+	if (mode == 0)
+		return 0;
+
 	if (mode & VMODIFY_PERMS && vfs_isrdonly(mp)) {
 		switch (vp->v_type) {
 		case VDIR:
