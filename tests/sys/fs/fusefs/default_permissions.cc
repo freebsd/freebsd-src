@@ -86,6 +86,25 @@ void expect_chmod(uint64_t ino, mode_t mode)
 	})));
 }
 
+void expect_create(const char *relpath, uint64_t ino)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *name = (const char*)in->body.bytes +
+				sizeof(fuse_open_in);
+			return (in->header.opcode == FUSE_CREATE &&
+				(0 == strcmp(relpath, name)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, create);
+		out->body.create.entry.attr.mode = S_IFREG | 0644;
+		out->body.create.entry.nodeid = ino;
+		out->body.create.entry.entry_valid = UINT64_MAX;
+		out->body.create.entry.attr_valid = UINT64_MAX;
+	})));
+}
+
 void expect_getattr(uint64_t ino, mode_t mode, uint64_t attr_valid, int times,
 	uid_t uid = 0, gid_t gid = 0)
 {
@@ -129,29 +148,7 @@ class Write: public DefaultPermissions {};
  * rename vops (they all share a common path for permission checks in
  * VOP_LOOKUP)
  */
-class Create: public DefaultPermissions {
-public:
-
-void expect_create(const char *relpath, uint64_t ino)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
-				sizeof(fuse_open_in);
-			return (in->header.opcode == FUSE_CREATE &&
-				(0 == strcmp(relpath, name)));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, create);
-		out->body.create.entry.attr.mode = S_IFREG | 0644;
-		out->body.create.entry.nodeid = ino;
-		out->body.create.entry.entry_valid = UINT64_MAX;
-		out->body.create.entry.attr_valid = UINT64_MAX;
-	})));
-}
-
-};
+class Create: public DefaultPermissions {};
 
 class Deleteextattr: public DefaultPermissions {
 public:
@@ -795,6 +792,42 @@ TEST_F(Setattr, eacces)
 
 	EXPECT_NE(0, chmod(FULLPATH, newmode));
 	EXPECT_EQ(EPERM, errno);
+}
+
+/*
+ * ftruncate() of a file without writable permissions should succeed as long as
+ * the file descriptor is writable.  This is important when combined with
+ * O_CREAT
+ */
+TEST_F(Setattr, ftruncate_of_newly_created_file)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	const mode_t mode = 0000;
+	int fd;
+
+	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1);
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_create(RELPATH, ino);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				(in->body.setattr.valid & FATTR_SIZE));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;
+		out->body.attr.attr.mode = S_IFREG | mode;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+
+	fd = open(FULLPATH, O_CREAT | O_RDWR, 0);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(0, ftruncate(fd, 100)) << strerror(errno);
+	/* Deliberately leak fd */
 }
 
 /* 

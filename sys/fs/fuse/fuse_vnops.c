@@ -1574,7 +1574,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 			 */
 			return (0);
 		}
-		accmode |= VWRITE;
+		/* Don't set accmode.  Permission to trunc is checked upstack */
 	}
 	/*
 	 * TODO: for atime and mtime, only require VWRITE if UTIMENS_NULL is
