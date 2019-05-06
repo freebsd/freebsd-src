@@ -614,7 +614,7 @@ static inline int
 pci_channel_offline(struct pci_dev *pdev)
 {
 
-	return (pci_get_vendor(pdev->dev.bsddev) == 0xffff);
+	return (pci_get_vendor(pdev->dev.bsddev) == PCIV_INVALID);
 }
 
 static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
