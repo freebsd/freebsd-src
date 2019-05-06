@@ -140,23 +140,12 @@ efiblk_get_pdinfo(struct devdesc *dev)
 pdinfo_t *
 efiblk_get_pdinfo_by_device_path(EFI_DEVICE_PATH *path)
 {
-	unsigned i;
-	EFI_DEVICE_PATH *media, *devpath;
 	EFI_HANDLE h;
 
-	media = efi_devpath_to_media_path(path);
-	if (media == NULL)
+	h = efi_devpath_to_handle(path, efipart_handles, efipart_nhandles);
+	if (h == NULL)
 		return (NULL);
-	for (i = 0; i < efipart_nhandles; i++) {
-		h = efipart_handles[i];
-		devpath = efi_lookup_devpath(h);
-		if (devpath == NULL)
-			continue;
-		if (!efi_devpath_match_node(media, efi_devpath_to_media_path(devpath)))
-			continue;
-		return (efiblk_get_pdinfo_by_handle(h));
-	}
-	return (NULL);
+	return (efiblk_get_pdinfo_by_handle(h));
 }
 
 static bool
