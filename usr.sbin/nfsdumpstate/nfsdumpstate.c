@@ -121,7 +121,9 @@ dump_openstate(void)
 {
 	struct nfsd_dumplist dumplist;
 	int cnt, i;
+#ifdef INET6
 	char nbuf[INET6_ADDRSTRLEN];
+#endif
 
 	dumplist.ndl_size = DUMPSIZE;
 	dumplist.ndl_list = (void *)dp;
@@ -176,7 +178,9 @@ dump_lockstate(char *fname)
 {
 	struct nfsd_dumplocklist dumplocklist;
 	int cnt, i;
+#ifdef INET6
 	char nbuf[INET6_ADDRSTRLEN];
+#endif
 
 	dumplocklist.ndllck_size = DUMPSIZE;
 	dumplocklist.ndllck_list = (void *)lp;
