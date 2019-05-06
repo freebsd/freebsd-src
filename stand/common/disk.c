@@ -228,6 +228,10 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 	struct ptable_entry part;
 	int rc, slice, partition;
 
+	if (sectorsize == 0) {
+		DPRINTF("unknown sector size");
+		return (ENXIO);
+	}
 	rc = 0;
 	od = (struct open_disk *)malloc(sizeof(struct open_disk));
 	if (od == NULL) {
