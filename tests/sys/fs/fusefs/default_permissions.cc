@@ -225,6 +225,27 @@ void expect_setxattr(int error)
 }
 };
 
+/* Return a group to which this user does not belong */
+static gid_t excluded_group()
+{
+	int i, ngroups = 64;
+	gid_t newgid, groups[ngroups];
+
+	getgrouplist(getlogin(), getegid(), groups, &ngroups);
+	for (newgid = 0; newgid >= 0; newgid++) {
+		bool belongs = false;
+
+		for (i = 0; i < ngroups; i++) {
+			if (groups[i] == newgid)
+				belongs = true;
+		}
+		if (!belongs)
+			break;
+	}
+	/* newgid is now a group to which the current user does not belong */
+	return newgid;
+}
+
 TEST_F(Access, eacces)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -304,26 +325,12 @@ TEST_F(Chgrp, eperm)
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
 	const mode_t mode = 0755;
-	int ngroups = 64;
-	gid_t groups[ngroups];
 	uid_t uid;
 	gid_t gid, newgid;
-	int i;
 
 	uid = geteuid();
 	gid = getegid();
-	getgrouplist(getlogin(), getegid(), groups, &ngroups);
-	for (newgid = 0; newgid >= 0; newgid++) {
-		bool belongs = false;
-
-		for (i = 0; i < ngroups; i++) {
-			if (groups[i] == newgid)
-				belongs = true;
-		}
-		if (!belongs)
-			break;
-	}
-	/* newgid is now a group to which the current user does not belong */
+	newgid = excluded_group();
 
 	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid, gid);
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, uid, gid);
@@ -779,6 +786,33 @@ TEST_F(Setattr, eacces)
 
 	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, 0);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_SETATTR);
+		}, Eq(true)),
+		_)
+	).Times(0);
+
+	EXPECT_NE(0, chmod(FULLPATH, newmode));
+	EXPECT_EQ(EPERM, errno);
+}
+
+/* 
+ * Setting the sgid bit should fail for an unprivileged user who doesn't belong
+ * to the file's group
+ */
+TEST_F(Setattr, sgid_by_non_group_member)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	const mode_t oldmode = 0755;
+	const mode_t newmode = 02755;
+	uid_t uid = geteuid();
+	gid_t gid = excluded_group();
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, uid, gid);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_SETATTR);
