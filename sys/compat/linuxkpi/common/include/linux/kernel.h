@@ -177,8 +177,12 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
  * unless DEBUG is defined:
  */
 #ifdef DEBUG
-#define pr_debug(fmt, ...) \
-	log(LOG_DEBUG, fmt, ##__VA_ARGS__)
+extern int linuxkpi_debug;
+#define pr_debug(fmt, ...)					\
+	do {							\
+		if (linuxkpi_debug)				\
+			log(LOG_DEBUG, fmt, ##__VA_ARGS__);	\
+	} while (0)
 #define pr_devel(fmt, ...) \
 	log(LOG_DEBUG, pr_fmt(fmt), ##__VA_ARGS__)
 #else
