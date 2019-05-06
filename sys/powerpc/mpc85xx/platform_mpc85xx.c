@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
@@ -86,6 +87,11 @@ vm_offset_t ccsrbar_va;
 vm_size_t ccsrbar_size;
 
 static int cpu, maxcpu;
+
+static device_t rcpm_dev;
+static void dummy_freeze(device_t, bool);
+
+static void (*freeze_timebase)(device_t, bool) = dummy_freeze;
 
 static int mpc85xx_probe(platform_t);
 static void mpc85xx_mem_regions(platform_t, struct mem_region *phys,
@@ -529,7 +535,174 @@ mpc85xx_reset(platform_t plat)
 static void
 mpc85xx_smp_timebase_sync(platform_t plat, u_long tb, int ap)
 {
+	static volatile bool tb_ready;
+	static volatile int cpu_done;
 
-	mttb(tb);
+	if (ap) {
+		/* APs.  Hold off until we get a stable timebase. */
+		while (!tb_ready)
+			atomic_thread_fence_seq_cst();
+		mttb(tb);
+		atomic_add_int(&cpu_done, 1);
+		while (cpu_done < mp_ncpus)
+			atomic_thread_fence_seq_cst();
+	} else {
+		/* BSP */
+		freeze_timebase(rcpm_dev, true);
+		tb_ready = true;
+		mttb(tb);
+		atomic_add_int(&cpu_done, 1);
+		while (cpu_done < mp_ncpus)
+			atomic_thread_fence_seq_cst();
+		freeze_timebase(rcpm_dev, false);
+	}
 }
 
+/* Fallback freeze.  In case no real handler is found in the device tree. */
+static void
+dummy_freeze(device_t dev, bool freeze)
+{
+	/* Nothing to do here, move along. */
+}
+
+
+/* QorIQ Run control/power management timebase management. */
+
+#define	RCPM_CTBENR	0x00000084
+struct mpc85xx_rcpm_softc {
+	struct resource *sc_mem;
+};
+
+static void
+mpc85xx_rcpm_freeze_timebase(device_t dev, bool freeze)
+{
+	struct mpc85xx_rcpm_softc *sc;
+
+	sc = device_get_softc(dev);
+	
+	if (freeze)
+		bus_write_4(sc->sc_mem, RCPM_CTBENR, 0);
+	else
+		bus_write_4(sc->sc_mem, RCPM_CTBENR, (1 << maxcpu) - 1);
+}
+
+static int
+mpc85xx_rcpm_probe(device_t dev)
+{
+	if (!ofw_bus_is_compatible(dev, "fsl,qoriq-rcpm-1.0"))
+		return (ENXIO);
+
+	device_set_desc(dev, "QorIQ Run control and power management");
+	return (BUS_PROBE_GENERIC);
+}
+
+static int
+mpc85xx_rcpm_attach(device_t dev)
+{
+	struct mpc85xx_rcpm_softc *sc;
+	int rid;
+
+	sc = device_get_softc(dev);
+	freeze_timebase = mpc85xx_rcpm_freeze_timebase;
+	rcpm_dev = dev;
+
+	rid = 0;
+	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+
+	return (0);
+}
+
+static device_method_t mpc85xx_rcpm_methods[] = {
+	DEVMETHOD(device_probe,		mpc85xx_rcpm_probe),
+	DEVMETHOD(device_attach,	mpc85xx_rcpm_attach),
+	DEVMETHOD_END
+};
+
+static devclass_t mpc85xx_rcpm_devclass;
+
+static driver_t mpc85xx_rcpm_driver = {
+	"rcpm",
+	mpc85xx_rcpm_methods,
+	sizeof(struct mpc85xx_rcpm_softc)
+};
+
+EARLY_DRIVER_MODULE(mpc85xx_rcpm, simplebus, mpc85xx_rcpm_driver,
+	mpc85xx_rcpm_devclass, 0, 0, BUS_PASS_BUS);
+
+
+/* "Global utilities" power management/Timebase management. */
+
+#define	GUTS_DEVDISR	0x00000070
+#define	  DEVDISR_TB0	0x00004000
+#define	  DEVDISR_TB1	0x00001000
+
+struct mpc85xx_guts_softc {
+	struct resource *sc_mem;
+};
+
+static void
+mpc85xx_guts_freeze_timebase(device_t dev, bool freeze)
+{
+	struct mpc85xx_guts_softc *sc;
+	uint32_t devdisr;
+
+	sc = device_get_softc(dev);
+	
+	devdisr = bus_read_4(sc->sc_mem, GUTS_DEVDISR);
+	if (freeze)
+		bus_write_4(sc->sc_mem, GUTS_DEVDISR,
+		    devdisr | (DEVDISR_TB0 | DEVDISR_TB1));
+	else
+		bus_write_4(sc->sc_mem, GUTS_DEVDISR,
+		    devdisr & ~(DEVDISR_TB0 | DEVDISR_TB1));
+}
+
+static int
+mpc85xx_guts_probe(device_t dev)
+{
+	if (!ofw_bus_is_compatible(dev, "fsl,mpc8572-guts") &&
+	    !ofw_bus_is_compatible(dev, "fsl,p1020-guts") &&
+	    !ofw_bus_is_compatible(dev, "fsl,p1021-guts") &&
+	    !ofw_bus_is_compatible(dev, "fsl,p1022-guts") &&
+	    !ofw_bus_is_compatible(dev, "fsl,p1023-guts") &&
+	    !ofw_bus_is_compatible(dev, "fsl,p2020-guts"))
+		return (ENXIO);
+
+	device_set_desc(dev, "MPC85xx Global Utilities");
+	return (BUS_PROBE_GENERIC);
+}
+
+static int
+mpc85xx_guts_attach(device_t dev)
+{
+	struct mpc85xx_rcpm_softc *sc;
+	int rid;
+
+	sc = device_get_softc(dev);
+	freeze_timebase = mpc85xx_guts_freeze_timebase;
+	rcpm_dev = dev;
+
+	rid = 0;
+	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+
+	return (0);
+}
+
+static device_method_t mpc85xx_guts_methods[] = {
+	DEVMETHOD(device_probe,		mpc85xx_guts_probe),
+	DEVMETHOD(device_attach,	mpc85xx_guts_attach),
+	DEVMETHOD_END
+};
+
+static driver_t mpc85xx_guts_driver = {
+	"guts",
+	mpc85xx_guts_methods,
+	sizeof(struct mpc85xx_guts_softc)
+};
+
+static devclass_t mpc85xx_guts_devclass;
+
+EARLY_DRIVER_MODULE(mpc85xx_guts, simplebus, mpc85xx_guts_driver,
+	mpc85xx_guts_devclass, 0, 0, BUS_PASS_BUS);
