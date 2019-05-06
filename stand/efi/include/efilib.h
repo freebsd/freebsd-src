@@ -95,6 +95,7 @@ UINTN efi_devpath_length(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_name_to_devpath(const char *path);
 EFI_DEVICE_PATH *efi_name_to_devpath16(CHAR16 *path);
 void efi_devpath_free(EFI_DEVICE_PATH *dp);
+EFI_HANDLE efi_devpath_to_handle(EFI_DEVICE_PATH *path, EFI_HANDLE *handles, unsigned nhandles);
 
 int efi_status_to_errno(EFI_STATUS);
 EFI_STATUS errno_to_efi_status(int errno);
