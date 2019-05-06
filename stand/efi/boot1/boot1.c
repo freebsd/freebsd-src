@@ -47,8 +47,6 @@ static const boot_module_t *boot_modules[] =
 };
 
 #define	NUM_BOOT_MODULES	nitems(boot_modules)
-/* The initial number of handles used to query EFI for partitions. */
-#define NUM_HANDLES_INIT	24
 
 static EFI_GUID BlockIoProtocolGUID = BLOCK_IO_PROTOCOL;
 static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
@@ -420,32 +418,17 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	BS->Exit(IH, EFI_OUT_OF_RESOURCES, 0, NULL);
 #endif
 
-	/* Get all the device handles */
-	hsize = (UINTN)NUM_HANDLES_INIT * sizeof(EFI_HANDLE);
+	hsize = 0;
+	BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID, NULL,
+	    &hsize, NULL);
 	handles = malloc(hsize);
 	if (handles == NULL)
-		printf("Failed to allocate %d handles\n", NUM_HANDLES_INIT);
-
-	status = BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID, NULL,
-	    &hsize, handles);
-	switch (status) {
-	case EFI_SUCCESS:
-		break;
-	case EFI_BUFFER_TOO_SMALL:
-		free(handles);
-		handles = malloc(hsize);
-		if (handles == NULL)
-			efi_panic(EFI_OUT_OF_RESOURCES, "Failed to allocate %d handles\n",
-			    NUM_HANDLES_INIT);
-		status = BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID,
-		    NULL, &hsize, handles);
-		if (status != EFI_SUCCESS)
-			efi_panic(status, "Failed to get device handles\n");
-		break;
-	default:
+		efi_panic(EFI_OUT_OF_RESOURCES, "Failed to allocate %d handles\n",
+		    hsize);
+	status = BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID,
+	    NULL, &hsize, handles);
+	if (status != EFI_SUCCESS)
 		efi_panic(status, "Failed to get device handles\n");
-		break;
-	}
 
 	/* Scan all partitions, probing with all modules. */
 	nhandles = hsize / sizeof(*handles);
