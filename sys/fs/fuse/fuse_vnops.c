@@ -1524,6 +1524,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	int err = 0, err2;
 	accmode_t accmode = 0;
 	bool checkperm;
+	bool drop_suid = false;
 	gid_t cr_gid;
 
 	mp = vnode_mount(vp);
@@ -1553,12 +1554,15 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 					return err;
 				else
 					accmode |= VADMIN;
+				drop_suid = true;
 			} else
 				accmode |= VADMIN;
 		} else
 			accmode |= VADMIN;
 	}
 	if (vap->va_gid != (gid_t)VNOVAL) {
+		if (checkperm && priv_check_cred(cred, PRIV_VFS_CHOWN))
+			drop_suid = true;
 		if (checkperm && !groupmember(vap->va_gid, cred))
 		{
 			/*
@@ -1574,8 +1578,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 					return (err2);
 				if (vap->va_gid != old_va.va_gid)
 					return err;
-				else
-					accmode |= VADMIN;
+				accmode |= VADMIN;
 			} else
 				accmode |= VADMIN;
 		} else
@@ -1611,6 +1614,16 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		accmode |= VADMIN;
 	if (vap->va_mtime.tv_sec != VNOVAL)
 		accmode |= VADMIN;
+	if (drop_suid) {
+		if (vap->va_mode != (mode_t)VNOVAL)
+			vap->va_mode &= ~(S_ISUID | S_ISGID);
+		else {
+			err = fuse_internal_getattr(vp, &old_va, cred, td);
+			if (err)
+				return (err);
+			vap->va_mode = old_va.va_mode & ~(S_ISUID | S_ISGID);
+		}
+	}
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		/* Only root may set the sticky bit on non-directories */
 		if (checkperm && vp->v_type != VDIR && (vap->va_mode & S_ISTXT)

@@ -322,6 +322,41 @@ TEST_F(Chown, chown_to_self)
 	EXPECT_EQ(0, chown(FULLPATH, uid, -1)) << strerror(errno);
 }
 
+/*
+ * A successful chown by a non-privileged non-owner should clear a file's SUID
+ * bit
+ */
+TEST_F(Chown, clear_suid)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	const mode_t oldmode = 06755;
+	const mode_t newmode = 0755;
+	uid_t uid = geteuid();
+	uint32_t valid = FATTR_UID | FATTR_MODE;
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid);
+	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, uid);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				in->body.setattr.valid == valid &&
+				in->body.setattr.mode == newmode);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | newmode;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+
+	EXPECT_EQ(0, chown(FULLPATH, uid, -1)) << strerror(errno);
+}
+
+
 /* Only root may change a file's owner */
 TEST_F(Chown, eperm)
 {
@@ -341,6 +376,41 @@ TEST_F(Chown, eperm)
 
 	EXPECT_NE(0, chown(FULLPATH, 0, -1));
 	EXPECT_EQ(EPERM, errno);
+}
+
+/*
+ * A successful chgrp by a non-privileged non-owner should clear a file's SUID
+ * bit
+ */
+TEST_F(Chgrp, clear_suid)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	const mode_t oldmode = 06755;
+	const mode_t newmode = 0755;
+	uid_t uid = geteuid();
+	gid_t gid = getegid();
+	uint32_t valid = FATTR_GID | FATTR_MODE;
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid);
+	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, uid, gid);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				in->body.setattr.valid == valid &&
+				in->body.setattr.mode == newmode);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | newmode;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+
+	EXPECT_EQ(0, chown(FULLPATH, -1, gid)) << strerror(errno);
 }
 
 /* non-root users may only chgrp a file to a group they belong to */
