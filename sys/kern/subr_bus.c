@@ -2431,13 +2431,31 @@ device_print_prettyname(device_t dev)
 int
 device_printf(device_t dev, const char * fmt, ...)
 {
+	char buf[128];
+	struct sbuf sb;
+	const char *name;
 	va_list ap;
-	int retval;
+	size_t retval;
 
-	retval = device_print_prettyname(dev);
+	retval = 0;
+
+	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+	sbuf_set_drain(&sb, sbuf_printf_drain, &retval);
+
+	name = device_get_name(dev);
+
+	if (name == NULL)
+		sbuf_cat(&sb, "unknown: ");
+	else
+		sbuf_printf(&sb, "%s%d: ", name, device_get_unit(dev));
+
 	va_start(ap, fmt);
-	retval += vprintf(fmt, ap);
+	sbuf_vprintf(&sb, fmt, ap);
 	va_end(ap);
+
+	sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
 	return (retval);
 }
 

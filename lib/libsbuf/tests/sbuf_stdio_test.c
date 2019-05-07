@@ -59,6 +59,60 @@ sbuf_vprintf_helper(struct sbuf *sb, const char * restrict format, ...)
 	return (rc);
 }
 
+ATF_TC_WITHOUT_HEAD(sbuf_printf_drain_null_test);
+ATF_TC_BODY(sbuf_printf_drain_null_test, tc)
+{
+	struct sbuf *sb;
+	char buf[2];
+	pid_t child_proc;
+
+	sb = sbuf_new(NULL, buf, sizeof(buf), SBUF_FIXEDLEN);
+	ATF_REQUIRE_MSG(sb != NULL, "sbuf_new_auto failed: %s",
+	    strerror(errno));
+
+	child_proc = atf_utils_fork();
+	if (child_proc == 0) {
+		sbuf_set_drain(sb, sbuf_printf_drain, NULL);
+
+		ATF_REQUIRE_EQ_MSG(0, sbuf_cat(sb, test_string),
+		    "sbuf_cat failed");
+
+		ATF_CHECK_EQ(0, sbuf_finish(sb));
+		exit(0);
+	}
+	atf_utils_wait(child_proc, 0, test_string, "");
+
+	sbuf_delete(sb);
+}
+
+ATF_TC_WITHOUT_HEAD(sbuf_printf_drain_test);
+ATF_TC_BODY(sbuf_printf_drain_test, tc)
+{
+	struct sbuf *sb;
+	char buf[2];
+	pid_t child_proc;
+	size_t cnt = 0;
+
+	sb = sbuf_new(NULL, buf, sizeof(buf), SBUF_FIXEDLEN);
+	ATF_REQUIRE_MSG(sb != NULL, "sbuf_new_auto failed: %s",
+	    strerror(errno));
+
+	child_proc = atf_utils_fork();
+	if (child_proc == 0) {
+		sbuf_set_drain(sb, sbuf_printf_drain, &cnt);
+
+		ATF_REQUIRE_EQ_MSG(0, sbuf_cat(sb, test_string),
+		    "sbuf_cat failed");
+
+		ATF_CHECK_EQ(0, sbuf_finish(sb));
+		ATF_CHECK_EQ(strlen(test_string), cnt);
+		exit(0);
+	}
+	atf_utils_wait(child_proc, 0, test_string, "");
+
+	sbuf_delete(sb);
+}
+
 ATF_TC_WITHOUT_HEAD(sbuf_printf_test);
 ATF_TC_BODY(sbuf_printf_test, tc)
 {
@@ -106,6 +160,7 @@ ATF_TC_BODY(sbuf_putbuf_test, tc)
 
 	child_proc = atf_utils_fork();
 	if (child_proc == 0) {
+		ATF_CHECK_EQ(0, sbuf_finish(sb));
 		sbuf_putbuf(sb);
 		exit(0);
 	}
@@ -152,6 +207,8 @@ ATF_TC_BODY(sbuf_vprintf_test, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
+	ATF_TP_ADD_TC(tp, sbuf_printf_drain_null_test);
+	ATF_TP_ADD_TC(tp, sbuf_printf_drain_test);
 	ATF_TP_ADD_TC(tp, sbuf_printf_test);
 	ATF_TP_ADD_TC(tp, sbuf_putbuf_test);
 	ATF_TP_ADD_TC(tp, sbuf_vprintf_test);
