@@ -424,7 +424,7 @@ for (file_i = 0; file_i < num_files; file_i++) {
 
 	common_head = \
 	    "/*\n" \
-	    " * This file is produced automatically.\n" \
+	    " * This file is @generated automatically.\n" \
 	    " * Do not modify anything in here by hand.\n" \
 	    " *\n" \
 	    " * Created from source file\n" \
