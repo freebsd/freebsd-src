@@ -1977,11 +1977,6 @@ device		xmphy		# XaQti XMAC II
 #       chipset and is supported by this driver, not the 'vr' driver.
 # rtwn: RealTek wireless adapters.
 # rtwnfw: RealTek wireless firmware.
-# sf:   Support for Adaptec Duralink PCI fast ethernet adapters based on the
-#       Adaptec AIC-6915 "starfire" controller.
-#       This includes dual and quad port cards, as well as one 100baseFX card.
-#       Most of these are 64-bit PCI devices, except for one single port
-#       card which is 32-bit.
 # sge:  Silicon Integrated Systems SiS190/191 Fast/Gigabit Ethernet adapter
 # sis:  Support for NICs based on the Silicon Integrated Systems SiS 900,
 #       SiS 7016 and NS DP83815 PCI fast ethernet controller chips.
@@ -2066,7 +2061,6 @@ device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
 device		nge		# NatSemi DP83820 gigabit Ethernet
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
-device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sge		# Silicon Integrated Systems SiS190/191
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
