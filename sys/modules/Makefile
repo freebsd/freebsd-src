@@ -348,7 +348,6 @@ SUBDIR=	\
 	sysvipc \
 	tcp \
 	${_ti} \
-	tl \
 	tmpfs \
 	${_toecore} \
 	${_tpm} \

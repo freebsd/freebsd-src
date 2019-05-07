@@ -54,6 +54,8 @@ OLD_FILES+=usr/share/man/man4/sf.4
 OLD_FILES+=usr/share/man/man4/if_sf.4
 OLD_FILES+=usr/share/man/man4/sn.4
 OLD_FILES+=usr/share/man/man4/if_sn.4
+OLD_FILES+=usr/share/man/man4/tl.4
+OLD_FILES+=usr/share/man/man4/if_tl.4
 
 
 
