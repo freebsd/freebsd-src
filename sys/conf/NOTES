@@ -1937,8 +1937,6 @@ device		xmphy		# XaQti XMAC II
 #       LinkSys LNE100TX, LNE100TX V2.0, Jaton XpressNet, Alfa Inc GFC2204,
 #       KNE110TX.
 # em:   Intel Pro/1000 Gigabit Ethernet 82542, 82543, 82544 based adapters.
-# ex:   Intel EtherExpress Pro/10 and other i82595-based adapters,
-#       Olicom Ethernet PC Card devices.
 # fe:   Fujitsu MB86960A/MB86965A Ethernet
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
@@ -2042,7 +2040,6 @@ device		xmphy		# XaQti XMAC II
 
 # Order for ISA devices is important here
 
-device		ex
 device		fe
 hint.fe.0.at="isa"
 hint.fe.0.port="0x300"
