@@ -41,6 +41,8 @@
 # 20190518: Remove obsolete 10 and 10/100 ethernet drivers.
 OLD_FILES+=usr/share/man/man4/bm.4
 OLD_FILES+=usr/share/man/man4/cs.4
+OLD_FILES+=usr/share/man/man4/de.4
+OLD_FILES+=usr/share/man/man4/if_de.4
 
 
 

@@ -128,7 +128,6 @@ MAN=	aac.4 \
 	dcons.4 \
 	dcons_crom.4 \
 	ddb.4 \
-	de.4 \
 	devctl.4 \
 	disc.4 \
 	divert.4 \
@@ -627,7 +626,6 @@ MLINKS+=cxgbev.4 if_cxgbev.4 \
 	cxgbev.4 ccv.4 \
 	cxgbev.4 if_ccv.4
 MLINKS+=dc.4 if_dc.4
-MLINKS+=de.4 if_de.4
 MLINKS+=disc.4 if_disc.4
 MLINKS+=ed.4 if_ed.4
 MLINKS+=edsc.4 if_edsc.4
