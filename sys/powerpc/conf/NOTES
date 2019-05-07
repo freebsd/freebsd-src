@@ -54,7 +54,6 @@ device		cpufreq
 # Standard busses
 device		agp
 
-device		bm		# Apple BMAC (Big Mac Ethernet)
 device		glc		# Sony Playstation 3 Ethernet
 device		kiic		# Apple Keywest I2C Controller
 device		ofwd		# Open Firmware disks
