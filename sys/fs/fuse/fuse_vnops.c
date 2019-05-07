@@ -168,6 +168,7 @@ struct vop_vector fuse_fifoops = {
 };
 
 struct vop_vector fuse_vnops = {
+	.vop_allocate =	VOP_EINVAL,
 	.vop_default = &default_vnodeops,
 	.vop_access = fuse_vnop_access,
 	.vop_advlock = fuse_vnop_advlock,
