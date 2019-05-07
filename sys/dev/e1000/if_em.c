@@ -261,10 +261,14 @@ static int	em_setup_msix(if_ctx_t ctx);
 static void	em_initialize_transmit_unit(if_ctx_t ctx);
 static void	em_initialize_receive_unit(if_ctx_t ctx);
 
-static void	em_if_enable_intr(if_ctx_t ctx);
-static void	em_if_disable_intr(if_ctx_t ctx);
+static void	em_if_intr_enable(if_ctx_t ctx);
+static void	em_if_intr_disable(if_ctx_t ctx);
+static void	igb_if_intr_enable(if_ctx_t ctx);
+static void	igb_if_intr_disable(if_ctx_t ctx);
 static int	em_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid);
 static int	em_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid);
+static int	igb_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid);
+static int	igb_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid);
 static void	em_if_multi_set(if_ctx_t ctx);
 static void	em_if_update_admin_status(if_ctx_t ctx);
 static void	em_if_debug(if_ctx_t ctx);
@@ -375,8 +379,8 @@ static device_method_t em_if_methods[] = {
 	DEVMETHOD(ifdi_init, em_if_init),
 	DEVMETHOD(ifdi_stop, em_if_stop),
 	DEVMETHOD(ifdi_msix_intr_assign, em_if_msix_intr_assign),
-	DEVMETHOD(ifdi_intr_enable, em_if_enable_intr),
-	DEVMETHOD(ifdi_intr_disable, em_if_disable_intr),
+	DEVMETHOD(ifdi_intr_enable, em_if_intr_enable),
+	DEVMETHOD(ifdi_intr_disable, em_if_intr_disable),
 	DEVMETHOD(ifdi_tx_queues_alloc, em_if_tx_queues_alloc),
 	DEVMETHOD(ifdi_rx_queues_alloc, em_if_rx_queues_alloc),
 	DEVMETHOD(ifdi_queues_free, em_if_queues_free),
@@ -398,12 +402,45 @@ static device_method_t em_if_methods[] = {
 	DEVMETHOD_END
 };
 
-/*
- * note that if (adapter->msix_mem) is replaced by:
- * if (adapter->intr_type == IFLIB_INTR_MSIX)
- */
 static driver_t em_if_driver = {
 	"em_if", em_if_methods, sizeof(struct adapter)
+};
+
+static device_method_t igb_if_methods[] = {
+	DEVMETHOD(ifdi_attach_pre, em_if_attach_pre),
+	DEVMETHOD(ifdi_attach_post, em_if_attach_post),
+	DEVMETHOD(ifdi_detach, em_if_detach),
+	DEVMETHOD(ifdi_shutdown, em_if_shutdown),
+	DEVMETHOD(ifdi_suspend, em_if_suspend),
+	DEVMETHOD(ifdi_resume, em_if_resume),
+	DEVMETHOD(ifdi_init, em_if_init),
+	DEVMETHOD(ifdi_stop, em_if_stop),
+	DEVMETHOD(ifdi_msix_intr_assign, em_if_msix_intr_assign),
+	DEVMETHOD(ifdi_intr_enable, igb_if_intr_enable),
+	DEVMETHOD(ifdi_intr_disable, igb_if_intr_disable),
+	DEVMETHOD(ifdi_tx_queues_alloc, em_if_tx_queues_alloc),
+	DEVMETHOD(ifdi_rx_queues_alloc, em_if_rx_queues_alloc),
+	DEVMETHOD(ifdi_queues_free, em_if_queues_free),
+	DEVMETHOD(ifdi_update_admin_status, em_if_update_admin_status),
+	DEVMETHOD(ifdi_multi_set, em_if_multi_set),
+	DEVMETHOD(ifdi_media_status, em_if_media_status),
+	DEVMETHOD(ifdi_media_change, em_if_media_change),
+	DEVMETHOD(ifdi_mtu_set, em_if_mtu_set),
+	DEVMETHOD(ifdi_promisc_set, em_if_set_promisc),
+	DEVMETHOD(ifdi_timer, em_if_timer),
+	DEVMETHOD(ifdi_watchdog_reset, em_if_watchdog_reset),
+	DEVMETHOD(ifdi_vlan_register, em_if_vlan_register),
+	DEVMETHOD(ifdi_vlan_unregister, em_if_vlan_unregister),
+	DEVMETHOD(ifdi_get_counter, em_if_get_counter),
+	DEVMETHOD(ifdi_led_func, em_if_led_func),
+	DEVMETHOD(ifdi_rx_queue_intr_enable, igb_if_rx_queue_intr_enable),
+	DEVMETHOD(ifdi_tx_queue_intr_enable, igb_if_tx_queue_intr_enable),
+	DEVMETHOD(ifdi_debug, em_if_debug),
+	DEVMETHOD_END
+};
+
+static driver_t igb_if_driver = {
+	"igb_if", igb_if_methods, sizeof(struct adapter)
 };
 
 /*********************************************************************
@@ -525,7 +562,7 @@ static struct if_shared_ctx igb_sctx_init = {
 	.isc_admin_intrcnt = 1,
 	.isc_vendor_info = igb_vendor_info_array,
 	.isc_driver_version = em_driver_version,
-	.isc_driver = &em_if_driver,
+	.isc_driver = &igb_if_driver,
 	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_TSO_INIT_IP | IFLIB_NEED_ZERO_CSUM,
 
 	.isc_nrxd_min = {EM_MIN_RXD},
@@ -1333,8 +1370,6 @@ em_intr(void *arg)
 
 	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 
-	if (adapter->intr_type != IFLIB_INTR_LEGACY)
-		goto skip_stray;
 	/* Hot eject? */
 	if (reg_icr == 0xffffffff)
 		return FILTER_STRAY;
@@ -1351,7 +1386,14 @@ em_intr(void *arg)
 	    (reg_icr & E1000_ICR_INT_ASSERTED) == 0)
 		return FILTER_STRAY;
 
-skip_stray:
+	/*
+	 * Only MSI-X interrupts have one-shot behavior by taking advantage
+	 * of the EIAC register.  Thus, explicitly disable interrupts.  This
+	 * also works around the MSI message reordering errata on certain
+	 * systems.
+	 */
+	IFDI_INTR_DISABLE(ctx);
+
 	/* Link status change */
 	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 		adapter->hw.mac.get_link_status = 1;
@@ -1364,40 +1406,13 @@ skip_stray:
 	return (FILTER_SCHEDULE_THREAD);
 }
 
-static void
-igb_rx_enable_queue(struct adapter *adapter, struct em_rx_queue *rxq)
-{
-	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, rxq->eims);
-}
-
-static void
-em_rx_enable_queue(struct adapter *adapter, struct em_rx_queue *rxq)
-{
-	E1000_WRITE_REG(&adapter->hw, E1000_IMS, rxq->eims);
-}
-
-static void
-igb_tx_enable_queue(struct adapter *adapter, struct em_tx_queue *txq)
-{
-	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, txq->eims);
-}
-
-static void
-em_tx_enable_queue(struct adapter *adapter, struct em_tx_queue *txq)
-{
-	E1000_WRITE_REG(&adapter->hw, E1000_IMS, txq->eims);
-}
-
 static int
 em_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
 	struct em_rx_queue *rxq = &adapter->rx_queues[rxqid];
 
-	if (adapter->hw.mac.type >= igb_mac_min)
-		igb_rx_enable_queue(adapter, rxq);
-	else
-		em_rx_enable_queue(adapter, rxq);
+	E1000_WRITE_REG(&adapter->hw, E1000_IMS, rxq->eims);
 	return (0);
 }
 
@@ -1407,10 +1422,27 @@ em_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid)
 	struct adapter *adapter = iflib_get_softc(ctx);
 	struct em_tx_queue *txq = &adapter->tx_queues[txqid];
 
-	if (adapter->hw.mac.type >= igb_mac_min)
-		igb_tx_enable_queue(adapter, txq);
-	else
-		em_tx_enable_queue(adapter, txq);
+	E1000_WRITE_REG(&adapter->hw, E1000_IMS, txq->eims);
+	return (0);
+}
+
+static int
+igb_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid)
+{
+	struct adapter *adapter = iflib_get_softc(ctx);
+	struct em_rx_queue *rxq = &adapter->rx_queues[rxqid];
+
+	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, rxq->eims);
+	return (0);
+}
+
+static int
+igb_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid)
+{
+	struct adapter *adapter = iflib_get_softc(ctx);
+	struct em_tx_queue *txq = &adapter->tx_queues[txqid];
+
+	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, txq->eims);
 	return (0);
 }
 
@@ -3374,7 +3406,7 @@ em_setup_vlan_hw_support(struct adapter *adapter)
 }
 
 static void
-em_if_enable_intr(if_ctx_t ctx)
+em_if_intr_enable(if_ctx_t ctx)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &adapter->hw;
@@ -3383,30 +3415,51 @@ em_if_enable_intr(if_ctx_t ctx)
 	if (hw->mac.type == e1000_82574) {
 		E1000_WRITE_REG(hw, EM_EIAC, EM_MSIX_MASK);
 		ims_mask |= adapter->ims;
-	} else if (adapter->intr_type == IFLIB_INTR_MSIX && hw->mac.type >= igb_mac_min)  {
-		u32 mask = (adapter->que_mask | adapter->link_mask);
-
-		E1000_WRITE_REG(&adapter->hw, E1000_EIAC, mask);
-		E1000_WRITE_REG(&adapter->hw, E1000_EIAM, mask);
-		E1000_WRITE_REG(&adapter->hw, E1000_EIMS, mask);
-		ims_mask = E1000_IMS_LSC;
 	}
-
 	E1000_WRITE_REG(hw, E1000_IMS, ims_mask);
 }
 
 static void
-em_if_disable_intr(if_ctx_t ctx)
+em_if_intr_disable(if_ctx_t ctx)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (adapter->intr_type == IFLIB_INTR_MSIX) {
-		if (hw->mac.type >= igb_mac_min)
-			E1000_WRITE_REG(&adapter->hw, E1000_EIMC, ~0);
-		E1000_WRITE_REG(&adapter->hw, E1000_EIAC, 0);
+	if (hw->mac.type == e1000_82574)
+		E1000_WRITE_REG(hw, EM_EIAC, 0);
+	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
+}
+
+static void
+igb_if_intr_enable(if_ctx_t ctx)
+{
+	struct adapter *adapter = iflib_get_softc(ctx);
+	struct e1000_hw *hw = &adapter->hw;
+	u32 mask;
+
+	if (__predict_true(adapter->intr_type == IFLIB_INTR_MSIX)) {
+		mask = (adapter->que_mask | adapter->link_mask);
+		E1000_WRITE_REG(hw, E1000_EIAC, mask);
+		E1000_WRITE_REG(hw, E1000_EIAM, mask);
+		E1000_WRITE_REG(hw, E1000_EIMS, mask);
+		E1000_WRITE_REG(hw, E1000_IMS, E1000_IMS_LSC);
+	} else
+		E1000_WRITE_REG(hw, E1000_IMS, IMS_ENABLE_MASK);
+	E1000_WRITE_FLUSH(hw);
+}
+
+static void
+igb_if_intr_disable(if_ctx_t ctx)
+{
+	struct adapter *adapter = iflib_get_softc(ctx);
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (__predict_true(adapter->intr_type == IFLIB_INTR_MSIX)) {
+		E1000_WRITE_REG(hw, E1000_EIMC, 0xffffffff);
+		E1000_WRITE_REG(hw, E1000_EIAC, 0);
 	}
-	E1000_WRITE_REG(&adapter->hw, E1000_IMC, 0xffffffff);
+	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
+	E1000_WRITE_FLUSH(hw);
 }
 
 /*
