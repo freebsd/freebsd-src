@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2006 IronPort Systems
- * Copyright (c) 2017 Carlos Neira cneirabustos@gmail.com
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
