@@ -294,6 +294,34 @@ TEST_F(Access, ok)
 	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
 }
 
+/* Unprivileged users may chown a file to their own uid */
+TEST_F(Chown, chown_to_self)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	const mode_t mode = 0755;
+	uid_t uid;
+
+	uid = geteuid();
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid);
+	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, uid);
+	/* The OS may optimize chown by omitting the redundant setattr */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_SETATTR);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out){
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.mode = S_IFREG | mode;
+		out->body.attr.attr.uid = uid;
+	})));
+
+	EXPECT_EQ(0, chown(FULLPATH, uid, -1)) << strerror(errno);
+}
+
 /* Only root may change a file's owner */
 TEST_F(Chown, eperm)
 {
@@ -357,19 +385,14 @@ TEST_F(Chgrp, ok)
 
 	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid, gid);
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, uid, gid);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
-		}, Eq(true)),
-		_)
-	).Times(0);
+	/* The OS may optimize chgrp by omitting the redundant setattr */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_SETATTR &&
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out){
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.mode = S_IFREG | mode;
 		out->body.attr.attr.uid = uid;
