@@ -355,7 +355,6 @@ SUBDIR=	\
 	${_twa} \
 	twe \
 	tws \
-	tx \
 	${_txp} \
 	uart \
 	ubsec \
