@@ -45,6 +45,7 @@ OLD_FILES+=usr/share/man/man4/de.4
 OLD_FILES+=usr/share/man/man4/if_de.4
 OLD_FILES+=usr/share/man/man4/ed.4
 OLD_FILES+=usr/share/man/man4/if_ed.4
+OLD_FILES+=usr/share/man/man4/ep.4
 
 
 
