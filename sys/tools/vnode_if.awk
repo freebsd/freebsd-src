@@ -141,7 +141,7 @@ if (!srcfile)
 
 common_head = \
     "/*\n" \
-    " * This file is produced automatically.\n" \
+    " * This file is @generated automatically.\n" \
     " * Do not modify anything in here by hand.\n" \
     " *\n" \
     " * Created from $FreeBSD$\n" \
