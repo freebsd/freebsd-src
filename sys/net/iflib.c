@@ -1461,6 +1461,7 @@ iflib_fast_intr_rxtx(void *arg)
 	void *sc;
 	int i, cidx, result;
 	qidx_t txqid;
+	bool intr_enable, intr_legacy;
 
 	if (!iflib_started)
 		return (FILTER_STRAY);
@@ -1474,6 +1475,8 @@ iflib_fast_intr_rxtx(void *arg)
 
 	ctx = rxq->ifr_ctx;
 	sc = ctx->ifc_softc;
+	intr_enable = false;
+	intr_legacy = !!(ctx->ifc_flags & IFC_LEGACY);
 	MPASS(rxq->ifr_ntxqirq);
 	for (i = 0; i < rxq->ifr_ntxqirq; i++) {
 		txqid = rxq->ifr_txqid[i];
@@ -1481,7 +1484,10 @@ iflib_fast_intr_rxtx(void *arg)
 		bus_dmamap_sync(txq->ift_ifdi->idi_tag, txq->ift_ifdi->idi_map,
 		    BUS_DMASYNC_POSTREAD);
 		if (!ctx->isc_txd_credits_update(sc, txqid, false)) {
-			IFDI_TX_QUEUE_INTR_ENABLE(ctx, txqid);
+			if (intr_legacy)
+				intr_enable = true;
+			else
+				IFDI_TX_QUEUE_INTR_ENABLE(ctx, txqid);
 			continue;
 		}
 		GROUPTASK_ENQUEUE(&txq->ift_task);
@@ -1493,9 +1499,14 @@ iflib_fast_intr_rxtx(void *arg)
 	if (iflib_rxd_avail(ctx, rxq, cidx, 1))
 		GROUPTASK_ENQUEUE(gtask);
 	else {
-		IFDI_RX_QUEUE_INTR_ENABLE(ctx, rxq->ifr_id);
+		if (intr_legacy)
+			intr_enable = true;
+		else
+			IFDI_RX_QUEUE_INTR_ENABLE(ctx, rxq->ifr_id);
 		DBG_COUNTER_INC(rx_intr_enables);
 	}
+	if (intr_enable)
+		IFDI_INTR_ENABLE(ctx);
 	return (FILTER_HANDLED);
 }
 
@@ -2352,7 +2363,9 @@ iflib_init_locked(if_ctx_t ctx)
 		}
 		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++) {
 			if (iflib_fl_setup(fl)) {
-				device_printf(ctx->ifc_dev, "freelist setup failed - check cluster settings\n");
+				device_printf(ctx->ifc_dev,
+				    "setting up free list %d failed - "
+				    "check cluster settings\n", j);
 				goto done;
 			}
 		}
@@ -3733,7 +3746,10 @@ _task_fn_tx(void *context)
 		    BUS_DMASYNC_POSTREAD);
 		if (ctx->isc_txd_credits_update(ctx->ifc_softc, txq->ift_id, false))
 			netmap_tx_irq(ifp, txq->ift_id);
-		IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
+		if (ctx->ifc_flags & IFC_LEGACY)
+			IFDI_INTR_ENABLE(ctx);
+		else
+			IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
 		return;
 	}
 #endif
@@ -3752,13 +3768,8 @@ _task_fn_tx(void *context)
 		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
 	if (ctx->ifc_flags & IFC_LEGACY)
 		IFDI_INTR_ENABLE(ctx);
-	else {
-#ifdef INVARIANTS
-		int rc =
-#endif
-			IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
-			KASSERT(rc != ENOTSUP, ("MSI-X support requires queue_intr_enable, but not implemented in driver"));
-	}
+	else
+		IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
 }
 
 static void
@@ -3790,14 +3801,9 @@ _task_fn_rx(void *context)
 	if (more == false || (more = iflib_rxeof(rxq, budget)) == false) {
 		if (ctx->ifc_flags & IFC_LEGACY)
 			IFDI_INTR_ENABLE(ctx);
-		else {
-#ifdef INVARIANTS
-			int rc =
-#endif
-				IFDI_RX_QUEUE_INTR_ENABLE(ctx, rxq->ifr_id);
-			KASSERT(rc != ENOTSUP, ("MSI-X support requires queue_intr_enable, but not implemented in driver"));
-			DBG_COUNTER_INC(rx_intr_enables);
-		}
+		else
+			IFDI_RX_QUEUE_INTR_ENABLE(ctx, rxq->ifr_id);
+		DBG_COUNTER_INC(rx_intr_enables);
 	}
 	if (__predict_false(!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)))
 		return;
@@ -4532,14 +4538,13 @@ unref_ctx_core_offset(if_ctx_t ctx)
 int
 iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ctxp)
 {
-	int err, rid, msix;
 	if_ctx_t ctx;
 	if_t ifp;
 	if_softc_ctx_t scctx;
-	int i;
-	uint16_t main_txq;
-	uint16_t main_rxq;
-
+	kobjop_desc_t kobj_desc;
+	kobj_method_t *kobj_method;
+	int err, i, msix, rid;
+	uint16_t main_rxq, main_txq;
 
 	ctx = malloc(sizeof(* ctx), M_IFLIB, M_WAITOK|M_ZERO);
 
@@ -4699,11 +4704,43 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	 * interrupt storm.
 	 */
 	IFDI_INTR_DISABLE(ctx);
-	if (msix > 1 && (err = IFDI_MSIX_INTR_ASSIGN(ctx, msix)) != 0) {
-		device_printf(dev, "IFDI_MSIX_INTR_ASSIGN failed %d\n", err);
-		goto fail_queues;
-	}
-	if (msix <= 1) {
+
+	if (msix > 1) {
+		/*
+		 * When using MSI-X, ensure that ifdi_{r,t}x_queue_intr_enable
+		 * aren't the default NULL implementation.
+		 */
+		kobj_desc = &ifdi_rx_queue_intr_enable_desc;
+		kobj_method = kobj_lookup_method(((kobj_t)ctx)->ops->cls, NULL,
+		    kobj_desc);
+		if (kobj_method == &kobj_desc->deflt) {
+			device_printf(dev,
+			    "MSI-X requires ifdi_rx_queue_intr_enable method");
+			err = EOPNOTSUPP;
+			goto fail_queues;
+		}
+		kobj_desc = &ifdi_tx_queue_intr_enable_desc;
+		kobj_method = kobj_lookup_method(((kobj_t)ctx)->ops->cls, NULL,
+		    kobj_desc);
+		if (kobj_method == &kobj_desc->deflt) {
+			device_printf(dev,
+			    "MSI-X requires ifdi_tx_queue_intr_enable method");
+			err = EOPNOTSUPP;
+			goto fail_queues;
+		}
+
+		/*
+		 * Assign the MSI-X vectors.
+		 * Note that the default NULL ifdi_msix_intr_assign method will
+		 * fail here, too.
+		 */
+		err = IFDI_MSIX_INTR_ASSIGN(ctx, msix);
+		if (err != 0) {
+			device_printf(dev, "IFDI_MSIX_INTR_ASSIGN failed %d\n",
+			    err);
+			goto fail_queues;
+		}
+	} else {
 		rid = 0;
 		if (scctx->isc_intr == IFLIB_INTR_MSI) {
 			MPASS(msix == 1);
@@ -4743,6 +4780,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	iflib_add_pfil(ctx);
 	ctx->ifc_flags |= IFC_INIT_DONE;
 	CTX_UNLOCK(ctx);
+
 	return (0);
 
 fail_detach:
@@ -4957,6 +4995,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	iflib_add_device_sysctl_post(ctx);
 	ctx->ifc_flags |= IFC_INIT_DONE;
 	CTX_UNLOCK(ctx);
+
 	return (0);
 fail_detach:
 	ether_ifdetach(ctx->ifc_ifp);
@@ -5349,7 +5388,6 @@ iflib_register(if_ctx_t ctx)
 	return (0);
 }
 
-
 static int
 iflib_queues_alloc(if_ctx_t ctx)
 {
@@ -5608,17 +5646,20 @@ iflib_rx_structures_setup(if_ctx_t ctx)
 	iflib_rxq_t rxq = ctx->ifc_rxqs;
 	int q;
 #if defined(INET6) || defined(INET)
-	int i, err;
+	int err, i;
 #endif
 
 	for (q = 0; q < ctx->ifc_softc_ctx.isc_nrxqsets; q++, rxq++) {
 #if defined(INET6) || defined(INET)
-		tcp_lro_free(&rxq->ifr_lc);
-		if ((err = tcp_lro_init_args(&rxq->ifr_lc, ctx->ifc_ifp,
-		    TCP_LRO_ENTRIES, min(1024,
-		    ctx->ifc_softc_ctx.isc_nrxd[rxq->ifr_fl_offset]))) != 0) {
-			device_printf(ctx->ifc_dev, "LRO Initialization failed!\n");
-			goto fail;
+		if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_LRO) {
+			err = tcp_lro_init_args(&rxq->ifr_lc, ctx->ifc_ifp,
+			    TCP_LRO_ENTRIES, min(1024,
+			    ctx->ifc_softc_ctx.isc_nrxd[rxq->ifr_fl_offset]));
+			if (err != 0) {
+				device_printf(ctx->ifc_dev,
+				    "LRO Initialization failed!\n");
+				goto fail;
+			}
 		}
 #endif
 		IFDI_RXQ_SETUP(ctx, rxq->ifr_id);
@@ -5627,14 +5668,14 @@ iflib_rx_structures_setup(if_ctx_t ctx)
 #if defined(INET6) || defined(INET)
 fail:
 	/*
-	 * Free RX software descriptors allocated so far, we will only handle
+	 * Free LRO resources allocated so far, we will only handle
 	 * the rings that completed, the failing case will have
-	 * cleaned up for itself. 'q' failed, so its the terminus.
+	 * cleaned up for itself.  'q' failed, so its the terminus.
 	 */
 	rxq = ctx->ifc_rxqs;
 	for (i = 0; i < q; ++i, rxq++) {
-		iflib_rx_sds_free(rxq);
-		rxq->ifr_cq_cidx = 0;
+		if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_LRO)
+			tcp_lro_free(&rxq->ifr_lc);
 	}
 	return (err);
 #endif
@@ -5649,9 +5690,12 @@ static void
 iflib_rx_structures_free(if_ctx_t ctx)
 {
 	iflib_rxq_t rxq = ctx->ifc_rxqs;
+	int i;
 
-	for (int i = 0; i < ctx->ifc_softc_ctx.isc_nrxqsets; i++, rxq++) {
+	for (i = 0; i < ctx->ifc_softc_ctx.isc_nrxqsets; i++, rxq++) {
 		iflib_rx_sds_free(rxq);
+		if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_LRO)
+			tcp_lro_free(&rxq->ifr_lc);
 	}
 	free(ctx->ifc_rxqs, M_IFLIB);
 	ctx->ifc_rxqs = NULL;
@@ -5822,7 +5866,10 @@ iflib_irq_set_affinity(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,
 		co += ctx->ifc_softc_ctx.isc_nrxqsets;
 	cpuid = find_nth(ctx, qid + co);
 	tid = get_core_offset(ctx, type, qid);
-	MPASS(tid >= 0);
+	if (tid < 0) {
+		device_printf(dev, "get_core_offset failed\n");
+		return (EOPNOTSUPP);
+	}
 	cpuid = find_close_core(cpuid, tid);
 	err = taskqgroup_attach_cpu(tqg, gtask, uniq, cpuid, dev, irq->ii_res,
 	    name);
@@ -5834,7 +5881,7 @@ iflib_irq_set_affinity(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,
 	if (cpuid > ctx->ifc_cpuid_highest)
 		ctx->ifc_cpuid_highest = cpuid;
 #endif
-	return 0;
+	return (0);
 }
 
 int
@@ -5894,7 +5941,9 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		intr_fast = iflib_fast_intr_ctx;
 		break;
 	default:
-		panic("unknown net intr type");
+		device_printf(ctx->ifc_dev, "%s: unknown net intr type\n",
+		    __func__);
+		return (EINVAL);
 	}
 
 	info->ifi_filter = filter;
@@ -6005,11 +6054,12 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	info->ifi_filter = filter;
 	info->ifi_filter_arg = filter_arg;
 	info->ifi_task = gtask;
-	info->ifi_ctx = ctx;
+	info->ifi_ctx = q;
 
 	dev = ctx->ifc_dev;
 	/* We allocate a single interrupt resource */
-	if ((err = _iflib_irq_alloc(ctx, irq, tqrid, iflib_fast_intr_ctx, NULL, info, name)) != 0)
+	if ((err = _iflib_irq_alloc(ctx, irq, tqrid, iflib_fast_intr_rxtx,
+	    NULL, info, name)) != 0)
 		return (err);
 	GROUPTASK_INIT(gtask, 0, fn, q);
 	res = irq->ii_res;
@@ -6174,9 +6224,8 @@ iflib_msix_init(if_ctx_t ctx)
 	device_t dev = ctx->ifc_dev;
 	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
-	int vectors, queues, rx_queues, tx_queues, queuemsgs, msgs;
-	int iflib_num_tx_queues, iflib_num_rx_queues;
-	int err, admincnt, bar;
+	int admincnt, bar, err, iflib_num_rx_queues, iflib_num_tx_queues;
+	int msgs, queuemsgs, queues, rx_queues, tx_queues, vectors;
 
 	iflib_num_tx_queues = ctx->ifc_sysctl_ntxqs;
 	iflib_num_rx_queues = ctx->ifc_sysctl_nrxqs;
@@ -6185,8 +6234,6 @@ iflib_msix_init(if_ctx_t ctx)
 		device_printf(dev, "msix_init qsets capped at %d\n",
 		    imax(scctx->isc_ntxqsets, scctx->isc_nrxqsets));
 
-	bar = ctx->ifc_softc_ctx.isc_msix_bar;
-	admincnt = sctx->isc_admin_intrcnt;
 	/* Override by tuneable */
 	if (scctx->isc_disable_msix)
 		goto msi;
@@ -6197,6 +6244,8 @@ iflib_msix_init(if_ctx_t ctx)
 			device_printf(dev, "MSI-X not supported or disabled\n");
 		goto msi;
 	}
+
+	bar = ctx->ifc_softc_ctx.isc_msix_bar;
 	/*
 	 * bar == -1 => "trust me I know what I'm doing"
 	 * Some drivers are for hardware that is so shoddily
@@ -6212,6 +6261,8 @@ iflib_msix_init(if_ctx_t ctx)
 			goto msi;
 		}
 	}
+
+	admincnt = sctx->isc_admin_intrcnt;
 #if IFLIB_DEBUG
 	/* use only 1 qset in debug mode */
 	queuemsgs = min(msgs - admincnt, 1);
@@ -6263,11 +6314,30 @@ iflib_msix_init(if_ctx_t ctx)
 		rx_queues = min(rx_queues, tx_queues);
 	}
 
+	vectors = rx_queues + admincnt;
+	if (msgs < vectors) {
+		device_printf(dev,
+		    "insufficient number of MSI-X vectors "
+		    "(supported %d, need %d)\n", msgs, vectors);
+		goto msi;
+	}
+
 	device_printf(dev, "Using %d RX queues %d TX queues\n", rx_queues,
 	    tx_queues);
-
-	vectors = rx_queues + admincnt;
+	msgs = vectors;
 	if ((err = pci_alloc_msix(dev, &vectors)) == 0) {
+		if (vectors != msgs) {
+			device_printf(dev,
+			    "Unable to allocate sufficient MSI-X vectors "
+			    "(got %d, need %d)\n", vectors, msgs);
+			pci_release_msi(dev);
+			if (bar != -1) {
+				bus_release_resource(dev, SYS_RES_MEMORY, bar,
+				    ctx->ifc_msix_mem);
+				ctx->ifc_msix_mem = NULL;
+			}
+			goto msi;
+		}
 		device_printf(dev, "Using MSI-X interrupts with %d vectors\n",
 		    vectors);
 		scctx->isc_vectors = vectors;
@@ -6278,12 +6348,15 @@ iflib_msix_init(if_ctx_t ctx)
 		return (vectors);
 	} else {
 		device_printf(dev,
-		    "failed to allocate %d MSI-X vectors, err: %d - using MSI\n",
-		    vectors, err);
-		bus_release_resource(dev, SYS_RES_MEMORY, bar,
-		    ctx->ifc_msix_mem);
-		ctx->ifc_msix_mem = NULL;
+		    "failed to allocate %d MSI-X vectors, err: %d\n", vectors,
+		    err);
+		if (bar != -1) {
+			bus_release_resource(dev, SYS_RES_MEMORY, bar,
+			    ctx->ifc_msix_mem);
+			ctx->ifc_msix_mem = NULL;
+		}
 	}
+
 msi:
 	vectors = pci_msi_count(dev);
 	scctx->isc_nrxqsets = 1;
@@ -6345,8 +6418,6 @@ mp_ndesc_handler(SYSCTL_HANDLER_ARGS)
 	char *p, *next;
 	int nqs, rc, i;
 
-	MPASS(type == IFLIB_NTXD_HANDLER || type == IFLIB_NRXD_HANDLER);
-
 	nqs = 8;
 	switch(type) {
 	case IFLIB_NTXD_HANDLER:
@@ -6360,7 +6431,8 @@ mp_ndesc_handler(SYSCTL_HANDLER_ARGS)
 			nqs = ctx->ifc_sctx->isc_nrxqs;
 		break;
 	default:
-			panic("unhandled type");
+		printf("%s: unhandled type\n", __func__);
+		return (EINVAL);
 	}
 	if (nqs == 0)
 		nqs = 8;
