@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2006
+.Dd May 7, 2019
 .Dt LOGIN.ACCESS 5
 .Os
 .Sh NAME
@@ -29,8 +29,10 @@ character:
 .Pp
 The first field should be a "+" (access granted) or "-" (access denied)
 character.
+.Pp
 The second field should be a list of one or more login names,
 group names, or ALL (always matches).
+.Pp
 The third field should be a list
 of one or more tty names (for non-networked logins), host names, domain
 names (begin with "."), host addresses, internet network numbers (end
