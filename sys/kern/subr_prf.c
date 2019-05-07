@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/cons.h>
 #include <sys/uio.h>
+#else /* !_KERNEL */
+#include <errno.h>
 #endif
 #include <sys/ctype.h>
 #include <sys/sbuf.h>
@@ -1254,3 +1256,42 @@ sbuf_putbuf(struct sbuf *sb)
 	printf("%s", sbuf_data(sb));
 }
 #endif
+
+int
+sbuf_printf_drain(void *arg, const char *data, int len)
+{
+	size_t *retvalptr;
+	int r;
+#ifdef _KERNEL
+	char *dataptr;
+	char oldchr;
+
+	/*
+	 * This is allowed as an extra byte is always resvered for
+	 * terminating NUL byte.  Save and restore the byte because
+	 * we might be flushing a record, and there may be valid
+	 * data after the buffer.
+	 */
+	oldchr = data[len];
+	dataptr = __DECONST(char *, data);
+	dataptr[len] = '\0';
+
+	prf_putbuf(dataptr, TOLOG | TOCONS, -1);
+	r = len;
+
+	dataptr[len] = oldchr;
+
+#else /* !_KERNEL */
+
+	r = printf("%.*s", len, data);
+	if (r < 0)
+		return (-errno);
+
+#endif
+
+	retvalptr = arg;
+	if (retvalptr != NULL)
+		*retvalptr += r;
+
+	return (r);
+}
