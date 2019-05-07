@@ -1519,15 +1519,21 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	struct thread *td = curthread;
 	struct mount *mp;
 	struct fuse_data *data;
+	struct vattr old_va;
 	int dataflags;
-	int err = 0;
+	int err = 0, err2;
 	accmode_t accmode = 0;
 	bool checkperm;
+	gid_t cr_gid;
 
 	mp = vnode_mount(vp);
 	data = fuse_get_mpdata(mp);
 	dataflags = data->dataflags;
 	checkperm = dataflags & FSESS_DEFAULT_PERMISSIONS;
+	if (cred->cr_ngroups > 0)
+		cr_gid = cred->cr_groups[0];
+	else
+		cr_gid = 0;
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1537,10 +1543,20 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		if (checkperm) {
 			/* Only root may change a file's owner */
 			err = priv_check_cred(cred, PRIV_VFS_CHOWN);
-			if (err)
-				return err;;
-		}
-		accmode |= VADMIN;
+			if (err) {
+				/* As a special case, allow the null chown */
+				err2 = fuse_internal_getattr(vp, &old_va, cred,
+					td);
+				if (err2)
+					return (err2);
+				if (vap->va_uid != old_va.va_uid)
+					return err;
+				else
+					accmode |= VADMIN;
+			} else
+				accmode |= VADMIN;
+		} else
+			accmode |= VADMIN;
 	}
 	if (vap->va_gid != (gid_t)VNOVAL) {
 		if (checkperm && !groupmember(vap->va_gid, cred))
@@ -1550,10 +1566,20 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 			 * groups 
 			 */
 			err = priv_check_cred(cred, PRIV_VFS_CHOWN);
-			if (err)
-				return err;
-		}
-		accmode |= VADMIN;
+			if (err) {
+				/* As a special case, allow the null chgrp */
+				err2 = fuse_internal_getattr(vp, &old_va, cred,
+					td);
+				if (err2)
+					return (err2);
+				if (vap->va_gid != old_va.va_gid)
+					return err;
+				else
+					accmode |= VADMIN;
+			} else
+				accmode |= VADMIN;
+		} else
+			accmode |= VADMIN;
 	}
 	if (vap->va_size != VNOVAL) {
 		switch (vp->v_type) {
@@ -1591,7 +1617,6 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		    && priv_check_cred(cred, PRIV_VFS_STICKYFILE))
 			return EFTYPE;
 		if (checkperm && (vap->va_mode & S_ISGID)) {
-			struct vattr old_va;
 			err = fuse_internal_getattr(vp, &old_va, cred, td);
 			if (err)
 				return (err);
