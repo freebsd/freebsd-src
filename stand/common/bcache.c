@@ -426,10 +426,8 @@ static void
 bcache_free_instance(struct bcache *bc)
 {
     if (bc != NULL) {
-	if (bc->bcache_ctl)
-	    free(bc->bcache_ctl);
-	if (bc->bcache_data)
-	    free(bc->bcache_data);
+	free(bc->bcache_ctl);
+	free(bc->bcache_data);
 	free(bc);
     }
 }
