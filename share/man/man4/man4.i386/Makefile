@@ -6,7 +6,6 @@ MAN=	apm.4 \
 	ce.4 \
 	cp.4 \
 	CPU_ELAN.4 \
-	cs.4 \
 	ctau.4 \
 	cx.4 \
 	ep.4 \
