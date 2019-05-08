@@ -5694,8 +5694,10 @@ iflib_rx_structures_free(if_ctx_t ctx)
 
 	for (i = 0; i < ctx->ifc_softc_ctx.isc_nrxqsets; i++, rxq++) {
 		iflib_rx_sds_free(rxq);
+#if defined(INET6) || defined(INET)
 		if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_LRO)
 			tcp_lro_free(&rxq->ifr_lc);
+#endif
 	}
 	free(ctx->ifc_rxqs, M_IFLIB);
 	ctx->ifc_rxqs = NULL;
