@@ -35,7 +35,7 @@ struct mlx5_fwdump_reg {
 	uint32_t val;
 };
 
-struct mlx5_fwdump_addr {
+struct mlx5_tool_addr {
 	uint32_t domain;
 	uint8_t bus;
 	uint8_t slot;
@@ -43,15 +43,15 @@ struct mlx5_fwdump_addr {
 };
 
 struct mlx5_fwdump_get {
-	struct mlx5_fwdump_addr devaddr;
+	struct mlx5_tool_addr devaddr;
 	struct mlx5_fwdump_reg *buf;
 	size_t reg_cnt;
 	size_t reg_filled; /* out */
 };
 
 #define	MLX5_FWDUMP_GET		_IOWR('m', 1, struct mlx5_fwdump_get)
-#define	MLX5_FWDUMP_RESET	_IOW('m', 2, struct mlx5_fwdump_addr)
-#define	MLX5_FWDUMP_FORCE	_IOW('m', 3, struct mlx5_fwdump_addr)
+#define	MLX5_FWDUMP_RESET	_IOW('m', 2, struct mlx5_tool_addr)
+#define	MLX5_FWDUMP_FORCE	_IOW('m', 3, struct mlx5_tool_addr)
 
 #ifndef _KERNEL
 #define	MLX5_DEV_PATH	_PATH_DEV"mlx5ctl"
