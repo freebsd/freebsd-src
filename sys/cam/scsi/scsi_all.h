@@ -2931,6 +2931,7 @@ struct scsi_read_capacity_data_long
 	uint8_t length[4];
 #define	SRC16_PROT_EN		0x01
 #define	SRC16_P_TYPE		0x0e
+#define	SRC16_P_TYPE_SHIFT	1
 #define	SRC16_PTYPE_1		0x00
 #define	SRC16_PTYPE_2		0x02
 #define	SRC16_PTYPE_3		0x04
