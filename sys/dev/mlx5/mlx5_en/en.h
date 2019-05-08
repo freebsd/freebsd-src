@@ -196,7 +196,6 @@ struct mlx5e_vport_stats {
 	struct	sysctl_ctx_list ctx;
 	u64	arg [0];
 	MLX5E_VPORT_STATS(MLX5E_STATS_VAR)
-	u32	rx_out_of_buffer_prev;
 };
 
 #define	MLX5E_PPORT_IEEE802_3_STATS(m)					\
