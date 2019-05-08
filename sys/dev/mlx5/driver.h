@@ -506,6 +506,7 @@ struct mlx5_core_health {
 	int				miss_counter;
 	u32				fatal_error;
 	struct workqueue_struct	       *wq_watchdog;
+	struct work_struct		work_watchdog;
 	/* wq spinlock to synchronize draining */
 	spinlock_t			wq_lock;
 	struct workqueue_struct	       *wq;
@@ -705,6 +706,8 @@ struct mlx5_core_dev {
 
 	struct sysctl_ctx_list	sysctl_ctx;
 	int			msix_eqvec;
+	int			pwr_status;
+	int			pwr_value;
 
 	struct {
 		struct mlx5_rsvd_gids	reserved_gids;
@@ -955,6 +958,7 @@ void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health);
 void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
 void mlx5_drain_health_recovery(struct mlx5_core_dev *dev);
 void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
+void mlx5_trigger_health_watchdog(struct mlx5_core_dev *dev);
 
 #define	mlx5_buf_alloc_node(dev, size, direct, buf, node) \
 	mlx5_buf_alloc(dev, size, direct, buf)
@@ -1089,6 +1093,8 @@ int mlx5_vsc_write(struct mlx5_core_dev *mdev, u32 addr, const u32 *data);
 int mlx5_vsc_read(struct mlx5_core_dev *mdev, u32 addr, u32 *data);
 int mlx5_vsc_lock_addr_space(struct mlx5_core_dev *mdev, u32 addr);
 int mlx5_vsc_unlock_addr_space(struct mlx5_core_dev *mdev, u32 addr);
+int mlx5_pci_read_power_status(struct mlx5_core_dev *mdev,
+			       u16 *p_power, u8 *p_status);
 
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {
