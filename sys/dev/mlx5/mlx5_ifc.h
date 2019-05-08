@@ -10409,4 +10409,9 @@ struct mlx5_ifc_qpts_reg_bits {
 	u8         trust_state[0x3];
 };
 
+struct mlx5_ifc_mfrl_reg_bits {
+	u8         reserved_at_0[0x38];
+	u8         reset_level[0x8];
+};
+
 #endif /* MLX5_IFC_H */
