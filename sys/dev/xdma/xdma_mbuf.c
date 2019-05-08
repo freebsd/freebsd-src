@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2017-2019 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/sx.h>
 #include <sys/mbuf.h>
 
 #include <machine/bus.h>
