@@ -235,15 +235,19 @@ random_sources_feed(void)
 		for (i = 0; i < p_random_alg_context->ra_poolcount*local_read_rate; i++) {
 			n = rrs->rrs_source->rs_read(entropy, sizeof(entropy));
 			KASSERT((n <= sizeof(entropy)), ("%s: rs_read returned too much data (%u > %zu)", __func__, n, sizeof(entropy)));
-			/* It would appear that in some circumstances (e.g. virtualisation),
-			 * the underlying hardware entropy source might not always return
-			 * random numbers. Accept this but make a noise. If too much happens,
-			 * can that source be trusted?
+			/*
+			 * Sometimes the HW entropy source doesn't have anything
+			 * ready for us.  This isn't necessarily untrustworthy.
+			 * We don't perform any other verification of an entropy
+			 * source (i.e., length is allowed to be anywhere from 1
+			 * to sizeof(entropy), quality is unchecked, etc), so
+			 * don't balk verbosely at slow random sources either.
+			 * There are reports that RDSEED on x86 metal falls
+			 * behind the rate at which we query it, for example.
+			 * But it's still a better entropy source than RDRAND.
 			 */
-			if (n == 0) {
-				printf("%s: rs_read for hardware device '%s' returned no entropy.\n", __func__, rrs->rrs_source->rs_ident);
+			if (n == 0)
 				continue;
-			}
 			random_harvest_direct(entropy, n, rrs->rrs_source->rs_source);
 		}
 	}
