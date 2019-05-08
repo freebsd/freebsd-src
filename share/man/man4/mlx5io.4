@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2018 Mellanox Technologies
+.\" Copyright (c) 2018, 2019 Mellanox Technologies
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -121,6 +121,27 @@ struct mlx5_fwdump_reg {
 	uint32_t val;
 };
 .Ed
+.It Dv MLX5_FW_UPDATE
+Requests firmware update (flash) on the adapter specified by the
+.Dv devaddr
+using the firmware image in
+.Dv MFA2
+format.
+The argument for the ioctl command is the
+.Vt struct mlx5_fw_update
+with the following definition.
+.Bd -literal
+struct mlx5_fw_update {
+	struct mlx5_tool_addr devaddr;
+	void *img_fw_data;
+	size_t img_fw_data_len;
+};
+.Ed
+Image address in memory is passed in
+.Dv img_fw_data ,
+the length of the image is specified in
+.Dv img_fw_data_len
+field.
 .El
 .Sh FILES
 The
