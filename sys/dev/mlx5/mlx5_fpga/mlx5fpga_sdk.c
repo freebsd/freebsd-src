@@ -324,6 +324,45 @@ void mlx5_fpga_device_query(struct mlx5_fpga_device *fdev,
 }
 EXPORT_SYMBOL(mlx5_fpga_device_query);
 
+static int mlx5_fpga_device_reload_cmd(struct mlx5_fpga_device *fdev)
+{
+	struct mlx5_core_dev *mdev = fdev->mdev;
+	unsigned long timeout;
+	unsigned long flags;
+	int err = 0;
+
+	mlx5_fpga_info(fdev, "mlx5/fpga - reload started\n");
+	fdev->fdev_state = MLX5_FDEV_STATE_IN_PROGRESS;
+	reinit_completion(&fdev->load_event);
+	err = mlx5_fpga_ctrl_op(mdev, MLX5_FPGA_CTRL_OPERATION_RELOAD);
+	if (err) {
+		mlx5_fpga_err(fdev, "Failed to request reload: %d\n",
+			      err);
+		goto out;
+	}
+	timeout = jiffies + msecs_to_jiffies(MLX5_FPGA_LOAD_TIMEOUT);
+	err = wait_for_completion_timeout(&fdev->load_event,
+					  timeout - jiffies);
+	if (err < 0) {
+		mlx5_fpga_err(fdev, "Failed waiting for reload: %d\n", err);
+		fdev->fdev_state = MLX5_FDEV_STATE_FAILURE;
+		goto out;
+	}
+	/* Check device loaded successful */
+	err = mlx5_fpga_device_start(mdev);
+	if (err) {
+		mlx5_fpga_err(fdev, "Failed load check for reload: %d\n", err);
+		fdev->fdev_state = MLX5_FDEV_STATE_FAILURE;
+		goto out;
+	}
+	spin_lock_irqsave(&fdev->state_lock, flags);
+	fdev->fdev_state = MLX5_FDEV_STATE_SUCCESS;
+	spin_unlock_irqrestore(&fdev->state_lock, flags);
+	mlx5_fpga_info(fdev, "mlx5/fpga - reload ended\n");
+out:
+	return err;
+}
+
 int mlx5_fpga_device_reload(struct mlx5_fpga_device *fdev,
 			    enum mlx5_fpga_image image)
 {
@@ -350,6 +389,12 @@ int mlx5_fpga_device_reload(struct mlx5_fpga_device *fdev,
 		return err;
 
 	mutex_lock(&mdev->intf_state_mutex);
+
+	if (image == MLX5_FPGA_IMAGE_RELOAD) {
+		err = mlx5_fpga_device_reload_cmd(fdev);
+		goto out;
+	}
+
 	clear_bit(MLX5_INTERFACE_STATE_UP, &mdev->intf_state);
 
 	mlx5_unregister_device(mdev);
@@ -359,7 +404,7 @@ int mlx5_fpga_device_reload(struct mlx5_fpga_device *fdev,
 	fdev->fdev_state = MLX5_FDEV_STATE_IN_PROGRESS;
 	reinit_completion(&fdev->load_event);
 
-	if (image <= MLX5_FPGA_IMAGE_MAX) {
+	if (image <= MLX5_FPGA_IMAGE_FACTORY) {
 		mlx5_fpga_info(fdev, "Loading from flash\n");
 		err = mlx5_fpga_load(mdev, image);
 		if (err) {
@@ -367,7 +412,7 @@ int mlx5_fpga_device_reload(struct mlx5_fpga_device *fdev,
 				      err);
 			goto out;
 		}
-	} else {
+	} else if (image == MLX5_FPGA_IMAGE_RESET) {
 		mlx5_fpga_info(fdev, "Resetting\n");
 		err = mlx5_fpga_ctrl_op(mdev, MLX5_FPGA_CTRL_OPERATION_RESET);
 		if (err) {
@@ -375,6 +420,10 @@ int mlx5_fpga_device_reload(struct mlx5_fpga_device *fdev,
 				      err);
 			goto out;
 		}
+	} else {
+		mlx5_fpga_err(fdev, "Unknown command: %d\n",
+			      image);
+		goto out;
 	}
 
 	timeout = jiffies + msecs_to_jiffies(MLX5_FPGA_LOAD_TIMEOUT);
