@@ -176,6 +176,8 @@ mlx5e_rl_open_sq(struct mlx5e_priv *priv, struct mlx5e_sq *sq,
 	if (err)
 		goto err_disable_sq;
 
+	WRITE_ONCE(sq->running, 1);
+
 	return (0);
 
 err_disable_sq:
