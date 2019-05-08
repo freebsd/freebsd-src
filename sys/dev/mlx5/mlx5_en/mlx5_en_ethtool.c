@@ -1141,7 +1141,6 @@ mlx5e_create_diagnostics(struct mlx5e_priv *priv)
 void
 mlx5e_create_ethtool(struct mlx5e_priv *priv)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
 	struct sysctl_oid *node, *qos_node;
 	const char *pnameunit;
 	unsigned x;
@@ -1289,7 +1288,7 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
 		    OID_AUTO, "trust_state", CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 		    priv, 0, mlx5e_trust_state_handler, "CU",
-		    MLX5_CAP_QCAM_FEATURE(mdev, qpts_trust_both) ?
+		    MLX5_CAP_QCAM_FEATURE(priv->mdev, qpts_trust_both) ?
 		    A B : A);
 #undef B
 #undef A
