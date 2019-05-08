@@ -240,7 +240,9 @@ dev/usb/controller/generic_ehci.c optional	ehci acpi
 dev/usb/controller/generic_ohci.c optional	ohci fdt
 dev/usb/controller/generic_usb_if.m optional	ohci fdt
 dev/usb/controller/usb_nop_xceiv.c	optional fdt ext_resources
-dev/usb/controller/generic_xhci.c	optional	xhci fdt
+dev/usb/controller/generic_xhci.c	optional	xhci
+dev/usb/controller/generic_xhci_acpi.c	optional	xhci acpi
+dev/usb/controller/generic_xhci_fdt.c	optional	xhci fdt
 dev/vnic/mrml_bridge.c		optional	vnic fdt
 dev/vnic/nic_main.c		optional	vnic pci
 dev/vnic/nicvf_main.c		optional	vnic pci pci_iov
