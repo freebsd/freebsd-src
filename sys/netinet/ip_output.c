@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -227,13 +228,12 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	int hlen = sizeof (struct ip);
 	int mtu;
 	int error = 0;
-	struct sockaddr_in *dst;
+	struct sockaddr_in *dst, sin;
 	const struct sockaddr_in *gw;
 	struct in_ifaddr *ia;
+	struct in_addr src;
 	int isbroadcast;
 	uint16_t ip_len, ip_off;
-	struct route iproute;
-	struct rtentry *rte;	/* cache for ro->ro_rt */
 	uint32_t fibnum;
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	int no_route_but_check_spd = 0;
@@ -250,11 +250,6 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 #ifdef NUMA
 		m->m_pkthdr.numa_domain = inp->inp_numa_domain;
 #endif
-	}
-
-	if (ro == NULL) {
-		ro = &iproute;
-		bzero(ro, sizeof (*ro));
 	}
 
 	if (opt) {
@@ -281,26 +276,28 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	/*
 	 * dst/gw handling:
 	 *
-	 * dst can be rewritten but always points to &ro->ro_dst.
 	 * gw is readonly but can point either to dst OR rt_gateway,
 	 * therefore we need restore gw if we're redoing lookup.
 	 */
-	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
-	rte = ro->ro_rt;
-	if (rte == NULL) {
+	if (ro != NULL)
+		dst = (struct sockaddr_in *)&ro->ro_dst;
+	else
+		dst = &sin;
+	if (ro == NULL || ro->ro_rt == NULL) {
 		bzero(dst, sizeof(*dst));
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = ip->ip_dst;
 	}
+	gw = dst;
 	NET_EPOCH_ENTER(et);
 again:
 	/*
 	 * Validate route against routing table additions;
 	 * a better/more specific route might have been added.
 	 */
-	if (inp)
+	if (inp != NULL && ro != NULL && ro->ro_rt != NULL)
 		RT_VALIDATE(ro, &inp->inp_rt_cookie, fibnum);
 	/*
 	 * If there is a cached route,
@@ -310,15 +307,12 @@ again:
 	 * cache with IPv6.
 	 * Also check whether routing cache needs invalidation.
 	 */
-	rte = ro->ro_rt;
-	if (rte && ((rte->rt_flags & RTF_UP) == 0 ||
-		    rte->rt_ifp == NULL ||
-		    !RT_LINK_IS_UP(rte->rt_ifp) ||
-			  dst->sin_family != AF_INET ||
-			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
+	if (ro != NULL && ro->ro_rt != NULL &&
+	    ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
+	    ro->ro_rt->rt_ifp == NULL || !RT_LINK_IS_UP(ro->ro_rt->rt_ifp) ||
+	    dst->sin_family != AF_INET ||
+	    dst->sin_addr.s_addr != ip->ip_dst.s_addr))
 		RO_INVALIDATE_CACHE(ro);
-		rte = NULL;
-	}
 	ia = NULL;
 	/*
 	 * If routing to interface only, short circuit routing lookup.
@@ -338,8 +332,10 @@ again:
 		ip->ip_dst.s_addr = INADDR_BROADCAST;
 		dst->sin_addr = ip->ip_dst;
 		ifp = ia->ia_ifp;
+		mtu = ifp->if_mtu;
 		ip->ip_ttl = 1;
 		isbroadcast = 1;
+		src = IA_SIN(ia)->sin_addr;
 	} else if (flags & IP_ROUTETOIF) {
 		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
 						    M_GETFIB(m)))) == NULL &&
@@ -350,9 +346,11 @@ again:
 			goto bad;
 		}
 		ifp = ia->ia_ifp;
+		mtu = ifp->if_mtu;
 		ip->ip_ttl = 1;
 		isbroadcast = ifp->if_flags & IFF_BROADCAST ?
 		    in_ifaddr_broadcast(dst->sin_addr, ia) : 0;
+		src = IA_SIN(ia)->sin_addr;
 	} else if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
 	    imo != NULL && imo->imo_multicast_ifp != NULL) {
 		/*
@@ -360,15 +358,17 @@ again:
 		 * packets if the interface is specified.
 		 */
 		ifp = imo->imo_multicast_ifp;
+		mtu = ifp->if_mtu;
 		IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 		isbroadcast = 0;	/* fool gcc */
-	} else {
-		/*
-		 * We want to do any cloning requested by the link layer,
-		 * as this is probably required in all cases for correct
-		 * operation (as it is for ARP).
-		 */
-		if (rte == NULL) {
+		src = IA_SIN(ia)->sin_addr;
+	} else if (ro != NULL) {
+		if (ro->ro_rt == NULL) {
+			/*
+			 * We want to do any cloning requested by the link
+			 * layer, as this is probably required in all cases
+			 * for correct operation (as it is for ARP).
+			 */
 #ifdef RADIX_MPATH
 			rtalloc_mpath_fib(ro,
 			    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr),
@@ -376,12 +376,47 @@ again:
 #else
 			in_rtalloc_ign(ro, 0, fibnum);
 #endif
-			rte = ro->ro_rt;
+			if (ro->ro_rt == NULL ||
+			    (ro->ro_rt->rt_flags & RTF_UP) == 0 ||
+			    ro->ro_rt->rt_ifp == NULL ||
+			    !RT_LINK_IS_UP(ro->ro_rt->rt_ifp)) {
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+				/*
+				 * There is no route for this packet, but it is
+				 * possible that a matching SPD entry exists.
+				 */
+				no_route_but_check_spd = 1;
+				mtu = 0; /* Silence GCC warning. */
+				goto sendit;
+#endif
+				IPSTAT_INC(ips_noroute);
+				error = EHOSTUNREACH;
+				goto bad;
+			}
 		}
-		if (rte == NULL ||
-		    (rte->rt_flags & RTF_UP) == 0 ||
-		    rte->rt_ifp == NULL ||
-		    !RT_LINK_IS_UP(rte->rt_ifp)) {
+		ia = ifatoia(ro->ro_rt->rt_ifa);
+		ifp = ro->ro_rt->rt_ifp;
+		counter_u64_add(ro->ro_rt->rt_pksent, 1);
+		rt_update_ro_flags(ro);
+		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
+			gw = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
+		if (ro->ro_rt->rt_flags & RTF_HOST)
+			isbroadcast = (ro->ro_rt->rt_flags & RTF_BROADCAST);
+		else if (ifp->if_flags & IFF_BROADCAST)
+			isbroadcast = in_ifaddr_broadcast(gw->sin_addr, ia);
+		else
+			isbroadcast = 0;
+		if (ro->ro_rt->rt_flags & RTF_HOST)
+			mtu = ro->ro_rt->rt_mtu;
+		else
+			mtu = ifp->if_mtu;
+		src = IA_SIN(ia)->sin_addr;
+	} else {
+		struct nhop4_extended nh;
+
+		bzero(&nh, sizeof(nh));
+		if (fib4_lookup_nh_ext(M_GETFIB(m), ip->ip_dst, 0, 0, &nh) !=
+		    0) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 			/*
 			 * There is no route for this packet, but it is
@@ -395,31 +430,29 @@ again:
 			error = EHOSTUNREACH;
 			goto bad;
 		}
-		ia = ifatoia(rte->rt_ifa);
-		ifp = rte->rt_ifp;
-		counter_u64_add(rte->rt_pksent, 1);
-		rt_update_ro_flags(ro);
-		if (rte->rt_flags & RTF_GATEWAY)
-			gw = (struct sockaddr_in *)rte->rt_gateway;
-		if (rte->rt_flags & RTF_HOST)
-			isbroadcast = (rte->rt_flags & RTF_BROADCAST);
-		else if (ifp->if_flags & IFF_BROADCAST)
-			isbroadcast = in_ifaddr_broadcast(gw->sin_addr, ia);
-		else
-			isbroadcast = 0;
+		ifp = nh.nh_ifp;
+		mtu = nh.nh_mtu;
+		/*
+		 * We are rewriting here dst to be gw actually, contradicting
+		 * comment at the beginning of the function. However, in this
+		 * case we are always dealing with on stack dst.
+		 * In case if pfil(9) sends us back to beginning of the
+		 * function, the dst would be rewritten by ip_output_pfil().
+		 */
+		MPASS(dst == &sin);
+		dst->sin_addr = nh.nh_addr;
+		ia = nh.nh_ia;
+		src = nh.nh_src;
+		isbroadcast = (((nh.nh_flags & (NHF_HOST | NHF_BROADCAST)) ==
+		    (NHF_HOST | NHF_BROADCAST)) ||
+		    ((ifp->if_flags & IFF_BROADCAST) &&
+		    in_ifaddr_broadcast(dst->sin_addr, ia)));
 	}
 
-	/*
-	 * Calculate MTU.  If we have a route that is up, use that,
-	 * otherwise use the interface's MTU.
-	 */
-	if (rte != NULL && (rte->rt_flags & (RTF_UP|RTF_HOST)))
-		mtu = rte->rt_mtu;
-	else
-		mtu = ifp->if_mtu;
 	/* Catch a possible divide by zero later. */
-	KASSERT(mtu > 0, ("%s: mtu %d <= 0, rte=%p (rt_flags=0x%08x) ifp=%p",
-	    __func__, mtu, rte, (rte != NULL) ? rte->rt_flags : 0, ifp));
+	KASSERT(mtu > 0, ("%s: mtu %d <= 0, ro=%p (rt_flags=0x%08x) ifp=%p",
+	    __func__, mtu, ro,
+	    (ro != NULL && ro->ro_rt != NULL) ? ro->ro_rt->rt_flags : 0, ifp));
 
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
@@ -455,11 +488,8 @@ again:
 		 * If source address not specified yet, use address
 		 * of outgoing interface.
 		 */
-		if (ip->ip_src.s_addr == INADDR_ANY) {
-			/* Interface may have no addresses. */
-			if (ia != NULL)
-				ip->ip_src = IA_SIN(ia)->sin_addr;
-		}
+		if (ip->ip_src.s_addr == INADDR_ANY)
+			ip->ip_src = src;
 
 		if ((imo == NULL && in_mcast_loop) ||
 		    (imo && imo->imo_multicast_loop)) {
@@ -522,12 +552,8 @@ again:
 	 * If the source address is not specified yet, use the address
 	 * of the outoing interface.
 	 */
-	if (ip->ip_src.s_addr == INADDR_ANY) {
-		/* Interface may have no addresses. */
-		if (ia != NULL) {
-			ip->ip_src = IA_SIN(ia)->sin_addr;
-		}
-	}
+	if (ip->ip_src.s_addr == INADDR_ANY)
+		ip->ip_src = src;
 
 	/*
 	 * Look for broadcast address and
@@ -587,9 +613,10 @@ sendit:
 
 		case -1: /* Need to try again */
 			/* Reset everything for a new round */
-			RO_RTFREE(ro);
-			ro->ro_prepend = NULL;
-			rte = NULL;
+			if (ro != NULL) {
+				RO_RTFREE(ro);
+				ro->ro_prepend = NULL;
+			}
 			gw = dst;
 			ip = mtod(m, struct ip *);
 			goto again;
@@ -733,15 +760,6 @@ sendit:
 		IPSTAT_INC(ips_fragmented);
 
 done:
-	if (ro == &iproute)
-		RO_RTFREE(ro);
-	else if (rte == NULL)
-		/*
-		 * If the caller supplied a route but somehow the reference
-		 * to it has been released need to prevent the caller
-		 * calling RTFREE on it again.
-		 */
-		ro->ro_rt = NULL;
 	NET_EPOCH_EXIT(et);
 	return (error);
  bad:
