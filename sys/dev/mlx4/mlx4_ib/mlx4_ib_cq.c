@@ -878,7 +878,8 @@ int mlx4_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	struct mlx4_ib_dev *mdev = to_mdev(cq->ibcq.device);
 
 	spin_lock_irqsave(&cq->lock, flags);
-	if (mdev->dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR) {
+	if (unlikely(mdev->dev->persist->state &
+		     MLX4_DEVICE_STATE_INTERNAL_ERROR)) {
 		mlx4_ib_poll_sw_comp(cq, num_entries, wc, &npolled);
 		goto out;
 	}
@@ -898,11 +899,18 @@ out:
 
 int mlx4_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
-	mlx4_cq_arm(&to_mcq(ibcq)->mcq,
+	struct mlx4_ib_cq *cq = to_mcq(ibcq);
+	struct mlx4_ib_dev *mdev = to_mdev(cq->ibcq.device);
+
+	if (unlikely(mdev->dev->persist->state &
+		     MLX4_DEVICE_STATE_INTERNAL_ERROR))
+		return -1;
+
+	mlx4_cq_arm(&cq->mcq,
 		    (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
 		    MLX4_CQ_DB_REQ_NOT_SOL : MLX4_CQ_DB_REQ_NOT,
-		    to_mdev(ibcq->device)->uar_map,
-		    MLX4_GET_DOORBELL_LOCK(&to_mdev(ibcq->device)->uar_lock));
+		    mdev->uar_map,
+		    MLX4_GET_DOORBELL_LOCK(&mdev->uar_lock));
 
 	return 0;
 }
