@@ -4134,13 +4134,8 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		goto err_free_sysctl;
 	}
 
-	snprintf(unit, sizeof(unit), "mce%u_wq",
-	    device_get_unit(mdev->pdev->dev.bsddev));
-	priv->wq = alloc_workqueue(unit, 0, 1);
-	if (priv->wq == NULL) {
-		if_printf(ifp, "%s: alloc_workqueue failed\n", __func__);
-		goto err_free_sysctl;
-	}
+	/* reuse mlx5core's watchdog workqueue */
+	priv->wq = mdev->priv.health.wq_watchdog;
 
 	err = mlx5_alloc_map_uar(mdev, &priv->cq_uar);
 	if (err) {
@@ -4297,7 +4292,7 @@ err_unmap_free_uar:
 	mlx5_unmap_free_uar(mdev, &priv->cq_uar);
 
 err_free_wq:
-	destroy_workqueue(priv->wq);
+	flush_workqueue(priv->wq);
 
 err_free_sysctl:
 	sysctl_ctx_free(&priv->sysctl_ctx);
@@ -4383,7 +4378,7 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5_core_dealloc_pd(priv->mdev, priv->pdn);
 	mlx5_unmap_free_uar(priv->mdev, &priv->cq_uar);
 	mlx5e_disable_async_events(priv);
-	destroy_workqueue(priv->wq);
+	flush_workqueue(priv->wq);
 	mlx5e_priv_mtx_destroy(priv);
 	free(priv, M_MLX5EN);
 }
