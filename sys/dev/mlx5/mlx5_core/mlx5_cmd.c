@@ -1215,7 +1215,7 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vector_flags,
 				ent->ret = verify_signature(ent);
 			else
 				ent->ret = 0;
-			ent->status = ent->lay->status_own >> 1;
+
 			if (triggered)
 				ent->status = MLX5_DRIVER_STATUS_ABORTED;
 			else
