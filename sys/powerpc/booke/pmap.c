@@ -2871,18 +2871,20 @@ static void
 mmu_booke_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
 	pte_t *pte;
+	vm_paddr_t pa = 0;
+	int sync_sz, valid;
+#ifndef __powerpc64__
 	pmap_t pmap;
 	vm_page_t m;
 	vm_offset_t addr;
-	vm_paddr_t pa = 0;
-	int active, valid;
+	int active;
+#endif
  
-	va = trunc_page(va);
-	sz = round_page(sz);
-
+#ifndef __powerpc64__
 	rw_wlock(&pvh_global_lock);
 	pmap = PCPU_GET(curpmap);
 	active = (pm == kernel_pmap || pm == pmap) ? 1 : 0;
+#endif
 	while (sz > 0) {
 		PMAP_LOCK(pm);
 		pte = pte_find(mmu, pm, va);
@@ -2890,24 +2892,34 @@ mmu_booke_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 		if (valid)
 			pa = PTE_PA(pte);
 		PMAP_UNLOCK(pm);
+		sync_sz = PAGE_SIZE - (va & PAGE_MASK);
+		sync_sz = min(sync_sz, sz);
 		if (valid) {
+#ifdef __powerpc64__
+			pa += (va & PAGE_MASK);
+			__syncicache((void *)PHYS_TO_DMAP(pa), sync_sz);
+#else
 			if (!active) {
 				/* Create a mapping in the active pmap. */
 				addr = 0;
 				m = PHYS_TO_VM_PAGE(pa);
 				PMAP_LOCK(pmap);
 				pte_enter(mmu, pmap, m, addr,
-				    PTE_SR | PTE_VALID | PTE_UR, FALSE);
-				__syncicache((void *)addr, PAGE_SIZE);
+				    PTE_SR | PTE_VALID, FALSE);
+				addr += (va & PAGE_MASK);
+				__syncicache((void *)addr, sync_sz);
 				pte_remove(mmu, pmap, addr, PTBL_UNHOLD);
 				PMAP_UNLOCK(pmap);
 			} else
-				__syncicache((void *)va, PAGE_SIZE);
+				__syncicache((void *)va, sync_sz);
+#endif
 		}
-		va += PAGE_SIZE;
-		sz -= PAGE_SIZE;
+		va += sync_sz;
+		sz -= sync_sz;
 	}
+#ifndef __powerpc64__
 	rw_wunlock(&pvh_global_lock);
+#endif
 }
 
 /*
