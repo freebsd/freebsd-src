@@ -32,7 +32,7 @@ static inline int
 mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq,
     struct mlx5e_rx_wqe *wqe, u16 ix)
 {
-	bus_dma_segment_t segs[rq->nsegs];
+	bus_dma_segment_t segs[MLX5E_MAX_BUSDMA_RX_SEGS];
 	struct mbuf *mb;
 	int nsegs;
 	int err;
