@@ -52,6 +52,7 @@ MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEPEND(mlx5, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(mlx5, mlxfw, 1, 1, 1);
+MODULE_DEPEND(mlx5, firmware, 1, 1, 1);
 MODULE_VERSION(mlx5, 1);
 
 SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "mlx5 hardware controls");
@@ -820,6 +821,23 @@ void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol)
 }
 EXPORT_SYMBOL(mlx5_get_protocol_dev);
 
+static int
+mlx5_firmware_update(struct mlx5_core_dev *dev)
+{
+	const struct firmware *fw;
+	int err;
+
+	fw = firmware_get("mlx5fw_mfa");
+	if (fw) {
+		err = mlx5_firmware_flash(dev, fw);
+		firmware_put(fw, FIRMWARE_UNLOAD);
+	}
+	else
+		return (-ENOENT);
+
+	return err;
+}
+
 static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 {
 	struct pci_dev *pdev = dev->pdev;
@@ -1274,6 +1292,8 @@ static int init_one(struct pci_dev *pdev,
 	}
 
 	mlx5_fwdump_prep(dev);
+
+	mlx5_firmware_update(dev);
 
 	pci_save_state(bsddev);
 	return 0;
