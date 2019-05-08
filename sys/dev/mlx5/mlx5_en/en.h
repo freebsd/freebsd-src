@@ -74,6 +74,9 @@
 #include <dev/mlx5/mlx5_core/transobj.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 
+#define	MLX5E_MAX_PRIORITY 8
+
+/* IEEE 802.1Qaz standard supported values */
 #define	IEEE_8021QAZ_MAX_TCS	8
 
 #define	MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x7
@@ -483,10 +486,10 @@ struct mlx5e_params {
 	u16	rx_hash_log_tbl_sz;
 	u32	tx_pauseframe_control __aligned(4);
 	u32	rx_pauseframe_control __aligned(4);
-	u32	tx_priority_flow_control __aligned(4);
-	u32	rx_priority_flow_control __aligned(4);
 	u16	tx_max_inline;
 	u8	tx_min_inline_mode;
+	u8	tx_priority_flow_control;
+	u8	rx_priority_flow_control;
 	u8	channels_rsss;
 };
 
@@ -525,7 +528,7 @@ struct mlx5e_params_ethtool {
 	MLX5E_PARAMS(MLX5E_STATS_VAR)
 	u64	max_bw_value[IEEE_8021QAZ_MAX_TCS];
 	u8	max_bw_share[IEEE_8021QAZ_MAX_TCS];
-	u8	prio_tc[IEEE_8021QAZ_MAX_TCS];
+	u8	prio_tc[MLX5E_MAX_PRIORITY];
 	u8	dscp2prio[MLX5_MAX_SUPPORTED_DSCP];
 	u8	trust_state;
 };
