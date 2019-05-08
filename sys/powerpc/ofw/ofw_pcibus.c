@@ -393,7 +393,8 @@ ofw_pcibus_parse_associativity(device_t dev, int *domain)
 	int res;
 
 	if ((node = ofw_bus_get_node(dev)) == -1) {
-		device_printf(dev, "no ofw node found\n");
+		if (bootverbose)
+			device_printf(dev, "no ofw node found\n");
 		return (ENXIO);
 	}
 	res = OF_getproplen(node, "ibm,associativity");
