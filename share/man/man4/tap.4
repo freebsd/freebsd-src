@@ -1,14 +1,14 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd November 29, 2017
+.Dd April 29, 2019
 .Dt TAP 4
 .Os
 .Sh NAME
 .Nm tap
 .Nd Ethernet tunnel software network interface
 .Sh SYNOPSIS
-.Cd device tap
+.Cd device tuntap
 .Sh DESCRIPTION
 The
 .Nm
@@ -51,7 +51,7 @@ The network interfaces are named
 .Dq Li tap1 ,
 etc., one for each control device that has been opened.
 These Ethernet network interfaces persist until
-.Pa if_tap.ko
+.Pa if_tuntap.ko
 module is unloaded, or until removed with "ifconfig destroy" (see below).
 .Pp
 .Nm
@@ -96,7 +96,7 @@ It therefore defaults to being enabled until further notice.
 .Ef
 .Pp
 Control devices (once successfully opened) persist until
-.Pa if_tap.ko
+.Pa if_tuntap.ko
 is unloaded or the interface is destroyed.
 .Pp
 Each interface supports the usual Ethernet network interface
@@ -296,27 +296,6 @@ device can also be used with the VMware port as a replacement
 for the old
 .Em VMnet
 device driver.
-The driver uses the minor number
-to select between
-.Nm
-and
-.Nm vmnet
-devices.
-.Em VMnet
-minor numbers begin at
-.Va 0x800000
-+
-.Va N ;
-where
-.Va N
-is a
-.Em VMnet
-unit number.
-In this case the control device is expected to be
-.Pa /dev/vmnet Ns Sy N ,
-and the network interface will be
-.Sy vmnet Ns Ar N .
-Additionally,
 .Em VMnet
 devices do not
 .Xr ifconfig 8

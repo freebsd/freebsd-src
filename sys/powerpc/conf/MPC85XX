@@ -103,7 +103,7 @@ device  	spibus
 device  	spigen
 device		tsec
 device  	dpaa
-device		tun
+device		tuntap
 device		uart
 options 	USB_DEBUG	# enable debug msgs
 #device		uhci

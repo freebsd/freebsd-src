@@ -40,23 +40,21 @@
 #ifndef _NET_IF_TAP_H_
 #define _NET_IF_TAP_H_
 
-/* refer to if_tapvar.h for the softc stuff */
+#include <net/if_tun.h>
 
 /* maximum receive packet size (hard limit) */
 #define	TAPMRU		16384
 
-struct tapinfo {
-	int	baudrate;	/* linespeed                 */
-	short	mtu;		/* maximum transmission unit */
-	u_char	type;		/* ethernet, tokenring, etc. */
-	u_char	dummy;		/* place holder              */
-};
+#define	tapinfo		tuninfo
 
-/* ioctl's for get/set debug */
-#define	TAPSDEBUG		_IOW('t', 90, int)
-#define	TAPGDEBUG		_IOR('t', 89, int)
-#define	TAPSIFINFO		_IOW('t', 91, struct tapinfo)
-#define	TAPGIFINFO		_IOR('t', 92, struct tapinfo)
+/*
+ * ioctl's for get/set debug; these are aliases of TUN* ioctls, see net/if_tun.h
+ * for details.
+ */
+#define	TAPSDEBUG		TUNSDEBUG
+#define	TAPGDEBUG		TUNGDEBUG
+#define	TAPSIFINFO		TUNSIFINFO
+#define	TAPGIFINFO		TUNGIFINFO
 #define	TAPGIFNAME		_IOR('t', 93, struct ifreq)
 
 /* VMware ioctl's */
