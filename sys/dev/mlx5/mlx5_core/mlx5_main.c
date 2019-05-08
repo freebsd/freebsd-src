@@ -25,8 +25,6 @@
  * $FreeBSD$
  */
 
-#define	LINUXKPI_PARAM_PREFIX mlx5_
-
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -57,16 +55,18 @@ MODULE_DEPEND(mlx5, linuxkpi, 1, 1, 1);
 #endif
 MODULE_VERSION(mlx5, 1);
 
+SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "mlx5 hardware controls");
+
 int mlx5_core_debug_mask;
-module_param_named(debug_mask, mlx5_core_debug_mask, int, 0644);
-MODULE_PARM_DESC(debug_mask, "debug mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
+SYSCTL_INT(_hw_mlx5, OID_AUTO, debug_mask, CTLFLAG_RWTUN,
+    &mlx5_core_debug_mask, 0,
+    "debug mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
 
 #define MLX5_DEFAULT_PROF	2
-static int prof_sel = MLX5_DEFAULT_PROF;
-module_param_named(prof_sel, prof_sel, int, 0444);
-MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
-
-SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "mlx5 HW controls");
+static int mlx5_prof_sel = MLX5_DEFAULT_PROF;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, prof_sel, CTLFLAG_RWTUN,
+    &mlx5_prof_sel, 0,
+    "profile selector. Valid range 0 - 2");
 
 static int mlx5_fast_unload_enabled = 1;
 SYSCTL_INT(_hw_mlx5, OID_AUTO, fast_unload_enabled, CTLFLAG_RWTUN,
@@ -1235,11 +1235,11 @@ static int init_one(struct pci_dev *pdev,
 	if (id)
 		priv->pci_dev_data = id->driver_data;
 
-	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profiles)) {
+	if (mlx5_prof_sel < 0 || mlx5_prof_sel >= ARRAY_SIZE(profiles)) {
 		device_printf(bsddev, "WARN: selected profile out of range, selecting default (%d)\n", MLX5_DEFAULT_PROF);
-		prof_sel = MLX5_DEFAULT_PROF;
+		mlx5_prof_sel = MLX5_DEFAULT_PROF;
 	}
-	dev->profile = &profiles[prof_sel];
+	dev->profile = &profiles[mlx5_prof_sel];
 	dev->pdev = pdev;
 	dev->event = mlx5_core_event;
 
