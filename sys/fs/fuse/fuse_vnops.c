@@ -817,6 +817,9 @@ fuse_vnop_link(struct vop_link_args *ap)
 	feo = fdi.answ;
 
 	err = fuse_internal_checkentry(feo, vnode_vtype(vp));
+	if (!err)
+		fuse_internal_cache_attrs(vp, &feo->attr, feo->attr_valid,
+			feo->attr_valid_nsec, NULL);
 out:
 	fdisp_destroy(&fdi);
 	return err;
