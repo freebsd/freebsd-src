@@ -87,6 +87,8 @@
 #define	MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
 #define	MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xe
 
+#define	MLX5E_MAX_BUSDMA_RX_SEGS 15
+
 #define	MLX5E_MAX_RX_SEGS 7
 
 #ifndef MLX5E_MAX_RX_BYTES
