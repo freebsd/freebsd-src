@@ -351,6 +351,30 @@ ppt_is_mmio(struct vm *vm, vm_paddr_t gpa)
 	return (FALSE);
 }
 
+static void
+ppt_pci_reset(device_t dev)
+{
+	int ps;
+
+	if (pcie_flr(dev,
+		     max(pcie_get_max_completion_timeout(dev) / 1000, 10),
+		     true))
+		return;
+
+	/*
+	 * If FLR fails, attempt a power-management reset by cycling
+	 * the device in/out of D3 state.
+	 * PCI spec says we can only go into D3 state from D0 state.
+	 * Transition from D[12] into D0 before going to D3 state.
+	 */
+	ps = pci_get_powerstate(dev);
+	if (ps != PCI_POWERSTATE_D0 && ps != PCI_POWERSTATE_D3)
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3)
+		pci_set_powerstate(dev, PCI_POWERSTATE_D3);
+	pci_set_powerstate(dev, ps);
+}
+
 int
 ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 {
@@ -366,9 +390,7 @@ ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 			return (EBUSY);
 
 		pci_save_state(ppt->dev);
-		pcie_flr(ppt->dev,
-		    max(pcie_get_max_completion_timeout(ppt->dev) / 1000, 10),
-		    true);
+		ppt_pci_reset(ppt->dev);
 		pci_restore_state(ppt->dev);
 		ppt->vm = vm;
 		iommu_add_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
@@ -391,9 +413,7 @@ ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 			return (EBUSY);
 
 		pci_save_state(ppt->dev);
-		pcie_flr(ppt->dev,
-		    max(pcie_get_max_completion_timeout(ppt->dev) / 1000, 10),
-		    true);
+		ppt_pci_reset(ppt->dev);
 		pci_restore_state(ppt->dev);
 		ppt_unmap_mmio(vm, ppt);
 		ppt_teardown_msi(ppt);
