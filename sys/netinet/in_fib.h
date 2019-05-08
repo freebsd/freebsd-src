@@ -43,12 +43,13 @@ struct nhop4_basic {
 /* Extended nexthop info used for control protocols */
 struct nhop4_extended {
 	struct ifnet	*nh_ifp;	/* Logical egress interface */
+	struct in_ifaddr *nh_ia;	/* Associated address */
 	uint16_t	nh_mtu;		/* nexthop mtu */
 	uint16_t	nh_flags;	/* nhop flags */
 	uint8_t		spare[4];
 	struct in_addr	nh_addr;	/* GW/DST IPv4 address */
 	struct in_addr	nh_src;		/* default source IPv4 address */
-	uint64_t	spare2[2];
+	uint64_t	spare2;
 };
 
 int fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
