@@ -47,114 +47,352 @@ struct mlx5e_channel_param {
 	struct mlx5e_cq_param tx_cq;
 };
 
-static const struct {
+struct media {
 	u32	subtype;
 	u64	baudrate;
-}	mlx5e_mode_table[MLX5E_LINK_MODES_NUMBER] = {
+};
 
-	[MLX5E_1000BASE_CX_SGMII] = {
+static const struct media mlx5e_mode_table[MLX5E_LINK_SPEEDS_NUMBER][MLX5E_LINK_MODES_NUMBER] = {
+
+	[MLX5E_1000BASE_CX_SGMII][MLX5E_SGMII] = {
 		.subtype = IFM_1000_CX_SGMII,
 		.baudrate = IF_Mbps(1000ULL),
 	},
-	[MLX5E_1000BASE_KX] = {
+	[MLX5E_1000BASE_KX][MLX5E_KX] = {
 		.subtype = IFM_1000_KX,
 		.baudrate = IF_Mbps(1000ULL),
 	},
-	[MLX5E_10GBASE_CX4] = {
+	[MLX5E_10GBASE_CX4][MLX5E_CX4] = {
 		.subtype = IFM_10G_CX4,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_KX4] = {
+	[MLX5E_10GBASE_KX4][MLX5E_KX4] = {
 		.subtype = IFM_10G_KX4,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_KR] = {
+	[MLX5E_10GBASE_KR][MLX5E_KR] = {
 		.subtype = IFM_10G_KR,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_20GBASE_KR2] = {
+	[MLX5E_20GBASE_KR2][MLX5E_KR2] = {
 		.subtype = IFM_20G_KR2,
 		.baudrate = IF_Gbps(20ULL),
 	},
-	[MLX5E_40GBASE_CR4] = {
+	[MLX5E_40GBASE_CR4][MLX5E_CR4] = {
 		.subtype = IFM_40G_CR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_40GBASE_KR4] = {
+	[MLX5E_40GBASE_KR4][MLX5E_KR4] = {
 		.subtype = IFM_40G_KR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_56GBASE_R4] = {
+	[MLX5E_56GBASE_R4][MLX5E_R] = {
 		.subtype = IFM_56G_R4,
 		.baudrate = IF_Gbps(56ULL),
 	},
-	[MLX5E_10GBASE_CR] = {
+	[MLX5E_10GBASE_CR][MLX5E_CR1] = {
 		.subtype = IFM_10G_CR1,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_SR] = {
+	[MLX5E_10GBASE_SR][MLX5E_SR] = {
 		.subtype = IFM_10G_SR,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_ER] = {
+	[MLX5E_10GBASE_ER_LR][MLX5E_ER] = {
 		.subtype = IFM_10G_ER,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_40GBASE_SR4] = {
+	[MLX5E_10GBASE_ER_LR][MLX5E_LR] = {
+		.subtype = IFM_10G_LR,
+		.baudrate = IF_Gbps(10ULL),
+	},
+	[MLX5E_40GBASE_SR4][MLX5E_SR4] = {
 		.subtype = IFM_40G_SR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_40GBASE_LR4] = {
+	[MLX5E_40GBASE_LR4_ER4][MLX5E_LR4] = {
 		.subtype = IFM_40G_LR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_100GBASE_CR4] = {
+	[MLX5E_40GBASE_LR4_ER4][MLX5E_ER4] = {
+		.subtype = IFM_40G_ER4,
+		.baudrate = IF_Gbps(40ULL),
+	},
+	[MLX5E_100GBASE_CR4][MLX5E_CR4] = {
 		.subtype = IFM_100G_CR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GBASE_SR4] = {
+	[MLX5E_100GBASE_SR4][MLX5E_SR4] = {
 		.subtype = IFM_100G_SR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GBASE_KR4] = {
+	[MLX5E_100GBASE_KR4][MLX5E_KR4] = {
 		.subtype = IFM_100G_KR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GBASE_LR4] = {
+	[MLX5E_100GBASE_LR4][MLX5E_LR4] = {
 		.subtype = IFM_100G_LR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100BASE_TX] = {
+	[MLX5E_100BASE_TX][MLX5E_TX] = {
 		.subtype = IFM_100_TX,
 		.baudrate = IF_Mbps(100ULL),
 	},
-	[MLX5E_1000BASE_T] = {
+	[MLX5E_1000BASE_T][MLX5E_T] = {
 		.subtype = IFM_1000_T,
 		.baudrate = IF_Mbps(1000ULL),
 	},
-	[MLX5E_10GBASE_T] = {
+	[MLX5E_10GBASE_T][MLX5E_T] = {
 		.subtype = IFM_10G_T,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_25GBASE_CR] = {
+	[MLX5E_25GBASE_CR][MLX5E_CR] = {
 		.subtype = IFM_25G_CR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_25GBASE_KR] = {
+	[MLX5E_25GBASE_KR][MLX5E_KR] = {
 		.subtype = IFM_25G_KR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_25GBASE_SR] = {
+	[MLX5E_25GBASE_SR][MLX5E_SR] = {
 		.subtype = IFM_25G_SR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_50GBASE_CR2] = {
+	[MLX5E_50GBASE_CR2][MLX5E_CR2] = {
 		.subtype = IFM_50G_CR2,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_50GBASE_KR2] = {
+	[MLX5E_50GBASE_KR2][MLX5E_KR2] = {
 		.subtype = IFM_50G_KR2,
 		.baudrate = IF_Gbps(50ULL),
+	},
+};
+
+static const struct media mlx5e_ext_mode_table[MLX5E_EXT_LINK_SPEEDS_NUMBER][MLX5E_LINK_MODES_NUMBER] = {
+	[MLX5E_SGMII_100M][MLX5E_SGMII] = {
+		.subtype = IFM_100_SGMII,
+		.baudrate = IF_Mbps(100),
+	},
+	[MLX5E_1000BASE_X_SGMII][MLX5E_KX] = {
+		.subtype = IFM_1000_KX,
+		.baudrate = IF_Mbps(1000),
+	},
+	[MLX5E_1000BASE_X_SGMII][MLX5E_CX_SGMII] = {
+		.subtype = IFM_1000_CX_SGMII,
+		.baudrate = IF_Mbps(1000),
+	},
+	[MLX5E_1000BASE_X_SGMII][MLX5E_CX] = {
+		.subtype = IFM_1000_CX,
+		.baudrate = IF_Mbps(1000),
+	},
+	[MLX5E_1000BASE_X_SGMII][MLX5E_LX] = {
+		.subtype = IFM_1000_LX,
+		.baudrate = IF_Mbps(1000),
+	},
+	[MLX5E_1000BASE_X_SGMII][MLX5E_SX] = {
+		.subtype = IFM_1000_SX,
+		.baudrate = IF_Mbps(1000),
+	},
+	[MLX5E_1000BASE_X_SGMII][MLX5E_T] = {
+		.subtype = IFM_1000_T,
+		.baudrate = IF_Mbps(1000),
+	},
+	[MLX5E_5GBASE_R][MLX5E_T] = {
+		.subtype = IFM_5000_T,
+		.baudrate = IF_Mbps(5000),
+	},
+	[MLX5E_5GBASE_R][MLX5E_KR] = {
+		.subtype = IFM_5000_KR,
+		.baudrate = IF_Mbps(5000),
+	},
+	[MLX5E_5GBASE_R][MLX5E_KR1] = {
+		.subtype = IFM_5000_KR1,
+		.baudrate = IF_Mbps(5000),
+	},
+	[MLX5E_5GBASE_R][MLX5E_KR_S] = {
+		.subtype = IFM_5000_KR_S,
+		.baudrate = IF_Mbps(5000),
+	},
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_ER] = {
+		.subtype = IFM_10G_ER,
+		.baudrate = IF_Gbps(10ULL),
+	},
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_KR] = {
+		.subtype = IFM_10G_KR,
+		.baudrate = IF_Gbps(10ULL),
+	},
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_LR] = {
+		.subtype = IFM_10G_LR,
+		.baudrate = IF_Gbps(10ULL),
+	},
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_SR] = {
+		.subtype = IFM_10G_SR,
+		.baudrate = IF_Gbps(10ULL),
+	},
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_T] = {
+		.subtype = IFM_10G_T,
+		.baudrate = IF_Gbps(10ULL),
+	},
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_AOC] = {
+		.subtype = IFM_10G_AOC,
+		.baudrate = IF_Gbps(10ULL),
+	},
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_CR1] = {
+		.subtype = IFM_10G_CR1,
+		.baudrate = IF_Gbps(10ULL),
+	},
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_CR4] = {
+		.subtype = IFM_40G_CR4,
+		.baudrate = IF_Gbps(40ULL),
+	},
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_KR4] = {
+		.subtype = IFM_40G_KR4,
+		.baudrate = IF_Gbps(40ULL),
+	},
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_LR4] = {
+		.subtype = IFM_40G_LR4,
+		.baudrate = IF_Gbps(40ULL),
+	},
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_SR4] = {
+		.subtype = IFM_40G_SR4,
+		.baudrate = IF_Gbps(40ULL),
+	},
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_ER4] = {
+		.subtype = IFM_40G_ER4,
+		.baudrate = IF_Gbps(40ULL),
+	},
+
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CR] = {
+		.subtype = IFM_25G_CR,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_KR] = {
+		.subtype = IFM_25G_KR,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_SR] = {
+		.subtype = IFM_25G_SR,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_ACC] = {
+		.subtype = IFM_25G_ACC,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_AOC] = {
+		.subtype = IFM_25G_AOC,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CR1] = {
+		.subtype = IFM_25G_CR1,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CR_S] = {
+		.subtype = IFM_25G_CR_S,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_KR1] = {
+		.subtype = IFM_5000_KR1,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_KR_S] = {
+		.subtype = IFM_25G_KR_S,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_LR] = {
+		.subtype = IFM_25G_LR,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_T] = {
+		.subtype = IFM_25G_T,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_CR2] = {
+		.subtype = IFM_50G_CR2,
+		.baudrate = IF_Gbps(50ULL),
+	},
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_KR2] = {
+		.subtype = IFM_50G_KR2,
+		.baudrate = IF_Gbps(50ULL),
+	},
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_SR2] = {
+		.subtype = IFM_50G_SR2,
+		.baudrate = IF_Gbps(50ULL),
+	},
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_LR2] = {
+		.subtype = IFM_50G_LR2,
+		.baudrate = IF_Gbps(50ULL),
+	},
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_LR] = {
+		.subtype = IFM_50G_LR,
+		.baudrate = IF_Gbps(50ULL),
+	},
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_SR] = {
+		.subtype = IFM_50G_SR,
+		.baudrate = IF_Gbps(50ULL),
+	},
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_CP] = {
+		.subtype = IFM_50G_CP,
+		.baudrate = IF_Gbps(50ULL),
+	},
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_FR] = {
+		.subtype = IFM_50G_FR,
+		.baudrate = IF_Gbps(50ULL),
+	},
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_KR_PAM4] = {
+		.subtype = IFM_50G_KR_PAM4,
+		.baudrate = IF_Gbps(50ULL),
+	},
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_CR4] = {
+		.subtype = IFM_100G_CR4,
+		.baudrate = IF_Gbps(100ULL),
+	},
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_KR4] = {
+		.subtype = IFM_100G_KR4,
+		.baudrate = IF_Gbps(100ULL),
+	},
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_LR4] = {
+		.subtype = IFM_100G_LR4,
+		.baudrate = IF_Gbps(100ULL),
+	},
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_SR4] = {
+		.subtype = IFM_100G_SR4,
+		.baudrate = IF_Gbps(100ULL),
+	},
+	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_SR2] = {
+		.subtype = IFM_100G_SR2,
+		.baudrate = IF_Gbps(100ULL),
+	},
+	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_CP2] = {
+		.subtype = IFM_100G_CP2,
+		.baudrate = IF_Gbps(100ULL),
+	},
+	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_KR2_PAM4] = {
+		.subtype = IFM_100G_KR2_PAM4,
+		.baudrate = IF_Gbps(100ULL),
+	},
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_DR4] = {
+		.subtype = IFM_200G_DR4,
+		.baudrate = IF_Gbps(200ULL),
+	},
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_LR4] = {
+		.subtype = IFM_200G_LR4,
+		.baudrate = IF_Gbps(200ULL),
+	},
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_SR4] = {
+		.subtype = IFM_200G_SR4,
+		.baudrate = IF_Gbps(200ULL),
+	},
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_FR4] = {
+		.subtype = IFM_200G_FR4,
+		.baudrate = IF_Gbps(200ULL),
+	},
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_CR4_PAM4] = {
+		.subtype = IFM_200G_CR4_PAM4,
+		.baudrate = IF_Gbps(200ULL),
+	},
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_KR4_PAM4] = {
+		.subtype = IFM_200G_KR4_PAM4,
+		.baudrate = IF_Gbps(200ULL),
 	},
 };
 
@@ -169,7 +407,9 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	int error;
 	u8 port_state;
 	u8 is_er_type;
-	u8 i;
+	u8 i, j;
+	bool ext;
+	struct media media_entry = {};
 
 	port_state = mlx5_query_vport_state(mdev,
 	    MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT, 0);
@@ -183,49 +423,58 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 		return;
 	}
 
-	error = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
+	error = mlx5_query_port_ptys(mdev, out, sizeof(out),
+	    MLX5_PTYS_EN, 1);
 	if (error) {
 		priv->media_active_last = IFM_ETHER;
 		priv->ifp->if_baudrate = 1;
-		if_printf(priv->ifp, "%s: query port ptys failed: 0x%x\n",
-		    __func__, error);
+		if_printf(priv->ifp, "%s: query port ptys failed: "
+		    "0x%x\n", __func__, error);
 		return;
 	}
-	eth_proto_oper = MLX5_GET(ptys_reg, out, eth_proto_oper);
 
-	for (i = 0; i != MLX5E_LINK_MODES_NUMBER; i++) {
-		if (mlx5e_mode_table[i].baudrate == 0)
-			continue;
-		if (MLX5E_PROT_MASK(i) & eth_proto_oper) {
-			u32 subtype = mlx5e_mode_table[i].subtype;
+	ext = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
+	eth_proto_oper = MLX5_GET_ETH_PROTO(ptys_reg, out, ext,
+	    eth_proto_oper);
 
-			priv->ifp->if_baudrate =
-			    mlx5e_mode_table[i].baudrate;
+	i = ilog2(eth_proto_oper);
 
-			switch (subtype) {
-			case IFM_10G_ER:
-				error = mlx5_query_pddr_range_info(mdev, 1, &is_er_type);
-				if (error != 0) {
-					if_printf(priv->ifp, "%s: query port pddr failed: %d\n",
-					    __func__, error);
-				}
-				if (error != 0 || is_er_type == 0)
-					subtype = IFM_10G_LR;
-				break;
-			case IFM_40G_LR4:
-				error = mlx5_query_pddr_range_info(mdev, 1, &is_er_type);
-				if (error != 0) {
-					if_printf(priv->ifp, "%s: query port pddr failed: %d\n",
-					    __func__, error);
-				}
-				if (error == 0 && is_er_type != 0)
-					subtype = IFM_40G_ER4;
-				break;
-			}
-			priv->media_active_last = subtype | IFM_ETHER | IFM_FDX;
+	for (j = 0; j != MLX5E_LINK_MODES_NUMBER; j++) {
+		media_entry = ext ? mlx5e_ext_mode_table[i][j] :
+		    mlx5e_mode_table[i][j];
+		if (media_entry.baudrate != 0)
 			break;
-		}
 	}
+
+	if (media_entry.subtype == 0) {
+		if_printf(priv->ifp, "%s: Could not find operational "
+		    "media subtype\n", __func__);
+		return;
+	}
+
+	switch (media_entry.subtype) {
+	case IFM_10G_ER:
+		error = mlx5_query_pddr_range_info(mdev, 1, &is_er_type);
+		if (error != 0) {
+			if_printf(priv->ifp, "%s: query port pddr failed: %d\n",
+				  __func__, error);
+		}
+		if (error != 0 || is_er_type == 0)
+			media_entry.subtype = IFM_10G_LR;
+		break;
+	case IFM_40G_LR4:
+		error = mlx5_query_pddr_range_info(mdev, 1, &is_er_type);
+		if (error != 0) {
+			if_printf(priv->ifp, "%s: query port pddr failed: %d\n",
+				  __func__, error);
+		}
+		if (error == 0 && is_er_type != 0)
+			media_entry.subtype = IFM_40G_ER4;
+		break;
+	}
+	priv->media_active_last = media_entry.subtype | IFM_ETHER | IFM_FDX;
+	priv->ifp->if_baudrate = media_entry.baudrate;
+
 	if_link_state_change(priv->ifp, LINK_STATE_UP);
 }
 
@@ -242,10 +491,13 @@ mlx5e_media_status(struct ifnet *dev, struct ifmediareq *ifmr)
 }
 
 static u32
-mlx5e_find_link_mode(u32 subtype)
+mlx5e_find_link_mode(u32 subtype, bool ext)
 {
 	u32 i;
+	u32 j;
 	u32 link_mode = 0;
+	u32 speeds_num = 0;
+	struct media media_entry = {};
 
 	switch (subtype) {
 	case IFM_10G_LR:
@@ -256,11 +508,19 @@ mlx5e_find_link_mode(u32 subtype)
 		break;
 	}
 
-	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i) {
-		if (mlx5e_mode_table[i].baudrate == 0)
-			continue;
-		if (mlx5e_mode_table[i].subtype == subtype)
-			link_mode |= MLX5E_PROT_MASK(i);
+	speeds_num = ext ? MLX5E_EXT_LINK_SPEEDS_NUMBER :
+	    MLX5E_LINK_SPEEDS_NUMBER;
+
+	for (i = 0; i != speeds_num; i++) {
+		for (j = 0; j < MLX5E_LINK_MODES_NUMBER ; ++j) {
+			media_entry = ext ? mlx5e_ext_mode_table[i][j] :
+			    mlx5e_mode_table[i][j];
+			if (media_entry.baudrate == 0)
+				continue;
+			if (media_entry.subtype == subtype) {
+				link_mode |= MLX5E_PROT_MASK(i);
+			}
+		}
 	}
 
 	return (link_mode);
@@ -286,7 +546,8 @@ mlx5e_set_port_pfc(struct mlx5e_priv *priv)
 	} else if (priv->params.rx_pauseframe_control ||
 	    priv->params.tx_pauseframe_control) {
 		if_printf(priv->ifp,
-		    "Global pauseframes must be disabled before enabling PFC.\n");
+		    "Global pauseframes must be disabled before "
+		    "enabling PFC.\n");
 		error = -EINVAL;
 	} else {
 		error = mlx5e_set_port_pause_and_pfc(priv);
@@ -301,9 +562,11 @@ mlx5e_media_change(struct ifnet *dev)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 eth_proto_cap;
 	u32 link_mode;
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
 	int was_opened;
 	int locked;
 	int error;
+	bool ext;
 
 	locked = PRIV_LOCKED(priv);
 	if (!locked)
@@ -313,14 +576,21 @@ mlx5e_media_change(struct ifnet *dev)
 		error = EINVAL;
 		goto done;
 	}
-	link_mode = mlx5e_find_link_mode(IFM_SUBTYPE(priv->media.ifm_media));
 
-	/* query supported capabilities */
-	error = mlx5_query_port_proto_cap(mdev, &eth_proto_cap, MLX5_PTYS_EN);
+	error = mlx5_query_port_ptys(mdev, out, sizeof(out),
+	    MLX5_PTYS_EN, 1);
 	if (error != 0) {
 		if_printf(dev, "Query port media capability failed\n");
 		goto done;
 	}
+
+	ext = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
+	link_mode = mlx5e_find_link_mode(IFM_SUBTYPE(priv->media.ifm_media), ext);
+
+	/* query supported capabilities */
+	eth_proto_cap = MLX5_GET_ETH_PROTO(ptys_reg, out, ext,
+	    eth_proto_capability);
+
 	/* check for autoselect */
 	if (IFM_SUBTYPE(priv->media.ifm_media) == IFM_AUTO) {
 		link_mode = eth_proto_cap;
@@ -357,7 +627,7 @@ mlx5e_media_change(struct ifnet *dev)
 
 	/* reconfigure the hardware */
 	mlx5_set_port_status(mdev, MLX5_PORT_DOWN);
-	mlx5_set_port_proto(mdev, link_mode, MLX5_PTYS_EN);
+	mlx5_set_port_proto(mdev, link_mode, MLX5_PTYS_EN, ext);
 	error = -mlx5e_set_port_pause_and_pfc(priv);
 	if (was_opened)
 		mlx5_set_port_status(mdev, MLX5_PORT_UP);
@@ -3760,13 +4030,18 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	struct ifnet *ifp;
 	struct mlx5e_priv *priv;
 	u8 dev_addr[ETHER_ADDR_LEN] __aligned(4);
+	u8 connector_type;
 	struct sysctl_oid_list *child;
 	int ncv = mdev->priv.eq_table.num_comp_vectors;
 	char unit[16];
 	struct pfil_head_args pa;
 	int err;
-	int i;
+	int i,j;
 	u32 eth_proto_cap;
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	bool ext = 0;
+	u32 speeds_num;
+	struct media media_entry = {};
 
 	if (mlx5e_check_required_hca_cap(mdev)) {
 		mlx5_core_dbg(mdev, "mlx5e_check_required_hca_cap() failed\n");
@@ -3919,28 +4194,41 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	/* setup default pauseframes configuration */
 	mlx5e_setup_pauseframes(priv);
 
-	err = mlx5_query_port_proto_cap(mdev, &eth_proto_cap, MLX5_PTYS_EN);
-	if (err) {
+	/* Setup supported medias */
+	//TODO: If we failed to query ptys is it ok to proceed??
+	if (!mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1)) {
+		ext = MLX5_CAP_PCAM_FEATURE(mdev,
+		    ptys_extended_ethernet);
+		eth_proto_cap = MLX5_GET_ETH_PROTO(ptys_reg, out, ext,
+		    eth_proto_capability);
+		if (MLX5_CAP_PCAM_FEATURE(mdev, ptys_connector_type))
+			connector_type = MLX5_GET(ptys_reg, out,
+			    connector_type);
+	} else {
 		eth_proto_cap = 0;
-		if_printf(ifp, "%s: Query port media capability failed, %d\n",
-		    __func__, err);
+		if_printf(ifp, "%s: Query port media capability failed,"
+		    " %d\n", __func__, err);
 	}
 
-	/* Setup supported medias */
 	ifmedia_init(&priv->media, IFM_IMASK | IFM_ETH_FMASK,
 	    mlx5e_media_change, mlx5e_media_status);
 
-	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i) {
-		if (mlx5e_mode_table[i].baudrate == 0)
-			continue;
-		if (MLX5E_PROT_MASK(i) & eth_proto_cap) {
-			ifmedia_add(&priv->media,
-			    mlx5e_mode_table[i].subtype |
-			    IFM_ETHER, 0, NULL);
-			ifmedia_add(&priv->media,
-			    mlx5e_mode_table[i].subtype |
-			    IFM_ETHER | IFM_FDX |
-			    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
+	speeds_num = ext ? MLX5E_EXT_LINK_SPEEDS_NUMBER : MLX5E_LINK_SPEEDS_NUMBER;
+	for (i = 0; i != speeds_num; i++) {
+		for (j = 0; j < MLX5E_LINK_MODES_NUMBER ; ++j) {
+			media_entry = ext ? mlx5e_ext_mode_table[i][j] :
+			    mlx5e_mode_table[i][j];
+			if (media_entry.baudrate == 0)
+				continue;
+			if (MLX5E_PROT_MASK(i) & eth_proto_cap) {
+				ifmedia_add(&priv->media,
+				    media_entry.subtype |
+				    IFM_ETHER, 0, NULL);
+				ifmedia_add(&priv->media,
+				    media_entry.subtype |
+				    IFM_ETHER | IFM_FDX |
+				    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
+			}
 		}
 	}
 
