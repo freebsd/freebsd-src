@@ -1382,7 +1382,7 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 	unsigned int	pp2d_idx = PP2D_IDX(va);
 	unsigned int	pdir_idx = PDIR_IDX(va);
 	unsigned int	ptbl_idx = PTBL_IDX(va);
-	pte_t          *ptbl, *pte;
+	pte_t          *ptbl, *pte, pte_tmp;
 	pte_t         **pdir;
 
 	/* Get the page directory pointer. */
@@ -1400,12 +1400,13 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 			KASSERT(nosleep, ("nosleep and NULL ptbl"));
 			return (ENOMEM);
 		}
+		pte = &ptbl[ptbl_idx];
 	} else {
 		/*
 		 * Check if there is valid mapping for requested va, if there
 		 * is, remove it.
 		 */
-		pte = &pdir[pdir_idx][ptbl_idx];
+		pte = &ptbl[ptbl_idx];
 		if (PTE_ISVALID(pte)) {
 			pte_remove(mmu, pmap, va, PTBL_HOLD);
 		} else {
@@ -1437,14 +1438,16 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 		pv_insert(pmap, va, m);
 	}
 
+	pmap->pm_stats.resident_count++;
+
+	pte_tmp = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
+	pte_tmp |= (PTE_VALID | flags);
+
 	mtx_lock_spin(&tlbivax_mutex);
 	tlb_miss_lock();
 
 	tlb0_flush_entry(va);
-	pmap->pm_stats.resident_count++;
-	pte = &pdir[pdir_idx][ptbl_idx];
-	*pte = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
-	*pte |= (PTE_VALID | flags);
+	*pte = pte_tmp;
 
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
@@ -1583,7 +1586,7 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 {
 	unsigned int pdir_idx = PDIR_IDX(va);
 	unsigned int ptbl_idx = PTBL_IDX(va);
-	pte_t *ptbl, *pte;
+	pte_t *ptbl, *pte, pte_tmp;
 
 	CTR4(KTR_PMAP, "%s: su = %d pmap = %p va = %p", __func__,
 	    pmap == kernel_pmap, pmap, va);
@@ -1598,6 +1601,8 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 			KASSERT(nosleep, ("nosleep and NULL ptbl"));
 			return (ENOMEM);
 		}
+		pmap->pm_pdir[pdir_idx] = ptbl;
+		pte = &ptbl[ptbl_idx];
 	} else {
 		/*
 		 * Check if there is valid mapping for requested
@@ -1629,20 +1634,14 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 
 	pmap->pm_stats.resident_count++;
 	
+	pte_tmp = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
+	pte_tmp |= (PTE_VALID | flags | PTE_PS_4KB); /* 4KB pages only */
+
 	mtx_lock_spin(&tlbivax_mutex);
 	tlb_miss_lock();
 
 	tlb0_flush_entry(va);
-	if (pmap->pm_pdir[pdir_idx] == NULL) {
-		/*
-		 * If we just allocated a new page table, hook it in
-		 * the pdir.
-		 */
-		pmap->pm_pdir[pdir_idx] = ptbl;
-	}
-	pte = &(pmap->pm_pdir[pdir_idx][ptbl_idx]);
-	*pte = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
-	*pte |= (PTE_VALID | flags | PTE_PS_4KB); /* 4KB pages only */
+	*pte = pte_tmp;
 
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
