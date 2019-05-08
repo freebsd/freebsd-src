@@ -142,6 +142,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_GPIO_EVENT";
 	case MLX5_EVENT_TYPE_CODING_PORT_MODULE_EVENT:
 		return "MLX5_EVENT_TYPE_PORT_MODULE_EVENT";
+	case MLX5_EVENT_TYPE_TEMP_WARN_EVENT:
+		return "MLX5_EVENT_TYPE_TEMP_WARN_EVENT";
 	case MLX5_EVENT_TYPE_REMOTE_CONFIG:
 		return "MLX5_EVENT_TYPE_REMOTE_CONFIG";
 	case MLX5_EVENT_TYPE_DB_BF_CONGESTION:
@@ -210,6 +212,16 @@ static void eq_update_ci(struct mlx5_eq *eq, int arm)
 	__raw_writel((__force u32) cpu_to_be32(val), addr);
 	/* We still want ordering, just not swabbing, so add a barrier */
 	mb();
+}
+
+static void
+mlx5_temp_warning_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe)
+{
+
+	mlx5_core_warn(dev,
+	    "High temperature on sensors with bit set %#jx %#jx",
+	    (uintmax_t)be64_to_cpu(eqe->data.temp_warning.sensor_warning_msb),
+	    (uintmax_t)be64_to_cpu(eqe->data.temp_warning.sensor_warning_lsb));
 }
 
 static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
@@ -346,6 +358,9 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 		case MLX5_EVENT_TYPE_FPGA_ERROR:
 		case MLX5_EVENT_TYPE_FPGA_QP_ERROR:
 			mlx5_fpga_event(dev, eqe->type, &eqe->data.raw);
+			break;
+		case MLX5_EVENT_TYPE_TEMP_WARN_EVENT:
+			mlx5_temp_warning_event(dev, eqe);
 			break;
 
 		default:
@@ -540,6 +555,9 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_GEN(dev, fpga))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_FPGA_ERROR) |
 				    (1ull << MLX5_EVENT_TYPE_FPGA_QP_ERROR);
+
+	if (MLX5_CAP_GEN(dev, temp_warn_event))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_TEMP_WARN_EVENT);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,

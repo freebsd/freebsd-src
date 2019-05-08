@@ -50,7 +50,7 @@ enum {
 	MLX5_EVENT_TYPE_PORT_CHANGE                                = 0x9,
 	MLX5_EVENT_TYPE_GPIO_EVENT                                 = 0x15,
 	MLX5_EVENT_TYPE_CODING_PORT_MODULE_EVENT                   = 0x16,
-	MLX5_EVENT_TYPE_CODING_TEMP_WARNING_EVENT                  = 0x17,
+	MLX5_EVENT_TYPE_TEMP_WARN_EVENT                            = 0x17,
 	MLX5_EVENT_TYPE_REMOTE_CONFIG                              = 0x19,
 	MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT                   = 0x1e,
 	MLX5_EVENT_TYPE_CODING_PPS_EVENT                           = 0x25,
