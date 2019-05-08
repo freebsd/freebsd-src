@@ -604,26 +604,27 @@ void mlx5_health_cleanup(struct mlx5_core_dev *dev)
 	struct mlx5_core_health *health = &dev->priv.health;
 
 	destroy_workqueue(health->wq);
+	destroy_workqueue(health->wq_watchdog);
 }
 
-#define HEALTH_NAME "mlx5_health"
 int mlx5_health_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health;
-	char *name;
-	int len;
+	char name[64];
 
 	health = &dev->priv.health;
-	len = strlen(HEALTH_NAME) + strlen(dev_name(&dev->pdev->dev));
-	name = kmalloc(len + 1, GFP_KERNEL);
-	if (!name)
-		return -ENOMEM;
 
-	snprintf(name, len, "%s:%s", HEALTH_NAME, dev_name(&dev->pdev->dev));
+	snprintf(name, sizeof(name), "%s-rec", dev_name(&dev->pdev->dev));
 	health->wq = create_singlethread_workqueue(name);
-	kfree(name);
 	if (!health->wq)
 		return -ENOMEM;
+
+	snprintf(name, sizeof(name), "%s-wdg", dev_name(&dev->pdev->dev));
+	health->wq_watchdog = create_singlethread_workqueue(name);
+	if (!health->wq_watchdog) {
+		destroy_workqueue(health->wq);
+		return -ENOMEM;
+	}
 
 	spin_lock_init(&health->wq_lock);
 	INIT_WORK(&health->work, health_care);
