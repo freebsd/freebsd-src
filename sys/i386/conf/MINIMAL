@@ -137,7 +137,7 @@ device		padlock_rng		# VIA Padlock RNG
 device		rdrand_rng		# Intel Bull Mountain RNG
 device		ether			# Ethernet support
 device		vlan			# 802.1Q VLAN support
-device		tun			# Packet tunnel.
+device		tuntap			# Packet tunnel.
 device		gif			# IPv6 and IPv4 tunneling
 
 # The `bpf' device enables the Berkeley Packet Filter.

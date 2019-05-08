@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190507:
+	The tap(4) driver has been folded into tun(4), and the module has been
+	renamed to tuntap.  You should update any kld_load="if_tap" or
+	kld_load="if_tun" entries in /etc/rc.conf, if_tap_load="YES" or
+	if_tun_load="YES" entries in /boot/loader.conf to load the if_tuntap
+	module instead, and "device tap" or "device tun" entries in kernel
+	config files to select the tuntap device instead.
+
 20190418:
 	The following knobs have been added related to tradeoffs between
 	safe use of the random device and availability in the absence of
