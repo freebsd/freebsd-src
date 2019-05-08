@@ -63,10 +63,6 @@ MODULE_DEPEND(mlx5ib, mlx5, 1, 1, 1);
 MODULE_DEPEND(mlx5ib, ibcore, 1, 1, 1);
 MODULE_VERSION(mlx5ib, 1);
 
-static int deprecated_prof_sel = 2;
-module_param_named(prof_sel, deprecated_prof_sel, int, 0444);
-MODULE_PARM_DESC(prof_sel, "profile selector. Deprecated here. Moved to module mlx5_core");
-
 static const char mlx5_version[] =
 	DRIVER_NAME ": Mellanox Connect-IB Infiniband driver "
 	DRIVER_VERSION " (" DRIVER_RELDATE ")\n";
@@ -3300,9 +3296,6 @@ static struct mlx5_interface mlx5_ib_interface = {
 static int __init mlx5_ib_init(void)
 {
 	int err;
-
-	if (deprecated_prof_sel != 2)
-		pr_warn("prof_sel is deprecated for mlx5_ib, set it for mlx5_core\n");
 
 	err = mlx5_ib_odp_init();
 	if (err)
