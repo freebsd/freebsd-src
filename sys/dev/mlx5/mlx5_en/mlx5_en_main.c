@@ -833,11 +833,15 @@ mlx5e_calibration_callout(void *arg)
 	next->clbr_hw_prev = curr->clbr_hw_curr;
 
 	next->clbr_hw_curr = mlx5e_hw_clock(priv);
-	if (((next->clbr_hw_curr - curr->clbr_hw_prev) >> MLX5E_TSTMP_PREC) ==
+	if (((next->clbr_hw_curr - curr->clbr_hw_curr) >> MLX5E_TSTMP_PREC) ==
 	    0) {
-		if_printf(priv->ifp, "HW failed tstmp frozen %#jx %#jx,"
-		    "disabling\n", next->clbr_hw_curr, curr->clbr_hw_prev);
-		priv->clbr_done = 0;
+		if (priv->clbr_done != 0) {
+			if_printf(priv->ifp, "HW failed tstmp frozen %#jx %#jx,"
+			    "disabling\n",
+			     next->clbr_hw_curr, curr->clbr_hw_prev);
+			priv->clbr_done = 0;
+		}
+		atomic_store_rel_int(&curr->clbr_gen, 0);
 		return;
 	}
 
