@@ -55,7 +55,7 @@ enum {
 };
 
 enum {
-	MLX5_CMD_TIMEOUT_MSEC	= 8 * 60 * 1000,
+	MLX5_CMD_TIMEOUT_MSEC	= 60 * 1000,
 	MLX5_CMD_WQ_MAX_NAME	= 32,
 };
 
