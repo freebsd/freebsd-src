@@ -77,26 +77,41 @@ TEST_F(Link, ok)
 	const char RELPATH[] = "src";
 	const char FULLDST[] = "mountpoint/dst";
 	const char RELDST[] = "dst";
-	uint64_t dst_ino = 42;
 	const uint64_t ino = 42;
+	mode_t mode = S_IFREG | 0644;
+	struct stat sb;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	expect_lookup(RELDST, dst_ino);
+	EXPECT_LOOKUP(1, RELDST)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = mode;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 1;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.entry_valid = UINT64_MAX;
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			const char *name = (const char*)in->body.bytes
 				+ sizeof(struct fuse_link_in);
 			return (in->header.opcode == FUSE_LINK &&
-				in->body.link.oldnodeid == dst_ino &&
+				in->body.link.oldnodeid == ino &&
 				(0 == strcmp(name, RELPATH)));
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.attr.mode = mode;
 		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 2;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.entry_valid = UINT64_MAX;
 	})));
 
-	EXPECT_EQ(0, link(FULLDST, FULLPATH)) << strerror(errno);
+	ASSERT_EQ(0, link(FULLDST, FULLPATH)) << strerror(errno);
+	// Check that the original file's nlink count has increased.
+	ASSERT_EQ(0, stat(FULLDST, &sb)) << strerror(errno);
+	EXPECT_EQ(2ul, sb.st_nlink);
 }

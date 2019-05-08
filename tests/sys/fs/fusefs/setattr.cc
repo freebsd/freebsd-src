@@ -131,6 +131,70 @@ TEST_F(Setattr, chmod)
 	EXPECT_EQ(0, chmod(FULLPATH, newmode)) << strerror(errno);
 }
 
+/* 
+ * Chmod a multiply-linked file with cached attributes.  Check that both files'
+ * attributes have changed.
+ */
+TEST_F(Setattr, chmod_multiply_linked)
+{
+	const char FULLPATH0[] = "mountpoint/some_file.txt";
+	const char RELPATH0[] = "some_file.txt";
+	const char FULLPATH1[] = "mountpoint/other_file.txt";
+	const char RELPATH1[] = "other_file.txt";
+	struct stat sb;
+	const uint64_t ino = 42;
+	const mode_t oldmode = 0777;
+	const mode_t newmode = 0666;
+
+	EXPECT_LOOKUP(1, RELPATH0)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | oldmode;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 2;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	EXPECT_LOOKUP(1, RELPATH1)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | oldmode;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 2;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			uint32_t valid = FATTR_MODE;
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				in->body.setattr.valid == valid &&
+				in->body.setattr.mode == newmode);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;
+		out->body.attr.attr.mode = S_IFREG | newmode;
+		out->body.attr.attr.nlink = 2;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+
+	/* For a lookup of the 2nd file to get it into the cache*/
+	ASSERT_EQ(0, stat(FULLPATH1, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | oldmode, sb.st_mode);
+
+	ASSERT_EQ(0, chmod(FULLPATH0, newmode)) << strerror(errno);
+	ASSERT_EQ(0, stat(FULLPATH0, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
+	ASSERT_EQ(0, stat(FULLPATH1, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
+}
+
+
 /* Change the owner and group of a file */
 TEST_F(Setattr, chown)
 {
