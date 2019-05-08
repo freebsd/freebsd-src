@@ -1861,6 +1861,27 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 		td->td_flags |= TDF_NEEDRESCHED;
 }
 
+/*
+ * Like the above but first check if there is anything to do.
+ */
+void
+sched_lend_user_prio_cond(struct thread *td, u_char prio)
+{
+
+	if (td->td_lend_user_pri != prio)
+		goto lend;
+	if (td->td_user_pri != min(prio, td->td_base_user_pri))
+		goto lend;
+	if (td->td_priority >= td->td_user_pri)
+		goto lend;
+	return;
+
+lend:
+	thread_lock(td);
+	sched_lend_user_prio(td, prio);
+	thread_unlock(td);
+}
+
 #ifdef SMP
 /*
  * This tdq is about to idle.  Try to steal a thread from another CPU before
