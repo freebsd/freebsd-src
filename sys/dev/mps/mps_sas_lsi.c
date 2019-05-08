@@ -979,7 +979,7 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
  		 * reset
  		 */ 
  		mps_dprint(sc, MPS_INFO|MPS_FAULT|MPS_MAPPING,
-		    "Request for SATA PASSTHROUGH page completed with error %d",
+		    "Request for SATA PASSTHROUGH page completed with error %d\n",
 		    error);
 		error = ENXIO;
 		goto out;
