@@ -4411,20 +4411,20 @@ umtx_exec_hook(void *arg __unused, struct proc *p,
 	struct thread *td;
 
 	KASSERT(p == curproc, ("need curproc"));
-	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_HADTHREADS) == 0 ||
 	    (p->p_flag & P_STOPPED_SINGLE) != 0,
 	    ("curproc must be single-threaded"));
+	/*
+	 * There is no need to lock the list as only this thread can be
+	 * running.
+	 */
 	FOREACH_THREAD_IN_PROC(p, td) {
 		KASSERT(td == curthread ||
 		    ((td->td_flags & TDF_BOUNDARY) != 0 && TD_IS_SUSPENDED(td)),
 		    ("running thread %p %p", p, td));
-		PROC_UNLOCK(p);
 		umtx_thread_cleanup(td);
-		PROC_LOCK(p);
 		td->td_rb_list = td->td_rbp_list = td->td_rb_inact = 0;
 	}
-	PROC_UNLOCK(p);
 }
 
 /*
@@ -4541,17 +4541,21 @@ umtx_thread_cleanup(struct thread *td)
 	 */
 	uq = td->td_umtxq;
 	if (uq != NULL) {
-		mtx_lock(&umtx_lock);
-		uq->uq_inherited_pri = PRI_MAX;
-		while ((pi = TAILQ_FIRST(&uq->uq_pi_contested)) != NULL) {
-			pi->pi_owner = NULL;
-			TAILQ_REMOVE(&uq->uq_pi_contested, pi, pi_link);
+		if (uq->uq_inherited_pri != PRI_MAX ||
+		    !TAILQ_EMPTY(&uq->uq_pi_contested)) {
+			mtx_lock(&umtx_lock);
+			uq->uq_inherited_pri = PRI_MAX;
+			while ((pi = TAILQ_FIRST(&uq->uq_pi_contested)) != NULL) {
+				pi->pi_owner = NULL;
+				TAILQ_REMOVE(&uq->uq_pi_contested, pi, pi_link);
+			}
+			mtx_unlock(&umtx_lock);
 		}
-		mtx_unlock(&umtx_lock);
-		thread_lock(td);
-		sched_lend_user_prio(td, PRI_MAX);
-		thread_unlock(td);
+		sched_lend_user_prio_cond(td, PRI_MAX);
 	}
+
+	if (td->td_rb_inact == 0 && td->td_rb_list == 0 && td->td_rbp_list == 0)
+		return;
 
 	/*
 	 * Handle terminated robust mutexes.  Must be done after
