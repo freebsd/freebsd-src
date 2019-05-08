@@ -1063,6 +1063,10 @@ mlx5e_ethtool_debug_stats(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	PRIV_LOCK(priv);
+	if (priv->gone != 0) {
+		error = ENODEV;
+		goto done;
+	}
 	sys_debug = priv->sysctl_debug;
 	error = sysctl_handle_int(oidp, &sys_debug, 0, req);
 	if (error != 0 || !req->newptr)
