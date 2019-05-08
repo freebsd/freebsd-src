@@ -3758,6 +3758,7 @@ _task_fn_admin(void *context)
 
 	if ((!running & !oactive) &&
 	    !(ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN))
+		return;
 	if (in_detach)
 		return;
 
