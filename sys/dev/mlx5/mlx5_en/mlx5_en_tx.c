@@ -537,7 +537,7 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 		for (x = 0; x != sq->cev_factor; x++) {
 			ci = sqcc & sq->wq.sz_m1;
 			mb = sq->mbuf[ci].mbuf;
-			sq->mbuf[ci].mbuf = NULL;	/* Safety clear */
+			sq->mbuf[ci].mbuf = NULL;
 
 			if (mb == NULL) {
 				if (sq->mbuf[ci].num_bytes == 0) {
