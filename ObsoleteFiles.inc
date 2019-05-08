@@ -60,6 +60,7 @@ OLD_FILES+=usr/share/man/man4/tx.4
 OLD_FILES+=usr/share/man/man4/if_tx.4
 OLD_FILES+=usr/share/man/man4/txp.4
 OLD_FILES+=usr/share/man/man4/if_txp.4
+OLD_FILES+=usr/share/man/man4/vx.4
 
 
 
