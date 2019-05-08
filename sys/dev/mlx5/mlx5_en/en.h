@@ -364,6 +364,151 @@ struct mlx5e_vport_stats {
   MLX5E_PPORT_PER_PRIO_STATS_SUB(MLX5E_PPORT_PER_PRIO_STATS_PREFIX,m,6) \
   MLX5E_PPORT_PER_PRIO_STATS_SUB(MLX5E_PPORT_PER_PRIO_STATS_PREFIX,m,7)
 
+#define	MLX5E_PCIE_PERFORMANCE_COUNTERS_64(m)				\
+  m(+1, u64, life_time_counter_high, "life_time_counter",		\
+    "Life time counter.", pcie_perf_counters)				\
+  m(+1, u64, tx_overflow_buffer_pkt, "tx_overflow_buffer_pkt",		\
+    "The number of packets dropped due to lack of PCIe buffers "	\
+    "in receive path from NIC port toward the hosts.",			\
+    pcie_perf_counters)							\
+  m(+1, u64, tx_overflow_buffer_marked_pkt,				\
+    "tx_overflow_buffer_marked_pkt",					\
+    "The number of packets marked due to lack of PCIe buffers "		\
+    "in receive path from NIC port toward the hosts.",			\
+    pcie_perf_counters)
+
+#define	MLX5E_PCIE_PERFORMANCE_COUNTERS_32(m)				\
+  m(+1, u64, rx_errors, "rx_errors",					\
+    "Number of transitions to recovery due to Framing "			\
+    "errors and CRC errors.", pcie_perf_counters)			\
+  m(+1, u64, tx_errors, "tx_errors", "Number of transitions "		\
+    "to recovery due to EIEOS and TS errors.", pcie_perf_counters)	\
+  m(+1, u64, l0_to_recovery_eieos, "l0_to_recovery_eieos", "Number of "	\
+    "transitions to recovery due to getting EIEOS.", pcie_perf_counters)\
+  m(+1, u64, l0_to_recovery_ts, "l0_to_recovery_ts", "Number of "	\
+    "transitions to recovery due to getting TS.", pcie_perf_counters)	\
+  m(+1, u64, l0_to_recovery_framing, "l0_to_recovery_framing", "Number "\
+    "of transitions to recovery due to identifying framing "		\
+    "errors at gen3/4.", pcie_perf_counters)				\
+  m(+1, u64, l0_to_recovery_retrain, "l0_to_recovery_retrain",		\
+    "Number of transitions to recovery due to link retrain request "	\
+    "from data link.", pcie_perf_counters)				\
+  m(+1, u64, crc_error_dllp, "crc_error_dllp", "Number of transitions "	\
+    "to recovery due to identifying CRC DLLP errors.",			\
+    pcie_perf_counters)							\
+  m(+1, u64, crc_error_tlp, "crc_error_tlp", "Number of transitions to "\
+    "recovery due to identifying CRC TLP errors.", pcie_perf_counters)	\
+  m(+1, u64, outbound_stalled_reads, "outbound_stalled_reads",		\
+    "The percentage of time within the last second that the NIC had "	\
+    "outbound non-posted read requests but could not perform the "	\
+    "operation due to insufficient non-posted credits.",		\
+    pcie_perf_counters)							\
+  m(+1, u64, outbound_stalled_writes, "outbound_stalled_writes",	\
+    "The percentage of time within the last second that the NIC had "	\
+    "outbound posted writes requests but could not perform the "	\
+    "operation due to insufficient posted credits.",			\
+    pcie_perf_counters)							\
+  m(+1, u64, outbound_stalled_reads_events,				\
+    "outbound_stalled_reads_events", "The number of events where "	\
+    "outbound_stalled_reads was above a threshold.",			\
+    pcie_perf_counters)							\
+  m(+1, u64, outbound_stalled_writes_events,				\
+    "outbound_stalled_writes_events",					\
+    "The number of events where outbound_stalled_writes was above "	\
+    "a threshold.", pcie_perf_counters)
+
+#define	MLX5E_PCIE_TIMERS_AND_STATES_COUNTERS_32(m)			\
+  m(+1, u64, time_to_boot_image_start, "time_to_boot_image_start",	\
+    "Time from start until FW boot image starts running in usec.",	\
+    pcie_timers_states)							\
+  m(+1, u64, time_to_link_image, "time_to_link_image",			\
+    "Time from start until FW pci_link image starts running in usec.",	\
+    pcie_timers_states)							\
+  m(+1, u64, calibration_time, "calibration_time",			\
+    "Time it took FW to do calibration in usec.",			\
+    pcie_timers_states)							\
+  m(+1, u64, time_to_first_perst, "time_to_first_perst",		\
+    "Time form start until FW handle first perst. in usec.",		\
+    pcie_timers_states)							\
+  m(+1, u64, time_to_detect_state, "time_to_detect_state",		\
+    "Time from start until first transition to LTSSM.Detect_Q in usec",	\
+    pcie_timers_states)							\
+  m(+1, u64, time_to_l0, "time_to_l0",					\
+    "Time from start until first transition to LTSSM.L0 in usec",	\
+    pcie_timers_states)							\
+  m(+1, u64, time_to_crs_en, "time_to_crs_en",				\
+    "Time from start until crs is enabled in usec",			\
+    pcie_timers_states)							\
+  m(+1, u64, time_to_plastic_image_start, "time_to_plastic_image_start",\
+    "Time form start until FW plastic image starts running in usec.",	\
+    pcie_timers_states)							\
+  m(+1, u64, time_to_iron_image_start, "time_to_iron_image_start",	\
+    "Time form start until FW iron image starts running in usec.",	\
+    pcie_timers_states)							\
+  m(+1, u64, perst_handler, "perst_handler",				\
+    "Number of persts arrived.", pcie_timers_states)			\
+  m(+1, u64, times_in_l1, "times_in_l1",				\
+    "Number of times LTSSM entered L1 flow.", pcie_timers_states)	\
+  m(+1, u64, times_in_l23, "times_in_l23",				\
+    "Number of times LTSSM entered L23 flow.", pcie_timers_states)	\
+  m(+1, u64, dl_down, "dl_down",					\
+    "Number of moves for DL_active to DL_down.", pcie_timers_states)	\
+  m(+1, u64, config_cycle1usec, "config_cycle1usec",			\
+    "Number of configuration requests that firmware "			\
+    "handled in less than 1 usec.", pcie_timers_states)			\
+  m(+1, u64, config_cycle2to7usec, "config_cycle2to7usec",		\
+    "Number of configuration requests that firmware "			\
+    "handled within 2 to 7 usec.", pcie_timers_states)			\
+  m(+1, u64, config_cycle8to15usec, "config_cycle8to15usec",		\
+    "Number of configuration requests that firmware "			\
+    "handled within 8 to 15 usec.", pcie_timers_states)			\
+  m(+1, u64, config_cycle16to63usec, "config_cycle16to63usec",		\
+    "Number of configuration requests that firmware "			\
+    "handled within 16 to 63 usec.", pcie_timers_states)		\
+  m(+1, u64, config_cycle64usec, "config_cycle64usec",			\
+    "Number of configuration requests that firmware "			\
+    "handled took more than 64 usec.", pcie_timers_states)		\
+  m(+1, u64, correctable_err_msg_sent, "correctable_err_msg_sent",	\
+    "Number of correctable error messages sent.", pcie_timers_states)	\
+  m(+1, u64, non_fatal_err_msg_sent, "non_fatal_err_msg_sent",		\
+    "Number of non-Fatal error msg sent.", pcie_timers_states)		\
+  m(+1, u64, fatal_err_msg_sent, "fatal_err_msg_sent",			\
+    "Number of fatal error msg sent.", pcie_timers_states)
+
+#define	MLX5E_PCIE_LANE_COUNTERS_32(m)				\
+  m(+1, u64, error_counter_lane0, "error_counter_lane0",	\
+    "Error counter for PCI lane 0", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane1, "error_counter_lane1",	\
+    "Error counter for PCI lane 1", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane2, "error_counter_lane2",	\
+    "Error counter for PCI lane 2", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane3, "error_counter_lane3",	\
+    "Error counter for PCI lane 3", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane4, "error_counter_lane4",	\
+    "Error counter for PCI lane 4", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane5, "error_counter_lane5",	\
+    "Error counter for PCI lane 5", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane6, "error_counter_lane6",	\
+    "Error counter for PCI lane 6", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane7, "error_counter_lane7",	\
+    "Error counter for PCI lane 7", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane8, "error_counter_lane8",	\
+    "Error counter for PCI lane 8", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane9, "error_counter_lane9",	\
+    "Error counter for PCI lane 9", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane10, "error_counter_lane10",	\
+    "Error counter for PCI lane 10", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane11, "error_counter_lane11",	\
+    "Error counter for PCI lane 11", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane12, "error_counter_lane12",	\
+    "Error counter for PCI lane 12", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane13, "error_counter_lane13",	\
+    "Error counter for PCI lane 13", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane14, "error_counter_lane14",	\
+    "Error counter for PCI lane 14", pcie_lanes_counters)	\
+  m(+1, u64, error_counter_lane15, "error_counter_lane15",	\
+    "Error counter for PCI lane 15", pcie_lanes_counters)
+
 /*
  * Make sure to update mlx5e_update_pport_counters()
  * when adding a new MLX5E_PPORT_STATS block
@@ -377,7 +522,11 @@ struct mlx5e_vport_stats {
   MLX5E_PPORT_RFC2819_STATS_DEBUG(m)		\
   MLX5E_PPORT_RFC2863_STATS_DEBUG(m)		\
   MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG(m)	\
-  MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG(m)
+  MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG(m)	\
+  MLX5E_PCIE_PERFORMANCE_COUNTERS_64(m) \
+  MLX5E_PCIE_PERFORMANCE_COUNTERS_32(m) \
+  MLX5E_PCIE_TIMERS_AND_STATES_COUNTERS_32(m) \
+  MLX5E_PCIE_LANE_COUNTERS_32(m)
 
 #define	MLX5E_PPORT_IEEE802_3_STATS_NUM \
   (0 MLX5E_PPORT_IEEE802_3_STATS(MLX5E_STATS_COUNT))
