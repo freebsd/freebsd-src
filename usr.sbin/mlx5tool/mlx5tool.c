@@ -189,17 +189,29 @@ close_fd:
 	return (res);
 }
 
+static int
+mlx5tool_fw_reset(int ctldev, const struct mlx5_tool_addr *addr)
+{
+
+	if (ioctl(ctldev, MLX5_FW_RESET, addr) == -1) {
+		warn("MLX5_FW_RESET");
+		return (1);
+	}
+	return (0);
+}
+
 static void
 usage(void)
 {
 
 	fprintf(stderr,
 	    "Usage: mlx5tool -d pci<d:b:s:f> [-w -o dump.file | -r |"
-	    "    -e | -f fw.mfa2]\n");
+	    " -e | -f fw.mfa2 | -z]\n");
 	fprintf(stderr, "\t-w - write firmware dump to the specified file\n");
 	fprintf(stderr, "\t-r - reset dump\n");
 	fprintf(stderr, "\t-e - force dump\n");
 	fprintf(stderr, "\t-f fw.img - flash firmware from fw.img\n");
+	fprintf(stderr, "\t-z - initiate firmware reset\n");
 	exit(1);
 }
 
@@ -208,6 +220,7 @@ enum mlx5_action {
 	ACTION_DUMP_RESET,
 	ACTION_DUMP_FORCE,
 	ACTION_FW_UPDATE,
+	ACTION_FW_RESET,
 	ACTION_NONE,
 };
 
@@ -225,7 +238,7 @@ main(int argc, char *argv[])
 	addrstr = NULL;
 	dumpname = NULL;
 	img_fw_path = NULL;
-	while ((c = getopt(argc, argv, "d:ef:ho:rw")) != -1) {
+	while ((c = getopt(argc, argv, "d:ef:ho:rwz")) != -1) {
 		switch (c) {
 		case 'd':
 			addrstr = optarg;
@@ -245,6 +258,9 @@ main(int argc, char *argv[])
 		case 'f':
 			act = ACTION_FW_UPDATE;
 			img_fw_path = optarg;
+			break;
+		case 'z':
+			act = ACTION_FW_RESET;
 			break;
 		case 'h':
 		default:
@@ -273,6 +289,9 @@ main(int argc, char *argv[])
 		break;
 	case ACTION_FW_UPDATE:
 		res = mlx5tool_fw_update(ctldev, &addr, img_fw_path);
+		break;
+	case ACTION_FW_RESET:
+		res = mlx5tool_fw_reset(ctldev, &addr);
 		break;
 	default:
 		res = 0;

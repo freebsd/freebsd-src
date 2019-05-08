@@ -226,6 +226,24 @@ out:
 }
 
 static int
+mlx5_fw_reset(struct mlx5_core_dev *mdev)
+{
+	device_t dev, bus;
+	int error;
+
+	error = -mlx5_set_mfrl_reg(mdev, MLX5_FRL_LEVEL3);
+	if (error == 0) {
+		dev = mdev->pdev->dev.bsddev;
+		mtx_lock(&Giant);
+		bus = device_get_parent(dev);
+		error = BUS_RESET_CHILD(device_get_parent(bus), bus,
+		    DEVF_RESET_DETACH);
+		mtx_unlock(&Giant);
+	}
+	return (error);
+}
+
+static int
 mlx5_fwdump_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
@@ -306,6 +324,17 @@ mlx5_fwdump_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (error == 0)
 			error = -mlx5_firmware_flash(mdev, &fake_fw);
 		kmem_free((vm_offset_t)fake_fw.data, fu->img_fw_data_len);
+		break;
+	case MLX5_FW_RESET:
+		if ((fflag & FWRITE) == 0) {
+			error = EBADF;
+			break;
+		}
+		devaddr = (struct mlx5_tool_addr *)data;
+		error = mlx5_dbsf_to_core(devaddr, &mdev);
+		if (error != 0)
+			break;
+		error = mlx5_fw_reset(mdev);
 		break;
 	default:
 		error = ENOTTY;
