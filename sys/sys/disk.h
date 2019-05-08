@@ -21,9 +21,6 @@
 #include <sys/disk_zone.h>
 #include <sys/socket.h>
 
-#include <net/if.h>
-#include <netinet/in.h>
-
 #ifdef _KERNEL
 
 #ifndef _SYS_CONF_H_
@@ -158,6 +155,10 @@ struct diocskerneldump_arg_freebsd12 {
 #define	DIOCSKERNELDUMP_FREEBSD12 \
 	_IOW('d', 144, struct diocskerneldump_arg_freebsd12)
 
+#ifndef WITHOUT_NETDUMP
+#include <net/if.h>
+#include <netinet/in.h>
+
 union kd_ip {
 	struct in_addr	in4;
 	struct in6_addr	in6;
@@ -208,5 +209,6 @@ _Static_assert(__offsetof(struct diocskerneldump_arg, kda_iface) ==
 	/*
 	 * Get current kernel netdump configuration details for a given index.
 	 */
+#endif
 
 #endif /* _SYS_DISK_H_ */
