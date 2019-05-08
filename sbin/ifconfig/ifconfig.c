@@ -130,6 +130,25 @@ struct ifa_order_elt {
 
 TAILQ_HEAD(ifa_queue, ifa_order_elt);
 
+static struct module_map_entry {
+	const char *ifname;
+	const char *kldname;
+} module_map[] = {
+	{
+		.ifname = "tun",
+		.kldname = "if_tuntap",
+	},
+	{
+		.ifname = "tap",
+		.kldname = "if_tuntap",
+	},
+	{
+		.ifname = "vmnet",
+		.kldname = "if_tuntap",
+	},
+};
+
+
 void
 opt_register(struct option *p)
 {
@@ -1413,9 +1432,10 @@ ifmaybeload(const char *name)
 {
 #define MOD_PREFIX_LEN		3	/* "if_" */
 	struct module_stat mstat;
-	int fileid, modid;
-	char ifkind[IFNAMSIZ + MOD_PREFIX_LEN], ifname[IFNAMSIZ], *dp;
+	int i, fileid, modid;
+	char ifname[IFNAMSIZ], *ifkind, *dp;
 	const char *cp;
+	struct module_map_entry *mme;
 
 	/* loading suppressed by the user */
 	if (noload)
@@ -1429,9 +1449,26 @@ ifmaybeload(const char *name)
 			break;
 		}
 
-	/* turn interface and unit into module name */
-	strlcpy(ifkind, "if_", sizeof(ifkind));
-	strlcat(ifkind, ifname, sizeof(ifkind));
+	/* Either derive it from the map or guess otherwise */
+	ifkind = NULL;
+	for (i = 0; i < nitems(module_map); ++i) {
+		mme = &module_map[i];
+		if (strcmp(mme->ifname, ifname) == 0) {
+			ifkind = strdup(mme->kldname);
+			if (ifkind == NULL)
+				err(EXIT_FAILURE, "ifmaybeload");
+			break;
+		}
+	}
+
+	/* We didn't have an alias for it... we'll guess. */
+	if (ifkind == NULL) {
+	    ifkind = malloc(IFNAMSIZ + MOD_PREFIX_LEN);
+
+	    /* turn interface and unit into module name */
+	    strlcpy(ifkind, "if_", sizeof(ifkind));
+	    strlcat(ifkind, ifname, sizeof(ifkind));
+	}
 
 	/* scan files in kernel */
 	mstat.version = sizeof(struct module_stat);
@@ -1450,7 +1487,7 @@ ifmaybeload(const char *name)
 			/* already loaded? */
 			if (strcmp(ifname, cp) == 0 ||
 			    strcmp(ifkind, cp) == 0)
-				return;
+				goto out;
 		}
 	}
 
@@ -1459,6 +1496,8 @@ ifmaybeload(const char *name)
 	 * infer the names of all drivers (eg mlx4en(4)).
 	 */
 	(void) kldload(ifkind);
+out:
+	free(ifkind);
 }
 
 static struct cmd basic_cmds[] = {
