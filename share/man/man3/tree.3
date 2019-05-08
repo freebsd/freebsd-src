@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2015
+.Dd May 8, 2019
 .Dt TREE 3
 .Os
 .Sh NAME
@@ -559,6 +559,80 @@ and will be overwritten to provide safe traversal.
 The
 .Fn RB_EMPTY
 macro should be used to check whether a red-black tree is empty.
+.Sh EXAMPLES
+The following example demonstrates how to declare a red-black tree
+holding integers.
+Values are inserted into it and the contents of the tree are printed
+in order.
+Lastly, the internal structure of the tree is printed.
+.Bd -literal -offset 3n
+#include <sys/tree.h>
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+struct node {
+	RB_ENTRY(node) entry;
+	int i;
+};
+
+int
+intcmp(struct node *e1, struct node *e2)
+{
+	return (e1->i < e2->i ? -1 : e1->i > e2->i);
+}
+
+RB_HEAD(inttree, node) head = RB_INITIALIZER(&head);
+RB_GENERATE(inttree, node, entry, intcmp)
+
+int testdata[] = {
+	20, 16, 17, 13, 3, 6, 1, 8, 2, 4, 10, 19, 5, 9, 12, 15, 18,
+	7, 11, 14
+};
+
+void
+print_tree(struct node *n)
+{
+	struct node *left, *right;
+
+	if (n == NULL) {
+		printf("nil");
+		return;
+	}
+	left = RB_LEFT(n, entry);
+	right = RB_RIGHT(n, entry);
+	if (left == NULL && right == NULL)
+		printf("%d", n->i);
+	else {
+		printf("%d(", n->i);
+		print_tree(left);
+		printf(",");
+		print_tree(right);
+		printf(")");
+	}
+}
+
+int
+main(void)
+{
+	int i;
+	struct node *n;
+
+	for (i = 0; i < sizeof(testdata) / sizeof(testdata[0]); i++) {
+		if ((n = malloc(sizeof(struct node))) == NULL)
+			err(1, NULL);
+		n->i = testdata[i];
+		RB_INSERT(inttree, &head, n);
+	}
+
+	RB_FOREACH(n, inttree, &head) {
+		printf("%d\en", n->i);
+	}
+	print_tree(RB_ROOT(&head));
+	printf("\en");
+	return (0);
+}
+.Ed
 .Sh NOTES
 Trying to free a tree in the following way is a common error:
 .Bd -literal -offset indent
