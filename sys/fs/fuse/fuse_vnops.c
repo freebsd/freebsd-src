@@ -1423,7 +1423,8 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	struct vnode *tvp = ap->a_tvp;
 	struct componentname *tcnp = ap->a_tcnp;
 	struct fuse_data *data;
-
+	bool newparent = fdvp != tdvp;
+	bool isdir = fvp->v_type == VDIR;
 	int err = 0;
 
 	if (fuse_isdeadfs(fdvp)) {
@@ -1442,7 +1443,17 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	 * under the source directory in the file system tree.
 	 * Linux performs this check at VFS level.
 	 */
+	/* 
+	 * If source is a directory, and it will get a new parent, user must
+	 * have write permission to it, so ".." can be modified.
+	 */
 	data = fuse_get_mpdata(vnode_mount(tdvp));
+	if (data->dataflags & FSESS_DEFAULT_PERMISSIONS && isdir && newparent) {
+		err = fuse_internal_access(fvp, VWRITE,
+			tcnp->cn_thread, tcnp->cn_cred);
+		if (err)
+			goto out;
+	}
 	sx_xlock(&data->rename_lock);
 	err = fuse_internal_rename(fdvp, fcnp, tdvp, tcnp);
 	if (err == 0) {
