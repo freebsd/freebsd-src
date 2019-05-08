@@ -468,6 +468,28 @@ free_out:
 	kvfree(out);
 }
 
+static void
+mlx5e_grp_vnic_env_update_stats(struct mlx5e_priv *priv)
+{
+	u32 out[MLX5_ST_SZ_DW(query_vnic_env_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(query_vnic_env_in)] = {};
+
+	if (!MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard))
+		return;
+
+	MLX5_SET(query_vnic_env_in, in, opcode,
+	    MLX5_CMD_OP_QUERY_VNIC_ENV);
+	MLX5_SET(query_vnic_env_in, in, op_mod, 0);
+	MLX5_SET(query_vnic_env_in, in, other_vport, 0);
+
+	if (mlx5_cmd_exec(priv->mdev, in, sizeof(in), out, sizeof(out)) != 0)
+		return;
+
+	priv->stats.vport.rx_steer_missed_packets =
+	    MLX5_GET64(query_vnic_env_out, out,
+	    vport_env.nic_receive_steering_discard);
+}
+
 /*
  * This function is called regularly to collect all statistics
  * counters from the firmware. The values can be viewed through the
@@ -554,6 +576,8 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 	s->rx_wqe_err = rx_wqe_err;
 	s->rx_packets = rx_packets;
 	s->rx_bytes = rx_bytes;
+
+	mlx5e_grp_vnic_env_update_stats(priv);
 
 	/* HW counters */
 	memset(in, 0, sizeof(in));
