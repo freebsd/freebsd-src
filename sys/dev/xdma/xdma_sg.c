@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2018-2019 Ruslan Bukin <br@bsdpad.com>
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
@@ -38,9 +39,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/sx.h>
+#include <sys/rwlock.h>
 
 #include <machine/bus.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_page.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
@@ -58,25 +63,71 @@ struct seg_load_request {
 	uint32_t error;
 };
 
+static void
+xchan_bufs_free_reserved(xdma_channel_t *xchan)
+{
+	struct xdma_request *xr;
+	vm_size_t size;
+	int i;
+
+	for (i = 0; i < xchan->xr_num; i++) {
+		xr = &xchan->xr_mem[i];
+		size = xr->buf.size;
+		if (xr->buf.vaddr) {
+			pmap_kremove_device(xr->buf.vaddr, size);
+			kva_free(xr->buf.vaddr, size);
+			xr->buf.vaddr = 0;
+		}
+		if (xr->buf.paddr) {
+			vmem_free(xchan->vmem, xr->buf.paddr, size);
+			xr->buf.paddr = 0;
+		}
+		xr->buf.size = 0;
+	}
+}
+
 static int
-_xchan_bufs_alloc(xdma_channel_t *xchan)
+xchan_bufs_alloc_reserved(xdma_channel_t *xchan)
 {
 	xdma_controller_t *xdma;
 	struct xdma_request *xr;
+	vmem_addr_t addr;
+	vm_size_t size;
 	int i;
 
 	xdma = xchan->xdma;
 
+	if (xchan->vmem == NULL)
+		return (ENOBUFS);
+
 	for (i = 0; i < xchan->xr_num; i++) {
 		xr = &xchan->xr_mem[i];
-		/* TODO: bounce buffer */
+		size = round_page(xchan->maxsegsize);
+		if (vmem_alloc(xchan->vmem, size,
+		    M_BESTFIT | M_NOWAIT, &addr)) {
+			device_printf(xdma->dev,
+			    "%s: Can't allocate memory\n", __func__);
+			xchan_bufs_free_reserved(xchan);
+			return (ENOMEM);
+		}
+		
+		xr->buf.size = size;
+		xr->buf.paddr = addr;
+		xr->buf.vaddr = kva_alloc(size);
+		if (xr->buf.vaddr == 0) {
+			device_printf(xdma->dev,
+			    "%s: Can't allocate KVA\n", __func__);
+			xchan_bufs_free_reserved(xchan);
+			return (ENOMEM);
+		}
+		pmap_kenter_device(xr->buf.vaddr, size, addr);
 	}
 
 	return (0);
 }
 
 static int
-_xchan_bufs_alloc_busdma(xdma_channel_t *xchan)
+xchan_bufs_alloc_busdma(xdma_channel_t *xchan)
 {
 	xdma_controller_t *xdma;
 	struct xdma_request *xr;
@@ -138,9 +189,10 @@ xchan_bufs_alloc(xdma_channel_t *xchan)
 	}
 
 	if (xchan->caps & XCHAN_CAP_BUSDMA)
-		ret = _xchan_bufs_alloc_busdma(xchan);
-	else
-		ret = _xchan_bufs_alloc(xchan);
+		ret = xchan_bufs_alloc_busdma(xchan);
+	else {
+		ret = xchan_bufs_alloc_reserved(xchan);
+	}
 	if (ret != 0) {
 		device_printf(xdma->dev,
 		    "%s: Can't allocate bufs.\n", __func__);
@@ -169,12 +221,8 @@ xchan_bufs_free(xdma_channel_t *xchan)
 			bus_dmamap_destroy(xchan->dma_tag_bufs, b->map);
 		}
 		bus_dma_tag_destroy(xchan->dma_tag_bufs);
-	} else {
-		for (i = 0; i < xchan->xr_num; i++) {
-			xr = &xchan->xr_mem[i];
-			/* TODO: bounce buffer */
-		}
-	}
+	} else
+		xchan_bufs_free_reserved(xchan);
 
 	xchan->flags &= ~XCHAN_BUFS_ALLOCATED;
 
@@ -296,6 +344,11 @@ xchan_seg_done(xdma_channel_t *xchan,
 				bus_dmamap_sync(xchan->dma_tag_bufs, b->map, 
 				    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(xchan->dma_tag_bufs, b->map);
+		} else {
+			if (xr->req_type == XR_TYPE_MBUF &&
+			    xr->direction == XDMA_DEV_TO_MEM)
+				m_copyback(xr->m, 0, st->transferred,
+				    (void *)xr->buf.vaddr);
 		}
 		xr->status.error = st->error;
 		xr->status.transferred = st->transferred;
@@ -437,7 +490,13 @@ _xdma_load_data(xdma_channel_t *xchan, struct xdma_request *xr,
 
 	switch (xr->req_type) {
 	case XR_TYPE_MBUF:
-		seg[0].ds_addr = mtod(m, bus_addr_t);
+		if ((xchan->caps & XCHAN_CAP_NOBUFS) == 0) {
+			if (xr->direction == XDMA_MEM_TO_DEV)
+				m_copydata(m, 0, m->m_pkthdr.len,
+				    (void *)xr->buf.vaddr);
+			seg[0].ds_addr = (bus_addr_t)xr->buf.paddr;
+		} else
+			seg[0].ds_addr = mtod(m, bus_addr_t);
 		seg[0].ds_len = m->m_pkthdr.len;
 		break;
 	case XR_TYPE_BIO:
@@ -494,6 +553,7 @@ xdma_process(xdma_channel_t *xchan,
 	xdma = xchan->xdma;
 
 	n = 0;
+	c = 0;
 
 	ret = XDMA_CHANNEL_CAPACITY(xdma->dma_dev, xchan, &capacity);
 	if (ret != 0) {
