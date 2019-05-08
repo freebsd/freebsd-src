@@ -231,13 +231,13 @@ int mlx5_core_get_diagnostics_full(struct mlx5_core_dev *dev,
 					   MLX5_REG_MPCNT, 0, 0);
 		if (err == 0) {
 			void *pcounters = MLX5_ADDR_OF(mpcnt_reg, out,
-			    counter_set.pcie_performance_counters_data_layout);
+			    counter_set.pcie_perf_counters);
 
 			pdiag->counter.rx_pci_errors =
-			    MLX5_GET(pcie_performance_counters_data_layout,
+			    MLX5_GET(pcie_perf_counters,
 				     pcounters, rx_errors);
 			pdiag->counter.tx_pci_errors =
-			    MLX5_GET(pcie_performance_counters_data_layout,
+			    MLX5_GET(pcie_perf_counters,
 				     pcounters, tx_errors);
 		}
 		MLX5_SET(mpcnt_reg, in, grp,
@@ -247,13 +247,13 @@ int mlx5_core_get_diagnostics_full(struct mlx5_core_dev *dev,
 		    MLX5_REG_MPCNT, 0, 0);
 		if (err == 0) {
 			void *pcounters = MLX5_ADDR_OF(mpcnt_reg, out,
-			    counter_set.pcie_timers_and_states_data_layout);
+			    counter_set.pcie_timers_states);
 
 			pdiag->counter.tx_pci_non_fatal_errors =
-			    MLX5_GET(pcie_timers_and_states_data_layout,
+			    MLX5_GET(pcie_timers_states,
 				     pcounters, non_fatal_err_msg_sent);
 			pdiag->counter.tx_pci_fatal_errors =
-			    MLX5_GET(pcie_timers_and_states_data_layout,
+			    MLX5_GET(pcie_timers_states,
 				     pcounters, fatal_err_msg_sent);
 		}
 		kvfree(in);
