@@ -111,6 +111,10 @@ int __attribute__((const)) ibv_rate_to_mult(enum ibv_rate rate)
 	case IBV_RATE_60_GBPS:  return 24;
 	case IBV_RATE_80_GBPS:  return 32;
 	case IBV_RATE_120_GBPS: return 48;
+	case IBV_RATE_28_GBPS:  return 11;
+	case IBV_RATE_50_GBPS:  return 20;
+	case IBV_RATE_400_GBPS: return 160;
+	case IBV_RATE_600_GBPS: return 240;
 	default:           return -1;
 	}
 }
@@ -127,6 +131,10 @@ enum ibv_rate __attribute__((const)) mult_to_ibv_rate(int mult)
 	case 24: return IBV_RATE_60_GBPS;
 	case 32: return IBV_RATE_80_GBPS;
 	case 48: return IBV_RATE_120_GBPS;
+	case 11: return IBV_RATE_28_GBPS;
+	case 20: return IBV_RATE_50_GBPS;
+	case 160: return IBV_RATE_400_GBPS;
+	case 240: return IBV_RATE_600_GBPS;
 	default: return IBV_RATE_MAX;
 	}
 }
@@ -151,6 +159,10 @@ int  __attribute__((const)) ibv_rate_to_mbps(enum ibv_rate rate)
 	case IBV_RATE_100_GBPS: return 103125;
 	case IBV_RATE_200_GBPS: return 206250;
 	case IBV_RATE_300_GBPS: return 309375;
+	case IBV_RATE_28_GBPS:  return 28125;
+	case IBV_RATE_50_GBPS:  return 53125;
+	case IBV_RATE_400_GBPS: return 425000;
+	case IBV_RATE_600_GBPS: return 637500;
 	default:               return -1;
 	}
 }
@@ -175,6 +187,10 @@ enum ibv_rate __attribute__((const)) mbps_to_ibv_rate(int mbps)
 	case 103125: return IBV_RATE_100_GBPS;
 	case 206250: return IBV_RATE_200_GBPS;
 	case 309375: return IBV_RATE_300_GBPS;
+	case 28125:  return IBV_RATE_28_GBPS;
+	case 53125:  return IBV_RATE_50_GBPS;
+	case 425000: return IBV_RATE_400_GBPS;
+	case 637500: return IBV_RATE_600_GBPS;
 	default:     return IBV_RATE_MAX;
 	}
 }
