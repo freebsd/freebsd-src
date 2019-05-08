@@ -1609,14 +1609,12 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		}
 		/* Don't set accmode.  Permission to trunc is checked upstack */
 	}
-	/*
-	 * TODO: for atime and mtime, only require VWRITE if UTIMENS_NULL is
-	 * set. PR 237181
-	 */
-	if (vap->va_atime.tv_sec != VNOVAL)
-		accmode |= VADMIN;
-	if (vap->va_mtime.tv_sec != VNOVAL)
-		accmode |= VADMIN;
+	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
+		if (vap->va_vaflags & VA_UTIMES_NULL)
+			accmode |= VWRITE;
+		else
+			accmode |= VADMIN;
+	}
 	if (drop_suid) {
 		if (vap->va_mode != (mode_t)VNOVAL)
 			vap->va_mode &= ~(S_ISUID | S_ISGID);

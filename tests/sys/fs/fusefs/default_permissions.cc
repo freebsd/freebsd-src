@@ -141,6 +141,7 @@ class Lookup: public DefaultPermissions {};
 class Open: public DefaultPermissions {};
 class Setattr: public DefaultPermissions {};
 class Unlink: public DefaultPermissions {};
+class Utimensat: public DefaultPermissions {};
 class Write: public DefaultPermissions {};
 
 /* 
@@ -542,6 +543,60 @@ TEST_F(Deleteextattr, system)
 
 	ASSERT_EQ(-1, extattr_delete_file(FULLPATH, ns, "foo"));
 	ASSERT_EQ(EPERM, errno);
+}
+
+/* Anybody with write permission can set both timestamps to UTIME_NOW */
+TEST_F(Utimensat, utime_now)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	/* Write permissions for everybody */
+	const mode_t mode = 0666;
+	uid_t owner = 0;
+	const timespec times[2] = {
+		{.tv_sec = 0, .tv_nsec = UTIME_NOW},
+		{.tv_sec = 0, .tv_nsec = UTIME_NOW},
+	};
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, owner);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				in->body.setattr.valid & FATTR_ATIME &&
+				in->body.setattr.valid & FATTR_MTIME);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.mode = S_IFREG | mode;
+	})));
+
+	ASSERT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &times[0], 0))
+		<< strerror(errno);
+}
+
+/* Anybody can set both timestamps to UTIME_OMIT */
+TEST_F(Utimensat, utime_omit)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	/* Write permissions for no one */
+	const mode_t mode = 0444;
+	uid_t owner = 0;
+	const timespec times[2] = {
+		{.tv_sec = 0, .tv_nsec = UTIME_OMIT},
+		{.tv_sec = 0, .tv_nsec = UTIME_OMIT},
+	};
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, owner);
+
+	ASSERT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &times[0], 0))
+		<< strerror(errno);
 }
 
 /* Deleting user attributes merely requires WRITE privilege */
