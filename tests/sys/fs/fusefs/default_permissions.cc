@@ -833,6 +833,49 @@ TEST_F(Rename, eperm_on_sticky_srcdir)
 	ASSERT_EQ(EPERM, errno);
 }
 
+/* 
+ * A user cannot move out a subdirectory that he does not own, because that
+ * would require changing the subdirectory's ".." dirent
+ */
+TEST_F(Rename, eperm_for_subdirectory)
+{
+	const char FULLDST[] = "mountpoint/d/dst";
+	const char FULLSRC[] = "mountpoint/src";
+	const char RELDSTDIR[] = "d";
+	const char RELDST[] = "dst";
+	const char RELSRC[] = "src";
+	uint64_t ino = 42;
+	uint64_t dstdir_ino = 43;
+
+	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1, 0);
+	expect_lookup(RELSRC, ino, S_IFDIR | 0755, UINT64_MAX, 0);
+	expect_lookup(RELDSTDIR, dstdir_ino, S_IFDIR | 0777, UINT64_MAX, 0);
+	EXPECT_LOOKUP(dstdir_ino, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
+
+	ASSERT_EQ(-1, rename(FULLSRC, FULLDST));
+	ASSERT_EQ(EACCES, errno);
+}
+
+/*
+ * A user _can_ rename a subdirectory to which he lacks write permissions, if
+ * it will keep the same parent
+ */
+TEST_F(Rename, subdirectory_to_same_dir)
+{
+	const char FULLDST[] = "mountpoint/dst";
+	const char FULLSRC[] = "mountpoint/src";
+	const char RELDST[] = "dst";
+	const char RELSRC[] = "src";
+	uint64_t ino = 42;
+
+	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1, 0);
+	expect_lookup(RELSRC, ino, S_IFDIR | 0755, UINT64_MAX, 0);
+	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_rename(0);
+
+	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
+}
+
 TEST_F(Rename, eperm_on_sticky_dstdir)
 {
 	const char FULLDST[] = "mountpoint/d/dst";
