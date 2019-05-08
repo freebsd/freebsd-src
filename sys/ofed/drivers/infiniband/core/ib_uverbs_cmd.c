@@ -1692,6 +1692,7 @@ ssize_t ib_uverbs_req_notify_cq(struct ib_uverbs_file *file,
 {
 	struct ib_uverbs_req_notify_cq cmd;
 	struct ib_cq                  *cq;
+	int retval;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
@@ -1700,12 +1701,15 @@ ssize_t ib_uverbs_req_notify_cq(struct ib_uverbs_file *file,
 	if (!cq)
 		return -EINVAL;
 
-	ib_req_notify_cq(cq, cmd.solicited_only ?
-			 IB_CQ_SOLICITED : IB_CQ_NEXT_COMP);
+	if (ib_req_notify_cq(cq, cmd.solicited_only ?
+			     IB_CQ_SOLICITED : IB_CQ_NEXT_COMP) < 0)
+		retval = -ENXIO;
+	else
+		retval = in_len;
 
 	put_cq_read(cq);
 
-	return in_len;
+	return retval;
 }
 
 ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
