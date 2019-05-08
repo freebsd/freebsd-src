@@ -4232,17 +4232,6 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		}
 	}
 
-	/* Additional supported medias */
-	ifmedia_add(&priv->media, IFM_10G_LR | IFM_ETHER, 0, NULL);
-	ifmedia_add(&priv->media, IFM_10G_LR |
-	    IFM_ETHER | IFM_FDX |
-	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
-
-	ifmedia_add(&priv->media, IFM_40G_ER4 | IFM_ETHER, 0, NULL);
-	ifmedia_add(&priv->media, IFM_40G_ER4 |
-	    IFM_ETHER | IFM_FDX |
-	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
-
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO | IFM_FDX |
 	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
