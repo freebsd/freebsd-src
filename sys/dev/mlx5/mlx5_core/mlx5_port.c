@@ -1210,3 +1210,29 @@ int mlx5_query_pddr_range_info(struct mlx5_core_dev *mdev, u8 local_port, u8 *is
 	return (0);
 }
 EXPORT_SYMBOL_GPL(mlx5_query_pddr_range_info);
+
+int
+mlx5_query_mfrl_reg(struct mlx5_core_dev *mdev, u8 *reset_level)
+{
+	u32 mfrl[MLX5_ST_SZ_DW(mfrl_reg)] = {};
+	int sz = MLX5_ST_SZ_BYTES(mfrl_reg);
+	int err;
+
+	err = mlx5_core_access_reg(mdev, mfrl, sz, mfrl, sz, MLX5_REG_MFRL,
+	    0, 0);
+	if (err == 0)
+		*reset_level = MLX5_GET(mfrl_reg, mfrl, reset_level);
+	return (err);
+}
+
+int
+mlx5_set_mfrl_reg(struct mlx5_core_dev *mdev, u8 reset_level)
+{
+	u32 mfrl[MLX5_ST_SZ_DW(mfrl_reg)] = {};
+	int sz = MLX5_ST_SZ_BYTES(mfrl_reg);
+
+	MLX5_SET(mfrl_reg, mfrl, reset_level, reset_level);
+
+	return (mlx5_core_access_reg(mdev, mfrl, sz, mfrl, sz, MLX5_REG_MFRL,
+	    0, 1));
+}
