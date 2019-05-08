@@ -229,6 +229,12 @@ OFEDCFLAGS=	${CFLAGS:N-I*} -DCONFIG_INFINIBAND_USER_MEM \
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
 OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}
 
+# mlxfw C flags.
+MLXFW_C=	${OFED_C_NOIMP} \
+		-I${SRCTOP}/sys/contrib/xz-embedded/freebsd \
+		-I${SRCTOP}/sys/contrib/xz-embedded/linux/lib/xz \
+		${.IMPSRC}
+
 GEN_CFILES= $S/$M/$M/genassym.c ${MFILES:T:S/.m$/.c/}
 SYSTEM_CFILES= config.c env.c hints.c vnode_if.c
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
