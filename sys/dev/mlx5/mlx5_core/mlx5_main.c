@@ -1608,13 +1608,13 @@ static int __init init(void)
 	if (err)
 		goto err_debug;
 
-	err = mlx5_fwdump_init();
+	err = mlx5_ctl_init();
 	if (err)
-		goto err_fwdump;
+		goto err_ctl;
  
  	return 0;
  
-err_fwdump:
+err_ctl:
 	pci_unregister_driver(&mlx5_core_driver);
 
 err_debug:
@@ -1623,7 +1623,7 @@ err_debug:
 
 static void __exit cleanup(void)
 {
-	mlx5_fwdump_fini();
+	mlx5_ctl_fini();
 	pci_unregister_driver(&mlx5_core_driver);
 }
 
