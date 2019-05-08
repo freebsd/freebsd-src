@@ -1215,6 +1215,7 @@ static inline int mlx5_get_cqe_format(const struct mlx5_cqe64 *cqe)
 
 enum {
 	MLX5_GEN_EVENT_SUBTYPE_DELAY_DROP_TIMEOUT = 0x1,
+	MLX5_GEN_EVENT_SUBTYPE_PCI_POWER_CHANGE_EVENT = 0x5,
 };
 
 /* 8 regular priorities + 1 for multicast */
