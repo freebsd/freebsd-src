@@ -180,7 +180,7 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 	case MLX5E_PROT_MASK(MLX5E_10GBASE_KR):
 	case MLX5E_PROT_MASK(MLX5E_10GBASE_CR):
 	case MLX5E_PROT_MASK(MLX5E_10GBASE_SR):
-	case MLX5E_PROT_MASK(MLX5E_10GBASE_ER):
+	case MLX5E_PROT_MASK(MLX5E_10GBASE_ER_LR):
 		*active_width = IB_WIDTH_1X;
 		*active_speed = IB_SPEED_QDR;
 		break;
@@ -193,7 +193,7 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 	case MLX5E_PROT_MASK(MLX5E_40GBASE_CR4):
 	case MLX5E_PROT_MASK(MLX5E_40GBASE_KR4):
 	case MLX5E_PROT_MASK(MLX5E_40GBASE_SR4):
-	case MLX5E_PROT_MASK(MLX5E_40GBASE_LR4):
+	case MLX5E_PROT_MASK(MLX5E_40GBASE_LR4_ER4):
 		*active_width = IB_WIDTH_4X;
 		*active_speed = IB_SPEED_QDR;
 		break;
