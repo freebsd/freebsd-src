@@ -3,6 +3,7 @@
 
 KMOD=mlx5en
 SRCS= \
+mlx5_en_dim.c \
 mlx5_en_ethtool.c \
 mlx5_en_main.c \
 mlx5_en_tx.c \
