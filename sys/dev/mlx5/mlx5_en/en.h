@@ -256,6 +256,28 @@ struct mlx5e_vport_stats {
   m(+1, u64 out_multicast_pkts, "out_multicast_pkts", "Out multicast packets") \
   m(+1, u64 out_broadcast_pkts, "out_broadcast_pkts", "Out broadcast packets")
 
+#define	MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG(m)				\
+  m(+1, u64 port_transmit_wait_high, "port_transmit_wait_high", "Port transmit wait high") \
+  m(+1, u64 ecn_marked, "ecn_marked", "ECN marked")			\
+  m(+1, u64 no_buffer_discard_mc, "no_buffer_discard_mc", "No buffer discard mc") \
+  m(+1, u64 rx_ebp, "rx_ebp", "RX EBP")					\
+  m(+1, u64 tx_ebp, "tx_ebp", "TX EBP")					\
+  m(+1, u64 rx_buffer_almost_full, "rx_buffer_almost_full", "RX buffer almost full") \
+  m(+1, u64 rx_buffer_full, "rx_buffer_full", "RX buffer full")	\
+  m(+1, u64 rx_icrc_encapsulated, "rx_icrc_encapsulated", "RX ICRC encapsulated") \
+  m(+1, u64 ex_reserved_0, "ex_reserved_0", "Reserved") \
+  m(+1, u64 ex_reserved_1, "ex_reserved_1", "Reserved") \
+  m(+1, u64 tx_stat_p64octets, "tx_stat_p64octets", "Bytes")			\
+  m(+1, u64 tx_stat_p65to127octets, "tx_stat_p65to127octets", "Bytes")		\
+  m(+1, u64 tx_stat_p128to255octets, "tx_stat_p128to255octets", "Bytes")	\
+  m(+1, u64 tx_stat_p256to511octets, "tx_stat_p256to511octets", "Bytes")	\
+  m(+1, u64 tx_stat_p512to1023octets, "tx_stat_p512to1023octets", "Bytes")	\
+  m(+1, u64 tx_stat_p1024to1518octets, "tx_stat_p1024to1518octets", "Bytes")	\
+  m(+1, u64 tx_stat_p1519to2047octets, "tx_stat_p1519to2047octets", "Bytes")	\
+  m(+1, u64 tx_stat_p2048to4095octets, "tx_stat_p2048to4095octets", "Bytes")	\
+  m(+1, u64 tx_stat_p4096to8191octets, "tx_stat_p4096to8191octets", "Bytes")	\
+  m(+1, u64 tx_stat_p8192to10239octets, "tx_stat_p8192to10239octets", "Bytes")
+
 #define	MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG(m)                                    		\
   m(+1, u64 time_since_last_clear, "time_since_last_clear",				\
 			"Time since the last counters clear event (msec)")		\
@@ -350,7 +372,8 @@ struct mlx5e_vport_stats {
 #define	MLX5E_PORT_STATS_DEBUG(m)		\
   MLX5E_PPORT_RFC2819_STATS_DEBUG(m)		\
   MLX5E_PPORT_RFC2863_STATS_DEBUG(m)		\
-  MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG(m)
+  MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG(m)	\
+  MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG(m)
 
 #define	MLX5E_PPORT_IEEE802_3_STATS_NUM \
   (0 MLX5E_PPORT_IEEE802_3_STATS(MLX5E_STATS_COUNT))
@@ -367,6 +390,8 @@ struct mlx5e_vport_stats {
   (0 MLX5E_PPORT_RFC2863_STATS_DEBUG(MLX5E_STATS_COUNT))
 #define	MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG_NUM \
   (0 MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG(MLX5E_STATS_COUNT))
+#define	MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG_NUM \
+  (0 MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG(MLX5E_STATS_COUNT))
 #define	MLX5E_PORT_STATS_DEBUG_NUM \
   (0 MLX5E_PORT_STATS_DEBUG(MLX5E_STATS_COUNT))
 
