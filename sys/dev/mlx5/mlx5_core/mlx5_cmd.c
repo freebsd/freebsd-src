@@ -1235,7 +1235,7 @@ EXPORT_SYMBOL(mlx5_cmd_comp_handler);
 
 static int status_to_err(u8 status)
 {
-	return status ? -1 : 0; /* TBD more meaningful codes */
+	return status ? -EIO : 0; /* TBD more meaningful codes */
 }
 
 static struct mlx5_cmd_msg *alloc_msg(struct mlx5_core_dev *dev, int in_size,
