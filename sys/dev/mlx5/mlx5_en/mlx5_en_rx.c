@@ -585,6 +585,9 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq)
 		mlx5e_post_rx_wqes(rq);
 	}
 	mlx5e_post_rx_wqes(rq);
+	/* check for dynamic interrupt moderation callback */
+	if (rq->dim.mode != NET_DIM_CQ_PERIOD_MODE_DISABLED)
+		net_dim(&rq->dim, rq->stats.packets, rq->stats.bytes);
 	mlx5e_cq_arm(&rq->cq, MLX5_GET_DOORBELL_LOCK(&rq->channel->priv->doorbell_lock));
 	tcp_lro_flush_all(&rq->lro);
 	mtx_unlock(&rq->mtx);

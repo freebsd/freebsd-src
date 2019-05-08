@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,6 +38,8 @@
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/ktime.h>
+#include <linux/net_dim.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -95,6 +97,8 @@
 #define	MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ \
     MIN(65535, MLX5E_MAX_RX_SEGS * MLX5E_MAX_RX_BYTES)
 #endif
+#define	MLX5E_DIM_DEFAULT_PROFILE 3
+#define	MLX5E_DIM_MAX_RX_CQ_MODERATION_PKTS_WITH_LRO	16
 #define	MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC      0x10
 #define	MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC_FROM_CQE	0x3
 #define	MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS      0x20
@@ -472,7 +476,7 @@ struct mlx5e_params {
   m(+1, u64 coalesce_pkts_max, "coalesce_pkts_max", "Maximum packets to join") \
   m(+1, u64 rx_coalesce_usecs, "rx_coalesce_usecs", "Limit in usec for joining rx packets") \
   m(+1, u64 rx_coalesce_pkts, "rx_coalesce_pkts", "Maximum number of rx packets to join") \
-  m(+1, u64 rx_coalesce_mode, "rx_coalesce_mode", "0: EQE mode 1: CQE mode") \
+  m(+1, u64 rx_coalesce_mode, "rx_coalesce_mode", "0: EQE fixed mode 1: CQE fixed mode 2: EQE auto mode 3: CQE auto mode") \
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
   m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
@@ -561,6 +565,9 @@ struct mlx5e_rq {
 	struct lro_ctrl lro;
 	volatile int enabled;
 	int	ix;
+
+	/* Dynamic Interrupt Moderation */
+	struct net_dim dim;
 
 	/* control */
 	struct mlx5_wq_ctrl wq_ctrl;
@@ -881,6 +888,9 @@ void	mlx5e_cq_error_event(struct mlx5_core_cq *mcq, int event);
 void	mlx5e_rx_cq_comp(struct mlx5_core_cq *);
 void	mlx5e_tx_cq_comp(struct mlx5_core_cq *);
 struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
+
+void	mlx5e_dim_work(struct work_struct *);
+void	mlx5e_dim_build_cq_param(struct mlx5e_priv *, struct mlx5e_cq_param *);
 
 int	mlx5e_open_flow_table(struct mlx5e_priv *priv);
 void	mlx5e_close_flow_table(struct mlx5e_priv *priv);

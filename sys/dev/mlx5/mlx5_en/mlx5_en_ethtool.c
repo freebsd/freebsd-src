@@ -629,8 +629,8 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			mlx5e_close_locked(priv->ifp);
 
 		/* import RX coalesce mode */
-		if (priv->params_ethtool.rx_coalesce_mode != 0)
-			priv->params_ethtool.rx_coalesce_mode = 1;
+		if (priv->params_ethtool.rx_coalesce_mode > 3)
+			priv->params_ethtool.rx_coalesce_mode = 3;
 		priv->params.rx_cq_moderation_mode =
 		    priv->params_ethtool.rx_coalesce_mode;
 
