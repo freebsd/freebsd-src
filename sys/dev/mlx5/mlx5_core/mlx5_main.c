@@ -821,12 +821,19 @@ void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol)
 }
 EXPORT_SYMBOL(mlx5_get_protocol_dev);
 
+static int mlx5_auto_fw_update;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, auto_fw_update, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &mlx5_auto_fw_update, 0,
+    "Allow automatic firmware update on driver start");
 static int
 mlx5_firmware_update(struct mlx5_core_dev *dev)
 {
 	const struct firmware *fw;
 	int err;
 
+	TUNABLE_INT_FETCH("hw.mlx5.auto_fw_update", &mlx5_auto_fw_update);
+	if (!mlx5_auto_fw_update)
+		return (0);
 	fw = firmware_get("mlx5fw_mfa");
 	if (fw) {
 		err = mlx5_firmware_flash(dev, fw);
