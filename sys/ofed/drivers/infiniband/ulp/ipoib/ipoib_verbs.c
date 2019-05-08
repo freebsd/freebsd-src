@@ -282,7 +282,8 @@ void ipoib_event(struct ib_event_handler *handler,
 		queue_work(ipoib_workqueue, &priv->flush_light);
 	} else if (record->event == IB_EVENT_PORT_ERR ||
 		   record->event == IB_EVENT_PORT_ACTIVE ||
-		   record->event == IB_EVENT_LID_CHANGE) {
+		   record->event == IB_EVENT_LID_CHANGE ||
+		   record->event == IB_EVENT_DEVICE_FATAL) {
 		queue_work(ipoib_workqueue, &priv->flush_normal);
 	} else if (record->event == IB_EVENT_PKEY_CHANGE) {
 		queue_work(ipoib_workqueue, &priv->flush_heavy);
