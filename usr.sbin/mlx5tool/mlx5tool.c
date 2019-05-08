@@ -244,22 +244,32 @@ main(int argc, char *argv[])
 			addrstr = optarg;
 			break;
 		case 'w':
+			if (act != ACTION_NONE)
+				usage();
 			act = ACTION_DUMP_GET;
 			break;
 		case 'e':
+			if (act != ACTION_NONE)
+				usage();
 			act = ACTION_DUMP_FORCE;
 			break;
 		case 'o':
 			dumpname = optarg;
 			break;
 		case 'r':
+			if (act != ACTION_NONE)
+				usage();
 			act = ACTION_DUMP_RESET;
 			break;
 		case 'f':
+			if (act != ACTION_NONE)
+				usage();
 			act = ACTION_FW_UPDATE;
 			img_fw_path = optarg;
 			break;
 		case 'z':
+			if (act != ACTION_NONE)
+				usage();
 			act = ACTION_FW_RESET;
 			break;
 		case 'h':
