@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/io-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/hardirq.h>
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/cq.h>
 #include <dev/mlx5/qp.h>
@@ -1443,11 +1444,29 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 	return 0;
 }
 
+static void mlx5_disable_interrupts(struct mlx5_core_dev *mdev)
+{
+	int nvec = mdev->priv.eq_table.num_comp_vectors + MLX5_EQ_VEC_COMP_BASE;
+	int x;
+
+	mdev->priv.disable_irqs = 1;
+
+	/* wait for all IRQ handlers to finish processing */
+	for (x = 0; x != nvec; x++)
+		synchronize_irq(mdev->priv.msix_arr[x].vector);
+}
+
 static void shutdown_one(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
 	struct mlx5_priv *priv = &dev->priv;
 	int err;
+
+	/* enter polling mode */
+	mlx5_cmd_use_polling(dev);
+
+	/* disable all interrupts */
+	mlx5_disable_interrupts(dev);
 
 	err = mlx5_try_fast_unload(dev);
 	if (err)

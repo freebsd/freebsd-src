@@ -1143,6 +1143,9 @@ static void mlx5_cmd_change_mod(struct mlx5_core_dev *dev, int mode)
 	struct mlx5_cmd *cmd = &dev->cmd;
 	int i;
 
+	if (cmd->mode == mode)
+		return;
+
 	for (i = 0; i < cmd->max_reg_cmds; i++)
 		down(&cmd->sem);
 
