@@ -1253,11 +1253,7 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 	rq->mbuf = malloc(wq_sz * sizeof(rq->mbuf[0]), M_MLX5EN, M_WAITOK | M_ZERO);
 	for (i = 0; i != wq_sz; i++) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
-#if (MLX5E_MAX_RX_SEGS == 1)
-		uint32_t byte_count = rq->wqe_sz - MLX5E_NET_IP_ALIGN;
-#else
 		int j;
-#endif
 
 		err = -bus_dmamap_create(rq->dma_tag, 0, &rq->mbuf[i].dma_map);
 		if (err != 0) {
@@ -1267,13 +1263,8 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 		}
 
 		/* set value for constant fields */
-#if (MLX5E_MAX_RX_SEGS == 1)
-		wqe->data[0].lkey = c->mkey_be;
-		wqe->data[0].byte_count = cpu_to_be32(byte_count | MLX5_HW_START_PADDING);
-#else
 		for (j = 0; j < rq->nsegs; j++)
 			wqe->data[j].lkey = c->mkey_be;
-#endif
 	}
 
 	INIT_WORK(&rq->dim.work, mlx5e_dim_work);
