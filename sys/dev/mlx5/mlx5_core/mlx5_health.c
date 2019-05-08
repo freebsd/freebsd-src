@@ -255,7 +255,7 @@ mlx5_health_allow_reset(struct mlx5_core_dev *dev)
 #define MLX5_NIC_STATE_POLL_MS	5
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 {
-	unsigned long end, delay_ms = MLX5_CRDUMP_WAIT_MS;
+	int end, delay_ms = MLX5_CRDUMP_WAIT_MS;
 	u32 fatal_error;
 	int lock = -EBUSY;
 
@@ -299,7 +299,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	} while (!time_after(jiffies, end));
 
 	if (!sensor_nic_disabled(dev)) {
-		dev_err(&dev->pdev->dev, "NIC IFC still %d after %lums.\n",
+		dev_err(&dev->pdev->dev, "NIC IFC still %d after %ums.\n",
 			get_nic_mode(dev), delay_ms);
 	}
 
