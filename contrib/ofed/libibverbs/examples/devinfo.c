@@ -128,6 +128,7 @@ static const char *width_str(uint8_t width)
 	case 2:  return "4";
 	case 4:  return "8";
 	case 8:  return "12";
+	case 16:  return "2";
 	default: return "invalid width";
 	}
 }
@@ -143,6 +144,7 @@ static const char *speed_str(uint8_t speed)
 
 	case 16: return "14.0 Gbps";
 	case 32: return "25.0 Gbps";
+	case 64: return "50.0 Gbps";
 	default: return "invalid speed";
 	}
 }
