@@ -2376,6 +2376,12 @@ dev/mii/ukphy_subr.c		optional miibus | mii
 dev/mii/vscphy.c		optional miibus | vscphy
 dev/mii/xmphy.c			optional miibus | xmphy
 dev/mk48txx/mk48txx.c		optional mk48txx
+dev/mlxfw/mlxfw_fsm.c			optional mlxfw \
+	compile-with "${MLXFW_C}"
+dev/mlxfw/mlxfw_mfa2.c			optional mlxfw \
+	compile-with "${MLXFW_C}"
+dev/mlxfw/mlxfw_mfa2_tlv_multi.c	optional mlxfw \
+	compile-with "${MLXFW_C}"
 dev/mlx/mlx.c			optional mlx
 dev/mlx/mlx_disk.c		optional mlx
 dev/mlx/mlx_pci.c		optional mlx pci

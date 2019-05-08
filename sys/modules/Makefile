@@ -237,6 +237,7 @@ SUBDIR=	\
 	mfi \
 	mii \
 	mlx \
+	mlxfw \
 	${_mlx4} \
 	${_mlx4ib} \
 	${_mlx4en} \
