@@ -281,6 +281,24 @@ struct mlx5e_vport_stats {
   m(+1, u64, tx_stat_p4096to8191octets, "tx_stat_p4096to8191octets", "Bytes")	\
   m(+1, u64, tx_stat_p8192to10239octets, "tx_stat_p8192to10239octets", "Bytes")
 
+#define	MLX5E_PPORT_STATISTICAL_DEBUG(m)				\
+  m(+1, u64, phy_time_since_last_clear, "phy_time_since_last_clear",	\
+    "Time since last clear in milliseconds")				\
+  m(+1, u64, phy_received_bits, "phy_received_bits",			\
+    "Total amount of traffic received in bits before error correction")	\
+  m(+1, u64, phy_symbol_errors, "phy_symbol_errors",			\
+    "Total number of symbol errors before error correction")		\
+  m(+1, u64, phy_corrected_bits, "phy_corrected_bits",			\
+    "Total number of corrected bits ")					\
+  m(+1, u64, phy_corrected_bits_lane0, "phy_corrected_bits_lane0",	\
+    "Total number of corrected bits for lane 0")			\
+  m(+1, u64, phy_corrected_bits_lane1, "phy_corrected_bits_lane1",	\
+    "Total number of corrected bits for lane 1")			\
+  m(+1, u64, phy_corrected_bits_lane2, "phy_corrected_bits_lane2",	\
+    "Total number of corrected bits for lane 2")			\
+  m(+1, u64, phy_corrected_bits_lane3, "phy_corrected_bits_lane3",	\
+    "Total number of corrected bits for lane 3")
+
 #define	MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG(m)			\
   m(+1, u64, time_since_last_clear, "time_since_last_clear",		\
     "Time since the last counters clear event (msec)")			\
@@ -523,6 +541,7 @@ struct mlx5e_vport_stats {
   MLX5E_PPORT_RFC2863_STATS_DEBUG(m)		\
   MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG(m)	\
   MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG(m)	\
+  MLX5E_PPORT_STATISTICAL_DEBUG(m)		\
   MLX5E_PCIE_PERFORMANCE_COUNTERS_64(m) \
   MLX5E_PCIE_PERFORMANCE_COUNTERS_32(m) \
   MLX5E_PCIE_TIMERS_AND_STATES_COUNTERS_32(m) \
@@ -545,6 +564,8 @@ struct mlx5e_vport_stats {
   (0 MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG(MLX5E_STATS_COUNT))
 #define	MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG_NUM \
   (0 MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG(MLX5E_STATS_COUNT))
+#define	MLX5E_PPORT_STATISTICAL_DEBUG_NUM \
+  (0 MLX5E_PPORT_STATISTICAL_DEBUG(MLX5E_STATS_COUNT))
 #define	MLX5E_PORT_STATS_DEBUG_NUM \
   (0 MLX5E_PORT_STATS_DEBUG(MLX5E_STATS_COUNT))
 
