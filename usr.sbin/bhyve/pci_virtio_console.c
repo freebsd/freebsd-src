@@ -291,7 +291,7 @@ pci_vtcon_sock_add(struct pci_vtcon_softc *sc, const char *name,
 
 	sun.sun_family = AF_UNIX;
 	sun.sun_len = sizeof(struct sockaddr_un);
-	strncpy(sun.sun_path, basename((char *)path), sizeof(sun.sun_path));
+	strlcpy(sun.sun_path, basename((char *)path), sizeof(sun.sun_path));
 
 	if (bindat(fd, s, (struct sockaddr *)&sun, sun.sun_len) < 0) {
 		error = -1;
