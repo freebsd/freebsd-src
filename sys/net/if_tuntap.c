@@ -947,7 +947,8 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	}
 
 	/* For vmnet, we won't do most of the address/route bits */
-	if ((tp->tun_flags & TUN_VMNET) != 0)
+	if ((tp->tun_flags & TUN_VMNET) != 0 ||
+	    (l2tun && (ifp->if_flags & IFF_LINK0) != 0))
 		goto out;
 
 	if (ifp->if_flags & IFF_UP) {
