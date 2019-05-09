@@ -1433,7 +1433,7 @@ ifmaybeload(const char *name)
 #define MOD_PREFIX_LEN		3	/* "if_" */
 	struct module_stat mstat;
 	int i, fileid, modid;
-	char ifname[IFNAMSIZ], *ifkind, *dp;
+	char ifkind[IFNAMSIZ + MOD_PREFIX_LEN], ifname[IFNAMSIZ], *dp;
 	const char *cp;
 	struct module_map_entry *mme;
 
@@ -1450,21 +1450,17 @@ ifmaybeload(const char *name)
 		}
 
 	/* Either derive it from the map or guess otherwise */
-	ifkind = NULL;
+	*ifkind = '\0';
 	for (i = 0; i < nitems(module_map); ++i) {
 		mme = &module_map[i];
 		if (strcmp(mme->ifname, ifname) == 0) {
-			ifkind = strdup(mme->kldname);
-			if (ifkind == NULL)
-				err(EXIT_FAILURE, "ifmaybeload");
+			strlcpy(ifkind, mme->kldname, sizeof(ifkind));
 			break;
 		}
 	}
 
 	/* We didn't have an alias for it... we'll guess. */
-	if (ifkind == NULL) {
-	    ifkind = malloc(IFNAMSIZ + MOD_PREFIX_LEN);
-
+	if (*ifkind == '\0') {
 	    /* turn interface and unit into module name */
 	    strlcpy(ifkind, "if_", sizeof(ifkind));
 	    strlcat(ifkind, ifname, sizeof(ifkind));
@@ -1487,7 +1483,7 @@ ifmaybeload(const char *name)
 			/* already loaded? */
 			if (strcmp(ifname, cp) == 0 ||
 			    strcmp(ifkind, cp) == 0)
-				goto out;
+				return;
 		}
 	}
 
@@ -1496,8 +1492,6 @@ ifmaybeload(const char *name)
 	 * infer the names of all drivers (eg mlx4en(4)).
 	 */
 	(void) kldload(ifkind);
-out:
-	free(ifkind);
 }
 
 static struct cmd basic_cmds[] = {
