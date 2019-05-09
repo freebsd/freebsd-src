@@ -136,11 +136,13 @@ vidc_rawputchar(int c)
 {
     int		i;
 
-    if (c == '\t')
-	/* lame tab expansion */
-	for (i = 0; i < 8; i++)
+    if (c == '\t') {
+	int n;
+
+	n = 8 - ((curx + 8) % 8);
+	for (i = 0; i < n; i++)
 	    vidc_rawputchar(' ');
-    else {
+    } else {
 #ifndef TERM_EMU
         vidc_biosputchar(c);
 #else
