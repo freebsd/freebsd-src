@@ -625,6 +625,11 @@ fuse_vnop_create(struct vop_create_args *ap)
 
 	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, td, cred, foo);
 	fuse_vnode_open(*vpp, foo->open_flags, td);
+	/* 
+	 * Purge the parent's attribute cache because the daemon should've
+	 * updated its mtime and ctime
+	 */
+	fuse_vnode_clear_attr_cache(dvp);
 	cache_purge_negative(dvp);
 
 out:
@@ -817,9 +822,15 @@ fuse_vnop_link(struct vop_link_args *ap)
 	feo = fdi.answ;
 
 	err = fuse_internal_checkentry(feo, vnode_vtype(vp));
-	if (!err)
+	if (!err) {
+		/* 
+		 * Purge the parent's attribute cache because the daemon
+		 * should've updated its mtime and ctime
+		 */
+		fuse_vnode_clear_attr_cache(tdvp);
 		fuse_internal_cache_attrs(vp, &feo->attr, feo->attr_valid,
 			feo->attr_valid_nsec, NULL);
+	}
 out:
 	fdisp_destroy(&fdi);
 	return err;
@@ -1398,8 +1409,14 @@ fuse_vnop_remove(struct vop_remove_args *ap)
 
 	err = fuse_internal_remove(dvp, vp, cnp, FUSE_UNLINK);
 
-	if (err == 0)
+	if (err == 0) {
 		fuse_internal_vnode_disappear(vp);
+		/* 
+		 * Purge the parent's attribute cache because the daemon
+		 * should've updated its mtime and ctime
+		 */
+		fuse_vnode_clear_attr_cache(dvp);
+	}
 	return err;
 }
 
@@ -1511,8 +1528,14 @@ fuse_vnop_rmdir(struct vop_rmdir_args *ap)
 	}
 	err = fuse_internal_remove(dvp, vp, ap->a_cnp, FUSE_RMDIR);
 
-	if (err == 0)
+	if (err == 0) {
 		fuse_internal_vnode_disappear(vp);
+		/* 
+		 * Purge the parent's attribute cache because the daemon
+		 * should've updated its mtime and ctime
+		 */
+		fuse_vnode_clear_attr_cache(dvp);
+	}
 	return err;
 }
 

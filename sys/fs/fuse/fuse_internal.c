@@ -535,6 +535,13 @@ fuse_internal_newentry_core(struct vnode *dvp,
 		    feo->nodeid, 1);
 		return err;
 	}
+
+	/* 
+	 * Purge the parent's attribute cache because the daemon should've
+	 * updated its mtime and ctime
+	 */
+	fuse_vnode_clear_attr_cache(dvp);
+
 	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
 		feo->attr_valid_nsec, NULL);
 

@@ -61,6 +61,37 @@ void expect_lookup(const char *relpath, uint64_t ino, int times)
 
 };
 
+/*
+ * A successful unlink should clear the parent directory's attribute cache,
+ * because the fuse daemon should update its mtime and ctime
+ */
+TEST_F(Unlink, clear_attr_cache)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	struct stat sb;
+	uint64_t ino = 42;
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == 1);
+		}, Eq(true)),
+		_)
+	).Times(2)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFDIR | 0755;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+	expect_lookup(RELPATH, ino, 1);
+	expect_unlink(1, RELPATH, 0);
+
+	ASSERT_EQ(0, unlink(FULLPATH)) << strerror(errno);
+	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
+}
+
 TEST_F(Unlink, eperm)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";

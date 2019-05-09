@@ -110,6 +110,12 @@ VTOVA(struct vnode *vp)
 		return NULL;
 }
 
+static inline void
+fuse_vnode_clear_attr_cache(struct vnode *vp)
+{
+	bintime_clear(&VTOFUD(vp)->attr_cache_timeout);
+}
+
 #define VTOILLU(vp) ((uint64_t)(VTOFUD(vp) ? VTOI(vp) : 0))
 
 #define FUSE_NULL_ID 0

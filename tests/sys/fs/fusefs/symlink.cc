@@ -37,7 +37,63 @@ extern "C" {
 
 using namespace testing;
 
-class Symlink: public FuseTest {};
+class Symlink: public FuseTest {
+public:
+
+void expect_symlink(uint64_t ino, const char *target, const char *relpath)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *name = (const char*)in->body.bytes;
+			const char *linkname = name + strlen(name) + 1;
+			return (in->header.opcode == FUSE_SYMLINK &&
+				(0 == strcmp(linkname, target)) &&
+				(0 == strcmp(name, relpath)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFLNK | 0777;
+		out->body.entry.nodeid = ino;
+		out->body.entry.entry_valid = UINT64_MAX;
+		out->body.entry.attr_valid = UINT64_MAX;
+	})));
+}
+
+};
+
+/*
+ * A successful symlink should clear the parent directory's attribute cache,
+ * because the fuse daemon should update its mtime and ctime
+ */
+TEST_F(Symlink, clear_attr_cache)
+{
+	const char FULLPATH[] = "mountpoint/src";
+	const char RELPATH[] = "src";
+	const char dst[] = "dst";
+	const uint64_t ino = 42;
+	struct stat sb;
+
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == 1);
+		}, Eq(true)),
+		_)
+	).Times(2)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = 1;
+		out->body.attr.attr.mode = S_IFDIR | 0755;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+	expect_symlink(ino, dst, RELPATH);
+
+	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
+	EXPECT_EQ(0, symlink(dst, FULLPATH)) << strerror(errno);
+	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
+}
 
 TEST_F(Symlink, enospc)
 {
@@ -70,21 +126,7 @@ TEST_F(Symlink, ok)
 	const uint64_t ino = 42;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes;
-			const char *linkname = name + strlen(name) + 1;
-			return (in->header.opcode == FUSE_SYMLINK &&
-				(0 == strcmp(linkname, dst)) &&
-				(0 == strcmp(name, RELPATH)));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFLNK | 0777;
-		out->body.entry.nodeid = ino;
-	})));
+	expect_symlink(ino, dst, RELPATH);
 
 	EXPECT_EQ(0, symlink(dst, FULLPATH)) << strerror(errno);
 }

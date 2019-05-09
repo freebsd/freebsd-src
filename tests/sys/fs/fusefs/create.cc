@@ -59,7 +59,7 @@ void expect_create(const char *relpath, mode_t mode, ProcessMockerT r)
 };
 
 /*
- * If FUSE_CREATE sets the attr_valid, then subsequent GETATTRs should use the
+ * If FUSE_CREATE sets attr_valid, then subsequent GETATTRs should use the
  * attribute cache
  */
 TEST_F(Create, attr_cache)
@@ -90,6 +90,48 @@ TEST_F(Create, attr_cache)
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* A successful CREATE operation should purge the parent dir's attr cache */
+TEST_F(Create, clear_attr_cache)
+{
+	const char FULLPATH[] = "mountpoint/src";
+	const char RELPATH[] = "src";
+	mode_t mode = S_IFREG | 0755;
+	uint64_t ino = 42;
+	int fd;
+	struct stat sb;
+
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == 1);
+		}, Eq(true)),
+		_)
+	).Times(2)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = 1;
+		out->body.attr.attr.mode = S_IFDIR | 0755;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+
+	expect_create(RELPATH, mode,
+		ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, create);
+		out->body.create.entry.attr.mode = mode;
+		out->body.create.entry.nodeid = ino;
+		out->body.create.entry.entry_valid = UINT64_MAX;
+		out->body.create.entry.attr_valid = UINT64_MAX;
+	}));
+
+	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
+	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
+	EXPECT_LE(0, fd) << strerror(errno);
+	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
+
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
