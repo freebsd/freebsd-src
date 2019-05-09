@@ -100,11 +100,6 @@ TEST_F(Getattr, attr_cache_timeout)
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
 	struct stat sb;
-	/* 
-	 * The timeout should be longer than the longest plausible time the
-	 * daemon would take to complete a write(2) to /dev/fuse, but no longer.
-	 */
-	long timeout_ns = 250'000'000;
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1, 0, 0);
 	EXPECT_CALL(*m_mock, process(
@@ -116,14 +111,14 @@ TEST_F(Getattr, attr_cache_timeout)
 	).Times(2)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr_valid_nsec = timeout_ns;
+		out->body.attr.attr_valid_nsec = NAP_NS / 2;
 		out->body.attr.attr_valid = 0;
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
 	})));
 
 	EXPECT_EQ(0, stat(FULLPATH, &sb));
-	usleep(2 * timeout_ns / 1000);
+	nap();
 	/* Timeout has expired. stat(2) should requery the daemon */
 	EXPECT_EQ(0, stat(FULLPATH, &sb));
 }

@@ -37,7 +37,14 @@
 #define FUSE_WRITE_CACHE 1
 #endif
 
+/* Nanoseconds to sleep, for tests that must */
+#define NAP_NS	(100'000'000)
+
 void get_unprivileged_id(uid_t *uid, gid_t *gid);
+inline void nap()
+{
+	usleep(NAP_NS / 1000);
+}
 
 class FuseTest : public ::testing::Test {
 	protected:

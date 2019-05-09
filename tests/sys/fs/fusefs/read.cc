@@ -200,7 +200,7 @@ TEST_F(AioRead, async_read_disabled)
 	 * Sleep for awhile to make sure the kernel has had a chance to issue
 	 * the second read, even though the first has not yet returned
 	 */
-	usleep(250'000);
+	nap();
 	
 	/* Deliberately leak iocbs */
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
@@ -278,7 +278,7 @@ TEST_F(AsyncRead, DISABLED_async_read)
 	 * Sleep for awhile to make sure the kernel has had a chance to issue
 	 * both reads.
 	 */
-	usleep(250'000);
+	nap();
 	
 	/* Deliberately leak iocbs */
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
