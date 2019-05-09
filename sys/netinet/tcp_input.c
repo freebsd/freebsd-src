@@ -3045,15 +3045,21 @@ dodata:							/* XXX */
 		if (tp->t_flags & TF_SACK_PERMIT) {
 			if (((tlen == 0) && (save_tlen > 0) &&
 			    (SEQ_LT(save_start, save_rnxt)))) {
-				// DSACK actually handled in the fastpath above
+				/*
+				 * DSACK actually handled in the fastpath
+				 * above.
+				 */
 				tcp_update_sack_list(tp, save_start, save_start + save_tlen);
 			} else
 			if ((tlen > 0) && SEQ_GT(tp->rcv_nxt, save_rnxt)) {
-				// cleaning sackblks by using zero length update
+				/*
+				 * Cleaning sackblks by using zero length
+				 * update.
+				 */
 				tcp_update_sack_list(tp, save_start, save_start);
 			} else
 			if ((tlen > 0) && (tlen >= save_tlen)) {
-				// update of sackblks
+				/* Update of sackblks. */
 				tcp_update_sack_list(tp, save_start, save_start + save_tlen);
 			} else
 			if (tlen > 0) {
