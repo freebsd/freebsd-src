@@ -69,7 +69,7 @@ void sigusr2_handler(int __unused sig) {
 void* killer(void* target) {
 	/* Wait until the main thread is blocked in fdisp_wait_answ */
 	if (killer_should_sleep)
-		usleep(250'000);
+		nap();
 	else
 		sem_wait(blocked_semaphore);
 	if (verbosity > 1)
@@ -478,7 +478,7 @@ TEST_F(Interrupt, in_kernel_restartable)
 	ASSERT_EQ(0, sem_post(&sem0)) << strerror(errno);
 
 	/* Wait awhile to make sure the signal generates no FUSE_INTERRUPT */
-	usleep(250'000);
+	nap();
 
 	pthread_join(th1, &thr1_value);
 	pthread_join(th0, &thr0_value);
@@ -548,7 +548,7 @@ TEST_F(Interrupt, in_kernel_nonrestartable)
 	ASSERT_EQ(0, sem_post(&sem0)) << strerror(errno);
 
 	/* Wait awhile to make sure the signal generates no FUSE_INTERRUPT */
-	usleep(250'000);
+	nap();
 
 	pthread_join(th0, &thr0_value);
 	EXPECT_EQ(0, (intptr_t)thr0_value);
@@ -700,7 +700,7 @@ TEST_F(Interrupt, priority)
 	ASSERT_EQ(0, mkdir(FULLDIRPATH1, MODE)) << strerror(errno);
 
 	/* Wait awhile to make sure the signal generates no FUSE_INTERRUPT */
-	usleep(250'000);
+	nap();
 
 	pthread_join(th0, NULL);
 	sem_destroy(&sem1);

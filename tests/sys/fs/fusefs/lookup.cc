@@ -110,18 +110,13 @@ TEST_F(Lookup, attr_cache_timeout)
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
 	struct stat sb;
-	/* 
-	 * The timeout should be longer than the longest plausible time the
-	 * daemon would take to complete a write(2) to /dev/fuse, but no longer.
-	 */
-	long timeout_ns = 250'000'000;
 
 	EXPECT_LOOKUP(1, RELPATH)
 	.Times(2)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid_nsec = timeout_ns;
+		out->body.entry.attr_valid_nsec = NAP_NS / 2;
 		out->body.entry.attr.ino = ino;	// Must match nodeid
 		out->body.entry.attr.mode = S_IFREG | 0644;
 	})));
@@ -129,7 +124,7 @@ TEST_F(Lookup, attr_cache_timeout)
 	/* access(2) will issue a VOP_LOOKUP and fill the attr cache */
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 	/* Next access(2) will use the cached attributes */
-	usleep(2 * timeout_ns / 1000);
+	nap();
 	/* The cache has timed out; VOP_GETATTR should query the daemon*/
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
 }
@@ -247,11 +242,7 @@ TEST_F(Lookup, entry_cache_negative_timeout)
 {
 	const char *RELPATH = "does_not_exist";
 	const char *FULLPATH = "mountpoint/does_not_exist";
-	/* 
-	 * The timeout should be longer than the longest plausible time the
-	 * daemon would take to complete a write(2) to /dev/fuse, but no longer.
-	 */
-	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 250'000'000};
+	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = NAP_NS / 2};
 
 	EXPECT_LOOKUP(1, RELPATH).Times(2)
 	.WillRepeatedly(Invoke(ReturnNegativeCache(&entry_valid)));
@@ -259,7 +250,7 @@ TEST_F(Lookup, entry_cache_negative_timeout)
 	EXPECT_NE(0, access(FULLPATH, F_OK));
 	EXPECT_EQ(ENOENT, errno);
 
-	usleep(2 * entry_valid.tv_nsec / 1000);
+	nap();
 
 	/* The cache has timed out; VOP_LOOKUP should requery the daemon*/
 	EXPECT_NE(0, access(FULLPATH, F_OK));
@@ -274,17 +265,12 @@ TEST_F(Lookup, entry_cache_timeout)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	/* 
-	 * The timeout should be longer than the longest plausible time the
-	 * daemon would take to complete a write(2) to /dev/fuse, but no longer.
-	 */
-	long timeout_ns = 250'000'000;
 
 	EXPECT_LOOKUP(1, RELPATH)
 	.Times(2)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.entry_valid_nsec = timeout_ns;
+		out->body.entry.entry_valid_nsec = NAP_NS / 2;
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = 14;
 	})));
@@ -293,7 +279,7 @@ TEST_F(Lookup, entry_cache_timeout)
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 	/* Next access(2) will use the cached entry */
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
-	usleep(2 * timeout_ns / 1000);
+	nap();
 	/* The cache has timed out; VOP_LOOKUP should requery the daemon*/
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
