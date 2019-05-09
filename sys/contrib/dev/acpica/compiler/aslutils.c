@@ -541,7 +541,13 @@ UtDisplayOneSummary (
 {
     UINT32                  i;
     ASL_GLOBAL_FILE_NODE    *FileNode;
+    BOOLEAN                 DisplayAMLSummary;
 
+
+    DisplayAMLSummary =
+        !AslGbl_PreprocessOnly && !AslGbl_ParserErrorDetected &&
+        ((AslGbl_ExceptionCount[ASL_ERROR] == 0) || AslGbl_IgnoreErrors) &&
+        AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle;
 
     if (FileId != ASL_FILE_STDOUT)
     {
@@ -595,9 +601,7 @@ UtDisplayOneSummary (
 
             /* AML summary */
 
-            if (!AslGbl_ParserErrorDetected &&
-                ((AslGbl_ExceptionCount[ASL_ERROR] == 0) || AslGbl_IgnoreErrors) &&
-                AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle)
+            if (DisplayAMLSummary)
             {
                 FlPrintFile (FileId,
                     "%-14s %s - %7u bytes %6u opcodes  %6u named objects\n",
@@ -633,7 +637,7 @@ UtDisplayOneSummary (
             continue;
         }
 
-        FlPrintFile (FileId, "%14s %s - %u bytes\n",
+        FlPrintFile (FileId, "%-14s %s - %7u bytes\n",
             AslGbl_FileDescs[i].ShortDescription,
             AslGbl_Files[i].Filename, FlGetFileSize (i));
     }

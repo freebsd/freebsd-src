@@ -690,7 +690,8 @@ CgUpdateHeader (
     {
         if (FlReadFile (ASL_FILE_AML_OUTPUT, &FileByte, 1) != AE_OK)
         {
-            printf ("EOF while reading checksum bytes\n");
+            AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL, NULL,
+                "Table length is greater than size of the input file");
             return;
         }
 

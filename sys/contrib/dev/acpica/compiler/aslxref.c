@@ -460,6 +460,8 @@ XfNamespaceLocateBegin (
     ASL_METHOD_LOCAL        *MethodArgs = NULL;
     int                     RegisterNumber;
     UINT32                  i;
+    ACPI_NAMESPACE_NODE     *DeclarationParentMethod;
+    ACPI_PARSE_OBJECT       *ReferenceParentMethod;
 
 
     ACPI_FUNCTION_TRACE_PTR (XfNamespaceLocateBegin, Op);
@@ -613,8 +615,7 @@ XfNamespaceLocateBegin (
         (Op->Asl.ParseOpcode != PARSEOP_NAMESTRING) &&
         (Op->Asl.ParseOpcode != PARSEOP_NAMESEG)    &&
         (Op->Asl.ParseOpcode != PARSEOP_METHODCALL) &&
-        (Op->Asl.ParseOpcode != PARSEOP_EXTERNAL)   &&
-        (OpInfo->Type != AML_TYPE_NAMED_FIELD))
+        (Op->Asl.ParseOpcode != PARSEOP_EXTERNAL))
     {
         return_ACPI_STATUS (AE_OK);
     }
@@ -638,8 +639,7 @@ XfNamespaceLocateBegin (
     if ((Op->Asl.ParseOpcode == PARSEOP_NAMESTRING) ||
         (Op->Asl.ParseOpcode == PARSEOP_NAMESEG)    ||
         (Op->Asl.ParseOpcode == PARSEOP_METHODCALL) ||
-        (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL)   ||
-        (OpInfo->Type == AML_TYPE_NAMED_FIELD))
+        (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL))
     {
         /*
          * These are name references, do not push the scope stack
@@ -675,10 +675,6 @@ XfNamespaceLocateBegin (
         }
 
         Path = NextOp->Asl.Value.String;
-    }
-    else if (OpInfo->Type == AML_TYPE_NAMED_FIELD)
-    {
-        Path = Op->Asl.Child->Asl.Value.String;
     }
     else
     {
@@ -798,22 +794,43 @@ XfNamespaceLocateBegin (
         return_ACPI_STATUS (Status);
     }
 
-    /* Object was found above, check for an illegal forward reference */
+   /* Object was found above, check for an illegal forward reference */
 
     if (Op->Asl.CompileFlags & OP_NOT_FOUND_DURING_LOAD)
     {
         /*
          * During the load phase, this Op was flagged as a possible
-         * illegal forward reference
+         * illegal forward reference. In other words, Op is a name path or
+         * name segment that refers to a named object declared after the
+         * reference. In this scinario, Node refers to the actual declaration
+         * and Op is a parse node that references the named object.
          *
-         * Note: Allow "forward references" from within a method to an
-         * object that is not within any method (module-level code)
+         * Note:
+         *
+         * Object references inside of control methods are allowed to
+         * refer to objects declared outside of control methods.
+         *
+         * If the declaration and reference are both contained inside of the
+         * same method or outside of any method, this is a forward reference
+         * and should be reported as a compiler error.
          */
-        if (!WalkState->ScopeInfo || (UtGetParentMethod (Node) &&
-            !UtNodeIsDescendantOf (WalkState->ScopeInfo->Scope.Node,
-                UtGetParentMethod (Node))))
+        DeclarationParentMethod = UtGetParentMethod (Node);
+        ReferenceParentMethod = XfGetParentMethod (Op);
+
+        /* case 1: declaration and refrence are both outside of method */
+
+        if (!ReferenceParentMethod && !DeclarationParentMethod)
         {
             AslError (ASL_ERROR, ASL_MSG_ILLEGAL_FORWARD_REF, Op,
+                Op->Asl.ExternalName);
+        }
+
+        /* case 2: declaration and reference are both inside of the same method */
+
+        else if (ReferenceParentMethod && DeclarationParentMethod &&
+            ReferenceParentMethod == DeclarationParentMethod->Op)
+        {
+             AslError (ASL_ERROR, ASL_MSG_ILLEGAL_FORWARD_REF, Op,
                 Op->Asl.ExternalName);
         }
     }
