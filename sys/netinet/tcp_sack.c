@@ -168,7 +168,7 @@ tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_start, tcp_seq rcv_end)
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/* Check arguments. */
-	KASSERT(SEQ_LT(rcv_start, rcv_end), ("rcv_start < rcv_end"));
+	KASSERT(SEQ_LEQ(rcv_start, rcv_end), ("rcv_start <= rcv_end"));
 
 	/* SACK block for the received segment. */
 	head_blk.start = rcv_start;
@@ -193,11 +193,53 @@ tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_start, tcp_seq rcv_end)
 			 * Merge this SACK block into head_blk.  This SACK
 			 * block itself will be discarded.
 			 */
-			if (SEQ_GT(head_blk.start, start))
+			/*
+			 * |-|
+			 *   |---|  merge
+			 *
+			 *     |-|
+			 * |---|    merge
+			 *
+			 * |-----|
+			 *   |-|    DSACK smaller
+			 *
+			 *   |-|
+			 * |-----|  DSACK smaller
+			 */
+			if (head_blk.start == end)
 				head_blk.start = start;
-			if (SEQ_LT(head_blk.end, end))
+			else if (head_blk.end == start)
 				head_blk.end = end;
+			else {
+				if (SEQ_LT(head_blk.start, start)) {
+					tcp_seq temp = start;
+					start = head_blk.start;
+					head_blk.start = temp;
+				}
+				if (SEQ_GT(head_blk.end, end)) {
+					tcp_seq temp = end;
+					end = head_blk.end;
+					head_blk.end = temp;
+				}
+				if ((head_blk.start != start) ||
+				    (head_blk.end != end)) {
+					if ((num_saved >= 1) &&
+					   SEQ_GEQ(saved_blks[num_saved-1].start, start) &&
+					   SEQ_LEQ(saved_blks[num_saved-1].end, end))
+						num_saved--;
+					saved_blks[num_saved].start = start;
+					saved_blks[num_saved].end = end;
+					num_saved++;
+				}
+			}
 		} else {
+			/*
+			 * This block supercedes the prior block
+			 */
+			if ((num_saved >= 1) &&
+			   SEQ_GEQ(saved_blks[num_saved-1].start, start) &&
+			   SEQ_LEQ(saved_blks[num_saved-1].end, end))
+				num_saved--;
 			/*
 			 * Save this SACK block.
 			 */
@@ -211,7 +253,7 @@ tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_start, tcp_seq rcv_end)
 	 * Update SACK list in tp->sackblks[].
 	 */
 	num_head = 0;
-	if (SEQ_GT(head_blk.start, tp->rcv_nxt)) {
+	if (SEQ_LT(rcv_start, rcv_end)) {
 		/*
 		 * The received data segment is an out-of-order segment.  Put
 		 * head_blk at the top of SACK list.
