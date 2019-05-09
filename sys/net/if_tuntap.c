@@ -529,7 +529,6 @@ out:
 static void
 tun_destroy(struct tuntap_softc *tp)
 {
-	struct cdev *dev;
 
 	TUN_LOCK(tp);
 	tp->tun_flags |= TUN_DYING;
@@ -543,15 +542,18 @@ tun_destroy(struct tuntap_softc *tp)
 	TUN2IFP(tp)->if_softc = NULL;
 	sx_xunlock(&tun_ioctl_sx);
 
-	dev = tp->tun_dev;
-	bpfdetach(TUN2IFP(tp));
-	if_detach(TUN2IFP(tp));
-	free_unr(tp->tun_drv->unrhdr, TUN2IFP(tp)->if_dunit);
-	if_free(TUN2IFP(tp));
-	destroy_dev(dev);
+	destroy_dev(tp->tun_dev);
 	seldrain(&tp->tun_rsel);
 	knlist_clear(&tp->tun_rsel.si_note, 0);
 	knlist_destroy(&tp->tun_rsel.si_note);
+	if ((tp->tun_flags & TUN_L2) != 0) {
+		ether_ifdetach(TUN2IFP(tp));
+	} else {
+		bpfdetach(TUN2IFP(tp));
+		if_detach(TUN2IFP(tp));
+	}
+	free_unr(tp->tun_drv->unrhdr, TUN2IFP(tp)->if_dunit);
+	if_free(TUN2IFP(tp));
 	mtx_destroy(&tp->tun_mtx);
 	cv_destroy(&tp->tun_cv);
 	free(tp, M_TUN);
