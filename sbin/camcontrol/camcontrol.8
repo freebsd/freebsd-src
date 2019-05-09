@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2017
+.Dd May 9, 2019
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -239,6 +239,10 @@
 .Op Fl t Ar time
 .Nm
 .Ic sleep
+.Op device id
+.Op generic args
+.Nm
+.Ic powermode
 .Op device id
 .Op generic args
 .Nm
@@ -1382,6 +1386,8 @@ Value 0 disables timer.
 Put ATA device into SLEEP state.
 Note that the only way get device out of
 this state may be reset.
+.It Ic powermode
+Report ATA device power mode.
 .It Ic apm
 It optional parameter
 .Pq Fl l
