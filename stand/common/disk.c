@@ -75,7 +75,7 @@ display_size(uint64_t size, u_int sectorsize)
 		size /= 1024;
 		unit = 'M';
 	}
-	sprintf(buf, "%4ld%cB", (long)size, unit);
+	snprintf(buf, sizeof(buf), "%4ld%cB", (long)size, unit);
 	return (buf);
 }
 
@@ -118,11 +118,24 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 	od = (struct open_disk *)pa->dev->dd.d_opendata;
 	sectsize = od->sectorsize;
 	partsize = part->end - part->start + 1;
-	sprintf(line, "  %s%s: %s\t%s\n", pa->prefix, pname,
-	    parttype2str(part->type),
-	    pa->verbose ? display_size(partsize, sectsize) : "");
+	snprintf(line, sizeof(line), "  %s%s: %s", pa->prefix, pname,
+	    parttype2str(part->type));
 	if (pager_output(line))
-		return 1;
+		return (1);
+
+	if (pa->verbose) {
+		/* Emit extra tab when the line is shorter than 3 tab stops */
+		if (strlen(line) < 24)
+			(void) pager_output("\t");
+
+		snprintf(line, sizeof(line), "\t%s",
+		    display_size(partsize, sectsize));
+		if (pager_output(line))
+			return (1);
+	}
+	if (pager_output("\n"))
+		return (1);
+
 	res = 0;
 	if (part->type == PART_FREEBSD) {
 		/* Open slice with BSD label */
@@ -133,7 +146,8 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 		if (disk_open(&dev, partsize, sectsize) == 0) {
 			table = ptable_open(&dev, partsize, sectsize, ptblread);
 			if (table != NULL) {
-				sprintf(line, "  %s%s", pa->prefix, pname);
+				snprintf(line, sizeof(line), "  %s%s",
+				    pa->prefix, pname);
 				bsd.dev = pa->dev;
 				bsd.prefix = line;
 				bsd.verbose = pa->verbose;
