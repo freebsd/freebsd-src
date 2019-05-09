@@ -138,7 +138,7 @@ efi_cons_rawputchar(int c)
 	if (c == '\t') {
 		int n;
 
-		n = 8 - ((curx + 8) % 8);
+		n = 8 - ((conout->Mode->CursorColumn + 8) % 8);
 		for (i = 0; i < n; i++)
 			efi_cons_rawputchar(' ');
 	} else {
