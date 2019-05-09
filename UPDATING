@@ -32,6 +32,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20190507:
+	The IPSEC option has been removed from GENERIC.  Users requiring
+	ipsec(4) must now load the ipsec(4) kernel module.
+
+20190507:
 	The tap(4) driver has been folded into tun(4), and the module has been
 	renamed to tuntap.  You should update any kld_load="if_tap" or
 	kld_load="if_tun" entries in /etc/rc.conf, if_tap_load="YES" or
