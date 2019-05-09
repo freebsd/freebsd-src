@@ -550,13 +550,9 @@ AslDoOneFile (
         Status = CmDoCompile ();
         if (ACPI_FAILURE (Status))
         {
+            PrTerminatePreprocessor ();
             return (Status);
         }
-
-        /* Cleanup (for next source file) and exit */
-
-        AeClearErrorLog ();
-        PrTerminatePreprocessor ();
 
         /*
          * At this point, we know how many lines are in the input file. Save it

@@ -224,7 +224,6 @@ CmDoCompile (
         if (AslGbl_PreprocessOnly)
         {
             UtEndEvent (Event);
-            CmCleanupAndExit ();
             return (AE_OK);
         }
     }
@@ -919,7 +918,7 @@ CmCleanupAndExit (
      * We will delete the AML file if there are errors and the
      * force AML output option has not been used.
      */
-    if (AslGbl_ParserErrorDetected || ((AslGbl_ExceptionCount[ASL_ERROR] > 0) &&
+    if (AslGbl_ParserErrorDetected || AslGbl_PreprocessOnly || ((AslGbl_ExceptionCount[ASL_ERROR] > 0) &&
         (!AslGbl_IgnoreErrors) &&
         AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle))
     {

@@ -165,6 +165,14 @@ static void
 AnAnalyzeStoreOperator (
     ACPI_PARSE_OBJECT       *Op);
 
+static BOOLEAN
+AnIsValidBufferConstant (
+    ACPI_PARSE_OBJECT       *Op);
+
+static void
+AnValidateCreateBufferField (
+    ACPI_PARSE_OBJECT       *CreateBufferFieldOp);
+
 
 /*******************************************************************************
  *
@@ -669,6 +677,14 @@ AnOtherSemanticAnalysisWalkBegin (
     OpInfo = AcpiPsGetOpcodeInfo (Op->Asl.AmlOpcode);
 
 
+    if (OpInfo->Flags & AML_CREATE)
+    {
+        /* This group contains all of the Create Buffer Field operators */
+
+        AnValidateCreateBufferField (Op);
+        return (AE_OK);
+    }
+
     /*
      * Determine if an execution class operator actually does something by
      * checking if it has a target and/or the function return value is used.
@@ -734,10 +750,10 @@ AnOtherSemanticAnalysisWalkBegin (
         }
     }
 
-
     /*
      * Semantic checks for individual ASL operators
      */
+
     switch (Op->Asl.ParseOpcode)
     {
     case PARSEOP_STORE:
@@ -782,22 +798,6 @@ AnOtherSemanticAnalysisWalkBegin (
         {
             AslError (ASL_WARNING, ASL_MSG_TIMEOUT, ArgOp,
                 Op->Asl.ExternalName);
-        }
-        break;
-
-    case PARSEOP_CREATEFIELD:
-        /*
-         * Check for a zero Length (NumBits) operand. NumBits is the 3rd operand
-         */
-        ArgOp = Op->Asl.Child;
-        ArgOp = ArgOp->Asl.Next;
-        ArgOp = ArgOp->Asl.Next;
-
-        if ((ArgOp->Asl.ParseOpcode == PARSEOP_ZERO) ||
-           ((ArgOp->Asl.ParseOpcode == PARSEOP_INTEGER) &&
-            (ArgOp->Asl.Value.Integer == 0)))
-        {
-            AslError (ASL_ERROR, ASL_MSG_NON_ZERO, ArgOp, NULL);
         }
         break;
 
@@ -883,6 +883,194 @@ AnOtherSemanticAnalysisWalkBegin (
     }
 
     return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AnValidateCreateBufferField
+ *
+ * PARAMETERS:  Op                  - A create buffer field operator
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Check if a buffer index argument to a create buffer field
+ *              operation is beyond the end of the target buffer.
+ *
+ *  Validates these AML operators:
+ *
+ *  AML_CREATE_FIELD_OP
+ *  AML_CREATE_BIT_FIELD_OP
+ *  AML_CREATE_BYTE_FIELD_OP
+ *  AML_CREATE_WORD_FIELD_OP
+ *  AML_CREATE_DWORD_FIELD_OP
+ *  AML_CREATE_QWORD_FIELD_OP
+ *
+ *  There are two conditions that must be satisfied in order to enable
+ *  validation at compile time:
+ *
+ *  1) The length of the target buffer must be an integer constant
+ *  2) The index specified in the create* must be an integer constant
+ *  3) For CreateField, the bit length argument must be non-zero.
+ *
+ ******************************************************************************/
+
+static void
+AnValidateCreateBufferField (
+    ACPI_PARSE_OBJECT       *CreateBufferFieldOp)
+{
+    ACPI_PARSE_OBJECT       *TargetBufferOp;
+    ACPI_PARSE_OBJECT       *ArgOp;
+    UINT32                  TargetBufferLength;
+    UINT32                  LastFieldByteIndex;
+
+
+    /*
+     * 1) Get the length of the target buffer
+     */
+    ArgOp = CreateBufferFieldOp->Asl.Child;     /* Reference to target buffer */
+
+    /*
+     * If no attached Node, the target buffer may be something like an
+     * ArgX or LocalX and cannot be evaluated at compile time.
+     */
+    if (!ArgOp->Asl.Node)
+    {
+        return;
+    }
+
+    TargetBufferOp = ArgOp->Asl.Node->Op;
+    TargetBufferOp = TargetBufferOp->Asl.Child; /* Target buffer */
+    TargetBufferOp = TargetBufferOp->Asl.Next;  /* "Buffer" keyword */
+    if (!TargetBufferOp)
+    {
+        /* Not a statement of the form NAME(XXXX, Buffer.... */
+
+        return;
+    }
+
+    /* Get the buffer length argument. It must be an integer constant */
+
+    ArgOp = TargetBufferOp->Asl.Child;
+    if (!AnIsValidBufferConstant (ArgOp))
+    {
+        return;
+    }
+
+    TargetBufferLength = (UINT32) ArgOp->Asl.Value.Integer;
+
+    /*
+     * 2) Get the value of the buffer index argument. It must be
+     * an integer constant.
+     */
+    ArgOp = CreateBufferFieldOp->Asl.Child;     /* Reference to target buffer */
+    ArgOp = ArgOp->Asl.Next;                    /* Buffer Index argument*/
+    if (!AnIsValidBufferConstant (ArgOp))
+    {
+        return;
+    }
+
+    LastFieldByteIndex =
+        (UINT32) ArgOp->Asl.Value.Integer;      /* Index can be in either bytes or bits */
+
+    /*
+     * 3) Get the length of the new buffer field, in bytes. Also,
+     * create the final target buffer index for the last byte of the field
+     */
+    switch (CreateBufferFieldOp->Asl.ParseOpcode)
+    {
+    case PARSEOP_CREATEBITFIELD:                /* A one bit field */
+
+        LastFieldByteIndex = ACPI_ROUND_BITS_DOWN_TO_BYTES (LastFieldByteIndex);
+        break;
+
+    case PARSEOP_CREATEBYTEFIELD:
+        break;
+
+    case PARSEOP_CREATEWORDFIELD:
+
+        LastFieldByteIndex += (sizeof (UINT16) - 1);
+        break;
+
+    case PARSEOP_CREATEDWORDFIELD:
+
+        LastFieldByteIndex += (sizeof (UINT32) - 1);
+        break;
+
+    case PARSEOP_CREATEQWORDFIELD:
+
+        LastFieldByteIndex += (sizeof (UINT64) - 1);
+        break;
+
+    case PARSEOP_CREATEFIELD:                   /* Multi-bit field */
+
+        ArgOp = ArgOp->Asl.Next;                /* Length argument, in bits */
+        if (!AnIsValidBufferConstant (ArgOp))
+        {
+            return;
+        }
+
+        /* The buffer field length is not allowed to be zero */
+
+        if (ArgOp->Asl.Value.Integer == 0)
+        {
+            AslError (ASL_WARNING,  ASL_MSG_BUFFER_FIELD_LENGTH, ArgOp, NULL);
+            return;
+        }
+
+        LastFieldByteIndex +=
+            ((UINT32) ArgOp->Asl.Value.Integer - 1);    /* Create final bit index */
+
+        /* Convert bit index to a byte index */
+
+        LastFieldByteIndex = ACPI_ROUND_BITS_DOWN_TO_BYTES (LastFieldByteIndex);
+        break;
+
+    default:
+        return;
+    }
+
+    /*
+     * 4) Check for an access (index) beyond the end of the target buffer,
+     * or a zero length target buffer.
+     */
+    if (!TargetBufferLength || (LastFieldByteIndex >= TargetBufferLength))
+    {
+        AslError (ASL_WARNING, ASL_MSG_BUFFER_FIELD_OVERFLOW, ArgOp, NULL);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AnIsValidBufferConstant
+ *
+ * PARAMETERS:  Op                  - A buffer-related operand
+ *
+ * RETURN:      TRUE if operand is valid constant, FALSE otherwise
+ *
+ * DESCRIPTION: Check if the input Op is valid constant that can be used
+ *              in compile-time analysis.
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+AnIsValidBufferConstant (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    if (!Op)
+    {
+        return (FALSE);
+    }
+
+    if ((Op->Asl.ParseOpcode == PARSEOP_INTEGER) ||
+        (Op->Asl.ParseOpcode == PARSEOP_ZERO)    ||
+        (Op->Asl.ParseOpcode == PARSEOP_ONE))
+    {
+        return (TRUE);
+    }
+
+    return (FALSE);
 }
 
 

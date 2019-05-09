@@ -291,7 +291,8 @@ main (
     /*
      * At this point, compilation of a data table or disassembly is complete.
      */
-    if (AslGbl_FileType == ASL_INPUT_TYPE_ASCII_DATA || AcpiGbl_DisasmFlag)
+    if (AslGbl_PreprocessOnly || AcpiGbl_DisasmFlag ||
+        AslGbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
     {
         goto CleanupAndExit;
     }
