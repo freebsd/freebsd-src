@@ -65,7 +65,50 @@ void expect_lookup(const char *relpath, uint64_t ino)
 		out->body.entry.attr.nlink = 2;
 	})));
 }
+
+void expect_rmdir(uint64_t parent, const char *relpath, int error)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_RMDIR &&
+				0 == strcmp(relpath, in->body.rmdir) &&
+				in->header.nodeid == parent);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(error)));
+}
 };
+
+/*
+ * A successful rmdir should clear the parent directory's attribute cache,
+ * because the fuse daemon should update its mtime and ctime
+ */
+TEST_F(Rmdir, clear_attr_cache)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	struct stat sb;
+	uint64_t ino = 42;
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == 1);
+		}, Eq(true)),
+		_)
+	).Times(2)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFDIR | 0755;
+		out->body.attr.attr_valid = UINT64_MAX;
+	})));
+	expect_lookup(RELPATH, ino);
+	expect_rmdir(1, RELPATH, 0);
+
+	ASSERT_EQ(0, rmdir(FULLPATH)) << strerror(errno);
+	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
+}
 
 TEST_F(Rmdir, enotempty)
 {
@@ -75,14 +118,7 @@ TEST_F(Rmdir, enotempty)
 
 	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_RMDIR &&
-				0 == strcmp(RELPATH, in->body.rmdir) &&
-				in->header.nodeid == 1);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(ENOTEMPTY)));
+	expect_rmdir(1, RELPATH, ENOTEMPTY);
 
 	ASSERT_NE(0, rmdir(FULLPATH));
 	ASSERT_EQ(ENOTEMPTY, errno);
@@ -96,14 +132,7 @@ TEST_F(Rmdir, ok)
 
 	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_RMDIR &&
-				0 == strcmp(RELPATH, in->body.rmdir) &&
-				in->header.nodeid == 1);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(0)));
+	expect_rmdir(1, RELPATH, 0);
 
 	ASSERT_EQ(0, rmdir(FULLPATH)) << strerror(errno);
 }

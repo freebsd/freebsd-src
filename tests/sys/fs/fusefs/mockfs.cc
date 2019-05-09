@@ -187,6 +187,9 @@ void debug_fuseop(const mockfs_buf_in *in)
 		case FUSE_INTERRUPT:
 			printf(" unique=%lu", in->body.interrupt.unique);
 			break;
+		case FUSE_LINK:
+			printf(" oldnodeid=%lu", in->body.link.oldnodeid);
+			break;
 		case FUSE_LOOKUP:
 			printf(" %s", in->body.lookup);
 			break;
