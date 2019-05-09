@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #ifdef PART_DEBUG
 #define	DPRINTF(fmt, args...) printf("%s: " fmt "\n", __func__, ## args)
 #else
-#define	DPRINTF(fmt, args...)
+#define	DPRINTF(fmt, args...)	((void)0)
 #endif
 
 #ifdef LOADER_GPT_SUPPORT
