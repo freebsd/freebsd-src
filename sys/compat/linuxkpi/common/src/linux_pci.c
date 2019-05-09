@@ -251,12 +251,10 @@ linux_pci_attach(device_t dev)
 	if (error)
 		goto out_dma_init;
 
-	if (pdev->bus == NULL) {
-		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK | M_ZERO);
-		pbus->self = pdev;
-		pbus->number = pci_get_bus(dev);
-		pdev->bus = pbus;
-	}
+	pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK | M_ZERO);
+	pbus->self = pdev;
+	pbus->number = pci_get_bus(dev);
+	pdev->bus = pbus;
 
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
@@ -268,6 +266,7 @@ linux_pci_attach(device_t dev)
 	return (0);
 
 out_probe:
+	free(pdev->bus, M_DEVBUF);
 	linux_pdev_dma_uninit(pdev);
 out_dma_init:
 	spin_lock(&pci_lock);
@@ -286,6 +285,8 @@ linux_pci_detach(device_t dev)
 	pdev = device_get_softc(dev);
 
 	pdev->pdrv->remove(pdev);
+
+	free(pdev->bus, M_DEVBUF);
 	linux_pdev_dma_uninit(pdev);
 
 	spin_lock(&pci_lock);
