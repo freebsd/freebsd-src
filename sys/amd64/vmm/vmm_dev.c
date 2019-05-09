@@ -171,7 +171,7 @@ static int
 vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 {
 	int error, off, c, prot;
-	vm_paddr_t gpa;
+	vm_paddr_t gpa, maxaddr;
 	void *hpa, *cookie;
 	struct vmmdev_softc *sc;
 
@@ -187,6 +187,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 		return (error);
 
 	prot = (uio->uio_rw == UIO_WRITE ? VM_PROT_WRITE : VM_PROT_READ);
+	maxaddr = vmm_sysmem_maxaddr(sc->vm);
 	while (uio->uio_resid > 0 && error == 0) {
 		gpa = uio->uio_offset;
 		off = gpa & PAGE_MASK;
@@ -202,7 +203,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 		 */
 		hpa = vm_gpa_hold(sc->vm, VM_MAXCPU - 1, gpa, c, prot, &cookie);
 		if (hpa == NULL) {
-			if (uio->uio_rw == UIO_READ)
+			if (uio->uio_rw == UIO_READ && gpa < maxaddr)
 				error = uiomove(__DECONST(void *, zero_region),
 				    c, uio);
 			else
