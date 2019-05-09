@@ -13,6 +13,7 @@ NO_SHARED=
 
 # we want to test verify_file api too
 # which requires a kludge or two
+MK_LOADER_EFI_SECUREBOOT= no
 .include "../Makefile.libsa.inc"
 BRSSL_CFLAGS := ${BRSSL_CFLAGS:N-DNO_STDIO}
 XCFLAGS.verify_file += -DSOPEN_MAX=64
