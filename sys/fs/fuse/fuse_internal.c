@@ -312,6 +312,19 @@ fuse_internal_fsync(struct vnode *vp,
 	return err;
 }
 
+/* mknod */
+int
+fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,
+	struct componentname *cnp, struct vattr *vap)
+{
+	struct fuse_mknod_in fmni;
+
+	fmni.mode = MAKEIMODE(vap->va_type, vap->va_mode);
+	fmni.rdev = vap->va_rdev;
+	return (fuse_internal_newentry(dvp, vpp, cnp, FUSE_MKNOD, &fmni,
+	    sizeof(fmni), vap->va_type));
+}
+
 /* readdir */
 
 int

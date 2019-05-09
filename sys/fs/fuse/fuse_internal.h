@@ -228,6 +228,11 @@ struct pseudo_dirent {
 	uint32_t d_namlen;
 };
 
+/* mknod */
+int fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,
+	struct componentname *cnp, struct vattr *vap);
+
+/* readdir */
 int fuse_internal_readdir(struct vnode *vp, struct uio *uio,
     struct fuse_filehandle *fufh, struct fuse_iov *cookediov);
 int fuse_internal_readdir_processdata(struct uio *uio, size_t reqsize,

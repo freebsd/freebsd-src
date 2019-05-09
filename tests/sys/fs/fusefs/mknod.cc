@@ -30,6 +30,8 @@
 
 extern "C" {
 #include <fcntl.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 }
 
 #include "mockfs.hh"
@@ -135,6 +137,28 @@ TEST_F(Mknod, fifo)
 	dev_t rdev = VNOVAL;		/* Fifos don't have device numbers */
 	expect_mknod(mode, rdev);
 	EXPECT_EQ(0, mkfifo(FULLPATH, mode)) << strerror(errno);
+}
+
+/*
+ * Create a unix-domain socket.
+ *
+ * This test case doesn't actually need root privileges.
+ */
+TEST_F(Mknod, socket)
+{
+	mode_t mode = S_IFSOCK | 0755;
+	struct sockaddr_un sa;
+	int fd;
+	dev_t rdev = -1;	/* Really it's a don't care */
+
+	expect_mknod(mode, rdev);
+
+	fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	ASSERT_LE(0, fd) << strerror(errno);
+	sa.sun_family = AF_UNIX;
+	strlcpy(sa.sun_path, FULLPATH, sizeof(sa.sun_path));
+	ASSERT_EQ(0, bind(fd, (struct sockaddr*)&sa, sizeof(sa)))
+		<< strerror(errno);
 }
 
 /* 
