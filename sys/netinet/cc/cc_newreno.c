@@ -295,7 +295,12 @@ newreno_post_recovery(struct cc_var *ccv)
 			pipe = CCV(ccv, snd_max) - ccv->curack;
 
 		if (pipe < CCV(ccv, snd_ssthresh))
-			CCV(ccv, snd_cwnd) = pipe + CCV(ccv, t_maxseg);
+			/*
+			 * Ensure that cwnd does not collapse to 1 MSS under
+			 * adverse conditons. Implements RFC6582
+			 */
+			CCV(ccv, snd_cwnd) = max(pipe, CCV(ccv, t_maxseg)) +
+			    CCV(ccv, t_maxseg);
 		else
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 	}
