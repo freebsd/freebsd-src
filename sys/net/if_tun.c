@@ -20,6 +20,7 @@
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
@@ -30,6 +31,7 @@
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/sockio.h>
+#include <sys/sx.h>
 #include <sys/ttycom.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
@@ -79,16 +81,10 @@ struct tun_softc {
 #define	TUN_RWAIT	0x0040
 #define	TUN_ASYNC	0x0080
 #define	TUN_IFHEAD	0x0100
+#define	TUN_DYING	0x0200
 
 #define TUN_READY       (TUN_OPEN | TUN_INITED)
 
-	/*
-	 * XXXRW: tun_pid is used to exclusively lock /dev/tun.  Is this
-	 * actually needed?  Can we just return EBUSY if already open?
-	 * Problem is that this involved inherent races when a tun device
-	 * is handed off from one process to another, as opposed to just
-	 * being slightly stale informationally.
-	 */
 	pid_t	tun_pid;		/* owning pid */
 	struct	ifnet *tun_ifp;		/* the interface */
 	struct  sigio *tun_sigio;	/* information for async I/O */
@@ -114,6 +110,9 @@ static int tundclone = 1;
 static struct clonedevs *tunclones;
 static TAILQ_HEAD(,tun_softc)	tunhead = TAILQ_HEAD_INITIALIZER(tunhead);
 SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
+
+static struct sx tun_ioctl_sx;
+SX_SYSINIT(tun_ioctl_sx, &tun_ioctl_sx, "tun_ioctl");
 
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, OID_AUTO, tun, CTLFLAG_RW, 0,
@@ -272,12 +271,17 @@ tun_destroy(struct tun_softc *tp)
 	struct cdev *dev;
 
 	mtx_lock(&tp->tun_mtx);
+	tp->tun_flags |= TUN_DYING;
 	if ((tp->tun_flags & TUN_OPEN) != 0)
 		cv_wait_unlock(&tp->tun_cv, &tp->tun_mtx);
 	else
 		mtx_unlock(&tp->tun_mtx);
 
 	CURVNET_SET(TUN2IFP(tp)->if_vnet);
+	sx_xlock(&tun_ioctl_sx);
+	TUN2IFP(tp)->if_softc = NULL;
+	sx_xunlock(&tun_ioctl_sx);
+
 	dev = tp->tun_dev;
 	bpfdetach(TUN2IFP(tp));
 	if_detach(TUN2IFP(tp));
@@ -464,19 +468,13 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 		tp = dev->si_drv1;
 	}
 
-	/*
-	 * XXXRW: This use of tun_pid is subject to error due to the
-	 * fact that a reference to the tunnel can live beyond the
-	 * death of the process that created it.  Can we replace this
-	 * with a simple busy flag?
-	 */
 	mtx_lock(&tp->tun_mtx);
-	if (tp->tun_pid != 0 && tp->tun_pid != td->td_proc->p_pid) {
+	if ((tp->tun_flags & (TUN_OPEN | TUN_DYING)) != 0) {
 		mtx_unlock(&tp->tun_mtx);
 		return (EBUSY);
 	}
-	tp->tun_pid = td->td_proc->p_pid;
 
+	tp->tun_pid = td->td_proc->p_pid;
 	tp->tun_flags |= TUN_OPEN;
 	ifp = TUN2IFP(tp);
 	if_link_state_change(ifp, LINK_STATE_UP);
@@ -500,8 +498,16 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	ifp = TUN2IFP(tp);
 
 	mtx_lock(&tp->tun_mtx);
-	tp->tun_flags &= ~TUN_OPEN;
-	tp->tun_pid = 0;
+	/*
+	 * Simply close the device if this isn't the controlling process.  This
+	 * may happen if, for instance, the tunnel has been handed off to
+	 * another process.  The original controller should be able to close it
+	 * without putting us into an inconsistent state.
+	 */
+	if (td->td_proc->p_pid != tp->tun_pid) {
+		mtx_unlock(&tp->tun_mtx);
+		return (0);
+	}
 
 	/*
 	 * junk all pending output
@@ -540,6 +546,8 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	selwakeuppri(&tp->tun_rsel, PZERO + 1);
 	KNOTE_LOCKED(&tp->tun_rsel.si_note, 0);
 	TUNDEBUG (ifp, "closed\n");
+	tp->tun_flags &= ~TUN_OPEN;
+	tp->tun_pid = 0;
 
 	cv_broadcast(&tp->tun_cv);
 	mtx_unlock(&tp->tun_mtx);
@@ -588,10 +596,16 @@ static int
 tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct tun_softc *tp = ifp->if_softc;
+	struct tun_softc *tp;
 	struct ifstat *ifs;
 	int		error = 0;
 
+	sx_xlock(&tun_ioctl_sx);
+	tp = ifp->if_softc;
+	if (tp == NULL) {
+		error = ENXIO;
+		goto bad;
+	}
 	switch(cmd) {
 	case SIOCGIFSTATUS:
 		ifs = (struct ifstat *)data;
@@ -618,6 +632,8 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	default:
 		error = EINVAL;
 	}
+bad:
+	sx_xunlock(&tun_ioctl_sx);
 	return (error);
 }
 
