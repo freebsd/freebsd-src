@@ -30,8 +30,6 @@
 
 extern "C" {
 #include <fcntl.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 }
 
 #include "mockfs.hh"
@@ -308,34 +306,6 @@ TEST_F(Create, ok)
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
-}
-
-/* Create a unix-domain socket */
-TEST_F(Create, socket)
-{
-	const char FULLPATH[] = "mountpoint/some_sock";
-	const char RELPATH[] = "some_sock";
-	mode_t mode = S_IFSOCK | 0755;
-	struct sockaddr_un sa;
-	uint64_t ino = 42;
-	int fd;
-
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	expect_create(RELPATH, mode,
-		ReturnImmediate([=](auto in __unused, auto out) {
-		SET_OUT_HEADER_LEN(out, create);
-		out->body.create.entry.attr.mode = mode;
-		out->body.create.entry.nodeid = ino;
-		out->body.create.entry.entry_valid = UINT64_MAX;
-		out->body.create.entry.attr_valid = UINT64_MAX;
-	}));
-
-	fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	ASSERT_LE(0, fd) << strerror(errno);
-	sa.sun_family = AF_UNIX;
-	strlcpy(sa.sun_path, FULLPATH, sizeof(sa.sun_path));
-	ASSERT_EQ(0, bind(fd, (struct sockaddr*)&sa, sizeof(sa)))
-		<< strerror(errno);
 }
 
 /*

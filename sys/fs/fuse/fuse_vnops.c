@@ -537,6 +537,13 @@ fuse_vnop_create(struct vop_create_args *ap)
 	enum fuse_opcode op;
 	int flags;
 
+	if (fuse_isdeadfs(dvp))
+		return ENXIO;
+
+	/* FUSE expects sockets to be created with FUSE_MKNOD */
+	if (vap->va_type == VSOCK)
+		return fuse_internal_mknod(dvp, vpp, cnp, vap);
+
 	/* 
 	 * VOP_CREATE doesn't tell us the open(2) flags, so we guess.  Only a
 	 * writable mode makes sense, and we might as well include readability
@@ -544,15 +551,12 @@ fuse_vnop_create(struct vop_create_args *ap)
 	 */
 	flags = O_RDWR;
 
-	if (fuse_isdeadfs(dvp)) {
-		return ENXIO;
-	}
 	bzero(&fdi, sizeof(fdi));
 
-	if ((vap->va_type != VREG && vap->va_type != VSOCK))
+	if (vap->va_type != VREG)
 		return (EINVAL);
 
-	if (!fsess_isimpl(mp, FUSE_CREATE)) {
+	if (!fsess_isimpl(mp, FUSE_CREATE) || vap->va_type == VSOCK) {
 		/* Fallback to FUSE_MKNOD/FUSE_OPEN */
 		fdisp_make_mknod_for_fallback(fdip, cnp, dvp, parentnid, td,
 			cred, mode, &op);
@@ -1163,15 +1167,11 @@ fuse_vnop_mknod(struct vop_mknod_args *ap)
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
 	struct vattr *vap = ap->a_vap;
-	struct fuse_mknod_in fmni;
 
 	if (fuse_isdeadfs(dvp))
 		return ENXIO;
 
-	fmni.mode = MAKEIMODE(vap->va_type, vap->va_mode);
-	fmni.rdev = vap->va_rdev;
-	return (fuse_internal_newentry(dvp, vpp, cnp, FUSE_MKNOD, &fmni,
-	    sizeof(fmni), vap->va_type));
+	return fuse_internal_mknod(dvp, vpp, cnp, vap);
 }
 
 /*
