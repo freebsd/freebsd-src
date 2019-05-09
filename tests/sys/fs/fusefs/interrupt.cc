@@ -31,6 +31,7 @@
 extern "C" {
 #include <sys/types.h>
 #include <sys/extattr.h>
+#include <sys/mman.h>
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -52,7 +53,10 @@ const char RELDIRPATH0[] = "some_dir";
 const char FULLDIRPATH1[] = "mountpoint/other_dir";
 const char RELDIRPATH1[] = "other_dir";
 
+static sem_t *blocked_semaphore;
 static sem_t *signaled_semaphore;
+
+static bool killer_should_sleep = false;
 
 /* Don't do anything; all we care about is that the syscall gets interrupted */
 void sigusr2_handler(int __unused sig) {
@@ -63,11 +67,11 @@ void sigusr2_handler(int __unused sig) {
 }
 
 void* killer(void* target) {
-	/* 
-	 * Sleep for awhile so we can be mostly confident that the main thread
-	 * is already blocked in write(2)
-	 */
-	usleep(250'000);
+	/* Wait until the main thread is blocked in fdisp_wait_answ */
+	if (killer_should_sleep)
+		usleep(250'000);
+	else
+		sem_wait(blocked_semaphore);
 	if (verbosity > 1)
 		printf("Signalling!  thread %p\n", target);
 	pthread_kill((pthread_t)target, SIGUSR2);
@@ -97,11 +101,11 @@ void expect_mkdir(uint64_t *mkdir_unique)
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_MKDIR);
-				
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([=](auto in, auto &out __unused) {
 		*mkdir_unique = in->header.unique;
+		sem_post(blocked_semaphore);
 	}));
 }
 
@@ -119,6 +123,7 @@ void expect_read(uint64_t ino, uint64_t *read_unique)
 		_)
 	).WillOnce(Invoke([=](auto in, auto &out __unused) {
 		*read_unique = in->header.unique;
+		sem_post(blocked_semaphore);
 	}));
 }
 
@@ -136,18 +141,29 @@ void expect_write(uint64_t ino, uint64_t *write_unique)
 		_)
 	).WillOnce(Invoke([=](auto in, auto &out __unused) {
 		*write_unique = in->header.unique;
+		sem_post(blocked_semaphore);
 	}));
 }
 
-void setup_interruptor(pthread_t target)
+void setup_interruptor(pthread_t target, bool sleep = false)
 {
 	ASSERT_NE(SIG_ERR, signal(SIGUSR2, sigusr2_handler)) << strerror(errno);
+	killer_should_sleep = sleep;
 	ASSERT_EQ(0, pthread_create(&m_child, NULL, killer, (void*)target))
 		<< strerror(errno);
 }
 
 void SetUp() {
+	const int mprot = PROT_READ | PROT_WRITE;
+	const int mflags = MAP_ANON | MAP_SHARED;
+
 	signaled_semaphore = NULL;
+
+	blocked_semaphore = (sem_t*)mmap(NULL, sizeof(*blocked_semaphore),
+		mprot, mflags, -1, 0);
+	ASSERT_NE(MAP_FAILED, blocked_semaphore) << strerror(errno);
+	ASSERT_EQ(0, sem_init(blocked_semaphore, 1, 0)) << strerror(errno);
+
 	FuseTest::SetUp();
 }
 
@@ -160,6 +176,9 @@ void TearDown() {
 	bzero(&sa, sizeof(sa));
 	sa.sa_handler = SIG_DFL;
 	sigaction(SIGUSR2, &sa, NULL);
+
+	sem_destroy(blocked_semaphore);
+	munmap(blocked_semaphore, sizeof(*blocked_semaphore));
 
 	FuseTest::TearDown();
 }
@@ -451,7 +470,7 @@ TEST_F(Interrupt, in_kernel_restartable)
 	ASSERT_EQ(0, pthread_create(&th1, NULL, read1, (void*)(intptr_t)fd1))
 		<< strerror(errno);
 
-	setup_interruptor(self);
+	setup_interruptor(self, true);
 
 	pause();		/* Wait for signal */
 
@@ -518,9 +537,10 @@ TEST_F(Interrupt, in_kernel_nonrestartable)
 	ASSERT_EQ(0, pthread_create(&th0, NULL, mkdir0, NULL))
 		<< strerror(errno);
 
-	setup_interruptor(self);
-
 	sem_wait(&sem1);	/* Sequence the two operations */
+
+	setup_interruptor(self, true);
+
 	r = extattr_set_fd(fd1, ns, "foo", (void*)value, value_len);
 	EXPECT_EQ(EINTR, errno);
 
@@ -676,7 +696,7 @@ TEST_F(Interrupt, priority)
 	signaled_semaphore = &sem0;
 
 	sem_wait(&sem1);	/* Sequence the two mkdirs */
-	setup_interruptor(th0);
+	setup_interruptor(th0, true);
 	ASSERT_EQ(0, mkdir(FULLDIRPATH1, MODE)) << strerror(errno);
 
 	/* Wait awhile to make sure the signal generates no FUSE_INTERRUPT */
