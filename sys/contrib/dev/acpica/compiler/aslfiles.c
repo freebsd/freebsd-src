@@ -163,6 +163,10 @@ FlOpenIncludeWithPrefix (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Filename);
 
+static BOOLEAN
+FlInputFileExists (
+    char                    *InputFilename);
+
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 ACPI_STATUS
 FlParseInputPathname (
@@ -250,7 +254,7 @@ FlInitOneFile (
  *
  ******************************************************************************/
 
-BOOLEAN
+static BOOLEAN
 FlInputFileExists (
     char                    *Filename)
 {

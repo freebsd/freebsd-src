@@ -285,7 +285,7 @@ typedef enum
     ASL_MSG_NO_RETVAL,
     ASL_MSG_NO_WHILE,
     ASL_MSG_NON_ASCII,
-    ASL_MSG_NON_ZERO,
+    ASL_MSG_BUFFER_FIELD_LENGTH,
     ASL_MSG_NOT_EXIST,
     ASL_MSG_NOT_FOUND,
     ASL_MSG_NOT_METHOD,
@@ -367,6 +367,7 @@ typedef enum
     ASL_MSG_REGION_LENGTH,
     ASL_MSG_TEMPORARY_OBJECT,
     ASL_MSG_UNDEFINED_EXTERNAL,
+    ASL_MSG_BUFFER_FIELD_OVERFLOW,
 
     /* These messages are used by the Data Table compiler only */
 
