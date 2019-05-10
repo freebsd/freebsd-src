@@ -119,10 +119,16 @@ static uint64_t rcvd_acks;
 CTASSERT(sizeof(rcvd_acks) * NBBY == NETDUMP_MAX_IN_FLIGHT);
 
 /* Configuration parameters. */
-static struct diocskerneldump_arg nd_conf;
-#define	nd_server	nd_conf.kda_server.in4
-#define	nd_client	nd_conf.kda_client.in4
-#define	nd_gateway	nd_conf.kda_gateway.in4
+static struct {
+	char		 ndc_iface[IFNAMSIZ];
+	union kd_ip	 ndc_server;
+	union kd_ip	 ndc_client;
+	union kd_ip	 ndc_gateway;
+	uint8_t		 ndc_af;
+} nd_conf;
+#define	nd_server	nd_conf.ndc_server.in4
+#define	nd_client	nd_conf.ndc_client.in4
+#define	nd_gateway	nd_conf.ndc_gateway.in4
 
 /* General dynamic settings. */
 static struct ether_addr nd_gw_mac;
@@ -1087,8 +1093,20 @@ netdump_configure(struct diocskerneldump_arg *conf, struct thread *td)
 		return (ENODEV);
 
 	nd_ifp = ifp;
+
 	netdump_reinit(ifp);
-	memcpy(&nd_conf, conf, sizeof(nd_conf));
+#define COPY_SIZED(elm) do {	\
+	_Static_assert(sizeof(nd_conf.ndc_ ## elm) ==			\
+	    sizeof(conf->kda_ ## elm), "elm " __XSTRING(elm) " mismatch"); \
+	memcpy(&nd_conf.ndc_ ## elm, &conf->kda_ ## elm,		\
+	    sizeof(nd_conf.ndc_ ## elm));				\
+} while (0)
+	COPY_SIZED(iface);
+	COPY_SIZED(server);
+	COPY_SIZED(client);
+	COPY_SIZED(gateway);
+	COPY_SIZED(af);
+#undef COPY_SIZED
 	nd_enabled = 1;
 	return (0);
 }
@@ -1193,7 +1211,7 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 			error = ENXIO;
 			break;
 		}
-		if (nd_conf.kda_af != AF_INET) {
+		if (nd_conf.ndc_af != AF_INET) {
 			error = EOPNOTSUPP;
 			break;
 		}
@@ -1225,7 +1243,7 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		memcpy(&conf->kda_server, &nd_server, sizeof(nd_server));
 		memcpy(&conf->kda_client, &nd_client, sizeof(nd_client));
 		memcpy(&conf->kda_gateway, &nd_gateway, sizeof(nd_gateway));
-		conf->kda_af = nd_conf.kda_af;
+		conf->kda_af = nd_conf.ndc_af;
 		conf = NULL;
 		break;
 
@@ -1397,7 +1415,7 @@ netdump_modevent(module_t mod __unused, int what, void *priv __unused)
 
 			bzero(&kda, sizeof(kda));
 			kda.kda_index = KDA_REMOVE_DEV;
-			(void)dumper_remove(nd_conf.kda_iface, &kda);
+			(void)dumper_remove(nd_conf.ndc_iface, &kda);
 
 			netdump_mbuf_drain();
 			nd_enabled = 0;
