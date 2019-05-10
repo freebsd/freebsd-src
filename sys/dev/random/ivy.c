@@ -97,6 +97,13 @@ x86_rdseed_store(u_long *buf)
 	return (retry);
 }
 
+static int
+x86_unimpl_store(u_long *buf __unused)
+{
+
+	panic("%s called", __func__);
+}
+
 DEFINE_IFUNC(static, int, x86_rng_store, (u_long *buf), static)
 {
 	has_rdrand = (cpu_feature2 & CPUID2_RDRAND);
@@ -107,7 +114,7 @@ DEFINE_IFUNC(static, int, x86_rng_store, (u_long *buf), static)
 	else if (has_rdrand)
 		return (x86_rdrand_store);
 	else
-		return (NULL);
+		return (x86_unimpl_store);
 }
 
 /* It is required that buf length is a multiple of sizeof(u_long). */
