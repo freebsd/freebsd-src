@@ -50,7 +50,7 @@ ixgbe_init_fdir(struct adapter *adapter)
 } /* ixgbe_init_fdir */
 
 void
-ixgbe_reinit_fdir(void *context, int pending)
+ixgbe_reinit_fdir(void *context)
 {
 	struct adapter *adapter = context;
 	struct ifnet   *ifp = adapter->ifp;
@@ -146,9 +146,9 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 
 /* TASK_INIT needs this function defined regardless if it's enabled */
 void
-ixgbe_reinit_fdir(void *context, int pending)
+ixgbe_reinit_fdir(void *context)
 {
-	UNREFERENCED_2PARAMETER(context, pending);
+	UNREFERENCED_1PARAMETER(context);
 } /* ixgbe_reinit_fdir */
 
 void

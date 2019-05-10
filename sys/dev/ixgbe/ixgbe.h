@@ -464,17 +464,15 @@ struct adapter {
 
 	/* Support for pluggable optics */
 	bool                    sfp_probe;
-	struct task             link_task;  /* Link tasklet */
-	struct task             mod_task;   /* SFP tasklet */
-	struct task             msf_task;   /* Multispeed Fiber */
-	struct task             mbx_task;   /* VF -> PF mailbox interrupt */
+	struct task		link_task;  /* Link tasklet */
 
 	/* Flow Director */
 	int                     fdir_reinit;
-	struct task             fdir_task;
 
-	struct task             phy_task;   /* PHY intr tasklet */
-	struct taskqueue        *tq;
+	/* Admin task */
+	struct taskqueue	*tq;
+	struct task		admin_task;
+	u32			task_requests;
 
 	/*
 	 * Queues:

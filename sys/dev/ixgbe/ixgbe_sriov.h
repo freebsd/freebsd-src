@@ -96,7 +96,7 @@ u32  ixgbe_get_mrqc(int);
 
 #endif /* PCI_IOV */
 
-void ixgbe_handle_mbx(void *, int);
+void ixgbe_handle_mbx(void *);
 int  ixgbe_vf_que_index(int, int, int);
 
 #endif
