@@ -147,7 +147,7 @@ ReturnImmediate(std::function<void(const struct mockfs_buf_in *in,
 }
 
 void sigint_handler(int __unused sig) {
-	quit = 1;
+	// Don't do anything except interrupt the daemon's read(2) call
 }
 
 void debug_fuseop(const mockfs_buf_in *in)
@@ -280,6 +280,7 @@ void debug_fuseop(const mockfs_buf_in *in)
 MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	bool push_symlinks_in, bool ro, uint32_t flags)
 {
+	struct sigaction sa;
 	struct iovec *iov = NULL;
 	int iovlen = 0;
 	char fdstr[15];
@@ -340,7 +341,12 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 		.WillByDefault(Invoke(this, &MockFS::process_default));
 
 	init(flags);
-	signal(SIGUSR1, sigint_handler);
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = sigint_handler;
+	sa.sa_flags = 0;	/* Don't set SA_RESTART! */
+	if (0 != sigaction(SIGUSR1, &sa, NULL))
+		throw(std::system_error(errno, std::system_category(),
+			"Couldn't handle SIGUSR1"));
 	if (pthread_create(&m_daemon_id, NULL, service, (void*)this))
 		throw(std::system_error(errno, std::system_category(),
 			"Couldn't Couldn't start fuse thread"));
@@ -348,11 +354,11 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 
 MockFS::~MockFS() {
 	kill_daemon();
-	::unmount("mountpoint", MNT_FORCE);
 	if (m_daemon_id != NULL) {
 		pthread_join(m_daemon_id, NULL);
 		m_daemon_id = NULL;
 	}
+	::unmount("mountpoint", MNT_FORCE);
 	rmdir("mountpoint");
 }
 
@@ -393,13 +399,14 @@ void MockFS::init(uint32_t flags) {
 }
 
 void MockFS::kill_daemon() {
-	if (m_daemon_id != NULL) {
+	quit = 1;
+	if (m_daemon_id != NULL)
 		pthread_kill(m_daemon_id, SIGUSR1);
-		// Closing the /dev/fuse file descriptor first allows unmount
-		// to succeed even if the daemon doesn't correctly respond to
-		// commands during the unmount sequence.
-		close(m_fuse_fd);
-	}
+	// Closing the /dev/fuse file descriptor first allows unmount to
+	// succeed even if the daemon doesn't correctly respond to commands
+	// during the unmount sequence.
+	close(m_fuse_fd);
+	m_fuse_fd = -1;
 }
 
 void MockFS::loop() {
@@ -462,6 +469,9 @@ bool MockFS::pid_ok(pid_t pid) {
 void MockFS::process_default(const mockfs_buf_in *in,
 		std::vector<mockfs_buf_out*> &out)
 {
+	if (verbosity > 1)
+		printf("%-11s REJECTED (wrong pid %d)\n",
+			opcode2opname(in->header.opcode), in->header.pid);
 	auto out0 = new mockfs_buf_out;
 	out0->header.unique = in->header.unique;
 	out0->header.error = -EOPNOTSUPP;

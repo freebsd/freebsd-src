@@ -94,14 +94,12 @@ SDT_PROBE_DEFINE2(fusefs, , device, trace, "int", "char*");
 static struct cdev *fuse_dev;
 
 static d_open_t fuse_device_open;
-static d_close_t fuse_device_close;
 static d_poll_t fuse_device_poll;
 static d_read_t fuse_device_read;
 static d_write_t fuse_device_write;
 
 static struct cdevsw fuse_device_cdevsw = {
 	.d_open = fuse_device_open,
-	.d_close = fuse_device_close,
 	.d_name = "fuse",
 	.d_poll = fuse_device_poll,
 	.d_read = fuse_device_read,
@@ -119,8 +117,31 @@ static void
 fdata_dtor(void *arg)
 {
 	struct fuse_data *fdata;
+	struct fuse_ticket *tick;
 
 	fdata = arg;
+	if (fdata == NULL)
+		return;
+
+	fdata_set_dead(fdata);
+
+	FUSE_LOCK();
+	fuse_lck_mtx_lock(fdata->aw_mtx);
+	/* wakup poll()ers */
+	selwakeuppri(&fdata->ks_rsel, PZERO + 1);
+	/* Don't let syscall handlers wait in vain */
+	while ((tick = fuse_aw_pop(fdata))) {
+		fuse_lck_mtx_lock(tick->tk_aw_mtx);
+		fticket_set_answered(tick);
+		tick->tk_aw_errno = ENOTCONN;
+		wakeup(tick);
+		fuse_lck_mtx_unlock(tick->tk_aw_mtx);
+		FUSE_ASSERT_AW_DONE(tick);
+		fuse_ticket_drop(tick);
+	}
+	fuse_lck_mtx_unlock(fdata->aw_mtx);
+	FUSE_UNLOCK();
+
 	fdata_trydestroy(fdata);
 }
 
@@ -142,41 +163,6 @@ fuse_device_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	else
 		SDT_PROBE2(fusefs, , device, trace, 1, "device open success");
 	return (error);
-}
-
-static int
-fuse_device_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
-{
-	struct fuse_data *data;
-	struct fuse_ticket *tick;
-	int error;
-
-	error = devfs_get_cdevpriv((void **)&data);
-	if (error != 0)
-		return (error);
-	if (!data)
-		panic("no fuse data upon fuse device close");
-	fdata_set_dead(data);
-
-	FUSE_LOCK();
-	fuse_lck_mtx_lock(data->aw_mtx);
-	/* wakup poll()ers */
-	selwakeuppri(&data->ks_rsel, PZERO + 1);
-	/* Don't let syscall handlers wait in vain */
-	while ((tick = fuse_aw_pop(data))) {
-		fuse_lck_mtx_lock(tick->tk_aw_mtx);
-		fticket_set_answered(tick);
-		tick->tk_aw_errno = ENOTCONN;
-		wakeup(tick);
-		fuse_lck_mtx_unlock(tick->tk_aw_mtx);
-		FUSE_ASSERT_AW_DONE(tick);
-		fuse_ticket_drop(tick);
-	}
-	fuse_lck_mtx_unlock(data->aw_mtx);
-	FUSE_UNLOCK();
-
-	SDT_PROBE2(fusefs, , device, trace, 1, "device close");
-	return (0);
 }
 
 int
