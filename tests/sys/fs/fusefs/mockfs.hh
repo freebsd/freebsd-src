@@ -212,6 +212,9 @@ class MockFS {
 	/* Maximum size of a FUSE_WRITE write */
 	uint32_t m_max_write;
 
+	/* Tell the daemon to shut down ASAP */
+	bool m_quit;
+
 	/* Create a new mockfs and mount it to a tempdir */
 	MockFS(int max_readahead, bool allow_other,
 		bool default_permissions, bool push_symlinks_in, bool ro,
