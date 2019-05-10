@@ -63,6 +63,8 @@ ATF_TC_BODY(rb_test, tc)
 	struct node *tmp, *ins;
 	int i, max, min;
 
+	max = min = 42; /* pacify gcc */
+
 	RB_INIT(&root);
 
 	for (i = 0; i < ITER; i++) {
