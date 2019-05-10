@@ -1148,13 +1148,18 @@ main(int ac, char **av)
 			    "f %x %d    -free\n"
 			    "l %x %d    -fill\n"
 			    "r %d       -resize\n"
-			    "h/?        -help"
+			    "h/?        -help\n"
+			    "q          -quit"
 			);
+			break;
+		case 'q':
 			break;
 		default:
 			printf("?\n");
 			break;
 		}
+		if (buf[0] == 'q')
+			break;
 	}
 	return (0);
 }
