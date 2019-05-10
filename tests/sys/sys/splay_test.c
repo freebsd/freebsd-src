@@ -65,6 +65,8 @@ ATF_TC_BODY(splay_test, tc)
 
 	SPLAY_INIT(&root);
 
+	max = min = 42; /* pacify gcc */
+
 	for (i = 0; i < ITER; i++) {
 		tmp = malloc(sizeof(struct node));
 		ATF_CHECK_MSG(tmp != NULL, "malloc failed");
