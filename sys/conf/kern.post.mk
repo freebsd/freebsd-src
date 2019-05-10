@@ -357,7 +357,7 @@ _ILINKS+= x86
 # Ensure that debug info references the path in the source tree.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${SRCS} ${CLEAN:M*.o}: ${_link}
+${SRCS} ${DEPENDOBJS}: ${_link}
 .endif
 .if defined(_MAP_DEBUG_PREFIX)
 .if ${_link} == "machine"
