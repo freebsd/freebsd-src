@@ -1394,11 +1394,11 @@ netdump_modevent(module_t mod __unused, int what, void *priv __unused)
 				freeenv(arg);
 			}
 			if ((arg = kern_getenv("net.dump.client")) != NULL) {
-				inet_aton(arg, &conf.kda_server.in4);
+				inet_aton(arg, &conf.kda_client.in4);
 				freeenv(arg);
 			}
 			if ((arg = kern_getenv("net.dump.gateway")) != NULL) {
-				inet_aton(arg, &conf.kda_server.in4);
+				inet_aton(arg, &conf.kda_gateway.in4);
 				freeenv(arg);
 			}
 			conf.kda_af = AF_INET;
