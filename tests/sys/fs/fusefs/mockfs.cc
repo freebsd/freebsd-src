@@ -53,7 +53,6 @@ extern "C" {
 using namespace testing;
 
 int verbosity = 0;
-static sig_atomic_t quit = 0;
 
 const char* opcode2opname(uint32_t opcode)
 {
@@ -288,7 +287,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 
 	m_daemon_id = NULL;
 	m_maxreadahead = max_readahead;
-	quit = 0;
+	m_quit = false;
 
 	/*
 	 * Kyua sets pwd to a testcase-unique tempdir; no need to use
@@ -399,7 +398,7 @@ void MockFS::init(uint32_t flags) {
 }
 
 void MockFS::kill_daemon() {
-	quit = 1;
+	m_quit = true;
 	if (m_daemon_id != NULL)
 		pthread_kill(m_daemon_id, SIGUSR1);
 	// Closing the /dev/fuse file descriptor first allows unmount to
@@ -415,10 +414,10 @@ void MockFS::loop() {
 
 	in = (mockfs_buf_in*) malloc(sizeof(*in));
 	ASSERT_TRUE(in != NULL);
-	while (!quit) {
+	while (!m_quit) {
 		bzero(in, sizeof(*in));
 		read_request(in);
-		if (quit)
+		if (m_quit)
 			break;
 		if (verbosity > 0)
 			debug_fuseop(in);
@@ -483,9 +482,9 @@ void MockFS::read_request(mockfs_buf_in *in) {
 	ssize_t res;
 
 	res = read(m_fuse_fd, in, sizeof(*in));
-	if (res < 0 && !quit)
+	if (res < 0 && !m_quit)
 		perror("read");
-	ASSERT_TRUE(res >= (ssize_t)sizeof(in->header) || quit);
+	ASSERT_TRUE(res >= (ssize_t)sizeof(in->header) || m_quit);
 }
 
 void* MockFS::service(void *pthr_data) {
