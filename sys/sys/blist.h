@@ -69,17 +69,17 @@ typedef	uint64_t	u_daddr_t;	/* unsigned disk address */
 #define SWAPBLK_NONE	((daddr_t)((u_daddr_t)SWAPBLK_MASK + 1))/* flag */
 
 /*
- * Both blmeta and bmu_bitmap MUST be a power of 2 in size.
+ * Both blmeta and bm_bitmap MUST be a power of 2 in size.
  */
 
 typedef struct blmeta {
-	u_daddr_t	bm_bitmap;	/* bitmap if we are a leaf	*/
+	u_daddr_t	bm_bitmap;	/* marking unfilled block sets	*/
 	daddr_t		bm_bighint;	/* biggest contiguous block hint*/
 } blmeta_t;
 
 typedef struct blist {
 	daddr_t		bl_blocks;	/* area of coverage		*/
-	daddr_t		bl_avail;	/* # available blocks */
+	daddr_t		bl_avail;	/* # available blocks		*/
 	u_daddr_t	bl_radix;	/* coverage radix		*/
 	daddr_t		bl_cursor;	/* next-fit search starts at	*/
 	blmeta_t	bl_root[1];	/* root of radix tree		*/
