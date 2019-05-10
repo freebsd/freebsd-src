@@ -442,7 +442,13 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 	int err = 0, stops_deferred;
 	struct fuse_data *data;
 
-	SIGEMPTYSET(blockedset);
+	if (fsess_isimpl(ftick->tk_data->mp, FUSE_INTERRUPT)) {
+		SIGEMPTYSET(blockedset);
+	} else {
+		/* May as well block all signals */
+		SIGFILLSET(blockedset);
+		SIGDELSET(blockedset, SIGKILL);
+	}
 	stops_deferred = sigdeferstop(SIGDEFERSTOP_SILENT);
 	kern_sigprocmask(td, SIG_BLOCK, NULL, &oldset, 0);
 
