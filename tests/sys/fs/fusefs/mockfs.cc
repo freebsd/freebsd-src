@@ -192,6 +192,11 @@ void debug_fuseop(const mockfs_buf_in *in)
 		case FUSE_LOOKUP:
 			printf(" %s", in->body.lookup);
 			break;
+		case FUSE_MKDIR:
+			name = (const char*)in->body.bytes +
+				sizeof(fuse_mkdir_in);
+			printf(" name=%s mode=%#o", name, in->body.mkdir.mode);
+			break;
 		case FUSE_MKNOD:
 			printf(" mode=%#o rdev=%x", in->body.mknod.mode,
 				in->body.mknod.rdev);
@@ -429,6 +434,9 @@ void MockFS::loop() {
 			 * we actually do mount a filesystem, plenty of
 			 * unrelated system daemons may try to access it.
 			 */
+			if (verbosity > 1)
+				printf("\tREJECTED (wrong pid %d)\n",
+					in->header.pid);
 			process_default(in, out);
 		}
 		for (auto &it: out) {
@@ -468,9 +476,6 @@ bool MockFS::pid_ok(pid_t pid) {
 void MockFS::process_default(const mockfs_buf_in *in,
 		std::vector<mockfs_buf_out*> &out)
 {
-	if (verbosity > 1)
-		printf("%-11s REJECTED (wrong pid %d)\n",
-			opcode2opname(in->header.opcode), in->header.pid);
 	auto out0 = new mockfs_buf_out;
 	out0->header.unique = in->header.unique;
 	out0->header.error = -EOPNOTSUPP;
