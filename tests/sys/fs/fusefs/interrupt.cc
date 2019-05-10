@@ -163,6 +163,7 @@ void SetUp() {
 		mprot, mflags, -1, 0);
 	ASSERT_NE(MAP_FAILED, blocked_semaphore) << strerror(errno);
 	ASSERT_EQ(0, sem_init(blocked_semaphore, 1, 0)) << strerror(errno);
+	ASSERT_EQ(0, siginterrupt(SIGUSR2, 1));
 
 	FuseTest::SetUp();
 }
@@ -357,7 +358,9 @@ TEST_F(Interrupt, fatal_signal)
 	int status;
 	pthread_t self;
 	uint64_t mkdir_unique;
+	sem_t sem;
 
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 	self = pthread_self();
 
 	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
@@ -369,6 +372,7 @@ TEST_F(Interrupt, fatal_signal)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
+		sem_post(&sem);
 		/* Don't respond.  The process should exit anyway */
 	}));
 
@@ -398,6 +402,9 @@ TEST_F(Interrupt, fatal_signal)
 		return 1;
 	});
 	ASSERT_EQ(SIGUSR2, WTERMSIG(status));
+
+	EXPECT_EQ(0, sem_wait(&sem)) << strerror(errno);
+	sem_destroy(&sem);
 }
 
 /*
@@ -714,9 +721,6 @@ TEST_F(Interrupt, priority)
 	sem_wait(&sem1);	/* Sequence the two mkdirs */
 	setup_interruptor(th0, true);
 	ASSERT_EQ(0, mkdir(FULLDIRPATH1, MODE)) << strerror(errno);
-
-	/* Wait awhile to make sure the signal generates no FUSE_INTERRUPT */
-	nap();
 
 	pthread_join(th0, NULL);
 	sem_destroy(&sem1);
