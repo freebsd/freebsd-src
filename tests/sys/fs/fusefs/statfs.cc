@@ -31,6 +31,7 @@
 extern "C" {
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <semaphore.h>
 }
 
 #include "mockfs.hh"
@@ -69,6 +70,58 @@ TEST_F(Statfs, enotconn)
 	ASSERT_NE(NULL, getcwd(mp, PATH_MAX)) << strerror(errno);
 	strlcat(mp, "/mountpoint", PATH_MAX);
 	ASSERT_EQ(0, statfs("mountpoint", &statbuf)) << strerror(errno);
+
+	EXPECT_EQ(getuid(), statbuf.f_owner);
+	EXPECT_EQ(0, strcmp("fusefs", statbuf.f_fstypename));
+	EXPECT_EQ(0, strcmp("/dev/fuse", statbuf.f_mntfromname));
+	EXPECT_EQ(0, strcmp(mp, statbuf.f_mntonname));
+}
+
+static void* statfs_th(void* arg) {
+	ssize_t r;
+	struct statfs *sb = (struct statfs*)arg;
+
+	r = statfs("mountpoint", sb);
+	if (r >= 0)
+		return 0;
+	else
+		return (void*)(intptr_t)errno;
+}
+
+/*
+ * Like the enotconn test, but in this case the daemon dies after we send the
+ * FUSE_STATFS operation but before we get a response.
+ */
+TEST_F(Statfs, enotconn_while_blocked)
+{
+	struct statfs statbuf;
+	void *thr0_value;
+	pthread_t th0;
+	char mp[PATH_MAX];
+	sem_t sem;
+
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_STATFS);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
+		sem_post(&sem);
+		/* Just block until the daemon dies */
+	}));
+
+	ASSERT_NE(NULL, getcwd(mp, PATH_MAX)) << strerror(errno);
+	strlcat(mp, "/mountpoint", PATH_MAX);
+	ASSERT_EQ(0, pthread_create(&th0, NULL, statfs_th, (void*)&statbuf))
+		<< strerror(errno);
+
+	ASSERT_EQ(0, sem_wait(&sem)) << strerror(errno);
+	m_mock->kill_daemon();
+
+	pthread_join(th0, &thr0_value);
+	ASSERT_EQ(0, (intptr_t)thr0_value);
 
 	EXPECT_EQ(getuid(), statbuf.f_owner);
 	EXPECT_EQ(0, strcmp("fusefs", statbuf.f_fstypename));
