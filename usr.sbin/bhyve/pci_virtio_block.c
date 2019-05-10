@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #define VTBLK_S_IOERR	1
 #define	VTBLK_S_UNSUPP	2
 
-#define	VTBLK_BLK_ID_BYTES	20
+#define	VTBLK_BLK_ID_BYTES	20 + 1
 
 /* Capability bits */
 #define	VTBLK_F_SEG_MAX		(1 << 2)	/* Maximum request segments */
@@ -344,7 +344,8 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	MD5Init(&mdctx);
 	MD5Update(&mdctx, opts, strlen(opts));
 	MD5Final(digest, &mdctx);	
-	sprintf(sc->vbsc_ident, "BHYVE-%02X%02X-%02X%02X-%02X%02X",
+	snprintf(sc->vbsc_ident, VTBLK_BLK_ID_BYTES,
+	    "BHYVE-%02X%02X-%02X%02X-%02X%02X",
 	    digest[0], digest[1], digest[2], digest[3], digest[4], digest[5]);
 
 	/* setup virtio block config space */
