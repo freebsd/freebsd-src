@@ -215,18 +215,18 @@ static inline int
 bitpos(u_daddr_t mask)
 {
 
-	return (_Generic(mask,
+  switch (sizeof(mask)) {
 #ifdef HAVE_INLINE_FFSLL
-	    long long: ffsll(mask) - 1,
-#endif
-#ifdef HAVE_INLINE_FFSL
-	    long: ffsl(mask) - 1,
+  case sizeof(long long):
+	  return (ffsll(mask) - 1);
 #endif
 #ifdef HAVE_INLINE_FFS
-	    int: ffs(mask) - 1,
+  case sizeof(int):
+	  return (ffs(mask) - 1);
 #endif
-	    default: generic_bitpos(mask)
-	));
+  default:
+	  return (generic_bitpos(mask));
+  }
 }
 
 /*
