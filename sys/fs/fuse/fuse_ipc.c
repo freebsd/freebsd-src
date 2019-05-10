@@ -1028,7 +1028,15 @@ fdisp_wait_answ(struct fuse_dispatcher *fdip)
 		}
 	}
 
-	if (fdip->tick->tk_aw_errno) {
+	if (fdip->tick->tk_aw_errno == ENOTCONN) {
+		/* The daemon died while we were waiting for a response */
+		err = ENOTCONN;
+		goto out;
+	} else if (fdip->tick->tk_aw_errno) {
+		/* 
+		 * There was some sort of communication error with the daemon
+		 * that the client wouldn't understand.
+		 */
 		SDT_PROBE2(fusefs, , ipc, fdisp_wait_answ_error,
 			"IPC: explicit EIO-ing", fdip->tick->tk_aw_errno);
 		err = EIO;
