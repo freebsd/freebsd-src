@@ -417,6 +417,22 @@ linux_pci_unregister_driver(struct pci_driver *pdrv)
 	mtx_unlock(&Giant);
 }
 
+void
+linux_pci_unregister_drm_driver(struct pci_driver *pdrv)
+{
+	devclass_t bus;
+
+	bus = devclass_find("vgapci");
+
+	spin_lock(&pci_lock);
+	list_del(&pdrv->links);
+	spin_unlock(&pci_lock);
+	mtx_lock(&Giant);
+	if (bus != NULL)
+		devclass_delete_driver(bus, &pdrv->bsddriver);
+	mtx_unlock(&Giant);
+}
+
 CTASSERT(sizeof(dma_addr_t) <= sizeof(uint64_t));
 
 struct linux_dma_obj {
