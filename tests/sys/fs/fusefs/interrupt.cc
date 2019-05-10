@@ -217,10 +217,13 @@ TEST_F(Interrupt, already_complete)
 	uint64_t ino = 42;
 	pthread_t self;
 	uint64_t mkdir_unique = 0;
+	Sequence seq;
 
 	self = pthread_self();
 
-	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELDIRPATH0)
+	.InSequence(seq)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_mkdir(&mkdir_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
@@ -244,9 +247,22 @@ TEST_F(Interrupt, already_complete)
 		out1->header.len = sizeof(out1->header);
 		out.push_back(out1);
 	}));
+	EXPECT_LOOKUP(1, RELDIRPATH0)
+	.InSequence(seq)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFDIR | MODE;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 2;
+	})));
 
 	setup_interruptor(self);
 	EXPECT_EQ(0, mkdir(FULLDIRPATH0, MODE)) << strerror(errno);
+	/* 
+	 * The final syscall simply ensures that the test's main thread doesn't
+	 * end before the daemon finishes responding to the FUSE_INTERRUPT.
+	 */
+	EXPECT_EQ(0, access(FULLDIRPATH0, F_OK)) << strerror(errno);
 }
 
 /*
@@ -278,7 +294,7 @@ TEST_F(Interrupt, enosys)
 		_)
 	).InSequence(seq)
 	.WillOnce(Invoke([&](auto in, auto &out) {
-		// reject FUSE_INTERRUPT and respond to the FUSE_WRITE
+		// reject FUSE_INTERRUPT and respond to the FUSE_MKDIR
 		auto out0 = new mockfs_buf_out;
 		auto out1 = new mockfs_buf_out;
 
