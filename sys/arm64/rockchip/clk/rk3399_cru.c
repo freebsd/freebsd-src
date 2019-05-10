@@ -764,6 +764,7 @@ static struct rk_clk_pll_def lpll = {
 	.gate_shift = 0,
 	.flags = RK_CLK_PLL_HAVE_GATE,
 	.rates = rk3399_pll_rates,
+	.normal_mode = true,
 };
 
 static struct rk_clk_pll_def bpll = {
@@ -778,6 +779,7 @@ static struct rk_clk_pll_def bpll = {
 	.gate_shift = 1,
 	.flags = RK_CLK_PLL_HAVE_GATE,
 	.rates = rk3399_pll_rates,
+	.normal_mode = true,
 };
 
 static struct rk_clk_pll_def dpll = {

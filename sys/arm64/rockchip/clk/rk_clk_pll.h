@@ -57,6 +57,8 @@ struct rk_clk_pll_def {
 
 	struct rk_clk_pll_rate	*rates;
 	struct rk_clk_pll_rate	*frac_rates;
+
+	bool			normal_mode;
 };
 
 #define	RK_CLK_PLL_HAVE_GATE	0x1
