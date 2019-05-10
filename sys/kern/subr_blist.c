@@ -607,7 +607,6 @@ static int
 blst_next_leaf_alloc(blmeta_t *scan, daddr_t blk, int count)
 {
 	blmeta_t *next;
-	daddr_t skip;
 	u_daddr_t radix;
 	int digit;
 
@@ -632,13 +631,14 @@ blst_next_leaf_alloc(blmeta_t *scan, daddr_t blk, int count)
 	/*
 	 * Update bitmaps of next-ancestors, up to least common ancestor.
 	 */
-	skip = radix_to_skip(radix);
-	while (radix != BLIST_BMAP_RADIX && next->bm_bitmap == 0) {
-		(--next)->bm_bitmap ^= 1;
-		radix /= BLIST_META_RADIX;
-	}
-	if (next->bm_bitmap == 0)
-		scan[-digit * skip].bm_bitmap ^= (u_daddr_t)1 << digit;
+	while (next->bm_bitmap == 0) {
+		if (--next == scan) {
+			scan[-digit * radix_to_skip(radix)].bm_bitmap ^=
+			    (u_daddr_t)1 << digit;
+			break;
+		}
+		next->bm_bitmap ^= 1;
+ 	}
 	return (0);
 }
 
