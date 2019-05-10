@@ -131,6 +131,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kern_prefetch.h>
 
 #include <vm/uma.h>
+#include <vm/vm.h>
 
 #include <net/route.h>
 #include <net/vnet.h>
@@ -171,7 +172,7 @@ MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
 #include <net/rss_config.h>
 static int tcp_bind_threads = 1;
 #else
-static int tcp_bind_threads = 0;
+static int tcp_bind_threads = 2;
 #endif
 TUNABLE_INT("net.inet.tcp.bind_hptss", &tcp_bind_threads);
 
@@ -206,6 +207,13 @@ SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hpts, CTLFLAG_RW, 0, "TCP Hpts controls");
 static int32_t logging_on = 0;
 static int32_t hpts_sleep_max = (NUM_OF_HPTSI_SLOTS - 2);
 static int32_t tcp_hpts_precision = 120;
+
+struct hpts_domain_info {
+	int count;
+	int cpu[MAXCPU];
+};
+
+struct hpts_domain_info hpts_domains[MAXMEMDOM];
 
 SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, precision, CTLFLAG_RW,
     &tcp_hpts_precision, 120,
@@ -1079,7 +1087,9 @@ hpts_random_cpu(struct inpcb *inp){
 static uint16_t
 hpts_cpuid(struct inpcb *inp){
 	u_int cpuid;
-
+#ifdef NUMA
+	struct hpts_domain_info *di;
+#endif
 
 	/*
 	 * If one has been set use it i.e. we want both in and out on the
@@ -1103,11 +1113,21 @@ hpts_cpuid(struct inpcb *inp){
 	 * unknown cpuids to curcpu.  Not the best, but apparently better
 	 * than defaulting to swi 0.
 	 */
-	if (inp->inp_flowtype != M_HASHTYPE_NONE) {
+	
+	if (inp->inp_flowtype == M_HASHTYPE_NONE)
+		return (hpts_random_cpu(inp));
+	/*
+	 * Hash to a thread based on the flowid.  If we are using numa,
+	 * then restrict the hash to the numa domain where the inp lives.
+	 */
+#ifdef NUMA
+	if (tcp_bind_threads == 2 && inp->inp_numa_domain != M_NODOM) {
+		di = &hpts_domains[inp->inp_numa_domain];
+		cpuid = di->cpu[inp->inp_flowid % di->count];
+	} else
+#endif
 		cpuid = inp->inp_flowid % mp_ncpus;
-		return (cpuid);
-	}
-	cpuid = hpts_random_cpu(inp);
+
 	return (cpuid);
 #endif
 }
@@ -1781,8 +1801,11 @@ tcp_init_hptsi(void *st)
 	struct timeval tv;
 	sbintime_t sb;
 	struct tcp_hpts_entry *hpts;
+	struct pcpu *pc;
+	cpuset_t cs;
 	char unit[16];
 	uint32_t ncpus = mp_ncpus ? mp_ncpus : MAXCPU;
+	int count, domain;
 
 	tcp_pace.rp_proc = NULL;
 	tcp_pace.rp_num_hptss = ncpus;
@@ -1861,6 +1884,11 @@ tcp_init_hptsi(void *st)
 		}
 		callout_init(&hpts->co, 1);
 	}
+
+	/* Don't try to bind to NUMA domains if we don't have any */
+	if (vm_ndomains == 1 && tcp_bind_threads == 2)
+		tcp_bind_threads = 0;
+
 	/*
 	 * Now lets start ithreads to handle the hptss.
 	 */
@@ -1875,9 +1903,20 @@ tcp_init_hptsi(void *st)
 			    hpts, i, error);
 		}
 		created++;
-		if (tcp_bind_threads) {
+		if (tcp_bind_threads == 1) {
 			if (intr_event_bind(hpts->ie, i) == 0)
 				bound++;
+		} else if (tcp_bind_threads == 2) {
+			pc = pcpu_find(i);
+			domain = pc->pc_domain;
+			CPU_COPY(&cpuset_domain[domain], &cs);
+			if (intr_event_bind_ithread_cpuset(hpts->ie, &cs)
+			    == 0) {
+				bound++;
+				count = hpts_domains[domain].count;
+				hpts_domains[domain].cpu[count] = i;
+				hpts_domains[domain].count++;
+			}
 		}
 		tv.tv_sec = 0;
 		tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_TICKS_PER_USEC;
@@ -1893,9 +1932,20 @@ tcp_init_hptsi(void *st)
 			    C_PREL(tcp_hpts_precision));
 		}
 	}
-	printf("TCP Hpts created %d swi interrupt thread and bound %d\n",
-	    created, bound);
-	return;
+	/*
+	 * If we somehow have an empty domain, fall back to choosing
+	 * among all htps threads.
+	 */
+	for (i = 0; i < vm_ndomains; i++) {
+		if (hpts_domains[i].count == 0) {
+			tcp_bind_threads = 0;
+			break;
+		}
+	}
+
+	printf("TCP Hpts created %d swi interrupt threads and bound %d to %s\n",
+	    created, bound,
+	    tcp_bind_threads == 2 ? "NUMA domains" : "cpus");
 }
 
 SYSINIT(tcphptsi, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, tcp_init_hptsi, NULL);
