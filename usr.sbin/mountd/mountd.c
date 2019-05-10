@@ -128,6 +128,8 @@ struct exportlist {
 /* ex_flag bits */
 #define	EX_LINKED	0x1
 
+SLIST_HEAD(exportlisthead, exportlist);
+
 struct netmsk {
 	struct sockaddr_storage nt_net;
 	struct sockaddr_storage nt_mask;
@@ -189,13 +191,15 @@ static int	do_mount(struct exportlist *, struct grouplist *, int,
 		    struct xucred *, char *, int, struct statfs *);
 static int	do_opt(char **, char **, struct exportlist *,
 		    struct grouplist *, int *, int *, struct xucred *);
-static struct exportlist	*ex_search(fsid_t *);
+static struct exportlist	*ex_search(fsid_t *, struct exportlisthead *);
 static struct exportlist	*get_exp(void);
 static void	free_dir(struct dirlist *);
 static void	free_exp(struct exportlist *);
 static void	free_grp(struct grouplist *);
 static void	free_host(struct hostlist *);
 static void	get_exportlist(void);
+static void	insert_exports(struct exportlist *, struct exportlisthead *);
+static void	free_exports(struct exportlisthead *);
 static int	get_host(char *, struct grouplist *, struct grouplist *);
 static struct hostlist *get_ht(void);
 static int	get_line(void);
@@ -227,8 +231,8 @@ static int	xdr_fhs(XDR *, caddr_t);
 static int	xdr_mlist(XDR *, caddr_t);
 static void	terminate(int);
 
-static SLIST_HEAD(, exportlist) exphead = SLIST_HEAD_INITIALIZER(exphead);
-static SLIST_HEAD(, mountlist) mlhead = SLIST_HEAD_INITIALIZER(mlhead);
+static struct exportlisthead exphead = SLIST_HEAD_INITIALIZER(&exphead);
+static SLIST_HEAD(, mountlist) mlhead = SLIST_HEAD_INITIALIZER(&mlhead);
 static struct grouplist *grphead;
 static char *exnames_default[2] = { _PATH_EXPORTS, NULL };
 static char **exnames;
@@ -1087,7 +1091,7 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 		if (bad)
 			ep = NULL;
 		else
-			ep = ex_search(&fsb.f_fsid);
+			ep = ex_search(&fsb.f_fsid, &exphead);
 		hostset = defset = 0;
 		if (ep && (chk_host(ep->ex_defdir, saddr, &defset, &hostset,
 		    &numsecflavors, &secflavorsp) ||
@@ -1540,7 +1544,7 @@ get_exportlist_one(void)
 					 * See if this directory is already
 					 * in the list.
 					 */
-					ep = ex_search(&fsb.f_fsid);
+					ep = ex_search(&fsb.f_fsid, &exphead);
 					if (ep == (struct exportlist *)NULL) {
 					    ep = get_exp();
 					    ep->ex_fs = fsb.f_fsid;
@@ -1695,7 +1699,7 @@ get_exportlist_one(void)
 		}
 		dirhead = (struct dirlist *)NULL;
 		if ((ep->ex_flag & EX_LINKED) == 0) {
-			SLIST_INSERT_HEAD(&exphead, ep, entries);
+			insert_exports(ep, &exphead);
 
 			ep->ex_flag |= EX_LINKED;
 		}
@@ -1714,7 +1718,6 @@ nextline:
 static void
 get_exportlist(void)
 {
-	struct exportlist *ep, *ep2;
 	struct grouplist *grp, *tgrp;
 	struct export_args export;
 	struct iovec *iov;
@@ -1738,10 +1741,7 @@ get_exportlist(void)
 	/*
 	 * First, get rid of the old list
 	 */
-	SLIST_FOREACH_SAFE(ep, &exphead, entries, ep2) {
-		SLIST_REMOVE(&exphead, ep, exportlist, entries);
-		free_exp(ep);
-	}
+	free_exports(&exphead);
 
 	grp = grphead;
 	while (grp) {
@@ -1869,6 +1869,31 @@ get_exportlist(void)
 }
 
 /*
+ * Insert an export entry in the appropriate list.
+ */
+static void
+insert_exports(struct exportlist *ep, struct exportlisthead *exhp)
+{
+
+	SLIST_INSERT_HEAD(exhp, ep, entries);
+}
+
+/*
+ * Free up the exports lists passed in as arguments.
+ */
+static void
+free_exports(struct exportlisthead *exhp)
+{
+	struct exportlist *ep, *ep2;
+
+	SLIST_FOREACH_SAFE(ep, exhp, entries, ep2) {
+		SLIST_REMOVE(exhp, ep, exportlist, entries);
+		free_exp(ep);
+	}
+	SLIST_INIT(exhp);
+}
+
+/*
  * Allocate an export list element
  */
 static struct exportlist *
@@ -1924,11 +1949,11 @@ getexp_err(struct exportlist *ep, struct grouplist *grp, const char *reason)
  * Search the export list for a matching fs.
  */
 static struct exportlist *
-ex_search(fsid_t *fsid)
+ex_search(fsid_t *fsid, struct exportlisthead *exhp)
 {
 	struct exportlist *ep;
 
-	SLIST_FOREACH(ep, &exphead, entries) {
+	SLIST_FOREACH(ep, exhp, entries) {
 		if (ep->ex_fs.val[0] == fsid->val[0] &&
 		    ep->ex_fs.val[1] == fsid->val[1])
 			return (ep);
