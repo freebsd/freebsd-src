@@ -54,6 +54,8 @@ struct rk_clk_pll_sc {
 
 	struct rk_clk_pll_rate	*rates;
 	struct rk_clk_pll_rate	*frac_rates;
+
+	bool			normal_mode;
 };
 
 #define	WRITE4(_clk, off, val)					\
@@ -344,11 +346,13 @@ rk3399_clk_pll_init(struct clknode *clk, device_t dev)
 
 	sc = clknode_get_softc(clk);
 
-	/* Setting to normal mode */
-	reg = RK3399_CLK_PLL_MODE_NORMAL << RK3399_CLK_PLL_MODE_SHIFT;
-	reg |= RK3399_CLK_PLL_MODE_MASK << RK_CLK_PLL_MASK_SHIFT;
-	WRITE4(clk, sc->base_offset + RK3399_CLK_PLL_MODE_OFFSET,
-	    reg | RK3399_CLK_PLL_WRITE_MASK);
+	if (sc->normal_mode) {
+		/* Setting to normal mode */
+		reg = RK3399_CLK_PLL_MODE_NORMAL << RK3399_CLK_PLL_MODE_SHIFT;
+		reg |= RK3399_CLK_PLL_MODE_MASK << RK_CLK_PLL_MASK_SHIFT;
+		WRITE4(clk, sc->base_offset + RK3399_CLK_PLL_MODE_OFFSET,
+		    reg | RK3399_CLK_PLL_WRITE_MASK);
+	}
 
 	clknode_init_parent_idx(clk, 0);
 
@@ -521,6 +525,7 @@ rk3399_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef)
 	sc->flags = clkdef->flags;
 	sc->rates = clkdef->rates;
 	sc->frac_rates = clkdef->frac_rates;
+	sc->normal_mode = clkdef->normal_mode;
 
 	clknode_register(clkdom, clk);
 
