@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/sbuf.h>
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>
@@ -120,10 +121,9 @@ __FBSDID("$FreeBSD$");
 #define malloc(a,b,c)	calloc(a, 1)
 #define free(a,b)	free(a)
 #define ummin(a,b)	((a) < (b) ? (a) : (b))
+#define KASSERT(a,b)	assert(a)
 
 #include <sys/blist.h>
-
-void panic(const char *ctl, ...);
 
 #endif
 
@@ -235,8 +235,7 @@ blist_create(daddr_t blocks, int flags)
 	blist_t bl;
 	u_daddr_t nodes, radix;
 
-	if (blocks == 0)
-		panic("invalid block count");
+	KASSERT(blocks > 0, ("invalid block count"));
 
 	/*
 	 * Calculate the radix and node count used for scanning.
@@ -288,8 +287,8 @@ blist_alloc(blist_t bl, daddr_t count)
 {
 	daddr_t blk, cursor;
 
-	if (count > BLIST_MAX_ALLOC)
-		panic("allocation too large");
+	KASSERT(count <= BLIST_MAX_ALLOC,
+	    ("allocation too large: %d", (int)count));
 
 	/*
 	 * This loop iterates at most twice.  An allocation failure in the
@@ -325,15 +324,15 @@ blist_avail(blist_t bl)
 
 /*
  * blist_free() -	free up space in the block bitmap.  Return the base
- *		     	of a contiguous region.  Panic if an inconsistancy is
- *			found.
+ *		     	of a contiguous region.
  */
 void
 blist_free(blist_t bl, daddr_t blkno, daddr_t count)
 {
 
-	if (blkno < 0 || blkno + count > bl->bl_blocks)
-		panic("freeing invalid range");
+	KASSERT(blkno >= 0 && blkno + count <= bl->bl_blocks,
+	    ("freeing invalid range: blkno %jx, count %d, blocks %jd",
+	    (uintmax_t)blkno, (int)count, (uintmax_t)bl->bl_blocks));
 	blst_meta_free(bl->bl_root, blkno, count, bl->bl_radix);
 	bl->bl_avail += count;
 }
@@ -349,8 +348,9 @@ blist_fill(blist_t bl, daddr_t blkno, daddr_t count)
 {
 	daddr_t filled;
 
-	if (blkno < 0 || blkno + count > bl->bl_blocks)
-		panic("filling invalid range");
+	KASSERT(blkno >= 0 && blkno + count <= bl->bl_blocks,
+	    ("filling invalid range: blkno %jx, count %d, blocks %jd",
+	    (uintmax_t)blkno, (int)count, (uintmax_t)bl->bl_blocks));
 	filled = blst_meta_fill(bl->bl_root, blkno, count, bl->bl_radix);
 	bl->bl_avail -= filled;
 	return (filled);
@@ -840,8 +840,9 @@ blst_leaf_free(blmeta_t *scan, daddr_t blk, int count)
 	 *		count   n
 	 */
 	mask = bitrange(blk & BLIST_BMAP_MASK, count);
-	if (scan->bm_bitmap & mask)
-		panic("freeing free block");
+	KASSERT((scan->bm_bitmap & mask) == 0,
+	    ("freeing free block: %jx, size %d, mask %jx",
+	    (uintmax_t)blk, count, (uintmax_t)scan->bm_bitmap & mask));
 	scan->bm_bitmap |= mask;
 }
 
@@ -1142,19 +1143,7 @@ main(int ac, char **av)
 			break;
 		}
 	}
-	return(0);
-}
-
-void
-panic(const char *ctl, ...)
-{
-	va_list va;
-
-	va_start(va, ctl);
-	vfprintf(stderr, ctl, va);
-	fprintf(stderr, "\n");
-	va_end(va);
-	exit(1);
+	return (0);
 }
 
 #endif
