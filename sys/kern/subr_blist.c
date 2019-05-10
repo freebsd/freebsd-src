@@ -643,6 +643,19 @@ blst_next_leaf_alloc(blmeta_t *scan, daddr_t blk, int count)
 }
 
 /*
+ * Given a bitmask, flip all the bits from the least-significant 1-bit to the
+ * most significant bit.  If the result is non-zero, then the least-significant
+ * 1-bit of the result is in the same position as the least-signification 0-bit
+ * in mask that is followed by a 1-bit.
+ */
+static inline u_daddr_t
+flip_hibits(u_daddr_t mask)
+{
+
+	return (-mask & ~mask);
+}
+
+/*
  * BLST_LEAF_ALLOC() -	allocate at a leaf in the radix tree (a bitmap).
  *
  *	This function is the core of the allocator.  Its execution time is
@@ -659,7 +672,7 @@ blst_leaf_alloc(blmeta_t *scan, daddr_t blk, int count)
 	count1 = count - 1;
 	num_shifts = fls(count1);
 	mask = scan->bm_bitmap;
-	while ((-mask & ~mask) != 0 && num_shifts > 0) {
+	while (flip_hibits(mask) != 0 && num_shifts > 0) {
 		/*
 		 * If bit i is set in mask, then bits in [i, i+range1] are set
 		 * in scan->bm_bitmap.  The value of range1 is equal to count1
