@@ -725,23 +725,24 @@ swp_pager_getswapspace(int *io_npages, int limit)
 {
 	daddr_t blk;
 	struct swdevt *sp;
-	int npages;
+	int mpages, npages;
 
 	blk = SWAPBLK_NONE;
-	npages = *io_npages;
+	npages = mpages = *io_npages;
 	mtx_lock(&sw_dev_mtx);
 	sp = swdevhd;
 	while (!TAILQ_EMPTY(&swtailq)) {
 		if (sp == NULL)
 			sp = TAILQ_FIRST(&swtailq);
 		if ((sp->sw_flags & SW_CLOSING) == 0)
-			blk = blist_alloc(sp->sw_blist, npages);
+			blk = blist_alloc(sp->sw_blist, &npages, mpages);
 		if (blk != SWAPBLK_NONE)
 			break;
 		sp = TAILQ_NEXT(sp, sw_list);
 		if (swdevhd == sp) {
 			if (npages <= limit)
 				break;
+			mpages = npages - 1;
 			npages >>= 1;
 		}
 	}
