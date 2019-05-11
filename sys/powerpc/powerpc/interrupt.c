@@ -32,6 +32,7 @@
  */
 
 #include "opt_hwpmc_hooks.h"
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>                  /* RCS ID & Copyright macro defns */
 
@@ -67,6 +68,10 @@
 #include <machine/sr.h>
 
 #include "pic_if.h"
+
+#ifdef POWERNV
+int (*hmi_handler)(struct trapframe *);
+#endif
 
 /*
  * A very short dispatch, to try and maximise assembler code use
@@ -117,6 +122,13 @@ powerpc_interrupt(struct trapframe *framep)
 			pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, framep);
 		critical_exit();
 		break;
+#endif
+
+#ifdef POWERNV
+	case EXC_HMI:
+		if (hmi_handler != 0 && hmi_handler(framep) == 0)
+			break;
+		/* If no handler, or failure to handle, just drop to trap. */
 #endif
 
 	default:
