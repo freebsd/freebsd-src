@@ -481,7 +481,7 @@ ipf_send_ip(fin, m)
 	default :
 		return EINVAL;
 	}
-#ifdef IPSEC
+#ifdef IPSEC_SUPPORT
 	m->m_pkthdr.rcvif = NULL;
 #endif
 
