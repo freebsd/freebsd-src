@@ -243,6 +243,43 @@ twsi_locked_start(device_t dev, struct twsi_softc *sc, int32_t mask,
 	return (IIC_NOERR);
 }
 
+#ifdef EXT_RESOURCES
+#define	TWSI_BAUD_RATE_RAW(C,M,N)	((C)/((10*(M+1))<<(N)))
+#define	ABSSUB(a,b)	(((a) > (b)) ? (a) - (b) : (b) - (a))
+
+static int
+twsi_calc_baud_rate(struct twsi_softc *sc, const u_int target,
+  int *param)
+{
+	uint64_t clk;
+	uint32_t cur, diff, diff0;
+	int m, n, m0, n0;
+
+	/* Calculate baud rate. */
+	diff0 = 0xffffffff;
+
+	if (clk_get_freq(sc->clk_core, &clk) < 0)
+		return (-1);
+
+	debugf(sc->dev, "Bus clock is at %lu\n", clk);
+
+	for (n = 0; n < 8; n++) {
+		for (m = 0; m < 16; m++) {
+			cur = TWSI_BAUD_RATE_RAW(clk,m,n);
+			diff = ABSSUB(target, cur);
+			if (diff < diff0) {
+				m0 = m;
+				n0 = n;
+				diff0 = diff;
+			}
+		}
+	}
+	*param = TWSI_BAUD_RATE_PARAM(m0, n0);
+
+	return (0);
+}
+#endif /* EXT_RESOURCES */
+
 /*
  * Only slave mode supported, disregard [old]addr
  */
@@ -251,23 +288,35 @@ twsi_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
 	struct twsi_softc *sc;
 	uint32_t param;
-	/* uint32_t val; */
+#ifdef EXT_RESOURCES
+	u_int busfreq;
+#endif
 
 	sc = device_get_softc(dev);
 
-	switch (speed) {
-	case IIC_SLOW:
-	case IIC_FAST:
-		param = sc->baud_rate[speed].param;
-		debugf(dev, "Using IIC_FAST mode with speed param=%x\n", param);
-		break;
-	case IIC_FASTEST:
-	case IIC_UNKNOWN:
-	default:
-		param = sc->baud_rate[IIC_FAST].param;
-		debugf(dev, "Using IIC_FASTEST/UNKNOWN mode with speed param=%x\n", param);
-		break;
+#ifdef EXT_RESOURCES
+	busfreq = IICBUS_GET_FREQUENCY(sc->iicbus, speed);
+
+	if (twsi_calc_baud_rate(sc, busfreq, &param) == -1) {
+#endif
+		switch (speed) {
+		case IIC_SLOW:
+		case IIC_FAST:
+			param = sc->baud_rate[speed].param;
+			debugf(dev, "Using IIC_FAST mode with speed param=%x\n", param);
+			break;
+		case IIC_FASTEST:
+		case IIC_UNKNOWN:
+		default:
+			param = sc->baud_rate[IIC_FAST].param;
+			debugf(dev, "Using IIC_FASTEST/UNKNOWN mode with speed param=%x\n", param);
+			break;
+		}
+#ifdef EXT_RESOURCES
 	}
+#endif
+
+	debugf(dev, "Using clock param=%x\n", param);
 
 	mtx_lock(&sc->mutex);
 	TWSI_WRITE(sc, sc->reg_soft_reset, 0x0);
@@ -521,6 +570,7 @@ twsi_intr(void *arg)
 			break;
 
 		case TWSI_STATUS_ADDR_R_ACK:
+			debugf(sc->dev, "Ack received after transmitting the address\n");
 			sc->recv_bytes = 0;
 
 			TWSI_WRITE(sc, sc->reg_control, sc->control_val);

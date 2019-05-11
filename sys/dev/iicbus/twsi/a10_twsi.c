@@ -87,9 +87,7 @@ static int
 a10_twsi_attach(device_t dev)
 {
 	struct twsi_softc *sc;
-	clk_t clk;
 	hwreset_t rst;
-	uint64_t freq;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -104,12 +102,12 @@ a10_twsi_attach(device_t dev)
 	}
 
 	/* Activate clock */
-	error = clk_get_by_ofw_index(dev, 0, 0, &clk);
+	error = clk_get_by_ofw_index(dev, 0, 0, &sc->clk_core);
 	if (error != 0) {
 		device_printf(dev, "could not find clock\n");
 		return (error);
 	}
-	error = clk_enable(clk);
+	error = clk_enable(sc->clk_core);
 	if (error != 0) {
 		device_printf(dev, "could not enable clock\n");
 		return (error);
@@ -122,31 +120,6 @@ a10_twsi_attach(device_t dev)
 	sc->reg_status = TWI_STAT;
 	sc->reg_baud_rate = TWI_CCR;
 	sc->reg_soft_reset = TWI_SRST;
-
-	/* Setup baud rate params */
-	clk_get_freq(clk, &freq);
-	switch (freq) {
-		/* 
-		 * Formula is
-		 * F0 = FINT / 2 ^ CLK_N
-		 * F1 = F0 / (CLK_M + 1)
-		 * 
-		 * Doc says that the output freq is F1/10 but my logic analyzer says otherwise
-		 */
-	case 48000000:
-		sc->baud_rate[IIC_SLOW].param = TWSI_BAUD_RATE_PARAM(11, 1);
-		sc->baud_rate[IIC_FAST].param = TWSI_BAUD_RATE_PARAM(11, 1);
-		sc->baud_rate[IIC_FASTEST].param = TWSI_BAUD_RATE_PARAM(2, 1);
-		break;
-	case 24000000:
-		sc->baud_rate[IIC_SLOW].param = TWSI_BAUD_RATE_PARAM(5, 2);
-		sc->baud_rate[IIC_FAST].param = TWSI_BAUD_RATE_PARAM(5, 2);
-		sc->baud_rate[IIC_FASTEST].param = TWSI_BAUD_RATE_PARAM(2, 2);
-		break;
-	default:
-		device_printf(dev, "Non supported frequency\n");
-		return (ENXIO);
-	}
 
 	sc->need_ack = true;
 	return (twsi_attach(dev));
