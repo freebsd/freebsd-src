@@ -28,20 +28,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd March 22, 2019
 .Dt VOP_FSYNC 9
 .Os
 .Sh NAME
+.Nm VOP_FDATASYNC ,
 .Nm VOP_FSYNC
 .Nd flush file system buffers for a file
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
+.Fn VOP_FDATASYNC "struct vnode *vp" "struct thread *td"
+.Ft int
 .Fn VOP_FSYNC "struct vnode *vp" "int waitfor" "struct thread *td"
 .Sh DESCRIPTION
-This call flushes any dirty file system buffers for the file.
-It is used to implement the
+.Fn VOP_FSYNC
+ensures that a file can be recovered to its current state following a crash.
+That typically requires flushing the file's dirty buffers, its inode, and
+possibly other filesystem metadata to persistent media.
+.Fn VOP_FSYNC
+is used to implement the
 .Xr sync 2
 and
 .Xr fsync 2
@@ -65,8 +72,20 @@ Push data not written by file system syncer.
 .It Fa td
 The calling thread.
 .El
+.Pp
+.Fn VOP_FDATASYNC
+is similar, but it does not require that all of the file's metadata be flushed.
+It only requires that the file's data be recoverable after a crash.
+That implies that the data itself must be flushed to disk, as well as some
+metadata such as the file's size but not necessarily its attributes.
+.Fn VOP_FDATASYNC
+should always wait for I/O to complete, as if called with
+.Dv MNT_WAIT .
+.Fn VOP_FDATASYNC
+is used to implement
+.Xr fdatasync 2 .
 .Sh LOCKS
-The file should be locked on entry.
+The vnode should be exclusively locked on entry, and stays locked on return.
 .Sh RETURN VALUES
 Zero is returned if the call is successful, otherwise an appropriate
 error code is returned.
