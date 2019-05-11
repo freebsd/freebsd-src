@@ -192,41 +192,31 @@ bitrange(int n, int count)
 
 
 /*
- * Find the first bit set in a u_daddr_t.
+ * Use binary search, or a faster method, to find the 1 bit in a u_daddr_t.
+ * Assumes that the argument has only one bit set.
  */
-static inline int
-generic_bitpos(u_daddr_t mask)
-{
-	int hi, lo, mid;
-
-	lo = 0;
-	hi = BLIST_BMAP_RADIX;
-	while (lo + 1 < hi) {
-		mid = (lo + hi) >> 1;
-		if (mask & bitrange(0, mid))
-			hi = mid;
-		else
-			lo = mid;
-	}
-	return (lo);
-}
-
 static inline int
 bitpos(u_daddr_t mask)
 {
+	int hi, lo, mid;
 
-  switch (sizeof(mask)) {
+	switch (sizeof(mask)) {
 #ifdef HAVE_INLINE_FFSLL
-  case sizeof(long long):
-	  return (ffsll(mask) - 1);
+	case sizeof(long long):
+		return (ffsll(mask) - 1);
 #endif
-#ifdef HAVE_INLINE_FFS
-  case sizeof(int):
-	  return (ffs(mask) - 1);
-#endif
-  default:
-	  return (generic_bitpos(mask));
-  }
+	default:
+		lo = 0;
+		hi = BLIST_BMAP_RADIX;
+		while (lo + 1 < hi) {
+			mid = (lo + hi) >> 1;
+			if ((mask >> mid) != 0)
+				lo = mid;
+			else
+				hi = mid;
+		}
+		return (lo);
+	}
 }
 
 /*
@@ -542,8 +532,7 @@ blist_stats(blist_t bl, struct sbuf *s)
 	struct gap_stats gstats;
 	struct gap_stats *stats = &gstats;
 	daddr_t i, nodes, radix;
-	u_daddr_t diff, mask;
-	int digit;
+	u_daddr_t bit, diff, mask;
 
 	init_gap_stats(stats);
 	nodes = 0;
@@ -581,9 +570,9 @@ blist_stats(blist_t bl, struct sbuf *s)
 			if (gap_stats_counting(stats))
 				diff ^= 1;
 			while (diff != 0) {
-				digit = bitpos(diff);
-				update_gap_stats(stats, i + digit);
-				diff ^= bitrange(digit, 1);
+				bit = diff & -diff;
+				update_gap_stats(stats, i + bitpos(bit));
+				diff ^= bit;
 			}
 		}
 		nodes += radix_to_skip(radix);
@@ -787,7 +776,7 @@ static daddr_t
 blst_meta_alloc(blmeta_t *scan, daddr_t cursor, daddr_t count, u_daddr_t radix)
 {
 	daddr_t blk, i, r, skip;
-	u_daddr_t mask;
+	u_daddr_t bit, mask;
 	bool scan_from_start;
 	int digit;
 
@@ -819,7 +808,8 @@ blst_meta_alloc(blmeta_t *scan, daddr_t cursor, daddr_t count, u_daddr_t radix)
 	 * Examine the nonempty subtree associated with each bit set in mask.
 	 */
 	do {
-		digit = bitpos(mask);
+		bit = mask & -mask;
+		digit = bitpos(bit);
 		i = 1 + digit * skip;
 		if (count <= scan[i].bm_bighint) {
 			/*
@@ -829,12 +819,12 @@ blst_meta_alloc(blmeta_t *scan, daddr_t cursor, daddr_t count, u_daddr_t radix)
 			    count, radix);
 			if (r != SWAPBLK_NONE) {
 				if (scan[i].bm_bitmap == 0)
-					scan->bm_bitmap ^= bitrange(digit, 1);
+					scan->bm_bitmap ^= bit;
 				return (r);
 			}
 		}
 		cursor = blk;
-	} while ((mask ^= bitrange(digit, 1)) != 0);
+	} while ((mask ^= bit) != 0);
 
 	/*
 	 * We couldn't allocate count in this subtree.  If the whole tree was
@@ -1029,7 +1019,7 @@ static void
 blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix, int tab)
 {
 	daddr_t skip;
-	u_daddr_t mask;
+	u_daddr_t bit, mask;
 	int digit;
 
 	if (radix == BLIST_BMAP_RADIX) {
@@ -1061,10 +1051,11 @@ blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix, int tab)
 	mask = scan->bm_bitmap;
 	/* Examine the nonempty subtree associated with each bit set in mask */
 	do {
-		digit = bitpos(mask);
+		bit = mask & -mask;
+		digit = bitpos(bit);
 		blst_radix_print(&scan[1 + digit * skip], blk + digit * radix,
 		    radix, tab);
-	} while ((mask ^= bitrange(digit, 1)) != 0);
+	} while ((mask ^= bit) != 0);
 	tab -= 4;
 
 	printf(
