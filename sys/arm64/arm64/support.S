@@ -64,8 +64,8 @@ ENTRY(casueword32)
 	b.ne	2f			/* Not equal, exit */
 	stxr	w5, w3, [x0]		/* Store the new data */
 	cbnz	w5, 1b			/* Retry on failure */
-	EXIT_USER_ACCESS(w6)
-2:	SET_FAULT_HANDLER(xzr, x5)	/* Reset the fault handler */
+2:	EXIT_USER_ACCESS(w6)
+	SET_FAULT_HANDLER(xzr, x5)	/* Reset the fault handler */
 	str	w4, [x2]		/* Store the read data */
 	mov	x0, #0			/* Success */
 	ret				/* Return */
@@ -86,8 +86,8 @@ ENTRY(casueword)
 	b.ne	2f			/* Not equal, exit */
 	stxr	w5, x3, [x0]		/* Store the new data */
 	cbnz	w5, 1b			/* Retry on failure */
-	EXIT_USER_ACCESS(w6)
-2:	SET_FAULT_HANDLER(xzr, x5)	/* Reset the fault handler */
+2:	EXIT_USER_ACCESS(w6)
+	SET_FAULT_HANDLER(xzr, x5)	/* Reset the fault handler */
 	str	x4, [x2]		/* Store the read data */
 	mov	x0, #0			/* Success */
 	ret				/* Return */
