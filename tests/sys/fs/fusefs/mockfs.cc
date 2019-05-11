@@ -32,12 +32,14 @@ extern "C" {
 #include <sys/param.h>
 
 #include <sys/mount.h>
+#include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/user.h>
 
 #include <fcntl.h>
 #include <libutil.h>
+#include <poll.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -282,7 +284,7 @@ void debug_fuseop(const mockfs_buf_in *in)
 }
 
 MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
-	bool push_symlinks_in, bool ro, uint32_t flags)
+	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags)
 {
 	struct sigaction sa;
 	struct iovec *iov = NULL;
@@ -292,7 +294,12 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 
 	m_daemon_id = NULL;
 	m_maxreadahead = max_readahead;
+	m_pm = pm;
 	m_quit = false;
+	if (m_pm == KQ)
+		m_kq = kqueue();
+	else
+		m_kq = -1;
 
 	/*
 	 * Kyua sets pwd to a testcase-unique tempdir; no need to use
@@ -306,11 +313,17 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 		throw(std::system_error(errno, std::system_category(),
 			"Couldn't make mountpoint directory"));
 
-	m_fuse_fd = open("/dev/fuse", O_CLOEXEC | O_RDWR);
+	switch (m_pm) {
+	case BLOCKING:
+		m_fuse_fd = open("/dev/fuse", O_CLOEXEC | O_RDWR);
+		break;
+	default:
+		m_fuse_fd = open("/dev/fuse", O_CLOEXEC | O_RDWR | O_NONBLOCK);
+		break;
+	}
 	if (m_fuse_fd < 0)
 		throw(std::system_error(errno, std::system_category(),
 			"Couldn't open /dev/fuse"));
-	sprintf(fdstr, "%d", m_fuse_fd);
 
 	m_pid = getpid();
 	m_child_pid = -1;
@@ -319,6 +332,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	build_iovec(&iov, &iovlen, "fspath",
 		    __DECONST(void *, "mountpoint"), -1);
 	build_iovec(&iov, &iovlen, "from", __DECONST(void *, "/dev/fuse"), -1);
+	sprintf(fdstr, "%d", m_fuse_fd);
 	build_iovec(&iov, &iovlen, "fd", fdstr, -1);
 	if (allow_other) {
 		build_iovec(&iov, &iovlen, "allow_other",
@@ -364,6 +378,8 @@ MockFS::~MockFS() {
 	}
 	::unmount("mountpoint", MNT_FORCE);
 	rmdir("mountpoint");
+	if (m_kq >= 0)
+		close(m_kq);
 }
 
 void MockFS::init(uint32_t flags) {
@@ -440,9 +456,7 @@ void MockFS::loop() {
 			process_default(in, out);
 		}
 		for (auto &it: out) {
-			ASSERT_TRUE(write(m_fuse_fd, it, it->header.len) > 0 ||
-				    errno == EAGAIN)
-				<< strerror(errno);
+			write_response(it);
 			delete it;
 		}
 		out.clear();
@@ -485,11 +499,92 @@ void MockFS::process_default(const mockfs_buf_in *in,
 
 void MockFS::read_request(mockfs_buf_in *in) {
 	ssize_t res;
+	int nready;
+	fd_set readfds;
+	pollfd fds[1];
+	struct kevent changes[1];
+	struct kevent events[1];
+	int nfds;
 
+	switch (m_pm) {
+	case BLOCKING:
+		break;
+	case KQ:
+		EV_SET(&changes[0], m_fuse_fd, EVFILT_READ, EV_ADD, 0, 0, 0);
+		nready = kevent(m_kq, &changes[0], 1, &events[0], 1, NULL);
+		if (m_quit)
+			return;
+		ASSERT_LE(0, nready) << strerror(errno);
+		ASSERT_EQ(1, nready) << "NULL timeout expired?";
+		ASSERT_EQ(events[0].ident, (uintptr_t)m_fuse_fd);
+		if (events[0].flags & EV_ERROR)
+			FAIL() << strerror(events[0].data);
+		else if (events[0].flags & EV_EOF)
+			FAIL() << strerror(events[0].fflags);
+		break;
+	case POLL:
+		fds[0].fd = m_fuse_fd;
+		fds[0].events = POLLIN;
+		nready = poll(fds, 1, INFTIM);
+		if (m_quit)
+			return;
+		ASSERT_LE(0, nready) << strerror(errno);
+		ASSERT_EQ(1, nready) << "NULL timeout expired?";
+		ASSERT_TRUE(fds[0].revents & POLLIN);
+		break;
+	case SELECT:
+		FD_ZERO(&readfds);
+		FD_SET(m_fuse_fd, &readfds);
+		nfds = m_fuse_fd + 1;
+		nready = select(nfds, &readfds, NULL, NULL, NULL);
+		if (m_quit)
+			return;
+		ASSERT_LE(0, nready) << strerror(errno);
+		ASSERT_EQ(1, nready) << "NULL timeout expired?";
+		ASSERT_TRUE(FD_ISSET(m_fuse_fd, &readfds));
+		break;
+	default:
+		FAIL() << "not yet implemented";
+	}
 	res = read(m_fuse_fd, in, sizeof(*in));
+
 	if (res < 0 && !m_quit)
 		perror("read");
 	ASSERT_TRUE(res >= (ssize_t)sizeof(in->header) || m_quit);
+}
+
+void MockFS::write_response(mockfs_buf_out *out) {
+	fd_set writefds;
+	pollfd fds[1];
+	int nready, nfds;
+	ssize_t r;
+
+	switch (m_pm) {
+	case BLOCKING:
+	case KQ:	/* EVFILT_WRITE is not supported */
+		break;
+	case POLL:
+		fds[0].fd = m_fuse_fd;
+		fds[0].events = POLLOUT;
+		nready = poll(fds, 1, INFTIM);
+		ASSERT_LE(0, nready) << strerror(errno);
+		ASSERT_EQ(1, nready) << "NULL timeout expired?";
+		ASSERT_TRUE(fds[0].revents & POLLOUT);
+		break;
+	case SELECT:
+		FD_ZERO(&writefds);
+		FD_SET(m_fuse_fd, &writefds);
+		nfds = m_fuse_fd + 1;
+		nready = select(nfds, NULL, &writefds, NULL, NULL);
+		ASSERT_LE(0, nready) << strerror(errno);
+		ASSERT_EQ(1, nready) << "NULL timeout expired?";
+		ASSERT_TRUE(FD_ISSET(m_fuse_fd, &writefds));
+		break;
+	default:
+		FAIL() << "not yet implemented";
+	}
+	r = write(m_fuse_fd, out, out->header.len);
+	ASSERT_TRUE(r > 0 || errno == EAGAIN) << strerror(errno);
 }
 
 void* MockFS::service(void *pthr_data) {

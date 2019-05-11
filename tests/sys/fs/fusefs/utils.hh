@@ -52,6 +52,7 @@ class FuseTest : public ::testing::Test {
 	uint32_t m_init_flags;
 	bool m_allow_other;
 	bool m_default_permissions;
+	enum poll_method m_pm;
 	bool m_push_symlinks_in;
 	bool m_ro;
 	MockFS *m_mock = NULL;
@@ -69,6 +70,7 @@ class FuseTest : public ::testing::Test {
 		m_init_flags(0),
 		m_allow_other(false),
 		m_default_permissions(false),
+		m_pm(BLOCKING),
 		m_push_symlinks_in(false),
 		m_ro(false)
 	{}
@@ -85,6 +87,9 @@ class FuseTest : public ::testing::Test {
 	 * given inode with the given access_mode, returning the given errno
 	 */
 	void expect_access(uint64_t ino, mode_t access_mode, int error);
+
+	/* Expect FUSE_DESTROY and shutdown the daemon */
+	void expect_destroy(int error);
 
 	/*
 	 * Create an expectation that FUSE_FLUSH will be called times times for
