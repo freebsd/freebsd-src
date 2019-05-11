@@ -407,7 +407,7 @@ static int	swapoff_one(struct swdevt *sp, struct ucred *cred);
  * Swap bitmap functions
  */
 static void	swp_pager_freeswapspace(daddr_t blk, daddr_t npages);
-static daddr_t	swp_pager_getswapspace(int npages);
+static daddr_t	swp_pager_getswapspace(int *npages, int limit);
 
 /*
  * Metadata functions
@@ -708,9 +708,10 @@ swap_pager_dealloc(vm_object_t object)
 /*
  * SWP_PAGER_GETSWAPSPACE() -	allocate raw swap space
  *
- *	Allocate swap for the requested number of pages.  The starting
- *	swap block number (a page index) is returned or SWAPBLK_NONE
- *	if the allocation failed.
+ *	Allocate swap for up to the requested number of pages, and at
+ *	least a minimum number of pages.  The starting swap block number
+ *	(a page index) is returned or SWAPBLK_NONE if the allocation
+ *	failed.
  *
  *	Also has the side effect of advising that somebody made a mistake
  *	when they configured swap and didn't configure enough.
@@ -720,38 +721,46 @@ swap_pager_dealloc(vm_object_t object)
  *	We allocate in round-robin fashion from the configured devices.
  */
 static daddr_t
-swp_pager_getswapspace(int npages)
+swp_pager_getswapspace(int *io_npages, int limit)
 {
 	daddr_t blk;
 	struct swdevt *sp;
-	int i;
+	int npages;
 
 	blk = SWAPBLK_NONE;
+	npages = *io_npages;
 	mtx_lock(&sw_dev_mtx);
 	sp = swdevhd;
-	for (i = 0; i < nswapdev; i++) {
+	while (!TAILQ_EMPTY(&swtailq)) {
 		if (sp == NULL)
 			sp = TAILQ_FIRST(&swtailq);
-		if (!(sp->sw_flags & SW_CLOSING)) {
+		if ((sp->sw_flags & SW_CLOSING) == 0)
 			blk = blist_alloc(sp->sw_blist, npages);
-			if (blk != SWAPBLK_NONE) {
-				blk += sp->sw_first;
-				sp->sw_used += npages;
-				swap_pager_avail -= npages;
-				swp_sizecheck();
-				swdevhd = TAILQ_NEXT(sp, sw_list);
-				goto done;
-			}
-		}
+		if (blk != SWAPBLK_NONE)
+			break;
 		sp = TAILQ_NEXT(sp, sw_list);
+		if (swdevhd == sp) {
+			if (npages <= limit)
+				break;
+			npages >>= 1;
+		}
 	}
-	if (swap_pager_full != 2) {
-		printf("swap_pager_getswapspace(%d): failed\n", npages);
-		swap_pager_full = 2;
-		swap_pager_almost_full = 1;
+	if (blk != SWAPBLK_NONE) {
+		*io_npages = npages;
+		blk += sp->sw_first;
+		sp->sw_used += npages;
+		swap_pager_avail -= npages;
+		swp_sizecheck();
+		swdevhd = TAILQ_NEXT(sp, sw_list);
+	} else {
+		if (swap_pager_full != 2) {
+			printf("swp_pager_getswapspace(%d): failed\n",
+			    *io_npages);
+			swap_pager_full = 2;
+			swap_pager_almost_full = 1;
+		}
+		swdevhd = NULL;
 	}
-	swdevhd = NULL;
-done:
 	mtx_unlock(&sw_dev_mtx);
 	return (blk);
 }
@@ -886,35 +895,28 @@ swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
 int
 swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 {
-	int n = 0;
-	daddr_t blk = SWAPBLK_NONE;
-	vm_pindex_t beg = start;	/* save start index */
-	daddr_t addr, n_free, s_free;
+	daddr_t addr, blk, n_free, s_free;
+	int i, j, n;
 
 	swp_pager_init_freerange(&s_free, &n_free);
 	VM_OBJECT_WLOCK(object);
-	while (size) {
-		if (n == 0) {
-			n = BLIST_MAX_ALLOC;
-			while ((blk = swp_pager_getswapspace(n)) == SWAPBLK_NONE) {
-				n >>= 1;
-				if (n == 0) {
-					swp_pager_meta_free(object, beg, start - beg);
-					VM_OBJECT_WUNLOCK(object);
-					return (-1);
-				}
-			}
+	for (i = 0; i < size; i += n) {
+		n = min(BLIST_MAX_ALLOC, size - i);
+		blk = swp_pager_getswapspace(&n, 1);
+		if (blk == SWAPBLK_NONE) {
+			swp_pager_meta_free(object, start, i);
+			VM_OBJECT_WUNLOCK(object);
+			return (-1);
 		}
-		addr = swp_pager_meta_build(object, start, blk);
-		if (addr != SWAPBLK_NONE)
-			swp_pager_update_freerange(&s_free, &n_free, addr);
-		--size;
-		++start;
-		++blk;
-		--n;
+		for (j = 0; j < n; ++j) {
+			addr = swp_pager_meta_build(object,
+			    start + i + j, blk + j);
+			if (addr != SWAPBLK_NONE)
+				swp_pager_update_freerange(&s_free, &n_free,
+				    addr);
+		}
 	}
 	swp_pager_freeswapspace(s_free, n_free);
-	swp_pager_meta_free(object, start, n);
 	VM_OBJECT_WUNLOCK(object);
 	return (0);
 }
@@ -1384,18 +1386,8 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		n = min(BLIST_MAX_ALLOC, count - i);
 		n = min(n, nsw_cluster_max);
 
-		/*
-		 * Get biggest block of swap we can.  If we fail, fall
-		 * back and try to allocate a smaller block.  Don't go
-		 * overboard trying to allocate space if it would overly
-		 * fragment swap.
-		 */
-		while (
-		    (blk = swp_pager_getswapspace(n)) == SWAPBLK_NONE &&
-		    n > 4
-		) {
-			n >>= 1;
-		}
+		/* Get a block of swap of size up to size n. */
+		blk = swp_pager_getswapspace(&n, 4);
 		if (blk == SWAPBLK_NONE) {
 			for (j = 0; j < n; ++j)
 				rtvals[i+j] = VM_PAGER_FAIL;
