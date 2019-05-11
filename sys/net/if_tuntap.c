@@ -104,9 +104,9 @@ struct tuntap_driver;
  * static for the duration of a tunnel interface.
  */
 struct tuntap_softc {
-	TAILQ_ENTRY(tuntap_softc)	tun_list;
-	struct cdev *tun_dev;
-	u_short	tun_flags;		/* misc flags */
+	TAILQ_ENTRY(tuntap_softc)	 tun_list;
+	struct cdev			*tun_dev;
+	u_short				 tun_flags;	/* misc flags */
 #define	TUN_OPEN	0x0001
 #define	TUN_INITED	0x0002
 #define	TUN_RCOLL	0x0004
@@ -120,20 +120,21 @@ struct tuntap_softc {
 #define	TUN_L2		0x0400
 #define	TUN_VMNET	0x0800
 
-#define TUN_READY       (TUN_OPEN | TUN_INITED)
+#define	TUN_DRIVER_IDENT_MASK	(TUN_L2 | TUN_VMNET)
+#define	TUN_READY		(TUN_OPEN | TUN_INITED)
 
-	pid_t	tun_pid;		/* owning pid */
-	struct	ifnet *tun_ifp;		/* the interface */
-	struct  sigio *tun_sigio;	/* information for async I/O */
-	struct  tuntap_driver *tun_drv;	/* appropriate driver */
-	struct	selinfo	tun_rsel;	/* read select */
-	struct mtx	tun_mtx;	/* protect mutable softc fields */
-	struct cv	tun_cv;		/* protect against ref'd dev destroy */
-	struct ether_addr	tun_ether;	/* remote address */
+	pid_t			 tun_pid;	/* owning pid */
+	struct ifnet		*tun_ifp;	/* the interface */
+	struct sigio		*tun_sigio;	/* async I/O info */
+	struct tuntap_driver	*tun_drv;	/* appropriate driver */
+	struct selinfo		 tun_rsel;	/* read select */
+	struct mtx		 tun_mtx;	/* softc field mutex */
+	struct cv		 tun_cv;	/* for ref'd dev destroy */
+	struct ether_addr	 tun_ether;	/* remote address */
 };
-#define TUN2IFP(sc)	((sc)->tun_ifp)
+#define	TUN2IFP(sc)	((sc)->tun_ifp)
 
-#define TUNDEBUG	if (tundebug) if_printf
+#define	TUNDEBUG	if (tundebug) if_printf
 
 #define	TUN_LOCK(tp)	mtx_lock(&(tp)->tun_mtx)
 #define	TUN_UNLOCK(tp)	mtx_unlock(&(tp)->tun_mtx)
@@ -153,8 +154,8 @@ static const char vmnetname[] = "vmnet";
 static MALLOC_DEFINE(M_TUN, tunname, "Tunnel Interface");
 static int tundebug = 0;
 static int tundclone = 1;
-static int tap_allow_uopen = 0;        /* allow user open() */
-static int tapuponopen = 0;    /* IFF_UP on open() */
+static int tap_allow_uopen = 0;	/* allow user open() */
+static int tapuponopen = 0;	/* IFF_UP on open() */
 static int tapdclone = 1;	/* enable devfs cloning */
 
 static TAILQ_HEAD(,tuntap_softc)	tunhead = TAILQ_HEAD_INITIALIZER(tunhead);
@@ -174,11 +175,11 @@ SYSCTL_INT(_net_link_tun, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tundclone, 0,
 static SYSCTL_NODE(_net_link, OID_AUTO, tap, CTLFLAG_RW, 0,
     "Ethernet tunnel software network interface");
 SYSCTL_INT(_net_link_tap, OID_AUTO, user_open, CTLFLAG_RW, &tap_allow_uopen, 0,
-	"Allow user to open /dev/tap (based on node permissions)");
+    "Allow user to open /dev/tap (based on node permissions)");
 SYSCTL_INT(_net_link_tap, OID_AUTO, up_on_open, CTLFLAG_RW, &tapuponopen, 0,
-	"Bring interface up when /dev/tap is opened");
+    "Bring interface up when /dev/tap is opened");
 SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tapdclone, 0,
-	"Enable legacy devfs interface creation");
+    "Enable legacy devfs interface creation");
 SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tundebug, 0, "");
 
 static int	tuntap_name2info(const char *name, int *unit, int *flags);
@@ -226,19 +227,17 @@ static struct filterops tun_write_filterops = {
 	.f_event =	tunkqwrite,
 };
 
-#define	TUN_DRIVER_IDENT_MASK	(TUN_L2 | TUN_VMNET)
-
 static struct tuntap_driver {
-	int			 tun_flags;
-	struct unrhdr		*unrhdr;
 	struct cdevsw		 cdevsw;
+	int			 ident_flags;
+	struct unrhdr		*unrhdr;
 	struct clonedevs	*clones;
 	ifc_match_t		*clone_match_fn;
 	ifc_create_t		*clone_create_fn;
 	ifc_destroy_t		*clone_destroy_fn;
 } tuntap_drivers[] = {
 	{
-		.tun_flags =	0,
+		.ident_flags =	0,
 		.cdevsw =	{
 		    .d_version =	D_VERSION,
 		    .d_flags =		D_NEEDMINOR,
@@ -256,7 +255,7 @@ static struct tuntap_driver {
 		.clone_destroy_fn =	tun_clone_destroy,
 	},
 	{
-		.tun_flags =	TUN_L2,
+		.ident_flags =	TUN_L2,
 		.cdevsw =	{
 		    .d_version =	D_VERSION,
 		    .d_flags =		D_NEEDMINOR,
@@ -274,7 +273,7 @@ static struct tuntap_driver {
 		.clone_destroy_fn =	tun_clone_destroy,
 	},
 	{
-		.tun_flags =	TUN_L2 | TUN_VMNET,
+		.ident_flags =	TUN_L2 | TUN_VMNET,
 		.cdevsw =	{
 		    .d_version =	D_VERSION,
 		    .d_flags =		D_NEEDMINOR,
@@ -294,7 +293,7 @@ static struct tuntap_driver {
 };
 
 struct tuntap_driver_cloner {
-	SLIST_ENTRY(tuntap_driver_cloner)		 link;
+	SLIST_ENTRY(tuntap_driver_cloner)	 link;
 	struct tuntap_driver			*drv;
 	struct if_clone				*cloner;
 };
@@ -338,13 +337,13 @@ tuntap_name2info(const char *name, int *outunit, int *outflags)
 		if (strcmp(name, drv->cdevsw.d_name) == 0) {
 			found = true;
 			unit = -1;
-			flags = drv->tun_flags;
+			flags = drv->ident_flags;
 			break;
 		}
 
 		if (dev_stdclone(dname, NULL, drv->cdevsw.d_name, &unit) == 1) {
 			found = true;
-			flags = drv->tun_flags;
+			flags = drv->ident_flags;
 			break;
 		}
 	}
@@ -376,7 +375,7 @@ tuntap_driver_from_flags(int tun_flags)
 		KASSERT(drvc->drv != NULL,
 		    ("tuntap_driver_cloners entry not properly initialized"));
 		drv = drvc->drv;
-		if ((tun_flags & TUN_DRIVER_IDENT_MASK) == drv->tun_flags)
+		if ((tun_flags & TUN_DRIVER_IDENT_MASK) == drv->ident_flags)
 			return (drv);
 	}
 
@@ -779,7 +778,7 @@ tuncreate(struct cdev *dev, struct tuntap_driver *drv)
 	sc = malloc(sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
 	mtx_init(&sc->tun_mtx, "tun_mtx", NULL, MTX_DEF);
 	cv_init(&sc->tun_cv, "tun_condvar");
-	sc->tun_flags = drv->tun_flags;
+	sc->tun_flags = drv->ident_flags;
 	sc->tun_dev = dev;
 	sc->tun_drv = drv;
 	mtx_lock(&tunmtx);
