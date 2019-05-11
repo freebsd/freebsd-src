@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-MDSRCS+= \
-	strcmp.S
