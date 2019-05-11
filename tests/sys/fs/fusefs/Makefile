@@ -13,6 +13,7 @@ GTESTS+=	create
 GTESTS+=	default_permissions
 GTESTS+=	default_permissions_privileged
 GTESTS+=	destroy
+GTESTS+=	dev_fuse_poll
 GTESTS+=	fifo
 GTESTS+=	flush
 GTESTS+=	fsync

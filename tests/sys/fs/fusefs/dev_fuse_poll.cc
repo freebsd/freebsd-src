@@ -28,40 +28,66 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * This file tests different polling methods for the /dev/fuse device
+ */
+
+extern "C" {
+#include <fcntl.h>
+#include <unistd.h>
+}
+
 #include "mockfs.hh"
 #include "utils.hh"
 
 using namespace testing;
 
-class Destroy: public FuseTest {};
+const char FULLPATH[] = "mountpoint/some_file.txt";
+const char RELPATH[] = "some_file.txt";
+const uint64_t ino = 42;
+const mode_t access_mode = R_OK;
 
 /*
- * On unmount the kernel should send a FUSE_DESTROY operation.  It should also
- * send FUSE_FORGET operations for all inodes with lookup_count > 0.  It's hard
- * to trigger FUSE_FORGET in any way except by unmounting, so this is the only
- * testing that FUSE_FORGET gets.
+ * Translate a poll method's string representation to the enum value.
+ * Using strings with ::testing::Values gives better output with
+ * --gtest_list_tests
  */
-TEST_F(Destroy, ok)
+enum poll_method poll_method_from_string(const char *s)
 {
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
-	uint64_t ino = 42;
+	if (0 == strcmp("BLOCKING", s))
+		return BLOCKING;
+	else if (0 == strcmp("KQ", s))
+		return KQ;
+	else if (0 == strcmp("POLL", s))
+		return POLL;
+	else
+		return SELECT;
+}
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
+class DevFusePoll: public FuseTest, public WithParamInterface<const char *> {
+	virtual void SetUp() {
+		m_pm = poll_method_from_string(GetParam());
+		FuseTest::SetUp();
+	}
+};
+
+TEST_P(DevFusePoll, access)
+{
+	expect_access(1, X_OK, 0);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+	expect_access(ino, access_mode, 0);
+
+	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
+}
+
+/* Ensure that we wake up pollers during unmount */
+TEST_P(DevFusePoll, destroy)
+{
 	expect_forget(1, 1);
-	expect_forget(ino, 2);
 	expect_destroy(0);
 
-	/*
-	 * access(2) the file to force a lookup.  Access it twice to double its
-	 * lookup count.
-	 */
-	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
-	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
-
-	/*
-	 * Unmount, triggering a FUSE_DESTROY and also causing a VOP_RECLAIM
-	 * for every vnode on this mp, triggering FUSE_FORGET for each of them.
-	 */
 	m_mock->unmount();
 }
+
+INSTANTIATE_TEST_CASE_P(PM, DevFusePoll,
+		::testing::Values("BLOCKING", "KQ", "POLL", "SELECT"));

@@ -96,7 +96,7 @@ void FuseTest::SetUp() {
 	try {
 		m_mock = new MockFS(m_maxreadahead, m_allow_other,
 			m_default_permissions, m_push_symlinks_in, m_ro,
-			m_init_flags);
+			m_pm, m_init_flags);
 		/* 
 		 * FUSE_ACCESS is called almost universally.  Expecting it in
 		 * each test case would be super-annoying.  Instead, set a
@@ -128,6 +128,22 @@ FuseTest::expect_access(uint64_t ino, mode_t access_mode, int error)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(error)));
+}
+
+void
+FuseTest::expect_destroy(int error)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_DESTROY);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke( ReturnImmediate([&](auto in, auto out) {
+		m_mock->m_quit = true;
+		out->header.len = sizeof(out->header);
+		out->header.unique = in->header.unique;
+		out->header.error = -error;
+	})));
 }
 
 void

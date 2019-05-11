@@ -93,18 +93,29 @@ SDT_PROBE_DEFINE2(fusefs, , device, trace, "int", "char*");
 
 static struct cdev *fuse_dev;
 
+static d_kqfilter_t fuse_device_filter;
 static d_open_t fuse_device_open;
 static d_poll_t fuse_device_poll;
 static d_read_t fuse_device_read;
 static d_write_t fuse_device_write;
 
 static struct cdevsw fuse_device_cdevsw = {
+	.d_kqfilter = fuse_device_filter,
 	.d_open = fuse_device_open,
 	.d_name = "fuse",
 	.d_poll = fuse_device_poll,
 	.d_read = fuse_device_read,
 	.d_write = fuse_device_write,
 	.d_version = D_VERSION,
+};
+
+static int fuse_device_filt_read(struct knote *kn, long hint);
+static void fuse_device_filt_detach(struct knote *kn);
+
+struct filterops fuse_device_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = fuse_device_filt_detach,
+	.f_event = fuse_device_filt_read,
 };
 
 /****************************
@@ -143,6 +154,68 @@ fdata_dtor(void *arg)
 	FUSE_UNLOCK();
 
 	fdata_trydestroy(fdata);
+}
+
+static int
+fuse_device_filter(struct cdev *dev, struct knote *kn)
+{
+	struct fuse_data *data;
+	int error;
+
+	error = devfs_get_cdevpriv((void **)&data);
+
+	/* EVFILT_WRITE is not supported; the device is always ready to write */
+	if (error == 0 && kn->kn_filter == EVFILT_READ) {
+		kn->kn_fop = &fuse_device_rfiltops;
+		kn->kn_hook = data;
+		knlist_add(&data->ks_rsel.si_note, kn, 0);
+		error = 0;
+	} else if (error == 0) {
+		error = EINVAL;
+		kn->kn_data = error;
+	}
+
+	return (error);
+}
+
+static void
+fuse_device_filt_detach(struct knote *kn)
+{
+	struct fuse_data *data;
+
+	data = (struct fuse_data*)kn->kn_hook;
+	MPASS(data != NULL);
+	knlist_remove(&data->ks_rsel.si_note, kn, 0);
+	kn->kn_hook = NULL;
+}
+
+static int
+fuse_device_filt_read(struct knote *kn, long hint)
+{
+	struct fuse_data *data;
+	int ready;
+
+	data = (struct fuse_data*)kn->kn_hook;
+	MPASS(data != NULL);
+
+	mtx_assert(&data->ms_mtx, MA_OWNED);
+	if (fdata_get_dead(data)) {
+		kn->kn_flags |= EV_EOF;
+		kn->kn_fflags = ENODEV;
+		kn->kn_data = 1;
+		ready = 1;
+	} else if (STAILQ_FIRST(&data->ms_head)) {
+		/* 
+		 * There is at least one event to read.
+		 * TODO: keep a counter of the number of events to read
+		 */
+		kn->kn_data = 1;
+		ready = 1;
+	} else {
+		ready = 0;
+	}
+
+	return (ready);
 }
 
 /*

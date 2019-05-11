@@ -586,6 +586,7 @@ fdata_alloc(struct cdev *fdev, struct ucred *cred)
 	data->fdev = fdev;
 	mtx_init(&data->ms_mtx, "fuse message list mutex", NULL, MTX_DEF);
 	STAILQ_INIT(&data->ms_head);
+	knlist_init_mtx(&data->ks_rsel.si_note, &data->ms_mtx);
 	mtx_init(&data->aw_mtx, "fuse answer list mutex", NULL, MTX_DEF);
 	TAILQ_INIT(&data->aw_head);
 	data->daemoncred = crhold(cred);
@@ -605,11 +606,12 @@ fdata_trydestroy(struct fuse_data *data)
 		return;
 
 	/* Driving off stage all that stuff thrown at device... */
-	mtx_destroy(&data->ms_mtx);
-	mtx_destroy(&data->aw_mtx);
 	sx_destroy(&data->rename_lock);
-
 	crfree(data->daemoncred);
+	mtx_destroy(&data->aw_mtx);
+	knlist_delete(&data->ks_rsel.si_note, curthread, 0);
+	knlist_destroy(&data->ks_rsel.si_note);
+	mtx_destroy(&data->ms_mtx);
 
 	free(data, M_FUSEMSG);
 }
@@ -702,6 +704,7 @@ fuse_insert_message(struct fuse_ticket *ftick, bool urgent)
 		fuse_ms_push(ftick);
 	wakeup_one(ftick->tk_data);
 	selwakeuppri(&ftick->tk_data->ks_rsel, PZERO + 1);
+	KNOTE_LOCKED(&ftick->tk_data->ks_rsel.si_note, 0);
 	fuse_lck_mtx_unlock(ftick->tk_data->ms_mtx);
 }
 
