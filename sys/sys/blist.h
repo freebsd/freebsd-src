@@ -33,7 +33,7 @@
  *	Usage:
  *		blist = blist_create(blocks, flags)
  *		(void)  blist_destroy(blist)
- *		blkno = blist_alloc(blist, count)
+ *		blkno = blist_alloc(blist, &count, maxcount)
  *		(void)  blist_free(blist, blkno, count)
  *		nblks = blist_fill(blist, blkno, count)
  *		(void)  blist_resize(&blist, count, freeextra, flags)
@@ -92,7 +92,7 @@ typedef struct blist {
 
 struct sbuf;
 
-daddr_t	blist_alloc(blist_t blist, daddr_t count);
+daddr_t	blist_alloc(blist_t blist, int *count, int maxcount);
 daddr_t	blist_avail(blist_t blist);
 blist_t	blist_create(daddr_t blocks, int flags);
 void	blist_destroy(blist_t blist);
