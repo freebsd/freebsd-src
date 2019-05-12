@@ -117,6 +117,9 @@ int64_t dcache_line_size;	/* The minimum D cache line size */
 int64_t icache_line_size;	/* The minimum I cache line size */
 int64_t idcache_line_size;	/* The minimum cache line size */
 
+uint32_t boot_hart;	/* The hart we booted on. */
+cpuset_t all_harts;
+
 extern int *end;
 extern int *initstack_end;
 
@@ -815,6 +818,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+	pcpup->pc_hart = boot_hart;
 
 	/* Set the pcpu pointer */
 	__asm __volatile("mv gp, %0" :: "r"(pcpup));
