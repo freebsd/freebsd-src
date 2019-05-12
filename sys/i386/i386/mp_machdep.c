@@ -153,7 +153,6 @@ cpu_mp_start(void)
 	/* Initialize the logical ID to APIC ID table. */
 	for (i = 0; i < MAXCPU; i++) {
 		cpu_apic_ids[i] = -1;
-		cpu_ipi_pending[i] = 0;
 	}
 
 	/* Install an inter-CPU IPI for TLB invalidation */
