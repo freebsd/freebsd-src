@@ -34,7 +34,6 @@ extern char *bootSTK;
 extern void *bootstacks[];
 extern unsigned int boot_address;
 extern unsigned int bootMP_size;
-extern volatile u_int cpu_ipi_pending[];
 extern volatile int aps_ready;
 extern struct mtx ap_boot_mtx;
 extern int cpu_logical;

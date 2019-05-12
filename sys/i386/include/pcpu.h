@@ -87,7 +87,8 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	caddr_t pc_pmap_eh_ptep;						\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
 	uint32_t pc_ibpb_set;						\
-	char	__pad[3610]
+	u_int	pc_ipi_bitmap;						\
+	char	__pad[3606]
 
 #ifdef _KERNEL
 
