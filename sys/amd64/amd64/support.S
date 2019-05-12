@@ -205,7 +205,7 @@ END(memcmp)
  * rsi - source
  * rdx - count
  *
- * The macro possibly clobbers the above and: rcx, r8, r9, 10
+ * The macro possibly clobbers the above and: rcx, r8, r9, r10
  * It does not clobber rax nor r11.
  */
 .macro MEMMOVE erms overlap begin end
