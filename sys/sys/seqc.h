@@ -44,9 +44,9 @@ typedef uint32_t seqc_t;
  * seqc allows readers and writers to work with a consistent snapshot. Modifying
  * operations must be enclosed within a transaction delineated by
  * seqc_write_beg/seqc_write_end. The trick works by having the writer increment
- * the seqcuence number twice, at the beginning and end of the transaction.
- * The reader detects that the seqcuence number has not changed between its start
- * and end, and that the seqcuence number is even, to validate consistency.
+ * the sequence number twice, at the beginning and end of the transaction.
+ * The reader detects that the sequence number has not changed between its start
+ * and end, and that the sequence number is even, to validate consistency.
  *
  * Some fencing (both hard fencing and compiler barriers) may be needed,
  * depending on the cpu. Modern AMD cpus provide strong enough guarantees to not
