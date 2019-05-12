@@ -163,6 +163,14 @@ ProcessMockerT ReturnImmediate(
 	std::function<void(const struct mockfs_buf_in *in,
 			   struct mockfs_buf_out *out)> f);
 
+/* How the daemon should check /dev/fuse for readiness */
+enum poll_method {
+	BLOCKING,
+	SELECT,
+	POLL,
+	KQ
+};
+
 /*
  * Fake FUSE filesystem
  *
@@ -183,11 +191,16 @@ class MockFS {
 	/* file descriptor of /dev/fuse control device */
 	int m_fuse_fd;
 	
+	int m_kq;
+
 	/* The max_readahead filesystem option */
 	uint32_t m_maxreadahead;
 
 	/* pid of the test process */
 	pid_t m_pid;
+
+	/* Method the daemon should use for I/O to and from /dev/fuse */
+	enum poll_method m_pm;
 
 	/* Initialize a session after mounting */
 	void init(uint32_t flags);
@@ -205,6 +218,9 @@ class MockFS {
 	/* Read, but do not process, a single request from the kernel */
 	void read_request(mockfs_buf_in*);
 
+	/* Write a single response back to the kernel */
+	void write_response(mockfs_buf_out *out);
+
 	public:
 	/* pid of child process, for two-process test cases */
 	pid_t m_child_pid;
@@ -212,13 +228,19 @@ class MockFS {
 	/* Maximum size of a FUSE_WRITE write */
 	uint32_t m_max_write;
 
+	/* 
+	 * Number of events that were available from /dev/fuse after the last
+	 * kevent call.  Only valid when m_pm = KQ.
+	 */
+	int m_nready;
+
 	/* Tell the daemon to shut down ASAP */
 	bool m_quit;
 
 	/* Create a new mockfs and mount it to a tempdir */
 	MockFS(int max_readahead, bool allow_other,
 		bool default_permissions, bool push_symlinks_in, bool ro,
-		uint32_t flags);
+		enum poll_method pm, uint32_t flags);
 	virtual ~MockFS();
 
 	/* Kill the filesystem daemon without unmounting the filesystem */

@@ -294,6 +294,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 
 	m_daemon_id = NULL;
 	m_maxreadahead = max_readahead;
+	m_nready = -1;
 	m_pm = pm;
 	m_quit = false;
 	if (m_pm == KQ)
@@ -521,6 +522,7 @@ void MockFS::read_request(mockfs_buf_in *in) {
 			FAIL() << strerror(events[0].data);
 		else if (events[0].flags & EV_EOF)
 			FAIL() << strerror(events[0].fflags);
+		m_nready = events[0].data;
 		break;
 	case POLL:
 		fds[0].fd = m_fuse_fd;
