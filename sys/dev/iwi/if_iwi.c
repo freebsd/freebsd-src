@@ -2549,16 +2549,19 @@ static int
 iwi_config(struct iwi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct iwi_configuration config;
 	struct iwi_rateset rs;
 	struct iwi_txpower power;
+	uint8_t *macaddr;
 	uint32_t data;
 	int error, i;
 
 	IWI_LOCK_ASSERT(sc);
 
-	DPRINTF(("Setting MAC address to %6D\n", ic->ic_macaddr, ":"));
-	error = iwi_cmd(sc, IWI_CMD_SET_MAC_ADDRESS, ic->ic_macaddr,
+	macaddr = vap ? vap->iv_myaddr : ic->ic_macaddr;
+	DPRINTF(("Setting MAC address to %6D\n", macaddr, ":"));
+	error = iwi_cmd(sc, IWI_CMD_SET_MAC_ADDRESS, macaddr,
 	    IEEE80211_ADDR_LEN);
 	if (error != 0)
 		return error;
