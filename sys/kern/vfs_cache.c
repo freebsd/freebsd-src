@@ -851,19 +851,16 @@ cache_zap_locked(struct namecache *ncp, bool neg_locked)
 
 	CTR2(KTR_VFS, "cache_zap(%p) vp %p", ncp,
 	    (ncp->nc_flag & NCF_NEGATIVE) ? NULL : ncp->nc_vp);
+	LIST_REMOVE(ncp, nc_hash);
 	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
 		SDT_PROBE3(vfs, namecache, zap, done, ncp->nc_dvp,
 		    ncp->nc_name, ncp->nc_vp);
-	} else {
-		SDT_PROBE3(vfs, namecache, zap_negative, done, ncp->nc_dvp,
-		    ncp->nc_name, ncp->nc_neghits);
-	}
-	LIST_REMOVE(ncp, nc_hash);
-	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
 		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
 		if (ncp == ncp->nc_vp->v_cache_dd)
 			ncp->nc_vp->v_cache_dd = NULL;
 	} else {
+		SDT_PROBE3(vfs, namecache, zap_negative, done, ncp->nc_dvp,
+		    ncp->nc_name, ncp->nc_neghits);
 		cache_negative_remove(ncp, neg_locked);
 	}
 	if (ncp->nc_flag & NCF_ISDOTDOT) {
