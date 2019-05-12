@@ -1190,7 +1190,6 @@ ENTRY(suword_nosmap)
 
 	movq	%rsi,(%rdi)
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
@@ -1209,7 +1208,6 @@ ENTRY(suword_smap)
 	movq	%rsi,(%rdi)
 	clac
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
@@ -1226,7 +1224,6 @@ ENTRY(suword32_nosmap)
 
 	movl	%esi,(%rdi)
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
@@ -1245,7 +1242,6 @@ ENTRY(suword32_smap)
 	movl	%esi,(%rdi)
 	clac
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
