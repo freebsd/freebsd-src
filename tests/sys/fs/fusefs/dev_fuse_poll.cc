@@ -34,6 +34,7 @@
 
 extern "C" {
 #include <fcntl.h>
+#include <semaphore.h>
 #include <unistd.h>
 }
 
@@ -71,6 +72,13 @@ class DevFusePoll: public FuseTest, public WithParamInterface<const char *> {
 	}
 };
 
+class Kqueue: public FuseTest {
+	virtual void SetUp() {
+		m_pm = KQ;
+		FuseTest::SetUp();
+	}
+};
+
 TEST_P(DevFusePoll, access)
 {
 	expect_access(1, X_OK, 0);
@@ -91,3 +99,126 @@ TEST_P(DevFusePoll, destroy)
 
 INSTANTIATE_TEST_CASE_P(PM, DevFusePoll,
 		::testing::Values("BLOCKING", "KQ", "POLL", "SELECT"));
+
+static void* statter(void* arg) {
+	const char *name;
+	struct stat sb;
+
+	name = (const char*)arg;
+	stat(name, &sb);
+	return 0;
+}
+
+/*
+ * A kevent's data field should contain the number of operations available to
+ * be immediately rea.
+ */
+TEST_F(Kqueue, data)
+{
+	pthread_t th0, th1, th2;
+	sem_t sem0, sem1;
+	int nready0, nready1, nready2;
+	uint64_t foo_ino = 42;
+	uint64_t bar_ino = 43;
+	uint64_t baz_ino = 44;
+
+	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
+	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
+
+	EXPECT_LOOKUP(1, "foo")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.entry_valid = UINT64_MAX;
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = foo_ino;
+	})));
+	EXPECT_LOOKUP(1, "bar")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.entry_valid = UINT64_MAX;
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = bar_ino;
+	})));
+	EXPECT_LOOKUP(1, "baz")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.entry_valid = UINT64_MAX;
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = baz_ino;
+	})));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == foo_ino);
+		}, Eq(true)),
+		_)
+	)
+	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
+		nready0 = m_mock->m_nready;
+
+		sem_post(&sem0);
+		// Block the daemon so we can accumulate a few more ops
+		sem_wait(&sem1);
+
+		out->header.unique = in->header.unique;
+		out->header.error = -EIO;
+		out->header.len = sizeof(out->header);
+	})));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == bar_ino);
+		}, Eq(true)),
+		_)
+	)
+	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
+		nready1 = m_mock->m_nready;
+		out->header.unique = in->header.unique;
+		out->header.error = -EIO;
+		out->header.len = sizeof(out->header);
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == baz_ino);
+		}, Eq(true)),
+		_)
+	)
+	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
+		nready2 = m_mock->m_nready;
+		out->header.unique = in->header.unique;
+		out->header.error = -EIO;
+		out->header.len = sizeof(out->header);
+	})));
+
+	/* 
+	 * Create cached lookup entries for these files.  It seems that only
+	 * one thread at a time can be in VOP_LOOKUP for a given directory
+	 */
+	access("mountpoint/foo", F_OK);
+	access("mountpoint/bar", F_OK);
+	access("mountpoint/baz", F_OK);
+	ASSERT_EQ(0, pthread_create(&th0, NULL, statter,
+		(void*)"mountpoint/foo")) << strerror(errno);
+	EXPECT_EQ(0, sem_wait(&sem0)) << strerror(errno);
+	ASSERT_EQ(0, pthread_create(&th1, NULL, statter,
+		(void*)"mountpoint/bar")) << strerror(errno);
+	ASSERT_EQ(0, pthread_create(&th2, NULL, statter,
+		(void*)"mountpoint/baz")) << strerror(errno);
+
+	nap();		// Allow th1 and th2 to send their ops to the daemon
+	EXPECT_EQ(0, sem_post(&sem1)) << strerror(errno);
+
+	pthread_join(th0, NULL);
+	pthread_join(th1, NULL);
+	pthread_join(th2, NULL);
+
+	EXPECT_EQ(1, nready0);
+	EXPECT_EQ(2, nready1);
+	EXPECT_EQ(1, nready2);
+
+	sem_destroy(&sem0);
+	sem_destroy(&sem1);
+}

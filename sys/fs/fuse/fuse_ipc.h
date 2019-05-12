@@ -180,6 +180,7 @@ struct fuse_data {
 
 	struct mtx			ms_mtx;
 	STAILQ_HEAD(, fuse_ticket)	ms_head;
+	int				ms_count;
 
 	struct mtx			aw_mtx;
 	TAILQ_HEAD(, fuse_ticket)	aw_head;
@@ -290,6 +291,7 @@ fuse_ms_push(struct fuse_ticket *ftick)
 	mtx_assert(&ftick->tk_data->ms_mtx, MA_OWNED);
 	refcount_acquire(&ftick->tk_refcount);
 	STAILQ_INSERT_TAIL(&ftick->tk_data->ms_head, ftick, tk_ms_link);
+	ftick->tk_data->ms_count++;
 }
 
 /* Insert a new upgoing message to the front of the queue */
@@ -299,6 +301,7 @@ fuse_ms_push_head(struct fuse_ticket *ftick)
 	mtx_assert(&ftick->tk_data->ms_mtx, MA_OWNED);
 	refcount_acquire(&ftick->tk_refcount);
 	STAILQ_INSERT_HEAD(&ftick->tk_data->ms_head, ftick, tk_ms_link);
+	ftick->tk_data->ms_count++;
 }
 
 static inline struct fuse_ticket *
@@ -310,7 +313,9 @@ fuse_ms_pop(struct fuse_data *data)
 
 	if ((ftick = STAILQ_FIRST(&data->ms_head))) {
 		STAILQ_REMOVE_HEAD(&data->ms_head, tk_ms_link);
+		data->ms_count--;
 #ifdef INVARIANTS
+		MPASS(data->ms_count >= 0);
 		ftick->tk_ms_link.stqe_next = NULL;
 #endif
 	}

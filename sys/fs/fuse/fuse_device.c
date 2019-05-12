@@ -205,11 +205,8 @@ fuse_device_filt_read(struct knote *kn, long hint)
 		kn->kn_data = 1;
 		ready = 1;
 	} else if (STAILQ_FIRST(&data->ms_head)) {
-		/* 
-		 * There is at least one event to read.
-		 * TODO: keep a counter of the number of events to read
-		 */
-		kn->kn_data = 1;
+		MPASS(data->ms_count >= 1);
+		kn->kn_data = data->ms_count;
 		ready = 1;
 	} else {
 		ready = 0;

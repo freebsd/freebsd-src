@@ -204,6 +204,7 @@ fuse_interrupt_send(struct fuse_ticket *otick, int err)
 			if (tick == otick) {
 				STAILQ_REMOVE(&otick->tk_data->ms_head, tick,
 					fuse_ticket, tk_ms_link);
+				otick->tk_data->ms_count--;
 				otick->tk_ms_link.stqe_next = NULL;
 				fuse_lck_mtx_unlock(data->ms_mtx);
 
@@ -586,6 +587,7 @@ fdata_alloc(struct cdev *fdev, struct ucred *cred)
 	data->fdev = fdev;
 	mtx_init(&data->ms_mtx, "fuse message list mutex", NULL, MTX_DEF);
 	STAILQ_INIT(&data->ms_head);
+	data->ms_count = 0;
 	knlist_init_mtx(&data->ks_rsel.si_note, &data->ms_mtx);
 	mtx_init(&data->aw_mtx, "fuse answer list mutex", NULL, MTX_DEF);
 	TAILQ_INIT(&data->aw_head);
