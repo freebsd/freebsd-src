@@ -173,18 +173,20 @@ arc4rand(void *ptr, u_int len, int reseed)
 	u_int length;
 	u_int8_t *p;
 
-	if (reseed || atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_HAVE, ARC4_ENTR_SEED))
+	if (__predict_false(reseed ||
+	    (arc4rand_iniseed_state == ARC4_ENTR_HAVE &&
+	    atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_HAVE, ARC4_ENTR_SEED))))
 		CHACHA20_FOREACH(chacha20)
 			chacha20_randomstir(chacha20);
 
-	chacha20 = &chacha20inst[curcpu];
 	getmicrouptime(&tv);
+	chacha20 = &chacha20inst[curcpu];
 	/* We may get unlucky and be migrated off this CPU, but that is expected to be infrequent */
 	if ((chacha20->numbytes > CHACHA20_RESEED_BYTES) || (tv.tv_sec > chacha20->t_reseed))
 		chacha20_randomstir(chacha20);
 
-	mtx_lock(&chacha20->mtx);
 	p = ptr;
+	mtx_lock(&chacha20->mtx);
 	while (len) {
 		length = MIN(CHACHA20_BUFFER_SIZE, len);
 		chacha_encrypt_bytes(&chacha20->ctx, chacha20->m_buffer, p, length);
