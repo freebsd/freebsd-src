@@ -1632,7 +1632,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	int flag;
 	int len;
 	bool neg_locked;
-	int lnumcache;
+	u_long lnumcache;
 
 	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
 	VNASSERT(vp == NULL || (vp->v_iflag & VI_DOOMED) == 0, vp,
@@ -1646,7 +1646,8 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	/*
 	 * Avoid blowout in namecache entries.
 	 */
-	if (__predict_false(numcache >= desiredvnodes * ncsizefactor))
+	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
+	if (__predict_false(lnumcache >= desiredvnodes * ncsizefactor))
 		return;
 
 	cache_celockstate_init(&cel);
@@ -1825,7 +1826,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		    ncp->nc_name);
 	}
 	cache_enter_unlock(&cel);
-	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
 	if (numneg * ncnegfactor > lnumcache)
 		cache_negative_zap_one();
 	cache_free(ndd);
