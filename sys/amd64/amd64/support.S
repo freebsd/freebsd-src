@@ -48,7 +48,7 @@
 /* Address: %rdi */
 ENTRY(pagezero_std)
 	PUSH_FRAME_POINTER
-	movq	$PAGE_SIZE/8,%rcx
+	movl	$PAGE_SIZE/8,%ecx
 	xorl	%eax,%eax
 	rep
 	stosq
@@ -58,7 +58,7 @@ END(pagezero_std)
 
 ENTRY(pagezero_erms)
 	PUSH_FRAME_POINTER
-	movq	$PAGE_SIZE,%rcx
+	movl	$PAGE_SIZE,%ecx
 	xorl	%eax,%eax
 	rep
 	stosb
@@ -71,7 +71,7 @@ END(pagezero_erms)
  */
 ENTRY(pagecopy)
 	PUSH_FRAME_POINTER
-	movq	$PAGE_SIZE/8,%rcx
+	movl	$PAGE_SIZE/8,%ecx
 	movq	%rdi,%r9
 	movq	%rsi,%rdi
 	movq	%r9,%rsi
