@@ -1647,8 +1647,10 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 * Avoid blowout in namecache entries.
 	 */
 	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
-	if (__predict_false(lnumcache >= desiredvnodes * ncsizefactor))
+	if (__predict_false(lnumcache >= desiredvnodes * ncsizefactor)) {
+		atomic_add_long(&numcache, -1);
 		return;
+	}
 
 	cache_celockstate_init(&cel);
 	ndd = NULL;
