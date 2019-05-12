@@ -3108,7 +3108,7 @@ otus_set_operating_mode(struct otus_softc *sc)
 	 */
 	IEEE80211_ADDR_COPY(bssid, zero_macaddr);
 	vap = TAILQ_FIRST(&ic->ic_vaps);
-	macaddr = ic->ic_macaddr;
+	macaddr = vap ? vap->iv_myaddr : ic->ic_macaddr;
 
 	switch (ic->ic_opmode) {
 	case IEEE80211_M_STA:
