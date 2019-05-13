@@ -71,6 +71,8 @@
 #define FN_SIZECHANGE        0x00000100
 #define FN_DIRECTIO          0x00000200
 
+#define FUSE_FILESIZE_UNINITIALIZED	-1
+
 struct fuse_vnode_data {
 	/** self **/
 	uint64_t	nid;
@@ -89,7 +91,11 @@ struct fuse_vnode_data {
 	/* The monotonic time after which the attr cache is invalid */
 	struct bintime	attr_cache_timeout;
 	struct vattr	cached_attrs;
-	/* TODO: use cached_attrs.size instead */
+	/*
+	 * File size according to the kernel, not the daemon.
+	 * May differ from cached_attrs.st_size due to write caching.  Unlike
+	 * cached_attrs.st_size, filesize never expires.
+	 */
 	off_t		filesize;
 	uint64_t	nlookup;
 	enum vtype	vtype;

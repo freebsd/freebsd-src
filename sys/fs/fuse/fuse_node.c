@@ -143,6 +143,7 @@ fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
 	fvdat->nid = nodeid;
 	LIST_INIT(&fvdat->handles);
 	vattr_null(&fvdat->cached_attrs);
+	fvdat->filesize = FUSE_FILESIZE_UNINITIALIZED;
 	if (nodeid == FUSE_ROOT_ID) {
 		vp->v_vflag |= VV_ROOT;
 	}
@@ -388,15 +389,10 @@ fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
 
 	if ((fvdat->flag & FN_SIZECHANGE) != 0 ||
 	    fuse_data_cache_mode == FUSE_CACHE_UC ||
-	    fvdat->filesize != 0)
+	    fvdat->filesize != FUSE_FILESIZE_UNINITIALIZED)
 		return 0;
 
-	/*
-	 * TODO: replace VOP_GETATTR with fuse_internal_getattr to use the
-	 * cached attributes.  Better yet, replace fvdat->filesize with
-	 * attrs->va_size
-	 */
-	err = VOP_GETATTR(vp, &va, cred);
+	err = fuse_internal_getattr(vp, &va, cred, curthread);
 	SDT_PROBE2(fusefs, , node, trace, 1, "refreshed file size");
 	return err;
 }
