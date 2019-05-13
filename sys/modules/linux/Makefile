@@ -80,13 +80,4 @@ ${VDSO}.so: linux${SFX}_locore.o
 linux${SFX}_genassym.o: offset.inc
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} ${.IMPSRC}
 
-.if !defined(KERNBUILDDIR)
-.if defined(KTR)
-CFLAGS+=	-DKTR
-.endif
-.if defined(DEBUG)
-CFLAGS+=	-DDEBUG
-.endif
-.endif
-
 .include <bsd.kmod.mk>

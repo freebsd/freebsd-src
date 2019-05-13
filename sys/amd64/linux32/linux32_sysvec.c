@@ -91,14 +91,6 @@ __FBSDID("$FreeBSD$");
 
 MODULE_VERSION(linux, 1);
 
-/*
- * Allow the sendsig functions to use the ldebug() facility even though they
- * are not syscalls themselves.  Map them to syscall 0.  This is slightly less
- * bogus than using ldebug(sigreturn).
- */
-#define	LINUX32_SYS_linux_rt_sendsig	0
-#define	LINUX32_SYS_linux_sendsig	0
-
 const char *linux_kplatform;
 static int linux_szsigcode;
 static vm_object_t linux_shared_page_obj;
@@ -286,11 +278,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_rsp);
 
-#ifdef DEBUG
-	if (ldebug(rt_sendsig))
-		printf(ARGS(rt_sendsig, "%p, %d, %p, %u"),
-		    catcher, sig, (void*)mask, code);
-#endif
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
@@ -349,23 +336,11 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.uc_mcontext.sc_cr2    = (u_int32_t)(uintptr_t)ksi->ksi_addr;
 	frame.sf_sc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
 
-#ifdef DEBUG
-	if (ldebug(rt_sendsig))
-		printf(LMSG("rt_sendsig flags: 0x%x, sp: %p, ss: 0x%lx, mask: 0x%x"),
-		    frame.sf_sc.uc_stack.ss_flags, td->td_sigstk.ss_sp,
-		    td->td_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
-#endif
-
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
-#ifdef DEBUG
-		if (ldebug(rt_sendsig))
-			printf(LMSG("rt_sendsig: bad stack %p, oonstack=%x"),
-			    fp, oonstack);
-#endif
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
 	}
@@ -422,12 +397,6 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_rsp);
-
-#ifdef DEBUG
-	if (ldebug(sendsig))
-		printf(ARGS(sendsig, "%p, %d, %p, %u"),
-		    catcher, sig, (void*)mask, code);
-#endif
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
@@ -521,10 +490,6 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 
 	regs = td->td_frame;
 
-#ifdef DEBUG
-	if (ldebug(sigreturn))
-		printf(ARGS(sigreturn, "%p"), (void *)args->sfp);
-#endif
 	/*
 	 * The trampoline code hands us the sigframe.
 	 * It is unsafe to keep track of it ourselves, in the event that a
@@ -606,10 +571,6 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 
 	regs = td->td_frame;
 
-#ifdef DEBUG
-	if (ldebug(rt_sigreturn))
-		printf(ARGS(rt_sigreturn, "%p"), (void *)args->ucp);
-#endif
 	/*
 	 * The trampoline code hands us the ucontext.
 	 * It is unsafe to keep track of it ourselves, in the event that a
@@ -674,11 +635,6 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	ss.ss_size = lss->ss_size;
 	ss.ss_flags = linux_to_bsd_sigaltstack(lss->ss_flags);
 
-#ifdef DEBUG
-	if (ldebug(rt_sigreturn))
-		printf(LMSG("rt_sigret flags: 0x%x, sp: %p, ss: 0x%lx, mask: 0x%x"),
-		    ss.ss_flags, ss.ss_sp, ss.ss_size, context->sc_mask);
-#endif
 	(void)kern_sigaltstack(td, &ss, NULL);
 
 	return (EJUSTRETURN);
@@ -868,11 +824,6 @@ SYSCTL_ULONG(_compat_linux32, OID_AUTO, maxssiz, CTLFLAG_RW,
 static u_long	linux32_maxvmem = LINUX32_MAXVMEM;
 SYSCTL_ULONG(_compat_linux32, OID_AUTO, maxvmem, CTLFLAG_RW,
     &linux32_maxvmem, 0, "");
-
-#if defined(DEBUG)
-SYSCTL_PROC(_compat_linux32, OID_AUTO, debug, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
-    linux_sysctl_debug, "A", "Linux debugging control");
-#endif
 
 static void
 linux32_fixlimit(struct rlimit *rl, int which)
