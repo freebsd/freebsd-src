@@ -1,11 +1,14 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2013, 2018 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
  * the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Mark Johnston
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,9 +35,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/sysctl.h>
+#include <sys/param.h>
+#include <sys/cnv.h>
+#include <sys/dnv.h>
 #include <sys/nv.h>
+#include <sys/sysctl.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -46,24 +51,117 @@ __FBSDID("$FreeBSD$");
 
 #include "cap_sysctl.h"
 
-int
-cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
-    size_t *oldlenp, const void *newp, size_t newlen)
+/*
+ * Limit interface.
+ */
+
+struct cap_sysctl_limit {
+	cap_channel_t *chan;
+	nvlist_t *nv;
+};
+
+cap_sysctl_limit_t *
+cap_sysctl_limit_init(cap_channel_t *chan)
 {
-	nvlist_t *nvl;
+	cap_sysctl_limit_t *limit;
+	int error;
+
+	limit = malloc(sizeof(*limit));
+	if (limit != NULL) {
+		limit->chan = chan;
+		limit->nv = nvlist_create(NV_FLAG_NO_UNIQUE);
+		if (limit->nv == NULL) {
+			error = errno;
+			free(limit);
+			limit = NULL;
+			errno = error;
+		}
+	}
+	return (limit);
+}
+
+cap_sysctl_limit_t *
+cap_sysctl_limit_name(cap_sysctl_limit_t *limit, const char *name, int flags)
+{
+	nvlist_t *lnv;
+	size_t mibsz;
+	int error, mib[CTL_MAXNAME];
+
+	lnv = nvlist_create(0);
+	if (lnv == NULL) {
+		error = errno;
+		if (limit->nv != NULL)
+			nvlist_destroy(limit->nv);
+		free(limit);
+		errno = error;
+		return (NULL);
+	}
+	nvlist_add_string(lnv, "name", name);
+	nvlist_add_number(lnv, "operation", flags);
+
+	mibsz = nitems(mib);
+	error = cap_sysctlnametomib(limit->chan, name, mib, &mibsz);
+	if (error == 0)
+		nvlist_add_binary(lnv, "mib", mib, mibsz * sizeof(int));
+
+	nvlist_move_nvlist(limit->nv, "limit", lnv);
+	return (limit);
+}
+
+cap_sysctl_limit_t *
+cap_sysctl_limit_mib(cap_sysctl_limit_t *limit, int *mibp, u_int miblen,
+    int flags)
+{
+	nvlist_t *lnv;
+	int error;
+
+	lnv = nvlist_create(0);
+	if (lnv == NULL) {
+		error = errno;
+		if (limit->nv != NULL)
+			nvlist_destroy(limit->nv);
+		free(limit);
+		errno = error;
+		return (NULL);
+	}
+	nvlist_add_binary(lnv, "mib", mibp, miblen * sizeof(int));
+	nvlist_add_number(lnv, "operation", flags);
+	nvlist_add_nvlist(limit->nv, "limit", lnv);
+	return (limit);
+}
+
+int
+cap_sysctl_limit(cap_sysctl_limit_t *limit)
+{
+	cap_channel_t *chan;
+	nvlist_t *lnv;
+
+	chan = limit->chan;
+	lnv = limit->nv;
+	free(limit);
+
+	/* cap_limit_set(3) will always free the nvlist. */
+	return (cap_limit_set(chan, lnv));
+}
+
+/*
+ * Service interface.
+ */
+
+static int
+do_sysctl(cap_channel_t *chan, nvlist_t *nvl, void *oldp, size_t *oldlenp,
+    const void *newp, size_t newlen)
+{
 	const uint8_t *retoldp;
-	uint8_t operation;
 	size_t oldlen;
+	int error;
+	uint8_t operation;
 
 	operation = 0;
-	if (oldp != NULL)
+	if (oldlenp != NULL)
 		operation |= CAP_SYSCTL_READ;
 	if (newp != NULL)
 		operation |= CAP_SYSCTL_WRITE;
-
-	nvl = nvlist_create(0);
-	nvlist_add_string(nvl, "cmd", "sysctl");
-	nvlist_add_string(nvl, "name", name);
 	nvlist_add_number(nvl, "operation", (uint64_t)operation);
 	if (oldp == NULL && oldlenp != NULL)
 		nvlist_add_null(nvl, "justsize");
@@ -71,12 +169,14 @@ cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
 		nvlist_add_number(nvl, "oldlen", (uint64_t)*oldlenp);
 	if (newp != NULL)
 		nvlist_add_binary(nvl, "newp", newp, newlen);
+
 	nvl = cap_xfer_nvlist(chan, nvl);
 	if (nvl == NULL)
 		return (-1);
-	if (nvlist_get_number(nvl, "error") != 0) {
-		errno = (int)nvlist_get_number(nvl, "error");
+	error = (int)dnvlist_get_number(nvl, "error", 0);
+	if (error != 0) {
 		nvlist_destroy(nvl);
+		errno = error;
 		return (-1);
 	}
 
@@ -88,21 +188,87 @@ cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
 		if (oldlenp != NULL)
 			*oldlenp = oldlen;
 	}
+
 	nvlist_destroy(nvl);
 
 	return (0);
 }
 
+int
+cap_sysctl(cap_channel_t *chan, const int *name, u_int namelen, void *oldp,
+    size_t *oldlenp, const void *newp, size_t newlen)
+{
+	nvlist_t *req;
+
+	req = nvlist_create(0);
+	nvlist_add_string(req, "cmd", "sysctl");
+	nvlist_add_binary(req, "mib", name, (size_t)namelen * sizeof(int));
+	return (do_sysctl(chan, req, oldp, oldlenp, newp, newlen));
+}
+
+int
+cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
+    size_t *oldlenp, const void *newp, size_t newlen)
+{
+	nvlist_t *req;
+
+	req = nvlist_create(0);
+	nvlist_add_string(req, "cmd", "sysctlbyname");
+	nvlist_add_string(req, "name", name);
+	return (do_sysctl(chan, req, oldp, oldlenp, newp, newlen));
+}
+
+int
+cap_sysctlnametomib(cap_channel_t *chan, const char *name, int *mibp,
+    size_t *sizep)
+{
+	nvlist_t *req;
+	const void *mib;
+	size_t mibsz;
+	int error;
+
+	req = nvlist_create(0);
+	nvlist_add_string(req, "cmd", "sysctlnametomib");
+	nvlist_add_string(req, "name", name);
+	nvlist_add_number(req, "operation", 0);
+	nvlist_add_number(req, "size", (uint64_t)*sizep);
+
+	req = cap_xfer_nvlist(chan, req);
+	if (req == NULL)
+		return (-1);
+	error = (int)dnvlist_get_number(req, "error", 0);
+	if (error != 0) {
+		nvlist_destroy(req);
+		errno = error;
+		return (-1);
+	}
+
+	mib = nvlist_get_binary(req, "mib", &mibsz);
+	*sizep = mibsz / sizeof(int);
+
+	memcpy(mibp, mib, mibsz); 
+
+	nvlist_destroy(req);
+
+	return (0);
+}
+
 /*
- * Service functions.
+ * Service implementation.
+ */
+
+/*
+ * Validate a sysctl description.  This must consist of an nvlist with either a
+ * binary "mib" field or a string "name", and an operation.
  */
 static int
-sysctl_check_one(const nvlist_t *nvl, bool islimit)
+sysctl_valid(const nvlist_t *nvl, bool limit)
 {
 	const char *name;
 	void *cookie;
 	int type;
-	unsigned int fields;
+	size_t size;
+	unsigned int field, fields;
 
 	/* NULL nvl is of course invalid. */
 	if (nvl == NULL)
@@ -111,83 +277,119 @@ sysctl_check_one(const nvlist_t *nvl, bool islimit)
 		return (nvlist_error(nvl));
 
 #define	HAS_NAME	0x01
-#define	HAS_OPERATION	0x02
+#define	HAS_MIB		0x02
+#define	HAS_ID		(HAS_NAME | HAS_MIB)
+#define	HAS_OPERATION	0x04
 
 	fields = 0;
 	cookie = NULL;
 	while ((name = nvlist_next(nvl, &type, &cookie)) != NULL) {
-		/* We accept only one 'name' and one 'operation' in nvl. */
-		if (strcmp(name, "name") == 0) {
-			if (type != NV_TYPE_STRING)
+		if ((strcmp(name, "name") == 0 && type == NV_TYPE_STRING) ||
+		    (strcmp(name, "mib") == 0 && type == NV_TYPE_BINARY)) {
+			if (strcmp(name, "mib") == 0) {
+				/* A MIB must be an array of integers. */
+				(void)cnvlist_get_binary(cookie, &size);
+				if (size % sizeof(int) != 0)
+					return (EINVAL);
+				field = HAS_MIB;
+			} else
+				field = HAS_NAME;
+
+			/*
+			 * A limit may contain both a name and a MIB identifier.
+			 */
+			if ((fields & field) != 0 ||
+			    (!limit && (fields & HAS_ID) != 0))
 				return (EINVAL);
-			/* Only one 'name' can be present. */
-			if ((fields & HAS_NAME) != 0)
-				return (EINVAL);
-			fields |= HAS_NAME;
+			fields |= field;
 		} else if (strcmp(name, "operation") == 0) {
-			uint64_t operation;
+			uint64_t mask, operation;
 
 			if (type != NV_TYPE_NUMBER)
 				return (EINVAL);
+
+			operation = cnvlist_get_number(cookie);
+
 			/*
-			 * We accept only CAP_SYSCTL_READ and
-			 * CAP_SYSCTL_WRITE flags.
+			 * Requests can only include the RDWR flags; limits may
+			 * also include the RECURSIVE flag.
 			 */
-			operation = nvlist_get_number(nvl, name);
-			if ((operation & ~(CAP_SYSCTL_RDWR)) != 0)
-				return (EINVAL);
-			/* ...but there has to be at least one of them. */
-			if ((operation & (CAP_SYSCTL_RDWR)) == 0)
+			mask = limit ? (CAP_SYSCTL_RDWR |
+			    CAP_SYSCTL_RECURSIVE) : CAP_SYSCTL_RDWR;
+			if ((operation & ~limit) != 0 ||
+			    (operation & CAP_SYSCTL_RDWR) == 0)
 				return (EINVAL);
 			/* Only one 'operation' can be present. */
 			if ((fields & HAS_OPERATION) != 0)
 				return (EINVAL);
 			fields |= HAS_OPERATION;
-		} else if (islimit) {
-			/* If this is limit, there can be no other fields. */
+		} else if (limit)
 			return (EINVAL);
-		}
 	}
 
-	/* Both fields has to be there. */
-	if (fields != (HAS_NAME | HAS_OPERATION))
+	if ((fields & HAS_OPERATION) == 0 || (fields & HAS_ID) == 0)
 		return (EINVAL);
 
-#undef	HAS_OPERATION
-#undef	HAS_NAME
+#undef HAS_OPERATION
+#undef HAS_ID
+#undef HAS_MIB
+#undef HAS_NAME
 
 	return (0);
 }
 
 static bool
-sysctl_allowed(const nvlist_t *limits, const char *chname, uint64_t choperation)
+sysctl_allowed(const nvlist_t *limits, const nvlist_t *req)
 {
-	uint64_t operation;
-	const char *name;
+	const nvlist_t *limit;
+	uint64_t op, reqop;
+	const char *lname, *name, *reqname;
 	void *cookie;
+	size_t lsize, reqsize;
+	const int *lmib, *reqmib;
 	int type;
 
 	if (limits == NULL)
 		return (true);
 
+	reqmib = dnvlist_get_binary(req, "mib", &reqsize, NULL, 0);
+	reqname = dnvlist_get_string(req, "name", NULL);
+	reqop = nvlist_get_number(req, "operation");
+
 	cookie = NULL;
 	while ((name = nvlist_next(limits, &type, &cookie)) != NULL) {
-		assert(type == NV_TYPE_NUMBER);
+		assert(type == NV_TYPE_NVLIST);
 
-		operation = nvlist_get_number(limits, name);
-		if ((operation & choperation) != choperation)
+		limit = cnvlist_get_nvlist(cookie);
+		op = nvlist_get_number(limit, "operation");
+		if ((reqop & op) != reqop)
 			continue;
 
-		if ((operation & CAP_SYSCTL_RECURSIVE) == 0) {
-			if (strcmp(name, chname) != 0)
+		if (reqname != NULL) {
+			lname = dnvlist_get_string(limit, "name", NULL);
+			if (lname == NULL)
 				continue;
-		} else {
-			size_t namelen;
+			if ((op & CAP_SYSCTL_RECURSIVE) == 0) {
+				if (strcmp(lname, reqname) != 0)
+					continue;
+			} else {
+				size_t namelen;
 
-			namelen = strlen(name);
-			if (strncmp(name, chname, namelen) != 0)
+				namelen = strlen(lname);
+				if (strncmp(lname, reqname, namelen) != 0)
+					continue;
+				if (reqname[namelen] != '.' &&
+				    reqname[namelen] != '\0')
+					continue;
+			}
+		} else {
+			lmib = dnvlist_get_binary(limit, "mib", &lsize, NULL, 0);
+			if (lmib == NULL)
 				continue;
-			if (chname[namelen] != '.' && chname[namelen] != '\0')
+			if (lsize > reqsize || ((op & CAP_SYSCTL_RECURSIVE) == 0 &&
+			    lsize < reqsize))
+				continue;
+			if (memcmp(lmib, reqmib, lsize) != 0)
 				continue;
 		}
 
@@ -200,23 +402,51 @@ sysctl_allowed(const nvlist_t *limits, const char *chname, uint64_t choperation)
 static int
 sysctl_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 {
+	const nvlist_t *nvl;
 	const char *name;
 	void *cookie;
-	uint64_t operation;
-	int type;
+	int error, type;
 
 	cookie = NULL;
 	while ((name = nvlist_next(newlimits, &type, &cookie)) != NULL) {
-		if (type != NV_TYPE_NUMBER)
+		if (strcmp(name, "limit") != 0 || type != NV_TYPE_NVLIST)
 			return (EINVAL);
-		operation = nvlist_get_number(newlimits, name);
-		if ((operation & ~(CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE)) != 0)
-			return (EINVAL);
-		if ((operation & (CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE)) == 0)
-			return (EINVAL);
-		if (!sysctl_allowed(oldlimits, name, operation))
+		nvl = cnvlist_get_nvlist(cookie);
+		error = sysctl_valid(nvl, true);
+		if (error != 0)
+			return (error);
+		if (!sysctl_allowed(oldlimits, nvl))
 			return (ENOTCAPABLE);
 	}
+
+	return (0);
+}
+
+static int
+nametomib(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
+{
+	const char *name;
+	size_t size;
+	int error, *mibp;
+
+	if (!sysctl_allowed(limits, nvlin))
+		return (ENOTCAPABLE);
+
+	name = nvlist_get_string(nvlin, "name");
+	size = (size_t)nvlist_get_number(nvlin, "size");
+
+	mibp = malloc(size * sizeof(*mibp));
+	if (mibp == NULL)
+		return (ENOMEM);
+
+	error = sysctlnametomib(name, mibp, &size);
+	if (error != 0) {
+		error = errno;
+		free(mibp);
+		return (error);
+	}
+
+	nvlist_add_binary(nvlout, "mib", mibp, size * sizeof(*mibp));
 
 	return (0);
 }
@@ -227,23 +457,25 @@ sysctl_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 {
 	const char *name;
 	const void *newp;
+	const int *mibp;
 	void *oldp;
 	uint64_t operation;
-	size_t oldlen, newlen;
+	size_t oldlen, newlen, size;
 	size_t *oldlenp;
 	int error;
 
-	if (strcmp(cmd, "sysctl") != 0)
+	if (strcmp(cmd, "sysctlnametomib") == 0)
+		return (nametomib(limits, nvlin, nvlout));
+
+	if (strcmp(cmd, "sysctlbyname") != 0 && strcmp(cmd, "sysctl") != 0)
 		return (EINVAL);
-	error = sysctl_check_one(nvlin, false);
+	error = sysctl_valid(nvlin, false);
 	if (error != 0)
 		return (error);
-
-	name = nvlist_get_string(nvlin, "name");
-	operation = nvlist_get_number(nvlin, "operation");
-	if (!sysctl_allowed(limits, name, operation))
+	if (!sysctl_allowed(limits, nvlin))
 		return (ENOTCAPABLE);
 
+	operation = nvlist_get_number(nvlin, "operation");
 	if ((operation & CAP_SYSCTL_WRITE) != 0) {
 		if (!nvlist_exists_binary(nvlin, "newp"))
 			return (EINVAL);
@@ -276,7 +508,15 @@ sysctl_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		oldlenp = NULL;
 	}
 
-	if (sysctlbyname(name, oldp, oldlenp, newp, newlen) == -1) {
+	if (strcmp(cmd, "sysctlbyname") == 0) {
+		name = nvlist_get_string(nvlin, "name");
+		error = sysctlbyname(name, oldp, oldlenp, newp, newlen);
+	} else {
+		mibp = nvlist_get_binary(nvlin, "mib", &size);
+		error = sysctl(mibp, size / sizeof(*mibp), oldp, oldlenp, newp,
+		    newlen);
+	}
+	if (error != 0) {
 		error = errno;
 		free(oldp);
 		return (error);

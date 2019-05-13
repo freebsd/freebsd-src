@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190513: libcap_sysctl interface change
+OLD_FILES+=lib/casper/libcap_sysctl.1
 # 20190509: tests/sys/opencrypto requires the net/py-dpkt package.
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.py
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.pyc
