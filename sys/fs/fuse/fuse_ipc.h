@@ -230,7 +230,6 @@ enum fuse_data_cache_mode {
 
 extern int fuse_data_cache_mode;
 extern int fuse_data_cache_invalidate;
-extern int fuse_mmap_enable;
 
 static inline struct fuse_data *
 fuse_get_mpdata(struct mount *mp)
@@ -268,7 +267,7 @@ fsess_opt_mmap(struct mount *mp)
 {
 	struct fuse_data *data = fuse_get_mpdata(mp);
 
-	if (!fuse_mmap_enable || fuse_data_cache_mode == FUSE_CACHE_UC)
+	if (fuse_data_cache_mode == FUSE_CACHE_UC)
 		return (false);
 	return ((data->dataflags & (FSESS_NO_DATACACHE | FSESS_NO_MMAP)) == 0);
 }
