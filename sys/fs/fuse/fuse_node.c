@@ -142,13 +142,6 @@ SYSCTL_INT(_vfs_fusefs, OID_AUTO, sync_resize, CTLFLAG_RW,
     "If a cached write extended a file, inform FUSE filesystem of the changed"
     "size immediately subsequent to the issued writes");
 
-int	fuse_fix_broken_io = 0;
-
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, fix_broken_io, CTLFLAG_RW,
-    &fuse_fix_broken_io, 0,
-    "If non-zero, print a diagnostic warning if a userspace filesystem returns"
-    " EIO on reads of recently extended portions of files");
-
 static int
 sysctl_fuse_cache_mode(SYSCTL_HANDLER_ARGS)
 {

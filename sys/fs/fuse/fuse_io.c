@@ -776,11 +776,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		uiop->uio_offset = ((off_t)bp->b_blkno) * biosize;
 		error = fuse_read_directbackend(vp, uiop, cred, fufh);
 
-		/* XXXCEM: Potentially invalid access to cached_attrs here */
-		if ((!error && uiop->uio_resid) ||
-		    (fsess_opt_brokenio(vnode_mount(vp)) && error == EIO &&
-		    uiop->uio_offset < fvdat->filesize && fvdat->filesize > 0 &&
-		    uiop->uio_offset >= fvdat->cached_attrs.va_size)) {
+		if (!error && uiop->uio_resid) {
 			/*
 	                 * If we had a short read with no error, we must have
 	                 * hit a file hole.  We should zero-fill the remainder.
@@ -792,14 +788,6 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 			int nread = bp->b_bcount - uiop->uio_resid;
 			int left = uiop->uio_resid;
 
-			if (error != 0) {
-				printf("FUSE: Fix broken io: offset %ju, "
-				       " resid %zd, file size %ju/%ju\n", 
-				       (uintmax_t)uiop->uio_offset,
-				    uiop->uio_resid, fvdat->filesize,
-				    fvdat->cached_attrs.va_size);
-				error = 0;
-			}
 			if (left > 0)
 				bzero((char *)bp->b_data + nread, left);
 			uiop->uio_resid = 0;
