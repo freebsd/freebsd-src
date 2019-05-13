@@ -20,6 +20,7 @@ stop_cmd="ipsec_stop"
 reload_cmd="ipsec_reload"
 extra_commands="reload"
 ipsec_program="/sbin/setkey"
+required_modules="ipsec"
 # ipsec_file is set by rc.conf
 
 ipsec_prestart()
