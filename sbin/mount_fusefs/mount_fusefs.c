@@ -60,7 +60,6 @@ void	__usage_short(void);
 void	usage(void);
 void	helpmsg(void);
 void	showversion(void);
-int	init_backgrounded(void);
 
 static struct mntopt mopts[] = {
 	#define ALTF_PRIVATE 0x01
@@ -73,8 +72,6 @@ static struct mntopt mopts[] = {
 	{ "max_read=",           0, ALTF_MAXREAD, 1 },
 	#define ALTF_SUBTYPE 0x40
 	{ "subtype=",            0, ALTF_SUBTYPE, 1 },
-	#define ALTF_SYNC_UNMOUNT 0x80
-	{ "sync_unmount",        0, ALTF_SYNC_UNMOUNT, 1 },
 	/*
 	 * MOPT_AUTOMOUNTED, included by MOPT_STDOPTS, does not fit into
 	 * the 'flags' argument to nmount(2).  We have to abuse altflags
@@ -107,7 +104,7 @@ static struct mntval mvals[] = {
 	{ 0, NULL, 0 }
 };
 
-#define DEFAULT_MOUNT_FLAGS ALTF_PRIVATE | ALTF_SYNC_UNMOUNT
+#define DEFAULT_MOUNT_FLAGS ALTF_PRIVATE
 
 int
 main(int argc, char *argv[])
@@ -409,7 +406,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (fd >= 0 && ! init_backgrounded() && close(fd) < 0) {
+	if (fd >= 0 && close(fd) < 0) {
 		if (pid)
 			kill(pid, SIGKILL);
 		err(1, "failed to close fuse device");
@@ -481,7 +478,6 @@ helpmsg(void)
 	        "    -o neglect_shares      don't report EBUSY when unmount attempted\n"
 	        "                           in presence of secondary mounts\n" 
 	        "    -o push_symlinks_in    prefix absolute symlinks with mountpoint\n"
-	        "    -o sync_unmount        do unmount synchronously\n"
 	        );
 	exit(EX_USAGE);
 }
@@ -491,18 +487,4 @@ showversion(void)
 {
 	puts("mount_fusefs [fuse4bsd] version: " FUSE4BSD_VERSION);
 	exit(EX_USAGE);
-}
-
-int
-init_backgrounded(void)
-{
-	int ibg;
-	size_t len;
-
-	len = sizeof(ibg);
-
-	if (sysctlbyname("vfs.fusefs.init_backgrounded", &ibg, &len, NULL, 0))
-		return (0);
-
-	return (ibg);
 }

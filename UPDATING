@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190513:
+	The "-o sync_unmount" and "-o init_backgrounded" options have been
+	removed from mount_fusefs(8).  You can safely remove them from your
+	scripts, because they had no effect.
+
 20190507:
 	The IPSEC option has been removed from GENERIC.  Users requiring
 	ipsec(4) must now load the ipsec(4) kernel module.
