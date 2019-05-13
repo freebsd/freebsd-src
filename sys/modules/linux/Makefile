@@ -80,4 +80,8 @@ ${VDSO}.so: linux${SFX}_locore.o
 linux${SFX}_genassym.o: offset.inc
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} -fcommon ${.IMPSRC}
 
+.if !defined(KERNBUILDDIR)
+.warning Building Linuxulator outside of a kernel does not make sense
+.endif
+
 .include <bsd.kmod.mk>
