@@ -21,8 +21,8 @@ options 	SCSI_NO_OP_STRINGS
 # .. And no sysctl strings
 options 	NO_SYSCTL_DESCR
 
-makeoptions 	MODULES_OVERRIDE+="gpio ar71xx if_gif if_vlan if_gre if_tap"
-makeoptions 	MODULES_OVERRIDE+="if_tun if_bridge bridgestp usb"
+makeoptions 	MODULES_OVERRIDE+="gpio ar71xx if_gif if_vlan if_gre if_tuntap"
+makeoptions 	MODULES_OVERRIDE+="if_bridge bridgestp usb"
 makeoptions 	MODULES_OVERRIDE+="alq"
 
 # Random - required during early boot!
