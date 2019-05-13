@@ -741,8 +741,6 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		/* 
 		 * This may be a read-modify-write operation on a cached file
 		 * opened O_WRONLY.  The FUSE protocol allows this.
-		 *
-		 * TODO: eliminate this hacky check once the FUFH table is gone
 		 */
 		error = fuse_filehandle_get(vp, FWRITE, &fufh, cred, pid);
 	}
