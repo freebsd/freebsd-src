@@ -149,10 +149,15 @@ static unsigned int
 checkcaps(cap_channel_t *capsysctl)
 {
 	unsigned int result;
-	int oldvalue, newvalue;
-	size_t oldsize;
+	size_t len0, len1, oldsize;
+	int error, mib0[2], mib1[2], oldvalue, newvalue;
 
 	result = 0;
+
+	len0 = nitems(mib0);
+	ATF_REQUIRE(sysctlnametomib(SYSCTL0_NAME, mib0, &len0) == 0);
+	len1 = nitems(mib1);
+	ATF_REQUIRE(sysctlnametomib(SYSCTL1_NAME, mib1, &len1) == 0);
 
 	oldsize = sizeof(oldvalue);
 	if (cap_sysctlbyname(capsysctl, SYSCTL0_NAME, &oldvalue, &oldsize,
@@ -160,6 +165,11 @@ checkcaps(cap_channel_t *capsysctl)
 		if (oldsize == sizeof(oldvalue))
 			result |= SYSCTL0_READ0;
 	}
+	error = cap_sysctl(capsysctl, mib0, len0, &oldvalue, &oldsize, NULL, 0);
+	if ((result & SYSCTL0_READ0) != 0)
+		ATF_REQUIRE(error == 0);
+	else
+		ATF_REQUIRE_ERRNO(ENOTCAPABLE, error != 0);
 
 	newvalue = 123;
 	if (cap_sysctlbyname(capsysctl, SYSCTL0_NAME, NULL, NULL, &newvalue,
@@ -175,6 +185,13 @@ checkcaps(cap_channel_t *capsysctl)
 				result |= SYSCTL0_READ1;
 		}
 	}
+	newvalue = 123;
+	error = cap_sysctl(capsysctl, mib0, len0, NULL, NULL,
+	    &newvalue, sizeof(newvalue));
+	if ((result & SYSCTL0_WRITE) != 0)
+		ATF_REQUIRE(error == 0);
+	else
+		ATF_REQUIRE_ERRNO(ENOTCAPABLE, error != 0);
 
 	oldsize = sizeof(oldvalue);
 	newvalue = 4567;
@@ -199,6 +216,11 @@ checkcaps(cap_channel_t *capsysctl)
 		if (oldsize == sizeof(oldvalue))
 			result |= SYSCTL1_READ0;
 	}
+	error = cap_sysctl(capsysctl, mib1, len1, &oldvalue, &oldsize, NULL, 0);
+	if ((result & SYSCTL1_READ0) != 0)
+		ATF_REQUIRE(error == 0);
+	else
+		ATF_REQUIRE_ERRNO(ENOTCAPABLE, error != 0);
 
 	newvalue = 506;
 	if (cap_sysctlbyname(capsysctl, SYSCTL1_NAME, NULL, NULL, &newvalue,
@@ -207,6 +229,10 @@ checkcaps(cap_channel_t *capsysctl)
 	}
 
 	if ((result & SYSCTL1_WRITE) != 0) {
+		newvalue = 506;
+		ATF_REQUIRE(cap_sysctl(capsysctl, mib1, len1, NULL, NULL,
+		    &newvalue, sizeof(newvalue)) == 0);
+
 		oldsize = sizeof(oldvalue);
 		if (cap_sysctlbyname(capsysctl, SYSCTL1_NAME, &oldvalue,
 		    &oldsize, NULL, 0) == 0) {
@@ -214,6 +240,13 @@ checkcaps(cap_channel_t *capsysctl)
 				result |= SYSCTL1_READ1;
 		}
 	}
+	newvalue = 506;
+	error = cap_sysctl(capsysctl, mib1, len1, NULL, NULL,
+	    &newvalue, sizeof(newvalue));
+	if ((result & SYSCTL1_WRITE) != 0)
+		ATF_REQUIRE(error == 0);
+	else
+		ATF_REQUIRE_ERRNO(ENOTCAPABLE, error != 0);
 
 	oldsize = sizeof(oldvalue);
 	newvalue = 7008;
@@ -1563,11 +1596,98 @@ ATF_TC_CLEANUP(cap_sysctl__no_limits, tc)
 	cleanup();
 }
 
+ATF_TC_WITH_CLEANUP(cap_sysctl__recursive_limits);
+ATF_TC_HEAD(cap_sysctl__recursive_limits, tc)
+{
+}
+ATF_TC_BODY(cap_sysctl__recursive_limits, tc)
+{
+	cap_channel_t *capsysctl, *ocapsysctl;
+	void *limit;
+	size_t len;
+	int mib[2], val = 420;
+
+	len = nitems(mib);
+	ATF_REQUIRE(sysctlnametomib(SYSCTL0_NAME, mib, &len) == 0);
+
+	ocapsysctl = initcap();
+
+	/*
+	 * Make sure that we match entire components.
+	 */
+	capsysctl = cap_clone(ocapsysctl);
+	ATF_REQUIRE(capsysctl != NULL);
+
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, "ker",
+	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
+	ATF_REQUIRE(cap_sysctl_limit(limit) == 0);
+
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, cap_sysctlbyname(capsysctl, SYSCTL0_NAME,
+	    NULL, NULL, &val, sizeof(val)));
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, cap_sysctl(capsysctl, mib, len,
+	    NULL, NULL, &val, sizeof(val)));
+
+	cap_close(capsysctl);
+
+	/*
+	 * Verify that we check for CAP_SYSCTL_RECURSIVE.
+	 */
+	capsysctl = cap_clone(ocapsysctl);
+	ATF_REQUIRE(capsysctl != NULL);
+
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, "kern", CAP_SYSCTL_RDWR);
+	ATF_REQUIRE(cap_sysctl_limit(limit) == 0);
+
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, cap_sysctlbyname(capsysctl, SYSCTL0_NAME,
+	    NULL, NULL, &val, sizeof(val)));
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, cap_sysctl(capsysctl, mib, len,
+	    NULL, NULL, &val, sizeof(val)));
+
+	cap_close(capsysctl);
+}
+ATF_TC_CLEANUP(cap_sysctl__recursive_limits, tc)
+{
+	cleanup();
+}
+
+ATF_TC_WITH_CLEANUP(cap_sysctl__just_size);
+ATF_TC_HEAD(cap_sysctl__just_size, tc)
+{
+}
+ATF_TC_BODY(cap_sysctl__just_size, tc)
+{
+	cap_channel_t *capsysctl;
+	size_t len;
+	int mib0[2];
+
+	capsysctl = initcap();
+
+	len = nitems(mib0);
+	ATF_REQUIRE(sysctlnametomib(SYSCTL0_NAME, mib0, &len) == 0);
+
+	ATF_REQUIRE(cap_sysctlbyname(capsysctl, SYSCTL0_NAME,
+	    NULL, &len, NULL, 0) == 0);
+	ATF_REQUIRE(len == sizeof(int));
+	ATF_REQUIRE(cap_sysctl(capsysctl, mib0, nitems(mib0),
+	    NULL, &len, NULL, 0) == 0);
+	ATF_REQUIRE(len == sizeof(int));
+
+	cap_close(capsysctl);
+}
+ATF_TC_CLEANUP(cap_sysctl__just_size, tc)
+{
+	cleanup();
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, cap_sysctl__operation);
 	ATF_TP_ADD_TC(tp, cap_sysctl__names);
 	ATF_TP_ADD_TC(tp, cap_sysctl__no_limits);
+	ATF_TP_ADD_TC(tp, cap_sysctl__recursive_limits);
+	ATF_TP_ADD_TC(tp, cap_sysctl__just_size);
 
 	return (atf_no_error());
 }
