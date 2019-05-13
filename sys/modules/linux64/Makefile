@@ -55,13 +55,4 @@ linux_support.o: assym.inc linux_assym.h
 linux_genassym.o: offset.inc
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} ${.IMPSRC}
 
-.if !defined(KERNBUILDDIR)
-.if defined(DEBUG)
-CFLAGS+=-DDEBUG
-.endif
-.if defined(KTR)
-CFLAGS+=-DKTR
-.endif
-.endif
-
 .include <bsd.kmod.mk>
