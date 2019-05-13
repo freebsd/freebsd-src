@@ -121,13 +121,6 @@ SYSCTL_INT(_vfs_fusefs, OID_AUTO, data_cache_invalidate, CTLFLAG_RW,
     "If non-zero, discard cached clean file data when there are no active file"
     " users");
 
-int	fuse_mmap_enable = 1;
-
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, mmap_enable, CTLFLAG_RW,
-    &fuse_mmap_enable, 0,
-    "If non-zero, and data_cache_mode is also non-zero, enable mmap(2) of "
-    "FUSE files");
-
 static int
 sysctl_fuse_cache_mode(SYSCTL_HANDLER_ARGS)
 {
