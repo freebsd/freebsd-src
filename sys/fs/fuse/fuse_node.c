@@ -135,13 +135,6 @@ SYSCTL_INT(_vfs_fusefs, OID_AUTO, refresh_size, CTLFLAG_RW,
     "If non-zero, and no dirty file extension data is buffered, fetch file "
     "size before write operations");
 
-int	fuse_sync_resize = 1;
-
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, sync_resize, CTLFLAG_RW,
-    &fuse_sync_resize, 0,
-    "If a cached write extended a file, inform FUSE filesystem of the changed"
-    "size immediately subsequent to the issued writes");
-
 static int
 sysctl_fuse_cache_mode(SYSCTL_HANDLER_ARGS)
 {
