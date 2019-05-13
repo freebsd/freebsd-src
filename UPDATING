@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190513:
+	User-wired pages now have their own counter,
+	vm.stats.vm.v_user_wire_count.  The vm.max_wired sysctl was renamed
+	to vm.max_user_wired and changed from an unsigned int to an unsigned
+	long.  bhyve VMs wired with the -S are now subject to the user
+	wiring limit; the vm.max_user_wired sysctl may need to be tuned to
+	avoid running into the limit.
+
 20190507:
 	The IPSEC option has been removed from GENERIC.  Users requiring
 	ipsec(4) must now load the ipsec(4) kernel module.
