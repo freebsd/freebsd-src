@@ -166,7 +166,7 @@ pctrie_setroot(struct pctrie *ptree, struct pctrie_node *node)
 /*
  * Returns TRUE if the specified node is a leaf and FALSE otherwise.
  */
-static __inline boolean_t
+static __inline bool
 pctrie_isleaf(struct pctrie_node *node)
 {
 
@@ -218,7 +218,7 @@ pctrie_keydiff(uint64_t index1, uint64_t index2)
  * Returns TRUE if it can be determined that key does not belong to the
  * specified node.  Otherwise, returns FALSE.
  */
-static __inline boolean_t
+static __inline bool
 pctrie_keybarr(struct pctrie_node *node, uint64_t idx)
 {
 
@@ -226,7 +226,7 @@ pctrie_keybarr(struct pctrie_node *node, uint64_t idx)
 		idx = pctrie_trimkey(idx, node->pn_clev + 1);
 		return (idx != node->pn_owner);
 	}
-	return (FALSE);
+	return (false);
 }
 
 /*
@@ -385,7 +385,8 @@ pctrie_lookup_ge(struct pctrie *ptree, uint64_t index)
 #ifdef INVARIANTS
 	int loops = 0;
 #endif
-	int slot, tos;
+	unsigned tos;
+	int slot;
 
 	node = pctrie_getroot(ptree);
 	if (node == NULL)
@@ -496,7 +497,8 @@ pctrie_lookup_le(struct pctrie *ptree, uint64_t index)
 #ifdef INVARIANTS
 	int loops = 0;
 #endif
-	int slot, tos;
+	unsigned tos;
+	int slot;
 
 	node = pctrie_getroot(ptree);
 	if (node == NULL)

@@ -40,6 +40,7 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 
 #include <ufs/ufs/dir.h>
@@ -53,6 +54,14 @@
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_dir.h>
 #include <fs/ext2fs/htree.h>
+
+SDT_PROVIDER_DECLARE(ext2fs);
+/*
+ * ext2fs trace probe:
+ * arg0: verbosity. Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(ext2fs, , trace, htree, "int", "char*");
 
 static void	ext2_append_entry(char *block, uint32_t blksize,
 		    struct ext2fs_direct_2 *last_entry,
@@ -816,7 +825,8 @@ ext2_htree_add_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry,
 
 			if (ext2_htree_get_count(root_entires) ==
 			    ext2_htree_get_limit(root_entires)) {
-				/* Directory index is full */
+				SDT_PROBE2(ext2fs, , trace, htree, 1,
+				    "directory index is full");
 				error = EIO;
 				goto finish;
 			}

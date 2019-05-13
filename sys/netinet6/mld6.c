@@ -1708,6 +1708,8 @@ mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
 			 * version, we need to release the final
 			 * reference held for issuing the INCLUDE {}.
 			 */
+			if (inm->in6m_refcount == 1)
+				in6m_disconnect_locked(&inmh, inm);
 			in6m_rele_locked(&inmh, inm);
 			/* FALLTHROUGH */
 		case MLD_G_QUERY_PENDING_MEMBER:

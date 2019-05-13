@@ -63,8 +63,9 @@ __FBSDID("$FreeBSD$");
 static struct aw_ccung_reset ccu_sun8i_r_resets[] = {
 	CCU_RESET(RST_APB0_IR, 0xb0, 1)
 	CCU_RESET(RST_APB0_TIMER, 0xb0, 2)
-	CCU_RESET(RST_APB0_RSB, 0xb0, 4)
-	CCU_RESET(RST_APB0_UART, 0xb0, 6)
+	CCU_RESET(RST_APB0_RSB, 0xb0, 3)
+	CCU_RESET(RST_APB0_UART, 0xb0, 4)
+	CCU_RESET(RST_APB0_I2C, 0xb0, 6)
 };
 
 static struct aw_ccung_gate ccu_sun8i_r_gates[] = {

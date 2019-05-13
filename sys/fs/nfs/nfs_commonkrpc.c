@@ -208,8 +208,6 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 			nconf = getnetconfigent("udp");
 		else
 			nconf = getnetconfigent("tcp");
-	else if (saddr->sa_family == AF_LOCAL)
-		nconf = getnetconfigent("local");
 	else
 		if (nrp->nr_sotype == SOCK_DGRAM)
 			nconf = getnetconfigent("udp6");

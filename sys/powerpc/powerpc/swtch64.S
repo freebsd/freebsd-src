@@ -78,6 +78,7 @@ TOC_ENTRY(blocked_lock)
 ENTRY(cpu_throw)
 	mr	%r13, %r4
 	li	%r14,0	/* Tell cpu_switchin not to release a thread */
+	li	%r18,0	/* No old pcb flags.  The old thread is extinguished. */
 
 	b	cpu_switchin
 
@@ -87,6 +88,10 @@ ENTRY(cpu_throw)
  *		   struct mutex *mtx); 
  *
  * Switch to a new thread saving the current state in the old thread.
+ *
+ * Internally clobbers (not visible outside of this file):
+ * r18	- old thread pcb_flags
+ * r19	- new thread pcb_flags
  */
 ENTRY(cpu_switch)
 	ld	%r6,TD_PCB(%r3)		/* Get the old thread's PCB ptr */
@@ -125,26 +130,49 @@ ENTRY(cpu_switch)
 	
 	stdu	%r1,-48(%r1)
 
-	lwz	%r7, PCB_FLAGS(%r17)
-	andi.	%r7, %r7, PCB_CDSCR
+	lwz	%r18, PCB_FLAGS(%r17)
+	andi.	%r7, %r18, PCB_CFSCR
+	beq	1f
+	mfspr	%r6, SPR_FSCR
+	std	%r6, PCB_FSCR(%r17)
+save_ebb:
+	andi.	%r0, %r6, FSCR_EBB
+	beq	save_lm
+	mfspr	%r7, SPR_EBBHR
+	std	%r7, PCB_EBB_EBBHR(%r17)
+	mfspr	%r7, SPR_EBBRR
+	std	%r7, PCB_EBB_EBBRR(%r17)
+	mfspr	%r7, SPR_BESCR
+	std	%r7, PCB_EBB_BESCR(%r17)
+save_lm:
+	andi.	%r0, %r6, FSCR_LM
+	beq	save_tar
+	mfspr	%r7, SPR_LMRR
+	std	%r7, PCB_LMON_LMRR(%r17)
+	mfspr	%r7, SPR_LMSER
+	std	%r7, PCB_LMON_LMSER(%r17)
+save_tar:
+	andi.	%r0, %r6, FSCR_TAR
+	beq	1f
+	mfspr	%r7, SPR_TAR
+	std	%r7, PCB_TAR(%r17)
+1:
+	andi.	%r7, %r18, PCB_CDSCR
 	beq	.L0
-	/* Custom DSCR was set. Reseting it to enter kernel */
-	li	%r7, 0x0
-	mtspr   SPR_DSCR, %r7
+	mfspr	%r6, SPR_DSCRP
+	std	%r6, PCB_DSCR(%r17)
 
 .L0:
-	lwz	%r7,PCB_FLAGS(%r17)
 	/* Save FPU context if needed */
-	andi.	%r7, %r7, PCB_FPU
+	andi.	%r7, %r18, PCB_FPU
 	beq	.L1
 	bl	save_fpu
 	nop
 
 .L1:
 	mr	%r3,%r14		/* restore old thread ptr */
-	lwz	%r7,PCB_FLAGS(%r17)
 	/* Save Altivec context if needed */
-	andi.	%r7, %r7, PCB_VEC
+	andi.	%r7, %r18, PCB_VEC
 	beq	.L2
 	bl	save_vec
 	nop
@@ -186,30 +214,58 @@ blocked_loop:
 	bl	pmap_activate		/* Activate the new address space */
 	nop
 
-	lwz	%r6, PCB_FLAGS(%r17)
+	lwz	%r19, PCB_FLAGS(%r17)
 	/* Restore FPU context if needed */
-	andi.	%r6, %r6, PCB_FPU
+	andi.	%r6, %r19, PCB_FPU
 	beq	.L3
 	mr	%r3,%r13		/* Pass curthread to enable_fpu */
 	bl	enable_fpu
 	nop
 
 .L3:
-	lwz	%r6, PCB_FLAGS(%r17)
 	/* Restore Altivec context if needed */
-	andi.	%r6, %r6, PCB_VEC
+	andi.	%r6, %r19, PCB_VEC
 	beq	.L31
 	mr	%r3,%r13		/* Pass curthread to enable_vec */
 	bl	enable_vec
 	nop
 
 .L31:
-	lwz	%r6, PCB_FLAGS(%r17)
-	/* Restore Custom DSCR if needed */
-	andi.	%r6, %r6, PCB_CDSCR
+	/* Load custom DSCR on PowerISA 2.06+ CPUs. */
+	/* Load changed FSCR on PowerISA 2.07+ CPUs. */
+	or	%r18,%r18,%r19
+	/* Restore Custom DSCR if needed (zeroes if in old but not new) */
+	andi.	%r6, %r18, PCB_CDSCR
+	beq	.L32
+	ld	%r7, PCB_DSCR(%r17)	/* Load the DSCR register*/
+	mtspr	SPR_DSCRP, %r7
+.L32:
+	/* Restore FSCR if needed (zeroes if in old but not new) */
+	andi.	%r6, %r18, PCB_CFSCR
 	beq	.L4
-	ld	%r6, PCB_DSCR(%r17)	/* Load the DSCR register*/
-	mtspr	SPR_DSCR, %r6
+	ld	%r7, PCB_FSCR(%r17)	/* Load the FSCR register*/
+	mtspr	SPR_FSCR, %r7
+restore_ebb:
+	andi.	%r0, %r7, FSCR_EBB
+	beq	restore_lm
+	ld	%r6, PCB_EBB_EBBHR(%r17)
+	mtspr	SPR_EBBHR, %r6
+	ld	%r6, PCB_EBB_EBBRR(%r17)
+	mtspr	SPR_EBBRR, %r6
+	ld	%r6, PCB_EBB_BESCR(%r17)
+	mtspr	SPR_BESCR, %r6
+restore_lm:
+	andi.	%r0, %r7, FSCR_LM
+	beq	restore_tar
+	ld	%r6, PCB_LMON_LMRR(%r17)
+	mtspr	SPR_LMRR, %r6
+	ld	%r6, PCB_LMON_LMSER(%r17)
+	mtspr	SPR_LMSER, %r6
+restore_tar:
+	andi.	%r0, %r7, FSCR_TAR
+	beq	.L4
+	ld	%r6, PCB_TAR(%r17)
+	mtspr	SPR_TAR, %r6
 
 	/* thread to restore is in r3 */
 .L4:

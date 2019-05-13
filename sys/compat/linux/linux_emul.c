@@ -127,7 +127,6 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 
 		em->em_tid = p->p_pid;
 		em->flags = 0;
-		em->pdeath_signal = 0;
 		em->robust_futexes = NULL;
 		em->child_clear_tid = NULL;
 		em->child_set_tid = NULL;

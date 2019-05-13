@@ -1,6 +1,6 @@
 /*
  * Control interface for shared AP commands
- * Copyright (c) 2004-2014, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -207,6 +207,7 @@ static int hostapd_ctrl_iface_sta_mib(struct hostapd_data *hapd,
 				      char *buf, size_t buflen)
 {
 	int len, res, ret, i;
+	const char *keyid;
 
 	if (!sta)
 		return 0;
@@ -341,6 +342,13 @@ static int hostapd_ctrl_iface_sta_mib(struct hostapd_data *hapd,
 			len += ret;
 	}
 
+	keyid = ap_sta_wpa_get_keyid(hapd, sta);
+	if (keyid) {
+		ret = os_snprintf(buf + len, buflen - len, "keyid=%s\n", keyid);
+		if (!os_snprintf_error(buflen - len, ret))
+			len += ret;
+	}
+
 	return len;
 }
 
@@ -443,11 +451,11 @@ static int p2p_manager_disconnect(struct hostapd_data *hapd, u16 stype,
 	if (stype == WLAN_FC_STYPE_DEAUTH) {
 		mgmt->u.deauth.reason_code =
 			host_to_le16(WLAN_REASON_PREV_AUTH_NOT_VALID);
-		pos = (u8 *) (&mgmt->u.deauth.reason_code + 1);
+		pos = mgmt->u.deauth.variable;
 	} else {
 		mgmt->u.disassoc.reason_code =
 			host_to_le16(WLAN_REASON_PREV_AUTH_NOT_VALID);
-		pos = (u8 *) (&mgmt->u.disassoc.reason_code + 1);
+		pos = mgmt->u.disassoc.variable;
 	}
 
 	*pos++ = WLAN_EID_VENDOR_SPECIFIC;

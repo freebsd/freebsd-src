@@ -838,7 +838,7 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 		 */
 		CPU_ZERO(dmask);
 		vcpuid = vm_apicid2vcpuid(vm, dest);
-		if (vcpuid < VM_MAXCPU)
+		if (vcpuid < vm_get_maxcpus(vm))
 			CPU_SET(vcpuid, dmask);
 	} else {
 		/*
@@ -965,6 +965,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 	struct vlapic *vlapic2;
 	struct vm_exit *vmexit;
 	struct LAPIC *lapic;
+	uint16_t maxcpus;
 
 	lapic = vlapic->apic_page;
 	lapic->icr_lo &= ~APIC_DELSTAT_PEND;
@@ -1026,11 +1027,12 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 		return (0);	/* handled completely in the kernel */
 	}
 
+	maxcpus = vm_get_maxcpus(vlapic->vm);
 	if (mode == APIC_DELMODE_INIT) {
 		if ((icrval & APIC_LEVEL_MASK) == APIC_LEVEL_DEASSERT)
 			return (0);
 
-		if (vlapic->vcpuid == 0 && dest != 0 && dest < VM_MAXCPU) {
+		if (vlapic->vcpuid == 0 && dest != 0 && dest < maxcpus) {
 			vlapic2 = vm_lapic(vlapic->vm, dest);
 
 			/* move from INIT to waiting-for-SIPI state */
@@ -1043,7 +1045,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 	}
 
 	if (mode == APIC_DELMODE_STARTUP) {
-		if (vlapic->vcpuid == 0 && dest != 0 && dest < VM_MAXCPU) {
+		if (vlapic->vcpuid == 0 && dest != 0 && dest < maxcpus) {
 			vlapic2 = vm_lapic(vlapic->vm, dest);
 
 			/*
@@ -1447,7 +1449,8 @@ void
 vlapic_init(struct vlapic *vlapic)
 {
 	KASSERT(vlapic->vm != NULL, ("vlapic_init: vm is not initialized"));
-	KASSERT(vlapic->vcpuid >= 0 && vlapic->vcpuid < VM_MAXCPU,
+	KASSERT(vlapic->vcpuid >= 0 &&
+	    vlapic->vcpuid < vm_get_maxcpus(vlapic->vm),
 	    ("vlapic_init: vcpuid is not initialized"));
 	KASSERT(vlapic->apic_page != NULL, ("vlapic_init: apic_page is not "
 	    "initialized"));

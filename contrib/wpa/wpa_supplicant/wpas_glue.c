@@ -296,7 +296,7 @@ static void wpa_supplicant_eapol_cb(struct eapol_sm *eapol,
 	}
 
 	if (result != EAPOL_SUPP_RESULT_SUCCESS ||
-	    !(wpa_s->drv_flags & WPA_DRIVER_FLAGS_4WAY_HANDSHAKE))
+	    !(wpa_s->drv_flags & WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_8021X))
 		return;
 
 	if (!wpa_key_mgmt_wpa_ieee8021x(wpa_s->key_mgmt))
@@ -1183,6 +1183,15 @@ static void wpa_supplicant_fils_hlp_rx(void *ctx, const u8 *dst, const u8 *src,
 	os_free(hex);
 }
 
+
+static int wpa_supplicant_channel_info(void *_wpa_s,
+				       struct wpa_channel_info *ci)
+{
+	struct wpa_supplicant *wpa_s = _wpa_s;
+
+	return wpa_drv_channel_info(wpa_s, ci);
+}
+
 #endif /* CONFIG_NO_WPA */
 
 
@@ -1233,6 +1242,7 @@ int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
 	ctx->set_rekey_offload = wpa_supplicant_set_rekey_offload;
 	ctx->key_mgmt_set_pmk = wpa_supplicant_key_mgmt_set_pmk;
 	ctx->fils_hlp_rx = wpa_supplicant_fils_hlp_rx;
+	ctx->channel_info = wpa_supplicant_channel_info;
 
 	wpa_s->wpa = wpa_sm_init(ctx);
 	if (wpa_s->wpa == NULL) {

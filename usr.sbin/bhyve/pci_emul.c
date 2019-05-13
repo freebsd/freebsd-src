@@ -953,10 +953,7 @@ pci_emul_add_pciecap(struct pci_devinst *pi, int type)
 	bzero(&pciecap, sizeof(pciecap));
 
 	pciecap.capid = PCIY_EXPRESS;
-	pciecap.pcie_capabilities = PCIECAP_VERSION | type;
-	/* Devices starting with version 1.1 must set the RBER bit */
-	if (PCIECAP_VERSION >= 1)
-		pciecap.dev_capabilities = PCIEM_CAP_ROLE_ERR_RPT;
+	pciecap.pcie_capabilities = PCIECAP_VERSION | PCIEM_TYPE_ROOT_PORT;
 	pciecap.link_capabilities = 0x411;	/* gen1, x1 */
 	pciecap.link_status = 0x11;		/* gen1, x1 */
 

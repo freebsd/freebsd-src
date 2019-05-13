@@ -963,7 +963,7 @@
 				    uint32_t dev); }
 499	AUE_OPENAT_RWTC	NOPROTO	{ int openat(int fd, const char *path, \
 				    int flag, mode_t mode); }
-500	AUE_READLINKAT	NOPROTO	{ int readlinkat(int fd, const char *path, \
+500	AUE_READLINKAT	NOPROTO	{ ssize_t readlinkat(int fd, const char *path, \
 				    char *buf, size_t bufsize); }
 501	AUE_RENAMEAT	NOPROTO	{ int renameat(int oldfd, const char *old, \
 				    int newfd, const char *new); }
@@ -1145,5 +1145,7 @@
 				    const char *to); }
 567	AUE_NULL	NOPROTO { int fhreadlink( struct fhandle *fhp, char *buf, \
 				    size_t bufsize); }
+568	AUE_UNLINKAT	NOPROTO { int funlinkat(int dfd, const char *path, int fd, \
+				    int flag); }
 
 ; vim: syntax=off

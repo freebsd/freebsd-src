@@ -28,12 +28,15 @@ __FBSDID("$FreeBSD$");
 
 #include <efi.h>
 #include <efilib.h>
+#include <efichar.h>
 
 static EFI_GUID ImageDevicePathGUID =
     EFI_LOADED_IMAGE_DEVICE_PATH_PROTOCOL_GUID;
 static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
 static EFI_GUID DevicePathToTextGUID = EFI_DEVICE_PATH_TO_TEXT_PROTOCOL_GUID;
-static EFI_DEVICE_PATH_TO_TEXT_PROTOCOL *textProtocol;
+static EFI_DEVICE_PATH_TO_TEXT_PROTOCOL *toTextProtocol;
+static EFI_GUID DevicePathFromTextGUID = EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL_GUID;
+static EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL *fromTextProtocol;
 
 EFI_DEVICE_PATH *
 efi_lookup_image_devpath(EFI_HANDLE handle)
@@ -63,22 +66,20 @@ efi_lookup_devpath(EFI_HANDLE handle)
 CHAR16 *
 efi_devpath_name(EFI_DEVICE_PATH *devpath)
 {
-	static int once = 1;
 	EFI_STATUS status;
 
 	if (devpath == NULL)
 		return (NULL);
-	if (once) {
+	if (toTextProtocol == NULL) {
 		status = BS->LocateProtocol(&DevicePathToTextGUID, NULL,
-		    (VOID **)&textProtocol);
+		    (VOID **)&toTextProtocol);
 		if (EFI_ERROR(status))
-			textProtocol = NULL;
-		once = 0;
+			toTextProtocol = NULL;
 	}
-	if (textProtocol == NULL)
+	if (toTextProtocol == NULL)
 		return (NULL);
 
-	return (textProtocol->ConvertDevicePathToText(devpath, TRUE, TRUE));
+	return (toTextProtocol->ConvertDevicePathToText(devpath, TRUE, TRUE));
 }
 
 void
@@ -86,6 +87,46 @@ efi_free_devpath_name(CHAR16 *text)
 {
 
 	BS->FreePool(text);
+}
+
+EFI_DEVICE_PATH *
+efi_name_to_devpath(const char *path)
+{
+	EFI_DEVICE_PATH *devpath;
+	CHAR16 *uv;
+	size_t ul;
+
+	uv = NULL;
+	if (utf8_to_ucs2(path, &uv, &ul) != 0)
+		return (NULL);
+	devpath = efi_name_to_devpath16(uv);
+	free(uv);
+	return (devpath);
+}
+
+EFI_DEVICE_PATH *
+efi_name_to_devpath16(CHAR16 *path)
+{
+	EFI_STATUS status;
+
+	if (path == NULL)
+		return (NULL);
+	if (fromTextProtocol == NULL) {
+		status = BS->LocateProtocol(&DevicePathFromTextGUID, NULL,
+		    (VOID **)&fromTextProtocol);
+		if (EFI_ERROR(status))
+			fromTextProtocol = NULL;
+	}
+	if (fromTextProtocol == NULL)
+		return (NULL);
+
+	return (fromTextProtocol->ConvertTextToDevicePath(path));
+}
+
+void efi_devpath_free(EFI_DEVICE_PATH *devpath)
+{
+
+	BS->FreePool(devpath);
 }
 
 EFI_DEVICE_PATH *
@@ -227,4 +268,26 @@ efi_devpath_length(EFI_DEVICE_PATH  *path)
 	while (!IsDevicePathEnd(path))
 		path = NextDevicePathNode(path);
 	return ((UINTN)path - (UINTN)start) + DevicePathNodeLength(path);
+}
+
+EFI_HANDLE
+efi_devpath_to_handle(EFI_DEVICE_PATH *path, EFI_HANDLE *handles, unsigned nhandles)
+{
+	unsigned i;
+	EFI_DEVICE_PATH *media, *devpath;
+	EFI_HANDLE h;
+
+	media = efi_devpath_to_media_path(path);
+	if (media == NULL)
+		return (NULL);
+	for (i = 0; i < nhandles; i++) {
+		h = handles[i];
+		devpath = efi_lookup_devpath(h);
+		if (devpath == NULL)
+			continue;
+		if (!efi_devpath_match_node(media, efi_devpath_to_media_path(devpath)))
+			continue;
+		return (h);
+	}
+	return (NULL);
 }

@@ -20,7 +20,8 @@ LIBMAN_SRCS=	man.c \
 		man_macro.c \
 		man_validate.c
 
-LIBMDOC_SRCS=	att.c \
+LIBMDOC_SRCS=	arch.c \
+		att.c \
 		lib.c \
 		mdoc.c \
 		mdoc_argv.c \
@@ -46,6 +47,7 @@ LIB_SRCS=	${LIBMAN_SRCS} \
 		chars.c \
 		mandoc.c \
 		mandoc_aux.c \
+		mandoc_msg.c \
 		mandoc_ohash.c \
 		mandoc_xr.c \
 		msec.c \
@@ -95,6 +97,8 @@ SRCS=		${LIB_SRCS} \
 WARNS?=	3
 CFLAGS+= -DHAVE_CONFIG_H \
 	 -I${SRCTOP}/lib/libopenbsd/
+# This can be removed after swtiching to newer gcc
+CFLAGS.gcc+=	-Wno-format
 LIBADD=	openbsd z
 
 .include <bsd.prog.mk>

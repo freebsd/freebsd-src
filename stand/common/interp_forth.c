@@ -41,7 +41,7 @@ INTERP_DEFINE("4th");
 #ifdef BFORTH_DEBUG
 #define	DPRINTF(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
 #else
-#define	DPRINTF(fmt, args...)
+#define	DPRINTF(fmt, args...)	((void)0)
 #endif
 
 /*

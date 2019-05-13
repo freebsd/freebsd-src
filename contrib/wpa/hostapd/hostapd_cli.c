@@ -1,6 +1,6 @@
 /*
  * hostapd - command line interface for hostapd daemon
- * Copyright (c) 2004-2018, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -21,7 +21,7 @@
 
 static const char *const hostapd_cli_version =
 "hostapd_cli v" VERSION_STR "\n"
-"Copyright (c) 2004-2018, Jouni Malinen <j@w1.fi> and contributors";
+"Copyright (c) 2004-2019, Jouni Malinen <j@w1.fi> and contributors";
 
 static struct wpa_ctrl *ctrl_conn;
 static int hostapd_cli_quit = 0;
@@ -1443,6 +1443,13 @@ static int hostapd_cli_cmd_dpp_configurator_get_key(struct wpa_ctrl *ctrl,
 }
 
 
+static int hostapd_cli_cmd_dpp_configurator_sign(struct wpa_ctrl *ctrl,
+						 int argc, char *argv[])
+{
+       return hostapd_cli_cmd(ctrl, "DPP_CONFIGURATOR_SIGN", 1, argc, argv);
+}
+
+
 static int hostapd_cli_cmd_dpp_pkex_add(struct wpa_ctrl *ctrl, int argc,
 					char *argv[])
 {
@@ -1477,6 +1484,20 @@ static int hostapd_cli_cmd_poll_sta(struct wpa_ctrl *ctrl, int argc,
 				    char *argv[])
 {
 	return hostapd_cli_cmd(ctrl, "POLL_STA", 1, argc, argv);
+}
+
+
+static int hostapd_cli_cmd_req_beacon(struct wpa_ctrl *ctrl, int argc,
+				      char *argv[])
+{
+	return hostapd_cli_cmd(ctrl, "REQ_BEACON", 2, argc, argv);
+}
+
+
+static int hostapd_cli_cmd_reload_wpa_psk(struct wpa_ctrl *ctrl, int argc,
+					  char *argv[])
+{
+	return wpa_ctrl_command(ctrl, "RELOAD_WPA_PSK");
 }
 
 
@@ -1640,6 +1661,8 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
 	{ "dpp_configurator_get_key", hostapd_cli_cmd_dpp_configurator_get_key,
 	  NULL,
 	  "<id> = Get DPP configurator's private key" },
+	{ "dpp_configurator_sign", hostapd_cli_cmd_dpp_configurator_sign, NULL,
+	  "conf=<role> configurator=<id> = generate self DPP configuration" },
 	{ "dpp_pkex_add", hostapd_cli_cmd_dpp_pkex_add, NULL,
 	  "add PKEX code" },
 	{ "dpp_pkex_remove", hostapd_cli_cmd_dpp_pkex_remove, NULL,
@@ -1651,6 +1674,10 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
 	  "=Add/Delete/Show/Clear deny MAC ACL" },
 	{ "poll_sta", hostapd_cli_cmd_poll_sta, hostapd_complete_stations,
 	  "<addr> = poll a STA to check connectivity with a QoS null frame" },
+	{ "req_beacon", hostapd_cli_cmd_req_beacon, NULL,
+	  "<addr> [req_mode=] <measurement request hexdump>  = send a Beacon report request to a station" },
+	{ "reload_wpa_psk", hostapd_cli_cmd_reload_wpa_psk, NULL,
+	  "= reload wpa_psk_file only" },
 	{ NULL, NULL, NULL, NULL }
 };
 

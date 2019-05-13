@@ -231,6 +231,7 @@ struct inodesc {
 	ino_t id_parent;	/* for DATA nodes, their parent */
 	ufs_lbn_t id_lbn;	/* logical block number of current block */
 	ufs2_daddr_t id_blkno;	/* current block number being examined */
+	int id_level;		/* level of indirection of this block */
 	int id_numfrags;	/* number of frags contained in block */
 	ufs_lbn_t id_lballoc;	/* pass1: last LBN that is allocated */
 	off_t id_filesize;	/* for DATA nodes, the size of the directory */
@@ -314,6 +315,7 @@ extern off_t	bflag;			/* location of alternate super block */
 extern int	debug;			/* output debugging info */
 extern int	Eflag;			/* delete empty data blocks */
 extern int	Zflag;			/* zero empty data blocks */
+extern int	zflag;			/* zero unused directory space */
 extern int	inoopt;			/* trim out unused inodes */
 extern char	ckclean;		/* only do work if not cleanly unmounted */
 extern int	cvtlevel;		/* convert to newer file system format */

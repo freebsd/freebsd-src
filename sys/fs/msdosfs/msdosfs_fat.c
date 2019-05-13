@@ -54,6 +54,7 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
+#include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
 #include <fs/msdosfs/bpb.h>
@@ -1086,8 +1087,12 @@ extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp,
 				if (bpp) {
 					*bpp = bp;
 					bpp = NULL;
-				} else
+				} else {
 					bdwrite(bp);
+				}
+				if (vm_page_count_severe() ||
+				    buf_dirty_count_severe())
+					vn_fsync_buf(DETOV(dep), MNT_WAIT);
 			}
 		}
 	}

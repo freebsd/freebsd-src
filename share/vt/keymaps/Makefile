@@ -18,6 +18,7 @@ FILES=	INDEX.keymaps \
 	ch.acc.kbd \
 	ch.kbd \
 	ch.macbook.acc.kbd \
+	colemak-dh.acc.kbd \
 	colemak.acc.kbd \
 	cz.kbd \
 	de.acc.kbd \

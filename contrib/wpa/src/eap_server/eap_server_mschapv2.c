@@ -551,9 +551,13 @@ static u8 * eap_mschapv2_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (key == NULL)
 		return NULL;
 	/* MSK = server MS-MPPE-Recv-Key | MS-MPPE-Send-Key */
-	get_asymetric_start_key(data->master_key, key, MSCHAPV2_KEY_LEN, 0, 1);
-	get_asymetric_start_key(data->master_key, key + MSCHAPV2_KEY_LEN,
-				MSCHAPV2_KEY_LEN, 1, 1);
+	if (get_asymetric_start_key(data->master_key, key, MSCHAPV2_KEY_LEN, 0,
+				    1) < 0 ||
+	    get_asymetric_start_key(data->master_key, key + MSCHAPV2_KEY_LEN,
+				    MSCHAPV2_KEY_LEN, 1, 1) < 0) {
+		os_free(key);
+		return NULL;
+	}
 	wpa_hexdump_key(MSG_DEBUG, "EAP-MSCHAPV2: Derived key", key, *len);
 
 	return key;

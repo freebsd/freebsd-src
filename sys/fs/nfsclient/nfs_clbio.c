@@ -1639,7 +1639,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 		    }
 		}
 		/* ASSERT_VOP_LOCKED(vp, "ncl_doio"); */
-		if (p && (vp->v_vflag & VV_TEXT)) {
+		if (p && vp->v_writecount <= -1) {
 			mtx_lock(&np->n_mtx);
 			if (NFS_TIMESPEC_COMPARE(&np->n_mtime, &np->n_vattr.na_mtime)) {
 				mtx_unlock(&np->n_mtx);

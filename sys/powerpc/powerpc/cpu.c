@@ -171,6 +171,13 @@ static const struct cputab models[] = {
 	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HTM | PPC_FEATURE2_DSCR | 
 	   PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO |
 	   PPC_FEATURE2_HTM_NOSC, cpu_powerx_setup },
+        { "IBM POWER8NVL",	IBMPOWER8NVL,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+	   PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | PPC_FEATURE_ARCH_2_05 |
+	   PPC_FEATURE_ARCH_2_06 | PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE,
+	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HTM | PPC_FEATURE2_DSCR | 
+	   PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO |
+	   PPC_FEATURE2_HTM_NOSC, cpu_powerx_setup },
         { "IBM POWER8",		IBMPOWER8,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
 	   PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | PPC_FEATURE_ARCH_2_05 |
@@ -183,7 +190,8 @@ static const struct cputab models[] = {
 	   PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | PPC_FEATURE_ARCH_2_05 |
 	   PPC_FEATURE_ARCH_2_06 | PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE,
 	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HTM | PPC_FEATURE2_DSCR |
-	   PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO |
+	   PPC_FEATURE2_EBB | PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR |
+	   PPC_FEATURE2_HAS_VEC_CRYPTO | PPC_FEATURE2_HTM_NOSC |
 	   PPC_FEATURE2_ARCH_3_00 | PPC_FEATURE2_HAS_IEEE128 |
 	   PPC_FEATURE2_DARN, cpu_powerx_setup },
         { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN,
@@ -662,10 +670,14 @@ cpu_powerx_setup(int cpuid, uint16_t vers)
 	if ((mfmsr() & PSL_HV) == 0)
 		return;
 
+	/* Nuke the FSCR, to disable all facilities. */
+	mtspr(SPR_FSCR, 0);
+
 	/* Configure power-saving */
 	switch (vers) {
 	case IBMPOWER8:
 	case IBMPOWER8E:
+	case IBMPOWER8NVL:
 		cpu_idle_hook = cpu_idle_powerx;
 		mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_PECE_WAKESET);
 		isync();
@@ -787,7 +799,6 @@ cpu_idle_booke(sbintime_t sbt)
 static void
 cpu_idle_powerx(sbintime_t sbt)
 {
-
 	/* Sleeping when running on one cpu gives no advantages - avoid it */
 	if (smp_started == 0)
 		return;
@@ -816,7 +827,8 @@ cpu_idle_power9(sbintime_t sbt)
 	/* Suspend external interrupts until stop instruction completes. */
 	mtmsr(msr &  ~PSL_EE);
 	/* Set the stop state to lowest latency, wake up to next instruction */
-	mtspr(SPR_PSSCR, 0);
+	/* Set maximum transition level to 2, for deepest lossless sleep. */
+	mtspr(SPR_PSSCR, (2 << PSSCR_MTL_S) | (0 << PSSCR_RL_S));
 	/* "stop" instruction (PowerISA 3.0) */
 	__asm __volatile (".long 0x4c0002e4");
 	/*

@@ -157,6 +157,12 @@ void	ath_rate_tx_complete(struct ath_softc *, struct ath_node *,
 		int pktlen, int nframes, int nbad);
 
 /*
+ * Update rate control with a per-packet receive RSSI value.
+ */
+void	ath_rate_update_rx_rssi(struct ath_softc *, struct ath_node *,
+		int rssi);
+
+/*
  * Fetch the global rate control statistics.
  */
 int	ath_rate_fetch_stats(struct ath_softc *sc, struct ath_rateioctl *rs);

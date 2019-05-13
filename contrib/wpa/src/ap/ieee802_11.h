@@ -59,6 +59,7 @@ u8 * hostapd_eid_wb_chsw_wrapper(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_txpower_envelope(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_he_capab(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_he_operation(struct hostapd_data *hapd, u8 *eid);
+u8 * hostapd_eid_he_mu_edca_parameter_set(struct hostapd_data *hapd, u8 *eid);
 
 int hostapd_ht_operation_update(struct hostapd_iface *iface);
 void ieee802_11_send_sa_query_req(struct hostapd_data *hapd,
@@ -80,6 +81,8 @@ void ht40_intolerant_add(struct hostapd_iface *iface, struct sta_info *sta);
 void ht40_intolerant_remove(struct hostapd_iface *iface, struct sta_info *sta);
 u16 copy_sta_vht_capab(struct hostapd_data *hapd, struct sta_info *sta,
 		       const u8 *vht_capab);
+u16 copy_sta_vht_oper(struct hostapd_data *hapd, struct sta_info *sta,
+		      const u8 *vht_oper);
 u16 set_sta_vht_opmode(struct hostapd_data *hapd, struct sta_info *sta,
 		       const u8 *vht_opmode);
 void hostapd_tx_status(struct hostapd_data *hapd, const u8 *addr,
@@ -91,8 +94,8 @@ void ieee802_11_rx_from_unknown(struct hostapd_data *hapd, const u8 *src,
 u8 * hostapd_eid_assoc_comeback_time(struct hostapd_data *hapd,
 				     struct sta_info *sta, u8 *eid);
 void ieee802_11_sa_query_action(struct hostapd_data *hapd,
-				const u8 *sa, const u8 action_type,
-				const u8 *trans_id);
+				const struct ieee80211_mgmt *mgmt,
+				size_t len);
 u8 * hostapd_eid_interworking(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_adv_proto(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_roaming_consortium(struct hostapd_data *hapd, u8 *eid);
@@ -119,6 +122,9 @@ static inline void sae_clear_retransmit_timer(struct hostapd_data *hapd,
 u8 * hostapd_eid_mbo(struct hostapd_data *hapd, u8 *eid, size_t len);
 
 u8 hostapd_mbo_ie_len(struct hostapd_data *hapd);
+
+u8 * hostapd_eid_mbo_rssi_assoc_rej(struct hostapd_data *hapd, u8 *eid,
+				    size_t len, int delta);
 
 #else /* CONFIG_MBO */
 
@@ -165,5 +171,10 @@ int ieee802_11_allowed_address(struct hostapd_data *hapd, const u8 *addr,
 			       struct hostapd_sta_wpa_psk_short **psk,
 			       char **identity, char **radius_cui,
 			       int is_probe_req);
+
+int get_tx_parameters(struct sta_info *sta, int ap_max_chanwidth,
+		      int ap_seg1_idx, int *bandwidth, int *seg1_idx);
+
+void auth_sae_process_commit(void *eloop_ctx, void *user_ctx);
 
 #endif /* IEEE802_11_H */

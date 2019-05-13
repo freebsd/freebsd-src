@@ -88,6 +88,7 @@ void	 addfile(const char *);
 void	 badcnt(const char *);
 void	 badconv(const char *);
 void	 badfmt(const char *);
+void	 badnoconv(void);
 void	 badsfmt(void);
 void	 bpad(PR *);
 void	 conv_c(PR *, u_char *, size_t);

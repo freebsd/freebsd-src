@@ -50,8 +50,8 @@ static vmem_t *async_token_pool;
 static void opal_handle_async_completion(void *, struct opal_msg *);
 
 struct async_completion {
-	uint64_t rval;
-	bool completed;
+	volatile uint64_t 	completed;
+	struct opal_msg 	msg;
 };
 
 struct async_completion *completions;
@@ -98,16 +98,21 @@ opal_free_async_token(int token)
  * of the operation, error if it returns early.
  */
 int
-opal_wait_completion(void *buf, uint64_t size, uint64_t token)
+opal_wait_completion(void *buf, uint64_t size, int token)
 {
 	int err;
 
 	do {
 		err = opal_call(OPAL_CHECK_ASYNC_COMPLETION,
 		    vtophys(buf), size, token);
-		if (err == OPAL_BUSY)
-			if (completions[token].completed)
-				return (completions[token].rval);
+		if (err == OPAL_BUSY) {
+			if (completions[token].completed) {
+				atomic_thread_fence_acq();
+				memcpy(buf, &completions[token].msg, size);
+				return (OPAL_SUCCESS);
+			}
+		}
+		DELAY(100);
 	} while (err == OPAL_BUSY);
 
 	return (err);
@@ -118,7 +123,7 @@ static void opal_handle_async_completion(void *arg, struct opal_msg *msg)
 	int token;
 
 	token = msg->params[0];
-	completions[token].rval = msg->params[1];
-	isync();
+	memcpy(&completions[token].msg, msg, sizeof(*msg));
+	atomic_thread_fence_rel();
 	completions[token].completed = true;
 }

@@ -36,6 +36,8 @@ int secy_get_transmit_next_pn(struct ieee802_1x_kay *kay,
 			      struct transmit_sa *txsa);
 int secy_set_transmit_next_pn(struct ieee802_1x_kay *kay,
 			      struct transmit_sa *txsa);
+int secy_set_receive_lowest_pn(struct ieee802_1x_kay *kay,
+			       struct receive_sa *txsa);
 int secy_create_receive_sc(struct ieee802_1x_kay *kay, struct receive_sc *rxsc);
 int secy_delete_receive_sc(struct ieee802_1x_kay *kay, struct receive_sc *rxsc);
 int secy_create_receive_sa(struct ieee802_1x_kay *kay, struct receive_sa *rxsa);

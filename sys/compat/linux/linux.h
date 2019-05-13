@@ -29,6 +29,43 @@
 #ifndef _LINUX_MI_H_
 #define _LINUX_MI_H_
 
+#define	LINUX_IFHWADDRLEN	6
+#define	LINUX_IFNAMSIZ		16
+
+/*
+ * Criteria for interface name translation
+ */
+#define	IFP_IS_ETH(ifp)		(ifp->if_type == IFT_ETHER)
+#define	IFP_IS_LOOP(ifp)	(ifp->if_type == IFT_LOOP)
+
+struct l_sockaddr {
+	unsigned short	sa_family;
+	char		sa_data[14];
+};
+
+#define	LINUX_ARPHRD_ETHER	1
+#define	LINUX_ARPHRD_LOOPBACK	772
+
+/*
+ * net device flags
+ */
+#define	LINUX_IFF_UP		0x0001
+#define	LINUX_IFF_BROADCAST	0x0002
+#define	LINUX_IFF_DEBUG		0x0004
+#define	LINUX_IFF_LOOPBACK	0x0008
+#define	LINUX_IFF_POINTOPOINT	0x0010
+#define	LINUX_IFF_NOTRAILERS	0x0020
+#define	LINUX_IFF_RUNNING	0x0040
+#define	LINUX_IFF_NOARP		0x0080
+#define	LINUX_IFF_PROMISC	0x0100
+#define	LINUX_IFF_ALLMULTI	0x0200
+#define	LINUX_IFF_MASTER	0x0400
+#define	LINUX_IFF_SLAVE		0x0800
+#define	LINUX_IFF_MULTICAST	0x1000
+#define	LINUX_IFF_PORTSEL	0x2000
+#define	LINUX_IFF_AUTOMEDIA	0x4000
+#define	LINUX_IFF_DYNAMIC	0x8000
+
 /* sigaltstack */
 #define	LINUX_SS_ONSTACK	1
 #define	LINUX_SS_DISABLE	2

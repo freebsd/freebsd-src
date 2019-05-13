@@ -110,6 +110,13 @@ static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
 
+/*
+ * Automatically initialized per CPU errata in cpu_idle_tun below.
+ */
+bool mwait_cpustop_broken = false;
+SYSCTL_BOOL(_machdep, OID_AUTO, mwait_cpustop_broken, CTLFLAG_RDTUN,
+    &mwait_cpustop_broken, 0,
+    "Can not reliably wake MONITOR/MWAIT cpus without interrupts");
 
 /*
  * Machine dependent boot() routine
@@ -164,7 +171,7 @@ acpi_cpu_idle_mwait(uint32_t mwait_hint)
 	 * but all Intel CPUs provide hardware coordination.
 	 */
 
-	state = (int *)PCPU_PTR(monitorbuf);
+	state = &PCPU_PTR(monitorbuf)->idle_state;
 	KASSERT(atomic_load_int(state) == STATE_SLEEPING,
 	    ("cpu_mwait_cx: wrong monitorbuf state"));
 	atomic_store_int(state, STATE_MWAIT);
@@ -358,6 +365,7 @@ void
 cpu_reset(void)
 {
 #ifdef SMP
+	struct monitorbuf *mb;
 	cpuset_t map;
 	u_int cnt;
 
@@ -378,6 +386,9 @@ cpu_reset(void)
 
 			/* Restart CPU #0. */
 			CPU_SETOF(0, &started_cpus);
+			mb = &pcpu_find(0)->pc_monitorbuf;
+			atomic_store_int(&mb->stop_state,
+			    MONITOR_STOPSTATE_RUNNING);
 			wmb();
 
 			cnt = 0;
@@ -422,7 +433,7 @@ cpu_idle_acpi(sbintime_t sbt)
 {
 	int *state;
 
-	state = (int *)PCPU_PTR(monitorbuf);
+	state = &PCPU_PTR(monitorbuf)->idle_state;
 	atomic_store_int(state, STATE_SLEEPING);
 
 	/* See comments in cpu_idle_hlt(). */
@@ -441,7 +452,7 @@ cpu_idle_hlt(sbintime_t sbt)
 {
 	int *state;
 
-	state = (int *)PCPU_PTR(monitorbuf);
+	state = &PCPU_PTR(monitorbuf)->idle_state;
 	atomic_store_int(state, STATE_SLEEPING);
 
 	/*
@@ -473,7 +484,7 @@ cpu_idle_mwait(sbintime_t sbt)
 {
 	int *state;
 
-	state = (int *)PCPU_PTR(monitorbuf);
+	state = &PCPU_PTR(monitorbuf)->idle_state;
 	atomic_store_int(state, STATE_MWAIT);
 
 	/* See comments in cpu_idle_hlt(). */
@@ -498,7 +509,7 @@ cpu_idle_spin(sbintime_t sbt)
 	int *state;
 	int i;
 
-	state = (int *)PCPU_PTR(monitorbuf);
+	state = &PCPU_PTR(monitorbuf)->idle_state;
 	atomic_store_int(state, STATE_RUNNING);
 
 	/*
@@ -598,9 +609,11 @@ SYSCTL_INT(_machdep, OID_AUTO, idle_apl31, CTLFLAG_RW,
 int
 cpu_idle_wakeup(int cpu)
 {
+	struct monitorbuf *mb;
 	int *state;
 
-	state = (int *)pcpu_find(cpu)->pc_monitorbuf;
+	mb = &pcpu_find(cpu)->pc_monitorbuf;
+	state = &mb->idle_state;
 	switch (atomic_load_int(state)) {
 	case STATE_SLEEPING:
 		return (0);
@@ -714,6 +727,7 @@ cpu_idle_tun(void *unused __unused)
 		/* Ryzen erratas 1057, 1109. */
 		cpu_idle_selector("hlt");
 		idle_mwait = 0;
+		mwait_cpustop_broken = true;
 	}
 
 	if (cpu_vendor_id == CPU_VENDOR_INTEL && cpu_id == 0x506c9) {
@@ -725,6 +739,7 @@ cpu_idle_tun(void *unused __unused)
 		 * sleep states.
 		 */
 		cpu_idle_apl31_workaround = 1;
+		mwait_cpustop_broken = true;
 	}
 	TUNABLE_INT_FETCH("machdep.idle_apl31", &cpu_idle_apl31_workaround);
 }

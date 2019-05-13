@@ -128,6 +128,13 @@ uart_cpu_acpi_probe(struct uart_class **classp, bus_space_tag_t *bst,
 		goto out;
 
 	switch(spcr->BaudRate) {
+	case 0:
+		/*
+		 * A BaudRate of 0 is a special value which means not to
+		 * change the rate that's already programmed.
+		 */
+		*baud = 0;
+		break;
 	case 3:
 		*baud = 9600;
 		break;
@@ -152,6 +159,11 @@ uart_cpu_acpi_probe(struct uart_class **classp, bus_space_tag_t *bst,
 	*rclk = 0;
 	*shiftp = spcr->SerialPort.AccessWidth - 1;
 	*iowidthp = spcr->SerialPort.BitWidth / 8;
+
+	if ((cd->cd_quirks & UART_F_IGNORE_SPCR_REGSHFT) ==
+	    UART_F_IGNORE_SPCR_REGSHFT) {
+		*shiftp = cd->cd_regshft;
+	}
 
 out:
 	acpi_unmap_table(spcr);

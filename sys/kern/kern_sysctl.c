@@ -322,13 +322,6 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 		freeenv(penv);
 }
 
-static int
-sbuf_printf_drain(void *arg __unused, const char *data, int len)
-{
-
-	return (printf("%.*s", len, data));
-}
-
 /*
  * Locate the path to a given oid.  Returns the length of the resulting path,
  * or -1 if the oid was not found.  nodes must have room for CTL_MAXNAME

@@ -580,6 +580,19 @@ int fils_process_hlp(struct hostapd_data *hapd, struct sta_info *sta,
 	u8 *tmp, *tmp_pos;
 	int ret = 0;
 
+	if (sta->fils_pending_assoc_req &&
+	    eloop_is_timeout_registered(fils_hlp_timeout, hapd, sta)) {
+		/* Do not process FILS HLP request again if the station
+		 * retransmits (Re)Association Request frame before the previous
+		 * HLP response has either been received or timed out. */
+		wpa_printf(MSG_DEBUG,
+			   "FILS: Do not relay another HLP request from "
+			   MACSTR
+			   " before processing of the already pending one has been completed",
+			   MAC2STR(sta->addr));
+		return 1;
+	}
+
 	/* Old DHCPDISCOVER is not needed anymore, if it was still pending */
 	wpabuf_free(sta->hlp_dhcp_discover);
 	sta->hlp_dhcp_discover = NULL;

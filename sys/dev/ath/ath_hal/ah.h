@@ -1314,7 +1314,7 @@ struct ath_hal {
 	void	  __ahdecl(*ah_setRxDP)(struct ath_hal*, uint32_t rxdp, HAL_RX_QUEUE);
 	void	  __ahdecl(*ah_enableReceive)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_stopDmaReceive)(struct ath_hal*);
-	void	  __ahdecl(*ah_startPcuReceive)(struct ath_hal*);
+	void	  __ahdecl(*ah_startPcuReceive)(struct ath_hal*, HAL_BOOL);
 	void	  __ahdecl(*ah_stopPcuReceive)(struct ath_hal*);
 	void	  __ahdecl(*ah_setMulticastFilter)(struct ath_hal*,
 				uint32_t filter0, uint32_t filter1);

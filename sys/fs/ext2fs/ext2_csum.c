@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
+#include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -49,6 +50,14 @@
 #include <fs/ext2fs/htree.h>
 #include <fs/ext2fs/ext2_extattr.h>
 #include <fs/ext2fs/ext2_extern.h>
+
+SDT_PROVIDER_DECLARE(ext2fs);
+/*
+ * ext2fs trace probe:
+ * arg0: verbosity. Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(ext2fs, , trace, csum, "int", "char*");
 
 #define EXT2_BG_INODE_BITMAP_CSUM_HI_END	\
 	(offsetof(struct ext2_gd, ext4bgd_i_bmap_csum_hi) + \
@@ -134,8 +143,7 @@ ext2_extattr_blk_csum_verify(struct inode *ip, struct buf *bp)
 
 	if (EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs, EXT2F_ROCOMPAT_METADATA_CKSUM) &&
 	    (header->h_checksum != ext2_extattr_blk_csum(ip, ip->i_facl, header))) {
-		printf("WARNING: bad extattr csum detected, ip=%lu - run fsck\n",
-		    (unsigned long)ip->i_number);
+		SDT_PROBE2(ext2fs, , trace, csum, 1, "bad extattr csum detected");
 		return (EIO);
 	}
 
@@ -351,8 +359,7 @@ ext2_dir_blk_csum_verify(struct inode *ip, struct buf *bp)
 		error = ext2_dx_csum_verify(ip, ep);
 
 	if (error)
-		printf("WARNING: bad directory csum detected, ip=%lu"
-		    " - run fsck\n", (unsigned long)ip->i_number);
+		SDT_PROBE2(ext2fs, , trace, csum, 1, "bad directory csum detected");
 
 	return (error);
 }
@@ -445,8 +452,7 @@ ext2_extent_blk_csum_verify(struct inode *ip, void *data)
 	calculated = ext2_extent_blk_csum(ip, ehp);
 
 	if (provided != calculated) {
-		printf("WARNING: bad extent csum detected, ip=%lu - run fsck\n",
-		    (unsigned long)ip->i_number);
+		SDT_PROBE2(ext2fs, , trace, csum, 1, "bad extent csum detected");
 		return (EIO);
 	}
 
@@ -491,8 +497,7 @@ ext2_gd_i_bitmap_csum_verify(struct m_ext2fs *fs, int cg, struct buf *bp)
 		calculated &= 0xFFFF;
 
 	if (provided != calculated) {
-		printf("WARNING: bad inode bitmap csum detected, "
-		    "cg=%d - run fsck\n", cg);
+		SDT_PROBE2(ext2fs, , trace, csum, 1, "bad inode bitmap csum detected");
 		return (EIO);
 	}
 
@@ -532,8 +537,7 @@ ext2_gd_b_bitmap_csum_verify(struct m_ext2fs *fs, int cg, struct buf *bp)
 		calculated &= 0xFFFF;
 
 	if (provided != calculated) {
-		printf("WARNING: bad block bitmap csum detected, "
-		    "cg=%d - run fsck\n", cg);
+		SDT_PROBE2(ext2fs, , trace, csum, 1, "bad block bitmap csum detected");
 		return (EIO);
 	}
 
@@ -629,7 +633,7 @@ ext2_ei_csum_verify(struct inode *ip, struct ext2fs_dinode *ei)
 		if (!memcmp(ei, &ei_zero, sizeof(struct ext2fs_dinode)))
 			return (0);
 
-		printf("WARNING: Bad inode %ju csum - run fsck\n", ip->i_number);
+		SDT_PROBE2(ext2fs, , trace, csum, 1, "bad inode csum");
 
 		return (EIO);
 	}

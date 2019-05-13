@@ -47,13 +47,23 @@ struct twsi_baud_rate {
 
 struct twsi_softc {
 	device_t	dev;
-	struct resource	*res[1];	/* SYS_RES_MEMORY */
+	struct resource	*res[2];
 	struct mtx	mutex;
 	device_t	iicbus;
 #ifdef EXT_RESOURCES
 	clk_t		clk_core;
 	clk_t		clk_reg;
 #endif
+	void *			intrhand;
+	bool			have_intr;
+
+	struct iic_msg		*msg;
+	uint16_t		sent_bytes;
+	uint16_t		recv_bytes;
+	int			transfer;
+	int			error;
+	uint32_t		control_val;
+	bool			need_ack;
 
 	bus_size_t	reg_data;
 	bus_size_t	reg_slave_addr;

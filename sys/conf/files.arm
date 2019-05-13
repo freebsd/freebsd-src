@@ -1,23 +1,7 @@
 # $FreeBSD$
-cloudabi32_vdso.o		optional	compat_cloudabi32	\
-	dependency	"$S/contrib/cloudabi/cloudabi_vdso_armv6.S" \
-	compile-with	"${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_armv6.S -o ${.TARGET}" \
-	no-obj no-implicit-rule						\
-	clean		"cloudabi32_vdso.o"
-#
-cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
-	dependency 	"cloudabi32_vdso.o"				\
-	compile-with	"${OBJCOPY} --input-target binary --output-target elf32-littlearm --binary-architecture arm cloudabi32_vdso.o ${.TARGET}" \
-	no-implicit-rule						\
-	clean		"cloudabi32_vdso_blob.o"
-#
-arm/annapurna/alpine/alpine_ccu.c		optional al_ccu fdt
-arm/annapurna/alpine/alpine_nb_service.c	optional al_nb_service fdt
-arm/annapurna/alpine/alpine_pci.c		optional al_pci fdt
-arm/annapurna/alpine/alpine_pci_msix.c		optional al_pci fdt
-arm/annapurna/alpine/alpine_serdes.c		optional al_serdes fdt		\
-	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+
+kern/kern_clocksource.c			standard
+
 arm/arm/autoconf.c		standard
 arm/arm/bcopy_page.S		standard
 arm/arm/bcopyinout.S		standard
@@ -167,3 +151,26 @@ libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+
+# CloudABI support
+cloudabi32_vdso.o		optional	compat_cloudabi32	\
+	dependency	"$S/contrib/cloudabi/cloudabi_vdso_armv6.S" \
+	compile-with	"${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_armv6.S -o ${.TARGET}" \
+	no-obj no-implicit-rule						\
+	clean		"cloudabi32_vdso.o"
+#
+cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
+	dependency 	"cloudabi32_vdso.o"				\
+	compile-with	"${OBJCOPY} --input-target binary --output-target elf32-littlearm --binary-architecture arm cloudabi32_vdso.o ${.TARGET}" \
+	no-implicit-rule						\
+	clean		"cloudabi32_vdso_blob.o"
+#
+
+# Annapurna support
+arm/annapurna/alpine/alpine_ccu.c		optional al_ccu fdt
+arm/annapurna/alpine/alpine_nb_service.c	optional al_nb_service fdt
+arm/annapurna/alpine/alpine_pci.c		optional al_pci fdt
+arm/annapurna/alpine/alpine_pci_msix.c		optional al_pci fdt
+arm/annapurna/alpine/alpine_serdes.c		optional al_serdes fdt		\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"

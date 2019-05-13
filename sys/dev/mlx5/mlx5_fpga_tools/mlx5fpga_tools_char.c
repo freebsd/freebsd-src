@@ -225,7 +225,7 @@ tools_char_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case MLX5_FPGA_LOAD:
 		arg = *(int *)data;
-		if (arg > MLX5_FPGA_IMAGE_MAX) {
+		if (arg > MLX5_FPGA_IMAGE_FACTORY) {
 			dev_err(mlx5_fpga_dev(fdev),
 				"unknown image type %u\n", arg);
 			err = EINVAL;
@@ -234,11 +234,14 @@ tools_char_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		err = mlx5_fpga_device_reload(fdev, arg);
 		break;
 	case MLX5_FPGA_RESET:
-		err = mlx5_fpga_device_reload(fdev, MLX5_FPGA_IMAGE_MAX + 1);
+		err = mlx5_fpga_device_reload(fdev, MLX5_FPGA_IMAGE_RESET);
+		break;
+	case MLX5_FPGA_RELOAD:
+		err = mlx5_fpga_device_reload(fdev, MLX5_FPGA_IMAGE_RELOAD);
 		break;
 	case MLX5_FPGA_IMAGE_SEL:
 		arg = *(int *)data;
-		if (arg > MLX5_FPGA_IMAGE_MAX) {
+		if (arg > MLX5_FPGA_IMAGE_FACTORY) {
 			dev_err(mlx5_fpga_dev(fdev),
 			    "unknown image type %u\n", arg);
 			err = EINVAL;

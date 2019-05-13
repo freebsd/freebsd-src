@@ -711,7 +711,8 @@ static void send_eap_request_identity(void *eloop_ctx, void *timeout_ctx)
 
 	eap = (struct eap_hdr *) (hdr + 1);
 	eap->code = EAP_CODE_REQUEST;
-	eap->identifier = 0;
+	if (os_get_random((u8 *) &eap->identifier, sizeof(eap->identifier)) < 0)
+		eap->identifier = os_random() & 0xff;
 	eap->length = htons(5);
 	pos = (u8 *) (eap + 1);
 	*pos = EAP_TYPE_IDENTITY;

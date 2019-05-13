@@ -259,6 +259,8 @@ process_crontab(uname, fname, tabname, statbuf, new_db, old_db)
 	struct passwd	*pw = NULL;
 	int		crontab_fd = OK - 1;
 	user		*u;
+	entry		*e;
+	time_t		now;
 
 	if (strcmp(fname, SYS_NAME) && !(pw = getpwnam(uname))) {
 		/* file doesn't have a user in passwd file.
@@ -307,6 +309,21 @@ process_crontab(uname, fname, tabname, statbuf, new_db, old_db)
 	u = load_user(crontab_fd, pw, fname);
 	if (u != NULL) {
 		u->mtime = statbuf->st_mtime;
+		/*
+		 * TargetTime == 0 when we're initially populating the database,
+		 * and TargetTime > 0 any time after that (i.e. we're reloading
+		 * cron.d/ files because they've been created/modified).  In the
+		 * latter case, we should check for any interval jobs and run
+		 * them 'n' seconds from the time the job was loaded/reloaded.
+		 * Otherwise, they will not be run until cron is restarted.
+		 */
+		if (TargetTime != 0) {
+			now = time(NULL);
+			for (e = u->crontab; e != NULL; e = e->next) {
+				if ((e->flags & INTERVAL) != 0)
+					e->lastexit = now;
+			}
+		}
 		link_user(new_db, u);
 	}
 

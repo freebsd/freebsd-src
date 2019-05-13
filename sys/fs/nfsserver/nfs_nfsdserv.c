@@ -36,6 +36,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
 /*
  * nfs version 2, 3 and 4 server calls to vnode ops
  * - these routines generally have 3 phases
@@ -462,13 +464,18 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 	    }
 	    if (!nd->nd_repstat &&
-		NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODE)) {
+		(NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODE) ||
+		 NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODESETMASKED))) {
 		NFSVNO_ATTRINIT(&nva2);
 		NFSVNO_SETATTRVAL(&nva2, mode, nva.na_mode);
 		nd->nd_repstat = nfsvno_setattr(vp, &nva2, nd->nd_cred, p,
 		    exp);
-		if (!nd->nd_repstat)
-		    NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_MODE);
+		if (!nd->nd_repstat) {
+		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODE))
+			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_MODE);
+		    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODESETMASKED))
+			NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_MODESETMASKED);
+		}
 	    }
 
 #ifdef NFS4_ACL_EXTATTR_NAME
@@ -2884,7 +2891,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
 			cverf[0] = *tl++;
 			cverf[1] = *tl;
-			error = nfsv4_sattr(nd, vp, &nva, &attrbits, aclp, p);
+			error = nfsv4_sattr(nd, NULL, &nva, &attrbits, aclp, p);
 			if (error != 0)
 				goto nfsmout;
 			if (NFSISSET_ATTRBIT(&attrbits,
@@ -3677,8 +3684,16 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	int i;
 	int error = 0, idlen;
 	struct nfsclient *clp = NULL;
-	struct sockaddr_in *rad;
-	u_char *verf, *ucp, *ucp2, addrbuf[24];
+#ifdef INET
+	struct sockaddr_in *rin;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *rin6;
+#endif
+#if defined(INET) || defined(INET6)
+	u_char *ucp, *ucp2;
+#endif
+	u_char *verf, *addrbuf;
 	nfsquad_t clientid, confirm;
 	struct thread *p = curthread;
 
@@ -3706,9 +3721,9 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	clp->lc_stateid = malloc(sizeof(struct nfsstatehead) *
 	    nfsrv_statehashsize, M_NFSDCLIENT, M_WAITOK);
 	NFSINITSOCKMUTEX(&clp->lc_req.nr_mtx);
-	clp->lc_req.nr_nam = malloc(sizeof(*clp->lc_req.nr_nam), M_SONAME,
+	/* Allocated large enough for an AF_INET or AF_INET6 socket. */
+	clp->lc_req.nr_nam = malloc(sizeof(struct sockaddr_in6), M_SONAME,
 	    M_WAITOK | M_ZERO);
-	NFSSOCKADDRSIZE(clp->lc_req.nr_nam, sizeof (struct sockaddr_in));
 	clp->lc_req.nr_cred = NULL;
 	NFSBCOPY(verf, clp->lc_verf, NFSX_VERF);
 	clp->lc_idlen = idlen;
@@ -3750,17 +3765,46 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	 */
 	nd->nd_repstat = nfsrv_setclient(nd, &clp, &clientid, &confirm, p);
 	if (nd->nd_repstat == NFSERR_CLIDINUSE) {
-		if (clp->lc_flags & LCL_TCPCALLBACK)
-			(void) nfsm_strtom(nd, "tcp", 3);
-		else 
-			(void) nfsm_strtom(nd, "udp", 3);
-		rad = NFSSOCKADDR(clp->lc_req.nr_nam, struct sockaddr_in *);
-		ucp = (u_char *)&rad->sin_addr.s_addr;
-		ucp2 = (u_char *)&rad->sin_port;
-		sprintf(addrbuf, "%d.%d.%d.%d.%d.%d", ucp[0] & 0xff,
-		    ucp[1] & 0xff, ucp[2] & 0xff, ucp[3] & 0xff,
-		    ucp2[0] & 0xff, ucp2[1] & 0xff);
+		/*
+		 * 8 is the maximum length of the port# string.
+		 */
+		addrbuf = malloc(INET6_ADDRSTRLEN + 8, M_TEMP, M_WAITOK);
+		switch (clp->lc_req.nr_nam->sa_family) {
+#ifdef INET
+		case AF_INET:
+			if (clp->lc_flags & LCL_TCPCALLBACK)
+				(void) nfsm_strtom(nd, "tcp", 3);
+			else 
+				(void) nfsm_strtom(nd, "udp", 3);
+			rin = (struct sockaddr_in *)clp->lc_req.nr_nam;
+			ucp = (u_char *)&rin->sin_addr.s_addr;
+			ucp2 = (u_char *)&rin->sin_port;
+			sprintf(addrbuf, "%d.%d.%d.%d.%d.%d", ucp[0] & 0xff,
+			    ucp[1] & 0xff, ucp[2] & 0xff, ucp[3] & 0xff,
+			    ucp2[0] & 0xff, ucp2[1] & 0xff);
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			if (clp->lc_flags & LCL_TCPCALLBACK)
+				(void) nfsm_strtom(nd, "tcp6", 4);
+			else 
+				(void) nfsm_strtom(nd, "udp6", 4);
+			rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
+			ucp = inet_ntop(AF_INET6, &rin6->sin6_addr, addrbuf,
+			    INET6_ADDRSTRLEN);
+			if (ucp != NULL)
+				i = strlen(ucp);
+			else
+				i = 0;
+			ucp2 = (u_char *)&rin6->sin6_port;
+			sprintf(&addrbuf[i], ".%d.%d", ucp2[0] & 0xff,
+			    ucp2[1] & 0xff);
+			break;
+#endif
+		}
 		(void) nfsm_strtom(nd, addrbuf, strlen(addrbuf));
+		free(addrbuf, M_TEMP);
 	}
 	if (clp) {
 		free(clp->lc_req.nr_nam, M_SONAME);
@@ -3964,7 +4008,12 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	uint32_t sp4type, v41flags;
 	uint64_t owner_minor;
 	struct timespec verstime;
-	struct sockaddr_in *sad, *rad;
+#ifdef INET
+	struct sockaddr_in *sin, *rin;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *sin6, *rin6;
+#endif
 	struct thread *p = curthread;
 
 	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
@@ -3987,16 +4036,31 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	clp->lc_stateid = malloc(sizeof(struct nfsstatehead) *
 	    nfsrv_statehashsize, M_NFSDCLIENT, M_WAITOK);
 	NFSINITSOCKMUTEX(&clp->lc_req.nr_mtx);
-	clp->lc_req.nr_nam = malloc(sizeof(*clp->lc_req.nr_nam), M_SONAME,
+	/* Allocated large enough for an AF_INET or AF_INET6 socket. */
+	clp->lc_req.nr_nam = malloc(sizeof(struct sockaddr_in6), M_SONAME,
 	    M_WAITOK | M_ZERO);
-	NFSSOCKADDRSIZE(clp->lc_req.nr_nam, sizeof (struct sockaddr_in));
-	sad = NFSSOCKADDR(nd->nd_nam, struct sockaddr_in *);
-	rad = NFSSOCKADDR(clp->lc_req.nr_nam, struct sockaddr_in *);
-	rad->sin_family = AF_INET;
-	rad->sin_addr.s_addr = 0;
-	rad->sin_port = 0;
-	if (sad->sin_family == AF_INET)
-		rad->sin_addr.s_addr = sad->sin_addr.s_addr;
+	switch (nd->nd_nam->sa_family) {
+#ifdef INET
+	case AF_INET:
+		rin = (struct sockaddr_in *)clp->lc_req.nr_nam;
+		sin = (struct sockaddr_in *)nd->nd_nam;
+		rin->sin_family = AF_INET;
+		rin->sin_len = sizeof(struct sockaddr_in);
+		rin->sin_port = 0;
+		rin->sin_addr.s_addr = sin->sin_addr.s_addr;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
+		sin6 = (struct sockaddr_in6 *)nd->nd_nam;
+		rin6->sin6_family = AF_INET6;
+		rin6->sin6_len = sizeof(struct sockaddr_in6);
+		rin6->sin6_port = 0;
+		rin6->sin6_addr = sin6->sin6_addr;
+		break;
+#endif
+	}
 	clp->lc_req.nr_cred = NULL;
 	NFSBCOPY(verf, clp->lc_verf, NFSX_VERF);
 	clp->lc_idlen = idlen;

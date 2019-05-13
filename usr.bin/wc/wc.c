@@ -133,7 +133,7 @@ main(int argc, char *argv[])
 	(void)signal(SIGINFO, siginfo_handler);
 
 	fa = fileargs_init(argc, argv, O_RDONLY, 0,
-	    cap_rights_init(&rights, CAP_READ, CAP_FSTAT));
+	    cap_rights_init(&rights, CAP_READ, CAP_FSTAT), FA_OPEN);
 	if (fa == NULL) {
 		xo_warn("Unable to init casper");
 		exit(1);

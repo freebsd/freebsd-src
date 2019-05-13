@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_html.3,v 1.17 2018/06/25 16:54:59 schwarze Exp $
+.\"	$Id: mandoc_html.3,v 1.19 2019/01/11 12:56:43 schwarze Exp $
 .\"
 .\" Copyright (c) 2014, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: June 25 2018 $
+.Dd $Mdocdate: January 11 2019 $
 .Dt MANDOC_HTML 3
 .Os
 .Sh NAME
@@ -167,11 +167,6 @@ the respective attribute is not written.
 Print a
 .Cm class
 attribute.
-This attribute letter can optionally be followed by the modifier letter
-.Cm T .
-In that case, a
-.Cm title
-attribute with the same value is also printed.
 .It Cm h
 Print a
 .Cm href
@@ -216,6 +211,14 @@ It requires two
 .Va char *
 arguments.
 The first is the name of the style property, the second its value.
+The name must not be
+.Dv NULL .
+The
+.Cm s
+.Ar fmt
+letter can be repeated, each repetition requiring an additional pair of
+.Va char *
+arguments.
 .El
 .Pp
 .Fn print_otag

@@ -349,6 +349,20 @@
 #define NVME_NS_DATA_FPI_SUPP_SHIFT		(7)
 #define NVME_NS_DATA_FPI_SUPP_MASK		(0x1)
 
+/** Deallocate Logical Block Features */
+/* deallocated logical block read behavior */
+#define NVME_NS_DATA_DLFEAT_READ_SHIFT		(0)
+#define NVME_NS_DATA_DLFEAT_READ_MASK		(0x07)
+#define NVME_NS_DATA_DLFEAT_READ_NR		(0x00)
+#define NVME_NS_DATA_DLFEAT_READ_00		(0x01)
+#define NVME_NS_DATA_DLFEAT_READ_FF		(0x02)
+/* supports the Deallocate bit in the Write Zeroes */
+#define NVME_NS_DATA_DLFEAT_DWZ_SHIFT		(3)
+#define NVME_NS_DATA_DLFEAT_DWZ_MASK		(0x01)
+/* Guard field for deallocated logical blocks is set to the CRC  */
+#define NVME_NS_DATA_DLFEAT_GCRC_SHIFT		(4)
+#define NVME_NS_DATA_DLFEAT_GCRC_MASK		(0x01)
+
 /** lba format support */
 /* metadata size */
 #define NVME_NS_DATA_LBAF_MS_SHIFT			(0)

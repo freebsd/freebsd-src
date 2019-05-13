@@ -62,7 +62,8 @@ static int
 wpa_driver_openbsd_get_capa(void *priv, struct wpa_driver_capa *capa)
 {
 	os_memset(capa, 0, sizeof(*capa));
-	capa->flags = WPA_DRIVER_FLAGS_4WAY_HANDSHAKE;
+	capa->flags = WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_PSK |
+		      WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_8021X;
 	return 0;
 }
 

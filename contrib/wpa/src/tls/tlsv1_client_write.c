@@ -72,6 +72,9 @@ u8 * tls_send_client_hello(struct tlsv1_client *conn, size_t *out_len)
 	*out_len = 0;
 
 	os_get_time(&now);
+#ifdef TEST_FUZZ
+	now.sec = 0xfffefdfc;
+#endif /* TEST_FUZZ */
 	WPA_PUT_BE32(conn->client_random, now.sec);
 	if (random_get_bytes(conn->client_random + 4, TLS_RANDOM_LEN - 4)) {
 		wpa_printf(MSG_ERROR, "TLSv1: Could not generate "

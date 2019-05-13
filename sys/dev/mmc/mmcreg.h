@@ -197,7 +197,10 @@ struct mmc_data {
 #define	MMC_DATA_READ	(1UL << 1)
 #define	MMC_DATA_STREAM	(1UL << 2)
 #define	MMC_DATA_MULTI	(1UL << 3)
+#define MMC_DATA_BLOCK_SIZE (1UL << 4)
 	struct mmc_request *mrq;
+	size_t block_size;      /* block size for CMD53 */
+	size_t block_count;     /* block count for CMD53 */
 };
 
 struct mmc_request {
@@ -546,30 +549,39 @@ struct mmc_request {
 #define	SD_IO_RW_LEN(x)		(((x) & 0xFF) << 0)
 
 #define	SD_IOE_RW_LEN(x)	(((x) & 0x1FF) << 0)
+#define	SD_IOE_RW_ADR(x)	(((x) & 0x1FFFF) << 9)
+#define	SD_IOE_RW_INCR		(1u << 26)
 #define	SD_IOE_RW_BLK		(1u << 27)
+#define	SD_IOE_RW_FUNC(x)	(((x) & 0x7) << 28)
+#define	SD_IOE_RW_WR		(1u << 31)
 
 /* Card Common Control Registers (CCCR) */
-#define	SD_IO_CCCR_START		0x00000
-#define	SD_IO_CCCR_SIZE			0x100
-#define	SD_IO_CCCR_FN_ENABLE		0x02
-#define	SD_IO_CCCR_FN_READY		0x03
-#define	SD_IO_CCCR_INT_ENABLE		0x04
-#define	SD_IO_CCCR_INT_PENDING		0x05
-#define	SD_IO_CCCR_CTL			0x06
-#define	 CCCR_CTL_RES			(1 << 3)
-#define	SD_IO_CCCR_BUS_WIDTH		0x07
+#define	SD_IO_CCCR_START		0x00000	/* Offset in F0 address space */
+#define	SD_IO_CCCR_SIZE			0x100	/* Total size of CCCR */
+#define	SD_IO_CCCR_FN_ENABLE		0x02	/* Enabled functions */
+#define	SD_IO_CCCR_FN_READY		0x03	/* Function ready status */
+#define	SD_IO_CCCR_INT_ENABLE		0x04	/* Per-function interrupt enable */
+#define	SD_IO_CCCR_INT_PENDING		0x05	/* Per-function interrupt pending */
+#define	SD_IO_CCCR_CTL			0x06	/* I/O Abort register */
+#define	 CCCR_CTL_RES			(1 << 3) /* Perform SDIO reset */
+#define	SD_IO_CCCR_BUS_WIDTH		0x07	/* Bus Width register */
 #define	 CCCR_BUS_WIDTH_4		(1 << 1)
 #define	 CCCR_BUS_WIDTH_1		(1 << 0)
-#define	SD_IO_CCCR_CARDCAP		0x08
-#define	SD_IO_CCCR_CISPTR		0x09	/* XXX 9-10, 10-11, or 9-12 */
-
+#define	SD_IO_CCCR_CARDCAP		0x08	/* SDIO card capabilities */
+#define  CCCR_CC_SMB                    (1 << 1) /* CMD53 block mode support */
+#define	SD_IO_CCCR_CISPTR		0x09    /* 0x09 - 0x0B */
+#define SD_IO_CCCR_FN0_BLKSZ            0x10    /* 0x10 - 0x11 */
 /* Function Basic Registers (FBR) */
-#define	SD_IO_FBR_START			0x00100
-#define	SD_IO_FBR_SIZE			0x00700
+#define	SD_IO_FBR_START			0x00100 /* Offset in F0 address space */
+#define	SD_IO_FBR_SIZE			0x00700 /* Total size of FBR */
+#define SD_IO_FBR_F_SIZE	       	0x00100 /* Size of each function */
+#define SD_IO_FBR_START_F(n)            (SD_IO_FBR_START + (n-1) * SD_IO_FBR_F_SIZE)
+#define SD_IO_FBR_CIS_OFFSET            0x9  /* Offset of this function's info block within CIS area */
+#define SD_IO_FBR_IOBLKSZ               0x10 /* Block size for CMD53 block mode operations */
 
 /* Card Information Structure (CIS) */
-#define	SD_IO_CIS_START			0x01000
-#define	SD_IO_CIS_SIZE			0x17000
+#define	SD_IO_CIS_START			0x01000 /* Offset in F0 address space */
+#define	SD_IO_CIS_SIZE			0x17000 /* Total size of CIS */
 
 /* CIS tuple codes (based on PC Card 16) */
 #define	SD_IO_CISTPL_VERS_1		0x15

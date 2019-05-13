@@ -50,7 +50,8 @@ struct libbe_deep_clone {
 	libbe_handle_t *lbh;
 	const char *bename;
 	const char *snapname;
-	const char *be_root;
+	int depth;
+	int depth_limit;
 };
 
 struct libbe_dccb {

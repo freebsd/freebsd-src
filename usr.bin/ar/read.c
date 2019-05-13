@@ -109,7 +109,8 @@ read_archive(struct bsdar *bsdar, char mode)
 			break;
 
 		/* Skip pseudo members. */
-		if (strcmp(name, "/") == 0 || strcmp(name, "//") == 0)
+		if (strcmp(name, "/") == 0 || strcmp(name, "//") == 0 ||
+		    strcmp(name, "/SYM64/") == 0)
 			continue;
 
 		if (bsdar->argc > 0) {

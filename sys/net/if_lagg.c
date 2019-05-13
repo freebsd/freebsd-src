@@ -264,6 +264,13 @@ SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RWTUN,
     &VNET_NAME(def_use_flowid), 0,
     "Default setting for using flow id for load sharing");
 
+/* Default value for using numa */
+VNET_DEFINE_STATIC(int, def_use_numa) = 1;
+#define	V_def_use_numa	VNET(def_use_numa)
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_numa, CTLFLAG_RWTUN,
+    &VNET_NAME(def_use_numa), 0,
+    "Use numa to steer flows");
+
 /* Default value for flowid shift */
 VNET_DEFINE_STATIC(int, def_flowid_shift) = 16;
 #define	V_def_flowid_shift	VNET(def_flowid_shift)
@@ -491,6 +498,8 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	LAGG_XLOCK(sc);
 	if (V_def_use_flowid)
 		sc->sc_opts |= LAGG_OPT_USE_FLOWID;
+	if (V_def_use_numa)
+		sc->sc_opts |= LAGG_OPT_USE_NUMA;
 	sc->flowid_shift = V_def_flowid_shift;
 
 	/* Hash all layers by default */
@@ -1247,6 +1256,8 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		switch (ro->ro_opts) {
 		case LAGG_OPT_USE_FLOWID:
 		case -LAGG_OPT_USE_FLOWID:
+		case LAGG_OPT_USE_NUMA:
+		case -LAGG_OPT_USE_NUMA:
 		case LAGG_OPT_FLOWIDSHIFT:
 			valid = 1;
 			lacp = 0;

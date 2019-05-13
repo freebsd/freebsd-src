@@ -2570,6 +2570,7 @@ NXBDIRS+= \
     usr.bin/true \
     usr.bin/uniq \
     usr.bin/unzip \
+    usr.bin/wc \
     usr.bin/xargs \
     usr.bin/xinstall \
     usr.bin/xz \
@@ -2601,6 +2602,7 @@ NXBMAKEARGS+= \
 	-DNO_CPU_CFLAGS \
 	-DNO_PIC \
 	SSP_CFLAGS= \
+	MK_CASPER=no \
 	MK_CLANG_EXTRAS=no \
 	MK_CLANG_FULL=no \
 	MK_CTF=no \

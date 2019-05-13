@@ -688,29 +688,21 @@ vop_is_text {
 };
 
 
-%% set_text	vp	E E E
+%% set_text	vp	= = =
 
 vop_set_text {
 	IN struct vnode *vp;
 };
 
 
-%% vop_unset_text	vp	E E E
+%% vop_unset_text	vp	= = =
 
 vop_unset_text {
 	IN struct vnode *vp;
 };
 
 
-%% get_writecount	vp	L L L
-
-vop_get_writecount {
-	IN struct vnode *vp;
-	OUT int *writecount;
-};
-
-
-%% add_writecount	vp	E E E
+%% add_writecount	vp	L L L
 
 vop_add_writecount {
 	IN struct vnode *vp;

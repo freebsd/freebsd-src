@@ -298,8 +298,8 @@ mlx5e_get_prio_tc(struct mlx5e_priv *priv)
 		return (EOPNOTSUPP);
 	}
 
-	for (i = 0; i <= mlx5_max_tc(priv->mdev); i++) {
-		err = -mlx5_query_port_prio_tc(mdev, i, &(priv->params_ethtool.prio_tc[i]));
+	for (i = 0; i != MLX5E_MAX_PRIORITY; i++) {
+		err = -mlx5_query_port_prio_tc(mdev, i, priv->params_ethtool.prio_tc + i);
 		if (err)
 			break;
 	}
@@ -311,29 +311,35 @@ static int
 mlx5e_prio_to_tc_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct mlx5e_priv *priv = arg1;
-	int prio_index = arg2;
 	struct mlx5_core_dev *mdev = priv->mdev;
+	uint8_t temp[MLX5E_MAX_PRIORITY];
 	int err;
-	uint8_t result;
+	int i;
 
 	PRIV_LOCK(priv);
-	result = priv->params_ethtool.prio_tc[prio_index];
-	err = sysctl_handle_8(oidp, &result, 0, req);
-	if (err || !req->newptr ||
-	    result == priv->params_ethtool.prio_tc[prio_index])
+	err = SYSCTL_OUT(req, priv->params_ethtool.prio_tc, MLX5E_MAX_PRIORITY);
+	if (err || !req->newptr)
 		goto done;
-
-	if (result > mlx5_max_tc(mdev)) {
-		err = ERANGE;
-		goto done;
-	}
-
-	err = -mlx5_set_port_prio_tc(mdev, prio_index, result);
+	err = SYSCTL_IN(req, temp, MLX5E_MAX_PRIORITY);
 	if (err)
 		goto done;
 
-	priv->params_ethtool.prio_tc[prio_index] = result;
+	for (i = 0; i != MLX5E_MAX_PRIORITY; i++) {
+		if (temp[i] > mlx5_max_tc(mdev)) {
+			err = ERANGE;
+			goto done;
+		}
+	}
 
+	for (i = 0; i != MLX5E_MAX_PRIORITY; i++) {
+		if (temp[i] == priv->params_ethtool.prio_tc[i])
+			continue;
+		err = -mlx5_set_port_prio_tc(mdev, i, temp[i]);
+		if (err)
+			goto done;
+		/* update cached value */
+		priv->params_ethtool.prio_tc[i] = temp[i];
+	}
 done:
 	PRIV_UNLOCK(priv);
 	return (err);
@@ -629,8 +635,8 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			mlx5e_close_locked(priv->ifp);
 
 		/* import RX coalesce mode */
-		if (priv->params_ethtool.rx_coalesce_mode != 0)
-			priv->params_ethtool.rx_coalesce_mode = 1;
+		if (priv->params_ethtool.rx_coalesce_mode > 3)
+			priv->params_ethtool.rx_coalesce_mode = 3;
 		priv->params.rx_cq_moderation_mode =
 		    priv->params_ethtool.rx_coalesce_mode;
 
@@ -1063,6 +1069,10 @@ mlx5e_ethtool_debug_stats(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	PRIV_LOCK(priv);
+	if (priv->gone != 0) {
+		error = ENODEV;
+		goto done;
+	}
 	sys_debug = priv->sysctl_debug;
 	error = sysctl_handle_int(oidp, &sys_debug, 0, req);
 	if (error != 0 || !req->newptr)
@@ -1131,7 +1141,6 @@ mlx5e_create_diagnostics(struct mlx5e_priv *priv)
 void
 mlx5e_create_ethtool(struct mlx5e_priv *priv)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
 	struct sysctl_oid *node, *qos_node;
 	const char *pnameunit;
 	unsigned x;
@@ -1258,14 +1267,10 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 
 	/* Priority to traffic class mapping */
 	if (mlx5e_get_prio_tc(priv) == 0) {
-		for (i = 0; i <= mlx5_max_tc(mdev); i++) {
-			char name[32];
-			snprintf(name, sizeof(name), "prio_%d_to_tc", i);
-			SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
-				OID_AUTO, name, CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
-				priv, i, mlx5e_prio_to_tc_handler, "CU",
-				"Set priority to traffic class");
-		}
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+		    OID_AUTO, "prio_0_7_tc", CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_prio_to_tc_handler, "CU",
+		    "Set traffic class 0 to 7 for priority 0 to 7 inclusivly");
 	}
 
 	/* DSCP support */
@@ -1283,7 +1288,7 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
 		    OID_AUTO, "trust_state", CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 		    priv, 0, mlx5e_trust_state_handler, "CU",
-		    MLX5_CAP_QCAM_FEATURE(mdev, qpts_trust_both) ?
+		    MLX5_CAP_QCAM_FEATURE(priv->mdev, qpts_trust_both) ?
 		    A B : A);
 #undef B
 #undef A

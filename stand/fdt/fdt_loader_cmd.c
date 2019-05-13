@@ -510,6 +510,16 @@ fdt_apply_overlays()
 }
 
 int
+fdt_is_setup(void)
+{
+
+	if (fdtp != NULL)
+		return (1);
+
+	return (0);
+}
+
+int
 fdt_setup_fdtp()
 {
 	struct preloaded_file *bfp;
@@ -522,6 +532,7 @@ fdt_setup_fdtp()
 		if (fdt_load_dtb(bfp->f_addr) == 0) {
 			printf("Using DTB from loaded file '%s'.\n", 
 			    bfp->f_name);
+			fdt_platform_load_overlays();
 			return (0);
 		}
 	}
@@ -531,12 +542,15 @@ fdt_setup_fdtp()
 		if (fdt_load_dtb_addr(fdt_to_load) == 0) {
 			printf("Using DTB from memory address %p.\n",
 			    fdt_to_load);
+			fdt_platform_load_overlays();
 			return (0);
 		}
 	}
 
-	if (fdt_platform_load_dtb() == 0)
+	if (fdt_platform_load_dtb() == 0) {
+		fdt_platform_load_overlays();
 		return (0);
+	}
 
 	/* If there is a dtb compiled into the kernel, use it. */
 	if ((va = fdt_find_static_dtb()) != 0) {

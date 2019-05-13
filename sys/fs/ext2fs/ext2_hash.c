@@ -57,6 +57,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/vnode.h>
+#include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
 
@@ -66,6 +67,14 @@
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2_extern.h>
+
+SDT_PROVIDER_DECLARE(ext2fs);
+/*
+ * ext2fs trace probe:
+ * arg0: verbosity. Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(ext2fs, , trace, hash, "int", "char*");
 
 /* F, G, and H are MD4 functions */
 #define F(x, y, z) (((x) & (y)) | ((~x) & (z)))
@@ -300,6 +309,7 @@ ext2_htree_hash(const char *name, int len,
 		minor = hash[2];
 		break;
 	default:
+		SDT_PROBE2(ext2fs, , trace, hash, 1, "unexpected hash version");
 		goto error;
 	}
 

@@ -46,6 +46,7 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/rwlock.h>
+#include <sys/sdt.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

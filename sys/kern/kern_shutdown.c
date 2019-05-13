@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ekcd.h"
 #include "opt_kdb.h"
 #include "opt_panic.h"
+#include "opt_printf.h"
 #include "opt_sched.h"
 #include "opt_watchdog.h"
 
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/compressor.h>
 #include <sys/cons.h>
+#include <sys/disk.h>
 #include <sys/eventhandler.h>
 #include <sys/filedesc.h>
 #include <sys/jail.h>
@@ -69,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -209,7 +212,16 @@ const char *panicstr;
 
 int dumping;				/* system is dumping */
 int rebooting;				/* system is rebooting */
-static struct dumperinfo dumper;	/* our selected dumper */
+/*
+ * Used to serialize between sysctl kern.shutdown.dumpdevname and list
+ * modifications via ioctl.
+ */
+static struct mtx dumpconf_list_lk;
+MTX_SYSINIT(dumper_configs, &dumpconf_list_lk, "dumper config list", MTX_DEF);
+
+/* Our selected dumper(s). */
+static TAILQ_HEAD(dumpconflist, dumperinfo) dumper_configs =
+    TAILQ_HEAD_INITIALIZER(dumper_configs);
 
 /* Context information for dump-debuggers. */
 static struct pcb dumppcb;		/* Registers. */
@@ -364,7 +376,7 @@ doadump(boolean_t textdump)
 	error = 0;
 	if (dumping)
 		return (EBUSY);
-	if (dumper.dumper == NULL)
+	if (TAILQ_EMPTY(&dumper_configs))
 		return (ENXIO);
 
 	savectx(&dumppcb);
@@ -375,11 +387,18 @@ doadump(boolean_t textdump)
 #ifdef DDB
 	if (textdump && textdump_pending) {
 		coredump = FALSE;
-		textdump_dumpsys(&dumper);
+		textdump_dumpsys(TAILQ_FIRST(&dumper_configs));
 	}
 #endif
-	if (coredump)
-		error = dumpsys(&dumper);
+	if (coredump) {
+		struct dumperinfo *di;
+
+		TAILQ_FOREACH(di, &dumper_configs, di_next) {
+			error = dumpsys(di);
+			if (error == 0)
+				break;
+		}
+	}
 
 	dumping--;
 	return (error);
@@ -952,9 +971,35 @@ kthread_shutdown(void *arg, int howto)
 		printf("done\n");
 }
 
-static char dumpdevname[sizeof(((struct cdev*)NULL)->si_name)];
-SYSCTL_STRING(_kern_shutdown, OID_AUTO, dumpdevname, CTLFLAG_RD,
-    dumpdevname, 0, "Device for kernel dumps");
+static int
+dumpdevname_sysctl_handler(SYSCTL_HANDLER_ARGS)
+{
+	char buf[256];
+	struct dumperinfo *di;
+	struct sbuf sb;
+	int error;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_new_for_sysctl(&sb, buf, sizeof(buf), req);
+
+	mtx_lock(&dumpconf_list_lk);
+	TAILQ_FOREACH(di, &dumper_configs, di_next) {
+		if (di != TAILQ_FIRST(&dumper_configs))
+			sbuf_putc(&sb, ',');
+		sbuf_cat(&sb, di->di_devname);
+	}
+	mtx_unlock(&dumpconf_list_lk);
+
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error);
+}
+SYSCTL_PROC(_kern_shutdown, OID_AUTO, dumpdevname, CTLTYPE_STRING | CTLFLAG_RD,
+    &dumper_configs, 0, dumpdevname_sysctl_handler, "A",
+    "Device(s) for kernel dumps");
 
 static int	_dump_append(struct dumperinfo *di, void *virtual,
 		    vm_offset_t physical, size_t length);
@@ -1092,31 +1137,67 @@ kerneldumpcomp_destroy(struct dumperinfo *di)
 	free(kdcomp, M_DUMPER);
 }
 
+/*
+ * Must not be present on global list.
+ */
+static void
+free_single_dumper(struct dumperinfo *di)
+{
+
+	if (di == NULL)
+		return;
+
+	if (di->blockbuf != NULL) {
+		explicit_bzero(di->blockbuf, di->blocksize);
+		free(di->blockbuf, M_DUMPER);
+	}
+
+	kerneldumpcomp_destroy(di);
+
+#ifdef EKCD
+	if (di->kdcrypto != NULL) {
+		explicit_bzero(di->kdcrypto, sizeof(*di->kdcrypto) +
+		    di->kdcrypto->kdc_dumpkeysize);
+		free(di->kdcrypto, M_EKCD);
+	}
+#endif
+
+	explicit_bzero(di, sizeof(*di));
+	free(di, M_DUMPER);
+}
+
 /* Registration of dumpers */
 int
-set_dumper(struct dumperinfo *di, const char *devname, struct thread *td,
-    uint8_t compression, uint8_t encryption, const uint8_t *key,
-    uint32_t encryptedkeysize, const uint8_t *encryptedkey)
+dumper_insert(const struct dumperinfo *di_template, const char *devname,
+    const struct diocskerneldump_arg *kda)
 {
-	size_t wantcopy;
+	struct dumperinfo *newdi, *listdi;
+	bool inserted;
+	uint8_t index;
 	int error;
 
-	error = priv_check(td, PRIV_SETDUMPER);
+	index = kda->kda_index;
+	MPASS(index != KDA_REMOVE && index != KDA_REMOVE_DEV &&
+	    index != KDA_REMOVE_ALL);
+
+	error = priv_check(curthread, PRIV_SETDUMPER);
 	if (error != 0)
 		return (error);
 
-	if (dumper.dumper != NULL)
-		return (EBUSY);
-	dumper = *di;
-	dumper.blockbuf = NULL;
-	dumper.kdcrypto = NULL;
-	dumper.kdcomp = NULL;
+	newdi = malloc(sizeof(*newdi) + strlen(devname) + 1, M_DUMPER, M_WAITOK
+	    | M_ZERO);
+	memcpy(newdi, di_template, sizeof(*newdi));
+	newdi->blockbuf = NULL;
+	newdi->kdcrypto = NULL;
+	newdi->kdcomp = NULL;
+	strcpy(newdi->di_devname, devname);
 
-	if (encryption != KERNELDUMP_ENC_NONE) {
+	if (kda->kda_encryption != KERNELDUMP_ENC_NONE) {
 #ifdef EKCD
-		dumper.kdcrypto = kerneldumpcrypto_create(di->blocksize,
-		    encryption, key, encryptedkeysize, encryptedkey);
-		if (dumper.kdcrypto == NULL) {
+		newdi->kdcrypto = kerneldumpcrypto_create(di_template->blocksize,
+		    kda->kda_encryption, kda->kda_key,
+		    kda->kda_encryptedkeysize, kda->kda_encryptedkey);
+		if (newdi->kdcrypto == NULL) {
 			error = EINVAL;
 			goto cleanup;
 		}
@@ -1125,66 +1206,117 @@ set_dumper(struct dumperinfo *di, const char *devname, struct thread *td,
 		goto cleanup;
 #endif
 	}
-
-	wantcopy = strlcpy(dumpdevname, devname, sizeof(dumpdevname));
-	if (wantcopy >= sizeof(dumpdevname)) {
-		printf("set_dumper: device name truncated from '%s' -> '%s'\n",
-		    devname, dumpdevname);
-	}
-
-	if (compression != KERNELDUMP_COMP_NONE) {
+	if (kda->kda_compression != KERNELDUMP_COMP_NONE) {
 		/*
 		 * We currently can't support simultaneous encryption and
-		 * compression.
+		 * compression because our only encryption mode is an unpadded
+		 * block cipher, go figure.  This is low hanging fruit to fix.
 		 */
-		if (encryption != KERNELDUMP_ENC_NONE) {
+		if (kda->kda_encryption != KERNELDUMP_ENC_NONE) {
 			error = EOPNOTSUPP;
 			goto cleanup;
 		}
-		dumper.kdcomp = kerneldumpcomp_create(&dumper, compression);
-		if (dumper.kdcomp == NULL) {
+		newdi->kdcomp = kerneldumpcomp_create(newdi,
+		    kda->kda_compression);
+		if (newdi->kdcomp == NULL) {
 			error = EINVAL;
 			goto cleanup;
 		}
 	}
 
-	dumper.blockbuf = malloc(di->blocksize, M_DUMPER, M_WAITOK | M_ZERO);
+	newdi->blockbuf = malloc(newdi->blocksize, M_DUMPER, M_WAITOK | M_ZERO);
+
+	/* Add the new configuration to the queue */
+	mtx_lock(&dumpconf_list_lk);
+	inserted = false;
+	TAILQ_FOREACH(listdi, &dumper_configs, di_next) {
+		if (index == 0) {
+			TAILQ_INSERT_BEFORE(listdi, newdi, di_next);
+			inserted = true;
+			break;
+		}
+		index--;
+	}
+	if (!inserted)
+		TAILQ_INSERT_TAIL(&dumper_configs, newdi, di_next);
+	mtx_unlock(&dumpconf_list_lk);
+
 	return (0);
 
 cleanup:
-	(void)clear_dumper(td);
+	free_single_dumper(newdi);
 	return (error);
 }
 
-int
-clear_dumper(struct thread *td)
+static bool
+dumper_config_match(const struct dumperinfo *di, const char *devname,
+    const struct diocskerneldump_arg *kda)
 {
+	if (kda->kda_index == KDA_REMOVE_ALL)
+		return (true);
+
+	if (strcmp(di->di_devname, devname) != 0)
+		return (false);
+
+	/*
+	 * Allow wildcard removal of configs matching a device on g_dev_orphan.
+	 */
+	if (kda->kda_index == KDA_REMOVE_DEV)
+		return (true);
+
+	if (di->kdcomp != NULL) {
+		if (di->kdcomp->kdc_format != kda->kda_compression)
+			return (false);
+	} else if (kda->kda_compression != KERNELDUMP_COMP_NONE)
+		return (false);
+#ifdef EKCD
+	if (di->kdcrypto != NULL) {
+		if (di->kdcrypto->kdc_encryption != kda->kda_encryption)
+			return (false);
+		/*
+		 * Do we care to verify keys match to delete?  It seems weird
+		 * to expect multiple fallback dump configurations on the same
+		 * device that only differ in crypto key.
+		 */
+	} else
+#endif
+		if (kda->kda_encryption != KERNELDUMP_ENC_NONE)
+			return (false);
+
+	return (true);
+}
+
+int
+dumper_remove(const char *devname, const struct diocskerneldump_arg *kda)
+{
+	struct dumperinfo *di, *sdi;
+	bool found;
 	int error;
 
-	error = priv_check(td, PRIV_SETDUMPER);
+	error = priv_check(curthread, PRIV_SETDUMPER);
 	if (error != 0)
 		return (error);
 
-#ifdef NETDUMP
-	netdump_mbuf_drain();
-#endif
-
-#ifdef EKCD
-	if (dumper.kdcrypto != NULL) {
-		explicit_bzero(dumper.kdcrypto, sizeof(*dumper.kdcrypto) +
-		    dumper.kdcrypto->kdc_dumpkeysize);
-		free(dumper.kdcrypto, M_EKCD);
+	/*
+	 * Try to find a matching configuration, and kill it.
+	 *
+	 * NULL 'kda' indicates remove any configuration matching 'devname',
+	 * which may remove multiple configurations in atypical configurations.
+	 */
+	found = false;
+	mtx_lock(&dumpconf_list_lk);
+	TAILQ_FOREACH_SAFE(di, &dumper_configs, di_next, sdi) {
+		if (dumper_config_match(di, devname, kda)) {
+			found = true;
+			TAILQ_REMOVE(&dumper_configs, di, di_next);
+			free_single_dumper(di);
+		}
 	}
-#endif
+	mtx_unlock(&dumpconf_list_lk);
 
-	kerneldumpcomp_destroy(&dumper);
-
-	if (dumper.blockbuf != NULL) {
-		explicit_bzero(dumper.blockbuf, dumper.blocksize);
-		free(dumper.blockbuf, M_DUMPER);
-	}
-	explicit_bzero(&dumper, sizeof(dumper));
-	dumpdevname[0] = '\0';
+	/* Only produce ENOENT if a more targeted match didn't match. */
+	if (!found && kda->kda_index == KDA_REMOVE)
+		return (ENOENT);
 	return (0);
 }
 

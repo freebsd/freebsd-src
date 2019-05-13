@@ -496,7 +496,13 @@ sdhci_read_block_pio(struct sdhci_slot *slot)
 	buffer = slot->curcmd->data->data;
 	buffer += slot->offset;
 	/* Transfer one block at a time. */
-	left = min(512, slot->curcmd->data->len - slot->offset);
+#ifdef MMCCAM
+	if (slot->curcmd->data->flags & MMC_DATA_BLOCK_SIZE)
+		left = min(slot->curcmd->data->block_size,
+		    slot->curcmd->data->len - slot->offset);
+	else
+#endif
+		left = min(512, slot->curcmd->data->len - slot->offset);
 	slot->offset += left;
 
 	/* If we are too fast, broken controllers return zeroes. */
@@ -539,7 +545,13 @@ sdhci_write_block_pio(struct sdhci_slot *slot)
 	buffer = slot->curcmd->data->data;
 	buffer += slot->offset;
 	/* Transfer one block at a time. */
-	left = min(512, slot->curcmd->data->len - slot->offset);
+#ifdef MMCCAM
+	if (slot->curcmd->data->flags & MMC_DATA_BLOCK_SIZE) {
+		left = min(slot->curcmd->data->block_size,
+		    slot->curcmd->data->len - slot->offset);
+	} else
+#endif
+		left = min(512, slot->curcmd->data->len - slot->offset);
 	slot->offset += left;
 
 	/* Handle unaligned and aligned buffer cases. */
@@ -1623,9 +1635,9 @@ sdhci_set_transfer_mode(struct sdhci_slot *slot, const struct mmc_data *data)
 		return;
 
 	mode = SDHCI_TRNS_BLK_CNT_EN;
-	if (data->len > 512) {
+	if (data->len > 512 || data->block_count > 1) {
 		mode |= SDHCI_TRNS_MULTI;
-		if (__predict_true(
+		if (data->block_count == 0 && __predict_true(
 #ifdef MMCCAM
 		    slot->ccb->mmcio.stop.opcode == MMC_STOP_TRANSMISSION &&
 #else
@@ -1888,11 +1900,23 @@ sdhci_start_data(struct sdhci_slot *slot, const struct mmc_data *data)
 	}
 	/* Current data offset for both PIO and DMA. */
 	slot->offset = 0;
-	/* Set block size and request border interrupts on the SDMA boundary. */
-	blksz = SDHCI_MAKE_BLKSZ(slot->sdma_boundary, ulmin(data->len, 512));
+#ifdef MMCCAM
+	if (data->flags & MMC_DATA_BLOCK_SIZE) {
+		/* Set block size and request border interrupts on the SDMA boundary. */
+		blksz = SDHCI_MAKE_BLKSZ(slot->sdma_boundary, data->block_size);
+		blkcnt = data->block_count;
+		if (__predict_false(sdhci_debug > 0))
+			slot_printf(slot, "SDIO Custom block params: blksz: "
+			    "%#10x, blk cnt: %#10x\n", blksz, blkcnt);
+	} else
+#endif
+	{
+		/* Set block size and request border interrupts on the SDMA boundary. */
+		blksz = SDHCI_MAKE_BLKSZ(slot->sdma_boundary, ulmin(data->len, 512));
+		blkcnt = howmany(data->len, 512);
+	}
+
 	WR2(slot, SDHCI_BLOCK_SIZE, blksz);
-	/* Set block count. */
-	blkcnt = howmany(data->len, 512);
 	WR2(slot, SDHCI_BLOCK_COUNT, blkcnt);
 	if (__predict_false(sdhci_debug > 1))
 		slot_printf(slot, "Blk size: 0x%08x | Blk cnt:  0x%08x\n",
@@ -2781,10 +2805,13 @@ sdhci_cam_request(struct sdhci_slot *slot, union ccb *ccb)
 	}
 */
 	if (__predict_false(sdhci_debug > 1)) {
-		slot_printf(slot, "CMD%u arg %#x flags %#x dlen %u dflags %#x\n",
-			    mmcio->cmd.opcode, mmcio->cmd.arg, mmcio->cmd.flags,
-			    mmcio->cmd.data != NULL ? (unsigned int) mmcio->cmd.data->len : 0,
-			    mmcio->cmd.data != NULL ? mmcio->cmd.data->flags: 0);
+		slot_printf(slot, "CMD%u arg %#x flags %#x dlen %u dflags %#x "
+		    "blksz=%zu blkcnt=%zu\n",
+		    mmcio->cmd.opcode, mmcio->cmd.arg, mmcio->cmd.flags,
+		    mmcio->cmd.data != NULL ? (unsigned int) mmcio->cmd.data->len : 0,
+		    mmcio->cmd.data != NULL ? mmcio->cmd.data->flags : 0,
+		    mmcio->cmd.data != NULL ? mmcio->cmd.data->block_size : 0,
+		    mmcio->cmd.data != NULL ? mmcio->cmd.data->block_count : 0);
 	}
 	if (mmcio->cmd.data != NULL) {
 		if (mmcio->cmd.data->len == 0 || mmcio->cmd.data->flags == 0)

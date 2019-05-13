@@ -273,6 +273,8 @@ static struct rwlock pv_list_locks[NPV_LIST_LOCKS];
 static struct md_page *pv_table;
 static struct md_page pv_dummy;
 
+extern cpuset_t all_harts;
+
 /*
  * Internal flags for pmap_enter()'s helper functions.
  */
@@ -737,7 +739,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 
 	sched_pin();
 	mask = pmap->pm_active;
-	CPU_CLR(PCPU_GET(cpuid), &mask);
+	CPU_CLR(PCPU_GET(hart), &mask);
 	fence();
 	if (!CPU_EMPTY(&mask) && smp_started)
 		sbi_remote_sfence_vma(mask.__bits, va, 1);
@@ -752,7 +754,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	sched_pin();
 	mask = pmap->pm_active;
-	CPU_CLR(PCPU_GET(cpuid), &mask);
+	CPU_CLR(PCPU_GET(hart), &mask);
 	fence();
 	if (!CPU_EMPTY(&mask) && smp_started)
 		sbi_remote_sfence_vma(mask.__bits, sva, eva - sva + 1);
@@ -772,7 +774,7 @@ pmap_invalidate_all(pmap_t pmap)
 
 	sched_pin();
 	mask = pmap->pm_active;
-	CPU_CLR(PCPU_GET(cpuid), &mask);
+	CPU_CLR(PCPU_GET(hart), &mask);
 
 	/*
 	 * XXX: The SBI doc doesn't detail how to specify x0 as the
@@ -4200,16 +4202,6 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
 
 	m->md.pv_memattr = ma;
-
-	/*
-	 * RISCVTODO: Implement the below (from the amd64 pmap)
-	 * If "m" is a normal page, update its direct mapping.  This update
-	 * can be relied upon to perform any cache operations that are
-	 * required for data coherence.
-	 */
-	if ((m->flags & PG_FICTITIOUS) == 0 &&
-	    PHYS_IN_DMAP(VM_PAGE_TO_PHYS(m)))
-		panic("RISCVTODO: pmap_page_set_memattr");
 }
 
 /*
@@ -4265,7 +4257,7 @@ void
 pmap_activate_sw(struct thread *td)
 {
 	pmap_t oldpmap, pmap;
-	u_int cpu;
+	u_int hart;
 
 	oldpmap = PCPU_GET(curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
@@ -4273,13 +4265,13 @@ pmap_activate_sw(struct thread *td)
 		return;
 	load_satp(pmap->pm_satp);
 
-	cpu = PCPU_GET(cpuid);
+	hart = PCPU_GET(hart);
 #ifdef SMP
-	CPU_SET_ATOMIC(cpu, &pmap->pm_active);
-	CPU_CLR_ATOMIC(cpu, &oldpmap->pm_active);
+	CPU_SET_ATOMIC(hart, &pmap->pm_active);
+	CPU_CLR_ATOMIC(hart, &oldpmap->pm_active);
 #else
-	CPU_SET(cpu, &pmap->pm_active);
-	CPU_CLR(cpu, &oldpmap->pm_active);
+	CPU_SET(hart, &pmap->pm_active);
+	CPU_CLR(hart, &oldpmap->pm_active);
 #endif
 	PCPU_SET(curpmap, pmap);
 
@@ -4298,13 +4290,13 @@ pmap_activate(struct thread *td)
 void
 pmap_activate_boot(pmap_t pmap)
 {
-	u_int cpu;
+	u_int hart;
 
-	cpu = PCPU_GET(cpuid);
+	hart = PCPU_GET(hart);
 #ifdef SMP
-	CPU_SET_ATOMIC(cpu, &pmap->pm_active);
+	CPU_SET_ATOMIC(hart, &pmap->pm_active);
 #else
-	CPU_SET(cpu, &pmap->pm_active);
+	CPU_SET(hart, &pmap->pm_active);
 #endif
 	PCPU_SET(curpmap, pmap);
 }
@@ -4323,8 +4315,8 @@ pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 	 * FENCE.I."
 	 */
 	sched_pin();
-	mask = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &mask);
+	mask = all_harts;
+	CPU_CLR(PCPU_GET(hart), &mask);
 	fence();
 	if (!CPU_EMPTY(&mask) && smp_started)
 		sbi_remote_fence_i(mask.__bits);

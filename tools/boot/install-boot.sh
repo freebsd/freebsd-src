@@ -134,29 +134,37 @@ make_esp_device() {
     echo "Copying loader to /EFI/freebsd on ESP"
     cp "${file}" "${mntpt}/EFI/freebsd/loader.efi"
 
-    existingbootentryloaderfile=$(efibootmgr -v | grep "${mntpt}//EFI/freebsd/loader.efi")
+    if [ -n "${updatesystem}" ]; then
+        existingbootentryloaderfile=$(efibootmgr -v | grep "${mntpt}//EFI/freebsd/loader.efi")
 
-    if [ -z "$existingbootentryloaderfile" ]; then
-        # Try again without the double forward-slash in the path
-        existingbootentryloaderfile=$(efibootmgr -v | grep "${mntpt}/EFI/freebsd/loader.efi")
-    fi
-
-    if [ -z "$existingbootentryloaderfile" ]; then
-        echo "Creating UEFI boot entry for FreeBSD"
-        efibootmgr --create --label FreeBSD --loader "${mntpt}/EFI/freebsd/loader.efi" > /dev/null
-        if [ $? -ne 0 ]; then
-            die "Failed to create new boot entry"
+        if [ -z "$existingbootentryloaderfile" ]; then
+            # Try again without the double forward-slash in the path
+            existingbootentryloaderfile=$(efibootmgr -v | grep "${mntpt}/EFI/freebsd/loader.efi")
         fi
 
-        # When creating new entries, efibootmgr doesn't mark them active, so we need to
-        # do so. It doesn't make it easy to find which entry it just added, so rely on
-        # the fact that it places the new entry first in BootOrder.
-        bootorder=$(efivar --name 8be4df61-93ca-11d2-aa0d-00e098032b8c-BootOrder --print --no-name --hex | head -1)
-        bootentry=$(echo "${bootorder}" | cut -w -f 3)$(echo "${bootorder}" | cut -w -f 2)
-        echo "Marking UEFI boot entry ${bootentry} active"
-        efibootmgr --activate "${bootentry}" > /dev/null
+        if [ -z "$existingbootentryloaderfile" ]; then
+            echo "Creating UEFI boot entry for FreeBSD"
+            efibootmgr --create --label FreeBSD --loader "${mntpt}/EFI/freebsd/loader.efi" > /dev/null
+            if [ $? -ne 0 ]; then
+                die "Failed to create new boot entry"
+            fi
+
+            # When creating new entries, efibootmgr doesn't mark them active, so we need to
+            # do so. It doesn't make it easy to find which entry it just added, so rely on
+            # the fact that it places the new entry first in BootOrder.
+            bootorder=$(efivar --name 8be4df61-93ca-11d2-aa0d-00e098032b8c-BootOrder --print --no-name --hex | head -1)
+            bootentry=$(echo "${bootorder}" | cut -w -f 3)$(echo "${bootorder}" | cut -w -f 2)
+            echo "Marking UEFI boot entry ${bootentry} active"
+            efibootmgr --activate "${bootentry}" > /dev/null
+        else
+            echo "Existing UEFI FreeBSD boot entry found: not creating a new one"
+        fi
     else
-        echo "Existing UEFI FreeBSD boot entry found: not creating a new one"
+	# Configure for booting from removable media
+	if [ ! -d "${mntpt}/EFI/BOOT" ]; then
+		mkdir -p "${mntpt}/EFI/BOOT"
+	fi
+	cp "${file}" "${mntpt}/EFI/BOOT/${efibootname}.efi"
     fi
 
     umount "${mntpt}"
@@ -362,6 +370,8 @@ usage() {
 	printf ' -f fs         filesystem type: ufs or zfs\n'
 	printf ' -g geli       yes or no\n'
 	printf ' -h            this help/usage text\n'
+	printf ' -u            Run commands such as efibootmgr to update the\n'
+	printf '               currently running system\n'
 	printf ' -o optargs    optional arguments\n'
 	printf ' -s scheme     mbr or gpt\n'
 	exit 0
@@ -372,7 +382,7 @@ srcroot=/
 # Note: we really don't support geli boot in this script yet.
 geli=nogeli
 
-while getopts "b:d:f:g:ho:s:" opt; do
+while getopts "b:d:f:g:ho:s:u" opt; do
     case "$opt" in
 	b)
 	    bios=${OPTARG}
@@ -388,6 +398,9 @@ while getopts "b:d:f:g:ho:s:" opt; do
 		[Yy][Ee][Ss]|geli) geli=geli ;;
 		*) geli=nogeli ;;
 	    esac
+	    ;;
+	u)
+	    updatesystem=1
 	    ;;
 	o)
 	    opts=${OPTARG}

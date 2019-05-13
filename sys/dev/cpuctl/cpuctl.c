@@ -330,9 +330,26 @@ cpuctl_do_update(int cpu, cpuctl_update_args_t *data, struct thread *td)
 	return (ret);
 }
 
+struct ucode_update_data {
+	void *ptr;
+	int cpu;
+	int ret;
+};
+
+static void
+ucode_intel_load_rv(void *arg)
+{
+	struct ucode_update_data *d;
+
+	d = arg;
+	if (PCPU_GET(cpuid) == d->cpu)
+		d->ret = ucode_intel_load(d->ptr, true, NULL, NULL);
+}
+
 static int
 update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 {
+	struct ucode_update_data d;
 	void *ptr;
 	int is_bound, oldcpu, ret;
 
@@ -360,12 +377,11 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	oldcpu = td->td_oncpu;
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
-	critical_enter();
-
-	ret = ucode_intel_load(ptr, true, NULL, NULL);
-
-	critical_exit();
+	d.ptr = ptr;
+	d.cpu = cpu;
+	smp_rendezvous(NULL, ucode_intel_load_rv, NULL, &d);
 	restore_cpu(oldcpu, is_bound, td);
+	ret = d.ret;
 
 	/*
 	 * Replace any existing update.  This ensures that the new update

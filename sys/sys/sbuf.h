@@ -103,6 +103,7 @@ void		 sbuf_start_section(struct sbuf *, ssize_t *);
 ssize_t		 sbuf_end_section(struct sbuf *, ssize_t, size_t, int);
 void		 sbuf_hexdump(struct sbuf *, const void *, int, const char *,
 		     int);
+int		 sbuf_printf_drain(void *arg, const char *data, int len);
 void		 sbuf_putbuf(struct sbuf *);
 
 #ifdef _KERNEL

@@ -78,8 +78,8 @@ machdep_ap_bootstrap(void)
 	__asm __volatile("msync; isync");
 
 	while (ap_letgo == 0)
-		__asm __volatile("or 31,31,31");
-	__asm __volatile("or 6,6,6");
+		nop_prio_vlow();
+	nop_prio_medium();
 
 	/*
 	 * Set timebase as soon as possible to meet an implicit rendezvous
@@ -182,6 +182,15 @@ cpu_mp_start(void)
 			pc->pc_bsp = 1;
 		}
 		pc->pc_hwref = cpu.cr_hwref;
+
+		if (vm_ndomains > 1)
+			pc->pc_domain = cpu.cr_domain;
+		else
+			pc->pc_domain = 0;
+
+		CPU_SET(pc->pc_cpuid, &cpuset_domain[pc->pc_domain]);
+		KASSERT(pc->pc_domain < MAXMEMDOM, ("bad domain value %d\n",
+		    pc->pc_domain));
 		CPU_SET(pc->pc_cpuid, &all_cpus);
 next:
 		error = platform_smp_next_cpu(&cpu);
@@ -205,7 +214,7 @@ cpu_mp_announce(void)
 		pc = pcpu_find(i);
 		if (pc == NULL)
 			continue;
-		printf("cpu%d: dev=%x", i, (int)pc->pc_hwref);
+		printf("cpu%d: dev=%x domain=%d ", i, (int)pc->pc_hwref, pc->pc_domain);
 		if (pc->pc_bsp)
 			printf(" (BSP)");
 		printf("\n");

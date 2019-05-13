@@ -36,16 +36,21 @@
 
 #include <stdbool.h>
 
+#define	FA_OPEN		1
+#define	FA_LSTAT	2
+
 #ifdef WITH_CASPER
 struct fileargs;
 typedef struct fileargs fileargs_t;
+struct stat;
 
 fileargs_t *fileargs_init(int argc, char *argv[], int flags, mode_t mode,
-    cap_rights_t *rightsp);
+    cap_rights_t *rightsp, int operations);
 fileargs_t *fileargs_cinit(cap_channel_t *cas, int argc, char *argv[],
-    int flags, mode_t mode, cap_rights_t *rightsp);
+    int flags, mode_t mode, cap_rights_t *rightsp, int operations);
 fileargs_t *fileargs_initnv(nvlist_t *limits);
 fileargs_t *fileargs_cinitnv(cap_channel_t *cas, nvlist_t *limits);
+int fileargs_lstat(fileargs_t *fa, const char *name, struct stat *sb);
 int fileargs_open(fileargs_t *fa, const char *name);
 void fileargs_free(fileargs_t *fa);
 FILE *fileargs_fopen(fileargs_t *fa, const char *name, const char *mode);
@@ -57,7 +62,7 @@ typedef struct fileargs {
 
 static inline fileargs_t *
 fileargs_init(int argc __unused, char *argv[] __unused, int flags, mode_t mode,
-    cap_rights_t *rightsp __unused) {
+    cap_rights_t *rightsp __unused, int operations __unused) {
 	fileargs_t *fa;
 
 	fa = malloc(sizeof(*fa));
@@ -71,10 +76,10 @@ fileargs_init(int argc __unused, char *argv[] __unused, int flags, mode_t mode,
 
 static inline fileargs_t *
 fileargs_cinit(cap_channel_t *cas __unused, int argc, char *argv[], int flags,
-    mode_t mode, cap_rights_t *rightsp)
+    mode_t mode, cap_rights_t *rightsp, int operations)
 {
 
-	return (fileargs_init(argc, argv, flags, mode, rightsp));
+	return (fileargs_init(argc, argv, flags, mode, rightsp, operations));
 }
 
 static inline fileargs_t *
@@ -85,7 +90,8 @@ fileargs_initnv(nvlist_t *limits)
 	fa = fileargs_init(0, NULL,
 	    nvlist_get_number(limits, "flags"),
 	    dnvlist_get_number(limits, "mode", 0),
-	    NULL);
+	    NULL,
+	    nvlist_get_number(limits, "operations"));
 	nvlist_destroy(limits);
 
 	return (fa);
@@ -98,10 +104,16 @@ fileargs_cinitnv(cap_channel_t *cas __unused, nvlist_t *limits)
 	return (fileargs_initnv(limits));
 }
 
+#define fileargs_lstat(fa, name, sb)						\
+	lstat(name, sb)
 #define	fileargs_open(fa, name)							\
 	open(name, fa->fa_flags, fa->fa_mode)
-#define	fileargs_fopen(fa, name, mode)						\
-	fopen(name, mode)
+static inline
+FILE *fileargs_fopen(fileargs_t *fa, const char *name, const char *mode)
+{
+	(void) fa;
+	return (fopen(name, mode));
+}
 #define	fileargs_free(fa)	(free(fa))
 #endif
 

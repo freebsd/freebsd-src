@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2019, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,15 +39,9 @@
 #define	MAX_MISSES			3
 
 enum {
-	MLX5_NIC_IFC_FULL		= 0,
-	MLX5_NIC_IFC_DISABLED		= 1,
-	MLX5_NIC_IFC_NO_DRAM_NIC	= 2,
-	MLX5_NIC_IFC_SW_RESET		= 7,
-};
-
-enum {
 	MLX5_DROP_NEW_HEALTH_WORK,
 	MLX5_DROP_NEW_RECOVERY_WORK,
+	MLX5_DROP_NEW_WATCHDOG_WORK,
 };
 
 enum  {
@@ -63,6 +57,12 @@ static int mlx5_fw_reset_enable = 1;
 SYSCTL_INT(_hw_mlx5, OID_AUTO, fw_reset_enable, CTLFLAG_RWTUN,
     &mlx5_fw_reset_enable, 0,
     "Enable firmware reset");
+
+static unsigned int sw_reset_to = 1200;
+SYSCTL_UINT(_hw_mlx5, OID_AUTO, sw_reset_timeout, CTLFLAG_RWTUN,
+    &sw_reset_to, 0,
+    "Minimum timeout in seconds between two firmware resets");
+
 
 static int lock_sem_sw_reset(struct mlx5_core_dev *dev)
 {
@@ -108,9 +108,19 @@ static int unlock_sem_sw_reset(struct mlx5_core_dev *dev)
 	return ret;
 }
 
-static u8 get_nic_mode(struct mlx5_core_dev *dev)
+u8 mlx5_get_nic_state(struct mlx5_core_dev *dev)
 {
 	return (ioread32be(&dev->iseg->cmdq_addr_l_sz) >> 8) & 7;
+}
+
+void mlx5_set_nic_state(struct mlx5_core_dev *dev, u8 state)
+{
+	u32 cur_cmdq_addr_l_sz;
+
+	cur_cmdq_addr_l_sz = ioread32be(&dev->iseg->cmdq_addr_l_sz);
+	iowrite32be((cur_cmdq_addr_l_sz & 0xFFFFF000) |
+		    state << MLX5_NIC_IFC_OFFSET,
+		    &dev->iseg->cmdq_addr_l_sz);
 }
 
 static bool sensor_fw_synd_rfr(struct mlx5_core_dev *dev)
@@ -125,8 +135,10 @@ static bool sensor_fw_synd_rfr(struct mlx5_core_dev *dev)
 	return rfr && synd;
 }
 
-static void mlx5_trigger_cmd_completions(struct mlx5_core_dev *dev)
+static void mlx5_trigger_cmd_completions(struct work_struct *work)
 {
+	struct mlx5_core_dev *dev =
+	    container_of(work, struct mlx5_core_dev, priv.health.work_cmd_completion);
 	unsigned long flags;
 	u64 vector;
 
@@ -159,12 +171,12 @@ static bool sensor_pci_no_comm(struct mlx5_core_dev *dev)
 
 static bool sensor_nic_disabled(struct mlx5_core_dev *dev)
 {
-	return get_nic_mode(dev) == MLX5_NIC_IFC_DISABLED;
+	return mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED;
 }
 
 static bool sensor_nic_sw_reset(struct mlx5_core_dev *dev)
 {
-	return get_nic_mode(dev) == MLX5_NIC_IFC_SW_RESET;
+	return mlx5_get_nic_state(dev) == MLX5_NIC_IFC_SW_RESET;
 }
 
 static u32 check_fatal_sensors(struct mlx5_core_dev *dev)
@@ -218,12 +230,38 @@ static void reset_fw_if_needed(struct mlx5_core_dev *dev)
 		    &dev->iseg->cmdq_addr_l_sz);
 }
 
+static bool
+mlx5_health_allow_reset(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+	unsigned int delta;
+	bool ret;
+
+	if (health->last_reset_req != 0) {
+		delta = ticks - health->last_reset_req;
+		delta /= hz;
+		ret = delta >= sw_reset_to;
+	} else {
+		ret = true;
+	}
+
+	/*
+	 * In principle, ticks may be 0. Setting it to off by one (-1)
+	 * to prevent certain reset in next request.
+	 */
+	health->last_reset_req = ticks ? : -1;
+	if (!ret)
+		mlx5_core_warn(dev, "Firmware reset elided due to "
+		    "auto-reset frequency threshold.\n");
+	return (ret);
+}
+
 #define MLX5_CRDUMP_WAIT_MS	60000
 #define MLX5_FW_RESET_WAIT_MS	1000
 #define MLX5_NIC_STATE_POLL_MS	5
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 {
-	unsigned long end, delay_ms = MLX5_CRDUMP_WAIT_MS;
+	int end, delay_ms = MLX5_CRDUMP_WAIT_MS;
 	u32 fatal_error;
 	int lock = -EBUSY;
 
@@ -235,7 +273,15 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 			return;
 		if (!force)
 			mlx5_core_err(dev, "internal state error detected\n");
-		mlx5_trigger_cmd_completions(dev);
+
+		/*
+		 * Queue the command completion handler on the command
+		 * work queue to avoid racing with the real command
+		 * completion handler and then wait for it to
+		 * complete:
+		 */
+		queue_work(dev->priv.health.wq_cmd, &dev->priv.health.work_cmd_completion);
+		flush_workqueue(dev->priv.health.wq_cmd);
 	}
 
 	mutex_lock(&dev->intf_state_mutex);
@@ -243,7 +289,8 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	if (force)
 		goto err_state_done;
 
-	if (fatal_error == MLX5_SENSOR_FW_SYND_RFR) {
+	if (fatal_error == MLX5_SENSOR_FW_SYND_RFR &&
+	    mlx5_health_allow_reset(dev)) {
 		/* Get cr-dump and reset FW semaphore */
 		if (mlx5_core_is_pf(dev))
 			lock = lock_sem_sw_reset(dev);
@@ -266,8 +313,8 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	} while (!time_after(jiffies, end));
 
 	if (!sensor_nic_disabled(dev)) {
-		dev_err(&dev->pdev->dev, "NIC IFC still %d after %lums.\n",
-			get_nic_mode(dev), delay_ms);
+		dev_err(&dev->pdev->dev, "NIC IFC still %d after %ums.\n",
+			mlx5_get_nic_state(dev), delay_ms);
 	}
 
 	/* Release FW semaphore if you are the lock owner */
@@ -283,7 +330,7 @@ err_state_done:
 
 static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 {
-	u8 nic_mode = get_nic_mode(dev);
+	u8 nic_mode = mlx5_get_nic_state(dev);
 
 	if (nic_mode == MLX5_NIC_IFC_SW_RESET) {
 		/* The IFC mode field is 3 bits, so it will read 0x7 in two cases:
@@ -329,11 +376,11 @@ static void health_recover(struct work_struct *work)
 		recover = false;
 	}
 
-	nic_mode = get_nic_mode(dev);
+	nic_mode = mlx5_get_nic_state(dev);
 	while (nic_mode != MLX5_NIC_IFC_DISABLED &&
 	       !time_after(jiffies, end)) {
 		msleep(MLX5_NIC_STATE_POLL_MS);
-		nic_mode = get_nic_mode(dev);
+		nic_mode = mlx5_get_nic_state(dev);
 	}
 
 	if (nic_mode != MLX5_NIC_IFC_DISABLED) {
@@ -470,6 +517,66 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	printf("mlx5_core: INFO: ""raw fw_ver 0x%08x\n", fw);
 }
 
+static void health_watchdog(struct work_struct *work)
+{
+	struct mlx5_core_dev *dev;
+	u16 power;
+	u8 status;
+	int err;
+
+	dev = container_of(work, struct mlx5_core_dev, priv.health.work_watchdog);
+
+	if (!MLX5_CAP_GEN(dev, mcam_reg) ||
+	    !MLX5_CAP_MCAM_FEATURE(dev, pcie_status_and_power))
+		return;
+
+	err = mlx5_pci_read_power_status(dev, &power, &status);
+	if (err < 0) {
+		mlx5_core_warn(dev, "Failed reading power status: %d\n", err);
+		return;
+	}
+
+	dev->pwr_value = power;
+
+	if (dev->pwr_status != status) {
+		device_t bsddev = dev->pdev->dev.bsddev;
+
+		switch (status) {
+		case 0:
+			dev->pwr_status = status;
+			device_printf(bsddev, "PCI power is not published by the PCIe slot.\n");
+			break;
+		case 1:
+			dev->pwr_status = status;
+			device_printf(bsddev, "PCIe slot advertised sufficient power (%uW).\n", power);
+			break;
+		case 2:
+			dev->pwr_status = status;
+			device_printf(bsddev, "WARN: Detected insufficient power on the PCIe slot (%uW).\n", power);
+			break;
+		default:
+			dev->pwr_status = 0;
+			device_printf(bsddev, "WARN: Unknown power state detected(%d).\n", status);
+			break;
+		}
+	}
+}
+
+void
+mlx5_trigger_health_watchdog(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+	unsigned long flags;
+
+	spin_lock_irqsave(&health->wq_lock, flags);
+	if (!test_bit(MLX5_DROP_NEW_WATCHDOG_WORK, &health->flags))
+		queue_work(health->wq_watchdog, &health->work_watchdog);
+	else
+		dev_err(&dev->pdev->dev,
+			"scheduling watchdog is not permitted at this stage\n");
+	spin_unlock_irqrestore(&health->wq_lock, flags);
+}
+
 static void poll_health(unsigned long data)
 {
 	struct mlx5_core_dev *dev = (struct mlx5_core_dev *)data;
@@ -479,9 +586,6 @@ static void poll_health(unsigned long data)
 
 	if (dev->state != MLX5_DEVICE_STATE_UP)
 		return;
-
-	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
-		goto out;
 
 	count = ioread32be(health->health_counter);
 	if (count == health->prev)
@@ -504,7 +608,6 @@ static void poll_health(unsigned long data)
 		mlx5_trigger_health_work(dev);
 	}
 
-out:
 	mod_timer(&health->timer, get_next_poll_jiffies());
 }
 
@@ -516,12 +619,16 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 	health->fatal_error = MLX5_SENSOR_NO_ERR;
 	clear_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	clear_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
+	clear_bit(MLX5_DROP_NEW_WATCHDOG_WORK, &health->flags);
 	health->health = &dev->iseg->health;
 	health->health_counter = &dev->iseg->health_counter;
 
 	setup_timer(&health->timer, poll_health, (unsigned long)dev);
 	mod_timer(&health->timer,
 		  round_jiffies(jiffies + MLX5_HEALTH_POLL_INTERVAL));
+
+	/* do initial PCI power state readout */
+	mlx5_trigger_health_watchdog(dev);
 }
 
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health)
@@ -533,6 +640,7 @@ void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health)
 		spin_lock_irqsave(&health->wq_lock, flags);
 		set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 		set_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
+		set_bit(MLX5_DROP_NEW_WATCHDOG_WORK, &health->flags);
 		spin_unlock_irqrestore(&health->wq_lock, flags);
 	}
 
@@ -547,9 +655,11 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 	spin_lock_irqsave(&health->wq_lock, flags);
 	set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	set_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
+	set_bit(MLX5_DROP_NEW_WATCHDOG_WORK, &health->flags);
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 	cancel_delayed_work_sync(&health->recover_work);
 	cancel_work_sync(&health->work);
+	cancel_work_sync(&health->work_watchdog);
 }
 
 void mlx5_drain_health_recovery(struct mlx5_core_dev *dev)
@@ -568,30 +678,44 @@ void mlx5_health_cleanup(struct mlx5_core_dev *dev)
 	struct mlx5_core_health *health = &dev->priv.health;
 
 	destroy_workqueue(health->wq);
+	destroy_workqueue(health->wq_watchdog);
+	destroy_workqueue(health->wq_cmd);
 }
 
-#define HEALTH_NAME "mlx5_health"
 int mlx5_health_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health;
-	char *name;
-	int len;
+	char name[64];
 
 	health = &dev->priv.health;
-	len = strlen(HEALTH_NAME) + strlen(dev_name(&dev->pdev->dev));
-	name = kmalloc(len + 1, GFP_KERNEL);
-	if (!name)
-		return -ENOMEM;
 
-	snprintf(name, len, "%s:%s", HEALTH_NAME, dev_name(&dev->pdev->dev));
+	snprintf(name, sizeof(name), "%s-rec", dev_name(&dev->pdev->dev));
 	health->wq = create_singlethread_workqueue(name);
-	kfree(name);
 	if (!health->wq)
-		return -ENOMEM;
+		goto err_recovery;
+
+	snprintf(name, sizeof(name), "%s-wdg", dev_name(&dev->pdev->dev));
+	health->wq_watchdog = create_singlethread_workqueue(name);
+	if (!health->wq_watchdog)
+		goto err_watchdog;
+
+	snprintf(name, sizeof(name), "%s-cmd", dev_name(&dev->pdev->dev));
+	health->wq_cmd = create_singlethread_workqueue(name);
+	if (!health->wq_cmd)
+		goto err_cmd;
 
 	spin_lock_init(&health->wq_lock);
 	INIT_WORK(&health->work, health_care);
+	INIT_WORK(&health->work_watchdog, health_watchdog);
+	INIT_WORK(&health->work_cmd_completion, mlx5_trigger_cmd_completions);
 	INIT_DELAYED_WORK(&health->recover_work, health_recover);
 
 	return 0;
+
+err_cmd:
+	destroy_workqueue(health->wq_watchdog);
+err_watchdog:
+	destroy_workqueue(health->wq);
+err_recovery:
+	return -ENOMEM;
 }

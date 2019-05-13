@@ -13,6 +13,7 @@
 #include "common.h"
 #include "common/ieee802_11_defs.h"
 #include "wps/wps.h"
+#include "ap/sta_info.h"
 #include "../config.h"
 #include "../wpa_supplicant_i.h"
 #include "../bss.h"
@@ -128,7 +129,8 @@ void wpas_dbus_unsubscribe_noc(struct wpas_dbus_priv *priv)
  * Notify listeners about event related with interface
  */
 static void wpas_dbus_signal_interface(struct wpa_supplicant *wpa_s,
-				       const char *sig_name, int properties)
+				       const char *sig_name,
+				       dbus_bool_t properties)
 {
 	struct wpas_dbus_priv *iface;
 	DBusMessage *msg;
@@ -230,7 +232,7 @@ void wpas_dbus_signal_scan_done(struct wpa_supplicant *wpa_s, int success)
  */
 static void wpas_dbus_signal_bss(struct wpa_supplicant *wpa_s,
 				 const char *bss_obj_path,
-				 const char *sig_name, int properties)
+				 const char *sig_name, dbus_bool_t properties)
 {
 	struct wpas_dbus_priv *iface;
 	DBusMessage *msg;
@@ -364,7 +366,7 @@ void wpas_dbus_signal_blob_removed(struct wpa_supplicant *wpa_s,
  */
 static void wpas_dbus_signal_network(struct wpa_supplicant *wpa_s,
 				     int id, const char *sig_name,
-				     int properties)
+				     dbus_bool_t properties)
 {
 	struct wpas_dbus_priv *iface;
 	DBusMessage *msg;
@@ -1074,6 +1076,79 @@ void wpas_dbus_signal_sta_deauthorized(struct wpa_supplicant *wpa_s,
 				       const u8 *sta)
 {
 	wpas_dbus_signal_sta(wpa_s, sta, "StaDeauthorized");
+}
+
+
+/**
+ * wpas_dbus_signal_station - Send an event signal related to a station object
+ * @wpa_s: %wpa_supplicant network interface data
+ * @station_obj_path: Station object path
+ * @sig_name: signal name - StationAdded or StationRemoved
+ * @properties: Whether to add second argument with object properties
+ *
+ * Notify listeners about event related with station.
+ */
+static void wpas_dbus_signal_station(struct wpa_supplicant *wpa_s,
+				     const char *station_obj_path,
+				     const char *sig_name,
+				     dbus_bool_t properties)
+{
+	struct wpas_dbus_priv *iface;
+	DBusMessage *msg;
+	DBusMessageIter iter;
+
+	iface = wpa_s->global->dbus;
+
+	/* Do nothing if the control interface is not turned on */
+	if (!iface || !wpa_s->dbus_new_path)
+		return;
+
+	wpa_printf(MSG_DEBUG, "dbus: STA signal %s", sig_name);
+	msg = dbus_message_new_signal(wpa_s->dbus_new_path,
+				      WPAS_DBUS_NEW_IFACE_INTERFACE, sig_name);
+	if (!msg)
+		return;
+
+	dbus_message_iter_init_append(msg, &iter);
+	if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_OBJECT_PATH,
+					    &station_obj_path) ||
+	    (properties &&
+	     !wpa_dbus_get_object_properties(iface, station_obj_path,
+					     WPAS_DBUS_NEW_IFACE_STA,
+					     &iter)))
+		wpa_printf(MSG_ERROR, "dbus: Failed to construct signal");
+	else
+		dbus_connection_send(iface->con, msg, NULL);
+	dbus_message_unref(msg);
+}
+
+
+/**
+ * wpas_dbus_signal_station_added - Send a Station added signal
+ * @wpa_s: %wpa_supplicant network interface data
+ * @station_obj_path: new Station object path
+ *
+ * Notify listeners about adding new Station
+ */
+static void wpas_dbus_signal_station_added(struct wpa_supplicant *wpa_s,
+					   const char *station_obj_path)
+{
+	wpas_dbus_signal_station(wpa_s, station_obj_path, "StationAdded", TRUE);
+}
+
+
+/**
+ * wpas_dbus_signal_station_removed - Send a Station removed signal
+ * @wpa_s: %wpa_supplicant network interface data
+ * @station_obj_path: Station object path
+ *
+ * Notify listeners about removing Station
+ */
+static void wpas_dbus_signal_station_removed(struct wpa_supplicant *wpa_s,
+					     const char *station_obj_path)
+{
+	wpas_dbus_signal_station(wpa_s, station_obj_path, "StationRemoved",
+				 FALSE);
 }
 
 
@@ -1882,7 +1957,7 @@ void wpas_dbus_signal_p2p_sd_response(struct wpa_supplicant *wpa_s,
  */
 static void wpas_dbus_signal_persistent_group(struct wpa_supplicant *wpa_s,
 					      int id, const char *sig_name,
-					      int properties)
+					      dbus_bool_t properties)
 {
 	struct wpas_dbus_priv *iface;
 	DBusMessage *msg;
@@ -2146,6 +2221,9 @@ void wpas_dbus_signal_prop_changed(struct wpa_supplicant *wpa_s,
 	case WPAS_DBUS_PROP_BSSS:
 		prop = "BSSs";
 		break;
+	case WPAS_DBUS_PROP_STATIONS:
+		prop = "Stations";
+		break;
 	case WPAS_DBUS_PROP_CURRENT_AUTH_MODE:
 		prop = "CurrentAuthMode";
 		break;
@@ -2153,9 +2231,25 @@ void wpas_dbus_signal_prop_changed(struct wpa_supplicant *wpa_s,
 		prop = "DisconnectReason";
 		flush = TRUE;
 		break;
+	case WPAS_DBUS_PROP_AUTH_STATUS_CODE:
+		prop = "AuthStatusCode";
+		flush = TRUE;
+		break;
 	case WPAS_DBUS_PROP_ASSOC_STATUS_CODE:
 		prop = "AssocStatusCode";
 		flush = TRUE;
+		break;
+	case WPAS_DBUS_PROP_ROAM_TIME:
+		prop = "RoamTime";
+		break;
+	case WPAS_DBUS_PROP_ROAM_COMPLETE:
+		prop = "RoamComplete";
+		break;
+	case WPAS_DBUS_PROP_SESSION_LENGTH:
+		prop = "SessionLength";
+		break;
+	case WPAS_DBUS_PROP_BSS_TM_STATUS:
+		prop = "BSSTMStatus";
 		break;
 	default:
 		wpa_printf(MSG_ERROR, "dbus: %s: Unknown Property value %d",
@@ -2235,6 +2329,41 @@ void wpas_dbus_bss_signal_prop_changed(struct wpa_supplicant *wpa_s,
 
 	wpa_dbus_mark_property_changed(wpa_s->global->dbus, path,
 				       WPAS_DBUS_NEW_IFACE_BSS, prop);
+}
+
+
+/**
+ * wpas_dbus_sta_signal_prop_changed - Signals change of STA property
+ * @wpa_s: %wpa_supplicant network interface data
+ * @property: indicates which property has changed
+ * @address: unique BSS identifier
+ *
+ * Sends PropertyChanged signals with path, interface, and arguments depending
+ * on which property has changed.
+ */
+void wpas_dbus_sta_signal_prop_changed(struct wpa_supplicant *wpa_s,
+				       enum wpas_dbus_bss_prop property,
+				       u8 address[ETH_ALEN])
+{
+	char path[WPAS_DBUS_OBJECT_PATH_MAX];
+	char *prop;
+
+	switch (property) {
+	case WPAS_DBUS_STA_PROP_ADDRESS:
+		prop = "Address";
+		break;
+	default:
+		wpa_printf(MSG_ERROR, "dbus: %s: Unknown Property value %d",
+			   __func__, property);
+		return;
+	}
+
+	os_snprintf(path, WPAS_DBUS_OBJECT_PATH_MAX,
+		    "%s/" WPAS_DBUS_NEW_STAS_PART "/" COMPACT_MACSTR,
+		    wpa_s->dbus_new_path, MAC2STR(address));
+
+	wpa_dbus_mark_property_changed(wpa_s->global->dbus, path,
+				       WPAS_DBUS_NEW_IFACE_STA, prop);
 }
 
 
@@ -2726,6 +2855,30 @@ static const struct wpa_dbus_property_desc wpas_dbus_bss_properties[] = {
 	  NULL,
 	  NULL
 	},
+	{
+	  "RoamTime", WPAS_DBUS_NEW_IFACE_INTERFACE, "u",
+	  wpas_dbus_getter_roam_time,
+	  NULL,
+	  NULL
+	},
+	{
+	  "RoamComplete", WPAS_DBUS_NEW_IFACE_INTERFACE, "b",
+	  wpas_dbus_getter_roam_complete,
+	  NULL,
+	  NULL
+	},
+	{
+	  "SessionLength", WPAS_DBUS_NEW_IFACE_INTERFACE, "u",
+	  wpas_dbus_getter_session_length,
+	  NULL,
+	  NULL
+	},
+	{
+	  "BSSTMStatus", WPAS_DBUS_NEW_IFACE_INTERFACE, "u",
+	  wpas_dbus_getter_bss_tm_status,
+	  NULL,
+	  NULL
+	},
 	{ NULL, NULL, NULL, NULL, NULL, NULL }
 };
 
@@ -2843,6 +2996,157 @@ int wpas_dbus_register_bss(struct wpa_supplicant *wpa_s,
 
 	wpas_dbus_signal_bss_added(wpa_s, bss_obj_path);
 	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_BSSS);
+
+	return 0;
+
+err:
+	free_dbus_object_desc(obj_desc);
+	return -1;
+}
+
+
+static const struct wpa_dbus_property_desc wpas_dbus_sta_properties[] = {
+	{ "Address", WPAS_DBUS_NEW_IFACE_STA, "ay",
+	  wpas_dbus_getter_sta_address,
+	  NULL, NULL
+	},
+	{ "AID", WPAS_DBUS_NEW_IFACE_STA, "q",
+	  wpas_dbus_getter_sta_aid,
+	  NULL, NULL
+	},
+	{ "Capabilities", WPAS_DBUS_NEW_IFACE_STA, "q",
+	  wpas_dbus_getter_sta_caps,
+	  NULL, NULL
+	},
+	{ "RxPackets", WPAS_DBUS_NEW_IFACE_STA, "t",
+	  wpas_dbus_getter_sta_rx_packets,
+	  NULL, NULL
+	},
+	{ "TxPackets", WPAS_DBUS_NEW_IFACE_STA, "t",
+	  wpas_dbus_getter_sta_tx_packets,
+	  NULL, NULL
+	},
+	{ "RxBytes", WPAS_DBUS_NEW_IFACE_STA, "t",
+	  wpas_dbus_getter_sta_rx_bytes,
+	  NULL, NULL
+	},
+	{ "TxBytes", WPAS_DBUS_NEW_IFACE_STA, "t",
+	  wpas_dbus_getter_sta_tx_bytes,
+	  NULL, NULL
+	},
+	{ NULL, NULL, NULL, NULL, NULL, NULL }
+};
+
+
+static const struct wpa_dbus_signal_desc wpas_dbus_sta_signals[] = {
+	/* Deprecated: use org.freedesktop.DBus.Properties.PropertiesChanged */
+	{ "PropertiesChanged", WPAS_DBUS_NEW_IFACE_STA,
+	  {
+		  { "properties", "a{sv}", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+	{ NULL, NULL, { END_ARGS } }
+};
+
+
+/**
+ * wpas_dbus_unregister_sta - Unregister a connected station from dbus
+ * @wpa_s: wpa_supplicant interface structure
+ * @sta: station MAC address
+ * Returns: 0 on success, -1 on failure
+ *
+ * Unregisters STA representing object from dbus.
+ */
+int wpas_dbus_unregister_sta(struct wpa_supplicant *wpa_s, const u8 *sta)
+{
+	struct wpas_dbus_priv *ctrl_iface;
+	char station_obj_path[WPAS_DBUS_OBJECT_PATH_MAX];
+
+	/* Do nothing if the control interface is not turned on */
+	if (!wpa_s || !wpa_s->global)
+		return 0;
+	ctrl_iface = wpa_s->global->dbus;
+	if (!ctrl_iface)
+		return 0;
+
+	os_snprintf(station_obj_path, WPAS_DBUS_OBJECT_PATH_MAX,
+		    "%s/" WPAS_DBUS_NEW_STAS_PART "/" COMPACT_MACSTR,
+		    wpa_s->dbus_new_path, MAC2STR(sta));
+
+	wpa_printf(MSG_DEBUG, "dbus: Unregister STA object '%s'",
+		   station_obj_path);
+	if (wpa_dbus_unregister_object_per_iface(ctrl_iface,
+						 station_obj_path)) {
+		wpa_printf(MSG_ERROR, "dbus: Cannot unregister STA object %s",
+			   station_obj_path);
+		return -1;
+	}
+
+	wpas_dbus_signal_station_removed(wpa_s, station_obj_path);
+	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_STATIONS);
+
+	return 0;
+}
+
+
+/**
+ * wpas_dbus_register_sta - Register a connected station with dbus
+ * @wpa_s: wpa_supplicant interface structure
+ * @sta: station MAC address
+ * Returns: 0 on success, -1 on failure
+ *
+ * Registers STA representing object with dbus.
+ */
+int wpas_dbus_register_sta(struct wpa_supplicant *wpa_s, const u8 *sta)
+{
+	struct wpas_dbus_priv *ctrl_iface;
+	struct wpa_dbus_object_desc *obj_desc;
+	char station_obj_path[WPAS_DBUS_OBJECT_PATH_MAX];
+	struct sta_handler_args *arg;
+
+	/* Do nothing if the control interface is not turned on */
+	if (!wpa_s || !wpa_s->global)
+		return 0;
+	ctrl_iface = wpa_s->global->dbus;
+	if (!ctrl_iface)
+		return 0;
+
+	os_snprintf(station_obj_path, WPAS_DBUS_OBJECT_PATH_MAX,
+		    "%s/" WPAS_DBUS_NEW_STAS_PART "/" COMPACT_MACSTR,
+		    wpa_s->dbus_new_path, MAC2STR(sta));
+
+	obj_desc = os_zalloc(sizeof(struct wpa_dbus_object_desc));
+	if (!obj_desc) {
+		wpa_printf(MSG_ERROR,
+			   "Not enough memory to create object description");
+		goto err;
+	}
+
+	arg = os_zalloc(sizeof(struct sta_handler_args));
+	if (!arg) {
+		wpa_printf(MSG_ERROR,
+			   "Not enough memory to create arguments for handler");
+		goto err;
+	}
+	arg->wpa_s = wpa_s;
+	arg->sta = sta;
+
+	wpas_dbus_register(obj_desc, arg, wpa_dbus_free, NULL,
+			   wpas_dbus_sta_properties, wpas_dbus_sta_signals);
+
+	wpa_printf(MSG_DEBUG, "dbus: Register STA object '%s'",
+		   station_obj_path);
+	if (wpa_dbus_register_object_per_iface(ctrl_iface, station_obj_path,
+					       wpa_s->ifname, obj_desc)) {
+		wpa_printf(MSG_ERROR,
+			   "Cannot register STA dbus object %s",
+			   station_obj_path);
+		goto err;
+	}
+
+	wpas_dbus_signal_station_added(wpa_s, station_obj_path);
+	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_STATIONS);
 
 	return 0;
 
@@ -3472,6 +3776,11 @@ static const struct wpa_dbus_property_desc wpas_dbus_interface_properties[] = {
 	  NULL,
 	  NULL
 	},
+	{ "AuthStatusCode", WPAS_DBUS_NEW_IFACE_INTERFACE, "i",
+	  wpas_dbus_getter_auth_status_code,
+	  NULL,
+	  NULL
+	},
 	{ "AssocStatusCode", WPAS_DBUS_NEW_IFACE_INTERFACE, "i",
 	  wpas_dbus_getter_assoc_status_code,
 	  NULL,
@@ -3489,6 +3798,11 @@ static const struct wpa_dbus_property_desc wpas_dbus_interface_properties[] = {
 	  NULL
 	},
 #endif /* CONFIG_MESH */
+	{ "Stations", WPAS_DBUS_NEW_IFACE_INTERFACE, "ao",
+	  wpas_dbus_getter_stas,
+	  NULL,
+	  NULL
+	},
 	{ NULL, NULL, NULL, NULL, NULL, NULL }
 };
 
@@ -3755,6 +4069,19 @@ static const struct wpa_dbus_signal_desc wpas_dbus_interface_signals[] = {
 	{ "StaDeauthorized", WPAS_DBUS_NEW_IFACE_INTERFACE,
 	  {
 		  { "name", "s", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+	{ "StationAdded", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  {
+		  { "path", "o", ARG_OUT },
+		  { "properties", "a{sv}", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+	{ "StationRemoved", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  {
+		  { "path", "o", ARG_OUT },
 		  END_ARGS
 	  }
 	},
@@ -4038,6 +4365,11 @@ static const struct wpa_dbus_property_desc wpas_dbus_p2p_peer_properties[] = {
 	  NULL,
 	  NULL
 	},
+	{ "VSIE", WPAS_DBUS_NEW_IFACE_P2P_PEER, "ay",
+	  wpas_dbus_getter_p2p_peer_vsie,
+	  NULL,
+	  NULL
+	},
 	{ NULL, NULL, NULL, NULL, NULL, NULL }
 };
 
@@ -4066,7 +4398,7 @@ static const struct wpa_dbus_signal_desc wpas_dbus_p2p_peer_signals[] = {
  */
 static void wpas_dbus_signal_peer(struct wpa_supplicant *wpa_s,
 				  const u8 *dev_addr, const char *interface,
-				  const char *sig_name, int properties)
+				  const char *sig_name, dbus_bool_t properties)
 {
 	struct wpas_dbus_priv *iface;
 	DBusMessage *msg;

@@ -120,7 +120,10 @@ vectx_open(int fd, const char *path, off_t off, struct stat *stp, int *error)
 		ctx->vec_status = VE_FINGERPRINT_NONE;
 		ve_error_set("%s: no entry", path);
 	} else {
-		if (strncmp(cp, "sha256=", 7) == 0) {
+		if (strncmp(cp, "no_hash", 7) == 0) {
+			ctx->vec_status = VE_FINGERPRINT_IGNORE;
+			hashsz = 0;
+		} else if (strncmp(cp, "sha256=", 7) == 0) {
 			ctx->vec_md = &br_sha256_vtable;
 			hashsz = br_sha256_SIZE;
 			cp += 7;
@@ -150,11 +153,13 @@ vectx_open(int fd, const char *path, off_t off, struct stat *stp, int *error)
 	*error = ctx->vec_status;
 	ctx->vec_hashsz = hashsz;
 	ctx->vec_want = cp;
-	ctx->vec_md->init(&ctx->vec_ctx.vtable);
+	if (hashsz > 0) {
+		ctx->vec_md->init(&ctx->vec_ctx.vtable);
 
-	if (hashsz > 0 && off > 0) {
-		lseek(fd, 0, SEEK_SET);
-		vectx_lseek(ctx, off, SEEK_SET);
+		if (off > 0) {
+			lseek(fd, 0, SEEK_SET);
+			vectx_lseek(ctx, off, SEEK_SET);
+		}
 	}
 	return (ctx);
 

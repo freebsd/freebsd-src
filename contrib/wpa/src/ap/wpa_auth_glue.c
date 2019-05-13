@@ -27,6 +27,7 @@
 #include "tkip_countermeasures.h"
 #include "ap_drv_ops.h"
 #include "ap_config.h"
+#include "ieee802_11.h"
 #include "pmksa_cache_auth.h"
 #include "wpa_auth.h"
 #include "wpa_auth_glue.h"
@@ -55,6 +56,9 @@ static void hostapd_wpa_auth_conf(struct hostapd_bss_config *conf,
 	wconf->wmm_enabled = conf->wmm_enabled;
 	wconf->wmm_uapsd = conf->wmm_uapsd;
 	wconf->disable_pmksa_caching = conf->disable_pmksa_caching;
+#ifdef CONFIG_OCV
+	wconf->ocv = conf->ocv;
+#endif /* CONFIG_OCV */
 	wconf->okc = conf->okc;
 #ifdef CONFIG_IEEE80211W
 	wconf->ieee80211w = conf->ieee80211w;
@@ -242,12 +246,15 @@ static int hostapd_wpa_auth_get_eapol(void *ctx, const u8 *addr,
 
 static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
 					   const u8 *p2p_dev_addr,
-					   const u8 *prev_psk, size_t *psk_len)
+					   const u8 *prev_psk, size_t *psk_len,
+					   int *vlan_id)
 {
 	struct hostapd_data *hapd = ctx;
 	struct sta_info *sta = ap_get_sta(hapd, addr);
 	const u8 *psk;
 
+	if (vlan_id)
+		*vlan_id = 0;
 	if (psk_len)
 		*psk_len = PMK_LEN;
 
@@ -283,7 +290,8 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
 	}
 #endif /* CONFIG_OWE */
 
-	psk = hostapd_get_psk(hapd->conf, addr, p2p_dev_addr, prev_psk);
+	psk = hostapd_get_psk(hapd->conf, addr, p2p_dev_addr, prev_psk,
+			      vlan_id);
 	/*
 	 * This is about to iterate over all psks, prev_psk gives the last
 	 * returned psk which should not be returned again.
@@ -291,6 +299,9 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
 	 */
 	if (sta && sta->psk && !psk) {
 		struct hostapd_sta_wpa_psk_short *pos;
+
+		if (vlan_id)
+			*vlan_id = 0;
 		psk = sta->psk->psk;
 		for (pos = sta->psk; pos; pos = pos->next) {
 			if (pos->is_passphrase) {
@@ -776,6 +787,74 @@ static int hostapd_wpa_auth_send_oui(void *ctx, const u8 *dst, u8 oui_suffix,
 }
 
 
+static int hostapd_channel_info(void *ctx, struct wpa_channel_info *ci)
+{
+	struct hostapd_data *hapd = ctx;
+
+	return hostapd_drv_channel_info(hapd, ci);
+}
+
+
+static int hostapd_wpa_auth_update_vlan(void *ctx, const u8 *addr, int vlan_id)
+{
+#ifndef CONFIG_NO_VLAN
+	struct hostapd_data *hapd = ctx;
+	struct sta_info *sta;
+	struct vlan_description vlan_desc;
+
+	sta = ap_get_sta(hapd, addr);
+	if (!sta)
+		return -1;
+
+	os_memset(&vlan_desc, 0, sizeof(vlan_desc));
+	vlan_desc.notempty = 1;
+	vlan_desc.untagged = vlan_id;
+	if (!hostapd_vlan_valid(hapd->conf->vlan, &vlan_desc)) {
+		wpa_printf(MSG_INFO, "Invalid VLAN ID %d in wpa_psk_file",
+			   vlan_id);
+		return -1;
+	}
+
+	if (ap_sta_set_vlan(hapd, sta, &vlan_desc) < 0) {
+		wpa_printf(MSG_INFO,
+			   "Failed to assign VLAN ID %d from wpa_psk_file to "
+			   MACSTR, vlan_id, MAC2STR(sta->addr));
+		return -1;
+	}
+
+	wpa_printf(MSG_INFO,
+		   "Assigned VLAN ID %d from wpa_psk_file to " MACSTR,
+		   vlan_id, MAC2STR(sta->addr));
+	if ((sta->flags & WLAN_STA_ASSOC) &&
+	    ap_sta_bind_vlan(hapd, sta) < 0)
+		return -1;
+#endif /* CONFIG_NO_VLAN */
+
+	return 0;
+}
+
+
+#ifdef CONFIG_OCV
+static int hostapd_get_sta_tx_params(void *ctx, const u8 *addr,
+				     int ap_max_chanwidth, int ap_seg1_idx,
+				     int *bandwidth, int *seg1_idx)
+{
+	struct hostapd_data *hapd = ctx;
+	struct sta_info *sta;
+
+	sta = ap_get_sta(hapd, addr);
+	if (!sta) {
+		hostapd_wpa_auth_logger(hapd, addr, LOGGER_INFO,
+					"Failed to get STA info to validate received OCI");
+		return -1;
+	}
+
+	return get_tx_parameters(sta, ap_max_chanwidth, ap_seg1_idx, bandwidth,
+				 seg1_idx);
+}
+#endif /* CONFIG_OCV */
+
+
 #ifdef CONFIG_IEEE80211R_AP
 
 static int hostapd_wpa_auth_send_ft_action(void *ctx, const u8 *dst,
@@ -814,12 +893,18 @@ hostapd_wpa_auth_add_sta(void *ctx, const u8 *sta_addr)
 	struct hostapd_data *hapd = ctx;
 	struct sta_info *sta;
 
+	wpa_printf(MSG_DEBUG, "Add station entry for " MACSTR
+		   " based on WPA authenticator callback",
+		   MAC2STR(sta_addr));
 	if (hostapd_add_sta_node(hapd, sta_addr, WLAN_AUTH_FT) < 0)
 		return NULL;
 
 	sta = ap_sta_add(hapd, sta_addr);
 	if (sta == NULL)
 		return NULL;
+	if (hapd->driver && hapd->driver->add_sta_node)
+		sta->added_unassoc = 1;
+	sta->ft_over_ds = 1;
 	if (sta->wpa_sm) {
 		sta->auth_alg = WLAN_AUTH_FT;
 		return sta->wpa_sm;
@@ -1189,6 +1274,11 @@ int hostapd_setup_wpa(struct hostapd_data *hapd)
 		.for_each_auth = hostapd_wpa_auth_for_each_auth,
 		.send_ether = hostapd_wpa_auth_send_ether,
 		.send_oui = hostapd_wpa_auth_send_oui,
+		.channel_info = hostapd_channel_info,
+		.update_vlan = hostapd_wpa_auth_update_vlan,
+#ifdef CONFIG_OCV
+		.get_sta_tx_params = hostapd_get_sta_tx_params,
+#endif /* CONFIG_OCV */
 #ifdef CONFIG_IEEE80211R_AP
 		.send_ft_action = hostapd_wpa_auth_send_ft_action,
 		.add_sta = hostapd_wpa_auth_add_sta,

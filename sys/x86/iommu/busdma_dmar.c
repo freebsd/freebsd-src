@@ -275,7 +275,7 @@ dmar_get_dma_tag(device_t dev, device_t child)
 	struct dmar_ctx *ctx;
 	bus_dma_tag_t res;
 
-	dmar = dmar_find(child);
+	dmar = dmar_find(child, bootverbose);
 	/* Not in scope of any DMAR ? */
 	if (dmar == NULL)
 		return (NULL);
@@ -370,8 +370,6 @@ dmar_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 {
 	struct bus_dma_tag_dmar *tag;
 	struct bus_dmamap_dmar *map;
-
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s", __func__);
 
 	tag = (struct bus_dma_tag_dmar *)dmat;
 	map = malloc_domainset(sizeof(*map), M_DMAR_DMAMAP,
@@ -691,7 +689,7 @@ dmar_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map1,
 			 */
 			if (fma == NULL) {
 				fma = malloc(sizeof(struct vm_page) * ma_cnt,
-				    M_DEVBUF, mflags);
+				    M_DEVBUF, M_ZERO | mflags);
 				if (fma == NULL) {
 					free(ma, M_DEVBUF);
 					return (ENOMEM);
@@ -745,7 +743,7 @@ dmar_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map1, void *buf,
 			 */
 			if (fma == NULL) {
 				fma = malloc(sizeof(struct vm_page) * ma_cnt,
-				    M_DEVBUF, mflags);
+				    M_DEVBUF, M_ZERO | mflags);
 				if (fma == NULL) {
 					free(ma, M_DEVBUF);
 					return (ENOMEM);

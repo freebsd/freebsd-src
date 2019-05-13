@@ -204,6 +204,7 @@ struct ath_node {
 					   node */
 	int			clrdmask;	/* has clrdmask been set */
 	uint32_t	an_leak_count;	/* How many frames to leak during pause */
+	HAL_NODE_STATS	an_node_stats;	/* HAL node stats for this node */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -1155,8 +1156,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_stopTxDma)((_ah), (_qnum)))
 #define	ath_hal_stoppcurecv(_ah) \
 	((*(_ah)->ah_stopPcuReceive)((_ah)))
-#define	ath_hal_startpcurecv(_ah) \
-	((*(_ah)->ah_startPcuReceive)((_ah)))
+#define	ath_hal_startpcurecv(_ah, _is_scanning) \
+	((*(_ah)->ah_startPcuReceive)((_ah), (_is_scanning)))
 #define	ath_hal_stopdmarecv(_ah) \
 	((*(_ah)->ah_stopDmaReceive)((_ah)))
 #define	ath_hal_getdiagstate(_ah, _id, _indata, _insize, _outdata, _outsize) \
@@ -1352,7 +1353,7 @@ void	ath_intr(void *);
 	== HAL_OK)
 #define	ath_hal_setrxbufsize(_ah, _req) \
 	(ath_hal_setcapability(_ah, HAL_CAP_RXBUFSIZE, 0, _req, NULL)	\
-	== HAL_OK)
+	== AH_TRUE)
 
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))

@@ -422,6 +422,12 @@ static void _wpa_hexdump_ascii(int level, const char *title, const void *buf,
 #ifdef CONFIG_ANDROID_LOG
 	_wpa_hexdump(level, title, buf, len, show);
 #else /* CONFIG_ANDROID_LOG */
+#ifdef CONFIG_DEBUG_SYSLOG
+	if (wpa_debug_syslog) {
+		_wpa_hexdump(level, title, buf, len, show);
+		return;
+	}
+#endif /* CONFIG_DEBUG_SYSLOG */
 	wpa_debug_print_timestamp();
 #ifdef CONFIG_DEBUG_FILE
 	if (out_file) {

@@ -36,6 +36,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 
+struct bus_dmamap;
 struct scatterlist {
 	unsigned long page_link;
 #define	SG_PAGE_LINK_CHAIN	0x1UL
@@ -43,7 +44,8 @@ struct scatterlist {
 #define	SG_PAGE_LINK_MASK	0x3UL
 	unsigned int offset;
 	unsigned int length;
-	dma_addr_t address;
+	dma_addr_t dma_address;
+	struct bus_dmamap *dma_map;	/* FreeBSD specific */
 };
 
 CTASSERT((sizeof(struct scatterlist) & SG_PAGE_LINK_MASK) == 0);
@@ -77,7 +79,7 @@ struct sg_page_iter {
 #define	sg_chain_ptr(sg)	\
 	((struct scatterlist *) ((sg)->page_link & ~SG_PAGE_LINK_MASK))
 
-#define	sg_dma_address(sg)	(sg)->address
+#define	sg_dma_address(sg)	(sg)->dma_address
 #define	sg_dma_len(sg)		(sg)->length
 
 #define	for_each_sg_page(sgl, iter, nents, pgoffset)			\
@@ -444,7 +446,7 @@ _sg_iter_init(struct scatterlist *sgl, struct sg_page_iter *iter,
 static inline dma_addr_t
 sg_page_iter_dma_address(struct sg_page_iter *spi)
 {
-	return (spi->sg->address + (spi->sg_pgoffset << PAGE_SHIFT));
+	return (spi->sg->dma_address + (spi->sg_pgoffset << PAGE_SHIFT));
 }
 
 static inline struct page *

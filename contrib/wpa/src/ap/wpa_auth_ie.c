@@ -293,9 +293,13 @@ int wpa_write_rsn_ie(struct wpa_auth_config *conf, u8 *buf, size_t len,
 			capab |= WPA_CAPABILITY_MFPR;
 	}
 #endif /* CONFIG_IEEE80211W */
+#ifdef CONFIG_OCV
+	if (conf->ocv)
+		capab |= WPA_CAPABILITY_OCVC;
+#endif /* CONFIG_OCV */
 #ifdef CONFIG_RSN_TESTING
 	if (rsn_testing)
-		capab |= BIT(8) | BIT(14) | BIT(15);
+		capab |= BIT(8) | BIT(15);
 #endif /* CONFIG_RSN_TESTING */
 	WPA_PUT_LE16(pos, capab);
 	pos += 2;
@@ -414,6 +418,10 @@ static u8 * wpa_write_osen(struct wpa_auth_config *conf, u8 *eid)
 			capab |= WPA_CAPABILITY_MFPR;
 	}
 #endif /* CONFIG_IEEE80211W */
+#ifdef CONFIG_OCV
+	if (conf->ocv)
+		capab |= WPA_CAPABILITY_OCVC;
+#endif /* CONFIG_OCV */
 	WPA_PUT_LE16(eid, capab);
 	eid += 2;
 
@@ -522,7 +530,7 @@ static int wpa_auth_okc_iter(struct wpa_authenticator *a, void *ctx)
 
 
 int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
-			struct wpa_state_machine *sm,
+			struct wpa_state_machine *sm, int freq,
 			const u8 *wpa_ie, size_t wpa_ie_len,
 			const u8 *mdie, size_t mdie_len,
 			const u8 *owe_dh, size_t owe_dh_len)
@@ -552,6 +560,23 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 
 	if (version == WPA_PROTO_RSN) {
 		res = wpa_parse_wpa_ie_rsn(wpa_ie, wpa_ie_len, &data);
+		if (!data.has_pairwise)
+			data.pairwise_cipher = wpa_default_rsn_cipher(freq);
+		if (!data.has_group)
+			data.group_cipher = wpa_default_rsn_cipher(freq);
+
+		if (wpa_key_mgmt_ft(data.key_mgmt) && !mdie &&
+		    !wpa_key_mgmt_only_ft(data.key_mgmt)) {
+			/* Workaround for some HP and Epson printers that seem
+			 * to incorrectly copy the FT-PSK + WPA-PSK AKMs from AP
+			 * advertised RSNE to Association Request frame. */
+			wpa_printf(MSG_DEBUG,
+				   "RSN: FT set in RSNE AKM but MDE is missing from "
+				   MACSTR
+				   " - ignore FT AKM(s) because there's also a non-FT AKM",
+				   MAC2STR(sm->addr));
+			data.key_mgmt &= ~WPA_KEY_MGMT_FT;
+		}
 
 		selector = RSN_AUTH_KEY_MGMT_UNSPEC_802_1X;
 		if (0) {
@@ -760,6 +785,17 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 	}
 #endif /* CONFIG_SAE */
 
+#ifdef CONFIG_OCV
+	if ((data.capabilities & WPA_CAPABILITY_OCVC) &&
+	    !(data.capabilities & WPA_CAPABILITY_MFPC)) {
+		wpa_printf(MSG_DEBUG,
+			   "Management frame protection required with OCV, but client did not enable it");
+		return WPA_MGMT_FRAME_PROTECTION_VIOLATION;
+	}
+	wpa_auth_set_ocv(sm, wpa_auth->conf.ocv &&
+			 (data.capabilities & WPA_CAPABILITY_OCVC));
+#endif /* CONFIG_OCV */
+
 	if (wpa_auth->conf.ieee80211w == NO_MGMT_FRAME_PROTECTION ||
 	    !(data.capabilities & WPA_CAPABILITY_MFPC))
 		sm->mgmt_frame_prot = 0;
@@ -799,6 +835,12 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 			   "OWE: No Diffie-Hellman Parameter element");
 		return WPA_INVALID_AKMP;
 	}
+#ifdef CONFIG_DPP
+	if (sm->wpa_key_mgmt == WPA_KEY_MGMT_DPP && owe_dh) {
+		/* Diffie-Hellman Parameter element can be used with DPP as
+		 * well, so allow this to proceed. */
+	} else
+#endif /* CONFIG_DPP */
 	if (sm->wpa_key_mgmt != WPA_KEY_MGMT_OWE && owe_dh) {
 		wpa_printf(MSG_DEBUG,
 			   "OWE: Unexpected Diffie-Hellman Parameter element with non-OWE AKM");
@@ -815,6 +857,21 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 		sm->wpa = WPA_VERSION_WPA2;
 	else
 		sm->wpa = WPA_VERSION_WPA;
+
+#if defined(CONFIG_IEEE80211R_AP) && defined(CONFIG_FILS)
+	if ((sm->wpa_key_mgmt == WPA_KEY_MGMT_FT_FILS_SHA256 ||
+	     sm->wpa_key_mgmt == WPA_KEY_MGMT_FT_FILS_SHA384) &&
+	    (sm->auth_alg == WLAN_AUTH_FILS_SK ||
+	     sm->auth_alg == WLAN_AUTH_FILS_SK_PFS ||
+	     sm->auth_alg == WLAN_AUTH_FILS_PK) &&
+	    (data.num_pmkid != 1 || !data.pmkid || !sm->pmk_r1_name_valid ||
+	     os_memcmp_const(data.pmkid, sm->pmk_r1_name,
+			     WPA_PMK_NAME_LEN) != 0)) {
+		wpa_auth_vlogger(wpa_auth, sm->addr, LOGGER_DEBUG,
+				 "No PMKR1Name match for FILS+FT");
+		return WPA_INVALID_PMKID;
+	}
+#endif /* CONFIG_IEEE80211R_AP && CONFIG_FILS */
 
 	sm->pmksa = NULL;
 	for (i = 0; i < data.num_pmkid; i++) {
@@ -995,6 +1052,15 @@ static int wpa_parse_generic(const u8 *pos, const u8 *end,
 	}
 #endif /* CONFIG_P2P */
 
+#ifdef CONFIG_OCV
+	if (pos[1] > RSN_SELECTOR_LEN + 2 &&
+	    RSN_SELECTOR_GET(pos + 2) == RSN_KEY_DATA_OCI) {
+		ie->oci = pos + 2 + RSN_SELECTOR_LEN;
+		ie->oci_len = pos[1] - RSN_SELECTOR_LEN;
+		return 0;
+	}
+#endif /* CONFIG_OCV */
+
 	return 0;
 }
 
@@ -1060,6 +1126,23 @@ int wpa_auth_uses_mfp(struct wpa_state_machine *sm)
 {
 	return sm ? sm->mgmt_frame_prot : 0;
 }
+
+
+#ifdef CONFIG_OCV
+
+void wpa_auth_set_ocv(struct wpa_state_machine *sm, int ocv)
+{
+	if (sm)
+		sm->ocv_enabled = ocv;
+}
+
+
+int wpa_auth_uses_ocv(struct wpa_state_machine *sm)
+{
+	return sm ? sm->ocv_enabled : 0;
+}
+
+#endif /* CONFIG_OCV */
 
 
 #ifdef CONFIG_OWE

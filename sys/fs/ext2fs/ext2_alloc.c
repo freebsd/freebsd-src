@@ -42,6 +42,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/vnode.h>
+#include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
@@ -54,6 +55,23 @@
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/ext2_extern.h>
+
+SDT_PROVIDER_DEFINE(ext2fs);
+/*
+ * ext2fs trace probe:
+ * arg0: verbosity. Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(ext2fs, , alloc, trace, "int", "char*");
+SDT_PROBE_DEFINE3(ext2fs, , alloc, ext2_reallocblks_realloc,
+    "ino_t", "e2fs_lbn_t", "e2fs_lbn_t");
+SDT_PROBE_DEFINE1(ext2fs, , alloc, ext2_reallocblks_bap, "uint32_t");
+SDT_PROBE_DEFINE1(ext2fs, , alloc, ext2_reallocblks_blkno, "e2fs_daddr_t");
+SDT_PROBE_DEFINE2(ext2fs, , alloc, ext2_b_bitmap_validate_error, "char*", "int");
+SDT_PROBE_DEFINE3(ext2fs, , alloc, ext2_nodealloccg_bmap_corrupted,
+    "int", "daddr_t", "char*");
+SDT_PROBE_DEFINE2(ext2fs, , alloc, ext2_blkfree_bad_block, "ino_t", "e4fs_daddr_t");
+SDT_PROBE_DEFINE2(ext2fs, , alloc, ext2_vfree_doublefree, "char*", "ino_t");
 
 static daddr_t	ext2_alloccg(struct inode *, int, daddr_t, int);
 static daddr_t	ext2_clusteralloc(struct inode *, int, daddr_t, int);
@@ -128,8 +146,7 @@ ext2_alloc(struct inode *ip, daddr_t lbn, e4fs_daddr_t bpref, int size,
 	}
 nospace:
 	EXT2_UNLOCK(ump);
-	ext2_fserr(fs, cred->cr_uid, "filesystem full");
-	uprintf("\n%s: write failed, filesystem is full\n", fs->e2fs_fsmnt);
+	SDT_PROBE2(ext2fs, , alloc, trace, 1, "cannot allocate data block");
 	return (ENOSPC);
 }
 
@@ -147,8 +164,10 @@ ext2_alloc_meta(struct inode *ip)
 	EXT2_LOCK(ip->i_ump);
 	blk = ext2_hashalloc(ip, ino_to_cg(fs, ip->i_number), 0, fs->e2fs_bsize,
 	    ext2_alloccg);
-	if (0 == blk)
+	if (0 == blk) {
 		EXT2_UNLOCK(ip->i_ump);
+		SDT_PROBE2(ext2fs, , alloc, trace, 1, "cannot allocate meta block");
+	}
 
 	return (blk);
 }
@@ -289,10 +308,8 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	 * block pointers in the inode and indirect blocks associated
 	 * with the file.
 	 */
-#ifdef DEBUG
-	printf("realloc: ino %ju, lbns %jd-%jd\n\told:",
-	    (uintmax_t)ip->i_number, (intmax_t)start_lbn, (intmax_t)end_lbn);
-#endif	/* DEBUG */
+	SDT_PROBE3(ext2fs, , alloc, ext2_reallocblks_realloc,
+	    ip->i_number, start_lbn, end_lbn);
 	blkno = newblk;
 	for (bap = &sbap[soff], i = 0; i < len; i++, blkno += fs->e2fs_fpb) {
 		if (i == ssize) {
@@ -303,9 +320,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 		if (buflist->bs_children[i]->b_blkno != fsbtodb(fs, *bap))
 			panic("ext2_reallocblks: alloc mismatch");
 #endif
-#ifdef DEBUG
-		printf(" %d,", *bap);
-#endif	/* DEBUG */
+		SDT_PROBE1(ext2fs, , alloc, ext2_reallocblks_bap, *bap);
 		*bap++ = blkno;
 	}
 	/*
@@ -341,20 +356,13 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	/*
 	 * Last, free the old blocks and assign the new blocks to the buffers.
 	 */
-#ifdef DEBUG
-	printf("\n\tnew:");
-#endif	/* DEBUG */
 	for (blkno = newblk, i = 0; i < len; i++, blkno += fs->e2fs_fpb) {
 		ext2_blkfree(ip, dbtofsb(fs, buflist->bs_children[i]->b_blkno),
 		    fs->e2fs_bsize);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
-#ifdef DEBUG
-		printf(" %d,", blkno);
-#endif	/* DEBUG */
+		SDT_PROBE1(ext2fs, , alloc, ext2_reallocblks_blkno, blkno);
 	}
-#ifdef DEBUG
-	printf("\n");
-#endif	/* DEBUG */
+
 	return (0);
 
 fail:
@@ -481,8 +489,7 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 
 noinodes:
 	EXT2_UNLOCK(ump);
-	ext2_fserr(fs, cred->cr_uid, "out of inodes");
-	uprintf("\n%s: create/symlink failed, no inodes free\n", fs->e2fs_fsmnt);
+	SDT_PROBE2(ext2fs, , alloc, trace, 1, "out of inodes");
 	return (ENOSPC);
 }
 
@@ -959,21 +966,24 @@ ext2_b_bitmap_validate(struct m_ext2fs *fs, struct buf *bp, int cg)
 	/* Check block bitmap block number */
 	offset = e2fs_gd_get_b_bitmap(gd) - group_first_block;
 	if (offset >= max_bit || !isset(bp->b_data, offset)) {
-		printf("ext2fs: bad block bitmap, group %d\n", cg);
+		SDT_PROBE2(ext2fs, , alloc, ext2_b_bitmap_validate_error,
+		    "bad block bitmap, group", cg);
 		return (EINVAL);
 	}
 
 	/* Check inode bitmap block number */
 	offset = e2fs_gd_get_i_bitmap(gd) - group_first_block;
 	if (offset >= max_bit || !isset(bp->b_data, offset)) {
-		printf("ext2fs: bad inode bitmap, group %d\n", cg);
+		SDT_PROBE2(ext2fs, , alloc, ext2_b_bitmap_validate_error,
+		    "bad inode bitmap", cg);
 		return (EINVAL);
 	}
 
 	/* Check inode table */
 	offset = e2fs_gd_get_i_tables(gd) - group_first_block;
 	if (offset >= max_bit || offset + fs->e2fs_itpg >= max_bit) {
-		printf("ext2fs: bad inode table, group %d\n", cg);
+		SDT_PROBE2(ext2fs, , alloc, ext2_b_bitmap_validate_error,
+		    "bad inode table, group", cg);
 		return (EINVAL);
 	}
 
@@ -1350,9 +1360,8 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 		start = 0;
 		loc = memcchr(&ibp[start], 0xff, len);
 		if (loc == NULL) {
-			printf("ext2fs: inode bitmap corrupted: "
-			    "cg = %d, ipref = %lld, fs = %s - run fsck\n",
-			    cg, (long long)ipref, fs->e2fs_fsmnt);
+			SDT_PROBE3(ext2fs, , alloc, ext2_nodealloccg_bmap_corrupted,
+			    cg, ipref, fs->e2fs_fsmnt);
 			brelse(bp);
 			EXT2_LOCK(ump);
 			return (0);
@@ -1401,9 +1410,7 @@ ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 	ump = ip->i_ump;
 	cg = dtog(fs, bno);
 	if (bno >= fs->e2fs_bcount) {
-		printf("bad block %lld, ino %ju\n", (long long)bno,
-		    (uintmax_t)ip->i_number);
-		ext2_fserr(fs, ip->i_uid, "bad block");
+		SDT_PROBE2(ext2fs, , alloc, ext2_blkfree_bad_block, ip->i_number, bno);
 		return;
 	}
 	error = bread(ip->i_devvp,
@@ -1416,9 +1423,8 @@ ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 	bbp = (char *)bp->b_data;
 	bno = dtogd(fs, bno);
 	if (isclr(bbp, bno)) {
-		printf("block = %lld, fs = %s\n",
+		panic("ext2_blkfree: freeing free block %lld, fs=%s",
 		    (long long)bno, fs->e2fs_fsmnt);
-		panic("ext2_blkfree: freeing free block");
 	}
 	clrbit(bbp, bno);
 	EXT2_LOCK(ump);
@@ -1464,8 +1470,8 @@ ext2_vfree(struct vnode *pvp, ino_t ino, int mode)
 	ibp = (char *)bp->b_data;
 	ino = (ino - 1) % fs->e2fs->e2fs_ipg;
 	if (isclr(ibp, ino)) {
-		printf("ino = %ju, fs = %s\n",
-		    ino, fs->e2fs_fsmnt);
+		SDT_PROBE2(ext2fs, , alloc, ext2_vfree_doublefree,
+		    fs->e2fs_fsmnt, ino);
 		if (fs->e2fs_ronly == 0)
 			panic("ext2_vfree: freeing free inode");
 	}
@@ -1513,26 +1519,12 @@ ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
 		start = 0;
 		loc = memcchr(&bbp[start], 0xff, len);
 		if (loc == NULL) {
-			printf("start = %d, len = %d, fs = %s\n",
+			panic("ext2_mapsearch: map corrupted: start=%d, len=%d, fs=%s",
 			    start, len, fs->e2fs_fsmnt);
-			panic("ext2_mapsearch: map corrupted");
 			/* NOTREACHED */
 		}
 	}
 	return ((loc - bbp) * NBBY + ffs(~*loc) - 1);
-}
-
-/*
- * Fserr prints the name of a filesystem with an error diagnostic.
- *
- * The form of the error message is:
- *	fs: error message
- */
-void
-ext2_fserr(struct m_ext2fs *fs, uid_t uid, char *cp)
-{
-
-	log(LOG_ERR, "uid %u on %s: %s\n", uid, fs->e2fs_fsmnt, cp);
 }
 
 int

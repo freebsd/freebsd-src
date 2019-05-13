@@ -208,7 +208,11 @@ handle_remount() { # $1 = mount point
 # The 'auto' parameter will attempt to use tmpfs(5), falls back to md(4).
 # $1 is size in 512-byte sectors, $2 is the mount point.
 mount_md() {
-    /sbin/mdmfs -s $1 auto $2
+    if [ ${o_verbose} -gt 0 ] ; then
+        /sbin/mdmfs -XL -s $1 auto $2
+    else
+        /sbin/mdmfs -s $1 auto $2
+    fi
 }
 
 # Create the memory filesystem if it has not already been created

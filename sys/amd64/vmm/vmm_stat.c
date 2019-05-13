@@ -88,7 +88,7 @@ vmm_stat_copy(struct vm *vm, int vcpu, int *num_stats, uint64_t *buf)
 	uint64_t *stats;
 	int i;
 
-	if (vcpu < 0 || vcpu >= VM_MAXCPU)
+	if (vcpu < 0 || vcpu >= vm_get_maxcpus(vm))
 		return (EINVAL);
 
 	/* Let stats functions update their counters */

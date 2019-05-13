@@ -73,8 +73,8 @@ struct bus_dma_tag {
 	bus_dma_filter_t *filter;
 	void		 *filterarg;
 	bus_size_t	  maxsize;
-	u_int		  nsegments;
 	bus_size_t	  maxsegsz;
+	u_int		  nsegments;
 	int		  flags;
 	int		  ref_count;
 	int		  map_count;

@@ -137,9 +137,6 @@ _Static_assert(MAXCPU <= MAX_APIC_ID,
 _Static_assert(xAPIC_MAX_APIC_ID <= MAX_APIC_ID,
     "xAPIC_MAX_APIC_ID cannot be larger that MAX_APIC_ID");
 
-/* Holds pending bitmap based IPIs per CPU */
-volatile u_int cpu_ipi_pending[MAXCPU];
-
 static void	release_aps(void *dummy);
 static void	cpustop_handler_post(u_int cpu);
 
@@ -160,6 +157,10 @@ struct cache_info {
 } static caches[MAX_CACHE_LEVELS];
 
 unsigned int boot_address;
+
+static bool stop_mwait = false;
+SYSCTL_BOOL(_machdep, OID_AUTO, stop_mwait, CTLFLAG_RWTUN, &stop_mwait, 0,
+    "Use MONITOR/MWAIT when stopping CPU, if available");
 
 #define MiB(v)	(v ## ULL << 20)
 
@@ -1220,19 +1221,24 @@ ipi_startup(int apic_id, int vector)
 void
 ipi_send_cpu(int cpu, u_int ipi)
 {
-	u_int bitmap, old_pending, new_pending;
+	u_int bitmap, old, new;
+	u_int *cpu_bitmap;
 
 	KASSERT(cpu_apic_ids[cpu] != -1, ("IPI to non-existent CPU %d", cpu));
 
 	if (IPI_IS_BITMAPED(ipi)) {
 		bitmap = 1 << ipi;
 		ipi = IPI_BITMAP_VECTOR;
-		do {
-			old_pending = cpu_ipi_pending[cpu];
-			new_pending = old_pending | bitmap;
-		} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
-		    old_pending, new_pending));	
-		if (old_pending)
+		cpu_bitmap = &cpuid_to_pcpu[cpu]->pc_ipi_bitmap;
+		old = *cpu_bitmap;
+		for (;;) {
+			if ((old & bitmap) == bitmap)
+				break;
+			new = old | bitmap;
+			if (atomic_fcmpset_int(cpu_bitmap, &old, new))
+				break;
+		}
+		if (old)
 			return;
 	}
 	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
@@ -1251,7 +1257,7 @@ ipi_bitmap_handler(struct trapframe frame)
 	td->td_intr_nesting_level++;
 	oldframe = td->td_intr_frame;
 	td->td_intr_frame = &frame;
-	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
+	ipi_bitmap = atomic_readandclear_int(&cpuid_to_pcpu[cpu]->pc_ipi_bitmap);
 	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
 #ifdef COUNT_IPIS
 		(*ipi_preempt_counts[cpu])++;
@@ -1390,24 +1396,51 @@ nmi_call_kdb_smp(u_int type, struct trapframe *frame)
 }
 
 /*
- * Handle an IPI_STOP by saving our current context and spinning until we
- * are resumed.
+ * Handle an IPI_STOP by saving our current context and spinning (or mwaiting,
+ * if available) until we are resumed.
  */
 void
 cpustop_handler(void)
 {
+	struct monitorbuf *mb;
 	u_int cpu;
+	bool use_mwait;
 
 	cpu = PCPU_GET(cpuid);
 
 	savectx(&stoppcbs[cpu]);
 
+	use_mwait = (stop_mwait && (cpu_feature2 & CPUID2_MON) != 0 &&
+	    !mwait_cpustop_broken);
+	if (use_mwait) {
+		mb = PCPU_PTR(monitorbuf);
+		atomic_store_int(&mb->stop_state,
+		    MONITOR_STOPSTATE_STOPPED);
+	}
+
 	/* Indicate that we are stopped */
 	CPU_SET_ATOMIC(cpu, &stopped_cpus);
 
 	/* Wait for restart */
-	while (!CPU_ISSET(cpu, &started_cpus))
-	    ia32_pause();
+	while (!CPU_ISSET(cpu, &started_cpus)) {
+		if (use_mwait) {
+			cpu_monitor(mb, 0, 0);
+			if (atomic_load_int(&mb->stop_state) ==
+			    MONITOR_STOPSTATE_STOPPED)
+				cpu_mwait(0, MWAIT_C1);
+			continue;
+		}
+
+		ia32_pause();
+
+		/*
+		 * Halt non-BSP CPUs on panic -- we're never going to need them
+		 * again, and might as well save power / release resources
+		 * (e.g., overprovisioned VM infrastructure).
+		 */
+		while (__predict_false(!IS_BSP() && panicstr != NULL))
+			halt();
+	}
 
 	cpustop_handler_post(cpu);
 }

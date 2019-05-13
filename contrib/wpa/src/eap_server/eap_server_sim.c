@@ -535,6 +535,9 @@ skip_id_update:
 		goto failed;
 	}
 
+	if (data->permanent[0] == EAP_SIM_PERMANENT_PREFIX)
+		os_strlcpy(sm->imsi, &data->permanent[1], sizeof(sm->imsi));
+
 	identity_len = sm->identity_len;
 	while (identity_len > 0 && sm->identity[identity_len - 1] == '\0') {
 		wpa_printf(MSG_DEBUG, "EAP-SIM: Workaround - drop last null "

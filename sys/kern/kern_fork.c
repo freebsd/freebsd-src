@@ -185,7 +185,7 @@ sys_rfork(struct thread *td, struct rfork_args *uap)
 	return (error);
 }
 
-int	nprocs = 1;		/* process 0 */
+int __exclusive_cache_line	nprocs = 1;		/* process 0 */
 int	lastpid = 0;
 SYSCTL_INT(_kern, OID_AUTO, lastpid, CTLFLAG_RD, &lastpid, 0,
     "Last used PID");
@@ -883,18 +883,20 @@ fork1(struct thread *td, struct fork_req *fr)
 	 * processes; don't let root exceed the limit.
 	 */
 	nprocs_new = atomic_fetchadd_int(&nprocs, 1) + 1;
-	if ((nprocs_new >= maxproc - 10 &&
-	    priv_check_cred(td->td_ucred, PRIV_MAXPROC) != 0) ||
-	    nprocs_new >= maxproc) {
-		error = EAGAIN;
-		sx_xlock(&allproc_lock);
-		if (ppsratecheck(&lastfail, &curfail, 1)) {
-			printf("maxproc limit exceeded by uid %u (pid %d); "
-			    "see tuning(7) and login.conf(5)\n",
-			    td->td_ucred->cr_ruid, p1->p_pid);
+	if (nprocs_new >= maxproc - 10) {
+		if (priv_check_cred(td->td_ucred, PRIV_MAXPROC) != 0 ||
+		    nprocs_new >= maxproc) {
+			error = EAGAIN;
+			sx_xlock(&allproc_lock);
+			if (ppsratecheck(&lastfail, &curfail, 1)) {
+				printf("maxproc limit exceeded by uid %u "
+				    "(pid %d); see tuning(7) and "
+				    "login.conf(5)\n",
+				    td->td_ucred->cr_ruid, p1->p_pid);
+			}
+			sx_xunlock(&allproc_lock);
+			goto fail2;
 		}
-		sx_xunlock(&allproc_lock);
-		goto fail2;
 	}
 
 	/*

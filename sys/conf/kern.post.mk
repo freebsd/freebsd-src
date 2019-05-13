@@ -8,7 +8,7 @@
 # should be defined in the kern.pre.mk so that port makefiles can
 # override or augment them.
 
-.if defined(DTS) || defined(DTSO)
+.if defined(DTS) || defined(DTSO) || defined(FDT_DTS_FILE)
 .include "dtb.build.mk"
 
 KERNEL_EXTRA+=	${DTB} ${DTBO}
@@ -357,7 +357,7 @@ _ILINKS+= x86
 # Ensure that debug info references the path in the source tree.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${SRCS} ${CLEAN:M*.o}: ${_link}
+${SRCS} ${DEPENDOBJS}: ${_link}
 .endif
 .if defined(_MAP_DEBUG_PREFIX)
 .if ${_link} == "machine"

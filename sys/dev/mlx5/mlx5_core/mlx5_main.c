@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2019, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,8 +25,6 @@
  * $FreeBSD$
  */
 
-#define	LINUXKPI_PARAM_PREFIX mlx5_
-
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -35,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/io-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/hardirq.h>
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/cq.h>
 #include <dev/mlx5/qp.h>
@@ -51,21 +50,28 @@ static const char mlx5_version[] = "Mellanox Core driver "
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
-#if (__FreeBSD_version >= 1100000)
 MODULE_DEPEND(mlx5, linuxkpi, 1, 1, 1);
-#endif
+MODULE_DEPEND(mlx5, mlxfw, 1, 1, 1);
+MODULE_DEPEND(mlx5, firmware, 1, 1, 1);
 MODULE_VERSION(mlx5, 1);
 
+SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "mlx5 hardware controls");
+
 int mlx5_core_debug_mask;
-module_param_named(debug_mask, mlx5_core_debug_mask, int, 0644);
-MODULE_PARM_DESC(debug_mask, "debug mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
+SYSCTL_INT(_hw_mlx5, OID_AUTO, debug_mask, CTLFLAG_RWTUN,
+    &mlx5_core_debug_mask, 0,
+    "debug mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
 
 #define MLX5_DEFAULT_PROF	2
-static int prof_sel = MLX5_DEFAULT_PROF;
-module_param_named(prof_sel, prof_sel, int, 0444);
-MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
+static int mlx5_prof_sel = MLX5_DEFAULT_PROF;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, prof_sel, CTLFLAG_RWTUN,
+    &mlx5_prof_sel, 0,
+    "profile selector. Valid range 0 - 2");
 
-SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "mlx5 HW controls");
+static int mlx5_fast_unload_enabled = 1;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, fast_unload_enabled, CTLFLAG_RWTUN,
+    &mlx5_fast_unload_enabled, 0,
+    "Set to enable fast unload. Clear to disable.");
 
 #define NUMA_NO_NODE       -1
 
@@ -188,6 +194,21 @@ static int set_dma_caps(struct pci_dev *pdev)
 	}
 
 	dma_set_max_seg_size(&pdev->dev, 2u * 1024 * 1024 * 1024);
+	return err;
+}
+
+int mlx5_pci_read_power_status(struct mlx5_core_dev *dev,
+			       u16 *p_power, u8 *p_status)
+{
+	u32 in[MLX5_ST_SZ_DW(mpein_reg)] = {};
+	u32 out[MLX5_ST_SZ_DW(mpein_reg)] = {};
+	int err;
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), out, sizeof(out),
+	    MLX5_ACCESS_REG_SUMMARY_CTRL_ID_MPEIN, 0, 0);
+
+	*p_status = MLX5_GET(mpein_reg, out, pwr_status);
+	*p_power = MLX5_GET(mpein_reg, out, pci_power);
 	return err;
 }
 
@@ -815,6 +836,30 @@ void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol)
 }
 EXPORT_SYMBOL(mlx5_get_protocol_dev);
 
+static int mlx5_auto_fw_update;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, auto_fw_update, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &mlx5_auto_fw_update, 0,
+    "Allow automatic firmware update on driver start");
+static int
+mlx5_firmware_update(struct mlx5_core_dev *dev)
+{
+	const struct firmware *fw;
+	int err;
+
+	TUNABLE_INT_FETCH("hw.mlx5.auto_fw_update", &mlx5_auto_fw_update);
+	if (!mlx5_auto_fw_update)
+		return (0);
+	fw = firmware_get("mlx5fw_mfa");
+	if (fw) {
+		err = mlx5_firmware_flash(dev, fw);
+		firmware_put(fw, FIRMWARE_UNLOAD);
+	}
+	else
+		return (-ENOENT);
+
+	return err;
+}
+
 static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 {
 	struct pci_dev *pdev = dev->pdev;
@@ -861,7 +906,6 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	return 0;
 
 err_clr_master:
-	pci_clear_master(dev->pdev);
 	release_bar(dev->pdev);
 err_disable:
 	mlx5_pci_disable_device(dev);
@@ -872,7 +916,6 @@ err_dbg:
 static void mlx5_pci_close(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 {
 	iounmap(dev->iseg);
-	pci_clear_master(dev->pdev);
 	release_bar(dev->pdev);
 	mlx5_pci_disable_device(dev);
 }
@@ -1096,7 +1139,6 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_fs;
 	}
 
-	clear_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
 
 out:
@@ -1159,7 +1201,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		mlx5_drain_health_recovery(dev);
 
 	mutex_lock(&dev->intf_state_mutex);
-	if (test_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state)) {
+	if (!test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
 		dev_warn(&dev->pdev->dev, "%s: interface is down, NOP\n", __func__);
                 if (cleanup)
                         mlx5_cleanup_once(dev);
@@ -1191,7 +1233,6 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 
 out:
 	clear_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
-	set_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 	mutex_unlock(&dev->intf_state_mutex);
 	return err;
 }
@@ -1231,11 +1272,11 @@ static int init_one(struct pci_dev *pdev,
 	if (id)
 		priv->pci_dev_data = id->driver_data;
 
-	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profiles)) {
+	if (mlx5_prof_sel < 0 || mlx5_prof_sel >= ARRAY_SIZE(profiles)) {
 		device_printf(bsddev, "WARN: selected profile out of range, selecting default (%d)\n", MLX5_DEFAULT_PROF);
-		prof_sel = MLX5_DEFAULT_PROF;
+		mlx5_prof_sel = MLX5_DEFAULT_PROF;
 	}
-	dev->profile = &profiles[prof_sel];
+	dev->profile = &profiles[mlx5_prof_sel];
 	dev->pdev = pdev;
 	dev->event = mlx5_core_event;
 
@@ -1247,11 +1288,20 @@ static int init_one(struct pci_dev *pdev,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
 	    OID_AUTO, "msix_eqvec", CTLFLAG_RDTUN, &dev->msix_eqvec, 0,
 	    "Maximum number of MSIX event queue vectors, if set");
+	SYSCTL_ADD_INT(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
+	    OID_AUTO, "power_status", CTLFLAG_RD, &dev->pwr_status, 0,
+	    "0:Invalid 1:Sufficient 2:Insufficient");
+	SYSCTL_ADD_INT(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
+	    OID_AUTO, "power_value", CTLFLAG_RD, &dev->pwr_value, 0,
+	    "Current power value in Watts");
 
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
 	mutex_init(&dev->pci_status_mutex);
 	mutex_init(&dev->intf_state_mutex);
+	mtx_init(&dev->dump_lock, "mlx5dmp", NULL, MTX_DEF | MTX_NEW);
 	err = mlx5_pci_init(dev, priv);
 	if (err) {
 		device_printf(bsddev, "ERR: mlx5_pci_init failed %d\n", err);
@@ -1274,6 +1324,8 @@ static int init_one(struct pci_dev *pdev,
 
 	mlx5_fwdump_prep(dev);
 
+	mlx5_firmware_update(dev);
+
 	pci_save_state(bsddev);
 	return 0;
 
@@ -1284,6 +1336,7 @@ close_pci:
 	mlx5_pci_close(dev, priv);
 clean_dev:
 	sysctl_ctx_free(&dev->sysctl_ctx);
+	mtx_destroy(&dev->dump_lock);
 	kfree(dev);
 	return err;
 }
@@ -1299,10 +1352,11 @@ static void remove_one(struct pci_dev *pdev)
 		return;
 	}
 
-	mlx5_fwdump_clean(dev);
 	mlx5_pagealloc_cleanup(dev);
 	mlx5_health_cleanup(dev);
+	mlx5_fwdump_clean(dev);
 	mlx5_pci_close(dev, priv);
+	mtx_destroy(&dev->dump_lock);
 	pci_set_drvdata(pdev, NULL);
 	sysctl_ctx_free(&dev->sysctl_ctx);
 	kfree(dev);
@@ -1416,12 +1470,22 @@ static const struct pci_error_handlers mlx5_err_handler = {
 
 static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 {
+	bool fast_teardown, force_teardown;
 	int err;
 
-	if (!MLX5_CAP_GEN(dev, force_teardown)) {
-		mlx5_core_dbg(dev, "force teardown is not supported in the firmware\n");
+	if (!mlx5_fast_unload_enabled) {
+		mlx5_core_dbg(dev, "fast unload is disabled by user\n");
 		return -EOPNOTSUPP;
 	}
+
+	fast_teardown = MLX5_CAP_GEN(dev, fast_teardown);
+	force_teardown = MLX5_CAP_GEN(dev, force_teardown);
+
+	mlx5_core_dbg(dev, "force teardown firmware support=%d\n", force_teardown);
+	mlx5_core_dbg(dev, "fast teardown firmware support=%d\n", fast_teardown);
+
+	if (!fast_teardown && !force_teardown)
+		return -EOPNOTSUPP;
 
 	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
 		mlx5_core_dbg(dev, "Device in internal error state, giving up\n");
@@ -1434,15 +1498,32 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 	mlx5_drain_health_wq(dev);
 	mlx5_stop_health_poll(dev, false);
 
+	err = mlx5_cmd_fast_teardown_hca(dev);
+	if (!err)
+		goto done;
+
 	err = mlx5_cmd_force_teardown_hca(dev);
-	if (err) {
-		mlx5_core_dbg(dev, "Firmware couldn't do fast unload error: %d\n", err);
-		return err;
-	}
+	if (!err)
+		goto done;
 
+	mlx5_core_dbg(dev, "Firmware couldn't do fast unload error: %d\n", err);
+	mlx5_start_health_poll(dev);
+	return err;
+done:
 	mlx5_enter_error_state(dev, true);
-
 	return 0;
+}
+
+static void mlx5_disable_interrupts(struct mlx5_core_dev *mdev)
+{
+	int nvec = mdev->priv.eq_table.num_comp_vectors + MLX5_EQ_VEC_COMP_BASE;
+	int x;
+
+	mdev->priv.disable_irqs = 1;
+
+	/* wait for all IRQ handlers to finish processing */
+	for (x = 0; x != nvec; x++)
+		synchronize_irq(mdev->priv.msix_arr[x].vector);
 }
 
 static void shutdown_one(struct pci_dev *pdev)
@@ -1451,7 +1532,12 @@ static void shutdown_one(struct pci_dev *pdev)
 	struct mlx5_priv *priv = &dev->priv;
 	int err;
 
-	set_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &dev->intf_state);
+	/* enter polling mode */
+	mlx5_cmd_use_polling(dev);
+
+	/* disable all interrupts */
+	mlx5_disable_interrupts(dev);
+
 	err = mlx5_try_fast_unload(dev);
 	if (err)
 	        mlx5_unload_one(dev, priv, false);
@@ -1525,13 +1611,13 @@ static int __init init(void)
 	if (err)
 		goto err_debug;
 
-	err = mlx5_fwdump_init();
+	err = mlx5_ctl_init();
 	if (err)
-		goto err_fwdump;
+		goto err_ctl;
  
  	return 0;
  
-err_fwdump:
+err_ctl:
 	pci_unregister_driver(&mlx5_core_driver);
 
 err_debug:
@@ -1540,7 +1626,7 @@ err_debug:
 
 static void __exit cleanup(void)
 {
-	mlx5_fwdump_fini();
+	mlx5_ctl_fini();
 	pci_unregister_driver(&mlx5_core_driver);
 }
 

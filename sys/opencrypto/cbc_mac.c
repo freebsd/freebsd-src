@@ -82,9 +82,6 @@ AES_CBC_MAC_Reinit(struct aes_cbc_mac_ctx *ctx, const uint8_t *nonce, uint16_t n
 	uint8_t *bp = b0, flags = 0;
 	uint8_t L = 0;
 	uint64_t dataLength = ctx->cryptDataLength;
-	
-	KASSERT(ctx->authDataLength != 0 || ctx->cryptDataLength != 0,
-	    ("Auth Data and Data lengths cannot both be 0"));
 
 	KASSERT(nonceLen >= 7 && nonceLen <= 13,
 	    ("nonceLen must be between 7 and 13 bytes"));

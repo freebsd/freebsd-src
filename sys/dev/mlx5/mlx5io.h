@@ -35,7 +35,7 @@ struct mlx5_fwdump_reg {
 	uint32_t val;
 };
 
-struct mlx5_fwdump_addr {
+struct mlx5_tool_addr {
 	uint32_t domain;
 	uint8_t bus;
 	uint8_t slot;
@@ -43,15 +43,23 @@ struct mlx5_fwdump_addr {
 };
 
 struct mlx5_fwdump_get {
-	struct mlx5_fwdump_addr devaddr;
+	struct mlx5_tool_addr devaddr;
 	struct mlx5_fwdump_reg *buf;
 	size_t reg_cnt;
 	size_t reg_filled; /* out */
 };
 
+struct mlx5_fw_update {
+	struct mlx5_tool_addr devaddr;
+	void *img_fw_data;
+	size_t img_fw_data_len;
+};
+
 #define	MLX5_FWDUMP_GET		_IOWR('m', 1, struct mlx5_fwdump_get)
-#define	MLX5_FWDUMP_RESET	_IOW('m', 2, struct mlx5_fwdump_addr)
-#define	MLX5_FWDUMP_FORCE	_IOW('m', 3, struct mlx5_fwdump_addr)
+#define	MLX5_FWDUMP_RESET	_IOW('m', 2, struct mlx5_tool_addr)
+#define	MLX5_FWDUMP_FORCE	_IOW('m', 3, struct mlx5_tool_addr)
+#define	MLX5_FW_UPDATE		_IOW('m', 4, struct mlx5_fw_update)
+#define	MLX5_FW_RESET		_IOW('m', 5, struct mlx5_tool_addr)
 
 #ifndef _KERNEL
 #define	MLX5_DEV_PATH	_PATH_DEV"mlx5ctl"
@@ -67,8 +75,9 @@ enum mlx5_fpga_id {
 enum mlx5_fpga_image {
 	MLX5_FPGA_IMAGE_USER = 0,
 	MLX5_FPGA_IMAGE_FACTORY = 1,
-	MLX5_FPGA_IMAGE_MAX = MLX5_FPGA_IMAGE_FACTORY,
 	MLX5_FPGA_IMAGE_FACTORY_FAILOVER = 2,
+	MLX5_FPGA_IMAGE_RESET = 17,
+	MLX5_FPGA_IMAGE_RELOAD = 18,
 };
 
 enum mlx5_fpga_status {
@@ -135,6 +144,7 @@ struct mlx5_fpga_temperature {
 #define	MLX5_FPGA_CAP		_IOR('m', 0x85, uint32_t[MLX5_FPGA_CAP_ARR_SZ])
 #define	MLX5_FPGA_TEMPERATURE	_IOWR('m', 0x86, struct mlx5_fpga_temperature)
 #define	MLX5_FPGA_CONNECT	_IOWR('m', 0x87, enum mlx5_fpga_connect)
+#define	MLX5_FPGA_RELOAD	_IO('m', 0x88)
 
 #define	MLX5_FPGA_TOOLS_NAME_SUFFIX	"_mlx5_fpga_tools"
 

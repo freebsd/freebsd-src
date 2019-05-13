@@ -25,17 +25,9 @@ CFLAGS+=	-std=iso9899:1999
 CFLAGS+=	-std=${CSTD}
 .endif # CSTD
 
-.if ${COMPILER_FEATURES:Mc++11}
-CXXSTD?=	c++11
-.elif ${COMPILER_TYPE} == "gcc"
-# Prior versions of g++ support C++98 with GNU extensions by default.
-CXXSTD?=	gnu++98
-.else
-# Assume that the compiler supports at least C++98.
-CXXSTD?=	c++98
-.endif
+.if !empty(CXXSTD)
 CXXFLAGS+=	-std=${CXXSTD}
-# CXXSTD
+.endif
 
 # -pedantic is problematic because it also imposes namespace restrictions
 #CFLAGS+=	-pedantic

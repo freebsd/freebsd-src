@@ -37,6 +37,7 @@
 
 #ifdef SYSCTL_DECL	/* from sysctl.h */
 SYSCTL_DECL(_kern_random);
+SYSCTL_DECL(_kern_random_initial_seeding);
 
 #define	RANDOM_CHECK_UINT(name, min, max)				\
 static int								\
@@ -54,6 +55,11 @@ random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
 #endif /* SYSCTL_DECL */
 
 MALLOC_DECLARE(M_ENTROPY);
+
+extern bool random_bypass_before_seeding;
+extern bool read_random_bypassed_before_seeding;
+extern bool arc4random_bypassed_before_seeding;
+extern bool random_bypass_disable_warnings;
 
 #endif /* _KERNEL */
 
@@ -118,7 +124,8 @@ extern struct sx randomdev_config_lock;
 #define	RANDOM_CONFIG_S_LOCK(x)		sx_slock(&randomdev_config_lock)
 #define	RANDOM_CONFIG_S_UNLOCK(x)	sx_sunlock(&randomdev_config_lock)
 #define	RANDOM_CONFIG_DEINIT_LOCK(x)	sx_destroy(&randomdev_config_lock)
-void random_infra_init(int (*)(struct uio *, bool), u_int (*)(void *, u_int));
+void random_infra_init(int (*)(struct uio *, bool), void (*)(void *, u_int),
+    bool (*)(void));
 void random_infra_uninit(void);
 #endif
 
