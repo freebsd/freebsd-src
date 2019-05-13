@@ -181,21 +181,8 @@ vslock(void *addr, size_t len)
 	if (last < (vm_offset_t)addr || end < (vm_offset_t)addr)
 		return (EINVAL);
 	npages = atop(end - start);
-	if (npages > vm_page_max_wired)
+	if (npages > vm_page_max_user_wired)
 		return (ENOMEM);
-#if 0
-	/*
-	 * XXX - not yet
-	 *
-	 * The limit for transient usage of wired pages should be
-	 * larger than for "permanent" wired pages (mlock()).
-	 *
-	 * Also, the sysctl code, which is the only present user
-	 * of vslock(), does a hard loop on EAGAIN.
-	 */
-	if (npages + vm_wire_count() > vm_page_max_wired)
-		return (EAGAIN);
-#endif
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
 	if (error == KERN_SUCCESS) {
