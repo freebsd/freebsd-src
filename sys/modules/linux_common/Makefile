@@ -15,4 +15,8 @@ EXPORT_SYMS+=	linux_ioctl_unregister_handler
 EXPORT_SYMS+=	linux_get_osname
 EXPORT_SYMS+=	linux_get_osrelease
 
+.if !defined(KERNBUILDDIR)
+.warning Building Linuxulator outside of a kernel does not make sense
+.endif
+
 .include <bsd.kmod.mk>
