@@ -2628,11 +2628,17 @@ bpfd_free(epoch_context_t ctx)
 	if (d->bd_rfilter != NULL) {
 		p = __containerof((void *)d->bd_rfilter,
 		    struct bpf_program_buffer, buffer);
+#ifdef BPF_JITTER
+		p->func = d->bd_bfilter;
+#endif
 		bpf_program_buffer_free(&p->epoch_ctx);
 	}
 	if (d->bd_wfilter != NULL) {
 		p = __containerof((void *)d->bd_wfilter,
 		    struct bpf_program_buffer, buffer);
+#ifdef BPF_JITTER
+		p->func = NULL;
+#endif
 		bpf_program_buffer_free(&p->epoch_ctx);
 	}
 
