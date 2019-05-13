@@ -1257,6 +1257,9 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		ro.ro_flags = RT_HAS_HEADER;
 	}
 
+	/* Avoid possible recursion on BPFD_LOCK(). */
+	NET_EPOCH_ENTER(et);
+	BPFD_UNLOCK(d);
 	error = (*ifp->if_output)(ifp, m, &dst, &ro);
 	if (error)
 		counter_u64_add(d->bd_wdcount, 1);
@@ -1267,8 +1270,8 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		else
 			m_freem(mc);
 	}
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
-	BPFD_UNLOCK(d);
 	bpfd_rele(d);
 	return (error);
 
