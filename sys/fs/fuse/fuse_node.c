@@ -114,13 +114,6 @@ SYSCTL_PROC(_vfs_fusefs, OID_AUTO, data_cache_mode, CTLTYPE_INT|CTLFLAG_RW,
     "Zero: disable caching of FUSE file data; One: write-through caching "
     "(default); Two: write-back caching (generally unsafe)");
 
-int	fuse_data_cache_invalidate = 0;
-
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, data_cache_invalidate, CTLFLAG_RW,
-    &fuse_data_cache_invalidate, 0,
-    "If non-zero, discard cached clean file data when there are no active file"
-    " users");
-
 static int
 sysctl_fuse_cache_mode(SYSCTL_HANDLER_ARGS)
 {

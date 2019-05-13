@@ -762,8 +762,7 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 			if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
 				fuse_vnode_savesize(vp, NULL, 0);
 			}
-			if (fuse_data_cache_invalidate ||
-			    (fvdat->flag & FN_REVOKED) != 0)
+			if ((fvdat->flag & FN_REVOKED) != 0)
 				fuse_io_invalbuf(vp, td);
 			else
 				fuse_io_flushbuf(vp, MNT_WAIT, td);

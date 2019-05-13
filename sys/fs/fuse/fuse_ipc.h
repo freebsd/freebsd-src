@@ -229,7 +229,6 @@ enum fuse_data_cache_mode {
 };
 
 extern int fuse_data_cache_mode;
-extern int fuse_data_cache_invalidate;
 
 static inline struct fuse_data *
 fuse_get_mpdata(struct mount *mp)
