@@ -130,6 +130,7 @@ static uint8_t zero_region[RANDOM_ZERO_BLOCKSIZE];
 static void random_fortuna_pre_read(void);
 static void random_fortuna_read(uint8_t *, u_int);
 static bool random_fortuna_seeded(void);
+static bool random_fortuna_seeded_internal(void);
 static void random_fortuna_process_event(struct harvest_event *);
 static void random_fortuna_init_alg(void *);
 static void random_fortuna_deinit_alg(void *);
@@ -277,7 +278,7 @@ random_fortuna_reseed_internal(uint32_t *entropy_data, u_int blockcount)
 
 	RANDOM_RESEED_ASSERT_LOCK_OWNED();
 
-	seeded = random_fortuna_seeded();
+	seeded = random_fortuna_seeded_internal();
 	if (seeded) {
 		randomdev_getkey(&fortuna_state.fs_key, &keymaterial, &keysz);
 		KASSERT(keysz == RANDOM_KEYSIZE, ("%s: key size %zu not %u",
@@ -377,8 +378,12 @@ random_fortuna_pre_read(void)
 
 	if (fortuna_state.fs_pool[0].fsp_length < fortuna_state.fs_minpoolsize
 #ifdef _KERNEL
-	    /* FS&K - Use 'getsbinuptime()' to prevent reseed-spamming. */
-	    || (now - fortuna_state.fs_lasttime <= SBT_1S/10)
+	    /*
+	     * FS&K - Use 'getsbinuptime()' to prevent reseed-spamming, but do
+	     * not block initial seeding (fs_lasttime == 0).
+	     */
+	    || (__predict_true(fortuna_state.fs_lasttime != 0) &&
+		now - fortuna_state.fs_lasttime <= SBT_1S/10)
 #endif
 	) {
 		RANDOM_RESEED_UNLOCK();
@@ -460,7 +465,13 @@ SYSCTL_BOOL(_kern_random, OID_AUTO, block_seeded_status, CTLFLAG_RWTUN,
     "unavailable.");
 #endif
 
-bool
+static bool
+random_fortuna_seeded_internal(void)
+{
+	return (!uint128_is_zero(fortuna_state.fs_counter));
+}
+
+static bool
 random_fortuna_seeded(void)
 {
 
@@ -469,5 +480,14 @@ random_fortuna_seeded(void)
 		return (false);
 #endif
 
-	return (!uint128_is_zero(fortuna_state.fs_counter));
+	if (__predict_true(random_fortuna_seeded_internal()))
+		return (true);
+
+	/*
+	 * Maybe we have enough entropy in the zeroth pool but just haven't
+	 * kicked the initial seed step.  Do so now.
+	 */
+	random_fortuna_pre_read();
+
+	return (random_fortuna_seeded_internal());
 }
