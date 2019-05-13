@@ -722,6 +722,8 @@ linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 	error = copyin(PTRIN(args->namelen), &len, sizeof(len));
 	if (error != 0)
 		return (error);
+	if (len < 0)
+		return (EINVAL);
 
 	error = kern_getpeername(td, args->s, &sa, &len);
 	if (error != 0)
