@@ -1564,12 +1564,10 @@ vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		if ((map->flags & MAP_WIREFUTURE) != 0) {
 			vm_map_lock(map);
 			if ((map->flags & MAP_WIREFUTURE) != 0)
-				rv = vm_map_wire_locked(map, *addr,
+				(void)vm_map_wire_locked(map, *addr,
 				    *addr + size, VM_MAP_WIRE_USER |
 				    ((flags & MAP_STACK) ? VM_MAP_WIRE_HOLESOK :
 				    VM_MAP_WIRE_NOHOLES));
-			if (rv != KERN_SUCCESS)
-				(void)vm_map_delete(map, *addr, *addr + size);
 			vm_map_unlock(map);
 		}
 	}
