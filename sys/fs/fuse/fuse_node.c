@@ -212,7 +212,8 @@ fuse_vnode_hash(uint64_t id)
 	return (fnv_32_buf(&id, sizeof(id), FNV1_32_INIT));
 }
 
-SDT_PROBE_DEFINE2(fusefs, , node, stale_vnode, "struct vnode*", "enum vtype");
+SDT_PROBE_DEFINE3(fusefs, , node, stale_vnode, "struct vnode*", "enum vtype",
+		"uint64_t");
 static int
 fuse_vnode_alloc(struct mount *mp,
     struct thread *td,
@@ -241,7 +242,8 @@ fuse_vnode_alloc(struct mount *mp,
 			 * between FUSE_LOOKUP and another client's
 			 * FUSE_UNLINK/FUSE_CREATE
 			 */
-			SDT_PROBE2(fusefs, , node, stale_vnode, *vpp, vtyp);
+			SDT_PROBE3(fusefs, , node, stale_vnode, *vpp, vtyp,
+				nodeid);
 			fuse_internal_vnode_disappear(*vpp);
 			lockmgr((*vpp)->v_vnlock, LK_RELEASE, NULL);
 			*vpp = NULL;
