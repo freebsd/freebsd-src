@@ -42,6 +42,9 @@
 #ifndef _NET_BPF_H_
 #define _NET_BPF_H_
 
+#include <sys/ck.h>
+#include <net/dlt.h>
+
 /* BSD style release date */
 #define	BPF_RELEASE 199606
 
@@ -233,9 +236,6 @@ struct bpf_zbuf_header {
 	u_int _bzh_pad[5];
 };
 
-/* Pull in data-link level type codes. */
-#include <net/dlt.h>
-
 /*
  * The instruction encodings.
  *
@@ -409,10 +409,11 @@ SYSCTL_DECL(_net_bpf);
  * bpf_peers_present() calls.
  */
 struct bpf_if;
+CK_LIST_HEAD(bpfd_list, bpf_d);
 
 struct bpf_if_ext {
-	LIST_ENTRY(bpf_if)	bif_next;	/* list of all interfaces */
-	LIST_HEAD(, bpf_d)	bif_dlist;	/* descriptor list */
+	CK_LIST_ENTRY(bpf_if)	bif_next;	/* list of all interfaces */
+	struct bpfd_list	bif_dlist;	/* descriptor list */
 };
 
 void	 bpf_bufheld(struct bpf_d *d);
@@ -436,7 +437,7 @@ bpf_peers_present(struct bpf_if *bpf)
 	struct bpf_if_ext *ext;
 
 	ext = (struct bpf_if_ext *)bpf;
-	if (!LIST_EMPTY(&ext->bif_dlist))
+	if (!CK_LIST_EMPTY(&ext->bif_dlist))
 		return (1);
 	return (0);
 }
