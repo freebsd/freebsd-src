@@ -1701,9 +1701,13 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 		    IPFW_TLV_STATE_NAME));
 		break;
 	case O_IP6:
+		if (state->flags & HAVE_PROTO)
+			bprintf(bp, " proto");
 		bprintf(bp, " ip6");
 		break;
 	case O_IP4:
+		if (state->flags & HAVE_PROTO)
+			bprintf(bp, " proto");
 		bprintf(bp, " ip4");
 		break;
 	case O_ICMP6TYPE:
