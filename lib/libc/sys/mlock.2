@@ -28,7 +28,7 @@
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2018
+.Dd May 13, 2019
 .Dt MLOCK 2
 .Os
 .Sh NAME
@@ -97,13 +97,13 @@ resource limit and the
 system-wide
 .Dq wired pages
 limit
-.Va vm.max_wired .
-.Va vm.max_wired
+.Va vm.max_user_wired .
+.Va vm.max_user_wired
 applies to the system as a whole, so the amount available to a single
 process at any given time is the difference between
-.Va vm.max_wired
+.Va vm.max_user_wired
 and
-.Va vm.stats.vm.v_wire_count .
+.Va vm.stats.vm.v_user_wire_count .
 .Pp
 If
 .Va security.bsd.unprivileged_mlock
@@ -124,13 +124,11 @@ will fail if:
 is set to 0 and the caller is not the super-user.
 .It Bq Er EINVAL
 The address range given wraps around zero.
-.It Bq Er EAGAIN
-Locking the indicated range would exceed the system limit for locked memory.
 .It Bq Er ENOMEM
 Some portion of the indicated address range is not allocated.
 There was an error faulting/mapping a page.
-Locking the indicated range would exceed the per-process limit for locked
-memory.
+Locking the indicated range would exceed the per-process or system-wide limits
+for locked memory.
 .El
 The
 .Fn munlock
@@ -171,11 +169,11 @@ system calls first appeared in
 Allocating too much wired memory can lead to a memory-allocation deadlock
 which requires a reboot to recover from.
 .Pp
-The per-process resource limit is a limit on the amount of virtual
-memory locked, while the system-wide limit is for the number of locked
-physical pages.
-Hence a process with two distinct locked mappings of the same physical page
-counts as 2 pages against the per-process limit and as only a single page
-in the system limit.
+The per-process and system-wide resource limits of locked memory apply
+to the amount of virtual memory locked, not the amount of locked physical
+pages.
+Hence two distinct locked mappings of the same physical page counts as
+2 pages aginst the system limit, and also against the per-process limit
+if both mappings belong to the same physical map.
 .Pp
 The per-process resource limit is not currently supported.
