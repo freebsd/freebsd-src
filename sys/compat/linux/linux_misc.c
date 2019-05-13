@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procctl.h>
 #include <sys/reboot.h>
 #include <sys/racct.h>
 #include <sys/random.h>
@@ -1995,7 +1996,6 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	int error = 0, max_size;
 	struct proc *p = td->td_proc;
 	char comm[LINUX_MAX_COMM_LEN];
-	struct linux_emuldata *em;
 	int pdeath_signal;
 
 #ifdef DEBUG
@@ -2009,17 +2009,18 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	case LINUX_PR_SET_PDEATHSIG:
 		if (!LINUX_SIG_VALID(args->arg2))
 			return (EINVAL);
-		em = em_find(td);
-		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
-		em->pdeath_signal = args->arg2;
-		break;
+		pdeath_signal = linux_to_bsd_signal(args->arg2);
+		return (kern_procctl(td, P_PID, 0, PROC_PDEATHSIG_CTL,
+		    &pdeath_signal));
 	case LINUX_PR_GET_PDEATHSIG:
-		em = em_find(td);
-		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
-		pdeath_signal = em->pdeath_signal;
-		error = copyout(&pdeath_signal,
+		error = kern_procctl(td, P_PID, 0, PROC_PDEATHSIG_STATUS,
+		    &pdeath_signal);
+		if (error != 0)
+			return (error);
+		pdeath_signal = bsd_to_linux_signal(pdeath_signal);
+		return (copyout(&pdeath_signal,
 		    (void *)(register_t)args->arg2,
-		    sizeof(pdeath_signal));
+		    sizeof(pdeath_signal)));
 		break;
 	case LINUX_PR_GET_KEEPCAPS:
 		/*
