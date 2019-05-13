@@ -19,10 +19,18 @@
 #define US_IN_MS           1000
 #define LLT_UNIT_US        32 /* See 10.32.2.2  Transitioning between states */
 
-#define FST_LLT_MS_TO_VAL(m) (((u32) (m)) * US_IN_MS / LLT_UNIT_US)
-#define FST_LLT_VAL_TO_MS(v) (((u32) (v)) * LLT_UNIT_US / US_IN_MS)
-
-#define FST_MAX_LLT_MS       FST_LLT_VAL_TO_MS(-1)
+/*
+ * These were originally
+ * #define FST_LLT_MS_TO_VAL(m) (((u32) (m)) * US_IN_MS / LLT_UNIT_US)
+ * #define FST_LLT_VAL_TO_MS(v) (((u32) (v)) * LLT_UNIT_US / US_IN_MS)
+ * #define FST_MAX_LLT_MS FST_LLT_VAL_TO_MS(-1)
+ * but those can overflow 32-bit unsigned integer, so use alternative defines
+ * to avoid undefined behavior with such overflow.
+ * LLT_UNIT_US/US_IN_MS = 32/1000 = 4/125
+ */
+#define FST_LLT_MS_TO_VAL(m) (((u32) (m)) * 125 / 4)
+#define FST_LLT_VAL_TO_MS(v) (((u32) (v)) * 4 / 125)
+#define FST_MAX_LLT_MS       (((u32) -1) / 4)
 #define FST_MAX_PRIO_VALUE   ((u8) -1)
 #define FST_MAX_GROUP_ID_LEN IFNAMSIZ
 

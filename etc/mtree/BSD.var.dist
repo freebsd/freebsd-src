@@ -32,7 +32,7 @@
     ..
     crash
     ..
-    cron
+    cron                tags=package=runtime
         tabs            mode=0700
         ..
     ..
@@ -59,21 +59,21 @@
             ..
         ..
     ..
-    empty           mode=0555 flags=schg
+    empty           mode=0555 flags=schg tags=package=runtime
     ..
     games           gname=games mode=0775
     ..
     heimdal         mode=0700
     ..
-    log
+    log             tags=package=runtime
     ..
-    mail            gname=mail mode=0775
+    mail            gname=mail mode=0775 tags=package=runtime
     ..
     msgs            uname=daemon
     ..
     preserve
     ..
-    run
+    run             tags=package=runtime
         dhclient
         ..
         ppp             gname=network mode=0770
@@ -101,7 +101,7 @@
         ..
 /set gname=wheel
     ..
-    tmp             mode=01777
+    tmp             mode=01777 tags=package=runtime
         vi.recover      mode=01777
         ..
     ..

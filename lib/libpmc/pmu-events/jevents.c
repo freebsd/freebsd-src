@@ -1,5 +1,3 @@
-#define  _XOPEN_SOURCE 500	/* needed for nftw() */
-#define __BSD_VISIBLE 1	/* needed for asprintf() */
 /* Parse event JSON files */
 
 /*
@@ -33,22 +31,22 @@
  *
 */
 
-
+#include <sys/param.h>
+#include <sys/resource.h>		/* getrlimit */
+#include <sys/stat.h>
+#include <sys/time.h>			/* getrlimit */
+#include <ctype.h>
+#include <dirent.h>
+#include <errno.h>
+#include <libgen.h>
+#include <limits.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
-#include <ctype.h>
 #include <unistd.h>
-#include <stdarg.h>
-#include <libgen.h>
-#include <limits.h>
-#include <dirent.h>
-#include <sys/time.h>			/* getrlimit */
-#include <sys/resource.h>		/* getrlimit */
 #include <ftw.h>
-#include <sys/stat.h>
 #include "list.h"
 #include "jsmn.h"
 #include "json.h"
@@ -641,7 +639,7 @@ int json_events(const char *fn,
 				addfield(map, &extra_desc, " ",
 						"(Precise event)", NULL);
 		}
-		snprintf(buf, sizeof buf, "event=%#llx", eventcode);
+		snprintf(buf, sizeof(buf), "event=%#llx", eventcode);
 		addfield(map, &event, ",", buf, NULL);
 		if (desc && extra_desc)
 			addfield(map, &desc, " ", extra_desc, NULL);
@@ -866,7 +864,7 @@ static int get_maxfds(void)
 	if (getrlimit(RLIMIT_NOFILE, &rlim) == 0) {
 		if (rlim.rlim_max == RLIM_INFINITY)
 			return 512;
-		return min((unsigned)rlim.rlim_max / 2, 512);
+		return MIN(rlim.rlim_max / 2, 512);
 	}
 
 	return 512;

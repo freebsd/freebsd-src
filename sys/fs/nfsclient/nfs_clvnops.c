@@ -142,7 +142,6 @@ static vop_advlock_t	nfs_advlock;
 static vop_advlockasync_t nfs_advlockasync;
 static vop_getacl_t nfs_getacl;
 static vop_setacl_t nfs_setacl;
-static vop_set_text_t nfs_set_text;
 
 /*
  * Global vfs data structures for nfs
@@ -180,7 +179,6 @@ static struct vop_vector newnfs_vnodeops_nosig = {
 	.vop_write =		ncl_write,
 	.vop_getacl =		nfs_getacl,
 	.vop_setacl =		nfs_setacl,
-	.vop_set_text =		nfs_set_text,
 };
 
 static int
@@ -523,6 +521,7 @@ nfs_open(struct vop_open_args *ap)
 	int error;
 	int fmode = ap->a_mode;
 	struct ucred *cred;
+	vm_object_t obj;
 
 	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK)
 		return (EOPNOTSUPP);
@@ -636,6 +635,32 @@ nfs_open(struct vop_open_args *ap)
 	if (cred != NULL)
 		crfree(cred);
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
+
+	/*
+	 * If the text file has been mmap'd, flush any dirty pages to the
+	 * buffer cache and then...
+	 * Make sure all writes are pushed to the NFS server.  If this is not
+	 * done, the modify time of the file can change while the text
+	 * file is being executed.  This will cause the process that is
+	 * executing the text file to be terminated.
+	 */
+	if (vp->v_writecount <= -1) {
+		if ((obj = vp->v_object) != NULL &&
+		    (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
+			VM_OBJECT_WLOCK(obj);
+			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
+			VM_OBJECT_WUNLOCK(obj);
+		}
+
+		/* Now, flush the buffer cache. */
+		ncl_flush(vp, MNT_WAIT, curthread, 0, 0);
+
+		/* And, finally, make sure that n_mtime is up to date. */
+		np = VTONFS(vp);
+		mtx_lock(&np->n_mtx);
+		np->n_mtime = np->n_vattr.na_mtime;
+		mtx_unlock(&np->n_mtx);
+	}
 	return (0);
 }
 
@@ -3411,39 +3436,6 @@ nfs_setacl(struct vop_setacl_args *ap)
 		error = EPERM;
 	}
 	return (error);
-}
-
-static int
-nfs_set_text(struct vop_set_text_args *ap)
-{
-	struct vnode *vp = ap->a_vp;
-	struct nfsnode *np;
-
-	/*
-	 * If the text file has been mmap'd, flush any dirty pages to the
-	 * buffer cache and then...
-	 * Make sure all writes are pushed to the NFS server.  If this is not
-	 * done, the modify time of the file can change while the text
-	 * file is being executed.  This will cause the process that is
-	 * executing the text file to be terminated.
-	 */
-	if (vp->v_object != NULL) {
-		VM_OBJECT_WLOCK(vp->v_object);
-		vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_WUNLOCK(vp->v_object);
-	}
-
-	/* Now, flush the buffer cache. */
-	ncl_flush(vp, MNT_WAIT, curthread, 0, 0);
-
-	/* And, finally, make sure that n_mtime is up to date. */
-	np = VTONFS(vp);
-	mtx_lock(&np->n_mtx);
-	np->n_mtime = np->n_vattr.na_mtime;
-	mtx_unlock(&np->n_mtx);
-
-	vp->v_vflag |= VV_TEXT;
-	return (0);
 }
 
 /*

@@ -195,7 +195,7 @@ main(int argc, char **argv)
 	argv += optind;
 
 	cap_rights_init(&rights, CAP_READ, CAP_SEEK, CAP_FSTAT, CAP_FCNTL);
-	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights);
+	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights, FA_OPEN);
 	if (fa == NULL)
 		err(1, "Unable to initialize casper fileargs");
 

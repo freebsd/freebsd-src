@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2018
+.Dd May 6, 2019
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -36,12 +36,16 @@
 .Nd "specify a device for crash dumps"
 .Sh SYNOPSIS
 .Nm
+.Op Fl i Ar index
+.Op Fl r
 .Op Fl v
 .Op Fl k Ar pubkey
 .Op Fl Z
 .Op Fl z
 .Ar device
 .Nm
+.Op Fl i Ar index
+.Op Fl r
 .Op Fl v
 .Op Fl k Ar pubkey
 .Op Fl Z
@@ -72,8 +76,38 @@ and
 .Va dumpon_flags .
 For more information on this usage, see
 .Xr rc.conf 5 .
+.Pp
+Starting in
+.Fx 13.0 ,
+.Nm
+can configure a series of fallback dump devices.
+For example, an administrator may prefer
+.Xr netdump 4
+by default, but if the
+.Xr netdump 4
+service cannot be reached or some other failure occurs, they might choose a
+local disk dump as a second choice option.
 .Ss General options
 .Bl -tag -width _k_pubkey
+.It Fl i Ar index
+Insert the specified dump configuration into the prioritized fallback dump
+device list at the specified index, starting at zero.
+.Pp
+If
+.Fl i
+is not specified, the configured dump device is appended to the prioritized
+list.
+.It Fl r
+Remove the specified dump device configuration or configurations from the
+fallback dump device list rather than inserting or appending it.
+In contrast,
+.Do
+.Nm
+off
+.Dc
+removes all configured devices.
+Conflicts with
+.Fl i .
 .It Fl k Ar pubkey
 Configure encrypted kernel dumps.
 .Pp
@@ -96,7 +130,7 @@ The
 .Va pubkey
 file should be a PEM-formatted RSA key of at least 1024 bits.
 .It Fl l
-List the currently configured dump device, or /dev/null if no device is
+List the currently configured dump device(s), or /dev/null if no devices are
 configured.
 .It Fl v
 Enable verbose mode.

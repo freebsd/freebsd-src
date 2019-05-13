@@ -189,6 +189,12 @@ ath_rate_newassoc(struct ath_softc *sc, struct ath_node *an, int isnew)
 		ath_rate_ctl_start(sc, &an->an_node);
 }
 
+void
+ath_rate_update_rx_rssi(struct ath_softc *sc, struct ath_node *an, int rssi)
+{
+}
+
+
 static void
 ath_rate_update(struct ath_softc *sc, struct ieee80211_node *ni, int rate)
 {

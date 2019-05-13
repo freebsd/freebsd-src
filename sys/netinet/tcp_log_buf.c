@@ -752,6 +752,7 @@ refind:
 			RECHECK_INP();
 			if (tp->t_lib != NULL) {
 				TCPID_BUCKET_UNLOCK(tlb);
+				bucket_locked = false;
 				tlb = NULL;
 				goto restart;
 			}

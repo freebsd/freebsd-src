@@ -460,6 +460,33 @@ copy_dsk(struct zfsdsk *zdsk)
 }
 
 /*
+ * Get disk size from GPT.
+ */
+static uint64_t
+drvsize_gpt(struct dsk *dskp)
+{
+#ifdef GPT
+	struct gpt_hdr hdr;
+	char *sec;
+
+	sec = dmadat->secbuf;
+	if (drvread(dskp, sec, 1, 1))
+		return (0);
+
+	memcpy(&hdr, sec, sizeof(hdr));
+	if (memcmp(hdr.hdr_sig, GPT_HDR_SIG, sizeof(hdr.hdr_sig)) != 0 ||
+	    hdr.hdr_lba_self != 1 || hdr.hdr_revision < 0x00010000 ||
+	    hdr.hdr_entsz < sizeof(struct gpt_ent) ||
+	    DEV_BSIZE % hdr.hdr_entsz != 0) {
+		return (0);
+	}
+	return (hdr.hdr_lba_alt + 1);
+#else
+	return (0);
+#endif
+}
+
+/*
  * Get disk size from eax=0x800 and 0x4800. We need to probe both
  * because 0x4800 may not be available and we would like to get more
  * or less correct disk size - if it is possible at all.
@@ -474,6 +501,11 @@ drvsize_ext(struct zfsdsk *zdsk)
 	int cyl, hds, sec;
 
 	dskp = &zdsk->dsk;
+
+	/* Try to read disk size from GPT */
+	size = drvsize_gpt(dskp);
+	if (size != 0)
+		return (size);
 
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x13;

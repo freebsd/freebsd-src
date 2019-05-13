@@ -22,6 +22,6 @@ CFLAGS += -I${SRCTOP}/sys/dev/e1000
 # DEVICE_POLLING for a non-interrupt-driven method
 #CFLAGS  += -DDEVICE_POLLING
 
-LINKS=	${KMODDIR}/${KMOD}.ko ${KMODDIR}/if_igb.ko
+SYMLINKS=	${KMOD}.ko ${KMODDIR}/if_igb.ko
 
 .include <bsd.kmod.mk>

@@ -89,6 +89,7 @@ ahci_fdt_probe(device_t dev)
 static int
 ahci_acpi_probe(device_t dev)
 {
+	struct ahci_controller *ctlr = device_get_softc(dev);
 	ACPI_HANDLE h;
 
 	if ((h = acpi_get_handle(dev)) == NULL)
@@ -98,6 +99,12 @@ ahci_acpi_probe(device_t dev)
 	    pci_get_subclass(dev) == PCIS_STORAGE_SATA &&
 	    pci_get_progif(dev) == PCIP_STORAGE_SATA_AHCI_1_0) {
 		device_set_desc_copy(dev, "AHCI SATA controller");
+		if (ACPI_FAILURE(acpi_GetInteger(h, "_CCA",
+		      &ctlr->dma_coherent)))
+			ctlr->dma_coherent = 0;
+		if (bootverbose)
+			device_printf(dev, "Bus is%s cache-coherent\n",
+			  ctlr->dma_coherent ? "" : " not");
 		return (BUS_PROBE_DEFAULT);
 	}
 

@@ -55,6 +55,16 @@ If zero, the number of TX queues is derived from the number of cores on the
 socket connected to the controller.
 .It Va disable_msix
 Disables MSI-X interrupts for the device.
+.It Va core_offset
+Specifies a starting core offset to assign queues to.
+If the value is unspecified or 65535, cores are assigned sequentially across
+controllers.
+.It Va separate_txrx
+Requests that RX and TX queues not be paired on the same core.
+If this is zero or not set, an RX and TX queue pair will be assigned to each
+core.
+When set to a non-zero value, TX queues are assigned to cores following the
+last RX queue.
 .El
 .Pp
 These

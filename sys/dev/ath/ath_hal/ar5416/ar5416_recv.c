@@ -106,14 +106,14 @@ ar5416StopDmaReceive(struct ath_hal *ah)
  * Start receive at the PCU engine
  */
 void
-ar5416StartPcuReceive(struct ath_hal *ah)
+ar5416StartPcuReceive(struct ath_hal *ah, HAL_BOOL is_scanning)
 {
 	struct ath_hal_private *ahp = AH_PRIVATE(ah);
 
 	HALDEBUG(ah, HAL_DEBUG_RX, "%s: Start PCU Receive \n", __func__);
 	ar5212EnableMibCounters(ah);
-	/* NB: restore current settings */
-	ar5416AniReset(ah, ahp->ah_curchan, ahp->ah_opmode, AH_TRUE);
+	/* NB: restore current settings if we're not scanning */
+	ar5416AniReset(ah, ahp->ah_curchan, ahp->ah_opmode, ! is_scanning);
 	/*
 	 * NB: must do after enabling phy errors to avoid rx
 	 *     frames w/ corrupted descriptor status.

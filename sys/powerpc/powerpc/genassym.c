@@ -196,6 +196,8 @@ ASSYM(CF_SIZE, sizeof(struct callframe));
 ASSYM(PCB_CONTEXT, offsetof(struct pcb, pcb_context));
 ASSYM(PCB_CR, offsetof(struct pcb, pcb_cr));
 ASSYM(PCB_DSCR, offsetof(struct pcb, pcb_dscr));
+ASSYM(PCB_FSCR, offsetof(struct pcb, pcb_fscr));
+ASSYM(PCB_TAR, offsetof(struct pcb, pcb_tar));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_TOC, offsetof(struct pcb, pcb_toc));
 ASSYM(PCB_LR, offsetof(struct pcb, pcb_lr));
@@ -204,11 +206,19 @@ ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_FPU, PCB_FPU);
 ASSYM(PCB_VEC, PCB_VEC);
 ASSYM(PCB_CDSCR, PCB_CDSCR);
+ASSYM(PCB_CFSCR, PCB_CFSCR);
 
 ASSYM(PCB_AIM_USR_VSID, offsetof(struct pcb, pcb_cpu.aim.usr_vsid));
 ASSYM(PCB_BOOKE_DBCR0, offsetof(struct pcb, pcb_cpu.booke.dbcr0));
 
 ASSYM(PCB_VSCR, offsetof(struct pcb, pcb_vec.vscr));
+
+ASSYM(PCB_EBB_EBBHR, offsetof(struct pcb, pcb_ebb.ebbhr));
+ASSYM(PCB_EBB_EBBRR, offsetof(struct pcb, pcb_ebb.ebbrr));
+ASSYM(PCB_EBB_BESCR, offsetof(struct pcb, pcb_ebb.bescr));
+
+ASSYM(PCB_LMON_LMRR, offsetof(struct pcb, pcb_lm.lmrr));
+ASSYM(PCB_LMON_LMSER, offsetof(struct pcb, pcb_lm.lmser));
 
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));

@@ -692,8 +692,6 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSUNLOCKMNT(m)		mtx_unlock(&((m)->nm_mtx))
 #define	NFSLOCKREQUEST(r)	mtx_lock(&((r)->r_mtx))
 #define	NFSUNLOCKREQUEST(r)	mtx_unlock(&((r)->r_mtx))
-#define	NFSPROCLISTLOCK()	sx_slock(&allproc_lock)
-#define	NFSPROCLISTUNLOCK()	sx_sunlock(&allproc_lock)
 #define	NFSLOCKSOCKREQ(r)	mtx_lock(&((r)->nr_mtx))
 #define	NFSUNLOCKSOCKREQ(r)	mtx_unlock(&((r)->nr_mtx))
 #define	NFSLOCKDS(d)		mtx_lock(&((d)->nfsclds_mtx))

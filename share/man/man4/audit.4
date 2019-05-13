@@ -1,5 +1,10 @@
-.\" Copyright (c) 2006 Robert N. M. Watson
+.\" Copyright (c) 2006, 2019 Robert N. M. Watson
 .\" All rights reserved.
+.\"
+.\" This software was developed in part by BAE Systems, the University of
+.\" Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+.\" contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+.\" Computing (TC) research program.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2009
+.Dd April 28, 2019
 .Dt AUDIT 4
 .Os
 .Sh NAME
@@ -74,6 +79,12 @@ Audit pipe special devices, discussed in
 provide a configurable live tracking mechanism to allow applications to
 tee the audit trail, as well as to configure custom preselection parameters
 to track users and events in a fine-grained manner.
+.Ss DTrace Audit Provider
+The DTrace Audit Provider,
+.Xr dtaudit 4 ,
+allows D scripts to enable capture of in-kernel audit records for kernel audit
+event types, and then process their contents during audit commit or BSM
+generation.
 .Sh SEE ALSO
 .Xr auditreduce 1 ,
 .Xr praudit 1 ,
@@ -88,6 +99,7 @@ to track users and events in a fine-grained manner.
 .Xr setauid 2 ,
 .Xr libbsm 3 ,
 .Xr auditpipe 4 ,
+.Xr dtaudit 4 ,
 .Xr audit.log 5 ,
 .Xr audit_class 5 ,
 .Xr audit_control 5 ,

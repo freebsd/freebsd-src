@@ -2310,8 +2310,8 @@ static driver_t muge_driver = {
 
 static devclass_t muge_devclass;
 
-DRIVER_MODULE(muge, uhub, muge_driver, muge_devclass, NULL, 0);
-DRIVER_MODULE(miibus, muge, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(muge, uhub, muge_driver, muge_devclass, NULL, NULL);
+DRIVER_MODULE(miibus, muge, miibus_driver, miibus_devclass, NULL, NULL);
 MODULE_DEPEND(muge, uether, 1, 1, 1);
 MODULE_DEPEND(muge, usb, 1, 1, 1);
 MODULE_DEPEND(muge, ether, 1, 1, 1);

@@ -48,7 +48,7 @@ typedef struct dev_info
 {
 	EFI_BLOCK_IO *dev;
 	EFI_DEVICE_PATH *devpath;
-	EFI_HANDLE *devhandle;
+	EFI_HANDLE devhandle;
 	void *devdata;
 	uint64_t partoff;
 	int preferred;

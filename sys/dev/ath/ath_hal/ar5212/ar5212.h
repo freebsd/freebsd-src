@@ -539,7 +539,7 @@ extern	uint32_t ar5212GetRxDP(struct ath_hal *ath, HAL_RX_QUEUE);
 extern	void ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp, HAL_RX_QUEUE);
 extern	void ar5212EnableReceive(struct ath_hal *ah);
 extern	HAL_BOOL ar5212StopDmaReceive(struct ath_hal *ah);
-extern	void ar5212StartPcuReceive(struct ath_hal *ah);
+extern	void ar5212StartPcuReceive(struct ath_hal *ah, HAL_BOOL);
 extern	void ar5212StopPcuReceive(struct ath_hal *ah);
 extern	void ar5212SetMulticastFilter(struct ath_hal *ah,
 		uint32_t filter0, uint32_t filter1);

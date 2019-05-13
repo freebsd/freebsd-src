@@ -360,7 +360,7 @@ fuse_vfsop_mount(struct mount *mp)
 out:
 	if (err) {
 		FUSE_LOCK();
-		if (data && data->mp == mp) {
+		if (data != NULL && data->mp == mp) {
 			/*
 			 * Destroy device only if we acquired reference to
 			 * it

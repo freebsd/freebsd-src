@@ -3,7 +3,7 @@
  * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
- * Copyright (c) 2018 Netflix, Inc.
+ * Copyright (c) 2016-2019 Netflix, Inc. written by M. Warner Losh
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,10 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <smbios.h>
 
-#ifdef EFI_ZFS_BOOT
-#include <libzfs.h>
 #include "efizfs.h"
-#endif
 
 #include "loader_efi.h"
 
@@ -90,6 +87,11 @@ static int fail_timeout = 5;
  * Current boot variable
  */
 UINT16 boot_current;
+
+/*
+ * Image that we booted from.
+ */
+EFI_LOADED_IMAGE *boot_img;
 
 static bool
 has_keyboard(void)
@@ -303,7 +305,7 @@ fix_dosisms(char *p)
 
 enum { BOOT_INFO_OK = 0, BAD_CHOICE = 1, NOT_SPECIFIC = 2  };
 static int
-match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
+match_boot_info(char *boot_info, size_t bisz)
 {
 	uint32_t attr;
 	uint16_t fplen;
@@ -451,7 +453,7 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
  * a drop to the OK boot loader prompt is possible.
  */
 static int
-find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
+find_currdev(bool do_bootmgr, bool is_last,
     char *boot_info, size_t boot_info_sz)
 {
 	pdinfo_t *dp, *pp;
@@ -470,13 +472,35 @@ find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
 	 */
 	rootdev = getenv("rootdev");
 	if (rootdev != NULL) {
-		printf("Setting currdev to configured rootdev %s\n", rootdev);
+		printf("    Setting currdev to configured rootdev %s\n",
+		    rootdev);
 		set_currdev(rootdev);
 		return (0);
 	}
 
 	/*
-	 * Second choice: If we can find out image boot_info, and there's
+	 * Second choice: If uefi_rootdev is set, translate that UEFI device
+	 * path to the loader's internal name and use that.
+	 */
+	do {
+		rootdev = getenv("uefi_rootdev");
+		if (rootdev == NULL)
+			break;
+		devpath = efi_name_to_devpath(rootdev);
+		if (devpath == NULL)
+			break;
+		dp = efiblk_get_pdinfo_by_device_path(devpath);
+		efi_devpath_free(devpath);
+		if (dp == NULL)
+			break;
+		printf("    Setting currdev to UEFI path %s\n",
+		    rootdev);
+		set_currdev_pdinfo(dp);
+		return (0);
+	} while (0);
+
+	/*
+	 * Third choice: If we can find out image boot_info, and there's
 	 * a follow-on boot image in that boot_info, use that. In this
 	 * case root will be the partition specified in that image and
 	 * we'll load the kernel specified by the file path. Should there
@@ -484,7 +508,7 @@ find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
 	 * loader.conf.
 	 */
 	if (do_bootmgr) {
-		rv = match_boot_info(img, boot_info, boot_info_sz);
+		rv = match_boot_info(boot_info, boot_info_sz);
 		switch (rv) {
 		case BOOT_INFO_OK:	/* We found it */
 			return (0);
@@ -517,7 +541,7 @@ find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
 	 * boot protocol to do so. We fail and let UEFI go on to
 	 * the next candidate.
 	 */
-	dp = efiblk_get_pdinfo_by_handle(img->DeviceHandle);
+	dp = efiblk_get_pdinfo_by_handle(boot_img->DeviceHandle);
 	if (dp != NULL) {
 		text = efi_devpath_name(dp->pd_devpath);
 		if (text != NULL) {
@@ -556,7 +580,7 @@ find_currdev(EFI_LOADED_IMAGE *img, bool do_bootmgr, bool is_last,
 	 * any of the nodes in that path match one of the enumerated
 	 * handles. Currently, this handle list is only for netboot.
 	 */
-	if (efi_handle_lookup(img->DeviceHandle, &dev, &unit, &extra) == 0) {
+	if (efi_handle_lookup(boot_img->DeviceHandle, &dev, &unit, &extra) == 0) {
 		set_currdev_devsw(dev, unit);
 		if (sanity_check_currdev())
 			return (0);
@@ -740,6 +764,80 @@ out:
 	return (how);
 }
 
+void
+parse_loader_efi_config(EFI_HANDLE h, const char *env_fn)
+{
+	pdinfo_t *dp;
+	struct stat st;
+	int fd = -1;
+	char *env = NULL;
+
+	dp = efiblk_get_pdinfo_by_handle(h);
+	if (dp == NULL)
+		return;
+	set_currdev_pdinfo(dp);
+	if (stat(env_fn, &st) != 0)
+		return;
+	fd = open(env_fn, O_RDONLY);
+	if (fd == -1)
+		return;
+	env = malloc(st.st_size + 1);
+	if (env == NULL)
+		goto out;
+	if (read(fd, env, st.st_size) != st.st_size)
+		goto out;
+	env[st.st_size] = '\0';
+	boot_parse_cmdline(env);
+out:
+	free(env);
+	close(fd);
+}
+
+static void
+read_loader_env(const char *name, char *def_fn, bool once)
+{
+	UINTN len;
+	char *fn, *freeme = NULL;
+
+	len = 0;
+	fn = def_fn;
+	if (efi_freebsd_getenv(name, NULL, &len) == EFI_BUFFER_TOO_SMALL) {
+		freeme = fn = malloc(len + 1);
+		if (fn != NULL) {
+			if (efi_freebsd_getenv(name, fn, &len) != EFI_SUCCESS) {
+				free(fn);
+				fn = NULL;
+				printf(
+			    "Can't fetch FreeBSD::%s we know is there\n", name);
+			} else {
+				/*
+				 * if tagged as 'once' delete the env variable so we
+				 * only use it once.
+				 */
+				if (once)
+					efi_freebsd_delenv(name);
+				/*
+				 * We malloced 1 more than len above, then redid the call.
+				 * so now we have room at the end of the string to NUL terminate
+				 * it here, even if the typical idium would have '- 1' here to
+				 * not overflow. len should be the same on return both times.
+				 */
+				fn[len] = '\0';
+			}
+		} else {
+			printf(
+		    "Can't allocate %d bytes to fetch FreeBSD::%s env var\n",
+			    len, name);
+		}
+	}
+	if (fn) {
+		printf("    Reading loader env vars from %s\n", fn);
+		parse_loader_efi_config(boot_img->DeviceHandle, fn);
+	}
+}
+
+
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
@@ -754,7 +852,6 @@ main(int argc, CHAR16 *argv[])
 	size_t sz, bosz = 0, bisz = 0;
 	UINT16 boot_order[100];
 	char boot_info[4096];
-	EFI_LOADED_IMAGE *img;
 	char buf[32];
 	bool uefi_boot_mgr;
 
@@ -763,42 +860,72 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_copyin = efi_copyin;
 	archsw.arch_copyout = efi_copyout;
 	archsw.arch_readin = efi_readin;
-#ifdef EFI_ZFS_BOOT
-	/* Note this needs to be set before ZFS init. */
 	archsw.arch_zfs_probe = efi_zfs_probe;
-#endif
 
         /* Get our loaded image protocol interface structure. */
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
-
-#ifdef EFI_ZFS_BOOT
-	/* Tell ZFS probe code where we booted from */
-	efizfs_set_preferred(img->DeviceHandle);
-#endif
-	/* Init the time source */
-	efi_time_init();
-
-	has_kbd = has_keyboard();
+	BS->HandleProtocol(IH, &imgid, (VOID**)&boot_img);
 
 	/*
-	 * XXX Chicken-and-egg problem; we want to have console output
-	 * early, but some console attributes may depend on reading from
-	 * eg. the boot device, which we can't do yet.  We can use
-	 * printf() etc. once this is done.
+	 * Chicken-and-egg problem; we want to have console output early, but
+	 * some console attributes may depend on reading from eg. the boot
+	 * device, which we can't do yet.  We can use printf() etc. once this is
+	 * done. So, we set it to the efi console, then call console init. This
+	 * gets us printf early, but also primes the pump for all future console
+	 * changes to take effect, regardless of where they come from.
 	 */
 	setenv("console", "efi", 1);
 	cons_probe();
+
+	/* Init the time source */
+	efi_time_init();
 
 	/*
 	 * Initialise the block cache. Set the upper limit.
 	 */
 	bcache_init(32768, 512);
 
+	/*
+	 * Scan the BLOCK IO MEDIA handles then
+	 * march through the device switch probing for things.
+	 */
+	i = efipart_inithandles();
+	if (i != 0 && i != ENOENT) {
+		printf("efipart_inithandles failed with ERRNO %d, expect "
+		    "failures\n", i);
+	}
+
+	for (i = 0; devsw[i] != NULL; i++)
+		if (devsw[i]->dv_init != NULL)
+			(devsw[i]->dv_init)();
+
+	/*
+	 * Detect console settings two different ways: one via the command
+	 * args (eg -h) or via the UEFI ConOut variable.
+	 */
+	has_kbd = has_keyboard();
 	howto = parse_args(argc, argv);
 	if (!has_kbd && (howto & RB_PROBE))
 		howto |= RB_SERIAL | RB_MULTIPLE;
 	howto &= ~RB_PROBE;
 	uhowto = parse_uefi_con_out();
+
+	/*
+	 * Read additional environment variables from the boot device's
+	 * "LoaderEnv" file. Any boot loader environment variable may be set
+	 * there, which are subtly different than loader.conf variables. Only
+	 * the 'simple' ones may be set so things like foo_load="YES" won't work
+	 * for two reasons.  First, the parser is simplistic and doesn't grok
+	 * quotes.  Second, because the variables that cause an action to happen
+	 * are parsed by the lua, 4th or whatever code that's not yet
+	 * loaded. This is relative to the root directory when loader.efi is
+	 * loaded off the UFS root drive (when chain booted), or from the ESP
+	 * when directly loaded by the BIOS.
+	 *
+	 * We also read in NextLoaderEnv if it was specified. This allows next boot
+	 * functionality to be implemented and to override anything in LoaderEnv.
+	 */
+	read_loader_env("LoaderEnv", "/efi/freebsd/loader.env", false);
+	read_loader_env("NextLoaderEnv", NULL, true);
 
 	/*
 	 * We now have two notions of console. howto should be viewed as
@@ -813,17 +940,15 @@ main(int argc, CHAR16 *argv[])
 		if ((howto & CON_MASK) == 0) {
 			/* No override, uhowto is controlling and efi cons is perfect */
 			howto = howto | (uhowto & CON_MASK);
-			setenv("console", "efi", 1);
 		} else if ((howto & CON_MASK) == (uhowto & CON_MASK)) {
 			/* override matches what UEFI told us, efi console is perfect */
-			setenv("console", "efi", 1);
 		} else if ((uhowto & (CON_MASK)) != 0) {
 			/*
 			 * We detected a serial console on ConOut. All possible
 			 * overrides include serial. We can't really override what efi
 			 * gives us, so we use it knowing it's the best choice.
 			 */
-			setenv("console", "efi", 1);
+			/* Do nothing */
 		} else {
 			/*
 			 * We detected some kind of serial in the override, but ConOut
@@ -858,20 +983,6 @@ main(int argc, CHAR16 *argv[])
 	if ((s = getenv("fail_timeout")) != NULL)
 		fail_timeout = strtol(s, NULL, 10);
 
-	/*
-	 * Scan the BLOCK IO MEDIA handles then
-	 * march through the device switch probing for things.
-	 */
-	i = efipart_inithandles();
-	if (i != 0 && i != ENOENT) {
-		printf("efipart_inithandles failed with ERRNO %d, expect "
-		    "failures\n", i);
-	}
-
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
-
 	printf("%s\n", bootprog_info);
 	printf("   Command line arguments:");
 	for (i = 0; i < argc; i++)
@@ -884,17 +995,15 @@ main(int argc, CHAR16 *argv[])
 	    ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
 	printf("   Console: %s (%#x)\n", getenv("console"), howto);
 
-
-
 	/* Determine the devpath of our image so we can prefer it. */
-	text = efi_devpath_name(img->FilePath);
+	text = efi_devpath_name(boot_img->FilePath);
 	if (text != NULL) {
 		printf("   Load Path: %S\n", text);
 		efi_setenv_freebsd_wcs("LoaderPath", text);
 		efi_free_devpath_name(text);
 	}
 
-	rv = BS->HandleProtocol(img->DeviceHandle, &devid, (void **)&imgpath);
+	rv = BS->HandleProtocol(boot_img->DeviceHandle, &devid, (void **)&imgpath);
 	if (rv == EFI_SUCCESS) {
 		text = efi_devpath_name(imgpath);
 		if (text != NULL) {
@@ -904,36 +1013,41 @@ main(int argc, CHAR16 *argv[])
 		}
 	}
 
-	uefi_boot_mgr = true;
-	boot_current = 0;
-	sz = sizeof(boot_current);
-	rv = efi_global_getenv("BootCurrent", &boot_current, &sz);
-	if (rv == EFI_SUCCESS)
-		printf("   BootCurrent: %04x\n", boot_current);
-	else {
-		boot_current = 0xffff;
+	if (getenv("uefi_ignore_boot_mgr") != NULL) {
+		printf("    Ignoring UEFI boot manager\n");
 		uefi_boot_mgr = false;
-	}
+	} else {
+		uefi_boot_mgr = true;
+		boot_current = 0;
+		sz = sizeof(boot_current);
+		rv = efi_global_getenv("BootCurrent", &boot_current, &sz);
+		if (rv == EFI_SUCCESS)
+			printf("   BootCurrent: %04x\n", boot_current);
+		else {
+			boot_current = 0xffff;
+			uefi_boot_mgr = false;
+		}
 
-	sz = sizeof(boot_order);
-	rv = efi_global_getenv("BootOrder", &boot_order, &sz);
-	if (rv == EFI_SUCCESS) {
-		printf("   BootOrder:");
-		for (i = 0; i < sz / sizeof(boot_order[0]); i++)
-			printf(" %04x%s", boot_order[i],
-			    boot_order[i] == boot_current ? "[*]" : "");
-		printf("\n");
-		is_last = boot_order[(sz / sizeof(boot_order[0])) - 1] == boot_current;
-		bosz = sz;
-	} else if (uefi_boot_mgr) {
-		/*
-		 * u-boot doesn't set BootOrder, but otherwise participates in the
-		 * boot manager protocol. So we fake it here and don't consider it
-		 * a failure.
-		 */
-		bosz = sizeof(boot_order[0]);
-		boot_order[0] = boot_current;
-		is_last = true;
+		sz = sizeof(boot_order);
+		rv = efi_global_getenv("BootOrder", &boot_order, &sz);
+		if (rv == EFI_SUCCESS) {
+			printf("   BootOrder:");
+			for (i = 0; i < sz / sizeof(boot_order[0]); i++)
+				printf(" %04x%s", boot_order[i],
+				    boot_order[i] == boot_current ? "[*]" : "");
+			printf("\n");
+			is_last = boot_order[(sz / sizeof(boot_order[0])) - 1] == boot_current;
+			bosz = sz;
+		} else if (uefi_boot_mgr) {
+			/*
+			 * u-boot doesn't set BootOrder, but otherwise participates in the
+			 * boot manager protocol. So we fake it here and don't consider it
+			 * a failure.
+			 */
+			bosz = sizeof(boot_order[0]);
+			boot_order[0] = boot_current;
+			is_last = true;
+		}
 	}
 
 	/*
@@ -981,8 +1095,9 @@ main(int argc, CHAR16 *argv[])
 	 * the boot protocol and also allow an escape hatch for users wishing
 	 * to try something different.
 	 */
-	if (find_currdev(img, uefi_boot_mgr, is_last, boot_info, bisz) != 0)
-		if (!interactive_interrupt("Failed to find bootable partition"))
+	if (find_currdev(uefi_boot_mgr, is_last, boot_info, bisz) != 0)
+		if (uefi_boot_mgr &&
+		    !interactive_interrupt("Failed to find bootable partition"))
 			return (EFI_NOT_FOUND);
 
 	efi_init_environment();
@@ -1217,7 +1332,7 @@ command_lsefi(int argc __unused, char *argv[] __unused)
 	EFI_HANDLE handle;
 	UINTN bufsz = 0, i, j;
 	EFI_STATUS status;
-	int ret;
+	int ret = 0;
 
 	status = BS->LocateHandle(AllHandles, NULL, NULL, &bufsz, buffer);
 	if (status != EFI_BUFFER_TOO_SMALL) {

@@ -570,7 +570,7 @@ universe-toolchain: .PHONY universe_prologue
 	    false; \
 	fi
 	@if [ ! -e "${HOST_OBJTOP}/tmp/usr/bin/ld" ]; then \
-	    echo "Missing host linker at ${HOST_OBJTOP}/tmp/usr/bin/cc?" >&2; \
+	    echo "Missing host linker at ${HOST_OBJTOP}/tmp/usr/bin/ld?" >&2; \
 	    false; \
 	fi
 	@echo "--------------------------------------------------------------"

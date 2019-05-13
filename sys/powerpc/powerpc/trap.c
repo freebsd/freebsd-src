@@ -305,11 +305,41 @@ trap(struct trapframe *frame)
 
 		case EXC_FAC:
 			fscr = mfspr(SPR_FSCR);
-			if ((fscr & FSCR_IC_MASK) == FSCR_IC_HTM) {
-				CTR0(KTR_TRAP, "Hardware Transactional Memory subsystem disabled");
+			switch (fscr & FSCR_IC_MASK) {
+			case FSCR_IC_HTM:
+				CTR0(KTR_TRAP,
+				    "Hardware Transactional Memory subsystem disabled");
+				sig = SIGILL;
+				ucode =	ILL_ILLOPC;
+				break;
+			case FSCR_IC_DSCR:
+				td->td_pcb->pcb_flags |= PCB_CFSCR | PCB_CDSCR;
+				fscr |= FSCR_DSCR;
+				mtspr(SPR_DSCR, 0);
+				break;
+			case FSCR_IC_EBB:
+				td->td_pcb->pcb_flags |= PCB_CFSCR;
+				fscr |= FSCR_EBB;
+				mtspr(SPR_EBBHR, 0);
+				mtspr(SPR_EBBRR, 0);
+				mtspr(SPR_BESCR, 0);
+				break;
+			case FSCR_IC_TAR:
+				td->td_pcb->pcb_flags |= PCB_CFSCR;
+				fscr |= FSCR_TAR;
+				mtspr(SPR_TAR, 0);
+				break;
+			case FSCR_IC_LM:
+				td->td_pcb->pcb_flags |= PCB_CFSCR;
+				fscr |= FSCR_LM;
+				mtspr(SPR_LMRR, 0);
+				mtspr(SPR_LMSER, 0);
+				break;
+			default:
+				sig = SIGILL;
+				ucode =	ILL_ILLOPC;
 			}
-			sig = SIGILL;
-			ucode =	ILL_ILLOPC;
+			mtspr(SPR_FSCR, fscr & ~FSCR_IC_MASK);
 			break;
 		case EXC_HEA:
 			sig = SIGILL;

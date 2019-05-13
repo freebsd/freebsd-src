@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cnv.h>
 #include <sys/dnv.h>
 #include <sys/nv.h>
+#include <sys/stat.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -59,7 +60,36 @@ struct fileargs {
 };
 
 static int
-fileargs_get_cache(fileargs_t *fa, const char *name)
+fileargs_get_lstat_cache(fileargs_t *fa, const char *name, struct stat *sb)
+{
+	const nvlist_t *nvl;
+	size_t size;
+	const void *buf;
+
+	assert(fa != NULL);
+	assert(fa->fa_magic == FILEARGS_MAGIC);
+	assert(name != NULL);
+
+	if (fa->fa_cache == NULL)
+		return (-1);
+
+	nvl = dnvlist_get_nvlist(fa->fa_cache, name, NULL);
+	if (nvl == NULL)
+		return (-1);
+
+	if (!nvlist_exists_binary(nvl, "stat")) {
+		return (-1);
+	}
+
+	buf = nvlist_get_binary(nvl, "stat", &size);
+	assert(size == sizeof(*sb));
+	memcpy(sb, buf, size);
+
+	return (0);
+}
+
+static int
+fileargs_get_fd_cache(fileargs_t *fa, const char *name)
 {
 	int fd;
 	const nvlist_t *nvl;
@@ -80,6 +110,12 @@ fileargs_get_cache(fileargs_t *fa, const char *name)
 		return (-1);
 
 	tnvl = nvlist_take_nvlist(fa->fa_cache, name);
+
+	if (!nvlist_exists_descriptor(tnvl, "fd")) {
+		nvlist_destroy(tnvl);
+		return (-1);
+	}
+
 	fd = nvlist_take_descriptor(tnvl, "fd");
 	nvlist_destroy(tnvl);
 
@@ -102,7 +138,7 @@ fileargs_set_cache(fileargs_t *fa, nvlist_t *nvl)
 }
 
 static nvlist_t*
-fileargs_fetch(fileargs_t *fa, const char *name)
+fileargs_fetch(fileargs_t *fa, const char *name, const char *cmd)
 {
 	nvlist_t *nvl;
 	int serrno;
@@ -111,7 +147,7 @@ fileargs_fetch(fileargs_t *fa, const char *name)
 	assert(name != NULL);
 
 	nvl = nvlist_create(NV_FLAG_NO_UNIQUE);
-	nvlist_add_string(nvl, "cmd", "open");
+	nvlist_add_string(nvl, "cmd", cmd);
 	nvlist_add_string(nvl, "name", name);
 
 	nvl = cap_xfer_nvlist(fa->fa_chann, nvl);
@@ -130,7 +166,7 @@ fileargs_fetch(fileargs_t *fa, const char *name)
 
 static nvlist_t *
 fileargs_create_limit(int argc, const char * const *argv, int flags,
-    mode_t mode, cap_rights_t *rightsp)
+    mode_t mode, cap_rights_t *rightsp, int operations)
 {
 	nvlist_t *limits;
 	int i;
@@ -140,6 +176,7 @@ fileargs_create_limit(int argc, const char * const *argv, int flags,
 		return (NULL);
 
 	nvlist_add_number(limits, "flags", flags);
+	nvlist_add_number(limits, "operations", operations);
 	if (rightsp != NULL) {
 		nvlist_add_binary(limits, "cap_rights", rightsp,
 		    sizeof(*rightsp));
@@ -172,7 +209,7 @@ fileargs_create(cap_channel_t *chan, int fdflags)
 
 fileargs_t *
 fileargs_init(int argc, char *argv[], int flags, mode_t mode,
-    cap_rights_t *rightsp)
+    cap_rights_t *rightsp, int operations)
 {
 	nvlist_t *limits;
 
@@ -181,7 +218,7 @@ fileargs_init(int argc, char *argv[], int flags, mode_t mode,
 	}
 
 	limits = fileargs_create_limit(argc, (const char * const *)argv, flags,
-	   mode, rightsp);
+	   mode, rightsp, operations);
 	if (limits == NULL)
 		return (NULL);
 
@@ -190,7 +227,7 @@ fileargs_init(int argc, char *argv[], int flags, mode_t mode,
 
 fileargs_t *
 fileargs_cinit(cap_channel_t *cas, int argc, char *argv[], int flags,
-     mode_t mode, cap_rights_t *rightsp)
+     mode_t mode, cap_rights_t *rightsp, int operations)
 {
 	nvlist_t *limits;
 
@@ -199,7 +236,7 @@ fileargs_cinit(cap_channel_t *cas, int argc, char *argv[], int flags,
 	}
 
 	limits = fileargs_create_limit(argc, (const char * const *)argv, flags,
-	   mode, rightsp);
+	   mode, rightsp, operations);
 	if (limits == NULL)
 		return (NULL);
 
@@ -234,7 +271,7 @@ fileargs_cinitnv(cap_channel_t *cas, nvlist_t *limits)
 	cap_channel_t *chann;
 	fileargs_t *fa;
 	int serrno, ret;
-	int flags;
+	int flags, operations;
 
 	assert(cas != NULL);
 
@@ -252,6 +289,7 @@ fileargs_cinitnv(cap_channel_t *cas, nvlist_t *limits)
 	}
 
 	flags = nvlist_get_number(limits, "flags");
+	operations = nvlist_get_number(limits, "operations");
 
 	/* Limits are consumed no need to free them. */
 	ret = cap_limit_set(chann, limits);
@@ -291,11 +329,11 @@ fileargs_open(fileargs_t *fa, const char *name)
 		return (-1);
 	}
 
-	fd = fileargs_get_cache(fa, name);
+	fd = fileargs_get_fd_cache(fa, name);
 	if (fd != -1)
 		return (fd);
 
-	nvl = fileargs_fetch(fa, name);
+	nvl = fileargs_fetch(fa, name, "open");
 	if (nvl == NULL)
 		return (-1);
 
@@ -320,6 +358,53 @@ fileargs_fopen(fileargs_t *fa, const char *name, const char *mode)
 	}
 
 	return (fdopen(fd, mode));
+}
+
+int
+fileargs_lstat(fileargs_t *fa, const char *name, struct stat *sb)
+{
+	nvlist_t *nvl;
+	const void *buf;
+	size_t size;
+	char *cmd;
+
+	assert(fa != NULL);
+	assert(fa->fa_magic == FILEARGS_MAGIC);
+
+	if (name == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if (sb == NULL) {
+		errno = EFAULT;
+		return (-1);
+	}
+
+	if (fa->fa_chann == NULL) {
+		errno = ENOTCAPABLE;
+		return (-1);
+	}
+
+	if (fileargs_get_lstat_cache(fa, name, sb) != -1)
+		return (0);
+
+	nvl = fileargs_fetch(fa, name, "lstat");
+	if (nvl == NULL)
+		return (-1);
+
+	buf = nvlist_get_binary(nvl, "stat", &size);
+	assert(size == sizeof(*sb));
+	memcpy(sb, buf, size);
+
+	cmd = nvlist_take_string(nvl, "cmd");
+	if (strcmp(cmd, "cache") == 0)
+		fileargs_set_cache(fa, nvl);
+	else
+		nvlist_destroy(nvl);
+	free(cmd);
+
+	return (0);
 }
 
 void
@@ -348,6 +433,7 @@ static void *cacheposition;
 static bool allcached;
 static const cap_rights_t *caprightsp;
 static int capflags;
+static int allowed_operations;
 static mode_t capmode;
 
 static int
@@ -382,6 +468,7 @@ fileargs_add_cache(nvlist_t *nvlout, const nvlist_t *limits,
 	void *cookie;
 	nvlist_t *new;
 	const char *fname;
+	struct stat sb;
 
 	if ((capflags & O_CREAT) != 0) {
 		allcached = true;
@@ -409,14 +496,25 @@ fileargs_add_cache(nvlist_t *nvlout, const nvlist_t *limits,
 			continue;
 		}
 
-		fd = open_file(fname);
-		if (fd < 0) {
-			i--;
-			continue;
+		new = nvlist_create(NV_FLAG_NO_UNIQUE);
+		if ((allowed_operations & FA_OPEN) != 0) {
+			fd = open_file(fname);
+			if (fd < 0) {
+				i--;
+				nvlist_destroy(new);
+				continue;
+			}
+			nvlist_move_descriptor(new, "fd", fd);
+		}
+		if ((allowed_operations & FA_LSTAT) != 0) {
+			if (lstat(fname, &sb) < 0) {
+				i--;
+				nvlist_destroy(new);
+				continue;
+			}
+			nvlist_add_binary(new, "stat", &sb, sizeof(sb));
 		}
 
-		new = nvlist_create(NV_FLAG_NO_UNIQUE);
-		nvlist_move_descriptor(new, "fd", fd);
 		nvlist_add_nvlist(nvlout, fname, new);
 	}
 	cacheposition = cookie;
@@ -424,9 +522,12 @@ fileargs_add_cache(nvlist_t *nvlout, const nvlist_t *limits,
 }
 
 static bool
-fileargs_allowed(const nvlist_t *limits, const nvlist_t *request)
+fileargs_allowed(const nvlist_t *limits, const nvlist_t *request, int operation)
 {
 	const char *name;
+
+	if ((allowed_operations & operation) == 0)
+		return (false);
 
 	name = dnvlist_get_string(request, "name", NULL);
 	if (name == NULL)
@@ -450,6 +551,7 @@ fileargs_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 		return (ENOTCAPABLE);
 
 	capflags = (int)dnvlist_get_number(newlimits, "flags", 0);
+	allowed_operations = (int)dnvlist_get_number(newlimits, "operations", 0);
 	if ((capflags & O_CREAT) != 0)
 		capmode = (mode_t)nvlist_get_number(newlimits, "mode");
 	else
@@ -457,6 +559,37 @@ fileargs_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 
 	caprightsp = dnvlist_get_binary(newlimits, "cap_rights", NULL, NULL, 0);
 
+	return (0);
+}
+
+static int
+fileargs_command_lstat(const nvlist_t *limits, nvlist_t *nvlin,
+    nvlist_t *nvlout)
+{
+	int error;
+	const char *name;
+	struct stat sb;
+
+	if (limits == NULL)
+		return (ENOTCAPABLE);
+
+	if (!fileargs_allowed(limits, nvlin, FA_LSTAT))
+		return (ENOTCAPABLE);
+
+	name = nvlist_get_string(nvlin, "name");
+
+	error = lstat(name, &sb);
+	if (error < 0)
+		return (errno);
+
+	if (!allcached && (lastname == NULL ||
+	    strcmp(name, lastname) == 0)) {
+		nvlist_add_string(nvlout, "cmd", "cache");
+		fileargs_add_cache(nvlout, limits, name);
+	} else {
+		nvlist_add_string(nvlout, "cmd", "lstat");
+	}
+	nvlist_add_binary(nvlout, "stat", &sb, sizeof(sb));
 	return (0);
 }
 
@@ -470,7 +603,7 @@ fileargs_command_open(const nvlist_t *limits, nvlist_t *nvlin,
 	if (limits == NULL)
 		return (ENOTCAPABLE);
 
-	if (!fileargs_allowed(limits, nvlin))
+	if (!fileargs_allowed(limits, nvlin, FA_OPEN))
 		return (ENOTCAPABLE);
 
 	name = nvlist_get_string(nvlin, "name");
@@ -497,6 +630,9 @@ fileargs_command(const char *cmd, const nvlist_t *limits,
 
 	if (strcmp(cmd, "open") == 0)
 		return (fileargs_command_open(limits, nvlin, nvlout));
+
+	if (strcmp(cmd, "lstat") == 0)
+		return (fileargs_command_lstat(limits, nvlin, nvlout));
 
 	return (EINVAL);
 }

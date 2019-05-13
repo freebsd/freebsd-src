@@ -31,7 +31,7 @@ SRCS+=	metadata.c
 .endif
 
 .if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
-SRCS+=	disk.c part.c
+SRCS+=	disk.c part.c vdisk.c
 .endif
 
 .if ${LOADER_NET_SUPPORT:Uno} == "yes"

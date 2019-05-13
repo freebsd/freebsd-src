@@ -1382,7 +1382,7 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 	unsigned int	pp2d_idx = PP2D_IDX(va);
 	unsigned int	pdir_idx = PDIR_IDX(va);
 	unsigned int	ptbl_idx = PTBL_IDX(va);
-	pte_t          *ptbl, *pte;
+	pte_t          *ptbl, *pte, pte_tmp;
 	pte_t         **pdir;
 
 	/* Get the page directory pointer. */
@@ -1400,12 +1400,13 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 			KASSERT(nosleep, ("nosleep and NULL ptbl"));
 			return (ENOMEM);
 		}
+		pte = &ptbl[ptbl_idx];
 	} else {
 		/*
 		 * Check if there is valid mapping for requested va, if there
 		 * is, remove it.
 		 */
-		pte = &pdir[pdir_idx][ptbl_idx];
+		pte = &ptbl[ptbl_idx];
 		if (PTE_ISVALID(pte)) {
 			pte_remove(mmu, pmap, va, PTBL_HOLD);
 		} else {
@@ -1437,14 +1438,16 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 		pv_insert(pmap, va, m);
 	}
 
+	pmap->pm_stats.resident_count++;
+
+	pte_tmp = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
+	pte_tmp |= (PTE_VALID | flags);
+
 	mtx_lock_spin(&tlbivax_mutex);
 	tlb_miss_lock();
 
 	tlb0_flush_entry(va);
-	pmap->pm_stats.resident_count++;
-	pte = &pdir[pdir_idx][ptbl_idx];
-	*pte = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
-	*pte |= (PTE_VALID | flags);
+	*pte = pte_tmp;
 
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
@@ -1583,7 +1586,7 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 {
 	unsigned int pdir_idx = PDIR_IDX(va);
 	unsigned int ptbl_idx = PTBL_IDX(va);
-	pte_t *ptbl, *pte;
+	pte_t *ptbl, *pte, pte_tmp;
 
 	CTR4(KTR_PMAP, "%s: su = %d pmap = %p va = %p", __func__,
 	    pmap == kernel_pmap, pmap, va);
@@ -1598,6 +1601,8 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 			KASSERT(nosleep, ("nosleep and NULL ptbl"));
 			return (ENOMEM);
 		}
+		pmap->pm_pdir[pdir_idx] = ptbl;
+		pte = &ptbl[ptbl_idx];
 	} else {
 		/*
 		 * Check if there is valid mapping for requested
@@ -1629,20 +1634,14 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 
 	pmap->pm_stats.resident_count++;
 	
+	pte_tmp = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
+	pte_tmp |= (PTE_VALID | flags | PTE_PS_4KB); /* 4KB pages only */
+
 	mtx_lock_spin(&tlbivax_mutex);
 	tlb_miss_lock();
 
 	tlb0_flush_entry(va);
-	if (pmap->pm_pdir[pdir_idx] == NULL) {
-		/*
-		 * If we just allocated a new page table, hook it in
-		 * the pdir.
-		 */
-		pmap->pm_pdir[pdir_idx] = ptbl;
-	}
-	pte = &(pmap->pm_pdir[pdir_idx][ptbl_idx]);
-	*pte = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
-	*pte |= (PTE_VALID | flags | PTE_PS_4KB); /* 4KB pages only */
+	*pte = pte_tmp;
 
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
@@ -1843,9 +1842,6 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf(" kernstart   = 0x%"PRI0ptrX"\n", kernstart);
 	debugf(" kernsize    = 0x%"PRI0ptrX"\n", kernsize);
 
-	if (sizeof(phys_avail) / sizeof(phys_avail[0]) < availmem_regions_sz)
-		panic("mmu_booke_bootstrap: phys_avail too small");
-
 	/*
 	 * Remove kernel physical address range from avail regions list. Page
 	 * align all regions.  Non-page aligned memory isn't very interesting
@@ -1855,6 +1851,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Retrieve phys/avail mem regions */
 	mem_regions(&physmem_regions, &physmem_regions_sz,
 	    &availmem_regions, &availmem_regions_sz);
+
+	if (nitems(phys_avail) < availmem_regions_sz)
+		panic("mmu_booke_bootstrap: phys_avail too small");
+
 	sz = 0;
 	cnt = availmem_regions_sz;
 	debugf("processing avail regions:\n");
@@ -2871,18 +2871,20 @@ static void
 mmu_booke_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
 	pte_t *pte;
+	vm_paddr_t pa = 0;
+	int sync_sz, valid;
+#ifndef __powerpc64__
 	pmap_t pmap;
 	vm_page_t m;
 	vm_offset_t addr;
-	vm_paddr_t pa = 0;
-	int active, valid;
+	int active;
+#endif
  
-	va = trunc_page(va);
-	sz = round_page(sz);
-
+#ifndef __powerpc64__
 	rw_wlock(&pvh_global_lock);
 	pmap = PCPU_GET(curpmap);
 	active = (pm == kernel_pmap || pm == pmap) ? 1 : 0;
+#endif
 	while (sz > 0) {
 		PMAP_LOCK(pm);
 		pte = pte_find(mmu, pm, va);
@@ -2890,24 +2892,34 @@ mmu_booke_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 		if (valid)
 			pa = PTE_PA(pte);
 		PMAP_UNLOCK(pm);
+		sync_sz = PAGE_SIZE - (va & PAGE_MASK);
+		sync_sz = min(sync_sz, sz);
 		if (valid) {
+#ifdef __powerpc64__
+			pa += (va & PAGE_MASK);
+			__syncicache((void *)PHYS_TO_DMAP(pa), sync_sz);
+#else
 			if (!active) {
 				/* Create a mapping in the active pmap. */
 				addr = 0;
 				m = PHYS_TO_VM_PAGE(pa);
 				PMAP_LOCK(pmap);
 				pte_enter(mmu, pmap, m, addr,
-				    PTE_SR | PTE_VALID | PTE_UR, FALSE);
-				__syncicache((void *)addr, PAGE_SIZE);
+				    PTE_SR | PTE_VALID, FALSE);
+				addr += (va & PAGE_MASK);
+				__syncicache((void *)addr, sync_sz);
 				pte_remove(mmu, pmap, addr, PTBL_UNHOLD);
 				PMAP_UNLOCK(pmap);
 			} else
-				__syncicache((void *)va, PAGE_SIZE);
+				__syncicache((void *)va, sync_sz);
+#endif
 		}
-		va += PAGE_SIZE;
-		sz -= PAGE_SIZE;
+		va += sync_sz;
+		sz -= sync_sz;
 	}
+#ifndef __powerpc64__
 	rw_wunlock(&pvh_global_lock);
+#endif
 }
 
 /*
@@ -2973,19 +2985,19 @@ mmu_booke_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 
 	/* XXX KASSERT off and size are within a single page? */
 
-	if (hw_direct_map) {
-		va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-		bzero((caddr_t)va + off, size);
-	} else {
-		mtx_lock(&zero_page_mutex);
-		va = zero_page_va;
+#ifdef __powerpc64__
+	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+	bzero((caddr_t)va + off, size);
+#else
+	mtx_lock(&zero_page_mutex);
+	va = zero_page_va;
 
-		mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
-		bzero((caddr_t)va + off, size);
-		mmu_booke_kremove(mmu, va);
+	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
+	bzero((caddr_t)va + off, size);
+	mmu_booke_kremove(mmu, va);
 
-		mtx_unlock(&zero_page_mutex);
-	}
+	mtx_unlock(&zero_page_mutex);
+#endif
 }
 
 /*
@@ -2996,23 +3008,24 @@ mmu_booke_zero_page(mmu_t mmu, vm_page_t m)
 {
 	vm_offset_t off, va;
 
-	if (hw_direct_map) {
-		va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-	} else {
-		va = zero_page_va;
-		mtx_lock(&zero_page_mutex);
+#ifdef __powerpc64__
+	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 
-		mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
-	}
+	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
+		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
+#else
+	va = zero_page_va;
+	mtx_lock(&zero_page_mutex);
+
+	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
 
 	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
 		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
 
-	if (!hw_direct_map) {
-		mmu_booke_kremove(mmu, va);
+	mmu_booke_kremove(mmu, va);
 
-		mtx_unlock(&zero_page_mutex);
-	}
+	mtx_unlock(&zero_page_mutex);
+#endif
 }
 
 /*
@@ -3025,23 +3038,23 @@ mmu_booke_copy_page(mmu_t mmu, vm_page_t sm, vm_page_t dm)
 {
 	vm_offset_t sva, dva;
 
+#ifdef __powerpc64__
+	sva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(sm));
+	dva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dm));
+	memcpy((caddr_t)dva, (caddr_t)sva, PAGE_SIZE);
+#else
+	mtx_lock(&copy_page_mutex);
+	mmu_booke_kenter(mmu, sva, VM_PAGE_TO_PHYS(sm));
+	mmu_booke_kenter(mmu, dva, VM_PAGE_TO_PHYS(dm));
 	sva = copy_page_src_va;
 	dva = copy_page_dst_va;
 
-	if (hw_direct_map) {
-		sva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(sm));
-		dva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dm));
-	} else {
-		mtx_lock(&copy_page_mutex);
-		mmu_booke_kenter(mmu, sva, VM_PAGE_TO_PHYS(sm));
-		mmu_booke_kenter(mmu, dva, VM_PAGE_TO_PHYS(dm));
-	}
 	memcpy((caddr_t)dva, (caddr_t)sva, PAGE_SIZE);
-	if (!hw_direct_map) {
-		mmu_booke_kremove(mmu, dva);
-		mmu_booke_kremove(mmu, sva);
-		mtx_unlock(&copy_page_mutex);
-	}
+
+	mmu_booke_kremove(mmu, dva);
+	mmu_booke_kremove(mmu, sva);
+	mtx_unlock(&copy_page_mutex);
+#endif
 }
 
 static inline void
@@ -3052,48 +3065,61 @@ mmu_booke_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
 
-	if (hw_direct_map) {
-		a_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*ma)) +
-		    a_offset);
-		b_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*mb)) +
-		    b_offset);
-		bcopy(a_cp, b_cp, xfersize);
-	} else {
-		mtx_lock(&copy_page_mutex);
-		while (xfersize > 0) {
-			a_pg_offset = a_offset & PAGE_MASK;
-			cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
-			mmu_booke_kenter(mmu, copy_page_src_va,
-			    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]));
-			a_cp = (char *)copy_page_src_va + a_pg_offset;
-			b_pg_offset = b_offset & PAGE_MASK;
-			cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-			mmu_booke_kenter(mmu, copy_page_dst_va,
-			    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]));
-			b_cp = (char *)copy_page_dst_va + b_pg_offset;
-			bcopy(a_cp, b_cp, cnt);
-			mmu_booke_kremove(mmu, copy_page_dst_va);
-			mmu_booke_kremove(mmu, copy_page_src_va);
-			a_offset += cnt;
-			b_offset += cnt;
-			xfersize -= cnt;
-		}
-		mtx_unlock(&copy_page_mutex);
+#ifdef __powerpc64__
+	vm_page_t pa, pb;
+
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		pa = ma[a_offset >> PAGE_SHIFT];
+		b_pg_offset = b_offset & PAGE_MASK;
+		pb = mb[b_offset >> PAGE_SHIFT];
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		a_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pa)) +
+		    a_pg_offset);
+		b_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pb)) +
+		    b_pg_offset);
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
 	}
+#else
+	mtx_lock(&copy_page_mutex);
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		mmu_booke_kenter(mmu, copy_page_src_va,
+		    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]));
+		a_cp = (char *)copy_page_src_va + a_pg_offset;
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		mmu_booke_kenter(mmu, copy_page_dst_va,
+		    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]));
+		b_cp = (char *)copy_page_dst_va + b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		mmu_booke_kremove(mmu, copy_page_dst_va);
+		mmu_booke_kremove(mmu, copy_page_src_va);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
+	mtx_unlock(&copy_page_mutex);
+#endif
 }
 
 static vm_offset_t
 mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m)
 {
+#ifdef __powerpc64__
+	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+#else
 	vm_paddr_t paddr;
 	vm_offset_t qaddr;
 	uint32_t flags;
 	pte_t *pte;
 
 	paddr = VM_PAGE_TO_PHYS(m);
-
-	if (hw_direct_map)
-		return (PHYS_TO_DMAP(paddr));
 
 	flags = PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
 	flags |= tlb_calc_wimg(paddr, pmap_page_get_memattr(m)) << PTE_MAS2_SHIFT;
@@ -3121,15 +3147,14 @@ mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m)
 		__syncicache((void *)qaddr, PAGE_SIZE);
 
 	return (qaddr);
+#endif
 }
 
 static void
 mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr)
 {
+#ifndef __powerpc64__
 	pte_t *pte;
-
-	if (hw_direct_map)
-		return;
 
 	pte = pte_find(mmu, kernel_pmap, addr);
 
@@ -3140,6 +3165,7 @@ mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr)
 
 	*pte = 0;
 	critical_exit();
+#endif
 }
 
 /*

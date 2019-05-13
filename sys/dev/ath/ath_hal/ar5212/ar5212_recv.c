@@ -87,7 +87,7 @@ ar5212StopDmaReceive(struct ath_hal *ah)
  * Start Transmit at the PCU engine (unpause receive)
  */
 void
-ar5212StartPcuReceive(struct ath_hal *ah)
+ar5212StartPcuReceive(struct ath_hal *ah, HAL_BOOL is_scanning)
 {
 	struct ath_hal_private *ahp = AH_PRIVATE(ah);
 
@@ -95,8 +95,8 @@ ar5212StartPcuReceive(struct ath_hal *ah)
 	OS_REG_WRITE(ah, AR_DIAG_SW,
 		OS_REG_READ(ah, AR_DIAG_SW) &~ AR_DIAG_RX_DIS);
 	ar5212EnableMibCounters(ah);
-	/* NB: restore current settings */
-	ar5212AniReset(ah, ahp->ah_curchan, ahp->ah_opmode, AH_TRUE);
+	/* NB: restore current settings if we're not scanning */
+	ar5212AniReset(ah, ahp->ah_curchan, ahp->ah_opmode, !is_scanning);
 }
 
 /*

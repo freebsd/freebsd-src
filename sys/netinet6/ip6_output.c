@@ -228,7 +228,20 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 			IP6STAT_INC(ip6s_odropped);
 			return (ENOBUFS);
 		}
-		m->m_flags = m0->m_flags & M_COPYFLAGS;
+
+		/*
+		 * Make sure the complete packet header gets copied
+		 * from the originating mbuf to the newly created
+		 * mbuf. This also ensures that existing firewall
+		 * classification(s), VLAN tags and so on get copied
+		 * to the resulting fragmented packet(s):
+		 */
+		if (m_dup_pkthdr(m, m0, M_NOWAIT) == 0) {
+			m_free(m);
+			IP6STAT_INC(ip6s_odropped);
+			return (ENOBUFS);
+		}
+
 		*mnext = m;
 		mnext = &m->m_nextpkt;
 		m->m_data += max_linkhdr;
@@ -253,8 +266,6 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 		}
 		m_cat(m, m_frgpart);
 		m->m_pkthdr.len = fraglen + hlen + sizeof(*ip6f);
-		m->m_pkthdr.fibnum = m0->m_pkthdr.fibnum;
-		m->m_pkthdr.rcvif = NULL;
 		ip6f->ip6f_reserved = 0;
 		ip6f->ip6f_ident = id;
 		ip6f->ip6f_nxt = nextproto;
@@ -322,6 +333,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			M_HASHTYPE_SET(m, inp->inp_flowtype);
 		}
+#ifdef NUMA
+		m->m_pkthdr.numa_domain = inp->inp_numa_domain;
+#endif
 	}
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
@@ -2221,8 +2235,11 @@ ip6_raw_ctloutput(struct socket *so, struct sockopt *sopt)
 					    sizeof(optval));
 			if (error)
 				break;
-			if ((optval % 2) != 0) {
-				/* the API assumes even offset values */
+			if (optval < -1 || (optval % 2) != 0) {
+				/*
+				 * The API assumes non-negative even offset
+				 * values or -1 as a special value.
+				 */
 				error = EINVAL;
 			} else if (so->so_proto->pr_protocol ==
 			    IPPROTO_ICMPV6) {

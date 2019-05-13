@@ -392,16 +392,65 @@ static void wpas_rrm_send_msr_report_mpdu(struct wpa_supplicant *wpa_s,
 }
 
 
+static int wpas_rrm_beacon_rep_update_last_frame(u8 *pos, size_t len)
+{
+	struct rrm_measurement_report_element *msr_rep;
+	u8 *end = pos + len;
+	u8 *msr_rep_end;
+	struct rrm_measurement_beacon_report *rep = NULL;
+	u8 *subelem;
+
+	/* Find the last beacon report element */
+	while (end - pos >= (int) sizeof(*msr_rep)) {
+		msr_rep = (struct rrm_measurement_report_element *) pos;
+		msr_rep_end = pos + msr_rep->len + 2;
+
+		if (msr_rep->eid != WLAN_EID_MEASURE_REPORT ||
+		    msr_rep_end > end) {
+			/* Should not happen. This indicates a bug. */
+			wpa_printf(MSG_ERROR,
+				   "RRM: non-measurement report element in measurement report frame");
+			return -1;
+		}
+
+		if (msr_rep->type == MEASURE_TYPE_BEACON)
+			rep = (struct rrm_measurement_beacon_report *)
+				msr_rep->variable;
+
+		pos += pos[1] + 2;
+	}
+
+	if (!rep)
+		return 0;
+
+	subelem = rep->variable;
+	while (subelem + 2 < msr_rep_end &&
+	       subelem[0] != WLAN_BEACON_REPORT_SUBELEM_LAST_INDICATION)
+		subelem += 2 + subelem[1];
+
+	if (subelem + 2 < msr_rep_end &&
+	    subelem[0] == WLAN_BEACON_REPORT_SUBELEM_LAST_INDICATION &&
+	    subelem[1] == 1 &&
+	    subelem + BEACON_REPORT_LAST_INDICATION_SUBELEM_LEN <= end)
+		subelem[2] = 1;
+
+	return 0;
+}
+
+
 static void wpas_rrm_send_msr_report(struct wpa_supplicant *wpa_s,
 				     struct wpabuf *buf)
 {
 	int len = wpabuf_len(buf);
-	const u8 *pos = wpabuf_head_u8(buf), *next = pos;
+	u8 *pos = wpabuf_mhead_u8(buf), *next = pos;
 
 #define MPDU_REPORT_LEN (int) (IEEE80211_MAX_MMPDU_SIZE - IEEE80211_HDRLEN - 3)
 
 	while (len) {
 		int send_len = (len > MPDU_REPORT_LEN) ? next - pos : len;
+
+		if (send_len == len)
+			wpas_rrm_beacon_rep_update_last_frame(pos, len);
 
 		if (send_len == len ||
 		    (send_len + next[1] + 2) > MPDU_REPORT_LEN) {
@@ -707,15 +756,17 @@ static int wpas_get_op_chan_phy(int freq, const u8 *ies, size_t ies_len,
 static int wpas_beacon_rep_add_frame_body(struct bitfield *eids,
 					  enum beacon_report_detail detail,
 					  struct wpa_bss *bss, u8 *buf,
-					  size_t buf_len)
+					  size_t buf_len, u8 **ies_buf,
+					  size_t *ie_len, int add_fixed)
 {
-	u8 *ies = (u8 *) (bss + 1);
-	size_t ies_len = bss->ie_len ? bss->ie_len : bss->beacon_ie_len;
+	u8 *ies = *ies_buf;
+	size_t ies_len = *ie_len;
 	u8 *pos = buf;
 	int rem_len;
 
 	rem_len = 255 - sizeof(struct rrm_measurement_beacon_report) -
-		sizeof(struct rrm_measurement_report_element) - 2;
+		sizeof(struct rrm_measurement_report_element) - 2 -
+		REPORTED_FRAME_BODY_SUBELEM_LEN;
 
 	if (detail > BEACON_REPORT_DETAIL_ALL_FIELDS_AND_ELEMENTS) {
 		wpa_printf(MSG_DEBUG,
@@ -731,18 +782,21 @@ static int wpas_beacon_rep_add_frame_body(struct bitfield *eids,
 	 * Minimal frame body subelement size: EID(1) + length(1) + TSF(8) +
 	 * beacon interval(2) + capabilities(2) = 14 bytes
 	 */
-	if (buf_len < 14)
-		return 0;
+	if (add_fixed && buf_len < 14)
+		return -1;
 
 	*pos++ = WLAN_BEACON_REPORT_SUBELEM_FRAME_BODY;
 	/* The length will be filled later */
 	pos++;
-	WPA_PUT_LE64(pos, bss->tsf);
-	pos += sizeof(bss->tsf);
-	WPA_PUT_LE16(pos, bss->beacon_int);
-	pos += 2;
-	WPA_PUT_LE16(pos, bss->caps);
-	pos += 2;
+
+	if (add_fixed) {
+		WPA_PUT_LE64(pos, bss->tsf);
+		pos += sizeof(bss->tsf);
+		WPA_PUT_LE16(pos, bss->beacon_int);
+		pos += 2;
+		WPA_PUT_LE16(pos, bss->caps);
+		pos += 2;
+	}
 
 	rem_len -= pos - buf;
 
@@ -757,15 +811,7 @@ static int wpas_beacon_rep_add_frame_body(struct bitfield *eids,
 	while (ies_len > 2 && 2U + ies[1] <= ies_len && rem_len > 0) {
 		if (detail == BEACON_REPORT_DETAIL_ALL_FIELDS_AND_ELEMENTS ||
 		    (eids && bitfield_is_set(eids, ies[0]))) {
-			u8 eid = ies[0], elen = ies[1];
-
-			if ((eid == WLAN_EID_TIM || eid == WLAN_EID_RSN) &&
-			    elen > 4)
-				elen = 4;
-			/*
-			 * TODO: Truncate IBSS DFS element as described in
-			 * IEEE Std 802.11-2016, 9.4.2.22.7.
-			 */
+			u8 elen = ies[1];
 
 			if (2 + elen > buf + buf_len - pos ||
 			    2 + elen > rem_len)
@@ -782,9 +828,78 @@ static int wpas_beacon_rep_add_frame_body(struct bitfield *eids,
 		ies += 2 + ies[1];
 	}
 
+	*ie_len = ies_len;
+	*ies_buf = ies;
+
 	/* Now the length is known */
 	buf[1] = pos - buf - 2;
 	return pos - buf;
+}
+
+
+static int wpas_add_beacon_rep_elem(struct beacon_rep_data *data,
+				    struct wpa_bss *bss,
+				    struct wpabuf **wpa_buf,
+				    struct rrm_measurement_beacon_report *rep,
+				    u8 **ie, size_t *ie_len, u8 idx)
+{
+	int ret;
+	u8 *buf, *pos;
+	u32 subelems_len = REPORTED_FRAME_BODY_SUBELEM_LEN +
+		(data->last_indication ?
+		 BEACON_REPORT_LAST_INDICATION_SUBELEM_LEN : 0);
+
+	/* Maximum element length: Beacon Report element + Reported Frame Body
+	 * subelement + all IEs of the reported Beacon frame + Reported Frame
+	 * Body Fragment ID subelement */
+	buf = os_malloc(sizeof(*rep) + 14 + *ie_len + subelems_len);
+	if (!buf)
+		return -1;
+
+	os_memcpy(buf, rep, sizeof(*rep));
+
+	ret = wpas_beacon_rep_add_frame_body(data->eids, data->report_detail,
+					     bss, buf + sizeof(*rep),
+					     14 + *ie_len, ie, ie_len,
+					     idx == 0);
+	if (ret < 0)
+		goto out;
+
+	pos = buf + ret + sizeof(*rep);
+	pos[0] = WLAN_BEACON_REPORT_SUBELEM_FRAME_BODY_FRAGMENT_ID;
+	pos[1] = 2;
+
+	/*
+	 * Only one Beacon Report Measurement is supported at a time, so
+	 * the Beacon Report ID can always be set to 1.
+	 */
+	pos[2] = 1;
+
+	/* Fragment ID Number (bits 0..6) and More Frame Body Fragments (bit 7)
+ */
+	pos[3] = idx;
+	if (data->report_detail != BEACON_REPORT_DETAIL_NONE && *ie_len)
+		pos[3] |= REPORTED_FRAME_BODY_MORE_FRAGMENTS;
+	else
+		pos[3] &= ~REPORTED_FRAME_BODY_MORE_FRAGMENTS;
+
+	pos += REPORTED_FRAME_BODY_SUBELEM_LEN;
+
+	if (data->last_indication) {
+		pos[0] = WLAN_BEACON_REPORT_SUBELEM_LAST_INDICATION;
+		pos[1] = 1;
+
+		/* This field will be updated later if this is the last frame */
+		pos[2] = 0;
+	}
+
+	ret = wpas_rrm_report_elem(wpa_buf, data->token,
+				   MEASUREMENT_REPORT_MODE_ACCEPT,
+				   MEASURE_TYPE_BEACON, buf,
+				   ret + sizeof(*rep) + subelems_len);
+out:
+	os_free(buf);
+	return ret;
 }
 
 
@@ -793,11 +908,11 @@ static int wpas_add_beacon_rep(struct wpa_supplicant *wpa_s,
 			       u64 start, u64 parent_tsf)
 {
 	struct beacon_rep_data *data = &wpa_s->beacon_rep_data;
-	u8 *ie = (u8 *) (bss + 1);
-	size_t ie_len = bss->ie_len + bss->beacon_ie_len;
-	int ret;
-	u8 *buf;
-	struct rrm_measurement_beacon_report *rep;
+	u8 *ies = (u8 *) (bss + 1);
+	u8 *pos = ies;
+	size_t ies_len = bss->ie_len ? bss->ie_len : bss->beacon_ie_len;
+	struct rrm_measurement_beacon_report rep;
+	u8 idx = 0;
 
 	if (os_memcmp(data->bssid, broadcast_ether_addr, ETH_ALEN) != 0 &&
 	    os_memcmp(data->bssid, bss->bssid, ETH_ALEN) != 0)
@@ -808,39 +923,29 @@ static int wpas_add_beacon_rep(struct wpa_supplicant *wpa_s,
 	     os_memcmp(data->ssid, bss->ssid, bss->ssid_len) != 0))
 		return 0;
 
-	/* Maximum element length: beacon report element + reported frame body
-	 * subelement + all IEs of the reported beacon */
-	buf = os_malloc(sizeof(*rep) + 14 + ie_len);
-	if (!buf)
-		return -1;
+	if (wpas_get_op_chan_phy(bss->freq, ies, ies_len, &rep.op_class,
+				 &rep.channel, &rep.report_info) < 0)
+		return 0;
 
-	rep = (struct rrm_measurement_beacon_report *) buf;
-	if (wpas_get_op_chan_phy(bss->freq, ie, ie_len, &rep->op_class,
-				 &rep->channel, &rep->report_info) < 0) {
-		ret = 0;
-		goto out;
-	}
+	rep.start_time = host_to_le64(start);
+	rep.duration = host_to_le16(data->scan_params.duration);
+	rep.rcpi = rssi_to_rcpi(bss->level);
+	rep.rsni = 255; /* 255 indicates that RSNI is not available */
+	os_memcpy(rep.bssid, bss->bssid, ETH_ALEN);
+	rep.antenna_id = 0; /* unknown */
+	rep.parent_tsf = host_to_le32(parent_tsf);
 
-	rep->start_time = host_to_le64(start);
-	rep->duration = host_to_le16(data->scan_params.duration);
-	rep->rcpi = rssi_to_rcpi(bss->level);
-	rep->rsni = 255; /* 255 indicates that RSNI is not available */
-	os_memcpy(rep->bssid, bss->bssid, ETH_ALEN);
-	rep->antenna_id = 0; /* unknown */
-	rep->parent_tsf = host_to_le32(parent_tsf);
+	do {
+		int ret;
 
-	ret = wpas_beacon_rep_add_frame_body(data->eids, data->report_detail,
-					     bss, rep->variable, 14 + ie_len);
-	if (ret < 0)
-		goto out;
+		ret = wpas_add_beacon_rep_elem(data, bss, wpa_buf, &rep,
+					       &pos, &ies_len, idx++);
+		if (ret)
+			return ret;
+	} while (data->report_detail != BEACON_REPORT_DETAIL_NONE &&
+		 ies_len >= 2);
 
-	ret = wpas_rrm_report_elem(wpa_buf, wpa_s->beacon_rep_data.token,
-				   MEASUREMENT_REPORT_MODE_ACCEPT,
-				   MEASURE_TYPE_BEACON, buf,
-				   ret + sizeof(*rep));
-out:
-	os_free(buf);
-	return ret;
+	return 0;
 }
 
 
@@ -1005,6 +1110,16 @@ static int wpas_rm_handle_beacon_req_subelem(struct wpa_supplicant *wpa_s,
 		break;
 	case WLAN_BEACON_REQUEST_SUBELEM_AP_CHANNEL:
 		/* Skip - it will be processed when freqs are added */
+		break;
+	case WLAN_BEACON_REQUEST_SUBELEM_LAST_INDICATION:
+		if (slen != 1) {
+			wpa_printf(MSG_DEBUG,
+				   "Beacon request: Invalid last indication request subelement length: %u",
+				   slen);
+			return -1;
+		}
+
+		data->last_indication = subelem[0];
 		break;
 	default:
 		wpa_printf(MSG_DEBUG,

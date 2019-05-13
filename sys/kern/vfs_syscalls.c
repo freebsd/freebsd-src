@@ -1751,7 +1751,22 @@ int
 sys_unlink(struct thread *td, struct unlink_args *uap)
 {
 
-	return (kern_unlinkat(td, AT_FDCWD, uap->path, UIO_USERSPACE, 0, 0));
+	return (kern_funlinkat(td, AT_FDCWD, uap->path, FD_NONE, UIO_USERSPACE,
+	    0, 0));
+}
+
+static int
+kern_funlinkat_ex(struct thread *td, int dfd, const char *path, int fd,
+    int flag, enum uio_seg pathseg, ino_t oldinum)
+{
+
+	if ((flag & ~AT_REMOVEDIR) != 0)
+		return (EINVAL);
+
+	if ((flag & AT_REMOVEDIR) != 0)
+		return (kern_frmdirat(td, dfd, path, fd, UIO_USERSPACE, 0));
+
+	return (kern_funlinkat(td, dfd, path, fd, UIO_USERSPACE, 0, 0));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1764,46 +1779,67 @@ struct unlinkat_args {
 int
 sys_unlinkat(struct thread *td, struct unlinkat_args *uap)
 {
-	int fd, flag;
-	const char *path;
 
-	flag = uap->flag;
-	fd = uap->fd;
-	path = uap->path;
+	return (kern_funlinkat_ex(td, uap->fd, uap->path, FD_NONE, uap->flag,
+	    UIO_USERSPACE, 0));
+}
 
-	if ((flag & ~(AT_REMOVEDIR | AT_BENEATH)) != 0)
-		return (EINVAL);
+#ifndef _SYS_SYSPROTO_H_
+struct funlinkat_args {
+	int		dfd;
+	const char	*path;
+	int		fd;
+	int		flag;
+};
+#endif
+int
+sys_funlinkat(struct thread *td, struct funlinkat_args *uap)
+{
 
-	if ((uap->flag & AT_REMOVEDIR) != 0)
-		return (kern_rmdirat(td, fd, path, UIO_USERSPACE, flag));
-	else
-		return (kern_unlinkat(td, fd, path, UIO_USERSPACE, flag, 0));
+	return (kern_funlinkat_ex(td, uap->dfd, uap->path, uap->fd, uap->flag,
+	    UIO_USERSPACE, 0));
 }
 
 int
-kern_unlinkat(struct thread *td, int fd, const char *path,
+kern_funlinkat(struct thread *td, int dfd, const char *path, int fd,
     enum uio_seg pathseg, int flag, ino_t oldinum)
 {
 	struct mount *mp;
+	struct file *fp;
 	struct vnode *vp;
 	struct nameidata nd;
 	struct stat sb;
 	int error;
 
+	fp = NULL;
+	if (fd != FD_NONE) {
+		error = getvnode(td, fd, &cap_no_rights, &fp);
+		if (error != 0)
+			return (error);
+	}
+
 restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, DELETE, LOCKPARENT | LOCKLEAF | AUDITVNODE1 |
 	    ((flag & AT_BENEATH) != 0 ? BENEATH : 0),
-	    pathseg, path, fd, &cap_unlinkat_rights, td);
-	if ((error = namei(&nd)) != 0)
-		return (error == EINVAL ? EPERM : error);
+	    pathseg, path, dfd, &cap_unlinkat_rights, td);
+	if ((error = namei(&nd)) != 0) {
+		if (error == EINVAL)
+			error = EPERM;
+		goto fdout;
+	}
 	vp = nd.ni_vp;
 	if (vp->v_type == VDIR && oldinum == 0) {
 		error = EPERM;		/* POSIX */
 	} else if (oldinum != 0 &&
 		  ((error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td)) == 0) &&
 		  sb.st_ino != oldinum) {
-			error = EIDRM;	/* Identifier removed */
+		error = EIDRM;	/* Identifier removed */
+	} else if (fp != NULL && fp->f_vnode != vp) {
+		if ((fp->f_vnode->v_iflag & VI_DOOMED) != 0)
+			error = EBADF;
+		else
+			error = EDEADLK;
 	} else {
 		/*
 		 * The root of a mounted filesystem cannot be deleted.
@@ -1822,8 +1858,9 @@ restart:
 			else
 				vput(vp);
 			if ((error = vn_start_write(NULL, &mp,
-			    V_XSLEEP | PCATCH)) != 0)
-				return (error);
+			    V_XSLEEP | PCATCH)) != 0) {
+				goto fdout;
+			}
 			goto restart;
 		}
 #ifdef MAC
@@ -1845,6 +1882,9 @@ out:
 		vrele(vp);
 	else
 		vput(vp);
+fdout:
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error);
 }
 
@@ -3704,25 +3744,36 @@ int
 sys_rmdir(struct thread *td, struct rmdir_args *uap)
 {
 
-	return (kern_rmdirat(td, AT_FDCWD, uap->path, UIO_USERSPACE, 0));
+	return (kern_frmdirat(td, AT_FDCWD, uap->path, FD_NONE, UIO_USERSPACE,
+	    0));
 }
 
 int
-kern_rmdirat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
-    int flag)
+kern_frmdirat(struct thread *td, int dfd, const char *path, int fd,
+    enum uio_seg pathseg, int flag)
 {
 	struct mount *mp;
 	struct vnode *vp;
+	struct file *fp;
 	struct nameidata nd;
+	cap_rights_t rights;
 	int error;
+
+	fp = NULL;
+	if (fd != FD_NONE) {
+		error = getvnode(td, fd, cap_rights_init(&rights, CAP_LOOKUP),
+		    &fp);
+		if (error != 0)
+			return (error);
+	}
 
 restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, DELETE, LOCKPARENT | LOCKLEAF | AUDITVNODE1 |
 	    ((flag & AT_BENEATH) != 0 ? BENEATH : 0),
-	    pathseg, path, fd, &cap_unlinkat_rights, td);
+	    pathseg, path, dfd, &cap_unlinkat_rights, td);
 	if ((error = namei(&nd)) != 0)
-		return (error);
+		goto fdout;
 	vp = nd.ni_vp;
 	if (vp->v_type != VDIR) {
 		error = ENOTDIR;
@@ -3742,6 +3793,15 @@ restart:
 		error = EBUSY;
 		goto out;
 	}
+
+	if (fp != NULL && fp->f_vnode != vp) {
+		if ((fp->f_vnode->v_iflag & VI_DOOMED) != 0)
+			error = EBADF;
+		else
+			error = EDEADLK;
+		goto out;
+	}
+
 #ifdef MAC
 	error = mac_vnode_check_unlink(td->td_ucred, nd.ni_dvp, vp,
 	    &nd.ni_cnd);
@@ -3756,7 +3816,7 @@ restart:
 		else
 			vput(nd.ni_dvp);
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
-			return (error);
+			goto fdout;
 		goto restart;
 	}
 	vfs_notify_upper(vp, VFS_NOTIFY_UPPER_UNLINK);
@@ -3769,6 +3829,9 @@ out:
 		vrele(nd.ni_dvp);
 	else
 		vput(nd.ni_dvp);
+fdout:
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error);
 }
 

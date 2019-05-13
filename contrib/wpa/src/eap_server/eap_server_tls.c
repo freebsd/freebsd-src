@@ -22,6 +22,7 @@ struct eap_tls_data {
 	enum { START, CONTINUE, SUCCESS, FAILURE } state;
 	int established;
 	u8 eap_type;
+	int phase2;
 };
 
 
@@ -84,6 +85,8 @@ static void * eap_tls_init(struct eap_sm *sm)
 	}
 
 	data->eap_type = EAP_TYPE_TLS;
+
+	data->phase2 = sm->init_phase2;
 
 	return data;
 }
@@ -202,6 +205,20 @@ check_established:
 		wpa_printf(MSG_DEBUG, "EAP-TLS: Done");
 		eap_tls_state(data, SUCCESS);
 		eap_tls_valid_session(sm, data);
+		if (sm->serial_num) {
+			char user[128];
+			int user_len;
+
+			user_len = os_snprintf(user, sizeof(user), "cert-%s",
+					       sm->serial_num);
+			if (eap_user_get(sm, (const u8 *) user, user_len,
+					 data->phase2) < 0)
+				wpa_printf(MSG_DEBUG,
+					   "EAP-TLS: No user entry found based on the serial number of the client certificate ");
+			else
+				wpa_printf(MSG_DEBUG,
+					   "EAP-TLS: Updated user entry based on the serial number of the client certificate ");
+		}
 	}
 
 	return res;
@@ -288,6 +305,8 @@ static void eap_tls_process(struct eap_sm *sm, void *priv,
 		   "EAP-TLS: Resuming previous session");
 	eap_tls_state(data, SUCCESS);
 	tls_connection_set_success_data_resumed(data->ssl.conn);
+	/* TODO: Cache serial number with session and update EAP user
+	 * information based on the cached serial number */
 }
 
 
@@ -312,6 +331,7 @@ static u8 * eap_tls_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	else
 		label = "client EAP encryption";
 	eapKeyData = eap_server_tls_derive_key(sm, &data->ssl, label,
+					       NULL, 0,
 					       EAP_TLS_KEY_LEN + EAP_EMSK_LEN);
 	if (eapKeyData) {
 		*len = EAP_TLS_KEY_LEN;
@@ -340,6 +360,7 @@ static u8 * eap_tls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 	else
 		label = "client EAP encryption";
 	eapKeyData = eap_server_tls_derive_key(sm, &data->ssl, label,
+					       NULL, 0,
 					       EAP_TLS_KEY_LEN + EAP_EMSK_LEN);
 	if (eapKeyData) {
 		emsk = os_malloc(EAP_EMSK_LEN);

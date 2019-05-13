@@ -493,33 +493,11 @@ vm_object_vndeallocate(vm_object_t object)
 	if (!umtx_shm_vnobj_persistent && object->ref_count == 1)
 		umtx_shm_object_terminated(object);
 
-	/*
-	 * The test for text of vp vnode does not need a bypass to
-	 * reach right VV_TEXT there, since it is obtained from
-	 * object->handle.
-	 */
-	if (object->ref_count > 1 || (vp->v_vflag & VV_TEXT) == 0) {
-		object->ref_count--;
-		VM_OBJECT_WUNLOCK(object);
-		/* vrele may need the vnode lock. */
-		vrele(vp);
-	} else {
-		vhold(vp);
-		VM_OBJECT_WUNLOCK(object);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		vdrop(vp);
-		VM_OBJECT_WLOCK(object);
-		object->ref_count--;
-		if (object->type == OBJT_DEAD) {
-			VM_OBJECT_WUNLOCK(object);
-			VOP_UNLOCK(vp, 0);
-		} else {
-			if (object->ref_count == 0)
-				VOP_UNSET_TEXT(vp);
-			VM_OBJECT_WUNLOCK(object);
-			vput(vp);
-		}
-	}
+	object->ref_count--;
+
+	/* vrele may need the vnode lock. */
+	VM_OBJECT_WUNLOCK(object);
+	vrele(vp);
 }
 
 /*
@@ -1748,8 +1726,8 @@ vm_object_collapse(vm_object_t object)
 		VM_OBJECT_WLOCK(backing_object);
 		if (backing_object->handle != NULL ||
 		    (backing_object->type != OBJT_DEFAULT &&
-		     backing_object->type != OBJT_SWAP) ||
-		    (backing_object->flags & OBJ_DEAD) ||
+		    backing_object->type != OBJT_SWAP) ||
+		    (backing_object->flags & (OBJ_DEAD | OBJ_NOSPLIT)) != 0 ||
 		    object->handle != NULL ||
 		    (object->type != OBJT_DEFAULT &&
 		     object->type != OBJT_SWAP) ||

@@ -957,8 +957,7 @@ nfscl_getmyip(struct nfsmount *nmp, struct in6_addr *paddr, int *isinet6p)
 		if (error != 0)
 			return (NULL);
 
-		if ((ntohl(nh_ext.nh_src.s_addr) >> IN_CLASSA_NSHIFT) ==
-		    IN_LOOPBACKNET) {
+		if (IN_LOOPBACK(ntohl(nh_ext.nh_src.s_addr))) {
 			/* Ignore loopback addresses */
 			return (NULL);
 		}
@@ -1157,7 +1156,7 @@ nfscl_procdoesntexist(u_int8_t *own)
 	tl.cval[2] = *own++;
 	tl.cval[3] = *own++;
 	pid = tl.lval;
-	p = pfind(pid);
+	p = pfind_any_locked(pid);
 	if (p == NULL)
 		return (1);
 	if (p->p_stats == NULL) {

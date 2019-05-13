@@ -133,7 +133,7 @@ main(int argc, char **argv)
 	if (flags == O_RDWR)
 		cap_rights_set(&rights, CAP_WRITE);
 
-	fa = fileargs_init(argc, argv, flags, 0, &rights);
+	fa = fileargs_init(argc, argv, flags, 0, &rights, FA_OPEN);
 	if (fa == NULL)
 		errx(1, "unable to init casper");
 

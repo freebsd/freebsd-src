@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2017-2019 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/sx.h>
 #include <sys/mbuf.h>
 
 #include <machine/bus.h>
@@ -136,19 +135,15 @@ xdma_mbuf_defrag(xdma_channel_t *xchan, struct xdma_request *xr)
 	if (c == 1)
 		return (c); /* Nothing to do. */
 
-	if (xchan->caps & XCHAN_CAP_BUSDMA) {
-		if ((xchan->caps & XCHAN_CAP_BUSDMA_NOSEG) || \
-		    (c > xchan->maxnsegs)) {
-			if ((m = m_defrag(xr->m, M_NOWAIT)) == NULL) {
-				device_printf(xdma->dma_dev,
-				    "%s: Can't defrag mbuf\n",
-				    __func__);
-				return (c);
-			}
-			xr->m = m;
-			c = 1;
-		}
+	if ((m = m_defrag(xr->m, M_NOWAIT)) == NULL) {
+		device_printf(xdma->dma_dev,
+		    "%s: Can't defrag mbuf\n",
+		    __func__);
+		return (c);
 	}
+
+	xr->m = m;
+	c = 1;
 
 	return (c);
 }

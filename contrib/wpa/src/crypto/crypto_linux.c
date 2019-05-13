@@ -386,6 +386,9 @@ int crypto_hash_finish(struct crypto_hash *ctx, u8 *mac, size_t *len)
 	}
 
 	crypto_hash_deinit(ctx);
+
+	if (TEST_FAIL())
+		return -1;
 	return 0;
 }
 

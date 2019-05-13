@@ -247,7 +247,9 @@ main(int argc, char *argv[])
 					err(1, "capsicum");
 #endif
 			}
-			if ((p = Algorithm[digest].Fd(fd, buf)) == NULL) {
+			p = Algorithm[digest].Fd(fd, buf);
+			(void)close(fd);
+			if (p == NULL) {
 				warn("%s", *argv);
 				failed++;
 			} else {

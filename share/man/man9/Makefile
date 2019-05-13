@@ -1175,6 +1175,8 @@ MLINKS+=iflibtxrx.9 isc_rxd_available.9 \
 	iflibtxrx.9 isc_txd_flush.9
 MLINKS+=ifnet.9 if_addmulti.9 \
 	ifnet.9 if_alloc.9 \
+	ifnet.9 if_alloc_dev.9 \
+	ifnet.9 if_alloc_domain.9 \
 	ifnet.9 if_allmulti.9 \
 	ifnet.9 if_attach.9 \
 	ifnet.9 if_data.9 \
@@ -1668,6 +1670,7 @@ MLINKS+=psignal.9 gsignal.9 \
 	psignal.9 tdsignal.9
 MLINKS+=random.9 arc4rand.9 \
 	random.9 arc4random.9 \
+	random.9 is_random_seeded.9 \
 	random.9 read_random.9 \
 	random.9 read_random_uio.9 \
 	random.9 srandom.9
@@ -1777,6 +1780,8 @@ MLINKS+=sbuf.9 sbuf_bcat.9 \
 	sbuf.9 sbuf_new_auto.9 \
 	sbuf.9 sbuf_new_for_sysctl.9 \
 	sbuf.9 sbuf_printf.9 \
+	sbuf.9 sbuf_printf_drain.9 \
+	sbuf.9 sbuf_putbuf.9 \
 	sbuf.9 sbuf_putc.9 \
 	sbuf.9 sbuf_set_drain.9 \
 	sbuf.9 sbuf_set_flags.9 \

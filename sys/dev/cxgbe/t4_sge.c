@@ -2046,6 +2046,9 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 		rxq->vlan_extraction++;
 	}
 
+#ifdef NUMA
+	m0->m_pkthdr.numa_domain = ifp->if_numa_domain;
+#endif
 #if defined(INET) || defined(INET6)
 	if (iq->flags & IQ_LRO_ENABLED) {
 		if (sort_before_lro(lro)) {

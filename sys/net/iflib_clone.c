@@ -153,16 +153,18 @@ iflib_ip_insert(if_pseudo_t ip)
 }
 
 static void
-iflib_ifdetach(void *arg __unused, struct ifnet *ifp)
+iflib_ifdetach(void *arg __unused, if_t ifp)
 {
+
 	/* If the ifnet is just being renamed, don't do anything. */
 	if (ifp->if_flags & IFF_RENAMING)
 		return;
 }
 
 static void
-iflib_iflladdr(void *arg __unused, struct ifnet *ifp)
+iflib_iflladdr(void *arg __unused, if_t ifp __unused)
 {
+
 }
 
 static int
@@ -218,15 +220,15 @@ iflib_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 }
 
 static void
-iflib_clone_destroy(struct ifnet *ifp)
+iflib_clone_destroy(if_t ifp)
 {
 	if_ctx_t ctx;
 	device_t dev;
 	struct sx *ctx_lock;
 	int rc;
+
 	/*
 	 * Detach device / free / free unit 
-	 *
 	 */
 	ctx = if_getsoftc(ifp);
 	dev = iflib_get_dev(ctx);

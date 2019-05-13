@@ -272,7 +272,7 @@ struct inpcb {
 			 inp_hpts_calls :1,	/* (i) from output hpts */
 			 inp_input_calls :1,	/* (i) from input hpts */
 			 inp_spare_bits2 : 4;
-	uint8_t inp_spare_byte;		/* Compiler hole */
+	uint8_t inp_numa_domain;	/* numa domain */
 	void	*inp_ppcb;		/* (i) pointer to per-protocol pcb */
 	struct	socket *inp_socket;	/* (i) back pointer to socket */
 	uint32_t 	 inp_hptsslot;	/* Hpts wheel slot this tcb is Lock(i&b) */

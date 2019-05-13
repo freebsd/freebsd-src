@@ -2931,6 +2931,7 @@ struct scsi_read_capacity_data_long
 	uint8_t length[4];
 #define	SRC16_PROT_EN		0x01
 #define	SRC16_P_TYPE		0x0e
+#define	SRC16_P_TYPE_SHIFT	1
 #define	SRC16_PTYPE_1		0x00
 #define	SRC16_PTYPE_2		0x02
 #define	SRC16_PTYPE_3		0x04
@@ -3749,8 +3750,8 @@ void scsi_command_sbuf(struct sbuf *sb, uint8_t *cdb, int cdb_len,
 void scsi_progress_sbuf(struct sbuf *sb, uint16_t progress);
 int scsi_sks_sbuf(struct sbuf *sb, int sense_key, uint8_t *sks);
 void scsi_fru_sbuf(struct sbuf *sb, uint64_t fru);
-void scsi_stream_sbuf(struct sbuf *sb, uint8_t stream_bits, uint64_t info);
-void scsi_block_sbuf(struct sbuf *sb, uint8_t block_bits, uint64_t info);
+void scsi_stream_sbuf(struct sbuf *sb, uint8_t stream_bits);
+void scsi_block_sbuf(struct sbuf *sb, uint8_t block_bits);
 void scsi_sense_info_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 			  u_int sense_len, uint8_t *cdb, int cdb_len,
 			  struct scsi_inquiry_data *inq_data,

@@ -29,7 +29,6 @@ options 	PREEMPTION		# Enable kernel thread preemption
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
-options 	IPSEC			# IP (v4/v6) security
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	TCP_OFFLOAD		# TCP offload
@@ -54,6 +53,7 @@ options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
 options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
+options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
@@ -205,7 +205,7 @@ device		dwcotg			# DWC OTG controller
 device		ohci			# OHCI USB interface
 device		ehci			# EHCI USB interface (USB 2.0)
 device		ehci_mv			# Marvell EHCI USB interface
-device		xhci			# XHCI PCI->USB interface (USB 3.0)
+device		xhci			# XHCI USB interface (USB 3.0)
 device		usb			# USB Bus (required)
 device		ukbd			# Keyboard
 device		umass			# Disks/Mass storage - Requires scbus and da
@@ -215,11 +215,19 @@ device		muge
 device		smcphy
 device		smsc
 
+# Sound support
+device sound
+device a10_codec
+
+# DMA controller
+device		a31_dmac
+
 # GPIO / PINCTRL
 device		aw_gpio		# Allwinner GPIO controller
 device		gpio
 device		gpioled
 device		fdt_pinctrl
+device		gpioregulator
 device		mv_gpio		# Marvell GPIO controller
 device		mvebu_pinctrl	# Marvell Pinmux Controller
 device		rk_gpio		# RockChip GPIO Controller
@@ -233,6 +241,7 @@ device		iic
 device		twsi		# Allwinner I2C controller
 device		rk_i2c		# RockChip I2C controller
 device		syr827		# Silergy SYR827 PMIC
+device		sy8106a		# SY8106A Buck Regulator
 
 # Clock and reset controllers
 device		aw_ccu		# Allwinner clock controller
@@ -278,6 +287,7 @@ device		vt_efifb
 device		evdev			# input event device support
 options		EVDEV_SUPPORT		# evdev support in legacy drivers
 device		uinput			# install /dev/uinput cdev
+device		aw_cir
 
 # Pseudo devices.
 device		crypto		# core crypto support
@@ -285,7 +295,7 @@ device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
-device		tun		# Packet tunnel.
+device		tuntap		# Packet tunnel.
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module

@@ -777,6 +777,9 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	if (m != NULL && M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 		inp->inp_flowid = m->m_pkthdr.flowid;
 		inp->inp_flowtype = M_HASHTYPE_GET(m);
+#ifdef NUMA
+		inp->inp_numa_domain = m->m_pkthdr.numa_domain;
+#endif
 	}
 
 	/*

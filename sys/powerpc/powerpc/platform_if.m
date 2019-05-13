@@ -130,6 +130,22 @@ METHOD void mem_regions {
 	int		   *_availsz;
 };
 
+
+/**
+ * @brief Return the system's physical memory map.
+ *
+ * It shall provide the total RAM with the corresponding domains.
+ *
+ * @param _memp		Array of physical memory chunks
+ * @param _memsz	Number of physical memory chunks
+ */
+
+METHOD void numa_mem_regions {
+	platform_t	    _plat;
+	struct numa_mem_region  *_memp;
+	int		   *_memsz;
+};
+
 /**
  * @brief Return the maximum address accessible in real mode
  *   (for use with hypervisors)

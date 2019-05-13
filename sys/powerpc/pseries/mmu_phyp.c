@@ -453,7 +453,7 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 		    evicted.pte_hi & LPTE_AVPN_MASK, 0, &junk, &lastptelo,
 		    &junk);
 		moea64_pte_overflow++;
-		KASSERT(result == H_SUCCESS,
+		KASSERT(result == H_SUCCESS || result == H_NOT_FOUND,
 		    ("Error evicting page: %d", (int)result));
 	}
 

@@ -931,6 +931,15 @@ isp_pci_attach(device_t dev)
 	return (0);
 
 bad:
+	if (isp->isp_osinfo.fw == NULL && !IS_26XX(isp)) {
+		/*
+		 * Failure to attach at boot time might have been caused
+		 * by a missing ispfw(4).  Except for for 16Gb adapters,
+		 * there's no loadable firmware for them.
+		 */
+		isp_prt(isp, ISP_LOGWARN, "See the ispfw(4) man page on "
+		    "how to load known good firmware at boot time");
+	}
 	for (i = 0; i < isp->isp_nirq; i++) {
 		(void) bus_teardown_intr(dev, pcs->irq[i].irq, pcs->irq[i].ih);
 		(void) bus_release_resource(dev, SYS_RES_IRQ, pcs->irq[i].iqd,

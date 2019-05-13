@@ -25,9 +25,6 @@
 
 #define EAP_MAX_AUTH_ROUNDS 50
 
-static void eap_user_free(struct eap_user *user);
-
-
 /* EAP state machines are described in RFC 4137 */
 
 static int eap_sm_calculateTimeout(struct eap_sm *sm, int retransCount,
@@ -1814,7 +1811,7 @@ int eap_server_sm_step(struct eap_sm *sm)
 }
 
 
-static void eap_user_free(struct eap_user *user)
+void eap_user_free(struct eap_user *user)
 {
 	if (user == NULL)
 		return;
@@ -2000,6 +1997,32 @@ const u8 * eap_get_identity(struct eap_sm *sm, size_t *len)
 const char * eap_get_serial_num(struct eap_sm *sm)
 {
 	return sm->serial_num;
+}
+
+
+/**
+ * eap_get_method - Get the used EAP method
+ * @sm: Pointer to EAP state machine allocated with eap_server_sm_init()
+ * Returns: Pointer to the method name or %NULL if not available
+ */
+const char * eap_get_method(struct eap_sm *sm)
+{
+	if (!sm || !sm->m)
+		return NULL;
+	return sm->m->name;
+}
+
+
+/**
+ * eap_get_imsi - Get IMSI of the user
+ * @sm: Pointer to EAP state machine allocated with eap_server_sm_init()
+ * Returns: Pointer to IMSI or %NULL if not available
+ */
+const char * eap_get_imsi(struct eap_sm *sm)
+{
+	if (!sm || sm->imsi[0] == '\0')
+		return NULL;
+	return sm->imsi;
 }
 
 

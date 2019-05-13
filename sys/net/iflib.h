@@ -79,7 +79,7 @@ typedef struct if_rxd_info {
 	/* XXX redundant with the new irf_len field */
 	uint16_t iri_len;		/* packet length */
 	qidx_t iri_cidx;		/* consumer index of cq */
-	struct ifnet *iri_ifp;		/* some drivers >1 interface per softc */
+	if_t iri_ifp;			/* driver may have >1 iface per softc */
 
 	/* updated by driver */
 	if_rxd_frag_t iri_frags;
@@ -228,7 +228,9 @@ typedef struct if_softc_ctx {
 	pci_vendor_info_t isc_vendor_info;	/* set by iflib prior to attach_pre */
 	int isc_disable_msix;
 	if_txrx_t isc_txrx;
+	struct ifmedia *isc_media;
 } *if_softc_ctx_t;
+
 
 /*
  * Initialization values for device
@@ -361,6 +363,10 @@ typedef enum {
  * Interface needs admin task to ignore interface up/down status
  */
 #define IFLIB_ADMIN_ALWAYS_RUN	0x10000
+/*
+ * Driver will pass the media
+ */
+#define IFLIB_DRIVER_MEDIA	0x20000
 
 
 /*

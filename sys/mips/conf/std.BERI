@@ -33,6 +33,7 @@ options 	CAPABILITIES
 
 options 	COMPAT_FREEBSD10
 options 	COMPAT_FREEBSD11
+options 	COMPAT_FREEBSD12
 
 options 	INTRNG
 options 	SCHED_ULE

@@ -52,7 +52,7 @@ print_namespace(struct nvme_namespace_data *nsdata)
 	uint32_t	i;
 	uint32_t	lbaf, lbads, ms, rp;
 	uint8_t		thin_prov, ptype;
-	uint8_t		flbas_fmt;
+	uint8_t		flbas_fmt, t;
 
 	thin_prov = (nsdata->nsfeat >> NVME_NS_DATA_NSFEAT_THIN_PROV_SHIFT) &
 		NVME_NS_DATA_NSFEAT_THIN_PROV_MASK;
@@ -125,6 +125,16 @@ print_namespace(struct nvme_namespace_data *nsdata)
 		    NVME_NS_DATA_FPI_PERC_MASK);
 	} else
 		printf("Not Supported\n");
+	t = (nsdata->dlfeat >> NVME_NS_DATA_DLFEAT_READ_SHIFT) &
+	    NVME_NS_DATA_DLFEAT_READ_MASK;
+	printf("Deallocate Logical Block:    Read %s%s%s\n",
+	    (t == NVME_NS_DATA_DLFEAT_READ_NR) ? "Not Reported" :
+	    (t == NVME_NS_DATA_DLFEAT_READ_00) ? "00h" :
+	    (t == NVME_NS_DATA_DLFEAT_READ_FF) ? "FFh" : "Unknown",
+	    (nsdata->dlfeat >> NVME_NS_DATA_DLFEAT_DWZ_SHIFT) &
+	     NVME_NS_DATA_DLFEAT_DWZ_MASK ? ", Write Zero" : "",
+	    (nsdata->dlfeat >> NVME_NS_DATA_DLFEAT_GCRC_SHIFT) &
+	     NVME_NS_DATA_DLFEAT_GCRC_MASK ? ", Guard CRC" : "");
 	printf("Optimal I/O Boundary (LBAs): %u\n", nsdata->noiob);
 	printf("Globally Unique Identifier:  ");
 	for (i = 0; i < sizeof(nsdata->nguid); i++)

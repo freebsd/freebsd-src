@@ -103,9 +103,14 @@ fdt_platform_load_dtb(void)
 	}
 
 exit:
-	if (rv == 0)
-		fdt_load_dtb_overlays(ub_env_get("fdt_overlays"));
 	return (rv);
+}
+
+void
+fdt_platform_load_overlays(void)
+{
+
+	fdt_load_dtb_overlays(ub_env_get("fdt_overlays"));
 }
 
 void

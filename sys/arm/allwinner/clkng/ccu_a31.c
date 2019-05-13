@@ -973,4 +973,4 @@ DEFINE_CLASS_1(ccu_a31ng, ccu_a31ng_driver, ccu_a31ng_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
 EARLY_DRIVER_MODULE(ccu_a31ng, simplebus, ccu_a31ng_driver,
-    ccu_a31ng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    ccu_a31ng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_LAST);

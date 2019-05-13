@@ -142,16 +142,28 @@ static int dfs_chan_range_available(struct hostapd_hw_modes *mode,
 {
 	struct hostapd_channel_data *first_chan, *chan;
 	int i;
+	u32 bw = num_chan_to_bw(num_chans);
 
 	if (first_chan_idx + num_chans > mode->num_channels)
 		return 0;
 
 	first_chan = &mode->channels[first_chan_idx];
 
+	/* hostapd DFS implementation assumes the first channel as primary.
+	 * If it's not allowed to use the first channel as primary, decline the
+	 * whole channel range. */
+	if (!chan_pri_allowed(first_chan))
+		return 0;
+
 	for (i = 0; i < num_chans; i++) {
 		chan = dfs_get_chan_data(mode, first_chan->freq + i * 20,
 					 first_chan_idx);
 		if (!chan)
+			return 0;
+
+		/* HT 40 MHz secondary channel availability checked only for
+		 * primary channel */
+		if (!chan_bw_allowed(chan, bw, 1, !i))
 			return 0;
 
 		if (!dfs_channel_available(chan, skip_radar))
@@ -197,7 +209,8 @@ static int dfs_find_channel(struct hostapd_iface *iface,
 		/* Skip HT40/VHT incompatible channels */
 		if (iface->conf->ieee80211n &&
 		    iface->conf->secondary_channel &&
-		    !dfs_is_chan_allowed(chan, n_chans))
+		    (!dfs_is_chan_allowed(chan, n_chans) ||
+		     !(chan->allowed_bw & HOSTAPD_CHAN_WIDTH_40P)))
 			continue;
 
 		/* Skip incompatible chandefs */

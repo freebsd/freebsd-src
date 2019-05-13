@@ -524,6 +524,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	struct svm_vcpu *vcpu;
 	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;
 	int i;
+	uint16_t maxcpus;
 
 	svm_sc = malloc(sizeof (*svm_sc), M_SVM, M_WAITOK | M_ZERO);
 	if (((uintptr_t)svm_sc & PAGE_MASK) != 0)
@@ -577,7 +578,8 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	iopm_pa = vtophys(svm_sc->iopm_bitmap);
 	msrpm_pa = vtophys(svm_sc->msr_bitmap);
 	pml4_pa = svm_sc->nptp;
-	for (i = 0; i < VM_MAXCPU; i++) {
+	maxcpus = vm_get_maxcpus(svm_sc->vm);
+	for (i = 0; i < maxcpus; i++) {
 		vcpu = svm_get_vcpu(svm_sc, i);
 		vcpu->nextrip = ~0;
 		vcpu->lastcpu = NOCPU;

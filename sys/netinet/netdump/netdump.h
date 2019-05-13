@@ -60,18 +60,18 @@ struct netdump_ack {
 	uint32_t	na_seqno;	/* Match acks with msgs. */
 } __packed;
 
-struct netdump_conf {
-	struct diocskerneldump_arg ndc_kda;
-	char		ndc_iface[IFNAMSIZ];
-	struct in_addr	ndc_server;
-	struct in_addr	ndc_client;
-	struct in_addr	ndc_gateway;
+struct netdump_conf_freebsd12 {
+	struct diocskerneldump_arg_freebsd12 ndc12_kda;
+	char		ndc12_iface[IFNAMSIZ];
+	struct in_addr	ndc12_server;
+	struct in_addr	ndc12_client;
+	struct in_addr	ndc12_gateway;
 };
 
-#define	_PATH_NETDUMP	"/dev/netdump"
+#define	NETDUMPGCONF_FREEBSD12	_IOR('n', 1, struct netdump_conf_freebsd12)
+#define	NETDUMPSCONF_FREEBSD12	_IOW('n', 2, struct netdump_conf_freebsd12)
 
-#define	NETDUMPGCONF	_IOR('n', 1, struct netdump_conf)
-#define	NETDUMPSCONF	_IOW('n', 2, struct netdump_conf)
+#define	_PATH_NETDUMP	"/dev/netdump"
 
 #ifdef _KERNEL
 #ifdef NETDUMP

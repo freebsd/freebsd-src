@@ -1328,7 +1328,7 @@ wlan_down()
 #
 clone_up()
 {
-	local _list ifn ifopt _iflist _n tmpargs
+	local _list ifn ifopt _iflist _inet6 _n tmpargs
 	_list=
 	_iflist=$*
 
@@ -1394,9 +1394,21 @@ clone_up()
 		esac
 		if [ $? -eq 0 ]; then
 			_list="$_list $ifn"
+			tmpargs=$(get_if_var $ifn gifconfig_IF)
+			_inet6=''
+			case "$tmpargs" in
+			'')
+			;;
+			inet6[[:space:]]*)
+				tmpargs=${tmpargs#inet6}
+				_inet6=inet6
+				# FALLTHROUGH
+			;&
+			*)
+				${IFCONFIG_CMD} $ifn $_inet6 tunnel $tmpargs
+			;;
+			esac
 		fi
-		tmpargs=$(get_if_var $ifn gifconfig_IF)
-		eval ifconfig_${ifn}=\"\$ifconfig_${ifn} tunnel \$tmpargs\"
 	done
 	if [ -n "${_list# }" ]; then
 		echo "Created clone interfaces: ${_list# }."

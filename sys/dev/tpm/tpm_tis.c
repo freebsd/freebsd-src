@@ -34,45 +34,45 @@ __FBSDID("$FreeBSD$");
  * TIS register space as defined in
  * TCG_PC_Client_Platform_TPM_Profile_PTP_2.0_r1.03_v22
  */
-#define TPM_ACCESS			0x0
-#define TPM_INT_ENABLE		0x8
-#define TPM_INT_VECTOR		0xc
-#define TPM_INT_STS			0x10
-#define TPM_INTF_CAPS		0x14
-#define TPM_STS				0x18
-#define TPM_DATA_FIFO		0x24
-#define TPM_INTF_ID			0x30
-#define TPM_XDATA_FIFO		0x80
-#define TPM_DID_VID			0xF00
-#define TPM_RID				0xF04
+#define	TPM_ACCESS			0x0
+#define	TPM_INT_ENABLE			0x8
+#define	TPM_INT_VECTOR			0xc
+#define	TPM_INT_STS			0x10
+#define	TPM_INTF_CAPS			0x14
+#define	TPM_STS				0x18
+#define	TPM_DATA_FIFO			0x24
+#define	TPM_INTF_ID			0x30
+#define	TPM_XDATA_FIFO			0x80
+#define	TPM_DID_VID			0xF00
+#define	TPM_RID				0xF04
 
-#define TPM_ACCESS_LOC_REQ			BIT(1)
-#define TPM_ACCESS_LOC_Seize		BIT(3)
-#define TPM_ACCESS_LOC_ACTIVE		BIT(5)
-#define TPM_ACCESS_LOC_RELINQUISH	BIT(5)
-#define TPM_ACCESS_VALID			BIT(7)
+#define	TPM_ACCESS_LOC_REQ		BIT(1)
+#define	TPM_ACCESS_LOC_Seize		BIT(3)
+#define	TPM_ACCESS_LOC_ACTIVE		BIT(5)
+#define	TPM_ACCESS_LOC_RELINQUISH	BIT(5)
+#define	TPM_ACCESS_VALID		BIT(7)
 
-#define TPM_INT_ENABLE_GLOBAL_ENABLE	BIT(31)
-#define TPM_INT_ENABLE_CMD_RDY			BIT(7)
-#define TPM_INT_ENABLE_LOC_CHANGE		BIT(2)
-#define TPM_INT_ENABLE_STS_VALID		BIT(1)
-#define TPM_INT_ENABLE_DATA_AVAIL		BIT(0)
+#define	TPM_INT_ENABLE_GLOBAL_ENABLE	BIT(31)
+#define	TPM_INT_ENABLE_CMD_RDY		BIT(7)
+#define	TPM_INT_ENABLE_LOC_CHANGE	BIT(2)
+#define	TPM_INT_ENABLE_STS_VALID	BIT(1)
+#define	TPM_INT_ENABLE_DATA_AVAIL	BIT(0)
 
-#define TPM_INT_STS_CMD_RDY		BIT(7)
-#define TPM_INT_STS_LOC_CHANGE	BIT(2)
-#define TPM_INT_STS_VALID		BIT(1)
-#define TPM_INT_STS_DATA_AVAIL	BIT(0)
+#define	TPM_INT_STS_CMD_RDY		BIT(7)
+#define	TPM_INT_STS_LOC_CHANGE		BIT(2)
+#define	TPM_INT_STS_VALID		BIT(1)
+#define	TPM_INT_STS_DATA_AVAIL		BIT(0)
 
-#define TPM_INTF_CAPS_VERSION	0x70000000
-#define TPM_INTF_CAPS_TPM20		0x30000000
+#define	TPM_INTF_CAPS_VERSION		0x70000000
+#define	TPM_INTF_CAPS_TPM20		0x30000000
 
-#define TPM_STS_VALID			BIT(7)
-#define TPM_STS_CMD_RDY			BIT(6)
-#define TPM_STS_CMD_START		BIT(5)
-#define TPM_STS_DATA_AVAIL		BIT(4)
-#define TPM_STS_DATA_EXPECTED	BIT(3)
-#define TPM_STS_BURST_MASK		0xFFFF00
-#define TPM_STS_BURST_OFFSET	0x8
+#define	TPM_STS_VALID			BIT(7)
+#define	TPM_STS_CMD_RDY			BIT(6)
+#define	TPM_STS_CMD_START		BIT(5)
+#define	TPM_STS_DATA_AVAIL		BIT(4)
+#define	TPM_STS_DATA_EXPECTED		BIT(3)
+#define	TPM_STS_BURST_MASK		0xFFFF00
+#define	TPM_STS_BURST_OFFSET		0x8
 
 static int tpmtis_transmit(struct tpm_sc *sc, size_t length);
 
@@ -93,6 +93,7 @@ static bool tpmtis_go_ready(struct tpm_sc *sc);
 
 static bool tpm_wait_for_u32(struct tpm_sc *sc, bus_size_t off,
     uint32_t mask, uint32_t val, int32_t timeout);
+
 static uint16_t tpmtis_wait_for_burst(struct tpm_sc *sc);
 
 char *tpmtis_ids[] = {"MSFT0101", NULL};

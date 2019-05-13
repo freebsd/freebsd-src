@@ -58,8 +58,26 @@ DIR=/var/tmp/dtest.$$
 
 sctpport=1024
 bound=5000
+
+mkdir $DIR
+cd $DIR
+
+cat > client.pl <<-EOPERL
+	use IO::Socket;
+	my \$s = IO::Socket::INET->new(
+	    Type => SOCK_STREAM,
+	    Proto => "sctp",
+	    LocalAddr => "$local",
+	    PeerAddr => "$local",
+	    PeerPort => \$ARGV[0],
+	    Timeout => 3);
+	die "Could not connect to host $local port \$ARGV[0] \$@" unless \$s;
+	close \$s;
+	sleep(\$ARGV[1]);
+EOPERL
+
 while [ $sctpport -lt $bound ]; do
-	ncat --sctp -z $local $sctpport > /dev/null || break
+	perl client.pl $sctpport 0 2>&- || break
 	sctpport=$(($sctpport + 1))
 done
 if [ $sctpport -eq $bound ]; then
@@ -67,27 +85,25 @@ if [ $sctpport -eq $bound ]; then
 	exit 1
 fi
 
-mkdir $DIR
-cd $DIR
-
-# ncat will exit when the association is closed.
-ncat --sctp --listen $local $sctpport &
-
-cat > test.pl <<-EOPERL
+cat > server.pl <<-EOPERL
 	use IO::Socket;
-	my \$s = IO::Socket::INET->new(
+	my \$l = IO::Socket::INET->new(
 	    Type => SOCK_STREAM,
 	    Proto => "sctp",
 	    LocalAddr => "$local",
-	    PeerAddr => "$local",
-	    PeerPort => $sctpport,
-	    Timeout => 3);
-	die "Could not connect to host $local port $sctpport \$@" unless \$s;
-	close \$s;
-	sleep(2);
+	    LocalPort => $sctpport,
+	    Listen => 1,
+	    Reuse => 1);
+	die "Could not listen on $local port $sctpport \$@" unless \$l;
+	my \$c = \$l->accept();
+	close \$l;
+	while (<\$c>) {};
+	close \$c;
 EOPERL
 
-$dtrace -c 'perl test.pl' -qs /dev/stdin <<EODTRACE
+perl server.pl &
+
+$dtrace -c "perl client.pl $sctpport 2" -qs /dev/stdin <<EODTRACE
 BEGIN
 {
 	ipsend = sctpsend = ipreceive = sctpreceive = 0;
@@ -122,10 +138,10 @@ sctp:::receive
 END
 {
 	printf("Minimum SCTP events seen\n\n");
-	printf("ip:::send (%d) - %s\n", ipsend, ipsend >= 7 ? "yes" : "no");
-	printf("ip:::receive (%d) - %s\n", ipreceive, ipreceive >= 7 ? "yes" : "no");
-	printf("sctp:::send (%d) - %s\n", sctpsend, sctpsend >= 7 ? "yes" : "no");
-	printf("sctp:::receive (%d) - %s\n", sctpreceive, sctpreceive >= 7 ? "yes" : "no");
+	printf("ip:::send - %s\n", ipsend >= 7 ? "yes" : "no");
+	printf("ip:::receive - %s\n", ipreceive >= 7 ? "yes" : "no");
+	printf("sctp:::send - %s\n", sctpsend >= 7 ? "yes" : "no");
+	printf("sctp:::receive - %s\n", sctpreceive >= 7 ? "yes" : "no");
 }
 EODTRACE
 

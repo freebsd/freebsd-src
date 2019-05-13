@@ -51,7 +51,7 @@ device		mpcore_timer
 device		loop			# Network loopback
 device		random			# Entropy device
 device		vlan			# 802.1Q VLAN support
-device		tun			# Packet tunnel.
+device		tuntap			# Packet tunnel.
 device		md			# Memory "disks"
 #device		gif			# IPv6 and IPv4 tunneling
 #device		firmware		# firmware assist module

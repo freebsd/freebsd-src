@@ -82,7 +82,7 @@
 #endif /* SMP || KLD_MODULE */
 
 #ifndef MAXMEMDOM
-#define	MAXMEMDOM	1
+#define	MAXMEMDOM	8
 #endif
 
 #define	ALIGNBYTES	_ALIGNBYTES

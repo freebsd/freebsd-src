@@ -148,14 +148,19 @@ dtrace_copystr(uintptr_t uaddr, uintptr_t kaddr, size_t size,
     volatile uint16_t *flags)
 */
 ASENTRY_NOPROF(dtrace_copystr)
-	addme	%r7,%r3
-	addme	%r8,%r4
+	subi	%r7,%r3,1
+	subi	%r8,%r4,1
 1:
 	lbzu	%r3,1(%r7)
 	stbu	%r3,1(%r8)
-	addme	%r5,%r5
+	subi	%r5,%r5,1
+#ifdef __powerpc64__
+	cmpldi	%r5,0
+#else
+	cmplwi	%r5,0
+#endif
 	beq	2f
-	or	%r3,%r3,%r3
+	cmplwi	%r3,0
 	beq	2f
 	andi.	%r0,%r5,0x0fff
 	beq	2f

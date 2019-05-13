@@ -1500,14 +1500,24 @@ superblock_inclusive(struct superblock *block, struct pf_opt_rule *por)
 int
 interface_group(const char *ifname)
 {
+	int			s;
+	struct ifgroupreq	ifgr;
+
 	if (ifname == NULL || !ifname[0])
 		return (0);
 
-	/* Real interfaces must end in a number, interface groups do not */
-	if (isdigit(ifname[strlen(ifname) - 1]))
-		return (0);
-	else
-		return (1);
+	s = get_query_socket();
+
+	memset(&ifgr, 0, sizeof(ifgr));
+	strlcpy(ifgr.ifgr_name, ifname, IFNAMSIZ);
+	if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr) == -1) {
+		if (errno == ENOENT)
+			return (0);
+		else
+			err(1, "SIOCGIFGMEMB");
+	}
+
+	return (1);
 }
 
 

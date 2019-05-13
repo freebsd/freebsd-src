@@ -2261,7 +2261,9 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	    /* sense_flags */ SF_RETRY_UA | SF_NO_PRINT,
 	    softc->device_stats);
 
+	cam_periph_unlock(periph);
 	cam_periph_unmapmem(ccb, &mapinfo);
+	cam_periph_lock(periph);
 
 	ccb->ccb_h.cbfcnp = NULL;
 	ccb->ccb_h.periph_priv = inccb->ccb_h.periph_priv;

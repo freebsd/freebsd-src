@@ -19,17 +19,9 @@ bhnd_nvram_map_data.h		optional bhnd				   \
 	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -d" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"bhnd_nvram_map_data.h"
-#
-# The 'fdt_dtb_file' target covers an actual DTB file name, which is derived
-# from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
-#
-fdt_dtb_file			optional fdt fdt_dtb_static \
-	compile-with "sh -c 'MACHINE=${MACHINE} $S/tools/fdt/make_dtb.sh $S ${FDT_DTS_FILE} ${.CURDIR}'" \
-	no-obj no-implicit-rule before-depend	\
-	clean		"${FDT_DTS_FILE:R}.dtb"
 fdt_static_dtb.h		optional fdt fdt_dtb_static \
 	compile-with "sh -c 'MACHINE=${MACHINE} $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ${.CURDIR}'" \
-	dependency	"fdt_dtb_file" \
+	dependency	"${FDT_DTS_FILE:T:R}.dtb" \
 	no-obj no-implicit-rule before-depend \
 	clean		"fdt_static_dtb.h"
 feeder_eq_gen.h			optional sound				   \
@@ -688,8 +680,8 @@ crypto/rijndael/rijndael-alg-fst.c optional crypto | ekcd | geom_bde | \
 crypto/rijndael/rijndael-api-fst.c optional ekcd | geom_bde | random !random_loadable
 crypto/rijndael/rijndael-api.c	optional crypto | ipsec | ipsec_support | \
 	wlan_ccmp
-crypto/sha1.c			optional carp | crypto | ipsec | \
-	ipsec_support | netgraph_mppc_encryption | sctp 
+crypto/sha1.c			optional carp | crypto | ether | ipsec | \
+	ipsec_support | netgraph_mppc_encryption | sctp
 crypto/sha2/sha256c.c		optional crypto | ekcd | geom_bde | ipsec | \
 	ipsec_support | random !random_loadable | sctp | zfs
 crypto/sha2/sha512c.c		optional crypto | geom_bde | ipsec | \
@@ -1723,7 +1715,7 @@ dev/fdt/fdt_pinctrl.c		optional fdt fdt_pinctrl
 dev/fdt/fdt_pinctrl_if.m	optional fdt fdt_pinctrl
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand | fdt mx25l | fdt n25q | fdt at45d
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
-	dependency	"fdt_dtb_file"
+	dependency	"${FDT_DTS_FILE:T:R}.dtb"
 dev/fdt/simplebus.c		optional fdt
 dev/fdt/simple_mfd.c		optional fdt
 dev/fe/if_fe.c			optional fe
@@ -2384,6 +2376,12 @@ dev/mii/ukphy_subr.c		optional miibus | mii
 dev/mii/vscphy.c		optional miibus | vscphy
 dev/mii/xmphy.c			optional miibus | xmphy
 dev/mk48txx/mk48txx.c		optional mk48txx
+dev/mlxfw/mlxfw_fsm.c			optional mlxfw \
+	compile-with "${MLXFW_C}"
+dev/mlxfw/mlxfw_mfa2.c			optional mlxfw \
+	compile-with "${MLXFW_C}"
+dev/mlxfw/mlxfw_mfa2_tlv_multi.c	optional mlxfw \
+	compile-with "${MLXFW_C}"
 dev/mlx/mlx.c			optional mlx
 dev/mlx/mlx_disk.c		optional mlx
 dev/mlx/mlx_pci.c		optional mlx pci
@@ -2544,6 +2542,7 @@ dev/ofw/ofw_bus_subr.c		optional fdt
 dev/ofw/ofw_cpu.c		optional fdt
 dev/ofw/ofw_fdt.c		optional fdt
 dev/ofw/ofw_if.m		optional fdt
+dev/ofw/ofw_graph.c		optional fdt
 dev/ofw/ofw_subr.c		optional fdt
 dev/ofw/ofwbus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt
@@ -4086,8 +4085,7 @@ net/if_mib.c			standard
 net/if_spppfr.c			optional sppp | netgraph_sppp
 net/if_spppsubr.c		optional sppp | netgraph_sppp
 net/if_stf.c			optional stf inet inet6
-net/if_tun.c			optional tun
-net/if_tap.c			optional tap
+net/if_tuntap.c			optional tuntap
 net/if_vlan.c			optional vlan
 net/if_vxlan.c			optional vxlan inet | vxlan inet6
 net/ifdi_if.m			optional ether pci iflib
@@ -4772,6 +4770,8 @@ dev/mlx5/mlx5_core/mlx5_wq.c			optional mlx5 pci	\
 dev/mlx5/mlx5_lib/mlx5_gid.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 
+dev/mlx5/mlx5_en/mlx5_en_dim.c			optional mlx5en pci inet inet6	\
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_en/mlx5_en_ethtool.c		optional mlx5en pci inet inet6	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_en/mlx5_en_main.c			optional mlx5en pci inet inet6	\

@@ -2431,13 +2431,31 @@ device_print_prettyname(device_t dev)
 int
 device_printf(device_t dev, const char * fmt, ...)
 {
+	char buf[128];
+	struct sbuf sb;
+	const char *name;
 	va_list ap;
-	int retval;
+	size_t retval;
 
-	retval = device_print_prettyname(dev);
+	retval = 0;
+
+	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+	sbuf_set_drain(&sb, sbuf_printf_drain, &retval);
+
+	name = device_get_name(dev);
+
+	if (name == NULL)
+		sbuf_cat(&sb, "unknown: ");
+	else
+		sbuf_printf(&sb, "%s%d: ", name, device_get_unit(dev));
+
 	va_start(ap, fmt);
-	retval += vprintf(fmt, ap);
+	sbuf_vprintf(&sb, fmt, ap);
 	va_end(ap);
+
+	sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
 	return (retval);
 }
 
@@ -3863,6 +3881,96 @@ bus_generic_resume(device_t dev)
 	}
 	return (0);
 }
+
+
+/**
+ * @brief Helper function for implementing BUS_RESET_POST
+ *
+ * Bus can use this function to implement common operations of
+ * re-attaching or resuming the children after the bus itself was
+ * reset, and after restoring bus-unique state of children.
+ *
+ * @param dev	The bus
+ * #param flags	DEVF_RESET_*
+ */
+int
+bus_helper_reset_post(device_t dev, int flags)
+{
+	device_t child;
+	int error, error1;
+
+	error = 0;
+	TAILQ_FOREACH(child, &dev->children,link) {
+		BUS_RESET_POST(dev, child);
+		error1 = (flags & DEVF_RESET_DETACH) != 0 ?
+		    device_probe_and_attach(child) :
+		    BUS_RESUME_CHILD(dev, child);
+		if (error == 0 && error1 != 0)
+			error = error1;
+	}
+	return (error);
+}
+
+static void
+bus_helper_reset_prepare_rollback(device_t dev, device_t child, int flags)
+{
+
+	child = TAILQ_NEXT(child, link);
+	if (child == NULL)
+		return;
+	TAILQ_FOREACH_FROM(child, &dev->children,link) {
+		BUS_RESET_POST(dev, child);
+		if ((flags & DEVF_RESET_DETACH) != 0)
+			device_probe_and_attach(child);
+		else
+			BUS_RESUME_CHILD(dev, child);
+	}
+}
+
+/**
+ * @brief Helper function for implementing BUS_RESET_PREPARE
+ *
+ * Bus can use this function to implement common operations of
+ * detaching or suspending the children before the bus itself is
+ * reset, and then save bus-unique state of children that must
+ * persists around reset.
+ *
+ * @param dev	The bus
+ * #param flags	DEVF_RESET_*
+ */
+int
+bus_helper_reset_prepare(device_t dev, int flags)
+{
+	device_t child;
+	int error;
+
+	if (dev->state != DS_ATTACHED)
+		return (EBUSY);
+
+	TAILQ_FOREACH_REVERSE(child, &dev->children, device_list, link) {
+		if ((flags & DEVF_RESET_DETACH) != 0) {
+			error = device_get_state(child) == DS_ATTACHED ?
+			    device_detach(child) : 0;
+		} else {
+			error = BUS_SUSPEND_CHILD(dev, child);
+		}
+		if (error == 0) {
+			error = BUS_RESET_PREPARE(dev, child);
+			if (error != 0) {
+				if ((flags & DEVF_RESET_DETACH) != 0)
+					device_probe_and_attach(child);
+				else
+					BUS_RESUME_CHILD(dev, child);
+			}
+		}
+		if (error != 0) {
+			bus_helper_reset_prepare_rollback(dev, child, flags);
+			return (error);
+		}
+	}
+	return (0);
+}
+
 
 /**
  * @brief Helper function for implementing BUS_PRINT_CHILD().
@@ -5556,6 +5664,7 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case DEV_CLEAR_DRIVER:
 	case DEV_RESCAN:
 	case DEV_DELETE:
+	case DEV_RESET:
 		error = priv_check(td, PRIV_DRIVER);
 		if (error == 0)
 			error = find_device(req, &dev);
@@ -5780,6 +5889,14 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			device_do_deferred_actions();
 			device_frozen = false;
 		}
+		break;
+	case DEV_RESET:
+		if ((req->dr_flags & ~(DEVF_RESET_DETACH)) != 0) {
+			error = EINVAL;
+			break;
+		}
+		error = BUS_RESET_CHILD(device_get_parent(dev), dev,
+		    req->dr_flags);
 		break;
 	}
 	mtx_unlock(&Giant);

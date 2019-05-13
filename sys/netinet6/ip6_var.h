@@ -208,6 +208,7 @@ struct	ip6stat {
 	uint64_t ip6s_localout;		/* total ip packets generated here */
 	uint64_t ip6s_odropped;		/* lost packets due to nobufs, etc. */
 	uint64_t ip6s_reassembled;	/* total packets reassembled ok */
+	uint64_t ip6s_atomicfrags;	/* atomic fragments */
 	uint64_t ip6s_fragmented;	/* datagrams successfully fragmented */
 	uint64_t ip6s_ofragments;	/* output fragments created */
 	uint64_t ip6s_cantfrag;		/* don't fragment flag was set, etc. */

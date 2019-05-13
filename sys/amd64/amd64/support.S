@@ -43,7 +43,7 @@
 /* Address: %rdi */
 ENTRY(pagezero_std)
 	PUSH_FRAME_POINTER
-	movq	$PAGE_SIZE/8,%rcx
+	movl	$PAGE_SIZE/8,%ecx
 	xorl	%eax,%eax
 	rep
 	stosq
@@ -53,7 +53,7 @@ END(pagezero_std)
 
 ENTRY(pagezero_erms)
 	PUSH_FRAME_POINTER
-	movq	$PAGE_SIZE,%rcx
+	movl	$PAGE_SIZE,%ecx
 	xorl	%eax,%eax
 	rep
 	stosb
@@ -66,7 +66,7 @@ END(pagezero_erms)
  */
 ENTRY(pagecopy)
 	PUSH_FRAME_POINTER
-	movq	$PAGE_SIZE/8,%rcx
+	movl	$PAGE_SIZE/8,%ecx
 	movq	%rdi,%r9
 	movq	%rsi,%rdi
 	movq	%r9,%rsi
@@ -205,7 +205,7 @@ END(memcmp)
  * rsi - source
  * rdx - count
  *
- * The macro possibly clobbers the above and: rcx, r8, r9, 10
+ * The macro possibly clobbers the above and: rcx, r8, r9, r10
  * It does not clobber rax nor r11.
  */
 .macro MEMMOVE erms overlap begin end
@@ -1083,7 +1083,6 @@ ENTRY(suword_nosmap)
 
 	movq	%rsi,(%rdi)
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
@@ -1102,7 +1101,6 @@ ENTRY(suword_smap)
 	movq	%rsi,(%rdi)
 	clac
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
@@ -1119,7 +1117,6 @@ ENTRY(suword32_nosmap)
 
 	movl	%esi,(%rdi)
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
@@ -1138,7 +1135,6 @@ ENTRY(suword32_smap)
 	movl	%esi,(%rdi)
 	clac
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret

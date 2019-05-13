@@ -225,7 +225,8 @@ static devclass_t fsl_pcib_devclass;
 
 DEFINE_CLASS_1(pcib, fsl_pcib_driver, fsl_pcib_methods,
     sizeof(struct fsl_pcib_softc), ofw_pci_driver);
-DRIVER_MODULE(pcib, ofwbus, fsl_pcib_driver, fsl_pcib_devclass, 0, 0);
+EARLY_DRIVER_MODULE(pcib, ofwbus, fsl_pcib_driver, fsl_pcib_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 static int
 fsl_pcib_err_intr(void *v)

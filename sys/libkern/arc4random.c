@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <crypto/chacha20/chacha.h>
+#include <crypto/sha2/sha256.h>
+#include <dev/random/randomdev.h>
+#include <machine/cpu.h>
 
 #define	CHACHA20_RESEED_BYTES	65536
 #define	CHACHA20_RESEED_SECONDS	300
@@ -56,7 +59,6 @@ MALLOC_DEFINE(M_CHACHA20RANDOM, "chacha20random", "chacha20random structures");
 struct chacha20_s {
 	struct mtx mtx;
 	int numbytes;
-	int first_time_done;
 	time_t t_reseed;
 	u_int8_t m_buffer[CHACHA20_BUFFER_SIZE];
 	struct chacha_ctx ctx;
@@ -73,34 +75,47 @@ static struct chacha20_s *chacha20inst = NULL;
  * Mix up the current context.
  */
 static void
-chacha20_randomstir(struct chacha20_s* chacha20)
+chacha20_randomstir(struct chacha20_s *chacha20)
 {
 	struct timeval tv_now;
-	size_t n, size;
-	u_int8_t key[CHACHA20_KEYBYTES], *data;
-	caddr_t keyfile;
+	u_int8_t key[CHACHA20_KEYBYTES];
 
-	/*
-	 * This is making the best of what may be an insecure
-	 * Situation. If the loader(8) did not have an entropy
-	 * stash from the previous shutdown to load, then we will
-	 * be improperly seeded. The answer is to make sure there
-	 * is an entropy stash at shutdown time.
-	 */
-	(void)read_random(key, CHACHA20_KEYBYTES);
-	if (!chacha20->first_time_done) {
-		keyfile = preload_search_by_type(RANDOM_CACHED_BOOT_ENTROPY_MODULE);
-		if (keyfile != NULL) {
-			data = preload_fetch_addr(keyfile);
-			size = MIN(preload_fetch_size(keyfile), CHACHA20_KEYBYTES);
-			for (n = 0; n < size; n++)
-				key[n] ^= data[n];
-			explicit_bzero(data, size);
-			if (bootverbose)
-				printf("arc4random: read %zu bytes from preloaded cache\n", size);
-		} else
-			printf("arc4random: no preloaded entropy cache\n");
-		chacha20->first_time_done = 1;
+	if (__predict_false(random_bypass_before_seeding && !is_random_seeded())) {
+		SHA256_CTX ctx;
+		uint64_t cc;
+		uint32_t fver;
+
+		if (!arc4random_bypassed_before_seeding) {
+			arc4random_bypassed_before_seeding = true;
+			if (!random_bypass_disable_warnings)
+				printf("arc4random: WARNING: initial seeding "
+				    "bypassed the cryptographic random device "
+				    "because it was not yet seeded and the "
+				    "knob 'bypass_before_seeding' was "
+				    "enabled.\n");
+		}
+
+		/* Last ditch effort to inject something in a bad condition. */
+		cc = get_cyclecount();
+		SHA256_Init(&ctx);
+		SHA256_Update(&ctx, key, sizeof(key));
+		SHA256_Update(&ctx, &cc, sizeof(cc));
+		fver = __FreeBSD_version;
+		SHA256_Update(&ctx, &fver, sizeof(fver));
+		_Static_assert(sizeof(key) == SHA256_DIGEST_LENGTH,
+		    "make sure 256 bits is still 256 bits");
+		SHA256_Final(key, &ctx);
+	} else {
+		/*
+		* If the loader(8) did not have an entropy stash from the
+		* previous shutdown to load, then we will block.  The answer is
+		* to make sure there is an entropy stash at shutdown time.
+		*
+		* On the other hand, if the random_bypass_before_seeding knob
+		* was set and we landed in this branch, we know this won't
+		* block because we know the random device is seeded.
+		*/
+		read_random(key, CHACHA20_KEYBYTES);
 	}
 	getmicrouptime(&tv_now);
 	mtx_lock(&chacha20->mtx);
@@ -128,7 +143,6 @@ chacha20_init(void)
 		mtx_init(&chacha20->mtx, "chacha20_mtx", NULL, MTX_DEF);
 		chacha20->t_reseed = -1;
 		chacha20->numbytes = 0;
-		chacha20->first_time_done = 0;
 		explicit_bzero(chacha20->m_buffer, CHACHA20_BUFFER_SIZE);
 		explicit_bzero(&chacha20->ctx, sizeof(chacha20->ctx));
 	}
@@ -159,18 +173,20 @@ arc4rand(void *ptr, u_int len, int reseed)
 	u_int length;
 	u_int8_t *p;
 
-	if (reseed || atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_HAVE, ARC4_ENTR_SEED))
+	if (__predict_false(reseed ||
+	    (arc4rand_iniseed_state == ARC4_ENTR_HAVE &&
+	    atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_HAVE, ARC4_ENTR_SEED))))
 		CHACHA20_FOREACH(chacha20)
 			chacha20_randomstir(chacha20);
 
-	chacha20 = &chacha20inst[curcpu];
 	getmicrouptime(&tv);
+	chacha20 = &chacha20inst[curcpu];
 	/* We may get unlucky and be migrated off this CPU, but that is expected to be infrequent */
 	if ((chacha20->numbytes > CHACHA20_RESEED_BYTES) || (tv.tv_sec > chacha20->t_reseed))
 		chacha20_randomstir(chacha20);
 
-	mtx_lock(&chacha20->mtx);
 	p = ptr;
+	mtx_lock(&chacha20->mtx);
 	while (len) {
 		length = MIN(CHACHA20_BUFFER_SIZE, len);
 		chacha_encrypt_bytes(&chacha20->ctx, chacha20->m_buffer, p, length);

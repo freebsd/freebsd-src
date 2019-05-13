@@ -34,7 +34,6 @@ options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	TCP_HHOOK		# hhook(9) framework for TCP
-options 	IPSEC			# IP (v4/v6) security
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
 options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP			# Stream Control Transmission Protocol
@@ -102,6 +101,16 @@ device		uart		# Generic UART driver
 device		uart_lowrisc	# lowRISC UART driver
 device		uart_ns8250	# ns8250-type UART driver
 
+
+# Ethernet drivers
+device		miibus		# MII bus support
+device		cgem		# Cadence Gigabit Ethernet MAC
+device		xae		# Xilinx AXI Ethernet MAC
+
+# DMA support
+device		xdma		# DMA interface
+device		axidma		# Xilinx AXI DMA Controller
+
 # Uncomment for memory disk
 # options 	MD_ROOT
 # options 	MD_ROOT_SIZE=32768	# 32MB ram disk
@@ -135,7 +144,7 @@ device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
-device		tun		# Packet tunnel.
+device		tuntap		# Packet tunnel.
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module

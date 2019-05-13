@@ -1206,7 +1206,7 @@ mprsas_get_sata_identify(struct mpr_softc *sc, u16 handle,
 		 * reset
 		 */
 		mpr_dprint(sc, MPR_INFO|MPR_FAULT|MPR_MAPPING,
-		    "Request for SATA PASSTHROUGH page completed with error %d",
+		    "Request for SATA PASSTHROUGH page completed with error %d\n",
 		    error);
 		error = ENXIO;
 		goto out;

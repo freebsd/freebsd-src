@@ -34,12 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <bootstrap.h>
 #include <disk.h>
-#ifdef EFI_ZFS_BOOT
-#include <libzfs.h>
-#endif
 
 #include <efi.h>
 #include <efilib.h>
+#include <efizfs.h>
 
 static int efi_parsedev(struct devdesc **, const char *, const char **);
 

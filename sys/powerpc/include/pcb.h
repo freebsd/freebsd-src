@@ -47,6 +47,8 @@ struct pcb {
 	register_t	pcb_toc;		/* toc pointer */
 	register_t	pcb_lr;			/* link register */
 	register_t	pcb_dscr;		/* dscr value */
+	register_t	pcb_fscr;		
+	register_t	pcb_tar;
 	struct		pmap *pcb_pm;		/* pmap of our vmspace */
 	jmp_buf		*pcb_onfault;		/* For use during
 						    copyin/copyout */
@@ -57,6 +59,7 @@ struct pcb {
 #define	PCB_VSX		0x8	/* Process had VSX initialized */
 #define	PCB_CDSCR	0x10	/* Process had Custom DSCR initialized */
 #define	PCB_HTM		0x20	/* Process had HTM initialized */
+#define	PCB_CFSCR	0x40	/* Process had FSCR updated */
 	struct fpu {
 		union {
 			double fpr;
@@ -79,6 +82,17 @@ struct pcb {
 		uint64_t texasr;
 		uint64_t tfiar;
 	} pcb_htm;
+	
+	struct ebb {
+		uint64_t ebbhr;
+		uint64_t ebbrr;
+		uint64_t bescr;
+	} pcb_ebb;
+
+	struct lmon {
+		uint64_t lmrr;
+		uint64_t lmser;
+	} pcb_lm;
 
 	union {
 		struct {

@@ -39,3 +39,7 @@ FBSD_1.5 {
 	sbuf_putbuf;
 };
 
+/* Added in FreeBSD 13.x */
+FBSD_1.6 {
+	sbuf_printf_drain;
+};

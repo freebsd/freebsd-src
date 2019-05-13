@@ -49,6 +49,8 @@ static int	vidc_ischar(void);
 
 static int	vidc_started;
 
+void		get_pos(int *x, int *y);
+
 #ifdef TERM_EMU
 #define MAXARGS		8
 #define DEFAULT_FGCOLOR	7
@@ -57,7 +59,6 @@ static int	vidc_started;
 void		end_term(void);
 void		bail_out(int c);
 void		vidc_term_emu(int c);
-void		get_pos(int *x, int *y);
 void		curs_move(int *_x, int *_y, int x, int y);
 void		write_char(int c, int fg, int bg);
 void		scroll_up(int rows, int fg, int bg);
@@ -136,11 +137,18 @@ vidc_rawputchar(int c)
 {
     int		i;
 
-    if (c == '\t')
-	/* lame tab expansion */
-	for (i = 0; i < 8; i++)
+    if (c == '\t') {
+	int n;
+#ifndef TERM_EMU
+	int curx, cury;
+
+	get_pos(&curx, %cury);
+#endif
+
+	n = 8 - ((curx + 8) % 8);
+	for (i = 0; i < n; i++)
 	    vidc_rawputchar(' ');
-    else {
+    } else {
 #ifndef TERM_EMU
         vidc_biosputchar(c);
 #else
@@ -188,8 +196,6 @@ vidc_rawputchar(int c)
     }
 }
 
-#ifdef TERM_EMU
-
 /* Get cursor position on the screen. Result is in edx. Sets
  * curx and cury appropriately.
  */
@@ -205,6 +211,8 @@ get_pos(int *x, int *y)
     *x = v86.edx & 0x00ff;
     *y = (v86.edx & 0xff00) >> 8;
 }
+
+#ifdef TERM_EMU
 
 /* Move cursor to x rows and y cols (0-based). */
 void

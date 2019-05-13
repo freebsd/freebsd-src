@@ -53,6 +53,7 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 
 #include <ufs/ufs/dir.h>
@@ -65,6 +66,18 @@
 #include <fs/ext2fs/ext2_dir.h>
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/fs.h>
+
+SDT_PROVIDER_DECLARE(ext2fs);
+/*
+ * ext2fs trace probe:
+ * arg0: verbosity. Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(ext2fs, , lookup, trace, "int", "char*");
+SDT_PROBE_DEFINE4(ext2fs, , trace, ext2_dirbad_error,
+    "char*", "ino_t", "doff_t", "char*");
+SDT_PROBE_DEFINE5(ext2fs, , trace, ext2_dirbadentry_error,
+    "char*", "int", "uint32_t", "uint16_t", "uint8_t");
 
 #ifdef INVARIANTS
 static int dirchk = 1;
@@ -810,10 +823,8 @@ ext2_dirbad(struct inode *ip, doff_t offset, char *how)
 		    mp->mnt_stat.f_mntonname, (uintmax_t)ip->i_number,
 		    (long)offset, how);
 	else
-		(void)printf("%s: bad dir ino %ju at offset %ld: %s\n",
-		    mp->mnt_stat.f_mntonname, (uintmax_t)ip->i_number,
-		    (long)offset, how);
-
+		SDT_PROBE4(ext2fs, , trace, ext2_dirbad_error,
+		    mp->mnt_stat.f_mntonname, ip->i_number, offset, how);
 }
 
 /*
@@ -849,10 +860,9 @@ ext2_dirbadentry(struct vnode *dp, struct ext2fs_direct_2 *de,
 	*/
 
 	if (error_msg != NULL) {
-		printf("bad directory entry: %s\n", error_msg);
-		printf("offset=%d, inode=%lu, rec_len=%u, name_len=%u\n",
-			entryoffsetinblock, (unsigned long)de->e2d_ino,
-			de->e2d_reclen, de->e2d_namlen);
+		SDT_PROBE5(ext2fs, , trace, ext2_dirbadentry_error,
+		    error_msg, entryoffsetinblock,
+		    de->e2d_ino, de->e2d_reclen, de->e2d_namlen);
 	}
 	return error_msg == NULL ? 0 : 1;
 }
@@ -1276,7 +1286,8 @@ ext2_checkpath(struct inode *source, struct inode *target, struct ucred *cred)
 
 out:
 	if (error == ENOTDIR)
-		printf("checkpath: .. not a directory\n");
+		SDT_PROBE2(ext2fs, , lookup, trace, 1,
+		    "checkpath: .. not a directory");
 	if (vp != NULL)
 		vput(vp);
 	return (error);

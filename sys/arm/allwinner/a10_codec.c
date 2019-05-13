@@ -164,7 +164,7 @@ struct a10codec_chinfo {
 
 struct a10codec_info {
 	device_t		dev;
-	struct resource		*res[3];
+	struct resource		*res[2];
 	struct mtx		*lock;
 	bus_dma_tag_t		dmat;
 	unsigned		dmasize;
@@ -178,10 +178,11 @@ struct a10codec_info {
 
 static struct resource_spec a10codec_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE | RF_OPTIONAL },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
 };
+
+#define	CODEC_ANALOG_READ(sc, reg)		bus_read_4((sc)->res[1], (reg))
+#define	CODEC_ANALOG_WRITE(sc, reg, val)	bus_write_4((sc)->res[1], (reg), (val))
 
 #define	CODEC_READ(sc, reg)		bus_read_4((sc)->res[0], (reg))
 #define	CODEC_WRITE(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
@@ -372,7 +373,7 @@ MIXER_DECLARE(a10_mixer);
  */
 
 #define	H3_PR_CFG		0x00
-#define	 H3_AC_PR_RST		(1 << 18)
+#define	 H3_AC_PR_RST		(1 << 28)
 #define	 H3_AC_PR_RW		(1 << 24)
 #define	 H3_AC_PR_ADDR_SHIFT	16
 #define	 H3_AC_PR_ADDR_MASK	(0x1f << H3_AC_PR_ADDR_SHIFT)
@@ -424,23 +425,23 @@ h3_pr_read(struct a10codec_info *sc, u_int addr)
 	uint32_t val;
 
 	/* Read current value */
-	val = bus_read_4(sc->res[1], H3_PR_CFG);
+	val = CODEC_ANALOG_READ(sc, H3_PR_CFG);
 
 	/* De-assert reset */
 	val |= H3_AC_PR_RST;
-	bus_write_4(sc->res[1], H3_PR_CFG, val);
+	CODEC_ANALOG_WRITE(sc, H3_PR_CFG, val);
 
 	/* Read mode */
 	val &= ~H3_AC_PR_RW;
-	bus_write_4(sc->res[1], H3_PR_CFG, val);
+	CODEC_ANALOG_WRITE(sc, H3_PR_CFG, val);
 
 	/* Set address */
 	val &= ~H3_AC_PR_ADDR_MASK;
 	val |= (addr << H3_AC_PR_ADDR_SHIFT);
-	bus_write_4(sc->res[1], H3_PR_CFG, val);
+	CODEC_ANALOG_WRITE(sc, H3_PR_CFG, val);
 
 	/* Read data */
-	return (bus_read_4(sc->res[1], H3_PR_CFG) & H3_ACDA_PR_RDAT_MASK);
+	return (CODEC_ANALOG_READ(sc , H3_PR_CFG) & H3_ACDA_PR_RDAT_MASK);
 }
 
 static void
@@ -449,25 +450,25 @@ h3_pr_write(struct a10codec_info *sc, u_int addr, u_int data)
 	uint32_t val;
 
 	/* Read current value */
-	val = bus_read_4(sc->res[1], H3_PR_CFG);
+	val = CODEC_ANALOG_READ(sc, H3_PR_CFG);
 
 	/* De-assert reset */
 	val |= H3_AC_PR_RST;
-	bus_write_4(sc->res[1], H3_PR_CFG, val);
+	CODEC_ANALOG_WRITE(sc, H3_PR_CFG, val);
 
 	/* Set address */
 	val &= ~H3_AC_PR_ADDR_MASK;
 	val |= (addr << H3_AC_PR_ADDR_SHIFT);
-	bus_write_4(sc->res[1], H3_PR_CFG, val);
+	CODEC_ANALOG_WRITE(sc, H3_PR_CFG, val);
 
 	/* Write data */
 	val &= ~H3_ACDA_PR_WDAT_MASK;
 	val |= (data << H3_ACDA_PR_WDAT_SHIFT);
-	bus_write_4(sc->res[1], H3_PR_CFG, val);
+	CODEC_ANALOG_WRITE(sc, H3_PR_CFG, val);
 
 	/* Write mode */
 	val |= H3_AC_PR_RW;
-	bus_write_4(sc->res[1], H3_PR_CFG, val);
+	CODEC_ANALOG_WRITE(sc, H3_PR_CFG, val);
 }
 
 static void
@@ -483,7 +484,27 @@ h3_pr_set_clear(struct a10codec_info *sc, u_int addr, u_int set, u_int clr)
 static int
 h3_mixer_init(struct snd_mixer *m)
 {
+	int rid=1;
+	pcell_t reg[2];
+	phandle_t analogref;
 	struct a10codec_info *sc = mix_getdevinfo(m);
+
+	if (OF_getencprop(ofw_bus_get_node(sc->dev), "allwinner,codec-analog-controls",
+	    &analogref, sizeof(analogref)) <= 0) {
+		return (ENXIO);
+	}
+
+	if (OF_getencprop(OF_node_from_xref(analogref), "reg",
+	    reg, sizeof(reg)) <= 0) {
+		return (ENXIO);
+	}
+
+	sc->res[1] = bus_alloc_resource(sc->dev, SYS_RES_MEMORY, &rid, reg[0],
+	    reg[0]+reg[1], reg[1], RF_ACTIVE );
+
+	if (sc->res[1] == NULL) {
+		return (ENXIO);
+	}
 
 	mix_setdevs(m, SOUND_MASK_PCM | SOUND_MASK_VOLUME | SOUND_MASK_RECLEV |
 	    SOUND_MASK_MIC | SOUND_MASK_LINE | SOUND_MASK_LINE1);
@@ -940,6 +961,7 @@ a10codec_chan_trigger(kobj_t obj, void *data, int go)
 	switch (go) {
 	case PCMTRIG_START:
 		ch->run = 1;
+		a10codec_stop(ch);
 		a10codec_start(ch);
 		break;
 	case PCMTRIG_STOP:
@@ -1124,8 +1146,7 @@ a10codec_attach(device_t dev)
 	}
 
 	/* De-assert hwreset */
-	if (hwreset_get_by_ofw_name(dev, 0, "apb", &rst) == 0 ||
-	    hwreset_get_by_ofw_name(dev, 0, "ahb", &rst) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &rst) == 0) {
 		error = hwreset_deassert(rst);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
@@ -1137,15 +1158,6 @@ a10codec_attach(device_t dev)
 	val = CODEC_READ(sc, AC_DAC_DPC(sc));
 	val |= DAC_DPC_EN_DA;
 	CODEC_WRITE(sc, AC_DAC_DPC(sc), val);
-
-#ifdef notdef
-	error = snd_setup_intr(dev, sc->irq, INTR_MPSAFE, a10codec_intr, sc,
-	    &sc->ih);
-	if (error != 0) {
-		device_printf(dev, "could not setup interrupt handler\n");
-		goto fail;
-	}
-#endif
 
 	if (mixer_init(dev, sc->cfg->mixer_class, sc)) {
 		device_printf(dev, "mixer_init failed\n");

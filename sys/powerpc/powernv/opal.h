@@ -82,7 +82,7 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_I2C_REQUEST		109
 #define	OPAL_FLASH_READ			110
 #define	OPAL_FLASH_WRITE		111
-#define	OPAL_FLASH_ERASE		111
+#define	OPAL_FLASH_ERASE		112
 #define	OPAL_INT_GET_XIRR		122
 #define	OPAL_INT_SET_CPPR		123
 #define	OPAL_INT_EOI			124
@@ -201,7 +201,7 @@ struct opal_ipmi_msg {
 int	opal_init_async_tokens(int);
 int	opal_alloc_async_token(void);
 void	opal_free_async_token(int);
-int	opal_wait_completion(void *, uint64_t, uint64_t);
+int	opal_wait_completion(void *, uint64_t, int);
 
 typedef void (*opal_msg_handler_fn)(void *, struct opal_msg *);
 EVENTHANDLER_DECLARE(OPAL_ASYNC_COMP, opal_msg_handler_fn);

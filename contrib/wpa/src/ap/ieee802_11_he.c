@@ -86,3 +86,34 @@ u8 * hostapd_eid_he_operation(struct hostapd_data *hapd, u8 *eid)
 
 	return pos;
 }
+
+
+u8 * hostapd_eid_he_mu_edca_parameter_set(struct hostapd_data *hapd, u8 *eid)
+{
+	struct ieee80211_he_mu_edca_parameter_set *edca;
+	u8 *pos;
+	size_t i;
+
+	pos = (u8 *) &hapd->iface->conf->he_mu_edca;
+	for (i = 0; i < sizeof(*edca); i++) {
+		if (pos[i])
+			break;
+	}
+	if (i == sizeof(*edca))
+		return eid; /* no MU EDCA Parameters configured */
+
+	pos = eid;
+	*pos++ = WLAN_EID_EXTENSION;
+	*pos++ = 1 + sizeof(*edca);
+	*pos++ = WLAN_EID_EXT_HE_MU_EDCA_PARAMS;
+
+	edca = (struct ieee80211_he_mu_edca_parameter_set *) pos;
+	os_memcpy(edca, &hapd->iface->conf->he_mu_edca, sizeof(*edca));
+
+	wpa_hexdump(MSG_DEBUG, "HE: MU EDCA Parameter Set element",
+		    pos, sizeof(*edca));
+
+	pos += sizeof(*edca);
+
+	return pos;
+}

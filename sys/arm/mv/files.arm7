@@ -36,5 +36,3 @@ dev/uart/uart_dev_snps.c	optional	uart
 dev/usb/controller/ehci_mv.c	optional	ehci
 dev/usb/controller/generic_xhci.c	optional	xhci
 dev/ahci/ahci_mv_fdt.c		optional	ahci
-
-kern/kern_clocksource.c		standard

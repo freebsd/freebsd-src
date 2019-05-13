@@ -85,6 +85,9 @@ static int nvme_debug = 0;
 
 #define	NVME_IOSLOTS		8
 
+/* The NVMe spec defines bits 13:4 in BAR0 as reserved */
+#define NVME_MMIO_SPACE_MIN	(1 << 14)
+
 #define	NVME_QUEUES		16
 #define	NVME_MAX_QENTRIES	2048
 
@@ -199,6 +202,9 @@ struct pci_nvme_softc {
 
 	struct nvme_namespace_data  nsdata;
 	struct nvme_controller_data ctrldata;
+	struct nvme_error_information_entry err_log;
+	struct nvme_health_information_page health_log;
+	struct nvme_firmware_page fw_log;
 
 	struct pci_nvme_blockstore nvstore;
 
@@ -366,6 +372,15 @@ pci_nvme_init_nsdata(struct pci_nvme_softc *sc)
 }
 
 static void
+pci_nvme_init_logpages(struct pci_nvme_softc *sc)
+{
+
+	memset(&sc->err_log, 0, sizeof(sc->err_log));
+	memset(&sc->health_log, 0, sizeof(sc->health_log));
+	memset(&sc->fw_log, 0, sizeof(sc->fw_log));
+}
+
+static void
 pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 {
 	DPRINTF(("%s\r\n", __func__));
@@ -452,6 +467,47 @@ pci_nvme_init_controller(struct vmctx *ctx, struct pci_nvme_softc *sc)
 	         sizeof(struct nvme_completion) * acqs);
 	DPRINTF(("%s mapping Admin-CQ guest 0x%lx, host: %p\r\n",
 	        __func__, sc->regs.acq, sc->compl_queues[0].qbase));
+}
+
+static int
+nvme_prp_memcpy(struct vmctx *ctx, uint64_t prp1, uint64_t prp2, uint8_t *src,
+	size_t len)
+{
+	uint8_t *dst;
+	size_t bytes;
+
+	if (len > (8 * 1024)) {
+		return (-1);
+	}
+
+	/* Copy from the start of prp1 to the end of the physical page */
+	bytes = PAGE_SIZE - (prp1 & PAGE_MASK);
+	bytes = MIN(bytes, len);
+
+	dst = vm_map_gpa(ctx, prp1, bytes);
+	if (dst == NULL) {
+		return (-1);
+	}
+
+	memcpy(dst, src, bytes);
+
+	src += bytes;
+
+	len -= bytes;
+	if (len == 0) {
+		return (0);
+	}
+
+	len = MIN(len, PAGE_SIZE);
+
+	dst = vm_map_gpa(ctx, prp2, len);
+	if (dst == NULL) {
+		return (-1);
+	}
+
+	memcpy(dst, src, len);
+
+	return (0);
 }
 
 static int
@@ -587,26 +643,24 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 {
 	uint32_t logsize = (1 + ((command->cdw10 >> 16) & 0xFFF)) * 2;
 	uint8_t logpage = command->cdw10 & 0xFF;
-	void *data;
 
 	DPRINTF(("%s log page %u len %u\r\n", __func__, logpage, logsize));
-
-	if (logpage >= 1 && logpage <= 3)
-		data = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
-		                  PAGE_SIZE);
 
 	pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
 
 	switch (logpage) {
-	case 0x01: /* Error information */
-		memset(data, 0, logsize > PAGE_SIZE ? PAGE_SIZE : logsize);
+	case NVME_LOG_ERROR:
+		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
+		    command->prp2, (uint8_t *)&sc->err_log, logsize);
 		break;
-	case 0x02: /* SMART/Health information */
+	case NVME_LOG_HEALTH_INFORMATION:
 		/* TODO: present some smart info */
-		memset(data, 0, logsize > PAGE_SIZE ? PAGE_SIZE : logsize);
+		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
+		    command->prp2, (uint8_t *)&sc->health_log, logsize);
 		break;
-	case 0x03: /* Firmware slot information */
-		memset(data, 0, logsize > PAGE_SIZE ? PAGE_SIZE : logsize);
+	case NVME_LOG_FIRMWARE_SLOT:
+		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
+		    command->prp2, (uint8_t *)&sc->fw_log, logsize);
 		break;
 	default:
 		WPRINTF(("%s get log page %x command not supported\r\n",
@@ -630,14 +684,13 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 	switch (command->cdw10 & 0xFF) {
 	case 0x00: /* return Identify Namespace data structure */
-		dest = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
-		                  sizeof(sc->nsdata));
-		memcpy(dest, &sc->nsdata, sizeof(sc->nsdata));
+		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
+		    command->prp2, (uint8_t *)&sc->nsdata, sizeof(sc->nsdata));
 		break;
 	case 0x01: /* return Identify Controller data structure */
-		dest = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
-		                  sizeof(sc->ctrldata));
-		memcpy(dest, &sc->ctrldata, sizeof(sc->ctrldata));
+		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
+		    command->prp2, (uint8_t *)&sc->ctrldata,
+		    sizeof(sc->ctrldata));
 		break;
 	case 0x02: /* list of 1024 active NSIDs > CDW1.NSID */
 		dest = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
@@ -1847,9 +1900,16 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata8(pi, PCIR_PROGIF,
 	                 PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0);
 
-	/* allocate size of nvme registers + doorbell space for all queues */
+	/*
+	 * Allocate size of NVMe registers + doorbell space for all queues.
+	 *
+	 * The specification requires a minimum memory I/O window size of 16K.
+	 * The Windows driver will refuse to start a device with a smaller
+	 * window.
+	 */
 	pci_membar_sz = sizeof(struct nvme_registers) +
-	                2*sizeof(uint32_t)*(sc->max_queues + 1);
+	    2 * sizeof(uint32_t) * (sc->max_queues + 1);
+	pci_membar_sz = MAX(pci_membar_sz, NVME_MMIO_SPACE_MIN);
 
 	DPRINTF(("nvme membar size: %u\r\n", pci_membar_sz));
 
@@ -1871,6 +1931,7 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_nvme_reset(sc);
 	pci_nvme_init_ctrldata(sc);
 	pci_nvme_init_nsdata(sc);
+	pci_nvme_init_logpages(sc);
 
 	pci_lintr_request(pi);
 

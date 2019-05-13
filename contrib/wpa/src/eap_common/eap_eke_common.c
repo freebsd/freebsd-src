@@ -399,7 +399,7 @@ int eap_eke_shared_secret(struct eap_eke_session *sess, const u8 *key,
 	/* SharedSecret = prf(0+, g ^ (x_s * x_p) (mod p)) */
 	len = dh->prime_len;
 	if (crypto_dh_derive_secret(*dh->generator, dh->prime, dh->prime_len,
-				    dhpriv, dh->prime_len, peer_pub,
+				    NULL, 0, dhpriv, dh->prime_len, peer_pub,
 				    dh->prime_len, modexp, &len) < 0)
 		return -1;
 	if (len < dh->prime_len) {

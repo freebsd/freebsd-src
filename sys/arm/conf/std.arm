@@ -4,6 +4,7 @@
 
 options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
 options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
+options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
 
 # Debugging support.  Always need this:
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols

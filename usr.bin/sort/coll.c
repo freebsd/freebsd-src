@@ -981,6 +981,15 @@ hnumcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
 	return (numcoll_impl(kv1, kv2, offset, true));
 }
 
+/* Use hint space to memoize md5 computations, at least. */
+static void
+randomcoll_init_hint(struct key_value *kv, void *hash)
+{
+
+	memcpy(kv->hint->v.Rh.cached, hash, sizeof(kv->hint->v.Rh.cached));
+	kv->hint->status = HS_INITIALIZED;
+}
+
 /*
  * Implements random sort (-R).
  */
@@ -990,7 +999,8 @@ randomcoll(struct key_value *kv1, struct key_value *kv2,
 {
 	struct bwstring *s1, *s2;
 	MD5_CTX ctx1, ctx2;
-	char *b1, *b2;
+	unsigned char hash1[MD5_DIGEST_LENGTH], hash2[MD5_DIGEST_LENGTH];
+	int cmp;
 
 	s1 = kv1->k;
 	s2 = kv2->k;
@@ -1003,35 +1013,29 @@ randomcoll(struct key_value *kv1, struct key_value *kv2,
 	if (s1 == s2)
 		return (0);
 
-	memcpy(&ctx1,&md5_ctx,sizeof(MD5_CTX));
-	memcpy(&ctx2,&md5_ctx,sizeof(MD5_CTX));
+	if (kv1->hint->status == HS_INITIALIZED &&
+	    kv2->hint->status == HS_INITIALIZED) {
+		cmp = memcmp(kv1->hint->v.Rh.cached,
+		    kv2->hint->v.Rh.cached, sizeof(kv1->hint->v.Rh.cached));
+		if (cmp != 0)
+			return (cmp);
+	}
+
+	memcpy(&ctx1, &md5_ctx, sizeof(MD5_CTX));
+	memcpy(&ctx2, &md5_ctx, sizeof(MD5_CTX));
 
 	MD5Update(&ctx1, bwsrawdata(s1), bwsrawlen(s1));
 	MD5Update(&ctx2, bwsrawdata(s2), bwsrawlen(s2));
-	b1 = MD5End(&ctx1, NULL);
-	b2 = MD5End(&ctx2, NULL);
-	if (b1 == NULL) {
-		if (b2 == NULL)
-			return (0);
-		else {
-			sort_free(b2);
-			return (-1);
-		}
-	} else if (b2 == NULL) {
-		sort_free(b1);
-		return (+1);
-	} else {
-		int cmp_res;
 
-		cmp_res = strcmp(b1,b2);
-		sort_free(b1);
-		sort_free(b2);
+	MD5Final(hash1, &ctx1);
+	MD5Final(hash2, &ctx2);
 
-		if (!cmp_res)
-			cmp_res = bwscoll(s1, s2, 0);
+	if (kv1->hint->status == HS_UNINITIALIZED)
+		randomcoll_init_hint(kv1, hash1);
+	if (kv2->hint->status == HS_UNINITIALIZED)
+		randomcoll_init_hint(kv2, hash2);
 
-		return (cmp_res);
-	}
+	return (memcmp(hash1, hash2, sizeof(hash1)));
 }
 
 /*

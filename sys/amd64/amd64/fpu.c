@@ -370,6 +370,7 @@ fpuinit(void)
 static void
 fpuinitstate(void *arg __unused)
 {
+	uint64_t *xstate_bv;
 	register_t saveintr;
 	int cp[4], i, max_ext_n;
 
@@ -400,6 +401,10 @@ fpuinitstate(void *arg __unused)
 	 * Save Area.
 	 */
 	if (use_xsave) {
+		xstate_bv = (uint64_t *)((char *)(fpu_initialstate + 1) +
+		    offsetof(struct xstate_hdr, xstate_bv));
+		*xstate_bv = XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE;
+
 		max_ext_n = flsl(xsave_mask);
 		xsave_area_desc = malloc(max_ext_n * sizeof(struct
 		    xsave_area_elm_descr), M_DEVBUF, M_WAITOK | M_ZERO);

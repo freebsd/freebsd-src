@@ -33,6 +33,7 @@
 #ifndef __T4_TOM_H__
 #define __T4_TOM_H__
 #include <sys/vmem.h>
+#include "common/t4_hw.h"
 #include "tom/t4_tls.h"
 
 #define LISTEN_HASH_SIZE 32
@@ -254,6 +255,31 @@ struct listen_ctx {
 	struct clip_entry *ce;
 };
 
+/* tcb_histent flags */
+#define TE_RPL_PENDING	1
+#define TE_ACTIVE	2
+
+/* bits in one 8b tcb_histent sample. */
+#define TS_RTO			(1 << 0)
+#define TS_DUPACKS		(1 << 1)
+#define TS_FASTREXMT		(1 << 2)
+#define TS_SND_BACKLOGGED	(1 << 3)
+#define TS_CWND_LIMITED		(1 << 4)
+#define TS_ECN_ECE		(1 << 5)
+#define TS_ECN_CWR		(1 << 6)
+#define TS_RESERVED		(1 << 7)	/* Unused. */
+
+struct tcb_histent {
+	struct mtx te_lock;
+	struct callout te_callout;
+	uint64_t te_tcb[TCB_SIZE / sizeof(uint64_t)];
+	struct adapter *te_adapter;
+	u_int te_flags;
+	u_int te_tid;
+	uint8_t te_pidx;
+	uint8_t te_sample[100];
+};
+
 struct tom_data {
 	struct toedev tod;
 
@@ -267,6 +293,10 @@ struct tom_data {
 	int lctx_count;		/* # of lctx in the hash table */
 
 	struct ppod_region pr;
+
+	struct rwlock tcb_history_lock __aligned(CACHE_LINE_SIZE);
+	struct tcb_histent **tcb_history;
+	int dupack_threshold;
 
 	/* WRs that will not be sent to the chip because L2 resolution failed */
 	struct mtx unsent_wr_lock;
@@ -326,6 +356,7 @@ int select_ulp_mode(struct socket *, struct adapter *,
     struct offload_settings *);
 void set_ulp_mode(struct toepcb *, int);
 int negative_advice(int);
+int add_tid_to_history(struct adapter *, u_int);
 
 /* t4_connect.c */
 void t4_init_connect_cpl_handlers(void);

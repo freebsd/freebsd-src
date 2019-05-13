@@ -332,7 +332,7 @@ static u8 * eap_ttls_implicit_challenge(struct eap_sm *sm,
 					struct eap_ttls_data *data, size_t len)
 {
 	return eap_server_tls_derive_key(sm, &data->ssl, "ttls challenge",
-					 len);
+					 NULL, 0, len);
 }
 
 
@@ -1268,7 +1268,7 @@ static u8 * eap_ttls_getKey(struct eap_sm *sm, void *priv, size_t *len)
 		return NULL;
 
 	eapKeyData = eap_server_tls_derive_key(sm, &data->ssl,
-					       "ttls keying material",
+					       "ttls keying material", NULL, 0,
 					       EAP_TLS_KEY_LEN);
 	if (eapKeyData) {
 		*len = EAP_TLS_KEY_LEN;
@@ -1310,7 +1310,7 @@ static u8 * eap_ttls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 		return NULL;
 
 	eapKeyData = eap_server_tls_derive_key(sm, &data->ssl,
-					       "ttls keying material",
+					       "ttls keying material", NULL, 0,
 					       EAP_TLS_KEY_LEN + EAP_EMSK_LEN);
 	if (eapKeyData) {
 		emsk = os_malloc(EAP_EMSK_LEN);

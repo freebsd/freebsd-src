@@ -1057,7 +1057,7 @@ static int wps_validate_cred(const u8 *cred, size_t len)
 }
 
 
-static int wps_validate_credential(const u8 *cred[], size_t len[], size_t num,
+static int wps_validate_credential(const u8 *cred[], u16 len[], size_t num,
 				   int mandatory)
 {
 	size_t i;

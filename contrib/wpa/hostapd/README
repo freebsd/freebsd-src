@@ -2,7 +2,7 @@ hostapd - user space IEEE 802.11 AP and IEEE 802.1X/WPA/WPA2/EAP
 	  Authenticator and RADIUS authentication server
 ================================================================
 
-Copyright (c) 2002-2018, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is licensed under the BSD license (the one with

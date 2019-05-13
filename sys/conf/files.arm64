@@ -27,6 +27,10 @@ cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
 # Allwinner common files
 arm/allwinner/a10_ehci.c	optional	ehci aw_ehci fdt
 arm/allwinner/a10_timer.c	optional	a10_timer fdt
+arm/allwinner/a10_codec.c	optional	sound a10_codec
+arm/allwinner/a31_dmac.c	optional	a31_dmac
+arm/allwinner/sunxi_dma_if.m	optional	a31_dmac
+arm/allwinner/aw_cir.c		optional	evdev aw_cir fdt
 arm/allwinner/aw_gpio.c		optional	gpio aw_gpio fdt
 arm/allwinner/aw_mmc.c		optional	mmc aw_mmc fdt | mmccam aw_mmc fdt
 arm/allwinner/aw_nmi.c		optional	aw_nmi fdt \
@@ -206,6 +210,7 @@ dev/axgbe/xgbe-dev.c		optional	axgbe
 dev/axgbe/xgbe-drv.c		optional	axgbe
 dev/axgbe/xgbe-mdio.c		optional	axgbe
 dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
+dev/iicbus/sy8106a.c		optional	sy8106a fdt
 dev/iicbus/twsi/mv_twsi.c	optional	twsi fdt
 dev/iicbus/twsi/a10_twsi.c	optional	twsi fdt
 dev/iicbus/twsi/twsi.c		optional	twsi fdt
@@ -235,7 +240,9 @@ dev/usb/controller/generic_ehci.c optional	ehci acpi
 dev/usb/controller/generic_ohci.c optional	ohci fdt
 dev/usb/controller/generic_usb_if.m optional	ohci fdt
 dev/usb/controller/usb_nop_xceiv.c	optional fdt ext_resources
-dev/usb/controller/generic_xhci.c	optional	xhci fdt
+dev/usb/controller/generic_xhci.c	optional	xhci
+dev/usb/controller/generic_xhci_acpi.c	optional	xhci acpi
+dev/usb/controller/generic_xhci_fdt.c	optional	xhci fdt
 dev/vnic/mrml_bridge.c		optional	vnic fdt
 dev/vnic/nic_main.c		optional	vnic pci
 dev/vnic/nicvf_main.c		optional	vnic pci pci_iov

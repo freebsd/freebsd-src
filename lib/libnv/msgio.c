@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -58,7 +59,12 @@ __FBSDID("$FreeBSD$");
 #define	PJDLOG_ABORT(...)		abort()
 #endif
 
+#ifdef __linux__
+/* Linux: arbitrary size, but must be lower than SCM_MAX_FD. */
+#define	PKG_MAX_SIZE	((64U - 1) * CMSG_SPACE(sizeof(int)))
+#else
 #define	PKG_MAX_SIZE	(MCLBYTES / CMSG_SPACE(sizeof(int)) - 1)
+#endif
 
 static int
 msghdr_add_fd(struct cmsghdr *cmsg, int fd)
@@ -72,31 +78,6 @@ msghdr_add_fd(struct cmsghdr *cmsg, int fd)
 	bcopy(&fd, CMSG_DATA(cmsg), sizeof(fd));
 
 	return (0);
-}
-
-static int
-msghdr_get_fd(struct cmsghdr *cmsg)
-{
-	int fd;
-
-	if (cmsg == NULL || cmsg->cmsg_level != SOL_SOCKET ||
-	    cmsg->cmsg_type != SCM_RIGHTS ||
-	    cmsg->cmsg_len != CMSG_LEN(sizeof(fd))) {
-		errno = EINVAL;
-		return (-1);
-	}
-
-	bcopy(CMSG_DATA(cmsg), &fd, sizeof(fd));
-#ifndef MSG_CMSG_CLOEXEC
-	/*
-	 * If the MSG_CMSG_CLOEXEC flag is not available we cannot set the
-	 * close-on-exec flag atomically, but we still want to set it for
-	 * consistency.
-	 */
-	(void) fcntl(fd, F_SETFD, FD_CLOEXEC);
-#endif
-
-	return (fd);
 }
 
 static void
@@ -157,14 +138,7 @@ msg_send(int sock, const struct msghdr *msg)
 	return (0);
 }
 
-/*
- * MacOS/Linux do not define struct cmsgcred but we need to bootstrap libnv
- * when building on non-FreeBSD systems. Since they are not used during
- * bootstrap we can just omit these two functions there.
- */
-#ifndef __FreeBSD__
-#warning "cred_send() not supported on non-FreeBSD systems"
-#else
+#ifdef __FreeBSD__
 int
 cred_send(int sock)
 {
@@ -326,29 +300,53 @@ fd_package_recv(int sock, int *fds, size_t nfds)
 	if (msg_recv(sock, &msg) == -1)
 		goto end;
 
-	for (i = 0, cmsg = CMSG_FIRSTHDR(&msg); i < nfds && cmsg != NULL;
-	    i++, cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		fds[i] = msghdr_get_fd(cmsg);
-		if (fds[i] < 0)
+	i = 0;
+	cmsg = CMSG_FIRSTHDR(&msg);
+	while (cmsg && i < nfds) {
+		unsigned int n;
+
+		if (cmsg->cmsg_level != SOL_SOCKET ||
+		    cmsg->cmsg_type != SCM_RIGHTS) {
+			errno = EINVAL;
 			break;
+		}
+		n = (cmsg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
+		if (i + n > nfds) {
+			errno = EINVAL;
+			break;
+		}
+		bcopy(CMSG_DATA(cmsg), fds + i, sizeof(int) * n);
+		cmsg = CMSG_NXTHDR(&msg, cmsg);
+		i += n;
 	}
 
 	if (cmsg != NULL || i < nfds) {
-		int fd;
+		unsigned int last;
 
 		/*
 		 * We need to close all received descriptors, even if we have
 		 * different control message (eg. SCM_CREDS) in between.
 		 */
-		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
-		    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-			fd = msghdr_get_fd(cmsg);
-			if (fd >= 0)
-				close(fd);
+		last = i;
+		for (i = 0; i < last; i++) {
+			if (fds[i] >= 0) {
+				close(fds[i]);
+			}
 		}
 		errno = EINVAL;
 		goto end;
 	}
+
+#ifndef MSG_CMSG_CLOEXEC
+	/*
+	 * If the MSG_CMSG_CLOEXEC flag is not available we cannot set the
+	 * close-on-exec flag atomically, but we still want to set it for
+	 * consistency.
+	 */
+	for (i = 0; i < nfds; i++) {
+		(void) fcntl(fds[i], F_SETFD, FD_CLOEXEC);
+	}
+#endif
 
 	ret = 0;
 end:

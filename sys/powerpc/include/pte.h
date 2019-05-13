@@ -70,6 +70,8 @@ struct pate {
 	u_int64_t proctab;
 };
 
+typedef	struct pte pte_t;
+typedef	struct lpte lpte_t;
 #endif	/* LOCORE */
 
 /* 32-bit PTE definitions */
@@ -161,12 +163,6 @@ struct pate {
 #define	RPDE_NLB_SHIFT		8
 #define	RPDE_NLS_MASK		0x000000000000001FULL
 
-
-#ifndef	LOCORE
-typedef	struct pte pte_t;
-typedef	struct lpte lpte_t;
-#endif	/* LOCORE */
-
 /*
  * Extract bits from address
  */
@@ -200,120 +196,6 @@ typedef	struct lpte lpte_t;
 #else /* BOOKE */
 
 #include <machine/tlb.h>
-
-#ifdef __powerpc64__
-
-#include <machine/tlb.h>
-
-/*
- * The virtual address is:
- *
- * 4K page size
- *   +-----+-----+-----+-------+-------------+-------------+----------------+
- *   |  -  |p2d#h|  -  | p2d#l |     dir#    |     pte#    | off in 4K page |
- *   +-----+-----+-----+-------+-------------+-------------+----------------+
- *    63 62 61 60 59 40 39   30 29    ^    21 20    ^    12 11             0
- *                                    |             |
- *                                index in 1 page of pointers
- *
- * 1st level - pointers to page table directory (pp2d)
- *
- * pp2d consists of PP2D_NENTRIES entries, each being a pointer to
- * second level entity, i.e. the page table directory (pdir).
- */
-#define HARDWARE_WALKER
-#define PP2D_H_H		61
-#define PP2D_H_L		60
-#define PP2D_L_H		39
-#define PP2D_L_L		30	/* >30 would work with no page table pool */
-#ifndef LOCORE
-#define PP2D_SIZE		(1UL << PP2D_L_L)	/* va range mapped by pp2d */
-#else
-#define PP2D_SIZE		(1 << PP2D_L_L)	/* va range mapped by pp2d */
-#endif
-#define PP2D_L_SHIFT		PP2D_L_L
-#define PP2D_L_NUM		(PP2D_L_H-PP2D_L_L+1)
-#define PP2D_L_MASK		((1<<PP2D_L_NUM)-1)
-#define PP2D_H_SHIFT		(PP2D_H_L-PP2D_L_NUM)
-#define PP2D_H_NUM		(PP2D_H_H-PP2D_H_L+1)
-#define PP2D_H_MASK		(((1<<PP2D_H_NUM)-1)<<PP2D_L_NUM)
-#define PP2D_IDX(va)		(((va >> PP2D_H_SHIFT) & PP2D_H_MASK) | ((va >> PP2D_L_SHIFT) & PP2D_L_MASK))
-#define PP2D_NENTRIES		(1<<(PP2D_L_NUM+PP2D_H_NUM))
-#define PP2D_ENTRY_SHIFT	3	/* log2 (sizeof(struct pte_entry **)) */
-
-/*
- * 2nd level - page table directory (pdir)
- *
- * pdir consists of PDIR_NENTRIES entries, each being a pointer to
- * second level entity, i.e. the actual page table (ptbl).
- */
-#define PDIR_H			(PP2D_L_L-1)
-#define PDIR_L			21
-#define PDIR_NUM		(PDIR_H-PDIR_L+1)
-#define PDIR_SIZE		(1 << PDIR_L)	/* va range mapped by pdir */
-#define PDIR_MASK		((1<<PDIR_NUM)-1)
-#define PDIR_SHIFT		PDIR_L
-#define PDIR_NENTRIES		(1<<PDIR_NUM)
-#define PDIR_IDX(va)		(((va) >> PDIR_SHIFT) & PDIR_MASK)
-#define PDIR_ENTRY_SHIFT	3	/* log2 (sizeof(struct pte_entry *)) */
-#define PDIR_PAGES		((PDIR_NENTRIES * (1<<PDIR_ENTRY_SHIFT)) / PAGE_SIZE)
-
-/*
- * 3rd level - page table (ptbl)
- *
- * Page table covers PTBL_NENTRIES page table entries. Page
- * table entry (pte) is 64 bit wide and defines mapping
- * for a single page.
- */
-#define PTBL_H			(PDIR_L-1)
-#define PTBL_L			PAGE_SHIFT
-#define PTBL_NUM		(PTBL_H-PTBL_L+1)
-#define PTBL_MASK		((1<<PTBL_NUM)-1)
-#define PTBL_SHIFT		PTBL_L
-#define PTBL_SIZE		PAGE_SIZE	/* va range mapped by ptbl entry */
-#define PTBL_NENTRIES		(1<<PTBL_NUM)
-#define PTBL_IDX(va)		((va >> PTBL_SHIFT) & PTBL_MASK)
-#define PTBL_ENTRY_SHIFT	 3	/* log2 (sizeof (struct pte_entry)) */
-#define PTBL_PAGES		((PTBL_NENTRIES * (1<<PTBL_ENTRY_SHIFT)) / PAGE_SIZE)
-
-#define KERNEL_LINEAR_MAX	0xc000000040000000
-#else
-/*
- * 1st level - page table directory (pdir)
- *
- * pdir consists of 1024 entries, each being a pointer to
- * second level entity, i.e. the actual page table (ptbl).
- */
-#define PDIR_SHIFT	22
-#define PDIR_SIZE	(1 << PDIR_SHIFT)	/* va range mapped by pdir */
-#define PDIR_MASK	(~(PDIR_SIZE - 1))
-#define PDIR_NENTRIES	1024			/* number of page tables in pdir */
-
-/* Returns pdir entry number for given va */
-#define PDIR_IDX(va)	((va) >> PDIR_SHIFT)
-
-#define PDIR_ENTRY_SHIFT 2	/* entry size is 2^2 = 4 bytes */
-
-/*
- * 2nd level - page table (ptbl)
- *
- * Page table covers 1024 page table entries. Page
- * table entry (pte) is 32 bit wide and defines mapping
- * for a single page.
- */
-#define PTBL_SHIFT	PAGE_SHIFT
-#define PTBL_SIZE	PAGE_SIZE		/* va range mapped by ptbl entry */
-#define PTBL_MASK	((PDIR_SIZE - 1) & ~((1 << PAGE_SHIFT) - 1))
-#define PTBL_NENTRIES	1024			/* number of pages mapped by ptbl */
-
-/* Returns ptbl entry number for given va */
-#define PTBL_IDX(va)	(((va) & PTBL_MASK) >> PTBL_SHIFT)
-
-/* Size of ptbl in pages, 1024 entries, each sizeof(struct pte_entry). */
-#define PTBL_PAGES	2
-#define PTBL_ENTRY_SHIFT 3	/* entry size is 2^3 = 8 bytes */
-
-#endif
 
 /*
  * Flags for pte_remove() routine.
@@ -421,4 +303,114 @@ typedef uint64_t pte_t;
 #define PTE_ISREFERENCED(pte)	((*pte) & PTE_REFERENCED)
 
 #endif /* BOOKE */
+
+/* Book-E page table format, broken out for the generic pmap.h. */
+#ifdef __powerpc64__
+
+#include <machine/tlb.h>
+
+/*
+ * The virtual address is:
+ *
+ * 4K page size
+ *   +-----+-----+-----+-------+-------------+-------------+----------------+
+ *   |  -  |p2d#h|  -  | p2d#l |     dir#    |     pte#    | off in 4K page |
+ *   +-----+-----+-----+-------+-------------+-------------+----------------+
+ *    63 62 61 60 59 40 39   30 29    ^    21 20    ^    12 11             0
+ *                                    |             |
+ *                                index in 1 page of pointers
+ *
+ * 1st level - pointers to page table directory (pp2d)
+ *
+ * pp2d consists of PP2D_NENTRIES entries, each being a pointer to
+ * second level entity, i.e. the page table directory (pdir).
+ */
+#define PP2D_H_H		61
+#define PP2D_H_L		60
+#define PP2D_L_H		39
+#define PP2D_L_L		30	/* >30 would work with no page table pool */
+#define PP2D_SIZE		(1 << PP2D_L_L)	/* va range mapped by pp2d */
+#define PP2D_L_SHIFT		PP2D_L_L
+#define PP2D_L_NUM		(PP2D_L_H-PP2D_L_L+1)
+#define PP2D_L_MASK		((1<<PP2D_L_NUM)-1)
+#define PP2D_H_SHIFT		(PP2D_H_L-PP2D_L_NUM)
+#define PP2D_H_NUM		(PP2D_H_H-PP2D_H_L+1)
+#define PP2D_H_MASK		(((1<<PP2D_H_NUM)-1)<<PP2D_L_NUM)
+#define PP2D_IDX(va)		(((va >> PP2D_H_SHIFT) & PP2D_H_MASK) | ((va >> PP2D_L_SHIFT) & PP2D_L_MASK))
+#define PP2D_NENTRIES		(1<<(PP2D_L_NUM+PP2D_H_NUM))
+#define PP2D_ENTRY_SHIFT	3	/* log2 (sizeof(struct pte_entry **)) */
+
+/*
+ * 2nd level - page table directory (pdir)
+ *
+ * pdir consists of PDIR_NENTRIES entries, each being a pointer to
+ * second level entity, i.e. the actual page table (ptbl).
+ */
+#define PDIR_H			(PP2D_L_L-1)
+#define PDIR_L			21
+#define PDIR_NUM		(PDIR_H-PDIR_L+1)
+#define PDIR_SIZE		(1 << PDIR_L)	/* va range mapped by pdir */
+#define PDIR_MASK		((1<<PDIR_NUM)-1)
+#define PDIR_SHIFT		PDIR_L
+#define PDIR_NENTRIES		(1<<PDIR_NUM)
+#define PDIR_IDX(va)		(((va) >> PDIR_SHIFT) & PDIR_MASK)
+#define PDIR_ENTRY_SHIFT	3	/* log2 (sizeof(struct pte_entry *)) */
+#define PDIR_PAGES		((PDIR_NENTRIES * (1<<PDIR_ENTRY_SHIFT)) / PAGE_SIZE)
+
+/*
+ * 3rd level - page table (ptbl)
+ *
+ * Page table covers PTBL_NENTRIES page table entries. Page
+ * table entry (pte) is 64 bit wide and defines mapping
+ * for a single page.
+ */
+#define PTBL_H			(PDIR_L-1)
+#define PTBL_L			PAGE_SHIFT
+#define PTBL_NUM		(PTBL_H-PTBL_L+1)
+#define PTBL_MASK		((1<<PTBL_NUM)-1)
+#define PTBL_SHIFT		PTBL_L
+#define PTBL_SIZE		PAGE_SIZE	/* va range mapped by ptbl entry */
+#define PTBL_NENTRIES		(1<<PTBL_NUM)
+#define PTBL_IDX(va)		((va >> PTBL_SHIFT) & PTBL_MASK)
+#define PTBL_ENTRY_SHIFT	 3	/* log2 (sizeof (struct pte_entry)) */
+#define PTBL_PAGES		((PTBL_NENTRIES * (1<<PTBL_ENTRY_SHIFT)) / PAGE_SIZE)
+
+#define KERNEL_LINEAR_MAX	0xc000000040000000
+#else
+/*
+ * 1st level - page table directory (pdir)
+ *
+ * pdir consists of 1024 entries, each being a pointer to
+ * second level entity, i.e. the actual page table (ptbl).
+ */
+#define PDIR_SHIFT	22
+#define PDIR_SIZE	(1 << PDIR_SHIFT)	/* va range mapped by pdir */
+#define PDIR_MASK	(~(PDIR_SIZE - 1))
+#define PDIR_NENTRIES	1024			/* number of page tables in pdir */
+
+/* Returns pdir entry number for given va */
+#define PDIR_IDX(va)	((va) >> PDIR_SHIFT)
+
+#define PDIR_ENTRY_SHIFT 2	/* entry size is 2^2 = 4 bytes */
+
+/*
+ * 2nd level - page table (ptbl)
+ *
+ * Page table covers 1024 page table entries. Page
+ * table entry (pte) is 32 bit wide and defines mapping
+ * for a single page.
+ */
+#define PTBL_SHIFT	PAGE_SHIFT
+#define PTBL_SIZE	PAGE_SIZE		/* va range mapped by ptbl entry */
+#define PTBL_MASK	((PDIR_SIZE - 1) & ~((1 << PAGE_SHIFT) - 1))
+#define PTBL_NENTRIES	1024			/* number of pages mapped by ptbl */
+
+/* Returns ptbl entry number for given va */
+#define PTBL_IDX(va)	(((va) & PTBL_MASK) >> PTBL_SHIFT)
+
+/* Size of ptbl in pages, 1024 entries, each sizeof(struct pte_entry). */
+#define PTBL_PAGES	2
+#define PTBL_ENTRY_SHIFT 3	/* entry size is 2^3 = 8 bytes */
+
+#endif
 #endif /* _MACHINE_PTE_H_ */

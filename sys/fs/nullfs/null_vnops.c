@@ -339,15 +339,15 @@ null_add_writecount(struct vop_add_writecount_args *ap)
 
 	vp = ap->a_vp;
 	lvp = NULLVPTOLOWERVP(vp);
-	KASSERT(vp->v_writecount + ap->a_inc >= 0, ("wrong writecount inc"));
-	if (vp->v_writecount > 0 && vp->v_writecount + ap->a_inc == 0)
-		error = VOP_ADD_WRITECOUNT(lvp, -1);
-	else if (vp->v_writecount == 0 && vp->v_writecount + ap->a_inc > 0)
-		error = VOP_ADD_WRITECOUNT(lvp, 1);
-	else
-		error = 0;
+	VI_LOCK(vp);
+	/* text refs are bypassed to lowervp */
+	VNASSERT(vp->v_writecount >= 0, vp, ("wrong null writecount"));
+	VNASSERT(vp->v_writecount + ap->a_inc >= 0, vp,
+	    ("wrong writecount inc %d", ap->a_inc));
+	error = VOP_ADD_WRITECOUNT(lvp, ap->a_inc);
 	if (error == 0)
 		vp->v_writecount += ap->a_inc;
+	VI_UNLOCK(vp);
 	return (error);
 }
 
@@ -802,15 +802,17 @@ null_reclaim(struct vop_reclaim_args *ap)
 	vp->v_data = NULL;
 	vp->v_object = NULL;
 	vp->v_vnlock = &vp->v_lock;
-	VI_UNLOCK(vp);
 
 	/*
-	 * If we were opened for write, we leased one write reference
+	 * If we were opened for write, we leased the write reference
 	 * to the lower vnode.  If this is a reclamation due to the
 	 * forced unmount, undo the reference now.
 	 */
 	if (vp->v_writecount > 0)
-		VOP_ADD_WRITECOUNT(lowervp, -1);
+		VOP_ADD_WRITECOUNT(lowervp, -vp->v_writecount);
+
+	VI_UNLOCK(vp);
+
 	if ((xp->null_flags & NULLV_NOUNLOCK) != 0)
 		vunref(lowervp);
 	else

@@ -87,7 +87,7 @@ ar5211StopDmaReceive(struct ath_hal *ah)
  * Start Transmit at the PCU engine (unpause receive)
  */
 void
-ar5211StartPcuReceive(struct ath_hal *ah)
+ar5211StartPcuReceive(struct ath_hal *ah, HAL_BOOL is_scanning)
 {
 	OS_REG_WRITE(ah, AR_DIAG_SW,
 		OS_REG_READ(ah, AR_DIAG_SW) & ~(AR_DIAG_SW_DIS_RX));

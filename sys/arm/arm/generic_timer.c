@@ -393,7 +393,7 @@ arm_tmr_attach(device_t dev)
 	pcell_t clock;
 #endif
 	int error;
-	int i;
+	int i, first_timer, last_timer;
 
 	sc = device_get_softc(dev);
 	if (arm_tmr_sc)
@@ -433,17 +433,25 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
-#ifdef __arm__
-	sc->physical = true;
-#else /* __aarch64__ */
-	/* If we do not have a virtual timer use the physical. */
-	sc->physical = (sc->res[2] == NULL) ? true : false;
+#ifdef __aarch64__
+	/* Use the virtual timer if we have one. */
+	if (sc->res[2] != NULL) {
+		sc->physical = false;
+		first_timer = 2;
+		last_timer = 2;
+	} else
 #endif
+	/* Otherwise set up the secure and non-secure physical timers. */
+	{
+		sc->physical = true;
+		first_timer = 0;
+		last_timer = 1;
+	}
 
 	arm_tmr_sc = sc;
 
 	/* Setup secure, non-secure and virtual IRQs handler */
-	for (i = 0; i < 3; i++) {
+	for (i = first_timer; i <= last_timer; i++) {
 		/* If we do not have the interrupt, skip it. */
 		if (sc->res[i] == NULL)
 			continue;

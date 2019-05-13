@@ -328,6 +328,14 @@ found:
 		NET_EPOCH_EXIT(et);
 		return -1;
 
+	case IFT_INFINIBAND:
+		if (addrlen != 20) {
+			NET_EPOCH_EXIT(et);
+			return -1;
+		}
+		bcopy(addr + 12, &in6->s6_addr[8], 8);
+		break;
+
 	default:
 		NET_EPOCH_EXIT(et);
 		return -1;

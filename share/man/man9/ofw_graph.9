@@ -1,0 +1,106 @@
+.\" Copyright (c) 2019 Emmanuel Vadot <manu@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 10, 2019
+.Dt ofw_graph 9
+.Os
+.Sh NAME
+.Nm ofw_graph ,
+.Nm ofw_graph_get_port_by_idx ,
+.Nm ofw_graph_port_get_num_endpoints ,
+.Nm ofw_graph_get_endpoint_by_idx ,
+.Nm ofw_graph_get_remote_endpoint ,
+.Nm ofw_graph_get_remote_parent ,
+.Nm ofw_graph_get_device_by_port_ep ,
+.Nd Helpers for the graph bindings
+.Sh SYNOPSIS
+.In dev/ofw/openfirm.h
+.In dev/ofw/ofw_graph.h
+.Ft phandle_t
+.Fn ofw_graph_get_port_by_idx "phandle_t node" "uint32_t idx"
+.Ft size_t
+.Fn ofw_graph_port_get_num_endpoints "phandle_t port"
+.Ft phandle_t
+.Fn ofw_graph_get_endpoint_by_idx "phandle_t port" "uint32_t idx"
+.Ft phandle_t
+.Fn ofw_graph_get_remote_endpoint "phandle_t endpoint"
+.Ft phandle_t
+.Fn ofw_graph_get_remote_parent "phandle_t remote"
+.Ft device_t
+.Fn ofw_graph_get_device_by_port_ep "phandle_t node" "uint32_t port_id" "uin32_t ep_id"
+.Sh DESCRIPTION
+.Pp
+The ofw_graph functions are helpers to parse the DTS graph bindings
+.Pp
+.Fn ofw_graph_get_port_by_idx
+return the port with id
+.Fa idx .
+It will first check node named
+.Fa port@idx
+and then fallback on checking the
+.Fa ports
+child for a child node matching the id. If no ports matching
+.Fa idx
+is found the function return 0.
+.Pp
+.Fn ofw_graph_port_get_num_endpoints
+returns the number of endpoints a port node have.
+.Pp
+.Fn ofw_graph_get_endpoint_by_idx
+return the endpoint with id
+.Fa idx .
+It will first check if there is a single child named
+.Fa endpoint
+and returns it if there is. If there is multiple endpoints it will check
+the
+.Fa reg
+property and returns the correct
+.Fa phandle_t
+or 0 if none match.
+.Pp
+.Fn ofw_graph_get_remote_endpoint
+returns the
+.Fa remote-endpoint
+property if it exists or 0.
+.Pp
+.Fn ofw_graph_get_remote_parent
+returns the device node corresponding to the
+.Fa remote-endpoint
+phandle or 0 if none.
+.Fn ofw_graph_get_device_by_port_ep
+returns the device associated with the port and endpoint or
+.Fa NULL
+if none. The device driver should have called
+.Fn OF_device_register_xref
+before.
+.Fn 
+.Sh HISTORY
+The
+.Nm ofw_graph
+functions first appeared in
+.Fx 13.0 .
+The
+.Nm ofw_graph
+functions and manual page were written by
+.An Emmanuel Vadot Aq Mt manu@FreeBSD.org .

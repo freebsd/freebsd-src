@@ -1202,14 +1202,13 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	vm_object_t obj;
 	vm_ooffset_t foff;
 	struct ucred *cred;
-	int error, flags, locktype;
+	int error, flags;
+	bool writex;
 
 	cred = td->td_ucred;
-	if ((*maxprotp & VM_PROT_WRITE) && (*flagsp & MAP_SHARED))
-		locktype = LK_EXCLUSIVE;
-	else
-		locktype = LK_SHARED;
-	if ((error = vget(vp, locktype, td)) != 0)
+	writex = (*maxprotp & VM_PROT_WRITE) != 0 &&
+	    (*flagsp & MAP_SHARED) != 0;
+	if ((error = vget(vp, LK_SHARED, td)) != 0)
 		return (error);
 	AUDIT_ARG_VNODE1(vp);
 	foff = *foffp;
@@ -1230,11 +1229,11 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			 * Bypass filesystems obey the mpsafety of the
 			 * underlying fs.  Tmpfs never bypasses.
 			 */
-			error = vget(vp, locktype, td);
+			error = vget(vp, LK_SHARED, td);
 			if (error != 0)
 				return (error);
 		}
-		if (locktype == LK_EXCLUSIVE) {
+		if (writex) {
 			*writecounted = TRUE;
 			vnode_pager_update_writecount(obj, 0, objsize);
 		}

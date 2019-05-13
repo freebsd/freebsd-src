@@ -65,9 +65,9 @@ __FBSDID("$FreeBSD$");
 #define	CDMAJOR		15
 
 #ifdef DISK_DEBUG
-#define	DEBUG(fmt, args...)	printf("%s: " fmt "\n", __func__, ## args)
+#define	DPRINTF(fmt, args...)	printf("%s: " fmt "\n", __func__, ## args)
 #else
-#define	DEBUG(fmt, args...)
+#define	DPRINTF(fmt, args...)	((void)0)
 #endif
 
 struct specification_packet {
@@ -218,12 +218,12 @@ bd_bios2unit(int biosdev)
 	bdinfo_t *bd;
 	int i, unit;
 
-	DEBUG("looking for bios device 0x%x", biosdev);
+	DPRINTF("looking for bios device 0x%x", biosdev);
 	for (i = 0; bdi[i] != NULL; i++) {
 		unit = 0;
 		STAILQ_FOREACH(bd, bdi[i], bd_link) {
 			if (bd->bd_unit == biosdev) {
-				DEBUG("bd unit %d is BIOS device 0x%x", unit,
+				DPRINTF("bd unit %d is BIOS device 0x%x", unit,
 				    bd->bd_unit);
 				return (unit);
 			}
@@ -620,7 +620,7 @@ bd_int13probe(bdinfo_t *bd)
 	if (bd->bd_sectors == 0)
 		bd->bd_sectors = (uint64_t)bd->bd_cyl * bd->bd_hds * bd->bd_sec;
 
-	DEBUG("unit 0x%x geometry %d/%d/%d\n", bd->bd_unit, bd->bd_cyl,
+	DPRINTF("unit 0x%x geometry %d/%d/%d\n", bd->bd_unit, bd->bd_cyl,
 	    bd->bd_hds, bd->bd_sec);
 
 	return (true);
@@ -919,7 +919,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 		return (EIO);
 	}
 
-	DEBUG("open_disk %p", dev);
+	DPRINTF("open_disk %p", dev);
 
 	offset = dblk * BIOSDISK_SECSIZE;
 	dblk = offset / bd->bd_sectorsize;
@@ -932,7 +932,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	 * while translating block count to bytes.
 	 */
 	if (size > INT_MAX) {
-		DEBUG("too large I/O: %zu bytes", size);
+		DPRINTF("too large I/O: %zu bytes", size);
 		return (EIO);
 	}
 
@@ -972,7 +972,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	if (dblk + blks >= d_offset + disk_blocks) {
 		blks = d_offset + disk_blocks - dblk;
 		size = blks * bd->bd_sectorsize;
-		DEBUG("short I/O %d", blks);
+		DPRINTF("short I/O %d", blks);
 	}
 
 	bio_size = min(BIO_BUFFER_SIZE, size);
@@ -997,7 +997,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 
 		switch (rw & F_MASK) {
 		case F_READ:
-			DEBUG("read %d from %lld to %p", x, dblk, buf);
+			DPRINTF("read %d from %lld to %p", x, dblk, buf);
 			bsize = bd->bd_sectorsize * x - blkoff;
 			if (rest < bsize)
 				bsize = rest;
@@ -1010,7 +1010,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 			bcopy(bbuf + blkoff, buf, bsize);
 			break;
 		case F_WRITE :
-			DEBUG("write %d from %lld to %p", x, dblk, buf);
+			DPRINTF("write %d from %lld to %p", x, dblk, buf);
 			if (blkoff != 0) {
 				/*
 				 * We got offset to sector, read 1 sector to
@@ -1259,7 +1259,7 @@ bd_getdev(struct i386_devdesc *d)
 		return (-1);
 
 	biosdev = bd_unit2bios(d);
-	DEBUG("unit %d BIOS device %d", dev->dd.d_unit, biosdev);
+	DPRINTF("unit %d BIOS device %d", dev->dd.d_unit, biosdev);
 	if (biosdev == -1)			/* not a BIOS device */
 		return (-1);
 
@@ -1312,6 +1312,6 @@ bd_getdev(struct i386_devdesc *d)
 	}
 
 	rootdev = MAKEBOOTDEV(major, slice, unit, partition);
-	DEBUG("dev is 0x%x\n", rootdev);
+	DPRINTF("dev is 0x%x\n", rootdev);
 	return (rootdev);
 }

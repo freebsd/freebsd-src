@@ -212,14 +212,59 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	 * We default the flags to include all non-conflicting flags,
 	 * and the Intel versions of conflicting flags.
 	 */
-	static char *flags[] = {
-		"fpu",	    "vme",     "de",	   "pse",      "tsc",
-		"msr",	    "pae",     "mce",	   "cx8",      "apic",
-		"sep",	    "sep",     "mtrr",	   "pge",      "mca",
-		"cmov",	    "pat",     "pse36",	   "pn",       "b19",
-		"b20",	    "b21",     "mmxext",   "mmx",      "fxsr",
-		"xmm",	    "sse2",    "b27",	   "b28",      "b29",
-		"3dnowext", "3dnow"
+	static char *cpu_feature_names[] = {
+		/*  0 */ "fpu", "vme", "de", "pse",
+		/*  4 */ "tsc", "msr", "pae", "mce",
+		/*  8 */ "cx8", "apic", "", "sep",
+		/* 12 */ "mtrr", "pge", "mca", "cmov",
+		/* 16 */ "pat", "pse36", "pn", "clflush",
+		/* 20 */ "", "dts", "acpi", "mmx",
+		/* 24 */ "fxsr", "sse", "sse2", "ss",
+		/* 28 */ "ht", "tm", "ia64", "pbe"
+	};
+
+	static char *amd_feature_names[] = {
+		/*  0 */ "", "", "", "",
+		/*  4 */ "", "", "", "",
+		/*  8 */ "", "", "", "syscall",
+		/* 12 */ "", "", "", "",
+		/* 16 */ "", "", "", "mp",
+		/* 20 */ "nx", "", "mmxext", "",
+		/* 24 */ "", "fxsr_opt", "pdpe1gb", "rdtscp",
+		/* 28 */ "", "lm", "3dnowext", "3dnow"
+	};
+
+	static char *cpu_feature2_names[] = {
+		/*  0 */ "pni", "pclmulqdq", "dtes3", "monitor",
+		/*  4 */ "ds_cpl", "vmx", "smx", "est",
+		/*  8 */ "tm2", "ssse3", "cid", "sdbg",
+		/* 12 */ "fma", "cx16", "xptr", "pdcm",
+		/* 16 */ "", "pcid", "dca", "sse4_1",
+		/* 20 */ "sse4_2", "x2apic", "movbe", "popcnt",
+		/* 24 */ "tsc_deadline_timer", "aes", "xsave", "",
+		/* 28 */ "avx", "f16c", "rdrand", "hypervisor"
+	};
+
+	static char *amd_feature2_names[] = {
+		/*  0 */ "lahf_lm", "cmp_legacy", "svm", "extapic",
+		/*  4 */ "cr8_legacy", "abm", "sse4a", "misalignsse",
+		/*  8 */ "3dnowprefetch", "osvw", "ibs", "xop",
+		/* 12 */ "skinit", "wdt", "", "lwp",
+		/* 16 */ "fma4", "tce", "", "nodeid_msr",
+		/* 20 */ "", "tbm", "topoext", "perfctr_core",
+		/* 24 */ "perfctr_nb", "", "bpext", "ptsc",
+		/* 28 */ "perfctr_llc", "mwaitx", "", ""
+	};
+
+	static char *cpu_stdext_feature_names[] = {
+		/*  0 */ "fsgsbase", "tsc_adjust", "", "bmi1",
+		/*  4 */ "hle", "avx2", "", "smep",
+		/*  8 */ "bmi2", "erms", "invpcid", "rtm",
+		/* 12 */ "cqm", "", "mpx", "rdt_a",
+		/* 16 */ "avx512f", "avx512dq", "rdseed", "adx",
+		/* 20 */ "smap", "avx512ifma", "", "clflushopt",
+		/* 24 */ "clwb", "intel_pt", "avx512pf", "avx512er",
+		/* 28 */ "avx512cd", "sha_ni", "avx512bw", "avx512vl"
 	};
 
 	static char *power_flags[] = {
@@ -240,10 +285,10 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
 		if (cpu_class < CPUCLASS_686)
-			flags[16] = "fcmov";
+			cpu_feature_names[16] = "fcmov";
 		break;
 	case CPU_VENDOR_CYRIX:
-		flags[24] = "cxmmx";
+		cpu_feature_names[24] = "cxmmx";
 		break;
 	}
 #endif
@@ -286,9 +331,27 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		    (cpu_feature & CPUID_FPU) ? "yes" : "no", "yes",
 		    CPUID_TO_FAMILY(cpu_id), "yes");
 		sbuf_cat(sb, "flags\t\t:");
-		for (j = 0; j < nitems(flags); j++)
-			if (cpu_feature & (1 << j))
-				sbuf_printf(sb, " %s", flags[j]);
+		for (j = 0; j < nitems(cpu_feature_names); j++)
+			if (cpu_feature & (1 << j) &&
+			    cpu_feature_names[j][0] != '\0')
+				sbuf_printf(sb, " %s", cpu_feature_names[j]);
+		for (j = 0; j < nitems(amd_feature_names); j++)
+			if (amd_feature & (1 << j) &&
+			    amd_feature_names[j][0] != '\0')
+				sbuf_printf(sb, " %s", amd_feature_names[j]);
+		for (j = 0; j < nitems(cpu_feature2_names); j++)
+			if (cpu_feature2 & (1 << j) &&
+			    cpu_feature2_names[j][0] != '\0')
+				sbuf_printf(sb, " %s", cpu_feature2_names[j]);
+		for (j = 0; j < nitems(amd_feature2_names); j++)
+			if (amd_feature2 & (1 << j) &&
+			    amd_feature2_names[j][0] != '\0')
+				sbuf_printf(sb, " %s", amd_feature2_names[j]);
+		for (j = 0; j < nitems(cpu_stdext_feature_names); j++)
+			if (cpu_stdext_feature & (1 << j) &&
+			    cpu_stdext_feature_names[j][0] != '\0')
+				sbuf_printf(sb, " %s",
+				    cpu_stdext_feature_names[j]);
 		sbuf_cat(sb, "\n");
 		sbuf_printf(sb,
 		    "bugs\t\t: %s\n"

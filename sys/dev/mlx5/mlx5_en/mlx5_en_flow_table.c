@@ -131,6 +131,9 @@ mlx5e_del_eth_addr_from_flow_table(struct mlx5e_priv *priv,
 
 	if (ai->tt_vec & (1 << MLX5E_TT_ANY))
 		mlx5_del_flow_rule(ai->ft_rule[MLX5E_TT_ANY]);
+
+	/* ensure the rules are not freed again */
+	ai->tt_vec = 0;
 }
 
 static int
@@ -227,7 +230,7 @@ mlx5e_add_eth_addr_rule_sub(struct mlx5e_priv *priv,
     struct mlx5e_eth_addr_info *ai, int type,
     u32 *mc, u32 *mv)
 {
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	u8 mc_enable = 0;
 	struct mlx5_flow_rule **rule_p;
 	struct mlx5_flow_table *ft = priv->fts.main.t;
@@ -507,7 +510,7 @@ mlx5e_add_vlan_rule_sub(struct mlx5e_priv *priv,
     u32 *mc, u32 *mv)
 {
 	struct mlx5_flow_table *ft = priv->fts.vlan.t;
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	u8 mc_enable = 0;
 	struct mlx5_flow_rule **rule_p;
 	int err = 0;
@@ -633,7 +636,11 @@ mlx5e_add_any_vid_rules(struct mlx5e_priv *priv)
 	if (err)
 		return (err);
 
-	return (mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_STAG_VID, 0));
+	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_STAG_VID, 0);
+	if (err)
+		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_CTAG_VID, 0);
+
+	return (err);
 }
 
 void
@@ -701,19 +708,22 @@ mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv)
 		err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID,
 					  i);
 		if (err)
-			return (err);
+			goto error;
 	}
 
 	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
 	if (err)
-		return (err);
+		goto error;
 
 	if (priv->vlan.filter_disabled) {
 		err = mlx5e_add_any_vid_rules(priv);
 		if (err)
-			return (err);
+			goto error;
 	}
 	return (0);
+error:
+	mlx5e_del_all_vlan_rules(priv);
+	return (err);
 }
 
 void

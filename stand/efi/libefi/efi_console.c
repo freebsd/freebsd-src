@@ -135,11 +135,13 @@ efi_cons_rawputchar(int c)
 	UINTN x, y;
 	conout->QueryMode(conout, conout->Mode->Mode, &x, &y);
 
-	if (c == '\t')
-		/* XXX lame tab expansion */
-		for (i = 0; i < 8; i++)
+	if (c == '\t') {
+		int n;
+
+		n = 8 - ((conout->Mode->CursorColumn + 8) % 8);
+		for (i = 0; i < n; i++)
 			efi_cons_rawputchar(' ');
-	else {
+	} else {
 #ifndef	TERM_EMU
 		if (c == '\n')
 			efi_cons_efiputchar('\r');

@@ -52,9 +52,9 @@
 
 #define DRIVER_NAME "mlx5ib"
 #ifndef DRIVER_VERSION
-#define DRIVER_VERSION "3.5.0"
+#define DRIVER_VERSION "3.5.1"
 #endif
-#define DRIVER_RELDATE	"November 2018"
+#define DRIVER_RELDATE	"April 2019"
 
 MODULE_DESCRIPTION("Mellanox Connect-IB HCA IB driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -62,10 +62,6 @@ MODULE_DEPEND(mlx5ib, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(mlx5ib, mlx5, 1, 1, 1);
 MODULE_DEPEND(mlx5ib, ibcore, 1, 1, 1);
 MODULE_VERSION(mlx5ib, 1);
-
-static int deprecated_prof_sel = 2;
-module_param_named(prof_sel, deprecated_prof_sel, int, 0444);
-MODULE_PARM_DESC(prof_sel, "profile selector. Deprecated here. Moved to module mlx5_core");
 
 static const char mlx5_version[] =
 	DRIVER_NAME ": Mellanox Connect-IB Infiniband driver "
@@ -184,7 +180,7 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 	case MLX5E_PROT_MASK(MLX5E_10GBASE_KR):
 	case MLX5E_PROT_MASK(MLX5E_10GBASE_CR):
 	case MLX5E_PROT_MASK(MLX5E_10GBASE_SR):
-	case MLX5E_PROT_MASK(MLX5E_10GBASE_ER):
+	case MLX5E_PROT_MASK(MLX5E_10GBASE_ER_LR):
 		*active_width = IB_WIDTH_1X;
 		*active_speed = IB_SPEED_QDR;
 		break;
@@ -197,7 +193,7 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 	case MLX5E_PROT_MASK(MLX5E_40GBASE_CR4):
 	case MLX5E_PROT_MASK(MLX5E_40GBASE_KR4):
 	case MLX5E_PROT_MASK(MLX5E_40GBASE_SR4):
-	case MLX5E_PROT_MASK(MLX5E_40GBASE_LR4):
+	case MLX5E_PROT_MASK(MLX5E_40GBASE_LR4_ER4):
 		*active_width = IB_WIDTH_4X;
 		*active_speed = IB_SPEED_QDR;
 		break;
@@ -227,14 +223,70 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 	return 0;
 }
 
+static int translate_eth_ext_proto_oper(u32 eth_proto_oper, u8 *active_speed,
+					u8 *active_width)
+{
+	switch (eth_proto_oper) {
+	case MLX5E_PROT_MASK(MLX5E_SGMII_100M):
+	case MLX5E_PROT_MASK(MLX5E_1000BASE_X_SGMII):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_SDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_5GBASE_R):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_DDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_10GBASE_XFI_XAUI_1):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_QDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_40GBASE_XLAUI_4_XLPPI_4):
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_QDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_25GAUI_1_25GBASE_CR_KR):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_EDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2):
+		*active_width = IB_WIDTH_2X;
+		*active_speed = IB_SPEED_EDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_HDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_CAUI_4_100GBASE_CR4_KR4):
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_EDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_100GAUI_2_100GBASE_CR2_KR2):
+		*active_width = IB_WIDTH_2X;
+		*active_speed = IB_SPEED_HDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_200GAUI_4_200GBASE_CR4_KR4):
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_HDR;
+		break;
+	default:
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_QDR;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 				struct ib_port_attr *props)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {};
 	struct net_device *ndev;
 	enum ib_mtu ndev_ib_mtu;
 	u16 qkey_viol_cntr;
 	u32 eth_prot_oper;
+	bool ext;
 	int err;
 
 	memset(props, 0, sizeof(*props));
@@ -242,12 +294,20 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	/* Possible bad flows are checked before filling out props so in case
 	 * of an error it will still be zeroed out.
 	 */
-	err = mlx5_query_port_eth_proto_oper(dev->mdev, &eth_prot_oper, port_num);
+	err = mlx5_query_port_ptys(dev->mdev, out, sizeof(out), MLX5_PTYS_EN,
+	    port_num);
 	if (err)
 		return err;
 
-	translate_eth_proto_oper(eth_prot_oper, &props->active_speed,
-				 &props->active_width);
+	ext = MLX5_CAP_PCAM_FEATURE(dev->mdev, ptys_extended_ethernet);
+	eth_prot_oper = MLX5_GET_ETH_PROTO(ptys_reg, out, ext, eth_proto_oper);
+
+	if (ext)
+		translate_eth_ext_proto_oper(eth_prot_oper, &props->active_speed,
+		    &props->active_width);
+	else
+		translate_eth_proto_oper(eth_prot_oper, &props->active_speed,
+		    &props->active_width);
 
 	props->port_cap_flags  |= IB_PORT_CM_SUP;
 	props->port_cap_flags  |= IB_PORT_IP_BASED_GIDS;
@@ -776,9 +836,7 @@ static int translate_active_width(struct ib_device *ibdev, u8 active_width,
 	if (active_width & MLX5_IB_WIDTH_1X) {
 		*ib_width = IB_WIDTH_1X;
 	} else if (active_width & MLX5_IB_WIDTH_2X) {
-		mlx5_ib_dbg(dev, "active_width %d is not supported by IB spec\n",
-			    (int)active_width);
-		err = -EINVAL;
+		*ib_width = IB_WIDTH_2X;
 	} else if (active_width & MLX5_IB_WIDTH_4X) {
 		*ib_width = IB_WIDTH_4X;
 	} else if (active_width & MLX5_IB_WIDTH_8X) {
@@ -1019,6 +1077,14 @@ static int mlx5_ib_modify_port(struct ib_device *ibdev, u8 port, int mask,
 	struct ib_port_attr attr;
 	u32 tmp;
 	int err;
+
+	/*
+	 * CM layer calls ib_modify_port() regardless of the link
+	 * layer. For Ethernet ports, qkey violation and Port
+	 * capabilities are meaningless.
+	 */
+	if (mlx5_ib_port_link_layer(ibdev, port) == IB_LINK_LAYER_ETHERNET)
+		return 0;
 
 	mutex_lock(&dev->cap_mask_mutex);
 
@@ -1333,6 +1399,70 @@ static int mlx5_ib_set_vma_data(struct vm_area_struct *vma,
 	list_add(&vma_prv->list, vma_head);
 
 	return 0;
+}
+
+static void mlx5_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
+{
+	int ret;
+	struct vm_area_struct *vma;
+	struct mlx5_ib_vma_private_data *vma_private, *n;
+	struct mlx5_ib_ucontext *context = to_mucontext(ibcontext);
+	struct task_struct *owning_process  = NULL;
+	struct mm_struct   *owning_mm       = NULL;
+
+	owning_process = get_pid_task(ibcontext->tgid, PIDTYPE_PID);
+	if (!owning_process)
+		return;
+
+	owning_mm = get_task_mm(owning_process);
+	if (!owning_mm) {
+		pr_info("no mm, disassociate ucontext is pending task termination\n");
+		while (1) {
+			put_task_struct(owning_process);
+			usleep_range(1000, 2000);
+			owning_process = get_pid_task(ibcontext->tgid,
+						      PIDTYPE_PID);
+			if (!owning_process || owning_process->task_thread->
+			    td_proc->p_state == PRS_ZOMBIE) {
+				pr_info("disassociate ucontext done, task was terminated\n");
+				/* in case task was dead need to release the
+				 * task struct.
+				 */
+				if (owning_process)
+					put_task_struct(owning_process);
+				return;
+			}
+		}
+	}
+
+	/* need to protect from a race on closing the vma as part of
+	 * mlx5_ib_vma_close.
+	 */
+	down_write(&owning_mm->mmap_sem);
+	list_for_each_entry_safe(vma_private, n, &context->vma_private_list,
+				 list) {
+		vma = vma_private->vma;
+		ret = zap_vma_ptes(vma, vma->vm_start,
+				   PAGE_SIZE);
+		if (ret == -ENOTSUP) {
+			if (bootverbose)
+				WARN_ONCE(
+	"%s: zap_vma_ptes not implemented for unmanaged mappings", __func__);
+		} else {
+			WARN(ret, "%s: zap_vma_ptes failed, error %d",
+			    __func__, -ret);
+		}
+		/* context going to be destroyed, should
+		 * not access ops any more.
+		 */
+		/* XXXKIB vma->vm_flags &= ~(VM_SHARED | VM_MAYSHARE); */
+		vma->vm_ops = NULL;
+		list_del(&vma_private->list);
+		kfree(vma_private);
+	}
+	up_write(&owning_mm->mmap_sem);
+	mmput(owning_mm);
+	put_task_struct(owning_process);
 }
 
 static inline char *mmap_cmd2str(enum mlx5_ib_mmap_cmd cmd)
@@ -3084,6 +3214,8 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		dev->ib_dev.set_vf_guid		= mlx5_ib_set_vf_guid;
 	}
 
+	dev->ib_dev.disassociate_ucontext = mlx5_ib_disassociate_ucontext;
+
 	mlx5_ib_internal_fill_odp_caps(dev);
 
 	if (MLX5_CAP_GEN(mdev, imaicl)) {
@@ -3234,9 +3366,6 @@ static struct mlx5_interface mlx5_ib_interface = {
 static int __init mlx5_ib_init(void)
 {
 	int err;
-
-	if (deprecated_prof_sel != 2)
-		pr_warn("prof_sel is deprecated for mlx5_ib, set it for mlx5_core\n");
 
 	err = mlx5_ib_odp_init();
 	if (err)

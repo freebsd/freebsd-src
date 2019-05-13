@@ -88,6 +88,7 @@ COMPAT_FREEBSD7	opt_global.h
 COMPAT_FREEBSD9	opt_global.h
 COMPAT_FREEBSD10	opt_global.h
 COMPAT_FREEBSD11	opt_global.h
+COMPAT_FREEBSD12	opt_global.h
 COMPAT_CLOUDABI32	opt_dontuse.h
 COMPAT_CLOUDABI64	opt_dontuse.h
 COMPAT_LINUXKPI	opt_dontuse.h

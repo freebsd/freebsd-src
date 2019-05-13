@@ -943,6 +943,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	struct vmx *vmx;
 	struct vmcs *vmcs;
 	uint32_t exc_bitmap;
+	uint16_t maxcpus;
 
 	vmx = malloc(sizeof(struct vmx), M_VMX, M_WAITOK | M_ZERO);
 	if ((uintptr_t)vmx & PAGE_MASK) {
@@ -1004,7 +1005,8 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		KASSERT(error == 0, ("vm_map_mmio(apicbase) error %d", error));
 	}
 
-	for (i = 0; i < VM_MAXCPU; i++) {
+	maxcpus = vm_get_maxcpus(vm);
+	for (i = 0; i < maxcpus; i++) {
 		vmcs = &vmx->vmcs[i];
 		vmcs->identifier = vmx_revision();
 		error = vmclear(vmcs);
@@ -3002,11 +3004,13 @@ vmx_vmcleanup(void *arg)
 {
 	int i;
 	struct vmx *vmx = arg;
+	uint16_t maxcpus;
 
 	if (apic_access_virtualization(vmx, 0))
 		vm_unmap_mmio(vmx->vm, DEFAULT_APIC_BASE, PAGE_SIZE);
 
-	for (i = 0; i < VM_MAXCPU; i++)
+	maxcpus = vm_get_maxcpus(vmx->vm);
+	for (i = 0; i < maxcpus; i++)
 		vpid_free(vmx->state[i].vpid);
 
 	free(vmx, M_VMX);

@@ -745,6 +745,16 @@ struct wpa_config {
 	 */
 	int wps_cred_processing;
 
+	/**
+	 * wps_cred_add_sae - Whether to enable SAE automatically for WPS
+	 *
+	 * 0 = only add the explicitly listed WPA2-PSK configuration
+	 * 1 = add both the WPA2-PSK and SAE configuration and enable PMF so
+	 *     that the station gets configured in WPA3-Personal transition mode
+	 *     (supports both WPA2-Personal (PSK) and WPA3-Personal (SAE) APs).
+	 */
+	int wps_cred_add_sae;
+
 #define MAX_SEC_DEVICE_TYPES 5
 	/**
 	 * sec_device_types - Secondary Device Types (P2P)
@@ -1077,6 +1087,16 @@ struct wpa_config {
 	 * By default: 0 (disabled)
 	 */
 	int p2p_go_vht;
+
+	/**
+	 * p2p_go_he - Default mode for 11ax HE enable when operating as GO
+	 *
+	 * This will take effect for p2p_group_add, p2p_connect, and p2p_invite.
+	 * Note that regulatory constraints and driver capabilities are
+	 * consulted anyway, so setting it to 1 can't do real harm.
+	 * By default: 0 (disabled)
+	 */
+	int p2p_go_he;
 
 	/**
 	 * p2p_go_ctwindow - CTWindow to use when operating as GO
@@ -1478,6 +1498,35 @@ struct wpa_config {
 	 * 1 = enabled (true)
 	 */
 	int coloc_intf_reporting;
+
+	/**
+	 * p2p_device_random_mac_addr - P2P Device MAC address policy default
+	 *
+	 * 0 = use permanent MAC address
+	 * 1 = use random MAC address on creating the interface if there is no
+	 * persistent groups.
+	 *
+	 * By default, permanent MAC address is used.
+	 */
+	int p2p_device_random_mac_addr;
+
+	/**
+	 * p2p_device_persistent_mac_addr - Record last used MAC address
+	 *
+	 * If there are saved persistent groups, P2P cannot generate another
+	 * random MAC address, and need to restore to last used MAC address.
+	 */
+	u8 p2p_device_persistent_mac_addr[ETH_ALEN];
+
+	/**
+	 * p2p_interface_random_mac_addr - P2P Interface MAC address policy default
+	 *
+	 * 0 = use permanent MAC address
+	 * 1 = use random MAC address on creating the interface.
+	 *
+	 * By default, permanent MAC address is used.
+	 */
+	int p2p_interface_random_mac_addr;
 };
 
 

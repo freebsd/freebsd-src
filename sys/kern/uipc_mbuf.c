@@ -341,6 +341,9 @@ m_pkthdr_init(struct mbuf *m, int how)
 #endif
 	m->m_data = m->m_pktdat;
 	bzero(&m->m_pkthdr, sizeof(m->m_pkthdr));
+#ifdef NUMA
+	m->m_pkthdr.numa_domain = M_NODOM;
+#endif
 #ifdef MAC
 	/* If the label init fails, fail the alloc */
 	error = mac_mbuf_init(m, how);

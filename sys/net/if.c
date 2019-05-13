@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
+#include <sys/domainset.h>
 #include <sys/sbuf.h>
 #include <sys/bus.h>
 #include <sys/epoch.h>
@@ -526,13 +527,19 @@ if_grow(void)
  * registered for the passed type.
  */
 struct ifnet *
-if_alloc(u_char type)
+if_alloc_domain(u_char type, int numa_domain)
 {
 	struct ifnet *ifp;
 	u_short idx;
 	void *old;
 
-	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
+	KASSERT(numa_domain <= IF_NODOM, ("numa_domain too large"));
+	if (numa_domain == IF_NODOM)
+		ifp = malloc(sizeof(struct ifnet), M_IFNET,
+		    M_WAITOK | M_ZERO);
+	else
+		ifp = malloc_domainset(sizeof(struct ifnet), M_IFNET,
+		    DOMAINSET_PREF(numa_domain), M_WAITOK | M_ZERO);
  restart:
 	IFNET_WLOCK();
 	idx = ifindex_alloc(&old);
@@ -547,6 +554,7 @@ if_alloc(u_char type)
 	ifp->if_index = idx;
 	ifp->if_type = type;
 	ifp->if_alloctype = type;
+	ifp->if_numa_domain = numa_domain;
 #ifdef VIMAGE
 	ifp->if_vnet = curvnet;
 #endif
@@ -580,6 +588,22 @@ if_alloc(u_char type)
 	return (ifp);
 }
 
+struct ifnet *
+if_alloc_dev(u_char type, device_t dev)
+{
+	int numa_domain;
+
+	if (dev == NULL || bus_get_domain(dev, &numa_domain) != 0)
+		return (if_alloc_domain(type, IF_NODOM));
+	return (if_alloc_domain(type, numa_domain));
+}
+
+struct ifnet *
+if_alloc(u_char type)
+{
+
+	return (if_alloc_domain(type, IF_NODOM));
+}
 /*
  * Do the actual work of freeing a struct ifnet, and layer 2 common
  * structure.  This call is made when the last reference to an
@@ -608,7 +632,10 @@ if_free_internal(struct ifnet *ifp)
 
 	free(ifp->if_description, M_IFDESCR);
 	free(ifp->if_hw_addr, M_IFADDR);
-	free(ifp, M_IFNET);
+	if (ifp->if_numa_domain == IF_NODOM)
+		free(ifp, M_IFNET);
+	else
+		free_domain(ifp, M_IFNET);
 }
 
 static void

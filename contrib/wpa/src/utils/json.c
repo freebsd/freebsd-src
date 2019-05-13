@@ -103,6 +103,11 @@ static char * json_parse_string(const char **json_pos, const char *end)
 			return str;
 		case '\\':
 			pos++;
+			if (pos >= end) {
+				wpa_printf(MSG_DEBUG,
+					   "JSON: Truncated \\ escape");
+				goto fail;
+			}
 			switch (*pos) {
 			case '"':
 			case '\\':
@@ -165,6 +170,8 @@ static int json_parse_number(const char **json_pos, const char *end,
 			break;
 		}
 	}
+	if (pos == end)
+		pos--;
 	if (pos < *json_pos)
 		return -1;
 	len = pos - *json_pos + 1;

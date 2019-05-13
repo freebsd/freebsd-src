@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procctl.h>
 #include <sys/reboot.h>
 #include <sys/racct.h>
 #include <sys/random.h>
@@ -257,13 +258,16 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	struct nameidata ni;
 	struct vnode *vp;
 	struct exec *a_out;
+	vm_map_t map;
+	vm_map_entry_t entry;
 	struct vattr attr;
 	vm_offset_t vmaddr;
 	unsigned long file_offset;
 	unsigned long bss_size;
 	char *library;
 	ssize_t aresid;
-	int error, locked, writecount;
+	int error;
+	bool locked, opened, textset;
 
 	LCONVPATHEXIST(td, args->library, &library);
 
@@ -273,8 +277,10 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 #endif
 
 	a_out = NULL;
-	locked = 0;
 	vp = NULL;
+	locked = false;
+	textset = false;
+	opened = false;
 
 	NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
 	    UIO_SYSSPACE, library, td);
@@ -290,16 +296,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 * From here on down, we have a locked vnode that must be unlocked.
 	 * XXX: The code below largely duplicates exec_check_permissions().
 	 */
-	locked = 1;
-
-	/* Writable? */
-	error = VOP_GET_WRITECOUNT(vp, &writecount);
-	if (error != 0)
-		goto cleanup;
-	if (writecount != 0) {
-		error = ETXTBSY;
-		goto cleanup;
-	}
+	locked = true;
 
 	/* Executable? */
 	error = VOP_GETATTR(vp, &attr, td->td_ucred);
@@ -338,6 +335,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	error = VOP_OPEN(vp, FREAD, td->td_ucred, td, NULL);
 	if (error)
 		goto cleanup;
+	opened = true;
 
 	/* Pull in executable header into exec_map */
 	error = vm_mmap(exec_map, (vm_offset_t *)&a_out, PAGE_SIZE,
@@ -400,15 +398,16 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 	/*
 	 * Prevent more writers.
-	 * XXX: Note that if any of the VM operations fail below we don't
-	 * clear this flag.
 	 */
-	VOP_SET_TEXT(vp);
+	error = VOP_SET_TEXT(vp);
+	if (error != 0)
+		goto cleanup;
+	textset = true;
 
 	/*
 	 * Lock no longer needed
 	 */
-	locked = 0;
+	locked = false;
 	VOP_UNLOCK(vp, 0);
 
 	/*
@@ -455,11 +454,21 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 		 * Map it all into the process's space as a single
 		 * copy-on-write "data" segment.
 		 */
-		error = vm_mmap(&td->td_proc->p_vmspace->vm_map, &vmaddr,
+		map = &td->td_proc->p_vmspace->vm_map;
+		error = vm_mmap(map, &vmaddr,
 		    a_out->a_text + a_out->a_data, VM_PROT_ALL, VM_PROT_ALL,
 		    MAP_PRIVATE | MAP_FIXED, OBJT_VNODE, vp, file_offset);
 		if (error)
 			goto cleanup;
+		vm_map_lock(map);
+		if (!vm_map_lookup_entry(map, vmaddr, &entry)) {
+			vm_map_unlock(map);
+			error = EDOOFUS;
+			goto cleanup;
+		}
+		entry->eflags |= MAP_ENTRY_VN_EXEC;
+		vm_map_unlock(map);
+		textset = false;
 	}
 #ifdef DEBUG
 	printf("mem=%08lx = %08lx %08lx\n", (long)vmaddr, ((long *)vmaddr)[0],
@@ -479,7 +488,14 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	}
 
 cleanup:
-	/* Unlock vnode if needed */
+	if (opened) {
+		if (locked)
+			VOP_UNLOCK(vp, 0);
+		locked = false;
+		VOP_CLOSE(vp, FREAD, td->td_ucred, td);
+	}
+	if (textset)
+		VOP_UNSET_TEXT_CHECKED(vp);
 	if (locked)
 		VOP_UNLOCK(vp, 0);
 
@@ -1993,7 +2009,6 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	int error = 0, max_size;
 	struct proc *p = td->td_proc;
 	char comm[LINUX_MAX_COMM_LEN];
-	struct linux_emuldata *em;
 	int pdeath_signal;
 
 #ifdef DEBUG
@@ -2007,17 +2022,18 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	case LINUX_PR_SET_PDEATHSIG:
 		if (!LINUX_SIG_VALID(args->arg2))
 			return (EINVAL);
-		em = em_find(td);
-		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
-		em->pdeath_signal = args->arg2;
-		break;
+		pdeath_signal = linux_to_bsd_signal(args->arg2);
+		return (kern_procctl(td, P_PID, 0, PROC_PDEATHSIG_CTL,
+		    &pdeath_signal));
 	case LINUX_PR_GET_PDEATHSIG:
-		em = em_find(td);
-		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
-		pdeath_signal = em->pdeath_signal;
-		error = copyout(&pdeath_signal,
+		error = kern_procctl(td, P_PID, 0, PROC_PDEATHSIG_STATUS,
+		    &pdeath_signal);
+		if (error != 0)
+			return (error);
+		pdeath_signal = bsd_to_linux_signal(pdeath_signal);
+		return (copyout(&pdeath_signal,
 		    (void *)(register_t)args->arg2,
-		    sizeof(pdeath_signal));
+		    sizeof(pdeath_signal)));
 		break;
 	case LINUX_PR_GET_KEEPCAPS:
 		/*

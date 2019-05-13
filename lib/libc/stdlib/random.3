@@ -28,7 +28,7 @@
 .\"     @(#)random.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2016
+.Dd April 22, 2019
 .Dt RANDOM 3
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Nm srandomdev ,
 .Nm initstate ,
 .Nm setstate
-.Nd better random number generator; routines for changing generators
+.Nd non-cryptographic pseudorandom number generator; routines for changing generators
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -187,11 +187,3 @@ functions appeared in
 .Bx 4.2 .
 .Sh AUTHORS
 .An Earl T. Cohen
-.Sh BUGS
-About 2/3 the speed of
-.Xr rand 3 .
-.Pp
-The historical implementation used to have a very weak seeding; the
-random sequence did not vary much with the seed.
-The current implementation employs a better pseudo-random number
-generator for the initial state calculation.

@@ -149,6 +149,8 @@ static device_method_t	opalpci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_get_dma_tag,	opalpci_get_dma_tag),
+	DEVMETHOD(bus_get_cpus,		ofw_pcibus_get_cpus),
+	DEVMETHOD(bus_get_domain,	ofw_pcibus_get_domain),
 
 	DEVMETHOD_END
 };
@@ -367,7 +369,7 @@ opalpci_attach(device_t dev)
 	tce_size = max_tce_size(dev);
 	maxmem = roundup2(powerpc_ptob(Maxmem), tce_size);
 	entries = round_pow2(maxmem / tce_size);
-	tce_tbl_size = max(entries * sizeof(uint64_t), 4096);
+	tce_tbl_size = MAX(entries * sizeof(uint64_t), 4096);
 	if (entries > OPAL_PCI_TCE_MAX_ENTRIES)
 		panic("POWERNV supports only %jdGB of memory space\n",
 		    (uintmax_t)((OPAL_PCI_TCE_MAX_ENTRIES * tce_size) >> 30));

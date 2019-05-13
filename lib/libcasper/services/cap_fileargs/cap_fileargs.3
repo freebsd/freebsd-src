@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2018
+.Dd April 17, 2019
 .Dt CAP_FILEARGS 3
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Nm fileargs_init ,
 .Nm fileargs_initnv ,
 .Nm fileargs_free ,
+.Nm fileargs_lstat ,
 .Nm fileargs_open ,
 .Nm fileargs_fopen
 .Nd "library for handling files in capability mode"
@@ -43,15 +44,17 @@
 .In libcasper.h
 .In casper/cap_fileargs.h
 .Ft "fileargs_t *"
-.Fn fileargs_init "int argc" "char *argv[]" "int flags" "mode_t mode" "cap_rights_t *rightsp"
+.Fn fileargs_init "int argc" "char *argv[]" "int flags" "mode_t mode" "cap_rights_t *rightsp" "int operations"
 .Ft "fileargs_t *"
-.Fn fileargs_cinit "cap_channel_t *cas" "int argc" "char *argv[]" "int flags" "mode_t mode" "cap_rights_t *rightsp"
+.Fn fileargs_cinit "cap_channel_t *cas" "int argc" "char *argv[]" "int flags" "mode_t mode" "cap_rights_t *rightsp" "int operations"
 .Ft "fileargs_t *"
 .Fn fileargs_cinitnv "cap_channel_t *cas" "nvlist_t *limits"
 .Ft "fileargs_t *"
 .Fn fileargs_initnv "nvlist_t *limits"
 .Ft "void"
 .Fn fileargs_free "fileargs_t *fa"
+.Ft "int"
+.Fn fileargs_lstat "fileargs_t *fa" "const char *path" "struct stat *sb"
 .Ft "int"
 .Fn fileargs_open "fileargs_t *fa" "const char *name"
 .Ft "FILE *"
@@ -97,6 +100,22 @@ The
 argument contains a list of the capability rights which file should be limited to.
 For more details of the capability rights see
 .Xr cap_rights_init 3 .
+The
+.Fa operations
+argument limits the operations that are available using
+.Nm system.fileargs .
+.Fa operations
+is a combination of:
+.Bl -ohang -offset indent
+.It FA_OPEN
+Allow
+.Fn fileargs_open
+and
+.Fn fileargs_fopen .
+.It FA_LSTAT
+Allow
+.Fn fileargs_lstat .
+.El
 .Pp
 The function
 .Fn fileargs_cinit
@@ -105,9 +124,9 @@ is equivalent to
 except that the connection to the Casper needs to be provided.
 .Pp
 The functions
-.Fn fileargs_ininv
+.Fn fileargs_initnv
 and
-.Fn fileargs_cininv
+.Fn fileargs_cinitnv
 are respectively equivalent to
 .Fn fileargs_init
 and
@@ -120,11 +139,16 @@ For details see
 The
 .Fa fileargs_free
 close connection to the
-.Nm system.filerags
+.Nm system.fileargs
 service and free are structures.
 The function handle
 .Dv NULL
 argument.
+.Pp
+The function
+.Fn fileargs_lstat
+is equivalent to
+.Xr lstat 2 .
 .Pp
 The functions
 .Fn fileargs_open
@@ -139,11 +163,11 @@ expect that all arguments are fetched from the
 structure.
 .Sh LIMITS
 This section describe which values and types should be used to pass arguments to the
-.Fa system.filerags
+.Fa system.fileargs
 through the
-.Fn fileargs_ininv
+.Fn fileargs_initnv
 and
-.Fn fileargs_cinit
+.Fn fileargs_cinitnv
 functions.
 The
 .Xr nvlist 9
@@ -165,6 +189,15 @@ must contain the
 The
 .Va mode
 argument tells which what mode file should be created.
+.It operations (NV_TYPE_NUMBER)
+The
+.Va operations
+limits the usable operations for
+.Fa system.fileargs .
+The possible values are explained as
+.Va operations
+argument with
+.Fn fileargs_init .
 .El
 .Pp
 The
@@ -181,7 +214,7 @@ Any number of
 where the name of the element is name of the file which can be opened.
 .Sh EXAMPLES
 The following example first parse some options and then create the
-.Nm system.filerags
+.Nm system.fileargs
 service with remaining arguments.
 .Bd -literal
 int ch, fd, i;
@@ -201,7 +234,7 @@ argv += optind;
 
 /* Create capability to the system.fileargs service. */
 fa = fileargs_init(argc, argv, O_RDONLY, 0,
-    cap_rights_init(&rights, CAP_READ));
+    cap_rights_init(&rights, CAP_READ), FA_OPEN);
 if (fa == NULL)
 	err(1, "unable to open system.fileargs service");
 
@@ -222,11 +255,12 @@ fileargs_free(fa);
 .Ed
 .Sh SEE ALSO
 .Xr cap_enter 2 ,
+.Xr lstat 2 ,
 .Xr open 2 ,
 .Xr cap_rights_init 3 ,
 .Xr err 3 ,
-.Xr fopen 3,
-.Xr getopt 3,
+.Xr fopen 3 ,
+.Xr getopt 3 ,
 .Xr capsicum 4 ,
 .Xr nv 9
 .Sh BUGS
