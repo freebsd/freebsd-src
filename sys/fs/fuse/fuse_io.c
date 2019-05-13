@@ -709,7 +709,7 @@ again:
 			break;
 	} while (uio->uio_resid > 0 && n > 0);
 
-	if (fuse_sync_resize && (fvdat->flag & FN_SIZECHANGE) != 0)
+	if ((fvdat->flag & FN_SIZECHANGE) != 0)
 		fuse_vnode_savesize(vp, cred, pid);
 
 	return (err);
