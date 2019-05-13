@@ -86,20 +86,6 @@ __FBSDID("$FreeBSD$");
 
 MODULE_VERSION(linux64, 1);
 
-#if defined(DEBUG)
-SYSCTL_PROC(_compat_linux, OID_AUTO, debug,
-	    CTLTYPE_STRING | CTLFLAG_RW,
-	    0, 0, linux_sysctl_debug, "A",
-	    "Linux 64 debugging control");
-#endif
-
-/*
- * Allow the sendsig functions to use the ldebug() facility even though they
- * are not syscalls themselves.  Map them to syscall 0.  This is slightly less
- * bogus than using ldebug(sigreturn).
- */
-#define	LINUX_SYS_linux_rt_sendsig	0
-
 const char *linux_kplatform;
 static int linux_szsigcode;
 static vm_object_t linux_shared_page_obj;
@@ -645,9 +631,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Copy the sigframe out to the user's stack. */
 	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
-#ifdef DEBUG
-		printf("process %ld has trashed its stack\n", (long)p->p_pid);
-#endif
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
 	}

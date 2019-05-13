@@ -59,11 +59,6 @@ __FBSDID("$FreeBSD$");
 
 MODULE_VERSION(linux64elf, 1);
 
-#if defined(DEBUG)
-SYSCTL_PROC(_compat_linux, OID_AUTO, debug, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
-    linux_sysctl_debug, "A", "64-bit Linux debugging control");
-#endif
-
 const char *linux_kplatform;
 static int linux_szsigcode;
 static vm_object_t linux_shared_page_obj;

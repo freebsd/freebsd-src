@@ -74,11 +74,6 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 	struct proc *p2;
 	struct thread *td2;
 
-#ifdef DEBUG
-	if (ldebug(fork))
-		printf(ARGS(fork, ""));
-#endif
-
 	bzero(&fr, sizeof(fr));
 	fr.fr_flags = RFFDG | RFPROC | RFSTOPPED;
 	fr.fr_procp = &p2;
@@ -109,11 +104,6 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	int error;
 	struct proc *p2;
 	struct thread *td2;
-
-#ifdef DEBUG
-	if (ldebug(vfork))
-		printf(ARGS(vfork, ""));
-#endif
 
 	bzero(&fr, sizeof(fr));
 	fr.fr_flags = RFFDG | RFPROC | RFMEM | RFPPWAIT | RFSTOPPED;
@@ -148,14 +138,6 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 	struct thread *td2;
 	int exit_signal;
 	struct linux_emuldata *em;
-
-#ifdef DEBUG
-	if (ldebug(clone)) {
-		printf(ARGS(clone, "flags %x, stack %p, parent tid: %p, "
-		    "child tid: %p"), (unsigned)args->flags,
-		    args->stack, args->parent_tidptr, args->child_tidptr);
-	}
-#endif
 
 	exit_signal = args->flags & 0x000000ff;
 	if (LINUX_SIG_VALID(exit_signal)) {
@@ -212,7 +194,7 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		error = copyout(&p2->p_pid, args->parent_tidptr,
 		    sizeof(p2->p_pid));
 		if (error)
-			printf(LMSG("copyout failed!"));
+			linux_msg(td, "copyout p_pid failed!");
 	}
 
 	PROC_LOCK(p2);
@@ -240,13 +222,6 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		sx_xunlock(&proctree_lock);
 	}
 
-#ifdef DEBUG
-	if (ldebug(clone))
-		printf(LMSG("clone: successful rfork to %d, "
-		    "stack %p sig = %d"), (int)p2->p_pid, args->stack,
-		    exit_signal);
-#endif
-
 	/*
 	 * Make this runnable after we are finished with it.
 	 */
@@ -267,14 +242,6 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	struct thread *newtd;
 	struct proc *p;
 	int error;
-
-#ifdef DEBUG
-	if (ldebug(clone)) {
-		printf(ARGS(clone, "thread: flags %x, stack %p, parent tid: %p, "
-		    "child tid: %p"), (unsigned)args->flags,
-		    args->stack, args->parent_tidptr, args->child_tidptr);
-	}
-#endif
 
 	LINUX_CTR4(clone_thread, "thread(%d) flags %x ptid %p ctid %p",
 	    td->td_tid, (unsigned)args->flags,
@@ -360,12 +327,6 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 
 	tidhash_add(newtd);
 
-#ifdef DEBUG
-	if (ldebug(clone))
-		printf(ARGS(clone, "successful clone to %d, stack %p"),
-		(int)newtd->td_tid, args->stack);
-#endif
-
 	LINUX_CTR2(clone_thread, "thread(%d) successful clone to %d",
 	    td->td_tid, newtd->td_tid);
 
@@ -373,7 +334,7 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 		error = copyout(&newtd->td_tid, args->parent_tidptr,
 		    sizeof(newtd->td_tid));
 		if (error)
-			printf(LMSG("clone_thread: copyout failed!"));
+			linux_msg(td, "clone_thread: copyout td_tid failed!");
 	}
 
 	/*
