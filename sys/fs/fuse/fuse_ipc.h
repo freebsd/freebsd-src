@@ -220,7 +220,6 @@ struct fuse_data {
 #define FSESS_NO_DATACACHE        0x0200 /* disable buffer cache */
 #define FSESS_NO_NAMECACHE        0x0400 /* disable name cache */
 #define FSESS_NO_MMAP             0x0800 /* disable mmap */
-#define FSESS_BROKENIO            0x1000 /* fix broken io */
 #define FSESS_POSIX_LOCKS         0x2000 /* daemon supports POSIX locks */
 
 enum fuse_data_cache_mode {
@@ -233,7 +232,6 @@ extern int fuse_data_cache_mode;
 extern int fuse_data_cache_invalidate;
 extern int fuse_mmap_enable;
 extern int fuse_sync_resize;
-extern int fuse_fix_broken_io;
 
 static inline struct fuse_data *
 fuse_get_mpdata(struct mount *mp)
@@ -274,14 +272,6 @@ fsess_opt_mmap(struct mount *mp)
 	if (!fuse_mmap_enable || fuse_data_cache_mode == FUSE_CACHE_UC)
 		return (false);
 	return ((data->dataflags & (FSESS_NO_DATACACHE | FSESS_NO_MMAP)) == 0);
-}
-
-static inline bool
-fsess_opt_brokenio(struct mount *mp)
-{
-	struct fuse_data *data = fuse_get_mpdata(mp);
-
-	return (fuse_fix_broken_io || (data->dataflags & FSESS_BROKENIO));
 }
 
 /* Insert a new upgoing message */

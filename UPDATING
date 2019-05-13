@@ -32,9 +32,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20190513:
-	The "-o sync_unmount" and "-o init_backgrounded" options have been
-	removed from mount_fusefs(8).  You can safely remove them from your
-	scripts, because they had no effect.
+	The vfs.fusefs.sync_unmount and vfs.fusefs.init_backgrounded sysctls
+	and the "-o sync_unmount" and "-o init_backgrounded" mount options have
+	been removed from mount_fusefs(8).  You can safely remove them from
+	your scripts, because they had no effect.
+
+	The vfs.fusefs.fix_broken_io sysctl has been removed.  If you felt the
+	need to set it to a non-default value, please tell asomers@FreeBSD.org
+	why.
 
 20190507:
 	The IPSEC option has been removed from GENERIC.  Users requiring
