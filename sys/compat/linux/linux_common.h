@@ -35,4 +35,11 @@ struct ifnet	*ifname_linux_to_bsd(struct thread *td,
 void		linux_ifflags(struct ifnet *ifp, short *flags);
 int		linux_ifhwaddr(struct ifnet *ifp, struct l_sockaddr *lsa);
 
+int		linux_to_bsd_domain(int domain);
+int		bsd_to_linux_domain(int domain);
+int		bsd_to_linux_sockaddr(const struct sockaddr *sa,
+		    struct l_sockaddr **lsa, socklen_t len);
+int		linux_to_bsd_sockaddr(const struct l_sockaddr *lsa,
+		    struct sockaddr **sap, socklen_t *len);
+
 #endif /* _LINUX_COMMON_H_ */
