@@ -128,13 +128,6 @@ SYSCTL_INT(_vfs_fusefs, OID_AUTO, mmap_enable, CTLFLAG_RW,
     "If non-zero, and data_cache_mode is also non-zero, enable mmap(2) of "
     "FUSE files");
 
-int	fuse_refresh_size = 0;
-
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, refresh_size, CTLFLAG_RW,
-    &fuse_refresh_size, 0,
-    "If non-zero, and no dirty file extension data is buffered, fetch file "
-    "size before write operations");
-
 static int
 sysctl_fuse_cache_mode(SYSCTL_HANDLER_ARGS)
 {
@@ -409,9 +402,14 @@ fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
 
 	if ((fvdat->flag & FN_SIZECHANGE) != 0 ||
 	    fuse_data_cache_mode == FUSE_CACHE_UC ||
-	    (fuse_refresh_size == 0 && fvdat->filesize != 0))
+	    fvdat->filesize != 0)
 		return 0;
 
+	/*
+	 * TODO: replace VOP_GETATTR with fuse_internal_getattr to use the
+	 * cached attributes.  Better yet, replace fvdat->filesize with
+	 * attrs->va_size
+	 */
 	err = VOP_GETATTR(vp, &va, cred);
 	SDT_PROBE2(fusefs, , node, trace, 1, "refreshed file size");
 	return err;
