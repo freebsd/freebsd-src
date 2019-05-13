@@ -1,11 +1,14 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2013, 2018 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
  * the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Mark Johnston
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -185,7 +188,7 @@ static void
 test_operation(cap_channel_t *origcapsysctl)
 {
 	cap_channel_t *capsysctl;
-	nvlist_t *limits;
+	void *limit;
 
 	/*
 	 * Allow:
@@ -196,61 +199,63 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == 0);
+
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, "foo.bar",
+	(void)cap_sysctl_limit_name(limit, "foo.bar",
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, "foo.bar",
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, "foo.bar",
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL0_READ1 |
 	    SYSCTL0_READ2 | SYSCTL0_WRITE | SYSCTL0_READ_WRITE |
 	    SYSCTL1_READ0 | SYSCTL1_READ1 | SYSCTL1_READ2 | SYSCTL1_WRITE |
 	    SYSCTL1_READ_WRITE));
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
+	CHECK(cap_sysctl_limit(limit) == 0);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL0_READ1 |
 	    SYSCTL0_READ2 | SYSCTL0_WRITE | SYSCTL0_READ_WRITE |
 	    SYSCTL1_READ0 | SYSCTL1_READ1 | SYSCTL1_READ2 | SYSCTL1_WRITE |
 	    SYSCTL1_READ_WRITE));
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
+	CHECK(cap_sysctl_limit(limit) == 0);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL1_WRITE));
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == 0);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL1_WRITE));
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == 0);
 
 	CHECK(runtest(capsysctl) == SYSCTL0_READ0);
 
@@ -265,29 +270,30 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == 0);
+
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL0_READ1 |
 	    SYSCTL0_READ2 | SYSCTL0_WRITE | SYSCTL0_READ_WRITE |
@@ -305,26 +311,26 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == 0);
 
@@ -339,26 +345,26 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL0_READ1 |
 	    SYSCTL0_READ2 | SYSCTL0_WRITE | SYSCTL0_READ_WRITE |
@@ -376,29 +382,29 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL1_READ0 | SYSCTL1_READ1 |
 	    SYSCTL1_READ2 | SYSCTL1_WRITE | SYSCTL1_READ_WRITE));
@@ -414,25 +420,25 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL0_READ1 |
 	    SYSCTL0_READ2 | SYSCTL0_WRITE | SYSCTL0_READ_WRITE |
@@ -450,46 +456,46 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL1_READ0));
 
@@ -504,46 +510,46 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL1_READ0));
 
@@ -558,54 +564,54 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == 0);
 
@@ -620,54 +626,54 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL1_READ0));
 
@@ -682,16 +688,16 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == SYSCTL1_READ0);
 
@@ -706,16 +712,16 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL1_READ0));
 
@@ -730,46 +736,46 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_WRITE | SYSCTL1_WRITE));
 
@@ -784,46 +790,46 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_WRITE | SYSCTL1_WRITE));
 
@@ -838,54 +844,54 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == 0);
 
@@ -900,54 +906,54 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_WRITE | SYSCTL1_WRITE));
 
@@ -962,16 +968,16 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == SYSCTL1_WRITE);
 
@@ -986,16 +992,16 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_WRITE | SYSCTL1_WRITE));
 
@@ -1010,12 +1016,12 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
+	CHECK(cap_sysctl_limit(limit) == 0);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL1_WRITE));
 
@@ -1030,12 +1036,12 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
+	CHECK(cap_sysctl_limit(limit) == 0);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL1_WRITE));
 
@@ -1050,10 +1056,10 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == 0);
 
 	CHECK(runtest(capsysctl) == 0);
 
@@ -1068,10 +1074,10 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == 0);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL1_WRITE));
 
@@ -1086,11 +1092,11 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
+	CHECK(cap_sysctl_limit(limit) == 0);
 
 	CHECK(runtest(capsysctl) == SYSCTL1_WRITE);
 
@@ -1105,11 +1111,11 @@ test_operation(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
+	CHECK(cap_sysctl_limit(limit) == 0);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL1_WRITE));
 
@@ -1120,7 +1126,7 @@ static void
 test_names(cap_channel_t *origcapsysctl)
 {
 	cap_channel_t *capsysctl;
-	nvlist_t *limits;
+	void *limit;
 
 	/*
 	 * Allow:
@@ -1130,27 +1136,27 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == SYSCTL0_READ0);
 
@@ -1164,27 +1170,27 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_READ | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == SYSCTL1_READ0);
 
@@ -1198,27 +1204,27 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == SYSCTL0_WRITE);
 
@@ -1232,27 +1238,27 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_WRITE | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == SYSCTL1_WRITE);
 
@@ -1266,27 +1272,27 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL0_READ0 | SYSCTL0_READ1 |
 	    SYSCTL0_READ2 | SYSCTL0_WRITE | SYSCTL0_READ_WRITE));
@@ -1301,27 +1307,27 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	nvlist_add_number(limits, SYSCTL1_NAME,
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME,
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME,
 	    CAP_SYSCTL_RDWR | CAP_SYSCTL_RECURSIVE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL1_READ0 | SYSCTL1_READ1 |
 	    SYSCTL1_READ2 | SYSCTL1_WRITE | SYSCTL1_READ_WRITE));
@@ -1336,16 +1342,16 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == 0);
 
@@ -1359,16 +1365,16 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_READ);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_READ);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == SYSCTL1_READ0);
 
@@ -1382,16 +1388,16 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == 0);
 
@@ -1405,16 +1411,16 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_WRITE);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == SYSCTL1_WRITE);
 
@@ -1428,16 +1434,16 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_PARENT, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_PARENT, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == 0);
 
@@ -1451,16 +1457,16 @@ test_names(cap_channel_t *origcapsysctl)
 	capsysctl = cap_clone(origcapsysctl);
 	CHECK(capsysctl != NULL);
 
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == 0);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
-	limits = nvlist_create(0);
-	nvlist_add_number(limits, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
-	CHECK(cap_limit_set(capsysctl, limits) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == 0);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
+	(void)cap_sysctl_limit_name(limit, SYSCTL1_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
+	limit = cap_sysctl_limit_init(capsysctl);
+	(void)cap_sysctl_limit_name(limit, SYSCTL0_NAME, CAP_SYSCTL_RDWR);
+	CHECK(cap_sysctl_limit(limit) == -1 && errno == ENOTCAPABLE);
 
 	CHECK(runtest(capsysctl) == (SYSCTL1_READ0 | SYSCTL1_READ1 |
 	    SYSCTL1_READ2 | SYSCTL1_WRITE | SYSCTL1_READ_WRITE));
