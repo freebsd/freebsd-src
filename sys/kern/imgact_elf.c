@@ -90,10 +90,9 @@ static int __elfN(check_header)(const Elf_Ehdr *hdr);
 static Elf_Brandinfo *__elfN(get_brandinfo)(struct image_params *imgp,
     const char *interp, int interp_name_len, int32_t *osrel, uint32_t *fctl0);
 static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
-    u_long *entry, size_t pagesize);
+    u_long *entry);
 static int __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
-    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
-    size_t pagesize);
+    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot);
 static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
 static bool __elfN(freebsd_trans_osrel)(const Elf_Note *note,
     int32_t *osrel);
@@ -542,8 +541,7 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 
 static int
 __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
-    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
-    size_t pagesize)
+    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
 {
 	struct sf_buf *sf;
 	size_t map_len;
@@ -571,8 +569,8 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 
 	object = imgp->object;
 	map = &imgp->proc->p_vmspace->vm_map;
-	map_addr = trunc_page_ps((vm_offset_t)vmaddr, pagesize);
-	file_addr = trunc_page_ps(offset, pagesize);
+	map_addr = trunc_page_ps((vm_offset_t)vmaddr, PAGE_SIZE);
+	file_addr = trunc_page_ps(offset, PAGE_SIZE);
 
 	/*
 	 * We have two choices.  We can either clear the data in the last page
@@ -583,9 +581,9 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	if (filsz == 0)
 		map_len = 0;
 	else if (memsz > filsz)
-		map_len = trunc_page_ps(offset + filsz, pagesize) - file_addr;
+		map_len = trunc_page_ps(offset + filsz, PAGE_SIZE) - file_addr;
 	else
-		map_len = round_page_ps(offset + filsz, pagesize) - file_addr;
+		map_len = round_page_ps(offset + filsz, PAGE_SIZE) - file_addr;
 
 	if (map_len != 0) {
 		/* cow flags: don't dump readonly sections in core */
@@ -615,9 +613,9 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	 * to try and save a page, but it's a pain in the behind to implement.
 	 */
 	copy_len = filsz == 0 ? 0 : (offset + filsz) - trunc_page_ps(offset +
-	    filsz, pagesize);
-	map_addr = trunc_page_ps((vm_offset_t)vmaddr + filsz, pagesize);
-	map_len = round_page_ps((vm_offset_t)vmaddr + memsz, pagesize) -
+	    filsz, PAGE_SIZE);
+	map_addr = trunc_page_ps((vm_offset_t)vmaddr + filsz, PAGE_SIZE);
+	map_len = round_page_ps((vm_offset_t)vmaddr + memsz, PAGE_SIZE) -
 	    map_addr;
 
 	/* This had damn well better be true! */
@@ -634,7 +632,7 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 			return (EIO);
 
 		/* send the page fragment to user space */
-		off = trunc_page_ps(offset + filsz, pagesize) -
+		off = trunc_page_ps(offset + filsz, PAGE_SIZE) -
 		    trunc_page(offset + filsz);
 		error = copyout((caddr_t)sf_buf_kva(sf) + off,
 		    (caddr_t)map_addr, copy_len);
@@ -668,7 +666,7 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
  */
 static int
 __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
-	u_long *entry, size_t pagesize)
+	u_long *entry)
 {
 	struct {
 		struct nameidata nd;
@@ -767,7 +765,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 			prot = __elfN(trans_prot)(phdr[i].p_flags);
 			error = __elfN(load_section)(imgp, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,
-			    phdr[i].p_memsz, phdr[i].p_filesz, prot, pagesize);
+			    phdr[i].p_memsz, phdr[i].p_filesz, prot);
 			if (error != 0)
 				goto fail;
 			/*
@@ -1056,8 +1054,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			prot = __elfN(trans_prot)(phdr[i].p_flags);
 			error = __elfN(load_section)(imgp, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + et_dyn_addr,
-			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
-			    sv->sv_pagesize);
+			    phdr[i].p_memsz, phdr[i].p_filesz, prot);
 			if (error != 0)
 				goto ret;
 
@@ -1176,7 +1173,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			snprintf(path, MAXPATHLEN, "%s%s",
 			    brand_info->emul_path, interp);
 			error = __elfN(load_file)(imgp->proc, path, &addr,
-			    &imgp->entry_addr, sv->sv_pagesize);
+			    &imgp->entry_addr);
 			free(path, M_TEMP);
 			if (error == 0)
 				have_interp = TRUE;
@@ -1185,13 +1182,13 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		    (brand_info->interp_path == NULL ||
 		    strcmp(interp, brand_info->interp_path) == 0)) {
 			error = __elfN(load_file)(imgp->proc, newinterp, &addr,
-			    &imgp->entry_addr, sv->sv_pagesize);
+			    &imgp->entry_addr);
 			if (error == 0)
 				have_interp = TRUE;
 		}
 		if (!have_interp) {
 			error = __elfN(load_file)(imgp->proc, interp, &addr,
-			    &imgp->entry_addr, sv->sv_pagesize);
+			    &imgp->entry_addr);
 		}
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0) {
