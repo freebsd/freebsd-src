@@ -275,8 +275,8 @@ extern	u_long	orphwait;		/* orphan wait time */
 extern	char	*sys_hostname;	/* host name */
 extern	char	*sys_groupname;	/* group name */
 extern	char	*group_name;	/* group name */
-extern	u_long	sys_revoke;	/* keys revoke timeout */
-extern	u_long	sys_automax;	/* session key timeout */
+extern	u_char	sys_revoke;	/* keys revoke timeout */
+extern	u_char	sys_automax;	/* session key timeout */
 #endif	/* AUTOKEY */
 
 /* ntp_util.c */

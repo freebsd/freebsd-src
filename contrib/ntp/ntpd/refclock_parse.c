@@ -4256,8 +4256,7 @@ mk_utcinfo(
 		struct tm *tm;
 		int nc;
 
-		if (wnlsf < GPSWRAP)
-			wnlsf += GPSWEEKS;
+		wnlsf = basedate_expand_gpsweek(wnlsf);
 		/* 'wnt' not used here: would need the same treatment as 'wnlsf */
 
 		t_ls = (time_t) wnlsf * SECSPERWEEK

@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpd.texi)
 #
-# It has been AutoGen-ed  August 14, 2018 at 08:29:12 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  February 20, 2019 at 09:56:42 AM by AutoGen 5.18.5
 # From the definitions    ntpd-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -142,7 +142,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpd - NTP daemon program - Ver. 4.2.8p12
+ntpd - NTP daemon program - Ver. 4.2.8p13
 Usage:  ntpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... \
                 [ <server1> ... <serverN> ]
   Flg Arg Option-Name    Description
@@ -164,7 +164,7 @@ Usage:  ntpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... \
    -g no  panicgate      Allow the first adjustment to be Big
                                 - may appear multiple times
    -G no  force-step-once Step any initial offset correction.
-   -i Str jaildir        Jail directory
+   -i --- jaildir        built without --enable-clockctl or --enable-linuxcaps or --enable-solarisprivs
    -I Str interface      Listen on an interface name or address
                                 - may appear multiple times
    -k Str keyfile        path to symmetric keys
@@ -187,7 +187,7 @@ Usage:  ntpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... \
    -s Str statsdir       Statistics file location
    -t Str trustedkey     Trusted key number
                                 - may appear multiple times
-   -u Str user           Run as userid (or userid:groupid)
+   -u --- user           built without --enable-clockctl or --enable-linuxcaps or --enable-solarisprivs
    -U Num updateinterval interval in seconds between scans for new or dropped interfaces
       Str var            make ARG an ntp variable (RW)
                                 - may appear multiple times

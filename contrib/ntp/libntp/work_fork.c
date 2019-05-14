@@ -89,7 +89,9 @@ netwrite(
 }
 
 
-int set_user_group_ids(void);
+#if defined(HAVE_DROPROOT)
+extern int set_user_group_ids(void);
+#endif
 
 /* === functions === */
 /*
@@ -594,7 +596,9 @@ fork_blocking_child(
 	init_logging("ntp_intres", 0, FALSE);
 	setup_logfile(NULL);
 
+#ifdef HAVE_DROPROOT
 	(void) set_user_group_ids();
+#endif
 
 	/*
 	 * And now back to the portable code

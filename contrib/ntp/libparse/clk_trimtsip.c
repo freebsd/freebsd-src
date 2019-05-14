@@ -265,9 +265,7 @@ cvt_trimtsip(
 					    clock_time->flags = PARSEB_POWERUP;
 					    return CVT_OK;
 				    }
-				    if (week < GPSWRAP) {
-					    week += GPSWEEKS;
-				    }
+				    week = basedate_expand_gpsweek(week);
 
 				    /* time OK */
 
@@ -351,14 +349,12 @@ cvt_trimtsip(
 				    int tls   = t->t_gpsutc     = (u_short) getshort((unsigned char *)&mb(12)); /* current leap correction (GPS-UTC) */
 				    int tlsf  = t->t_gpsutcleap = (u_short) getshort((unsigned char *)&mb(24)); /* new leap correction */
 
-				    t->t_weekleap   = (u_short) getshort((unsigned char *)&mb(20)); /* week no of leap correction */
-				    if (t->t_weekleap < GPSWRAP)
-				      t->t_weekleap = (u_short)(t->t_weekleap + GPSWEEKS);
+				    t->t_weekleap   = basedate_expand_gpsweek(
+					(u_short) getshort((unsigned char *)&mb(20))); /* week no of leap correction */
 
 				    t->t_dayleap    = (u_short) getshort((unsigned char *)&mb(22)); /* day in week of leap correction */
-				    t->t_week = (u_short) getshort((unsigned char *)&mb(18)); /* current week no */
-				    if (t->t_week < GPSWRAP)
-				      t->t_week = (u_short)(t->t_weekleap + GPSWEEKS);
+				    t->t_week = basedate_expand_gpsweek(
+					(u_short) getshort((unsigned char *)&mb(18))); /* current week no */
 
 				    lbp = (unsigned char *)&mb(14); /* last update time */
 				    if (fetch_ieee754(&lbp, IEEE_SINGLE, &t0t, trim_offsets) != IEEE_OK)

@@ -1,11 +1,11 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpq-opts.c)
  *
- *  It has been AutoGen-ed  August 14, 2018 at 08:29:47 AM by AutoGen 5.18.5
+ *  It has been AutoGen-ed  February 20, 2019 at 09:56:54 AM by AutoGen 5.18.5
  *  From the definitions    ntpq-opts.def
  *  and the template file   options
  *
- * Generated from AutoOpts 41:0:16 templates.
+ * Generated from AutoOpts 41:1:16 templates.
  *
  *  AutoOpts is a copyrighted work.  This source file is not encumbered
  *  by AutoOpts licensing, but is provided under the licensing terms chosen
@@ -69,7 +69,7 @@ extern FILE * option_usage_fp;
  *  static const strings for ntpq options
  */
 static char const ntpq_opt_strs[1977] =
-/*     0 */ "ntpq 4.2.8p12\n"
+/*     0 */ "ntpq 4.2.8p13\n"
             "Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation, all rights reserved.\n"
             "This is free software. It is licensed for use, modification and\n"
             "redistribution under the terms of the NTP License, copies of which\n"
@@ -132,13 +132,13 @@ static char const ntpq_opt_strs[1977] =
 /*  1768 */ "no-load-opts\0"
 /*  1781 */ "no\0"
 /*  1784 */ "NTPQ\0"
-/*  1789 */ "ntpq - standard NTP query program - Ver. 4.2.8p12\n"
+/*  1789 */ "ntpq - standard NTP query program - Ver. 4.2.8p13\n"
             "Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... [ host ...]\n\0"
 /*  1909 */ "$HOME\0"
 /*  1915 */ ".\0"
 /*  1917 */ ".ntprc\0"
 /*  1924 */ "http://bugs.ntp.org, bugs@ntp.org\0"
-/*  1958 */ "ntpq 4.2.8p12\0"
+/*  1958 */ "ntpq 4.2.8p13\0"
 /*  1972 */ "hash";
 
 /**
@@ -841,7 +841,7 @@ static void bogus_function(void) {
      translate option names.
    */
   /* referenced via ntpqOptions.pzCopyright */
-  puts(_("ntpq 4.2.8p12\n\
+  puts(_("ntpq 4.2.8p13\n\
 Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation, all rights reserved.\n\
 This is free software. It is licensed for use, modification and\n\
 redistribution under the terms of the NTP License, copies of which\n\
@@ -910,11 +910,11 @@ implied warranty.\n"));
   puts(_("load options from a config file"));
 
   /* referenced via ntpqOptions.pzUsageTitle */
-  puts(_("ntpq - standard NTP query program - Ver. 4.2.8p12\n\
+  puts(_("ntpq - standard NTP query program - Ver. 4.2.8p13\n\
 Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... [ host ...]\n"));
 
   /* referenced via ntpqOptions.pzFullVersion */
-  puts(_("ntpq 4.2.8p12"));
+  puts(_("ntpq 4.2.8p13"));
 
   /* referenced via ntpqOptions.pzFullUsage */
   puts(_("<<<NOT-FOUND>>>"));

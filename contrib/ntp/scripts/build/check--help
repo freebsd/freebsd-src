@@ -10,13 +10,13 @@
 
 if test ! -f $1
 then
-	echo "$0: $1 is not a regular file!" 2>&3
+	echo "$0: $1 is not a regular file!" 1>&2
 	exit 1
 fi
 
 if grep -q 'no --help' $1
 then
-	echo "$0: $1 contains 'no --help'!" 2>&3
+	echo "$0: $1 contains 'no --help'!" 1>&2
 	mv ${1} ${1}-
 	exit 1
 fi

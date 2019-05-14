@@ -1609,9 +1609,8 @@ gettimeofday_cached(
 }
 
 /* Dummy function to satisfy libntp/work_fork.c */
-int
-set_user_group_ids(
-	)
+extern int set_user_group_ids(void);
+int set_user_group_ids(void)
 {
     return 1;
 }

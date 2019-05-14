@@ -2065,8 +2065,12 @@ config_auth(
 
 #ifdef AUTOKEY
 	/* crypto revoke command */
-	if (ptree->auth.revoke)
-		sys_revoke = 1UL << ptree->auth.revoke;
+	if (ptree->auth.revoke > 2 && ptree->auth.revoke < 32)
+		sys_revoke = (u_char)ptree->auth.revoke;
+	else if (ptree->auth.revoke)
+		msyslog(LOG_ERR,
+			"'revoke' value %d ignored",
+			ptree->auth.revoke);
 #endif	/* AUTOKEY */
 }
 #endif	/* !SIM */
@@ -2112,6 +2116,10 @@ config_tos_clock(
 			break;
 		}
 	}
+
+	if (basedate_get_day() <= NTP_TO_UNIX_DAYS)
+		basedate_set_day(basedate_eval_buildstamp() - 11);
+	    
 	return ret;
 }
 
@@ -2194,8 +2202,8 @@ config_tos(
 
 		case T_Minsane:
 			val = tos->value.d;
-			if ((int)tos->value.d < 1)
-				tos->value.d = 1;
+			if ((int)tos->value.d < 0)
+				tos->value.d = 0;
 			l_minsane = (int)tos->value.d;
 			break;
 		}
@@ -3813,7 +3821,12 @@ config_vars(
 
 		case T_Automax:
 #ifdef AUTOKEY
-			sys_automax = curr_var->value.i;
+			if (curr_var->value.i > 2 && curr_var->value.i < 32)
+				sys_automax = (u_char)curr_var->value.i;
+			else
+				msyslog(LOG_ERR,
+					"'automax' value %d ignored",
+					curr_var->value.i);
 #endif
 			break;
 

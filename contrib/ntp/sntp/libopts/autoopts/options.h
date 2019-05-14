@@ -109,7 +109,7 @@
  * @{
  */
 /// autoopts structure version
-#define OPTIONS_STRUCT_VERSION      167936
+#define OPTIONS_STRUCT_VERSION      167937
 /// autoopts structure version string
 #define OPTIONS_VERSION_STRING      "41:0:16"
 /// minimum version the autoopts library supports

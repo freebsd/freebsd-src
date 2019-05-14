@@ -1,4 +1,49 @@
 ---
+(4.2.8p13) 2019/03/07 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 3565] Crafted null dereference attack in authenticated
+	     mode 6 packet <perlinger@ntp.org>
+  - reported by Magnus Stubman
+* [Bug 3560] Fix build when HAVE_DROPROOT is not defined <perlinger@ntp.org>
+  - applied patch by Ian Lepore
+* [Bug 3558] Crash and integer size bug <perlinger@ntp.org>
+  - isolate and fix linux/windows specific code issue
+* [Bug 3556] ntp_loopfilter.c snprintf compilation warnings <perlinger@ntp.org>
+  - provide better function for incremental string formatting
+* [Bug 3555] Tidy up print alignment of debug output from ntpdate <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3554] config revoke stores incorrect value <perlinger@ntp.org>
+  - original finding by Gerry Garvey, additional cleanup needed
+* [Bug 3549] Spurious initgroups() error message <perlinger@ntp.org>
+  - patch by Christous Zoulas
+* [Bug 3548] Signature not verified on windows system <perlinger@ntp.org>
+  - finding by Chen Jiabin, plus another one by me
+* [Bug 3541] patch to fix STA_NANO struct timex units <perlinger@ntp.org>
+  - applied patch by Maciej Szmigiero
+* [Bug 3540] Cannot set minsane to 0 anymore <perlinger@ntp.org>
+  - applied patch by Andre Charbonneau
+* [Bug 3539] work_fork build fails when droproot is not supported <perlinger@ntp.org>
+  - applied patch by Baruch Siach
+* [Bug 3538] Build fails for no-MMU targets <perlinger@ntp.org>
+  - applied patch by Baruch Siach
+* [Bug 3535] libparse won't handle GPS week rollover <perlinger@ntp.org>
+  - refactored handling of GPS era based on 'tos basedate' for
+    parse (TSIP) and JUPITER clocks
+* [Bug 3529] Build failures on Mac OS X 10.13 (High Sierra) <perlinger@ntp.org>
+  - patch by Daniel J. Luke; this does not fix a potential linker
+    regression issue on MacOS.
+* [Bug 3527 - Backward Incompatible] mode7 clockinfo fudgeval2 packet
+  anomaly <perlinger@ntp.org>, reported by GGarvey.
+  - --enable-bug3527-fix support by HStenn
+* [Bug 3526] Incorrect poll interval in packet <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3471] Check for openssl/[ch]mac.h.  <perlinger@ntp.org>
+  - added missing check, reported by Reinhard Max <perlinger@ntp.org>
+* [Bug 1674] runtime crashes and sync problems affecting both x86 and x86_64
+  - this is a variant of [bug 3558] and should be fixed with it
+* Implement --disable-signalled-io
+
+---
 (4.2.8p12) 2018/08/14 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 3505] CVE-2018-12327 - Arbitrary Code Execution Vulnerability

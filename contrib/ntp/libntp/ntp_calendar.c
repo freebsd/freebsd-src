@@ -1832,6 +1832,7 @@ isocal_date_to_ntp(
  */
 
 static int32_t s_baseday = NTP_TO_UNIX_DAYS;
+static int32_t s_gpsweek = 0;
 
 int32_t
 basedate_eval_buildstamp(void)
@@ -1901,6 +1902,7 @@ basedate_set_day(
 	struct calendar	jd;
 	int32_t		retv;
 
+	/* set NTP base date for NTP era unfolding */
 	if (day < NTP_TO_UNIX_DAYS) {
 		msyslog(LOG_WARNING,
 			"baseday_set_day: invalid day (%lu), UNIX epoch substituted",
@@ -1912,6 +1914,17 @@ basedate_set_day(
 	ntpcal_rd_to_date(&jd, day + DAY_NTP_STARTS);
 	msyslog(LOG_INFO, "basedate set to %04hu-%02hu-%02hu",
 		jd.year, (u_short)jd.month, (u_short)jd.monthday);
+
+	/* set GPS base week for GPS week unfolding */
+	day = ntpcal_weekday_ge(day + DAY_NTP_STARTS, CAL_SUNDAY)
+	    - DAY_NTP_STARTS;
+	if (day < NTP_TO_GPS_DAYS)
+	    day = NTP_TO_GPS_DAYS;
+	s_gpsweek = (day - NTP_TO_GPS_DAYS) / DAYSPERWEEK;
+	ntpcal_rd_to_date(&jd, day + DAY_NTP_STARTS);
+	msyslog(LOG_INFO, "gps base set to %04hu-%02hu-%02hu (week %d)",
+		jd.year, (u_short)jd.month, (u_short)jd.monthday, s_gpsweek);
+	
 	return retv;
 }
 
@@ -1932,6 +1945,31 @@ basedate_get_erabase(void)
 	retv  = (time_t)(s_baseday - NTP_TO_UNIX_DAYS);
 	retv *= SECSPERDAY;
 	return retv;
+}
+
+uint32_t
+basedate_get_gpsweek(void)
+{
+    return s_gpsweek;
+}
+
+uint32_t
+basedate_expand_gpsweek(
+    unsigned short weekno
+    )
+{
+    /* We do a fast modulus expansion here. Since all quantities are
+     * unsigned and we cannot go before the start of the GPS epoch
+     * anyway, and since the truncated GPS week number is 10 bit, the
+     * expansion becomes a simple sub/and/add sequence.
+     */
+    #if GPSWEEKS != 1024
+    # error GPSWEEKS defined wrong -- should be 1024!
+    #endif
+    
+    uint32_t diff;
+    diff = ((uint32_t)weekno - s_gpsweek) & (GPSWEEKS - 1);
+    return s_gpsweek + diff;
 }
 
 /* -*-EOF-*- */
