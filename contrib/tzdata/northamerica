@@ -609,6 +609,15 @@ Zone America/Los_Angeles -7:52:58 -	LMT	1883 Nov 18 12:07:02
 # In a 2018-12-11 special election, Metlakatla voted to go back to
 # Alaska time (including daylight saving time) starting next year.
 # https://www.krbd.org/2018/12/12/metlakatla-to-follow-alaska-standard-time-allow-liquor-sales/
+#
+# From Ryan Stanley (2019-01-11):
+# The community will be changing back on the 20th of this month...
+# From Tim Parenti (2019-01-11):
+# Per an announcement on the Metlakatla community's official Facebook page, the
+# "fall back" will be on Sunday 2019-01-20 at 02:00:
+# https://www.facebook.com/141055983004923/photos/607150969728753/
+# So they won't be waiting for Alaska to join them on 2019-03-10, but will
+# rather change their clocks twice in seven weeks.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Juneau	 15:02:19 -	LMT	1867 Oct 19 15:33:32
@@ -637,7 +646,7 @@ Zone America/Metlakatla	 15:13:42 -	LMT	1867 Oct 19 15:44:55
 			 -8:00	US	P%sT	1983 Oct 30  2:00
 			 -8:00	-	PST	2015 Nov  1  2:00
 			 -9:00	US	AK%sT	2018 Nov  4  2:00
-			 -8:00	-	PST	2019 Mar Sun>=8 3:00
+			 -8:00	-	PST	2019 Jan 20  2:00
 			 -9:00	US	AK%sT
 Zone America/Yakutat	 14:41:05 -	LMT	1867 Oct 19 15:12:18
 			 -9:18:55 -	LMT	1900 Aug 20 12:00

@@ -15,7 +15,7 @@
     <ul>
       <li><a href="#scope">Scope of the <code><abbr>tz</abbr></code>
 	  database</a></li>
-      <li><a href="#naming">Names of timezones</a></li>
+      <li><a href="#naming">Timezone identifiers</a></li>
       <li><a href="#abbreviations">Time zone abbreviations</a></li>
       <li><a href="#accuracy">Accuracy of the <code><abbr>tz</abbr></code>
 	  database</a></li>
@@ -107,9 +107,9 @@ It does not always make sense to talk about a timezone's
 </section>
 
 <section>
-  <h2 id="naming">Names of timezones</h2>
+  <h2 id="naming">Timezone identifiers</h2>
 <p>
-Each timezone has a unique name.
+Each timezone has a name that uniquely identifies the timezone.
 Inexperienced users are not expected to select these names unaided.
 Distributors should provide documentation and/or a simple selection
 interface that explains each name via a map or via descriptive text like
@@ -142,10 +142,12 @@ among the following goals:
   </li>
   <li>
     Be robust in the presence of political changes.
-    For example, names of countries are ordinarily not used, to avoid
+    For example, names are typically not tied to countries, to avoid
     incompatibilities when countries change their name (e.g.,
-    Zaire&rarr;Congo) or when locations change countries (e.g., Hong
+    Swaziland&rarr;Eswatini) or when locations change countries (e.g., Hong
     Kong from UK colony to China).
+    There is no requirement that every country or national
+    capital must have a timezone name.
   </li>
   <li>
     Be portable to a wide variety of implementations.
@@ -215,17 +217,16 @@ in decreasing order of importance:
     do not need locations, since local time is not defined there.
   </li>
   <li>
-    There should typically be at least one name for each <a
-    href="https://en.wikipedia.org/wiki/ISO_3166-1"><abbr
-    title="International Organization for Standardization">ISO</abbr>
-    3166-1</a> officially assigned two-letter code for an inhabited
-    country or territory.
-  </li>
-  <li>
     If all the clocks in a timezone have agreed since 1970,
     do not bother to include more than one timezone
     even if some of the clocks disagreed before 1970.
     Otherwise these tables would become annoyingly large.
+  </li>
+  <li>
+    If boundaries between regions are fluid, such as during a war or
+    insurrection, do not bother to create a new timezone merely
+    because of yet another boundary change. This helps prevent table
+    bloat and simplifies maintenance.
   </li>
   <li>
     If a name is ambiguous, use a less ambiguous alternative;
@@ -299,29 +300,23 @@ in decreasing order of importance:
 </ul>
 
 <p>
-The file '<code>zone1970.tab</code>' lists geographical locations used
-to name timezones.
-It is intended to be an exhaustive list of names for geographic
-regions as described above; this is a subset of the timezones in the data.
-Although a '<code>zone1970.tab</code>' location's
-<a href="https://en.wikipedia.org/wiki/Longitude">longitude</a>
-corresponds to
-its <a href="https://en.wikipedia.org/wiki/Local_mean_time">local mean
-time (<abbr>LMT</abbr>)</a> offset with one hour for every 15&deg;
-east longitude, this relationship is not exact.
+Guidelines have evolved with time, and names following old versions of
+this guideline might not follow the current version. When guidelines
+have changed, old names continue to be supported. Guideline changes
+have included the following:
 </p>
 
-<p>
-Older versions of this package used a different naming scheme,
-and these older names are still supported.
+<ul>
+<li>
+Older versions of this package used a different naming scheme.
 See the file '<code>backward</code>' for most of these older names
 (e.g., '<code>US/Eastern</code>' instead of '<code>America/New_York</code>').
 The other old-fashioned names still supported are
 '<code>WET</code>', '<code>CET</code>', '<code>MET</code>', and
 '<code>EET</code>' (see the file '<code>europe</code>').
-</p>
+</li>
 
-<p>
+<li>
 Older versions of this package defined legacy names that are
 incompatible with the first guideline of location names, but which are
 still supported.
@@ -332,6 +327,31 @@ Also, the file '<code>backward</code>' defines the legacy names
 and the file '<code>northamerica</code>' defines the legacy names
 '<code>EST5EDT</code>', '<code>CST6CDT</code>',
 '<code>MST7MDT</code>', and '<code>PST8PDT</code>'.
+</li>
+
+<li>
+Older versions of this guideline said that
+there should typically be at least one name for each <a
+href="https://en.wikipedia.org/wiki/ISO_3166-1"><abbr
+title="International Organization for Standardization">ISO</abbr>
+3166-1</a> officially assigned two-letter code for an inhabited
+country or territory.
+This old guideline has been dropped, as it was not needed to handle
+timestamps correctly and it increased maintenance burden.
+</li>
+</ul>
+
+<p>
+The file '<code>zone1970.tab</code>' lists geographical locations used
+to name timezones.
+It is intended to be an exhaustive list of names for geographic
+regions as described above; this is a subset of the timezones in the data.
+Although a '<code>zone1970.tab</code>' location's
+<a href="https://en.wikipedia.org/wiki/Longitude">longitude</a>
+corresponds to
+its <a href="https://en.wikipedia.org/wiki/Local_mean_time">local mean
+time (<abbr>LMT</abbr>)</a> offset with one hour for every 15&deg;
+east longitude, this relationship is not exact.
 </p>
 
 <p>
@@ -983,7 +1003,9 @@ an older <code>zic</code>.
     constrained to be a string containing abbreviations
     and numeric data as described <a href="#POSIX">above</a>.
     The file's format is <dfn><abbr>TZif</abbr></dfn>,
-    a timezone information format that contains binary data.
+    a timezone information format that contains binary data; see
+    <a href="https://tools.ietf.org/html/8536">Internet
+    <abbr>RFC</abbr> 8536</a>.
     The daylight saving time rules to be used for a
     particular timezone are encoded in the
     <abbr>TZif</abbr> file; the format of the file allows <abbr>US</abbr>,
@@ -1166,7 +1188,7 @@ The <code><abbr>tz</abbr></code> code and data supply the following interfaces:
 <ul>
   <li>
     A set of timezone names as per
-      "<a href="#naming">Names of timezones</a>" above.
+      "<a href="#naming">Timezone identifiers</a>" above.
   </li>
   <li>
     Library functions described in "<a href="#functions">Time and date
@@ -1212,6 +1234,17 @@ Interfaces not listed above are less stable.
 For example, users should not rely on particular <abbr>UT</abbr>
 offsets or abbreviations for timestamps, as data entries are often
 based on guesswork and these guesses may be corrected or improved.
+</p>
+
+<p>
+Timezone boundaries are not part of the stable interface.
+For example, even though the <samp>Asia/Bangkok</samp> timezone
+currently includes Chang Mai, Hanoi, and Phnom Penh, this is not part
+of the stable interface and the timezone can split at any time.
+If a calendar application records a future event in some location other
+than Bangkok by putting "<samp>Asia/Bangkok</samp>" in the event's record,
+the application should be robust in the presence of timezone splits
+between now and the future time.
 </p>
 </section>
 

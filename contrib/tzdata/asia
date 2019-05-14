@@ -1620,6 +1620,24 @@ Rule	Zion	1974	only	-	Jul	 7	0:00	1:00	D
 Rule	Zion	1974	only	-	Oct	13	0:00	0	S
 Rule	Zion	1975	only	-	Apr	20	0:00	1:00	D
 Rule	Zion	1975	only	-	Aug	31	0:00	0	S
+
+# From Alois Treindl (2019-03-06):
+# http://www.moin.gov.il/Documents/שעון קיץ/clock-50-years-7-2014.pdf
+# From Isaac Starkman (2019-03-06):
+# Summer time was in that period in 1980 and 1984, see
+# https://www.ynet.co.il/articles/0,7340,L-3951073,00.html
+# You can of course read it in translation.
+# I checked the local newspapers for that years.
+# It started on midnight and end at 01.00 am.
+# From Paul Eggert (2019-03-06):
+# Also see this thread about the moin.gov.il URL:
+# https://mm.icann.org/pipermail/tz/2018-November/027194.html
+Rule	Zion	1980	only	-	Aug	 2	0:00	1:00	D
+Rule	Zion	1980	only	-	Sep	13	1:00	0	S
+Rule	Zion	1984	only	-	May	 5	0:00	1:00	D
+Rule	Zion	1984	only	-	Aug	25	1:00	0	S
+
+# From Shanks & Pottenger:
 Rule	Zion	1985	only	-	Apr	14	0:00	1:00	D
 Rule	Zion	1985	only	-	Sep	15	0:00	0	S
 Rule	Zion	1986	only	-	May	18	0:00	1:00	D
@@ -3071,9 +3089,15 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # the official website, though the decree did not specify the exact
 # time of the time shift.
 # http://www.palestinecabinet.gov.ps/Website/AR/NDecrees/ViewFile.ashx?ID=e7a42ab7-ee23-435a-b9c8-a4f7e81f3817
+
+# From Even Scharning (2019-03-23):
+# DST in Palestine will start on 30 March this year, not 23 March as the time
+# zone database predicted.
+# https://ramallah.news/post/123610
 #
-# From Paul Eggert (2018-03-16):
-# For 2016 on, predict spring transitions on March's fourth Saturday at 01:00.
+# From Tim Parenti (2019-03-23):
+# Combining this with the rules observed since 2016, adjust our spring
+# transition guess to Mar Sat>=24.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule EgyptAsia	1957	only	-	May	10	0:00	1:00	S
@@ -3104,7 +3128,7 @@ Rule Palestine	2012	only	-	Sep	21	1:00	0	-
 Rule Palestine	2013	only	-	Sep	Fri>=21	0:00	0	-
 Rule Palestine	2014	2015	-	Oct	Fri>=21	0:00	0	-
 Rule Palestine	2015	only	-	Mar	lastFri	24:00	1:00	S
-Rule Palestine	2016	max	-	Mar	Sat>=22	1:00	1:00	S
+Rule Palestine	2016	max	-	Mar	Sat>=24	1:00	1:00	S
 Rule Palestine	2016	max	-	Oct	lastSat	1:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -3595,6 +3619,18 @@ Zone Asia/Ho_Chi_Minh	7:06:40 -	LMT	1906 Jul  1
 			7:00	-	+07	1959 Dec 31 23:00
 			8:00	-	+08	1975 Jun 13
 			7:00	-	+07
+
+# From Paul Eggert (2019-02-19):
+#
+# The Ho Chi Minh entry suffices for most purposes as it agrees with all of
+# Vietnam since 1975-06-13.  Presumably clocks often changed in south Vietnam
+# in the early 1970s as locations changed hands during the war; however the
+# details are unknown and would likely be too voluminous for this database.
+#
+# For timestamps in north Vietnam back to 1970 (the tzdb cutoff),
+# use Asia/Bangkok; see the VN entries in the file zone1970.tab.
+# For timestamps before 1970, see Asia/Hanoi in the file 'backzone'.
+
 
 # Yemen
 # See Asia/Riyadh.
