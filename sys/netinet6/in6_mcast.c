@@ -2052,6 +2052,7 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	 */
 	(void)in6_setscope(&gsa->sin6.sin6_addr, ifp, NULL);
 
+	IN6_MULTI_LOCK();
 	imo = in6p_findmoptions(inp);
 	idx = im6o_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1) {
@@ -2171,10 +2172,6 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Begin state merge transaction at MLD layer.
 	 */
-	in_pcbref(inp);
-	INP_WUNLOCK(inp);
-	IN6_MULTI_LOCK();
-
 	if (is_new) {
 		error = in6_joingroup_locked(ifp, &gsa->sin6.sin6_addr, imf,
 		    &inm, 0);
@@ -2204,10 +2201,6 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 		IN6_MULTI_LIST_UNLOCK();
 	}
 
-	IN6_MULTI_UNLOCK();
-	INP_WLOCK(inp);
-	if (in_pcbrele_wlocked(inp))
-		return (ENXIO);
 	if (error) {
 		im6f_rollback(imf);
 		if (is_new)
@@ -2232,6 +2225,7 @@ out_im6o_free:
 
 out_in6p_locked:
 	INP_WUNLOCK(inp);
+	IN6_MULTI_UNLOCK();
 	in6m_release_list_deferred(&inmh);
 	return (error);
 }
@@ -2381,6 +2375,7 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Find the membership in the membership array.
 	 */
+	IN6_MULTI_LOCK();
 	imo = in6p_findmoptions(inp);
 	idx = im6o_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1) {
@@ -2429,10 +2424,6 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Begin state merge transaction at MLD layer.
 	 */
-	in_pcbref(inp);
-	INP_WUNLOCK(inp);
-	IN6_MULTI_LOCK();
-
 	if (is_final) {
 		/*
 		 * Give up the multicast address record to which
@@ -2456,11 +2447,6 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		IN6_MULTI_LIST_UNLOCK();
 	}
 
-	IN6_MULTI_UNLOCK();
-	INP_WLOCK(inp);
-	if (in_pcbrele_wlocked(inp))
-		return (ENXIO);
-
 	if (error)
 		im6f_rollback(imf);
 	else
@@ -2483,6 +2469,7 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 
 out_in6p_locked:
 	INP_WUNLOCK(inp);
+	IN6_MULTI_UNLOCK();
 	return (error);
 }
 
@@ -2528,8 +2515,6 @@ in6p_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 
 /*
  * Atomically set source filters on a socket for an IPv6 multicast group.
- *
- * SMPng: NOTE: Potentially calls malloc(M_WAITOK) with Giant held.
  */
 static int
 in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)

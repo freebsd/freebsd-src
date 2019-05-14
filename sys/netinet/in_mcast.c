@@ -1534,6 +1534,7 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Check if we are actually a member of this group.
 	 */
+	IN_MULTI_LOCK();
 	imo = inp_findmoptions(inp);
 	idx = imo_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1 || imo->imo_mfilters == NULL) {
@@ -1593,14 +1594,13 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Begin state merge transaction at IGMP layer.
 	 */
-	IN_MULTI_LOCK();
 	CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
 	IN_MULTI_LIST_LOCK();
 	error = inm_merge(inm, imf);
 	if (error) {
 		CTR1(KTR_IGMPV3, "%s: failed to merge inm state", __func__);
 		IN_MULTI_LIST_UNLOCK();
-		goto out_in_multi_locked;
+		goto out_imf_rollback;
 	}
 
 	CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
@@ -1609,9 +1609,6 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	if (error)
 		CTR1(KTR_IGMPV3, "%s: failed igmp downcall", __func__);
 
-out_in_multi_locked:
-
-	IN_MULTI_UNLOCK();
 out_imf_rollback:
 	if (error)
 		imf_rollback(imf);
@@ -1622,6 +1619,7 @@ out_imf_rollback:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
+	IN_MULTI_UNLOCK();
 	return (error);
 }
 
@@ -1680,10 +1678,10 @@ inp_findmoptions(struct inpcb *inp)
 static void
 inp_gcmoptions(struct ip_moptions *imo)
 {
-	struct in_mfilter	*imf;
+	struct in_mfilter *imf;
 	struct in_multi *inm;
 	struct ifnet *ifp;
-	size_t			 idx, nmships;
+	size_t idx, nmships;
 
 	nmships = imo->imo_num_memberships;
 	for (idx = 0; idx < nmships; ++idx) {
@@ -2142,12 +2140,12 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		CTR2(KTR_IGMPV3, "%s: unknown sopt_name %d",
 		    __func__, sopt->sopt_name);
 		return (EOPNOTSUPP);
-		break;
 	}
 
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
 		return (EADDRNOTAVAIL);
 
+	IN_MULTI_LOCK();
 	imo = inp_findmoptions(inp);
 	idx = imo_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1) {
@@ -2272,10 +2270,6 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Begin state merge transaction at IGMP layer.
 	 */
-	in_pcbref(inp);
-	INP_WUNLOCK(inp);
-	IN_MULTI_LOCK();
-
 	if (is_new) {
 		error = in_joingroup_locked(ifp, &gsa->sin.sin_addr, imf,
 		    &inm);
@@ -2286,6 +2280,8 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			goto out_imo_free;
 		}
 		inm_acquire(inm);
+		KASSERT(imo->imo_membership[idx] == NULL,
+		    ("%s: imo_membership already allocated", __func__));
 		imo->imo_membership[idx] = inm;
 	} else {
 		CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
@@ -2295,7 +2291,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			CTR1(KTR_IGMPV3, "%s: failed to merge inm state",
 				 __func__);
 			IN_MULTI_LIST_UNLOCK();
-			goto out_in_multi_locked;
+			goto out_imf_rollback;
 		}
 		CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
 		error = igmp_change_state(inm);
@@ -2303,16 +2299,11 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		if (error) {
 			CTR1(KTR_IGMPV3, "%s: failed igmp downcall",
 			    __func__);
-			goto out_in_multi_locked;
+			goto out_imf_rollback;
 		}
 	}
 
-out_in_multi_locked:
-
-	IN_MULTI_UNLOCK();
-	INP_WLOCK(inp);
-	if (in_pcbrele_wlocked(inp))
-		return (ENXIO);
+out_imf_rollback:
 	if (error) {
 		imf_rollback(imf);
 		if (is_new)
@@ -2337,6 +2328,7 @@ out_imo_free:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
+	IN_MULTI_UNLOCK();
 	return (error);
 }
 
@@ -2463,6 +2455,7 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Find the membership in the membership array.
 	 */
+	IN_MULTI_LOCK();
 	imo = inp_findmoptions(inp);
 	idx = imo_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1) {
@@ -2510,9 +2503,6 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Begin state merge transaction at IGMP layer.
 	 */
-	in_pcbref(inp);
-	INP_WUNLOCK(inp);
-	IN_MULTI_LOCK();
 
 	if (is_final) {
 		/*
@@ -2528,7 +2518,7 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 			CTR1(KTR_IGMPV3, "%s: failed to merge inm state",
 			    __func__);
 			IN_MULTI_LIST_UNLOCK();
-			goto out_in_multi_locked;
+			goto out_imf_rollback;
 		}
 
 		CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
@@ -2540,13 +2530,7 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		}
 	}
 
-out_in_multi_locked:
-
-	IN_MULTI_UNLOCK();
-	INP_WLOCK(inp);
-	if (in_pcbrele_wlocked(inp))
-		return (ENXIO);
-
+out_imf_rollback:
 	if (error)
 		imf_rollback(imf);
 	else
@@ -2557,7 +2541,7 @@ out_in_multi_locked:
 	if (is_final) {
 		/* Remove the gap in the membership and filter array. */
 		KASSERT(RB_EMPTY(&imf->imf_sources),
-		    ("%s: imf_sources not empty", __func__));
+		    ("%s: imf_sources (%p %p %zu) not empty", __func__, imf, imo, idx));
 		for (++idx; idx < imo->imo_num_memberships; ++idx) {
 			imo->imo_membership[idx - 1] = imo->imo_membership[idx];
 			imo->imo_mfilters[idx - 1] = imo->imo_mfilters[idx];
@@ -2569,6 +2553,7 @@ out_in_multi_locked:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
+	IN_MULTI_UNLOCK();
 	return (error);
 }
 
@@ -2646,8 +2631,6 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 
 /*
  * Atomically set source filters on a socket for an IPv4 multicast group.
- *
- * SMPng: NOTE: Potentially calls malloc(M_WAITOK) with Giant held.
  */
 static int
 inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
@@ -2694,6 +2677,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	 * Take the INP write lock.
 	 * Check if this socket is a member of this group.
 	 */
+	IN_MULTI_LOCK();
 	imo = inp_findmoptions(inp);
 	idx = imo_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1 || imo->imo_mfilters == NULL) {
@@ -2778,7 +2762,6 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		goto out_imf_rollback;
 
 	INP_WLOCK_ASSERT(inp);
-	IN_MULTI_LOCK();
 
 	/*
 	 * Begin state merge transaction at IGMP layer.
@@ -2789,7 +2772,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (error) {
 		CTR1(KTR_IGMPV3, "%s: failed to merge inm state", __func__);
 		IN_MULTI_LIST_UNLOCK();
-		goto out_in_multi_locked;
+		goto out_imf_rollback;
 	}
 
 	CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
@@ -2797,10 +2780,6 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	IN_MULTI_LIST_UNLOCK();
 	if (error)
 		CTR1(KTR_IGMPV3, "%s: failed igmp downcall", __func__);
-
-out_in_multi_locked:
-
-	IN_MULTI_UNLOCK();
 
 out_imf_rollback:
 	if (error)
@@ -2812,6 +2791,7 @@ out_imf_rollback:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
+	IN_MULTI_UNLOCK();
 	return (error);
 }
 
