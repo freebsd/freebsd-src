@@ -667,7 +667,7 @@ makelink(const char *from_name, const char *to_name,
 	}
 
 	if (dolink & LN_RELATIVE) {
-		char *to_name_copy, *cp, *d, *s;
+		char *to_name_copy, *cp, *d, *ld, *ls, *s;
 
 		if (*from_name != '/') {
 			/* this is already a relative link */
@@ -703,8 +703,19 @@ makelink(const char *from_name, const char *to_name,
 		free(to_name_copy);
 
 		/* Trim common path components. */
-		for (s = src, d = dst; *s == *d; s++, d++)
+		ls = ld = NULL;
+		for (s = src, d = dst; *s == *d; ls = s, ld = d, s++, d++)
 			continue;
+		/*
+		 * If we didn't end after a directory separator, then we've
+		 * falsely matched the last component.  For example, if one
+		 * invoked install -lrs /lib/foo.so /libexec/ then the source
+		 * would terminate just after the separator while the
+		 * destination would terminate in the middle of 'libexec',
+		 * leading to a full directory getting falsely eaten.
+		 */
+		if ((ls != NULL && *ls != '/') || (ld != NULL && *ld != '/'))
+			s--, d--;
 		while (*s != '/')
 			s--, d--;
 
