@@ -826,3 +826,187 @@ END(handle_ibrs_entry)
 ENTRY(handle_ibrs_exit)
 	ret
 END(handle_ibrs_exit)
+
+ENTRY(mds_handler_void)
+	ret
+END(mds_handler_void)
+
+ENTRY(mds_handler_verw)
+	subl	$4, %esp
+	movw	%ds, (%esp)
+	verw	(%esp)
+	addl	$4, %esp
+	ret
+END(mds_handler_verw)
+
+ENTRY(mds_handler_ivb)
+	movl	%cr0, %eax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movl	PCPU(MDS_BUF), %edx
+	movdqa	%xmm0, PCPU(MDS_TMP)
+	pxor	%xmm0, %xmm0
+
+	lfence
+	orpd	(%edx), %xmm0
+	orpd	(%edx), %xmm0
+	mfence
+	movl	$40, %ecx
+	addl	$16, %edx
+2:	movntdq	%xmm0, (%edx)
+	addl	$16, %edx
+	decl	%ecx
+	jnz	2b
+	mfence
+
+	movdqa	PCPU(MDS_TMP),%xmm0
+	testb	$CR0_TS, %al
+	je	3f
+	movl	%eax, %cr0
+3:	ret
+END(mds_handler_ivb)
+
+ENTRY(mds_handler_bdw)
+	movl	%cr0, %eax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movl	PCPU(MDS_BUF), %ebx
+	movdqa	%xmm0, PCPU(MDS_TMP)
+	pxor	%xmm0, %xmm0
+
+	movl	%ebx, %edi
+	movl	%ebx, %esi
+	movl	$40, %ecx
+2:	movntdq	%xmm0, (%ebx)
+	addl	$16, %ebx
+	decl	%ecx
+	jnz	2b
+	mfence
+	movl	$1536, %ecx
+	rep; movsb
+	lfence
+
+	movdqa	PCPU(MDS_TMP),%xmm0
+	testb	$CR0_TS, %al
+	je	3f
+	movl	%eax, %cr0
+3:	ret
+END(mds_handler_bdw)
+
+ENTRY(mds_handler_skl_sse)
+	movl	%cr0, %eax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movl	PCPU(MDS_BUF), %edi
+	movl	PCPU(MDS_BUF64), %edx
+	movdqa	%xmm0, PCPU(MDS_TMP)
+	pxor	%xmm0, %xmm0
+
+	lfence
+	orpd	(%edx), %xmm0
+	orpd	(%edx), %xmm0
+	xorl	%eax, %eax
+2:	clflushopt	5376(%edi, %eax, 8)
+	addl	$8, %eax
+	cmpl	$8 * 12, %eax
+	jb	2b
+	sfence
+	movl	$6144, %ecx
+	xorl	%eax, %eax
+	rep; stosb
+	mfence
+
+	movdqa	PCPU(MDS_TMP), %xmm0
+	testb	$CR0_TS, %al
+	je	3f
+	movl	%eax, %cr0
+3:	ret
+END(mds_handler_skl_sse)
+
+ENTRY(mds_handler_skl_avx)
+	movl	%cr0, %eax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movl	PCPU(MDS_BUF), %edi
+	movl	PCPU(MDS_BUF64), %edx
+	vmovdqa	%ymm0, PCPU(MDS_TMP)
+	vpxor	%ymm0, %ymm0, %ymm0
+
+	lfence
+	vorpd	(%edx), %ymm0, %ymm0
+	vorpd	(%edx), %ymm0, %ymm0
+	xorl	%eax, %eax
+2:	clflushopt	5376(%edi, %eax, 8)
+	addl	$8, %eax
+	cmpl	$8 * 12, %eax
+	jb	2b
+	sfence
+	movl	$6144, %ecx
+	xorl	%eax, %eax
+	rep; stosb
+	mfence
+
+	vmovdqa	PCPU(MDS_TMP), %ymm0
+	testb	$CR0_TS, %al
+	je	3f
+	movl	%eax, %cr0
+3:	ret
+END(mds_handler_skl_avx)
+
+ENTRY(mds_handler_skl_avx512)
+	movl	%cr0, %eax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movl	PCPU(MDS_BUF), %edi
+	movl	PCPU(MDS_BUF64), %edx
+	vmovdqa64	%zmm0, PCPU(MDS_TMP)
+	vpxor	%zmm0, %zmm0, %zmm0
+
+	lfence
+	vorpd	(%edx), %zmm0, %zmm0
+	vorpd	(%edx), %zmm0, %zmm0
+	xorl	%eax, %eax
+2:	clflushopt	5376(%edi, %eax, 8)
+	addl	$8, %eax
+	cmpl	$8 * 12, %eax
+	jb	2b
+	sfence
+	movl	$6144, %ecx
+	xorl	%eax, %eax
+	rep; stosb
+	mfence
+
+	vmovdqa64	PCPU(MDS_TMP), %zmm0
+	testb	$CR0_TS, %al
+	je	3f
+	movl	%eax, %cr0
+3:	ret
+END(mds_handler_skl_avx512)
+
+ENTRY(mds_handler_silvermont)
+	movl	%cr0, %eax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movl	PCPU(MDS_BUF), %edx
+	movdqa	%xmm0, PCPU(MDS_TMP)
+	pxor	%xmm0, %xmm0
+
+	movl	$16, %ecx
+2:	movntdq	%xmm0, (%edx)
+	addl	$16, %edx
+	decl	%ecx
+	jnz	2b
+	mfence
+
+	movdqa	PCPU(MDS_TMP),%xmm0
+	testb	$CR0_TS, %al
+	je	3f
+	movl	%eax, %cr0
+3:	ret
+END(mds_handler_silvermont)

@@ -1,7 +1,12 @@
 /*-
+ * Copyright (c) 2018-2019 The FreeBSD Foundation
  * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
+ *
+ * Portions of this software were developed by
+ * Konstantin Belousov <kib@FreeBSD.org> under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -925,3 +930,239 @@ ENTRY(flush_l1d_sw)
 	ret
 #undef	L1D_FLUSH_SIZE
 END(flush_l1d_sw)
+
+ENTRY(mds_handler_void)
+	retq
+END(mds_handler_void)
+
+ENTRY(mds_handler_verw)
+	subq	$8, %rsp
+	movw	%ds, (%rsp)
+	verw	(%rsp)
+	addq	$8, %rsp
+	retq
+END(mds_handler_verw)
+
+ENTRY(mds_handler_ivb)
+	pushq	%rax
+	pushq	%rdx
+	pushq	%rcx
+
+	movq	%cr0, %rax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movq	PCPU(MDS_BUF), %rdx
+	movdqa	%xmm0, PCPU(MDS_TMP)
+	pxor	%xmm0, %xmm0
+
+	lfence
+	orpd	(%rdx), %xmm0
+	orpd	(%rdx), %xmm0
+	mfence
+	movl	$40, %ecx
+	addq	$16, %rdx
+2:	movntdq	%xmm0, (%rdx)
+	addq	$16, %rdx
+	decl	%ecx
+	jnz	2b
+	mfence
+
+	movdqa	PCPU(MDS_TMP),%xmm0
+	testb	$CR0_TS, %al
+	je	3f
+	movq	%rax, %cr0
+3:	popq	%rcx
+	popq	%rdx
+	popq	%rax
+	retq
+END(mds_handler_ivb)
+
+ENTRY(mds_handler_bdw)
+	pushq	%rax
+	pushq	%rbx
+	pushq	%rcx
+	pushq	%rdi
+	pushq	%rsi
+
+	movq	%cr0, %rax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movq	PCPU(MDS_BUF), %rbx
+	movdqa	%xmm0, PCPU(MDS_TMP)
+	pxor	%xmm0, %xmm0
+
+	movq	%rbx, %rdi
+	movq	%rbx, %rsi
+	movl	$40, %ecx
+2:	movntdq	%xmm0, (%rbx)
+	addq	$16, %rbx
+	decl	%ecx
+	jnz	2b
+	mfence
+	movl	$1536, %ecx
+	rep; movsb
+	lfence
+
+	movdqa	PCPU(MDS_TMP),%xmm0
+	testb	$CR0_TS, %al
+	je	3f
+	movq	%rax, %cr0
+3:	popq	%rsi
+	popq	%rdi
+	popq	%rcx
+	popq	%rbx
+	popq	%rax
+	retq
+END(mds_handler_bdw)
+
+ENTRY(mds_handler_skl_sse)
+	pushq	%rax
+	pushq	%rdx
+	pushq	%rcx
+	pushq	%rdi
+
+	movq	%cr0, %rax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movq	PCPU(MDS_BUF), %rdi
+	movq	PCPU(MDS_BUF64), %rdx
+	movdqa	%xmm0, PCPU(MDS_TMP)
+	pxor	%xmm0, %xmm0
+
+	lfence
+	orpd	(%rdx), %xmm0
+	orpd	(%rdx), %xmm0
+	xorl	%eax, %eax
+2:	clflushopt	5376(%rdi, %rax, 8)
+	addl	$8, %eax
+	cmpl	$8 * 12, %eax
+	jb	2b
+	sfence
+	movl	$6144, %ecx
+	xorl	%eax, %eax
+	rep; stosb
+	mfence
+
+	movdqa	PCPU(MDS_TMP), %xmm0
+	testb	$CR0_TS, %al
+	je	3f
+	movq	%rax, %cr0
+3:	popq	%rdi
+	popq	%rcx
+	popq	%rdx
+	popq	%rax
+	retq
+END(mds_handler_skl_sse)
+
+ENTRY(mds_handler_skl_avx)
+	pushq	%rax
+	pushq	%rdx
+	pushq	%rcx
+	pushq	%rdi
+
+	movq	%cr0, %rax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movq	PCPU(MDS_BUF), %rdi
+	movq	PCPU(MDS_BUF64), %rdx
+	vmovdqa	%ymm0, PCPU(MDS_TMP)
+	vpxor	%ymm0, %ymm0, %ymm0
+
+	lfence
+	vorpd	(%rdx), %ymm0, %ymm0
+	vorpd	(%rdx), %ymm0, %ymm0
+	xorl	%eax, %eax
+2:	clflushopt	5376(%rdi, %rax, 8)
+	addl	$8, %eax
+	cmpl	$8 * 12, %eax
+	jb	2b
+	sfence
+	movl	$6144, %ecx
+	xorl	%eax, %eax
+	rep; stosb
+	mfence
+
+	vmovdqa	PCPU(MDS_TMP), %ymm0
+	testb	$CR0_TS, %al
+	je	3f
+	movq	%rax, %cr0
+3:	popq	%rdi
+	popq	%rcx
+	popq	%rdx
+	popq	%rax
+	retq
+END(mds_handler_skl_avx)
+
+ENTRY(mds_handler_skl_avx512)
+	pushq	%rax
+	pushq	%rdx
+	pushq	%rcx
+	pushq	%rdi
+
+	movq	%cr0, %rax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movq	PCPU(MDS_BUF), %rdi
+	movq	PCPU(MDS_BUF64), %rdx
+	vmovdqa64	%zmm0, PCPU(MDS_TMP)
+	vpxor	%zmm0, %zmm0, %zmm0
+
+	lfence
+	vorpd	(%rdx), %zmm0, %zmm0
+	vorpd	(%rdx), %zmm0, %zmm0
+	xorl	%eax, %eax
+2:	clflushopt	5376(%rdi, %rax, 8)
+	addl	$8, %eax
+	cmpl	$8 * 12, %eax
+	jb	2b
+	sfence
+	movl	$6144, %ecx
+	xorl	%eax, %eax
+	rep; stosb
+	mfence
+
+	vmovdqa64	PCPU(MDS_TMP), %zmm0
+	testb	$CR0_TS, %al
+	je	3f
+	movq	%rax, %cr0
+3:	popq	%rdi
+	popq	%rcx
+	popq	%rdx
+	popq	%rax
+	retq
+END(mds_handler_skl_avx512)
+
+ENTRY(mds_handler_silvermont)
+	pushq	%rax
+	pushq	%rdx
+	pushq	%rcx
+
+	movq	%cr0, %rax
+	testb	$CR0_TS, %al
+	je	1f
+	clts
+1:	movq	PCPU(MDS_BUF), %rdx
+	movdqa	%xmm0, PCPU(MDS_TMP)
+	pxor	%xmm0, %xmm0
+
+	movl	$16, %ecx
+2:	movntdq	%xmm0, (%rdx)
+	addq	$16, %rdx
+	decl	%ecx
+	jnz	2b
+	mfence
+
+	movdqa	PCPU(MDS_TMP),%xmm0
+	testb	$CR0_TS, %al
+	je	3f
+	movq	%rax, %cr0
+3:	popq	%rcx
+	popq	%rdx
+	popq	%rax
+	retq
+END(mds_handler_silvermont)

@@ -217,6 +217,9 @@ ASSYM(PC_CURRENTLDT, offsetof(struct pcpu, pc_currentldt));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_PRIVATE_TSS, offsetof(struct pcpu, pc_private_tss));
+ASSYM(PC_MDS_TMP, offsetof(struct pcpu, pc_mds_tmp));
+ASSYM(PC_MDS_BUF, offsetof(struct pcpu, pc_mds_buf));
+ASSYM(PC_MDS_BUF64, offsetof(struct pcpu, pc_mds_buf64));
 
 #ifdef DEV_APIC
 ASSYM(LA_EOI, LAPIC_EOI * LAPIC_MEM_MUL);
