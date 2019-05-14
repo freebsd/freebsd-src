@@ -338,17 +338,26 @@ linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 
 	map_regs_to_linux(&b_reg, &l_reg);
 
-	/*
-	 * The strace(1) utility depends on RAX being set to -ENOSYS
-	 * on syscall entry.
-	 */
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	if (error != 0) {
 		printf("%s: PT_LWPINFO failed with error %d\n", __func__, error);
 		return (error);
 	}
-	if (lwpinfo.pl_flags & PL_FLAG_SCE)
-		l_reg.rax = -38; // XXX: Don't hardcode?
+	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+		/*
+		 * The strace(1) utility depends on RAX being set to -ENOSYS
+		 * on syscall entry; otherwise it loops printing those:
+		 *
+		 * [ Process PID=928 runs in 64 bit mode. ]
+		 * [ Process PID=928 runs in x32 mode. ]
+		 */
+		l_reg.rax = -38; /* -ENOSYS */
+
+		/*
+		 * Undo the mangling done in exception.S:fast_syscall_common().
+		 */
+		l_reg.r10 = l_reg.rcx;
+	}
 
 	error = copyout(&l_reg, (void *)data, sizeof(l_reg));
 	return (error);
@@ -399,21 +408,27 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 
 	map_regs_to_linux_regset(&b_reg, fsbase, gsbase, &l_regset);
 
-	/*
-	 * The strace(1) utility depends on RAX being set to -ENOSYS
-	 * on syscall entry; otherwise it loops printing those:
-	 *
-	 * [ Process PID=928 runs in 64 bit mode. ]
-	 * [ Process PID=928 runs in x32 mode. ]
-	 */
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	if (error != 0) {
 		printf("%s: PT_LWPINFO failed with error %d\n",
 		    __func__, error);
 		return (error);
 	}
-	if (lwpinfo.pl_flags & PL_FLAG_SCE)
-		l_regset.rax = -38; // XXX: Don't hardcode?
+	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+		/*
+		 * The strace(1) utility depends on RAX being set to -ENOSYS
+		 * on syscall entry; otherwise it loops printing those:
+		 *
+		 * [ Process PID=928 runs in 64 bit mode. ]
+		 * [ Process PID=928 runs in x32 mode. ]
+		 */
+		l_regset.rax = -38; /* -ENOSYS */
+
+		/*
+		 * Undo the mangling done in exception.S:fast_syscall_common().
+		 */
+		l_regset.r10 = l_regset.rcx;
+	}
 
 	len = MIN(iov.iov_len, sizeof(l_regset));
 	error = copyout(&l_regset, (void *)iov.iov_base, len);
