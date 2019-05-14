@@ -257,6 +257,7 @@ initializecpu(void)
 	hw_ibrs_recalculate();
 	hw_ssb_recalculate(false);
 	amd64_syscall_ret_flush_l1d_recalc();
+	hw_mds_recalculate();
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
 		init_amd();
