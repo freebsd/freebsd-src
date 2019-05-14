@@ -161,7 +161,6 @@ int eap_eke_dh_init(u8 group, u8 *ret_priv, u8 *ret_pub)
 	int generator;
 	u8 gen;
 	const struct dh_group *dh;
-	size_t pub_len, i;
 
 	generator = eap_eke_dh_generator(group);
 	dh = eap_eke_dh_group(group);
@@ -169,33 +168,11 @@ int eap_eke_dh_init(u8 group, u8 *ret_priv, u8 *ret_pub)
 		return -1;
 	gen = generator;
 
-	/* x = random number 2 .. p-1 */
-	if (random_get_bytes(ret_priv, dh->prime_len))
-		return -1;
-	if (os_memcmp(ret_priv, dh->prime, dh->prime_len) > 0) {
-		/* Make sure private value is smaller than prime */
-		ret_priv[0] = 0;
-	}
-	for (i = 0; i < dh->prime_len - 1; i++) {
-		if (ret_priv[i])
-			break;
-	}
-	if (i == dh->prime_len - 1 && (ret_priv[i] == 0 || ret_priv[i] == 1))
+	if (crypto_dh_init(gen, dh->prime, dh->prime_len, ret_priv,
+			   ret_pub) < 0)
 		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "EAP-EKE: DH private value",
 			ret_priv, dh->prime_len);
-
-	/* y = g ^ x (mod p) */
-	pub_len = dh->prime_len;
-	if (crypto_mod_exp(&gen, 1, ret_priv, dh->prime_len,
-			   dh->prime, dh->prime_len, ret_pub, &pub_len) < 0)
-		return -1;
-	if (pub_len < dh->prime_len) {
-		size_t pad = dh->prime_len - pub_len;
-		os_memmove(ret_pub + pad, ret_pub, pub_len);
-		os_memset(ret_pub, 0, pad);
-	}
-
 	wpa_hexdump(MSG_DEBUG, "EAP-EKE: DH public value",
 		    ret_pub, dh->prime_len);
 
@@ -421,8 +398,9 @@ int eap_eke_shared_secret(struct eap_eke_session *sess, const u8 *key,
 
 	/* SharedSecret = prf(0+, g ^ (x_s * x_p) (mod p)) */
 	len = dh->prime_len;
-	if (crypto_mod_exp(peer_pub, dh->prime_len, dhpriv, dh->prime_len,
-			   dh->prime, dh->prime_len, modexp, &len) < 0)
+	if (crypto_dh_derive_secret(*dh->generator, dh->prime, dh->prime_len,
+				    NULL, 0, dhpriv, dh->prime_len, peer_pub,
+				    dh->prime_len, modexp, &len) < 0)
 		return -1;
 	if (len < dh->prime_len) {
 		size_t pad = dh->prime_len - len;

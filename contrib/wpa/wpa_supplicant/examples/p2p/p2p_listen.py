@@ -13,20 +13,20 @@ import getopt
 from dbus.mainloop.glib import DBusGMainLoop
 
 def usage():
-	print "Usage:"
-	print "  %s -i <interface_name> [-t <timeout>] \ " \
-		% sys.argv[0]
-	print "  		[-w <wpas_dbus_interface>]"
-	print "Options:"
-	print "  -i = interface name"
-	print "  -t = timeout = 0s (infinite)"
-	print "  -w = wpas dbus interface = fi.w1.wpa_supplicant1"
-	print "Example:"
-	print "  %s -i wlan0 -t 5" % sys.argv[0]
+	print("Usage:")
+	print("  %s -i <interface_name> [-t <timeout>] \ " \
+		% sys.argv[0])
+	print("  		[-w <wpas_dbus_interface>]")
+	print("Options:")
+	print("  -i = interface name")
+	print("  -t = timeout = 0s (infinite)")
+	print("  -w = wpas dbus interface = fi.w1.wpa_supplicant1")
+	print("Example:")
+	print("  %s -i wlan0 -t 5" % sys.argv[0])
 
 # Required Signals
 def p2pStateChange(status):
-	print status
+	print(status)
 
 class P2P_Listen(threading.Thread):
 	# Needed Variables
@@ -82,10 +82,10 @@ class P2P_Listen(threading.Thread):
 		try:
 			self.path = self.wpas.GetInterface(
 					self.interface_name)
-		except dbus.DBusException, exc:
+		except dbus.DBusException as exc:
 			error = 'Error:\n  Interface ' + self.interface_name \
 				+ ' was not found'
-			print error
+			print(error)
 			usage()
 			os._exit(0)
 
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 			if ( int(value) >= 0):
 				timeout = value
 			else:
-				print "Error:\n  Timeout cannot be negative"
+				print("Error:\n  Timeout cannot be negative")
 				usage()
 				quit()
 		# Dbus interface
@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
 	# Interface name is required and was not given
 	if (interface_name == None):
-		print "Error:\n  interface_name is required"
+		print("Error:\n  interface_name is required")
 		usage()
 		quit()
 
@@ -160,7 +160,7 @@ if __name__ == "__main__":
 		p2p_listen_test = P2P_Listen(interface_name, wpas_dbus_interface, timeout)
 
 	except:
-		print "Error:\n  Invalid wpas_dbus_interface"
+		print("Error:\n  Invalid wpas_dbus_interface")
 		usage()
 		quit()
 

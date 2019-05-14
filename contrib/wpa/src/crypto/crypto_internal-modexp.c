@@ -13,6 +13,79 @@
 #include "crypto.h"
 
 
+int crypto_dh_init(u8 generator, const u8 *prime, size_t prime_len, u8 *privkey,
+		   u8 *pubkey)
+{
+	size_t pubkey_len, pad;
+
+	if (os_get_random(privkey, prime_len) < 0)
+		return -1;
+	if (os_memcmp(privkey, prime, prime_len) > 0) {
+		/* Make sure private value is smaller than prime */
+		privkey[0] = 0;
+	}
+
+	pubkey_len = prime_len;
+	if (crypto_mod_exp(&generator, 1, privkey, prime_len, prime, prime_len,
+			   pubkey, &pubkey_len) < 0)
+		return -1;
+	if (pubkey_len < prime_len) {
+		pad = prime_len - pubkey_len;
+		os_memmove(pubkey + pad, pubkey, pubkey_len);
+		os_memset(pubkey, 0, pad);
+	}
+
+	return 0;
+}
+
+
+int crypto_dh_derive_secret(u8 generator, const u8 *prime, size_t prime_len,
+			    const u8 *order, size_t order_len,
+			    const u8 *privkey, size_t privkey_len,
+			    const u8 *pubkey, size_t pubkey_len,
+			    u8 *secret, size_t *len)
+{
+	struct bignum *pub;
+	int res = -1;
+
+	if (pubkey_len > prime_len ||
+	    (pubkey_len == prime_len &&
+	     os_memcmp(pubkey, prime, prime_len) >= 0))
+		return -1;
+
+	pub = bignum_init();
+	if (!pub || bignum_set_unsigned_bin(pub, pubkey, pubkey_len) < 0 ||
+	    bignum_cmp_d(pub, 1) <= 0)
+		goto fail;
+
+	if (order) {
+		struct bignum *p, *q, *tmp;
+		int failed;
+
+		/* verify: pubkey^q == 1 mod p */
+		p = bignum_init();
+		q = bignum_init();
+		tmp = bignum_init();
+		failed = !p || !q || !tmp ||
+			bignum_set_unsigned_bin(p, prime, prime_len) < 0 ||
+			bignum_set_unsigned_bin(q, order, order_len) < 0 ||
+			bignum_exptmod(pub, q, p, tmp) < 0 ||
+			bignum_cmp_d(tmp, 1) != 0;
+		bignum_deinit(p);
+		bignum_deinit(q);
+		bignum_deinit(tmp);
+		if (failed)
+			goto fail;
+	}
+
+	res = crypto_mod_exp(pubkey, pubkey_len, privkey, privkey_len,
+			     prime, prime_len, secret, len);
+fail:
+	bignum_deinit(pub);
+	return res;
+}
+
+
 int crypto_mod_exp(const u8 *base, size_t base_len,
 		   const u8 *power, size_t power_len,
 		   const u8 *modulus, size_t modulus_len,

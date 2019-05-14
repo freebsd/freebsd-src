@@ -16,6 +16,7 @@
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#include <openssl/opensslv.h>
 #ifdef OPENSSL_IS_BORINGSSL
 #include <openssl/buf.h>
 #endif /* OPENSSL_IS_BORINGSSL */
@@ -219,6 +220,10 @@ typedef struct {
 	} d;
 } AttrOrOID;
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+DEFINE_STACK_OF(AttrOrOID)
+#endif
+
 typedef struct {
 	int type;
 	STACK_OF(AttrOrOID) *attrs;
@@ -352,9 +357,17 @@ static void add_csrattrs(struct hs20_osu_client *ctx, CsrAttrs *csrattrs,
 		}
 	}
 #else /* OPENSSL_IS_BORINGSSL */
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+	num = sk_AttrOrOID_num(csrattrs->attrs);
+#else
 	num = SKM_sk_num(AttrOrOID, csrattrs->attrs);
+#endif
 	for (i = 0; i < num; i++) {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+		AttrOrOID *ao = sk_AttrOrOID_value(csrattrs->attrs, i);
+#else
 		AttrOrOID *ao = SKM_sk_value(AttrOrOID, csrattrs->attrs, i);
+#endif
 		switch (ao->type) {
 		case 0:
 			add_csrattrs_oid(ctx, ao->d.oid, exts);
@@ -666,7 +679,6 @@ int est_simple_enroll(struct hs20_osu_client *ctx, const char *url,
 	char *buf, *resp, *req, *req2;
 	size_t buflen, resp_len, len, pkcs7_len;
 	unsigned char *pkcs7;
-	FILE *f;
 	char client_cert_buf[200];
 	char client_key_buf[200];
 	const char *client_cert = NULL, *client_key = NULL;
@@ -721,11 +733,6 @@ int est_simple_enroll(struct hs20_osu_client *ctx, const char *url,
 		return -1;
 	}
 	wpa_printf(MSG_DEBUG, "EST simpleenroll response: %s", resp);
-	f = fopen("Cert/est-resp.raw", "w");
-	if (f) {
-		fwrite(resp, resp_len, 1, f);
-		fclose(f);
-	}
 
 	pkcs7 = base64_decode((unsigned char *) resp, resp_len, &pkcs7_len);
 	if (pkcs7 == NULL) {

@@ -1,6 +1,6 @@
 /*
  * BSS table
- * Copyright (c) 2009-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2009-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -93,6 +93,7 @@ static struct wpa_bss_anqp * wpa_bss_anqp_clone(struct wpa_bss_anqp *anqp)
 	ANQP_DUP(nai_realm);
 	ANQP_DUP(anqp_3gpp);
 	ANQP_DUP(domain_name);
+	ANQP_DUP(fils_realm_info);
 #endif /* CONFIG_INTERWORKING */
 #ifdef CONFIG_HS20
 	ANQP_DUP(hs20_capability_list);
@@ -101,6 +102,8 @@ static struct wpa_bss_anqp * wpa_bss_anqp_clone(struct wpa_bss_anqp *anqp)
 	ANQP_DUP(hs20_connection_capability);
 	ANQP_DUP(hs20_operating_class);
 	ANQP_DUP(hs20_osu_providers_list);
+	ANQP_DUP(hs20_operator_icon_metadata);
+	ANQP_DUP(hs20_osu_providers_nai_list);
 #endif /* CONFIG_HS20 */
 #undef ANQP_DUP
 
@@ -168,6 +171,7 @@ static void wpa_bss_anqp_free(struct wpa_bss_anqp *anqp)
 	wpabuf_free(anqp->nai_realm);
 	wpabuf_free(anqp->anqp_3gpp);
 	wpabuf_free(anqp->domain_name);
+	wpabuf_free(anqp->fils_realm_info);
 
 	while ((elem = dl_list_first(&anqp->anqp_elems,
 				     struct wpa_bss_anqp_elem, list))) {
@@ -183,6 +187,8 @@ static void wpa_bss_anqp_free(struct wpa_bss_anqp *anqp)
 	wpabuf_free(anqp->hs20_connection_capability);
 	wpabuf_free(anqp->hs20_operating_class);
 	wpabuf_free(anqp->hs20_osu_providers_list);
+	wpabuf_free(anqp->hs20_operator_icon_metadata);
+	wpabuf_free(anqp->hs20_osu_providers_nai_list);
 #endif /* CONFIG_HS20 */
 
 	os_free(anqp);
@@ -267,9 +273,9 @@ struct wpa_bss * wpa_bss_get(struct wpa_supplicant *wpa_s, const u8 *bssid,
 }
 
 
-static void calculate_update_time(const struct os_reltime *fetch_time,
-				  unsigned int age_ms,
-				  struct os_reltime *update_time)
+void calculate_update_time(const struct os_reltime *fetch_time,
+			   unsigned int age_ms,
+			   struct os_reltime *update_time)
 {
 	os_time_t usec;
 
@@ -594,6 +600,42 @@ wpa_bss_update(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 	       struct wpa_scan_res *res, struct os_reltime *fetch_time)
 {
 	u32 changes;
+
+	if (bss->last_update_idx == wpa_s->bss_update_idx) {
+		struct os_reltime update_time;
+
+		/*
+		 * Some drivers (e.g., cfg80211) include multiple BSS entries
+		 * for the same BSS if that BSS's channel changes. The BSS list
+		 * implementation in wpa_supplicant does not do that and we need
+		 * to filter out the obsolete results here to make sure only the
+		 * most current BSS information remains in the table.
+		 */
+		wpa_printf(MSG_DEBUG, "BSS: " MACSTR
+			   " has multiple entries in the scan results - select the most current one",
+			   MAC2STR(bss->bssid));
+		calculate_update_time(fetch_time, res->age, &update_time);
+		wpa_printf(MSG_DEBUG,
+			   "Previous last_update: %u.%06u (freq %d%s)",
+			   (unsigned int) bss->last_update.sec,
+			   (unsigned int) bss->last_update.usec,
+			   bss->freq,
+			   (bss->flags & WPA_BSS_ASSOCIATED) ? " assoc" : "");
+		wpa_printf(MSG_DEBUG, "New last_update: %u.%06u (freq %d%s)",
+			   (unsigned int) update_time.sec,
+			   (unsigned int) update_time.usec,
+			   res->freq,
+			   (res->flags & WPA_SCAN_ASSOCIATED) ? " assoc" : "");
+		if ((bss->flags & WPA_BSS_ASSOCIATED) ||
+		    (!(res->flags & WPA_SCAN_ASSOCIATED) &&
+		     !os_reltime_before(&bss->last_update, &update_time))) {
+			wpa_printf(MSG_DEBUG,
+				   "Ignore this BSS entry since the previous update looks more current");
+			return bss;
+		}
+		wpa_printf(MSG_DEBUG,
+			   "Accept this BSS entry since it looks more current than the previous update");
+	}
 
 	changes = wpa_bss_compare_res(bss, res);
 	if (changes & WPA_BSS_FREQ_CHANGED_FLAG)
@@ -1278,4 +1320,27 @@ int wpa_bss_get_bit_rates(const struct wpa_bss *bss, u8 **rates)
 
 	*rates = r;
 	return len;
+}
+
+
+#ifdef CONFIG_FILS
+const u8 * wpa_bss_get_fils_cache_id(struct wpa_bss *bss)
+{
+	const u8 *ie;
+
+	if (bss) {
+		ie = wpa_bss_get_ie(bss, WLAN_EID_FILS_INDICATION);
+		if (ie && ie[1] >= 4 && WPA_GET_LE16(ie + 2) & BIT(7))
+			return ie + 4;
+	}
+
+	return NULL;
+}
+#endif /* CONFIG_FILS */
+
+
+int wpa_bss_ext_capab(const struct wpa_bss *bss, unsigned int capab)
+{
+	return ieee802_11_ext_capab(wpa_bss_get_ie(bss, WLAN_EID_EXT_CAPAB),
+				    capab);
 }

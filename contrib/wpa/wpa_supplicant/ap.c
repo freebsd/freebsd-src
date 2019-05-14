@@ -46,23 +46,50 @@ static void wpas_wps_ap_pin_timeout(void *eloop_data, void *user_ctx);
 
 #ifdef CONFIG_IEEE80211N
 static void wpas_conf_ap_vht(struct wpa_supplicant *wpa_s,
+			     struct wpa_ssid *ssid,
 			     struct hostapd_config *conf,
 			     struct hostapd_hw_modes *mode)
 {
 #ifdef CONFIG_P2P
 	u8 center_chan = 0;
 	u8 channel = conf->channel;
+#endif /* CONFIG_P2P */
 
 	if (!conf->secondary_channel)
 		goto no_vht;
 
+	/* Use the maximum oper channel width if it's given. */
+	if (ssid->max_oper_chwidth)
+		conf->vht_oper_chwidth = ssid->max_oper_chwidth;
+
+	ieee80211_freq_to_chan(ssid->vht_center_freq2,
+			       &conf->vht_oper_centr_freq_seg1_idx);
+
+	if (!ssid->p2p_group) {
+		if (!ssid->vht_center_freq1 ||
+		    conf->vht_oper_chwidth == VHT_CHANWIDTH_USE_HT)
+			goto no_vht;
+		ieee80211_freq_to_chan(ssid->vht_center_freq1,
+				       &conf->vht_oper_centr_freq_seg0_idx);
+		wpa_printf(MSG_DEBUG, "VHT seg0 index %d for AP",
+			   conf->vht_oper_centr_freq_seg0_idx);
+		return;
+	}
+
+#ifdef CONFIG_P2P
 	switch (conf->vht_oper_chwidth) {
 	case VHT_CHANWIDTH_80MHZ:
 	case VHT_CHANWIDTH_80P80MHZ:
 		center_chan = wpas_p2p_get_vht80_center(wpa_s, mode, channel);
+		wpa_printf(MSG_DEBUG,
+			   "VHT center channel %u for 80 or 80+80 MHz bandwidth",
+			   center_chan);
 		break;
 	case VHT_CHANWIDTH_160MHZ:
 		center_chan = wpas_p2p_get_vht160_center(wpa_s, mode, channel);
+		wpa_printf(MSG_DEBUG,
+			   "VHT center channel %u for 160 MHz bandwidth",
+			   center_chan);
 		break;
 	default:
 		/*
@@ -72,10 +99,17 @@ static void wpas_conf_ap_vht(struct wpa_supplicant *wpa_s,
 		 */
 		conf->vht_oper_chwidth = VHT_CHANWIDTH_160MHZ;
 		center_chan = wpas_p2p_get_vht160_center(wpa_s, mode, channel);
-		if (!center_chan) {
+		if (center_chan) {
+			wpa_printf(MSG_DEBUG,
+				   "VHT center channel %u for auto-selected 160 MHz bandwidth",
+				   center_chan);
+		} else {
 			conf->vht_oper_chwidth = VHT_CHANWIDTH_80MHZ;
 			center_chan = wpas_p2p_get_vht80_center(wpa_s, mode,
 								channel);
+			wpa_printf(MSG_DEBUG,
+				   "VHT center channel %u for auto-selected 80 MHz bandwidth",
+				   center_chan);
 		}
 		break;
 	}
@@ -83,15 +117,17 @@ static void wpas_conf_ap_vht(struct wpa_supplicant *wpa_s,
 		goto no_vht;
 
 	conf->vht_oper_centr_freq_seg0_idx = center_chan;
+	wpa_printf(MSG_DEBUG, "VHT seg0 index %d for P2P GO",
+		   conf->vht_oper_centr_freq_seg0_idx);
 	return;
+#endif /* CONFIG_P2P */
 
 no_vht:
-	conf->vht_oper_centr_freq_seg0_idx =
-		channel + conf->secondary_channel * 2;
-#else /* CONFIG_P2P */
+	wpa_printf(MSG_DEBUG,
+		   "No VHT higher bandwidth support for the selected channel %d",
+		   conf->channel);
 	conf->vht_oper_centr_freq_seg0_idx =
 		conf->channel + conf->secondary_channel * 2;
-#endif /* CONFIG_P2P */
 	conf->vht_oper_chwidth = VHT_CHANWIDTH_USE_HT;
 }
 #endif /* CONFIG_IEEE80211N */
@@ -123,6 +159,11 @@ int wpa_supplicant_conf_ap_ht(struct wpa_supplicant *wpa_s,
 	if (wpa_s->hw.modes) {
 		struct hostapd_hw_modes *mode = NULL;
 		int i, no_ht = 0;
+
+		wpa_printf(MSG_DEBUG,
+			   "Determining HT/VHT options based on driver capabilities (freq=%u chan=%u)",
+			   ssid->frequency, conf->channel);
+
 		for (i = 0; i < wpa_s->hw.num_modes; i++) {
 			if (wpa_s->hw.modes[i].mode == conf->hw_mode) {
 				mode = &wpa_s->hw.modes[i];
@@ -131,27 +172,54 @@ int wpa_supplicant_conf_ap_ht(struct wpa_supplicant *wpa_s,
 		}
 
 #ifdef CONFIG_HT_OVERRIDES
-		if (ssid->disable_ht) {
+		if (ssid->disable_ht)
+			ssid->ht = 0;
+#endif /* CONFIG_HT_OVERRIDES */
+
+		if (!ssid->ht) {
+			wpa_printf(MSG_DEBUG,
+				   "HT not enabled in network profile");
 			conf->ieee80211n = 0;
 			conf->ht_capab = 0;
 			no_ht = 1;
 		}
-#endif /* CONFIG_HT_OVERRIDES */
 
 		if (!no_ht && mode && mode->ht_capab) {
+			wpa_printf(MSG_DEBUG,
+				   "Enable HT support (p2p_group=%d 11a=%d ht40_hw_capab=%d ssid->ht40=%d)",
+				   ssid->p2p_group,
+				   conf->hw_mode == HOSTAPD_MODE_IEEE80211A,
+				   !!(mode->ht_capab &
+				      HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET),
+				   ssid->ht40);
 			conf->ieee80211n = 1;
 #ifdef CONFIG_P2P
-			if (conf->hw_mode == HOSTAPD_MODE_IEEE80211A &&
+			if (ssid->p2p_group &&
+			    conf->hw_mode == HOSTAPD_MODE_IEEE80211A &&
 			    (mode->ht_capab &
 			     HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET) &&
-			    ssid->ht40)
+			    ssid->ht40) {
 				conf->secondary_channel =
 					wpas_p2p_get_ht40_mode(wpa_s, mode,
 							       conf->channel);
+				wpa_printf(MSG_DEBUG,
+					   "HT secondary channel offset %d for P2P group",
+					   conf->secondary_channel);
+			}
+#endif /* CONFIG_P2P */
+
+			if (!ssid->p2p_group &&
+			    (mode->ht_capab &
+			     HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET)) {
+				conf->secondary_channel = ssid->ht40;
+				wpa_printf(MSG_DEBUG,
+					   "HT secondary channel offset %d for AP",
+					   conf->secondary_channel);
+			}
+
 			if (conf->secondary_channel)
 				conf->ht_capab |=
 					HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET;
-#endif /* CONFIG_P2P */
 
 			/*
 			 * white-list capabilities that won't cause issues
@@ -168,7 +236,8 @@ int wpa_supplicant_conf_ap_ht(struct wpa_supplicant *wpa_s,
 
 			if (mode->vht_capab && ssid->vht) {
 				conf->ieee80211ac = 1;
-				wpas_conf_ap_vht(wpa_s, conf, mode);
+				conf->vht_capab |= mode->vht_capab;
+				wpas_conf_ap_vht(wpa_s, ssid, conf, mode);
 			}
 		}
 	}
@@ -229,11 +298,13 @@ static int wpa_supplicant_conf_ap(struct wpa_supplicant *wpa_s,
 	}
 #endif /* CONFIG_ACS */
 
-	if (ieee80211_is_dfs(ssid->frequency) && wpa_s->conf->country[0]) {
+	if (ieee80211_is_dfs(ssid->frequency, wpa_s->hw.modes,
+			     wpa_s->hw.num_modes) && wpa_s->conf->country[0]) {
 		conf->ieee80211h = 1;
 		conf->ieee80211d = 1;
 		conf->country[0] = wpa_s->conf->country[0];
 		conf->country[1] = wpa_s->conf->country[1];
+		conf->country[2] = ' ';
 	}
 
 #ifdef CONFIG_P2P
@@ -264,6 +335,12 @@ static int wpa_supplicant_conf_ap(struct wpa_supplicant *wpa_s,
 		}
 		conf->supported_rates = list;
 	}
+
+#ifdef CONFIG_IEEE80211AX
+	if (ssid->mode == WPAS_MODE_P2P_GO ||
+	    ssid->mode == WPAS_MODE_P2P_GROUP_FORMATION)
+		conf->ieee80211ax = ssid->he;
+#endif /* CONFIG_IEEE80211AX */
 
 	bss->isolate = !wpa_s->conf->p2p_intra_bss;
 	bss->force_per_enrollee_psk = wpa_s->global->p2p_per_sta_psk;
@@ -316,15 +393,32 @@ static int wpa_supplicant_conf_ap(struct wpa_supplicant *wpa_s,
 		for (i = 0; i < NUM_WEP_KEYS; i++) {
 			if (ssid->wep_key_len[i] == 0)
 				continue;
-			wep->key[i] = os_malloc(ssid->wep_key_len[i]);
+			wep->key[i] = os_memdup(ssid->wep_key[i],
+						ssid->wep_key_len[i]);
 			if (wep->key[i] == NULL)
 				return -1;
-			os_memcpy(wep->key[i], ssid->wep_key[i],
-				  ssid->wep_key_len[i]);
 			wep->len[i] = ssid->wep_key_len[i];
 		}
 		wep->idx = ssid->wep_tx_keyidx;
 		wep->keys_set = 1;
+	}
+
+	if (wpa_s->conf->go_interworking) {
+		wpa_printf(MSG_DEBUG,
+			   "P2P: Enable Interworking with access_network_type: %d",
+			   wpa_s->conf->go_access_network_type);
+		bss->interworking = wpa_s->conf->go_interworking;
+		bss->access_network_type = wpa_s->conf->go_access_network_type;
+		bss->internet = wpa_s->conf->go_internet;
+		if (wpa_s->conf->go_venue_group) {
+			wpa_printf(MSG_DEBUG,
+				   "P2P: Venue group: %d  Venue type: %d",
+				   wpa_s->conf->go_venue_group,
+				   wpa_s->conf->go_venue_type);
+			bss->venue_group = wpa_s->conf->go_venue_group;
+			bss->venue_type = wpa_s->conf->go_venue_type;
+			bss->venue_info_set = 1;
+		}
 	}
 
 	if (ssid->ap_max_inactivity)
@@ -406,6 +500,10 @@ static int wpa_supplicant_conf_ap(struct wpa_supplicant *wpa_s,
 		bss->ieee80211w = ssid->ieee80211w;
 #endif /* CONFIG_IEEE80211W */
 
+#ifdef CONFIG_OCV
+	bss->ocv = ssid->ocv;
+#endif /* CONFIG_OCV */
+
 #ifdef CONFIG_WPS
 	/*
 	 * Enable WPS by default for open and WPA/WPA2-Personal network, but
@@ -460,6 +558,9 @@ no_wps:
 		bss->max_num_sta = wpa_s->max_stations;
 	else
 		bss->max_num_sta = wpa_s->conf->max_num_sta;
+
+	if (!bss->isolate)
+		bss->isolate = wpa_s->conf->ap_isolate;
 
 	bss->disassoc_low_ack = wpa_s->conf->disassoc_low_ack;
 
@@ -585,9 +686,18 @@ static void wpas_ap_configured_cb(void *ctx)
 {
 	struct wpa_supplicant *wpa_s = ctx;
 
+	wpa_printf(MSG_DEBUG, "AP interface setup completed - state %s",
+		   hostapd_state_text(wpa_s->ap_iface->state));
+	if (wpa_s->ap_iface->state == HAPD_IFACE_DISABLED) {
+		wpa_supplicant_ap_deinit(wpa_s);
+		return;
+	}
+
 #ifdef CONFIG_ACS
-	if (wpa_s->current_ssid && wpa_s->current_ssid->acs)
+	if (wpa_s->current_ssid && wpa_s->current_ssid->acs) {
 		wpa_s->assoc_freq = wpa_s->ap_iface->freq;
+		wpa_s->current_ssid->frequency = wpa_s->ap_iface->freq;
+	}
 #endif /* CONFIG_ACS */
 
 	wpa_supplicant_set_state(wpa_s, WPA_COMPLETED);
@@ -662,7 +772,8 @@ int wpa_supplicant_create_ap(struct wpa_supplicant *wpa_s,
 	else
 		params.uapsd = -1;
 
-	if (ieee80211_is_dfs(params.freq.freq))
+	if (ieee80211_is_dfs(params.freq.freq, wpa_s->hw.modes,
+			     wpa_s->hw.num_modes))
 		params.freq.freq = 0; /* set channel after CAC */
 
 	if (params.p2p)
@@ -691,13 +802,6 @@ int wpa_supplicant_create_ap(struct wpa_supplicant *wpa_s,
 		wpa_supplicant_ap_deinit(wpa_s);
 		return -1;
 	}
-
-	/* Use the maximum oper channel width if it's given. */
-	if (ssid->max_oper_chwidth)
-		conf->vht_oper_chwidth = ssid->max_oper_chwidth;
-
-	ieee80211_freq_to_chan(ssid->vht_center_freq2,
-			       &conf->vht_oper_centr_freq_seg1_idx);
 
 	os_memcpy(wpa_s->ap_iface->conf->wmm_ac_params,
 		  wpa_s->conf->wmm_ac_params,
@@ -776,6 +880,14 @@ int wpa_supplicant_create_ap(struct wpa_supplicant *wpa_s,
 	eapol_sm_notify_config(wpa_s->eapol, NULL, NULL);
 	os_memcpy(wpa_s->bssid, wpa_s->own_addr, ETH_ALEN);
 	wpa_s->assoc_freq = ssid->frequency;
+
+#if defined(CONFIG_P2P) && defined(CONFIG_ACS)
+	if (wpa_s->p2p_go_do_acs) {
+		wpa_s->ap_iface->conf->channel = 0;
+		wpa_s->ap_iface->conf->hw_mode = wpa_s->p2p_go_acs_band;
+		ssid->acs = 1;
+	}
+#endif /* CONFIG_P2P && CONFIG_ACS */
 
 	if (hostapd_setup_interface(wpa_s->ap_iface)) {
 		wpa_printf(MSG_ERROR, "Failed to initialize AP interface");
@@ -1277,13 +1389,16 @@ int ap_ctrl_iface_chanswitch(struct wpa_supplicant *wpa_s, const char *pos)
 void wpas_ap_ch_switch(struct wpa_supplicant *wpa_s, int freq, int ht,
 		       int offset, int width, int cf1, int cf2)
 {
-	if (!wpa_s->ap_iface)
-		return;
+	struct hostapd_iface *iface = wpa_s->ap_iface;
 
+	if (!iface)
+		iface = wpa_s->ifmsh;
+	if (!iface)
+		return;
 	wpa_s->assoc_freq = freq;
 	if (wpa_s->current_ssid)
 		wpa_s->current_ssid->frequency = freq;
-	hostapd_event_ch_switch(wpa_s->ap_iface->bss[0], freq, ht,
+	hostapd_event_ch_switch(iface->bss[0], freq, ht,
 				offset, width, cf1, cf2);
 }
 
@@ -1436,66 +1551,123 @@ void wpas_ap_pmksa_cache_flush(struct wpa_supplicant *wpa_s)
 	if (wpa_s->ifmsh)
 		hostapd_ctrl_iface_pmksa_flush(wpa_s->ifmsh->bss[0]);
 }
+
+
+#ifdef CONFIG_PMKSA_CACHE_EXTERNAL
+#ifdef CONFIG_MESH
+
+int wpas_ap_pmksa_cache_list_mesh(struct wpa_supplicant *wpa_s, const u8 *addr,
+				  char *buf, size_t len)
+{
+	return hostapd_ctrl_iface_pmksa_list_mesh(wpa_s->ifmsh->bss[0], addr,
+						  &buf[0], len);
+}
+
+
+int wpas_ap_pmksa_cache_add_external(struct wpa_supplicant *wpa_s, char *cmd)
+{
+	struct external_pmksa_cache *entry;
+	void *pmksa_cache;
+
+	pmksa_cache = hostapd_ctrl_iface_pmksa_create_entry(wpa_s->own_addr,
+							    cmd);
+	if (!pmksa_cache)
+		return -1;
+
+	entry = os_zalloc(sizeof(struct external_pmksa_cache));
+	if (!entry)
+		return -1;
+
+	entry->pmksa_cache = pmksa_cache;
+
+	dl_list_add(&wpa_s->mesh_external_pmksa_cache, &entry->list);
+
+	return 0;
+}
+
+#endif /* CONFIG_MESH */
+#endif /* CONFIG_PMKSA_CACHE_EXTERNAL */
+
 #endif /* CONFIG_CTRL_IFACE */
 
 
 #ifdef NEED_AP_MLME
-void wpas_event_dfs_radar_detected(struct wpa_supplicant *wpa_s,
-				   struct dfs_event *radar)
+void wpas_ap_event_dfs_radar_detected(struct wpa_supplicant *wpa_s,
+				      struct dfs_event *radar)
 {
-	if (!wpa_s->ap_iface || !wpa_s->ap_iface->bss[0])
+	struct hostapd_iface *iface = wpa_s->ap_iface;
+
+	if (!iface)
+		iface = wpa_s->ifmsh;
+	if (!iface || !iface->bss[0])
 		return;
 	wpa_printf(MSG_DEBUG, "DFS radar detected on %d MHz", radar->freq);
-	hostapd_dfs_radar_detected(wpa_s->ap_iface, radar->freq,
+	hostapd_dfs_radar_detected(iface, radar->freq,
 				   radar->ht_enabled, radar->chan_offset,
 				   radar->chan_width,
 				   radar->cf1, radar->cf2);
 }
 
 
-void wpas_event_dfs_cac_started(struct wpa_supplicant *wpa_s,
-				struct dfs_event *radar)
+void wpas_ap_event_dfs_cac_started(struct wpa_supplicant *wpa_s,
+				   struct dfs_event *radar)
 {
-	if (!wpa_s->ap_iface || !wpa_s->ap_iface->bss[0])
+	struct hostapd_iface *iface = wpa_s->ap_iface;
+
+	if (!iface)
+		iface = wpa_s->ifmsh;
+	if (!iface || !iface->bss[0])
 		return;
 	wpa_printf(MSG_DEBUG, "DFS CAC started on %d MHz", radar->freq);
-	hostapd_dfs_start_cac(wpa_s->ap_iface, radar->freq,
+	hostapd_dfs_start_cac(iface, radar->freq,
 			      radar->ht_enabled, radar->chan_offset,
 			      radar->chan_width, radar->cf1, radar->cf2);
 }
 
 
-void wpas_event_dfs_cac_finished(struct wpa_supplicant *wpa_s,
-				 struct dfs_event *radar)
+void wpas_ap_event_dfs_cac_finished(struct wpa_supplicant *wpa_s,
+				    struct dfs_event *radar)
 {
-	if (!wpa_s->ap_iface || !wpa_s->ap_iface->bss[0])
+	struct hostapd_iface *iface = wpa_s->ap_iface;
+
+	if (!iface)
+		iface = wpa_s->ifmsh;
+	if (!iface || !iface->bss[0])
 		return;
 	wpa_printf(MSG_DEBUG, "DFS CAC finished on %d MHz", radar->freq);
-	hostapd_dfs_complete_cac(wpa_s->ap_iface, 1, radar->freq,
+	hostapd_dfs_complete_cac(iface, 1, radar->freq,
 				 radar->ht_enabled, radar->chan_offset,
 				 radar->chan_width, radar->cf1, radar->cf2);
 }
 
 
-void wpas_event_dfs_cac_aborted(struct wpa_supplicant *wpa_s,
-				struct dfs_event *radar)
+void wpas_ap_event_dfs_cac_aborted(struct wpa_supplicant *wpa_s,
+				   struct dfs_event *radar)
 {
-	if (!wpa_s->ap_iface || !wpa_s->ap_iface->bss[0])
+	struct hostapd_iface *iface = wpa_s->ap_iface;
+
+	if (!iface)
+		iface = wpa_s->ifmsh;
+	if (!iface || !iface->bss[0])
 		return;
 	wpa_printf(MSG_DEBUG, "DFS CAC aborted on %d MHz", radar->freq);
-	hostapd_dfs_complete_cac(wpa_s->ap_iface, 0, radar->freq,
+	hostapd_dfs_complete_cac(iface, 0, radar->freq,
 				 radar->ht_enabled, radar->chan_offset,
 				 radar->chan_width, radar->cf1, radar->cf2);
 }
 
 
-void wpas_event_dfs_cac_nop_finished(struct wpa_supplicant *wpa_s,
-				     struct dfs_event *radar)
+void wpas_ap_event_dfs_cac_nop_finished(struct wpa_supplicant *wpa_s,
+					struct dfs_event *radar)
 {
-	if (!wpa_s->ap_iface || !wpa_s->ap_iface->bss[0])
+	struct hostapd_iface *iface = wpa_s->ap_iface;
+
+	if (!iface)
+		iface = wpa_s->ifmsh;
+	if (!iface || !iface->bss[0])
 		return;
 	wpa_printf(MSG_DEBUG, "DFS NOP finished on %d MHz", radar->freq);
-	hostapd_dfs_nop_finished(wpa_s->ap_iface, radar->freq,
+	hostapd_dfs_nop_finished(iface, radar->freq,
 				 radar->ht_enabled, radar->chan_offset,
 				 radar->chan_width, radar->cf1, radar->cf2);
 }

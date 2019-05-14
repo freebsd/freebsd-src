@@ -8,10 +8,14 @@
 
 #include "includes.h"
 #include "common.h"
+#include "utils/const_time.h"
 #include "crypto/sha256.h"
 #include "crypto/crypto.h"
 #include "eap_defs.h"
 #include "eap_pwd_common.h"
+
+#define MAX_ECC_PRIME_LEN 66
+
 
 /* The random function H(x) = HMAC-SHA256(0^32, x) */
 struct crypto_hash * eap_pwd_h_init(void)
@@ -81,6 +85,49 @@ static int eap_pwd_kdf(const u8 *key, size_t keylen, const u8 *label,
 }
 
 
+static int eap_pwd_suitable_group(u16 num)
+{
+	/* Do not allow ECC groups with prime under 256 bits based on guidance
+	 * for the similar design in SAE. */
+	return num == 19 || num == 20 || num == 21 ||
+		num == 28 || num == 29 || num == 30;
+}
+
+
+EAP_PWD_group * get_eap_pwd_group(u16 num)
+{
+	EAP_PWD_group *grp;
+
+	if (!eap_pwd_suitable_group(num)) {
+		wpa_printf(MSG_INFO, "EAP-pwd: unsuitable group %u", num);
+		return NULL;
+	}
+	grp = os_zalloc(sizeof(EAP_PWD_group));
+	if (!grp)
+		return NULL;
+	grp->group = crypto_ec_init(num);
+	if (!grp->group) {
+		wpa_printf(MSG_INFO, "EAP-pwd: unable to create EC group");
+		os_free(grp);
+		return NULL;
+	}
+
+	grp->group_num = num;
+	wpa_printf(MSG_INFO, "EAP-pwd: provisioned group %d", num);
+
+	return grp;
+}
+
+
+static void buf_shift_right(u8 *buf, size_t len, size_t bits)
+{
+	size_t i;
+	for (i = len - 1; i > 0; i--)
+		buf[i] = (buf[i - 1] << (8 - bits)) | (buf[i] >> bits);
+	buf[0] >>= bits;
+}
+
+
 /*
  * compute a "random" secret point on an elliptic curve based
  * on the password and identities.
@@ -91,105 +138,78 @@ int compute_password_element(EAP_PWD_group *grp, u16 num,
 			     const u8 *id_peer, size_t id_peer_len,
 			     const u8 *token)
 {
-	BIGNUM *x_candidate = NULL, *rnd = NULL, *cofactor = NULL;
+	struct crypto_bignum *qr = NULL, *qnr = NULL, *one = NULL;
+	struct crypto_bignum *qr_or_qnr = NULL;
+	u8 qr_bin[MAX_ECC_PRIME_LEN];
+	u8 qnr_bin[MAX_ECC_PRIME_LEN];
+	u8 qr_or_qnr_bin[MAX_ECC_PRIME_LEN];
+	u8 x_bin[MAX_ECC_PRIME_LEN];
+	struct crypto_bignum *tmp1 = NULL, *tmp2 = NULL, *pm1 = NULL;
 	struct crypto_hash *hash;
 	unsigned char pwe_digest[SHA256_MAC_LEN], *prfbuf = NULL, ctr;
-	int nid, is_odd, ret = 0;
-	size_t primebytelen, primebitlen;
+	int ret = 0, check, res;
+	u8 found = 0; /* 0 (false) or 0xff (true) to be used as const_time_*
+		       * mask */
+	size_t primebytelen = 0, primebitlen;
+	struct crypto_bignum *x_candidate = NULL;
+	const struct crypto_bignum *prime;
+	u8 mask, found_ctr = 0, is_odd = 0;
 
-	switch (num) { /* from IANA registry for IKE D-H groups */
-        case 19:
-		nid = NID_X9_62_prime256v1;
-		break;
-        case 20:
-		nid = NID_secp384r1;
-		break;
-        case 21:
-		nid = NID_secp521r1;
-		break;
-#ifndef OPENSSL_IS_BORINGSSL
-        case 25:
-		nid = NID_X9_62_prime192v1;
-		break;
-#endif /* OPENSSL_IS_BORINGSSL */
-        case 26:
-		nid = NID_secp224r1;
-		break;
-#ifdef NID_brainpoolP224r1
-	case 27:
-		nid = NID_brainpoolP224r1;
-		break;
-#endif /* NID_brainpoolP224r1 */
-#ifdef NID_brainpoolP256r1
-	case 28:
-		nid = NID_brainpoolP256r1;
-		break;
-#endif /* NID_brainpoolP256r1 */
-#ifdef NID_brainpoolP384r1
-	case 29:
-		nid = NID_brainpoolP384r1;
-		break;
-#endif /* NID_brainpoolP384r1 */
-#ifdef NID_brainpoolP512r1
-	case 30:
-		nid = NID_brainpoolP512r1;
-		break;
-#endif /* NID_brainpoolP512r1 */
-        default:
-		wpa_printf(MSG_INFO, "EAP-pwd: unsupported group %d", num);
+	if (grp->pwe)
 		return -1;
-	}
 
-	grp->pwe = NULL;
-	grp->order = NULL;
-	grp->prime = NULL;
+	os_memset(x_bin, 0, sizeof(x_bin));
 
-	if ((grp->group = EC_GROUP_new_by_curve_name(nid)) == NULL) {
-		wpa_printf(MSG_INFO, "EAP-pwd: unable to create EC_GROUP");
-		goto fail;
-	}
-
-	if (((rnd = BN_new()) == NULL) ||
-	    ((cofactor = BN_new()) == NULL) ||
-	    ((grp->pwe = EC_POINT_new(grp->group)) == NULL) ||
-	    ((grp->order = BN_new()) == NULL) ||
-	    ((grp->prime = BN_new()) == NULL) ||
-	    ((x_candidate = BN_new()) == NULL)) {
+	prime = crypto_ec_get_prime(grp->group);
+	grp->pwe = crypto_ec_point_init(grp->group);
+	tmp1 = crypto_bignum_init();
+	pm1 = crypto_bignum_init();
+	one = crypto_bignum_init_set((const u8 *) "\x01", 1);
+	if (!grp->pwe || !tmp1 || !pm1 || !one) {
 		wpa_printf(MSG_INFO, "EAP-pwd: unable to create bignums");
 		goto fail;
 	}
 
-	if (!EC_GROUP_get_curve_GFp(grp->group, grp->prime, NULL, NULL, NULL))
-	{
-		wpa_printf(MSG_INFO, "EAP-pwd: unable to get prime for GFp "
-			   "curve");
-		goto fail;
-	}
-	if (!EC_GROUP_get_order(grp->group, grp->order, NULL)) {
-		wpa_printf(MSG_INFO, "EAP-pwd: unable to get order for curve");
-		goto fail;
-	}
-	if (!EC_GROUP_get_cofactor(grp->group, cofactor, NULL)) {
-		wpa_printf(MSG_INFO, "EAP-pwd: unable to get cofactor for "
-			   "curve");
-		goto fail;
-	}
-	primebitlen = BN_num_bits(grp->prime);
-	primebytelen = BN_num_bytes(grp->prime);
+	primebitlen = crypto_ec_prime_len_bits(grp->group);
+	primebytelen = crypto_ec_prime_len(grp->group);
 	if ((prfbuf = os_malloc(primebytelen)) == NULL) {
 		wpa_printf(MSG_INFO, "EAP-pwd: unable to malloc space for prf "
 			   "buffer");
 		goto fail;
 	}
+	if (crypto_bignum_sub(prime, one, pm1) < 0)
+		goto fail;
+
+	/* get a random quadratic residue and nonresidue */
+	while (!qr || !qnr) {
+		if (crypto_bignum_rand(tmp1, prime) < 0)
+			goto fail;
+		res = crypto_bignum_legendre(tmp1, prime);
+		if (!qr && res == 1) {
+			qr = tmp1;
+			tmp1 = crypto_bignum_init();
+		} else if (!qnr && res == -1) {
+			qnr = tmp1;
+			tmp1 = crypto_bignum_init();
+		}
+		if (!tmp1)
+			goto fail;
+	}
+	if (crypto_bignum_to_bin(qr, qr_bin, sizeof(qr_bin),
+				 primebytelen) < 0 ||
+	    crypto_bignum_to_bin(qnr, qnr_bin, sizeof(qnr_bin),
+				 primebytelen) < 0)
+		goto fail;
+
 	os_memset(prfbuf, 0, primebytelen);
 	ctr = 0;
-	while (1) {
-		if (ctr > 30) {
-			wpa_printf(MSG_INFO, "EAP-pwd: unable to find random "
-				   "point on curve for group %d, something's "
-				   "fishy", num);
-			goto fail;
-		}
+
+	/*
+	 * Run through the hunting-and-pecking loop 40 times to mask the time
+	 * necessary to find PWE. The odds of PWE not being found in 40 loops is
+	 * roughly 1 in 1 trillion.
+	 */
+	while (ctr < 40) {
 		ctr++;
 
 		/*
@@ -207,114 +227,156 @@ int compute_password_element(EAP_PWD_group *grp, u16 num,
 		eap_pwd_h_update(hash, &ctr, sizeof(ctr));
 		eap_pwd_h_final(hash, pwe_digest);
 
-		BN_bin2bn(pwe_digest, SHA256_MAC_LEN, rnd);
-
+		is_odd = const_time_select_u8(
+			found, is_odd, pwe_digest[SHA256_MAC_LEN - 1] & 0x01);
 		if (eap_pwd_kdf(pwe_digest, SHA256_MAC_LEN,
 				(u8 *) "EAP-pwd Hunting And Pecking",
 				os_strlen("EAP-pwd Hunting And Pecking"),
 				prfbuf, primebitlen) < 0)
 			goto fail;
-
-		BN_bin2bn(prfbuf, primebytelen, x_candidate);
-
-		/*
-		 * eap_pwd_kdf() returns a string of bits 0..primebitlen but
-		 * BN_bin2bn will treat that string of bits as a big endian
-		 * number. If the primebitlen is not an even multiple of 8
-		 * then excessive bits-- those _after_ primebitlen-- so now
-		 * we have to shift right the amount we masked off.
-		 */
 		if (primebitlen % 8)
-			BN_rshift(x_candidate, x_candidate,
-				  (8 - (primebitlen % 8)));
+			buf_shift_right(prfbuf, primebytelen,
+					8 - primebitlen % 8);
 
-		if (BN_ucmp(x_candidate, grp->prime) >= 0)
-			continue;
-
-		wpa_hexdump(MSG_DEBUG, "EAP-pwd: x_candidate",
-			    prfbuf, primebytelen);
-
-		/*
-		 * need to unambiguously identify the solution, if there is
-		 * one...
-		 */
-		if (BN_is_odd(rnd))
-			is_odd = 1;
-		else
-			is_odd = 0;
-
-		/*
-		 * solve the quadratic equation, if it's not solvable then we
-		 * don't have a point
-		 */
-		if (!EC_POINT_set_compressed_coordinates_GFp(grp->group,
-							     grp->pwe,
-							     x_candidate,
-							     is_odd, NULL))
-			continue;
-		/*
-		 * If there's a solution to the equation then the point must be
-		 * on the curve so why check again explicitly? OpenSSL code
-		 * says this is required by X9.62. We're not X9.62 but it can't
-		 * hurt just to be sure.
-		 */
-		if (!EC_POINT_is_on_curve(grp->group, grp->pwe, NULL)) {
-			wpa_printf(MSG_INFO, "EAP-pwd: point is not on curve");
-			continue;
+		crypto_bignum_deinit(x_candidate, 1);
+		x_candidate = crypto_bignum_init_set(prfbuf, primebytelen);
+		if (!x_candidate) {
+			wpa_printf(MSG_INFO,
+				   "EAP-pwd: unable to create x_candidate");
+			goto fail;
 		}
 
-		if (BN_cmp(cofactor, BN_value_one())) {
-			/* make sure the point is not in a small sub-group */
-			if (!EC_POINT_mul(grp->group, grp->pwe, NULL, grp->pwe,
-					  cofactor, NULL)) {
-				wpa_printf(MSG_INFO, "EAP-pwd: cannot "
-					   "multiply generator by order");
-				continue;
-			}
-			if (EC_POINT_is_at_infinity(grp->group, grp->pwe)) {
-				wpa_printf(MSG_INFO, "EAP-pwd: point is at "
-					   "infinity");
-				continue;
-			}
-		}
-		/* if we got here then we have a new generator. */
-		break;
+		if (crypto_bignum_cmp(x_candidate, prime) >= 0)
+			continue;
+
+		wpa_hexdump_key(MSG_DEBUG, "EAP-pwd: x_candidate",
+				prfbuf, primebytelen);
+		const_time_select_bin(found, x_bin, prfbuf, primebytelen,
+				      x_bin);
+
+		/*
+		 * compute y^2 using the equation of the curve
+		 *
+		 *      y^2 = x^3 + ax + b
+		 */
+		crypto_bignum_deinit(tmp2, 1);
+		tmp2 = crypto_ec_point_compute_y_sqr(grp->group, x_candidate);
+		if (!tmp2)
+			goto fail;
+
+		/*
+		 * mask tmp2 so doing legendre won't leak timing info
+		 *
+		 * tmp1 is a random number between 1 and p-1
+		 */
+		if (crypto_bignum_rand(tmp1, pm1) < 0 ||
+		    crypto_bignum_mulmod(tmp2, tmp1, prime, tmp2) < 0 ||
+		    crypto_bignum_mulmod(tmp2, tmp1, prime, tmp2) < 0)
+			goto fail;
+
+		/*
+		 * Now tmp2 (y^2) is masked, all values between 1 and p-1
+		 * are equally probable. Multiplying by r^2 does not change
+		 * whether or not tmp2 is a quadratic residue, just masks it.
+		 *
+		 * Flip a coin, multiply by the random quadratic residue or the
+		 * random quadratic nonresidue and record heads or tails.
+		 */
+		mask = const_time_eq_u8(crypto_bignum_is_odd(tmp1), 1);
+		check = const_time_select_s8(mask, 1, -1);
+		const_time_select_bin(mask, qr_bin, qnr_bin, primebytelen,
+				      qr_or_qnr_bin);
+		crypto_bignum_deinit(qr_or_qnr, 1);
+		qr_or_qnr = crypto_bignum_init_set(qr_or_qnr_bin, primebytelen);
+		if (!qr_or_qnr ||
+		    crypto_bignum_mulmod(tmp2, qr_or_qnr, prime, tmp2) < 0)
+			goto fail;
+
+		/*
+		 * Now it's safe to do legendre, if check is 1 then it's
+		 * a straightforward test (multiplying by qr does not
+		 * change result), if check is -1 then it's the opposite test
+		 * (multiplying a qr by qnr would make a qnr).
+		 */
+		res = crypto_bignum_legendre(tmp2, prime);
+		if (res == -2)
+			goto fail;
+		mask = const_time_eq(res, check);
+		found_ctr = const_time_select_u8(found, found_ctr, ctr);
+		found |= mask;
 	}
-	wpa_printf(MSG_DEBUG, "EAP-pwd: found a PWE in %d tries", ctr);
-	grp->group_num = num;
+	if (found == 0) {
+		wpa_printf(MSG_INFO,
+			   "EAP-pwd: unable to find random point on curve for group %d, something's fishy",
+			   num);
+		goto fail;
+	}
+
+	/*
+	 * We know x_candidate is a quadratic residue so set it here.
+	 */
+	crypto_bignum_deinit(x_candidate, 1);
+	x_candidate = crypto_bignum_init_set(x_bin, primebytelen);
+	if (!x_candidate ||
+	    crypto_ec_point_solve_y_coord(grp->group, grp->pwe, x_candidate,
+					  is_odd) != 0) {
+		wpa_printf(MSG_INFO, "EAP-pwd: Could not solve for y");
+		goto fail;
+	}
+
+	/*
+	 * If there's a solution to the equation then the point must be on the
+	 * curve so why check again explicitly? OpenSSL code says this is
+	 * required by X9.62. We're not X9.62 but it can't hurt just to be sure.
+	 */
+	if (!crypto_ec_point_is_on_curve(grp->group, grp->pwe)) {
+		wpa_printf(MSG_INFO, "EAP-pwd: point is not on curve");
+		goto fail;
+	}
+
+	wpa_printf(MSG_DEBUG, "EAP-pwd: found a PWE in %02d tries", found_ctr);
+
 	if (0) {
  fail:
-		EC_GROUP_free(grp->group);
-		grp->group = NULL;
-		EC_POINT_clear_free(grp->pwe);
+		crypto_ec_point_deinit(grp->pwe, 1);
 		grp->pwe = NULL;
-		BN_clear_free(grp->order);
-		grp->order = NULL;
-		BN_clear_free(grp->prime);
-		grp->prime = NULL;
 		ret = 1;
 	}
 	/* cleanliness and order.... */
-	BN_clear_free(cofactor);
-	BN_clear_free(x_candidate);
-	BN_clear_free(rnd);
-	os_free(prfbuf);
+	crypto_bignum_deinit(x_candidate, 1);
+	crypto_bignum_deinit(pm1, 0);
+	crypto_bignum_deinit(tmp1, 1);
+	crypto_bignum_deinit(tmp2, 1);
+	crypto_bignum_deinit(qr, 1);
+	crypto_bignum_deinit(qnr, 1);
+	crypto_bignum_deinit(qr_or_qnr, 1);
+	crypto_bignum_deinit(one, 0);
+	bin_clear_free(prfbuf, primebytelen);
+	os_memset(qr_bin, 0, sizeof(qr_bin));
+	os_memset(qnr_bin, 0, sizeof(qnr_bin));
+	os_memset(qr_or_qnr_bin, 0, sizeof(qr_or_qnr_bin));
+	os_memset(pwe_digest, 0, sizeof(pwe_digest));
 
 	return ret;
 }
 
 
-int compute_keys(EAP_PWD_group *grp, BN_CTX *bnctx, const BIGNUM *k,
-		 const BIGNUM *peer_scalar, const BIGNUM *server_scalar,
+int compute_keys(EAP_PWD_group *grp, const struct crypto_bignum *k,
+		 const struct crypto_bignum *peer_scalar,
+		 const struct crypto_bignum *server_scalar,
 		 const u8 *confirm_peer, const u8 *confirm_server,
 		 const u32 *ciphersuite, u8 *msk, u8 *emsk, u8 *session_id)
 {
 	struct crypto_hash *hash;
 	u8 mk[SHA256_MAC_LEN], *cruft;
 	u8 msk_emsk[EAP_MSK_LEN + EAP_EMSK_LEN];
-	int offset;
+	size_t prime_len, order_len;
 
-	if ((cruft = os_malloc(BN_num_bytes(grp->prime))) == NULL)
+	prime_len = crypto_ec_prime_len(grp->group);
+	order_len = crypto_ec_order_len(grp->group);
+
+	cruft = os_malloc(prime_len);
+	if (!cruft)
 		return -1;
 
 	/*
@@ -328,14 +390,10 @@ int compute_keys(EAP_PWD_group *grp, BN_CTX *bnctx, const BIGNUM *k,
 		return -1;
 	}
 	eap_pwd_h_update(hash, (const u8 *) ciphersuite, sizeof(u32));
-	offset = BN_num_bytes(grp->order) - BN_num_bytes(peer_scalar);
-	os_memset(cruft, 0, BN_num_bytes(grp->prime));
-	BN_bn2bin(peer_scalar, cruft + offset);
-	eap_pwd_h_update(hash, cruft, BN_num_bytes(grp->order));
-	offset = BN_num_bytes(grp->order) - BN_num_bytes(server_scalar);
-	os_memset(cruft, 0, BN_num_bytes(grp->prime));
-	BN_bn2bin(server_scalar, cruft + offset);
-	eap_pwd_h_update(hash, cruft, BN_num_bytes(grp->order));
+	crypto_bignum_to_bin(peer_scalar, cruft, order_len, order_len);
+	eap_pwd_h_update(hash, cruft, order_len);
+	crypto_bignum_to_bin(server_scalar, cruft, order_len, order_len);
+	eap_pwd_h_update(hash, cruft, order_len);
 	eap_pwd_h_final(hash, &session_id[1]);
 
 	/* then compute MK = H(k | confirm-peer | confirm-server) */
@@ -344,10 +402,8 @@ int compute_keys(EAP_PWD_group *grp, BN_CTX *bnctx, const BIGNUM *k,
 		os_free(cruft);
 		return -1;
 	}
-	offset = BN_num_bytes(grp->prime) - BN_num_bytes(k);
-	os_memset(cruft, 0, BN_num_bytes(grp->prime));
-	BN_bn2bin(k, cruft + offset);
-	eap_pwd_h_update(hash, cruft, BN_num_bytes(grp->prime));
+	crypto_bignum_to_bin(k, cruft, prime_len, prime_len);
+	eap_pwd_h_update(hash, cruft, prime_len);
 	os_free(cruft);
 	eap_pwd_h_update(hash, confirm_peer, SHA256_MAC_LEN);
 	eap_pwd_h_update(hash, confirm_server, SHA256_MAC_LEN);
@@ -364,4 +420,109 @@ int compute_keys(EAP_PWD_group *grp, BN_CTX *bnctx, const BIGNUM *k,
 	os_memcpy(emsk, msk_emsk + EAP_MSK_LEN, EAP_EMSK_LEN);
 
 	return 1;
+}
+
+
+static int eap_pwd_element_coord_ok(const struct crypto_bignum *prime,
+				    const u8 *buf, size_t len)
+{
+	struct crypto_bignum *val;
+	int ok = 1;
+
+	val = crypto_bignum_init_set(buf, len);
+	if (!val || crypto_bignum_is_zero(val) ||
+	    crypto_bignum_cmp(val, prime) >= 0)
+		ok = 0;
+	crypto_bignum_deinit(val, 0);
+	return ok;
+}
+
+
+struct crypto_ec_point * eap_pwd_get_element(EAP_PWD_group *group,
+					     const u8 *buf)
+{
+	struct crypto_ec_point *element;
+	const struct crypto_bignum *prime;
+	size_t prime_len;
+
+	prime = crypto_ec_get_prime(group->group);
+	prime_len = crypto_ec_prime_len(group->group);
+
+	/* RFC 5931, 2.8.5.2.2: 0 < x,y < p */
+	if (!eap_pwd_element_coord_ok(prime, buf, prime_len) ||
+	    !eap_pwd_element_coord_ok(prime, buf + prime_len, prime_len)) {
+		wpa_printf(MSG_INFO, "EAP-pwd: Invalid coordinate in element");
+		return NULL;
+	}
+
+	element = crypto_ec_point_from_bin(group->group, buf);
+	if (!element) {
+		wpa_printf(MSG_INFO, "EAP-pwd: EC point from element failed");
+		return NULL;
+	}
+
+	/* RFC 5931, 2.8.5.2.2: on curve and not the point at infinity */
+	if (!crypto_ec_point_is_on_curve(group->group, element) ||
+	    crypto_ec_point_is_at_infinity(group->group, element)) {
+		wpa_printf(MSG_INFO, "EAP-pwd: Invalid element");
+		goto fail;
+	}
+
+out:
+	return element;
+fail:
+	crypto_ec_point_deinit(element, 0);
+	element = NULL;
+	goto out;
+}
+
+
+struct crypto_bignum * eap_pwd_get_scalar(EAP_PWD_group *group, const u8 *buf)
+{
+	struct crypto_bignum *scalar;
+	const struct crypto_bignum *order;
+	size_t order_len;
+
+	order = crypto_ec_get_order(group->group);
+	order_len = crypto_ec_order_len(group->group);
+
+	/* RFC 5931, 2.8.5.2: 1 < scalar < r */
+	scalar = crypto_bignum_init_set(buf, order_len);
+	if (!scalar || crypto_bignum_is_zero(scalar) ||
+	    crypto_bignum_is_one(scalar) ||
+	    crypto_bignum_cmp(scalar, order) >= 0) {
+		wpa_printf(MSG_INFO, "EAP-pwd: received scalar is invalid");
+		crypto_bignum_deinit(scalar, 0);
+		scalar = NULL;
+	}
+
+	return scalar;
+}
+
+
+int eap_pwd_get_rand_mask(EAP_PWD_group *group, struct crypto_bignum *_rand,
+			  struct crypto_bignum *_mask,
+			  struct crypto_bignum *scalar)
+{
+	const struct crypto_bignum *order;
+	int count;
+
+	order = crypto_ec_get_order(group->group);
+
+	/* Select two random values rand,mask such that 1 < rand,mask < r and
+	 * rand + mask mod r > 1. */
+	for (count = 0; count < 100; count++) {
+		if (crypto_bignum_rand(_rand, order) == 0 &&
+		    !crypto_bignum_is_zero(_rand) &&
+		    crypto_bignum_rand(_mask, order) == 0 &&
+		    !crypto_bignum_is_zero(_mask) &&
+		    crypto_bignum_add(_rand, _mask, scalar) == 0 &&
+		    crypto_bignum_mod(scalar, order, scalar) == 0 &&
+		    !crypto_bignum_is_zero(scalar) &&
+		    !crypto_bignum_is_one(scalar))
+			return 0;
+	}
+
+	wpa_printf(MSG_INFO, "EAP-pwd: unable to get randomness");
+	return -1;
 }

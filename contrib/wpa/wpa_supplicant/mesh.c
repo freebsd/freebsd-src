@@ -34,6 +34,8 @@ static void wpa_supplicant_mesh_deinit(struct wpa_supplicant *wpa_s)
 	wpa_s->current_ssid = NULL;
 	os_free(wpa_s->mesh_rsn);
 	wpa_s->mesh_rsn = NULL;
+	os_free(wpa_s->mesh_params);
+	wpa_s->mesh_params = NULL;
 	/* TODO: leave mesh (stop beacon). This will happen on link down
 	 * anyway, so it's not urgent */
 }
@@ -84,6 +86,7 @@ static struct mesh_conf * mesh_config_create(struct wpa_supplicant *wpa_s,
 			MESH_CONF_SEC_AMPE;
 	else
 		conf->security |= MESH_CONF_SEC_NONE;
+#ifdef CONFIG_IEEE80211W
 	conf->ieee80211w = ssid->ieee80211w;
 	if (conf->ieee80211w == MGMT_FRAME_PROTECTION_DEFAULT) {
 		if (wpa_s->drv_enc & WPA_DRIVER_CAPA_ENC_BIP)
@@ -91,6 +94,10 @@ static struct mesh_conf * mesh_config_create(struct wpa_supplicant *wpa_s,
 		else
 			conf->ieee80211w = NO_MGMT_FRAME_PROTECTION;
 	}
+#endif /* CONFIG_IEEE80211W */
+#ifdef CONFIG_OCV
+	conf->ocv = ssid->ocv;
+#endif /* CONFIG_OCV */
 
 	cipher = wpa_pick_pairwise_cipher(ssid->pairwise_cipher, 0);
 	if (cipher < 0 || cipher == WPA_CIPHER_TKIP) {
@@ -145,17 +152,104 @@ static void wpas_mesh_copy_groups(struct hostapd_data *bss,
 }
 
 
+static int wpas_mesh_init_rsn(struct wpa_supplicant *wpa_s)
+{
+	struct hostapd_iface *ifmsh = wpa_s->ifmsh;
+	struct wpa_ssid *ssid = wpa_s->current_ssid;
+	struct hostapd_data *bss = ifmsh->bss[0];
+	static int default_groups[] = { 19, 20, 21, 25, 26, -1 };
+	const char *password;
+	size_t len;
+
+	password = ssid->sae_password;
+	if (!password)
+		password = ssid->passphrase;
+	if (!password) {
+		wpa_printf(MSG_ERROR,
+			   "mesh: Passphrase for SAE not configured");
+		return -1;
+	}
+
+	bss->conf->wpa = ssid->proto;
+	bss->conf->wpa_key_mgmt = ssid->key_mgmt;
+
+	if (wpa_s->conf->sae_groups && wpa_s->conf->sae_groups[0] > 0) {
+		wpas_mesh_copy_groups(bss, wpa_s);
+	} else {
+		bss->conf->sae_groups = os_memdup(default_groups,
+						  sizeof(default_groups));
+		if (!bss->conf->sae_groups)
+			return -1;
+	}
+
+	len = os_strlen(password);
+	bss->conf->ssid.wpa_passphrase = dup_binstr(password, len);
+
+	wpa_s->mesh_rsn = mesh_rsn_auth_init(wpa_s, ifmsh->mconf);
+	return !wpa_s->mesh_rsn ? -1 : 0;
+}
+
+
+static int wpas_mesh_complete(struct wpa_supplicant *wpa_s)
+{
+	struct hostapd_iface *ifmsh = wpa_s->ifmsh;
+	struct wpa_driver_mesh_join_params *params = wpa_s->mesh_params;
+	struct wpa_ssid *ssid = wpa_s->current_ssid;
+	int ret;
+
+	if (!params || !ssid || !ifmsh) {
+		wpa_printf(MSG_ERROR, "mesh: %s called without active mesh",
+			   __func__);
+		return -1;
+	}
+
+	if (ifmsh->mconf->security != MESH_CONF_SEC_NONE &&
+	    wpas_mesh_init_rsn(wpa_s)) {
+		wpa_printf(MSG_ERROR,
+			   "mesh: RSN initialization failed - deinit mesh");
+		wpa_supplicant_mesh_deinit(wpa_s);
+		return -1;
+	}
+
+	if (ssid->key_mgmt & WPA_KEY_MGMT_SAE) {
+		wpa_s->pairwise_cipher = wpa_s->mesh_rsn->pairwise_cipher;
+		wpa_s->group_cipher = wpa_s->mesh_rsn->group_cipher;
+		wpa_s->mgmt_group_cipher = wpa_s->mesh_rsn->mgmt_group_cipher;
+	}
+
+	params->ies = ifmsh->mconf->rsn_ie;
+	params->ie_len = ifmsh->mconf->rsn_ie_len;
+	params->basic_rates = ifmsh->basic_rates;
+	params->conf.flags |= WPA_DRIVER_MESH_CONF_FLAG_HT_OP_MODE;
+	params->conf.ht_opmode = ifmsh->bss[0]->iface->ht_op_mode;
+
+	wpa_msg(wpa_s, MSG_INFO, "joining mesh %s",
+		wpa_ssid_txt(ssid->ssid, ssid->ssid_len));
+	ret = wpa_drv_join_mesh(wpa_s, params);
+	if (ret)
+		wpa_msg(wpa_s, MSG_ERROR, "mesh join error=%d", ret);
+
+	/* hostapd sets the interface down until we associate */
+	wpa_drv_set_operstate(wpa_s, 1);
+
+	if (!ret)
+		wpa_supplicant_set_state(wpa_s, WPA_COMPLETED);
+
+	return ret;
+}
+
+
 static int wpa_supplicant_mesh_init(struct wpa_supplicant *wpa_s,
-				    struct wpa_ssid *ssid)
+				    struct wpa_ssid *ssid,
+				    struct hostapd_freq_params *freq)
 {
 	struct hostapd_iface *ifmsh;
 	struct hostapd_data *bss;
 	struct hostapd_config *conf;
 	struct mesh_conf *mconf;
 	int basic_rates_erp[] = { 10, 20, 55, 60, 110, 120, 240, -1 };
-	static int default_groups[] = { 19, 20, 21, 25, 26, -1 };
-	size_t len;
 	int rate_len;
+	int frequency;
 
 	if (!wpa_s->conf->user_mpm) {
 		/* not much for us to do here */
@@ -164,7 +258,7 @@ static int wpa_supplicant_mesh_init(struct wpa_supplicant *wpa_s,
 		return 0;
 	}
 
-	wpa_s->ifmsh = ifmsh = os_zalloc(sizeof(*wpa_s->ifmsh));
+	wpa_s->ifmsh = ifmsh = hostapd_alloc_iface();
 	if (!ifmsh)
 		return -ENOMEM;
 
@@ -175,17 +269,23 @@ static int wpa_supplicant_mesh_init(struct wpa_supplicant *wpa_s,
 	if (!ifmsh->bss)
 		goto out_free;
 
-	ifmsh->bss[0] = bss = os_zalloc(sizeof(struct hostapd_data));
+	ifmsh->bss[0] = bss = hostapd_alloc_bss_data(NULL, NULL, NULL);
 	if (!bss)
 		goto out_free;
-	dl_list_init(&bss->nr_db);
 
+	ifmsh->bss[0]->msg_ctx = wpa_s;
 	os_memcpy(bss->own_addr, wpa_s->own_addr, ETH_ALEN);
 	bss->driver = wpa_s->driver;
 	bss->drv_priv = wpa_s->drv_priv;
 	bss->iface = ifmsh;
 	bss->mesh_sta_free_cb = mesh_mpm_free_sta;
-	wpa_s->assoc_freq = ssid->frequency;
+	frequency = ssid->frequency;
+	if (frequency != freq->freq &&
+	    frequency == freq->freq + freq->sec_channel_offset * 20) {
+		wpa_printf(MSG_DEBUG, "mesh: pri/sec channels switched");
+		frequency = freq->freq;
+	}
+	wpa_s->assoc_freq = frequency;
 	wpa_s->current_ssid = ssid;
 
 	/* setup an AP config for auth processing */
@@ -197,6 +297,16 @@ static int wpa_supplicant_mesh_init(struct wpa_supplicant *wpa_s,
 	bss->conf->start_disabled = 1;
 	bss->conf->mesh = MESH_ENABLED;
 	bss->conf->ap_max_inactivity = wpa_s->conf->mesh_max_inactivity;
+
+	if (ieee80211_is_dfs(ssid->frequency, wpa_s->hw.modes,
+			     wpa_s->hw.num_modes) && wpa_s->conf->country[0]) {
+		conf->ieee80211h = 1;
+		conf->ieee80211d = 1;
+		conf->country[0] = wpa_s->conf->country[0];
+		conf->country[1] = wpa_s->conf->country[1];
+		conf->country[2] = ' ';
+	}
+
 	bss->iconf = conf;
 	ifmsh->conf = conf;
 
@@ -211,27 +321,28 @@ static int wpa_supplicant_mesh_init(struct wpa_supplicant *wpa_s,
 	ifmsh->mconf = mconf;
 
 	/* need conf->hw_mode for supported rates. */
-	conf->hw_mode = ieee80211_freq_to_chan(ssid->frequency, &conf->channel);
+	conf->hw_mode = ieee80211_freq_to_chan(frequency, &conf->channel);
 	if (conf->hw_mode == NUM_HOSTAPD_MODES) {
 		wpa_printf(MSG_ERROR, "Unsupported mesh mode frequency: %d MHz",
-			   ssid->frequency);
+			   frequency);
 		goto out_free;
 	}
 	if (ssid->ht40)
 		conf->secondary_channel = ssid->ht40;
 	if (conf->hw_mode == HOSTAPD_MODE_IEEE80211A && ssid->vht) {
-		conf->vht_oper_chwidth = ssid->max_oper_chwidth;
+		if (ssid->max_oper_chwidth != DEFAULT_MAX_OPER_CHWIDTH)
+			conf->vht_oper_chwidth = ssid->max_oper_chwidth;
 		switch (conf->vht_oper_chwidth) {
 		case VHT_CHANWIDTH_80MHZ:
 		case VHT_CHANWIDTH_80P80MHZ:
 			ieee80211_freq_to_chan(
-				ssid->frequency,
+				frequency,
 				&conf->vht_oper_centr_freq_seg0_idx);
 			conf->vht_oper_centr_freq_seg0_idx += ssid->ht40 * 2;
 			break;
 		case VHT_CHANWIDTH_160MHZ:
 			ieee80211_freq_to_chan(
-				ssid->frequency,
+				frequency,
 				&conf->vht_oper_centr_freq_seg0_idx);
 			conf->vht_oper_centr_freq_seg0_idx += ssid->ht40 * 2;
 			conf->vht_oper_centr_freq_seg0_idx += 40 / 5;
@@ -250,11 +361,10 @@ static int wpa_supplicant_mesh_init(struct wpa_supplicant *wpa_s,
 		 * advertised in beacons match the one in peering frames, sigh.
 		 */
 		if (conf->hw_mode == HOSTAPD_MODE_IEEE80211G) {
-			conf->basic_rates = os_malloc(sizeof(basic_rates_erp));
+			conf->basic_rates = os_memdup(basic_rates_erp,
+						      sizeof(basic_rates_erp));
 			if (!conf->basic_rates)
 				goto out_free;
-			os_memcpy(conf->basic_rates, basic_rates_erp,
-				  sizeof(basic_rates_erp));
 		}
 	} else {
 		rate_len = 0;
@@ -271,46 +381,15 @@ static int wpa_supplicant_mesh_init(struct wpa_supplicant *wpa_s,
 		conf->basic_rates[rate_len] = -1;
 	}
 
-	if (hostapd_setup_interface(ifmsh)) {
-		wpa_printf(MSG_ERROR,
-			   "Failed to initialize hostapd interface for mesh");
-		return -1;
-	}
-
 	if (wpa_drv_init_mesh(wpa_s)) {
 		wpa_msg(wpa_s, MSG_ERROR, "Failed to init mesh in driver");
 		return -1;
 	}
 
-	if (mconf->security != MESH_CONF_SEC_NONE) {
-		if (ssid->passphrase == NULL) {
-			wpa_printf(MSG_ERROR,
-				   "mesh: Passphrase for SAE not configured");
-			goto out_free;
-		}
-
-		bss->conf->wpa = ssid->proto;
-		bss->conf->wpa_key_mgmt = ssid->key_mgmt;
-
-		if (wpa_s->conf->sae_groups &&
-		    wpa_s->conf->sae_groups[0] > 0) {
-			wpas_mesh_copy_groups(bss, wpa_s);
-		} else {
-			bss->conf->sae_groups =
-				os_malloc(sizeof(default_groups));
-			if (!bss->conf->sae_groups)
-				goto out_free;
-			os_memcpy(bss->conf->sae_groups, default_groups,
-				  sizeof(default_groups));
-		}
-
-		len = os_strlen(ssid->passphrase);
-		bss->conf->ssid.wpa_passphrase =
-			dup_binstr(ssid->passphrase, len);
-
-		wpa_s->mesh_rsn = mesh_rsn_auth_init(wpa_s, mconf);
-		if (!wpa_s->mesh_rsn)
-			goto out_free;
+	if (hostapd_setup_interface(ifmsh)) {
+		wpa_printf(MSG_ERROR,
+			   "Failed to initialize hostapd interface for mesh");
+		return -1;
 	}
 
 	wpa_supplicant_conf_ap_ht(wpa_s, ssid, conf);
@@ -355,11 +434,13 @@ void wpa_supplicant_mesh_add_scan_ie(struct wpa_supplicant *wpa_s,
 int wpa_supplicant_join_mesh(struct wpa_supplicant *wpa_s,
 			     struct wpa_ssid *ssid)
 {
-	struct wpa_driver_mesh_join_params params;
+	struct wpa_driver_mesh_join_params *params = os_zalloc(sizeof(*params));
 	int ret = 0;
 
-	if (!ssid || !ssid->ssid || !ssid->ssid_len || !ssid->frequency) {
+	if (!ssid || !ssid->ssid || !ssid->ssid_len || !ssid->frequency ||
+	    !params) {
 		ret = -ENOENT;
+		os_free(params);
 		goto out;
 	}
 
@@ -369,22 +450,23 @@ int wpa_supplicant_join_mesh(struct wpa_supplicant *wpa_s,
 	wpa_s->group_cipher = WPA_CIPHER_NONE;
 	wpa_s->mgmt_group_cipher = 0;
 
-	os_memset(&params, 0, sizeof(params));
-	params.meshid = ssid->ssid;
-	params.meshid_len = ssid->ssid_len;
-	ibss_mesh_setup_freq(wpa_s, ssid, &params.freq);
-	wpa_s->mesh_ht_enabled = !!params.freq.ht_enabled;
-	wpa_s->mesh_vht_enabled = !!params.freq.vht_enabled;
-	if (params.freq.ht_enabled && params.freq.sec_channel_offset)
-		ssid->ht40 = params.freq.sec_channel_offset;
+	params->meshid = ssid->ssid;
+	params->meshid_len = ssid->ssid_len;
+	ibss_mesh_setup_freq(wpa_s, ssid, &params->freq);
+	wpa_s->mesh_ht_enabled = !!params->freq.ht_enabled;
+	wpa_s->mesh_vht_enabled = !!params->freq.vht_enabled;
+	if (params->freq.ht_enabled && params->freq.sec_channel_offset)
+		ssid->ht40 = params->freq.sec_channel_offset;
+
 	if (wpa_s->mesh_vht_enabled) {
 		ssid->vht = 1;
-		switch (params.freq.bandwidth) {
+		ssid->vht_center_freq1 = params->freq.center_freq1;
+		switch (params->freq.bandwidth) {
 		case 80:
-			if (params.freq.center_freq2) {
+			if (params->freq.center_freq2) {
 				ssid->max_oper_chwidth = VHT_CHANWIDTH_80P80MHZ;
 				ssid->vht_center_freq2 =
-					params.freq.center_freq2;
+					params->freq.center_freq2;
 			} else {
 				ssid->max_oper_chwidth = VHT_CHANWIDTH_80MHZ;
 			}
@@ -398,63 +480,44 @@ int wpa_supplicant_join_mesh(struct wpa_supplicant *wpa_s,
 		}
 	}
 	if (ssid->beacon_int > 0)
-		params.beacon_int = ssid->beacon_int;
+		params->beacon_int = ssid->beacon_int;
 	else if (wpa_s->conf->beacon_int > 0)
-		params.beacon_int = wpa_s->conf->beacon_int;
+		params->beacon_int = wpa_s->conf->beacon_int;
 	if (ssid->dtim_period > 0)
-		params.dtim_period = ssid->dtim_period;
+		params->dtim_period = ssid->dtim_period;
 	else if (wpa_s->conf->dtim_period > 0)
-		params.dtim_period = wpa_s->conf->dtim_period;
-	params.conf.max_peer_links = wpa_s->conf->max_peer_links;
+		params->dtim_period = wpa_s->conf->dtim_period;
+	params->conf.max_peer_links = wpa_s->conf->max_peer_links;
+	if (ssid->mesh_rssi_threshold < DEFAULT_MESH_RSSI_THRESHOLD) {
+		params->conf.rssi_threshold = ssid->mesh_rssi_threshold;
+		params->conf.flags |= WPA_DRIVER_MESH_CONF_FLAG_RSSI_THRESHOLD;
+	}
 
 	if (ssid->key_mgmt & WPA_KEY_MGMT_SAE) {
-		params.flags |= WPA_DRIVER_MESH_FLAG_SAE_AUTH;
-		params.flags |= WPA_DRIVER_MESH_FLAG_AMPE;
+		params->flags |= WPA_DRIVER_MESH_FLAG_SAE_AUTH;
+		params->flags |= WPA_DRIVER_MESH_FLAG_AMPE;
 		wpa_s->conf->user_mpm = 1;
 	}
 
 	if (wpa_s->conf->user_mpm) {
-		params.flags |= WPA_DRIVER_MESH_FLAG_USER_MPM;
-		params.conf.auto_plinks = 0;
+		params->flags |= WPA_DRIVER_MESH_FLAG_USER_MPM;
+		params->conf.auto_plinks = 0;
 	} else {
-		params.flags |= WPA_DRIVER_MESH_FLAG_DRIVER_MPM;
-		params.conf.auto_plinks = 1;
+		params->flags |= WPA_DRIVER_MESH_FLAG_DRIVER_MPM;
+		params->conf.auto_plinks = 1;
 	}
-	params.conf.peer_link_timeout = wpa_s->conf->mesh_max_inactivity;
+	params->conf.peer_link_timeout = wpa_s->conf->mesh_max_inactivity;
 
-	if (wpa_supplicant_mesh_init(wpa_s, ssid)) {
+	os_free(wpa_s->mesh_params);
+	wpa_s->mesh_params = params;
+	if (wpa_supplicant_mesh_init(wpa_s, ssid, &params->freq)) {
 		wpa_msg(wpa_s, MSG_ERROR, "Failed to init mesh");
 		wpa_drv_leave_mesh(wpa_s);
 		ret = -1;
 		goto out;
 	}
 
-	if (ssid->key_mgmt & WPA_KEY_MGMT_SAE) {
-		wpa_s->pairwise_cipher = wpa_s->mesh_rsn->pairwise_cipher;
-		wpa_s->group_cipher = wpa_s->mesh_rsn->group_cipher;
-		wpa_s->mgmt_group_cipher = wpa_s->mesh_rsn->mgmt_group_cipher;
-	}
-
-	if (wpa_s->ifmsh) {
-		params.ies = wpa_s->ifmsh->mconf->rsn_ie;
-		params.ie_len = wpa_s->ifmsh->mconf->rsn_ie_len;
-		params.basic_rates = wpa_s->ifmsh->basic_rates;
-		params.conf.flags |= WPA_DRIVER_MESH_CONF_FLAG_HT_OP_MODE;
-		params.conf.ht_opmode = wpa_s->ifmsh->bss[0]->iface->ht_op_mode;
-	}
-
-	wpa_msg(wpa_s, MSG_INFO, "joining mesh %s",
-		wpa_ssid_txt(ssid->ssid, ssid->ssid_len));
-	ret = wpa_drv_join_mesh(wpa_s, &params);
-	if (ret)
-		wpa_msg(wpa_s, MSG_ERROR, "mesh join error=%d", ret);
-
-	/* hostapd sets the interface down until we associate */
-	wpa_drv_set_operstate(wpa_s, 1);
-
-	if (!ret)
-		wpa_supplicant_set_state(wpa_s, WPA_COMPLETED);
-
+	ret = wpas_mesh_complete(wpa_s);
 out:
 	return ret;
 }

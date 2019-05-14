@@ -2,6 +2,7 @@
  * hostapd / Radio Measurement (RRM)
  * Copyright(c) 2013 - 2016 Intel Mobile Communications GmbH.
  * Copyright(c) 2011 - 2016 Intel Corporation. All rights reserved.
+ * Copyright (c) 2016-2017, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -10,6 +11,7 @@
 #include "utils/includes.h"
 
 #include "utils/common.h"
+#include "common/wpa_ctrl.h"
 #include "hostapd.h"
 #include "ap_drv_ops.h"
 #include "sta_info.h"
@@ -69,24 +71,47 @@ static void hostapd_handle_range_report(struct hostapd_data *hapd, u8 token,
 }
 
 
+static void hostapd_handle_beacon_report(struct hostapd_data *hapd,
+					 const u8 *addr, u8 token, u8 rep_mode,
+					 const u8 *pos, size_t len)
+{
+	char report[2 * 255 + 1];
+
+	wpa_printf(MSG_DEBUG, "Beacon report token %u len %zu from " MACSTR,
+		   token, len, MAC2STR(addr));
+	/* Skip to the beginning of the Beacon report */
+	if (len < 3)
+		return;
+	pos += 3;
+	len -= 3;
+	report[0] = '\0';
+	if (wpa_snprintf_hex(report, sizeof(report), pos, len) < 0)
+		return;
+	wpa_msg(hapd->msg_ctx, MSG_INFO, BEACON_RESP_RX MACSTR " %u %02x %s",
+		MAC2STR(addr), token, rep_mode, report);
+}
+
+
 static void hostapd_handle_radio_msmt_report(struct hostapd_data *hapd,
 					     const u8 *buf, size_t len)
 {
 	const struct ieee80211_mgmt *mgmt = (const struct ieee80211_mgmt *) buf;
 	const u8 *pos, *ie, *end;
-	u8 token;
+	u8 token, rep_mode;
 
 	end = buf + len;
 	token = mgmt->u.action.u.rrm.dialog_token;
 	pos = mgmt->u.action.u.rrm.variable;
 
 	while ((ie = get_ie(pos, end - pos, WLAN_EID_MEASURE_REPORT))) {
-		if (ie[1] < 5) {
+		if (ie[1] < 3) {
 			wpa_printf(MSG_DEBUG, "Bad Measurement Report element");
 			break;
 		}
 
-		wpa_printf(MSG_DEBUG, "Measurement report type %u", ie[4]);
+		rep_mode = ie[3];
+		wpa_printf(MSG_DEBUG, "Measurement report mode 0x%x type %u",
+			   rep_mode, ie[4]);
 
 		switch (ie[4]) {
 		case MEASURE_TYPE_LCI:
@@ -94,6 +119,10 @@ static void hostapd_handle_radio_msmt_report(struct hostapd_data *hapd,
 			break;
 		case MEASURE_TYPE_FTM_RANGE:
 			hostapd_handle_range_report(hapd, token, ie + 2, ie[1]);
+			break;
+		case MEASURE_TYPE_BEACON:
+			hostapd_handle_beacon_report(hapd, mgmt->sa, token,
+						     rep_mode, ie + 2, ie[1]);
 			break;
 		default:
 			wpa_printf(MSG_DEBUG,
@@ -118,7 +147,7 @@ static u16 hostapd_parse_location_lci_req_age(const u8 *buf, size_t len)
 	/* Subelements are arranged as IEs */
 	subelem = get_ie(buf + 4, len - 4, LCI_REQ_SUBELEM_MAX_AGE);
 	if (subelem && subelem[1] == 2)
-		return *(u16 *) (subelem + 2);
+		return WPA_GET_LE16(subelem + 2);
 
 	return 0;
 }
@@ -129,11 +158,11 @@ static int hostapd_check_lci_age(struct hostapd_neighbor_entry *nr, u16 max_age)
 	struct os_time curr, diff;
 	unsigned long diff_l;
 
+	if (nr->stationary || max_age == 0xffff)
+		return 1;
+
 	if (!max_age)
 		return 0;
-
-	if (max_age == 0xffff)
-		return 1;
 
 	if (os_get_time(&curr))
 		return 0;
@@ -341,13 +370,7 @@ int hostapd_send_lci_req(struct hostapd_data *hapd, const u8 *addr)
 	struct sta_info *sta = ap_get_sta(hapd, addr);
 	int ret;
 
-	if (!sta) {
-		wpa_printf(MSG_INFO,
-			   "Request LCI: Destination address is not in station list");
-		return -1;
-	}
-
-	if (!(sta->flags & WLAN_STA_AUTHORIZED)) {
+	if (!sta || !(sta->flags & WLAN_STA_AUTHORIZED)) {
 		wpa_printf(MSG_INFO,
 			   "Request LCI: Destination address is not connected");
 		return -1;
@@ -450,9 +473,8 @@ int hostapd_send_range_req(struct hostapd_data *hapd, const u8 *addr,
 		wpa_printf(MSG_DEBUG,
 			   "Request range: Range request is already in process; overriding");
 		hapd->range_req_active = 0;
-		eloop_register_timeout(HOSTAPD_RRM_REQUEST_TIMEOUT, 0,
-				       hostapd_range_rep_timeout_handler, hapd,
-				       NULL);
+		eloop_cancel_timeout(hostapd_range_rep_timeout_handler, hapd,
+				     NULL);
 	}
 
 	/* Action + measurement type + token + reps + EID + len = 7 */
@@ -536,9 +558,117 @@ int hostapd_send_range_req(struct hostapd_data *hapd, const u8 *addr,
 
 void hostapd_clean_rrm(struct hostapd_data *hapd)
 {
-	hostpad_free_neighbor_db(hapd);
+	hostapd_free_neighbor_db(hapd);
 	eloop_cancel_timeout(hostapd_lci_rep_timeout_handler, hapd, NULL);
 	hapd->lci_req_active = 0;
 	eloop_cancel_timeout(hostapd_range_rep_timeout_handler, hapd, NULL);
 	hapd->range_req_active = 0;
+}
+
+
+int hostapd_send_beacon_req(struct hostapd_data *hapd, const u8 *addr,
+			    u8 req_mode, const struct wpabuf *req)
+{
+	struct wpabuf *buf;
+	struct sta_info *sta = ap_get_sta(hapd, addr);
+	int ret;
+	enum beacon_report_mode mode;
+	const u8 *pos;
+
+	/* Request data:
+	 * Operating Class (1), Channel Number (1), Randomization Interval (2),
+	 * Measurement Duration (2), Measurement Mode (1), BSSID (6),
+	 * Optional Subelements (variable)
+	 */
+	if (wpabuf_len(req) < 13) {
+		wpa_printf(MSG_INFO, "Beacon request: Too short request data");
+		return -1;
+	}
+	pos = wpabuf_head(req);
+	mode = pos[6];
+
+	if (!sta || !(sta->flags & WLAN_STA_AUTHORIZED)) {
+		wpa_printf(MSG_INFO,
+			   "Beacon request: " MACSTR " is not connected",
+			   MAC2STR(addr));
+		return -1;
+	}
+
+	switch (mode) {
+	case BEACON_REPORT_MODE_PASSIVE:
+		if (!(sta->rrm_enabled_capa[0] &
+		      WLAN_RRM_CAPS_BEACON_REPORT_PASSIVE)) {
+			wpa_printf(MSG_INFO,
+				   "Beacon request: " MACSTR
+				   " does not support passive beacon report",
+				   MAC2STR(addr));
+			return -1;
+		}
+		break;
+	case BEACON_REPORT_MODE_ACTIVE:
+		if (!(sta->rrm_enabled_capa[0] &
+		      WLAN_RRM_CAPS_BEACON_REPORT_ACTIVE)) {
+			wpa_printf(MSG_INFO,
+				   "Beacon request: " MACSTR
+				   " does not support active beacon report",
+				   MAC2STR(addr));
+			return -1;
+		}
+		break;
+	case BEACON_REPORT_MODE_TABLE:
+		if (!(sta->rrm_enabled_capa[0] &
+		      WLAN_RRM_CAPS_BEACON_REPORT_TABLE)) {
+			wpa_printf(MSG_INFO,
+				   "Beacon request: " MACSTR
+				   " does not support table beacon report",
+				   MAC2STR(addr));
+			return -1;
+		}
+		break;
+	default:
+		wpa_printf(MSG_INFO,
+			   "Beacon request: Unknown measurement mode %d", mode);
+		return -1;
+	}
+
+	buf = wpabuf_alloc(5 + 2 + 3 + wpabuf_len(req));
+	if (!buf)
+		return -1;
+
+	hapd->beacon_req_token++;
+	if (!hapd->beacon_req_token)
+		hapd->beacon_req_token++;
+
+	wpabuf_put_u8(buf, WLAN_ACTION_RADIO_MEASUREMENT);
+	wpabuf_put_u8(buf, WLAN_RRM_RADIO_MEASUREMENT_REQUEST);
+	wpabuf_put_u8(buf, hapd->beacon_req_token);
+	wpabuf_put_le16(buf, 0); /* Number of repetitions */
+
+	/* Measurement Request element */
+	wpabuf_put_u8(buf, WLAN_EID_MEASURE_REQUEST);
+	wpabuf_put_u8(buf, 3 + wpabuf_len(req));
+	wpabuf_put_u8(buf, 1); /* Measurement Token */
+	wpabuf_put_u8(buf, req_mode); /* Measurement Request Mode */
+	wpabuf_put_u8(buf, MEASURE_TYPE_BEACON); /* Measurement Type */
+	wpabuf_put_buf(buf, req);
+
+	ret = hostapd_drv_send_action(hapd, hapd->iface->freq, 0, addr,
+				      wpabuf_head(buf), wpabuf_len(buf));
+	wpabuf_free(buf);
+	if (ret < 0)
+		return ret;
+
+	return hapd->beacon_req_token;
+}
+
+
+void hostapd_rrm_beacon_req_tx_status(struct hostapd_data *hapd,
+				      const struct ieee80211_mgmt *mgmt,
+				      size_t len, int ok)
+{
+	if (len < 24 + 3)
+		return;
+	wpa_msg(hapd->msg_ctx, MSG_INFO, BEACON_REQ_TX_STATUS MACSTR
+		" %u ack=%d", MAC2STR(mgmt->da),
+		mgmt->u.action.u.rrm.dialog_token, ok);
 }

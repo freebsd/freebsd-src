@@ -21,11 +21,6 @@
 #include "wmm.h"
 
 
-/* TODO: maintain separate sequence and fragment numbers for each AC
- * TODO: IGMP snooping to track which multicasts to forward - and use QOS-DATA
- * if only WMM stations are receiving a certain group */
-
-
 static inline u8 wmm_aci_aifsn(int aifsn, int acm, int aci)
 {
 	u8 ret;
@@ -157,8 +152,9 @@ static void wmm_send_action(struct hostapd_data *hapd, const u8 *addr,
 
 int wmm_process_tspec(struct wmm_tspec_element *tspec)
 {
-	int medium_time, pps, duration;
-	int up, psb, dir, tid;
+	u64 medium_time;
+	unsigned int pps, duration;
+	unsigned int up, psb, dir, tid;
 	u16 val, surplus;
 
 	up = (tspec->ts_info[1] >> 3) & 0x07;
@@ -206,8 +202,9 @@ int wmm_process_tspec(struct wmm_tspec_element *tspec)
 		return WMM_ADDTS_STATUS_INVALID_PARAMETERS;
 	}
 
-	medium_time = surplus * pps * duration / 0x2000;
-	wpa_printf(MSG_DEBUG, "WMM: Estimated medium time: %u", medium_time);
+	medium_time = (u64) surplus * pps * duration / 0x2000;
+	wpa_printf(MSG_DEBUG, "WMM: Estimated medium time: %lu",
+		   (unsigned long) medium_time);
 
 	/*
 	 * TODO: store list of granted (and still active) TSPECs and check

@@ -9,6 +9,7 @@
 #include "includes.h"
 
 #include "common.h"
+#include "crypto/sha256.h"
 #include "uuid.h"
 
 int uuid_str2bin(const char *str, u8 *bin)
@@ -68,4 +69,28 @@ int is_nil_uuid(const u8 *uuid)
 		if (uuid[i])
 			return 0;
 	return 1;
+}
+
+
+int uuid_random(u8 *uuid)
+{
+	struct os_time t;
+	u8 hash[SHA256_MAC_LEN];
+
+	/* Use HMAC-SHA256 and timestamp as context to avoid exposing direct
+	 * os_get_random() output in the UUID field. */
+	os_get_time(&t);
+	if (os_get_random(uuid, UUID_LEN) < 0 ||
+	    hmac_sha256(uuid, UUID_LEN, (const u8 *) &t, sizeof(t), hash) < 0)
+		return -1;
+
+	os_memcpy(uuid, hash, UUID_LEN);
+
+	/* Version: 4 = random */
+	uuid[6] = (4 << 4) | (uuid[6] & 0x0f);
+
+	/* Variant specified in RFC 4122 */
+	uuid[8] = 0x80 | (uuid[8] & 0x3f);
+
+	return 0;
 }

@@ -166,8 +166,7 @@ int hs20_web_browser(const char *url)
 	g_object_set(G_OBJECT(s), "ssl-strict", FALSE, NULL);
 
 	ctx.win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_wmclass(GTK_WINDOW(ctx.win), "Hotspot 2.0 client",
-			       "Hotspot 2.0 client");
+	gtk_window_set_role(GTK_WINDOW(ctx.win), "Hotspot 2.0 client");
 	gtk_window_set_default_size(GTK_WINDOW(ctx.win), 800, 600);
 
 	scroll = gtk_scrolled_window_new(NULL, NULL);

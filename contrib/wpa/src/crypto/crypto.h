@@ -1,6 +1,6 @@
 /*
  * Wrapper functions for crypto libraries
- * Copyright (c) 2004-2013, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2017, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -106,8 +106,9 @@ int sha512_vector(size_t num_elem, const u8 *addr[], const size_t *len,
  * @clear: 8 octets (in)
  * @key: 7 octets (in) (no parity bits included)
  * @cypher: 8 octets (out)
+ * Returns: 0 on success, -1 on failure
  */
-void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher);
+int des_encrypt(const u8 *clear, const u8 *key, u8 *cypher);
 
 /**
  * aes_encrypt_init - Initialize AES for encryption
@@ -122,8 +123,9 @@ void * aes_encrypt_init(const u8 *key, size_t len);
  * @ctx: Context pointer from aes_encrypt_init()
  * @plain: Plaintext data to be encrypted (16 bytes)
  * @crypt: Buffer for the encrypted data (16 bytes)
+ * Returns: 0 on success, -1 on failure
  */
-void aes_encrypt(void *ctx, const u8 *plain, u8 *crypt);
+int aes_encrypt(void *ctx, const u8 *plain, u8 *crypt);
 
 /**
  * aes_encrypt_deinit - Deinitialize AES encryption
@@ -144,8 +146,9 @@ void * aes_decrypt_init(const u8 *key, size_t len);
  * @ctx: Context pointer from aes_encrypt_init()
  * @crypt: Encrypted data (16 bytes)
  * @plain: Buffer for the decrypted data (16 bytes)
+ * Returns: 0 on success, -1 on failure
  */
-void aes_decrypt(void *ctx, const u8 *crypt, u8 *plain);
+int aes_decrypt(void *ctx, const u8 *crypt, u8 *plain);
 
 /**
  * aes_decrypt_deinit - Deinitialize AES decryption
@@ -414,6 +417,14 @@ int __must_check crypto_public_key_decrypt_pkcs1(
 	struct crypto_public_key *key, const u8 *crypt, size_t crypt_len,
 	u8 *plain, size_t *plain_len);
 
+int crypto_dh_init(u8 generator, const u8 *prime, size_t prime_len, u8 *privkey,
+		   u8 *pubkey);
+int crypto_dh_derive_secret(u8 generator, const u8 *prime, size_t prime_len,
+			    const u8 *order, size_t order_len,
+			    const u8 *privkey, size_t privkey_len,
+			    const u8 *pubkey, size_t pubkey_len,
+			    u8 *secret, size_t *len);
+
 /**
  * crypto_global_init - Initialize crypto wrapper
  *
@@ -526,6 +537,14 @@ int crypto_bignum_to_bin(const struct crypto_bignum *a,
 			 u8 *buf, size_t buflen, size_t padlen);
 
 /**
+ * crypto_bignum_rand - Create a random number in range of modulus
+ * @r: Bignum; set to a random value
+ * @m: Bignum; modulus
+ * Returns: 0 on success, -1 on failure
+ */
+int crypto_bignum_rand(struct crypto_bignum *r, const struct crypto_bignum *m);
+
+/**
  * crypto_bignum_add - c = a + b
  * @a: Bignum
  * @b: Bignum
@@ -607,6 +626,16 @@ int crypto_bignum_mulmod(const struct crypto_bignum *a,
 			 struct crypto_bignum *d);
 
 /**
+ * crypto_bignum_rshift - r = a >> n
+ * @a: Bignum
+ * @n: Number of bits
+ * @r: Bignum; used to store the result of a >> n
+ * Returns: 0 on success, -1 on failure
+ */
+int crypto_bignum_rshift(const struct crypto_bignum *a, int n,
+			 struct crypto_bignum *r);
+
+/**
  * crypto_bignum_cmp - Compare two bignums
  * @a: Bignum
  * @b: Bignum
@@ -635,6 +664,13 @@ int crypto_bignum_is_zero(const struct crypto_bignum *a);
  * Returns: 1 if @a is one or 0 if not
  */
 int crypto_bignum_is_one(const struct crypto_bignum *a);
+
+/**
+ * crypto_bignum_is_odd - Is the given bignum odd
+ * @a: Bignum
+ * Returns: 1 if @a is odd or 0 if not
+ */
+int crypto_bignum_is_odd(const struct crypto_bignum *a);
 
 /**
  * crypto_bignum_legendre - Compute the Legendre symbol (a/p)
@@ -682,6 +718,13 @@ size_t crypto_ec_prime_len(struct crypto_ec *e);
 size_t crypto_ec_prime_len_bits(struct crypto_ec *e);
 
 /**
+ * crypto_ec_order_len - Get length of the order in octets
+ * @e: EC context from crypto_ec_init()
+ * Returns: Length of the order defining the group
+ */
+size_t crypto_ec_order_len(struct crypto_ec *e);
+
+/**
  * crypto_ec_get_prime - Get prime defining an EC group
  * @e: EC context from crypto_ec_init()
  * Returns: Prime (bignum) defining the group
@@ -718,6 +761,16 @@ struct crypto_ec_point * crypto_ec_point_init(struct crypto_ec *e);
 void crypto_ec_point_deinit(struct crypto_ec_point *p, int clear);
 
 /**
+ * crypto_ec_point_x - Copies the x-ordinate point into big number
+ * @e: EC context from crypto_ec_init()
+ * @p: EC point data
+ * @x: Big number to set to the copy of x-ordinate
+ * Returns: 0 on success, -1 on failure
+ */
+int crypto_ec_point_x(struct crypto_ec *e, const struct crypto_ec_point *p,
+		      struct crypto_bignum *x);
+
+/**
  * crypto_ec_point_to_bin - Write EC point value as binary data
  * @e: EC context from crypto_ec_init()
  * @p: EC point data from crypto_ec_point_init()
@@ -746,7 +799,7 @@ struct crypto_ec_point * crypto_ec_point_from_bin(struct crypto_ec *e,
 						  const u8 *val);
 
 /**
- * crypto_bignum_add - c = a + b
+ * crypto_ec_point_add - c = a + b
  * @e: EC context from crypto_ec_init()
  * @a: Bignum
  * @b: Bignum
@@ -758,7 +811,7 @@ int crypto_ec_point_add(struct crypto_ec *e, const struct crypto_ec_point *a,
 			struct crypto_ec_point *c);
 
 /**
- * crypto_bignum_mul - res = b * p
+ * crypto_ec_point_mul - res = b * p
  * @e: EC context from crypto_ec_init()
  * @p: EC point
  * @b: Bignum
@@ -828,5 +881,13 @@ int crypto_ec_point_is_on_curve(struct crypto_ec *e,
 int crypto_ec_point_cmp(const struct crypto_ec *e,
 			const struct crypto_ec_point *a,
 			const struct crypto_ec_point *b);
+
+struct crypto_ecdh;
+
+struct crypto_ecdh * crypto_ecdh_init(int group);
+struct wpabuf * crypto_ecdh_get_pubkey(struct crypto_ecdh *ecdh, int inc_y);
+struct wpabuf * crypto_ecdh_set_peerkey(struct crypto_ecdh *ecdh, int inc_y,
+					const u8 *key, size_t len);
+void crypto_ecdh_deinit(struct crypto_ecdh *ecdh);
 
 #endif /* CRYPTO_H */

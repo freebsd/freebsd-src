@@ -15,7 +15,7 @@
 
 #define MKA_VERSION_ID              1
 
-/* IEEE Std 802.1X-2010, 11.11.1, Table 11-7 */
+/* IEEE Std 802.1X-2010, 11.11.1, Table 11-7 (MKPDU parameter sets) */
 enum mka_packet_type {
 	MKA_BASIC_PARAMETER_SET = MKA_VERSION_ID,
 	MKA_LIVE_PEER_LIST = 1,
@@ -39,7 +39,7 @@ struct ieee802_1x_kay;
 struct ieee802_1x_mka_peer_id {
 	u8 mi[MI_LEN];
 	be32 mn;
-};
+} STRUCT_PACKED;
 
 struct ieee802_1x_kay_peer {
 	struct ieee802_1x_mka_sci sci;
@@ -51,88 +51,7 @@ struct ieee802_1x_kay_peer {
 	Boolean macsec_desired;
 	enum macsec_cap macsec_capability;
 	Boolean sak_used;
-	struct dl_list list;
-};
-
-struct data_key {
-	u8 *key;
-	int key_len;
-	struct ieee802_1x_mka_ki key_identifier;
-	enum confidentiality_offset confidentiality_offset;
-	u8 an;
-	Boolean transmits;
-	Boolean receives;
-	struct os_time created_time;
-	u32 next_pn;
-
-	/* not defined data */
-	Boolean rx_latest;
-	Boolean tx_latest;
-
-	int user;  /* FIXME: to indicate if it can be delete safely */
-
-	struct dl_list list;
-};
-
-/* TransmitSC in IEEE Std 802.1AE-2006, Figure 10-6 */
-struct transmit_sc {
-	struct ieee802_1x_mka_sci sci; /* const SCI sci */
-	Boolean transmitting; /* bool transmitting (read only) */
-
-	struct os_time created_time; /* Time createdTime */
-
-	u8 encoding_sa; /* AN encodingSA (read only) */
-	u8 enciphering_sa; /* AN encipheringSA (read only) */
-
-	/* not defined data */
-	unsigned int channel;
-
-	struct dl_list list;
-	struct dl_list sa_list;
-};
-
-/* TransmitSA in IEEE Std 802.1AE-2006, Figure 10-6 */
-struct transmit_sa {
-	Boolean in_use; /* bool inUse (read only) */
-	u32 next_pn; /* PN nextPN (read only) */
-	struct os_time created_time; /* Time createdTime */
-
-	Boolean enable_transmit; /* bool EnableTransmit */
-
-	u8 an;
-	Boolean confidentiality;
-	struct data_key *pkey;
-
-	struct transmit_sc *sc;
-	struct dl_list list; /* list entry in struct transmit_sc::sa_list */
-};
-
-/* ReceiveSC in IEEE Std 802.1AE-2006, Figure 10-6 */
-struct receive_sc {
-	struct ieee802_1x_mka_sci sci; /* const SCI sci */
-	Boolean receiving; /* bool receiving (read only) */
-
-	struct os_time created_time; /* Time createdTime */
-
-	unsigned int channel;
-
-	struct dl_list list;
-	struct dl_list sa_list;
-};
-
-/* ReceiveSA in IEEE Std 802.1AE-2006, Figure 10-6 */
-struct receive_sa {
-	Boolean enable_receive; /* bool enableReceive */
-	Boolean in_use; /* bool inUse (read only) */
-
-	u32 next_pn; /* PN nextPN (read only) */
-	u32 lowest_pn; /* PN lowestPN (read only) */
-	u8 an;
-	struct os_time created_time;
-
-	struct data_key *pkey;
-	struct receive_sc *sc; /* list entry in struct receive_sc::sa_list */
-
+	int missing_sak_use_count;
 	struct dl_list list;
 };
 
@@ -141,25 +60,24 @@ struct macsec_ciphersuite {
 	char name[32];
 	enum macsec_cap capable;
 	int sak_len; /* unit: byte */
-
-	u32 index;
 };
 
 struct mka_alg {
 	u8 parameter[4];
-	size_t cak_len;
-	size_t kek_len;
-	size_t ick_len;
 	size_t icv_len;
 
-	int (*cak_trfm)(const u8 *msk, const u8 *mac1, const u8 *mac2, u8 *cak);
-	int (*ckn_trfm)(const u8 *msk, const u8 *mac1, const u8 *mac2,
-			const u8 *sid, size_t sid_len, u8 *ckn);
-	int (*kek_trfm)(const u8 *cak, const u8 *ckn, size_t ckn_len, u8 *kek);
-	int (*ick_trfm)(const u8 *cak, const u8 *ckn, size_t ckn_len, u8 *ick);
-	int (*icv_hash)(const u8 *ick, const u8 *msg, size_t msg_len, u8 *icv);
-
-	int index; /* index for configuring */
+	int (*cak_trfm)(const u8 *msk, size_t msk_bytes, const u8 *mac1,
+			const u8 *mac2, u8 *cak, size_t cak_bytes);
+	int (*ckn_trfm)(const u8 *msk, size_t msk_bytes, const u8 *mac1,
+			const u8 *mac2, const u8 *sid, size_t sid_len, u8 *ckn);
+	int (*kek_trfm)(const u8 *cak, size_t cak_bytes,
+			const u8 *ckn, size_t ckn_len,
+			u8 *kek, size_t kek_bytes);
+	int (*ick_trfm)(const u8 *cak, size_t cak_bytes,
+			const u8 *ckn, size_t ckn_len,
+			u8 *ick, size_t ick_bytes);
+	int (*icv_hash)(const u8 *ick, size_t ick_bytes,
+			const u8 *msg, size_t msg_len, u8 *icv);
 };
 
 #define DEFAULT_MKA_ALG_INDEX 0
@@ -175,8 +93,9 @@ struct ieee802_1x_mka_participant {
 	Boolean active;
 	Boolean participant;
 	Boolean retain;
+	enum mka_created_mode mode;
 
-	enum { DEFAULT, DISABLED, ON_OPER_UP, ALWAYS } activate;
+	enum activate_ctrl { DEFAULT, DISABLED, ON_OPER_UP, ALWAYS } activate;
 
 	/* used for active participant */
 	Boolean principal;
@@ -212,8 +131,10 @@ struct ieee802_1x_mka_participant {
 	u8 mi[MI_LEN];
 	u32 mn;
 
+	/* Current peer MI and SCI during MKPDU processing */
 	struct ieee802_1x_mka_peer_id current_peer_id;
 	struct ieee802_1x_mka_sci current_peer_sci;
+
 	time_t cak_life;
 	time_t mka_life;
 	Boolean to_dist_sak;
@@ -246,10 +167,26 @@ struct ieee802_1x_mka_hdr {
 #endif
 	/* octet 4 */
 	u8 length1;
-};
+} STRUCT_PACKED;
 
 #define MKA_HDR_LEN sizeof(struct ieee802_1x_mka_hdr)
 
+/**
+ * struct ieee802_1x_mka_basic_body - Basic Parameter Set (Figure 11-8)
+ * @version: MKA Version Identifier
+ * @priority: Key Server Priority
+ * @length: Parameter set body length
+ * @macsec_capability: MACsec capability, as defined in ieee802_1x_defs.h
+ * @macsec_desired: the participant wants MACsec to be used to protect frames
+ *	(9.6.1)
+ * @key_server: the participant has not decided that another participant is or
+ *	will be the key server (9.5.1)
+ * @length1: Parameter set body length (cont)
+ * @actor_mi: Actor's Member Identifier
+ * @actor_mn: Actor's Message Number
+ * @algo_agility: Algorithm Agility parameter
+ * @ckn: CAK Name
+ */
 struct ieee802_1x_mka_basic_body {
 	/* octet 1 */
 	u8 version;
@@ -275,10 +212,18 @@ struct ieee802_1x_mka_basic_body {
 	be32 actor_mn;
 	u8 algo_agility[4];
 
-	/* followed by CAK Name*/
+	/* followed by CAK Name */
 	u8 ckn[0];
-};
+} STRUCT_PACKED;
 
+/**
+ * struct ieee802_1x_mka_peer_body - Live Peer List and Potential Peer List
+ *	parameter sets (Figure 11-9)
+ * @type: Parameter set type (1 or 2)
+ * @length: Parameter set body length
+ * @length1: Parameter set body length (cont)
+ * @peer: array of (MI, MN) pairs
+ */
 struct ieee802_1x_mka_peer_body {
 	/* octet 1 */
 	u8 type;
@@ -295,10 +240,32 @@ struct ieee802_1x_mka_peer_body {
 	/* octet 4 */
 	u8 length1;
 
-	u8 peer[0];
 	/* followed by Peers */
-};
+	u8 peer[0];
+} STRUCT_PACKED;
 
+/**
+ * struct ieee802_1x_mka_sak_use_body - MACsec SAK Use parameter set (Figure
+ *	11-10)
+ * @type: MKA message type
+ * @lan: latest key AN
+ * @ltx: latest key TX
+ * @lrx: latest key RX
+ * @oan: old key AN
+ * @otx: old key TX
+ * @orx: old key RX
+ * @ptx: plain TX, ie protectFrames is False
+ * @prx: plain RX, ie validateFrames is not Strict
+ * @delay_protect: True if LPNs are being reported sufficiently frequently to
+ *	allow the recipient to provide data delay protection. If False, the LPN
+ *	can be reported as zero.
+ * @lsrv_mi: latest key server MI
+ * @lkn: latest key number (together with MI, form the KI)
+ * @llpn: latest lowest acceptable PN (LPN)
+ * @osrv_mi: old key server MI
+ * @okn: old key number (together with MI, form the KI)
+ * @olpn: old lowest acceptable PN (LPN)
+ */
 struct ieee802_1x_mka_sak_use_body {
 	/* octet 1 */
 	u8 type;
@@ -350,9 +317,23 @@ struct ieee802_1x_mka_sak_use_body {
 	be32 okn;
 	/* octet 41 - 44 */
 	be32 olpn;
-};
+} STRUCT_PACKED;
 
-
+/**
+ * struct ieee802_1x_mka_dist_sak_body - Distributed SAK parameter set
+ *	(GCM-AES-128, Figure 11-11)
+ * @type: Parameter set type (4)
+ * @length: Parameter set body length
+ * @length1: Parameter set body length (cont)
+ *           Total parameter body length values:
+ *            -  0 for plain text
+ *            - 28 for GCM-AES-128
+ *            - 36 or more for other cipher suites
+ * @confid_offset: confidentiality offset, as defined in ieee802_1x_defs.h
+ * @dan: distributed AN (0 for plain text)
+ * @kn: Key Number
+ * @sak: AES Key Wrap of SAK (see 9.8)
+ */
 struct ieee802_1x_mka_dist_sak_body {
 	/* octet 1 */
 	u8 type;
@@ -383,8 +364,43 @@ struct ieee802_1x_mka_dist_sak_body {
 	 * for other cipher suite: octet 9-16: cipher suite id, octet 17-: SAK
 	 */
 	u8 sak[0];
-};
+} STRUCT_PACKED;
 
+/**
+ * struct ieee802_1x_mka_dist_cak_body - Distributed CAK parameter set (Figure
+ *	11-13)
+ * @type: Parameter set type (5)
+ * @length: Parameter set body length
+ * @length1: Parameter set body length (cont)
+ *           Total parameter body length values:
+ *            -  0 for plain text
+ *            - 28 for GCM-AES-128
+ *            - 36 or more for other cipher suites
+ * @cak: AES Key Wrap of CAK (see 9.8)
+ * @ckn: CAK Name
+ */
+struct ieee802_1x_mka_dist_cak_body {
+	/* octet 1 */
+	u8 type;
+	/* octet 2 */
+	u8 reserve;
+	/* octet 3 */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+	u8 length:4;
+	u8 reserve1:4;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+	u8 reserve1:4;
+	u8 length:4;
+#endif
+	/* octet 4 */
+	u8 length1;
+
+	/* octet 5 - 28 */
+	u8 cak[24];
+
+	/* followed by CAK Name, 29- */
+	u8 ckn[0];
+} STRUCT_PACKED;
 
 struct ieee802_1x_mka_icv_body {
 	/* octet 1 */
@@ -404,6 +420,6 @@ struct ieee802_1x_mka_icv_body {
 
 	/* octet 5 - */
 	u8 icv[0];
-};
+} STRUCT_PACKED;
 
 #endif /* IEEE802_1X_KAY_I_H */

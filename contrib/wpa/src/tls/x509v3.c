@@ -274,13 +274,12 @@ static int x509_parse_public_key(const u8 *buf, size_t len,
 		 */
 	}
 	os_free(cert->public_key);
-	cert->public_key = os_malloc(hdr.length - 1);
+	cert->public_key = os_memdup(pos + 1, hdr.length - 1);
 	if (cert->public_key == NULL) {
 		wpa_printf(MSG_DEBUG, "X509: Failed to allocate memory for "
 			   "public key");
 		return -1;
 	}
-	os_memcpy(cert->public_key, pos + 1, hdr.length - 1);
 	cert->public_key_len = hdr.length - 1;
 	wpa_hexdump(MSG_MSGDUMP, "X509: subjectPublicKey",
 		    cert->public_key, cert->public_key_len);
@@ -533,6 +532,8 @@ void x509_name_string(struct x509_name *name, char *buf, size_t len)
 	}
 
 done:
+	if (pos < end)
+		*pos = '\0';
 	end[-1] = '\0';
 }
 
@@ -925,10 +926,9 @@ static int x509_parse_alt_name_ip(struct x509_name *name,
 	/* iPAddress OCTET STRING */
 	wpa_hexdump(MSG_MSGDUMP, "X509: altName - iPAddress", pos, len);
 	os_free(name->ip);
-	name->ip = os_malloc(len);
+	name->ip = os_memdup(pos, len);
 	if (name->ip == NULL)
 		return -1;
-	os_memcpy(name->ip, pos, len);
 	name->ip_len = len;
 	return 0;
 }
@@ -1700,14 +1700,13 @@ struct x509_certificate * x509_certificate_parse(const u8 *buf, size_t len)
 		return NULL;
 	}
 	os_free(cert->sign_value);
-	cert->sign_value = os_malloc(hdr.length - 1);
+	cert->sign_value = os_memdup(pos + 1, hdr.length - 1);
 	if (cert->sign_value == NULL) {
 		wpa_printf(MSG_DEBUG, "X509: Failed to allocate memory for "
 			   "signatureValue");
 		x509_certificate_free(cert);
 		return NULL;
 	}
-	os_memcpy(cert->sign_value, pos + 1, hdr.length - 1);
 	cert->sign_value_len = hdr.length - 1;
 	wpa_hexdump(MSG_MSGDUMP, "X509: signature",
 		    cert->sign_value, cert->sign_value_len);
@@ -2039,7 +2038,7 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 
 	for (cert = chain, idx = 0; cert; cert = cert->next, idx++) {
 		cert->issuer_trusted = 0;
-		x509_name_string(&cert->subject, buf, sizeof(buf)); 
+		x509_name_string(&cert->subject, buf, sizeof(buf));
 		wpa_printf(MSG_DEBUG, "X509: %lu: %s", idx, buf);
 
 		if (chain_trusted)
@@ -2063,11 +2062,11 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 				wpa_printf(MSG_DEBUG, "X509: Certificate "
 					   "chain issuer name mismatch");
 				x509_name_string(&cert->issuer, buf,
-						 sizeof(buf)); 
+						 sizeof(buf));
 				wpa_printf(MSG_DEBUG, "X509: cert issuer: %s",
 					   buf);
 				x509_name_string(&cert->next->subject, buf,
-						 sizeof(buf)); 
+						 sizeof(buf));
 				wpa_printf(MSG_DEBUG, "X509: next cert "
 					   "subject: %s", buf);
 				*reason = X509_VALIDATE_CERTIFICATE_UNKNOWN;

@@ -796,6 +796,10 @@ static void eap_aka_fullauth(struct eap_sm *sm, struct eap_aka_data *data)
 		return;
 	}
 
+	if (data->permanent[0] == EAP_AKA_PERMANENT_PREFIX ||
+	    data->permanent[0] == EAP_AKA_PRIME_PERMANENT_PREFIX)
+		os_strlcpy(sm->imsi, &data->permanent[1], sizeof(sm->imsi));
+
 #ifdef EAP_SERVER_AKA_PRIME
 	if (data->eap_method == EAP_TYPE_AKA_PRIME) {
 		/* Note: AUTN = (SQN ^ AK) || AMF || MAC which gives us the
@@ -1261,10 +1265,9 @@ static u8 * eap_aka_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = os_malloc(EAP_SIM_KEYING_DATA_LEN);
+	key = os_memdup(data->msk, EAP_SIM_KEYING_DATA_LEN);
 	if (key == NULL)
 		return NULL;
-	os_memcpy(key, data->msk, EAP_SIM_KEYING_DATA_LEN);
 	*len = EAP_SIM_KEYING_DATA_LEN;
 	return key;
 }
@@ -1278,10 +1281,9 @@ static u8 * eap_aka_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = os_malloc(EAP_EMSK_LEN);
+	key = os_memdup(data->emsk, EAP_EMSK_LEN);
 	if (key == NULL)
 		return NULL;
-	os_memcpy(key, data->emsk, EAP_EMSK_LEN);
 	*len = EAP_EMSK_LEN;
 	return key;
 }

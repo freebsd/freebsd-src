@@ -5,41 +5,30 @@
 .include "../Makefile.inc"
 
 .PATH.c:${WPA_SUPPLICANT_DISTDIR} \
+	${WPA_DISTDIR}/src/eap_peer \
 	${WPA_DISTDIR}/src/drivers
 
 PROG=	wpa_supplicant
-SRCS=	accounting.c ap_drv_ops.c ap_config.c ap_list.c \
-	ap_mlme.c \
-	authsrv.c \
-	base64.c beacon.c blacklist.c bss.c bss_load.c common.c config.c \
-	config_file.c ctrl_iface.c ctrl_iface_common.c \
-	ctrl_iface_unix.c dfs.c driver_bsd.c \
-	driver_common.c driver_ndis.c driver_wired.c drivers.c \
-	eap_register.c eapol_auth_sm.c eap_server_methods.c eap_server.c \
-	eap_user_db.c \
-	eloop.c events.c gas.c gas_query.c gas_serv.c hostapd.c hs20.c \
-	hs20_supplicant.c http_client.c http_server.c httpread.c \
-	hw_features.c hw_features_common.c \
-	ieee802_11.c ieee802_11_auth.c ieee802_11_common.c \
-	ieee802_11_shared.c ieee802_1x.c \
-	interworking.c ip_addr.c l2_packet_freebsd.c main.c \
-	neighbor_db.c \
-	notify.c offchannel.c os_unix.c peerkey.c peerkey_auth.c \
-	pmksa_cache.c \
-	pmksa_cache_auth.c \
-	preauth.c scan.c radius.c radius_client.c radius_das.c rrm.c \
-	sta_info.c \
-	tkip_countermeasures.c \
-	upnp_xml.c utils.c uuid.c vlan.c vlan_ifconfig.c \
-	vlan_init.c wmm.c wmm_ac.c \
-	wpa.c wpa_auth.c wpa_auth_ft.c wpa_common.c wpa_debug.c \
-	wpa_auth_glue.c wpa_auth_ie.c wpa_ft.c \
-	wpa_ie.c wpa_supplicant.c wpabuf.c wpas_glue.c wps.c \
-	wps_attr_build.c wps_attr_parse.c wps_attr_process.c \
-	wps_common.c wps_dev_attr.c wps_enrollee.c wps_hostapd.c \
-	wps_registrar.c \
+
+SRCS=	base64.c bitfield.c blacklist.c bss.c cli.c common.c \
+	config.c config_file.c \
+	ctrl_iface.c ctrl_iface_common.c ctrl_iface_unix.c \
+	dh_groups.c driver_bsd.c driver_common.c \
+	driver_ndis.c driver_wired.c driver_wired_common.c drivers.c \
+	eap_register.c eap_wsc.c eap_wsc_common.c eloop.c \
+	events.c gas.c gas_query.c hs20_supplicant.c \
+	http_client.c http_server.c \
+	httpread.c hw_features_common.c \
+	ieee802_11_common.c interworking.c l2_packet_freebsd.c main.c \
+	notify.c offchannel.c op_classes.c os_unix.c pmksa_cache.c preauth.c \
+	rrm.c scan.c upnp_xml.c uuid.c \
+	wmm_ac.c wpa.c wpa_common.c wpa_ctrl.c \
+	wpa_debug.c wpa_ft.c wpa_ie.c wpa_supplicant.c wpabuf.c wpas_glue.c \
+	wps.c wps_attr_build.c wps_attr_parse.c wps_attr_process.c \
+	wps_common.c wps_dev_attr.c wps_enrollee.c wps_registrar.c \
 	wps_supplicant.c wps_upnp.c wps_upnp_ap.c wps_upnp_event.c \
-	wps_upnp_ssdp.c wps_upnp_web.c Packet32.c
+	wps_upnp_ssdp.c wps_upnp_web.c \
+	Packet32.c
 
 MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
 

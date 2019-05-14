@@ -31,6 +31,10 @@ int asn1_get_next(const u8 *buf, size_t len, struct asn1_hdr *hdr)
 	pos = buf;
 	end = buf + len;
 
+	if (pos >= end) {
+		wpa_printf(MSG_DEBUG, "ASN.1: No room for Identifier");
+		return -1;
+	}
 	hdr->identifier = *pos++;
 	hdr->class = hdr->identifier >> 6;
 	hdr->constructed = !!(hdr->identifier & (1 << 5));
@@ -51,6 +55,10 @@ int asn1_get_next(const u8 *buf, size_t len, struct asn1_hdr *hdr)
 	} else
 		hdr->tag = hdr->identifier & 0x1f;
 
+	if (pos >= end) {
+		wpa_printf(MSG_DEBUG, "ASN.1: No room for Length");
+		return -1;
+	}
 	tmp = *pos++;
 	if (tmp & 0x80) {
 		if (tmp == 0xff) {

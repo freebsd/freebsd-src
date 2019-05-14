@@ -12,19 +12,19 @@ import getopt
 from dbus.mainloop.glib import DBusGMainLoop
 
 def usage():
-	print "Usage:"
-	print "  %s -i <interface_name> \ " \
-		% sys.argv[0]
-	print "  		[-w <wpas_dbus_interface>]"
-	print "Options:"
-	print "  -i = interface name"
-	print "  -w = wpas dbus interface = fi.w1.wpa_supplicant1"
-	print "Example:"
-	print "  %s -i p2p-wlan0-0" % sys.argv[0]
+	print("Usage:")
+	print("  %s -i <interface_name> \ " \
+		% sys.argv[0])
+	print("  		[-w <wpas_dbus_interface>]")
+	print("Options:")
+	print("  -i = interface name")
+	print("  -w = wpas dbus interface = fi.w1.wpa_supplicant1")
+	print("Example:")
+	print("  %s -i p2p-wlan0-0" % sys.argv[0])
 
 # Required Signals
 def GroupFinished(status, etc):
-	print "Disconnected"	
+	print("Disconnected")
 	os._exit(0)
 
 class P2P_Disconnect (threading.Thread):
@@ -81,10 +81,10 @@ class P2P_Disconnect (threading.Thread):
 		try:
 			self.path = self.wpas.GetInterface(
 					self.interface_name)
-		except dbus.DBusException, exc:
+		except dbus.DBusException as exc:
 			error = 'Error:\n  Interface ' + self.interface_name \
 				+ ' was not found'
-			print error
+			print(error)
 			usage()
 			os._exit(0)
 
@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
 	# Interface name is required and was not given
 	if (interface_name == None):
-		print "Error:\n  interface_name is required"
+		print("Error:\n  interface_name is required")
 		usage()
 		quit()
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
 						wpas_dbus_interface,timeout)
 
 	except:
-		print "Error:\n  Invalid wpas_dbus_interface"
+		print("Error:\n  Invalid wpas_dbus_interface")
 		usage()
 		quit()
 
@@ -165,5 +165,5 @@ if __name__ == "__main__":
 	except:
 		pass
 
-	print "Disconnect timed out"
+	print("Disconnect timed out")
 	quit()

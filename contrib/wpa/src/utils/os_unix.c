@@ -1,6 +1,6 @@
 /*
  * OS specific functions for UNIX/POSIX systems
- * Copyright (c) 2005-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -79,6 +79,9 @@ int os_get_reltime(struct os_reltime *t)
 #endif
 	struct timespec ts;
 	int res;
+
+	if (TEST_FAIL())
+		return -1;
 
 	while (1) {
 		res = clock_gettime(clock_id, &ts);
@@ -274,6 +277,13 @@ void os_daemonize_terminate(const char *pid_file)
 
 int os_get_random(unsigned char *buf, size_t len)
 {
+#ifdef TEST_FUZZ
+	size_t i;
+
+	for (i = 0; i < len; i++)
+		buf[i] = i & 0xff;
+	return 0;
+#else /* TEST_FUZZ */
 	FILE *f;
 	size_t rc;
 
@@ -290,6 +300,7 @@ int os_get_random(unsigned char *buf, size_t len)
 	fclose(f);
 
 	return rc != len ? -1 : 0;
+#endif /* TEST_FUZZ */
 }
 
 
@@ -532,6 +543,16 @@ int os_memcmp_const(const void *a, const void *b, size_t len)
 }
 
 
+void * os_memdup(const void *src, size_t len)
+{
+	void *r = os_malloc(len);
+
+	if (r && src)
+		os_memcpy(r, src, len);
+	return r;
+}
+
+
 #ifdef WPA_TRACE
 
 #if defined(WPA_TRACE_BFD) && defined(CONFIG_TESTING_OPTIONS)
@@ -563,6 +584,8 @@ static int testing_fail_alloc(void)
 	if (i < res && os_strcmp(func[i], "os_realloc_array") == 0)
 		i++;
 	if (i < res && os_strcmp(func[i], "os_strdup") == 0)
+		i++;
+	if (i < res && os_strcmp(func[i], "os_memdup") == 0)
 		i++;
 
 	pos = wpa_trace_fail_func;

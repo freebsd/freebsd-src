@@ -1,6 +1,6 @@
 /*
  * EAP server/peer: EAP-SAKE shared routines
- * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -81,9 +81,9 @@ struct eap_sake_parse_attr {
 
 int eap_sake_parse_attributes(const u8 *buf, size_t len,
 			      struct eap_sake_parse_attr *attr);
-void eap_sake_derive_keys(const u8 *root_secret_a, const u8 *root_secret_b,
-			  const u8 *rand_s, const u8 *rand_p,
-			  u8 *tek, u8 *msk, u8 *emsk);
+int eap_sake_derive_keys(const u8 *root_secret_a, const u8 *root_secret_b,
+			 const u8 *rand_s, const u8 *rand_p,
+			 u8 *tek, u8 *msk, u8 *emsk);
 int eap_sake_compute_mic(const u8 *tek_auth,
 			 const u8 *rand_s, const u8 *rand_p,
 			 const u8 *serverid, size_t serverid_len,
