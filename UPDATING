@@ -16,6 +16,32 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190514	p4	FreeBSD-EN-19:08.tzdata
+			FreeBSD-EN-19:09.xinstall
+			FreeBSD-EN-19:10.scp
+			FreeBSD-SA-19:03.wpa
+			FreeBSD-SA-19:04.ntp
+			FreeBSD-SA-19:05.pf
+			FreeBSD-SA-19:06.pf
+			FreeBSD-SA-19:07.mds
+
+	Import tzdata 2019a. [EN-19:08.tzdata]
+
+	Fix install with partially matching relative paths. [EN-19:09.xinstall]
+
+	Fix filename validation in scp. [EN-19:10.scp]
+
+	Fix multiple vulnerabilities in hostapd/wpa_supplicant. [SA-19:03.wpa]
+
+	Fix authenticated denial of service in ntpd. [SA-19:04.ntp]
+
+	Fix IPv6 fragment reassembly in pf. [SA-19:05.pf]
+
+	Fix ICMP/ICMP6 packet filter bypass in pf. [SA-19:06.pf]
+
+	Add mitigations for Microarchitectural Data Sampling. [SA-19:07.mds]
+
+
 20190205:	p3	FreeBSD-SA-19:01.syscall
 			FreeBSD-SA-19:02.fd
 			FreeBSD-EN-19:06.dtrace
