@@ -2,4 +2,4 @@
  * version file for sntp
  */
 #include <config.h>
-const char * Version = "sntp 4.2.8p11@1.3728-o Tue Feb 27 22:59:12 UTC 2018 (50)";
+const char * Version = "sntp 4.2.8p13@1.3847-o Thu Feb 21 01:04:54 UTC 2019 (1)";

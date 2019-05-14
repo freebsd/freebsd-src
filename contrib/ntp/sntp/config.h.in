@@ -194,7 +194,7 @@
 /* Define to 1 if the system has the type `long long'. */
 #undef HAVE_LONG_LONG
 
-/* Define to 1 if the system has the type `long long int'. */
+/* Define to 1 if the system has the type 'long long int'. */
 #undef HAVE_LONG_LONG_INT
 
 /* if you have SunOS LWP package */
@@ -259,6 +259,12 @@
 
 /* if you have NT Threads */
 #undef HAVE_NT_THREADS
+
+/* Define to 1 if you have the <openssl/cmac.h> header file. */
+#undef HAVE_OPENSSL_CMAC_H
+
+/* Define to 1 if you have the <openssl/hmac.h> header file. */
+#undef HAVE_OPENSSL_HMAC_H
 
 /* Define this if pathfind(3) works */
 #undef HAVE_PATHFIND
@@ -477,6 +483,9 @@
 /* Define to 1 if you have the <sys/limits.h> header file. */
 #undef HAVE_SYS_LIMITS_H
 
+/* Define to 1 if you have the <sys/mac.h> header file. */
+#undef HAVE_SYS_MAC_H
+
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #undef HAVE_SYS_MMAN_H
 
@@ -556,6 +565,9 @@
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H
 
+/* Are TrustedBSD MAC policy privileges available? */
+#undef HAVE_TRUSTEDBSD_MAC
+
 /* Define to 1 if the system has the type `uint16_t'. */
 #undef HAVE_UINT16_T
 
@@ -580,7 +592,7 @@
 /* deviant sigwait? */
 #undef HAVE_UNIXWARE_SIGWAIT
 
-/* Define to 1 if the system has the type `unsigned long long int'. */
+/* Define to 1 if the system has the type 'unsigned long long int'. */
 #undef HAVE_UNSIGNED_LONG_LONG_INT
 
 /* Define to 1 if you have the <utime.h> header file. */
@@ -840,6 +852,28 @@ typedef unsigned int	uintptr_t;
 /* OK to use snprintb()? */
 #undef USE_SNPRINTB
 
+/* Enable extensions on AIX 3, Interix.  */
+#ifndef _ALL_SOURCE
+# undef _ALL_SOURCE
+#endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# undef _GNU_SOURCE
+#endif
+/* Enable threading extensions on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# undef _POSIX_PTHREAD_SEMANTICS
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# undef __EXTENSIONS__
+#endif
+
+
 /* Can we use SIGPOLL for tty IO? */
 #undef USE_TTY_SIGPOLL
 
@@ -892,9 +926,6 @@ typedef unsigned int	uintptr_t;
 /* enable thread safety */
 #undef _THREAD_SAFE
 
-/* Define to 500 only on HP-UX. */
-#undef _XOPEN_SOURCE
-
 /* Are we _special_? */
 #undef __APPLE_USE_RFC_3542
 
@@ -902,28 +933,6 @@ typedef unsigned int	uintptr_t;
 #ifndef __CHAR_UNSIGNED__
 # undef __CHAR_UNSIGNED__
 #endif
-
-/* Enable extensions on AIX 3, Interix.  */
-#ifndef _ALL_SOURCE
-# undef _ALL_SOURCE
-#endif
-/* Enable GNU extensions on systems that have them.  */
-#ifndef _GNU_SOURCE
-# undef _GNU_SOURCE
-#endif
-/* Enable threading extensions on Solaris.  */
-#ifndef _POSIX_PTHREAD_SEMANTICS
-# undef _POSIX_PTHREAD_SEMANTICS
-#endif
-/* Enable extensions on HP NonStop.  */
-#ifndef _TANDEM_SOURCE
-# undef _TANDEM_SOURCE
-#endif
-/* Enable general extensions on Solaris.  */
-#ifndef __EXTENSIONS__
-# undef __EXTENSIONS__
-#endif
-
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const

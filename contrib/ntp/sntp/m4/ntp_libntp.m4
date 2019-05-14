@@ -689,11 +689,38 @@ case "$ntp_have_solarisprivs" in
  yes)
     AC_DEFINE([HAVE_SOLARIS_PRIVS], [1],
 	[Are Solaris privileges available?])
+    ;;
+ '') ntp_have_solarisprivs="no"
+    ;;
 esac
 
 AC_MSG_RESULT([$ntp_have_solarisprivs])
 
-case "$ntp_use_dev_clockctl$ntp_have_linuxcaps$ntp_have_solarisprivs" in
+AC_CHECK_HEADERS([sys/mac.h])
+
+AC_ARG_ENABLE(
+    [trustedbsd_mac],
+    [AS_HELP_STRING(
+	[--enable-trustedbsd-mac],
+	[s Use TrustedBSD MAC policy for non-root clock control]
+    )],
+    [ntp_use_trustedbsd_mac=$enableval]
+)
+
+AC_MSG_CHECKING([if we should use TrustedBSD MAC privileges])
+
+case "$ntp_use_trustedbsd_mac$ac_cv_header_sys_mac_h" in
+ yesyes)
+    AC_DEFINE([HAVE_TRUSTEDBSD_MAC], [1],
+	[Are TrustedBSD MAC policy privileges available?])
+    ;;
+ *) ntp_use_trustedbsd_mac="no";
+    ;;
+esac
+
+AC_MSG_RESULT([$ntp_use_trustedbsd_mac])
+
+case "$ntp_use_dev_clockctl$ntp_have_linuxcaps$ntp_have_solarisprivs$ntp_use_trustedbsd_mac" in
  *yes*)
     AC_DEFINE([HAVE_DROPROOT], [1],
 	[Can we drop root privileges?])
@@ -862,6 +889,14 @@ AC_CHECK_HEADERS(
 AC_SEARCH_LIBS([MD5Init], [md5 md])
 AC_CHECK_FUNCS([MD5Init sysconf getdtablesize sigaction sigset sigvec])
 
+# HMS: does this need to be a cached variable?
+AC_ARG_ENABLE(
+    [signalled-io],
+    [AS_HELP_STRING([--enable-signalled-io], [s Use signalled IO if we can])],
+    [use_signalled_io=$enableval],
+    [use_signalled_io=yes]
+    )
+
 AC_CACHE_CHECK(
     [for SIGIO],
     [ntp_cv_hdr_def_sigio],
@@ -925,12 +960,23 @@ case "$ntp_cv_hdr_def_sigio" in
 	ans=no
 	;;
     esac
+    case "$ans" in
+     no)
+	ans="Possible for $host but disabled because of reported problems"
+	;;
+    esac
     ;;
 esac
 case "$ans" in
  yes)
-    AC_DEFINE([HAVE_SIGNALED_IO], [1],
-	[Can we use SIGIO for tcp and udp IO?])
+    case "$use_signalled_io" in
+     yes)
+	AC_DEFINE([HAVE_SIGNALED_IO], [1],
+	    [Can we use SIGIO for tcp and udp IO?])
+	;;
+     *) ans="Allowed for $host but --disable-signalled-io was given"
+	;;
+    esac
 esac
 AC_MSG_RESULT([$ans])
 

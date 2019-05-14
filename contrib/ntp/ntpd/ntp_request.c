@@ -890,6 +890,7 @@ peer_info (
 			ip->flags |= INFO_FLAG_SHORTLIST;
 		ip->leap = pp->leap;
 		ip->hmode = pp->hmode;
+		ip->pmode = pp->pmode;
 		ip->keyid = pp->keyid;
 		ip->stratum = pp->stratum;
 		ip->ppoll = pp->ppoll;
@@ -2535,7 +2536,15 @@ get_clock_info(
 		DTOLFP(clock_stat.fudgetime2, &ltmp);
 		HTONL_FP(&ltmp, &ic->fudgetime2);
 		ic->fudgeval1 = htonl((u_int32)clock_stat.fudgeval1);
+		/* [Bug3527] Backward Incompatible: ic->fudgeval2 is
+		 * a string, instantiated via memcpy() so there is no
+		 * endian issue to correct.
+		 */
+#ifdef DISABLE_BUG3527_FIX
 		ic->fudgeval2 = htonl(clock_stat.fudgeval2);
+#else
+		ic->fudgeval2 = clock_stat.fudgeval2;
+#endif
 
 		free_varlist(clock_stat.kv_list);
 

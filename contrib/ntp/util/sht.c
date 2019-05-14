@@ -196,7 +196,7 @@ again:
 		 * certain jitter!)
 		 */
 		time_t clk_sec, rcv_sec;
-		uint   clk_frc, rcv_frc;
+		u_int  clk_frc, rcv_frc;
 
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
 		
@@ -206,17 +206,17 @@ again:
 		struct timespec tmptime;
 		if (0 == clock_gettime(CLOCK_REALTIME, &tmptime)) {
 			rcv_sec = tmptime.tv_sec;
-			rcv_frc = (uint)tmptime.tv_nsec;
+			rcv_frc = (u_int)tmptime.tv_nsec;
 		}
 		else
 #endif
 		{
 			time(&rcv_sec);
-			rcv_frc = (uint)random() % 1000000000u;
+			rcv_frc = (u_int)random() % 1000000000u;
 		}
 		/* add a wobble of ~3.5msec to the clock time */
 		clk_sec = rcv_sec;
-		clk_frc = rcv_frc + (uint)(random()%7094713 - 3547356);
+		clk_frc = rcv_frc + (u_int)(random()%7094713 - 3547356);
 		/* normalise result -- the SHM driver is picky! */
 		while ((int)clk_frc < 0) {
 			clk_frc += 1000000000;

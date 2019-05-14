@@ -55,7 +55,7 @@
  *  tolerable version is at least as old as what was current when the header
  *  template was released.
  */
-#define AO_TEMPLATE_VERSION 167936
+#define AO_TEMPLATE_VERSION 167937
 #if (AO_TEMPLATE_VERSION < OPTIONS_MINIMUM_VERSION) \
  || (AO_TEMPLATE_VERSION > OPTIONS_STRUCT_VERSION)
 # error option template version mismatches autoopts/options.h header

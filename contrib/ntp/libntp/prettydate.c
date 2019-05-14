@@ -170,6 +170,11 @@ common_prettydate(
 
 	LIB_GETBUF(bp);
 
+	if (ts->l_ui == 0 && ts->l_uf == 0) {
+		strlcpy (bp, "(no time)", LIB_BUFLENGTH);
+		return (bp);
+	}
+
 	/* get & fix milliseconds */
 	ntps = ts->l_ui;
 	msec = ts->l_uf / 4294967;	/* fract / (2 ** 32 / 1000) */

@@ -110,6 +110,7 @@ libntp_a_SRCS =						\
 	vint64ops.c					\
 	work_fork.c					\
 	work_thread.c					\
+	xsbprintf.c					\
 	ymd2yd.c					\
 	$(libisc_SRCS)					\
 	$(NULL)

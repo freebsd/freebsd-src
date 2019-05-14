@@ -1210,7 +1210,7 @@ Following the header the keys are entered one per line in the format
 .D1 Ar keyno Ar type Ar key
 where
 .Ar keyno
-is a positive integer in the range 1-65534;
+is a positive integer in the range 1-65535;
 .Ar type
 is the key type for the message digest algorithm, which in the absence of the
 OpenSSL library must be

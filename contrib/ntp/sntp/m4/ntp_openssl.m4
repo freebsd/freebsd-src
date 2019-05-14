@@ -242,6 +242,7 @@ AC_MSG_RESULT([$ntp_openssl])
 
 case "$ntp_openssl" in
  yes)
+    AC_CHECK_HEADERS([openssl/cmac.h openssl/hmac.h])
     AC_DEFINE([OPENSSL], [], [Use OpenSSL?])
     case "$VER_SUFFIX" in
      *o*) ;;

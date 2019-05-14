@@ -40,6 +40,9 @@ extern	void	setup_logfile	(const char *);
 extern	void	errno_to_str(int, char *, size_t);
 #endif
 
+extern	int	xvsbprintf(char**, char* const, char const*, va_list) NTP_PRINTF(3, 0);
+extern	int	xsbprintf(char**, char* const, char const*, ...) NTP_PRINTF(3, 4);
+
 /*
  * When building without OpenSSL, use a few macros of theirs to
  * minimize source differences in NTP.

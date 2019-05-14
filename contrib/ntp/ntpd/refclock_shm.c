@@ -340,6 +340,7 @@ shm_poll(
         if (pp->coderecv != pp->codeproc) {
 		/* have some samples, everything OK */
 		pp->lastref = pp->lastrec;
+		refclock_report(peer, CEVNT_NOMINAL);
 		refclock_receive(peer);
 	} else if (NULL == up->shm) { /* is this possible at all? */
 		/* we're out of business without SHM access */

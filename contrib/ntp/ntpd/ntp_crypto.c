@@ -353,8 +353,8 @@ make_keylist(
 	 * included in the hash is zero if broadcast mode, the peer
 	 * cookie if client mode or the host cookie if symmetric modes.
 	 */
-	mpoll = 1 << min(peer->ppoll, peer->hpoll);
-	lifetime = min(1U << sys_automax, NTP_MAXSESSION * mpoll);
+	mpoll = 1U << min(peer->ppoll, peer->hpoll);
+	lifetime = min((1UL << sys_automax), NTP_MAXSESSION * mpoll);
 	if (peer->hmode == MODE_BROADCAST)
 		cookie = 0;
 	else
@@ -1486,7 +1486,8 @@ crypto_verify(
 		return (XEVNT_LEN);
 
 	i = (vallen + 3) / 4;
-	siglen = ntohl(ep->pkt[i++]);
+	siglen = ntohl(ep->pkt[i]);
+	++i;
 	if (   siglen > MAX_VALLEN
 	    || len - VALUE_LEN < ((vallen + 3) / 4) * 4
 	    || len - VALUE_LEN - ((vallen + 3) / 4) * 4

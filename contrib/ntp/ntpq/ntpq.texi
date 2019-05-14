@@ -186,7 +186,7 @@ Exit @code{ntpq}.
 @item @anchor{raw} @code{raw}
 Display server messages as received and without reformatting.
 
-@item @anchor{timeout} @code{timeout @kbd{millseconds}}
+@item @anchor{timeout} @code{timeout @kbd{milliseconds}}
 Specify a timeout period for responses to server queries.
 The default is about 5000 milliseconds.
 Note that since @code{ntpq} retries each query once after a timeout

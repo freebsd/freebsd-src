@@ -112,7 +112,7 @@ refclock_report(
 		/* ignore others */
 		break;
 	}
-	if (pp->lastevent < 15)
+	if ((code != CEVNT_NOMINAL) && (pp->lastevent < 15))
 		pp->lastevent++;
 	if (pp->currentstatus != code) {
 		pp->currentstatus = (u_char)code;

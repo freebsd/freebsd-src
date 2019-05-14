@@ -364,7 +364,7 @@ static u_int32 get_match(const char *, struct masks *);
 static u_int32 get_logmask(const char *);
 static int/*BOOL*/ is_refclk_addr(const address_node * addr);
 
-static void	appendstr(char *, size_t, char *);
+static void	appendstr(char *, size_t, const char *);
 
 
 #ifndef SIM
@@ -382,14 +382,14 @@ static void fatal_error(const char *fmt, ...)
 #endif
 {
 	va_list va;
-	
+
 	va_start(va, fmt);
 	mvsyslog(LOG_EMERG, fmt, va);
 	va_end(va);
 	_exit(1);
 }
 
-    
+
 /* FUNCTIONS FOR INITIALIZATION
  * ----------------------------
  */
@@ -742,7 +742,7 @@ dump_config_tree(
 					atrv->value.i);
 				}
 				break;
-				
+
 			case T_Double:
 				fprintf(df, " %s %s",
 					keyword(atrv->attr),
@@ -938,7 +938,7 @@ dump_config_tree(
 				if (T_Source == flag_tok_fifo->i) {
 					s = "source";
 					break;
-				} 
+				}
 			}
 		} else {
 			const char *ap = rest_node->addr->address;
@@ -1446,7 +1446,7 @@ create_unpeer_node(
 		/* accumulate with overflow retention */
 		u = (10 * u + *pch - '0') | (u & 0xFF000000u);
 	}
-	
+
 	if (!*pch && u <= ASSOCID_MAX) {
 		my_node->assocID = (associd_t)u;
 		my_node->addr = NULL;
@@ -2065,8 +2065,12 @@ config_auth(
 
 #ifdef AUTOKEY
 	/* crypto revoke command */
-	if (ptree->auth.revoke)
-		sys_revoke = 1UL << ptree->auth.revoke;
+	if (ptree->auth.revoke > 2 && ptree->auth.revoke < 32)
+		sys_revoke = (u_char)ptree->auth.revoke;
+	else if (ptree->auth.revoke)
+		msyslog(LOG_ERR,
+			"'revoke' value %d ignored",
+			ptree->auth.revoke);
 #endif	/* AUTOKEY */
 }
 #endif	/* !SIM */
@@ -2112,6 +2116,10 @@ config_tos_clock(
 			break;
 		}
 	}
+
+	if (basedate_get_day() <= NTP_TO_UNIX_DAYS)
+		basedate_set_day(basedate_eval_buildstamp() - 11);
+	    
 	return ret;
 }
 
@@ -2132,7 +2140,7 @@ config_tos(
 	 * since three variables with interdependecies are involved. We
 	 * just log an error but do not stop: This might be caused by
 	 * remote config, and it might be fixed by remote config, too.
-	 */ 
+	 */
 	int l_maxclock = sys_maxclock;
 	int l_minclock = sys_minclock;
 	int l_minsane  = sys_minsane;
@@ -2162,7 +2170,7 @@ config_tos(
 				tos->value.d = 0;
 			}
 			break;
-			
+
 		case T_Ceiling:
 			val = tos->value.d;
 			if (val > STRATUM_UNSPEC - 1) {
@@ -2194,8 +2202,8 @@ config_tos(
 
 		case T_Minsane:
 			val = tos->value.d;
-			if ((int)tos->value.d < 1)
-				tos->value.d = 1;
+			if ((int)tos->value.d < 0)
+				tos->value.d = 0;
 			l_minsane = (int)tos->value.d;
 			break;
 		}
@@ -2207,7 +2215,7 @@ config_tos(
 			" - daemon will not operate properly!",
 			l_minsane, l_minclock, l_maxclock);
 	}
-	
+
 	/* -*- phase two: forward the values to the protocol machinery */
 	tos = HEAD_PFIFO(ptree->orphan_cmds);
 	for (; tos != NULL; tos = tos->link) {
@@ -3383,6 +3391,10 @@ config_ttl(
 	size_t i = 0;
 	int_node *curr_ttl;
 
+	/* [Bug 3465] There is a built-in default for the TTLs. We must
+	 * overwrite 'sys_ttlmax' if we change that preset, and leave it
+	 * alone otherwise!
+	 */
 	curr_ttl = HEAD_PFIFO(ptree->ttl);
 	for (; curr_ttl != NULL; curr_ttl = curr_ttl->link) {
 		if (i < COUNTOF(sys_ttl))
@@ -3392,7 +3404,8 @@ config_ttl(
 				"ttl: Number of TTL entries exceeds %zu. Ignoring TTL %d...",
 				COUNTOF(sys_ttl), curr_ttl->i);
 	}
-	sys_ttlmax = (i) ? (i - 1) : 0;
+	if (0 != i) /* anything written back at all? */
+		sys_ttlmax = i - 1;
 }
 #endif	/* !SIM */
 
@@ -3621,10 +3634,8 @@ config_fudge(
 			err_flag = 1;
 			msyslog(LOG_ERR,
 				"unrecognized fudge reference clock address %s, line ignored",
-				stoa(&addr_sock));
-		}
-
-		if (!ISREFCLOCKADR(&addr_sock)) {
+				addr_node->address);
+		} else if (!ISREFCLOCKADR(&addr_sock)) {
 			err_flag = 1;
 			msyslog(LOG_ERR,
 				"inappropriate address %s for the fudge command, line ignored",
@@ -3696,7 +3707,7 @@ config_fudge(
 				msyslog(LOG_ERR,
 					"Unexpected fudge flag %s (%d) for %s",
 					token_name(curr_opt->attr),
-					curr_opt->attr, stoa(&addr_sock));
+					curr_opt->attr, addr_node->address);
 				exit(curr_opt->attr ? curr_opt->attr : 1);
 			}
 		}
@@ -3810,7 +3821,12 @@ config_vars(
 
 		case T_Automax:
 #ifdef AUTOKEY
-			sys_automax = curr_var->value.i;
+			if (curr_var->value.i > 2 && curr_var->value.i < 32)
+				sys_automax = (u_char)curr_var->value.i;
+			else
+				msyslog(LOG_ERR,
+					"'automax' value %d ignored",
+					curr_var->value.i);
 #endif
 			break;
 
@@ -4565,7 +4581,7 @@ config_ntpd(
 		if (config_tos_clock(ptree))
 			clamp_systime();
 	}
-	
+
 	config_nic_rules(ptree, input_from_files);
 	config_monitor(ptree);
 	config_auth(ptree);
@@ -4845,7 +4861,7 @@ is_refclk_addr(
 	const address_node * addr
 	)
 {
-	return addr && addr->address && !strncmp(addr->address, "127.127.", 6);
+	return addr && addr->address && !strncmp(addr->address, "127.127.", 8);
 }
 
 static void
@@ -5463,7 +5479,7 @@ static void
 appendstr(
 	char *string,
 	size_t s,
-	char *new
+	const char *new
 	)
 {
 	if (*string != '\0') {

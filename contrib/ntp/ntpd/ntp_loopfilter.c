@@ -246,7 +246,11 @@ ntp_adjtime_error_handler(
 	)
 {
 	char des[1024] = "";	/* Decoded Error Status */
+	char *dbp, *ebp;
 
+	dbp = des;
+	ebp = dbp + sizeof(des);
+	
 	switch (ret) {
 	    case -1:
 		switch (saved_errno) {
@@ -363,37 +367,37 @@ or, from ntp_adjtime():
 				/* error (see status word) */
 
 		if (ptimex->status & STA_UNSYNC)
-			snprintf(des, sizeof(des), "%s%sClock Unsynchronized",
-				des, (*des) ? "; " : "");
+			xsbprintf(&dbp, ebp, "%sClock Unsynchronized",
+				 (*des) ? "; " : "");
 
 		if (ptimex->status & STA_CLOCKERR)
-			snprintf(des, sizeof(des), "%s%sClock Error",
-				des, (*des) ? "; " : "");
+		    xsbprintf(&dbp, ebp, "%sClock Error",
+			      (*des) ? "; " : "");
 
 		if (!(ptimex->status & STA_PPSSIGNAL)
 		    && ptimex->status & STA_PPSFREQ)
-			snprintf(des, sizeof(des), "%s%sPPS Frequency Sync wanted but no PPS",
-				des, (*des) ? "; " : "");
+		    xsbprintf(&dbp, ebp, "%sPPS Frequency Sync wanted but no PPS",
+			      (*des) ? "; " : "");
 
 		if (!(ptimex->status & STA_PPSSIGNAL)
 		    && ptimex->status & STA_PPSTIME)
-			snprintf(des, sizeof(des), "%s%sPPS Time Sync wanted but no PPS signal",
-				des, (*des) ? "; " : "");
+			xsbprintf(&dbp, ebp, "%sPPS Time Sync wanted but no PPS signal",
+				  (*des) ? "; " : "");
 
 		if (   ptimex->status & STA_PPSTIME
 		    && ptimex->status & STA_PPSJITTER)
-			snprintf(des, sizeof(des), "%s%sPPS Time Sync wanted but PPS Jitter exceeded",
-				des, (*des) ? "; " : "");
+			xsbprintf(&dbp, ebp, "%sPPS Time Sync wanted but PPS Jitter exceeded",
+				  (*des) ? "; " : "");
 
 		if (   ptimex->status & STA_PPSFREQ
 		    && ptimex->status & STA_PPSWANDER)
-			snprintf(des, sizeof(des), "%s%sPPS Frequency Sync wanted but PPS Wander exceeded",
-				des, (*des) ? "; " : "");
+			xsbprintf(&dbp, ebp, "%sPPS Frequency Sync wanted but PPS Wander exceeded",
+				  (*des) ? "; " : "");
 
 		if (   ptimex->status & STA_PPSFREQ
 		    && ptimex->status & STA_PPSERROR)
-			snprintf(des, sizeof(des), "%s%sPPS Frequency Sync wanted but Calibration error detected",
-				des, (*des) ? "; " : "");
+			xsbprintf(&dbp, ebp, "%sPPS Frequency Sync wanted but Calibration error detected",
+				  (*des) ? "; " : "");
 
 		if (pps_call && !(ptimex->status & STA_PPSSIGNAL))
 			report_event(EVNT_KERN, NULL,
@@ -1099,10 +1103,14 @@ start_kern_loop(void)
 	pll_control = TRUE;
 	ZERO(ntv);
 	ntv.modes = MOD_BITS;
-	ntv.status = STA_PLL;
-	ntv.maxerror = MAXDISPERSE;
-	ntv.esterror = MAXDISPERSE;
-	ntv.constant = sys_poll; /* why is it that here constant is unconditionally set to sys_poll, whereas elsewhere is is modified depending on nanosecond vs. microsecond kernel? */
+	ntv.status = STA_PLL | STA_UNSYNC;
+	ntv.maxerror = MAXDISPERSE * 1.0e6;
+	ntv.esterror = MAXDISPERSE * 1.0e6;
+	ntv.constant = sys_poll;
+	/*             ^^^^^^^^ why is it that here constant is
+	 * unconditionally set to sys_poll, whereas elsewhere is is
+	 * modified depending on nanosecond vs. microsecond kernel?
+	 */
 #ifdef SIGSYS
 	/*
 	 * Use sigsetjmp() to save state and then call ntp_adjtime(); if

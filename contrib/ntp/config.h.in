@@ -296,6 +296,9 @@
 /* use old autokey session key behavior? */
 #undef DISABLE_BUG1243_FIX
 
+/* use old autokey session key behavior? */
+#undef DISABLE_BUG3527_FIX
+
 /* synch TODR hourly? */
 #undef DOSYNCTODR
 
@@ -310,6 +313,9 @@
 
 /* Provide the explicit 127.0.0.0/8 martian filter? */
 #undef ENABLE_BUG3020_FIX
+
+/* Enable CMAC support? */
+#undef ENABLE_CMAC
 
 /* nls support in libopts */
 #undef ENABLE_NLS
@@ -371,6 +377,14 @@
 
 /* Define to 1 if you have the `daemon' function. */
 #undef HAVE_DAEMON
+
+/* Define to 1 if you have the declaration of `siglongjmp', and to 0 if you
+   don't. */
+#undef HAVE_DECL_SIGLONGJMP
+
+/* Define to 1 if you have the declaration of `sigsetjmp', and to 0 if you
+   don't. */
+#undef HAVE_DECL_SIGSETJMP
 
 /* Define to 1 if you have the declaration of `strerror_r', and to 0 if you
    don't. */
@@ -539,7 +553,7 @@
 /* Define to 1 if the system has the type `long long'. */
 #undef HAVE_LONG_LONG
 
-/* Define to 1 if the system has the type `long long int'. */
+/* Define to 1 if the system has the type 'long long int'. */
 #undef HAVE_LONG_LONG_INT
 
 /* if you have SunOS LWP package */
@@ -652,6 +666,12 @@
 
 /* if you have NT Threads */
 #undef HAVE_NT_THREADS
+
+/* Define to 1 if you have the <openssl/cmac.h> header file. */
+#undef HAVE_OPENSSL_CMAC_H
+
+/* Define to 1 if you have the <openssl/hmac.h> header file. */
+#undef HAVE_OPENSSL_HMAC_H
 
 /* Define to 1 if the system has the type `pid_t'. */
 #undef HAVE_PID_T
@@ -957,6 +977,9 @@
 /* Define to 1 if you have the <sys/lock.h> header file. */
 #undef HAVE_SYS_LOCK_H
 
+/* Define to 1 if you have the <sys/mac.h> header file. */
+#undef HAVE_SYS_MAC_H
+
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #undef HAVE_SYS_MMAN_H
 
@@ -1117,6 +1140,9 @@
 /* Do we have the TIO serial stuff? */
 #undef HAVE_TIO_SERIAL_STUFF
 
+/* Are TrustedBSD MAC policy privileges available? */
+#undef HAVE_TRUSTEDBSD_MAC
+
 /* Define to 1 if the system has the type `uint16_t'. */
 #undef HAVE_UINT16_T
 
@@ -1147,7 +1173,7 @@
 /* deviant sigwait? */
 #undef HAVE_UNIXWARE_SIGWAIT
 
-/* Define to 1 if the system has the type `unsigned long long int'. */
+/* Define to 1 if the system has the type 'unsigned long long int'. */
 #undef HAVE_UNSIGNED_LONG_LONG_INT
 
 /* Define to 1 if you have the `updwtmp' function. */
@@ -1588,6 +1614,28 @@ typedef unsigned int	uintptr_t;
 /* OK to use snprintb()? */
 #undef USE_SNPRINTB
 
+/* Enable extensions on AIX 3, Interix.  */
+#ifndef _ALL_SOURCE
+# undef _ALL_SOURCE
+#endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# undef _GNU_SOURCE
+#endif
+/* Enable threading extensions on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# undef _POSIX_PTHREAD_SEMANTICS
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# undef __EXTENSIONS__
+#endif
+
+
 /* Can we use SIGPOLL for tty IO? */
 #undef USE_TTY_SIGPOLL
 
@@ -1640,9 +1688,6 @@ typedef unsigned int	uintptr_t;
 /* enable thread safety */
 #undef _THREAD_SAFE
 
-/* Define to 500 only on HP-UX. */
-#undef _XOPEN_SOURCE
-
 /* Are we _special_? */
 #undef __APPLE_USE_RFC_3542
 
@@ -1650,28 +1695,6 @@ typedef unsigned int	uintptr_t;
 #ifndef __CHAR_UNSIGNED__
 # undef __CHAR_UNSIGNED__
 #endif
-
-/* Enable extensions on AIX 3, Interix.  */
-#ifndef _ALL_SOURCE
-# undef _ALL_SOURCE
-#endif
-/* Enable GNU extensions on systems that have them.  */
-#ifndef _GNU_SOURCE
-# undef _GNU_SOURCE
-#endif
-/* Enable threading extensions on Solaris.  */
-#ifndef _POSIX_PTHREAD_SEMANTICS
-# undef _POSIX_PTHREAD_SEMANTICS
-#endif
-/* Enable extensions on HP NonStop.  */
-#ifndef _TANDEM_SOURCE
-# undef _TANDEM_SOURCE
-#endif
-/* Enable general extensions on Solaris.  */
-#ifndef __EXTENSIONS__
-# undef __EXTENSIONS__
-#endif
-
 
 /* deviant */
 #undef adjtimex
