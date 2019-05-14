@@ -68,6 +68,10 @@ cpudep_ap_early_bootstrap(void)
 	case IBM970:
 	case IBM970FX:
 	case IBM970MP:
+		/* Set HIOR to 0 */
+		__asm __volatile("mtspr 311,%0" :: "r"(0));
+		powerpc_sync();
+
 		/* Restore HID4 and HID5, which are necessary for the MMU */
 
 #ifdef __powerpc64__
@@ -314,10 +318,6 @@ cpudep_ap_setup()
 	case IBM970:
 	case IBM970FX:
 	case IBM970MP:
-		/* Set HIOR to 0 */
-		__asm __volatile("mtspr 311,%0" :: "r"(0));
-		powerpc_sync();
-
 		/*
 		 * The 970 has strange rules about how to update HID registers.
 		 * See Table 2-3, 970MP manual

@@ -93,6 +93,8 @@ static int	 netdump_configure(struct diocskerneldump_arg *,
 		    struct thread *);
 static int	 netdump_dumper(void *priv __unused, void *virtual,
 		    vm_offset_t physical __unused, off_t offset, size_t length);
+static bool	 netdump_enabled(void);
+static int	 netdump_enabled_sysctl(SYSCTL_HANDLER_ARGS);
 static int	 netdump_ether_output(struct mbuf *m, struct ifnet *ifp,
 		    struct ether_addr dst, u_short etype);
 static void	 netdump_handle_arp(struct mbuf **mb);
@@ -102,11 +104,13 @@ static int	 netdump_ioctl(struct cdev *dev __unused, u_long cmd,
 static int	 netdump_modevent(module_t mod, int type, void *priv);
 static void	 netdump_network_poll(void);
 static void	 netdump_pkt_in(struct ifnet *ifp, struct mbuf *m);
+static void	 netdump_reinit_internal(struct ifnet *ifp);
 static int	 netdump_send(uint32_t type, off_t offset, unsigned char *data,
 		    uint32_t datalen);
 static int	 netdump_send_arp(in_addr_t dst);
 static int	 netdump_start(struct dumperinfo *di);
 static int	 netdump_udp_output(struct mbuf *m);
+static void	 netdump_unconfigure(void);
 
 /* Must be at least as big as the chunks dumpsys() gives us. */
 static unsigned char nd_buf[MAXDUMPPGS * PAGE_SIZE];
@@ -119,14 +123,29 @@ static uint64_t rcvd_acks;
 CTASSERT(sizeof(rcvd_acks) * NBBY == NETDUMP_MAX_IN_FLIGHT);
 
 /* Configuration parameters. */
-static struct diocskerneldump_arg nd_conf;
-#define	nd_server	nd_conf.kda_server.in4
-#define	nd_client	nd_conf.kda_client.in4
-#define	nd_gateway	nd_conf.kda_gateway.in4
+static struct {
+	char		 ndc_iface[IFNAMSIZ];
+	union kd_ip	 ndc_server;
+	union kd_ip	 ndc_client;
+	union kd_ip	 ndc_gateway;
+	uint8_t		 ndc_af;
+} nd_conf;
+#define	nd_server	nd_conf.ndc_server.in4
+#define	nd_client	nd_conf.ndc_client.in4
+#define	nd_gateway	nd_conf.ndc_gateway.in4
 
 /* General dynamic settings. */
+static struct sx nd_conf_lk;
+SX_SYSINIT(nd_conf, &nd_conf_lk, "netdump configuration lock");
+#define NETDUMP_WLOCK()			sx_xlock(&nd_conf_lk)
+#define NETDUMP_WUNLOCK()		sx_xunlock(&nd_conf_lk)
+#define NETDUMP_RLOCK()			sx_slock(&nd_conf_lk)
+#define NETDUMP_RUNLOCK()		sx_sunlock(&nd_conf_lk)
+#define NETDUMP_ASSERT_WLOCKED()	sx_assert(&nd_conf_lk, SA_XLOCKED)
+#define NETDUMP_ASSERT_LOCKED()		sx_assert(&nd_conf_lk, SA_LOCKED)
 static struct ether_addr nd_gw_mac;
 static struct ifnet *nd_ifp;
+static eventhandler_tag nd_detach_cookie;
 static uint16_t nd_server_port = NETDUMP_PORT;
 
 FEATURE(netdump, "Netdump client support");
@@ -138,10 +157,8 @@ static int nd_debug;
 SYSCTL_INT(_net_netdump, OID_AUTO, debug, CTLFLAG_RWTUN,
     &nd_debug, 0,
     "Debug message verbosity");
-static int nd_enabled;
-SYSCTL_INT(_net_netdump, OID_AUTO, enabled, CTLFLAG_RD,
-    &nd_enabled, 0,
-    "netdump configuration status");
+SYSCTL_PROC(_net_netdump, OID_AUTO, enabled, CTLFLAG_RD | CTLTYPE_INT,
+    &nd_ifp, 0, netdump_enabled_sysctl, "I", "netdump configuration status");
 static char nd_path[MAXPATHLEN];
 SYSCTL_STRING(_net_netdump, OID_AUTO, path, CTLFLAG_RW,
     nd_path, sizeof(nd_path),
@@ -158,6 +175,29 @@ static int nd_arp_retries = 3;
 SYSCTL_INT(_net_netdump, OID_AUTO, arp_retries, CTLFLAG_RWTUN,
     &nd_arp_retries, 0,
     "Number of ARP attempts before giving up");
+
+static bool
+netdump_enabled(void)
+{
+
+	NETDUMP_ASSERT_LOCKED();
+	return (nd_ifp != NULL);
+}
+
+static int
+netdump_enabled_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int en, error;
+
+	NETDUMP_RLOCK();
+	en = netdump_enabled();
+	NETDUMP_RUNLOCK();
+
+	error = SYSCTL_OUT(req, &en, sizeof(en));
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	return (EPERM);
+}
 
 /*
  * Checks for netdump support on a network interface
@@ -242,7 +282,7 @@ netdump_udp_output(struct mbuf *m)
 	struct udpiphdr *ui;
 	struct ip *ip;
 
-	MPASS(nd_ifp != NULL);
+	MPASS(netdump_enabled());
 
 	M_PREPEND(m, sizeof(struct udpiphdr), M_NOWAIT);
 	if (m == NULL) {
@@ -300,7 +340,7 @@ netdump_send_arp(in_addr_t dst)
 	struct arphdr *ah;
 	int pktlen;
 
-	MPASS(nd_ifp != NULL);
+	MPASS(netdump_enabled());
 
 	/* Fill-up a broadcast address. */
 	memset(&bcast, 0xFF, ETHER_ADDR_LEN);
@@ -403,7 +443,7 @@ netdump_send(uint32_t type, off_t offset, unsigned char *data, uint32_t datalen)
 	rcvd_acks = 0;
 	retries = 0;
 
-	MPASS(nd_ifp != NULL);
+	MPASS(netdump_enabled());
 
 retransmit:
 	/* Chunks can be too big to fit in packets. */
@@ -869,7 +909,7 @@ static void
 netdump_network_poll(void)
 {
 
-	MPASS(nd_ifp != NULL);
+	MPASS(netdump_enabled());
 
 	nd_ifp->if_netdump_methods->nd_poll(nd_ifp, 1000);
 }
@@ -939,7 +979,7 @@ netdump_start(struct dumperinfo *di)
 	error = 0;
 
 	/* Check if the dumping is allowed to continue. */
-	if (nd_enabled == 0)
+	if (!netdump_enabled())
 		return (EINVAL);
 
 	if (panicstr == NULL) {
@@ -947,8 +987,6 @@ netdump_start(struct dumperinfo *di)
 		    "netdump_start: netdump may only be used after a panic\n");
 		return (EINVAL);
 	}
-
-	MPASS(nd_ifp != NULL);
 
 	if (nd_server.s_addr == INADDR_ANY) {
 		printf("netdump_start: can't netdump; no server IP given\n");
@@ -1059,52 +1097,108 @@ static struct cdevsw netdump_cdevsw = {
 
 static struct cdev *netdump_cdev;
 
+static void
+netdump_unconfigure(void)
+{
+	struct diocskerneldump_arg kda;
+
+	NETDUMP_ASSERT_WLOCKED();
+	KASSERT(netdump_enabled(), ("%s: nd_ifp NULL", __func__));
+
+	bzero(&kda, sizeof(kda));
+	kda.kda_index = KDA_REMOVE_DEV;
+	(void)dumper_remove(nd_conf.ndc_iface, &kda);
+
+	netdump_mbuf_drain();
+
+	if_rele(nd_ifp);
+	nd_ifp = NULL;
+
+	bzero(&nd_conf, sizeof(nd_conf));
+}
+
+static void
+netdump_ifdetach(void *arg __unused, struct ifnet *ifp)
+{
+
+	NETDUMP_WLOCK();
+	if (ifp == nd_ifp)
+		netdump_unconfigure();
+	NETDUMP_WUNLOCK();
+}
+
 static int
 netdump_configure(struct diocskerneldump_arg *conf, struct thread *td)
 {
-	struct epoch_tracker et;
 	struct ifnet *ifp;
+
+	NETDUMP_ASSERT_WLOCKED();
 
 	CURVNET_SET(TD_TO_VNET(td));
 	if (!IS_DEFAULT_VNET(curvnet)) {
 		CURVNET_RESTORE();
 		return (EINVAL);
 	}
-	NET_EPOCH_ENTER(et);
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (strcmp(ifp->if_xname, conf->kda_iface) == 0)
-			break;
-	}
-	/* XXX ref */
-	NET_EPOCH_EXIT(et);
+	ifp = ifunit_ref(conf->kda_iface);
 	CURVNET_RESTORE();
 
 	if (ifp == NULL)
 		return (ENOENT);
-	if ((if_getflags(ifp) & IFF_UP) == 0)
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
+		if_rele(ifp);
 		return (ENXIO);
-	if (!netdump_supported_nic(ifp) || ifp->if_type != IFT_ETHER)
+	}
+	if (!netdump_supported_nic(ifp) || ifp->if_type != IFT_ETHER) {
+		if_rele(ifp);
 		return (ENODEV);
+	}
 
+	if (netdump_enabled())
+		if_rele(nd_ifp);
 	nd_ifp = ifp;
-	netdump_reinit(ifp);
-	memcpy(&nd_conf, conf, sizeof(nd_conf));
-	nd_enabled = 1;
+
+	netdump_reinit_internal(ifp);
+
+#define COPY_SIZED(elm) do {	\
+	_Static_assert(sizeof(nd_conf.ndc_ ## elm) ==			\
+	    sizeof(conf->kda_ ## elm), "elm " __XSTRING(elm) " mismatch"); \
+	memcpy(&nd_conf.ndc_ ## elm, &conf->kda_ ## elm,		\
+	    sizeof(nd_conf.ndc_ ## elm));				\
+} while (0)
+	COPY_SIZED(iface);
+	COPY_SIZED(server);
+	COPY_SIZED(client);
+	COPY_SIZED(gateway);
+	COPY_SIZED(af);
+#undef COPY_SIZED
+
 	return (0);
 }
 
 /*
  * Reinitialize the mbuf pool used by drivers while dumping. This is called
- * from the generic ioctl handler for SIOCSIFMTU after the driver has
- * reconfigured itself.
+ * from the generic ioctl handler for SIOCSIFMTU after any NIC driver has
+ * reconfigured itself.  (I.e., it may not be a configured netdump interface.)
  */
 void
 netdump_reinit(struct ifnet *ifp)
 {
+
+	NETDUMP_WLOCK();
+	if (ifp != nd_ifp) {
+		NETDUMP_WUNLOCK();
+		return;
+	}
+	netdump_reinit_internal(ifp);
+	NETDUMP_WUNLOCK();
+}
+
+static void
+netdump_reinit_internal(struct ifnet *ifp)
+{
 	int clsize, nmbuf, ncl, nrxr;
 
-	if (ifp != nd_ifp)
-		return;
+	NETDUMP_ASSERT_WLOCKED();
 
 	ifp->if_netdump_methods->nd_init(ifp, &nrxr, &ncl, &clsize);
 	KASSERT(nrxr > 0, ("invalid receive ring count %d", nrxr));
@@ -1150,6 +1244,8 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 
 	conf = NULL;
 	error = 0;
+	NETDUMP_WLOCK();
+
 	switch (cmd) {
 #ifdef COMPAT_FREEBSD11
 	case DIOCSKERNELDUMP_FREEBSD11:
@@ -1159,10 +1255,8 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 			error = ENXIO;
 			break;
 		}
-		if (nd_enabled) {
-			nd_enabled = 0;
-			netdump_mbuf_drain();
-		}
+		if (netdump_enabled())
+			netdump_unconfigure();
 		break;
 #endif
 #ifdef COMPAT_FREEBSD12
@@ -1179,21 +1273,19 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 			error = ENXIO;
 			break;
 		}
-		if (nd_enabled) {
-			nd_enabled = 0;
-			netdump_mbuf_drain();
-		}
+		if (netdump_enabled())
+			netdump_unconfigure();
 		break;
 
 	case NETDUMPGCONF_FREEBSD12:
 		gone_in(14, "FreeBSD 12.x ABI compat");
 		conf12 = (void *)addr;
 
-		if (!nd_enabled) {
+		if (!netdump_enabled()) {
 			error = ENXIO;
 			break;
 		}
-		if (nd_conf.kda_af != AF_INET) {
+		if (nd_conf.ndc_af != AF_INET) {
 			error = EOPNOTSUPP;
 			break;
 		}
@@ -1214,7 +1306,7 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		 * For now, index is ignored; netdump doesn't support multiple
 		 * configurations (yet).
 		 */
-		if (!nd_enabled) {
+		if (!netdump_enabled()) {
 			error = ENXIO;
 			conf = NULL;
 			break;
@@ -1225,7 +1317,7 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		memcpy(&conf->kda_server, &nd_server, sizeof(nd_server));
 		memcpy(&conf->kda_client, &nd_client, sizeof(nd_client));
 		memcpy(&conf->kda_gateway, &nd_gateway, sizeof(nd_gateway));
-		conf->kda_af = nd_conf.kda_af;
+		conf->kda_af = nd_conf.ndc_af;
 		conf = NULL;
 		break;
 
@@ -1275,13 +1367,10 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		if (conf->kda_index == KDA_REMOVE ||
 		    conf->kda_index == KDA_REMOVE_DEV ||
 		    conf->kda_index == KDA_REMOVE_ALL) {
-			if (nd_enabled || conf->kda_index == KDA_REMOVE_ALL) {
-				error = dumper_remove(conf->kda_iface, conf);
-				if (error == 0) {
-					nd_enabled = 0;
-					netdump_mbuf_drain();
-				}
-			}
+			if (netdump_enabled())
+				netdump_unconfigure();
+			if (conf->kda_index == KDA_REMOVE_ALL)
+				error = dumper_remove(NULL, conf);
 			break;
 		}
 
@@ -1324,10 +1413,8 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 			    conf->kda_encryptedkeysize);
 			free(encryptedkey, M_TEMP);
 		}
-		if (error != 0) {
-			nd_enabled = 0;
-			netdump_mbuf_drain();
-		}
+		if (error != 0)
+			netdump_unconfigure();
 		break;
 	default:
 		error = ENOTTY;
@@ -1336,6 +1423,7 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 	explicit_bzero(&kda_copy, sizeof(kda_copy));
 	if (conf != NULL)
 		explicit_bzero(conf, sizeof(*conf));
+	NETDUMP_WUNLOCK();
 	return (error);
 }
 
@@ -1367,6 +1455,9 @@ netdump_modevent(module_t mod __unused, int what, void *priv __unused)
 		if (error != 0)
 			return (error);
 
+		nd_detach_cookie = EVENTHANDLER_REGISTER(ifnet_departure_event,
+		    netdump_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
+
 		if ((arg = kern_getenv("net.dump.iface")) != NULL) {
 			strlcpy(conf.kda_iface, arg, sizeof(conf.kda_iface));
 			freeenv(arg);
@@ -1376,33 +1467,31 @@ netdump_modevent(module_t mod __unused, int what, void *priv __unused)
 				freeenv(arg);
 			}
 			if ((arg = kern_getenv("net.dump.client")) != NULL) {
-				inet_aton(arg, &conf.kda_server.in4);
+				inet_aton(arg, &conf.kda_client.in4);
 				freeenv(arg);
 			}
 			if ((arg = kern_getenv("net.dump.gateway")) != NULL) {
-				inet_aton(arg, &conf.kda_server.in4);
+				inet_aton(arg, &conf.kda_gateway.in4);
 				freeenv(arg);
 			}
 			conf.kda_af = AF_INET;
 
 			/* Ignore errors; we print a message to the console. */
+			NETDUMP_WLOCK();
 			(void)netdump_configure(&conf, curthread);
+			NETDUMP_WUNLOCK();
 		}
 		break;
 	case MOD_UNLOAD:
-		if (nd_enabled) {
-			struct diocskerneldump_arg kda;
-
+		NETDUMP_WLOCK();
+		if (netdump_enabled()) {
 			printf("netdump: disabling dump device for unload\n");
-
-			bzero(&kda, sizeof(kda));
-			kda.kda_index = KDA_REMOVE_DEV;
-			(void)dumper_remove(nd_conf.kda_iface, &kda);
-
-			netdump_mbuf_drain();
-			nd_enabled = 0;
+			netdump_unconfigure();
 		}
+		NETDUMP_WUNLOCK();
 		destroy_dev(netdump_cdev);
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event,
+		    nd_detach_cookie);
 		break;
 	default:
 		error = EOPNOTSUPP;

@@ -137,9 +137,6 @@ _Static_assert(MAXCPU <= MAX_APIC_ID,
 _Static_assert(xAPIC_MAX_APIC_ID <= MAX_APIC_ID,
     "xAPIC_MAX_APIC_ID cannot be larger that MAX_APIC_ID");
 
-/* Holds pending bitmap based IPIs per CPU */
-volatile u_int cpu_ipi_pending[MAXCPU];
-
 static void	release_aps(void *dummy);
 static void	cpustop_handler_post(u_int cpu);
 
@@ -1224,19 +1221,24 @@ ipi_startup(int apic_id, int vector)
 void
 ipi_send_cpu(int cpu, u_int ipi)
 {
-	u_int bitmap, old_pending, new_pending;
+	u_int bitmap, old, new;
+	u_int *cpu_bitmap;
 
 	KASSERT(cpu_apic_ids[cpu] != -1, ("IPI to non-existent CPU %d", cpu));
 
 	if (IPI_IS_BITMAPED(ipi)) {
 		bitmap = 1 << ipi;
 		ipi = IPI_BITMAP_VECTOR;
-		do {
-			old_pending = cpu_ipi_pending[cpu];
-			new_pending = old_pending | bitmap;
-		} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
-		    old_pending, new_pending));	
-		if (old_pending)
+		cpu_bitmap = &cpuid_to_pcpu[cpu]->pc_ipi_bitmap;
+		old = *cpu_bitmap;
+		for (;;) {
+			if ((old & bitmap) == bitmap)
+				break;
+			new = old | bitmap;
+			if (atomic_fcmpset_int(cpu_bitmap, &old, new))
+				break;
+		}
+		if (old)
 			return;
 	}
 	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
@@ -1255,7 +1257,7 @@ ipi_bitmap_handler(struct trapframe frame)
 	td->td_intr_nesting_level++;
 	oldframe = td->td_intr_frame;
 	td->td_intr_frame = &frame;
-	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
+	ipi_bitmap = atomic_readandclear_int(&cpuid_to_pcpu[cpu]->pc_ipi_bitmap);
 	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
 #ifdef COUNT_IPIS
 		(*ipi_preempt_counts[cpu])++;

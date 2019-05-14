@@ -31,6 +31,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190513:
+	User-wired pages now have their own counter,
+	vm.stats.vm.v_user_wire_count.  The vm.max_wired sysctl was renamed
+	to vm.max_user_wired and changed from an unsigned int to an unsigned
+	long.  bhyve VMs wired with the -S are now subject to the user
+	wiring limit; the vm.max_user_wired sysctl may need to be tuned to
+	avoid running into the limit.
+
+20190507:
+	The IPSEC option has been removed from GENERIC.  Users requiring
+	ipsec(4) must now load the ipsec(4) kernel module.
+
 20190507:
 	The tap(4) driver has been folded into tun(4), and the module has been
 	renamed to tuntap.  You should update any kld_load="if_tap" or
@@ -64,13 +76,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	produce warnings in dmesg when the conditions are met.
 
 20190416:
-	The tunable "security.stack_protect.permit_nonrandom_cookies" may be
-	set to a non-zero value to boot systems that do not provide early
-	entropy.  Otherwise, such systems may see the panic message:
-	"cannot initialize stack cookies because random device is not yet
-	seeded."
-
-20190416:
 	The loadable random module KPI has changed; the random_infra_init()
 	routine now requires a 3rd function pointer for a bool (*)(void)
 	method that returns true if the random device is seeded (and
@@ -88,7 +93,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	The fuse(4) module has been renamed to fusefs(4) for consistency with
 	other filesystems.  You should update any kld_load="fuse" entries in
 	/etc/rc.conf, fuse_load="YES" entries in /boot/loader.conf, and
-	"options FUSE" enties in kernel config files.
+	"options FUSE" entries in kernel config files.
 
 20190304:
 	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
@@ -152,7 +157,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 
 20181211:
 	Remove the timed and netdate programs from the base tree.  Setting
-	the time with these deamons has been obsolete for over a decade.
+	the time with these daemons has been obsolete for over a decade.
 
 20181126:
 	On amd64, arm64 and armv7 (architectures that install LLVM's ld.lld
@@ -215,7 +220,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 
 20181009:
 	OpenSSL has been updated to version 1.1.1.  This update included
-	additional various API changes througout the base system.  It is
+	additional various API changes throughout the base system.  It is
 	important to rebuild third-party software after upgrading.  The value
 	of __FreeBSD_version has been bumped accordingly.
 
@@ -312,13 +317,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 20180719:
 	ARM64 now have efifb support, if you want to have serial console
 	on your arm64 board when an screen is connected and the bootloader
-	setup a framebuffer for us to use, just add :
+	setup a frame buffer for us to use, just add :
 	boot_serial=YES
 	boot_multicons=YES
 	in /boot/loader.conf
 	For Raspberry Pi 3 (RPI) users, this is needed even if you don't have
-	an screen connected as the firmware will setup a framebuffer are that
-	u-boot will expose as an EFI framebuffer.
+	an screen connected as the firmware will setup a frame buffer are that
+	u-boot will expose as an EFI frame buffer.
 
 20180719:
 	New uid:gid added, ntpd:ntpd (123:123).  Be sure to run mergemaster
@@ -417,7 +422,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 
 20180508:
 	The nxge(4) driver has been removed.  This driver was for PCI-X 10g
-	cards made by s2io/Neterion.  The company was aquired by Exar and
+	cards made by s2io/Neterion.  The company was acquired by Exar and
 	no longer sells or supports Ethernet products.  If you have device
 	nxge in your kernel config file it must be removed.
 
@@ -508,7 +513,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 20180212:
 	FreeBSD boot loader enhanced with Lua scripting. It's purely opt-in for
 	now by building WITH_LOADER_LUA and WITHOUT_FORTH in /etc/src.conf.
-	Co-existance for the transition period will come shortly. Booting is a
+	Co-existence for the transition period will come shortly. Booting is a
 	complex environment and test coverage for Lua-enabled loaders has been
 	thin, so it would be prudent to assume it might not work and make
 	provisions for backup boot methods.

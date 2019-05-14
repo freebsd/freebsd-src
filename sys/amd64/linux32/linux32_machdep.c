@@ -133,11 +133,6 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 
 	LCONVPATHEXIST(td, args->path, &path);
 
-#ifdef DEBUG
-	if (ldebug(execve))
-		printf(ARGS(execve, "%s"), path);
-#endif
-
 	error = freebsd32_exec_copyin_args(&eargs, path, UIO_SYSSPACE,
 	    args->argp, args->envp);
 	free(path, M_TEMP);
@@ -382,11 +377,6 @@ linux_old_select(struct thread *td, struct linux_old_select_args *args)
 	struct linux_select_args newsel;
 	int error;
 
-#ifdef DEBUG
-	if (ldebug(old_select))
-		printf(ARGS(old_select, "%p"), args->ptr);
-#endif
-
 	error = copyin(args->ptr, &linux_args, sizeof(linux_args));
 	if (error)
 		return (error);
@@ -410,29 +400,19 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 
 	error = copyin(desc, &info, sizeof(struct l_user_desc));
 	if (error) {
-		printf(LMSG("copyin failed!"));
+		linux_msg(td, "set_cloned_tls copyin info failed!");
 	} else {
+
 		/* We might copy out the entry_number as GUGS32_SEL. */
 		info.entry_number = GUGS32_SEL;
 		error = copyout(&info, desc, sizeof(struct l_user_desc));
 		if (error)
-			printf(LMSG("copyout failed!"));
+			linux_msg(td, "set_cloned_tls copyout info failed!");
 
 		a[0] = LINUX_LDT_entry_a(&info);
 		a[1] = LINUX_LDT_entry_b(&info);
 
 		memcpy(&sd, &a, sizeof(a));
-#ifdef DEBUG
-		if (ldebug(clone))
-			printf("Segment created in clone with "
-			    "CLONE_SETTLS: lobase: %x, hibase: %x, "
-			    "lolimit: %x, hilimit: %x, type: %i, "
-			    "dpl: %i, p: %i, xx: %i, long: %i, "
-			    "def32: %i, gran: %i\n", sd.sd_lobase,
-			    sd.sd_hibase, sd.sd_lolimit, sd.sd_hilimit,
-			    sd.sd_type, sd.sd_dpl, sd.sd_p, sd.sd_xx,
-			    sd.sd_long, sd.sd_def32, sd.sd_gran);
-#endif
 		pcb = td->td_pcb;
 		pcb->pcb_gsbase = (register_t)info.base_addr;
 		td->td_frame->tf_gs = GSEL(GUGS32_SEL, SEL_UPL);
@@ -461,13 +441,6 @@ int
 linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 {
 
-#ifdef DEBUG
-	if (ldebug(mmap2))
-		printf(ARGS(mmap2, "0x%08x, %d, %d, 0x%08x, %d, %d"),
-		    args->addr, args->len, args->prot,
-		    args->flags, args->fd, args->pgoff);
-#endif
-
 	return (linux_mmap_common(td, PTROUT(args->addr), args->len, args->prot,
 		args->flags, args->fd, (uint64_t)(uint32_t)args->pgoff *
 		PAGE_SIZE));
@@ -482,13 +455,6 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 	error = copyin(args->ptr, &linux_args, sizeof(linux_args));
 	if (error)
 		return (error);
-
-#ifdef DEBUG
-	if (ldebug(mmap))
-		printf(ARGS(mmap, "0x%08x, %d, %d, 0x%08x, %d, %d"),
-		    linux_args.addr, linux_args.len, linux_args.prot,
-		    linux_args.flags, linux_args.fd, linux_args.pgoff);
-#endif
 
 	return (linux_mmap_common(td, linux_args.addr, linux_args.len,
 	    linux_args.prot, linux_args.flags, linux_args.fd,
@@ -526,12 +492,6 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 	l_sigaction_t act, oact;
 	int error;
 
-#ifdef DEBUG
-	if (ldebug(sigaction))
-		printf(ARGS(sigaction, "%d, %p, %p"),
-		    args->sig, (void *)args->nsa, (void *)args->osa);
-#endif
-
 	if (args->nsa != NULL) {
 		error = copyin(args->nsa, &osa, sizeof(l_osigaction_t));
 		if (error)
@@ -568,11 +528,6 @@ linux_sigsuspend(struct thread *td, struct linux_sigsuspend_args *args)
 	sigset_t sigmask;
 	l_sigset_t mask;
 
-#ifdef DEBUG
-	if (ldebug(sigsuspend))
-		printf(ARGS(sigsuspend, "%08lx"), (unsigned long)args->mask);
-#endif
-
 	LINUX_SIGEMPTYSET(mask);
 	mask.__mask = args->mask;
 	linux_to_bsd_sigset(&mask, &sigmask);
@@ -585,12 +540,6 @@ linux_rt_sigsuspend(struct thread *td, struct linux_rt_sigsuspend_args *uap)
 	l_sigset_t lmask;
 	sigset_t sigmask;
 	int error;
-
-#ifdef DEBUG
-	if (ldebug(rt_sigsuspend))
-		printf(ARGS(rt_sigsuspend, "%p, %d"),
-		    (void *)uap->newset, uap->sigsetsize);
-#endif
 
 	if (uap->sigsetsize != sizeof(l_sigset_t))
 		return (EINVAL);
@@ -609,11 +558,6 @@ linux_pause(struct thread *td, struct linux_pause_args *args)
 	struct proc *p = td->td_proc;
 	sigset_t sigmask;
 
-#ifdef DEBUG
-	if (ldebug(pause))
-		printf(ARGS(pause, ""));
-#endif
-
 	PROC_LOCK(p);
 	sigmask = td->td_sigmask;
 	PROC_UNLOCK(p);
@@ -626,11 +570,6 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 	stack_t ss, oss;
 	l_stack_t lss;
 	int error;
-
-#ifdef DEBUG
-	if (ldebug(sigaltstack))
-		printf(ARGS(sigaltstack, "%p, %p"), uap->uss, uap->uoss);
-#endif
 
 	if (uap->uss != NULL) {
 		error = copyin(uap->uss, &lss, sizeof(l_stack_t));
@@ -656,12 +595,6 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 int
 linux_ftruncate64(struct thread *td, struct linux_ftruncate64_args *args)
 {
-
-#ifdef DEBUG
-	if (ldebug(ftruncate64))
-		printf(ARGS(ftruncate64, "%u, %jd"), args->fd,
-		    (intmax_t)args->length);
-#endif
 
 	return (kern_ftruncate(td, args->fd, args->length));
 }
@@ -743,15 +676,6 @@ linux_set_thread_area(struct thread *td,
 	if (error)
 		return (error);
 
-#ifdef DEBUG
-	if (ldebug(set_thread_area))
-		printf(ARGS(set_thread_area, "%i, %x, %x, %i, %i, %i, "
-		    "%i, %i, %i"), info.entry_number, info.base_addr,
-		    info.limit, info.seg_32bit, info.contents,
-		    info.read_exec_only, info.limit_in_pages,
-		    info.seg_not_present, info.useable);
-#endif
-
 	/*
 	 * Semantics of Linux version: every thread in the system has array
 	 * of three TLS descriptors. 1st is GLIBC TLS, 2nd is WINE, 3rd unknown.
@@ -805,25 +729,6 @@ linux_set_thread_area(struct thread *td,
 	}
 
 	memcpy(&sd, &a, sizeof(a));
-#ifdef DEBUG
-	if (ldebug(set_thread_area))
-		printf("Segment created in set_thread_area: "
-		    "lobase: %x, hibase: %x, lolimit: %x, hilimit: %x, "
-		    "type: %i, dpl: %i, p: %i, xx: %i, long: %i, "
-		    "def32: %i, gran: %i\n",
-		    sd.sd_lobase,
-		    sd.sd_hibase,
-		    sd.sd_lolimit,
-		    sd.sd_hilimit,
-		    sd.sd_type,
-		    sd.sd_dpl,
-		    sd.sd_p,
-		    sd.sd_xx,
-		    sd.sd_long,
-		    sd.sd_def32,
-		    sd.sd_gran);
-#endif
-
 	pcb = td->td_pcb;
 	pcb->pcb_gsbase = (register_t)info.base_addr;
 	set_pcb_flags(pcb, PCB_32BIT);

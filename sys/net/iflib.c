@@ -4387,9 +4387,6 @@ iflib_reset_qvalues(if_ctx_t ctx)
 
 	scctx->isc_txrx_budget_bytes_max = IFLIB_MAX_TX_BYTES;
 	scctx->isc_tx_qdepth = IFLIB_DEFAULT_TX_QDEPTH;
-	/*
-	 * XXX sanity check that ntxd & nrxd are a power of 2
-	 */
 	if (ctx->ifc_sysctl_ntxqs != 0)
 		scctx->isc_ntxqsets = ctx->ifc_sysctl_ntxqs;
 	if (ctx->ifc_sysctl_nrxqs != 0)
@@ -4420,6 +4417,11 @@ iflib_reset_qvalues(if_ctx_t ctx)
 				      i, scctx->isc_nrxd[i], sctx->isc_nrxd_max[i]);
 			scctx->isc_nrxd[i] = sctx->isc_nrxd_max[i];
 		}
+		if (!powerof2(scctx->isc_nrxd[i])) {
+			device_printf(dev, "nrxd%d: %d is not a power of 2 - using default value of %d\n",
+				      i, scctx->isc_nrxd[i], sctx->isc_nrxd_default[i]);
+			scctx->isc_nrxd[i] = sctx->isc_nrxd_default[i];
+		}
 	}
 
 	for (i = 0; i < sctx->isc_ntxqs; i++) {
@@ -4432,6 +4434,11 @@ iflib_reset_qvalues(if_ctx_t ctx)
 			device_printf(dev, "ntxd%d: %d greater than ntxd_max %d - resetting to max\n",
 				      i, scctx->isc_ntxd[i], sctx->isc_ntxd_max[i]);
 			scctx->isc_ntxd[i] = sctx->isc_ntxd_max[i];
+		}
+		if (!powerof2(scctx->isc_ntxd[i])) {
+			device_printf(dev, "ntxd%d: %d is not a power of 2 - using default value of %d\n",
+				      i, scctx->isc_ntxd[i], sctx->isc_ntxd_default[i]);
+			scctx->isc_ntxd[i] = sctx->isc_ntxd_default[i];
 		}
 	}
 }
@@ -4543,7 +4550,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	if_softc_ctx_t scctx;
 	kobjop_desc_t kobj_desc;
 	kobj_method_t *kobj_method;
-	int err, i, msix, rid;
+	int err, msix, rid;
 	uint16_t main_rxq, main_txq;
 
 	ctx = malloc(sizeof(* ctx), M_IFLIB, M_WAITOK|M_ZERO);
@@ -4598,23 +4605,6 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	/* XXX change for per-queue sizes */
 	device_printf(dev, "Using %d TX descriptors and %d RX descriptors\n",
 	    scctx->isc_ntxd[main_txq], scctx->isc_nrxd[main_rxq]);
-	for (i = 0; i < sctx->isc_nrxqs; i++) {
-		if (!powerof2(scctx->isc_nrxd[i])) {
-			/* round down instead? */
-			device_printf(dev,
-			    "# RX descriptors must be a power of 2\n");
-			err = EINVAL;
-			goto fail_iflib_detach;
-		}
-	}
-	for (i = 0; i < sctx->isc_ntxqs; i++) {
-		if (!powerof2(scctx->isc_ntxd[i])) {
-			device_printf(dev,
-			    "# TX descriptors must be a power of 2");
-			err = EINVAL;
-			goto fail_iflib_detach;
-		}
-	}
 
 	if (scctx->isc_tx_nsegments > scctx->isc_ntxd[main_txq] /
 	    MAX_SINGLE_PACKET_FRACTION)
@@ -4790,7 +4780,6 @@ fail_intr_free:
 fail_queues:
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
-fail_iflib_detach:
 	IFDI_DETACH(ctx);
 fail_unlock:
 	CTX_UNLOCK(ctx);
@@ -4833,9 +4822,6 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	scctx = &ctx->ifc_softc_ctx;
 	ifp = ctx->ifc_ifp;
 
-	/*
-	 * XXX sanity check that ntxd & nrxd are a power of 2
-	 */
 	iflib_reset_qvalues(ctx);
 	CTX_LOCK(ctx);
 	if ((err = IFDI_ATTACH_PRE(ctx)) != 0) {
@@ -4899,23 +4885,6 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	/* XXX change for per-queue sizes */
 	device_printf(dev, "Using %d TX descriptors and %d RX descriptors\n",
 	    scctx->isc_ntxd[main_txq], scctx->isc_nrxd[main_rxq]);
-	for (i = 0; i < sctx->isc_nrxqs; i++) {
-		if (!powerof2(scctx->isc_nrxd[i])) {
-			/* round down instead? */
-			device_printf(dev,
-			    "# RX descriptors must be a power of 2\n");
-			err = EINVAL;
-			goto fail_iflib_detach;
-		}
-	}
-	for (i = 0; i < sctx->isc_ntxqs; i++) {
-		if (!powerof2(scctx->isc_ntxd[i])) {
-			device_printf(dev,
-			    "# TX descriptors must be a power of 2");
-			err = EINVAL;
-			goto fail_iflib_detach;
-		}
-	}
 
 	if (scctx->isc_tx_nsegments > scctx->isc_ntxd[main_txq] /
 	    MAX_SINGLE_PACKET_FRACTION)
@@ -5305,6 +5274,8 @@ iflib_module_event_handler(module_t mod, int what, void *arg)
 static void
 _iflib_assert(if_shared_ctx_t sctx)
 {
+	int i;
+
 	MPASS(sctx->isc_tx_maxsize);
 	MPASS(sctx->isc_tx_maxsegsize);
 
@@ -5312,12 +5283,25 @@ _iflib_assert(if_shared_ctx_t sctx)
 	MPASS(sctx->isc_rx_nsegments);
 	MPASS(sctx->isc_rx_maxsegsize);
 
-	MPASS(sctx->isc_nrxd_min[0]);
-	MPASS(sctx->isc_nrxd_max[0]);
-	MPASS(sctx->isc_nrxd_default[0]);
-	MPASS(sctx->isc_ntxd_min[0]);
-	MPASS(sctx->isc_ntxd_max[0]);
-	MPASS(sctx->isc_ntxd_default[0]);
+	MPASS(sctx->isc_nrxqs >= 1 && sctx->isc_nrxqs <= 8);
+	for (i = 0; i < sctx->isc_nrxqs; i++) {
+		MPASS(sctx->isc_nrxd_min[i]);
+		MPASS(powerof2(sctx->isc_nrxd_min[i]));
+		MPASS(sctx->isc_nrxd_max[i]);
+		MPASS(powerof2(sctx->isc_nrxd_max[i]));
+		MPASS(sctx->isc_nrxd_default[i]);
+		MPASS(powerof2(sctx->isc_nrxd_default[i]));
+	}
+
+	MPASS(sctx->isc_ntxqs >= 1 && sctx->isc_ntxqs <= 8);
+	for (i = 0; i < sctx->isc_ntxqs; i++) {
+		MPASS(sctx->isc_ntxd_min[i]);
+		MPASS(powerof2(sctx->isc_ntxd_min[i]));
+		MPASS(sctx->isc_ntxd_max[i]);
+		MPASS(powerof2(sctx->isc_ntxd_max[i]));
+		MPASS(sctx->isc_ntxd_default[i]);
+		MPASS(powerof2(sctx->isc_ntxd_default[i]));
+	}
 }
 
 static void

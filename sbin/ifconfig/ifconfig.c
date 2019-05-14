@@ -71,6 +71,7 @@ static const char rcsid[] =
 #ifdef JAIL
 #include <jail.h>
 #endif
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -145,6 +146,20 @@ static struct module_map_entry {
 	{
 		.ifname = "vmnet",
 		.kldname = "if_tuntap",
+	},
+	{
+		.ifname = "ipsec",
+		.kldname = "ipsec",
+	},
+	{
+		/*
+		 * This mapping exists because there is a conflicting enc module
+		 * in CAM.  ifconfig's guessing behavior will attempt to match
+		 * the ifname to a module as well as if_${ifname} and clash with
+		 * CAM enc.  This is an assertion of the correct module to load.
+		 */
+		.ifname = "enc",
+		.kldname = "if_enc",
 	},
 };
 
@@ -1436,6 +1451,7 @@ ifmaybeload(const char *name)
 	char ifkind[IFNAMSIZ + MOD_PREFIX_LEN], ifname[IFNAMSIZ], *dp;
 	const char *cp;
 	struct module_map_entry *mme;
+	bool found;
 
 	/* loading suppressed by the user */
 	if (noload)
@@ -1451,16 +1467,18 @@ ifmaybeload(const char *name)
 
 	/* Either derive it from the map or guess otherwise */
 	*ifkind = '\0';
+	found = false;
 	for (i = 0; i < nitems(module_map); ++i) {
 		mme = &module_map[i];
 		if (strcmp(mme->ifname, ifname) == 0) {
 			strlcpy(ifkind, mme->kldname, sizeof(ifkind));
+			found = true;
 			break;
 		}
 	}
 
 	/* We didn't have an alias for it... we'll guess. */
-	if (*ifkind == '\0') {
+	if (!found) {
 	    /* turn interface and unit into module name */
 	    strlcpy(ifkind, "if_", sizeof(ifkind));
 	    strlcat(ifkind, ifname, sizeof(ifkind));
@@ -1480,8 +1498,12 @@ ifmaybeload(const char *name)
 			} else {
 				cp = mstat.name;
 			}
-			/* already loaded? */
-			if (strcmp(ifname, cp) == 0 ||
+			/*
+			 * Is it already loaded?  Don't compare with ifname if
+			 * we were specifically told which kld to use.  Doing
+			 * so could lead to conflicts not trivially solved.
+			 */
+			if ((!found && strcmp(ifname, cp) == 0) ||
 			    strcmp(ifkind, cp) == 0)
 				return;
 		}

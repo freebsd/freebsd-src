@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-TAP_TESTS_C=	sysctl_test
+ATF_TESTS_C=	sysctl_test
 
 .if ${MK_CASPER} != "no"
 LIBADD+=	casper

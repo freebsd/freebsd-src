@@ -499,7 +499,14 @@ file_loadraw(const char *fname, char *type, int insert)
 
 	/* Looks OK so far; create & populate control structure */
 	fp = file_alloc();
-	fp->f_name = strdup(name);
+	if (fp == NULL) {
+		snprintf(command_errbuf, sizeof (command_errbuf),
+		    "no memory to load %s", name);
+		free(name);
+		close(fd);
+		return (NULL);
+	}
+	fp->f_name = name;
 	fp->f_type = strdup(type);
 	fp->f_args = NULL;
 	fp->f_metadata = NULL;
@@ -507,6 +514,13 @@ file_loadraw(const char *fname, char *type, int insert)
 	fp->f_addr = loadaddr;
 	fp->f_size = laddr - loadaddr;
 
+	if (fp->f_type == NULL) {
+		snprintf(command_errbuf, sizeof (command_errbuf),
+		    "no memory to load %s", name);
+		free(name);
+		close(fd);
+		return (NULL);
+	}
 	/* recognise space consumption */
 	loadaddr = laddr;
 
@@ -552,6 +566,7 @@ mod_load(char *modname, struct mod_depend *verinfo, int argc, char *argv[])
 		return (ENOENT);
 	}
 	err = mod_loadkld(filename, argc, argv);
+	free(filename);
 	return (err);
 }
 
@@ -607,7 +622,7 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
 		snprintf(command_errbuf, sizeof(command_errbuf),
 		  "don't know how to load module '%s'", filename);
 	}
-	if (err && fp)
+	if (err)
 		file_discard(fp);
 	free(filename);
 	return (err);

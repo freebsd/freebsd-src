@@ -851,19 +851,16 @@ cache_zap_locked(struct namecache *ncp, bool neg_locked)
 
 	CTR2(KTR_VFS, "cache_zap(%p) vp %p", ncp,
 	    (ncp->nc_flag & NCF_NEGATIVE) ? NULL : ncp->nc_vp);
+	LIST_REMOVE(ncp, nc_hash);
 	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
 		SDT_PROBE3(vfs, namecache, zap, done, ncp->nc_dvp,
 		    ncp->nc_name, ncp->nc_vp);
-	} else {
-		SDT_PROBE3(vfs, namecache, zap_negative, done, ncp->nc_dvp,
-		    ncp->nc_name, ncp->nc_neghits);
-	}
-	LIST_REMOVE(ncp, nc_hash);
-	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
 		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
 		if (ncp == ncp->nc_vp->v_cache_dd)
 			ncp->nc_vp->v_cache_dd = NULL;
 	} else {
+		SDT_PROBE3(vfs, namecache, zap_negative, done, ncp->nc_dvp,
+		    ncp->nc_name, ncp->nc_neghits);
 		cache_negative_remove(ncp, neg_locked);
 	}
 	if (ncp->nc_flag & NCF_ISDOTDOT) {
@@ -1635,7 +1632,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	int flag;
 	int len;
 	bool neg_locked;
-	int lnumcache;
+	u_long lnumcache;
 
 	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
 	VNASSERT(vp == NULL || (vp->v_iflag & VI_DOOMED) == 0, vp,
@@ -1649,8 +1646,11 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	/*
 	 * Avoid blowout in namecache entries.
 	 */
-	if (__predict_false(numcache >= desiredvnodes * ncsizefactor))
+	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
+	if (__predict_false(lnumcache >= desiredvnodes * ncsizefactor)) {
+		atomic_add_long(&numcache, -1);
 		return;
+	}
 
 	cache_celockstate_init(&cel);
 	ndd = NULL;
@@ -1828,7 +1828,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		    ncp->nc_name);
 	}
 	cache_enter_unlock(&cel);
-	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
 	if (numneg * ncnegfactor > lnumcache)
 		cache_negative_zap_one();
 	cache_free(ndd);

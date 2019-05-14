@@ -236,7 +236,7 @@ aw_clk_nm_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		return (ERANGE);
 	}
 
-	if (p_idx != best_parent)
+	if ((sc->flags & AW_CLK_REPARENT) != 0 && p_idx != best_parent)
 		clknode_set_parent_by_idx(clk, best_parent);
 
 	DEVICE_LOCK(clk);

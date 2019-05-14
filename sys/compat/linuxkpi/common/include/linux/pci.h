@@ -532,6 +532,7 @@ pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
 int	linux_pci_register_driver(struct pci_driver *pdrv);
 int	linux_pci_register_drm_driver(struct pci_driver *pdrv);
 void	linux_pci_unregister_driver(struct pci_driver *pdrv);
+void	linux_pci_unregister_drm_driver(struct pci_driver *pdrv);
 
 #define	pci_register_driver(pdrv)	linux_pci_register_driver(pdrv)
 #define	pci_unregister_driver(pdrv)	linux_pci_unregister_driver(pdrv)

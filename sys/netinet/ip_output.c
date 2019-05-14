@@ -361,7 +361,11 @@ again:
 		mtu = ifp->if_mtu;
 		IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 		isbroadcast = 0;	/* fool gcc */
-		src = IA_SIN(ia)->sin_addr;
+		/* Interface may have no addresses. */
+		if (ia != NULL)
+			src = IA_SIN(ia)->sin_addr;
+		else
+			src.s_addr = INADDR_ANY;
 	} else if (ro != NULL) {
 		if (ro->ro_rt == NULL) {
 			/*

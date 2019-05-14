@@ -56,12 +56,7 @@ linux_genassym.o: offset.inc
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)
-.if defined(DEBUG)
-CFLAGS+=-DDEBUG
-.endif
-.if defined(KTR)
-CFLAGS+=-DKTR
-.endif
+.warning Building Linuxulator outside of a kernel does not make sense
 .endif
 
 .include <bsd.kmod.mk>
