@@ -18,7 +18,7 @@
 .Nd secure copy (remote file copy program)
 .Sh SYNOPSIS
 .Nm scp
-.Op Fl 346BCpqrv
+.Op Fl 346BCpqrTv
 .Op Fl c Ar cipher
 .Op Fl F Ar ssh_config
 .Op Fl i Ar identity_file
@@ -207,6 +207,16 @@ to use for the encrypted connection.
 The program must understand
 .Xr ssh 1
 options.
+.It Fl T
+Disable strict filename checking.
+By default when copying files from a remote host to a local directory
+.Nm
+checks that the received filenames match those requested on the command-line
+to prevent the remote end from sending unexpected or unwanted files.
+Because of differences in how various operating systems and shells interpret
+filename wildcards, these checks may cause wanted files to be rejected.
+This option disables these checks at the expense of fully trusting that
+the server will not send unexpected filenames.
 .It Fl v
 Verbose mode.
 Causes
