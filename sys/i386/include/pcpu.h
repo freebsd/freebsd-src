@@ -69,7 +69,11 @@
 	vm_offset_t pc_qmap_addr;	/* KVA for temporary mappings */\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
 	uint32_t pc_ibpb_set;						\
-	char	__pad[185]
+	void	*pc_mds_buf;						\
+	void	*pc_mds_buf64;						\
+	uint32_t pc_pad[12];						\
+	uint8_t	pc_mds_tmp[64];						\
+	char	__pad[153]
 
 #ifdef _KERNEL
 

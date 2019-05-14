@@ -406,6 +406,7 @@ doreti_ast:
 	 */
 doreti_exit:
 	MEXITCOUNT
+	call	*mds_handler
 
 	.globl	doreti_popl_fs
 doreti_popl_fs:

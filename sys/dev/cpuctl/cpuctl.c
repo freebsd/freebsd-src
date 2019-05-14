@@ -530,6 +530,7 @@ cpuctl_do_eval_cpu_features(int cpu, struct thread *td)
 	hw_ibrs_recalculate();
 	restore_cpu(oldcpu, is_bound, td);
 	hw_ssb_recalculate(true);
+	hw_mds_recalculate();
 	printcpuinfo();
 	return (0);
 }

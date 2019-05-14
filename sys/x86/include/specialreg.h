@@ -385,6 +385,7 @@
 /*
  * CPUID instruction 7 Structured Extended Features, leaf 0 edx info
  */
+#define	CPUID_STDEXT3_MD_CLEAR	0x00000400
 #define	CPUID_STDEXT3_IBPB	0x04000000
 #define	CPUID_STDEXT3_STIBP	0x08000000
 #define	CPUID_STDEXT3_L1D_FLUSH	0x10000000
@@ -395,6 +396,7 @@
 #define	IA32_ARCH_CAP_RDCL_NO	0x00000001
 #define	IA32_ARCH_CAP_IBRS_ALL	0x00000002
 #define	IA32_ARCH_CAP_SSBD_NO	0x00000004
+#define	IA32_ARCH_CAP_MDS_NO	0x00000020
 
 /*
  * CPUID manufacturers identifiers
