@@ -77,10 +77,14 @@
 	struct	sx pc_copyout_slock;					\
 	char	*pc_copyout_buf;					\
 	vm_offset_t pc_pmap_eh_va;					\
-	caddr_t pc_pmap_eh_ptep;						\
+	caddr_t pc_pmap_eh_ptep;					\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
 	uint32_t pc_ibpb_set;						\
-	char	__pad[3610]
+	void	*pc_mds_buf;						\
+	void	*pc_mds_buf64;						\
+	uint32_t pc_pad[4];						\
+	uint8_t	pc_mds_tmp[64];						\
+	char	__pad[3522]
 
 #ifdef _KERNEL
 

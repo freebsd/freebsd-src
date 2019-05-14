@@ -1878,6 +1878,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	TUNABLE_INT_FETCH("hw.ibrs_disable", &hw_ibrs_disable);
 	TUNABLE_INT_FETCH("hw.spec_store_bypass_disable", &hw_ssb_disable);
+	TUNABLE_INT_FETCH("hw.mds_disable", &hw_mds_disable);
 
 	TSEXIT();
 
