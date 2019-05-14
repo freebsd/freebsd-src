@@ -45,6 +45,7 @@ struct ww_acquire_ctx {
 struct ww_mutex {
 	struct mutex base;
 	struct cv condvar;
+	struct ww_acquire_ctx *ctx;
 };
 
 #define	DEFINE_WW_CLASS(name)					\
