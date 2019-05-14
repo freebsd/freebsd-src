@@ -540,6 +540,7 @@ cpuctl_do_eval_cpu_features(int cpu, struct thread *td)
 #ifdef __amd64__
 	amd64_syscall_ret_flush_l1d_recalc();
 #endif
+	hw_mds_recalculate();
 	printcpuinfo();
 	return (0);
 }
