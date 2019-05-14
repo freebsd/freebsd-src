@@ -17,6 +17,7 @@
 #include "ap_drv_ops.h"
 #include "list.h"
 #include "x_snoop.h"
+#include "ndisc_snoop.h"
 
 struct ip6addr {
 	struct in6_addr addr;
@@ -181,4 +182,5 @@ int ndisc_snoop_init(struct hostapd_data *hapd)
 void ndisc_snoop_deinit(struct hostapd_data *hapd)
 {
 	l2_packet_deinit(hapd->sock_ndisc);
+	hapd->sock_ndisc = NULL;
 }

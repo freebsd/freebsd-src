@@ -32,6 +32,7 @@
 #define DEFAULT_BSS_EXPIRATION_AGE 180
 #define DEFAULT_BSS_EXPIRATION_SCAN_COUNT 2
 #define DEFAULT_MAX_NUM_STA 128
+#define DEFAULT_AP_ISOLATE 0
 #define DEFAULT_ACCESS_NETWORK_TYPE 15
 #define DEFAULT_SCAN_CUR_FREQ 0
 #define DEFAULT_P2P_SEARCH_DELAY 500
@@ -39,12 +40,19 @@
 #define DEFAULT_KEY_MGMT_OFFLOAD 1
 #define DEFAULT_CERT_IN_CB 1
 #define DEFAULT_P2P_GO_CTWINDOW 0
+#define DEFAULT_WPA_RSC_RELAXATION 1
+#define DEFAULT_MBO_CELL_CAPA MBO_CELL_CAPA_NOT_SUPPORTED
+#define DEFAULT_DISASSOC_IMMINENT_RSSI_THRESHOLD -75
+#define DEFAULT_OCE_SUPPORT OCE_STA
 
 #include "config_ssid.h"
 #include "wps/wps.h"
 #include "common/ieee802_11_defs.h"
 #include "common/ieee802_11_common.h"
 
+
+#define MAX_ROAMING_CONS 36
+#define MAX_ROAMING_CONS_OI_LEN 15
 
 struct wpa_cred {
 	/**
@@ -220,8 +228,41 @@ struct wpa_cred {
 	 */
 	size_t roaming_consortium_len;
 
+	/**
+	 * required_roaming_consortium - Required Roaming Consortium OI
+	 *
+	 * If required_roaming_consortium_len is non-zero, this field contains
+	 * the Roaming Consortium OI that is required to be advertised by the AP
+	 * for the credential to be considered matching.
+	 */
 	u8 required_roaming_consortium[15];
+
+	/**
+	 * required_roaming_consortium_len - Length of required_roaming_consortium
+	 */
 	size_t required_roaming_consortium_len;
+
+	/**
+	 * roaming_consortiums - Roaming Consortium OI(s) memberships
+	 *
+	 * This field contains one or more OIs identifying the roaming
+	 * consortiums of which the provider is a member. The list is sorted
+	 * from the most preferred one to the least preferred one. A match
+	 * between the Roaming Consortium OIs advertised by an AP and the OIs
+	 * in this list indicates that successful authentication is possible.
+	 * (Hotspot 2.0 PerProviderSubscription/<X+>/HomeSP/RoamingConsortiumOI)
+	 */
+	u8 roaming_consortiums[MAX_ROAMING_CONS][MAX_ROAMING_CONS_OI_LEN];
+
+	/**
+	 * roaming_consortiums_len - Length on roaming_consortiums[i]
+	 */
+	size_t roaming_consortiums_len[MAX_ROAMING_CONS];
+
+	/**
+	 * num_roaming_consortiums - Number of entries in roaming_consortiums
+	 */
+	unsigned int num_roaming_consortiums;
 
 	/**
 	 * eap_method - EAP method to use
@@ -331,6 +372,8 @@ struct wpa_cred {
 #define CFG_CHANGED_EXT_PW_BACKEND BIT(14)
 #define CFG_CHANGED_NFC_PASSWORD_TOKEN BIT(15)
 #define CFG_CHANGED_P2P_PASSPHRASE_LEN BIT(16)
+#define CFG_CHANGED_SCHED_SCAN_PLANS BIT(17)
+#define CFG_CHANGED_WOWLAN_TRIGGERS BIT(18)
 
 /**
  * struct wpa_config - wpa_supplicant configuration data
@@ -622,6 +665,13 @@ struct wpa_config {
 	u8 uuid[16];
 
 	/**
+	 * auto_uuid - Automatic UUID behavior
+	 * 0 = generate static value based on the local MAC address (default)
+	 * 1 = generate a random UUID every time wpa_supplicant starts
+	 */
+	int auto_uuid;
+
+	/**
 	 * device_name - Device Name (WPS)
 	 * User-friendly description of device; up to 32 octets encoded in
 	 * UTF-8
@@ -695,6 +745,16 @@ struct wpa_config {
 	 */
 	int wps_cred_processing;
 
+	/**
+	 * wps_cred_add_sae - Whether to enable SAE automatically for WPS
+	 *
+	 * 0 = only add the explicitly listed WPA2-PSK configuration
+	 * 1 = add both the WPA2-PSK and SAE configuration and enable PMF so
+	 *     that the station gets configured in WPA3-Personal transition mode
+	 *     (supports both WPA2-Personal (PSK) and WPA3-Personal (SAE) APs).
+	 */
+	int wps_cred_add_sae;
+
 #define MAX_SEC_DEVICE_TYPES 5
 	/**
 	 * sec_device_types - Secondary Device Types (P2P)
@@ -761,12 +821,17 @@ struct wpa_config {
 	 * frequency list of the local device and the peer device.
 	 *
 	 * @P2P_GO_FREQ_MOVE_STAY: Prefer to stay on the current frequency.
+	 *
+	 * @P2P_GO_FREQ_MOVE_SCM_ECSA: Same as
+	 * P2P_GO_FREQ_MOVE_SCM_PEER_SUPPORTS but a transition is possible only
+	 * if all the group members advertise eCSA support.
 	 */
 	enum {
 		P2P_GO_FREQ_MOVE_SCM = 0,
 		P2P_GO_FREQ_MOVE_SCM_PEER_SUPPORTS = 1,
 		P2P_GO_FREQ_MOVE_STAY = 2,
-		P2P_GO_FREQ_MOVE_MAX = P2P_GO_FREQ_MOVE_STAY,
+		P2P_GO_FREQ_MOVE_SCM_ECSA = 3,
+		P2P_GO_FREQ_MOVE_MAX = P2P_GO_FREQ_MOVE_SCM_ECSA,
 	} p2p_go_freq_change_policy;
 
 #define DEFAULT_P2P_GO_FREQ_MOVE P2P_GO_FREQ_MOVE_STAY
@@ -825,6 +890,20 @@ struct wpa_config {
 	unsigned int max_num_sta;
 
 	/**
+	 * ap_isolate - Whether to use client isolation feature
+	 *
+	 * Client isolation can be used to prevent low-level bridging of
+	 * frames between associated stations in the BSS. By default,
+	 * this bridging is allowed (ap_isolate=0); except in P2P GO case,
+	 * where p2p_intra_bss parameter is used to determine whether to allow
+	 * intra-BSS forwarding (ap_isolate = !p2p_intra_bss).
+	 *
+	 * 0 = do not enable AP isolation
+	 * 1 = enable AP isolation
+	 */
+	int ap_isolate;
+
+	/**
 	 * freq_list - Array of allowed scan frequencies or %NULL for all
 	 *
 	 * This is an optional zero-terminated array of frequencies in
@@ -846,7 +925,7 @@ struct wpa_config {
 	unsigned int changed_parameters;
 
 	/**
-	 * disassoc_low_ack - Disassocicate stations with massive packet loss
+	 * disassoc_low_ack - Disassociate stations with massive packet loss
 	 */
 	int disassoc_low_ack;
 
@@ -863,6 +942,34 @@ struct wpa_config {
 	 * indicating wildcard match).
 	 */
 	int access_network_type;
+
+	 /**
+	  * go_interworking - Whether Interworking for P2P GO is enabled
+	  */
+	int go_interworking;
+
+	/**
+	 * go_access_network_type - P2P GO Access Network Type
+	 *
+	 * This indicates which access network type to advertise if Interworking
+	 * is enabled for P2P GO.
+	 */
+	int go_access_network_type;
+
+	/**
+	 * go_internet - Interworking: Internet connectivity (0 or 1)
+	 */
+	int go_internet;
+
+	/**
+	 * go_venue_group - Interworking: Venue group
+	 */
+	int go_venue_group;
+
+	/**
+	 * go_venue_type: Interworking: Venue type
+	 */
+	int go_venue_type;
 
 	/**
 	 * hessid - Homogenous ESS identifier
@@ -982,6 +1089,16 @@ struct wpa_config {
 	int p2p_go_vht;
 
 	/**
+	 * p2p_go_he - Default mode for 11ax HE enable when operating as GO
+	 *
+	 * This will take effect for p2p_group_add, p2p_connect, and p2p_invite.
+	 * Note that regulatory constraints and driver capabilities are
+	 * consulted anyway, so setting it to 1 can't do real harm.
+	 * By default: 0 (disabled)
+	 */
+	int p2p_go_he;
+
+	/**
 	 * p2p_go_ctwindow - CTWindow to use when operating as GO
 	 *
 	 * By default: 0 (no CTWindow). Values 0-127 can be used to indicate
@@ -1031,7 +1148,8 @@ struct wpa_config {
 	 *
 	 * By default, PMF is disabled unless enabled by the per-network
 	 * ieee80211w=1 or ieee80211w=2 parameter. pmf=1/2 can be used to change
-	 * this default behavior.
+	 * this default behavior for RSN network (this is not applicable for
+	 * non-RSN cases).
 	 */
 	enum mfp_options pmf;
 
@@ -1085,6 +1203,15 @@ struct wpa_config {
 	 * sched_scan_interval -  schedule scan interval
 	 */
 	unsigned int sched_scan_interval;
+
+	/**
+	 * sched_scan_start_delay - Schedule scan start delay before first scan
+	 *
+	 * Delay (in seconds) before scheduling first scan plan cycle. The
+	 * driver may ignore this parameter and start immediately (or at any
+	 * other time), if this feature is not supported.
+	 */
+	unsigned int sched_scan_start_delay;
 
 	/**
 	 * tdls_external_control - External control for TDLS setup requests
@@ -1247,6 +1374,159 @@ struct wpa_config {
 	 * interface.
 	 */
 	int fst_llt;
+
+	 /**
+	  * wpa_rsc_relaxation - RSC relaxation on GTK installation
+	  *
+	  * Values:
+	  * 0 - use the EAPOL-Key RSC value on GTK installation
+	  * 1 - use the null RSC if a bogus RSC value is detected in message 3
+	  * of 4-Way Handshake or message 1 of Group Key Handshake.
+	  */
+	 int wpa_rsc_relaxation;
+
+	/**
+	 * sched_scan_plans - Scan plans for scheduled scan
+	 *
+	 * Each scan plan specifies the interval between scans and the number of
+	 * iterations. The last scan plan only specifies the scan interval and
+	 * will be run infinitely.
+	 *
+	 * format: <interval:iterations> <interval2:iterations2> ... <interval>
+	 */
+	 char *sched_scan_plans;
+
+#ifdef CONFIG_MBO
+	/**
+	 * non_pref_chan - Non-preferred channels list, separated by spaces.
+	 *
+	 * format: op_class:chan:preference:reason<:detail>
+	 * Detail is optional.
+	 */
+	char *non_pref_chan;
+
+	/**
+	 * mbo_cell_capa - Cellular capabilities for MBO
+	 */
+	enum mbo_cellular_capa mbo_cell_capa;
+
+	/**
+	 * disassoc_imminent_rssi_threshold - RSSI threshold of candidate AP
+	 * when disassociation imminent is set.
+	 */
+	int disassoc_imminent_rssi_threshold;
+
+	/**
+	 * oce - Enable OCE in STA and/or STA-CFON mode
+	 *  - Set BIT(0) to enable OCE in non-AP STA mode
+	 *  - Set BIT(1) to enable OCE in STA-CFON mode
+	 */
+	unsigned int oce;
+#endif /* CONFIG_MBO */
+
+	/**
+	 * gas_address3 - GAS Address3 field behavior
+	 *
+	 * Values:
+	 * 0 - P2P specification (Address3 = AP BSSID)
+	 * 1 = IEEE 802.11 standard compliant (Address3 = Wildcard BSSID when
+	 *	sent to not-associated AP; if associated, AP BSSID)
+	 */
+	int gas_address3;
+
+	/**
+	 * ftm_responder - Publish FTM (fine timing measurement)
+	 * responder functionality
+	 *
+	 * Values:
+	 * 0 - do not publish FTM responder functionality (Default)
+	 * 1 - publish FTM responder functionality in
+	 *	bit 70 of Extended Capabilities element
+	 * Note, actual FTM responder operation is managed outside
+	 * wpa_supplicant.
+	 */
+	int ftm_responder;
+
+	/**
+	 * ftm_initiator - Publish FTM (fine timing measurement)
+	 * initiator functionality
+	 *
+	 * Values:
+	 * 0 - do not publish FTM initiator functionality (Default)
+	 * 1 - publish FTM initiator functionality in
+	 *	bit 71 of Extended Capabilities element
+	 * Note, actual FTM initiator operation is managed outside
+	 * wpa_supplicant.
+	 */
+	int ftm_initiator;
+
+	/**
+	 * gas_rand_addr_lifetime - Lifetime of random MAC address for ANQP in
+	 *	seconds
+	 */
+	unsigned int gas_rand_addr_lifetime;
+
+	/**
+	 * gas_rand_mac_addr - GAS MAC address policy
+	 *
+	 * 0 = use permanent MAC address
+	 * 1 = use random MAC address
+	 * 2 = like 1, but maintain OUI (with local admin bit set)
+	 */
+	int gas_rand_mac_addr;
+
+	/**
+	 * dpp_config_processing - How to process DPP configuration
+	 *
+	 * 0 = report received configuration to an external program for
+	 *	processing; do not generate any network profile internally
+	 * 1 = report received configuration to an external program and generate
+	 *	a network profile internally, but do not automatically connect
+	 *	to the created (disabled) profile; the network profile id is
+	 *	reported to external programs
+	 * 2 = report received configuration to an external program, generate
+	 *	a network profile internally, try to connect to the created
+	 *	profile automatically
+	 */
+	int dpp_config_processing;
+
+	/**
+	 * coloc_intf_reporting - Colocated interference reporting
+	 *
+	 * dot11CoLocIntfReportingActivated
+	 * 0 = disabled (false)
+	 * 1 = enabled (true)
+	 */
+	int coloc_intf_reporting;
+
+	/**
+	 * p2p_device_random_mac_addr - P2P Device MAC address policy default
+	 *
+	 * 0 = use permanent MAC address
+	 * 1 = use random MAC address on creating the interface if there is no
+	 * persistent groups.
+	 *
+	 * By default, permanent MAC address is used.
+	 */
+	int p2p_device_random_mac_addr;
+
+	/**
+	 * p2p_device_persistent_mac_addr - Record last used MAC address
+	 *
+	 * If there are saved persistent groups, P2P cannot generate another
+	 * random MAC address, and need to restore to last used MAC address.
+	 */
+	u8 p2p_device_persistent_mac_addr[ETH_ALEN];
+
+	/**
+	 * p2p_interface_random_mac_addr - P2P Interface MAC address policy default
+	 *
+	 * 0 = use permanent MAC address
+	 * 1 = use random MAC address on creating the interface.
+	 *
+	 * By default, permanent MAC address is used.
+	 */
+	int p2p_interface_random_mac_addr;
 };
 
 
@@ -1305,6 +1585,9 @@ void wpa_config_debug_dump_networks(struct wpa_config *config);
 /* Prototypes for common functions from config.c */
 int wpa_config_process_global(struct wpa_config *config, char *pos, int line);
 
+int wpa_config_get_num_global_field_names(void);
+
+const char * wpa_config_get_global_field_name(unsigned int i, int *no_var);
 
 /* Prototypes for backend specific functions from the selected config_*.c */
 

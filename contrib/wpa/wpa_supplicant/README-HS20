@@ -197,6 +197,20 @@ Credentials can be pre-configured for automatic network selection:
 #	pre-configured with the credential since the NAI Realm information
 #	may not be available or fetched.
 #
+# required_roaming_consortium: Required Roaming Consortium OI
+#	If required_roaming_consortium_len is non-zero, this field contains the
+#	Roaming Consortium OI that is required to be advertised by the AP for
+#	the credential to be considered matching.
+#
+# roaming_consortiums: Roaming Consortium OI(s) memberships
+#	This string field contains one or more comma delimited OIs (hexdump)
+#	identifying the roaming consortiums of which the provider is a member.
+#	The list is sorted from the most preferred one to the least preferred
+#	one. A match between the Roaming Consortium OIs advertised by an AP and
+#	the OIs in this list indicates that successful authentication is
+#	possible.
+#	(Hotspot 2.0 PerProviderSubscription/<X+>/HomeSP/RoamingConsortiumOI)
+#
 # eap: Pre-configured EAP method
 #	This optional field can be used to specify which EAP method will be
 #	used with this credential. If not set, the EAP method is selected
@@ -229,7 +243,7 @@ Credentials can be pre-configured for automatic network selection:
 #
 # sp_priority: Credential priority within a provisioning SP
 #	This is the priority of the credential among all credentials
-#	provisionined by the same SP (i.e., for entries that have identical
+#	provisioned by the same SP (i.e., for entries that have identical
 #	provisioning_sp value). The range of this priority is 0-255 with 0
 #	being the highest and 255 the lower priority.
 #
@@ -295,6 +309,7 @@ Credentials can be pre-configured for automatic network selection:
 #	ca_cert="/etc/wpa_supplicant/ca.pem"
 #	domain="example.com"
 #	roaming_consortium=223344
+#	roaming_consortiums="112233,4455667788,aabbcc"
 #	eap=TTLS
 #	phase2="auth=MSCHAPV2"
 #}
@@ -564,3 +579,70 @@ OK
 <3>RX-ANQP 02:00:00:00:01:00 Roaming Consortium list
 <3>RX-HS20-ANQP 02:00:00:00:01:00 HS Capability List
 <3>ANQP fetch completed
+
+
+Hotspot 2.0 Rel 2 online signup and OSEN
+----------------------------------------
+
+Following parameters can be used to create a network profile for
+link-layer protected Hotspot 2.0 online signup connection with
+OSEN. Note that ssid and identify (NAI) values need to be set based on
+the information for the selected provider in the OSU Providers list
+ANQP-element.
+
+network={
+    ssid="HS 2.0 OSU"
+    proto=OSEN
+    key_mgmt=OSEN
+    pairwise=CCMP
+    group=GTK_NOT_USED
+    eap=WFA-UNAUTH-TLS
+    identity="anonymous@example.com"
+    ca_cert="osu-ca.pem"
+    ocsp=2
+}
+
+
+Hotspot 2.0 connection with external network selection
+------------------------------------------------------
+
+When a component controlling wpa_supplicant takes care of Interworking
+network selection, following configuration and network profile
+parameters can be used to configure a temporary network profile for a
+Hotspot 2.0 connection (e.g., with SET, ADD_NETWORK, SET_NETWORK, and
+SELECT_NETWORK control interface commands):
+
+interworking=1
+hs20=1
+auto_interworking=0
+
+network={
+    ssid="test-hs20"
+    proto=RSN
+    key_mgmt=WPA-EAP
+    pairwise=CCMP
+    anonymous_identity="anonymous@example.com"
+    identity="hs20-test@example.com"
+    password="password"
+    ca_cert="ca.pem"
+    eap=TTLS
+    phase2="auth=MSCHAPV2"
+    update_identifier=54321
+    roaming_consortium_selection=112233
+    #ocsp=2
+}
+
+
+These parameters are set based on the PPS MO credential and/or NAI Realm
+list ANQP-element:
+
+anonymous_identity: Credential/UsernamePassword/Username with username part
+		    replaced with "anonymous"
+identity: Credential/UsernamePassword/Username
+password: Credential/UsernamePassword/Password
+update_identifier: PPS/UpdateIdentifier
+ca_cert: from the downloaded trust root based on PPS information
+eap: Credential/UsernamePassword/EAPMethod or NAI Realm list
+phase2: Credential/UsernamePassword/EAPMethod or NAI Realm list
+roaming_consortium_selection: Matching OI from HomeSP/RoamingConsortiumOI
+ocsp: Credential/CheckAAAServerCertStatus

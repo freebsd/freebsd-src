@@ -1,6 +1,6 @@
 /*
- * HMAC-SHA256 KDF (RFC 5295)
- * Copyright (c) 2014, Jouni Malinen <j@w1.fi>
+ * HMAC-SHA256 KDF (RFC 5295) and HKDF-Expand(SHA256) (RFC 5869)
+ * Copyright (c) 2014-2017, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -16,7 +16,8 @@
  * hmac_sha256_kdf - HMAC-SHA256 based KDF (RFC 5295)
  * @secret: Key for KDF
  * @secret_len: Length of the key in bytes
- * @label: A unique label for each purpose of the KDF
+ * @label: A unique label for each purpose of the KDF or %NULL to select
+ *	RFC 5869 HKDF-Expand() with arbitrary seed (= info)
  * @seed: Seed value to bind into the key
  * @seed_len: Length of the seed
  * @out: Buffer for the generated pseudo-random key
@@ -24,7 +25,9 @@
  * Returns: 0 on success, -1 on failure.
  *
  * This function is used to derive new, cryptographically separate keys from a
- * given key in ERP. This KDF is defined in RFC 5295, Chapter 3.1.2.
+ * given key in ERP. This KDF is defined in RFC 5295, Chapter 3.1.2. When used
+ * with label = NULL and seed = info, this matches HKDF-Expand() defined in
+ * RFC 5869, Chapter 2.3.
  */
 int hmac_sha256_kdf(const u8 *secret, size_t secret_len,
 		    const char *label, const u8 *seed, size_t seed_len,
@@ -38,8 +41,13 @@ int hmac_sha256_kdf(const u8 *secret, size_t secret_len,
 
 	addr[0] = T;
 	len[0] = SHA256_MAC_LEN;
-	addr[1] = (const unsigned char *) label;
-	len[1] = os_strlen(label) + 1;
+	if (label) {
+		addr[1] = (const unsigned char *) label;
+		len[1] = os_strlen(label) + 1;
+	} else {
+		addr[1] = (const u8 *) "";
+		len[1] = 0;
+	}
 	addr[2] = seed;
 	len[2] = seed_len;
 	addr[3] = &iter;

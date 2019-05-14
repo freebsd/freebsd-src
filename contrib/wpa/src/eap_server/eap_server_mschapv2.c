@@ -71,13 +71,12 @@ static void * eap_mschapv2_init(struct eap_sm *sm)
 	}
 
 	if (sm->peer_challenge) {
-		data->peer_challenge = os_malloc(CHALLENGE_LEN);
+		data->peer_challenge = os_memdup(sm->peer_challenge,
+						 CHALLENGE_LEN);
 		if (data->peer_challenge == NULL) {
 			os_free(data);
 			return NULL;
 		}
-		os_memcpy(data->peer_challenge, sm->peer_challenge,
-			  CHALLENGE_LEN);
 	}
 
 	return data;
@@ -552,9 +551,13 @@ static u8 * eap_mschapv2_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (key == NULL)
 		return NULL;
 	/* MSK = server MS-MPPE-Recv-Key | MS-MPPE-Send-Key */
-	get_asymetric_start_key(data->master_key, key, MSCHAPV2_KEY_LEN, 0, 1);
-	get_asymetric_start_key(data->master_key, key + MSCHAPV2_KEY_LEN,
-				MSCHAPV2_KEY_LEN, 1, 1);
+	if (get_asymetric_start_key(data->master_key, key, MSCHAPV2_KEY_LEN, 0,
+				    1) < 0 ||
+	    get_asymetric_start_key(data->master_key, key + MSCHAPV2_KEY_LEN,
+				    MSCHAPV2_KEY_LEN, 1, 1) < 0) {
+		os_free(key);
+		return NULL;
+	}
 	wpa_hexdump_key(MSG_DEBUG, "EAP-MSCHAPV2: Derived key", key, *len);
 
 	return key;
@@ -571,7 +574,6 @@ static Boolean eap_mschapv2_isSuccess(struct eap_sm *sm, void *priv)
 int eap_server_mschapv2_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
 				      EAP_VENDOR_IETF, EAP_TYPE_MSCHAPV2,
@@ -588,8 +590,5 @@ int eap_server_mschapv2_register(void)
 	eap->getKey = eap_mschapv2_getKey;
 	eap->isSuccess = eap_mschapv2_isSuccess;
 
-	ret = eap_server_method_register(eap);
-	if (ret)
-		eap_server_method_free(eap);
-	return ret;
+	return eap_server_method_register(eap);
 }

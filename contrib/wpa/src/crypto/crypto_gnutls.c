@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / wrapper functions for libgcrypt
- * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2017, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -10,27 +10,42 @@
 #include <gcrypt.h>
 
 #include "common.h"
+#include "md5.h"
+#include "sha1.h"
+#include "sha256.h"
+#include "sha384.h"
+#include "sha512.h"
 #include "crypto.h"
 
-int md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+static int gnutls_digest_vector(int algo, size_t num_elem,
+				const u8 *addr[], const size_t *len, u8 *mac)
 {
 	gcry_md_hd_t hd;
 	unsigned char *p;
 	size_t i;
 
-	if (gcry_md_open(&hd, GCRY_MD_MD4, 0) != GPG_ERR_NO_ERROR)
+	if (TEST_FAIL())
+		return -1;
+
+	if (gcry_md_open(&hd, algo, 0) != GPG_ERR_NO_ERROR)
 		return -1;
 	for (i = 0; i < num_elem; i++)
 		gcry_md_write(hd, addr[i], len[i]);
-	p = gcry_md_read(hd, GCRY_MD_MD4);
+	p = gcry_md_read(hd, algo);
 	if (p)
-		memcpy(mac, p, gcry_md_get_algo_dlen(GCRY_MD_MD4));
+		memcpy(mac, p, gcry_md_get_algo_dlen(algo));
 	gcry_md_close(hd);
 	return 0;
 }
 
 
-void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
+int md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return gnutls_digest_vector(GCRY_MD_MD4, num_elem, addr, len, mac);
+}
+
+
+int des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
 {
 	gcry_cipher_hd_t hd;
 	u8 pkey[8], next, tmp;
@@ -49,48 +64,160 @@ void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
 	gcry_err_code(gcry_cipher_setkey(hd, pkey, 8));
 	gcry_cipher_encrypt(hd, cypher, 8, clear, 8);
 	gcry_cipher_close(hd);
+	return 0;
 }
 
 
 int md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
-	gcry_md_hd_t hd;
-	unsigned char *p;
-	size_t i;
-
-	if (gcry_md_open(&hd, GCRY_MD_MD5, 0) != GPG_ERR_NO_ERROR)
-		return -1;
-	for (i = 0; i < num_elem; i++)
-		gcry_md_write(hd, addr[i], len[i]);
-	p = gcry_md_read(hd, GCRY_MD_MD5);
-	if (p)
-		memcpy(mac, p, gcry_md_get_algo_dlen(GCRY_MD_MD5));
-	gcry_md_close(hd);
-	return 0;
+	return gnutls_digest_vector(GCRY_MD_MD5, num_elem, addr, len, mac);
 }
 
 
 int sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
+	return gnutls_digest_vector(GCRY_MD_SHA1, num_elem, addr, len, mac);
+}
+
+
+int sha256_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return gnutls_digest_vector(GCRY_MD_SHA256, num_elem, addr, len, mac);
+}
+
+
+int sha384_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return gnutls_digest_vector(GCRY_MD_SHA384, num_elem, addr, len, mac);
+}
+
+
+int sha512_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return gnutls_digest_vector(GCRY_MD_SHA512, num_elem, addr, len, mac);
+}
+
+
+static int gnutls_hmac_vector(int algo, const u8 *key, size_t key_len,
+			      size_t num_elem, const u8 *addr[],
+			      const size_t *len, u8 *mac)
+{
 	gcry_md_hd_t hd;
 	unsigned char *p;
 	size_t i;
 
-	if (gcry_md_open(&hd, GCRY_MD_SHA1, 0) != GPG_ERR_NO_ERROR)
+	if (TEST_FAIL())
 		return -1;
+
+	if (gcry_md_open(&hd, algo, GCRY_MD_FLAG_HMAC) != GPG_ERR_NO_ERROR)
+		return -1;
+	if (gcry_md_setkey(hd, key, key_len) != GPG_ERR_NO_ERROR) {
+		gcry_md_close(hd);
+		return -1;
+	}
 	for (i = 0; i < num_elem; i++)
 		gcry_md_write(hd, addr[i], len[i]);
-	p = gcry_md_read(hd, GCRY_MD_SHA1);
+	p = gcry_md_read(hd, algo);
 	if (p)
-		memcpy(mac, p, gcry_md_get_algo_dlen(GCRY_MD_SHA1));
+		memcpy(mac, p, gcry_md_get_algo_dlen(algo));
 	gcry_md_close(hd);
 	return 0;
 }
 
 
+int hmac_md5_vector(const u8 *key, size_t key_len, size_t num_elem,
+		    const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return gnutls_hmac_vector(GCRY_MD_MD5, key, key_len, num_elem, addr,
+				  len, mac);
+}
+
+
+int hmac_md5(const u8 *key, size_t key_len, const u8 *data, size_t data_len,
+	     u8 *mac)
+{
+	return hmac_md5_vector(key, key_len, 1, &data, &data_len, mac);
+}
+
+
+int hmac_sha1_vector(const u8 *key, size_t key_len, size_t num_elem,
+		     const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return gnutls_hmac_vector(GCRY_MD_SHA1, key, key_len, num_elem, addr,
+				  len, mac);
+}
+
+
+int hmac_sha1(const u8 *key, size_t key_len, const u8 *data, size_t data_len,
+	       u8 *mac)
+{
+	return hmac_sha1_vector(key, key_len, 1, &data, &data_len, mac);
+}
+
+
+#ifdef CONFIG_SHA256
+
+int hmac_sha256_vector(const u8 *key, size_t key_len, size_t num_elem,
+		       const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return gnutls_hmac_vector(GCRY_MD_SHA256, key, key_len, num_elem, addr,
+				  len, mac);
+}
+
+
+int hmac_sha256(const u8 *key, size_t key_len, const u8 *data,
+		size_t data_len, u8 *mac)
+{
+	return hmac_sha256_vector(key, key_len, 1, &data, &data_len, mac);
+}
+
+#endif /* CONFIG_SHA256 */
+
+
+#ifdef CONFIG_SHA384
+
+int hmac_sha384_vector(const u8 *key, size_t key_len, size_t num_elem,
+		       const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return gnutls_hmac_vector(GCRY_MD_SHA384, key, key_len, num_elem, addr,
+				  len, mac);
+}
+
+
+int hmac_sha384(const u8 *key, size_t key_len, const u8 *data,
+		size_t data_len, u8 *mac)
+{
+	return hmac_sha384_vector(key, key_len, 1, &data, &data_len, mac);
+}
+
+#endif /* CONFIG_SHA384 */
+
+
+#ifdef CONFIG_SHA512
+
+int hmac_sha512_vector(const u8 *key, size_t key_len, size_t num_elem,
+		       const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return gnutls_hmac_vector(GCRY_MD_SHA512, key, key_len, num_elem, addr,
+				  len, mac);
+}
+
+
+int hmac_sha512(const u8 *key, size_t key_len, const u8 *data,
+		size_t data_len, u8 *mac)
+{
+	return hmac_sha512_vector(key, key_len, 1, &data, &data_len, mac);
+}
+
+#endif /* CONFIG_SHA512 */
+
+
 void * aes_encrypt_init(const u8 *key, size_t len)
 {
 	gcry_cipher_hd_t hd;
+
+	if (TEST_FAIL())
+		return NULL;
 
 	if (gcry_cipher_open(&hd, GCRY_CIPHER_AES, GCRY_CIPHER_MODE_ECB, 0) !=
 	    GPG_ERR_NO_ERROR) {
@@ -107,10 +234,11 @@ void * aes_encrypt_init(const u8 *key, size_t len)
 }
 
 
-void aes_encrypt(void *ctx, const u8 *plain, u8 *crypt)
+int aes_encrypt(void *ctx, const u8 *plain, u8 *crypt)
 {
 	gcry_cipher_hd_t hd = ctx;
 	gcry_cipher_encrypt(hd, crypt, 16, plain, 16);
+	return 0;
 }
 
 
@@ -125,6 +253,9 @@ void * aes_decrypt_init(const u8 *key, size_t len)
 {
 	gcry_cipher_hd_t hd;
 
+	if (TEST_FAIL())
+		return NULL;
+
 	if (gcry_cipher_open(&hd, GCRY_CIPHER_AES, GCRY_CIPHER_MODE_ECB, 0) !=
 	    GPG_ERR_NO_ERROR)
 		return NULL;
@@ -137,10 +268,11 @@ void * aes_decrypt_init(const u8 *key, size_t len)
 }
 
 
-void aes_decrypt(void *ctx, const u8 *crypt, u8 *plain)
+int aes_decrypt(void *ctx, const u8 *crypt, u8 *plain)
 {
 	gcry_cipher_hd_t hd = ctx;
 	gcry_cipher_decrypt(hd, plain, 16, crypt, 16);
+	return 0;
 }
 
 
@@ -148,6 +280,81 @@ void aes_decrypt_deinit(void *ctx)
 {
 	gcry_cipher_hd_t hd = ctx;
 	gcry_cipher_close(hd);
+}
+
+
+int crypto_dh_init(u8 generator, const u8 *prime, size_t prime_len, u8 *privkey,
+		   u8 *pubkey)
+{
+	size_t pubkey_len, pad;
+
+	if (os_get_random(privkey, prime_len) < 0)
+		return -1;
+	if (os_memcmp(privkey, prime, prime_len) > 0) {
+		/* Make sure private value is smaller than prime */
+		privkey[0] = 0;
+	}
+
+	pubkey_len = prime_len;
+	if (crypto_mod_exp(&generator, 1, privkey, prime_len, prime, prime_len,
+			   pubkey, &pubkey_len) < 0)
+		return -1;
+	if (pubkey_len < prime_len) {
+		pad = prime_len - pubkey_len;
+		os_memmove(pubkey + pad, pubkey, pubkey_len);
+		os_memset(pubkey, 0, pad);
+	}
+
+	return 0;
+}
+
+
+int crypto_dh_derive_secret(u8 generator, const u8 *prime, size_t prime_len,
+			    const u8 *order, size_t order_len,
+			    const u8 *privkey, size_t privkey_len,
+			    const u8 *pubkey, size_t pubkey_len,
+			    u8 *secret, size_t *len)
+{
+	gcry_mpi_t pub = NULL;
+	int res = -1;
+
+	if (pubkey_len > prime_len ||
+	    (pubkey_len == prime_len &&
+	     os_memcmp(pubkey, prime, prime_len) >= 0))
+		return -1;
+
+	if (gcry_mpi_scan(&pub, GCRYMPI_FMT_USG, pubkey, pubkey_len, NULL) !=
+	    GPG_ERR_NO_ERROR ||
+	    gcry_mpi_cmp_ui(pub, 1) <= 0)
+		goto fail;
+
+	if (order) {
+		gcry_mpi_t p = NULL, q = NULL, tmp;
+		int failed;
+
+		/* verify: pubkey^q == 1 mod p */
+		tmp = gcry_mpi_new(prime_len * 8);
+		failed = !tmp ||
+			gcry_mpi_scan(&p, GCRYMPI_FMT_USG, prime, prime_len,
+				      NULL) != GPG_ERR_NO_ERROR ||
+			gcry_mpi_scan(&q, GCRYMPI_FMT_USG, order, order_len,
+				      NULL) != GPG_ERR_NO_ERROR;
+		if (!failed) {
+			gcry_mpi_powm(tmp, pub, q, p);
+			failed = gcry_mpi_cmp_ui(tmp, 1) != 0;
+		}
+		gcry_mpi_release(p);
+		gcry_mpi_release(q);
+		gcry_mpi_release(tmp);
+		if (failed)
+			goto fail;
+	}
+
+	res = crypto_mod_exp(pubkey, pubkey_len, privkey, privkey_len,
+			     prime, prime_len, secret, len);
+fail:
+	gcry_mpi_release(pub);
+	return res;
 }
 
 

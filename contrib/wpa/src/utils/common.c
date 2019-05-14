@@ -1,6 +1,6 @@
 /*
  * wpa_supplicant/hostapd / common helper functions, etc.
- * Copyright (c) 2002-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -86,7 +86,7 @@ int hwaddr_masked_aton(const char *txt, u8 *addr, u8 *mask, u8 maskable)
 		return -1;
 
 	/* check for optional mask */
-	if (*r == '\0' || isspace(*r)) {
+	if (*r == '\0' || isspace((unsigned char) *r)) {
 		/* no mask specified, assume default */
 		os_memset(mask, 0xff, ETH_ALEN);
 	} else if (maskable && *r == '/') {
@@ -498,7 +498,7 @@ void printf_encode(char *txt, size_t maxlen, const u8 *data, size_t len)
 			*txt++ = 't';
 			break;
 		default:
-			if (data[i] >= 32 && data[i] <= 127) {
+			if (data[i] >= 32 && data[i] <= 126) {
 				*txt++ = data[i];
 			} else {
 				txt += os_snprintf(txt, end - txt, "\\x%02x",
@@ -692,6 +692,29 @@ int is_hex(const u8 *data, size_t len)
 	for (i = 0; i < len; i++) {
 		if (data[i] < 32 || data[i] >= 127)
 			return 1;
+	}
+	return 0;
+}
+
+
+int has_ctrl_char(const u8 *data, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		if (data[i] < 32 || data[i] == 127)
+			return 1;
+	}
+	return 0;
+}
+
+
+int has_newline(const char *str)
+{
+	while (*str) {
+		if (*str == '\n' || *str == '\r')
+			return 1;
+		str++;
 	}
 	return 0;
 }
@@ -978,7 +1001,7 @@ int random_mac_addr_keep_oui(u8 *addr)
  * @delim: a string of delimiters
  * @last: a pointer to a character following the returned token
  *      It has to be set to NULL for the first call and passed for any
- *      futher call.
+ *      further call.
  * Returns: a pointer to token position in str or NULL
  *
  * This function is similar to str_token, but it can be used with both
@@ -1050,7 +1073,8 @@ size_t utf8_unescape(const char *inp, size_t in_size,
 		in_size--;
 	}
 
-	while (in_size--) {
+	while (in_size) {
+		in_size--;
 		if (res_size >= out_size)
 			return 0;
 
@@ -1061,8 +1085,9 @@ size_t utf8_unescape(const char *inp, size_t in_size,
 			return res_size;
 
 		case '\\':
-			if (!in_size--)
+			if (!in_size)
 				return 0;
+			in_size--;
 			inp++;
 			/* fall through */
 
@@ -1093,7 +1118,8 @@ size_t utf8_escape(const char *inp, size_t in_size,
 	if (!in_size)
 		in_size = os_strlen(inp);
 
-	while (in_size--) {
+	while (in_size) {
+		in_size--;
 		if (res_size++ >= out_size)
 			return 0;
 
@@ -1122,4 +1148,104 @@ size_t utf8_escape(const char *inp, size_t in_size,
 int is_ctrl_char(char c)
 {
 	return c > 0 && c < 32;
+}
+
+
+/**
+ * ssid_parse - Parse a string that contains SSID in hex or text format
+ * @buf: Input NULL terminated string that contains the SSID
+ * @ssid: Output SSID
+ * Returns: 0 on success, -1 otherwise
+ *
+ * The SSID has to be enclosed in double quotes for the text format or space
+ * or NULL terminated string of hex digits for the hex format. buf can include
+ * additional arguments after the SSID.
+ */
+int ssid_parse(const char *buf, struct wpa_ssid_value *ssid)
+{
+	char *tmp, *res, *end;
+	size_t len;
+
+	ssid->ssid_len = 0;
+
+	tmp = os_strdup(buf);
+	if (!tmp)
+		return -1;
+
+	if (*tmp != '"') {
+		end = os_strchr(tmp, ' ');
+		if (end)
+			*end = '\0';
+	} else {
+		end = os_strchr(tmp + 1, '"');
+		if (!end) {
+			os_free(tmp);
+			return -1;
+		}
+
+		end[1] = '\0';
+	}
+
+	res = wpa_config_parse_string(tmp, &len);
+	if (res && len <= SSID_MAX_LEN) {
+		ssid->ssid_len = len;
+		os_memcpy(ssid->ssid, res, len);
+	}
+
+	os_free(tmp);
+	os_free(res);
+
+	return ssid->ssid_len ? 0 : -1;
+}
+
+
+int str_starts(const char *str, const char *start)
+{
+	return os_strncmp(str, start, os_strlen(start)) == 0;
+}
+
+
+/**
+ * rssi_to_rcpi - Convert RSSI to RCPI
+ * @rssi: RSSI to convert
+ * Returns: RCPI corresponding to the given RSSI value, or 255 if not available.
+ *
+ * It's possible to estimate RCPI based on RSSI in dBm. This calculation will
+ * not reflect the correct value for high rates, but it's good enough for Action
+ * frames which are transmitted with up to 24 Mbps rates.
+ */
+u8 rssi_to_rcpi(int rssi)
+{
+	if (!rssi)
+		return 255; /* not available */
+	if (rssi < -110)
+		return 0;
+	if (rssi > 0)
+		return 220;
+	return (rssi + 110) * 2;
+}
+
+
+char * get_param(const char *cmd, const char *param)
+{
+	const char *pos, *end;
+	char *val;
+	size_t len;
+
+	pos = os_strstr(cmd, param);
+	if (!pos)
+		return NULL;
+
+	pos += os_strlen(param);
+	end = os_strchr(pos, ' ');
+	if (end)
+		len = end - pos;
+	else
+		len = os_strlen(pos);
+	val = os_malloc(len + 1);
+	if (!val)
+		return NULL;
+	os_memcpy(val, pos, len);
+	val[len] = '\0';
+	return val;
 }

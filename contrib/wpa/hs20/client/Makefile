@@ -8,11 +8,16 @@ ifndef LDO
 LDO=$(CC)
 endif
 
+ifeq ($(QUIET), 1)
+Q=@
+E=true
+else
 Q=@
 E=echo
 ifeq ($(V), 1)
 Q=
 E=true
+endif
 endif
 
 ifndef CFLAGS
@@ -76,6 +81,7 @@ LIBS += -lcurl
 endif
 
 CFLAGS += -DEAP_TLS_OPENSSL
+OBJS += ../../src/crypto/tls_openssl_ocsp.o
 LIBS += -lssl -lcrypto
 
 hs20-osu-client: $(OBJS)

@@ -308,6 +308,18 @@ struct p2p_data {
 	 */
 	int num_p2p_sd_queries;
 
+	/**
+	 * sd_query_no_ack - The first peer (Dev Addr) that did not ACK SD Query
+	 *
+	 * This is used to track the first peer that did not ACK an SD Query
+	 * within a single P2P Search iteration. All zeros address means no such
+	 * peer was yet seen. This information is used to allow a new Listen and
+	 * Search phases to be once every pending SD Query has been sent once to
+	 * each peer instead of looping all pending attempts continuously until
+	 * running out of retry maximums.
+	 */
+	u8 sd_query_no_ack[ETH_ALEN];
+
 	/* GO Negotiation data */
 
 	/**
@@ -425,9 +437,11 @@ struct p2p_data {
 	int inv_persistent;
 
 	enum p2p_discovery_type find_type;
+	int find_specified_freq;
 	unsigned int last_p2p_find_timeout;
 	u8 last_prog_scan_class;
 	u8 last_prog_scan_chan;
+	unsigned int find_pending_full:1;
 	int p2p_scan_running;
 	enum p2p_after_scan {
 		P2P_AFTER_SCAN_NOTHING,
@@ -533,6 +547,7 @@ struct p2p_data {
 	struct wpabuf *wfd_dev_info;
 	struct wpabuf *wfd_assoc_bssid;
 	struct wpabuf *wfd_coupled_sink_info;
+	struct wpabuf *wfd_r2_dev_info;
 #endif /* CONFIG_WIFI_DISPLAY */
 
 	u16 authorized_oob_dev_pw_id;
@@ -541,6 +556,10 @@ struct p2p_data {
 
 	unsigned int pref_freq_list[P2P_MAX_PREF_CHANNELS];
 	unsigned int num_pref_freq;
+
+	/* Override option for preferred operating channel in GO Negotiation */
+	u8 override_pref_op_class;
+	u8 override_pref_channel;
 };
 
 /**
@@ -688,9 +707,13 @@ void p2p_channels_dump(struct p2p_data *p2p, const char *title,
 int p2p_channel_select(struct p2p_channels *chans, const int *classes,
 		       u8 *op_class, u8 *op_channel);
 int p2p_channel_random_social(struct p2p_channels *chans, u8 *op_class,
-			      u8 *op_channel);
+			      u8 *op_channel,
+			      struct wpa_freq_range_list *avoid_list,
+			      struct wpa_freq_range_list *disallow_list);
 
 /* p2p_parse.c */
+void p2p_copy_filter_devname(char *dst, size_t dst_len,
+			     const void *src, size_t src_len);
 int p2p_parse_p2p_ie(const struct wpabuf *buf, struct p2p_message *msg);
 int p2p_parse_ies(const u8 *data, size_t len, struct p2p_message *msg);
 int p2p_parse(const u8 *data, size_t len, struct p2p_message *msg);

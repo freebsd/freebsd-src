@@ -41,6 +41,8 @@ enum tls_fail_reason {
 	TLS_FAIL_SERVER_CHAIN_PROBE = 8,
 	TLS_FAIL_DOMAIN_SUFFIX_MISMATCH = 9,
 	TLS_FAIL_DOMAIN_MISMATCH = 10,
+	TLS_FAIL_INSUFFICIENT_KEY_LEN = 11,
+	TLS_FAIL_DN_MISMATCH = 12,
 };
 
 
@@ -63,6 +65,7 @@ union tls_event_data {
 		size_t hash_len;
 		const char *altsubject[TLS_MAX_ALT_SUBJECT];
 		int num_altsubject;
+		const char *serial_num;
 	} peer_cert;
 
 	struct {
@@ -80,6 +83,8 @@ struct tls_config {
 	int cert_in_cb;
 	const char *openssl_ciphers;
 	unsigned int tls_session_lifetime;
+	unsigned int crl_reload_interval;
+	unsigned int tls_flags;
 
 	void (*event_cb)(void *ctx, enum tls_event ev,
 			 union tls_event_data *data);
@@ -95,6 +100,14 @@ struct tls_config {
 #define TLS_CONN_DISABLE_TLSv1_2 BIT(6)
 #define TLS_CONN_EAP_FAST BIT(7)
 #define TLS_CONN_DISABLE_TLSv1_0 BIT(8)
+#define TLS_CONN_EXT_CERT_CHECK BIT(9)
+#define TLS_CONN_REQUIRE_OCSP_ALL BIT(10)
+#define TLS_CONN_SUITEB BIT(11)
+#define TLS_CONN_SUITEB_NO_ECDH BIT(12)
+#define TLS_CONN_DISABLE_TLSv1_3 BIT(13)
+#define TLS_CONN_ENABLE_TLSv1_0 BIT(14)
+#define TLS_CONN_ENABLE_TLSv1_1 BIT(15)
+#define TLS_CONN_ENABLE_TLSv1_2 BIT(16)
 
 /**
  * struct tls_connection_params - Parameters for TLS connection
@@ -107,12 +120,19 @@ struct tls_config {
  * %NULL to allow all subjects
  * @altsubject_match: String to match in the alternative subject of the peer
  * certificate or %NULL to allow all alternative subjects
- * @suffix_match: String to suffix match in the dNSName or CN of the peer
- * certificate or %NULL to allow all domain names. This may allow subdomains an
- * wildcard certificates. Each domain name label must have a full match.
+ * @suffix_match: Semicolon deliminated string of values to suffix match against
+ * the dNSName or CN of the peer certificate or %NULL to allow all domain names.
+ * This may allow subdomains and wildcard certificates. Each domain name label
+ * must have a full case-insensitive match.
  * @domain_match: String to match in the dNSName or CN of the peer
  * certificate or %NULL to allow all domain names. This requires a full,
  * case-insensitive match.
+ *
+ * More than one match string can be provided by using semicolons to
+ * separate the strings (e.g., example.org;example.com). When multiple
+ * strings are specified, a match with any one of the values is
+ * considered a sufficient match for the certificate, i.e., the
+ * conditions are ORed together.
  * @client_cert: File or reference name for client X.509 certificate in PEM or
  * DER format
  * @client_cert_blob: client_cert as inlined data or %NULL if not used
@@ -136,9 +156,15 @@ struct tls_config {
  * @cert_id: the certificate's id when using engine
  * @ca_cert_id: the CA certificate's id when using engine
  * @openssl_ciphers: OpenSSL cipher configuration
+ * @openssl_ecdh_curves: OpenSSL ECDH curve configuration. %NULL for auto if
+ *	supported, empty string to disable, or a colon-separated curve list.
  * @flags: Parameter options (TLS_CONN_*)
  * @ocsp_stapling_response: DER encoded file with cached OCSP stapling response
  *	or %NULL if OCSP is not enabled
+ * @ocsp_stapling_response_multi: DER encoded file with cached OCSP stapling
+ *	response list (OCSPResponseList for ocsp_multi in RFC 6961) or %NULL if
+ *	ocsp_multi is not enabled
+ * @check_cert_subject: Client certificate subject name matching string
  *
  * TLS connection parameters to be configured with tls_connection_set_params()
  * and tls_global_set_params().
@@ -176,9 +202,12 @@ struct tls_connection_params {
 	const char *cert_id;
 	const char *ca_cert_id;
 	const char *openssl_ciphers;
+	const char *openssl_ecdh_curves;
 
 	unsigned int flags;
 	const char *ocsp_stapling_response;
+	const char *ocsp_stapling_response_multi;
+	const char *check_cert_subject;
 };
 
 
@@ -242,6 +271,18 @@ void tls_connection_deinit(void *tls_ctx, struct tls_connection *conn);
 int tls_connection_established(void *tls_ctx, struct tls_connection *conn);
 
 /**
+ * tls_connection_peer_serial_num - Fetch peer certificate serial number
+ * @tls_ctx: TLS context data from tls_init()
+ * @conn: Connection context data from tls_connection_init()
+ * Returns: Allocated string buffer containing the peer certificate serial
+ * number or %NULL on error.
+ *
+ * The caller is responsible for freeing the returned buffer with os_free().
+ */
+char * tls_connection_peer_serial_num(void *tls_ctx,
+				      struct tls_connection *conn);
+
+/**
  * tls_connection_shutdown - Shutdown TLS connection
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
@@ -297,9 +338,11 @@ int __must_check tls_global_set_params(
  * @tls_ctx: TLS context data from tls_init()
  * @check_crl: 0 = do not verify CRLs, 1 = verify CRL for the user certificate,
  * 2 = verify CRL for all certificates
+ * @strict: 0 = allow CRL time errors, 1 = do not allow CRL time errors
  * Returns: 0 on success, -1 on failure
  */
-int __must_check tls_global_set_verify(void *tls_ctx, int check_crl);
+int __must_check tls_global_set_verify(void *tls_ctx, int check_crl,
+				       int strict);
 
 /**
  * tls_connection_set_verify - Set certificate verification options
@@ -330,29 +373,42 @@ int __must_check tls_connection_get_random(void *tls_ctx,
 					 struct tls_random *data);
 
 /**
- * tls_connection_prf - Use TLS-PRF to derive keying material
+ * tls_connection_export_key - Derive keying material from a TLS connection
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
  * @label: Label (e.g., description of the key) for PRF
- * @server_random_first: seed is 0 = client_random|server_random,
- * 1 = server_random|client_random
- * @skip_keyblock: Skip TLS key block from the beginning of PRF output
+ * @context: Optional extra upper-layer context (max len 2^16)
+ * @context_len: The length of the context value
  * @out: Buffer for output data from TLS-PRF
  * @out_len: Length of the output buffer
  * Returns: 0 on success, -1 on failure
  *
- * tls_connection_prf() is required so that further keying material can be
- * derived from the master secret. Example implementation of this function is in
- * tls_prf_sha1_md5() when it is called with seed set to
- * client_random|server_random (or server_random|client_random). For TLSv1.2 and
- * newer, a different PRF is needed, though.
+ * Exports keying material using the mechanism described in RFC 5705. If
+ * context is %NULL, context is not provided; otherwise, context is provided
+ * (including the case of empty context with context_len == 0).
  */
-int __must_check  tls_connection_prf(void *tls_ctx,
-				     struct tls_connection *conn,
-				     const char *label,
-				     int server_random_first,
-				     int skip_keyblock,
-				     u8 *out, size_t out_len);
+int __must_check tls_connection_export_key(void *tls_ctx,
+					   struct tls_connection *conn,
+					   const char *label,
+					   const u8 *context,
+					   size_t context_len,
+					   u8 *out, size_t out_len);
+
+/**
+ * tls_connection_get_eap_fast_key - Derive key material for EAP-FAST
+ * @tls_ctx: TLS context data from tls_init()
+ * @conn: Connection context data from tls_connection_init()
+ * @out: Buffer for output data from TLS-PRF
+ * @out_len: Length of the output buffer
+ * Returns: 0 on success, -1 on failure
+ *
+ * Exports key material after the normal TLS key block for use with
+ * EAP-FAST. Most callers will want tls_connection_export_key(), but EAP-FAST
+ * uses a different legacy mechanism.
+ */
+int __must_check tls_connection_get_eap_fast_key(void *tls_ctx,
+						 struct tls_connection *conn,
+						 u8 *out, size_t out_len);
 
 /**
  * tls_connection_handshake - Process TLS handshake (client side)
@@ -455,7 +511,9 @@ enum {
 	TLS_CIPHER_RC4_SHA /* 0x0005 */,
 	TLS_CIPHER_AES128_SHA /* 0x002f */,
 	TLS_CIPHER_RSA_DHE_AES128_SHA /* 0x0031 */,
-	TLS_CIPHER_ANON_DH_AES128_SHA /* 0x0034 */
+	TLS_CIPHER_ANON_DH_AES128_SHA /* 0x0034 */,
+	TLS_CIPHER_RSA_DHE_AES256_SHA /* 0x0039 */,
+	TLS_CIPHER_AES256_SHA /* 0x0035 */,
 };
 
 /**

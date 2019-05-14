@@ -87,12 +87,9 @@ static int wmm_ac_add_ts(struct wpa_supplicant *wpa_s, const u8 *addr,
 	}
 
 	/* copy tspec */
-	_tspec = os_malloc(sizeof(*_tspec));
+	_tspec = os_memdup(tspec, sizeof(*_tspec));
 	if (!_tspec)
 		return -1;
-
-	/* store the admitted TSPEC */
-	os_memcpy(_tspec, tspec, sizeof(*_tspec));
 
 	if (dir != WMM_AC_DIR_DOWNLINK) {
 		ret = wpa_drv_add_ts(wpa_s, tsid, addr, up, admitted_time);
@@ -474,13 +471,8 @@ static int wmm_ac_init(struct wpa_supplicant *wpa_s, const u8 *ies,
 		return -1;
 	}
 
-	if (!ies) {
-		wpa_printf(MSG_ERROR, "WMM AC: Missing IEs");
-		return -1;
-	}
-
-	if (!(wmm_params->info_bitmap & WMM_PARAMS_UAPSD_QUEUES_INFO)) {
-		wpa_printf(MSG_DEBUG, "WMM AC: Missing U-APSD configuration");
+	if (!ies || !(wmm_params->info_bitmap & WMM_PARAMS_UAPSD_QUEUES_INFO)) {
+		/* WMM AC not in use for this connection */
 		return -1;
 	}
 
@@ -525,7 +517,7 @@ static void wmm_ac_deinit(struct wpa_supplicant *wpa_s)
 	for (i = 0; i < WMM_AC_NUM; i++)
 		wmm_ac_del_ts(wpa_s, i, TS_DIR_IDX_ALL);
 
-	/* delete pending add_ts requset */
+	/* delete pending add_ts request */
 	wmm_ac_del_req(wpa_s, 1);
 
 	os_free(wpa_s->wmm_ac_assoc_info);

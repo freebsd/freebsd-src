@@ -16,6 +16,7 @@ enum radius_das_res {
 	RADIUS_DAS_NAS_MISMATCH,
 	RADIUS_DAS_SESSION_NOT_FOUND,
 	RADIUS_DAS_MULTI_SESSION_MATCH,
+	RADIUS_DAS_COA_FAILED,
 };
 
 struct radius_das_attrs {
@@ -35,6 +36,9 @@ struct radius_das_attrs {
 	size_t acct_multi_session_id_len;
 	const u8 *cui;
 	size_t cui_len;
+
+	/* Authorization changes */
+	const u8 *hs20_t_c_filtering;
 };
 
 struct radius_das_conf {
@@ -44,9 +48,11 @@ struct radius_das_conf {
 	const struct hostapd_ip_addr *client_addr;
 	unsigned int time_window;
 	int require_event_timestamp;
+	int require_message_authenticator;
 	void *ctx;
 	enum radius_das_res (*disconnect)(void *ctx,
 					  struct radius_das_attrs *attr);
+	enum radius_das_res (*coa)(void *ctx, struct radius_das_attrs *attr);
 };
 
 struct radius_das_data *

@@ -4,7 +4,6 @@ INCLUDES = $(LOCAL_PATH)
 INCLUDES += $(LOCAL_PATH)/../../src/utils
 INCLUDES += $(LOCAL_PATH)/../../src/common
 INCLUDES += $(LOCAL_PATH)/../../src
-INCLUDES += external/openssl/include
 INCLUDES += external/libxml2/include
 INCLUDES += external/curl/include
 INCLUDES += external/webkit/Source/WebKit/gtk
@@ -55,6 +54,7 @@ OBJS += ../../src/crypto/crypto_internal.c
 OBJS += ../../src/crypto/md5-internal.c
 OBJS += ../../src/crypto/sha1-internal.c
 OBJS += ../../src/crypto/sha256-internal.c
+OBJS += ../../src/crypto/tls_openssl_ocsp.c
 
 L_CFLAGS += -DEAP_TLS_OPENSSL
 

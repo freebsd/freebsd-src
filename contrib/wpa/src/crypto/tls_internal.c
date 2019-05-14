@@ -1,6 +1,6 @@
 /*
  * TLS interface functions and an internal TLS implementation
- * Copyright (c) 2004-2011, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -23,6 +23,11 @@ struct tls_global {
 	int server;
 	struct tlsv1_credentials *server_cred;
 	int check_crl;
+
+	void (*event_cb)(void *ctx, enum tls_event ev,
+			 union tls_event_data *data);
+	void *cb_ctx;
+	int cert_in_cb;
 };
 
 struct tls_connection {
@@ -51,6 +56,11 @@ void * tls_init(const struct tls_config *conf)
 	global = os_zalloc(sizeof(*global));
 	if (global == NULL)
 		return NULL;
+	if (conf) {
+		global->event_cb = conf->event_cb;
+		global->cb_ctx = conf->cb_ctx;
+		global->cert_in_cb = conf->cert_in_cb;
+	}
 
 	return global;
 }
@@ -64,10 +74,12 @@ void tls_deinit(void *ssl_ctx)
 		tlsv1_client_global_deinit();
 #endif /* CONFIG_TLS_INTERNAL_CLIENT */
 #ifdef CONFIG_TLS_INTERNAL_SERVER
-		tlsv1_cred_free(global->server_cred);
 		tlsv1_server_global_deinit();
 #endif /* CONFIG_TLS_INTERNAL_SERVER */
 	}
+#ifdef CONFIG_TLS_INTERNAL_SERVER
+	tlsv1_cred_free(global->server_cred);
+#endif /* CONFIG_TLS_INTERNAL_SERVER */
 	os_free(global);
 }
 
@@ -95,6 +107,8 @@ struct tls_connection * tls_connection_init(void *tls_ctx)
 			os_free(conn);
 			return NULL;
 		}
+		tlsv1_client_set_cb(conn->client, global->event_cb,
+				    global->cb_ctx, global->cert_in_cb);
 	}
 #endif /* CONFIG_TLS_INTERNAL_CLIENT */
 #ifdef CONFIG_TLS_INTERNAL_SERVER
@@ -163,6 +177,14 @@ int tls_connection_established(void *tls_ctx, struct tls_connection *conn)
 }
 
 
+char * tls_connection_peer_serial_num(void *tls_ctx,
+				      struct tls_connection *conn)
+{
+	/* TODO */
+	return NULL;
+}
+
+
 int tls_connection_shutdown(void *tls_ctx, struct tls_connection *conn)
 {
 #ifdef CONFIG_TLS_INTERNAL_CLIENT
@@ -185,6 +207,12 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 
 	if (conn->client == NULL)
 		return -1;
+
+	if (params->flags & TLS_CONN_EXT_CERT_CHECK) {
+		wpa_printf(MSG_INFO,
+			   "TLS: tls_ext_cert_check=1 not supported");
+		return -1;
+	}
 
 	cred = tlsv1_cred_alloc();
 	if (cred == NULL)
@@ -216,6 +244,12 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 
 	if (params->openssl_ciphers) {
 		wpa_printf(MSG_INFO, "TLS: openssl_ciphers not supported");
+		tlsv1_cred_free(cred);
+		return -1;
+	}
+
+	if (params->openssl_ecdh_curves) {
+		wpa_printf(MSG_INFO, "TLS: openssl_ecdh_curves not supported");
 		tlsv1_cred_free(cred);
 		return -1;
 	}
@@ -259,8 +293,7 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 	}
 
-	tlsv1_client_set_time_checks(
-		conn->client, !(params->flags & TLS_CONN_DISABLE_TIME_CHECKS));
+	tlsv1_client_set_flags(conn->client, params->flags);
 
 	return 0;
 #else /* CONFIG_TLS_INTERNAL_CLIENT */
@@ -275,6 +308,9 @@ int tls_global_set_params(void *tls_ctx,
 #ifdef CONFIG_TLS_INTERNAL_SERVER
 	struct tls_global *global = tls_ctx;
 	struct tlsv1_credentials *cred;
+
+	if (params->check_cert_subject)
+		return -1; /* not yet supported */
 
 	/* Currently, global parameters are only set when running in server
 	 * mode. */
@@ -312,6 +348,13 @@ int tls_global_set_params(void *tls_ctx,
 		return -1;
 	}
 
+	if (params->ocsp_stapling_response)
+		cred->ocsp_stapling_response =
+			os_strdup(params->ocsp_stapling_response);
+	if (params->ocsp_stapling_response_multi)
+		cred->ocsp_stapling_response_multi =
+			os_strdup(params->ocsp_stapling_response_multi);
+
 	return 0;
 #else /* CONFIG_TLS_INTERNAL_SERVER */
 	return -1;
@@ -319,7 +362,7 @@ int tls_global_set_params(void *tls_ctx,
 }
 
 
-int tls_global_set_verify(void *tls_ctx, int check_crl)
+int tls_global_set_verify(void *tls_ctx, int check_crl, int strict)
 {
 	struct tls_global *global = tls_ctx;
 	global->check_crl = check_crl;
@@ -368,9 +411,10 @@ static int tls_get_keyblock_size(struct tls_connection *conn)
 }
 
 
-int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
-		       const char *label, int server_random_first,
-		       int skip_keyblock, u8 *out, size_t out_len)
+static int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
+			      const char *label, const u8 *context,
+			      size_t context_len, int server_random_first,
+			      int skip_keyblock, u8 *out, size_t out_len)
 {
 	int ret = -1, skip = 0;
 	u8 *tmp_out = NULL;
@@ -388,16 +432,16 @@ int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
 
 #ifdef CONFIG_TLS_INTERNAL_CLIENT
 	if (conn->client) {
-		ret = tlsv1_client_prf(conn->client, label,
-				       server_random_first,
-				       _out, out_len);
+		ret = tlsv1_client_prf(conn->client, label, context,
+				       context_len, server_random_first,
+				       _out, skip + out_len);
 	}
 #endif /* CONFIG_TLS_INTERNAL_CLIENT */
 #ifdef CONFIG_TLS_INTERNAL_SERVER
 	if (conn->server) {
-		ret = tlsv1_server_prf(conn->server, label,
-				       server_random_first,
-				       _out, out_len);
+		ret = tlsv1_server_prf(conn->server, label, context,
+				       context_len, server_random_first,
+				       _out, skip + out_len);
 	}
 #endif /* CONFIG_TLS_INTERNAL_SERVER */
 	if (ret == 0 && skip_keyblock)
@@ -405,6 +449,23 @@ int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
 	bin_clear_free(tmp_out, skip);
 
 	return ret;
+}
+
+
+int tls_connection_export_key(void *tls_ctx, struct tls_connection *conn,
+			      const char *label, const u8 *context,
+			      size_t context_len, u8 *out, size_t out_len)
+{
+	return tls_connection_prf(tls_ctx, conn, label, context, context_len,
+				  0, 0, out, out_len);
+}
+
+
+int tls_connection_get_eap_fast_key(void *tls_ctx, struct tls_connection *conn,
+				    u8 *out, size_t out_len)
+{
+	return tls_connection_prf(tls_ctx, conn, "key expansion", NULL, 0,
+				  1, 1, out, out_len);
 }
 
 
@@ -621,7 +682,12 @@ int tls_connection_set_cipher_list(void *tls_ctx, struct tls_connection *conn,
 int tls_get_version(void *ssl_ctx, struct tls_connection *conn,
 		    char *buf, size_t buflen)
 {
-	/* TODO */
+	if (conn == NULL)
+		return -1;
+#ifdef CONFIG_TLS_INTERNAL_CLIENT
+	if (conn->client)
+		return tlsv1_client_get_version(conn->client, buf, buflen);
+#endif /* CONFIG_TLS_INTERNAL_CLIENT */
 	return -1;
 }
 
@@ -666,12 +732,20 @@ int tls_connection_client_hello_ext(void *tls_ctx, struct tls_connection *conn,
 
 int tls_connection_get_failed(void *tls_ctx, struct tls_connection *conn)
 {
+#ifdef CONFIG_TLS_INTERNAL_SERVER
+	if (conn->server)
+		return tlsv1_server_get_failed(conn->server);
+#endif /* CONFIG_TLS_INTERNAL_SERVER */
 	return 0;
 }
 
 
 int tls_connection_get_read_alerts(void *tls_ctx, struct tls_connection *conn)
 {
+#ifdef CONFIG_TLS_INTERNAL_SERVER
+	if (conn->server)
+		return tlsv1_server_get_read_alerts(conn->server);
+#endif /* CONFIG_TLS_INTERNAL_SERVER */
 	return 0;
 }
 
@@ -679,6 +753,10 @@ int tls_connection_get_read_alerts(void *tls_ctx, struct tls_connection *conn)
 int tls_connection_get_write_alerts(void *tls_ctx,
 				    struct tls_connection *conn)
 {
+#ifdef CONFIG_TLS_INTERNAL_SERVER
+	if (conn->server)
+		return tlsv1_server_get_write_alerts(conn->server);
+#endif /* CONFIG_TLS_INTERNAL_SERVER */
 	return 0;
 }
 

@@ -85,12 +85,11 @@ static void * eap_eke_init(struct eap_sm *sm)
 
 	identity = eap_get_config_identity(sm, &identity_len);
 	if (identity) {
-		data->peerid = os_malloc(identity_len);
+		data->peerid = os_memdup(identity, identity_len);
 		if (data->peerid == NULL) {
 			eap_eke_deinit(sm, data);
 			return NULL;
 		}
-		os_memcpy(data->peerid, identity, identity_len);
 		data->peerid_len = identity_len;
 	}
 
@@ -310,12 +309,11 @@ static struct wpabuf * eap_eke_process_id(struct eap_eke_data *data,
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-EKE: Server Identity",
 			  pos, end - pos);
 	os_free(data->serverid);
-	data->serverid = os_malloc(end - pos);
+	data->serverid = os_memdup(pos, end - pos);
 	if (data->serverid == NULL) {
 		return eap_eke_build_fail(data, ret, id,
 					  EAP_EKE_FAIL_PRIVATE_INTERNAL_ERROR);
 	}
-	os_memcpy(data->serverid, pos, end - pos);
 	data->serverid_len = end - pos;
 
 	wpa_printf(MSG_DEBUG, "EAP-EKE: Sending EAP-EKE-ID/Response");
@@ -452,6 +450,7 @@ static struct wpabuf * eap_eke_process_commit(struct eap_sm *sm,
 	/* DHComponent_P = Encr(key, y_p) */
 	rpos = wpabuf_put(resp, data->sess.dhcomp_len);
 	if (eap_eke_dhcomp(&data->sess, key, pub, rpos) < 0) {
+		wpabuf_free(resp);
 		wpa_printf(MSG_INFO, "EAP-EKE: Failed to build DHComponent_P");
 		os_memset(key, 0, sizeof(key));
 		return eap_eke_build_fail(data, ret, id,
@@ -716,10 +715,9 @@ static u8 * eap_eke_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = os_malloc(EAP_MSK_LEN);
+	key = os_memdup(data->msk, EAP_MSK_LEN);
 	if (key == NULL)
 		return NULL;
-	os_memcpy(key, data->msk, EAP_MSK_LEN);
 	*len = EAP_MSK_LEN;
 
 	return key;
@@ -734,10 +732,9 @@ static u8 * eap_eke_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = os_malloc(EAP_EMSK_LEN);
+	key = os_memdup(data->emsk, EAP_EMSK_LEN);
 	if (key == NULL)
 		return NULL;
-	os_memcpy(key, data->emsk, EAP_EMSK_LEN);
 	*len = EAP_EMSK_LEN;
 
 	return key;
@@ -770,7 +767,6 @@ static u8 * eap_eke_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_eke_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_EKE, "EKE");
@@ -785,8 +781,5 @@ int eap_peer_eke_register(void)
 	eap->get_emsk = eap_eke_get_emsk;
 	eap->getSessionId = eap_eke_get_session_id;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

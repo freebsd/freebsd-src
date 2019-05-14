@@ -49,12 +49,13 @@ void fst_iface_delete(struct fst_iface *i)
 }
 
 
-Boolean fst_iface_is_connected(struct fst_iface *iface, const u8 *addr)
+Boolean fst_iface_is_connected(struct fst_iface *iface, const u8 *addr,
+			       Boolean mb_only)
 {
 	struct fst_get_peer_ctx *ctx;
-	const u8 *a = fst_iface_get_peer_first(iface, &ctx, TRUE);
+	const u8 *a = fst_iface_get_peer_first(iface, &ctx, mb_only);
 
-	for (; a != NULL; a = fst_iface_get_peer_next(iface, &ctx, TRUE))
+	for (; a != NULL; a = fst_iface_get_peer_next(iface, &ctx, mb_only))
 		if (os_memcmp(addr, a, ETH_ALEN) == 0)
 			return TRUE;
 

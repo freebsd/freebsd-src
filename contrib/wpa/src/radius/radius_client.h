@@ -241,6 +241,9 @@ int radius_client_register(struct radius_client_data *radius,
 			    const u8 *shared_secret, size_t shared_secret_len,
 			    void *data),
 			   void *data);
+void radius_client_set_interim_error_cb(struct radius_client_data *radius,
+					void (*cb)(const u8 *addr, void *ctx),
+					void *ctx);
 int radius_client_send(struct radius_client_data *radius,
 		       struct radius_msg *msg,
 		       RadiusType msg_type, const u8 *addr);

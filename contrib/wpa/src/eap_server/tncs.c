@@ -140,7 +140,7 @@ static struct tncs_data * tncs_get_conn(TNC_ConnectionID connectionID)
 
 
 /* TNCS functions that IMVs can call */
-TNC_Result TNC_TNCS_ReportMessageTypes(
+static TNC_Result TNC_TNCS_ReportMessageTypes(
 	TNC_IMVID imvID,
 	TNC_MessageTypeList supportedTypes,
 	TNC_UInt32 typeCount)
@@ -161,19 +161,17 @@ TNC_Result TNC_TNCS_ReportMessageTypes(
 	if (imv == NULL)
 		return TNC_RESULT_INVALID_PARAMETER;
 	os_free(imv->supported_types);
-	imv->supported_types =
-		os_malloc(typeCount * sizeof(TNC_MessageType));
+	imv->supported_types = os_memdup(supportedTypes,
+					 typeCount * sizeof(TNC_MessageType));
 	if (imv->supported_types == NULL)
 		return TNC_RESULT_FATAL;
-	os_memcpy(imv->supported_types, supportedTypes,
-		  typeCount * sizeof(TNC_MessageType));
 	imv->num_supported_types = typeCount;
 
 	return TNC_RESULT_SUCCESS;
 }
 
 
-TNC_Result TNC_TNCS_SendMessage(
+static TNC_Result TNC_TNCS_SendMessage(
 	TNC_IMVID imvID,
 	TNC_ConnectionID connectionID,
 	TNC_BufferReference message,
@@ -222,7 +220,7 @@ TNC_Result TNC_TNCS_SendMessage(
 }
 
 
-TNC_Result TNC_TNCS_RequestHandshakeRetry(
+static TNC_Result TNC_TNCS_RequestHandshakeRetry(
 	TNC_IMVID imvID,
 	TNC_ConnectionID connectionID,
 	TNC_RetryReason reason)
@@ -233,7 +231,7 @@ TNC_Result TNC_TNCS_RequestHandshakeRetry(
 }
 
 
-TNC_Result TNC_TNCS_ProvideRecommendation(
+static TNC_Result TNC_TNCS_ProvideRecommendation(
 	TNC_IMVID imvID,
 	TNC_ConnectionID connectionID,
 	TNC_IMV_Action_Recommendation recommendation,
@@ -260,7 +258,7 @@ TNC_Result TNC_TNCS_ProvideRecommendation(
 }
 
 
-TNC_Result TNC_TNCS_GetAttribute(
+static TNC_Result TNC_TNCS_GetAttribute(
 	TNC_IMVID imvID,
 	TNC_ConnectionID connectionID,
 	TNC_AttributeID attribureID,
@@ -274,7 +272,7 @@ TNC_Result TNC_TNCS_GetAttribute(
 }
 
 
-TNC_Result TNC_TNCS_SetAttribute(
+static TNC_Result TNC_TNCS_SetAttribute(
 	TNC_IMVID imvID,
 	TNC_ConnectionID connectionID,
 	TNC_AttributeID attribureID,
@@ -287,7 +285,7 @@ TNC_Result TNC_TNCS_SetAttribute(
 }
 
 
-TNC_Result TNC_TNCS_BindFunction(
+static TNC_Result TNC_TNCS_BindFunction(
 	TNC_IMVID imvID,
 	char *functionName,
 	void **pOutFunctionPointer)

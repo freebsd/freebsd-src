@@ -21,7 +21,7 @@ struct radius_msg;
 void ieee802_1x_receive(struct hostapd_data *hapd, const u8 *sa, const u8 *buf,
 			size_t len);
 void ieee802_1x_new_station(struct hostapd_data *hapd, struct sta_info *sta);
-void ieee802_1x_free_station(struct sta_info *sta);
+void ieee802_1x_free_station(struct hostapd_data *hapd, struct sta_info *sta);
 
 void ieee802_1x_abort_auth(struct hostapd_data *hapd, struct sta_info *sta);
 void ieee802_1x_set_sta_authorized(struct hostapd_data *hapd,
@@ -57,5 +57,10 @@ int add_common_radius_attr(struct hostapd_data *hapd,
 			   struct hostapd_radius_attr *req_attr,
 			   struct sta_info *sta,
 			   struct radius_msg *msg);
+void ieee802_1x_encapsulate_radius(struct hostapd_data *hapd,
+				   struct sta_info *sta,
+				   const u8 *eap, size_t len);
+struct eapol_state_machine *
+ieee802_1x_alloc_eapol_sm(struct hostapd_data *hapd, struct sta_info *sta);
 
 #endif /* IEEE802_1X_H */

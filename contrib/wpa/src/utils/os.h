@@ -614,6 +614,18 @@ size_t os_strlcpy(char *dest, const char *src, size_t siz);
  */
 int os_memcmp_const(const void *a, const void *b, size_t len);
 
+
+/**
+ * os_memdup - Allocate duplicate of passed memory chunk
+ * @src: Source buffer to duplicate
+ * @len: Length of source buffer
+ * Returns: %NULL if allocation failed, copy of src buffer otherwise
+ *
+ * This function allocates a memory block like os_malloc() would, and
+ * copies the given source buffer into it.
+ */
+void * os_memdup(const void *src, size_t len);
+
 /**
  * os_exec - Execute an external program
  * @program: Path to the program
@@ -657,6 +669,10 @@ int os_exec(const char *program, const char *arg, int wait_completion);
 #if defined(WPA_TRACE_BFD) && defined(CONFIG_TESTING_OPTIONS)
 #define TEST_FAIL() testing_test_fail()
 int testing_test_fail(void);
+extern char wpa_trace_fail_func[256];
+extern unsigned int wpa_trace_fail_after;
+extern char wpa_trace_test_fail_func[256];
+extern unsigned int wpa_trace_test_fail_after;
 #else
 #define TEST_FAIL() 0
 #endif

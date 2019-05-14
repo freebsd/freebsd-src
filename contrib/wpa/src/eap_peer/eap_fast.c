@@ -1,6 +1,6 @@
 /*
  * EAP peer method: EAP-FAST (RFC 4851)
- * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -67,6 +67,7 @@ struct eap_fast_data {
 	int simck_idx;
 
 	struct wpabuf *pending_phase2_req;
+	struct wpabuf *pending_resp;
 };
 
 
@@ -112,8 +113,8 @@ static int eap_fast_session_ticket_cb(void *ctx, const u8 *ticket, size_t len,
 }
 
 
-static int eap_fast_parse_phase1(struct eap_fast_data *data,
-				 const char *phase1)
+static void eap_fast_parse_phase1(struct eap_fast_data *data,
+				  const char *phase1)
 {
 	const char *pos;
 
@@ -139,8 +140,6 @@ static int eap_fast_parse_phase1(struct eap_fast_data *data,
 		wpa_printf(MSG_DEBUG, "EAP-FAST: Using binary format for PAC "
 			   "list");
 	}
-
-	return 0;
 }
 
 
@@ -158,10 +157,8 @@ static void * eap_fast_init(struct eap_sm *sm)
 	data->fast_version = EAP_FAST_VERSION;
 	data->max_pac_list_len = 10;
 
-	if (config->phase1 && eap_fast_parse_phase1(data, config->phase1) < 0) {
-		eap_fast_deinit(sm, data);
-		return NULL;
-	}
+	if (config->phase1)
+		eap_fast_parse_phase1(data, config->phase1);
 
 	if (eap_peer_select_phase2_methods(config, "auth=",
 					   &data->phase2_types,
@@ -253,15 +250,17 @@ static void eap_fast_deinit(struct eap_sm *sm, void *priv)
 	os_memset(data->key_data, 0, EAP_FAST_KEY_LEN);
 	os_memset(data->emsk, 0, EAP_EMSK_LEN);
 	os_free(data->session_id);
-	wpabuf_free(data->pending_phase2_req);
+	wpabuf_clear_free(data->pending_phase2_req);
+	wpabuf_clear_free(data->pending_resp);
 	os_free(data);
 }
 
 
 static int eap_fast_derive_msk(struct eap_fast_data *data)
 {
-	eap_fast_derive_eap_msk(data->simck, data->key_data);
-	eap_fast_derive_eap_emsk(data->simck, data->emsk);
+	if (eap_fast_derive_eap_msk(data->simck, data->key_data) < 0 ||
+	    eap_fast_derive_eap_emsk(data->simck, data->emsk) < 0)
+		return -1;
 	data->success = 1;
 	return 0;
 }
@@ -276,7 +275,7 @@ static int eap_fast_derive_key_auth(struct eap_sm *sm,
 	 * Extra key material after TLS key_block: session_key_seed[40]
 	 */
 
-	sks = eap_fast_derive_key(sm->ssl_ctx, data->ssl.conn, "key expansion",
+	sks = eap_fast_derive_key(sm->ssl_ctx, data->ssl.conn,
 				  EAP_FAST_SKS_LEN);
 	if (sks == NULL) {
 		wpa_printf(MSG_DEBUG, "EAP-FAST: Failed to derive "
@@ -304,7 +303,6 @@ static int eap_fast_derive_key_provisioning(struct eap_sm *sm,
 	os_free(data->key_block_p);
 	data->key_block_p = (struct eap_fast_key_block_provisioning *)
 		eap_fast_derive_key(sm->ssl_ctx, data->ssl.conn,
-				    "key expansion",
 				    sizeof(*data->key_block_p));
 	if (data->key_block_p == NULL) {
 		wpa_printf(MSG_DEBUG, "EAP-FAST: Failed to derive key block");
@@ -486,8 +484,9 @@ static int eap_fast_phase2_request(struct eap_sm *sm,
 
 	if (*resp == NULL && config &&
 	    (config->pending_req_identity || config->pending_req_password ||
-	     config->pending_req_otp || config->pending_req_new_password)) {
-		wpabuf_free(data->pending_phase2_req);
+	     config->pending_req_otp || config->pending_req_new_password ||
+	     config->pending_req_sim)) {
+		wpabuf_clear_free(data->pending_phase2_req);
 		data->pending_phase2_req = wpabuf_alloc_copy(hdr, len);
 	} else if (*resp == NULL)
 		return -1;
@@ -711,9 +710,10 @@ static int eap_fast_get_cmk(struct eap_sm *sm, struct eap_fast_data *data,
 	if (eap_fast_get_phase2_key(sm, data, isk, sizeof(isk)) < 0)
 		return -1;
 	wpa_hexdump_key(MSG_MSGDUMP, "EAP-FAST: ISK[j]", isk, sizeof(isk));
-	sha1_t_prf(data->simck, EAP_FAST_SIMCK_LEN,
-		   "Inner Methods Compound Keys",
-		   isk, sizeof(isk), imck, sizeof(imck));
+	if (sha1_t_prf(data->simck, EAP_FAST_SIMCK_LEN,
+		       "Inner Methods Compound Keys",
+		       isk, sizeof(isk), imck, sizeof(imck)) < 0)
+		return -1;
 	data->simck_idx++;
 	os_memcpy(data->simck, imck, EAP_FAST_SIMCK_LEN);
 	wpa_hexdump_key(MSG_MSGDUMP, "EAP-FAST: S-IMCK[j]",
@@ -801,7 +801,7 @@ static struct wpabuf * eap_fast_process_crypto_binding(
 		ret->methodState = METHOD_DONE;
 		ret->decision = DECISION_FAIL;
 		data->phase2_success = 0;
-		wpabuf_free(resp);
+		wpabuf_clear_free(resp);
 		return NULL;
 	}
 
@@ -815,7 +815,7 @@ static struct wpabuf * eap_fast_process_crypto_binding(
 		} else {
 			wpa_printf(MSG_ERROR, "EAP-FAST: Failed to derive "
 				   "Session-Id");
-			wpabuf_free(resp);
+			wpabuf_clear_free(resp);
 			return NULL;
 		}
 	}
@@ -1096,7 +1096,7 @@ static int eap_fast_parse_decrypted(struct wpabuf *decrypted,
 	/* Parse TLVs from the decrypted Phase 2 data */
 	pos = wpabuf_mhead(decrypted);
 	end = pos + wpabuf_len(decrypted);
-	while (pos + 4 < end) {
+	while (end - pos > 4) {
 		mandatory = pos[0] & 0x80;
 		tlv_type = WPA_GET_BE16(pos) & 0x3fff;
 		pos += 2;
@@ -1150,7 +1150,7 @@ static int eap_fast_encrypt_response(struct eap_sm *sm,
 		wpa_printf(MSG_INFO, "EAP-FAST: Failed to encrypt a Phase 2 "
 			   "frame");
 	}
-	wpabuf_free(resp);
+	wpabuf_clear_free(resp);
 
 	return 0;
 }
@@ -1328,14 +1328,14 @@ continue_req:
 		wpa_printf(MSG_INFO, "EAP-FAST: Too short Phase 2 "
 			   "TLV frame (len=%lu)",
 			   (unsigned long) wpabuf_len(in_decrypted));
-		wpabuf_free(in_decrypted);
+		wpabuf_clear_free(in_decrypted);
 		return -1;
 	}
 
 	res = eap_fast_process_decrypted(sm, data, ret, identifier,
 					 in_decrypted, out_data);
 
-	wpabuf_free(in_decrypted);
+	wpabuf_clear_free(in_decrypted);
 
 	return res;
 }
@@ -1443,7 +1443,7 @@ static int eap_fast_clear_pac_opaque_ext(struct eap_sm *sm,
 static int eap_fast_set_provisioning_ciphers(struct eap_sm *sm,
 					     struct eap_fast_data *data)
 {
-	u8 ciphers[5];
+	u8 ciphers[7];
 	int count = 0;
 
 	if (data->provisioning_allowed & EAP_FAST_PROV_UNAUTH) {
@@ -1455,7 +1455,9 @@ static int eap_fast_set_provisioning_ciphers(struct eap_sm *sm,
 	if (data->provisioning_allowed & EAP_FAST_PROV_AUTH) {
 		wpa_printf(MSG_DEBUG, "EAP-FAST: Enabling authenticated "
 			   "provisioning TLS cipher suites");
+		ciphers[count++] = TLS_CIPHER_RSA_DHE_AES256_SHA;
 		ciphers[count++] = TLS_CIPHER_RSA_DHE_AES128_SHA;
+		ciphers[count++] = TLS_CIPHER_AES256_SHA;
 		ciphers[count++] = TLS_CIPHER_AES128_SHA;
 		ciphers[count++] = TLS_CIPHER_RC4_SHA;
 	}
@@ -1567,6 +1569,34 @@ static struct wpabuf * eap_fast_process(struct eap_sm *sm, void *priv,
 			res = 1;
 		}
 	} else {
+		if (sm->waiting_ext_cert_check && data->pending_resp) {
+			struct eap_peer_config *config = eap_get_config(sm);
+
+			if (config->pending_ext_cert_check ==
+			    EXT_CERT_CHECK_GOOD) {
+				wpa_printf(MSG_DEBUG,
+					   "EAP-FAST: External certificate check succeeded - continue handshake");
+				resp = data->pending_resp;
+				data->pending_resp = NULL;
+				sm->waiting_ext_cert_check = 0;
+				return resp;
+			}
+
+			if (config->pending_ext_cert_check ==
+			    EXT_CERT_CHECK_BAD) {
+				wpa_printf(MSG_DEBUG,
+					   "EAP-FAST: External certificate check failed - force authentication failure");
+				ret->methodState = METHOD_DONE;
+				ret->decision = DECISION_FAIL;
+				sm->waiting_ext_cert_check = 0;
+				return NULL;
+			}
+
+			wpa_printf(MSG_DEBUG,
+				   "EAP-FAST: Continuing to wait external server certificate validation");
+			return NULL;
+		}
+
 		/* Continue processing TLS handshake (phase 1). */
 		res = eap_peer_tls_process_helper(sm, &data->ssl,
 						  EAP_TYPE_FAST,
@@ -1578,6 +1608,14 @@ static struct wpabuf * eap_fast_process(struct eap_sm *sm, void *priv,
 			ret->methodState = METHOD_DONE;
 			ret->decision = DECISION_FAIL;
 			return resp;
+		}
+
+		if (sm->waiting_ext_cert_check) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-FAST: Waiting external server certificate validation");
+			wpabuf_clear_free(data->pending_resp);
+			data->pending_resp = resp;
+			return NULL;
 		}
 
 		if (tls_connection_established(sm->ssl_ctx, data->ssl.conn)) {
@@ -1603,7 +1641,7 @@ static struct wpabuf * eap_fast_process(struct eap_sm *sm, void *priv,
 					   "EAP-FAST: Could not derive keys");
 				ret->methodState = METHOD_DONE;
 				ret->decision = DECISION_FAIL;
-				wpabuf_free(resp);
+				wpabuf_clear_free(resp);
 				return NULL;
 			}
 		}
@@ -1612,7 +1650,7 @@ static struct wpabuf * eap_fast_process(struct eap_sm *sm, void *priv,
 			/*
 			 * Application data included in the handshake message.
 			 */
-			wpabuf_free(data->pending_phase2_req);
+			wpabuf_clear_free(data->pending_phase2_req);
 			data->pending_phase2_req = resp;
 			resp = NULL;
 			res = eap_fast_decrypt(sm, data, ret, id, &msg, &resp);
@@ -1620,7 +1658,7 @@ static struct wpabuf * eap_fast_process(struct eap_sm *sm, void *priv,
 	}
 
 	if (res == 1) {
-		wpabuf_free(resp);
+		wpabuf_clear_free(resp);
 		return eap_peer_tls_build_ack(id, EAP_TYPE_FAST,
 					      data->fast_version);
 	}
@@ -1640,10 +1678,16 @@ static Boolean eap_fast_has_reauth_data(struct eap_sm *sm, void *priv)
 static void eap_fast_deinit_for_reauth(struct eap_sm *sm, void *priv)
 {
 	struct eap_fast_data *data = priv;
+
+	if (data->phase2_priv && data->phase2_method &&
+	    data->phase2_method->deinit_for_reauth)
+		data->phase2_method->deinit_for_reauth(sm, data->phase2_priv);
 	os_free(data->key_block_p);
 	data->key_block_p = NULL;
-	wpabuf_free(data->pending_phase2_req);
+	wpabuf_clear_free(data->pending_phase2_req);
 	data->pending_phase2_req = NULL;
+	wpabuf_clear_free(data->pending_resp);
+	data->pending_resp = NULL;
 }
 
 
@@ -1705,12 +1749,11 @@ static u8 * eap_fast_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (!data->success)
 		return NULL;
 
-	key = os_malloc(EAP_FAST_KEY_LEN);
+	key = os_memdup(data->key_data, EAP_FAST_KEY_LEN);
 	if (key == NULL)
 		return NULL;
 
 	*len = EAP_FAST_KEY_LEN;
-	os_memcpy(key, data->key_data, EAP_FAST_KEY_LEN);
 
 	return key;
 }
@@ -1721,15 +1764,14 @@ static u8 * eap_fast_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 	struct eap_fast_data *data = priv;
 	u8 *id;
 
-	if (!data->success)
+	if (!data->success || !data->session_id)
 		return NULL;
 
-	id = os_malloc(data->id_len);
+	id = os_memdup(data->session_id, data->id_len);
 	if (id == NULL)
 		return NULL;
 
 	*len = data->id_len;
-	os_memcpy(id, data->session_id, data->id_len);
 
 	return id;
 }
@@ -1743,12 +1785,11 @@ static u8 * eap_fast_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 	if (!data->success)
 		return NULL;
 
-	key = os_malloc(EAP_EMSK_LEN);
+	key = os_memdup(data->emsk, EAP_EMSK_LEN);
 	if (key == NULL)
 		return NULL;
 
 	*len = EAP_EMSK_LEN;
-	os_memcpy(key, data->emsk, EAP_EMSK_LEN);
 
 	return key;
 }
@@ -1757,7 +1798,6 @@ static u8 * eap_fast_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_fast_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_FAST, "FAST");
@@ -1778,8 +1818,5 @@ int eap_peer_fast_register(void)
 #endif
 	eap->get_emsk = eap_fast_get_emsk;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

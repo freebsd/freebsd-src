@@ -229,6 +229,16 @@ static int wps_workaround_cred_key(struct wps_credential *cred)
 		cred->key_len--;
 #endif /* CONFIG_WPS_STRICT */
 	}
+
+
+	if (cred->auth_type & (WPS_AUTH_WPAPSK | WPS_AUTH_WPA2PSK) &&
+	    (cred->key_len < 8 || has_ctrl_char(cred->key, cred->key_len))) {
+		wpa_printf(MSG_INFO, "WPS: Reject credential with invalid WPA/WPA2-Personal passphrase");
+		wpa_hexdump_ascii_key(MSG_INFO, "WPS: Network Key",
+				      cred->key, cred->key_len);
+		return -1;
+	}
+
 	return 0;
 }
 

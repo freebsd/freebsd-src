@@ -1,6 +1,6 @@
 /*
  * BSS table
- * Copyright (c) 2009-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2009-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -19,6 +19,12 @@ struct wpa_scan_res;
 #define WPA_BSS_ASSOCIATED		BIT(5)
 #define WPA_BSS_ANQP_FETCH_TRIED	BIT(6)
 
+struct wpa_bss_anqp_elem {
+	struct dl_list list;
+	u16 infoid;
+	struct wpabuf *payload;
+};
+
 /**
  * struct wpa_bss_anqp - ANQP data for a BSS entry (struct wpa_bss)
  */
@@ -34,6 +40,8 @@ struct wpa_bss_anqp {
 	struct wpabuf *nai_realm;
 	struct wpabuf *anqp_3gpp;
 	struct wpabuf *domain_name;
+	struct wpabuf *fils_realm_info;
+	struct dl_list anqp_elems; /* list of struct wpa_bss_anqp_elem */
 #endif /* CONFIG_INTERWORKING */
 #ifdef CONFIG_HS20
 	struct wpabuf *hs20_capability_list;
@@ -42,6 +50,8 @@ struct wpa_bss_anqp {
 	struct wpabuf *hs20_connection_capability;
 	struct wpabuf *hs20_operating_class;
 	struct wpabuf *hs20_osu_providers_list;
+	struct wpabuf *hs20_operator_icon_metadata;
+	struct wpabuf *hs20_osu_providers_nai_list;
 #endif /* CONFIG_HS20 */
 };
 
@@ -106,6 +116,8 @@ void wpa_bss_update_start(struct wpa_supplicant *wpa_s);
 void wpa_bss_update_scan_res(struct wpa_supplicant *wpa_s,
 			     struct wpa_scan_res *res,
 			     struct os_reltime *fetch_time);
+void wpa_bss_remove(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
+		    const char *reason);
 void wpa_bss_update_end(struct wpa_supplicant *wpa_s, struct scan_info *info,
 			int new_scan);
 int wpa_bss_init(struct wpa_supplicant *wpa_s);
@@ -135,10 +147,23 @@ int wpa_bss_get_max_rate(const struct wpa_bss *bss);
 int wpa_bss_get_bit_rates(const struct wpa_bss *bss, u8 **rates);
 struct wpa_bss_anqp * wpa_bss_anqp_alloc(void);
 int wpa_bss_anqp_unshare_alloc(struct wpa_bss *bss);
+const u8 * wpa_bss_get_fils_cache_id(struct wpa_bss *bss);
+int wpa_bss_ext_capab(const struct wpa_bss *bss, unsigned int capab);
 
 static inline int bss_is_dmg(const struct wpa_bss *bss)
 {
 	return bss->freq > 45000;
+}
+
+/**
+ * Test whether a BSS is a PBSS.
+ * This checks whether a BSS is a DMG-band PBSS. PBSS is used for P2P DMG
+ * network.
+ */
+static inline int bss_is_pbss(struct wpa_bss *bss)
+{
+	return bss_is_dmg(bss) &&
+		(bss->caps & IEEE80211_CAP_DMG_MASK) == IEEE80211_CAP_DMG_PBSS;
 }
 
 static inline void wpa_bss_update_level(struct wpa_bss *bss, int new_level)
@@ -146,5 +171,9 @@ static inline void wpa_bss_update_level(struct wpa_bss *bss, int new_level)
 	if (bss != NULL && new_level < 0)
 		bss->level = new_level;
 }
+
+void calculate_update_time(const struct os_reltime *fetch_time,
+			   unsigned int age_ms,
+			   struct os_reltime *update_time);
 
 #endif /* BSS_H */

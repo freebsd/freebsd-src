@@ -115,10 +115,14 @@ static struct wpabuf * eap_leap_process_request(struct eap_sm *sm, void *priv,
 	wpabuf_put_u8(resp, 0); /* unused */
 	wpabuf_put_u8(resp, LEAP_RESPONSE_LEN);
 	rpos = wpabuf_put(resp, LEAP_RESPONSE_LEN);
-	if (pwhash)
-		challenge_response(challenge, password, rpos);
-	else
-		nt_challenge_response(challenge, password, password_len, rpos);
+	if ((pwhash && challenge_response(challenge, password, rpos)) ||
+	    (!pwhash &&
+	     nt_challenge_response(challenge, password, password_len, rpos))) {
+		wpa_printf(MSG_DEBUG, "EAP-LEAP: Failed to derive response");
+		ret->ignore = TRUE;
+		wpabuf_free(resp);
+		return NULL;
+	}
 	os_memcpy(data->peer_response, rpos, LEAP_RESPONSE_LEN);
 	wpa_hexdump(MSG_MSGDUMP, "EAP-LEAP: Response",
 		    rpos, LEAP_RESPONSE_LEN);
@@ -239,7 +243,10 @@ static struct wpabuf * eap_leap_process_response(struct eap_sm *sm, void *priv,
 			return NULL;
 		}
 	}
-	challenge_response(data->ap_challenge, pw_hash_hash, expected);
+	if (challenge_response(data->ap_challenge, pw_hash_hash, expected)) {
+		ret->ignore = TRUE;
+		return NULL;
+	}
 
 	ret->methodState = METHOD_DONE;
 	ret->allowNotifications = FALSE;
@@ -393,7 +400,6 @@ static u8 * eap_leap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_leap_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_LEAP, "LEAP");
@@ -406,8 +412,5 @@ int eap_peer_leap_register(void)
 	eap->isKeyAvailable = eap_leap_isKeyAvailable;
 	eap->getKey = eap_leap_getKey;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

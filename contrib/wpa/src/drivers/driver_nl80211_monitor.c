@@ -136,7 +136,7 @@ static void handle_monitor_read(int sock, void *eloop_ctx, void *sock_ctx)
 			break;
 		case IEEE80211_RADIOTAP_TX_FLAGS:
 			injected = 1;
-			failed = le_to_host16((*(uint16_t *) iter.this_arg)) &
+			failed = le_to_host16((*(le16 *) iter.this_arg)) &
 					IEEE80211_RADIOTAP_F_TX_FAIL;
 			break;
 		case IEEE80211_RADIOTAP_DATA_RETRIES:
@@ -361,8 +361,17 @@ int nl80211_create_monitor_interface(struct wpa_driver_nl80211_data *drv)
 		 */
 		snprintf(buf, IFNAMSIZ, "mon-%s", drv->first_bss->ifname + 4);
 	} else {
+		int ret;
+
 		/* Non-P2P interface with AP functionality. */
-		snprintf(buf, IFNAMSIZ, "mon.%s", drv->first_bss->ifname);
+		ret = os_snprintf(buf, IFNAMSIZ, "mon.%s",
+				  drv->first_bss->ifname);
+		if (ret >= (int) sizeof(buf))
+			wpa_printf(MSG_DEBUG,
+				   "nl80211: Monitor interface name has been truncated to %s",
+				   buf);
+		else if (ret < 0)
+			return ret;
 	}
 
 	buf[IFNAMSIZ - 1] = '\0';

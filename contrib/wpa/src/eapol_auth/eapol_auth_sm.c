@@ -848,6 +848,7 @@ eapol_auth_alloc(struct eapol_authenticator *eapol, const u8 *addr,
 	eap_conf.server_id_len = eapol->conf.server_id_len;
 	eap_conf.erp = eapol->conf.erp;
 	eap_conf.tls_session_lifetime = eapol->conf.tls_session_lifetime;
+	eap_conf.tls_flags = eapol->conf.tls_flags;
 	sm->eap = eap_server_sm_init(sm, &eapol_cb, &eap_conf);
 	if (sm->eap == NULL) {
 		eapol_auth_free(sm);
@@ -866,10 +867,13 @@ eapol_auth_alloc(struct eapol_authenticator *eapol, const u8 *addr,
 		sm->radius_cui = wpabuf_alloc_copy(radius_cui,
 						   os_strlen(radius_cui));
 
-	sm->acct_multi_session_id_lo = eapol->acct_multi_session_id_lo++;
-	if (eapol->acct_multi_session_id_lo == 0)
-		eapol->acct_multi_session_id_hi++;
-	sm->acct_multi_session_id_hi = eapol->acct_multi_session_id_hi;
+#ifndef CONFIG_NO_RADIUS
+	if (radius_gen_session_id((u8 *) &sm->acct_multi_session_id,
+				  sizeof(sm->acct_multi_session_id)) < 0) {
+		eapol_auth_free(sm);
+		return NULL;
+	}
+#endif /* CONFIG_NO_RADIUS */
 
 	return sm;
 }
@@ -884,6 +888,9 @@ void eapol_auth_free(struct eapol_state_machine *sm)
 	eloop_cancel_timeout(eapol_sm_step_cb, sm, NULL);
 	if (sm->eap)
 		eap_server_sm_deinit(sm->eap);
+
+	wpabuf_free(sm->radius_cui);
+	os_free(sm->identity);
 	os_free(sm);
 }
 
@@ -1191,30 +1198,27 @@ static int eapol_auth_conf_clone(struct eapol_auth_config *dst,
 	dst->server_id = src->server_id;
 	dst->server_id_len = src->server_id_len;
 	if (src->eap_req_id_text) {
-		dst->eap_req_id_text = os_malloc(src->eap_req_id_text_len);
+		dst->eap_req_id_text = os_memdup(src->eap_req_id_text,
+						 src->eap_req_id_text_len);
 		if (dst->eap_req_id_text == NULL)
 			return -1;
-		os_memcpy(dst->eap_req_id_text, src->eap_req_id_text,
-			  src->eap_req_id_text_len);
 		dst->eap_req_id_text_len = src->eap_req_id_text_len;
 	} else {
 		dst->eap_req_id_text = NULL;
 		dst->eap_req_id_text_len = 0;
 	}
 	if (src->pac_opaque_encr_key) {
-		dst->pac_opaque_encr_key = os_malloc(16);
+		dst->pac_opaque_encr_key = os_memdup(src->pac_opaque_encr_key,
+						     16);
 		if (dst->pac_opaque_encr_key == NULL)
 			goto fail;
-		os_memcpy(dst->pac_opaque_encr_key, src->pac_opaque_encr_key,
-			  16);
 	} else
 		dst->pac_opaque_encr_key = NULL;
 	if (src->eap_fast_a_id) {
-		dst->eap_fast_a_id = os_malloc(src->eap_fast_a_id_len);
+		dst->eap_fast_a_id = os_memdup(src->eap_fast_a_id,
+					       src->eap_fast_a_id_len);
 		if (dst->eap_fast_a_id == NULL)
 			goto fail;
-		os_memcpy(dst->eap_fast_a_id, src->eap_fast_a_id,
-			  src->eap_fast_a_id_len);
 		dst->eap_fast_a_id_len = src->eap_fast_a_id_len;
 	} else
 		dst->eap_fast_a_id = NULL;
@@ -1243,6 +1247,7 @@ static int eapol_auth_conf_clone(struct eapol_auth_config *dst,
 	dst->erp_send_reauth_start = src->erp_send_reauth_start;
 	dst->erp = src->erp;
 	dst->tls_session_lifetime = src->tls_session_lifetime;
+	dst->tls_flags = src->tls_flags;
 
 	return 0;
 
@@ -1271,7 +1276,6 @@ struct eapol_authenticator * eapol_auth_init(struct eapol_auth_config *conf,
 					     struct eapol_auth_cb *cb)
 {
 	struct eapol_authenticator *eapol;
-	struct os_time now;
 
 	eapol = os_zalloc(sizeof(*eapol));
 	if (eapol == NULL)
@@ -1299,12 +1303,6 @@ struct eapol_authenticator * eapol_auth_init(struct eapol_auth_config *conf,
 	eapol->cb.eapol_event = cb->eapol_event;
 	eapol->cb.erp_get_key = cb->erp_get_key;
 	eapol->cb.erp_add_key = cb->erp_add_key;
-
-	/* Acct-Multi-Session-Id should be unique over reboots. If reliable
-	 * clock is not available, this could be replaced with reboot counter,
-	 * etc. */
-	os_get_time(&now);
-	eapol->acct_multi_session_id_hi = now.sec;
 
 	return eapol;
 }

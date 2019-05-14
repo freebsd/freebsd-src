@@ -16,10 +16,6 @@
 #include "ext_password_i.h"
 
 
-#ifdef CONFIG_EXT_PASSWORD_TEST
-extern struct ext_password_backend ext_password_test;
-#endif /* CONFIG_EXT_PASSWORD_TEST */
-
 static const struct ext_password_backend *backends[] = {
 #ifdef CONFIG_EXT_PASSWORD_TEST
 	&ext_password_test,

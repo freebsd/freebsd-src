@@ -430,22 +430,6 @@ int os_strncmp(const char *s1, const char *s2, size_t n)
 }
 
 
-char * os_strncpy(char *dest, const char *src, size_t n)
-{
-	char *d = dest;
-
-	while (n--) {
-		*d = *src;
-		if (*src == '\0')
-			break;
-		d++;
-		src++;
-	}
-
-	return dest;
-}
-
-
 size_t os_strlcpy(char *dest, const char *src, size_t siz)
 {
 	const char *s = src;

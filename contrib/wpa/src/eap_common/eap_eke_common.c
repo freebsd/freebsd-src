@@ -44,9 +44,7 @@ static int eap_eke_dhcomp_len(u8 dhgroup, u8 encr)
 	int dhlen;
 
 	dhlen = eap_eke_dh_len(dhgroup);
-	if (dhlen < 0)
-		return -1;
-	if (encr != EAP_EKE_ENCR_AES128_CBC)
+	if (dhlen < 0 || encr != EAP_EKE_ENCR_AES128_CBC)
 		return -1;
 	return AES_BLOCK_SIZE + dhlen;
 }
@@ -163,44 +161,18 @@ int eap_eke_dh_init(u8 group, u8 *ret_priv, u8 *ret_pub)
 	int generator;
 	u8 gen;
 	const struct dh_group *dh;
-	size_t pub_len, i;
 
 	generator = eap_eke_dh_generator(group);
-	if (generator < 0 || generator > 255)
+	dh = eap_eke_dh_group(group);
+	if (generator < 0 || generator > 255 || !dh)
 		return -1;
 	gen = generator;
 
-	dh = eap_eke_dh_group(group);
-	if (dh == NULL)
-		return -1;
-
-	/* x = random number 2 .. p-1 */
-	if (random_get_bytes(ret_priv, dh->prime_len))
-		return -1;
-	if (os_memcmp(ret_priv, dh->prime, dh->prime_len) > 0) {
-		/* Make sure private value is smaller than prime */
-		ret_priv[0] = 0;
-	}
-	for (i = 0; i < dh->prime_len - 1; i++) {
-		if (ret_priv[i])
-			break;
-	}
-	if (i == dh->prime_len - 1 && (ret_priv[i] == 0 || ret_priv[i] == 1))
+	if (crypto_dh_init(gen, dh->prime, dh->prime_len, ret_priv,
+			   ret_pub) < 0)
 		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "EAP-EKE: DH private value",
 			ret_priv, dh->prime_len);
-
-	/* y = g ^ x (mod p) */
-	pub_len = dh->prime_len;
-	if (crypto_mod_exp(&gen, 1, ret_priv, dh->prime_len,
-			   dh->prime, dh->prime_len, ret_pub, &pub_len) < 0)
-		return -1;
-	if (pub_len < dh->prime_len) {
-		size_t pad = dh->prime_len - pub_len;
-		os_memmove(ret_pub + pad, ret_pub, pub_len);
-		os_memset(ret_pub, 0, pad);
-	}
-
 	wpa_hexdump(MSG_DEBUG, "EAP-EKE: DH public value",
 		    ret_pub, dh->prime_len);
 
@@ -411,11 +383,8 @@ int eap_eke_shared_secret(struct eap_eke_session *sess, const u8 *key,
 	size_t len;
 	const struct dh_group *dh;
 
-	if (sess->encr != EAP_EKE_ENCR_AES128_CBC)
-		return -1;
-
 	dh = eap_eke_dh_group(sess->dhgroup);
-	if (dh == NULL)
+	if (sess->encr != EAP_EKE_ENCR_AES128_CBC || !dh)
 		return -1;
 
 	/* Decrypt peer DHComponent */
@@ -429,8 +398,9 @@ int eap_eke_shared_secret(struct eap_eke_session *sess, const u8 *key,
 
 	/* SharedSecret = prf(0+, g ^ (x_s * x_p) (mod p)) */
 	len = dh->prime_len;
-	if (crypto_mod_exp(peer_pub, dh->prime_len, dhpriv, dh->prime_len,
-			   dh->prime, dh->prime_len, modexp, &len) < 0)
+	if (crypto_dh_derive_secret(*dh->generator, dh->prime, dh->prime_len,
+				    NULL, 0, dhpriv, dh->prime_len, peer_pub,
+				    dh->prime_len, modexp, &len) < 0)
 		return -1;
 	if (len < dh->prime_len) {
 		size_t pad = dh->prime_len - len;
@@ -635,6 +605,7 @@ int eap_eke_prot(struct eap_eke_session *sess,
 
 	if (*prot_len < block_size + data_len + pad + icv_len) {
 		wpa_printf(MSG_INFO, "EAP-EKE: Not enough room for Prot() data");
+		return -1;
 	}
 	pos = prot;
 
@@ -653,10 +624,8 @@ int eap_eke_prot(struct eap_eke_session *sess,
 		pos += pad;
 	}
 
-	if (aes_128_cbc_encrypt(sess->ke, iv, e, data_len + pad) < 0)
-		return -1;
-
-	if (eap_eke_mac(sess->mac, sess->ki, e, data_len + pad, pos) < 0)
+	if (aes_128_cbc_encrypt(sess->ke, iv, e, data_len + pad) < 0 ||
+	    eap_eke_mac(sess->mac, sess->ki, e, data_len + pad, pos) < 0)
 		return -1;
 	pos += icv_len;
 
@@ -684,9 +653,8 @@ int eap_eke_decrypt_prot(struct eap_eke_session *sess,
 	else
 		return -1;
 
-	if (prot_len < 2 * block_size + icv_len)
-		return -1;
-	if ((prot_len - icv_len) % block_size)
+	if (prot_len < 2 * block_size + icv_len ||
+	    (prot_len - icv_len) % block_size)
 		return -1;
 
 	if (eap_eke_mac(sess->mac, sess->ki, prot + block_size,
@@ -737,22 +705,14 @@ int eap_eke_session_init(struct eap_eke_session *sess, u8 dhgroup, u8 encr,
 	sess->mac = mac;
 
 	sess->prf_len = eap_eke_prf_len(prf);
-	if (sess->prf_len < 0)
-		return -1;
 	sess->nonce_len = eap_eke_nonce_len(prf);
-	if (sess->nonce_len < 0)
-		return -1;
 	sess->auth_len = eap_eke_auth_len(prf);
-	if (sess->auth_len < 0)
-		return -1;
 	sess->dhcomp_len = eap_eke_dhcomp_len(sess->dhgroup, sess->encr);
-	if (sess->dhcomp_len < 0)
-		return -1;
 	sess->pnonce_len = eap_eke_pnonce_len(sess->mac);
-	if (sess->pnonce_len < 0)
-		return -1;
 	sess->pnonce_ps_len = eap_eke_pnonce_ps_len(sess->mac);
-	if (sess->pnonce_ps_len < 0)
+	if (sess->prf_len < 0 || sess->nonce_len < 0 || sess->auth_len < 0 ||
+	    sess->dhcomp_len < 0 || sess->pnonce_len < 0 ||
+	    sess->pnonce_ps_len < 0)
 		return -1;
 
 	return 0;

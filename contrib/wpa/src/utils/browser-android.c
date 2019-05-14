@@ -95,7 +95,7 @@ int hs20_web_browser(const char *url)
 
 	if (pid == 0) {
 		/* run the external command in the child process */
-		char *argv[9];
+		char *argv[7];
 
 		argv[0] = "browser-android";
 		argv[1] = "start";
@@ -103,9 +103,7 @@ int hs20_web_browser(const char *url)
 		argv[3] = "android.intent.action.VIEW";
 		argv[4] = "-d";
 		argv[5] = (void *) url;
-		argv[6] = "-n";
-		argv[7] = "com.android.browser/.BrowserActivity";
-		argv[8] = NULL;
+		argv[6] = NULL;
 
 		execv("/system/bin/am", argv);
 		wpa_printf(MSG_ERROR, "execv: %s", strerror(errno));

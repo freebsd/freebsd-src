@@ -11,29 +11,29 @@ import threading
 from dbus.mainloop.glib import DBusGMainLoop
 
 def usage():
-	print "Usage:"
-	print "  %s -i <interface_name> -a <addr> \ " \
-		% sys.argv[0]
-	print "		[-o <persistent_group_object>] [-w <wpas_dbus_interface>]"
-	print "Options:"
-	print "  -i = interface name"
-	print "  -a = address of peer"
-	print "  -o = persistent group object path"
-	print "  -w = wpas dbus interface = fi.w1.wpa_supplicant1"
-	print "Example:"
-	print "  %s -i p2p-wlan0-0 -a 00150083523c" % sys.argv[0]
+	print("Usage:")
+	print("  %s -i <interface_name> -a <addr> \ " \
+		% sys.argv[0])
+	print("		[-o <persistent_group_object>] [-w <wpas_dbus_interface>]")
+	print("Options:")
+	print("  -i = interface name")
+	print("  -a = address of peer")
+	print("  -o = persistent group object path")
+	print("  -w = wpas dbus interface = fi.w1.wpa_supplicant1")
+	print("Example:")
+	print("  %s -i p2p-wlan0-0 -a 00150083523c" % sys.argv[0])
 
 # Required Signals
 def InvitationResult(invite_result):
-	print "Inviation Result signal :"
+	print("Inviation Result signal :")
 	status = invite_result['status']
-	print "status = ", status
+	print("status = ", status)
 	if invite_result.has_key('BSSID'):
 		bssid = invite_result['BSSID']
-		print "BSSID = ", hex(bssid[0]) , ":" , \
+		print("BSSID = ", hex(bssid[0]) , ":" , \
 		 hex(bssid[1]) , ":" , hex(bssid[2]) , ":", \
 		 hex(bssid[3]) , ":" , hex(bssid[4]) , ":" , \
-		hex(bssid[5])
+		hex(bssid[5]))
 	os._exit(0)
 
 class P2P_Invite (threading.Thread):
@@ -96,10 +96,10 @@ class P2P_Invite (threading.Thread):
 		try:
 			self.path = self.wpas.GetInterface(
 					self.interface_name)
-		except dbus.DBusException, exc:
+		except dbus.DBusException as exc:
 			error = 'Error:\n  Interface ' + self.interface_name \
 				+ ' was not found'
-			print error
+			print(error)
 			usage()
 			os._exit(0)
 
@@ -127,7 +127,7 @@ class P2P_Invite (threading.Thread):
 			self.p2p_interface.Invite(self.P2PDictionary)
 
 		except:
-			print "Error:\n  Invalid Arguements"
+			print("Error:\n  Invalid Arguements")
 			usage()
 			os._exit(0)
 
@@ -176,12 +176,12 @@ if __name__ == "__main__":
 
 	# Interface name is required and was not given
 	if (interface_name == None):
-		print "Error:\n  interface_name is required"
+		print("Error:\n  interface_name is required")
 		usage()
 		quit()
 
 	if (addr == None):
-		print "Error:\n  peer address is required"
+		print("Error:\n  peer address is required")
 		usage()
 		quit()
 
@@ -190,12 +190,12 @@ if __name__ == "__main__":
 			P2P_Invite(interface_name,wpas_dbus_interface,
 					addr,persistent_group_object)
 	except:
-		print "Error:\n  Invalid Arguements"
+		print("Error:\n  Invalid Arguements")
 		usage()
 		os._exit(1)
 
 	p2p_invite_test.constructArguements()
 	p2p_invite_test.start()
 	time.sleep(10)
-	print "Error:\n  p2p_invite timed out"
+	print("Error:\n  p2p_invite timed out")
 	os._exit(0)

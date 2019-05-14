@@ -15,7 +15,6 @@
 
 #include "utils/common.h"
 #include "utils/eloop.h"
-#include "crypto/sha1.h"
 #include "radius/radius.h"
 #include "radius/radius_client.h"
 #include "hostapd.h"
@@ -35,7 +34,7 @@ struct hostapd_cached_radius_acl {
 	struct hostapd_cached_radius_acl *next;
 	u32 session_timeout;
 	u32 acct_interim_interval;
-	int vlan_id;
+	struct vlan_description vlan_id;
 	struct hostapd_sta_wpa_psk_short *psk;
 	char *identity;
 	char *radius_cui;
@@ -77,29 +76,20 @@ static void hostapd_acl_cache_free(struct hostapd_cached_radius_acl *acl_cache)
 static void copy_psk_list(struct hostapd_sta_wpa_psk_short **psk,
 			  struct hostapd_sta_wpa_psk_short *src)
 {
-	struct hostapd_sta_wpa_psk_short **copy_to;
-	struct hostapd_sta_wpa_psk_short *copy_from;
+	if (!psk)
+		return;
 
-	/* Copy PSK linked list */
-	copy_to = psk;
-	copy_from = src;
-	while (copy_from && copy_to) {
-		*copy_to = os_zalloc(sizeof(struct hostapd_sta_wpa_psk_short));
-		if (*copy_to == NULL)
-			break;
-		os_memcpy(*copy_to, copy_from,
-			  sizeof(struct hostapd_sta_wpa_psk_short));
-		copy_from = copy_from->next;
-		copy_to = &((*copy_to)->next);
-	}
-	if (copy_to)
-		*copy_to = NULL;
+	if (src)
+		src->ref++;
+
+	*psk = src;
 }
 
 
 static int hostapd_acl_cache_get(struct hostapd_data *hapd, const u8 *addr,
 				 u32 *session_timeout,
-				 u32 *acct_interim_interval, int *vlan_id,
+				 u32 *acct_interim_interval,
+				 struct vlan_description *vlan_id,
 				 struct hostapd_sta_wpa_psk_short **psk,
 				 char **identity, char **radius_cui)
 {
@@ -165,7 +155,10 @@ static int hostapd_radius_acl_query(struct hostapd_data *hapd, const u8 *addr,
 	if (msg == NULL)
 		return -1;
 
-	radius_msg_make_authenticator(msg, addr, ETH_ALEN);
+	if (radius_msg_make_authenticator(msg) < 0) {
+		wpa_printf(MSG_INFO, "Could not make Request Authenticator");
+		goto fail;
+	}
 
 	os_snprintf(buf, sizeof(buf), RADIUS_ADDR_FORMAT, MAC2STR(addr));
 	if (!radius_msg_add_attr(msg, RADIUS_ATTR_USER_NAME, (u8 *) buf,
@@ -213,41 +206,15 @@ static int hostapd_radius_acl_query(struct hostapd_data *hapd, const u8 *addr,
 
 
 /**
- * hostapd_allowed_address - Check whether a specified STA can be authenticated
+ * hostapd_check_acl - Check a specified STA against accept/deny ACLs
  * @hapd: hostapd BSS data
  * @addr: MAC address of the STA
- * @msg: Authentication message
- * @len: Length of msg in octets
- * @session_timeout: Buffer for returning session timeout (from RADIUS)
- * @acct_interim_interval: Buffer for returning account interval (from RADIUS)
  * @vlan_id: Buffer for returning VLAN ID
- * @psk: Linked list buffer for returning WPA PSK
- * @identity: Buffer for returning identity (from RADIUS)
- * @radius_cui: Buffer for returning CUI (from RADIUS)
  * Returns: HOSTAPD_ACL_ACCEPT, HOSTAPD_ACL_REJECT, or HOSTAPD_ACL_PENDING
- *
- * The caller is responsible for freeing the returned *identity and *radius_cui
- * values with os_free().
  */
-int hostapd_allowed_address(struct hostapd_data *hapd, const u8 *addr,
-			    const u8 *msg, size_t len, u32 *session_timeout,
-			    u32 *acct_interim_interval, int *vlan_id,
-			    struct hostapd_sta_wpa_psk_short **psk,
-			    char **identity, char **radius_cui)
+int hostapd_check_acl(struct hostapd_data *hapd, const u8 *addr,
+		      struct vlan_description *vlan_id)
 {
-	if (session_timeout)
-		*session_timeout = 0;
-	if (acct_interim_interval)
-		*acct_interim_interval = 0;
-	if (vlan_id)
-		*vlan_id = 0;
-	if (psk)
-		*psk = NULL;
-	if (identity)
-		*identity = NULL;
-	if (radius_cui)
-		*radius_cui = NULL;
-
 	if (hostapd_maclist_found(hapd->conf->accept_mac,
 				  hapd->conf->num_accept_mac, addr, vlan_id))
 		return HOSTAPD_ACL_ACCEPT;
@@ -261,17 +228,74 @@ int hostapd_allowed_address(struct hostapd_data *hapd, const u8 *addr,
 	if (hapd->conf->macaddr_acl == DENY_UNLESS_ACCEPTED)
 		return HOSTAPD_ACL_REJECT;
 
+	return HOSTAPD_ACL_PENDING;
+}
+
+
+/**
+ * hostapd_allowed_address - Check whether a specified STA can be authenticated
+ * @hapd: hostapd BSS data
+ * @addr: MAC address of the STA
+ * @msg: Authentication message
+ * @len: Length of msg in octets
+ * @session_timeout: Buffer for returning session timeout (from RADIUS)
+ * @acct_interim_interval: Buffer for returning account interval (from RADIUS)
+ * @vlan_id: Buffer for returning VLAN ID
+ * @psk: Linked list buffer for returning WPA PSK
+ * @identity: Buffer for returning identity (from RADIUS)
+ * @radius_cui: Buffer for returning CUI (from RADIUS)
+ * @is_probe_req: Whether this query for a Probe Request frame
+ * Returns: HOSTAPD_ACL_ACCEPT, HOSTAPD_ACL_REJECT, or HOSTAPD_ACL_PENDING
+ *
+ * The caller is responsible for freeing the returned *identity and *radius_cui
+ * values with os_free().
+ */
+int hostapd_allowed_address(struct hostapd_data *hapd, const u8 *addr,
+			    const u8 *msg, size_t len, u32 *session_timeout,
+			    u32 *acct_interim_interval,
+			    struct vlan_description *vlan_id,
+			    struct hostapd_sta_wpa_psk_short **psk,
+			    char **identity, char **radius_cui,
+			    int is_probe_req)
+{
+	int res;
+
+	if (session_timeout)
+		*session_timeout = 0;
+	if (acct_interim_interval)
+		*acct_interim_interval = 0;
+	if (vlan_id)
+		os_memset(vlan_id, 0, sizeof(*vlan_id));
+	if (psk)
+		*psk = NULL;
+	if (identity)
+		*identity = NULL;
+	if (radius_cui)
+		*radius_cui = NULL;
+
+	res = hostapd_check_acl(hapd, addr, vlan_id);
+	if (res != HOSTAPD_ACL_PENDING)
+		return res;
+
 	if (hapd->conf->macaddr_acl == USE_EXTERNAL_RADIUS_AUTH) {
 #ifdef CONFIG_NO_RADIUS
 		return HOSTAPD_ACL_REJECT;
 #else /* CONFIG_NO_RADIUS */
 		struct hostapd_acl_query_data *query;
 
+		if (is_probe_req) {
+			/* Skip RADIUS queries for Probe Request frames to avoid
+			 * excessive load on the authentication server. */
+			return HOSTAPD_ACL_ACCEPT;
+		};
+
+		if (hapd->conf->ssid.dynamic_vlan == DYNAMIC_VLAN_DISABLED)
+			vlan_id = NULL;
+
 		/* Check whether ACL cache has an entry for this station */
-		int res = hostapd_acl_cache_get(hapd, addr, session_timeout,
-						acct_interim_interval,
-						vlan_id, psk,
-						identity, radius_cui);
+		res = hostapd_acl_cache_get(hapd, addr, session_timeout,
+					    acct_interim_interval, vlan_id, psk,
+					    identity, radius_cui);
 		if (res == HOSTAPD_ACL_ACCEPT ||
 		    res == HOSTAPD_ACL_ACCEPT_TIMEOUT)
 			return res;
@@ -314,14 +338,13 @@ int hostapd_allowed_address(struct hostapd_data *hapd, const u8 *addr,
 			return HOSTAPD_ACL_REJECT;
 		}
 
-		query->auth_msg = os_malloc(len);
+		query->auth_msg = os_memdup(msg, len);
 		if (query->auth_msg == NULL) {
 			wpa_printf(MSG_ERROR, "Failed to allocate memory for "
 				   "auth frame.");
 			hostapd_acl_query_free(query);
 			return HOSTAPD_ACL_REJECT;
 		}
-		os_memcpy(query->auth_msg, msg, len);
 		query->auth_msg_len = len;
 		query->next = hapd->acl_queries;
 		hapd->acl_queries = query;
@@ -419,7 +442,7 @@ static void decode_tunnel_passwords(struct hostapd_data *hapd,
 				    struct hostapd_cached_radius_acl *cache)
 {
 	int passphraselen;
-	char *passphrase, *strpassphrase;
+	char *passphrase;
 	size_t i;
 	struct hostapd_sta_wpa_psk_short *psk;
 
@@ -436,24 +459,42 @@ static void decode_tunnel_passwords(struct hostapd_data *hapd,
 		 */
 		if (passphrase == NULL)
 			break;
+
+		/*
+		 * Passphase should be 8..63 chars (to be hashed with SSID)
+		 * or 64 chars hex string (no separate hashing with SSID).
+		 */
+
+		if (passphraselen < MIN_PASSPHRASE_LEN ||
+		    passphraselen > MAX_PASSPHRASE_LEN + 1)
+			goto free_pass;
+
 		/*
 		 * passphrase does not contain the NULL termination.
 		 * Add it here as pbkdf2_sha1() requires it.
 		 */
-		strpassphrase = os_zalloc(passphraselen + 1);
 		psk = os_zalloc(sizeof(struct hostapd_sta_wpa_psk_short));
-		if (strpassphrase && psk) {
-			os_memcpy(strpassphrase, passphrase, passphraselen);
-			pbkdf2_sha1(strpassphrase,
-				    hapd->conf->ssid.ssid,
-				    hapd->conf->ssid.ssid_len, 4096,
-				    psk->psk, PMK_LEN);
+		if (psk) {
+			if ((passphraselen == MAX_PASSPHRASE_LEN + 1) &&
+			    (hexstr2bin(passphrase, psk->psk, PMK_LEN) < 0)) {
+				hostapd_logger(hapd, cache->addr,
+					       HOSTAPD_MODULE_RADIUS,
+					       HOSTAPD_LEVEL_WARNING,
+					       "invalid hex string (%d chars) in Tunnel-Password",
+					       passphraselen);
+				goto skip;
+			} else if (passphraselen <= MAX_PASSPHRASE_LEN) {
+				os_memcpy(psk->passphrase, passphrase,
+					  passphraselen);
+				psk->is_passphrase = 1;
+			}
 			psk->next = cache->psk;
 			cache->psk = psk;
 			psk = NULL;
 		}
-		os_free(strpassphrase);
+skip:
 		os_free(psk);
+free_pass:
 		os_free(passphrase);
 	}
 }
@@ -535,7 +576,10 @@ hostapd_acl_recv_radius(struct radius_msg *msg, struct radius_msg *req,
 			cache->acct_interim_interval = 0;
 		}
 
-		cache->vlan_id = radius_msg_get_vlanid(msg);
+		if (hapd->conf->ssid.dynamic_vlan != DYNAMIC_VLAN_DISABLED)
+			cache->vlan_id.notempty = !!radius_msg_get_vlanid(
+				msg, &cache->vlan_id.untagged,
+				MAX_NUM_TAGGED_VLAN, cache->vlan_id.tagged);
 
 		decode_tunnel_passwords(hapd, shared_secret, shared_secret_len,
 					msg, req, cache);
@@ -558,17 +602,18 @@ hostapd_acl_recv_radius(struct radius_msg *msg, struct radius_msg *req,
 		    !cache->psk)
 			cache->accepted = HOSTAPD_ACL_REJECT;
 
-		if (cache->vlan_id &&
-		    !hostapd_vlan_id_valid(hapd->conf->vlan, cache->vlan_id)) {
+		if (cache->vlan_id.notempty &&
+		    !hostapd_vlan_valid(hapd->conf->vlan, &cache->vlan_id)) {
 			hostapd_logger(hapd, query->addr,
 				       HOSTAPD_MODULE_RADIUS,
 				       HOSTAPD_LEVEL_INFO,
-				       "Invalid VLAN ID %d received from RADIUS server",
-				       cache->vlan_id);
-			cache->vlan_id = 0;
+				       "Invalid VLAN %d%s received from RADIUS server",
+				       cache->vlan_id.untagged,
+				       cache->vlan_id.tagged[0] ? "+" : "");
+			os_memset(&cache->vlan_id, 0, sizeof(cache->vlan_id));
 		}
 		if (hapd->conf->ssid.dynamic_vlan == DYNAMIC_VLAN_REQUIRED &&
-		    !cache->vlan_id)
+		    !cache->vlan_id.notempty)
 			cache->accepted = HOSTAPD_ACL_REJECT;
 	} else
 		cache->accepted = HOSTAPD_ACL_REJECT;
@@ -627,9 +672,11 @@ void hostapd_acl_deinit(struct hostapd_data *hapd)
 
 #ifndef CONFIG_NO_RADIUS
 	hostapd_acl_cache_free(hapd->acl_cache);
+	hapd->acl_cache = NULL;
 #endif /* CONFIG_NO_RADIUS */
 
 	query = hapd->acl_queries;
+	hapd->acl_queries = NULL;
 	while (query) {
 		prev = query;
 		query = query->next;
@@ -640,6 +687,12 @@ void hostapd_acl_deinit(struct hostapd_data *hapd)
 
 void hostapd_free_psk_list(struct hostapd_sta_wpa_psk_short *psk)
 {
+	if (psk && psk->ref) {
+		/* This will be freed when the last reference is dropped. */
+		psk->ref--;
+		return;
+	}
+
 	while (psk) {
 		struct hostapd_sta_wpa_psk_short *prev = psk;
 		psk = psk->next;

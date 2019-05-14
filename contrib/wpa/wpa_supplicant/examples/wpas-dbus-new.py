@@ -31,11 +31,11 @@ def list_interfaces(wpas_obj):
 		if_obj = bus.get_object(WPAS_DBUS_SERVICE, path)
 		ifname = if_obj.Get(WPAS_DBUS_INTERFACES_INTERFACE, 'Ifname',
 			      dbus_interface=dbus.PROPERTIES_IFACE)
-		print ifname
+		print(ifname)
 
 def propertiesChanged(properties):
 	if properties.has_key("State"):
-		print "PropertiesChanged: State: %s" % (properties["State"])
+		print("PropertiesChanged: State: %s" % (properties["State"]))
 
 def showBss(bss):
 	net_obj = bus.get_object(WPAS_DBUS_SERVICE, bss)
@@ -73,25 +73,25 @@ def showBss(bss):
 	else:
 		maxrate = 0
 
-	print "  %s  ::  ssid='%s'  wpa=%s  wpa2=%s  signal=%d  rate=%d  freq=%d" % (bssid, ssid, wpa, wpa2, signal, maxrate, freq)
+	print("  %s  ::  ssid='%s'  wpa=%s  wpa2=%s  signal=%d  rate=%d  freq=%d" % (bssid, ssid, wpa, wpa2, signal, maxrate, freq))
 
 def scanDone(success):
-	print "Scan done: success=%s" % success
+	print("Scan done: success=%s" % success)
 	
 	res = if_obj.Get(WPAS_DBUS_INTERFACES_INTERFACE, 'BSSs',
 			 dbus_interface=dbus.PROPERTIES_IFACE)
 
-	print "Scanned wireless networks:"
+	print("Scanned wireless networks:")
 	for opath in res:
-		print opath
+		print(opath)
 		showBss(opath)
 
 def bssAdded(bss, properties):
-	print "BSS added: %s" % (bss)
+	print("BSS added: %s" % (bss))
 	showBss(bss)
 
 def bssRemoved(bss):
-	print "BSS removed: %s" % (bss)
+	print("BSS removed: %s" % (bss))
 
 def main():
 	dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
@@ -123,14 +123,14 @@ def main():
 	path = None
 	try:
 		path = wpas.GetInterface(ifname)
-	except dbus.DBusException, exc:
+	except dbus.DBusException as exc:
 		if not str(exc).startswith("fi.w1.wpa_supplicant1.InterfaceUnknown:"):
 			raise exc
 		try:
 			path = wpas.CreateInterface({'Ifname': ifname, 'Driver': 'test'})
 			time.sleep(1)
 
-		except dbus.DBusException, exc:
+		except dbus.DBusException as exc:
 			if not str(exc).startswith("fi.w1.wpa_supplicant1.InterfaceExists:"):
 				raise exc
 

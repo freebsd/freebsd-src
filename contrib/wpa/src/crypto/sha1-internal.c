@@ -33,6 +33,9 @@ int sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 	SHA1_CTX ctx;
 	size_t i;
 
+	if (TEST_FAIL())
+		return -1;
+
 	SHA1Init(&ctx);
 	for (i = 0; i < num_elem; i++)
 		SHA1Update(&ctx, addr[i], len[i]);
@@ -50,7 +53,7 @@ By Steve Reid <sreid@sea-to-sky.net>
 100% Public Domain
 
 -----------------
-Modified 7/98 
+Modified 7/98
 By James H. Brown <jbrown@burgoyne.com>
 Still 100% Public Domain
 
@@ -72,7 +75,7 @@ Since the file IO in main() reads 16K at a time, any file 8K or larger would
 be guaranteed to generate the wrong hash (e.g. Test Vector #3, a million
 "a"s).
 
-I also changed the declaration of variables i & j in SHA1Update to 
+I also changed the declaration of variables i & j in SHA1Update to
 unsigned long from unsigned int for the same reason.
 
 These changes should make no difference to any 32 bit implementations since
@@ -99,7 +102,7 @@ Still 100% public domain
 Modified 4/01
 By Saul Kravitz <Saul.Kravitz@celera.com>
 Still 100% PD
-Modified to run on Compaq Alpha hardware.  
+Modified to run on Compaq Alpha hardware.
 
 -----------------
 Modified 4/01
@@ -159,7 +162,7 @@ void SHAPrintContext(SHA1_CTX *context, char *msg)
 {
 	printf("%s (%d,%d) %x %x %x %x %x\n",
 	       msg,
-	       context->count[0], context->count[1], 
+	       context->count[0], context->count[1],
 	       context->state[0],
 	       context->state[1],
 	       context->state[2],
@@ -294,7 +297,6 @@ void SHA1Final(unsigned char digest[20], SHA1_CTX* context)
 			 255);
 	}
 	/* Wipe variables */
-	i = 0;
 	os_memset(context->buffer, 0, 64);
 	os_memset(context->state, 0, 20);
 	os_memset(context->count, 0, 8);

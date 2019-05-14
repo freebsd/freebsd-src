@@ -16,6 +16,10 @@
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#include <openssl/opensslv.h>
+#ifdef OPENSSL_IS_BORINGSSL
+#include <openssl/buf.h>
+#endif /* OPENSSL_IS_BORINGSSL */
 
 #include "common.h"
 #include "utils/base64.h"
@@ -27,12 +31,28 @@
 static int pkcs7_to_cert(struct hs20_osu_client *ctx, const u8 *pkcs7,
 			 size_t len, char *pem_file, char *der_file)
 {
+#ifdef OPENSSL_IS_BORINGSSL
+	CBS pkcs7_cbs;
+#else /* OPENSSL_IS_BORINGSSL */
 	PKCS7 *p7 = NULL;
 	const unsigned char *p = pkcs7;
+#endif /* OPENSSL_IS_BORINGSSL */
 	STACK_OF(X509) *certs;
 	int i, num, ret = -1;
 	BIO *out = NULL;
 
+#ifdef OPENSSL_IS_BORINGSSL
+	certs = sk_X509_new_null();
+	if (!certs)
+		goto fail;
+	CBS_init(&pkcs7_cbs, pkcs7, len);
+	if (!PKCS7_get_certificates(certs, &pkcs7_cbs)) {
+		wpa_printf(MSG_INFO, "Could not parse PKCS#7 object: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		write_result(ctx, "Could not parse PKCS#7 object from EST");
+		goto fail;
+	}
+#else /* OPENSSL_IS_BORINGSSL */
 	p7 = d2i_PKCS7(NULL, &p, len);
 	if (p7 == NULL) {
 		wpa_printf(MSG_INFO, "Could not parse PKCS#7 object: %s",
@@ -52,6 +72,7 @@ static int pkcs7_to_cert(struct hs20_osu_client *ctx, const u8 *pkcs7,
 		certs = NULL;
 		break;
 	}
+#endif /* OPENSSL_IS_BORINGSSL */
 
 	if (!certs || ((num = sk_X509_num(certs)) == 0)) {
 		wpa_printf(MSG_INFO, "No certificates found in PKCS#7 object");
@@ -84,7 +105,12 @@ static int pkcs7_to_cert(struct hs20_osu_client *ctx, const u8 *pkcs7,
 	ret = 0;
 
 fail:
+#ifdef OPENSSL_IS_BORINGSSL
+	if (certs)
+		sk_X509_pop_free(certs, X509_free);
+#else /* OPENSSL_IS_BORINGSSL */
 	PKCS7_free(p7);
+#endif /* OPENSSL_IS_BORINGSSL */
 	if (out)
 		BIO_free_all(out);
 
@@ -193,6 +219,10 @@ typedef struct {
 		Attribute *attribute;
 	} d;
 } AttrOrOID;
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+DEFINE_STACK_OF(AttrOrOID)
+#endif
 
 typedef struct {
 	int type;
@@ -310,9 +340,13 @@ static void add_csrattrs(struct hs20_osu_client *ctx, CsrAttrs *csrattrs,
 	if (!csrattrs || ! csrattrs->attrs)
 		return;
 
-	num = SKM_sk_num(AttrOrOID, csrattrs->attrs);
+#ifdef OPENSSL_IS_BORINGSSL
+	num = sk_num(CHECKED_CAST(_STACK *, STACK_OF(AttrOrOID) *,
+				  csrattrs->attrs));
 	for (i = 0; i < num; i++) {
-		AttrOrOID *ao = SKM_sk_value(AttrOrOID, csrattrs->attrs, i);
+		AttrOrOID *ao = sk_value(
+			CHECKED_CAST(_STACK *, const STACK_OF(AttrOrOID) *,
+				     csrattrs->attrs), i);
 		switch (ao->type) {
 		case 0:
 			add_csrattrs_oid(ctx, ao->d.oid, exts);
@@ -322,6 +356,28 @@ static void add_csrattrs(struct hs20_osu_client *ctx, CsrAttrs *csrattrs,
 			break;
 		}
 	}
+#else /* OPENSSL_IS_BORINGSSL */
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+	num = sk_AttrOrOID_num(csrattrs->attrs);
+#else
+	num = SKM_sk_num(AttrOrOID, csrattrs->attrs);
+#endif
+	for (i = 0; i < num; i++) {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+		AttrOrOID *ao = sk_AttrOrOID_value(csrattrs->attrs, i);
+#else
+		AttrOrOID *ao = SKM_sk_value(AttrOrOID, csrattrs->attrs, i);
+#endif
+		switch (ao->type) {
+		case 0:
+			add_csrattrs_oid(ctx, ao->d.oid, exts);
+			break;
+		case 1:
+			add_csrattrs_attr(ctx, ao->d.attribute, exts);
+			break;
+		}
+	}
+#endif /* OPENSSL_IS_BORINGSSL */
 }
 
 
@@ -340,6 +396,7 @@ static int generate_csr(struct hs20_osu_client *ctx, char *key_pem,
 	STACK_OF(X509_EXTENSION) *exts = NULL;
 	X509_EXTENSION *ex;
 	BIO *out;
+	CONF *ctmp = NULL;
 
 	wpa_printf(MSG_INFO, "Generate RSA private key");
 	write_summary(ctx, "Generate RSA private key");
@@ -421,20 +478,20 @@ static int generate_csr(struct hs20_osu_client *ctx, char *key_pem,
 	if (!exts)
 		goto fail;
 
-	ex = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints,
-				 "CA:FALSE");
+	ex = X509V3_EXT_nconf_nid(ctmp, NULL, NID_basic_constraints,
+				  "CA:FALSE");
 	if (ex == NULL ||
 	    !sk_X509_EXTENSION_push(exts, ex))
 		goto fail;
 
-	ex = X509V3_EXT_conf_nid(NULL, NULL, NID_key_usage,
-				 "nonRepudiation,digitalSignature,keyEncipherment");
+	ex = X509V3_EXT_nconf_nid(ctmp, NULL, NID_key_usage,
+				  "nonRepudiation,digitalSignature,keyEncipherment");
 	if (ex == NULL ||
 	    !sk_X509_EXTENSION_push(exts, ex))
 		goto fail;
 
-	ex = X509V3_EXT_conf_nid(NULL, NULL, NID_ext_key_usage,
-				 "1.3.6.1.4.1.40808.1.1.2");
+	ex = X509V3_EXT_nconf_nid(ctmp, NULL, NID_ext_key_usage,
+				  "1.3.6.1.4.1.40808.1.1.2");
 	if (ex == NULL ||
 	    !sk_X509_EXTENSION_push(exts, ex))
 		goto fail;
@@ -454,7 +511,9 @@ static int generate_csr(struct hs20_osu_client *ctx, char *key_pem,
 		char *txt;
 		size_t rlen;
 
+#if !defined(ANDROID) || !defined(OPENSSL_IS_BORINGSSL)
 		X509_REQ_print(out, req);
+#endif
 		rlen = BIO_ctrl_pending(out);
 		txt = os_malloc(rlen + 1);
 		if (txt) {
@@ -473,7 +532,9 @@ static int generate_csr(struct hs20_osu_client *ctx, char *key_pem,
 		FILE *f = fopen(csr_pem, "w");
 		if (f == NULL)
 			goto fail;
+#if !defined(ANDROID) || !defined(OPENSSL_IS_BORINGSSL)
 		X509_REQ_print_fp(f, req);
+#endif
 		if (!PEM_write_X509_REQ(f, req)) {
 			fclose(f);
 			goto fail;
@@ -618,7 +679,6 @@ int est_simple_enroll(struct hs20_osu_client *ctx, const char *url,
 	char *buf, *resp, *req, *req2;
 	size_t buflen, resp_len, len, pkcs7_len;
 	unsigned char *pkcs7;
-	FILE *f;
 	char client_cert_buf[200];
 	char client_key_buf[200];
 	const char *client_cert = NULL, *client_key = NULL;
@@ -673,11 +733,6 @@ int est_simple_enroll(struct hs20_osu_client *ctx, const char *url,
 		return -1;
 	}
 	wpa_printf(MSG_DEBUG, "EST simpleenroll response: %s", resp);
-	f = fopen("Cert/est-resp.raw", "w");
-	if (f) {
-		fwrite(resp, resp_len, 1, f);
-		fclose(f);
-	}
 
 	pkcs7 = base64_decode((unsigned char *) resp, resp_len, &pkcs7_len);
 	if (pkcs7 == NULL) {

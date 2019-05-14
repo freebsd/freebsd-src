@@ -692,3 +692,9 @@ void eloop_wait_for_read_sock(int sock)
 	WSAEventSelect(sock, event, 0);
 	WSACloseEvent(event);
 }
+
+
+int eloop_sock_requeue(void)
+{
+	return 0;
+}

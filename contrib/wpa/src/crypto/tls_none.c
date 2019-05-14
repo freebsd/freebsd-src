@@ -45,6 +45,13 @@ int tls_connection_established(void *tls_ctx, struct tls_connection *conn)
 }
 
 
+char * tls_connection_peer_serial_num(void *tls_ctx,
+				      struct tls_connection *conn)
+{
+	return NULL;
+}
+
+
 int tls_connection_shutdown(void *tls_ctx, struct tls_connection *conn)
 {
 	return -1;
@@ -65,7 +72,7 @@ int tls_global_set_params(void *tls_ctx,
 }
 
 
-int tls_global_set_verify(void *tls_ctx, int check_crl)
+int tls_global_set_verify(void *tls_ctx, int check_crl, int strict)
 {
 	return -1;
 }
@@ -86,9 +93,16 @@ int tls_connection_get_random(void *tls_ctx, struct tls_connection *conn,
 }
 
 
-int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
-		       const char *label, int server_random_first,
-		       int skip_keyblock, u8 *out, size_t out_len)
+int tls_connection_export_key(void *tls_ctx, struct tls_connection *conn,
+			      const char *label, const u8 *context,
+			      size_t context_len, u8 *out, size_t out_len)
+{
+	return -1;
+}
+
+
+int tls_connection_get_eap_fast_key(void *tls_ctx, struct tls_connection *conn,
+				    u8 *out, size_t out_len)
 {
 	return -1;
 }

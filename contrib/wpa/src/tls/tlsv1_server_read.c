@@ -46,6 +46,78 @@ static int testing_cipher_suite_filter(struct tlsv1_server *conn, u16 suite)
 }
 
 
+static void tls_process_status_request_item(struct tlsv1_server *conn,
+					    const u8 *req, size_t req_len)
+{
+	const u8 *pos, *end;
+	u8 status_type;
+
+	pos = req;
+	end = req + req_len;
+
+	/*
+	 * RFC 6961, 2.2:
+	 * struct {
+	 *   CertificateStatusType status_type;
+	 *   uint16 request_length;
+	 *   select (status_type) {
+	 *     case ocsp: OCSPStatusRequest;
+	 *     case ocsp_multi: OCSPStatusRequest;
+	 *   } request;
+	 * } CertificateStatusRequestItemV2;
+	 *
+	 * enum { ocsp(1), ocsp_multi(2), (255) } CertificateStatusType;
+	 */
+
+	if (end - pos < 1)
+		return; /* Truncated data */
+
+	status_type = *pos++;
+	wpa_printf(MSG_DEBUG, "TLSv1: CertificateStatusType %u", status_type);
+	if (status_type != 1 && status_type != 2)
+		return; /* Unsupported status type */
+	/*
+	 * For now, only OCSP stapling is supported, so ignore the specific
+	 * request, if any.
+	 */
+	wpa_hexdump(MSG_DEBUG, "TLSv1: OCSPStatusRequest", pos, end - pos);
+
+	if (status_type == 2)
+		conn->status_request_multi = 1;
+}
+
+
+static void tls_process_status_request_v2(struct tlsv1_server *conn,
+					  const u8 *ext, size_t ext_len)
+{
+	const u8 *pos, *end;
+
+	conn->status_request_v2 = 1;
+
+	pos = ext;
+	end = ext + ext_len;
+
+	/*
+	 * RFC 6961, 2.2:
+	 * struct {
+	 *   CertificateStatusRequestItemV2
+	 *                    certificate_status_req_list<1..2^16-1>;
+	 * } CertificateStatusRequestListV2;
+	 */
+
+	while (end - pos >= 2) {
+		u16 len;
+
+		len = WPA_GET_BE16(pos);
+		pos += 2;
+		if (len > end - pos)
+			break; /* Truncated data */
+		tls_process_status_request_item(conn, pos, len);
+		pos += len;
+	}
+}
+
+
 static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 				    const u8 *in_data, size_t *in_len)
 {
@@ -67,8 +139,11 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	pos = in_data;
 	left = *in_len;
 
-	if (left < 4)
+	if (left < 4) {
+		tlsv1_server_log(conn,
+				 "Truncated handshake message (expected ClientHello)");
 		goto decode_error;
+	}
 
 	/* HandshakeType msg_type */
 	if (*pos != TLS_HANDSHAKE_TYPE_CLIENT_HELLO) {
@@ -85,8 +160,12 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	pos += 3;
 	left -= 4;
 
-	if (len > left)
+	if (len > left) {
+		tlsv1_server_log(conn,
+				 "Truncated ClientHello (len=%d left=%d)",
+				 (int) len, (int) left);
 		goto decode_error;
+	}
 
 	/* body - ClientHello */
 
@@ -94,8 +173,10 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	end = pos + len;
 
 	/* ProtocolVersion client_version */
-	if (end - pos < 2)
+	if (end - pos < 2) {
+		tlsv1_server_log(conn, "Truncated ClientHello/client_version");
 		goto decode_error;
+	}
 	conn->client_version = WPA_GET_BE16(pos);
 	tlsv1_server_log(conn, "Client version %d.%d",
 			 conn->client_version >> 8,
@@ -124,8 +205,10 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 			 tls_version_str(conn->rl.tls_version));
 
 	/* Random random */
-	if (end - pos < TLS_RANDOM_LEN)
+	if (end - pos < TLS_RANDOM_LEN) {
+		tlsv1_server_log(conn, "Truncated ClientHello/client_random");
 		goto decode_error;
+	}
 
 	os_memcpy(conn->client_random, pos, TLS_RANDOM_LEN);
 	pos += TLS_RANDOM_LEN;
@@ -133,25 +216,36 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 		    conn->client_random, TLS_RANDOM_LEN);
 
 	/* SessionID session_id */
-	if (end - pos < 1)
+	if (end - pos < 1) {
+		tlsv1_server_log(conn, "Truncated ClientHello/session_id len");
 		goto decode_error;
-	if (end - pos < 1 + *pos || *pos > TLS_SESSION_ID_MAX_LEN)
+	}
+	if (end - pos < 1 + *pos || *pos > TLS_SESSION_ID_MAX_LEN) {
+		tlsv1_server_log(conn, "Truncated ClientHello/session_id");
 		goto decode_error;
+	}
 	wpa_hexdump(MSG_MSGDUMP, "TLSv1: client session_id", pos + 1, *pos);
 	pos += 1 + *pos;
 	/* TODO: add support for session resumption */
 
 	/* CipherSuite cipher_suites<2..2^16-1> */
-	if (end - pos < 2)
+	if (end - pos < 2) {
+		tlsv1_server_log(conn,
+				 "Truncated ClientHello/cipher_suites len");
 		goto decode_error;
+	}
 	num_suites = WPA_GET_BE16(pos);
 	pos += 2;
-	if (end - pos < num_suites)
+	if (end - pos < num_suites) {
+		tlsv1_server_log(conn, "Truncated ClientHello/cipher_suites");
 		goto decode_error;
+	}
 	wpa_hexdump(MSG_MSGDUMP, "TLSv1: client cipher suites",
 		    pos, num_suites);
-	if (num_suites & 1)
+	if (num_suites & 1) {
+		tlsv1_server_log(conn, "Odd len ClientHello/cipher_suites");
 		goto decode_error;
+	}
 	num_suites /= 2;
 
 	cipher_suite = 0;
@@ -187,11 +281,17 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	conn->cipher_suite = cipher_suite;
 
 	/* CompressionMethod compression_methods<1..2^8-1> */
-	if (end - pos < 1)
+	if (end - pos < 1) {
+		tlsv1_server_log(conn,
+				 "Truncated ClientHello/compression_methods len");
 		goto decode_error;
+	}
 	num_suites = *pos++;
-	if (end - pos < num_suites)
+	if (end - pos < num_suites) {
+		tlsv1_server_log(conn,
+				 "Truncated ClientHello/compression_methods");
 		goto decode_error;
+	}
 	wpa_hexdump(MSG_MSGDUMP, "TLSv1: client compression_methods",
 		    pos, num_suites);
 	compr_null_found = 0;
@@ -267,6 +367,11 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 						  ext_len);
 					conn->session_ticket_len = ext_len;
 				}
+			} else if (ext_type == TLS_EXT_STATUS_REQUEST) {
+				conn->status_request = 1;
+			} else if (ext_type == TLS_EXT_STATUS_REQUEST_V2) {
+				tls_process_status_request_v2(conn, pos,
+							      ext_len);
 			}
 
 			pos += ext_len;
@@ -467,6 +572,15 @@ static int tls_process_certificate(struct tlsv1_server *conn, u8 ct,
 			break;
 		}
 		tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL, tls_reason);
+		x509_certificate_chain_free(chain);
+		return -1;
+	}
+
+	if (chain && (chain->extensions_present & X509_EXT_EXT_KEY_USAGE) &&
+	    !(chain->ext_key_usage &
+	      (X509_EXT_KEY_USAGE_ANY | X509_EXT_KEY_USAGE_CLIENT_AUTH))) {
+		tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
+				   TLS_ALERT_BAD_CERTIFICATE);
 		x509_certificate_chain_free(chain);
 		return -1;
 	}
@@ -1131,6 +1245,7 @@ static int tls_process_client_finished(struct tlsv1_server *conn, u8 ct,
 
 	if (os_memcmp_const(pos, verify_data, TLS_VERIFY_DATA_LEN) != 0) {
 		tlsv1_server_log(conn, "Mismatch in verify_data");
+		conn->state = FAILED;
 		return -1;
 	}
 

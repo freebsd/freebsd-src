@@ -20,6 +20,7 @@
 #define ASN1_TAG_EXTERNAL	0x08 /* not yet parsed */
 #define ASN1_TAG_REAL		0x09 /* not yet parsed */
 #define ASN1_TAG_ENUMERATED	0x0A /* not yet parsed */
+#define ASN1_TAG_EMBEDDED_PDV	0x0B /* not yet parsed */
 #define ASN1_TAG_UTF8STRING	0x0C /* not yet parsed */
 #define ANS1_TAG_RELATIVE_OID	0x0D
 #define ASN1_TAG_SEQUENCE	0x10 /* shall be constructed */
@@ -35,7 +36,8 @@
 #define ASN1_TAG_VISIBLESTRING	0x1A
 #define ASN1_TAG_GENERALSTRING	0x1B /* not yet parsed */
 #define ASN1_TAG_UNIVERSALSTRING	0x1C /* not yet parsed */
-#define ASN1_TAG_BMPSTRING	0x1D /* not yet parsed */
+#define ASN1_TAG_CHARACTERSTRING	0x1D /* not yet parsed */
+#define ASN1_TAG_BMPSTRING	0x1E /* not yet parsed */
 
 #define ASN1_CLASS_UNIVERSAL		0
 #define ASN1_CLASS_APPLICATION		1

@@ -18,6 +18,8 @@
 
 static struct eap_method *eap_methods = NULL;
 
+static void eap_peer_method_free(struct eap_method *method);
+
 
 /**
  * eap_peer_get_eap_method - Get EAP method based on type number
@@ -295,7 +297,7 @@ struct eap_method * eap_peer_method_alloc(int version, int vendor,
  * eap_peer_method_free - Free EAP peer method structure
  * @method: Method structure allocated with eap_peer_method_alloc()
  */
-void eap_peer_method_free(struct eap_method *method)
+static void eap_peer_method_free(struct eap_method *method)
 {
 	os_free(method);
 }
@@ -303,26 +305,31 @@ void eap_peer_method_free(struct eap_method *method)
 
 /**
  * eap_peer_method_register - Register an EAP peer method
- * @method: EAP method to register
+ * @method: EAP method to register from eap_peer_method_alloc()
  * Returns: 0 on success, -1 on invalid method, or -2 if a matching EAP method
  * has already been registered
  *
  * Each EAP peer method needs to call this function to register itself as a
- * supported EAP method.
+ * supported EAP method. The caller must not free the allocated method data
+ * regardless of the return value.
  */
 int eap_peer_method_register(struct eap_method *method)
 {
 	struct eap_method *m, *last = NULL;
 
 	if (method == NULL || method->name == NULL ||
-	    method->version != EAP_PEER_METHOD_INTERFACE_VERSION)
+	    method->version != EAP_PEER_METHOD_INTERFACE_VERSION) {
+		eap_peer_method_free(method);
 		return -1;
+	}
 
 	for (m = eap_methods; m; m = m->next) {
 		if ((m->vendor == method->vendor &&
 		     m->method == method->method) ||
-		    os_strcmp(m->name, method->name) == 0)
+		    os_strcmp(m->name, method->name) == 0) {
+			eap_peer_method_free(method);
 			return -2;
+		}
 		last = m;
 	}
 

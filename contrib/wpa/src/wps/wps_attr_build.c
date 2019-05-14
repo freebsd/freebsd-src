@@ -1,6 +1,6 @@
 /*
  * Wi-Fi Protected Setup - attribute building
- * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2008-2016, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -20,10 +20,10 @@
 
 int wps_build_public_key(struct wps_data *wps, struct wpabuf *msg)
 {
-	struct wpabuf *pubkey;
+	struct wpabuf *pubkey = NULL;
 
 	wpa_printf(MSG_DEBUG, "WPS:  * Public Key");
-	wpabuf_free(wps->dh_privkey);
+	wpabuf_clear_free(wps->dh_privkey);
 	wps->dh_privkey = NULL;
 	if (wps->dev_pw_id != DEV_PW_DEFAULT && wps->wps->dh_privkey &&
 	    wps->wps->dh_ctx) {
@@ -60,7 +60,8 @@ int wps_build_public_key(struct wps_data *wps, struct wpabuf *msg)
 		}
 		wps->dh_privkey = wpabuf_dup(wps->wps->ap_nfc_dh_privkey);
 		pubkey = wpabuf_dup(wps->wps->ap_nfc_dh_pubkey);
-		wps->dh_ctx = dh5_init_fixed(wps->dh_privkey, pubkey);
+		if (wps->dh_privkey && pubkey)
+			wps->dh_ctx = dh5_init_fixed(wps->dh_privkey, pubkey);
 #endif /* CONFIG_WPS_NFC */
 	} else {
 		wpa_printf(MSG_DEBUG, "WPS: Generate new DH keys");
@@ -203,7 +204,8 @@ int wps_build_version(struct wpabuf *msg)
 
 
 int wps_build_wfa_ext(struct wpabuf *msg, int req_to_enroll,
-		      const u8 *auth_macs, size_t auth_macs_count)
+		      const u8 *auth_macs, size_t auth_macs_count,
+		      u8 multi_ap_subelem)
 {
 	u8 *len;
 
@@ -242,6 +244,14 @@ int wps_build_wfa_ext(struct wpabuf *msg, int req_to_enroll,
 		for (i = 0; i < auth_macs_count; i++)
 			wpa_printf(MSG_DEBUG, "WPS:    AuthorizedMAC: " MACSTR,
 				   MAC2STR(&auth_macs[i * ETH_ALEN]));
+	}
+
+	if (multi_ap_subelem) {
+		wpa_printf(MSG_DEBUG, "WPS:  * Multi-AP (0x%x)",
+			   multi_ap_subelem);
+		wpabuf_put_u8(msg, WFA_ELEM_MULTI_AP);
+		wpabuf_put_u8(msg, 1); /* length */
+		wpabuf_put_u8(msg, multi_ap_subelem);
 	}
 
 	WPA_PUT_BE16(len, (u8 *) wpabuf_put(msg, 0) - len - 2);
@@ -298,7 +308,16 @@ int wps_build_auth_type_flags(struct wps_data *wps, struct wpabuf *msg)
 	auth_types &= ~WPS_AUTH_WPA;
 	auth_types &= ~WPS_AUTH_WPA2;
 	auth_types &= ~WPS_AUTH_SHARED;
-	wpa_printf(MSG_DEBUG, "WPS:  * Authentication Type Flags");
+#ifdef CONFIG_WPS_TESTING
+	if (wps_force_auth_types_in_use) {
+		wpa_printf(MSG_DEBUG,
+			   "WPS: Testing - replace auth type 0x%x with 0x%x",
+			   auth_types, wps_force_auth_types);
+		auth_types = wps_force_auth_types;
+	}
+#endif /* CONFIG_WPS_TESTING */
+	wpa_printf(MSG_DEBUG, "WPS:  * Authentication Type Flags (0x%x)",
+		   auth_types);
 	wpabuf_put_be16(msg, ATTR_AUTH_TYPE_FLAGS);
 	wpabuf_put_be16(msg, 2);
 	wpabuf_put_be16(msg, auth_types);
@@ -310,7 +329,16 @@ int wps_build_encr_type_flags(struct wps_data *wps, struct wpabuf *msg)
 {
 	u16 encr_types = WPS_ENCR_TYPES;
 	encr_types &= ~WPS_ENCR_WEP;
-	wpa_printf(MSG_DEBUG, "WPS:  * Encryption Type Flags");
+#ifdef CONFIG_WPS_TESTING
+	if (wps_force_encr_types_in_use) {
+		wpa_printf(MSG_DEBUG,
+			   "WPS: Testing - replace encr type 0x%x with 0x%x",
+			   encr_types, wps_force_encr_types);
+		encr_types = wps_force_encr_types;
+	}
+#endif /* CONFIG_WPS_TESTING */
+	wpa_printf(MSG_DEBUG, "WPS:  * Encryption Type Flags (0x%x)",
+		   encr_types);
 	wpabuf_put_be16(msg, ATTR_ENCR_TYPE_FLAGS);
 	wpabuf_put_be16(msg, 2);
 	wpabuf_put_be16(msg, encr_types);
@@ -395,7 +423,8 @@ int wps_build_oob_dev_pw(struct wpabuf *msg, u16 dev_pw_id,
 		   dev_pw_id);
 	addr[0] = wpabuf_head(pubkey);
 	hash_len = wpabuf_len(pubkey);
-	sha256_vector(1, addr, &hash_len, pubkey_hash);
+	if (sha256_vector(1, addr, &hash_len, pubkey_hash) < 0)
+		return -1;
 #ifdef CONFIG_WPS_TESTING
 	if (wps_corrupt_pkhash) {
 		wpa_hexdump(MSG_DEBUG, "WPS: Real Public Key Hash",

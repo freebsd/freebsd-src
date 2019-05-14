@@ -13,8 +13,8 @@
  *
  * See COPYING for more details.
  */
-#include "radiotap_iter.h"
 #include "platform.h"
+#include "radiotap_iter.h"
 
 /* function prototypes and related defs are in radiotap_iter.h */
 

@@ -103,10 +103,9 @@ static void * eap_ikev2_init(struct eap_sm *sm)
 	data->ikev2.proposal.encr = ENCR_AES_CBC;
 	data->ikev2.proposal.dh = DH_GROUP2_1024BIT_MODP;
 
-	data->ikev2.IDi = os_malloc(sm->server_id_len);
+	data->ikev2.IDi = os_memdup(sm->server_id, sm->server_id_len);
 	if (data->ikev2.IDi == NULL)
 		goto failed;
-	os_memcpy(data->ikev2.IDi, sm->server_id, sm->server_id_len);
 	data->ikev2.IDi_len = sm->server_id_len;
 
 	data->ikev2.get_shared_secret = eap_ikev2_get_shared_secret;
@@ -224,7 +223,7 @@ static struct wpabuf * eap_ikev2_buildReq(struct eap_sm *sm, void *priv, u8 id)
 			}
 			data->out_used = 0;
 		}
-		/* pass through */
+		/* fall through */
 	case WAIT_FRAG_ACK:
 		return eap_ikev2_build_msg(data, id);
 	case FRAG_ACK:
@@ -550,7 +549,6 @@ static u8 * eap_ikev2_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 int eap_server_ikev2_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
 				      EAP_VENDOR_IETF, EAP_TYPE_IKEV2,
@@ -569,8 +567,5 @@ int eap_server_ikev2_register(void)
 	eap->get_emsk = eap_ikev2_get_emsk;
 	eap->getSessionId = eap_ikev2_get_session_id;
 
-	ret = eap_server_method_register(eap);
-	if (ret)
-		eap_server_method_free(eap);
-	return ret;
+	return eap_server_method_register(eap);
 }

@@ -38,7 +38,7 @@ static struct interfaces * add_interface(struct dl_list *list,
 	if (!iface)
 		return NULL;
 	iface->dbus_interface = os_strdup(dbus_interface);
-	iface->xml = wpabuf_alloc(6000);
+	iface->xml = wpabuf_alloc(15000);
 	if (iface->dbus_interface == NULL || iface->xml == NULL) {
 		os_free(iface->dbus_interface);
 		wpabuf_free(iface->xml);
@@ -257,7 +257,7 @@ DBusMessage * wpa_dbus_introspect(DBusMessage *message,
 	DBusMessage *reply;
 	struct wpabuf *xml;
 
-	xml = wpabuf_alloc(15000);
+	xml = wpabuf_alloc(20000);
 	if (xml == NULL)
 		return NULL;
 

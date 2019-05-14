@@ -9,10 +9,13 @@
 #ifndef GAS_SERV_H
 #define GAS_SERV_H
 
+/* First 16 ANQP InfoIDs can be included in the optimized bitmap */
 #define ANQP_REQ_CAPABILITY_LIST \
 	(1 << (ANQP_CAPABILITY_LIST - ANQP_QUERY_LIST))
 #define ANQP_REQ_VENUE_NAME \
 	(1 << (ANQP_VENUE_NAME - ANQP_QUERY_LIST))
+#define ANQP_REQ_EMERGENCY_CALL_NUMBER \
+	(1 << (ANQP_EMERGENCY_CALL_NUMBER - ANQP_QUERY_LIST))
 #define ANQP_REQ_NETWORK_AUTH_TYPE \
 	(1 << (ANQP_NETWORK_AUTH_TYPE - ANQP_QUERY_LIST))
 #define ANQP_REQ_ROAMING_CONSORTIUM \
@@ -23,8 +26,24 @@
 	(1 << (ANQP_NAI_REALM - ANQP_QUERY_LIST))
 #define ANQP_REQ_3GPP_CELLULAR_NETWORK \
 	(1 << (ANQP_3GPP_CELLULAR_NETWORK - ANQP_QUERY_LIST))
+#define ANQP_REQ_AP_GEOSPATIAL_LOCATION \
+	(1 << (ANQP_AP_GEOSPATIAL_LOCATION - ANQP_QUERY_LIST))
+#define ANQP_REQ_AP_CIVIC_LOCATION \
+	(1 << (ANQP_AP_CIVIC_LOCATION - ANQP_QUERY_LIST))
+#define ANQP_REQ_AP_LOCATION_PUBLIC_URI \
+	(1 << (ANQP_AP_LOCATION_PUBLIC_URI - ANQP_QUERY_LIST))
 #define ANQP_REQ_DOMAIN_NAME \
 	(1 << (ANQP_DOMAIN_NAME - ANQP_QUERY_LIST))
+#define ANQP_REQ_EMERGENCY_ALERT_URI \
+	(1 << (ANQP_EMERGENCY_ALERT_URI - ANQP_QUERY_LIST))
+#define ANQP_REQ_TDLS_CAPABILITY \
+	(1 << (ANQP_TDLS_CAPABILITY - ANQP_QUERY_LIST))
+#define ANQP_REQ_EMERGENCY_NAI \
+	(1 << (ANQP_EMERGENCY_NAI - ANQP_QUERY_LIST))
+/*
+ * First 15 Hotspot 2.0 vendor specific ANQP-elements can be included in the
+ * optimized bitmap.
+ */
 #define ANQP_REQ_HS_CAPABILITY_LIST \
 	(0x10000 << HS20_STYPE_CAPABILITY_LIST)
 #define ANQP_REQ_OPERATOR_FRIENDLY_NAME \
@@ -41,6 +60,13 @@
 	(0x10000 << HS20_STYPE_OSU_PROVIDERS_LIST)
 #define ANQP_REQ_ICON_REQUEST \
 	(0x10000 << HS20_STYPE_ICON_REQUEST)
+#define ANQP_REQ_OPERATOR_ICON_METADATA \
+	(0x10000 << HS20_STYPE_OPERATOR_ICON_METADATA)
+#define ANQP_REQ_OSU_PROVIDERS_NAI_LIST \
+	(0x10000 << HS20_STYPE_OSU_PROVIDERS_NAI_LIST)
+/* The first MBO ANQP-element can be included in the optimized bitmap. */
+#define ANQP_REQ_MBO_CELL_DATA_CONN_PREF \
+	(BIT(29) << MBO_ANQP_SUBTYPE_CELL_CONN_PREF)
 
 struct gas_dialog_info {
 	u8 valid;
@@ -49,6 +75,7 @@ struct gas_dialog_info {
 	size_t sd_resp_pos; /* Offset in sd_resp */
 	u8 sd_frag_id;
 	int prot; /* whether Protected Dual of Public Action frame is used */
+	int dpp; /* whether this is a DPP Config Response */
 };
 
 struct hostapd_data;

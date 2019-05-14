@@ -1,6 +1,6 @@
 /*
  * RADIUS message processing
- * Copyright (c) 2002-2009, 2011-2014, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2009, 2011-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -173,6 +173,8 @@ static const struct radius_attr_type radius_attrs[] =
 	{ RADIUS_ATTR_USER_PASSWORD, "User-Password", RADIUS_ATTR_UNDIST },
 	{ RADIUS_ATTR_NAS_IP_ADDRESS, "NAS-IP-Address", RADIUS_ATTR_IP },
 	{ RADIUS_ATTR_NAS_PORT, "NAS-Port", RADIUS_ATTR_INT32 },
+	{ RADIUS_ATTR_SERVICE_TYPE, "Service-Type", RADIUS_ATTR_INT32 },
+	{ RADIUS_ATTR_FRAMED_IP_ADDRESS, "Framed-IP-Address", RADIUS_ATTR_IP },
 	{ RADIUS_ATTR_FRAMED_MTU, "Framed-MTU", RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_REPLY_MESSAGE, "Reply-Message", RADIUS_ATTR_TEXT },
 	{ RADIUS_ATTR_STATE, "State", RADIUS_ATTR_UNDIST },
@@ -208,12 +210,13 @@ static const struct radius_attr_type radius_attrs[] =
 	{ RADIUS_ATTR_ACCT_MULTI_SESSION_ID, "Acct-Multi-Session-Id",
 	  RADIUS_ATTR_TEXT },
 	{ RADIUS_ATTR_ACCT_LINK_COUNT, "Acct-Link-Count", RADIUS_ATTR_INT32 },
-	{ RADIUS_ATTR_ACCT_INPUT_GIGAWORDS, "Acct-Input-Gigawords", 
+	{ RADIUS_ATTR_ACCT_INPUT_GIGAWORDS, "Acct-Input-Gigawords",
 	  RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_ACCT_OUTPUT_GIGAWORDS, "Acct-Output-Gigawords",
 	  RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_EVENT_TIMESTAMP, "Event-Timestamp",
 	  RADIUS_ATTR_INT32 },
+	{ RADIUS_ATTR_EGRESS_VLANID, "EGRESS-VLANID", RADIUS_ATTR_HEXDUMP },
 	{ RADIUS_ATTR_NAS_PORT_TYPE, "NAS-Port-Type", RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_TUNNEL_TYPE, "Tunnel-Type", RADIUS_ATTR_HEXDUMP },
 	{ RADIUS_ATTR_TUNNEL_MEDIUM_TYPE, "Tunnel-Medium-Type",
@@ -247,6 +250,8 @@ static const struct radius_attr_type radius_attrs[] =
 	{ RADIUS_ATTR_MOBILITY_DOMAIN_ID, "Mobility-Domain-Id",
 	  RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_WLAN_HESSID, "WLAN-HESSID", RADIUS_ATTR_TEXT },
+	{ RADIUS_ATTR_WLAN_REASON_CODE, "WLAN-Reason-Code",
+	  RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_WLAN_PAIRWISE_CIPHER, "WLAN-Pairwise-Cipher",
 	  RADIUS_ATTR_HEXDUMP },
 	{ RADIUS_ATTR_WLAN_GROUP_CIPHER, "WLAN-Group-Cipher",
@@ -535,7 +540,8 @@ int radius_msg_verify_acct_req(struct radius_msg *msg, const u8 *secret,
 
 
 int radius_msg_verify_das_req(struct radius_msg *msg, const u8 *secret,
-			      size_t secret_len)
+			      size_t secret_len,
+			      int require_message_authenticator)
 {
 	const u8 *addr[4];
 	size_t len[4];
@@ -574,7 +580,11 @@ int radius_msg_verify_das_req(struct radius_msg *msg, const u8 *secret,
 	}
 
 	if (attr == NULL) {
-		/* Message-Authenticator is MAY; not required */
+		if (require_message_authenticator) {
+			wpa_printf(MSG_WARNING,
+				   "Missing Message-Authenticator attribute in RADIUS message");
+			return 1;
+		}
 		return 0;
 	}
 
@@ -622,6 +632,9 @@ struct radius_attr_hdr *radius_msg_add_attr(struct radius_msg *msg, u8 type,
 {
 	size_t buf_needed;
 	struct radius_attr_hdr *attr;
+
+	if (TEST_FAIL())
+		return NULL;
 
 	if (data_len > RADIUS_MAX_ATTR_LEN) {
 		wpa_printf(MSG_ERROR, "radius_msg_add_attr: too long attribute (%lu bytes)",
@@ -703,7 +716,7 @@ struct radius_msg * radius_msg_parse(const u8 *data, size_t len)
 
 		attr = (struct radius_attr_hdr *) pos;
 
-		if (pos + attr->length > end || attr->length < sizeof(*attr))
+		if (attr->length > end - pos || attr->length < sizeof(*attr))
 			goto fail;
 
 		/* TODO: check that attr->length is suitable for attr->type */
@@ -815,8 +828,9 @@ int radius_msg_verify_msg_auth(struct radius_msg *msg, const u8 *secret,
 		os_memcpy(msg->hdr->authenticator, req_auth,
 			  sizeof(msg->hdr->authenticator));
 	}
-	hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
-		 wpabuf_len(msg->buf), auth);
+	if (hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
+		     wpabuf_len(msg->buf), auth) < 0)
+		return 1;
 	os_memcpy(attr + 1, orig, MD5_MAC_LEN);
 	if (req_auth) {
 		os_memcpy(msg->hdr->authenticator, orig_authenticator,
@@ -859,8 +873,8 @@ int radius_msg_verify(struct radius_msg *msg, const u8 *secret,
 	len[2] = wpabuf_len(msg->buf) - sizeof(struct radius_hdr);
 	addr[3] = secret;
 	len[3] = secret_len;
-	md5_vector(4, addr, len, hash);
-	if (os_memcmp_const(hash, msg->hdr->authenticator, MD5_MAC_LEN) != 0) {
+	if (md5_vector(4, addr, len, hash) < 0 ||
+	    os_memcmp_const(hash, msg->hdr->authenticator, MD5_MAC_LEN) != 0) {
 		wpa_printf(MSG_INFO, "Response Authenticator invalid!");
 		return 1;
 	}
@@ -892,25 +906,11 @@ int radius_msg_copy_attr(struct radius_msg *dst, struct radius_msg *src,
 
 /* Create Request Authenticator. The value should be unique over the lifetime
  * of the shared secret between authenticator and authentication server.
- * Use one-way MD5 hash calculated from current timestamp and some data given
- * by the caller. */
-void radius_msg_make_authenticator(struct radius_msg *msg,
-				   const u8 *data, size_t len)
+ */
+int radius_msg_make_authenticator(struct radius_msg *msg)
 {
-	struct os_time tv;
-	long int l;
-	const u8 *addr[3];
-	size_t elen[3];
-
-	os_get_time(&tv);
-	l = os_random();
-	addr[0] = (u8 *) &tv;
-	elen[0] = sizeof(tv);
-	addr[1] = data;
-	elen[1] = len;
-	addr[2] = (u8 *) &l;
-	elen[2] = sizeof(l);
-	md5_vector(3, addr, elen, msg->hdr->authenticator);
+	return os_get_random((u8 *) &msg->hdr->authenticator,
+			     sizeof(msg->hdr->authenticator));
 }
 
 
@@ -965,10 +965,9 @@ static u8 *radius_msg_get_vendor_attr(struct radius_msg *msg, u32 vendor,
 			}
 
 			len = vhdr->vendor_length - sizeof(*vhdr);
-			data = os_malloc(len);
+			data = os_memdup(pos + sizeof(*vhdr), len);
 			if (data == NULL)
 				return NULL;
-			os_memcpy(data, pos + sizeof(*vhdr), len);
 			if (alen)
 				*alen = len;
 			return data;
@@ -1028,7 +1027,10 @@ static u8 * decrypt_ms_key(const u8 *key, size_t len,
 			addr[1] = pos - MD5_MAC_LEN;
 			elen[1] = MD5_MAC_LEN;
 		}
-		md5_vector(first ? 3 : 2, addr, elen, hash);
+		if (md5_vector(first ? 3 : 2, addr, elen, hash) < 0) {
+			os_free(plain);
+			return NULL;
+		}
 		first = 0;
 
 		for (i = 0; i < MD5_MAC_LEN; i++)
@@ -1042,12 +1044,11 @@ static u8 * decrypt_ms_key(const u8 *key, size_t len,
 		return NULL;
 	}
 
-	res = os_malloc(plain[0]);
+	res = os_memdup(plain + 1, plain[0]);
 	if (res == NULL) {
 		os_free(plain);
 		return NULL;
 	}
-	os_memcpy(res, plain + 1, plain[0]);
 	if (reslen)
 		*reslen = plain[0];
 	os_free(plain);
@@ -1210,7 +1211,11 @@ int radius_msg_add_mppe_keys(struct radius_msg *msg,
 	vhdr = (struct radius_attr_vendor *) pos;
 	vhdr->vendor_type = RADIUS_VENDOR_ATTR_MS_MPPE_SEND_KEY;
 	pos = (u8 *) (vhdr + 1);
-	salt = os_random() | 0x8000;
+	if (os_get_random((u8 *) &salt, sizeof(salt)) < 0) {
+		os_free(buf);
+		return 0;
+	}
+	salt |= 0x8000;
 	WPA_PUT_BE16(pos, salt);
 	pos += 2;
 	encrypt_ms_key(send_key, send_key_len, salt, req_authenticator, secret,
@@ -1422,12 +1427,30 @@ struct radius_tunnel_attrs {
 };
 
 
+static int cmp_int(const void *a, const void *b)
+{
+	int x, y;
+
+	x = *((int *) a);
+	y = *((int *) b);
+	return (x - y);
+}
+
+
 /**
  * radius_msg_get_vlanid - Parse RADIUS attributes for VLAN tunnel information
+ * The k tagged vlans found are sorted by vlan_id and stored in the first k
+ * items of tagged.
+ *
  * @msg: RADIUS message
- * Returns: VLAN ID for the first tunnel configuration or 0 if none is found
+ * @untagged: Pointer to store untagged vid
+ * @numtagged: Size of tagged
+ * @tagged: Pointer to store tagged list
+ *
+ * Returns: 0 if neither tagged nor untagged configuration is found, 1 otherwise
  */
-int radius_msg_get_vlanid(struct radius_msg *msg)
+int radius_msg_get_vlanid(struct radius_msg *msg, int *untagged, int numtagged,
+			  int *tagged)
 {
 	struct radius_tunnel_attrs tunnel[RADIUS_TUNNEL_TAGS], *tun;
 	size_t i;
@@ -1435,8 +1458,12 @@ int radius_msg_get_vlanid(struct radius_msg *msg)
 	const u8 *data;
 	char buf[10];
 	size_t dlen;
+	int j, taggedidx = 0, vlan_id;
 
 	os_memset(&tunnel, 0, sizeof(tunnel));
+	for (j = 0; j < numtagged; j++)
+		tagged[j] = 0;
+	*untagged = 0;
 
 	for (i = 0; i < msg->attr_used; i++) {
 		attr = radius_get_attr_hdr(msg, i);
@@ -1473,21 +1500,44 @@ int radius_msg_get_vlanid(struct radius_msg *msg)
 				break;
 			os_memcpy(buf, data, dlen);
 			buf[dlen] = '\0';
+			vlan_id = atoi(buf);
+			if (vlan_id <= 0)
+				break;
 			tun->tag_used++;
-			tun->vlanid = atoi(buf);
+			tun->vlanid = vlan_id;
+			break;
+		case RADIUS_ATTR_EGRESS_VLANID: /* RFC 4675 */
+			if (attr->length != 6)
+				break;
+			vlan_id = WPA_GET_BE24(data + 1);
+			if (vlan_id <= 0)
+				break;
+			if (data[0] == 0x32)
+				*untagged = vlan_id;
+			else if (data[0] == 0x31 && tagged &&
+				 taggedidx < numtagged)
+				tagged[taggedidx++] = vlan_id;
 			break;
 		}
 	}
 
+	/* Use tunnel with the lowest tag for untagged VLAN id */
 	for (i = 0; i < RADIUS_TUNNEL_TAGS; i++) {
 		tun = &tunnel[i];
 		if (tun->tag_used &&
 		    tun->type == RADIUS_TUNNEL_TYPE_VLAN &&
 		    tun->medium_type == RADIUS_TUNNEL_MEDIUM_TYPE_802 &&
-		    tun->vlanid > 0)
-			return tun->vlanid;
+		    tun->vlanid > 0) {
+			*untagged = tun->vlanid;
+			break;
+		}
 	}
 
+	if (taggedidx)
+		qsort(tagged, taggedidx, sizeof(int), cmp_int);
+
+	if (*untagged > 0 || taggedidx)
+		return 1;
 	return 0;
 }
 
@@ -1547,10 +1597,9 @@ char * radius_msg_get_tunnel_password(struct radius_msg *msg, int *keylen,
 		goto out;
 
 	/* alloc writable memory for decryption */
-	buf = os_malloc(fdlen);
+	buf = os_memdup(fdata, fdlen);
 	if (buf == NULL)
 		goto out;
-	os_memcpy(buf, fdata, fdlen);
 	buflen = fdlen;
 
 	/* init pointers */
@@ -1637,12 +1686,11 @@ int radius_copy_class(struct radius_class_data *dst,
 	dst->count = 0;
 
 	for (i = 0; i < src->count; i++) {
-		dst->attr[i].data = os_malloc(src->attr[i].len);
+		dst->attr[i].data = os_memdup(src->attr[i].data,
+					      src->attr[i].len);
 		if (dst->attr[i].data == NULL)
 			break;
 		dst->count++;
-		os_memcpy(dst->attr[i].data, src->attr[i].data,
-			  src->attr[i].len);
 		dst->attr[i].len = src->attr[i].len;
 	}
 
@@ -1668,4 +1716,15 @@ u8 radius_msg_find_unlisted_attr(struct radius_msg *msg, u8 *attrs)
 	}
 
 	return 0;
+}
+
+
+int radius_gen_session_id(u8 *id, size_t len)
+{
+	/*
+	 * Acct-Session-Id and Acct-Multi-Session-Id should be globally and
+	 * temporarily unique. A high quality random number is required
+	 * therefore. This could be be improved by switching to a GUID.
+	 */
+	return os_get_random(id, len);
 }

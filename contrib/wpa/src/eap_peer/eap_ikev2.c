@@ -83,18 +83,16 @@ static void * eap_ikev2_init(struct eap_sm *sm)
 	if (data->ikev2.key_pad == NULL)
 		goto failed;
 	data->ikev2.key_pad_len = 21;
-	data->ikev2.IDr = os_malloc(identity_len);
+	data->ikev2.IDr = os_memdup(identity, identity_len);
 	if (data->ikev2.IDr == NULL)
 		goto failed;
-	os_memcpy(data->ikev2.IDr, identity, identity_len);
 	data->ikev2.IDr_len = identity_len;
 
 	password = eap_get_config_password(sm, &password_len);
 	if (password) {
-		data->ikev2.shared_secret = os_malloc(password_len);
+		data->ikev2.shared_secret = os_memdup(password, password_len);
 		if (data->ikev2.shared_secret == NULL)
 			goto failed;
-		os_memcpy(data->ikev2.shared_secret, password, password_len);
 		data->ikev2.shared_secret_len = password_len;
 	}
 
@@ -513,7 +511,6 @@ static u8 * eap_ikev2_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_ikev2_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_IKEV2,
@@ -529,8 +526,5 @@ int eap_peer_ikev2_register(void)
 	eap->get_emsk = eap_ikev2_get_emsk;
 	eap->getSessionId = eap_ikev2_get_session_id;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }
