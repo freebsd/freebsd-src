@@ -197,7 +197,7 @@ cmdscanner(void)
 		makeargv();
 		if (margc == 0)
 			continue;
-		if (el != NULL && el_parse(el, margc, margv) != -1)
+		if (el != NULL && el_parse(el, margc, (const char **)margv) != -1)
 			continue;
 
 		c = getcmd(margv[0]);
