@@ -620,60 +620,68 @@ fuse_internal_forget_send(struct mount *mp,
 	fdisp_destroy(&fdi);
 }
 
-/* Read a vnode's attributes from cache or fetch them from the fuse daemon */
+/* Fetch the vnode's attributes from the daemon*/
 int
-fuse_internal_getattr(struct vnode *vp, struct vattr *vap, struct ucred *cred,
-	struct thread *td)
+fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
+	struct ucred *cred, struct thread *td)
 {
 	struct fuse_dispatcher fdi;
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-	struct vattr *attrs;
 	struct fuse_attr_out *fao;
-	int err = 0;
-
-	if ((attrs = VTOVA(vp)) != NULL) {
-		/* struct copy */
-		*vap = *attrs;
-		if ((fvdat->flag & FN_SIZECHANGE) != 0)
-			vap->va_size = fvdat->filesize;
-		return 0;
-	}
+	off_t old_filesize = fvdat->cached_attrs.va_size;
+	enum vtype vtyp;
+	int err;
 
 	fdisp_init(&fdi, 0);
 	if ((err = fdisp_simple_putget_vp(&fdi, FUSE_GETATTR, vp, td, cred))) {
-		if (err == ENOENT) {
+		if (err == ENOENT)
 			fuse_internal_vnode_disappear(vp);
-		}
 		goto out;
 	}
 
 	fao = (struct fuse_attr_out *)fdi.answ;
+	vtyp = IFTOVT(fao->attr.mode);
 	fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
 		fao->attr_valid_nsec, vap);
-	if (vap->va_type != vnode_vtype(vp)) {
+	if (vtyp != vnode_vtype(vp)) {
 		fuse_internal_vnode_disappear(vp);
 		err = ENOENT;
-		goto out;
 	}
+
 	if ((fvdat->flag & FN_SIZECHANGE) != 0)
-		vap->va_size = fvdat->filesize;
+		fvdat->cached_attrs.va_size = old_filesize;
 
 	if (vnode_isreg(vp) && (fvdat->flag & FN_SIZECHANGE) == 0) {
 		/*
 	         * This is for those cases when the file size changed without us
 	         * knowing, and we want to catch up.
 	         */
-		off_t new_filesize = fao->attr.size;
-
-		if (fvdat->filesize != new_filesize) {
-			fuse_vnode_setsize(vp, cred, new_filesize);
-			fvdat->flag &= ~FN_SIZECHANGE;
-		}
+		if (old_filesize != fao->attr.size)
+			fuse_vnode_setsize(vp, cred, fao->attr.size);
 	}
 
 out:
 	fdisp_destroy(&fdi);
 	return err;
+}
+
+/* Read a vnode's attributes from cache or fetch them from the fuse daemon */
+int
+fuse_internal_getattr(struct vnode *vp, struct vattr *vap, struct ucred *cred,
+	struct thread *td)
+{
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct vattr *attrs;
+	off_t old_filesize = vap->va_size;
+
+	if ((attrs = VTOVA(vp)) != NULL) {
+		*vap = *attrs;	/* struct copy */
+		if ((fvdat->flag & FN_SIZECHANGE) != 0)
+			vap->va_size = old_filesize;
+		return 0;
+	}
+
+	return fuse_internal_do_getattr(vp, vap, cred, td);
 }
 
 void

@@ -118,7 +118,8 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
     struct ucred *cred, struct fuse_filehandle *fufh, pid_t pid);
 static int 
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag);
+    struct ucred *cred, struct fuse_filehandle *fufh, off_t filesize,
+    int ioflag);
 static int 
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag, pid_t pid);
@@ -214,10 +215,15 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 		 */
 		if (directio || fuse_data_cache_mode == FUSE_CACHE_WT) {
 			const int iosize = fuse_iosize(vp);
-			off_t start, end;
+			off_t start, end, filesize;
 
 			SDT_PROBE2(fusefs, , io, trace, 1,
 				"direct write of vnode");
+
+			err = fuse_vnode_size(vp, &filesize, cred, curthread);
+			if (err)
+				return err;
+
 			start = uio->uio_offset;
 			end = start + uio->uio_resid;
 			/* 
@@ -228,7 +234,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 			if (!pages )
 				v_inval_buf_range(vp, start, end, iosize);
 			err = fuse_write_directbackend(vp, uio, cred, fufh,
-				ioflag);
+				filesize, ioflag);
 		} else {
 			SDT_PROBE2(fusefs, , io, trace, 1,
 				"buffered write of vnode");
@@ -262,7 +268,9 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 
-	filesize = VTOFUD(vp)->filesize;
+	err = fuse_vnode_size(vp, &filesize, cred, curthread);
+	if (err)
+		return err;
 
 	for (err = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if (fuse_isdeadfs(vp)) {
@@ -373,7 +381,8 @@ out:
 
 static int
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag)
+    struct ucred *cred, struct fuse_filehandle *fufh, off_t filesize,
+    int ioflag)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_write_in *fwi;
@@ -388,8 +397,9 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 
 	if (uio->uio_resid == 0)
 		return (0);
+
 	if (ioflag & IO_APPEND)
-		uio_setoffset(uio, fvdat->filesize);
+		uio_setoffset(uio, filesize);
 
 	fdisp_init(&fdi, 0);
 
@@ -436,7 +446,7 @@ retry:
 		diff = fwi->size - fwo->size;
 		as_written_offset = uio->uio_offset - diff;
 
-		if (as_written_offset - diff > fvdat->filesize &&
+		if (as_written_offset - diff > filesize &&
 		    fuse_data_cache_mode != FUSE_CACHE_UC) {
 			fuse_vnode_setsize(vp, cred, as_written_offset);
 			fvdat->flag &= ~FN_SIZECHANGE;
@@ -495,6 +505,7 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct buf *bp;
 	daddr_t lbn;
+	off_t filesize;
 	int bcount;
 	int n, on, err = 0;
 
@@ -507,8 +518,13 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 		return (EINVAL);
 	if (uio->uio_resid == 0)
 		return (0);
+
+	err = fuse_vnode_size(vp, &filesize, cred, curthread);
+	if (err)
+		return err;
+
 	if (ioflag & IO_APPEND)
-		uio_setoffset(uio, fvdat->filesize);
+		uio_setoffset(uio, filesize);
 
 	/*
          * Find all of this file's B_NEEDCOMMIT buffers.  If our writes
@@ -532,7 +548,7 @@ again:
 	         * Handle direct append and file extension cases, calculate
 	         * unaligned buffer size.
 	         */
-		if (uio->uio_offset == fvdat->filesize && n) {
+		if (uio->uio_offset == filesize && n) {
 			/*
 	                 * Get the buffer (in its pre-append state to maintain
 	                 * B_CACHE if it was previously set).  Resize the
@@ -564,17 +580,16 @@ again:
 	                 * adjust the file's size as appropriate.
 	                 */
 			bcount = on + n;
-			if ((off_t)lbn * biosize + bcount < fvdat->filesize) {
-				if ((off_t)(lbn + 1) * biosize < fvdat->filesize)
+			if ((off_t)lbn * biosize + bcount < filesize) {
+				if ((off_t)(lbn + 1) * biosize < filesize)
 					bcount = biosize;
 				else
-					bcount = fvdat->filesize - 
-					  (off_t)lbn *biosize;
+					bcount = filesize - (off_t)lbn *biosize;
 			}
 			SDT_PROBE6(fusefs, , io, write_biobackend_start,
 				lbn, on, n, uio, bcount, false);
 			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
-			if (bp && uio->uio_offset + n > fvdat->filesize) {
+			if (bp && uio->uio_offset + n > filesize) {
 				err = fuse_vnode_setsize(vp, cred, 
 							 uio->uio_offset + n);
 				if (err) {
@@ -719,11 +734,11 @@ int
 fuse_io_strategy(struct vnode *vp, struct buf *bp)
 {
 	struct fuse_filehandle *fufh;
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct ucred *cred;
 	struct uio *uiop;
 	struct uio uio;
 	struct iovec io;
+	off_t filesize;
 	int error = 0;
 	int fflag;
 	/* We don't know the true pid when we're dealing with the cache */
@@ -807,9 +822,16 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		/*
 	         * Setup for actual write
 	         */
-		if ((off_t)bp->b_blkno * biosize + bp->b_dirtyend > 
-		    fvdat->filesize)
-			bp->b_dirtyend = fvdat->filesize - 
+		error = fuse_vnode_size(vp, &filesize, cred, curthread);
+		if (error) {
+			bp->b_ioflags |= BIO_ERROR;
+			bp->b_error = error;
+			bufdone(bp);
+			return (error);
+		}
+
+		if ((off_t)bp->b_blkno * biosize + bp->b_dirtyend > filesize)
+			bp->b_dirtyend = filesize - 
 				(off_t)bp->b_blkno * biosize;
 
 		if (bp->b_dirtyend > bp->b_dirtyoff) {
@@ -820,7 +842,8 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 			io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 			uiop->uio_rw = UIO_WRITE;
 
-			error = fuse_write_directbackend(vp, uiop, cred, fufh, 0);
+			error = fuse_write_directbackend(vp, uiop, cred, fufh,
+				filesize, 0);
 
 			if (error == EINTR || error == ETIMEDOUT
 			    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {

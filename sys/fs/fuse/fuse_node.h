@@ -68,10 +68,13 @@
 #define FN_REVOKED           0x00000020
 #define FN_FLUSHINPROG       0x00000040
 #define FN_FLUSHWANT         0x00000080
+/* 
+ * Indicates that the file's size is dirty; the kernel has changed it but not
+ * yet send the change to the daemon.  When this bit is set, the
+ * cache_attrs.va_size field does not time out
+ */
 #define FN_SIZECHANGE        0x00000100
 #define FN_DIRECTIO          0x00000200
-
-#define FUSE_FILESIZE_UNINITIALIZED	-1
 
 struct fuse_vnode_data {
 	/** self **/
@@ -91,12 +94,6 @@ struct fuse_vnode_data {
 	/* The monotonic time after which the attr cache is invalid */
 	struct bintime	attr_cache_timeout;
 	struct vattr	cached_attrs;
-	/*
-	 * File size according to the kernel, not the daemon.
-	 * May differ from cached_attrs.st_size due to write caching.  Unlike
-	 * cached_attrs.st_size, filesize never expires.
-	 */
-	off_t		filesize;
 	uint64_t	nlookup;
 	enum vtype	vtype;
 };
@@ -138,6 +135,9 @@ fuse_vnode_setparent(struct vnode *vp, struct vnode *dvp)
 	}
 }
 
+int fuse_vnode_size(struct vnode *vp, off_t *filesize, struct ucred *cred,
+	struct thread *td);
+
 void fuse_vnode_destroy(struct vnode *vp);
 
 int fuse_vnode_get(struct mount *mp, struct fuse_entry_out *feo,
@@ -146,8 +146,6 @@ int fuse_vnode_get(struct mount *mp, struct fuse_entry_out *feo,
 
 void fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags,
     struct thread *td);
-
-int fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred);
 
 int fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid);
 

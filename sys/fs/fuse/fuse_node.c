@@ -143,7 +143,6 @@ fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
 	fvdat->nid = nodeid;
 	LIST_INIT(&fvdat->handles);
 	vattr_null(&fvdat->cached_attrs);
-	fvdat->filesize = FUSE_FILESIZE_UNINITIALIZED;
 	if (nodeid == FUSE_ROOT_ID) {
 		vp->v_vflag |= VV_ROOT;
 	}
@@ -363,7 +362,8 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid)
 	fsai->valid = 0;
 
 	/* Truncate to a new value. */
-	fsai->size = fvdat->filesize;
+	MPASS((fvdat->flag & FN_SIZECHANGE) != 0);
+	fsai->size = fvdat->cached_attrs.va_size;
 	fsai->valid |= FATTR_SIZE;
 
 	fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
@@ -379,24 +379,10 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid)
 	return err;
 }
 
-int
-fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
-{
-
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-	struct vattr va;
-	int err;
-
-	if ((fvdat->flag & FN_SIZECHANGE) != 0 ||
-	    fuse_data_cache_mode == FUSE_CACHE_UC ||
-	    fvdat->filesize != FUSE_FILESIZE_UNINITIALIZED)
-		return 0;
-
-	err = fuse_internal_getattr(vp, &va, cred, curthread);
-	SDT_PROBE2(fusefs, , node, trace, 1, "refreshed file size");
-	return err;
-}
-
+/*
+ * Adjust the vnode's size to a new value, such as that provided by
+ * FUSE_GETATTR.
+ */
 int
 fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 {
@@ -410,8 +396,8 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 	ASSERT_VOP_ELOCKED(vp, "fuse_vnode_setsize");
 
 	iosize = fuse_iosize(vp);
-	oldsize = fvdat->filesize;
-	fvdat->filesize = newsize;
+	oldsize = fvdat->cached_attrs.va_size;
+	fvdat->cached_attrs.va_size = newsize;
 	if ((attrs = VTOVA(vp)) != NULL)
 		attrs->va_size = newsize;
 	fvdat->flag |= FN_SIZECHANGE;
@@ -445,4 +431,22 @@ out:
 		brelse(bp);
 	vnode_pager_setsize(vp, newsize);
 	return err;
+}
+	
+/* Get the current, possibly dirty, size of the file */
+int
+fuse_vnode_size(struct vnode *vp, off_t *filesize, struct ucred *cred,
+	struct thread *td)
+{
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	int error = 0;
+
+	if (!(fvdat->flag & FN_SIZECHANGE) &&
+		(VTOVA(vp) == NULL || fvdat->cached_attrs.va_size == VNOVAL)) 
+		error = fuse_internal_do_getattr(vp, NULL, cred, td);
+
+	if (!error)
+		*filesize = fvdat->cached_attrs.va_size;
+
+	return error;
 }
