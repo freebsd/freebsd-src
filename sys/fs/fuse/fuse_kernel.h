@@ -195,8 +195,8 @@ struct fuse_attr_out {
 };
 
 struct fuse_mknod_in {
-       __u32   mode;
-       __u32   rdev;
+	__u32	mode;
+	__u32	rdev;
 };
 
 struct fuse_mkdir_in {
@@ -287,14 +287,19 @@ struct fuse_fsync_in {
 	__u32	padding;
 };
 
-struct fuse_listxattr_in {
+struct fuse_setxattr_in {
 	__u32	size;
 	__u32	flags;
 };
 
+struct fuse_listxattr_in {
+	__u32	size;
+	__u32	padding;
+};
+
 struct fuse_listxattr_out {
 	__u32	size;
-	__u32	flags;
+	__u32	padding;
 };
 
 struct fuse_getxattr_in {
@@ -305,11 +310,6 @@ struct fuse_getxattr_in {
 struct fuse_getxattr_out {
 	__u32	size;
 	__u32	padding;
-};
-
-struct fuse_setxattr_in {
-	__u32	size;
-	__u32	flags;
 };
 
 struct fuse_lk_in {
