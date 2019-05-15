@@ -406,12 +406,6 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (fd >= 0 && close(fd) < 0) {
-		if (pid)
-			kill(pid, SIGKILL);
-		err(1, "failed to close fuse device");
-	}
-
 	/* Prepare the options vector for nmount(). build_iovec() is declared
 	 * in mntopts.h. */
 	sprintf(fdstr, "%d", fd);
