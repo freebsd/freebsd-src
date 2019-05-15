@@ -121,6 +121,7 @@ TEST_F(Kqueue, data)
 	uint64_t foo_ino = 42;
 	uint64_t bar_ino = 43;
 	uint64_t baz_ino = 44;
+	Sequence seq;
 
 	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
 	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
@@ -169,10 +170,11 @@ TEST_F(Kqueue, data)
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == bar_ino);
+				(in->header.nodeid == bar_ino ||
+				 in->header.nodeid == baz_ino));
 		}, Eq(true)),
 		_)
-	)
+	).InSequence(seq)
 	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
 		nready1 = m_mock->m_nready;
 		out->header.unique = in->header.unique;
@@ -182,10 +184,11 @@ TEST_F(Kqueue, data)
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == baz_ino);
+				(in->header.nodeid == bar_ino ||
+				 in->header.nodeid == baz_ino));
 		}, Eq(true)),
 		_)
-	)
+	).InSequence(seq)
 	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
 		nready2 = m_mock->m_nready;
 		out->header.unique = in->header.unique;
