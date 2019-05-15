@@ -1052,7 +1052,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			 */
 			fvdat = VTOFUD(vp);
 			if (vnode_isreg(vp) &&
-			    filesize != fvdat->filesize) {
+			    filesize != fvdat->cached_attrs.va_size) {
 				/*
 				 * The FN_SIZECHANGE flag reflects a dirty
 				 * append.  If userspace lets us know our cache
@@ -1704,17 +1704,6 @@ fuse_vnop_strategy(struct vop_strategy_args *ap)
 		bufdone(bp);
 		return 0;
 	}
-	if (bp->b_iocmd == BIO_WRITE) {
-		int err;
-
-		err = fuse_vnode_refreshsize(vp, NOCRED);
-		if (err) {
-			bp->b_ioflags |= BIO_ERROR;
-			bp->b_error = err;
-			bufdone(bp);
-			return 0;
-		}
-	}
 
 	/*
 	 * VOP_STRATEGY always returns zero and signals error via bp->b_ioflags.
@@ -1788,14 +1777,10 @@ fuse_vnop_write(struct vop_write_args *ap)
 	int ioflag = ap->a_ioflag;
 	struct ucred *cred = ap->a_cred;
 	pid_t pid = curthread->td_proc->p_pid;
-	int err;
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
 	}
-	err = fuse_vnode_refreshsize(vp, cred);
-	if (err)
-		return err;
 
 	if (VTOFUD(vp)->flag & FN_DIRECTIO) {
 		ioflag |= IO_DIRECT;
