@@ -136,7 +136,7 @@ SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD|CTLFLAG_CAPRD,
     SYSCTL_NULL_INT_PTR, 0, "Whether saved set-group/user ID is available");
 #endif
 
-char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
+char kernelname[MAXPATHLEN] = "/boot/kernel/kernel";	/* XXX bloat */
 
 SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW | CTLFLAG_MPSAFE,
     kernelname, sizeof kernelname, "Name of kernel file booted");
