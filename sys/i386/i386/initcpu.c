@@ -745,7 +745,6 @@ initializecpu(void)
 		cpu_fxsr = hw_instruction_sse = 1;
 	}
 #if defined(PAE) || defined(PAE_TABLES)
-	hw_mds_recalculate();
 	if ((amd_feature & AMDID_NX) != 0) {
 		uint64_t msr;
 
@@ -755,6 +754,7 @@ initializecpu(void)
 		elf32_nxstack = 1;
 	}
 #endif
+	hw_mds_recalculate();
 }
 
 void
