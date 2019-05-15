@@ -1,10 +1,10 @@
 #
 #	In the following text, the symbol '#' introduces
-#	a comment, which continues from that symbol until 
+#	a comment, which continues from that symbol until
 #	the end of the line. A plain comment line has a
 #	whitespace character following the comment indicator.
-#	There are also special comment lines defined below. 
-#	A special comment will always have a non-whitespace 
+#	There are also special comment lines defined below.
+#	A special comment will always have a non-whitespace
 #	character in column 2.
 #
 #	A blank line should be ignored.
@@ -15,17 +15,22 @@
 #	are transmitted by almost all time services.
 #
 #	The first column shows an epoch as a number of seconds
-#	since 1900.0 and the second column shows the number of
-#	seconds that must be added to UTC to compute TAI for
-#	any timestamp at or after that epoch. The value on 
-#	each line is valid from the indicated initial instant
-#	until the epoch given on the next one or indefinitely 
-#	into the future if there is no next line.
+#	since 1 January 1900, 00:00:00 (1900.0 is also used to
+#	indicate the same epoch.) Both of these time stamp formats
+#	ignore the complexities of the time scales that were
+#	used before the current definition of UTC at the start
+#	of 1972. (See note 3 below.)
+#	The second column shows the number of seconds that
+#	must be added to UTC to compute TAI for any timestamp
+#	at or after that epoch. The value on each line is
+#	valid from the indicated initial instant until the
+#	epoch given on the next one or indefinitely into the
+#	future if there is no next line.
 #	(The comment on each line shows the representation of
-#	the corresponding initial epoch in the usual 
+#	the corresponding initial epoch in the usual
 #	day-month-year format. The epoch always begins at
 #	00:00:00 UTC on the indicated day. See Note 5 below.)
-#	
+#
 #	Important notes:
 #
 #	1. Coordinated Universal Time (UTC) is often referred to
@@ -33,7 +38,7 @@
 #	longer used, and the use of GMT to designate UTC is
 #	discouraged.
 #
-#	2. The UTC time scale is realized by many national 
+#	2. The UTC time scale is realized by many national
 #	laboratories and timing centers. Each laboratory
 #	identifies its realization with its name: Thus
 #	UTC(NIST), UTC(USNO), etc. The differences among
@@ -42,12 +47,12 @@
 #	and can be ignored for many purposes. These differences
 #	are tabulated in Circular T, which is published monthly
 #	by the International Bureau of Weights and Measures
-#	(BIPM). See www.bipm.fr for more information.
+#	(BIPM). See www.bipm.org for more information.
 #
-#	3. The current defintion of the relationship between UTC 
-#	and TAI dates from 1 January 1972. A number of different 
-#	time scales were in use before than epoch, and it can be 
-#	quite difficult to compute precise timestamps and time 
+#	3. The current definition of the relationship between UTC
+#	and TAI dates from 1 January 1972. A number of different
+#	time scales were in use before that epoch, and it can be
+#	quite difficult to compute precise timestamps and time
 #	intervals in those "prehistoric" days. For more information,
 #	consult:
 #
@@ -56,38 +61,41 @@
 #	or
 #		Terry Quinn, "The BIPM and the Accurate Measurement
 #		of Time," Proc. of the IEEE, Vol. 79, pp. 894-905,
-#		July, 1991.
+#		July, 1991. <http://dx.doi.org/10.1109/5.84965>
+#		reprinted in: 
+#		   Christine Hackman and Donald B Sullivan (eds.)
+#		   Time and Frequency Measurement
+#		   American Association of Physics Teachers (1996)
+#		   <http://tf.nist.gov/general/pdf/1168.pdf>, pp. 75-86
 #
-#	4.  The insertion of leap seconds into UTC is currently the
-#	responsibility of the International Earth Rotation Service,
-#	which is located at the Paris Observatory: 
+#	4. The decision to insert a leap second into UTC is currently
+#	the responsibility of the International Earth Rotation and
+#	Reference Systems Service. (The name was changed from the
+#	International Earth Rotation Service, but the acronym IERS
+#	is still used.)
 #
-#	Central Bureau of IERS
-#	61, Avenue de l'Observatoire
-#	75014 Paris, France.
+#	Leap seconds are announced by the IERS in its Bulletin C.
 #
-#	Leap seconds are announced by the IERS in its Bulletin C
+#	See www.iers.org for more details.
 #
-#	See hpiers.obspm.fr or www.iers.org for more details.
-#
-#	All national laboratories and timing centers use the
-#	data from the BIPM and the IERS to construct their
-#	local realizations of UTC.
+#	Every national laboratory and timing center uses the
+#	data from the BIPM and the IERS to construct UTC(lab),
+#	their local realization of UTC.
 #
 #	Although the definition also includes the possibility
-#	of dropping seconds ("negative" leap seconds), this has 
-#	never been done and is unlikely to be necessary in the 
+#	of dropping seconds ("negative" leap seconds), this has
+#	never been done and is unlikely to be necessary in the
 #	foreseeable future.
 #
 #	5. If your system keeps time as the number of seconds since
 #	some epoch (e.g., NTP timestamps), then the algorithm for
 #	assigning a UTC time stamp to an event that happens during a positive
-#	leap second is not well defined. The official name of that leap 
-#	second is 23:59:60, but there is no way of representing that time 
-#	in these systems. 
-#	Many systems of this type effectively stop the system clock for 
-#	one second during the leap second and use a time that is equivalent 
-#	to 23:59:59 UTC twice. For these systems, the corresponding TAI 
+#	leap second is not well defined. The official name of that leap
+#	second is 23:59:60, but there is no way of representing that time
+#	in these systems.
+#	Many systems of this type effectively stop the system clock for
+#	one second during the leap second and use a time that is equivalent
+#	to 23:59:59 UTC twice. For these systems, the corresponding TAI
 #	timestamp would be obtained by advancing to the next entry in the
 #	following table when the time equivalent to 23:59:59 UTC
 #	is used for the second time. Thus the leap second which
@@ -102,7 +110,7 @@
 #
 #	If your system realizes the leap second by repeating 00:00:00 UTC twice
 #	(this is possible but not usual), then the advance to the next entry
-#	in the table must occur the second time that a time equivlent to 
+#	in the table must occur the second time that a time equivalent to
 #	00:00:00 UTC is used. Thus, using the same example as above:
 #
 #	...
@@ -112,66 +120,94 @@
 #	...
 #
 #	in both cases the use of timestamps based on TAI produces a smooth
-#	time scale with no discontinuity in the time interval.
+#	time scale with no discontinuity in the time interval. However,
+#	although the long-term behavior of the time scale is correct in both
+#	methods, the second method is technically not correct because it adds
+#	the extra second to the wrong day.
 #
-#	This complexity would not be needed for negative leap seconds (if they 
-#	are ever used). The UTC time would skip 23:59:59 and advance from 
-#	23:59:58 to 00:00:00 in that case.  The TAI offset would decrease by 
-#	1 second at the same instant.  This is a much easier situation to deal 
-#	with, since the difficulty of unambiguously representing the epoch 
+#	This complexity would not be needed for negative leap seconds (if they
+#	are ever used). The UTC time would skip 23:59:59 and advance from
+#	23:59:58 to 00:00:00 in that case. The TAI offset would decrease by
+#	1 second at the same instant. This is a much easier situation to deal
+#	with, since the difficulty of unambiguously representing the epoch
 #	during the leap second does not arise.
 #
+#	Some systems implement leap seconds by amortizing the leap second
+#	over the last few minutes of the day. The frequency of the local
+#	clock is decreased (or increased) to realize the positive (or
+#	negative) leap second. This method removes the time step described
+#	above. Although the long-term behavior of the time scale is correct
+#	in this case, this method introduces an error during the adjustment
+#	period both in time and in frequency with respect to the official
+#	definition of UTC.
+#
 #	Questions or comments to:
-#		Jeff Prillaman
-#		Time Service Department
-#		US Naval Observatory
-#		Washington, DC
-#		jeff.k.prillaman@navy.mil
+#		Judah Levine
+#		Time and Frequency Division
+#		NIST
+#		Boulder, Colorado
+#		Judah.Levine@nist.gov
 #
-#	Last Update of leap second values:  28 Jan 2019
+#	Last Update of leap second values:   8 July 2016
 #
-#	The following line shows this last update date in NTP timestamp 
+#	The following line shows this last update date in NTP timestamp
 #	format. This is the date on which the most recent change to
 #	the leap second data was added to the file. This line can
-#	be identified by the unique pair of characters in the first two 
+#	be identified by the unique pair of characters in the first two
 #	columns as shown below.
 #
-#$	3757622400
+#$	 3676924800
 #
-#	The data in this file will be updated periodically as new leap 
+#	The NTP timestamps are in units of seconds since the NTP epoch,
+#	which is 1 January 1900, 00:00:00. The Modified Julian Day number
+#	corresponding to the NTP time stamp, X, can be computed as
+#
+#	X/86400 + 15020
+#
+#	where the first term converts seconds to days and the second
+#	term adds the MJD corresponding to the time origin defined above.
+#	The integer portion of the result is the integer MJD for that
+#	day, and any remainder is the time of day, expressed as the
+#	fraction of the day since 0 hours UTC. The conversion from day
+#	fraction to seconds or to hours, minutes, and seconds may involve
+#	rounding or truncation, depending on the method used in the
+#	computation.
+#
+#	The data in this file will be updated periodically as new leap
 #	seconds are announced. In addition to being entered on the line
-#	above, the update time (in NTP format) will be added to the basic 
+#	above, the update time (in NTP format) will be added to the basic
 #	file name leap-seconds to form the name leap-seconds.<NTP TIME>.
-#	In addition, the generic name leap-seconds.list will always point to 
+#	In addition, the generic name leap-seconds.list will always point to
 #	the most recent version of the file.
 #
 #	This update procedure will be performed only when a new leap second
-#	is announced. 
+#	is announced.
 #
 #	The following entry specifies the expiration date of the data
-#	in this file in units of seconds since 1900.0.  This expiration date 
-#	will be changed at least twice per year whether or not a new leap 
-#	second is announced. These semi-annual changes will be made no
-#	later than 1 June and 1 December of each year to indicate what
-#	action (if any) is to be taken on 30 June and 31 December, 
+#	in this file in units of seconds since the origin at the instant
+#	1 January 1900, 00:00:00. This expiration date will be changed
+#	at least twice per year whether or not a new leap second is
+#	announced. These semi-annual changes will be made no later
+#	than 1 June and 1 December of each year to indicate what
+#	action (if any) is to be taken on 30 June and 31 December,
 #	respectively. (These are the customary effective dates for new
 #	leap seconds.) This expiration date will be identified by a
 #	unique pair of characters in columns 1 and 2 as shown below.
-#	In the unlikely event that a leap second is announced with an 
+#	In the unlikely event that a leap second is announced with an
 #	effective date other than 30 June or 31 December, then this
 #	file will be edited to include that leap second as soon as it is
 #	announced or at least one month before the effective date
-#	(whichever is later). 
-#	If an announcement by the IERS specifies that no leap second is 
-#	scheduled, then only the expiration date of the file will 
+#	(whichever is later).
+#	If an announcement by the IERS specifies that no leap second is
+#	scheduled, then only the expiration date of the file will
 #	be advanced to show that the information in the file is still
-#	current -- the update time stamp, the data and the name of the file 
+#	current -- the update time stamp, the data and the name of the file
 #	will not change.
 #
-#	Updated through IERS Bulletin C 57
-#	File expires on:   1 Dec 2019
+#	Updated through IERS Bulletin C57
+#	File expires on:  28 December 2019
 #
-#@	3784147200
+#@	3786480000
 #
 2272060800	10	# 1 Jan 1972
 2287785600	11	# 1 Jul 1972
@@ -205,16 +241,15 @@
 #	the following special comment contains the
 #	hash value of the data in this file computed
 #	use the secure hash algorithm as specified
-#	by FIPS 180-1. See the files in ~/sha for
+#	by FIPS 180-1. See the files in ~/pub/sha for
 #	the details of how this hash value is
 #	computed. Note that the hash computation
 #	ignores comments and whitespace characters
 #	in data lines. It includes the NTP values
-#	of both the last modification time and the 
+#	of both the last modification time and the
 #	expiration time of the file, but not the
 #	white space on those lines.
 #	the hash line is also ignored in the
 #	computation.
 #
-#h	630ac741 2fffdd6b 858a7d1d 31d4802f 6382e10c
-#
+#h 	83c68138 d3650221 07dbbbcd 11fcc859 ced1106a
