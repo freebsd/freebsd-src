@@ -43,6 +43,8 @@ OLD_FILES+=lib/casper/libcap_sysctl.1
 # 20190509: tests/sys/opencrypto requires the net/py-dpkt package.
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.py
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.pyc
+# 20190326: tzdata 2019a import
+OLD_FILES+=usr/share/zoneinfo/Etc/UCT
 # 20190304: new libc++ import which bumps version from 7.0.1 to 8.0.0.
 OLD_FILES+=usr/include/c++/v1/experimental/dynarray
 # 20190304: new clang import which bumps version from 7.0.1 to 8.0.0.
@@ -201,16 +203,21 @@ OLD_FILES+=usr/include/sys/seq.h
 OLD_FILES+=usr/lib/libprivateifconfig.a
 OLD_FILES+=usr/lib/libprivateifconfig_p.a
 # 20190131: pfil(9) changed
-OLD_FILES+=usr/share/man/man9/pfil_hook_get.9
-OLD_FILES+=usr/share/man/man9/pfil_rlock.9
-OLD_FILES+=usr/share/man/man9/pfil_runlock.9
-OLD_FILES+=usr/share/man/man9/pfil_wlock.9
-OLD_FILES+=usr/share/man/man9/pfil_wunlock.9
+OLD_FILES+=usr/share/man/man9/pfil_hook_get.9.gz
+OLD_FILES+=usr/share/man/man9/pfil_rlock.9.gz
+OLD_FILES+=usr/share/man/man9/pfil_runlock.9.gz
+OLD_FILES+=usr/share/man/man9/pfil_wlock.9.gz
+OLD_FILES+=usr/share/man/man9/pfil_wunlock.9.gz
 # 20190126: adv(4) / adw(4) removal
 OLD_FILES+=usr/share/man/man4/adv.4.gz
 OLD_FILES+=usr/share/man/man4/adw.4.gz
+# 20190123: nonexistant cred_update_thread(9) removed
+OLD_FILES+=usr/share/man/man9/cred_update_thread.9.gz
 # 20190114: old pbuf allocator removed
+OLD_FILES+=usr/share/man/man9/getpbuf.9.gz
 OLD_FILES+=usr/share/man/man9/pbuf.9.gz
+OLD_FILES+=usr/share/man/man9/relpbuf.9.gz
+OLD_FILES+=usr/share/man/man9/trypbuf.9.gz
 # 20181219: ibcs removal
 OLD_FILES+=usr/share/examples/ibcs2/hello.uu
 OLD_FILES+=usr/share/examples/ibcs2/README
