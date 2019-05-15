@@ -377,7 +377,10 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	vm_offset_t va;
 	pt_entry_t *pte, *unused;
 	struct pcpu *pc;
+	u_long res;
 	int i;
+
+	res = atop(firstaddr - (vm_paddr_t)KERNLOAD);
 
 	/*
 	 * Add a physical memory segment (vm_phys_seg) corresponding to the
@@ -396,11 +399,12 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	 * unused virtual address in addition to "firstaddr".
 	 */
 	virtual_avail = (vm_offset_t) KERNBASE + firstaddr;
-
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
+	 * Count bootstrap data as being resident in case any of this data is
+	 * later unmapped (using pmap_remove()) and freed.
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_pdir = (pd_entry_t *) (KERNBASE + (u_int)IdlePTD);
@@ -408,6 +412,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	kernel_pmap->pm_pdpt = (pdpt_entry_t *) (KERNBASE + (u_int)IdlePDPT);
 #endif
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
+	kernel_pmap->pm_stats.resident_count = res;
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 
  	/*
