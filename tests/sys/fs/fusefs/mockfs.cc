@@ -500,23 +500,31 @@ void MockFS::process_default(const mockfs_buf_in *in,
 
 void MockFS::read_request(mockfs_buf_in *in) {
 	ssize_t res;
-	int nready;
+	int nready = 0;
 	fd_set readfds;
 	pollfd fds[1];
 	struct kevent changes[1];
 	struct kevent events[1];
-	int nfds;
+	struct timespec timeout_ts;
+	struct timeval timeout_tv;
+	const int timeout_ms = 999;
+	int timeout_int, nfds;
 
 	switch (m_pm) {
 	case BLOCKING:
 		break;
 	case KQ:
-		EV_SET(&changes[0], m_fuse_fd, EVFILT_READ, EV_ADD, 0, 0, 0);
-		nready = kevent(m_kq, &changes[0], 1, &events[0], 1, NULL);
-		if (m_quit)
-			return;
+		timeout_ts.tv_sec = 0;
+		timeout_ts.tv_nsec = timeout_ms * 1'000'000;
+		while (nready == 0) {
+			EV_SET(&changes[0], m_fuse_fd, EVFILT_READ, EV_ADD, 0,
+				0, 0);
+			nready = kevent(m_kq, &changes[0], 1, &events[0], 1,
+				&timeout_ts);
+			if (m_quit)
+				return;
+		}
 		ASSERT_LE(0, nready) << strerror(errno);
-		ASSERT_EQ(1, nready) << "NULL timeout expired?";
 		ASSERT_EQ(events[0].ident, (uintptr_t)m_fuse_fd);
 		if (events[0].flags & EV_ERROR)
 			FAIL() << strerror(events[0].data);
@@ -525,24 +533,30 @@ void MockFS::read_request(mockfs_buf_in *in) {
 		m_nready = events[0].data;
 		break;
 	case POLL:
+		timeout_int = timeout_ms;
 		fds[0].fd = m_fuse_fd;
 		fds[0].events = POLLIN;
-		nready = poll(fds, 1, INFTIM);
-		if (m_quit)
-			return;
+		while (nready == 0) {
+			nready = poll(fds, 1, timeout_int);
+			if (m_quit)
+				return;
+		}
 		ASSERT_LE(0, nready) << strerror(errno);
-		ASSERT_EQ(1, nready) << "NULL timeout expired?";
 		ASSERT_TRUE(fds[0].revents & POLLIN);
 		break;
 	case SELECT:
-		FD_ZERO(&readfds);
-		FD_SET(m_fuse_fd, &readfds);
+		timeout_tv.tv_sec = 0;
+		timeout_tv.tv_usec = timeout_ms * 1'000;
 		nfds = m_fuse_fd + 1;
-		nready = select(nfds, &readfds, NULL, NULL, NULL);
-		if (m_quit)
-			return;
+		while (nready == 0) {
+			FD_ZERO(&readfds);
+			FD_SET(m_fuse_fd, &readfds);
+			nready = select(nfds, &readfds, NULL, NULL,
+				&timeout_tv);
+			if (m_quit)
+				return;
+		}
 		ASSERT_LE(0, nready) << strerror(errno);
-		ASSERT_EQ(1, nready) << "NULL timeout expired?";
 		ASSERT_TRUE(FD_ISSET(m_fuse_fd, &readfds));
 		break;
 	default:
