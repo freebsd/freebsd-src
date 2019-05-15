@@ -92,6 +92,44 @@
 	<entry><para>File description reference count
 	    leak</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:03.wpa.asc">FreeBSD-SA-19:03.wpa</link></entry>
+	<entry>14&nbsp;May&nbsp;2019</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:04.ntp.asc">FreeBSD-SA-19:04.ntp</link></entry>
+	<entry>14&nbsp;May&nbsp;2019</entry>
+	<entry><para>Authenticated denial of service in
+	    &man.ntpd.8;</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:05.pf.asc">FreeBSD-SA-19:05.pf</link></entry>
+	<entry>14&nbsp;May&nbsp;2019</entry>
+	<entry><para>IPv6 fragment reassembly panic in
+	    &man.pf.4;</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:06.pf.asc">FreeBSD-SA-19:06.pf</link></entry>
+	<entry>14&nbsp;May&nbsp;2019</entry>
+	<entry><para>ICMP/ICMP6 packet filter bypass in
+	    &man.pf.4;</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:07.mds.asc">FreeBSD-SA-19:07.mds</link></entry>
+	<entry>14&nbsp;May&nbsp;2019</entry>
+	<entry><para>Microarchitectural Data Sampling</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

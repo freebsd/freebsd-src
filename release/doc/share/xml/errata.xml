@@ -126,6 +126,22 @@
 	<entry><para>kqueue race condition and kernel
 	    panic</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-19:08.tzdata.asc">FreeBSD-EN-19:08.tzdata</link></entry>
+	<entry>14&nbsp;May&nbsp;2019</entry>
+	<entry><para>Timezone database information
+	    update</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-19:09.xinstall.asc">FreeBSD-EN-19:09.xinstall</link></entry>
+	<entry>14&nbsp;May&nbsp;2019</entry>
+	<entry><para>&man.install.1; broken with partially matching
+	    relative paths</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
