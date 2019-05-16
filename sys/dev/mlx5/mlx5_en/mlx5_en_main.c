@@ -281,7 +281,9 @@ mlx5e_set_port_pfc(struct mlx5e_priv *priv)
 {
 	int error;
 
-	if (priv->params.rx_pauseframe_control ||
+	if (priv->gone != 0) {
+		error = -ENXIO;
+	} else if (priv->params.rx_pauseframe_control ||
 	    priv->params.tx_pauseframe_control) {
 		if_printf(priv->ifp,
 		    "Global pauseframes must be disabled before enabling PFC.\n");
@@ -3443,79 +3445,98 @@ static int
 mlx5e_sysctl_tx_priority_flow_control(SYSCTL_HANDLER_ARGS)
 {
 	struct mlx5e_priv *priv = arg1;
+	uint8_t temp[MLX5E_MAX_PRIORITY];
 	uint32_t tx_pfc;
-	uint32_t value;
-	int error;
+	int err;
+	int i;
 
 	PRIV_LOCK(priv);
 
 	tx_pfc = priv->params.tx_priority_flow_control;
 
-	/* get current value */
-	value = (tx_pfc >> arg2) & 1;
+	for (i = 0; i != MLX5E_MAX_PRIORITY; i++)
+		temp[i] = (tx_pfc >> i) & 1;
 
-	error = sysctl_handle_32(oidp, &value, 0, req);
+	err = SYSCTL_OUT(req, temp, MLX5E_MAX_PRIORITY);
+	if (err || !req->newptr)
+		goto done;
+	err = SYSCTL_IN(req, temp, MLX5E_MAX_PRIORITY);
+	if (err)
+		goto done;
 
-	/* range check value */
-	if (value != 0)
-		priv->params.tx_priority_flow_control |= (1 << arg2);
-	else
-		priv->params.tx_priority_flow_control &= ~(1 << arg2);
+	priv->params.tx_priority_flow_control = 0;
+
+	/* range check input value */
+	for (i = 0; i != MLX5E_MAX_PRIORITY; i++) {
+		if (temp[i] > 1) {
+			err = ERANGE;
+			goto done;
+		}
+		priv->params.tx_priority_flow_control |= (temp[i] << i);
+	}
 
 	/* check if update is required */
-	if (error == 0 && priv->gone == 0 &&
-	    tx_pfc != priv->params.tx_priority_flow_control) {
-		error = -mlx5e_set_port_pfc(priv);
-		/* restore previous value */
-		if (error != 0)
-			priv->params.tx_priority_flow_control= tx_pfc;
-	}
+	if (tx_pfc != priv->params.tx_priority_flow_control)
+		err = -mlx5e_set_port_pfc(priv);
+done:
+	if (err != 0)
+		priv->params.tx_priority_flow_control= tx_pfc;
 	PRIV_UNLOCK(priv);
 
-	return (error);
+	return (err);
 }
 
 static int
 mlx5e_sysctl_rx_priority_flow_control(SYSCTL_HANDLER_ARGS)
 {
 	struct mlx5e_priv *priv = arg1;
+	uint8_t temp[MLX5E_MAX_PRIORITY];
 	uint32_t rx_pfc;
-	uint32_t value;
-	int error;
+	int err;
+	int i;
 
 	PRIV_LOCK(priv);
 
 	rx_pfc = priv->params.rx_priority_flow_control;
 
-	/* get current value */
-	value = (rx_pfc >> arg2) & 1;
+	for (i = 0; i != MLX5E_MAX_PRIORITY; i++)
+		temp[i] = (rx_pfc >> i) & 1;
 
-	error = sysctl_handle_32(oidp, &value, 0, req);
+	err = SYSCTL_OUT(req, temp, MLX5E_MAX_PRIORITY);
+	if (err || !req->newptr)
+		goto done;
+	err = SYSCTL_IN(req, temp, MLX5E_MAX_PRIORITY);
+	if (err)
+		goto done;
 
-	/* range check value */
-	if (value != 0)
-		priv->params.rx_priority_flow_control |= (1 << arg2);
-	else
-		priv->params.rx_priority_flow_control &= ~(1 << arg2);
+	priv->params.rx_priority_flow_control = 0;
+
+	/* range check input value */
+	for (i = 0; i != MLX5E_MAX_PRIORITY; i++) {
+		if (temp[i] > 1) {
+			err = ERANGE;
+			goto done;
+		}
+		priv->params.rx_priority_flow_control |= (temp[i] << i);
+	}
 
 	/* check if update is required */
-	if (error == 0 && priv->gone == 0 &&
-	    rx_pfc != priv->params.rx_priority_flow_control) {
-		error = -mlx5e_set_port_pfc(priv);
-		/* restore previous value */
-		if (error != 0)
-			priv->params.rx_priority_flow_control= rx_pfc;
-	}
+	if (rx_pfc != priv->params.rx_priority_flow_control)
+		err = -mlx5e_set_port_pfc(priv);
+done:
+	if (err != 0)
+		priv->params.rx_priority_flow_control= rx_pfc;
 	PRIV_UNLOCK(priv);
 
-	return (error);
+	return (err);
 }
 
 static void
 mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 {
-	unsigned int x;
+#if (__FreeBSD_version < 1100000)
 	char path[96];
+#endif
 	int error;
 
 	/* enable pauseframes by default */
@@ -3540,25 +3561,6 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 
 	/* try to fetch tunable, if any */
 	TUNABLE_INT_FETCH(path, &priv->params.rx_pauseframe_control);
-
-	for (x = 0; x != 8; x++) {
-
-		/* compute path for sysctl */
-		snprintf(path, sizeof(path), "dev.mce.%d.tx_priority_flow_control_%u",
-		    device_get_unit(priv->mdev->pdev->dev.bsddev), x);
-
-		/* try to fetch tunable, if any */
-		if (TUNABLE_INT_FETCH(path, &value) == 0 && value != 0)
-			priv->params.tx_priority_flow_control |= 1 << x;
-
-		/* compute path for sysctl */
-		snprintf(path, sizeof(path), "dev.mce.%d.rx_priority_flow_control_%u",
-		    device_get_unit(priv->mdev->pdev->dev.bsddev), x);
-
-		/* try to fetch tunable, if any */
-		if (TUNABLE_INT_FETCH(path, &value) == 0 && value != 0)
-			priv->params.rx_priority_flow_control |= 1 << x;
-	}
 #endif
 
 	/* register pauseframe SYSCTLs */
@@ -3572,22 +3574,16 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 	    &priv->params.rx_pauseframe_control, 0,
 	    "Set to enable RX pause frames. Clear to disable.");
 
-	/* register priority_flow control, PFC, SYSCTLs */
-	for (x = 0; x != 8; x++) {
-		snprintf(path, sizeof(path), "tx_priority_flow_control_%u", x);
+	/* register priority flow control, PFC, SYSCTLs */
+	SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
+	    OID_AUTO, "tx_priority_flow_control", CTLTYPE_U8 | CTLFLAG_RWTUN |
+	    CTLFLAG_MPSAFE, priv, 0, &mlx5e_sysctl_tx_priority_flow_control, "CU",
+	    "Set to enable TX ports flow control frames for priorities 0..7. Clear to disable.");
 
-		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
-		    OID_AUTO, path, CTLTYPE_UINT | CTLFLAG_RWTUN |
-		    CTLFLAG_MPSAFE, priv, x, &mlx5e_sysctl_tx_priority_flow_control, "IU",
-		    "Set to enable TX ports flow control frames for given priority. Clear to disable.");
-
-		snprintf(path, sizeof(path), "rx_priority_flow_control_%u", x);
-
-		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
-		    OID_AUTO, path, CTLTYPE_UINT | CTLFLAG_RWTUN |
-		    CTLFLAG_MPSAFE, priv, x, &mlx5e_sysctl_rx_priority_flow_control, "IU",
-		    "Set to enable RX ports flow control frames for given priority. Clear to disable.");
-	}
+	SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
+	    OID_AUTO, "rx_priority_flow_control", CTLTYPE_U8 | CTLFLAG_RWTUN |
+	    CTLFLAG_MPSAFE, priv, 0, &mlx5e_sysctl_rx_priority_flow_control, "CU",
+	    "Set to enable RX ports flow control frames for priorities 0..7. Clear to disable.");
 
 	PRIV_LOCK(priv);
 
