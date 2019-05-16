@@ -131,6 +131,9 @@ mlx5e_del_eth_addr_from_flow_table(struct mlx5e_priv *priv,
 
 	if (ai->tt_vec & (1 << MLX5E_TT_ANY))
 		mlx5_del_flow_rule(ai->ft_rule[MLX5E_TT_ANY]);
+
+	/* ensure the rules are not freed again */
+	ai->tt_vec = 0;
 }
 
 static int
