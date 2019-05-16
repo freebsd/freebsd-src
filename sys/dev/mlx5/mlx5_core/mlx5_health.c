@@ -135,8 +135,10 @@ static bool sensor_fw_synd_rfr(struct mlx5_core_dev *dev)
 	return rfr && synd;
 }
 
-static void mlx5_trigger_cmd_completions(struct mlx5_core_dev *dev)
+static void mlx5_trigger_cmd_completions(struct work_struct *work)
 {
+	struct mlx5_core_dev *dev =
+	    container_of(work, struct mlx5_core_dev, priv.health.work_cmd_completion);
 	unsigned long flags;
 	u64 vector;
 
@@ -271,7 +273,15 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 			return;
 		if (!force)
 			mlx5_core_err(dev, "internal state error detected\n");
-		mlx5_trigger_cmd_completions(dev);
+
+		/*
+		 * Queue the command completion handler on the command
+		 * work queue to avoid racing with the real command
+		 * completion handler and then wait for it to
+		 * complete:
+		 */
+		queue_work(dev->cmd.wq, &dev->priv.health.work_cmd_completion);
+		flush_workqueue(dev->cmd.wq);
 	}
 
 	mutex_lock(&dev->intf_state_mutex);
@@ -693,6 +703,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 	spin_lock_init(&health->wq_lock);
 	INIT_WORK(&health->work, health_care);
 	INIT_WORK(&health->work_watchdog, health_watchdog);
+	INIT_WORK(&health->work_cmd_completion, mlx5_trigger_cmd_completions);
 	INIT_DELAYED_WORK(&health->recover_work, health_recover);
 
 	return 0;
