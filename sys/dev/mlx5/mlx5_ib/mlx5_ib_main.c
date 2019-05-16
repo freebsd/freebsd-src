@@ -223,14 +223,70 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 	return 0;
 }
 
+static int translate_eth_ext_proto_oper(u32 eth_proto_oper, u8 *active_speed,
+					u8 *active_width)
+{
+	switch (eth_proto_oper) {
+	case MLX5E_PROT_MASK(MLX5E_SGMII_100M):
+	case MLX5E_PROT_MASK(MLX5E_1000BASE_X_SGMII):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_SDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_5GBASE_R):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_DDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_10GBASE_XFI_XAUI_1):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_QDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_40GBASE_XLAUI_4_XLPPI_4):
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_QDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_25GAUI_1_25GBASE_CR_KR):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_EDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2):
+		*active_width = IB_WIDTH_2X;
+		*active_speed = IB_SPEED_EDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_HDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_CAUI_4_100GBASE_CR4_KR4):
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_EDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_100GAUI_2_100GBASE_CR2_KR2):
+		*active_width = IB_WIDTH_2X;
+		*active_speed = IB_SPEED_HDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_200GAUI_4_200GBASE_CR4_KR4):
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_HDR;
+		break;
+	default:
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_QDR;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 				struct ib_port_attr *props)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {};
 	struct net_device *ndev;
 	enum ib_mtu ndev_ib_mtu;
 	u16 qkey_viol_cntr;
 	u32 eth_prot_oper;
+	bool ext;
 	int err;
 
 	memset(props, 0, sizeof(*props));
@@ -238,12 +294,20 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	/* Possible bad flows are checked before filling out props so in case
 	 * of an error it will still be zeroed out.
 	 */
-	err = mlx5_query_port_eth_proto_oper(dev->mdev, &eth_prot_oper, port_num);
+	err = mlx5_query_port_ptys(dev->mdev, out, sizeof(out), MLX5_PTYS_EN,
+	    port_num);
 	if (err)
 		return err;
 
-	translate_eth_proto_oper(eth_prot_oper, &props->active_speed,
-				 &props->active_width);
+	ext = MLX5_CAP_PCAM_FEATURE(dev->mdev, ptys_extended_ethernet);
+	eth_prot_oper = MLX5_GET_ETH_PROTO(ptys_reg, out, ext, eth_proto_oper);
+
+	if (ext)
+		translate_eth_ext_proto_oper(eth_prot_oper, &props->active_speed,
+		    &props->active_width);
+	else
+		translate_eth_proto_oper(eth_prot_oper, &props->active_speed,
+		    &props->active_width);
 
 	props->port_cap_flags  |= IB_PORT_CM_SUP;
 	props->port_cap_flags  |= IB_PORT_IP_BASED_GIDS;
@@ -772,9 +836,7 @@ static int translate_active_width(struct ib_device *ibdev, u8 active_width,
 	if (active_width & MLX5_IB_WIDTH_1X) {
 		*ib_width = IB_WIDTH_1X;
 	} else if (active_width & MLX5_IB_WIDTH_2X) {
-		mlx5_ib_dbg(dev, "active_width %d is not supported by IB spec\n",
-			    (int)active_width);
-		err = -EINVAL;
+		*ib_width = IB_WIDTH_2X;
 	} else if (active_width & MLX5_IB_WIDTH_4X) {
 		*ib_width = IB_WIDTH_4X;
 	} else if (active_width & MLX5_IB_WIDTH_8X) {
