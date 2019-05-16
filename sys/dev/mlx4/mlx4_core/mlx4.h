@@ -53,8 +53,8 @@
 
 #define DRV_NAME	"mlx4_core"
 #define PFX		DRV_NAME ": "
-#define DRV_VERSION	"3.5.0"
-#define DRV_RELDATE	"November 2018"
+#define DRV_VERSION	"3.5.1"
+#define DRV_RELDATE	"April 2019"
 
 #define MLX4_FS_UDP_UC_EN		(1 << 1)
 #define MLX4_FS_TCP_UC_EN		(1 << 2)
