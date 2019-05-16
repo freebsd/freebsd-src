@@ -41,6 +41,7 @@
 enum {
 	MLX5_DROP_NEW_HEALTH_WORK,
 	MLX5_DROP_NEW_RECOVERY_WORK,
+	MLX5_DROP_NEW_WATCHDOG_WORK,
 };
 
 enum  {
@@ -506,6 +507,66 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	printf("mlx5_core: INFO: ""raw fw_ver 0x%08x\n", fw);
 }
 
+static void health_watchdog(struct work_struct *work)
+{
+	struct mlx5_core_dev *dev;
+	u16 power;
+	u8 status;
+	int err;
+
+	dev = container_of(work, struct mlx5_core_dev, priv.health.work_watchdog);
+
+	if (!MLX5_CAP_GEN(dev, mcam_reg) ||
+	    !MLX5_CAP_MCAM_FEATURE(dev, pcie_status_and_power))
+		return;
+
+	err = mlx5_pci_read_power_status(dev, &power, &status);
+	if (err < 0) {
+		mlx5_core_warn(dev, "Failed reading power status: %d\n", err);
+		return;
+	}
+
+	dev->pwr_value = power;
+
+	if (dev->pwr_status != status) {
+		device_t bsddev = dev->pdev->dev.bsddev;
+
+		switch (status) {
+		case 0:
+			dev->pwr_status = status;
+			device_printf(bsddev, "PCI power is not published by the PCIe slot.\n");
+			break;
+		case 1:
+			dev->pwr_status = status;
+			device_printf(bsddev, "PCIe slot advertised sufficient power (%uW).\n", power);
+			break;
+		case 2:
+			dev->pwr_status = status;
+			device_printf(bsddev, "WARN: Detected insufficient power on the PCIe slot (%uW).\n", power);
+			break;
+		default:
+			dev->pwr_status = 0;
+			device_printf(bsddev, "WARN: Unknown power state detected(%d).\n", status);
+			break;
+		}
+	}
+}
+
+void
+mlx5_trigger_health_watchdog(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+	unsigned long flags;
+
+	spin_lock_irqsave(&health->wq_lock, flags);
+	if (!test_bit(MLX5_DROP_NEW_WATCHDOG_WORK, &health->flags))
+		queue_work(health->wq_watchdog, &health->work_watchdog);
+	else
+		dev_err(&dev->pdev->dev,
+			"scheduling watchdog is not permitted at this stage\n");
+	spin_unlock_irqrestore(&health->wq_lock, flags);
+}
+
 static void poll_health(unsigned long data)
 {
 	struct mlx5_core_dev *dev = (struct mlx5_core_dev *)data;
@@ -515,9 +576,6 @@ static void poll_health(unsigned long data)
 
 	if (dev->state != MLX5_DEVICE_STATE_UP)
 		return;
-
-	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
-		goto out;
 
 	count = ioread32be(health->health_counter);
 	if (count == health->prev)
@@ -540,7 +598,6 @@ static void poll_health(unsigned long data)
 		mlx5_trigger_health_work(dev);
 	}
 
-out:
 	mod_timer(&health->timer, get_next_poll_jiffies());
 }
 
@@ -552,12 +609,16 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 	health->fatal_error = MLX5_SENSOR_NO_ERR;
 	clear_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	clear_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
+	clear_bit(MLX5_DROP_NEW_WATCHDOG_WORK, &health->flags);
 	health->health = &dev->iseg->health;
 	health->health_counter = &dev->iseg->health_counter;
 
 	setup_timer(&health->timer, poll_health, (unsigned long)dev);
 	mod_timer(&health->timer,
 		  round_jiffies(jiffies + MLX5_HEALTH_POLL_INTERVAL));
+
+	/* do initial PCI power state readout */
+	mlx5_trigger_health_watchdog(dev);
 }
 
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health)
@@ -569,6 +630,7 @@ void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health)
 		spin_lock_irqsave(&health->wq_lock, flags);
 		set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 		set_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
+		set_bit(MLX5_DROP_NEW_WATCHDOG_WORK, &health->flags);
 		spin_unlock_irqrestore(&health->wq_lock, flags);
 	}
 
@@ -583,9 +645,11 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 	spin_lock_irqsave(&health->wq_lock, flags);
 	set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	set_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
+	set_bit(MLX5_DROP_NEW_WATCHDOG_WORK, &health->flags);
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 	cancel_delayed_work_sync(&health->recover_work);
 	cancel_work_sync(&health->work);
+	cancel_work_sync(&health->work_watchdog);
 }
 
 void mlx5_drain_health_recovery(struct mlx5_core_dev *dev)
@@ -628,6 +692,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 
 	spin_lock_init(&health->wq_lock);
 	INIT_WORK(&health->work, health_care);
+	INIT_WORK(&health->work_watchdog, health_watchdog);
 	INIT_DELAYED_WORK(&health->recover_work, health_recover);
 
 	return 0;
