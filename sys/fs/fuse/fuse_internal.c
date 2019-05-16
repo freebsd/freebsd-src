@@ -834,11 +834,15 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 		fsai->atime = vap->va_atime.tv_sec;
 		fsai->atimensec = vap->va_atime.tv_nsec;
 		fsai->valid |= FATTR_ATIME;
+		if (vap->va_vaflags & VA_UTIMES_NULL)
+			fsai->valid |= FATTR_ATIME_NOW;
 	}
 	if (vap->va_mtime.tv_sec != VNOVAL) {
 		fsai->mtime = vap->va_mtime.tv_sec;
 		fsai->mtimensec = vap->va_mtime.tv_nsec;
 		fsai->valid |= FATTR_MTIME;
+		if (vap->va_vaflags & VA_UTIMES_NULL)
+			fsai->valid |= FATTR_MTIME_NOW;
 	}
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		fsai->mode = vap->va_mode & ALLPERMS;
