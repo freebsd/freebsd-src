@@ -1136,17 +1136,10 @@ mlx5e_close_rq(struct mlx5e_rq *rq)
 static void
 mlx5e_close_rq_wait(struct mlx5e_rq *rq)
 {
-	struct mlx5_core_dev *mdev = rq->channel->priv->mdev;
 
-	/* wait till RQ is empty */
-	while (!mlx5_wq_ll_is_empty(&rq->wq) &&
-	       (mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR)) {
-		msleep(4);
-		rq->cq.mcq.comp(&rq->cq.mcq);
-	}
-
-	cancel_work_sync(&rq->dim.work);
 	mlx5e_disable_rq(rq);
+	mlx5e_close_cq(&rq->cq);
+	cancel_work_sync(&rq->dim.work);
 	mlx5e_destroy_rq(rq);
 }
 
@@ -1861,7 +1854,6 @@ mlx5e_close_channel_wait(struct mlx5e_channel *c)
 {
 	mlx5e_close_rq_wait(&c->rq);
 	mlx5e_close_sqs_wait(c);
-	mlx5e_close_cq(&c->rq.cq);
 	mlx5e_close_tx_cqs(c);
 	/* destroy mutexes */
 	mlx5e_chan_mtx_destroy(c);
