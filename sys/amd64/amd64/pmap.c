@@ -522,7 +522,7 @@ pmap_thread_init_invl_gen_l(struct thread *td)
  * pmap active.
  */
 static void
-pmap_delayed_invl_started_l(void)
+pmap_delayed_invl_start_l(void)
 {
 	struct pmap_invl_gen *invl_gen;
 	u_long currgen;
@@ -554,13 +554,13 @@ pmap_delayed_invl_started_l(void)
  * current thread's DI.
  */
 static void
-pmap_delayed_invl_finished_l(void)
+pmap_delayed_invl_finish_l(void)
 {
 	struct pmap_invl_gen *invl_gen, *next;
 	struct turnstile *ts;
 
 	invl_gen = &curthread->td_md.md_invl_gen;
-	KASSERT(invl_gen->gen != 0, ("missed invl_started"));
+	KASSERT(invl_gen->gen != 0, ("missed invl_start"));
 	mtx_lock(&invl_gen_mtx);
 	next = LIST_NEXT(invl_gen, link);
 	if (next == NULL) {
@@ -662,7 +662,7 @@ static struct lock_delay_config __read_frequently di_delay;
 LOCK_DELAY_SYSINIT_DEFAULT(di_delay);
 
 static void
-pmap_delayed_invl_started_u(void)
+pmap_delayed_invl_start_u(void)
 {
 	struct pmap_invl_gen *invl_gen, *p, prev, new_prev;
 	struct thread *td;
@@ -752,7 +752,7 @@ again:
 }
 
 static bool
-pmap_delayed_invl_finished_u_crit(struct pmap_invl_gen *invl_gen,
+pmap_delayed_invl_finish_u_crit(struct pmap_invl_gen *invl_gen,
     struct pmap_invl_gen *p)
 {
 	struct pmap_invl_gen prev, new_prev;
@@ -782,7 +782,7 @@ pmap_delayed_invl_finished_u_crit(struct pmap_invl_gen *invl_gen,
 }
 
 static void
-pmap_delayed_invl_finished_u(void)
+pmap_delayed_invl_finish_u(void)
 {
 	struct pmap_invl_gen *invl_gen, *p;
 	struct thread *td;
@@ -821,7 +821,7 @@ again:
 	critical_enter();
 	atomic_set_ptr((uintptr_t *)&invl_gen->next,
 	    PMAP_INVL_GEN_NEXT_INVALID);
-	if (!pmap_delayed_invl_finished_u_crit(invl_gen, p)) {
+	if (!pmap_delayed_invl_finish_u_crit(invl_gen, p)) {
 		atomic_clear_ptr((uintptr_t *)&invl_gen->next,
 		    PMAP_INVL_GEN_NEXT_INVALID);
 		critical_exit();
@@ -937,18 +937,18 @@ DEFINE_IFUNC(, void, pmap_thread_init_invl_gen, (struct thread *), static)
 	    pmap_thread_init_invl_gen_l : pmap_thread_init_invl_gen_u);
 }
 
-DEFINE_IFUNC(static, void, pmap_delayed_invl_started, (void), static)
+DEFINE_IFUNC(static, void, pmap_delayed_invl_start, (void), static)
 {
 
 	return ((cpu_feature2 & CPUID2_CX16) == 0 ?
-	    pmap_delayed_invl_started_l : pmap_delayed_invl_started_u);
+	    pmap_delayed_invl_start_l : pmap_delayed_invl_start_u);
 }
 
-DEFINE_IFUNC(static, void, pmap_delayed_invl_finished, (void), static)
+DEFINE_IFUNC(static, void, pmap_delayed_invl_finish, (void), static)
 {
 
 	return ((cpu_feature2 & CPUID2_CX16) == 0 ?
-	    pmap_delayed_invl_finished_l : pmap_delayed_invl_finished_u);
+	    pmap_delayed_invl_finish_l : pmap_delayed_invl_finish_u);
 }
 
 DEFINE_IFUNC(static, void, pmap_delayed_invl_wait, (vm_page_t), static)
@@ -967,7 +967,7 @@ DEFINE_IFUNC(static, void, pmap_delayed_invl_wait, (vm_page_t), static)
  * The function works by setting the DI generation number for m's PV
  * list to at least the DI generation number of the current thread.
  * This forces a caller of pmap_delayed_invl_wait() to block until
- * current thread calls pmap_delayed_invl_finished().
+ * current thread calls pmap_delayed_invl_finish().
  */
 static void
 pmap_delayed_invl_page(vm_page_t m)
@@ -3793,7 +3793,7 @@ reclaim_pv_chunk_leave_pmap(pmap_t pmap, pmap_t locked_pmap, bool start_di)
 	if (pmap != locked_pmap)
 		PMAP_UNLOCK(pmap);
 	if (start_di)
-		pmap_delayed_invl_finished();
+		pmap_delayed_invl_finish();
 }
 
 /*
@@ -3876,13 +3876,13 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 				RELEASE_PV_LIST_LOCK(lockp);
 				PMAP_LOCK(pmap);
 				if (start_di)
-					pmap_delayed_invl_started();
+					pmap_delayed_invl_start();
 				mtx_lock(&pv_chunks_mutex);
 				continue;
 			} else if (pmap != locked_pmap) {
 				if (PMAP_TRYLOCK(pmap)) {
 					if (start_di)
-						pmap_delayed_invl_started();
+						pmap_delayed_invl_start();
 					mtx_lock(&pv_chunks_mutex);
 					continue;
 				} else {
@@ -3895,7 +3895,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 					goto next_chunk;
 				}
 			} else if (start_di)
-				pmap_delayed_invl_started();
+				pmap_delayed_invl_start();
 			PG_G = pmap_global_bit(pmap);
 			PG_A = pmap_accessed_bit(pmap);
 			PG_M = pmap_modified_bit(pmap);
@@ -4814,7 +4814,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	anyvalid = 0;
 	SLIST_INIT(&free);
 
-	pmap_delayed_invl_started();
+	pmap_delayed_invl_start();
 	PMAP_LOCK(pmap);
 
 	/*
@@ -4911,7 +4911,7 @@ out:
 		pmap_invalidate_all(pmap);
 	pmap_pkru_on_remove(pmap, sva, eva);
 	PMAP_UNLOCK(pmap);
-	pmap_delayed_invl_finished();
+	pmap_delayed_invl_finish();
 	vm_page_free_pages_toq(&free, true);
 }
 
@@ -5095,8 +5095,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	/*
 	 * Although this function delays and batches the invalidation
 	 * of stale TLB entries, it does not need to call
-	 * pmap_delayed_invl_started() and
-	 * pmap_delayed_invl_finished(), because it does not
+	 * pmap_delayed_invl_start() and
+	 * pmap_delayed_invl_finish(), because it does not
 	 * ordinarily destroy mappings.  Stale TLB entries from
 	 * protection-only changes need only be invalidated before the
 	 * pmap lock is released, because protection-only changes do
@@ -5725,11 +5725,11 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 			if ((oldpde & PG_G) == 0)
 				pmap_invalidate_pde_page(pmap, va, oldpde);
 		} else {
-			pmap_delayed_invl_started();
+			pmap_delayed_invl_start();
 			if (pmap_remove_ptes(pmap, va, va + NBPDR, pde, &free,
 			    lockp))
 		               pmap_invalidate_all(pmap);
-			pmap_delayed_invl_finished();
+			pmap_delayed_invl_finish();
 		}
 		vm_page_free_pages_toq(&free, true);
 		if (va >= VM_MAXUSER_ADDRESS) {
@@ -6085,7 +6085,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
  *	The wired attribute of the page table entry is not a hardware
  *	feature, so there is no need to invalidate any TLB entries.
  *	Since pmap_demote_pde() for the wired entry must never fail,
- *	pmap_delayed_invl_started()/finished() calls around the
+ *	pmap_delayed_invl_start()/finish() calls around the
  *	function are not needed.
  */
 void
@@ -6584,8 +6584,8 @@ pmap_page_is_mapped(vm_page_t m)
  *
  * Although this function destroys all of the pmap's managed,
  * non-wired mappings, it can delay and batch the invalidation of TLB
- * entries without calling pmap_delayed_invl_started() and
- * pmap_delayed_invl_finished().  Because the pmap is not active on
+ * entries without calling pmap_delayed_invl_start() and
+ * pmap_delayed_invl_finish().  Because the pmap is not active on
  * any other processor, none of these TLB entries will ever be used
  * before their eventual invalidation.  Consequently, there is no need
  * for either pmap_remove_all() or pmap_remove_write() to wait for
@@ -7290,7 +7290,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	PG_V = pmap_valid_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
 	anychanged = FALSE;
-	pmap_delayed_invl_started();
+	pmap_delayed_invl_start();
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		pml4e = pmap_pml4e(pmap, sva);
@@ -7387,7 +7387,7 @@ maybe_invlrng:
 	if (anychanged)
 		pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
-	pmap_delayed_invl_finished();
+	pmap_delayed_invl_finish();
 }
 
 /*
