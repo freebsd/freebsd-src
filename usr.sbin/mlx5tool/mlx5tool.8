@@ -45,6 +45,9 @@
 .Nm
 .Fl d Ar domain:bus:slot:func
 .Fl f Ar file.mfa2
+.Nm
+.Fl d Ar domain:bus:slot:func
+.Fl z
 .Sh DESCRIPTION
 The
 .Nm
@@ -91,6 +94,14 @@ Flashes the firmware image
 to the specified adapter.
 Image must be in MFA2 pack format and contain a component suitable
 for the adapter hardware.
+.Pp
+Typically, PCIe link-level reset is required to activate the
+newly flashed image, which can be performed by the system reboot
+or using the
+.Fl z
+option.
+.It Fl z
+Performs PCIe link-level reset on the specified device.
 .El
 .Sh FILES
 The
