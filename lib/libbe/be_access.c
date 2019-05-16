@@ -99,13 +99,12 @@ be_mount_iter(zfs_handle_t *zfs_hdl, void *data)
 	if (strcmp("none", zfs_mnt) == 0) {
 		/*
 		 * mountpoint=none; we'll mount it at info->mountpoint assuming
-		 * we're at the root.  If we're not at the root... that's less
-		 * than stellar and not entirely sure what to do with that.
-		 * For now, we won't treat it as an error condition -- we just
-		 * won't mount it, and we'll continue on.
+		 * we're at the root.  If we're not at the root, we're likely
+		 * at some intermediate dataset (e.g. zroot/var) that will have
+		 * children that may need to be mounted.
 		 */
 		if (info->depth > 0)
-			return (0);
+			goto skipmount;
 
 		snprintf(tmp, BE_MAXPATHLEN, "%s", info->mountpoint);
 	} else {
@@ -136,6 +135,7 @@ be_mount_iter(zfs_handle_t *zfs_hdl, void *data)
 	if (!info->deepmount)
 		return (0);
 
+skipmount:
 	++info->depth;
 	err = zfs_iter_filesystems(zfs_hdl, be_mount_iter, info);
 	--info->depth;
