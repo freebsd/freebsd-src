@@ -593,10 +593,7 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state) != 0 &&
 	    mlx5_vport_query_out_of_rx_buffer(mdev, priv->counter_set_id,
 	    &rx_out_of_buffer) == 0) {
-		/* accumulate difference into a 64-bit counter */
-		s->rx_out_of_buffer += (u64)(u32)(rx_out_of_buffer -
-		    s->rx_out_of_buffer_prev);
-		s->rx_out_of_buffer_prev = rx_out_of_buffer;
+		s->rx_out_of_buffer = rx_out_of_buffer;
 	}
 
 	/* get port statistics */
