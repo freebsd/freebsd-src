@@ -2243,6 +2243,9 @@ mlx5e_get_wqe_sz(struct mlx5e_priv *priv, u32 *wqe_sz, u32 *nsegs)
 	for (n = howmany(r, MLX5E_MAX_RX_BYTES); !powerof2(n + 1); n++)
 		;
 
+	if (n > MLX5E_MAX_BUSDMA_RX_SEGS)
+		return (-ENOMEM);
+
 	*wqe_sz = r;
 	*nsegs = n;
 	return (0);
