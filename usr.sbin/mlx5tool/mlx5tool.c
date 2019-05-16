@@ -28,6 +28,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <dev/mlx5/mlx5io.h>
 #include <ctype.h>
 #include <err.h>
@@ -144,15 +146,60 @@ mlx5tool_dump_force(int ctldev, const struct mlx5_tool_addr *addr)
 	return (0);
 }
 
+static int
+mlx5tool_fw_update(int ctldev, const struct mlx5_tool_addr *addr,
+    const char *img_fw_path)
+{
+	struct stat st;
+	struct mlx5_fw_update fwup;
+	int error, fd, res;
+
+	res = 0;
+	fd = open(img_fw_path, O_RDONLY);
+	if (fd == -1) {
+		warn("Unable to open %s", img_fw_path);
+		res = 1;
+		goto close_fd;
+	}
+	error = fstat(fd, &st);
+	if (error != 0) {
+		warn("Unable to stat %s", img_fw_path);
+		res = 1;
+		goto close_fd;
+	}
+	memset(&fwup, 0, sizeof(fwup));
+	memcpy(&fwup.devaddr, addr, sizeof(fwup.devaddr));
+	fwup.img_fw_data = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE,
+	    fd, 0);
+	if (fwup.img_fw_data == MAP_FAILED) {
+		warn("Unable to mmap %s", img_fw_path);
+		res = 1;
+		goto close_fd;
+	}
+	fwup.img_fw_data_len = st.st_size;
+
+	error = ioctl(ctldev, MLX5_FW_UPDATE, &fwup);
+	if (error == -1) {
+		warn("MLX5_FW_UPDATE");
+	}
+
+	munmap(fwup.img_fw_data, st.st_size);
+close_fd:
+	close(fd);
+	return (res);
+}
+
 static void
 usage(void)
 {
 
 	fprintf(stderr,
-	    "Usage: mlx5tool -d pci<d:b:s:f> [-w -o dump.file | -r | -e]\n");
+	    "Usage: mlx5tool -d pci<d:b:s:f> [-w -o dump.file | -r |"
+	    "    -e | -f fw.mfa2]\n");
 	fprintf(stderr, "\t-w - write firmware dump to the specified file\n");
 	fprintf(stderr, "\t-r - reset dump\n");
 	fprintf(stderr, "\t-e - force dump\n");
+	fprintf(stderr, "\t-f fw.img - flash firmware from fw.img\n");
 	exit(1);
 }
 
@@ -160,6 +207,7 @@ enum mlx5_action {
 	ACTION_DUMP_GET,
 	ACTION_DUMP_RESET,
 	ACTION_DUMP_FORCE,
+	ACTION_FW_UPDATE,
 	ACTION_NONE,
 };
 
@@ -169,13 +217,15 @@ main(int argc, char *argv[])
 	struct mlx5_tool_addr addr;
 	char *dumpname;
 	char *addrstr;
+	char *img_fw_path;
 	int c, ctldev, res;
 	enum mlx5_action act;
 
 	act = ACTION_NONE;
 	addrstr = NULL;
 	dumpname = NULL;
-	while ((c = getopt(argc, argv, "d:eho:rw")) != -1) {
+	img_fw_path = NULL;
+	while ((c = getopt(argc, argv, "d:ef:ho:rw")) != -1) {
 		switch (c) {
 		case 'd':
 			addrstr = optarg;
@@ -192,12 +242,18 @@ main(int argc, char *argv[])
 		case 'r':
 			act = ACTION_DUMP_RESET;
 			break;
+		case 'f':
+			act = ACTION_FW_UPDATE;
+			img_fw_path = optarg;
+			break;
 		case 'h':
 		default:
 			usage();
 		}
 	}
-	if (act == ACTION_NONE || (dumpname != NULL && act != ACTION_DUMP_GET))
+	if (act == ACTION_NONE || (dumpname != NULL &&
+	    act != ACTION_DUMP_GET) || (img_fw_path != NULL &&
+	    act != ACTION_FW_UPDATE))
 		usage();
 	if (parse_pci_addr(addrstr, &addr) != 0)
 		exit(1);
@@ -214,6 +270,9 @@ main(int argc, char *argv[])
 		break;
 	case ACTION_DUMP_FORCE:
 		res = mlx5tool_dump_force(ctldev, &addr);
+		break;
+	case ACTION_FW_UPDATE:
+		res = mlx5tool_fw_update(ctldev, &addr, img_fw_path);
 		break;
 	default:
 		res = 0;
