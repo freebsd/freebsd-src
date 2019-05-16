@@ -499,6 +499,8 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 	u64 sw_lro_flushed = 0;
 	u64 rx_csum_none = 0;
 	u64 rx_wqe_err = 0;
+	u64 rx_packets = 0;
+	u64 rx_bytes = 0;
 	u32 rx_out_of_buffer = 0;
 	int i;
 	int j;
@@ -522,6 +524,8 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 		lro_bytes += rq_stats->lro_bytes;
 		rx_csum_none += rq_stats->csum_none;
 		rx_wqe_err += rq_stats->wqe_err;
+		rx_packets += rq_stats->packets;
+		rx_bytes += rq_stats->bytes;
 
 		for (j = 0; j < priv->num_tc; j++) {
 			sq_stats = &pch->sq[j].stats;
@@ -548,6 +552,8 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 	s->sw_lro_flushed = sw_lro_flushed;
 	s->rx_csum_none = rx_csum_none;
 	s->rx_wqe_err = rx_wqe_err;
+	s->rx_packets = rx_packets;
+	s->rx_bytes = rx_bytes;
 
 	/* HW counters */
 	memset(in, 0, sizeof(in));
@@ -610,11 +616,6 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 		s->tx_broadcast_bytes =
 		    MLX5_GET_CTR(out, transmitted_eth_broadcast.octets);
 
-		s->rx_packets = s->rx_unicast_packets +
-		    s->rx_multicast_packets + s->rx_broadcast_packets -
-		    s->rx_out_of_buffer;
-		s->rx_bytes = s->rx_unicast_bytes + s->rx_multicast_bytes +
-		    s->rx_broadcast_bytes;
 		s->tx_packets = s->tx_unicast_packets +
 		    s->tx_multicast_packets + s->tx_broadcast_packets;
 		s->tx_bytes = s->tx_unicast_bytes + s->tx_multicast_bytes +
