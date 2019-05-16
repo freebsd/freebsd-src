@@ -49,9 +49,16 @@ struct mlx5_fwdump_get {
 	size_t reg_filled; /* out */
 };
 
+struct mlx5_fw_update {
+	struct mlx5_tool_addr devaddr;
+	void *img_fw_data;
+	size_t img_fw_data_len;
+};
+
 #define	MLX5_FWDUMP_GET		_IOWR('m', 1, struct mlx5_fwdump_get)
 #define	MLX5_FWDUMP_RESET	_IOW('m', 2, struct mlx5_tool_addr)
 #define	MLX5_FWDUMP_FORCE	_IOW('m', 3, struct mlx5_tool_addr)
+#define	MLX5_FW_UPDATE		_IOW('m', 4, struct mlx5_fw_update)
 
 #ifndef _KERNEL
 #define	MLX5_DEV_PATH	_PATH_DEV"mlx5ctl"
