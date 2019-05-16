@@ -769,6 +769,18 @@ mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	for (x = 0; x != MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG_NUM; x++, y++)
 		s_debug->arg[y] = be64toh(ptr[x]);
 
+	/* read Extended Statistical Group */
+	if (MLX5_CAP_GEN(mdev, pcam_reg) &&
+	    MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group) &&
+	    MLX5_CAP_PCAM_FEATURE(mdev, per_lane_error_counters)) {
+		/* read Extended Statistical counter group using predefined counter layout */
+		MLX5_SET(ppcnt_reg, in, grp, MLX5_PHYSICAL_LAYER_STATISTICAL_GROUP);
+		mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
+
+		for (x = 0; x != MLX5E_PPORT_STATISTICAL_DEBUG_NUM; x++, y++)
+			s_debug->arg[y] = be64toh(ptr[x]);
+	}
+
 	/* read PCIE counters */
 	mlx5e_update_pcie_counters(priv);
 
