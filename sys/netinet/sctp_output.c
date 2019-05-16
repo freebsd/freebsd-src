@@ -4283,10 +4283,12 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 						if (net->port) {
 							mtu -= sizeof(struct udphdr);
 						}
-						if ((stcb != NULL) && (stcb->asoc.smallest_mtu > mtu)) {
-							sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
+						if (mtu < net->mtu) {
+							if ((stcb != NULL) && (stcb->asoc.smallest_mtu > mtu)) {
+								sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
+							}
+							net->mtu = mtu;
 						}
-						net->mtu = mtu;
 					}
 				} else if (ro->ro_rt == NULL) {
 					/* route was freed */
@@ -4640,10 +4642,12 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 						if (net->port) {
 							mtu -= sizeof(struct udphdr);
 						}
-						if ((stcb != NULL) && (stcb->asoc.smallest_mtu > mtu)) {
-							sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
+						if (mtu < net->mtu) {
+							if ((stcb != NULL) && (stcb->asoc.smallest_mtu > mtu)) {
+								sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
+							}
+							net->mtu = mtu;
 						}
-						net->mtu = mtu;
 					}
 				} else if (ifp) {
 					if (ND_IFINFO(ifp)->linkmtu &&
