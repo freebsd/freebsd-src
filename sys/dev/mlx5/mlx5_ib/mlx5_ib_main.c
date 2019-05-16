@@ -1078,6 +1078,14 @@ static int mlx5_ib_modify_port(struct ib_device *ibdev, u8 port, int mask,
 	u32 tmp;
 	int err;
 
+	/*
+	 * CM layer calls ib_modify_port() regardless of the link
+	 * layer. For Ethernet ports, qkey violation and Port
+	 * capabilities are meaningless.
+	 */
+	if (mlx5_ib_port_link_layer(ibdev, port) == IB_LINK_LAYER_ETHERNET)
+		return 0;
+
 	mutex_lock(&dev->cap_mask_mutex);
 
 	err = mlx5_ib_query_port(ibdev, port, &attr);
