@@ -291,12 +291,12 @@ void
 dmar_fini_fault_log(struct dmar_unit *unit)
 {
 
+	if (unit->fault_taskqueue == NULL)
+		return;
+
 	DMAR_LOCK(unit);
 	dmar_disable_fault_intr(unit);
 	DMAR_UNLOCK(unit);
-
-	if (unit->fault_taskqueue == NULL)
-		return;
 
 	taskqueue_drain(unit->fault_taskqueue, &unit->fault_task);
 	taskqueue_free(unit->fault_taskqueue);
