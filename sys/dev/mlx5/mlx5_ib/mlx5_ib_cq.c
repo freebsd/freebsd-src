@@ -673,7 +673,7 @@ int mlx5_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	int npolled;
 
 	spin_lock_irqsave(&cq->lock, flags);
-	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+	if (unlikely(mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)) {
 		mlx5_ib_poll_sw_comp(cq, num_entries, wc, &npolled);
 		goto out;
 	}
@@ -702,6 +702,9 @@ int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	unsigned long irq_flags;
 	int ret = 0;
 
+	if (unlikely(mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR))
+		return -1;
+
 	spin_lock_irqsave(&cq->lock, irq_flags);
 	if (cq->notify_flags != IB_CQ_NEXT_COMP)
 		cq->notify_flags = flags & IB_CQ_SOLICITED_MASK;
@@ -715,7 +718,7 @@ int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 		    MLX5_CQ_DB_REQ_NOT_SOL : MLX5_CQ_DB_REQ_NOT,
 		    uar_page,
 		    MLX5_GET_DOORBELL_LOCK(&mdev->priv.cq_uar_lock),
-		    to_mcq(ibcq)->mcq.cons_index);
+		    cq->mcq.cons_index);
 
 	return ret;
 }
