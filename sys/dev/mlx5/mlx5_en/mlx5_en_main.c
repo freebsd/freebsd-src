@@ -475,10 +475,8 @@ free_out:
  * configuration lock.
  */
 static void
-mlx5e_update_stats_work(struct work_struct *work)
+mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 {
-	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
-	    update_stats_work);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_vport_stats *s = &priv->stats.vport;
 	struct mlx5e_sq_stats *sq_stats;
@@ -505,11 +503,8 @@ mlx5e_update_stats_work(struct work_struct *work)
 	int i;
 	int j;
 
-	PRIV_LOCK(priv);
 	out = mlx5_vzalloc(outlen);
 	if (out == NULL)
-		goto free_out;
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state) == 0)
 		goto free_out;
 
 	/* Collect firts the SW counters and then HW for consistency */
@@ -565,78 +560,70 @@ mlx5e_update_stats_work(struct work_struct *work)
 	memset(out, 0, outlen);
 
 	/* get number of out-of-buffer drops first */
-	if (mlx5_vport_query_out_of_rx_buffer(mdev, priv->counter_set_id,
-	    &rx_out_of_buffer))
-		goto free_out;
-
-	/* accumulate difference into a 64-bit counter */
-	s->rx_out_of_buffer += (u64)(u32)(rx_out_of_buffer - s->rx_out_of_buffer_prev);
-	s->rx_out_of_buffer_prev = rx_out_of_buffer;
+	if (test_bit(MLX5E_STATE_OPENED, &priv->state) != 0 &&
+	    mlx5_vport_query_out_of_rx_buffer(mdev, priv->counter_set_id,
+	    &rx_out_of_buffer) == 0) {
+		/* accumulate difference into a 64-bit counter */
+		s->rx_out_of_buffer += (u64)(u32)(rx_out_of_buffer -
+		    s->rx_out_of_buffer_prev);
+		s->rx_out_of_buffer_prev = rx_out_of_buffer;
+	}
 
 	/* get port statistics */
-	if (mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen))
-		goto free_out;
-
+	if (mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen) == 0) {
 #define	MLX5_GET_CTR(out, x) \
 	MLX5_GET64(query_vport_counter_out, out, x)
 
-	s->rx_error_packets =
-	    MLX5_GET_CTR(out, received_errors.packets);
-	s->rx_error_bytes =
-	    MLX5_GET_CTR(out, received_errors.octets);
-	s->tx_error_packets =
-	    MLX5_GET_CTR(out, transmit_errors.packets);
-	s->tx_error_bytes =
-	    MLX5_GET_CTR(out, transmit_errors.octets);
+		s->rx_error_packets =
+		    MLX5_GET_CTR(out, received_errors.packets);
+		s->rx_error_bytes =
+		    MLX5_GET_CTR(out, received_errors.octets);
+		s->tx_error_packets =
+		    MLX5_GET_CTR(out, transmit_errors.packets);
+		s->tx_error_bytes =
+		    MLX5_GET_CTR(out, transmit_errors.octets);
 
-	s->rx_unicast_packets =
-	    MLX5_GET_CTR(out, received_eth_unicast.packets);
-	s->rx_unicast_bytes =
-	    MLX5_GET_CTR(out, received_eth_unicast.octets);
-	s->tx_unicast_packets =
-	    MLX5_GET_CTR(out, transmitted_eth_unicast.packets);
-	s->tx_unicast_bytes =
-	    MLX5_GET_CTR(out, transmitted_eth_unicast.octets);
+		s->rx_unicast_packets =
+		    MLX5_GET_CTR(out, received_eth_unicast.packets);
+		s->rx_unicast_bytes =
+		    MLX5_GET_CTR(out, received_eth_unicast.octets);
+		s->tx_unicast_packets =
+		    MLX5_GET_CTR(out, transmitted_eth_unicast.packets);
+		s->tx_unicast_bytes =
+		    MLX5_GET_CTR(out, transmitted_eth_unicast.octets);
 
-	s->rx_multicast_packets =
-	    MLX5_GET_CTR(out, received_eth_multicast.packets);
-	s->rx_multicast_bytes =
-	    MLX5_GET_CTR(out, received_eth_multicast.octets);
-	s->tx_multicast_packets =
-	    MLX5_GET_CTR(out, transmitted_eth_multicast.packets);
-	s->tx_multicast_bytes =
-	    MLX5_GET_CTR(out, transmitted_eth_multicast.octets);
+		s->rx_multicast_packets =
+		    MLX5_GET_CTR(out, received_eth_multicast.packets);
+		s->rx_multicast_bytes =
+		    MLX5_GET_CTR(out, received_eth_multicast.octets);
+		s->tx_multicast_packets =
+		    MLX5_GET_CTR(out, transmitted_eth_multicast.packets);
+		s->tx_multicast_bytes =
+		    MLX5_GET_CTR(out, transmitted_eth_multicast.octets);
 
-	s->rx_broadcast_packets =
-	    MLX5_GET_CTR(out, received_eth_broadcast.packets);
-	s->rx_broadcast_bytes =
-	    MLX5_GET_CTR(out, received_eth_broadcast.octets);
-	s->tx_broadcast_packets =
-	    MLX5_GET_CTR(out, transmitted_eth_broadcast.packets);
-	s->tx_broadcast_bytes =
-	    MLX5_GET_CTR(out, transmitted_eth_broadcast.octets);
+		s->rx_broadcast_packets =
+		    MLX5_GET_CTR(out, received_eth_broadcast.packets);
+		s->rx_broadcast_bytes =
+		    MLX5_GET_CTR(out, received_eth_broadcast.octets);
+		s->tx_broadcast_packets =
+		    MLX5_GET_CTR(out, transmitted_eth_broadcast.packets);
+		s->tx_broadcast_bytes =
+		    MLX5_GET_CTR(out, transmitted_eth_broadcast.octets);
 
-	s->rx_packets =
-	    s->rx_unicast_packets +
-	    s->rx_multicast_packets +
-	    s->rx_broadcast_packets -
-	    s->rx_out_of_buffer;
-	s->rx_bytes =
-	    s->rx_unicast_bytes +
-	    s->rx_multicast_bytes +
-	    s->rx_broadcast_bytes;
-	s->tx_packets =
-	    s->tx_unicast_packets +
-	    s->tx_multicast_packets +
-	    s->tx_broadcast_packets;
-	s->tx_bytes =
-	    s->tx_unicast_bytes +
-	    s->tx_multicast_bytes +
-	    s->tx_broadcast_bytes;
+		s->rx_packets = s->rx_unicast_packets +
+		    s->rx_multicast_packets + s->rx_broadcast_packets -
+		    s->rx_out_of_buffer;
+		s->rx_bytes = s->rx_unicast_bytes + s->rx_multicast_bytes +
+		    s->rx_broadcast_bytes;
+		s->tx_packets = s->tx_unicast_packets +
+		    s->tx_multicast_packets + s->tx_broadcast_packets;
+		s->tx_bytes = s->tx_unicast_bytes + s->tx_multicast_bytes +
+		    s->tx_broadcast_bytes;
 
-	/* Update calculated offload counters */
-	s->tx_csum_offload = s->tx_packets - tx_offload_none;
-	s->rx_csum_good = s->rx_packets - s->rx_csum_none;
+		/* Update calculated offload counters */
+		s->tx_csum_offload = s->tx_packets - tx_offload_none;
+		s->rx_csum_good = s->rx_packets - s->rx_csum_none;
+	}
 
 	/* Get physical port counters */
 	mlx5e_update_pport_counters(priv);
@@ -685,6 +672,17 @@ free_out:
 		if (error != 0)
 			if_printf(priv->ifp, "Failed reading diagnostics: %d\n", error);
 	}
+}
+
+static void
+mlx5e_update_stats_work(struct work_struct *work)
+{
+	struct mlx5e_priv *priv;
+
+	priv  = container_of(work, struct mlx5e_priv, update_stats_work);
+	PRIV_LOCK(priv);
+	if (test_bit(MLX5E_STATE_OPENED, &priv->state) != 0)
+		mlx5e_update_stats_locked(priv);
 	PRIV_UNLOCK(priv);
 }
 
