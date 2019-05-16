@@ -38,6 +38,13 @@ extern "C" {
 using namespace testing;
 
 class Mkdir: public FuseTest {};
+class Mkdir_7_8: public FuseTest {
+public:
+virtual void SetUp() {
+	m_kernel_minor_version = 8;
+	FuseTest::SetUp();
+}
+};
 
 /* 
  * EMLINK is possible on filesystems that limit the number of hard links to a
@@ -166,6 +173,35 @@ TEST_F(Mkdir, ok)
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
+		out->body.create.entry.attr.mode = S_IFDIR | mode;
+		out->body.create.entry.nodeid = ino;
+		out->body.create.entry.entry_valid = UINT64_MAX;
+		out->body.create.entry.attr_valid = UINT64_MAX;
+	})));
+
+	ASSERT_EQ(0, mkdir(FULLPATH, mode)) << strerror(errno);
+}
+
+TEST_F(Mkdir_7_8, ok)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	mode_t mode = 0755;
+	uint64_t ino = 42;
+
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *name = (const char*)in->body.bytes +
+				sizeof(fuse_mkdir_in);
+			return (in->header.opcode == FUSE_MKDIR &&
+				in->body.mkdir.mode == (S_IFDIR | mode) &&
+				(0 == strcmp(RELPATH, name)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry_7_8);
 		out->body.create.entry.attr.mode = S_IFDIR | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;

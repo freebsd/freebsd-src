@@ -284,7 +284,8 @@ void debug_fuseop(const mockfs_buf_in *in)
 }
 
 MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
-	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags)
+	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags,
+	uint32_t kernel_minor_version)
 {
 	struct sigaction sa;
 	struct iovec *iov = NULL;
@@ -293,6 +294,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	const bool trueval = true;
 
 	m_daemon_id = NULL;
+	m_kernel_minor_version = kernel_minor_version;
 	m_maxreadahead = max_readahead;
 	m_nready = -1;
 	m_pm = pm;
@@ -399,7 +401,7 @@ void MockFS::init(uint32_t flags) {
 	out->header.unique = in->header.unique;
 	out->header.error = 0;
 	out->body.init.major = FUSE_KERNEL_VERSION;
-	out->body.init.minor = FUSE_KERNEL_MINOR_VERSION;
+	out->body.init.minor = m_kernel_minor_version;;
 	out->body.init.flags = in->body.init.flags & flags;
 
 	/*

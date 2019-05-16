@@ -67,6 +67,21 @@ void expect_release(uint64_t ino, ProcessMockerT r)
 
 };
 
+class Write_7_8: public FuseTest {
+
+public:
+virtual void SetUp() {
+	m_kernel_minor_version = 8;
+	FuseTest::SetUp();
+}
+
+void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
+{
+	FuseTest::expect_lookup_7_8(relpath, ino, S_IFREG | 0644, size, 1);
+}
+
+};
+
 class AioWrite: public Write {
 virtual void SetUp() {
 	const char *node = "vfs.aio.enable_unsafe";
@@ -527,6 +542,26 @@ TEST_F(Write, write_nothing)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
+
+	fd = open(FULLPATH, O_WRONLY);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+TEST_F(Write_7_8, write)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	expect_write_7_8(ino, 0, bufsize, bufsize, 0, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);

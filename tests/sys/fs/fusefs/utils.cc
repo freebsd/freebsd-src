@@ -96,7 +96,7 @@ void FuseTest::SetUp() {
 	try {
 		m_mock = new MockFS(m_maxreadahead, m_allow_other,
 			m_default_permissions, m_push_symlinks_in, m_ro,
-			m_pm, m_init_flags);
+			m_pm, m_init_flags, m_kernel_minor_version);
 		/* 
 		 * FUSE_ACCESS is called almost universally.  Expecting it in
 		 * each test case would be super-annoying.  Instead, set a
@@ -198,6 +198,23 @@ void FuseTest::expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 	.Times(times)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = mode;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 1;
+		out->body.entry.attr_valid = attr_valid;
+		out->body.entry.attr.size = size;
+		out->body.entry.attr.uid = uid;
+		out->body.entry.attr.gid = gid;
+	})));
+}
+
+void FuseTest::expect_lookup_7_8(const char *relpath, uint64_t ino, mode_t mode,
+	uint64_t size, int times, uint64_t attr_valid, uid_t uid, gid_t gid)
+{
+	EXPECT_LOOKUP(1, relpath)
+	.Times(times)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry_7_8);
 		out->body.entry.attr.mode = mode;
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr.nlink = 1;
@@ -318,6 +335,30 @@ void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 			else
 				pid_ok = (pid_t)in->header.pid == getpid();
 
+			return (in->header.opcode == FUSE_WRITE &&
+				in->header.nodeid == ino &&
+				in->body.write.fh == FH &&
+				in->body.write.offset == offset  &&
+				in->body.write.size == isize &&
+				pid_ok &&
+				in->body.write.write_flags == flags &&
+				0 == bcmp(buf, contents, isize));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, write);
+		out->body.write.size = osize;
+	})));
+}
+
+void FuseTest::expect_write_7_8(uint64_t ino, uint64_t offset, uint64_t isize,
+	uint64_t osize, uint32_t flags, const void *contents)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *buf = (const char*)in->body.bytes +
+				FUSE_COMPAT_WRITE_IN_SIZE;
+			bool pid_ok = (pid_t)in->header.pid == getpid();
 			return (in->header.opcode == FUSE_WRITE &&
 				in->header.nodeid == ino &&
 				in->body.write.fh == FH &&
