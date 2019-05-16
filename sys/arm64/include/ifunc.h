@@ -32,17 +32,17 @@
 #ifndef __ARM64_IFUNC_H
 #define	__ARM64_IFUNC_H
 
-#define	DEFINE_IFUNC(qual, ret_type, name, args, resolver_qual)		\
-    resolver_qual ret_type (*name##_resolver(void))args __used;		\
+#define	DEFINE_IFUNC(qual, ret_type, name, args)			\
+    static ret_type (*name##_resolver(void))args __used;		\
     qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
-    resolver_qual ret_type (*name##_resolver(void))args
+    static ret_type (*name##_resolver(void))args
 
-#define	DEFINE_UIFUNC(qual, ret_type, name, args, resolver_qual)	\
-    resolver_qual ret_type (*name##_resolver(uint64_t, uint64_t,	\
+#define	DEFINE_UIFUNC(qual, ret_type, name, args)			\
+    static ret_type (*name##_resolver(uint64_t, uint64_t,		\
 	uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,		\
 	uint64_t))args __used;						\
     qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
-    resolver_qual ret_type (*name##_resolver(uint64_t _arg1 __unused,	\
+    static ret_type (*name##_resolver(uint64_t _arg1 __unused,		\
 	uint64_t _arg2 __unused, uint64_t _arg3 __unused,		\
 	uint64_t _arg4 __unused, uint64_t _arg5 __unused,		\
 	uint64_t _arg6 __unused, uint64_t _arg7 __unused,		\

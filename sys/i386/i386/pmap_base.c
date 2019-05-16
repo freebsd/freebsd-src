@@ -288,8 +288,7 @@ pmap_flush_page(vm_page_t m)
 	pmap_methods_ptr->pm_flush_page(m);
 }
 
-DEFINE_IFUNC(, void, pmap_invalidate_cache_range, (vm_offset_t, vm_offset_t),
-    static)
+DEFINE_IFUNC(, void, pmap_invalidate_cache_range, (vm_offset_t, vm_offset_t))
 {
 
 	if ((cpu_feature & CPUID_SS) != 0)
