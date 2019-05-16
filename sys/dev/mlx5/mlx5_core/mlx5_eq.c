@@ -395,7 +395,9 @@ static irqreturn_t mlx5_msix_handler(int irq, void *eq_ptr)
 	struct mlx5_eq *eq = eq_ptr;
 	struct mlx5_core_dev *dev = eq->dev;
 
-	mlx5_eq_int(dev, eq);
+	/* check if IRQs are not disabled */
+	if (likely(dev->priv.disable_irqs == 0))
+		mlx5_eq_int(dev, eq);
 
 	/* MSI-X vectors always belong to us */
 	return IRQ_HANDLED;
