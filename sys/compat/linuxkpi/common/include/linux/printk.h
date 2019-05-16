@@ -121,6 +121,9 @@ print_hex_dump_bytes(const char *prefix_str, const int prefix_type,
 #define	pr_err_ratelimited(fmt, ...) \
 	printk_ratelimited(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
 
+#define	print_hex_dump_debug(...) \
+	print_hex_dump(KERN_DEBUG, ##__VA_ARGS__)
+
 #define	pr_info_ratelimited(fmt, ...) \
 	printk_ratelimited(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 
