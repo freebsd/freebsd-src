@@ -637,22 +637,14 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 #if (__FreeBSD_version < 1100000)
 	/* no get_counters interface in fbsd 10 */
 	ifp->if_ipackets = s->rx_packets;
-	ifp->if_ierrors = s->rx_error_packets +
-	    priv->stats.pport.alignment_err +
-	    priv->stats.pport.check_seq_err +
-	    priv->stats.pport.crc_align_errors +
-	    priv->stats.pport.in_range_len_errors +
-	    priv->stats.pport.jabbers +
+	ifp->if_ierrors = priv->stats.pport.in_range_len_errors +
 	    priv->stats.pport.out_of_range_len +
-	    priv->stats.pport.oversize_pkts +
-	    priv->stats.pport.symbol_err +
 	    priv->stats.pport.too_long_errors +
-	    priv->stats.pport.undersize_pkts +
-	    priv->stats.pport.unsupported_op_rx;
-	ifp->if_iqdrops = s->rx_out_of_buffer +
-	    priv->stats.pport.drop_events;
+	    priv->stats.pport.check_seq_err +
+	    priv->stats.pport.alignment_err;
+	ifp->if_iqdrops = s->rx_out_of_buffer;
 	ifp->if_opackets = s->tx_packets;
-	ifp->if_oerrors = s->tx_error_packets;
+	ifp->if_oerrors = priv->stats.port_stats_debug.out_discards;
 	ifp->if_snd.ifq_drops = s->tx_queue_dropped;
 	ifp->if_ibytes = s->rx_bytes;
 	ifp->if_obytes = s->tx_bytes;
@@ -2769,28 +2761,20 @@ mlx5e_get_counter(struct ifnet *ifp, ift_counter cnt)
 		retval = priv->stats.vport.rx_packets;
 		break;
 	case IFCOUNTER_IERRORS:
-		retval = priv->stats.vport.rx_error_packets +
-		    priv->stats.pport.alignment_err +
-		    priv->stats.pport.check_seq_err +
-		    priv->stats.pport.crc_align_errors +
-		    priv->stats.pport.in_range_len_errors +
-		    priv->stats.pport.jabbers +
+		retval = priv->stats.pport.in_range_len_errors +
 		    priv->stats.pport.out_of_range_len +
-		    priv->stats.pport.oversize_pkts +
-		    priv->stats.pport.symbol_err +
 		    priv->stats.pport.too_long_errors +
-		    priv->stats.pport.undersize_pkts +
-		    priv->stats.pport.unsupported_op_rx;
+		    priv->stats.pport.check_seq_err +
+		    priv->stats.pport.alignment_err;
 		break;
 	case IFCOUNTER_IQDROPS:
-		retval = priv->stats.vport.rx_out_of_buffer +
-		    priv->stats.pport.drop_events;
+		retval = priv->stats.vport.rx_out_of_buffer;
 		break;
 	case IFCOUNTER_OPACKETS:
 		retval = priv->stats.vport.tx_packets;
 		break;
 	case IFCOUNTER_OERRORS:
-		retval = priv->stats.vport.tx_error_packets;
+		retval = priv->stats.port_stats_debug.out_discards;
 		break;
 	case IFCOUNTER_IBYTES:
 		retval = priv->stats.vport.rx_bytes;
