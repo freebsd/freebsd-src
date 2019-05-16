@@ -409,7 +409,7 @@ poll_more:
 	spin_unlock(&priv->drain_lock);
 
 	if (ib_req_notify_cq(priv->recv_cq,
-	    IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS))
+	    IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS) > 0)
 		goto poll_more;
 }
 
