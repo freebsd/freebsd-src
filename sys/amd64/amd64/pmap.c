@@ -486,13 +486,36 @@ static u_long pmap_invl_gen = 1;
 #define	PMAP_ASSERT_NOT_IN_DI() \
     KASSERT(pmap_not_in_di(), ("DI already started"))
 
+static bool
+pmap_di_locked(void)
+{
+	int tun;
+
+	if ((cpu_feature2 & CPUID2_CX16) == 0)
+		return (true);
+	tun = 0;
+	TUNABLE_INT_FETCH("vm.pmap.di_locked", &tun);
+	return (tun != 0);
+}
+
+static int
+sysctl_pmap_di_locked(SYSCTL_HANDLER_ARGS)
+{
+	int locked;
+
+	locked = pmap_di_locked();
+	return (sysctl_handle_int(oidp, &locked, 0, req));
+}
+SYSCTL_PROC(_vm_pmap, OID_AUTO, di_locked, CTLTYPE_INT | CTLFLAG_RDTUN |
+    CTLFLAG_MPSAFE, 0, 0, sysctl_pmap_di_locked, "",
+    "Locked delayed invalidation");
+
 static bool pmap_not_in_di_l(void);
 static bool pmap_not_in_di_u(void);
 DEFINE_IFUNC(, bool, pmap_not_in_di, (void), static)
 {
 
-	return ((cpu_feature2 & CPUID2_CX16) == 0 ? pmap_not_in_di_l :
-	    pmap_not_in_di_u);
+	return (pmap_di_locked() ? pmap_not_in_di_l : pmap_not_in_di_u);
 }
 
 static bool
@@ -933,29 +956,29 @@ pmap_delayed_invl_wait_u(vm_page_t m)
 DEFINE_IFUNC(, void, pmap_thread_init_invl_gen, (struct thread *), static)
 {
 
-	return ((cpu_feature2 & CPUID2_CX16) == 0 ?
-	    pmap_thread_init_invl_gen_l : pmap_thread_init_invl_gen_u);
+	return (pmap_di_locked() ? pmap_thread_init_invl_gen_l :
+	    pmap_thread_init_invl_gen_u);
 }
 
 DEFINE_IFUNC(static, void, pmap_delayed_invl_start, (void), static)
 {
 
-	return ((cpu_feature2 & CPUID2_CX16) == 0 ?
-	    pmap_delayed_invl_start_l : pmap_delayed_invl_start_u);
+	return (pmap_di_locked() ? pmap_delayed_invl_start_l :
+	    pmap_delayed_invl_start_u);
 }
 
 DEFINE_IFUNC(static, void, pmap_delayed_invl_finish, (void), static)
 {
 
-	return ((cpu_feature2 & CPUID2_CX16) == 0 ?
-	    pmap_delayed_invl_finish_l : pmap_delayed_invl_finish_u);
+	return (pmap_di_locked() ? pmap_delayed_invl_finish_l :
+	    pmap_delayed_invl_finish_u);
 }
 
 DEFINE_IFUNC(static, void, pmap_delayed_invl_wait, (vm_page_t), static)
 {
 
-	return ((cpu_feature2 & CPUID2_CX16) == 0 ?
-	    pmap_delayed_invl_wait_l : pmap_delayed_invl_wait_u);
+	return (pmap_di_locked() ? pmap_delayed_invl_wait_l :
+	    pmap_delayed_invl_wait_u);
 }
 
 /*
