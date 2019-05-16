@@ -135,6 +135,7 @@ enum {
 	MLX5_FPGA_CTRL_OPERATION_RESET_SANDBOX       = 0x6,
 	MLX5_FPGA_CTRL_OPERATION_DISCONNECT          = 0x9,
 	MLX5_FPGA_CTRL_OPERATION_CONNECT             = 0xA,
+	MLX5_FPGA_CTRL_OPERATION_RELOAD              = 0xB,
 };
 
 struct mlx5_ifc_fpga_ctrl_bits {
