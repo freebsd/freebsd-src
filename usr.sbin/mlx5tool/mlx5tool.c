@@ -184,7 +184,7 @@ main(int argc, char *argv[])
 			act = ACTION_DUMP_GET;
 			break;
 		case 'e':
-			act= ACTION_DUMP_FORCE;
+			act = ACTION_DUMP_FORCE;
 			break;
 		case 'o':
 			dumpname = optarg;
