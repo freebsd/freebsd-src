@@ -262,11 +262,12 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = hlen >> 2;
 		ip_fillid(ip);
-		IPSTAT_INC(ips_localout);
 	} else {
 		/* Header already set, fetch hlen from there */
 		hlen = ip->ip_hl << 2;
 	}
+	if ((flags & IP_FORWARDING) == 0)
+		IPSTAT_INC(ips_localout);
 
 	/*
 	 * dst/gw handling:
