@@ -244,7 +244,7 @@ mlx5_fw_reset(struct mlx5_core_dev *mdev)
 }
 
 static int
-mlx5_fwdump_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+mlx5_ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
 	struct mlx5_core_dev *mdev;
@@ -343,34 +343,34 @@ mlx5_fwdump_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	return (error);
 }
 
-static struct cdevsw mlx5_fwdump_devsw = {
+static struct cdevsw mlx5_ctl_devsw = {
 	.d_version =	D_VERSION,
-	.d_ioctl =	mlx5_fwdump_ioctl,
+	.d_ioctl =	mlx5_ctl_ioctl,
 };
 
-static struct cdev *mlx5_fwdump_dev;
+static struct cdev *mlx5_ctl_dev;
 
 int
-mlx5_fwdump_init(void)
+mlx5_ctl_init(void)
 {
 	struct make_dev_args mda;
 	int error;
 
 	make_dev_args_init(&mda);
 	mda.mda_flags = MAKEDEV_WAITOK | MAKEDEV_CHECKNAME;
-	mda.mda_devsw = &mlx5_fwdump_devsw;
+	mda.mda_devsw = &mlx5_ctl_devsw;
 	mda.mda_uid = UID_ROOT;
 	mda.mda_gid = GID_OPERATOR;
 	mda.mda_mode = 0640;
-	error = make_dev_s(&mda, &mlx5_fwdump_dev, "mlx5ctl");
+	error = make_dev_s(&mda, &mlx5_ctl_dev, "mlx5ctl");
 	return (-error);
 }
 
 void
-mlx5_fwdump_fini(void)
+mlx5_ctl_fini(void)
 {
 
-	if (mlx5_fwdump_dev != NULL)
-		destroy_dev(mlx5_fwdump_dev);
+	if (mlx5_ctl_dev != NULL)
+		destroy_dev(mlx5_ctl_dev);
 
 }
