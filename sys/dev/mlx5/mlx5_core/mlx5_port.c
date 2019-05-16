@@ -260,7 +260,7 @@ int mlx5_query_port_eth_proto_oper(struct mlx5_core_dev *dev,
 EXPORT_SYMBOL(mlx5_query_port_eth_proto_oper);
 
 int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
-			int proto_mask)
+			int proto_mask, bool ext)
 {
 	u32 in[MLX5_ST_SZ_DW(ptys_reg)] = {0};
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {0};
@@ -268,10 +268,14 @@ int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
 
 	MLX5_SET(ptys_reg, in, local_port, 1);
 	MLX5_SET(ptys_reg, in, proto_mask, proto_mask);
-	if (proto_mask == MLX5_PTYS_EN)
-		MLX5_SET(ptys_reg, in, eth_proto_admin, proto_admin);
-	else
+	if (proto_mask == MLX5_PTYS_EN) {
+		if (ext)
+			MLX5_SET(ptys_reg, in, ext_eth_proto_admin, proto_admin);
+		else
+			MLX5_SET(ptys_reg, in, eth_proto_admin, proto_admin);
+	} else {
 		MLX5_SET(ptys_reg, in, ib_proto_admin, proto_admin);
+	}
 
 	err = mlx5_core_access_reg(dev, in, sizeof(in), out,
 				   sizeof(out), MLX5_REG_PTYS, 0, 1);
