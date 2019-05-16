@@ -668,6 +668,7 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "handle_asconf: couldn't get lookup addr!\n");
 		/* respond with a missing/invalid mandatory parameter error */
+		sctp_m_freem(m_ack);
 		return;
 	}
 	/* param_length is already validated in process_control... */
