@@ -561,6 +561,11 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_GEN(dev, temp_warn_event))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_TEMP_WARN_EVENT);
 
+	if (MLX5_CAP_GEN(dev, general_notification_event)) {
+		async_event_mask |= (1ull <<
+		    MLX5_EVENT_TYPE_CODING_GENERAL_NOTIFICATION_EVENT);
+	}
+
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,
 				 "mlx5_cmd_eq", &dev->priv.uuari.uars[0]);
@@ -716,14 +721,17 @@ static void mlx5_port_general_notification_event(struct mlx5_core_dev *dev,
 						 struct mlx5_eqe *eqe)
 {
 	u8 port = (eqe->data.port.port >> 4) & 0xf;
-	u32 rqn = 0;
-	struct mlx5_eqe_general_notification_event *general_event = NULL;
+	u32 rqn;
+	struct mlx5_eqe_general_notification_event *general_event;
 
 	switch (eqe->sub_type) {
 	case MLX5_GEN_EVENT_SUBTYPE_DELAY_DROP_TIMEOUT:
 		general_event = &eqe->data.general_notifications;
 		rqn = be32_to_cpu(general_event->rq_user_index_delay_drop) &
 			  0xffffff;
+		break;
+	case MLX5_GEN_EVENT_SUBTYPE_PCI_POWER_CHANGE_EVENT:
+		mlx5_trigger_health_watchdog(dev);
 		break;
 	default:
 		mlx5_core_warn(dev,
