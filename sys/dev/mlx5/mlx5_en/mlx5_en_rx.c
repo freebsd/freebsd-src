@@ -222,28 +222,31 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 static uint64_t
 mlx5e_mbuf_tstmp(struct mlx5e_priv *priv, uint64_t hw_tstmp)
 {
-	struct mlx5e_clbr_point *cp;
+	struct mlx5e_clbr_point *cp, dcp;
 	uint64_t a1, a2, res;
 	u_int gen;
 
 	do {
 		cp = &priv->clbr_points[priv->clbr_curr];
 		gen = atomic_load_acq_int(&cp->clbr_gen);
-		a1 = (hw_tstmp - cp->clbr_hw_prev) >> MLX5E_TSTMP_PREC;
-		a2 = (cp->base_curr - cp->base_prev) >> MLX5E_TSTMP_PREC;
-		res = (a1 * a2) << MLX5E_TSTMP_PREC;
-
-		/*
-		 * Divisor cannot be zero because calibration callback
-		 * checks for the condition and disables timestamping
-		 * if clock halted.
-		 */
-		res /= (cp->clbr_hw_curr - cp->clbr_hw_prev) >>
-		    MLX5E_TSTMP_PREC;
-
-		res += cp->base_prev;
+		if (gen == 0)
+			return (0);
+		dcp = *cp;
 		atomic_thread_fence_acq();
-	} while (gen == 0 || gen != cp->clbr_gen);
+	} while (gen != cp->clbr_gen);
+
+	a1 = (hw_tstmp - dcp.clbr_hw_prev) >> MLX5E_TSTMP_PREC;
+	a2 = (dcp.base_curr - dcp.base_prev) >> MLX5E_TSTMP_PREC;
+	res = (a1 * a2) << MLX5E_TSTMP_PREC;
+
+	/*
+	 * Divisor cannot be zero because calibration callback
+	 * checks for the condition and disables timestamping
+	 * if clock halted.
+	 */
+	res /= (dcp.clbr_hw_curr - dcp.clbr_hw_prev) >> MLX5E_TSTMP_PREC;
+
+	res += dcp.base_prev;
 	return (res);
 }
 
