@@ -50,9 +50,8 @@ static const char mlx5_version[] = "Mellanox Core driver "
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
-#if (__FreeBSD_version >= 1100000)
 MODULE_DEPEND(mlx5, linuxkpi, 1, 1, 1);
-#endif
+MODULE_DEPEND(mlx5, mlxfw, 1, 1, 1);
 MODULE_VERSION(mlx5, 1);
 
 SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "mlx5 hardware controls");
