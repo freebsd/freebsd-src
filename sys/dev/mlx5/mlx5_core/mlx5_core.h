@@ -82,6 +82,8 @@ int mlx5_query_pcam_reg(struct mlx5_core_dev *dev, u32 *pcam,
 			u8 feature_group, u8 access_reg_group);
 int mlx5_query_mcam_reg(struct mlx5_core_dev *dev, u32 *mcap,
 			u8 feature_group, u8 access_reg_group);
+int mlx5_query_mfrl_reg(struct mlx5_core_dev *mdev, u8 *reset_level);
+int mlx5_set_mfrl_reg(struct mlx5_core_dev *mdev, u8 reset_level);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev);
