@@ -198,7 +198,8 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		INP_RLOCK(in6p);
 		if (in6p->in6p_cksum != -1) {
 			RIP6STAT_INC(rip6s_isum);
-			if (in6_cksum(m, proto, *offp,
+			if (m->m_pkthdr.len - (*offp + in6p->in6p_cksum) < 2 ||
+			    in6_cksum(m, proto, *offp,
 			    m->m_pkthdr.len - *offp)) {
 				INP_RUNLOCK(in6p);
 				RIP6STAT_INC(rip6s_badsum);
