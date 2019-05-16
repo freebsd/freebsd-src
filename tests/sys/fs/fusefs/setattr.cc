@@ -661,9 +661,12 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		<< strerror(errno);
 }
 
-/* Set a file's mtime and atime to now */
-/* TODO: enable this test after updating protocol to version 7.9 */
-#if 0
+/*
+ * Set a file's mtime and atime to now
+ *
+ * The design of FreeBSD's VFS does not allow fusefs to set just one of atime
+ * or mtime to UTIME_NOW; it's both or neither.
+ */
 TEST_F(Setattr, utimensat_utime_now) {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -689,6 +692,7 @@ TEST_F(Setattr, utimensat_utime_now) {
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.entry_valid = UINT64_MAX;
 		out->body.entry.attr.atime = oldtimes[0].tv_sec;
 		out->body.entry.attr.atimensec = oldtimes[0].tv_nsec;
 		out->body.entry.attr.mtime = oldtimes[1].tv_sec;
@@ -723,7 +727,6 @@ TEST_F(Setattr, utimensat_utime_now) {
 	EXPECT_EQ(now[1].tv_sec, sb.st_mtim.tv_sec);
 	EXPECT_EQ(now[1].tv_nsec, sb.st_mtim.tv_nsec);
 }
-#endif
 
 /* On a read-only mount, no attributes may be changed */
 TEST_F(RofsSetattr, erofs)
