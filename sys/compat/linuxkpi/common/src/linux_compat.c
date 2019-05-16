@@ -92,6 +92,10 @@ __FBSDID("$FreeBSD$");
 
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 
+int linuxkpi_debug;
+SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug, CTLFLAG_RWTUN,
+    &linuxkpi_debug, 0, "Set to enable pr_debug() prints. Clear to disable.");
+
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
 #include <linux/rbtree.h>
