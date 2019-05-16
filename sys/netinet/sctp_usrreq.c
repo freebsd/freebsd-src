@@ -2240,8 +2240,8 @@ flags_out:
 			SCTP_FIND_STCB(inp, stcb, saddr->sget_assoc_id);
 
 			if (stcb) {
-				left = (*optsize) - sizeof(struct sctp_getaddresses);
-				*optsize = sizeof(struct sctp_getaddresses);
+				left = (*optsize) - sizeof(sctp_assoc_t);
+				*optsize = sizeof(sctp_assoc_t);
 				sas = (struct sockaddr_storage *)&saddr->addr[0];
 
 				TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
@@ -2315,7 +2315,7 @@ flags_out:
 			if (stcb) {
 				SCTP_TCB_UNLOCK(stcb);
 			}
-			*optsize = sizeof(struct sockaddr_storage) + actual;
+			*optsize = sizeof(sctp_assoc_t) + actual;
 			break;
 		}
 	case SCTP_PEER_ADDR_PARAMS:
