@@ -650,6 +650,56 @@ mlx5e_update_carrier_work(struct work_struct *work)
 	PRIV_UNLOCK(priv);
 }
 
+#define	MLX5E_PCIE_PERF_GET_64(a,b,c,d,e,f)    \
+	s_debug->c = MLX5_GET64(mpcnt_reg, out, counter_set.f.c);
+
+#define	MLX5E_PCIE_PERF_GET_32(a,b,c,d,e,f)    \
+	s_debug->c = MLX5_GET(mpcnt_reg, out, counter_set.f.c);
+
+static void
+mlx5e_update_pcie_counters(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_port_stats_debug *s_debug = &priv->stats.port_stats_debug;
+	const unsigned sz = MLX5_ST_SZ_BYTES(mpcnt_reg);
+	void *out;
+	void *in;
+	int err;
+
+	/* allocate firmware request structures */
+	in = mlx5_vzalloc(sz);
+	out = mlx5_vzalloc(sz);
+	if (in == NULL || out == NULL)
+		goto free_out;
+
+	MLX5_SET(mpcnt_reg, in, grp, MLX5_PCIE_PERFORMANCE_COUNTERS_GROUP);
+	err = mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_MPCNT, 0, 0);
+	if (err != 0)
+		goto free_out;
+
+	MLX5E_PCIE_PERFORMANCE_COUNTERS_64(MLX5E_PCIE_PERF_GET_64)
+	MLX5E_PCIE_PERFORMANCE_COUNTERS_32(MLX5E_PCIE_PERF_GET_32)
+
+	MLX5_SET(mpcnt_reg, in, grp, MLX5_PCIE_TIMERS_AND_STATES_COUNTERS_GROUP);
+	err = mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_MPCNT, 0, 0);
+	if (err != 0)
+		goto free_out;
+
+	MLX5E_PCIE_TIMERS_AND_STATES_COUNTERS_32(MLX5E_PCIE_PERF_GET_32)
+
+	MLX5_SET(mpcnt_reg, in, grp, MLX5_PCIE_LANE_COUNTERS_GROUP);
+	err = mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_MPCNT, 0, 0);
+	if (err != 0)
+		goto free_out;
+
+	MLX5E_PCIE_LANE_COUNTERS_32(MLX5E_PCIE_PERF_GET_32)
+
+free_out:
+	/* free firmware request structures */
+	kvfree(in);
+	kvfree(out);
+}
+
 /*
  * This function reads the physical port counters from the firmware
  * using a pre-defined layout defined by various MLX5E_PPORT_XXX()
@@ -696,6 +746,7 @@ mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 	for (x = 0; x != MLX5E_PPORT_RFC2819_STATS_NUM; x++, y++)
 		s->arg[y] = be64toh(ptr[x]);
+
 	for (y = 0; x != MLX5E_PPORT_RFC2819_STATS_NUM +
 	    MLX5E_PPORT_RFC2819_STATS_DEBUG_NUM; x++, y++)
 		s_debug->arg[y] = be64toh(ptr[x]);
@@ -717,6 +768,9 @@ mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 	for (x = 0; x != MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG_NUM; x++, y++)
 		s_debug->arg[y] = be64toh(ptr[x]);
+
+	/* read PCIE counters */
+	mlx5e_update_pcie_counters(priv);
 
 	/* read per-priority counters */
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_PER_PRIORITY_COUNTERS_GROUP);
