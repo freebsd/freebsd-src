@@ -32,6 +32,8 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 
+#include <dev/mlxfw/mlxfw.h>
+
 #define DRIVER_NAME "mlx5_core"
 #ifndef DRIVER_VERSION
 #define DRIVER_VERSION "3.5.0"
@@ -92,6 +94,8 @@ void mlx5_recover_device(struct mlx5_core_dev *dev);
 
 int mlx5_register_device(struct mlx5_core_dev *dev);
 void mlx5_unregister_device(struct mlx5_core_dev *dev);
+
+int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw);
 
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
