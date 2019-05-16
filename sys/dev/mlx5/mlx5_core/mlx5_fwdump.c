@@ -170,7 +170,7 @@ mlx5_fwdump_clean(struct mlx5_core_dev *mdev)
 }
 
 static int
-mlx5_dbsf_to_core(const struct mlx5_fwdump_addr *devaddr,
+mlx5_dbsf_to_core(const struct mlx5_tool_addr *devaddr,
     struct mlx5_core_dev **mdev)
 {
 	device_t dev;
@@ -231,7 +231,7 @@ mlx5_fwdump_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 {
 	struct mlx5_core_dev *mdev;
 	struct mlx5_fwdump_get *fwg;
-	struct mlx5_fwdump_addr *devaddr;
+	struct mlx5_tool_addr *devaddr;
 	struct mlx5_dump_data *dd;
 	int error;
 
@@ -254,7 +254,7 @@ mlx5_fwdump_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			error = EBADF;
 			break;
 		}
-		devaddr = (struct mlx5_fwdump_addr *)data;
+		devaddr = (struct mlx5_tool_addr *)data;
 		error = mlx5_dbsf_to_core(devaddr, &mdev);
 		if (error != 0)
 			break;
@@ -269,7 +269,7 @@ mlx5_fwdump_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			error = EBADF;
 			break;
 		}
-		devaddr = (struct mlx5_fwdump_addr *)data;
+		devaddr = (struct mlx5_tool_addr *)data;
 		error = mlx5_dbsf_to_core(devaddr, &mdev);
 		if (error != 0)
 			break;
