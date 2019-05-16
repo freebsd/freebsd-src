@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2019, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -997,7 +997,7 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 	INIT_WORK(&ent->work, cmd_work_handler);
 	if (page_queue) {
 		cmd_work_handler(&ent->work);
-	} else if (!queue_work(cmd->wq, &ent->work)) {
+	} else if (!queue_work(dev->priv.health.wq_cmd, &ent->work)) {
 		mlx5_core_warn(dev, "failed to queue work\n");
 		err = -ENOMEM;
 		goto out_free;
@@ -1125,14 +1125,6 @@ mlx5_free_cmd_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg)
 {
 
 	mlx5_fwp_free(msg);
-}
-
-static void set_wqname(struct mlx5_core_dev *dev)
-{
-	struct mlx5_cmd *cmd = &dev->cmd;
-
-	snprintf(cmd->wq_name, sizeof(cmd->wq_name), "mlx5_cmd_%s",
-		 dev_name(&dev->pdev->dev));
 }
 
 static void clean_debug_files(struct mlx5_core_dev *dev)
@@ -1562,19 +1554,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 		device_printf((&dev->pdev->dev)->bsddev, "ERR: ""failed to create command cache\n");
 		goto err_free_page;
 	}
-
-	set_wqname(dev);
-	cmd->wq = create_singlethread_workqueue(cmd->wq_name);
-	if (!cmd->wq) {
-		device_printf((&dev->pdev->dev)->bsddev, "ERR: ""failed to create command workqueue\n");
-		err = -ENOMEM;
-		goto err_cache;
-	}
-
 	return 0;
-
-err_cache:
-	destroy_msg_cache(dev);
 
 err_free_page:
 	free_cmd_page(dev, cmd);
@@ -1589,7 +1569,7 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev)
 	struct mlx5_cmd *cmd = &dev->cmd;
 
 	clean_debug_files(dev);
-	destroy_workqueue(cmd->wq);
+	flush_workqueue(dev->priv.health.wq_cmd);
 	destroy_msg_cache(dev);
 	free_cmd_page(dev, cmd);
 }
