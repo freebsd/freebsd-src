@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2016
+.Dd April 30, 2019
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -264,6 +264,29 @@ return (NOT_FOUND);
 .Xr open 2 ,
 .Xr read 2 ,
 .Xr dir 5
+.Sh STANDARDS
+The
+.Fn closedir ,
+.Fn dirfd ,
+.Fn fdopendir ,
+.Fn opendir ,
+.Fn readdir ,
+.Fn readdir_r ,
+.Fn rewinddir ,
+.Fn seekdir
+and
+.Fn telldir
+functions are expected to conform to
+.St -p1003.1-2008 .
+The
+.Fn fdclosedir
+function and the
+.Fa d_reclen
+and
+.Fa d_type
+fields of
+.Vt struct dirent
+are non-standard, and should not be used in portable programs.
 .Sh HISTORY
 The
 .Fn opendir ,
