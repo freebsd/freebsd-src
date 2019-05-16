@@ -1218,6 +1218,11 @@ enum {
 	MLX5_GEN_EVENT_SUBTYPE_PCI_POWER_CHANGE_EVENT = 0x5,
 };
 
+enum {
+	MLX5_FRL_LEVEL3 = 0x8,
+	MLX5_FRL_LEVEL6 = 0x40,
+};
+
 /* 8 regular priorities + 1 for multicast */
 #define MLX5_NUM_BYPASS_FTS	9
 
