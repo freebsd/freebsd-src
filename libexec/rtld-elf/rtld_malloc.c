@@ -81,17 +81,13 @@ union	overhead {
 	} ovu;
 #define	ov_magic	ovu.ovu_magic
 #define	ov_index	ovu.ovu_index
-#define	ov_rmagic	ovu.ovu_rmagic
-#define	ov_size		ovu.ovu_size
 };
 
 static void morecore(int bucket);
 static int morepages(int n);
 static int findbucket(union overhead *freep, int srchlen);
 
-
 #define	MAGIC		0xef		/* magic # on accounting info */
-#define RMAGIC		0x5555		/* magic # on range info */
 
 /*
  * nextf[i] is the pointer to the next free block of size 2^(i+3).  The
