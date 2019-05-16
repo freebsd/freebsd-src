@@ -198,10 +198,12 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 {
 	struct mount *mp;
 	struct fuse_vnode_data *fvdat;
+	struct fuse_data *data;
 	struct vattr *vp_cache_at;
 
 	mp = vnode_mount(vp);
 	fvdat = VTOFUD(vp);
+	data = fuse_get_mpdata(mp);
 
 	fuse_validity_2_bintime(attr_valid, attr_valid_nsec,
 		&fvdat->attr_cache_timeout);
@@ -231,7 +233,10 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 	vap->va_mtime.tv_nsec = attr->mtimensec;
 	vap->va_ctime.tv_sec  = attr->ctime;
 	vap->va_ctime.tv_nsec = attr->ctimensec;
-	vap->va_blocksize = PAGE_SIZE;
+	if (fuse_libabi_geq(data, 7, 9) && attr->blksize > 0)
+		vap->va_blocksize = attr->blksize;
+	else
+		vap->va_blocksize = PAGE_SIZE;
 	vap->va_type = IFTOVT(attr->mode);
 	vap->va_bytes = attr->blocks * S_BLKSIZE;
 	vap->va_flags = 0;
