@@ -67,8 +67,9 @@ enum mlx5_fpga_id {
 enum mlx5_fpga_image {
 	MLX5_FPGA_IMAGE_USER = 0,
 	MLX5_FPGA_IMAGE_FACTORY = 1,
-	MLX5_FPGA_IMAGE_MAX = MLX5_FPGA_IMAGE_FACTORY,
 	MLX5_FPGA_IMAGE_FACTORY_FAILOVER = 2,
+	MLX5_FPGA_IMAGE_RESET = 17,
+	MLX5_FPGA_IMAGE_RELOAD = 18,
 };
 
 enum mlx5_fpga_status {
@@ -135,6 +136,7 @@ struct mlx5_fpga_temperature {
 #define	MLX5_FPGA_CAP		_IOR('m', 0x85, uint32_t[MLX5_FPGA_CAP_ARR_SZ])
 #define	MLX5_FPGA_TEMPERATURE	_IOWR('m', 0x86, struct mlx5_fpga_temperature)
 #define	MLX5_FPGA_CONNECT	_IOWR('m', 0x87, enum mlx5_fpga_connect)
+#define	MLX5_FPGA_RELOAD	_IO('m', 0x88)
 
 #define	MLX5_FPGA_TOOLS_NAME_SUFFIX	"_mlx5_fpga_tools"
 
