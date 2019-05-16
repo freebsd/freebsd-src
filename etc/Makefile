@@ -15,7 +15,6 @@ SUBDIR+=sendmail
 .endif
 
 BIN1=	\
-	group \
 	login.access \
 	rc.bsdextended \
 	rc.firewall \
@@ -65,21 +64,7 @@ distribution:
 .endif
 	cd ${.CURDIR}; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		${BIN1} ${DESTDIR}/etc; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
-		master.passwd ${DESTDIR}/etc;
-
-.if ${MK_TCSH} == "no"
-	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
-.endif
-	pwd_mkdb -i -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
-.if defined(NO_ROOT)
-	( \
-		echo "./etc/passwd type=file mode=0644 uname=root gname=wheel"; \
-		echo "./etc/pwd.db type=file mode=0644 uname=root gname=wheel"; \
-		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
-	) | ${METALOG.add}
-.endif
+		${BIN1} ${DESTDIR}/etc
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
