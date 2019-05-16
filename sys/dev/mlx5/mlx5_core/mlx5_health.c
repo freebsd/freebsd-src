@@ -64,6 +64,12 @@ SYSCTL_INT(_hw_mlx5, OID_AUTO, fw_reset_enable, CTLFLAG_RWTUN,
     &mlx5_fw_reset_enable, 0,
     "Enable firmware reset");
 
+static unsigned int sw_reset_to = 1200;
+SYSCTL_UINT(_hw_mlx5, OID_AUTO, sw_reset_timeout, CTLFLAG_RWTUN,
+    &sw_reset_to, 0,
+    "Minimum timeout in seconds between two firmware resets");
+
+
 static int lock_sem_sw_reset(struct mlx5_core_dev *dev)
 {
 	int ret;
@@ -218,6 +224,32 @@ static void reset_fw_if_needed(struct mlx5_core_dev *dev)
 		    &dev->iseg->cmdq_addr_l_sz);
 }
 
+static bool
+mlx5_health_allow_reset(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+	unsigned int delta;
+	bool ret;
+
+	if (health->last_reset_req != 0) {
+		delta = ticks - health->last_reset_req;
+		delta /= hz;
+		ret = delta >= sw_reset_to;
+	} else {
+		ret = true;
+	}
+
+	/*
+	 * In principle, ticks may be 0. Setting it to off by one (-1)
+	 * to prevent certain reset in next request.
+	 */
+	health->last_reset_req = ticks ? : -1;
+	if (!ret)
+		mlx5_core_warn(dev, "Firmware reset elided due to "
+		    "auto-reset frequency threshold.\n");
+	return (ret);
+}
+
 #define MLX5_CRDUMP_WAIT_MS	60000
 #define MLX5_FW_RESET_WAIT_MS	1000
 #define MLX5_NIC_STATE_POLL_MS	5
@@ -243,7 +275,8 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	if (force)
 		goto err_state_done;
 
-	if (fatal_error == MLX5_SENSOR_FW_SYND_RFR) {
+	if (fatal_error == MLX5_SENSOR_FW_SYND_RFR &&
+	    mlx5_health_allow_reset(dev)) {
 		/* Get cr-dump and reset FW semaphore */
 		if (mlx5_core_is_pf(dev))
 			lock = lock_sem_sw_reset(dev);
