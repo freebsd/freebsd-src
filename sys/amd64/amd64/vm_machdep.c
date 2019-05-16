@@ -228,7 +228,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
-	td2->td_md.md_invl_gen.gen = 0;
+	pmap_thread_init_invl_gen(td2);
 
 	/* As an i386, do not copy io permission bitmap. */
 	pcb2->pcb_tssp = NULL;
@@ -544,6 +544,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
 	td->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
+	pmap_thread_init_invl_gen(td);
 }
 
 /*
