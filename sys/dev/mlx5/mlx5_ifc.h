@@ -8752,7 +8752,69 @@ struct mlx5_ifc_eth_extended_cntrs_grp_data_layout_bits {
 
 	u8         no_buffer_discard_mc_low[0x20];
 
-	u8         reserved_0[0x700];
+	u8         rx_ebp_high[0x20];
+
+	u8         rx_ebp_low[0x20];
+
+	u8         tx_ebp_high[0x20];
+
+	u8         tx_ebp_low[0x20];
+
+        u8         rx_buffer_almost_full_high[0x20];
+
+        u8         rx_buffer_almost_full_low[0x20];
+
+        u8         rx_buffer_full_high[0x20];
+
+        u8         rx_buffer_full_low[0x20];
+
+        u8         rx_icrc_encapsulated_high[0x20];
+
+        u8         rx_icrc_encapsulated_low[0x20];
+
+	u8         reserved_0[0x80];
+
+        u8         tx_stats_pkts64octets_high[0x20];
+
+        u8         tx_stats_pkts64octets_low[0x20];
+
+        u8         tx_stats_pkts65to127octets_high[0x20];
+
+        u8         tx_stats_pkts65to127octets_low[0x20];
+
+        u8         tx_stats_pkts128to255octets_high[0x20];
+
+        u8         tx_stats_pkts128to255octets_low[0x20];
+
+        u8         tx_stats_pkts256to511octets_high[0x20];
+
+        u8         tx_stats_pkts256to511octets_low[0x20];
+
+        u8         tx_stats_pkts512to1023octets_high[0x20];
+
+        u8         tx_stats_pkts512to1023octets_low[0x20];
+
+        u8         tx_stats_pkts1024to1518octets_high[0x20];
+
+        u8         tx_stats_pkts1024to1518octets_low[0x20];
+
+        u8         tx_stats_pkts1519to2047octets_high[0x20];
+
+        u8         tx_stats_pkts1519to2047octets_low[0x20];
+
+        u8         tx_stats_pkts2048to4095octets_high[0x20];
+
+        u8         tx_stats_pkts2048to4095octets_low[0x20];
+
+        u8         tx_stats_pkts4096to8191octets_high[0x20];
+
+        u8         tx_stats_pkts4096to8191octets_low[0x20];
+
+        u8         tx_stats_pkts8192to10239octets_high[0x20];
+
+        u8         tx_stats_pkts8192to10239octets_low[0x20];
+
+	u8         reserved_1[0x2C0];
 };
 
 struct mlx5_ifc_eth_802_3_cntrs_grp_data_layout_bits {
