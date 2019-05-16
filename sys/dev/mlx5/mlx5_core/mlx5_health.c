@@ -39,13 +39,6 @@
 #define	MAX_MISSES			3
 
 enum {
-	MLX5_NIC_IFC_FULL		= 0,
-	MLX5_NIC_IFC_DISABLED		= 1,
-	MLX5_NIC_IFC_NO_DRAM_NIC	= 2,
-	MLX5_NIC_IFC_SW_RESET		= 7,
-};
-
-enum {
 	MLX5_DROP_NEW_HEALTH_WORK,
 	MLX5_DROP_NEW_RECOVERY_WORK,
 };
@@ -114,9 +107,19 @@ static int unlock_sem_sw_reset(struct mlx5_core_dev *dev)
 	return ret;
 }
 
-static u8 get_nic_mode(struct mlx5_core_dev *dev)
+u8 mlx5_get_nic_state(struct mlx5_core_dev *dev)
 {
 	return (ioread32be(&dev->iseg->cmdq_addr_l_sz) >> 8) & 7;
+}
+
+void mlx5_set_nic_state(struct mlx5_core_dev *dev, u8 state)
+{
+	u32 cur_cmdq_addr_l_sz;
+
+	cur_cmdq_addr_l_sz = ioread32be(&dev->iseg->cmdq_addr_l_sz);
+	iowrite32be((cur_cmdq_addr_l_sz & 0xFFFFF000) |
+		    state << MLX5_NIC_IFC_OFFSET,
+		    &dev->iseg->cmdq_addr_l_sz);
 }
 
 static bool sensor_fw_synd_rfr(struct mlx5_core_dev *dev)
@@ -165,12 +168,12 @@ static bool sensor_pci_no_comm(struct mlx5_core_dev *dev)
 
 static bool sensor_nic_disabled(struct mlx5_core_dev *dev)
 {
-	return get_nic_mode(dev) == MLX5_NIC_IFC_DISABLED;
+	return mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED;
 }
 
 static bool sensor_nic_sw_reset(struct mlx5_core_dev *dev)
 {
-	return get_nic_mode(dev) == MLX5_NIC_IFC_SW_RESET;
+	return mlx5_get_nic_state(dev) == MLX5_NIC_IFC_SW_RESET;
 }
 
 static u32 check_fatal_sensors(struct mlx5_core_dev *dev)
@@ -300,7 +303,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 
 	if (!sensor_nic_disabled(dev)) {
 		dev_err(&dev->pdev->dev, "NIC IFC still %d after %ums.\n",
-			get_nic_mode(dev), delay_ms);
+			mlx5_get_nic_state(dev), delay_ms);
 	}
 
 	/* Release FW semaphore if you are the lock owner */
@@ -316,7 +319,7 @@ err_state_done:
 
 static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 {
-	u8 nic_mode = get_nic_mode(dev);
+	u8 nic_mode = mlx5_get_nic_state(dev);
 
 	if (nic_mode == MLX5_NIC_IFC_SW_RESET) {
 		/* The IFC mode field is 3 bits, so it will read 0x7 in two cases:
@@ -362,11 +365,11 @@ static void health_recover(struct work_struct *work)
 		recover = false;
 	}
 
-	nic_mode = get_nic_mode(dev);
+	nic_mode = mlx5_get_nic_state(dev);
 	while (nic_mode != MLX5_NIC_IFC_DISABLED &&
 	       !time_after(jiffies, end)) {
 		msleep(MLX5_NIC_STATE_POLL_MS);
-		nic_mode = get_nic_mode(dev);
+		nic_mode = mlx5_get_nic_state(dev);
 	}
 
 	if (nic_mode != MLX5_NIC_IFC_DISABLED) {
