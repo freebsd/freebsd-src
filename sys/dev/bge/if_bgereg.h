@@ -2866,7 +2866,7 @@ struct bge_gib {
 #define	BGE_DMA_MAXADDR		0xFFFFFFFFFF
 #endif
 
-#if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
+#if (BUS_SPACE_MAXSIZE > 0xFFFFFFFF)
 #define	BGE_DMA_BNDRY		0x100000000
 #else
 #define	BGE_DMA_BNDRY		0
