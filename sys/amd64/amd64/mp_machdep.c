@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <machine/tss.h>
+#include <x86/ucode.h>
 #include <machine/cpu.h>
 #include <x86/init.h>
 
@@ -211,6 +212,9 @@ init_secondary(void)
 
 	/* Set by the startup code for us to use */
 	cpu = bootAP;
+
+	/* Update microcode before doing anything else. */
+	ucode_load_ap(cpu);
 
 	/* Init tss */
 	common_tss[cpu] = common_tss[0];

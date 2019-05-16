@@ -131,6 +131,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/perfmon.h>
 #endif
 #include <machine/tss.h>
+#include <x86/ucode.h>
 #ifdef SMP
 #include <machine/smp.h>
 #endif
@@ -1577,6 +1578,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	int late_console;
 
 	kmdp = init_ops.parse_preload_data(modulep);
+
+	physfree += ucode_load_bsp(physfree + KERNBASE);
+	physfree = roundup2(physfree, PAGE_SIZE);
 
 	identify_cpu1();
 	identify_hypervisor();
