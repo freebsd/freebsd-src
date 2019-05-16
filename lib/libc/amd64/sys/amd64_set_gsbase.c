@@ -57,7 +57,7 @@ amd64_set_gsbase_syscall(void *addr)
 	return (sysarch(AMD64_SET_GSBASE, &addr));
 }
 
-DEFINE_UIFUNC(, int, amd64_set_gsbase, (void *), static)
+DEFINE_UIFUNC(, int, amd64_set_gsbase, (void *))
 {
 
 	if (__getosreldate() >= P_OSREL_WRFSBASE &&

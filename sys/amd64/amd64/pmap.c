@@ -512,7 +512,7 @@ SYSCTL_PROC(_vm_pmap, OID_AUTO, di_locked, CTLTYPE_INT | CTLFLAG_RDTUN |
 
 static bool pmap_not_in_di_l(void);
 static bool pmap_not_in_di_u(void);
-DEFINE_IFUNC(, bool, pmap_not_in_di, (void), static)
+DEFINE_IFUNC(, bool, pmap_not_in_di, (void))
 {
 
 	return (pmap_di_locked() ? pmap_not_in_di_l : pmap_not_in_di_u);
@@ -953,28 +953,28 @@ pmap_delayed_invl_wait_u(vm_page_t m)
 	}
 }
 
-DEFINE_IFUNC(, void, pmap_thread_init_invl_gen, (struct thread *), static)
+DEFINE_IFUNC(, void, pmap_thread_init_invl_gen, (struct thread *))
 {
 
 	return (pmap_di_locked() ? pmap_thread_init_invl_gen_l :
 	    pmap_thread_init_invl_gen_u);
 }
 
-DEFINE_IFUNC(static, void, pmap_delayed_invl_start, (void), static)
+DEFINE_IFUNC(static, void, pmap_delayed_invl_start, (void))
 {
 
 	return (pmap_di_locked() ? pmap_delayed_invl_start_l :
 	    pmap_delayed_invl_start_u);
 }
 
-DEFINE_IFUNC(static, void, pmap_delayed_invl_finish, (void), static)
+DEFINE_IFUNC(static, void, pmap_delayed_invl_finish, (void))
 {
 
 	return (pmap_di_locked() ? pmap_delayed_invl_finish_l :
 	    pmap_delayed_invl_finish_u);
 }
 
-DEFINE_IFUNC(static, void, pmap_delayed_invl_wait, (vm_page_t), static)
+DEFINE_IFUNC(static, void, pmap_delayed_invl_wait, (vm_page_t))
 {
 
 	return (pmap_di_locked() ? pmap_delayed_invl_wait_l :
@@ -2197,8 +2197,7 @@ pmap_invalidate_page_nopcid(pmap_t pmap, vm_offset_t va)
 {
 }
 
-DEFINE_IFUNC(static, void, pmap_invalidate_page_mode, (pmap_t, vm_offset_t),
-    static)
+DEFINE_IFUNC(static, void, pmap_invalidate_page_mode, (pmap_t, vm_offset_t))
 {
 
 	if (pmap_pcid_enabled)
@@ -2295,7 +2294,7 @@ pmap_invalidate_range_nopcid(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 }
 
 DEFINE_IFUNC(static, void, pmap_invalidate_range_mode, (pmap_t, vm_offset_t,
-    vm_offset_t), static)
+    vm_offset_t))
 {
 
 	if (pmap_pcid_enabled)
@@ -2412,7 +2411,7 @@ pmap_invalidate_all_nopcid(pmap_t pmap)
 		invltlb();
 }
 
-DEFINE_IFUNC(static, void, pmap_invalidate_all_mode, (pmap_t), static)
+DEFINE_IFUNC(static, void, pmap_invalidate_all_mode, (pmap_t))
 {
 
 	if (pmap_pcid_enabled)
@@ -2691,7 +2690,7 @@ pmap_invalidate_pde_page(pmap_t pmap, vm_offset_t va, pd_entry_t pde)
 }
 
 DEFINE_IFUNC(, void, pmap_invalidate_cache_range,
-    (vm_offset_t sva, vm_offset_t eva), static)
+    (vm_offset_t sva, vm_offset_t eva))
 {
 
 	if ((cpu_feature & CPUID_SS) != 0)
@@ -8284,7 +8283,7 @@ pmap_activate_sw_nopcid_pti(struct thread *td, pmap_t pmap,
 }
 
 DEFINE_IFUNC(static, void, pmap_activate_sw_mode, (struct thread *, pmap_t,
-    u_int), static)
+    u_int))
 {
 
 	if (pmap_pcid_enabled && pti && invpcid_works)
@@ -8981,7 +8980,7 @@ pmap_large_map_wb_fence_nop(void)
 {
 }
 
-DEFINE_IFUNC(static, void, pmap_large_map_wb_fence, (void), static)
+DEFINE_IFUNC(static, void, pmap_large_map_wb_fence, (void))
 {
 
 	if (cpu_vendor_id != CPU_VENDOR_INTEL)
@@ -9026,8 +9025,7 @@ pmap_large_map_flush_range_nop(vm_offset_t sva __unused, vm_size_t len __unused)
 {
 }
 
-DEFINE_IFUNC(static, void, pmap_large_map_flush_range, (vm_offset_t, vm_size_t),
-    static)
+DEFINE_IFUNC(static, void, pmap_large_map_flush_range, (vm_offset_t, vm_size_t))
 {
 
 	if ((cpu_stdext_feature & CPUID_STDEXT_CLWB) != 0)
