@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2019, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -67,6 +67,11 @@ module_param_named(prof_sel, prof_sel, int, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
 
 SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "mlx5 HW controls");
+
+static int mlx5_fast_unload_enabled = 1;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, fast_unload_enabled, CTLFLAG_RWTUN,
+    &mlx5_fast_unload_enabled, 0,
+    "Set to enable fast unload. Clear to disable.");
 
 #define NUMA_NO_NODE       -1
 
@@ -1417,6 +1422,11 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 {
 	bool fast_teardown, force_teardown;
 	int err;
+
+	if (!mlx5_fast_unload_enabled) {
+		mlx5_core_dbg(dev, "fast unload is disabled by user\n");
+		return -EOPNOTSUPP;
+	}
 
 	fast_teardown = MLX5_CAP_GEN(dev, fast_teardown);
 	force_teardown = MLX5_CAP_GEN(dev, force_teardown);
