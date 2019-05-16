@@ -633,7 +633,11 @@ mlx5e_add_any_vid_rules(struct mlx5e_priv *priv)
 	if (err)
 		return (err);
 
-	return (mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_STAG_VID, 0));
+	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_STAG_VID, 0);
+	if (err)
+		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_CTAG_VID, 0);
+
+	return (err);
 }
 
 void
@@ -701,19 +705,22 @@ mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv)
 		err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID,
 					  i);
 		if (err)
-			return (err);
+			goto error;
 	}
 
 	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
 	if (err)
-		return (err);
+		goto error;
 
 	if (priv->vlan.filter_disabled) {
 		err = mlx5e_add_any_vid_rules(priv);
 		if (err)
-			return (err);
+			goto error;
 	}
 	return (0);
+error:
+	mlx5e_del_all_vlan_rules(priv);
+	return (err);
 }
 
 void
