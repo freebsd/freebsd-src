@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 /* stolen from pciconf.c: parsesel() */
 static int
-parse_pci_addr(const char *addrstr, struct mlx5_fwdump_addr *addr)
+parse_pci_addr(const char *addrstr, struct mlx5_tool_addr *addr)
 {
 	char *eppos;
 	unsigned long selarr[4];
@@ -73,7 +73,7 @@ parse_pci_addr(const char *addrstr, struct mlx5_fwdump_addr *addr)
 }
 
 static int
-mlx5tool_save_dump(int ctldev, const struct mlx5_fwdump_addr *addr,
+mlx5tool_save_dump(int ctldev, const struct mlx5_tool_addr *addr,
     const char *dumpname)
 {
 	struct mlx5_fwdump_get fdg;
@@ -123,7 +123,7 @@ out:
 }
 
 static int
-mlx5tool_dump_reset(int ctldev, const struct mlx5_fwdump_addr *addr)
+mlx5tool_dump_reset(int ctldev, const struct mlx5_tool_addr *addr)
 {
 
 	if (ioctl(ctldev, MLX5_FWDUMP_RESET, addr) == -1) {
@@ -134,7 +134,7 @@ mlx5tool_dump_reset(int ctldev, const struct mlx5_fwdump_addr *addr)
 }
 
 static int
-mlx5tool_dump_force(int ctldev, const struct mlx5_fwdump_addr *addr)
+mlx5tool_dump_force(int ctldev, const struct mlx5_tool_addr *addr)
 {
 
 	if (ioctl(ctldev, MLX5_FWDUMP_FORCE, addr) == -1) {
@@ -166,7 +166,7 @@ enum mlx5_action {
 int
 main(int argc, char *argv[])
 {
-	struct mlx5_fwdump_addr addr;
+	struct mlx5_tool_addr addr;
 	char *dumpname;
 	char *addrstr;
 	int c, ctldev, res;
