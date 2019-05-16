@@ -606,6 +606,7 @@ struct mlx5_priv {
 	struct mlx5_irq_info	*irq_info;
 	struct mlx5_uuar_info	uuari;
 	MLX5_DECLARE_DOORBELL_LOCK(cq_uar_lock);
+	int			disable_irqs;
 
 	struct io_mapping	*bf_mapping;
 
