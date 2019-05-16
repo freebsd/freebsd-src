@@ -440,6 +440,12 @@ mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	for (x = 0; x != MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG_NUM; x++, y++)
 		s_debug->arg[y] = be64toh(ptr[x]);
 
+	/* read Extended Ethernet counter group using predefined counter layout */
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP);
+	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
+	for (x = 0; x != MLX5E_PPORT_ETHERNET_EXTENDED_STATS_DEBUG_NUM; x++, y++)
+		s_debug->arg[y] = be64toh(ptr[x]);
+
 	/* read per-priority counters */
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_PER_PRIORITY_COUNTERS_GROUP);
 
@@ -453,6 +459,7 @@ mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 		    MLX5E_PPORT_PER_PRIO_STATS_NUM_PRIO); x++, y++)
 			s->arg[y] = be64toh(ptr[x]);
 	}
+
 free_out:
 	/* free firmware request structures */
 	kvfree(in);
