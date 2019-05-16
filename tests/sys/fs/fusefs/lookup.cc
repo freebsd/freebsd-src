@@ -38,6 +38,13 @@ extern "C" {
 using namespace testing;
 
 class Lookup: public FuseTest {};
+class Lookup_7_8: public Lookup {
+public:
+virtual void SetUp() {
+	m_kernel_minor_version = 8;
+	Lookup::SetUp();
+}
+};
 
 /*
  * If lookup returns a non-zero cache timeout, then subsequent VOP_GETATTRs
@@ -355,3 +362,23 @@ TEST_F(Lookup, vtype_conflict)
 	ASSERT_EQ(-1, access(SECONDFULLPATH, F_OK));
 	ASSERT_EQ(EAGAIN, errno);
 }
+
+TEST_F(Lookup_7_8, ok)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry_7_8);
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = 14;
+	})));
+	/*
+	 * access(2) is one of the few syscalls that will not (always) follow
+	 * up a successful VOP_LOOKUP with another VOP.
+	 */
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+}
+
+

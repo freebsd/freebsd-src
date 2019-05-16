@@ -34,6 +34,22 @@
  * $FreeBSD$
  */
 
+/*
+ * This file defines the kernel interface of FUSE
+ *
+ * Protocol changelog:
+ *
+ * 7.9:
+ *  - new fuse_getattr_in input argument of GETATTR
+ *  - add lk_flags in fuse_lk_in
+ *  - add lock_owner field to fuse_setattr_in, fuse_read_in and fuse_write_in
+ *  - add blksize field to fuse_attr
+ *  - add file flags field to fuse_read_in and fuse_write_in
+ */
+
+#ifndef _FUSE_FUSE_KERNEL_H
+#define _FUSE_FUSE_KERNEL_H
+ 
 #ifndef linux
 #include <sys/types.h>
 #define __u64 uint64_t
@@ -48,7 +64,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 8
+#define FUSE_KERNEL_MINOR_VERSION 9
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -77,6 +93,8 @@ struct fuse_attr {
 	__u32	uid;
 	__u32	gid;
 	__u32	rdev;
+	__u32	blksize;
+	__u32	padding;
 };
 
 struct fuse_kstatfs {
@@ -109,6 +127,9 @@ struct fuse_file_lock {
 #define FATTR_ATIME	(1 << 4)
 #define FATTR_MTIME	(1 << 5)
 #define FATTR_FH	(1 << 6)
+#define FATTR_ATIME_NOW	(1 << 7)
+#define FATTR_MTIME_NOW	(1 << 8)
+#define FATTR_LOCKOWNER	(1 << 9)
 
 /**
  * Flags returned by the OPEN request
@@ -121,14 +142,44 @@ struct fuse_file_lock {
 
 /**
  * INIT request/reply flags
+ *
+ * FUSE_EXPORT_SUPPORT: filesystem handles lookups of "." and ".."
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
+#define FUSE_FILE_OPS		(1 << 2)
+#define FUSE_ATOMIC_O_TRUNC	(1 << 3)
+#define FUSE_EXPORT_SUPPORT	(1 << 4)
+#define FUSE_BIG_WRITES		(1 << 5)
 
 /**
  * Release flags
  */
 #define FUSE_RELEASE_FLUSH	(1 << 0)
+
+/**
+ * Getattr flags
+ */
+#define FUSE_GETATTR_FH		(1 << 0)
+
+/**
+ * Lock flags
+ */
+#define FUSE_LK_FLOCK		(1 << 0)
+
+/**
+ * WRITE flags
+ *
+ * FUSE_WRITE_CACHE: delayed write from page cache, file handle is guessed
+ * FUSE_WRITE_LOCKOWNER: lock_owner field is valid
+ */
+#define FUSE_WRITE_CACHE	(1 << 0)
+#define FUSE_WRITE_LOCKOWNER	(1 << 1)
+
+/**
+ * Read flags
+ */
+#define FUSE_READ_LOCKOWNER	(1 << 1)
 
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,
@@ -172,6 +223,8 @@ enum fuse_opcode {
 /* The read buffer is required to be at least 8k, but may be much larger */
 #define FUSE_MIN_READ_BUFFER 8192
 
+#define FUSE_COMPAT_ENTRY_OUT_SIZE 120
+
 struct fuse_entry_out {
 	__u64	nodeid;		/* Inode ID */
 	__u64	generation;	/* Inode generation: nodeid:gen must
@@ -186,6 +239,14 @@ struct fuse_entry_out {
 struct fuse_forget_in {
 	__u64	nlookup;
 };
+
+struct fuse_getattr_in {
+	__u32	getattr_flags;
+	__u32	dummy;
+	__u64	fh;
+};
+
+#define FUSE_COMPAT_ATTR_OUT_SIZE 96
 
 struct fuse_attr_out {
 	__u64	attr_valid;	/* Cache timeout for the attributes */
@@ -217,7 +278,7 @@ struct fuse_setattr_in {
 	__u32	padding;
 	__u64	fh;
 	__u64	size;
-	__u64	unused1;
+	__u64	lock_owner;
 	__u64	atime;
 	__u64	mtime;
 	__u64	unused2;
@@ -260,14 +321,22 @@ struct fuse_read_in {
 	__u64	fh;
 	__u64	offset;
 	__u32	size;
+	__u32	read_flags;
+	__u64	lock_owner;
+	__u32	flags;
 	__u32	padding;
 };
+
+#define FUSE_COMPAT_WRITE_IN_SIZE 24
 
 struct fuse_write_in {
 	__u64	fh;
 	__u64	offset;
 	__u32	size;
 	__u32	write_flags;
+	__u64	lock_owner;
+	__u32	flags;
+	__u32	padding;
 };
 
 struct fuse_write_out {
@@ -316,6 +385,8 @@ struct fuse_lk_in {
 	__u64	fh;
 	__u64	owner;
 	struct fuse_file_lock lk;
+	__u32	lk_flags;
+	__u32	padding;
 };
 
 struct fuse_lk_out {
@@ -386,3 +457,5 @@ struct fuse_dirent {
 #define FUSE_DIRENT_ALIGN(x) (((x) + sizeof(__u64) - 1) & ~(sizeof(__u64) - 1))
 #define FUSE_DIRENT_SIZE(d) \
 	FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET + (d)->namelen)
+
+#endif /* _FUSE_FUSE_KERNEL_H */

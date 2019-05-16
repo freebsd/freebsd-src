@@ -49,6 +49,14 @@ virtual void SetUp() {
 }
 };
 
+class Setattr_7_8: public Setattr {
+public:
+virtual void SetUp() {
+	m_kernel_minor_version = 8;
+	Setattr::SetUp();
+}
+};
+
 
 /*
  * If setattr returns a non-zero cache timeout, then subsequent VOP_GETATTRs
@@ -735,4 +743,38 @@ TEST_F(RofsSetattr, erofs)
 
 	ASSERT_EQ(-1, chmod(FULLPATH, newmode));
 	ASSERT_EQ(EROFS, errno);
+}
+
+/* Change the mode of a file */
+TEST_F(Setattr_7_8, chmod)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	const mode_t oldmode = 0755;
+	const mode_t newmode = 0644;
+
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, entry_7_8);
+		out->body.entry.attr.mode = S_IFREG | oldmode;
+		out->body.entry.nodeid = ino;
+	})));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			/* In protocol 7.23, ctime will be changed too */
+			uint32_t valid = FATTR_MODE;
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				in->body.setattr.valid == valid &&
+				in->body.setattr.mode == newmode);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr_7_8);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | newmode;
+	})));
+	EXPECT_EQ(0, chmod(FULLPATH, newmode)) << strerror(errno);
 }

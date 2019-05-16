@@ -56,6 +56,16 @@ void expect_create(const char *relpath, mode_t mode, ProcessMockerT r)
 
 };
 
+/* FUSE_CREATE operations for a protocol 7.8 server */
+class Create_7_8: public Create {
+public:
+virtual void SetUp() {
+	m_kernel_minor_version = 8;
+	Create::SetUp();
+}
+};
+
+
 /*
  * If FUSE_CREATE sets attr_valid, then subsequent GETATTRs should use the
  * attribute cache
@@ -338,3 +348,28 @@ TEST_F(Create, wronly_0444)
 	EXPECT_LE(0, fd) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
+
+TEST_F(Create_7_8, ok)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	mode_t mode = S_IFREG | 0755;
+	uint64_t ino = 42;
+	int fd;
+
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_create(RELPATH, mode,
+		ReturnImmediate([=](auto in __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, create_7_8);
+		out->body.create.entry.attr.mode = mode;
+		out->body.create.entry.nodeid = ino;
+		out->body.create.entry.entry_valid = UINT64_MAX;
+		out->body.create.entry.attr_valid = UINT64_MAX;
+	}));
+
+	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
+	EXPECT_LE(0, fd) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+

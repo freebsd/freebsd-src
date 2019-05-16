@@ -334,9 +334,12 @@ static int
 fuse_read_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh)
 {
+	struct fuse_data *data;
 	struct fuse_dispatcher fdi;
 	struct fuse_read_in *fri;
 	int err = 0;
+
+	data = fuse_get_mpdata(vp->v_mount);
 
 	if (uio->uio_resid == 0)
 		return (0);
@@ -359,6 +362,11 @@ fuse_read_directbackend(struct vnode *vp, struct uio *uio,
 		fri->offset = uio->uio_offset;
 		fri->size = MIN(uio->uio_resid,
 		    fuse_get_mpdata(vp->v_mount)->max_read);
+		if (fuse_libabi_geq(data, 7, 9)) {
+			/* See comment regarding FUSE_WRITE_LOCKOWNER */
+			fri->read_flags = 0;
+			fri->flags = 0;		/* TODO */
+		}
 
 		SDT_PROBE1(fusefs, , io, read_directbackend_start, fri);
 
@@ -385,6 +393,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
     int ioflag)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct fuse_data *data;
 	struct fuse_write_in *fwi;
 	struct fuse_write_out *fwo;
 	struct fuse_dispatcher fdi;
@@ -395,6 +404,8 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	int err = 0;
 	bool direct_io = fufh->fuse_open_flags & FOPEN_DIRECT_IO;
 
+	data = fuse_get_mpdata(vp->v_mount);
+
 	if (uio->uio_resid == 0)
 		return (0);
 
@@ -404,8 +415,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	fdisp_init(&fdi, 0);
 
 	while (uio->uio_resid > 0) {
-		chunksize = MIN(uio->uio_resid,
-		    fuse_get_mpdata(vp->v_mount)->max_write);
+		chunksize = MIN(uio->uio_resid, data->max_write);
 
 		fdi.iosize = sizeof(*fwi) + chunksize;
 		fdisp_make_vp(&fdi, FUSE_WRITE, vp, uio->uio_td, cred);
@@ -414,7 +424,23 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 		fwi->fh = fufh->fh_id;
 		fwi->offset = uio->uio_offset;
 		fwi->size = chunksize;
-		fwi_data = (char *)fdi.indata + sizeof(*fwi);
+		if (fuse_libabi_geq(data, 7, 9)) {
+			/* 
+			 * Don't set FUSE_WRITE_LOCKOWNER.  It can't be set
+			 * accurately when using POSIX AIO, libfuse doesn't use
+			 * it, and I'm not aware of any file systems that do.
+			 * It was an attempt to add Linux-style mandatory
+			 * locking to the FUSE protocol, but mandatory locking
+			 * is deprecated even on Linux.  See Linux commit
+			 * f33321141b273d60cbb3a8f56a5489baad82ba5e .
+			 */
+			fwi->write_flags = 0;
+			fwi->flags = 0;		/* TODO */
+			fwi_data = (char *)fdi.indata + sizeof(*fwi);
+		} else {
+			fwi_data = (char *)fdi.indata +
+				FUSE_COMPAT_WRITE_IN_SIZE;
+		}
 
 		if ((err = uiomove(fwi_data, chunksize, uio)))
 			break;

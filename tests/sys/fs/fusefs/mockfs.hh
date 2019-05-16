@@ -76,6 +76,52 @@ struct fuse_create_out {
 	struct fuse_open_out	open;
 };
 
+/* Protocol 7.8 version of struct fuse_attr */
+struct fuse_attr_7_8
+{
+	__u64	ino;
+	__u64	size;
+	__u64	blocks;
+	__u64	atime;
+	__u64	mtime;
+	__u64	ctime;
+	__u32	atimensec;
+	__u32	mtimensec;
+	__u32	ctimensec;
+	__u32	mode;
+	__u32	nlink;
+	__u32	uid;
+	__u32	gid;
+	__u32	rdev;
+};
+
+/* Protocol 7.8 version of struct fuse_attr_out */
+struct fuse_attr_out_7_8
+{
+	__u64	attr_valid;
+	__u32	attr_valid_nsec;
+	__u32	dummy;
+	struct fuse_attr_7_8 attr;
+};
+
+/* Protocol 7.8 version of struct fuse_entry_out */
+struct fuse_entry_out_7_8 {
+	__u64	nodeid;		/* Inode ID */
+	__u64	generation;	/* Inode generation: nodeid:gen must
+				   be unique for the fs's lifetime */
+	__u64	entry_valid;	/* Cache timeout for the name */
+	__u64	attr_valid;	/* Cache timeout for the attributes */
+	__u32	entry_valid_nsec;
+	__u32	attr_valid_nsec;
+	struct fuse_attr_7_8 attr;
+};
+
+/* Output struct for FUSE_CREATE for protocol 7.8 servers */
+struct fuse_create_out_7_8 {
+	struct fuse_entry_out_7_8	entry;
+	struct fuse_open_out	open;
+};
+
 union fuse_payloads_in {
 	fuse_access_in	access;
 	/* value is from fuse_kern_chan.c in fusefs-libs */
@@ -116,10 +162,13 @@ struct mockfs_buf_in {
 
 union fuse_payloads_out {
 	fuse_attr_out		attr;
+	fuse_attr_out_7_8	attr_7_8;
 	fuse_create_out		create;
+	fuse_create_out_7_8	create_7_8;
 	/* The protocol places no limits on the size of bytes */
 	uint8_t			bytes[0x20000];
 	fuse_entry_out		entry;
+	fuse_entry_out_7_8	entry_7_8;
 	fuse_lk_out		getlk;
 	fuse_getxattr_out	getxattr;
 	fuse_init_out		init;
@@ -191,6 +240,9 @@ class MockFS {
 	/* file descriptor of /dev/fuse control device */
 	int m_fuse_fd;
 	
+	/* The minor version of the kernel API that this mock daemon targets */
+	uint32_t m_kernel_minor_version;
+
 	int m_kq;
 
 	/* The max_readahead filesystem option */
@@ -240,7 +292,9 @@ class MockFS {
 	/* Create a new mockfs and mount it to a tempdir */
 	MockFS(int max_readahead, bool allow_other,
 		bool default_permissions, bool push_symlinks_in, bool ro,
-		enum poll_method pm, uint32_t flags);
+		enum poll_method pm, uint32_t flags,
+		uint32_t kernel_minor_version);
+
 	virtual ~MockFS();
 
 	/* Kill the filesystem daemon without unmounting the filesystem */

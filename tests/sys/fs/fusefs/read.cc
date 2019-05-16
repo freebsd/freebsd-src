@@ -54,6 +54,19 @@ void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
 }
 };
 
+class Read_7_8: public FuseTest {
+public:
+virtual void SetUp() {
+	m_kernel_minor_version = 8;
+	FuseTest::SetUp();
+}
+
+void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
+{
+	FuseTest::expect_lookup_7_8(relpath, ino, S_IFREG | 0644, size, 1);
+}
+};
+
 class AioRead: public Read {
 public:
 virtual void SetUp() {
@@ -563,6 +576,29 @@ TEST_F(Read, pread)
 }
 
 TEST_F(Read, read)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+	char buf[bufsize];
+
+	expect_lookup(RELPATH, ino, bufsize);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
+	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
+
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+TEST_F(Read_7_8, read)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";

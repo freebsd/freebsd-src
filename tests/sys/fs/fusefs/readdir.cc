@@ -97,6 +97,19 @@ void expect_readdir(uint64_t ino, uint64_t off, vector<struct dirent> &ents)
 }
 };
 
+class Readdir_7_8: public Readdir {
+public:
+virtual void SetUp() {
+	m_kernel_minor_version = 8;
+	Readdir::SetUp();
+}
+
+void expect_lookup(const char *relpath, uint64_t ino)
+{
+	FuseTest::expect_lookup_7_8(relpath, ino, S_IFDIR | 0755, 0, 1);
+}
+};
+
 /* FUSE_READDIR returns nothing but "." and ".." */
 TEST_F(Readdir, dots)
 {
@@ -375,6 +388,37 @@ TEST_F(Readdir, seekdir)
 	de = readdir(dir);
 	ASSERT_NE(NULL, de) << strerror(errno);
 	EXPECT_EQ(130ul, de->d_fileno);
+
+	/* Deliberately leak dir.  RELEASEDIR will be tested separately */
+}
+
+TEST_F(Readdir_7_8, nodots)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	uint64_t ino = 42;
+	DIR *dir;
+
+	expect_lookup(RELPATH, ino);
+	expect_opendir(ino);
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_READDIR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+		out->header.error = 0;
+		out->header.len = sizeof(out->header);
+	})));
+
+	errno = 0;
+	dir = opendir(FULLPATH);
+	ASSERT_NE(NULL, dir) << strerror(errno);
+	errno = 0;
+	ASSERT_EQ(NULL, readdir(dir));
+	ASSERT_EQ(0, errno);
 
 	/* Deliberately leak dir.  RELEASEDIR will be tested separately */
 }

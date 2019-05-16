@@ -719,8 +719,17 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 	opcode = fticket_opcode(ftick);
 
 	switch (opcode) {
+	case FUSE_LINK:
 	case FUSE_LOOKUP:
-		err = (blen == sizeof(struct fuse_entry_out)) ? 0 : EINVAL;
+	case FUSE_MKDIR:
+	case FUSE_MKNOD:
+	case FUSE_SYMLINK:
+		if (fuse_libabi_geq(ftick->tk_data, 7, 9)) {
+			err = (blen == sizeof(struct fuse_entry_out)) ?
+				0 : EINVAL;
+		} else {
+			err = (blen == FUSE_COMPAT_ENTRY_OUT_SIZE) ? 0 : EINVAL;
+		}
 		break;
 
 	case FUSE_FORGET:
@@ -728,27 +737,17 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		break;
 
 	case FUSE_GETATTR:
-		err = (blen == sizeof(struct fuse_attr_out)) ? 0 : EINVAL;
-		break;
-
 	case FUSE_SETATTR:
-		err = (blen == sizeof(struct fuse_attr_out)) ? 0 : EINVAL;
+		if (fuse_libabi_geq(ftick->tk_data, 7, 9)) {
+			err = (blen == sizeof(struct fuse_attr_out)) ? 
+			  0 : EINVAL;
+		} else {
+			err = (blen == FUSE_COMPAT_ATTR_OUT_SIZE) ? 0 : EINVAL;
+		}
 		break;
 
 	case FUSE_READLINK:
 		err = (PAGE_SIZE >= blen) ? 0 : EINVAL;
-		break;
-
-	case FUSE_SYMLINK:
-		err = (blen == sizeof(struct fuse_entry_out)) ? 0 : EINVAL;
-		break;
-
-	case FUSE_MKNOD:
-		err = (blen == sizeof(struct fuse_entry_out)) ? 0 : EINVAL;
-		break;
-
-	case FUSE_MKDIR:
-		err = (blen == sizeof(struct fuse_entry_out)) ? 0 : EINVAL;
 		break;
 
 	case FUSE_UNLINK:
@@ -761,10 +760,6 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 
 	case FUSE_RENAME:
 		err = (blen == 0) ? 0 : EINVAL;
-		break;
-
-	case FUSE_LINK:
-		err = (blen == sizeof(struct fuse_entry_out)) ? 0 : EINVAL;
 		break;
 
 	case FUSE_OPEN:
@@ -864,8 +859,13 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		break;
 
 	case FUSE_CREATE:
-		err = (blen == sizeof(struct fuse_entry_out) +
-		    sizeof(struct fuse_open_out)) ? 0 : EINVAL;
+		if (fuse_libabi_geq(ftick->tk_data, 7, 9)) {
+			err = (blen == sizeof(struct fuse_entry_out) +
+			    sizeof(struct fuse_open_out)) ? 0 : EINVAL;
+		} else {
+			err = (blen == FUSE_COMPAT_ENTRY_OUT_SIZE +
+			    sizeof(struct fuse_open_out)) ? 0 : EINVAL;
+		}
 		break;
 
 	case FUSE_DESTROY:

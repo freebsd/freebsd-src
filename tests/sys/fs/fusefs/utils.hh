@@ -52,6 +52,7 @@ class FuseTest : public ::testing::Test {
 	uint32_t m_init_flags;
 	bool m_allow_other;
 	bool m_default_permissions;
+	uint32_t m_kernel_minor_version;
 	enum poll_method m_pm;
 	bool m_push_symlinks_in;
 	bool m_ro;
@@ -70,6 +71,7 @@ class FuseTest : public ::testing::Test {
 		m_init_flags(0),
 		m_allow_other(false),
 		m_default_permissions(false),
+		m_kernel_minor_version(FUSE_KERNEL_MINOR_VERSION),
 		m_pm(BLOCKING),
 		m_push_symlinks_in(false),
 		m_ro(false)
@@ -119,6 +121,11 @@ class FuseTest : public ::testing::Test {
 		uint64_t size, int times, uint64_t attr_valid = UINT64_MAX,
 		uid_t uid = 0, gid_t gid = 0);
 
+	/* The protocol 7.8 version of expect_lookup */
+	void expect_lookup_7_8(const char *relpath, uint64_t ino, mode_t mode,
+		uint64_t size, int times, uint64_t attr_valid = UINT64_MAX,
+		uid_t uid = 0, gid_t gid = 0);
+
 	/*
 	 * Create an expectation that FUSE_OPEN will be called for the given
 	 * inode exactly times times.  It will return with open_flags flags and
@@ -136,6 +143,9 @@ class FuseTest : public ::testing::Test {
 	 * Create an expectation that FUSE_READ will be called exactly once for
 	 * the given inode, at offset offset and with size isize.  It will
 	 * return the first osize bytes from contents
+	 *
+	 * Protocol 7.8 tests can use this same expectation method because
+	 * nothing currently validates the size of the fuse_read_in struct.
 	 */
 	void expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 		uint64_t osize, const void *contents);
@@ -164,6 +174,10 @@ class FuseTest : public ::testing::Test {
 	 * size isize and buffer contents.  It will return osize
 	 */
 	void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
+		uint64_t osize, uint32_t flags, const void *contents);
+
+	/* Protocol 7.8 version of expect_write */
+	void expect_write_7_8(uint64_t ino, uint64_t offset, uint64_t isize,
 		uint64_t osize, uint32_t flags, const void *contents);
 
 	/*
