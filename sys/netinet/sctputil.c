@@ -5215,8 +5215,9 @@ sctp_sorecvmsg(struct socket *so,
 	 *
 	 */
 	struct sctp_inpcb *inp = NULL;
-	int my_len = 0;
-	int cp_len = 0, error = 0;
+	size_t my_len = 0;
+	size_t cp_len = 0;
+	int error = 0;
 	struct sctp_queued_to_read *control = NULL, *ctl = NULL, *nxt = NULL;
 	struct mbuf *m = NULL;
 	struct sctp_tcb *stcb = NULL;
@@ -5724,8 +5725,8 @@ get_more_data:
 		m = control->data;
 		while (m) {
 			/* Move out all we can */
-			cp_len = (int)uio->uio_resid;
-			my_len = (int)SCTP_BUF_LEN(m);
+			cp_len = uio->uio_resid;
+			my_len = SCTP_BUF_LEN(m);
 			if (cp_len > my_len) {
 				/* not enough in this buf */
 				cp_len = my_len;
