@@ -215,6 +215,12 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
+	if (MLX5_CAP_GEN(dev, mcam_reg)) {
+		err = mlx5_get_mcam_reg(dev);
+		if (err)
+			return err;
+	}
+
 	err = mlx5_core_query_special_contexts(dev);
 	if (err)
 		return err;
