@@ -51,7 +51,7 @@ SIGN_OPENPGP= ${PYTHON} ${SIGNER:H}/openpgp-sign.py -a -u ${OPENPGP_SIGN_URL}
 ta_openpgp.asc:
 	${SIGN_OPENPGP} -C ${.TARGET}
 
-ta.h: ta_openpgp.asc
+ta_asc.h: ta_openpgp.asc
 
 .if ${VE_SELF_TESTS} != "no"
 # for self test
@@ -59,7 +59,7 @@ vc_openpgp.asc: ta_openpgp.asc
 	${SIGN_OPENPGP} ${.ALLSRC:M*.asc}
 	mv ta_openpgp.asc.asc ${.TARGET}
 
-ta.h: vc_openpgp.asc
+ta_asc.h: vc_openpgp.asc
 .endif
 .endif
 
@@ -72,17 +72,20 @@ ecerts.pem:
 .if ${VE_SIGNATURE_LIST:tu:MECDSA} != ""
 # the last cert in the chain is the one we want
 ta_ec.pem: ecerts.pem _LAST_PEM_USE
-
+ta.h: ta_ec.pem
 .if ${VE_SELF_TESTS} != "no"
 # these are for verification self test
 vc_ec.pem: ecerts.pem _2ndLAST_PEM_USE
+ta.h: vc_ec.pem
 .endif
 .endif
 
 .if ${VE_SIGNATURE_LIST:tu:MRSA} != ""
 ta_rsa.pem: rcerts.pem _LAST_PEM_USE
+ta.h: ta_rsa.pem
 .if ${VE_SELF_TESTS} != "no"
 vc_rsa.pem: rcerts.pem _2ndLAST_PEM_USE
+ta.h: vc_rsa.pem
 .endif
 .endif
 

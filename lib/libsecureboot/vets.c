@@ -246,7 +246,9 @@ ve_trust_init(void)
 		num = ve_trust_anchors_add(xcs, num);
 #endif
 	once = (int) VEC_LEN(trust_anchors);
-
+#ifdef VE_OPENPGP_SUPPORT
+	once += openpgp_trust_init();
+#endif
 	return (once);
 }
 
@@ -814,7 +816,7 @@ test_hash(const br_hash_class *md, size_t hlen,
 #define ve_test_hash(n, N) \
 	printf("Testing hash: " #n "\t\t\t\t%s\n", \
 	    test_hash(&br_ ## n ## _vtable, br_ ## n ## _SIZE, #n, \
-	    VE_HASH_KAT_STR, sizeof(VE_HASH_KAT_STR), \
+	    VE_HASH_KAT_STR, VE_HASH_KAT_STRLEN(VE_HASH_KAT_STR), \
 	    vh_ ## N) ? "Failed" : "Passed")
 
 /**
@@ -863,34 +865,32 @@ ve_self_tests(void)
 #ifdef VERIFY_CERTS_STR
 	xcs = parse_certificates(__DECONST(unsigned char *, VERIFY_CERTS_STR),
 	    sizeof(VERIFY_CERTS_STR), &num);
-	if (xcs == NULL)
-		return (0);
-	/*
-	 * We want the commonName field
-	 * the OID we want is 2,5,4,3 - but DER encoded
-	 */
-	cn_oid[0] = 3;
-	cn_oid[1] = 0x55;
-	cn_oid[2] = 4;
-	cn_oid[3] = 3;
-	cn.oid = cn_oid;
-	cn.buf = cn_buf;
+	if (xcs != NULL) {
+		/*
+		 * We want the commonName field
+		 * the OID we want is 2,5,4,3 - but DER encoded
+		 */
+		cn_oid[0] = 3;
+		cn_oid[1] = 0x55;
+		cn_oid[2] = 4;
+		cn_oid[3] = 3;
+		cn.oid = cn_oid;
+		cn.buf = cn_buf;
 
-	for (u = 0; u < num; u ++) {
-		cn.len = sizeof(cn_buf);
-		if ((pk = verify_signer_xcs(&xcs[u], 1, &cn, 1, &trust_anchors)) != NULL) {
-			free_cert_contents(&xcs[u]);
-			once++;
-			printf("Testing verify certificate: %s\tPassed\n",
-			    cn.status ? cn_buf : "");
-			xfreepkey(pk);
+		for (u = 0; u < num; u ++) {
+			cn.len = sizeof(cn_buf);
+			if ((pk = verify_signer_xcs(&xcs[u], 1, &cn, 1, &trust_anchors)) != NULL) {
+				free_cert_contents(&xcs[u]);
+				once++;
+				printf("Testing verify certificate: %s\tPassed\n",
+				    cn.status ? cn_buf : "");
+				xfreepkey(pk);
+			}
 		}
+		if (!once)
+			printf("Testing verify certificate:\t\t\tFailed\n");
+		xfree(xcs);
 	}
-	if (!once)
-		printf("Testing verify certificate:\t\t\tFailed\n");
-	xfree(xcs);
-#else
-	printf("No X.509 self tests\n");
 #endif	/* VERIFY_CERTS_STR */
 #ifdef VE_OPENPGP_SUPPORT
 	if (!openpgp_self_tests())
