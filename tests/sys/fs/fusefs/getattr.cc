@@ -28,6 +28,10 @@
  * SUCH DAMAGE.
  */
 
+extern "C" {
+#include <sys/param.h>
+}
+
 #include "mockfs.hh"
 #include "utils.hh"
 
@@ -130,6 +134,35 @@ TEST_F(Getattr, attr_cache_timeout)
 	EXPECT_EQ(0, stat(FULLPATH, &sb));
 }
 
+/* 
+ * If attr.blksize is zero, then the kernel should use a default value for
+ * st_blksize
+ */
+TEST_F(Getattr, blksize_zero)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	struct stat sb;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1, 1, 0, 0);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.mode = S_IFREG | 0644;
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.blksize = 0;
+	})));
+
+	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
+	EXPECT_EQ((blksize_t)PAGE_SIZE, sb.st_blksize);
+}
+
 TEST_F(Getattr, enoent)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -179,6 +212,7 @@ TEST_F(Getattr, ok)
 		out->body.attr.attr.uid = 10;
 		out->body.attr.attr.gid = 11;
 		out->body.attr.attr.rdev = 12;
+		out->body.attr.attr.blksize = 12345;
 	})));
 
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
@@ -194,6 +228,7 @@ TEST_F(Getattr, ok)
 	EXPECT_EQ(10ul, sb.st_uid);
 	EXPECT_EQ(11ul, sb.st_gid);
 	EXPECT_EQ(12ul, sb.st_rdev);
+	EXPECT_EQ((blksize_t)12345, sb.st_blksize);
 	EXPECT_EQ(ino, sb.st_ino);
 	EXPECT_EQ(S_IFREG | 0644, sb.st_mode);
 
