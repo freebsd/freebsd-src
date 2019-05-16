@@ -59,42 +59,42 @@
 #define	MLX5E_RL_WUNLOCK(rl) sx_xunlock(&(rl)->rl_sxlock)
 
 #define	MLX5E_RL_PARAMS(m) \
-  m(+1, u64 tx_queue_size, "tx_queue_size", "Default send queue size") \
-  m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining TX packets") \
-  m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of TX packets to join") \
-  m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
-  m(+1, u64 tx_completion_fact, "tx_completion_fact", "1..MAX: Completion event ratio") \
-  m(+1, u64 tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
-  m(+1, u64 tx_worker_threads_max, "tx_worker_threads_max", "Max number of TX worker threads") \
-  m(+1, u64 tx_worker_threads_def, "tx_worker_threads_def", "Default number of TX worker threads") \
-  m(+1, u64 tx_channels_per_worker_max, "tx_channels_per_worker_max", "Max number of TX channels per worker") \
-  m(+1, u64 tx_channels_per_worker_def, "tx_channels_per_worker_def", "Default number of TX channels per worker") \
-  m(+1, u64 tx_rates_max, "tx_rates_max", "Max number of TX rates") \
-  m(+1, u64 tx_rates_def, "tx_rates_def", "Default number of TX rates") \
-  m(+1, u64 tx_limit_min, "tx_limit_min", "Minimum TX rate in bits/s") \
-  m(+1, u64 tx_limit_max, "tx_limit_max", "Maximum TX rate in bits/s") \
-  m(+1, u64 tx_burst_size, "tx_burst_size", "Current burst size in number of packets. A value of zero means use firmware default.") \
-  m(+1, u64 tx_burst_size_max, "tx_burst_size_max", "Maximum burst size in number of packets") \
-  m(+1, u64 tx_burst_size_min, "tx_burst_size_min", "Minimum burst size in number of packets")
+  m(+1, u64, tx_queue_size, "tx_queue_size", "Default send queue size") \
+  m(+1, u64, tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining TX packets") \
+  m(+1, u64, tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of TX packets to join") \
+  m(+1, u64, tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
+  m(+1, u64, tx_completion_fact, "tx_completion_fact", "1..MAX: Completion event ratio") \
+  m(+1, u64, tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
+  m(+1, u64, tx_worker_threads_max, "tx_worker_threads_max", "Max number of TX worker threads") \
+  m(+1, u64, tx_worker_threads_def, "tx_worker_threads_def", "Default number of TX worker threads") \
+  m(+1, u64, tx_channels_per_worker_max, "tx_channels_per_worker_max", "Max number of TX channels per worker") \
+  m(+1, u64, tx_channels_per_worker_def, "tx_channels_per_worker_def", "Default number of TX channels per worker") \
+  m(+1, u64, tx_rates_max, "tx_rates_max", "Max number of TX rates") \
+  m(+1, u64, tx_rates_def, "tx_rates_def", "Default number of TX rates") \
+  m(+1, u64, tx_limit_min, "tx_limit_min", "Minimum TX rate in bits/s") \
+  m(+1, u64, tx_limit_max, "tx_limit_max", "Maximum TX rate in bits/s") \
+  m(+1, u64, tx_burst_size, "tx_burst_size", "Current burst size in number of packets. A value of zero means use firmware default.") \
+  m(+1, u64, tx_burst_size_max, "tx_burst_size_max", "Maximum burst size in number of packets") \
+  m(+1, u64, tx_burst_size_min, "tx_burst_size_min", "Minimum burst size in number of packets")
 
 #define	MLX5E_RL_PARAMS_NUM (0 MLX5E_RL_PARAMS(MLX5E_STATS_COUNT))
 
 #define MLX5E_RL_STATS(m) \
-  m(+1, u64 tx_allocate_resource_failure, "tx_allocate_resource_failure", "Number of times firmware resource allocation failed") \
-  m(+1, u64 tx_add_new_rate_failure, "tx_add_new_rate_failure", "Number of times adding a new firmware rate failed") \
-  m(+1, u64 tx_modify_rate_failure, "tx_modify_rate_failure", "Number of times modifying a firmware rate failed") \
-  m(+1, u64 tx_active_connections, "tx_active_connections", "Number of active connections") \
-  m(+1, u64 tx_open_queues, "tx_open_queues", "Number of open TX queues") \
-  m(+1, u64 tx_available_resource_failure, "tx_available_resource_failure", "Number of times TX resources were not available")
+  m(+1, u64, tx_allocate_resource_failure, "tx_allocate_resource_failure", "Number of times firmware resource allocation failed") \
+  m(+1, u64, tx_add_new_rate_failure, "tx_add_new_rate_failure", "Number of times adding a new firmware rate failed") \
+  m(+1, u64, tx_modify_rate_failure, "tx_modify_rate_failure", "Number of times modifying a firmware rate failed") \
+  m(+1, u64, tx_active_connections, "tx_active_connections", "Number of active connections") \
+  m(+1, u64, tx_open_queues, "tx_open_queues", "Number of open TX queues") \
+  m(+1, u64, tx_available_resource_failure, "tx_available_resource_failure", "Number of times TX resources were not available")
 
 #define MLX5E_RL_STATS_NUM (0 MLX5E_RL_STATS(MLX5E_STATS_COUNT))
 
 #define	MLX5E_RL_TABLE_PARAMS(m) \
-  m(+1, u64 tx_limit_add, "tx_limit_add", "Add TX rate limit in bits/s to empty slot") \
-  m(+1, u64 tx_limit_clr, "tx_limit_clr", "Clear all TX rates in table") \
-  m(+1, u64 tx_allowed_deviation, "tx_allowed_deviation", "Relative rate deviation allowed in 1/1000") \
-  m(+1, u64 tx_allowed_deviation_min, "tx_allowed_deviation_min", "Minimum allowed rate deviation in 1/1000") \
-  m(+1, u64 tx_allowed_deviation_max, "tx_allowed_deviation_max", "Maximum allowed rate deviation in 1/1000")
+  m(+1, u64, tx_limit_add, "tx_limit_add", "Add TX rate limit in bits/s to empty slot") \
+  m(+1, u64, tx_limit_clr, "tx_limit_clr", "Clear all TX rates in table") \
+  m(+1, u64, tx_allowed_deviation, "tx_allowed_deviation", "Relative rate deviation allowed in 1/1000") \
+  m(+1, u64, tx_allowed_deviation_min, "tx_allowed_deviation_min", "Minimum allowed rate deviation in 1/1000") \
+  m(+1, u64, tx_allowed_deviation_max, "tx_allowed_deviation_max", "Maximum allowed rate deviation in 1/1000")
 
 #define	MLX5E_RL_TABLE_PARAMS_NUM (0 MLX5E_RL_TABLE_PARAMS(MLX5E_STATS_COUNT))
 
