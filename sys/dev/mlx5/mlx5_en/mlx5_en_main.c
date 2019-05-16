@@ -1147,8 +1147,13 @@ mlx5e_free_sq_db(struct mlx5e_sq *sq)
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 	int x;
 
-	for (x = 0; x != wq_sz; x++)
+	for (x = 0; x != wq_sz; x++) {
+		if (sq->mbuf[x].mbuf != NULL) {
+			bus_dmamap_unload(sq->dma_tag, sq->mbuf[x].dma_map);
+			m_freem(sq->mbuf[x].mbuf);
+		}
 		bus_dmamap_destroy(sq->dma_tag, sq->mbuf[x].dma_map);
+	}
 	free(sq->mbuf, M_MLX5EN);
 }
 
