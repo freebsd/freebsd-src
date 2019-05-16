@@ -385,7 +385,12 @@ mlx5e_decompress_cqe(struct mlx5e_cq *cq, struct mlx5_cqe64 *title,
 	 */
 	title->byte_cnt = mini->byte_cnt;
 	title->wqe_counter = cpu_to_be16((wqe_counter + i) & cq->wq.sz_m1);
-	title->check_sum = mini->checksum;
+	title->rss_hash_result = mini->rx_hash_result;
+	/*
+	 * Since we use MLX5_CQE_FORMAT_HASH when creating the RX CQ,
+	 * the value of the checksum should be ignored.
+	 */
+	title->check_sum = 0;
 	title->op_own = (title->op_own & 0xf0) |
 	    (((cq->wq.cc + i) >> cq->wq.log_sz) & 1);
 }

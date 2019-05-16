@@ -1955,13 +1955,15 @@ mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	struct net_dim_cq_moder curr;
 	void *cqc = param->cqc;
 
-
 	/*
-	 * TODO The sysctl to control on/off is a bool value for now, which means
-	 * we only support CSUM, once HASH is implemnted we'll need to address that.
+	 * We use MLX5_CQE_FORMAT_HASH because the RX hash mini CQE
+	 * format is more beneficial for FreeBSD use case.
+	 *
+	 * Adding support for MLX5_CQE_FORMAT_CSUM will require changes
+	 * in mlx5e_decompress_cqe.
 	 */
 	if (priv->params.cqe_zipping_en) {
-		MLX5_SET(cqc, cqc, mini_cqe_res_format, MLX5_CQE_FORMAT_CSUM);
+		MLX5_SET(cqc, cqc, mini_cqe_res_format, MLX5_CQE_FORMAT_HASH);
 		MLX5_SET(cqc, cqc, cqe_compression_en, 1);
 	}
 
