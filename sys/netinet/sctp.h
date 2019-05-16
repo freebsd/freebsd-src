@@ -489,6 +489,7 @@ struct sctp_error_auth_invalid_hmac {
 					 * time */
 #define SCTP_SAT_NETWORK_BURST_INCR  2	/* how many times to multiply maxburst
 					 * in sat */
+#define SCTP_MAX_SENDALL_LIMIT 1024
 
 /* Data Chuck Specific Flags */
 #define SCTP_DATA_FRAG_MASK        0x03
@@ -514,6 +515,7 @@ struct sctp_error_auth_invalid_hmac {
 #define SCTP_PCB_FLAGS_BOUNDALL		0x00000004
 #define SCTP_PCB_FLAGS_ACCEPTING	0x00000008
 #define SCTP_PCB_FLAGS_UNBOUND		0x00000010
+#define SCTP_PCB_FLAGS_SND_ITERATOR_UP  0x00000020
 #define SCTP_PCB_FLAGS_CLOSE_IP         0x00040000
 #define SCTP_PCB_FLAGS_WAS_CONNECTED    0x00080000
 #define SCTP_PCB_FLAGS_WAS_ABORTED      0x00100000
