@@ -142,6 +142,11 @@ Image address in memory is passed in
 the length of the image is specified in
 .Dv img_fw_data_len
 field.
+.It Dv MLX5_FW_RESET
+Requests PCIe link-level reset on the device.
+The address of the device is specified by the
+.Vt struct mlx5_tool_addr
+structure, which should be passed as an argument.
 .El
 .Sh FILES
 The
