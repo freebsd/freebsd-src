@@ -295,7 +295,7 @@ mlx5_fwdump_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		fake_fw.name = "umlx_fw_up";
 		fake_fw.datasize = fu->img_fw_data_len;
 		fake_fw.version = 1;
-		fake_fw.data = (void *)kmem_malloc(fu->img_fw_data_len,
+		fake_fw.data = (void *)kmem_malloc(kmem_arena, fu->img_fw_data_len,
 		    M_WAITOK);
 		if (fake_fw.data == NULL) {
 			error = ENOMEM;
@@ -305,7 +305,7 @@ mlx5_fwdump_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		    fu->img_fw_data_len);
 		if (error == 0)
 			error = -mlx5_firmware_flash(mdev, &fake_fw);
-		kmem_free((vm_offset_t)fake_fw.data, fu->img_fw_data_len);
+		kmem_free(kmem_arena, (vm_offset_t)fake_fw.data, fu->img_fw_data_len);
 		break;
 	default:
 		error = ENOTTY;
