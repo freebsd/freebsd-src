@@ -669,9 +669,12 @@ case "${RERUN}" in
     ;;
   *)
     # Only set up files that are crucial to {build|install}world
-    { mkdir -p ${TEMPROOT}/etc &&
-      cp -p ${SOURCEDIR}/etc/master.passwd ${TEMPROOT}/etc &&
-      install -p -o root -g wheel -m 0644 ${SOURCEDIR}/etc/group ${TEMPROOT}/etc;} ||
+    { MM_PASSDIR="${SOURCEDIR}/lib/libc/gen"
+      # If on an older tree, use it instead.  Delete after 13.0.
+      [ -f ${SOURCEDIR}/etc/master.passwd ] && MM_PASSDIR="${SOURCEDIR}/etc"
+      mkdir -p ${TEMPROOT}/etc &&
+      cp -p ${MM_PASSDIR}/master.passwd ${TEMPROOT}/etc &&
+      install -p -o root -g wheel -m 0644 ${MM_PASSDIR}/group ${TEMPROOT}/etc;} ||
     { echo '';
       echo '  *** FATAL ERROR: Cannot copy files to the temproot environment';
       echo '';
