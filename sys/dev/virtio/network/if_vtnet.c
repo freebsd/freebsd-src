@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
-#include <netinet/sctp.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -1519,9 +1518,6 @@ vtnet_rxq_csum_by_offset(struct vtnet_rxq *rxq, struct mbuf *m,
 		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 		m->m_pkthdr.csum_data = 0xFFFF;
 		break;
-	case offsetof(struct sctphdr, checksum):
-		m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
-		break;
 	default:
 		sc->vtnet_stats.rx_csum_bad_offset++;
 		return (1);
@@ -1578,11 +1574,6 @@ vtnet_rxq_csum_by_parse(struct vtnet_rxq *rxq, struct mbuf *m,
 			return (1);
 		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 		m->m_pkthdr.csum_data = 0xFFFF;
-		break;
-	case IPPROTO_SCTP:
-		if (__predict_false(m->m_len < offset + sizeof(struct sctphdr)))
-			return (1);
-		m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
 		break;
 	default:
 		/*
