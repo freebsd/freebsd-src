@@ -536,6 +536,7 @@ struct mlx5_core_health {
 	unsigned long			flags;
 	struct work_struct		work;
 	struct delayed_work		recover_work;
+	unsigned int			last_reset_req;
 };
 
 #ifdef RATELIMIT
