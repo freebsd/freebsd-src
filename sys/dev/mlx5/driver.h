@@ -513,6 +513,7 @@ struct mlx5_core_health {
 	struct work_struct		work;
 	struct delayed_work		recover_work;
 	unsigned int			last_reset_req;
+	struct work_struct		work_cmd_completion;
 };
 
 #define	MLX5_CQ_LINEAR_ARRAY_SIZE	1024
