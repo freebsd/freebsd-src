@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2014
+.Dd April 30, 2019
 .Dt GPTBOOT 8
 .Os
 .Sh NAME
@@ -39,6 +39,20 @@ is installed in a
 .Cm freebsd-boot
 partition with
 .Xr gpart 8 .
+.Pp
+When it starts,
+.Nm
+first reads the GPT and determines which drive and partition to
+boot from, as described under
+.Sx BOOTING ,
+below.
+If it does not find an eligible partition, or if the user hits a
+key within three seconds,
+.Nm
+switches from auto-boot to interactive mode.
+Interactive mode allows manual selection of the disk, partition,
+filename, and boot option flags, as described in
+.Xr boot 8 .
 .Sh IMPLEMENTATION NOTES
 The GPT standard allows a variable number of partitions, but
 .Nm
