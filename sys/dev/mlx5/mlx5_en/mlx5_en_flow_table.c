@@ -227,7 +227,7 @@ mlx5e_add_eth_addr_rule_sub(struct mlx5e_priv *priv,
     struct mlx5e_eth_addr_info *ai, int type,
     u32 *mc, u32 *mv)
 {
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	u8 mc_enable = 0;
 	struct mlx5_flow_rule **rule_p;
 	struct mlx5_flow_table *ft = priv->fts.main.t;
@@ -507,7 +507,7 @@ mlx5e_add_vlan_rule_sub(struct mlx5e_priv *priv,
     u32 *mc, u32 *mv)
 {
 	struct mlx5_flow_table *ft = priv->fts.vlan.t;
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	u8 mc_enable = 0;
 	struct mlx5_flow_rule **rule_p;
 	int err = 0;
