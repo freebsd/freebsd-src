@@ -56,7 +56,6 @@ enum {
 
 enum {
 	MLX5_CMD_TIMEOUT_MSEC	= 60 * 1000,
-	MLX5_CMD_WQ_MAX_NAME	= 32,
 };
 
 enum {
@@ -353,8 +352,6 @@ struct mlx5_cmd {
 	spinlock_t	token_lock;
 	u8		token;
 	unsigned long	bitmask;
-	char		wq_name[MLX5_CMD_WQ_MAX_NAME];
-	struct workqueue_struct *wq;
 	struct semaphore sem;
 	struct semaphore pages_sem;
 	enum mlx5_cmd_mode mode;
@@ -516,6 +513,7 @@ struct mlx5_core_health {
 	struct delayed_work		recover_work;
 	unsigned int			last_reset_req;
 	struct work_struct		work_cmd_completion;
+	struct workqueue_struct	       *wq_cmd;
 };
 
 #ifdef RATELIMIT
