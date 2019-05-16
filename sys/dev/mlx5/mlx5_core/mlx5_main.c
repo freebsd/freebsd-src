@@ -197,6 +197,21 @@ static int set_dma_caps(struct pci_dev *pdev)
 	return err;
 }
 
+int mlx5_pci_read_power_status(struct mlx5_core_dev *dev,
+			       u16 *p_power, u8 *p_status)
+{
+	u32 in[MLX5_ST_SZ_DW(mpein_reg)] = {};
+	u32 out[MLX5_ST_SZ_DW(mpein_reg)] = {};
+	int err;
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), out, sizeof(out),
+	    MLX5_ACCESS_REG_SUMMARY_CTRL_ID_MPEIN, 0, 0);
+
+	*p_status = MLX5_GET(mpein_reg, out, pwr_status);
+	*p_power = MLX5_GET(mpein_reg, out, pci_power);
+	return err;
+}
+
 static int mlx5_pci_enable_device(struct mlx5_core_dev *dev)
 {
 	struct pci_dev *pdev = dev->pdev;
@@ -1273,6 +1288,14 @@ static int init_one(struct pci_dev *pdev,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
 	    OID_AUTO, "msix_eqvec", CTLFLAG_RDTUN, &dev->msix_eqvec, 0,
 	    "Maximum number of MSIX event queue vectors, if set");
+	SYSCTL_ADD_INT(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
+	    OID_AUTO, "power_status", CTLFLAG_RD, &dev->pwr_status, 0,
+	    "0:Invalid 1:Sufficient 2:Insufficient");
+	SYSCTL_ADD_INT(&dev->sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(bsddev)),
+	    OID_AUTO, "power_value", CTLFLAG_RD, &dev->pwr_value, 0,
+	    "Current power value in Watts");
 
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
