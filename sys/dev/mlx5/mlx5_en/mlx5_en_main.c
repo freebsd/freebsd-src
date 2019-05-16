@@ -915,6 +915,26 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 #endif
 	}
 
+	INIT_WORK(&rq->dim.work, mlx5e_dim_work);
+	if (priv->params.rx_cq_moderation_mode < 2) {
+		rq->dim.mode = NET_DIM_CQ_PERIOD_MODE_DISABLED;
+	} else {
+		void *cqc = container_of(param,
+		    struct mlx5e_channel_param, rq)->rx_cq.cqc;
+
+		switch (MLX5_GET(cqc, cqc, cq_period_mode)) {
+		case MLX5_CQ_PERIOD_MODE_START_FROM_EQE:
+			rq->dim.mode = NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+			break;
+		case MLX5_CQ_PERIOD_MODE_START_FROM_CQE:
+			rq->dim.mode = NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE;
+			break;
+		default:
+			rq->dim.mode = NET_DIM_CQ_PERIOD_MODE_DISABLED;
+			break;
+		}
+	}
+
 	rq->ifp = c->tag.m_snd_tag.ifp;
 	rq->channel = c;
 	rq->ix = c->ix;
@@ -1116,6 +1136,7 @@ mlx5e_close_rq_wait(struct mlx5e_rq *rq)
 		rq->cq.mcq.comp(&rq->cq.mcq);
 	}
 
+	cancel_work_sync(&rq->dim.work);
 	mlx5e_disable_rq(rq);
 	mlx5e_destroy_rq(rq);
 }
@@ -1916,9 +1937,23 @@ mlx5e_build_common_cq_param(struct mlx5e_priv *priv,
 }
 
 static void
+mlx5e_get_default_profile(struct mlx5e_priv *priv, int mode, struct net_dim_cq_moder *ptr)
+{
+
+	*ptr = net_dim_get_profile(mode, MLX5E_DIM_DEFAULT_PROFILE);
+
+	/* apply LRO restrictions */
+	if (priv->params.hw_lro_en &&
+	    ptr->pkts > MLX5E_DIM_MAX_RX_CQ_MODERATION_PKTS_WITH_LRO) {
+		ptr->pkts = MLX5E_DIM_MAX_RX_CQ_MODERATION_PKTS_WITH_LRO;
+	}
+}
+
+static void
 mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
     struct mlx5e_cq_param *param)
 {
+	struct net_dim_cq_moder curr;
 	void *cqc = param->cqc;
 
 
@@ -1932,20 +1967,41 @@ mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	}
 
 	MLX5_SET(cqc, cqc, log_cq_size, priv->params.log_rq_size);
-	MLX5_SET(cqc, cqc, cq_period, priv->params.rx_cq_moderation_usec);
-	MLX5_SET(cqc, cqc, cq_max_count, priv->params.rx_cq_moderation_pkts);
 
 	switch (priv->params.rx_cq_moderation_mode) {
 	case 0:
+		MLX5_SET(cqc, cqc, cq_period, priv->params.rx_cq_moderation_usec);
+		MLX5_SET(cqc, cqc, cq_max_count, priv->params.rx_cq_moderation_pkts);
 		MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
 		break;
-	default:
+	case 1:
+		MLX5_SET(cqc, cqc, cq_period, priv->params.rx_cq_moderation_usec);
+		MLX5_SET(cqc, cqc, cq_max_count, priv->params.rx_cq_moderation_pkts);
 		if (MLX5_CAP_GEN(priv->mdev, cq_period_start_from_cqe))
 			MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
 		else
 			MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
 		break;
+	case 2:
+		mlx5e_get_default_profile(priv, NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE, &curr);
+		MLX5_SET(cqc, cqc, cq_period, curr.usec);
+		MLX5_SET(cqc, cqc, cq_max_count, curr.pkts);
+		MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
+		break;
+	case 3:
+		mlx5e_get_default_profile(priv, NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE, &curr);
+		MLX5_SET(cqc, cqc, cq_period, curr.usec);
+		MLX5_SET(cqc, cqc, cq_max_count, curr.pkts);
+		if (MLX5_CAP_GEN(priv->mdev, cq_period_start_from_cqe))
+			MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
+		else
+			MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
+		break;
+	default:
+		break;
 	}
+
+	mlx5e_dim_build_cq_param(priv, param);
 
 	mlx5e_build_common_cq_param(priv, param);
 }
@@ -2037,6 +2093,7 @@ mlx5e_refresh_sq_params(struct mlx5e_priv *priv, struct mlx5e_sq *sq)
 
 		switch (priv->params.tx_cq_moderation_mode) {
 		case 0:
+		case 2:
 			cq_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 			break;
 		default:
@@ -2061,22 +2118,49 @@ mlx5e_refresh_rq_params(struct mlx5e_priv *priv, struct mlx5e_rq *rq)
 
 	if (MLX5_CAP_GEN(priv->mdev, cq_period_mode_modify)) {
 		uint8_t cq_mode;
+		uint8_t dim_mode;
 		int retval;
 
 		switch (priv->params.rx_cq_moderation_mode) {
 		case 0:
+		case 2:
 			cq_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
+			dim_mode = NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE;
 			break;
 		default:
 			cq_mode = MLX5_CQ_PERIOD_MODE_START_FROM_CQE;
+			dim_mode = NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE;
 			break;
 		}
 
-		retval = mlx5_core_modify_cq_moderation_mode(priv->mdev, &rq->cq.mcq,
-		    priv->params.rx_cq_moderation_usec,
-		    priv->params.rx_cq_moderation_pkts,
-		    cq_mode);
+		/* tear down dynamic interrupt moderation */
+		mtx_lock(&rq->mtx);
+		rq->dim.mode = NET_DIM_CQ_PERIOD_MODE_DISABLED;
+		mtx_unlock(&rq->mtx);
 
+		/* wait for dynamic interrupt moderation work task, if any */
+		cancel_work_sync(&rq->dim.work);
+
+		if (priv->params.rx_cq_moderation_mode >= 2) {
+			struct net_dim_cq_moder curr;
+
+			mlx5e_get_default_profile(priv, dim_mode, &curr);
+
+			retval = mlx5_core_modify_cq_moderation_mode(priv->mdev, &rq->cq.mcq,
+			    curr.usec, curr.pkts, cq_mode);
+
+			/* set dynamic interrupt moderation mode and zero defaults */
+			mtx_lock(&rq->mtx);
+			rq->dim.mode = dim_mode;
+			rq->dim.state = 0;
+			rq->dim.profile_ix = MLX5E_DIM_DEFAULT_PROFILE;
+			mtx_unlock(&rq->mtx);
+		} else {
+			retval = mlx5_core_modify_cq_moderation_mode(priv->mdev, &rq->cq.mcq,
+			    priv->params.rx_cq_moderation_usec,
+			    priv->params.rx_cq_moderation_pkts,
+			    cq_mode);
+		}
 		return (retval);
 	}
 
