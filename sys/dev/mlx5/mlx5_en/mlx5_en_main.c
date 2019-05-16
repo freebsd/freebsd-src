@@ -3175,7 +3175,12 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 	priv->params.hw_lro_en = false;
 	priv->params.lro_wqe_sz = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
 
-	priv->params.cqe_zipping_en = !!MLX5_CAP_GEN(mdev, cqe_compression);
+	/*
+	 * CQE zipping is currently defaulted to off. when it won't
+	 * anymore we will consider the HW capability:
+	 * "!!MLX5_CAP_GEN(mdev, cqe_compression)"
+	 */
+	priv->params.cqe_zipping_en = false;
 
 	priv->mdev = mdev;
 	priv->params.num_channels = num_comp_vectors;
