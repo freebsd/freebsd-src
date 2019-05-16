@@ -4978,7 +4978,6 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 	struct sctp_paramhdr *phdr, params;
 
 	struct mbuf *mat, *op_err;
-	char tempbuf[SCTP_PARAM_BUFFER_SIZE];
 	int at, limit, pad_needed;
 	uint16_t ptype, plen, padded_size;
 	int err_at;
@@ -5118,15 +5117,13 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 					l_len = SCTP_MIN_V4_OVERHEAD;
 #endif
 					l_len += sizeof(struct sctp_chunkhdr);
-					l_len += plen;
-					l_len += sizeof(struct sctp_paramhdr);
+					l_len += sizeof(struct sctp_gen_error_cause);
 					op_err = sctp_get_mbuf_for_msg(l_len, 0, M_NOWAIT, 1, MT_DATA);
 					if (op_err) {
 						SCTP_BUF_LEN(op_err) = 0;
 						/*
-						 * pre-reserve space for ip
-						 * and sctp header  and
-						 * chunk hdr
+						 * Pre-reserve space for IP,
+						 * SCTP, and chunk header.
 						 */
 #ifdef INET6
 						SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
@@ -5139,7 +5136,7 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 				}
 				if (op_err) {
 					/* If we have space */
-					struct sctp_paramhdr s;
+					struct sctp_gen_error_cause cause;
 
 					if (err_at % 4) {
 						uint32_t cpthis = 0;
@@ -5148,26 +5145,15 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 						m_copyback(op_err, err_at, pad_needed, (caddr_t)&cpthis);
 						err_at += pad_needed;
 					}
-					s.param_type = htons(SCTP_CAUSE_UNRESOLVABLE_ADDR);
-					s.param_length = htons(sizeof(s) + plen);
-					m_copyback(op_err, err_at, sizeof(s), (caddr_t)&s);
-					err_at += sizeof(s);
-					if (plen > sizeof(tempbuf)) {
-						plen = sizeof(tempbuf);
-					}
-					phdr = sctp_get_next_param(mat, at, (struct sctp_paramhdr *)tempbuf, plen);
-					if (phdr == NULL) {
+					cause.code = htons(SCTP_CAUSE_UNRESOLVABLE_ADDR);
+					cause.length = htons((uint16_t)(sizeof(struct sctp_gen_error_cause) + plen));
+					m_copyback(op_err, err_at, sizeof(struct sctp_gen_error_cause), (caddr_t)&cause);
+					err_at += sizeof(struct sctp_gen_error_cause);
+					SCTP_BUF_NEXT(op_err) = SCTP_M_COPYM(mat, at, plen, M_NOWAIT);
+					if (SCTP_BUF_NEXT(op_err) == NULL) {
 						sctp_m_freem(op_err);
-						/*
-						 * we are out of memory but
-						 * we still need to have a
-						 * look at what to do (the
-						 * system is in trouble
-						 * though).
-						 */
 						return (NULL);
 					}
-					m_copyback(op_err, err_at, plen, (caddr_t)phdr);
 				}
 				return (op_err);
 				break;
@@ -5191,7 +5177,6 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 					l_len = SCTP_MIN_V4_OVERHEAD;
 #endif
 					l_len += sizeof(struct sctp_chunkhdr);
-					l_len += plen;
 					l_len += sizeof(struct sctp_paramhdr);
 					op_err = sctp_get_mbuf_for_msg(l_len, 0, M_NOWAIT, 1, MT_DATA);
 					if (op_err) {
@@ -5217,14 +5202,11 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 						err_at += pad_needed;
 					}
 					s.param_type = htons(SCTP_UNRECOG_PARAM);
-					s.param_length = htons(sizeof(s) + plen);
-					m_copyback(op_err, err_at, sizeof(s), (caddr_t)&s);
-					err_at += sizeof(s);
-					if (plen > sizeof(tempbuf)) {
-						plen = sizeof(tempbuf);
-					}
-					phdr = sctp_get_next_param(mat, at, (struct sctp_paramhdr *)tempbuf, plen);
-					if (phdr == NULL) {
+					s.param_length = htons((uint16_t)sizeof(struct sctp_paramhdr) + plen);
+					m_copyback(op_err, err_at, sizeof(struct sctp_paramhdr), (caddr_t)&s);
+					err_at += sizeof(struct sctp_paramhdr);
+					SCTP_BUF_NEXT(op_err) = SCTP_M_COPYM(mat, at, plen, M_NOWAIT);
+					if (SCTP_BUF_NEXT(op_err) == NULL) {
 						sctp_m_freem(op_err);
 						/*
 						 * we are out of memory but
@@ -5236,7 +5218,6 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 						op_err = NULL;
 						goto more_processing;
 					}
-					m_copyback(op_err, err_at, plen, (caddr_t)phdr);
 					err_at += plen;
 				}
 			}
