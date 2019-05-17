@@ -46,6 +46,7 @@ OLD_FILES+=usr/share/man/man4/if_de.4
 OLD_FILES+=usr/share/man/man4/ed.4
 OLD_FILES+=usr/share/man/man4/if_ed.4
 OLD_FILES+=usr/share/man/man4/ep.4
+OLD_FILES+=usr/share/man/man4/ex.4
 # 20190513: libcap_sysctl interface change
 OLD_FILES+=lib/casper/libcap_sysctl.1
 # 20190509: tests/sys/opencrypto requires the net/py-dpkt package.
