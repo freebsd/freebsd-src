@@ -271,7 +271,6 @@ device		wb			# Winbond W89C840F
 device		xl			# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # ISA Ethernet NICs.  pccard NICs included.
-device		fe			# Fujitsu MB8696x based cards
 device		sn			# SMC's 9000 series of Ethernet chips
 device		xe			# Xircom pccard Ethernet
 
