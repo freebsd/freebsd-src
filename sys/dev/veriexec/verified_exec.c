@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  *
- * Copyright (c) 2011-2013, 2015, Juniper Networks, Inc.
+ * Copyright (c) 2011-2013, 2015, 2019 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/vnode.h>
@@ -69,6 +70,37 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 	struct vattr vattr;
 	struct verified_exec_params *params;
 	int error = 0;
+
+	/*
+	 * These commands are considered safe requests for anyone who has
+	 * permission to access to device node.
+	 */
+	switch (cmd) {
+	case VERIEXEC_GETSTATE:
+		{
+			int *ip = (int *)data;
+
+			if (ip)
+				*ip = mac_veriexec_get_state();
+			else
+			    error = EINVAL;
+
+			return (error);
+		}
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * Anything beyond this point is considered dangerous, so we need to
+	 * only allow processes that have kmem write privs to do them.
+	 *
+	 * MAC/veriexec will grant kmem write privs to "trusted" processes.
+	 */
+	error = priv_check(td, PRIV_KMEM_WRITE);
+	if (error)
+		return (error);
 
 	params = (struct verified_exec_params *)data;
 	switch (cmd) {
@@ -105,16 +137,6 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 		else
 			error = EINVAL;
 		mtx_unlock(&ve_mutex);
-		break;
-	case VERIEXEC_GETSTATE:
-		{
-			int *ip = (int *)data;
-			
-			if (ip)
-				*ip = mac_veriexec_get_state();
-			else
-			    error = EINVAL;
-		}
 		break;
 	case VERIEXEC_LOCK:
 		mtx_lock(&ve_mutex);
