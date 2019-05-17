@@ -98,7 +98,6 @@ SUBDIR=	\
 	${_cpufreq} \
 	${_crypto} \
 	${_cryptodev} \
-	${_cs} \
 	${_ctau} \
 	ctl \
 	${_cxgb} \
@@ -600,7 +599,6 @@ _cardbus=	cardbus
 _cbb=		cbb
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
-_cs=		cs
 _dpms=		dpms
 _ed=		ed
 _em=		em
