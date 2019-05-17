@@ -105,7 +105,6 @@ SUBDIR=	\
 	dc \
 	dcons \
 	dcons_crom \
-	de \
 	${_dpms} \
 	dummynet \
 	${_ed} \
