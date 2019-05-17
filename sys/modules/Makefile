@@ -283,7 +283,6 @@ SUBDIR=	\
 	${_padlock_rng} \
 	${_pccard} \
 	${_pcfclock} \
-	pcn \
 	${_pf} \
 	${_pflog} \
 	${_pfsync} \
