@@ -148,8 +148,6 @@ pci_host_generic_acpi_parse_resource(ACPI_RESOURCE *res, void *arg)
 		off = res->Data.Address32.Address.TranslationOffset;
 		break;
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		if (res->Data.Address.ResourceType != ACPI_MEMORY_RANGE)
-			break;
 		min = res->Data.Address64.Address.Minimum;
 		max = res->Data.Address64.Address.Maximum;
 		off = res->Data.Address64.Address.TranslationOffset;
@@ -293,7 +291,7 @@ pci_host_generic_acpi_attach(device_t dev)
 			continue; /* empty range element */
 		if (sc->base.ranges[tuple].flags & FLAG_MEM) {
 			error = rman_manage_region(&sc->base.mem_rman,
-			   phys_base, phys_base + size - 1);
+			   pci_base, pci_base + size - 1);
 		} else if (sc->base.ranges[tuple].flags & FLAG_IO) {
 			error = rman_manage_region(&sc->base.io_rman,
 			   pci_base + PCI_IO_WINDOW_OFFSET,
