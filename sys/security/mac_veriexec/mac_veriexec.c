@@ -193,7 +193,8 @@ mac_veriexec_vfs_mounted(void *arg __unused, struct mount *mp,
 
 	SLOT_SET(mp->mnt_label, va.va_fsid);
 #ifdef MAC_DEBUG
-	MAC_VERIEXEC_DBG(3, "set fsid to %u for mount %p", va.va_fsid, mp);
+	MAC_VERIEXEC_DBG(3, "set fsid to %ju for mount %p",
+	    (uintmax_t)va.va_fsid, mp);
 #endif
 }
 
@@ -216,7 +217,8 @@ mac_veriexec_vfs_unmounted(void *arg __unused, struct mount *mp,
 
 	fsid = SLOT(mp->mnt_label);
 	if (fsid) {
-		MAC_VERIEXEC_DBG(3, "fsid %u, cleaning up mount", fsid);
+		MAC_VERIEXEC_DBG(3, "fsid %ju, cleaning up mount",
+		    (uintmax_t)fsid);
 		mac_veriexec_metadata_unmounted(fsid, td);
 	}
 }
@@ -379,9 +381,9 @@ mac_veriexec_kld_check_load(struct ucred *cred, struct vnode *vp,
 		 * kldload should fail unless there is a valid fingerprint
 		 * registered.
 		 */
-		MAC_VERIEXEC_DBG(2, "fingerprint status is %d for dev %u, "
-			"file %lu.%lu\n", status, va.va_fsid, va.va_fileid,
-			 va.va_gen);
+		MAC_VERIEXEC_DBG(2, "fingerprint status is %d for dev %ju, "
+		    "file %ju.%ju\n", status, (uintmax_t)va.va_fsid,
+		    (uintmax_t)va.va_fileid, (uintmax_t)va.va_gen);
 		return (EAUTH);
 	}
 
@@ -492,8 +494,8 @@ mac_veriexec_check_vp(struct ucred *cred, struct vnode *vp, accmode_t accmode)
 		case FINGERPRINT_INDIRECT:
 			MAC_VERIEXEC_DBG(2,
 			    "attempted write to fingerprinted file for dev "
-			    "%u, file %lu.%lu\n", va.va_fsid,
-			    va.va_fileid, va.va_gen);
+			    "%ju, file %ju.%ju\n", (uintmax_t)va.va_fsid,
+			    (uintmax_t)va.va_fileid, (uintmax_t)va.va_gen);
 			return (EPERM);
 		default:
 			break;
@@ -513,8 +515,9 @@ mac_veriexec_check_vp(struct ucred *cred, struct vnode *vp, accmode_t accmode)
 			 * fingerprint registered. 
 			 */
 			MAC_VERIEXEC_DBG(2, "fingerprint status is %d for dev "
-			    "%u, file %lu.%lu\n", status, va.va_fsid,
-			    va.va_fileid, va.va_gen);
+			    "%ju, file %ju.%ju\n", status,
+			    (uintmax_t)va.va_fsid, (uintmax_t)va.va_fileid,
+			    (uintmax_t)va.va_gen);
 			return (EAUTH);
 		}
 	}
