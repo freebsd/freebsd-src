@@ -1358,9 +1358,6 @@ dev/ciss/ciss.c			optional ciss
 dev/cmx/cmx.c			optional cmx
 dev/cmx/cmx_pccard.c		optional cmx pccard
 dev/cpufreq/ichss.c		optional cpufreq pci
-dev/cs/if_cs.c			optional cs
-dev/cs/if_cs_isa.c		optional cs isa
-dev/cs/if_cs_pccard.c		optional cs pccard
 dev/cxgb/cxgb_main.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_sge.c		optional cxgb pci \
