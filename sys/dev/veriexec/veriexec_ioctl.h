@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  *
- * Copyright (c) 2011-2013, 2015, Juniper Networks, Inc.
+ * Copyright (c) 2011-2013, 2015, 2019, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,6 +54,7 @@ struct verified_exec_params  {
 #define VERIEXEC_DEBUG_OFF 	_IO('S', 0x6)	/* reset debug */
 #define VERIEXEC_GETSTATE 	_IOR('S', 0x7, int) /* get state */
 #define VERIEXEC_SIGNED_LOAD	_IOW('S', 0x8, struct verified_exec_params)
+#define VERIEXEC_GETVERSION	_IOR('S', 0x9, int) /* get version */
 
 #define	_PATH_DEV_VERIEXEC	_PATH_DEV "veriexec"
 
