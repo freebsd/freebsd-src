@@ -68,7 +68,6 @@ SUBDIR=	\
 	${_bios} \
 	${_bktr} \
 	${_blake2} \
-	${_bm} \
 	bnxt \
 	bridgestp \
 	bwi \
@@ -766,7 +765,6 @@ _cpsw=		cpsw
 .if ${MACHINE_CPUARCH} == "powerpc"
 _agp=		agp
 _an=		an
-_bm=		bm
 _cardbus=	cardbus
 _cbb=		cbb
 _cfi=		cfi

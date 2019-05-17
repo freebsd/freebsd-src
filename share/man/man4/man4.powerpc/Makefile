@@ -6,7 +6,6 @@ MAN=	adb.4 \
 	akbd.4 \
 	abtn.4 \
 	ams.4 \
-	bm.4 \
 	cuda.4 \
 	dtsec.4 \
 	llan.4 \
