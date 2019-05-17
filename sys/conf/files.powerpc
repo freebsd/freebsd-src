@@ -22,7 +22,6 @@ cddl/dev/dtrace/powerpc/dtrace_subr.c		optional dtrace compile-with "${DTRACE_C}
 cddl/dev/fbt/powerpc/fbt_isa.c			optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
-dev/bm/if_bm.c			optional	bm powermac
 dev/adb/adb_bus.c		optional	adb
 dev/adb/adb_kbd.c		optional	adb
 dev/adb/adb_mouse.c		optional	adb
