@@ -114,7 +114,6 @@ SUBDIR=	\
 	esp \
 	${_et} \
 	evdev \
-	${_ex} \
 	${_exca} \
 	ext2fs \
 	fdc \
@@ -747,7 +746,6 @@ _sbni=		sbni
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ctau=		ctau
 .endif
-_ex=		ex
 .endif
 
 .if ${MACHINE_CPUARCH} == "arm"
