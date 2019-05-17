@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20190518: Remove obsolete 10 and 10/100 ethernet drivers.
+# 20190517: Remove obsolete 10 and 10/100 ethernet drivers.
 OLD_FILES+=usr/share/man/man4/bm.4
 OLD_FILES+=usr/share/man/man4/cs.4
 OLD_FILES+=usr/share/man/man4/de.4
