@@ -563,7 +563,6 @@ MAN=	aac.4 \
 	wmt.4 \
 	${_wpi.4} \
 	wsp.4 \
-	xe.4 \
 	${_xen.4} \
 	xhci.4 \
 	xl.4 \
@@ -726,7 +725,6 @@ MLINKS+=${_vtnet.4} ${_if_vtnet.4}
 MLINKS+=watchdog.4 SW_WATCHDOG.4
 MLINKS+=wi.4 if_wi.4
 MLINKS+=${_wpi.4} ${_if_wpi.4}
-MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
