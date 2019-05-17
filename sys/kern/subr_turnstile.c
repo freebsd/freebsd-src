@@ -897,6 +897,24 @@ turnstile_broadcast(struct turnstile *ts, int queue)
 	}
 }
 
+static u_char
+turnstile_calc_unlend_prio_locked(struct thread *td)
+{
+	struct turnstile *nts;
+	u_char cp, pri;
+
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	mtx_assert(&td_contested_lock, MA_OWNED);
+
+	pri = PRI_MAX;
+	LIST_FOREACH(nts, &td->td_contested, ts_link) {
+		cp = turnstile_first_waiter(nts)->td_priority;
+		if (cp < pri)
+			pri = cp;
+	}
+	return (pri);
+}
+
 /*
  * Wakeup all threads on the pending list and adjust the priority of the
  * current thread appropriately.  This must be called with the turnstile
@@ -906,9 +924,8 @@ void
 turnstile_unpend(struct turnstile *ts)
 {
 	TAILQ_HEAD( ,thread) pending_threads;
-	struct turnstile *nts;
 	struct thread *td;
-	u_char cp, pri;
+	u_char pri;
 
 	MPASS(ts != NULL);
 	mtx_assert(&ts->ts_lock, MA_OWNED);
@@ -932,7 +949,6 @@ turnstile_unpend(struct turnstile *ts)
 	 * priority however.
 	 */
 	td = curthread;
-	pri = PRI_MAX;
 	thread_lock(td);
 	mtx_lock_spin(&td_contested_lock);
 	/*
@@ -946,11 +962,7 @@ turnstile_unpend(struct turnstile *ts)
 		ts->ts_owner = NULL;
 		LIST_REMOVE(ts, ts_link);
 	}
-	LIST_FOREACH(nts, &td->td_contested, ts_link) {
-		cp = turnstile_first_waiter(nts)->td_priority;
-		if (cp < pri)
-			pri = cp;
-	}
+	pri = turnstile_calc_unlend_prio_locked(td);
 	mtx_unlock_spin(&td_contested_lock);
 	sched_unlend_prio(td, pri);
 	thread_unlock(td);
@@ -991,7 +1003,7 @@ void
 turnstile_disown(struct turnstile *ts)
 {
 	struct thread *td;
-	u_char cp, pri;
+	u_char pri;
 
 	MPASS(ts != NULL);
 	mtx_assert(&ts->ts_lock, MA_OWNED);
@@ -1017,15 +1029,10 @@ turnstile_disown(struct turnstile *ts)
 	 * priority however.
 	 */
 	td = curthread;
-	pri = PRI_MAX;
 	thread_lock(td);
 	mtx_unlock_spin(&ts->ts_lock);
 	mtx_lock_spin(&td_contested_lock);
-	LIST_FOREACH(ts, &td->td_contested, ts_link) {
-		cp = turnstile_first_waiter(ts)->td_priority;
-		if (cp < pri)
-			pri = cp;
-	}
+	pri = turnstile_calc_unlend_prio_locked(td);
 	mtx_unlock_spin(&td_contested_lock);
 	sched_unlend_prio(td, pri);
 	thread_unlock(td);

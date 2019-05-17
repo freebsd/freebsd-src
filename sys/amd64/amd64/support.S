@@ -1807,7 +1807,7 @@ ENTRY(mds_handler_skl_avx512)
 1:	movq	PCPU(MDS_BUF), %rdi
 	movq	PCPU(MDS_BUF64), %rdx
 	vmovdqa64	%zmm0, PCPU(MDS_TMP)
-	vpxor	%zmm0, %zmm0, %zmm0
+	vpxord	%zmm0, %zmm0, %zmm0
 
 	lfence
 	vorpd	(%rdx), %zmm0, %zmm0
