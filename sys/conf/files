@@ -3404,7 +3404,6 @@ dev/vte/if_vte.c		optional vte pci
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_pci.c		optional vx pci
 dev/watchdog/watchdog.c		standard
-dev/wb/if_wb.c			optional wb pci
 dev/wi/if_wi.c			optional wi
 dev/wi/if_wi_pccard.c		optional wi pccard
 dev/wi/if_wi_pci.c		optional wi pci
