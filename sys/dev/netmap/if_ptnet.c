@@ -68,7 +68,6 @@
 #include <netinet6/ip6_var.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
-#include <netinet/sctp.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -281,9 +280,8 @@ static inline void ptnet_kick(struct ptnet_queue *pq)
 #define PTNET_HDR_SIZE		sizeof(struct virtio_net_hdr_mrg_rxbuf)
 #define PTNET_MAX_PKT_SIZE	65536
 
-#define PTNET_CSUM_OFFLOAD	(CSUM_TCP | CSUM_UDP | CSUM_SCTP)
-#define PTNET_CSUM_OFFLOAD_IPV6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6 |\
-				 CSUM_SCTP_IPV6)
+#define PTNET_CSUM_OFFLOAD	(CSUM_TCP | CSUM_UDP)
+#define PTNET_CSUM_OFFLOAD_IPV6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
 #define PTNET_ALL_OFFLOAD	(CSUM_TSO | PTNET_CSUM_OFFLOAD |\
 				 PTNET_CSUM_OFFLOAD_IPV6)
 
@@ -1539,9 +1537,6 @@ ptnet_rx_csum_by_offset(struct mbuf *m, uint16_t eth_type, int ip_start,
 		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 		m->m_pkthdr.csum_data = 0xFFFF;
 		break;
-	case offsetof(struct sctphdr, checksum):
-		m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
-		break;
 	default:
 		/* Here we should increment the rx_csum_bad_offset counter. */
 		return (1);
@@ -1595,11 +1590,6 @@ ptnet_rx_csum_by_parse(struct mbuf *m, uint16_t eth_type, int ip_start,
 			return (1);
 		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 		m->m_pkthdr.csum_data = 0xFFFF;
-		break;
-	case IPPROTO_SCTP:
-		if (__predict_false(m->m_len < offset + sizeof(struct sctphdr)))
-			return (1);
-		m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
 		break;
 	default:
 		/*
