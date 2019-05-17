@@ -359,29 +359,30 @@ generic_pcie_activate_resource(device_t dev, device_t child, int type,
 
 	switch (type) {
 	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
 		found = 0;
 		for (i = 0; i < MAX_RANGES_TUPLES; i++) {
 			pci_base = sc->ranges[i].pci_base;
 			phys_base = sc->ranges[i].phys_base;
 			size = sc->ranges[i].size;
 
-			if ((rid > pci_base) && (rid < (pci_base + size))) {
+			if ((rman_get_start(r) >= pci_base) && (rman_get_start(r) < (pci_base + size))) {
 				found = 1;
 				break;
 			}
 		}
 		if (found) {
-			rman_set_start(r, rman_get_start(r) + phys_base);
-			rman_set_end(r, rman_get_end(r) + phys_base);
+			rman_set_start(r, rman_get_start(r) - pci_base + phys_base);
+			rman_set_end(r, rman_get_end(r) - pci_base + phys_base);
 			res = BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
 			    child, type, rid, r);
 		} else {
 			device_printf(dev,
-			    "Failed to activate IOPORT resource\n");
+			    "Failed to activate %s resource\n",
+			    type == SYS_RES_IOPORT ? "IOPORT" : "MEMORY");
 			res = 0;
 		}
 		break;
-	case SYS_RES_MEMORY:
 	case SYS_RES_IRQ:
 		res = BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child,
 		    type, rid, r);
