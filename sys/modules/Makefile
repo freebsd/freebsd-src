@@ -374,7 +374,6 @@ SUBDIR=	\
 	${_vpo} \
 	vr \
 	vte \
-	vx \
 	wb \
 	${_wbwd} \
 	${_wi} \
