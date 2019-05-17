@@ -697,7 +697,8 @@ cleanup_file:
 		break;
 	case MAC_VERIEXEC_CHECK_PATH_SYSCALL:
 		/* Look up the path to get the vnode */
-		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
+		NDINIT(&nd, LOOKUP,
+		    FOLLOW | LOCKLEAF | LOCKSHARED | AUDITVNODE1,
 		    UIO_USERSPACE, arg, td);
 		error = namei(&nd);
 		if (error != 0)
