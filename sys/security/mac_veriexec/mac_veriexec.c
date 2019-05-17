@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  *
- * Copyright (c) 2011, 2012, 2013, 2015, 2016, Juniper Networks, Inc.
+ * Copyright (c) 2011, 2012, 2013, 2015, 2016, 2019 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -424,6 +424,23 @@ mac_veriexec_priv_check(struct ucred *cred, int priv)
 	return (0);
 }
 
+static int
+mac_veriexec_sysctl_check(struct ucred *cred, struct sysctl_oid *oidp,
+    void *arg1, int arg2, struct sysctl_req *req)
+{
+	struct sysctl_oid *oid;
+
+	/* If we are not enforcing veriexec, nothing for us to check */
+	if ((mac_veriexec_state & VERIEXEC_STATE_ENFORCE) == 0)
+		return (0);
+
+	oid = oidp;
+	if (oid->oid_kind & CTLFLAG_SECURE) {
+		return (EPERM);		/* XXX call mac_veriexec_priv_check? */
+	}
+	return 0;
+}
+
 /**
  * @internal
  * @brief A program is being executed and needs to be validated.
@@ -700,12 +717,13 @@ cleanup_file:
 static struct mac_policy_ops mac_veriexec_ops =
 {
 	.mpo_init = mac_veriexec_init,
-	.mpo_syscall = mac_veriexec_syscall,
 	.mpo_kld_check_load = mac_veriexec_kld_check_load,
 	.mpo_mount_destroy_label = mac_veriexec_mount_destroy_label,
 	.mpo_mount_init_label = mac_veriexec_mount_init_label,
 	.mpo_priv_check = mac_veriexec_priv_check,
 	.mpo_proc_check_debug = mac_veriexec_proc_check_debug,
+	.mpo_syscall = mac_veriexec_syscall,
+	.mpo_system_check_sysctl = mac_veriexec_sysctl_check,
 	.mpo_vnode_check_exec = mac_veriexec_vnode_check_exec,
 	.mpo_vnode_check_open = mac_veriexec_vnode_check_open,
 	.mpo_vnode_check_setmode = mac_veriexec_vnode_check_setmode,
