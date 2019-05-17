@@ -465,7 +465,6 @@ MAN=	aac.4 \
 	smbus.4 \
 	smp.4 \
 	smsc.4 \
-	sn.4 \
 	snd_ad1816.4 \
 	snd_als4000.4 \
 	snd_atiixp.4 \
@@ -705,7 +704,6 @@ MLINKS+=sis.4 if_sis.4
 MLINKS+=sk.4 if_sk.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=smsc.4 if_smsc.4
-MLINKS+=sn.4 if_sn.4
 MLINKS+=snd_envy24.4 snd_ak452x.4
 MLINKS+=snd_sbc.4 snd_sb16.4 \
 	snd_sbc.4 snd_sb8.4

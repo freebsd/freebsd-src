@@ -1986,8 +1986,6 @@ device		xmphy		# XaQti XMAC II
 #       (also single mode and multimode).
 #       The driver will autodetect the number of ports on the card and
 #       attach each one as a separate network interface.
-# sn:   Support for ISA and PC Card Ethernet devices using the
-#       SMC91C90/92/94/95 chips.
 # ste:  Sundance Technologies ST201 PCI fast ethernet controller, includes
 #       the D-Link DFE-550TX.
 # stge: Support for gigabit ethernet adapters based on the Sundance/Tamarack
@@ -2028,10 +2026,6 @@ device		xmphy		# XaQti XMAC II
 
 # Order for ISA devices is important here
 
-device		sn
-hint.sn.0.at="isa"
-hint.sn.0.port="0x300"
-hint.sn.0.irq="10"
 device		an
 device		wi
 device		xe
