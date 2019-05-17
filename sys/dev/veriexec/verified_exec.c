@@ -138,6 +138,16 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 			error = EINVAL;
 		mtx_unlock(&ve_mutex);
 		break;
+	case VERIEXEC_GETVERSION:
+		{
+			int *ip = (int *)data;
+
+			if (ip)
+				*ip = MAC_VERIEXEC_VERSION;
+			else
+				error = EINVAL;
+		}
+		break;
 	case VERIEXEC_LOCK:
 		mtx_lock(&ve_mutex);
 		mac_veriexec_set_state(VERIEXEC_STATE_LOCKED);
