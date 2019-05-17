@@ -284,6 +284,14 @@ typedef struct {
 #define	RNC			0x53
 
 /*
+ * PRLI Word 0 definitions
+ * FPC4-r02b January, 2011
+ */
+#define	PRLI_WD0_TYPE_MASK				0xff000000
+#define	PRLI_WD0_TC_EXT_MASK				0x00ff0000
+#define	PRLI_WD0_EST_IMAGE_PAIR				(1 << 13)
+
+/*
  * PRLI Word 3 definitions
  * FPC4-r02b January, 2011
  */

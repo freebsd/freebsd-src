@@ -3742,6 +3742,10 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		break;
 	case ISPASYNC_DEV_CHANGED:
 	case ISPASYNC_DEV_STAYED:		
+	{
+		int crn_reset_done;
+
+		crn_reset_done = 0;
 		va_start(ap, cmd);
 		bus = va_arg(ap, int);
 		lp = va_arg(ap, fcportdb_t *);
@@ -3759,13 +3763,17 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		     (lp->new_prli_word3 & PRLI_WD3_TARGET_FUNCTION))) {
 			lp->is_target = !lp->is_target;
 			if (lp->is_target) {
-				if (cmd == ISPASYNC_DEV_CHANGED)
+				if (cmd == ISPASYNC_DEV_CHANGED) {
 					isp_fcp_reset_crn(isp, bus, tgt, /*tgt_set*/ 1);
+					crn_reset_done = 1;
+				}
 				isp_make_here(isp, lp, bus, tgt);
 			} else {
 				isp_make_gone(isp, lp, bus, tgt);
-				if (cmd == ISPASYNC_DEV_CHANGED)
+				if (cmd == ISPASYNC_DEV_CHANGED) {
 					isp_fcp_reset_crn(isp, bus, tgt, /*tgt_set*/ 1);
+					crn_reset_done = 1;
+				}
 			}
 		}
 		if (lp->is_initiator !=
@@ -3780,7 +3788,13 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			adc->arrived = lp->is_initiator;
 			xpt_async(AC_CONTRACT, fc->path, &ac);
 		}
+
+		if ((lp->new_prli_word0 & PRLI_WD0_EST_IMAGE_PAIR) &&
+		    (crn_reset_done == 0))
+			isp_fcp_reset_crn(isp, bus, tgt, /*tgt_set*/ 1);
+
 		break;
+	}
 	case ISPASYNC_DEV_GONE:
 		va_start(ap, cmd);
 		bus = va_arg(ap, int);
