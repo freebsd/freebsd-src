@@ -107,7 +107,6 @@ SUBDIR=	\
 	dcons_crom \
 	${_dpms} \
 	dummynet \
-	${_ed} \
 	${_efirt} \
 	${_em} \
 	${_ena} \
@@ -599,7 +598,6 @@ _cbb=		cbb
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
 _dpms=		dpms
-_ed=		ed
 _em=		em
 _ep=		ep
 _et=		et

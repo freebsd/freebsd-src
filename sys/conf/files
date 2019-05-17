@@ -1583,11 +1583,6 @@ dev/drm2/ttm/ttm_execbuf_util.c	optional drm2
 dev/drm2/ttm/ttm_memory.c	optional drm2
 dev/drm2/ttm/ttm_page_alloc.c	optional drm2
 dev/drm2/ttm/ttm_bo_vm.c	optional drm2
-dev/ed/if_ed.c			optional ed
-dev/ed/if_ed_novell.c		optional ed
-dev/ed/if_ed_rtl80x9.c		optional ed
-dev/ed/if_ed_pccard.c		optional ed pccard
-dev/ed/if_ed_pci.c		optional ed pci
 dev/efidev/efidev.c		optional efirt
 dev/efidev/efirt.c		optional efirt
 dev/efidev/efirtc.c		optional efirt

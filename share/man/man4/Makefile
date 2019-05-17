@@ -136,7 +136,6 @@ MAN=	aac.4 \
 	ds3231.4 \
 	${_dtrace_provs} \
 	dummynet.4 \
-	ed.4 \
 	edsc.4 \
 	ehci.4 \
 	em.4 \
@@ -627,7 +626,6 @@ MLINKS+=cxgbev.4 if_cxgbev.4 \
 	cxgbev.4 if_ccv.4
 MLINKS+=dc.4 if_dc.4
 MLINKS+=disc.4 if_disc.4
-MLINKS+=ed.4 if_ed.4
 MLINKS+=edsc.4 if_edsc.4
 MLINKS+=em.4 if_em.4
 MLINKS+=enc.4 if_enc.4
