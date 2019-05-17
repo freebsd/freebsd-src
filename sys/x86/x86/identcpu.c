@@ -164,6 +164,7 @@ static int hw_clockrate;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD,
     &hw_clockrate, 0, "CPU instruction clock rate");
 
+u_int hv_base;
 u_int hv_high;
 char hv_vendor[16];
 SYSCTL_STRING(_hw, OID_AUTO, hv_vendor, CTLFLAG_RD | CTLFLAG_MPSAFE, hv_vendor,
@@ -1323,11 +1324,22 @@ static const char *const vm_pnames[] = {
 	NULL
 };
 
-void
-identify_hypervisor(void)
+static struct {
+	const char	*vm_cpuid;
+	int		vm_guest;
+} vm_cpuids[] = {
+	{ "XENXENXEN",		VM_GUEST_XEN },		/* XEN */
+	{ "Microsoft Hv",	VM_GUEST_HV },		/* Microsoft Hyper-V */
+	{ "VMwareVMware",	VM_GUEST_VMWARE },	/* VMware VM */
+	{ "KVMKVMKVM",		VM_GUEST_KVM },		/* KVM */
+	{ "bhyve bhyve ",	VM_GUEST_BHYVE },	/* bhyve */
+	{ "VBoxVBoxVBox",	VM_GUEST_VBOX },	/* VirtualBox */
+};
+
+static void
+identify_hypervisor_cpuid_base(void)
 {
-	u_int regs[4];
-	char *p;
+	u_int leaf, regs[4];
 	int i;
 
 	/*
@@ -1337,10 +1349,13 @@ identify_hypervisor(void)
 	 * KB1009458: Mechanisms to determine if software is running in
 	 * a VMware virtual machine
 	 * http://kb.vmware.com/kb/1009458
+	 *
+	 * Search for a hypervisor that we recognize. If we cannot find
+	 * a specific hypervisor, return the first information about the
+	 * hypervisor that we found, as others may be able to use.
 	 */
-	if (cpu_feature2 & CPUID2_HV) {
-		vm_guest = VM_GUEST_VM;
-		do_cpuid(0x40000000, regs);
+	for (leaf = 0x40000000; leaf < 0x40010000; leaf += 0x100) {
+		do_cpuid(leaf, regs);
 
 		/*
 		 * KVM from Linux kernels prior to commit
@@ -1351,23 +1366,52 @@ identify_hypervisor(void)
 		 */
 		if (regs[0] == 0 && regs[1] == 0x4b4d564b &&
 		    regs[2] == 0x564b4d56 && regs[3] == 0x0000004d)
-			regs[0] = 0x40000001;
+			regs[0] = leaf + 1;
 			
-		if (regs[0] >= 0x40000000) {
-			hv_high = regs[0];
-			((u_int *)&hv_vendor)[0] = regs[1];
-			((u_int *)&hv_vendor)[1] = regs[2];
-			((u_int *)&hv_vendor)[2] = regs[3];
-			hv_vendor[12] = '\0';
-			if (strcmp(hv_vendor, "VMwareVMware") == 0)
-				vm_guest = VM_GUEST_VMWARE;
-			else if (strcmp(hv_vendor, "Microsoft Hv") == 0)
-				vm_guest = VM_GUEST_HV;
-			else if (strcmp(hv_vendor, "KVMKVMKVM") == 0)
-				vm_guest = VM_GUEST_KVM;
-			else if (strcmp(hv_vendor, "bhyve bhyve ") == 0)
-				vm_guest = VM_GUEST_BHYVE;
+		if (regs[0] >= leaf) {
+			for (i = 0; i < nitems(vm_cpuids); i++)
+				if (strncmp((const char *)&regs[1],
+				    vm_cpuids[i].vm_cpuid, 12) == 0) {
+					vm_guest = vm_cpuids[i].vm_guest;
+					break;
+				}
+
+			/*
+			 * If this is the first entry or we found a
+			 * specific hypervisor, record the base, high value,
+			 * and vendor identifier.
+			 */
+			if (vm_guest != VM_GUEST_VM || leaf == 0x40000000) {
+				hv_high = leaf;
+				((u_int *)&hv_vendor)[0] = regs[1];
+				((u_int *)&hv_vendor)[1] = regs[2];
+				((u_int *)&hv_vendor)[2] = regs[3];
+				hv_vendor[12] = '\0';
+
+				/*
+				 * If we found a specific hypervisor, then
+				 * we are finished.
+				 */
+				if (vm_guest != VM_GUEST_VM)
+					return;
+			}
 		}
+	}
+}
+
+void
+identify_hypervisor(void)
+{
+	u_int regs[4];
+	char *p;
+	int i;
+
+	/*
+	 * If CPUID2_HV is set, we are running in a hypervisor environment.
+	 */
+	if (cpu_feature2 & CPUID2_HV) {
+		vm_guest = VM_GUEST_VM;
+		identify_hypervisor_cpuid_base();
 		return;
 	}
 
