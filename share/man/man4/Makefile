@@ -401,7 +401,6 @@ MAN=	aac.4 \
 	pcib.4 \
 	pcic.4 \
 	pcm.4 \
-	pcn.4 \
 	${_pf.4} \
 	${_pflog.4} \
 	${_pfsync.4} \
@@ -692,7 +691,6 @@ MLINKS+=ow.4 onewire.4
 MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
 	pcm.4 sound.4
-MLINKS+=pcn.4 if_pcn.4
 MLINKS+=pms.4 pmspcv.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
