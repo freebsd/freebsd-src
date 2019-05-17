@@ -2000,9 +2000,6 @@ device		xmphy		# XaQti XMAC II
 #       including the D-Link DFE520TX and D-Link DFE530TX (see 'rl' for
 #       DFE530TX+), the Hawking Technologies PN102TX, and the AOpen/Acer ALN-320.
 # vte:  DM&P Vortex86 RDC R6040 Fast Ethernet
-# wb:   Support for fast ethernet adapters based on the Winbond W89C840F chip.
-#       Note: this is not the same as the Winbond W89C940F, which is a
-#       NE2000 clone.
 # wi:   Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
 #       the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
 #       bridge with a PCMCIA adapter plugged into it.
@@ -2054,7 +2051,6 @@ device		ste		# Sundance ST201 (D-Link DFE-550TX)
 device		stge		# Sundance/Tamarack TC9021 gigabit Ethernet
 device		vr		# VIA Rhine, Rhine II
 device		vte		# DM&P Vortex86 RDC R6040 Fast Ethernet
-device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure

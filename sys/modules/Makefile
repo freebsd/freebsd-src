@@ -374,7 +374,6 @@ SUBDIR=	\
 	${_vpo} \
 	vr \
 	vte \
-	wb \
 	${_wbwd} \
 	${_wi} \
 	wlan \
