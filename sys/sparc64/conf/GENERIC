@@ -184,7 +184,6 @@ device		uart		# Multi-uart driver
 device		iflib
 
 # PCI Ethernet NICs.
-#device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet

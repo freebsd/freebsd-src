@@ -1936,7 +1936,6 @@ device		xmphy		# XaQti XMAC II
 #       SVEC PN102-TX, CNet Pro110B, 120A, and 120B, Compex RL100-TX,
 #       LinkSys LNE100TX, LNE100TX V2.0, Jaton XpressNet, Alfa Inc GFC2204,
 #       KNE110TX.
-# de:   Digital Equipment DC21040
 # em:   Intel Pro/1000 Gigabit Ethernet 82542, 82543, 82544 based adapters.
 # ep:   3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 3C589
 #       and PC Card devices using these chipsets.
@@ -2108,7 +2107,6 @@ device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
 device		cxgbe		# Chelsio T4-T6 1/10/25/40/100 Gigabit Ethernet
 device		cxgbev		# Chelsio T4-T6 Virtual Functions
-device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		oce		# Emulex 10 GbE (OneConnect Ethernet)
