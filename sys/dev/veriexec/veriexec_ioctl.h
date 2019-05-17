@@ -46,6 +46,11 @@ struct verified_exec_params  {
 	unsigned char fingerprint[MAXFINGERPRINTLEN];
 };
 
+struct verified_exec_label_params  {
+	struct verified_exec_params params;
+	char label[MAXLABELLEN];
+};
+
 #define VERIEXEC_LOAD		_IOW('S', 0x1, struct verified_exec_params)
 #define VERIEXEC_ACTIVE		_IO('S', 0x2)	/* start checking */
 #define VERIEXEC_ENFORCE 	_IO('S', 0x3)	/* fail exec */
@@ -55,6 +60,7 @@ struct verified_exec_params  {
 #define VERIEXEC_GETSTATE 	_IOR('S', 0x7, int) /* get state */
 #define VERIEXEC_SIGNED_LOAD	_IOW('S', 0x8, struct verified_exec_params)
 #define VERIEXEC_GETVERSION	_IOR('S', 0x9, int) /* get version */
+#define VERIEXEC_LABEL_LOAD	_IOW('S', 0xa, struct verified_exec_label_params)
 
 #define	_PATH_DEV_VERIEXEC	_PATH_DEV "veriexec"
 

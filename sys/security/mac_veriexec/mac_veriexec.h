@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  *
- * Copyright (c) 2011, 2012, 2013, 2015, 2016, Juniper Networks, Inc.
+ * Copyright (c) 2011, 2012, 2013, 2015, 2016, 2019, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,7 @@
  * Enough room for the largest signature...
  */
 #define MAXFINGERPRINTLEN	64	/* enough room for largest signature */
+#define MAXLABELLEN		128
 
 /*
  * Types of veriexec inodes we can have
@@ -57,8 +58,8 @@
 #define VERIEXEC_FILE		(1<<1)  /* Fingerprint of a plain file */
 #define VERIEXEC_NOTRACE	(1<<2)	/**< PTRACE not allowed */
 #define VERIEXEC_TRUSTED	(1<<3)	/**< Safe to write /dev/mem */
-/* XXX these are currently unimplemented */
 #define VERIEXEC_NOFIPS		(1<<4)	/**< Not allowed in FIPS mode */
+#define VERIEXEC_LABEL		(1<<5)	/**< We have a label */
 
 #define VERIEXEC_STATE_INACTIVE	0	/**< Ignore */
 #define VERIEXEC_STATE_LOADED	(1<<0)	/**< Sigs have been loaded */
@@ -71,7 +72,7 @@
 /**
  * Version of the MAC/veriexec module
  */
-#define	MAC_VERIEXEC_VERSION	1
+#define	MAC_VERIEXEC_VERSION	2
 
 /* Valid states for the fingerprint flag - if signed exec is being used */
 typedef enum fingerprint_status {
@@ -152,7 +153,8 @@ int	mac_veriexec_fingerprint_modevent(module_t mod, int type, void *data);
  */
 int	mac_veriexec_metadata_add_file(int file_dev, dev_t fsid, long fileid, 
 	    unsigned long gen, unsigned char fingerprint[MAXFINGERPRINTLEN], 
-	    int flags, const char *fp_type, int override);
+	    char *label, size_t labellen, int flags, const char *fp_type,
+	    int override);
 int	mac_veriexec_metadata_has_file(dev_t fsid, long fileid, 
 	    unsigned long gen);
 int	mac_veriexec_proc_is_trusted(struct ucred *cred, struct proc *p);
