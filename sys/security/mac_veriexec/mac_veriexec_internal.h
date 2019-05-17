@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  *
- * Copyright (c) 2011, 2012, 2013, 2015, 2016, Juniper Networks, Inc.
+ * Copyright (c) 2011, 2012, 2013, 2015, 2016, 2019, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,6 +54,8 @@ struct mac_veriexec_file_info
 	unsigned long gen;
 	struct mac_veriexec_fpops *ops;
 	unsigned char fingerprint[MAXFINGERPRINTLEN];
+	char *label;
+	size_t labellen;
 	LIST_ENTRY(mac_veriexec_file_info) entries;
 };
 
@@ -76,6 +78,9 @@ int	mac_veriexec_metadata_get_executable_flags(struct ucred *cred,
 	    struct proc *p, int *flags, int check_files);
 int	mac_veriexec_metadata_get_file_flags(dev_t fsid, long fileid,
 	    unsigned long gen, int *flags, int check_files);
+struct mac_veriexec_file_info *
+	mac_veriexec_metadata_get_file_info(dev_t fsid, long fileid,
+	    unsigned long gen, int *found_dev, int check_files);
 void	mac_veriexec_metadata_init(void);
 void	mac_veriexec_metadata_print_db(struct sbuf *sbp);
 int	mac_veriexec_metadata_unmounted(dev_t fsid, struct thread *td);
