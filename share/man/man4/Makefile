@@ -451,7 +451,6 @@ MAN=	aac.4 \
 	sem.4 \
 	send.4 \
 	ses.4 \
-	sf.4 \
 	${_sfxge.4} \
 	sge.4 \
 	siba.4 \
@@ -701,7 +700,6 @@ MLINKS+=scsi.4 CAM.4 \
 	scsi.4 cam.4 \
 	scsi.4 scbus.4 \
 	scsi.4 SCSI.4
-MLINKS+=sf.4 if_sf.4
 MLINKS+=sge.4 if_sge.4
 MLINKS+=sis.4 if_sis.4
 MLINKS+=sk.4 if_sk.4
