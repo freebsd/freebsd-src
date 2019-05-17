@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  *
- * Copyright (c) 2011, 2012, 2013, 2015, 2016, Juniper Networks, Inc.
+ * Copyright (c) 2011, 2012, 2013, 2015, 2016, 2019, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Originally derived from:
@@ -138,6 +138,8 @@ get_veriexec_file(struct veriexec_devhead *head, dev_t fsid, long fileid,
 					break;
 				/* we need to garbage collect */
 				LIST_REMOVE(ip, entries);
+				if (ip->label)
+					free(ip->label, M_VERIEXEC);
 				free(ip, M_VERIEXEC);
 			}
 		}
@@ -147,48 +149,6 @@ get_veriexec_file(struct veriexec_devhead *head, dev_t fsid, long fileid,
 	mtx_unlock(&ve_mutex);
 
 	/* Return the meta-data information we found, if anything */
-	return (ip);
-}
-
-/**
- * @internal
- * @brief Search the meta-data store for information on the specified file.
- *
- * @param fsid		file system identifier to look for
- * @param fileid	file to look for
- * @param gen		generation of file
- * @param found_dev	indicator that an entry for the file system was found
- * @param check_files	if 1, check the files list first, otherwise check the
- * 			exectuables list first
- *
- * @return A pointer to the meta-data inforation if meta-data exists for
- *     the specified file identifier, otherwise @c NULL
- */
-static struct mac_veriexec_file_info *
-find_veriexec_file(dev_t fsid, long fileid, unsigned long gen, int *found_dev,
-    int check_files)
-{
-	struct veriexec_devhead *search[3];
-	struct mac_veriexec_file_info *ip;
-	int x;
-
-	/* Determine the order of the lists to search */
-	if (check_files) {
-		search[0] = &veriexec_file_dev_head;
-		search[1] = &veriexec_dev_head;
-	} else {
-		search[0] = &veriexec_dev_head;
-		search[1] = &veriexec_file_dev_head;
-	}
-	search[2] = NULL;
-
-	VERIEXEC_DEBUG(3, ("%s: searching for dev %ju, file %lu\n",
-	    __func__, (uintmax_t)fsid, fileid));
-
-	/* Search for the specified file */
-	for (ip = NULL, x = 0; ip == NULL && search[x]; x++)
-		ip = get_veriexec_file(search[x], fsid, fileid, gen, found_dev);
-
 	return (ip);
 }
 
@@ -270,7 +230,7 @@ int
 mac_veriexec_metadata_has_file(dev_t fsid, long fileid, unsigned long gen)
 {
 
-	return (find_veriexec_file(fsid, fileid, gen, NULL,
+	return (mac_veriexec_metadata_get_file_info(fsid, fileid, gen, NULL,
 	    VERIEXEC_FILES_FIRST) != NULL);
 }
 
@@ -312,6 +272,8 @@ free_veriexec_dev(dev_t fsid, struct veriexec_devhead *head)
 	for (ip = LIST_FIRST(&(lp->file_head)); ip != NULL; ip = nip) {
 		nip = LIST_NEXT(ip, entries);
 		LIST_REMOVE(ip, entries);
+		if (ip->label)
+			free(ip->label, M_VERIEXEC);
 		free(ip, M_VERIEXEC);
 	}
 
@@ -393,6 +355,38 @@ search:
 }
 
 /**
+ * @internal
+ * @brief Allocate and initialize label record with the provided data.
+ *
+ * @param labelp	Location to store the initialized label
+ * @param src		Pointer to label string to copy
+ * @param srclen	Length of label string to copy
+ *
+ * @return Length of resulting label
+ *
+ * @note Called with ve_mutex locked.
+ */
+static size_t
+mac_veriexec_init_label(char **labelp, size_t labellen, char *src,
+    size_t srclen)
+{
+	char *label;
+
+	label = *labelp;
+	if (labellen < srclen) {
+		mtx_unlock(&ve_mutex);
+		if (label != NULL)
+			free(label, M_VERIEXEC);
+		label = malloc(srclen, M_VERIEXEC, M_WAITOK);
+		mtx_lock(&ve_mutex);
+		labellen = srclen;
+		*labelp = label;
+	}
+	memcpy(label, src, srclen);
+	return labellen;
+}
+
+/**
  * @brief When a device is unmounted, we want to toss the signatures recorded
  *     against it.
  *
@@ -446,7 +440,8 @@ mac_veriexec_metadata_get_file_flags(dev_t fsid, long fileid, unsigned long gen,
 	struct mac_veriexec_file_info *ip;
 	int found_dev;
 
-	ip = find_veriexec_file(fsid, fileid, gen, &found_dev, check_files);
+	ip = mac_veriexec_metadata_get_file_info(fsid, fileid, gen, &found_dev,
+	    check_files);
 	if (ip == NULL)
 		return (ENOENT);
 
@@ -518,8 +513,8 @@ mac_veriexec_metadata_fetch_fingerprint_status(struct vnode *vp,
 	status = mac_veriexec_get_fingerprint_status(vp);
 	if (status == FINGERPRINT_INVALID || status == FINGERPRINT_NODEV) {
 		found_dev = 0;
-		ip = find_veriexec_file(vap->va_fsid, vap->va_fileid,
-		    vap->va_gen, &found_dev, check_files);
+		ip = mac_veriexec_metadata_get_file_info(vap->va_fsid,
+		    vap->va_fileid, vap->va_gen, &found_dev, check_files);
 		if (ip == NULL) {
 			status = (found_dev) ? FINGERPRINT_NOENTRY :
 			    FINGERPRINT_NODEV;
@@ -611,13 +606,17 @@ mac_veriexec_metadata_fetch_fingerprint_status(struct vnode *vp,
 int
 mac_veriexec_metadata_add_file(int file_dev, dev_t fsid, long fileid,
     unsigned long gen, unsigned char fingerprint[MAXFINGERPRINTLEN],
-    int flags, const char *fp_type, int override)
+    char *label, size_t labellen, int flags, const char *fp_type, int override)
 {
 	struct mac_veriexec_fpops *fpops;
 	struct veriexec_dev_list *lp;
 	struct veriexec_devhead *head;
 	struct mac_veriexec_file_info *ip;
 	struct mac_veriexec_file_info *np = NULL;
+
+	/* Label and labellen must be set if VERIEXEC_LABEL is set */
+	if ((flags & VERIEXEC_LABEL) != 0 && (label == NULL || labellen == 0))
+		return (EINVAL);
 
 	/* Look up the device entry */
 	if (file_dev)
@@ -652,6 +651,15 @@ search:
 				ip->ops = fpops;
 				memcpy(ip->fingerprint, fingerprint,
 				    fpops->digest_len);
+				if (flags & VERIEXEC_LABEL) {
+					ip->labellen = mac_veriexec_init_label(
+					    &ip->label, ip->labellen, label,
+					    labellen);
+				} else if (ip->labellen > 0) {
+					free(ip->label, M_VERIEXEC);
+					ip->labellen = 0;
+					ip->label = NULL;
+				}
 			} else if ((flags & (VERIEXEC_INDIRECT|VERIEXEC_FILE)))
 				ip->flags |= flags;
 
@@ -697,6 +705,13 @@ search:
 	ip->fileid = fileid;
 	ip->gen = gen;
 	memcpy(ip->fingerprint, fingerprint, fpops->digest_len);
+	if (flags & VERIEXEC_LABEL)
+		ip->labellen = mac_veriexec_init_label(&ip->label,
+		    ip->labellen, label, labellen);
+	else {
+		ip->label = NULL;
+		ip->labellen = 0;
+	}
 
 	VERIEXEC_DEBUG(3, ("add file %ju.%lu (files=%d)\n",
 	    (uintmax_t)ip->fileid,
@@ -716,6 +731,48 @@ search:
 #endif
 	return (0);
 }
+
+/**
+ * @brief Search the meta-data store for information on the specified file.
+ *
+ * @param fsid		file system identifier to look for
+ * @param fileid	file to look for
+ * @param gen		generation of file
+ * @param found_dev	indicator that an entry for the file system was found
+ * @param check_files	if 1, check the files list first, otherwise check the
+ * 			exectuables list first
+ *
+ * @return A pointer to the meta-data inforation if meta-data exists for
+ *     the specified file identifier, otherwise @c NULL
+ */
+struct mac_veriexec_file_info *
+mac_veriexec_metadata_get_file_info(dev_t fsid, long fileid, unsigned long gen,
+    int *found_dev, int check_files)
+{
+	struct veriexec_devhead *search[3];
+	struct mac_veriexec_file_info *ip;
+	int x;
+
+	/* Determine the order of the lists to search */
+	if (check_files) {
+		search[0] = &veriexec_file_dev_head;
+		search[1] = &veriexec_dev_head;
+	} else {
+		search[0] = &veriexec_dev_head;
+		search[1] = &veriexec_file_dev_head;
+	}
+	search[2] = NULL;
+
+	VERIEXEC_DEBUG(3, ("%s: searching for dev %ju, file %lu\n",
+	    __func__, (uintmax_t)fsid, fileid));
+
+	/* Search for the specified file */
+	for (ip = NULL, x = 0; ip == NULL && search[x]; x++)
+		ip = get_veriexec_file(search[x], fsid, fileid, gen, found_dev);
+
+	return (ip);
+}
+
 
 /**
  * @brief Intialize the meta-data store
