@@ -524,7 +524,6 @@ MAN=	aac.4 \
 	twa.4 \
 	twe.4 \
 	tws.4 \
-	tx.4 \
 	txp.4 \
 	udp.4 \
 	udplite.4 \
@@ -717,7 +716,6 @@ MLINKS+=tap.4 if_tap.4
 MLINKS+=tdfx.4 tdfx_linux.4
 MLINKS+=ti.4 if_ti.4
 MLINKS+=tun.4 if_tun.4
-MLINKS+=tx.4 if_tx.4
 MLINKS+=txp.4 if_txp.4
 MLINKS+=ure.4 if_ure.4
 MLINKS+=vge.4 if_vge.4
