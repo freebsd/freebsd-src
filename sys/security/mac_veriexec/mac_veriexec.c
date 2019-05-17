@@ -823,9 +823,18 @@ mac_veriexec_set_state(int state)
 int
 mac_veriexec_proc_is_trusted(struct ucred *cred, struct proc *p)
 {
-	int error, flags;
+	int already_locked, error, flags;
+
+	/* Make sure we lock the process if we do not already have the lock */
+	already_locked = PROC_LOCKED(p);
+	if (!already_locked)
+		PROC_LOCK(p);
 
 	error = mac_veriexec_metadata_get_executable_flags(cred, p, &flags, 0);
+
+	/* Unlock the process if we locked it previously */
+	if (!already_locked)
+		PROC_UNLOCK(p);
 
 	/* Any errors, deny access */
 	if (error != 0)
