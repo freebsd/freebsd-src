@@ -118,7 +118,6 @@ SUBDIR=	\
 	ext2fs \
 	fdc \
 	fdescfs \
-	${_fe} \
 	${_ffec} \
 	filemon \
 	firewire \
@@ -599,7 +598,6 @@ _dpms=		dpms
 _em=		em
 _et=		et
 _exca=		exca
-_fe=		fe
 _if_ndis=	if_ndis
 _io=		io
 _ix=		ix
