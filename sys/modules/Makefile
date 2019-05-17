@@ -387,7 +387,6 @@ SUBDIR=	\
 	${_wpi} \
 	${_wpifw} \
 	${_x86bios} \
-	${_xe} \
 	xl \
 	xz \
 	zlib
@@ -610,7 +609,6 @@ _sppp=		sppp
 _vmware=	vmware
 _wbwd=		wbwd
 _wi=		wi
-_xe=		xe
 
 _aac=		aac
 _aacraid=	aacraid
