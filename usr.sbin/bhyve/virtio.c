@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2013  Chris Torek <torek @ torek net>
  * All rights reserved.
+ * Copyright (c) 2019 Joyent, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,6 +32,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/uio.h>
+
+#include <machine/atomic.h>
 
 #include <stdio.h>
 #include <stdint.h>
@@ -422,6 +425,12 @@ vq_relchain(struct vqueue_info *vq, uint16_t idx, uint32_t iolen)
 	vue = &vuh->vu_ring[uidx++ & mask];
 	vue->vu_idx = idx;
 	vue->vu_tlen = iolen;
+
+	/*
+	 * Ensure the used descriptor is visible before updating the index.
+	 * This is necessary on ISAs with memory ordering less strict than x86.
+	 */
+	atomic_thread_fence_rel();
 	vuh->vu_idx = uidx;
 }
 
@@ -459,6 +468,13 @@ vq_endchains(struct vqueue_info *vq, int used_all_avail)
 	vs = vq->vq_vs;
 	old_idx = vq->vq_save_used;
 	vq->vq_save_used = new_idx = vq->vq_used->vu_idx;
+
+	/*
+	 * Use full memory barrier between vu_idx store from preceding
+	 * vq_relchain() call and the loads from VQ_USED_EVENT_IDX() or
+	 * va_flags below.
+	 */
+	atomic_thread_fence_seq_cst();
 	if (used_all_avail &&
 	    (vs->vs_negotiated_caps & VIRTIO_F_NOTIFY_ON_EMPTY))
 		intr = 1;
