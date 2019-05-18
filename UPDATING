@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190517:
+	For users of mergemaster, after recent changes to locations of
+	master.passwd and group in the source tree mergemaster needs to be
+	updated.  Before running `mergemaster -p', cd to usr.sbin/mergemaster
+	and run `make install'.
+
 20190513:
 	User-wired pages now have their own counter,
 	vm.stats.vm.v_user_wire_count.  The vm.max_wired sysctl was renamed
