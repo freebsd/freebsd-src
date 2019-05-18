@@ -1617,6 +1617,13 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	physfree += kstack0_sz;
 
 	/*
+	 * Initialize enough of thread0 for delayed invalidation to
+	 * work very early.  Rely on thread0.td_base_pri
+	 * zero-initialization, it is reset to PVM at proc0_init().
+	 */
+	pmap_thread_init_invl_gen(&thread0);
+
+	/*
 	 * make gdt memory segments
 	 */
 	for (x = 0; x < NGDT; x++) {
