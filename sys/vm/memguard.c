@@ -102,26 +102,29 @@ SYSCTL_PROC(_vm_memguard, OID_AUTO, desc,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
     memguard_sysctl_desc, "A", "Short description of memory type to monitor");
 
-static vm_offset_t memguard_cursor;
+static int
+memguard_sysctl_mapused(SYSCTL_HANDLER_ARGS)
+{
+	vmem_size_t size;
+
+	size = vmem_size(memguard_arena, VMEM_ALLOC);
+	return (sysctl_handle_long(oidp, &size, sizeof(size), req));
+}
+
 static vm_offset_t memguard_base;
 static vm_size_t memguard_mapsize;
 static vm_size_t memguard_physlimit;
 static u_long memguard_wasted;
-static u_long memguard_wrap;
 static u_long memguard_succ;
 static u_long memguard_fail_kva;
 static u_long memguard_fail_pgs;
 
-SYSCTL_ULONG(_vm_memguard, OID_AUTO, cursor, CTLFLAG_RD,
-    &memguard_cursor, 0, "MemGuard cursor");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, mapsize, CTLFLAG_RD,
     &memguard_mapsize, 0, "MemGuard private arena size");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, phys_limit, CTLFLAG_RD,
     &memguard_physlimit, 0, "Limit on MemGuard memory consumption");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, wasted, CTLFLAG_RD,
     &memguard_wasted, 0, "Excess memory used through page promotion");
-SYSCTL_ULONG(_vm_memguard, OID_AUTO, wrapcnt, CTLFLAG_RD,
-    &memguard_wrap, 0, "MemGuard cursor wrap count");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, numalloc, CTLFLAG_RD,
     &memguard_succ, 0, "Count of successful MemGuard allocations");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_kva, CTLFLAG_RD,
@@ -157,7 +160,7 @@ SYSCTL_ULONG(_vm_memguard, OID_AUTO, frequency_hits, CTLFLAG_RD,
 
 /*
  * Return a fudged value to be used for vm_kmem_size for allocating
- * the kernel_arena.  The memguard memory will be a submap.
+ * the kernel_arena.
  */
 unsigned long
 memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
@@ -199,7 +202,8 @@ memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
 
 /*
  * Initialize the MemGuard mock allocator.  All objects from MemGuard come
- * out of a single VM map (contiguous chunk of address space).
+ * out of a single contiguous chunk of kernel address space that is managed
+ * by a vmem arena.
  */
 void
 memguard_init(vmem_t *parent)
@@ -209,7 +213,6 @@ memguard_init(vmem_t *parent)
 	vmem_alloc(parent, memguard_mapsize, M_BESTFIT | M_WAITOK, &base);
 	vmem_init(memguard_arena, "memguard arena", base, memguard_mapsize,
 	    PAGE_SIZE, 0, M_WAITOK);
-	memguard_cursor = base;
 	memguard_base = base;
 
 	printf("MEMGUARD DEBUGGING ALLOCATOR INITIALIZED:\n");
@@ -227,15 +230,15 @@ memguard_sysinit(void)
 	struct sysctl_oid_list *parent;
 
 	parent = SYSCTL_STATIC_CHILDREN(_vm_memguard);
-
-	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "mapstart", CTLFLAG_RD,
-	    &memguard_base, "MemGuard KVA base");
-	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "maplimit", CTLFLAG_RD,
-	    &memguard_mapsize, "MemGuard KVA size");
-#if 0
-	SYSCTL_ADD_ULONG(NULL, parent, OID_AUTO, "mapused", CTLFLAG_RD,
-	    &memguard_map->size, "MemGuard KVA used");
-#endif
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "mapstart",
+	    CTLFLAG_RD, &memguard_base,
+	    "MemGuard KVA base");
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "maplimit",
+	    CTLFLAG_RD, &memguard_mapsize,
+	    "MemGuard KVA size");
+	SYSCTL_ADD_PROC(NULL, parent, OID_AUTO, "mapused",
+	    CTLFLAG_RD | CTLTYPE_ULONG, NULL, 0, memguard_sysctl_mapused, "LU",
+	    "MemGuard KVA used");
 }
 SYSINIT(memguard, SI_SUB_KLD, SI_ORDER_ANY, memguard_sysinit, NULL);
 
@@ -288,17 +291,16 @@ memguard_alloc(unsigned long req_size, int flags)
 {
 	vm_offset_t addr, origaddr;
 	u_long size_p, size_v;
-	int do_guard, rv;
+	int do_guard, error, rv;
 
 	size_p = round_page(req_size);
 	if (size_p == 0)
 		return (NULL);
+
 	/*
 	 * To ensure there are holes on both sides of the allocation,
-	 * request 2 extra pages of KVA.  We will only actually add a
-	 * vm_map_entry and get pages for the original request.  Save
-	 * the value of memguard_options so we have a consistent
-	 * value.
+	 * request 2 extra pages of KVA.  Save the value of memguard_options
+	 * so that we use a consistent value throughout this function.
 	 */
 	size_v = size_p;
 	do_guard = (memguard_options & MG_GUARD_AROUND) != 0;
@@ -317,33 +319,17 @@ memguard_alloc(unsigned long req_size, int flags)
 		memguard_fail_pgs++;
 		goto out;
 	}
+
 	/*
-	 * Keep a moving cursor so we don't recycle KVA as long as
-	 * possible.  It's not perfect, since we don't know in what
-	 * order previous allocations will be free'd, but it's simple
-	 * and fast, and requires O(1) additional storage if guard
-	 * pages are not used.
-	 *
-	 * XXX This scheme will lead to greater fragmentation of the
-	 * map, unless vm_map_findspace() is tweaked.
+	 * Attempt to avoid address reuse for as long as possible, to increase
+	 * the likelihood of catching a use-after-free.
 	 */
-	for (;;) {
-		if (vmem_xalloc(memguard_arena, size_v, 0, 0, 0,
-		    memguard_cursor, VMEM_ADDR_MAX,
-		    M_BESTFIT | M_NOWAIT, &origaddr) == 0)
-			break;
-		/*
-		 * The map has no space.  This may be due to
-		 * fragmentation, or because the cursor is near the
-		 * end of the map.
-		 */
-		if (memguard_cursor == memguard_base) {
-			memguard_fail_kva++;
-			addr = (vm_offset_t)NULL;
-			goto out;
-		}
-		memguard_wrap++;
-		memguard_cursor = memguard_base;
+	error = vmem_alloc(memguard_arena, size_v, M_NEXTFIT | M_NOWAIT,
+	    &origaddr);
+	if (error != 0) {
+		memguard_fail_kva++;
+		addr = (vm_offset_t)NULL;
+		goto out;
 	}
 	addr = origaddr;
 	if (do_guard)
@@ -355,7 +341,6 @@ memguard_alloc(unsigned long req_size, int flags)
 		addr = (vm_offset_t)NULL;
 		goto out;
 	}
-	memguard_cursor = addr + size_v;
 	*v2sizep(trunc_page(addr)) = req_size;
 	*v2sizev(trunc_page(addr)) = size_v;
 	memguard_succ++;
