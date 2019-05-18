@@ -127,8 +127,12 @@ static struct mtx_padalign pv_lock[PV_LOCK_COUNT];
  * NUMA domains on POWER9 appear to be indexed as sparse memory spaces, with the
  * index at (N << 45).
  */
+#ifdef __powerpc64__
 #define PV_LOCK_IDX(pa)	(pa_index(pa) % PV_LOCK_PER_DOM + \
 			(((pa) >> 45) % MAXMEMDOM) * PV_LOCK_PER_DOM)
+#else
+#define PV_LOCK_IDX(pa)	(pa_index(pa) % PV_LOCK_COUNT)
+#endif
 #define PV_LOCKPTR(pa)	((struct mtx *)(&pv_lock[PV_LOCK_IDX(pa)]))
 #define PV_LOCK(pa)		mtx_lock(PV_LOCKPTR(pa))
 #define PV_UNLOCK(pa)		mtx_unlock(PV_LOCKPTR(pa))
