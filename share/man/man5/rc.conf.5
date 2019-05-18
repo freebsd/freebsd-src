@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2019
+.Dd May 18, 2019
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1264,11 +1264,11 @@ It is possible to add IP alias entries using
 syntax with the address family keyword such as
 .Li inet .
 Assuming that the interface in question was
-.Li ed0 ,
+.Li em0 ,
 it might look something like this:
 .Bd -literal
-ifconfig_ed0_alias0="inet 127.0.0.253 netmask 0xffffffff"
-ifconfig_ed0_alias1="inet 127.0.0.254 netmask 0xffffffff"
+ifconfig_em0_alias0="inet 127.0.0.253 netmask 0xffffffff"
+ifconfig_em0_alias1="inet 127.0.0.254 netmask 0xffffffff"
 .Ed
 .Pp
 It also possible to configure multiple IP addresses in Classless
@@ -1308,11 +1308,11 @@ not for the other address families such as
 .Li inet6 .
 .Pp
 With the interface in question being
-.Li ed0 ,
+.Li em0 ,
 an example could look like:
 .Bd -literal
-ifconfig_ed0_alias2="inet 192.0.2.129/27"
-ifconfig_ed0_alias3="inet 192.0.2.1-5/28"
+ifconfig_em0_alias2="inet 192.0.2.129/27"
+ifconfig_em0_alias3="inet 192.0.2.1-5/28"
 .Ed
 .Pp
 and so on.
@@ -1334,10 +1334,10 @@ its contents are passed to
 Execution stops at the first unsuccessful access, so if
 something like this is present:
 .Bd -literal
-ifconfig_ed0_alias0="inet 127.0.0.251 netmask 0xffffffff"
-ifconfig_ed0_alias1="inet 127.0.0.252 netmask 0xffffffff"
-ifconfig_ed0_alias2="inet 127.0.0.253 netmask 0xffffffff"
-ifconfig_ed0_alias4="inet 127.0.0.254 netmask 0xffffffff"
+ifconfig_em0_alias0="inet 127.0.0.251 netmask 0xffffffff"
+ifconfig_em0_alias1="inet 127.0.0.252 netmask 0xffffffff"
+ifconfig_em0_alias2="inet 127.0.0.253 netmask 0xffffffff"
+ifconfig_em0_alias4="inet 127.0.0.254 netmask 0xffffffff"
 .Ed
 .Pp
 Then note that alias4 would
@@ -1353,7 +1353,7 @@ variable, which has the same functionality as
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
 and can have all of entries in a variable like the following:
 .Bd -literal
-ifconfig_ed0_aliases="\\
+ifconfig_em0_aliases="\\
 	inet 127.0.0.251 netmask 0xffffffff \\
 	inet 127.0.0.252 netmask 0xffffffff \\
 	inet 127.0.0.253 netmask 0xffffffff \\
@@ -1460,11 +1460,11 @@ to the
 .Va ifconfig_ Ns Aq Ar interface
 variable.
 For instance, to initialize the
-.Li ed0
+.Li em0
 device via DHCP,
 it is possible to use something like:
 .Bd -literal
-ifconfig_ed0="DHCP"
+ifconfig_em0="DHCP"
 .Ed
 .Pp
 If you want to configure your wireless interface with
@@ -1515,7 +1515,7 @@ variable.
 .Pp
 It is also possible to rename an interface by doing:
 .Bd -literal
-ifconfig_ed0_name="net0"
+ifconfig_em0_name="net0"
 ifconfig_net0="inet 192.0.2.1 netmask 0xffffff00"
 .Ed
 .It Va ipv6_enable
@@ -1688,8 +1688,8 @@ with
 keyword.
 For example:
 .Bd -literal
-ifconfig_ed0_ipv6="inet6 2001:db8:1::1 prefixlen 64"
-ifconfig_ed0_alias0="inet6 2001:db8:2::1 prefixlen 64"
+ifconfig_em0_ipv6="inet6 2001:db8:1::1 prefixlen 64"
+ifconfig_em0_alias0="inet6 2001:db8:2::1 prefixlen 64"
 .Ed
 .Pp
 Interfaces that have an
@@ -1716,7 +1716,7 @@ defined in
 If only a link-local address is needed on the interface,
 the following configuration can be used:
 .Bd -literal
-ifconfig_ed0_ipv6="inet6 auto_linklocal"
+ifconfig_em0_ipv6="inet6 auto_linklocal"
 .Ed
 .Pp
 A link-local address can also be configured manually.
@@ -1725,7 +1725,7 @@ so that it does not change when the network interface
 card is replaced.
 For example:
 .Bd -literal
-ifconfig_ed0_ipv6="inet6 fe80::1 prefixlen 64"
+ifconfig_em0_ipv6="inet6 fe80::1 prefixlen 64"
 .Ed
 .It Va ipv6_prefix_ Ns Aq Ar interface
 .Pq Vt str
@@ -1739,15 +1739,15 @@ is empty.
 .Pp
 For example, the following configuration
 .Bd -literal
-ipv6_prefix_ed0="2001:db8:1:0 2001:db8:2:0"
+ipv6_prefix_em0="2001:db8:1:0 2001:db8:2:0"
 .Ed
 .Pp
 is equivalent to the following:
 .Bd -literal
-ifconfig_ed0_alias0="inet6 2001:db8:1:: eui64 prefixlen 64"
-ifconfig_ed0_alias1="inet6 2001:db8:1:: prefixlen 64 anycast"
-ifconfig_ed0_alias2="inet6 2001:db8:2:: eui64 prefixlen 64"
-ifconfig_ed0_alias3="inet6 2001:db8:2:: prefixlen 64 anycast"
+ifconfig_em0_alias0="inet6 2001:db8:1:: eui64 prefixlen 64"
+ifconfig_em0_alias1="inet6 2001:db8:1:: prefixlen 64 anycast"
+ifconfig_em0_alias2="inet6 2001:db8:2:: eui64 prefixlen 64"
+ifconfig_em0_alias3="inet6 2001:db8:2:: prefixlen 64 anycast"
 .Ed
 .Pp
 These Subnet-Router anycast addresses will be added only when
