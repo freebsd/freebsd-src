@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2018
+.Dd May 18, 2019
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -1101,7 +1101,7 @@ testjail {
 	mount.devfs;
 	host.hostname = testhostname;
 	ip4.addr = 192.0.2.100;
-	interface = ed0;
+	interface = em0;
 	exec.start = "/bin/sh /etc/rc";
 	exec.stop = "/bin/sh /etc/rc.shutdown";
 }
