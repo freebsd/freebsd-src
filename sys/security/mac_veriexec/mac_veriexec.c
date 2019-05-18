@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  *
- * Copyright (c) 2011, 2012, 2013, 2015, 2016, Juniper Networks, Inc.
+ * Copyright (c) 2011, 2012, 2013, 2015, 2016, 2019 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -193,7 +193,8 @@ mac_veriexec_vfs_mounted(void *arg __unused, struct mount *mp,
 
 	SLOT_SET(mp->mnt_label, va.va_fsid);
 #ifdef MAC_DEBUG
-	MAC_VERIEXEC_DBG(3, "set fsid to %u for mount %p", va.va_fsid, mp);
+	MAC_VERIEXEC_DBG(3, "set fsid to %ju for mount %p",
+	    (uintmax_t)va.va_fsid, mp);
 #endif
 }
 
@@ -216,7 +217,8 @@ mac_veriexec_vfs_unmounted(void *arg __unused, struct mount *mp,
 
 	fsid = SLOT(mp->mnt_label);
 	if (fsid) {
-		MAC_VERIEXEC_DBG(3, "fsid %u, cleaning up mount", fsid);
+		MAC_VERIEXEC_DBG(3, "fsid %ju, cleaning up mount",
+		    (uintmax_t)fsid);
 		mac_veriexec_metadata_unmounted(fsid, td);
 	}
 }
@@ -379,9 +381,9 @@ mac_veriexec_kld_check_load(struct ucred *cred, struct vnode *vp,
 		 * kldload should fail unless there is a valid fingerprint
 		 * registered.
 		 */
-		MAC_VERIEXEC_DBG(2, "fingerprint status is %d for dev %u, "
-			"file %lu.%lu\n", status, va.va_fsid, va.va_fileid,
-			 va.va_gen);
+		MAC_VERIEXEC_DBG(2, "fingerprint status is %d for dev %ju, "
+		    "file %ju.%ju\n", status, (uintmax_t)va.va_fsid,
+		    (uintmax_t)va.va_fileid, (uintmax_t)va.va_gen);
 		return (EAUTH);
 	}
 
@@ -420,6 +422,23 @@ mac_veriexec_priv_check(struct ucred *cred, int priv)
 		break;
 	}
 	return (0);
+}
+
+static int
+mac_veriexec_sysctl_check(struct ucred *cred, struct sysctl_oid *oidp,
+    void *arg1, int arg2, struct sysctl_req *req)
+{
+	struct sysctl_oid *oid;
+
+	/* If we are not enforcing veriexec, nothing for us to check */
+	if ((mac_veriexec_state & VERIEXEC_STATE_ENFORCE) == 0)
+		return (0);
+
+	oid = oidp;
+	if (oid->oid_kind & CTLFLAG_SECURE) {
+		return (EPERM);		/* XXX call mac_veriexec_priv_check? */
+	}
+	return 0;
 }
 
 /**
@@ -492,8 +511,8 @@ mac_veriexec_check_vp(struct ucred *cred, struct vnode *vp, accmode_t accmode)
 		case FINGERPRINT_INDIRECT:
 			MAC_VERIEXEC_DBG(2,
 			    "attempted write to fingerprinted file for dev "
-			    "%u, file %lu.%lu\n", va.va_fsid,
-			    va.va_fileid, va.va_gen);
+			    "%ju, file %ju.%ju\n", (uintmax_t)va.va_fsid,
+			    (uintmax_t)va.va_fileid, (uintmax_t)va.va_gen);
 			return (EPERM);
 		default:
 			break;
@@ -513,8 +532,9 @@ mac_veriexec_check_vp(struct ucred *cred, struct vnode *vp, accmode_t accmode)
 			 * fingerprint registered. 
 			 */
 			MAC_VERIEXEC_DBG(2, "fingerprint status is %d for dev "
-			    "%u, file %lu.%lu\n", status, va.va_fsid,
-			    va.va_fileid, va.va_gen);
+			    "%ju, file %ju.%ju\n", status,
+			    (uintmax_t)va.va_fsid, (uintmax_t)va.va_fileid,
+			    (uintmax_t)va.va_gen);
 			return (EAUTH);
 		}
 	}
@@ -677,7 +697,8 @@ cleanup_file:
 		break;
 	case MAC_VERIEXEC_CHECK_PATH_SYSCALL:
 		/* Look up the path to get the vnode */
-		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
+		NDINIT(&nd, LOOKUP,
+		    FOLLOW | LOCKLEAF | LOCKSHARED | AUDITVNODE1,
 		    UIO_USERSPACE, arg, td);
 		error = namei(&nd);
 		if (error != 0)
@@ -697,12 +718,13 @@ cleanup_file:
 static struct mac_policy_ops mac_veriexec_ops =
 {
 	.mpo_init = mac_veriexec_init,
-	.mpo_syscall = mac_veriexec_syscall,
 	.mpo_kld_check_load = mac_veriexec_kld_check_load,
 	.mpo_mount_destroy_label = mac_veriexec_mount_destroy_label,
 	.mpo_mount_init_label = mac_veriexec_mount_init_label,
 	.mpo_priv_check = mac_veriexec_priv_check,
 	.mpo_proc_check_debug = mac_veriexec_proc_check_debug,
+	.mpo_syscall = mac_veriexec_syscall,
+	.mpo_system_check_sysctl = mac_veriexec_sysctl_check,
 	.mpo_vnode_check_exec = mac_veriexec_vnode_check_exec,
 	.mpo_vnode_check_open = mac_veriexec_vnode_check_open,
 	.mpo_vnode_check_setmode = mac_veriexec_vnode_check_setmode,
@@ -823,9 +845,18 @@ mac_veriexec_set_state(int state)
 int
 mac_veriexec_proc_is_trusted(struct ucred *cred, struct proc *p)
 {
-	int error, flags;
+	int already_locked, error, flags;
+
+	/* Make sure we lock the process if we do not already have the lock */
+	already_locked = PROC_LOCKED(p);
+	if (!already_locked)
+		PROC_LOCK(p);
 
 	error = mac_veriexec_metadata_get_executable_flags(cred, p, &flags, 0);
+
+	/* Unlock the process if we locked it previously */
+	if (!already_locked)
+		PROC_UNLOCK(p);
 
 	/* Any errors, deny access */
 	if (error != 0)

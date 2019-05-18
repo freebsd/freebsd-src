@@ -739,7 +739,7 @@ linux_set_thread_area(struct thread *td,
 
 int futex_xchgl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
 int futex_xchgl_smap(int oparg, uint32_t *uaddr, int *oldval);
-DEFINE_IFUNC(, int, futex_xchgl, (int, uint32_t *, int *), static)
+DEFINE_IFUNC(, int, futex_xchgl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
@@ -748,7 +748,7 @@ DEFINE_IFUNC(, int, futex_xchgl, (int, uint32_t *, int *), static)
 
 int futex_addl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
 int futex_addl_smap(int oparg, uint32_t *uaddr, int *oldval);
-DEFINE_IFUNC(, int, futex_addl, (int, uint32_t *, int *), static)
+DEFINE_IFUNC(, int, futex_addl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
@@ -757,7 +757,7 @@ DEFINE_IFUNC(, int, futex_addl, (int, uint32_t *, int *), static)
 
 int futex_orl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
 int futex_orl_smap(int oparg, uint32_t *uaddr, int *oldval);
-DEFINE_IFUNC(, int, futex_orl, (int, uint32_t *, int *), static)
+DEFINE_IFUNC(, int, futex_orl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
@@ -766,7 +766,7 @@ DEFINE_IFUNC(, int, futex_orl, (int, uint32_t *, int *), static)
 
 int futex_andl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
 int futex_andl_smap(int oparg, uint32_t *uaddr, int *oldval);
-DEFINE_IFUNC(, int, futex_andl, (int, uint32_t *, int *), static)
+DEFINE_IFUNC(, int, futex_andl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
@@ -775,7 +775,7 @@ DEFINE_IFUNC(, int, futex_andl, (int, uint32_t *, int *), static)
 
 int futex_xorl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
 int futex_xorl_smap(int oparg, uint32_t *uaddr, int *oldval);
-DEFINE_IFUNC(, int, futex_xorl, (int, uint32_t *, int *), static)
+DEFINE_IFUNC(, int, futex_xorl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?

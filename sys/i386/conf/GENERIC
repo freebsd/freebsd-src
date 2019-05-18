@@ -227,11 +227,8 @@ device		vmx			# VMware VMXNET3 Ethernet
 
 # PCI Ethernet NICs.
 device		bxe			# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
-device		de			# DEC/Intel DC21x4x (``Tulip'')
 device		le			# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti			# Alteon Networks Tigon I/II gigabit Ethernet
-device		txp			# 3Com 3cR990 (``Typhoon'')
-device		vx			# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
@@ -254,32 +251,17 @@ device		lge			# Level 1 LXT1001 gigabit Ethernet
 device		msk			# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device		nfe			# nVidia nForce MCP on-board Ethernet
 device		nge			# NatSemi DP83820 gigabit Ethernet
-device		pcn			# AMD Am79C97x PCI 10/100 (precedence over 'le')
 device		re			# RealTek 8139C+/8169/8169S/8110S
 device		rl			# RealTek 8129/8139
-device		sf			# Adaptec AIC-6915 (``Starfire'')
 device		sge			# Silicon Integrated Systems SiS190/191
 device		sis			# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk			# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste			# Sundance ST201 (D-Link DFE-550TX)
 device		stge			# Sundance/Tamarack TC9021 gigabit Ethernet
-device		tl			# Texas Instruments ThunderLAN
-device		tx			# SMC EtherPower II (83c170 ``EPIC'')
 device		vge			# VIA VT612x gigabit Ethernet
 device		vr			# VIA Rhine, Rhine II
 device		vte			# DM&P Vortex86 RDC R6040 Fast Ethernet
-device		wb			# Winbond W89C840F
 device		xl			# 3Com 3c90x (``Boomerang'', ``Cyclone'')
-
-# ISA Ethernet NICs.  pccard NICs included.
-device		cs			# Crystal Semiconductor CS89x0 NIC
-# 'device ed' requires 'device miibus'
-device		ed			# NE[12]000, SMC Ultra, 3c503, DS8390 cards
-device		ex			# Intel EtherExpress Pro/10 and Pro/10+
-device		ep			# Etherlink III based cards
-device		fe			# Fujitsu MB8696x based cards
-device		sn			# SMC's 9000 series of Ethernet chips
-device		xe			# Xircom pccard Ethernet
 
 # Wireless NIC cards
 device		wlan			# 802.11 support

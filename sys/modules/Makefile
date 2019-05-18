@@ -68,7 +68,6 @@ SUBDIR=	\
 	${_bios} \
 	${_bktr} \
 	${_blake2} \
-	${_bm} \
 	bnxt \
 	bridgestp \
 	bwi \
@@ -99,7 +98,6 @@ SUBDIR=	\
 	${_cpufreq} \
 	${_crypto} \
 	${_cryptodev} \
-	${_cs} \
 	${_ctau} \
 	ctl \
 	${_cxgb} \
@@ -107,24 +105,19 @@ SUBDIR=	\
 	dc \
 	dcons \
 	dcons_crom \
-	de \
 	${_dpms} \
 	dummynet \
-	${_ed} \
 	${_efirt} \
 	${_em} \
 	${_ena} \
-	${_ep} \
 	${_epic} \
 	esp \
 	${_et} \
 	evdev \
-	${_ex} \
 	${_exca} \
 	ext2fs \
 	fdc \
 	fdescfs \
-	${_fe} \
 	${_ffec} \
 	filemon \
 	firewire \
@@ -290,7 +283,6 @@ SUBDIR=	\
 	${_padlock_rng} \
 	${_pccard} \
 	${_pcfclock} \
-	pcn \
 	${_pf} \
 	${_pflog} \
 	${_pfsync} \
@@ -333,7 +325,6 @@ SUBDIR=	\
 	sdhci_pci \
 	sem \
 	send \
-	${_sf} \
 	${_sfxge} \
 	sge \
 	${_sgx} \
@@ -344,7 +335,6 @@ SUBDIR=	\
 	sk \
 	${_smartpqi} \
 	smbfs \
-	sn \
 	snp \
 	sound \
 	${_speaker} \
@@ -358,7 +348,6 @@ SUBDIR=	\
 	sysvipc \
 	tcp \
 	${_ti} \
-	tl \
 	tmpfs \
 	${_toecore} \
 	${_tpm} \
@@ -366,8 +355,6 @@ SUBDIR=	\
 	${_twa} \
 	twe \
 	tws \
-	tx \
-	${_txp} \
 	uart \
 	ubsec \
 	udf \
@@ -387,8 +374,6 @@ SUBDIR=	\
 	${_vpo} \
 	vr \
 	vte \
-	vx \
-	wb \
 	${_wbwd} \
 	${_wi} \
 	wlan \
@@ -402,7 +387,6 @@ SUBDIR=	\
 	${_wpi} \
 	${_wpifw} \
 	${_x86bios} \
-	${_xe} \
 	xl \
 	xz \
 	zlib
@@ -524,9 +508,7 @@ _pfsync=	pfsync
 _bce=		bce
 _fxp=		fxp
 _ispfw=		ispfw
-_sf=		sf
 _ti=		ti
-_txp=		txp
 
 .if ${MACHINE_CPUARCH} != "mips"
 _mwlfw=		mwlfw
@@ -601,14 +583,10 @@ _cardbus=	cardbus
 _cbb=		cbb
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
-_cs=		cs
 _dpms=		dpms
-_ed=		ed
 _em=		em
-_ep=		ep
 _et=		et
 _exca=		exca
-_fe=		fe
 _if_ndis=	if_ndis
 _io=		io
 _ix=		ix
@@ -631,7 +609,6 @@ _sppp=		sppp
 _vmware=	vmware
 _wbwd=		wbwd
 _wi=		wi
-_xe=		xe
 
 _aac=		aac
 _aacraid=	aacraid
@@ -755,7 +732,6 @@ _sbni=		sbni
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ctau=		ctau
 .endif
-_ex=		ex
 .endif
 
 .if ${MACHINE_CPUARCH} == "arm"
@@ -766,7 +742,6 @@ _cpsw=		cpsw
 .if ${MACHINE_CPUARCH} == "powerpc"
 _agp=		agp
 _an=		an
-_bm=		bm
 _cardbus=	cardbus
 _cbb=		cbb
 _cfi=		cfi

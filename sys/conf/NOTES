@@ -1936,13 +1936,7 @@ device		xmphy		# XaQti XMAC II
 #       SVEC PN102-TX, CNet Pro110B, 120A, and 120B, Compex RL100-TX,
 #       LinkSys LNE100TX, LNE100TX V2.0, Jaton XpressNet, Alfa Inc GFC2204,
 #       KNE110TX.
-# de:   Digital Equipment DC21040
 # em:   Intel Pro/1000 Gigabit Ethernet 82542, 82543, 82544 based adapters.
-# ep:   3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 3C589
-#       and PC Card devices using these chipsets.
-# ex:   Intel EtherExpress Pro/10 and other i82595-based adapters,
-#       Olicom Ethernet PC Card devices.
-# fe:   Fujitsu MB86960A/MB86965A Ethernet
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
 # gem:  Apple GMAC/Sun ERI/Sun GEM
@@ -1971,12 +1965,6 @@ device		xmphy		# XaQti XMAC II
 #	GigaNIX 1000TA and 1000TPC, the Addtron AEG320T, the Surecom
 #	EP-320G-TX and the Netgear GA622T.
 # oce:	Emulex 10 Gbit adapters (OneConnect Ethernet)
-# pcn:	Support for PCI fast ethernet adapters based on the AMD Am79c97x
-#	PCnet-FAST, PCnet-FAST+, PCnet-FAST III, PCnet-PRO and PCnet-Home
-#	chipsets. These can also be handled by the le(4) driver if the
-#	pcn(4) driver is left out of the kernel. The le(4) driver does not
-#	support the additional features like the MII bus and burst mode of
-#	the PCnet-FAST and greater chipsets though.
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # re:   RealTek 8139C+/8169/816xS/811xS/8101E PCI/PCIe Ethernet adapter
 # rl:   Support for PCI fast ethernet adapters based on the RealTek 8129/8139
@@ -1989,11 +1977,6 @@ device		xmphy		# XaQti XMAC II
 #       chipset and is supported by this driver, not the 'vr' driver.
 # rtwn: RealTek wireless adapters.
 # rtwnfw: RealTek wireless firmware.
-# sf:   Support for Adaptec Duralink PCI fast ethernet adapters based on the
-#       Adaptec AIC-6915 "starfire" controller.
-#       This includes dual and quad port cards, as well as one 100baseFX card.
-#       Most of these are 64-bit PCI devices, except for one single port
-#       card which is 32-bit.
 # sge:  Silicon Integrated Systems SiS190/191 Fast/Gigabit Ethernet adapter
 # sis:  Support for NICs based on the Silicon Integrated Systems SiS 900,
 #       SiS 7016 and NS DP83815 PCI fast ethernet controller chips.
@@ -2003,8 +1986,6 @@ device		xmphy		# XaQti XMAC II
 #       (also single mode and multimode).
 #       The driver will autodetect the number of ports on the card and
 #       attach each one as a separate network interface.
-# sn:   Support for ISA and PC Card Ethernet devices using the
-#       SMC91C90/92/94/95 chips.
 # ste:  Sundance Technologies ST201 PCI fast ethernet controller, includes
 #       the D-Link DFE-550TX.
 # stge: Support for gigabit ethernet adapters based on the Sundance/Tamarack
@@ -2014,28 +1995,14 @@ device		xmphy		# XaQti XMAC II
 #       Tigon 1 and Tigon 2 chipsets.  This includes the Alteon AceNIC, the
 #       3Com 3c985, the Netgear GA620 and various others.  Note that you will
 #       probably want to bump up kern.ipc.nmbclusters a lot to use this driver.
-# tl:   Support for the Texas Instruments TNETE100 series 'ThunderLAN'
-#       cards and integrated ethernet controllers.  This includes several
-#       Compaq Netelligent 10/100 cards and the built-in ethernet controllers
-#       in several Compaq Prosignia, Proliant and Deskpro systems.  It also
-#       supports several Olicom 10Mbps and 10/100 boards.
-# tx:   SMC 9432 TX, BTX and FTX cards. (SMC EtherPower II series)
-# txp:	Support for 3Com 3cR990 cards with the "Typhoon" chipset
 # vr:   Support for various fast ethernet adapters based on the VIA
 #       Technologies VT3043 `Rhine I' and VT86C100A `Rhine II' chips,
 #       including the D-Link DFE520TX and D-Link DFE530TX (see 'rl' for
 #       DFE530TX+), the Hawking Technologies PN102TX, and the AOpen/Acer ALN-320.
 # vte:  DM&P Vortex86 RDC R6040 Fast Ethernet
-# vx:   3Com 3C590 and 3C595
-# wb:   Support for fast ethernet adapters based on the Winbond W89C840F chip.
-#       Note: this is not the same as the Winbond W89C940F, which is a
-#       NE2000 clone.
 # wi:   Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
 #       the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
 #       bridge with a PCMCIA adapter plugged into it.
-# xe:   Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller,
-#       Accton Fast EtherCard-16, Compaq Netelligent 10/100 PC Card,
-#       Toshiba 10/100 Ethernet PC Card, Xircom 16-bit Ethernet + Modem 56
 # xl:   Support for the 3Com 3c900, 3c905, 3c905B and 3c905C (Fast)
 #       Etherlink XL cards and integrated controllers.  This includes the
 #       integrated 3c905B-TX chips in certain Dell Optiplex and Dell
@@ -2045,18 +2012,8 @@ device		xmphy		# XaQti XMAC II
 
 # Order for ISA devices is important here
 
-device		ep
-device		ex
-device		fe
-hint.fe.0.at="isa"
-hint.fe.0.port="0x300"
-device		sn
-hint.sn.0.at="isa"
-hint.sn.0.port="0x300"
-hint.sn.0.irq="10"
 device		an
 device		wi
-device		xe
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		ae		# Attansic/Atheros L2 FastEthernet
@@ -2083,18 +2040,13 @@ device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
 device		nge		# NatSemi DP83820 gigabit Ethernet
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
-device		pcn		# AMD Am79C97x PCI 10/100 NICs
-device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sge		# Silicon Integrated Systems SiS190/191
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
 device		stge		# Sundance/Tamarack TC9021 gigabit Ethernet
-device		tl		# Texas Instruments ThunderLAN
-device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
 device		vte		# DM&P Vortex86 RDC R6040 Fast Ethernet
-device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
@@ -2108,13 +2060,10 @@ device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
 device		cxgbe		# Chelsio T4-T6 1/10/25/40/100 Gigabit Ethernet
 device		cxgbev		# Chelsio T4-T6 Virtual Functions
-device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		oce		# Emulex 10 GbE (OneConnect Ethernet)
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
-device		txp		# 3Com 3cR990 (``Typhoon'')
-device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI IEEE 802.11 Wireless NICs
 device		ath		# Atheros pci/cardbus NIC's

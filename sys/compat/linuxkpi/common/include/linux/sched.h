@@ -80,6 +80,7 @@ struct task_struct {
 	int rcu_recurse;
 	int bsd_interrupt_value;
 	struct work_struct *work;	/* current work struct, if set */
+	struct task_struct *group_leader;
 };
 
 #define	current	({ \

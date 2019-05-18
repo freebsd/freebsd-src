@@ -78,7 +78,8 @@ extern int vm_guest;		/* Running as virtual machine guest? */
  * Keep in sync with vm_guest_sysctl_names[].
  */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
-		VM_GUEST_VMWARE, VM_GUEST_KVM, VM_GUEST_BHYVE, VM_LAST };
+		VM_GUEST_VMWARE, VM_GUEST_KVM, VM_GUEST_BHYVE, VM_GUEST_VBOX,
+		VM_LAST };
 
 /*
  * These functions need to be declared before the KASSERT macro is invoked in
@@ -575,9 +576,6 @@ void _gone_in_dev(struct device *dev, int major, const char *msg);
 #endif
 #define gone_in(major, msg)		__gone_ok(major, msg) _gone_in(major, msg)
 #define gone_in_dev(dev, major, msg)	__gone_ok(major, msg) _gone_in_dev(dev, major, msg)
-#define	gone_by_fcp101_dev(dev)						\
-	gone_in_dev((dev), 13,						\
-	    "see https://github.com/freebsd/fcp/blob/master/fcp-0101.md")
 
 __NULLABILITY_PRAGMA_POP
 

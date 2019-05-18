@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  *
- * Copyright (c) 2011-2013, 2015, Juniper Networks, Inc.
+ * Copyright (c) 2011-2013, 2015, 2019 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/vnode.h>
@@ -67,10 +68,47 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 {
 	struct nameidata nid;
 	struct vattr vattr;
+	struct verified_exec_label_params *lparams;
 	struct verified_exec_params *params;
 	int error = 0;
 
-	params = (struct verified_exec_params *)data;
+	/*
+	 * These commands are considered safe requests for anyone who has
+	 * permission to access to device node.
+	 */
+	switch (cmd) {
+	case VERIEXEC_GETSTATE:
+		{
+			int *ip = (int *)data;
+
+			if (ip)
+				*ip = mac_veriexec_get_state();
+			else
+			    error = EINVAL;
+
+			return (error);
+		}
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * Anything beyond this point is considered dangerous, so we need to
+	 * only allow processes that have kmem write privs to do them.
+	 *
+	 * MAC/veriexec will grant kmem write privs to "trusted" processes.
+	 */
+	error = priv_check(td, PRIV_KMEM_WRITE);
+	if (error)
+		return (error);
+
+	lparams = (struct verified_exec_label_params *)data;
+	if (cmd == VERIEXEC_LABEL_LOAD)
+		params = &lparams->params;
+	else
+		params = (struct verified_exec_params *)data;
+
 	switch (cmd) {
 	case VERIEXEC_ACTIVE:
 		mtx_lock(&ve_mutex);
@@ -106,14 +144,14 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 			error = EINVAL;
 		mtx_unlock(&ve_mutex);
 		break;
-	case VERIEXEC_GETSTATE:
+	case VERIEXEC_GETVERSION:
 		{
 			int *ip = (int *)data;
-			
+
 			if (ip)
-				*ip = mac_veriexec_get_state();
+				*ip = MAC_VERIEXEC_VERSION;
 			else
-			    error = EINVAL;
+				error = EINVAL;
 		}
 		break;
 	case VERIEXEC_LOCK:
@@ -126,6 +164,7 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 			return (EPERM);	/* no updates when secure */
 
 		/* FALLTHROUGH */
+	case VERIEXEC_LABEL_LOAD:
 	case VERIEXEC_SIGNED_LOAD:
 		/*
 		 * If we use a loader that will only use a
@@ -144,8 +183,9 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 		if (mac_veriexec_in_state(VERIEXEC_STATE_LOCKED))
 			error = EPERM;
 		else {
+			size_t labellen = 0;
 			int flags = FREAD;
-			int override = (cmd == VERIEXEC_SIGNED_LOAD);
+			int override = (cmd != VERIEXEC_LOAD);
 
 			/*
 			 * Get the attributes for the file name passed
@@ -189,13 +229,18 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 			    FINGERPRINT_INVALID);
 			VOP_UNLOCK(nid.ni_vp, 0);
 			(void) vn_close(nid.ni_vp, FREAD, td->td_ucred, td);
+			if (params->flags & VERIEXEC_LABEL)
+				labellen = strnlen(lparams->label,
+				    sizeof(lparams->label) - 1) + 1;
 
 			mtx_lock(&ve_mutex);
 			error = mac_veriexec_metadata_add_file(
 			    ((params->flags & VERIEXEC_FILE) != 0),
 			    vattr.va_fsid, vattr.va_fileid, vattr.va_gen,
-			    params->fingerprint, params->flags,
-			    params->fp_type, override);
+			    params->fingerprint,
+			    (params->flags & VERIEXEC_LABEL) ?
+			    lparams->label : NULL, labellen,
+			    params->flags, params->fp_type, override);
 
 			mac_veriexec_set_state(VERIEXEC_STATE_LOADED);
 			mtx_unlock(&ve_mutex);

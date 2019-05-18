@@ -1737,7 +1737,9 @@ WARNINGS=$WORKDIR/warnings
 EDITOR=${EDITOR:-/usr/bin/vi}
 
 # Files that need to be updated before installworld.
-PREWORLD_FILES="etc/master.passwd etc/group"
+PREWORLD_FILES="lib/libc/gen/master.passwd lib/libc/gen/group"
+# If on an older tree, use it instead.  Delete after 13.0.
+[ -f ${SRCDIR}/etc/master.passwd ] && PREWORLD_FILES="etc/master.passwd etc/group"
 
 # Handle command-specific argument processing such as complaining
 # about unsupported options.  Since the configuration file is always
