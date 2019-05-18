@@ -1239,6 +1239,8 @@ tl_attach(dev)
 		goto fail;
 	}
 
+	gone_by_fcp101_dev(dev);
+
 fail:
 	if (error)
 		tl_detach(dev);

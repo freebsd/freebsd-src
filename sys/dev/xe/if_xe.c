@@ -315,6 +315,8 @@ xe_attach(device_t dev)
 		return (err);
 	}
 
+	gone_by_fcp101_dev(dev);
+
 	/* Done */
 	return (0);
 }
