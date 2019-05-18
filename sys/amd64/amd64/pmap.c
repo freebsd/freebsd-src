@@ -700,16 +700,17 @@ pmap_delayed_invl_start_u(void)
 	invl_gen = &td->td_md.md_invl_gen;
 	PMAP_ASSERT_NOT_IN_DI();
 	lock_delay_arg_init(&lda, &di_delay);
-	thread_lock(td);
+	invl_gen->saved_pri = 0;
 	pri = td->td_base_pri;
-	if (pri < PVM) {
-		invl_gen->saved_pri = 0;
-	} else {
-		invl_gen->saved_pri = pri;
-		sched_prio(td, PVM);
+	if (pri > PVM) {
+		thread_lock(td);
+		pri = td->td_base_pri;
+		if (pri > PVM) {
+			invl_gen->saved_pri = pri;
+			sched_prio(td, PVM);
+		}
+		thread_unlock(td);
 	}
-	thread_unlock(td);
-
 again:
 	PV_STAT(i = 0);
 	for (p = &pmap_invl_gen_head;; p = prev.next) {
