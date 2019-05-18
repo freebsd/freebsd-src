@@ -1738,8 +1738,18 @@ vmem_check_sanity(vmem_t *vm)
 		}
 	}
 	TAILQ_FOREACH(bt, &vm->vm_seglist, bt_seglist) {
+		if (bt->bt_type == BT_TYPE_CURSOR) {
+			if (bt->bt_start != 0 || bt->bt_size != 0) {
+				printf("corrupted cursor\n");
+				return false;
+			}
+			continue;
+		}
 		TAILQ_FOREACH(bt2, &vm->vm_seglist, bt_seglist) {
 			if (bt == bt2) {
+				continue;
+			}
+			if (bt2->bt_type == BT_TYPE_CURSOR) {
 				continue;
 			}
 			if (BT_ISSPAN_P(bt) != BT_ISSPAN_P(bt2)) {
