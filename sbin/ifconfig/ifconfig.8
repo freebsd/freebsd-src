@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2019
+.Dd May 18, 2019
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -196,7 +196,7 @@ This
 parameter is a string of the form
 .Dq name unit ,
 for example,
-.Dq Li ed0 .
+.Dq Li em0 .
 .It Ar groupname
 List the interfaces in the given group.
 .El
@@ -2935,26 +2935,26 @@ Assign the IPv4 address
 with a network mask of
 .Li 255.255.255.0 ,
 to the interface
-.Li fxp0 :
-.Dl # ifconfig fxp0 inet 192.0.2.10 netmask 255.255.255.0
+.Li em0 :
+.Dl # ifconfig em0 inet 192.0.2.10 netmask 255.255.255.0
 .Pp
 Add the IPv4 address
 .Li 192.0.2.45 ,
 with the CIDR network prefix
 .Li /28 ,
 to the interface
-.Li ed0 ,
+.Li em0 ,
 using
 .Cm add
 as a synonym for the canonical form of the option
 .Cm alias :
-.Dl # ifconfig ed0 inet 192.0.2.45/28 add
+.Dl # ifconfig em0 inet 192.0.2.45/28 add
 .Pp
 Remove the IPv4 address
 .Li 192.0.2.45
 from the interface
-.Li ed0 :
-.Dl # ifconfig ed0 inet 192.0.2.45 -alias
+.Li em0 :
+.Dl # ifconfig em0 inet 192.0.2.45 -alias
 .Pp
 Enable IPv6 functionality of the interface:
 .Dl # ifconfig em0 inet6 -ifdisabled
