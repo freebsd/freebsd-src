@@ -7749,7 +7749,7 @@ OLD_FILES+=usr/share/man/man8/smpquery.8.gz
 OLD_FILES+=usr/share/man/man8/vendstat.8.gz
 .endif
 
-.if ${MK_OPENSSH} == no
+.if ${MK_OPENMP} == no
 .if ${MK_GCC} == no
 OLD_FILES+=usr/include/omp.h
 .endif
