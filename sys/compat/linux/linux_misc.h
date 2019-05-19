@@ -149,8 +149,9 @@ extern int stclohz;
 #define	LINUX_GRND_NONBLOCK	0x0001
 #define	LINUX_GRND_RANDOM	0x0002
 
-int linux_common_wait(struct thread *td, int pid, int *status,
-			int options, struct rusage *ru);
+#if defined(__amd64__) && !defined(COMPAT_LINUX32)
+int linux_ptrace_status(struct thread *td, int pid, int status);
+#endif
 void linux_to_bsd_waitopts(int options, int *bsdopts);
 int linux_set_upcall_kse(struct thread *td, register_t stack);
 int linux_set_cloned_tls(struct thread *td, void *desc);

@@ -886,27 +886,53 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 }
 #endif
 
-int
-linux_common_wait(struct thread *td, int pid, int *status,
-    int options, struct rusage *ru)
+static int
+linux_common_wait(struct thread *td, int pid, int *statusp,
+    int options, struct __wrusage *wrup)
 {
-	int error, tmpstat;
+	siginfo_t siginfo;
+	idtype_t idtype;
+	id_t id;
+	int error, status, tmpstat;
 
-	error = kern_wait(td, pid, &tmpstat, options, ru);
+	if (pid == WAIT_ANY) {
+		idtype = P_ALL;
+		id = 0;
+	} else if (pid < 0) {
+		idtype = P_PGID;
+		id = (id_t)-pid;
+	} else {
+		idtype = P_PID;
+		id = (id_t)pid;
+	}
+
+	/*
+	 * For backward compatibility we implicitly add flags WEXITED
+	 * and WTRAPPED here.
+	 */
+	options |= WEXITED | WTRAPPED;
+	error = kern_wait6(td, idtype, id, &status, options, wrup, &siginfo);
 	if (error)
 		return (error);
 
-	if (status) {
-		tmpstat &= 0xffff;
-		if (WIFSIGNALED(tmpstat))
+	if (statusp) {
+		tmpstat = status & 0xffff;
+		if (WIFSIGNALED(tmpstat)) {
 			tmpstat = (tmpstat & 0xffffff80) |
 			    bsd_to_linux_signal(WTERMSIG(tmpstat));
-		else if (WIFSTOPPED(tmpstat))
+		} else if (WIFSTOPPED(tmpstat)) {
 			tmpstat = (tmpstat & 0xffff00ff) |
 			    (bsd_to_linux_signal(WSTOPSIG(tmpstat)) << 8);
-		else if (WIFCONTINUED(tmpstat))
+#if defined(__amd64__) && !defined(COMPAT_LINUX32)
+			if (WSTOPSIG(status) == SIGTRAP) {
+				tmpstat = linux_ptrace_status(td,
+				    siginfo.si_pid, tmpstat);
+			}
+#endif
+		} else if (WIFCONTINUED(tmpstat)) {
 			tmpstat = 0xffff;
-		error = copyout(&tmpstat, status, sizeof(int));
+		}
+		error = copyout(&tmpstat, statusp, sizeof(int));
 	}
 
 	return (error);
@@ -931,7 +957,7 @@ int
 linux_wait4(struct thread *td, struct linux_wait4_args *args)
 {
 	int error, options;
-	struct rusage ru, *rup;
+	struct __wrusage wru, *wrup;
 
 	if (args->options & ~(LINUX_WUNTRACED | LINUX_WNOHANG |
 	    LINUX_WCONTINUED | __WCLONE | __WNOTHREAD | __WALL))
@@ -941,14 +967,14 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	linux_to_bsd_waitopts(args->options, &options);
 
 	if (args->rusage != NULL)
-		rup = &ru;
+		wrup = &wru;
 	else
-		rup = NULL;
-	error = linux_common_wait(td, args->pid, args->status, options, rup);
+		wrup = NULL;
+	error = linux_common_wait(td, args->pid, args->status, options, wrup);
 	if (error != 0)
 		return (error);
 	if (args->rusage != NULL)
-		error = linux_copyout_rusage(&ru, args->rusage);
+		error = linux_copyout_rusage(&wru.wru_self, args->rusage);
 	return (error);
 }
 
