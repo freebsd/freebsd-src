@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 static const br_hash_class *pcr_md = NULL;
 static br_hash_compat_context pcr_ctx;
 static size_t pcr_hlen = 0;
+static int pcr_updating;
 
 /**
  * @brief initialize pcr context
@@ -53,9 +54,28 @@ static size_t pcr_hlen = 0;
 void
 ve_pcr_init(void)
 {
+	pcr_updating = 0;
 	pcr_hlen = br_sha256_SIZE;
 	pcr_md = &br_sha256_vtable;
 	pcr_md->init(&pcr_ctx.vtable);
+}
+
+/**
+ * @brief get pcr_updating state
+ */
+int
+ve_pcr_updating_get(void)
+{
+	return (pcr_updating);
+}
+
+/**
+ * @brief set pcr_updating state
+ */
+void
+ve_pcr_updating_set(int updating)
+{
+	pcr_updating = updating;
 }
 
 /**
@@ -64,7 +84,7 @@ ve_pcr_init(void)
 void
 ve_pcr_update(unsigned char *data, size_t dlen)
 {
-	if (pcr_md)
+	if (pcr_updating != 0 && pcr_md != NULL)
 		pcr_md->update(&pcr_ctx.vtable, data, dlen);
 }
 

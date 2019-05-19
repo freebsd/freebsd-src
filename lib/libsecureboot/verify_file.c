@@ -340,6 +340,14 @@ verify_file(int fd, const char *filename, off_t off, int severity)
 	if (rc != VE_FINGERPRINT_WRONG && loaded_manifests) {
 		if (severity <= VE_GUESS)
 			severity = severity_guess(filename);
+#ifdef VE_PCR_SUPPORT
+		/*
+		 * Only update pcr with things that must verify
+		 * these tend to be processed in a more deterministic
+		 * order, which makes our pseudo pcr more useful.
+		 */
+		ve_pcr_updating_set((severity == VE_MUST));
+#endif
 		if ((rc = verify_fd(fd, filename, off, &st)) >= 0) {
 			if (verbose || severity > VE_WANT) {
 #if defined(VE_DEBUG_LEVEL) && VE_DEBUG_LEVEL > 0
