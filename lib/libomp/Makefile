@@ -68,4 +68,6 @@ VERSION_MAP=	${OMPSRC}/exports_so.txt
 LIBADD+=	pthread
 LIBADD+=	m
 
+SYMLINKS+=	${SHLIB_NAME} ${LIBDIR}/libgomp.so
+
 .include <bsd.lib.mk>
