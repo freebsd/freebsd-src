@@ -1276,12 +1276,14 @@ rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info)
 /*
  * Look up rt_addrinfo for a specific fib.  Note that if rti_ifa is defined,
  * it will be referenced so the caller must free it.
+ *
+ * Assume basic consistency checks are executed by callers:
+ * RTAX_DST exists, if RTF_GATEWAY is set, RTAX_GATEWAY exists as well.
  */
 int
 rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 {
 	struct epoch_tracker et;
-	struct ifaddr *ifa;
 	int needref, error;
 
 	/*
@@ -1291,21 +1293,54 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	error = 0;
 	needref = (info->rti_ifa == NULL);
 	NET_EPOCH_ENTER(et);
+
+	/* If we have interface specified by the ifindex in the address, use it */
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
-	    ifpaddr->sa_family == AF_LINK &&
-	    (ifa = ifa_ifwithnet(ifpaddr, 0, fibnum)) != NULL) {
-		info->rti_ifp = ifa->ifa_ifp;
+	    ifpaddr->sa_family == AF_LINK) {
+	    const struct sockaddr_dl *sdl = (const struct sockaddr_dl *)ifpaddr;
+	    if (sdl->sdl_index != 0)
+		    info->rti_ifp = ifnet_byindex_locked(sdl->sdl_index);
 	}
+	/*
+	 * If we have source address specified, try to find it
+	 * TODO: avoid enumerating all ifas on all interfaces.
+	 */
 	if (info->rti_ifa == NULL && ifaaddr != NULL)
 		info->rti_ifa = ifa_ifwithaddr(ifaaddr);
 	if (info->rti_ifa == NULL) {
 		struct sockaddr *sa;
 
-		sa = ifaaddr != NULL ? ifaaddr :
-		    (gateway != NULL ? gateway : dst);
-		if (sa != NULL && info->rti_ifp != NULL)
+		/*
+		 * Most common use case for the userland-supplied routes.
+		 *
+		 * Choose sockaddr to select ifa.
+		 * -- if ifp is set --
+		 * Order of preference:
+		 * 1) IFA address
+		 * 2) gateway address
+		 *   Note: for interface routes link-level gateway address 
+		 *     is specified to indicate the interface index without
+		 *     specifying RTF_GATEWAY. In this case, ignore gateway
+		 *   Note: gateway AF may be different from dst AF. In this case,
+		 *   ignore gateway
+		 * 3) final destination.
+		 * 4) if all of these fails, try to get at least link-level ifa.
+		 * -- else --
+		 * try to lookup gateway or dst in the routing table to get ifa
+		 */
+		if (info->rti_info[RTAX_IFA] != NULL)
+			sa = info->rti_info[RTAX_IFA];
+		else if ((info->rti_flags & RTF_GATEWAY) != 0 &&
+		    gateway->sa_family == dst->sa_family)
+			sa = gateway;
+		else
+			sa = dst;
+		if (info->rti_ifp != NULL) {
 			info->rti_ifa = ifaof_ifpforaddr(sa, info->rti_ifp);
-		else if (dst != NULL && gateway != NULL)
+			/* Case 4 */
+			if (info->rti_ifa == NULL && gateway != NULL)
+				info->rti_ifa = ifaof_ifpforaddr(gateway, info->rti_ifp);
+		} else if (dst != NULL && gateway != NULL)
 			info->rti_ifa = ifa_ifwithroute(flags, dst, gateway,
 							fibnum);
 		else if (sa != NULL)
