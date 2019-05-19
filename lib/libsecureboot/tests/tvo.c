@@ -74,6 +74,9 @@ main(int argc, char *argv[])
 		}
 	}
 
+#ifdef VE_PCR_SUPPORT
+	ve_pcr_updating_set(1);
+#endif
 	ve_self_tests();
 
 	for ( ; optind < argc; optind++) {
@@ -176,6 +179,10 @@ main(int argc, char *argv[])
 			}
 		}
 	}
+#ifdef VE_PCR_SUPPORT
+	verify_pcr_export();
+	printf("pcr=%s\n", getenv("loader.ve.pcr"));
+#endif
 	return (0);
 }
 
