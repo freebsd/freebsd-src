@@ -168,6 +168,7 @@ load_key_buf(unsigned char *buf, size_t nbytes)
 	initialize();
 
 	if (!(buf[0] & OPENPGP_TAG_ISTAG)) {
+		/* Note: we do *not* free data */
 		data = dearmor((char *)buf, nbytes, &nbytes);
 		ptr = data;
 	} else
@@ -190,7 +191,6 @@ load_key_buf(unsigned char *buf, size_t nbytes)
 			}
 		}
 	}
-	free(data);
 	return (key);
 }
 
@@ -209,8 +209,10 @@ openpgp_trust_add(OpenPGP_key *key)
 
 		LIST_INIT(&trust_list);
 	}
-	if (key)
+	if (key) {
+		DEBUG_PRINTF(2, ("openpgp_trust_add(%s)\n", key->id));
 		LIST_INSERT_HEAD(&trust_list, key, entries);
+	}
 }
 
 /**
@@ -296,6 +298,7 @@ load_key_id(const char *keyID)
 	if (!key)
 		key = load_trusted_key_id(keyID);
 #endif
+	DEBUG_PRINTF(2, ("load_key_id(%s): %s\n", keyID, key ? "found" : "nope"));
 	return (key);
 }
 
