@@ -5332,10 +5332,11 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						net->dest_state &= ~SCTP_ADDR_NOHB;
 					}
 					if (paddrp->spp_flags & SPP_HB_DEMAND) {
-						/* on demand HB */
-						sctp_send_hb(stcb, net, SCTP_SO_LOCKED);
-						sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_SOCKOPT, SCTP_SO_LOCKED);
-						sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, inp, stcb, net);
+						if (SCTP_GET_STATE(stcb) == SCTP_STATE_OPEN) {
+							sctp_send_hb(stcb, net, SCTP_SO_LOCKED);
+							sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_SOCKOPT, SCTP_SO_LOCKED);
+							sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, inp, stcb, net);
+						}
 					}
 					if ((paddrp->spp_flags & SPP_PMTUD_DISABLE) && (paddrp->spp_pathmtu >= SCTP_SMALLEST_PMTU)) {
 						if (SCTP_OS_TIMER_PENDING(&net->pmtu_timer.timer)) {
