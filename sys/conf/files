@@ -3215,6 +3215,7 @@ dev/usb/usb_dev.c		optional usb
 dev/usb/usb_device.c		optional usb
 dev/usb/usb_dynamic.c		optional usb
 dev/usb/usb_error.c		optional usb
+dev/usb/usb_fdt_support.c	optional usb fdt
 dev/usb/usb_generic.c		optional usb
 dev/usb/usb_handle_request.c	optional usb
 dev/usb/usb_hid.c		optional usb
