@@ -1382,7 +1382,8 @@ identify_hypervisor_cpuid_base(void)
 			 * and vendor identifier.
 			 */
 			if (vm_guest != VM_GUEST_VM || leaf == 0x40000000) {
-				hv_high = leaf;
+				hv_base = leaf;
+				hv_high = regs[0];
 				((u_int *)&hv_vendor)[0] = regs[1];
 				((u_int *)&hv_vendor)[1] = regs[2];
 				((u_int *)&hv_vendor)[2] = regs[3];
