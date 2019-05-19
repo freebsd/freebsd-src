@@ -798,6 +798,8 @@ linux_send(struct thread *td, struct linux_send_args *args)
 		caddr_t to;
 		int tolen;
 	} */ bsd_args;
+	struct file *fp;
+	int error, fflag;
 
 	bsd_args.s = args->s;
 	bsd_args.buf = (caddr_t)PTRIN(args->msg);
@@ -805,7 +807,21 @@ linux_send(struct thread *td, struct linux_send_args *args)
 	bsd_args.flags = args->flags;
 	bsd_args.to = NULL;
 	bsd_args.tolen = 0;
-	return (sys_sendto(td, &bsd_args));
+	error = sys_sendto(td, &bsd_args);
+	if (error == ENOTCONN) {
+		/*
+		 * Linux doesn't return ENOTCONN for non-blocking sockets.
+		 * Instead it returns the EAGAIN.
+		 */
+		error = getsock_cap(td, args->s, &cap_send_rights, &fp,
+		    &fflag, NULL);
+		if (error == 0) {
+			if (fflag & FNONBLOCK)
+				error = EAGAIN;
+			fdrop(fp, td);
+		}
+	}
+	return (error);
 }
 
 struct linux_recv_args {
