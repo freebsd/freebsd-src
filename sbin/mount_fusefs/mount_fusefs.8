@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2018
+.Dd May 19, 2019
 .Dt MOUNT_FUSEFS 8
 .Os
 .Sh NAME
@@ -153,6 +153,13 @@ This is the default behaviour, to allow sharing, expicitly use
 Do not refuse unmounting if there are secondary mounts
 .It Cm push_symlinks_in
 Prefix absolute symlinks with the mountpoint
+.It Cm subtype Ns = Ns Ar fsname
+Suffix
+.Ar fsname
+to the file system name as reported by
+.Xr statfs 2 .
+This option can be used to identify the file system implemented by
+.Ar fuse_daemon .
 .El
 .El
 .Pp
