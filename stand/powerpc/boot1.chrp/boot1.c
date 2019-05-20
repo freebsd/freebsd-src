@@ -23,6 +23,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/stdarg.h>
 #include <machine/md_var.h>
+#include <ufs/ffs/fs.h>
 
 #include "paths.h"
 
