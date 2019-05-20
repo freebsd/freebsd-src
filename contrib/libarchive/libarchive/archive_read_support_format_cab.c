@@ -1509,8 +1509,8 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 			}
 			if (mszip == 1 && cab->stream.next_in[0] != 0x4b)
 				goto nomszip;
-			else if (cab->stream.next_in[0] != 0x43 ||
-			    cab->stream.next_in[1] != 0x4b)
+			else if (mszip == 2 && (cab->stream.next_in[0] != 0x43 ||
+			    cab->stream.next_in[1] != 0x4b))
 				goto nomszip;
 			cab->stream.next_in += mszip;
 			cab->stream.avail_in -= mszip;

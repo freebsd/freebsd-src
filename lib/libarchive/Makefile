@@ -168,6 +168,7 @@ SRCS=	archive_acl.c					\
 MAN=	archive_entry.3					\
 	archive_entry_acl.3				\
 	archive_entry_linkify.3				\
+	archive_entry_misc.3				\
 	archive_entry_paths.3				\
 	archive_entry_perms.3				\
 	archive_entry_stat.3				\

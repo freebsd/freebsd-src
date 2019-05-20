@@ -85,7 +85,7 @@ DEFINE_TEST(test_option_c)
 
 	/* "symlink" */
 	if (canSymlink()) {
-		assertMakeSymlink("symlink", "file");
+		assertMakeSymlink("symlink", "file", 0);
 		fprintf(filelist, "symlink\n");
 	}
 
