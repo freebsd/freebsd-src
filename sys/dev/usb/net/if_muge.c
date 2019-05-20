@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/usb/usb_fdt_support.h>
 #endif
 
 #include <dev/usb/usb.h>
@@ -1454,100 +1455,6 @@ tr_setup:
 	}
 }
 
-#ifdef FDT
-/**
- *	muge_fdt_find_eth_node - find descendant node with required compatibility
- *	@start: start node
- *	@compatible: compatible string used to identify the node
- *
- *	Loop through all descendant nodes and return first match with required
- *	compatibility.
- *
- *	RETURNS:
- *	Returns node's phandle on success -1 otherwise
- */
-static phandle_t
-muge_fdt_find_eth_node(phandle_t start, const char *compatible)
-{
-	phandle_t child, node;
-
-	/* Traverse through entire tree to find usb ethernet nodes. */
-	for (node = OF_child(start); node != 0; node = OF_peer(node)) {
-		if (ofw_bus_node_is_compatible(node, compatible))
-			return (node);
-		child = muge_fdt_find_eth_node(node, compatible);
-		if (child != -1)
-			return (child);
-	}
-
-	return (-1);
-}
-
-/**
- *	muge_fdt_read_mac_property - read MAC address from node
- *	@node: USB device node
- *	@mac: memory to store MAC address to
- *
- *	Check for common properties that might contain MAC address
- *	passed by boot loader.
- *
- *	RETURNS:
- *	Returns 0 on success, error code otherwise
- */
-static int
-muge_fdt_read_mac_property(phandle_t node, unsigned char *mac)
-{
-	int len;
-
-	/* Check if there is property */
-	if ((len = OF_getproplen(node, "local-mac-address")) > 0) {
-		if (len != ETHER_ADDR_LEN)
-			return (EINVAL);
-
-		OF_getprop(node, "local-mac-address", mac,
-		    ETHER_ADDR_LEN);
-		return (0);
-	}
-
-	if ((len = OF_getproplen(node, "mac-address")) > 0) {
-		if (len != ETHER_ADDR_LEN)
-			return (EINVAL);
-
-		OF_getprop(node, "mac-address", mac,
-		    ETHER_ADDR_LEN);
-		return (0);
-	}
-
-	return (ENXIO);
-}
-
-/**
- *	muge_fdt_find_mac - read MAC address from node
- *	@compatible: compatible string for DTB node in the form "usb[N]NNN,[M]MMM"
- *	    where NNN is vendor id and MMM is product id
- *	@mac: memory to store MAC address to
- *
- *	Tries to find matching node in DTS and obtain MAC address info from it
- *
- *	RETURNS:
- *	Returns 0 on success, error code otherwise
- */
-static int
-muge_fdt_find_mac(const char *compatible, unsigned char *mac)
-{
-	phandle_t node, root;
-
-	root = OF_finddevice("/");
-	node = muge_fdt_find_eth_node(root, compatible);
-	if (node != -1) {
-		if (muge_fdt_read_mac_property(node, mac) == 0)
-			return (0);
-	}
-
-	return (ENXIO);
-}
-#endif
-
 /**
  *	muge_set_mac_addr - Initiailizes NIC MAC address
  *	@ue: the USB ethernet device
@@ -1560,10 +1467,6 @@ muge_set_mac_addr(struct usb_ether *ue)
 {
 	struct muge_softc *sc = uether_getsc(ue);
 	uint32_t mac_h, mac_l;
-#ifdef FDT
-	char compatible[16];
-	struct usb_attach_arg *uaa = device_get_ivars(ue->ue_dev);
-#endif
 
 	memset(sc->sc_ue.ue_eaddr, 0xff, ETHER_ADDR_LEN);
 
@@ -1599,10 +1502,10 @@ muge_set_mac_addr(struct usb_ether *ue)
 	}
 
 #ifdef FDT
-	snprintf(compatible, sizeof(compatible), "usb%x,%x",
-	    uaa->info.idVendor, uaa->info.idProduct);
-	if (muge_fdt_find_mac(compatible, sc->sc_ue.ue_eaddr) == 0) {
-		muge_dbg_printf(sc, "MAC assigned from FDT blob\n");
+	/* ue->ue_eaddr modified only if config exists for this dev instance. */
+	usb_fdt_get_mac_addr(ue->ue_dev, ue);
+	if (ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
+		muge_dbg_printf(sc, "MAC read from FDT data\n");
 		return;
 	}
 #endif
@@ -1625,9 +1528,7 @@ muge_set_leds(struct usb_ether *ue)
 {
 	struct muge_softc *sc = uether_getsc(ue);
 #ifdef FDT
-	char compatible[16];
-	struct usb_attach_arg *uaa = device_get_ivars(ue->ue_dev);
-	phandle_t root, node;
+	phandle_t node;
 	pcell_t led_modes[4];	/* 4 LEDs are possible */
 	ssize_t proplen;
 	uint32_t count;
@@ -1639,10 +1540,7 @@ muge_set_leds(struct usb_ether *ue)
 	if (lan78xx_eeprom_present(sc))
 		return;
 #ifdef FDT
-	snprintf(compatible, sizeof(compatible), "usb%x,%x",
-	    uaa->info.idVendor, uaa->info.idProduct);
-	root = OF_finddevice("/");
-	if ((node = muge_fdt_find_eth_node(root, compatible)) != -1 &&
+	if ((node = usb_fdt_get_node(ue->ue_dev, ue->ue_udev)) != -1 &&
 	    (proplen = OF_getencprop(node, "microchip,led-modes", led_modes,
 	    sizeof(led_modes))) > 0) {
 		count = proplen / sizeof( uint32_t );
@@ -1655,7 +1553,7 @@ muge_set_leds(struct usb_ether *ue)
 			    (led_modes[count] & 0xf) << (4 * count);
 			sc->sc_led_modes_mask <<= 4;
 		}
-		muge_dbg_printf(sc, "LED modes set from FDT blob\n");
+		muge_dbg_printf(sc, "LED modes set from FDT data\n");
 	}
 #endif
 }
