@@ -191,6 +191,7 @@ ksyms_add(linker_file_t lf, void *arg)
 	size_t len, numsyms, strsz, symsz;
 	linker_symval_t symval;
 	int error, i, nsyms;
+	bool fixup;
 
 	buf = malloc(SYMBLKSZ, M_KSYMS, M_WAITOK);
 	to = arg;
@@ -200,6 +201,12 @@ ksyms_add(linker_file_t lf, void *arg)
 	numsyms =  LINKER_SYMTAB_GET(lf, &symtab);
 	strsz = LINKER_STRTAB_GET(lf, &strtab);
 	symsz = numsyms * sizeof(Elf_Sym);
+
+#ifdef __powerpc__
+	fixup = true;
+#else
+	fixup = lf->id > 1;
+#endif
 
 	while (symsz > 0) {
 		len = min(SYMBLKSZ, symsz);
@@ -214,7 +221,7 @@ ksyms_add(linker_file_t lf, void *arg)
 		nsyms = len / sizeof(Elf_Sym);
 		for (i = 0; i < nsyms; i++) {
 			symp[i].st_name += to->to_stridx;
-			if (lf->id > 1 && LINKER_SYMBOL_VALUES(lf,
+			if (fixup && LINKER_SYMBOL_VALUES(lf,
 			    (c_linker_sym_t)&symtab[i], &symval) == 0) {
 				symp[i].st_value = (uintptr_t)symval.value;
 			}
