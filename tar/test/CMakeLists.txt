@@ -40,6 +40,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_b.c
     test_option_b64encode.c
     test_option_exclude.c
+    test_option_exclude_vcs.c
     test_option_fflags.c
     test_option_gid_gname.c
     test_option_grzip.c

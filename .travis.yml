@@ -1,9 +1,0 @@
-language: C
-matrix:
-  include:
-  - os: windows
-    env: BS=msbuild
-  - os: windows
-    env: BS=mingw
-script:
-  - build/ci/travis_ci.sh

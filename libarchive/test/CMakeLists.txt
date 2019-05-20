@@ -154,6 +154,7 @@ IF(ENABLE_TEST)
     test_read_format_tar.c
     test_read_format_tar_concatenated.c
     test_read_format_tar_empty_filename.c
+    test_read_format_tar_empty_with_gnulabel.c
     test_read_format_tar_empty_pax.c
     test_read_format_tar_filename.c
     test_read_format_tbz.c
@@ -165,10 +166,12 @@ IF(ENABLE_TEST)
     test_read_format_warc.c
     test_read_format_xar.c
     test_read_format_zip.c
+    test_read_format_zip_7075_utf8_paths.c
     test_read_format_zip_comment_stored.c
     test_read_format_zip_encryption_data.c
     test_read_format_zip_encryption_header.c
     test_read_format_zip_encryption_partially.c
+    test_read_format_zip_extra_padding.c
     test_read_format_zip_filename.c
     test_read_format_zip_high_compression.c
     test_read_format_zip_jar.c

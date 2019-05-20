@@ -71,7 +71,7 @@ unpack_test(const char *from, const char *options, const char *se)
 
 	/* Symlink */
 	if (canSymlink())
-		assertIsSymlink("symlink", "file");
+		assertIsSymlink("symlink", "file", 0);
 
 	/* dir */
 	assertIsDir("dir", 0775);

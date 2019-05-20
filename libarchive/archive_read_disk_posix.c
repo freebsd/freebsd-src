@@ -909,7 +909,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 			    }
 			}
 			break;
-		}	
+		}
 	} while (lst == NULL);
 
 #ifdef __APPLE__
@@ -1295,10 +1295,23 @@ archive_read_disk_descend(struct archive *_a)
 	if (t->visit_type != TREE_REGULAR || !t->descend)
 		return (ARCHIVE_OK);
 
+	/*
+	 * We must not treat the initial specified path as a physical dir,
+	 * because if we do then we will try and ascend out of it by opening
+	 * ".." which is (a) wrong and (b) causes spurious permissions errors
+	 * if ".." is not readable by us. Instead, treat it as if it were a
+	 * symlink. (This uses an extra fd, but it can only happen once at the
+	 * top level of a traverse.) But we can't necessarily assume t->st is
+	 * valid here (though t->lst is), which complicates the logic a
+	 * little.
+	 */
 	if (tree_current_is_physical_dir(t)) {
 		tree_push(t, t->basename, t->current_filesystem_id,
 		    t->lst.st_dev, t->lst.st_ino, &t->restore_time);
-		t->stack->flags |= isDir;
+		if (t->stack->parent->parent != NULL)
+			t->stack->flags |= isDir;
+		else
+			t->stack->flags |= isDirLink;
 	} else if (tree_current_is_dir(t)) {
 		tree_push(t, t->basename, t->current_filesystem_id,
 		    t->st.st_dev, t->st.st_ino, &t->restore_time);
@@ -2151,6 +2164,17 @@ tree_open(const char *path, int symlink_mode, int restore_time)
 static struct tree *
 tree_reopen(struct tree *t, const char *path, int restore_time)
 {
+#if defined(O_PATH)
+	/* Linux */
+	const int o_flag = O_PATH;
+#elif defined(O_SEARCH)
+	/* SunOS */
+	const int o_flag = O_SEARCH;
+#elif defined(O_EXEC)
+	/* FreeBSD */
+	const int o_flag = O_EXEC;
+#endif
+
 	t->flags = (restore_time != 0)?needsRestoreTimes:0;
 	t->flags |= onInitialDir;
 	t->visit_type = 0;
@@ -2172,6 +2196,15 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	t->stack->flags = needsFirstVisit;
 	t->maxOpenCount = t->openCount = 1;
 	t->initial_dir_fd = open(".", O_RDONLY | O_CLOEXEC);
+#if defined(O_PATH) || defined(O_SEARCH) || defined(O_EXEC)
+	/*
+	 * Most likely reason to fail opening "." is that it's not readable,
+	 * so try again for execute. The consequences of not opening this are
+	 * unhelpful and unnecessary errors later.
+	 */
+	if (t->initial_dir_fd < 0)
+		t->initial_dir_fd = open(".", o_flag | O_CLOEXEC);
+#endif
 	__archive_ensure_cloexec_flag(t->initial_dir_fd);
 	t->working_dir_fd = tree_dup(t->initial_dir_fd);
 	return (t);
@@ -2479,7 +2512,7 @@ tree_current_stat(struct tree *t)
 #else
 		if (tree_enter_working_dir(t) != 0)
 			return NULL;
-		if (stat(tree_current_access_path(t), &t->st) != 0)
+		if (la_stat(tree_current_access_path(t), &t->st) != 0)
 #endif
 			return NULL;
 		t->flags |= hasStat;

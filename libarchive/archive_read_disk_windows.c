@@ -299,8 +299,155 @@ static int	close_and_restore_time(HANDLE, struct tree *,
 		    struct restore_time *);
 static int	setup_sparse_from_disk(struct archive_read_disk *,
 		    struct archive_entry *, HANDLE);
+static int	la_linkname_from_handle(HANDLE, wchar_t **, int *);
+static int	la_linkname_from_pathw(const wchar_t *, wchar_t **, int *);
+static void	entry_symlink_from_pathw(struct archive_entry *,
+		    const wchar_t *path);
 
+typedef struct _REPARSE_DATA_BUFFER {
+	ULONG	ReparseTag;
+	USHORT ReparseDataLength;
+	USHORT	Reserved;
+	union {
+		struct {
+			USHORT	SubstituteNameOffset;
+			USHORT	SubstituteNameLength;
+			USHORT	PrintNameOffset;
+			USHORT	PrintNameLength;
+			ULONG	Flags;
+			WCHAR	PathBuffer[1];
+		} SymbolicLinkReparseBuffer;
+		struct {
+			USHORT	SubstituteNameOffset;
+			USHORT	SubstituteNameLength;
+			USHORT	PrintNameOffset;
+			USHORT	PrintNameLength;
+			WCHAR	PathBuffer[1];
+		} MountPointReparseBuffer;
+		struct {
+			UCHAR	DataBuffer[1];
+		} GenericReparseBuffer;
+	} DUMMYUNIONNAME;
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
 
+/*
+ * Reads the target of a symbolic link
+ *
+ * Returns 0 on success and -1 on failure
+ * outbuf is allocated in the function
+ */
+static int
+la_linkname_from_handle(HANDLE h, wchar_t **linkname, int *linktype)
+{
+	DWORD inbytes;
+	REPARSE_DATA_BUFFER *buf;
+	BY_HANDLE_FILE_INFORMATION st;
+	size_t len;
+	BOOL ret;
+	BYTE *indata;
+	wchar_t *tbuf;
+
+	ret = GetFileInformationByHandle(h, &st);
+	if (ret == 0 ||
+	    (st.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) {
+		return (-1);
+	}
+
+	indata = malloc(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+	ret = DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, NULL, 0, indata,
+	    1024, &inbytes, NULL);
+	if (ret == 0) {
+		la_dosmaperr(GetLastError());
+		free(indata);
+		return (-1);
+	}
+
+	buf = (REPARSE_DATA_BUFFER *) indata;
+	if (buf->ReparseTag != IO_REPARSE_TAG_SYMLINK) {
+		free(indata);
+		/* File is not a symbolic link */
+		errno = EINVAL;
+		return (-1);
+	}
+
+	len = buf->SymbolicLinkReparseBuffer.SubstituteNameLength;
+	if (len <= 0) {
+		free(indata);
+		return (-1);
+	}
+
+	tbuf = malloc(len + 1 * sizeof(wchar_t));
+	if (tbuf == NULL) {
+		free(indata);
+		return (-1);
+	}
+
+	memcpy(tbuf, &((BYTE *)buf->SymbolicLinkReparseBuffer.PathBuffer)
+	    [buf->SymbolicLinkReparseBuffer.SubstituteNameOffset], len);
+	free(indata);
+
+	tbuf[len / sizeof(wchar_t)] = L'\0';
+
+	*linkname = tbuf;
+
+	/*
+	 * Translate backslashes to slashes for libarchive internal use
+	 */
+	while(*tbuf != L'\0') {
+		if (*tbuf == L'\\')
+			*tbuf = L'/';
+		tbuf++;
+	}
+
+	if ((st.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
+		*linktype = AE_SYMLINK_TYPE_FILE;
+	else
+		*linktype = AE_SYMLINK_TYPE_DIRECTORY;
+
+	return (0);
+}
+
+/*
+ * Returns AE_SYMLINK_TYPE_FILE, AE_SYMLINK_TYPE_DIRECTORY or -1 on error
+ */
+static int
+la_linkname_from_pathw(const wchar_t *path, wchar_t **outbuf, int *linktype)
+{
+	HANDLE h;
+	const DWORD flag = FILE_FLAG_BACKUP_SEMANTICS |
+	    FILE_FLAG_OPEN_REPARSE_POINT;
+	int ret;
+
+	h = CreateFileW(path, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING, flag,
+	    NULL);
+	if (h == INVALID_HANDLE_VALUE) {
+		la_dosmaperr(GetLastError());
+		return (-1);
+	}
+
+	ret = la_linkname_from_handle(h, outbuf, linktype);
+	CloseHandle(h);
+
+	return (ret);
+}
+
+static void
+entry_symlink_from_pathw(struct archive_entry *entry, const wchar_t *path)
+{
+	wchar_t *linkname = NULL;
+	int ret, linktype;
+
+	ret = la_linkname_from_pathw(path, &linkname, &linktype);
+	if (ret != 0)
+		return;
+	if (linktype >= 0) {
+		archive_entry_copy_symlink_w(entry, linkname);
+		archive_entry_set_symlink_type(entry, linktype);
+	}
+	free(linkname);
+
+	return;
+}
 
 static struct archive_vtable *
 archive_read_disk_vtable(void)
@@ -897,6 +1044,19 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 				    a->excluded_cb_data, entry);
 			return (ARCHIVE_RETRY);
 		}
+	}
+
+	/*
+	 * File attributes
+	 */
+	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0) {
+		const int supported_attrs =
+		    FILE_ATTRIBUTE_READONLY |
+		    FILE_ATTRIBUTE_HIDDEN |
+		    FILE_ATTRIBUTE_SYSTEM;
+		DWORD file_attrs = st->dwFileAttributes & supported_attrs;
+		if (file_attrs != 0)
+			archive_entry_set_fflags(entry, file_attrs, 0);
 	}
 
 	/*
@@ -1838,9 +1998,10 @@ entry_copy_bhfi(struct archive_entry *entry, const wchar_t *path,
 		mode |= S_IWUSR | S_IWGRP | S_IWOTH;
 	if ((bhfi->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
 	    findData != NULL &&
-	    findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK)
+	    findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK) {
 		mode |= S_IFLNK;
-	else if (bhfi->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		entry_symlink_from_pathw(entry, path);
+	} else if (bhfi->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
 	else {
 		const wchar_t *p;
@@ -2139,6 +2300,8 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		fileAttributes = bhfi.dwFileAttributes;
 	} else {
 		archive_entry_copy_stat(entry, st);
+		if (st->st_mode & S_IFLNK)
+			entry_symlink_from_pathw(entry, path);
 		h = INVALID_HANDLE_VALUE;
 	}
 
@@ -2149,6 +2312,19 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
 	if (name != NULL)
 		archive_entry_copy_gname(entry, name);
+
+	/*
+	 * File attributes
+	 */
+	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0) {
+		const int supported_attrs =
+		    FILE_ATTRIBUTE_READONLY |
+		    FILE_ATTRIBUTE_HIDDEN |
+		    FILE_ATTRIBUTE_SYSTEM;
+		DWORD file_attrs = fileAttributes & supported_attrs;
+		if (file_attrs != 0)
+			archive_entry_set_fflags(entry, file_attrs, 0);
+	}
 
 	/*
 	 * Can this file be sparse file ?

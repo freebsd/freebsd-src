@@ -204,6 +204,18 @@ Do not process files or directories that match the
 specified pattern.
 Note that exclusions take precedence over patterns or filenames
 specified on the command line.
+.It Fl Fl exclude-vcs
+Do not process files or directories internally used by the
+version control systems
+.Sq CVS ,
+.Sq RCS ,
+.Sq SCCS ,
+.Sq SVN ,
+.Sq Arch ,
+.Sq Bazaar ,
+.Sq Mercurial
+and
+.Sq Darcs .
 .It Fl Fl fflags
 (c, r, u, x modes only)
 Archive or extract file flags. This is the reverse of
@@ -386,8 +398,7 @@ and the default behavior in c, r, and u modes or if
 .Nm
 is run in x mode as root.
 .It Fl n , Fl Fl norecurse , Fl Fl no-recursion
-(c, r, u modes only)
-Do not recursively archive the contents of directories.
+Do not operate recursively on the content of directories.
 .It Fl Fl newer Ar date
 (c, r, u modes only)
 Only include files and directories newer than the specified date.

@@ -176,7 +176,7 @@ create_tree(void)
 			sprintf(buff, "s/%s", filenames[i]);
 			sprintf(buff2, "../f/%s", filenames[i]);
 			failure("buff=\"%s\" buff2=\"%s\"", buff, buff2);
-			assertMakeSymlink(buff, buff2);
+			assertMakeSymlink(buff, buff2, 0);
 		}
 		/* Create a dir named "d/abcdef...". */
 		buff[0] = 'd';
@@ -222,7 +222,7 @@ verify_tree(size_t limit)
 			sprintf(name1, "s/%s", filenames[i]);
 			sprintf(name2, "../f/%s", filenames[i]);
 			if (strlen(name2) <= limit)
-				assertIsSymlink(name1, name2);
+				assertIsSymlink(name1, name2, 0);
 		}
 
 		/* Verify dir "d/abcdef...". */
