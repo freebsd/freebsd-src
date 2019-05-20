@@ -35,17 +35,18 @@ __FBSDID("$FreeBSD$");
 #include "opt_bus.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/module.h>
+#include <sys/conf.h>
+#include <sys/endian.h>
+#include <sys/eventhandler.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/linker.h>
-#include <sys/fcntl.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <sys/endian.h>
+#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

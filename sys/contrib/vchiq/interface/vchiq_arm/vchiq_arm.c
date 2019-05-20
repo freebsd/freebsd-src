@@ -178,7 +178,6 @@ static const char *const ioctl_names[] = {
 vchiq_static_assert((sizeof(ioctl_names)/sizeof(ioctl_names[0])) ==
 	(VCHIQ_IOC_MAX + 1));
 
-static eventhandler_tag vchiq_ehtag = NULL;
 static d_open_t		vchiq_open;
 static d_close_t	vchiq_close;
 static d_ioctl_t	vchiq_ioctl;
@@ -2918,9 +2917,6 @@ void vchiq_exit(void);
 void
 vchiq_exit(void)
 {
-	if (vchiq_ehtag == NULL)
-		EVENTHANDLER_DEREGISTER(dev_clone, vchiq_ehtag);
-	vchiq_ehtag = NULL;
 
 	vchiq_platform_exit(&g_state);
 	if (vchiq_cdev) {

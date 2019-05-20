@@ -99,8 +99,6 @@ struct fork_args {
 };
 #endif
 
-EVENTHANDLER_LIST_DECLARE(process_fork);
-
 /* ARGSUSED */
 int
 sys_fork(struct thread *td, struct fork_args *uap)

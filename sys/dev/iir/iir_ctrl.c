@@ -46,16 +46,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/endian.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/uio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/stat.h>
 #include <sys/disklabel.h>
+#include <sys/endian.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
+#include <sys/uio.h>
 #include <machine/bus.h>
 
 #include <dev/iir/iir.h>

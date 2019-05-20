@@ -73,6 +73,7 @@ struct	netmap_adapter;
 struct	netdump_methods;
 
 #ifdef _KERNEL
+#include <sys/_eventhandler.h>
 #include <sys/mbuf.h>		/* ifqueue only? */
 #include <sys/buf_ring.h>
 #include <net/vnet.h>
@@ -421,7 +422,6 @@ void	if_maddr_rlock(if_t ifp);	/* if_multiaddrs */
 void	if_maddr_runlock(if_t ifp);	/* if_multiaddrs */
 
 #ifdef _KERNEL
-#ifdef _SYS_EVENTHANDLER_H_
 /* interface link layer address change event */
 typedef void (*iflladdr_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(iflladdr_event, iflladdr_event_handler_t);
@@ -449,7 +449,6 @@ EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
 
 typedef void (*ifnet_event_fn)(void *, struct ifnet *ifp, int event);
 EVENTHANDLER_DECLARE(ifnet_event, ifnet_event_fn);
-#endif /* _SYS_EVENTHANDLER_H_ */
 
 /*
  * interface groups

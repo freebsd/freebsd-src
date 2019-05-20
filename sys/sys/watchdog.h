@@ -104,7 +104,7 @@
 
 #ifdef _KERNEL
 
-#include <sys/eventhandler.h>
+#include <sys/_eventhandler.h>
 
 typedef void (*watchdog_fn)(void *, u_int, int *);
 

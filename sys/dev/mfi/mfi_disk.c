@@ -32,18 +32,20 @@ __FBSDID("$FreeBSD$");
 #include "opt_mfi.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/selinfo.h>
-#include <sys/module.h>
-#include <sys/malloc.h>
-#include <sys/sysctl.h>
-#include <sys/uio.h>
-
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/selinfo.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
+
 #include <geom/geom_disk.h>
 
 #include <vm/vm.h>

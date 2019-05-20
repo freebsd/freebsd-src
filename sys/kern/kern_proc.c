@@ -155,9 +155,6 @@ EVENTHANDLER_LIST_DEFINE(process_exit);
 EVENTHANDLER_LIST_DEFINE(process_fork);
 EVENTHANDLER_LIST_DEFINE(process_exec);
 
-EVENTHANDLER_LIST_DECLARE(thread_ctor);
-EVENTHANDLER_LIST_DECLARE(thread_dtor);
-
 int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0,
     "Kernel stack size in pages");

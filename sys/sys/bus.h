@@ -150,7 +150,7 @@ struct devreq {
 
 #ifdef _KERNEL
 
-#include <sys/eventhandler.h>
+#include <sys/_eventhandler.h>
 #include <sys/kobj.h>
 
 /**
@@ -418,6 +418,8 @@ void	root_bus_configure(void);
 /*
  * Useful functions for implementing buses.
  */
+
+struct _cpuset;
 
 int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 				      int rid, struct resource *r);
