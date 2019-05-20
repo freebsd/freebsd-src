@@ -75,6 +75,7 @@ MAN=	accept_filter.9 \
 	DB_COMMAND.9 \
 	DECLARE_GEOM_CLASS.9 \
 	DECLARE_MODULE.9 \
+	DEFINE_IFUNC.9 \
 	DELAY.9 \
 	devclass.9 \
 	devclass_find.9 \
