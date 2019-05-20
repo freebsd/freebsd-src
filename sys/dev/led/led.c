@@ -15,16 +15,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/limits.h>
-#include <sys/malloc.h>
 #include <sys/ctype.h>
-#include <sys/sbuf.h>
+#include <sys/kernel.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
-#include <dev/led/led.h>
-#include <sys/uio.h>
+#include <sys/sbuf.h>
 #include <sys/sx.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
+
+#include <dev/led/led.h>
 
 struct ledsc {
 	LIST_ENTRY(ledsc)	list;

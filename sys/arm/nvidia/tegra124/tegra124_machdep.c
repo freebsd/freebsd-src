@@ -30,10 +30,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/reboot.h>
 #include <sys/devmap.h>
+#include <sys/lock.h>
+#include <sys/reboot.h>
+#include <sys/systm.h>
 
 #include <vm/vm.h>
 

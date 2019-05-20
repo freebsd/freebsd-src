@@ -32,10 +32,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>

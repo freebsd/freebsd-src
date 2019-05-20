@@ -35,6 +35,8 @@
 #error "no user-serviceable parts inside"
 #endif
 
+#include <sys/_eventhandler.h>
+
 struct tcpopt;
 struct tcphdr;
 struct in_conninfo;
@@ -108,7 +110,6 @@ struct toedev {
 	    struct tcp_info *);
 };
 
-#include <sys/eventhandler.h>
 typedef	void (*tcp_offload_listen_start_fn)(void *, struct tcpcb *);
 typedef	void (*tcp_offload_listen_stop_fn)(void *, struct tcpcb *);
 EVENTHANDLER_DECLARE(tcp_offload_listen_start, tcp_offload_listen_start_fn);

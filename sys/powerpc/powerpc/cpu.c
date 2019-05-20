@@ -66,6 +66,8 @@
 #include <sys/conf.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/sched.h>

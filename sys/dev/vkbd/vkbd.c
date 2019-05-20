@@ -37,6 +37,7 @@
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/kbio.h>
 #include <sys/kernel.h>

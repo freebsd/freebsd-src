@@ -37,8 +37,7 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/cdefs.h>
-#include <sys/types.h>
+#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
 #include <sys/bus.h>

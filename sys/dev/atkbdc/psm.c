@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/filio.h>
+#include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/sigio.h>
 #include <sys/signalvar.h>

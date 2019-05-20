@@ -30,10 +30,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/ips/ipsreg.h>
-#include <dev/ips/ips.h>
+#include <sys/types.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+
+#include <dev/ips/ipsreg.h>
+#include <dev/ips/ips.h>
 
 static d_open_t ips_open;
 static d_close_t ips_close;

@@ -39,6 +39,7 @@
 #error "no assembler-serviceable parts inside"
 #endif
 
+#include <sys/param.h>
 #include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
