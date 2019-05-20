@@ -335,7 +335,11 @@ fuse_vfsop_mount(struct mount *mp)
 	vfs_getnewfsid(mp);
 	MNT_ILOCK(mp);
 	mp->mnt_data = data;
-	mp->mnt_flag |= MNT_LOCAL;
+	/* 
+	 * FUSE file systems can be either local or remote, but the kernel
+	 * can't tell the difference.
+	 */
+	mp->mnt_flag &= ~MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 	/* We need this here as this slot is used by getnewvnode() */
