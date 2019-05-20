@@ -1468,7 +1468,7 @@ muge_set_mac_addr(struct usb_ether *ue)
 	struct muge_softc *sc = uether_getsc(ue);
 	uint32_t mac_h, mac_l;
 
-	memset(sc->sc_ue.ue_eaddr, 0xff, ETHER_ADDR_LEN);
+	memset(ue->ue_eaddr, 0xff, ETHER_ADDR_LEN);
 
 	uint32_t val;
 	lan78xx_read_reg(sc, 0, &val);
@@ -1476,26 +1476,26 @@ muge_set_mac_addr(struct usb_ether *ue)
 	/* Read current MAC address from RX_ADDRx registers. */
 	if ((lan78xx_read_reg(sc, ETH_RX_ADDRL, &mac_l) == 0) &&
 	    (lan78xx_read_reg(sc, ETH_RX_ADDRH, &mac_h) == 0)) {
-		sc->sc_ue.ue_eaddr[5] = (uint8_t)((mac_h >> 8) & 0xff);
-		sc->sc_ue.ue_eaddr[4] = (uint8_t)((mac_h) & 0xff);
-		sc->sc_ue.ue_eaddr[3] = (uint8_t)((mac_l >> 24) & 0xff);
-		sc->sc_ue.ue_eaddr[2] = (uint8_t)((mac_l >> 16) & 0xff);
-		sc->sc_ue.ue_eaddr[1] = (uint8_t)((mac_l >> 8) & 0xff);
-		sc->sc_ue.ue_eaddr[0] = (uint8_t)((mac_l) & 0xff);
+		ue->ue_eaddr[5] = (uint8_t)((mac_h >> 8) & 0xff);
+		ue->ue_eaddr[4] = (uint8_t)((mac_h) & 0xff);
+		ue->ue_eaddr[3] = (uint8_t)((mac_l >> 24) & 0xff);
+		ue->ue_eaddr[2] = (uint8_t)((mac_l >> 16) & 0xff);
+		ue->ue_eaddr[1] = (uint8_t)((mac_l >> 8) & 0xff);
+		ue->ue_eaddr[0] = (uint8_t)((mac_l) & 0xff);
 	}
 
 	/* If RX_ADDRx did not provide a valid MAC address, try EEPROM. */
-	if (ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
+	if (ETHER_IS_VALID(ue->ue_eaddr)) {
 		muge_dbg_printf(sc, "MAC assigned from registers\n");
 		return;
 	}
 
 	if ((lan78xx_eeprom_present(sc) &&
 	    lan78xx_eeprom_read_raw(sc, ETH_E2P_MAC_OFFSET,
-	    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0) ||
+	    ue->ue_eaddr, ETHER_ADDR_LEN) == 0) ||
 	    (lan78xx_otp_read(sc, OTP_MAC_OFFSET,
-	    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0)) {
-		if (ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
+	    ue->ue_eaddr, ETHER_ADDR_LEN) == 0)) {
+		if (ETHER_IS_VALID(ue->ue_eaddr)) {
 			muge_dbg_printf(sc, "MAC read from EEPROM\n");
 			return;
 		}
@@ -1504,16 +1504,16 @@ muge_set_mac_addr(struct usb_ether *ue)
 #ifdef FDT
 	/* ue->ue_eaddr modified only if config exists for this dev instance. */
 	usb_fdt_get_mac_addr(ue->ue_dev, ue);
-	if (ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
+	if (ETHER_IS_VALID(ue->ue_eaddr)) {
 		muge_dbg_printf(sc, "MAC read from FDT data\n");
 		return;
 	}
 #endif
 
 	muge_dbg_printf(sc, "MAC assigned randomly\n");
-	arc4rand(sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN, 0);
-	sc->sc_ue.ue_eaddr[0] &= ~0x01;	/* unicast */
-	sc->sc_ue.ue_eaddr[0] |= 0x02;	/* locally administered */
+	arc4rand(ue->ue_eaddr, ETHER_ADDR_LEN, 0);
+	ue->ue_eaddr[0] &= ~0x01;	/* unicast */
+	ue->ue_eaddr[0] |= 0x02;	/* locally administered */
 }
 
 /**
@@ -1529,7 +1529,7 @@ muge_set_leds(struct usb_ether *ue)
 	struct muge_softc *sc = uether_getsc(ue);
 #ifdef FDT
 	phandle_t node;
-	pcell_t led_modes[4];	/* 4 LEDs are possible */
+	pcell_t modes[4];	/* 4 LEDs are possible */
 	ssize_t proplen;
 	uint32_t count;
 #endif
@@ -1541,16 +1541,15 @@ muge_set_leds(struct usb_ether *ue)
 		return;
 #ifdef FDT
 	if ((node = usb_fdt_get_node(ue->ue_dev, ue->ue_udev)) != -1 &&
-	    (proplen = OF_getencprop(node, "microchip,led-modes", led_modes,
-	    sizeof(led_modes))) > 0) {
+	    (proplen = OF_getencprop(node, "microchip,led-modes", modes,
+	    sizeof(modes))) > 0) {
 		count = proplen / sizeof( uint32_t );
 		sc->sc_leds = (count > 0) * ETH_HW_CFG_LEDO_EN_ |
 			      (count > 1) * ETH_HW_CFG_LED1_EN_ |
 			      (count > 2) * ETH_HW_CFG_LED2_EN_ |
 			      (count > 3) * ETH_HW_CFG_LED3_EN_;
 		while (count-- > 0) {
-			sc->sc_led_modes |=
-			    (led_modes[count] & 0xf) << (4 * count);
+			sc->sc_led_modes |= (modes[count] & 0xf) << (4 * count);
 			sc->sc_led_modes_mask <<= 4;
 		}
 		muge_dbg_printf(sc, "LED modes set from FDT data\n");
