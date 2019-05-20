@@ -390,10 +390,13 @@ archive_compressor_xz_options(struct archive_write_filter *f,
 			data->compression_level = 6;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "threads") == 0) {
+		char *endptr;
+
 		if (value == NULL)
 			return (ARCHIVE_WARN);
-		data->threads = (int)strtoul(value, NULL, 10);
-		if (data->threads == 0 && errno != 0) {
+		errno = 0;
+		data->threads = (int)strtoul(value, &endptr, 10);
+		if (errno != 0 || *endptr != '\0') {
 			data->threads = 1;
 			return (ARCHIVE_WARN);
 		}

@@ -27,6 +27,10 @@ __FBSDID("$FreeBSD$");
 
 #include <locale.h>
 
+#ifdef HAVE_LINUX_FS_H
+#include <linux/fs.h>   /* for Linux file flags */
+#endif
+
 #ifndef HAVE_WCSCPY
 static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
 {
@@ -337,16 +341,37 @@ DEFINE_TEST(test_entry)
 	/* TODO: Make this system-independent. */
 	assertEqualString(archive_entry_fflags_text(e),
 	    "uappnd,nouchg,nodump,noopaque,uunlnk,nosystem");
+#endif
+
+#if defined(__FreeBSD__) || defined(__APPLE__)
 	/* Test archive_entry_copy_fflags_text_w() */
-	archive_entry_copy_fflags_text_w(e, L" ,nouappnd, nouchg, dump,uunlnk");
+	archive_entry_copy_fflags_text_w(e, L" ,nouappnd, nouchg, dump,hidden");
 	archive_entry_fflags(e, &set, &clear);
-	assertEqualInt(16, set);
-	assertEqualInt(7, clear);
+	assertEqualInt(UF_HIDDEN, set);
+	assertEqualInt(UF_NODUMP | UF_IMMUTABLE | UF_APPEND, clear);
 	/* Test archive_entry_copy_fflags_text() */
-	archive_entry_copy_fflags_text(e, " ,nouappnd, nouchg, dump,uunlnk");
+	archive_entry_copy_fflags_text(e, " ,nouappnd, nouchg, dump,hidden");
 	archive_entry_fflags(e, &set, &clear);
-	assertEqualInt(16, set);
-	assertEqualInt(7, clear);
+	assertEqualInt(UF_HIDDEN, set);
+	assertEqualInt(UF_NODUMP | UF_IMMUTABLE | UF_APPEND, clear);
+#elif defined(_WIN32) && !defined(CYGWIN)
+	archive_entry_copy_fflags_text_w(e, L"rdonly,hidden,nosystem");
+	archive_entry_fflags(e, &set, &clear);
+	assertEqualInt(FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN, set);
+	assertEqualInt(FILE_ATTRIBUTE_SYSTEM, clear);
+	archive_entry_copy_fflags_text(e, "rdonly,hidden,nosystem");
+	archive_entry_fflags(e, &set, &clear);
+	assertEqualInt(FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN, set);
+	assertEqualInt(FILE_ATTRIBUTE_SYSTEM, clear);
+#elif defined FS_IOC_GETFLAGS /* Linux */
+	archive_entry_copy_fflags_text_w(e, L"sappnd,schg,dump,noundel");
+	archive_entry_fflags(e, &set, &clear);
+	assertEqualInt(FS_APPEND_FL | FS_IMMUTABLE_FL, set);
+	assertEqualInt(FS_NODUMP_FL | FS_UNRM_FL, clear);
+	archive_entry_copy_fflags_text(e, "sappnd,schg,dump,noundel");
+	archive_entry_fflags(e, &set, &clear);
+	assertEqualInt(FS_APPEND_FL | FS_IMMUTABLE_FL, set);
+	assertEqualInt(FS_NODUMP_FL | FS_UNRM_FL, clear);
 #endif
 
 	/* See test_acl_basic.c for tests of ACL set/get consistency. */

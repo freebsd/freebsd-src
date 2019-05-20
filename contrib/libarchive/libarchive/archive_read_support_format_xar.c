@@ -798,7 +798,8 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	xattr = file->xattr_list;
 	while (xattr != NULL) {
 		const void *d;
-		size_t outbytes, used;
+		size_t outbytes = 0;
+		size_t used = 0;
 
 		r = move_reading_point(a, xattr->offset);
 		if (r != ARCHIVE_OK)
@@ -820,8 +821,18 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		r = checksum_final(a,
 		    xattr->a_sum.val, xattr->a_sum.len,
 		    xattr->e_sum.val, xattr->e_sum.len);
-		if (r != ARCHIVE_OK)
+		if (r != ARCHIVE_OK) {
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+			    "Xattr checksum error");
+			r = ARCHIVE_WARN;
 			break;
+		}
+		if (xattr->name.s == NULL) {
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+			    "Xattr name error");
+			r = ARCHIVE_WARN;
+			break;
+		}
 		archive_entry_xattr_add_entry(entry,
 		    xattr->name.s, d, outbytes);
 		xattr = xattr->next;
@@ -847,7 +858,7 @@ xar_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
 	struct xar *xar;
-	size_t used;
+	size_t used = 0;
 	int r;
 
 	xar = (struct xar *)(a->format->data);

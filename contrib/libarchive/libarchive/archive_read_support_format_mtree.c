@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
+#ifdef HAVE_CTYPE_H
+#include <ctype.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -1011,7 +1014,7 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 {
 	ssize_t len;
 	uintmax_t counter;
-	char *p;
+	char *p, *s;
 	struct mtree_option *global;
 	struct mtree_entry *last_entry;
 	int r, is_form_d;
@@ -1025,6 +1028,7 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 	(void)detect_form(a, &is_form_d);
 
 	for (counter = 1; ; ++counter) {
+		r = ARCHIVE_OK;
 		len = readline(a, mtree, &p, 65536);
 		if (len == 0) {
 			mtree->this_entry = mtree->entries;
@@ -1045,6 +1049,15 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 			continue;
 		if (*p == '\r' || *p == '\n' || *p == '\0')
 			continue;
+		/* Non-printable characters are not allowed */
+		for (s = p;s < p + len - 1; s++) {
+			if (!isprint(*s)) {
+				r = ARCHIVE_FATAL;
+				break;
+			}
+		}
+		if (r != ARCHIVE_OK)
+			break;
 		if (*p != '/') {
 			r = process_add_entry(a, mtree, &global, p, len,
 			    &last_entry, is_form_d);
