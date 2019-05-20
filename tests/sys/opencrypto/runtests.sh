@@ -81,7 +81,7 @@ if ! sysctl $cdas_sysctl=1; then
 fi
 
 echo "1..1"
-if "$PYTHON" $(dirname $0)/cryptotest.py; then
+if "$PYTHON" $(dirname $0)/cryptotest.py $CRYPTOTEST_ARGS; then
 	echo "ok 1"
 else
 	echo "not ok 1"
