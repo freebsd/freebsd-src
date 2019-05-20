@@ -58,6 +58,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/sockio.h>

@@ -34,15 +34,17 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
 #include <sys/condvar.h>
 #include <sys/firmware.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
+#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

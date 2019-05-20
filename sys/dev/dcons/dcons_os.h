@@ -36,6 +36,8 @@
  * $FreeBSD$
  */
 
+#include <sys/_eventhandler.h>
+
 typedef void (*dcons_poll_fn)(void *, int);
 EVENTHANDLER_DECLARE(dcons_poll, dcons_poll_fn);
 

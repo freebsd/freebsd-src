@@ -40,6 +40,7 @@
 #ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/ioccom.h>
 #include <sys/filio.h>
 #include <sys/sockio.h>
