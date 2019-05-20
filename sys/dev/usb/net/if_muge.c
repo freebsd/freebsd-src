@@ -938,10 +938,10 @@ lan78xx_phy_init(struct muge_softc *sc)
 	bmcr = lan78xx_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR);
 
 	/* Configure LED Modes. */
-	if (sc->sc_led_modes_mask != 0xffff) {
+	if (sc->sc_led_modes_mask != 0) {
 		lmsr = lan78xx_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno,
 		    MUGE_PHY_LED_MODE);
-		lmsr &= sc->sc_led_modes_mask;
+		lmsr &= ~sc->sc_led_modes_mask;
 		lmsr |= sc->sc_led_modes;
 		lan78xx_miibus_writereg(sc->sc_ue.ue_dev, sc->sc_phyno,
 		    MUGE_PHY_LED_MODE, lmsr);
@@ -1526,20 +1526,13 @@ muge_set_mac_addr(struct usb_ether *ue)
 static void
 muge_set_leds(struct usb_ether *ue)
 {
-	struct muge_softc *sc = uether_getsc(ue);
 #ifdef FDT
+	struct muge_softc *sc = uether_getsc(ue);
 	phandle_t node;
 	pcell_t modes[4];	/* 4 LEDs are possible */
 	ssize_t proplen;
 	uint32_t count;
-#endif
 
-	sc->sc_leds = 0;	/* no LED mode is set */
-	sc->sc_led_modes = 0;
-	sc->sc_led_modes_mask = 0xffff;
-	if (lan78xx_eeprom_present(sc))
-		return;
-#ifdef FDT
 	if ((node = usb_fdt_get_node(ue->ue_dev, ue->ue_udev)) != -1 &&
 	    (proplen = OF_getencprop(node, "microchip,led-modes", modes,
 	    sizeof(modes))) > 0) {
@@ -1550,7 +1543,7 @@ muge_set_leds(struct usb_ether *ue)
 			      (count > 3) * ETH_HW_CFG_LED3_EN_;
 		while (count-- > 0) {
 			sc->sc_led_modes |= (modes[count] & 0xf) << (4 * count);
-			sc->sc_led_modes_mask <<= 4;
+			sc->sc_led_modes_mask |= 0xf << (4 * count);
 		}
 		muge_dbg_printf(sc, "LED modes set from FDT data\n");
 	}
