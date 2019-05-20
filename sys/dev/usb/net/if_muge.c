@@ -174,6 +174,8 @@ struct muge_softc {
 	struct usb_xfer		*sc_xfer[MUGE_N_TRANSFER];
 	int			sc_phyno;
 	uint32_t		sc_leds;
+	uint16_t		sc_led_modes;
+	uint16_t		sc_led_modes_mask;
 
 	/* Settings for the mac control (MAC_CSR) register. */
 	uint32_t		sc_rfe_ctl;
@@ -890,7 +892,7 @@ static int
 lan78xx_phy_init(struct muge_softc *sc)
 {
 	muge_dbg_printf(sc, "Initializing PHY.\n");
-	uint16_t bmcr;
+	uint16_t bmcr, lmsr;
 	usb_ticks_t start_ticks;
 	uint32_t hw_reg;
 	const usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
@@ -933,6 +935,16 @@ lan78xx_phy_init(struct muge_softc *sc)
 	bmcr |= BMCR_AUTOEN;
 	lan78xx_miibus_writereg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR, bmcr);
 	bmcr = lan78xx_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR);
+
+	/* Configure LED Modes. */
+	if (sc->sc_led_modes_mask != 0xffff) {
+		lmsr = lan78xx_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno,
+		    MUGE_PHY_LED_MODE);
+		lmsr &= sc->sc_led_modes_mask;
+		lmsr |= sc->sc_led_modes;
+		lan78xx_miibus_writereg(sc->sc_ue.ue_dev, sc->sc_phyno,
+		    MUGE_PHY_LED_MODE, lmsr);
+	}
 
 	/* Enable appropriate LEDs. */
 	if (sc->sc_leds != 0 &&
@@ -1534,37 +1546,6 @@ muge_fdt_find_mac(const char *compatible, unsigned char *mac)
 
 	return (ENXIO);
 }
-
-/**
- *	muge_fdt_count_led_modes - read number of LED modes from node
- *	@compatible: compatible string for DTB node in the form
- *	"usb[N]NNN,[M]MMM"
- *	    where NNN is vendor id and MMM is product id
- *	@amount: memory to store number of LED entries to
- *
- *	Tries to find matching node in DTS and obtain number of entries from it.
- *
- *	RETURNS:
- *	Returns 0 on success, error code otherwise
- */
-static int
-muge_fdt_count_led_modes(struct muge_softc *sc, const char *compatible,
-    uint32_t *amount)
-{
-	phandle_t node, root;
-	ssize_t proplen;
-
-	*amount = 0;
-	root = OF_finddevice("/");
-	node = muge_fdt_find_eth_node(root, compatible);
-	if (node != -1 &&
-	   (proplen = OF_getproplen(node, "microchip,led-modes")) > 0) {
-		*amount = proplen / sizeof( uint32_t );
-		return (0);
-	}
-
-	return (ENXIO);
-}
 #endif
 
 /**
@@ -1646,25 +1627,37 @@ muge_set_leds(struct usb_ether *ue)
 #ifdef FDT
 	char compatible[16];
 	struct usb_attach_arg *uaa = device_get_ivars(ue->ue_dev);
+	phandle_t root, node;
+	pcell_t led_modes[4];	/* 4 LEDs are possible */
+	ssize_t proplen;
 	uint32_t count;
 #endif
 
 	sc->sc_leds = 0;	/* no LED mode is set */
+	sc->sc_led_modes = 0;
+	sc->sc_led_modes_mask = 0xffff;
 	if (lan78xx_eeprom_present(sc))
 		return;
 #ifdef FDT
 	snprintf(compatible, sizeof(compatible), "usb%x,%x",
 	    uaa->info.idVendor, uaa->info.idProduct);
-	if (muge_fdt_count_led_modes(sc, compatible, &count) == 0) {
+	root = OF_finddevice("/");
+	if ((node = muge_fdt_find_eth_node(root, compatible)) != -1 &&
+	    (proplen = OF_getencprop(node, "microchip,led-modes", led_modes,
+	    sizeof(led_modes))) > 0) {
+		count = proplen / sizeof( uint32_t );
 		sc->sc_leds = (count > 0) * ETH_HW_CFG_LEDO_EN_ |
 			      (count > 1) * ETH_HW_CFG_LED1_EN_ |
 			      (count > 2) * ETH_HW_CFG_LED2_EN_ |
 			      (count > 3) * ETH_HW_CFG_LED3_EN_;
+		while (count-- > 0) {
+			sc->sc_led_modes |=
+			    (led_modes[count] & 0xf) << (4 * count);
+			sc->sc_led_modes_mask <<= 4;
+		}
 		muge_dbg_printf(sc, "LED modes set from FDT blob\n");
-		return;
 	}
 #endif
-	muge_dbg_printf(sc, "LED configuration not available\n");
 }
 
 /**

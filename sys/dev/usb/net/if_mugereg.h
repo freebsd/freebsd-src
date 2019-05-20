@@ -190,6 +190,8 @@
 #define MUGE_EXT_PAGE_SPACE_1		0x0001
 #define MUGE_EXT_PAGE_SPACE_2		0x0002
 
+#define MUGE_PHY_LED_MODE		29
+
 /* Extended Register Page 1 Space */
 #define MUGE_EXT_MODE_CTRL			0x0013
 #define MUGE_EXT_MODE_CTRL_MDIX_MASK_	0x000C
