@@ -1484,36 +1484,36 @@ muge_set_mac_addr(struct usb_ether *ue)
 		ue->ue_eaddr[0] = (uint8_t)((mac_l) & 0xff);
 	}
 
-	/* If RX_ADDRx did not provide a valid MAC address, try EEPROM. */
+	/*
+	 * If RX_ADDRx did not provide a valid MAC address, try EEPROM.  If that
+	 * doesn't work, try OTP.  Whether any of these methods work or not, try
+	 * FDT data, because it is allowed to override the EEPROM/OTP values.
+	 */
 	if (ETHER_IS_VALID(ue->ue_eaddr)) {
 		muge_dbg_printf(sc, "MAC assigned from registers\n");
-		return;
-	}
-
-	if ((lan78xx_eeprom_present(sc) &&
-	    lan78xx_eeprom_read_raw(sc, ETH_E2P_MAC_OFFSET,
-	    ue->ue_eaddr, ETHER_ADDR_LEN) == 0) ||
-	    (lan78xx_otp_read(sc, OTP_MAC_OFFSET,
-	    ue->ue_eaddr, ETHER_ADDR_LEN) == 0)) {
-		if (ETHER_IS_VALID(ue->ue_eaddr)) {
-			muge_dbg_printf(sc, "MAC read from EEPROM\n");
-			return;
-		}
+	} else if (lan78xx_eeprom_present(sc) && lan78xx_eeprom_read_raw(sc,
+	    ETH_E2P_MAC_OFFSET, ue->ue_eaddr, ETHER_ADDR_LEN) == 0 &&
+	    ETHER_IS_VALID(ue->ue_eaddr)) {
+		muge_dbg_printf(sc, "MAC assigned from EEPROM\n");
+	} else if (lan78xx_otp_read(sc, OTP_MAC_OFFSET, ue->ue_eaddr,
+	    ETHER_ADDR_LEN) == 0 && ETHER_IS_VALID(ue->ue_eaddr)) {
+		muge_dbg_printf(sc, "MAC assigned from OTP\n");
 	}
 
 #ifdef FDT
 	/* ue->ue_eaddr modified only if config exists for this dev instance. */
 	usb_fdt_get_mac_addr(ue->ue_dev, ue);
 	if (ETHER_IS_VALID(ue->ue_eaddr)) {
-		muge_dbg_printf(sc, "MAC read from FDT data\n");
-		return;
+		muge_dbg_printf(sc, "MAC assigned from FDT data\n");
 	}
 #endif
 
-	muge_dbg_printf(sc, "MAC assigned randomly\n");
-	arc4rand(ue->ue_eaddr, ETHER_ADDR_LEN, 0);
-	ue->ue_eaddr[0] &= ~0x01;	/* unicast */
-	ue->ue_eaddr[0] |= 0x02;	/* locally administered */
+	if (!ETHER_IS_VALID(ue->ue_eaddr)) {
+		muge_dbg_printf(sc, "MAC assigned randomly\n");
+		arc4rand(ue->ue_eaddr, ETHER_ADDR_LEN, 0);
+		ue->ue_eaddr[0] &= ~0x01;	/* unicast */
+		ue->ue_eaddr[0] |= 0x02;	/* locally administered */
+	}
 }
 
 /**
