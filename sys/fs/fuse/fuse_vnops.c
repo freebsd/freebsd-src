@@ -1036,8 +1036,6 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				goto out;
 			*vpp = vp;
 
-			fuse_vnode_setparent(vp, dvp);
-
 			/*
 			 * In the case where we are looking up a FUSE node
 			 * represented by an existing cached vnode, and the
