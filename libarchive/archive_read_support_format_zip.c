@@ -472,27 +472,49 @@ zip_time(const char *p)
  *  triplets.  id and size are 2 bytes each.
  */
 static int
-process_extra(struct archive_read *a, const char *p, size_t extra_length, struct zip_entry* zip_entry)
+process_extra(struct archive_read *a, struct archive_entry *entry,
+     const char *p, size_t extra_length, struct zip_entry* zip_entry)
 {
 	unsigned offset = 0;
+	struct zip *zip = (struct zip *)(a->format->data);
 
 	if (extra_length == 0) {
 		return ARCHIVE_OK;
 	}
 
 	if (extra_length < 4) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Too-small extra data: Need at least 4 bytes, but only found %d bytes", (int)extra_length);
-		return ARCHIVE_FAILED;
+		size_t i = 0;
+		/* Some ZIP files may have trailing 0 bytes. Let's check they
+		 * are all 0 and ignore them instead of returning an error.
+		 *
+		 * This is not techincally correct, but some ZIP files look
+		 * like this and other tools support those files - so let's
+		 * also  support them.
+		 */
+		for (; i < extra_length; i++) {
+			if (p[i] != 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Too-small extra data: "
+				    "Need at least 4 bytes, "
+				    "but only found %d bytes",
+				    (int)extra_length);
+				return ARCHIVE_FAILED;
+			}
+		}
+
+		return ARCHIVE_OK;
 	}
+
 	while (offset <= extra_length - 4) {
 		unsigned short headerid = archive_le16dec(p + offset);
 		unsigned short datasize = archive_le16dec(p + offset + 2);
 
 		offset += 4;
 		if (offset + datasize > extra_length) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Extra data overflow: Need %d bytes but only found %d bytes",
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT, "Extra data overflow: "
+			    "Need %d bytes but only found %d bytes",
 			    (int)datasize, (int)(extra_length - offset));
 			return ARCHIVE_FAILED;
 		}
@@ -507,9 +529,12 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			if (zip_entry->uncompressed_size == 0xffffffff) {
 				uint64_t t = 0;
 				if (datasize < 8
-				    || (t = archive_le64dec(p + offset)) > INT64_MAX) {
-					archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-					    "Malformed 64-bit uncompressed size");
+				    || (t = archive_le64dec(p + offset)) >
+				    INT64_MAX) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_FILE_FORMAT,
+					    "Malformed 64-bit "
+					    "uncompressed size");
 					return ARCHIVE_FAILED;
 				}
 				zip_entry->uncompressed_size = t;
@@ -519,9 +544,12 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			if (zip_entry->compressed_size == 0xffffffff) {
 				uint64_t t = 0;
 				if (datasize < 8
-				    || (t = archive_le64dec(p + offset)) > INT64_MAX) {
-					archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-					    "Malformed 64-bit compressed size");
+				    || (t = archive_le64dec(p + offset)) >
+				    INT64_MAX) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_FILE_FORMAT,
+					    "Malformed 64-bit "
+					    "compressed size");
 					return ARCHIVE_FAILED;
 				}
 				zip_entry->compressed_size = t;
@@ -531,9 +559,12 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			if (zip_entry->local_header_offset == 0xffffffff) {
 				uint64_t t = 0;
 				if (datasize < 8
-				    || (t = archive_le64dec(p + offset)) > INT64_MAX) {
-					archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-					    "Malformed 64-bit local header offset");
+				    || (t = archive_le64dec(p + offset)) >
+				    INT64_MAX) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_FILE_FORMAT,
+					    "Malformed 64-bit "
+					    "local header offset");
 					return ARCHIVE_FAILED;
 				}
 				zip_entry->local_header_offset = t;
@@ -566,7 +597,8 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			/* Extended time field "UT". */
 			int flags;
 			if (datasize == 0) {
-				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Incomplete extended time field");
 				return ARCHIVE_FAILED;
 			}
@@ -648,7 +680,8 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			 *  if bitmap & 1, 2 byte "version made by"
 			 *  if bitmap & 2, 2 byte "internal file attributes"
 			 *  if bitmap & 4, 4 byte "external file attributes"
-			 *  if bitmap & 8, 2 byte comment length + n byte comment
+			 *  if bitmap & 8, 2 byte comment length + n byte
+			 *  comment
 			 */
 			int bitmap, bitmap_last;
 
@@ -699,13 +732,18 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 					    = external_attributes >> 16;
 				} else if (zip_entry->system == 0) {
 					// Interpret MSDOS directory bit
-					if (0x10 == (external_attributes & 0x10)) {
-						zip_entry->mode = AE_IFDIR | 0775;
+					if (0x10 == (external_attributes &
+					    0x10)) {
+						zip_entry->mode =
+						    AE_IFDIR | 0775;
 					} else {
-						zip_entry->mode = AE_IFREG | 0664;
+						zip_entry->mode =
+						    AE_IFREG | 0664;
 					}
-					if (0x01 == (external_attributes & 0x01)) {
-						// Read-only bit; strip write permissions
+					if (0x01 == (external_attributes &
+					    0x01)) {
+						/* Read-only bit;
+						 * strip write permissions */
 						zip_entry->mode &= 0555;
 					}
 				} else {
@@ -729,6 +767,59 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 				/* Comment is not supported by libarchive */
 				offset += comment_length;
 				datasize -= comment_length;
+			}
+			break;
+		}
+		case 0x7075:
+		{
+			/* Info-ZIP Unicode Path Extra Field. */
+			if (datasize < 5 || entry == NULL)
+				break;
+			offset += 5;
+			datasize -= 5;
+
+			/* The path name in this field is always encoded
+			 * in UTF-8. */
+			if (zip->sconv_utf8 == NULL) {
+				zip->sconv_utf8 =
+					archive_string_conversion_from_charset(
+					&a->archive, "UTF-8", 1);
+				/* If the converter from UTF-8 is not
+				 * available, then the path name from the main
+				 * field will more likely be correct. */
+				if (zip->sconv_utf8 == NULL)
+					break;
+			}
+
+			/* Make sure the CRC32 of the filename matches. */
+			if (!zip->ignore_crc32) {
+				const char *cp = archive_entry_pathname(entry);
+				if (cp) {
+					unsigned long file_crc =
+					    zip->crc32func(0, cp, strlen(cp));
+					unsigned long utf_crc =
+					    archive_le32dec(p + offset - 4);
+					if (file_crc != utf_crc) {
+#ifdef DEBUG
+						fprintf(stderr,
+						    "CRC filename mismatch; "
+						    "CDE is %lx, but UTF8 "
+						    "is outdated with %lx\n",
+						    file_crc, utf_crc);
+#endif
+						break;
+					}
+				}
+			}
+
+			if (archive_entry_copy_pathname_l(entry,
+			    p + offset, datasize, zip->sconv_utf8) != 0) {
+				/* Ignore the error, and fallback to the path
+				 * name from the main field. */
+#ifdef DEBUG
+				fprintf(stderr, "Failed to read the ZIP "
+				    "0x7075 extra field path.\n");
+#endif
 			}
 			break;
 		}
@@ -766,7 +857,8 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 				}
 				if (datasize >= (2 + uidsize + 3)) {
 					/* get a gid size. */
-					gidsize = 0xff & (int)p[offset+2+uidsize];
+					gidsize = 0xff &
+					    (int)p[offset+2+uidsize];
 					if (gidsize == 2)
 						zip_entry->gid =
 						    archive_le16dec(
@@ -783,7 +875,8 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 		case 0x9901:
 			/* WinZip AES extra data field. */
 			if (datasize < 6) {
-				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Incomplete AES field");
 				return ARCHIVE_FAILED;
 			}
@@ -802,12 +895,6 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			break;
 		}
 		offset += datasize;
-	}
-	if (offset != extra_length) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Malformed extra data: Consumed %d bytes of %d bytes",
-		    (int)offset, (int)extra_length);
-		return ARCHIVE_FAILED;
 	}
 	return ARCHIVE_OK;
 }
@@ -928,7 +1015,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (ARCHIVE_OK != process_extra(a, h, extra_length, zip_entry)) {
+	if (ARCHIVE_OK != process_extra(a, entry, h, extra_length,
+	    zip_entry)) {
 		return ARCHIVE_FATAL;
 	}
 	__archive_read_consume(a, extra_length);
@@ -945,8 +1033,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		zip_entry->mode |= 0664;
 	}
 
-	/* Windows archivers sometimes use backslash as the directory separator.
-	   Normalize to slash. */
+	/* Windows archivers sometimes use backslash as the directory
+	 * separator. Normalize to slash. */
 	if (zip_entry->system == 0 &&
 	    (wp = archive_entry_pathname_w(entry)) != NULL) {
 		if (wcschr(wp, L'/') == NULL && wcschr(wp, L'\\') != NULL) {
@@ -1255,7 +1343,8 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 				zip->entry->crc32 = archive_le32dec(p + 4);
 				compressed = archive_le64dec(p + 8);
 				uncompressed = archive_le64dec(p + 16);
-				if (compressed > INT64_MAX || uncompressed > INT64_MAX) {
+				if (compressed > INT64_MAX || uncompressed >
+				    INT64_MAX) {
 					archive_set_error(&a->archive,
 					    ARCHIVE_ERRNO_FILE_FORMAT,
 					    "Overflow of 64-bit file sizes");
@@ -1372,7 +1461,8 @@ consume_optional_marker(struct archive_read *a, struct zip *zip)
 			zip->entry->crc32 = archive_le32dec(p);
 			compressed = archive_le64dec(p + 4);
 			uncompressed = archive_le64dec(p + 12);
-			if (compressed > INT64_MAX || uncompressed > INT64_MAX) {
+			if (compressed > INT64_MAX ||
+			    uncompressed > INT64_MAX) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Overflow of 64-bit file sizes");
@@ -1444,12 +1534,16 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	} alone_header;
 #pragma pack(pop)
 
-	/* To unpack ZIPX's "LZMA" (id 14) stream we can use standard liblzma that
-	 * is a part of XZ Utils. The stream format stored inside ZIPX file is a
-	 * modified "lzma alone" file format, that was used by the `lzma` utility
-	 * which was later deprecated in favour of `xz` utility. Since those
-	 * formats are nearly the same, we can use a standard "lzma alone" decoder
-	 * from XZ Utils. */
+	if(zip->zipx_lzma_valid) {
+		lzma_end(&zip->zipx_lzma_stream);
+		zip->zipx_lzma_valid = 0;
+	}
+
+	/* To unpack ZIPX's "LZMA" (id 14) stream we can use standard liblzma
+	 * that is a part of XZ Utils. The stream format stored inside ZIPX
+	 * file is a modified "lzma alone" file format, that was used by the
+	 * `lzma` utility which was later deprecated in favour of `xz` utility. 	 * Since those formats are nearly the same, we can use a standard
+	 * "lzma alone" decoder from XZ Utils. */
 
 	memset(&zip->zipx_lzma_stream, 0, sizeof(zip->zipx_lzma_stream));
 	r = lzma_alone_decoder(&zip->zipx_lzma_stream, UINT64_MAX);
@@ -1477,8 +1571,8 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	 * lzma_params is a 5-byte blob that has to be decoded to extract
 	 * parameters of this LZMA stream. The uncompressed_size field is an
 	 * uint64_t value that contains information about the size of the
-	 * uncompressed file, or UINT64_MAX if this value is unknown. The <data...>
-	 * part is the actual lzma-compressed data stream.
+	 * uncompressed file, or UINT64_MAX if this value is unknown.
+	 * The <data...> part is the actual lzma-compressed data stream.
 	 *
 	 * Now here's the structure of the stream inside the ZIPX file:
 	 *
@@ -1488,17 +1582,17 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	 *  2byte   2byte    5 bytes     n bytes
 	 * <magic1><magic2><lzma_params><data...>
 	 *
-	 * This means that the ZIPX file contains an additional magic1 and magic2
-	 * headers, the lzma_params field contains the same parameter set as in the
-	 * "lzma alone" format, and the <data...> field is the same as in the "lzma
-	 * alone" format as well. Note that also the zipx format is missing the
-	 * uncompressed_size field.
+	 * This means that the ZIPX file contains an additional magic1 and
+	 * magic2 headers, the lzma_params field contains the same parameter
+	 * set as in the "lzma alone" format, and the <data...> field is the
+	 * same as in the "lzma alone" format as well. Note that also the zipx
+	 * format is missing the uncompressed_size field.
 	 *
-	 * So, in order to use the "lzma alone" decoder for the zipx lzma stream,
-	 * we simply need to shuffle around some fields, prepare a new lzma alone
-	 * header, feed it into lzma alone decoder so it will initialize itself
-	 * properly, and then we can start feeding normal zipx lzma stream into the
-	 * decoder.
+	 * So, in order to use the "lzma alone" decoder for the zipx lzma
+	 * stream, we simply need to shuffle around some fields, prepare a new
+	 * lzma alone header, feed it into lzma alone decoder so it will
+	 * initialize itself properly, and then we can start feeding normal
+	 * zipx lzma stream into the decoder.
 	 */
 
 	/* Read magic1,magic2,lzma_params from the ZIPX stream. */
@@ -1514,8 +1608,8 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 		return (ARCHIVE_FATAL);
 	}
 
-	/* Prepare an lzma alone header: copy the lzma_params blob into a proper
-	 * place into the lzma alone header. */
+	/* Prepare an lzma alone header: copy the lzma_params blob into
+	 * a proper place into the lzma alone header. */
 	memcpy(&alone_header.bytes[0], p + 4, 5);
 
 	/* Initialize the 'uncompressed size' field to unknown; we'll manually
@@ -1541,8 +1635,9 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	zip->zipx_lzma_stream.avail_out = zip->uncompressed_buffer_size;
 	zip->zipx_lzma_stream.total_out = 0;
 
-	/* Feed only the header into the lzma alone decoder. This will effectively
-	 * initialize the decoder, and will not produce any output bytes yet. */
+	/* Feed only the header into the lzma alone decoder. This will
+	 * effectively initialize the decoder, and will not produce any
+	 * output bytes yet. */
 	r = lzma_code(&zip->zipx_lzma_stream, LZMA_RUN);
 	if (r != LZMA_OK) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
@@ -1617,7 +1712,8 @@ zip_read_data_zipx_xz(struct archive_read *a, const void **buff,
 			if((int64_t) zip->zipx_lzma_stream.total_in !=
 			    zip->entry_bytes_remaining)
 			{
-				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
 				    "xz premature end of stream");
 				return (ARCHIVE_FATAL);
 			}
@@ -1662,12 +1758,13 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 			return (ret);
 	}
 
-	/* Fetch more compressed data. The same note as in deflate handler applies
-	 * here as well:
+	/* Fetch more compressed data. The same note as in deflate handler
+	 * applies here as well:
 	 *
 	 * Note: '1' here is a performance optimization. Recall that the
-	 * decompression layer returns a count of available bytes; asking for more
-	 * than that forces the decompressor to combine reads by copying data.
+	 * decompression layer returns a count of available bytes; asking for
+	 * more than that forces the decompressor to combine reads by copying
+	 * data.
 	 */
 	compressed_buf = __archive_read_ahead(a, 1, &bytes_avail);
 	if (bytes_avail < 0) {
@@ -1684,8 +1781,9 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	zip->zipx_lzma_stream.total_in = 0;
 	zip->zipx_lzma_stream.next_out = zip->uncompressed_buffer;
 	zip->zipx_lzma_stream.avail_out =
-		/* These lzma_alone streams lack end of stream marker, so let's make
-		 * sure the unpacker won't try to unpack more than it's supposed to. */
+		/* These lzma_alone streams lack end of stream marker, so let's
+		 * make sure the unpacker won't try to unpack more than it's
+		 * supposed to. */
 		zipmin((int64_t) zip->uncompressed_buffer_size,
 		    zip->entry->uncompressed_size -
 		    zip->entry_uncompressed_bytes_read);
@@ -1810,7 +1908,8 @@ zipx_ppmd8_init(struct archive_read *a, struct zip *zip)
 		return (ARCHIVE_FATAL);
 	}
 
-	__archive_ppmd8_functions.Ppmd8_Init(&zip->ppmd8, order, restore_method);
+	__archive_ppmd8_functions.Ppmd8_Init(&zip->ppmd8, order,
+	    restore_method);
 
 	/* Allocate the buffer that will hold uncompressed data. */
 	free(zip->uncompressed_buffer);
@@ -1856,8 +1955,8 @@ zip_read_data_zipx_ppmd(struct archive_read *a, const void **buff,
 			return ret;
 	}
 
-	/* Fetch for more data. We're reading 1 byte here, but libarchive should
-	 * prefetch more bytes. */
+	/* Fetch for more data. We're reading 1 byte here, but libarchive
+	 * should prefetch more bytes. */
 	(void) __archive_read_ahead(a, 1, &bytes_avail);
 	if(bytes_avail < 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1871,7 +1970,8 @@ zip_read_data_zipx_ppmd(struct archive_read *a, const void **buff,
 
 	/* Decompression loop. */
 	do {
-		int sym = __archive_ppmd8_functions.Ppmd8_DecodeSymbol(&zip->ppmd8);
+		int sym = __archive_ppmd8_functions.Ppmd8_DecodeSymbol(
+		    &zip->ppmd8);
 		if(sym < 0) {
 			zip->end_of_entry = 1;
 			break;
@@ -1880,8 +1980,9 @@ zip_read_data_zipx_ppmd(struct archive_read *a, const void **buff,
 		/* This field is set by ppmd_read() when there was no more data
 		 * to be read. */
 		if(zip->ppmd8_stream_failed) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-				"Truncated PPMd8 file body");
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated PPMd8 file body");
 			return (ARCHIVE_FATAL);
 		}
 
@@ -1985,9 +2086,10 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
 
 	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
 	if(in_bytes < 1) {
-		/* libbz2 doesn't complain when caller feeds avail_in == 0. It will
-		 * actually return success in this case, which is undesirable. This is
-		 * why we need to make this check manually. */
+		/* libbz2 doesn't complain when caller feeds avail_in == 0.
+		 * It will actually return success in this case, which is
+		 * undesirable. This is why we need to make this check
+		 * manually. */
 
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated bzip2 file body");
@@ -2014,16 +2116,18 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
 				case BZ_OK:
 					break;
 				default:
-					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-					    "Failed to clean up bzip2 decompressor");
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Failed to clean up bzip2 "
+					    "decompressor");
 					return ARCHIVE_FATAL;
 			}
 
 			zip->end_of_entry = 1;
 			break;
 		case BZ_OK:
-			/* The decompressor has successfully decoded this chunk of
-			 * data, but more data is still in queue. */
+			/* The decompressor has successfully decoded this
+			 * chunk of data, but more data is still in queue. */
 			break;
 		default:
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -2131,8 +2235,10 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	if (zip->tctx_valid || zip->cctx_valid) {
 		if (zip->decrypted_bytes_remaining < (size_t)bytes_avail) {
 			size_t buff_remaining =
-			    (zip->decrypted_buffer + zip->decrypted_buffer_size)
-			    - (zip->decrypted_ptr + zip->decrypted_bytes_remaining);
+			    (zip->decrypted_buffer +
+			    zip->decrypted_buffer_size)
+			    - (zip->decrypted_ptr +
+			    zip->decrypted_bytes_remaining);
 
 			if (buff_remaining > (size_t)bytes_avail)
 				buff_remaining = (size_t)bytes_avail;
@@ -2143,12 +2249,12 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 				    + buff_remaining)
 				      > zip->entry_bytes_remaining) {
 					if (zip->entry_bytes_remaining <
-					      (int64_t)zip->decrypted_bytes_remaining)
+					    (int64_t)zip->decrypted_bytes_remaining)
 						buff_remaining = 0;
 					else
 						buff_remaining =
 						    (size_t)zip->entry_bytes_remaining
-						      - zip->decrypted_bytes_remaining;
+						    - zip->decrypted_bytes_remaining;
 				}
 			}
 			if (buff_remaining > 0) {
@@ -2167,7 +2273,8 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 					      + zip->decrypted_bytes_remaining,
 					    &dsize);
 				}
-				zip->decrypted_bytes_remaining += buff_remaining;
+				zip->decrypted_bytes_remaining +=
+				    buff_remaining;
 			}
 		}
 		bytes_avail = zip->decrypted_bytes_remaining;
@@ -2751,7 +2858,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 		inflateEnd(&zip->stream);
 #endif
 
-#if HAVA_LZMA_H && HAVE_LIBLZMA
+#if HAVE_LZMA_H && HAVE_LIBLZMA
     if (zip->zipx_lzma_valid) {
 		lzma_end(&zip->zipx_lzma_stream);
 	}
@@ -3391,7 +3498,8 @@ expose_parent_dirs(struct zip *zip, const char *name, size_t name_length)
 }
 
 static int
-slurp_central_directory(struct archive_read *a, struct zip *zip)
+slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
+    struct zip *zip)
 {
 	ssize_t i;
 	unsigned found;
@@ -3501,8 +3609,10 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 		filename_length = archive_le16dec(p + 28);
 		extra_length = archive_le16dec(p + 30);
 		comment_length = archive_le16dec(p + 32);
-		/* disk_start = archive_le16dec(p + 34); */ /* Better be zero. */
-		/* internal_attributes = archive_le16dec(p + 36); */ /* text bit */
+		/* disk_start = archive_le16dec(p + 34);
+		 *   Better be zero.
+		 * internal_attributes = archive_le16dec(p + 36);
+		 *   text bit */
 		external_attributes = archive_le32dec(p + 38);
 		zip_entry->local_header_offset =
 		    archive_le32dec(p + 42) + correction;
@@ -3538,7 +3648,8 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 			    "Truncated ZIP file header");
 			return ARCHIVE_FATAL;
 		}
-		if (ARCHIVE_OK != process_extra(a, p + filename_length, extra_length, zip_entry)) {
+		if (ARCHIVE_OK != process_extra(a, entry, p + filename_length,
+		    extra_length, zip_entry)) {
 			return ARCHIVE_FATAL;
 		}
 
@@ -3560,7 +3671,8 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 				 * a directory. We should treat it as a non
 				 * resource fork file to expose it. */
 				if (name[filename_length-1] != '/' &&
-				    (r - name < 3 || r[0] != '.' || r[1] != '_')) {
+				    (r - name < 3 || r[0] != '.' ||
+				     r[1] != '_')) {
 					__archive_rb_tree_insert_node(
 					    &zip->tree, &zip_entry->node);
 					/* Expose its parent directories. */
@@ -3637,8 +3749,10 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 	switch(rsrc->compression) {
 	case 0:  /* No compression. */
 		if (rsrc->uncompressed_size != rsrc->compressed_size) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Malformed OS X metadata entry: inconsistent size");
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Malformed OS X metadata entry: "
+			    "inconsistent size");
 			return (ARCHIVE_FATAL);
 		}
 #ifdef HAVE_ZLIB_H
@@ -3797,7 +3911,7 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 		a->archive.archive_format_name = "ZIP";
 
 	if (zip->zip_entries == NULL) {
-		r = slurp_central_directory(a, zip);
+		r = slurp_central_directory(a, entry, zip);
 		if (r != ARCHIVE_OK)
 			return r;
 		/* Get first entry whose local header offset is lower than
@@ -3827,8 +3941,8 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 	__archive_read_reset_passphrase(a);
 
 	/* File entries are sorted by the header offset, we should mostly
-	 * use __archive_read_consume to advance a read point to avoid redundant
-	 * data reading.  */
+	 * use __archive_read_consume to advance a read point to avoid
+	 * redundant data reading.  */
 	offset = archive_filter_bytes(&a->archive, 0);
 	if (offset < zip->entry->local_header_offset)
 		__archive_read_consume(a,

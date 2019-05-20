@@ -8,11 +8,13 @@
 # SRCDIR=		# source directory
 # CONFIGURE_ARGS=	# configure arguments
 # MAKE_ARGS=		# make arguments
+# DEBUG=		# set -g -fsanitize=address flags
 
 ACTIONS=
 if [ -n "${BUILD_SYSTEM}" ]; then
 	BS="${BUILD_SYSTEM}"
 fi
+
 BS="${BS:-autotools}"
 MAKE="${MAKE:-make}"
 CMAKE="${CMAKE:-cmake}"
@@ -21,7 +23,7 @@ SRCDIR="${SRCDIR:-`pwd`}"
 RET=0
 
 usage () {
-	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test ] [ -a ... ] [ -d builddir ] [-s srcdir ]"
+	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test|install|distcheck ] [ -a ... ] [ -d builddir ] [-s srcdir ]"
 }
 inputerror () {
 	echo $1
@@ -36,6 +38,8 @@ while getopts a:b:d:s: opt; do
 				configure) ;;
 				build) ;;
 				test) ;;
+				install) ;;
+				distcheck) ;;
 				*) inputerror "Invalid action (-a)" ;;
 			esac
 			ACTIONS="${ACTIONS} ${OPTARG}"
@@ -58,8 +62,25 @@ while getopts a:b:d:s: opt; do
 		;;
 	esac
 done
+if [ -z "${MAKE_ARGS}" ]; then
+	if [ "${BS}" = "autotools" ]; then
+		MAKE_ARGS="V=1"
+	elif [ "${BS}" = "cmake" ]; then
+		MAKE_ARGS="VERBOSE=1"
+	fi
+fi
+if [ -n "${DEBUG}" ]; then
+	if [ -n "${CFLAGS}" ]; then
+		export CFLAGS="${CFLAGS} -g -fsanitize=address"
+	else
+		export CFLAGS="-g -fsanitize=address"
+	fi
+	if ["${BS}" = "cmake" ]; then
+		CONFIGURE_ARGS="${CONFIGURE_ARGS} -DCMAKE_C_CFLAGS=-g -fsanitize=address"
+	fi
+fi
 if [ -z "${ACTIONS}" ]; then
-	ACTIONS="autogen configure build test"
+	ACTIONS="autogen configure build test install"
 fi
 if [ -z "${BS}" ]; then
 	inputerror "Missing build system (-b) parameter"
@@ -102,6 +123,15 @@ for action in ${ACTIONS}; do
 			esac
 			RET="$?"
 			find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \;
+		;;
+		install)
+			${MAKE} ${MAKE_ARGS} install DESTDIR="${BUILDDIR}/destdir"
+			RET="$?"
+			cd ${BUILDDIR}/destdir && ls -lR .
+		;;
+		distcheck)
+			${MAKE} ${MAKE_ARGS} distcheck
+			RET="$?"
 		;;
 	esac
 	if [ "${RET}" != "0" ]; then

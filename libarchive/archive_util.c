@@ -449,7 +449,7 @@ __archive_mktemp(const char *tmpdir)
 		temp_name.s[temp_name.length-1] = '\0';
 		temp_name.length --;
 	}
-	if (stat(temp_name.s, &st) < 0)
+	if (la_stat(temp_name.s, &st) < 0)
 		goto exit_tmpfile;
 	if (!S_ISDIR(st.st_mode)) {
 		errno = ENOTDIR;

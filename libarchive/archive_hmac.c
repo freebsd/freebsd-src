@@ -83,6 +83,7 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 static int
 __hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
 {
+#pragma GCC diagnostic ignored "-Wcast-qual"
 	BCRYPT_ALG_HANDLE hAlg;
 	BCRYPT_HASH_HANDLE hHash;
 	DWORD hash_len;

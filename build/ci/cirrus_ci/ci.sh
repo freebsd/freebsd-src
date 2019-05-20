@@ -1,6 +1,6 @@
 #!/bin/sh
 UNAME=`uname`
-if [ "$1" = "install" ]
+if [ "$1" = "prepare" ]
 then
 	if [ "${UNAME}" = "FreeBSD" ]
 	then
@@ -17,8 +17,11 @@ then
 	elif [ "${UNAME}" = "Darwin" ]
 	then
 		set -x -e
-		brew update
-		brew install autoconf automake libtool pkg-config cmake xz lz4 zstd
+		brew update > /dev/null
+		for pkg in autoconf automake libtool pkg-config cmake xz lz4 zstd
+		do
+			brew list $pkg > /dev/null && brew upgrade $pkg || brew install $pkg
+		done
 	elif [ "${UNAME}" = "Linux" ]
 	then
 		if [ -f "/etc/debian_version" ]
@@ -48,6 +51,6 @@ then
 		TMPDIR=/tmp_acl_nfsv4 ${BIN_SUBDIR}/libarchive_test -r "${CURDIR}/libarchive/test" -v test_acl_platform_nfs4
 	fi
 else
-	echo "Usage $0 install | test_nfsv4_acls"
+	echo "Usage $0 prepare | test_nfsv4_acls"
 	exit 1
 fi

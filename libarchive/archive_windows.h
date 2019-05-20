@@ -112,10 +112,7 @@
 #if !defined(__BORLANDC__) && !defined(__WATCOMC__)
 #define setmode		_setmode
 #endif
-#ifdef stat
-#undef stat
-#endif
-#define	stat(path,stref)		__la_stat(path,stref)
+#define	la_stat(path,stref)		__la_stat(path,stref)
 #if !defined(__WATCOMC__)
 #if !defined(__BORLANDC__)
 #define	strdup		_strdup

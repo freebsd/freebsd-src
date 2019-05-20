@@ -46,7 +46,7 @@ verify_files(const char *msg)
 
 	/* Symlink */
 	if (canSymlink())
-		assertIsSymlink("symlink", "file");
+		assertIsSymlink("symlink", "file", 0);
 
 	/* Another file with 1 link and different permissions. */
 	failure(msg);
@@ -173,7 +173,7 @@ DEFINE_TEST(test_basic)
 
 	/* Symlink to above file. */
 	if (canSymlink()) {
-		assertMakeSymlink("symlink", "file");
+		assertMakeSymlink("symlink", "file", 0);
 		fprintf(filelist, "symlink\n");
 		if (is_LargeInode("symlink")) {
 			strncat(result,

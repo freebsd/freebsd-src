@@ -114,7 +114,7 @@ DEFINE_TEST(test_format_newc)
 
 	/* "symlink" */
 	if (canSymlink()) {
-		assertMakeSymlink("symlink", "file1");
+		assertMakeSymlink("symlink", "file1", 0);
 		fprintf(list, "symlink\n");
 	}
 
@@ -233,7 +233,12 @@ DEFINE_TEST(test_format_newc)
 		assert(is_hex(e, 110));
 		assertEqualMem(e + 0, "070701", 6); /* Magic */
 		assert(is_hex(e + 6, 8)); /* ino */
+#if defined(_WIN32) && !defined(CYGWIN)
+		/* Mode: Group members bits and others bits do not work. */
+		assertEqualInt(0xa180, from_hex(e + 14, 8) & 0xffc0);
+#else
 		assertEqualInt(0xa1ff, from_hex(e + 14, 8)); /* Mode */
+#endif
 		assertEqualInt(from_hex(e + 22, 8), uid); /* uid */
 		assertEqualInt(gid, from_hex(e + 30, 8)); /* gid */
 		assertEqualMem(e + 38, "00000001", 8); /* nlink */

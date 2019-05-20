@@ -83,7 +83,9 @@
 #include <sys/richacl.h>
 #endif
 #ifdef HAVE_WINDOWS_H
+#define NOCRYPT
 #include <windows.h>
+#include <winioctl.h>
 #endif
 
 /*
@@ -218,8 +220,8 @@
   assertion_is_not_hardlink(__FILE__, __LINE__, path1, path2)
 #define assertIsReg(pathname, mode)		\
   assertion_is_reg(__FILE__, __LINE__, pathname, mode)
-#define assertIsSymlink(pathname, contents)	\
-  assertion_is_symlink(__FILE__, __LINE__, pathname, contents)
+#define assertIsSymlink(pathname, contents, isdir)	\
+  assertion_is_symlink(__FILE__, __LINE__, pathname, contents, isdir)
 /* Create a directory, report error if it fails. */
 #define assertMakeDir(dirname, mode)	\
   assertion_make_dir(__FILE__, __LINE__, dirname, mode)
@@ -229,8 +231,8 @@
   assertion_make_file(__FILE__, __LINE__, path, mode, csize, contents)
 #define assertMakeHardlink(newfile, oldfile)	\
   assertion_make_hardlink(__FILE__, __LINE__, newfile, oldfile)
-#define assertMakeSymlink(newfile, linkto)	\
-  assertion_make_symlink(__FILE__, __LINE__, newfile, linkto)
+#define assertMakeSymlink(newfile, linkto, targetIsDir)	\
+  assertion_make_symlink(__FILE__, __LINE__, newfile, linkto, targetIsDir)
 #define assertSetNodump(path)	\
   assertion_set_nodump(__FILE__, __LINE__, path)
 #define assertUmask(mask)	\
@@ -287,11 +289,11 @@ int assertion_is_dir(const char *, int, const char *, int);
 int assertion_is_hardlink(const char *, int, const char *, const char *);
 int assertion_is_not_hardlink(const char *, int, const char *, const char *);
 int assertion_is_reg(const char *, int, const char *, int);
-int assertion_is_symlink(const char *, int, const char *, const char *);
+int assertion_is_symlink(const char *, int, const char *, const char *, int);
 int assertion_make_dir(const char *, int, const char *, int);
 int assertion_make_file(const char *, int, const char *, int, int, const void *);
 int assertion_make_hardlink(const char *, int, const char *newpath, const char *);
-int assertion_make_symlink(const char *, int, const char *newpath, const char *);
+int assertion_make_symlink(const char *, int, const char *newpath, const char *, int);
 int assertion_non_empty_file(const char *, int, const char *);
 int assertion_set_nodump(const char *, int, const char *);
 int assertion_text_file_contents(const char *, int, const char *buff, const char *f);

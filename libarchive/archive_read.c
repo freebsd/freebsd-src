@@ -611,6 +611,15 @@ choose_filters(struct archive_read *a)
 	return (ARCHIVE_FATAL);
 }
 
+int
+__archive_read_header(struct archive_read *a, struct archive_entry *entry)
+{
+	if (a->filter->read_header)
+		return a->filter->read_header(a->filter, entry);
+	else
+		return (ARCHIVE_OK);
+}
+
 /*
  * Read header of next entry.
  */

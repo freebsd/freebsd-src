@@ -1114,6 +1114,10 @@ archive_write_pax_header(struct archive_write *a,
 	if (!need_extension && acl_types != 0)
 		need_extension = 1;
 
+	/* If the symlink type is defined, we need an extension */
+	if (!need_extension && archive_entry_symlink_type(entry_main) > 0)
+		need_extension = 1;
+
 	/*
 	 * Libarchive used to include these in extended headers for
 	 * restricted pax format, but that confused people who
@@ -1246,6 +1250,17 @@ archive_write_pax_header(struct archive_write *a,
 			archive_entry_free(entry_main);
 			archive_string_free(&entry_name);
 			return (ARCHIVE_FATAL);
+		}
+
+		/* Store extended symlink information */
+		if (archive_entry_symlink_type(entry_main) ==
+		    AE_SYMLINK_TYPE_FILE) {
+			add_pax_attr(&(pax->pax_header),
+			    "LIBARCHIVE.symlinktype", "file");
+		} else if (archive_entry_symlink_type(entry_main) ==
+		    AE_SYMLINK_TYPE_DIRECTORY) {
+			add_pax_attr(&(pax->pax_header),
+			    "LIBARCHIVE.symlinktype", "dir");
 		}
 	}
 
