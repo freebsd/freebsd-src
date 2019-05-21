@@ -246,6 +246,7 @@ class Crypto:
         caead.len = len(src)
         s = array.array('B', src)
         caead.src = caead.dst = s.buffer_info()[0]
+        aad = str_to_ascii(aad)
         caead.aadlen = len(aad)
         saad = array.array('B', aad)
         caead.aad = saad.buffer_info()[0]
