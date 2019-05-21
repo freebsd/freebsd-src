@@ -1906,6 +1906,15 @@ add_timer_on(struct timer_list *timer, int cpu)
 	    &linux_timer_callback_wrapper, timer, cpu);
 }
 
+int
+del_timer(struct timer_list *timer)
+{
+
+	if (callout_stop(&(timer)->callout) == -1)
+		return (0);
+	return (1);
+}
+
 static void
 linux_timer_init(void *arg)
 {
