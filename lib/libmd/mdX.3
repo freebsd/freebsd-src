@@ -208,6 +208,8 @@ This code is derived directly from these implementations by
 .Pp
 Phk ristede runen.
 .Sh BUGS
-No method is known to exist which finds two files having the same hash value,
-nor to find a file with a specific hash value.
-There is on the other hand no guarantee that such a method does not exist.
+The
+.Tn MD5
+algorithm has been proven to be vulnerable to practical collision
+attacks and should not be relied upon to produce unique outputs,
+.Em nor should they be used as part of a cryptographic signature scheme.
