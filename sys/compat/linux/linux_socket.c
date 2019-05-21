@@ -1165,7 +1165,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	if (error != 0)
 		goto bad;
 
-	if (sa) {
+	if (msg->msg_name) {
 		msg->msg_name = PTRIN(linux_msg.msg_name);
 		error = bsd_to_linux_sockaddr(sa, &lsa, msg->msg_namelen);
 		if (error == 0)
