@@ -1155,7 +1155,8 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	if (msg->msg_name) {
 		sa = malloc(msg->msg_namelen, M_SONAME, M_WAITOK);
 		msg->msg_name = sa;
-	}
+	} else
+		sa = NULL;
 
 	uiov = msg->msg_iov;
 	msg->msg_iov = iov;
@@ -1172,7 +1173,6 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			error = copyout(lsa, PTRIN(msg->msg_name),
 			    msg->msg_namelen);
 		free(lsa, M_SONAME);
-		free(sa, M_SONAME);
 		if (error != 0)
 			goto bad;
 	}
@@ -1292,6 +1292,7 @@ bad:
 	}
 	free(iov, M_IOV);
 	free(linux_cmsg, M_LINUX);
+	free(sa, M_SONAME);
 
 	return (error);
 }
