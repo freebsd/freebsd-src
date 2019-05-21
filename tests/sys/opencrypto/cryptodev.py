@@ -524,7 +524,6 @@ class KATCCMParser:
 
             yield values
 
-
 def _spdechex(s):
     return binascii.hexlify(''.join(s.split()))
 
