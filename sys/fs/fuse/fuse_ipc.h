@@ -206,6 +206,7 @@ struct fuse_data {
 
 	int				daemon_timeout;
 	uint64_t			notimpl;
+	uint64_t			mnt_flag;
 };
 
 #define FSESS_DEAD                0x0001 /* session is to be closed */
@@ -221,6 +222,11 @@ struct fuse_data {
 #define FSESS_NO_NAMECACHE        0x0400 /* disable name cache */
 #define FSESS_NO_MMAP             0x0800 /* disable mmap */
 #define FSESS_POSIX_LOCKS         0x2000 /* daemon supports POSIX locks */
+#define FSESS_MNTOPTS_MASK	( \
+	FSESS_DAEMON_CAN_SPY | FSESS_PUSH_SYMLINKS_IN | \
+	FSESS_DEFAULT_PERMISSIONS | FSESS_NO_ATTRCACHE | \
+	FSESS_NO_READAHEAD | FSESS_NO_DATACACHE | \
+	FSESS_NO_NAMECACHE | FSESS_NO_MMAP)
 
 enum fuse_data_cache_mode {
 	FUSE_CACHE_UC,

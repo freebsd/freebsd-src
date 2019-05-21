@@ -25,6 +25,7 @@ GTESTS+=	locks
 GTESTS+=	lookup
 GTESTS+=	mkdir
 GTESTS+=	mknod
+GTESTS+=	mount
 GTESTS+=	open
 GTESTS+=	opendir
 GTESTS+=	read
