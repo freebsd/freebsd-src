@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/endian.h>
+#include <sys/eventhandler.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
