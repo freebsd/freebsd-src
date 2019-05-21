@@ -38,6 +38,7 @@ import os
 import random
 import signal
 from struct import pack as _pack
+import sys
 import time
 
 import dpkt
@@ -151,6 +152,11 @@ def _findop(crid, name):
 
     return fop.crid, name
 
+def array_tobytes(array_obj):
+    if sys.version_info[:2] >= (3, 2):
+        return array_obj.tobytes()
+    return array_obj.tostring()
+
 class Crypto:
     @staticmethod
     def findcrid(name):
@@ -218,9 +224,9 @@ class Crypto:
         #print('cop:', cop)
         ioctl(_cryptodev, CIOCCRYPT, str(cop))
 
-        s = s.tostring()
+        s = array_tobytes(s)
         if self._maclen is not None:
-            return s, m.tostring()
+            return s, array_tobytes(m)
 
         return s
 
@@ -255,9 +261,9 @@ class Crypto:
 
         ioctl(_cryptodev, CIOCCRYPTAEAD, str(caead))
 
-        s = s.tostring()
+        s = array_tobytes(s)
 
-        return s, tag.tostring()
+        return s, array_tobytes(tag)
 
     def perftest(self, op, size, timeo=3):
         inp = array.array('B', (random.randint(0, 255) for x in range(size)))
