@@ -1332,6 +1332,10 @@ NDFREE(struct nameidata *ndp, const u_int flags)
 	if (!(flags & NDF_NO_VP_UNLOCK) &&
 	    (ndp->ni_cnd.cn_flags & LOCKLEAF) && ndp->ni_vp)
 		unlock_vp = 1;
+	if (!(flags & NDF_NO_DVP_UNLOCK) &&
+	    (ndp->ni_cnd.cn_flags & LOCKPARENT) &&
+	    ndp->ni_dvp != ndp->ni_vp)
+		unlock_dvp = 1;
 	if (!(flags & NDF_NO_VP_RELE) && ndp->ni_vp) {
 		if (unlock_vp) {
 			vput(ndp->ni_vp);
@@ -1342,10 +1346,6 @@ NDFREE(struct nameidata *ndp, const u_int flags)
 	}
 	if (unlock_vp)
 		VOP_UNLOCK(ndp->ni_vp, 0);
-	if (!(flags & NDF_NO_DVP_UNLOCK) &&
-	    (ndp->ni_cnd.cn_flags & LOCKPARENT) &&
-	    ndp->ni_dvp != ndp->ni_vp)
-		unlock_dvp = 1;
 	if (!(flags & NDF_NO_DVP_RELE) &&
 	    (ndp->ni_cnd.cn_flags & (LOCKPARENT|WANTPARENT))) {
 		if (unlock_dvp) {
