@@ -9,7 +9,7 @@
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2018
+.Dd May 21, 2019
 .Dt SHA512 3
 .Os
 .Sh NAME
@@ -190,6 +190,26 @@ which converts the return value to a 65-character
 (including the terminating '\e0')
 .Tn ASCII
 string which represents the 256 bits in hexadecimal.
+.Sh ERRORS
+The
+.Fn SHA512_End
+function called with a null buf argument may fail and return NULL if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient storage space is available.
+.El
+.Pp
+The
+.Fn SHA512_File
+and
+.Fn SHA512_FileChunk
+may return NULL when underlying 
+.Xr open 2 ,
+.Xr fstat 2 ,
+.Xr lseek 2 ,
+or
+.Xr SHA512_End 2
+fail.
 .Sh SEE ALSO
 .Xr md4 3 ,
 .Xr md5 3 ,
