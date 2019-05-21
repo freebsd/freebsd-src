@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2016
+.Dd May 21, 2019
 .Dt SKEIN 3
 .Os
 .Sh NAME
@@ -188,6 +188,26 @@ functions are similar to the
 .Li SKEIN256_
 functions except they produce a 512-bit, 65 character,
 or 1024-bit, 129 character, output.
+.Sh ERRORS
+The
+.Fn SKEIN256_End
+function called with a null buf argument may fail and return NULL if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient storage space is available.
+.El
+.Pp
+The
+.Fn SKEIN256_File
+and
+.Fn SKEIN256_FileChunk
+may return NULL when underlying 
+.Xr open 2 ,
+.Xr fstat 2 ,
+.Xr lseek 2 ,
+or
+.Xr SKEIN256_End 2
+fail.
 .Sh SEE ALSO
 .Xr md4 3 ,
 .Xr md5 3 ,
