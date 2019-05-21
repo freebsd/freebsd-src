@@ -104,8 +104,12 @@ def GenTestCase(cname):
             else:
                 raise RuntimeError('unknown mode: %r' % repr(mode))
 
-            for bogusmode, lines in cryptodev.KATParser(fname,
-                [ 'Count', 'Key', 'IV', 'CT', 'AAD', 'Tag', 'PT', ]):
+            columns = [ 'Count', 'Key', 'IV', 'CT', 'AAD', 'Tag', 'PT', ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runGCMWithParser(parser, mode)
+
+        def runGCMWithParser(self, parser, mode):
+            for _, lines in next(parser):
                 for data in lines:
                     curcnt = int(data['Count'])
                     cipherkey = binascii.unhexlify(data['Key'])
@@ -166,9 +170,13 @@ def GenTestCase(cname):
                                 repr(data))
 
         def runCBC(self, fname):
+            columns = [ 'COUNT', 'KEY', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runCBCWithParser(parser)
+
+        def runCBCWithParser(self, parser):
             curfun = None
-            for mode, lines in cryptodev.KATParser(fname,
-                [ 'COUNT', 'KEY', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]):
+            for mode, lines in next(parser):
                 if mode == 'ENCRYPT':
                     swapptct = False
                     curfun = Crypto.encrypt
@@ -193,10 +201,14 @@ def GenTestCase(cname):
                     self.assertEqual(r, ct)
 
         def runXTS(self, fname, meth):
+            columns = [ 'COUNT', 'DataUnitLen', 'Key', 'DataUnitSeqNumber', 'PT',
+                        'CT']
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runXTSWithParser(parser, meth)
+
+        def runXTSWithParser(self, parser, meth):
             curfun = None
-            for mode, lines in cryptodev.KATParser(fname,
-                [ 'COUNT', 'DataUnitLen', 'Key', 'DataUnitSeqNumber', 'PT',
-                'CT' ]):
+            for mode, lines in next(parser):
                 if mode == 'ENCRYPT':
                     swapptct = False
                     curfun = Crypto.encrypt
@@ -231,7 +243,11 @@ def GenTestCase(cname):
                     self.assertEqual(r, ct)
 
         def runCCMEncrypt(self, fname):
-            for data in cryptodev.KATCCMParser(fname):
+            with cryptodev.KATCCMParser(fname) as parser:
+                self.runCCMEncryptWithParser(parser)
+
+        def runCCMEncryptWithParser(self, parser):
+            for data in next(parser):
                 Nlen = int(data['Nlen'])
                 if Nlen != 12:
                     # OCF only supports 12 byte IVs
@@ -266,11 +282,15 @@ def GenTestCase(cname):
                     repr(data) + " on " + cname)
 
         def runCCMDecrypt(self, fname):
+            with cryptodev.KATCCMParser(fname) as parser:
+                self.runCCMDecryptWithParser(parser)
+
+        def runCCMDecryptWithParser(self, parser):
             # XXX: Note that all of the current CCM
             # decryption test vectors use IV and tag sizes
             # that aren't supported by OCF none of the
             # tests are actually ran.
-            for data in cryptodev.KATCCMParser(fname):
+            for data in next(parser):
                 Nlen = int(data['Nlen'])
                 if Nlen != 12:
                     # OCF only supports 12 byte IVs
@@ -326,9 +346,13 @@ def GenTestCase(cname):
                 self.runTDES(i)
 
         def runTDES(self, fname):
+            columns = [ 'COUNT', 'KEYs', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runTDESWithParser(parser)
+
+        def runTDESWithParser(self, parser):
             curfun = None
-            for mode, lines in cryptodev.KATParser(fname,
-                [ 'COUNT', 'KEYs', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]):
+            for mode, lines in next(parser):
                 if mode == 'ENCRYPT':
                     swapptct = False
                     curfun = Crypto.encrypt
@@ -365,9 +389,12 @@ def GenTestCase(cname):
             # Skip SHA512_(224|256) tests
             if fname.find('SHA512_') != -1:
                 return
+            columns = [ 'Len', 'Msg', 'MD' ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runSHAWithParser(parser)
 
-            for hashlength, lines in cryptodev.KATParser(fname,
-                [ 'Len', 'Msg', 'MD' ]):
+        def runSHAWithParser(self, parser):
+            for hashlength, lines in next(parser):
                 # E.g., hashlength will be "L=20" (bytes)
                 hashlen = int(hashlength.split("=")[1])
 
@@ -413,8 +440,12 @@ def GenTestCase(cname):
                 self.runSHA1HMAC(i)
 
         def runSHA1HMAC(self, fname):
-            for hashlength, lines in cryptodev.KATParser(fname,
-                [ 'Count', 'Klen', 'Tlen', 'Key', 'Msg', 'Mac' ]):
+            columns = [ 'Count', 'Klen', 'Tlen', 'Key', 'Msg', 'Mac' ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runSHA1HMACWithParser(parser)
+
+        def runSHA1HMACWithParser(self, parser):
+            for hashlength, lines in next(parser):
                 # E.g., hashlength will be "L=20" (bytes)
                 hashlen = int(hashlength.split("=")[1])
 

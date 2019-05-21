@@ -323,11 +323,23 @@ class MismatchError(Exception):
 
 class KATParser:
     def __init__(self, fname, fields):
-        self.fp = open(fname)
         self.fields = set(fields)
         self._pending = None
+        self.fname = fname
+        self.fp = None
+
+    def __enter__(self):
+        self.fp = open(self.fname)
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if self.fp is not None:
+            self.fp.close()
 
     def __iter__(self):
+        return self
+
+    def __next__(self):
         while True:
             didread = False
             if self._pending is not None:
@@ -340,12 +352,13 @@ class KATParser:
             if didread and not i:
                 return
 
-            if (i and i[0] == '#') or not i.strip():
-                continue
-            if i[0] == '[':
-                yield i[1:].split(']', 1)[0], self.fielditer()
-            else:
-                raise ValueError('unknown line: %r' % repr(i))
+            if not i.startswith('#') and i.strip():
+                break
+
+        if i[0] == '[':
+            yield i[1:].split(']', 1)[0], self.fielditer()
+        else:
+            raise ValueError('unknown line: %r' % repr(i))
 
     def eatblanks(self):
         while True:
@@ -400,9 +413,18 @@ class KATParser:
 # section.
 class KATCCMParser:
     def __init__(self, fname):
-        self.fp = open(fname)
         self._pending = None
+        self.fname = fname
+        self.fp = None
+
+    def __enter__(self):
+        self.fp = open(self.fname)
         self.read_globals()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if self.fp is not None:
+            self.fp.close()
 
     def read_globals(self):
         self.global_values = {}
@@ -463,6 +485,9 @@ class KATCCMParser:
             self.section_values[f] = v
 
     def __iter__(self):
+        return self
+
+    def __next__(self):
         while True:
             if self._pending:
                 line = self._pending
@@ -503,6 +528,10 @@ class KATCCMParser:
 def _spdechex(s):
     return binascii.hexlify(''.join(s.split()))
 
+if sys.version_info[0] < 3:
+    KATCCMParser.next = KATCCMParser.__next__
+    KATParser.next = KATParser.__next__
+
 if __name__ == '__main__':
     if True:
         try:
@@ -518,11 +547,13 @@ if __name__ == '__main__':
             except IOError:
                 pass
     elif False:
-        kp = KATParser('/usr/home/jmg/aesni.testing/format tweak value input - data unit seq no/XTSGenAES128.rsp', [ 'COUNT', 'DataUnitLen', 'Key', 'DataUnitSeqNumber', 'PT', 'CT' ])
-        for mode, ni in kp:
-            print(i, ni)
-            for j in ni:
-                print(j)
+        columns = [ 'COUNT', 'DataUnitLen', 'Key', 'DataUnitSeqNumber', 'PT', 'CT' ]
+        fname = '/usr/home/jmg/aesni.testing/format tweak value input - data unit seq no/XTSGenAES128.rsp'
+        with KATParser(fname, columns) as kp:
+            for mode, ni in kp:
+                print(i, ni)
+                for j in ni:
+                    print(j)
     elif False:
         key = _spdechex('c939cc13397c1d37de6ae0e1cb7c423c')
         iv = _spdechex('00000000000000000000000000000001')
