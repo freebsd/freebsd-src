@@ -41,6 +41,7 @@
 #include <sys/sysent.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
+#include <sys/ktr.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/namei.h>
