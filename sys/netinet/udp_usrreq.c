@@ -1505,8 +1505,9 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	if (flowtype != M_HASHTYPE_NONE) {
 		m->m_pkthdr.flowid = flowid;
 		M_HASHTYPE_SET(m, flowtype);
+	}
 #ifdef	RSS
-	} else {
+	else {
 		uint32_t hash_val, hash_type;
 		/*
 		 * Calculate an appropriate RSS hash for UDP and
@@ -1529,10 +1530,8 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 			m->m_pkthdr.flowid = hash_val;
 			M_HASHTYPE_SET(m, hash_type);
 		}
-#endif
 	}
 
-#ifdef	RSS
 	/*
 	 * Don't override with the inp cached flowid value.
 	 *
