@@ -683,9 +683,11 @@ nvme_dev_advinfo(union ccb *start_ccb)
 		break;
 	case CDAI_TYPE_PHYS_PATH:
 		if (cdai->flags & CDAI_FLAG_STORE) {
-			if (device->physpath != NULL)
+			if (device->physpath != NULL) {
 				free(device->physpath, M_CAMXPT);
-			device->physpath_len = cdai->bufsiz;
+				device->physpath = NULL;
+				device->physpath_len = 0;
+			}
 			/* Clear existing buffer if zero length */
 			if (cdai->bufsiz == 0)
 				break;
@@ -694,6 +696,7 @@ nvme_dev_advinfo(union ccb *start_ccb)
 				start_ccb->ccb_h.status = CAM_REQ_ABORTED;
 				return;
 			}
+			device->physpath_len = cdai->bufsiz;
 			memcpy(device->physpath, cdai->buf, cdai->bufsiz);
 		} else {
 			cdai->provsiz = device->physpath_len;
