@@ -146,6 +146,26 @@ argument is non-null it must point to at least 65 characters of buffer space.
 .Pp
 SHA224 is identical SHA256, except it has slightly different initialization
 vectors, and is truncated to a shorter digest.
+.Sh ERRORS
+The
+.Fn SHA256_End
+function called with a null buf argument may fail and return NULL if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient storage space is available.
+.El
+.Pp
+The
+.Fn SHA256_File
+and
+.Fn SHA256_FileChunk
+may return NULL when underlying 
+.Xr open 2 ,
+.Xr fstat 2 ,
+.Xr lseek 2 ,
+or
+.Xr SHA256_End 2
+fail.
 .Sh SEE ALSO
 .Xr md4 3 ,
 .Xr md5 3 ,

@@ -124,6 +124,26 @@ after use.
 If the
 .Fa buf
 argument is non-null it must point to at least 41 characters of buffer space.
+.Sh ERRORS
+The
+.Fn RIPEMD160_End
+function called with a null buf argument may fail and return NULL if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient storage space is available.
+.El
+.Pp
+The
+.Fn RIPEMD160_File
+and
+.Fn RIPEMD160_FileChunk
+may return NULL when underlying 
+.Xr open 2 ,
+.Xr fstat 2 ,
+.Xr lseek 2 ,
+or
+.Xr RIPEMD160_End 2
+fail.
 .Sh SEE ALSO
 .Xr md4 3 ,
 .Xr md5 3 ,
