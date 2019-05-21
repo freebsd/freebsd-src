@@ -35,6 +35,8 @@
 
 #include <asm/atomic.h>
 
+typedef int vm_fault_t;
+
 struct vm_area_struct;
 struct task_struct;
 
