@@ -908,7 +908,7 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 
 	error = kern_recvit(td, args->s, &msg, UIO_SYSSPACE, NULL);
 	if (error != 0)
-		return (error);
+		goto out;
 
 	if (PTRIN(args->from) != NULL) {
 		error = bsd_to_linux_sockaddr(sa, &lsa, msg.msg_namelen);
@@ -921,7 +921,7 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 	if (error == 0 && PTRIN(args->fromlen) != NULL)
 		error = copyout(&msg.msg_namelen, PTRIN(args->fromlen),
 		    sizeof(msg.msg_namelen));
-
+out:
 	free(sa, M_SONAME);
 	return (error);
 }
