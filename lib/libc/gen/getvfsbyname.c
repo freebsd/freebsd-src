@@ -49,10 +49,11 @@ __FBSDID("$FreeBSD$");
 static bool
 are_fusefs(const char *fsname, const char *vfc_name)
 {
-	const char fusefs[] = "fusefs";
-	const char fusefs_dot[] = "fusefs.";
+	const static char fusefs[] = "fusefs";
+	const static char fusefs_dot[] = "fusefs.";
 
-	return (strncmp(fsname, fusefs_dot, strlen(fusefs_dot)) == 0 &&
+
+	return (strncmp(fsname, fusefs_dot, sizeof(fusefs_dot) - 1) == 0 &&
 	    strcmp(fusefs, vfc_name) == 0);
 }
 
