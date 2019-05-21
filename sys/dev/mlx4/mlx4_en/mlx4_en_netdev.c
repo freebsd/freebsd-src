@@ -47,6 +47,7 @@
 #include <dev/mlx4/cmd.h>
 #include <dev/mlx4/cq.h>
 
+#include <sys/eventhandler.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 

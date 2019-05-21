@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "ipoib.h"
+#include <sys/eventhandler.h>
 
 static	int ipoib_resolvemulti(struct ifnet *, struct sockaddr **,
 		struct sockaddr *);
