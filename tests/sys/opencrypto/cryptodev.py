@@ -3,6 +3,7 @@
 # Copyright (c) 2014 The FreeBSD Foundation
 # Copyright 2014 John-Mark Gurney
 # All rights reserved.
+# Copyright 2019 Enji Cooper
 #
 # This software was developed by John-Mark Gurney under
 # the sponsorship from the FreeBSD Foundation.
