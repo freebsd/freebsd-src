@@ -1305,23 +1305,27 @@ hook_tsc_freq(void *arg __unused)
 
 SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 
-static const char *const vm_bnames[] = {
-	"QEMU",				/* QEMU */
-	"Plex86",			/* Plex86 */
-	"Bochs",			/* Bochs */
-	"Xen",				/* Xen */
-	"BHYVE",			/* bhyve */
-	"Seabios",			/* KVM */
-	NULL
+static const struct {
+	const char *	vm_bname;
+	int		vm_guest;
+} vm_bnames[] = {
+	{ "QEMU",	VM_GUEST_VM },		/* QEMU */
+	{ "Plex86",	VM_GUEST_VM },		/* Plex86 */
+	{ "Bochs",	VM_GUEST_VM },		/* Bochs */
+	{ "Xen",	VM_GUEST_XEN },		/* Xen */
+	{ "BHYVE",	VM_GUEST_BHYVE },	/* bhyve */
+	{ "Seabios",	VM_GUEST_KVM },		/* KVM */
 };
 
-static const char *const vm_pnames[] = {
-	"VMware Virtual Platform",	/* VMWare VM */
-	"Virtual Machine",		/* Microsoft VirtualPC */
-	"VirtualBox",			/* Sun xVM VirtualBox */
-	"Parallels Virtual Platform",	/* Parallels VM */
-	"KVM",				/* KVM */
-	NULL
+static const struct {
+	const char *	vm_pname;
+	int		vm_guest;
+} vm_pnames[] = {
+	{ "VMware Virtual Platform",	VM_GUEST_VMWARE },
+	{ "Virtual Machine",		VM_GUEST_VM }, /* Microsoft VirtualPC */
+	{ "VirtualBox",			VM_GUEST_VBOX },
+	{ "Parallels Virtual Platform",	VM_GUEST_PARALLELS },
+	{ "KVM",			VM_GUEST_KVM },
 };
 
 static struct {
@@ -1413,7 +1417,10 @@ identify_hypervisor(void)
 	if (cpu_feature2 & CPUID2_HV) {
 		vm_guest = VM_GUEST_VM;
 		identify_hypervisor_cpuid_base();
-		return;
+
+		/* If we have a definitive vendor, we can return now. */
+		if (*hv_vendor != '\0')
+			return;
 	}
 
 	/*
@@ -1438,19 +1445,27 @@ identify_hypervisor(void)
 	 */
 	p = kern_getenv("smbios.bios.vendor");
 	if (p != NULL) {
-		for (i = 0; vm_bnames[i] != NULL; i++)
-			if (strcmp(p, vm_bnames[i]) == 0) {
-				vm_guest = VM_GUEST_VM;
-				freeenv(p);
-				return;
+		for (i = 0; i < nitems(vm_bnames); i++)
+			if (strcmp(p, vm_bnames[i].vm_bname) == 0) {
+				vm_guest = vm_bnames[i].vm_guest;
+				/* If we have a specific match, return */
+				if (vm_guest != VM_GUEST_VM) {
+					freeenv(p);
+					return;
+				}
+				/*
+				 * We are done with bnames, but there might be
+				 * a more specific match in the pnames
+				 */
+				break;
 			}
 		freeenv(p);
 	}
 	p = kern_getenv("smbios.system.product");
 	if (p != NULL) {
-		for (i = 0; vm_pnames[i] != NULL; i++)
-			if (strcmp(p, vm_pnames[i]) == 0) {
-				vm_guest = VM_GUEST_VM;
+		for (i = 0; i < nitems(vm_pnames); i++)
+			if (strcmp(p, vm_pnames[i].vm_pname) == 0) {
+				vm_guest = vm_pnames[i].vm_guest;
 				freeenv(p);
 				return;
 			}
@@ -2586,7 +2601,7 @@ static void
 print_hypervisor_info(void)
 {
 
-	if (*hv_vendor)
+	if (*hv_vendor != '\0')
 		printf("Hypervisor: Origin = \"%s\"\n", hv_vendor);
 }
 
