@@ -1566,12 +1566,22 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 release:
 	if (unlock_udbinfo == UH_WLOCKED) {
 		KASSERT(unlock_inp == UH_WLOCKED,
-		    ("%s: excl udbinfo lock, shared inp lock", __func__));
+		    ("%s: excl udbinfo lock %#03x, shared inp lock %#03x, "
+		    "sin %p daddr %#010x inp %p laddr %#010x lport %#06x "
+		    "src fam %#04x",
+		    __func__, unlock_udbinfo, unlock_inp, sin,
+		    (sin != NULL) ? sin->sin_addr.s_addr : 0xfefefefe, inp,
+		    inp->inp_laddr.s_addr, inp->inp_lport, src.sin_family));
 		INP_HASH_WUNLOCK(pcbinfo);
 		INP_WUNLOCK(inp);
 	} else if (unlock_udbinfo == UH_RLOCKED) {
 		KASSERT(unlock_inp == UH_RLOCKED,
-		    ("%s: shared udbinfo lock, excl inp lock", __func__));
+		    ("%s: shared udbinfo lock %#03x, excl inp lock %#03x, "
+		    "sin %p daddr %#010x inp %p laddr %#010x lport %#06x "
+		    "src fam %#04x",
+		    __func__, unlock_udbinfo, unlock_inp, sin,
+		    (sin != NULL) ? sin->sin_addr.s_addr : 0xfefefefe, inp,
+		    inp->inp_laddr.s_addr, inp->inp_lport, src.sin_family));
 		INP_HASH_RUNLOCK_ET(pcbinfo, et);
 		INP_RUNLOCK(inp);
 	} else if (unlock_inp == UH_WLOCKED)
