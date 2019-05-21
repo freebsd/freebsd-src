@@ -2,7 +2,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2004
+.Dd May 21, 2019
 .Dt BOOTPD 8
 .Os
 .Sh NAME
@@ -103,6 +103,8 @@ option may be used to force standalone or inetd mode respectively
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
+.It Fl a
+Skip ARP table modifications.
 .It Fl t Ar timeout
 Specify the
 .Ar timeout
