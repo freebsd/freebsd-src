@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#ifdef DO_EVENTHANDLER
+#include <sys/eventhandler.h>
+#endif
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/conf.h>

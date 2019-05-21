@@ -36,6 +36,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "core_priv.h"
+#include <sys/eventhandler.h>
 
 #include <linux/in.h>
 #include <linux/in6.h>

@@ -27,6 +27,7 @@
 
 #include "en.h"
 
+#include <sys/eventhandler.h>
 #include <sys/sockio.h>
 #include <machine/atomic.h>
 
