@@ -262,7 +262,7 @@ def GenTestCase(cname):
                 out = r + tag
                 self.assertEqual(out, ct,
                     "Count " + data['Count'] + " Actual: " + \
-                    repr(out.encode("hex")) + " Expected: " + \
+                    repr(binascii.hexlify(out)) + " Expected: " + \
                     repr(data) + " on " + cname)
 
         def runCCMDecrypt(self, fname):
@@ -313,7 +313,7 @@ def GenTestCase(cname):
                     payload = payload[:plen]
                     self.assertEqual(r, payload,
                         "Count " + data['Count'] + \
-                        " Actual: " + repr(r.encode("hex")) + \
+                        " Actual: " + repr(binascii.hexlify(r)) + \
                         " Expected: " + repr(data) + \
                         " on " + cname)
 
@@ -405,7 +405,7 @@ def GenTestCase(cname):
                     _, r = c.encrypt(msg, iv="")
 
                     self.assertEqual(r, md, "Actual: " + \
-                        repr(r.encode("hex")) + " Expected: " + repr(data) + " on " + cname)
+                        repr(binascii.hexlify(r)) + " Expected: " + repr(data) + " on " + cname)
 
         @unittest.skipIf(cname not in shamodules, 'skipping SHA-HMAC on %s' % str(cname))
         def test_sha1hmac(self):
@@ -462,7 +462,7 @@ def GenTestCase(cname):
                     _, r = c.encrypt(msg, iv="")
 
                     self.assertEqual(r[:tlen], mac, "Actual: " + \
-                        repr(r.encode("hex")) + " Expected: " + repr(data))
+                        repr(binascii.hexlify(r)) + " Expected: " + repr(data))
 
     return GendCryptoTestCase
 
