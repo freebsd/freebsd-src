@@ -206,6 +206,57 @@ SDT_PROBE_DEFINE4(fusefs, , vfsops, mount_err, "char*", "struct fuse_data*",
 	"struct mount*", "int");
 
 static int
+fuse_vfs_remount(struct mount *mp, struct thread *td, uint64_t mntopts,
+	uint32_t max_read, int daemon_timeout)
+{
+	int err = 0;
+	struct fuse_data *data = fuse_get_mpdata(mp);
+	/* Don't allow these options to be changed */
+	const static unsigned long long cant_update_opts = 
+		MNT_USER;	/* Mount owner must be the user running the daemon */
+
+	FUSE_LOCK();
+
+	if ((mp->mnt_flag ^ data->mnt_flag) & cant_update_opts) {
+		err = EOPNOTSUPP;
+		SDT_PROBE4(fusefs, , vfsops, mount_err,
+			"Can't change these mount options during remount",
+			data, mp, err);
+		goto out;
+	}
+	if (((data->dataflags ^ mntopts) & FSESS_MNTOPTS_MASK) ||
+	     (data->max_read != max_read) ||
+	     (data->daemon_timeout != daemon_timeout)) {
+		// TODO: allow changing options where it makes sense
+		err = EOPNOTSUPP;
+		SDT_PROBE4(fusefs, , vfsops, mount_err,
+			"Can't change fuse mount options during remount",
+			data, mp, err);
+		goto out;
+	}
+
+	if (fdata_get_dead(data)) {
+		err = ENOTCONN;
+		SDT_PROBE4(fusefs, , vfsops, mount_err,
+			"device is dead during mount", data, mp, err);
+		goto out;
+	}
+
+	/* Sanity + permission checks */
+	if (!data->daemoncred)
+		panic("fuse daemon found, but identity unknown");
+	if (mntopts & FSESS_DAEMON_CAN_SPY)
+		err = priv_check(td, PRIV_VFS_FUSE_ALLOWOTHER);
+	if (err == 0 && td->td_ucred->cr_uid != data->daemoncred->cr_uid)
+		/* are we allowed to do the first mount? */
+		err = priv_check(td, PRIV_VFS_FUSE_MOUNT_NONUSER);
+
+out:
+	FUSE_UNLOCK();
+	return err;
+}
+
+static int
 fuse_vfsop_mount(struct mount *mp)
 {
 	int err;
@@ -231,12 +282,8 @@ fuse_vfsop_mount(struct mount *mp)
 	__mntopts = 0;
 	td = curthread;
 
-	if (mp->mnt_flag & MNT_UPDATE)
-		return EOPNOTSUPP;
-
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_SYNCHRONOUS;
-	mp->mnt_data = NULL;
 	MNT_IUNLOCK(mp);
 	/* Get the new options passed to mount */
 	opts = mp->mnt_optnew;
@@ -246,19 +293,6 @@ fuse_vfsop_mount(struct mount *mp)
 
 	/* `fspath' contains the mount point (eg. /mnt/fuse/sshfs); REQUIRED */
 	if (!vfs_getopts(opts, "fspath", &err))
-		return err;
-
-	/* `from' contains the device name (eg. /dev/fuse0); REQUIRED */
-	fspec = vfs_getopts(opts, "from", &err);
-	if (!fspec)
-		return err;
-
-	/* `fd' contains the filedescriptor for this session; REQUIRED */
-	if (vfs_scanopt(opts, "fd", "%d", &fd) != 1)
-		return EINVAL;
-
-	err = fuse_getdevice(fspec, td, &fdev);
-	if (err != 0)
 		return err;
 
 	/*
@@ -286,6 +320,25 @@ fuse_vfsop_mount(struct mount *mp)
 	subtype = vfs_getopts(opts, "subtype=", &err);
 
 	SDT_PROBE1(fusefs, , vfsops, mntopts, mntopts);
+
+	if (mp->mnt_flag & MNT_UPDATE) {
+		/*dev_rel(fdev);*/
+		return fuse_vfs_remount(mp, td, mntopts, max_read,
+			daemon_timeout);
+	}
+
+	/* `from' contains the device name (eg. /dev/fuse0); REQUIRED */
+	fspec = vfs_getopts(opts, "from", &err);
+	if (!fspec)
+		return err;
+
+	/* `fd' contains the filedescriptor for this session; REQUIRED */
+	if (vfs_scanopt(opts, "fd", "%d", &fd) != 1)
+		return EINVAL;
+
+	err = fuse_getdevice(fspec, td, &fdev);
+	if (err != 0)
+		return err;
 
 	err = fget(td, fd, &cap_read_rights, &fp);
 	if (err != 0) {
@@ -330,6 +383,7 @@ fuse_vfsop_mount(struct mount *mp)
 	data->dataflags |= mntopts;
 	data->max_read = max_read;
 	data->daemon_timeout = daemon_timeout;
+	data->mnt_flag = mp->mnt_flag & MNT_UPDATEMASK;
 	FUSE_UNLOCK();
 
 	vfs_getnewfsid(mp);
@@ -365,6 +419,7 @@ out:
 			SDT_PROBE4(fusefs, , vfsops, mount_err,
 				"mount failed, destroy device", data, mp, err);
 			data->mp = NULL;
+			mp->mnt_data = NULL;
 			fdata_trydestroy(data);
 		}
 		FUSE_UNLOCK();
