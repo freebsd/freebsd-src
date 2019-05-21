@@ -136,16 +136,22 @@ def _getdev():
 
 _cryptodev = _getdev()
 
+def str_to_ascii(val):
+    if sys.version_info[0] >= 3:
+        if isinstance(val, str):
+            return val.encode("ascii")
+    return val
+
 def _findop(crid, name):
     fop = FindOp()
     fop.crid = crid
-    fop.name = name
+    fop.name = str_to_ascii(name)
     s = array.array('B', fop.pack_hdr())
     ioctl(_cryptodev, CIOCFINDDEV, s, 1)
     fop.unpack(s)
 
     try:
-        idx = fop.name.index('\x00')
+        idx = fop.name.index(b'\x00')
         name = fop.name[:idx]
     except ValueError:
         name = fop.name
@@ -218,11 +224,11 @@ class Crypto:
         if self._maclen is not None:
             m = array.array('B', [0] * self._maclen)
             cop.mac = m.buffer_info()[0]
-        ivbuf = array.array('B', iv)
+        ivbuf = array.array('B', str_to_ascii(iv))
         cop.iv = ivbuf.buffer_info()[0]
 
         #print('cop:', cop)
-        ioctl(_cryptodev, CIOCCRYPT, str(cop))
+        ioctl(_cryptodev, CIOCCRYPT, bytes(cop))
 
         s = array_tobytes(s)
         if self._maclen is not None:
@@ -236,6 +242,7 @@ class Crypto:
         caead.op = op
         caead.flags = CRD_F_IV_EXPLICIT
         caead.flags = 0
+        src = str_to_ascii(src)
         caead.len = len(src)
         s = array.array('B', src)
         caead.src = caead.dst = s.buffer_info()[0]
@@ -246,6 +253,7 @@ class Crypto:
         if self._maclen is None:
             raise ValueError('must have a tag length')
 
+        tag = str_to_ascii(tag)
         if tag is None:
             tag = array.array('B', [0] * self._maclen)
         else:
@@ -259,7 +267,7 @@ class Crypto:
         caead.ivlen = len(iv)
         caead.iv = ivbuf.buffer_info()[0]
 
-        ioctl(_cryptodev, CIOCCRYPTAEAD, str(caead))
+        ioctl(_cryptodev, CIOCCRYPTAEAD, bytes(caead))
 
         s = array_tobytes(s)
 
@@ -267,6 +275,7 @@ class Crypto:
 
     def perftest(self, op, size, timeo=3):
         inp = array.array('B', (random.randint(0, 255) for x in range(size)))
+        inp = str_to_ascii(inp)
         out = array.array('B', inp)
 
         # prep ioctl
@@ -293,8 +302,9 @@ class Crypto:
 
         start = time.time()
         reps = 0
+        cop = bytes(cop)
         while not exit[0]:
-            ioctl(_cryptodev, CIOCCRYPT, str(cop))
+            ioctl(_cryptodev, CIOCCRYPT, cop)
             reps += 1
 
         end = time.time()
