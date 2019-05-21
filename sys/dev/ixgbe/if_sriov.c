@@ -37,6 +37,8 @@
 
 #ifdef PCI_IOV
 
+#include <sys/ktr.h>
+
 MALLOC_DEFINE(M_IXGBE_SRIOV, "ix_sriov", "ix SR-IOV allocations");
 
 /************************************************************************
