@@ -769,7 +769,7 @@ nvme_proto_debug_out(union ccb *ccb)
 {
 	char cdb_str[(sizeof(struct nvme_command) * 3) + 1];
 
-	if (ccb->ccb_h.func_code != XPT_NVME_IO ||
+	if (ccb->ccb_h.func_code != XPT_NVME_IO &&
 	    ccb->ccb_h.func_code != XPT_NVME_ADMIN)
 		return;
 
