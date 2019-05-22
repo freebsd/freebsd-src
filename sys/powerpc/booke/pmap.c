@@ -3916,7 +3916,7 @@ tlb1_read_entry(tlb_entry_t *entry, unsigned int slot)
 		entry->mas7 = 0;
 		break;
 	}
-	mtmsr(msr);
+	__asm __volatile("wrtee %0" :: "r"(msr));
 
 	entry->virt = entry->mas2 & MAS2_EPN_MASK;
 	entry->phys = ((vm_paddr_t)(entry->mas7 & MAS7_RPN) << 32) |
@@ -3991,7 +3991,7 @@ tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
 		msr = mfmsr();
 		__asm __volatile("wrteei 0");
 		tlb1_write_entry_int(&args);
-		mtmsr(msr);
+		__asm __volatile("wrtee %0" :: "r"(msr));
 	}
 }
 
@@ -4390,7 +4390,7 @@ tid_flush(tlbtid_t tid)
 		mtspr(SPR_MAS6, tid << MAS6_SPID0_SHIFT);
 		/* tlbilxpid */
 		__asm __volatile("isync; .long 0x7c000024; isync; msync");
-		mtmsr(msr);
+		__asm __volatile("wrtee %0" :: "r"(msr));
 		return;
 	}
 
@@ -4415,7 +4415,7 @@ tid_flush(tlbtid_t tid)
 			mtspr(SPR_MAS1, mas1);
 			__asm __volatile("isync; tlbwe; isync; msync");
 		}
-	mtmsr(msr);
+	__asm __volatile("wrtee %0" :: "r"(msr));
 }
 
 #ifdef DDB
