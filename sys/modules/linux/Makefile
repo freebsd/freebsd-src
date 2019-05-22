@@ -47,7 +47,8 @@ EXPORT_SYMS+=	linux_ioctl_register_handler
 EXPORT_SYMS+=	linux_ioctl_unregister_handler
 .endif
 
-CLEANFILES=	linux${SFX}_assym.h linux${SFX}_genassym.o linux${SFX}_locore.o
+CLEANFILES=	linux${SFX}_assym.h linux${SFX}_genassym.o linux${SFX}_locore.o \
+		genassym.o
 
 linux${SFX}_assym.h: linux${SFX}_genassym.o
 	sh ${SYSDIR}/kern/genassym.sh linux${SFX}_genassym.o > ${.TARGET}
