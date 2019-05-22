@@ -20,10 +20,6 @@ BIN1=	\
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_SENDMAIL} != "no"
-BIN1+=	rc.sendmail
-.endif
-
 .if ${MK_SENDMAIL} == "no"
 ETCMAIL=mailer.conf aliases
 .else
