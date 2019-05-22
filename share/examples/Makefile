@@ -381,9 +381,8 @@ SER_${d:tu:C/\//_/g}DIR+=	${SHAREDIR}/examples/${d}
 
 BINDIR= ${SHAREDIR}/examples
 
-beforeinstall: copies etc-examples
+beforeinstall: copies
 META_TARGETS+=	copies
-.ORDER: etc-examples
 
 copies:
 .for i in ${LDIRS}
@@ -391,9 +390,6 @@ copies:
 		rm -f ${DESTDIR}${BINDIR}/$i; \
 	fi
 .endfor
-
-etc-examples:
-	${_+_}(cd ${SRCTOP}/etc; ${MAKE} etc-examples)
 
 SUBDIR+=	smbfs
 
