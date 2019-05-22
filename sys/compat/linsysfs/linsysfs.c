@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ctype.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -44,7 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_dl.h>
 
+#include <compat/linux/linux.h>
+#include <compat/linux/linux_common.h>
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
 
@@ -62,6 +67,146 @@ static int
 atoi(const char *str)
 {
 	return (int)strtol(str, (char **)NULL, 10);
+}
+
+static int
+linsysfs_ifnet_addr(PFS_FILL_ARGS)
+{
+	struct l_sockaddr lsa;
+	struct ifnet *ifp;
+
+	ifp = ifname_linux_to_bsd(td, pn->pn_parent->pn_name, NULL);
+	if (ifp == NULL)
+		return (ENOENT);
+	if (linux_ifhwaddr(ifp, &lsa) != 0)
+		return (ENOENT);
+	sbuf_printf(sb, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+	    lsa.sa_data[0], lsa.sa_data[1], lsa.sa_data[2],
+	    lsa.sa_data[3], lsa.sa_data[4], lsa.sa_data[5]);
+	return (0);
+}
+
+static int
+linsysfs_ifnet_addrlen(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%d\n", LINUX_IFHWADDRLEN);
+	return (0);
+}
+
+static int
+linsysfs_ifnet_flags(PFS_FILL_ARGS)
+{
+	struct ifnet *ifp;
+	unsigned short flags;
+
+	ifp = ifname_linux_to_bsd(td, pn->pn_parent->pn_name, NULL);
+	if (ifp == NULL)
+		return (ENOENT);
+	linux_ifflags(ifp, &flags);
+	sbuf_printf(sb, "0x%x\n", flags);
+	return (0);
+}
+
+static int
+linsysfs_ifnet_ifindex(PFS_FILL_ARGS)
+{
+	struct ifnet *ifp;
+
+	ifp = ifname_linux_to_bsd(td, pn->pn_parent->pn_name, NULL);
+	if (ifp == NULL)
+		return (ENOENT);
+	sbuf_printf(sb, "%u\n", ifp->if_index);
+	return (0);
+}
+
+static int
+linsysfs_ifnet_mtu(PFS_FILL_ARGS)
+{
+	struct ifnet *ifp;
+
+	ifp = ifname_linux_to_bsd(td, pn->pn_parent->pn_name, NULL);
+	if (ifp == NULL)
+		return (ENOENT);
+	sbuf_printf(sb, "%u\n", ifp->if_mtu);
+	return (0);
+}
+
+static int
+linsysfs_ifnet_tx_queue_len(PFS_FILL_ARGS)
+{
+
+	/* XXX */
+	sbuf_printf(sb, "1000\n");
+	return (0);
+}
+
+static int
+linsysfs_ifnet_type(PFS_FILL_ARGS)
+{
+	struct l_sockaddr lsa;
+	struct ifnet *ifp;
+
+	ifp = ifname_linux_to_bsd(td, pn->pn_parent->pn_name, NULL);
+	if (ifp == NULL)
+		return (ENOENT);
+	if (linux_ifhwaddr(ifp, &lsa) != 0)
+		return (ENOENT);
+	sbuf_printf(sb, "%d\n", lsa.sa_family);
+	return (0);
+}
+
+static void
+linsysfs_listnics(struct pfs_node *dir)
+{
+	struct pfs_node *nic;
+	struct pfs_node *lo;
+
+	nic = pfs_create_dir(dir, "eth0", NULL, NULL, NULL, 0);
+
+	pfs_create_file(nic, "address", &linsysfs_ifnet_addr,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(nic, "addr_len", &linsysfs_ifnet_addrlen,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(nic, "flags", &linsysfs_ifnet_flags,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(nic, "ifindex", &linsysfs_ifnet_ifindex,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(nic, "mtu", &linsysfs_ifnet_mtu,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(nic, "tx_queue_len", &linsysfs_ifnet_tx_queue_len,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(nic, "type", &linsysfs_ifnet_type,
+	    NULL, NULL, NULL, PFS_RD);
+
+	lo = pfs_create_dir(dir, "lo", NULL, NULL, NULL, 0);
+
+	pfs_create_file(lo, "address", &linsysfs_ifnet_addr,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(lo, "addr_len", &linsysfs_ifnet_addrlen,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(lo, "flags", &linsysfs_ifnet_flags,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(lo, "ifindex", &linsysfs_ifnet_ifindex,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(lo, "mtu", &linsysfs_ifnet_mtu,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(lo, "tx_queue_len", &linsysfs_ifnet_tx_queue_len,
+	    NULL, NULL, NULL, PFS_RD);
+
+	pfs_create_file(lo, "type", &linsysfs_ifnet_type,
+	    NULL, NULL, NULL, PFS_RD);
 }
 
 /*
@@ -475,6 +620,7 @@ linsysfs_init(PFS_INIT_ARGS)
 	struct pfs_node *drm;
 	struct pfs_node *pci;
 	struct pfs_node *scsi;
+	struct pfs_node *net;
 	struct pfs_node *devdir, *chardev;
 	devclass_t devclass;
 	device_t dev;
@@ -487,6 +633,9 @@ linsysfs_init(PFS_INIT_ARGS)
 	class = pfs_create_dir(root, "class", NULL, NULL, NULL, 0);
 	scsi = pfs_create_dir(class, "scsi_host", NULL, NULL, NULL, 0);
 	drm = pfs_create_dir(class, "drm", NULL, NULL, NULL, 0);
+
+	/* /sys/class/net/.. */
+	net = pfs_create_dir(class, "net", NULL, NULL, NULL, 0);
 
 	/* /sys/dev/... */
 	devdir = pfs_create_dir(root, "dev", NULL, NULL, NULL, 0);
@@ -514,6 +663,7 @@ linsysfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 
 	linsysfs_listcpus(cpu);
+	linsysfs_listnics(net);
 
 	return (0);
 }
