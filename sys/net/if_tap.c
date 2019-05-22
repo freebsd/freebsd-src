@@ -223,15 +223,17 @@ tap_destroy(struct tap_softc *tp)
 	struct ifnet *ifp = tp->tap_ifp;
 
 	CURVNET_SET(ifp->if_vnet);
-	sx_xlock(&tap_ioctl_sx);
-	ifp->if_softc = NULL;
-	sx_xunlock(&tap_ioctl_sx);
 
 	destroy_dev(tp->tap_dev);
 	seldrain(&tp->tap_rsel);
 	knlist_clear(&tp->tap_rsel.si_note, 0);
 	knlist_destroy(&tp->tap_rsel.si_note);
 	ether_ifdetach(ifp);
+
+	sx_xlock(&tap_ioctl_sx);
+	ifp->if_softc = NULL;
+	sx_xunlock(&tap_ioctl_sx);
+
 	if_free(ifp);
 
 	mtx_destroy(&tp->tap_mtx);

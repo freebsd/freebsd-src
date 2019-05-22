@@ -278,13 +278,15 @@ tun_destroy(struct tun_softc *tp)
 		mtx_unlock(&tp->tun_mtx);
 
 	CURVNET_SET(TUN2IFP(tp)->if_vnet);
-	sx_xlock(&tun_ioctl_sx);
-	TUN2IFP(tp)->if_softc = NULL;
-	sx_xunlock(&tun_ioctl_sx);
 
 	dev = tp->tun_dev;
 	bpfdetach(TUN2IFP(tp));
 	if_detach(TUN2IFP(tp));
+
+	sx_xlock(&tun_ioctl_sx);
+	TUN2IFP(tp)->if_softc = NULL;
+	sx_xunlock(&tun_ioctl_sx);
+
 	free_unr(tun_unrhdr, TUN2IFP(tp)->if_dunit);
 	if_free(TUN2IFP(tp));
 	destroy_dev(dev);
