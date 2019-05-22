@@ -16,7 +16,7 @@ SUBDIR+=sendmail
 
 BIN1=	\
 	login.access \
-	termcap.small
+	login.access
 
 # NB: keep these sorted by MK_* knobs
 
