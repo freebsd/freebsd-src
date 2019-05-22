@@ -1251,7 +1251,7 @@ vm_map_entry_unlink(vm_map_t map,
  *	The map must be locked, and leaves it so.
  */
 static void
-vm_map_entry_resize_free(vm_map_t map, vm_map_entry_t entry)
+vm_map_entry_resize_free(vm_map_t map, vm_map_entry_t entry, size_t grow_amount)
 {
 	vm_map_entry_t llist, rlist, root;
 
@@ -1262,11 +1262,12 @@ vm_map_entry_resize_free(vm_map_t map, vm_map_entry_t entry)
 	    ("vm_map_entry_resize_free: resize_free object not mapped"));
 	vm_map_splay_findnext(root, &rlist);
 	root->right = NULL;
+	entry->end += grow_amount;
 	map->root = vm_map_splay_merge(root, llist, rlist,
 	    root->left, root->right);
 	VM_MAP_ASSERT_CONSISTENT(map);
-	CTR3(KTR_VM, "vm_map_entry_resize_free: map %p, nentries %d, entry %p", map,
-	    map->nentries, entry);
+	CTR3(KTR_VM, "vm_map_entry_resize_free: map %p, nentries %d, entry %p",
+            map, map->nentries, entry);
 }
 
 /*
@@ -1486,8 +1487,8 @@ charged:
 			    prev_entry));
 			if ((prev_entry->eflags & MAP_ENTRY_GUARD) == 0)
 				map->size += end - prev_entry->end;
-			prev_entry->end = end;
-			vm_map_entry_resize_free(map, prev_entry);
+			vm_map_entry_resize_free(map, prev_entry,
+			    end - prev_entry->end);
 			vm_map_simplify_entry(map, prev_entry);
 			return (KERN_SUCCESS);
 		}
@@ -4314,7 +4315,7 @@ retry:
 		} else {
 			MPASS(gap_entry->start < gap_entry->end - grow_amount);
 			gap_entry->end -= grow_amount;
-			vm_map_entry_resize_free(map, gap_entry);
+			vm_map_entry_resize_free(map, gap_entry, -grow_amount);
 			gap_deleted = false;
 		}
 		rv = vm_map_insert(map, NULL, 0, grow_start,
@@ -4327,10 +4328,9 @@ retry:
 				    gap_end, VM_PROT_NONE, VM_PROT_NONE,
 				    MAP_CREATE_GUARD | MAP_CREATE_STACK_GAP_DN);
 				MPASS(rv1 == KERN_SUCCESS);
-			} else {
-				gap_entry->end += grow_amount;
-				vm_map_entry_resize_free(map, gap_entry);
-			}
+			} else
+				vm_map_entry_resize_free(map, gap_entry,
+				    grow_amount);
 		}
 	} else {
 		grow_start = stack_entry->end;
@@ -4349,9 +4349,8 @@ retry:
 				vm_map_entry_delete(map, gap_entry);
 			else
 				gap_entry->start += grow_amount;
-			stack_entry->end += grow_amount;
 			map->size += grow_amount;
-			vm_map_entry_resize_free(map, stack_entry);
+			vm_map_entry_resize_free(map, stack_entry, grow_amount);
 			rv = KERN_SUCCESS;
 		} else
 			rv = KERN_FAILURE;
