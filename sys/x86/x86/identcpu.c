@@ -983,11 +983,18 @@ printcpuinfo(void)
 				       "\004PKU"
 				       "\005OSPKE"
 				       "\006WAITPKG"
+				       "\007AVX512VBMI2"
 				       "\011GFNI"
+				       "\012VAES"
+				       "\013VPCLMULQDQ"
+				       "\014AVX512VNNI"
+				       "\015AVX512BITALG"
+				       "\016AVX512VPOPCNTDQ"
 				       "\027RDPID"
 				       "\032CLDEMOTE"
 				       "\034MOVDIRI"
 				       "\035MOVDIRI64B"
+				       "\036ENQCMD"
 				       "\037SGXLC"
 				       );
 			}
@@ -996,8 +1003,12 @@ printcpuinfo(void)
 				printf("\n  Structured Extended Features3=0x%b",
 				    cpu_stdext_feature3,
 				       "\020"
+				       "\003AVX512_4VNNIW"
+				       "\004AVX512_4FMAPS"
+				       "\011AVX512VP2INTERSECT"
 				       "\013MD_CLEAR"
 				       "\016TSXFA"
+				       "\023PCONFIG"
 				       "\033IBPB"
 				       "\034STIBP"
 				       "\035L1DFL"
