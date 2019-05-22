@@ -528,7 +528,6 @@ static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag, pid_t pid)
 {
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct buf *bp;
 	daddr_t lbn;
 	off_t filesize;
@@ -749,9 +748,6 @@ again:
 		if (err)
 			break;
 	} while (uio->uio_resid > 0 && n > 0);
-
-	if ((fvdat->flag & FN_SIZECHANGE) != 0)
-		fuse_vnode_savesize(vp, cred, pid);
 
 	return (err);
 }
