@@ -58,7 +58,7 @@
 #ifdef _KERNEL
 
 #if !defined(LOCK_FILE) || !defined(LOCK_LINE)
-#error	"LOCK_FILE and LOCK_LINE not defined, include <sys/_lock.h> before"
+#error	"LOCK_FILE and LOCK_LINE not defined, include <sys/lock.h> before"
 #endif
 
 struct thread;
