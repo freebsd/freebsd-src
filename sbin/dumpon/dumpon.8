@@ -345,21 +345,17 @@ BOUND|REBIND|REBOOT|RENEW)
 		break
 	fi
 	if [ -n "$new_routers" ]; then
-                # Take the first router in the list.
+		# Take the first router in the list.
 		gateway_flag="-g ${new_routers%% *}"
 	fi
-	dumpon -c $new_ip_address -s $server $gateway_flag vtnet0
+	# Configure as the highest-priority dump device.
+	dumpon -i 0 -c $new_ip_address -s $server $gateway_flag vtnet0
 	;;
 esac
 .Ed
 .Pp
 Be sure to fill in the server IP address and change the interface name if
-needed, and to configure
-.Pp
-.Dl dumpdev="NO"
-.Pp
-in
-.Pa /etc/rc.conf .
+needed.
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr kgdb 1 ,
