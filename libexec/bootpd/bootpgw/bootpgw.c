@@ -500,7 +500,8 @@ static void
 usage()
 {
 	fprintf(stderr,
-			"usage:  \nbootpgw [-a] [-d level] [-h count] [-i] [-s] [-t timeout] [-w time] server\n");
+		"usage: bootpgw [-a] [-i | -s] [-d level] [-h count] [-t timeout]\n"
+		"               [-w time] server\n");
 	fprintf(stderr, "\t -a\tdon't modify ARP table\n");
 	fprintf(stderr, "\t -d n\tset debug level\n");
 	fprintf(stderr, "\t -h n\tset max hop count\n");
