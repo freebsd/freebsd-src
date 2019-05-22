@@ -455,9 +455,12 @@ hpet_probe(device_t dev)
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 	if (acpi_disabled("hpet") || acpi_hpet_disabled)
 		return (ENXIO);
-	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids, NULL);
+	if (acpi_get_handle(dev) != NULL)
+		rv = ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids, NULL);
+	else
+		rv = 0;
 	if (rv <= 0)
-	   device_set_desc(dev, "High Precision Event Timer");
+		device_set_desc(dev, "High Precision Event Timer");
 	return (rv);
 }
 
