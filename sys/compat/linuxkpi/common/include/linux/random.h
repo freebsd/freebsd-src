@@ -35,6 +35,8 @@
 #include <sys/random.h>
 #include <sys/libkern.h>
 
+#define	get_random_u32() get_random_int()
+
 static inline void
 get_random_bytes(void *buf, int nbytes)
 {
