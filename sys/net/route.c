@@ -1995,7 +1995,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	char tempbuf[_SOCKADDR_TMPSIZE];
 	int didwork = 0;
 	int a_failure = 0;
-	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+	struct sockaddr_dl *sdl = NULL;
 	struct rib_head *rnh;
 
 	if (flags & RTF_HOST) {
@@ -2046,7 +2046,14 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			rt_maskedcopy(dst, (struct sockaddr *)tempbuf, netmask);
 			dst = (struct sockaddr *)tempbuf;
 		}
-	}
+	} else if (cmd == RTM_ADD) {
+		sdl = (struct sockaddr_dl *)tempbuf;
+		bzero(sdl, sizeof(struct sockaddr_dl));
+		sdl->sdl_family = AF_LINK;
+		sdl->sdl_len = sizeof(struct sockaddr_dl);
+		sdl->sdl_type = ifa->ifa_ifp->if_type;
+		sdl->sdl_index = ifa->ifa_ifp->if_index;
+        }
 	/*
 	 * Now go through all the requested tables (fibs) and do the
 	 * requested action. Realistically, this will either be fib 0
@@ -2109,8 +2116,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		 * doing this for compatibility reasons
 		 */
 		if (cmd == RTM_ADD)
-			info.rti_info[RTAX_GATEWAY] =
-			    (struct sockaddr *)&null_sdl;
+			info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)sdl;
 		else
 			info.rti_info[RTAX_GATEWAY] = ifa->ifa_addr;
 		info.rti_info[RTAX_NETMASK] = netmask;
@@ -2137,15 +2143,6 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 				rt->rt_ifa = ifa;
 			}
 #endif
-			/* 
-			 * doing this for compatibility reasons
-			 */
-			if (cmd == RTM_ADD) {
-			    ((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-				rt->rt_ifp->if_type;
-			    ((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-				rt->rt_ifp->if_index;
-			}
 			RT_ADDREF(rt);
 			RT_UNLOCK(rt);
 			rt_newaddrmsg_fib(cmd, ifa, error, rt, fibnum);
