@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2019
+.Dd May 12, 2019
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -34,6 +34,10 @@
 .Op Fl r
 .Op Fl e Brq Ar nonActiveBe | Ar beName Ns Cm @ Ns Ar snapshot
 .Ar newBeName
+.Nm
+.Cm create
+.Op Fl r
+.Ar beName@snapshot
 .Nm
 .Cm destroy
 .Op Fl \&Fo
@@ -120,6 +124,20 @@ Otherwise, the new environment will be created from the currently booted environ
 If
 .Nm
 is creating from another boot environment, a snapshot of that boot environment will be created to clone from.
+.It Xo
+.Cm create
+.Op Fl r
+.Ar beName@snapshot
+.Xc
+Create a snapshot of the boot environment named
+.Ar beName .
+.Pp
+If the
+.Fl r
+flag is given, a recursive snapshot of the boot environment will be created.
+A snapshot is created for each descendant dataset of the boot environment.
+.Pp
+No new boot environment is created with this command.
 .It Xo
 .Cm destroy
 .Op Fl \&Fo
