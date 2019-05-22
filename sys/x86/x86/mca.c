@@ -90,6 +90,13 @@ struct mca_internal {
 	STAILQ_ENTRY(mca_internal) link;
 };
 
+struct mca_enumerator_ops {
+        unsigned int (*ctl)(int);
+        unsigned int (*status)(int);
+        unsigned int (*addr)(int);
+        unsigned int (*misc)(int);
+};
+
 static MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 
 static volatile int mca_count;	/* Number of records stored. */
@@ -123,6 +130,61 @@ static int mca_ticks = 3600;	/* Check hourly by default. */
 static struct taskqueue *mca_tq;
 static struct task mca_refill_task, mca_scan_task;
 static struct mtx mca_lock;
+
+static unsigned int
+mca_ia32_ctl_reg(int bank)
+{
+	return (MSR_MC_CTL(bank));
+}
+
+static unsigned int
+mca_ia32_status_reg(int bank)
+{
+	return (MSR_MC_STATUS(bank));
+}
+
+static unsigned int
+mca_ia32_addr_reg(int bank)
+{
+	return (MSR_MC_ADDR(bank));
+}
+
+static unsigned int
+mca_ia32_misc_reg(int bank)
+{
+	return (MSR_MC_MISC(bank));
+}
+
+static unsigned int
+mca_smca_ctl_reg(int bank)
+{
+        return (MSR_SMCA_MC_CTL(bank));
+}
+
+static unsigned int
+mca_smca_status_reg(int bank)
+{
+        return (MSR_SMCA_MC_STATUS(bank));
+}
+
+static unsigned int
+mca_smca_addr_reg(int bank)
+{
+        return (MSR_SMCA_MC_ADDR(bank));
+}
+
+static unsigned int
+mca_smca_misc_reg(int bank)
+{
+        return (MSR_SMCA_MC_MISC(bank));
+}
+
+static struct mca_enumerator_ops mca_msr_ops = {
+        .ctl    = mca_ia32_ctl_reg,
+        .status = mca_ia32_status_reg,
+        .addr   = mca_ia32_addr_reg,
+        .misc   = mca_ia32_misc_reg
+};
 
 #ifdef DEV_APIC
 static struct cmc_state **cmc_state;		/* Indexed by cpuid, bank. */
@@ -462,7 +524,7 @@ mca_check_status(int bank, struct mca_record *rec)
 	uint64_t status;
 	u_int p[4];
 
-	status = rdmsr(MSR_MC_STATUS(bank));
+	status = rdmsr(mca_msr_ops.status(bank));
 	if (!(status & MC_STATUS_VAL))
 		return (0);
 
@@ -471,10 +533,10 @@ mca_check_status(int bank, struct mca_record *rec)
 	rec->mr_bank = bank;
 	rec->mr_addr = 0;
 	if (status & MC_STATUS_ADDRV)
-		rec->mr_addr = rdmsr(MSR_MC_ADDR(bank));
+		rec->mr_addr = rdmsr(mca_msr_ops.addr(bank));
 	rec->mr_misc = 0;
 	if (status & MC_STATUS_MISCV)
-		rec->mr_misc = rdmsr(MSR_MC_MISC(bank));
+		rec->mr_misc = rdmsr(mca_msr_ops.misc(bank));
 	rec->mr_tsc = rdtsc();
 	rec->mr_apic_id = PCPU_GET(apic_id);
 	rec->mr_mcg_cap = rdmsr(MSR_MCG_CAP);
@@ -488,7 +550,7 @@ mca_check_status(int bank, struct mca_record *rec)
 	 * errors so that the BIOS can see them.
 	 */
 	if (!(rec->mr_status & (MC_STATUS_PCC | MC_STATUS_UC))) {
-		wrmsr(MSR_MC_STATUS(bank), 0);
+		wrmsr(mca_msr_ops.status(bank), 0);
 		do_cpuid(0, p);
 	}
 	return (1);
@@ -648,7 +710,7 @@ amd_thresholding_update(enum scan_mode mode, int bank, int valid)
 	int count;
 
 	cc = &amd_et_state[PCPU_GET(cpuid)][bank];
-	misc = rdmsr(MSR_MC_MISC(bank));
+	misc = rdmsr(mca_msr_ops.misc(bank));
 	count = (misc & MC_MISC_AMD_CNT_MASK) >> MC_MISC_AMD_CNT_SHIFT;
 	count = count - (MC_MISC_AMD_CNT_MAX - cc->cur_threshold);
 
@@ -660,7 +722,7 @@ amd_thresholding_update(enum scan_mode mode, int bank, int valid)
 	misc |= (uint64_t)(MC_MISC_AMD_CNT_MAX - cc->cur_threshold)
 	    << MC_MISC_AMD_CNT_SHIFT;
 	misc &= ~MC_MISC_AMD_OVERFLOW;
-	wrmsr(MSR_MC_MISC(bank), misc);
+	wrmsr(mca_msr_ops.misc(bank), misc);
 	if (mode == CMCI && valid)
 		cc->last_intr = time_uptime;
 }
@@ -978,7 +1040,7 @@ amd_thresholding_start(struct amd_et_state *cc, int bank)
 
 	KASSERT(amd_elvt >= 0, ("ELVT offset is not set"));
 
-	misc = rdmsr(MSR_MC_MISC(bank));
+	misc = rdmsr(mca_msr_ops.misc(bank));
 
 	misc &= ~MC_MISC_AMD_INT_MASK;
 	misc |= MC_MISC_AMD_INT_LVT;
@@ -993,7 +1055,7 @@ amd_thresholding_start(struct amd_et_state *cc, int bank)
 	misc &= ~MC_MISC_AMD_OVERFLOW;
 	misc |= MC_MISC_AMD_CNTEN;
 
-	wrmsr(MSR_MC_MISC(bank), misc);
+	wrmsr(mca_msr_ops.misc(bank), misc);
 }
 
 static void
@@ -1011,7 +1073,7 @@ amd_thresholding_monitor(int i)
 		return;
 
 	/* The counter must be valid and present. */
-	misc = rdmsr(MSR_MC_MISC(i));
+	misc = rdmsr(mca_msr_ops.misc(i));
 	if ((misc & (MC_MISC_AMD_VAL | MC_MISC_AMD_CNTP)) !=
 	    (MC_MISC_AMD_VAL | MC_MISC_AMD_CNTP))
 		return;
@@ -1119,6 +1181,12 @@ _mca_init(int boot)
 			if ((mask & (1UL << 5)) == 0)
 				wrmsr(MSR_MC0_CTL_MASK, mask | (1UL << 5));
 		}
+		if (amd_rascap & AMDRAS_SCALABLE_MCA) {
+			mca_msr_ops.ctl = mca_smca_ctl_reg;
+			mca_msr_ops.status = mca_smca_status_reg;
+			mca_msr_ops.addr = mca_smca_addr_reg;
+			mca_msr_ops.misc = mca_smca_misc_reg;
+		}
 
 		/*
 		 * The cmci_monitor() must not be executed
@@ -1142,12 +1210,13 @@ _mca_init(int boot)
 					skip = 1;
 			} else if (cpu_vendor_id == CPU_VENDOR_AMD) {
 				/* BKDG for Family 10h: unset GartTblWkEn. */
-				if (i == MC_AMDNB_BANK && family >= 0xf)
+				if (i == MC_AMDNB_BANK && family >= 0xf &&
+				    family < 0x17)
 					ctl &= ~(1UL << 10);
 			}
 
 			if (!skip)
-				wrmsr(MSR_MC_CTL(i), ctl);
+				wrmsr(mca_msr_ops.ctl(i), ctl);
 
 #ifdef DEV_APIC
 			if (cmci_supported(mcg_cap)) {
@@ -1164,7 +1233,7 @@ _mca_init(int boot)
 #endif
 
 			/* Clear all errors. */
-			wrmsr(MSR_MC_STATUS(i), 0);
+			wrmsr(mca_msr_ops.status(i), 0);
 		}
 		if (boot)
 			mtx_unlock_spin(&mca_lock);
