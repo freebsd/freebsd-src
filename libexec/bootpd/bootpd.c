@@ -587,8 +587,8 @@ PRIVATE void
 usage()
 {
 	fprintf(stderr,
-			"usage:  bootpd [-a] [-i | -s] [-c chdir-path] [-d level] [-h hostname] [-t timeout]\n");
-	fprintf(stderr, "               [bootptab [dumpfile]]\n");
+		"usage: bootpd [-a] [-i | -s] [-c chdir-path] [-d level] [-h hostname]\n"
+		"              [-t timeout] [bootptab [dumpfile]]\n");
 	fprintf(stderr, "\t -a\tdon't modify ARP table\n");
 	fprintf(stderr, "\t -c n\tset current directory\n");
 	fprintf(stderr, "\t -d n\tset debug level\n");
