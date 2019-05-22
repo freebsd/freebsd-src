@@ -944,6 +944,16 @@
 #define	MC_MISC_AMD_PTR_MASK	0x00000000ff000000	/* Pointer to additional registers */
 #define	MC_MISC_AMD_PTR_SHIFT	24
 
+/* AMD Scalable MCA */
+#define MSR_SMCA_MC0_CTL          0xc0002000
+#define MSR_SMCA_MC0_STATUS       0xc0002001
+#define MSR_SMCA_MC0_ADDR         0xc0002002
+#define MSR_SMCA_MC0_MISC0        0xc0002003
+#define MSR_SMCA_MC_CTL(x)       (MSR_SMCA_MC0_CTL + 0x10 * (x))
+#define MSR_SMCA_MC_STATUS(x)    (MSR_SMCA_MC0_STATUS + 0x10 * (x))
+#define MSR_SMCA_MC_ADDR(x)      (MSR_SMCA_MC0_ADDR + 0x10 * (x))
+#define MSR_SMCA_MC_MISC(x)      (MSR_SMCA_MC0_MISC0 + 0x10 * (x))
+
 /*
  * The following four 3-byte registers control the non-cacheable regions.
  * These registers must be written as three separate bytes.
