@@ -29,6 +29,23 @@
 #ifndef _LINUX_MI_H_
 #define _LINUX_MI_H_
 
+#define	LINUX_IFHWADDRLEN	6
+#define	LINUX_IFNAMSIZ		16
+
+/*
+ * Criteria for interface name translation
+ */
+#define	IFP_IS_ETH(ifp)		(ifp->if_type == IFT_ETHER)
+#define	IFP_IS_LOOP(ifp)	(ifp->if_type == IFT_LOOP)
+
+struct l_sockaddr {
+	unsigned short	sa_family;
+	char		sa_data[14];
+};
+
+#define	LINUX_ARPHRD_ETHER	1
+#define	LINUX_ARPHRD_LOOPBACK	772
+
 /* sigaltstack */
 #define	LINUX_SS_ONSTACK	1
 #define	LINUX_SS_DISABLE	2
