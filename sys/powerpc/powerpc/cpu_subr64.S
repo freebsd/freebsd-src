@@ -31,7 +31,6 @@
 
 #include <machine/asm.h>
 
-	.globl	CNAME(power_save_sequence)
 	.p2align 3
 ENTRY(enter_idle_powerx)
 	mfsprg0	%r3			/* Get the pcpu pointer */
@@ -65,11 +64,9 @@ ENTRY(enter_idle_powerx)
 	std	%r1,PCB_SP(%r3)		/* Save the stack pointer */
 	std	%r2,PCB_TOC(%r3)	/* Save the TOC pointer */
 
-	/* Set where we want to jump */
 	bl	1f
-	.llong power_save_sequence	/* Remember about 8 byte alignment */
 1:	mflr	%r3
-	ld	%r3,0(%r3)
+	addi	%r3,%r3,power_save_sequence-1b
 	mtsrr0	%r3
 
 	/* Set MSR */
@@ -82,7 +79,7 @@ ENTRY(enter_idle_powerx)
 	rfid
 
 	.p2align 2
-CNAME(power_save_sequence):
+power_save_sequence:
 	bl	1f
 	.llong	0x0			/* Playground for power-save sequence */
 1:	mflr	%r3
