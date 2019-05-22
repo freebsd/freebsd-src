@@ -81,6 +81,8 @@ unsigned char *verify_asc(const char *, int); /* OpenPGP */
 void ve_pcr_init(void);
 void ve_pcr_update(unsigned char *, size_t);
 ssize_t ve_pcr_get(unsigned char *, size_t);
+int ve_pcr_updating_get(void);
+void ve_pcr_updating_set(int);
 
 /* flags for verify_{asc,sig,signed} */
 #define VEF_VERBOSE		1
