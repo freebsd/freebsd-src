@@ -39,31 +39,31 @@
 # done
 
 # 20190517: Remove obsolete 10 and 10/100 ethernet drivers.
-OLD_FILES+=usr/share/man/man4/bm.4
-OLD_FILES+=usr/share/man/man4/cs.4
-OLD_FILES+=usr/share/man/man4/de.4
-OLD_FILES+=usr/share/man/man4/if_de.4
-OLD_FILES+=usr/share/man/man4/ed.4
-OLD_FILES+=usr/share/man/man4/if_ed.4
-OLD_FILES+=usr/share/man/man4/ep.4
-OLD_FILES+=usr/share/man/man4/ex.4
-OLD_FILES+=usr/share/man/man4/fe.4
-OLD_FILES+=usr/share/man/man4/pcn.4
-OLD_FILES+=usr/share/man/man4/if_pcn.4
-OLD_FILES+=usr/share/man/man4/sf.4
-OLD_FILES+=usr/share/man/man4/if_sf.4
-OLD_FILES+=usr/share/man/man4/sn.4
-OLD_FILES+=usr/share/man/man4/if_sn.4
-OLD_FILES+=usr/share/man/man4/tl.4
-OLD_FILES+=usr/share/man/man4/if_tl.4
-OLD_FILES+=usr/share/man/man4/tx.4
-OLD_FILES+=usr/share/man/man4/if_tx.4
-OLD_FILES+=usr/share/man/man4/txp.4
-OLD_FILES+=usr/share/man/man4/if_txp.4
-OLD_FILES+=usr/share/man/man4/vx.4
-OLD_FILES+=usr/share/man/man4/wb.4
-OLD_FILES+=usr/share/man/man4/xe.4
-OLD_FILES+=usr/share/man/man4/if_xe.4
+OLD_FILES+=usr/share/man/man4/bm.4.gz
+OLD_FILES+=usr/share/man/man4/cs.4.gz
+OLD_FILES+=usr/share/man/man4/de.4.gz
+OLD_FILES+=usr/share/man/man4/if_de.4.gz
+OLD_FILES+=usr/share/man/man4/ed.4.gz
+OLD_FILES+=usr/share/man/man4/if_ed.4.gz
+OLD_FILES+=usr/share/man/man4/ep.4.gz
+OLD_FILES+=usr/share/man/man4/ex.4.gz
+OLD_FILES+=usr/share/man/man4/fe.4.gz
+OLD_FILES+=usr/share/man/man4/pcn.4.gz
+OLD_FILES+=usr/share/man/man4/if_pcn.4.gz
+OLD_FILES+=usr/share/man/man4/sf.4.gz
+OLD_FILES+=usr/share/man/man4/if_sf.4.gz
+OLD_FILES+=usr/share/man/man4/sn.4.gz
+OLD_FILES+=usr/share/man/man4/if_sn.4.gz
+OLD_FILES+=usr/share/man/man4/tl.4.gz
+OLD_FILES+=usr/share/man/man4/if_tl.4.gz
+OLD_FILES+=usr/share/man/man4/tx.4.gz
+OLD_FILES+=usr/share/man/man4/if_tx.4.gz
+OLD_FILES+=usr/share/man/man4/txp.4.gz
+OLD_FILES+=usr/share/man/man4/if_txp.4.gz
+OLD_FILES+=usr/share/man/man4/vx.4.gz
+OLD_FILES+=usr/share/man/man4/wb.4.gz
+OLD_FILES+=usr/share/man/man4/xe.4.gz
+OLD_FILES+=usr/share/man/man4/if_xe.4.gz
 # 20190513: libcap_sysctl interface change
 OLD_FILES+=lib/casper/libcap_sysctl.1
 # 20190509: tests/sys/opencrypto requires the net/py-dpkt package.
