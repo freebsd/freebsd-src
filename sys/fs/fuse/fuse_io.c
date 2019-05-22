@@ -883,9 +883,6 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 					bp->b_ioflags |= BIO_ERROR;
 					bp->b_flags |= B_INVAL;
 					bp->b_error = error;
-				} else {
-					fuse_io_clear_suid_on_write(vp, cred,
-						uio.uio_td);
 				}
 				bp->b_dirtyoff = bp->b_dirtyend = 0;
 			}

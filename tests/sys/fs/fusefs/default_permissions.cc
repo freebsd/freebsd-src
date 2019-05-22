@@ -68,7 +68,7 @@ virtual void SetUp() {
 }
 
 public:
-void expect_chmod(uint64_t ino, mode_t mode)
+void expect_chmod(uint64_t ino, mode_t mode, uint64_t size = 0)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -82,6 +82,7 @@ void expect_chmod(uint64_t ino, mode_t mode)
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | mode;
+		out->body.attr.attr.size = size;
 		out->body.attr.attr_valid = UINT64_MAX;
 	})));
 }
@@ -1229,7 +1230,7 @@ TEST_F(Write, clear_suid)
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
 	expect_open(ino, 0, 1);
 	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, wbuf);
-	expect_chmod(ino, newmode);
+	expect_chmod(ino, newmode, sizeof(wbuf));
 
 	fd = open(FULLPATH, O_WRONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -1255,7 +1256,7 @@ TEST_F(Write, clear_sgid)
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
 	expect_open(ino, 0, 1);
 	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, wbuf);
-	expect_chmod(ino, newmode);
+	expect_chmod(ino, newmode, sizeof(wbuf));
 
 	fd = open(FULLPATH, O_WRONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -1264,3 +1265,34 @@ TEST_F(Write, clear_sgid)
 	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
+
+/* Regression test for a specific recurse-of-nonrecursive-lock panic
+ *
+ * With writeback caching, we can't call vtruncbuf from fuse_io_strategy, or it
+ * may panic.  That happens if the FUSE_SETATTR response indicates that the
+ * file's size has changed since the write.
+ */
+TEST_F(Write, recursion_panic_while_clearing_suid)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	mode_t oldmode = 04777;
+	mode_t newmode = 0777;
+	char wbuf[1] = {'x'};
+	int fd;
+
+	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
+	expect_open(ino, 0, 1);
+	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, wbuf);
+	/* XXX Return a smaller file size than what we just wrote! */
+	expect_chmod(ino, newmode, 0);
+
+	fd = open(FULLPATH, O_WRONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(1, write(fd, wbuf, sizeof(wbuf))) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+
