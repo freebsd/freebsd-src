@@ -1894,8 +1894,7 @@ restart:
 static int
 nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 {
-	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
-	struct rib_head *rnh;
+	struct sockaddr_dl sdl;
 	struct rtentry *rt;
 	struct sockaddr_in6 mask6;
 	u_long rtflags;
@@ -1910,6 +1909,12 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 	mask6.sin6_addr = pr->ndpr_mask;
 	rtflags = (ifa->ifa_flags & ~IFA_RTSELF) | RTF_UP;
 
+	bzero(&sdl, sizeof(struct sockaddr_dl));
+	sdl.sdl_len = sizeof(struct sockaddr_dl);
+	sdl.sdl_family = AF_LINK;
+	sdl.sdl_type = ifa->ifa_ifp->if_type;
+	sdl.sdl_index = ifa->ifa_ifp->if_index;
+
 	if(V_rt_add_addr_allfibs) {
 		fibnum = 0;
 		maxfib = rt_numfibs;
@@ -1922,26 +1927,13 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 
 		rt = NULL;
 		error = in6_rtrequest(RTM_ADD,
-		    (struct sockaddr *)&pr->ndpr_prefix, ifa->ifa_addr,
+		    (struct sockaddr *)&pr->ndpr_prefix, (struct sockaddr *)&sdl,
 		    (struct sockaddr *)&mask6, rtflags, &rt, fibnum);
 		if (error == 0) {
 			KASSERT(rt != NULL, ("%s: in6_rtrequest return no "
 			    "error(%d) but rt is NULL, pr=%p, ifa=%p", __func__,
 			    error, pr, ifa));
-
-			rnh = rt_tables_get_rnh(rt->rt_fibnum, AF_INET6);
-			/* XXX what if rhn == NULL? */
-			RIB_WLOCK(rnh);
 			RT_LOCK(rt);
-			if (rt_setgate(rt, rt_key(rt),
-			    (struct sockaddr *)&null_sdl) == 0) {
-				struct sockaddr_dl *dl;
-
-				dl = (struct sockaddr_dl *)rt->rt_gateway;
-				dl->sdl_type = rt->rt_ifp->if_type;
-				dl->sdl_index = rt->rt_ifp->if_index;
-			}
-			RIB_WUNLOCK(rnh);
 			nd6_rtmsg(RTM_ADD, rt);
 			RT_UNLOCK(rt);
 			pr->ndpr_stateflags |= NDPRF_ONLINK;
