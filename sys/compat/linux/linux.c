@@ -227,21 +227,22 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 	struct ifnet *ifp;
 	int len, unit;
 	char *ep;
-	int is_eth, is_lo, index;
+	int index;
+	bool is_eth, is_lo;
 
 	for (len = 0; len < LINUX_IFNAMSIZ; ++len)
-		if (!isalpha(lxname[len]) || lxname[len] == 0)
+		if (!isalpha(lxname[len]) || lxname[len] == '\0')
 			break;
 	if (len == 0 || len == LINUX_IFNAMSIZ)
 		return (NULL);
 	/* Linux loopback interface name is lo (not lo0) */
-	is_lo = (len == 2 && !strncmp(lxname, "lo", len)) ? 1 : 0;
+	is_lo = (len == 2 && strncmp(lxname, "lo", len) == 0);
 	unit = (int)strtoul(lxname + len, &ep, 10);
 	if ((ep == NULL || ep == lxname + len || ep >= lxname + LINUX_IFNAMSIZ) &&
 	    is_lo == 0)
 		return (NULL);
 	index = 0;
-	is_eth = (len == 3 && !strncmp(lxname, "eth", len)) ? 1 : 0;
+	is_eth = (len == 3 && strncmp(lxname, "eth", len) == 0);
 
 	CURVNET_SET(TD_TO_VNET(td));
 	IFNET_RLOCK();
