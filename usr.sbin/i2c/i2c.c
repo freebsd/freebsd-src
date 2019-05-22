@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #define	I2C_MODE_NONE		1
 #define	I2C_MODE_STOP_START	2
 #define	I2C_MODE_REPEATED_START	3
+#define	I2C_MODE_TRANSFER	4
 
 struct options {
 	int	width;
@@ -73,7 +74,7 @@ usage(void)
 {
 
 	fprintf(stderr, "usage: %s -a addr [-f device] [-d [r|w]] [-o offset] "
-	    "[-w [0|8|16]] [-c count] [-m [ss|rs|no]] [-b] [-v]\n",
+	    "[-w [0|8|16]] [-c count] [-m [tr|ss|rs|no]] [-b] [-v]\n",
 	    getprogname());
 	fprintf(stderr, "       %s -s [-f device] [-n skip_addr] -v\n",
 	    getprogname());
@@ -297,23 +298,8 @@ static int
 i2c_write(char *dev, struct options i2c_opt, char *i2c_buf)
 {
 	struct iiccmd cmd;
-	int ch, i, error, fd, bufsize;
+	int error, fd, bufsize;
 	char *err_msg, *buf;
-
-	/*
-	 * Read data to be written to the chip from stdin
-	 */
-	if (i2c_opt.verbose && !i2c_opt.binary)
-		fprintf(stderr, "Enter %u bytes of data: ", i2c_opt.count);
-
-	for (i = 0; i < i2c_opt.count; i++) {
-		ch = getchar();
-		if (ch == EOF) {
-			free(i2c_buf);
-			err(1, "not enough data, exiting\n");
-		}
-		i2c_buf[i] = ch;
-	}
 
 	fd = open(dev, O_RDWR);
 	if (fd == -1) {
@@ -558,6 +544,72 @@ err2:
 	return (1);
 }
 
+/*
+ * i2c_rdwr_transfer() - use I2CRDWR to conduct a complete i2c transfer.
+ *
+ * Some i2c hardware is unable to provide direct control over START, REPEAT-
+ * START, and STOP operations.  Such hardware can only perform a complete
+ * START-<data>-STOP or START-<data>-REPEAT-START-<data>-STOP sequence as a
+ * single operation.  The driver framework refers to this sequence as a
+ * "transfer" so we call it "transfer mode".  We assemble either one or two
+ * iic_msg structures to describe the IO operations, and hand them off to the
+ * driver to be handled as a single transfer.
+ */
+static int
+i2c_rdwr_transfer(char *dev, struct options i2c_opt, char *i2c_buf)
+{
+	struct iic_msg msgs[2];
+	struct iic_rdwr_data xfer;
+	int fd, i;
+	union {
+		uint8_t  buf[2];
+		uint8_t  off8;
+		uint16_t off16;
+	} off;
+
+	i = 0;
+	if (i2c_opt.width > 0) {
+		msgs[i].flags = IIC_M_WR | IIC_M_NOSTOP;
+		msgs[i].slave = i2c_opt.addr;
+		msgs[i].buf   = off.buf;
+		if (i2c_opt.width == 8) {
+			off.off8 = (uint8_t)i2c_opt.off;
+			msgs[i].len = 1;
+		} else {
+			off.off16 = (uint16_t)i2c_opt.off;
+			msgs[i].len = 2;
+		}
+		++i;
+	}
+
+	/*
+	 * If the transfer direction is write and we did a write of the offset
+	 * above, then we need to elide the start; this transfer is just more
+	 * writing that follows the one started above.  For a read, we always do
+	 * a start; if we did an offset write above it'll be a repeat-start
+	 * because of the NOSTOP flag used above.
+	 */
+	if (i2c_opt.dir == 'w')
+		msgs[i].flags = IIC_M_WR | (i > 0) ? IIC_M_NOSTART : 0;
+	else
+		msgs[i].flags = IIC_M_RD;
+	msgs[i].slave = i2c_opt.addr;
+	msgs[i].len   = i2c_opt.count;
+	msgs[i].buf   = i2c_buf;
+	++i;
+
+	xfer.msgs = msgs;
+	xfer.nmsgs = i;
+
+	if ((fd = open(dev, O_RDWR)) == -1)
+		err(1, "open(%s) failed", dev);
+	if (ioctl(fd, I2CRDWR, &xfer) == -1 )
+		err(1, "ioctl(I2CRDWR) failed");
+	close(fd);
+
+	return (0);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -620,6 +672,8 @@ main(int argc, char** argv)
 				i2c_opt.mode = I2C_MODE_STOP_START;
 			else if (!strcmp(optarg, "rs"))
 				i2c_opt.mode = I2C_MODE_REPEATED_START;
+			else if (!strcmp(optarg, "tr"))
+				i2c_opt.mode = I2C_MODE_TRANSFER;
 			else
 				usage();
 			break;
@@ -687,19 +741,33 @@ main(int argc, char** argv)
 	if (i2c_buf == NULL)
 		err(1, "data malloc");
 
+	/*
+	 * For a write, read the data to be written to the chip from stdin.
+	 */
 	if (i2c_opt.dir == 'w') {
-		error = i2c_write(dev, i2c_opt, i2c_buf);
-		if (error) {
-			free(i2c_buf);
-			return (1);
+		if (i2c_opt.verbose && !i2c_opt.binary)
+			fprintf(stderr, "Enter %u bytes of data: ",
+			    i2c_opt.count);
+		for (i = 0; i < i2c_opt.count; i++) {
+			ch = getchar();
+			if (ch == EOF) {
+				free(i2c_buf);
+				err(1, "not enough data, exiting\n");
+			}
+			i2c_buf[i] = ch;
 		}
 	}
-	if (i2c_opt.dir == 'r') {
+
+	if (i2c_opt.mode == I2C_MODE_TRANSFER)
+		error = i2c_rdwr_transfer(dev, i2c_opt, i2c_buf);
+	else if (i2c_opt.dir == 'w')
+		error = i2c_write(dev, i2c_opt, i2c_buf);
+	else
 		error = i2c_read(dev, i2c_opt, i2c_buf);
-		if (error) {
-			free(i2c_buf);
-			return (1);
-		}
+
+	if (error != 0) {
+		free(i2c_buf);
+		return (1);
 	}
 
 	if (i2c_opt.verbose)
