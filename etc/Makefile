@@ -16,7 +16,6 @@ SUBDIR+=sendmail
 
 BIN1=	\
 	login.access \
-	rc.bsdextended \
 	termcap.small
 
 # NB: keep these sorted by MK_* knobs
