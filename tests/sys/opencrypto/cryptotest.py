@@ -42,7 +42,9 @@ from glob import iglob
 katdir = '/usr/local/share/nist-kat'
 
 def katg(base, glob):
-	assert os.path.exists(os.path.join(katdir, base)), "Please 'pkg install nist-kat'"
+	assert os.path.exists(katdir), "Please 'pkg install nist-kat'"
+	if not os.path.exists(os.path.join(katdir, base)):
+		raise unittest.SkipTest("Missing %s test vectors" % (base))
 	return iglob(os.path.join(katdir, base, glob))
 
 aesmodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0' ]
