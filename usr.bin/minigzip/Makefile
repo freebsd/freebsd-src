@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCDIR=	${SRCTOP}/contrib/zlib/test
+SRCDIR=	${SRCTOP}/sys/contrib/zlib/test
 .PATH:	${SRCDIR}
 
 PROG=	minigzip
