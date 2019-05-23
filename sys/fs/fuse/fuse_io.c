@@ -170,15 +170,26 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 	struct fuse_filehandle *fufh;
 	int err, directio;
 	int fflag;
+	bool closefufh = false;
 
 	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 
 	fflag = (uio->uio_rw == UIO_READ) ? FREAD : FWRITE;
 	err = fuse_filehandle_getrw(vp, fflag, &fufh, cred, pid);
-	if (err) {
+	if (err == EBADF && vnode_mount(vp)->mnt_flag & MNT_EXPORTED) {
+		/* 
+		 * nfsd will do I/O without first doing VOP_OPEN.  We
+		 * must implicitly open the file here
+		 */
+		err = fuse_filehandle_open(vp, fflag, &fufh, curthread, cred);
+		closefufh = true;
+	}
+	else if (err) {
 		printf("FUSE: io dispatch: filehandles are closed\n");
 		return err;
 	}
+	if (err)
+		goto out;
 	SDT_PROBE5(fusefs, , io, io_dispatch, vp, uio, ioflag, cred, fufh);
 
 	/*
@@ -222,7 +233,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 
 			err = fuse_vnode_size(vp, &filesize, cred, curthread);
 			if (err)
-				return err;
+				goto out;
 
 			start = uio->uio_offset;
 			end = start + uio->uio_resid;
@@ -246,6 +257,10 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 	default:
 		panic("uninterpreted mode passed to fuse_io_dispatch");
 	}
+
+out:
+	if (closefufh)
+		fuse_filehandle_close(vp, fufh, curthread, cred);
 
 	return (err);
 }

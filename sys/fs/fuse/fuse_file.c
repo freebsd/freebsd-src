@@ -286,6 +286,7 @@ fuse_filehandle_get(struct vnode *vp, int fflag,
 	fufh_type_t fufh_type;
 
 	fufh_type = fflags_2_fufh_type(fflag);
+	/* cred can be NULL for in-kernel clients */
 	if (cred == NULL)
 		goto fallback;
 
