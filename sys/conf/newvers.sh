@@ -34,24 +34,104 @@
 
 # Command line options:
 #
-#     -r               Reproducible build.  Do not embed directory names, user
-#                      names, time stamps or other dynamic information into
-#                      the output file.  This is intended to allow two builds
-#                      done at different times and even by different people on
-#                      different hosts to produce identical output.
+#	-c	Print the copyright / license statement as a C comment and exit
 #
-#     -R               Reproducible build if the tree represents an unmodified
-#                      checkout from a version control system.  Metadata is
-#                      included if the tree is modified.
-
-# Note: usr.sbin/amd/include/newvers.sh assumes all variable assignments of
-# upper case variables starting in column 1 are on one line w/o continuation.
+#	-r	Reproducible build.  Do not embed directory names, user	names,
+#		time stamps or other dynamic information into the output file.
+#		This is intended to allow two builds done at different times
+#		and even by different people on different hosts to produce
+#		identical output.
+#
+#	-R	Reproducible build if the tree represents an unmodified
+#		checkout from a version control system.  Metadata is included
+#		if the tree is modified.
+#
+#	-V var	Print ${var}="${val-of-var}" and exit
+#
+#	-v	Print TYPE REVISION BRANCH RELEASE VERSION RELDATE variabkes
+#		like the -V command
+#
 
 TYPE="FreeBSD"
 REVISION="13.0"
 BRANCH=${BRANCH_OVERRIDE:-CURRENT}
 RELEASE="${REVISION}-${BRANCH}"
 VERSION="${TYPE} ${RELEASE}"
+
+if [ -z "${SYSDIR}" ]; then
+    SYSDIR=$(dirname $0)/..
+fi
+
+RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' ${PARAMFILE:-${SYSDIR}/sys/param.h})
+
+if [ -r "${SYSDIR}/../COPYRIGHT" ]; then
+	year=$(sed -Ee '/^Copyright .* The FreeBSD Project/!d;s/^.*1992-([0-9]*) .*$/\1/g' ${SYSDIR}/../COPYRIGHT)
+else
+	year=$(date +%Y)
+fi
+# look for copyright template
+b=share/examples/etc/bsd-style-copyright
+for bsd_copyright in $b ../$b ../../$b ../../../$b /usr/src/$b /usr/$b
+do
+	if [ -r "$bsd_copyright" ]; then
+		COPYRIGHT=$(sed \
+		    -e "s/\[year\]/1992-$year/" \
+		    -e 's/\[your name here\]\.* /The FreeBSD Project./' \
+		    -e 's/\[your name\]\.*/The FreeBSD Project./' \
+		    -e '/\[id for your version control system, if any\]/d' \
+		    $bsd_copyright)
+		break
+	fi
+done
+
+# no copyright found, use a dummy
+if [ -z "$COPYRIGHT" ]; then
+	COPYRIGHT="/*-
+ * Copyright (c) 1992-$year The FreeBSD Project.
+ *
+ */"
+fi
+
+# add newline
+COPYRIGHT="$COPYRIGHT
+"
+
+include_metadata=true
+while getopts crRvV: opt; do
+	case "$opt" in
+	c)
+		echo "$COPYRIGHT"
+		exit 0
+		;;
+	r)
+		include_metadata=
+		;;
+	R)
+		if [ -z "${modified}" ]; then
+			include_metadata=
+		fi
+		;;
+	v)
+		# Only put variables that are single lines here.
+		for v in TYPE REVISION BRANCH RELEASE VERSION RELDATE; do
+			eval val=\$${v}
+			echo ${v}=\"${val}\"
+		done
+		exit 0
+		;;
+	V)
+		v=$OPTARG
+		eval val=\$${v}
+		echo ${v}=\"${val}\"
+		exit 0
+		;;
+	esac
+done
+shift $((OPTIND - 1))
+
+# VARS_ONLY means no files should be generated, this is just being
+# included.
+[ -n "$VARS_ONLY" ] && return 0
 
 #
 # findvcs dir
@@ -102,49 +182,6 @@ git_tree_modified()
 	rm $fifo
 	return 1
 }
-
-
-if [ -z "${SYSDIR}" ]; then
-    SYSDIR=$(dirname $0)/..
-fi
-
-RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' ${PARAMFILE:-${SYSDIR}/sys/param.h})
-
-if [ -r "${SYSDIR}/../COPYRIGHT" ]; then
-	year=$(sed -Ee '/^Copyright .* The FreeBSD Project/!d;s/^.*1992-([0-9]*) .*$/\1/g' ${SYSDIR}/../COPYRIGHT)
-else
-	year=$(date +%Y)
-fi
-# look for copyright template
-b=share/examples/etc/bsd-style-copyright
-for bsd_copyright in ../$b ../../$b ../../../$b /usr/src/$b /usr/$b
-do
-	if [ -r "$bsd_copyright" ]; then
-		COPYRIGHT=$(sed \
-		    -e "s/\[year\]/1992-$year/" \
-		    -e 's/\[your name here\]\.* /The FreeBSD Project./' \
-		    -e 's/\[your name\]\.*/The FreeBSD Project./' \
-		    -e '/\[id for your version control system, if any\]/d' \
-		    $bsd_copyright)
-		break
-	fi
-done
-
-# no copyright found, use a dummy
-if [ -z "$COPYRIGHT" ]; then
-	COPYRIGHT="/*-
- * Copyright (c) 1992-$year The FreeBSD Project.
- *
- */"
-fi
-
-# add newline
-COPYRIGHT="$COPYRIGHT
-"
-
-# VARS_ONLY means no files should be generated, this is just being
-# included.
-[ -n "$VARS_ONLY" ] && return 0
 
 LC_ALL=C; export LC_ALL
 if [ ! -r version ]
@@ -274,20 +311,6 @@ if [ -n "$hg_cmd" ] ; then
 		hg=" ${hg}"
 	fi
 fi
-
-include_metadata=true
-while getopts rR opt; do
-	case "$opt" in
-	r)
-		include_metadata=
-		;;
-	R)
-		if [ -z "${modified}" ]; then
-			include_metadata=
-		fi
-	esac
-done
-shift $((OPTIND - 1))
 
 if [ -z "${include_metadata}" ]; then
 	VERINFO="${VERSION}${svn}${git}${hg} ${i}"
