@@ -13,6 +13,18 @@
             ..
             event
             ..
+            gmock
+                internal
+                    custom
+                    ..
+                ..
+            ..
+            gtest
+                internal
+                    custom
+                    ..
+                ..
+            ..
             sqlite3
             ..
             ucl
