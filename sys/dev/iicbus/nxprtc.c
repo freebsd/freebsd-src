@@ -826,3 +826,4 @@ static devclass_t nxprtc_devclass;
 DRIVER_MODULE(nxprtc, iicbus, nxprtc_driver, nxprtc_devclass, NULL, NULL);
 MODULE_VERSION(nxprtc, 1);
 MODULE_DEPEND(nxprtc, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+IICBUS_FDT_PNP_INFO(compat_data);
