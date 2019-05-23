@@ -114,7 +114,8 @@ def GenTestCase(cname):
 						c = Crypto(cryptodev.CRYPTO_AES_NIST_GCM_16,
 						    cipherkey,
 						    mac=self._gmacsizes[len(cipherkey)],
-						    mackey=cipherkey, crid=crid)
+						    mackey=cipherkey, crid=crid,
+						    maclen=16)
 					except EnvironmentError, e:
 						# Can't test algorithms the driver does not support.
 						if e.errno != errno.EOPNOTSUPP:
@@ -260,10 +261,54 @@ def GenTestCase(cname):
 		###############
 		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % str(cname))
 		def test_sha(self):
-			# SHA not available in software
-			pass
-			#for i in iglob('SHA1*'):
-			#	self.runSHA(i)
+			for i in katg('shabytetestvectors', 'SHA*Msg.rsp'):
+				self.runSHA(i)
+
+		def runSHA(self, fname):
+			# Skip SHA512_(224|256) tests
+			if fname.find('SHA512_') != -1:
+				return
+
+			for hashlength, lines in cryptodev.KATParser(fname,
+			    [ 'Len', 'Msg', 'MD' ]):
+				# E.g., hashlength will be "L=20" (bytes)
+				hashlen = int(hashlength.split("=")[1])
+
+				if hashlen == 20:
+					alg = cryptodev.CRYPTO_SHA1
+				elif hashlen == 28:
+					alg = cryptodev.CRYPTO_SHA2_224
+				elif hashlen == 32:
+					alg = cryptodev.CRYPTO_SHA2_256
+				elif hashlen == 48:
+					alg = cryptodev.CRYPTO_SHA2_384
+				elif hashlen == 64:
+					alg = cryptodev.CRYPTO_SHA2_512
+				else:
+					# Skip unsupported hashes
+					# Slurp remaining input in section
+					for data in lines:
+						continue
+					continue
+
+				for data in lines:
+					msg = data['Msg'].decode('hex')
+                                        msg = msg[:int(data['Len'])]
+					md = data['MD'].decode('hex')
+
+					try:
+						c = Crypto(mac=alg, crid=crid,
+						    maclen=hashlen)
+					except EnvironmentError, e:
+						# Can't test hashes the driver does not support.
+						if e.errno != errno.EOPNOTSUPP:
+							raise
+						continue
+
+					_, r = c.encrypt(msg, iv="")
+
+					self.assertEqual(r, md, "Actual: " + \
+					    repr(r.encode("hex")) + " Expected: " + repr(data) + " on " + cname)
 
 		@unittest.skipIf(cname not in shamodules, 'skipping SHA-HMAC on %s' % str(cname))
 		def test_sha1hmac(self):
@@ -310,7 +355,7 @@ def GenTestCase(cname):
 
 					try:
 						c = Crypto(mac=alg, mackey=key,
-						    crid=crid)
+						    crid=crid, maclen=hashlen)
 					except EnvironmentError, e:
 						# Can't test hashes the driver does not support.
 						if e.errno != errno.EOPNOTSUPP:
@@ -319,13 +364,8 @@ def GenTestCase(cname):
 
 					_, r = c.encrypt(msg, iv="")
 
-					# A limitation in cryptodev.py means we
-					# can only store MACs up to 16 bytes.
-					# That's good enough to validate the
-					# correct behavior, more or less.
-					maclen = min(tlen, 16)
-					self.assertEqual(r[:maclen], mac[:maclen], "Actual: " + \
-					    repr(r[:maclen].encode("hex")) + " Expected: " + repr(data))
+					self.assertEqual(r[:tlen], mac, "Actual: " + \
+					    repr(r.encode("hex")) + " Expected: " + repr(data))
 
 	return GendCryptoTestCase
 
