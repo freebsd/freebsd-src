@@ -87,7 +87,6 @@ ntpd_precmd()
 	# Otherwise, figure out what to do about the driftfile option.  If set
 	# by the admin, we don't add the option.  If the file exists in the old
 	# default location we use that, else we use the new default location.
-
 	if can_run_nonroot; then
 		_user="ntpd"
 		driftopt="-f ${_ntp_default_driftfile}"
