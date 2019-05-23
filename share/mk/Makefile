@@ -73,6 +73,8 @@ FILESDIR=	${BINDIR}/mk
 
 .if ${MK_TESTS} != "no"
 FILES+=	atf.test.mk
+FILES+=	googletest.test.inc.mk
+FILES+=	googletest.test.mk
 FILES+=	plain.test.mk
 FILES+=	suite.test.mk
 FILES+=	tap.test.mk

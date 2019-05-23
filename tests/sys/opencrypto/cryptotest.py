@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python2
 #
 # Copyright (c) 2014 The FreeBSD Foundation
 # All rights reserved.
@@ -30,6 +30,8 @@
 #
 
 from __future__ import print_function
+
+import binascii
 import errno
 import cryptodev
 import itertools
@@ -42,293 +44,458 @@ from glob import iglob
 katdir = '/usr/local/share/nist-kat'
 
 def katg(base, glob):
-	assert os.path.exists(os.path.join(katdir, base)), "Please 'pkg install nist-kat'"
-	return iglob(os.path.join(katdir, base, glob))
+    assert os.path.exists(katdir), "Please 'pkg install nist-kat'"
+    if not os.path.exists(os.path.join(katdir, base)):
+        raise unittest.SkipTest("Missing %s test vectors" % (base))
+    return iglob(os.path.join(katdir, base, glob))
 
 aesmodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0' ]
 desmodules = [ 'cryptosoft0', ]
 shamodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0' ]
 
 def GenTestCase(cname):
-	try:
-		crid = cryptodev.Crypto.findcrid(cname)
-	except IOError:
-		return None
+    try:
+        crid = cryptodev.Crypto.findcrid(cname)
+    except IOError:
+        return None
 
-	class GendCryptoTestCase(unittest.TestCase):
-		###############
-		##### AES #####
-		###############
-		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
-		def test_xts(self):
-			for i in katg('XTSTestVectors/format tweak value input - data unit seq no', '*.rsp'):
-				self.runXTS(i, cryptodev.CRYPTO_AES_XTS)
+    class GendCryptoTestCase(unittest.TestCase):
+        ###############
+        ##### AES #####
+        ###############
+        @unittest.skipIf(cname not in aesmodules, 'skipping AES-XTS on %s' % (cname))
+        def test_xts(self):
+            for i in katg('XTSTestVectors/format tweak value input - data unit seq no', '*.rsp'):
+                self.runXTS(i, cryptodev.CRYPTO_AES_XTS)
 
-		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
-		def test_cbc(self):
-			for i in katg('KAT_AES', 'CBC[GKV]*.rsp'):
-				self.runCBC(i)
+        @unittest.skipIf(cname not in aesmodules, 'skipping AES-CBC on %s' % (cname))
+        def test_cbc(self):
+            for i in katg('KAT_AES', 'CBC[GKV]*.rsp'):
+                self.runCBC(i)
 
-		@unittest.skipIf(cname not in aesmodules, 'skipping AES on %s' % (cname))
-		def test_gcm(self):
-			for i in katg('gcmtestvectors', 'gcmEncrypt*'):
-				self.runGCM(i, 'ENCRYPT')
+        @unittest.skipIf(cname not in aesmodules, 'skipping AES-CCM on %s' % (cname))
+        def test_ccm(self):
+            for i in katg('ccmtestvectors', 'V*.rsp'):
+                self.runCCMEncrypt(i)
 
-			for i in katg('gcmtestvectors', 'gcmDecrypt*'):
-				self.runGCM(i, 'DECRYPT')
+            for i in katg('ccmtestvectors', 'D*.rsp'):
+                self.runCCMDecrypt(i)
 
-		_gmacsizes = { 32: cryptodev.CRYPTO_AES_256_NIST_GMAC,
-			24: cryptodev.CRYPTO_AES_192_NIST_GMAC,
-			16: cryptodev.CRYPTO_AES_128_NIST_GMAC,
-		}
-		def runGCM(self, fname, mode):
-			curfun = None
-			if mode == 'ENCRYPT':
-				swapptct = False
-				curfun = Crypto.encrypt
-			elif mode == 'DECRYPT':
-				swapptct = True
-				curfun = Crypto.decrypt
-			else:
-				raise RuntimeError('unknown mode: %r' % repr(mode))
+        @unittest.skipIf(cname not in aesmodules, 'skipping AES-GCM on %s' % (cname))
+        def test_gcm(self):
+            for i in katg('gcmtestvectors', 'gcmEncrypt*'):
+                self.runGCM(i, 'ENCRYPT')
 
-			for bogusmode, lines in cryptodev.KATParser(fname,
-			    [ 'Count', 'Key', 'IV', 'CT', 'AAD', 'Tag', 'PT', ]):
-				for data in lines:
-					curcnt = int(data['Count'])
-					cipherkey = data['Key'].decode('hex')
-					iv = data['IV'].decode('hex')
-					aad = data['AAD'].decode('hex')
-					tag = data['Tag'].decode('hex')
-					if 'FAIL' not in data:
-						pt = data['PT'].decode('hex')
-					ct = data['CT'].decode('hex')
+            for i in katg('gcmtestvectors', 'gcmDecrypt*'):
+                self.runGCM(i, 'DECRYPT')
 
-					if len(iv) != 12:
-						# XXX - isn't supported
-						continue
+        _gmacsizes = { 32: cryptodev.CRYPTO_AES_256_NIST_GMAC,
+            24: cryptodev.CRYPTO_AES_192_NIST_GMAC,
+            16: cryptodev.CRYPTO_AES_128_NIST_GMAC,
+        }
+        def runGCM(self, fname, mode):
+            curfun = None
+            if mode == 'ENCRYPT':
+                swapptct = False
+                curfun = Crypto.encrypt
+            elif mode == 'DECRYPT':
+                swapptct = True
+                curfun = Crypto.decrypt
+            else:
+                raise RuntimeError('unknown mode: %r' % repr(mode))
 
-					try:
-						c = Crypto(cryptodev.CRYPTO_AES_NIST_GCM_16,
-						    cipherkey,
-						    mac=self._gmacsizes[len(cipherkey)],
-						    mackey=cipherkey, crid=crid)
-					except EnvironmentError, e:
-						# Can't test algorithms the driver does not support.
-						if e.errno != errno.EOPNOTSUPP:
-							raise
-						continue
+            columns = [ 'Count', 'Key', 'IV', 'CT', 'AAD', 'Tag', 'PT', ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runGCMWithParser(parser, mode)
 
-					if mode == 'ENCRYPT':
-						try:
-							rct, rtag = c.encrypt(pt, iv, aad)
-						except EnvironmentError, e:
-							# Can't test inputs the driver does not support.
-							if e.errno != errno.EINVAL:
-								raise
-							continue
-						rtag = rtag[:len(tag)]
-						data['rct'] = rct.encode('hex')
-						data['rtag'] = rtag.encode('hex')
-						self.assertEqual(rct, ct, repr(data))
-						self.assertEqual(rtag, tag, repr(data))
-					else:
-						if len(tag) != 16:
-							continue
-						args = (ct, iv, aad, tag)
-						if 'FAIL' in data:
-							self.assertRaises(IOError,
-								c.decrypt, *args)
-						else:
-							try:
-								rpt, rtag = c.decrypt(*args)
-							except EnvironmentError, e:
-								# Can't test inputs the driver does not support.
-								if e.errno != errno.EINVAL:
-									raise
-								continue
-							data['rpt'] = rpt.encode('hex')
-							data['rtag'] = rtag.encode('hex')
-							self.assertEqual(rpt, pt,
-							    repr(data))
+        def runGCMWithParser(self, parser, mode):
+            for _, lines in next(parser):
+                for data in lines:
+                    curcnt = int(data['Count'])
+                    cipherkey = binascii.unhexlify(data['Key'])
+                    iv = binascii.unhexlify(data['IV'])
+                    aad = binascii.unhexlify(data['AAD'])
+                    tag = binascii.unhexlify(data['Tag'])
+                    if 'FAIL' not in data:
+                        pt = binascii.unhexlify(data['PT'])
+                    ct = binascii.unhexlify(data['CT'])
 
-		def runCBC(self, fname):
-			curfun = None
-			for mode, lines in cryptodev.KATParser(fname,
-			    [ 'COUNT', 'KEY', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]):
-				if mode == 'ENCRYPT':
-					swapptct = False
-					curfun = Crypto.encrypt
-				elif mode == 'DECRYPT':
-					swapptct = True
-					curfun = Crypto.decrypt
-				else:
-					raise RuntimeError('unknown mode: %r' % repr(mode))
+                    if len(iv) != 12:
+                        # XXX - isn't supported
+                        continue
 
-				for data in lines:
-					curcnt = int(data['COUNT'])
-					cipherkey = data['KEY'].decode('hex')
-					iv = data['IV'].decode('hex')
-					pt = data['PLAINTEXT'].decode('hex')
-					ct = data['CIPHERTEXT'].decode('hex')
+                    try:
+                        c = Crypto(cryptodev.CRYPTO_AES_NIST_GCM_16,
+                            cipherkey,
+                            mac=self._gmacsizes[len(cipherkey)],
+                            mackey=cipherkey, crid=crid,
+                            maclen=16)
+                    except EnvironmentError as e:
+                        # Can't test algorithms the driver does not support.
+                        if e.errno != errno.EOPNOTSUPP:
+                            raise
+                        continue
 
-					if swapptct:
-						pt, ct = ct, pt
-					# run the fun
-					c = Crypto(cryptodev.CRYPTO_AES_CBC, cipherkey, crid=crid)
-					r = curfun(c, pt, iv)
-					self.assertEqual(r, ct)
+                    if mode == 'ENCRYPT':
+                        try:
+                            rct, rtag = c.encrypt(pt, iv, aad)
+                        except EnvironmentError as e:
+                            # Can't test inputs the driver does not support.
+                            if e.errno != errno.EINVAL:
+                                raise
+                            continue
+                        rtag = rtag[:len(tag)]
+                        data['rct'] = binascii.hexlify(rct)
+                        data['rtag'] = binascii.hexlify(rtag)
+                        self.assertEqual(rct, ct, repr(data))
+                        self.assertEqual(rtag, tag, repr(data))
+                    else:
+                        if len(tag) != 16:
+                            continue
+                        args = (ct, iv, aad, tag)
+                        if 'FAIL' in data:
+                            self.assertRaises(IOError,
+                                c.decrypt, *args)
+                        else:
+                            try:
+                                rpt, rtag = c.decrypt(*args)
+                            except EnvironmentError as e:
+                                # Can't test inputs the driver does not support.
+                                if e.errno != errno.EINVAL:
+                                    raise
+                                continue
+                            data['rpt'] = binascii.hexlify(rpt)
+                            data['rtag'] = binascii.hexlify(rtag)
+                            self.assertEqual(rpt, pt,
+                                repr(data))
 
-		def runXTS(self, fname, meth):
-			curfun = None
-			for mode, lines in cryptodev.KATParser(fname,
-			    [ 'COUNT', 'DataUnitLen', 'Key', 'DataUnitSeqNumber', 'PT',
-			    'CT' ]):
-				if mode == 'ENCRYPT':
-					swapptct = False
-					curfun = Crypto.encrypt
-				elif mode == 'DECRYPT':
-					swapptct = True
-					curfun = Crypto.decrypt
-				else:
-					raise RuntimeError('unknown mode: %r' % repr(mode))
+        def runCBC(self, fname):
+            columns = [ 'COUNT', 'KEY', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runCBCWithParser(parser)
 
-				for data in lines:
-					curcnt = int(data['COUNT'])
-					nbits = int(data['DataUnitLen'])
-					cipherkey = data['Key'].decode('hex')
-					iv = struct.pack('QQ', int(data['DataUnitSeqNumber']), 0)
-					pt = data['PT'].decode('hex')
-					ct = data['CT'].decode('hex')
+        def runCBCWithParser(self, parser):
+            curfun = None
+            for mode, lines in next(parser):
+                if mode == 'ENCRYPT':
+                    swapptct = False
+                    curfun = Crypto.encrypt
+                elif mode == 'DECRYPT':
+                    swapptct = True
+                    curfun = Crypto.decrypt
+                else:
+                    raise RuntimeError('unknown mode: %r' % repr(mode))
 
-					if nbits % 128 != 0:
-						# XXX - mark as skipped
-						continue
-					if swapptct:
-						pt, ct = ct, pt
-					# run the fun
-					try:
-						c = Crypto(meth, cipherkey, crid=crid)
-						r = curfun(c, pt, iv)
-					except EnvironmentError, e:
-						# Can't test hashes the driver does not support.
-						if e.errno != errno.EOPNOTSUPP:
-							raise
-						continue
-					self.assertEqual(r, ct)
+                for data in lines:
+                    curcnt = int(data['COUNT'])
+                    cipherkey = binascii.unhexlify(data['KEY'])
+                    iv = binascii.unhexlify(data['IV'])
+                    pt = binascii.unhexlify(data['PLAINTEXT'])
+                    ct = binascii.unhexlify(data['CIPHERTEXT'])
 
-		###############
-		##### DES #####
-		###############
-		@unittest.skipIf(cname not in desmodules, 'skipping DES on %s' % (cname))
-		def test_tdes(self):
-			for i in katg('KAT_TDES', 'TCBC[a-z]*.rsp'):
-				self.runTDES(i)
+                    if swapptct:
+                        pt, ct = ct, pt
+                    # run the fun
+                    c = Crypto(cryptodev.CRYPTO_AES_CBC, cipherkey, crid=crid)
+                    r = curfun(c, pt, iv)
+                    self.assertEqual(r, ct)
 
-		def runTDES(self, fname):
-			curfun = None
-			for mode, lines in cryptodev.KATParser(fname,
-			    [ 'COUNT', 'KEYs', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]):
-				if mode == 'ENCRYPT':
-					swapptct = False
-					curfun = Crypto.encrypt
-				elif mode == 'DECRYPT':
-					swapptct = True
-					curfun = Crypto.decrypt
-				else:
-					raise RuntimeError('unknown mode: %r' % repr(mode))
+        def runXTS(self, fname, meth):
+            columns = [ 'COUNT', 'DataUnitLen', 'Key', 'DataUnitSeqNumber', 'PT',
+                        'CT']
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runXTSWithParser(parser, meth)
 
-				for data in lines:
-					curcnt = int(data['COUNT'])
-					key = data['KEYs'] * 3
-					cipherkey = key.decode('hex')
-					iv = data['IV'].decode('hex')
-					pt = data['PLAINTEXT'].decode('hex')
-					ct = data['CIPHERTEXT'].decode('hex')
+        def runXTSWithParser(self, parser, meth):
+            curfun = None
+            for mode, lines in next(parser):
+                if mode == 'ENCRYPT':
+                    swapptct = False
+                    curfun = Crypto.encrypt
+                elif mode == 'DECRYPT':
+                    swapptct = True
+                    curfun = Crypto.decrypt
+                else:
+                    raise RuntimeError('unknown mode: %r' % repr(mode))
 
-					if swapptct:
-						pt, ct = ct, pt
-					# run the fun
-					c = Crypto(cryptodev.CRYPTO_3DES_CBC, cipherkey, crid=crid)
-					r = curfun(c, pt, iv)
-					self.assertEqual(r, ct)
+                for data in lines:
+                    curcnt = int(data['COUNT'])
+                    nbits = int(data['DataUnitLen'])
+                    cipherkey = binascii.unhexlify(data['Key'])
+                    iv = struct.pack('QQ', int(data['DataUnitSeqNumber']), 0)
+                    pt = binascii.unhexlify(data['PT'])
+                    ct = binascii.unhexlify(data['CT'])
 
-		###############
-		##### SHA #####
-		###############
-		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % str(cname))
-		def test_sha(self):
-			# SHA not available in software
-			pass
-			#for i in iglob('SHA1*'):
-			#	self.runSHA(i)
+                    if nbits % 128 != 0:
+                        # XXX - mark as skipped
+                        continue
+                    if swapptct:
+                        pt, ct = ct, pt
+                    # run the fun
+                    try:
+                        c = Crypto(meth, cipherkey, crid=crid)
+                        r = curfun(c, pt, iv)
+                    except EnvironmentError as e:
+                        # Can't test hashes the driver does not support.
+                        if e.errno != errno.EOPNOTSUPP:
+                            raise
+                        continue
+                    self.assertEqual(r, ct)
 
-		@unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % str(cname))
-		def test_sha1hmac(self):
-			for i in katg('hmactestvectors', 'HMAC.rsp'):
-				self.runSHA1HMAC(i)
+        def runCCMEncrypt(self, fname):
+            with cryptodev.KATCCMParser(fname) as parser:
+                self.runCCMEncryptWithParser(parser)
 
-		def runSHA1HMAC(self, fname):
-			for hashlength, lines in cryptodev.KATParser(fname,
-			    [ 'Count', 'Klen', 'Tlen', 'Key', 'Msg', 'Mac' ]):
-				# E.g., hashlength will be "L=20" (bytes)
-				hashlen = int(hashlength.split("=")[1])
+        def runCCMEncryptWithParser(self, parser):
+            for data in next(parser):
+                Nlen = int(data['Nlen'])
+                if Nlen != 12:
+                    # OCF only supports 12 byte IVs
+                    continue
+                key = binascii.unhexlify(data['Key'])
+                nonce = binascii.unhexlify(data['Nonce'])
+                Alen = int(data['Alen'])
+                if Alen != 0:
+                    aad = binascii.unhexlify(data['Adata'])
+                else:
+                    aad = None
+                payload = binascii.unhexlify(data['Payload'])
+                ct = binascii.unhexlify(data['CT'])
 
-				blocksize = None
-				if hashlen == 20:
-					alg = cryptodev.CRYPTO_SHA1_HMAC
-					blocksize = 64
-				elif hashlen == 28:
-					# Cryptodev doesn't support SHA-224
-					# Slurp remaining input in section
-					for data in lines:
-						continue
-					continue
-				elif hashlen == 32:
-					alg = cryptodev.CRYPTO_SHA2_256_HMAC
-					blocksize = 64
-				elif hashlen == 48:
-					alg = cryptodev.CRYPTO_SHA2_384_HMAC
-					blocksize = 128
-				elif hashlen == 64:
-					alg = cryptodev.CRYPTO_SHA2_512_HMAC
-					blocksize = 128
-				else:
-					# Skip unsupported hashes
-					# Slurp remaining input in section
-					for data in lines:
-						continue
-					continue
+                try:
+                    c = Crypto(crid=crid,
+                        cipher=cryptodev.CRYPTO_AES_CCM_16,
+                        key=key,
+                        mac=cryptodev.CRYPTO_AES_CCM_CBC_MAC,
+                        mackey=key, maclen=16)
+                    r, tag = Crypto.encrypt(c, payload,
+                        nonce, aad)
+                except EnvironmentError as e:
+                    if e.errno != errno.EOPNOTSUPP:
+                        raise
+                    continue
 
-				for data in lines:
-					key = data['Key'].decode('hex')
-					msg = data['Msg'].decode('hex')
-					mac = data['Mac'].decode('hex')
-					tlen = int(data['Tlen'])
+                out = r + tag
+                self.assertEqual(out, ct,
+                    "Count " + data['Count'] + " Actual: " + \
+                    repr(binascii.hexlify(out)) + " Expected: " + \
+                    repr(data) + " on " + cname)
 
-					if len(key) > blocksize:
-						continue
+        def runCCMDecrypt(self, fname):
+            with cryptodev.KATCCMParser(fname) as parser:
+                self.runCCMDecryptWithParser(parser)
 
-					try:
-						c = Crypto(mac=alg, mackey=key,
-						    crid=crid)
-					except EnvironmentError, e:
-						# Can't test hashes the driver does not support.
-						if e.errno != errno.EOPNOTSUPP:
-							raise
-						continue
+        def runCCMDecryptWithParser(self, parser):
+            # XXX: Note that all of the current CCM
+            # decryption test vectors use IV and tag sizes
+            # that aren't supported by OCF none of the
+            # tests are actually ran.
+            for data in next(parser):
+                Nlen = int(data['Nlen'])
+                if Nlen != 12:
+                    # OCF only supports 12 byte IVs
+                    continue
+                Tlen = int(data['Tlen'])
+                if Tlen != 16:
+                    # OCF only supports 16 byte tags
+                    continue
+                key = binascii.unhexlify(data['Key'])
+                nonce = binascii.unhexlify(data['Nonce'])
+                Alen = int(data['Alen'])
+                if Alen != 0:
+                    aad = binascii.unhexlify(data['Adata'])
+                else:
+                    aad = None
+                ct = binascii.unhexlify(data['CT'])
+                tag = ct[-16:]
+                ct = ct[:-16]
 
-					_, r = c.encrypt(msg, iv="")
+                try:
+                    c = Crypto(crid=crid,
+                        cipher=cryptodev.CRYPTO_AES_CCM_16,
+                        key=key,
+                        mac=cryptodev.CRYPTO_AES_CCM_CBC_MAC,
+                        mackey=key, maclen=16)
+                except EnvironmentError as e:
+                    if e.errno != errno.EOPNOTSUPP:
+                        raise
+                    continue
 
-					# A limitation in cryptodev.py means we
-					# can only store MACs up to 16 bytes.
-					# That's good enough to validate the
-					# correct behavior, more or less.
-					maclen = min(tlen, 16)
-					self.assertEqual(r[:maclen], mac[:maclen], "Actual: " + \
-					    repr(r[:maclen].encode("hex")) + " Expected: " + repr(data))
+                if data['Result'] == 'Fail':
+                    self.assertRaises(IOError,
+                        c.decrypt, payload, nonce, aad, tag)
+                else:
+                    r = Crypto.decrypt(c, payload, nonce,
+                        aad, tag)
 
-	return GendCryptoTestCase
+                    payload = binascii.unhexlify(data['Payload'])
+                    plen = int(data('Plen'))
+                    payload = payload[:plen]
+                    self.assertEqual(r, payload,
+                        "Count " + data['Count'] + \
+                        " Actual: " + repr(binascii.hexlify(r)) + \
+                        " Expected: " + repr(data) + \
+                        " on " + cname)
+
+        ###############
+        ##### DES #####
+        ###############
+        @unittest.skipIf(cname not in desmodules, 'skipping DES on %s' % (cname))
+        def test_tdes(self):
+            for i in katg('KAT_TDES', 'TCBC[a-z]*.rsp'):
+                self.runTDES(i)
+
+        def runTDES(self, fname):
+            columns = [ 'COUNT', 'KEYs', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runTDESWithParser(parser)
+
+        def runTDESWithParser(self, parser):
+            curfun = None
+            for mode, lines in next(parser):
+                if mode == 'ENCRYPT':
+                    swapptct = False
+                    curfun = Crypto.encrypt
+                elif mode == 'DECRYPT':
+                    swapptct = True
+                    curfun = Crypto.decrypt
+                else:
+                    raise RuntimeError('unknown mode: %r' % repr(mode))
+
+                for data in lines:
+                    curcnt = int(data['COUNT'])
+                    key = data['KEYs'] * 3
+                    cipherkey = binascii.unhexlify(key)
+                    iv = binascii.unhexlify(data['IV'])
+                    pt = binascii.unhexlify(data['PLAINTEXT'])
+                    ct = binascii.unhexlify(data['CIPHERTEXT'])
+
+                    if swapptct:
+                        pt, ct = ct, pt
+                    # run the fun
+                    c = Crypto(cryptodev.CRYPTO_3DES_CBC, cipherkey, crid=crid)
+                    r = curfun(c, pt, iv)
+                    self.assertEqual(r, ct)
+
+        ###############
+        ##### SHA #####
+        ###############
+        @unittest.skipIf(cname not in shamodules, 'skipping SHA on %s' % str(cname))
+        def test_sha(self):
+            for i in katg('shabytetestvectors', 'SHA*Msg.rsp'):
+                self.runSHA(i)
+
+        def runSHA(self, fname):
+            # Skip SHA512_(224|256) tests
+            if fname.find('SHA512_') != -1:
+                return
+            columns = [ 'Len', 'Msg', 'MD' ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runSHAWithParser(parser)
+
+        def runSHAWithParser(self, parser):
+            for hashlength, lines in next(parser):
+                # E.g., hashlength will be "L=20" (bytes)
+                hashlen = int(hashlength.split("=")[1])
+
+                if hashlen == 20:
+                    alg = cryptodev.CRYPTO_SHA1
+                elif hashlen == 28:
+                    alg = cryptodev.CRYPTO_SHA2_224
+                elif hashlen == 32:
+                    alg = cryptodev.CRYPTO_SHA2_256
+                elif hashlen == 48:
+                    alg = cryptodev.CRYPTO_SHA2_384
+                elif hashlen == 64:
+                    alg = cryptodev.CRYPTO_SHA2_512
+                else:
+                    # Skip unsupported hashes
+                    # Slurp remaining input in section
+                    for data in lines:
+                        continue
+                    continue
+
+                for data in lines:
+                    msg = binascii.unhexlify(data['Msg'])
+                    msg = msg[:int(data['Len'])]
+                    md = binascii.unhexlify(data['MD'])
+
+                    try:
+                        c = Crypto(mac=alg, crid=crid,
+                            maclen=hashlen)
+                    except EnvironmentError as e:
+                        # Can't test hashes the driver does not support.
+                        if e.errno != errno.EOPNOTSUPP:
+                            raise
+                        continue
+
+                    _, r = c.encrypt(msg, iv="")
+
+                    self.assertEqual(r, md, "Actual: " + \
+                        repr(binascii.hexlify(r)) + " Expected: " + repr(data) + " on " + cname)
+
+        @unittest.skipIf(cname not in shamodules, 'skipping SHA-HMAC on %s' % str(cname))
+        def test_sha1hmac(self):
+            for i in katg('hmactestvectors', 'HMAC.rsp'):
+                self.runSHA1HMAC(i)
+
+        def runSHA1HMAC(self, fname):
+            columns = [ 'Count', 'Klen', 'Tlen', 'Key', 'Msg', 'Mac' ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runSHA1HMACWithParser(parser)
+
+        def runSHA1HMACWithParser(self, parser):
+            for hashlength, lines in next(parser):
+                # E.g., hashlength will be "L=20" (bytes)
+                hashlen = int(hashlength.split("=")[1])
+
+                blocksize = None
+                if hashlen == 20:
+                    alg = cryptodev.CRYPTO_SHA1_HMAC
+                    blocksize = 64
+                elif hashlen == 28:
+                    alg = cryptodev.CRYPTO_SHA2_224_HMAC
+                    blocksize = 64
+                elif hashlen == 32:
+                    alg = cryptodev.CRYPTO_SHA2_256_HMAC
+                    blocksize = 64
+                elif hashlen == 48:
+                    alg = cryptodev.CRYPTO_SHA2_384_HMAC
+                    blocksize = 128
+                elif hashlen == 64:
+                    alg = cryptodev.CRYPTO_SHA2_512_HMAC
+                    blocksize = 128
+                else:
+                    # Skip unsupported hashes
+                    # Slurp remaining input in section
+                    for data in lines:
+                        continue
+                    continue
+
+                for data in lines:
+                    key = binascii.unhexlify(data['Key'])
+                    msg = binascii.unhexlify(data['Msg'])
+                    mac = binascii.unhexlify(data['Mac'])
+                    tlen = int(data['Tlen'])
+
+                    if len(key) > blocksize:
+                        continue
+
+                    try:
+                        c = Crypto(mac=alg, mackey=key,
+                            crid=crid, maclen=hashlen)
+                    except EnvironmentError as e:
+                        # Can't test hashes the driver does not support.
+                        if e.errno != errno.EOPNOTSUPP:
+                            raise
+                        continue
+
+                    _, r = c.encrypt(msg, iv="")
+
+                    self.assertEqual(r[:tlen], mac, "Actual: " + \
+                        repr(binascii.hexlify(r)) + " Expected: " + repr(data))
+
+    return GendCryptoTestCase
 
 cryptosoft = GenTestCase('cryptosoft0')
 aesni = GenTestCase('aesni0')
@@ -336,4 +503,4 @@ ccr = GenTestCase('ccr0')
 ccp = GenTestCase('ccp0')
 
 if __name__ == '__main__':
-	unittest.main()
+    unittest.main()

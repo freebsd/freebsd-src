@@ -6,7 +6,9 @@ MAN=	dtc.1
 
 WARNS?=	3
 
-CXXFLAGS+=	-std=c++11 -fno-rtti -fno-exceptions
+CXXFLAGS+=	-fno-rtti -fno-exceptions
+
+CXXSTD=	c++11
 
 NO_SHARED?=NO
 

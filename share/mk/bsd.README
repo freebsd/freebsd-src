@@ -649,6 +649,8 @@ ATF_TESTS_CXX	The names of the ATF C++ test programs to build.
 
 ATF_TESTS_SH	The names of the ATF sh test programs to build.
 
+GTESTS		The names of the GoogleTest test programs to build.
+
 KYUAFILE	If 'auto' (the default), generate a Kyuafile out of the
 		test programs defined in the Makefile.  If 'yes', then a
 		manually-crafted Kyuafile must be supplied with the
