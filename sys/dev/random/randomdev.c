@@ -321,7 +321,6 @@ randomdev_accumulate(uint8_t *buf, u_int count)
 	timestamp = (uint32_t)get_cyclecount();
 	randomdev_hash_iterate(&hash, &timestamp, sizeof(timestamp));
 	randomdev_hash_finish(&hash, entropy_data);
-	explicit_bzero(&hash, sizeof(hash));
 	for (i = 0; i < RANDOM_KEYSIZE_WORDS; i += sizeof(event.he_entropy)/sizeof(event.he_entropy[0])) {
 		event.he_somecounter = (uint32_t)get_cyclecount();
 		event.he_size = sizeof(event.he_entropy);
@@ -330,6 +329,7 @@ randomdev_accumulate(uint8_t *buf, u_int count)
 		memcpy(event.he_entropy, entropy_data + i, sizeof(event.he_entropy));
 		p_random_alg_context->ra_event_processor(&event);
 	}
+	explicit_bzero(&event, sizeof(event));
 	explicit_bzero(entropy_data, sizeof(entropy_data));
 }
 
