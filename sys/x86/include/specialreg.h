@@ -1098,6 +1098,7 @@
 #define	MSR_VM_HSAVE_PA 0xc0010117	/* SVM: host save area address */
 #define	MSR_AMD_CPUID07	0xc0011002	/* CPUID 07 %ebx override */
 #define	MSR_EXTFEATURES	0xc0011005	/* Extended CPUID Features override */
+#define	MSR_LS_CFG	0xc0011020
 #define	MSR_IC_CFG	0xc0011021	/* Instruction Cache Configuration */
 
 /* MSR_VM_CR related */
