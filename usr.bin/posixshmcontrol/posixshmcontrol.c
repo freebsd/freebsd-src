@@ -160,10 +160,10 @@ shm_decode_mode(mode_t m, char *str)
 static int
 list_shm(int argc, char **argv)
 {
-	char *buf, *bp, sizebuf[8], str[10], c;
+	char *buf, *bp, sizebuf[8], str[10];
 	const struct kinfo_file *kif;
 	struct stat st;
-	int error, fd, mib[3], ret;
+	int c, error, fd, mib[3], ret;
 	size_t len, miblen;
 	bool hsize, uname;
 
