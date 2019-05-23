@@ -29,15 +29,10 @@
 # $FreeBSD$
 #
 
-: ${PYTHON=python}
+set -ex
 
 if [ ! -d /usr/local/share/nist-kat ]; then
-	echo "1..0 # SKIP: nist-kat package not installed for test vectors"
-	exit 0
-fi
-
-if ! $PYTHON -c "from dpkt import dpkt"; then
-	echo "1..0 # SKIP: py-dpkt package not installed"
+	echo 'Skipping, nist-kat package not installed for test vectors.'
 	exit 0
 fi
 
@@ -48,10 +43,6 @@ cleanup_tests()
 
 	set +e
 
-	if [ -n "$oldcdas" ]; then
-		sysctl "$oldcdas" 2>/dev/null
-	fi
-
 	# Unload modules in reverse order
 	for loaded_module in $(echo $loaded_modules | tr ' ' '\n' | sort -r); do
 		kldunload $loaded_module
@@ -61,28 +52,15 @@ trap cleanup_tests EXIT INT TERM
 
 for required_module in nexus/aesni cryptodev; do
 	if ! kldstat -q -m $required_module; then
-		module_to_load=${required_module#nexus/}
-		if ! kldload ${module_to_load}; then
-			echo "1..0 # SKIP: could not load ${module_to_load}"
-			exit 0
-		fi
+		kldload ${required_module#nexus/}
 		loaded_modules="$loaded_modules $required_module"
 	fi
 done
 
-cdas_sysctl=kern.cryptodevallowsoft
-if ! oldcdas=$(sysctl -e $cdas_sysctl); then
-	echo "1..0 # SKIP: could not resolve sysctl: $cdas_sysctl"
-	exit 0
-fi
-if ! sysctl $cdas_sysctl=1; then
-	echo "1..0 # SKIP: could not enable /dev/crypto access via $cdas_sysctl sysctl."
-	exit 0
-fi
+# Run software crypto test
+oldcdas=$(sysctl -e kern.cryptodevallowsoft)
+sysctl kern.cryptodevallowsoft=1
 
-echo "1..1"
-if "$PYTHON" $(dirname $0)/cryptotest.py $CRYPTOTEST_ARGS; then
-	echo "ok 1"
-else
-	echo "not ok 1"
-fi
+python $(dirname $0)/cryptotest.py
+
+sysctl "$oldcdas"
