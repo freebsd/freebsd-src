@@ -632,44 +632,17 @@ static int build_inv_stag(union t4_wr *wqe, const struct ib_send_wr *wr,
 	return 0;
 }
 
-static void free_qp_work(struct work_struct *work)
-{
-	struct c4iw_ucontext *ucontext;
-	struct c4iw_qp *qhp;
-	struct c4iw_dev *rhp;
-
-	qhp = container_of(work, struct c4iw_qp, free_work);
-	ucontext = qhp->ucontext;
-	rhp = qhp->rhp;
-
-	CTR3(KTR_IW_CXGBE, "%s qhp %p ucontext %p", __func__,
-			qhp, ucontext);
-	destroy_qp(&rhp->rdev, &qhp->wq,
-		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
-
-	c4iw_put_wr_wait(qhp->wr_waitp);
-	kfree(qhp);
-}
-
-static void queue_qp_free(struct kref *kref)
-{
-	struct c4iw_qp *qhp;
-
-	qhp = container_of(kref, struct c4iw_qp, kref);
-	CTR2(KTR_IW_CXGBE, "%s qhp %p", __func__, qhp);
-	queue_work(qhp->rhp->rdev.free_workq, &qhp->free_work);
-}
-
 void c4iw_qp_add_ref(struct ib_qp *qp)
 {
 	CTR2(KTR_IW_CXGBE, "%s ib_qp %p", __func__, qp);
-	kref_get(&to_c4iw_qp(qp)->kref);
+	refcount_inc(&to_c4iw_qp(qp)->qp_refcnt);
 }
 
 void c4iw_qp_rem_ref(struct ib_qp *qp)
 {
 	CTR2(KTR_IW_CXGBE, "%s ib_qp %p", __func__, qp);
-	kref_put(&to_c4iw_qp(qp)->kref, queue_qp_free);
+	if (refcount_dec_and_test(&to_c4iw_qp(qp)->qp_refcnt))
+		complete(&to_c4iw_qp(qp)->qp_rel_comp);
 }
 
 static int ib_to_fw_opcode(int ib_opcode)
@@ -1916,12 +1889,14 @@ out:
 
 int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 {
+	struct c4iw_ucontext *ucontext;
 	struct c4iw_dev *rhp;
 	struct c4iw_qp *qhp;
 	struct c4iw_qp_attributes attrs;
 
 	CTR2(KTR_IW_CXGBE, "%s ib_qp %p", __func__, ib_qp);
 	qhp = to_c4iw_qp(ib_qp);
+	ucontext = qhp->ucontext;
 	rhp = qhp->rhp;
 
 	attrs.next_state = C4IW_QP_STATE_ERROR;
@@ -1938,8 +1913,19 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 	free_ird(rhp, qhp->attr.max_ird);
 	c4iw_qp_rem_ref(ib_qp);
 
+	wait_for_completion(&qhp->qp_rel_comp);
+
 	CTR3(KTR_IW_CXGBE, "%s ib_qp %p qpid 0x%0x", __func__, ib_qp,
 	    qhp->wq.sq.qid);
+	CTR3(KTR_IW_CXGBE, "%s qhp %p ucontext %p", __func__,
+			qhp, ucontext);
+	destroy_qp(&rhp->rdev, &qhp->wq,
+		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
+
+	c4iw_put_wr_wait(qhp->wr_waitp);
+
+	kfree(qhp);
+
 	return 0;
 }
 
@@ -2044,8 +2030,8 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	spin_lock_init(&qhp->lock);
 	mutex_init(&qhp->mutex);
 	init_waitqueue_head(&qhp->wait);
-	kref_init(&qhp->kref);
-	INIT_WORK(&qhp->free_work, free_qp_work);
+	init_completion(&qhp->qp_rel_comp);
+	refcount_set(&qhp->qp_refcnt, 1);
 
 	ret = xa_insert_irq(&rhp->qps, qhp->wq.sq.qid, qhp, GFP_KERNEL);
 	if (ret)
