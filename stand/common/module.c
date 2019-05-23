@@ -440,7 +440,7 @@ pnpautoload_simplebus(void) {
 	const char *pnpstring;
 	const char *compatstr;
 	char *pnpinfo = NULL;
-	char *module;
+	char *module = NULL;
 	int tag = 0, len, pnplen;
 	int error;
 
