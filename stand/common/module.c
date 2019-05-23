@@ -350,7 +350,6 @@ command_lsmod(int argc, char *argv[])
 
 COMMAND_SET(pnpmatch, "pnpmatch", "list matched modules based on pnpinfo", command_pnpmatch);
 
-static int pnp_all_flag = 0;
 static int pnp_dump_flag = 0;
 static int pnp_unbound_flag = 0;
 static int pnp_verbose_flag = 0;
