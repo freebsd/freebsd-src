@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
 
+#include <crypto/chacha20/chacha.h>
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha256.h>
 
@@ -180,8 +181,16 @@ MALLOC_DEFINE(M_EKCD, "ekcd", "Encrypted kernel crash dumps data");
 struct kerneldumpcrypto {
 	uint8_t			kdc_encryption;
 	uint8_t			kdc_iv[KERNELDUMP_IV_MAX_SIZE];
-	keyInstance		kdc_ki;
-	cipherInstance		kdc_ci;
+	union {
+		struct {
+			keyInstance	aes_ki;
+			cipherInstance	aes_ci;
+		} u_aes;
+		struct chacha_ctx	u_chacha;
+	} u;
+#define	kdc_ki	u.u_aes.aes_ki
+#define	kdc_ci	u.u_aes.aes_ci
+#define	kdc_chacha	u.u_chacha
 	uint32_t		kdc_dumpkeysize;
 	struct kerneldumpkey	kdc_dumpkey[];
 };
@@ -1024,6 +1033,9 @@ kerneldumpcrypto_create(size_t blocksize, uint8_t encryption,
 		if (rijndael_makeKey(&kdc->kdc_ki, DIR_ENCRYPT, 256, key) <= 0)
 			goto failed;
 		break;
+	case KERNELDUMP_ENC_CHACHA20:
+		chacha_keysetup(&kdc->kdc_chacha, key, 256);
+		break;
 	default:
 		goto failed;
 	}
@@ -1071,6 +1083,9 @@ kerneldumpcrypto_init(struct kerneldumpcrypto *kdc)
 			error = EINVAL;
 			goto out;
 		}
+		break;
+	case KERNELDUMP_ENC_CHACHA20:
+		chacha_ivsetup(&kdc->kdc_chacha, kdc->kdc_iv, NULL);
 		break;
 	default:
 		error = EINVAL;
@@ -1208,11 +1223,12 @@ dumper_insert(const struct dumperinfo *di_template, const char *devname,
 	}
 	if (kda->kda_compression != KERNELDUMP_COMP_NONE) {
 		/*
-		 * We currently can't support simultaneous encryption and
-		 * compression because our only encryption mode is an unpadded
-		 * block cipher, go figure.  This is low hanging fruit to fix.
+		 * We can't support simultaneous unpadded block cipher
+		 * encryption and compression because there is no guarantee the
+		 * length of the compressed result is exactly a multiple of the
+		 * cipher block size.
 		 */
-		if (kda->kda_encryption != KERNELDUMP_ENC_NONE) {
+		if (kda->kda_encryption == KERNELDUMP_ENC_AES_256_CBC) {
 			error = EOPNOTSUPP;
 			goto cleanup;
 		}
@@ -1367,6 +1383,9 @@ dump_encrypt(struct kerneldumpcrypto *kdc, uint8_t *buf, size_t size)
 		    buf + size - 16 /* IV size for AES-256-CBC */) <= 0) {
 			return (EIO);
 		}
+		break;
+	case KERNELDUMP_ENC_CHACHA20:
+		chacha_encrypt_bytes(&kdc->kdc_chacha, buf, buf, size);
 		break;
 	default:
 		return (EINVAL);
