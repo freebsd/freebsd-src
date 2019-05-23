@@ -305,6 +305,9 @@ aw_ccung_attach(device_t dev)
 			aw_clk_prediv_mux_register(sc->clkdom,
 			    sc->clks[i].clk.prediv_mux);
 			break;
+		case AW_CLK_FRAC:
+			aw_clk_frac_register(sc->clkdom, sc->clks[i].clk.frac);
+			break;
 		}
 	}
 
