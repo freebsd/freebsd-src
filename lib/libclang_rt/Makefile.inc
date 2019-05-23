@@ -41,4 +41,4 @@ CFLAGS+=	-funwind-tables
 CXXFLAGS+=	-fvisibility-inlines-hidden
 CXXFLAGS+=	-fvisibility=hidden
 CFLAGS+=	-I${CRTSRC}/lib
-CXXSTD=		c++11
+CXXFLAGS+=	-std=c++11

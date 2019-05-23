@@ -1,3 +1,0 @@
-# $FreeBSD$
-
-include ../Makefile.inc

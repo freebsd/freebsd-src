@@ -76,7 +76,9 @@ CFLAGS+=	-nostdinc++
 CFLAGS+=	-nostdlib
 CFLAGS+=	-D_LIBCPP_BUILDING_LIBRARY
 CFLAGS+=	-DLIBCXXRT
-CXXSTD?=	c++11
+.if empty(CXXFLAGS:M-std=*)
+CXXFLAGS+=	-std=c++11
+.endif
 
 LIBADD+=	cxxrt
 INCSGROUPS=	STD EXP EXT
