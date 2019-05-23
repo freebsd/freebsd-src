@@ -124,9 +124,9 @@ init_amd(void)
 	 */
 	if (CPUID_TO_FAMILY(cpu_id) == 0x16 && CPUID_TO_MODEL(cpu_id) <= 0xf) {
 		if ((cpu_feature2 & CPUID2_HV) == 0) {
-			msr = rdmsr(0xc0011020);
+			msr = rdmsr(MSR_LS_CFG);
 			msr |= (uint64_t)1 << 15;
-			wrmsr(0xc0011020, msr);
+			wrmsr(MSR_LS_CFG, msr);
 		}
 	}
 
@@ -139,9 +139,9 @@ init_amd(void)
 		wrmsr(0xc0011029, msr);
 
 		/* 1033 */
-		msr = rdmsr(0xc0011020);
+		msr = rdmsr(MSR_LS_CFG);
 		msr |= 0x10;
-		wrmsr(0xc0011020, msr);
+		wrmsr(MSR_LS_CFG, msr);
 
 		/* 1049 */
 		msr = rdmsr(0xc0011028);
@@ -149,9 +149,9 @@ init_amd(void)
 		wrmsr(0xc0011028, msr);
 
 		/* 1095 */
-		msr = rdmsr(0xc0011020);
+		msr = rdmsr(MSR_LS_CFG);
 		msr |= 0x200000000000000;
-		wrmsr(0xc0011020, msr);
+		wrmsr(MSR_LS_CFG, msr);
 	}
 
 	/*
