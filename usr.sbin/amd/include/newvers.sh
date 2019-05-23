@@ -5,7 +5,7 @@
 #
 
 if [ -e $1 ]; then
-	eval `LC_ALL=C egrep '^[A-Z]+=' $1 | grep -v COPYRIGHT`
+	eval $(sh $1 -v)
 	OS=`echo ${TYPE} | LC_ALL=C tr 'A-Z' 'a-z'`
 	echo '/* Define name and version of host machine (eg. solaris2.5.1) */'
 	echo "#define HOST_OS \"${OS}${REVISION}\""
