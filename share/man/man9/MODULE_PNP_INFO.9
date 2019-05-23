@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2018
+.Dd May 23, 2019
 .Dt MODULE_PNP_INFO 9
 .Os
 .Sh NAME
@@ -196,6 +196,14 @@ MODULE_PNP_INFO("U16:device;D:#;T:vendor=0x1234", pci, my_driver,
 .Ed
 .El
 .\"
+.Sh BUGS
+The
+.Nm
+macro must follow
+.Dv DRIVER_MODULE
+invocations due to limitations in the
+.Dv linker.hints
+file format.
 .Sh SEE ALSO
 .Xr devmatch 8 ,
 .Xr DRIVER_MODULE 9 ,
