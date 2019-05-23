@@ -71,6 +71,14 @@ def GenTestCase(cname):
 			for i in katg('KAT_AES', 'CBC[GKV]*.rsp'):
 				self.runCBC(i)
 
+		@unittest.skipIf(cname not in aesmodules, 'skipping AES-CCM on %s' % (cname))
+		def test_ccm(self):
+			for i in katg('ccmtestvectors', 'V*.rsp'):
+				self.runCCMEncrypt(i)
+
+			for i in katg('ccmtestvectors', 'D*.rsp'):
+				self.runCCMDecrypt(i)
+
 		@unittest.skipIf(cname not in aesmodules, 'skipping AES-GCM on %s' % (cname))
 		def test_gcm(self):
 			for i in katg('gcmtestvectors', 'gcmEncrypt*'):
@@ -219,6 +227,93 @@ def GenTestCase(cname):
 							raise
 						continue
 					self.assertEqual(r, ct)
+
+		def runCCMEncrypt(self, fname):
+			for data in cryptodev.KATCCMParser(fname):
+				Nlen = int(data['Nlen'])
+				if Nlen != 12:
+					# OCF only supports 12 byte IVs
+					continue
+				key = data['Key'].decode('hex')
+				nonce = data['Nonce'].decode('hex')
+				Alen = int(data['Alen'])
+				if Alen != 0:
+					aad = data['Adata'].decode('hex')
+				else:
+					aad = None
+				payload = data['Payload'].decode('hex')
+				ct = data['CT'].decode('hex')
+
+				try:
+					c = Crypto(crid=crid,
+					    cipher=cryptodev.CRYPTO_AES_CCM_16,
+					    key=key,
+					    mac=cryptodev.CRYPTO_AES_CCM_CBC_MAC,
+					    mackey=key, maclen=16)
+					r, tag = Crypto.encrypt(c, payload,
+					    nonce, aad)
+				except EnvironmentError, e:
+					if e.errno != errno.EOPNOTSUPP:
+						raise
+					continue
+
+				out = r + tag
+				self.assertEqual(out, ct,
+				    "Count " + data['Count'] + " Actual: " + \
+				    repr(out.encode("hex")) + " Expected: " + \
+				    repr(data) + " on " + cname)
+
+		def runCCMDecrypt(self, fname):
+			# XXX: Note that all of the current CCM
+			# decryption test vectors use IV and tag sizes
+			# that aren't supported by OCF none of the
+			# tests are actually ran.
+			for data in cryptodev.KATCCMParser(fname):
+				Nlen = int(data['Nlen'])
+				if Nlen != 12:
+					# OCF only supports 12 byte IVs
+					continue
+				Tlen = int(data['Tlen'])
+				if Tlen != 16:
+					# OCF only supports 16 byte tags
+					continue
+				key = data['Key'].decode('hex')
+				nonce = data['Nonce'].decode('hex')
+				Alen = int(data['Alen'])
+				if Alen != 0:
+					aad = data['Adata'].decode('hex')
+				else:
+					aad = None
+				ct = data['CT'].decode('hex')
+				tag = ct[-16:]
+				ct = ct[:-16]
+
+				try:
+					c = Crypto(crid=crid,
+					    cipher=cryptodev.CRYPTO_AES_CCM_16,
+					    key=key,
+					    mac=cryptodev.CRYPTO_AES_CCM_CBC_MAC,
+					    mackey=key, maclen=16)
+				except EnvironmentError, e:
+					if e.errno != errno.EOPNOTSUPP:
+						raise
+					continue
+
+				if data['Result'] == 'Fail':
+					self.assertRaises(IOError,
+					    c.decrypt, payload, nonce, aad, tag)
+				else:
+					r = Crypto.decrypt(c, payload, nonce,
+					    aad, tag)
+
+					payload = data['Payload'].decode('hex')
+					Plen = int(data('Plen'))
+					payload = payload[:plen]
+					self.assertEqual(r, payload,
+					    "Count " + data['Count'] + \
+					    " Actual: " + repr(r.encode("hex")) + \
+					    " Expected: " + repr(data) + \
+					    " on " + cname)
 
 		###############
 		##### DES #####
