@@ -150,6 +150,14 @@ class FuseTest : public ::testing::Test {
 	void expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 		uint64_t osize, const void *contents);
 
+	/*
+	 * Create an expectation that FUSE_READIR will be called any number of
+	 * times on the given ino with the given offset, returning (by copy)
+	 * the provided entries
+	 */
+	void expect_readdir(uint64_t ino, uint64_t off,
+		std::vector<struct dirent> &ents);
+
 	/* 
 	 * Create an expectation that FUSE_RELEASE will be called exactly once
 	 * for the given inode and filehandle, returning success

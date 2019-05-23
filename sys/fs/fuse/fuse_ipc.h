@@ -222,6 +222,7 @@ struct fuse_data {
 #define FSESS_NO_NAMECACHE        0x0400 /* disable name cache */
 #define FSESS_NO_MMAP             0x0800 /* disable mmap */
 #define FSESS_POSIX_LOCKS         0x2000 /* daemon supports POSIX locks */
+#define FSESS_EXPORT_SUPPORT      0x10000 /* daemon supports NFS-style lookups */
 #define FSESS_MNTOPTS_MASK	( \
 	FSESS_DAEMON_CAN_SPY | FSESS_PUSH_SYMLINKS_IN | \
 	FSESS_DEFAULT_PERMISSIONS | FSESS_NO_ATTRCACHE | \

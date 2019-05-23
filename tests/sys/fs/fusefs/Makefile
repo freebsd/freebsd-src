@@ -26,6 +26,7 @@ GTESTS+=	lookup
 GTESTS+=	mkdir
 GTESTS+=	mknod
 GTESTS+=	mount
+GTESTS+=	nfs
 GTESTS+=	open
 GTESTS+=	opendir
 GTESTS+=	read
@@ -52,6 +53,7 @@ SRCS.$p+=	utils.cc
 TEST_METADATA.default_permissions+=	required_user="unprivileged"
 TEST_METADATA.default_permissions_privileged+=	required_user="root"
 TEST_METADATA.mknod+=	required_user="root"
+TEST_METADATA.nfs+=	required_user="root"
 
 # TODO: drastically increase timeout after test development is mostly complete
 TEST_METADATA+= timeout=10

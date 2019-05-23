@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/fcntl.h>
-#include <sys/fnv_hash.h>
 #include <sys/priv.h>
 #include <sys/buf.h>
 #include <security/mac/mac_framework.h>
@@ -165,16 +164,10 @@ fuse_vnode_destroy(struct vnode *vp)
 	atomic_subtract_acq_int(&fuse_node_count, 1);
 }
 
-static int
+int
 fuse_vnode_cmp(struct vnode *vp, void *nidp)
 {
 	return (VTOI(vp) != *((uint64_t *)nidp));
-}
-
-static uint32_t inline
-fuse_vnode_hash(uint64_t id)
-{
-	return (fnv_32_buf(&id, sizeof(id), FNV1_32_INIT));
 }
 
 SDT_PROBE_DEFINE3(fusefs, , node, stale_vnode, "struct vnode*", "enum vtype",
@@ -215,6 +208,7 @@ fuse_vnode_alloc(struct mount *mp,
 			return (EAGAIN);
 		}
 		MPASS((*vpp)->v_data != NULL);
+		MPASS(VTOFUD(*vpp)->nid == nodeid);
 		SDT_PROBE2(fusefs, , node, trace, 1, "vnode taken from hash");
 		return (0);
 	}
@@ -269,6 +263,7 @@ fuse_vnode_get(struct mount *mp,
     enum vtype vtyp)
 {
 	struct thread *td = (cnp != NULL ? cnp->cn_thread : curthread);
+	uint64_t generation = feo ? feo->generation : 1;
 	int err = 0;
 
 	err = fuse_vnode_alloc(mp, td, nodeid, vtyp, vpp);
@@ -293,10 +288,11 @@ fuse_vnode_get(struct mount *mp,
 		cache_enter_time(dvp, *vpp, cnp, &timeout, NULL);
 	}
 
+	VTOFUD(*vpp)->generation = generation;
 	/*
 	 * In userland, libfuse uses cached lookups for dot and dotdot entries,
 	 * thus it does not really bump the nlookup counter for forget.
-	 * Follow the same semantic and avoid tu bump it in order to keep
+	 * Follow the same semantic and avoid the bump in order to keep
 	 * nlookup counters consistent.
 	 */
 	if (cnp == NULL || ((cnp->cn_flags & ISDOTDOT) == 0 &&
