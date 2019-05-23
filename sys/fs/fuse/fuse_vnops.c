@@ -151,6 +151,7 @@ static vop_write_t fuse_vnop_write;
 static vop_getpages_t fuse_vnop_getpages;
 static vop_putpages_t fuse_vnop_putpages;
 static vop_print_t fuse_vnop_print;
+static vop_vptofh_t fuse_vnop_vptofh;
 
 struct vop_vector fuse_fifoops = {
 	.vop_default =		&fifo_specops,
@@ -165,6 +166,7 @@ struct vop_vector fuse_fifoops = {
 	.vop_reclaim =		fuse_vnop_reclaim,
 	.vop_setattr =		fuse_vnop_setattr,
 	.vop_write =		VOP_PANIC,
+	.vop_vptofh =		fuse_vnop_vptofh,
 };
 
 struct vop_vector fuse_vnops = {
@@ -202,6 +204,7 @@ struct vop_vector fuse_vnops = {
 	.vop_getpages = fuse_vnop_getpages,
 	.vop_putpages = fuse_vnop_putpages,
 	.vop_print = fuse_vnop_print,
+	.vop_vptofh = fuse_vnop_vptofh,
 };
 
 static u_long fuse_lookup_cache_hits = 0;
@@ -908,6 +911,8 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		return err;
 
 	if (flags & ISDOTDOT) {
+		KASSERT(VTOFUD(dvp)->flag & FN_PARENT_NID,
+			("Looking up .. is TODO"));
 		nid = VTOFUD(dvp)->parent_nid;
 		if (nid == 0)
 			return ENOENT;
@@ -970,8 +975,8 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 
 		if (!lookup_err) {
 			/* lookup call succeeded */
-			nid = ((struct fuse_entry_out *)fdi.answ)->nodeid;
 			feo = (struct fuse_entry_out *)fdi.answ;
+			nid = feo->nodeid;
 			if (nid == 0) {
 				/* zero nodeid means ENOENT and cache it */
 				struct timespec timeout;
@@ -2446,3 +2451,48 @@ fuse_vnop_print(struct vop_print_args *ap)
 
 	return 0;
 }
+	
+/*
+ * Get an NFS filehandle for a FUSE file.
+ *
+ * This will only work for FUSE file systems that guarantee the uniqueness of
+ * nodeid:generation, which most don't
+ */
+/*
+vop_vptofh {
+	IN struct vnode *a_vp;
+	IN struct fid *a_fhp;
+};
+*/
+static int
+fuse_vnop_vptofh(struct vop_vptofh_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct fuse_fid *fhp = (struct fuse_fid *)(ap->a_fhp);
+	_Static_assert(sizeof(struct fuse_fid) <= sizeof(struct fid),
+		"FUSE fid type is too big");
+	struct mount *mp = vnode_mount(vp);
+	struct fuse_data *data = fuse_get_mpdata(mp);
+	struct vattr va;
+	int err;
+
+	if (!(data->dataflags & FSESS_EXPORT_SUPPORT))
+		return EOPNOTSUPP;
+
+	err = fuse_internal_getattr(vp, &va, curthread->td_ucred, curthread);
+	if (err)
+		return err;
+
+	/*ip = VTOI(ap->a_vp);*/
+	/*ufhp = (struct ufid *)ap->a_fhp;*/
+	fhp->len = sizeof(struct fuse_fid);
+	fhp->nid = fvdat->nid;
+	if (fvdat->generation <= UINT32_MAX)
+		fhp->gen = fvdat->generation;
+	else
+		return EOVERFLOW;
+	return (0);
+}
+
+

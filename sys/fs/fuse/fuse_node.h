@@ -60,6 +60,7 @@
 #ifndef _FUSE_NODE_H_
 #define _FUSE_NODE_H_
 
+#include <sys/fnv_hash.h>
 #include <sys/types.h>
 #include <sys/mutex.h>
 
@@ -75,10 +76,13 @@
  */
 #define FN_SIZECHANGE        0x00000100
 #define FN_DIRECTIO          0x00000200
+/* Indicates that parent_nid is valid */
+#define FN_PARENT_NID        0x00000400
 
 struct fuse_vnode_data {
 	/** self **/
 	uint64_t	nid;
+	uint64_t	generation;
 
 	/** parent **/
 	uint64_t	parent_nid;
@@ -96,6 +100,17 @@ struct fuse_vnode_data {
 	struct vattr	cached_attrs;
 	uint64_t	nlookup;
 	enum vtype	vtype;
+};
+
+/*
+ * This overlays the fid structure (see mount.h). Mostly the same as the types
+ * used by UFS and ext2.
+ */
+struct fuse_fid {
+	uint16_t	len;	/* Length of structure. */
+	uint16_t	pad;	/* Force 32-bit alignment. */
+	uint32_t	gen;	/* Generation number. */
+	uint64_t	nid;	/* FUSE node id. */
 };
 
 #define VTOFUD(vp) \
@@ -119,6 +134,12 @@ fuse_vnode_clear_attr_cache(struct vnode *vp)
 	bintime_clear(&VTOFUD(vp)->attr_cache_timeout);
 }
 
+static uint32_t inline
+fuse_vnode_hash(uint64_t id)
+{
+	return (fnv_32_buf(&id, sizeof(id), FNV1_32_INIT));
+}
+
 #define VTOILLU(vp) ((uint64_t)(VTOFUD(vp) ? VTOI(vp) : 0))
 
 #define FUSE_NULL_ID 0
@@ -126,12 +147,15 @@ fuse_vnode_clear_attr_cache(struct vnode *vp)
 extern struct vop_vector fuse_fifoops;
 extern struct vop_vector fuse_vnops;
 
+int fuse_vnode_cmp(struct vnode *vp, void *nidp);
+
 static inline void
 fuse_vnode_setparent(struct vnode *vp, struct vnode *dvp)
 {
 	if (dvp != NULL && vp->v_type == VDIR) {
 		MPASS(dvp->v_type == VDIR);
 		VTOFUD(vp)->parent_nid = VTOI(dvp);
+		VTOFUD(vp)->flag |= FN_PARENT_NID;
 	}
 }
 

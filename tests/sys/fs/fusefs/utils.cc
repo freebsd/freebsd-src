@@ -35,6 +35,7 @@ extern "C" {
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 
+#include <dirent.h>
 #include <grp.h>
 #include <pwd.h>
 #include <semaphore.h>
@@ -285,6 +286,56 @@ void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 	}))).RetiresOnSaturation();
 }
 
+void FuseTest::expect_readdir(uint64_t ino, uint64_t off,
+	std::vector<struct dirent> &ents)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_READDIR &&
+				in->header.nodeid == ino &&
+				in->body.readdir.fh == FH &&
+				in->body.readdir.offset == off);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
+		struct fuse_dirent *fde = (struct fuse_dirent*)out->body.bytes;
+		int i = 0;
+
+		out->header.error = 0;
+		out->header.len = 0;
+
+		for (const auto& it: ents) {
+			size_t entlen, entsize;
+
+			fde->ino = it.d_fileno;
+			fde->off = it.d_off;
+			fde->type = it.d_type;
+			fde->namelen = it.d_namlen;
+			strncpy(fde->name, it.d_name, it.d_namlen);
+			entlen = FUSE_NAME_OFFSET + fde->namelen;
+			entsize = FUSE_DIRENT_SIZE(fde);
+			/* 
+			 * The FUSE protocol does not require zeroing out the
+			 * unused portion of the name.  But it's a good
+			 * practice to prevent information disclosure to the
+			 * FUSE client, even though the client is usually the
+			 * kernel
+			 */
+			memset(fde->name + fde->namelen, 0, entsize - entlen);
+			if (out->header.len + entsize > in->body.read.size) {
+				printf("Overflow in readdir expectation: i=%d\n"
+					, i);
+				break;
+			}
+			out->header.len += entsize;
+			fde = (struct fuse_dirent*)
+				((long*)fde + entsize / sizeof(long));
+			i++;
+		}
+		out->header.len += sizeof(out->header);
+	})));
+
+}
 void FuseTest::expect_release(uint64_t ino, uint64_t fh)
 {
 	EXPECT_CALL(*m_mock, process(
