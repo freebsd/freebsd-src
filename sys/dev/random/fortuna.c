@@ -254,7 +254,6 @@ random_fortuna_process_event(struct harvest_event *event)
 	fortuna_state.fs_pool[pl].fsp_length = MIN(RANDOM_FORTUNA_MAXPOOLSIZE,
 	    fortuna_state.fs_pool[pl].fsp_length +
 	    sizeof(event->he_somecounter) + event->he_size);
-	explicit_bzero(event, sizeof(*event));
 	RANDOM_RESEED_UNLOCK();
 }
 
