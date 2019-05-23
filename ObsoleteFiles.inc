@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190509: tests/sys/opencrypto requires the net/py-dpkt package.
+OLD_FILES+=usr/tests/sys/opencrypto/dpkt.py
+OLD_FILES+=usr/tests/sys/opencrypto/dpkt.pyc
 # 20190412: new libc++ import which bumps version from 7.0.1 to 8.0.0.
 OLD_FILES+=usr/include/c++/v1/experimental/dynarray
 # 20190412: new clang import which bumps version from 7.0.1 to 8.0.0.
