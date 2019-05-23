@@ -487,7 +487,7 @@ command_pnpautoload(int argc, char *argv[])
 {
 	int i;
 	int verbose;
-	int ch, error, match;
+	int ch, match;
 
 	pnp_verbose_flag = 0;
 	pnp_dump_flag = 0;
