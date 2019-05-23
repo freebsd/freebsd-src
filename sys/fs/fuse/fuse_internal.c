@@ -193,8 +193,9 @@ fuse_internal_access(struct vnode *vp,
  * return the result to the caller).
  */
 void
-fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
-	uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap)
+fuse_internal_cache_attrs(struct vnode *vp, struct ucred *cred,
+	struct fuse_attr *attr, uint64_t attr_valid, uint32_t attr_valid_nsec,
+	struct vattr *vap)
 {
 	struct mount *mp;
 	struct fuse_vnode_data *fvdat;
@@ -204,45 +205,53 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 	mp = vnode_mount(vp);
 	fvdat = VTOFUD(vp);
 	data = fuse_get_mpdata(mp);
+	if (!cred)
+		cred = curthread->td_ucred;
+
+	ASSERT_VOP_ELOCKED(*vpp, "fuse_internal_cache_attrs");
 
 	fuse_validity_2_bintime(attr_valid, attr_valid_nsec,
 		&fvdat->attr_cache_timeout);
 
-	vp_cache_at = VTOVA(vp);
+	/* Fix our buffers if the filesize changed without us knowing */
+	if (vnode_isreg(vp) && attr->size != fvdat->cached_attrs.va_size) {
+		(void)fuse_vnode_setsize(vp, cred, attr->size);
+		fvdat->cached_attrs.va_size = attr->size;
+	}
 
-	if (vap == NULL && vp_cache_at == NULL)
+	if (attr_valid > 0 || attr_valid_nsec > 0)
+		vp_cache_at = &(fvdat->cached_attrs);
+	else if (vap != NULL)
+		vp_cache_at = vap;
+	else
 		return;
 
-	if (vap == NULL)
-		vap = vp_cache_at;
-
-	vattr_null(vap);
-
-	vap->va_fsid = mp->mnt_stat.f_fsid.val[0];
-	vap->va_fileid = attr->ino;
-	vap->va_mode = attr->mode & ~S_IFMT;
-	vap->va_nlink     = attr->nlink;
-	vap->va_uid       = attr->uid;
-	vap->va_gid       = attr->gid;
-	vap->va_rdev      = attr->rdev;
-	vap->va_size      = attr->size;
+	vattr_null(vp_cache_at);
+	vp_cache_at->va_fsid = mp->mnt_stat.f_fsid.val[0];
+	vp_cache_at->va_fileid = attr->ino;
+	vp_cache_at->va_mode = attr->mode & ~S_IFMT;
+	vp_cache_at->va_nlink     = attr->nlink;
+	vp_cache_at->va_uid       = attr->uid;
+	vp_cache_at->va_gid       = attr->gid;
+	vp_cache_at->va_rdev      = attr->rdev;
+	vp_cache_at->va_size      = attr->size;
 	/* XXX on i386, seconds are truncated to 32 bits */
-	vap->va_atime.tv_sec  = attr->atime;
-	vap->va_atime.tv_nsec = attr->atimensec;
-	vap->va_mtime.tv_sec  = attr->mtime;
-	vap->va_mtime.tv_nsec = attr->mtimensec;
-	vap->va_ctime.tv_sec  = attr->ctime;
-	vap->va_ctime.tv_nsec = attr->ctimensec;
+	vp_cache_at->va_atime.tv_sec  = attr->atime;
+	vp_cache_at->va_atime.tv_nsec = attr->atimensec;
+	vp_cache_at->va_mtime.tv_sec  = attr->mtime;
+	vp_cache_at->va_mtime.tv_nsec = attr->mtimensec;
+	vp_cache_at->va_ctime.tv_sec  = attr->ctime;
+	vp_cache_at->va_ctime.tv_nsec = attr->ctimensec;
 	if (fuse_libabi_geq(data, 7, 9) && attr->blksize > 0)
-		vap->va_blocksize = attr->blksize;
+		vp_cache_at->va_blocksize = attr->blksize;
 	else
-		vap->va_blocksize = PAGE_SIZE;
-	vap->va_type = IFTOVT(attr->mode);
-	vap->va_bytes = attr->blocks * S_BLKSIZE;
-	vap->va_flags = 0;
+		vp_cache_at->va_blocksize = PAGE_SIZE;
+	vp_cache_at->va_type = IFTOVT(attr->mode);
+	vp_cache_at->va_bytes = attr->blocks * S_BLKSIZE;
+	vp_cache_at->va_flags = 0;
 
-	if (vap != vp_cache_at && vp_cache_at != NULL)
-		memcpy(vp_cache_at, vap, sizeof(*vap));
+	if (vap != vp_cache_at && vap != NULL)
+		memcpy(vap, vp_cache_at, sizeof(*vap));
 }
 
 
@@ -560,7 +569,7 @@ fuse_internal_newentry_core(struct vnode *dvp,
 	 */
 	fuse_vnode_clear_attr_cache(dvp);
 
-	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
+	fuse_internal_cache_attrs(*vpp, NULL, &feo->attr, feo->attr_valid,
 		feo->attr_valid_nsec, NULL);
 
 	return err;
@@ -646,23 +655,13 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 
 	fao = (struct fuse_attr_out *)fdi.answ;
 	vtyp = IFTOVT(fao->attr.mode);
-	fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
+	if (fvdat->flag & FN_SIZECHANGE)
+		fao->attr.size = old_filesize;
+	fuse_internal_cache_attrs(vp, NULL, &fao->attr, fao->attr_valid,
 		fao->attr_valid_nsec, vap);
 	if (vtyp != vnode_vtype(vp)) {
 		fuse_internal_vnode_disappear(vp);
 		err = ENOENT;
-	}
-
-	if ((fvdat->flag & FN_SIZECHANGE) != 0)
-		fvdat->cached_attrs.va_size = old_filesize;
-
-	if (vnode_isreg(vp) && (fvdat->flag & FN_SIZECHANGE) == 0) {
-		/*
-	         * This is for those cases when the file size changed without us
-	         * knowing, and we want to catch up.
-	         */
-		if (old_filesize != fao->attr.size)
-			fuse_vnode_setsize(vp, cred, fao->attr.size);
 	}
 
 out:
@@ -675,14 +674,10 @@ int
 fuse_internal_getattr(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	struct thread *td)
 {
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct vattr *attrs;
-	off_t old_filesize = vap->va_size;
 
 	if ((attrs = VTOVA(vp)) != NULL) {
 		*vap = *attrs;	/* struct copy */
-		if ((fvdat->flag & FN_SIZECHANGE) != 0)
-			vap->va_size = old_filesize;
 		return 0;
 	}
 
@@ -829,6 +824,7 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 			fsai->fh = fufh->fh_id;
 			fsai->valid |= FATTR_FH;
 		}
+		VTOFUD(vp)->flag &= ~FN_SIZECHANGE;
 	}
 	if (vap->va_atime.tv_sec != VNOVAL) {
 		fsai->atime = vap->va_atime.tv_sec;
@@ -875,16 +871,12 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	}
 	if (err == 0) {
 		struct fuse_attr_out *fao = (struct fuse_attr_out*)fdi.answ;
-		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
+		fuse_internal_cache_attrs(vp, cred, &fao->attr, fao->attr_valid,
 			fao->attr_valid_nsec, NULL);
 	}
 
 out:
 	fdisp_destroy(&fdi);
-	if (!err && sizechanged) {
-		fuse_vnode_setsize(vp, cred, newsize);
-		VTOFUD(vp)->flag &= ~FN_SIZECHANGE;
-	}
 	return err;
 }
 

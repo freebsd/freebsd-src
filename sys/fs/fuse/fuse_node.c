@@ -400,7 +400,6 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 	fvdat->cached_attrs.va_size = newsize;
 	if ((attrs = VTOVA(vp)) != NULL)
 		attrs->va_size = newsize;
-	fvdat->flag |= FN_SIZECHANGE;
 
 	if (newsize < oldsize) {
 		daddr_t lbn;
