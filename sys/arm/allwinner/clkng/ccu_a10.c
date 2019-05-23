@@ -212,7 +212,7 @@ NKMP_CLK(pll_core_clk,
     0, 0,					/* lock */
     AW_CLK_HAS_GATE);				/* flags */
 
-NM_CLK_WITH_FRAC(pll_video0_clk,
+FRAC_CLK(pll_video0_clk,
     CLK_PLL_VIDEO0,				/* id */
     "pll_video0", pll_parents,			/* name, parents */
     0x10,					/* offset */
@@ -231,7 +231,7 @@ FIXED_CLK(pll_video0_2x_clk,
     1,						/* div */
     0);						/* flags */
 
-NM_CLK_WITH_FRAC(pll_video1_clk,
+FRAC_CLK(pll_video1_clk,
     CLK_PLL_VIDEO1,				/* id */
     "pll_video1", pll_parents,			/* name, parents */
     0x30,					/* offset */
@@ -537,8 +537,8 @@ static struct aw_ccung_clk a10_ccu_clks[] = {
 	{ .type = AW_CLK_NM, .clk.nm = &ahb_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &apb0_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &apb1_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &pll_video0_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &pll_video1_clk},
+	{ .type = AW_CLK_FRAC, .clk.frac = &pll_video0_clk},
+	{ .type = AW_CLK_FRAC, .clk.frac = &pll_video1_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &nand_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &ms_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},
