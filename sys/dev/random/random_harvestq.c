@@ -163,6 +163,7 @@ random_harvestq_fast_process_event(struct harvest_event *event)
 #if defined(RANDOM_LOADABLE)
 	RANDOM_CONFIG_S_UNLOCK();
 #endif
+	explicit_bzero(event, sizeof(*event));
 }
 
 static void
@@ -437,7 +438,6 @@ random_harvestq_prime(void *unused __unused)
 				    harvest_context.hc_destination[RANDOM_CACHED]++;
 				memcpy(event.he_entropy, data + i, sizeof(event.he_entropy));
 				random_harvestq_fast_process_event(&event);
-				explicit_bzero(&event, sizeof(event));
 			}
 			explicit_bzero(data, size);
 			if (bootverbose)
@@ -540,7 +540,6 @@ random_harvest_direct_(const void *entropy, u_int size, enum random_entropy_sour
 	event.he_destination = harvest_context.hc_destination[origin]++;
 	memcpy(event.he_entropy, entropy, size);
 	random_harvestq_fast_process_event(&event);
-	explicit_bzero(&event, sizeof(event));
 }
 
 void
