@@ -3043,11 +3043,12 @@ mmu_booke_copy_page(mmu_t mmu, vm_page_t sm, vm_page_t dm)
 	dva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dm));
 	memcpy((caddr_t)dva, (caddr_t)sva, PAGE_SIZE);
 #else
+	sva = copy_page_src_va;
+	dva = copy_page_dst_va;
+
 	mtx_lock(&copy_page_mutex);
 	mmu_booke_kenter(mmu, sva, VM_PAGE_TO_PHYS(sm));
 	mmu_booke_kenter(mmu, dva, VM_PAGE_TO_PHYS(dm));
-	sva = copy_page_src_va;
-	dva = copy_page_dst_va;
 
 	memcpy((caddr_t)dva, (caddr_t)sva, PAGE_SIZE);
 
