@@ -198,7 +198,7 @@ build_tree()
 		for file in $PREWORLD_FILES; do
 			name=$(basename $file)
 			mkdir -p $1/etc >&3 2>&1 || return 1
-			cp -p $SRCDIR/$file etc/$name || return 1
+			cp -p $SRCDIR/$file $1/etc/$name || return 1
 		done
 	elif ! [ -n "$nobuild" ]; then
 		(cd $SRCDIR; $make DESTDIR=$destdir distrib-dirs &&
