@@ -469,6 +469,10 @@ i2c_detach(device_t dev)
 	if (sc->iicbus != NULL)
 		device_delete_child(dev, sc->iicbus);
 
+	/* Release bus-recover pins; gpio_pin_release() handles NULL args. */
+	gpio_pin_release(sc->rb_sclpin);
+	gpio_pin_release(sc->rb_sdapin);
+
 	if (sc->res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
 
