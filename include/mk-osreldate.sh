@@ -38,8 +38,8 @@ trap "rm -f $tmpfile" EXIT
 ${ECHO} creating osreldate.h from newvers.sh
 
 set +e
-VARS_ONLY=1
-. "${NEWVERS_SH:=$CURDIR/../sys/conf/newvers.sh}" || exit 1
+COPYRIGHT=$(sh ${NEWVERS_SH:=$CURDIR/../sys/conf/newvers.sh} -c) || exit 1
+eval $(sh ${NEWVERS_SH} -V RELDATE) || exit 1
 set -e
 cat > $tmpfile <<EOF
 $COPYRIGHT
