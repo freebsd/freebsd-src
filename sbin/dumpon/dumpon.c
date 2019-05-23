@@ -276,7 +276,16 @@ genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 	if (kdap->kda_encryptedkey == NULL)
 		err(1, "Unable to allocate encrypted key");
 
-	kdap->kda_encryption = KERNELDUMP_ENC_AES_256_CBC;
+	/*
+	 * If no cipher was specified, choose a reasonable default.
+	 */
+	if (kdap->kda_encryption == KERNELDUMP_ENC_NONE)
+		kdap->kda_encryption = KERNELDUMP_ENC_CHACHA20;
+	else if (kdap->kda_encryption == KERNELDUMP_ENC_AES_256_CBC &&
+	    kdap->kda_compression != KERNELDUMP_COMP_NONE)
+		errx(EX_USAGE, "Unpadded AES256-CBC mode cannot be used "
+		    "with compression.");
+
 	arc4random_buf(kdap->kda_key, sizeof(kdap->kda_key));
 	if (RSA_public_encrypt(sizeof(kdap->kda_key), kdap->kda_key,
 	    kdap->kda_encryptedkey, pubkey,
@@ -378,7 +387,7 @@ main(int argc, char *argv[])
 	struct diocskerneldump_arg ndconf, *kdap;
 	struct addrinfo hints, *res;
 	const char *dev, *pubkeyfile, *server, *client, *gateway;
-	int ch, error, fd;
+	int ch, error, fd, cipher;
 	bool gzip, list, netdump, zstd, insert, rflag;
 	uint8_t ins_idx;
 
@@ -387,9 +396,21 @@ main(int argc, char *argv[])
 	pubkeyfile = NULL;
 	server = client = gateway = NULL;
 	ins_idx = KDA_APPEND;
+	cipher = KERNELDUMP_ENC_NONE;
 
-	while ((ch = getopt(argc, argv, "c:g:i:k:lrs:vZz")) != -1)
+	while ((ch = getopt(argc, argv, "C:c:g:i:k:lrs:vZz")) != -1)
 		switch ((char)ch) {
+		case 'C':
+			if (strcasecmp(optarg, "chacha") == 0 ||
+			    strcasecmp(optarg, "chacha20") == 0)
+				cipher = KERNELDUMP_ENC_CHACHA20;
+			else if (strcasecmp(optarg, "aes-cbc") == 0 ||
+			    strcasecmp(optarg, "aes256-cbc") == 0)
+				cipher = KERNELDUMP_ENC_AES_256_CBC;
+			else
+				errx(EX_USAGE, "Unrecognized cipher algorithm "
+				    "'%s'", optarg);
+			break;
 		case 'c':
 			client = optarg;
 			break;
@@ -451,7 +472,10 @@ main(int argc, char *argv[])
 	if (argc != 1)
 		usage();
 
-#ifndef HAVE_CRYPTO
+#ifdef HAVE_CRYPTO
+	if (cipher != KERNELDUMP_ENC_NONE && pubkeyfile == NULL)
+		errx(EX_USAGE, "-C option requires a public key file.");
+#else
 	if (pubkeyfile != NULL)
 		errx(EX_UNAVAILABLE,"Unable to use the public key."
 				    " Recompile dumpon with OpenSSL support.");
@@ -526,8 +550,10 @@ main(int argc, char *argv[])
 	}
 
 #ifdef HAVE_CRYPTO
-	if (pubkeyfile != NULL)
+	if (pubkeyfile != NULL) {
+		kdap->kda_encryption = cipher;
 		genkey(pubkeyfile, kdap);
+	}
 #endif
 	error = ioctl(fd, DIOCSKERNELDUMP, kdap);
 	if (error != 0)
