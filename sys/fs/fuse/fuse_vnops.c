@@ -1176,7 +1176,7 @@ fuse_vnop_mknod(struct vop_mknod_args *ap)
 }
 
 /*
-    struct vnop_open_args {
+    struct vop_open_args {
 	struct vnode *a_vp;
 	int  a_mode;
 	struct ucred *a_cred;
@@ -1270,7 +1270,7 @@ fuse_vnop_read(struct vop_read_args *ap)
 	struct uio *a_uio;
 	struct ucred *a_cred;
 	int *a_eofflag;
-	int *ncookies;
+	int *a_ncookies;
 	u_long **a_cookies;
     };
 */
@@ -1283,8 +1283,15 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	struct fuse_filehandle *fufh = NULL;
 	struct fuse_iov cookediov;
 	int err = 0;
+	u_long *cookies;
+	off_t startoff;
+	ssize_t tresid;
+	int ncookies;
+	bool closefufh = false;
 	pid_t pid = curthread->td_proc->p_pid;
 
+	if (ap->a_eofflag)
+		*ap->a_eofflag = 0;
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
 	}
@@ -1293,15 +1300,60 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 		return EINVAL;
 	}
 
+	tresid = uio->uio_resid;
+	startoff = uio->uio_offset;
 	err = fuse_filehandle_get_dir(vp, &fufh, cred, pid);
+	if (err == EBADF && vnode_mount(vp)->mnt_flag & MNT_EXPORTED) {
+		/* 
+		 * nfsd will do VOP_READDIR without first doing VOP_OPEN.  We
+		 * must implicitly open the directory here
+		 */
+		err = fuse_filehandle_open(vp, FREAD, &fufh, curthread, cred);
+		if (err == 0) {
+			/*
+			 * When a directory is opened, it must be read from
+			 * the beginning.  Hopefully, the "startoff" still
+			 * exists as an offset cookie for the directory.
+			 * If not, it will read the entire directory without
+			 * returning any entries and just return eof.
+			 */
+			uio->uio_offset = 0;
+		}
+		closefufh = true;
+	}
 	if (err)
 		return (err);
+	if (ap->a_ncookies != NULL) {
+		ncookies = uio->uio_resid /
+			(offsetof(struct dirent, d_name) + 4) + 1;
+		cookies = malloc(ncookies * sizeof(*cookies), M_TEMP, M_WAITOK);
+		*ap->a_ncookies = ncookies;
+		*ap->a_cookies = cookies;
+	} else {
+		ncookies = 0;
+		cookies = NULL;
+	}
 #define DIRCOOKEDSIZE FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET + MAXNAMLEN + 1)
 	fiov_init(&cookediov, DIRCOOKEDSIZE);
 
-	err = fuse_internal_readdir(vp, uio, fufh, &cookediov);
+	err = fuse_internal_readdir(vp, uio, startoff, fufh, &cookediov,
+		&ncookies, cookies);
 
 	fiov_teardown(&cookediov);
+	if (closefufh)
+		fuse_filehandle_close(vp, fufh, curthread, cred);
+
+	if (ap->a_ncookies != NULL) {
+		if (err == 0) {
+			*ap->a_ncookies -= ncookies;
+		} else {
+			free(*ap->a_cookies, M_TEMP);
+			*ap->a_ncookies = 0;
+			*ap->a_cookies = NULL;
+		}
+	}
+	if (err == 0 && tresid == uio->uio_resid)
+		*ap->a_eofflag = 1;
 
 	return err;
 }
