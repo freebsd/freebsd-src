@@ -352,3 +352,4 @@ EARLY_DRIVER_MODULE(syr827, iicbus, syr827_driver, syr827_devclass, 0, 0,
     BUS_PASS_RESOURCE);
 MODULE_VERSION(syr827, 1);
 MODULE_DEPEND(syr827, iicbus, 1, 1, 1);
+IICBUS_FDT_PNP_INFO(compat_data);
