@@ -49,8 +49,8 @@ PROGS+=		h_getopt h_getopt_long
 
 CFLAGS+=	-I${.CURDIR}
 
-CXXFLAGS.cxa_thread_atexit_test+=	-std=c++11
-CXXFLAGS.cxa_thread_atexit_nothr_test+=	-std=c++11
+CXXSTD.cxa_thread_atexit_test=	c++11
+CXXSTD.cxa_thread_atexit_nothr_test=	c++11
 LIBADD.cxa_thread_atexit_test+=		pthread
 
 .for t in h_getopt h_getopt_long
