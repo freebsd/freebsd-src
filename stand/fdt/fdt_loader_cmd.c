@@ -67,6 +67,8 @@ static struct fdt_header *fdt_to_load = NULL;
 static struct fdt_header *fdtp = NULL;
 /* Size of FDT blob */
 static size_t fdtp_size = 0;
+/* Have we loaded all the needed overlays */
+static int fdt_overlays_applied = 0;
 
 static int fdt_load_dtb(vm_offset_t va);
 static void fdt_print_overlay_load_error(int err, const char *filename);
@@ -439,6 +441,9 @@ fdt_apply_overlays()
 	if ((fdtp == NULL) || (fdtp_size == 0))
 		return;
 
+	if (fdt_overlays_applied)
+		return;
+
 	max_overlay_size = 0;
 	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
 		if (max_overlay_size < fp->f_size)
@@ -507,6 +512,7 @@ fdt_apply_overlays()
 		fdtp_size = current_fdtp_size;
 	}
 	free(overlay);
+	fdt_overlays_applied = 1;
 }
 
 int
@@ -1858,4 +1864,66 @@ fdt_cmd_nyi(int argc, char *argv[])
 
 	printf("command not yet implemented\n");
 	return (CMD_ERROR);
+}
+
+const char *
+fdt_devmatch_next(int *tag, int *compatlen)
+{
+	const struct fdt_property *p;
+	const struct fdt_property *status;
+	int o, len = -1;
+	static int depth = 0;
+
+	if (fdtp == NULL) {
+		fdt_setup_fdtp();
+		fdt_apply_overlays();
+	}
+
+	if (*tag != 0) {
+		o = *tag;
+		/* We are at the end of the DTB */
+		if (o < 0)
+			return (NULL);
+	} else {
+		o = fdt_path_offset(fdtp, "/");
+		if (o < 0) {
+			printf("Can't find dtb\n");
+			return (NULL);
+		}
+		depth = 0;
+	}
+
+	/* Find the next node with a compatible property */
+	while (1) {
+		p = NULL;
+		if (o >= 0 && depth >= 0) {
+			/* skip disabled nodes */
+			status = fdt_get_property(fdtp, o, "status", &len);
+			if (len > 0) {
+				if (strcmp(status->data, "disabled") == 0) {
+					o = fdt_next_node(fdtp, o, &depth);
+					if (o < 0) /* End of tree */
+						return (NULL);
+					continue;
+				}
+			}
+
+			p = fdt_get_property(fdtp, o, "compatible", &len);
+		}
+		if (p)
+			break;
+		o = fdt_next_node(fdtp, o, &depth);
+		if (o < 0) /* End of tree */
+			return (NULL);
+	}
+
+	/* Prepare next node for next call */
+	o = fdt_next_node(fdtp, o, &depth);
+	*tag = o;
+
+	if (len >= 0) {
+		*compatlen = len;
+		return (p->data);
+	}
+	return (NULL);
 }
