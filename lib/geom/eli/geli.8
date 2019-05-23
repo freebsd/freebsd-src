@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2019
+.Dd May 23, 2019
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -901,6 +901,18 @@ specified in
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
+.Sh DEPRECATION NOTICE
+Support for the
+.Nm Blowfish-CBC
+and
+.Nm 3DES-CBC
+cryptographic algorithms and
+.Nm HMAC/MD5
+authentication algorithm will be removed in
+.Fx 13.0 .
+New volumes cannot be created using these algorithms.
+Existing volumes should be migrated to a new volume that uses
+non-deprecated algorithms.
 .Sh EXAMPLES
 Initialize a provider which is going to be encrypted with a
 passphrase and random data from a file on the user's pen drive.
@@ -1134,7 +1146,7 @@ utility appeared in
 .Fx 6.0 .
 Support for the
 .Nm Camellia
-block cipher is implemented by Yoshisato Yanagisawa in
+block cipher was implemented by Yoshisato Yanagisawa in
 .Fx 7.0 .
 .Pp
 Highest
