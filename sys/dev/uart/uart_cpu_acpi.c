@@ -45,9 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/actables.h>
 
-extern bus_space_tag_t uart_bus_space_io;
-extern bus_space_tag_t uart_bus_space_mem;
-
 static struct acpi_uart_compat_data *
 uart_cpu_acpi_scan(uint8_t interface_type)
 {
