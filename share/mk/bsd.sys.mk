@@ -24,6 +24,11 @@ CFLAGS+=	-std=iso9899:1999
 .else # CSTD
 CFLAGS+=	-std=${CSTD}
 .endif # CSTD
+
+.if !empty(CXXSTD)
+CXXFLAGS+=	-std=${CXXSTD}
+.endif
+
 # -pedantic is problematic because it also imposes namespace restrictions
 #CFLAGS+=	-pedantic
 .if defined(WARNS)
