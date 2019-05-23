@@ -1265,7 +1265,7 @@ vm_map_entry_resize(vm_map_t map, vm_map_entry_t entry, vm_size_t grow_amount)
 	    root->left, root->right);
 	VM_MAP_ASSERT_CONSISTENT(map);
 	CTR4(KTR_VM, "%s: map %p, nentries %d, entry %p",
-	    _func__, map, map->nentries, entry);
+	    __func__, map, map->nentries, entry);
 }
 
 /*
