@@ -624,7 +624,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		goto out;
 	}
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnop_create");
-	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
+	fuse_internal_cache_attrs(*vpp, cred, &feo->attr, feo->attr_valid,
 		feo->attr_valid_nsec, NULL);
 
 	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, td, cred, foo);
@@ -790,6 +790,7 @@ fuse_vnop_link(struct vop_link_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct vnode *tdvp = ap->a_tdvp;
 	struct componentname *cnp = ap->a_cnp;
+	struct ucred *cred = cnp->cn_cred;
 
 	struct vattr *vap = VTOVA(vp);
 
@@ -831,7 +832,7 @@ fuse_vnop_link(struct vop_link_args *ap)
 		 * should've updated its mtime and ctime
 		 */
 		fuse_vnode_clear_attr_cache(tdvp);
-		fuse_internal_cache_attrs(vp, &feo->attr, feo->attr_valid,
+		fuse_internal_cache_attrs(vp, cred, &feo->attr, feo->attr_valid,
 			feo->attr_valid_nsec, NULL);
 	}
 out:
@@ -1040,17 +1041,17 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			 * In the case where we are looking up a FUSE node
 			 * represented by an existing cached vnode, and the
 			 * true size reported by FUSE_LOOKUP doesn't match
-			 * the vnode's cached size, fix the vnode cache to
-			 * match the real object size.
+			 * the vnode's cached size, then any cached writes
+			 * beyond the file's current size are lost.
 			 *
 			 * We can get here:
 			 * * following attribute cache expiration, or
 			 * * due a bug in the daemon, or
-			 * * the first time that we looked up the file.
 			 */
 			fvdat = VTOFUD(vp);
 			if (vnode_isreg(vp) &&
-			    filesize != fvdat->cached_attrs.va_size) {
+			    filesize != fvdat->cached_attrs.va_size &&
+			    fvdat->flag & FN_SIZECHANGE) {
 				/*
 				 * The FN_SIZECHANGE flag reflects a dirty
 				 * append.  If userspace lets us know our cache
@@ -1060,17 +1061,15 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				 *
 				 * XXX: Maybe disable WB caching on this mount.
 				 */
-				if (fvdat->flag & FN_SIZECHANGE)
-					printf("%s: WB cache incoherent on "
-					    "%s!\n", __func__,
-					    vnode_mount(vp)->mnt_stat.f_mntonname);
+				printf("%s: WB cache incoherent on %s!\n",
+				    __func__,
+				    vnode_mount(vp)->mnt_stat.f_mntonname);
 
-				(void)fuse_vnode_setsize(vp, cred, filesize);
 				fvdat->flag &= ~FN_SIZECHANGE;
 			}
 
 			MPASS(feo != NULL);
-			fuse_internal_cache_attrs(*vpp, &feo->attr,
+			fuse_internal_cache_attrs(*vpp, cred, &feo->attr,
 				feo->attr_valid, feo->attr_valid_nsec, NULL);
 
 			if ((nameiop == DELETE || nameiop == RENAME) &&

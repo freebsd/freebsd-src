@@ -473,10 +473,10 @@ retry:
 		as_written_offset = uio->uio_offset - diff;
 
 		if (as_written_offset - diff > filesize &&
-		    fuse_data_cache_mode != FUSE_CACHE_UC) {
+		    fuse_data_cache_mode != FUSE_CACHE_UC)
 			fuse_vnode_setsize(vp, cred, as_written_offset);
+		if (as_written_offset - diff >= filesize)
 			fvdat->flag &= ~FN_SIZECHANGE;
-		}
 
 		if (diff < 0) {
 			printf("WARNING: misbehaving FUSE filesystem "
@@ -528,6 +528,7 @@ static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag, pid_t pid)
 {
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct buf *bp;
 	daddr_t lbn;
 	off_t filesize;
@@ -590,6 +591,8 @@ again:
 
 				err = fuse_vnode_setsize(vp, cred, 
 							 uio->uio_offset + n);
+				fvdat->flag |= FN_SIZECHANGE;
+
 				if (err) {
 					brelse(bp);
 					break;
@@ -617,10 +620,11 @@ again:
 			if (bp && uio->uio_offset + n > filesize) {
 				err = fuse_vnode_setsize(vp, cred, 
 							 uio->uio_offset + n);
+				fvdat->flag |= FN_SIZECHANGE;
 				if (err) {
 					brelse(bp);
 					break;
-				}
+				} 
 			}
 		}
 
