@@ -724,6 +724,10 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		if (ron->ro_rt == NULL ||
 		    (ron->ro_rt->rt_flags & RTF_GATEWAY) != 0)
 			error = EHOSTUNREACH;
+		else {
+			rt = ron->ro_rt;
+			ifp = rt->rt_ifp;
+		}
 		goto done;
 	}
 
