@@ -294,8 +294,15 @@ bectl_jail_body()
 	atf_check cp /rescue/rescue ${root}/rescue/rescue
 	atf_check bectl -r ${zpool}/ROOT umount default
 
-	# Prepare a second boot environment
+	# Prepare some more boot environments
 	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT create -e default target
+	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT create -e default 1234
+
+	# Attempt to unjail a BE with numeric name; jail_getid at one point
+	# did not validate that the input was a valid jid before returning the
+	# jid.
+	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT jail -b 1234
+	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT unjail 1234
 
 	# When a jail name is not explicit, it should match the jail id.
 	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT jail -b -o jid=233637 default
@@ -340,9 +347,10 @@ bectl_jail_body()
 # attempts to destroy the zpool.
 bectl_jail_cleanup()
 {
-	for bootenv in "default" "target"; do
+	zpool=$(get_zpool_name)
+	for bootenv in "default" "target" "1234"; do
 		# mountpoint of the boot environment
-		mountpoint="$(bectl -r bectl_test/ROOT list -H | grep ${bootenv} | awk '{print $3}')"
+		mountpoint="$(bectl -r ${zpool}/ROOT list -H | grep ${bootenv} | awk '{print $3}')"
 
 		# see if any jail paths match the boot environment mountpoint
 		jailid="$(jls | grep ${mountpoint} | awk '{print $1}')"
@@ -353,7 +361,7 @@ bectl_jail_cleanup()
 		jail -r ${jailid}
 	done;
 
-	bectl_cleanup $(get_zpool_name)
+	bectl_cleanup ${zpool}
 }
 
 atf_init_test_cases()
