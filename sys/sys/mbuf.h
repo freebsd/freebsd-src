@@ -40,6 +40,7 @@
 #include <sys/queue.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
+#include <sys/refcount.h>
 #include <vm/uma.h>
 #ifdef WITNESS
 #include <sys/lock.h>
@@ -138,6 +139,7 @@ struct m_tag {
  */
 struct m_snd_tag {
 	struct ifnet *ifp;		/* network interface tag belongs to */
+	volatile u_int refcount;
 };
 
 /*
@@ -494,6 +496,8 @@ struct mbuf {
 #define	CSUM_L5_VALID		0x20000000	/* checksum is correct */
 #define	CSUM_COALESCED		0x40000000	/* contains merged segments */
 
+#define	CSUM_SND_TAG		0x80000000	/* Packet header has send tag */
+
 /*
  * CSUM flag description for use with printf(9) %b identifier.
  */
@@ -503,7 +507,7 @@ struct mbuf {
     "\12CSUM_IP6_UDP\13CSUM_IP6_TCP\14CSUM_IP6_SCTP\15CSUM_IP6_TSO" \
     "\16CSUM_IP6_ISCSI" \
     "\31CSUM_L3_CALC\32CSUM_L3_VALID\33CSUM_L4_CALC\34CSUM_L4_VALID" \
-    "\35CSUM_L5_CALC\36CSUM_L5_VALID\37CSUM_COALESCED"
+    "\35CSUM_L5_CALC\36CSUM_L5_VALID\37CSUM_COALESCED\40CSUM_SND_TAG"
 
 /* CSUM flags compatibility mappings. */
 #define	CSUM_IP_CHECKED		CSUM_L3_CALC
@@ -633,6 +637,8 @@ int		 m_sanity(struct mbuf *, int);
 struct mbuf	*m_split(struct mbuf *, int, int);
 struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
 struct mbuf	*m_unshare(struct mbuf *, int);
+void		 m_snd_tag_init(struct m_snd_tag *, struct ifnet *);
+void		 m_snd_tag_destroy(struct m_snd_tag *);
 
 static __inline int
 m_gettype(int size)
@@ -995,6 +1001,17 @@ m_align(struct mbuf *m, int len)
  */
 #define	MCHTYPE(m, t)	m_chtype((m), (t))
 
+/* Return the rcvif of a packet header. */
+static __inline struct ifnet *
+m_rcvif(struct mbuf *m)
+{
+
+	M_ASSERTPKTHDR(m);
+	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG)
+		return (NULL);
+	return (m->m_pkthdr.rcvif);
+}
+
 /* Length to m_copy to copy all. */
 #define	M_COPYALL	1000000000
 
@@ -1185,6 +1202,22 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 	    m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
 }
 
+static inline struct m_snd_tag *
+m_snd_tag_ref(struct m_snd_tag *mst)
+{
+
+	refcount_acquire(&mst->refcount);
+	return (mst);
+}
+
+static inline void
+m_snd_tag_rele(struct m_snd_tag *mst)
+{
+
+	if (refcount_release(&mst->refcount))
+		m_snd_tag_destroy(mst);
+}
+
 static __inline struct mbuf *
 m_free(struct mbuf *m)
 {
@@ -1193,6 +1226,8 @@ m_free(struct mbuf *m)
 	MBUF_PROBE1(m__free, m);
 	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
 		m_tag_delete_chain(m, NULL);
+	if (m->m_flags & M_PKTHDR && m->m_pkthdr.csum_flags & CSUM_SND_TAG)
+		m_snd_tag_rele(m->m_pkthdr.snd_tag);
 	if (m->m_flags & M_EXT)
 		mb_free_ext(m);
 	else if ((m->m_flags & M_NOFREE) == 0)

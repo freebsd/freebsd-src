@@ -843,7 +843,6 @@ mlx5e_rl_init(struct mlx5e_priv *priv)
 		for (i = 0; i < rl->param.tx_channels_per_worker_def; i++) {
 			struct mlx5e_rl_channel *channel = rlw->channels + i;
 			channel->worker = rlw;
-			channel->tag.m_snd_tag.ifp = priv->ifp;
 			channel->tag.type = IF_SND_TAG_TYPE_RATE_LIMIT;
 			STAILQ_INSERT_TAIL(&rlw->index_list_head, channel, entry);
 		}
@@ -1127,6 +1126,8 @@ mlx5e_rl_snd_tag_alloc(struct ifnet *ifp,
 	}
 
 	/* store pointer to mbuf tag */
+	MPASS(channel->tag.m_snd_tag.refcount == 0);
+	m_snd_tag_init(&channel->tag.m_snd_tag, ifp);
 	*ppmt = &channel->tag.m_snd_tag;
 done:
 	return (error);

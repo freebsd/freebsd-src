@@ -2057,13 +2057,8 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 		return (rc);
 	}
 #ifdef RATELIMIT
-	if (m->m_pkthdr.snd_tag != NULL) {
-		/* EAGAIN tells the stack we are not the correct interface. */
-		if (__predict_false(ifp != m->m_pkthdr.snd_tag->ifp)) {
-			m_freem(m);
-			return (EAGAIN);
-		}
-
+	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG) {
+		MPASS(m->m_pkthdr.snd_tag->ifp == ifp);
 		return (ethofld_transmit(ifp, m));
 	}
 #endif

@@ -1247,7 +1247,7 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 
 	wq_sz = mlx5_wq_ll_get_size(&rq->wq);
 
-	err = -tcp_lro_init_args(&rq->lro, c->tag.m_snd_tag.ifp, TCP_LRO_ENTRIES, wq_sz);
+	err = -tcp_lro_init_args(&rq->lro, priv->ifp, TCP_LRO_ENTRIES, wq_sz);
 	if (err)
 		goto err_rq_wq_destroy;
 
@@ -1288,7 +1288,7 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 		}
 	}
 
-	rq->ifp = c->tag.m_snd_tag.ifp;
+	rq->ifp = priv->ifp;
 	rq->channel = c;
 	rq->ix = c->ix;
 
@@ -2145,7 +2145,6 @@ mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->priv = priv;
 	c->ix = ix;
 	/* setup send tag */
-	c->tag.m_snd_tag.ifp = priv->ifp;
 	c->tag.type = IF_SND_TAG_TYPE_UNLIMITED;
 	c->mkey_be = cpu_to_be32(priv->mr.key);
 	c->num_tc = priv->num_tc;
@@ -3987,6 +3986,8 @@ mlx5e_ul_snd_tag_alloc(struct ifnet *ifp,
 		if (unlikely(pch->sq[0].running == 0))
 			return (ENXIO);
 		mlx5e_ref_channel(priv);
+		MPASS(pch->tag.m_snd_tag.refcount == 0);
+		m_snd_tag_init(&pch->tag.m_snd_tag, ifp);
 		*ppmt = &pch->tag.m_snd_tag;
 		return (0);
 	}
