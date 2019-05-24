@@ -4464,6 +4464,8 @@ s32 ixgbe_setup_mac_link_t_X550em(struct ixgbe_hw *hw,
 {
 	s32 status;
 	ixgbe_link_speed force_speed;
+	u32 i;
+	bool link_up = false;
 
 	DEBUGFUNC("ixgbe_setup_mac_link_t_X550em");
 
@@ -4483,6 +4485,19 @@ s32 ixgbe_setup_mac_link_t_X550em(struct ixgbe_hw *hw,
 
 		if (status != IXGBE_SUCCESS)
 			return status;
+
+		/* Wait for the controller to acquire link */
+		for (i = 0; i < 10; i++) {
+			msec_delay(100);
+
+			status = ixgbe_check_link(hw, &force_speed, &link_up,
+						  false);
+			if (status != IXGBE_SUCCESS)
+				return status;
+
+			if (link_up)
+				break;
+		}
 	}
 
 	return hw->phy.ops.setup_link_speed(hw, speed, autoneg_wait_to_complete);
