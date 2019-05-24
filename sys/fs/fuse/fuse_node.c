@@ -179,10 +179,12 @@ fuse_vnode_alloc(struct mount *mp,
     enum vtype vtyp,
     struct vnode **vpp)
 {
+	struct fuse_data *data;
 	struct fuse_vnode_data *fvdat;
 	struct vnode *vp2;
 	int err = 0;
 
+	data = fuse_get_mpdata(mp);
 	if (vtyp == VNON) {
 		return EINVAL;
 	}
@@ -235,6 +237,10 @@ fuse_vnode_alloc(struct mount *mp,
 		*vpp = NULL;
 		return (err);
 	}
+	/* Disallow async reads for fifos because UFS does.  I don't know why */
+	if (data->dataflags & FSESS_ASYNC_READ && vtyp != VFIFO)
+		VN_LOCK_ASHARE(*vpp);
+
 	err = vfs_hash_insert(*vpp, fuse_vnode_hash(nodeid), LK_EXCLUSIVE,
 	    td, &vp2, fuse_vnode_cmp, &nodeid);
 	if (err) {
