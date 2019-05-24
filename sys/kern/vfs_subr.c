@@ -1863,15 +1863,15 @@ again:
  * sync activity.
  */
 int
-vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length, int blksize)
+vtruncbuf(struct vnode *vp, off_t length, int blksize)
 {
 	struct buf *bp, *nbp;
 	int anyfreed;
 	daddr_t trunclbn;
 	struct bufobj *bo;
 
-	CTR5(KTR_VFS, "%s: vp %p with cred %p and block %d:%ju", __func__,
-	    vp, cred, blksize, (uintmax_t)length);
+	CTR4(KTR_VFS, "%s: vp %p with block %d:%ju", __func__,
+	    vp, blksize, (uintmax_t)length);
 
 	/*
 	 * Round up to the *next* lbn.

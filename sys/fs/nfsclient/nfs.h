@@ -91,8 +91,7 @@ enum nfsiod_state {
 /*
  * Function prototypes.
  */
-int ncl_meta_setsize(struct vnode *, struct ucred *, struct thread *,
-    u_quad_t);
+int ncl_meta_setsize(struct vnode *, struct thread *, u_quad_t);
 void ncl_doio_directwrite(struct buf *);
 int ncl_bioread(struct vnode *, struct uio *, int, struct ucred *);
 int ncl_biowrite(struct vnode *, struct uio *, int, struct ucred *);

@@ -979,8 +979,7 @@ nfs_setattr(struct vop_setattr_args *ap)
 			mtx_lock(&np->n_mtx);
 			tsize = np->n_size;
 			mtx_unlock(&np->n_mtx);
-			error = ncl_meta_setsize(vp, ap->a_cred, td,
-			    vap->va_size);
+			error = ncl_meta_setsize(vp, td, vap->va_size);
 			mtx_lock(&np->n_mtx);
  			if (np->n_flag & NMODIFIED) {
 			    tsize = np->n_size;
