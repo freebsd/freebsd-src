@@ -246,6 +246,7 @@ device		pmu
 # Sound support
 device		sound		# Generic sound driver (required)
 device		snd_ai2s	# Apple I2S audio
+device		snd_hda		# Intel High Definition Audio
 device		snd_uaudio	# USB Audio
 
 # Netmap provides direct access to TX/RX rings on supported NICs
