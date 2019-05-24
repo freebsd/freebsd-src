@@ -352,14 +352,13 @@ amdgpio_probe(device_t dev)
 {
 	static char *gpio_ids[] = { "AMD0030", "AMDI0030", NULL };
 	int rv;
-	
+
 	if (acpi_disabled("gpio"))
 		return (ENXIO);
 	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, gpio_ids, NULL);
-	
 	if (rv <= 0)
 		device_set_desc(dev, "AMD GPIO Controller");
-	
+
 	return (rv);
 }
 
