@@ -827,7 +827,6 @@ DIRDEPS.i386= \
 	usr.sbin/hyperv/tools/kvp \
 	usr.sbin/hyperv/tools/vss \
 	usr.sbin/kgmon \
-	usr.sbin/kgzip \
 	usr.sbin/lptcontrol \
 	usr.sbin/mptable \
 	usr.sbin/ndiscvt \
