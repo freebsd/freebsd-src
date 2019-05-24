@@ -286,6 +286,7 @@ extern int	open(const char *, int);
 #define	O_RDONLY	0x0
 #define O_WRONLY	0x1
 #define O_RDWR		0x2
+#define O_ACCMODE	0x3
 /* NOT IMPLEMENTED */
 #define	O_CREAT		0x0200		/* create if nonexistent */
 #define	O_TRUNC		0x0400		/* truncate to zero length */
