@@ -41,20 +41,19 @@ __FBSDID("$FreeBSD$");
 #define	TASKLET_ST_BUSY 1
 #define	TASKLET_ST_EXEC 2
 #define	TASKLET_ST_LOOP 3
-#define	TASKLET_ST_PAUSED 4
 
 #define	TASKLET_ST_CMPSET(ts, old, new)	\
-	atomic_cmpset_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev, old, new)
+	atomic_cmpset_int((volatile u_int *)&(ts)->tasklet_state, old, new)
 
 #define	TASKLET_ST_SET(ts, new)	\
-	WRITE_ONCE(*(volatile uintptr_t *)&(ts)->entry.tqe_prev, new)
+	WRITE_ONCE(*(volatile u_int *)&(ts)->tasklet_state, new)
 
 #define	TASKLET_ST_GET(ts) \
-	READ_ONCE(*(volatile uintptr_t *)&(ts)->entry.tqe_prev)
+	READ_ONCE(*(volatile u_int *)&(ts)->tasklet_state)
 
 struct tasklet_worker {
 	struct mtx mtx;
-	TAILQ_HEAD(, tasklet_struct) head;
+	TAILQ_HEAD(tasklet_list, tasklet_struct) head;
 	struct grouptask gtask;
 } __aligned(CACHE_LINE_SIZE);
 
@@ -68,25 +67,34 @@ tasklet_handler(void *arg)
 {
 	struct tasklet_worker *tw = (struct tasklet_worker *)arg;
 	struct tasklet_struct *ts;
+	struct tasklet_struct *last;
 
 	linux_set_current(curthread);
 
 	TASKLET_WORKER_LOCK(tw);
+	last = TAILQ_LAST(&tw->head, tasklet_list);
 	while (1) {
 		ts = TAILQ_FIRST(&tw->head);
 		if (ts == NULL)
 			break;
 		TAILQ_REMOVE(&tw->head, ts, entry);
 
-		TASKLET_WORKER_UNLOCK(tw);
-		do {
-			/* reset executing state */
-			TASKLET_ST_SET(ts, TASKLET_ST_EXEC);
+		if (!atomic_read(&ts->count)) {
+			TASKLET_WORKER_UNLOCK(tw);
+			do {
+				/* reset executing state */
+				TASKLET_ST_SET(ts, TASKLET_ST_EXEC);
 
-			ts->func(ts->data);
+				ts->func(ts->data);
 
-		} while (TASKLET_ST_CMPSET(ts, TASKLET_ST_EXEC, TASKLET_ST_IDLE) == 0);
-		TASKLET_WORKER_LOCK(tw);
+			} while (TASKLET_ST_CMPSET(ts, TASKLET_ST_EXEC,
+			        TASKLET_ST_IDLE) == 0);
+			TASKLET_WORKER_LOCK(tw);
+		} else {
+			TAILQ_INSERT_TAIL(&tw->head, ts, entry);
+		}
+		if (ts == last)
+			break;
 	}
 	TASKLET_WORKER_UNLOCK(tw);
 }
@@ -140,6 +148,8 @@ tasklet_init(struct tasklet_struct *ts,
 	ts->entry.tqe_next = NULL;
 	ts->func = func;
 	ts->data = data;
+	atomic_set_int(&ts->tasklet_state, TASKLET_ST_IDLE);
+	atomic_set(&ts->count, 0);
 }
 
 void
@@ -157,6 +167,10 @@ local_bh_disable(void)
 void
 tasklet_schedule(struct tasklet_struct *ts)
 {
+
+	/* tasklet is paused */
+	if (atomic_read(&ts->count))
+		return;
 
 	if (TASKLET_ST_CMPSET(ts, TASKLET_ST_EXEC, TASKLET_ST_LOOP)) {
 		/* tasklet_handler() will loop */
@@ -201,17 +215,39 @@ tasklet_kill(struct tasklet_struct *ts)
 void
 tasklet_enable(struct tasklet_struct *ts)
 {
-	(void) TASKLET_ST_CMPSET(ts, TASKLET_ST_PAUSED, TASKLET_ST_IDLE);
+
+	atomic_dec(&ts->count);
 }
 
 void
 tasklet_disable(struct tasklet_struct *ts)
 {
-	while (1) {
-		if (TASKLET_ST_GET(ts) == TASKLET_ST_PAUSED) 
-			break;
-		if (TASKLET_ST_CMPSET(ts, TASKLET_ST_IDLE, TASKLET_ST_PAUSED))
-			break;
+
+	atomic_inc(&ts->count);
+	tasklet_unlock_wait(ts);
+}
+
+int
+tasklet_trylock(struct tasklet_struct *ts)
+{
+
+	return (TASKLET_ST_CMPSET(ts, TASKLET_ST_IDLE, TASKLET_ST_BUSY));
+}
+
+void
+tasklet_unlock(struct tasklet_struct *ts)
+{
+
+	TASKLET_ST_SET(ts, TASKLET_ST_IDLE);
+}
+
+void
+tasklet_unlock_wait(struct tasklet_struct *ts)
+{
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "tasklet_kill() can sleep");
+
+	/* wait until tasklet is no longer busy */
+	while (TASKLET_ST_GET(ts) != TASKLET_ST_IDLE)
 		pause("W", 1);
-	}
 }
