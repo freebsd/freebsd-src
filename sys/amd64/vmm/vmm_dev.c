@@ -111,7 +111,7 @@ vcpu_lock_one(struct vmmdev_softc *sc, int vcpu)
 {
 	int error;
 
-	if (vcpu < 0 || vcpu >= VM_MAXCPU)
+	if (vcpu < 0 || vcpu >= vm_get_maxcpus(sc->vm))
 		return (EINVAL);
 
 	error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN, true);
@@ -136,8 +136,10 @@ static int
 vcpu_lock_all(struct vmmdev_softc *sc)
 {
 	int error, vcpu;
+	uint16_t maxcpus;
 
-	for (vcpu = 0; vcpu < VM_MAXCPU; vcpu++) {
+	maxcpus = vm_get_maxcpus(sc->vm);
+	for (vcpu = 0; vcpu < maxcpus; vcpu++) {
 		error = vcpu_lock_one(sc, vcpu);
 		if (error)
 			break;
@@ -155,8 +157,10 @@ static void
 vcpu_unlock_all(struct vmmdev_softc *sc)
 {
 	int vcpu;
+	uint16_t maxcpus;
 
-	for (vcpu = 0; vcpu < VM_MAXCPU; vcpu++)
+	maxcpus = vm_get_maxcpus(sc->vm);
+	for (vcpu = 0; vcpu < maxcpus; vcpu++)
 		vcpu_unlock_one(sc, vcpu);
 }
 
@@ -191,6 +195,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	vm_paddr_t gpa, maxaddr;
 	void *hpa, *cookie;
 	struct vmmdev_softc *sc;
+	uint16_t lastcpu;
 
 	error = vmm_priv_check(curthread->td_ucred);
 	if (error)
@@ -203,7 +208,8 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	/*
 	 * Get a read lock on the guest memory map by freezing any vcpu.
 	 */
-	error = vcpu_lock_one(sc, VM_MAXCPU - 1);
+	lastcpu = vm_get_maxcpus(sc->vm) - 1;
+	error = vcpu_lock_one(sc, lastcpu);
 	if (error)
 		return (error);
 
@@ -222,7 +228,8 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 		 * Since this device does not support lseek(2), dd(1) will
 		 * read(2) blocks of data to simulate the lseek(2).
 		 */
-		hpa = vm_gpa_hold(sc->vm, VM_MAXCPU - 1, gpa, c, prot, &cookie);
+		hpa = vm_gpa_hold(sc->vm, lastcpu, gpa, c,
+		    prot, &cookie);
 		if (hpa == NULL) {
 			if (uio->uio_rw == UIO_READ && gpa < maxaddr)
 				error = uiomove(__DECONST(void *, zero_region),
@@ -234,7 +241,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 			vm_gpa_release(cookie);
 		}
 	}
-	vcpu_unlock_one(sc, VM_MAXCPU - 1);
+	vcpu_unlock_one(sc, lastcpu);
 	return (error);
 }
 
@@ -437,7 +444,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		 * Lock a vcpu to make sure that the memory map cannot be
 		 * modified while it is being inspected.
 		 */
-		vcpu = VM_MAXCPU - 1;
+		vcpu = vm_get_maxcpus(sc->vm) - 1;
 		error = vcpu_lock_one(sc, vcpu);
 		if (error)
 			goto done;
@@ -797,6 +804,7 @@ vmmdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t mapsize,
 	size_t len;
 	vm_ooffset_t segoff, first, last;
 	int error, found, segid;
+	uint16_t lastcpu;
 	bool sysmem;
 
 	error = vmm_priv_check(curthread->td_ucred);
@@ -817,7 +825,8 @@ vmmdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t mapsize,
 	/*
 	 * Get a read lock on the guest memory map by freezing any vcpu.
 	 */
-	error = vcpu_lock_one(sc, VM_MAXCPU - 1);
+	lastcpu = vm_get_maxcpus(sc->vm) - 1;
+	error = vcpu_lock_one(sc, lastcpu);
 	if (error)
 		return (error);
 
@@ -846,7 +855,7 @@ vmmdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t mapsize,
 			error = EINVAL;
 		}
 	}
-	vcpu_unlock_one(sc, VM_MAXCPU - 1);
+	vcpu_unlock_one(sc, lastcpu);
 	return (error);
 }
 
@@ -1045,6 +1054,7 @@ devmem_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t len,
 	vm_ooffset_t first, last;
 	size_t seglen;
 	int error;
+	uint16_t lastcpu;
 	bool sysmem;
 
 	dsc = cdev->si_drv1;
@@ -1058,7 +1068,8 @@ devmem_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t len,
 	if ((nprot & PROT_EXEC) || first < 0 || first >= last)
 		return (EINVAL);
 
-	error = vcpu_lock_one(dsc->sc, VM_MAXCPU - 1);
+	lastcpu = vm_get_maxcpus(dsc->sc->vm) - 1;
+	error = vcpu_lock_one(dsc->sc, lastcpu);
 	if (error)
 		return (error);
 
@@ -1066,7 +1077,7 @@ devmem_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t len,
 	KASSERT(error == 0 && !sysmem && *objp != NULL,
 	    ("%s: invalid devmem segment %d", __func__, dsc->segid));
 
-	vcpu_unlock_one(dsc->sc, VM_MAXCPU - 1);
+	vcpu_unlock_one(dsc->sc, lastcpu);
 
 	if (seglen >= last) {
 		vm_object_reference(*objp);
