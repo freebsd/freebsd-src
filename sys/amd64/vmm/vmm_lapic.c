@@ -56,7 +56,7 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 {
 	struct vlapic *vlapic;
 
-	if (cpu < 0 || cpu >= VM_MAXCPU)
+	if (cpu < 0 || cpu >= vm_get_maxcpus(vm))
 		return (EINVAL);
 
 	/*
@@ -79,7 +79,7 @@ lapic_set_local_intr(struct vm *vm, int cpu, int vector)
 	cpuset_t dmask;
 	int error;
 
-	if (cpu < -1 || cpu >= VM_MAXCPU)
+	if (cpu < -1 || cpu >= vm_get_maxcpus(vm))
 		return (EINVAL);
 
 	if (cpu == -1)
