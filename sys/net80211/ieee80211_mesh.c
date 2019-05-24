@@ -1225,6 +1225,7 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 	M_WME_SETAC(mcopy, WME_AC_BE);
 
 	/* XXX do we know m_nextpkt is NULL? */
+	MPASS((mcopy->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
 	mcopy->m_pkthdr.rcvif = (void *) ni;
 
 	/*

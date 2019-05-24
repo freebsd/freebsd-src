@@ -2015,6 +2015,7 @@ done:
 			 */
 			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP, dest,
 			    "%s", "queue frame until path found");
+			MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
 			m->m_pkthdr.rcvif = (void *)(uintptr_t)
 			    ieee80211_mac_hash(ic, dest);
 			/* XXX age chosen randomly */

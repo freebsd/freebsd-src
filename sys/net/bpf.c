@@ -2304,7 +2304,7 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 	int gottime;
 
 	/* Skip outgoing duplicate packets. */
-	if ((m->m_flags & M_PROMISC) != 0 && m->m_pkthdr.rcvif == NULL) {
+	if ((m->m_flags & M_PROMISC) != 0 && m_rcvif(m) == NULL) {
 		m->m_flags &= ~M_PROMISC;
 		return;
 	}
@@ -2314,7 +2314,7 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 
 	NET_EPOCH_ENTER(et);
 	CK_LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
-		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif, bp->bif_ifp))
+		if (BPF_CHECK_DIRECTION(d, m_rcvif(m), bp->bif_ifp))
 			continue;
 		counter_u64_add(d->bd_rcount, 1);
 #ifdef BPF_JITTER

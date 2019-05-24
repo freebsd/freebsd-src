@@ -789,7 +789,7 @@ failed:
 	mtx_init(&cst->lock, "cst_lock", NULL, MTX_DEF);
 	mbufq_init(&cst->pending_tx, INT_MAX);
 	mbufq_init(&cst->pending_fwack, INT_MAX);
-	cst->com.ifp = ifp;
+	m_snd_tag_init(&cst->com, ifp);
 	cst->flags |= EO_FLOWC_PENDING | EO_SND_TAG_REF;
 	cst->adapter = sc;
 	cst->port_id = pi->port_id;
