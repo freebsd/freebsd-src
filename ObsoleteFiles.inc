@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190523: Remove obsolete kgzip and support files
+OLD_FILES+=usr/sbin/kgzip
+OLD_FILES+=usr/lib/kgzldr.o
+OLD_FILES+=usr/share/man/man8/kgzip.8.gz
+
 # 20190517: Remove obsolete 10 and 10/100 ethernet drivers.
 OLD_FILES+=usr/share/man/man4/bm.4.gz
 OLD_FILES+=usr/share/man/man4/cs.4.gz
