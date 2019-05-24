@@ -37,6 +37,7 @@ extern "C" {
 
 #include <aio.h>
 #include <fcntl.h>
+#include <semaphore.h>
 #include <unistd.h>
 }
 
@@ -159,21 +160,22 @@ TEST_F(AioRead, async_read_disabled)
 	ssize_t bufsize = 50;
 	char buf0[bufsize], buf1[bufsize];
 	off_t off0 = 0;
-	off_t off1 = 4096;
+	off_t off1 = 65536;
 	struct aiocb iocb0, iocb1;
+	volatile sig_atomic_t read_count = 0;
 
-	expect_lookup(RELPATH, ino, bufsize);
+	expect_lookup(RELPATH, ino, 131072);
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_READ &&
 				in->header.nodeid == ino &&
 				in->body.read.fh == FH &&
-				in->body.read.offset == (uint64_t)off0 &&
-				in->body.read.size == bufsize);
+				in->body.read.offset == (uint64_t)off0);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in __unused, auto &out __unused) {
+	).WillRepeatedly(Invoke([&](auto in __unused, auto &out __unused) {
+		read_count++;
 		/* Filesystem is slow to respond */
 	}));
 	EXPECT_CALL(*m_mock, process(
@@ -181,11 +183,13 @@ TEST_F(AioRead, async_read_disabled)
 			return (in->header.opcode == FUSE_READ &&
 				in->header.nodeid == ino &&
 				in->body.read.fh == FH &&
-				in->body.read.offset == (uint64_t)off1 &&
-				in->body.read.size == bufsize);
+				in->body.read.offset == (uint64_t)off1);
 		}, Eq(true)),
 		_)
-	).Times(0);
+	).WillRepeatedly(Invoke([&](auto in __unused, auto &out __unused) {
+		read_count++;
+		/* Filesystem is slow to respond */
+	}));
 
 	fd = open(FULLPATH, O_RDONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -214,8 +218,12 @@ TEST_F(AioRead, async_read_disabled)
 	 * the second read, even though the first has not yet returned
 	 */
 	nap();
+	EXPECT_EQ(read_count, 1);
 	
-	/* Deliberately leak iocbs */
+	m_mock->kill_daemon();
+	/* Wait for AIO activity to complete, but ignore errors */
+	(void)aio_waitcomplete(NULL, NULL);
+
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
@@ -223,11 +231,7 @@ TEST_F(AioRead, async_read_disabled)
  * With the FUSE_ASYNC_READ mount option, fuse(4) may issue multiple
  * simultaneous read requests on the same file handle.
  */
-/* 
- * Disabled because we don't yet implement FUSE_ASYNC_READ.  No bugzilla
- * entry, because that's a feature request, not a bug.
- */
-TEST_F(AsyncRead, DISABLED_async_read)
+TEST_F(AsyncRead, async_read)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -236,21 +240,24 @@ TEST_F(AsyncRead, DISABLED_async_read)
 	ssize_t bufsize = 50;
 	char buf0[bufsize], buf1[bufsize];
 	off_t off0 = 0;
-	off_t off1 = 4096;
+	off_t off1 = 65536;
 	struct aiocb iocb0, iocb1;
+	sem_t sem;
 
-	expect_lookup(RELPATH, ino, bufsize);
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
+
+	expect_lookup(RELPATH, ino, 131072);
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_READ &&
 				in->header.nodeid == ino &&
 				in->body.read.fh == FH &&
-				in->body.read.offset == (uint64_t)off0 &&
-				in->body.read.size == bufsize);
+				in->body.read.offset == (uint64_t)off0);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in __unused, auto &out __unused) {
+	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
+		sem_post(&sem);
 		/* Filesystem is slow to respond */
 	}));
 	EXPECT_CALL(*m_mock, process(
@@ -258,11 +265,11 @@ TEST_F(AsyncRead, DISABLED_async_read)
 			return (in->header.opcode == FUSE_READ &&
 				in->header.nodeid == ino &&
 				in->body.read.fh == FH &&
-				in->body.read.offset == (uint64_t)off1 &&
-				in->body.read.size == bufsize);
+				in->body.read.offset == (uint64_t)off1);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in __unused, auto &out __unused) {
+	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
+		sem_post(&sem);
 		/* Filesystem is slow to respond */
 	}));
 
@@ -287,13 +294,14 @@ TEST_F(AsyncRead, DISABLED_async_read)
 	iocb1.aio_sigevent.sigev_notify = SIGEV_NONE;
 	ASSERT_EQ(0, aio_read(&iocb1)) << strerror(errno);
 
-	/* 
-	 * Sleep for awhile to make sure the kernel has had a chance to issue
-	 * both reads.
-	 */
-	nap();
+	/* Wait until both reads have reached the daemon */
+	ASSERT_EQ(0, sem_wait(&sem)) << strerror(errno);
+	ASSERT_EQ(0, sem_wait(&sem)) << strerror(errno);
+
+	m_mock->kill_daemon();
+	/* Wait for AIO activity to complete, but ignore errors */
+	(void)aio_waitcomplete(NULL, NULL);
 	
-	/* Deliberately leak iocbs */
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
