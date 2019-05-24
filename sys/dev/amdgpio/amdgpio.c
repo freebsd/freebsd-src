@@ -264,10 +264,17 @@ amdgpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
 	reg = AMDGPIO_PIN_REGISTER(pin);
 	val = amdgpio_read_4(sc, reg);
 
-	if (val & BIT(OUTPUT_VALUE_OFF))
-		*value = GPIO_PIN_HIGH;
-	else
-		*value = GPIO_PIN_LOW;
+	if ((sc->sc_gpio_pins[pin].gp_flags & GPIO_PIN_OUTPUT) != 0) {
+		if (val & BIT(OUTPUT_VALUE_OFF))
+			*value = GPIO_PIN_HIGH;
+		else
+			*value = GPIO_PIN_LOW;
+	} else {
+		if (val & BIT(PIN_STS_OFF))
+			*value = GPIO_PIN_HIGH;
+		else
+			*value = GPIO_PIN_LOW;
+	}
 
 	dprintf("pin %d value 0x%x\n", pin, *value);
 
