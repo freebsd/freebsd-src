@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2019
+.Dd May 24, 2019
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -2138,7 +2138,7 @@ The following creation options are supported:
 .Bl -tag -width indent
 .It Ar create-options : Ar create-option | create-options
 .It Ar create-option : Cm type Ar table-type | Cm valtype Ar value-mask | Cm algo Ar algo-desc |
-.Cm limit Ar number | Cm locked
+.Cm limit Ar number | Cm locked | Cm missing | Cm or-flush
 .It Cm type
 Table key type.
 .It Cm valtype
@@ -2149,6 +2149,13 @@ Table algorithm to use (see below).
 Maximum number of items that may be inserted into table.
 .It Cm locked
 Restrict any table modifications.
+.It Cm missing
+Do not fail if table already exists and has exactly same options as new one.
+.It Cm or-flush
+Flush existing table with same name instead of returning error.
+Implies
+.Cm missing
+so existing table must be compatible with new one.
 .El
 .Pp
 Some of these options may be modified later via
