@@ -228,7 +228,7 @@ in_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	struct gre_softc *sc;
 	in_addr_t dst;
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ENTER_ET(et);
 	/*
 	 * udp_append() holds reference to inp, it is safe to check
 	 * inp_flags2 without INP_RLOCK().
@@ -238,7 +238,7 @@ in_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	 * gre_sofree() via epoch_call().
 	 */
 	if (__predict_false(inp->inp_flags2 & INP_FREED)) {
-		NET_EPOCH_EXIT(et);
+		NET_EPOCH_EXIT_ET(et);
 		m_freem(m);
 		return;
 	}
@@ -251,11 +251,11 @@ in_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	}
 	if (sc != NULL && (GRE2IFP(sc)->if_flags & IFF_UP) != 0){
 		gre_input(m, off + sizeof(struct udphdr), IPPROTO_UDP, sc);
-		NET_EPOCH_EXIT(et);
+		NET_EPOCH_EXIT_ET(et);
 		return;
 	}
 	m_freem(m);
-	NET_EPOCH_EXIT(et);
+	NET_EPOCH_EXIT_ET(et);
 }
 
 static int
