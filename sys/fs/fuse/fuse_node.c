@@ -408,7 +408,7 @@ fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
 }
 
 int
-fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
+fuse_vnode_setsize(struct vnode *vp, off_t newsize)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	off_t oldsize;
@@ -421,7 +421,7 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 	fvdat->flag |= FN_SIZECHANGE;
 
 	if (newsize < oldsize) {
-		err = vtruncbuf(vp, cred, newsize, fuse_iosize(vp));
+		err = vtruncbuf(vp, newsize, fuse_iosize(vp));
 	}
 	vnode_pager_setsize(vp, newsize);
 	return err;
