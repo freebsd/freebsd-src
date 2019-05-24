@@ -530,7 +530,7 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 				      fdi.answ)->attr.size;
 
 		if (fvdat->filesize != new_filesize) {
-			fuse_vnode_setsize(vp, cred, new_filesize);
+			fuse_vnode_setsize(vp, new_filesize);
 			fvdat->flag &= ~FN_SIZECHANGE;
 		}
 	}
@@ -971,7 +971,7 @@ calldaemon:
 					    "%s!\n", __func__,
 					    vnode_mount(vp)->mnt_stat.f_mntonname);
 
-				(void)fuse_vnode_setsize(vp, cred, fattr->size);
+				(void)fuse_vnode_setsize(vp, fattr->size);
 				fvdat->flag &= ~FN_SIZECHANGE;
 			}
 			*vpp = vp;
@@ -1654,7 +1654,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 out:
 	fdisp_destroy(&fdi);
 	if (!err && sizechanged) {
-		fuse_vnode_setsize(vp, cred, newsize);
+		fuse_vnode_setsize(vp, newsize);
 		VTOFUD(vp)->flag &= ~FN_SIZECHANGE;
 	}
 	return err;

@@ -389,7 +389,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 
 		if (uio->uio_offset > fvdat->filesize &&
 		    fuse_data_cache_mode != FUSE_CACHE_UC) {
-			fuse_vnode_setsize(vp, cred, uio->uio_offset);
+			fuse_vnode_setsize(vp, uio->uio_offset);
 			fvdat->flag &= ~FN_SIZECHANGE;
 		}
 	}
@@ -462,7 +462,7 @@ again:
 			if (bp != NULL) {
 				long save;
 
-				err = fuse_vnode_setsize(vp, cred, 
+				err = fuse_vnode_setsize(vp,
 							 uio->uio_offset + n);
 				if (err) {
 					brelse(bp);
@@ -490,7 +490,7 @@ again:
 				lbn, on, n, uio, bcount, false);
 			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
 			if (bp && uio->uio_offset + n > fvdat->filesize) {
-				err = fuse_vnode_setsize(vp, cred, 
+				err = fuse_vnode_setsize(vp,
 							 uio->uio_offset + n);
 				if (err) {
 					brelse(bp);

@@ -658,8 +658,7 @@ void	vgone(struct vnode *vp);
 void	_vhold(struct vnode *, bool);
 void	vinactive(struct vnode *, struct thread *);
 int	vinvalbuf(struct vnode *vp, int save, int slpflag, int slptimeo);
-int	vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length,
-	    int blksize);
+int	vtruncbuf(struct vnode *vp, off_t length, int blksize);
 void	vunref(struct vnode *);
 void	vn_printf(struct vnode *vp, const char *fmt, ...) __printflike(2,3);
 int	vrecycle(struct vnode *vp);
