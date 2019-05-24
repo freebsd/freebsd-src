@@ -53,13 +53,18 @@ jail_getid(const char *name)
 	struct iovec jiov[4];
 
 	jid = strtoul(name, &ep, 10);
-	if (*name && !*ep)
-		return jid;
-	jiov[0].iov_base = __DECONST(char *, "name");
-	jiov[0].iov_len = sizeof("name");
-	jiov[1].iov_len = strlen(name) + 1;
-	jiov[1].iov_base = alloca(jiov[1].iov_len);
-	strcpy(jiov[1].iov_base, name);
+	if (*name && !*ep) {
+		jiov[0].iov_base = __DECONST(char *, "jid");
+		jiov[0].iov_len = sizeof("jid");
+		jiov[1].iov_base = &jid;
+		jiov[1].iov_len = sizeof(jid);
+	} else {
+		jiov[0].iov_base = __DECONST(char *, "name");
+		jiov[0].iov_len = sizeof("name");
+		jiov[1].iov_len = strlen(name) + 1;
+		jiov[1].iov_base = alloca(jiov[1].iov_len);
+		strcpy(jiov[1].iov_base, name);
+	}
 	jiov[2].iov_base = __DECONST(char *, "errmsg");
 	jiov[2].iov_len = sizeof("errmsg");
 	jiov[3].iov_base = jail_errmsg;
