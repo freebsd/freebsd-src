@@ -818,7 +818,7 @@ eli_init(struct gctl_req *req)
 	case CRYPTO_3DES_CBC:
 	case CRYPTO_BLF_CBC:
 		gctl_error(req, "The %s encryption algorithm is deprecated.",
-		    g_eli_algo2str(md.md_aalgo));
+		    g_eli_algo2str(md.md_ealgo));
 		return;
 	}
 	val = gctl_get_intmax(req, "keylen");
