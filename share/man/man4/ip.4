@@ -28,7 +28,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2018
+.Dd February 22, 2019
 .Dt IP 4
 .Os
 .Sh NAME
@@ -571,32 +571,55 @@ To join a multicast group, use the
 .Dv IP_ADD_MEMBERSHIP
 option:
 .Bd -literal
-struct ip_mreq mreq;
-setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+struct ip_mreqn mreqn;
+setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreqn, sizeof(mreqn));
 .Ed
 .Pp
 where
-.Fa mreq
+.Fa mreqn
 is the following structure:
 .Bd -literal
-struct ip_mreq {
+struct ip_mreqn {
     struct in_addr imr_multiaddr; /* IP multicast address of group */
     struct in_addr imr_interface; /* local IP address of interface */
+    int            imr_ifindex;   /* interface index */
 }
 .Ed
 .Pp
-.Va imr_interface
-should be set to the
-.Tn IP
-address of a particular multicast-capable interface if
+.Va imr_ifindex
+should be set to the index of a particular multicast-capable interface if
 the host is multihomed.
-It may be set to
-.Dv INADDR_ANY
-to choose the default interface, although this is not recommended;
-this is considered to be the first interface corresponding
-to the default route.
-Otherwise, the first multicast-capable interface
-configured in the system will be used.
+If
+.Va imr_ifindex
+is non-zero, value of
+.Va imr_interface
+is ignored.
+Otherwise, if
+.Va imr_ifindex
+is 0, kernel will use IP address from
+.Va imr_interface
+to lookup the interface.
+Value of
+.Va imr_interface
+may be set to
+.Va INADDR_ANY
+to choose the default interface, although this is not recommended; this is
+considered to be the first interface corresponding to the default route.
+Otherwise, the first multicast-capable interface configured in the system
+will be used.
+.Pp
+Legacy
+.Vt "struct ip_mreq" ,
+that lacks
+.Va imr_ifindex
+field is also supported by
+.Dv IP_ADD_MEMBERSHIP
+setsockopt.
+In this case kernel would behave as if
+.Va imr_ifindex
+was set to zero:
+.Va imr_interface
+will be used to lookup interface.
 .Pp
 Prior to
 .Fx 7.0 ,
