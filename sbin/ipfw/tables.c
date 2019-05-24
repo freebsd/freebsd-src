@@ -327,6 +327,8 @@ static struct _s_x tablenewcmds[] = {
       { "algo",		TOK_ALGO },
       { "limit",	TOK_LIMIT },
       { "locked",	TOK_LOCK },
+      { "missing",	TOK_MISSING },
+      { "or-flush",	TOK_ORFLUSH },
       { NULL, 0 }
 };
 
@@ -389,19 +391,19 @@ table_print_type(char *tbuf, size_t size, uint8_t type, uint8_t tflags)
  * Creates new table
  *
  * ipfw table NAME create [ type { addr | iface | number | flow } ]
- *     [ algo algoname ]
+ *     [ algo algoname ] [missing] [or-flush]
  */
 static void
 table_create(ipfw_obj_header *oh, int ac, char *av[])
 {
-	ipfw_xtable_info xi;
-	int error, tcmd, val;
+	ipfw_xtable_info xi, xie;
+	int error, missing, orflush, tcmd, val;
 	uint32_t fset, fclear;
 	char *e, *p;
 	char tbuf[128];
 
+	missing = orflush = 0;
 	memset(&xi, 0, sizeof(xi));
-
 	while (ac > 0) {
 		tcmd = get_token(tablenewcmds, *av, "option");
 		ac--; av++;
@@ -457,6 +459,12 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 		case TOK_LOCK:
 			xi.flags |= IPFW_TGFLAGS_LOCKED;
 			break;
+		case TOK_ORFLUSH:
+			orflush = 1;
+			/* FALLTHROUGH */
+		case TOK_MISSING:
+			missing = 1;
+			break;
 		}
 	}
 
@@ -466,8 +474,28 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 	if (xi.vmask == 0)
 		xi.vmask = IPFW_VTYPE_LEGACY;
 
-	if ((error = table_do_create(oh, &xi)) != 0)
+	error = table_do_create(oh, &xi);
+
+	if (error == 0)
+		return;
+
+	if (errno != EEXIST || missing == 0)
 		err(EX_OSERR, "Table creation failed");
+
+	/* Check that existing table is the same we are trying to create */
+	if (table_get_info(oh, &xie) != 0)
+		err(EX_OSERR, "Existing table check failed");
+
+	if (xi.limit != xie.limit || xi.type != xie.type ||
+	    xi.tflags != xie.tflags || xi.vmask != xie.vmask || (
+	    xi.algoname[0] != '\0' && strcmp(xi.algoname,
+	    xie.algoname) != 0) || xi.flags != xie.flags)
+		errx(EX_DATAERR, "The existing table is not compatible "
+		    "with one you are creating.");
+
+	/* Flush existing table if instructed to do so */
+	if (orflush != 0 && table_flush(oh) != 0)
+		err(EX_OSERR, "Table flush on creation failed");
 }
 
 /*
