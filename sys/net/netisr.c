@@ -839,6 +839,7 @@ netisr_select_cpuid(struct netisr_proto *npp, u_int dispatch_policy,
 	    ("%s: invalid policy %u for %s", __func__, npp->np_policy,
 	    npp->np_name));
 
+	MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
 	ifp = m->m_pkthdr.rcvif;
 	if (ifp != NULL)
 		*cpuidp = nws_array[(ifp->if_index + source) % nws_count];

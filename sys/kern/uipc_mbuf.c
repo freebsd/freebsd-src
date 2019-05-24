@@ -382,6 +382,10 @@ m_move_pkthdr(struct mbuf *to, struct mbuf *from)
 	to->m_pkthdr = from->m_pkthdr;		/* especially tags */
 	SLIST_INIT(&from->m_pkthdr.tags);	/* purge tags from src */
 	from->m_flags &= ~M_PKTHDR;
+	if (from->m_pkthdr.csum_flags & CSUM_SND_TAG) {
+		from->m_pkthdr.csum_flags &= ~CSUM_SND_TAG;
+		from->m_pkthdr.snd_tag = NULL;
+	}
 }
 
 /*
@@ -414,6 +418,8 @@ m_dup_pkthdr(struct mbuf *to, const struct mbuf *from, int how)
 	if ((to->m_flags & M_EXT) == 0)
 		to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;
+	if (from->m_pkthdr.csum_flags & CSUM_SND_TAG)
+		m_snd_tag_ref(from->m_pkthdr.snd_tag);
 	SLIST_INIT(&to->m_pkthdr.tags);
 	return (m_tag_copy_chain(to, from, how));
 }
@@ -924,7 +930,12 @@ m_split(struct mbuf *m0, int len0, int wait)
 			return (NULL);
 		n->m_next = m->m_next;
 		m->m_next = NULL;
-		n->m_pkthdr.rcvif = m0->m_pkthdr.rcvif;
+		if (m0->m_pkthdr.csum_flags & CSUM_SND_TAG) {
+			n->m_pkthdr.snd_tag =
+			    m_snd_tag_ref(m0->m_pkthdr.snd_tag);
+			n->m_pkthdr.csum_flags |= CSUM_SND_TAG;
+		} else
+			n->m_pkthdr.rcvif = m0->m_pkthdr.rcvif;
 		n->m_pkthdr.len = m0->m_pkthdr.len - len0;
 		m0->m_pkthdr.len = len0;
 		return (n);
@@ -932,7 +943,12 @@ m_split(struct mbuf *m0, int len0, int wait)
 		n = m_gethdr(wait, m0->m_type);
 		if (n == NULL)
 			return (NULL);
-		n->m_pkthdr.rcvif = m0->m_pkthdr.rcvif;
+		if (m0->m_pkthdr.csum_flags & CSUM_SND_TAG) {
+			n->m_pkthdr.snd_tag =
+			    m_snd_tag_ref(m0->m_pkthdr.snd_tag);
+			n->m_pkthdr.csum_flags |= CSUM_SND_TAG;
+		} else
+			n->m_pkthdr.rcvif = m0->m_pkthdr.rcvif;
 		n->m_pkthdr.len = m0->m_pkthdr.len - len0;
 		m0->m_pkthdr.len = len0;
 		if (m->m_flags & M_EXT)

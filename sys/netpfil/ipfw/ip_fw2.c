@@ -1758,7 +1758,7 @@ do {								\
 		oif = NULL;
 	} else {
 		MPASS(args->flags & IPFW_ARGS_OUT);
-		iif = mem ? NULL : m->m_pkthdr.rcvif;
+		iif = mem ? NULL : m_rcvif(m);
 		oif = args->ifp;
 	}
 

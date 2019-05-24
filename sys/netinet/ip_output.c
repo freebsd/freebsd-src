@@ -204,6 +204,51 @@ ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, struct inpcb *inp,
 	return 0;
 }
 
+static int
+ip_output_send(struct inpcb *inp, struct ifnet *ifp, struct mbuf *m,
+    const struct sockaddr_in *gw, struct route *ro)
+{
+	struct m_snd_tag *mst;
+	int error;
+
+	MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
+	mst = NULL;
+
+#ifdef RATELIMIT
+	if (inp != NULL) {
+		if ((inp->inp_flags2 & INP_RATE_LIMIT_CHANGED) != 0 ||
+		    (inp->inp_snd_tag != NULL &&
+		    inp->inp_snd_tag->ifp != ifp))
+			in_pcboutput_txrtlmt(inp, ifp, m);
+
+		if (inp->inp_snd_tag != NULL)
+			mst = inp->inp_snd_tag;
+	}
+#endif
+	if (mst != NULL) {
+		KASSERT(m->m_pkthdr.rcvif == NULL,
+		    ("trying to add a send tag to a forwarded packet"));
+		if (mst->ifp != ifp) {
+			error = EAGAIN;
+			goto done;
+		}
+
+		/* stamp send tag on mbuf */
+		m->m_pkthdr.snd_tag = m_snd_tag_ref(mst);
+		m->m_pkthdr.csum_flags |= CSUM_SND_TAG;
+	}
+
+	error = (*ifp->if_output)(ifp, m, (const struct sockaddr *)gw, ro);
+
+done:
+	/* Check for route change invalidating send tags. */
+#ifdef RATELIMIT
+	if (error == EAGAIN)
+		in_pcboutput_eagain(inp);
+#endif
+	return (error);
+}
+
 /*
  * IP output.  The packet in mbuf chain m contains a skeletal IP
  * header (with len, off, ttl, proto, tos, src, dst).
@@ -687,23 +732,7 @@ sendit:
 		 */
 		m_clrprotoflags(m);
 		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
-#ifdef RATELIMIT
-		if (inp != NULL) {
-			if (inp->inp_flags2 & INP_RATE_LIMIT_CHANGED)
-				in_pcboutput_txrtlmt(inp, ifp, m);
-			/* stamp send tag on mbuf */
-			m->m_pkthdr.snd_tag = inp->inp_snd_tag;
-		} else {
-			m->m_pkthdr.snd_tag = NULL;
-		}
-#endif
-		error = (*ifp->if_output)(ifp, m,
-		    (const struct sockaddr *)gw, ro);
-#ifdef RATELIMIT
-		/* check for route change */
-		if (error == EAGAIN)
-			in_pcboutput_eagain(inp);
-#endif
+		error = ip_output_send(inp, ifp, m, gw, ro);
 		goto done;
 	}
 
@@ -739,23 +768,7 @@ sendit:
 
 			IP_PROBE(send, NULL, NULL, mtod(m, struct ip *), ifp,
 			    mtod(m, struct ip *), NULL);
-#ifdef RATELIMIT
-			if (inp != NULL) {
-				if (inp->inp_flags2 & INP_RATE_LIMIT_CHANGED)
-					in_pcboutput_txrtlmt(inp, ifp, m);
-				/* stamp send tag on mbuf */
-				m->m_pkthdr.snd_tag = inp->inp_snd_tag;
-			} else {
-				m->m_pkthdr.snd_tag = NULL;
-			}
-#endif
-			error = (*ifp->if_output)(ifp, m,
-			    (const struct sockaddr *)gw, ro);
-#ifdef RATELIMIT
-			/* check for route change */
-			if (error == EAGAIN)
-				in_pcboutput_eagain(inp);
-#endif
+			error = ip_output_send(inp, ifp, m, gw, ro);
 		} else
 			m_freem(m);
 	}
