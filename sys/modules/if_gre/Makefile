@@ -5,7 +5,7 @@ SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 KMOD=	if_gre
-SRCS=	if_gre.c opt_inet.h opt_inet6.h
+SRCS=	if_gre.c opt_inet.h opt_inet6.h opt_rss.h
 SRCS.INET=	ip_gre.c
 SRCS.INET6=	ip6_gre.c
 

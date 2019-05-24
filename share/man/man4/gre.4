@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2015
+.Dd April 24, 2019
 .Dt GRE 4
 .Os
 .Sh NAME
@@ -89,7 +89,45 @@ A value of 0 disables the key option.
 Enables checksum calculation for outgoing packets.
 .It Ar enable_seq
 Enables use of sequence number field in the GRE header for outgoing packets.
+.It Ar udpencap
+Enables UDP-in-GRE encapsulation (see the
+.Sx GRE-IN-UDP ENCAPSULATION
+Section below for details).
+.It Ar udpport
+Set the source UDP port for outgoing packets.
+A value of 0 disables the persistence of source UDP port for outgoing packets.
+See the
+.Sx GRE-IN-UDP ENCAPSULATION
+Section below for details.
 .El
+.Sh GRE-IN-UDP ENCAPSULATION
+The
+.Nm
+supports GRE in UDP encapsulation as defined in RFC 8086.
+A GRE in UDP tunnel offers the possibility of better performance for
+load-balancing GRE traffic in transit networks.
+Encapsulating GRE in UDP enables use of the UDP source port to provide
+entropy to ECMP hashing.
+.Pp
+The GRE in UDP tunnel uses single value 4754 as UDP destination port.
+The UDP source port contains a 14-bit entropy value that is generated
+by the encapsulator to identify a flow for the encapsulated packet.
+The
+.Ar udpport
+option can be used to disable this behaviour and use single source UDP
+port value.
+The value of
+.Ar udpport
+should be within the ephemeral port range, i.e., 49152 to 65535 by default.
+.Pp
+Note that a GRE in UDP tunnel is unidirectional; the tunnel traffic is not
+expected to be returned back to the UDP source port values used to generate
+entropy.
+This may impact NAPT (Network Address Port Translator) middleboxes.
+If such tunnels are expected to be used on a path with a middlebox,
+the tunnel can be configured either to disable use of the UDP source port
+for entropy or to enable middleboxes to pass packets with UDP source port
+entropy.
 .Sh EXAMPLES
 .Bd -literal
 192.168.1.* --- Router A  -------tunnel-------- Router B --- 192.168.2.*

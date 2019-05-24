@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sockio.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -65,19 +67,27 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #ifdef INET
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#ifdef RSS
+#include <netinet/in_rss.h>
+#endif
 #endif
 
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
+#ifdef RSS
+#include <netinet6/in6_rss.h>
+#endif
 #endif
 
 #include <netinet/ip_encap.h>
+#include <netinet/udp.h>
 #include <net/bpf.h>
 #include <net/if_gre.h>
 
@@ -151,6 +161,7 @@ vnet_gre_uninit(const void *unused __unused)
 #ifdef INET6
 	in6_gre_uninit();
 #endif
+	/* XXX: epoch_call drain */
 }
 VNET_SYSUNINIT(vnet_gre_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
     vnet_gre_uninit, NULL);
@@ -266,6 +277,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case GRESKEY:
 	case GRESOPTS:
+	case GRESPORT:
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
 			break;
 		if ((error = copyin(ifr_data_get_ptr(ifr), &opt,
@@ -281,23 +293,45 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 			if (sc->gre_options == opt)
 				break;
+		} else if (cmd == GRESPORT) {
+			if (opt != 0 && (opt < V_ipport_hifirstauto ||
+			    opt > V_ipport_hilastauto)) {
+				error = EINVAL;
+				break;
+			}
+			if (sc->gre_port == opt)
+				break;
+			if ((sc->gre_options & GRE_UDPENCAP) == 0) {
+				/*
+				 * UDP encapsulation is not enabled, thus
+				 * there is no need to reattach softc.
+				 */
+				sc->gre_port = opt;
+				break;
+			}
 		}
 		switch (sc->gre_family) {
 #ifdef INET
 		case AF_INET:
-			in_gre_setopts(sc, cmd, opt);
+			error = in_gre_setopts(sc, cmd, opt);
 			break;
 #endif
 #ifdef INET6
 		case AF_INET6:
-			in6_gre_setopts(sc, cmd, opt);
+			error = in6_gre_setopts(sc, cmd, opt);
 			break;
 #endif
 		default:
+			/*
+			 * Tunnel is not yet configured.
+			 * We can just change any parameters.
+			 */
 			if (cmd == GRESKEY)
 				sc->gre_key = opt;
-			else
+			if (cmd == GRESOPTS)
 				sc->gre_options = opt;
+			if (cmd == GRESPORT)
+				sc->gre_port = opt;
 			break;
 		}
 		/*
@@ -312,6 +346,10 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case GREGOPTS:
 		error = copyout(&sc->gre_options, ifr_data_get_ptr(ifr),
 		    sizeof(sc->gre_options));
+		break;
+	case GREGPORT:
+		error = copyout(&sc->gre_port, ifr_data_get_ptr(ifr),
+		    sizeof(sc->gre_port));
 		break;
 	default:
 		error = EINVAL;
@@ -337,6 +375,7 @@ end:
 static void
 gre_delete_tunnel(struct gre_softc *sc)
 {
+	struct gre_socket *gs;
 
 	sx_assert(&gre_ioctl_sx, SA_XLOCKED);
 	if (sc->gre_family != 0) {
@@ -345,6 +384,16 @@ gre_delete_tunnel(struct gre_softc *sc)
 		GRE_WAIT();
 		free(sc->gre_hdr, M_GRE);
 		sc->gre_family = 0;
+	}
+	/*
+	 * If this Tunnel was the last one that could use UDP socket,
+	 * we should unlink socket from hash table and close it.
+	 */
+	if ((gs = sc->gre_so) != NULL && CK_LIST_EMPTY(&gs->list)) {
+		CK_LIST_REMOVE(gs, chain);
+		soclose(gs->so);
+		epoch_call(net_epoch_preempt, &gs->epoch_ctx, gre_sofree);
+		sc->gre_so = NULL;
 	}
 	GRE2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
 	if_link_state_change(GRE2IFP(sc), LINK_STATE_DOWN);
@@ -372,7 +421,38 @@ gre_hashdestroy(struct gre_list *hash)
 }
 
 void
-gre_updatehdr(struct gre_softc *sc, struct grehdr *gh)
+gre_sofree(epoch_context_t ctx)
+{
+	struct gre_socket *gs;
+
+	gs = __containerof(ctx, struct gre_socket, epoch_ctx);
+	free(gs, M_GRE);
+}
+
+static __inline uint16_t
+gre_cksum_add(uint16_t sum, uint16_t a)
+{
+	uint16_t res;
+
+	res = sum + a;
+	return (res + (res < a));
+}
+
+void
+gre_update_udphdr(struct gre_softc *sc, struct udphdr *udp, uint16_t csum)
+{
+
+	sx_assert(&gre_ioctl_sx, SA_XLOCKED);
+	MPASS(sc->gre_options & GRE_UDPENCAP);
+
+	udp->uh_dport = htons(GRE_UDPPORT);
+	udp->uh_sport = htons(sc->gre_port);
+	udp->uh_sum = csum;
+	udp->uh_ulen = 0;
+}
+
+void
+gre_update_hdr(struct gre_softc *sc, struct grehdr *gh)
 {
 	uint32_t *opts;
 	uint16_t flags;
@@ -539,6 +619,52 @@ gre_setseqn(struct grehdr *gh, uint32_t seq)
 	*opts = htonl(seq);
 }
 
+static uint32_t
+gre_flowid(struct gre_softc *sc, struct mbuf *m, uint32_t af)
+{
+	uint32_t flowid;
+
+	if ((sc->gre_options & GRE_UDPENCAP) == 0 || sc->gre_port != 0)
+		return (0);
+#ifndef RSS
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		flowid = mtod(m, struct ip *)->ip_src.s_addr ^
+		    mtod(m, struct ip *)->ip_dst.s_addr;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		flowid = mtod(m, struct ip6_hdr *)->ip6_src.s6_addr32[3] ^
+		    mtod(m, struct ip6_hdr *)->ip6_dst.s6_addr32[3];
+		break;
+#endif
+	default:
+		flowid = 0;
+	}
+#else /* RSS */
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		flowid = rss_hash_ip4_2tuple(mtod(m, struct ip *)->ip_src,
+		    mtod(m, struct ip *)->ip_dst);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		flowid = rss_hash_ip6_2tuple(
+		    &mtod(m, struct ip6_hdr *)->ip6_src,
+		    &mtod(m, struct ip6_hdr *)->ip6_dst);
+		break;
+#endif
+	default:
+		flowid = 0;
+	}
+#endif
+	return (flowid);
+}
+
 #define	MTAG_GRE	1307983903
 static int
 gre_transmit(struct ifnet *ifp, struct mbuf *m)
@@ -546,7 +672,8 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 	GRE_RLOCK_TRACKER;
 	struct gre_softc *sc;
 	struct grehdr *gh;
-	uint32_t af;
+	struct udphdr *uh;
+	uint32_t af, flowid;
 	int error, len;
 	uint16_t proto;
 
@@ -573,6 +700,7 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 	af = m->m_pkthdr.csum_data;
 	BPF_MTAP2(ifp, &af, sizeof(af), m);
 	m->m_flags &= ~(M_BCAST|M_MCAST);
+	flowid = gre_flowid(sc, m, af);
 	M_SETFIB(m, sc->gre_fibnum);
 	M_PREPEND(m, sc->gre_hlen, M_NOWAIT);
 	if (m == NULL) {
@@ -614,6 +742,19 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 		error = ENETDOWN;
 		goto drop;
 	}
+	if (sc->gre_options & GRE_UDPENCAP) {
+		uh = (struct udphdr *)mtodo(m, len);
+		uh->uh_sport |= htons(V_ipport_hifirstauto) |
+		    (flowid >> 16) | (flowid & 0xFFFF);
+		uh->uh_sport = htons(ntohs(uh->uh_sport) %
+		    V_ipport_hilastauto);
+		uh->uh_ulen = htons(m->m_pkthdr.len - len);
+		uh->uh_sum = gre_cksum_add(uh->uh_sum,
+		    htons(m->m_pkthdr.len - len + IPPROTO_UDP));
+		m->m_pkthdr.csum_flags = sc->gre_csumflags;
+		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
+		len += sizeof(struct udphdr);
+	}
 	gh = (struct grehdr *)mtodo(m, len);
 	gh->gre_proto = proto;
 	if (sc->gre_options & GRE_ENABLE_SEQ)
@@ -631,7 +772,7 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = in6_gre_output(m, af, sc->gre_hlen);
+		error = in6_gre_output(m, af, sc->gre_hlen, flowid);
 		break;
 #endif
 	default:
