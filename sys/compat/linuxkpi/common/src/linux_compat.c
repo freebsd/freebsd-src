@@ -897,7 +897,7 @@ linux_clear_user(void *_uaddr, size_t _len)
 }
 
 int
-linux_access_ok(int rw, const void *uaddr, size_t len)
+linux_access_ok(const void *uaddr, size_t len)
 {
 	uintptr_t saddr;
 	uintptr_t eaddr;
