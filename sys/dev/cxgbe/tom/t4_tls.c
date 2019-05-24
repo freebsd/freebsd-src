@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_OFFLOAD
 #include "common/common.h"
 #include "common/t4_tcb.h"
+#include "crypto/t4_crypto.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
