@@ -467,7 +467,6 @@ fuse_internal_readdir_processdata(struct uio *uio,
 		 * the requested offset in the directory is found.
 		 */
 		if (*fnd_start != 0) {
-			readany = true;
 			fiov_adjust(cookediov, bytesavail);
 			bzero(cookediov->base, bytesavail);
 
