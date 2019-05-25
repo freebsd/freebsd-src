@@ -589,7 +589,7 @@ print_user(struct passwd * pwd, bool pretty, bool v7)
 	}
 	if (pwd->pw_expire > (time_t)0 && (tptr = localtime(&pwd->pw_expire)) != NULL)
 		strftime(acexpire, sizeof acexpire, "%c", tptr);
-		if (pwd->pw_change > (time_t)0 && (tptr = localtime(&pwd->pw_change)) != NULL)
+	if (pwd->pw_change > (time_t)0 && (tptr = localtime(&pwd->pw_change)) != NULL)
 		strftime(pwexpire, sizeof pwexpire, "%c", tptr);
 	printf("Login Name: %-15s   #%-12ju Group: %-15s   #%ju\n"
 	       " Full Name: %s\n"
