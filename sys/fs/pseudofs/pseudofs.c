@@ -68,20 +68,31 @@ SYSCTL_INT(_vfs_pfs, OID_AUTO, trace, CTLFLAG_RW, &pfs_trace, 0,
  * Allocate and initialize a node
  */
 static struct pfs_node *
-pfs_alloc_node(struct pfs_info *pi, const char *name, pfs_type_t type)
+pfs_alloc_node_flags(struct pfs_info *pi, const char *name, pfs_type_t type, int flags)
 {
 	struct pfs_node *pn;
+	int malloc_flags;
 
 	KASSERT(strlen(name) < PFS_NAMELEN,
 	    ("%s(): node name is too long", __func__));
-
-	pn = malloc(sizeof *pn,
-	    M_PFSNODES, M_WAITOK|M_ZERO);
+	if (flags & PFS_NOWAIT)
+		malloc_flags = M_NOWAIT | M_ZERO;
+	else
+		malloc_flags = M_WAITOK | M_ZERO;
+	pn = malloc(sizeof *pn, M_PFSNODES, malloc_flags);
+	if (pn == NULL)
+		return (NULL);
 	mtx_init(&pn->pn_mutex, "pfs_node", NULL, MTX_DEF | MTX_DUPOK);
 	strlcpy(pn->pn_name, name, sizeof pn->pn_name);
 	pn->pn_type = type;
 	pn->pn_info = pi;
 	return (pn);
+}
+
+static struct pfs_node *
+pfs_alloc_node(struct pfs_info *pi, const char *name, pfs_type_t type)
+{
+	return (pfs_alloc_node_flags(pi, name, type, 0));
 }
 
 /*
@@ -160,15 +171,29 @@ pfs_detach_node(struct pfs_node *pn)
 /*
  * Add . and .. to a directory
  */
+static int
+pfs_fixup_dir_flags(struct pfs_node *parent, int flags)
+{
+	struct pfs_node *dot, *dotdot;
+
+	dot = pfs_alloc_node_flags(parent->pn_info, ".", pfstype_this, flags);
+	if (dot == NULL)
+		return (ENOMEM);
+	dotdot = pfs_alloc_node_flags(parent->pn_info, "..", pfstype_parent, flags);
+	if (dotdot == NULL) {
+		pfs_destroy(dot);
+		return (ENOMEM);
+	}
+	pfs_add_node(parent, dot);
+	pfs_add_node(parent, dotdot);
+	return (0);
+}
+
 static void
 pfs_fixup_dir(struct pfs_node *parent)
 {
-	struct pfs_node *pn;
 
-	pn = pfs_alloc_node(parent->pn_info, ".", pfstype_this);
-	pfs_add_node(parent, pn);
-	pn = pfs_alloc_node(parent->pn_info, "..", pfstype_parent);
-	pfs_add_node(parent, pn);
+	pfs_fixup_dir_flags(parent, 0);
 }
 
 /*
@@ -180,16 +205,22 @@ pfs_create_dir(struct pfs_node *parent, const char *name,
 	       int flags)
 {
 	struct pfs_node *pn;
+	int rc;
 
-	pn = pfs_alloc_node(parent->pn_info, name,
-	    (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir);
+	pn = pfs_alloc_node_flags(parent->pn_info, name,
+			 (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir, flags);
+	if (pn == NULL)
+		return (NULL);
 	pn->pn_attr = attr;
 	pn->pn_vis = vis;
 	pn->pn_destroy = destroy;
 	pn->pn_flags = flags;
 	pfs_add_node(parent, pn);
-	pfs_fixup_dir(pn);
-
+	rc = pfs_fixup_dir_flags(pn, flags);
+	if (rc) {
+		pfs_destroy(pn);
+		return (NULL);
+	}
 	return (pn);
 }
 
@@ -203,7 +234,9 @@ pfs_create_file(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 {
 	struct pfs_node *pn;
 
-	pn = pfs_alloc_node(parent->pn_info, name, pfstype_file);
+	pn = pfs_alloc_node_flags(parent->pn_info, name, pfstype_file, flags);
+	if (pn == NULL)
+		return (NULL);
 	pn->pn_fill = fill;
 	pn->pn_attr = attr;
 	pn->pn_vis = vis;
@@ -224,7 +257,9 @@ pfs_create_link(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 {
 	struct pfs_node *pn;
 
-	pn = pfs_alloc_node(parent->pn_info, name, pfstype_symlink);
+	pn = pfs_alloc_node_flags(parent->pn_info, name, pfstype_symlink, flags);
+	if (pn == NULL)
+		return (NULL);
 	pn->pn_fill = fill;
 	pn->pn_attr = attr;
 	pn->pn_vis = vis;
