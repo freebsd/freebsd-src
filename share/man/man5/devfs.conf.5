@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 13, 2015
+.Dd May 25, 2019
 .Dt DEVFS.CONF 5
 .Os
 .Sh NAME
@@ -98,18 +98,9 @@ as explained in
 .Sh EXAMPLES
 To create a
 .Pa /dev/cdrom
-link that points to the first
-.Xr SCSI 4
-CD-ROM,
+link that points to the first CD-ROM,
 the following may be added to
 .Nm :
-.Bd -literal -offset indent
-link	cd0	cdrom
-.Ed
-.Pp
-Similarly, to link
-.Pa /dev/cdrom
-to the first SCSI CD-ROM device, the following action may be used:
 .Bd -literal -offset indent
 link	cd0	cdrom
 .Ed
