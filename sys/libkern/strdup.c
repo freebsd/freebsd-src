@@ -40,13 +40,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 char *
-strdup(const char *string, struct malloc_type *type)
+strdup_flags(const char *string, struct malloc_type *type, int flags)
 {
 	size_t len;
 	char *copy;
 
 	len = strlen(string) + 1;
-	copy = malloc(len, type, M_WAITOK);
+	copy = malloc(len, type, flags);
+	if (copy == NULL)
+		return (NULL);
 	bcopy(string, copy, len);
 	return (copy);
+}
+
+char *
+strdup(const char *string, struct malloc_type *type)
+{
+
+	return (strdup_flags(string, type, M_WAITOK));
 }
