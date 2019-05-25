@@ -8,7 +8,7 @@ SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6
 MAN=		zlib.3 zopen.3
 
-ZLIBSRC=	${SRCTOP}/contrib/zlib
+ZLIBSRC=	${SRCTOP}/sys/contrib/zlib
 
 .PATH:		${ZLIBSRC}
 

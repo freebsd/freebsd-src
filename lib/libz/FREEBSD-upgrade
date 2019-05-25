@@ -8,7 +8,7 @@ benefit other consumers.
 To Update:
   1) Unpack vendor sources into a clean directory.
   2) Import onto the vendor area.
-  3) Merge the vendor tree to contrib/zlib, which contains a stripped down
+  3) Merge the vendor tree to sys/contrib/zlib, which contains a stripped down
      version of upstream source, resolve any conflicts.
   4) Double check zconf.h, zlib.pc, and Symbol.map to make sure that we
      have the required changes.  Test universe and commit them.
