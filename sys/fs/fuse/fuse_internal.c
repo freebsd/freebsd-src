@@ -208,7 +208,7 @@ fuse_internal_cache_attrs(struct vnode *vp, struct ucred *cred,
 	if (!cred)
 		cred = curthread->td_ucred;
 
-	ASSERT_VOP_ELOCKED(*vpp, "fuse_internal_cache_attrs");
+	ASSERT_VOP_ELOCKED(vp, "fuse_internal_cache_attrs");
 
 	fuse_validity_2_bintime(attr_valid, attr_valid_nsec,
 		&fvdat->attr_cache_timeout);
