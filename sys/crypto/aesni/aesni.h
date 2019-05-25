@@ -111,6 +111,15 @@ int AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
     const unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
     const unsigned char *key, int nr);
 
+/* CCM + CBC-MAC functions */
+void AES_CCM_encrypt(const unsigned char *in, unsigned char *out,
+    const unsigned char *addt, const unsigned char *ivec,
+    unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
+    const unsigned char *key, int nr);
+int AES_CCM_decrypt(const unsigned char *in, unsigned char *out,
+    const unsigned char *addt, const unsigned char *ivec,
+    const unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
+    const unsigned char *key, int nr);
 int aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
     int keylen);
 
