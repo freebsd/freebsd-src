@@ -408,7 +408,7 @@ vtpci_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 		*result = pci_get_device(dev);
 		break;
 	case VIRTIO_IVAR_SUBVENDOR:
-		*result = pci_get_subdevice(dev);
+		*result = pci_get_subvendor(dev);
 		break;
 	default:
 		return (ENOENT);
