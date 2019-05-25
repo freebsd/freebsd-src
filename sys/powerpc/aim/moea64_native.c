@@ -401,6 +401,12 @@ moea64_cpu_bootstrap_native(mmu_t mmup, int ap)
 
 	mtmsr(mfmsr() & ~PSL_DR & ~PSL_IR);
 
+	switch(mfpvr() >> 16) {
+	case IBMPOWER9:
+		mtspr(SPR_HID0, mfspr(SPR_HID0) & ~HID0_RADIX);
+		break;
+	}
+
 	/*
 	 * Install kernel SLB entries
 	 */
