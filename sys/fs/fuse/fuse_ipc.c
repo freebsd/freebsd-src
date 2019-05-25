@@ -94,7 +94,6 @@ SDT_PROBE_DEFINE2(fusefs, , ipc, trace, "int", "char*");
 
 static void fdisp_make_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct fuse_data *data, uint64_t nid, pid_t pid, struct ucred *cred);
-static void fiov_clear(struct fuse_iov *fiov);
 static void fuse_interrupt_send(struct fuse_ticket *otick, int err);
 static struct fuse_ticket *fticket_alloc(struct fuse_data *data);
 static void fticket_refresh(struct fuse_ticket *ftick);
@@ -296,13 +295,6 @@ fiov_adjust(struct fuse_iov *fiov, size_t size)
 		bzero((char*)fiov->base + fiov->len, size - fiov->len);
 	}
 	fiov->len = size;
-}
-
-/* Clear the fiov's data buffer */
-static void
-fiov_clear(struct fuse_iov *fiov)
-{
-	bzero(fiov->base, fiov->len);
 }
 
 /* Resize the fiov if needed, and clear it's buffer */
