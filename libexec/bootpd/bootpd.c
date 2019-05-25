@@ -589,13 +589,13 @@ usage()
 	fprintf(stderr,
 		"usage: bootpd [-a] [-i | -s] [-c chdir-path] [-d level] [-h hostname]\n"
 		"              [-t timeout] [bootptab [dumpfile]]\n");
-	fprintf(stderr, "\t -a\tdon't modify ARP table\n");
-	fprintf(stderr, "\t -c n\tset current directory\n");
-	fprintf(stderr, "\t -d n\tset debug level\n");
-	fprintf(stderr, "\t -h n\tset the hostname to listen on\n");
-	fprintf(stderr, "\t -i\tforce inetd mode (run as child of inetd)\n");
-	fprintf(stderr, "\t -s\tforce standalone mode (run without inetd)\n");
-	fprintf(stderr, "\t -t n\tset inetd exit timeout to n minutes\n");
+	fprintf(stderr, "       -a\tdon't modify ARP table\n");
+	fprintf(stderr, "       -c n\tset current directory\n");
+	fprintf(stderr, "       -d n\tset debug level\n");
+	fprintf(stderr, "       -h n\tset the hostname to listen on\n");
+	fprintf(stderr, "       -i\tforce inetd mode (run as child of inetd)\n");
+	fprintf(stderr, "       -s\tforce standalone mode (run without inetd)\n");
+	fprintf(stderr, "       -t n\tset inetd exit timeout to n minutes\n");
 	exit(1);
 }
 
