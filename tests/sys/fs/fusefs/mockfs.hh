@@ -166,7 +166,7 @@ union fuse_payloads_out {
 	fuse_create_out		create;
 	fuse_create_out_7_8	create_7_8;
 	/* The protocol places no limits on the size of bytes */
-	uint8_t			bytes[0x20000];
+	uint8_t 		bytes[0x20000];
 	fuse_entry_out		entry;
 	fuse_entry_out_7_8	entry_7_8;
 	fuse_lk_out		getlk;

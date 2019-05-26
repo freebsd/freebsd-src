@@ -298,7 +298,7 @@ void FuseTest::expect_readdir(uint64_t ino, uint64_t off,
 		}, Eq(true)),
 		_)
 	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		struct fuse_dirent *fde = (struct fuse_dirent*)out->body.bytes;
+		struct fuse_dirent *fde = (struct fuse_dirent*)&(out->body);
 		int i = 0;
 
 		out->header.error = 0;

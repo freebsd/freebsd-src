@@ -48,6 +48,8 @@ extern "C" {
 #include "mntopts.h"	// for build_iovec
 }
 
+#include <cinttypes>
+
 #include <gtest/gtest.h>
 
 #include "mockfs.hh"
@@ -153,10 +155,10 @@ void sigint_handler(int __unused sig) {
 
 void debug_fuseop(const mockfs_buf_in *in)
 {
-	printf("%-11s ino=%2lu", opcode2opname(in->header.opcode),
+	printf("%-11s ino=%2" PRIu64, opcode2opname(in->header.opcode),
 		in->header.nodeid);
 	if (verbosity > 1) {
-		printf(" uid=%5u gid=%5u pid=%5u unique=%lu len=%u",
+		printf(" uid=%5u gid=%5u pid=%5u unique=%" PRIu64 " len=%u",
 			in->header.uid, in->header.gid, in->header.pid,
 			in->header.unique, in->header.len);
 	}
@@ -173,11 +175,12 @@ void debug_fuseop(const mockfs_buf_in *in)
 				in->body.open.flags, name);
 			break;
 		case FUSE_FLUSH:
-			printf(" fh=%#lx lock_owner=%lu", in->body.flush.fh,
+			printf(" fh=%#" PRIx64 " lock_owner=%" PRIu64,
+				in->body.flush.fh,
 				in->body.flush.lock_owner);
 			break;
 		case FUSE_FORGET:
-			printf(" nlookup=%lu", in->body.forget.nlookup);
+			printf(" nlookup=%" PRIu64, in->body.forget.nlookup);
 			break;
 		case FUSE_FSYNC:
 			printf(" flags=%#x", in->body.fsync.fsync_flags);
@@ -186,10 +189,10 @@ void debug_fuseop(const mockfs_buf_in *in)
 			printf(" flags=%#x", in->body.fsyncdir.fsync_flags);
 			break;
 		case FUSE_INTERRUPT:
-			printf(" unique=%lu", in->body.interrupt.unique);
+			printf(" unique=%" PRIu64, in->body.interrupt.unique);
 			break;
 		case FUSE_LINK:
-			printf(" oldnodeid=%lu", in->body.link.oldnodeid);
+			printf(" oldnodeid=%" PRIu64, in->body.link.oldnodeid);
 			break;
 		case FUSE_LOOKUP:
 			printf(" %s", in->body.lookup);
@@ -212,16 +215,17 @@ void debug_fuseop(const mockfs_buf_in *in)
 				in->body.opendir.flags, in->body.opendir.mode);
 			break;
 		case FUSE_READ:
-			printf(" offset=%lu size=%u", in->body.read.offset,
+			printf(" offset=%" PRIu64 " size=%u",
+				in->body.read.offset,
 				in->body.read.size);
 			break;
 		case FUSE_READDIR:
-			printf(" fh=%#lx offset=%lu size=%u",
+			printf(" fh=%#" PRIx64 " offset=%" PRIu64 " size=%u",
 				in->body.readdir.fh, in->body.readdir.offset,
 				in->body.readdir.size);
 			break;
 		case FUSE_RELEASE:
-			printf(" fh=%#lx flags=%#x lock_owner=%lu",
+			printf(" fh=%#" PRIx64 " flags=%#x lock_owner=%" PRIu64,
 				in->body.release.fh,
 				in->body.release.flags,
 				in->body.release.lock_owner);
@@ -238,25 +242,26 @@ void debug_fuseop(const mockfs_buf_in *in)
 			if (in->body.setattr.valid & FATTR_GID)
 				printf(" gid=%u", in->body.setattr.gid);
 			if (in->body.setattr.valid & FATTR_SIZE)
-				printf(" size=%zu", in->body.setattr.size);
+				printf(" size=%" PRIu64, in->body.setattr.size);
 			if (in->body.setattr.valid & FATTR_ATIME)
-				printf(" atime=%zu.%u",
+				printf(" atime=%" PRIu64 ".%u",
 					in->body.setattr.atime,
 					in->body.setattr.atimensec);
 			if (in->body.setattr.valid & FATTR_MTIME)
-				printf(" mtime=%zu.%u",
+				printf(" mtime=%" PRIu64 ".%u",
 					in->body.setattr.mtime,
 					in->body.setattr.mtimensec);
 			if (in->body.setattr.valid & FATTR_FH)
-				printf(" fh=%zu", in->body.setattr.fh);
+				printf(" fh=%" PRIu64 "", in->body.setattr.fh);
 			break;
 		case FUSE_SETLK:
-			printf(" fh=%#lx owner=%lu type=%u pid=%u",
+			printf(" fh=%#" PRIx64 " owner=%" PRIu64
+				" type=%u pid=%u",
 				in->body.setlk.fh, in->body.setlk.owner,
 				in->body.setlk.lk.type,
 				in->body.setlk.lk.pid);
 			if (verbosity >= 2) {
-				printf(" range=[%lu-%lu]",
+				printf(" range=[%" PRIu64 "-%" PRIu64 "]",
 					in->body.setlk.lk.start,
 					in->body.setlk.lk.end);
 			}
@@ -272,7 +277,8 @@ void debug_fuseop(const mockfs_buf_in *in)
 			printf(" %s=%s", name, value);
 			break;
 		case FUSE_WRITE:
-			printf(" fh=%#lx offset=%lu size=%u flags=%u",
+			printf(" fh=%#" PRIx64 " offset=%" PRIu64
+				" size=%u flags=%u",
 				in->body.write.fh,
 				in->body.write.offset, in->body.write.size,
 				in->body.write.write_flags);
@@ -389,15 +395,14 @@ void MockFS::init(uint32_t flags) {
 	mockfs_buf_in *in;
 	mockfs_buf_out *out;
 
-	in = (mockfs_buf_in*) malloc(sizeof(*in));
+	in = new mockfs_buf_in;
 	ASSERT_TRUE(in != NULL);
-	out = (mockfs_buf_out*) malloc(sizeof(*out));
+	out = new mockfs_buf_out;
 	ASSERT_TRUE(out != NULL);
 
 	read_request(in);
 	ASSERT_EQ(FUSE_INIT, in->header.opcode);
 
-	memset(out, 0, sizeof(*out));
 	out->header.unique = in->header.unique;
 	out->header.error = 0;
 	out->body.init.major = FUSE_KERNEL_VERSION;
@@ -418,7 +423,8 @@ void MockFS::init(uint32_t flags) {
 	SET_OUT_HEADER_LEN(out, init);
 	write(m_fuse_fd, out, out->header.len);
 
-	free(in);
+	delete out;
+	delete in;
 }
 
 void MockFS::kill_daemon() {

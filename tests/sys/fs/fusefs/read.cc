@@ -486,9 +486,8 @@ TEST_F(ReadCacheable, mmap)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t len;
-	ssize_t bufsize = strlen(CONTENTS);
+	size_t bufsize = strlen(CONTENTS);
 	void *p;
-	//char buf[bufsize];
 
 	len = getpagesize();
 
@@ -674,7 +673,7 @@ TEST_F(ReadCacheable, sendfile)
 	const char *CONTENTS = "abcdefgh";
 	uint64_t ino = 42;
 	int fd;
-	ssize_t bufsize = strlen(CONTENTS);
+	size_t bufsize = strlen(CONTENTS);
 	char buf[bufsize];
 	int sp[2];
 	off_t sbytes;
@@ -703,7 +702,8 @@ TEST_F(ReadCacheable, sendfile)
 
 	ASSERT_EQ(0, sendfile(fd, sp[1], 0, bufsize, NULL, &sbytes, 0))
 		<< strerror(errno);
-	ASSERT_EQ(bufsize, read(sp[0], buf, bufsize)) << strerror(errno);
+	ASSERT_EQ((ssize_t)bufsize, read(sp[0], buf, bufsize))
+		<< strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
 
 	close(sp[1]);
