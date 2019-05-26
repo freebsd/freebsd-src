@@ -237,7 +237,7 @@ int ct_set_clk (ct_chan_t *c, int clk)
 	if (c->mode == M_E1) {
 		ct_setup_e1 (c->board);
 		return 0;
-	} if (c->mode == M_G703) {
+	} else if (c->mode == M_G703) {
 		ct_setup_g703 (c->board);
 		return 0;
 	} else
