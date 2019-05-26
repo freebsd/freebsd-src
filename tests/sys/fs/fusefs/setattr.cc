@@ -495,7 +495,7 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 		SET_OUT_HEADER_LEN(out, write);
 		out->body.attr.attr.ino = ino;
 		out->body.write.size = in->body.write.size;
-		cur_size = std::max(cur_size,
+		cur_size = std::max((uint64_t)cur_size,
 			in->body.write.size + in->body.write.offset);
 	})));
 
@@ -522,8 +522,8 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 		}, Eq(true)),
 		_)
 	).WillRepeatedly(Invoke(ReturnImmediate([&](auto in, auto out) {
-		auto osize = std::min(cur_size - in->body.read.offset,
-			(size_t)in->body.read.size);
+		auto osize = std::min((uint64_t)cur_size - in->body.read.offset,
+			(uint64_t)in->body.read.size);
 		out->header.len = sizeof(struct fuse_out_header) + osize;
 		if (should_have_data)
 			memset(out->body.bytes, 'X', osize);
