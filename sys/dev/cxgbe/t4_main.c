@@ -9709,7 +9709,7 @@ set_offload_policy(struct adapter *sc, struct t4_offload_policy *uop)
 		/* Delete installed policies. */
 		op = NULL;
 		goto set_policy;
-	} if (uop->nrules > 256) { /* arbitrary */
+	} else if (uop->nrules > 256) { /* arbitrary */
 		return (E2BIG);
 	}
 
