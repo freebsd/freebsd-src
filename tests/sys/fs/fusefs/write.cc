@@ -65,6 +65,12 @@ void expect_release(uint64_t ino, ProcessMockerT r)
 	).WillRepeatedly(Invoke(r));
 }
 
+void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
+	uint64_t osize, const void *contents)
+{
+	FuseTest::expect_write(ino, offset, isize, osize, 0, 0, contents);
+}
+
 };
 
 class Write_7_8: public FuseTest {
@@ -100,7 +106,7 @@ virtual void SetUp() {
 
 /* Tests for the write-through cache mode */
 class WriteThrough: public Write {
-
+public:
 virtual void SetUp() {
 	const char *cache_mode_node = "vfs.fusefs.data_cache_mode";
 	int val = 0;
@@ -117,11 +123,17 @@ virtual void SetUp() {
 			"(writethrough) for this test";
 }
 
+void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
+	uint64_t osize, const void *contents)
+{
+	FuseTest::expect_write(ino, offset, isize, osize, 0, FUSE_WRITE_CACHE,
+		contents);
+}
 };
 
 /* Tests for the writeback cache mode */
 class WriteBack: public Write {
-
+public:
 virtual void SetUp() {
 	const char *node = "vfs.fusefs.data_cache_mode";
 	int val = 0;
@@ -138,6 +150,12 @@ virtual void SetUp() {
 			"(writeback) for this test";
 }
 
+void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
+	uint64_t osize, const void *contents)
+{
+	FuseTest::expect_write(ino, offset, isize, osize, FUSE_WRITE_CACHE, 0,
+		contents);
+}
 };
 
 /* AIO writes need to set the header's pid field correctly */
@@ -155,7 +173,7 @@ TEST_F(AioWrite, DISABLED_aio_write)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, offset, bufsize, bufsize, 0, CONTENTS);
+	expect_write(ino, offset, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -196,7 +214,7 @@ TEST_F(Write, append)
 
 	expect_lookup(RELPATH, ino, initial_offset);
 	expect_open(ino, 0, 1);
-	expect_write(ino, initial_offset, BUFSIZE, BUFSIZE, 0, CONTENTS);
+	expect_write(ino, initial_offset, BUFSIZE, BUFSIZE, CONTENTS);
 
 	/* Must open O_RDWR or fuse(4) implicitly sets direct_io */
 	fd = open(FULLPATH, O_RDWR | O_APPEND);
@@ -218,7 +236,7 @@ TEST_F(Write, append_direct_io)
 
 	expect_lookup(RELPATH, ino, initial_offset);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
-	expect_write(ino, initial_offset, BUFSIZE, BUFSIZE, 0, CONTENTS);
+	expect_write(ino, initial_offset, BUFSIZE, BUFSIZE, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY | O_APPEND);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -242,7 +260,7 @@ TEST_F(Write, direct_io_evicts_cache)
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS0);
-	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS1);
+	expect_write(ino, 0, bufsize, bufsize, CONTENTS1);
 
 	fd = open(FULLPATH, O_RDWR);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -285,9 +303,8 @@ TEST_F(Write, indirect_io_short_write)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, bufsize, bufsize0, 0, CONTENTS);
-	expect_write(ino, bufsize0, bufsize1, bufsize1, 0,
-		contents1);
+	expect_write(ino, 0, bufsize, bufsize0, CONTENTS);
+	expect_write(ino, bufsize0, bufsize1, bufsize1, contents1);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -312,7 +329,7 @@ TEST_F(Write, direct_io_short_write)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
-	expect_write(ino, 0, bufsize, halfbufsize, 0, CONTENTS);
+	expect_write(ino, 0, bufsize, halfbufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -342,7 +359,7 @@ TEST_F(Write, direct_io_short_write_iov)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
-	expect_write(ino, 0, totalsize, size0, 0, EXPECTED0);
+	expect_write(ino, 0, totalsize, size0, EXPECTED0);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -388,9 +405,8 @@ TEST_F(Write, mmap)
 	/* 
 	 * Writes from the pager may or may not be associated with the correct
 	 * pid, so they must set FUSE_WRITE_CACHE.
-	 * TODO: expect FUSE_WRITE_CACHE after upgrading to protocol 7.9
 	 */
-	expect_write(ino, 0, len, len, 0, expected);
+	FuseTest::expect_write(ino, 0, len, len, FUSE_WRITE_CACHE, 0, expected);
 	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, ReturnErrno(0));
 
@@ -435,7 +451,7 @@ TEST_F(WriteThrough, evicts_read_cache)
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_read(ino, 0, bufsize, bufsize, contents0);
-	expect_write(ino, 0, wrsize, wrsize, 0, contents1);
+	expect_write(ino, 0, wrsize, wrsize, contents1);
 
 	fd = open(FULLPATH, O_RDWR);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -468,7 +484,7 @@ TEST_F(WriteThrough, pwrite)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, offset, bufsize, bufsize, 0, CONTENTS);
+	expect_write(ino, offset, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -489,7 +505,7 @@ TEST_F(Write, write)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
+	expect_write(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -518,8 +534,8 @@ TEST_F(Write, write_large)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, halfbufsize, halfbufsize, 0, contents);
-	expect_write(ino, halfbufsize, halfbufsize, halfbufsize, 0,
+	expect_write(ino, 0, halfbufsize, halfbufsize, contents);
+	expect_write(ino, halfbufsize, halfbufsize, halfbufsize,
 		&contents[halfbufsize / sizeof(int)]);
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -561,7 +577,7 @@ TEST_F(Write_7_8, write)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write_7_8(ino, 0, bufsize, bufsize, 0, CONTENTS);
+	expect_write_7_8(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -582,7 +598,7 @@ TEST_F(WriteBack, close)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
+	expect_write(ino, 0, bufsize, bufsize, CONTENTS);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_SETATTR);
@@ -621,7 +637,7 @@ TEST_F(WriteBack, rmw)
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, fsize, 1);
 	expect_open(ino, 0, 1);
 	expect_read(ino, 0, fsize, fsize, INITIAL);
-	expect_write(ino, offset, bufsize, bufsize, 0, CONTENTS);
+	expect_write(ino, offset, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -646,7 +662,7 @@ TEST_F(WriteBack, writeback)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
+	expect_write(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDWR);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -678,7 +694,8 @@ TEST_F(WriteBack, o_direct)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
+	FuseTest::expect_write(ino, 0, bufsize, bufsize, 0, FUSE_WRITE_CACHE,
+		CONTENTS);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDWR | O_DIRECT);
@@ -711,7 +728,7 @@ TEST_F(WriteThrough, DISABLED_writethrough)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
+	expect_write(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDWR);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -738,7 +755,7 @@ TEST_F(WriteThrough, update_file_size)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
+	expect_write(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDWR);
 	EXPECT_LE(0, fd) << strerror(errno);

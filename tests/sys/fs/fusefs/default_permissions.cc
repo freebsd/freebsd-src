@@ -1229,7 +1229,7 @@ TEST_F(Write, clear_suid)
 	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, wbuf);
+	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, 0, wbuf);
 	expect_chmod(ino, newmode, sizeof(wbuf));
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -1255,7 +1255,7 @@ TEST_F(Write, clear_sgid)
 	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, wbuf);
+	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, 0, wbuf);
 	expect_chmod(ino, newmode, sizeof(wbuf));
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -1285,7 +1285,7 @@ TEST_F(Write, recursion_panic_while_clearing_suid)
 	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, wbuf);
+	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, 0, wbuf);
 	/* XXX Return a smaller file size than what we just wrote! */
 	expect_chmod(ino, newmode, 0);
 

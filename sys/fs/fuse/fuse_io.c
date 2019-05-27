@@ -119,7 +119,7 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 static int 
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, off_t filesize,
-    int ioflag);
+    int ioflag, bool pages);
 static int 
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag, pid_t pid);
@@ -245,7 +245,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 			if (!pages )
 				v_inval_buf_range(vp, start, end, iosize);
 			err = fuse_write_directbackend(vp, uio, cred, fufh,
-				filesize, ioflag);
+				filesize, ioflag, pages);
 		} else {
 			SDT_PROBE2(fusefs, , io, trace, 1,
 				"buffered write of vnode");
@@ -405,7 +405,7 @@ out:
 static int
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, off_t filesize,
-    int ioflag)
+    int ioflag, bool pages)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_data *data;
@@ -418,8 +418,28 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	int diff;
 	int err = 0;
 	bool direct_io = fufh->fuse_open_flags & FOPEN_DIRECT_IO;
+	uint32_t write_flags;
 
 	data = fuse_get_mpdata(vp->v_mount);
+
+	/* 
+	 * Don't set FUSE_WRITE_LOCKOWNER in write_flags.  It can't be set
+	 * accurately when using POSIX AIO, libfuse doesn't use it, and I'm not
+	 * aware of any file systems that do.  It was an attempt to add
+	 * Linux-style mandatory locking to the FUSE protocol, but mandatory
+	 * locking is deprecated even on Linux.  See Linux commit
+	 * f33321141b273d60cbb3a8f56a5489baad82ba5e .
+	 */
+	/*
+	 * Set FUSE_WRITE_CACHE whenever we don't know the uid, gid, and/or pid
+	 * that originated a write.  For example when writing from the
+	 * writeback cache.  I don't know of a single file system that cares,
+	 * but the protocol says we're supposed to do this.
+	 */
+	write_flags = !pages && (
+		(ioflag & IO_DIRECT) ||
+		!fsess_opt_datacache(vnode_mount(vp)) ||
+		fuse_data_cache_mode != FUSE_CACHE_WB) ? 0 : FUSE_WRITE_CACHE;
 
 	if (uio->uio_resid == 0)
 		return (0);
@@ -439,17 +459,8 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 		fwi->fh = fufh->fh_id;
 		fwi->offset = uio->uio_offset;
 		fwi->size = chunksize;
+		fwi->write_flags = write_flags;
 		if (fuse_libabi_geq(data, 7, 9)) {
-			/* 
-			 * Don't set FUSE_WRITE_LOCKOWNER.  It can't be set
-			 * accurately when using POSIX AIO, libfuse doesn't use
-			 * it, and I'm not aware of any file systems that do.
-			 * It was an attempt to add Linux-style mandatory
-			 * locking to the FUSE protocol, but mandatory locking
-			 * is deprecated even on Linux.  See Linux commit
-			 * f33321141b273d60cbb3a8f56a5489baad82ba5e .
-			 */
-			fwi->write_flags = 0;
 			fwi->flags = 0;		/* TODO */
 			fwi_data = (char *)fdi.indata + sizeof(*fwi);
 		} else {
@@ -525,6 +536,7 @@ retry:
 				fwi->fh = fufh->fh_id;
 				fwi->offset = as_written_offset;
 				fwi->size = diff;
+				fwi->write_flags = write_flags;
 				goto retry;
 			}
 		}
@@ -884,7 +896,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 			uiop->uio_rw = UIO_WRITE;
 
 			error = fuse_write_directbackend(vp, uiop, cred, fufh,
-				filesize, 0);
+				filesize, 0, false);
 
 			if (error == EINTR || error == ETIMEDOUT
 			    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {

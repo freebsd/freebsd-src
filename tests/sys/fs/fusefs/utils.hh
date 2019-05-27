@@ -169,15 +169,18 @@ class FuseTest : public ::testing::Test {
 
 	/*
 	 * Create an expectation that FUSE_WRITE will be called exactly once
-	 * for the given inode, at offset offset, with write_flags flags, 
-	 * size isize and buffer contents.  It will return osize
+	 * for the given inode, at offset offset, with  size isize and buffer
+	 * contents.  Any flags present in flags_set must be set, and any
+	 * present in flags_unset must not be set.  Other flags are don't care.
+	 * It will return osize.
 	 */
 	void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
-		uint64_t osize, uint32_t flags, const void *contents);
+		uint64_t osize, uint32_t flags_set, uint32_t flags_unset,
+		const void *contents);
 
 	/* Protocol 7.8 version of expect_write */
 	void expect_write_7_8(uint64_t ino, uint64_t offset, uint64_t isize,
-		uint64_t osize, uint32_t flags, const void *contents);
+		uint64_t osize, const void *contents);
 
 	/*
 	 * Helper that runs code in a child process.

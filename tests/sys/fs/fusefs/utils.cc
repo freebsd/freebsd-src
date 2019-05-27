@@ -377,15 +377,17 @@ void FuseTest::expect_unlink(uint64_t parent, const char *path, int error)
 }
 
 void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
-	uint64_t osize, uint32_t flags, const void *contents)
+	uint64_t osize, uint32_t flags_set, uint32_t flags_unset,
+	const void *contents)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			const char *buf = (const char*)in.body.bytes +
 				sizeof(struct fuse_write_in);
 			bool pid_ok;
+			uint32_t wf = in.body.write.write_flags;
 
-			if (in.body.write.write_flags & FUSE_WRITE_CACHE)
+			if (wf & FUSE_WRITE_CACHE)
 				pid_ok = true;
 			else
 				pid_ok = (pid_t)in.header.pid == getpid();
@@ -396,7 +398,8 @@ void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 				in.body.write.offset == offset  &&
 				in.body.write.size == isize &&
 				pid_ok &&
-				in.body.write.write_flags == flags &&
+				(wf & flags_set) == flags_set &&
+				(wf & flags_unset) == 0 &&
 				0 == bcmp(buf, contents, isize));
 		}, Eq(true)),
 		_)
@@ -407,7 +410,7 @@ void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 }
 
 void FuseTest::expect_write_7_8(uint64_t ino, uint64_t offset, uint64_t isize,
-	uint64_t osize, uint32_t flags, const void *contents)
+	uint64_t osize, const void *contents)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -420,7 +423,6 @@ void FuseTest::expect_write_7_8(uint64_t ino, uint64_t offset, uint64_t isize,
 				in.body.write.offset == offset  &&
 				in.body.write.size == isize &&
 				pid_ok &&
-				in.body.write.write_flags == flags &&
 				0 == bcmp(buf, contents, isize));
 		}, Eq(true)),
 		_)

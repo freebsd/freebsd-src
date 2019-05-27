@@ -75,7 +75,7 @@ void expect_lookup(const char *relpath, uint64_t ino)
 
 void expect_write(uint64_t ino, uint64_t size, const void *contents)
 {
-	FuseTest::expect_write(ino, 0, size, size, 0, contents);
+	FuseTest::expect_write(ino, 0, size, size, 0, 0, contents);
 }
 
 };
