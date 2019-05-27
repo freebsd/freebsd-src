@@ -30,9 +30,9 @@
 #if !defined(__SVR4) && !defined(__svr4__) && !defined(__hpux)
 # include <sys/mbuf.h>
 #endif
-#if defined(__FreeBSD__) && (__FreeBSD_version > 220000)
+#if defined(__FreeBSD__)
 # include <sys/sockio.h>
-#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000) && defined(_KERNEL)
+#if defined(_KERNEL)
 #include <net/vnet.h>
 #else
 #define CURVNET_SET(arg)
