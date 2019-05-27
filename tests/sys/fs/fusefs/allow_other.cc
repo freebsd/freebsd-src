@@ -108,9 +108,9 @@ TEST_F(AllowOther, creds)
 	get_unprivileged_id(&uid, &gid);
 	fork(true, &status, [=] {
 			EXPECT_CALL(*m_mock, process( ResultOf([=](auto in) {
-				return (in->header.opcode == FUSE_LOOKUP &&
-					in->header.uid == uid &&
-					in->header.gid == gid);
+				return (in.header.opcode == FUSE_LOOKUP &&
+					in.header.uid == uid &&
+					in.header.gid == gid);
 				}, Eq(true)),
 				_)
 			).Times(1)
@@ -143,25 +143,25 @@ TEST_F(AllowOther, privilege_escalation)
 		expect_lookup(RELPATH, ino, S_IFREG | 0600, 0, 2);
 		EXPECT_CALL(*m_mock, process(
 			ResultOf([=](auto in) {
-				return (in->header.opcode == FUSE_OPEN &&
-					in->header.pid == (uint32_t)getpid() &&
-					in->header.uid == (uint32_t)geteuid() &&
-					in->header.nodeid == ino);
+				return (in.header.opcode == FUSE_OPEN &&
+					in.header.pid == (uint32_t)getpid() &&
+					in.header.uid == (uint32_t)geteuid() &&
+					in.header.nodeid == ino);
 			}, Eq(true)),
 			_)
 		).WillOnce(Invoke(
-			ReturnImmediate([](auto in __unused, auto out) {
-			out->body.open.fh = fh;
-			out->header.len = sizeof(out->header);
+			ReturnImmediate([](auto in __unused, auto& out) {
+			out.body.open.fh = fh;
+			out.header.len = sizeof(out.header);
 			SET_OUT_HEADER_LEN(out, open);
 		})));
 
 		EXPECT_CALL(*m_mock, process(
 			ResultOf([=](auto in) {
-				return (in->header.opcode == FUSE_OPEN &&
-					in->header.pid != (uint32_t)getpid() &&
-					in->header.uid != (uint32_t)geteuid() &&
-					in->header.nodeid == ino);
+				return (in.header.opcode == FUSE_OPEN &&
+					in.header.pid != (uint32_t)getpid() &&
+					in.header.uid != (uint32_t)geteuid() &&
+					in.header.nodeid == ino);
 			}, Eq(true)),
 			_)
 		).Times(AnyNumber())
@@ -228,12 +228,12 @@ TEST_F(NoAllowOther, disallowed_beneath_root)
 
 	expect_lookup(RELPATH, ino, S_IFDIR | 0755, 0, 1);
 	EXPECT_LOOKUP(ino, RELPATH2)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino2;
-		out->body.entry.attr.nlink = 1;
-		out->body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino2;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = UINT64_MAX;
 	})));
 	expect_opendir(ino);
 	dfd = open(FULLPATH, O_DIRECTORY);
@@ -269,12 +269,12 @@ TEST_F(NoAllowOther, setextattr)
 	fork(true, &status, [&] {
 			EXPECT_LOOKUP(1, RELPATH)
 			.WillOnce(Invoke(
-			ReturnImmediate([=](auto in __unused, auto out) {
+			ReturnImmediate([=](auto in __unused, auto& out) {
 				SET_OUT_HEADER_LEN(out, entry);
-				out->body.entry.attr_valid = UINT64_MAX;
-				out->body.entry.entry_valid = UINT64_MAX;
-				out->body.entry.attr.mode = S_IFREG | 0644;
-				out->body.entry.nodeid = ino;
+				out.body.entry.attr_valid = UINT64_MAX;
+				out.body.entry.entry_valid = UINT64_MAX;
+				out.body.entry.attr.mode = S_IFREG | 0644;
+				out.body.entry.nodeid = ino;
 			})));
 
 			/*

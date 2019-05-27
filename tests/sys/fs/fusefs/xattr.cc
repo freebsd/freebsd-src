@@ -49,10 +49,10 @@ void expect_getxattr(uint64_t ino, const char *attr, ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			const char *a = (const char*)in->body.bytes +
+			const char *a = (const char*)in.body.bytes +
 				sizeof(fuse_getxattr_in);
-			return (in->header.opcode == FUSE_GETXATTR &&
-				in->header.nodeid == ino &&
+			return (in.header.opcode == FUSE_GETXATTR &&
+				in.header.nodeid == ino &&
 				0 == strcmp(attr, a));
 		}, Eq(true)),
 		_)
@@ -63,9 +63,9 @@ void expect_listxattr(uint64_t ino, uint32_t size, ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LISTXATTR &&
-				in->header.nodeid == ino &&
-				in->body.listxattr.size == size);
+			return (in.header.opcode == FUSE_LISTXATTR &&
+				in.header.nodeid == ino &&
+				in.body.listxattr.size == size);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(r))
@@ -76,9 +76,9 @@ void expect_removexattr(uint64_t ino, const char *attr, int error)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			const char *a = (const char*)in->body.bytes;
-			return (in->header.opcode == FUSE_REMOVEXATTR &&
-				in->header.nodeid == ino &&
+			const char *a = (const char*)in.body.bytes;
+			return (in.header.opcode == FUSE_REMOVEXATTR &&
+				in.header.nodeid == ino &&
 				0 == strcmp(attr, a));
 		}, Eq(true)),
 		_)
@@ -90,11 +90,11 @@ void expect_setxattr(uint64_t ino, const char *attr, const char *value,
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			const char *a = (const char*)in->body.bytes +
+			const char *a = (const char*)in.body.bytes +
 				sizeof(fuse_setxattr_in);
 			const char *v = a + strlen(a) + 1;
-			return (in->header.opcode == FUSE_SETXATTR &&
-				in->header.nodeid == ino &&
+			return (in.header.opcode == FUSE_SETXATTR &&
+				in.header.nodeid == ino &&
 				0 == strcmp(attr, a) &&
 				0 == strcmp(value, v));
 		}, Eq(true)),
@@ -199,9 +199,9 @@ TEST_F(Getxattr, size_only)
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_getxattr(ino, "user.foo",
-		ReturnImmediate([](auto in __unused, auto out) {
+		ReturnImmediate([](auto in __unused, auto& out) {
 			SET_OUT_HEADER_LEN(out, getxattr);
-			out->body.getxattr.size = 99;
+			out.body.getxattr.size = 99;
 		})
 	);
 
@@ -223,9 +223,9 @@ TEST_F(Getxattr, system)
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_getxattr(ino, "system.foo",
-		ReturnImmediate([&](auto in __unused, auto out) {
-			memcpy((void*)out->body.bytes, value, value_len);
-			out->header.len = sizeof(out->header) + value_len;
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			memcpy((void*)out.body.bytes, value, value_len);
+			out.header.len = sizeof(out.header) + value_len;
 		})
 	);
 
@@ -248,9 +248,9 @@ TEST_F(Getxattr, user)
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_getxattr(ino, "user.foo",
-		ReturnImmediate([&](auto in __unused, auto out) {
-			memcpy((void*)out->body.bytes, value, value_len);
-			out->header.len = sizeof(out->header) + value_len;
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			memcpy((void*)out.body.bytes, value, value_len);
+			out.header.len = sizeof(out.header) + value_len;
 		})
 	);
 
@@ -329,8 +329,8 @@ TEST_F(Listxattr, size_only_empty)
 	int ns = EXTATTR_NAMESPACE_USER;
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
-	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto out) {
-		out->body.listxattr.size = 0;
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto& out) {
+		out.body.listxattr.size = 0;
 		SET_OUT_HEADER_LEN(out, listxattr);
 	}));
 
@@ -350,19 +350,19 @@ TEST_F(Listxattr, size_only_nonempty)
 	int ns = EXTATTR_NAMESPACE_USER;
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
-	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto out) {
-		out->body.listxattr.size = 45;
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto& out) {
+		out.body.listxattr.size = 45;
 		SET_OUT_HEADER_LEN(out, listxattr);
 	}));
 
 	// TODO: fix the expected size after fixing the size calculation bug in
 	// fuse_vnop_listextattr.  It should be exactly 45.
 	expect_listxattr(ino, 53,
-		ReturnImmediate([](auto in __unused, auto out) {
+		ReturnImmediate([](auto in __unused, auto& out) {
 			const char l[] = "user.foo";
-			strlcpy((char*)out->body.bytes, l,
-				sizeof(out->body.bytes));
-			out->header.len = sizeof(fuse_out_header) + sizeof(l);
+			strlcpy((char*)out.body.bytes, l,
+				sizeof(out.body.bytes));
+			out.header.len = sizeof(fuse_out_header) + sizeof(l);
 		})
 	);
 
@@ -376,20 +376,20 @@ TEST_F(Listxattr, size_only_really_big)
 	int ns = EXTATTR_NAMESPACE_USER;
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
-	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto out) {
-		out->body.listxattr.size = 16000;
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto& out) {
+		out.body.listxattr.size = 16000;
 		SET_OUT_HEADER_LEN(out, listxattr);
 	}));
 
 	// TODO: fix the expected size after fixing the size calculation bug in
 	// fuse_vnop_listextattr.  It should be exactly 16000.
 	expect_listxattr(ino, 16008,
-		ReturnImmediate([](auto in __unused, auto out) {
+		ReturnImmediate([](auto in __unused, auto& out) {
 			const char l[16] = "user.foobarbang";
 			for (int i=0; i < 1000; i++) {
-				memcpy(&out->body.bytes[16 * i], l, 16);
+				memcpy(&out.body.bytes[16 * i], l, 16);
 			}
-			out->header.len = sizeof(fuse_out_header) + 16000;
+			out.header.len = sizeof(fuse_out_header) + 16000;
 		})
 	);
 
@@ -411,8 +411,8 @@ TEST_F(Listxattr, user)
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_listxattr(ino, 0,
-		ReturnImmediate([&](auto in __unused, auto out) {
-			out->body.listxattr.size = sizeof(attrs);
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			out.body.listxattr.size = sizeof(attrs);
 			SET_OUT_HEADER_LEN(out, listxattr);
 		})
 	);
@@ -420,12 +420,12 @@ TEST_F(Listxattr, user)
 	// TODO: fix the expected size after fixing the size calculation bug in
 	// fuse_vnop_listextattr.
 	expect_listxattr(ino, sizeof(attrs) + 8,
-	ReturnImmediate([&](auto in __unused, auto out) {
-		memcpy((void*)out->body.bytes, attrs, sizeof(attrs));
-		out->header.len = sizeof(fuse_out_header) + sizeof(attrs);
+	ReturnImmediate([&](auto in __unused, auto& out) {
+		memcpy((void*)out.body.bytes, attrs, sizeof(attrs));
+		out.header.len = sizeof(fuse_out_header) + sizeof(attrs);
 	}));
 
-	ASSERT_EQ((ssize_t)sizeof(expected),
+	ASSERT_EQ(static_cast<ssize_t>(sizeof(expected)),
 		extattr_list_file(FULLPATH, ns, data, sizeof(data)))
 		<< strerror(errno);
 	ASSERT_EQ(0, memcmp(expected, data, sizeof(expected)));
@@ -445,8 +445,8 @@ TEST_F(Listxattr, system)
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_listxattr(ino, 0,
-		ReturnImmediate([&](auto in __unused, auto out) {
-			out->body.listxattr.size = sizeof(attrs);
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			out.body.listxattr.size = sizeof(attrs);
 			SET_OUT_HEADER_LEN(out, listxattr);
 		})
 	);
@@ -454,12 +454,12 @@ TEST_F(Listxattr, system)
 	// TODO: fix the expected size after fixing the size calculation bug in
 	// fuse_vnop_listextattr.
 	expect_listxattr(ino, sizeof(attrs) + 8,
-	ReturnImmediate([&](auto in __unused, auto out) {
-		memcpy((void*)out->body.bytes, attrs, sizeof(attrs));
-		out->header.len = sizeof(fuse_out_header) + sizeof(attrs);
+	ReturnImmediate([&](auto in __unused, auto& out) {
+		memcpy((void*)out.body.bytes, attrs, sizeof(attrs));
+		out.header.len = sizeof(fuse_out_header) + sizeof(attrs);
 	}));
 
-	ASSERT_EQ((ssize_t)sizeof(expected),
+	ASSERT_EQ(static_cast<ssize_t>(sizeof(expected)),
 		extattr_list_file(FULLPATH, ns, data, sizeof(data)))
 		<< strerror(errno);
 	ASSERT_EQ(0, memcmp(expected, data, sizeof(expected)));

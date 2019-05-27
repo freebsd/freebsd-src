@@ -46,10 +46,10 @@ expect_flush(uint64_t ino, int times, pid_t lo, ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_FLUSH &&
-				in->header.nodeid == ino &&
-				in->body.flush.lock_owner == (uint64_t)lo &&
-				in->body.flush.fh == FH);
+			return (in.header.opcode == FUSE_FLUSH &&
+				in.header.nodeid == ino &&
+				in.body.flush.lock_owner == (uint64_t)lo &&
+				in.body.flush.fh == FH);
 		}, Eq(true)),
 		_)
 	).Times(times)
@@ -69,7 +69,7 @@ void expect_release()
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_RELEASE);
+			return (in.header.opcode == FUSE_RELEASE);
 		}, Eq(true)),
 		_)
 	).WillRepeatedly(Invoke(ReturnErrno(0)));
@@ -206,9 +206,9 @@ TEST_F(FlushWithLocks, unlock_on_close)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETLK &&
-				in->header.nodeid == ino &&
-				in->body.setlk.fh == FH);
+			return (in.header.opcode == FUSE_SETLK &&
+				in.header.nodeid == ino &&
+				in.body.setlk.fh == FH);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(0)));

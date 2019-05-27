@@ -168,10 +168,10 @@ TEST_F(AioRead, async_read_disabled)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ &&
-				in->header.nodeid == ino &&
-				in->body.read.fh == FH &&
-				in->body.read.offset == (uint64_t)off0);
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.fh == FH &&
+				in.body.read.offset == (uint64_t)off0);
 		}, Eq(true)),
 		_)
 	).WillRepeatedly(Invoke([&](auto in __unused, auto &out __unused) {
@@ -180,10 +180,10 @@ TEST_F(AioRead, async_read_disabled)
 	}));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ &&
-				in->header.nodeid == ino &&
-				in->body.read.fh == FH &&
-				in->body.read.offset == (uint64_t)off1);
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.fh == FH &&
+				in.body.read.offset == (uint64_t)off1);
 		}, Eq(true)),
 		_)
 	).WillRepeatedly(Invoke([&](auto in __unused, auto &out __unused) {
@@ -250,10 +250,10 @@ TEST_F(AsyncRead, async_read)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ &&
-				in->header.nodeid == ino &&
-				in->body.read.fh == FH &&
-				in->body.read.offset == (uint64_t)off0);
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.fh == FH &&
+				in.body.read.offset == (uint64_t)off0);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
@@ -262,10 +262,10 @@ TEST_F(AsyncRead, async_read)
 	}));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ &&
-				in->header.nodeid == ino &&
-				in->body.read.fh == FH &&
-				in->body.read.offset == (uint64_t)off1);
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.fh == FH &&
+				in.body.read.offset == (uint64_t)off1);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
@@ -395,7 +395,7 @@ TEST_F(Read, eio)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ);
+			return (in.header.opcode == FUSE_READ);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(EIO)));
@@ -496,16 +496,16 @@ TEST_F(ReadCacheable, mmap)
 	/* mmap may legitimately try to read more data than is available */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ &&
-				in->header.nodeid == ino &&
-				in->body.read.fh == Read::FH &&
-				in->body.read.offset == 0 &&
-				in->body.read.size >= bufsize);
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.fh == Read::FH &&
+				in.body.read.offset == 0 &&
+				in.body.read.size >= bufsize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.len = sizeof(struct fuse_out_header) + bufsize;
-		memmove(out->body.bytes, CONTENTS, bufsize);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.len = sizeof(struct fuse_out_header) + bufsize;
+		memmove(out.body.bytes, CONTENTS, bufsize);
 	})));
 
 	fd = open(FULLPATH, O_RDONLY);
@@ -683,16 +683,16 @@ TEST_F(ReadCacheable, sendfile)
 	/* Like mmap, sendfile may request more data than is available */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ &&
-				in->header.nodeid == ino &&
-				in->body.read.fh == Read::FH &&
-				in->body.read.offset == 0 &&
-				in->body.read.size >= bufsize);
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.fh == Read::FH &&
+				in.body.read.offset == 0 &&
+				in.body.read.size >= bufsize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.len = sizeof(struct fuse_out_header) + bufsize;
-		memmove(out->body.bytes, CONTENTS, bufsize);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.len = sizeof(struct fuse_out_header) + bufsize;
+		memmove(out.body.bytes, CONTENTS, bufsize);
 	})));
 
 	ASSERT_EQ(0, socketpair(PF_LOCAL, SOCK_STREAM, 0, sp))
@@ -702,7 +702,7 @@ TEST_F(ReadCacheable, sendfile)
 
 	ASSERT_EQ(0, sendfile(fd, sp[1], 0, bufsize, NULL, &sbytes, 0))
 		<< strerror(errno);
-	ASSERT_EQ((ssize_t)bufsize, read(sp[0], buf, bufsize))
+	ASSERT_EQ(static_cast<ssize_t>(bufsize), read(sp[0], buf, bufsize))
 		<< strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
 
@@ -728,7 +728,7 @@ TEST_F(ReadCacheable, DISABLED_sendfile_eio)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ);
+			return (in.header.opcode == FUSE_READ);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(EIO)));

@@ -47,7 +47,7 @@ TEST_F(Statfs, eio)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_STATFS);
+			return (in.header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(EIO)));
@@ -104,7 +104,7 @@ TEST_F(Statfs, enotconn_while_blocked)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_STATFS);
+			return (in.header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
@@ -136,18 +136,18 @@ TEST_F(Statfs, ok)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_STATFS);
+			return (in.header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, statfs);
-		out->body.statfs.st.blocks = 1000;
-		out->body.statfs.st.bfree = 100;
-		out->body.statfs.st.bavail = 200;
-		out->body.statfs.st.files = 5;
-		out->body.statfs.st.ffree = 6;
-		out->body.statfs.st.namelen = 128;
-		out->body.statfs.st.frsize = 1024;
+		out.body.statfs.st.blocks = 1000;
+		out.body.statfs.st.bfree = 100;
+		out.body.statfs.st.bavail = 200;
+		out.body.statfs.st.files = 5;
+		out.body.statfs.st.ffree = 6;
+		out.body.statfs.st.namelen = 128;
+		out.body.statfs.st.frsize = 1024;
 	})));
 
 	ASSERT_NE(NULL, getcwd(mp, PATH_MAX)) << strerror(errno);

@@ -60,7 +60,7 @@ virtual void SetUp() {
 	/* With -o default_permissions, FUSE_ACCESS should never be called */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_ACCESS);
+			return (in.header.opcode == FUSE_ACCESS);
 		}, Eq(true)),
 		_)
 	).Times(0);
@@ -72,19 +72,19 @@ void expect_getattr(uint64_t ino, mode_t mode, uint64_t attr_valid, int times,
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).Times(times)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = mode;
-		out->body.attr.attr.size = 0;
-		out->body.attr.attr.uid = uid;
-		out->body.attr.attr.uid = gid;
-		out->body.attr.attr_valid = attr_valid;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr.size = 0;
+		out.body.attr.attr.uid = uid;
+		out.body.attr.attr.uid = gid;
+		out.body.attr.attr_valid = attr_valid;
 	})));
 }
 
@@ -110,12 +110,12 @@ TEST_F(Setattr, sticky_regular_file)
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, geteuid());
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
+			return (in.header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.mode = S_IFREG | newmode;
+		out.body.attr.attr.mode = S_IFREG | newmode;
 	})));
 
 	EXPECT_EQ(0, chmod(FULLPATH, newmode)) << strerror(errno);

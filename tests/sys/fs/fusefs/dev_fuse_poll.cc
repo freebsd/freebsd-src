@@ -127,73 +127,73 @@ TEST_F(Kqueue, data)
 	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
 
 	EXPECT_LOOKUP(1, "foo")
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.entry_valid = UINT64_MAX;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = foo_ino;
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = foo_ino;
 	})));
 	EXPECT_LOOKUP(1, "bar")
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.entry_valid = UINT64_MAX;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = bar_ino;
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = bar_ino;
 	})));
 	EXPECT_LOOKUP(1, "baz")
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.entry_valid = UINT64_MAX;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = baz_ino;
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = baz_ino;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == foo_ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == foo_ino);
 		}, Eq(true)),
 		_)
 	)
-	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto& out) {
 		nready0 = m_mock->m_nready;
 
 		sem_post(&sem0);
 		// Block the daemon so we can accumulate a few more ops
 		sem_wait(&sem1);
 
-		out->header.unique = in->header.unique;
-		out->header.error = -EIO;
-		out->header.len = sizeof(out->header);
+		out.header.unique = in.header.unique;
+		out.header.error = -EIO;
+		out.header.len = sizeof(out.header);
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				(in->header.nodeid == bar_ino ||
-				 in->header.nodeid == baz_ino));
+			return (in.header.opcode == FUSE_GETATTR &&
+				(in.header.nodeid == bar_ino ||
+				 in.header.nodeid == baz_ino));
 		}, Eq(true)),
 		_)
 	).InSequence(seq)
-	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto& out) {
 		nready1 = m_mock->m_nready;
-		out->header.unique = in->header.unique;
-		out->header.error = -EIO;
-		out->header.len = sizeof(out->header);
+		out.header.unique = in.header.unique;
+		out.header.error = -EIO;
+		out.header.len = sizeof(out.header);
 	})));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				(in->header.nodeid == bar_ino ||
-				 in->header.nodeid == baz_ino));
+			return (in.header.opcode == FUSE_GETATTR &&
+				(in.header.nodeid == bar_ino ||
+				 in.header.nodeid == baz_ino));
 		}, Eq(true)),
 		_)
 	).InSequence(seq)
-	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto& out) {
 		nready2 = m_mock->m_nready;
-		out->header.unique = in->header.unique;
-		out->header.error = -EIO;
-		out->header.len = sizeof(out->header);
+		out.header.unique = in.header.unique;
+		out.header.error = -EIO;
+		out.header.len = sizeof(out.header);
 	})));
 
 	/* 

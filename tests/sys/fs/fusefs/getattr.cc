@@ -44,15 +44,15 @@ void expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 {
 	EXPECT_LOOKUP(1, relpath)
 	.Times(times)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 1;
-		out->body.entry.attr_valid = attr_valid;
-		out->body.entry.attr_valid_nsec = attr_valid_nsec;
-		out->body.entry.attr.size = size;
-		out->body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = attr_valid;
+		out.body.entry.attr_valid_nsec = attr_valid_nsec;
+		out.body.entry.attr.size = size;
+		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 }
 };
@@ -77,23 +77,23 @@ TEST_F(Getattr, attr_cache)
 	struct stat sb;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr_valid = UINT64_MAX;
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0644;
 	})));
 	EXPECT_EQ(0, stat(FULLPATH, &sb));
 	/* The second stat(2) should use cached attributes */
@@ -115,17 +115,17 @@ TEST_F(Getattr, attr_cache_timeout)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1, 0, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).Times(2)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr_valid_nsec = NAP_NS / 2;
-		out->body.attr.attr_valid = 0;
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr_valid_nsec = NAP_NS / 2;
+		out.body.attr.attr_valid = 0;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0644;
 	})));
 
 	EXPECT_EQ(0, stat(FULLPATH, &sb));
@@ -148,15 +148,15 @@ TEST_F(Getattr, blksize_zero)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1, 1, 0, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.blksize = 0;
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.blksize = 0;
 	})));
 
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
@@ -173,8 +173,8 @@ TEST_F(Getattr, enoent)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1, 0, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(ENOENT)));
@@ -192,27 +192,27 @@ TEST_F(Getattr, ok)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1, 1, 0, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.size = 1;
-		out->body.attr.attr.blocks = 2;
-		out->body.attr.attr.atime = 3;
-		out->body.attr.attr.mtime = 4;
-		out->body.attr.attr.ctime = 5;
-		out->body.attr.attr.atimensec = 6;
-		out->body.attr.attr.mtimensec = 7;
-		out->body.attr.attr.ctimensec = 8;
-		out->body.attr.attr.nlink = 9;
-		out->body.attr.attr.uid = 10;
-		out->body.attr.attr.gid = 11;
-		out->body.attr.attr.rdev = 12;
-		out->body.attr.attr.blksize = 12345;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.size = 1;
+		out.body.attr.attr.blocks = 2;
+		out.body.attr.attr.atime = 3;
+		out.body.attr.attr.mtime = 4;
+		out.body.attr.attr.ctime = 5;
+		out.body.attr.attr.atimensec = 6;
+		out.body.attr.attr.mtimensec = 7;
+		out.body.attr.attr.ctimensec = 8;
+		out.body.attr.attr.nlink = 9;
+		out.body.attr.attr.uid = 10;
+		out.body.attr.attr.gid = 11;
+		out.body.attr.attr.rdev = 12;
+		out.body.attr.attr.blksize = 12345;
 	})));
 
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
@@ -248,35 +248,35 @@ TEST_F(Getattr_7_8, ok)
 	struct stat sb;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry_7_8);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 1;
-		out->body.entry.attr.size = 1;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr.size = 1;
 	})));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr_7_8);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.size = 1;
-		out->body.attr.attr.blocks = 2;
-		out->body.attr.attr.atime = 3;
-		out->body.attr.attr.mtime = 4;
-		out->body.attr.attr.ctime = 5;
-		out->body.attr.attr.atimensec = 6;
-		out->body.attr.attr.mtimensec = 7;
-		out->body.attr.attr.ctimensec = 8;
-		out->body.attr.attr.nlink = 9;
-		out->body.attr.attr.uid = 10;
-		out->body.attr.attr.gid = 11;
-		out->body.attr.attr.rdev = 12;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.size = 1;
+		out.body.attr.attr.blocks = 2;
+		out.body.attr.attr.atime = 3;
+		out.body.attr.attr.mtime = 4;
+		out.body.attr.attr.ctime = 5;
+		out.body.attr.attr.atimensec = 6;
+		out.body.attr.attr.mtimensec = 7;
+		out.body.attr.attr.ctimensec = 8;
+		out.body.attr.attr.nlink = 9;
+		out.body.attr.attr.uid = 10;
+		out.body.attr.attr.gid = 11;
+		out.body.attr.attr.rdev = 12;
 	})));
 
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);

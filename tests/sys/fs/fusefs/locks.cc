@@ -110,20 +110,20 @@ TEST_F(Getlk, no_locks)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETLK &&
-				in->header.nodeid == ino &&
-				in->body.getlk.fh == FH &&
-				in->body.getlk.owner == (uint32_t)pid &&
-				in->body.getlk.lk.start == 10 &&
-				in->body.getlk.lk.end == 1009 &&
-				in->body.getlk.lk.type == F_RDLCK &&
-				in->body.getlk.lk.pid == (uint64_t)pid);
+			return (in.header.opcode == FUSE_GETLK &&
+				in.header.nodeid == ino &&
+				in.body.getlk.fh == FH &&
+				in.body.getlk.owner == (uint32_t)pid &&
+				in.body.getlk.lk.start == 10 &&
+				in.body.getlk.lk.end == 1009 &&
+				in.body.getlk.lk.type == F_RDLCK &&
+				in.body.getlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto& out) {
 		SET_OUT_HEADER_LEN(out, getlk);
-		out->body.getlk.lk = in->body.getlk.lk;
-		out->body.getlk.lk.type = F_UNLCK;
+		out.body.getlk.lk = in.body.getlk.lk;
+		out.body.getlk.lk.type = F_UNLCK;
 	})));
 
 	fd = open(FULLPATH, O_RDWR);
@@ -154,22 +154,22 @@ TEST_F(Getlk, lock_exists)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETLK &&
-				in->header.nodeid == ino &&
-				in->body.getlk.fh == FH &&
-				in->body.getlk.owner == (uint32_t)pid &&
-				in->body.getlk.lk.start == 10 &&
-				in->body.getlk.lk.end == 1009 &&
-				in->body.getlk.lk.type == F_RDLCK &&
-				in->body.getlk.lk.pid == (uint64_t)pid);
+			return (in.header.opcode == FUSE_GETLK &&
+				in.header.nodeid == ino &&
+				in.body.getlk.fh == FH &&
+				in.body.getlk.owner == (uint32_t)pid &&
+				in.body.getlk.lk.start == 10 &&
+				in.body.getlk.lk.end == 1009 &&
+				in.body.getlk.lk.type == F_RDLCK &&
+				in.body.getlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, getlk);
-		out->body.getlk.lk.start = 100;
-		out->body.getlk.lk.end = 199;
-		out->body.getlk.lk.type = F_WRLCK;
-		out->body.getlk.lk.pid = (uint32_t)pid2;;
+		out.body.getlk.lk.start = 100;
+		out.body.getlk.lk.end = 199;
+		out.body.getlk.lk.type = F_WRLCK;
+		out.body.getlk.lk.pid = (uint32_t)pid2;;
 	})));
 
 	fd = open(FULLPATH, O_RDWR);
@@ -231,14 +231,14 @@ TEST_F(Setlk, set)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETLK &&
-				in->header.nodeid == ino &&
-				in->body.setlk.fh == FH &&
-				in->body.setlk.owner == (uint32_t)pid &&
-				in->body.setlk.lk.start == 10 &&
-				in->body.setlk.lk.end == 1009 &&
-				in->body.setlk.lk.type == F_RDLCK &&
-				in->body.setlk.lk.pid == (uint64_t)pid);
+			return (in.header.opcode == FUSE_SETLK &&
+				in.header.nodeid == ino &&
+				in.body.setlk.fh == FH &&
+				in.body.setlk.owner == (uint32_t)pid &&
+				in.body.setlk.lk.start == 10 &&
+				in.body.setlk.lk.end == 1009 &&
+				in.body.setlk.lk.type == F_RDLCK &&
+				in.body.setlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(0)));
@@ -269,14 +269,14 @@ TEST_F(Setlk, set_eof)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETLK &&
-				in->header.nodeid == ino &&
-				in->body.setlk.fh == FH &&
-				in->body.setlk.owner == (uint32_t)pid &&
-				in->body.setlk.lk.start == 10 &&
-				in->body.setlk.lk.end == OFFSET_MAX &&
-				in->body.setlk.lk.type == F_RDLCK &&
-				in->body.setlk.lk.pid == (uint64_t)pid);
+			return (in.header.opcode == FUSE_SETLK &&
+				in.header.nodeid == ino &&
+				in.body.setlk.fh == FH &&
+				in.body.setlk.owner == (uint32_t)pid &&
+				in.body.setlk.lk.start == 10 &&
+				in.body.setlk.lk.end == OFFSET_MAX &&
+				in.body.setlk.lk.type == F_RDLCK &&
+				in.body.setlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(0)));
@@ -307,14 +307,14 @@ TEST_F(Setlk, eagain)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETLK &&
-				in->header.nodeid == ino &&
-				in->body.setlk.fh == FH &&
-				in->body.setlk.owner == (uint32_t)pid &&
-				in->body.setlk.lk.start == 10 &&
-				in->body.setlk.lk.end == 1009 &&
-				in->body.setlk.lk.type == F_RDLCK &&
-				in->body.setlk.lk.pid == (uint64_t)pid);
+			return (in.header.opcode == FUSE_SETLK &&
+				in.header.nodeid == ino &&
+				in.body.setlk.fh == FH &&
+				in.body.setlk.owner == (uint32_t)pid &&
+				in.body.setlk.lk.start == 10 &&
+				in.body.setlk.lk.end == 1009 &&
+				in.body.setlk.lk.type == F_RDLCK &&
+				in.body.setlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(EAGAIN)));
@@ -377,14 +377,14 @@ TEST_F(Setlkw, set)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETLK &&
-				in->header.nodeid == ino &&
-				in->body.setlkw.fh == FH &&
-				in->body.setlkw.owner == (uint32_t)pid &&
-				in->body.setlkw.lk.start == 10 &&
-				in->body.setlkw.lk.end == 1009 &&
-				in->body.setlkw.lk.type == F_RDLCK &&
-				in->body.setlkw.lk.pid == (uint64_t)pid);
+			return (in.header.opcode == FUSE_SETLK &&
+				in.header.nodeid == ino &&
+				in.body.setlkw.fh == FH &&
+				in.body.setlkw.owner == (uint32_t)pid &&
+				in.body.setlkw.lk.start == 10 &&
+				in.body.setlkw.lk.end == 1009 &&
+				in.body.setlkw.lk.type == F_RDLCK &&
+				in.body.setlkw.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(0)));

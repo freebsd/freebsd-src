@@ -59,14 +59,14 @@ TEST_F(ReleaseDir, dup)
 	expect_opendir(ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READDIR &&
-				in->header.nodeid == ino &&
-				in->body.readdir.offset == 0);
+			return (in.header.opcode == FUSE_READDIR &&
+				in.header.nodeid == ino &&
+				in.body.readdir.offset == 0);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.error = 0;
-		out->header.len = sizeof(out->header);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.error = 0;
+		out.header.len = sizeof(out.header);
 	})));
 	expect_releasedir(ino, ReturnErrno(0));
 	

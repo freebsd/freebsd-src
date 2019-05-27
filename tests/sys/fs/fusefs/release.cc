@@ -51,11 +51,11 @@ void expect_release(uint64_t ino, uint64_t lock_owner,
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_RELEASE &&
-				in->header.nodeid == ino &&
-				in->body.release.lock_owner == lock_owner &&
-				in->body.release.fh == FH &&
-				in->body.release.flags == flags);
+			return (in.header.opcode == FUSE_RELEASE &&
+				in.header.nodeid == ino &&
+				in.body.release.lock_owner == lock_owner &&
+				in.body.release.fh == FH &&
+				in.body.release.flags == flags);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(error)))
@@ -201,14 +201,14 @@ TEST_F(ReleaseWithLocks, unlock_on_close)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETLK &&
-				in->header.nodeid == ino &&
-				in->body.setlk.fh == FH);
+			return (in.header.opcode == FUSE_SETLK &&
+				in.header.nodeid == ino &&
+				in.body.setlk.fh == FH);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(0)));
 	expect_flush(ino, 1, ReturnErrno(0));
-	expect_release(ino, (uint64_t)pid, O_RDWR, 0);
+	expect_release(ino, static_cast<uint64_t>(pid), O_RDWR, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);

@@ -66,21 +66,21 @@ void expect_mknod(mode_t mode, dev_t dev) {
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
+			const char *name = (const char*)in.body.bytes +
 				sizeof(fuse_mknod_in);
-			return (in->header.opcode == FUSE_MKNOD &&
-				in->body.mknod.mode == mode &&
-				in->body.mknod.rdev == (uint32_t)dev &&
+			return (in.header.opcode == FUSE_MKNOD &&
+				in.body.mknod.mode == mode &&
+				in.body.mknod.rdev == (uint32_t)dev &&
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.entry_valid = UINT64_MAX;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.attr.rdev = dev;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.attr.rdev = dev;
 	})));
 }
 
@@ -119,10 +119,10 @@ TEST_F(Mknod, eperm)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
+			const char *name = (const char*)in.body.bytes +
 				sizeof(fuse_mknod_in);
-			return (in->header.opcode == FUSE_MKNOD &&
-				in->body.mknod.mode == mode &&
+			return (in.header.opcode == FUSE_MKNOD &&
+				in.body.mknod.mode == mode &&
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)

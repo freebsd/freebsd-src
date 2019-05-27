@@ -59,25 +59,25 @@ TEST_F(Lookup, attr_cache)
 	struct stat sb;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.attr.ino = ino;	// Must match nodeid
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.attr.size = 1;
-		out->body.entry.attr.blocks = 2;
-		out->body.entry.attr.atime = 3;
-		out->body.entry.attr.mtime = 4;
-		out->body.entry.attr.ctime = 5;
-		out->body.entry.attr.atimensec = 6;
-		out->body.entry.attr.mtimensec = 7;
-		out->body.entry.attr.ctimensec = 8;
-		out->body.entry.attr.nlink = 9;
-		out->body.entry.attr.uid = 10;
-		out->body.entry.attr.gid = 11;
-		out->body.entry.attr.rdev = 12;
-		out->body.entry.generation = generation;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.attr.ino = ino;	// Must match nodeid
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.attr.size = 1;
+		out.body.entry.attr.blocks = 2;
+		out.body.entry.attr.atime = 3;
+		out.body.entry.attr.mtime = 4;
+		out.body.entry.attr.ctime = 5;
+		out.body.entry.attr.atimensec = 6;
+		out.body.entry.attr.mtimensec = 7;
+		out.body.entry.attr.ctimensec = 8;
+		out.body.entry.attr.nlink = 9;
+		out.body.entry.attr.uid = 10;
+		out.body.entry.attr.gid = 11;
+		out.body.entry.attr.rdev = 12;
+		out.body.entry.generation = generation;
 	})));
 	/* stat(2) issues a VOP_LOOKUP followed by a VOP_GETATTR */
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
@@ -120,12 +120,12 @@ TEST_F(Lookup, attr_cache_timeout)
 
 	EXPECT_LOOKUP(1, RELPATH)
 	.Times(2)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid_nsec = NAP_NS / 2;
-		out->body.entry.attr.ino = ino;	// Must match nodeid
-		out->body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr_valid_nsec = NAP_NS / 2;
+		out.body.entry.attr.ino = ino;	// Must match nodeid
+		out.body.entry.attr.mode = S_IFREG | 0644;
 	})));
 
 	/* access(2) will issue a VOP_LOOKUP and fill the attr cache */
@@ -143,12 +143,12 @@ TEST_F(Lookup, dot)
 	uint64_t ino = 42;
 
 	EXPECT_LOOKUP(1, RELDIRPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFDIR | 0755;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 
 	/*
@@ -164,12 +164,12 @@ TEST_F(Lookup, dotdot)
 	const char RELDIRPATH[] = "some_dir";
 
 	EXPECT_LOOKUP(1, RELDIRPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFDIR | 0755;
-		out->body.entry.nodeid = 14;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = 14;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 
 	/*
@@ -195,11 +195,11 @@ TEST_F(Lookup, enotdir)
 	const char RELPATH[] = "not_a_dir";
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.entry_valid = UINT64_MAX;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = 42;
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = 42;
 	})));
 
 	ASSERT_EQ(-1, access(FULLPATH, F_OK));
@@ -216,11 +216,11 @@ TEST_F(Lookup, entry_cache)
 	const char RELPATH[] = "some_file.txt";
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.entry_valid = UINT64_MAX;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = 14;
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = 14;
 	})));
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 	/* The second access(2) should use the cache */
@@ -275,11 +275,11 @@ TEST_F(Lookup, entry_cache_timeout)
 
 	EXPECT_LOOKUP(1, RELPATH)
 	.Times(2)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.entry_valid_nsec = NAP_NS / 2;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = 14;
+		out.body.entry.entry_valid_nsec = NAP_NS / 2;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = 14;
 	})));
 
 	/* access(2) will issue a VOP_LOOKUP and fill the entry cache */
@@ -303,10 +303,10 @@ TEST_F(Lookup, ok)
 	const char RELPATH[] = "some_file.txt";
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = 14;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = 14;
 	})));
 	/*
 	 * access(2) is one of the few syscalls that will not (always) follow
@@ -325,16 +325,16 @@ TEST_F(Lookup, subdir)
 	uint64_t file_ino = 3;
 
 	EXPECT_LOOKUP(1, DIRPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFDIR | 0755;
-		out->body.entry.nodeid = dir_ino;
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = dir_ino;
 	})));
 	EXPECT_LOOKUP(dir_ino, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = file_ino;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = file_ino;
 	})));
 	/*
 	 * access(2) is one of the few syscalls that will not (always) follow
@@ -369,10 +369,10 @@ TEST_F(Lookup_7_8, ok)
 	const char RELPATH[] = "some_file.txt";
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry_7_8);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = 14;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = 14;
 	})));
 	/*
 	 * access(2) is one of the few syscalls that will not (always) follow

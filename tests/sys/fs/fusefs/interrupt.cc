@@ -100,11 +100,11 @@ void expect_mkdir(uint64_t *mkdir_unique)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_MKDIR);
+			return (in.header.opcode == FUSE_MKDIR);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([=](auto in, auto &out __unused) {
-		*mkdir_unique = in->header.unique;
+		*mkdir_unique = in.header.unique;
 		sem_post(blocked_semaphore);
 	}));
 }
@@ -117,12 +117,12 @@ void expect_read(uint64_t ino, uint64_t *read_unique)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([=](auto in, auto &out __unused) {
-		*read_unique = in->header.unique;
+		*read_unique = in.header.unique;
 		sem_post(blocked_semaphore);
 	}));
 }
@@ -135,12 +135,12 @@ void expect_write(uint64_t ino, uint64_t *write_unique)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_WRITE &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_WRITE &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([=](auto in, auto &out __unused) {
-		*write_unique = in->header.unique;
+		*write_unique = in.header.unique;
 		sem_post(blocked_semaphore);
 	}));
 }
@@ -228,33 +228,33 @@ TEST_F(Interrupt, already_complete)
 	expect_mkdir(&mkdir_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_INTERRUPT &&
-				in->body.interrupt.unique == mkdir_unique);
+			return (in.header.opcode == FUSE_INTERRUPT &&
+				in.body.interrupt.unique == mkdir_unique);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([&](auto in, auto &out) {
 		// First complete the mkdir request
-		auto out0 = new mockfs_buf_out;
+		std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
 		out0->header.unique = mkdir_unique;
-		SET_OUT_HEADER_LEN(out0, entry);
+		SET_OUT_HEADER_LEN(*out0, entry);
 		out0->body.create.entry.attr.mode = S_IFDIR | MODE;
 		out0->body.create.entry.nodeid = ino;
-		out.push_back(out0);
+		out.push_back(std::move(out0));
 
 		// Then, respond EAGAIN to the interrupt request
-		auto out1 = new mockfs_buf_out;
-		out1->header.unique = in->header.unique;
+		std::unique_ptr<mockfs_buf_out> out1(new mockfs_buf_out);
+		out1->header.unique = in.header.unique;
 		out1->header.error = -EAGAIN;
 		out1->header.len = sizeof(out1->header);
-		out.push_back(out1);
+		out.push_back(std::move(out1));
 	}));
 	EXPECT_LOOKUP(1, RELDIRPATH0)
 	.InSequence(seq)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFDIR | MODE;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 2;
+		out.body.entry.attr.mode = S_IFDIR | MODE;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 2;
 	})));
 
 	setup_interruptor(self);
@@ -289,44 +289,44 @@ TEST_F(Interrupt, enosys)
 	expect_mkdir(&mkdir_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_INTERRUPT &&
-				in->body.interrupt.unique == mkdir_unique);
+			return (in.header.opcode == FUSE_INTERRUPT &&
+				in.body.interrupt.unique == mkdir_unique);
 		}, Eq(true)),
 		_)
 	).InSequence(seq)
 	.WillOnce(Invoke([&](auto in, auto &out) {
 		// reject FUSE_INTERRUPT and respond to the FUSE_MKDIR
-		auto out0 = new mockfs_buf_out;
-		auto out1 = new mockfs_buf_out;
+		std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
+		std::unique_ptr<mockfs_buf_out> out1(new mockfs_buf_out);
 
-		out0->header.unique = in->header.unique;
+		out0->header.unique = in.header.unique;
 		out0->header.error = -ENOSYS;
 		out0->header.len = sizeof(out0->header);
-		out.push_back(out0);
+		out.push_back(std::move(out0));
 
-		SET_OUT_HEADER_LEN(out1, entry);
+		SET_OUT_HEADER_LEN(*out1, entry);
 		out1->body.create.entry.attr.mode = S_IFDIR | MODE;
 		out1->body.create.entry.nodeid = ino1;
 		out1->header.unique = mkdir_unique;
-		out.push_back(out1);
+		out.push_back(std::move(out1));
 	}));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_MKDIR);
+			return (in.header.opcode == FUSE_MKDIR);
 		}, Eq(true)),
 		_)
 	).InSequence(seq)
 	.WillOnce(Invoke([&](auto in, auto &out) {
-		auto out0 = new mockfs_buf_out;
+		std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
 
 		sem_post(&sem0);
 		sem_wait(&sem1);
 
-		SET_OUT_HEADER_LEN(out0, entry);
+		SET_OUT_HEADER_LEN(*out0, entry);
 		out0->body.create.entry.attr.mode = S_IFDIR | MODE;
 		out0->body.create.entry.nodeid = ino0;
-		out0->header.unique = in->header.unique;
-		out.push_back(out0);
+		out0->header.unique = in.header.unique;
+		out.push_back(std::move(out0));
 	}));
 
 	setup_interruptor(self);
@@ -367,8 +367,8 @@ TEST_F(Interrupt, fatal_signal)
 	expect_mkdir(&mkdir_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_INTERRUPT &&
-				in->body.interrupt.unique == mkdir_unique);
+			return (in.header.opcode == FUSE_INTERRUPT &&
+				in.body.interrupt.unique == mkdir_unique);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
@@ -424,18 +424,18 @@ TEST_F(Interrupt, ignore)
 	expect_mkdir(&mkdir_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_INTERRUPT &&
-				in->body.interrupt.unique == mkdir_unique);
+			return (in.header.opcode == FUSE_INTERRUPT &&
+				in.body.interrupt.unique == mkdir_unique);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([&](auto in __unused, auto &out) {
 		// Ignore FUSE_INTERRUPT; respond to the FUSE_MKDIR
-		auto out0 = new mockfs_buf_out;
+		std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
 		out0->header.unique = mkdir_unique;
-		SET_OUT_HEADER_LEN(out0, entry);
+		SET_OUT_HEADER_LEN(*out0, entry);
 		out0->body.create.entry.attr.mode = S_IFDIR | MODE;
 		out0->body.create.entry.nodeid = ino;
-		out.push_back(out0);
+		out.push_back(std::move(out0));
 	}));
 
 	setup_interruptor(self);
@@ -466,18 +466,18 @@ TEST_F(Interrupt, in_kernel_restartable)
 	expect_open(ino1, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_MKDIR);
+			return (in.header.opcode == FUSE_MKDIR);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([&](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([&](auto in __unused, auto& out) {
 		/* Let the next write proceed */
 		sem_post(&sem1);
 		/* Pause the daemon thread so it won't read the next op */
 		sem_wait(&sem0);
 
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.create.entry.attr.mode = S_IFDIR | MODE;
-		out->body.create.entry.nodeid = ino0;
+		out.body.create.entry.attr.mode = S_IFDIR | MODE;
+		out.body.create.entry.nodeid = ino0;
 	})));
 	FuseTest::expect_read(ino1, 0, FILESIZE, 0, NULL);
 
@@ -539,18 +539,18 @@ TEST_F(Interrupt, in_kernel_nonrestartable)
 	expect_open(ino1, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_MKDIR);
+			return (in.header.opcode == FUSE_MKDIR);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([&](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([&](auto in __unused, auto& out) {
 		/* Let the next write proceed */
 		sem_post(&sem1);
 		/* Pause the daemon thread so it won't read the next op */
 		sem_wait(&sem0);
 
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.create.entry.attr.mode = S_IFDIR | MODE;
-		out->body.create.entry.nodeid = ino0;
+		out.body.create.entry.attr.mode = S_IFDIR | MODE;
+		out.body.create.entry.nodeid = ino0;
 	})));
 
 	fd1 = open(FULLPATH1, O_WRONLY);
@@ -597,16 +597,16 @@ TEST_F(Interrupt, in_progress)
 	expect_mkdir(&mkdir_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_INTERRUPT &&
-				in->body.interrupt.unique == mkdir_unique);
+			return (in.header.opcode == FUSE_INTERRUPT &&
+				in.body.interrupt.unique == mkdir_unique);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([&](auto in __unused, auto &out) {
-		auto out0 = new mockfs_buf_out;
+		std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
 		out0->header.error = -EINTR;
 		out0->header.unique = mkdir_unique;
 		out0->header.len = sizeof(out0->header);
-		out.push_back(out0);
+		out.push_back(std::move(out0));
 	}));
 
 	setup_interruptor(self);
@@ -633,16 +633,16 @@ TEST_F(Interrupt, in_progress_read)
 	expect_read(ino, &read_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_INTERRUPT &&
-				in->body.interrupt.unique == read_unique);
+			return (in.header.opcode == FUSE_INTERRUPT &&
+				in.body.interrupt.unique == read_unique);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([&](auto in __unused, auto &out) {
-		auto out0 = new mockfs_buf_out;
+		std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
 		out0->header.error = -EINTR;
 		out0->header.unique = read_unique;
 		out0->header.len = sizeof(out0->header);
-		out.push_back(out0);
+		out.push_back(std::move(out0));
 	}));
 
 	fd = open(FULLPATH, O_RDONLY);
@@ -670,12 +670,12 @@ TEST_F(Interrupt, priority)
 	EXPECT_LOOKUP(1, RELDIRPATH1).WillOnce(Invoke(ReturnErrno(ENOENT)));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_MKDIR);
+			return (in.header.opcode == FUSE_MKDIR);
 		}, Eq(true)),
 		_)
 	).InSequence(seq)
-	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto out) {
-		mkdir_unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([&](auto in, auto& out) {
+		mkdir_unique = in.header.unique;
 
 		/* Let the next mkdir proceed */
 		sem_post(&sem1);
@@ -684,9 +684,9 @@ TEST_F(Interrupt, priority)
 		sem_wait(&sem0);
 
 		/* Finally, interrupt the original op */
-		out->header.error = -EINTR;
-		out->header.unique = mkdir_unique;
-		out->header.len = sizeof(out->header);
+		out.header.error = -EINTR;
+		out.header.unique = mkdir_unique;
+		out.header.len = sizeof(out.header);
 	})));
 	/* 
 	 * FUSE_INTERRUPT should be received before the second FUSE_MKDIR,
@@ -694,22 +694,22 @@ TEST_F(Interrupt, priority)
 	 */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_INTERRUPT &&
-				in->body.interrupt.unique == mkdir_unique);
+			return (in.header.opcode == FUSE_INTERRUPT &&
+				in.body.interrupt.unique == mkdir_unique);
 		}, Eq(true)),
 		_)
 	).InSequence(seq)
 	.WillOnce(Invoke(ReturnErrno(EAGAIN)));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_MKDIR);
+			return (in.header.opcode == FUSE_MKDIR);
 		}, Eq(true)),
 		_)
 	).InSequence(seq)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.create.entry.attr.mode = S_IFDIR | MODE;
-		out->body.create.entry.nodeid = ino1;
+		out.body.create.entry.attr.mode = S_IFDIR | MODE;
+		out.body.create.entry.nodeid = ino1;
 	})));
 
 	/* Use a separate thread for the first mkdir */
@@ -751,8 +751,8 @@ TEST_F(Interrupt, too_soon)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_INTERRUPT &&
-				in->body.interrupt.unique == mkdir_unique);
+			return (in.header.opcode == FUSE_INTERRUPT &&
+				in.body.interrupt.unique == mkdir_unique);
 		}, Eq(true)),
 		_)
 	).InSequence(seq)
@@ -760,17 +760,17 @@ TEST_F(Interrupt, too_soon)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
-			return (in->header.opcode == FUSE_INTERRUPT &&
-				in->body.interrupt.unique == mkdir_unique);
+			return (in.header.opcode == FUSE_INTERRUPT &&
+				in.body.interrupt.unique == mkdir_unique);
 		}, Eq(true)),
 		_)
 	).InSequence(seq)
 	.WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
-		auto out0 = new mockfs_buf_out;
+		std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
 		out0->header.error = -EINTR;
 		out0->header.unique = mkdir_unique;
 		out0->header.len = sizeof(out0->header);
-		out.push_back(out0);
+		out.push_back(std::move(out0));
 	}));
 
 	setup_interruptor(self);

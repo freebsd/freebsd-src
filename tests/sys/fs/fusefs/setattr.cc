@@ -71,28 +71,28 @@ TEST_F(Setattr, attr_cache)
 	const mode_t newmode = 0644;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | newmode;
-		out->body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | newmode;
+		out.body.attr.attr_valid = UINT64_MAX;
 	})));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_GETATTR);
+			return (in.header.opcode == FUSE_GETATTR);
 		}, Eq(true)),
 		_)
 	).Times(0);
@@ -115,26 +115,26 @@ TEST_F(Setattr, chmod)
 	const mode_t newmode = 0644;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | oldmode;
-		out->body.entry.nodeid = ino;
+		out.body.entry.attr.mode = S_IFREG | oldmode;
+		out.body.entry.nodeid = ino;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_MODE;
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.mode == newmode);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | newmode;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | newmode;
 	})));
 	EXPECT_EQ(0, chmod(FULLPATH, newmode)) << strerror(errno);
 }
@@ -155,40 +155,40 @@ TEST_F(Setattr, chmod_multiply_linked)
 	const mode_t newmode = 0666;
 
 	EXPECT_LOOKUP(1, RELPATH0)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | oldmode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 2;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | oldmode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 2;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 
 	EXPECT_LOOKUP(1, RELPATH1)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | oldmode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 2;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | oldmode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 2;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			uint32_t valid = FATTR_MODE;
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.mode == newmode);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;
-		out->body.attr.attr.mode = S_IFREG | newmode;
-		out->body.attr.attr.nlink = 2;
-		out->body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = S_IFREG | newmode;
+		out.body.attr.attr.nlink = 2;
+		out.body.attr.attr_valid = UINT64_MAX;
 	})));
 
 	/* For a lookup of the 2nd file to get it into the cache*/
@@ -215,31 +215,31 @@ TEST_F(Setattr, chown)
 	const uid_t newuser = 44;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.gid = oldgroup;
-		out->body.entry.attr.uid = olduser;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.gid = oldgroup;
+		out.body.entry.attr.uid = olduser;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_GID | FATTR_UID;
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.uid == newuser &&
-				in->body.setattr.gid == newgroup);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.uid == newuser &&
+				in.body.setattr.gid == newgroup);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.uid = newuser;
-		out->body.attr.attr.gid = newgroup;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.uid = newuser;
+		out.body.attr.attr.gid = newgroup;
 	})));
 	EXPECT_EQ(0, chown(FULLPATH, newuser, newgroup)) << strerror(errno);
 }
@@ -258,18 +258,18 @@ TEST_F(Setattr, eperm)
 	const uint64_t ino = 42;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0777;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.uid = in->header.uid;
-		out->body.entry.attr.gid = in->header.gid;
+		out.body.entry.attr.mode = S_IFREG | 0777;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.uid = in.header.uid;
+		out.body.entry.attr.gid = in.header.gid;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(EPERM)));
@@ -288,21 +288,21 @@ TEST_F(Setattr, fchmod)
 	const mode_t newmode = 0644;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | oldmode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | oldmode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_OPEN &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.len = sizeof(out->header);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.len = sizeof(out.header);
 		SET_OUT_HEADER_LEN(out, open);
 	})));
 
@@ -310,16 +310,16 @@ TEST_F(Setattr, fchmod)
 		ResultOf([=](auto in) {
 			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_MODE;
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.mode == newmode);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | newmode;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | newmode;
 	})));
 
 	fd = open(FULLPATH, O_RDONLY);
@@ -340,41 +340,41 @@ TEST_F(Setattr, ftruncate)
 	const off_t newsize = 12345;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0755;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.attr.size = oldsize;
+		out.body.entry.attr.mode = S_IFREG | 0755;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.attr.size = oldsize;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_OPEN &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.len = sizeof(out->header);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.len = sizeof(out.header);
 		SET_OUT_HEADER_LEN(out, open);
-		out->body.open.fh = fh;
+		out.body.open.fh = fh;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_SIZE | FATTR_FH;
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.fh == fh);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.fh == fh);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0755;
-		out->body.attr.attr.size = newsize;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0755;
+		out.body.attr.attr.size = newsize;
 	})));
 
 	fd = open(FULLPATH, O_RDWR);
@@ -392,28 +392,28 @@ TEST_F(Setattr, truncate) {
 	const uint64_t newsize = 20'000'000;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.size = oldsize;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.size = oldsize;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_SIZE;
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.size == newsize);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.size == newsize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.size = newsize;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.size = newsize;
 	})));
 	EXPECT_EQ(0, truncate(FULLPATH, newsize)) << strerror(errno);
 }
@@ -471,15 +471,15 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 	expect_open(ino, O_RDWR, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([&](auto i __unused, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([&](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;
-		out->body.attr.attr.mode = mode;
-		out->body.attr.attr.size = cur_size;
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr.size = cur_size;
 	})));
 	/* 
 	 * The exact pattern of FUSE_WRITE operations depends on the setting of
@@ -488,64 +488,68 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 	 */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_WRITE);
+			return (in.header.opcode == FUSE_WRITE);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([&](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([&](auto in, auto& out) {
 		SET_OUT_HEADER_LEN(out, write);
-		out->body.attr.attr.ino = ino;
-		out->body.write.size = in->body.write.size;
-		cur_size = std::max((uint64_t)cur_size,
-			in->body.write.size + in->body.write.offset);
+		out.body.attr.attr.ino = ino;
+		out.body.write.size = in.body.write.size;
+		cur_size = std::max(static_cast<uint64_t>(cur_size),
+			in.body.write.size + in.body.write.offset);
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				(in->body.setattr.valid & FATTR_SIZE));
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				(in.body.setattr.valid & FATTR_SIZE));
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([&](auto in, auto out) {
-		auto trunc_size = in->body.setattr.size;
+	).WillRepeatedly(Invoke(ReturnImmediate([&](auto in, auto& out) {
+		auto trunc_size = in.body.setattr.size;
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;
-		out->body.attr.attr.mode = mode;
-		out->body.attr.attr.size = trunc_size;
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr.size = trunc_size;
 		cur_size = trunc_size;
 	})));
 
 	/* exact pattern of FUSE_READ depends on vfs.fusefs.data_cache_mode */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ);
+			return (in.header.opcode == FUSE_READ);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([&](auto in, auto out) {
-		auto osize = std::min((uint64_t)cur_size - in->body.read.offset,
-			(uint64_t)in->body.read.size);
-		out->header.len = sizeof(struct fuse_out_header) + osize;
+	).WillRepeatedly(Invoke(ReturnImmediate([&](auto in, auto& out) {
+		auto osize = std::min(
+			static_cast<uint64_t>(cur_size) - in.body.read.offset,
+			static_cast<uint64_t>(in.body.read.size));
+		out.header.len = sizeof(struct fuse_out_header) + osize;
 		if (should_have_data)
-			memset(out->body.bytes, 'X', osize);
+			memset(out.body.bytes, 'X', osize);
 		else
-			bzero(out->body.bytes, osize);
+			bzero(out.body.bytes, osize);
 	})));
 
 	fd = open(FULLPATH, O_RDWR, 0644);
 	ASSERT_LE(0, fd) << strerror(errno);
 
 	/* Fill the file with Xs */
-	ASSERT_EQ((ssize_t)w0_size, pwrite(fd, w0buf, w0_size, w0_offset));
+	ASSERT_EQ(static_cast<ssize_t>(w0_size),
+		pwrite(fd, w0buf, w0_size, w0_offset));
 	should_have_data = true;
 	/* Fill the cache, if data_cache_mode == 1 */
-	ASSERT_EQ((ssize_t)r0_size, pread(fd, r0buf, r0_size, r0_offset));
+	ASSERT_EQ(static_cast<ssize_t>(r0_size),
+		pread(fd, r0buf, r0_size, r0_offset));
 	/* 1st truncate should discard cached data */
 	EXPECT_EQ(0, ftruncate(fd, trunc0_size)) << strerror(errno);
 	should_have_data = false;
 	/* 2nd truncate extends file into previously cached data */
 	EXPECT_EQ(0, ftruncate(fd, trunc1_size)) << strerror(errno);
 	/* Read should return all zeros */
-	ASSERT_EQ((ssize_t)r1_size, pread(fd, r1buf, r1_size, r1_offset));
+	ASSERT_EQ(static_cast<ssize_t>(r1_size),
+		pread(fd, r1buf, r1_size, r1_offset));
 
 	r = memcmp(expected, r1buf, r1_size);
 	ASSERT_EQ(0, r);
@@ -571,40 +575,40 @@ TEST_F(Setattr, utimensat) {
 	};
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.attr.atime = oldtimes[0].tv_sec;
-		out->body.entry.attr.atimensec = oldtimes[0].tv_nsec;
-		out->body.entry.attr.mtime = oldtimes[1].tv_sec;
-		out->body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.attr.atime = oldtimes[0].tv_sec;
+		out.body.entry.attr.atimensec = oldtimes[0].tv_nsec;
+		out.body.entry.attr.mtime = oldtimes[1].tv_sec;
+		out.body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_ATIME | FATTR_MTIME;
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.atime == newtimes[0].tv_sec &&
-				in->body.setattr.atimensec ==
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.atime == newtimes[0].tv_sec &&
+				in.body.setattr.atimensec ==
 					newtimes[0].tv_nsec &&
-				in->body.setattr.mtime == newtimes[1].tv_sec &&
-				in->body.setattr.mtimensec ==
+				in.body.setattr.mtime == newtimes[1].tv_sec &&
+				in.body.setattr.mtimensec ==
 					newtimes[1].tv_nsec);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.atime = newtimes[0].tv_sec;
-		out->body.attr.attr.atimensec = newtimes[0].tv_nsec;
-		out->body.attr.attr.mtime = newtimes[1].tv_sec;
-		out->body.attr.attr.mtimensec = newtimes[1].tv_nsec;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.atime = newtimes[0].tv_sec;
+		out.body.attr.attr.atimensec = newtimes[0].tv_nsec;
+		out.body.attr.attr.mtime = newtimes[1].tv_sec;
+		out.body.attr.attr.mtimensec = newtimes[1].tv_nsec;
 	})));
 	EXPECT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &newtimes[0], 0))
 		<< strerror(errno);
@@ -625,37 +629,37 @@ TEST_F(Setattr, utimensat_mtime_only) {
 	};
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.attr.atime = oldtimes[0].tv_sec;
-		out->body.entry.attr.atimensec = oldtimes[0].tv_nsec;
-		out->body.entry.attr.mtime = oldtimes[1].tv_sec;
-		out->body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.attr.atime = oldtimes[0].tv_sec;
+		out.body.entry.attr.atimensec = oldtimes[0].tv_nsec;
+		out.body.entry.attr.mtime = oldtimes[1].tv_sec;
+		out.body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_MTIME;
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.mtime == newtimes[1].tv_sec &&
-				in->body.setattr.mtimensec ==
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.mtime == newtimes[1].tv_sec &&
+				in.body.setattr.mtimensec ==
 					newtimes[1].tv_nsec);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.atime = oldtimes[0].tv_sec;
-		out->body.attr.attr.atimensec = oldtimes[0].tv_nsec;
-		out->body.attr.attr.mtime = newtimes[1].tv_sec;
-		out->body.attr.attr.mtimensec = newtimes[1].tv_nsec;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.atime = oldtimes[0].tv_sec;
+		out.body.attr.attr.atimensec = oldtimes[0].tv_nsec;
+		out.body.attr.attr.mtime = newtimes[1].tv_sec;
+		out.body.attr.attr.mtimensec = newtimes[1].tv_nsec;
 	})));
 	EXPECT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &newtimes[0], 0))
 		<< strerror(errno);
@@ -687,16 +691,16 @@ TEST_F(Setattr, utimensat_utime_now) {
 	struct stat sb;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = UINT64_MAX;
-		out->body.entry.attr.atime = oldtimes[0].tv_sec;
-		out->body.entry.attr.atimensec = oldtimes[0].tv_nsec;
-		out->body.entry.attr.mtime = oldtimes[1].tv_sec;
-		out->body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.atime = oldtimes[0].tv_sec;
+		out.body.entry.attr.atimensec = oldtimes[0].tv_nsec;
+		out.body.entry.attr.mtime = oldtimes[1].tv_sec;
+		out.body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
@@ -704,20 +708,20 @@ TEST_F(Setattr, utimensat_utime_now) {
 			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_ATIME | FATTR_ATIME_NOW |
 				FATTR_MTIME | FATTR_MTIME_NOW;
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.atime = now[0].tv_sec;
-		out->body.attr.attr.atimensec = now[0].tv_nsec;
-		out->body.attr.attr.mtime = now[1].tv_sec;
-		out->body.attr.attr.mtimensec = now[1].tv_nsec;
-		out->body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.atime = now[0].tv_sec;
+		out.body.attr.attr.atimensec = now[0].tv_nsec;
+		out.body.attr.attr.mtime = now[1].tv_sec;
+		out.body.attr.attr.mtimensec = now[1].tv_nsec;
+		out.body.attr.attr_valid = UINT64_MAX;
 	})));
 	ASSERT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &newtimes[0], 0))
 		<< strerror(errno);
@@ -738,10 +742,10 @@ TEST_F(RofsSetattr, erofs)
 	const mode_t newmode = 0644;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | oldmode;
-		out->body.entry.nodeid = ino;
+		out.body.entry.attr.mode = S_IFREG | oldmode;
+		out.body.entry.nodeid = ino;
 	})));
 
 	ASSERT_EQ(-1, chmod(FULLPATH, newmode));
@@ -758,26 +762,26 @@ TEST_F(Setattr_7_8, chmod)
 	const mode_t newmode = 0644;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry_7_8);
-		out->body.entry.attr.mode = S_IFREG | oldmode;
-		out->body.entry.nodeid = ino;
+		out.body.entry.attr.mode = S_IFREG | oldmode;
+		out.body.entry.nodeid = ino;
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_MODE;
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.mode == newmode);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr_7_8);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | newmode;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | newmode;
 	})));
 	EXPECT_EQ(0, chmod(FULLPATH, newmode)) << strerror(errno);
 }

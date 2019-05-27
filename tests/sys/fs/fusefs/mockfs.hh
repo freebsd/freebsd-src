@@ -47,8 +47,8 @@ extern "C" {
 #define FUSE_NORESPONSE 9999
 
 #define SET_OUT_HEADER_LEN(out, variant) { \
-	(out)->header.len = (sizeof((out)->header) + \
-			     sizeof((out)->body.variant)); \
+	(out).header.len = (sizeof((out).header) + \
+			    sizeof((out).body.variant)); \
 }
 
 /*
@@ -61,9 +61,9 @@ extern "C" {
 #define EXPECT_LOOKUP(parent, path)					\
 	EXPECT_CALL(*m_mock, process(					\
 		ResultOf([=](auto in) {					\
-			return (in->header.opcode == FUSE_LOOKUP &&	\
-				in->header.nodeid == (parent) &&	\
-				strcmp(in->body.lookup, (path)) == 0);	\
+			return (in.header.opcode == FUSE_LOOKUP &&	\
+				in.header.nodeid == (parent) &&	\
+				strcmp(in.body.lookup, (path)) == 0);	\
 		}, Eq(true)),						\
 		_)							\
 	)
@@ -165,8 +165,11 @@ union fuse_payloads_out {
 	fuse_attr_out_7_8	attr_7_8;
 	fuse_create_out		create;
 	fuse_create_out_7_8	create_7_8;
-	/* The protocol places no limits on the size of bytes */
-	uint8_t 		bytes[0x20000];
+	/*
+	 * The protocol places no limits on the size of bytes.  Choose
+	 * a size big enough for anything we'll test.
+	 */
+	uint8_t			bytes[0x20000];
 	fuse_entry_out		entry;
 	fuse_entry_out_7_8	entry_7_8;
 	fuse_lk_out		getlk;
@@ -194,8 +197,8 @@ struct mockfs_buf_out {
 };
 
 /* A function that can be invoked in place of MockFS::process */
-typedef std::function<void (const struct mockfs_buf_in *in,
-			    std::vector<struct mockfs_buf_out*> &out)>
+typedef std::function<void (const mockfs_buf_in& in,
+			    std::vector<std::unique_ptr<mockfs_buf_out>> &out)>
 ProcessMockerT;
 
 /*
@@ -209,8 +212,8 @@ ProcessMockerT ReturnNegativeCache(const struct timespec *entry_valid);
 
 /* Helper function used for returning a single immediate response */
 ProcessMockerT ReturnImmediate(
-	std::function<void(const struct mockfs_buf_in *in,
-			   struct mockfs_buf_out *out)> f);
+	std::function<void(const mockfs_buf_in& in,
+			   struct mockfs_buf_out &out)> f);
 
 /* How the daemon should check /dev/fuse for readiness */
 enum poll_method {
@@ -261,17 +264,17 @@ class MockFS {
 	bool pid_ok(pid_t pid);
 
 	/* Default request handler */
-	void process_default(const mockfs_buf_in*,
-		std::vector<mockfs_buf_out*>&);
+	void process_default(const mockfs_buf_in&,
+		std::vector<std::unique_ptr<mockfs_buf_out>>&);
 
 	/* Entry point for the daemon thread */
 	static void* service(void*);
 
 	/* Read, but do not process, a single request from the kernel */
-	void read_request(mockfs_buf_in*);
+	void read_request(mockfs_buf_in& in);
 
 	/* Write a single response back to the kernel */
-	void write_response(mockfs_buf_out *out);
+	void write_response(const mockfs_buf_out &out);
 
 	public:
 	/* pid of child process, for two-process test cases */
@@ -312,8 +315,8 @@ class MockFS {
 	 * plus a delayed response to an earlier operation, push two bufs.
 	 * Test cases must define each response using Googlemock expectations
 	 */
-	MOCK_METHOD2(process, void(const mockfs_buf_in*,
-				std::vector<mockfs_buf_out*>&));
+	MOCK_METHOD2(process, void(const mockfs_buf_in&,
+				std::vector<std::unique_ptr<mockfs_buf_out>>&));
 
 	/* Gracefully unmount */
 	void unmount();
