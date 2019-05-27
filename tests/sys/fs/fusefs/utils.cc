@@ -333,7 +333,7 @@ void FuseTest::expect_readdir(uint64_t ino, uint64_t off,
 			}
 			out.header.len += entsize;
 			fde = (struct fuse_dirent*)
-				((long*)fde + entsize / sizeof(long));
+				((intmax_t*)fde + entsize / sizeof(intmax_t));
 			i++;
 		}
 		out.header.len += sizeof(out.header);
