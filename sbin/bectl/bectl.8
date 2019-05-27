@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2019
+.Dd May 12, 2019
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -122,6 +122,20 @@ Creates a snapshot of the existing boot environment named
 If the
 .Fl r
 flag is given, a recursive boot environment will be made.
+.It Xo
+.Cm create
+.Op Fl r
+.Ar beName@snapshot
+.Xc
+Create a snapshot of the boot environment named
+.Ar beName .
+.Pp
+If the
+.Fl r
+flag is given, a recursive snapshot of the boot environment will be created.
+A snapshot is created for each descendant dataset of the boot environment.
+.Pp
+No new boot environment is created with this command.
 .It Xo
 .Cm destroy
 .Op Fl \&Fo
