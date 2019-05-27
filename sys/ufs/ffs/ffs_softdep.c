@@ -1011,42 +1011,59 @@ MTX_SYSINIT(softdep_lock, &lk, "Global Softdep Lock", MTX_DEF);
 #define WORKLIST_REMOVE_UNLOCKED	WORKLIST_REMOVE
 
 #else /* DEBUG */
-static	void worklist_insert(struct workhead *, struct worklist *, int);
-static	void worklist_remove(struct worklist *, int);
+static	void worklist_insert(struct workhead *, struct worklist *, int,
+	const char *, int);
+static	void worklist_remove(struct worklist *, int, const char *, int);
 
-#define WORKLIST_INSERT(head, item) worklist_insert(head, item, 1)
-#define WORKLIST_INSERT_UNLOCKED(head, item) worklist_insert(head, item, 0)
-#define WORKLIST_REMOVE(item) worklist_remove(item, 1)
-#define WORKLIST_REMOVE_UNLOCKED(item) worklist_remove(item, 0)
+#define WORKLIST_INSERT(head, item) \
+	worklist_insert(head, item, 1, __func__, __LINE__)
+#define WORKLIST_INSERT_UNLOCKED(head, item)\
+	worklist_insert(head, item, 0, __func__, __LINE__)
+#define WORKLIST_REMOVE(item)\
+	worklist_remove(item, 1, __func__, __LINE__)
+#define WORKLIST_REMOVE_UNLOCKED(item)\
+	worklist_remove(item, 0, __func__, __LINE__)
 
 static void
-worklist_insert(head, item, locked)
+worklist_insert(head, item, locked, func, line)
 	struct workhead *head;
 	struct worklist *item;
 	int locked;
+	const char *func;
+	int line;
 {
 
 	if (locked)
 		LOCK_OWNED(VFSTOUFS(item->wk_mp));
 	if (item->wk_state & ONWORKLIST)
-		panic("worklist_insert: %p %s(0x%X) already on list",
-		    item, TYPENAME(item->wk_type), item->wk_state);
+		panic("worklist_insert: %p %s(0x%X) already on list, "
+		    "added in function %s at line %d",
+		    item, TYPENAME(item->wk_type), item->wk_state,
+		    item->wk_func, item->wk_line);
 	item->wk_state |= ONWORKLIST;
+	item->wk_func = func;
+	item->wk_line = line;
 	LIST_INSERT_HEAD(head, item, wk_list);
 }
 
 static void
-worklist_remove(item, locked)
+worklist_remove(item, locked, func, line)
 	struct worklist *item;
 	int locked;
+	const char *func;
+	int line;
 {
 
 	if (locked)
 		LOCK_OWNED(VFSTOUFS(item->wk_mp));
 	if ((item->wk_state & ONWORKLIST) == 0)
-		panic("worklist_remove: %p %s(0x%X) not on list",
-		    item, TYPENAME(item->wk_type), item->wk_state);
+		panic("worklist_remove: %p %s(0x%X) not on list, "
+		    "removed in function %s at line %d",
+		    item, TYPENAME(item->wk_type), item->wk_state,
+		    item->wk_func, item->wk_line);
 	item->wk_state &= ~ONWORKLIST;
+	item->wk_func = func;
+	item->wk_line = line;
 	LIST_REMOVE(item, wk_list);
 }
 #endif /* DEBUG */
@@ -1172,8 +1189,10 @@ workitem_free(item, type)
 
 #ifdef DEBUG
 	if (item->wk_state & ONWORKLIST)
-		panic("workitem_free: %s(0x%X) still on list",
-		    TYPENAME(item->wk_type), item->wk_state);
+		panic("workitem_free: %s(0x%X) still on list, "
+		    "added in function %s at line %d",
+		    TYPENAME(item->wk_type), item->wk_state,
+		    item->wk_func, item->wk_line);
 	if (item->wk_type != type && type != D_NEWBLK)
 		panic("workitem_free: type mismatch %s != %s",
 		    TYPENAME(item->wk_type), TYPENAME(type));
