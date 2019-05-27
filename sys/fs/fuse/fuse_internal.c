@@ -680,12 +680,21 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 {
 	struct fuse_dispatcher fdi;
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct fuse_getattr_in *fgai;
 	struct fuse_attr_out *fao;
 	off_t old_filesize = fvdat->cached_attrs.va_size;
 	enum vtype vtyp;
 	int err;
 
 	fdisp_init(&fdi, 0);
+	fdisp_make_vp(&fdi, FUSE_GETATTR, vp, td, cred);
+	fgai = fdi.indata;
+	/* 
+	 * We could look up a file handle and set it in fgai->fh, but that
+	 * involves extra runtime work and I'm unaware of any file systems that
+	 * care.
+	 */
+	fgai->getattr_flags = 0;
 	if ((err = fdisp_simple_putget_vp(&fdi, FUSE_GETATTR, vp, td, cred))) {
 		if (err == ENOENT)
 			fuse_internal_vnode_disappear(vp);
