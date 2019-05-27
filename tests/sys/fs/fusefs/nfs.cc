@@ -80,24 +80,24 @@ TEST_F(Fhstat, estale)
 
 	EXPECT_LOOKUP(1, RELDIRPATH)
 	.InSequence(seq)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = 1;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = 0;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 1;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;
 	})));
 
 	EXPECT_LOOKUP(ino, ".")
 	.InSequence(seq)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = 2;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = 0;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 2;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;
 	})));
 
 	ASSERT_EQ(0, getfh(FULLPATH, &fhp)) << strerror(errno);
@@ -117,25 +117,25 @@ TEST_F(Fhstat, lookup_dot)
 	const uid_t uid = 12345;
 
 	EXPECT_LOOKUP(1, RELDIRPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = 1;
-		out->body.entry.attr.uid = uid;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = 0;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 1;
+		out.body.entry.attr.uid = uid;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;
 	})));
 
 	EXPECT_LOOKUP(ino, ".")
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = 1;
-		out->body.entry.attr.uid = uid;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = 0;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 1;
+		out.body.entry.attr.uid = uid;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;
 	})));
 
 	ASSERT_EQ(0, getfh(FULLPATH, &fhp)) << strerror(errno);
@@ -160,14 +160,14 @@ TEST_F(Fhstat, DISABLED_cached)
 	const uid_t uid = 12345;
 
 	EXPECT_LOOKUP(1, RELDIRPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = 1;
-		out->body.entry.attr.uid = uid;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 1;
+		out.body.entry.attr.uid = uid;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 
 	ASSERT_EQ(0, getfh(FULLPATH, &fhp)) << strerror(errno);
@@ -189,13 +189,13 @@ TEST_F(FhstatNotExportable, lookup_dot)
 	const mode_t mode = S_IFDIR | 0755;
 
 	EXPECT_LOOKUP(1, RELDIRPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = 1;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = 0;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 1;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;
 	})));
 
 	ASSERT_EQ(-1, getfh(FULLPATH, &fhp));
@@ -211,13 +211,13 @@ TEST_F(Getfh, eoverflow)
 	uint64_t ino = 42;
 
 	EXPECT_LOOKUP(1, RELDIRPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFDIR | 0755;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = (uint64_t)UINT32_MAX + 1;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = (uint64_t)UINT32_MAX + 1;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 
 	ASSERT_NE(0, getfh(FULLPATH, &fhp));
@@ -233,12 +233,12 @@ TEST_F(Getfh, ok)
 	uint64_t ino = 42;
 
 	EXPECT_LOOKUP(1, RELDIRPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFDIR | 0755;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 
 	ASSERT_EQ(0, getfh(FULLPATH, &fhp)) << strerror(errno);
@@ -264,37 +264,37 @@ TEST_F(Readdir, getdirentries)
 	ssize_t r;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = 1;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = 0;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 1;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;
 	})));
 
 	EXPECT_LOOKUP(ino, ".")
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = 1;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = 0;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 1;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;
 	})));
 
 	expect_opendir(ino);
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READDIR &&
-				in->header.nodeid == ino &&
-				in->body.readdir.size == sizeof(buf));
+			return (in.header.opcode == FUSE_READDIR &&
+				in.header.nodeid == ino &&
+				in.body.readdir.size == sizeof(buf));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.error = 0;
-		out->header.len = sizeof(out->header);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.error = 0;
+		out.header.len = sizeof(out.header);
 	})));
 
 	ASSERT_EQ(0, getfh(FULLPATH, &fhp)) << strerror(errno);

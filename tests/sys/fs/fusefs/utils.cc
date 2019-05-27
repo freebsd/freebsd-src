@@ -108,7 +108,7 @@ void FuseTest::SetUp() {
 		 */
 		EXPECT_CALL(*m_mock, process(
 			ResultOf([=](auto in) {
-				return (in->header.opcode == FUSE_ACCESS);
+				return (in.header.opcode == FUSE_ACCESS);
 			}, Eq(true)),
 			_)
 		).Times(AnyNumber())
@@ -123,9 +123,9 @@ FuseTest::expect_access(uint64_t ino, mode_t access_mode, int error)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_ACCESS &&
-				in->header.nodeid == ino &&
-				in->body.access.mask == access_mode);
+			return (in.header.opcode == FUSE_ACCESS &&
+				in.header.nodeid == ino &&
+				in.body.access.mask == access_mode);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(error)));
@@ -136,14 +136,14 @@ FuseTest::expect_destroy(int error)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_DESTROY);
+			return (in.header.opcode == FUSE_DESTROY);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke( ReturnImmediate([&](auto in, auto out) {
+	).WillOnce(Invoke( ReturnImmediate([&](auto in, auto& out) {
 		m_mock->m_quit = true;
-		out->header.len = sizeof(out->header);
-		out->header.unique = in->header.unique;
-		out->header.error = -error;
+		out.header.len = sizeof(out.header);
+		out.header.unique = in.header.unique;
+		out.header.error = -error;
 	})));
 }
 
@@ -152,8 +152,8 @@ FuseTest::expect_flush(uint64_t ino, int times, ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_FLUSH &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_FLUSH &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).Times(times)
@@ -165,9 +165,9 @@ FuseTest::expect_forget(uint64_t ino, uint64_t nlookup)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_FORGET &&
-				in->header.nodeid == ino &&
-				in->body.forget.nlookup == nlookup);
+			return (in.header.opcode == FUSE_FORGET &&
+				in.header.nodeid == ino &&
+				in.body.forget.nlookup == nlookup);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([](auto in __unused, auto &out __unused) {
@@ -179,16 +179,16 @@ void FuseTest::expect_getattr(uint64_t ino, uint64_t size)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.size = size;
-		out->body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr.size = size;
+		out.body.attr.attr_valid = UINT64_MAX;
 	})));
 }
 
@@ -197,15 +197,16 @@ void FuseTest::expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 {
 	EXPECT_LOOKUP(1, relpath)
 	.Times(times)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillRepeatedly(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 1;
-		out->body.entry.attr_valid = attr_valid;
-		out->body.entry.attr.size = size;
-		out->body.entry.attr.uid = uid;
-		out->body.entry.attr.gid = gid;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = attr_valid;
+		out.body.entry.attr.size = size;
+		out.body.entry.attr.uid = uid;
+		out.body.entry.attr.gid = gid;
 	})));
 }
 
@@ -214,15 +215,16 @@ void FuseTest::expect_lookup_7_8(const char *relpath, uint64_t ino, mode_t mode,
 {
 	EXPECT_LOOKUP(1, relpath)
 	.Times(times)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillRepeatedly(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry_7_8);
-		out->body.entry.attr.mode = mode;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 1;
-		out->body.entry.attr_valid = attr_valid;
-		out->body.entry.attr.size = size;
-		out->body.entry.attr.uid = uid;
-		out->body.entry.attr.gid = gid;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = attr_valid;
+		out.body.entry.attr.size = size;
+		out.body.entry.attr.uid = uid;
+		out.body.entry.attr.gid = gid;
 	})));
 }
 
@@ -230,16 +232,17 @@ void FuseTest::expect_open(uint64_t ino, uint32_t flags, int times)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_OPEN &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).Times(times)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.len = sizeof(out->header);
+	.WillRepeatedly(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.len = sizeof(out.header);
 		SET_OUT_HEADER_LEN(out, open);
-		out->body.open.fh = FH;
-		out->body.open.open_flags = flags;
+		out.body.open.fh = FH;
+		out.body.open.open_flags = flags;
 	})));
 }
 
@@ -248,23 +251,24 @@ void FuseTest::expect_opendir(uint64_t ino)
 	/* opendir(3) calls fstatfs */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_STATFS);
+			return (in.header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	).WillRepeatedly(Invoke(
+	ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, statfs);
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPENDIR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_OPENDIR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.len = sizeof(out->header);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.len = sizeof(out.header);
 		SET_OUT_HEADER_LEN(out, open);
-		out->body.open.fh = FH;
+		out.body.open.fh = FH;
 	})));
 }
 
@@ -273,16 +277,16 @@ void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ &&
-				in->header.nodeid == ino &&
-				in->body.read.fh == FH &&
-				in->body.read.offset == offset &&
-				in->body.read.size == isize);
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.fh == FH &&
+				in.body.read.offset == offset &&
+				in.body.read.size == isize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.len = sizeof(struct fuse_out_header) + osize;
-		memmove(out->body.bytes, contents, osize);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.len = sizeof(struct fuse_out_header) + osize;
+		memmove(out.body.bytes, contents, osize);
 	}))).RetiresOnSaturation();
 }
 
@@ -291,18 +295,18 @@ void FuseTest::expect_readdir(uint64_t ino, uint64_t off,
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READDIR &&
-				in->header.nodeid == ino &&
-				in->body.readdir.fh == FH &&
-				in->body.readdir.offset == off);
+			return (in.header.opcode == FUSE_READDIR &&
+				in.header.nodeid == ino &&
+				in.body.readdir.fh == FH &&
+				in.body.readdir.offset == off);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		struct fuse_dirent *fde = (struct fuse_dirent*)&(out->body);
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto& out) {
+		struct fuse_dirent *fde = (struct fuse_dirent*)&(out.body);
 		int i = 0;
 
-		out->header.error = 0;
-		out->header.len = 0;
+		out.header.error = 0;
+		out.header.len = 0;
 
 		for (const auto& it: ents) {
 			size_t entlen, entsize;
@@ -322,17 +326,17 @@ void FuseTest::expect_readdir(uint64_t ino, uint64_t off,
 			 * kernel
 			 */
 			memset(fde->name + fde->namelen, 0, entsize - entlen);
-			if (out->header.len + entsize > in->body.read.size) {
+			if (out.header.len + entsize > in.body.read.size) {
 				printf("Overflow in readdir expectation: i=%d\n"
 					, i);
 				break;
 			}
-			out->header.len += entsize;
+			out.header.len += entsize;
 			fde = (struct fuse_dirent*)
 				((long*)fde + entsize / sizeof(long));
 			i++;
 		}
-		out->header.len += sizeof(out->header);
+		out.header.len += sizeof(out.header);
 	})));
 
 }
@@ -340,9 +344,9 @@ void FuseTest::expect_release(uint64_t ino, uint64_t fh)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_RELEASE &&
-				in->header.nodeid == ino &&
-				in->body.release.fh == fh);
+			return (in.header.opcode == FUSE_RELEASE &&
+				in.header.nodeid == ino &&
+				in.body.release.fh == fh);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(0)));
@@ -352,9 +356,9 @@ void FuseTest::expect_releasedir(uint64_t ino, ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_RELEASEDIR &&
-				in->header.nodeid == ino &&
-				in->body.release.fh == FH);
+			return (in.header.opcode == FUSE_RELEASEDIR &&
+				in.header.nodeid == ino &&
+				in.body.release.fh == FH);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(r));
@@ -364,9 +368,9 @@ void FuseTest::expect_unlink(uint64_t parent, const char *path, int error)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_UNLINK &&
-				0 == strcmp(path, in->body.unlink) &&
-				in->header.nodeid == parent);
+			return (in.header.opcode == FUSE_UNLINK &&
+				0 == strcmp(path, in.body.unlink) &&
+				in.header.nodeid == parent);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(error)));
@@ -377,28 +381,28 @@ void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			const char *buf = (const char*)in->body.bytes +
+			const char *buf = (const char*)in.body.bytes +
 				sizeof(struct fuse_write_in);
 			bool pid_ok;
 
-			if (in->body.write.write_flags & FUSE_WRITE_CACHE)
+			if (in.body.write.write_flags & FUSE_WRITE_CACHE)
 				pid_ok = true;
 			else
-				pid_ok = (pid_t)in->header.pid == getpid();
+				pid_ok = (pid_t)in.header.pid == getpid();
 
-			return (in->header.opcode == FUSE_WRITE &&
-				in->header.nodeid == ino &&
-				in->body.write.fh == FH &&
-				in->body.write.offset == offset  &&
-				in->body.write.size == isize &&
+			return (in.header.opcode == FUSE_WRITE &&
+				in.header.nodeid == ino &&
+				in.body.write.fh == FH &&
+				in.body.write.offset == offset  &&
+				in.body.write.size == isize &&
 				pid_ok &&
-				in->body.write.write_flags == flags &&
+				in.body.write.write_flags == flags &&
 				0 == bcmp(buf, contents, isize));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, write);
-		out->body.write.size = osize;
+		out.body.write.size = osize;
 	})));
 }
 
@@ -407,22 +411,22 @@ void FuseTest::expect_write_7_8(uint64_t ino, uint64_t offset, uint64_t isize,
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			const char *buf = (const char*)in->body.bytes +
+			const char *buf = (const char*)in.body.bytes +
 				FUSE_COMPAT_WRITE_IN_SIZE;
-			bool pid_ok = (pid_t)in->header.pid == getpid();
-			return (in->header.opcode == FUSE_WRITE &&
-				in->header.nodeid == ino &&
-				in->body.write.fh == FH &&
-				in->body.write.offset == offset  &&
-				in->body.write.size == isize &&
+			bool pid_ok = (pid_t)in.header.pid == getpid();
+			return (in.header.opcode == FUSE_WRITE &&
+				in.header.nodeid == ino &&
+				in.body.write.fh == FH &&
+				in.body.write.offset == offset  &&
+				in.body.write.size == isize &&
 				pid_ok &&
-				in->body.write.write_flags == flags &&
+				in.body.write.write_flags == flags &&
 				0 == bcmp(buf, contents, isize));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, write);
-		out->body.write.size = osize;
+		out.body.write.size = osize;
 	})));
 }
 

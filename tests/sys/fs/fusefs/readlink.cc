@@ -49,8 +49,8 @@ void expect_readlink(uint64_t ino, ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READLINK &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_READLINK &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(r));
@@ -88,12 +88,12 @@ TEST_F(Readlink, ok)
 	char buf[80];
 
 	expect_lookup(RELPATH, ino);
-	expect_readlink(ino, ReturnImmediate([=](auto in __unused, auto out) {
-		strlcpy(out->body.str, dst, sizeof(out->body.str));
-		out->header.len = sizeof(out->header) + strlen(dst) + 1;
+	expect_readlink(ino, ReturnImmediate([=](auto in __unused, auto& out) {
+		strlcpy(out.body.str, dst, sizeof(out.body.str));
+		out.header.len = sizeof(out.header) + strlen(dst) + 1;
 	}));
 
-	EXPECT_EQ((ssize_t)strlen(dst) + 1,
+	EXPECT_EQ(static_cast<ssize_t>(strlen(dst)) + 1,
 		  readlink(FULLPATH, buf, sizeof(buf)));
 	EXPECT_STREQ(dst, buf);
 }
@@ -108,15 +108,16 @@ TEST_F(PushSymlinksIn, readlink)
 	int len;
 
 	expect_lookup(RELPATH, ino);
-	expect_readlink(ino, ReturnImmediate([=](auto in __unused, auto out) {
-		strlcpy(out->body.str, dst, sizeof(out->body.str));
-		out->header.len = sizeof(out->header) + strlen(dst) + 1;
+	expect_readlink(ino, ReturnImmediate([=](auto in __unused, auto& out) {
+		strlcpy(out.body.str, dst, sizeof(out.body.str));
+		out.header.len = sizeof(out.header) + strlen(dst) + 1;
 	}));
 
 	ASSERT_NE(NULL, getcwd(wd, sizeof(wd))) << strerror(errno);
 	len = snprintf(want, sizeof(want), "%s/mountpoint%s", wd, dst);
 	ASSERT_LE(0, len) << strerror(errno);
 
-	EXPECT_EQ((ssize_t)len + 1, readlink(FULLPATH, buf, sizeof(buf)));
+	EXPECT_EQ(static_cast<ssize_t>(len) + 1,
+		readlink(FULLPATH, buf, sizeof(buf)));
 	EXPECT_STREQ(want, buf);
 }

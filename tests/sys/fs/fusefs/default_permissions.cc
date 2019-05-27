@@ -61,7 +61,7 @@ virtual void SetUp() {
 	/* With -o default_permissions, FUSE_ACCESS should never be called */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_ACCESS);
+			return (in.header.opcode == FUSE_ACCESS);
 		}, Eq(true)),
 		_)
 	).Times(0);
@@ -72,18 +72,18 @@ void expect_chmod(uint64_t ino, mode_t mode, uint64_t size = 0)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == FATTR_MODE &&
-				in->body.setattr.mode == mode);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == FATTR_MODE &&
+				in.body.setattr.mode == mode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | mode;
-		out->body.attr.attr.size = size;
-		out->body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | mode;
+		out.body.attr.attr.size = size;
+		out.body.attr.attr_valid = UINT64_MAX;
 	})));
 }
 
@@ -91,18 +91,18 @@ void expect_create(const char *relpath, uint64_t ino)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes +
+			const char *name = (const char*)in.body.bytes +
 				sizeof(fuse_open_in);
-			return (in->header.opcode == FUSE_CREATE &&
+			return (in.header.opcode == FUSE_CREATE &&
 				(0 == strcmp(relpath, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, create);
-		out->body.create.entry.attr.mode = S_IFREG | 0644;
-		out->body.create.entry.nodeid = ino;
-		out->body.create.entry.entry_valid = UINT64_MAX;
-		out->body.create.entry.attr_valid = UINT64_MAX;
+		out.body.create.entry.attr.mode = S_IFREG | 0644;
+		out.body.create.entry.nodeid = ino;
+		out.body.create.entry.entry_valid = UINT64_MAX;
+		out.body.create.entry.attr_valid = UINT64_MAX;
 	})));
 }
 
@@ -111,19 +111,19 @@ void expect_getattr(uint64_t ino, mode_t mode, uint64_t attr_valid, int times,
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).Times(times)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = mode;
-		out->body.attr.attr.size = 0;
-		out->body.attr.attr.uid = uid;
-		out->body.attr.attr.uid = gid;
-		out->body.attr.attr_valid = attr_valid;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr.size = 0;
+		out.body.attr.attr.uid = uid;
+		out.body.attr.attr.uid = gid;
+		out.body.attr.attr_valid = attr_valid;
 	})));
 }
 
@@ -158,7 +158,7 @@ void expect_removexattr()
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_REMOVEXATTR);
+			return (in.header.opcode == FUSE_REMOVEXATTR);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(0)));
@@ -171,7 +171,7 @@ void expect_getxattr(ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETXATTR);
+			return (in.header.opcode == FUSE_GETXATTR);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(r));
@@ -184,11 +184,11 @@ void expect_listxattr()
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LISTXATTR);
+			return (in.header.opcode == FUSE_LISTXATTR);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto out) {
-		out->body.listxattr.size = 0;
+	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto& out) {
+		out.body.listxattr.size = 0;
 		SET_OUT_HEADER_LEN(out, listxattr);
 	})));
 }
@@ -204,7 +204,7 @@ public:
 	{
 		EXPECT_CALL(*m_mock, process(
 			ResultOf([=](auto in) {
-				return (in->header.opcode == FUSE_RENAME);
+				return (in.header.opcode == FUSE_RENAME);
 			}, Eq(true)),
 			_)
 		).WillOnce(Invoke(ReturnErrno(error)));
@@ -217,7 +217,7 @@ void expect_setxattr(int error)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETXATTR);
+			return (in.header.opcode == FUSE_SETXATTR);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(error)));
@@ -312,13 +312,13 @@ TEST_F(Chown, chown_to_self)
 	/* The OS may optimize chown by omitting the redundant setattr */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
+			return (in.header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out){
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out){
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.mode = S_IFREG | mode;
-		out->body.attr.attr.uid = uid;
+		out.body.attr.attr.mode = S_IFREG | mode;
+		out.body.attr.attr.uid = uid;
 	})));
 
 	EXPECT_EQ(0, chown(FULLPATH, uid, -1)) << strerror(errno);
@@ -342,17 +342,17 @@ TEST_F(Chown, clear_suid)
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, uid);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.mode == newmode);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | newmode;
-		out->body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | newmode;
+		out.body.attr.attr_valid = UINT64_MAX;
 	})));
 
 	EXPECT_EQ(0, chown(FULLPATH, uid, -1)) << strerror(errno);
@@ -371,7 +371,7 @@ TEST_F(Chown, eperm)
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, geteuid());
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
+			return (in.header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
 	).Times(0);
@@ -399,17 +399,17 @@ TEST_F(Chgrp, clear_suid)
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, uid, gid);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid == valid &&
-				in->body.setattr.mode == newmode);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | newmode;
-		out->body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.mode = S_IFREG | newmode;
+		out.body.attr.attr_valid = UINT64_MAX;
 	})));
 
 	EXPECT_EQ(0, chown(FULLPATH, -1, gid)) << strerror(errno);
@@ -433,7 +433,7 @@ TEST_F(Chgrp, eperm)
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, uid, gid);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
+			return (in.header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
 	).Times(0);
@@ -460,15 +460,15 @@ TEST_F(Chgrp, ok)
 	/* The OS may optimize chgrp by omitting the redundant setattr */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out){
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out){
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.mode = S_IFREG | mode;
-		out->body.attr.attr.uid = uid;
-		out->body.attr.attr.gid = newgid;
+		out.body.attr.attr.mode = S_IFREG | mode;
+		out.body.attr.attr.uid = uid;
+		out.body.attr.attr.gid = newgid;
 	})));
 
 	EXPECT_EQ(0, chown(FULLPATH, -1, newgid)) << strerror(errno);
@@ -564,15 +564,15 @@ TEST_F(Utimensat, utime_now)
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, owner);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.valid & FATTR_ATIME &&
-				in->body.setattr.valid & FATTR_MTIME);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid & FATTR_ATIME &&
+				in.body.setattr.valid & FATTR_MTIME);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.mode = S_IFREG | mode;
+		out.body.attr.attr.mode = S_IFREG | mode;
 	})));
 
 	ASSERT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &times[0], 0))
@@ -647,9 +647,9 @@ TEST_F(Getextattr, ok)
 	/* Getting user attributes only requires read access */
 	expect_lookup(RELPATH, ino, S_IFREG | 0444, UINT64_MAX, 0);
 	expect_getxattr(
-		ReturnImmediate([&](auto in __unused, auto out) {
-			memcpy((void*)out->body.bytes, value, value_len);
-			out->header.len = sizeof(out->header) + value_len;
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			memcpy((void*)out.body.bytes, value, value_len);
+			out.header.len = sizeof(out.header) + value_len;
 		})
 	);
 
@@ -892,13 +892,13 @@ TEST_F(Rename, eperm_on_sticky_dstdir)
 	expect_lookup(RELSRC, src_ino, S_IFREG | 0644, UINT64_MAX);
 	expect_lookup(RELDSTDIR, dstdir_ino, S_IFDIR | 01777, UINT64_MAX);
 	EXPECT_LOOKUP(dstdir_ino, RELDST)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = dst_ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.entry_valid = UINT64_MAX;
-		out->body.entry.attr.uid = 0;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = dst_ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.uid = 0;
 	})));
 
 	ASSERT_EQ(-1, rename(FULLSRC, FULLDST));
@@ -952,14 +952,14 @@ TEST_F(Setattr, ok)
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, geteuid());
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				in->body.setattr.mode == newmode);
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.mode = S_IFREG | newmode;
+		out.body.attr.attr.mode = S_IFREG | newmode;
 	})));
 
 	EXPECT_EQ(0, chmod(FULLPATH, newmode)) << strerror(errno);
@@ -977,7 +977,7 @@ TEST_F(Setattr, eacces)
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
+			return (in.header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
 	).Times(0);
@@ -1004,16 +1004,16 @@ TEST_F(Setattr, ftruncate_of_newly_created_file)
 	expect_create(RELPATH, ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR &&
-				in->header.nodeid == ino &&
-				(in->body.setattr.valid & FATTR_SIZE));
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				(in.body.setattr.valid & FATTR_SIZE));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;
-		out->body.attr.attr.mode = S_IFREG | mode;
-		out->body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = S_IFREG | mode;
+		out.body.attr.attr_valid = UINT64_MAX;
 	})));
 
 	fd = open(FULLPATH, O_CREAT | O_RDWR, 0);
@@ -1040,7 +1040,7 @@ TEST_F(Setattr, sgid_by_non_group_member)
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, uid, gid);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
+			return (in.header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
 	).Times(0);
@@ -1062,7 +1062,7 @@ TEST_F(Setattr, sticky_regular_file)
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, geteuid());
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
+			return (in.header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
 	).Times(0);
@@ -1173,11 +1173,11 @@ TEST_F(Unlink, cached_unwritable_directory)
 	EXPECT_LOOKUP(1, RELPATH)
 	.Times(AnyNumber())
 	.WillRepeatedly(Invoke(
-		ReturnImmediate([=](auto i __unused, auto out) {
+		ReturnImmediate([=](auto i __unused, auto& out) {
 			SET_OUT_HEADER_LEN(out, entry);
-			out->body.entry.attr.mode = S_IFREG | 0644;
-			out->body.entry.nodeid = ino;
-			out->body.entry.entry_valid = UINT64_MAX;
+			out.body.entry.attr.mode = S_IFREG | 0644;
+			out.body.entry.nodeid = ino;
+			out.body.entry.entry_valid = UINT64_MAX;
 		}))
 	);
 

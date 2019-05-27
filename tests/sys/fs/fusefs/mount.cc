@@ -79,10 +79,10 @@ TEST_P(UpdateOk, update)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_STATFS);
+			return (in.header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		/* 
 		 * All of the fields except f_flags are don't care, and f_flags is set by
 		 * the VFS
@@ -114,10 +114,10 @@ TEST_P(UpdateErr, update)
 	flag = mntflag_from_string(GetParam());
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_STATFS);
+			return (in.header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		/* 
 		 * All of the fields except f_flags are don't care, and f_flags is set by
 		 * the VFS

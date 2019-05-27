@@ -58,8 +58,8 @@ void expect_release(uint64_t ino, ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_RELEASE &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_RELEASE &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).WillRepeatedly(Invoke(r));
@@ -585,12 +585,12 @@ TEST_F(WriteBack, close)
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
+			return (in.header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.ino = ino;	// Must match nodeid
 	})));
 	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release(ino, ReturnErrno(0));

@@ -54,15 +54,15 @@ void expect_fsync(uint64_t ino, uint32_t flags, int error)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_FSYNC &&
-				in->header.nodeid == ino &&
+			return (in.header.opcode == FUSE_FSYNC &&
+				in.header.nodeid == ino &&
 				/* 
 				 * TODO: reenable pid check after fixing
 				 * bug 236379
 				 */
-				//(pid_t)in->header.pid == getpid() &&
-				in->body.fsync.fh == FH &&
-				in->body.fsync.fsync_flags == flags);
+				//(pid_t)in.header.pid == getpid() &&
+				in.body.fsync.fh == FH &&
+				in.body.fsync.fsync_flags == flags);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(error)));
@@ -129,16 +129,16 @@ TEST_F(Fsync, close)
 	expect_write(ino, bufsize, CONTENTS);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_SETATTR);
+			return (in.header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.ino = ino;	// Must match nodeid
 	})));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_FSYNC);
+			return (in.header.opcode == FUSE_FSYNC);
 		}, Eq(true)),
 		_)
 	).Times(0);

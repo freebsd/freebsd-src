@@ -132,9 +132,9 @@ TEST_F(Readdir, eio)
 	expect_opendir(ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READDIR &&
-				in->header.nodeid == ino &&
-				in->body.readdir.offset == 0);
+			return (in.header.opcode == FUSE_READDIR &&
+				in.header.nodeid == ino &&
+				in.body.readdir.offset == 0);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(EIO)));
@@ -166,14 +166,14 @@ TEST_F(Readdir, getdirentries)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READDIR &&
-				in->header.nodeid == ino &&
-				in->body.readdir.size == 8192);
+			return (in.header.opcode == FUSE_READDIR &&
+				in.header.nodeid == ino &&
+				in.body.readdir.size == 8192);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.error = 0;
-		out->header.len = sizeof(out->header);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.error = 0;
+		out.header.len = sizeof(out.header);
 	})));
 
 	fd = open(FULLPATH, O_DIRECTORY);
@@ -203,15 +203,15 @@ TEST_F(Readdir, getdirentries_concurrent)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READDIR &&
-				in->header.nodeid == ino &&
-				in->body.readdir.size == 8192);
+			return (in.header.opcode == FUSE_READDIR &&
+				in.header.nodeid == ino &&
+				in.body.readdir.size == 8192);
 		}, Eq(true)),
 		_)
 	).Times(2)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.error = 0;
-		out->header.len = sizeof(out->header);
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.error = 0;
+		out.header.len = sizeof(out.header);
 	})));
 
 	fd0 = open(FULLPATH, O_DIRECTORY);
@@ -247,13 +247,13 @@ TEST_F(Readdir, nodots)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READDIR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_READDIR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.error = 0;
-		out->header.len = sizeof(out->header);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.error = 0;
+		out.header.len = sizeof(out.header);
 	})));
 
 	errno = 0;
@@ -354,13 +354,13 @@ TEST_F(Readdir_7_8, nodots)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READDIR &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_READDIR &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
-		out->header.error = 0;
-		out->header.len = sizeof(out->header);
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.error = 0;
+		out.header.len = sizeof(out.header);
 	})));
 
 	errno = 0;

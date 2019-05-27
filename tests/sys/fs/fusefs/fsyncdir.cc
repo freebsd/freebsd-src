@@ -54,15 +54,15 @@ void expect_fsyncdir(uint64_t ino, uint32_t flags, int error)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_FSYNCDIR &&
-				in->header.nodeid == ino &&
+			return (in.header.opcode == FUSE_FSYNCDIR &&
+				in.header.nodeid == ino &&
 				/* 
 				 * TODO: reenable pid check after fixing
 				 * bug 236379
 				 */
-				//(pid_t)in->header.pid == getpid() &&
-				in->body.fsyncdir.fh == FH &&
-				in->body.fsyncdir.fsync_flags == flags);
+				//(pid_t)in.header.pid == getpid() &&
+				in.body.fsyncdir.fh == FH &&
+				in.body.fsyncdir.fsync_flags == flags);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(error)));

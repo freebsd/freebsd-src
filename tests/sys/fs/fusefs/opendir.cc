@@ -50,18 +50,18 @@ void expect_opendir(uint64_t ino, uint32_t flags, ProcessMockerT r)
 	/* opendir(3) calls fstatfs */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_STATFS);
+			return (in.header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, statfs);
 	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPENDIR &&
-				in->header.nodeid == ino &&
-				in->body.opendir.flags == flags);
+			return (in.header.opcode == FUSE_OPENDIR &&
+				in.header.nodeid == ino &&
+				in.body.opendir.flags == flags);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(r));
@@ -113,7 +113,7 @@ TEST_F(Opendir, open)
 
 	expect_lookup(RELPATH, ino);
 	expect_opendir(ino, O_RDONLY,
-	ReturnImmediate([=](auto in __unused, auto out) {
+	ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, open);
 	}));
 
@@ -130,7 +130,7 @@ TEST_F(Opendir, open_exec)
 
 	expect_lookup(RELPATH, ino);
 	expect_opendir(ino, O_EXEC,
-	ReturnImmediate([=](auto in __unused, auto out) {
+	ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, open);
 	}));
 
@@ -146,7 +146,7 @@ TEST_F(Opendir, opendir)
 
 	expect_lookup(RELPATH, ino);
 	expect_opendir(ino, O_RDONLY,
-	ReturnImmediate([=](auto in __unused, auto out) {
+	ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, open);
 	}));
 

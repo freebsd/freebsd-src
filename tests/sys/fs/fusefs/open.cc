@@ -52,13 +52,13 @@ void test_ok(int os_flags, int fuse_flags) {
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->body.open.flags == (uint32_t)fuse_flags &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_OPEN &&
+				in.body.open.flags == (uint32_t)fuse_flags &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
-		out->header.len = sizeof(out->header);
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto& out) {
+		out.header.len = sizeof(out.header);
 		SET_OUT_HEADER_LEN(out, open);
 	})));
 
@@ -80,13 +80,13 @@ TEST_F(Open, chr)
 	uint64_t ino = 42;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFCHR | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 1;
-		out->body.entry.attr_valid = UINT64_MAX;
-		out->body.entry.attr.rdev = 44;	/* /dev/zero's rdev */
+		out.body.entry.attr.mode = S_IFCHR | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.attr.rdev = 44;	/* /dev/zero's rdev */
 	})));
 
 	ASSERT_EQ(-1, open(FULLPATH, O_RDONLY));
@@ -107,8 +107,8 @@ TEST_F(Open, enoent)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_OPEN &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(ENOENT)));
@@ -129,8 +129,8 @@ TEST_F(Open, eperm)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
+			return (in.header.opcode == FUSE_OPEN &&
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(EPERM)));
@@ -157,29 +157,29 @@ TEST_F(Open, multiple_creds)
 		expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 		EXPECT_CALL(*m_mock, process(
 			ResultOf([=](auto in) {
-				return (in->header.opcode == FUSE_OPEN &&
-					in->header.pid == (uint32_t)getpid() &&
-					in->header.nodeid == ino);
+				return (in.header.opcode == FUSE_OPEN &&
+					in.header.pid == (uint32_t)getpid() &&
+					in.header.nodeid == ino);
 			}, Eq(true)),
 			_)
 		).WillOnce(Invoke(
-			ReturnImmediate([](auto in __unused, auto out) {
-			out->body.open.fh = fh0;
-			out->header.len = sizeof(out->header);
+			ReturnImmediate([](auto in __unused, auto& out) {
+			out.body.open.fh = fh0;
+			out.header.len = sizeof(out.header);
 			SET_OUT_HEADER_LEN(out, open);
 		})));
 
 		EXPECT_CALL(*m_mock, process(
 			ResultOf([=](auto in) {
-				return (in->header.opcode == FUSE_OPEN &&
-					in->header.pid != (uint32_t)getpid() &&
-					in->header.nodeid == ino);
+				return (in.header.opcode == FUSE_OPEN &&
+					in.header.pid != (uint32_t)getpid() &&
+					in.header.nodeid == ino);
 			}, Eq(true)),
 			_)
 		).WillOnce(Invoke(
-			ReturnImmediate([](auto in __unused, auto out) {
-			out->body.open.fh = fh1;
-			out->header.len = sizeof(out->header);
+			ReturnImmediate([](auto in __unused, auto& out) {
+			out.body.open.fh = fh1;
+			out.header.len = sizeof(out.header);
 			SET_OUT_HEADER_LEN(out, open);
 		})));
 		expect_flush(ino, 2, ReturnErrno(0));

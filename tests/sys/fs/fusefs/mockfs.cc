@@ -112,11 +112,11 @@ ProcessMockerT
 ReturnErrno(int error)
 {
 	return([=](auto in, auto &out) {
-		auto out0 = new mockfs_buf_out;
-		out0->header.unique = in->header.unique;
+		std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
+		out0->header.unique = in.header.unique;
 		out0->header.error = -error;
 		out0->header.len = sizeof(out0->header);
-		out.push_back(out0);
+		out.push_back(std::move(out0));
 	});
 }
 
@@ -126,26 +126,26 @@ ReturnNegativeCache(const struct timespec *entry_valid)
 {
 	return([=](auto in, auto &out) {
 		/* nodeid means ENOENT and cache it */
-		auto out0 = new mockfs_buf_out;
+		std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
 		out0->body.entry.nodeid = 0;
-		out0->header.unique = in->header.unique;
+		out0->header.unique = in.header.unique;
 		out0->header.error = 0;
 		out0->body.entry.entry_valid = entry_valid->tv_sec;
 		out0->body.entry.entry_valid_nsec = entry_valid->tv_nsec;
-		SET_OUT_HEADER_LEN(out0, entry);
-		out.push_back(out0);
+		SET_OUT_HEADER_LEN(*out0, entry);
+		out.push_back(std::move(out0));
 	});
 }
 
 ProcessMockerT
-ReturnImmediate(std::function<void(const struct mockfs_buf_in *in,
-				   struct mockfs_buf_out *out)> f)
+ReturnImmediate(std::function<void(const mockfs_buf_in& in,
+				   struct mockfs_buf_out &out)> f)
 {
-	return([=](auto in, auto &out) {
-		auto out0 = new mockfs_buf_out;
-		out0->header.unique = in->header.unique;
-		f(in, out0);
-		out.push_back(out0);
+	return([=](auto& in, auto &out) {
+		std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
+		out0->header.unique = in.header.unique;
+		f(in, *out0);
+		out.push_back(std::move(out0));
 	});
 }
 
@@ -153,117 +153,117 @@ void sigint_handler(int __unused sig) {
 	// Don't do anything except interrupt the daemon's read(2) call
 }
 
-void debug_fuseop(const mockfs_buf_in *in)
+void debug_fuseop(const mockfs_buf_in &in)
 {
-	printf("%-11s ino=%2" PRIu64, opcode2opname(in->header.opcode),
-		in->header.nodeid);
+	printf("%-11s ino=%2" PRIu64, opcode2opname(in.header.opcode),
+		in.header.nodeid);
 	if (verbosity > 1) {
 		printf(" uid=%5u gid=%5u pid=%5u unique=%" PRIu64 " len=%u",
-			in->header.uid, in->header.gid, in->header.pid,
-			in->header.unique, in->header.len);
+			in.header.uid, in.header.gid, in.header.pid,
+			in.header.unique, in.header.len);
 	}
-	switch (in->header.opcode) {
+	switch (in.header.opcode) {
 		const char *name, *value;
 
 		case FUSE_ACCESS:
-			printf(" mask=%#x", in->body.access.mask);
+			printf(" mask=%#x", in.body.access.mask);
 			break;
 		case FUSE_CREATE:
-			name = (const char*)in->body.bytes +
+			name = (const char*)in.body.bytes +
 				sizeof(fuse_open_in);
 			printf(" flags=%#x name=%s",
-				in->body.open.flags, name);
+				in.body.open.flags, name);
 			break;
 		case FUSE_FLUSH:
 			printf(" fh=%#" PRIx64 " lock_owner=%" PRIu64,
-				in->body.flush.fh,
-				in->body.flush.lock_owner);
+				in.body.flush.fh,
+				in.body.flush.lock_owner);
 			break;
 		case FUSE_FORGET:
-			printf(" nlookup=%" PRIu64, in->body.forget.nlookup);
+			printf(" nlookup=%" PRIu64, in.body.forget.nlookup);
 			break;
 		case FUSE_FSYNC:
-			printf(" flags=%#x", in->body.fsync.fsync_flags);
+			printf(" flags=%#x", in.body.fsync.fsync_flags);
 			break;
 		case FUSE_FSYNCDIR:
-			printf(" flags=%#x", in->body.fsyncdir.fsync_flags);
+			printf(" flags=%#x", in.body.fsyncdir.fsync_flags);
 			break;
 		case FUSE_INTERRUPT:
-			printf(" unique=%" PRIu64, in->body.interrupt.unique);
+			printf(" unique=%" PRIu64, in.body.interrupt.unique);
 			break;
 		case FUSE_LINK:
-			printf(" oldnodeid=%" PRIu64, in->body.link.oldnodeid);
+			printf(" oldnodeid=%" PRIu64, in.body.link.oldnodeid);
 			break;
 		case FUSE_LOOKUP:
-			printf(" %s", in->body.lookup);
+			printf(" %s", in.body.lookup);
 			break;
 		case FUSE_MKDIR:
-			name = (const char*)in->body.bytes +
+			name = (const char*)in.body.bytes +
 				sizeof(fuse_mkdir_in);
-			printf(" name=%s mode=%#o", name, in->body.mkdir.mode);
+			printf(" name=%s mode=%#o", name, in.body.mkdir.mode);
 			break;
 		case FUSE_MKNOD:
-			printf(" mode=%#o rdev=%x", in->body.mknod.mode,
-				in->body.mknod.rdev);
+			printf(" mode=%#o rdev=%x", in.body.mknod.mode,
+				in.body.mknod.rdev);
 			break;
 		case FUSE_OPEN:
 			printf(" flags=%#x mode=%#o",
-				in->body.open.flags, in->body.open.mode);
+				in.body.open.flags, in.body.open.mode);
 			break;
 		case FUSE_OPENDIR:
 			printf(" flags=%#x mode=%#o",
-				in->body.opendir.flags, in->body.opendir.mode);
+				in.body.opendir.flags, in.body.opendir.mode);
 			break;
 		case FUSE_READ:
 			printf(" offset=%" PRIu64 " size=%u",
-				in->body.read.offset,
-				in->body.read.size);
+				in.body.read.offset,
+				in.body.read.size);
 			break;
 		case FUSE_READDIR:
 			printf(" fh=%#" PRIx64 " offset=%" PRIu64 " size=%u",
-				in->body.readdir.fh, in->body.readdir.offset,
-				in->body.readdir.size);
+				in.body.readdir.fh, in.body.readdir.offset,
+				in.body.readdir.size);
 			break;
 		case FUSE_RELEASE:
 			printf(" fh=%#" PRIx64 " flags=%#x lock_owner=%" PRIu64,
-				in->body.release.fh,
-				in->body.release.flags,
-				in->body.release.lock_owner);
+				in.body.release.fh,
+				in.body.release.flags,
+				in.body.release.lock_owner);
 			break;
 		case FUSE_SETATTR:
 			if (verbosity <= 1) {
-				printf(" valid=%#x", in->body.setattr.valid);
+				printf(" valid=%#x", in.body.setattr.valid);
 				break;
 			}
-			if (in->body.setattr.valid & FATTR_MODE)
-				printf(" mode=%#o", in->body.setattr.mode);
-			if (in->body.setattr.valid & FATTR_UID)
-				printf(" uid=%u", in->body.setattr.uid);
-			if (in->body.setattr.valid & FATTR_GID)
-				printf(" gid=%u", in->body.setattr.gid);
-			if (in->body.setattr.valid & FATTR_SIZE)
-				printf(" size=%" PRIu64, in->body.setattr.size);
-			if (in->body.setattr.valid & FATTR_ATIME)
+			if (in.body.setattr.valid & FATTR_MODE)
+				printf(" mode=%#o", in.body.setattr.mode);
+			if (in.body.setattr.valid & FATTR_UID)
+				printf(" uid=%u", in.body.setattr.uid);
+			if (in.body.setattr.valid & FATTR_GID)
+				printf(" gid=%u", in.body.setattr.gid);
+			if (in.body.setattr.valid & FATTR_SIZE)
+				printf(" size=%" PRIu64, in.body.setattr.size);
+			if (in.body.setattr.valid & FATTR_ATIME)
 				printf(" atime=%" PRIu64 ".%u",
-					in->body.setattr.atime,
-					in->body.setattr.atimensec);
-			if (in->body.setattr.valid & FATTR_MTIME)
+					in.body.setattr.atime,
+					in.body.setattr.atimensec);
+			if (in.body.setattr.valid & FATTR_MTIME)
 				printf(" mtime=%" PRIu64 ".%u",
-					in->body.setattr.mtime,
-					in->body.setattr.mtimensec);
-			if (in->body.setattr.valid & FATTR_FH)
-				printf(" fh=%" PRIu64 "", in->body.setattr.fh);
+					in.body.setattr.mtime,
+					in.body.setattr.mtimensec);
+			if (in.body.setattr.valid & FATTR_FH)
+				printf(" fh=%" PRIu64 "", in.body.setattr.fh);
 			break;
 		case FUSE_SETLK:
 			printf(" fh=%#" PRIx64 " owner=%" PRIu64
 				" type=%u pid=%u",
-				in->body.setlk.fh, in->body.setlk.owner,
-				in->body.setlk.lk.type,
-				in->body.setlk.lk.pid);
+				in.body.setlk.fh, in.body.setlk.owner,
+				in.body.setlk.lk.type,
+				in.body.setlk.lk.pid);
 			if (verbosity >= 2) {
 				printf(" range=[%" PRIu64 "-%" PRIu64 "]",
-					in->body.setlk.lk.start,
-					in->body.setlk.lk.end);
+					in.body.setlk.lk.start,
+					in.body.setlk.lk.end);
 			}
 			break;
 		case FUSE_SETXATTR:
@@ -271,7 +271,7 @@ void debug_fuseop(const mockfs_buf_in *in)
 			 * In theory neither the xattr name and value need be
 			 * ASCII, but in this test suite they always are.
 			 */
-			name = (const char*)in->body.bytes +
+			name = (const char*)in.body.bytes +
 				sizeof(fuse_setxattr_in);
 			value = name + strlen(name) + 1;
 			printf(" %s=%s", name, value);
@@ -279,9 +279,9 @@ void debug_fuseop(const mockfs_buf_in *in)
 		case FUSE_WRITE:
 			printf(" fh=%#" PRIx64 " offset=%" PRIu64
 				" size=%u flags=%u",
-				in->body.write.fh,
-				in->body.write.offset, in->body.write.size,
-				in->body.write.write_flags);
+				in.body.write.fh,
+				in.body.write.offset, in.body.write.size,
+				in.body.write.write_flags);
 			break;
 		default:
 			break;
@@ -392,15 +392,10 @@ MockFS::~MockFS() {
 }
 
 void MockFS::init(uint32_t flags) {
-	mockfs_buf_in *in;
-	mockfs_buf_out *out;
+	std::unique_ptr<mockfs_buf_in> in(new mockfs_buf_in);
+	std::unique_ptr<mockfs_buf_out> out(new mockfs_buf_out);
 
-	in = new mockfs_buf_in;
-	ASSERT_TRUE(in != NULL);
-	out = new mockfs_buf_out;
-	ASSERT_TRUE(out != NULL);
-
-	read_request(in);
+	read_request(*in);
 	ASSERT_EQ(FUSE_INIT, in->header.opcode);
 
 	out->header.unique = in->header.unique;
@@ -420,11 +415,8 @@ void MockFS::init(uint32_t flags) {
 	out->body.init.max_write = m_max_write;
 
 	out->body.init.max_readahead = m_maxreadahead;
-	SET_OUT_HEADER_LEN(out, init);
-	write(m_fuse_fd, out, out->header.len);
-
-	delete out;
-	delete in;
+	SET_OUT_HEADER_LEN(*out, init);
+	write(m_fuse_fd, out.get(), out->header.len);
 }
 
 void MockFS::kill_daemon() {
@@ -439,20 +431,19 @@ void MockFS::kill_daemon() {
 }
 
 void MockFS::loop() {
-	mockfs_buf_in *in;
-	std::vector<mockfs_buf_out*> out;
+	std::vector<std::unique_ptr<mockfs_buf_out>> out;
 
-	in = (mockfs_buf_in*) malloc(sizeof(*in));
+	std::unique_ptr<mockfs_buf_in> in(new mockfs_buf_in);
 	ASSERT_TRUE(in != NULL);
 	while (!m_quit) {
-		bzero(in, sizeof(*in));
-		read_request(in);
+		bzero(in.get(), sizeof(*in));
+		read_request(*in);
 		if (m_quit)
 			break;
 		if (verbosity > 0)
-			debug_fuseop(in);
+			debug_fuseop(*in);
 		if (pid_ok((pid_t)in->header.pid)) {
-			process(in, out);
+			process(*in, out);
 		} else {
 			/* 
 			 * Reject any requests from unknown processes.  Because
@@ -462,15 +453,12 @@ void MockFS::loop() {
 			if (verbosity > 1)
 				printf("\tREJECTED (wrong pid %d)\n",
 					in->header.pid);
-			process_default(in, out);
+			process_default(*in, out);
 		}
-		for (auto &it: out) {
-			write_response(it);
-			delete it;
-		}
+		for (auto &it: out)
+			write_response(*it);
 		out.clear();
 	}
-	free(in);
 }
 
 bool MockFS::pid_ok(pid_t pid) {
@@ -496,17 +484,17 @@ bool MockFS::pid_ok(pid_t pid) {
 	}
 }
 
-void MockFS::process_default(const mockfs_buf_in *in,
-		std::vector<mockfs_buf_out*> &out)
+void MockFS::process_default(const mockfs_buf_in& in,
+		std::vector<std::unique_ptr<mockfs_buf_out>> &out)
 {
-	auto out0 = new mockfs_buf_out;
-	out0->header.unique = in->header.unique;
+	std::unique_ptr<mockfs_buf_out> out0(new mockfs_buf_out);
+	out0->header.unique = in.header.unique;
 	out0->header.error = -EOPNOTSUPP;
 	out0->header.len = sizeof(out0->header);
-	out.push_back(out0);
+	out.push_back(std::move(out0));
 }
 
-void MockFS::read_request(mockfs_buf_in *in) {
+void MockFS::read_request(mockfs_buf_in &in) {
 	ssize_t res;
 	int nready = 0;
 	fd_set readfds;
@@ -570,14 +558,14 @@ void MockFS::read_request(mockfs_buf_in *in) {
 	default:
 		FAIL() << "not yet implemented";
 	}
-	res = read(m_fuse_fd, in, sizeof(*in));
+	res = read(m_fuse_fd, &in, sizeof(in));
 
 	if (res < 0 && !m_quit)
 		perror("read");
-	ASSERT_TRUE(res >= (ssize_t)sizeof(in->header) || m_quit);
+	ASSERT_TRUE(res >= static_cast<ssize_t>(sizeof(in.header)) || m_quit);
 }
 
-void MockFS::write_response(mockfs_buf_out *out) {
+void MockFS::write_response(const mockfs_buf_out &out) {
 	fd_set writefds;
 	pollfd fds[1];
 	int nready, nfds;
@@ -607,7 +595,7 @@ void MockFS::write_response(mockfs_buf_out *out) {
 	default:
 		FAIL() << "not yet implemented";
 	}
-	r = write(m_fuse_fd, out, out->header.len);
+	r = write(m_fuse_fd, &out, out.header.len);
 	ASSERT_TRUE(r > 0 || errno == EAGAIN) << strerror(errno);
 }
 
