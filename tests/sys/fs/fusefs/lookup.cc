@@ -291,12 +291,6 @@ TEST_F(Lookup, entry_cache_timeout)
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
 
-// TODO: export_support
-// After upgrading the protocol to 7.10, check that the kernel will only
-// attempt to lookup "." and ".." if the filesystem sets FUSE_EXPORT_SUPPORT in
-// the init flags.  If not, then all lookups for those entries will return
-// ESTALE.
-
 TEST_F(Lookup, ok)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";

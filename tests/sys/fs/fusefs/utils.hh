@@ -28,15 +28,6 @@
  * SUCH DAMAGE.
  */
 
-/*
- * TODO: remove FUSE_WRITE_CACHE definition when upgrading to protocol 7.9.
- * This bit was actually part of kernel protocol version 7.2, but never
- * documented until 7.9
- */
-#ifndef FUSE_WRITE_CACHE
-#define FUSE_WRITE_CACHE 1
-#endif
-
 /* Nanoseconds to sleep, for tests that must */
 #define NAP_NS	(100'000'000)
 
