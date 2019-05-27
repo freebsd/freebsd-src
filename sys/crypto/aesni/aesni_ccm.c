@@ -58,7 +58,7 @@
 static inline __m128i
 xor_and_encrypt(__m128i a, __m128i b, const unsigned char *k, int nr)
 {
-	__m128 retval = _mm_xor_si128(a, b);
+	__m128i retval = _mm_xor_si128(a, b);
 
 	retval = AESNI_ENC(retval, k, nr);
 	return (retval);
