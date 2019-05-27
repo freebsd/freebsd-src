@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2012
+.Dd May 26, 2019
 .Dt VIRTIO 4
 .Os
 .Sh NAME
@@ -64,28 +64,37 @@ interrupt notifications needed to interact with the hypervisor.
 .Fx
 supports the following VirtIO devices:
 .Bl -hang -offset indent -width xxxxxxxx
-.It Nm Ethernet
+.It Sy Ethernet
 An emulated Ethernet device is provided by the
 .Xr vtnet 4
 device driver.
-.It Nm Block
+.It Sy Block
 An emulated disk controller is provided by the
 .Xr virtio_blk 4
 device driver.
-.It Nm SCSI
-An emulated SCSI HBA is provided by the
-.Xr virtio_scsi 4
-device driver.
-.It Nm Balloon
+.It Sy Console
+Provided by the
+.Xr virtio_console 4
+driver.
+.It Sy Entropy
+Provided by the
+.Xr virtio_random 4
+driver.
+.It Sy Balloon
 A pseudo-device to allow the VM to release memory back to the hypervisor is
 provided by the
 .Xr virtio_balloon 4
+device driver.
+.It Sy SCSI
+An emulated SCSI HBA is provided by the
+.Xr virtio_scsi 4
 device driver.
 .El
 .Sh SEE ALSO
 .Xr virtio_balloon 4 ,
 .Xr virtio_blk 4 ,
 .Xr virtio_console 4 ,
+.Xr virtio_random 4 ,
 .Xr virtio_scsi 4 ,
 .Xr vtnet 4
 .Sh HISTORY
