@@ -1338,7 +1338,6 @@ static void
 create_pagetables(vm_paddr_t *firstaddr)
 {
 	int i, j, ndm1g, nkpdpe, nkdmpde;
-	pt_entry_t *pt_p;
 	pd_entry_t *pd_p;
 	pdp_entry_t *pdp_p;
 	pml4_entry_t *p4_p;
@@ -1399,20 +1398,21 @@ create_pagetables(vm_paddr_t *firstaddr)
 	KPTphys = allocpages(firstaddr, nkpt);
 	KPDphys = allocpages(firstaddr, nkpdpe);
 
-	/* Fill in the underlying page table pages */
-	/* XXX not fully used, underneath 2M pages */
-	pt_p = (pt_entry_t *)KPTphys;
-	for (i = 0; ptoa(i) < *firstaddr; i++)
-		pt_p[i] = ptoa(i) | X86_PG_V | pg_g | bootaddr_rwx(ptoa(i));
-
-	/* Now map the page tables at their location within PTmap */
+	/*
+	 * Connect the zero-filled PT pages to their PD entries.  This
+	 * implicitly maps the PT pages at their correct locations within
+	 * the PTmap.
+	 */
 	pd_p = (pd_entry_t *)KPDphys;
 	for (i = 0; i < nkpt; i++)
 		pd_p[i] = (KPTphys + ptoa(i)) | X86_PG_RW | X86_PG_V;
 
-	/* Map from zero to end of allocations under 2M pages */
-	/* This replaces some of the KPTphys entries above */
-	for (i = 0; (i << PDRSHIFT) < *firstaddr; i++)
+	/*
+	 * Map from physical address zero to the end of loader preallocated
+	 * memory using 2MB pages.  This replaces some of the PD entries
+	 * created above.
+	 */
+	for (i = 0; (i << PDRSHIFT) < KERNend; i++)
 		/* Preset PG_M and PG_A because demotion expects it. */
 		pd_p[i] = (i << PDRSHIFT) | X86_PG_V | PG_PS | pg_g |
 		    X86_PG_M | X86_PG_A | bootaddr_rwx(i << PDRSHIFT);
@@ -1422,7 +1422,8 @@ create_pagetables(vm_paddr_t *firstaddr)
 	 * to record the physical blocks we've actually mapped into kernel
 	 * virtual address space.
 	 */
-	*firstaddr = round_2mpage(*firstaddr);
+	if (*firstaddr < round_2mpage(KERNend))
+		*firstaddr = round_2mpage(KERNend);
 
 	/* And connect up the PD to the PDP (leaving room for L4 pages) */
 	pdp_p = (pdp_entry_t *)(KPDPphys + ptoa(KPML4I - KPML4BASE));
@@ -1529,7 +1530,10 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 */
 	vm_phys_add_seg(KPTphys, KPTphys + ptoa(nkpt));
 
-	virtual_avail = (vm_offset_t) KERNBASE + *firstaddr;
+	/*
+	 * Account for the virtual addresses mapped by create_pagetables().
+	 */
+	virtual_avail = (vm_offset_t)KERNBASE + round_2mpage(KERNend);
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	/*
