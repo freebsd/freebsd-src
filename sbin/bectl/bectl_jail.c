@@ -155,7 +155,7 @@ build_jailcmd(char ***argvp, bool interactive, int argc, char *argv[])
 			nargv += argc;
 	}
 
-	jargv = *argvp = calloc(nargv, sizeof(jargv));
+	jargv = *argvp = calloc(nargv, sizeof(*jargv));
 	if (jargv == NULL)
 		err(2, "calloc");
 
@@ -346,6 +346,7 @@ bectl_cmd_jail(int argc, char *argv[])
 	case 0:
 		execv("/usr/sbin/jail", jargv);
 		fprintf(stderr, "bectl jail: failed to execute\n");
+		return (1);
 	default:
 		waitpid(pid, NULL, 0);
 	}
