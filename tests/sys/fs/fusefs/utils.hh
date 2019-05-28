@@ -139,7 +139,7 @@ class FuseTest : public ::testing::Test {
 	 * nothing currently validates the size of the fuse_read_in struct.
 	 */
 	void expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
-		uint64_t osize, const void *contents);
+		uint64_t osize, const void *contents, int flags = -1);
 
 	/*
 	 * Create an expectation that FUSE_READIR will be called any number of

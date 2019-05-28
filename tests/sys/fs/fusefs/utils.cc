@@ -36,6 +36,7 @@ extern "C" {
 #include <sys/wait.h>
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <grp.h>
 #include <pwd.h>
 #include <semaphore.h>
@@ -273,7 +274,7 @@ void FuseTest::expect_opendir(uint64_t ino)
 }
 
 void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
-	uint64_t osize, const void *contents)
+	uint64_t osize, const void *contents, int flags)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -281,7 +282,11 @@ void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 				in.header.nodeid == ino &&
 				in.body.read.fh == FH &&
 				in.body.read.offset == offset &&
-				in.body.read.size == isize);
+				in.body.read.size == isize &&
+				flags == -1 ?
+					(in.body.read.flags == O_RDONLY ||
+					 in.body.read.flags == O_RDWR)
+				: in.body.read.flags == (uint32_t)flags);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
@@ -400,6 +405,8 @@ void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 				pid_ok &&
 				(wf & flags_set) == flags_set &&
 				(wf & flags_unset) == 0 &&
+				(in.body.write.flags == O_WRONLY ||
+				 in.body.write.flags == O_RDWR) &&
 				0 == bcmp(buf, contents, isize));
 		}, Eq(true)),
 		_)

@@ -380,7 +380,7 @@ fuse_read_directbackend(struct vnode *vp, struct uio *uio,
 		if (fuse_libabi_geq(data, 7, 9)) {
 			/* See comment regarding FUSE_WRITE_LOCKOWNER */
 			fri->read_flags = 0;
-			fri->flags = 0;		/* TODO */
+			fri->flags = fufh_type_2_fflags(fufh->fufh_type);
 		}
 
 		SDT_PROBE1(fusefs, , io, read_directbackend_start, fri);
@@ -461,7 +461,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 		fwi->size = chunksize;
 		fwi->write_flags = write_flags;
 		if (fuse_libabi_geq(data, 7, 9)) {
-			fwi->flags = 0;		/* TODO */
+			fwi->flags = fufh_type_2_fflags(fufh->fufh_type);
 			fwi_data = (char *)fdi.indata + sizeof(*fwi);
 		} else {
 			fwi_data = (char *)fdi.indata +

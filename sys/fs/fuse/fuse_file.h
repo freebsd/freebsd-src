@@ -148,6 +148,41 @@ struct fuse_filehandle {
 
 #define FUFH_IS_VALID(f)  ((f)->fufh_type != FUFH_INVALID)
 
+/*
+ * Get the flags to use for FUSE_CREATE, FUSE_OPEN and FUSE_RELEASE
+ *
+ * These are supposed to be the same as the flags argument to open(2).
+ * However, since we can't reliably associate a fuse_filehandle with a specific
+ * file descriptor it would would be dangerous to include anything more than
+ * the access mode flags.  For example, suppose we open a file twice, once with
+ * O_APPEND and once without.  Then the user pwrite(2)s to offset using the
+ * second file descriptor.  If fusefs uses the first file handle, then the
+ * server may append the write to the end of the file rather than at offset 0.
+ * To prevent problems like this, we only ever send the portion of flags
+ * related to access mode.
+ *
+ * It's essential to send that portion, because FUSE uses it for server-side
+ * authorization.
+ */
+static inline int
+fufh_type_2_fflags(fufh_type_t type)
+{
+	int oflags = -1;
+
+	switch (type) {
+	case FUFH_RDONLY:
+	case FUFH_WRONLY:
+	case FUFH_RDWR:
+	case FUFH_EXEC:
+		oflags = type;
+		break;
+	default:
+		break;
+	}
+
+	return oflags;
+}
+
 bool fuse_filehandle_validrw(struct vnode *vp, int mode,
 	struct ucred *cred, pid_t pid);
 int fuse_filehandle_get(struct vnode *vp, int fflag,

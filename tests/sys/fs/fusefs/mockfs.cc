@@ -218,6 +218,8 @@ void debug_fuseop(const mockfs_buf_in &in)
 			printf(" offset=%" PRIu64 " size=%u",
 				in.body.read.offset,
 				in.body.read.size);
+			if (verbosity > 1)
+				printf(" flags=%#x", in.body.read.flags);
 			break;
 		case FUSE_READDIR:
 			printf(" fh=%#" PRIx64 " offset=%" PRIu64 " size=%u",
@@ -278,10 +280,12 @@ void debug_fuseop(const mockfs_buf_in &in)
 			break;
 		case FUSE_WRITE:
 			printf(" fh=%#" PRIx64 " offset=%" PRIu64
-				" size=%u flags=%u",
+				" size=%u write_flags=%u",
 				in.body.write.fh,
 				in.body.write.offset, in.body.write.size,
 				in.body.write.write_flags);
+			if (verbosity > 1)
+				printf(" flags=%#x", in.body.write.flags);
 			break;
 		default:
 			break;
