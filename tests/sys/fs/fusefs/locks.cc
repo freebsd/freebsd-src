@@ -29,6 +29,7 @@
  */
 
 extern "C" {
+#include <sys/file.h>
 #include <fcntl.h>
 }
 
@@ -59,12 +60,135 @@ class Locks: public Fallback {
 	}
 };
 
+class Fcntl: public Locks {
+public:
+void expect_setlk(uint64_t ino, pid_t pid, uint64_t start, uint64_t end,
+	uint32_t type, int err)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_SETLK &&
+				in.header.nodeid == ino &&
+				in.body.setlk.fh == FH &&
+				in.body.setlkw.owner == (uint32_t)pid &&
+				in.body.setlkw.lk.start == start &&
+				in.body.setlkw.lk.end == end &&
+				in.body.setlkw.lk.type == type &&
+				in.body.setlkw.lk.pid == (uint64_t)pid);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(err)));
+}
+};
+
+class Flock: public Locks {
+public:
+void expect_setlk(uint64_t ino, uint32_t type, int err)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_SETLK &&
+				in.header.nodeid == ino &&
+				in.body.setlk.fh == FH &&
+				/* 
+				 * The owner should be set to the address of
+				 * the vnode.  That's hard to verify.
+				 */
+				/* in.body.setlk.owner == ??? && */
+				in.body.setlk.lk.type == type);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(err)));
+}
+};
+
+class FlockFallback: public Fallback {};
 class GetlkFallback: public Fallback {};
-class Getlk: public Locks {};
+class Getlk: public Fcntl {};
 class SetlkFallback: public Fallback {};
-class Setlk: public Locks {};
+class Setlk: public Fcntl {};
 class SetlkwFallback: public Fallback {};
-class Setlkw: public Locks {};
+class Setlkw: public Fcntl {};
+
+/*
+ * If the fuse filesystem does not support flock locks, then the kernel should
+ * fall back to local locks.
+ */
+TEST_F(FlockFallback, local)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(0, flock(fd, LOCK_EX)) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/*
+ * Even if the fuse file system supports POSIX locks, we must implement flock
+ * locks locally until protocol 7.17.  Protocol 7.9 added partial buggy support
+ * but we won't implement that.
+ */
+TEST_F(Flock, local)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(0, flock(fd, LOCK_EX)) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* Set a new flock lock with FUSE_SETLK */
+/* TODO: enable after upgrading to protocol 7.17 */
+TEST_F(Flock, DISABLED_set)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	expect_setlk(ino, F_WRLCK, 0);
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(0, flock(fd, LOCK_EX)) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* Fail to set a flock lock in non-blocking mode */
+/* TODO: enable after upgrading to protocol 7.17 */
+TEST_F(Flock, DISABLED_eagain)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	expect_setlk(ino, F_WRLCK, EAGAIN);
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_NE(0, flock(fd, LOCK_EX | LOCK_NB));
+	ASSERT_EQ(EAGAIN, errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
 
 /*
  * If the fuse filesystem does not support posix file locks, then the kernel
@@ -229,19 +353,7 @@ TEST_F(Setlk, set)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in.header.opcode == FUSE_SETLK &&
-				in.header.nodeid == ino &&
-				in.body.setlk.fh == FH &&
-				in.body.setlk.owner == (uint32_t)pid &&
-				in.body.setlk.lk.start == 10 &&
-				in.body.setlk.lk.end == 1009 &&
-				in.body.setlk.lk.type == F_RDLCK &&
-				in.body.setlk.lk.pid == (uint64_t)pid);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(0)));
+	expect_setlk(ino, pid, 10, 1009, F_RDLCK, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -267,19 +379,7 @@ TEST_F(Setlk, set_eof)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in.header.opcode == FUSE_SETLK &&
-				in.header.nodeid == ino &&
-				in.body.setlk.fh == FH &&
-				in.body.setlk.owner == (uint32_t)pid &&
-				in.body.setlk.lk.start == 10 &&
-				in.body.setlk.lk.end == OFFSET_MAX &&
-				in.body.setlk.lk.type == F_RDLCK &&
-				in.body.setlk.lk.pid == (uint64_t)pid);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(0)));
+	expect_setlk(ino, pid, 10, OFFSET_MAX, F_RDLCK, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -305,19 +405,7 @@ TEST_F(Setlk, eagain)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in.header.opcode == FUSE_SETLK &&
-				in.header.nodeid == ino &&
-				in.body.setlk.fh == FH &&
-				in.body.setlk.owner == (uint32_t)pid &&
-				in.body.setlk.lk.start == 10 &&
-				in.body.setlk.lk.end == 1009 &&
-				in.body.setlk.lk.type == F_RDLCK &&
-				in.body.setlk.lk.pid == (uint64_t)pid);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(EAGAIN)));
+	expect_setlk(ino, pid, 10, 1009, F_RDLCK, EAGAIN);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -375,19 +463,7 @@ TEST_F(Setlkw, set)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in.header.opcode == FUSE_SETLK &&
-				in.header.nodeid == ino &&
-				in.body.setlkw.fh == FH &&
-				in.body.setlkw.owner == (uint32_t)pid &&
-				in.body.setlkw.lk.start == 10 &&
-				in.body.setlkw.lk.end == 1009 &&
-				in.body.setlkw.lk.type == F_RDLCK &&
-				in.body.setlkw.lk.pid == (uint64_t)pid);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(0)));
+	expect_setlk(ino, pid, 10, 1009, F_RDLCK, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);

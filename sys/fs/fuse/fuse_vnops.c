@@ -389,6 +389,7 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 	struct fuse_lk_out *flo;
 	enum fuse_opcode op;
 	int dataflags, err;
+	int flags = ap->a_flags;
 
 	dataflags = fuse_get_mpdata(vnode_mount(vp))->dataflags;
 
@@ -397,6 +398,9 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 	}
 
 	if (!(dataflags & FSESS_POSIX_LOCKS))
+		return vop_stdadvlock(ap);
+	/* FUSE doesn't properly support flock until protocol 7.17 */
+	if (flags & F_FLOCK)
 		return vop_stdadvlock(ap);
 
 	err = fuse_filehandle_get_anyflags(vp, &fufh, cred, pid);
