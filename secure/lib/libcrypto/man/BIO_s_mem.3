@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_S_MEM 3"
-.TH BIO_S_MEM 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH BIO_S_MEM 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -221,6 +221,22 @@ a buffering \s-1BIO\s0 to the chain will speed up the process.
 .PP
 Calling \fBBIO_set_mem_buf()\fR on a \s-1BIO\s0 created with \fBBIO_new_secmem()\fR will
 give undefined results, including perhaps a program crash.
+.PP
+Switching the memory \s-1BIO\s0 from read write to read only is not supported and
+can give undefined results including a program crash. There are two notable
+exceptions to the rule. The first one is to assign a static memory buffer
+immediately after \s-1BIO\s0 creation and set the \s-1BIO\s0 as read only.
+.PP
+The other supported sequence is to start with read write \s-1BIO\s0 then temporarily
+switch it to read only and call \fBBIO_reset()\fR on the read only \s-1BIO\s0 immediately
+before switching it back to read write. Before the \s-1BIO\s0 is freed it must be
+switched back to the read write mode.
+.PP
+Calling \fBBIO_get_mem_ptr()\fR on read only \s-1BIO\s0 will return a \s-1BUF_MEM\s0 that
+contains only the remaining data to be read. If the close status of the
+\&\s-1BIO\s0 is set to \s-1BIO_NOCLOSE,\s0 before freeing the \s-1BUF_MEM\s0 the data pointer
+in it must be set to \s-1NULL\s0 as the data pointer does not point to an
+allocated memory.
 .SH "BUGS"
 .IX Header "BUGS"
 There should be an option to set the maximum size of a memory \s-1BIO.\s0
@@ -260,7 +276,7 @@ return 1 on success or a value which is less than or equal to 0 if an error occu
 \&\fBBIO_new_mem_buf()\fR returns a valid \fB\s-1BIO\s0\fR structure on success or \s-1NULL\s0 on error.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

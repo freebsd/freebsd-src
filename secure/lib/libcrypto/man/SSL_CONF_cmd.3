@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CONF_CMD 3"
-.TH SSL_CONF_CMD 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH SSL_CONF_CMD 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -666,6 +666,22 @@ check for the existence of a command or to perform additional syntax
 checking or translation of the command value. For example if the return
 value is \fB\s-1SSL_CONF_TYPE_FILE\s0\fR an application could translate a relative
 pathname to an absolute pathname.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBSSL_CONF_cmd()\fR returns 1 if the value of \fBcmd\fR is recognised and \fBvalue\fR is
+\&\fB\s-1NOT\s0\fR used and 2 if both \fBcmd\fR and \fBvalue\fR are used. In other words it
+returns the number of arguments processed. This is useful when processing
+command lines.
+.PP
+A return value of \-2 means \fBcmd\fR is not recognised.
+.PP
+A return value of \-3 means \fBcmd\fR is recognised and the command requires a
+value but \fBvalue\fR is \s-1NULL.\s0
+.PP
+A return code of 0 indicates that both \fBcmd\fR and \fBvalue\fR are valid but an
+error occurred attempting to perform the operation: for example due to an
+error in the syntax of \fBvalue\fR in this case the error queue may provide
+additional information.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Set supported signature algorithms:
@@ -729,22 +745,6 @@ Set supported curves to P\-256, P\-384:
 .Vb 1
 \& SSL_CONF_cmd(ctx, "Curves", "P\-256:P\-384");
 .Ve
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-\&\fBSSL_CONF_cmd()\fR returns 1 if the value of \fBcmd\fR is recognised and \fBvalue\fR is
-\&\fB\s-1NOT\s0\fR used and 2 if both \fBcmd\fR and \fBvalue\fR are used. In other words it
-returns the number of arguments processed. This is useful when processing
-command lines.
-.PP
-A return value of \-2 means \fBcmd\fR is not recognised.
-.PP
-A return value of \-3 means \fBcmd\fR is recognised and the command requires a
-value but \fBvalue\fR is \s-1NULL.\s0
-.PP
-A return code of 0 indicates that both \fBcmd\fR and \fBvalue\fR are valid but an
-error occurred attempting to perform the operation: for example due to an
-error in the syntax of \fBvalue\fR in this case the error queue may provide
-additional information.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBSSL_CONF_CTX_new\fR\|(3),
