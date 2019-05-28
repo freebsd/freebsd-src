@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_GENERATE_NCONF 3"
-.TH ASN1_GENERATE_NCONF 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH ASN1_GENERATE_NCONF 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -264,6 +264,12 @@ specified then the value string must be a valid \fB\s-1UTF8\s0\fR string. For \f
 output must be a set of hex digits. \fB\s-1BITLIST\s0\fR (which is only valid for a \s-1BIT
 STRING\s0) is a comma separated list of the indices of the set bits, all other
 bits are zero.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBASN1_generate_nconf()\fR and \fBASN1_generate_v3()\fR return the encoded
+data as an \fB\s-1ASN1_TYPE\s0\fR structure or \fB\s-1NULL\s0\fR if an error occurred.
+.PP
+The error codes that can be obtained by \fBERR_get_error\fR\|(3).
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 A simple IA5String:
@@ -362,18 +368,12 @@ structure:
 \&
 \& e=INTEGER:0x010001
 .Ve
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-\&\fBASN1_generate_nconf()\fR and \fBASN1_generate_v3()\fR return the encoded
-data as an \fB\s-1ASN1_TYPE\s0\fR structure or \fB\s-1NULL\s0\fR if an error occurred.
-.PP
-The error codes that can be obtained by \fBERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

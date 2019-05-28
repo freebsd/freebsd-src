@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA_PUBLIC_ENCRYPT 3"
-.TH RSA_PUBLIC_ENCRYPT 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH RSA_PUBLIC_ENCRYPT 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -145,10 +145,10 @@ RSA_public_encrypt, RSA_private_decrypt \- RSA public key cryptography
 .Vb 1
 \& #include <openssl/rsa.h>
 \&
-\& int RSA_public_encrypt(int flen, unsigned char *from,
+\& int RSA_public_encrypt(int flen, const unsigned char *from,
 \&                        unsigned char *to, RSA *rsa, int padding);
 \&
-\& int RSA_private_decrypt(int flen, unsigned char *from,
+\& int RSA_private_decrypt(int flen, const unsigned char *from,
 \&                         unsigned char *to, RSA *rsa, int padding);
 .Ve
 .SH "DESCRIPTION"
@@ -161,6 +161,8 @@ session key) using the public key \fBrsa\fR and stores the ciphertext in
 .IP "\s-1RSA_PKCS1_PADDING\s0" 4
 .IX Item "RSA_PKCS1_PADDING"
 \&\s-1PKCS\s0 #1 v1.5 padding. This currently is the most widely used mode.
+However, it is highly recommended to use \s-1RSA_PKCS1_OAEP_PADDING\s0 in
+new applications. \s-1SEE WARNING BELOW.\s0
 .IP "\s-1RSA_PKCS1_OAEP_PADDING\s0" 4
 .IX Item "RSA_PKCS1_OAEP_PADDING"
 EME-OAEP as defined in \s-1PKCS\s0 #1 v2.0 with \s-1SHA\-1, MGF1\s0 and an empty
@@ -175,22 +177,34 @@ Raw \s-1RSA\s0 encryption. This mode should \fIonly\fR be used to implement
 cryptographically sound padding modes in the application code.
 Encrypting user data directly with \s-1RSA\s0 is insecure.
 .PP
-\&\fBflen\fR must be less than RSA_size(\fBrsa\fR) \- 11 for the \s-1PKCS\s0 #1 v1.5
-based padding modes, less than RSA_size(\fBrsa\fR) \- 41 for
+\&\fBflen\fR must not be more than RSA_size(\fBrsa\fR) \- 11 for the \s-1PKCS\s0 #1 v1.5
+based padding modes, not more than RSA_size(\fBrsa\fR) \- 42 for
 \&\s-1RSA_PKCS1_OAEP_PADDING\s0 and exactly RSA_size(\fBrsa\fR) for \s-1RSA_NO_PADDING.\s0
-The random number generator must be seeded prior to calling
-\&\fBRSA_public_encrypt()\fR.
+When a padding mode other than \s-1RSA_NO_PADDING\s0 is in use, then
+\&\fBRSA_public_encrypt()\fR will include some random bytes into the ciphertext
+and therefore the ciphertext will be different each time, even if the
+plaintext and the public key are exactly identical.
+The returned ciphertext in \fBto\fR will always be zero padded to exactly
+RSA_size(\fBrsa\fR) bytes.
+\&\fBto\fR and \fBfrom\fR may overlap.
 .PP
 \&\fBRSA_private_decrypt()\fR decrypts the \fBflen\fR bytes at \fBfrom\fR using the
-private key \fBrsa\fR and stores the plaintext in \fBto\fR. \fBto\fR must point
-to a memory section large enough to hold the decrypted data (which is
-smaller than RSA_size(\fBrsa\fR)). \fBpadding\fR is the padding mode that
-was used to encrypt the data.
+private key \fBrsa\fR and stores the plaintext in \fBto\fR. \fBflen\fR should
+be equal to RSA_size(\fBrsa\fR) but may be smaller, when leading zero
+bytes are in the ciphertext. Those are not important and may be removed,
+but \fBRSA_public_encrypt()\fR does not do that. \fBto\fR must point
+to a memory section large enough to hold the maximal possible decrypted
+data (which is equal to RSA_size(\fBrsa\fR) for \s-1RSA_NO_PADDING,\s0
+RSA_size(\fBrsa\fR) \- 11 for the \s-1PKCS\s0 #1 v1.5 based padding modes and
+RSA_size(\fBrsa\fR) \- 42 for \s-1RSA_PKCS1_OAEP_PADDING\s0).
+\&\fBpadding\fR is the padding mode that was used to encrypt the data.
+\&\fBto\fR and \fBfrom\fR may overlap.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBRSA_public_encrypt()\fR returns the size of the encrypted data (i.e.,
 RSA_size(\fBrsa\fR)). \fBRSA_private_decrypt()\fR returns the size of the
-recovered plaintext.
+recovered plaintext. A return value of 0 is not an error and
+means only that the plaintext was empty.
 .PP
 On error, \-1 is returned; the error codes can be
 obtained by \fBERR_get_error\fR\|(3).
@@ -209,7 +223,7 @@ design. Prefer \s-1RSA_PKCS1_OAEP_PADDING.\s0
 \&\fBRSA_size\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

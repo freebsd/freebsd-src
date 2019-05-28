@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PEM_READ_BIO_PRIVATEKEY 3"
-.TH PEM_READ_BIO_PRIVATEKEY 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH PEM_READ_BIO_PRIVATEKEY 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -413,84 +413,6 @@ arbitrary data to be passed to the callback by the application
 (for example a window handle in a \s-1GUI\s0 application). The callback
 \&\fBmust\fR return the number of characters in the passphrase or \-1 if
 an error occurred.
-.SH "EXAMPLES"
-.IX Header "EXAMPLES"
-Although the \s-1PEM\s0 routines take several arguments in almost all applications
-most of them are set to 0 or \s-1NULL.\s0
-.PP
-Read a certificate in \s-1PEM\s0 format from a \s-1BIO:\s0
-.PP
-.Vb 1
-\& X509 *x;
-\&
-\& x = PEM_read_bio_X509(bp, NULL, 0, NULL);
-\& if (x == NULL)
-\&     /* Error */
-.Ve
-.PP
-Alternative method:
-.PP
-.Vb 1
-\& X509 *x = NULL;
-\&
-\& if (!PEM_read_bio_X509(bp, &x, 0, NULL))
-\&     /* Error */
-.Ve
-.PP
-Write a certificate to a \s-1BIO:\s0
-.PP
-.Vb 2
-\& if (!PEM_write_bio_X509(bp, x))
-\&     /* Error */
-.Ve
-.PP
-Write a private key (using traditional format) to a \s-1BIO\s0 using
-triple \s-1DES\s0 encryption, the pass phrase is prompted for:
-.PP
-.Vb 2
-\& if (!PEM_write_bio_PrivateKey(bp, key, EVP_des_ede3_cbc(), NULL, 0, 0, NULL))
-\&     /* Error */
-.Ve
-.PP
-Write a private key (using PKCS#8 format) to a \s-1BIO\s0 using triple
-\&\s-1DES\s0 encryption, using the pass phrase \*(L"hello\*(R":
-.PP
-.Vb 3
-\& if (!PEM_write_bio_PKCS8PrivateKey(bp, key, EVP_des_ede3_cbc(),
-\&                                    NULL, 0, 0, "hello"))
-\&     /* Error */
-.Ve
-.PP
-Read a private key from a \s-1BIO\s0 using a pass phrase callback:
-.PP
-.Vb 3
-\& key = PEM_read_bio_PrivateKey(bp, NULL, pass_cb, "My Private Key");
-\& if (key == NULL)
-\&     /* Error */
-.Ve
-.PP
-Skeleton pass phrase callback:
-.PP
-.Vb 2
-\& int pass_cb(char *buf, int size, int rwflag, void *u)
-\& {
-\&
-\&     /* We\*(Aqd probably do something else if \*(Aqrwflag\*(Aq is 1 */
-\&     printf("Enter pass phrase for \e"%s\e"\en", (char *)u);
-\&
-\&     /* get pass phrase, length \*(Aqlen\*(Aq into \*(Aqtmp\*(Aq */
-\&     char *tmp = "hello";
-\&     if (tmp == NULL) /* An error occurred */
-\&         return \-1;
-\&
-\&     size_t len = strlen(tmp);
-\&
-\&     if (len > size)
-\&         len = size;
-\&     memcpy(buf, tmp, len);
-\&     return len;
-\& }
-.Ve
 .SH "NOTES"
 .IX Header "NOTES"
 The old \fBPrivateKey\fR write routines are retained for compatibility.
@@ -594,18 +516,96 @@ The read routines return either a pointer to the structure read or \s-1NULL\s0
 if an error occurred.
 .PP
 The write routines return 1 for success or 0 for failure.
+.SH "EXAMPLES"
+.IX Header "EXAMPLES"
+Although the \s-1PEM\s0 routines take several arguments in almost all applications
+most of them are set to 0 or \s-1NULL.\s0
+.PP
+Read a certificate in \s-1PEM\s0 format from a \s-1BIO:\s0
+.PP
+.Vb 1
+\& X509 *x;
+\&
+\& x = PEM_read_bio_X509(bp, NULL, 0, NULL);
+\& if (x == NULL)
+\&     /* Error */
+.Ve
+.PP
+Alternative method:
+.PP
+.Vb 1
+\& X509 *x = NULL;
+\&
+\& if (!PEM_read_bio_X509(bp, &x, 0, NULL))
+\&     /* Error */
+.Ve
+.PP
+Write a certificate to a \s-1BIO:\s0
+.PP
+.Vb 2
+\& if (!PEM_write_bio_X509(bp, x))
+\&     /* Error */
+.Ve
+.PP
+Write a private key (using traditional format) to a \s-1BIO\s0 using
+triple \s-1DES\s0 encryption, the pass phrase is prompted for:
+.PP
+.Vb 2
+\& if (!PEM_write_bio_PrivateKey(bp, key, EVP_des_ede3_cbc(), NULL, 0, 0, NULL))
+\&     /* Error */
+.Ve
+.PP
+Write a private key (using PKCS#8 format) to a \s-1BIO\s0 using triple
+\&\s-1DES\s0 encryption, using the pass phrase \*(L"hello\*(R":
+.PP
+.Vb 3
+\& if (!PEM_write_bio_PKCS8PrivateKey(bp, key, EVP_des_ede3_cbc(),
+\&                                    NULL, 0, 0, "hello"))
+\&     /* Error */
+.Ve
+.PP
+Read a private key from a \s-1BIO\s0 using a pass phrase callback:
+.PP
+.Vb 3
+\& key = PEM_read_bio_PrivateKey(bp, NULL, pass_cb, "My Private Key");
+\& if (key == NULL)
+\&     /* Error */
+.Ve
+.PP
+Skeleton pass phrase callback:
+.PP
+.Vb 2
+\& int pass_cb(char *buf, int size, int rwflag, void *u)
+\& {
+\&
+\&     /* We\*(Aqd probably do something else if \*(Aqrwflag\*(Aq is 1 */
+\&     printf("Enter pass phrase for \e"%s\e"\en", (char *)u);
+\&
+\&     /* get pass phrase, length \*(Aqlen\*(Aq into \*(Aqtmp\*(Aq */
+\&     char *tmp = "hello";
+\&     if (tmp == NULL) /* An error occurred */
+\&         return \-1;
+\&
+\&     size_t len = strlen(tmp);
+\&
+\&     if (len > size)
+\&         len = size;
+\&     memcpy(buf, tmp, len);
+\&     return len;
+\& }
+.Ve
+.SH "SEE ALSO"
+.IX Header "SEE ALSO"
+\&\fBEVP_EncryptInit\fR\|(3), \fBEVP_BytesToKey\fR\|(3),
+\&\fBpassphrase\-encoding\fR\|(7)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The old Netscape certificate sequences were no longer documented
 in OpenSSL 1.1.0; applications should use the \s-1PKCS7\s0 standard instead
 as they will be formally deprecated in a future releases.
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\fBEVP_EncryptInit\fR\|(3), \fBEVP_BytesToKey\fR\|(3),
-\&\fBpassphrase\-encoding\fR\|(7)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

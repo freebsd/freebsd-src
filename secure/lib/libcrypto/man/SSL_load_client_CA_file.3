@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_LOAD_CLIENT_CA_FILE 3"
-.TH SSL_LOAD_CLIENT_CA_FILE 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH SSL_LOAD_CLIENT_CA_FILE 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -158,6 +158,15 @@ extracts the X509_NAMES of the certificates found. While the name suggests
 the specific usage as support function for
 \&\fBSSL_CTX_set_client_CA_list\fR\|(3),
 it is not limited to \s-1CA\s0 certificates.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+The following return values can occur:
+.IP "\s-1NULL\s0" 4
+.IX Item "NULL"
+The operation failed, check out the error stack for the reason.
+.IP "Pointer to \s-1STACK_OF\s0(X509_NAME)" 4
+.IX Item "Pointer to STACK_OF(X509_NAME)"
+Pointer to the subject names of the successfully read certificates.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Load names of CAs from file and use it as a client \s-1CA\s0 list:
@@ -174,22 +183,13 @@ Load names of CAs from file and use it as a client \s-1CA\s0 list:
 \&     /* error */
 \& ...
 .Ve
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-The following return values can occur:
-.IP "\s-1NULL\s0" 4
-.IX Item "NULL"
-The operation failed, check out the error stack for the reason.
-.IP "Pointer to \s-1STACK_OF\s0(X509_NAME)" 4
-.IX Item "Pointer to STACK_OF(X509_NAME)"
-Pointer to the subject names of the successfully read certificates.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7),
 \&\fBSSL_CTX_set_client_CA_list\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

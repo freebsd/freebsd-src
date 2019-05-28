@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_DIGESTVERIFYINIT 3"
-.TH EVP_DIGESTVERIFYINIT 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH EVP_DIGESTVERIFYINIT 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -164,8 +164,8 @@ with \fBEVP_MD_CTX_new()\fR before calling this function. If \fBpctx\fR is not \
 can be used to set alternative verification options. Note that any existing
 value in \fB*pctx\fR is overwritten. The \s-1EVP_PKEY_CTX\s0 value returned must not be freed
 directly by the application if \fBctx\fR is not assigned an \s-1EVP_PKEY_CTX\s0 value before
-being passed to \fBEVP_DigestSignInit()\fR (which means the \s-1EVP_PKEY_CTX\s0 is created
-inside \fBEVP_DigestSignInit()\fR and it will be freed automatically when the
+being passed to \fBEVP_DigestVerifyInit()\fR (which means the \s-1EVP_PKEY_CTX\s0 is created
+inside \fBEVP_DigestVerifyInit()\fR and it will be freed automatically when the
 \&\s-1EVP_MD_CTX\s0 is freed).
 .PP
 No \fB\s-1EVP_PKEY_CTX\s0\fR will be created by \fBEVP_DigsetSignInit()\fR if the passed \fBctx\fR
@@ -233,7 +233,7 @@ will occur.
 were added in OpenSSL 1.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

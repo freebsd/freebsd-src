@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RAND_DRBG_RESEED 3"
-.TH RAND_DRBG_RESEED 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH RAND_DRBG_RESEED 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -146,7 +146,8 @@ RAND_DRBG_reseed, RAND_DRBG_set_reseed_interval, RAND_DRBG_set_reseed_time_inter
 \& #include <openssl/rand_drbg.h>
 \&
 \& int RAND_DRBG_reseed(RAND_DRBG *drbg,
-\&                      const unsigned char *adin, size_t adinlen);
+\&                      const unsigned char *adin, size_t adinlen,
+\&                      int prediction_resistance);
 \&
 \& int RAND_DRBG_set_reseed_interval(RAND_DRBG *drbg,
 \&                                   unsigned int interval);
@@ -169,6 +170,10 @@ and mixing in the specified additional data provided in the buffer \fBadin\fR
 of length \fBadinlen\fR.
 The additional data can be omitted by setting \fBadin\fR to \s-1NULL\s0 and \fBadinlen\fR
 to 0.
+An immediate reseeding from a live entropy source can be requested by setting
+the \fBprediction_resistance\fR flag to 1.
+This feature is not implemented yet, so reseeding with prediction resistance
+requested will always fail.
 .PP
 \&\fBRAND_DRBG_set_reseed_interval()\fR
 sets the reseed interval of the \fBdrbg\fR, which is the maximum allowed number
@@ -215,18 +220,18 @@ To ensure that they are applied to the global and thread-local \s-1DRBG\s0 insta
 (<master>, resp. <public> and <private>), it is necessary to call
 \&\fBRAND_DRBG_set_reseed_defaults()\fR before creating any thread and before calling any
  cryptographic routines that obtain random data directly or indirectly.
-.SH "HISTORY"
-.IX Header "HISTORY"
-The \s-1RAND_DRBG\s0 functions were added in OpenSSL 1.1.1.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBRAND_DRBG_generate\fR\|(3),
 \&\fBRAND_DRBG_bytes\fR\|(3),
 \&\fBRAND_DRBG_set_callbacks\fR\|(3).
 \&\s-1\fBRAND_DRBG\s0\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The \s-1RAND_DRBG\s0 functions were added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
