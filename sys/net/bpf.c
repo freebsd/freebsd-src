@@ -850,15 +850,10 @@ bpf_detachd_locked(struct bpf_d *d, bool detached_ifp)
 	/* Check if descriptor is attached */
 	if ((bp = d->bd_bif) == NULL)
 		return;
-	/*
-	 * Remove d from the interface's descriptor list.
-	 * And wait until bpf_[m]tap*() will finish their possible work
-	 * with descriptor.
-	 */
-	CK_LIST_REMOVE(d, bd_next);
-	NET_EPOCH_WAIT();
 
 	BPFD_LOCK(d);
+	/* Remove d from the interface's descriptor list. */
+	CK_LIST_REMOVE(d, bd_next);
 	/* Save bd_writer value */
 	error = d->bd_writer;
 	ifp = bp->bif_ifp;
@@ -2494,6 +2489,11 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	int tstype;
 
 	BPFD_LOCK_ASSERT(d);
+	if (d->bd_bif == NULL) {
+		/* Descriptor was detached in concurrent thread */
+		counter_u64_add(d->bd_dcount, 1);
+		return;
+	}
 
 	/*
 	 * Detect whether user space has released a buffer back to us, and if
