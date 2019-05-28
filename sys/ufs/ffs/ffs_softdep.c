@@ -11055,15 +11055,13 @@ softdep_disk_write_complete(bp)
 	     "with outstanding dependencies for buffer %p", bp));
 	if (ump == NULL)
 		return;
-
-	sbp = NULL;
-
 	/*
 	 * If an error occurred while doing the write, then the data
 	 * has not hit the disk and the dependencies cannot be processed.
 	 * But we do have to go through and roll forward any dependencies
 	 * that were rolled back before the disk write.
 	 */
+	sbp = NULL;
 	ACQUIRE_LOCK(ump);
 	if ((bp->b_ioflags & BIO_ERROR) != 0 && (bp->b_flags & B_INVAL) == 0) {
 		LIST_FOREACH(wk, &bp->b_dep, wk_list) {
@@ -11093,6 +11091,8 @@ softdep_disk_write_complete(bp)
 			}
 		}
 		FREE_LOCK(ump);
+		if (sbp)
+			brelse(sbp);
 		return;
 	}
 	LIST_INIT(&reattach);
