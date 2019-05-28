@@ -34,11 +34,11 @@
 #include <sys/socket.h>
 #if defined(_KERNEL)
 # include <sys/systm.h>
-# if !defined(__SVR4) && !defined(__svr4__)
+# if !defined(__SVR4)
 #  include <sys/mbuf.h>
 # endif
 #endif
-#if !defined(__SVR4) && !defined(__svr4__)
+#if !defined(__SVR4)
 # if defined(_KERNEL)
 #  include <sys/kernel.h>
 # endif
