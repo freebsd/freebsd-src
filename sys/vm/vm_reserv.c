@@ -1030,56 +1030,49 @@ vm_reserv_alloc_page(int req, vm_object_t object, vm_pindex_t pindex, int domain
 static void
 vm_reserv_break(vm_reserv_t rv)
 {
-	int begin_zeroes, hi, i, lo;
+	u_long changes;
+	int bitpos, hi, i, lo;
 
 	vm_reserv_assert_locked(rv);
 	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
 	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
 	vm_reserv_remove(rv);
 	rv->pages->psind = 0;
-	i = hi = 0;
-	do {
-		/* Find the next 0 bit.  Any previous 0 bits are < "hi". */
-		lo = ffsl(~(((1UL << hi) - 1) | rv->popmap[i]));
-		if (lo == 0) {
-			/* Redundantly clears bits < "hi". */
+	hi = lo = -1;
+	for (i = 0; i <= NPOPMAP; i++) {
+		/*
+		 * "changes" is a bitmask that marks where a new sequence of
+		 * 0s or 1s begins in popmap[i], with last bit in popmap[i-1]
+		 * considered to be 1 if and only if lo == hi.  The bits of
+		 * popmap[-1] and popmap[NPOPMAP] are considered all 1s.
+		 */
+		if (i == NPOPMAP)
+			changes = lo != hi;
+		else {
+			changes = rv->popmap[i];
+			changes ^= (changes << 1) | (lo == hi);
 			rv->popmap[i] = 0;
-			rv->popcnt -= NBPOPMAP - hi;
-			while (++i < NPOPMAP) {
-				lo = ffsl(~rv->popmap[i]);
-				if (lo == 0) {
-					rv->popmap[i] = 0;
-					rv->popcnt -= NBPOPMAP;
-				} else
-					break;
+		}
+		while (changes != 0) {
+			/*
+			 * If the next change marked begins a run of 0s, set
+			 * lo to mark that position.  Otherwise set hi and
+			 * free pages from lo up to hi.
+			 */
+			bitpos = ffsl(changes) - 1;
+			changes ^= 1UL << bitpos;
+			if (lo == hi)
+				lo = NBPOPMAP * i + bitpos;
+			else {
+				hi = NBPOPMAP * i + bitpos;
+				vm_domain_free_lock(VM_DOMAIN(rv->domain));
+				vm_phys_free_contig(&rv->pages[lo], hi - lo);
+				vm_domain_free_unlock(VM_DOMAIN(rv->domain));
+				lo = hi;
 			}
-			if (i == NPOPMAP)
-				break;
-			hi = 0;
 		}
-		KASSERT(lo > 0, ("vm_reserv_break: lo is %d", lo));
-		/* Convert from ffsl() to ordinary bit numbering. */
-		lo--;
-		if (lo > 0) {
-			/* Redundantly clears bits < "hi". */
-			rv->popmap[i] &= ~((1UL << lo) - 1);
-			rv->popcnt -= lo - hi;
-		}
-		begin_zeroes = NBPOPMAP * i + lo;
-		/* Find the next 1 bit. */
-		do
-			hi = ffsl(rv->popmap[i]);
-		while (hi == 0 && ++i < NPOPMAP);
-		if (i != NPOPMAP)
-			/* Convert from ffsl() to ordinary bit numbering. */
-			hi--;
-		vm_domain_free_lock(VM_DOMAIN(rv->domain));
-		vm_phys_free_contig(&rv->pages[begin_zeroes], NBPOPMAP * i +
-		    hi - begin_zeroes);
-		vm_domain_free_unlock(VM_DOMAIN(rv->domain));
-	} while (i < NPOPMAP);
-	KASSERT(rv->popcnt == 0,
-	    ("vm_reserv_break: reserv %p's popcnt is corrupted", rv));
+	}
+	rv->popcnt = 0;
 	counter_u64_add(vm_reserv_broken, 1);
 }
 
