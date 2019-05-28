@@ -779,6 +779,10 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 				data->dataflags |= FSESS_POSIX_LOCKS;
 			if (fiio->flags & FUSE_EXPORT_SUPPORT)
 				data->dataflags |= FSESS_EXPORT_SUPPORT;
+			/* 
+			 * Don't bother to check FUSE_BIG_WRITES, because it's
+			 * redundant with max_write
+			 */
 		} else {
 			err = EINVAL;
 		}
@@ -816,7 +820,13 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 * the size of a buffer cache block.
 	 */
 	fiii->max_readahead = maxbcachebuf;
-	fiii->flags = FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_EXPORT_SUPPORT ;
+	/*
+	 * Unsupported features:
+	 * FUSE_FILE_OPS: No known FUSE server or client supports it
+	 * FUSE_ATOMIC_O_TRUNC: our VFS cannot support it
+	 */
+	fiii->flags = FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_EXPORT_SUPPORT
+		| FUSE_BIG_WRITES;
 
 	fuse_insert_callback(fdi.tick, fuse_internal_init_callback);
 	fuse_insert_message(fdi.tick, false);

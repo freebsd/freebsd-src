@@ -636,7 +636,7 @@ TEST_F(WriteBack, rmw)
 
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, fsize, 1);
 	expect_open(ino, 0, 1);
-	expect_read(ino, 0, fsize, fsize, INITIAL);
+	expect_read(ino, 0, fsize, fsize, INITIAL, O_WRONLY);
 	expect_write(ino, offset, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
