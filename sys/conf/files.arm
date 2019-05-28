@@ -129,7 +129,7 @@ kern/subr_devmap.c		standard
 kern/subr_sfbuf.c		standard
 libkern/arm/aeabi_unwind.c	standard
 libkern/arm/divsi3.S		standard
-libkern/arm/ffs.S		standard
+libkern/arm/ffs.S		optional	!armv7 !armv6
 libkern/arm/ldivmod.S		standard
 libkern/arm/ldivmod_helper.c	standard
 libkern/arm/memclr.S		standard
@@ -139,11 +139,11 @@ libkern/arm/muldi3.c		standard
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
 libkern/divdi3.c		standard
-libkern/ffsl.c			standard
-libkern/ffsll.c			standard
-libkern/fls.c			standard
-libkern/flsl.c			standard
-libkern/flsll.c			standard
+libkern/ffsl.c			optional	!armv7 !armv6
+libkern/ffsll.c			optional	!armv7 !armv6
+libkern/fls.c			optional	!armv7 !armv6
+libkern/flsl.c			optional	!armv7 !armv6
+libkern/flsll.c			optional	!armv7 !armv6
 libkern/lshrdi3.c		standard
 libkern/memcmp.c		standard
 libkern/moddi3.c		standard
