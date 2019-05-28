@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_NAME_GET_INDEX_BY_NID 3"
-.TH X509_NAME_GET_INDEX_BY_NID 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH X509_NAME_GET_INDEX_BY_NID 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -202,6 +202,17 @@ the source code header files <openssl/obj_mac.h> and/or
 Applications which could pass invalid NIDs to \fBX509_NAME_get_index_by_NID()\fR
 should check for the return value of \-2. Alternatively the \s-1NID\s0 validity
 can be determined first by checking OBJ_nid2obj(nid) is not \s-1NULL.\s0
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBX509_NAME_get_index_by_NID()\fR and \fBX509_NAME_get_index_by_OBJ()\fR
+return the index of the next matching entry or \-1 if not found.
+\&\fBX509_NAME_get_index_by_NID()\fR can also return \-2 if the supplied
+\&\s-1NID\s0 is invalid.
+.PP
+\&\fBX509_NAME_entry_count()\fR returns the total number of entries.
+.PP
+\&\fBX509_NAME_get_entry()\fR returns an \fBX509_NAME\fR pointer to the
+requested entry or \fB\s-1NULL\s0\fR if the index is invalid.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Process all entries:
@@ -230,23 +241,12 @@ Process all commonName entries:
 \&     /* Do something with e */
 \& }
 .Ve
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-\&\fBX509_NAME_get_index_by_NID()\fR and \fBX509_NAME_get_index_by_OBJ()\fR
-return the index of the next matching entry or \-1 if not found.
-\&\fBX509_NAME_get_index_by_NID()\fR can also return \-2 if the supplied
-\&\s-1NID\s0 is invalid.
-.PP
-\&\fBX509_NAME_entry_count()\fR returns the total number of entries.
-.PP
-\&\fBX509_NAME_get_entry()\fR returns an \fBX509_NAME\fR pointer to the
-requested entry or \fB\s-1NULL\s0\fR if the index is invalid.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3), \fBd2i_X509_NAME\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

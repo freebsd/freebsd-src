@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "S_CLIENT 1"
-.TH S_CLIENT 1 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH S_CLIENT 1 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -324,7 +324,7 @@ Even though \s-1SNI\s0 should normally be a \s-1DNS\s0 name and not an \s-1IP\s0
 \&\fB\-servername\fR is provided then that name will be sent, regardless of whether 
 it is a \s-1DNS\s0 name or not.
 .Sp
-This option cannot be used in conjuction with \fB\-noservername\fR.
+This option cannot be used in conjunction with \fB\-noservername\fR.
 .IP "\fB\-noservername\fR" 4
 .IX Item "-noservername"
 Suppresses sending of the \s-1SNI\s0 (Server Name Indication) extension in the
@@ -608,7 +608,7 @@ and pipelining is in use (see \fBSSL_CTX_set_default_read_buffer_len\fR\|(3) for
 further information).
 .IP "\fB\-bugs\fR" 4
 .IX Item "-bugs"
-There are several known bug in \s-1SSL\s0 and \s-1TLS\s0 implementations. Adding this
+There are several known bugs in \s-1SSL\s0 and \s-1TLS\s0 implementations. Adding this
 option enables various workarounds.
 .IP "\fB\-comp\fR" 4
 .IX Item "-comp"

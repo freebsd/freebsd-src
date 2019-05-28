@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_LOAD_VERIFY_LOCATIONS 3"
-.TH SSL_CTX_LOAD_VERIFY_LOCATIONS 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH SSL_CTX_LOAD_VERIFY_LOCATIONS 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -234,6 +234,20 @@ may lead to unexpected results if the same \s-1CA\s0 certificate is available
 with different expiration dates. If a \*(L"certificate expired\*(R" verification
 error occurs, no other certificate will be searched. Make sure to not
 have expired certificates mixed with valid ones.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+For SSL_CTX_load_verify_locations the following return values can occur:
+.IP "0" 4
+The operation failed because \fBCAfile\fR and \fBCApath\fR are \s-1NULL\s0 or the
+processing at one of the locations specified failed. Check the error
+stack to find out the reason.
+.IP "1" 4
+.IX Item "1"
+The operation succeeded.
+.PP
+\&\fBSSL_CTX_set_default_verify_paths()\fR, \fBSSL_CTX_set_default_verify_dir()\fR and
+\&\fBSSL_CTX_set_default_verify_file()\fR all return 1 on success or 0 on failure. A
+missing default location is still treated as a success.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Generate a \s-1CA\s0 certificate file with descriptive text from the \s-1CA\s0 certificates
@@ -254,20 +268,6 @@ for use as \fBCApath\fR:
 \& cd /some/where/certs
 \& c_rehash .
 .Ve
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-For SSL_CTX_load_verify_locations the following return values can occur:
-.IP "0" 4
-The operation failed because \fBCAfile\fR and \fBCApath\fR are \s-1NULL\s0 or the
-processing at one of the locations specified failed. Check the error
-stack to find out the reason.
-.IP "1" 4
-.IX Item "1"
-The operation succeeded.
-.PP
-\&\fBSSL_CTX_set_default_verify_paths()\fR, \fBSSL_CTX_set_default_verify_dir()\fR and
-\&\fBSSL_CTX_set_default_verify_file()\fR all return 1 on success or 0 on failure. A
-missing default location is still treated as a success.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7),
@@ -279,7 +279,7 @@ missing default location is still treated as a success.
 \&\fBSSL_CTX_set_client_CA_list\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

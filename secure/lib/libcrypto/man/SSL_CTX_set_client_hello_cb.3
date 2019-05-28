@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_CLIENT_HELLO_CB 3"
-.TH SSL_CTX_SET_CLIENT_HELLO_CB 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH SSL_CTX_SET_CLIENT_HELLO_CB 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -202,6 +202,8 @@ both required, and on success the caller must release the storage allocated for
 \&\fB*out\fR using \fBOPENSSL_free()\fR.  The contents of \fB*out\fR is an array of integers
 holding the numerical value of the \s-1TLS\s0 extension types in the order they appear
 in the ClientHello.  \fB*outlen\fR contains the number of elements in the array.
+In situations when the ClientHello has no extensions, the function will return
+success with \fB*out\fR set to \s-1NULL\s0 and \fB*outlen\fR set to 0.
 .SH "NOTES"
 .IX Header "NOTES"
 The ClientHello callback provides a vast window of possibilities for application
@@ -252,7 +254,7 @@ The \s-1SSL\s0 ClientHello callback, \fBSSL_client_hello_isv2()\fR,
 were added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

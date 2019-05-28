@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CIPHER_GET_NAME 3"
-.TH SSL_CIPHER_GET_NAME 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH SSL_CIPHER_GET_NAME 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -246,7 +246,10 @@ separated by whitespace:
 Textual representation of the cipher name.
 .IP "<protocol version>" 4
 .IX Item "<protocol version>"
-Protocol version, such as \fBTLSv1.2\fR, when the cipher was first defined.
+The minimum protocol version that the ciphersuite supports, such as \fBTLSv1.2\fR.
+Note that this is not always the same as the protocol version in which the
+ciphersuite was first defined because some ciphersuites are backwards compatible
+with earlier protocol versions.
 .IP "Kx=<key exchange>" 4
 .IX Item "Kx=<key exchange>"
 Key exchange method such as \fB\s-1RSA\s0\fR, \fB\s-1ECDHE\s0\fR, etc.
@@ -293,6 +296,10 @@ occurred.
 .PP
 \&\fBSSL_CIPHER_get_protocol_id()\fR returns a 2\-byte integer representing the \s-1TLS\s0
 protocol-specific \s-1ID.\s0
+.SH "SEE ALSO"
+.IX Header "SEE ALSO"
+\&\fBssl\fR\|(7), \fBSSL_get_current_cipher\fR\|(3),
+\&\fBSSL_get_ciphers\fR\|(3), \fBciphers\fR\|(1)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The \fBSSL_CIPHER_get_version()\fR function was updated to always return the
@@ -308,13 +315,9 @@ The \fBSSL_CIPHER_standard_name()\fR function was globally available in OpenSSL 
 required to enable this function.
 .PP
 The \fBOPENSSL_cipher_name()\fR function was added in OpenSSL 1.1.1.
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\fBssl\fR\|(7), \fBSSL_get_current_cipher\fR\|(3),
-\&\fBSSL_get_ciphers\fR\|(3), \fBciphers\fR\|(1)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

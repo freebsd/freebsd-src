@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_PUSH 3"
-.TH BIO_PUSH 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH BIO_PUSH 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -171,6 +171,12 @@ the deleted \s-1BIO\s0 does not need to be at the end of a chain.
 The process of calling \fBBIO_push()\fR and \fBBIO_pop()\fR on a \s-1BIO\s0 may have additional
 consequences (a control call is made to the affected BIOs) any effects will
 be noted in the descriptions of individual BIOs.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBBIO_push()\fR returns the end of the chain, \fBb\fR.
+.PP
+\&\fBBIO_pop()\fR returns the next \s-1BIO\s0 in the chain, or \s-1NULL\s0 if there is no next
+\&\s-1BIO.\s0
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 For these examples suppose \fBmd1\fR and \fBmd2\fR are digest BIOs, \fBb64\fR is
@@ -202,12 +208,6 @@ by \fBmd1\fR and \fBmd2\fR. If the call:
 .PP
 The call will return \fBb64\fR and the new chain will be \fBmd1\-b64\-f\fR data can
 be written to \fBmd1\fR as before.
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-\&\fBBIO_push()\fR returns the end of the chain, \fBb\fR.
-.PP
-\&\fBBIO_pop()\fR returns the next \s-1BIO\s0 in the chain, or \s-1NULL\s0 if there is no next
-\&\s-1BIO.\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 bio
@@ -216,7 +216,7 @@ bio
 The \fBBIO_set_next()\fR function was added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

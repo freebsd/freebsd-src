@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_GENERATE_SESSION_ID 3"
-.TH SSL_CTX_SET_GENERATE_SESSION_ID 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH SSL_CTX_SET_GENERATE_SESSION_ID 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -215,6 +215,13 @@ and the same race condition applies.
 .PP
 The callback must return 0 if it cannot generate a session id for whatever
 reason and return 1 on success.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBSSL_CTX_set_generate_session_id()\fR and \fBSSL_set_generate_session_id()\fR
+always return 1.
+.PP
+\&\fBSSL_has_matching_session_id()\fR returns 1 if another session with the
+same id is already in the cache.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 The callback function listed will generate a session id with the
@@ -247,19 +254,12 @@ server id given, and will fill the rest with pseudo random bytes:
 \&     return 1;
 \& }
 .Ve
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-\&\fBSSL_CTX_set_generate_session_id()\fR and \fBSSL_set_generate_session_id()\fR
-always return 1.
-.PP
-\&\fBSSL_has_matching_session_id()\fR returns 1 if another session with the
-same id is already in the cache.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7), \fBSSL_get_version\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
