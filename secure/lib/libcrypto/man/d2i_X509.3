@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "D2I_X509 3"
-.TH D2I_X509 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH D2I_X509 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -259,6 +259,18 @@ Represents a PKCS#10 certificate request.
 .IP "\fBX509_SIG\fR" 4
 .IX Item "X509_SIG"
 Represents the \fBDigestInfo\fR structure defined in PKCS#1 and PKCS#7.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBd2i_TYPE()\fR, \fBd2i_TYPE_bio()\fR and \fBd2i_TYPE_fp()\fR return a valid \fB\s-1TYPE\s0\fR structure
+or \fB\s-1NULL\s0\fR if an error occurs.  If the \*(L"reuse\*(R" capability has been used with
+a valid structure being passed in via \fBa\fR, then the object is not freed in
+the event of error but may be in a potentially invalid or inconsistent state.
+.PP
+\&\fBi2d_TYPE()\fR returns the number of bytes successfully encoded or a negative
+value if an error occurs.
+.PP
+\&\fBi2d_TYPE_bio()\fR and \fBi2d_TYPE_fp()\fR return 1 for success and 0 if an error
+occurs.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Allocate and encode the \s-1DER\s0 encoding of an X509 structure:
@@ -356,21 +368,9 @@ Any function which encodes a structure (\fBi2d_TYPE()\fR,
 structure has been modified after deserialization or previous
 serialization. This is because some objects cache the encoding for
 efficiency reasons.
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-\&\fBd2i_TYPE()\fR, \fBd2i_TYPE_bio()\fR and \fBd2i_TYPE_fp()\fR return a valid \fB\s-1TYPE\s0\fR structure
-or \fB\s-1NULL\s0\fR if an error occurs.  If the \*(L"reuse\*(R" capability has been used with
-a valid structure being passed in via \fBa\fR, then the object is not freed in
-the event of error but may be in a potentially invalid or inconsistent state.
-.PP
-\&\fBi2d_TYPE()\fR returns the number of bytes successfully encoded or a negative
-value if an error occurs.
-.PP
-\&\fBi2d_TYPE_bio()\fR and \fBi2d_TYPE_fp()\fR return 1 for success and 0 if an error
-occurs.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 1998\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 1998\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

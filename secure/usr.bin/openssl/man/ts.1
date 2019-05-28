@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "TS 1"
-.TH TS 1 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH TS 1 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -359,7 +359,7 @@ specified, the argument is given to the engine as a key identifier.
 .IP "\fB\-\f(BIdigest\fB\fR" 4
 .IX Item "-digest"
 Signing digest to use. Overrides the \fBsigner_digest\fR config file
-option. (Optional)
+option. (Mandatory unless specified in the config file)
 .IP "\fB\-chain\fR certs_file.pem" 4
 .IX Item "-chain certs_file.pem"
 The collection of certificates in \s-1PEM\s0 format that will all
@@ -519,7 +519,8 @@ command line option. (Optional)
 .IP "\fBsigner_digest\fR" 4
 .IX Item "signer_digest"
 Signing digest to use. The same as the
-\&\fB\-\f(BIdigest\fB\fR command line option. (Optional)
+\&\fB\-\f(BIdigest\fB\fR command line option. (Mandatory unless specified on the command
+line)
 .IP "\fBdefault_policy\fR" 4
 .IX Item "default_policy"
 The default policy to use when the request does not mandate any
@@ -718,7 +719,7 @@ test/testtsa).
 \&\fBconfig\fR\|(5)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

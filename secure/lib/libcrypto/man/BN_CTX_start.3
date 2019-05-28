@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_CTX_START 3"
-.TH BN_CTX_START 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH BN_CTX_START 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -164,6 +164,7 @@ calls must be made before calling any other functions that use the
 \&\fBctx\fR as an argument.
 .PP
 Finally, \fBBN_CTX_end()\fR must be called before returning from the function.
+If \fBctx\fR is \s-1NULL,\s0 nothing is done.
 When \fBBN_CTX_end()\fR is called, the \fB\s-1BIGNUM\s0\fR pointers obtained from
 \&\fBBN_CTX_get()\fR become invalid.
 .SH "RETURN VALUES"
@@ -180,7 +181,7 @@ can be obtained by \fBERR_get_error\fR\|(3).
 \&\fBBN_CTX_new\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
