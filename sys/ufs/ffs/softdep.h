@@ -213,7 +213,7 @@ struct worklist {
 	struct mount		*wk_mp;		/* Mount we live in */
 	unsigned int		wk_type:8,	/* type of request */
 				wk_state:24;	/* state flags */
-#ifdef DEBUG
+#ifdef INVARIANTS
 	const char		*wk_func;	/* func where added / removed */
 	int			wk_line;	/* line where added / removed */
 #endif
