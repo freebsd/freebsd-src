@@ -1127,7 +1127,6 @@ ath_hal_getTxQProps(struct ath_hal *ah,
 		return AH_FALSE;
 	}
 
-	qInfo->tqi_qflags = qi->tqi_qflags;
 	qInfo->tqi_ver = qi->tqi_ver;
 	qInfo->tqi_subtype = qi->tqi_subtype;
 	qInfo->tqi_qflags = qi->tqi_qflags;
@@ -1141,6 +1140,7 @@ ath_hal_getTxQProps(struct ath_hal *ah,
 	qInfo->tqi_cbrOverflowLimit = qi->tqi_cbrOverflowLimit;
 	qInfo->tqi_burstTime = qi->tqi_burstTime;
 	qInfo->tqi_readyTime = qi->tqi_readyTime;
+	qInfo->tqi_compBuf = qi->tqi_physCompBuf;
 	return AH_TRUE;
 }
 
