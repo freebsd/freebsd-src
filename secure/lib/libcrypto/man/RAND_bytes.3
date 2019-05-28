@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RAND_BYTES 3"
-.TH RAND_BYTES 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH RAND_BYTES 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -179,12 +179,6 @@ unpredictable byte sequence.
 return 1 on success, \-1 if not supported by the current
 \&\s-1RAND\s0 method, or 0 on other failure. The error code can be
 obtained by \fBERR_get_error\fR\|(3).
-.SH "HISTORY"
-.IX Header "HISTORY"
-.IP "\(bu" 2
-\&\fBRAND_pseudo_bytes()\fR was deprecated in OpenSSL 1.1.0; use \fBRAND_bytes()\fR instead.
-.IP "\(bu" 2
-The \fBRAND_priv_bytes()\fR function was added in OpenSSL 1.1.1.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBRAND_add\fR\|(3),
@@ -193,9 +187,15 @@ The \fBRAND_priv_bytes()\fR function was added in OpenSSL 1.1.1.
 \&\fBERR_get_error\fR\|(3),
 \&\s-1\fBRAND\s0\fR\|(7),
 \&\s-1\fBRAND_DRBG\s0\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+.IP "\(bu" 2
+\&\fBRAND_pseudo_bytes()\fR was deprecated in OpenSSL 1.1.0; use \fBRAND_bytes()\fR instead.
+.IP "\(bu" 2
+The \fBRAND_priv_bytes()\fR function was added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_CHACHA20 3"
-.TH EVP_CHACHA20 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH EVP_CHACHA20 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -153,7 +153,15 @@ EVP_chacha20, EVP_chacha20_poly1305 \&\- EVP ChaCha20 stream cipher
 The ChaCha20 stream cipher for \s-1EVP.\s0
 .IP "\fBEVP_chacha20()\fR" 4
 .IX Item "EVP_chacha20()"
-The ChaCha20 stream cipher. The key length is 256 bits, the \s-1IV\s0 is 96 bits long.
+The ChaCha20 stream cipher. The key length is 256 bits, the \s-1IV\s0 is 128 bits long.
+The first 32 bits consists of a counter in little-endian order followed by a 96
+bit nonce. For example a nonce of:
+.Sp
+000000000000000000000002
+.Sp
+With an initial counter of 42 (2a in hex) would be expressed as:
+.Sp
+2a000000000000000000000000000002
 .IP "\fBEVP_chacha20_poly1305()\fR" 4
 .IX Item "EVP_chacha20_poly1305()"
 Authenticated encryption with ChaCha20\-Poly1305. Like \fBEVP_chacha20()\fR, the key
@@ -172,7 +180,7 @@ details of the \fB\s-1EVP_CIPHER\s0\fR structure.
 \&\fBEVP_CIPHER_meth_new\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

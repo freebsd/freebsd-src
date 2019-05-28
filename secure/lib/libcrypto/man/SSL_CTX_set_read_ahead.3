@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_READ_AHEAD 3"
-.TH SSL_CTX_SET_READ_AHEAD 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH SSL_CTX_SET_READ_AHEAD 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -179,7 +179,7 @@ records, and \fBSSL_has_pending()\fR can't tell the difference between processed
 unprocessed data, it's recommended that if read ahead is turned on that
 \&\fB\s-1SSL_MODE_AUTO_RETRY\s0\fR is not turned off using \fBSSL_CTX_clear_mode()\fR.
 That will prevent getting \fB\s-1SSL_ERROR_WANT_READ\s0\fR when there is still a complete
-record availale that hasn't been processed.
+record available that hasn't been processed.
 .PP
 If the application wants to continue to use the underlying transport (e.g. \s-1TCP\s0
 connection) after the \s-1SSL\s0 connection is finished using \fBSSL_shutdown()\fR reading
@@ -194,7 +194,7 @@ and non zero otherwise.
 \&\fBssl\fR\|(7), \fBSSL_pending\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
