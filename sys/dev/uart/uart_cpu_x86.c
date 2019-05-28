@@ -26,6 +26,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -37,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_acpi.h>
 
 bus_space_tag_t uart_bus_space_io = X86_BUS_SPACE_IO;
 bus_space_tag_t uart_bus_space_mem = X86_BUS_SPACE_MEM;
@@ -61,6 +64,12 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/* Check the environment. */
 	if (uart_getenv(devtype, di, class) == 0)
 		return (0);
+
+#ifdef DEV_ACPI
+	/* Check if SPCR can tell us what console to use. */
+	if (uart_cpu_acpi_spcr(devtype, di) == 0)
+		return (0);
+#endif
 
 	/*
 	 * Scan the hints. We only try units 0 to 3 (inclusive). This
