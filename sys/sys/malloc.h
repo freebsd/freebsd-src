@@ -177,7 +177,7 @@ void	*contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 void	*contigmalloc_domainset(unsigned long size, struct malloc_type *type,
 	    struct domainset *ds, int flags, vm_paddr_t low, vm_paddr_t high,
 	    unsigned long alignment, vm_paddr_t boundary)
-	    __malloc_like __result_use_check __alloc_size(1) __alloc_align(6);
+	    __malloc_like __result_use_check __alloc_size(1) __alloc_align(7);
 void	free(void *addr, struct malloc_type *type);
 void	free_domain(void *addr, struct malloc_type *type);
 void	*malloc(size_t size, struct malloc_type *type, int flags) __malloc_like
