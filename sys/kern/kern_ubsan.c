@@ -244,6 +244,12 @@ struct CFloatCastOverflowData {
 	struct CTypeDescriptor *mToType;
 };
 
+struct CAlignmentAssumptionData {
+	struct CSourceLocation mLocation;
+	struct CSourceLocation mAssumptionLocation;
+	struct CTypeDescriptor *mType;
+};
+
 /* Local utility functions */
 static void Report(bool isFatal, const char *pFormat, ...) __printflike(2, 3);
 static bool isAlreadyReported(struct CSourceLocation *pLocation);
@@ -276,6 +282,8 @@ intptr_t __ubsan_vptr_type_cache[128];
 /* Public symbols used in the instrumentation of the code generation part */
 void __ubsan_handle_add_overflow(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
 void __ubsan_handle_add_overflow_abort(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
+void __ubsan_handle_alignment_assumption(struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset);
+void __ubsan_handle_alignment_assumption_abort(struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset);
 void __ubsan_handle_builtin_unreachable(struct CUnreachableData *pData);
 void __ubsan_handle_cfi_bad_type(struct CCFICheckFailData *pData, unsigned long ulVtable, bool bValidVtable, bool FromUnrecoverableHandler, unsigned long ProgramCounter, unsigned long FramePointer);
 void __ubsan_handle_cfi_check_fail(struct CCFICheckFailData *pData, unsigned long ulValue, unsigned long ulValidVtable);
@@ -338,6 +346,7 @@ static void HandleMissingReturn(bool isFatal, struct CUnreachableData *pData);
 static void HandleNonnullArg(bool isFatal, struct CNonNullArgData *pData);
 static void HandleNonnullReturn(bool isFatal, struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer);
 static void HandlePointerOverflow(bool isFatal, struct CPointerOverflowData *pData, unsigned long ulBase, unsigned long ulResult);
+static void HandleAlignmentAssumption(bool isFatal, struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset);
 
 static void
 HandleOverflow(bool isFatal, struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS, const char *szOperation)
@@ -690,6 +699,34 @@ HandlePointerOverflow(bool isFatal, struct CPointerOverflowData *pData, unsigned
 	       szLocation, ulBase, ulResult);
 }
 
+static void
+HandleAlignmentAssumption(bool isFatal, struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset)
+{
+	char szLocation[LOCATION_MAXLEN];
+	char szAssumptionLocation[LOCATION_MAXLEN];
+	unsigned long ulRealPointer;
+
+	ASSERT(pData);
+
+	if (isAlreadyReported(&pData->mLocation))
+		return;
+
+	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
+
+	ulRealPointer = ulPointer - ulOffset;
+
+	if (pData->mAssumptionLocation.mFilename != NULL) {
+		DeserializeLocation(szAssumptionLocation, LOCATION_MAXLEN,
+		    &pData->mAssumptionLocation);
+		Report(isFatal, "UBSan: Undefined Behavior in %s, alignment assumption of %#lx for pointer %#lx (offset %#lx), asumption made in %s\n",
+		    szLocation, ulAlignment, ulRealPointer, ulOffset,
+		    szAssumptionLocation);
+	} else {
+		Report(isFatal, "UBSan: Undefined Behavior in %s, alignment assumption of %#lx for pointer %#lx (offset %#lx)\n",
+		    szLocation, ulAlignment, ulRealPointer, ulOffset);
+	}
+}
+
 /* Definions of public symbols emitted by the instrumentation code */
 void
 __ubsan_handle_add_overflow(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
@@ -707,6 +744,24 @@ __ubsan_handle_add_overflow_abort(struct COverflowData *pData, unsigned long ulL
 	ASSERT(pData);
 
 	HandleOverflow(true, pData, ulLHS, ulRHS, PLUS_STRING);
+}
+
+void
+__ubsan_handle_alignment_assumption(struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset)
+{
+
+	ASSERT(pData);
+
+	HandleAlignmentAssumption(false, pData, ulPointer, ulAlignment, ulOffset);
+}
+
+void
+__ubsan_handle_alignment_assumption_abort(struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset)
+{
+
+	ASSERT(pData);
+
+	HandleAlignmentAssumption(true, pData, ulPointer, ulAlignment, ulOffset);
 }
 
 void
