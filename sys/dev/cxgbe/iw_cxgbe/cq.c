@@ -49,21 +49,21 @@
 #include "iw_cxgbe.h"
 #include "user.h"
 
-static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
-		      struct c4iw_dev_ucontext *uctx,
-		      struct c4iw_wr_wait *wr_waitp)
+static void destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
+		       struct c4iw_dev_ucontext *uctx,
+		       struct c4iw_wr_wait *wr_waitp)
 {
 	struct adapter *sc = rdev->adap;
 	struct c4iw_dev *rhp = rdev_to_c4iw_dev(rdev);
 	struct fw_ri_res_wr *res_wr;
 	struct fw_ri_res *res;
-	int ret, wr_len;
+	int wr_len;
 	struct wrqe *wr;
 
 	wr_len = sizeof *res_wr + sizeof *res;
 	wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
-                if (wr == NULL)
-                        return (0);
+	if (wr == NULL)
+		return;
         res_wr = wrtod(wr);
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
@@ -78,14 +78,13 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res->u.cq.iqid = cpu_to_be32(cq->cqid);
 
 	c4iw_init_wr_wait(wr_waitp);
-	ret = c4iw_ref_send_wait(rdev, wr, wr_waitp, 0, 0, NULL, __func__);
+	c4iw_ref_send_wait(rdev, wr, wr_waitp, 0, 0, NULL, __func__);
 
 	kfree(cq->sw_queue);
 	dma_free_coherent(rhp->ibdev.dma_device,
 			  cq->memsize, cq->queue,
 			  dma_unmap_addr(cq, mapping));
 	c4iw_put_cqid(rdev, cq->cqid, uctx);
-	return ret;
 }
 
 static int
