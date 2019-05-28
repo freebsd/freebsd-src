@@ -48,13 +48,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_quota.h"
 #include "opt_ddb.h"
 
-/*
- * For now we want the safety net that the DEBUG flag provides.
- */
-#ifndef DEBUG
-#define DEBUG
-#endif
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -998,7 +991,7 @@ MTX_SYSINIT(softdep_lock, &lk, "Global Softdep Lock", MTX_DEF);
  * Worklist queue management.
  * These routines require that the lock be held.
  */
-#ifndef /* NOT */ DEBUG
+#ifndef /* NOT */ INVARIANTS
 #define WORKLIST_INSERT(head, item) do {	\
 	(item)->wk_state |= ONWORKLIST;		\
 	LIST_INSERT_HEAD(head, item, wk_list);	\
@@ -1010,7 +1003,7 @@ MTX_SYSINIT(softdep_lock, &lk, "Global Softdep Lock", MTX_DEF);
 #define WORKLIST_INSERT_UNLOCKED	WORKLIST_INSERT
 #define WORKLIST_REMOVE_UNLOCKED	WORKLIST_REMOVE
 
-#else /* DEBUG */
+#else /* INVARIANTS */
 static	void worklist_insert(struct workhead *, struct worklist *, int,
 	const char *, int);
 static	void worklist_remove(struct worklist *, int, const char *, int);
@@ -1066,7 +1059,7 @@ worklist_remove(item, locked, func, line)
 	item->wk_line = line;
 	LIST_REMOVE(item, wk_list);
 }
-#endif /* DEBUG */
+#endif /* INVARIANTS */
 
 /*
  * Merge two jsegdeps keeping only the oldest one as newer references
@@ -1187,7 +1180,7 @@ workitem_free(item, type)
 {
 	struct ufsmount *ump;
 
-#ifdef DEBUG
+#ifdef INVARIANTS
 	if (item->wk_state & ONWORKLIST)
 		panic("workitem_free: %s(0x%X) still on list, "
 		    "added in function %s at line %d",
@@ -2577,7 +2570,7 @@ softdep_mount(devvp, mp, fs, cred)
 		fs->fs_cs(fs, cyl) = cgp->cg_cs;
 		brelse(bp);
 	}
-#ifdef DEBUG
+#ifdef INVARIANTS
 	if (bcmp(&cstotal, &fs->fs_cstotal, sizeof cstotal))
 		printf("%s: superblock summary recomputed\n", fs->fs_fsmnt);
 #endif
@@ -2899,7 +2892,7 @@ remove_from_journal(wk)
 
 	ump = VFSTOUFS(wk->wk_mp);
 	LOCK_OWNED(ump);
-#ifdef SUJ_DEBUG
+#ifdef INVARIANTS
 	{
 		struct worklist *wkn;
 
@@ -5121,7 +5114,7 @@ softdep_setup_blkmapdep(bp, mp, newblkno, frags, oldfrags)
 		jnewblk->jn_blkno = newblkno;
 		jnewblk->jn_frags = frags;
 		jnewblk->jn_oldfrags = oldfrags;
-#ifdef SUJ_DEBUG
+#ifdef INVARIANTS
 		{
 			struct cg *cgp;
 			uint8_t *blksfree;
@@ -8583,7 +8576,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	 * Link into parent directory pagedep to await its being written.
 	 */
 	pagedep_lookup(mp, bp, dp->i_number, lbn, DEPALLOC, &pagedep);
-#ifdef DEBUG
+#ifdef INVARIANTS
 	if (diradd_lookup(pagedep, offset) != NULL)
 		panic("softdep_setup_directory_add: %p already at off %d\n",
 		    diradd_lookup(pagedep, offset), offset);
@@ -9314,7 +9307,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 */
 	dirrem->dm_state |= COMPLETE;
 	cancel_diradd(dap, dirrem, jremref, dotremref, dotdotremref);
-#ifdef SUJ_DEBUG
+#ifdef INVARIANTS
 	if (isrmdir == 0) {
 		struct worklist *wk;
 
@@ -9958,13 +9951,15 @@ handle_workitem_freefile(freefile)
 {
 	struct workhead wkhd;
 	struct fs *fs;
-	struct inodedep *idp;
 	struct ufsmount *ump;
 	int error;
+#ifdef INVARIANTS
+	struct inodedep *idp;
+#endif
 
 	ump = VFSTOUFS(freefile->fx_list.wk_mp);
 	fs = ump->um_fs;
-#ifdef DEBUG
+#ifdef INVARIANTS
 	ACQUIRE_LOCK(ump);
 	error = inodedep_lookup(UFSTOVFS(ump), freefile->fx_oldinum, 0, &idp);
 	FREE_LOCK(ump);
@@ -10806,7 +10801,7 @@ softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
 	struct ufsmount *ump;
 	struct worklist *wk;
 	struct fs *fs;
-#ifdef SUJ_DEBUG
+#ifdef INVARIANTS
 	uint8_t *blksfree;
 	struct cg *cgp;
 	ufs2_daddr_t jstart;
@@ -10845,7 +10840,7 @@ softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
 			jnewblk = WK_JNEWBLK(wk);
 			KASSERT(jnewblk->jn_state & GOINGAWAY,
 			    ("softdep_setup_blkfree: jnewblk not canceled."));
-#ifdef SUJ_DEBUG
+#ifdef INVARIANTS
 			/*
 			 * Assert that this block is free in the bitmap
 			 * before we discard the jnewblk.
@@ -10869,7 +10864,7 @@ softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
 		}
 	}
 
-#ifdef SUJ_DEBUG
+#ifdef INVARIANTS
 	/*
 	 * Assert that we are not freeing a block which has an outstanding
 	 * allocation dependency.
@@ -11250,7 +11245,7 @@ handle_allocdirect_partdone(adp, wkhd)
 	 * be freed until they are moved to the current list.
 	 */
 	if (listadp == NULL) {
-#ifdef DEBUG
+#ifdef INVARIANTS
 		if (adp->ad_state & EXTDATA)
 			listhead = &inodedep->id_newextupdt;
 		else
@@ -11261,7 +11256,7 @@ handle_allocdirect_partdone(adp, wkhd)
 				break;
 		if (listadp == NULL)
 			panic("handle_allocdirect_partdone: lost dep");
-#endif /* DEBUG */
+#endif /* INVARIANTS */
 		return;
 	}
 	/*
