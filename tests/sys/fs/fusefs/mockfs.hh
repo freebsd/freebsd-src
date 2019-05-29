@@ -126,6 +126,7 @@ union fuse_payloads_in {
 	fuse_access_in	access;
 	/* value is from fuse_kern_chan.c in fusefs-libs */
 	uint8_t		bytes[0x21000 - sizeof(struct fuse_in_header)];
+	fuse_create_in	create;
 	fuse_flush_in	flush;
 	fuse_fsync_in	fsync;
 	fuse_fsync_in	fsyncdir;
@@ -256,6 +257,8 @@ class MockFS {
 
 	/* Method the daemon should use for I/O to and from /dev/fuse */
 	enum poll_method m_pm;
+
+	void debug_fuseop(const mockfs_buf_in&);
 
 	/* Initialize a session after mounting */
 	void init(uint32_t flags);

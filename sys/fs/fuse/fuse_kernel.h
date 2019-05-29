@@ -52,6 +52,11 @@
  *  7.11
  *  - add IOCTL message
  *  - add unsolicited notification support
+ *
+ *  7.12
+ *  - add umask flag to input argument of open, mknod and mkdir
+ *  - add notification messages for invalidation of inodes and
+ *    directory entries
  */
 
 #ifndef _FUSE_FUSE_KERNEL_H
@@ -60,6 +65,7 @@
 #ifndef linux
 #include <sys/types.h>
 #define __u64 uint64_t
+#define __s64 int64_t
 #define __u32 uint32_t
 #define __s32 int32_t
 #else
@@ -70,7 +76,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 11
+#define FUSE_KERNEL_MINOR_VERSION 12
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -146,6 +152,7 @@ struct fuse_file_lock {
  * INIT request/reply flags
  *
  * FUSE_EXPORT_SUPPORT: filesystem handles lookups of "." and ".."
+ * FUSE_DONT_MASK: don't apply umask to file mode on create operations
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -153,6 +160,7 @@ struct fuse_file_lock {
 #define FUSE_ATOMIC_O_TRUNC	(1 << 3)
 #define FUSE_EXPORT_SUPPORT	(1 << 4)
 #define FUSE_BIG_WRITES		(1 << 5)
+#define FUSE_DONT_MASK		(1 << 6)
 
 #ifdef linux
 /**
@@ -262,6 +270,8 @@ enum fuse_opcode {
 
 enum fuse_notify_code {
 	FUSE_NOTIFY_POLL   = 1,
+	FUSE_NOTIFY_INVAL_INODE = 2,
+	FUSE_NOTIFY_INVAL_ENTRY = 3,
 	FUSE_NOTIFY_CODE_MAX,
 };
 
@@ -300,14 +310,18 @@ struct fuse_attr_out {
 	struct fuse_attr attr;
 };
 
+#define FUSE_COMPAT_MKNOD_IN_SIZE 8
+
 struct fuse_mknod_in {
 	__u32	mode;
 	__u32	rdev;
+	__u32	umask;
+	__u32	padding;
 };
 
 struct fuse_mkdir_in {
 	__u32	mode;
-	__u32	padding;
+	__u32	umask;
 };
 
 struct fuse_rename_in {
@@ -339,7 +353,14 @@ struct fuse_setattr_in {
 
 struct fuse_open_in {
 	__u32	flags;
+	__u32	unused;
+};
+
+struct fuse_create_in {
+	__u32	flags;
 	__u32	mode;
+	__u32	umask;
+	__u32	padding;
 };
 
 struct fuse_open_out {
@@ -557,5 +578,17 @@ struct fuse_dirent {
 #define FUSE_DIRENT_ALIGN(x) (((x) + sizeof(__u64) - 1) & ~(sizeof(__u64) - 1))
 #define FUSE_DIRENT_SIZE(d) \
 	FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET + (d)->namelen)
+
+struct fuse_notify_inval_inode_out {
+	__u64	ino;
+	__s64	off;
+	__s64	len;
+};
+
+struct fuse_notify_inval_entry_out {
+	__u64	parent;
+	__u32	namelen;
+	__u32	padding;
+};
 
 #endif /* _FUSE_FUSE_KERNEL_H */

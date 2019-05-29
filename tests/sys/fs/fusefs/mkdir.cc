@@ -159,6 +159,10 @@ TEST_F(Mkdir, ok)
 	const char RELPATH[] = "some_dir";
 	mode_t mode = 0755;
 	uint64_t ino = 42;
+	mode_t mask;
+
+	mask = umask(0);
+	(void)umask(mask);
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
@@ -168,6 +172,7 @@ TEST_F(Mkdir, ok)
 				sizeof(fuse_mkdir_in);
 			return (in.header.opcode == FUSE_MKDIR &&
 				in.body.mkdir.mode == (S_IFDIR | mode) &&
+				in.body.mkdir.umask == mask &&
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
