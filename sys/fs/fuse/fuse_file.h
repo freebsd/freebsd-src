@@ -134,7 +134,16 @@ struct fuse_filehandle {
 	/* The filehandle returned by FUSE_OPEN */
 	uint64_t fh_id;
 
-	/* flags returned by FUSE_OPEN */
+	/*
+	 * flags returned by FUSE_OPEN
+	 * Supported flags: FOPEN_DIRECT_IO, FOPEN_KEEP_CACHE
+	 * Unsupported:
+	 *     FOPEN_NONSEEKABLE: Adding support would require a new per-file
+	 *     or per-vnode attribute, which would have to be checked by
+	 *     kern_lseek (and others) for every file system.  The benefit is
+	 *     dubious, since I'm unaware of any file systems in ports that use
+	 *     this flag.
+	 */
 	uint32_t fuse_open_flags;
 
 	/* The access mode of the file handle */
