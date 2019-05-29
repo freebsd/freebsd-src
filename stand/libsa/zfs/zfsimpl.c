@@ -750,9 +750,8 @@ spa_create(uint64_t guid, const char *name)
 {
 	spa_t *spa;
 
-	if ((spa = malloc(sizeof(spa_t))) == NULL)
+	if ((spa = calloc(1, sizeof(spa_t))) == NULL)
 		return (NULL);
-	memset(spa, 0, sizeof(spa_t));
 	if ((spa->spa_name = strdup(name)) == NULL) {
 		free(spa);
 		return (NULL);
