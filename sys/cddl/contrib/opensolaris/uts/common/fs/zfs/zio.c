@@ -643,7 +643,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 {
 	zio_t *zio;
 
-	ASSERT3U(type == ZIO_TYPE_FREE || psize, <=, SPA_MAXBLOCKSIZE);
+	IMPLY(type != ZIO_TYPE_FREE, psize <= SPA_MAXBLOCKSIZE);
 	ASSERT(P2PHASE(psize, SPA_MINBLOCKSIZE) == 0);
 	ASSERT(P2PHASE(offset, SPA_MINBLOCKSIZE) == 0);
 
