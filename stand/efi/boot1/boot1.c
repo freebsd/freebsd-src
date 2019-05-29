@@ -54,10 +54,11 @@ static EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
 static EFI_GUID ConsoleControlGUID = EFI_CONSOLE_CONTROL_PROTOCOL_GUID;
 
 /*
- * Provide Malloc / Free backed by EFIs AllocatePool / FreePool which ensures
+ * Provide Malloc / Free / Calloc backed by EFIs AllocatePool / FreePool which ensures
  * memory is correctly aligned avoiding EFI_INVALID_PARAMETER returns from
  * EFI methods.
  */
+
 void *
 Malloc(size_t len, const char *file __unused, int line __unused)
 {
@@ -74,6 +75,19 @@ Free(void *buf, const char *file __unused, int line __unused)
 {
 	if (buf != NULL)
 		(void)BS->FreePool(buf);
+}
+
+void *
+Calloc(size_t n1, size_t n2, const char *file, int line)
+{
+	size_t bytes;
+	void *res;
+
+	bytes = n1 * n2;
+	if ((res = Malloc(bytes, file, line)) != NULL)
+		bzero(res, bytes);
+
+	return (res);
 }
 
 /*
