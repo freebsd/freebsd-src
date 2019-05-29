@@ -2576,7 +2576,15 @@ ptracestop(struct thread *td, int sig, ksiginfo_t *si)
 			    p->p_xthread == NULL)) {
 				p->p_xsig = sig;
 				p->p_xthread = td;
-				td->td_dbgflags &= ~TDB_FSTP;
+
+				/*
+				 * If we are on sleepqueue already,
+				 * let sleepqueue code decide if it
+				 * needs to go sleep after attach.
+				 */
+				if (td->td_wchan == NULL)
+					td->td_dbgflags &= ~TDB_FSTP;
+
 				p->p_flag2 &= ~P2_PTRACE_FSTP;
 				p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
 				sig_suspend_threads(td, p, 0);
