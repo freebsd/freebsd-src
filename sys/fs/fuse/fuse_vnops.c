@@ -182,6 +182,11 @@ struct vop_vector fuse_vnops = {
 	.vop_getattr = fuse_vnop_getattr,
 	.vop_getextattr = fuse_vnop_getextattr,
 	.vop_inactive = fuse_vnop_inactive,
+	/*
+	 * TODO: implement vop_ioctl after upgrading to protocol 7.16.
+	 * FUSE_IOCTL was added in 7.11, but 32-bit compat is broken until
+	 * 7.16.
+	 */
 	.vop_link = fuse_vnop_link,
 	.vop_listextattr = fuse_vnop_listextattr,
 	.vop_lookup = fuse_vnop_lookup,
@@ -189,6 +194,12 @@ struct vop_vector fuse_vnops = {
 	.vop_mknod = fuse_vnop_mknod,
 	.vop_open = fuse_vnop_open,
 	.vop_pathconf = fuse_vnop_pathconf,
+	/*
+	 * TODO: implement vop_poll after upgrading to protocol 7.21.
+	 * FUSE_POLL was added in protocol 7.11, but it's kind of broken until
+	 * 7.21, which adds the ability for the client to choose which poll
+	 * events it wants, and for a client to deregister a file handle
+	 */
 	.vop_read = fuse_vnop_read,
 	.vop_readdir = fuse_vnop_readdir,
 	.vop_readlink = fuse_vnop_readlink,
