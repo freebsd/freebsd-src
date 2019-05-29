@@ -287,10 +287,11 @@ static int ips_diskdev_free(ips_softc_t *sc)
 	int i;
 	int error = 0;
 	for(i = 0; i < IPS_MAX_NUM_DRIVES; i++){
-		if(sc->diskdev[i])
+		if(sc->diskdev[i]) {
 			error = device_delete_child(sc->dev, sc->diskdev[i]);
 			if(error)
 				return error;
+		}
 	}
 	bus_generic_detach(sc->dev);
 	return 0;
