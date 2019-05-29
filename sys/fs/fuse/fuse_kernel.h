@@ -1,6 +1,6 @@
 /*--
  * This file defines the kernel interface of FUSE
- * Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
+ * Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
  *
  * This program can be distributed under the terms of the GNU GPL.
  * See the file COPYING.
@@ -48,6 +48,10 @@
  *
  * 7.10
  *  - add nonseekable open flag
+ *
+ *  7.11
+ *  - add IOCTL message
+ *  - add unsolicited notification support
  */
 
 #ifndef _FUSE_FUSE_KERNEL_H
@@ -59,21 +63,17 @@
 #define __u32 uint32_t
 #define __s32 int32_t
 #else
-#include <asm/types.h>
-#include <linux/major.h>
+#include <linux/types.h>
 #endif
 
 /** Version number of this interface */
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 10
+#define FUSE_KERNEL_MINOR_VERSION 11
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
-
-/** The major number of the fuse character device */
-#define FUSE_MAJOR MISC_MAJOR
 
 /* Make sure all structures are padded to 64bit boundary, so 32bit
    userspace works under 64bit kernels */
@@ -154,6 +154,15 @@ struct fuse_file_lock {
 #define FUSE_EXPORT_SUPPORT	(1 << 4)
 #define FUSE_BIG_WRITES		(1 << 5)
 
+#ifdef linux
+/**
+ * CUSE INIT request/reply flags
+ *
+ * CUSE_UNRESTRICTED_IOCTL:  use unrestricted ioctl
+ */
+#define CUSE_UNRESTRICTED_IOCTL	(1 << 0)
+#endif /* linux */
+
 /**
  * Release flags
  */
@@ -182,6 +191,28 @@ struct fuse_file_lock {
  * Read flags
  */
 #define FUSE_READ_LOCKOWNER	(1 << 1)
+
+/**
+ * Ioctl flags
+ *
+ * FUSE_IOCTL_COMPAT: 32bit compat ioctl on 64bit machine
+ * FUSE_IOCTL_UNRESTRICTED: not restricted to well-formed ioctls, retry allowed
+ * FUSE_IOCTL_RETRY: retry with new iovecs
+ *
+ * FUSE_IOCTL_MAX_IOV: maximum of in_iovecs + out_iovecs
+ */
+#define FUSE_IOCTL_COMPAT	(1 << 0)
+#define FUSE_IOCTL_UNRESTRICTED	(1 << 1)
+#define FUSE_IOCTL_RETRY	(1 << 2)
+
+#define FUSE_IOCTL_MAX_IOV	256
+
+/**
+ * Poll flags
+ *
+ * FUSE_POLL_SCHEDULE_NOTIFY: request poll notify
+ */
+#define FUSE_POLL_SCHEDULE_NOTIFY (1 << 0)
 
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,
@@ -220,6 +251,18 @@ enum fuse_opcode {
 	FUSE_INTERRUPT     = 36,
 	FUSE_BMAP          = 37,
 	FUSE_DESTROY       = 38,
+	FUSE_IOCTL         = 39,
+	FUSE_POLL          = 40,
+
+#ifdef linux
+	/* CUSE specific operations */
+	CUSE_INIT          = 4096,
+#endif /* linux */
+};
+
+enum fuse_notify_code {
+	FUSE_NOTIFY_POLL   = 1,
+	FUSE_NOTIFY_CODE_MAX,
 };
 
 /* The read buffer is required to be at least 8k, but may be much larger */
@@ -416,6 +459,29 @@ struct fuse_init_out {
 	__u32	max_write;
 };
 
+#ifdef linux
+#define CUSE_INIT_INFO_MAX 4096
+
+struct cuse_init_in {
+	__u32	major;
+	__u32	minor;
+	__u32	unused;
+	__u32	flags;
+};
+
+struct cuse_init_out {
+	__u32	major;
+	__u32	minor;
+	__u32	unused;
+	__u32	flags;
+	__u32	max_read;
+	__u32	max_write;
+	__u32	dev_major;		/* chardev major */
+	__u32	dev_minor;		/* chardev minor */
+	__u32	spare[10];
+};
+#endif /* linux */
+
 struct fuse_interrupt_in {
 	__u64	unique;
 };
@@ -428,6 +494,38 @@ struct fuse_bmap_in {
 
 struct fuse_bmap_out {
 	__u64	block;
+};
+
+struct fuse_ioctl_in {
+	__u64	fh;
+	__u32	flags;
+	__u32	cmd;
+	__u64	arg;
+	__u32	in_size;
+	__u32	out_size;
+};
+
+struct fuse_ioctl_out {
+	__s32	result;
+	__u32	flags;
+	__u32	in_iovs;
+	__u32	out_iovs;
+};
+
+struct fuse_poll_in {
+	__u64	fh;
+	__u64	kh;
+	__u32	flags;
+	__u32   padding;
+};
+
+struct fuse_poll_out {
+	__u32	revents;
+	__u32	padding;
+};
+
+struct fuse_notify_poll_wakeup_out {
+	__u64	kh;
 };
 
 struct fuse_in_header {
