@@ -331,12 +331,22 @@ int
 fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,
 	struct componentname *cnp, struct vattr *vap)
 {
+	struct fuse_data *data;
 	struct fuse_mknod_in fmni;
+	size_t insize;
+
+	data = fuse_get_mpdata(dvp->v_mount);
 
 	fmni.mode = MAKEIMODE(vap->va_type, vap->va_mode);
 	fmni.rdev = vap->va_rdev;
+	if (fuse_libabi_geq(data, 7, 12)) {
+		insize = sizeof(fmni);
+		fmni.umask = curthread->td_proc->p_fd->fd_cmask;
+	} else {
+		insize = FUSE_COMPAT_MKNOD_IN_SIZE;
+	}
 	return (fuse_internal_newentry(dvp, vpp, cnp, FUSE_MKNOD, &fmni,
-	    sizeof(fmni), vap->va_type));
+	    insize, vap->va_type));
 }
 
 /* readdir */
@@ -824,6 +834,8 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 * Unsupported features:
 	 * FUSE_FILE_OPS: No known FUSE server or client supports it
 	 * FUSE_ATOMIC_O_TRUNC: our VFS cannot support it
+	 * FUSE_DONT_MASK: unlike Linux, FreeBSD always applies the umask, even
+	 *	when default ACLs are in use.
 	 */
 	fiii->flags = FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_EXPORT_SUPPORT
 		| FUSE_BIG_WRITES;

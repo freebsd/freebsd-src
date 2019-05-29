@@ -540,7 +540,8 @@ fuse_vnop_create(struct vop_create_args *ap)
 	struct thread *td = cnp->cn_thread;
 	struct ucred *cred = cnp->cn_cred;
 
-	struct fuse_open_in *foi;
+	struct fuse_data *data;
+	struct fuse_create_in *fci;
 	struct fuse_entry_out *feo;
 	struct fuse_open_out *foo;
 	struct fuse_dispatcher fdi, fdi2;
@@ -550,6 +551,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	int err;
 
 	struct mount *mp = vnode_mount(dvp);
+	data = fuse_get_mpdata(mp);
 	uint64_t parentnid = VTOFUD(dvp)->nid;
 	mode_t mode = MAKEIMODE(vap->va_type, vap->va_mode);
 	enum fuse_opcode op;
@@ -580,15 +582,24 @@ fuse_vnop_create(struct vop_create_args *ap)
 			cred, mode, &op);
 	} else {
 		/* Use FUSE_CREATE */
+		size_t insize;
+
 		op = FUSE_CREATE;
-		fdisp_init(fdip, sizeof(*foi) + cnp->cn_namelen + 1);
+		fdisp_init(fdip, sizeof(*fci) + cnp->cn_namelen + 1);
 		fdisp_make(fdip, op, vnode_mount(dvp), parentnid, td, cred);
-		foi = fdip->indata;
-		foi->mode = mode;
-		foi->flags = O_CREAT | flags;
-		memcpy((char *)fdip->indata + sizeof(*foi), cnp->cn_nameptr,
+		fci = fdip->indata;
+		fci->mode = mode;
+		fci->flags = O_CREAT | flags;
+		if (fuse_libabi_geq(data, 7, 12)) {
+			insize = sizeof(*fci);
+			fci->umask = td->td_proc->p_fd->fd_cmask;
+		} else {
+			insize = sizeof(struct fuse_open_in);
+		}
+
+		memcpy((char *)fdip->indata + insize, cnp->cn_nameptr,
 		    cnp->cn_namelen);
-		((char *)fdip->indata)[sizeof(*foi) + cnp->cn_namelen] = '\0';
+		((char *)fdip->indata)[insize + cnp->cn_namelen] = '\0';
 	}
 
 	err = fdisp_wait_answ(fdip);
@@ -614,12 +625,13 @@ fuse_vnop_create(struct vop_create_args *ap)
 		foo = (struct fuse_open_out*)(feo + 1);
 	} else {
 		/* Issue a separate FUSE_OPEN */
+		struct fuse_open_in *foi;
+
 		fdip2 = &fdi2;
 		fdisp_init(fdip2, sizeof(*foi));
 		fdisp_make(fdip2, FUSE_OPEN, vnode_mount(dvp), feo->nodeid, td,
 			cred);
 		foi = fdip2->indata;
-		foi->mode = mode;
 		foi->flags = flags;
 		err = fdisp_wait_answ(fdip2);
 		if (err)
@@ -1162,6 +1174,7 @@ fuse_vnop_mkdir(struct vop_mkdir_args *ap)
 		return ENXIO;
 	}
 	fmdi.mode = MAKEIMODE(vap->va_type, vap->va_mode);
+	fmdi.umask = curthread->td_proc->p_fd->fd_cmask;
 
 	return (fuse_internal_newentry(dvp, vpp, cnp, FUSE_MKDIR, &fmdi,
 	    sizeof(fmdi), VDIR));

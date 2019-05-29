@@ -92,7 +92,7 @@ void expect_create(const char *relpath, uint64_t ino)
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			const char *name = (const char*)in.body.bytes +
-				sizeof(fuse_open_in);
+				sizeof(fuse_create_in);
 			return (in.header.opcode == FUSE_CREATE &&
 				(0 == strcmp(relpath, name)));
 		}, Eq(true)),

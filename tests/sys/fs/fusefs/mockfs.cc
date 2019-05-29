@@ -153,7 +153,7 @@ void sigint_handler(int __unused sig) {
 	// Don't do anything except interrupt the daemon's read(2) call
 }
 
-void debug_fuseop(const mockfs_buf_in &in)
+void MockFS::debug_fuseop(const mockfs_buf_in &in)
 {
 	printf("%-11s ino=%2" PRIu64, opcode2opname(in.header.opcode),
 		in.header.nodeid);
@@ -169,8 +169,12 @@ void debug_fuseop(const mockfs_buf_in &in)
 			printf(" mask=%#x", in.body.access.mask);
 			break;
 		case FUSE_CREATE:
-			name = (const char*)in.body.bytes +
-				sizeof(fuse_open_in);
+			if (m_kernel_minor_version >= 12)
+				name = (const char*)in.body.bytes +
+					sizeof(fuse_create_in);
+			else
+				name = (const char*)in.body.bytes +
+					sizeof(fuse_open_in);
 			printf(" flags=%#x name=%s",
 				in.body.open.flags, name);
 			break;
@@ -200,19 +204,25 @@ void debug_fuseop(const mockfs_buf_in &in)
 		case FUSE_MKDIR:
 			name = (const char*)in.body.bytes +
 				sizeof(fuse_mkdir_in);
-			printf(" name=%s mode=%#o", name, in.body.mkdir.mode);
+			printf(" name=%s mode=%#o umask=%#o", name,
+				in.body.mkdir.mode, in.body.mkdir.umask);
 			break;
 		case FUSE_MKNOD:
-			printf(" mode=%#o rdev=%x", in.body.mknod.mode,
-				in.body.mknod.rdev);
+			if (m_kernel_minor_version >= 12)
+				name = (const char*)in.body.bytes +
+					sizeof(fuse_mknod_in);
+			else
+				name = (const char*)in.body.bytes +
+					FUSE_COMPAT_MKNOD_IN_SIZE;
+			printf(" mode=%#o rdev=%x umask=%#o name=%s",
+				in.body.mknod.mode, in.body.mknod.rdev,
+				in.body.mknod.umask, name);
 			break;
 		case FUSE_OPEN:
-			printf(" flags=%#x mode=%#o",
-				in.body.open.flags, in.body.open.mode);
+			printf(" flags=%#x", in.body.open.flags);
 			break;
 		case FUSE_OPENDIR:
-			printf(" flags=%#x mode=%#o",
-				in.body.opendir.flags, in.body.opendir.mode);
+			printf(" flags=%#x", in.body.opendir.flags);
 			break;
 		case FUSE_READ:
 			printf(" offset=%" PRIu64 " size=%u",

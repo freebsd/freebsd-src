@@ -48,14 +48,23 @@ const char RELPATH[] = "some_file.txt";
 
 class Mknod: public FuseTest {
 
+mode_t m_oldmask;
+const static mode_t c_umask = 022;
+
 public:
 
 virtual void SetUp() {
-	FuseTest::SetUp();
-
+	m_oldmask = umask(c_umask);
+	printf("m_oldmask=%#o\n", m_oldmask);
 	if (geteuid() != 0) {
 		GTEST_SKIP() << "Only root may use most mknod(2) variations";
 	}
+	FuseTest::SetUp();
+}
+
+virtual void TearDown() {
+	FuseTest::TearDown();
+	(void)umask(m_oldmask);
 }
 
 /* Test an OK creation of a file with the given mode and device number */
@@ -68,6 +77,50 @@ void expect_mknod(mode_t mode, dev_t dev) {
 		ResultOf([=](auto in) {
 			const char *name = (const char*)in.body.bytes +
 				sizeof(fuse_mknod_in);
+			return (in.header.opcode == FUSE_MKNOD &&
+				in.body.mknod.mode == mode &&
+				in.body.mknod.rdev == (uint32_t)dev &&
+				in.body.mknod.umask == c_umask &&
+				(0 == strcmp(RELPATH, name)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.attr.rdev = dev;
+	})));
+}
+
+};
+
+class Mknod_7_11: public FuseTest {
+public:
+virtual void SetUp() {
+	m_kernel_minor_version = 11;
+	if (geteuid() != 0) {
+		GTEST_SKIP() << "Only root may use most mknod(2) variations";
+	}
+	FuseTest::SetUp();
+}
+
+void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
+{
+	FuseTest::expect_lookup_7_8(relpath, ino, S_IFREG | 0644, size, 1);
+}
+
+/* Test an OK creation of a file with the given mode and device number */
+void expect_mknod(mode_t mode, dev_t dev) {
+	uint64_t ino = 42;
+
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *name = (const char*)in.body.bytes +
+				FUSE_COMPAT_MKNOD_IN_SIZE;
 			return (in.header.opcode == FUSE_MKNOD &&
 				in.body.mknod.mode == mode &&
 				in.body.mknod.rdev == (uint32_t)dev &&
@@ -171,4 +224,13 @@ TEST_F(Mknod, DISABLED_whiteout)
 	dev_t rdev = VNOVAL;	/* whiteouts don't have device numbers */
 	expect_mknod(mode, rdev);
 	EXPECT_EQ(0, mknod(FULLPATH, mode, 0)) << strerror(errno);
+}
+
+/* A server built at protocol version 7.11 or earlier can still use mknod */
+TEST_F(Mknod_7_11, fifo)
+{
+	mode_t mode = S_IFIFO | 0755;
+	dev_t rdev = VNOVAL;
+	expect_mknod(mode, rdev);
+	EXPECT_EQ(0, mkfifo(FULLPATH, mode)) << strerror(errno);
 }

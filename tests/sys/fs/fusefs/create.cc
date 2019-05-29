@@ -42,12 +42,16 @@ public:
 
 void expect_create(const char *relpath, mode_t mode, ProcessMockerT r)
 {
+	mode_t mask = umask(0);
+	(void)umask(mask);
+
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			const char *name = (const char*)in.body.bytes +
-				sizeof(fuse_open_in);
+				sizeof(fuse_create_in);
 			return (in.header.opcode == FUSE_CREATE &&
-				in.body.open.mode == mode &&
+				in.body.create.mode == mode &&
+				in.body.create.umask == mask &&
 				(0 == strcmp(relpath, name)));
 		}, Eq(true)),
 		_)
@@ -63,6 +67,45 @@ virtual void SetUp() {
 	m_kernel_minor_version = 8;
 	Create::SetUp();
 }
+
+void expect_create(const char *relpath, mode_t mode, ProcessMockerT r)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *name = (const char*)in.body.bytes +
+				sizeof(fuse_open_in);
+			return (in.header.opcode == FUSE_CREATE &&
+				in.body.create.mode == mode &&
+				(0 == strcmp(relpath, name)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(r));
+}
+
+};
+
+/* FUSE_CREATE operations for a server built at protocol <= 7.11 */
+class Create_7_11: public FuseTest {
+public:
+virtual void SetUp() {
+	m_kernel_minor_version = 11;
+	FuseTest::SetUp();
+}
+
+void expect_create(const char *relpath, mode_t mode, ProcessMockerT r)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *name = (const char*)in.body.bytes +
+				sizeof(fuse_open_in);
+			return (in.header.opcode == FUSE_CREATE &&
+				in.body.create.mode == mode &&
+				(0 == strcmp(relpath, name)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(r));
+}
+
 };
 
 
@@ -372,4 +415,25 @@ TEST_F(Create_7_8, ok)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
+TEST_F(Create_7_11, ok)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	mode_t mode = S_IFREG | 0755;
+	uint64_t ino = 42;
+	int fd;
 
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_create(RELPATH, mode,
+		ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, create);
+		out.body.create.entry.attr.mode = mode;
+		out.body.create.entry.nodeid = ino;
+		out.body.create.entry.entry_valid = UINT64_MAX;
+		out.body.create.entry.attr_valid = UINT64_MAX;
+	}));
+
+	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
+	EXPECT_LE(0, fd) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
