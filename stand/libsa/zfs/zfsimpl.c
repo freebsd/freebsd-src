@@ -107,8 +107,7 @@ zfs_alloc(size_t size)
 	char *ptr;
 
 	if (zfs_temp_ptr + size > zfs_temp_end) {
-		printf("ZFS: out of temporary buffer space\n");
-		for (;;) ;
+		panic("ZFS: out of temporary buffer space");
 	}
 	ptr = zfs_temp_ptr;
 	zfs_temp_ptr += size;
@@ -122,8 +121,7 @@ zfs_free(void *ptr, size_t size)
 
 	zfs_temp_ptr -= size;
 	if (zfs_temp_ptr != ptr) {
-		printf("ZFS: zfs_alloc()/zfs_free() mismatch\n");
-		for (;;) ;
+		panic("ZFS: zfs_alloc()/zfs_free() mismatch");
 	}
 }
 
