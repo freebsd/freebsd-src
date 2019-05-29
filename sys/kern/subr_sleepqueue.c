@@ -498,6 +498,19 @@ sleepq_catch_signals(void *wchan, int pri)
 			} else {
 				mtx_unlock(&ps->ps_mtx);
 			}
+
+			/*
+			 * Do not go into sleep if this thread was the
+			 * ptrace(2) attach leader.  cursig() consumed
+			 * SIGSTOP from PT_ATTACH, but we usually act
+			 * on the signal by interrupting sleep, and
+			 * should do that here as well.
+			 */
+			if ((td->td_dbgflags & TDB_FSTP) != 0) {
+				if (ret == 0)
+					ret = EINTR;
+				td->td_dbgflags &= ~TDB_FSTP;
+			}
 		}
 		/*
 		 * Lock the per-process spinlock prior to dropping the PROC_LOCK
