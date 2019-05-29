@@ -3943,7 +3943,7 @@ scsi_set_sense_data_fixed_va(struct scsi_sense_data *sense_data,
 			}
 			if (len > sizeof(sense->cmd_spec_info)) {
 				data += len - sizeof(sense->cmd_spec_info);
-				len -= len - sizeof(sense->cmd_spec_info);
+				len = sizeof(sense->cmd_spec_info);
 			}
 			bcopy(data, &sense->cmd_spec_info[
 			    sizeof(sense->cmd_spec_info) - len], len);
