@@ -848,7 +848,7 @@ enable_K6_wt_alloc(void)
 	 */
 	/*
 	 * The AMD-K6 processer provides the 64-bit Test Register 12(TR12),
-	 * but only the Cache Inhibit(CI) (bit 3 of TR12) is suppported.
+	 * but only the Cache Inhibit(CI) (bit 3 of TR12) is supported.
 	 * All other bits in TR12 have no effect on the processer's operation.
 	 * The I/O Trap Restart function (bit 9 of TR12) is always enabled
 	 * on the AMD-K6.
@@ -898,7 +898,7 @@ enable_K6_2_wt_alloc(void)
 	 */
 	/*
 	 * The AMD-K6 processer provides the 64-bit Test Register 12(TR12),
-	 * but only the Cache Inhibit(CI) (bit 3 of TR12) is suppported.
+	 * but only the Cache Inhibit(CI) (bit 3 of TR12) is supported.
 	 * All other bits in TR12 have no effect on the processer's operation.
 	 * The I/O Trap Restart function (bit 9 of TR12) is always enabled
 	 * on the AMD-K6.
