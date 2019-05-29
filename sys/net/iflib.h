@@ -399,6 +399,13 @@ int iflib_device_suspend(device_t);
 int iflib_device_resume(device_t);
 int iflib_device_shutdown(device_t);
 
+/*
+ * Use this instead of iflib_device_probe if the driver should report
+ * BUS_PROBE_VENDOR instead of BUS_PROBE_DEFAULT. (For example, an out-of-tree
+ * driver based on iflib).
+ */
+int iflib_device_probe_vendor(device_t);
+
 
 int iflib_device_iov_init(device_t, uint16_t, const nvlist_t *);
 void iflib_device_iov_uninit(device_t);
