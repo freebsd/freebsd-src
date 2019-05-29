@@ -167,11 +167,11 @@ pci_host_generic_attach(device_t dev)
 			continue; /* empty range element */
 		if (sc->base.ranges[tuple].flags & FLAG_MEM) {
 			error = rman_manage_region(&sc->base.mem_rman,
-			   phys_base, phys_base + size - 1);
+			    pci_base, pci_base + size - 1);
 		} else if (sc->base.ranges[tuple].flags & FLAG_IO) {
 			error = rman_manage_region(&sc->base.io_rman,
-			   pci_base + PCI_IO_WINDOW_OFFSET,
-			   pci_base + PCI_IO_WINDOW_OFFSET + size - 1);
+			    pci_base + PCI_IO_WINDOW_OFFSET,
+			    pci_base + PCI_IO_WINDOW_OFFSET + size - 1);
 		} else
 			continue;
 		if (error) {
