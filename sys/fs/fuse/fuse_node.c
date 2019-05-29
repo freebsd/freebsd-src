@@ -312,30 +312,15 @@ fuse_vnode_get(struct mount *mp,
 	return 0;
 }
 
+/*
+ * Called for every fusefs vnode open to initialize the vnode (not
+ * fuse_filehandle) for use
+ */
 void
 fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags, struct thread *td)
 {
-	/*
-	 * Function is called for every vnode open.
-	 * Merge fuse_open_flags it may be 0
-	 */
-	/*
-	 * Ideally speaking, direct io should be enabled on
-	 * fd's but do not see of any way of providing that
-	 * this implementation.
-	 *
-	 * Also cannot think of a reason why would two
-	 * different fd's on same vnode would like
-	 * have DIRECT_IO turned on and off. But linux
-	 * based implementation works on an fd not an
-	 * inode and provides such a feature.
-	 *
-	 * XXXIP: Handle fd based DIRECT_IO
-	 */
-	if (vnode_vtype(vp) == VREG) {
-		/* XXXIP prevent getattr, by using cached node size */
+	if (vnode_vtype(vp) == VREG)
 		vnode_create_vobject(vp, 0, td);
-	}
 }
 
 int
