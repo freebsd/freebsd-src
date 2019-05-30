@@ -126,6 +126,9 @@ struct phys_sge_pairs {
 };
 
 /* From chr_crypto.h */
+#define CCM_B0_SIZE             16
+#define CCM_AAD_FIELD_SIZE      2
+
 #define CHCR_AES_MAX_KEY_LEN  (AES_XTS_MAX_KEY)
 #define CHCR_MAX_CRYPTO_IV_LEN 16 /* AES IV len */
 
