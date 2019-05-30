@@ -229,9 +229,6 @@ VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 VNET_DEFINE(u_char, ts_offset_secret[32]);
 #define	V_ts_offset_secret	VNET(ts_offset_secret)
 
-static int	tcp_default_fb_init(struct tcpcb *tp);
-static void	tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged);
-static int	tcp_default_handoff_ok(struct tcpcb *tp);
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
 static void tcp_mtudisc(struct inpcb *, int);
