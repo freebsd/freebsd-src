@@ -3130,6 +3130,7 @@ ena_config_host_info(struct ena_com_dev *ena_dev)
 		(DRV_MODULE_VER_MAJOR) |
 		(DRV_MODULE_VER_MINOR << ENA_ADMIN_HOST_INFO_MINOR_SHIFT) |
 		(DRV_MODULE_VER_SUBMINOR << ENA_ADMIN_HOST_INFO_SUB_MINOR_SHIFT);
+	host_info->num_cpus = mp_ncpus;
 
 	rc = ena_com_set_host_attributes(ena_dev);
 	if (unlikely(rc != 0)) {
