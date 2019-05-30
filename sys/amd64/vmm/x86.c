@@ -361,7 +361,7 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 				    CPUID_STDEXT_AVX512ER |
 				    CPUID_STDEXT_AVX512CD);
 				regs[2] = 0;
-				regs[3] = 0;
+				regs[3] &= CPUID_STDEXT3_MD_CLEAR;
 
 				/* Advertise INVPCID if it is enabled. */
 				error = vm_get_capability(vm, vcpu_id,
