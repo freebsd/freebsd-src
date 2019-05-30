@@ -1865,6 +1865,14 @@ ena_enable_msix(struct ena_adapter *adapter)
 	}
 
 	if (msix_vecs != msix_req) {
+		if (msix_vecs == ENA_ADMIN_MSIX_VEC) {
+			device_printf(dev,
+			    "Not enough number of MSI-x allocated: %d\n",
+			    msix_vecs);
+			pci_release_msi(dev);
+			rc = ENOSPC;
+			goto err_msix_free;
+		}
 		device_printf(dev, "Enable only %d MSI-x (out of %d), reduce "
 		    "the number of queues\n", msix_vecs, msix_req);
 		adapter->num_queues = msix_vecs - ENA_ADMIN_MSIX_VEC;
