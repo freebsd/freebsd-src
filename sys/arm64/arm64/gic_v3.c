@@ -1185,6 +1185,7 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 				    ("Invalid pointer to per-CPU redistributor"));
 				/* Copy res contents to its final destination */
 				sc->gic_redists.pcpu[cpuid]->res = r_res;
+				sc->gic_redists.pcpu[cpuid]->lpi_enabled = false;
 				if (bootverbose) {
 					device_printf(sc->dev,
 					    "CPU%u Re-Distributor has been found\n",
