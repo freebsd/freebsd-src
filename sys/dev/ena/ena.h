@@ -201,7 +201,13 @@ struct ena_tx_buffer {
 	unsigned int tx_descs;
 	/* # of buffers used by this mbuf */
 	unsigned int num_of_bufs;
-	bus_dmamap_t map;
+	bus_dmamap_t map_head;
+	bus_dmamap_t map_seg;
+
+	/* Indicate if segments of the mbuf were mapped */
+	bool seg_mapped;
+	/* Indicate if bufs[0] maps the linear data of the mbuf */
+	bool head_mapped;
 
 	/* Used to detect missing tx packets */
 	struct bintime timestamp;
@@ -228,6 +234,7 @@ struct ena_stats_tx {
 	counter_u64_t collapse_err;
 	counter_u64_t queue_wakeup;
 	counter_u64_t queue_stop;
+	counter_u64_t llq_buffer_copy;
 };
 
 struct ena_stats_rx {
@@ -306,6 +313,9 @@ struct ena_ring {
 		/* For Tx ring to indicate if it's running or not */
 		bool running;
 	};
+
+	/* Used for LLQ */
+	uint8_t *push_buf_intermediate_buf;
 } __aligned(CACHE_LINE_SIZE);
 
 struct ena_stats_dev {

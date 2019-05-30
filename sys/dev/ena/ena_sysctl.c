@@ -196,6 +196,10 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "queue_stops", CTLFLAG_RD,
 		    &tx_stats->queue_stop, "Queue stops");
+		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+		    "llq_buffer_copy", CTLFLAG_RD,
+		    &tx_stats->llq_buffer_copy,
+		    "Header copies for llq transaction");
 
 		/* RX specific stats */
 		rx_node = SYSCTL_ADD_NODE(ctx, queue_list, OID_AUTO,
