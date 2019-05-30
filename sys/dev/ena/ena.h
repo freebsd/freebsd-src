@@ -154,6 +154,32 @@
 #define	PCI_DEV_ID_ENA_VF	0xec20
 #define	PCI_DEV_ID_ENA_LLQ_VF	0xec21
 
+/*
+ * Flags indicating current ENA driver state
+ */
+enum ena_flags_t {
+	ENA_FLAG_DEVICE_RUNNING,
+	ENA_FLAG_DEV_UP,
+	ENA_FLAG_LINK_UP,
+	ENA_FLAG_MSIX_ENABLED,
+	ENA_FLAG_TRIGGER_RESET,
+	ENA_FLAG_ONGOING_RESET,
+	ENA_FLAG_RSS_ACTIVE,
+	ENA_FLAGS_NUMBER = ENA_FLAG_RSS_ACTIVE
+};
+
+BITSET_DEFINE(_ena_state, ENA_FLAGS_NUMBER);
+typedef struct _ena_state ena_state_t;
+
+#define ENA_FLAG_ZERO(adapter)		\
+	BIT_ZERO(ENA_FLAGS_NUMBER, &(adapter)->flags)
+#define ENA_FLAG_ISSET(bit, adapter)	\
+	BIT_ISSET(ENA_FLAGS_NUMBER, (bit), &(adapter)->flags)
+#define ENA_FLAG_SET_ATOMIC(bit, adapter)	\
+	BIT_SET_ATOMIC(ENA_FLAGS_NUMBER, (bit), &(adapter)->flags)
+#define ENA_FLAG_CLEAR_ATOMIC(bit, adapter)	\
+	BIT_CLR_ATOMIC(ENA_FLAGS_NUMBER, (bit), &(adapter)->flags)
+
 struct msix_entry {
 	int entry;
 	int vector;
@@ -360,7 +386,6 @@ struct ena_adapter {
 	struct sx ioctl_sx;
 
 	/* MSI-X */
-	uint32_t msix_enabled;
 	struct msix_entry *msix_entries;
 	int msix_vecs;
 
@@ -386,15 +411,11 @@ struct ena_adapter {
 
 	/* RSS*/
 	uint8_t	rss_ind_tbl[ENA_RX_RSS_TABLE_SIZE];
-	bool rss_support;
 
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	/* mdio and phy*/
 
-	bool link_status;
-	bool trigger_reset;
-	bool up;
-	bool running;
+	ena_state_t flags;
 
 	/* Queue will represent one TX and one RX ring */
 	struct ena_que que[ENA_MAX_NUM_IO_QUEUES]
