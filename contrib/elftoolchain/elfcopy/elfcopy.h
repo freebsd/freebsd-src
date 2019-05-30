@@ -138,6 +138,8 @@ struct section {
 	TAILQ_ENTRY(section) sec_list;	/* next section */
 };
 
+TAILQ_HEAD(sectionlist, section);
+
 /* Internal data structure for segments. */
 struct segment {
 	uint64_t	vaddr;	/* virtual addr (VMA) */
