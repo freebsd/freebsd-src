@@ -537,6 +537,9 @@ lookup_tcb_histent(struct adapter *sc, u_int tid, bool addrem)
 
 	MPASS(tid < sc->tids.ntids);
 
+	if (td->tcb_history == NULL)
+		return (NULL);
+
 	if (addrem)
 		rw_wlock(&td->tcb_history_lock);
 	else
