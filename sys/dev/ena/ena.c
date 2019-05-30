@@ -2786,7 +2786,13 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	/* Prepare the packet's descriptors and send them to device */
 	rc = ena_com_prepare_tx(io_sq, &ena_tx_ctx, &nb_hw_desc);
 	if (unlikely(rc != 0)) {
-		ena_trace(ENA_DBG | ENA_TXPTH, "failed to prepare tx bufs\n");
+		if (likely(rc == ENA_COM_NO_MEM)) {
+			ena_trace(ENA_DBG | ENA_TXPTH,
+			    "tx ring[%d] if out of space\n", tx_ring->que->id);
+		} else {
+			device_printf(adapter->pdev,
+			    "failed to prepare tx bufs\n");
+		}
 		counter_u64_add(tx_ring->tx_stats.prepare_ctx_err, 1);
 		goto dma_error;
 	}
