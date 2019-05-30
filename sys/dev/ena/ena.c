@@ -1717,7 +1717,12 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 
 error:
 	counter_u64_add(rx_ring->rx_stats.bad_desc_num, 1);
-	return (RX_BUDGET - budget);
+
+	/* Too many desc from the device. Trigger reset */
+	adapter->reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
+	adapter->trigger_reset = true;
+
+	return (0);
 }
 
 /*********************************************************************
