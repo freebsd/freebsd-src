@@ -777,8 +777,10 @@ validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
 	counter_u64_add(rx_ring->rx_stats.bad_req_id, 1);
 
 	/* Trigger device reset */
-	rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
-	ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter);
+	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter))) {
+		rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
+		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter);
+	}
 
 	return (EFAULT);
 }
@@ -1241,6 +1243,10 @@ validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
 
 	device_printf(adapter->pdev, "Invalid req_id: %hu\n", req_id);
 	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
+
+	/* Trigger device reset */
+	adapter->reset_reason = ENA_REGS_RESET_INV_TX_REQ_ID;
+	ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
 
 	return (EFAULT);
 }
@@ -1799,8 +1805,10 @@ error:
 	counter_u64_add(rx_ring->rx_stats.bad_desc_num, 1);
 
 	/* Too many desc from the device. Trigger reset */
-	adapter->reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
-	ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+		adapter->reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
+		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+	}
 
 	return (0);
 }
@@ -3806,8 +3814,10 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 		device_printf(adapter->pdev,
 		    "Keep alive watchdog timeout.\n");
 		counter_u64_add(adapter->dev_stats.wd_expired, 1);
-		adapter->reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+		if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+			adapter->reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
+			ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+		}
 	}
 }
 
@@ -3819,8 +3829,10 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 		device_printf(adapter->pdev,
 		    "ENA admin queue is not in running state!\n");
 		counter_u64_add(adapter->dev_stats.admin_q_pause, 1);
-		adapter->reset_reason = ENA_REGS_RESET_ADMIN_TO;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+		if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+			adapter->reset_reason = ENA_REGS_RESET_ADMIN_TO;
+			ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+		}
 	}
 }
 
@@ -3838,9 +3850,11 @@ check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 
 	if (rx_ring->no_interrupt_event_cnt == ENA_MAX_NO_INTERRUPT_ITERATIONS) {
 		device_printf(adapter->pdev, "Potential MSIX issue on Rx side "
-		   "Queue = %d. Reset the device\n", rx_ring->qid);
-		adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+		    "Queue = %d. Reset the device\n", rx_ring->qid);
+		if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+			adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
+			ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+		}
 		return (EIO);
 	}
 
@@ -3878,8 +3892,13 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 			device_printf(adapter->pdev,
 			    "Potential MSIX issue on Tx side Queue = %d. "
 			    "Reset the device\n", tx_ring->qid);
-			adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
-			ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+			if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET,
+			    adapter))) {
+				adapter->reset_reason =
+				    ENA_REGS_RESET_MISS_INTERRUPT;
+				ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET,
+				    adapter);
+			}
 			return (EIO);
 		}
 
@@ -3901,8 +3920,10 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 		    "The number of lost tx completion is above the threshold "
 		    "(%d > %d). Reset the device\n",
 		    missed_tx, adapter->missing_tx_threshold);
-		adapter->reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+		if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+			adapter->reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
+			ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+		}
 		rc = EIO;
 	}
 
