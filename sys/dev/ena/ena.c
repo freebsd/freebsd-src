@@ -4130,7 +4130,11 @@ err_msix_free:
 	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
 err_com_free:
+	ena_com_abort_admin_commands(ena_dev);
+	ena_com_wait_for_abort_completion(ena_dev);
 	ena_com_admin_destroy(ena_dev);
+	ena_com_mmio_reg_read_request_destroy(ena_dev);
+	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_DRIVER_INVALID_STATE);
 err_dev_free:
 	device_printf(adapter->pdev, "ENA reset failed!\n");
 	adapter->running = false;
