@@ -3257,6 +3257,7 @@ ena_device_init(struct ena_adapter *adapter, device_t pdev,
 	aenq_groups = BIT(ENA_ADMIN_LINK_CHANGE) |
 	    BIT(ENA_ADMIN_FATAL_ERROR) |
 	    BIT(ENA_ADMIN_WARNING) |
+	    BIT(ENA_ADMIN_NOTIFICATION) |
 	    BIT(ENA_ADMIN_KEEP_ALIVE);
 
 	aenq_groups &= get_feat_ctx->aenq.supported_groups;
@@ -3338,7 +3339,7 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 	if (adapter->wd_active == 0)
 		return;
 
-	if (likely(adapter->keep_alive_timeout == 0))
+	if (adapter->keep_alive_timeout == ENA_HW_HINTS_NO_TIMEOUT)
 		return;
 
 	timestamp = atomic_load_acq_64(&adapter->keep_alive_timestamp);
@@ -3436,7 +3437,7 @@ check_for_missing_tx_completions(struct ena_adapter *adapter)
 	if (adapter->trigger_reset)
 		return;
 
-	if (adapter->missing_tx_timeout == 0)
+	if (adapter->missing_tx_timeout == ENA_HW_HINTS_NO_TIMEOUT)
 		return;
 
 	budget = adapter->missing_tx_max_queues;
@@ -3503,6 +3504,42 @@ check_for_empty_rx_ring(struct ena_adapter *adapter)
 		} else {
 			rx_ring->empty_rx_queue = 0;
 		}
+	}
+}
+
+static void ena_update_hints(struct ena_adapter *adapter,
+			     struct ena_admin_ena_hw_hints *hints)
+{
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+
+	if (hints->admin_completion_tx_timeout)
+		ena_dev->admin_queue.completion_timeout =
+		    hints->admin_completion_tx_timeout * 1000;
+
+	if (hints->mmio_read_timeout)
+		/* convert to usec */
+		ena_dev->mmio_read.reg_read_to =
+		    hints->mmio_read_timeout * 1000;
+
+	if (hints->missed_tx_completion_count_threshold_to_reset)
+		adapter->missing_tx_threshold =
+		    hints->missed_tx_completion_count_threshold_to_reset;
+
+	if (hints->missing_tx_completion_timeout) {
+		if (hints->missing_tx_completion_timeout ==
+		     ENA_HW_HINTS_NO_TIMEOUT)
+			adapter->missing_tx_timeout = ENA_HW_HINTS_NO_TIMEOUT;
+		else
+			adapter->missing_tx_timeout =
+			    SBT_1MS * hints->missing_tx_completion_timeout;
+	}
+
+	if (hints->driver_watchdog_timeout) {
+		if (hints->driver_watchdog_timeout == ENA_HW_HINTS_NO_TIMEOUT)
+			adapter->keep_alive_timeout = ENA_HW_HINTS_NO_TIMEOUT;
+		else
+			adapter->keep_alive_timeout =
+			    SBT_1MS * hints->driver_watchdog_timeout;
 	}
 }
 
@@ -3915,6 +3952,29 @@ ena_update_on_link_change(void *adapter_data,
 	adapter->link_status = status;
 }
 
+static void ena_notification(void *adapter_data,
+    struct ena_admin_aenq_entry *aenq_e)
+{
+	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
+	struct ena_admin_ena_hw_hints *hints;
+
+	ENA_WARN(aenq_e->aenq_common_desc.group != ENA_ADMIN_NOTIFICATION,
+	    "Invalid group(%x) expected %x\n",	aenq_e->aenq_common_desc.group,
+	    ENA_ADMIN_NOTIFICATION);
+
+	switch (aenq_e->aenq_common_desc.syndrom) {
+	case ENA_ADMIN_UPDATE_HINTS:
+		hints =
+		    (struct ena_admin_ena_hw_hints *)(&aenq_e->inline_data_w4);
+		ena_update_hints(adapter, hints);
+		break;
+	default:
+		device_printf(adapter->pdev,
+		    "Invalid aenq notification link state %d\n",
+		    aenq_e->aenq_common_desc.syndrom);
+	}
+}
+
 /**
  * This handler will called for unknown event group or unimplemented handlers
  **/
@@ -3931,6 +3991,7 @@ unimplemented_aenq_handler(void *adapter_data,
 static struct ena_aenq_handlers aenq_handlers = {
     .handlers = {
 	    [ENA_ADMIN_LINK_CHANGE] = ena_update_on_link_change,
+	    [ENA_ADMIN_NOTIFICATION] = ena_notification,
 	    [ENA_ADMIN_KEEP_ALIVE] = ena_keep_alive_wd,
     },
     .unimplemented_handler = unimplemented_aenq_handler
