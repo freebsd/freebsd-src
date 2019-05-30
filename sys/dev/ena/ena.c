@@ -73,6 +73,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include "ena.h"
 #include "ena_sysctl.h"
 
@@ -81,7 +84,6 @@ __FBSDID("$FreeBSD$");
  *********************************************************/
 static int	ena_probe(device_t);
 static void	ena_intr_msix_mgmnt(void *);
-static int	ena_allocate_pci_resources(struct ena_adapter*);
 static void	ena_free_pci_resources(struct ena_adapter *);
 static int	ena_change_mtu(if_t, int);
 static inline void ena_alloc_counters(counter_u64_t *, int);
@@ -157,11 +159,15 @@ static int	ena_setup_ifnet(device_t, struct ena_adapter *,
 static void	ena_tx_csum(struct ena_com_tx_ctx *, struct mbuf *);
 static int	ena_check_and_collapse_mbuf(struct ena_ring *tx_ring,
     struct mbuf **mbuf);
+static void	ena_dmamap_llq(void *, bus_dma_segment_t *, int, int);
 static int	ena_xmit_mbuf(struct ena_ring *, struct mbuf **);
 static void	ena_start_xmit(struct ena_ring *);
 static int	ena_mq_start(if_t, struct mbuf *);
 static void	ena_deferred_mq_start(void *, int);
 static void	ena_qflush(if_t);
+static int	ena_enable_wc(struct resource *);
+static int	ena_set_queues_placement_policy(device_t, struct ena_com_dev *,
+    struct ena_admin_feature_llq_desc *, struct ena_llq_configurations *);
 static int	ena_calc_io_queue_num(struct ena_adapter *,
     struct ena_com_dev_get_features_ctx *);
 static int	ena_calc_queue_size(struct ena_adapter *,
@@ -269,25 +275,6 @@ fail_tag:
 	dma->paddr = 0;
 
 	return (error);
-}
-
-static int
-ena_allocate_pci_resources(struct ena_adapter* adapter)
-{
-	device_t pdev = adapter->pdev;
-	int rid;
-
-	rid = PCIR_BAR(ENA_REG_BAR);
-	adapter->memory = NULL;
-	adapter->registers = bus_alloc_resource_any(pdev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE);
-	if (unlikely(adapter->registers == NULL)) {
-		device_printf(pdev, "Unable to allocate bus resource: "
-		    "registers\n");
-		return (ENXIO);
-	}
-
-	return (0);
 }
 
 static void
@@ -587,6 +574,12 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	if (unlikely(tx_ring->free_tx_ids == NULL))
 		goto err_buf_info_free;
 
+	size = tx_ring->tx_max_header_size;
+	tx_ring->push_buf_intermediate_buf = malloc(size, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+	if (unlikely(tx_ring->push_buf_intermediate_buf == NULL))
+		goto err_tx_ids_free;
+
 	/* Req id stack for TX OOO completions */
 	for (i = 0; i < tx_ring->ring_size; i++)
 		tx_ring->free_tx_ids[i] = i;
@@ -606,12 +599,24 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	/* ... and create the buffer DMA maps */
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		err = bus_dmamap_create(adapter->tx_buf_tag, 0,
-		    &tx_ring->tx_buffer_info[i].map);
+		    &tx_ring->tx_buffer_info[i].map_head);
 		if (unlikely(err != 0)) {
 			ena_trace(ENA_ALERT,
-			     "Unable to create Tx DMA map for buffer %d\n", i);
+			    "Unable to create Tx DMA map_head for buffer %d\n",
+			    i);
 			goto err_buf_info_unmap;
 		}
+		tx_ring->tx_buffer_info[i].seg_mapped = false;
+
+		err = bus_dmamap_create(adapter->tx_buf_tag, 0,
+		    &tx_ring->tx_buffer_info[i].map_seg);
+		if (unlikely(err != 0)) {
+			ena_trace(ENA_ALERT,
+			    "Unable to create Tx DMA map_seg for buffer %d\n",
+			    i);
+			goto err_buf_info_head_unmap;
+		}
+		tx_ring->tx_buffer_info[i].head_mapped = false;
 	}
 
 	/* Allocate taskqueues */
@@ -632,11 +637,18 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 
 	return (0);
 
+err_buf_info_head_unmap:
+	bus_dmamap_destroy(adapter->tx_buf_tag,
+	    tx_ring->tx_buffer_info[i].map_head);
 err_buf_info_unmap:
 	while (i--) {
 		bus_dmamap_destroy(adapter->tx_buf_tag,
-		    tx_ring->tx_buffer_info[i].map);
+		    tx_ring->tx_buffer_info[i].map_head);
+		bus_dmamap_destroy(adapter->tx_buf_tag,
+		    tx_ring->tx_buffer_info[i].map_seg);
 	}
+	free(tx_ring->push_buf_intermediate_buf, M_DEVBUF);
+err_tx_ids_free:
 	free(tx_ring->free_tx_ids, M_DEVBUF);
 	tx_ring->free_tx_ids = NULL;
 err_buf_info_free:
@@ -670,12 +682,28 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 
 	/* Free buffer DMA maps, */
 	for (int i = 0; i < tx_ring->ring_size; i++) {
-		bus_dmamap_sync(adapter->tx_buf_tag,
-		    tx_ring->tx_buffer_info[i].map, BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(adapter->tx_buf_tag,
-		    tx_ring->tx_buffer_info[i].map);
+		if (tx_ring->tx_buffer_info[i].head_mapped == true) {
+			bus_dmamap_sync(adapter->tx_buf_tag,
+			    tx_ring->tx_buffer_info[i].map_head,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(adapter->tx_buf_tag,
+			    tx_ring->tx_buffer_info[i].map_head);
+			tx_ring->tx_buffer_info[i].head_mapped = false;
+		}
 		bus_dmamap_destroy(adapter->tx_buf_tag,
-		    tx_ring->tx_buffer_info[i].map);
+		    tx_ring->tx_buffer_info[i].map_head);
+
+		if (tx_ring->tx_buffer_info[i].seg_mapped == true) {
+			bus_dmamap_sync(adapter->tx_buf_tag,
+			    tx_ring->tx_buffer_info[i].map_seg,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(adapter->tx_buf_tag,
+			    tx_ring->tx_buffer_info[i].map_seg);
+			tx_ring->tx_buffer_info[i].seg_mapped = false;
+		}
+		bus_dmamap_destroy(adapter->tx_buf_tag,
+		    tx_ring->tx_buffer_info[i].map_seg);
+
 		m_freem(tx_ring->tx_buffer_info[i].mbuf);
 		tx_ring->tx_buffer_info[i].mbuf = NULL;
 	}
@@ -687,6 +715,10 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 
 	free(tx_ring->free_tx_ids, M_DEVBUF);
 	tx_ring->free_tx_ids = NULL;
+
+	ENA_MEM_FREE(adapter->ena_dev->dmadev,
+	    tx_ring->push_buf_intermediate_buf);
+	tx_ring->push_buf_intermediate_buf = NULL;
 }
 
 /**
@@ -1119,9 +1151,22 @@ ena_free_tx_bufs(struct ena_adapter *adapter, unsigned int qid)
 			     qid, i);
 		}
 
-		bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map,
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map);
+		if (tx_info->head_mapped == true) {
+			bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_head,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(adapter->tx_buf_tag,
+			    tx_info->map_head);
+			tx_info->head_mapped = false;
+		}
+
+		if (tx_info->seg_mapped == true) {
+			bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_seg,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(adapter->tx_buf_tag,
+			    tx_info->map_seg);
+			tx_info->seg_mapped = false;
+		}
+
 		m_free(tx_info->mbuf);
 		tx_info->mbuf = NULL;
 	}
@@ -1342,11 +1387,20 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		tx_info->mbuf = NULL;
 		bintime_clear(&tx_info->timestamp);
 
-		if (likely(tx_info->num_of_bufs != 0)) {
-			/* Map is no longer required */
-			bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map,
+		/* Map is no longer required */
+		if (tx_info->head_mapped == true) {
+			bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_head,
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map);
+			bus_dmamap_unload(adapter->tx_buf_tag,
+			    tx_info->map_head);
+			tx_info->head_mapped = false;
+		}
+		if (tx_info->seg_mapped == true) {
+			bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_seg,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(adapter->tx_buf_tag,
+			    tx_info->map_seg);
+			tx_info->seg_mapped = false;
 		}
 
 		ena_trace(ENA_DBG | ENA_TXPTH, "tx: q %d mbuf %p completed",
@@ -2736,6 +2790,172 @@ ena_check_and_collapse_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	return (0);
 }
 
+static void
+ena_dmamap_llq(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	struct ena_com_buf *ena_buf = arg;
+
+	if (unlikely(error != 0)) {
+		ena_buf->paddr = 0;
+		return;
+	}
+
+	KASSERT(nseg == 1, ("Invalid num of segments for LLQ dma"));
+
+	ena_buf->paddr = segs->ds_addr;
+	ena_buf->len = segs->ds_len;
+}
+
+static int
+ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
+    struct mbuf *mbuf, void **push_hdr, u16 *header_len)
+{
+	struct ena_adapter *adapter = tx_ring->adapter;
+	struct ena_com_buf *ena_buf;
+	bus_dma_segment_t segs[ENA_BUS_DMA_SEGS];
+	uint32_t mbuf_head_len, frag_len;
+	uint16_t push_len = 0;
+	uint16_t delta = 0;
+	int i, rc, nsegs;
+
+	mbuf_head_len = mbuf->m_len;
+	tx_info->mbuf = mbuf;
+	ena_buf = tx_info->bufs;
+
+	if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+		/*
+		 * When the device is LLQ mode, the driver will copy
+		 * the header into the device memory space.
+		 * the ena_com layer assumes the header is in a linear
+		 * memory space.
+		 * This assumption might be wrong since part of the header
+		 * can be in the fragmented buffers.
+		 * First check if header fits in the mbuf. If not, copy it to
+		 * separate buffer that will be holding linearized data.
+		 */
+		push_len = min_t(uint32_t, mbuf->m_pkthdr.len,
+		    tx_ring->tx_max_header_size);
+		*header_len = push_len;
+		/* If header is in linear space, just point into mbuf's data. */
+		if (likely(push_len <= mbuf_head_len)) {
+			*push_hdr = mbuf->m_data;
+		/*
+		 * Otherwise, copy whole portion of header from multiple mbufs
+		 * to intermediate buffer.
+		 */
+		} else {
+			m_copydata(mbuf, 0, push_len,
+			    tx_ring->push_buf_intermediate_buf);
+			*push_hdr = tx_ring->push_buf_intermediate_buf;
+
+			counter_u64_add(tx_ring->tx_stats.llq_buffer_copy, 1);
+			delta = push_len - mbuf_head_len;
+		}
+
+		ena_trace(ENA_DBG | ENA_TXPTH,
+		    "mbuf: %p header_buf->vaddr: %p push_len: %d\n",
+		    mbuf, *push_hdr, push_len);
+
+		/*
+		* If header was in linear memory space, map for the dma rest of the data
+		* in the first mbuf of the mbuf chain.
+		*/
+		if (mbuf_head_len > push_len) {
+			rc = bus_dmamap_load(adapter->tx_buf_tag,
+			    tx_info->map_head,
+			mbuf->m_data + push_len, mbuf_head_len - push_len,
+			ena_dmamap_llq, ena_buf, BUS_DMA_NOWAIT);
+			if (unlikely((rc != 0) || (ena_buf->paddr == 0)))
+				goto single_dma_error;
+
+			ena_buf++;
+			tx_info->num_of_bufs++;
+
+			tx_info->head_mapped = true;
+		}
+		mbuf = mbuf->m_next;
+	} else {
+		*push_hdr = NULL;
+		/*
+		* header_len is just a hint for the device. Because FreeBSD is not
+		* giving us information about packet header length and it is not
+		* guaranteed that all packet headers will be in the 1st mbuf, setting
+		* header_len to 0 is making the device ignore this value and resolve
+		* header on it's own.
+		*/
+		*header_len = 0;
+	}
+
+	/*
+	 * If header is in non linear space (delta > 0), then skip mbufs
+	 * containing header and map the last one containing both header and the
+	 * packet data.
+	 * The first segment is already counted in.
+	 * If LLQ is not supported, the loop will be skipped.
+	 */
+	while (delta > 0) {
+		frag_len = mbuf->m_len;
+
+		/*
+		 * If whole segment contains header just move to the
+		 * next one and reduce delta.
+		 */
+		if (unlikely(delta >= frag_len)) {
+			delta -= frag_len;
+		} else {
+			/*
+			 * Map rest of the packet data that was contained in
+			 * the mbuf.
+			 */
+			rc = bus_dmamap_load(adapter->tx_buf_tag,
+			    tx_info->map_head, mbuf->m_data + delta,
+			    frag_len - delta, ena_dmamap_llq, ena_buf,
+			    BUS_DMA_NOWAIT);
+			if (unlikely((rc != 0) || (ena_buf->paddr == 0)))
+				goto single_dma_error;
+
+			ena_buf++;
+			tx_info->num_of_bufs++;
+			tx_info->head_mapped = true;
+
+			delta = 0;
+		}
+
+		mbuf = mbuf->m_next;
+	}
+
+	if (mbuf == NULL) {
+		return (0);
+	}
+
+	/* Map rest of the mbufs */
+	rc = bus_dmamap_load_mbuf_sg(adapter->tx_buf_tag, tx_info->map_seg, mbuf,
+	    segs, &nsegs, BUS_DMA_NOWAIT);
+	if (unlikely((rc != 0) || (nsegs == 0))) {
+		ena_trace(ENA_WARNING,
+		    "dmamap load failed! err: %d nsegs: %d", rc, nsegs);
+		goto dma_error;
+	}
+
+	for (i = 0; i < nsegs; i++) {
+		ena_buf->len = segs[i].ds_len;
+		ena_buf->paddr = segs[i].ds_addr;
+		ena_buf++;
+	}
+	tx_info->num_of_bufs += nsegs;
+	tx_info->seg_mapped = true;
+
+	return (0);
+
+dma_error:
+	if (tx_info->head_mapped == true)
+		bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map_head);
+single_dma_error:
+	counter_u64_add(tx_ring->tx_stats.dma_mapping_err, 1);
+	tx_info->mbuf = NULL;
+	return (rc);
+}
+
 static int
 ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 {
@@ -2743,16 +2963,13 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	struct ena_tx_buffer *tx_info;
 	struct ena_com_tx_ctx ena_tx_ctx;
 	struct ena_com_dev *ena_dev;
-	struct ena_com_buf *ena_buf;
 	struct ena_com_io_sq* io_sq;
-	bus_dma_segment_t segs[ENA_BUS_DMA_SEGS];
 	void *push_hdr;
 	uint16_t next_to_use;
 	uint16_t req_id;
-	uint16_t push_len;
 	uint16_t ena_qid;
-	uint32_t nsegs, header_len;
-	int i, rc;
+	uint16_t header_len;
+	int rc;
 	int nb_hw_desc;
 
 	ena_qid = ENA_IO_TXQ_IDX(tx_ring->que->id);
@@ -2767,49 +2984,18 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 		return (rc);
 	}
 
+	ena_trace(ENA_DBG | ENA_TXPTH, "Tx: %d bytes", (*mbuf)->m_pkthdr.len);
+
 	next_to_use = tx_ring->next_to_use;
 	req_id = tx_ring->free_tx_ids[next_to_use];
 	tx_info = &tx_ring->tx_buffer_info[req_id];
-
-	tx_info->mbuf = *mbuf;
 	tx_info->num_of_bufs = 0;
 
-	ena_buf = tx_info->bufs;
-
-	ena_trace(ENA_DBG | ENA_TXPTH, "Tx: %d bytes", (*mbuf)->m_pkthdr.len);
-
-	push_len = 0;
-	/*
-	 * header_len is just a hint for the device. Because FreeBSD is not
-	 * giving us information about packet header length and it is not
-	 * guaranteed that all packet headers will be in the 1st mbuf, setting
-	 * header_len to 0 is making the device ignore this value and resolve
-	 * header on it's own.
-	 */
-	header_len = 0;
-	push_hdr = NULL;
-
-	rc = bus_dmamap_load_mbuf_sg(adapter->tx_buf_tag, tx_info->map,
-	    *mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
-
-	if (unlikely((rc != 0) || (nsegs == 0))) {
-		ena_trace(ENA_WARNING,
-		    "dmamap load failed! err: %d nsegs: %d", rc, nsegs);
-		counter_u64_add(tx_ring->tx_stats.dma_mapping_err, 1);
-		tx_info->mbuf = NULL;
-		if (rc == ENOMEM)
-			return (ENA_COM_NO_MEM);
-		else
-			return (ENA_COM_INVAL);
+	rc = ena_tx_map_mbuf(tx_ring, tx_info, *mbuf, &push_hdr, &header_len);
+	if (unlikely(rc != 0)) {
+		ena_trace(ENA_WARNING, "Failed to map TX mbuf\n");
+		return (rc);
 	}
-
-	for (i = 0; i < nsegs; i++) {
-		ena_buf->len = segs[i].ds_len;
-		ena_buf->paddr = segs[i].ds_addr;
-		ena_buf++;
-	}
-	tx_info->num_of_bufs = nsegs;
-
 	memset(&ena_tx_ctx, 0x0, sizeof(struct ena_com_tx_ctx));
 	ena_tx_ctx.ena_bufs = tx_info->bufs;
 	ena_tx_ctx.push_header = push_hdr;
@@ -2878,14 +3064,25 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 		}
 	}
 
-	bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map,
-	    BUS_DMASYNC_PREWRITE);
+	if (tx_info->head_mapped == true)
+		bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_head,
+		    BUS_DMASYNC_PREWRITE);
+	if (tx_info->seg_mapped == true)
+		bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map_seg,
+		    BUS_DMASYNC_PREWRITE);
 
 	return (0);
 
 dma_error:
 	tx_info->mbuf = NULL;
-	bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map);
+	if (tx_info->seg_mapped == true) {
+		bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map_seg);
+		tx_info->seg_mapped = false;
+	}
+	if (tx_info->head_mapped == true) {
+		bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map_head);
+		tx_info->head_mapped = false;
+	}
 
 	return (rc);
 }
@@ -3043,27 +3240,33 @@ ena_calc_io_queue_num(struct ena_adapter *adapter,
     struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
-	int io_sq_num, io_cq_num, io_queue_num;
+	int io_tx_sq_num, io_tx_cq_num, io_rx_num, io_queue_num;
 
 	/* Regular queues capabilities */
 	if (ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
 		struct ena_admin_queue_ext_feature_fields *max_queue_ext =
 		    &get_feat_ctx->max_queue_ext.max_queue_ext;
-		io_sq_num = max_queue_ext->max_rx_sq_num;
-		io_sq_num = min_t(int, io_sq_num, max_queue_ext->max_tx_sq_num);
+		io_rx_num = min_t(int, max_queue_ext->max_rx_sq_num,
+			max_queue_ext->max_rx_cq_num);
 
-		io_cq_num = max_queue_ext->max_rx_cq_num;
-		io_cq_num = min_t(int, io_cq_num, max_queue_ext->max_tx_cq_num);
+		io_tx_sq_num = max_queue_ext->max_tx_sq_num;
+		io_tx_cq_num = max_queue_ext->max_tx_cq_num;
 	} else {
 		struct ena_admin_queue_feature_desc *max_queues =
 		    &get_feat_ctx->max_queues;
-		io_sq_num = max_queues->max_sq_num;
-		io_cq_num = max_queues->max_cq_num;
+		io_tx_sq_num = max_queues->max_sq_num;
+		io_tx_cq_num = max_queues->max_cq_num;
+		io_rx_num = min_t(int, io_tx_sq_num, io_tx_cq_num);
 	}
 
+	/* In case of LLQ use the llq fields for the tx SQ/CQ */
+	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+		io_tx_sq_num = get_feat_ctx->llq.max_llq_num;
+
 	io_queue_num = min_t(int, mp_ncpus, ENA_MAX_NUM_IO_QUEUES);
-	io_queue_num = min_t(int, io_queue_num, io_sq_num);
-	io_queue_num = min_t(int, io_queue_num, io_cq_num);
+	io_queue_num = min_t(int, io_queue_num, io_rx_num);
+	io_queue_num = min_t(int, io_queue_num, io_tx_sq_num);
+	io_queue_num = min_t(int, io_queue_num, io_tx_cq_num);
 	/* 1 IRQ for for mgmnt and 1 IRQ for each TX/RX pair */
 	io_queue_num = min_t(int, io_queue_num,
 	    pci_msix_count(adapter->pdev) - 1);
@@ -3072,13 +3275,104 @@ ena_calc_io_queue_num(struct ena_adapter *adapter,
 }
 
 static int
+ena_enable_wc(struct resource *res)
+{
+#if defined(__i386) || defined(__amd64)
+	vm_offset_t va;
+	vm_size_t len;
+	int rc;
+
+	va = (vm_offset_t)rman_get_virtual(res);
+	len = rman_get_size(res);
+	/* Enable write combining */
+	rc = pmap_change_attr(va, len, PAT_WRITE_COMBINING);
+	if (unlikely(rc != 0)) {
+		ena_trace(ENA_ALERT, "pmap_change_attr failed, %d\n", rc);
+		return (rc);
+	}
+
+	return (0);
+#endif
+	return (EOPNOTSUPP);
+}
+
+static int
+ena_set_queues_placement_policy(device_t pdev, struct ena_com_dev *ena_dev,
+    struct ena_admin_feature_llq_desc *llq,
+    struct ena_llq_configurations *llq_default_configurations)
+{
+	struct ena_adapter *adapter = device_get_softc(pdev);
+	int rc, rid;
+	uint32_t llq_feature_mask;
+
+	llq_feature_mask = 1 << ENA_ADMIN_LLQ;
+	if (!(ena_dev->supported_features & llq_feature_mask)) {
+		device_printf(pdev,
+		    "LLQ is not supported. Fallback to host mode policy.\n");
+		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+		return (0);
+	}
+
+	rc = ena_com_config_dev_mode(ena_dev, llq, llq_default_configurations);
+	if (unlikely(rc != 0)) {
+		device_printf(pdev, "Failed to configure the device mode. "
+		    "Fallback to host mode policy.\n");
+		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+		return (0);
+	}
+
+	/* Nothing to config, exit */
+	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
+		return (0);
+
+	/* Try to allocate resources for LLQ bar */
+	rid = PCIR_BAR(ENA_MEM_BAR);
+	adapter->memory = bus_alloc_resource_any(pdev, SYS_RES_MEMORY,
+	    &rid, RF_ACTIVE);
+	if (unlikely(adapter->memory == NULL)) {
+		device_printf(pdev, "unable to allocate LLQ bar resource. "
+		    "Fallback to host mode policy.\n");
+		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+		return (0);
+	}
+
+	/* Enable write combining for better LLQ performance */
+	rc = ena_enable_wc(adapter->memory);
+	if (unlikely(rc != 0)) {
+		device_printf(pdev, "failed to enable write combining.\n");
+		return (rc);
+	}
+
+	/*
+	 * Save virtual address of the device's memory region
+	 * for the ena_com layer.
+	 */
+	ena_dev->mem_bar = rman_get_virtual(adapter->memory);
+
+	return (0);
+}
+
+static inline
+void set_default_llq_configurations(struct ena_llq_configurations *llq_config)
+{
+	llq_config->llq_header_location = ENA_ADMIN_INLINE_HEADER;
+	llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_128B;
+	llq_config->llq_stride_ctrl = ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY;
+	llq_config->llq_num_decs_before_header =
+	    ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2;
+	llq_config->llq_ring_entry_size_value = 128;
+}
+
+static int
 ena_calc_queue_size(struct ena_adapter *adapter,
     struct ena_calc_queue_size_ctx *ctx)
 {
+	struct ena_admin_feature_llq_desc *llq = &ctx->get_feat_ctx->llq;
+	struct ena_com_dev *ena_dev = ctx->ena_dev;
 	uint32_t tx_queue_size = ENA_DEFAULT_RING_SIZE;
 	uint32_t rx_queue_size = adapter->rx_ring_size;
 
-	if (ctx->ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
+	if (ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
 		struct ena_admin_queue_ext_feature_fields *max_queue_ext =
 		    &ctx->get_feat_ctx->max_queue_ext.max_queue_ext;
 		rx_queue_size = min_t(uint32_t, rx_queue_size,
@@ -3087,8 +3381,15 @@ ena_calc_queue_size(struct ena_adapter *adapter,
 		    max_queue_ext->max_rx_sq_depth);
 		tx_queue_size = min_t(uint32_t, tx_queue_size,
 		    max_queue_ext->max_tx_cq_depth);
-		tx_queue_size = min_t(uint32_t, tx_queue_size,
-		    max_queue_ext->max_tx_sq_depth);
+
+		if (ena_dev->tx_mem_queue_type ==
+		    ENA_ADMIN_PLACEMENT_POLICY_DEV)
+			tx_queue_size = min_t(uint32_t, tx_queue_size,
+			    llq->max_llq_depth);
+		else
+			tx_queue_size = min_t(uint32_t, tx_queue_size,
+			    max_queue_ext->max_tx_sq_depth);
+
 		ctx->max_rx_sgl_size = min_t(uint16_t, ENA_PKT_MAX_BUFS,
 		    max_queue_ext->max_per_packet_rx_descs);
 		ctx->max_tx_sgl_size = min_t(uint16_t, ENA_PKT_MAX_BUFS,
@@ -3100,7 +3401,17 @@ ena_calc_queue_size(struct ena_adapter *adapter,
 		    max_queues->max_cq_depth);
 		rx_queue_size = min_t(uint32_t, rx_queue_size,
 		    max_queues->max_sq_depth);
-		tx_queue_size = rx_queue_size;
+		tx_queue_size = min_t(uint32_t, tx_queue_size,
+		    max_queues->max_cq_depth);
+
+		if (ena_dev->tx_mem_queue_type ==
+		    ENA_ADMIN_PLACEMENT_POLICY_DEV)
+			tx_queue_size = min_t(uint32_t, tx_queue_size,
+			    llq->max_llq_depth);
+		else
+			tx_queue_size = min_t(uint32_t, tx_queue_size,
+			    max_queues->max_sq_depth);
+
 		ctx->max_rx_sgl_size = min_t(uint16_t, ENA_PKT_MAX_BUFS,
 		    max_queues->max_packet_tx_descs);
 		ctx->max_tx_sgl_size = min_t(uint16_t, ENA_PKT_MAX_BUFS,
@@ -3831,12 +4142,15 @@ static int
 ena_attach(device_t pdev)
 {
 	struct ena_com_dev_get_features_ctx get_feat_ctx;
+	struct ena_llq_configurations llq_config;
 	struct ena_calc_queue_size_ctx calc_queue_ctx = { 0 };
 	static int version_printed;
 	struct ena_adapter *adapter;
 	struct ena_com_dev *ena_dev = NULL;
+	const char *queue_type_str;
 	int io_queue_num;
-	int rc;
+	int rid, rc;
+
 	adapter = device_get_softc(pdev);
 	adapter->pdev = pdev;
 
@@ -3853,19 +4167,24 @@ ena_attach(device_t pdev)
 	if (version_printed++ == 0)
 		device_printf(pdev, "%s\n", ena_version);
 
-	rc = ena_allocate_pci_resources(adapter);
-	if (unlikely(rc != 0)) {
-		device_printf(pdev, "PCI resource allocation failed!\n");
-		ena_free_pci_resources(adapter);
-		return (rc);
-	}
-
 	/* Allocate memory for ena_dev structure */
 	ena_dev = malloc(sizeof(struct ena_com_dev), M_DEVBUF,
 	    M_WAITOK | M_ZERO);
 
 	adapter->ena_dev = ena_dev;
 	ena_dev->dmadev = pdev;
+
+	rid = PCIR_BAR(ENA_REG_BAR);
+	adapter->memory = NULL;
+	adapter->registers = bus_alloc_resource_any(pdev, SYS_RES_MEMORY,
+	    &rid, RF_ACTIVE);
+	if (unlikely(adapter->registers == NULL)) {
+		device_printf(pdev,
+		    "unable to allocate bus resource: registers!\n");
+		rc = ENOMEM;
+		goto err_dev_free;
+	}
+
 	ena_dev->bus = malloc(sizeof(struct ena_bus), M_DEVBUF,
 	    M_WAITOK | M_ZERO);
 
@@ -3890,6 +4209,29 @@ ena_attach(device_t pdev)
 		rc = ENXIO;
 		goto err_bus_free;
 	}
+
+	set_default_llq_configurations(&llq_config);
+
+#if defined(__arm__) || defined(__aarch64__)
+	/*
+	 * Force LLQ disable, as the driver is not supporting WC enablement
+	 * on the ARM architecture. Using LLQ without WC would affect
+	 * performance in a negative way.
+	 */
+	ena_dev->supported_features &= ~(1 << ENA_ADMIN_LLQ);
+#endif
+	rc = ena_set_queues_placement_policy(pdev, ena_dev, &get_feat_ctx.llq,
+	     &llq_config);
+	if (unlikely(rc != 0)) {
+		device_printf(pdev, "failed to set placement policy\n");
+		goto err_com_free;
+	}
+
+	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
+		queue_type_str = "Regular";
+	else
+		queue_type_str = "Low Latency";
+	device_printf(pdev, "Placement policy: %s\n", queue_type_str);
 
 	adapter->keep_alive_timestamp = getsbinuptime();
 
@@ -4002,8 +4344,9 @@ err_com_free:
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 err_bus_free:
 	free(ena_dev->bus, M_DEVBUF);
-	free(ena_dev, M_DEVBUF);
 	ena_free_pci_resources(adapter);
+err_dev_free:
+	free(ena_dev, M_DEVBUF);
 
 	return (rc);
 }
