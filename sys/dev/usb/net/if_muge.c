@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/usb/usb_fdt_support.h>
 #endif
 
 #include <dev/usb/usb.h>
@@ -173,6 +174,9 @@ struct muge_softc {
 	struct mtx		sc_mtx;
 	struct usb_xfer		*sc_xfer[MUGE_N_TRANSFER];
 	int			sc_phyno;
+	uint32_t		sc_leds;
+	uint16_t		sc_led_modes;
+	uint16_t		sc_led_modes_mask;
 
 	/* Settings for the mac control (MAC_CSR) register. */
 	uint32_t		sc_rfe_ctl;
@@ -889,8 +893,9 @@ static int
 lan78xx_phy_init(struct muge_softc *sc)
 {
 	muge_dbg_printf(sc, "Initializing PHY.\n");
-	uint16_t bmcr;
+	uint16_t bmcr, lmsr;
 	usb_ticks_t start_ticks;
+	uint32_t hw_reg;
 	const usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
 
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
@@ -931,6 +936,25 @@ lan78xx_phy_init(struct muge_softc *sc)
 	bmcr |= BMCR_AUTOEN;
 	lan78xx_miibus_writereg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR, bmcr);
 	bmcr = lan78xx_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR);
+
+	/* Configure LED Modes. */
+	if (sc->sc_led_modes_mask != 0) {
+		lmsr = lan78xx_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno,
+		    MUGE_PHY_LED_MODE);
+		lmsr &= ~sc->sc_led_modes_mask;
+		lmsr |= sc->sc_led_modes;
+		lan78xx_miibus_writereg(sc->sc_ue.ue_dev, sc->sc_phyno,
+		    MUGE_PHY_LED_MODE, lmsr);
+	}
+
+	/* Enable appropriate LEDs. */
+	if (sc->sc_leds != 0 &&
+	    lan78xx_read_reg(sc, ETH_HW_CFG, &hw_reg) == 0) {
+		hw_reg &= ~(ETH_HW_CFG_LEDO_EN_ | ETH_HW_CFG_LED1_EN_ |
+			    ETH_HW_CFG_LED2_EN_ | ETH_HW_CFG_LED3_EN_ );
+		hw_reg |= sc->sc_leds;
+		lan78xx_write_reg(sc, ETH_HW_CFG, hw_reg);
+	}
 	return (0);
 }
 
@@ -1431,100 +1455,6 @@ tr_setup:
 	}
 }
 
-#ifdef FDT
-/**
- *	muge_fdt_find_eth_node - find descendant node with required compatibility
- *	@start: start node
- *	@compatible: compatible string used to identify the node
- *
- *	Loop through all descendant nodes and return first match with required
- *	compatibility.
- *
- *	RETURNS:
- *	Returns node's phandle on success -1 otherwise
- */
-static phandle_t
-muge_fdt_find_eth_node(phandle_t start, const char *compatible)
-{
-	phandle_t child, node;
-
-	/* Traverse through entire tree to find usb ethernet nodes. */
-	for (node = OF_child(start); node != 0; node = OF_peer(node)) {
-		if (ofw_bus_node_is_compatible(node, compatible))
-			return (node);
-		child = muge_fdt_find_eth_node(node, compatible);
-		if (child != -1)
-			return (child);
-	}
-
-	return (-1);
-}
-
-/**
- *	muge_fdt_read_mac_property - read MAC address from node
- *	@node: USB device node
- *	@mac: memory to store MAC address to
- *
- *	Check for common properties that might contain MAC address
- *	passed by boot loader.
- *
- *	RETURNS:
- *	Returns 0 on success, error code otherwise
- */
-static int
-muge_fdt_read_mac_property(phandle_t node, unsigned char *mac)
-{
-	int len;
-
-	/* Check if there is property */
-	if ((len = OF_getproplen(node, "local-mac-address")) > 0) {
-		if (len != ETHER_ADDR_LEN)
-			return (EINVAL);
-
-		OF_getprop(node, "local-mac-address", mac,
-		    ETHER_ADDR_LEN);
-		return (0);
-	}
-
-	if ((len = OF_getproplen(node, "mac-address")) > 0) {
-		if (len != ETHER_ADDR_LEN)
-			return (EINVAL);
-
-		OF_getprop(node, "mac-address", mac,
-		    ETHER_ADDR_LEN);
-		return (0);
-	}
-
-	return (ENXIO);
-}
-
-/**
- *	muge_fdt_find_mac - read MAC address from node
- *	@compatible: compatible string for DTB node in the form "usb[N]NNN,[M]MMM"
- *	    where NNN is vendor id and MMM is product id
- *	@mac: memory to store MAC address to
- *
- *	Tries to find matching node in DTS and obtain MAC address info from it
- *
- *	RETURNS:
- *	Returns 0 on success, error code otherwise
- */
-static int
-muge_fdt_find_mac(const char *compatible, unsigned char *mac)
-{
-	phandle_t node, root;
-
-	root = OF_finddevice("/");
-	node = muge_fdt_find_eth_node(root, compatible);
-	if (node != -1) {
-		if (muge_fdt_read_mac_property(node, mac) == 0)
-			return (0);
-	}
-
-	return (ENXIO);
-}
-#endif
-
 /**
  *	muge_set_mac_addr - Initiailizes NIC MAC address
  *	@ue: the USB ethernet device
@@ -1537,12 +1467,8 @@ muge_set_mac_addr(struct usb_ether *ue)
 {
 	struct muge_softc *sc = uether_getsc(ue);
 	uint32_t mac_h, mac_l;
-#ifdef FDT
-	char compatible[16];
-	struct usb_attach_arg *uaa = device_get_ivars(ue->ue_dev);
-#endif
 
-	memset(sc->sc_ue.ue_eaddr, 0xff, ETHER_ADDR_LEN);
+	memset(ue->ue_eaddr, 0xff, ETHER_ADDR_LEN);
 
 	uint32_t val;
 	lan78xx_read_reg(sc, 0, &val);
@@ -1550,44 +1476,78 @@ muge_set_mac_addr(struct usb_ether *ue)
 	/* Read current MAC address from RX_ADDRx registers. */
 	if ((lan78xx_read_reg(sc, ETH_RX_ADDRL, &mac_l) == 0) &&
 	    (lan78xx_read_reg(sc, ETH_RX_ADDRH, &mac_h) == 0)) {
-		sc->sc_ue.ue_eaddr[5] = (uint8_t)((mac_h >> 8) & 0xff);
-		sc->sc_ue.ue_eaddr[4] = (uint8_t)((mac_h) & 0xff);
-		sc->sc_ue.ue_eaddr[3] = (uint8_t)((mac_l >> 24) & 0xff);
-		sc->sc_ue.ue_eaddr[2] = (uint8_t)((mac_l >> 16) & 0xff);
-		sc->sc_ue.ue_eaddr[1] = (uint8_t)((mac_l >> 8) & 0xff);
-		sc->sc_ue.ue_eaddr[0] = (uint8_t)((mac_l) & 0xff);
+		ue->ue_eaddr[5] = (uint8_t)((mac_h >> 8) & 0xff);
+		ue->ue_eaddr[4] = (uint8_t)((mac_h) & 0xff);
+		ue->ue_eaddr[3] = (uint8_t)((mac_l >> 24) & 0xff);
+		ue->ue_eaddr[2] = (uint8_t)((mac_l >> 16) & 0xff);
+		ue->ue_eaddr[1] = (uint8_t)((mac_l >> 8) & 0xff);
+		ue->ue_eaddr[0] = (uint8_t)((mac_l) & 0xff);
 	}
 
-	/* If RX_ADDRx did not provide a valid MAC address, try EEPROM. */
-	if (ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
+	/*
+	 * If RX_ADDRx did not provide a valid MAC address, try EEPROM.  If that
+	 * doesn't work, try OTP.  Whether any of these methods work or not, try
+	 * FDT data, because it is allowed to override the EEPROM/OTP values.
+	 */
+	if (ETHER_IS_VALID(ue->ue_eaddr)) {
 		muge_dbg_printf(sc, "MAC assigned from registers\n");
-		return;
-	}
-
-	if ((lan78xx_eeprom_present(sc) &&
-	    lan78xx_eeprom_read_raw(sc, ETH_E2P_MAC_OFFSET,
-	    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0) ||
-	    (lan78xx_otp_read(sc, OTP_MAC_OFFSET,
-	    sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN) == 0)) {
-		if (ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
-			muge_dbg_printf(sc, "MAC read from EEPROM\n");
-			return;
-		}
+	} else if (lan78xx_eeprom_present(sc) && lan78xx_eeprom_read_raw(sc,
+	    ETH_E2P_MAC_OFFSET, ue->ue_eaddr, ETHER_ADDR_LEN) == 0 &&
+	    ETHER_IS_VALID(ue->ue_eaddr)) {
+		muge_dbg_printf(sc, "MAC assigned from EEPROM\n");
+	} else if (lan78xx_otp_read(sc, OTP_MAC_OFFSET, ue->ue_eaddr,
+	    ETHER_ADDR_LEN) == 0 && ETHER_IS_VALID(ue->ue_eaddr)) {
+		muge_dbg_printf(sc, "MAC assigned from OTP\n");
 	}
 
 #ifdef FDT
-	snprintf(compatible, sizeof(compatible), "usb%x,%x",
-	    uaa->info.idVendor, uaa->info.idProduct);
-	if (muge_fdt_find_mac(compatible, sc->sc_ue.ue_eaddr) == 0) {
-		muge_dbg_printf(sc, "MAC assigned from FDT blob\n");
-		return;
+	/* ue->ue_eaddr modified only if config exists for this dev instance. */
+	usb_fdt_get_mac_addr(ue->ue_dev, ue);
+	if (ETHER_IS_VALID(ue->ue_eaddr)) {
+		muge_dbg_printf(sc, "MAC assigned from FDT data\n");
 	}
 #endif
 
-	muge_dbg_printf(sc, "MAC assigned randomly\n");
-	arc4rand(sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN, 0);
-	sc->sc_ue.ue_eaddr[0] &= ~0x01;	/* unicast */
-	sc->sc_ue.ue_eaddr[0] |= 0x02;	/* locally administered */
+	if (!ETHER_IS_VALID(ue->ue_eaddr)) {
+		muge_dbg_printf(sc, "MAC assigned randomly\n");
+		arc4rand(ue->ue_eaddr, ETHER_ADDR_LEN, 0);
+		ue->ue_eaddr[0] &= ~0x01;	/* unicast */
+		ue->ue_eaddr[0] |= 0x02;	/* locally administered */
+	}
+}
+
+/**
+ *	muge_set_leds - Initializes NIC LEDs pattern
+ *	@ue: the USB ethernet device
+ *
+ *	Tries to store the LED modes.
+ *	Supports only DTB blob like the	Linux driver does.
+ */
+static void
+muge_set_leds(struct usb_ether *ue)
+{
+#ifdef FDT
+	struct muge_softc *sc = uether_getsc(ue);
+	phandle_t node;
+	pcell_t modes[4];	/* 4 LEDs are possible */
+	ssize_t proplen;
+	uint32_t count;
+
+	if ((node = usb_fdt_get_node(ue->ue_dev, ue->ue_udev)) != -1 &&
+	    (proplen = OF_getencprop(node, "microchip,led-modes", modes,
+	    sizeof(modes))) > 0) {
+		count = proplen / sizeof( uint32_t );
+		sc->sc_leds = (count > 0) * ETH_HW_CFG_LEDO_EN_ |
+			      (count > 1) * ETH_HW_CFG_LED1_EN_ |
+			      (count > 2) * ETH_HW_CFG_LED2_EN_ |
+			      (count > 3) * ETH_HW_CFG_LED3_EN_;
+		while (count-- > 0) {
+			sc->sc_led_modes |= (modes[count] & 0xf) << (4 * count);
+			sc->sc_led_modes_mask |= 0xf << (4 * count);
+		}
+		muge_dbg_printf(sc, "LED modes set from FDT data\n");
+	}
+#endif
 }
 
 /**
@@ -1610,6 +1570,7 @@ muge_attach_post(struct usb_ether *ue)
 	sc->sc_phyno = 1;
 
 	muge_set_mac_addr(ue);
+	muge_set_leds(ue);
 
 	/* Initialise the chip for the first time */
 	lan78xx_chip_init(sc);
