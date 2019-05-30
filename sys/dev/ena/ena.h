@@ -120,6 +120,8 @@
 #define	ENA_IO_IRQ_FIRST_IDX		1
 #define	ENA_IO_IRQ_IDX(q)		(ENA_IO_IRQ_FIRST_IDX + (q))
 
+#define	ENA_MAX_NO_INTERRUPT_ITERATIONS	3
+
 /*
  * ENA device should send keep alive msg every 1 sec.
  * We wait for 6 sec just to be on the safe side.
@@ -240,6 +242,9 @@ struct ena_ring {
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
 	/* The maximum length the driver can push to the device (For LLQ) */
 	uint8_t tx_max_header_size;
+
+	bool first_interrupt;
+	uint16_t no_interrupt_event_cnt;
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
 
