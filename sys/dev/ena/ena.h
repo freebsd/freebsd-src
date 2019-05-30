@@ -66,6 +66,8 @@
 
 #define	ENA_BUS_DMA_SEGS		32
 
+#define	ENA_DEFAULT_BUF_RING_SIZE	4096
+
 #define	ENA_DEFAULT_RING_SIZE		1024
 
 #define	ENA_RX_REFILL_THRESH_DIVIDER	8
@@ -178,6 +180,16 @@ struct ena_que {
 	int cpu;
 };
 
+struct ena_calc_queue_size_ctx {
+	struct ena_com_dev_get_features_ctx *get_feat_ctx;
+	struct ena_com_dev *ena_dev;
+	device_t pdev;
+	uint16_t rx_queue_size;
+	uint16_t tx_queue_size;
+	uint16_t max_tx_sgl_size;
+	uint16_t max_rx_sgl_size;
+};
+
 struct ena_tx_buffer {
 	struct mbuf *mbuf;
 	/* # of ena desc for this specific mbuf
@@ -268,6 +280,7 @@ struct ena_ring {
 	int ring_size; /* number of tx/rx_buffer_info's entries */
 
 	struct buf_ring *br; /* only for TX */
+	uint32_t buf_ring_size;
 
 	struct mtx ring_mtx;
 	char mtx_name[16];
@@ -346,6 +359,8 @@ struct ena_adapter {
 
 	unsigned int tx_ring_size;
 	unsigned int rx_ring_size;
+
+	uint16_t buf_ring_size;
 
 	/* RSS*/
 	uint8_t	rss_ind_tbl[ENA_RX_RSS_TABLE_SIZE];
