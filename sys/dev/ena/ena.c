@@ -2683,6 +2683,7 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf)
 {
 	struct ena_com_tx_meta *ena_meta;
 	struct ether_vlan_header *eh;
+	struct mbuf *mbuf_next;
 	u32 mss;
 	bool offload;
 	uint16_t etype;
@@ -2690,6 +2691,7 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf)
 	struct ip *ip;
 	int iphlen;
 	struct tcphdr *th;
+	int offset;
 
 	offload = false;
 	ena_meta = &ena_tx_ctx->ena_meta;
@@ -2719,9 +2721,12 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf)
 		ehdrlen = ETHER_HDR_LEN;
 	}
 
-	ip = (struct ip *)(mbuf->m_data + ehdrlen);
+	mbuf_next = m_getptr(mbuf, ehdrlen, &offset);
+	ip = (struct ip *)(mtodo(mbuf_next, offset));
 	iphlen = ip->ip_hl << 2;
-	th = (struct tcphdr *)((caddr_t)ip + iphlen);
+
+	mbuf_next = m_getptr(mbuf, iphlen + ehdrlen, &offset);
+	th = (struct tcphdr *)(mtodo(mbuf_next, offset));
 
 	if ((mbuf->m_pkthdr.csum_flags & CSUM_IP) != 0) {
 		ena_tx_ctx->l3_csum_enable = 1;
