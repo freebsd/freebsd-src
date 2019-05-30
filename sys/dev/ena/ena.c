@@ -1998,6 +1998,7 @@ ena_request_io_irq(struct ena_adapter *adapter)
 		irq->res = bus_alloc_resource_any(adapter->pdev, SYS_RES_IRQ,
 		    &irq->vector, flags);
 		if (unlikely(irq->res == NULL)) {
+			rc = ENOMEM;
 			device_printf(adapter->pdev, "could not allocate "
 			    "irq vector: %d\n", irq->vector);
 			goto err;
