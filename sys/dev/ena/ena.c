@@ -59,11 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-#include <net/rss_config.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
-#include <netinet/in_rss.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
@@ -585,9 +583,6 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	struct ena_que *que = &adapter->que[qid];
 	struct ena_ring *tx_ring = que->tx_ring;
 	int size, i, err;
-#ifdef	RSS
-	cpuset_t cpu_mask;
-#endif
 
 	size = sizeof(struct ena_tx_buffer) * tx_ring->ring_size;
 
@@ -638,16 +633,8 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 		goto err_buf_info_unmap;
 	}
 
-	/* RSS set cpu for thread */
-#ifdef RSS
-	CPU_SETOF(que->cpu, &cpu_mask);
-	taskqueue_start_threads_cpuset(&tx_ring->enqueue_tq, 1, PI_NET,
-	    &cpu_mask, "%s tx_ring enq (bucket %d)",
-	    device_get_nameunit(adapter->pdev), que->cpu);
-#else /* RSS */
 	taskqueue_start_threads(&tx_ring->enqueue_tq, 1, PI_NET,
 	    "%s txeq %d", device_get_nameunit(adapter->pdev), que->cpu);
-#endif /* RSS */
 
 	return (0);
 
@@ -780,9 +767,6 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 	struct ena_que *que = &adapter->que[qid];
 	struct ena_ring *rx_ring = que->rx_ring;
 	int size, err, i;
-#ifdef	RSS
-	cpuset_t cpu_mask;
-#endif
 
 	size = sizeof(struct ena_rx_buffer) * rx_ring->ring_size;
 
@@ -836,16 +820,8 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 	rx_ring->cmpl_tq = taskqueue_create_fast("ena RX completion", M_WAITOK,
 	    taskqueue_thread_enqueue, &rx_ring->cmpl_tq);
 
-	/* RSS set cpu for thread */
-#ifdef RSS
-	CPU_SETOF(que->cpu, &cpu_mask);
-	taskqueue_start_threads_cpuset(&rx_ring->cmpl_tq, 1, PI_NET, &cpu_mask,
-	    "%s rx_ring cmpl (bucket %d)",
-	    device_get_nameunit(adapter->pdev), que->cpu);
-#else
 	taskqueue_start_threads(&rx_ring->cmpl_tq, 1, PI_NET,
 	    "%s rx_ring cmpl %d", device_get_nameunit(adapter->pdev), que->cpu);
-#endif
 
 	return (0);
 
@@ -1908,12 +1884,9 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 		    adapter->msix_entries[irq_idx].vector;
 		ena_trace(ENA_INFO | ENA_IOQ, "ena_setup_io_intr vector: %d\n",
 		    adapter->msix_entries[irq_idx].vector);
-#ifdef	RSS
-		adapter->que[i].cpu = adapter->irq_tbl[irq_idx].cpu =
-		    rss_getcpu(i % rss_getnumbuckets());
-#else
+
 		/*
-		 * We still want to bind rings to the corresponding cpu
+		 * We want to bind rings to the corresponding cpu
 		 * using something similar to the RSS round-robin technique.
 		 */
 		if (unlikely(last_bind_cpu < 0))
@@ -1921,7 +1894,6 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 		adapter->que[i].cpu = adapter->irq_tbl[irq_idx].cpu =
 		    last_bind_cpu;
 		last_bind_cpu = CPU_NEXT(last_bind_cpu);
-#endif
 	}
 }
 
@@ -2010,13 +1982,8 @@ ena_request_io_irq(struct ena_adapter *adapter)
 		}
 		irq->requested = true;
 
-#ifdef	RSS
-		ena_trace(ENA_INFO, "queue %d - RSS bucket %d\n",
-		    i - ENA_IO_IRQ_FIRST_IDX, irq->cpu);
-#else
 		ena_trace(ENA_INFO, "queue %d - cpu %d\n",
 		    i - ENA_IO_IRQ_FIRST_IDX, irq->cpu);
-#endif
 	}
 
 	return (rc);
@@ -2952,16 +2919,7 @@ ena_mq_start(if_t ifp, struct mbuf *m)
 	 * It should improve performance.
 	 */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-#ifdef	RSS
-		if (rss_hash2bucket(m->m_pkthdr.flowid,
-		    M_HASHTYPE_GET(m), &i) == 0) {
-			i = i % adapter->num_queues;
-
-		} else
-#endif
-		{
-			i = m->m_pkthdr.flowid % adapter->num_queues;
-		}
+		i = m->m_pkthdr.flowid % adapter->num_queues;
 	} else {
 		i = curcpu % adapter->num_queues;
 	}
@@ -3017,9 +2975,6 @@ ena_calc_io_queue_num(struct ena_adapter *adapter,
 	/* 1 IRQ for for mgmnt and 1 IRQ for each TX/RX pair */
 	io_queue_num = min_t(int, io_queue_num,
 	    pci_msix_count(adapter->pdev) - 1);
-#ifdef	RSS
-	io_queue_num = min_t(int, io_queue_num, rss_getnumbuckets());
-#endif
 
 	return (io_queue_num);
 }
@@ -3077,12 +3032,7 @@ ena_rss_init_default(struct ena_adapter *adapter)
 	}
 
 	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; i++) {
-#ifdef	RSS
-		qid = rss_get_indirection_to_bucket(i);
-		qid = qid % adapter->num_queues;
-#else
 		qid = i % adapter->num_queues;
-#endif
 		rc = ena_com_indirect_table_fill_entry(ena_dev, i,
 		    ENA_IO_RXQ_IDX(qid));
 		if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
