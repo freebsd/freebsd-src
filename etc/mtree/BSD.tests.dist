@@ -238,6 +238,16 @@
                     version
                     ..
                 ..
+                i386
+                    arrays
+                    ..
+                    funcs
+                    ..
+                    pid
+                    ..
+                    ustack
+                    ..
+                ..
             ..
             zfsd
             ..

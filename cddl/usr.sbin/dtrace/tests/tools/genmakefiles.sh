@@ -24,9 +24,10 @@ fmtflist()
 
 genmakefile()
 {
-    local basedir=$1
+    local class=$1
+    local group=$2
 
-    local tdir=${CONTRIB_TESTDIR}/${basedir}
+    local tdir=${CONTRIB_TESTDIR}/${class}/${group}
     local tfiles=$(find $tdir -type f -a \
         \( -name \*.d -o -name \*.ksh -o -name \*.out \) | sort | fmtflist)
     local tcfiles=$(find $tdir -type f -a -name \*.c | sort | fmtflist)
@@ -34,7 +35,7 @@ genmakefile()
 
     # One-off variable definitions.
     local special
-    case "$basedir" in
+    case "$group" in
     proc)
         special="
 LIBADD.tst.sigwait.exe+= rt
@@ -80,7 +81,7 @@ $special
 .include "../../dtrace.test.mk"
 __EOF__
 
-    mv -f $makefile ${ORIGINDIR}/../common/${basedir}/Makefile
+    mv -f $makefile ${ORIGINDIR}/../${class}/${group}/Makefile
 }
 
 set -e
@@ -93,9 +94,10 @@ export LC_ALL=C
 
 readonly ORIGINDIR=$(realpath $(dirname $0))
 readonly TOPDIR=$(realpath ${ORIGINDIR}/../../../../..)
-readonly CONTRIB_TESTDIR=${TOPDIR}/cddl/contrib/opensolaris/cmd/dtrace/test/tst/common
+readonly CONTRIB_TESTDIR=${TOPDIR}/cddl/contrib/opensolaris/cmd/dtrace/test/tst
 
-# Generate a Makefile for each test group under common/.
-for dir in $(find ${CONTRIB_TESTDIR} -mindepth 1 -maxdepth 1 -type d); do
-    genmakefile $(basename $dir)
+for class in common i386; do
+    for group in $(find ${CONTRIB_TESTDIR}/$class -mindepth 1 -maxdepth 1 -type d); do
+        genmakefile $class $(basename $group)
+    done
 done
