@@ -1957,7 +1957,7 @@ cru2x(struct ucred *cr, struct xucred *xcr)
 	    ngroups * sizeof(*cr->cr_groups));
 }
 
-void inline
+void
 cru2xt(struct thread *td, struct xucred *xcr)
 {
 
