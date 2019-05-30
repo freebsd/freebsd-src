@@ -268,6 +268,9 @@ ena_dma_alloc(device_t dmadev, bus_size_t size,
 		goto fail_map_load;
 	}
 
+	bus_dmamap_sync(dma->tag, dma->map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
 	return (0);
 
 fail_map_load:
@@ -678,12 +681,14 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 
 	/* Free buffer DMA maps, */
 	for (int i = 0; i < tx_ring->ring_size; i++) {
-		m_freem(tx_ring->tx_buffer_info[i].mbuf);
-		tx_ring->tx_buffer_info[i].mbuf = NULL;
+		bus_dmamap_sync(adapter->tx_buf_tag,
+		    tx_ring->tx_buffer_info[i].map, BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(adapter->tx_buf_tag,
 		    tx_ring->tx_buffer_info[i].map);
 		bus_dmamap_destroy(adapter->tx_buf_tag,
 		    tx_ring->tx_buffer_info[i].map);
+		m_freem(tx_ring->tx_buffer_info[i].mbuf);
+		tx_ring->tx_buffer_info[i].mbuf = NULL;
 	}
 	ENA_RING_MTX_UNLOCK(tx_ring);
 
@@ -859,6 +864,8 @@ ena_free_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 
 	/* Free buffer DMA maps, */
 	for (int i = 0; i < rx_ring->ring_size; i++) {
+		bus_dmamap_sync(adapter->rx_buf_tag,
+		    rx_ring->rx_buffer_info[i].map, BUS_DMASYNC_POSTREAD);
 		m_freem(rx_ring->rx_buffer_info[i].mbuf);
 		rx_ring->rx_buffer_info[i].mbuf = NULL;
 		bus_dmamap_unload(adapter->rx_buf_tag,
@@ -993,6 +1000,8 @@ ena_free_rx_mbuf(struct ena_adapter *adapter, struct ena_ring *rx_ring,
 		return;
 	}
 
+	bus_dmamap_sync(adapter->rx_buf_tag, rx_info->map,
+	    BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(adapter->rx_buf_tag, rx_info->map);
 	m_freem(rx_info->mbuf);
 	rx_info->mbuf = NULL;
@@ -1134,6 +1143,8 @@ ena_free_tx_bufs(struct ena_adapter *adapter, unsigned int qid)
 			     qid, i);
 		}
 
+		bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map,
+		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map);
 		m_free(tx_info->mbuf);
 		tx_info->mbuf = NULL;
@@ -1334,6 +1345,8 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 
 		if (likely(tx_info->num_of_bufs != 0)) {
 			/* Map is no longer required */
+			bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(adapter->tx_buf_tag, tx_info->map);
 		}
 
@@ -1467,6 +1480,8 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 	ena_trace(ENA_DBG | ENA_RXPTH, "rx_info %p, mbuf %p, paddr %jx",
 	    rx_info, rx_info->mbuf, (uintmax_t)rx_info->ena_buf.paddr);
 
+	bus_dmamap_sync(adapter->rx_buf_tag, rx_info->map,
+	    BUS_DMASYNC_POSTREAD);
 	mbuf = rx_info->mbuf;
 	mbuf->m_flags |= M_PKTHDR;
 	mbuf->m_pkthdr.len = len;
@@ -1522,6 +1537,8 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 			return (NULL);
 		}
 
+		bus_dmamap_sync(adapter->rx_buf_tag, rx_info->map,
+		    BUS_DMASYNC_POSTREAD);
 		if (unlikely(m_append(mbuf, len, rx_info->mbuf->m_data) == 0)) {
 			counter_u64_add(rx_ring->rx_stats.mbuf_alloc_fail, 1);
 			ena_trace(ENA_WARNING, "Failed to append Rx mbuf %p",
@@ -1632,6 +1649,8 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 		ena_rx_ctx.ena_bufs = rx_ring->ena_bufs;
 		ena_rx_ctx.max_bufs = adapter->max_rx_sgl_size;
 		ena_rx_ctx.descs = 0;
+		bus_dmamap_sync(io_cq->cdesc_addr.mem_handle.tag,
+		    io_cq->cdesc_addr.mem_handle.map, BUS_DMASYNC_POSTREAD);
 		rc = ena_com_rx_pkt(io_cq, io_sq, &ena_rx_ctx);
 
 		if (unlikely(rc != 0))
@@ -1648,7 +1667,8 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 		/* Receive mbuf from the ring */
 		mbuf = ena_rx_mbuf(rx_ring, rx_ring->ena_bufs,
 		    &ena_rx_ctx, &next_to_clean);
-
+		bus_dmamap_sync(io_cq->cdesc_addr.mem_handle.tag,
+		    io_cq->cdesc_addr.mem_handle.map, BUS_DMASYNC_PREREAD);
 		/* Exit if we failed to retrieve a buffer */
 		if (unlikely(mbuf == NULL)) {
 			for (i = 0; i < ena_rx_ctx.descs; ++i) {
