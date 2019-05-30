@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2019
+.Dd May 30, 2019
 .Dt POSIXSHMCONTROL 1
 .Os
 .Sh NAME
@@ -97,14 +97,14 @@ utility.
 Change the length of the segments.
 Argument to the
 .Fl s
-option specifies new length, the human-friendly 'k', 'm', 'g' suffixes
-can be used, see
+option specifies new length.
+The human-friendly 'k', 'm', 'g' suffixes can be used, see
 .Xr expand_number 3.
 If the option is not specified, assumed length is zero.
 .El
 .Pp
 For some commands, the following options may be provided:
-.Bl -tag XX
+.Bl -tag -width XXX
 .It Fl h
 If specified, requests human-readable display of size, see
 .Xr humanize_number 3 .
