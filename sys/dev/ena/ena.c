@@ -3254,7 +3254,10 @@ ena_device_init(struct ena_adapter *adapter, device_t pdev,
 		goto err_admin_init;
 	}
 
-	aenq_groups = BIT(ENA_ADMIN_LINK_CHANGE) | BIT(ENA_ADMIN_KEEP_ALIVE);
+	aenq_groups = BIT(ENA_ADMIN_LINK_CHANGE) |
+	    BIT(ENA_ADMIN_FATAL_ERROR) |
+	    BIT(ENA_ADMIN_WARNING) |
+	    BIT(ENA_ADMIN_KEEP_ALIVE);
 
 	aenq_groups &= get_feat_ctx->aenq.supported_groups;
 	rc = ena_com_set_aenq_config(ena_dev, aenq_groups);
@@ -3916,10 +3919,13 @@ ena_update_on_link_change(void *adapter_data,
  * This handler will called for unknown event group or unimplemented handlers
  **/
 static void
-unimplemented_aenq_handler(void *data,
+unimplemented_aenq_handler(void *adapter_data,
     struct ena_admin_aenq_entry *aenq_e)
 {
-	return;
+	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
+
+	device_printf(adapter->pdev,
+	    "Unknown event was received or event with unimplemented handler\n");
 }
 
 static struct ena_aenq_handlers aenq_handlers = {
