@@ -4,6 +4,10 @@
 
 TESTS_SUBDIRS+=	common
 
+.if ${MACHINE_CPUARCH} == "i386"
+TESTS_SUBDIRS+= i386
+.endif
+
 .PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
 
