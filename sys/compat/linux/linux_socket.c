@@ -939,11 +939,13 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	struct iovec *iov;
 	socklen_t datalen;
 	struct sockaddr *sa;
+	struct socket *so;
 	sa_family_t sa_family;
+	struct file *fp;
 	void *data;
 	l_size_t len;
 	l_size_t clen;
-	int error;
+	int error, fflag;
 
 	error = copyin(msghdr, &linux_msg, sizeof(linux_msg));
 	if (error != 0)
@@ -974,12 +976,30 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 
 	control = NULL;
 
-	if (linux_msg.msg_controllen >= sizeof(struct l_cmsghdr)) {
-		error = kern_getsockname(td, s, &sa, &datalen);
+	error = kern_getsockname(td, s, &sa, &datalen);
+	if (error != 0)
+		goto bad;
+	sa_family = sa->sa_family;
+	free(sa, M_SONAME);
+
+	if (flags & LINUX_MSG_OOB) {
+		error = EOPNOTSUPP;
+		if (sa_family == AF_UNIX)
+			goto bad;
+
+		error = getsock_cap(td, s, &cap_send_rights, &fp,
+		    &fflag, NULL);
 		if (error != 0)
 			goto bad;
-		sa_family = sa->sa_family;
-		free(sa, M_SONAME);
+		so = fp->f_data;
+		if (so->so_type != SOCK_STREAM)
+			error = EOPNOTSUPP;
+		fdrop(fp, td);
+		if (error != 0)
+			goto bad;
+	}
+
+	if (linux_msg.msg_controllen >= sizeof(struct l_cmsghdr)) {
 
 		error = ENOBUFS;
 		control = m_get(M_WAITOK, MT_CONTROL);
