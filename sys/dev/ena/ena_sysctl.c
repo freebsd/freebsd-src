@@ -34,12 +34,26 @@ __FBSDID("$FreeBSD$");
 
 static void	ena_sysctl_add_wd(struct ena_adapter *);
 static void	ena_sysctl_add_stats(struct ena_adapter *);
+static void	ena_sysctl_add_tuneables(struct ena_adapter *);
+static int	ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS);
+static int	ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS);
+
+static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD, 0, "ENA driver parameters");
+
+/*
+ * Logging level for changing verbosity of the output
+ */
+int ena_log_level = ENA_ALERT | ENA_WARNING;
+SYSCTL_INT(_hw_ena, OID_AUTO, log_level, CTLFLAG_RWTUN,
+    &ena_log_level, 0, "Logging level indicating verbosity of the logs");
+
 
 void
 ena_sysctl_add_nodes(struct ena_adapter *adapter)
 {
 	ena_sysctl_add_wd(adapter);
 	ena_sysctl_add_stats(adapter);
+	ena_sysctl_add_tuneables(adapter);
 }
 
 static void
@@ -249,3 +263,92 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    &admin_stats->no_completion, 0, "Commands not completed");
 }
 
+static void
+ena_sysctl_add_tuneables(struct ena_adapter *adapter)
+{
+	device_t dev;
+
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child;
+
+	dev = adapter->pdev;
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	child = SYSCTL_CHILDREN(tree);
+
+	/* Tuneable number of buffers in the buf-ring (drbr) */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "buf_ring_size", CTLTYPE_INT |
+	    CTLFLAG_RW, adapter, 0, ena_sysctl_buf_ring_size, "I",
+	    "Size of the bufring");
+
+	/* Tuneable number of Rx ring size */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_queue_size", CTLTYPE_INT |
+	    CTLFLAG_RW, adapter, 0, ena_sysctl_rx_queue_size, "I",
+	    "Size of the Rx ring. The size should be a power of 2. "
+	    "Max value is 8K");
+}
+
+
+static int
+ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS)
+{
+	struct ena_adapter *adapter = arg1;
+	int val;
+	int error;
+
+	val = 0;
+	error = sysctl_wire_old_buffer(req, sizeof(int));
+	if (error == 0) {
+		val = adapter->buf_ring_size;
+		error = sysctl_handle_int(oidp, &val, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val < 0)
+		return (EINVAL);
+
+	device_printf(adapter->pdev,
+	    "Requested new buf ring size: %d. Old size: %d\n",
+	    val, adapter->buf_ring_size);
+
+	if (val != adapter->buf_ring_size) {
+		adapter->buf_ring_size = val;
+		adapter->reset_reason = ENA_REGS_RESET_OS_TRIGGER;
+		adapter->trigger_reset = true;
+	}
+
+	return (0);
+}
+
+static int
+ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
+{
+	struct ena_adapter *adapter = arg1;
+	int val;
+	int error;
+
+	val = 0;
+	error = sysctl_wire_old_buffer(req, sizeof(int));
+	if (error == 0) {
+		val = adapter->rx_ring_size;
+		error = sysctl_handle_int(oidp, &val, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if  (val < 16)
+		return (EINVAL);
+
+	device_printf(adapter->pdev,
+	    "Requested new rx queue size: %d. Old size: %d\n",
+	    val, adapter->rx_ring_size);
+
+	if (val != adapter->rx_ring_size) {
+		adapter->rx_ring_size = val;
+		adapter->reset_reason = ENA_REGS_RESET_OS_TRIGGER;
+		adapter->trigger_reset = true;
+	}
+
+	return (0);
+}

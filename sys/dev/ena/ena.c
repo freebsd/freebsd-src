@@ -164,8 +164,10 @@ static void	ena_deferred_mq_start(void *, int);
 static void	ena_qflush(if_t);
 static int	ena_calc_io_queue_num(struct ena_adapter *,
     struct ena_com_dev_get_features_ctx *);
-static int	ena_calc_queue_size(struct ena_adapter *, uint16_t *,
-    uint16_t *, struct ena_com_dev_get_features_ctx *);
+static int	ena_calc_queue_size(struct ena_adapter *,
+    struct ena_calc_queue_size_ctx *);
+static int	ena_handle_updated_queues(struct ena_adapter *,
+    struct ena_com_dev_get_features_ctx *);
 static int	ena_rss_init_default(struct ena_adapter *);
 static void	ena_rss_init_default_deferred(void *);
 static void	ena_config_host_info(struct ena_com_dev *);
@@ -181,22 +183,6 @@ static void	unimplemented_aenq_handler(void *,
 static void	ena_timer_service(void *);
 
 static char ena_version[] = DEVICE_NAME DRV_MODULE_NAME " v" DRV_MODULE_VERSION;
-
-static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD, 0, "ENA driver parameters");
-
-/*
- * Tuneable number of buffers in the buf-ring (drbr)
- */
-static int ena_buf_ring_size = 4096;
-SYSCTL_INT(_hw_ena, OID_AUTO, buf_ring_size, CTLFLAG_RWTUN,
-    &ena_buf_ring_size, 0, "Size of the bufring");
-
-/*
- * Logging level for changing verbosity of the output
- */
-int ena_log_level = ENA_ALERT | ENA_WARNING;
-SYSCTL_INT(_hw_ena, OID_AUTO, log_level, CTLFLAG_RWTUN,
-    &ena_log_level, 0, "Logging level indicating verbosity of the logs");
 
 static ena_vendor_info_t ena_vendor_info_array[] = {
     { PCI_VENDOR_ID_AMAZON, PCI_DEV_ID_ENA_PF, 0},
@@ -440,7 +426,8 @@ ena_init_io_rings(struct ena_adapter *adapter)
 		    ena_com_get_nonadaptive_moderation_interval_tx(ena_dev);
 
 		/* Allocate a buf ring */
-		txr->br = buf_ring_alloc(ena_buf_ring_size, M_DEVBUF,
+		txr->buf_ring_size = adapter->buf_ring_size;
+		txr->br = buf_ring_alloc(txr->buf_ring_size, M_DEVBUF,
 		    M_WAITOK, &txr->ring_mtx);
 
 		/* Alloc TX statistics. */
@@ -3008,10 +2995,24 @@ static int
 ena_calc_io_queue_num(struct ena_adapter *adapter,
     struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	int io_sq_num, io_cq_num, io_queue_num;
 
-	io_sq_num = get_feat_ctx->max_queues.max_sq_num;
-	io_cq_num = get_feat_ctx->max_queues.max_cq_num;
+	/* Regular queues capabilities */
+	if (ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
+		struct ena_admin_queue_ext_feature_fields *max_queue_ext =
+		    &get_feat_ctx->max_queue_ext.max_queue_ext;
+		io_sq_num = max_queue_ext->max_rx_sq_num;
+		io_sq_num = min_t(int, io_sq_num, max_queue_ext->max_tx_sq_num);
+
+		io_cq_num = max_queue_ext->max_rx_cq_num;
+		io_cq_num = min_t(int, io_cq_num, max_queue_ext->max_tx_cq_num);
+	} else {
+		struct ena_admin_queue_feature_desc *max_queues =
+		    &get_feat_ctx->max_queues;
+		io_sq_num = max_queues->max_sq_num;
+		io_cq_num = max_queues->max_cq_num;
+	}
 
 	io_queue_num = min_t(int, mp_ncpus, ENA_MAX_NUM_IO_QUEUES);
 	io_queue_num = min_t(int, io_queue_num, io_sq_num);
@@ -3024,42 +3025,119 @@ ena_calc_io_queue_num(struct ena_adapter *adapter,
 }
 
 static int
-ena_calc_queue_size(struct ena_adapter *adapter, uint16_t *max_tx_sgl_size,
-    uint16_t *max_rx_sgl_size, struct ena_com_dev_get_features_ctx *feat)
+ena_calc_queue_size(struct ena_adapter *adapter,
+    struct ena_calc_queue_size_ctx *ctx)
 {
-	uint32_t queue_size = ENA_DEFAULT_RING_SIZE;
-	uint32_t v;
-	uint32_t q;
+	uint32_t tx_queue_size = ENA_DEFAULT_RING_SIZE;
+	uint32_t rx_queue_size = adapter->rx_ring_size;
 
-	queue_size = min_t(uint32_t, queue_size,
-	    feat->max_queues.max_cq_depth);
-	queue_size = min_t(uint32_t, queue_size,
-	    feat->max_queues.max_sq_depth);
+	if (ctx->ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
+		struct ena_admin_queue_ext_feature_fields *max_queue_ext =
+		    &ctx->get_feat_ctx->max_queue_ext.max_queue_ext;
+		rx_queue_size = min_t(uint32_t, rx_queue_size,
+		    max_queue_ext->max_rx_cq_depth);
+		rx_queue_size = min_t(uint32_t, rx_queue_size,
+		    max_queue_ext->max_rx_sq_depth);
+		tx_queue_size = min_t(uint32_t, tx_queue_size,
+		    max_queue_ext->max_tx_cq_depth);
+		tx_queue_size = min_t(uint32_t, tx_queue_size,
+		    max_queue_ext->max_tx_sq_depth);
+		ctx->max_rx_sgl_size = min_t(uint16_t, ENA_PKT_MAX_BUFS,
+		    max_queue_ext->max_per_packet_rx_descs);
+		ctx->max_tx_sgl_size = min_t(uint16_t, ENA_PKT_MAX_BUFS,
+		    max_queue_ext->max_per_packet_tx_descs);
+	} else {
+		struct ena_admin_queue_feature_desc *max_queues =
+		    &ctx->get_feat_ctx->max_queues;
+		rx_queue_size = min_t(uint32_t, rx_queue_size,
+		    max_queues->max_cq_depth);
+		rx_queue_size = min_t(uint32_t, rx_queue_size,
+		    max_queues->max_sq_depth);
+		tx_queue_size = rx_queue_size;
+		ctx->max_rx_sgl_size = min_t(uint16_t, ENA_PKT_MAX_BUFS,
+		    max_queues->max_packet_tx_descs);
+		ctx->max_tx_sgl_size = min_t(uint16_t, ENA_PKT_MAX_BUFS,
+		    max_queues->max_packet_rx_descs);
+	}
 
 	/* round down to the nearest power of 2 */
-	v = queue_size;
-	while (v != 0) {
-		if (powerof2(queue_size) != 0)
-			break;
-		v /= 2;
-		q = rounddown2(queue_size, v);
-		if (q != 0) {
-			queue_size = q;
-			break;
+	rx_queue_size = 1 << (fls(rx_queue_size) - 1);
+	tx_queue_size = 1 << (fls(tx_queue_size) - 1);
+
+	if (unlikely(rx_queue_size == 0 || tx_queue_size == 0)) {
+		device_printf(ctx->pdev, "Invalid queue size\n");
+		return (EFAULT);
+	}
+
+	ctx->rx_queue_size = rx_queue_size;
+	ctx->tx_queue_size = tx_queue_size;
+
+	return (0);
+}
+
+static int
+ena_handle_updated_queues(struct ena_adapter *adapter,
+    struct ena_com_dev_get_features_ctx *get_feat_ctx)
+{
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+	struct ena_calc_queue_size_ctx calc_queue_ctx = { 0 };
+	device_t pdev = adapter->pdev;
+	bool are_queues_changed = false;
+	int io_queue_num, rc;
+
+	calc_queue_ctx.ena_dev = ena_dev;
+	calc_queue_ctx.get_feat_ctx = get_feat_ctx;
+	calc_queue_ctx.pdev = pdev;
+
+	io_queue_num = ena_calc_io_queue_num(adapter, get_feat_ctx);
+	rc = ena_calc_queue_size(adapter, &calc_queue_ctx);
+	if (unlikely(rc != 0 || io_queue_num <= 0))
+		return EFAULT;
+
+	if (adapter->tx_ring->buf_ring_size != adapter->buf_ring_size)
+		are_queues_changed = true;
+
+	if (unlikely(adapter->tx_ring_size > calc_queue_ctx.tx_queue_size ||
+	    adapter->rx_ring_size > calc_queue_ctx.rx_queue_size)) {
+		device_printf(pdev,
+		    "Not enough resources to allocate requested queue sizes "
+		    "(TX,RX)=(%d,%d), falling back to queue sizes "
+		    "(TX,RX)=(%d,%d)\n",
+		    adapter->tx_ring_size,
+		    adapter->rx_ring_size,
+		    calc_queue_ctx.tx_queue_size,
+		    calc_queue_ctx.rx_queue_size);
+		adapter->tx_ring_size = calc_queue_ctx.tx_queue_size;
+		adapter->rx_ring_size = calc_queue_ctx.rx_queue_size;
+		adapter->max_tx_sgl_size = calc_queue_ctx.max_tx_sgl_size;
+		adapter->max_rx_sgl_size = calc_queue_ctx.max_rx_sgl_size;
+		are_queues_changed = true;
+	}
+
+	if (unlikely(adapter->num_queues > io_queue_num)) {
+		device_printf(pdev,
+		    "Not enough resources to allocate %d queues, "
+		    "falling back to %d queues\n",
+		    adapter->num_queues, io_queue_num);
+		adapter->num_queues = io_queue_num;
+		if (adapter->rss_support) {
+			ena_com_rss_destroy(ena_dev);
+			rc = ena_rss_init_default(adapter);
+			if (unlikely(rc != 0) && (rc != EOPNOTSUPP)) {
+				device_printf(pdev, "Cannot init RSS rc: %d\n",
+				    rc);
+				return (rc);
+			}
 		}
+		are_queues_changed = true;
 	}
 
-	if (unlikely(queue_size == 0)) {
-		device_printf(adapter->pdev, "Invalid queue size\n");
-		return (ENA_COM_FAULT);
+	if (unlikely(are_queues_changed)) {
+		ena_free_all_io_rings_resources(adapter);
+		ena_init_io_rings(adapter);
 	}
 
-	*max_tx_sgl_size = min_t(uint16_t, ENA_PKT_MAX_BUFS,
-	    feat->max_queues.max_packet_tx_descs);
-	*max_rx_sgl_size = min_t(uint16_t, ENA_PKT_MAX_BUFS,
-	    feat->max_queues.max_packet_rx_descs);
-
-	return (queue_size);
+	return (0);
 }
 
 static int
@@ -3653,6 +3731,10 @@ ena_reset_task(void *arg, int pending)
 		goto err_dev_free;
 	}
 
+	rc = ena_handle_updated_queues(adapter, &get_feat_ctx);
+	if (unlikely(rc != 0))
+		goto err_dev_free;
+
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter,
 	    adapter->num_queues);
 	if (unlikely(rc != 0)) {
@@ -3702,13 +3784,11 @@ static int
 ena_attach(device_t pdev)
 {
 	struct ena_com_dev_get_features_ctx get_feat_ctx;
+	struct ena_calc_queue_size_ctx calc_queue_ctx = { 0 };
 	static int version_printed;
 	struct ena_adapter *adapter;
 	struct ena_com_dev *ena_dev = NULL;
-	uint16_t tx_sgl_size = 0;
-	uint16_t rx_sgl_size = 0;
 	int io_queue_num;
-	int queue_size;
 	int rc;
 	adapter = device_get_softc(pdev);
 	adapter->pdev = pdev;
@@ -3774,6 +3854,10 @@ ena_attach(device_t pdev)
 	memcpy(adapter->mac_addr, get_feat_ctx.dev_attr.mac_addr,
 	    ETHER_ADDR_LEN);
 
+	calc_queue_ctx.ena_dev = ena_dev;
+	calc_queue_ctx.get_feat_ctx = &get_feat_ctx;
+	calc_queue_ctx.pdev = pdev;
+
 	/* calculate IO queue number to create */
 	io_queue_num = ena_calc_io_queue_num(adapter, &get_feat_ctx);
 
@@ -3782,22 +3866,24 @@ ena_attach(device_t pdev)
 	adapter->num_queues = io_queue_num;
 
 	adapter->max_mtu = get_feat_ctx.dev_attr.max_mtu;
-
+	// Set the requested Rx ring size
+	adapter->rx_ring_size = ENA_DEFAULT_RING_SIZE;
 	/* calculatre ring sizes */
-	queue_size = ena_calc_queue_size(adapter,&tx_sgl_size,
-	    &rx_sgl_size, &get_feat_ctx);
-	if (unlikely((queue_size <= 0) || (io_queue_num <= 0))) {
-		rc = ENA_COM_FAULT;
+	rc = ena_calc_queue_size(adapter, &calc_queue_ctx);
+	if (unlikely((rc != 0) || (io_queue_num <= 0))) {
+		rc = EFAULT;
 		goto err_com_free;
 	}
 
 	adapter->reset_reason = ENA_REGS_RESET_NORMAL;
 
-	adapter->tx_ring_size = queue_size;
-	adapter->rx_ring_size = queue_size;
+	adapter->tx_ring_size = calc_queue_ctx.tx_queue_size;
+	adapter->rx_ring_size = calc_queue_ctx.rx_queue_size;
 
-	adapter->max_tx_sgl_size = tx_sgl_size;
-	adapter->max_rx_sgl_size = rx_sgl_size;
+	adapter->max_tx_sgl_size = calc_queue_ctx.max_tx_sgl_size;
+	adapter->max_rx_sgl_size = calc_queue_ctx.max_rx_sgl_size;
+
+	adapter->buf_ring_size = ENA_DEFAULT_BUF_RING_SIZE;
 
 	/* set up dma tags for rx and tx buffers */
 	rc = ena_setup_tx_dma_tag(adapter);
@@ -3813,7 +3899,11 @@ ena_attach(device_t pdev)
 	}
 
 	/* initialize rings basic information */
-	device_printf(pdev, "initalize %d io queues\n", io_queue_num);
+	device_printf(pdev,
+	    "Creating %d io queues. Rx queue size: %d, Tx queue size: %d\n",
+	    io_queue_num,
+	    calc_queue_ctx.rx_queue_size,
+	    calc_queue_ctx.tx_queue_size);
 	ena_init_io_rings(adapter);
 
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter, io_queue_num);
