@@ -419,6 +419,7 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	mtx_unlock(&shm_timestamp_lock);
 	sb->st_dev = shm_dev_ino;
 	sb->st_ino = shmfd->shm_ino;
+	sb->st_nlink = shmfd->shm_object->ref_count;
 
 	return (0);
 }
