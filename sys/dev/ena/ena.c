@@ -590,6 +590,7 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
+	tx_ring->acum_pkts = 0;
 
 	/* Make sure that drbr is empty */
 	ENA_RING_MTX_LOCK(tx_ring);
@@ -3007,6 +3008,18 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 
 	/* Set flags and meta data */
 	ena_tx_csum(&ena_tx_ctx, *mbuf);
+
+	if (tx_ring->acum_pkts == DB_THRESHOLD ||
+	    ena_com_is_doorbell_needed(tx_ring->ena_com_io_sq, &ena_tx_ctx)) {
+		ena_trace(ENA_DBG | ENA_TXPTH,
+		    "llq tx max burst size of queue %d achieved, writing doorbell to send burst\n",
+		    tx_ring->que->id);
+		wmb();
+		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
+		tx_ring->acum_pkts = 0;
+	}
+
 	/* Prepare the packet's descriptors and send them to device */
 	rc = ena_com_prepare_tx(io_sq, &ena_tx_ctx, &nb_hw_desc);
 	if (unlikely(rc != 0)) {
@@ -3096,7 +3109,6 @@ ena_start_xmit(struct ena_ring *tx_ring)
 	struct ena_adapter *adapter = tx_ring->adapter;
 	struct ena_com_io_sq* io_sq;
 	int ena_qid;
-	int acum_pkts = 0;
 	int ret = 0;
 
 	if (unlikely((if_getdrvflags(adapter->ifp) & IFF_DRV_RUNNING) == 0))
@@ -3137,25 +3149,17 @@ ena_start_xmit(struct ena_ring *tx_ring)
 		    IFF_DRV_RUNNING) == 0))
 			return;
 
-		acum_pkts++;
+		tx_ring->acum_pkts++;
 
 		BPF_MTAP(adapter->ifp, mbuf);
-
-		if (unlikely(acum_pkts == DB_THRESHOLD)) {
-			acum_pkts = 0;
-			wmb();
-			/* Trigger the dma engine */
-			ena_com_write_sq_doorbell(io_sq);
-			counter_u64_add(tx_ring->tx_stats.doorbells, 1);
-		}
-
 	}
 
-	if (likely(acum_pkts != 0)) {
+	if (likely(tx_ring->acum_pkts != 0)) {
 		wmb();
 		/* Trigger the dma engine */
 		ena_com_write_sq_doorbell(io_sq);
 		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
+		tx_ring->acum_pkts = 0;
 	}
 
 	if (unlikely(!tx_ring->running))
