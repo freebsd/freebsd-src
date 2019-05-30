@@ -1,7 +1,7 @@
 #
 # BSD LICENSE
 #
-# Copyright (c) 2015-2017 Amazon.com, Inc. or its affiliates.
+# Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
