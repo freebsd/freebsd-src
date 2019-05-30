@@ -70,7 +70,12 @@
 
 #define	ENA_DEFAULT_RING_SIZE		1024
 
+/*
+ * Refill Rx queue when number of required descriptors is above
+ * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DIVIDER or ENA_RX_REFILL_THRESH_PACKET
+ */
 #define	ENA_RX_REFILL_THRESH_DIVIDER	8
+#define	ENA_RX_REFILL_THRESH_PACKET	256
 
 #define	ENA_IRQNAME_SIZE		40
 

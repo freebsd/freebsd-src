@@ -1781,7 +1781,9 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	rx_ring->next_to_clean = next_to_clean;
 
 	refill_required = ena_com_free_desc(io_sq);
-	refill_threshold = rx_ring->ring_size / ENA_RX_REFILL_THRESH_DIVIDER;
+	refill_threshold = min_t(int,
+	    rx_ring->ring_size / ENA_RX_REFILL_THRESH_DIVIDER,
+	    ENA_RX_REFILL_THRESH_PACKET);
 
 	if (refill_required > refill_threshold) {
 		ena_com_update_dev_comp_head(rx_ring->ena_com_io_cq);
