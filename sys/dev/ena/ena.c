@@ -3819,18 +3819,18 @@ ena_attach(device_t pdev)
 	device_printf(pdev, "initalize %d io queues\n", io_queue_num);
 	ena_init_io_rings(adapter);
 
-	/* setup network interface */
-	rc = ena_setup_ifnet(pdev, adapter, &get_feat_ctx);
-	if (unlikely(rc != 0)) {
-		device_printf(pdev, "Error with network interface setup\n");
-		goto err_io_free;
-	}
-
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter, io_queue_num);
 	if (unlikely(rc != 0)) {
 		device_printf(pdev,
 		    "Failed to enable and set the admin interrupts\n");
-		goto err_ifp_free;
+		goto err_io_free;
+	}
+
+	/* setup network interface */
+	rc = ena_setup_ifnet(pdev, adapter, &get_feat_ctx);
+	if (unlikely(rc != 0)) {
+		device_printf(pdev, "Error with network interface setup\n");
+		goto err_msix_free;
 	}
 
 	/* Initialize reset task queue */
@@ -3853,9 +3853,10 @@ ena_attach(device_t pdev)
 	adapter->running = true;
 	return (0);
 
-err_ifp_free:
-	if_detach(adapter->ifp);
-	if_free(adapter->ifp);
+err_msix_free:
+	ena_com_dev_reset(adapter->ena_dev, ENA_REGS_RESET_INIT_ERR);
+	ena_free_mgmnt_irq(adapter);
+	ena_disable_msix(adapter);
 err_io_free:
 	ena_free_all_io_rings_resources(adapter);
 	ena_free_rx_dma_tag(adapter);
