@@ -577,6 +577,7 @@ gicv3_its_pendtables_init(struct gicv3_its_softc *sc)
 static int
 its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
 {
+	struct redist_pcpu *rpcpu;
 	device_t gicv3;
 	vm_paddr_t target;
 	uint64_t xbaser, tmp;
@@ -664,7 +665,8 @@ its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
 
 	if ((gic_its_read_8(sc, GITS_TYPER) & GITS_TYPER_PTA) != 0) {
 		/* This ITS wants the redistributor physical address */
-		target = vtophys(gicv3_get_redist_vaddr(dev));
+		rpcpu = gicv3_get_redist(dev);
+		target = vtophys(rman_get_virtual(&rpcpu->res));
 	} else {
 		/* This ITS wants the unique processor number */
 		target = GICR_TYPER_CPUNUM(gic_r_read_8(gicv3, GICR_TYPER));
