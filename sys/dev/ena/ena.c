@@ -279,6 +279,8 @@ fail_map_create:
 	bus_dma_tag_destroy(dma->tag);
 fail_tag:
 	dma->tag = NULL;
+	dma->vaddr = NULL;
+	dma->paddr = 0;
 
 	return (error);
 }
