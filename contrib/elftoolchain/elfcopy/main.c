@@ -1565,7 +1565,6 @@ main(int argc, char **argv)
 	ecp = calloc(1, sizeof(*ecp));
 	if (ecp == NULL)
 		err(EXIT_FAILURE, "calloc failed");
-	memset(ecp, 0, sizeof(*ecp));
 
 	ecp->itf = ecp->otf = ETF_ELF;
 	ecp->iec = ecp->oec = ELFCLASSNONE;
