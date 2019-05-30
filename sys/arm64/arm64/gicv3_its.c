@@ -672,11 +672,16 @@ its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
 	if ((gic_r_read_4(gicv3, GICR_TYPER) & GICR_TYPER_PLPIS) == 0)
 		return (ENXIO);
 
-	its_init_cpu_lpi(dev, sc);
+	rpcpu = gicv3_get_redist(dev);
+
+	/* Do per-cpu LPI init once */
+	if (!rpcpu->lpi_enabled) {
+		its_init_cpu_lpi(dev, sc);
+		rpcpu->lpi_enabled = true;
+	}
 
 	if ((gic_its_read_8(sc, GITS_TYPER) & GITS_TYPER_PTA) != 0) {
 		/* This ITS wants the redistributor physical address */
-		rpcpu = gicv3_get_redist(dev);
 		target = vtophys(rman_get_virtual(&rpcpu->res));
 	} else {
 		/* This ITS wants the unique processor number */
