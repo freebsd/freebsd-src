@@ -1308,7 +1308,9 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	soisconnecting(so);
 	TCPSTAT_INC(tcps_connattempt);
 	tcp_state_change(tp, TCPS_SYN_SENT);
-	tp->iss = tcp_new_isn(tp);
+	tp->iss = tcp_new_isn(&inp->inp_inc);
+	if (tp->t_flags & TF_REQ_TSTMP)
+		tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
 	tcp_sendseqinit(tp);
 
 	return 0;
@@ -1347,7 +1349,9 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	soisconnecting(inp->inp_socket);
 	TCPSTAT_INC(tcps_connattempt);
 	tcp_state_change(tp, TCPS_SYN_SENT);
-	tp->iss = tcp_new_isn(tp);
+	tp->iss = tcp_new_isn(&inp->inp_inc);
+	if (tp->t_flags & TF_REQ_TSTMP)
+		tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
 	tcp_sendseqinit(tp);
 
 	return 0;

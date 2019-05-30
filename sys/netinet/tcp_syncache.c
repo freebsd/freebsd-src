@@ -1088,6 +1088,28 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			}
 		}
 #endif /* TCP_SIGNATURE */
+
+		/*
+		 * RFC 7323 PAWS: If we have a timestamp on this segment and
+		 * it's less than ts_recent, drop it.
+		 * XXXMT: RFC 7323 also requires to send an ACK.
+		 *        In tcp_input.c this is only done for TCP segments
+		 *        with user data, so be consistent here and just drop
+		 *        the segment.
+		 */
+		if (sc->sc_flags & SCF_TIMESTAMP && to->to_flags & TOF_TS &&
+		    TSTMP_LT(to->to_tsval, sc->sc_tsreflect)) {
+			SCH_UNLOCK(sch);
+			if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+				log(LOG_DEBUG,
+				    "%s; %s: SEG.TSval %u < TS.Recent %u, "
+				    "segment dropped\n", s, __func__,
+				    to->to_tsval, sc->sc_tsreflect);
+				free(s, M_TCPLOG);
+			}
+			return (-1);  /* Do not send RST */
+		}
+
 		/*
 		 * Pull out the entry to unlock the bucket row.
 		 * 
@@ -1494,6 +1516,7 @@ skip_alloc:
 		if (to->to_flags & TOF_TS) {
 			sc->sc_tsreflect = to->to_tsval;
 			sc->sc_flags |= SCF_TIMESTAMP;
+			sc->sc_tsoff = tcp_new_ts_offset(inc);
 		}
 		if (to->to_flags & TOF_SCALE) {
 			int wscale = 0;
@@ -2029,11 +2052,6 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 	iss = hash & ~0xff;
 	iss |= cookie.cookie ^ (hash >> 24);
 
-	/* Randomize the timestamp. */
-	if (sc->sc_flags & SCF_TIMESTAMP) {
-		sc->sc_tsoff = arc4random() - tcp_ts_getticks();
-	}
-
 	TCPSTAT_INC(tcps_sc_sendcookie);
 	return (iss);
 }
@@ -2120,7 +2138,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	if (to->to_flags & TOF_TS) {
 		sc->sc_flags |= SCF_TIMESTAMP;
 		sc->sc_tsreflect = to->to_tsval;
-		sc->sc_tsoff = to->to_tsecr - tcp_ts_getticks();
+		sc->sc_tsoff = tcp_new_ts_offset(inc);
 	}
 
 	if (to->to_flags & TOF_SIGNATURE)

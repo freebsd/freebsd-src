@@ -226,6 +226,12 @@ VNET_DEFINE(uma_zone_t, sack_hole_zone);
 
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 
+VNET_DEFINE(u_char, ts_offset_secret[32]);
+#define	V_ts_offset_secret	VNET(ts_offset_secret)
+
+static int	tcp_default_fb_init(struct tcpcb *tp);
+static void	tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged);
+static int	tcp_default_handoff_ok(struct tcpcb *tp);
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
 static void tcp_mtudisc(struct inpcb *, int);
@@ -683,6 +689,7 @@ tcp_init(void)
 	/* Setup the tcp function block list */
 	init_tcp_functions();
 	register_tcp_functions(&tcp_def_funcblk, M_WAITOK);
+	read_random(&V_ts_offset_secret, sizeof(V_ts_offset_secret));
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
@@ -2185,6 +2192,40 @@ out:
 }
 #endif /* INET6 */
 
+static uint32_t
+tcp_keyed_hash(struct in_conninfo *inc, u_char *key)
+{
+	MD5_CTX ctx;
+	uint32_t hash[4];
+
+	MD5Init(&ctx);
+	MD5Update(&ctx, &inc->inc_fport, sizeof(uint16_t));
+	MD5Update(&ctx, &inc->inc_lport, sizeof(uint16_t));
+	switch (inc->inc_flags & INC_ISIPV6) {
+#ifdef INET
+	case 0:
+		MD5Update(&ctx, &inc->inc_faddr, sizeof(struct in_addr));
+		MD5Update(&ctx, &inc->inc_laddr, sizeof(struct in_addr));
+		break;
+#endif
+#ifdef INET6
+	case INC_ISIPV6:
+		MD5Update(&ctx, &inc->inc6_faddr, sizeof(struct in6_addr));
+		MD5Update(&ctx, &inc->inc6_laddr, sizeof(struct in6_addr));
+		break;
+#endif
+	}
+	MD5Update(&ctx, key, 32);
+	MD5Final((unsigned char *)hash, &ctx);
+
+	return (hash[0]);
+}
+
+uint32_t
+tcp_new_ts_offset(struct in_conninfo *inc)
+{
+	return (tcp_keyed_hash(inc, V_ts_offset_secret));
+}
 
 /*
  * Following is where TCP initial sequence number generation occurs.
@@ -2226,7 +2267,7 @@ out:
  * as reseeding should not be necessary.
  *
  * Locking of the global variables isn_secret, isn_last_reseed, isn_offset,
- * isn_offset_old, and isn_ctx is performed using the TCP pcbinfo lock.  In
+ * isn_offset_old, and isn_ctx is performed using the ISN lock.  In
  * general, this means holding an exclusive (write) lock.
  */
 
@@ -2247,14 +2288,10 @@ static VNET_DEFINE(u_int32_t, isn_offset_old);
 #define	V_isn_offset_old		VNET(isn_offset_old)
 
 tcp_seq
-tcp_new_isn(struct tcpcb *tp)
+tcp_new_isn(struct in_conninfo *inc)
 {
-	MD5_CTX isn_ctx;
-	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
 	u_int32_t projected_offset;
-
-	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	ISN_LOCK();
 	/* Seed if this is the first use, reseed if requested. */
@@ -2266,26 +2303,7 @@ tcp_new_isn(struct tcpcb *tp)
 	}
 
 	/* Compute the md5 hash and return the ISN. */
-	MD5Init(&isn_ctx);
-	MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_fport, sizeof(u_short));
-	MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_lport, sizeof(u_short));
-#ifdef INET6
-	if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0) {
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->in6p_faddr,
-			  sizeof(struct in6_addr));
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->in6p_laddr,
-			  sizeof(struct in6_addr));
-	} else
-#endif
-	{
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_faddr,
-			  sizeof(struct in_addr));
-		MD5Update(&isn_ctx, (u_char *) &tp->t_inpcb->inp_laddr,
-			  sizeof(struct in_addr));
-	}
-	MD5Update(&isn_ctx, (u_char *) &V_isn_secret, sizeof(V_isn_secret));
-	MD5Final((u_char *) &md5_buffer, &isn_ctx);
-	new_isn = (tcp_seq) md5_buffer[0];
+	new_isn = (tcp_seq)tcp_keyed_hash(inc, V_isn_secret);
 	V_isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
 	if (ticks != V_isn_last) {
