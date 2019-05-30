@@ -405,6 +405,8 @@ ena_init_io_rings_common(struct ena_adapter *adapter, struct ena_ring *ring,
 	ring->qid = qid;
 	ring->adapter = adapter;
 	ring->ena_dev = adapter->ena_dev;
+	ring->first_interrupt = false;
+	ring->no_interrupt_event_cnt = 0;
 }
 
 static void
@@ -1772,6 +1774,9 @@ ena_handle_msix(void *arg)
 	qid = que->id;
 	ena_qid = ENA_IO_TXQ_IDX(qid);
 	io_cq = &adapter->ena_dev->io_cq_queues[ena_qid];
+
+	tx_ring->first_interrupt = true;
+	rx_ring->first_interrupt = true;
 
 	for (i = 0; i < CLEAN_BUDGET; ++i) {
 		/*
@@ -3329,13 +3334,37 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 }
 
 static int
-check_missing_comp_in_queue(struct ena_adapter *adapter,
+check_for_rx_interrupt_queue(struct ena_adapter *adapter,
+    struct ena_ring *rx_ring)
+{
+	if (likely(rx_ring->first_interrupt))
+		return (0);
+
+	if (ena_com_cq_empty(rx_ring->ena_com_io_cq))
+		return (0);
+
+	rx_ring->no_interrupt_event_cnt++;
+
+	if (rx_ring->no_interrupt_event_cnt == ENA_MAX_NO_INTERRUPT_ITERATIONS) {
+		device_printf(adapter->pdev, "Potential MSIX issue on Rx side "
+		   "Queue = %d. Reset the device\n", rx_ring->qid);
+		adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
+		adapter->trigger_reset = true;
+		return (EIO);
+	}
+
+	return (0);
+}
+
+static int
+check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
     struct ena_ring *tx_ring)
 {
 	struct bintime curtime, time;
 	struct ena_tx_buffer *tx_buf;
+	sbintime_t time_offset;
 	uint32_t missed_tx = 0;
-	int i;
+	int i, rc = 0;
 
 	getbinuptime(&curtime);
 
@@ -3347,9 +3376,24 @@ check_missing_comp_in_queue(struct ena_adapter *adapter,
 
 		time = curtime;
 		bintime_sub(&time, &tx_buf->timestamp);
+		time_offset = bttosbt(time);
+
+		if (unlikely(!tx_ring->first_interrupt &&
+		    time_offset > 2 * adapter->missing_tx_timeout)) {
+			/*
+			 * If after graceful period interrupt is still not
+			 * received, we schedule a reset.
+			 */
+			device_printf(adapter->pdev,
+			    "Potential MSIX issue on Tx side Queue = %d. "
+			    "Reset the device\n", tx_ring->qid);
+			adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
+			adapter->trigger_reset = true;
+			return (EIO);
+		}
 
 		/* Check again if packet is still waiting */
-		if (unlikely(bttosbt(time) > adapter->missing_tx_timeout)) {
+		if (unlikely(time_offset > adapter->missing_tx_timeout)) {
 
 			if (!tx_buf->print_once)
 				ena_trace(ENA_WARNING, "Found a Tx that wasn't "
@@ -3358,24 +3402,22 @@ check_missing_comp_in_queue(struct ena_adapter *adapter,
 
 			tx_buf->print_once = true;
 			missed_tx++;
-			counter_u64_add(tx_ring->tx_stats.missing_tx_comp, 1);
-
-			if (unlikely(missed_tx >
-			    adapter->missing_tx_threshold)) {
-				device_printf(adapter->pdev,
-				    "The number of lost tx completion "
-				    "is above the threshold (%d > %d). "
-				    "Reset the device\n",
-				    missed_tx, adapter->missing_tx_threshold);
-				adapter->reset_reason =
-				    ENA_REGS_RESET_MISS_TX_CMPL;
-				adapter->trigger_reset = true;
-				return (EIO);
-			}
 		}
 	}
 
-	return (0);
+	if (unlikely(missed_tx > adapter->missing_tx_threshold)) {
+		device_printf(adapter->pdev,
+		    "The number of lost tx completion is above the threshold "
+		    "(%d > %d). Reset the device\n",
+		    missed_tx, adapter->missing_tx_threshold);
+		adapter->reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
+		adapter->trigger_reset = true;
+		rc = EIO;
+	}
+
+	counter_u64_add(tx_ring->tx_stats.missing_tx_comp, missed_tx);
+
+	return (rc);
 }
 
 /*
@@ -3385,9 +3427,10 @@ check_missing_comp_in_queue(struct ena_adapter *adapter,
  * transactions exceeds "missing_tx_threshold".
  */
 static void
-check_for_missing_tx_completions(struct ena_adapter *adapter)
+check_for_missing_completions(struct ena_adapter *adapter)
 {
 	struct ena_ring *tx_ring;
+	struct ena_ring *rx_ring;
 	int i, budget, rc;
 
 	/* Make sure the driver doesn't turn the device in other process */
@@ -3406,8 +3449,13 @@ check_for_missing_tx_completions(struct ena_adapter *adapter)
 
 	for (i = adapter->next_monitored_tx_qid; i < adapter->num_queues; i++) {
 		tx_ring = &adapter->tx_ring[i];
+		rx_ring = &adapter->rx_ring[i];
 
-		rc = check_missing_comp_in_queue(adapter, tx_ring);
+		rc = check_missing_comp_in_tx_queue(adapter, tx_ring);
+		if (unlikely(rc != 0))
+			return;
+
+		rc = check_for_rx_interrupt_queue(adapter, rx_ring);
 		if (unlikely(rc != 0))
 			return;
 
@@ -3516,7 +3564,7 @@ ena_timer_service(void *data)
 
 	check_for_admin_com_state(adapter);
 
-	check_for_missing_tx_completions(adapter);
+	check_for_missing_completions(adapter);
 
 	check_for_empty_rx_ring(adapter);
 
