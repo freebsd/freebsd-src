@@ -2446,7 +2446,7 @@ ena_get_dev_offloads(struct ena_com_dev_get_features_ctx *feat)
 	if ((feat->offload.tx &
 	    (ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L4_IPV4_CSUM_FULL_MASK |
 	    ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L4_IPV4_CSUM_PART_MASK |
-		ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L3_CSUM_IPV4_MASK)) != 0)
+	    ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L3_CSUM_IPV4_MASK)) != 0)
 		caps |= IFCAP_TXCSUM;
 
 	if ((feat->offload.tx &
@@ -2872,8 +2872,8 @@ ena_start_xmit(struct ena_ring *tx_ring)
 		    " header csum flags %#jx",
 		    mbuf, mbuf->m_flags, (uint64_t)mbuf->m_pkthdr.csum_flags);
 
-		if (unlikely(!ena_com_sq_have_enough_space(io_sq,
-		    ENA_TX_CLEANUP_THRESHOLD)))
+		if (unlikely(ena_com_free_desc(io_sq) <=
+		    ENA_TX_CLEANUP_THRESHOLD))
 			ena_tx_cleanup(tx_ring);
 
 		if (unlikely((ret = ena_xmit_mbuf(tx_ring, &mbuf)) != 0)) {
@@ -2916,7 +2916,7 @@ ena_start_xmit(struct ena_ring *tx_ring)
 		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
 	}
 
-	if (!ena_com_sq_have_enough_space(io_sq, ENA_TX_CLEANUP_THRESHOLD))
+	if (ena_com_free_desc(io_sq) <= ENA_TX_CLEANUP_THRESHOLD)
 		ena_tx_cleanup(tx_ring);
 }
 
@@ -2975,7 +2975,7 @@ ena_mq_start(if_t ifp, struct mbuf *m)
 		return (ret);
 	}
 
-	if ((is_drbr_empty != 0) && (ENA_RING_MTX_TRYLOCK(tx_ring) != 0)) {
+	if (is_drbr_empty && (ENA_RING_MTX_TRYLOCK(tx_ring) != 0)) {
 		ena_start_xmit(tx_ring);
 		ENA_RING_MTX_UNLOCK(tx_ring);
 	} else {
@@ -3230,7 +3230,7 @@ ena_device_init(struct ena_adapter *adapter, device_t pdev,
 	adapter->dma_width = dma_width;
 
 	/* ENA admin level init */
-	rc = ena_com_admin_init(ena_dev, &aenq_handlers, true);
+	rc = ena_com_admin_init(ena_dev, &aenq_handlers);
 	if (unlikely(rc != 0)) {
 		device_printf(pdev,
 		    "Can not initialize ena admin queue with device\n");
