@@ -912,7 +912,7 @@ uipc_listen(struct socket *so, int backlog, struct thread *td)
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
 	if (error == 0) {
-		cru2x(td->td_ucred, &unp->unp_peercred);
+		cru2xt(td, &unp->unp_peercred);
 		solisten_proto(so, backlog);
 	}
 	SOCK_UNLOCK(so);
@@ -1656,7 +1656,7 @@ void
 unp_copy_peercred(struct thread *td, struct unpcb *client_unp,
     struct unpcb *server_unp, struct unpcb *listen_unp)
 {
-	cru2x(td->td_ucred, &client_unp->unp_peercred);
+	cru2xt(td, &client_unp->unp_peercred);
 	client_unp->unp_flags |= UNP_HAVEPC;
 
 	memcpy(&server_unp->unp_peercred, &listen_unp->unp_peercred,
@@ -2755,8 +2755,8 @@ db_print_xucred(int indent, struct xucred *xu)
 	int comma, i;
 
 	db_print_indent(indent);
-	db_printf("cr_version: %u   cr_uid: %u   cr_ngroups: %d\n",
-	    xu->cr_version, xu->cr_uid, xu->cr_ngroups);
+	db_printf("cr_version: %u   cr_uid: %u   cr_pid: %d   cr_ngroups: %d\n",
+	    xu->cr_version, xu->cr_uid, xu->cr_pid, xu->cr_ngroups);
 	db_print_indent(indent);
 	db_printf("cr_groups: ");
 	comma = 0;
