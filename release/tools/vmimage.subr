@@ -72,6 +72,10 @@ cleanup() {
 		mdconfig -d -u ${mddev}
 	fi
 
+	# Avoid inheriting the DEFAULT_VERSIONS for lang/python from
+	# the gce.conf.
+	unset DEFAULT_VERSIONS
+
 	return 0
 }
 
