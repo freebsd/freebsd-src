@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2018
+.Dd May 21, 2019
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -283,6 +283,49 @@ Note that the live kernel might be at a different path
 which can be examined by looking at the
 .Va kern.bootfile
 .Xr sysctl 8 .
+.Pp
+The
+.Nm
+.Xr rc 8
+script runs early during boot, typically before networking is configured.
+This makes it unsuitable for configuring
+.Xr netdump
+when the client address is dynamic.
+To configure
+.Xr netdump
+when
+.Xr dhclient
+binds to a server,
+.Xr dhclient-script
+can be used to run
+.Xr dumpon .
+For example, to automatically configure
+.Xr netdump
+on the vtnet0 interface, add the following to
+.Pa /etc/dhclient-exit-hooks .
+.Bd -literal
+case $reason in
+BOUND|REBIND|REBOOT|RENEW)
+	if [ "$interface" != vtnet0 ] || [ -n "$old_ip_address" -a \\
+	     "$old_ip_address" = "$new_ip_address" ]; then
+		break
+	fi
+	if [ -n "$new_routers" ]; then
+                # Take the first router in the list.
+		gateway_flag="-g ${new_routers%% *}"
+	fi
+	dumpon -c $new_ip_address -s $server $gateway_flag vtnet0
+	;;
+esac
+.Ed
+.Pp
+Be sure to fill in the server IP address and change the interface name if
+needed, and to configure
+.Pp
+.Dl dumpdev="NO"
+.Pp
+in
+.Pa /etc/rc.conf .
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr kgdb 1 ,
