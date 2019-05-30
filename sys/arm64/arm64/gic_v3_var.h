@@ -41,8 +41,9 @@ DECLARE_CLASS(gic_v3_driver);
 struct gic_v3_irqsrc;
 
 struct redist_pcpu {
-	struct resource		res;
+	struct resource		res;		/* mem resource for redist */
 	vm_offset_t		pend_base;
+	bool			lpi_enabled;	/* redist LPI configured? */
 };
 
 struct gic_redists {
