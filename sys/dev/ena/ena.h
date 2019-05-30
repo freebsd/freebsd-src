@@ -84,7 +84,7 @@
 #define	ENA_MAX_FRAME_LEN		10000
 #define	ENA_MIN_FRAME_LEN 		60
 
-#define ENA_TX_CLEANUP_THRESHOLD	128
+#define ENA_TX_RESUME_THRESH		(ENA_PKT_MAX_BUFS + 2)
 
 #define DB_THRESHOLD	64
 
@@ -163,7 +163,7 @@ typedef struct _ena_vendor_info_t {
 struct ena_irq {
 	/* Interrupt resources */
 	struct resource *res;
-	driver_intr_t *handler;
+	driver_filter_t *handler;
 	void *data;
 	void *cookie;
 	unsigned int vector;
@@ -176,6 +176,10 @@ struct ena_que {
 	struct ena_adapter *adapter;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
+
+	struct task cleanup_task;
+	struct taskqueue *cleanup_tq;
+
 	uint32_t id;
 	int cpu;
 };
@@ -222,6 +226,8 @@ struct ena_stats_tx {
 	counter_u64_t bad_req_id;
 	counter_u64_t collapse;
 	counter_u64_t collapse_err;
+	counter_u64_t queue_wakeup;
+	counter_u64_t queue_stop;
 };
 
 struct ena_stats_rx {
@@ -285,15 +291,9 @@ struct ena_ring {
 	struct mtx ring_mtx;
 	char mtx_name[16];
 
-	union {
-		struct {
-			struct task enqueue_task;
-			struct taskqueue *enqueue_tq;
-		};
-		struct {
-			struct task cmpl_task;
-			struct taskqueue *cmpl_tq;
-		};
+	struct {
+		struct task enqueue_task;
+		struct taskqueue *enqueue_tq;
 	};
 
 	union {
@@ -301,7 +301,11 @@ struct ena_ring {
 		struct ena_stats_rx rx_stats;
 	};
 
-	int empty_rx_queue;
+	union {
+		int empty_rx_queue;
+		/* For Tx ring to indicate if it's running or not */
+		bool running;
+	};
 } __aligned(CACHE_LINE_SIZE);
 
 struct ena_stats_dev {

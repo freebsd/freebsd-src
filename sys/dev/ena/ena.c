@@ -120,7 +120,6 @@ static void	ena_destroy_all_rx_queues(struct ena_adapter *);
 static void	ena_destroy_all_io_queues(struct ena_adapter *);
 static int	ena_create_io_queues(struct ena_adapter *);
 static int	ena_tx_cleanup(struct ena_ring *);
-static void	ena_deferred_rx_cleanup(void *, int);
 static int	ena_rx_cleanup(struct ena_ring *);
 static inline int validate_tx_req_id(struct ena_ring *, uint16_t);
 static void	ena_rx_hash_mbuf(struct ena_ring *, struct ena_com_rx_ctx *,
@@ -129,7 +128,8 @@ static struct mbuf* ena_rx_mbuf(struct ena_ring *, struct ena_com_rx_buf_info *,
     struct ena_com_rx_ctx *, uint16_t *);
 static inline void ena_rx_checksum(struct ena_ring *, struct ena_com_rx_ctx *,
     struct mbuf *);
-static void	ena_handle_msix(void *);
+static void	ena_cleanup(void *arg, int pending);
+static int	ena_handle_msix(void *);
 static int	ena_enable_msix(struct ena_adapter *);
 static void	ena_setup_mgmnt_intr(struct ena_adapter *);
 static void	ena_setup_io_intr(struct ena_adapter *);
@@ -450,7 +450,6 @@ ena_init_io_rings(struct ena_adapter *adapter)
 		    device_get_nameunit(adapter->pdev), i);
 
 		mtx_init(&txr->ring_mtx, txr->mtx_name, NULL, MTX_DEF);
-		mtx_init(&rxr->ring_mtx, rxr->mtx_name, NULL, MTX_DEF);
 
 		que = &adapter->que[i];
 		que->adapter = adapter;
@@ -481,7 +480,6 @@ ena_free_io_ring_resources(struct ena_adapter *adapter, unsigned int qid)
 	ENA_RING_MTX_UNLOCK(txr);
 
 	mtx_destroy(&txr->ring_mtx);
-	mtx_destroy(&rxr->ring_mtx);
 }
 
 static void
@@ -626,6 +624,8 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 		i = tx_ring->ring_size;
 		goto err_buf_info_unmap;
 	}
+
+	tx_ring->running = true;
 
 	taskqueue_start_threads(&tx_ring->enqueue_tq, 1, PI_NET,
 	    "%s txeq %d", device_get_nameunit(adapter->pdev), que->cpu);
@@ -811,14 +811,6 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 		}
 	}
 
-	/* Allocate taskqueues */
-	TASK_INIT(&rx_ring->cmpl_task, 0, ena_deferred_rx_cleanup, rx_ring);
-	rx_ring->cmpl_tq = taskqueue_create_fast("ena RX completion", M_WAITOK,
-	    taskqueue_thread_enqueue, &rx_ring->cmpl_tq);
-
-	taskqueue_start_threads(&rx_ring->cmpl_tq, 1, PI_NET,
-	    "%s rx_ring cmpl %d", device_get_nameunit(adapter->pdev), que->cpu);
-
 	return (0);
 
 err_buf_info_unmap:
@@ -845,11 +837,6 @@ static void
 ena_free_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 {
 	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
-
-	while (taskqueue_cancel(rx_ring->cmpl_tq, &rx_ring->cmpl_task, NULL) != 0)
-		taskqueue_drain(rx_ring->cmpl_tq, &rx_ring->cmpl_task);
-
-	taskqueue_free(rx_ring->cmpl_tq);
 
 	/* Free buffer DMA maps, */
 	for (int i = 0; i < rx_ring->ring_size; i++) {
@@ -1176,6 +1163,18 @@ ena_destroy_all_rx_queues(struct ena_adapter *adapter)
 static void
 ena_destroy_all_io_queues(struct ena_adapter *adapter)
 {
+	struct ena_que *queue;
+	int i;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		queue = &adapter->que[i];
+		while (taskqueue_cancel(queue->cleanup_tq,
+		    &queue->cleanup_task, NULL))
+			taskqueue_drain(queue->cleanup_tq,
+			    &queue->cleanup_task);
+		taskqueue_free(queue->cleanup_tq);
+	}
+
 	ena_destroy_all_tx_queues(adapter);
 	ena_destroy_all_rx_queues(adapter);
 }
@@ -1206,6 +1205,7 @@ ena_create_io_queues(struct ena_adapter *adapter)
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	struct ena_com_create_io_ctx ctx;
 	struct ena_ring *ring;
+	struct ena_que *queue;
 	uint16_t ena_qid;
 	uint32_t msix_vector;
 	int rc, i;
@@ -1267,6 +1267,18 @@ ena_create_io_queues(struct ena_adapter *adapter)
 		}
 	}
 
+	for (i = 0; i < adapter->num_queues; i++) {
+		queue = &adapter->que[i];
+
+		TASK_INIT(&queue->cleanup_task, 0, ena_cleanup, queue);
+		queue->cleanup_tq = taskqueue_create_fast("ena cleanup",
+		    M_WAITOK, taskqueue_thread_enqueue, &queue->cleanup_tq);
+
+		taskqueue_start_threads(&queue->cleanup_tq, 1, PI_NET,
+		    "%s queue %d cleanup",
+		    device_get_nameunit(adapter->pdev), i);
+	}
+
 	return (0);
 
 err_rx:
@@ -1304,6 +1316,7 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 	int commit = TX_COMMIT;
 	int budget = TX_BUDGET;
 	int work_done;
+	bool above_thresh;
 
 	adapter = tx_ring->que->adapter;
 	ena_qid = ENA_IO_TXQ_IDX(tx_ring->que->id);
@@ -1372,7 +1385,27 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		ena_com_update_dev_comp_head(io_cq);
 	}
 
-	taskqueue_enqueue(tx_ring->enqueue_tq, &tx_ring->enqueue_task);
+	/*
+	 * Need to make the rings circular update visible to
+	 * ena_xmit_mbuf() before checking for tx_ring->running.
+	 */
+	mb();
+
+	above_thresh = ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+	    ENA_TX_RESUME_THRESH);
+	if (unlikely(!tx_ring->running && above_thresh)) {
+		ENA_RING_MTX_LOCK(tx_ring);
+		above_thresh =
+		    ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+		    ENA_TX_RESUME_THRESH);
+		if (!tx_ring->running && above_thresh) {
+			tx_ring->running = true;
+			counter_u64_add(tx_ring->tx_stats.queue_wakeup, 1);
+			taskqueue_enqueue(tx_ring->enqueue_tq,
+			    &tx_ring->enqueue_task);
+		}
+		ENA_RING_MTX_UNLOCK(tx_ring);
+	}
 
 	return (work_done);
 }
@@ -1581,24 +1614,6 @@ ena_rx_checksum(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 	}
 }
 
-static void
-ena_deferred_rx_cleanup(void *arg, int pending)
-{
-	struct ena_ring *rx_ring = arg;
-	int budget = CLEAN_BUDGET;
-
-	ENA_RING_MTX_LOCK(rx_ring);
-	/*
-	 * If deferred task was executed, perform cleanup of all awaiting
-	 * descs (or until given budget is depleted to avoid infinite loop).
-	 */
-	while (likely(budget--)) {
-		if (ena_rx_cleanup(rx_ring) == 0)
-			break;
-	}
-	ENA_RING_MTX_UNLOCK(rx_ring);
-}
-
 /**
  * ena_rx_cleanup - handle rx irq
  * @arg: ring for which irq is being handled
@@ -1753,12 +1768,8 @@ ena_intr_msix_mgmnt(void *arg)
 		ena_com_aenq_intr_handler(adapter->ena_dev, arg);
 }
 
-/**
- * ena_handle_msix - MSIX Interrupt Handler for Tx/Rx
- * @arg: interrupt number
- **/
 static void
-ena_handle_msix(void *arg)
+ena_cleanup(void *arg, int pending)
 {
 	struct ena_que	*que = arg;
 	struct ena_adapter *adapter = que->adapter;
@@ -1785,22 +1796,8 @@ ena_handle_msix(void *arg)
 	rx_ring->first_interrupt = true;
 
 	for (i = 0; i < CLEAN_BUDGET; ++i) {
-		/*
-		 * If lock cannot be acquired, then deferred cleanup task was
-		 * being executed and rx ring is being cleaned up in
-		 * another thread.
-		 */
-		if (likely(ENA_RING_MTX_TRYLOCK(rx_ring) != 0)) {
-			rxc = ena_rx_cleanup(rx_ring);
-			ENA_RING_MTX_UNLOCK(rx_ring);
-		} else {
-			rxc = 0;
-		}
-
-		/* Protection from calling ena_tx_cleanup from ena_start_xmit */
-		ENA_RING_MTX_LOCK(tx_ring);
+		rxc = ena_rx_cleanup(rx_ring);
 		txc = ena_tx_cleanup(tx_ring);
-		ENA_RING_MTX_UNLOCK(tx_ring);
 
 		if (unlikely((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0))
 			return;
@@ -1815,6 +1812,25 @@ ena_handle_msix(void *arg)
 	    TX_IRQ_INTERVAL,
 	    true);
 	ena_com_unmask_intr(io_cq, &intr_reg);
+}
+
+/**
+ * ena_handle_msix - MSIX Interrupt Handler for Tx/Rx
+ * @arg: queue
+ **/
+static int
+ena_handle_msix(void *arg)
+{
+	struct ena_que *queue = arg;
+	struct ena_adapter *adapter = queue->adapter;
+	if_t ifp = adapter->ifp;
+
+	if (unlikely((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0))
+		return (FILTER_STRAY);
+
+	taskqueue_enqueue(queue->cleanup_tq, &queue->cleanup_task);
+
+	return (FILTER_HANDLED);
 }
 
 static int
@@ -1997,8 +2013,8 @@ ena_request_io_irq(struct ena_adapter *adapter)
 		}
 
 		rc = bus_setup_intr(adapter->pdev, irq->res,
-		    INTR_TYPE_NET | INTR_MPSAFE, NULL,
-		    irq->handler, irq->data, &irq->cookie);
+		    INTR_TYPE_NET | INTR_MPSAFE, irq->handler, NULL,
+		    irq->data, &irq->cookie);
 		 if (unlikely(rc != 0)) {
 			device_printf(adapter->pdev, "failed to register "
 			    "interrupt handler for irq %ju: %d\n",
@@ -2834,6 +2850,34 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	tx_ring->next_to_use = ENA_TX_RING_IDX_NEXT(next_to_use,
 	    tx_ring->ring_size);
 
+	/* stop the queue when no more space available, the packet can have up
+	 * to sgl_size + 2. one for the meta descriptor and one for header
+	 * (if the header is larger than tx_max_header_size).
+	 */
+	if (unlikely(!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+	    adapter->max_tx_sgl_size + 2))) {
+		ena_trace(ENA_DBG | ENA_TXPTH, "Stop queue %d\n",
+		    tx_ring->que->id);
+
+		tx_ring->running = false;
+		counter_u64_add(tx_ring->tx_stats.queue_stop, 1);
+
+		/* There is a rare condition where this function decides to
+		 * stop the queue but meanwhile tx_cleanup() updates
+		 * next_to_completion and terminates.
+		 * The queue will remain stopped forever.
+		 * To solve this issue this function performs mb(), checks
+		 * the wakeup condition and wakes up the queue if needed.
+		 */
+		mb();
+
+		if (ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+		    ENA_TX_RESUME_THRESH)) {
+			tx_ring->running = true;
+			counter_u64_add(tx_ring->tx_stats.queue_wakeup, 1);
+		}
+	}
+
 	bus_dmamap_sync(adapter->tx_buf_tag, tx_info->map,
 	    BUS_DMASYNC_PREWRITE);
 
@@ -2870,9 +2914,10 @@ ena_start_xmit(struct ena_ring *tx_ring)
 		    " header csum flags %#jx",
 		    mbuf, mbuf->m_flags, (uint64_t)mbuf->m_pkthdr.csum_flags);
 
-		if (unlikely(ena_com_free_desc(io_sq) <=
-		    ENA_TX_CLEANUP_THRESHOLD))
-			ena_tx_cleanup(tx_ring);
+		if (unlikely(!tx_ring->running)) {
+			drbr_putback(adapter->ifp, tx_ring->br, mbuf);
+			break;
+		}
 
 		if (unlikely((ret = ena_xmit_mbuf(tx_ring, &mbuf)) != 0)) {
 			if (ret == ENA_COM_NO_MEM) {
@@ -2914,8 +2959,9 @@ ena_start_xmit(struct ena_ring *tx_ring)
 		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
 	}
 
-	if (ena_com_free_desc(io_sq) <= ENA_TX_CLEANUP_THRESHOLD)
-		ena_tx_cleanup(tx_ring);
+	if (unlikely(!tx_ring->running))
+		taskqueue_enqueue(tx_ring->que->cleanup_tq,
+		    &tx_ring->que->cleanup_task);
 }
 
 static void
@@ -2925,6 +2971,7 @@ ena_deferred_mq_start(void *arg, int pending)
 	struct ifnet *ifp = tx_ring->adapter->ifp;
 
 	while (!drbr_empty(ifp, tx_ring->br) &&
+	    tx_ring->running &&
 	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 		ENA_RING_MTX_LOCK(tx_ring);
 		ena_start_xmit(tx_ring);
@@ -3575,7 +3622,7 @@ check_for_missing_completions(struct ena_adapter *adapter)
 	adapter->next_monitored_tx_qid = i % adapter->num_queues;
 }
 
-/* trigger deferred rx cleanup after 2 consecutive detections */
+/* trigger rx cleanup after 2 consecutive detections */
 #define EMPTY_RX_REFILL 2
 /* For the rare case where the device runs out of Rx descriptors and the
  * msix handler failed to refill new Rx descriptors (due to a lack of memory
@@ -3613,8 +3660,8 @@ check_for_empty_rx_ring(struct ena_adapter *adapter)
 				device_printf(adapter->pdev,
 				    "trigger refill for ring %d\n", i);
 
-				taskqueue_enqueue(rx_ring->cmpl_tq,
-				    &rx_ring->cmpl_task);
+				taskqueue_enqueue(rx_ring->que->cleanup_tq,
+				    &rx_ring->que->cleanup_task);
 				rx_ring->empty_rx_queue = 0;
 			}
 		} else {
