@@ -273,7 +273,7 @@ static struct xucred def_anon = {
 	(uid_t)65534,
 	1,
 	{ (gid_t)65533 },
-	NULL
+	{ NULL }
 };
 static int force_v2 = 0;
 static int resvport_only = 1;

@@ -550,7 +550,7 @@ update_client_creds(struct client *c)
 	{
 	    c->unixrights.uid = peercred.cr_uid;
 	    c->unixrights.gid = peercred.cr_gid;
-	    c->unixrights.pid = 0;
+	    c->unixrights.pid = peercred.cr_pid;
 	    return 1;
 	}
     }

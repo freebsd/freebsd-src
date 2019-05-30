@@ -1538,10 +1538,7 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			    name, &xu, UIO_SYSSPACE, &xulen);
 			if (error != 0)
 				return (error);
-			/*
-			 * XXX Use 0 for pid as the FreeBSD does not cache peer pid.
-			 */
-			lxu.pid = 0;
+			lxu.pid = xu.cr_pid;
 			lxu.uid = xu.cr_uid;
 			lxu.gid = xu.cr_gid;
 			return (copyout(&lxu, PTRIN(args->optval), sizeof(lxu)));
