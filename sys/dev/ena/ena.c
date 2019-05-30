@@ -1203,14 +1203,11 @@ validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
 		tx_info = &tx_ring->tx_buffer_info[req_id];
 		if (tx_info->mbuf != NULL)
 			return (0);
-	}
-
-	if (tx_info->mbuf == NULL)
 		device_printf(adapter->pdev,
 		    "tx_info doesn't have valid mbuf\n");
-	else
-		device_printf(adapter->pdev, "Invalid req_id: %hu\n", req_id);
+	}
 
+	device_printf(adapter->pdev, "Invalid req_id: %hu\n", req_id);
 	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
 
 	return (EFAULT);
