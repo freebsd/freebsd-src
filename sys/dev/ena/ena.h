@@ -319,6 +319,9 @@ struct ena_ring {
 		bool running;
 	};
 
+	/* How many packets are sent in one Tx loop, used for doorbells */
+	uint32_t acum_pkts;
+
 	/* Used for LLQ */
 	uint8_t *push_buf_intermediate_buf;
 } __aligned(CACHE_LINE_SIZE);
