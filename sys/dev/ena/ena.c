@@ -134,7 +134,7 @@ static void	ena_cleanup(void *arg, int pending);
 static int	ena_handle_msix(void *);
 static int	ena_enable_msix(struct ena_adapter *);
 static void	ena_setup_mgmnt_intr(struct ena_adapter *);
-static void	ena_setup_io_intr(struct ena_adapter *);
+static int	ena_setup_io_intr(struct ena_adapter *);
 static int	ena_request_mgmnt_irq(struct ena_adapter *);
 static int	ena_request_io_irq(struct ena_adapter *);
 static void	ena_free_mgmnt_irq(struct ena_adapter *);
@@ -1969,11 +1969,14 @@ ena_setup_mgmnt_intr(struct ena_adapter *adapter)
 	    adapter->msix_entries[ENA_MGMNT_IRQ_IDX].vector;
 }
 
-static void
+static int
 ena_setup_io_intr(struct ena_adapter *adapter)
 {
 	static int last_bind_cpu = -1;
 	int irq_idx;
+
+	if (adapter->msix_entries == NULL)
+		return (EINVAL);
 
 	for (int i = 0; i < adapter->num_queues; i++) {
 		irq_idx = ENA_IO_IRQ_IDX(i);
@@ -1997,6 +2000,8 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 		    last_bind_cpu;
 		last_bind_cpu = CPU_NEXT(last_bind_cpu);
 	}
+
+	return (0);
 }
 
 static int
@@ -2290,11 +2295,15 @@ ena_up(struct ena_adapter *adapter)
 		device_printf(adapter->pdev, "device is going UP\n");
 
 		/* setup interrupts for IO queues */
-		ena_setup_io_intr(adapter);
+		rc = ena_setup_io_intr(adapter);
+		if (unlikely(rc != 0)) {
+			ena_trace(ENA_ALERT, "error setting up IO interrupt\n");
+			goto error;
+		}
 		rc = ena_request_io_irq(adapter);
 		if (unlikely(rc != 0)) {
 			ena_trace(ENA_ALERT, "err_req_irq\n");
-			goto err_req_irq;
+			goto error;
 		}
 
 		/* allocate transmit descriptors */
@@ -2351,7 +2360,7 @@ err_setup_rx:
 	ena_free_all_tx_resources(adapter);
 err_setup_tx:
 	ena_free_io_irq(adapter);
-err_req_irq:
+error:
 	return (rc);
 }
 
