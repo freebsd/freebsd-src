@@ -3893,6 +3893,8 @@ ena_detach(device_t pdev)
 		return (EBUSY);
 	}
 
+	ether_ifdetach(adapter->ifp);
+
 	/* Free reset task and callout */
 	callout_drain(&adapter->timer_service);
 	while (taskqueue_cancel(adapter->reset_tq, &adapter->reset_task, NULL))
@@ -3902,11 +3904,6 @@ ena_detach(device_t pdev)
 	sx_xlock(&adapter->ioctl_sx);
 	ena_down(adapter);
 	sx_unlock(&adapter->ioctl_sx);
-
-	if (adapter->ifp != NULL) {
-		ether_ifdetach(adapter->ifp);
-		if_free(adapter->ifp);
-	}
 
 	ena_free_all_io_rings_resources(adapter);
 
@@ -3948,6 +3945,8 @@ ena_detach(device_t pdev)
 
 	mtx_destroy(&adapter->global_mtx);
 	sx_destroy(&adapter->ioctl_sx);
+
+	if_free(adapter->ifp);
 
 	if (ena_dev->bus != NULL)
 		free(ena_dev->bus, M_DEVBUF);
