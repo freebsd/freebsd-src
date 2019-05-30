@@ -176,7 +176,7 @@ static int	ena_handle_updated_queues(struct ena_adapter *,
     struct ena_com_dev_get_features_ctx *);
 static int	ena_rss_init_default(struct ena_adapter *);
 static void	ena_rss_init_default_deferred(void *);
-static void	ena_config_host_info(struct ena_com_dev *);
+static void	ena_config_host_info(struct ena_com_dev *, device_t);
 static int	ena_attach(device_t);
 static int	ena_detach(device_t);
 static int	ena_device_init(struct ena_adapter *, device_t,
@@ -3579,9 +3579,10 @@ ena_rss_init_default_deferred(void *arg)
 SYSINIT(ena_rss_init, SI_SUB_KICK_SCHEDULER, SI_ORDER_SECOND, ena_rss_init_default_deferred, NULL);
 
 static void
-ena_config_host_info(struct ena_com_dev *ena_dev)
+ena_config_host_info(struct ena_com_dev *ena_dev, device_t dev)
 {
 	struct ena_admin_host_info *host_info;
+	uintptr_t rid;
 	int rc;
 
 	/* Allocate only the host info */
@@ -3593,6 +3594,8 @@ ena_config_host_info(struct ena_com_dev *ena_dev)
 
 	host_info = ena_dev->host_attr.host_info;
 
+	if (pci_get_id(dev, PCI_ID_RID, &rid) == 0)
+		host_info->bdf = rid;
 	host_info->os_type = ENA_ADMIN_OS_FREEBSD;
 	host_info->kernel_ver = osreldate;
 
@@ -3681,7 +3684,7 @@ ena_device_init(struct ena_adapter *adapter, device_t pdev,
 	 */
 	ena_com_set_admin_polling_mode(ena_dev, true);
 
-	ena_config_host_info(ena_dev);
+	ena_config_host_info(ena_dev, pdev);
 
 	/* Get Device Attributes */
 	rc = ena_com_get_dev_attr_feat(ena_dev, get_feat_ctx);
