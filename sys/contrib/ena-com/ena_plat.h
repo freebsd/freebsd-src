@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2017 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,7 +115,7 @@ extern int ena_log_level;
 
 #define ena_trace(level, fmt, args...)				\
 	ena_trace_raw(level, "%s() [TID:%d]: "			\
-	    fmt " \n", __func__, curthread->td_tid, ##args)
+	    fmt, __func__, curthread->td_tid, ##args)
 
 
 #define ena_trc_dbg(format, arg...) 	ena_trace(ENA_DBG, format, ##arg)
@@ -163,7 +163,7 @@ static inline long PTR_ERR(const void *ptr)
 	return (long) ptr;
 }
 
-#define GENMASK(h, l)		(((1U << ((h) - (l) + 1)) - 1) << (l))
+#define GENMASK(h, l)	(((~0U) - (1U << (l)) + 1) & (~0U >> (32 - 1 - (h))))
 #define GENMASK_ULL(h, l)	(((~0ULL) << (l)) & (~0ULL >> (64 - 1 - (h))))
 #define BIT(x)			(1UL << (x))
 
@@ -324,6 +324,8 @@ int	ena_dma_alloc(device_t dmadev, bus_size_t size, ena_mem_handle_t *dma,
 			  ((struct ena_bus*)bus)->reg_bar_t,		\
 			  ((struct ena_bus*)bus)->reg_bar_h,		\
 			  (bus_size_t)(offset), (value))
+#define ENA_REG_WRITE32_RELAXED(bus, value, offset)			\
+	ENA_REG_WRITE32(bus, value, offset)
 
 #define ENA_REG_READ32(bus, offset)					\
 	bus_space_read_4(						\
@@ -331,23 +333,21 @@ int	ena_dma_alloc(device_t dmadev, bus_size_t size, ena_mem_handle_t *dma,
 			 ((struct ena_bus*)bus)->reg_bar_h,		\
 			 (bus_size_t)(offset))
 
-#define ENA_DB_SYNC(mem_handle)	bus_dmamap_sync((mem_handle)->tag,	\
-	(mem_handle)->map, BUS_DMASYNC_PREREAD)
+#define ENA_DB_SYNC_WRITE(mem_handle) bus_dmamap_sync(			\
+	(mem_handle)->tag, (mem_handle)->map, BUS_DMASYNC_PREWRITE)
+#define ENA_DB_SYNC_PREREAD(mem_handle) bus_dmamap_sync(		\
+	(mem_handle)->tag, (mem_handle)->map, BUS_DMASYNC_PREREAD)
+#define ENA_DB_SYNC_POSTREAD(mem_handle) bus_dmamap_sync(		\
+	(mem_handle)->tag, (mem_handle)->map, BUS_DMASYNC_POSTREAD)
+#define ENA_DB_SYNC(mem_handle) ENA_DB_SYNC_WRITE(mem_handle)
 
 #define time_after(a,b)	((long)((unsigned long)(b) - (unsigned long)(a)) < 0)
 
 #define VLAN_HLEN 	sizeof(struct ether_vlan_header)
 #define CSUM_OFFLOAD 	(CSUM_IP|CSUM_TCP|CSUM_UDP)
 
-#if defined(__i386__) || defined(__amd64__)
-static __inline
-void prefetch(void *x)
-{
-	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
-}
-#else
-#define prefetch(x)
-#endif
+#define prefetch(x)	(void)(x)
+#define prefetchw(x)	(void)(x)
 
 /* DMA buffers access */
 #define	dma_unmap_addr(p, name)			((p)->dma->name)
@@ -363,6 +363,9 @@ void prefetch(void *x)
 #define ATOMIC32_SET(I32_PTR, VAL) 	atomic_store_rel_int(I32_PTR, VAL)
 
 #define	barrier() __asm__ __volatile__("": : :"memory")
+#define dma_rmb() barrier()
+#define mmiowb() barrier()
+
 #define	ACCESS_ONCE(x) (*(volatile __typeof(x) *)&(x))
 #define READ_ONCE(x)  ({			\
 			__typeof(x) __var;	\
@@ -371,6 +374,14 @@ void prefetch(void *x)
 			barrier();		\
 			__var;			\
 		})
+#define READ_ONCE8(x) READ_ONCE(x)
+#define READ_ONCE16(x) READ_ONCE(x)
+#define READ_ONCE32(x) READ_ONCE(x)
+
+#define upper_32_bits(n) ((uint32_t)(((n) >> 16) >> 16))
+#define lower_32_bits(n) ((uint32_t)(n))
+
+#define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 
 #include "ena_defs/ena_includes.h"
 
