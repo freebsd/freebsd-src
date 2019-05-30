@@ -58,7 +58,7 @@ case $# in
 esac
 
 if [ -n "$2" ]; then
-	. $2
+	. "$2"
 fi
 
 if [ -r $capabilities_conf ]; then
