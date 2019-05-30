@@ -57,6 +57,7 @@ bhd [label="Björn Heidotting\nbhd@FreeBSD.org\n2014/10/14"]
 blackend [label="Marc Fonvieille\nblackend@FreeBSD.org\n2002/06/16"]
 brd [label="Brad Davis\nbrd@FreeBSD.org\n2005/06/01"]
 brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2003/01/13"]
+carlavilla [label="Sergio Carlavilla\ncarlavilla@FreeBSD.org\n2019/05/16"]
 chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2006/09/20"]
 crees [label="Chris Rees\ncrees@FreeBSD.org\n2013/05/27"]
 danger [label="Daniel Gerzo\ndanger@FreeBSD.org\n2006/08/20"]
@@ -132,6 +133,7 @@ gabor -> manolis
 gabor -> taras
 gabor -> issyl0
 gabor -> ebrandi
+gabor -> carlavilla
 
 gjb -> wblock
 gjb -> rene
