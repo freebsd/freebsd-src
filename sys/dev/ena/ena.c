@@ -2336,7 +2336,7 @@ ena_media_status(if_t ifp, struct ifmediareq *ifmr)
 	}
 
 	ifmr->ifm_status |= IFM_ACTIVE;
-	ifmr->ifm_active |= IFM_10G_T | IFM_FDX;
+	ifmr->ifm_active |= IFM_UNKNOWN | IFM_FDX;
 
 	mtx_unlock(&adapter->global_mtx);
 }
