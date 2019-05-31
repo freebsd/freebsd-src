@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2014
+.Dd March 15, 2019
 .Dt VOP_INACTIVE 9
 .Os
 .Sh NAME
@@ -50,13 +50,16 @@ The vnode being reclaimed.
 .El
 .Pp
 .Fn VOP_INACTIVE
-is called when the kernel is no longer using the vnode.
+is usually called when the kernel is no longer using the vnode.
+However, there is no guarantee that it will be called at all, for example if
+the last reference was dropped while the vnode lock could not be upgraded
+to exclusive without sleeping.
 This may be
 because the reference count reaches zero or it may be that the
 file system is being forcibly unmounted while there are open files.
-It can be used to reclaim space for
+It can be used to reclaim space on the last close of an 
 .Sq open but deleted
-files.
+file.
 .Pp
 .Fn VOP_RECLAIM
 is called when a vnode is being reused for a different file system.
