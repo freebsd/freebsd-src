@@ -750,6 +750,7 @@ fuse_internal_vnode_disappear(struct vnode *vp)
 	ASSERT_VOP_ELOCKED(vp, "fuse_internal_vnode_disappear");
 	fvdat->flag |= FN_REVOKED;
 	bintime_clear(&fvdat->attr_cache_timeout);
+	bintime_clear(&fvdat->entry_cache_timeout);
 	cache_purge(vp);
 }
 

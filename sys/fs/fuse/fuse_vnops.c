@@ -218,12 +218,12 @@ struct vop_vector fuse_vnops = {
 	.vop_vptofh = fuse_vnop_vptofh,
 };
 
-static u_long fuse_lookup_cache_hits = 0;
+u_long fuse_lookup_cache_hits = 0;
 
 SYSCTL_ULONG(_vfs_fusefs, OID_AUTO, lookup_cache_hits, CTLFLAG_RD,
     &fuse_lookup_cache_hits, 0, "number of positive cache hits in lookup");
 
-static u_long fuse_lookup_cache_misses = 0;
+u_long fuse_lookup_cache_misses = 0;
 
 SYSCTL_ULONG(_vfs_fusefs, OID_AUTO, lookup_cache_misses, CTLFLAG_RD,
     &fuse_lookup_cache_misses, 0, "number of cache misses in lookup");
@@ -965,6 +965,8 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				/* Cache timeout */
 				atomic_add_acq_long(&fuse_lookup_cache_misses,
 					1);
+				bintime_clear(
+					&VTOFUD(*vpp)->entry_cache_timeout);
 				cache_purge(*vpp);
 				if (dvp != *vpp)
 					vput(*vpp);
@@ -1103,6 +1105,9 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			MPASS(feo != NULL);
 			fuse_internal_cache_attrs(*vpp, cred, &feo->attr,
 				feo->attr_valid, feo->attr_valid_nsec, NULL);
+			fuse_validity_2_bintime(feo->entry_valid,
+				feo->entry_valid_nsec,
+				&fvdat->entry_cache_timeout);
 
 			if ((nameiop == DELETE || nameiop == RENAME) &&
 				islastcn)
@@ -2536,7 +2541,7 @@ fuse_vnop_print(struct vop_print_args *ap)
  * Get an NFS filehandle for a FUSE file.
  *
  * This will only work for FUSE file systems that guarantee the uniqueness of
- * nodeid:generation, which most don't
+ * nodeid:generation, which most don't.
  */
 /*
 vop_vptofh {

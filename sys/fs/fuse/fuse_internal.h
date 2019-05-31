@@ -68,6 +68,9 @@
 #include "fuse_ipc.h"
 #include "fuse_node.h"
 
+extern u_long fuse_lookup_cache_hits;
+extern u_long fuse_lookup_cache_misses;
+
 static inline bool
 vfs_isrdonly(struct mount *mp)
 {

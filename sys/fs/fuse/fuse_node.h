@@ -97,6 +97,11 @@ struct fuse_vnode_data {
 	/** meta **/
 	/* The monotonic time after which the attr cache is invalid */
 	struct bintime	attr_cache_timeout;
+	/* 
+	 * Monotonic time after which the entry is invalid.  Used for lookups
+	 * by nodeid instead of pathname.
+	 */
+	struct bintime	entry_cache_timeout;
 	struct vattr	cached_attrs;
 	uint64_t	nlookup;
 	enum vtype	vtype;
