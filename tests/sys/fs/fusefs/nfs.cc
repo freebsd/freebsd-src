@@ -78,7 +78,7 @@ TEST_F(Fhstat, estale)
 	const mode_t mode = S_IFDIR | 0755;
 	Sequence seq;
 
-	EXPECT_LOOKUP(1, RELDIRPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
 	.InSequence(seq)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
@@ -116,7 +116,7 @@ TEST_F(Fhstat, lookup_dot)
 	const mode_t mode = S_IFDIR | 0755;
 	const uid_t uid = 12345;
 
-	EXPECT_LOOKUP(1, RELDIRPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = mode;
@@ -159,7 +159,7 @@ TEST_F(Fhstat, DISABLED_cached)
 	const mode_t mode = S_IFDIR | 0755;
 	const uid_t uid = 12345;
 
-	EXPECT_LOOKUP(1, RELDIRPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = mode;
@@ -188,7 +188,7 @@ TEST_F(FhstatNotExportable, lookup_dot)
 	const uint64_t ino = 42;
 	const mode_t mode = S_IFDIR | 0755;
 
-	EXPECT_LOOKUP(1, RELDIRPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = mode;
@@ -210,7 +210,7 @@ TEST_F(Getfh, eoverflow)
 	fhandle_t fhp;
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELDIRPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFDIR | 0755;
@@ -232,7 +232,7 @@ TEST_F(Getfh, ok)
 	fhandle_t fhp;
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELDIRPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFDIR | 0755;
@@ -263,7 +263,7 @@ TEST_F(Readdir, getdirentries)
 	char buf[8192];
 	ssize_t r;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = mode;

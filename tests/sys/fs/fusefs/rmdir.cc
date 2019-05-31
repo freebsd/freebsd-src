@@ -57,7 +57,7 @@ void expect_getattr(uint64_t ino, mode_t mode)
 
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	EXPECT_LOOKUP(1, relpath)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, relpath)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFDIR | 0755;
@@ -93,7 +93,7 @@ TEST_F(Rmdir, clear_attr_cache)
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_GETATTR &&
-				in.header.nodeid == 1);
+				in.header.nodeid == FUSE_ROOT_ID);
 		}, Eq(true)),
 		_)
 	).Times(2)
@@ -104,7 +104,7 @@ TEST_F(Rmdir, clear_attr_cache)
 		out.body.attr.attr_valid = UINT64_MAX;
 	})));
 	expect_lookup(RELPATH, ino);
-	expect_rmdir(1, RELPATH, 0);
+	expect_rmdir(FUSE_ROOT_ID, RELPATH, 0);
 
 	ASSERT_EQ(0, rmdir(FULLPATH)) << strerror(errno);
 	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
@@ -116,9 +116,9 @@ TEST_F(Rmdir, enotempty)
 	const char RELPATH[] = "some_dir";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino);
-	expect_rmdir(1, RELPATH, ENOTEMPTY);
+	expect_rmdir(FUSE_ROOT_ID, RELPATH, ENOTEMPTY);
 
 	ASSERT_NE(0, rmdir(FULLPATH));
 	ASSERT_EQ(ENOTEMPTY, errno);
@@ -130,9 +130,9 @@ TEST_F(Rmdir, ok)
 	const char RELPATH[] = "some_dir";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino);
-	expect_rmdir(1, RELPATH, 0);
+	expect_rmdir(FUSE_ROOT_ID, RELPATH, 0);
 
 	ASSERT_EQ(0, rmdir(FULLPATH)) << strerror(errno);
 }

@@ -267,7 +267,7 @@ TEST_F(NoAllowOther, setextattr)
 	int ino = 42, status;
 
 	fork(true, &status, [&] {
-			EXPECT_LOOKUP(1, RELPATH)
+			EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 			.WillOnce(Invoke(
 			ReturnImmediate([=](auto in __unused, auto& out) {
 				SET_OUT_HEADER_LEN(out, entry);

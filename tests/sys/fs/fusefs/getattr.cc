@@ -42,7 +42,7 @@ public:
 void expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 	uint64_t size, int times, uint64_t attr_valid, uint32_t attr_valid_nsec)
 {
-	EXPECT_LOOKUP(1, relpath)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, relpath)
 	.Times(times)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
@@ -76,7 +76,7 @@ TEST_F(Getattr, attr_cache)
 	const uint64_t ino = 42;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | 0644;
@@ -247,7 +247,7 @@ TEST_F(Getattr_7_8, ok)
 	const uint64_t ino = 42;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry_7_8);
 		out.body.entry.attr.mode = S_IFREG | 0644;

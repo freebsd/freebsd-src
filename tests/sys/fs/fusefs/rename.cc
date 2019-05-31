@@ -80,7 +80,7 @@ TEST_F(Rename, einval)
 	const char RELSRC[] = "src";
 	uint64_t src_ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELSRC, src_ino, S_IFDIR | 0755, 0, 2);
 	EXPECT_LOOKUP(src_ino, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
@@ -96,7 +96,8 @@ TEST_F(Rename, enoent)
 	const char RELSRC[] = "src";
 	// FUSE hardcodes the mountpoint to inode 1
 
-	EXPECT_LOOKUP(1, RELSRC).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELSRC)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	ASSERT_NE(0, rename(FULLSRC, FULLDST));
 	ASSERT_EQ(ENOENT, errno);
@@ -111,8 +112,7 @@ TEST_F(Rename, entry_cache_negative)
 	const char RELDST[] = "dst";
 	const char FULLSRC[] = "mountpoint/src";
 	const char RELSRC[] = "src";
-	// FUSE hardcodes the mountpoint to inode 1
-	uint64_t dst_dir_ino = 1;
+	uint64_t dst_dir_ino = FUSE_ROOT_ID;
 	uint64_t ino = 42;
 	/* 
 	 * Set entry_valid = 0 because this test isn't concerned with whether
@@ -121,10 +121,11 @@ TEST_F(Rename, entry_cache_negative)
 	 */
 	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
 
-	expect_getattr(1, S_IFDIR | 0755);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	/* LOOKUP returns a negative cache entry for dst */
-	EXPECT_LOOKUP(1, RELDST).WillOnce(ReturnNegativeCache(&entry_valid));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDST)
+	.WillOnce(ReturnNegativeCache(&entry_valid));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -151,15 +152,15 @@ TEST_F(Rename, entry_cache_negative_purge)
 	const char RELDST[] = "dst";
 	const char FULLSRC[] = "mountpoint/src";
 	const char RELSRC[] = "src";
-	// FUSE hardcodes the mountpoint to inode 1
-	uint64_t dst_dir_ino = 1;
+	uint64_t dst_dir_ino = FUSE_ROOT_ID;
 	uint64_t ino = 42;
 	struct timespec entry_valid = {.tv_sec = TIME_T_MAX, .tv_nsec = 0};
 
-	expect_getattr(1, S_IFDIR | 0755);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	/* LOOKUP returns a negative cache entry for dst */
-	EXPECT_LOOKUP(1, RELDST).WillOnce(ReturnNegativeCache(&entry_valid))
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDST)
+	.WillOnce(ReturnNegativeCache(&entry_valid))
 	.RetiresOnSaturation();
 
 	EXPECT_CALL(*m_mock, process(
@@ -193,7 +194,7 @@ TEST_F(Rename, exdev)
 	tmpfd = mkstemp(tmpfile);
 	ASSERT_LE(0, tmpfd) << strerror(errno);
 
-	expect_getattr(1, S_IFDIR | 0755);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELB, b_ino, S_IFREG | 0644, 0, 2);
 
 	ASSERT_NE(0, rename(tmpfile, FULLB));
@@ -209,13 +210,13 @@ TEST_F(Rename, ok)
 	const char RELDST[] = "dst";
 	const char FULLSRC[] = "mountpoint/src";
 	const char RELSRC[] = "src";
-	// FUSE hardcodes the mountpoint to inode 1
-	uint64_t dst_dir_ino = 1;
+	uint64_t dst_dir_ino = FUSE_ROOT_ID;
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
-	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDST)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -248,8 +249,8 @@ TEST_F(Rename, parent)
 	struct stat sb;
 
 	expect_lookup(RELSRC, ino, S_IFDIR | 0755, 0, 1);
-	expect_getattr(1, S_IFDIR | 0755);
-	EXPECT_LOOKUP(1, RELDSTDIR)
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDSTDIR)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.nodeid = dst_dir_ino;
@@ -297,11 +298,10 @@ TEST_F(Rename, overwrite)
 	const char RELSRC[] = "src";
 	// The inode of the already-existing destination file
 	uint64_t dst_ino = 2;
-	// FUSE hardcodes the mountpoint to inode 1
-	uint64_t dst_dir_ino = 1;
+	uint64_t dst_dir_ino = FUSE_ROOT_ID;
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	expect_lookup(RELDST, dst_ino, S_IFREG | 0644, 0, 1);
 	EXPECT_CALL(*m_mock, process(

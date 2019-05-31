@@ -222,7 +222,7 @@ TEST_F(Interrupt, already_complete)
 
 	self = pthread_self();
 
-	EXPECT_LOOKUP(1, RELDIRPATH0)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
 	.InSequence(seq)
 	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_mkdir(&mkdir_unique);
@@ -248,7 +248,7 @@ TEST_F(Interrupt, already_complete)
 		out1->header.len = sizeof(out1->header);
 		out.push_back(std::move(out1));
 	}));
-	EXPECT_LOOKUP(1, RELDIRPATH0)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
 	.InSequence(seq)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
@@ -284,8 +284,10 @@ TEST_F(Interrupt, enosys)
 	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
 	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
 
-	EXPECT_LOOKUP(1, RELDIRPATH1).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH1)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_mkdir(&mkdir_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
@@ -363,7 +365,8 @@ TEST_F(Interrupt, fatal_signal)
 	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 	self = pthread_self();
 
-	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_mkdir(&mkdir_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
@@ -420,7 +423,8 @@ TEST_F(Interrupt, ignore)
 
 	self = pthread_self();
 
-	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_mkdir(&mkdir_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
@@ -461,7 +465,8 @@ TEST_F(Interrupt, in_kernel_restartable)
 	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
 	self = pthread_self();
 
-	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_lookup(RELPATH1, ino1);
 	expect_open(ino1, 0, 1);
 	EXPECT_CALL(*m_mock, process(
@@ -534,7 +539,8 @@ TEST_F(Interrupt, in_kernel_nonrestartable)
 	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
 	self = pthread_self();
 
-	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_lookup(RELPATH1, ino1);
 	expect_open(ino1, 0, 1);
 	EXPECT_CALL(*m_mock, process(
@@ -593,7 +599,8 @@ TEST_F(Interrupt, in_progress)
 
 	self = pthread_self();
 
-	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_mkdir(&mkdir_unique);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([&](auto in) {
@@ -666,8 +673,10 @@ TEST_F(Interrupt, priority)
 	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
 	self = pthread_self();
 
-	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	EXPECT_LOOKUP(1, RELDIRPATH1).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH1)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_MKDIR);
@@ -746,7 +755,8 @@ TEST_F(Interrupt, too_soon)
 
 	self = pthread_self();
 
-	EXPECT_LOOKUP(1, RELDIRPATH0).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_mkdir(&mkdir_unique);
 
 	EXPECT_CALL(*m_mock, process(
