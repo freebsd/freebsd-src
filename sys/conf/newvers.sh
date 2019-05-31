@@ -96,7 +96,10 @@ fi
 COPYRIGHT="$COPYRIGHT
 "
 
-include_metadata=true
+# We expand include_metadata later since we may set it to the
+# future value of modified.
+include_metadata=yes
+modified=no
 while getopts crRvV: opt; do
 	case "$opt" in
 	c)
@@ -104,12 +107,10 @@ while getopts crRvV: opt; do
 		exit 0
 		;;
 	r)
-		include_metadata=
+		include_metadata=no
 		;;
 	R)
-		if [ -z "${modified}" ]; then
-			include_metadata=
-		fi
+		include_metadata=if-modified
 		;;
 	v)
 		# Only put variables that are single lines here.
@@ -253,7 +254,7 @@ if [ -n "$svnversion" ] ; then
 	case "$svn" in
 	[0-9]*[MSP]|*:*)
 		svn=" r${svn}"
-		modified=true
+		modified=yes
 		;;
 	[0-9]*)
 		svn=" r${svn}"
@@ -296,7 +297,7 @@ if [ -n "$git_cmd" ] ; then
 	fi
 	if git_tree_modified; then
 		git="${git}-dirty"
-		modified=true
+		modified=yes
 	fi
 fi
 
@@ -312,7 +313,8 @@ if [ -n "$hg_cmd" ] ; then
 	fi
 fi
 
-if [ -z "${include_metadata}" ]; then
+[ ${include_metadata} = "if-modified" -a ${modified} = "yes" ] && include_metadata=yes
+if [ ${include_metadata} != "yes" ]; then
 	VERINFO="${VERSION}${svn}${git}${hg} ${i}"
 	VERSTR="${VERINFO}\\n"
 else
