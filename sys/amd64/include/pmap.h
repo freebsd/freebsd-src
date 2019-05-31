@@ -119,6 +119,7 @@
 #define	PG_PROMOTED	X86_PG_AVAIL(54)	/* PDE only */
 #define	PG_FRAME	(0x000ffffffffff000ul)
 #define	PG_PS_FRAME	(0x000fffffffe00000ul)
+#define	PG_PS_PDP_FRAME	(0x000fffffc0000000ul)
 
 /*
  * Promotion to a 2MB (PDE) page mapping requires that the corresponding 4KB
