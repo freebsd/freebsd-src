@@ -3251,7 +3251,8 @@ isp_pdb_add_update(ispsoftc_t *isp, int chan, isp_pdb_t *pdb)
 		if (lp->portid == pdb->portid &&
 		    lp->handle == pdb->handle &&
 		    lp->prli_word3 == pdb->prli_word3 &&
-		    ((pdb->prli_word0 & PRLI_WD0_EST_IMAGE_PAIR) == 0)) {
+		    ((pdb->prli_word0 & PRLI_WD0_EST_IMAGE_PAIR) ==
+		     (lp->prli_word0 & PRLI_WD0_EST_IMAGE_PAIR))) {
 			if (lp->state != FC_PORTDB_STATE_NEW)
 				lp->state = FC_PORTDB_STATE_VALID;
 			isp_prt(isp, ISP_LOG_SANCFG,
@@ -3282,6 +3283,7 @@ isp_pdb_add_update(ispsoftc_t *isp, int chan, isp_pdb_t *pdb)
 	lp->probational = 0;
 	lp->state = FC_PORTDB_STATE_NEW;
 	lp->portid = lp->new_portid = pdb->portid;
+	lp->prli_word0 = lp->new_prli_word0 = pdb->prli_word0;
 	lp->prli_word3 = lp->new_prli_word3 = pdb->prli_word3;
 	lp->handle = pdb->handle;
 	lp->port_wwn = wwpn;
