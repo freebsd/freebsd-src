@@ -1066,7 +1066,7 @@ vm_reserv_break(vm_reserv_t rv)
 			else {
 				hi = NBPOPMAP * i + bitpos;
 				vm_domain_free_lock(VM_DOMAIN(rv->domain));
-				vm_phys_free_contig(&rv->pages[lo], hi - lo);
+				vm_phys_enqueue_contig(&rv->pages[lo], hi - lo);
 				vm_domain_free_unlock(VM_DOMAIN(rv->domain));
 				lo = hi;
 			}

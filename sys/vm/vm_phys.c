@@ -1095,14 +1095,35 @@ vm_phys_free_pages(vm_page_t m, int order)
 }
 
 /*
- * Free a contiguous, arbitrarily sized set of physical pages.
+ * Return the largest possible order of a set of pages starting at m.
+ */
+static int
+max_order(vm_page_t m)
+{
+
+	/*
+	 * Unsigned "min" is used here so that "order" is assigned
+	 * "VM_NFREEORDER - 1" when "m"'s physical address is zero
+	 * or the low-order bits of its physical address are zero
+	 * because the size of a physical address exceeds the size of
+	 * a long.
+	 */
+	return (min(ffsl(VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT) - 1,
+	    VM_NFREEORDER - 1));
+}
+
+/*
+ * Free a contiguous, arbitrarily sized set of physical pages, without
+ * merging across set boundaries.
  *
  * The free page queues must be locked.
  */
 void
-vm_phys_free_contig(vm_page_t m, u_long npages)
+vm_phys_enqueue_contig(vm_page_t m, u_long npages)
 {
-	u_int n;
+	struct vm_freelist *fl;
+	struct vm_phys_seg *seg;
+	vm_page_t m_end;
 	int order;
 
 	/*
@@ -1110,29 +1131,68 @@ vm_phys_free_contig(vm_page_t m, u_long npages)
 	 * possible power-of-two-sized subsets.
 	 */
 	vm_domain_free_assert_locked(vm_pagequeue_domain(m));
-	for (;; npages -= n) {
-		/*
-		 * Unsigned "min" is used here so that "order" is assigned
-		 * "VM_NFREEORDER - 1" when "m"'s physical address is zero
-		 * or the low-order bits of its physical address are zero
-		 * because the size of a physical address exceeds the size of
-		 * a long.
-		 */
-		order = min(ffsl(VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT) - 1,
-		    VM_NFREEORDER - 1);
-		n = 1 << order;
-		if (npages < n)
-			break;
-		vm_phys_free_pages(m, order);
-		m += n;
+	seg = &vm_phys_segs[m->segind];
+	fl = (*seg->free_queues)[m->pool];
+	m_end = m + npages;
+	/* Free blocks of increasing size. */
+	while ((order = max_order(m)) < VM_NFREEORDER - 1 &&
+	    m + (1 << order) <= m_end) {
+		KASSERT(seg == &vm_phys_segs[m->segind],
+		    ("%s: page range [%p,%p) spans multiple segments",
+		    __func__, m_end - npages, m));
+		vm_freelist_add(fl, m, order, 1);
+		m += 1 << order;
 	}
-	/* The residual "npages" is less than "1 << (VM_NFREEORDER - 1)". */
-	for (; npages > 0; npages -= n) {
-		order = flsl(npages) - 1;
-		n = 1 << order;
-		vm_phys_free_pages(m, order);
-		m += n;
+	/* Free blocks of maximum size. */
+	while (m + (1 << order) <= m_end) {
+		KASSERT(seg == &vm_phys_segs[m->segind],
+		    ("%s: page range [%p,%p) spans multiple segments",
+		    __func__, m_end - npages, m));
+		vm_freelist_add(fl, m, order, 1);
+		m += 1 << order;
 	}
+	/* Free blocks of diminishing size. */
+	while (m < m_end) {
+		KASSERT(seg == &vm_phys_segs[m->segind],
+		    ("%s: page range [%p,%p) spans multiple segments",
+		    __func__, m_end - npages, m));
+		order = flsl(m_end - m) - 1;
+		vm_freelist_add(fl, m, order, 1);
+		m += 1 << order;
+	}
+}
+
+/*
+ * Free a contiguous, arbitrarily sized set of physical pages.
+ *
+ * The free page queues must be locked.
+ */
+void
+vm_phys_free_contig(vm_page_t m, u_long npages)
+{
+	int order_start, order_end;
+	vm_page_t m_start, m_end;
+
+	vm_domain_free_assert_locked(vm_pagequeue_domain(m));
+
+	m_start = m;
+	order_start = max_order(m_start);
+	if (order_start < VM_NFREEORDER - 1)
+		m_start += 1 << order_start;
+	m_end = m + npages;
+	order_end = max_order(m_end);
+	if (order_end < VM_NFREEORDER - 1)
+		m_end -= 1 << order_end;
+	/*
+	 * Avoid unnecessary coalescing by freeing the pages at the start and
+	 * end of the range last.
+	 */
+	if (m_start < m_end)
+		vm_phys_enqueue_contig(m_start, m_end - m_start);
+	if (order_start < VM_NFREEORDER - 1)
+		vm_phys_free_pages(m, order_start);
+	if (order_end < VM_NFREEORDER - 1)
+		vm_phys_free_pages(m_end, order_end);
 }
 
 /*
