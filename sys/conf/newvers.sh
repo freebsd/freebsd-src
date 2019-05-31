@@ -48,7 +48,7 @@
 #
 #	-V var	Print ${var}="${val-of-var}" and exit
 #
-#	-v	Print TYPE REVISION BRANCH RELEASE VERSION RELDATE variabkes
+#	-v	Print TYPE REVISION BRANCH RELEASE VERSION RELDATE variables
 #		like the -V command
 #
 
