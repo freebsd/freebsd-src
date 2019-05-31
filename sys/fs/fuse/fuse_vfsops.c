@@ -527,19 +527,34 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	struct fuse_dispatcher fdi;
 	struct fuse_entry_out *feo;
 	struct fuse_vnode_data *fvdat;
+	struct bintime now;
 	const char dot[] = ".";
 	off_t filesize;
 	enum vtype vtyp;
 	int error;
 
+	error = vfs_hash_get(mp, fuse_vnode_hash(nodeid), flags, td, vpp,
+	    fuse_vnode_cmp, &nodeid);
+	if (error)
+		return error;
 	/*
-	 * TODO Check the vnode cache, verifying entry cache timeout.  Normally
-	 * done during VOP_LOOKUP
+	 * Check the entry cache timeout.  We have to do this within fusefs
+	 * instead of by using cache_enter_time/cache_lookup because those
+	 * routines are only intended to work with pathnames, not inodes
 	 */
-	/*error = vfs_hash_get(mp, fuse_vnode_hash(nodeid), LK_EXCLUSIVE, td, vpp,*/
-	    /*fuse_vnode_cmp, &nodeid);*/
-	/*if (error || *vpp != NULL)*/
-		/*return error;*/
+	if (*vpp != NULL) {
+		getbinuptime(&now);
+		if (bintime_cmp(&(VTOFUD(*vpp)->entry_cache_timeout), &now, >)){
+			atomic_add_acq_long(&fuse_lookup_cache_hits, 1);
+			return 0;
+		} else {
+			/* Entry cache timeout */
+			atomic_add_acq_long(&fuse_lookup_cache_misses, 1);
+			cache_purge(*vpp);
+			vput(*vpp);
+			*vpp = NULL;
+		}
+	}
 
 	/* Do a LOOKUP, using nodeid as the parent and "." as filename */
 	fdisp_init(&fdi, sizeof(dot));
@@ -585,6 +600,8 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 
 	fuse_internal_cache_attrs(*vpp, td->td_ucred, &feo->attr,
 		feo->attr_valid, feo->attr_valid_nsec, NULL);
+	fuse_validity_2_bintime(feo->entry_valid, feo->entry_valid_nsec,
+		&fvdat->entry_cache_timeout);
 out:
 	fdisp_destroy(&fdi);
 	return error;

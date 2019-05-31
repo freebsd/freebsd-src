@@ -145,11 +145,7 @@ TEST_F(Fhstat, lookup_dot)
 }
 
 /* Use a file handle whose entry is still cached */
-/* 
- * Disabled because fuse_vfsop_vget doesn't yet check the entry cache.  No PR
- * because that's a feature request, not a bug
- */
-TEST_F(Fhstat, DISABLED_cached)
+TEST_F(Fhstat, cached)
 {
 	const char FULLPATH[] = "mountpoint/some_dir/.";
 	const char RELDIRPATH[] = "some_dir";
@@ -157,7 +153,6 @@ TEST_F(Fhstat, DISABLED_cached)
 	struct stat sb;
 	const uint64_t ino = 42;
 	const mode_t mode = S_IFDIR | 0755;
-	const uid_t uid = 12345;
 
 	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
@@ -165,15 +160,57 @@ TEST_F(Fhstat, DISABLED_cached)
 		out.body.entry.attr.mode = mode;
 		out.body.entry.nodeid = ino;
 		out.body.entry.generation = 1;
-		out.body.entry.attr.uid = uid;
+		out.body.entry.attr.ino = ino;
 		out.body.entry.attr_valid = UINT64_MAX;
 		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 
 	ASSERT_EQ(0, getfh(FULLPATH, &fhp)) << strerror(errno);
 	ASSERT_EQ(0, fhstat(&fhp, &sb)) << strerror(errno);
-	EXPECT_EQ(uid, sb.st_uid);
-	EXPECT_EQ(mode, sb.st_mode);
+	EXPECT_EQ(ino, sb.st_ino);
+}
+
+/* File handle entries should expire from the cache, too */
+TEST_F(Fhstat, cache_expired)
+{
+	const char FULLPATH[] = "mountpoint/some_dir/.";
+	const char RELDIRPATH[] = "some_dir";
+	fhandle_t fhp;
+	struct stat sb;
+	const uint64_t ino = 42;
+	const mode_t mode = S_IFDIR | 0755;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 1;
+		out.body.entry.attr.ino = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid_nsec = NAP_NS / 2;
+	})));
+
+	EXPECT_LOOKUP(ino, ".")
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 1;
+		out.body.entry.attr.ino = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;
+	})));
+
+	ASSERT_EQ(0, getfh(FULLPATH, &fhp)) << strerror(errno);
+	ASSERT_EQ(0, fhstat(&fhp, &sb)) << strerror(errno);
+	EXPECT_EQ(ino, sb.st_ino);
+
+	nap();
+
+	/* Cache should be expired; fuse should issue a FUSE_LOOKUP */
+	ASSERT_EQ(0, fhstat(&fhp, &sb)) << strerror(errno);
+	EXPECT_EQ(ino, sb.st_ino);
 }
 
 /* 
