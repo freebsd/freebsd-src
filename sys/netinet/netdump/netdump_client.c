@@ -130,6 +130,9 @@ static struct {
 	union kd_ip	 ndc_client;
 	union kd_ip	 ndc_gateway;
 	uint8_t		 ndc_af;
+	/* Runtime State */
+	off_t		 nd_tx_off;
+	size_t		 nd_buf_len;
 } nd_conf;
 #define	nd_server	nd_conf.ndc_server.in4
 #define	nd_client	nd_conf.ndc_client.in4
@@ -945,6 +948,14 @@ netdump_dumper(void *priv __unused, void *virtual,
 	    virtual, (uintmax_t)offset, length);
 
 	if (virtual == NULL) {
+		if (nd_conf.nd_buf_len != 0) {
+			error = netdump_send(NETDUMP_VMCORE, nd_conf.nd_tx_off, nd_buf,
+			    nd_conf.nd_buf_len);
+			if (error != 0) {
+				dump_failed = 1;
+			}
+		}
+
 		if (dump_failed != 0)
 			printf("failed to dump the kernel core\n");
 		else if (netdump_send(NETDUMP_FINISHED, 0, NULL, 0) != 0)
@@ -957,12 +968,22 @@ netdump_dumper(void *priv __unused, void *virtual,
 	if (length > sizeof(nd_buf))
 		return (ENOSPC);
 
-	memmove(nd_buf, virtual, length);
-	error = netdump_send(NETDUMP_VMCORE, offset, nd_buf, length);
-	if (error != 0) {
-		dump_failed = 1;
-		return (error);
+	if (nd_conf.nd_buf_len + length > sizeof(nd_buf) || 
+	    (nd_conf.nd_buf_len != 0 && nd_conf.nd_tx_off + 
+	    nd_conf.nd_buf_len != offset)) {
+		error = netdump_send(NETDUMP_VMCORE, nd_conf.nd_tx_off, nd_buf, 
+		    nd_conf.nd_buf_len);
+		if (error != 0) {
+			dump_failed = 1;
+			return (error);
+		}
+		nd_conf.nd_buf_len = 0;
+		nd_conf.nd_tx_off = offset;
 	}
+
+	memmove(nd_buf + nd_conf.nd_buf_len, virtual, length);
+	nd_conf.nd_buf_len += length;
+
 	return (0);
 }
 
