@@ -2940,10 +2940,7 @@ loop:
 		}
 		BO_UNLOCK(bo);
 		bremfree(bp);
-		if (passone || !commit)
-		    bp->b_flags |= B_ASYNC;
-		else
-		    bp->b_flags |= B_ASYNC;
+		bp->b_flags |= B_ASYNC;
 		bwrite(bp);
 		if (newnfs_sigintr(nmp, td)) {
 			error = EINTR;
