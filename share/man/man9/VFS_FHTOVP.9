@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2010
+.Dd May 19, 2019
 .Dt VFS_FHTOVP 9
 .Os
 .Sh NAME
@@ -39,18 +39,26 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_FHTOVP "struct mount *mp" "struct fid *fhp" "struct vnode **vpp"
+.Fn VFS_FHTOVP "struct mount *mp" "struct fid *fhp" "int flags" "struct vnode **vpp"
 .Sh DESCRIPTION
 The
 .Fn VFS_FHTOVP
 macro is used by the NFS server to turn an NFS filehandle into a vnode.
 .Pp
 The arguments it expects are:
-.Bl -tag -width vpp
+.Bl -tag -width flags
 .It Fa mp
 The file system.
 .It Fa fhp
 The filehandle to convert.
+.It Fa flags
+Additional locking flags to pass through to
+.Xr vget 9 .
+File systems are allowed to ignore
+.Ar flags
+and use
+.Dv LK_EXCLUSIVE
+instead.
 .It Fa vpp
 Return parameter for the new locked vnode.
 .El
