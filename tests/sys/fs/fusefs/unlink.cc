@@ -75,7 +75,7 @@ TEST_F(Unlink, clear_attr_cache)
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_GETATTR &&
-				in.header.nodeid == 1);
+				in.header.nodeid == FUSE_ROOT_ID);
 		}, Eq(true)),
 		_)
 	).Times(2)

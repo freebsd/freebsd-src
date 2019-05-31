@@ -81,7 +81,7 @@ class Kqueue: public FuseTest {
 
 TEST_P(DevFusePoll, access)
 {
-	expect_access(1, X_OK, 0);
+	expect_access(FUSE_ROOT_ID, X_OK, 0);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_access(ino, access_mode, 0);
 
@@ -91,7 +91,7 @@ TEST_P(DevFusePoll, access)
 /* Ensure that we wake up pollers during unmount */
 TEST_P(DevFusePoll, destroy)
 {
-	expect_forget(1, 1);
+	expect_forget(FUSE_ROOT_ID, 1);
 	expect_destroy(0);
 
 	m_mock->unmount();
@@ -126,21 +126,21 @@ TEST_F(Kqueue, data)
 	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
 	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
 
-	EXPECT_LOOKUP(1, "foo")
+	EXPECT_LOOKUP(FUSE_ROOT_ID, "foo")
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.entry_valid = UINT64_MAX;
 		out.body.entry.attr.mode = S_IFREG | 0644;
 		out.body.entry.nodeid = foo_ino;
 	})));
-	EXPECT_LOOKUP(1, "bar")
+	EXPECT_LOOKUP(FUSE_ROOT_ID, "bar")
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.entry_valid = UINT64_MAX;
 		out.body.entry.attr.mode = S_IFREG | 0644;
 		out.body.entry.nodeid = bar_ino;
 	})));
-	EXPECT_LOOKUP(1, "baz")
+	EXPECT_LOOKUP(FUSE_ROOT_ID, "baz")
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.entry_valid = UINT64_MAX;

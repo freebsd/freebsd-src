@@ -196,7 +196,7 @@ void FuseTest::expect_getattr(uint64_t ino, uint64_t size)
 void FuseTest::expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 	uint64_t size, int times, uint64_t attr_valid, uid_t uid, gid_t gid)
 {
-	EXPECT_LOOKUP(1, relpath)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, relpath)
 	.Times(times)
 	.WillRepeatedly(Invoke(
 		ReturnImmediate([=](auto in __unused, auto& out) {
@@ -214,7 +214,7 @@ void FuseTest::expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 void FuseTest::expect_lookup_7_8(const char *relpath, uint64_t ino, mode_t mode,
 	uint64_t size, int times, uint64_t attr_valid, uid_t uid, gid_t gid)
 {
-	EXPECT_LOOKUP(1, relpath)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, relpath)
 	.Times(times)
 	.WillRepeatedly(Invoke(
 		ReturnImmediate([=](auto in __unused, auto& out) {

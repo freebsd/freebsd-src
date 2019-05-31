@@ -156,7 +156,8 @@ TEST_F(Socket, read_write)
 	int fd, connected;
 	Sequence seq;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+		.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_MKNOD);
@@ -171,7 +172,7 @@ TEST_F(Socket, read_write)
 		out.body.entry.attr_valid = UINT64_MAX;
 	})));
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.InSequence(seq)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);

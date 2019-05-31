@@ -103,17 +103,18 @@ TEST_F(Symlink, clear_attr_cache)
 	const uint64_t ino = 42;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_GETATTR &&
-				in.header.nodeid == 1);
+				in.header.nodeid == FUSE_ROOT_ID);
 		}, Eq(true)),
 		_)
 	).Times(2)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out.body.attr.attr.ino = 1;
+		out.body.attr.attr.ino = FUSE_ROOT_ID;
 		out.body.attr.attr.mode = S_IFDIR | 0755;
 		out.body.attr.attr_valid = UINT64_MAX;
 	})));
@@ -130,7 +131,8 @@ TEST_F(Symlink, enospc)
 	const char RELPATH[] = "lnk";
 	const char dst[] = "dst";
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -154,7 +156,8 @@ TEST_F(Symlink, ok)
 	const char dst[] = "dst";
 	const uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_symlink(ino, dst, RELPATH);
 
 	EXPECT_EQ(0, symlink(dst, FULLPATH)) << strerror(errno);
@@ -167,7 +170,8 @@ TEST_F(Symlink_7_8, ok)
 	const char dst[] = "dst";
 	const uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_symlink(ino, dst, RELPATH);
 
 	EXPECT_EQ(0, symlink(dst, FULLPATH)) << strerror(errno);

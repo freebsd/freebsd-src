@@ -252,7 +252,7 @@ TEST_F(Access, eacces)
 	uint64_t ino = 42;
 	mode_t	access_mode = X_OK;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX);
 
 	ASSERT_NE(0, access(FULLPATH, access_mode));
@@ -266,7 +266,7 @@ TEST_F(Access, eacces_no_cached_attrs)
 	uint64_t ino = 42;
 	mode_t	access_mode = X_OK;
 
-	expect_getattr(1, S_IFDIR | 0755, 0, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, 0, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0);
 	expect_getattr(ino, S_IFREG | 0644, 0, 1);
 	/* 
@@ -286,7 +286,7 @@ TEST_F(Access, ok)
 	uint64_t ino = 42;
 	mode_t	access_mode = R_OK;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX);
 	/* 
 	 * Once default_permissions is properly implemented, there might be
@@ -307,7 +307,7 @@ TEST_F(Chown, chown_to_self)
 
 	uid = geteuid();
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1, uid);
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, uid);
 	/* The OS may optimize chown by omitting the redundant setattr */
 	EXPECT_CALL(*m_mock, process(
@@ -338,7 +338,7 @@ TEST_F(Chown, clear_suid)
 	uid_t uid = geteuid();
 	uint32_t valid = FATTR_UID | FATTR_MODE;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1, uid);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, uid);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -367,7 +367,7 @@ TEST_F(Chown, eperm)
 	const uint64_t ino = 42;
 	const mode_t mode = 0755;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, geteuid());
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1, geteuid());
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, geteuid());
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -395,7 +395,7 @@ TEST_F(Chgrp, clear_suid)
 	gid_t gid = getegid();
 	uint32_t valid = FATTR_GID | FATTR_MODE;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1, uid);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, uid, gid);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -429,7 +429,7 @@ TEST_F(Chgrp, eperm)
 	gid = getegid();
 	newgid = excluded_group();
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid, gid);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1, uid, gid);
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, uid, gid);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -455,7 +455,7 @@ TEST_F(Chgrp, ok)
 	gid = 0;
 	newgid = getegid();
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, uid, gid);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1, uid, gid);
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, uid, gid);
 	/* The OS may optimize chgrp by omitting the redundant setattr */
 	EXPECT_CALL(*m_mock, process(
@@ -481,8 +481,9 @@ TEST_F(Create, ok)
 	uint64_t ino = 42;
 	int fd;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1);
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1);
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+		.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_create(RELPATH, ino);
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, 0644);
@@ -495,8 +496,9 @@ TEST_F(Create, eacces)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+		.WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_EQ(-1, open(FULLPATH, O_CREAT | O_EXCL, 0644));
 	EXPECT_EQ(EACCES, errno);
@@ -509,7 +511,7 @@ TEST_F(Deleteextattr, eacces)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, 0);
 
 	ASSERT_EQ(-1, extattr_delete_file(FULLPATH, ns, "foo"));
@@ -523,7 +525,7 @@ TEST_F(Deleteextattr, ok)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, geteuid());
 	expect_removexattr();
 
@@ -539,7 +541,7 @@ TEST_F(Deleteextattr, system)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_SYSTEM;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0666, UINT64_MAX, geteuid());
 
 	ASSERT_EQ(-1, extattr_delete_file(FULLPATH, ns, "foo"));
@@ -560,7 +562,7 @@ TEST_F(Utimensat, utime_now)
 		{.tv_sec = 0, .tv_nsec = UTIME_NOW},
 	};
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, owner);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -593,7 +595,7 @@ TEST_F(Utimensat, utime_omit)
 		{.tv_sec = 0, .tv_nsec = UTIME_OMIT},
 	};
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | mode, UINT64_MAX, owner);
 
 	ASSERT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &times[0], 0))
@@ -608,7 +610,7 @@ TEST_F(Deleteextattr, user)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0666, UINT64_MAX, 0);
 	expect_removexattr();
 
@@ -624,7 +626,7 @@ TEST_F(Getextattr, eacces)
 	char data[80];
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0600, UINT64_MAX, 0);
 
 	ASSERT_EQ(-1,
@@ -643,7 +645,7 @@ TEST_F(Getextattr, ok)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	/* Getting user attributes only requires read access */
 	expect_lookup(RELPATH, ino, S_IFREG | 0444, UINT64_MAX, 0);
 	expect_getxattr(
@@ -667,7 +669,7 @@ TEST_F(Getextattr, system)
 	char data[80];
 	int ns = EXTATTR_NAMESPACE_SYSTEM;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0666, UINT64_MAX, geteuid());
 
 	ASSERT_EQ(-1,
@@ -682,7 +684,7 @@ TEST_F(Listextattr, eacces)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0600, UINT64_MAX, 0);
 
 	ASSERT_EQ(-1, extattr_list_file(FULLPATH, ns, NULL, 0));
@@ -696,7 +698,7 @@ TEST_F(Listextattr, ok)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1);
 	/* Listing user extended attributes merely requires read access */
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, 0);
 	expect_listxattr();
@@ -713,7 +715,7 @@ TEST_F(Listextattr, system)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_SYSTEM;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1);
 	/* Listing user extended attributes merely requires read access */
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, geteuid());
 
@@ -728,7 +730,7 @@ TEST_F(Lookup, eacces)
 	const char RELDIRPATH[] = "some_dir";
 	uint64_t dir_ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELDIRPATH, dir_ino, S_IFDIR | 0700, UINT64_MAX, 0);
 
 	EXPECT_EQ(-1, access(FULLPATH, F_OK));
@@ -741,7 +743,7 @@ TEST_F(Open, eacces)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX);
 
 	EXPECT_NE(0, open(FULLPATH, O_RDWR));
@@ -755,7 +757,7 @@ TEST_F(Open, ok)
 	uint64_t ino = 42;
 	int fd;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX);
 	expect_open(ino, 0, 1);
 
@@ -772,9 +774,9 @@ TEST_F(Rename, eacces_on_srcdir)
 	const char RELSRC[] = "src";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1, 0);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1, 0);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, UINT64_MAX);
-	EXPECT_LOOKUP(1, RELDST)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDST)
 		.Times(AnyNumber())
 		.WillRepeatedly(Invoke(ReturnErrno(ENOENT)));
 
@@ -792,7 +794,7 @@ TEST_F(Rename, eacces_on_dstdir_for_creating)
 	uint64_t src_ino = 42;
 	uint64_t dstdir_ino = 43;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1, 0);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1, 0);
 	expect_lookup(RELSRC, src_ino, S_IFREG | 0644, UINT64_MAX);
 	expect_lookup(RELDSTDIR, dstdir_ino, S_IFDIR | 0755, UINT64_MAX);
 	EXPECT_LOOKUP(dstdir_ino, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
@@ -811,7 +813,7 @@ TEST_F(Rename, eacces_on_dstdir_for_removing)
 	uint64_t src_ino = 42;
 	uint64_t dstdir_ino = 43;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1, 0);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1, 0);
 	expect_lookup(RELSRC, src_ino, S_IFREG | 0644, UINT64_MAX);
 	expect_lookup(RELDSTDIR, dstdir_ino, S_IFDIR | 0755, UINT64_MAX);
 	EXPECT_LOOKUP(dstdir_ino, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
@@ -827,7 +829,7 @@ TEST_F(Rename, eperm_on_sticky_srcdir)
 	const char RELSRC[] = "src";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 01777, UINT64_MAX, 1, 0);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 01777, UINT64_MAX, 1, 0);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, UINT64_MAX);
 
 	ASSERT_EQ(-1, rename(FULLSRC, FULLDST));
@@ -848,7 +850,7 @@ TEST_F(Rename, eperm_for_subdirectory)
 	uint64_t ino = 42;
 	uint64_t dstdir_ino = 43;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1, 0);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1, 0);
 	expect_lookup(RELSRC, ino, S_IFDIR | 0755, UINT64_MAX, 0);
 	expect_lookup(RELDSTDIR, dstdir_ino, S_IFDIR | 0777, UINT64_MAX, 0);
 	EXPECT_LOOKUP(dstdir_ino, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
@@ -869,9 +871,10 @@ TEST_F(Rename, subdirectory_to_same_dir)
 	const char RELSRC[] = "src";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1, 0);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1, 0);
 	expect_lookup(RELSRC, ino, S_IFDIR | 0755, UINT64_MAX, 0);
-	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDST)
+		.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_rename(0);
 
 	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
@@ -888,7 +891,7 @@ TEST_F(Rename, eperm_on_sticky_dstdir)
 	uint64_t dstdir_ino = 43;
 	uint64_t dst_ino = 44;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1, 0);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1, 0);
 	expect_lookup(RELSRC, src_ino, S_IFREG | 0644, UINT64_MAX);
 	expect_lookup(RELDSTDIR, dstdir_ino, S_IFDIR | 01777, UINT64_MAX);
 	EXPECT_LOOKUP(dstdir_ino, RELDST)
@@ -916,7 +919,7 @@ TEST_F(Rename, ok)
 	uint64_t dst_ino = 2;
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1, geteuid());
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1, geteuid());
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, UINT64_MAX);
 	expect_lookup(RELDST, dst_ino, S_IFREG | 0644, UINT64_MAX);
 	expect_rename(0);
@@ -932,9 +935,10 @@ TEST_F(Rename, ok_to_remove_src_because_of_stickiness)
 	const char RELSRC[] = "src";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 01777, UINT64_MAX, 1, 0);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 01777, UINT64_MAX, 1, 0);
 	expect_lookup(RELSRC, ino, S_IFREG | 0644, UINT64_MAX, geteuid());
-	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDST)
+		.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_rename(0);
 
 	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
@@ -948,7 +952,7 @@ TEST_F(Setattr, ok)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, geteuid());
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -973,7 +977,7 @@ TEST_F(Setattr, eacces)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -999,8 +1003,9 @@ TEST_F(Setattr, ftruncate_of_newly_created_file)
 	const mode_t mode = 0000;
 	int fd;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1);
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1);
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+		.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_create(RELPATH, ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -1036,7 +1041,7 @@ TEST_F(Setattr, sgid_by_non_group_member)
 	uid_t uid = geteuid();
 	gid_t gid = excluded_group();
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, uid, gid);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -1058,7 +1063,7 @@ TEST_F(Setattr, sticky_regular_file)
 	const mode_t oldmode = 0644;
 	const mode_t newmode = 01644;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX, geteuid());
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -1081,7 +1086,7 @@ TEST_F(Setextattr, ok)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, geteuid());
 	expect_setxattr(0);
 
@@ -1098,7 +1103,7 @@ TEST_F(Setextattr, eacces)
 	ssize_t value_len = strlen(value) + 1;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, 0);
 
 	ASSERT_EQ(-1,
@@ -1116,7 +1121,7 @@ TEST_F(Setextattr, system)
 	ssize_t value_len = strlen(value) + 1;
 	int ns = EXTATTR_NAMESPACE_SYSTEM;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0666, UINT64_MAX, geteuid());
 
 	ASSERT_EQ(-1,
@@ -1135,7 +1140,7 @@ TEST_F(Setextattr, user)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0666, UINT64_MAX, 0);
 	expect_setxattr(0);
 
@@ -1149,9 +1154,9 @@ TEST_F(Unlink, ok)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0777, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, geteuid());
-	expect_unlink(1, RELPATH, 0);
+	expect_unlink(FUSE_ROOT_ID, RELPATH, 0);
 
 	ASSERT_EQ(0, unlink(FULLPATH)) << strerror(errno);
 }
@@ -1169,8 +1174,8 @@ TEST_F(Unlink, cached_unwritable_directory)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
-	EXPECT_LOOKUP(1, RELPATH)
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.Times(AnyNumber())
 	.WillRepeatedly(Invoke(
 		ReturnImmediate([=](auto i __unused, auto& out) {
@@ -1194,7 +1199,7 @@ TEST_F(Unlink, unwritable_directory)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, geteuid());
 
 	ASSERT_EQ(-1, unlink(FULLPATH));
@@ -1207,7 +1212,7 @@ TEST_F(Unlink, sticky_directory)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 01777, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 01777, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, 0);
 
 	ASSERT_EQ(-1, unlink(FULLPATH));
@@ -1226,7 +1231,7 @@ TEST_F(Write, clear_suid)
 	char wbuf[1] = {'x'};
 	int fd;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
 	expect_open(ino, 0, 1);
 	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, 0, wbuf);
@@ -1252,7 +1257,7 @@ TEST_F(Write, clear_sgid)
 	char wbuf[1] = {'x'};
 	int fd;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
 	expect_open(ino, 0, 1);
 	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, 0, wbuf);
@@ -1282,7 +1287,7 @@ TEST_F(Write, recursion_panic_while_clearing_suid)
 	char wbuf[1] = {'x'};
 	int fd;
 
-	expect_getattr(1, S_IFDIR | 0755, UINT64_MAX, 1);
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | oldmode, UINT64_MAX);
 	expect_open(ino, 0, 1);
 	expect_write(ino, 0, sizeof(wbuf), sizeof(wbuf), 0, 0, wbuf);

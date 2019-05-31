@@ -62,7 +62,7 @@ TEST_F(Access, eaccess)
 	uint64_t ino = 42;
 	mode_t	access_mode = X_OK;
 
-	expect_access(1, X_OK, 0);
+	expect_access(FUSE_ROOT_ID, X_OK, 0);
 	expect_lookup(RELPATH, ino);
 	expect_access(ino, access_mode, EACCES);
 
@@ -82,7 +82,7 @@ TEST_F(Access, enosys)
 	uint64_t ino = 42;
 	mode_t	access_mode = R_OK;
 
-	expect_access(1, X_OK, ENOSYS);
+	expect_access(FUSE_ROOT_ID, X_OK, ENOSYS);
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 
 	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
@@ -96,7 +96,7 @@ TEST_F(RofsAccess, erofs)
 	uint64_t ino = 42;
 	mode_t	access_mode = W_OK;
 
-	expect_access(1, X_OK, 0);
+	expect_access(FUSE_ROOT_ID, X_OK, 0);
 	expect_lookup(RELPATH, ino);
 
 	ASSERT_NE(0, access(FULLPATH, access_mode));
@@ -111,7 +111,7 @@ TEST_F(Access, ok)
 	uint64_t ino = 42;
 	mode_t	access_mode = R_OK;
 
-	expect_access(1, X_OK, 0);
+	expect_access(FUSE_ROOT_ID, X_OK, 0);
 	expect_lookup(RELPATH, ino);
 	expect_access(ino, access_mode, 0);
 

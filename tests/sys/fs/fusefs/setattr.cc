@@ -70,7 +70,7 @@ TEST_F(Setattr, attr_cache)
 	struct stat sb;
 	const mode_t newmode = 0644;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | 0644;
@@ -114,7 +114,7 @@ TEST_F(Setattr, chmod)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | oldmode;
@@ -154,7 +154,7 @@ TEST_F(Setattr, chmod_multiply_linked)
 	const mode_t oldmode = 0777;
 	const mode_t newmode = 0666;
 
-	EXPECT_LOOKUP(1, RELPATH0)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH0)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | oldmode;
@@ -164,7 +164,7 @@ TEST_F(Setattr, chmod_multiply_linked)
 		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 
-	EXPECT_LOOKUP(1, RELPATH1)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH1)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | oldmode;
@@ -214,7 +214,7 @@ TEST_F(Setattr, chown)
 	const uid_t olduser = 33;
 	const uid_t newuser = 44;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | 0644;
@@ -257,7 +257,7 @@ TEST_F(Setattr, eperm)
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | 0777;
@@ -287,7 +287,7 @@ TEST_F(Setattr, fchmod)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | oldmode;
@@ -339,7 +339,7 @@ TEST_F(Setattr, ftruncate)
 	const off_t oldsize = 99;
 	const off_t newsize = 12345;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | 0755;
@@ -391,7 +391,7 @@ TEST_F(Setattr, truncate) {
 	const uint64_t oldsize = 100'000'000;
 	const uint64_t newsize = 20'000'000;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | 0644;
@@ -574,7 +574,7 @@ TEST_F(Setattr, utimensat) {
 		{.tv_sec = 7, .tv_nsec = 8},
 	};
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | 0644;
@@ -628,7 +628,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		{.tv_sec = 7, .tv_nsec = 8},
 	};
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | 0644;
@@ -690,7 +690,7 @@ TEST_F(Setattr, utimensat_utime_now) {
 	};
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | 0644;
@@ -741,7 +741,7 @@ TEST_F(RofsSetattr, erofs)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | oldmode;
@@ -761,7 +761,7 @@ TEST_F(Setattr_7_8, chmod)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry_7_8);
 		out.body.entry.attr.mode = S_IFREG | oldmode;

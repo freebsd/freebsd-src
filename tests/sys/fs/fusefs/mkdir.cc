@@ -56,7 +56,8 @@ TEST_F(Mkdir, emlink)
 	const char RELPATH[] = "some_dir";
 	mode_t mode = 0755;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -90,7 +91,8 @@ TEST_F(Mkdir, entry_cache_negative)
 	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
 
 	/* mkdir will first do a LOOKUP, adding a negative cache entry */
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(ReturnNegativeCache(&entry_valid));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(ReturnNegativeCache(&entry_valid));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -124,7 +126,8 @@ TEST_F(Mkdir, entry_cache_negative_purge)
 	struct timespec entry_valid = {.tv_sec = TIME_T_MAX, .tv_nsec = 0};
 
 	/* mkdir will first do a LOOKUP, adding a negative cache entry */
-	EXPECT_LOOKUP(1, RELPATH).Times(1)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.Times(1)
 	.WillOnce(Invoke(ReturnNegativeCache(&entry_valid)))
 	.RetiresOnSaturation();
 
@@ -164,7 +167,8 @@ TEST_F(Mkdir, ok)
 	mask = umask(0);
 	(void)umask(mask);
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -194,7 +198,8 @@ TEST_F(Mkdir_7_8, ok)
 	mode_t mode = 0755;
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {

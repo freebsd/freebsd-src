@@ -58,7 +58,7 @@ TEST_F(Lookup, attr_cache)
 	const uint64_t generation = 13;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.nodeid = ino;
@@ -118,7 +118,7 @@ TEST_F(Lookup, attr_cache_timeout)
 	const uint64_t ino = 42;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.Times(2)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
@@ -142,7 +142,7 @@ TEST_F(Lookup, dot)
 	const char RELDIRPATH[] = "some_dir";
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELDIRPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFDIR | 0755;
@@ -163,7 +163,7 @@ TEST_F(Lookup, dotdot)
 	const char FULLPATH[] = "mountpoint/some_dir/..";
 	const char RELDIRPATH[] = "some_dir";
 
-	EXPECT_LOOKUP(1, RELDIRPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFDIR | 0755;
@@ -184,7 +184,8 @@ TEST_F(Lookup, enoent)
 	const char FULLPATH[] = "mountpoint/does_not_exist";
 	const char RELPATH[] = "does_not_exist";
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	EXPECT_NE(0, access(FULLPATH, F_OK));
 	EXPECT_EQ(ENOENT, errno);
 }
@@ -194,7 +195,7 @@ TEST_F(Lookup, enotdir)
 	const char FULLPATH[] = "mountpoint/not_a_dir/some_file.txt";
 	const char RELPATH[] = "not_a_dir";
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.entry_valid = UINT64_MAX;
@@ -215,7 +216,7 @@ TEST_F(Lookup, entry_cache)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.entry_valid = UINT64_MAX;
@@ -235,7 +236,8 @@ TEST_F(Lookup, entry_cache_negative)
 {
 	struct timespec entry_valid = {.tv_sec = TIME_T_MAX, .tv_nsec = 0};
 
-	EXPECT_LOOKUP(1, "does_not_exist").Times(1)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, "does_not_exist")
+	.Times(1)
 	.WillOnce(Invoke(ReturnNegativeCache(&entry_valid)));
 
 	EXPECT_NE(0, access("mountpoint/does_not_exist", F_OK));
@@ -251,7 +253,8 @@ TEST_F(Lookup, entry_cache_negative_timeout)
 	const char *FULLPATH = "mountpoint/does_not_exist";
 	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = NAP_NS / 2};
 
-	EXPECT_LOOKUP(1, RELPATH).Times(2)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.Times(2)
 	.WillRepeatedly(Invoke(ReturnNegativeCache(&entry_valid)));
 
 	EXPECT_NE(0, access(FULLPATH, F_OK));
@@ -273,7 +276,7 @@ TEST_F(Lookup, entry_cache_timeout)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.Times(2)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
@@ -296,7 +299,7 @@ TEST_F(Lookup, ok)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFREG | 0644;
@@ -318,7 +321,7 @@ TEST_F(Lookup, subdir)
 	uint64_t dir_ino = 2;
 	uint64_t file_ino = 3;
 
-	EXPECT_LOOKUP(1, DIRPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, DIRPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFDIR | 0755;
@@ -362,7 +365,7 @@ TEST_F(Lookup_7_8, ok)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry_7_8);
 		out.body.entry.attr.mode = S_IFREG | 0644;

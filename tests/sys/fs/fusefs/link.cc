@@ -114,22 +114,24 @@ TEST_F(Link, clear_attr_cache)
 	mode_t mode = S_IFREG | 0644;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_GETATTR &&
-				in.header.nodeid == 1);
+				in.header.nodeid == FUSE_ROOT_ID);
 		}, Eq(true)),
 		_)
 	).Times(2)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out.body.attr.attr.ino = 1;
+		out.body.attr.attr.ino = FUSE_ROOT_ID;
 		out.body.attr.attr.mode = S_IFDIR | 0755;
 		out.body.attr.attr_valid = UINT64_MAX;
 	})));
 
-	EXPECT_LOOKUP(1, RELDST)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDST)
+	
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = mode;
@@ -153,7 +155,8 @@ TEST_F(Link, emlink)
 	const char RELDST[] = "dst";
 	uint64_t dst_ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_lookup(RELDST, dst_ino);
 
 	EXPECT_CALL(*m_mock, process(
@@ -181,8 +184,9 @@ TEST_F(Link, ok)
 	mode_t mode = S_IFREG | 0644;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	EXPECT_LOOKUP(1, RELDST)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDST)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = mode;
@@ -209,8 +213,9 @@ TEST_F(Link_7_8, ok)
 	mode_t mode = S_IFREG | 0644;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	EXPECT_LOOKUP(1, RELDST)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDST)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry_7_8);
 		out.body.entry.attr.mode = mode;

@@ -79,7 +79,7 @@ TEST_F(Open, chr)
 	const char RELPATH[] = "zero";
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH)
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.attr.mode = S_IFCHR | 0644;
