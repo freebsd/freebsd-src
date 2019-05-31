@@ -308,13 +308,6 @@ init_alias_body()
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
 
 	for spec in aes:0:AES-XTS:128 aes:128:AES-XTS:128 aes:256:AES-XTS:256 \
-		3des:0:3DES-CBC:192 3des:192:3DES-CBC:192 \
-		blowfish:0:Blowfish-CBC:128 blowfish:128:Blowfish-CBC:128 \
-		blowfish:160:Blowfish-CBC:160 blowfish:192:Blowfish-CBC:192 \
-		blowfish:224:Blowfish-CBC:224 blowfish:256:Blowfish-CBC:256 \
-		blowfish:288:Blowfish-CBC:288 blowfish:352:Blowfish-CBC:352 \
-		blowfish:384:Blowfish-CBC:384 blowfish:416:Blowfish-CBC:416 \
-		blowfish:448:Blowfish-CBC:448 \
 		camellia:0:CAMELLIA-CBC:128 camellia:128:CAMELLIA-CBC:128 \
 		camellia:256:CAMELLIA-CBC:256 ; do
 
