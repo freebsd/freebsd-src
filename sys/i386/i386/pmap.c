@@ -2845,8 +2845,10 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 			    " in pmap %p", va, pmap);
 			return (FALSE);
 		}
-		if (pmap != kernel_pmap)
+		if (pmap != kernel_pmap) {
+			mpte->wire_count = NPTEPG;
 			pmap->pm_stats.resident_count++;
+		}
 	}
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 
@@ -2894,12 +2896,12 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		newpte ^= PG_PDE_PAT | PG_PTE_PAT;
 
 	/*
-	 * If the page table page is new, initialize it.
+	 * If the page table page is not leftover from an earlier promotion,
+	 * initialize it.
 	 */
-	if (mpte->wire_count == 1) {
-		mpte->wire_count = NPTEPG;
+	if ((oldpde & PG_PROMOTED) == 0)
 		pmap_fill_ptp(firstpte, newpte);
-	}
+
 	KASSERT((*firstpte & PG_FRAME) == (newpte & PG_FRAME),
 	    ("pmap_demote_pde: firstpte and newpte map different physical"
 	    " addresses"));
