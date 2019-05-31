@@ -48,6 +48,7 @@
 # include <time.h>
 # include <strings.h>
 #endif
+#include <err.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #ifndef MAP_FILE
@@ -274,16 +275,22 @@ logdump(void)
 				prt("\t***RRRR***");
 			break;
 		case OP_WRITE:
-			prt("WRITE\t0x%x thru 0x%x\t(0x%x bytes)",
-			    lp->args[0], lp->args[0] + lp->args[1] - 1,
-			    lp->args[1]);
-			if (lp->args[0] > lp->args[2])
-				prt(" HOLE");
-			else if (lp->args[0] + lp->args[1] > lp->args[2])
-				prt(" EXTEND");
-			if ((badoff >= lp->args[0] || badoff >=lp->args[2]) &&
-			    badoff < lp->args[0] + lp->args[1])
-				prt("\t***WWWW");
+			{
+				int offset = lp->args[0];
+				int len = lp->args[1];
+				int oldlen = lp->args[2];
+
+				prt("WRITE\t0x%x thru 0x%x\t(0x%x bytes)",
+				    offset, offset + len - 1,
+				    len);
+				if (offset > oldlen)
+					prt(" HOLE");
+				else if (offset + len > oldlen)
+					prt(" EXTEND");
+				if ((badoff >= offset || badoff >=oldlen) &&
+				    badoff < offset + len)
+					prt("\t***WWWW");
+			}
 			break;
 		case OP_TRUNCATE:
 			down = lp->args[0] < lp->args[1];
@@ -993,6 +1000,7 @@ main(int argc, char **argv)
 	char	*endp;
 	char goodfile[1024];
 	char logfile[1024];
+	struct timespec now;
 
 	goodfile[0] = 0;
 	logfile[0] = 0;
@@ -1115,8 +1123,11 @@ main(int argc, char **argv)
 			break;
 		case 'S':
 			seed = getnum(optarg, &endp);
-			if (seed == 0)
-				seed = time(0) % 10000;
+			if (seed == 0) {
+				if (clock_gettime(CLOCK_REALTIME, &now) != 0)
+					err(1, "clock_gettime");
+				seed = now.tv_nsec % 10000;
+			}
 			if (!quiet)
 				fprintf(stdout, "Seed set to %d\n", seed);
 			if (seed < 0)
@@ -1206,7 +1217,7 @@ main(int argc, char **argv)
 				prterr(fname);
 				warn("main: error on write");
 			} else
-				warn("main: short write, 0x%x bytes instead of 0x%x\n",
+				warn("main: short write, 0x%x bytes instead of 0x%lx\n",
 				     (unsigned)written, maxfilelen);
 			exit(98);
 		}
