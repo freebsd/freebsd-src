@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/fcntl.h>
+#include <sys/fnv_hash.h>
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/mount.h>
@@ -234,7 +235,9 @@ static int	xdr_fhs(XDR *, caddr_t);
 static int	xdr_mlist(XDR *, caddr_t);
 static void	terminate(int);
 
-static struct exportlisthead exphead = SLIST_HEAD_INITIALIZER(&exphead);
+#define	EXPHASH(f)	(fnv_32_buf((f), sizeof(fsid_t), 0) % exphashsize)
+static struct exportlisthead *exphead = NULL;
+static int exphashsize = 0;
 static SLIST_HEAD(, mountlist) mlhead = SLIST_HEAD_INITIALIZER(&mlhead);
 static char *exnames_default[2] = { _PATH_EXPORTS, NULL };
 static char **exnames;
@@ -1092,7 +1095,7 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 		if (bad)
 			ep = NULL;
 		else
-			ep = ex_search(&fsb.f_fsid, &exphead);
+			ep = ex_search(&fsb.f_fsid, exphead);
 		hostset = defset = 0;
 		if (ep && (chk_host(ep->ex_defdir, saddr, &defset, &hostset,
 		    &numsecflavors, &secflavorsp) ||
@@ -1307,21 +1310,23 @@ xdr_explist_common(XDR *xdrsp, caddr_t cp __unused, int brief)
 	int false = 0;
 	int putdef;
 	sigset_t sighup_mask;
+	int i;
 
 	sigemptyset(&sighup_mask);
 	sigaddset(&sighup_mask, SIGHUP);
 	sigprocmask(SIG_BLOCK, &sighup_mask, NULL);
 
-	SLIST_FOREACH(ep, &exphead, entries) {
-		putdef = 0;
-		if (put_exlist(ep->ex_dirl, xdrsp, ep->ex_defdir,
-			       &putdef, brief))
-			goto errout;
-		if (ep->ex_defdir && putdef == 0 &&
-			put_exlist(ep->ex_defdir, xdrsp, (struct dirlist *)NULL,
-			&putdef, brief))
-			goto errout;
-	}
+	for (i = 0; i < exphashsize; i++)
+		SLIST_FOREACH(ep, &exphead[i], entries) {
+			putdef = 0;
+			if (put_exlist(ep->ex_dirl, xdrsp, ep->ex_defdir,
+				       &putdef, brief))
+				goto errout;
+			if (ep->ex_defdir && putdef == 0 &&
+				put_exlist(ep->ex_defdir, xdrsp, NULL,
+				&putdef, brief))
+				goto errout;
+		}
 	sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
 	if (!xdr_bool(xdrsp, &false))
 		return (0);
@@ -1545,7 +1550,7 @@ get_exportlist_one(void)
 					 * See if this directory is already
 					 * in the list.
 					 */
-					ep = ex_search(&fsb.f_fsid, &exphead);
+					ep = ex_search(&fsb.f_fsid, exphead);
 					if (ep == (struct exportlist *)NULL) {
 					    ep = get_exp();
 					    ep->ex_fs = fsb.f_fsid;
@@ -1700,7 +1705,7 @@ get_exportlist_one(void)
 		}
 		dirhead = (struct dirlist *)NULL;
 		if ((ep->ex_flag & EX_LINKED) == 0) {
-			insert_exports(ep, &exphead);
+			insert_exports(ep, exphead);
 
 			ep->ex_flag |= EX_LINKED;
 		}
@@ -1739,7 +1744,8 @@ get_exportlist(void)
 	/*
 	 * First, get rid of the old list
 	 */
-	free_exports(&exphead);
+	if (exphead != NULL)
+		free_exports(exphead);
 
 	/*
 	 * and the old V4 root dir.
@@ -1762,6 +1768,21 @@ get_exportlist(void)
 	 */
 	num = getmntinfo(&mntbufp, MNT_NOWAIT);
 
+	/* Allocate hash tables, for first call. */
+	if (exphead == NULL) {
+		/* Target an average linked list length of 10. */
+		exphashsize = num / 10;
+		if (exphashsize < 1)
+			exphashsize = 1;
+		else if (exphashsize > 100000)
+			exphashsize = 100000;
+		exphead = malloc(exphashsize * sizeof(*exphead));
+		if (exphead == NULL)
+			errx(1, "Can't malloc hash table");
+
+		for (i = 0; i < exphashsize; i++)
+			SLIST_INIT(&exphead[i]);
+	}
 	if (num > 0) {
 		build_iovec(&iov, &iovlen, "fstype", NULL, 0);
 		build_iovec(&iov, &iovlen, "fspath", NULL, 0);
@@ -1806,8 +1827,10 @@ get_exportlist(void)
 static void
 insert_exports(struct exportlist *ep, struct exportlisthead *exhp)
 {
+	uint32_t i;
 
-	SLIST_INSERT_HEAD(exhp, ep, entries);
+	i = EXPHASH(&ep->ex_fs);
+	SLIST_INSERT_HEAD(&exhp[i], ep, entries);
 }
 
 /*
@@ -1817,12 +1840,15 @@ static void
 free_exports(struct exportlisthead *exhp)
 {
 	struct exportlist *ep, *ep2;
+	int i;
 
-	SLIST_FOREACH_SAFE(ep, exhp, entries, ep2) {
-		SLIST_REMOVE(exhp, ep, exportlist, entries);
-		free_exp(ep);
+	for (i = 0; i < exphashsize; i++) {
+		SLIST_FOREACH_SAFE(ep, &exhp[i], entries, ep2) {
+			SLIST_REMOVE(&exhp[i], ep, exportlist, entries);
+			free_exp(ep);
+		}
+		SLIST_INIT(&exhp[i]);
 	}
-	SLIST_INIT(exhp);
 }
 
 /*
@@ -1962,8 +1988,10 @@ static struct exportlist *
 ex_search(fsid_t *fsid, struct exportlisthead *exhp)
 {
 	struct exportlist *ep;
+	uint32_t i;
 
-	SLIST_FOREACH(ep, exhp, entries) {
+	i = EXPHASH(fsid);
+	SLIST_FOREACH(ep, &exhp[i], entries) {
 		if (ep->ex_fs.val[0] == fsid->val[0] &&
 		    ep->ex_fs.val[1] == fsid->val[1])
 			return (ep);
