@@ -2645,7 +2645,6 @@ retry:
 				} else {
 					m->flags &= ~PG_ZERO;
 					vm_page_dequeue(m);
-					vm_page_remove(m);
 					if (vm_page_free_prep(m))
 						SLIST_INSERT_HEAD(&free, m,
 						    plinks.s.ss);
