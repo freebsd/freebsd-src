@@ -4490,6 +4490,50 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	return (rv);
 }
 
+static void
+pmap_demote_pde_check(pt_entry_t *firstpte __unused, pt_entry_t newpte __unused)
+{
+#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
+	pt_entry_t *xpte, *ypte;
+
+	for (xpte = firstpte; xpte < firstpte + NPTEPG;
+	    xpte++, newpte += PAGE_SIZE) {
+		if ((*xpte & PG_FRAME) != (newpte & PG_FRAME)) {
+			printf("pmap_demote_pde: xpte %zd and newpte map "
+			    "different pages: found %#lx, expected %#lx\n",
+			    xpte - firstpte, *xpte, newpte);
+			printf("page table dump\n");
+			for (ypte = firstpte; ypte < firstpte + NPTEPG; ypte++)
+				printf("%zd %#lx\n", ypte - firstpte, *ypte);
+			panic("firstpte");
+		}
+	}
+#else
+	KASSERT((*firstpte & PG_FRAME) == (newpte & PG_FRAME),
+	    ("pmap_demote_pde: firstpte and newpte map different physical"
+	    " addresses"));
+#endif
+#endif
+}
+
+static void
+pmap_demote_pde_abort(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
+    pd_entry_t oldpde, struct rwlock **lockp)
+{
+	struct spglist free;
+	vm_offset_t sva;
+
+	SLIST_INIT(&free);
+	sva = trunc_2mpage(va);
+	pmap_remove_pde(pmap, pde, sva, &free, lockp);
+	if ((oldpde & pmap_global_bit(pmap)) == 0)
+		pmap_invalidate_pde_page(pmap, sva, oldpde);
+	vm_page_free_pages_toq(&free, true);
+	CTR2(KTR_PMAP, "pmap_demote_pde: failure for va %#lx in pmap %p",
+	    va, pmap);
+}
+
 static boolean_t
 pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
     struct rwlock **lockp)
@@ -4499,12 +4543,11 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	pt_entry_t PG_A, PG_G, PG_M, PG_PKU_MASK, PG_RW, PG_V;
 	vm_paddr_t mptepa;
 	vm_page_t mpte;
-	struct spglist free;
-	vm_offset_t sva;
 	int PG_PTE_CACHE;
+	bool in_kernel;
 
-	PG_G = pmap_global_bit(pmap);
 	PG_A = pmap_accessed_bit(pmap);
+	PG_G = pmap_global_bit(pmap);
 	PG_M = pmap_modified_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
 	PG_V = pmap_valid_bit(pmap);
@@ -4512,42 +4555,59 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	PG_PKU_MASK = pmap_pku_mask_bit(pmap);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	in_kernel = va >= VM_MAXUSER_ADDRESS;
 	oldpde = *pde;
 	KASSERT((oldpde & (PG_PS | PG_V)) == (PG_PS | PG_V),
 	    ("pmap_demote_pde: oldpde is missing PG_PS and/or PG_V"));
-	if ((oldpde & PG_A) == 0 || (mpte = pmap_remove_pt_page(pmap, va)) ==
-	    NULL) {
+
+	/*
+	 * Invalidate the 2MB page mapping and return "failure" if the
+	 * mapping was never accessed.
+	 */
+	if ((oldpde & PG_A) == 0) {
+		pmap_demote_pde_abort(pmap, va, pde, oldpde, lockp);
+		return (FALSE);
+	}
+
+	mpte = pmap_remove_pt_page(pmap, va);
+	if (mpte == NULL) {
 		KASSERT((oldpde & PG_W) == 0,
 		    ("pmap_demote_pde: page table page for a wired mapping"
 		    " is missing"));
 
 		/*
-		 * Invalidate the 2MB page mapping and return "failure" if the
-		 * mapping was never accessed or the allocation of the new
-		 * page table page fails.  If the 2MB page mapping belongs to
-		 * the direct map region of the kernel's address space, then
-		 * the page allocation request specifies the highest possible
-		 * priority (VM_ALLOC_INTERRUPT).  Otherwise, the priority is
-		 * normal.  Page table pages are preallocated for every other
-		 * part of the kernel address space, so the direct map region
-		 * is the only part of the kernel address space that must be
-		 * handled here.
+		 * If the page table page is missing and the mapping
+		 * is for a kernel address, the mapping must belong to
+		 * the direct map.  Page table pages are preallocated
+		 * for every other part of the kernel address space,
+		 * so the direct map region is the only part of the
+		 * kernel address space that must be handled here.
 		 */
-		if ((oldpde & PG_A) == 0 || (mpte = vm_page_alloc(NULL,
-		    pmap_pde_pindex(va), (va >= DMAP_MIN_ADDRESS && va <
-		    DMAP_MAX_ADDRESS ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL) |
-		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
-			SLIST_INIT(&free);
-			sva = trunc_2mpage(va);
-			pmap_remove_pde(pmap, pde, sva, &free, lockp);
-			if ((oldpde & PG_G) == 0)
-				pmap_invalidate_pde_page(pmap, sva, oldpde);
-			vm_page_free_pages_toq(&free, true);
-			CTR2(KTR_PMAP, "pmap_demote_pde: failure for va %#lx"
-			    " in pmap %p", va, pmap);
+		KASSERT(!in_kernel || (va >= DMAP_MIN_ADDRESS &&
+		    va < DMAP_MAX_ADDRESS),
+		    ("pmap_demote_pde: No saved mpte for va %#lx", va));
+
+		/*
+		 * If the 2MB page mapping belongs to the direct map
+		 * region of the kernel's address space, then the page
+		 * allocation request specifies the highest possible
+		 * priority (VM_ALLOC_INTERRUPT).  Otherwise, the
+		 * priority is normal.
+		 */
+		mpte = vm_page_alloc(NULL, pmap_pde_pindex(va),
+		    (in_kernel ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL) |
+		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
+
+		/*
+		 * If the allocation of the new page table page fails,
+		 * invalidate the 2MB page mapping and return "failure".
+		 */
+		if (mpte == NULL) {
+			pmap_demote_pde_abort(pmap, va, pde, oldpde, lockp);
 			return (FALSE);
 		}
-		if (va < VM_MAXUSER_ADDRESS) {
+
+		if (!in_kernel) {
 			mpte->wire_count = NPTEPG;
 			pmap_resident_count_inc(pmap, 1);
 		}
@@ -4569,9 +4629,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	if ((oldpde & PG_PROMOTED) == 0)
 		pmap_fill_ptp(firstpte, newpte);
 
-	KASSERT((*firstpte & PG_FRAME) == (newpte & PG_FRAME),
-	    ("pmap_demote_pde: firstpte and newpte map different physical"
-	    " addresses"));
+	pmap_demote_pde_check(firstpte, newpte);
 
 	/*
 	 * If the mapping has changed attributes, update the page table
@@ -4606,7 +4664,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	/*
 	 * Invalidate a stale recursive mapping of the page table page.
 	 */
-	if (va >= VM_MAXUSER_ADDRESS)
+	if (in_kernel)
 		pmap_invalidate_page(pmap, (vm_offset_t)vtopte(va));
 
 	/*
@@ -4616,8 +4674,8 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 		pmap_pv_demote_pde(pmap, va, oldpde & PG_PS_FRAME, lockp);
 
 	atomic_add_long(&pmap_pde_demotions, 1);
-	CTR2(KTR_PMAP, "pmap_demote_pde: success for va %#lx"
-	    " in pmap %p", va, pmap);
+	CTR2(KTR_PMAP, "pmap_demote_pde: success for va %#lx in pmap %p",
+	    va, pmap);
 	return (TRUE);
 }
 
