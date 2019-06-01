@@ -1458,7 +1458,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct socket *so;
 	struct sockbuf *sb;
 	struct mbuf *tls_data;
-	int len, pdu_length, pdu_overhead, sb_length;
+	int len, pdu_length, rx_credits;
 
 	KASSERT(toep->tid == tid, ("%s: toep tid/atid mismatch", __func__));
 	KASSERT(!(toep->flags & TPF_SYNQE),
@@ -1562,24 +1562,10 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	/*
-	 * Not all of the bytes on the wire are included in the socket
-	 * buffer (e.g. the MAC of the TLS record).  However, those
-	 * bytes are included in the TCP sequence space.  To handle
-	 * this, compute the delta for this TLS record in
-	 * 'pdu_overhead' and treat those bytes as having already been
-	 * "read" by the application for the purposes of expanding the
-	 * window.  The meat of the TLS record passed to the
-	 * application ('sb_length') will still not be counted as
-	 * "read" until userland actually reads the bytes.
-	 *
-	 * XXX: Some of the calculations below are probably still not
-	 * really correct.
+	 * Not all of the bytes on the wire are included in the socket buffer
+	 * (e.g. the MAC of the TLS record).  However, those bytes are included
+	 * in the TCP sequence space.
 	 */
-	sb_length = m->m_pkthdr.len;
-	pdu_overhead = pdu_length - sb_length;
-	toep->rx_credits += pdu_overhead;
-	tp->rcv_wnd += pdu_overhead;
-	tp->rcv_adv += pdu_overhead;
 
 	/* receive buffer autosize */
 	MPASS(toep->vnet == so->so_vnet);
@@ -1587,34 +1573,25 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	if (sb->sb_flags & SB_AUTOSIZE &&
 	    V_tcp_do_autorcvbuf &&
 	    sb->sb_hiwat < V_tcp_autorcvbuf_max &&
-	    sb_length > (sbspace(sb) / 8 * 7)) {
+	    m->m_pkthdr.len > (sbspace(sb) / 8 * 7)) {
 		unsigned int hiwat = sb->sb_hiwat;
 		unsigned int newsize = min(hiwat + sc->tt.autorcvbuf_inc,
 		    V_tcp_autorcvbuf_max);
 
 		if (!sbreserve_locked(sb, newsize, so, NULL))
 			sb->sb_flags &= ~SB_AUTOSIZE;
-		else
-			toep->rx_credits += newsize - hiwat;
 	}
 
-	KASSERT(toep->sb_cc >= sbused(sb),
-	    ("%s: sb %p has more data (%d) than last time (%d).",
-	    __func__, sb, sbused(sb), toep->sb_cc));
-	toep->rx_credits += toep->sb_cc - sbused(sb);
 	sbappendstream_locked(sb, m, 0);
-	toep->sb_cc = sbused(sb);
+	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
 #ifdef VERBOSE_TRACES
 	CTR5(KTR_CXGBE, "%s: tid %u PDU overhead %d rx_credits %u rcv_wnd %u",
-	    __func__, tid, pdu_overhead, toep->rx_credits, tp->rcv_wnd);
+	    __func__, tid, pdu_overhead, rx_credits, tp->rcv_wnd);
 #endif
-	if (toep->rx_credits > 0 && toep->sb_cc + tp->rcv_wnd < sb->sb_lowat) {
-		int credits;
-
-		credits = send_rx_credits(sc, toep, toep->rx_credits);
-		toep->rx_credits -= credits;
-		tp->rcv_wnd += credits;
-		tp->rcv_adv += credits;
+	if (rx_credits > 0 && sbused(sb) + tp->rcv_wnd < sb->sb_lowat) {
+		rx_credits = send_rx_credits(sc, toep, rx_credits);
+		tp->rcv_wnd += rx_credits;
+		tp->rcv_adv += rx_credits;
 	}
 
 	sorwakeup_locked(so);

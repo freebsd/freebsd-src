@@ -399,19 +399,9 @@ make_established(struct toepcb *toep, uint32_t iss, uint32_t irs, uint16_t opt)
 
 	tp->irs = irs;
 	tcp_rcvseqinit(tp);
-	tp->rcv_wnd = toep->rx_credits << 10;
+	tp->rcv_wnd = toep->opt0_rcv_bufsize << 10;
 	tp->rcv_adv += tp->rcv_wnd;
 	tp->last_ack_sent = tp->rcv_nxt;
-
-	/*
-	 * If we were unable to send all rx credits via opt0, save the remainder
-	 * in rx_credits so that they can be handed over with the next credit
-	 * update.
-	 */
-	SOCKBUF_LOCK(&so->so_rcv);
-	bufsize = select_rcv_wnd(so);
-	SOCKBUF_UNLOCK(&so->so_rcv);
-	toep->rx_credits = bufsize - tp->rcv_wnd;
 
 	tp->iss = iss;
 	tcp_sendseqinit(tp);
@@ -483,37 +473,29 @@ t4_rcvd_locked(struct toedev *tod, struct tcpcb *tp)
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_rcv;
 	struct toepcb *toep = tp->t_toe;
-	int credits;
+	int rx_credits;
 
 	INP_WLOCK_ASSERT(inp);
-
 	SOCKBUF_LOCK_ASSERT(sb);
-	KASSERT(toep->sb_cc >= sbused(sb),
-	    ("%s: sb %p has more data (%d) than last time (%d).",
-	    __func__, sb, sbused(sb), toep->sb_cc));
 
-	credits = toep->sb_cc - sbused(sb);
-	toep->sb_cc = sbused(sb);
+	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
 	if (toep->ulp_mode == ULP_MODE_TLS) {
-		if (toep->tls.rcv_over >= credits) {
-			toep->tls.rcv_over -= credits;
-			credits = 0;
+		if (toep->tls.rcv_over >= rx_credits) {
+			toep->tls.rcv_over -= rx_credits;
+			rx_credits = 0;
 		} else {
-			credits -= toep->tls.rcv_over;
+			rx_credits -= toep->tls.rcv_over;
 			toep->tls.rcv_over = 0;
 		}
 	}
-	toep->rx_credits += credits;
 
-	if (toep->rx_credits > 0 &&
-	    (tp->rcv_wnd <= 32 * 1024 || toep->rx_credits >= 64 * 1024 ||
-	    (toep->rx_credits >= 16 * 1024 && tp->rcv_wnd <= 128 * 1024) ||
-	    toep->sb_cc + tp->rcv_wnd < sb->sb_lowat)) {
-
-		credits = send_rx_credits(sc, toep, toep->rx_credits);
-		toep->rx_credits -= credits;
-		tp->rcv_wnd += credits;
-		tp->rcv_adv += credits;
+	if (rx_credits > 0 &&
+	    (tp->rcv_wnd <= 32 * 1024 || rx_credits >= 64 * 1024 ||
+	    (rx_credits >= 16 * 1024 && tp->rcv_wnd <= 128 * 1024) ||
+	    sbused(sb) + tp->rcv_wnd < sb->sb_lowat)) {
+		rx_credits = send_rx_credits(sc, toep, rx_credits);
+		tp->rcv_wnd += rx_credits;
+		tp->rcv_adv += rx_credits;
 	} else if (toep->flags & TPF_FORCE_CREDITS)
 		send_rx_modulate(sc, toep);
 }
@@ -1551,7 +1533,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct socket *so;
 	struct sockbuf *sb;
 	struct epoch_tracker et;
-	int len;
+	int len, rx_credits;
 	uint32_t ddp_placed = 0;
 
 	if (__predict_false(toep->flags & TPF_SYNQE)) {
@@ -1636,8 +1618,6 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 		if (!sbreserve_locked(sb, newsize, so, NULL))
 			sb->sb_flags &= ~SB_AUTOSIZE;
-		else
-			toep->rx_credits += newsize - hiwat;
 	}
 
 	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
@@ -1675,19 +1655,12 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		}
 	}
 
-	KASSERT(toep->sb_cc >= sbused(sb),
-	    ("%s: sb %p has more data (%d) than last time (%d).",
-	    __func__, sb, sbused(sb), toep->sb_cc));
-	toep->rx_credits += toep->sb_cc - sbused(sb);
 	sbappendstream_locked(sb, m, 0);
-	toep->sb_cc = sbused(sb);
-	if (toep->rx_credits > 0 && toep->sb_cc + tp->rcv_wnd < sb->sb_lowat) {
-		int credits;
-
-		credits = send_rx_credits(sc, toep, toep->rx_credits);
-		toep->rx_credits -= credits;
-		tp->rcv_wnd += credits;
-		tp->rcv_adv += credits;
+	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
+	if (rx_credits > 0 && sbused(sb) + tp->rcv_wnd < sb->sb_lowat) {
+		rx_credits = send_rx_credits(sc, toep, rx_credits);
+		tp->rcv_wnd += rx_credits;
+		tp->rcv_adv += rx_credits;
 	}
 
 	if (toep->ulp_mode == ULP_MODE_TCPDDP && toep->ddp.waiting_count > 0 &&
