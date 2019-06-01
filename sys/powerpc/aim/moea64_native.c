@@ -646,15 +646,12 @@ moea64_insert_to_pteg_native(struct lpte *pvo_pt, uintptr_t slotbase,
 		 * "Modifying a Page Table Entry". Need to reconstruct
 		 * the virtual address for the outgoing entry to do that.
 		 */
-		if (oldptehi & LPTE_BIG)
-			va = oldptehi >> moea64_large_page_shift;
-		else
-			va = oldptehi >> ADDR_PIDX_SHFT;
+		va = oldptehi >> (ADDR_SR_SHFT - ADDR_API_SHFT64);
 		if (oldptehi & LPTE_HID)
 			va = (((k >> 3) ^ moea64_pteg_mask) ^ va) &
-			    VSID_HASH_MASK;
+			    (ADDR_PIDX >> ADDR_PIDX_SHFT);
 		else
-			va = ((k >> 3) ^ va) & VSID_HASH_MASK;
+			va = ((k >> 3) ^ va) & (ADDR_PIDX >> ADDR_PIDX_SHFT);
 		va |= (oldptehi & LPTE_AVPN_MASK) <<
 		    (ADDR_API_SHFT64 - ADDR_PIDX_SHFT);
 		PTESYNC();
