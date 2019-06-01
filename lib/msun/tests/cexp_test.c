@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
 /* Test all the functions that compute cexp(x). */
 #define	testall(x, result, exceptmask, excepts, checksign)	do {	\
 	test(cexp, x, result, exceptmask, excepts, checksign);		\
-	test_f(cexpf, x, result, exceptmask, excepts, checksign);		\
+	test_f(cexpf, x, result, exceptmask, excepts, checksign);	\
 } while (0)
 
 /*
