@@ -87,7 +87,7 @@ arm/broadcom/bcm2835/bcm2835_ft5406.c		optional evdev bcm2835_ft5406 soc_brcm_bc
 arm/broadcom/bcm2835/bcm2835_gpio.c		optional gpio soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_intr.c		optional soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_mbox.c		optional soc_brcm_bcm2837 fdt
-arm/broadcom/bcm2835/bcm2835_rng.c		optional random soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_rng.c		optional random !random_loadable soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_sdhci.c		optional sdhci soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_sdhost.c		optional sdhci soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_spi.c		optional bcm2835_spi soc_brcm_bcm2837 fdt

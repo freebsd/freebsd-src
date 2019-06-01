@@ -198,9 +198,12 @@ read_random(void *buf, u_int len)
 bool
 is_random_seeded(void)
 {
+	bool result;
+
 	RANDOM_CONFIG_S_LOCK();
-	random_reader_context.is_random_seeded();
+	result = random_reader_context.is_random_seeded();
 	RANDOM_CONFIG_S_UNLOCK();
+	return (result);
 }
 
 
