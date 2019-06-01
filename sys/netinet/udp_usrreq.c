@@ -1156,9 +1156,23 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 
 	src.sin_family = 0;
 	sin = (struct sockaddr_in *)addr;
+retry:
 	if (sin == NULL ||
 	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0)) {
 		INP_WLOCK(inp);
+		/*
+		 * In case we lost a race and another thread bound addr/port
+		 * on the inp we cannot keep the wlock (which still would be
+		 * fine) as further down, based on these values we make
+		 * decisions for the pcbinfo lock.  If the locks are not in
+		 * synch the assertions on unlock will fire, hence we go for
+		 * one retry loop.
+		 */
+		if (sin != NULL && (inp->inp_laddr.s_addr != INADDR_ANY ||
+		    inp->inp_lport != 0)) {
+			INP_WUNLOCK(inp);
+			goto retry;
+		}
 		unlock_inp = UH_WLOCKED;
 	} else {
 		INP_RLOCK(inp);
