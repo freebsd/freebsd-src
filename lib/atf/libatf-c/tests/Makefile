@@ -13,11 +13,6 @@ ATF=		${SRCTOP}/contrib/atf
 CFLAGS+=	-DATF_INCLUDEDIR='"${INCLUDEDIR}"'
 CFLAGS+=	-I${ATF}
 
-# macros_test.c contains a double 'const const' which will be gone with
-# the import of atf-0.18.
-# TODO(jmmv): Remove this workaround once we do that update.
-CFLAGS.clang+=	-Wno-duplicate-decl-specifier
-
 ${PACKAGE}FILES+=	macros_h_test.c
 ${PACKAGE}FILES+=	unused_test.c
 
