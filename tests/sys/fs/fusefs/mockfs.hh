@@ -176,6 +176,8 @@ union fuse_payloads_out {
 	fuse_lk_out		getlk;
 	fuse_getxattr_out	getxattr;
 	fuse_init_out		init;
+	/* The inval_entry structure should be followed by the entry's name */
+	fuse_notify_inval_entry_out	inval_entry;
 	fuse_listxattr_out	listxattr;
 	fuse_open_out		open;
 	fuse_statfs_out		statfs;
@@ -258,7 +260,8 @@ class MockFS {
 	/* Method the daemon should use for I/O to and from /dev/fuse */
 	enum poll_method m_pm;
 
-	void debug_fuseop(const mockfs_buf_in&);
+	void debug_request(const mockfs_buf_in&);
+	void debug_response(const mockfs_buf_out&);
 
 	/* Initialize a session after mounting */
 	void init(uint32_t flags);
@@ -308,6 +311,19 @@ class MockFS {
 
 	/* Process FUSE requests endlessly */
 	void loop();
+
+	/*
+	 * Send an asynchronous notification to invalidate a directory entry.
+	 * Similar to libfuse's fuse_lowlevel_notify_inval_entry
+	 *
+	 * This method will block until the client has responded, so it should
+	 * generally be run in a separate thread from request processing.
+	 *
+	 * @param	parent	Parent directory's inode number
+	 * @param	name	name of dirent to invalidate
+	 * @param	namelen	size of name, including the NUL
+	 */
+	int notify_inval_entry(ino_t parent, const char *name, size_t namelen);
 
 	/* 
 	 * Request handler

@@ -153,7 +153,7 @@ void sigint_handler(int __unused sig) {
 	// Don't do anything except interrupt the daemon's read(2) call
 }
 
-void MockFS::debug_fuseop(const mockfs_buf_in &in)
+void MockFS::debug_request(const mockfs_buf_in &in)
 {
 	printf("%-11s ino=%2" PRIu64, opcode2opname(in.header.opcode),
 		in.header.nodeid);
@@ -301,6 +301,30 @@ void MockFS::debug_fuseop(const mockfs_buf_in &in)
 			break;
 	}
 	printf("\n");
+}
+
+/* 
+ * Debug a FUSE response.
+ *
+ * This is mostly useful for asynchronous notifications, which don't correspond
+ * to any request
+ */
+void MockFS::debug_response(const mockfs_buf_out &out) {
+	const char *name;
+
+	if (verbosity == 0)
+		return;
+
+	switch (out.header.error) {
+		case FUSE_NOTIFY_INVAL_ENTRY:
+			name = (const char*)out.body.bytes +
+				sizeof(fuse_notify_inval_entry_out);
+			printf("<- INVAL_ENTRY parent=%" PRIu64 " %s\n",
+				out.body.inval_entry.parent, name);
+			break;
+		default:
+			break;
+	}
 }
 
 MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
@@ -455,7 +479,7 @@ void MockFS::loop() {
 		if (m_quit)
 			break;
 		if (verbosity > 0)
-			debug_fuseop(*in);
+			debug_request(*in);
 		if (pid_ok((pid_t)in->header.pid)) {
 			process(*in, out);
 		} else {
@@ -473,6 +497,23 @@ void MockFS::loop() {
 			write_response(*it);
 		out.clear();
 	}
+}
+
+int MockFS::notify_inval_entry(ino_t parent, const char *name, size_t namelen)
+{
+	std::unique_ptr<mockfs_buf_out> out(new mockfs_buf_out);
+
+	out->header.unique = 0;	/* 0 means asynchronous notification */
+	out->header.error = FUSE_NOTIFY_INVAL_ENTRY;
+	out->body.inval_entry.parent = parent;
+	out->body.inval_entry.namelen = namelen;
+	strlcpy((char*)&out->body.bytes + sizeof(out->body.inval_entry),
+		name, sizeof(out->body.bytes) - sizeof(out->body.inval_entry));
+	out->header.len = sizeof(out->header) + sizeof(out->body.inval_entry) +
+		namelen;
+	debug_response(*out);
+	write_response(*out);
+	return 0;
 }
 
 bool MockFS::pid_ok(pid_t pid) {

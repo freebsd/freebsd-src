@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 
 #include "fuse.h"
+#include "fuse_internal.h"
 #include "fuse_ipc.h"
 
 SDT_PROVIDER_DECLARE(fusefs);
@@ -393,17 +394,17 @@ fuse_ohead_audit(struct fuse_out_header *ohead, struct uio *uio)
 			"differs from size claimed by header");
 		return (EINVAL);
 	}
-	if (uio->uio_resid && ohead->error) {
+	if (uio->uio_resid && ohead->unique != 0 && ohead->error) {
 		SDT_PROBE2(fusefs, , device, trace, 1, 
 			"Format error: non zero error but message had a body");
 		return (EINVAL);
 	}
-	/* Sanitize the linuxism of negative errnos */
-	ohead->error = -(ohead->error);
 
 	return (0);
 }
 
+SDT_PROBE_DEFINE1(fusefs, , device, fuse_device_write_notify,
+	"struct fuse_out_header*");
 SDT_PROBE_DEFINE1(fusefs, , device, fuse_device_write_missing_ticket,
 	"uint64_t");
 SDT_PROBE_DEFINE1(fusefs, , device, fuse_device_write_found,
@@ -420,12 +421,14 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	struct fuse_out_header ohead;
 	int err = 0;
 	struct fuse_data *data;
+	struct mount *mp;
 	struct fuse_ticket *tick, *itick, *x_tick;
 	int found = 0;
 
 	err = devfs_get_cdevpriv((void **)&data);
 	if (err != 0)
 		return (err);
+	mp = data->mp;
 
 	if (uio->uio_resid < sizeof(struct fuse_out_header)) {
 		SDT_PROBE2(fusefs, , device, trace, 1,
@@ -489,6 +492,8 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 			 */
 			SDT_PROBE2(fusefs, , device, trace, 1,
 				"pass ticket to a callback");
+			/* Sanitize the linuxism of negative errnos */
+			ohead.error *= -1;
 			memcpy(&tick->tk_aw_ohead, &ohead, sizeof(ohead));
 			err = tick->tk_aw_handler(tick, uio);
 		} else {
@@ -503,11 +508,24 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		 * because fuse_ticket_drop() will deal with refcount anyway.
 		 */
 		fuse_ticket_drop(tick);
+	} else if (ohead.unique == 0){
+		/* unique == 0 means asynchronous notification */
+		SDT_PROBE1(fusefs, , device, fuse_device_write_notify, &ohead);
+		switch (ohead.error) {
+		case FUSE_NOTIFY_INVAL_ENTRY:
+			err = fuse_internal_invalidate_entry(mp, uio);
+			break;
+		case FUSE_NOTIFY_POLL:
+		case FUSE_NOTIFY_INVAL_INODE:
+		default:
+			/* Not implemented */
+			err = ENOSYS;
+		}
 	} else {
 		/* no callback at all! */
 		SDT_PROBE1(fusefs, , device, fuse_device_write_missing_ticket, 
 			ohead.unique);
-		if (ohead.error == EAGAIN) {
+		if (ohead.error == -EAGAIN) {
 			/* 
 			 * This was probably a response to a FUSE_INTERRUPT
 			 * operation whose original operation is already

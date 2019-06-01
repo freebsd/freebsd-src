@@ -326,6 +326,71 @@ fuse_internal_fsync(struct vnode *vp,
 	return err;
 }
 
+/* Asynchronous invalidation */
+SDT_PROBE_DEFINE1(fusefs, , internal, invalidate_without_export,
+	"struct mount*");
+SDT_PROBE_DEFINE2(fusefs, , internal, invalidate_cache_hit,
+	"struct vnode*", "struct vnode*");
+int
+fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
+{
+	struct fuse_notify_inval_entry_out fnieo;
+	struct fuse_data *data = fuse_get_mpdata(mp);
+	struct componentname cn;
+	/*struct vnode *dvp;*/
+	struct vnode *dvp, *vp;
+	char name[PATH_MAX];
+	int err;
+
+	if (!(data->dataflags & FSESS_EXPORT_SUPPORT)) {
+		/* 
+		 * Linux allows file systems without export support to use
+		 * asynchronous notification because its inode cache is indexed
+		 * purely by the inode number.  But FreeBSD's vnode is cache
+		 * requires access to the entire vnode structure.
+		 */
+		SDT_PROBE1(fusefs, , internal, invalidate_without_export, mp);
+		return (EINVAL);
+	}
+
+	if ((err = uiomove(&fnieo, sizeof(fnieo), uio)) != 0)
+		return (err);
+
+	if ((err = uiomove(name, fnieo.namelen, uio)) != 0)
+		return (err);
+	name[fnieo.namelen] = '\0';
+	/* fusefs does not cache "." or ".." entries */
+	if (strncmp(name, ".", sizeof(".")) == 0 ||
+	    strncmp(name, "..", sizeof("..")) == 0)
+		return (0);
+
+	if (fnieo.parent == FUSE_ROOT_ID)
+		err = VFS_ROOT(mp, LK_SHARED, &dvp);
+	else
+		err = VFS_VGET(mp, fnieo.parent, LK_SHARED, &dvp);
+	if (err != 0)
+		return (err);
+	/*
+	 * XXX we can't check dvp's generation because the FUSE invalidate
+	 * entry message doesn't include it.  Worse case is that we invalidate
+	 * an entry that didn't need to be invalidated.
+	 */
+
+	cn.cn_nameiop = LOOKUP;
+	cn.cn_flags = 0;	/* !MAKEENTRY means free cached entry */
+	cn.cn_thread = curthread;
+	cn.cn_cred = curthread->td_ucred;
+	cn.cn_lkflags = LK_SHARED;
+	cn.cn_pnbuf = NULL;
+	cn.cn_nameptr = name;
+	cn.cn_namelen = fnieo.namelen;
+	err = cache_lookup(dvp, &vp, &cn, NULL, NULL);
+	MPASS(err == 0);
+	fuse_vnode_clear_attr_cache(dvp);
+	vput(dvp);
+	return (0);
+}
+
 /* mknod */
 int
 fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,

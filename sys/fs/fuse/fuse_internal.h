@@ -228,17 +228,17 @@ int fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 int fuse_internal_getattr(struct vnode *vp, struct vattr *vap,
 	struct ucred *cred, struct thread *td);
 
-/* readdir */
-
-struct pseudo_dirent {
-	uint32_t d_namlen;
-};
+/* asynchronous invalidation */
+int fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio);
 
 /* mknod */
 int fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,
 	struct componentname *cnp, struct vattr *vap);
 
 /* readdir */
+struct pseudo_dirent {
+	uint32_t d_namlen;
+};
 int fuse_internal_readdir(struct vnode *vp, struct uio *uio, off_t startoff,
     struct fuse_filehandle *fufh, struct fuse_iov *cookediov, int *ncookies,
     u_long *cookies);

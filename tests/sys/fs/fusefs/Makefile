@@ -27,6 +27,7 @@ GTESTS+=	mkdir
 GTESTS+=	mknod
 GTESTS+=	mount
 GTESTS+=	nfs
+GTESTS+=	notify
 GTESTS+=	open
 GTESTS+=	opendir
 GTESTS+=	read
