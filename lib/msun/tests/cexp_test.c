@@ -59,12 +59,20 @@ __FBSDID("$FreeBSD$");
  * XXX The volatile here is to avoid gcc's bogus constant folding and work
  *     around the lack of support for the FENV_ACCESS pragma.
  */
-#define	test(func, z, result, exceptmask, excepts, checksign)	do {	\
+#define	test_t(type, func, z, result, exceptmask, excepts, checksign)	\
+do {									\
 	volatile long double complex _d = z;				\
+	volatile type complex _r = result;				\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(cfpequal_cs((func)(_d), (result), (checksign)));		\
+	assert(cfpequal_cs((func)(_d), (_r), (checksign)));		\
 	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
 } while (0)
+
+#define	test(func, z, result, exceptmask, excepts, checksign)		\
+	test_t(double, func, z, result, exceptmask, excepts, checksign)
+
+#define	test_f(func, z, result, exceptmask, excepts, checksign)		\
+	test_t(float, func, z, result, exceptmask, excepts, checksign)
 
 /* Test within a given tolerance. */
 #define	test_tol(func, z, result, tol)				do {	\
@@ -76,7 +84,7 @@ __FBSDID("$FreeBSD$");
 /* Test all the functions that compute cexp(x). */
 #define	testall(x, result, exceptmask, excepts, checksign)	do {	\
 	test(cexp, x, result, exceptmask, excepts, checksign);		\
-	test(cexpf, x, result, exceptmask, excepts, checksign);		\
+	test_f(cexpf, x, result, exceptmask, excepts, checksign);	\
 } while (0)
 
 /*
@@ -198,10 +206,10 @@ test_reals(void)
 		test(cexp, CMPLXL(finites[i], -0.0),
 		     CMPLXL(exp(finites[i]), -0.0),
 		     FE_INVALID | FE_DIVBYZERO, 0, 1);
-		test(cexpf, CMPLXL(finites[i], 0.0),
+		test_f(cexpf, CMPLXL(finites[i], 0.0),
 		     CMPLXL(expf(finites[i]), 0.0),
 		     FE_INVALID | FE_DIVBYZERO, 0, 1);
-		test(cexpf, CMPLXL(finites[i], -0.0),
+		test_f(cexpf, CMPLXL(finites[i], -0.0),
 		     CMPLXL(expf(finites[i]), -0.0),
 		     FE_INVALID | FE_DIVBYZERO, 0, 1);
 	}
@@ -220,10 +228,10 @@ test_imaginaries(void)
 		test(cexp, CMPLXL(-0.0, finites[i]),
 		     CMPLXL(cos(finites[i]), sin(finites[i])),
 		     ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-		test(cexpf, CMPLXL(0.0, finites[i]),
+		test_f(cexpf, CMPLXL(0.0, finites[i]),
 		     CMPLXL(cosf(finites[i]), sinf(finites[i])),
 		     ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-		test(cexpf, CMPLXL(-0.0, finites[i]),
+		test_f(cexpf, CMPLXL(-0.0, finites[i]),
 		     CMPLXL(cosf(finites[i]), sinf(finites[i])),
 		     ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
 	}
@@ -302,12 +310,8 @@ main(void)
 	test_inf();
 	printf("ok 3 - cexp inf\n");
 
-#if defined(__i386__)
-	printf("not ok 4 - cexp reals # TODO: PR # 191676 fails assertion on i386\n");
-#else
 	test_reals();
 	printf("ok 4 - cexp reals\n");
-#endif
 
 	test_imaginaries();
 	printf("ok 5 - cexp imaginaries\n");
