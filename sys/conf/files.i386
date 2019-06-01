@@ -301,8 +301,8 @@ dev/nvme/nvme_util.c		optional nvme
 dev/nvram/nvram.c		optional nvram isa
 dev/ofw/ofwpci.c		optional fdt pci
 dev/pcf/pcf_isa.c		optional pcf
-dev/random/ivy.c		optional rdrand_rng
-dev/random/nehemiah.c		optional padlock_rng
+dev/random/ivy.c		optional rdrand_rng !random_loadable
+dev/random/nehemiah.c		optional padlock_rng !random_loadable
 dev/sbni/if_sbni.c		optional sbni
 dev/sbni/if_sbni_isa.c		optional sbni isa
 dev/sbni/if_sbni_pci.c		optional sbni pci
