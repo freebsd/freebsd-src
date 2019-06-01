@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2013
+.Dd March 13, 2019
 .Dt MFI 4
 .Os
 .Sh NAME
@@ -84,6 +84,12 @@ then the driver will reduce its probe priority to allow
 .Cd mrsas
 to attach to the card instead of
 .Nm .
+.Pp
+.Nm
+does not provide ATA TRIM support.
+Refer to
+.Cd mrsas
+if TRIM support is required.
 .Sh HARDWARE
 The
 .Nm
