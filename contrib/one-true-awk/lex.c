@@ -176,10 +176,10 @@ int	reg	= 0;	/* 1 => return a REGEXPR now */
 int yylex(void)
 {
 	int c;
-	static char *buf = NULL;
+	static char *buf = 0;
 	static int bufsize = 5; /* BUG: setting this small causes core dump! */
 
-	if (buf == NULL && (buf = (char *) malloc(bufsize)) == NULL)
+	if (buf == 0 && (buf = (char *) malloc(bufsize)) == NULL)
 		FATAL( "out of space in yylex" );
 	if (sc) {
 		sc = 0;
@@ -204,6 +204,7 @@ int yylex(void)
 		yylval.i = c;
 		switch (c) {
 		case '\n':	/* {EOL} */
+			lineno++;
 			RET(NL);
 		case '\r':	/* assume \n is coming */
 		case ' ':	/* {WS}+ */
@@ -219,6 +220,7 @@ int yylex(void)
 		case '\\':
 			if (peek() == '\n') {
 				input();
+				lineno++;
 			} else if (peek() == '\r') {
 				input(); input();	/* \n */
 				lineno++;
@@ -364,10 +366,10 @@ int string(void)
 {
 	int c, n;
 	char *s, *bp;
-	static char *buf = NULL;
+	static char *buf = 0;
 	static int bufsz = 500;
 
-	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
+	if (buf == 0 && (buf = (char *) malloc(bufsz)) == NULL)
 		FATAL("out of space for strings");
 	for (bp = buf; (c = input()) != '"'; ) {
 		if (!adjbuf(&buf, &bufsz, bp-buf+2, 500, &bp, "string"))
@@ -376,10 +378,11 @@ int string(void)
 		case '\n':
 		case '\r':
 		case 0:
+			*bp = '\0';
 			SYNTAX( "non-terminated string %.10s...", buf );
-			lineno++;
 			if (c == 0)	/* hopeless */
 				FATAL( "giving up" );
+			lineno++;
 			break;
 		case '\\':
 			c = input();
@@ -510,17 +513,18 @@ void startreg(void)	/* next call to yylex will return a regular expression */
 int regexpr(void)
 {
 	int c;
-	static char *buf = NULL;
+	static char *buf = 0;
 	static int bufsz = 500;
 	char *bp;
 
-	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
+	if (buf == 0 && (buf = (char *) malloc(bufsz)) == NULL)
 		FATAL("out of space for rex expr");
 	bp = buf;
 	for ( ; (c = input()) != '/' && c != 0; ) {
 		if (!adjbuf(&buf, &bufsz, bp-buf+3, 500, &bp, "regexpr"))
 			FATAL("out of space for reg expr %.10s...", buf);
 		if (c == '\n') {
+			*bp = '\0';
 			SYNTAX( "newline in regular expression %.10s...", buf ); 
 			unput('\n');
 			break;
@@ -545,7 +549,7 @@ char	ebuf[300];
 char	*ep = ebuf;
 char	yysbuf[100];	/* pushback buffer */
 char	*yysptr = yysbuf;
-FILE	*yyin = NULL;
+FILE	*yyin = 0;
 
 int input(void)	/* get next lexical input character */
 {
@@ -559,19 +563,19 @@ int input(void)	/* get next lexical input character */
 			lexprog++;
 	} else				/* awk -f ... */
 		c = pgetc();
-	if (c == '\n')
-		lineno++;
-	else if (c == EOF)
+	if (c == EOF)
 		c = 0;
 	if (ep >= ebuf + sizeof ebuf)
 		ep = ebuf;
-	return *ep++ = c;
+	*ep = c;
+	if (c != 0) {
+		ep++;
+	}
+	return (c);
 }
 
 void unput(int c)	/* put lexical character back on input */
 {
-	if (c == '\n')
-		lineno--;
 	if (yysptr >= yysbuf + sizeof(yysbuf))
 		FATAL("pushed back too much: %.20s...", yysbuf);
 	*yysptr++ = c;
