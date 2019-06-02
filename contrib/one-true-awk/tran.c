@@ -366,7 +366,7 @@ char *setsval(Cell *vp, const char *s)	/* set string val of a Cell */
 		if (donerec == 0)
 			recbld();
 	}
-	t = s ? tostring(s) : tostring("");	/* in case it's self-assign */
+	t = tostring(s);	/* in case it's self-assign */
 	if (freeable(vp))
 		xfree(vp->sval);
 	vp->tval &= ~(NUM|CONVC|CONVO);
