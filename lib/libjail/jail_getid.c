@@ -54,6 +54,15 @@ jail_getid(const char *name)
 
 	jid = strtoul(name, &ep, 10);
 	if (*name && !*ep) {
+		/*
+		 * jid == 0 is a special case; it will not appear in the
+		 * kernel's jail list, but naturally processes will be assigned
+		 * to it because it is prison 0.  Trivially return this one
+		 * without a trip to the kernel, because it always exists but
+		 * the lookup won't succeed.
+		 */
+		if (jid == 0)
+			return jid;
 		jiov[0].iov_base = __DECONST(char *, "jid");
 		jiov[0].iov_len = sizeof("jid");
 		jiov[1].iov_base = &jid;
