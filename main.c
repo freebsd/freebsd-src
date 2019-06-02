@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20121220";
+const char	*version = "version 20190529";
 
 #define DEBUG
 #include <stdio.h>
@@ -54,6 +54,13 @@ int	curpfile = 0;	/* current filename */
 
 int	safe	= 0;	/* 1 => "safe" mode */
 
+/* Can this work with recursive calls?  I don't think so.
+void segvcatch(int n)
+{
+	FATAL("segfault.  Do you have an unbounded recursive call?", n);
+}
+*/
+
 int main(int argc, char *argv[])
 {
 	const char *fs = NULL;
@@ -68,6 +75,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	signal(SIGFPE, fpecatch);
+	/*signal(SIGSEGV, segvcatch); experiment */
 
 	srand_seed = 1;
 	srand(srand_seed);
@@ -80,7 +88,7 @@ int main(int argc, char *argv[])
 			exit(0);
 			break;
 		}
-		if (strncmp(argv[1], "--", 2) == 0) {	/* explicit end of args */
+		if (strcmp(argv[1], "--") == 0) {	/* explicit end of args */
 			argc--;
 			argv++;
 			break;
