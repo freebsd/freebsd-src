@@ -23,7 +23,7 @@ awkgram.tab.h: awkgram.h
 	ln -sf ${.ALLSRC:M*.h} ${.TARGET}
 
 proctab.c: maketab
-	${BTOOLSPATH:U.}/maketab > proctab.c
+	${BTOOLSPATH:U.}/maketab awkgram.h > proctab.c
 
 build-tools: maketab
 maketab: awkgram.tab.h maketab.c ${BUILD_TOOLS_META}
