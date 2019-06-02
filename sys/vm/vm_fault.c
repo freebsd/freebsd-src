@@ -1004,7 +1004,7 @@ readrest:
 			 */
 			if (rv == VM_PAGER_ERROR || rv == VM_PAGER_BAD) {
 				vm_page_lock(fs.m);
-				if (fs.m->wire_count == 0)
+				if (!vm_page_wired(fs.m))
 					vm_page_free(fs.m);
 				else
 					vm_page_xunbusy_maybelocked(fs.m);
@@ -1027,7 +1027,7 @@ readrest:
 			 */
 			if (fs.object != fs.first_object) {
 				vm_page_lock(fs.m);
-				if (fs.m->wire_count == 0)
+				if (!vm_page_wired(fs.m))
 					vm_page_free(fs.m);
 				else
 					vm_page_xunbusy_maybelocked(fs.m);
@@ -1805,7 +1805,7 @@ again:
 				vm_page_wire(dst_m);
 				vm_page_unlock(dst_m);
 			} else {
-				KASSERT(dst_m->wire_count > 0,
+				KASSERT(vm_page_wired(dst_m),
 				    ("dst_m %p is not wired", dst_m));
 			}
 		} else {
