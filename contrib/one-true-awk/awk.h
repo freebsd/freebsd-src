@@ -81,7 +81,8 @@ typedef struct Cell {
 	char	*nval;		/* name, for variables only */
 	char	*sval;		/* string value */
 	Awkfloat fval;		/* value as number */
-	int	 tval;		/* type info: STR|NUM|ARR|FCN|FLD|CON|DONTFREE */
+	int	 tval;		/* type info: STR|NUM|ARR|FCN|FLD|CON|DONTFREE|CONVC|CONVO */
+	char	*fmt;		/* CONVFMT/OFMT value used to convert from number */
 	struct Cell *cnext;	/* ptr to next if chained */
 } Cell;
 
@@ -96,9 +97,14 @@ extern Array	*symtab;
 
 extern Cell	*nrloc;		/* NR */
 extern Cell	*fnrloc;	/* FNR */
+extern Cell	*fsloc;		/* FS */
 extern Cell	*nfloc;		/* NF */
+extern Cell	*ofsloc;	/* OFS */
+extern Cell	*orsloc;	/* ORS */
+extern Cell	*rsloc;		/* RS */
 extern Cell	*rstartloc;	/* RSTART */
 extern Cell	*rlengthloc;	/* RLENGTH */
+extern Cell	*subseploc;	/* SUBSEP */
 
 /* Cell.tval values: */
 #define	NUM	01	/* number value is valid */
@@ -109,6 +115,8 @@ extern Cell	*rlengthloc;	/* RLENGTH */
 #define	FCN	040	/* this is a function name */
 #define FLD	0100	/* this is a field $1, $2, ... */
 #define	REC	0200	/* this is $0 */
+#define CONVC	0400	/* string was converted from number via CONVFMT */
+#define CONVO	01000	/* string was converted from number via OFMT */
 
 
 /* function types */
