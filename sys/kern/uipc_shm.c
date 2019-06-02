@@ -36,16 +36,10 @@
  * shm_open(2) and shm_unlink(2).  While most of the implementation is
  * here, vm_mmap.c contains mapping logic changes.
  *
- * TODO:
- *
- * (1) Need to export data to a userland tool via a sysctl.  Should ipcs(1)
- *     and ipcrm(1) be expanded or should new tools to manage both POSIX
- *     kernel semaphores and POSIX shared memory be written?
- *
- * (2) Add support for this file type to fstat(1).
- *
- * (3) Resource limits?  Does this need its own resource limits or are the
- *     existing limits in mmap(2) sufficient?
+ * posixshmcontrol(1) allows users to inspect the state of the memory
+ * objects.  Per-uid swap resource limit controls total amount of
+ * memory that user can consume for anonymous objects, including
+ * shared.
  */
 
 #include <sys/cdefs.h>
