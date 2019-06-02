@@ -7114,7 +7114,7 @@ enable_elantech(struct psm_softc *sc, enum probearg arg)
 {
 	static const int ic2hw[] =
 	/*IC: 0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f */
-	    { 0, 0, 2, 0, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0 };
+	    { 0, 0, 2, 0, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 };
 	static const int fw_sizes[][3] = {
 		/* FW.vers  MaxX  MaxY */
 		{ 0x020030, 1152,  768 },
