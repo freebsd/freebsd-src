@@ -124,6 +124,7 @@ badger [label="Eric Badger\nbadger@FreeBSD.org\n2016/07/01"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2011/12/23"]
 bcran [label="Rebecca Cran\nbcran@FreeBSD.org\n2010/01/29"]
 bde [label="Bruce Evans\nbde@FreeBSD.org\n1994/08/20"]
+bdragon [label="Brandon Bergren\nbdragon@FreeBSD.org\n2019/05/31"]
 bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2013/12/14"]
 benl [label="Ben Laurie\nbenl@FreeBSD.org\n2011/05/18"]
 benno [label="Benno Rice\nbenno@FreeBSD.org\n2000/11/02"]
@@ -607,6 +608,7 @@ jhb -> rnoland
 jhb -> rpokala
 jhb -> arichardson
 
+jhibbits -> bdragon
 jhibbits -> leitao
 jhibbits -> luporl
 
