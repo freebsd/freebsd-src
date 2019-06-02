@@ -124,6 +124,7 @@ extern	void	setclvar(char *);
 extern	void	fldbld(void);
 extern	void	cleanfld(int, int);
 extern	void	newfld(int);
+extern	void	setlastfld(int);
 extern	int	refldbld(const char *, const char *);
 extern	void	recbld(void);
 extern	Cell	*fieldadr(int);
@@ -193,3 +194,5 @@ extern	Cell	*gsub(Node **, int);
 
 extern	FILE	*popen(const char *, const char *);
 extern	int	pclose(FILE *);
+
+extern  const char	*flags2str(int flags);
