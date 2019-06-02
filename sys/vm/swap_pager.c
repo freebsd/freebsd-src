@@ -1679,7 +1679,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 		vm_page_dirty(m);
 #ifdef INVARIANTS
 		vm_page_lock(m);
-		if (m->wire_count == 0 && m->queue == PQ_NONE)
+		if (!vm_page_wired(m) && m->queue == PQ_NONE)
 			panic("page %p is neither wired nor queued", m);
 		vm_page_unlock(m);
 #endif

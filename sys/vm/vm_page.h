@@ -822,5 +822,12 @@ vm_page_held(vm_page_t m)
 	return (m->hold_count > 0 || m->wire_count > 0);
 }
 
+static inline bool
+vm_page_wired(vm_page_t m)
+{
+
+	return (m->wire_count > 0);
+}
+
 #endif				/* _KERNEL */
 #endif				/* !_VM_PAGE_ */
