@@ -86,7 +86,7 @@ Node	*arglist = 0;	/* list of args for current function */
 %left	CAT
 %left	'+' '-'
 %left	'*' '/' '%'
-%left	NOT UMINUS
+%left	NOT UMINUS UPLUS
 %right	POWER
 %right	DECR INCR
 %left	INDIRECT
@@ -357,7 +357,7 @@ term:
 	| term '%' term			{ $$ = op2(MOD, $1, $3); }
 	| term POWER term		{ $$ = op2(POWER, $1, $3); }
 	| '-' term %prec UMINUS		{ $$ = op1(UMINUS, $2); }
-	| '+' term %prec UMINUS		{ $$ = $2; }
+	| '+' term %prec UMINUS		{ $$ = op1(UPLUS, $2); }
 	| NOT term %prec UMINUS		{ $$ = op1(NOT, notnull($2)); }
 	| BLTIN '(' ')'			{ $$ = op2(BLTIN, itonp($1), rectonode()); }
 	| BLTIN '(' patlist ')'		{ $$ = op2(BLTIN, itonp($1), $3); }

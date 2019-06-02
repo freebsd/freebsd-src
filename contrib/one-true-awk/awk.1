@@ -7,7 +7,6 @@
 .fi
 .ft 1
 ..
-awk
 .TH AWK 1
 .CT 1 files prog_other
 .SH NAME
@@ -36,7 +35,7 @@ awk \- pattern-directed scanning and processing language
 scans each input
 .I file
 for lines that match any of a set of patterns specified literally in
-.IR prog
+.I prog
 or in one or more files
 specified as
 .B \-f
@@ -53,7 +52,7 @@ The file name
 .B \-
 means the standard input.
 Any
-.IR file
+.I file
 of the form
 .I var=value
 is treated as an assignment, not a filename,
@@ -70,12 +69,12 @@ any number of
 options may be present.
 The
 .B \-F
-.IR fs
+.I fs
 option defines the input field separator to be the regular expression
-.IR fs.
+.IR fs .
 .PP
 An input line is normally made up of fields separated by white space,
-or by regular expression
+or by the regular expression
 .BR FS .
 The fields are denoted
 .BR $1 ,
@@ -87,7 +86,7 @@ If
 .BR FS
 is null, the input line is split into one field per character.
 .PP
-A pattern-action statement has the form
+A pattern-action statement has the form:
 .IP
 .IB pattern " { " action " }
 .PP
@@ -101,7 +100,7 @@ An action is a sequence of statements.
 A statement can be one of the following:
 .PP
 .EX
-.ta \w'\f(CWdelete array[expression]'u
+.ta \w'\f(CWdelete array[expression]\fR'u
 .RS
 .nf
 .ft CW
@@ -145,7 +144,7 @@ The operators
 are also available in expressions.
 Variables may be scalars, array elements
 (denoted
-.IB x  [ i ] )
+.IB x  [ i ] \fR)
 or fields.
 Variables are initialized to the null string.
 Array subscripts may be any string,
@@ -161,11 +160,11 @@ The
 .B print
 statement prints its arguments on the standard output
 (or on a file if
-.BI > file
+.BI > " file
 or
-.BI >> file
+.BI >> " file
 is present or on a pipe if
-.BI | cmd
+.BI | " cmd
 is present), separated by the current output field separator,
 and terminated by the output record separator.
 .I file
@@ -176,9 +175,10 @@ identical string values in different statements denote
 the same open file.
 The
 .B printf
-statement formats its expression list according to the format
+statement formats its expression list according to the
+.I format
 (see
-.IR printf (3)) .
+.IR printf (3)).
 The built-in function
 .BI close( expr )
 closes the file or pipe
@@ -189,13 +189,13 @@ flushes any buffered output for the file or pipe
 .IR expr .
 .PP
 The mathematical functions
+.BR atan2 ,
+.BR cos ,
 .BR exp ,
 .BR log ,
-.BR sqrt ,
 .BR sin ,
-.BR cos ,
 and
-.BR atan2 
+.B sqrt
 are built in.
 Other built-in functions:
 .TF length
@@ -203,7 +203,8 @@ Other built-in functions:
 .B length
 the length of its argument
 taken as a string,
-or of
+number of elements in an array for an array argument,
+or length of
 .B $0
 if no argument.
 .TP
@@ -218,14 +219,18 @@ and returns the previous seed.
 .B int
 truncates to an integer value
 .TP
-.BI substr( s , " m" , " n\fB)
+\fBsubstr(\fIs\fB, \fIm\fR [\fB, \fIn\^\fR]\fB)\fR
 the
 .IR n -character
 substring of
 .I s
 that begins at position
-.IR m 
+.I m 
 counted from 1.
+If no
+.IR m ,
+use the rest of the string
+.I 
 .TP
 .BI index( s , " t" )
 the position in
@@ -246,14 +251,14 @@ and
 .B RLENGTH
 are set to the position and length of the matched string.
 .TP
-.BI split( s , " a" , " fs\fB)
+\fBsplit(\fIs\fB, \fIa \fR[\fB, \fIfs\^\fR]\fB)\fR
 splits the string
 .I s
 into array elements
-.IB a [1] ,
-.IB a [2] ,
+.IB a [1] \fR,
+.IB a [2] \fR,
 \&...,
-.IB a [ n ] ,
+.IB a [ n ] \fR,
 and returns
 .IR n .
 The separation is done with the regular expression
@@ -266,7 +271,7 @@ is not given.
 An empty string as field separator splits the string
 into one array element per character.
 .TP
-.BI sub( r , " t" , " s\fB)
+\fBsub(\fIr\fB, \fIt \fR[, \fIs\^\fR]\fB)
 substitutes
 .I t
 for the first occurrence of the regular expression
@@ -279,7 +284,7 @@ is not given,
 .B $0
 is used.
 .TP
-.B gsub
+\fBgsub(\fIr\fB, \fIt \fR[, \fIs\^\fR]\fB)
 same as
 .B sub
 except that all occurrences of the regular expression
@@ -289,18 +294,28 @@ and
 .B gsub
 return the number of replacements.
 .TP
-.BI sprintf( fmt , " expr" , " ...\fB )
+.BI sprintf( fmt , " expr" , " ...\fB)
 the string resulting from formatting
 .I expr ...
 according to the
 .IR printf (3)
 format
-.I fmt
+.IR fmt .
 .TP
 .BI system( cmd )
 executes
 .I cmd
-and returns its exit status
+and returns its exit status. This will be \-1 upon error,
+.IR cmd 's
+exit status upon a normal exit,
+256 + 
+.I sig
+upon death-by-signal, where
+.I sig
+is the number of the murdering signal,
+or 512 +
+.I sig
+if there was a core dump.
 .TP
 .BI tolower( str )
 returns a copy of
@@ -321,7 +336,7 @@ sets
 .B $0
 to the next input record from the current input file;
 .B getline
-.BI < file
+.BI < " file
 sets
 .B $0
 to the next record from
@@ -363,7 +378,7 @@ Isolated regular expressions
 in a pattern apply to the entire line.
 Regular expressions may also occur in
 relational expressions, using the operators
-.BR ~
+.B ~
 and
 .BR !~ .
 .BI / re /
@@ -387,8 +402,12 @@ A relational expression is one of the following:
 .br
 .BI ( expr , expr,... ") in " array-name
 .PP
-where a relop is any of the six relational operators in C,
-and a matchop is either
+where a
+.I relop
+is any of the six relational operators in C,
+and a
+.I matchop
+is either
 .B ~
 (matches)
 or
@@ -409,57 +428,68 @@ and after the last.
 and
 .B END
 do not combine with other patterns.
+They may appear multiple times in a program and execute
+in the order they are read by
+.IR awk .
 .PP
 Variable names with special meanings:
 .TF FILENAME
 .TP
+.B ARGC
+argument count, assignable.
+.TP
+.B ARGV
+argument array, assignable;
+non-null members are taken as filenames.
+.TP
 .B CONVFMT
 conversion format used when converting numbers
 (default
-.BR "%.6g" )
+.BR "%.6g" ).
+.TP
+.B ENVIRON
+array of environment variables; subscripts are names.
+.TP
+.B FILENAME
+the name of the current input file.
+.TP
+.B FNR
+ordinal number of the current record in the current file.
 .TP
 .B FS
 regular expression used to separate fields; also settable
 by option
-.BI \-F fs.
+.BI \-F fs\fR.
 .TP
 .BR NF
-number of fields in the current record
+number of fields in the current record.
 .TP
 .B NR
-ordinal number of the current record
-.TP
-.B FNR
-ordinal number of the current record in the current file
-.TP
-.B FILENAME
-the name of the current input file
-.TP
-.B RS
-input record separator (default newline)
-.TP
-.B OFS
-output field separator (default blank)
-.TP
-.B ORS
-output record separator (default newline)
+ordinal number of the current record.
 .TP
 .B OFMT
 output format for numbers (default
-.BR "%.6g" )
+.BR "%.6g" ).
+.TP
+.B OFS
+output field separator (default space).
+.TP
+.B ORS
+output record separator (default newline).
+.TP
+.B RLENGTH
+the length of a string matched by
+.BR match .
+.TP
+.B RS
+input record separator (default newline).
+.TP
+.B RSTART
+the start position of a string matched by
+.BR match .
 .TP
 .B SUBSEP
-separates multiple subscripts (default 034)
-.TP
-.B ARGC
-argument count, assignable
-.TP
-.B ARGV
-argument array, assignable;
-non-null members are taken as filenames
-.TP
-.B ENVIRON
-array of environment variables; subscripts are names.
+separates multiple subscripts (default 034).
 .PD
 .PP
 Functions may be defined (at the position of a pattern-action statement) thus:
@@ -490,7 +520,7 @@ BEGIN { FS = ",[ \et]*|[ \et]+" }
 .EE
 .ns
 .IP
-Same, with input fields separated by comma and/or blanks and tabs.
+Same, with input fields separated by comma and/or spaces and tabs.
 .PP
 .EX
 .nf
@@ -516,13 +546,13 @@ BEGIN	{	# Simulate echo(1)
 .fi
 .EE
 .SH SEE ALSO
+.IR grep (1), 
 .IR lex (1), 
 .IR sed (1)
 .br
 A. V. Aho, B. W. Kernighan, P. J. Weinberger,
-.I
-The AWK Programming Language,
-Addison-Wesley, 1988.  ISBN 0-201-07981-X
+.IR "The AWK Programming Language" ,
+Addison-Wesley, 1988.  ISBN 0-201-07981-X.
 .SH BUGS
 There are no explicit conversions between numbers and strings.
 To force an expression to be treated as a number add 0 to it;
@@ -531,3 +561,5 @@ to force it to be treated as a string concatenate
 .br
 The scope rules for variables in functions are a botch;
 the syntax is worse.
+.br
+Only eight-bit characters sets are handled correctly.

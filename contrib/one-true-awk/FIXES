@@ -25,6 +25,113 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+May 29,2019:
+	Fix check for command line arguments to no longer require that
+	first character after '=' not be another '='. Reverts change of
+	August 11, 1989. Thanks to GitHub user Jamie Landeg Jones for
+	pointing out the issue; from Issue #38.
+
+Apr 7, 2019:
+	Update awktest.tar(p.50) to use modern options to sort. Needed
+	for Android development. Thanks to GitHub user mohd-akram (Mohamed
+	Akram).  From Comment #33.
+
+Mar 12, 2019:
+	Added very simplistic support for cross-compiling in the
+	makefile.  We are NOT going to go in the direction of the
+	autotools, though.  Thanks to GitHub user nee-san for
+	the basic change. (Merged from PR #34.)
+
+Mar 5, 2019:
+	Added support for POSIX-standard interval expressions (a.k.a.
+	bounds, a.k.a. repetition expressions) in regular expressions,
+	backported (via NetBSD) from Apple awk-24 (20070501).
+	Thanks to Martijn Dekker <martijn@inlv.org> for the port.
+	(Merged from PR #30.)
+
+Mar 3, 2019:
+	Merge PRs as follows:
+	#12: Avoid undefined behaviour when using ctype(3) functions in
+	     relex(). Thanks to GitHub user iamleot.
+	#31: Make getline handle numeric strings, and update FIXES. Thanks
+	     to GitHub user arnoldrobbins
+	#32: maketab: support build systems with read-only source. Thanks
+	     to GitHub user enh.
+
+Jan 25, 2019:
+	Make getline handle numeric strings properly in all cases.
+	(Thanks, Arnold.)
+
+Jan 21, 2019:
+	Merged a number of small fixes from GitHub pull requests.
+	Thanks to GitHub users Arnold Robbins (arnoldrobbins),
+	Cody Mello (melloc) and Christoph Junghans (junghans).
+	PR numbers: 13-21, 23, 24, 27.
+
+Oct 25, 2018:
+	Added test in maketab.c to prevent generating a proctab entry
+	for YYSTYPE_IS_DEFINED.  It was harmless but some gcc settings
+	generated a warning message.  Thanks to Nan Xiao for report.
+
+Aug 27, 2018:
+	Disallow '$' in printf formats; arguments evaluated in order
+	and printed in order.
+
+	Added some casts to silence warnings on debugging printfs.
+	(Thanks, Arnold.)
+
+Aug 23, 2018:
+        A long list of fixes courtesy of Arnold Robbins,
+        to whom profound thanks.
+
+        1. ofs-rebuild: OFS value used to rebuild the record was incorrect.
+        Fixed August 19, 2014. Revised fix August 2018.
+
+        2. system-status: Instead of a floating-point division by 256, use
+        the wait(2) macros to create a reasonable exit status.
+        Fixed March 12, 2016.
+
+        3. space: Use provided xisblank() function instead of ispace() for
+        matching [[:blank:]].
+
+        4. a-format: Add POSIX standard %a and %A to supported formats. Check
+        at runtime that this format is available.
+
+        5. decr-NF: Decrementing NF did not change $0. This is a decades-old
+        bug. There are interactions with the old and new value of OFS as well.
+        Most of the fix came from the NetBSD awk.
+
+        6. string-conv: String conversions of scalars were sticky.  Once a
+        conversion to string happened, even with OFMT, that value was used until
+        a new numeric value was assigned, even if OFMT differed from CONVFMT,
+        and also if CONVFMT changed.
+
+        7. unary-plus: Unary plus on a string constant returned the string.
+        Instead, it should convert the value to numeric and give that value.
+
+	Also added Arnold's tests for these to awktest.tar as T.arnold.
+
+Aug 15, 2018:
+	fixed mangled awktest.tar (thanks, Arnold), posted all
+	current (very minor) fixes to github / onetrueawk
+
+Jun 7, 2018:
+	(yes, a long layoff)
+	Updated some broken tests (beebe.tar, T.lilly)
+	[thanks to Arnold Robbins]
+
+Mar 26, 2015:
+	buffer overflow in error reporting; thanks to tobias ulmer
+	and john-mark gurney for spotting it and the fix.
+
+Feb 4, 2013:
+	cleaned up a handful of tests that didn't seem to actually
+	test for correct behavior: T.latin1, T.gawk.
+
+Jan 5, 2013:
+	added ,NULL initializer to static Cells in run.c; not really
+	needed but cleaner.  Thanks to Michael Bombardieri.
+
 Dec 20, 2012:
 	fiddled makefile to get correct yacc and bison flags.  pick yacc
 	(linux) or bison (mac) as necessary.
@@ -492,6 +599,8 @@ May 12, 1998:
 
 Mar 12, 1998:
 	added -V to print version number and die.
+
+[notify dave kerns, dkerns@dacsoup.ih.lucent.com]
 
 Feb 11, 1998:
 	subtle silent bug in lex.c: if the program ended with a number

@@ -59,7 +59,7 @@ void recinit(unsigned int n)
 {
 	if ( (record = (char *) malloc(n)) == NULL
 	  || (fields = (char *) malloc(n+1)) == NULL
-	  || (fldtab = (Cell **) malloc((nfields+1) * sizeof(Cell *))) == NULL
+	  || (fldtab = (Cell **) malloc((nfields+2) * sizeof(Cell *))) == NULL
 	  || (fldtab[0] = (Cell *) malloc(sizeof(Cell))) == NULL )
 		FATAL("out of space for $0 and fields");
 	*record = '\0';
@@ -190,12 +190,13 @@ int readrec(char **pbuf, int *pbufsize, FILE *inf)	/* read one record into buf *
 	int sep, c;
 	char *rr, *buf = *pbuf;
 	int bufsize = *pbufsize;
+	char *rs = getsval(rsloc);
 
-	if (strlen(*FS) >= sizeof(inputFS))
+	if (strlen(getsval(fsloc)) >= sizeof (inputFS))
 		FATAL("field separator %.10s... is too long", *FS);
 	/*fflush(stdout); avoids some buffering problem but makes it 25% slower*/
 	strcpy(inputFS, *FS);	/* for subsequent field splitting */
-	if ((sep = **RS) == 0) {
+	if ((sep = *rs) == 0) {
 		sep = '\n';
 		while ((c=getc(inf)) == '\n' && c != EOF)	/* skip leading \n's */
 			;
@@ -209,7 +210,7 @@ int readrec(char **pbuf, int *pbufsize, FILE *inf)	/* read one record into buf *
 					FATAL("input record `%.30s...' too long", buf);
 			*rr++ = c;
 		}
-		if (**RS == sep || c == EOF)
+		if (*rs == sep || c == EOF)
 			break;
 		if ((c = getc(inf)) == '\n' || c == EOF) /* 2 in a row */
 			break;
@@ -284,6 +285,8 @@ void fldbld(void)	/* create fields from current record */
 	}
 	fr = fields;
 	i = 0;	/* number of fields accumulated here */
+	if (strlen(getsval(fsloc)) >= sizeof (inputFS))
+		FATAL("field separator %.10s... is too long", *FS);
 	strcpy(inputFS, *FS);
 	if (strlen(inputFS) > 1) {	/* it's a regular expression */
 		i = refldbld(r, inputFS);
@@ -357,6 +360,7 @@ void fldbld(void)	/* create fields from current record */
 		}
 	}
 	setfval(nfloc, (Awkfloat) lastfld);
+	donerec = 1; /* restore */
 	if (dbg) {
 		for (j = 0; j <= lastfld; j++) {
 			p = fldtab[j];
@@ -386,6 +390,21 @@ void newfld(int n)	/* add field n after end of existing lastfld */
 	cleanfld(lastfld+1, n);
 	lastfld = n;
 	setfval(nfloc, (Awkfloat) n);
+}
+
+void setlastfld(int n)	/* set lastfld cleaning fldtab cells if necessary */
+{
+	if (n < 0)
+		FATAL("cannot set NF to a negative value");
+	if (n > nfields)
+		growfldtab(n);
+
+	if (lastfld < n)
+	    cleanfld(lastfld+1, n);
+	else
+	    cleanfld(n+1, lastfld);
+
+	lastfld = n;
 }
 
 Cell *fieldadr(int n)	/* get nth field */
@@ -466,6 +485,7 @@ void recbld(void)	/* create $0 from $1..$NF if necessary */
 {
 	int i;
 	char *r, *p;
+	char *sep = getsval(ofsloc);
 
 	if (donerec == 1)
 		return;
@@ -477,9 +497,9 @@ void recbld(void)	/* create $0 from $1..$NF if necessary */
 		while ((*r = *p++) != 0)
 			r++;
 		if (i < *NF) {
-			if (!adjbuf(&record, &recsize, 2+strlen(*OFS)+r-record, recsize, &r, "recbld 2"))
+			if (!adjbuf(&record, &recsize, 2+strlen(sep)+r-record, recsize, &r, "recbld 2"))
 				FATAL("created $0 `%.30s...' too long", record);
-			for (p = *OFS; (*r = *p++) != 0; )
+			for (p = sep; (*r = *p++) != 0; )
 				r++;
 		}
 	}
@@ -619,6 +639,8 @@ void eprint(void)	/* try to print context around error */
 
 	if (compile_time == 2 || compile_time == 0 || been_here++ > 0 || ebuf == ep)
 		return;
+	if (ebuf == ep)
+		return;
 	p = ep - 1;
 	if (p > ebuf && *p == '\n')
 		p--;
@@ -682,7 +704,7 @@ int isclvar(const char *s)	/* is s of form var=something ? */
 	for ( ; *s; s++)
 		if (!(isalnum((uschar) *s) || *s == '_'))
 			break;
-	return *s == '=' && s > os && *(s+1) != '=';
+	return *s == '=' && s > os;
 }
 
 /* strtod is supposed to be a proper test of what's a valid number */

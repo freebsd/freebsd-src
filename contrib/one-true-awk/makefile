@@ -23,18 +23,21 @@
 # ****************************************************************/
 
 CFLAGS = -g
-CFLAGS = -O2
 CFLAGS =
+CFLAGS = -O2
 
-CC = gcc -Wall -g -Wwrite-strings
-CC = gcc -fprofile-arcs -ftest-coverage # then gcov f1.c; cat f1.c.gcov
-CC = gcc -g -Wall -pedantic 
-CC = gcc -O4 -Wall -pedantic -fno-strict-aliasing
+# compiler options
+#CC = gcc -Wall -g -Wwrite-strings
+#CC = gcc -O4 -Wall -pedantic -fno-strict-aliasing
+#CC = gcc -fprofile-arcs -ftest-coverage # then gcov f1.c; cat f1.c.gcov
+HOSTCC = gcc -g -Wall -pedantic 
+CC = $(HOSTCC)  # change this is cross-compiling.
 
-YACC = bison -d -y
-YACC = yacc -d -S
+# yacc options.  pick one; this varies a lot by system.
 #YFLAGS = -d -S
-		# -S uses sprintf in yacc parser instead of sprint
+YACC = bison -d -y
+#YACC = yacc -d
+#		-S uses sprintf in yacc parser instead of sprint
 
 OFILES = b.o main.o parse.o proctab.o tran.o lib.o run.o lex.o
 
@@ -44,7 +47,7 @@ SOURCE = awk.h ytab.c ytab.h proto.h awkgram.y lex.c b.c main.c \
 LISTING = awk.h proto.h awkgram.y lex.c b.c main.c maketab.c parse.c \
 	lib.c run.c tran.c 
 
-SHIP = README FIXES $(SOURCE) ytab[ch].bak makefile  \
+SHIP = README LICENSE FIXES $(SOURCE) ytab[ch].bak makefile  \
 	 awk.1
 
 a.out:	ytab.o $(OFILES)
@@ -52,17 +55,23 @@ a.out:	ytab.o $(OFILES)
 
 $(OFILES):	awk.h ytab.h proto.h
 
-ytab.o:	awk.h proto.h awkgram.y
+#Clear dependency for parallel build: (make -j)
+#YACC generated y.tab.c and y.tab.h at the same time
+#this needs to be a static pattern rules otherwise multiple target
+#are mapped onto multiple executions of yacc, which overwrite 
+#each others outputs.
+y%.c y%.h:	awk.h proto.h awkgram.y
 	$(YACC) $(YFLAGS) awkgram.y
-	mv y.tab.c ytab.c
-	mv y.tab.h ytab.h
-	$(CC) $(CFLAGS) -c ytab.c
+	mv y.$*.c y$*.c
+	mv y.$*.h y$*.h
+
+ytab.h:	ytab.c
 
 proctab.c:	maketab
-	./maketab >proctab.c
+	./maketab ytab.h >proctab.c
 
 maketab:	ytab.h maketab.c
-	$(CC) $(CFLAGS) maketab.c -o maketab
+	$(HOSTCC) $(CFLAGS) maketab.c -o maketab
 
 bundle:
 	@cp ytab.h ytabh.bak
@@ -79,8 +88,22 @@ tar:
 	@zip awk.zip $(SHIP)
 	ls -l awk.zip
 
+gitadd:
+	git add README LICENSE FIXES \
+           awk.h proto.h awkgram.y lex.c b.c main.c maketab.c parse.c \
+	   lib.c run.c tran.c \
+	   makefile awk.1 awktest.tar
+
+gitpush:
+	# only do this once: 
+	# git remote add origin https://github.com/onetrueawk/awk.git
+	git push -u origin master
+
 names:
 	@echo $(LISTING)
 
 clean:
 	rm -f a.out *.o *.obj maketab maketab.exe *.bb *.bbg *.da *.gcov *.gcno *.gcda # proctab.c
+
+cleaner:
+	rm -f a.out *.o *.obj maketab maketab.exe *.bb *.bbg *.da *.gcov *.gcno *.gcda proctab.c ytab*
