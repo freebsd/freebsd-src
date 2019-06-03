@@ -1834,8 +1834,8 @@ again:
 	 * Can we allocate the page from a reservation?
 	 */
 	if (vm_object_reserv(object) &&
-	    ((m = vm_reserv_extend(req, object, pindex, domain, mpred)) != NULL ||
-	    (m = vm_reserv_alloc_page(req, object, pindex, domain, mpred)) != NULL)) {
+	    (m = vm_reserv_alloc_page(object, pindex, domain, req, mpred)) !=
+	    NULL) {
 		domain = vm_phys_domain(m);
 		vmd = VM_DOMAIN(domain);
 		goto found;
@@ -2039,10 +2039,8 @@ again:
 	 * Can we allocate the pages from a reservation?
 	 */
 	if (vm_object_reserv(object) &&
-	    ((m_ret = vm_reserv_extend_contig(req, object, pindex, domain,
-	    npages, low, high, alignment, boundary, mpred)) != NULL ||
-	    (m_ret = vm_reserv_alloc_contig(req, object, pindex, domain,
-	    npages, low, high, alignment, boundary, mpred)) != NULL)) {
+	    (m_ret = vm_reserv_alloc_contig(object, pindex, domain, req,
+	    mpred, npages, low, high, alignment, boundary)) != NULL) {
 		domain = vm_phys_domain(m_ret);
 		vmd = VM_DOMAIN(domain);
 		goto found;
