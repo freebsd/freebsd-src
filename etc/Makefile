@@ -93,8 +93,6 @@ distribution:
 .endif
 .endif
 
-MTREE_CMD?=	mtree
-
 MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.var.dist		/var		\
 		mtree/BSD.usr.dist		/usr		\
