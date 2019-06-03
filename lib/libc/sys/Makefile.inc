@@ -62,6 +62,7 @@ INTERPOSED = \
 	fsync \
 	fork \
 	kevent \
+	mount \
 	msync \
 	nanosleep \
 	open \

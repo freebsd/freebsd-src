@@ -201,6 +201,7 @@ enum {
 	INTERPOS_fcntl,
 	INTERPOS_fsync,
 	INTERPOS_fork,
+	INTERPOS_mount,
 	INTERPOS_msync,
 	INTERPOS_nanosleep,
 	INTERPOS_openat,
@@ -346,6 +347,7 @@ int		__sys_kevent(int, const struct kevent *, int, struct kevent *,
 		    int, const struct timespec *);
 __off_t		__sys_lseek(int, __off_t, int);
 void	       *__sys_mmap(void *, __size_t, int, int, int, __off_t);
+int		__sys_mount(const char *, const char *, int, void *);
 int		__sys_msync(void *, __size_t, int);
 int		__sys_nanosleep(const struct timespec *, struct timespec *);
 int		__sys_open(const char *, int, ...);
