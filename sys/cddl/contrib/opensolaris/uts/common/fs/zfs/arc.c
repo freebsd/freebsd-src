@@ -7074,6 +7074,16 @@ arc_state_fini(void)
 	multilist_destroy(arc_mru_ghost->arcs_list[ARC_BUFC_DATA]);
 	multilist_destroy(arc_mfu->arcs_list[ARC_BUFC_DATA]);
 	multilist_destroy(arc_mfu_ghost->arcs_list[ARC_BUFC_DATA]);
+
+	aggsum_fini(&arc_meta_used);
+	aggsum_fini(&arc_size);
+	aggsum_fini(&astat_data_size);
+	aggsum_fini(&astat_metadata_size);
+	aggsum_fini(&astat_hdr_size);
+	aggsum_fini(&astat_bonus_size);
+	aggsum_fini(&astat_dnode_size);
+	aggsum_fini(&astat_dbuf_size);
+	aggsum_fini(&astat_l2_hdr_size);
 }
 
 uint64_t
@@ -7357,8 +7367,13 @@ arc_fini(void)
 	mutex_destroy(&arc_adjust_lock);
 	cv_destroy(&arc_adjust_waiters_cv);
 
-	arc_state_fini();
+	/*
+	 * buf_fini() must proceed arc_state_fini() because buf_fin() may
+	 * trigger the release of kmem magazines, which can callback to
+	 * arc_space_return() which accesses aggsums freed in act_state_fini().
+	 */
 	buf_fini();
+	arc_state_fini();
 
 	ASSERT0(arc_loaned_bytes);
 }
