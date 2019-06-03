@@ -195,7 +195,11 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_HASWELL;
 			nclasses = 5;
 			break;
+		case 0x37:
+		case 0x4A:
 		case 0x4D:      /* Per Intel document 330061-001 01/2014. */
+		case 0x5A:
+		case 0x5D:
 			cputype = PMC_CPU_INTEL_ATOM_SILVERMONT;
 			nclasses = 3;
 			break;
