@@ -50,11 +50,6 @@ using namespace testing;
 
 class Notify: public FuseTest {
 public:
-virtual void SetUp() {
-	m_init_flags = FUSE_EXPORT_SUPPORT;
-	FuseTest::SetUp();
-}
-
 void expect_lookup(uint64_t parent, const char *relpath, uint64_t ino,
 	off_t size, Sequence &seq)
 {

@@ -364,30 +364,16 @@ fuse_internal_fsync(struct vnode *vp,
 }
 
 /* Asynchronous invalidation */
-SDT_PROBE_DEFINE1(fusefs, , internal, invalidate_without_export,
-	"struct mount*");
 SDT_PROBE_DEFINE2(fusefs, , internal, invalidate_cache_hit,
 	"struct vnode*", "struct vnode*");
 int
 fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 {
 	struct fuse_notify_inval_entry_out fnieo;
-	struct fuse_data *data = fuse_get_mpdata(mp);
 	struct componentname cn;
 	struct vnode *dvp, *vp;
 	char name[PATH_MAX];
 	int err;
-
-	if (!(data->dataflags & FSESS_EXPORT_SUPPORT)) {
-		/* 
-		 * Linux allows file systems without export support to use
-		 * asynchronous notification because its inode cache is indexed
-		 * purely by the inode number.  But FreeBSD's vnode is cache
-		 * requires access to the entire vnode structure.
-		 */
-		SDT_PROBE1(fusefs, , internal, invalidate_without_export, mp);
-		return (EINVAL);
-	}
 
 	if ((err = uiomove(&fnieo, sizeof(fnieo), uio)) != 0)
 		return (err);
@@ -405,6 +391,11 @@ fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 	else
 		err = fuse_internal_get_cached_vnode( mp, fnieo.parent,
 			LK_SHARED, &dvp);
+	/* 
+	 * If dvp is not in the cache, then it must've been reclaimed.  And
+	 * since fuse_vnop_reclaim does a cache_purge, name's entry must've
+	 * been invalidated already.  So we can safely return if dvp == NULL
+	 */
 	if (err != 0 || dvp == NULL)
 		return (err);
 	/*
@@ -432,20 +423,8 @@ int
 fuse_internal_invalidate_inode(struct mount *mp, struct uio *uio)
 {
 	struct fuse_notify_inval_inode_out fniio;
-	struct fuse_data *data = fuse_get_mpdata(mp);
 	struct vnode *vp;
 	int err;
-
-	if (!(data->dataflags & FSESS_EXPORT_SUPPORT)) {
-		/* 
-		 * Linux allows file systems without export support to use
-		 * asynchronous notification because its inode cache is indexed
-		 * purely by the inode number.  But FreeBSD's vnode is cache
-		 * requires access to the entire vnode structure.
-		 */
-		SDT_PROBE1(fusefs, , internal, invalidate_without_export, mp);
-		return (EINVAL);
-	}
 
 	if ((err = uiomove(&fniio, sizeof(fniio), uio)) != 0)
 		return (err);
