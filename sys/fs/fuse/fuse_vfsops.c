@@ -519,9 +519,12 @@ alreadydead:
 	return 0;
 }
 
+SDT_PROBE_DEFINE1(fusefs, , vfsops, invalidate_without_export,
+	"struct mount*");
 static int
 fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 {
+	struct fuse_data *data = fuse_get_mpdata(mp);
 	uint64_t nodeid = ino;
 	struct thread *td = curthread;
 	struct fuse_dispatcher fdi;
@@ -531,6 +534,15 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	off_t filesize;
 	enum vtype vtyp;
 	int error;
+
+	if (!(data->dataflags & FSESS_EXPORT_SUPPORT)) {
+		/*
+		 * Unreachable unless you do something stupid, like export a
+		 * nullfs mount of a fusefs file system.
+		 */
+		SDT_PROBE1(fusefs, , vfsops, invalidate_without_export, mp);
+		return (EOPNOTSUPP);
+	}
 
 	error = fuse_internal_get_cached_vnode(mp, ino, flags, vpp);
 	if (error || *vpp != NULL)
