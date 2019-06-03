@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
  * Copyright 2016 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Joyent, Inc.  All rights reserved.
  */
@@ -56,6 +56,21 @@ typedef struct vdev_disk_ldi_cb {
 	list_node_t		lcb_next;
 	ldi_callback_id_t	lcb_id;
 } vdev_disk_ldi_cb_t;
+
+/*
+ * Bypass the devid when opening a disk vdev.
+ * There have been issues where the devids of several devices were shuffled,
+ * causing pool open failures. Note, that this flag is intended to be used
+ * for pool recovery only.
+ *
+ * Note that if a pool is imported with the devids bypassed, all its vdevs will
+ * cease storing devid information permanently. In practice, the devid is rarely
+ * useful as vdev paths do not tend to change unless the hardware is
+ * reconfigured. That said, if the paths do change and a pool fails to open
+ * automatically at boot, a simple zpool import should re-scan the paths and fix
+ * the issue.
+ */
+boolean_t vdev_disk_bypass_devid = B_FALSE;
 
 static void
 vdev_disk_alloc(vdev_t *vd)
@@ -313,6 +328,16 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	dvd = vd->vdev_tsd;
 
 	/*
+	 * Allow bypassing the devid.
+	 */
+	if (vd->vdev_devid != NULL && vdev_disk_bypass_devid) {
+		vdev_dbgmsg(vd, "vdev_disk_open, devid %s bypassed",
+		    vd->vdev_devid);
+		spa_strfree(vd->vdev_devid);
+		vd->vdev_devid = NULL;
+	}
+
+	/*
 	 * When opening a disk device, we want to preserve the user's original
 	 * intent.  We always want to open the device by the path the user gave
 	 * us, even if it is one of multiple paths to the same device.  But we
@@ -374,6 +399,19 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		if (error == 0 && vd->vdev_devid != NULL &&
 		    ldi_get_devid(dvd->vd_lh, &devid) == 0) {
 			if (ddi_devid_compare(devid, dvd->vd_devid) != 0) {
+				/*
+				 * A mismatch here is unexpected, log it.
+				 */
+				char *devid_str = ddi_devid_str_encode(devid,
+				    dvd->vd_minor);
+				vdev_dbgmsg(vd, "vdev_disk_open: devid "
+				    "mismatch: %s != %s", vd->vdev_devid,
+				    devid_str);
+				cmn_err(CE_NOTE, "vdev_disk_open %s: devid "
+				    "mismatch: %s != %s", vd->vdev_path,
+				    vd->vdev_devid, devid_str);
+				ddi_devid_str_free(devid_str);
+
 				error = SET_ERROR(EINVAL);
 				(void) ldi_close(dvd->vd_lh, spa_mode(spa),
 				    kcred);
@@ -397,6 +435,10 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	if (error != 0 && vd->vdev_devid != NULL) {
 		error = ldi_open_by_devid(dvd->vd_devid, dvd->vd_minor,
 		    spa_mode(spa), kcred, &dvd->vd_lh, zfs_li);
+		if (error != 0) {
+			vdev_dbgmsg(vd, "Failed to open by devid (%s)",
+			    vd->vdev_devid);
+		}
 	}
 
 	/*
@@ -443,6 +485,9 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 			vd_devid = ddi_devid_str_encode(devid, dvd->vd_minor);
 			vdev_dbgmsg(vd, "vdev_disk_open: update devid from "
 			    "'%s' to '%s'", vd->vdev_devid, vd_devid);
+			cmn_err(CE_NOTE, "vdev_disk_open %s: update devid "
+			    "from '%s' to '%s'", vd->vdev_path != NULL ?
+			    vd->vdev_path : "?", vd->vdev_devid, vd_devid);
 			spa_strfree(vd->vdev_devid);
 			vd->vdev_devid = spa_strdup(vd_devid);
 			ddi_devid_str_free(vd_devid);
