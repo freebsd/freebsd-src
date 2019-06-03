@@ -53,7 +53,7 @@ struct dsl_scan;
 
 extern uint64_t zfs_dirty_data_max;
 extern uint64_t zfs_dirty_data_max_max;
-extern uint64_t zfs_dirty_data_sync;
+extern uint64_t zfs_dirty_data_sync_pct;
 extern int zfs_dirty_data_max_percent;
 extern int zfs_delay_min_dirty_percent;
 extern uint64_t zfs_delay_scale;
