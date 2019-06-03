@@ -686,7 +686,7 @@ dmar_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map1,
 		return (ENOMEM);
 	fma = NULL;
 	for (i = 0; i < ma_cnt; i++) {
-		paddr = pstart + i * PAGE_SIZE;
+		paddr = pstart + ptoa(i);
 		ma[i] = PHYS_TO_VM_PAGE(paddr);
 		if (ma[i] == NULL || VM_PAGE_TO_PHYS(ma[i]) != paddr) {
 			/*
