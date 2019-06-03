@@ -1321,6 +1321,7 @@ zvol_close(struct g_provider *pp, int flag, int count)
 	return (error);
 }
 
+/* ARGSUSED */
 static void
 zvol_get_done(zgd_t *zgd, int error)
 {
@@ -1328,9 +1329,6 @@ zvol_get_done(zgd_t *zgd, int error)
 		dmu_buf_rele(zgd->zgd_db, zgd);
 
 	zfs_range_unlock(zgd->zgd_rl);
-
-	if (error == 0 && zgd->zgd_bp)
-		zil_lwb_add_block(zgd->zgd_lwb, zgd->zgd_bp);
 
 	kmem_free(zgd, sizeof (zgd_t));
 }
