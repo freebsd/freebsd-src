@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2019
+.Dd June 3, 2019
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -779,8 +779,19 @@ vaf(const char *fmt, ...)
 static void
 usage(void)
 {
-	/* Insert an empty line if the function has no local variables. */
+	/* Optional blank line goes here. */
 .Ed
+.Pp
+Optionally, insert a blank line at the beginning of functions with no local
+variables.
+Older versions of this
+.Nm
+document required the blank line convention, so it is widely used in existing
+code.
+.Pp
+Do not insert a blank line at the beginning of functions with local variables.
+Instead, these should have local variable declarations first, followed by one
+blank line, followed by the first statement.
 .Pp
 Use
 .Xr printf 3 ,
