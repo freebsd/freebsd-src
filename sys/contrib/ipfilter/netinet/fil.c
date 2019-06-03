@@ -3913,7 +3913,7 @@ ipf_fixskip(listp, rp, addremove)
 	for (fp = *listp; (fp != NULL) && (fp != rp); fp = fp->fr_next)
 		rules++;
 
-	if (!fp)
+	if (fp == NULL)
 		return;
 
 	for (rn = 0, fp = *listp; fp && (fp != rp); fp = fp->fr_next, rn++)
@@ -5006,7 +5006,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 		return error;
 	}
 
-  	if (!f) {
+	if (f == NULL) {
 		/*
 		 * At the end of this, ftail must point to the place where the
 		 * new rule is to be saved/inserted/added.
@@ -5052,7 +5052,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 	 * Request to remove a rule.
 	 */
 	if (addrem == 1) {
-		if (!f) {
+		if (f == NULL) {
 			IPFERROR(29);
 			error = ESRCH;
 		} else {
