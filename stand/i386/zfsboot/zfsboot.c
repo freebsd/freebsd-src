@@ -87,6 +87,24 @@ static const unsigned char flags[NOPT] = {
 };
 uint32_t opts;
 
+/*
+ * Paths to try loading before falling back to the boot2 prompt.
+ *
+ * /boot/zfsloader must be tried before /boot/loader in order to remain
+ * backward compatible with ZFS boot environments where /boot/loader exists
+ * but does not have ZFS support, which was the case before FreeBSD 12.
+ *
+ * If no loader is found, try to load a kernel directly instead.
+ */
+static const struct string {
+    const char *p;
+    size_t len;
+} loadpath[] = {
+    { PATH_LOADER_ZFS, sizeof(PATH_LOADER_ZFS) },
+    { PATH_LOADER, sizeof(PATH_LOADER) },
+    { PATH_KERNEL, sizeof(PATH_KERNEL) },
+};
+
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
 static char cmd[512];
@@ -857,16 +875,17 @@ main(void)
     if (nextboot && !autoboot)
 	reboot();
 
-    /*
-     * Try to exec /boot/loader. If interrupted by a keypress,
-     * or in case of failure, try to load a kernel directly instead.
-     */
-
     if (autoboot && !*kname) {
-	memcpy(kname, PATH_LOADER, sizeof(PATH_LOADER));
-	if (!keyhit(3)) {
+	/*
+	 * Iterate through the list of loader and kernel paths, trying to load.
+	 * If interrupted by a keypress, or in case of failure, drop the user
+	 * to the boot2 prompt.
+	 */
+	for (i = 0; i < nitems(loadpath); i++) {
+	    memcpy(kname, loadpath[i].p, loadpath[i].len);
+	    if (keyhit(3))
+		break;
 	    load();
-	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
 	}
     }
 
