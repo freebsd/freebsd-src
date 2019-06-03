@@ -2810,7 +2810,7 @@ ipf_check(ctx, ip, hlen, ifp, out
 	mb_t **mp;
 	ip_t *ip;
 	int hlen;
-	void *ifp;
+	struct ifnet *ifp;
 	int out;
 	void *ctx;
 {
