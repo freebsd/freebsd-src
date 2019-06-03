@@ -1716,7 +1716,7 @@ get_exportlist_one(int passno)
 		 */
 		if (v4root_phase > 0 && v4root_phase <= 2) {
 			/*
-			 * These structures are used for the "-I" reload,
+			 * These structures are used for the reload,
 			 * so save them for that case.  Otherwise, just
 			 * free them up now.
 			 */
