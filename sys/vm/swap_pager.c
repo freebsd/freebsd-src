@@ -2230,7 +2230,6 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	sp->sw_vp = vp;
 	sp->sw_id = id;
 	sp->sw_dev = dev;
-	sp->sw_flags = 0;
 	sp->sw_nblks = nblks;
 	sp->sw_used = 0;
 	sp->sw_strategy = strategy;
