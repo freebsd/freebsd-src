@@ -1387,9 +1387,6 @@ Cell *split(Node **a, int nnn)	/* split(a[0], a[1], a[2]); a[3] is type */
 	tempfree(y);
 	free(origs);
 	free(origfs);
-	if (a[2] != NULL && arg3type == STRING) {
-		tempfree(x);
-	}
 	x = gettemp();
 	x->tval = NUM;
 	x->fval = n;
