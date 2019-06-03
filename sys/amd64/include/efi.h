@@ -72,6 +72,7 @@ struct efirt_callinfo {
 	register_t	ec_r13;
 	register_t	ec_r14;
 	register_t	ec_r15;
+	register_t	ec_rflags;
 };
 
 #endif /* __AMD64_INCLUDE_EFI_H_ */

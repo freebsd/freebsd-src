@@ -272,3 +272,4 @@ ASSYM(EC_R12, offsetof(struct efirt_callinfo, ec_r12));
 ASSYM(EC_R13, offsetof(struct efirt_callinfo, ec_r13));
 ASSYM(EC_R14, offsetof(struct efirt_callinfo, ec_r14));
 ASSYM(EC_R15, offsetof(struct efirt_callinfo, ec_r15));
+ASSYM(EC_RFLAGS, offsetof(struct efirt_callinfo, ec_rflags));
