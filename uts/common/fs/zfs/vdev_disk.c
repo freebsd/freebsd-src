@@ -38,6 +38,13 @@
 #include <sys/fm/fs/zfs.h>
 
 /*
+ * Tunable parameter for debugging or performance analysis. Setting this
+ * will cause pool corruption on power loss if a volatile out-of-order
+ * write cache is enabled.
+ */
+boolean_t zfs_nocacheflush = B_FALSE;
+
+/*
  * Virtual device vector for disks.
  */
 
