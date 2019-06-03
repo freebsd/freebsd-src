@@ -484,6 +484,8 @@ txg_sync_thread(void *arg)
 		uint64_t timeout = zfs_txg_timeout * hz;
 		uint64_t timer;
 		uint64_t txg;
+		uint64_t dirty_min_bytes =
+		    zfs_dirty_data_max * zfs_dirty_data_sync_pct / 100;
 
 		/*
 		 * We sync when we're scanning, there's someone waiting
@@ -495,7 +497,7 @@ txg_sync_thread(void *arg)
 		    !tx->tx_exiting && timer > 0 &&
 		    tx->tx_synced_txg >= tx->tx_sync_txg_waiting &&
 		    !txg_has_quiesced_to_sync(dp) &&
-		    dp->dp_dirty_total < zfs_dirty_data_sync) {
+		    dp->dp_dirty_total < dirty_min_bytes) {
 			dprintf("waiting; tx_synced=%llu waiting=%llu dp=%p\n",
 			    tx->tx_synced_txg, tx->tx_sync_txg_waiting, dp);
 			txg_thread_wait(tx, &cpr, &tx->tx_sync_more_cv, timer);
