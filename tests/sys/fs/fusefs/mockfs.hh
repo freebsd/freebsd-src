@@ -178,6 +178,7 @@ union fuse_payloads_out {
 	fuse_init_out		init;
 	/* The inval_entry structure should be followed by the entry's name */
 	fuse_notify_inval_entry_out	inval_entry;
+	fuse_notify_inval_inode_out	inval_inode;
 	fuse_listxattr_out	listxattr;
 	fuse_open_out		open;
 	fuse_statfs_out		statfs;
@@ -324,6 +325,23 @@ class MockFS {
 	 * @param	namelen	size of name, including the NUL
 	 */
 	int notify_inval_entry(ino_t parent, const char *name, size_t namelen);
+
+	/*
+	 * Send an asynchronous notification to invalidate an inode's cached
+	 * data and/or attributes.  Similar to libfuse's
+	 * fuse_lowlevel_notify_inval_inode.
+	 *
+	 * This method will block until the client has responded, so it should
+	 * generally be run in a separate thread from request processing.
+	 *
+	 * @param	ino	File's inode number
+	 * @param	off	offset at which to begin invalidation.  A
+	 * 			negative offset means to invalidate attributes
+	 * 			only.
+	 * @param	len	Size of region of data to invalidate.  0 means
+	 * 			to invalidate all cached data.
+	 */
+	int notify_inval_inode(ino_t ino, off_t off, ssize_t len);
 
 	/* 
 	 * Request handler

@@ -322,6 +322,13 @@ void MockFS::debug_response(const mockfs_buf_out &out) {
 			printf("<- INVAL_ENTRY parent=%" PRIu64 " %s\n",
 				out.body.inval_entry.parent, name);
 			break;
+		case FUSE_NOTIFY_INVAL_INODE:
+			printf("<- INVAL_INODE ino=%" PRIu64 " off=%" PRIi64
+				" len=%" PRIi64 "\n",
+				out.body.inval_inode.ino,
+				out.body.inval_inode.off,
+				out.body.inval_inode.len);
+			break;
 		default:
 			break;
 	}
@@ -511,6 +518,21 @@ int MockFS::notify_inval_entry(ino_t parent, const char *name, size_t namelen)
 		name, sizeof(out->body.bytes) - sizeof(out->body.inval_entry));
 	out->header.len = sizeof(out->header) + sizeof(out->body.inval_entry) +
 		namelen;
+	debug_response(*out);
+	write_response(*out);
+	return 0;
+}
+
+int MockFS::notify_inval_inode(ino_t ino, off_t off, ssize_t len)
+{
+	std::unique_ptr<mockfs_buf_out> out(new mockfs_buf_out);
+
+	out->header.unique = 0;	/* 0 means asynchronous notification */
+	out->header.error = FUSE_NOTIFY_INVAL_INODE;
+	out->body.inval_inode.ino = ino;
+	out->body.inval_inode.off = off;
+	out->body.inval_inode.len = len;
+	out->header.len = sizeof(out->header) + sizeof(out->body.inval_inode);
 	debug_response(*out);
 	write_response(*out);
 	return 0;
