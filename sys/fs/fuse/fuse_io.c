@@ -447,6 +447,9 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	if (ioflag & IO_APPEND)
 		uio_setoffset(uio, filesize);
 
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
+		return (EFBIG);
+
 	fdisp_init(&fdi, 0);
 
 	while (uio->uio_resid > 0) {
@@ -578,6 +581,9 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 
 	if (ioflag & IO_APPEND)
 		uio_setoffset(uio, filesize);
+
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
+		return (EFBIG);
 
 	/*
          * Find all of this file's B_NEEDCOMMIT buffers.  If our writes

@@ -31,12 +31,15 @@
 extern "C" {
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/uio.h>
 
 #include <aio.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <unistd.h>
 }
 
@@ -48,6 +51,22 @@ using namespace testing;
 class Write: public FuseTest {
 
 public:
+static sig_atomic_t s_sigxfsz;
+
+void SetUp() {
+	s_sigxfsz = 0;
+	FuseTest::SetUp();
+}
+
+void TearDown() {
+	struct sigaction sa;
+
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sigaction(SIGXFSZ, &sa, NULL);
+
+	FuseTest::TearDown();
+}
 
 void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
 {
@@ -72,6 +91,8 @@ void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 }
 
 };
+
+sig_atomic_t Write::s_sigxfsz = 0;
 
 class Write_7_8: public FuseTest {
 
@@ -157,6 +178,10 @@ void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 		contents);
 }
 };
+
+void sigxfsz_handler(int __unused sig) {
+	Write::s_sigxfsz = 1;
+}
 
 /* AIO writes need to set the header's pid field correctly */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236379 */
@@ -369,6 +394,36 @@ TEST_F(Write, direct_io_short_write_iov)
 	iov[1].iov_base = (void*)CONTENTS1;
 	iov[1].iov_len = strlen(CONTENTS1);
 	ASSERT_EQ(size0, writev(fd, iov, 2)) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* fusefs should respect RLIMIT_FSIZE */
+TEST_F(Write, rlimit_fsize)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	struct rlimit rl;
+	ssize_t bufsize = strlen(CONTENTS);
+	off_t offset = 1'000'000'000;
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+
+	rl.rlim_cur = offset;
+	rl.rlim_max = 10 * offset;
+	ASSERT_EQ(0, setrlimit(RLIMIT_FSIZE, &rl)) << strerror(errno);
+	ASSERT_NE(SIG_ERR, signal(SIGXFSZ, sigxfsz_handler)) << strerror(errno);
+
+	fd = open(FULLPATH, O_WRONLY);
+
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(-1, pwrite(fd, CONTENTS, bufsize, offset));
+	EXPECT_EQ(EFBIG, errno);
+	EXPECT_EQ(1, s_sigxfsz);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
