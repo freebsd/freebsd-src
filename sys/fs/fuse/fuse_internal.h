@@ -193,6 +193,10 @@ fuse_validity_2_timespec(const struct fuse_entry_out *feo,
 }
 
 
+/* VFS ops */
+int
+fuse_internal_get_cached_vnode(struct mount*, ino_t, int, struct vnode**);
+
 /* access */
 static inline int
 fuse_match_cred(struct ucred *basecred, struct ucred *usercred)
@@ -230,6 +234,7 @@ int fuse_internal_getattr(struct vnode *vp, struct vattr *vap,
 
 /* asynchronous invalidation */
 int fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio);
+int fuse_internal_invalidate_inode(struct mount *mp, struct uio *uio);
 
 /* mknod */
 int fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,

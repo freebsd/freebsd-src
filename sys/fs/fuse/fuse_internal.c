@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include "fuse.h"
 #include "fuse_file.h"
 #include "fuse_internal.h"
+#include "fuse_io.h"
 #include "fuse_ipc.h"
 #include "fuse_node.h"
 #include "fuse_file.h"
@@ -105,6 +106,42 @@ SDT_PROBE_DEFINE2(fusefs, , internal, trace, "int", "char*");
 static int isbzero(void *buf, size_t len);
 
 #endif
+
+int
+fuse_internal_get_cached_vnode(struct mount* mp, ino_t ino, int flags,
+	struct vnode **vpp)
+{
+	struct bintime now;
+	struct thread *td = curthread;
+	uint64_t nodeid = ino;
+	int error;
+
+	*vpp = NULL;
+
+	error = vfs_hash_get(mp, fuse_vnode_hash(nodeid), flags, td, vpp,
+	    fuse_vnode_cmp, &nodeid);
+	if (error)
+		return error;
+	/*
+	 * Check the entry cache timeout.  We have to do this within fusefs
+	 * instead of by using cache_enter_time/cache_lookup because those
+	 * routines are only intended to work with pathnames, not inodes
+	 */
+	if (*vpp != NULL) {
+		getbinuptime(&now);
+		if (bintime_cmp(&(VTOFUD(*vpp)->entry_cache_timeout), &now, >)){
+			atomic_add_acq_long(&fuse_lookup_cache_hits, 1);
+			return 0;
+		} else {
+			/* Entry cache timeout */
+			atomic_add_acq_long(&fuse_lookup_cache_misses, 1);
+			cache_purge(*vpp);
+			vput(*vpp);
+			*vpp = NULL;
+		}
+	}
+	return 0;
+}
 
 /* Synchronously send a FUSE_ACCESS operation */
 int
@@ -337,7 +374,6 @@ fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 	struct fuse_notify_inval_entry_out fnieo;
 	struct fuse_data *data = fuse_get_mpdata(mp);
 	struct componentname cn;
-	/*struct vnode *dvp;*/
 	struct vnode *dvp, *vp;
 	char name[PATH_MAX];
 	int err;
@@ -367,8 +403,9 @@ fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 	if (fnieo.parent == FUSE_ROOT_ID)
 		err = VFS_ROOT(mp, LK_SHARED, &dvp);
 	else
-		err = VFS_VGET(mp, fnieo.parent, LK_SHARED, &dvp);
-	if (err != 0)
+		err = fuse_internal_get_cached_vnode( mp, fnieo.parent,
+			LK_SHARED, &dvp);
+	if (err != 0 || dvp == NULL)
 		return (err);
 	/*
 	 * XXX we can't check dvp's generation because the FUSE invalidate
@@ -388,6 +425,53 @@ fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 	MPASS(err == 0);
 	fuse_vnode_clear_attr_cache(dvp);
 	vput(dvp);
+	return (0);
+}
+
+int
+fuse_internal_invalidate_inode(struct mount *mp, struct uio *uio)
+{
+	struct fuse_notify_inval_inode_out fniio;
+	struct fuse_data *data = fuse_get_mpdata(mp);
+	struct vnode *vp;
+	int err;
+
+	if (!(data->dataflags & FSESS_EXPORT_SUPPORT)) {
+		/* 
+		 * Linux allows file systems without export support to use
+		 * asynchronous notification because its inode cache is indexed
+		 * purely by the inode number.  But FreeBSD's vnode is cache
+		 * requires access to the entire vnode structure.
+		 */
+		SDT_PROBE1(fusefs, , internal, invalidate_without_export, mp);
+		return (EINVAL);
+	}
+
+	if ((err = uiomove(&fniio, sizeof(fniio), uio)) != 0)
+		return (err);
+
+	if (fniio.ino == FUSE_ROOT_ID)
+		err = VFS_ROOT(mp, LK_EXCLUSIVE, &vp);
+	else
+		err = fuse_internal_get_cached_vnode(mp, fniio.ino, LK_SHARED,
+			&vp);
+	if (err != 0 || vp == NULL)
+		return (err);
+	/*
+	 * XXX we can't check vp's generation because the FUSE invalidate
+	 * entry message doesn't include it.  Worse case is that we invalidate
+	 * an inode that didn't need to be invalidated.
+	 */
+
+	/* 
+	 * Flush and invalidate buffers if off >= 0.  Technically we only need
+	 * to flush and invalidate the range of offsets [off, off + len), but
+	 * for simplicity's sake we do everything.
+	 */
+	if (fniio.off >= 0)
+		fuse_io_invalbuf(vp, curthread);
+	fuse_vnode_clear_attr_cache(vp);
+	vput(vp);
 	return (0);
 }
 

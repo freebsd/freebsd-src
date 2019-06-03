@@ -527,34 +527,14 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	struct fuse_dispatcher fdi;
 	struct fuse_entry_out *feo;
 	struct fuse_vnode_data *fvdat;
-	struct bintime now;
 	const char dot[] = ".";
 	off_t filesize;
 	enum vtype vtyp;
 	int error;
 
-	error = vfs_hash_get(mp, fuse_vnode_hash(nodeid), flags, td, vpp,
-	    fuse_vnode_cmp, &nodeid);
-	if (error)
+	error = fuse_internal_get_cached_vnode(mp, ino, flags, vpp);
+	if (error || *vpp != NULL)
 		return error;
-	/*
-	 * Check the entry cache timeout.  We have to do this within fusefs
-	 * instead of by using cache_enter_time/cache_lookup because those
-	 * routines are only intended to work with pathnames, not inodes
-	 */
-	if (*vpp != NULL) {
-		getbinuptime(&now);
-		if (bintime_cmp(&(VTOFUD(*vpp)->entry_cache_timeout), &now, >)){
-			atomic_add_acq_long(&fuse_lookup_cache_hits, 1);
-			return 0;
-		} else {
-			/* Entry cache timeout */
-			atomic_add_acq_long(&fuse_lookup_cache_misses, 1);
-			cache_purge(*vpp);
-			vput(*vpp);
-			*vpp = NULL;
-		}
-	}
 
 	/* Do a LOOKUP, using nodeid as the parent and "." as filename */
 	fdisp_init(&fdi, sizeof(dot));

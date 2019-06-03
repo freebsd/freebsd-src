@@ -29,6 +29,10 @@
  */
 
 extern "C" {
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+#include <fcntl.h>
 #include <pthread.h>
 }
 
@@ -46,14 +50,13 @@ using namespace testing;
 
 class Notify: public FuseTest {
 public:
-public:
 virtual void SetUp() {
 	m_init_flags = FUSE_EXPORT_SUPPORT;
 	FuseTest::SetUp();
 }
 
 void expect_lookup(uint64_t parent, const char *relpath, uint64_t ino,
-	Sequence &seq)
+	off_t size, Sequence &seq)
 {
 	EXPECT_LOOKUP(parent, relpath)
 	.InSequence(seq)
@@ -64,10 +67,37 @@ void expect_lookup(uint64_t parent, const char *relpath, uint64_t ino,
 		out.body.entry.nodeid = ino;
 		out.body.entry.attr.ino = ino;
 		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr.size = size;
 		out.body.entry.attr_valid = UINT64_MAX;
 		out.body.entry.entry_valid = UINT64_MAX;
 	})));
 }
+};
+
+class NotifyWriteback: public Notify {
+public:
+virtual void SetUp() {
+	const char *node = "vfs.fusefs.data_cache_mode";
+	int val = 0;
+	size_t size = sizeof(val);
+
+	Notify::SetUp();
+	if (IsSkipped())
+		return;
+
+	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
+		<< strerror(errno);
+	if (val != 2)
+		GTEST_SKIP() << "vfs.fusefs.data_cache_mode must be set to 2 "
+			"(writeback) for this test";
+}
+
+void expect_write(uint64_t ino, uint64_t offset, uint64_t size,
+	const void *contents)
+{
+	FuseTest::expect_write(ino, offset, size, size, 0, 0, contents);
+}
+
 };
 
 struct inval_entry_args {
@@ -82,6 +112,24 @@ static void* inval_entry(void* arg) {
 	ssize_t r;
 
 	r = iea->mock->notify_inval_entry(iea->parent, iea->name, iea->namelen);
+	if (r >= 0)
+		return 0;
+	else
+		return (void*)(intptr_t)errno;
+}
+
+struct inval_inode_args {
+	MockFS		*mock;
+	ino_t		ino;
+	off_t		off;
+	ssize_t		len;
+};
+
+static void* inval_inode(void* arg) {
+	const struct inval_inode_args *iia = (struct inval_inode_args*)arg;
+	ssize_t r;
+
+	r = iia->mock->notify_inval_inode(iia->ino, iia->off, iia->len);
 	if (r >= 0)
 		return 0;
 	else
@@ -120,8 +168,8 @@ TEST_F(Notify, inval_entry)
 	Sequence seq;
 	pthread_t th0;
 
-	expect_lookup(FUSE_ROOT_ID, RELPATH, ino0, seq);
-	expect_lookup(FUSE_ROOT_ID, RELPATH, ino1, seq);
+	expect_lookup(FUSE_ROOT_ID, RELPATH, ino0, 0, seq);
+	expect_lookup(FUSE_ROOT_ID, RELPATH, ino1, 0, seq);
 
 	/* Fill the entry cache */
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
@@ -135,7 +183,6 @@ TEST_F(Notify, inval_entry)
 	ASSERT_EQ(0, pthread_create(&th0, NULL, inval_entry, &iea))
 		<< strerror(errno);
 	pthread_join(th0, &thr0_value);
-	/* It's not an error for an entry to not be cached */
 	EXPECT_EQ(0, (intptr_t)thr0_value);
 
 	/* The second lookup should return the alternate ino */
@@ -171,8 +218,8 @@ TEST_F(Notify, inval_entry_below_root)
 		out.body.entry.attr_valid = UINT64_MAX;
 		out.body.entry.entry_valid = UINT64_MAX;
 	})));
-	expect_lookup(dir_ino, FNAME, ino0, seq);
-	expect_lookup(dir_ino, FNAME, ino1, seq);
+	expect_lookup(dir_ino, FNAME, ino0, 0, seq);
+	expect_lookup(dir_ino, FNAME, ino1, 0, seq);
 
 	/* Fill the entry cache */
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
@@ -186,7 +233,6 @@ TEST_F(Notify, inval_entry_below_root)
 	ASSERT_EQ(0, pthread_create(&th0, NULL, inval_entry, &iea))
 		<< strerror(errno);
 	pthread_join(th0, &thr0_value);
-	/* It's not an error for an entry to not be cached */
 	EXPECT_EQ(0, (intptr_t)thr0_value);
 
 	/* The second lookup should return the alternate ino */
@@ -206,7 +252,7 @@ TEST_F(Notify, inval_entry_invalidates_parent_attrs)
 	Sequence seq;
 	pthread_t th0;
 
-	expect_lookup(FUSE_ROOT_ID, RELPATH, ino, seq);
+	expect_lookup(FUSE_ROOT_ID, RELPATH, ino, 0, seq);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_GETATTR &&
@@ -232,9 +278,187 @@ TEST_F(Notify, inval_entry_invalidates_parent_attrs)
 	ASSERT_EQ(0, pthread_create(&th0, NULL, inval_entry, &iea))
 		<< strerror(errno);
 	pthread_join(th0, &thr0_value);
-	/* It's not an error for an entry to not be cached */
 	EXPECT_EQ(0, (intptr_t)thr0_value);
 
 	/* /'s attribute cache should be cleared */
 	ASSERT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
+}
+
+
+TEST_F(Notify, inval_inode_nonexistent)
+{
+	struct inval_inode_args iia;
+	ino_t ino = 42;
+	void *thr0_value;
+	pthread_t th0;
+
+	iia.mock = m_mock;
+	iia.ino = ino;
+	iia.off = 0;
+	iia.len = 0;
+	ASSERT_EQ(0, pthread_create(&th0, NULL, inval_inode, &iia))
+		<< strerror(errno);
+	pthread_join(th0, &thr0_value);
+	/* It's not an error for an inode to not be cached */
+	EXPECT_EQ(0, (intptr_t)thr0_value);
+}
+
+TEST_F(Notify, inval_inode_with_clean_cache)
+{
+	const static char FULLPATH[] = "mountpoint/foo";
+	const static char RELPATH[] = "foo";
+	const char CONTENTS0[] = "abcdefgh";
+	const char CONTENTS1[] = "ijklmnopqrstuvwxyz";
+	struct inval_inode_args iia;
+	struct stat sb;
+	ino_t ino = 42;
+	void *thr0_value;
+	Sequence seq;
+	uid_t uid = 12345;
+	pthread_t th0;
+	ssize_t size0 = sizeof(CONTENTS0);
+	ssize_t size1 = sizeof(CONTENTS1);
+	char buf[80];
+	int fd;
+
+	expect_lookup(FUSE_ROOT_ID, RELPATH, ino, size0, seq);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.size = size1;
+		out.body.attr.attr.uid = uid;
+	})));
+	expect_read(ino, 0, size0, size0, CONTENTS0);
+	expect_read(ino, 0, size1, size1, CONTENTS1);
+
+	/* Fill the data cache */
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(size0, read(fd, buf, size0)) << strerror(errno);
+	EXPECT_EQ(0, memcmp(buf, CONTENTS0, size0));
+
+	/* Evict the data cache */
+	iia.mock = m_mock;
+	iia.ino = ino;
+	iia.off = 0;
+	iia.len = 0;
+	ASSERT_EQ(0, pthread_create(&th0, NULL, inval_inode, &iia))
+		<< strerror(errno);
+	pthread_join(th0, &thr0_value);
+	EXPECT_EQ(0, (intptr_t)thr0_value);
+
+	/* cache attributes were been purged; this will trigger a new GETATTR */
+	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
+	EXPECT_EQ(uid, sb.st_uid);
+	EXPECT_EQ(size1, sb.st_size);
+
+	/* This read should not be serviced by cache */
+	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
+	ASSERT_EQ(size1, read(fd, buf, size1)) << strerror(errno);
+	EXPECT_EQ(0, memcmp(buf, CONTENTS1, size1));
+
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=238312 */
+TEST_F(NotifyWriteback, DISABLED_inval_inode_with_dirty_cache)
+{
+	const static char FULLPATH[] = "mountpoint/foo";
+	const static char RELPATH[] = "foo";
+	const char CONTENTS[] = "abcdefgh";
+	struct inval_inode_args iia;
+	ino_t ino = 42;
+	void *thr0_value;
+	Sequence seq;
+	pthread_t th0;
+	ssize_t bufsize = sizeof(CONTENTS);
+	int fd;
+
+	expect_lookup(FUSE_ROOT_ID, RELPATH, ino, 0, seq);
+	expect_open(ino, 0, 1);
+
+	/* Fill the data cache */
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+
+	/* Evict the data cache */
+	expect_write(ino, 0, bufsize, CONTENTS);
+	iia.mock = m_mock;
+	iia.ino = ino;
+	iia.off = 0;
+	iia.len = 0;
+	ASSERT_EQ(0, pthread_create(&th0, NULL, inval_inode, &iia))
+		<< strerror(errno);
+	pthread_join(th0, &thr0_value);
+	EXPECT_EQ(0, (intptr_t)thr0_value);
+
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=238312 */
+TEST_F(NotifyWriteback, DISABLED_inval_inode_attrs_only)
+{
+	const static char FULLPATH[] = "mountpoint/foo";
+	const static char RELPATH[] = "foo";
+	const char CONTENTS[] = "abcdefgh";
+	struct inval_inode_args iia;
+	struct stat sb;
+	uid_t uid = 12345;
+	ino_t ino = 42;
+	void *thr0_value;
+	Sequence seq;
+	pthread_t th0;
+	ssize_t bufsize = sizeof(CONTENTS);
+	int fd;
+
+	expect_lookup(FUSE_ROOT_ID, RELPATH, ino, 0, seq);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_WRITE);
+		}, Eq(true)),
+		_)
+	).Times(0);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == FUSE_ROOT_ID);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.mode = S_IFREG | 0644;
+		out.body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.size = bufsize;
+		out.body.attr.attr.uid = uid;
+	})));
+
+	/* Fill the data cache */
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+
+	/* Evict the attributes, but not data cache */
+	iia.mock = m_mock;
+	iia.ino = ino;
+	iia.off = -1;
+	iia.len = 0;
+	ASSERT_EQ(0, pthread_create(&th0, NULL, inval_inode, &iia))
+		<< strerror(errno);
+	pthread_join(th0, &thr0_value);
+	EXPECT_EQ(0, (intptr_t)thr0_value);
+
+	/* cache attributes were been purged; this will trigger a new GETATTR */
+	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
+	EXPECT_EQ(uid, sb.st_uid);
+	EXPECT_EQ(bufsize, sb.st_size);
+
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }

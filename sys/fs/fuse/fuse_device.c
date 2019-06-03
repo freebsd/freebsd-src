@@ -515,8 +515,10 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		case FUSE_NOTIFY_INVAL_ENTRY:
 			err = fuse_internal_invalidate_entry(mp, uio);
 			break;
-		case FUSE_NOTIFY_POLL:
 		case FUSE_NOTIFY_INVAL_INODE:
+			err = fuse_internal_invalidate_inode(mp, uio);
+			break;
+		case FUSE_NOTIFY_POLL:
 		default:
 			/* Not implemented */
 			err = ENOSYS;
