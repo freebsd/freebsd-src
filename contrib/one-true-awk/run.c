@@ -1267,7 +1267,7 @@ Cell *split(Node **a, int nnn)	/* split(a[0], a[1], a[2]); a[3] is type */
 	origs = s = strdup(getsval(y));
 	arg3type = ptoi(a[3]);
 	if (a[2] == NULL)		/* fs string */
-		fs = *FS;
+		fs = getsval(fsloc);
 	else if (arg3type == STRING) {	/* split(str,arr,"string") */
 		x = execute(a[2]);
 		origfs = fs = strdup(getsval(x));
