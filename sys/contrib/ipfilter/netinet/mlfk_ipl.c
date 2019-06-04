@@ -22,18 +22,18 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/select.h>
-#if __FreeBSD_version >= 500000
+#ifdef __FreeBSD_version
 # include <sys/selinfo.h>
 # include <sys/jail.h>
-#endif
-#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000) && defined(_KERNEL)
-#include <net/vnet.h>
-#else
-#define CURVNET_SET(arg)
-#define CURVNET_RESTORE()
-#define	VNET_DEFINE(_t, _v)	_t _v
-#define	VNET_DECLARE(_t, _v)	extern _t _v
-#define	VNET(arg)	arg
+# ifdef _KERNEL
+#  include <net/vnet.h>
+# else
+#  define CURVNET_SET(arg)
+#  define CURVNET_RESTORE()
+#  define	VNET_DEFINE(_t, _v)	_t _v
+#  define	VNET_DECLARE(_t, _v)	extern _t _v
+#  define	VNET(arg)	arg
+# endif
 #endif
 #include <net/if.h>
 #include <netinet/in_systm.h>
@@ -52,7 +52,7 @@
 VNET_DECLARE(ipf_main_softc_t, ipfmain);
 #define	V_ipfmain		VNET(ipfmain)
 
-#if __FreeBSD_version >= 502116
+#ifdef __FreeBSD_version
 static struct cdev *ipf_devs[IPL_LOGSIZE];
 #else
 static dev_t ipf_devs[IPL_LOGSIZE];
@@ -68,25 +68,17 @@ static int ipf_modunload(void);
 static int ipf_fbsd_sysctl_create(void);
 static int ipf_fbsd_sysctl_destroy(void);
 
-#if (__FreeBSD_version >= 500024)
-# if (__FreeBSD_version >= 502116)
+#ifdef __FreeBSD_version
 static	int	ipfopen __P((struct cdev*, int, int, struct thread *));
 static	int	ipfclose __P((struct cdev*, int, int, struct thread *));
-# else
-static	int	ipfopen __P((dev_t, int, int, struct thread *));
-static	int	ipfclose __P((dev_t, int, int, struct thread *));
-# endif /* __FreeBSD_version >= 502116 */
-#else
-static	int	ipfopen __P((dev_t, int, int, struct proc *));
-static	int	ipfclose __P((dev_t, int, int, struct proc *));
-#endif
-#if (__FreeBSD_version >= 502116)
 static	int	ipfread __P((struct cdev*, struct uio *, int));
 static	int	ipfwrite __P((struct cdev*, struct uio *, int));
 #else
+static	int	ipfopen __P((dev_t, int, int, struct proc *));
+static	int	ipfclose __P((dev_t, int, int, struct proc *));
 static	int	ipfread __P((dev_t, struct uio *, int));
 static	int	ipfwrite __P((dev_t, struct uio *, int));
-#endif /* __FreeBSD_version >= 502116 */
+#endif
 
 
 SYSCTL_DECL(_net_inet);
@@ -137,15 +129,13 @@ SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &VNET_NAME(ipfmain.ip
 
 #define CDEV_MAJOR 79
 #include <sys/poll.h>
-#if __FreeBSD_version >= 500043
+#ifdef __FreeBSD_version
 # include <sys/select.h>
 static int ipfpoll(struct cdev *dev, int events, struct thread *td);
 
 static struct cdevsw ipf_cdevsw = {
-#if __FreeBSD_version >= 502103
 	.d_version =	D_VERSION,
 	.d_flags =	0,	/* D_NEEDGIANT - Should be SMP safe */
-#endif
 	.d_open =	ipfopen,
 	.d_close =	ipfclose,
 	.d_read =	ipfread,
@@ -153,9 +143,6 @@ static struct cdevsw ipf_cdevsw = {
 	.d_ioctl =	ipfioctl,
 	.d_poll =	ipfpoll,
 	.d_name =	"ipf",
-#if __FreeBSD_version < 600000
-	.d_maj =	CDEV_MAJOR,
-#endif
 };
 #else
 static int ipfpoll(dev_t dev, int events, struct proc *td);
@@ -174,12 +161,6 @@ static struct cdevsw ipf_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-# if (__FreeBSD_version < 500043)
-	/* bmaj */	-1,
-# endif
-# if (__FreeBSD_version >= 430000)
-	/* kqfilter */	NULL
-# endif
 };
 #endif
 
@@ -444,7 +425,7 @@ sysctl_ipf_int_frag ( SYSCTL_HANDLER_ARGS )
 
 
 static int
-#if __FreeBSD_version >= 500043
+#ifdef __FreeBSD_version
 ipfpoll(struct cdev *dev, int events, struct thread *td)
 #else
 ipfpoll(dev_t dev, int events, struct proc *td)
@@ -497,20 +478,13 @@ ipfpoll(dev_t dev, int events, struct proc *td)
  * routines below for saving IP headers to buffer
  */
 static int ipfopen(dev, flags
-#if ((BSD >= 199506) || (__FreeBSD_version >= 220000))
+#ifdef __FreeBSD_version
 , devtype, p)
 	int devtype;
-# if (__FreeBSD_version >= 500024)
 	struct thread *p;
-# else
-	struct proc *p;
-# endif /* __FreeBSD_version >= 500024 */
-#else
-)
-#endif
-#if (__FreeBSD_version >= 502116)
 	struct cdev *dev;
 #else
+)
 	dev_t dev;
 #endif
 	int flags;
@@ -544,20 +518,13 @@ static int ipfopen(dev, flags
 
 
 static int ipfclose(dev, flags
-#if ((BSD >= 199506) || (__FreeBSD_version >= 220000))
+#ifdef __FreeBSD_version
 , devtype, p)
 	int devtype;
-# if (__FreeBSD_version >= 500024)
 	struct thread *p;
-# else
-	struct proc *p;
-# endif /* __FreeBSD_version >= 500024 */
-#else
-)
-#endif
-#if (__FreeBSD_version >= 502116)
 	struct cdev *dev;
 #else
+)
 	dev_t dev;
 #endif
 	int flags;
@@ -583,7 +550,7 @@ static int ipfread(dev, uio, ioflag)
 #else
 static int ipfread(dev, uio)
 #endif
-#if (__FreeBSD_version >= 502116)
+#ifdef __FreeBSD_version
 	struct cdev *dev;
 #else
 	dev_t dev;
@@ -630,7 +597,7 @@ static int ipfwrite(dev, uio, ioflag)
 #else
 static int ipfwrite(dev, uio)
 #endif
-#if (__FreeBSD_version >= 502116)
+#ifdef __FreeBSD_version
 	struct cdev *dev;
 #else
 	dev_t dev;
