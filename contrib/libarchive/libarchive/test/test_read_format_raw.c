@@ -36,6 +36,7 @@ DEFINE_TEST(test_read_format_raw)
 	const char *reffile1 = "test_read_format_raw.data";
 	const char *reffile2 = "test_read_format_raw.data.Z";
 	const char *reffile3 = "test_read_format_raw.bufr";
+	const char *reffile4 = "test_read_format_raw.data.gz";
 
 	/* First, try pulling data out of an uninterpretable file. */
 	extract_reference_file(reffile1);
@@ -112,6 +113,32 @@ DEFINE_TEST(test_read_format_raw)
 	assert(!archive_entry_atime_is_set(ae));
 	assert(!archive_entry_ctime_is_set(ae));
 	assert(!archive_entry_mtime_is_set(ae));
+
+	/* Test EOF */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Fourth, try with gzip which has metadata. */
+	extract_reference_file(reffile4);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, reffile4, 1));
+
+	/* First (and only!) Entry */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("test-file-name.data", archive_entry_pathname(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
+	assert(archive_entry_mtime_is_set(ae));
+	assertEqualIntA(a, archive_entry_mtime(ae), 0x5cbafd25);
+	/* Most fields should be unset (unknown) */
+	assert(!archive_entry_size_is_set(ae));
+	assert(!archive_entry_atime_is_set(ae));
+	assert(!archive_entry_ctime_is_set(ae));
 
 	/* Test EOF */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));

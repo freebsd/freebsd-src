@@ -71,8 +71,13 @@ test_create(void)
 		 * #ifdef this section out.  Most of the test below is
 		 * still valid. */
 		memset(&times, 0, sizeof(times));
+#if defined(_WIN32) && !defined(CYGWIN)
+		times.actime = 86400;
+		times.modtime = 86400;
+#else
 		times.actime = 1;
 		times.modtime = 3;
+#endif
 		assertEqualInt(0, utime(files[i].name, &times));
 
 		/* Record whatever atime the file ended up with. */

@@ -58,6 +58,14 @@ test_fuzz(const struct files *filesets)
 	size_t blk_size;
 	int64_t blk_offset;
 	int n;
+	const char *skip_fuzz_tests;
+
+	skip_fuzz_tests = getenv("SKIP_TEST_FUZZ");
+	if (skip_fuzz_tests != NULL) {
+		skipping("Skipping fuzz tests due to SKIP_TEST_FUZZ "
+		    "environment variable");
+		return;
+	}
 
 	for (n = 0; filesets[n].names != NULL; ++n) {
 		const size_t buffsize = 30000000;

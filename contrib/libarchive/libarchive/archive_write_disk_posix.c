@@ -2032,7 +2032,7 @@ restore_entry(struct archive_write_disk *a)
 		 * follow the symlink if we're creating a dir.
 		 */
 		if (S_ISDIR(a->mode))
-			r = stat(a->name, &a->st);
+			r = la_stat(a->name, &a->st);
 		/*
 		 * If it's not a dir (or it's a broken symlink),
 		 * then don't follow it.
@@ -2198,7 +2198,7 @@ create_filesystem_object(struct archive_write_disk *a)
 #ifdef HAVE_LSTAT
 			r = lstat(a->name, &st);
 #else
-			r = stat(a->name, &st);
+			r = la_stat(a->name, &st);
 #endif
 			if (r != 0)
 				r = errno;
@@ -2712,7 +2712,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				 * This is needed to extract hardlinks over
 				 * symlinks.
 				 */
-				r = stat(head, &st);
+				r = la_stat(head, &st);
 				if (r != 0) {
 					tail[0] = c;
 					if (errno == ENOENT) {
@@ -3052,7 +3052,7 @@ create_dir(struct archive_write_disk *a, char *path)
 	 * here loses the ability to extract through symlinks.  Also note
 	 * that this should not use the a->st cache.
 	 */
-	if (stat(path, &st) == 0) {
+	if (la_stat(path, &st) == 0) {
 		if (S_ISDIR(st.st_mode))
 			return (ARCHIVE_OK);
 		if ((a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
@@ -3110,7 +3110,7 @@ create_dir(struct archive_write_disk *a, char *path)
 	 * don't add it to the fixup list here, as it's already been
 	 * added.
 	 */
-	if (stat(path, &st) == 0 && S_ISDIR(st.st_mode))
+	if (la_stat(path, &st) == 0 && S_ISDIR(st.st_mode))
 		return (ARCHIVE_OK);
 
 	archive_set_error(&a->archive, errno, "Failed to create dir '%s'",
