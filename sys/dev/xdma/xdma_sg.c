@@ -69,14 +69,7 @@ _xchan_bufs_alloc(xdma_channel_t *xchan)
 
 	for (i = 0; i < xchan->xr_num; i++) {
 		xr = &xchan->xr_mem[i];
-		xr->buf.cbuf = contigmalloc(xchan->maxsegsize,
-		    M_XDMA, 0, 0, ~0, PAGE_SIZE, 0);
-		if (xr->buf.cbuf == NULL) {
-			device_printf(xdma->dev,
-			    "%s: Can't allocate contiguous kernel"
-			    " physical memory\n", __func__);
-			return (-1);
-		}
+		/* TODO: bounce buffer */
 	}
 
 	return (0);
@@ -179,7 +172,7 @@ xchan_bufs_free(xdma_channel_t *xchan)
 	} else {
 		for (i = 0; i < xchan->xr_num; i++) {
 			xr = &xchan->xr_mem[i];
-			contigfree(xr->buf.cbuf, xchan->maxsegsize, M_XDMA);
+			/* TODO: bounce buffer */
 		}
 	}
 
@@ -245,17 +238,19 @@ xdma_prep_sg(xdma_channel_t *xchan, uint32_t xr_num,
 		return (-1);
 	}
 
-	/* Allocate bufs. */
-	ret = xchan_bufs_alloc(xchan);
-	if (ret != 0) {
-		device_printf(xdma->dev,
-		    "%s: Can't allocate bufs.\n", __func__);
+	/* Allocate buffers if required. */
+	if ((xchan->caps & XCHAN_CAP_NOBUFS) == 0) {
+		ret = xchan_bufs_alloc(xchan);
+		if (ret != 0) {
+			device_printf(xdma->dev,
+			    "%s: Can't allocate bufs.\n", __func__);
 
-		/* Cleanup */
-		xchan_sglist_free(xchan);
-		xchan_bank_free(xchan);
+			/* Cleanup */
+			xchan_sglist_free(xchan);
+			xchan_bank_free(xchan);
 
-		return (-1);
+			return (-1);
+		}
 	}
 
 	xchan->flags |= (XCHAN_CONFIGURED | XCHAN_TYPE_SG);
@@ -442,14 +437,8 @@ _xdma_load_data(xdma_channel_t *xchan, struct xdma_request *xr,
 
 	switch (xr->req_type) {
 	case XR_TYPE_MBUF:
-		if (xr->direction == XDMA_MEM_TO_DEV) {
-			m_copydata(m, 0, m->m_pkthdr.len, xr->buf.cbuf);
-			seg[0].ds_addr = (bus_addr_t)xr->buf.cbuf;
-			seg[0].ds_len = m->m_pkthdr.len;
-		} else {
-			seg[0].ds_addr = mtod(m, bus_addr_t);
-			seg[0].ds_len = m->m_pkthdr.len;
-		}
+		seg[0].ds_addr = mtod(m, bus_addr_t);
+		seg[0].ds_len = m->m_pkthdr.len;
 		break;
 	case XR_TYPE_BIO:
 	case XR_TYPE_VIRT:
@@ -516,7 +505,9 @@ xdma_process(xdma_channel_t *xchan,
 	TAILQ_FOREACH_SAFE(xr, &xchan->queue_in, xr_next, xr_tmp) {
 		switch (xr->req_type) {
 		case XR_TYPE_MBUF:
-			c = xdma_mbuf_defrag(xchan, xr);
+			if ((xchan->caps & XCHAN_CAP_NOSEG) ||
+			    (c > xchan->maxnsegs))
+				c = xdma_mbuf_defrag(xchan, xr);
 			break;
 		case XR_TYPE_BIO:
 		case XR_TYPE_VIRT:
@@ -571,7 +562,8 @@ xdma_queue_submit_sg(xdma_channel_t *xchan)
 
 	sg = xchan->sg;
 
-	if ((xchan->flags & XCHAN_BUFS_ALLOCATED) == 0) {
+	if ((xchan->caps & XCHAN_CAP_NOBUFS) == 0 &&
+	   (xchan->flags & XCHAN_BUFS_ALLOCATED) == 0) {
 		device_printf(xdma->dev,
 		    "%s: Can't submit a transfer: no bufs\n",
 		    __func__);

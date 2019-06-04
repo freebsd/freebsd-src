@@ -136,19 +136,15 @@ xdma_mbuf_defrag(xdma_channel_t *xchan, struct xdma_request *xr)
 	if (c == 1)
 		return (c); /* Nothing to do. */
 
-	if (xchan->caps & XCHAN_CAP_BUSDMA) {
-		if ((xchan->caps & XCHAN_CAP_BUSDMA_NOSEG) || \
-		    (c > xchan->maxnsegs)) {
-			if ((m = m_defrag(xr->m, M_NOWAIT)) == NULL) {
-				device_printf(xdma->dma_dev,
-				    "%s: Can't defrag mbuf\n",
-				    __func__);
-				return (c);
-			}
-			xr->m = m;
-			c = 1;
-		}
+	if ((m = m_defrag(xr->m, M_NOWAIT)) == NULL) {
+		device_printf(xdma->dma_dev,
+		    "%s: Can't defrag mbuf\n",
+		    __func__);
+		return (c);
 	}
+
+	xr->m = m;
+	c = 1;
 
 	return (c);
 }
