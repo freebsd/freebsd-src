@@ -1297,17 +1297,13 @@ pmap_release(pmap_t pmap)
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
 
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_l1));
-	vm_page_unwire_noq(m);
-	vm_page_free_zero(m);
-
-	/* Remove pmap from the allpmaps list */
 	mtx_lock(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock(&allpmaps_lock);
 
-	/* Remove kernel pagetables */
-	bzero(pmap->pm_l1, PAGE_SIZE);
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_l1));
+	vm_page_unwire_noq(m);
+	vm_page_free(m);
 }
 
 #if 0
