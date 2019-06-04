@@ -496,9 +496,9 @@ write_fnt(const char *filename)
 
 	if (write_glyphs(fp) != 0 ||
 	    write_mappings(fp, VFNT_MAP_NORMAL) != 0 ||
-	    write_mappings(fp, 1) != 0 ||
+	    write_mappings(fp, VFNT_MAP_NORMAL_RH) != 0 ||
 	    write_mappings(fp, VFNT_MAP_BOLD) != 0 ||
-	    write_mappings(fp, 3) != 0) {
+	    write_mappings(fp, VFNT_MAP_BOLD_RH) != 0) {
 		perror(filename);
 		fclose(fp);
 		return (1);
