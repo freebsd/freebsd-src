@@ -169,6 +169,7 @@ TESTS_SRCS= \
 	test_read_format_tar_concatenated.c	\
 	test_read_format_tar_empty_filename.c	\
 	test_read_format_tar_empty_pax.c	\
+	test_read_format_tar_empty_with_gnulabel.c	\
 	test_read_format_tar_filename.c		\
 	test_read_format_tbz.c			\
 	test_read_format_tgz.c			\
@@ -179,10 +180,12 @@ TESTS_SRCS= \
 	test_read_format_warc.c			\
 	test_read_format_xar.c			\
 	test_read_format_zip.c			\
+	test_read_format_zip_7075_utf8_paths.c	\
 	test_read_format_zip_comment_stored.c	\
 	test_read_format_zip_encryption_data.c	\
 	test_read_format_zip_encryption_header.c	\
 	test_read_format_zip_encryption_partially.c	\
+	test_read_format_zip_extra_padding.c	\
 	test_read_format_zip_filename.c		\
 	test_read_format_zip_high_compression.c	\
 	test_read_format_zip_jar.c		\
@@ -489,6 +492,7 @@ FILES+=	test_read_format_mtree_crash747.mtree.bz2.uu
 FILES+=	test_read_format_mtree_nomagic.mtree.uu
 FILES+=	test_read_format_mtree_nomagic2.mtree.uu
 FILES+=	test_read_format_mtree_nomagic3.mtree.uu
+FILES+=	test_read_format_mtree_noprint.mtree.uu
 FILES+=	test_read_format_rar.rar.uu
 FILES+=	test_read_format_rar_binary_data.rar.uu
 FILES+=	test_read_format_rar_compress_best.rar.uu
@@ -504,6 +508,7 @@ FILES+=	test_read_format_rar_multivolume.part0003.rar.uu
 FILES+=	test_read_format_rar_multivolume.part0004.rar.uu
 FILES+=	test_read_format_rar_noeof.rar.uu
 FILES+=	test_read_format_rar_ppmd_lzss_conversion.rar.uu
+FILES+=	test_read_format_rar_ppmd_use_after_free.rar.uu
 FILES+=	test_read_format_rar_sfx.exe.uu
 FILES+=	test_read_format_rar_subblock.rar.uu
 FILES+=	test_read_format_rar_unicode.rar.uu
@@ -511,6 +516,13 @@ FILES+=	test_read_format_rar_windows.rar.uu
 FILES+=	test_read_format_rar5_arm.rar.uu
 FILES+=	test_read_format_rar5_blake2.rar.uu
 FILES+=	test_read_format_rar5_compressed.rar.uu
+FILES+=	test_read_format_rar5_distance_overflow.rar.uu
+FILES+=	test_read_format_rar5_extra_field_version.rar.uu
+FILES+=	test_read_format_rar5_fileattr.rar.uu
+FILES+=	test_read_format_rar5_hardlink.rar.uu
+FILES+=	test_read_format_rar5_invalid_dict_reference.rar.uu
+FILES+=	test_read_format_rar5_leftshift1.rar.uu
+FILES+=	test_read_format_rar5_leftshift2.rar.uu
 FILES+=	test_read_format_rar5_multiarchive.part01.rar.uu
 FILES+=	test_read_format_rar5_multiarchive.part02.rar.uu
 FILES+=	test_read_format_rar5_multiarchive.part03.rar.uu
@@ -519,28 +531,36 @@ FILES+=	test_read_format_rar5_multiarchive.part05.rar.uu
 FILES+=	test_read_format_rar5_multiarchive.part06.rar.uu
 FILES+=	test_read_format_rar5_multiarchive.part07.rar.uu
 FILES+=	test_read_format_rar5_multiarchive.part08.rar.uu
-FILES+=	test_read_format_rar5_multiarchive_solid.part01.rar.uu                                                                   
-FILES+=	test_read_format_rar5_multiarchive_solid.part02.rar.uu                                                                   
-FILES+=	test_read_format_rar5_multiarchive_solid.part03.rar.uu                                                                   
-FILES+=	test_read_format_rar5_multiarchive_solid.part04.rar.uu                                                                   
+FILES+=	test_read_format_rar5_multiarchive_solid.part01.rar.uu
+FILES+=	test_read_format_rar5_multiarchive_solid.part02.rar.uu
+FILES+=	test_read_format_rar5_multiarchive_solid.part03.rar.uu
+FILES+=	test_read_format_rar5_multiarchive_solid.part04.rar.uu
 FILES+=	test_read_format_rar5_multiple_files.rar.uu
-FILES+=	test_read_format_rar5_multiple_files_solid.rar.uu                                                                        
+FILES+=	test_read_format_rar5_multiple_files_solid.rar.uu
+FILES+=	test_read_format_rar5_nonempty_dir_stream.rar.uu
+FILES+=	test_read_format_rar5_owner.rar.uu
+FILES+=	test_read_format_rar5_readtables_overflow.rar.uu
 FILES+=	test_read_format_rar5_solid.rar.uu
 FILES+=	test_read_format_rar5_stored.rar.uu
 FILES+=	test_read_format_rar5_stored_manyfiles.rar.uu
+FILES+=	test_read_format_rar5_symlink.rar.uu
+FILES+=	test_read_format_rar5_truncated_huff.rar.uu
 FILES+=	test_read_format_rar5_win32.rar.uu
 FILES+=	test_read_format_raw.bufr.uu
 FILES+=	test_read_format_raw.data.Z.uu
+FILES+=	test_read_format_raw.data.gz.uu
 FILES+=	test_read_format_raw.data.uu
 FILES+=	test_read_format_tar_concatenated.tar.uu
 FILES+=	test_read_format_tar_empty_filename.tar.uu
 FILES+=	test_read_format_tar_empty_pax.tar.Z.uu
+FILES+=	test_read_format_tar_empty_with_gnulabel.tar.uu
 FILES+=	test_read_format_tar_filename_koi8r.tar.Z.uu
 FILES+=	test_read_format_ustar_filename_cp866.tar.Z.uu
 FILES+=	test_read_format_ustar_filename_eucjp.tar.Z.uu
 FILES+=	test_read_format_ustar_filename_koi8r.tar.Z.uu
 FILES+=	test_read_format_warc.warc.uu
 FILES+=	test_read_format_zip.zip.uu
+FILES+=	test_read_format_zip_7075_utf8_paths.zip.uu
 FILES+=	test_read_format_zip_bz2_hang.zip.uu
 FILES+=	test_read_format_zip_bzip2.zipx.uu
 FILES+=	test_read_format_zip_bzip2_multi.zipx.uu
@@ -549,6 +569,7 @@ FILES+=	test_read_format_zip_comment_stored_2.zip.uu
 FILES+=	test_read_format_zip_encryption_data.zip.uu
 FILES+=	test_read_format_zip_encryption_header.zip.uu
 FILES+=	test_read_format_zip_encryption_partially.zip.uu
+FILES+=	test_read_format_zip_extra_padding.zip.uu
 FILES+=	test_read_format_zip_filename_cp866.zip.uu
 FILES+=	test_read_format_zip_filename_cp932.zip.uu
 FILES+=	test_read_format_zip_filename_koi8r.zip.uu
@@ -558,6 +579,7 @@ FILES+=	test_read_format_zip_filename_utf8_ru2.zip.uu
 FILES+=	test_read_format_zip_high_compression.zip.uu
 FILES+=	test_read_format_zip_jar.jar.uu
 FILES+=	test_read_format_zip_length_at_end.zip.uu
+FILES+=	test_read_format_zip_lzma_alone_leak.zipx.uu
 FILES+=	test_read_format_zip_lzma.zipx.uu
 FILES+=	test_read_format_zip_lzma_multi.zipx.uu
 FILES+=	test_read_format_zip_mac_metadata.zip.uu

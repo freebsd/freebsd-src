@@ -69,6 +69,8 @@
  * either Windows or Posix APIs. */
 #if (defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__)
 #include "archive_windows.h"
+#else
+#define la_stat(path,stref)		stat(path,stref)
 #endif
 
 /*
