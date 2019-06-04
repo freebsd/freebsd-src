@@ -273,7 +273,7 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 	if (!blkio->Media->LogicalPartition)
 		return (EFI_UNSUPPORTED);
 
-	*preferred = efi_devpath_match(imgpath, devpath);
+	*preferred = efi_devpath_same_disk(imgpath, devpath);
 
 	/* Run through each module, see if it can load this partition */
 	devinfo = malloc(sizeof(*devinfo));
