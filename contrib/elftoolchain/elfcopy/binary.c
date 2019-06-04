@@ -250,11 +250,8 @@ create_elf_from_binary(struct elfcopy *ecp, int ifd, const char *ifn)
 		errx(EXIT_FAILURE, "gelf_update_ehdr() failed: %s",
 		    elf_errmsg(-1));
 
-	/* Generate section name string table (.shstrtab). */
-	ecp->flags |= SYMTAB_EXIST;
-	set_shstrtab(ecp);
-
 	/* Update sh_name pointer for each section header entry. */
+	ecp->flags |= SYMTAB_EXIST;
 	update_shdr(ecp, 0);
 
 	/* Properly set sh_link field of .symtab section. */
