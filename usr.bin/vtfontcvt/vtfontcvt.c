@@ -520,6 +520,8 @@ print_font_info(void)
 {
 	printf(
 "Statistics:\n"
+"- width:                       %6u\n"
+"- height:                      %6u\n"
 "- glyph_total:                 %6u\n"
 "- glyph_normal:                %6u\n"
 "- glyph_normal_right:          %6u\n"
@@ -538,6 +540,7 @@ print_font_info(void)
 "- mapping_bold_right_folded:   %6u\n"
 "- mapping_unique:              %6u\n"
 "- mapping_dupe:                %6u\n",
+	    width, height,
 	    glyph_total,
 	    glyph_count[0],
 	    glyph_count[1],
