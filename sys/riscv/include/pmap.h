@@ -44,6 +44,8 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+#include <vm/_vm_radix.h>
+
 #ifdef _KERNEL
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
@@ -80,6 +82,7 @@ struct pmap {
 	pd_entry_t		*pm_l1;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
+	struct vm_radix		pm_root;
 };
 
 typedef struct pv_entry {
@@ -139,6 +142,7 @@ void	pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	pmap_kremove_device(vm_offset_t, vm_size_t);
+bool	pmap_ps_enabled(pmap_t);
 
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);
