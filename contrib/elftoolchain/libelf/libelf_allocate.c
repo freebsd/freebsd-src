@@ -76,7 +76,7 @@ _libelf_init_elf(Elf *e, Elf_Kind kind)
 
 	switch (kind) {
 	case ELF_K_ELF:
-		STAILQ_INIT(&e->e_u.e_elf.e_scn);
+		RB_INIT(&e->e_u.e_elf.e_scn);
 		break;
 	default:
 		break;
@@ -111,7 +111,7 @@ _libelf_release_elf(Elf *e)
 			break;
 		}
 
-		assert(STAILQ_EMPTY(&e->e_u.e_elf.e_scn));
+		assert(RB_EMPTY(&e->e_u.e_elf.e_scn));
 
 		if (e->e_flags & LIBELF_F_AR_HEADER) {
 			arh = e->e_hdr.e_arhdr;
@@ -174,7 +174,7 @@ _libelf_allocate_scn(Elf *e, size_t ndx)
 	STAILQ_INIT(&s->s_data);
 	STAILQ_INIT(&s->s_rawdata);
 
-	STAILQ_INSERT_TAIL(&e->e_u.e_elf.e_scn, s, s_next);
+	RB_INSERT(scntree, &e->e_u.e_elf.e_scn, s);
 
 	return (s);
 }
@@ -202,7 +202,7 @@ _libelf_release_scn(Elf_Scn *s)
 
 	assert(e != NULL);
 
-	STAILQ_REMOVE(&e->e_u.e_elf.e_scn, s, _Elf_Scn, s_next);
+	RB_REMOVE(scntree, &e->e_u.e_elf.e_scn, s);
 
 	free(s);
 
