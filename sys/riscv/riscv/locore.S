@@ -59,11 +59,17 @@ _start:
 	sub	t1, t1, t0
 	li	t2, KERNBASE
 	sub	s9, t2, t1	/* s9 = physmem base */
-	mv	s10, a0		/* s10 = hart id */
-	mv	s11, a1		/* s11 = dtbp */
 
-	/* Direct secondary cores to mpentry */
-	bnez	s10, mpentry
+	/*
+	 * a0 = hart id
+	 * a1 = dtbp
+	 */
+
+	/* Pick a hart to run the boot process. */
+	la	t0, hart_lottery
+	li	t1, 1
+	amoadd.w t0, t1, 0(t0)
+	bnez	t0, mpentry
 
 	/*
 	 * Page tables
@@ -123,7 +129,7 @@ _start:
 
 	/* Create an L2 page superpage for DTB */
 	la	s1, pagetable_l2_devmap
-	mv	s2, s11
+	mv	s2, a1
 	srli	s2, s2, PAGE_SHIFT
 
 	li	t0, (PTE_KERN)
@@ -171,12 +177,18 @@ va:
 	addi	sp, sp, -PCB_SIZE
 
 	/* Clear BSS  */
-	la	a0, _C_LABEL(__bss_start)
+	la	s0, _C_LABEL(__bss_start)
 	la	s1, _C_LABEL(_end)
 1:
-	sd	zero, 0(a0)
-	addi	a0, a0, 8
-	bltu	a0, s1, 1b
+	sd	zero, 0(s0)
+	addi	s0, s0, 8
+	bltu	s0, s1, 1b
+
+#ifdef SMP
+	/* Store boot hart id. */
+	la	t0, boot_hart
+	sw	a0, 0(t0)
+#endif
 
 	/* Fill riscv_bootparams */
 	addi	sp, sp, -40
@@ -190,7 +202,7 @@ va:
 
 	li	t0, (VM_MAX_KERNEL_ADDRESS - 2 * L2_SIZE)
 	sd	t0, 24(sp) /* dtbp_virt */
-	sd	s11, 32(sp) /* dtbp_phys */
+	sd	a1, 32(sp) /* dtbp_phys */
 
 	mv	a0, sp
 	call	_C_LABEL(initriscv)	/* Off we go */
@@ -233,9 +245,11 @@ pagetable_l2:
 pagetable_l2_devmap:
 	.space	PAGE_SIZE
 
-        .align 3
+	.align 3
 virt_map:
-        .quad   virt_map
+	.quad   virt_map
+hart_lottery:
+	.space	4
 
 	/* Not in use, but required for linking. */
 	.align 3
@@ -278,7 +292,8 @@ ENTRY(mpentry)
 	/* Setup stack pointer */
 	la	t0, secondary_stacks
 	li	t1, (PAGE_SIZE * KSTACK_PAGES)
-	mulw	t1, t1, s10
+	mulw	t2, t1, a0
+	add	t0, t0, t2
 	add	t0, t0, t1
 	sub	t0, t0, s9
 	li	t1, KERNBASE
