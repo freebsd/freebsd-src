@@ -63,7 +63,6 @@ ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
-ASSYM(PCB_L1ADDR, offsetof(struct pcb, pcb_l1addr));
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_RA, offsetof(struct pcb, pcb_ra));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
