@@ -135,6 +135,8 @@ struct section {
 	int		 pseudo;
 	int		 nocopy;
 
+	Elftc_String_Table *strtab;
+
 	TAILQ_ENTRY(section) sec_list;	/* next section */
 };
 
@@ -313,7 +315,6 @@ struct sec_action *lookup_sec_act(struct elfcopy *_ecp,
 struct symop *lookup_symop_list(struct elfcopy *_ecp, const char *_name,
     unsigned int _op);
 void	resync_sections(struct elfcopy *_ecp);
-void	set_shstrtab(struct elfcopy *_ecp);
 void	setup_phdr(struct elfcopy *_ecp);
 void	update_shdr(struct elfcopy *_ecp, int _update_link);
 
