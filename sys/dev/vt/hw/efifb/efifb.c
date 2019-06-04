@@ -64,6 +64,8 @@ static struct vt_driver vt_efifb_driver = {
 	.vd_setpixel = vt_fb_setpixel,
 	.vd_fb_ioctl = vt_fb_ioctl,
 	.vd_fb_mmap = vt_fb_mmap,
+	.vd_suspend = vt_suspend,
+	.vd_resume = vt_resume,
 	/* Better than VGA, but still generic driver. */
 	.vd_priority = VD_PRIORITY_GENERIC + 1,
 };
