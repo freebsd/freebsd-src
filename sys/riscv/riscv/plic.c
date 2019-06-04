@@ -52,9 +52,9 @@ __FBSDID("$FreeBSD$");
 
 #include "pic_if.h"
 
-#define	PLIC_NIRQS		32
+#define	PLIC_MAX_IRQS		2048
 #define	PLIC_PRIORITY(n)	(0x000000 + (n) * 0x4)
-#define	PLIC_ENABLE(n, h)	(0x002000 + (h) * 0x80 + (n) / 32)
+#define	PLIC_ENABLE(n, h)	(0x002000 + (h) * 0x80 + 4 * ((n) / 32))
 #define	PLIC_THRESHOLD(h)	(0x200000 + (h) * 0x1000 + 0x0)
 #define	PLIC_CLAIM(h)		(0x200000 + (h) * 0x1000 + 0x4)
 
@@ -66,7 +66,8 @@ struct plic_irqsrc {
 struct plic_softc {
 	device_t		dev;
 	struct resource *	intc_res;
-	struct plic_irqsrc	isrcs[PLIC_NIRQS];
+	struct plic_irqsrc	isrcs[PLIC_MAX_IRQS];
+	int			ndev;
 };
 
 #define	RD4(sc, reg)				\
@@ -158,7 +159,7 @@ plic_map_intr(device_t dev, struct intr_map_data *data,
 		return (ENOTSUP);
 
 	daf = (struct intr_map_data_fdt *)data;
-	if (daf->ncells != 1 || daf->cells[0] >= PLIC_NIRQS)
+	if (daf->ncells != 1 || daf->cells[0] > sc->ndev)
 		return (EINVAL);
 
 	*isrcp = &sc->isrcs[daf->cells[0]].isrc;
@@ -189,6 +190,7 @@ plic_attach(device_t dev)
 	struct intr_pic *pic;
 	uint32_t irq;
 	const char *name;
+	phandle_t node;
 	phandle_t xref;
 	uint32_t cpu;
 	int error;
@@ -197,6 +199,20 @@ plic_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->dev = dev;
+
+	node = ofw_bus_get_node(dev);
+	if ((OF_getencprop(node, "riscv,ndev", &sc->ndev,
+	    sizeof(sc->ndev))) < 0) {
+		device_printf(dev,
+		    "Error: could not get number of devices\n");
+		return (ENXIO);
+	}
+
+	if (sc->ndev >= PLIC_MAX_IRQS) {
+		device_printf(dev,
+		    "Error: invalid ndev (%d)\n", sc->ndev);
+		return (ENXIO);
+	}
 
 	/* Request memory resources */
 	rid = 0;
@@ -211,7 +227,7 @@ plic_attach(device_t dev)
 	isrcs = sc->isrcs;
 	name = device_get_nameunit(sc->dev);
 	cpu = PCPU_GET(cpuid);
-	for (irq = 0; irq < PLIC_NIRQS; irq++) {
+	for (irq = 1; irq <= sc->ndev; irq++) {
 		isrcs[irq].irq = irq;
 		error = intr_isrc_register(&isrcs[irq].isrc, sc->dev,
 		    0, "%s,%u", name, irq);
@@ -223,7 +239,7 @@ plic_attach(device_t dev)
 	}
 	WR4(sc, PLIC_THRESHOLD(cpu), 0);
 
-	xref = OF_xref_from_node(ofw_bus_get_node(sc->dev));
+	xref = OF_xref_from_node(node);
 	pic = intr_pic_register(sc->dev, xref);
 	if (pic == NULL)
 		return (ENXIO);
