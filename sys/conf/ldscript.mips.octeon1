@@ -23,6 +23,12 @@ SECTIONS {
 	    	*(.rodata)
 		. = ALIGN(32);
 	}
+
+	.note.gnu.build-id : {
+		PROVIDE (__build_id_start = .);
+		*(.note.gnu.build-id)
+		PROVIDE (__build_id_end = .);
+	}
 	
 	.data : {
                 _rwdata = .;
