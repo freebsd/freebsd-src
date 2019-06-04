@@ -482,9 +482,9 @@ SYSCTL_PROC(_kern, KERN_OSRELDATE, osreldate,
     NULL, 0, sysctl_osreldate, "I", "Kernel release date");
 
 /*
- * The build-id is copied from the ELF section .note.gnu.build-id.  The linker 
- * script defines two variables to expose the beginning and end.  LLVM 
- * currently uses a SHA-1 hash, but other formats can be supported by checking 
+ * The build-id is copied from the ELF section .note.gnu.build-id.  The linker
+ * script defines two variables to expose the beginning and end.  LLVM
+ * currently uses a SHA-1 hash, but other formats can be supported by checking
  * the length of the section.
  */
 
@@ -503,23 +503,23 @@ sysctl_build_id(SYSCTL_HANDLER_ARGS)
 
 	/*
 	 * The ELF note section has a four byte length for the vendor name,
-	 * four byte length for the value, and a four byte vendor specific 
-	 * type.  The name for the build id is "GNU\0".  We skip the first 16 
-	 * bytes to read the build hash.  We will return the remaining bytes up 
-	 * to 20 (SHA-1) hash size.  If the hash happens to be a custom number 
-	 * of bytes we will pad the value with zeros, as the section should be 
+	 * four byte length for the value, and a four byte vendor specific
+	 * type.  The name for the build id is "GNU\0".  We skip the first 16
+	 * bytes to read the build hash.  We will return the remaining bytes up
+	 * to 20 (SHA-1) hash size.  If the hash happens to be a custom number
+	 * of bytes we will pad the value with zeros, as the section should be
 	 * four byte aligned.
 	 */
 	if (sectionlen <= BUILD_ID_HEADER_LEN ||
 	    sectionlen > (BUILD_ID_HEADER_LEN + BUILD_ID_HASH_MAXLEN)) {
-	    return (ENOENT);
+		return (ENOENT);
 	}
-   
+
 
 	hashlen = sectionlen - BUILD_ID_HEADER_LEN;
 	for (int i = 0; i < hashlen; i++) {
-	    uint8_t c = __build_id_start[i+BUILD_ID_HEADER_LEN];
-	    snprintf(&buf[2*i], 3, "%02x", c);
+		uint8_t c = __build_id_start[i+BUILD_ID_HEADER_LEN];
+		snprintf(&buf[2*i], 3, "%02x", c);
 	}
 
 	return (SYSCTL_OUT(req, buf, strlen(buf) + 1));
