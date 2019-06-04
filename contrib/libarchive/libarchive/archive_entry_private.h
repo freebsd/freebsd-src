@@ -176,6 +176,9 @@ struct archive_entry {
 
 	/* Miscellaneous. */
 	char		 strmode[12];
+
+	/* Symlink type support */
+	int ae_symlink_type;
 };
 
 #endif /* ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

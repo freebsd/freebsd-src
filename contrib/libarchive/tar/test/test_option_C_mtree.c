@@ -36,6 +36,9 @@ DEFINE_TEST(test_option_C_mtree)
 	p0 = NULL;
 	char *content = "./foo type=file uname=root gname=root mode=0755\n";
 	char *filename = "output.tar";
+#if defined(_WIN32) && !defined(CYGWIN)
+	char *p;
+#endif
 
 	/* an absolute path to mtree file */ 
 	char *mtree_file = "/METALOG.mtree";	
@@ -48,9 +51,21 @@ DEFINE_TEST(test_option_C_mtree)
 	assertMakeDir("bar", 0775);
 	assertMakeFile("bar/foo", 0777, "abc");
 
-	r = systemf("%s -cf %s -C bar \"@%s\" >step1.out 2>step1.err", testprog, filename, absolute_path);
+#if defined(_WIN32) && !defined(CYGWIN)
+	p = absolute_path;
+	while(*p != '\0') {
+		if (*p == '/')
+			*p = '\\';
+		p++;
+	}
 
+	r = systemf("%s -cf %s -C bar @%s >step1.out 2>step1.err", testprog, filename, absolute_path);
 	failure("Error invoking %s -cf %s -C bar @%s", testprog, filename, absolute_path);
+#else
+	r = systemf("%s -cf %s -C bar \"@%s\" >step1.out 2>step1.err", testprog, filename, absolute_path);
+	failure("Error invoking %s -cf %s -C bar \"@%s\"", testprog, filename, absolute_path);
+#endif
+
 	assertEqualInt(r, 0);
 	assertEmptyFile("step1.out");
 	assertEmptyFile("step1.err");
@@ -68,6 +83,7 @@ DEFINE_TEST(test_option_C_mtree)
 	assertEqualMem(p0 + 1536, "\0\0\0\0\0\0\0\0", 8);
 done:
 	free(p0);
+	free(absolute_path);
 }
 
 

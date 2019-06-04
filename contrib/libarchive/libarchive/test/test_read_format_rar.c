@@ -28,6 +28,22 @@
 
 #include <locale.h>
 
+DEFINE_TEST(test_read_format_rar_set_format)
+{
+    struct archive *a;
+    struct archive_entry *ae;
+    const char reffile[] = "test_read_format_rar.rar";
+
+    extract_reference_file(reffile);
+    assert((a = archive_read_new()) != NULL);
+    assertA(0 == archive_read_support_filter_all(a));
+    assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_RAR));
+    assertA(0 == archive_read_open_filename(a, reffile, 10240));
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+    assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_rar_basic)
 {
   char buff[64];
@@ -3739,4 +3755,27 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualIntA(a, 16, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_rar_ppmd_use_after_free)
+{
+  uint8_t buf[16];
+  const char* reffile = "test_read_format_rar_ppmd_use_after_free.rar";
+
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+  assertA(ARCHIVE_OK == archive_read_next_header(a, &ae));
+  assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+  assertA(ARCHIVE_OK == archive_read_next_header(a, &ae));
+  assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

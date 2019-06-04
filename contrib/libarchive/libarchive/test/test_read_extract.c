@@ -161,7 +161,7 @@ DEFINE_TEST(test_read_extract)
 	assertIsDir("dir4/b", 0755);
 	assertIsDir("dir4/c", 0711);
 	if (canSymlink())
-		assertIsSymlink("symlink", "file");
+		assertIsSymlink("symlink", "file", 0);
 
 	free(buff);
 	free(file_buff);
