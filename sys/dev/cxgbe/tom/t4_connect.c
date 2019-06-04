@@ -385,8 +385,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	toep->vnet = so->so_vnet;
 	set_ulp_mode(toep, select_ulp_mode(so, sc, &settings));
 	SOCKBUF_LOCK(&so->so_rcv);
-	/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
-	toep->rx_credits = min(select_rcv_wnd(so) >> 10, M_RCV_BUFSIZ);
+	toep->opt0_rcv_bufsize = min(select_rcv_wnd(so) >> 10, M_RCV_BUFSIZ);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	/*
@@ -440,7 +439,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		cpl->peer_ip_hi = *(uint64_t *)&inp->in6p_faddr.s6_addr[0];
 		cpl->peer_ip_lo = *(uint64_t *)&inp->in6p_faddr.s6_addr[8];
 		cpl->opt0 = calc_opt0(so, vi, toep->l2te, mtu_idx, rscale,
-		    toep->rx_credits, toep->ulp_mode, &settings);
+		    toep->opt0_rcv_bufsize, toep->ulp_mode, &settings);
 		cpl->opt2 = calc_opt2a(so, toep, &settings);
 	} else {
 		struct cpl_act_open_req *cpl = wrtod(wr);
@@ -469,7 +468,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		inp_4tuple_get(inp, &cpl->local_ip, &cpl->local_port,
 		    &cpl->peer_ip, &cpl->peer_port);
 		cpl->opt0 = calc_opt0(so, vi, toep->l2te, mtu_idx, rscale,
-		    toep->rx_credits, toep->ulp_mode, &settings);
+		    toep->opt0_rcv_bufsize, toep->ulp_mode, &settings);
 		cpl->opt2 = calc_opt2a(so, toep, &settings);
 	}
 
