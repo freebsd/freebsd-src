@@ -233,6 +233,9 @@ MODULE_VERSION(virtio_scsi, 1);
 MODULE_DEPEND(virtio_scsi, virtio, 1, 1, 1);
 MODULE_DEPEND(virtio_scsi, cam, 1, 1, 1);
 
+VIRTIO_SIMPLE_PNPTABLE(virtio_scsi, VIRTIO_ID_SCSI, "VirtIO SCSI Adapter");
+VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_scsi);
+
 static int
 vtscsi_modevent(module_t mod, int type, void *unused)
 {
@@ -256,13 +259,7 @@ vtscsi_modevent(module_t mod, int type, void *unused)
 static int
 vtscsi_probe(device_t dev)
 {
-
-	if (virtio_get_device_type(dev) != VIRTIO_ID_SCSI)
-		return (ENXIO);
-
-	device_set_desc(dev, "VirtIO SCSI Adapter");
-
-	return (BUS_PROBE_DEFAULT);
+	return (VIRTIO_SIMPLE_PROBE(dev, virtio_scsi));
 }
 
 static int
