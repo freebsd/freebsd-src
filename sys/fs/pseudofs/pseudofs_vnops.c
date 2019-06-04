@@ -967,7 +967,8 @@ pfs_setattr(struct vop_setattr_args *va)
 	PFS_TRACE(("%s", pn->pn_name));
 	pfs_assert_not_owned(pn);
 
-	PFS_RETURN (EOPNOTSUPP);
+	/* Silently ignore unchangeable attributes. */
+	PFS_RETURN (0);
 }
 
 /*
