@@ -7,6 +7,8 @@ SUBDIR+=	clang-tblgen
 SUBDIR+=	llvm-tblgen
 
 .if !defined(TOOLS_PREFIX)
+SUBDIR+=	llvm-ar
+SUBDIR+=	llvm-nm
 SUBDIR+=	llvm-objdump
 SUBDIR+=	llvm-symbolizer
 
@@ -15,7 +17,6 @@ SUBDIR+=	bugpoint
 SUBDIR+=	clang-format
 SUBDIR+=	llc
 SUBDIR+=	lli
-SUBDIR+=	llvm-ar
 SUBDIR+=	llvm-as
 SUBDIR+=	llvm-bcanalyzer
 SUBDIR+=	llvm-cxxdump
@@ -30,7 +31,6 @@ SUBDIR+=	llvm-lto2
 SUBDIR+=	llvm-mc
 SUBDIR+=	llvm-mca
 SUBDIR+=	llvm-modextract
-SUBDIR+=	llvm-nm
 SUBDIR+=	llvm-objcopy
 SUBDIR+=	llvm-pdbutil
 SUBDIR+=	llvm-rtdyld
