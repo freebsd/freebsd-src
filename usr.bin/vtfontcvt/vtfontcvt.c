@@ -201,8 +201,7 @@ add_char(unsigned curchar, unsigned map_idx, uint8_t *bytes, uint8_t *bytes_r)
 			return (1);
 		if (bytes_r != NULL) {
 			gl = add_glyph(bytes_r, map_idx + 1, 0);
-			if (add_mapping(gl, curchar,
-			    map_idx + 1) != 0)
+			if (add_mapping(gl, curchar, map_idx + 1) != 0)
 				return (1);
 		}
 	}
