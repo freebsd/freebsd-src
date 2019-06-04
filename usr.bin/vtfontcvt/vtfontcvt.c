@@ -102,7 +102,7 @@ xmalloc(size_t size)
 {
 	void *m;
 
-	if ((m = malloc(size)) == NULL)
+	if ((m = calloc(1, size)) == NULL)
 		errx(1, "memory allocation failure");
 	return (m);
 }
