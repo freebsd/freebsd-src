@@ -102,6 +102,10 @@ MODULE_VERSION(virtio_random, 1);
 MODULE_DEPEND(virtio_random, virtio, 1, 1, 1);
 MODULE_DEPEND(virtio_random, random_device, 1, 1, 1);
 
+VIRTIO_SIMPLE_PNPTABLE(virtio_random, VIRTIO_ID_ENTROPY,
+    "VirtIO Entropy Adapter");
+VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_random);
+
 static int
 vtrnd_modevent(module_t mod, int type, void *unused)
 {
@@ -125,13 +129,7 @@ vtrnd_modevent(module_t mod, int type, void *unused)
 static int
 vtrnd_probe(device_t dev)
 {
-
-	if (virtio_get_device_type(dev) != VIRTIO_ID_ENTROPY)
-		return (ENXIO);
-
-	device_set_desc(dev, "VirtIO Entropy Adapter");
-
-	return (BUS_PROBE_DEFAULT);
+	return (VIRTIO_SIMPLE_PROBE(dev, virtio_random));
 }
 
 static int
