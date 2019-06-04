@@ -168,6 +168,32 @@ static int	 my_CreateHardLinkA(const char *, const char *);
 static int	 my_GetFileInformationByName(const char *,
 		     BY_HANDLE_FILE_INFORMATION *);
 
+typedef struct _REPARSE_DATA_BUFFER {
+	ULONG	ReparseTag;
+	USHORT ReparseDataLength;
+	USHORT	Reserved;
+	union {
+		struct {
+			USHORT	SubstituteNameOffset;
+			USHORT	SubstituteNameLength;
+			USHORT	PrintNameOffset;
+			USHORT	PrintNameLength;
+			ULONG	Flags;
+			WCHAR	PathBuffer[1];
+		} SymbolicLinkReparseBuffer;
+		struct {
+			USHORT	SubstituteNameOffset;
+			USHORT	SubstituteNameLength;
+			USHORT	PrintNameOffset;
+			USHORT	PrintNameLength;
+			WCHAR	PathBuffer[1];
+		} MountPointReparseBuffer;
+		struct {
+			UCHAR	DataBuffer[1];
+		} GenericReparseBuffer;
+	} DUMMYUNIONNAME;
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
+
 static void *
 GetFunctionKernel32(const char *name)
 {
@@ -185,15 +211,101 @@ GetFunctionKernel32(const char *name)
 }
 
 static int
-my_CreateSymbolicLinkA(const char *linkname, const char *target, int flags)
+my_CreateSymbolicLinkA(const char *linkname, const char *target,
+    int targetIsDir)
 {
 	static BOOLEAN (WINAPI *f)(LPCSTR, LPCSTR, DWORD);
+	DWORD attrs;
 	static int set;
+	int ret, tmpflags, llen, tlen;
+	int flags = 0;
+	char *src, *tgt, *p;
 	if (!set) {
 		set = 1;
 		f = GetFunctionKernel32("CreateSymbolicLinkA");
 	}
-	return f == NULL ? 0 : (*f)(linkname, target, flags);
+	if (f == NULL)
+		return (0);
+
+	tlen = strlen(target);
+	llen = strlen(linkname);
+
+	if (tlen == 0 || llen == 0)
+		return (0);
+
+	tgt = malloc((tlen + 1) * sizeof(char));
+	if (tgt == NULL)
+		return (0);
+	src = malloc((llen + 1) * sizeof(char));
+	if (src == NULL) {
+		free(tgt);
+		return (0);
+	}
+
+	/*
+	 * Translate slashes to backslashes
+	 */
+	p = src;
+	while(*linkname != '\0') {
+		if (*linkname == '/')
+			*p = '\\';
+		else
+			*p = *linkname;
+		linkname++;
+		p++;
+	}
+	*p = '\0';
+
+	p = tgt;
+	while(*target != '\0') {
+		if (*target == '/')
+			*p = '\\';
+		else
+			*p = *target;
+		target++;
+		p++;
+	}
+	*p = '\0';
+
+	/*
+	 * Each test has to specify if a file or a directory symlink
+	 * should be created.
+	 */
+	if (targetIsDir) {
+#if defined(SYMBOLIC_LINK_FLAG_DIRECTORY)
+		flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
+#else
+		flags |= 0x1;
+#endif
+	}
+
+#if defined(SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)
+	tmpflags = flags | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+#else
+	tmpflags = flags | 0x2;
+#endif
+	/*
+	 * Windows won't overwrite existing links
+	 */
+	attrs = GetFileAttributesA(linkname);
+	if (attrs != INVALID_FILE_ATTRIBUTES) {
+		if (attrs & FILE_ATTRIBUTE_DIRECTORY)
+			RemoveDirectoryA(linkname);
+		else
+			DeleteFileA(linkname);
+	}
+
+	ret = (*f)(src, tgt, tmpflags);
+	/*
+	 * Prior to Windows 10 the SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+	 * is not undestood
+	 */
+	if (!ret)
+		ret = (*f)(src, tgt, flags);
+
+	free(src);
+	free(tgt);
+	return (ret);
 }
 
 static int
@@ -1599,26 +1711,146 @@ assertion_is_reg(const char *file, int line, const char *pathname, int mode)
 	return (1);
 }
 
-/* Check whether 'pathname' is a symbolic link.  If 'contents' is
- * non-NULL, verify that the symlink has those contents. */
+/*
+ * Check whether 'pathname' is a symbolic link.  If 'contents' is
+ * non-NULL, verify that the symlink has those contents.
+ *
+ * On platforms with directory symlinks, set isdir to 0 to test for a file
+ * symlink and to 1 to test for a directory symlink. On other platforms
+ * the variable is ignored.
+ */
 static int
 is_symlink(const char *file, int line,
-    const char *pathname, const char *contents)
+    const char *pathname, const char *contents, int isdir)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	(void)pathname; /* UNUSED */
-	(void)contents; /* UNUSED */
-	assertion_count(file, line);
-	/* Windows sort-of has real symlinks, but they're only usable
-	 * by privileged users and are crippled even then, so there's
-	 * really not much point in bothering with this. */
-	return (0);
+	HANDLE h;
+	DWORD inbytes;
+	REPARSE_DATA_BUFFER *buf;
+	BY_HANDLE_FILE_INFORMATION st;
+	size_t len, len2;
+	wchar_t *linknamew, *contentsw;
+	const char *p;
+	char *s, *pn;
+	int ret = 0;
+	BYTE *indata;
+	const DWORD flag = FILE_FLAG_BACKUP_SEMANTICS |
+	    FILE_FLAG_OPEN_REPARSE_POINT;
+
+	/* Replace slashes with backslashes in pathname */
+	pn = malloc((strlen(pathname) + 1) * sizeof(char));
+	p = pathname;
+	s = pn;
+	while(*p != '\0') {
+		if(*p == '/')
+			*s = '\\';
+		else
+			*s = *p;
+		p++;
+		s++;
+	}
+	*s = '\0';
+
+	h = CreateFileA(pn, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+	    flag, NULL);
+	free(pn);
+	if (h == INVALID_HANDLE_VALUE) {
+		failure_start(file, line, "Can't access %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	ret = GetFileInformationByHandle(h, &st);
+	if (ret == 0) {
+		failure_start(file, line,
+		    "Can't stat: %s", pathname);
+		failure_finish(NULL);
+	} else if ((st.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) {
+		failure_start(file, line,
+		    "Not a symlink: %s", pathname);
+		failure_finish(NULL);
+		ret = 0;
+	}
+	if (isdir && ((st.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)) {
+		failure_start(file, line,
+		    "Not a directory symlink: %s", pathname);
+		failure_finish(NULL);
+		ret = 0;
+	}
+	if (!isdir &&
+	    ((st.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)) {
+		failure_start(file, line,
+		    "Not a file symlink: %s", pathname);
+		failure_finish(NULL);
+		ret = 0;
+	}
+	if (ret == 0) {
+		CloseHandle(h);
+		return (0);
+	}
+
+	indata = malloc(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+	ret = DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, NULL, 0, indata,
+	    1024, &inbytes, NULL);
+	CloseHandle(h);
+	if (ret == 0) {
+		free(indata);
+		failure_start(file, line,
+		    "Could not retrieve symlink target: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+
+	buf = (REPARSE_DATA_BUFFER *) indata;
+	if (buf->ReparseTag != IO_REPARSE_TAG_SYMLINK) {
+		free(indata);
+		/* File is not a symbolic link */
+		failure_start(file, line,
+		    "Not a symlink: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+
+	if (contents == NULL) {
+		free(indata);
+		return (1);
+	}
+
+	len = buf->SymbolicLinkReparseBuffer.SubstituteNameLength;
+
+	linknamew = malloc(len + sizeof(wchar_t));
+	if (linknamew == NULL) {
+		free(indata);
+		return (0);
+	}
+
+	memcpy(linknamew, &((BYTE *)buf->SymbolicLinkReparseBuffer.PathBuffer)
+	    [buf->SymbolicLinkReparseBuffer.SubstituteNameOffset], len);
+	free(indata);
+
+	linknamew[len / sizeof(wchar_t)] = L'\0';
+
+	contentsw = malloc(len + sizeof(wchar_t));
+	if (contentsw == NULL) {
+		free(linknamew);
+		return (0);
+	}
+
+	len2 = mbsrtowcs(contentsw, &contents, (len + sizeof(wchar_t)
+	    / sizeof(wchar_t)), NULL);
+
+	if (len2 > 0 && wcscmp(linknamew, contentsw) != 0)
+		ret = 1;
+
+	free(linknamew);
+	free(contentsw);
+	return (ret);
 #else
 	char buff[300];
 	struct stat st;
 	ssize_t linklen;
 	int r;
 
+	(void)isdir; /* UNUSED */
 	assertion_count(file, line);
 	r = lstat(pathname, &st);
 	if (r != 0) {
@@ -1647,9 +1879,9 @@ is_symlink(const char *file, int line,
 /* Assert that path is a symlink that (optionally) contains contents. */
 int
 assertion_is_symlink(const char *file, int line,
-    const char *path, const char *contents)
+    const char *path, const char *contents, int isdir)
 {
-	if (is_symlink(file, line, path, contents))
+	if (is_symlink(file, line, path, contents, isdir))
 		return (1);
 	if (contents)
 		failure_start(file, line, "File %s is not a symlink to %s",
@@ -1777,20 +2009,26 @@ assertion_make_hardlink(const char *file, int line,
 	return(0);
 }
 
-/* Create a symlink and report any failures. */
+/*
+ * Create a symlink and report any failures.
+ *
+ * Windows symlinks need to know if the target is a directory.
+ */
 int
 assertion_make_symlink(const char *file, int line,
-    const char *newpath, const char *linkto)
+    const char *newpath, const char *linkto, int targetIsDir)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	int targetIsDir = 0;  /* TODO: Fix this */
 	assertion_count(file, line);
 	if (my_CreateSymbolicLinkA(newpath, linkto, targetIsDir))
 		return (1);
 #elif HAVE_SYMLINK
+	(void)targetIsDir; /* UNUSED */
 	assertion_count(file, line);
 	if (0 == symlink(linkto, newpath))
 		return (1);
+#else
+	(void)targetIsDir; /* UNUSED */
 #endif
 	failure_start(file, line, "Could not create symlink");
 	logprintf("   New link: %s\n", newpath);
@@ -2217,10 +2455,12 @@ canSymlink(void)
 	 * use the Win32 CreateSymbolicLink() function. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	value = my_CreateSymbolicLinkA("canSymlink.1", "canSymlink.0", 0)
-	    && is_symlink(__FILE__, __LINE__, "canSymlink.1", "canSymlink.0");
+	    && is_symlink(__FILE__, __LINE__, "canSymlink.1", "canSymlink.0",
+	    0);
 #elif HAVE_SYMLINK
 	value = (0 == symlink("canSymlink.0", "canSymlink.1"))
-	    && is_symlink(__FILE__, __LINE__, "canSymlink.1","canSymlink.0");
+	    && is_symlink(__FILE__, __LINE__, "canSymlink.1","canSymlink.0",
+	    0);
 #endif
 	return (value);
 }

@@ -39,13 +39,13 @@ DEFINE_TEST(test_option_H_upper)
 	assertMakeDir("in", 0755);
 	assertChdir("in");
 	assertMakeDir("d1", 0755);
-	assertMakeSymlink("ld1", "d1");
+	assertMakeSymlink("ld1", "d1", 1);
 	assertMakeFile("d1/file1", 0644, "d1/file1");
 	assertMakeFile("d1/file2", 0644, "d1/file2");
-	assertMakeSymlink("d1/link1", "file1");
-	assertMakeSymlink("d1/linkX", "fileX");
-	assertMakeSymlink("link2", "d1/file2");
-	assertMakeSymlink("linkY", "d1/fileY");
+	assertMakeSymlink("d1/link1", "file1", 0);
+	assertMakeSymlink("d1/linkX", "fileX", 0);
+	assertMakeSymlink("link2", "d1/file2", 0);
+	assertMakeSymlink("linkY", "d1/fileY", 0);
 	assertChdir("..");
 
 	/* Test 1: Without -H */
@@ -55,11 +55,11 @@ DEFINE_TEST(test_option_H_upper)
 	assertChdir("test1");
 	assertEqualInt(0,
 	    systemf("%s -xf archive.tar >c.out 2>c.err", testprog));
-	assertIsSymlink("ld1", "d1");
-	assertIsSymlink("d1/link1", "file1");
-	assertIsSymlink("d1/linkX", "fileX");
-	assertIsSymlink("link2", "d1/file2");
-	assertIsSymlink("linkY", "d1/fileY");
+	assertIsSymlink("ld1", "d1", 1);
+	assertIsSymlink("d1/link1", "file1", 0);
+	assertIsSymlink("d1/linkX", "fileX", 0);
+	assertIsSymlink("link2", "d1/file2", 0);
+	assertIsSymlink("linkY", "d1/fileY", 0);
 	assertChdir("..");
 
 	/* Test 2: With -H, no symlink on command line. */
@@ -69,11 +69,11 @@ DEFINE_TEST(test_option_H_upper)
 	assertChdir("test2");
 	assertEqualInt(0,
 	    systemf("%s -xf archive.tar >c.out 2>c.err", testprog));
-	assertIsSymlink("ld1", "d1");
-	assertIsSymlink("d1/link1", "file1");
-	assertIsSymlink("d1/linkX", "fileX");
-	assertIsSymlink("link2", "d1/file2");
-	assertIsSymlink("linkY", "d1/fileY");
+	assertIsSymlink("ld1", "d1", 1);
+	assertIsSymlink("d1/link1", "file1", 0);
+	assertIsSymlink("d1/linkX", "fileX", 0);
+	assertIsSymlink("link2", "d1/file2", 0);
+	assertIsSymlink("linkY", "d1/fileY", 0);
 	assertChdir("..");
 
 	/* Test 3: With -H, some symlinks on command line. */
@@ -84,9 +84,9 @@ DEFINE_TEST(test_option_H_upper)
 	assertEqualInt(0,
 	    systemf("%s -xf archive.tar >c.out 2>c.err", testprog));
 	assertIsDir("ld1", umasked(0755));
-	assertIsSymlink("d1/linkX", "fileX");
-	assertIsSymlink("d1/link1", "file1");
+	assertIsSymlink("d1/linkX", "fileX", 0);
+	assertIsSymlink("d1/link1", "file1", 0);
 	assertIsReg("link2", umasked(0644));
-	assertIsSymlink("linkY", "d1/fileY");
+	assertIsSymlink("linkY", "d1/fileY", 0);
 	assertChdir("..");
 }

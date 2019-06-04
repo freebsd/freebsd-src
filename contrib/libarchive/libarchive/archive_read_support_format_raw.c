@@ -120,7 +120,9 @@ archive_read_format_raw_read_header(struct archive_read *a,
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_perm(entry, 0644);
 	/* I'm deliberately leaving most fields unset here. */
-	return (ARCHIVE_OK);
+
+	/* Let the filter fill out any fields it might have. */
+	return __archive_read_header(a, entry);
 }
 
 static int

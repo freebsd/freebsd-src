@@ -98,6 +98,8 @@ struct archive_read_filter {
 	int (*close)(struct archive_read_filter *self);
 	/* Function that handles switching from reading one block to the next/prev */
 	int (*sswitch)(struct archive_read_filter *self, unsigned int iindex);
+	/* Read any header metadata if available. */
+	int (*read_header)(struct archive_read_filter *self, struct archive_entry *entry);
 	/* My private data. */
 	void *data;
 
@@ -250,6 +252,7 @@ int64_t	__archive_read_seek(struct archive_read*, int64_t, int);
 int64_t	__archive_read_filter_seek(struct archive_read_filter *, int64_t, int);
 int64_t	__archive_read_consume(struct archive_read *, int64_t);
 int64_t	__archive_read_filter_consume(struct archive_read_filter *, int64_t);
+int __archive_read_header(struct archive_read *, struct archive_entry *);
 int __archive_read_program(struct archive_read_filter *, const char *);
 void __archive_read_free_filters(struct archive_read *);
 struct archive_read_extract *__archive_read_get_extract(struct archive_read *);
