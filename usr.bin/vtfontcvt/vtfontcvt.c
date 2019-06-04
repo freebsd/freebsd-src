@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #define VFNT_MAP_NORMAL_RH 1
 #define VFNT_MAP_BOLD 2
 #define VFNT_MAP_BOLD_RH 3
+#define VFNT_MAXDIMENSION 128
 
 static unsigned int width = 8, wbytes, height = 16;
 
@@ -297,10 +298,17 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 }
 
 static void
+set_height(int h)
+{
+	if (h <= 0 || h > VFNT_MAXDIMENSION)
+		errx(1, "invalid height %d", h);
+	height = h;
+}
+
+static void
 set_width(int w)
 {
-
-	if (w <= 0 || w > 128)
+	if (w <= 0 || w > VFNT_MAXDIMENSION)
 		errx(1, "invalid width %d", w);
 	width = w;
 	wbytes = howmany(width, 8);
@@ -322,7 +330,7 @@ parse_hex(FILE *fp, unsigned int map_idx)
 		if (strncmp(ln, "# Height: ", 10) == 0) {
 			if (bytes != NULL)
 				errx(1, "malformed input: Height tag after font data");
-			height = atoi(ln + 10);
+			set_height(atoi(ln + 10));
 		} else if (strncmp(ln, "# Width: ", 9) == 0) {
 			if (bytes != NULL)
 				errx(1, "malformed input: Width tag after font data");
@@ -547,7 +555,7 @@ print_font_info(void)
 int
 main(int argc, char *argv[])
 {
-	int ch, val, verbose = 0;
+	int ch, verbose = 0;
 
 	assert(sizeof(struct file_header) == 32);
 	assert(sizeof(struct file_mapping) == 8);
@@ -555,16 +563,13 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "h:vw:")) != -1) {
 		switch (ch) {
 		case 'h':
-			val = atoi(optarg);
-			if (val <= 0 || val > 128)
-				errx(1, "Invalid height %d", val);
-			height = val;
+			height = atoi(optarg);
 			break;
 		case 'v':
 			verbose = 1;
 			break;
 		case 'w':
-			set_width(atoi(optarg));
+			width = atoi(optarg);
 			break;
 		case '?':
 		default:
@@ -577,7 +582,8 @@ main(int argc, char *argv[])
 	if (argc < 2 || argc > 3)
 		usage();
 
-	wbytes = howmany(width, 8);
+	set_width(width);
+	set_height(height);
 
 	if (parse_file(argv[0], VFNT_MAP_NORMAL) != 0)
 		return (1);
