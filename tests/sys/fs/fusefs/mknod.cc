@@ -55,7 +55,6 @@ public:
 
 virtual void SetUp() {
 	m_oldmask = umask(c_umask);
-	printf("m_oldmask=%#o\n", m_oldmask);
 	if (geteuid() != 0) {
 		GTEST_SKIP() << "Only root may use most mknod(2) variations";
 	}
