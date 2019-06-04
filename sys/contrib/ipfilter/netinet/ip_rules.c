@@ -12,22 +12,18 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-#if defined(__FreeBSD_version) && (__FreeBSD_version >= 40000)
+#if defined(__FreeBSD_version)
 # if defined(_KERNEL)
 #  include <sys/libkern.h>
 # else
 #  include <sys/unistd.h>
 # endif
-#endif
-#if defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 399000000)
 #else
-# if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__sgi)
-#  include <sys/systm.h>
-# endif
+# include <sys/systm.h>
 #endif
 #include <sys/errno.h>
 #include <sys/param.h>
-#if !defined(__SVR4) && !defined(__svr4__) && !defined(__hpux)
+#if !defined(__SVR4)
 # include <sys/mbuf.h>
 #endif
 #if defined(__FreeBSD__)
