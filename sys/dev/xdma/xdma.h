@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2016-2018 Ruslan Bukin <br@bsdpad.com>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2016-2019 Ruslan Bukin <br@bsdpad.com>
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
@@ -34,6 +35,7 @@
 #define _DEV_XDMA_XDMA_H_
 
 #include <sys/proc.h>
+#include <sys/vmem.h>
 
 enum xdma_direction {
 	XDMA_MEM_TO_MEM,
@@ -73,6 +75,7 @@ struct xdma_controller {
 	device_t dev;		/* DMA consumer device_t. */
 	device_t dma_dev;	/* A real DMA device_t. */
 	void *data;		/* OFW MD part. */
+	vmem_t *vmem;		/* Bounce memory. */
 
 	/* List of virtual channels allocated. */
 	TAILQ_HEAD(xdma_channel_list, xdma_channel)	channels;
@@ -84,6 +87,9 @@ struct xchan_buf {
 	bus_dmamap_t			map;
 	uint32_t			nsegs;
 	uint32_t			nsegs_left;
+	vm_offset_t			vaddr;
+	vm_offset_t			paddr;
+	vm_size_t			size;
 };
 
 struct xdma_request {
@@ -117,6 +123,7 @@ struct xdma_sglist {
 
 struct xdma_channel {
 	xdma_controller_t		*xdma;
+	vmem_t				*vmem;
 
 	uint32_t			flags;
 #define	XCHAN_BUFS_ALLOCATED		(1 << 0)
@@ -139,11 +146,11 @@ struct xdma_channel {
 	TAILQ_HEAD(, xdma_intr_handler)	ie_handlers;
 	TAILQ_ENTRY(xdma_channel)	xchan_next;
 
-	struct sx			sx_lock;
-	struct sx			sx_qin_lock;
-	struct sx			sx_qout_lock;
-	struct sx			sx_bank_lock;
-	struct sx			sx_proc_lock;
+	struct mtx			mtx_lock;
+	struct mtx			mtx_qin_lock;
+	struct mtx			mtx_qout_lock;
+	struct mtx			mtx_bank_lock;
+	struct mtx			mtx_proc_lock;
 
 	/* Request queue. */
 	bus_dma_tag_t			dma_tag_bufs;
@@ -176,30 +183,30 @@ struct xdma_intr_handler {
 
 static MALLOC_DEFINE(M_XDMA, "xdma", "xDMA framework");
 
-#define	XCHAN_LOCK(xchan)		sx_xlock(&(xchan)->sx_lock)
-#define	XCHAN_UNLOCK(xchan)		sx_xunlock(&(xchan)->sx_lock)
+#define	XCHAN_LOCK(xchan)		mtx_lock(&(xchan)->mtx_lock)
+#define	XCHAN_UNLOCK(xchan)		mtx_unlock(&(xchan)->mtx_lock)
 #define	XCHAN_ASSERT_LOCKED(xchan)	\
-    sx_assert(&(xchan)->sx_lock, SX_XLOCKED)
+    mtx_assert(&(xchan)->mtx_lock, MA_OWNED)
 
-#define	QUEUE_IN_LOCK(xchan)		sx_xlock(&(xchan)->sx_qin_lock)
-#define	QUEUE_IN_UNLOCK(xchan)		sx_xunlock(&(xchan)->sx_qin_lock)
+#define	QUEUE_IN_LOCK(xchan)		mtx_lock(&(xchan)->mtx_qin_lock)
+#define	QUEUE_IN_UNLOCK(xchan)		mtx_unlock(&(xchan)->mtx_qin_lock)
 #define	QUEUE_IN_ASSERT_LOCKED(xchan)	\
-    sx_assert(&(xchan)->sx_qin_lock, SX_XLOCKED)
+    mtx_assert(&(xchan)->mtx_qin_lock, MA_OWNED)
 
-#define	QUEUE_OUT_LOCK(xchan)		sx_xlock(&(xchan)->sx_qout_lock)
-#define	QUEUE_OUT_UNLOCK(xchan)		sx_xunlock(&(xchan)->sx_qout_lock)
+#define	QUEUE_OUT_LOCK(xchan)		mtx_lock(&(xchan)->mtx_qout_lock)
+#define	QUEUE_OUT_UNLOCK(xchan)		mtx_unlock(&(xchan)->mtx_qout_lock)
 #define	QUEUE_OUT_ASSERT_LOCKED(xchan)	\
-    sx_assert(&(xchan)->sx_qout_lock, SX_XLOCKED)
+    mtx_assert(&(xchan)->mtx_qout_lock, MA_OWNED)
 
-#define	QUEUE_BANK_LOCK(xchan)		sx_xlock(&(xchan)->sx_bank_lock)
-#define	QUEUE_BANK_UNLOCK(xchan)	sx_xunlock(&(xchan)->sx_bank_lock)
+#define	QUEUE_BANK_LOCK(xchan)		mtx_lock(&(xchan)->mtx_bank_lock)
+#define	QUEUE_BANK_UNLOCK(xchan)	mtx_unlock(&(xchan)->mtx_bank_lock)
 #define	QUEUE_BANK_ASSERT_LOCKED(xchan)	\
-    sx_assert(&(xchan)->sx_bank_lock, SX_XLOCKED)
+    mtx_assert(&(xchan)->mtx_bank_lock, MA_OWNED)
 
-#define	QUEUE_PROC_LOCK(xchan)		sx_xlock(&(xchan)->sx_proc_lock)
-#define	QUEUE_PROC_UNLOCK(xchan)	sx_xunlock(&(xchan)->sx_proc_lock)
+#define	QUEUE_PROC_LOCK(xchan)		mtx_lock(&(xchan)->mtx_proc_lock)
+#define	QUEUE_PROC_UNLOCK(xchan)	mtx_unlock(&(xchan)->mtx_proc_lock)
 #define	QUEUE_PROC_ASSERT_LOCKED(xchan)	\
-    sx_assert(&(xchan)->sx_proc_lock, SX_XLOCKED)
+    mtx_assert(&(xchan)->mtx_proc_lock, MA_OWNED)
 
 #define	XDMA_SGLIST_MAXLEN	2048
 #define	XDMA_MAX_SEG		128
@@ -207,11 +214,14 @@ static MALLOC_DEFINE(M_XDMA, "xdma", "xDMA framework");
 /* xDMA controller ops */
 xdma_controller_t *xdma_ofw_get(device_t dev, const char *prop);
 int xdma_put(xdma_controller_t *xdma);
+vmem_t * xdma_get_memory(device_t dev);
+void xdma_put_memory(vmem_t *vmem);
 
 /* xDMA channel ops */
 xdma_channel_t * xdma_channel_alloc(xdma_controller_t *, uint32_t caps);
 int xdma_channel_free(xdma_channel_t *);
 int xdma_request(xdma_channel_t *xchan, struct xdma_request *r);
+void xchan_set_memory(xdma_channel_t *xchan, vmem_t *vmem);
 
 /* SG interface */
 int xdma_prep_sg(xdma_channel_t *, uint32_t,
