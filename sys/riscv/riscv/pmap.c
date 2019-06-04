@@ -1922,7 +1922,7 @@ retry:
 }
 
 int
-pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
+pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 {
 	pt_entry_t orig_l3;
 	pt_entry_t new_l3;
@@ -1939,12 +1939,13 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 
 	orig_l3 = pmap_load(l3);
 	if ((orig_l3 & PTE_V) == 0 ||
-	    ((prot & VM_PROT_WRITE) != 0 && (orig_l3 & PTE_W) == 0) ||
-	    ((prot & VM_PROT_READ) != 0 && (orig_l3 & PTE_R) == 0))
+	    (ftype == VM_PROT_WRITE && (orig_l3 & PTE_W) == 0) ||
+	    (ftype == VM_PROT_EXECUTE && (orig_l3 & PTE_X) == 0) ||
+	    (ftype == VM_PROT_READ && (orig_l3 & PTE_R) == 0))
 		goto done;
 
 	new_l3 = orig_l3 | PTE_A;
-	if ((prot & VM_PROT_WRITE) != 0)
+	if (ftype == VM_PROT_WRITE)
 		new_l3 |= PTE_D;
 
 	if (orig_l3 != new_l3) {
@@ -2000,7 +2001,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pa = VM_PAGE_TO_PHYS(m);
 	pn = (pa / PAGE_SIZE);
 
-	new_l3 = PTE_V | PTE_R | PTE_X | PTE_A;
+	new_l3 = PTE_V | PTE_R | PTE_A;
+	if (prot & VM_PROT_EXECUTE)
+		new_l3 |= PTE_X;
 	if (flags & VM_PROT_WRITE)
 		new_l3 |= PTE_D;
 	if (prot & VM_PROT_WRITE)
@@ -2372,7 +2375,9 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	pa = VM_PAGE_TO_PHYS(m);
 	pn = (pa / PAGE_SIZE);
 
-	entry = (PTE_V | PTE_R | PTE_X);
+	entry = PTE_V | PTE_R;
+	if (prot & VM_PROT_EXECUTE)
+		entry |= PTE_X;
 	entry |= (pn << PTE_PPN0_S);
 
 	/*

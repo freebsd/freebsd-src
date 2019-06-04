@@ -94,7 +94,7 @@ _start:
 	add	t3, t4, t2
 	li	t5, 0
 2:
-	li	t0, (PTE_KERN)
+	li	t0, (PTE_KERN | PTE_X)
 	slli	t2, t4, PTE_PPN1_S	/* << PTE_PPN1_S */
 	or	t5, t0, t2
 	sd	t5, (s1)		/* Store PTE entry to position */
