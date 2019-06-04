@@ -84,7 +84,6 @@ struct xchan_buf {
 	bus_dmamap_t			map;
 	uint32_t			nsegs;
 	uint32_t			nsegs_left;
-	void				*cbuf;
 };
 
 struct xdma_request {
@@ -130,7 +129,8 @@ struct xdma_channel {
 
 	uint32_t			caps;
 #define	XCHAN_CAP_BUSDMA		(1 << 0)
-#define	XCHAN_CAP_BUSDMA_NOSEG		(1 << 1)
+#define	XCHAN_CAP_NOSEG			(1 << 1)
+#define	XCHAN_CAP_NOBUFS		(1 << 2)
 
 	/* A real hardware driver channel. */
 	void				*chan;
