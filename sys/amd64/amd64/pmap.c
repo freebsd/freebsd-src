@@ -4565,6 +4565,8 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	 * mapping was never accessed.
 	 */
 	if ((oldpde & PG_A) == 0) {
+		KASSERT((oldpde & PG_W) == 0,
+		    ("pmap_demote_pde: a wired mapping is missing PG_A"));
 		pmap_demote_pde_abort(pmap, va, pde, oldpde, lockp);
 		return (FALSE);
 	}
@@ -4615,8 +4617,6 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(mptepa);
 	newpde = mptepa | PG_M | PG_A | (oldpde & PG_U) | PG_RW | PG_V;
-	KASSERT((oldpde & PG_A) != 0,
-	    ("pmap_demote_pde: oldpde is missing PG_A"));
 	KASSERT((oldpde & (PG_M | PG_RW)) != PG_RW,
 	    ("pmap_demote_pde: oldpde is missing PG_M"));
 	newpte = oldpde & ~PG_PS;
