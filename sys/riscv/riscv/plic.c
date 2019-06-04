@@ -249,6 +249,30 @@ plic_attach(device_t dev)
 	return (intr_pic_claim_root(sc->dev, xref, plic_intr, sc, 0));
 }
 
+static void
+plic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct plic_softc *sc;
+	struct plic_irqsrc *src;
+
+	sc = device_get_softc(dev);
+	src = (struct plic_irqsrc *)isrc;
+
+	WR4(sc, PLIC_PRIORITY(src->irq), 0);
+}
+
+static void
+plic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct plic_softc *sc;
+	struct plic_irqsrc *src;
+
+	sc = device_get_softc(dev);
+	src = (struct plic_irqsrc *)isrc;
+
+	WR4(sc, PLIC_PRIORITY(src->irq), 1);
+}
+
 static device_method_t plic_methods[] = {
 	DEVMETHOD(device_probe,		plic_probe),
 	DEVMETHOD(device_attach,	plic_attach),
@@ -256,6 +280,8 @@ static device_method_t plic_methods[] = {
 	DEVMETHOD(pic_disable_intr,	plic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	plic_enable_intr),
 	DEVMETHOD(pic_map_intr,		plic_map_intr),
+	DEVMETHOD(pic_pre_ithread,	plic_pre_ithread),
+	DEVMETHOD(pic_post_ithread,	plic_post_ithread),
 
 	DEVMETHOD_END
 };
