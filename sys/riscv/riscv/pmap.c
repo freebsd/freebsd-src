@@ -1853,22 +1853,28 @@ pmap_remove_all(vm_page_t m)
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	vm_offset_t va_next;
 	pd_entry_t *l1, *l2;
-	pt_entry_t *l3p, l3;
-	pt_entry_t entry;
+	pt_entry_t *l3, l3e, mask;
+	vm_page_t m;
+	vm_offset_t va_next;
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
 		return;
 	}
 
-	if ((prot & VM_PROT_WRITE) == VM_PROT_WRITE)
+	if ((prot & (VM_PROT_WRITE | VM_PROT_EXECUTE)) ==
+	    (VM_PROT_WRITE | VM_PROT_EXECUTE))
 		return;
+
+	mask = 0;
+	if ((prot & VM_PROT_WRITE) == 0)
+		mask |= PTE_W | PTE_D;
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		mask |= PTE_X;
 
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
-
 		l1 = pmap_l1(pmap, sva);
 		if (pmap_load(l1) == 0) {
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
@@ -1882,9 +1888,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			va_next = eva;
 
 		l2 = pmap_l1_to_l2(l1, sva);
-		if (l2 == NULL)
-			continue;
-		if (pmap_load(l2) == 0)
+		if (l2 == NULL || pmap_load(l2) == 0)
 			continue;
 		if ((pmap_load(l2) & PTE_RX) != 0)
 			continue;
@@ -1892,16 +1896,22 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		if (va_next > eva)
 			va_next = eva;
 
-		for (l3p = pmap_l2_to_l3(l2, sva); sva != va_next; l3p++,
+		for (l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++,
 		    sva += L3_SIZE) {
-			l3 = pmap_load(l3p);
-			if ((l3 & PTE_V) != 0) {
-				entry = pmap_load(l3p);
-				entry &= ~PTE_W;
-				pmap_store(l3p, entry);
-				/* XXX: Use pmap_invalidate_range */
-				pmap_invalidate_page(pmap, sva);
+			l3e = pmap_load(l3);
+retry:
+			if ((l3e & PTE_V) == 0)
+				continue;
+			if ((prot & VM_PROT_WRITE) == 0 &&
+			    (l3e & (PTE_SW_MANAGED | PTE_D)) ==
+			    (PTE_SW_MANAGED | PTE_D)) {
+				m = PHYS_TO_VM_PAGE(PTE_TO_PHYS(l3e));
+				vm_page_dirty(m);
 			}
+			if (!atomic_fcmpset_long(l3, &l3e, l3e & ~mask))
+				goto retry;
+			/* XXX: Use pmap_invalidate_range */
+			pmap_invalidate_page(pmap, sva);
 		}
 	}
 	PMAP_UNLOCK(pmap);
