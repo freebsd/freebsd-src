@@ -734,6 +734,10 @@ cache_setup(void)
 {
 
 	/* TODO */
+
+	dcache_line_size = 0;
+	icache_line_size = 0;
+	idcache_line_size = 0;
 }
 
 /*
