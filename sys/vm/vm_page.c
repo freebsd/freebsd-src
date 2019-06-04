@@ -63,23 +63,6 @@
  */
 
 /*
- *			GENERAL RULES ON VM_PAGE MANIPULATION
- *
- *	- A page queue lock is required when adding or removing a page from a
- *	  page queue regardless of other locks or the busy state of a page.
- *
- *		* In general, no thread besides the page daemon can acquire or
- *		  hold more than one page queue lock at a time.
- *
- *		* The page daemon can acquire and hold any pair of page queue
- *		  locks in any order.
- *
- *	- The object lock is required when inserting or removing
- *	  pages from an object (vm_page_insert() or vm_page_remove()).
- *
- */
-
-/*
  *	Resident memory management module.
  */
 
