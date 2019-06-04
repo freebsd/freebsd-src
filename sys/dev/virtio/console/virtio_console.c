@@ -261,6 +261,10 @@ DRIVER_MODULE(virtio_console, virtio_pci, vtcon_driver, vtcon_devclass,
 MODULE_VERSION(virtio_console, 1);
 MODULE_DEPEND(virtio_console, virtio, 1, 1, 1);
 
+VIRTIO_SIMPLE_PNPTABLE(virtio_console, VIRTIO_ID_CONSOLE,
+    "VirtIO Console Adapter");
+VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_console);
+
 static int
 vtcon_modevent(module_t mod, int type, void *unused)
 {
@@ -305,13 +309,7 @@ vtcon_drain_all(void)
 static int
 vtcon_probe(device_t dev)
 {
-
-	if (virtio_get_device_type(dev) != VIRTIO_ID_CONSOLE)
-		return (ENXIO);
-
-	device_set_desc(dev, "VirtIO Console Adapter");
-
-	return (BUS_PROBE_DEFAULT);
+	return (VIRTIO_SIMPLE_PROBE(dev, virtio_console));
 }
 
 static int

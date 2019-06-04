@@ -63,6 +63,21 @@ struct virtio_feature_desc {
 	const char	*vfd_str;
 };
 
+struct virtio_pnp_match {
+	uint32_t	 device_type;
+	const char	*description;
+};
+#define VIRTIO_SIMPLE_PNPTABLE(driver, devtype, desc)			\
+	static const struct virtio_pnp_match driver ## _match = {	\
+		.device_type = devtype,					\
+		.description = desc,					\
+	}
+#define VIRTIO_SIMPLE_PNPINFO(bus, driver)				\
+	MODULE_PNP_INFO("U32:device_type;D:#", bus, driver,		\
+	    &driver ## _match, 1)
+#define VIRTIO_SIMPLE_PROBE(dev, driver)				\
+	(virtio_simple_probe(dev, &driver ## _match))
+
 const char *virtio_device_name(uint16_t devid);
 void	 virtio_describe(device_t dev, const char *msg,
 	     uint64_t features, struct virtio_feature_desc *feature_desc);
@@ -145,5 +160,15 @@ __CONCAT(virtio_set_,name)(device_t dev, void *val)			\
 VIRTIO_WRITE_IVAR(feature_desc,	VIRTIO_IVAR_FEATURE_DESC);
 
 #undef VIRTIO_WRITE_IVAR
+
+static inline int
+virtio_simple_probe(device_t dev, const struct virtio_pnp_match *match)
+{
+
+	if (virtio_get_device_type(dev) != match->device_type)
+		return (ENXIO);
+	device_set_desc(dev, match->description);
+	return (BUS_PROBE_DEFAULT);
+}
 
 #endif /* _VIRTIO_H_ */
