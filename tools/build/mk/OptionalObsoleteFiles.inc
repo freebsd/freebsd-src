@@ -1538,6 +1538,7 @@ OLD_FILES+=usr/share/man/man1/clang++.1.gz
 OLD_FILES+=usr/share/man/man1/clang-cpp.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-ar.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 .endif
 
@@ -1577,7 +1578,6 @@ OLD_FILES+=usr/share/man/man1/llvm-dwarfdump.1
 OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-pdbutil.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
 .endif
 
