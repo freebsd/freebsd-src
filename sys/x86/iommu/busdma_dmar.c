@@ -702,7 +702,7 @@ dmar_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map1,
 					return (ENOMEM);
 				}
 			}
-			vm_page_initfake(&fma[i], pstart + i * PAGE_SIZE,
+			vm_page_initfake(&fma[i], pstart + ptoa(i),
 			    VM_MEMATTR_DEFAULT);
 			ma[i] = &fma[i];
 		}
