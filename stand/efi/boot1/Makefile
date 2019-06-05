@@ -15,6 +15,9 @@ CFLAGS+=	-DEFI_BOOT1
 # warnings for now.
 CWARNFLAGS.boot1.c+=	-Wno-format
 
+# Disable bogus alignment issues
+CWARNFLAGS.ufs_module.c += -Wno-cast-align
+
 # Disable warnings that are currently incompatible with the zfs boot code
 CWARNFLAGS.zfs_module.c += -Wno-array-bounds
 CWARNFLAGS.zfs_module.c += -Wno-cast-align
