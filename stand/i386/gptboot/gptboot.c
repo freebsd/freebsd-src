@@ -232,7 +232,7 @@ static int
 gptinit(void)
 {
 
-	if (gptread(&freebsd_ufs_uuid, &gdsk.dsk, dmadat->secbuf) == -1) {
+	if (gptread(&gdsk.dsk, dmadat->secbuf) == -1) {
 		printf("%s: unable to load GPT\n", BOOTPROG);
 		return (-1);
 	}
