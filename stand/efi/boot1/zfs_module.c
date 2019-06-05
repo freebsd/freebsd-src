@@ -141,7 +141,7 @@ static EFI_STATUS
 load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 {
 	spa_t *spa;
-	struct zfsmount zfsmount;
+	struct zfsmount zmount;
 	dnode_phys_t dn;
 	struct stat st;
 	int err;
@@ -163,12 +163,12 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 		return (EFI_NOT_FOUND);
 	}
 
-	if ((err = zfs_mount(spa, 0, &zfsmount)) != 0) {
+	if ((err = zfs_mount(spa, 0, &zmount)) != 0) {
 		DPRINTF("Failed to mount pool '%s' (%d)\n", spa->spa_name, err);
 		return (EFI_NOT_FOUND);
 	}
 
-	if ((err = zfs_lookup(&zfsmount, filepath, &dn)) != 0) {
+	if ((err = zfs_lookup(&zmount, filepath, &dn)) != 0) {
 		if (err == ENOENT) {
 			DPRINTF("Failed to find '%s' on pool '%s' (%d)\n",
 			    filepath, spa->spa_name, err);
