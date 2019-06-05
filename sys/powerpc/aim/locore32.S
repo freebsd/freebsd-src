@@ -60,6 +60,12 @@ GLOBAL(__endkernel)
 GLOBAL(tmpstk)
 	.space	TMPSTKSZ
 
+#ifdef KDB
+#define TRAPSTKSZ       4096            /* 4k trap stack */
+GLOBAL(trapstk)
+        .space        TRAPSTKSZ
+#endif
+
 	.text
 	.globl	btext
 btext:
