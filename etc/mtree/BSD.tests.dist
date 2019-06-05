@@ -248,6 +248,10 @@
                     ustack
                     ..
                 ..
+                amd64
+                    arrays
+                    ..
+                ..
             ..
             zfsd
             ..

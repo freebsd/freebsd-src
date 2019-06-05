@@ -8,6 +8,10 @@ TESTS_SUBDIRS+=	common
 TESTS_SUBDIRS+= i386
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64"
+TESTS_SUBDIRS+= amd64
+.endif
+
 .PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
 
