@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #define VFNT_MAP_NORMAL_RH 1
 #define VFNT_MAP_BOLD 2
 #define VFNT_MAP_BOLD_RH 3
+#define VFNT_MAXGLYPHS 131072
 #define VFNT_MAXDIMENSION 128
 
 static unsigned int width = 8, wbytes, height = 16;
@@ -184,6 +185,8 @@ add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 	SLIST_INSERT_HEAD(&glyph_hash[hash], gl, g_hash);
 
 	glyph_unique++;
+	if (glyph_unique > VFNT_MAXGLYPHS)
+		errx(1, "too many glyphs (%u)", glyph_unique);
 	return (gl);
 }
 
