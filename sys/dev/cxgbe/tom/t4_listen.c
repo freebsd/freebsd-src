@@ -1395,7 +1395,6 @@ found:
 
 		mtu_idx = find_best_mtu_idx(sc, &inc, &settings);
 		rscale = cpl->tcpopt.wsf && V_tcp_do_rfc1323 ?  select_rcv_wscale() : 0;
-		/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
 		rx_credits = min(select_rcv_wnd(so) >> 10, M_RCV_BUFSIZ);
 
 		save_qids_in_synqe(synqe, vi, &settings);
@@ -1544,8 +1543,7 @@ reset:
 	toep->l2te = &sc->l2t->l2tab[synqe->l2e_idx];
 	toep->vnet = lctx->vnet;
 	set_ulp_mode(toep, synqe->ulp_mode);
-	/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
-	toep->rx_credits = synqe->rcv_bufsize;
+	toep->opt0_rcv_bufsize = synqe->rcv_bufsize;
 
 	MPASS(be32toh(cpl->snd_isn) - 1 == synqe->iss);
 	MPASS(be32toh(cpl->rcv_isn) - 1 == synqe->irs);
