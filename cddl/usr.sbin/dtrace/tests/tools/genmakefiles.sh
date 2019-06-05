@@ -96,7 +96,7 @@ readonly ORIGINDIR=$(realpath $(dirname $0))
 readonly TOPDIR=$(realpath ${ORIGINDIR}/../../../../..)
 readonly CONTRIB_TESTDIR=${TOPDIR}/cddl/contrib/opensolaris/cmd/dtrace/test/tst
 
-for class in common i386; do
+for class in common i386 amd64; do
     for group in $(find ${CONTRIB_TESTDIR}/$class -mindepth 1 -maxdepth 1 -type d); do
         genmakefile $class $(basename $group)
     done
