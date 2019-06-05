@@ -225,12 +225,12 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 	dmabuf = NULL;
 	if (OF_call_method("dma-alloc", netinstance, 1, 1, (64 * 1024), &dmabuf)
 	    < 0) {   
-		printf("Failed to allocate DMA buffer (got %08x).\n", dmabuf);
+		printf("Failed to allocate DMA buffer (got %p).\n", dmabuf);
 		goto punt;
 	}
 
 #if defined(NETIF_DEBUG)
-	printf("ofwn_init: allocated DMA buffer: %08x\n", dmabuf);
+	printf("ofwn_init: allocated DMA buffer: %p\n", dmabuf);
 #endif
 #endif
 
