@@ -526,19 +526,31 @@ vm_map_entry_set_vnode_text(vm_map_entry_t entry, bool add)
 		object = object1;
 	}
 
-	/*
-	 * For OBJT_DEAD objects, v_writecount was handled in
-	 * vnode_pager_dealloc().
-	 */
-	if (object->type != OBJT_DEAD) {
-		KASSERT(((object->flags & OBJ_TMPFS) == 0 &&
-		    object->type == OBJT_VNODE) ||
-		    ((object->flags & OBJ_TMPFS) != 0 &&
-		    object->type == OBJT_SWAP),
+	vp = NULL;
+	if (object->type == OBJT_DEAD) {
+		/*
+		 * For OBJT_DEAD objects, v_writecount was handled in
+		 * vnode_pager_dealloc().
+		 */
+	} else if (object->type == OBJT_VNODE) {
+		vp = object->handle;
+	} else if (object->type == OBJT_SWAP) {
+		KASSERT((object->flags & OBJ_TMPFS_NODE) != 0,
+		    ("vm_map_entry_set_vnode_text: swap and !TMPFS "
+		    "entry %p, object %p, add %d", entry, object, add));
+		/*
+		 * Tmpfs VREG node, which was reclaimed, has
+		 * OBJ_TMPFS_NODE flag set, but not OBJ_TMPFS.  In
+		 * this case there is no v_writecount to adjust.
+		 */
+		if ((object->flags & OBJ_TMPFS) != 0)
+			vp = object->un_pager.swp.swp_tmpfs;
+	} else {
+		KASSERT(0,
 		    ("vm_map_entry_set_vnode_text: wrong object type, "
 		    "entry %p, object %p, add %d", entry, object, add));
-		vp = (object->flags & OBJ_TMPFS) == 0 ? object->handle :
-		    object->un_pager.swp.swp_tmpfs;
+	}
+	if (vp != NULL) {
 		if (add)
 			VOP_SET_TEXT_CHECKED(vp);
 		else
