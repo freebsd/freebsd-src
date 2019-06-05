@@ -175,7 +175,6 @@ main(int argc, char *argv[])
 	if (caph_enter_casper() < 0)
 		err(1, "unable to enter capability mode");
 
-	
 	/*
 	 * If displaying in reverse, don't permit follow option, and convert
 	 * style values.
