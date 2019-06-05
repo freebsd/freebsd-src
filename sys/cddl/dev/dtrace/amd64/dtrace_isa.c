@@ -514,7 +514,11 @@ dtrace_getreg(struct trapframe *rp, uint_t reg)
 		reg = regmap[reg];
 	} else {
 		/* This is dependent on reg.d. */
+#ifdef illumos
 		reg -= SS + 1;
+#else	/* !illumos */
+		reg -= GS + 1;
+#endif
 	}
 
 	switch (reg) {
