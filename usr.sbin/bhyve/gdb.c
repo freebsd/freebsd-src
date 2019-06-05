@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
 #endif
+#include <sys/endian.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -953,14 +954,10 @@ gdb_write_mem(const uint8_t *data, size_t len)
 					val = parse_byte(data);
 				} else if (gpa & 2 || todo == 2) {
 					bytes = 2;
-					val = parse_byte(data) |
-					    (parse_byte(data + 2) << 8);
+					val = be16toh(parse_integer(data, 4));
 				} else {
 					bytes = 4;
-					val = parse_byte(data) |
-					    (parse_byte(data + 2) << 8) |
-					    (parse_byte(data + 4) << 16) |
-					    (parse_byte(data + 6) << 24);
+					val = be32toh(parse_integer(data, 8));
 				}
 				error = write_mem(ctx, cur_vcpu, gpa, val,
 				    bytes);
