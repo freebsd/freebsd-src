@@ -159,7 +159,8 @@ ENTRY(cpu_switch)
 cpu_switchin:
 #if defined(SMP) && defined(SCHED_ULE)
 	/* Wait for the new thread to become unblocked */
-	ld	%r6,TOC_REF(blocked_lock)(%r2)
+	addis	%r6,%r2,TOC_REF(blocked_lock)@ha
+	ld	%r6,TOC_REF(blocked_lock)@l(%r6)
 blocked_loop:
 	ld	%r7,TD_LOCK(%r13)
 	cmpd	%r6,%r7 

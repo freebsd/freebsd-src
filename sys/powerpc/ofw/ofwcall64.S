@@ -101,11 +101,13 @@ ASENTRY_NOPROF(ofwcall)
 	mfmsr	%r6
 
 	/* read client interface handler */
-	ld	%r4,TOC_REF(openfirmware_entry)(%r2)
+	addis	%r4,%r2,TOC_REF(openfirmware_entry)@ha
+	ld	%r4,TOC_REF(openfirmware_entry)@l(%r4)
 	ld	%r4,0(%r4)
 
 	/* Get OF stack pointer */
-	ld	%r7,TOC_REF(ofwstk)(%r2)
+	addis	%r7,%r2,TOC_REF(ofwstk)@ha
+	ld	%r7,TOC_REF(ofwstk)@l(%r7)
 	addi	%r7,%r7,OFWSTKSZ-40
 
 	/*
@@ -113,7 +115,8 @@ ASENTRY_NOPROF(ofwcall)
 	 * exceptions, which is important for the next few steps.
 	 */
 
-	ld	%r5,TOC_REF(ofmsr)(%r2)
+	addis	%r5,%r2,TOC_REF(ofmsr)@ha
+	ld	%r5,TOC_REF(ofmsr)@l(%r5)
 	ld	%r5,0(%r5)
 	mtmsrd	%r5
 	isync
@@ -233,16 +236,19 @@ ASENTRY_NOPROF(rtascall)
 	mfmsr	%r6
 
 	/* Read RTAS entry and reg save area pointers */
-	ld	%r5,TOC_REF(rtas_entry)(%r2)
+	addis	%r5,%r2,TOC_REF(rtas_entry)@ha
+	ld	%r5,TOC_REF(rtas_entry)@l(%r5)
 	ld	%r5,0(%r5)
-	ld	%r8,TOC_REF(rtas_regsave)(%r2)
+	addis	%r8,%r2,TOC_REF(rtas_regsave)@ha
+	ld	%r8,TOC_REF(rtas_regsave)@l(%r8)
 
 	/*
 	 * Set the MSR to the RTAS value. This has the side effect of disabling
 	 * exceptions, which is important for the next few steps.
 	 */
 
-	ld	%r7,TOC_REF(rtasmsr)(%r2)
+	addis	%r7,%r2,TOC_REF(rtasmsr)@ha
+	ld	%r7,TOC_REF(rtasmsr)@l(%r7)
 	ld	%r7,0(%r7)
 	mtmsrd	%r7
 	isync
