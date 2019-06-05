@@ -363,13 +363,13 @@ SYSCTL_PROC(_vfs_zfs, OID_AUTO, debugflags,
     CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
     sysctl_vfs_zfs_debug_flags, "IU", "Debug flags for ZFS testing.");
 
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_synctime_ms, CTLFLAG_RDTUN,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_synctime_ms, CTLFLAG_RWTUN,
     &zfs_deadman_synctime_ms, 0,
     "Stalled ZFS I/O expiration time in milliseconds");
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_checktime_ms, CTLFLAG_RDTUN,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_checktime_ms, CTLFLAG_RWTUN,
     &zfs_deadman_checktime_ms, 0,
     "Period of checks for stalled ZFS I/O in milliseconds");
-SYSCTL_INT(_vfs_zfs, OID_AUTO, deadman_enabled, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, deadman_enabled, CTLFLAG_RWTUN,
     &zfs_deadman_enabled, 0, "Kernel panic on stalled ZFS I/O");
 SYSCTL_INT(_vfs_zfs, OID_AUTO, spa_asize_inflation, CTLFLAG_RWTUN,
     &spa_asize_inflation, 0, "Worst case inflation factor for single sector writes");
