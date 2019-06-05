@@ -509,7 +509,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 		off -= ehdr->e_entry & ~PAGE_MASK;
 		ehdr->e_entry += off;
 #ifdef ELF_VERBOSE
-		printf("ehdr->e_entry 0x%jx", va<->pa off %llx\n",
+		printf("ehdr->e_entry 0x%jx, va<->pa off %llx\n",
 		    (uintmax_t)ehdr->e_entry, off);
 #endif
 #else
