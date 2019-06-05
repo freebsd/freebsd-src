@@ -594,6 +594,8 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
          * no point optimizing for something that really won't ever happen.
          */
 	do {
+		bool direct_append, extending;
+
 		if (fuse_isdeadfs(vp)) {
 			err = ENXIO;
 			break;
@@ -603,68 +605,54 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 		n = MIN((unsigned)(biosize - on), uio->uio_resid);
 
 again:
-		/*
-	         * Handle direct append and file extension cases, calculate
-	         * unaligned buffer size.
-	         */
-		if (uio->uio_offset == filesize && n) {
-			/*
-	                 * Get the buffer (in its pre-append state to maintain
-	                 * B_CACHE if it was previously set).  Resize the
-	                 * nfsnode after we have locked the buffer to prevent
-	                 * readers from reading garbage.
-	                 */
-			bcount = on;
-			SDT_PROBE6(fusefs, , io, write_biobackend_start,
-				lbn, on, n, uio, bcount, true);
-			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
-
+		/* Get or create a buffer for the write */
+		direct_append = uio->uio_offset == filesize && n;
+		if ((off_t)lbn * biosize + on + n < filesize) {
+			extending = false;
+			if ((off_t)(lbn + 1) * biosize < filesize) {
+				/* Not the file's last block */
+				bcount = biosize;
+			} else {
+				/* The file's last block */
+				bcount = filesize - (off_t)lbn *biosize;
+			}
+		} else {
+			extending = true;
+			bcount = on + n;
+		}
+		if (direct_append) {
+			/* 
+			 * Take care to preserve the buffer's B_CACHE state so
+			 * as not to cause an unnecessary read.
+			 */
+			bp = getblk(vp, lbn, on, PCATCH, 0, 0);
 			if (bp != NULL) {
-				long save;
-
-				err = fuse_vnode_setsize(vp, cred, 
-							 uio->uio_offset + n);
-				fvdat->flag |= FN_SIZECHANGE;
-
-				if (err) {
-					brelse(bp);
-					break;
-				}
-				save = bp->b_flags & B_CACHE;
-				bcount += n;
+				uint32_t save = bp->b_flags & B_CACHE;
 				allocbuf(bp, bcount);
 				bp->b_flags |= save;
 			}
 		} else {
-			/*
-	                 * Obtain the locked cache block first, and then
-	                 * adjust the file's size as appropriate.
-	                 */
-			bcount = on + n;
-			if ((off_t)lbn * biosize + bcount < filesize) {
-				if ((off_t)(lbn + 1) * biosize < filesize)
-					bcount = biosize;
-				else
-					bcount = filesize - (off_t)lbn *biosize;
-			}
-			SDT_PROBE6(fusefs, , io, write_biobackend_start,
-				lbn, on, n, uio, bcount, false);
 			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
-			if (bp && uio->uio_offset + n > filesize) {
-				err = fuse_vnode_setsize(vp, cred, 
-							 uio->uio_offset + n);
-				fvdat->flag |= FN_SIZECHANGE;
-				if (err) {
-					brelse(bp);
-					break;
-				} 
-			}
 		}
-
 		if (!bp) {
 			err = EINTR;
 			break;
 		}
+		if (extending) {
+			/* 
+			 * Extend file _after_ locking buffer so we won't race
+			 * with other readers
+			 */
+			err = fuse_vnode_setsize(vp, cred, uio->uio_offset + n);
+			fvdat->flag |= FN_SIZECHANGE;
+			if (err) {
+				brelse(bp);
+				break;
+			} 
+		}
+
+		SDT_PROBE6(fusefs, , io, write_biobackend_start,
+			lbn, on, n, uio, bcount, direct_append);
 		/*
 	         * Issue a READ if B_CACHE is not set.  In special-append
 	         * mode, B_CACHE is based on the buffer prior to the write
