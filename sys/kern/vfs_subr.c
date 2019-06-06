@@ -858,6 +858,12 @@ vattr_null(struct vattr *vap)
  * desirable to reuse such vnodes.  These conditions may cause the
  * number of vnodes to reach some minimum value regardless of what
  * you set kern.maxvnodes to.  Do not set kern.maxvnodes too low.
+ *
+ * @param mp		 Try to reclaim vnodes from this mountpoint
+ * @param reclaim_nc_src Only reclaim directories with outgoing namecache
+ * 			 entries if this argument is strue
+ * @param reclaim_free	 Only reclaim free vnodes if this is set.
+ * @return		 The number of vnodes that were reclaimed.
  */
 static int
 vlrureclaim(struct mount *mp, int reclaim_nc_src, int trigger)
