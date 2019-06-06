@@ -5920,7 +5920,7 @@ _gone_in(int major, const char *msg)
 	gone_panic(major, P_OSREL_MAJOR(__FreeBSD_version), msg);
 	if (P_OSREL_MAJOR(__FreeBSD_version) >= major)
 		printf("Obsolete code will removed soon: %s\n", msg);
-	else if (P_OSREL_MAJOR(__FreeBSD_version) + 1 == major)
+	else
 		printf("Deprecated code (to be removed in FreeBSD %d): %s\n",
 		    major, msg);
 }
@@ -5933,7 +5933,7 @@ _gone_in_dev(device_t dev, int major, const char *msg)
 	if (P_OSREL_MAJOR(__FreeBSD_version) >= major)
 		device_printf(dev,
 		    "Obsolete code will removed soon: %s\n", msg);
-	else if (P_OSREL_MAJOR(__FreeBSD_version) + 1 == major)
+	else
 		device_printf(dev,
 		    "Deprecated code (to be removed in FreeBSD %d): %s\n",
 		    major, msg);
