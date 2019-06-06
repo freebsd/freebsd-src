@@ -802,8 +802,10 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 			data->DataDirection = MPS_PASS_THRU_DIRECTION_READ;
 		else
 			data->DataOutSize = 0;
-	} else
-		return (EINVAL);
+	} else {
+		err = EINVAL;
+		goto RetFreeUnlocked;
+	}
 
 	mps_dprint(sc, MPS_USER, "%s: req 0x%jx %d  rpl 0x%jx %d "
 	    "data in 0x%jx %d data out 0x%jx %d data dir %d\n", __func__,
