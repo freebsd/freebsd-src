@@ -1897,14 +1897,6 @@ Display a histogram of deduplication statistics, showing the allocated
 and referenced
 .Pq logically referenced in the pool
 block counts and sizes by reference count.
-.It Fl x
-Only display status for pools that are exhibiting errors or are otherwise
-unavailable.
-Warnings about pools not using the latest on-disk format, having non-native
-block size or disabled features will not be included.
-.It Fl v
-Displays verbose data error information, printing out a complete list of all
-data errors since the last complete pool scrub.
 .It Fl T Cm d Ns | Ns Cm u
 Print a timestamp.
 .Pp
@@ -1916,6 +1908,14 @@ Use modifier
 .Cm u
 for unixtime
 .Pq equals Qq Ic date +%s .
+.It Fl v
+Displays verbose data error information, printing out a complete list of all
+data errors since the last complete pool scrub.
+.It Fl x
+Only display status for pools that are exhibiting errors or are otherwise
+unavailable.
+Warnings about pools not using the latest on-disk format, having non-native
+block size or disabled features will not be included.
 .El
 .It Xo
 .Nm
