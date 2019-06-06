@@ -28,6 +28,9 @@
  * SUCH DAMAGE.
  */
 
+struct _sem;
+typedef struct _sem sem_t;
+
 /* Nanoseconds to sleep, for tests that must */
 #define NAP_NS	(100'000'000)
 
@@ -92,9 +95,10 @@ class FuseTest : public ::testing::Test {
 
 	/*
 	 * Create an expectation that FUSE_FORGET will be called for the given
-	 * inode.  There will be no response
+	 * inode.  There will be no response.  If sem is provided, it will be
+	 * posted after the operation is received by the daemon.
 	 */
-	void expect_forget(uint64_t ino, uint64_t nlookup);
+	void expect_forget(uint64_t ino, uint64_t nlookup, sem_t *sem = NULL);
 
 	/*
 	 * Create an expectation that FUSE_GETATTR will be called for the given

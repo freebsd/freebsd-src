@@ -16,6 +16,7 @@ GTESTS+=	destroy
 GTESTS+=	dev_fuse_poll
 GTESTS+=	fifo
 GTESTS+=	flush
+GTESTS+=	forget
 GTESTS+=	fsync
 GTESTS+=	fsyncdir
 GTESTS+=	getattr
