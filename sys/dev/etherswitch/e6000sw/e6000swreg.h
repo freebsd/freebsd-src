@@ -74,6 +74,7 @@ struct atu_opt {
 
 #define PSC_CONTROL			0x1
 #define	PSC_CONTROL_FORCED_SPD		(1 << 13)
+#define	PSC_CONTROL_ALT_SPD		(1 << 12)
 #define	PSC_CONTROL_EEE_ON		(1 << 9)
 #define	PSC_CONTROL_FORCED_EEE		(1 << 8)
 #define	PSC_CONTROL_FC_ON		(1 << 7)
