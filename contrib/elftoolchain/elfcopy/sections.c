@@ -314,18 +314,18 @@ insert_to_sec_list(struct elfcopy *ecp, struct section *sec, int tail)
 {
 	struct section *s;
 
-	if (!tail) {
+	if (tail || TAILQ_EMPTY(&ecp->v_sec) ||
+	    TAILQ_LAST(&ecp->v_sec, sectionlist)->off <= sec->off) {
+		TAILQ_INSERT_TAIL(&ecp->v_sec, sec, sec_list);
+	} else {
 		TAILQ_FOREACH(s, &ecp->v_sec, sec_list) {
 			if (sec->off < s->off) {
 				TAILQ_INSERT_BEFORE(s, sec, sec_list);
-				goto inc_nos;
+				break;
 			}
 		}
 	}
 
-	TAILQ_INSERT_TAIL(&ecp->v_sec, sec, sec_list);
-
-inc_nos:
 	if (sec->pseudo == 0)
 		ecp->nos++;
 }
