@@ -608,6 +608,7 @@ int	kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen,
 	int flags);
 
 int	vntype_to_kinfo(int vtype);
+void	pack_kinfo(struct kinfo_file *kif);
 #endif /* !_KERNEL */
 
 #endif

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_ENCRYPTINIT 3"
-.TH EVP_ENCRYPTINIT 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH EVP_ENCRYPTINIT 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -483,7 +483,9 @@ The following \fIctrl\fRs are supported in \s-1CCM\s0 mode.
 This call is made to set the expected \fB\s-1CCM\s0\fR tag value when decrypting or
 the length of the tag (with the \f(CW\*(C`tag\*(C'\fR parameter set to \s-1NULL\s0) when encrypting.
 The tag length is often referred to as \fBM\fR. If not set a default value is
-used (12 for \s-1AES\s0).
+used (12 for \s-1AES\s0). When decrypting, the tag needs to be set before passing
+in data to be decrypted, but as in \s-1GCM\s0 and \s-1OCB\s0 mode, it can be set after
+passing additional authenticated data (see \*(L"\s-1AEAD\s0 Interface\*(R").
 .IP "EVP_CIPHER_CTX_ctrl(ctx, \s-1EVP_CTRL_CCM_SET_L,\s0 ivlen, \s-1NULL\s0)" 4
 .IX Item "EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_L, ivlen, NULL)"
 Sets the \s-1CCM\s0 \fBL\fR value. If not set a default is used (8 for \s-1AES\s0).
@@ -499,7 +501,9 @@ The following \fIctrl\fRs are supported for the ChaCha20\-Poly1305 \s-1AEAD\s0 a
 .IX Item "EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, ivlen, NULL)"
 Sets the nonce length. This call can only be made before specifying the nonce.
 If not called a default nonce length of 12 (i.e. 96 bits) is used. The maximum
-nonce length is 16 (\fB\s-1CHACHA_CTR_SIZE\s0\fR, i.e. 128\-bits).
+nonce length is 12 bytes (i.e. 96\-bits). If a nonce of less than 12 bytes is set
+then the nonce is automatically padded with leading 0 bytes to make it 12 bytes
+in length.
 .IP "EVP_CIPHER_CTX_ctrl(ctx, \s-1EVP_CTRL_AEAD_GET_TAG,\s0 taglen, tag)" 4
 .IX Item "EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, taglen, tag)"
 Writes \f(CW\*(C`taglen\*(C'\fR bytes of the tag value to the buffer indicated by \f(CW\*(C`tag\*(C'\fR.
@@ -699,7 +703,7 @@ disappeared.  \fBEVP_CIPHER_CTX_init()\fR remains as an alias for
 \&\fBEVP_CIPHER_CTX_reset()\fR.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

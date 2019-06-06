@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_VERIFY 3"
-.TH CMS_VERIFY 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH CMS_VERIFY 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -182,7 +182,7 @@ are used as untrusted CAs. If \s-1CRL\s0 checking is enabled in \fBstore\fR any 
 CRLs are used in addition to attempting to look them up in \fBstore\fR. If any
 chain verify fails an error code is returned.
 .PP
-Finally the signed content is read (and written to \fBout\fR is it is not \s-1NULL\s0)
+Finally the signed content is read (and written to \fBout\fR if it is not \s-1NULL\s0)
 and the signature's checked.
 .PP
 If all signature's verify correctly then the function is successful.
@@ -253,7 +253,7 @@ be held in memory if it is not detached.
 \&\fBERR_get_error\fR\|(3), \fBCMS_sign\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

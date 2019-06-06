@@ -75,7 +75,7 @@
  *	Exported data structures.
  */
 
-extern int vm_page_max_wired;
+extern u_long vm_page_max_user_wired;
 extern int vm_pageout_page_count;
 
 #define	VM_OOM_MEM	1

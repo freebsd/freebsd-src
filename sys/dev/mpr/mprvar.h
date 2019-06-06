@@ -34,6 +34,9 @@
 #ifndef _MPRVAR_H
 #define _MPRVAR_H
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 #define MPR_DRIVER_VERSION	"23.00.00.00-fbsd"
 
 #define MPR_DB_MAX_WAIT		2500

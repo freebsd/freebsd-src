@@ -939,13 +939,8 @@ _sanity_check: .PHONY .MAKE
 _cleanobj_fast_depend_hack: .PHONY
 # Syscall stubs rewritten in C and obsolete MD assembly implementations
 # Date      SVN Rev  Syscalls
-# 20180404  r332048  sigreturn
-# 20180405  r332080  shmat
-# 20180406  r332119  setlogin
-# 20180411  r332443  exect
-# 20180525  r334224  vadvise
 # 20180604  r334626  brk sbrk
-.for f in brk exect sbrk setlogin shmat sigreturn vadvise
+.for f in brk sbrk
 	@if [ -e "${OBJTOP}/lib/libc/.depend.${f}.o" ] && \
 	    egrep -qw '${f}\.[sS]' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
 		echo "Removing stale dependencies for ${f} syscall wrappers"; \
@@ -2105,7 +2100,8 @@ _bootstrap_tools_links+=m4 lex
 # r334881 added libdwarf constants used by ctfconvert.
 # r338478 fixed a crash in objcopy for mips64el objects
 # r339083 libelf: correct mips64el test to use ELF header
-.if ${BOOTSTRAPPING} < 1200085
+# r348347 Add missing powerpc64 relocation support to libdwarf
+.if ${BOOTSTRAPPING} < 1300030
 _elftoolchain_libs= lib/libelf lib/libdwarf
 ${_bt}-lib/libelf: ${_bt_m4_depend}
 ${_bt}-lib/libdwarf: ${_bt_m4_depend}

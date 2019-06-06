@@ -46,6 +46,11 @@ SECTIONS
   .gnu.version   : { *(.gnu.version)	}
   .gnu.version_d   : { *(.gnu.version_d)	}
   .gnu.version_r   : { *(.gnu.version_r)	}
+  .note.gnu.build-id : {
+    PROVIDE (__build_id_start = .);
+    *(.note.gnu.build-id)
+    PROVIDE (__build_id_end = .);
+  }
   .rela.text     :
     { *(.rela.text) *(.rela.gnu.linkonce.t*) }
   .rela.data     :
@@ -98,7 +103,8 @@ SECTIONS
   .opd       : ALIGN(8) { KEEP (*(.opd)) }
   .branch_lt : ALIGN(8) { *(.branch_lt) }
   . = ALIGN(4096);
-  .got       : ALIGN(8) { __tocbase = .; *(.got .toc) }
+  .got       : ALIGN(8) { __tocbase = .; *(.got) }
+  .toc       : ALIGN(8) { *(.toc) }
 
   .dynamic        : { *(.dynamic) } :text :dynamic
   /* Put .ctors and .dtors next to the .got2 section, so that the pointers

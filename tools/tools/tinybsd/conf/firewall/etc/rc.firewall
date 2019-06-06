@@ -195,13 +195,13 @@ case ${firewall_type} in
 	############
 
 	# set these to your outside interface network and netmask and ip
-	oif="ed0"
+	oif="em0"
 	onet="192.0.2.0"
 	omask="255.255.255.240"
 	oip="192.0.2.1"
 
 	# set these to your inside interface network and netmask and ip
-	iif="ed1"
+	iif="em1"
 	inet="192.0.2.16"
 	imask="255.255.255.240"
 	iip="192.0.2.17"

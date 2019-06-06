@@ -104,7 +104,7 @@ x86_unimpl_store(u_long *buf __unused)
 	panic("%s called", __func__);
 }
 
-DEFINE_IFUNC(static, int, x86_rng_store, (u_long *buf), static)
+DEFINE_IFUNC(static, int, x86_rng_store, (u_long *buf))
 {
 	has_rdrand = (cpu_feature2 & CPUID2_RDRAND);
 	has_rdseed = (cpu_stdext_feature & CPUID_STDEXT_RDSEED);

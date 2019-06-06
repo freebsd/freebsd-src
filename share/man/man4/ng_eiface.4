@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 3, 2005
+.Dd May 14, 2019
 .Dt NG_EIFACE 4
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 The
 .Vt eiface
 netgraph node implements the generic Ethernet interface.
-When
+When an
 .Vt eiface
 node is created, a new interface appears which is accessible via
 .Xr ifconfig 8 .
@@ -78,7 +78,7 @@ which requires as an argument an
 string consisting of 6 colon-separated hex digits.
 .It Dv NGM_EIFACE_GET_IFNAME Pq Ic getifname
 Return the name of the associated interface as a
-.Dv NUL Ns -terminated
+.Dv NULL Ns -terminated
 .Tn ASCII
 string.
 .It Dv NGM_EIFACE_GET_IFADDRS
@@ -97,7 +97,7 @@ Unlike most other node types, an
 .Vt eiface
 node does
 .Em not
-go away when all hooks have been disconnected; rather, and explicit
+go away when all hooks have been disconnected; rather, an explicit
 .Dv NGM_SHUTDOWN
 control message is required.
 .Sh SEE ALSO

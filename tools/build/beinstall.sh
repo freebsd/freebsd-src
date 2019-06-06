@@ -54,10 +54,6 @@ MERGEMASTER_FLAGS="${MERGEMASTER_FLAGS:-"-iFU"}"
 
 
 ########################################################################
-## Constants
-ETCUPDATE_CMD="etcupdate"
-MERGEMASTER_CMD="mergemaster"
-
 ## Functions
 cleanup() {
 	[ -z "${cleanup_commands}" ] && return
@@ -126,23 +122,22 @@ create_be_dirs() {
 }
 
 update_mergemaster_pre() {
-	mergemaster -p -m ${srcdir} -D ${BE_MNTPT} -t ${BE_MM_ROOT} ${MERGEMASTER_FLAGS}
+	${MERGEMASTER_CMD} -p -m ${srcdir} -D ${BE_MNTPT} -t ${BE_MM_ROOT} ${MERGEMASTER_FLAGS}
 }
 
 update_mergemaster() {
-	chroot ${BE_MNTPT} \
-		mergemaster -m ${srcdir} -t ${BE_MM_ROOT} ${MERGEMASTER_FLAGS}
+	${MERGEMASTER_CMD} -m ${srcdir} -D ${BE_MNTPT} -t ${BE_MM_ROOT} ${MERGEMASTER_FLAGS}
 }
 
 update_etcupdate_pre() {
-	etcupdate -p -s ${srcdir} -D ${BE_MNTPT} ${ETCUPDATE_FLAGS} || return $?
-	etcupdate resolve -D ${BE_MNTPT} || return $?
+	${ETCUPDATE_CMD} -p -s ${srcdir} -D ${BE_MNTPT} ${ETCUPDATE_FLAGS} || return $?
+	${ETCUPDATE_CMD} resolve -D ${BE_MNTPT} || return $?
 }
 
 update_etcupdate() {
 	chroot ${BE_MNTPT} \
-		etcupdate -s ${srcdir} ${ETCUPDATE_FLAGS} || return $?
-	chroot ${BE_MNTPT} etcupdate resolve
+		${ETCUPDATE_CMD} -s ${srcdir} ${ETCUPDATE_FLAGS} || return $?
+	chroot ${BE_MNTPT} ${ETCUPDATE_CMD} resolve
 }
 
 
@@ -174,6 +169,10 @@ trap 'errx "Interrupt caught"' HUP INT TERM
 srcdir=$(pwd)
 objdir=$(make -V .OBJDIR 2>/dev/null)
 [ ! -d "${objdir}" ] && errx "Must have built FreeBSD from source tree"
+
+## Constants
+ETCUPDATE_CMD="${srcdir}/usr.sbin/etcupdate/etcupdate.sh"
+MERGEMASTER_CMD="${srcdir}/usr.sbin/mergemaster/mergemaster.sh"
 
 # May be a worktree, in which case .git is a file, not a directory.
 if [ -e .git ] ; then

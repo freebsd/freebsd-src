@@ -643,7 +643,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 {
 	zio_t *zio;
 
-	ASSERT3U(type == ZIO_TYPE_FREE || psize, <=, SPA_MAXBLOCKSIZE);
+	IMPLY(type != ZIO_TYPE_FREE, psize <= SPA_MAXBLOCKSIZE);
 	ASSERT(P2PHASE(psize, SPA_MINBLOCKSIZE) == 0);
 	ASSERT(P2PHASE(offset, SPA_MINBLOCKSIZE) == 0);
 
@@ -1614,7 +1614,8 @@ zio_taskq_dispatch(zio_t *zio, zio_taskq_type_t q, boolean_t cutinline)
 	 * If this is a high priority I/O, then use the high priority taskq if
 	 * available.
 	 */
-	if (zio->io_priority == ZIO_PRIORITY_NOW &&
+	if ((zio->io_priority == ZIO_PRIORITY_NOW ||
+	    zio->io_priority == ZIO_PRIORITY_SYNC_WRITE) &&
 	    spa->spa_zio_taskq[t][q + 1].stqs_count != 0)
 		q++;
 
@@ -2319,7 +2320,13 @@ zio_write_gang_member_ready(zio_t *zio)
 static void
 zio_write_gang_done(zio_t *zio)
 {
-	abd_put(zio->io_abd);
+	/*
+	 * The io_abd field will be NULL for a zio with no data.  The io_flags
+	 * will initially have the ZIO_FLAG_NODATA bit flag set, but we can't
+	 * check for it here as it is cleared in zio_ready.
+	 */
+	if (zio->io_abd != NULL)
+		abd_put(zio->io_abd);
 }
 
 static zio_t *
@@ -2340,11 +2347,12 @@ zio_write_gang_block(zio_t *pio)
 	int gbh_copies = MIN(copies + 1, spa_max_replication(spa));
 	zio_prop_t zp;
 	int error;
+	boolean_t has_data = !(pio->io_flags & ZIO_FLAG_NODATA);
 
 	int flags = METASLAB_HINTBP_FAVOR | METASLAB_GANG_HEADER;
 	if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
 		ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
-		ASSERT(!(pio->io_flags & ZIO_FLAG_NODATA));
+		ASSERT(has_data);
 
 		flags |= METASLAB_ASYNC_ALLOC;
 		VERIFY(refcount_held(&mc->mc_alloc_slots[pio->io_allocator],
@@ -2368,7 +2376,7 @@ zio_write_gang_block(zio_t *pio)
 	if (error) {
 		if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
 			ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
-			ASSERT(!(pio->io_flags & ZIO_FLAG_NODATA));
+			ASSERT(has_data);
 
 			/*
 			 * If we failed to allocate the gang block header then
@@ -2421,14 +2429,15 @@ zio_write_gang_block(zio_t *pio)
 		zp.zp_nopwrite = B_FALSE;
 
 		zio_t *cio = zio_write(zio, spa, txg, &gbh->zg_blkptr[g],
-		    abd_get_offset(pio->io_abd, pio->io_size - resid), lsize,
-		    lsize, &zp, zio_write_gang_member_ready, NULL, NULL,
+		    has_data ? abd_get_offset(pio->io_abd, pio->io_size -
+		    resid) : NULL, lsize, lsize, &zp,
+		    zio_write_gang_member_ready, NULL, NULL,
 		    zio_write_gang_done, &gn->gn_child[g], pio->io_priority,
 		    ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark);
 
 		if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
 			ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
-			ASSERT(!(pio->io_flags & ZIO_FLAG_NODATA));
+			ASSERT(has_data);
 
 			/*
 			 * Gang children won't throttle but we should

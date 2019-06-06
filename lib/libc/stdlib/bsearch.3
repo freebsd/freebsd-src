@@ -32,7 +32,7 @@
 .\"     @(#)bsearch.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2013
+.Dd May 15, 2019
 .Dt BSEARCH 3
 .Os
 .Sh NAME
@@ -83,6 +83,61 @@ The
 function returns a pointer to a matching member of the array, or a null
 pointer if no match is found.
 If two members compare as equal, which member is matched is unspecified.
+.Sh EXAMPLES
+A sample program that searches people by age in a sorted array:
+.Bd -literal
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct person {
+	char name[5];
+	int age;
+};
+
+int
+compare(const void *key, const void *array_member)
+{
+	int age = (intptr_t) key;
+	struct person person = *(struct person *) array_member;
+
+	return (age - person.age);
+}
+
+int
+main()
+{
+	struct person *friend;
+
+	/* Sorted array */
+	struct person friends[6] = {
+		{ "paul", 22 },
+		{ "anne", 25 },
+		{ "fred", 25 },
+		{ "mary", 27 },
+		{ "mark", 35 },
+		{ "bill", 50 }
+	};
+
+	size_t array_size = sizeof(friends) / sizeof(struct person);
+
+	friend = bsearch((void *)22, &friends, array_size, sizeof(struct person), compare);
+	assert(strcmp(friend->name, "paul") == 0);
+	printf("name: %s\enage: %d\en", friend->name, friend->age);
+
+	friend = bsearch((void *)25, &friends, array_size, sizeof(struct person), compare);
+	assert(strcmp(friend->name, "fred") == 0 || strcmp(friend->name, "anne") == 0);
+	printf("name: %s\enage: %d\en", friend->name, friend->age);
+
+	friend = bsearch((void *)30, &friends, array_size, sizeof(struct person), compare);
+	assert(friend == NULL);
+	printf("friend aged 30 not found\en");
+
+	return (EXIT_SUCCESS);
+}
+.Ed
 .Sh SEE ALSO
 .Xr db 3 ,
 .Xr lsearch 3 ,

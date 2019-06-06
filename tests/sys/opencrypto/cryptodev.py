@@ -3,6 +3,7 @@
 # Copyright (c) 2014 The FreeBSD Foundation
 # Copyright 2014 John-Mark Gurney
 # All rights reserved.
+# Copyright 2019 Enji Cooper
 #
 # This software was developed by John-Mark Gurney under
 # the sponsorship from the FreeBSD Foundation.
@@ -32,13 +33,16 @@
 
 from __future__ import print_function
 import array
-import dpkt
+import binascii
 from fcntl import ioctl
 import os
 import random
 import signal
 from struct import pack as _pack
+import sys
 import time
+
+import dpkt
 
 from cryptodevh import *
 
@@ -133,21 +137,32 @@ def _getdev():
 
 _cryptodev = _getdev()
 
+def str_to_ascii(val):
+    if sys.version_info[0] >= 3:
+        if isinstance(val, str):
+            return val.encode("ascii")
+    return val
+
 def _findop(crid, name):
     fop = FindOp()
     fop.crid = crid
-    fop.name = name
+    fop.name = str_to_ascii(name)
     s = array.array('B', fop.pack_hdr())
     ioctl(_cryptodev, CIOCFINDDEV, s, 1)
     fop.unpack(s)
 
     try:
-        idx = fop.name.index('\x00')
+        idx = fop.name.index(b'\x00')
         name = fop.name[:idx]
     except ValueError:
         name = fop.name
 
     return fop.crid, name
+
+def array_tobytes(array_obj):
+    if sys.version_info[:2] >= (3, 2):
+        return array_obj.tobytes()
+    return array_obj.tostring()
 
 class Crypto:
     @staticmethod
@@ -210,15 +225,15 @@ class Crypto:
         if self._maclen is not None:
             m = array.array('B', [0] * self._maclen)
             cop.mac = m.buffer_info()[0]
-        ivbuf = array.array('B', iv)
+        ivbuf = array.array('B', str_to_ascii(iv))
         cop.iv = ivbuf.buffer_info()[0]
 
         #print('cop:', cop)
-        ioctl(_cryptodev, CIOCCRYPT, str(cop))
+        ioctl(_cryptodev, CIOCCRYPT, bytes(cop))
 
-        s = s.tostring()
+        s = array_tobytes(s)
         if self._maclen is not None:
-            return s, m.tostring()
+            return s, array_tobytes(m)
 
         return s
 
@@ -228,9 +243,11 @@ class Crypto:
         caead.op = op
         caead.flags = CRD_F_IV_EXPLICIT
         caead.flags = 0
+        src = str_to_ascii(src)
         caead.len = len(src)
         s = array.array('B', src)
         caead.src = caead.dst = s.buffer_info()[0]
+        aad = str_to_ascii(aad)
         caead.aadlen = len(aad)
         saad = array.array('B', aad)
         caead.aad = saad.buffer_info()[0]
@@ -238,6 +255,7 @@ class Crypto:
         if self._maclen is None:
             raise ValueError('must have a tag length')
 
+        tag = str_to_ascii(tag)
         if tag is None:
             tag = array.array('B', [0] * self._maclen)
         else:
@@ -251,14 +269,15 @@ class Crypto:
         caead.ivlen = len(iv)
         caead.iv = ivbuf.buffer_info()[0]
 
-        ioctl(_cryptodev, CIOCCRYPTAEAD, str(caead))
+        ioctl(_cryptodev, CIOCCRYPTAEAD, bytes(caead))
 
-        s = s.tostring()
+        s = array_tobytes(s)
 
-        return s, tag.tostring()
+        return s, array_tobytes(tag)
 
     def perftest(self, op, size, timeo=3):
         inp = array.array('B', (random.randint(0, 255) for x in range(size)))
+        inp = str_to_ascii(inp)
         out = array.array('B', inp)
 
         # prep ioctl
@@ -285,8 +304,9 @@ class Crypto:
 
         start = time.time()
         reps = 0
+        cop = bytes(cop)
         while not exit[0]:
-            ioctl(_cryptodev, CIOCCRYPT, str(cop))
+            ioctl(_cryptodev, CIOCCRYPT, cop)
             reps += 1
 
         end = time.time()
@@ -315,11 +335,23 @@ class MismatchError(Exception):
 
 class KATParser:
     def __init__(self, fname, fields):
-        self.fp = open(fname)
         self.fields = set(fields)
         self._pending = None
+        self.fname = fname
+        self.fp = None
+
+    def __enter__(self):
+        self.fp = open(self.fname)
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if self.fp is not None:
+            self.fp.close()
 
     def __iter__(self):
+        return self
+
+    def __next__(self):
         while True:
             didread = False
             if self._pending is not None:
@@ -332,12 +364,13 @@ class KATParser:
             if didread and not i:
                 return
 
-            if (i and i[0] == '#') or not i.strip():
-                continue
-            if i[0] == '[':
-                yield i[1:].split(']', 1)[0], self.fielditer()
-            else:
-                raise ValueError('unknown line: %r' % repr(i))
+            if not i.startswith('#') and i.strip():
+                break
+
+        if i[0] == '[':
+            yield i[1:].split(']', 1)[0], self.fielditer()
+        else:
+            raise ValueError('unknown line: %r' % repr(i))
 
     def eatblanks(self):
         while True:
@@ -392,9 +425,18 @@ class KATParser:
 # section.
 class KATCCMParser:
     def __init__(self, fname):
-        self.fp = open(fname)
         self._pending = None
+        self.fname = fname
+        self.fp = None
+
+    def __enter__(self):
+        self.fp = open(self.fname)
         self.read_globals()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if self.fp is not None:
+            self.fp.close()
 
     def read_globals(self):
         self.global_values = {}
@@ -455,6 +497,9 @@ class KATCCMParser:
             self.section_values[f] = v
 
     def __iter__(self):
+        return self
+
+    def __next__(self):
         while True:
             if self._pending:
                 line = self._pending
@@ -491,9 +536,12 @@ class KATCCMParser:
 
             yield values
 
-
 def _spdechex(s):
-    return ''.join(s.split()).decode('hex')
+    return binascii.hexlify(''.join(s.split()))
+
+if sys.version_info[0] < 3:
+    KATCCMParser.next = KATCCMParser.__next__
+    KATParser.next = KATParser.__next__
 
 if __name__ == '__main__':
     if True:
@@ -510,11 +558,13 @@ if __name__ == '__main__':
             except IOError:
                 pass
     elif False:
-        kp = KATParser('/usr/home/jmg/aesni.testing/format tweak value input - data unit seq no/XTSGenAES128.rsp', [ 'COUNT', 'DataUnitLen', 'Key', 'DataUnitSeqNumber', 'PT', 'CT' ])
-        for mode, ni in kp:
-            print(i, ni)
-            for j in ni:
-                print(j)
+        columns = [ 'COUNT', 'DataUnitLen', 'Key', 'DataUnitSeqNumber', 'PT', 'CT' ]
+        fname = '/usr/home/jmg/aesni.testing/format tweak value input - data unit seq no/XTSGenAES128.rsp'
+        with KATParser(fname, columns) as kp:
+            for mode, ni in kp:
+                print(i, ni)
+                for j in ni:
+                    print(j)
     elif False:
         key = _spdechex('c939cc13397c1d37de6ae0e1cb7c423c')
         iv = _spdechex('00000000000000000000000000000001')
@@ -525,15 +575,15 @@ if __name__ == '__main__':
         c = Crypto(CRYPTO_AES_ICM, key)
         enc = c.encrypt(pt, iv)
 
-        print('enc:', enc.encode('hex'))
-        print(' ct:', ct.encode('hex'))
+        print('enc:', binascii.hexlify(enc))
+        print(' ct:', binascii.hexlify(ct))
 
         assert ct == enc
 
         dec = c.decrypt(ct, iv)
 
-        print('dec:', dec.encode('hex'))
-        print(' pt:', pt.encode('hex'))
+        print('dec:', binascii.hexlify(dec))
+        print(' pt:', binascii.hexlify(pt))
 
         assert pt == dec
     elif False:
@@ -546,15 +596,15 @@ if __name__ == '__main__':
         c = Crypto(CRYPTO_AES_ICM, key)
         enc = c.encrypt(pt, iv)
 
-        print('enc:', enc.encode('hex'))
-        print(' ct:', ct.encode('hex'))
+        print('enc:', binascii.hexlify(enc))
+        print(' ct:', binascii.hexlify(ct))
 
         assert ct == enc
 
         dec = c.decrypt(ct, iv)
 
-        print('dec:', dec.encode('hex'))
-        print(' pt:', pt.encode('hex'))
+        print('dec:', binascii.hexlify(dec))
+        print(' pt:', binascii.hexlify(pt))
 
         assert pt == dec
     elif False:
@@ -566,15 +616,15 @@ if __name__ == '__main__':
 
         enc = c.encrypt(pt, iv)
 
-        print('enc:', enc.encode('hex'))
-        print(' ct:', ct.encode('hex'))
+        print('enc:', binascii.hexlify(enc))
+        print(' ct:', binascii.hexlify(ct))
 
         assert ct == enc
 
         dec = c.decrypt(ct, iv)
 
-        print('dec:', dec.encode('hex'))
-        print(' pt:', pt.encode('hex'))
+        print('dec:', binascii.hexlify(dec))
+        print(' pt:', binascii.hexlify(pt))
 
         assert pt == dec
     elif False:
@@ -592,26 +642,26 @@ if __name__ == '__main__':
 
         enc, enctag = c.encrypt(pt, iv, aad=aad)
 
-        print('enc:', enc.encode('hex'))
-        print(' ct:', ct.encode('hex'))
+        print('enc:', binascii.hexlify(enc))
+        print(' ct:', binascii.hexlify(ct))
 
         assert enc == ct
 
-        print('etg:', enctag.encode('hex'))
-        print('tag:', tag.encode('hex'))
+        print('etg:', binascii.hexlify(enctag))
+        print('tag:', binascii.hexlify(tag))
         assert enctag == tag
 
         # Make sure we get EBADMSG
         #enctag = enctag[:-1] + 'a'
         dec, dectag = c.decrypt(ct, iv, aad=aad, tag=enctag)
 
-        print('dec:', dec.encode('hex'))
-        print(' pt:', pt.encode('hex'))
+        print('dec:', binascii.hexlify(dec))
+        print(' pt:', binascii.hexlify(pt))
 
         assert dec == pt
 
-        print('dtg:', dectag.encode('hex'))
-        print('tag:', tag.encode('hex'))
+        print('dtg:', binascii.hexlify(dectag))
+        print('tag:', binascii.hexlify(tag))
 
         assert dectag == tag
     elif False:
@@ -628,27 +678,27 @@ if __name__ == '__main__':
 
         enc, enctag = c.encrypt(pt, iv, aad=aad)
 
-        print('enc:', enc.encode('hex'))
-        print(' ct:', ct.encode('hex'))
+        print('enc:', binascii.hexlify(enc))
+        print(' ct:', binascii.hexlify(ct))
 
         assert enc == ct
 
-        print('etg:', enctag.encode('hex'))
-        print('tag:', tag.encode('hex'))
+        print('etg:', binascii.hexlify(enctag))
+        print('tag:', binascii.hexlify(tag))
         assert enctag == tag
     elif False:
         for i in range(100000):
-            c = Crypto(CRYPTO_AES_XTS, '1bbfeadf539daedcae33ced497343f3ca1f2474ad932b903997d44707db41382'.decode('hex'))
-            data = '52a42bca4e9425a25bbc8c8bf6129dec'.decode('hex')
-            ct = '517e602becd066b65fa4f4f56ddfe240'.decode('hex')
+            c = Crypto(CRYPTO_AES_XTS, binascii.unhexlify('1bbfeadf539daedcae33ced497343f3ca1f2474ad932b903997d44707db41382'))
+            data = binascii.unhexlify('52a42bca4e9425a25bbc8c8bf6129dec')
+            ct = binascii.unhexlify('517e602becd066b65fa4f4f56ddfe240')
             iv = _pack('QQ', 71, 0)
 
             enc = c.encrypt(data, iv)
             assert enc == ct
     elif True:
-        c = Crypto(CRYPTO_AES_XTS, '1bbfeadf539daedcae33ced497343f3ca1f2474ad932b903997d44707db41382'.decode('hex'))
-        data = '52a42bca4e9425a25bbc8c8bf6129dec'.decode('hex')
-        ct = '517e602becd066b65fa4f4f56ddfe240'.decode('hex')
+        c = Crypto(CRYPTO_AES_XTS, binascii.unhexlify('1bbfeadf539daedcae33ced497343f3ca1f2474ad932b903997d44707db41382'))
+        data = binascii.unhexlify('52a42bca4e9425a25bbc8c8bf6129dec')
+        ct = binascii.unhexlify('517e602becd066b65fa4f4f56ddfe240')
         iv = _pack('QQ', 71, 0)
 
         enc = c.encrypt(data, iv)
@@ -660,7 +710,7 @@ if __name__ == '__main__':
         #c.perftest(COP_ENCRYPT, 192*1024, reps=30000)
 
     else:
-        key = '1bbfeadf539daedcae33ced497343f3ca1f2474ad932b903997d44707db41382'.decode('hex')
+        key = binascii.unhexlify('1bbfeadf539daedcae33ced497343f3ca1f2474ad932b903997d44707db41382')
         print('XTS %d testing:' % (len(key) * 8))
         c = Crypto(CRYPTO_AES_XTS, key)
         for i in [ 8192, 192*1024]:

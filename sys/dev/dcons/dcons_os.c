@@ -37,6 +37,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/kdb.h>
 #include <gdb/gdb.h>
 #include <sys/kernel.h>

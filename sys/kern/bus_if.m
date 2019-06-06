@@ -856,7 +856,7 @@ METHOD int get_cpus {
 	device_t	_child;
 	enum cpu_sets	_op;
 	size_t		_setsize;
-	cpuset_t	*_cpuset;
+	struct _cpuset	*_cpuset;
 } DEFAULT bus_generic_get_cpus;
 
 /**

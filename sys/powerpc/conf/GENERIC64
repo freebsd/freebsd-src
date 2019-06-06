@@ -53,6 +53,7 @@ options 	UFS_DIRHASH		#Improve performance on big directories
 options 	UFS_GJOURNAL		#Enable gjournal-based UFS journaling
 options 	QUOTA			#Enable disk quotas for UFS
 options 	MD_ROOT			#MD is a potential root device
+options 	MD_ROOT_MEM		#Enable use of initrd as MD root
 options 	NFSCL			#Network Filesystem Client
 options 	NFSD			#Network Filesystem Server
 options 	NFSLOCKD		#Network Lock Manager
@@ -245,6 +246,7 @@ device		pmu
 # Sound support
 device		sound		# Generic sound driver (required)
 device		snd_ai2s	# Apple I2S audio
+device		snd_hda		# Intel High Definition Audio
 device		snd_uaudio	# USB Audio
 
 # Netmap provides direct access to TX/RX rings on supported NICs

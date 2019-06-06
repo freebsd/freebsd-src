@@ -1655,7 +1655,7 @@ typedef struct ipf_main_softc_s {
 			} while (0)
 
 #ifndef	_KERNEL
-extern	int	ipf_check __P((void *, struct ip *, int, void *, int, mb_t **));
+extern	int	ipf_check __P((void *, struct ip *, int, struct ifnet *, int, mb_t **));
 extern	struct	ifnet *get_unit __P((char *, int));
 extern	char	*get_ifname __P((struct ifnet *));
 extern	int	ipfioctl __P((ipf_main_softc_t *, int, ioctlcmd_t,
@@ -1672,7 +1672,7 @@ extern	int	ipl_enable __P((void));
 extern	int	ipl_disable __P((void));
 # ifdef MENTAT
 /* XXX MENTAT is always defined for Solaris */
-extern	int	ipf_check __P((void *, struct ip *, int, void *, int, void *,
+extern	int	ipf_check __P((void *, struct ip *, int, struct ifnet *, int, void *,
 			       mblk_t **));
 #  if SOLARIS
 extern	void	ipf_prependmbt(fr_info_t *, mblk_t *);
@@ -1681,7 +1681,7 @@ extern	int	ipfioctl __P((dev_t, int, intptr_t, int, cred_t *, int *));
 extern	int	ipf_qout __P((queue_t *, mblk_t *));
 # else /* MENTAT */
 /* XXX MENTAT is never defined for FreeBSD & NetBSD */
-extern	int	ipf_check __P((void *, struct ip *, int, void *, int, mb_t **));
+extern	int	ipf_check __P((void *, struct ip *, int, struct ifnet *, int, mb_t **));
 extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
 extern	size_t	mbufchainlen __P((mb_t *));
 #   ifdef	IPFILTER_LKM

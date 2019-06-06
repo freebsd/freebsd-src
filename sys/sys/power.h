@@ -31,7 +31,7 @@
 #ifndef _SYS_POWER_H_
 #define _SYS_POWER_H_
 
-#include <sys/eventhandler.h>
+#include <sys/_eventhandler.h>
 
 /* Power management system type */
 #define POWER_PM_TYPE_APM		0x00

@@ -935,12 +935,22 @@ __elfN(get_interp)(struct image_params *imgp, const Elf_Phdr *phdr,
 	interp_name_len = phdr->p_filesz;
 	if (phdr->p_offset > PAGE_SIZE ||
 	    interp_name_len > PAGE_SIZE - phdr->p_offset) {
+		/*
+		 * The vnode lock might be needed by the pagedaemon to
+		 * clean pages owned by the vnode.  Do not allow sleep
+		 * waiting for memory with the vnode locked, instead
+		 * try non-sleepable allocation first, and if it
+		 * fails, go to the slow path were we drop the lock
+		 * and do M_WAITOK.  A text reference prevents
+		 * modifications to the vnode content.
+		 */
 		interp = malloc(interp_name_len + 1, M_TEMP, M_NOWAIT);
 		if (interp == NULL) {
 			VOP_UNLOCK(imgp->vp, 0);
 			interp = malloc(interp_name_len + 1, M_TEMP, M_WAITOK);
 			vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		}
+
 		error = vn_rdwr(UIO_READ, imgp->vp, interp,
 		    interp_name_len, phdr->p_offset,
 		    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,

@@ -36,14 +36,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>	/* for curthread */
 #include <sys/sched.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <machine/specialreg.h>
 #include <machine/cpufunc.h>

@@ -147,7 +147,7 @@ dovend_rfc1497(hp, buf, len)
 		if (insert_ip(TAG_NIS_SERVER,
 					  hp->nis_server,
 					  &vp, &bytesleft))
-			NEED(8, "ds");
+			NEED(8, "ys");
 	}
 	if (hp->flags.nis_domain) {
 		/*
@@ -155,7 +155,7 @@ dovend_rfc1497(hp, buf, len)
 		 * TAG_NIS_DOMAIN and length.
 		 */
 		len = strlen(hp->nis_domain->string);
-		NEED((len + 2), "dn");
+		NEED((len + 2), "yn");
 		*vp++ = TAG_NIS_DOMAIN;
 		*vp++ = (byte) (len & 0xFF);
 		bcopy(hp->nis_domain->string, vp, len);
@@ -187,7 +187,7 @@ dovend_rfc1497(hp, buf, len)
 		if (insert_ip(TAG_NTP_SERVER,
 					  hp->ntp_server,
 					  &vp, &bytesleft))
-			NEED(8, "ts");
+			NEED(8, "nt");
 	}
 	/*
 	 * I wonder:  If the hostname were "promoted" into the BOOTP

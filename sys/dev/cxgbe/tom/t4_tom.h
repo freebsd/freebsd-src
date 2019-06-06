@@ -181,9 +181,7 @@ struct toepcb {
 	u_int tx_nocompl;	/* tx WR credits since last compl request */
 	u_int plen_nocompl;	/* payload since last compl request */
 
-	/* rx credit handling */
-	u_int sb_cc;		/* last noted value of so_rcv->sb_cc */
-	int rx_credits;		/* rx credits (in bytes) to be returned to hw */
+	int opt0_rcv_bufsize;	/* XXX: save full opt0/opt2 for later? */
 
 	u_int ulp_mode;	/* ULP mode */
 	void *ulpcb;

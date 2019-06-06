@@ -42,8 +42,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/consio.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/random.h>
 #include <sys/selinfo.h>

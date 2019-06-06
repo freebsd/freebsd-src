@@ -13,7 +13,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright (c) 2017 by Delphix. All rights reserved.
+ * Copyright (c) 2017, 2018 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -99,6 +99,7 @@ aggsum_fini(aggsum_t *as)
 {
 	for (int i = 0; i < as->as_numbuckets; i++)
 		mutex_destroy(&as->as_buckets[i].asc_lock);
+	kmem_free(as->as_buckets, as->as_numbuckets * sizeof (aggsum_bucket_t));
 	mutex_destroy(&as->as_lock);
 }
 

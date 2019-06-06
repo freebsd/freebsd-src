@@ -74,9 +74,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

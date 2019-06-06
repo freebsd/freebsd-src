@@ -3396,7 +3396,7 @@ uma_zone_get_cur(uma_zone_t zone)
 	    counter_u64_fetch(zone->uz_frees);
 	CPU_FOREACH(i) {
 		/*
-		 * See the comment in sysctl_vm_zone_stats() regarding the
+		 * See the comment in uma_vm_zone_stats() regarding the
 		 * safety of accessing the per-cpu caches. With the zone lock
 		 * held, it is safe, but can potentially result in stale data.
 		 */

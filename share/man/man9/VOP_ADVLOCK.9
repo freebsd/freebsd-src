@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 1999
+.Dd May 27, 2019
 .Dt VOP_ADVLOCK 9
 .Os
 .Sh NAME
@@ -56,13 +56,7 @@ Description of the lock.
 .It Fa flags
 One of more of the following:
 .Pp
-.Bl -tag -width ".Dv F_UNLCK" -offset indent -compact
-.It Dv F_RDLCK
-Shared or read lock.
-.It Dv F_UNLCK
-Unlock.
-.It Dv F_WRLCK
-Exclusive or write lock.
+.Bl -tag -width ".Dv F_REMOTE" -offset indent -compact
 .It Dv F_WAIT
 Wait until lock is granted.
 .It Dv F_FLOCK
@@ -71,6 +65,10 @@ Use
 semantics for lock.
 .It Dv F_POSIX
 Use POSIX semantics for lock.
+.It Dv F_REMOTE
+Lock owner is remote NFS client.
+.It Dv F_NOINTR
+Mask signals while waiting for the lock.
 .El
 .El
 .Pp

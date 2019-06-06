@@ -27,21 +27,29 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <opt_inet6.h>
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ctype.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 
+#include <sys/un.h>
+#include <netinet/in.h>
+
 #include <compat/linux/linux.h>
 #include <compat/linux/linux_common.h>
+#include <compat/linux/linux_util.h>
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
 
@@ -322,4 +330,194 @@ linux_ifhwaddr(struct ifnet *ifp, struct l_sockaddr *lsa)
 	}
 
 	return (ENOENT);
+}
+
+int
+linux_to_bsd_domain(int domain)
+{
+
+	switch (domain) {
+	case LINUX_AF_UNSPEC:
+		return (AF_UNSPEC);
+	case LINUX_AF_UNIX:
+		return (AF_LOCAL);
+	case LINUX_AF_INET:
+		return (AF_INET);
+	case LINUX_AF_INET6:
+		return (AF_INET6);
+	case LINUX_AF_AX25:
+		return (AF_CCITT);
+	case LINUX_AF_IPX:
+		return (AF_IPX);
+	case LINUX_AF_APPLETALK:
+		return (AF_APPLETALK);
+	}
+	return (-1);
+}
+
+int
+bsd_to_linux_domain(int domain)
+{
+
+	switch (domain) {
+	case AF_UNSPEC:
+		return (LINUX_AF_UNSPEC);
+	case AF_LOCAL:
+		return (LINUX_AF_UNIX);
+	case AF_INET:
+		return (LINUX_AF_INET);
+	case AF_INET6:
+		return (LINUX_AF_INET6);
+	case AF_CCITT:
+		return (LINUX_AF_AX25);
+	case AF_IPX:
+		return (LINUX_AF_IPX);
+	case AF_APPLETALK:
+		return (LINUX_AF_APPLETALK);
+	}
+	return (-1);
+}
+
+/*
+ * Based on the fact that:
+ * 1. Native and Linux storage of struct sockaddr
+ * and struct sockaddr_in6 are equal.
+ * 2. On Linux sa_family is the first member of all struct sockaddr.
+ */
+int
+bsd_to_linux_sockaddr(const struct sockaddr *sa, struct l_sockaddr **lsa,
+    socklen_t len)
+{
+	struct l_sockaddr *kosa;
+	int error, bdom;
+
+	*lsa = NULL;
+	if (len < 2 || len > UCHAR_MAX)
+		return (EINVAL);
+
+	kosa = malloc(len, M_SONAME, M_WAITOK);
+	bcopy(sa, kosa, len);
+
+	bdom = bsd_to_linux_domain(sa->sa_family);
+	if (bdom == -1) {
+		error = EAFNOSUPPORT;
+		goto out;
+	}
+
+	kosa->sa_family = bdom;
+	*lsa = kosa;
+	return (0);
+
+out:
+	free(kosa, M_SONAME);
+	return (error);
+}
+
+int
+linux_to_bsd_sockaddr(const struct l_sockaddr *osa, struct sockaddr **sap,
+    socklen_t *len)
+{
+	struct sockaddr *sa;
+	struct l_sockaddr *kosa;
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+	bool  oldv6size;
+#endif
+	char *name;
+	int salen, bdom, error, hdrlen, namelen;
+
+	if (*len < 2 || *len > UCHAR_MAX)
+		return (EINVAL);
+
+	salen = *len;
+
+#ifdef INET6
+	oldv6size = false;
+	/*
+	 * Check for old (pre-RFC2553) sockaddr_in6. We may accept it
+	 * if it's a v4-mapped address, so reserve the proper space
+	 * for it.
+	 */
+	if (salen == sizeof(struct sockaddr_in6) - sizeof(uint32_t)) {
+		salen += sizeof(uint32_t);
+		oldv6size = true;
+	}
+#endif
+
+	kosa = malloc(salen, M_SONAME, M_WAITOK);
+
+	if ((error = copyin(osa, kosa, *len)))
+		goto out;
+
+	bdom = linux_to_bsd_domain(kosa->sa_family);
+	if (bdom == -1) {
+		error = EAFNOSUPPORT;
+		goto out;
+	}
+
+#ifdef INET6
+	/*
+	 * Older Linux IPv6 code uses obsolete RFC2133 struct sockaddr_in6,
+	 * which lacks the scope id compared with RFC2553 one. If we detect
+	 * the situation, reject the address and write a message to system log.
+	 *
+	 * Still accept addresses for which the scope id is not used.
+	 */
+	if (oldv6size) {
+		if (bdom == AF_INET6) {
+			sin6 = (struct sockaddr_in6 *)kosa;
+			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr) ||
+			    (!IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_V4COMPAT(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
+			     !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))) {
+				sin6->sin6_scope_id = 0;
+			} else {
+				linux_msg(curthread,
+				    "obsolete pre-RFC2553 sockaddr_in6 rejected\n");
+				error = EINVAL;
+				goto out;
+			}
+		} else
+			salen -= sizeof(uint32_t);
+	}
+#endif
+	if (bdom == AF_INET) {
+		if (salen < sizeof(struct sockaddr_in)) {
+			error = EINVAL;
+			goto out;
+		}
+		salen = sizeof(struct sockaddr_in);
+	}
+
+	if (bdom == AF_LOCAL && salen > sizeof(struct sockaddr_un)) {
+		hdrlen = offsetof(struct sockaddr_un, sun_path);
+		name = ((struct sockaddr_un *)kosa)->sun_path;
+		if (*name == '\0') {
+			/*
+			 * Linux abstract namespace starts with a NULL byte.
+			 * XXX We do not support abstract namespace yet.
+			 */
+			namelen = strnlen(name + 1, salen - hdrlen - 1) + 1;
+		} else
+			namelen = strnlen(name, salen - hdrlen);
+		salen = hdrlen + namelen;
+		if (salen > sizeof(struct sockaddr_un)) {
+			error = ENAMETOOLONG;
+			goto out;
+		}
+	}
+
+	sa = (struct sockaddr *)kosa;
+	sa->sa_family = bdom;
+	sa->sa_len = salen;
+
+	*sap = sa;
+	*len = salen;
+	return (0);
+
+out:
+	free(kosa, M_SONAME);
+	return (error);
 }

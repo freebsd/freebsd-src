@@ -42,8 +42,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/rman.h>
@@ -272,7 +274,7 @@ static const struct {
 } its_quirks[] = {
 	{
 		/* Cavium ThunderX Pass 1.x */
-		.desc = "Cavoum ThunderX errata: 22375, 24313",
+		.desc = "Cavium ThunderX errata: 22375, 24313",
 		.iidr = GITS_IIDR_RAW(GITS_IIDR_IMPL_CAVIUM,
 		    GITS_IIDR_PROD_THUNDER, GITS_IIDR_VAR_THUNDER_1, 0),
 		.iidr_mask = ~GITS_IIDR_REVISION_MASK,
@@ -572,24 +574,16 @@ gicv3_its_pendtables_init(struct gicv3_its_softc *sc)
 	}
 }
 
-static int
-its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
+static void
+its_init_cpu_lpi(device_t dev, struct gicv3_its_softc *sc)
 {
 	device_t gicv3;
-	vm_paddr_t target;
 	uint64_t xbaser, tmp;
 	uint32_t ctlr;
 	u_int cpuid;
 
 	gicv3 = device_get_parent(dev);
 	cpuid = PCPU_GET(cpuid);
-	if (!CPU_ISSET(cpuid, &sc->sc_cpus))
-		return (0);
-
-	/* Check if the ITS is enabled on this CPU */
-	if ((gic_r_read_4(gicv3, GICR_TYPER) & GICR_TYPER_PLPIS) == 0) {
-		return (ENXIO);
-	}
 
 	/* Disable LPIs */
 	ctlr = gic_r_read_4(gicv3, GICR_CTLR);
@@ -659,10 +653,36 @@ its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
 
 	/* Make sure the GIC has seen everything */
 	dsb(sy);
+}
+
+static int
+its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
+{
+	device_t gicv3;
+	vm_paddr_t target;
+	u_int cpuid;
+	struct redist_pcpu *rpcpu;
+
+	gicv3 = device_get_parent(dev);
+	cpuid = PCPU_GET(cpuid);
+	if (!CPU_ISSET(cpuid, &sc->sc_cpus))
+		return (0);
+
+	/* Check if the ITS is enabled on this CPU */
+	if ((gic_r_read_4(gicv3, GICR_TYPER) & GICR_TYPER_PLPIS) == 0)
+		return (ENXIO);
+
+	rpcpu = gicv3_get_redist(dev);
+
+	/* Do per-cpu LPI init once */
+	if (!rpcpu->lpi_enabled) {
+		its_init_cpu_lpi(dev, sc);
+		rpcpu->lpi_enabled = true;
+	}
 
 	if ((gic_its_read_8(sc, GITS_TYPER) & GITS_TYPER_PTA) != 0) {
 		/* This ITS wants the redistributor physical address */
-		target = vtophys(gicv3_get_redist_vaddr(dev));
+		target = vtophys(rman_get_virtual(&rpcpu->res));
 	} else {
 		/* This ITS wants the unique processor number */
 		target = GICR_TYPER_CPUNUM(gic_r_read_8(gicv3, GICR_TYPER));

@@ -81,17 +81,13 @@ union	overhead {
 	} ovu;
 #define	ov_magic	ovu.ovu_magic
 #define	ov_index	ovu.ovu_index
-#define	ov_rmagic	ovu.ovu_rmagic
-#define	ov_size		ovu.ovu_size
 };
 
 static void morecore(int bucket);
 static int morepages(int n);
 static int findbucket(union overhead *freep, int srchlen);
 
-
 #define	MAGIC		0xef		/* magic # on accounting info */
-#define RMAGIC		0x5555		/* magic # on range info */
 
 /*
  * nextf[i] is the pointer to the next free block of size 2^(i+3).  The
@@ -349,12 +345,11 @@ findbucket(union overhead *freep, int srchlen)
 static int
 morepages(int n)
 {
-	int	fd = -1;
-	int	offset;
+	caddr_t	addr;
+	int offset;
 
 	if (pagepool_end - pagepool_start > pagesz) {
-		caddr_t	addr = (caddr_t)
-			(((long)pagepool_start + pagesz - 1) & ~(pagesz - 1));
+		addr = (caddr_t)roundup2((long)pagepool_start, pagesz);
 		if (munmap(addr, pagepool_end - addr) != 0) {
 #ifdef IN_RTLD
 			rtld_fdprintf(STDERR_FILENO, _BASENAME_RTLD ": "
@@ -364,20 +359,21 @@ morepages(int n)
 		}
 	}
 
-	offset = (long)pagepool_start - ((long)pagepool_start & ~(pagesz - 1));
+	offset = (long)pagepool_start - rounddown2((long)pagepool_start,
+	    pagesz);
 
-	if ((pagepool_start = mmap(0, n * pagesz,
-			PROT_READ|PROT_WRITE,
-			MAP_ANON|MAP_PRIVATE, fd, 0)) == (caddr_t)-1) {
+	pagepool_start = mmap(0, n * pagesz, PROT_READ | PROT_WRITE,
+	    MAP_ANON | MAP_PRIVATE, -1, 0);
+	if (pagepool_start == MAP_FAILED) {
 #ifdef IN_RTLD
 		rtld_fdprintf(STDERR_FILENO, _BASENAME_RTLD ": morepages: "
 		    "cannot mmap anonymous memory: %s\n",
 		    rtld_strerror(errno));
 #endif
-		return 0;
+		return (0);
 	}
 	pagepool_end = pagepool_start + n * pagesz;
 	pagepool_start += offset;
 
-	return n;
+	return (n);
 }

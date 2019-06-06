@@ -34,7 +34,7 @@
 
 #define	MAXTBLENTS	128
 
-int gptread(const uuid_t *uuid, struct dsk *dskp, char *buf);
+int gptread(struct dsk *dskp, char *buf);
 int gptfind(const uuid_t *uuid, struct dsk *dskp, int part);
 void gptbootfailed(struct dsk *dskp);
 

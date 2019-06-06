@@ -143,6 +143,7 @@ struct timeval actualtimeout =
 	15 * 60L,					/* tv_sec */
 	0							/* tv_usec */
 };
+int arpmod = TRUE;				/* modify the ARP table */
 
 /*
  * General
@@ -266,6 +267,9 @@ main(argc, argv)
 			break;
 		switch (argv[0][1]) {
 
+		case 'a':				/* don't modify the ARP table */
+			arpmod = FALSE;
+			break;
 		case 'c':				/* chdir_path */
 			if (argv[0][2]) {
 				stmp = &(argv[0][2]);
@@ -583,14 +587,15 @@ PRIVATE void
 usage()
 {
 	fprintf(stderr,
-			"usage:  bootpd [-i | -s] [-c chdir-path] [-d level] [-h hostname] [-t timeout]\n");
-	fprintf(stderr, "               [bootptab [dumpfile]]\n");
-	fprintf(stderr, "\t -c n\tset current directory\n");
-	fprintf(stderr, "\t -d n\tset debug level\n");
-	fprintf(stderr, "\t -h n\tset the hostname to listen on\n");
-	fprintf(stderr, "\t -i\tforce inetd mode (run as child of inetd)\n");
-	fprintf(stderr, "\t -s\tforce standalone mode (run without inetd)\n");
-	fprintf(stderr, "\t -t n\tset inetd exit timeout to n minutes\n");
+		"usage: bootpd [-a] [-i | -s] [-c chdir-path] [-d level] [-h hostname]\n"
+		"              [-t timeout] [bootptab [dumpfile]]\n");
+	fprintf(stderr, "       -a\tdon't modify ARP table\n");
+	fprintf(stderr, "       -c n\tset current directory\n");
+	fprintf(stderr, "       -d n\tset debug level\n");
+	fprintf(stderr, "       -h n\tset the hostname to listen on\n");
+	fprintf(stderr, "       -i\tforce inetd mode (run as child of inetd)\n");
+	fprintf(stderr, "       -s\tforce standalone mode (run without inetd)\n");
+	fprintf(stderr, "       -t n\tset inetd exit timeout to n minutes\n");
 	exit(1);
 }
 
@@ -1067,10 +1072,12 @@ sendreply(forward, dst_override)
 		if (haf == 0)
 			haf = HTYPE_ETHERNET;
 
-		if (debug > 1)
-			report(LOG_INFO, "setarp %s - %s",
-				   inet_ntoa(dst), haddrtoa(ha, len));
-		setarp(s, &dst, haf, ha, len);
+		if (arpmod) {
+			if (debug > 1)
+				report(LOG_INFO, "setarp %s - %s",
+					   inet_ntoa(dst), haddrtoa(ha, len));
+			setarp(s, &dst, haf, ha, len);
+		}
 	}
 
 	if ((forward == 0) &&

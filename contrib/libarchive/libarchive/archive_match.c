@@ -93,6 +93,9 @@ struct archive_match {
 	/* exclusion/inclusion set flag. */
 	int			 setflag;
 
+	/* Recursively include directory content? */
+	int			 recursive_include;
+
 	/*
 	 * Matching filename patterns.
 	 */
@@ -223,6 +226,7 @@ archive_match_new(void)
 		return (NULL);
 	a->archive.magic = ARCHIVE_MATCH_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
+	a->recursive_include = 1;
 	match_list_init(&(a->inclusions));
 	match_list_init(&(a->exclusions));
 	__archive_rb_tree_init(&(a->exclusion_tree), &rb_ops_mbs);
@@ -468,6 +472,28 @@ archive_match_path_excluded(struct archive *_a,
 #else
 	return (path_excluded(a, 1, archive_entry_pathname(entry)));
 #endif
+}
+
+/*
+ * When recursive inclusion of directory content is enabled,
+ * an inclusion pattern that matches a directory will also
+ * include everything beneath that directory. Enabled by default.
+ *
+ * For compatibility with GNU tar, exclusion patterns always
+ * match if a subset of the full patch matches (i.e., they are
+ * are not rooted at the beginning of the path) and thus there
+ * is no corresponding non-recursive exclusion mode.
+ */
+int
+archive_match_set_inclusion_recursion(struct archive *_a, int enabled)
+{
+	struct archive_match *a;
+
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_set_inclusion_recursion");
+	a = (struct archive_match *)_a;
+	a->recursive_include = enabled;
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -781,7 +807,10 @@ static int
 match_path_inclusion(struct archive_match *a, struct match *m,
     int mbs, const void *pn)
 {
-	int flag = PATHMATCH_NO_ANCHOR_END;
+	/* Recursive operation requires only a prefix match. */
+	int flag = a->recursive_include ?
+		PATHMATCH_NO_ANCHOR_END :
+		0;
 	int r;
 
 	if (mbs) {
@@ -1232,7 +1261,7 @@ set_timefilter_pathname_mbs(struct archive_match *a, int timetype,
 		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
 		return (ARCHIVE_FAILED);
 	}
-	if (stat(path, &st) != 0) {
+	if (la_stat(path, &st) != 0) {
 		archive_set_error(&(a->archive), errno, "Failed to stat()");
 		return (ARCHIVE_FAILED);
 	}

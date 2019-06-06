@@ -179,3 +179,13 @@ ASENTRY_NOPROF(dtrace_caller)
 	li	%r3, -1
 	blr
 END(dtrace_caller)
+
+/*
+greg_t
+dtrace_getfp(void)
+*/
+ASENTRY_NOPROF(dtrace_getfp)
+	mr	%r3,%r31
+	blr
+END(dtrace_getfp)
+

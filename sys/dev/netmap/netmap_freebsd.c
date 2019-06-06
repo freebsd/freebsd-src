@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/errno.h>
+#include <sys/eventhandler.h>
 #include <sys/jail.h>
 #include <sys/poll.h>  /* POLLIN, POLLOUT */
 #include <sys/kernel.h> /* types used in module initialization */

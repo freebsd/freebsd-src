@@ -338,9 +338,9 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FORMAT_LHA			0xB0000
 #define	ARCHIVE_FORMAT_CAB			0xC0000
 #define	ARCHIVE_FORMAT_RAR			0xD0000
-#define	ARCHIVE_FORMAT_RAR_V5			(ARCHIVE_FORMAT_RAR | 1)
 #define	ARCHIVE_FORMAT_7ZIP			0xE0000
 #define	ARCHIVE_FORMAT_WARC			0xF0000
+#define	ARCHIVE_FORMAT_RAR_V5			0x100000
 
 /*
  * Codes returned by archive_read_format_capabilities().
@@ -1095,6 +1095,8 @@ __LA_DECL int	archive_match_excluded(struct archive *,
  */
 __LA_DECL int	archive_match_path_excluded(struct archive *,
 		    struct archive_entry *);
+/* Control recursive inclusion of directory content when directory is included. Default on. */
+__LA_DECL int	archive_match_set_inclusion_recursion(struct archive *, int);
 /* Add exclusion pathname pattern. */
 __LA_DECL int	archive_match_exclude_pattern(struct archive *, const char *);
 __LA_DECL int	archive_match_exclude_pattern_w(struct archive *,

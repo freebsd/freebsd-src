@@ -81,8 +81,8 @@ extern unsigned long linux_timer_hz_mask;
 extern void mod_timer(struct timer_list *, int);
 extern void add_timer(struct timer_list *);
 extern void add_timer_on(struct timer_list *, int cpu);
+extern int del_timer(struct timer_list *);
 
-#define	del_timer(timer)	(void)callout_stop(&(timer)->callout)
 #define	del_timer_sync(timer)	(void)callout_drain(&(timer)->callout)
 #define	timer_pending(timer)	callout_pending(&(timer)->callout)
 #define	round_jiffies(j)	\

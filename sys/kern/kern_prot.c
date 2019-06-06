@@ -1957,6 +1957,14 @@ cru2x(struct ucred *cr, struct xucred *xcr)
 	    ngroups * sizeof(*cr->cr_groups));
 }
 
+void
+cru2xt(struct thread *td, struct xucred *xcr)
+{
+
+	cru2x(td->td_ucred, xcr);
+	xcr->cr_pid = td->td_proc->p_pid;
+}
+
 /*
  * Set initial process credentials.
  * Callers are responsible for providing the reference for provided credentials.

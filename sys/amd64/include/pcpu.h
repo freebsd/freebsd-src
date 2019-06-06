@@ -84,8 +84,12 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	uint32_t pc_pcid_gen;						\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
 	uint32_t pc_ibpb_set;						\
+	void	*pc_mds_buf;						\
+	void	*pc_mds_buf64;						\
+	uint32_t pc_pad[2];						\
+	uint8_t	pc_mds_tmp[64];						\
 	u_int 	pc_ipi_bitmap;						\
-	char	__pad[3284]		/* pad to UMA_PCPU_ALLOC_SIZE */
+	char	__pad[3172]		/* pad to UMA_PCPU_ALLOC_SIZE */
 
 #define	PC_DBREG_CMD_NONE	0
 #define	PC_DBREG_CMD_LOAD	1

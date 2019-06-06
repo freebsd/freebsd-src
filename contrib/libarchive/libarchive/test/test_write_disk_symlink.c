@@ -99,6 +99,139 @@ DEFINE_TEST(test_write_disk_symlink)
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	archive_entry_free(ae);
 
+	/* Symbolic link: dot -> . */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "dot");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, ".");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: dotdot -> .. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "dotdot");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "..");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: slash -> / */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "slash");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "/");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: sldot -> /. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "sldot");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "/.");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: sldotdot -> /.. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "sldotdot");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "/..");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Dir: d1 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "d1");
+	archive_entry_set_mode(ae, AE_IFDIR | 0777);
+	archive_entry_unset_size(ae);
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: d1nosl -> d1 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "d1nosl");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "d1");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: d1slash -> d1/ */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "d1slash");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "d1/");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: d1sldot -> d1/. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "d1sldot");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "d1/.");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: d1slddot -> d1/.. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "d1slddot");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "d1/..");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: d1dir -> d1 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "d1dir");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_set_symlink_type(ae, AE_SYMLINK_TYPE_DIRECTORY);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "d1");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	/* Symbolic link: d1file -> d1 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "d1file");
+	archive_entry_set_mode(ae, AE_IFLNK | 0642);
+	archive_entry_set_symlink_type(ae, AE_SYMLINK_TYPE_FILE);
+	archive_entry_unset_size(ae);
+	archive_entry_copy_symlink(ae, "d1");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
 	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));
 
 	/* Test the entries on disk. */
@@ -107,11 +240,30 @@ DEFINE_TEST(test_write_disk_symlink)
 	assertIsReg("link1a", -1);
 	assertFileSize("link1a", sizeof(data));
 	assertFileNLinks("link1a", 1);
-	assertIsSymlink("link1b", "link1a");
+	assertIsSymlink("link1b", "link1a", 0);
 
 	/* Test #2: Should produce identical results to test #1 */
 	assertIsReg("link2a", -1);
 	assertFileSize("link2a", sizeof(data));
 	assertFileNLinks("link2a", 1);
-	assertIsSymlink("link2b", "link2a");
+	assertIsSymlink("link2b", "link2a", 0);
+
+	/* Test #3: Special symlinks */
+	assertIsSymlink("dot", ".", 1);
+	assertIsSymlink("dotdot", "..", 1);
+	assertIsSymlink("slash", "/", 1);
+	assertIsSymlink("sldot", "/.", 1);
+	assertIsSymlink("sldotdot", "/..", 1);
+
+	/* Test #4: Directory symlink mixed with . and .. */
+	assertIsDir("d1", -1);
+	/* On Windows, d1nosl should be a file symlink */
+	assertIsSymlink("d1nosl", "d1", 0);
+	assertIsSymlink("d1slash", "d1/", 1);
+	assertIsSymlink("d1sldot", "d1/.", 1);
+	assertIsSymlink("d1slddot", "d1/..", 1);
+
+	/* Test #5: symlink_type is set */
+	assertIsSymlink("d1dir", "d1", 1);
+	assertIsSymlink("d1file", "d1", 0);
 }

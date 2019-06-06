@@ -2810,7 +2810,7 @@ ipf_check(ctx, ip, hlen, ifp, out
 	mb_t **mp;
 	ip_t *ip;
 	int hlen;
-	void *ifp;
+	struct ifnet *ifp;
 	int out;
 	void *ctx;
 {
@@ -2882,8 +2882,7 @@ ipf_check(ctx, ip, hlen, ifp, out
 	 */
 	m->m_flags &= ~M_CANFASTFWD;
 #  endif /* M_CANFASTFWD */
-#  if defined(CSUM_DELAY_DATA) && (!defined(__FreeBSD_version) || \
-				   (__FreeBSD_version < 501108))
+#  if defined(CSUM_DELAY_DATA) && !defined(__FreeBSD_version)
 	/*
 	 * disable delayed checksums.
 	 */
@@ -3913,7 +3912,7 @@ ipf_fixskip(listp, rp, addremove)
 	for (fp = *listp; (fp != NULL) && (fp != rp); fp = fp->fr_next)
 		rules++;
 
-	if (!fp)
+	if (fp == NULL)
 		return;
 
 	for (rn = 0, fp = *listp; fp && (fp != rp); fp = fp->fr_next, rn++)
@@ -4982,16 +4981,16 @@ frrequest(softc, unit, req, data, set, makecopy)
 			error = ipf_outobj(softc, data, fp, IPFOBJ_FRENTRY);
 
 			if (error == 0) {
-				if ((f->fr_dsize != 0) && (uptr != NULL))
+				if ((f->fr_dsize != 0) && (uptr != NULL)) {
 					error = COPYOUT(f->fr_data, uptr,
 							f->fr_dsize);
-					if (error != 0) {
+					if (error == 0) {
+						f->fr_hits = 0;
+						f->fr_bytes = 0;
+					} else {
 						IPFERROR(28);
 						error = EFAULT;
 					}
-				if (error == 0) {
-					f->fr_hits = 0;
-					f->fr_bytes = 0;
 				}
 			}
 		}
@@ -5006,7 +5005,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 		return error;
 	}
 
-  	if (!f) {
+	if (f == NULL) {
 		/*
 		 * At the end of this, ftail must point to the place where the
 		 * new rule is to be saved/inserted/added.
@@ -5052,7 +5051,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 	 * Request to remove a rule.
 	 */
 	if (addrem == 1) {
-		if (!f) {
+		if (f == NULL) {
 			IPFERROR(29);
 			error = ESRCH;
 		} else {

@@ -22,6 +22,8 @@
 # They have to be listed here so we can build modules outside of the
 # src tree.
 
+KLDXREF_CMD?=	kldxref
+
 __DEFAULT_YES_OPTIONS = \
     AUTOFS \
     BHYVE \

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_TLSEXT_TICKET_KEY_CB 3"
-.TH SSL_CTX_SET_TLSEXT_TICKET_KEY_CB 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH SSL_CTX_SET_TLSEXT_TICKET_KEY_CB 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -247,6 +247,9 @@ Applications can use longer keys to maintain a consistent level of security.
 For example if a cipher suite uses 256 bit ciphers but only a 128 bit ticket key
 the overall security is only 128 bits because breaking the ticket key will
 enable an attacker to obtain the session keys.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+returns 0 to indicate the callback function was set.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Reference Implementation:
@@ -302,9 +305,6 @@ Reference Implementation:
 \&     }
 \& }
 .Ve
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-returns 0 to indicate the callback function was set.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7), \fBSSL_set_session\fR\|(3),
@@ -315,7 +315,7 @@ returns 0 to indicate the callback function was set.
 \&\fBSSL_CTX_set_session_id_context\fR\|(3),
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2014\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -343,20 +343,22 @@ main(int argc, char *argv[])
 
 	setlocale(LC_ALL, "");
 
-	/* Check what is the program name of the binary.  In this
-	   way we can have all the funcionalities in one binary
-	   without the need of scripting and using ugly hacks. */
+	/*
+	 * Check how we've bene invoked to determine the behavior we should
+	 * exhibit. In this way we can have all the functionalities in one
+	 * binary without the need of scripting and using ugly hacks.
+	 */
 	pn = getprogname();
-	if (pn[0] == 'r') {
-		dirbehave = DIR_RECURSE;
-		Hflag = true;
-	}
 	switch (pn[0]) {
 	case 'e':
 		grepbehave = GREP_EXTENDED;
 		break;
 	case 'f':
 		grepbehave = GREP_FIXED;
+		break;
+	case 'r':
+		dirbehave = DIR_RECURSE;
+		Hflag = true;
 		break;
 	}
 

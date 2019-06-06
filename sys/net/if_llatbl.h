@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #ifndef	_NET_IF_LLATBL_H_
 #define	_NET_IF_LLATBL_H_
 
+#include <sys/_eventhandler.h>
 #include <sys/_rwlock.h>
 #include <netinet/in.h>
 #include <sys/epoch.h>
@@ -267,7 +268,6 @@ llentry_mark_used(struct llentry *lle)
 
 int		lla_rt_output(struct rt_msghdr *, struct rt_addrinfo *);
 
-#include <sys/eventhandler.h>
 enum {
 	LLENTRY_RESOLVED,
 	LLENTRY_TIMEDOUT,

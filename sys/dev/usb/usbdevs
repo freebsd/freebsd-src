@@ -4342,6 +4342,7 @@ product SILABS	CP210X_2	0xea61	CP210x Serial
 product SILABS	CP210X_3	0xea70	CP210x Serial
 product SILABS	CP210X_4	0xea80	CP210x Serial
 product SILABS	INFINITY_MIC	0xea71	Infinity GPS-MIC-1 Radio Monophone
+product SILABS	CP2112		0xea90	CP2112 HID USB-to-SMBus Bridge with GPIO
 product SILABS	USBSCOPE50	0xf001	USBscope50
 product SILABS	USBWAVE12	0xf002	USBwave12
 product SILABS	USBPULSE100	0xf003	USBpulse100

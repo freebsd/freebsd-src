@@ -502,6 +502,23 @@ static void pfopen(FICL_VM *pVM)
 
     /* open the file */
     fd = open(name, mode);
+#ifdef LOADER_VERIEXEC
+    if (fd >= 0) {
+	if (verify_file(fd, name, 0, VE_GUESS) < 0) {
+	    /* not verified writing ok but reading is not */
+	    if ((mode & O_ACCMODE) != O_WRONLY) {
+		close(fd);
+		fd = -1;
+	    }
+	} else {
+	    /* verified reading ok but writing is not */
+	    if ((mode & O_ACCMODE) != O_RDONLY) {
+		close(fd);
+		fd = -1;
+	    }
+	}
+    }
+#endif
     free(name);
     stackPushINT(pVM->pStack, fd);
     return;

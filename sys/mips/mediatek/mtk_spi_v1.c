@@ -43,6 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
+#include <sys/gpio.h>
+#include "gpiobus_if.h"
+
+#include <dev/gpio/gpiobusvar.h>
+
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 #include "spibus_if.h"
@@ -53,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <mips/mediatek/mtk_soc.h>
 #include <mips/mediatek/mtk_spi_v1.h>
 #include <dev/flash/mx25lreg.h>
 
@@ -81,6 +87,8 @@ __FBSDID("$FreeBSD$");
 struct mtk_spi_softc {
 	device_t		sc_dev;
 	struct resource		*sc_mem_res;
+	struct gpiobus_pin	*gpio_cs;
+	int			nonflash;
 };
 
 static int	mtk_spi_probe(device_t);
@@ -127,7 +135,7 @@ mtk_spi_attach(device_t dev)
 	sc->sc_dev = dev;
         rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	    RF_SHAREABLE | RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "Could not map memory\n");
 		return (ENXIO);
@@ -138,14 +146,20 @@ mtk_spi_attach(device_t dev)
 		return (EBUSY);
 	}
 
-	SPI_WRITE(sc, MTK_SPICFG, MSBFIRST | SPICLKPOL | TX_ON_CLK_FALL |
-	    SPI_CLK_DIV8); /* XXX: make it configurable */
-	    /*
-	     * W25Q64CV max 104MHz, bus 120-192 MHz, so divide by 2.
-	     * Update: divide by 4, DEV2 to fast for flash.
-	     */
+	if (ofw_bus_has_prop(dev, "non-flash"))
+		sc->nonflash = 1;
+	else
+		sc->nonflash = 0;
 
-	device_add_child(dev, "spibus", 0);
+	ofw_gpiobus_parse_gpios(dev, "cs-gpios", &sc->gpio_cs);
+
+	if (sc->gpio_cs != NULL) {
+		GPIO_PIN_SETFLAGS(sc->gpio_cs->dev, sc->gpio_cs->pin,
+		    GPIO_PIN_OUTPUT);
+		GPIO_PIN_SET(sc->gpio_cs->dev, sc->gpio_cs->pin, 1);
+	}
+
+	device_add_child(dev, "spibus", -1);
 	return (bus_generic_attach(dev));
 }
 
@@ -169,7 +183,12 @@ mtk_spi_chip_activate(struct mtk_spi_softc *sc)
 	/*
 	 * Put all CSx to low
 	 */
-	SPI_CLEAR_BITS(sc, MTK_SPICTL, CS_HIGH | HIZSMOSI);
+	if (sc->gpio_cs != NULL) {
+		GPIO_PIN_SET(sc->gpio_cs->dev, sc->gpio_cs->pin, 0);
+		SPI_CLEAR_BITS(sc, MTK_SPICTL, HIZSMOSI);
+	} else {
+		SPI_CLEAR_BITS(sc, MTK_SPICTL, CS_HIGH | HIZSMOSI);
+	}
 }
 
 static void
@@ -179,7 +198,12 @@ mtk_spi_chip_deactivate(struct mtk_spi_softc *sc)
 	/*
 	 * Put all CSx to high
 	 */
-	SPI_SET_BITS(sc, MTK_SPICTL, CS_HIGH | HIZSMOSI);
+	if (sc->gpio_cs != NULL) {
+		GPIO_PIN_SET(sc->gpio_cs->dev, sc->gpio_cs->pin, 1);
+		SPI_SET_BITS(sc, MTK_SPICTL, HIZSMOSI);
+	} else {
+		SPI_SET_BITS(sc, MTK_SPICTL, CS_HIGH | HIZSMOSI);
+	}
 }
 
 static int
@@ -224,12 +248,15 @@ mtk_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct mtk_spi_softc *sc;
 	uint8_t *buf, byte, *tx_buf;
-	uint32_t cs;
+	uint32_t cs, clock, mode;
 	int i, sz, error = 0, write = 0;
+	int div, clk, cfgreg;
 
 	sc = device_get_softc(dev);
 
 	spibus_get_cs(child, &cs);
+	spibus_get_clock(child, &clock);
+	spibus_get_mode(child, &mode);
 
 	cs &= ~SPIBUS_CS_HIGH;
 
@@ -237,44 +264,80 @@ mtk_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 		/* Only 1 CS */
 		return (ENXIO);
 
-        /* There is always a command to transfer. */
-        tx_buf = (uint8_t *)(cmd->tx_cmd);
-        
-        /* Perform some fixup because MTK dont support duplex SPI */
-        switch(tx_buf[0]) {
-                case CMD_READ_IDENT:
-                        cmd->tx_cmd_sz = 1;
-                        cmd->rx_cmd_sz = 3;
+	cfgreg = MSBFIRST;
+	switch(mode) {
+		case 0:	/* This is workadound because of
+			   mode 0 not work this soc. */
+		case 3:
+			cfgreg |= SPICLKPOL | TX_ON_CLK_FALL;
                         break;
-		case CMD_ENTER_4B_MODE:
-		case CMD_EXIT_4B_MODE:
-                case CMD_WRITE_ENABLE:
-                case CMD_WRITE_DISABLE:
-                        cmd->tx_cmd_sz = 1;
-                        cmd->rx_cmd_sz = 0;
+		case 1:
+			cfgreg |= TX_ON_CLK_FALL;
                         break;
-                case CMD_READ_STATUS:
-                        cmd->tx_cmd_sz = 1;
-                        cmd->rx_cmd_sz = 1;
+		case 2:
+			cfgreg |= CAPT_ON_CLK_FALL;
                         break;
-                case CMD_READ:
-                case CMD_FAST_READ:
-                        cmd->rx_cmd_sz = cmd->tx_data_sz = 0;
-                        break;
-                case CMD_SECTOR_ERASE:
-                        cmd->rx_cmd_sz = 0;
-                        break;
-                case CMD_PAGE_PROGRAM:
-                        cmd->rx_cmd_sz = cmd->rx_data_sz = 0;
-                        break;
-        }      
+	}
+
+	/*
+	 * W25Q64CV max 104MHz, bus 120-192 MHz, so divide by 2.
+	 * Update: divide by 4, DEV2 to fast for flash.
+	 */
+	if (clock != 0) {
+		div = (mtk_soc_get_cpuclk() + (clock - 1)) / clock;
+		clk = fls(div) - 2;
+		if (clk < 0)
+			clk = 0;
+		else if (clk > 6)
+			clk = 6;
+	} else {
+		clk = 6;
+	}
+
+	SPI_WRITE(sc, MTK_SPICFG, cfgreg | clk);
+
+	if (sc->nonflash == 0) {
+		/* There is always a command to transfer. */
+		tx_buf = (uint8_t *)(cmd->tx_cmd);
+
+		/* Perform some fixup because MTK dont support duplex SPI */
+		switch(tx_buf[0]) {
+			case CMD_READ_IDENT:
+				cmd->tx_cmd_sz = 1;
+				cmd->rx_cmd_sz = 3;
+				break;
+			case CMD_ENTER_4B_MODE:
+			case CMD_EXIT_4B_MODE:
+			case CMD_WRITE_ENABLE:
+			case CMD_WRITE_DISABLE:
+				cmd->tx_cmd_sz = 1;
+				cmd->rx_cmd_sz = 0;
+				break;
+			case CMD_READ_STATUS:
+				cmd->tx_cmd_sz = 1;
+				cmd->rx_cmd_sz = 1;
+				break;
+			case CMD_READ:
+			case CMD_FAST_READ:
+				cmd->rx_cmd_sz = cmd->tx_data_sz = 0;
+				break;
+			case CMD_SECTOR_ERASE:
+				cmd->rx_cmd_sz = 0;
+				break;
+			case CMD_PAGE_PROGRAM:
+				cmd->rx_cmd_sz = cmd->rx_data_sz = 0;
+				break;
+		}
+	}
         
 	mtk_spi_chip_activate(sc);
 
 	if (cmd->tx_cmd_sz + cmd->rx_cmd_sz) {
 		buf = (uint8_t *)(cmd->rx_cmd);
 		tx_buf = (uint8_t *)(cmd->tx_cmd);
-		sz = cmd->tx_cmd_sz + cmd->rx_cmd_sz;
+		sz = cmd->tx_cmd_sz;
+		if (sc->nonflash == 0)
+			sz += cmd->rx_cmd_sz;
 
 		for (i = 0; i < sz; i++) {
                         if(i < cmd->tx_cmd_sz) {

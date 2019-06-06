@@ -904,8 +904,8 @@ trap_fatal(frame, eva)
 			code & PGEX_U ? "user" : "supervisor",
 			code & PGEX_W ? "write" : "read",
 			code & PGEX_I ? "instruction" : "data",
-			code & PGEX_PK ? " prot key" : " ",
-			code & PGEX_SGX ? " SGX" : " ",
+			code & PGEX_PK ? " prot key" : "",
+			code & PGEX_SGX ? " SGX" : "",
 			code & PGEX_RSV ? "reserved bits in PTE" :
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
@@ -1183,7 +1183,7 @@ amd64_syscall(struct thread *td, int traced)
 	KASSERT(td->td_pcb->pcb_save == get_pcb_user_save_td(td),
 	    ("System call %s returning with mangled pcb_save",
 	     syscallname(td->td_proc, td->td_sa.code)));
-	KASSERT(td->td_md.md_invl_gen.gen == 0,
+	KASSERT(pmap_not_in_di(),
 	    ("System call %s returning with leaked invl_gen %lu",
 	    syscallname(td->td_proc, td->td_sa.code),
 	    td->td_md.md_invl_gen.gen));

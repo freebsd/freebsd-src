@@ -5,7 +5,6 @@ __FBSDID("$FreeBSD$");
 	.gnu_attribute 4, 0
 #endif
 	.section .init,"ax",%progbits
-	.align 4
 	.set noreorder
 #if defined(__ABICALLS__) && (defined(__mips_n32) || defined(__mips_n64))
 	REG_L	gp, CALLFRAME_GP(sp)
@@ -16,7 +15,6 @@ __FBSDID("$FreeBSD$");
 	.set reorder
 
 	.section .fini,"ax",%progbits
-	.align 4
 	.set noreorder
 #if defined(__ABICALLS__) && (defined(__mips_n32) || defined(__mips_n64))
 	REG_L	gp, CALLFRAME_GP(sp)

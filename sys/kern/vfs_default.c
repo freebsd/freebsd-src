@@ -1113,7 +1113,7 @@ vop_stdadd_writecount(struct vop_add_writecount_args *ap)
 	int error;
 
 	vp = ap->a_vp;
-	VI_LOCK(vp);
+	VI_LOCK_FLAGS(vp, MTX_DUPOK);
 	if (vp->v_writecount < 0) {
 		error = ETXTBSY;
 	} else {

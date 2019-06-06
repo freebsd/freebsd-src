@@ -13,7 +13,7 @@
 # $FreeBSD$
 
 HFS_SIZE=400		#Size in 2048-byte blocks of the produced image
-LOADER_SIZE=300k
+LOADER_SIZE=500k
 
 # Generate 800K HFS image
 OUTPUT_FILE=hfs-boot

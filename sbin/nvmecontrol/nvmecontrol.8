@@ -114,12 +114,26 @@ high-speed storage devices over PCI Express.
 .Ss logpage
 The logpage command knows how to print log pages of various types.
 It also knows about vendor specific log pages from hgst/wdc and intel.
-Page 0xc1 for hgst/wdc contains the advanced smart information about
-the drive.
-Page 0xc1 is read latency stats for intel.
-Page 0xc2 is write latency stats for intel.
-Page 0xc5 is temperature stats for intel.
-Page 0xca is advanced smart information for intel.
+Note that some vendors use the same log page numbers for different data.
+.Pp
+.Bl -tag -compact -width "Page 0x00"
+.It Dv Page 0x01
+Drive Error Log
+.It Dv Page 0x02
+Health/SMART Data
+.It Dv Page 0x03
+Firmware Information
+.It Dv Page 0xc1
+Advanced SMART information (WDC/HGST)
+.It Dv Page 0xc1
+Read latency stats (Intel)
+.It Dv Page 0xc2
+Wite latency stats (Intel)
+.It Dv Page 0xc5
+Temperature stats (Intel)
+.It Dv Page 0xca
+Advanced SMART information (Intel)
+.El
 .Pp
 Specifying
 .Fl p

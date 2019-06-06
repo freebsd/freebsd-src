@@ -645,8 +645,8 @@ writefat(int fs, struct bootblock *boot, struct fatEntry *fat, int correct_fat)
 				break;
 			if (fat[cl].next == CLUST_FREE)
 				boot->NumFree++;
-			*p++ |= (u_char)(fat[cl + 1].next << 4);
-			*p++ = (u_char)(fat[cl + 1].next >> 4);
+			*p++ |= (u_char)(fat[cl].next << 4);
+			*p++ = (u_char)(fat[cl].next >> 4);
 			break;
 		}
 	}

@@ -2394,10 +2394,20 @@ oce_eqd_set_periodic(POCE_SOFTC sc)
 			goto modify_eqd;
 		}
 
-		rq = sc->rq[i];
-		rxpkts = rq->rx_stats.rx_pkts;
-		wq = sc->wq[i];
-		tx_reqs = wq->tx_stats.tx_reqs;
+		if (i == 0) {
+			rq = sc->rq[0];
+			rxpkts = rq->rx_stats.rx_pkts;
+		} else
+			rxpkts = 0;
+		if (i + 1 < sc->nrqs) {
+			rq = sc->rq[i + 1];
+			rxpkts += rq->rx_stats.rx_pkts;
+		}
+		if (i < sc->nwqs) {
+			wq = sc->wq[i];
+			tx_reqs = wq->tx_stats.tx_reqs;
+		} else
+			tx_reqs = 0;
 		now = ticks;
 
 		if (!aic->ticks || now < aic->ticks ||

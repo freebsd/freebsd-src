@@ -37,16 +37,17 @@
  */
 
 #include <sys/param.h>        /* defines used in kernel.h */
-#include <sys/module.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
+#include <sys/bus.h>          /* structs, prototypes for pci bus stuff */
+#include <sys/conf.h>         /* cdevsw struct */
 #include <sys/errno.h>
 #include <sys/kernel.h>       /* types used in module initialization */
-#include <sys/conf.h>         /* cdevsw struct */
-#include <sys/uio.h>          /* uio struct */
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/bus.h>          /* structs, prototypes for pci bus stuff */
-
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
+#include <sys/uio.h>          /* uio struct */
 
 #include <machine/bus.h>
 #include <sys/rman.h>

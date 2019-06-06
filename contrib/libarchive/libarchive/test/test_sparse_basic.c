@@ -68,6 +68,14 @@ struct sparse {
 
 static void create_sparse_file(const char *, const struct sparse *);
 
+#if defined(__APPLE__)
+/* On APFS holes need to be at least 4096x4097 bytes */
+#define MIN_HOLE 16781312
+#else
+/* Elsewhere we work with 4096*10 bytes */
+#define MIN_HOLE 409600
+#endif
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <winioctl.h>
 /*
@@ -491,6 +499,7 @@ DEFINE_TEST(test_sparse_basic)
 {
 	char *cwd;
 	struct archive *a;
+	const char *skip_sparse_tests;
 	/*
 	 * The alignment of the hole of sparse files deeply depends
 	 * on filesystem. In my experience, sparse_file2 test with
@@ -501,42 +510,42 @@ DEFINE_TEST(test_sparse_basic)
 	 */
 	const struct sparse sparse_file0[] = {
 		// 0             // 1024
-		{ DATA,	 1024 }, { HOLE,   2048000 },
+		{ DATA,	 1024 }, { HOLE,   MIN_HOLE + 1638400 },
 		// 2049024       // 2051072
-		{ DATA,	 2048 }, { HOLE,   2048000 },
+		{ DATA,	 2048 }, { HOLE,   MIN_HOLE + 1638400 },
 		// 4099072       // 4103168
-		{ DATA,	 4096 }, { HOLE,  20480000 },
+		{ DATA,	 4096 }, { HOLE,  MIN_HOLE + 20070400 },
 		// 24583168      // 24591360
-		{ DATA,	 8192 }, { HOLE, 204800000 },
+		{ DATA,	 8192 }, { HOLE, MIN_HOLE + 204390400 },
 		// 229391360     // 229391361
 		{ DATA,     1 }, { END,	0 }
 	};
 	const struct sparse sparse_file1[] = {
-		{ HOLE,	409600 }, { DATA, 1 },
-		{ HOLE,	409600 }, { DATA, 1 },
-		{ HOLE,	409600 }, { END,  0 }
+		{ HOLE,	MIN_HOLE }, { DATA, 1 },
+		{ HOLE,	MIN_HOLE }, { DATA, 1 },
+		{ HOLE, MIN_HOLE }, { END,  0 }
 	};
 	const struct sparse sparse_file2[] = {
-		{ HOLE,	409600 * 1 }, { DATA, 1024 },
-		{ HOLE,	409600 * 2 }, { DATA, 1024 },
-		{ HOLE,	409600 * 3 }, { DATA, 1024 },
-		{ HOLE,	409600 * 4 }, { DATA, 1024 },
-		{ HOLE,	409600 * 5 }, { DATA, 1024 },
-		{ HOLE,	409600 * 6 }, { DATA, 1024 },
-		{ HOLE,	409600 * 7 }, { DATA, 1024 },
-		{ HOLE,	409600 * 8 }, { DATA, 1024 },
-		{ HOLE,	409600 * 9 }, { DATA, 1024 },
-		{ HOLE,	409600 * 10}, { DATA, 1024 },/* 10 */
-		{ HOLE,	409600 * 1 }, { DATA, 1024 * 1 },
-		{ HOLE,	409600 * 2 }, { DATA, 1024 * 2 },
-		{ HOLE,	409600 * 3 }, { DATA, 1024 * 3 },
-		{ HOLE,	409600 * 4 }, { DATA, 1024 * 4 },
-		{ HOLE,	409600 * 5 }, { DATA, 1024 * 5 },
-		{ HOLE,	409600 * 6 }, { DATA, 1024 * 6 },
-		{ HOLE,	409600 * 7 }, { DATA, 1024 * 7 },
-		{ HOLE,	409600 * 8 }, { DATA, 1024 * 8 },
-		{ HOLE,	409600 * 9 }, { DATA, 1024 * 9 },
-		{ HOLE,	409600 * 10}, { DATA, 1024 * 10},/* 20 */
+		{ HOLE,	MIN_HOLE }, { DATA, 1024 },
+		{ HOLE,	MIN_HOLE + 409600 * 1 }, { DATA, 1024 },
+		{ HOLE,	MIN_HOLE + 409600 * 2 }, { DATA, 1024 },
+		{ HOLE,	MIN_HOLE + 409600 * 3 }, { DATA, 1024 },
+		{ HOLE,	MIN_HOLE + 409600 * 4 }, { DATA, 1024 },
+		{ HOLE,	MIN_HOLE + 409600 * 5 }, { DATA, 1024 },
+		{ HOLE,	MIN_HOLE + 409600 * 6 }, { DATA, 1024 },
+		{ HOLE,	MIN_HOLE + 409600 * 7 }, { DATA, 1024 },
+		{ HOLE,	MIN_HOLE + 409600 * 8 }, { DATA, 1024 },
+		{ HOLE,	MIN_HOLE + 409600 * 9}, { DATA, 1024 },/* 10 */
+		{ HOLE,	MIN_HOLE }, { DATA, 1024 * 1 },
+		{ HOLE,	MIN_HOLE + 409600 * 1 }, { DATA, 1024 * 2 },
+		{ HOLE,	MIN_HOLE + 409600 * 2 }, { DATA, 1024 * 3 },
+		{ HOLE,	MIN_HOLE + 409600 * 3 }, { DATA, 1024 * 4 },
+		{ HOLE,	MIN_HOLE + 409600 * 4 }, { DATA, 1024 * 5 },
+		{ HOLE,	MIN_HOLE + 409600 * 5 }, { DATA, 1024 * 6 },
+		{ HOLE,	MIN_HOLE + 409600 * 6 }, { DATA, 1024 * 7 },
+		{ HOLE,	MIN_HOLE + 409600 * 7 }, { DATA, 1024 * 8 },
+		{ HOLE,	MIN_HOLE + 409600 * 8 }, { DATA, 1024 * 9 },
+		{ HOLE,	MIN_HOLE + 409600 * 9}, { DATA, 1024 * 10},/* 20 */
 		{ END,	0 }
 	};
 	const struct sparse sparse_file3[] = {
@@ -552,6 +561,13 @@ DEFINE_TEST(test_sparse_basic)
 	 * data.
 	 */
 	test_sparse_whole_file_data();
+
+	skip_sparse_tests = getenv("SKIP_TEST_SPARSE");
+	if (skip_sparse_tests != NULL) {
+		skipping("Skipping sparse tests due to SKIP_TEST_SPARSE "
+		    "environment variable");
+		return;
+	}
 
 	/* Check if the filesystem where CWD on can
 	 * report the number of the holes of a sparse file. */
@@ -599,10 +615,19 @@ DEFINE_TEST(test_fully_sparse_files)
 {
 	char *cwd;
 	struct archive *a;
+	const char *skip_sparse_tests;
 
 	const struct sparse sparse_file[] = {
-		{ HOLE, 409600 }, { END, 0 }
+		{ HOLE, MIN_HOLE }, { END, 0 }
 	};
+
+	skip_sparse_tests = getenv("SKIP_TEST_SPARSE");
+	if (skip_sparse_tests != NULL) {
+		skipping("Skipping sparse tests due to SKIP_TEST_SPARSE "
+		    "environment variable");
+		return;
+	}
+
 	/* Check if the filesystem where CWD on can
 	 * report the number of the holes of a sparse file. */
 #ifdef PATH_MAX

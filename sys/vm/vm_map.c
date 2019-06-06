@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_kern.h>
@@ -525,19 +526,31 @@ vm_map_entry_set_vnode_text(vm_map_entry_t entry, bool add)
 		object = object1;
 	}
 
-	/*
-	 * For OBJT_DEAD objects, v_writecount was handled in
-	 * vnode_pager_dealloc().
-	 */
-	if (object->type != OBJT_DEAD) {
-		KASSERT(((object->flags & OBJ_TMPFS) == 0 &&
-		    object->type == OBJT_VNODE) ||
-		    ((object->flags & OBJ_TMPFS) != 0 &&
-		    object->type == OBJT_SWAP),
+	vp = NULL;
+	if (object->type == OBJT_DEAD) {
+		/*
+		 * For OBJT_DEAD objects, v_writecount was handled in
+		 * vnode_pager_dealloc().
+		 */
+	} else if (object->type == OBJT_VNODE) {
+		vp = object->handle;
+	} else if (object->type == OBJT_SWAP) {
+		KASSERT((object->flags & OBJ_TMPFS_NODE) != 0,
+		    ("vm_map_entry_set_vnode_text: swap and !TMPFS "
+		    "entry %p, object %p, add %d", entry, object, add));
+		/*
+		 * Tmpfs VREG node, which was reclaimed, has
+		 * OBJ_TMPFS_NODE flag set, but not OBJ_TMPFS.  In
+		 * this case there is no v_writecount to adjust.
+		 */
+		if ((object->flags & OBJ_TMPFS) != 0)
+			vp = object->un_pager.swp.swp_tmpfs;
+	} else {
+		KASSERT(0,
 		    ("vm_map_entry_set_vnode_text: wrong object type, "
 		    "entry %p, object %p, add %d", entry, object, add));
-		vp = (object->flags & OBJ_TMPFS) == 0 ? object->handle :
-		    object->un_pager.swp.swp_tmpfs;
+	}
+	if (vp != NULL) {
 		if (add)
 			VOP_SET_TEXT_CHECKED(vp);
 		else
@@ -1240,17 +1253,15 @@ vm_map_entry_unlink(vm_map_t map,
 }
 
 /*
- *	vm_map_entry_resize_free:
+ *	vm_map_entry_resize:
  *
- *	Recompute the amount of free space following a modified vm_map_entry
- *	and propagate those values up the tree.  Call this function after
- *	resizing a map entry in-place by changing the end value, without a
- *	call to vm_map_entry_link() or _unlink().
+ *	Resize a vm_map_entry, recompute the amount of free space that
+ *	follows it and propagate that value up the tree.
  *
  *	The map must be locked, and leaves it so.
  */
 static void
-vm_map_entry_resize_free(vm_map_t map, vm_map_entry_t entry)
+vm_map_entry_resize(vm_map_t map, vm_map_entry_t entry, vm_size_t grow_amount)
 {
 	vm_map_entry_t llist, rlist, root;
 
@@ -1258,14 +1269,15 @@ vm_map_entry_resize_free(vm_map_t map, vm_map_entry_t entry)
 	root = map->root;
 	root = vm_map_splay_split(entry->start, 0, root, &llist, &rlist);
 	KASSERT(root != NULL,
-	    ("vm_map_entry_resize_free: resize_free object not mapped"));
+	    ("%s: resize object not mapped", __func__));
 	vm_map_splay_findnext(root, &rlist);
 	root->right = NULL;
+	entry->end += grow_amount;
 	map->root = vm_map_splay_merge(root, llist, rlist,
 	    root->left, root->right);
 	VM_MAP_ASSERT_CONSISTENT(map);
-	CTR3(KTR_VM, "vm_map_entry_resize_free: map %p, nentries %d, entry %p", map,
-	    map->nentries, entry);
+	CTR4(KTR_VM, "%s: map %p, nentries %d, entry %p",
+	    __func__, map, map->nentries, entry);
 }
 
 /*
@@ -1485,8 +1497,8 @@ charged:
 			    prev_entry));
 			if ((prev_entry->eflags & MAP_ENTRY_GUARD) == 0)
 				map->size += end - prev_entry->end;
-			prev_entry->end = end;
-			vm_map_entry_resize_free(map, prev_entry);
+			vm_map_entry_resize(map, prev_entry,
+			    end - prev_entry->end);
 			vm_map_simplify_entry(map, prev_entry);
 			return (KERN_SUCCESS);
 		}
@@ -2917,12 +2929,12 @@ done:
 
 		if (rv == KERN_SUCCESS && (!user_unwire ||
 		    (entry->eflags & MAP_ENTRY_USER_WIRED))) {
-			if (user_unwire)
-				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
 			if (entry->wired_count == 1)
 				vm_map_entry_unwire(map, entry);
 			else
 				entry->wired_count--;
+			if (user_unwire)
+				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
 		}
 		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0,
 		    ("vm_map_unwire: in-transition flag missing %p", entry));
@@ -2940,6 +2952,28 @@ done:
 	if (need_wakeup)
 		vm_map_wakeup(map);
 	return (rv);
+}
+
+static void
+vm_map_wire_user_count_sub(u_long npages)
+{
+
+	atomic_subtract_long(&vm_user_wire_count, npages);
+}
+
+static bool
+vm_map_wire_user_count_add(u_long npages)
+{
+	u_long wired;
+
+	wired = vm_user_wire_count;
+	do {
+		if (npages + wired > vm_page_max_user_wired)
+			return (false);
+	} while (!atomic_fcmpset_long(&vm_user_wire_count, &wired,
+	    npages + wired));
+
+	return (true);
 }
 
 /*
@@ -2978,21 +3012,36 @@ vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry,
 	entry->wired_count = -1;
 }
 
+int
+vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
+{
+	int rv;
+
+	vm_map_lock(map);
+	rv = vm_map_wire_locked(map, start, end, flags);
+	vm_map_unlock(map);
+	return (rv);
+}
+
+
 /*
- *	vm_map_wire:
+ *	vm_map_wire_locked:
  *
- *	Implements both kernel and user wiring.
+ *	Implements both kernel and user wiring.  Returns with the map locked,
+ *	the map lock may be dropped.
  */
 int
-vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    int flags)
+vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 {
 	vm_map_entry_t entry, first_entry, tmp_entry;
 	vm_offset_t faddr, saved_end, saved_start;
-	unsigned int last_timestamp;
+	u_long npages;
+	u_int last_timestamp;
 	int rv;
 	boolean_t need_wakeup, result, user_wire;
 	vm_prot_t prot;
+
+	VM_MAP_ASSERT_LOCKED(map);
 
 	if (start == end)
 		return (KERN_SUCCESS);
@@ -3000,15 +3049,12 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	if (flags & VM_MAP_WIRE_WRITE)
 		prot |= VM_PROT_WRITE;
 	user_wire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
-	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
 		if (flags & VM_MAP_WIRE_HOLESOK)
 			first_entry = first_entry->next;
-		else {
-			vm_map_unlock(map);
+		else
 			return (KERN_INVALID_ADDRESS);
-		}
 	}
 	last_timestamp = map->timestamp;
 	entry = first_entry;
@@ -3042,7 +3088,6 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 							/*
 							 * first_entry has been deleted.
 							 */
-							vm_map_unlock(map);
 							return (KERN_INVALID_ADDRESS);
 						}
 						end = saved_start;
@@ -3082,13 +3127,22 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		}
 		if (entry->wired_count == 0) {
 			entry->wired_count++;
-			saved_start = entry->start;
-			saved_end = entry->end;
+
+			npages = atop(entry->end - entry->start);
+			if (user_wire && !vm_map_wire_user_count_add(npages)) {
+				vm_map_wire_entry_failure(map, entry,
+				    entry->start);
+				end = entry->end;
+				rv = KERN_RESOURCE_SHORTAGE;
+				goto done;
+			}
 
 			/*
 			 * Release the map lock, relying on the in-transition
 			 * mark.  Mark the map busy for fork.
 			 */
+			saved_start = entry->start;
+			saved_end = entry->end;
 			vm_map_busy(map);
 			vm_map_unlock(map);
 
@@ -3136,6 +3190,8 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			last_timestamp = map->timestamp;
 			if (rv != KERN_SUCCESS) {
 				vm_map_wire_entry_failure(map, entry, faddr);
+				if (user_wire)
+					vm_map_wire_user_count_sub(npages);
 				end = entry->end;
 				goto done;
 			}
@@ -3201,9 +3257,12 @@ done:
 			 * Undo the wiring.  Wiring succeeded on this entry
 			 * but failed on a later entry.  
 			 */
-			if (entry->wired_count == 1)
+			if (entry->wired_count == 1) {
 				vm_map_entry_unwire(map, entry);
-			else
+				if (user_wire)
+					vm_map_wire_user_count_sub(
+					    atop(entry->end - entry->start));
+			} else
 				entry->wired_count--;
 		}
 	next_entry_done:
@@ -3220,7 +3279,6 @@ done:
 		}
 		vm_map_simplify_entry(map, entry);
 	}
-	vm_map_unlock(map);
 	if (need_wakeup)
 		vm_map_wakeup(map);
 	return (rv);
@@ -3338,13 +3396,18 @@ vm_map_sync(
 static void
 vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 {
+	vm_size_t size;
 
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT(entry->wired_count > 0,
 	    ("vm_map_entry_unwire: entry %p isn't wired", entry));
+
+	size = entry->end - entry->start;
+	if ((entry->eflags & MAP_ENTRY_USER_WIRED) != 0)
+		vm_map_wire_user_count_sub(atop(size));
 	pmap_unwire(map->pmap, entry->start, entry->end);
-	vm_object_unwire(entry->object.vm_object, entry->offset, entry->end -
-	    entry->start, PQ_ACTIVE);
+	vm_object_unwire(entry->object.vm_object, entry->offset, size,
+	    PQ_ACTIVE);
 	entry->wired_count = 0;
 }
 
@@ -4115,7 +4178,7 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	struct vmspace *vm;
 	struct ucred *cred;
 	vm_offset_t gap_end, gap_start, grow_start;
-	size_t grow_amount, guard, max_grow;
+	vm_size_t grow_amount, guard, max_grow;
 	rlim_t lmemlim, stacklim, vmemlim;
 	int rv, rv1;
 	bool gap_deleted, grow_down, is_procstack;
@@ -4261,8 +4324,7 @@ retry:
 			gap_deleted = true;
 		} else {
 			MPASS(gap_entry->start < gap_entry->end - grow_amount);
-			gap_entry->end -= grow_amount;
-			vm_map_entry_resize_free(map, gap_entry);
+			vm_map_entry_resize(map, gap_entry, -grow_amount);
 			gap_deleted = false;
 		}
 		rv = vm_map_insert(map, NULL, 0, grow_start,
@@ -4275,10 +4337,9 @@ retry:
 				    gap_end, VM_PROT_NONE, VM_PROT_NONE,
 				    MAP_CREATE_GUARD | MAP_CREATE_STACK_GAP_DN);
 				MPASS(rv1 == KERN_SUCCESS);
-			} else {
-				gap_entry->end += grow_amount;
-				vm_map_entry_resize_free(map, gap_entry);
-			}
+			} else
+				vm_map_entry_resize(map, gap_entry,
+				    grow_amount);
 		}
 	} else {
 		grow_start = stack_entry->end;
@@ -4292,14 +4353,16 @@ retry:
 		    vm_object_coalesce(stack_entry->object.vm_object,
 		    stack_entry->offset,
 		    (vm_size_t)(stack_entry->end - stack_entry->start),
-		    (vm_size_t)grow_amount, cred != NULL)) {
-			if (gap_entry->start + grow_amount == gap_entry->end)
+		    grow_amount, cred != NULL)) {
+			if (gap_entry->start + grow_amount == gap_entry->end) {
 				vm_map_entry_delete(map, gap_entry);
-			else
+				vm_map_entry_resize(map, stack_entry,
+				    grow_amount);
+			} else {
 				gap_entry->start += grow_amount;
-			stack_entry->end += grow_amount;
+				stack_entry->end += grow_amount;
+			}
 			map->size += grow_amount;
-			vm_map_entry_resize_free(map, stack_entry);
 			rv = KERN_SUCCESS;
 		} else
 			rv = KERN_FAILURE;
@@ -4311,12 +4374,11 @@ retry:
 	 * Heed the MAP_WIREFUTURE flag if it was set for this process.
 	 */
 	if (rv == KERN_SUCCESS && (map->flags & MAP_WIREFUTURE) != 0) {
-		vm_map_unlock(map);
-		vm_map_wire(map, grow_start, grow_start + grow_amount,
+		rv = vm_map_wire_locked(map, grow_start,
+		    grow_start + grow_amount,
 		    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
-		vm_map_lock_read(map);
-	} else
-		vm_map_lock_downgrade(map);
+	}
+	vm_map_lock_downgrade(map);
 
 out:
 #ifdef RACCT

@@ -264,6 +264,8 @@ enum tokens {
 	TOK_UNLOCK,
 	TOK_VLIST,
 	TOK_OLIST,
+	TOK_MISSING,
+	TOK_ORFLUSH,
 
 	/* NAT64 tokens */
 	TOK_NAT64STL,

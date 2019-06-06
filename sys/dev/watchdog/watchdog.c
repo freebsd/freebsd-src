@@ -36,18 +36,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/uio.h>
-#include <sys/kernel.h>
+#include <sys/eventhandler.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
 #include <sys/watchdog.h>
-#include <sys/bus.h>
 #include <machine/bus.h>
 
 #include <sys/syscallsubr.h> /* kern_clock_gettime() */

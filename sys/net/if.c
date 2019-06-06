@@ -36,8 +36,8 @@
 #include "opt_inet.h"
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/conf.h>
+#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/domainset.h>
 #include <sys/sbuf.h>
@@ -264,7 +264,6 @@ static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
 static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
 static void	if_unroute(struct ifnet *, int flag, int fam);
-static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
@@ -862,7 +861,6 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 		sdl->sdl_type = ifp->if_type;
 		ifp->if_addr = ifa;
 		ifa->ifa_ifp = ifp;
-		ifa->ifa_rtrequest = link_rtrequest;
 		ifa->ifa_addr = (struct sockaddr *)sdl;
 		sdl = (struct sockaddr_dl *)(socksize + (caddr_t)sdl);
 		ifa->ifa_netmask = (struct sockaddr *)sdl;
@@ -1892,6 +1890,7 @@ static int
 ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
     struct sockaddr *ia)
 {
+	struct epoch_tracker et;
 	int error;
 	struct rt_addrinfo info;
 	struct sockaddr_dl null_sdl;
@@ -1902,6 +1901,16 @@ ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
 	bzero(&info, sizeof(info));
 	if (cmd != RTM_DELETE)
 		info.rti_ifp = V_loif;
+	if (cmd == RTM_ADD) {
+		/* explicitly specify (loopback) ifa */
+		if (info.rti_ifp != NULL) {
+			NET_EPOCH_ENTER(et);
+			info.rti_ifa = ifaof_ifpforaddr(ifa->ifa_addr, info.rti_ifp);
+			if (info.rti_ifa != NULL)
+				ifa_ref(info.rti_ifa);
+			NET_EPOCH_EXIT(et);
+		}
+	}
 	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC | RTF_PINNED;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
@@ -2208,39 +2217,6 @@ ifa_preferred(struct ifaddr *cur, struct ifaddr *next)
 
 	return (cur->ifa_carp && (!next->ifa_carp ||
 	    ((*carp_master_p)(next) && !(*carp_master_p)(cur))));
-}
-
-#include <net/if_llatbl.h>
-
-/*
- * Default action when installing a route with a Link Level gateway.
- * Lookup an appropriate real ifa to point to.
- * This should be moved to /sys/net/link.c eventually.
- */
-static void
-link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
-{
-	struct epoch_tracker et;
-	struct ifaddr *ifa, *oifa;
-	struct sockaddr *dst;
-	struct ifnet *ifp;
-
-	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == NULL) ||
-	    ((ifp = ifa->ifa_ifp) == NULL) || ((dst = rt_key(rt)) == NULL))
-		return;
-	NET_EPOCH_ENTER(et);
-	ifa = ifaof_ifpforaddr(dst, ifp);
-	if (ifa) {
-		oifa = rt->rt_ifa;
-		if (oifa != ifa) {
-			ifa_free(oifa);
-			ifa_ref(ifa);
-		}
-		rt->rt_ifa = ifa;
-		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
-			ifa->ifa_rtrequest(cmd, rt, info);
-	}
-	NET_EPOCH_EXIT(et);
 }
 
 struct sockaddr_dl *
@@ -4319,6 +4295,8 @@ if_getsoftc(if_t ifp)
 void 
 if_setrcvif(struct mbuf *m, if_t ifp)
 {
+
+	MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
 	m->m_pkthdr.rcvif = (struct ifnet *)ifp;
 }
 

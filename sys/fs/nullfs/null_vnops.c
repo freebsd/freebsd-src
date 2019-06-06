@@ -810,6 +810,8 @@ null_reclaim(struct vop_reclaim_args *ap)
 	 */
 	if (vp->v_writecount > 0)
 		VOP_ADD_WRITECOUNT(lowervp, -vp->v_writecount);
+	else if (vp->v_writecount < 0)
+		vp->v_writecount = 0;
 
 	VI_UNLOCK(vp);
 

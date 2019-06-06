@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2018
+.Dd May 18, 2019
 .Dt NVME 4
 .Os
 .Sh NAME
@@ -119,6 +119,38 @@ hw.nvme.force_intx=1
 .Ed
 .Pp
 Note that use of INTx implies disabling of per-CPU I/O queue pairs.
+.Pp
+The
+.Xr nvd 4
+driver is used to provide a disk driver to the system by default.
+The
+.Xr nda 4
+driver can also be used instead.
+The
+.Xr nvd 4
+driver performs better with smaller transactions and few TRIM
+commands.
+It sends all commands directly to the drive immediately.
+The
+.Xr nda 4
+driver performs better with larger transactions and also collapses
+TRIM commands giving better performance.
+It can queue commands to the drive; combine
+.Dv BIO_DELETE
+commands into a single trip; and
+use the CAM I/O scheduler to bias one type of operation over another.
+To select the
+.Xr nda 4
+driver, set the following tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.nvme.use_nvd=0
+.Ed
+.Pp
+This value may also be set in the kernel config file with
+.Bd -literal -offset indent
+.Cd options NVME_USE_NVD=0
+.Ed
 .Sh SYSCTL VARIABLES
 The following controller-level sysctls are currently implemented:
 .Bl -tag -width indent

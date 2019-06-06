@@ -196,9 +196,9 @@ build_tree()
 		# Build a limited tree that only contains files that are
 		# crucial to installworld.
 		for file in $PREWORLD_FILES; do
-			dir=`dirname /$file`
-			mkdir -p $1/$dir >&3 2>&1 || return 1
-			cp -p $SRCDIR/$file $1/$file || return 1
+			name=$(basename $file)
+			mkdir -p $1/etc >&3 2>&1 || return 1
+			cp -p $SRCDIR/$file $1/etc/$name || return 1
 		done
 	elif ! [ -n "$nobuild" ]; then
 		(cd $SRCDIR; $make DESTDIR=$destdir distrib-dirs &&

@@ -325,6 +325,10 @@ MODULE_DEPEND(vtnet, virtio, 1, 1, 1);
 MODULE_DEPEND(vtnet, netmap, 1, 1, 1);
 #endif /* DEV_NETMAP */
 
+VIRTIO_SIMPLE_PNPTABLE(vtnet, VIRTIO_ID_NETWORK, "VirtIO Networking Adapter");
+VIRTIO_SIMPLE_PNPINFO(virtio_mmio, vtnet);
+VIRTIO_SIMPLE_PNPINFO(virtio_pci, vtnet);
+
 static int
 vtnet_modevent(module_t mod, int type, void *unused)
 {
@@ -361,13 +365,7 @@ vtnet_modevent(module_t mod, int type, void *unused)
 static int
 vtnet_probe(device_t dev)
 {
-
-	if (virtio_get_device_type(dev) != VIRTIO_ID_NETWORK)
-		return (ENXIO);
-
-	device_set_desc(dev, "VirtIO Networking Adapter");
-
-	return (BUS_PROBE_DEFAULT);
+	return (VIRTIO_SIMPLE_PROBE(dev, vtnet));
 }
 
 static int

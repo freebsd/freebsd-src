@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2015
+.Dd May 26, 2019
 .Dt IPHETH 4
 .Os
 .Sh NAME
@@ -75,6 +75,87 @@ Apple iPhone tethering (all models)
 .It
 Apple iPad tethering (all models)
 .El
+.Sh EXAMPLES
+.Bl -tag -width 0n
+.It Sy Example 1\&: No Manual Configuration
+.Pp
+The following example shows how to manually configure network access on a
+device that is not automatically recognized.
+.Pp
+First, load the driver and find out the unit and the address of the USB
+Apple
+device:
+.Bd -literal -offset 2n
+.Li # Ic kldload ipheth
+.Li # Ic usbconfig | grep Apple
+ugen0.2: <Apple Inc. iPhone> at usbus0, cfg=0 md=HOST spd=HIGH (480Mbps) pwr=ON (500mA)
+.Ed
+.Pp
+In this example, the unit and the address of the device is 0.2
+.Pq Dq Li ugen0.2 ,
+and its configuration index is 0
+.Pq Dq Li cfg=0 .
+.Pp
+Secondly, check what other configurations are available for the device:
+.Bd -literal -offset 2n
+.Li # Ic usbconfig 0.2 dump_all_config_desc | awk '/^ Conf/{print} /iConf/{print}'
+ Configuration index 0
+    iConfiguration = 0x0005  <PTP>
+ Configuration index 1
+    iConfiguration = 0x0006  <iPod USB Interface>
+ Configuration index 2
+    iConfiguration = 0x0007  <PTP + Apple Mobile Device>
+ Configuration index 3
+    iConfiguration = 0x0008  <PTP + Apple Mobile Device + Apple USB Ethernet>
+.Ed
+.Pp
+In this example, there are 4 different configurations available.
+The configuration with index 3 seems to be related to Ethernet.
+It is time to configure the device:
+.Bd -literal -offset 2n
+.Li # Ic usbconfig 0.2 set_config 3
+.Li # Ic usbconfig | grep 'Apple.*cfg=3'
+ugen0.2: <Apple Inc. iPhone> at usbus0, cfg=3 md=HOST spd=HIGH (480Mbps) pwr=ON (500mA)
+.Ed
+.Pp
+At this point the Apple device should ask whether the
+.Fx
+machine can be trusted
+.Po Dq Mobile Data
+has to be on
+.Pc .
+.Pp
+A new
+.Em ue
+USB Ethernet interface should become available:
+.Bd -literal -offset 2n
+.Li # Ic dmesg | grep 'ue[0-9]'
+ue0: <USB Ethernet> on ipheth0
+ue0: bpf attached
+ue0: Ethernet address: 4e:7c:5f:2c:5f:7a
+.Ed
+.Pp
+At this point it might be necessary to run
+.Xr usbmuxd 1
+.Po available in
+.Xr ports 7
+at
+.Pa comms/usbmuxd
+.Pc :
+.Bd -literal -offset 2n
+.Li # Ic usbmuxd --enable-exit --foreground --user root --verbose
+.Ed
+.Pp
+Now it is time to configure the network interface:
+.Bd -literal -offset 2n
+.Li # Ic sysrc ifconfig_ue0="SYNCDHCP"
+ifconfig_ue0:  -> SYNCDHCP
+.Li # Ic service netif restart ue0
+.Ed
+.Pp
+That is it.
+The machine should now be connected to the network via USB tethering.
+.El
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr cdce 4 ,
@@ -96,12 +177,10 @@ The
 driver was written by
 .An Hans Petter Selasky Aq Mt hselasky@FreeBSD.org .
 .Sh BUGS
-Some devices may need to be manually configured to use an alternative
-configuration with the
+Some devices are not recognized automatically and may need to be manually
+configured to use an alternative configuration with the
 .Xr usbconfig 8
 utility.
-A command similar to
-.Dl usbconfig -u 1 -a 2 set_config 3
-may be required if the device is not recognised automatically by
-.Nm
-after it is connected.
+See
+.Sx EXAMPLES
+for workarounds.

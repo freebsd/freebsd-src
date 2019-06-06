@@ -401,6 +401,8 @@ struct ether_vlan_header {
 
 #ifdef _KERNEL
 
+#include <sys/_eventhandler.h>
+
 struct ifnet;
 struct mbuf;
 struct route;
@@ -424,11 +426,9 @@ bool	ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 	    uint16_t vid, uint8_t pcp);
 void	ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr);
 
-#ifdef _SYS_EVENTHANDLER_H_
 /* new ethernet interface attached event */
 typedef void (*ether_ifattach_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ether_ifattach_event, ether_ifattach_event_handler_t);
-#endif
 
 #else /* _KERNEL */
 

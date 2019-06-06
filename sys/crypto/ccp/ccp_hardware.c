@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>

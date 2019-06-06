@@ -216,7 +216,7 @@ init_xsave(void)
 	TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
 }
 
-DEFINE_IFUNC(, void, fpusave, (void *), static)
+DEFINE_IFUNC(, void, fpusave, (void *))
 {
 
 	init_xsave();
@@ -226,7 +226,7 @@ DEFINE_IFUNC(, void, fpusave, (void *), static)
 	return (fpusave_fxsave);
 }
 
-DEFINE_IFUNC(, void, fpurestore, (void *), static)
+DEFINE_IFUNC(, void, fpurestore, (void *))
 {
 
 	init_xsave();

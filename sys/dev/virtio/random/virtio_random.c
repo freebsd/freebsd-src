@@ -33,22 +33,24 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/sglist.h>
 #include <sys/callout.h>
 #include <sys/random.h>
+#include <sys/stdatomic.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
 
+#include <dev/random/randomdev.h>
+#include <dev/random/random_harvestq.h>
 #include <dev/virtio/virtio.h>
 #include <dev/virtio/virtqueue.h>
 
 struct vtrnd_softc {
-	device_t		 vtrnd_dev;
 	uint64_t		 vtrnd_features;
-	struct callout		 vtrnd_callout;
 	struct virtqueue	*vtrnd_vq;
 };
 
@@ -58,16 +60,25 @@ static int	vtrnd_probe(device_t);
 static int	vtrnd_attach(device_t);
 static int	vtrnd_detach(device_t);
 
-static void	vtrnd_negotiate_features(struct vtrnd_softc *);
-static int	vtrnd_alloc_virtqueue(struct vtrnd_softc *);
-static void	vtrnd_harvest(struct vtrnd_softc *);
-static void	vtrnd_timer(void *);
+static void	vtrnd_negotiate_features(device_t);
+static int	vtrnd_alloc_virtqueue(device_t);
+static int	vtrnd_harvest(struct vtrnd_softc *, void *, size_t *);
+static unsigned	vtrnd_read(void *, unsigned);
 
 #define VTRND_FEATURES	0
 
 static struct virtio_feature_desc vtrnd_feature_desc[] = {
 	{ 0, NULL }
 };
+
+static struct random_source random_vtrnd = {
+	.rs_ident = "VirtIO Entropy Adapter",
+	.rs_source = RANDOM_PURE_VIRTIO,
+	.rs_read = vtrnd_read,
+};
+
+/* Kludge for API limitations of random(4). */
+static _Atomic(struct vtrnd_softc *) g_vtrnd_softc;
 
 static device_method_t vtrnd_methods[] = {
 	/* Device methods. */
@@ -89,6 +100,11 @@ DRIVER_MODULE(virtio_random, virtio_pci, vtrnd_driver, vtrnd_devclass,
     vtrnd_modevent, 0);
 MODULE_VERSION(virtio_random, 1);
 MODULE_DEPEND(virtio_random, virtio, 1, 1, 1);
+MODULE_DEPEND(virtio_random, random_device, 1, 1, 1);
+
+VIRTIO_SIMPLE_PNPTABLE(virtio_random, VIRTIO_ID_ENTROPY,
+    "VirtIO Entropy Adapter");
+VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_random);
 
 static int
 vtrnd_modevent(module_t mod, int type, void *unused)
@@ -113,36 +129,33 @@ vtrnd_modevent(module_t mod, int type, void *unused)
 static int
 vtrnd_probe(device_t dev)
 {
-
-	if (virtio_get_device_type(dev) != VIRTIO_ID_ENTROPY)
-		return (ENXIO);
-
-	device_set_desc(dev, "VirtIO Entropy Adapter");
-
-	return (BUS_PROBE_DEFAULT);
+	return (VIRTIO_SIMPLE_PROBE(dev, virtio_random));
 }
 
 static int
 vtrnd_attach(device_t dev)
 {
-	struct vtrnd_softc *sc;
+	struct vtrnd_softc *sc, *exp;
 	int error;
 
 	sc = device_get_softc(dev);
-	sc->vtrnd_dev = dev;
-
-	callout_init(&sc->vtrnd_callout, 1);
 
 	virtio_set_feature_desc(dev, vtrnd_feature_desc);
-	vtrnd_negotiate_features(sc);
+	vtrnd_negotiate_features(dev);
 
-	error = vtrnd_alloc_virtqueue(sc);
+	error = vtrnd_alloc_virtqueue(dev);
 	if (error) {
 		device_printf(dev, "cannot allocate virtqueue\n");
 		goto fail;
 	}
 
-	callout_reset(&sc->vtrnd_callout, 5 * hz, vtrnd_timer, sc);
+	exp = NULL;
+	if (!atomic_compare_exchange_strong_explicit(&g_vtrnd_softc, &exp, sc,
+	    memory_order_release, memory_order_acquire)) {
+		error = EEXIST;
+		goto fail;
+	}
+	random_source_register(&random_vtrnd);
 
 fail:
 	if (error)
@@ -157,31 +170,39 @@ vtrnd_detach(device_t dev)
 	struct vtrnd_softc *sc;
 
 	sc = device_get_softc(dev);
+	KASSERT(
+	    atomic_load_explicit(&g_vtrnd_softc, memory_order_acquire) == sc,
+	    ("only one global instance at a time"));
 
-	callout_drain(&sc->vtrnd_callout);
+	random_source_deregister(&random_vtrnd);
+	atomic_store_explicit(&g_vtrnd_softc, NULL, memory_order_release);
+
+	/*
+	 * Unfortunately, deregister does not guarantee our source callback
+	 * will not be invoked after it returns.  Use a kludge to prevent some,
+	 * but not all, possible races.
+	 */
+	tsleep_sbt(&g_vtrnd_softc, 0, "vtrnddet", mstosbt(50), 0, C_HARDCLOCK);
 
 	return (0);
 }
 
 static void
-vtrnd_negotiate_features(struct vtrnd_softc *sc)
+vtrnd_negotiate_features(device_t dev)
 {
-	device_t dev;
-	uint64_t features;
+	struct vtrnd_softc *sc;
 
-	dev = sc->vtrnd_dev;
-	features = VTRND_FEATURES;
-
-	sc->vtrnd_features = virtio_negotiate_features(dev, features);
+	sc = device_get_softc(dev);
+	sc->vtrnd_features = virtio_negotiate_features(dev, VTRND_FEATURES);
 }
 
 static int
-vtrnd_alloc_virtqueue(struct vtrnd_softc *sc)
+vtrnd_alloc_virtqueue(device_t dev)
 {
-	device_t dev;
+	struct vtrnd_softc *sc;
 	struct vq_alloc_info vq_info;
 
-	dev = sc->vtrnd_dev;
+	sc = device_get_softc(dev);
 
 	VQ_ALLOC_INFO_INIT(&vq_info, 0, NULL, sc, &sc->vtrnd_vq,
 	    "%s request", device_get_nameunit(dev));
@@ -189,44 +210,64 @@ vtrnd_alloc_virtqueue(struct vtrnd_softc *sc)
 	return (virtio_alloc_virtqueues(dev, 0, 1, &vq_info));
 }
 
-static void
-vtrnd_harvest(struct vtrnd_softc *sc)
+static int
+vtrnd_harvest(struct vtrnd_softc *sc, void *buf, size_t *sz)
 {
 	struct sglist_seg segs[1];
 	struct sglist sg;
 	struct virtqueue *vq;
-	uint32_t value;
+	uint32_t value[HARVESTSIZE] __aligned(sizeof(uint32_t) * HARVESTSIZE);
+	uint32_t rdlen;
 	int error;
 
-	vq = sc->vtrnd_vq;
+	_Static_assert(sizeof(value) < PAGE_SIZE, "sglist assumption");
 
 	sglist_init(&sg, 1, segs);
-	error = sglist_append(&sg, &value, sizeof(value));
-	KASSERT(error == 0 && sg.sg_nseg == 1,
-	    ("%s: error %d adding buffer to sglist", __func__, error));
+	error = sglist_append(&sg, value, *sz);
+	if (error != 0)
+		panic("%s: sglist_append error=%d", __func__, error);
 
-	if (!virtqueue_empty(vq))
-		return;
-	if (virtqueue_enqueue(vq, &value, &sg, 0, 1) != 0)
-		return;
+	vq = sc->vtrnd_vq;
+	KASSERT(virtqueue_empty(vq), ("%s: non-empty queue", __func__));
+
+	error = virtqueue_enqueue(vq, buf, &sg, 0, 1);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Poll for the response, but the command is likely already
 	 * done when we return from the notify.
 	 */
 	virtqueue_notify(vq);
-	virtqueue_poll(vq, NULL);
+	virtqueue_poll(vq, &rdlen);
 
-	random_harvest_queue(&value, sizeof(value), RANDOM_PURE_VIRTIO);
+	if (rdlen > *sz)
+		panic("%s: random device wrote %zu bytes beyond end of provided"
+		    " buffer %p:%zu", __func__, (size_t)rdlen - *sz,
+		    (void *)value, *sz);
+	else if (rdlen == 0)
+		return (EAGAIN);
+	*sz = MIN(rdlen, *sz);
+	memcpy(buf, value, *sz);
+	explicit_bzero(value, *sz);
+	return (0);
 }
 
-static void
-vtrnd_timer(void *xsc)
+static unsigned
+vtrnd_read(void *buf, unsigned usz)
 {
 	struct vtrnd_softc *sc;
+	size_t sz;
+	int error;
 
-	sc = xsc;
+	sc = g_vtrnd_softc;
+	if (sc == NULL)
+		return (0);
 
-	vtrnd_harvest(sc);
-	callout_schedule(&sc->vtrnd_callout, 5 * hz);
+	sz = usz;
+	error = vtrnd_harvest(sc, buf, &sz);
+	if (error != 0)
+		return (0);
+
+	return (sz);
 }

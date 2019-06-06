@@ -509,7 +509,7 @@ ffs_truncate(vp, length, flags, cred)
 	ip->i_size = osize;
 	DIP_SET(ip, i_size, osize);
 
-	error = vtruncbuf(vp, cred, length, fs->fs_bsize);
+	error = vtruncbuf(vp, length, fs->fs_bsize);
 	if (error && (allerror == 0))
 		allerror = error;
 

@@ -80,97 +80,6 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 	return ((pmap_kextract(b1->bsh) == pmap_kextract(b2->bsh)) ? 1 : 0);
 }
 
-#ifdef DEV_ACPI
-static struct acpi_uart_compat_data *
-uart_cpu_acpi_scan(uint8_t interface_type)
-{
-	struct acpi_uart_compat_data **cd, *curcd;
-	int i;
-
-	SET_FOREACH(cd, uart_acpi_class_and_device_set) {
-		curcd = *cd;
-		for (i = 0; curcd[i].cd_hid != NULL; i++) {
-			if (curcd[i].cd_port_subtype == interface_type)
-				return (&curcd[i]);
-		}
-	}
-
-	SET_FOREACH(cd, uart_acpi_class_set) {
-		curcd = *cd;
-		for (i = 0; curcd[i].cd_hid != NULL; i++) {
-			if (curcd[i].cd_port_subtype == interface_type)
-				return (&curcd[i]);
-		}
-	}
-
-	return (NULL);
-}
-
-static int
-uart_cpu_acpi_probe(struct uart_class **classp, bus_space_tag_t *bst,
-    bus_space_handle_t *bsh, int *baud, u_int *rclk, u_int *shiftp,
-    u_int *iowidthp)
-{
-	struct acpi_uart_compat_data *cd;
-	ACPI_TABLE_SPCR *spcr;
-	vm_paddr_t spcr_physaddr;
-	int err;
-
-	err = ENXIO;
-	spcr_physaddr = acpi_find_table(ACPI_SIG_SPCR);
-	if (spcr_physaddr == 0)
-		return (ENXIO);
-
-	spcr = acpi_map_table(spcr_physaddr, ACPI_SIG_SPCR);
-
-	cd = uart_cpu_acpi_scan(spcr->InterfaceType);
-	if (cd == NULL)
-		goto out;
-
-	switch(spcr->BaudRate) {
-	case 0:
-		/*
-		 * A BaudRate of 0 is a special value which means not to
-		 * change the rate that's already programmed.
-		 */
-		*baud = 0;
-		break;
-	case 3:
-		*baud = 9600;
-		break;
-	case 4:
-		*baud = 19200;
-		break;
-	case 6:
-		*baud = 57600;
-		break;
-	case 7:
-		*baud = 115200;
-		break;
-	default:
-		goto out;
-	}
-
-	err = acpi_map_addr(&spcr->SerialPort, bst, bsh, PAGE_SIZE);
-	if (err != 0)
-		goto out;
-
-	*classp = cd->cd_class;
-	*rclk = 0;
-	*shiftp = spcr->SerialPort.AccessWidth - 1;
-	*iowidthp = spcr->SerialPort.BitWidth / 8;
-
-	if ((cd->cd_quirks & UART_F_IGNORE_SPCR_REGSHFT) ==
-	    UART_F_IGNORE_SPCR_REGSHFT) {
-		*shiftp = cd->cd_regshft;
-	}
-
-out:
-	acpi_unmap_table(spcr);
-	return (err);
-}
-#endif
-
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
@@ -186,14 +95,16 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (err == 0)
 		return (0);
 
+#ifdef DEV_ACPI
+	/* Check if SPCR can tell us what console to use. */
+	if (uart_cpu_acpi_spcr(devtype, di) == 0)
+		return (0);
+#endif
+
 	if (devtype != UART_DEV_CONSOLE)
 		return (ENXIO);
 
 	err = ENXIO;
-#ifdef DEV_ACPI
-	err = uart_cpu_acpi_probe(&class, &bst, &bsh, &br, &rclk, &shift,
-	    &iowidth);
-#endif
 #ifdef FDT
 	if (err != 0) {
 		err = uart_cpu_fdt_probe(&class, &bst, &bsh, &br, &rclk,

@@ -26,7 +26,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/vmem.h>

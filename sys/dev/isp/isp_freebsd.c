@@ -3789,7 +3789,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			xpt_async(AC_CONTRACT, fc->path, &ac);
 		}
 
-		if ((lp->new_prli_word0 & PRLI_WD0_EST_IMAGE_PAIR) &&
+		if ((cmd == ISPASYNC_DEV_CHANGED) &&
 		    (crn_reset_done == 0))
 			isp_fcp_reset_crn(isp, bus, tgt, /*tgt_set*/ 1);
 

@@ -378,9 +378,6 @@ done:
 		errx(EXIT_FAILURE, "gelf_update_ehdr() failed: %s",
 		    elf_errmsg(-1));
 
-	/* Generate section name string table (.shstrtab). */
-	set_shstrtab(ecp);
-
 	/* Update sh_name pointer for each section header entry. */
 	update_shdr(ecp, 0);
 
@@ -604,9 +601,6 @@ done:
 	if (gelf_update_ehdr(ecp->eout, &oeh) == 0)
 		errx(EXIT_FAILURE, "gelf_update_ehdr() failed: %s",
 		    elf_errmsg(-1));
-
-	/* Generate section name string table (.shstrtab). */
-	set_shstrtab(ecp);
 
 	/* Update sh_name pointer for each section header entry. */
 	update_shdr(ecp, 0);

@@ -392,3 +392,4 @@ static devclass_t icee_devclass;
 DRIVER_MODULE(icee, iicbus, icee_driver, icee_devclass, 0, 0);
 MODULE_VERSION(icee, 1);
 MODULE_DEPEND(icee, iicbus, 1, 1, 1);
+IICBUS_FDT_PNP_INFO(compat_data);

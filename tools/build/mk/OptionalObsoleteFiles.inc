@@ -1371,7 +1371,10 @@ OLD_FILES+=usr/bin/clang
 OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
 OLD_FILES+=usr/bin/clang-tblgen
+OLD_FILES+=usr/bin/llvm-ar
+OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-objdump
+OLD_FILES+=usr/bin/llvm-symbolizer
 OLD_FILES+=usr/bin/llvm-tblgen
 OLD_FILES+=usr/lib/clang/8.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/8.0.0/include/sanitizer/asan_interface.h
@@ -1533,6 +1536,9 @@ OLD_DIRS+=usr/share/doc/llvm
 OLD_FILES+=usr/share/man/man1/clang.1.gz
 OLD_FILES+=usr/share/man/man1/clang++.1.gz
 OLD_FILES+=usr/share/man/man1/clang-cpp.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-ar.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 .endif
 
@@ -1541,7 +1547,6 @@ OLD_FILES+=usr/bin/bugpoint
 OLD_FILES+=usr/bin/clang-format
 OLD_FILES+=usr/bin/llc
 OLD_FILES+=usr/bin/lli
-OLD_FILES+=usr/bin/llvm-ar
 OLD_FILES+=usr/bin/llvm-as
 OLD_FILES+=usr/bin/llvm-bcanalyzer
 OLD_FILES+=usr/bin/llvm-cxxdump
@@ -1556,18 +1561,15 @@ OLD_FILES+=usr/bin/llvm-lto2
 OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-mca
 OLD_FILES+=usr/bin/llvm-modextract
-OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-objcopy
 OLD_FILES+=usr/bin/llvm-pdbutil
 OLD_FILES+=usr/bin/llvm-ranlib
 OLD_FILES+=usr/bin/llvm-rtdyld
-OLD_FILES+=usr/bin/llvm-symbolizer
 OLD_FILES+=usr/bin/llvm-xray
 OLD_FILES+=usr/bin/opt
 OLD_FILES+=usr/share/man/man1/bugpoint.1.gz
 OLD_FILES+=usr/share/man/man1/llc.1.gz
 OLD_FILES+=usr/share/man/man1/lli.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-ar.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-as.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-bcanalyzer.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-diff.1.gz
@@ -1575,9 +1577,7 @@ OLD_FILES+=usr/share/man/man1/llvm-dis.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-dwarfdump.1
 OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-pdbutil.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
 .endif
 
@@ -2746,12 +2746,16 @@ OLD_FILES+=usr/include/omp.h
 .endif
 OLD_FILES+=usr/lib/libgcov.a
 OLD_FILES+=usr/lib/libgomp.a
+.if ${MK_OPENMP} == no
 OLD_FILES+=usr/lib/libgomp.so
+.endif
 OLD_LIBS+=usr/lib/libgomp.so.1
 OLD_FILES+=usr/lib/libgomp_p.a
 OLD_FILES+=usr/lib32/libgcov.a
 OLD_FILES+=usr/lib32/libgomp.a
+.if ${MK_OPENMP} == no
 OLD_FILES+=usr/lib32/libgomp.so
+.endif
 OLD_LIBS+=usr/lib32/libgomp.so.1
 OLD_FILES+=usr/lib32/libgomp_p.a
 OLD_FILES+=usr/libexec/cc1
@@ -7749,11 +7753,14 @@ OLD_FILES+=usr/share/man/man8/smpquery.8.gz
 OLD_FILES+=usr/share/man/man8/vendstat.8.gz
 .endif
 
-.if ${MK_OPENSSH} == no
+.if ${MK_OPENMP} == no
 .if ${MK_GCC} == no
 OLD_FILES+=usr/include/omp.h
+OLD_LIBS+=usr/lib/libgomp.so
+OLD_LIBS+=usr/lib32/libgomp.so
 .endif
 OLD_LIBS+=usr/lib/libomp.so
+OLD_LIBS+=usr/lib32/libomp.so
 .endif
 
 .if ${MK_OPENSSH} == no

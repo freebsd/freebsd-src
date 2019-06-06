@@ -452,7 +452,7 @@ _libelf_resync_sections(Elf *e, off_t rc, struct _Elf_Extent_List *extents)
 	 * Make a pass through sections, computing the extent of each
 	 * section.
 	 */
-	STAILQ_FOREACH(s, &e->e_u.e_elf.e_scn, s_next) {
+	RB_FOREACH(s, scntree, &e->e_u.e_elf.e_scn) {
 		if (ec == ELFCLASS32)
 			sh_type = s->s_shdr.s_shdr32.sh_type;
 		else
@@ -980,7 +980,7 @@ _libelf_write_shdr(Elf *e, unsigned char *nf, struct _Elf_Extent *ex)
 
 	fsz = _libelf_fsize(ELF_T_SHDR, ec, e->e_version, (size_t) 1);
 
-	STAILQ_FOREACH(scn, &e->e_u.e_elf.e_scn, s_next) {
+	RB_FOREACH(scn, scntree, &e->e_u.e_elf.e_scn) {
 		if (ec == ELFCLASS32)
 			src.d_buf = &scn->s_shdr.s_shdr32;
 		else
@@ -1142,7 +1142,7 @@ _libelf_write_elf(Elf *e, off_t newsize, struct _Elf_Extent_List *extents)
 
 	e->e_flags &= ~ELF_F_DIRTY;
 
-	STAILQ_FOREACH_SAFE(scn, &e->e_u.e_elf.e_scn, s_next, tscn)
+	RB_FOREACH_SAFE(scn, scntree, &e->e_u.e_elf.e_scn, tscn)
 		_libelf_release_scn(scn);
 
 	if (e->e_class == ELFCLASS32) {

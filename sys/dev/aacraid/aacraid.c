@@ -264,7 +264,7 @@ aacraid_attach(struct aac_softc *sc)
 	/*
 	 * Check that the firmware on the card is supported.
 	 */
-	sc->msi_enabled = FALSE;
+	sc->msi_enabled = sc->msi_tupelo = FALSE;
 	if ((error = aac_check_firmware(sc)) != 0)
 		return(error);
 
@@ -284,8 +284,8 @@ aacraid_attach(struct aac_softc *sc)
 	 */
 	if ((error = aac_alloc(sc)) != 0)
 		return(error);
+	aac_define_int_mode(sc);
 	if (!(sc->flags & AAC_FLAGS_SYNC_MODE)) {
-		aac_define_int_mode(sc);
 		if ((error = aac_init(sc)) != 0)
 			return(error);
 	}
@@ -728,7 +728,7 @@ aacraid_free(struct aac_softc *sc)
 		else
 			break;
 	}
-	if (sc->msi_enabled)
+	if (sc->msi_enabled || sc->msi_tupelo)
 		pci_release_msi(sc->aac_dev);
 
 	/* destroy data-transfer DMA tag */
@@ -1316,6 +1316,9 @@ aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "nseg %d", nseg);
 	mtx_assert(&sc->aac_io_lock, MA_OWNED);
 
+	if ((sc->flags & AAC_FLAGS_SYNC_MODE) && sc->aac_sync_cm)
+		return;
+
 	/* copy into the FIB */
 	if (cm->cm_sgtable != NULL) {
 		if (fib->Header.Command == RawIo2) {
@@ -1433,11 +1436,14 @@ aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	cm->cm_flags |= AAC_CMD_MAPPED;
 
-	if (sc->flags & AAC_FLAGS_SYNC_MODE) {
+	if (cm->cm_flags & AAC_CMD_WAIT) {
+		aacraid_sync_command(sc, AAC_MONKER_SYNCFIB,
+			cm->cm_fibphys, 0, 0, 0, NULL, NULL);
+	} else if (sc->flags & AAC_FLAGS_SYNC_MODE) {
 		u_int32_t wait = 0;
-		aacraid_sync_command(sc, AAC_MONKER_SYNCFIB, cm->cm_fibphys, 0, 0, 0, &wait, NULL);
-	} else if (cm->cm_flags & AAC_CMD_WAIT) {
-		aacraid_sync_command(sc, AAC_MONKER_SYNCFIB, cm->cm_fibphys, 0, 0, 0, NULL, NULL);
+		sc->aac_sync_cm = cm;
+		aacraid_sync_command(sc, AAC_MONKER_SYNCFIB,
+			cm->cm_fibphys, 0, 0, 0, &wait, NULL);
 	} else {
 		int count = 10000000L;
 		while (AAC_SEND_COMMAND(sc, cm) != 0) {
@@ -1617,6 +1623,7 @@ aac_check_firmware(struct aac_softc *sc)
 		options = AAC_GET_MAILBOX(sc, 1);
 		atu_size = AAC_GET_MAILBOX(sc, 2);
 		sc->supported_options = options;
+		sc->doorbell_mask = AAC_GET_MAILBOX(sc, 3);
 
 		if ((options & AAC_SUPPORTED_4GB_WINDOW) != 0 &&
 		    (sc->flags & AAC_FLAGS_NO4GB) == 0)
@@ -1631,13 +1638,13 @@ aac_check_firmware(struct aac_softc *sc)
 			sc->flags |= AAC_FLAGS_SG_64BIT;
 		}
 		if (sc->aac_if.aif_send_command) {
-			if ((options & AAC_SUPPORTED_NEW_COMM_TYPE3) ||
-				(options & AAC_SUPPORTED_NEW_COMM_TYPE4))
-				sc->flags |= AAC_FLAGS_NEW_COMM | AAC_FLAGS_NEW_COMM_TYPE34;
+			if (options & AAC_SUPPORTED_NEW_COMM_TYPE2)
+				sc->flags |= AAC_FLAGS_NEW_COMM | AAC_FLAGS_NEW_COMM_TYPE2;
 			else if (options & AAC_SUPPORTED_NEW_COMM_TYPE1)
 				sc->flags |= AAC_FLAGS_NEW_COMM | AAC_FLAGS_NEW_COMM_TYPE1;
-			else if (options & AAC_SUPPORTED_NEW_COMM_TYPE2)
-				sc->flags |= AAC_FLAGS_NEW_COMM | AAC_FLAGS_NEW_COMM_TYPE2;
+			else if ((options & AAC_SUPPORTED_NEW_COMM_TYPE3) ||
+				(options & AAC_SUPPORTED_NEW_COMM_TYPE4))
+				sc->flags |= AAC_FLAGS_NEW_COMM | AAC_FLAGS_NEW_COMM_TYPE34;
 		}
 		if (options & AAC_SUPPORTED_64BIT_ARRAYSIZE)
 			sc->flags |= AAC_FLAGS_ARRAY_64BIT;
@@ -1851,8 +1858,30 @@ aac_define_int_mode(struct aac_softc *sc)
 	
 	dev = sc->aac_dev;
 
+	if (sc->flags & AAC_FLAGS_SYNC_MODE) {
+		device_printf(dev, "using line interrupts\n");
+		sc->aac_max_msix = 1;
+		sc->aac_vector_cap = sc->aac_max_fibs;
+		return;
+	}
+
 	/* max. vectors from AAC_MONKER_GETCOMMPREF */
 	if (sc->aac_max_msix == 0) {
+		if (sc->aac_hwif == AAC_HWIF_SRC) {
+			msi_count = 1;
+			if ((error = pci_alloc_msi(dev, &msi_count)) != 0) {
+				device_printf(dev, "alloc msi failed - err=%d; "
+				    "will use INTx\n", error);
+				pci_release_msi(dev);
+			} else {
+				sc->msi_tupelo = TRUE;
+			}
+		}
+		if (sc->msi_tupelo)
+			device_printf(dev, "using MSI interrupts\n");
+		else
+			device_printf(dev, "using line interrupts\n");
+
 		sc->aac_max_msix = 1;
 		sc->aac_vector_cap = sc->aac_max_fibs;
 		return;
@@ -1958,7 +1987,7 @@ aac_setup_intr(struct aac_softc *sc)
 	void *tag;
 
 	msi_count = sc->aac_max_msix;
-	rid = (sc->msi_enabled ? 1:0);
+	rid = ((sc->msi_enabled || sc->msi_tupelo)? 1:0);
 
 	for (i = 0; i < msi_count; i++, rid++) {
 		if ((res = bus_alloc_resource_any(sc->aac_dev,SYS_RES_IRQ, &rid,
@@ -2854,14 +2883,14 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 
 	fib = cm->cm_fib;
 	srbcmd = (struct aac_srb *)fib->data;
-	if ((error = copyin((void *)&user_srb->data_len, &fibsize, 
-		sizeof (u_int32_t)) != 0)) 
+	if ((error = copyin((void *)&user_srb->data_len, &fibsize,
+	    sizeof (u_int32_t))) != 0)
 		goto out;
 	if (fibsize > (sc->aac_max_fib_size-sizeof(struct aac_fib_header))) {
 		error = EINVAL;
 		goto out;
 	}
-	if ((error = copyin((void *)user_srb, srbcmd, fibsize) != 0)) 
+	if ((error = copyin((void *)user_srb, srbcmd, fibsize)) != 0)
 		goto out;
 
 	srbcmd->function = 0;		/* SRBF_ExecuteScsi */
@@ -2895,13 +2924,10 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 
 		srb_sg_bytecount = sg.SgByteCount;
 		srb_sg_address = sg.SgAddress;
-		if (srb_sg_address > 0xffffffffull && 
-			!(sc->flags & AAC_FLAGS_SG_64BIT))
-#endif	
-		{
-			error = EINVAL;
-			goto out;
-		}
+#else
+		error = EINVAL;
+		goto out;
+#endif
 	} else {
 		error = EINVAL;
 		goto out;
@@ -3701,7 +3727,7 @@ aac_get_bus_info(struct aac_softc *sc)
 		caminf->TargetsPerBus = businfo.TargetsPerBus;
 		caminf->BusNumber = i+1;
 		caminf->BusType = PASSTHROUGH_BUS;
-		caminf->InitiatorBusId = businfo.InitiatorBusId[i];
+		caminf->InitiatorBusId = -1;
 		caminf->aac_sc = sc;
 		caminf->sim_dev = child;
 		caminf->aac_cam = NULL;
@@ -3745,7 +3771,7 @@ aac_reset_adapter(struct aac_softc *sc)
 	struct aac_fib *fib;
 	struct aac_pause_command *pc;
 	u_int32_t status, reset_mask, waitCount, max_msix_orig;
-	int msi_enabled_orig;
+	int ret, msi_enabled_orig;
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	mtx_assert(&sc->aac_io_lock, MA_OWNED);
@@ -3804,50 +3830,61 @@ aac_reset_adapter(struct aac_softc *sc)
 		AAC_MEM0_SETREG4(sc, AAC_IRCSR, AAC_IRCSR_CORES_RST);
 
 		/* We need to wait for 5 seconds before accessing the MU again
-		 * 10000 * 100us = 1000,000us = 1000ms = 1s  
+		 * 10000 * 100us = 1000,000us = 1000ms = 1s
 		 */
 		waitCount = 5 * 10000;
 		while (waitCount) {
 			DELAY(100);			/* delay 100 microseconds */
 			waitCount--;
 		}
-	} else if ((aacraid_sync_command(sc, 
-		AAC_IOP_RESET_ALWAYS, 0, 0, 0, 0, &status, &reset_mask)) != 0) {
-		/* call IOP_RESET for older firmware */
-		if ((aacraid_sync_command(sc,
-			AAC_IOP_RESET, 0, 0, 0, 0, &status, NULL)) != 0) {
+	} else {
+		ret = aacraid_sync_command(sc, AAC_IOP_RESET_ALWAYS,
+			0, 0, 0, 0, &status, &reset_mask);
+		if (ret && !sc->doorbell_mask) {
+			/* call IOP_RESET for older firmware */
+			if ((aacraid_sync_command(sc, AAC_IOP_RESET, 0,0,0,0,
+			    &status, NULL)) != 0) {
+				if (status == AAC_SRB_STS_INVALID_REQUEST) {
+					device_printf(sc->aac_dev,
+					    "IOP_RESET not supported\n");
+				} else {
+					/* probably timeout */
+					device_printf(sc->aac_dev,
+					    "IOP_RESET failed\n");
+				}
 
-			if (status == AAC_SRB_STS_INVALID_REQUEST)
-				device_printf(sc->aac_dev, "IOP_RESET not supported\n");
-			else
-				/* probably timeout */
-				device_printf(sc->aac_dev, "IOP_RESET failed\n");
+				/* unwind aac_shutdown() */
+				aac_alloc_sync_fib(sc, &fib);
+				pc = (struct aac_pause_command *)&fib->data[0];
+				pc->Command = VM_ContainerConfig;
+				pc->Type = CT_PAUSE_IO;
+				pc->Timeout = 1;
+				pc->Min = 1;
+				pc->NoRescan = 1;
 
-			/* unwind aac_shutdown() */
-			aac_alloc_sync_fib(sc, &fib);
-			pc = (struct aac_pause_command *)&fib->data[0];
-			pc->Command = VM_ContainerConfig;
-			pc->Type = CT_PAUSE_IO;
-			pc->Timeout = 1;
-			pc->Min = 1;
-			pc->NoRescan = 1;
+				(void) aac_sync_fib(sc, ContainerCommand, 0,
+				    fib, sizeof (struct aac_pause_command));
+				aac_release_sync_fib(sc);
 
-			(void) aac_sync_fib(sc, ContainerCommand, 0, fib,
-				sizeof (struct aac_pause_command));
-			aac_release_sync_fib(sc);
-
-			goto finish;
+				goto finish;
+			}
+		} else if (sc->doorbell_mask) {
+			ret = 0;
+			reset_mask = sc->doorbell_mask;
 		}
-	} else if (sc->aac_support_opt2 & AAC_SUPPORTED_DOORBELL_RESET) {
-		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, reset_mask);
-		/* 
-		 * We need to wait for 5 seconds before accessing the doorbell
-		 * again, 10000 * 100us = 1000,000us = 1000ms = 1s  
-		 */
-		waitCount = 5 * 10000;
-		while (waitCount) {
-			DELAY(100);		/* delay 100 microseconds */
-			waitCount--;
+		if (!ret &&
+		    (sc->aac_support_opt2 & AAC_SUPPORTED_DOORBELL_RESET)) {
+			AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, reset_mask);
+			/*
+			 * We need to wait for 5 seconds before accessing the
+			 * doorbell again;
+			 * 10000 * 100us = 1000,000us = 1000ms = 1s
+			 */
+			waitCount = 5 * 10000;
+			while (waitCount) {
+				DELAY(100);	/* delay 100 microseconds */
+				waitCount--;
+			}
 		}
 	}
 

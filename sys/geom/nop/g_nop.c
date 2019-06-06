@@ -54,16 +54,25 @@ static int g_nop_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
 static void g_nop_config(struct gctl_req *req, struct g_class *mp,
     const char *verb);
-static void g_nop_dumpconf(struct sbuf *sb, const char *indent,
-    struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp);
+static g_access_t g_nop_access;
+static g_dumpconf_t g_nop_dumpconf;
+static g_orphan_t g_nop_orphan;
+static g_provgone_t g_nop_providergone;
+static g_resize_t g_nop_resize;
+static g_start_t g_nop_start;
 
 struct g_class g_nop_class = {
 	.name = G_NOP_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_nop_config,
-	.destroy_geom = g_nop_destroy_geom
+	.destroy_geom = g_nop_destroy_geom,
+	.access = g_nop_access,
+	.dumpconf = g_nop_dumpconf,
+	.orphan = g_nop_orphan,
+	.providergone = g_nop_providergone,
+	.resize = g_nop_resize,
+	.start = g_nop_start,
 };
-
 
 static void
 g_nop_orphan(struct g_consumer *cp)
@@ -320,11 +329,6 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	sc->sc_wrotebytes = 0;
 	mtx_init(&sc->sc_lock, "gnop lock", NULL, MTX_DEF);
 	gp->softc = sc;
-	gp->start = g_nop_start;
-	gp->orphan = g_nop_orphan;
-	gp->resize = g_nop_resize;
-	gp->access = g_nop_access;
-	gp->dumpconf = g_nop_dumpconf;
 
 	newpp = g_new_providerf(gp, "%s", gp->name);
 	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
@@ -357,6 +361,18 @@ fail:
 	return (error);
 }
 
+static void
+g_nop_providergone(struct g_provider *pp)
+{
+	struct g_geom *gp = pp->geom;
+	struct g_nop_softc *sc = gp->softc;
+
+	gp->softc = NULL;
+	free(sc->sc_physpath, M_GEOM);
+	mtx_destroy(&sc->sc_lock);
+	g_free(sc);
+}
+
 static int
 g_nop_destroy(struct g_geom *gp, boolean_t force)
 {
@@ -367,7 +383,6 @@ g_nop_destroy(struct g_geom *gp, boolean_t force)
 	sc = gp->softc;
 	if (sc == NULL)
 		return (ENXIO);
-	free(sc->sc_physpath, M_GEOM);
 	pp = LIST_FIRST(&gp->provider);
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
@@ -381,9 +396,6 @@ g_nop_destroy(struct g_geom *gp, boolean_t force)
 	} else {
 		G_NOP_DEBUG(0, "Device %s removed.", gp->name);
 	}
-	gp->softc = NULL;
-	mtx_destroy(&sc->sc_lock);
-	g_free(sc);
 	g_wither_geom(gp, ENXIO);
 
 	return (0);

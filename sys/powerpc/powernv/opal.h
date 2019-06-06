@@ -31,7 +31,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include <sys/eventhandler.h>
+#include <sys/_eventhandler.h>
 
 /* Check if OPAL is correctly instantiated. Will try to instantiate it. */
 int opal_check(void);

@@ -816,6 +816,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		 * We will rely on rcvif being set properly in the deferred context,
 		 * so assert it is correct here.
 		 */
+		MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
 		KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch m %p "
 		    "rcvif %p ifp %p", __func__, m, m->m_pkthdr.rcvif, ifp));
 		CURVNET_SET_QUIET(ifp->if_vnet);

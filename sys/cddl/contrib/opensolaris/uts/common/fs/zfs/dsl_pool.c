@@ -108,9 +108,11 @@ uint64_t zfs_dirty_data_max_max = 4ULL * 1024 * 1024 * 1024;
 int zfs_dirty_data_max_percent = 10;
 
 /*
- * If there is at least this much dirty data, push out a txg.
+ * If there's at least this much dirty data (as a percentage of
+ * zfs_dirty_data_max), push out a txg.  This should be less than
+ * zfs_vdev_async_write_active_min_dirty_percent.
  */
-uint64_t zfs_dirty_data_sync = 64 * 1024 * 1024;
+uint64_t zfs_dirty_data_sync_pct = 20;
 
 /*
  * Once there is this amount of dirty data, the dmu_tx_delay() will kick in
@@ -190,9 +192,9 @@ SYSCTL_PROC(_vfs_zfs, OID_AUTO, dirty_data_max_percent,
     sysctl_zfs_dirty_data_max_percent, "I",
     "The percent of physical memory used to auto calculate dirty_data_max");
 
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_sync, CTLFLAG_RWTUN,
-    &zfs_dirty_data_sync, 0,
-    "Force a txg if the number of dirty buffer bytes exceed this value");
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_sync_pct, CTLFLAG_RWTUN,
+    &zfs_dirty_data_sync_pct, 0,
+    "Force a txg if the percent of dirty buffer bytes exceed this value");
 
 static int sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS);
 /* No zfs_delay_min_dirty_percent tunable due to limit requirements */
@@ -926,10 +928,12 @@ dsl_pool_need_dirty_delay(dsl_pool_t *dp)
 {
 	uint64_t delay_min_bytes =
 	    zfs_dirty_data_max * zfs_delay_min_dirty_percent / 100;
+	uint64_t dirty_min_bytes =
+	    zfs_dirty_data_max * zfs_dirty_data_sync_pct / 100;
 	boolean_t rv;
 
 	mutex_enter(&dp->dp_lock);
-	if (dp->dp_dirty_total > zfs_dirty_data_sync)
+	if (dp->dp_dirty_total > dirty_min_bytes)
 		txg_kick(dp);
 	rv = (dp->dp_dirty_total > delay_min_bytes);
 	mutex_exit(&dp->dp_lock);
