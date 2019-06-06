@@ -441,10 +441,12 @@ e6000sw_attach(device_t dev)
 			 * Force speed, full-duplex, EEE off and flow-control
 			 * on.
 			 */
+			reg &= ~(PSC_CONTROL_SPD2500 | PSC_CONTROL_ALT_SPD |
+			    PSC_CONTROL_FORCED_EEE);
 			if (e6000sw_is_fixed25port(sc, port))
-				reg = PSC_CONTROL_SPD2500;
+				reg |= PSC_CONTROL_SPD2500;
 			else
-				reg = PSC_CONTROL_SPD1000;
+				reg |= PSC_CONTROL_SPD1000;
 			reg |= PSC_CONTROL_FORCED_DPX | PSC_CONTROL_FULLDPX |
 			    PSC_CONTROL_FORCED_LINK | PSC_CONTROL_LINK_UP |
 			    PSC_CONTROL_FORCED_FC | PSC_CONTROL_FC_ON |
