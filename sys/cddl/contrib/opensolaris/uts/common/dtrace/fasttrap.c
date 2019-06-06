@@ -1125,31 +1125,17 @@ fasttrap_enable_callbacks(void)
 static void
 fasttrap_disable_callbacks(void)
 {
-#ifdef illumos
-	ASSERT(MUTEX_HELD(&cpu_lock));
-#endif
-
-
 	mutex_enter(&fasttrap_count_mtx);
 	ASSERT(fasttrap_pid_count > 0);
 	fasttrap_pid_count--;
 	if (fasttrap_pid_count == 0) {
-#ifdef illumos
-		cpu_t *cur, *cpu = CPU;
-
-		for (cur = cpu->cpu_next_onln; cur != cpu;
-		    cur = cur->cpu_next_onln) {
-			rw_enter(&cur->cpu_ft_lock, RW_WRITER);
-		}
-#endif
+		/*
+		 * Synchronize with the breakpoint handler, which is careful to
+		 * enable interrupts only after loading the hook pointer.
+		 */
+		dtrace_sync();
 		dtrace_pid_probe_ptr = NULL;
 		dtrace_return_probe_ptr = NULL;
-#ifdef illumos
-		for (cur = cpu->cpu_next_onln; cur != cpu;
-		    cur = cur->cpu_next_onln) {
-			rw_exit(&cur->cpu_ft_lock);
-		}
-#endif
 	}
 	mutex_exit(&fasttrap_count_mtx);
 }

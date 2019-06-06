@@ -116,6 +116,10 @@ void syscall(struct trapframe *frame);
 
 static int trap_pfault(struct trapframe *, int, vm_offset_t);
 static void trap_fatal(struct trapframe *, vm_offset_t);
+#ifdef KDTRACE_HOOKS
+static bool trap_user_dtrace(struct trapframe *,
+    int (**hook)(struct trapframe *));
+#endif
 void dblfault_handler(void);
 
 extern inthand_t IDTVEC(bpt), IDTVEC(dbg), IDTVEC(int0x80_syscall);
@@ -322,11 +326,11 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_BPTFLT:		/* bpt instruction fault */
-			enable_intr();
 #ifdef KDTRACE_HOOKS
-			if (dtrace_pid_probe_ptr != NULL &&
-			    dtrace_pid_probe_ptr(frame) == 0)
+			if (trap_user_dtrace(frame, &dtrace_pid_probe_ptr))
 				return;
+#else
+			enable_intr();
 #endif
 			signo = SIGTRAP;
 			ucode = TRAP_BRKPT;
@@ -504,9 +508,7 @@ user_trctrap_out:
 			break;
 #ifdef KDTRACE_HOOKS
 		case T_DTRACE_RET:
-			enable_intr();
-			if (dtrace_return_probe_ptr != NULL)
-				dtrace_return_probe_ptr(frame);
+			(void)trap_user_dtrace(frame, &dtrace_return_probe_ptr);
 			return;
 #endif
 		}
@@ -990,6 +992,25 @@ trap_fatal(frame, eva)
 	else
 		panic("unknown/reserved trap");
 }
+
+#ifdef KDTRACE_HOOKS
+/*
+ * Invoke a userspace DTrace hook.  The hook pointer is cleared when no
+ * userspace probes are enabled, so we must synchronize with DTrace to ensure
+ * that a trapping thread is able to call the hook before it is cleared.
+ */
+static bool
+trap_user_dtrace(struct trapframe *frame, int (**hookp)(struct trapframe *))
+{
+	int (*hook)(struct trapframe *);
+
+	hook = (int (*)(struct trapframe *))atomic_load_ptr(hookp);
+	enable_intr();
+	if (hook != NULL)
+		return ((hook)(frame) == 0);
+	return (false);
+}
+#endif
 
 /*
  * Double fault handler. Called when a fault occurs while writing
