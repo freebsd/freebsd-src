@@ -56,9 +56,10 @@ CFLAGS+=	-DEFI_DEBUG
 .PATH:		${EFISRC}/libefi
 CFLAGS+=	-I${LDRSRC}
 
-.ifndef(NOFAT)
-FILES=	${BOOT1}.efi ${BOOT1}.efifat
+FILES=	${BOOT1}.efi
 FILESMODE_${BOOT1}.efi=	${BINMODE}
+.ifndef(NOFAT)
+FILES+= ${BOOT1}.efifat
 .endif
 
 LDSCRIPT=	${EFISRC}/loader/arch/${MACHINE}/ldscript.${MACHINE}
