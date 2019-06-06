@@ -1956,6 +1956,10 @@ lagg_link_active(struct lagg_softc *sc, struct lagg_port *lp)
 	 */
 
 #ifdef INVARIANTS
+	/*
+	 * This is called with either LAGG_RLOCK() held or
+	 * LAGG_XLOCK(sc) held.
+	 */
 	if (!in_epoch(net_epoch_preempt))
 		LAGG_XLOCK_ASSERT(sc);
 #endif
