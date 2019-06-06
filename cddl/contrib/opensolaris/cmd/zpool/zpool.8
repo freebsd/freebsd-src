@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2018
+.Dd February 20, 2019
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -187,7 +187,7 @@
 .Op Ar device ...
 .Nm
 .Cm status
-.Op Fl vx
+.Op Fl Dvx
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
 .Ar ...
@@ -1862,7 +1862,7 @@ section, above, for more information on the available pool properties.
 .It Xo
 .Nm
 .Cm status
-.Op Fl vx
+.Op Fl Dvx
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
 .Ar ...
@@ -1891,6 +1891,12 @@ done and the estimated time to completion. Both of these are only approximate,
 because the amount of data in the pool and the other workloads on the system
 can change.
 .Bl -tag -width indent
+.It Fl D
+Display a histogram of deduplication statistics, showing the allocated
+.Pq physically present on disk
+and referenced
+.Pq logically referenced in the pool
+block counts and sizes by reference count.
 .It Fl x
 Only display status for pools that are exhibiting errors or are otherwise
 unavailable.
