@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2016
+.Dd May 23, 2019
 .Dt GPIOLED 4
 .Os
 .Sh NAME
@@ -73,6 +73,10 @@ Please note that this mask should only ever have one bit set
 (any other bits - i.e., pins - will be ignored).
 .It Va hint.gpioled.%d.invert
 If set to 1, the pin will be set to 0 to light the LED, and 1 to clear it.
+.It Va hint.gpioled.%d.state
+The initial state of the LED when the driver takes control over it.
+If set to 1 or 0, the LED will be on or off correspondingly.
+If set to -1, the LED will be kept in its original state.
 .El
 .Pp
 On a
