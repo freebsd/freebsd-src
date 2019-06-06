@@ -263,8 +263,8 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 	slice = dev->d_slice;
 	partition = dev->d_partition;
 
-	DPRINTF("%s unit %d, slice %d, partition %d => %p",
-	    disk_fmtdev(dev), dev->dd.d_unit, dev->d_slice, dev->d_partition, od);
+	DPRINTF("%s unit %d, slice %d, partition %d => %p", disk_fmtdev(dev),
+	    dev->dd.d_unit, dev->d_slice, dev->d_partition, od);
 
 	/* Determine disk layout. */
 	od->table = ptable_open(&partdev, mediasize / sectorsize, sectorsize,
@@ -309,17 +309,25 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 		} else if (partition == D_PARTISGPT) {
 			/*
 			 * When we try to open GPT partition, but partition
-			 * table isn't GPT, reset d_partition value to -1
-			 * and try to autodetect appropriate value.
+			 * table isn't GPT, reset partition value to
+			 * D_PARTWILD and try to autodetect appropriate value.
 			 */
-			partition = -1;
+			partition = D_PARTWILD;
 		}
+
 		/*
-		 * If d_partition < 0 and we are looking at a BSD slice,
+		 * If partition is D_PARTNONE, then disk_open() was called
+		 * to open raw MBR slice.
+		 */
+		if (partition == D_PARTNONE)
+			goto out;
+
+		/*
+		 * If partition is D_PARTWILD and we are looking at a BSD slice,
 		 * then try to read BSD label, otherwise return the
 		 * whole MBR slice.
 		 */
-		if (partition == -1 &&
+		if (partition == D_PARTWILD &&
 		    part.type != PART_FREEBSD)
 			goto out;
 		/* Try to read BSD label */
@@ -331,7 +339,7 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 			goto out;
 		}
 		/*
-		 * If slice contains BSD label and d_partition < 0, then
+		 * If slice contains BSD label and partition < 0, then
 		 * assume the 'a' partition. Otherwise just return the
 		 * whole MBR slice, because it can contain ZFS.
 		 */
