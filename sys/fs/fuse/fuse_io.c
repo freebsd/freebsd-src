@@ -567,7 +567,7 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 
 	const int biosize = fuse_iosize(vp);
 
-	KASSERT(uio->uio_rw == UIO_WRITE, ("ncl_write mode"));
+	KASSERT(uio->uio_rw == UIO_WRITE, ("fuse_write_biobackend mode"));
 	if (vp->v_type != VREG)
 		return (EIO);
 	if (uio->uio_offset < 0)
@@ -585,14 +585,6 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
 		return (EFBIG);
 
-	/*
-         * Find all of this file's B_NEEDCOMMIT buffers.  If our writes
-         * would exceed the local maximum per-file write commit size when
-         * combined with those, we must decide whether to flush,
-         * go synchronous, or return err.  We don't bother checking
-         * IO_UNIT -- we just make all writes atomic anyway, as there's
-         * no point optimizing for something that really won't ever happen.
-         */
 	do {
 		bool direct_append, extending;
 
@@ -741,14 +733,6 @@ again:
 		}
 		err = uiomove((char *)bp->b_data + on, n, uio);
 
-		/*
-	         * Since this block is being modified, it must be written
-	         * again and not just committed.  Since write clustering does
-	         * not work for the stage 1 data write, only the stage 2
-	         * commit rpc, we have to clear B_CLUSTEROK as well.
-	         */
-		bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
-
 		if (err) {
 			bp->b_ioflags |= BIO_ERROR;
 			bp->b_error = err;
@@ -860,13 +844,6 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		}
 	} else {
 		/*
-	         * If we only need to commit, try to commit
-	         */
-		if (bp->b_flags & B_NEEDCOMMIT) {
-			SDT_PROBE2(fusefs, , io, trace, 1,
-				"write: B_NEEDCOMMIT flags set");
-		}
-		/*
 	         * Setup for actual write
 	         */
 		error = fuse_vnode_size(vp, &filesize, cred, curthread);
@@ -892,9 +869,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 			error = fuse_write_directbackend(vp, uiop, cred, fufh,
 				filesize, 0, false);
 
-			if (error == EINTR || error == ETIMEDOUT
-			    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
-
+			if (error == EINTR || error == ETIMEDOUT) {
 				bp->b_flags &= ~(B_INVAL | B_NOCACHE);
 				if ((bp->b_flags & B_PAGING) == 0) {
 					bdirty(bp);
