@@ -37,9 +37,7 @@ class Destroy: public FuseTest {};
 
 /*
  * On unmount the kernel should send a FUSE_DESTROY operation.  It should also
- * send FUSE_FORGET operations for all inodes with lookup_count > 0.  It's hard
- * to trigger FUSE_FORGET in any way except by unmounting, so this is the only
- * testing that FUSE_FORGET gets.
+ * send FUSE_FORGET operations for all inodes with lookup_count > 0.
  */
 TEST_F(Destroy, ok)
 {

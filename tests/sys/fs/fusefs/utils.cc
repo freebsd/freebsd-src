@@ -162,7 +162,7 @@ FuseTest::expect_flush(uint64_t ino, int times, ProcessMockerT r)
 }
 
 void
-FuseTest::expect_forget(uint64_t ino, uint64_t nlookup)
+FuseTest::expect_forget(uint64_t ino, uint64_t nlookup, sem_t *sem)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -171,7 +171,9 @@ FuseTest::expect_forget(uint64_t ino, uint64_t nlookup)
 				in.body.forget.nlookup == nlookup);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in __unused, auto &out __unused) {
+	).WillOnce(Invoke([=](auto in __unused, auto &out __unused) {
+		if (sem != NULL)
+			sem_post(sem);
 		/* FUSE_FORGET has no response! */
 	}));
 }
