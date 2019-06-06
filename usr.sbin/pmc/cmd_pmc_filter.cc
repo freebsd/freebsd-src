@@ -180,11 +180,12 @@ pmc_find_name(idmap & map, uint32_t id, char *list[LIST_MAX], int count)
 static void
 pmc_log_event(int fd, struct pmclog_ev *ev, bool json)
 {
+	string ret;
 	int len;
 	const void *buf;
 
 	if (json) {
-		string ret = event_to_json(ev);
+		ret = event_to_json(ev);
 		buf = ret.c_str();
 		len = ret.size();
 	} else {

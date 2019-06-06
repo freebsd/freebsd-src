@@ -512,6 +512,7 @@ fast_syscall_common:
 	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax)
 	jne	3f
 	call	handle_ibrs_exit
+	callq	*mds_handler
 	/* Restore preserved registers. */
 	MEXITCOUNT
 	movq	TF_RDI(%rsp),%rdi	/* bonus; preserve arg 1 */
@@ -1157,6 +1158,7 @@ ld_regs:
 	jz	2f			/* keep running with kernel GS.base */
 	cli
 	call	handle_ibrs_exit_rs
+	callq	*mds_handler
 	cmpq	$~0,PCPU(UCR3)
 	je	1f
 	pushq	%rdx

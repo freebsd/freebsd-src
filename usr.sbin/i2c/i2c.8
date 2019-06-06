@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2009
+.Dd May 22, 2019
 .Dt I2C 8
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Op Fl w Ar 0|8|16
 .Op Fl o Ar offset
 .Op Fl c Ar count
-.Op Fl m Ar ss|rs|no
+.Op Fl m Ar tr|ss|rs|no
 .Op Fl b
 .Op Fl v
 .Nm
@@ -72,10 +72,29 @@ number of bytes to transfer (dec).
 transfer direction: r - read, w - write.
 .It Fl f Ar device
 I2C bus to use (default is /dev/iic0).
-.It Fl m Ar ss|rs|no
+.It Fl m Ar tr|ss|rs|no
 addressing mode, i.e., I2C bus operations performed after the offset for the
 transfer has been written to the device and before the actual read/write
-operation. rs - repeated start; ss - stop start; no - none.
+operation.
+.Bl -tag -compact -offset indent
+.It Va tr
+complete-transfer
+.It Va ss
+stop then start
+.It Va rs
+repeated start
+.It Va no
+none
+.El
+Some I2C bus hardware does not provide control over the individual start,
+repeat-start, and stop operations.
+Such hardware can only perform a complete transfer of the offset and the
+data as a single operation.
+The
+.Va tr
+mode creates control structures describing the transfer and submits them
+to the driver as a single complete transaction.
+This mode works on all types of I2C hardware.
 .It Fl n Ar skip_addr
 skip address - address(es) to be skipped during bus scan.
 There are two ways to specify addresses to ignore: by range 'a..b' or

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_TIME_SET 3"
-.TH ASN1_TIME_SET 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH ASN1_TIME_SET 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -296,6 +296,38 @@ certificates complying with \s-1RFC5280\s0 et al use \s-1GMT\s0 anyway.
 .PP
 Use the \fBASN1_TIME_normalize()\fR function to normalize the time value before
 printing to get \s-1GMT\s0 results.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBASN1_TIME_set()\fR, \fBASN1_UTCTIME_set()\fR, \fBASN1_GENERALIZEDTIME_set()\fR, \fBASN1_TIME_adj()\fR,
+ASN1_UTCTIME_adj and ASN1_GENERALIZEDTIME_set return a pointer to a time structure
+or \s-1NULL\s0 if an error occurred.
+.PP
+\&\fBASN1_TIME_set_string()\fR, \fBASN1_UTCTIME_set_string()\fR, \fBASN1_GENERALIZEDTIME_set_string()\fR
+\&\fBASN1_TIME_set_string_X509()\fR return 1 if the time value is successfully set and 0 otherwise.
+.PP
+\&\fBASN1_TIME_normalize()\fR returns 1 on success, and 0 on error.
+.PP
+\&\fBASN1_TIME_check()\fR, ASN1_UTCTIME_check and \fBASN1_GENERALIZEDTIME_check()\fR return 1
+if the structure is syntactically correct and 0 otherwise.
+.PP
+\&\fBASN1_TIME_print()\fR, \fBASN1_UTCTIME_print()\fR and \fBASN1_GENERALIZEDTIME_print()\fR return 1
+if the time is successfully printed out and 0 if an error occurred (I/O error or
+invalid time format).
+.PP
+\&\fBASN1_TIME_to_tm()\fR returns 1 if the time is successfully parsed and 0 if an
+error occurred (invalid time format).
+.PP
+\&\fBASN1_TIME_diff()\fR returns 1 for success and 0 for failure. It can fail if the
+passed-in time structure has invalid syntax, for example.
+.PP
+\&\fBASN1_TIME_cmp_time_t()\fR and \fBASN1_UTCTIME_cmp_time_t()\fR return \-1 if \fBs\fR is
+before \fBt\fR, 0 if \fBs\fR equals \fBt\fR, or 1 if \fBs\fR is after \fBt\fR. \-2 is returned
+on error.
+.PP
+\&\fBASN1_TIME_compare()\fR returns \-1 if \fBa\fR is before \fBb\fR, 0 if \fBa\fR equals \fBb\fR, or 1 if \fBa\fR is after \fBb\fR. \-2 is returned on error.
+.PP
+\&\fBASN1_TIME_to_generalizedtime()\fR returns a pointer to
+the appropriate time structure on success or \s-1NULL\s0 if an error occurred.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Set a time structure to one hour after the current time and print it out:
@@ -331,38 +363,6 @@ Determine if one time is later or sooner than the current time:
 \& else
 \&     printf("Same\en");
 .Ve
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-\&\fBASN1_TIME_set()\fR, \fBASN1_UTCTIME_set()\fR, \fBASN1_GENERALIZEDTIME_set()\fR, \fBASN1_TIME_adj()\fR,
-ASN1_UTCTIME_adj and ASN1_GENERALIZEDTIME_set return a pointer to a time structure
-or \s-1NULL\s0 if an error occurred.
-.PP
-\&\fBASN1_TIME_set_string()\fR, \fBASN1_UTCTIME_set_string()\fR, \fBASN1_GENERALIZEDTIME_set_string()\fR
-\&\fBASN1_TIME_set_string_X509()\fR return 1 if the time value is successfully set and 0 otherwise.
-.PP
-\&\fBASN1_TIME_normalize()\fR returns 1 on success, and 0 on error.
-.PP
-\&\fBASN1_TIME_check()\fR, ASN1_UTCTIME_check and \fBASN1_GENERALIZEDTIME_check()\fR return 1
-if the structure is syntactically correct and 0 otherwise.
-.PP
-\&\fBASN1_TIME_print()\fR, \fBASN1_UTCTIME_print()\fR and \fBASN1_GENERALIZEDTIME_print()\fR return 1
-if the time is successfully printed out and 0 if an error occurred (I/O error or
-invalid time format).
-.PP
-\&\fBASN1_TIME_to_tm()\fR returns 1 if the time is successfully parsed and 0 if an
-error occurred (invalid time format).
-.PP
-\&\fBASN1_TIME_diff()\fR returns 1 for success and 0 for failure. It can fail if the
-passed-in time structure has invalid syntax, for example.
-.PP
-\&\fBASN1_TIME_cmp_time_t()\fR and \fBASN1_UTCTIME_cmp_time_t()\fR return \-1 if \fBs\fR is
-before \fBt\fR, 0 if \fBs\fR equals \fBt\fR, or 1 if \fBs\fR is after \fBt\fR. \-2 is returned
-on error.
-.PP
-\&\fBASN1_TIME_compare()\fR returns \-1 if \fBa\fR is before \fBb\fR, 0 if \fBa\fR equals \fBb\fR, or 1 if \fBa\fR is after \fBb\fR. \-2 is returned on error.
-.PP
-\&\fBASN1_TIME_to_generalizedtime()\fR returns a pointer to
-the appropriate time structure on success or \s-1NULL\s0 if an error occurred.
 .SH "HISTORY"
 .IX Header "HISTORY"
 The \fBASN1_TIME_to_tm()\fR function was added in OpenSSL 1.1.1.
@@ -372,7 +372,7 @@ The \fBASN1_TIME_cmp_time_t()\fR function was added in OpenSSL 1.1.1.
 The \fBASN1_TIME_compare()\fR function was added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

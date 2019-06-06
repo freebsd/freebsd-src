@@ -25,6 +25,7 @@ save_dev_random()
 	for f ; do
 		debug "saving entropy to $f"
 		dd if=/dev/random of="$f" bs=4096 count=1 status=none &&
+			( chflags nodump "$f" 2>/dev/null || : ) &&
 			chmod 600 "$f" &&
 			fsync "$f" "$(dirname "$f")"
 	done
@@ -99,7 +100,7 @@ random_stop()
 	[Nn][Oo])
 		;;
 	*)
-		echo -n 'Writing entropy file:'
+		echo -n 'Writing entropy file: '
 		rm -f ${entropy_file} 2> /dev/null
 		oumask=`umask`
 		umask 077
@@ -118,12 +119,7 @@ random_stop()
 			warn 'write failed (read-only fs?)'
 			;;
 		*)
-			dd if=/dev/random of=${entropy_file_confirmed} \
-			    bs=4096 count=1 2> /dev/null ||
-			    warn 'write failed (unwriteable file or full fs?)'
-			fsync "${entropy_file_confirmed}" \
-			    "$(dirname "${entropy_file_confirmed}")" \
-			    2> /dev/null
+			save_dev_random "${entropy_file_confirmed}"
 			echo '.'
 			;;
 		esac
@@ -134,7 +130,7 @@ random_stop()
 	[Nn][Oo])
 		;;
 	*)
-		echo -n 'Writing early boot entropy file:'
+		echo -n 'Writing early boot entropy file: '
 		rm -f ${entropy_boot_file} 2> /dev/null
 		oumask=`umask`
 		umask 077
@@ -146,12 +142,7 @@ random_stop()
 			warn 'write failed (read-only fs?)'
 			;;
 		*)
-			dd if=/dev/random of=${entropy_boot_file_confirmed} \
-			    bs=4096 count=1 2> /dev/null ||
-			    warn 'write failed (unwriteable file or full fs?)'
-			fsync "${entropy_boot_file_confirmed}" \
-			    "$(dirname "${entropy_boot_file_confirmed}")" \
-			    2> /dev/null
+			save_dev_random "${entropy_boot_file_confirmed}"
 			echo '.'
 			;;
 		esac

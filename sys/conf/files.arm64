@@ -49,6 +49,7 @@ arm/allwinner/if_awg.c		optional	awg ext_resources syscon aw_sid nvmem fdt
 
 # Allwinner clock driver
 arm/allwinner/clkng/aw_ccung.c		optional	aw_ccu fdt
+arm/allwinner/clkng/aw_clk_frac.c	optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_nkmp.c	optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_nm.c		optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_prediv_mux.c	optional	aw_ccu fdt
@@ -86,7 +87,7 @@ arm/broadcom/bcm2835/bcm2835_ft5406.c		optional evdev bcm2835_ft5406 soc_brcm_bc
 arm/broadcom/bcm2835/bcm2835_gpio.c		optional gpio soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_intr.c		optional soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_mbox.c		optional soc_brcm_bcm2837 fdt
-arm/broadcom/bcm2835/bcm2835_rng.c		optional random soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_rng.c		optional random !random_loadable soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_sdhci.c		optional sdhci soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_sdhost.c		optional sdhci soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_spi.c		optional bcm2835_spi soc_brcm_bcm2837 fdt
@@ -258,12 +259,6 @@ kern/pic_if.m			optional	intrng
 kern/subr_devmap.c		standard
 kern/subr_intr.c		optional	intrng
 libkern/bcmp.c			standard
-libkern/ffs.c			standard
-libkern/ffsl.c			standard
-libkern/ffsll.c			standard
-libkern/fls.c			standard
-libkern/flsl.c			standard
-libkern/flsll.c			standard
 libkern/memcmp.c		standard
 libkern/memset.c		standard
 libkern/arm64/crc32c_armv8.S	standard

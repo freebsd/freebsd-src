@@ -546,7 +546,7 @@ dmar_gas_alloc_region(struct dmar_domain *domain, struct dmar_map_entry *entry,
 			return (EBUSY);
 		entry->start = prev->end;
 	}
-	if (next != NULL && next->start < entry->end &&
+	if (next->start < entry->end &&
 	    (next->flags & DMAR_MAP_ENTRY_PLACE) == 0) {
 		if ((next->flags & DMAR_MAP_ENTRY_RMRR) == 0)
 			return (EBUSY);
@@ -560,7 +560,7 @@ dmar_gas_alloc_region(struct dmar_domain *domain, struct dmar_map_entry *entry,
 		dmar_gas_rb_remove(domain, prev);
 		prev = NULL;
 	}
-	if (next != NULL && next->start < entry->end) {
+	if (next->start < entry->end) {
 		dmar_gas_rb_remove(domain, next);
 		next = NULL;
 	}

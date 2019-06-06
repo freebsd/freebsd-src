@@ -2,6 +2,7 @@
 #
 # Copyright (c) 2014 The FreeBSD Foundation
 # All rights reserved.
+# Copyright 2019 Enji Cooper
 #
 # This software was developed by John-Mark Gurney under
 # the sponsorship from the FreeBSD Foundation.
@@ -81,7 +82,7 @@ if ! sysctl $cdas_sysctl=1; then
 fi
 
 echo "1..1"
-if "$PYTHON" $(dirname $0)/cryptotest.py; then
+if "$PYTHON" $(dirname $0)/cryptotest.py $CRYPTOTEST_ARGS; then
 	echo "ok 1"
 else
 	echo "not ok 1"

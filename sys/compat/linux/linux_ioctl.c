@@ -238,12 +238,7 @@ linux_ioctl_hdio(struct thread *td, struct linux_ioctl_args *args)
 		 */
 		bytespercyl = (off_t) sectorsize * fwheads * fwsectors;
 		fwcylinders = mediasize / bytespercyl;
-#if defined(DEBUG)
-		linux_msg(td, "HDIO_GET_GEO: mediasize %jd, c/h/s %d/%d/%d, "
-			  "bpc %jd",
-			  (intmax_t)mediasize, fwcylinders, fwheads, fwsectors,
-			  (intmax_t)bytespercyl);
-#endif
+
 		if ((args->cmd & 0xffff) == LINUX_HDIO_GET_GEO) {
 			struct linux_hd_geometry hdg;
 
@@ -404,19 +399,6 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 {
 	int i;
 
-#ifdef DEBUG
-	if (ldebug(ioctl)) {
-		printf("LINUX: BSD termios structure (input):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d\n",
-		    bios->c_iflag, bios->c_oflag, bios->c_cflag, bios->c_lflag,
-		    bios->c_ispeed, bios->c_ospeed);
-		printf("c_cc ");
-		for (i=0; i<NCCS; i++)
-			printf("%02x ", bios->c_cc[i]);
-		printf("\n");
-	}
-#endif
-
 	lios->c_iflag = 0;
 	if (bios->c_iflag & IGNBRK)
 		lios->c_iflag |= LINUX_IGNBRK;
@@ -525,38 +507,12 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 			lios->c_cc[i] = LINUX_POSIX_VDISABLE;
 	}
 	lios->c_line = 0;
-
-#ifdef DEBUG
-	if (ldebug(ioctl)) {
-		printf("LINUX: LINUX termios structure (output):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x line=%d\n",
-		    lios->c_iflag, lios->c_oflag, lios->c_cflag,
-		    lios->c_lflag, (int)lios->c_line);
-		printf("c_cc ");
-		for (i=0; i<LINUX_NCCS; i++)
-			printf("%02x ", lios->c_cc[i]);
-		printf("\n");
-	}
-#endif
 }
 
 static void
 linux_to_bsd_termios(struct linux_termios *lios, struct termios *bios)
 {
 	int i;
-
-#ifdef DEBUG
-	if (ldebug(ioctl)) {
-		printf("LINUX: LINUX termios structure (input):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x line=%d\n",
-		    lios->c_iflag, lios->c_oflag, lios->c_cflag,
-		    lios->c_lflag, (int)lios->c_line);
-		printf("c_cc ");
-		for (i=0; i<LINUX_NCCS; i++)
-			printf("%02x ", lios->c_cc[i]);
-		printf("\n");
-	}
-#endif
 
 	bios->c_iflag = 0;
 	if (lios->c_iflag & LINUX_IGNBRK)
@@ -667,19 +623,6 @@ linux_to_bsd_termios(struct linux_termios *lios, struct termios *bios)
 
 	bios->c_ispeed = bios->c_ospeed =
 	    linux_to_bsd_speed(lios->c_cflag & LINUX_CBAUD, sptab);
-
-#ifdef DEBUG
-	if (ldebug(ioctl)) {
-		printf("LINUX: BSD termios structure (output):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d\n",
-		    bios->c_iflag, bios->c_oflag, bios->c_cflag, bios->c_lflag,
-		    bios->c_ispeed, bios->c_ospeed);
-		printf("c_cc ");
-		for (i=0; i<NCCS; i++)
-			printf("%02x ", bios->c_cc[i]);
-		printf("\n");
-	}
-#endif
 }
 
 static void
@@ -2367,10 +2310,6 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SIOCSPGRP:
 	case LINUX_SIOCGIFCOUNT:
 		/* these ioctls don't take an interface name */
-#ifdef DEBUG
-		printf("%s(): ioctl %d\n", __func__,
-		    args->cmd & 0xffff);
-#endif
 		break;
 
 	case LINUX_SIOCGIFFLAGS:
@@ -2392,10 +2331,6 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		error = copyin((void *)args->arg, lifname, LINUX_IFNAMSIZ);
 		if (error != 0)
 			return (error);
-#ifdef DEBUG
-		printf("%s(): ioctl %d on %.*s\n", __func__,
-		    args->cmd & 0xffff, LINUX_IFNAMSIZ, lifname);
-#endif
 		memset(ifname, 0, sizeof(ifname));
 		ifp = ifname_linux_to_bsd(td, lifname, ifname);
 		if (ifp == NULL)
@@ -2409,10 +2344,6 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		error = copyout(ifname, (void *)args->arg, IFNAMSIZ);
 		if (error != 0)
 			return (error);
-#ifdef DEBUG
-		printf("%s(): %s translated to %s\n", __func__,
-		    lifname, ifname);
-#endif
 		break;
 
 	default:
@@ -2555,9 +2486,6 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		/* restore the original interface name */
 		copyout(lifname, (void *)args->arg, LINUX_IFNAMSIZ);
 
-#ifdef DEBUG
-	printf("%s(): returning %d\n", __func__, error);
-#endif
 	return (error);
 }
 
@@ -3612,12 +3540,6 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 	struct file *fp;
 	struct linux_ioctl_handler_element *he;
 	int error, cmd;
-
-#ifdef DEBUG
-	if (ldebug(ioctl))
-		printf(ARGS(ioctl, "%d, %04lx, *"), args->fd,
-		    (unsigned long)args->cmd);
-#endif
 
 	error = fget(td, args->fd, &cap_ioctl_rights, &fp);
 	if (error != 0)

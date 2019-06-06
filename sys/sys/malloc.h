@@ -57,9 +57,10 @@
 #define	M_NOVM		0x0200		/* don't ask VM for pages */
 #define	M_USE_RESERVE	0x0400		/* can alloc out of reserve memory */
 #define	M_NODUMP	0x0800		/* don't dump pages in this allocation */
-#define	M_FIRSTFIT	0x1000		/* Only for vmem, fast fit. */
-#define	M_BESTFIT	0x2000		/* Only for vmem, low fragmentation. */
-#define	M_EXEC		0x4000		/* allocate executable space. */
+#define	M_FIRSTFIT	0x1000		/* only for vmem, fast fit */
+#define	M_BESTFIT	0x2000		/* only for vmem, low fragmentation */
+#define	M_EXEC		0x4000		/* allocate executable space */
+#define	M_NEXTFIT	0x8000		/* only for vmem, follow cursor */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
@@ -176,7 +177,7 @@ void	*contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 void	*contigmalloc_domainset(unsigned long size, struct malloc_type *type,
 	    struct domainset *ds, int flags, vm_paddr_t low, vm_paddr_t high,
 	    unsigned long alignment, vm_paddr_t boundary)
-	    __malloc_like __result_use_check __alloc_size(1) __alloc_align(6);
+	    __malloc_like __result_use_check __alloc_size(1) __alloc_align(7);
 void	free(void *addr, struct malloc_type *type);
 void	free_domain(void *addr, struct malloc_type *type);
 void	*malloc(size_t size, struct malloc_type *type, int flags) __malloc_like

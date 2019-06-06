@@ -116,6 +116,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	uint32_t *instr, *limit;
 
 #ifdef __powerpc64__
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 	/*
 	 * PowerPC64 uses '.' prefixes on symbol names, ignore it, but only
 	 * allow symbols with the '.' prefix, so that we don't get the function
@@ -125,6 +126,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 		name++;
 	else
 		return (0);
+#endif
 #endif
 
 	if (fbt_excluded(name))

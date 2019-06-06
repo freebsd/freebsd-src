@@ -517,15 +517,14 @@ mpc85xx_reset(platform_t plat)
 	 */
 	ccsr_write4(OCP85XX_RSTCR, 2);
 
-	/* Clear DBCR0, disables debug interrupts and events. */
-	mtspr(SPR_DBCR0, 0);
+	mtmsr(mfmsr() & ~PSL_DE);
+
+	/* Enable debug interrupts and issue reset. */
+	mtspr(SPR_DBCR0, DBCR0_IDM | DBCR0_RST_SYSTEM);
 	__asm __volatile("isync");
 
 	/* Enable Debug Interrupts in MSR. */
 	mtmsr(mfmsr() | PSL_DE);
-
-	/* Enable debug interrupts and issue reset. */
-	mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM | DBCR0_RST_SYSTEM);
 
 	printf("Reset failed...\n");
 	while (1)

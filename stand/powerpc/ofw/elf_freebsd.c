@@ -84,7 +84,7 @@ __elfN(ofw_exec)(struct preloaded_file *fp)
 	if ((error = md_load(fp->f_args, &mdp, &dtbp)) != 0)
 		return (error);
 
-	printf("Kernel entry at 0x%lx ...\n", e->e_entry);
+	printf("Kernel entry at 0x%x ...\n", entry);
 
 	dev_cleanup();
 	if (dtbp != 0) {

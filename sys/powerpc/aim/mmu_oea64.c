@@ -118,10 +118,22 @@ uintptr_t moea64_get_unique_vsid(void);
  *
  */
 
-#define PV_LOCK_COUNT	PA_LOCK_COUNT*3
+#define PV_LOCK_PER_DOM	PA_LOCK_COUNT*3
+#define PV_LOCK_COUNT	PV_LOCK_PER_DOM*MAXMEMDOM
 static struct mtx_padalign pv_lock[PV_LOCK_COUNT];
  
-#define PV_LOCKPTR(pa)	((struct mtx *)(&pv_lock[pa_index(pa) % PV_LOCK_COUNT]))
+/*
+ * Cheap NUMA-izing of the pv locks, to reduce contention across domains.
+ * NUMA domains on POWER9 appear to be indexed as sparse memory spaces, with the
+ * index at (N << 45).
+ */
+#ifdef __powerpc64__
+#define PV_LOCK_IDX(pa)	(pa_index(pa) % PV_LOCK_PER_DOM + \
+			(((pa) >> 45) % MAXMEMDOM) * PV_LOCK_PER_DOM)
+#else
+#define PV_LOCK_IDX(pa)	(pa_index(pa) % PV_LOCK_COUNT)
+#endif
+#define PV_LOCKPTR(pa)	((struct mtx *)(&pv_lock[PV_LOCK_IDX(pa)]))
 #define PV_LOCK(pa)		mtx_lock(PV_LOCKPTR(pa))
 #define PV_UNLOCK(pa)		mtx_unlock(PV_LOCKPTR(pa))
 #define PV_LOCKASSERT(pa) 	mtx_assert(PV_LOCKPTR(pa), MA_OWNED)

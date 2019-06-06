@@ -423,6 +423,11 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			mtp->mt_failures = kvm_counter_u64_fetch(kvm,
 			    (unsigned long )uz.uz_fails);
 			mtp->mt_sleeps = uz.uz_sleeps;
+
+			/* See comment above in memstat_sysctl_uma(). */
+			if (mtp->mt_numallocs < mtp->mt_numfrees)
+				mtp->mt_numallocs = mtp->mt_numfrees;
+
 			if (kz.uk_flags & UMA_ZFLAG_INTERNAL)
 				goto skip_percpu;
 			for (i = 0; i < mp_maxid + 1; i++) {

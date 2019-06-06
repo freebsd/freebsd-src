@@ -133,48 +133,59 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA_PADDING_ADD_PKCS1_TYPE_1 3"
-.TH RSA_PADDING_ADD_PKCS1_TYPE_1 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH RSA_PADDING_ADD_PKCS1_TYPE_1 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-RSA_padding_add_PKCS1_type_1, RSA_padding_check_PKCS1_type_1, RSA_padding_add_PKCS1_type_2, RSA_padding_check_PKCS1_type_2, RSA_padding_add_PKCS1_OAEP, RSA_padding_check_PKCS1_OAEP, RSA_padding_add_SSLv23, RSA_padding_check_SSLv23, RSA_padding_add_none, RSA_padding_check_none \- asymmetric encryption padding
+RSA_padding_add_PKCS1_type_1, RSA_padding_check_PKCS1_type_1, RSA_padding_add_PKCS1_type_2, RSA_padding_check_PKCS1_type_2, RSA_padding_add_PKCS1_OAEP, RSA_padding_check_PKCS1_OAEP, RSA_padding_add_PKCS1_OAEP_mgf1, RSA_padding_check_PKCS1_OAEP_mgf1, RSA_padding_add_SSLv23, RSA_padding_check_SSLv23, RSA_padding_add_none, RSA_padding_check_none \- asymmetric encryption padding
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/rsa.h>
 \&
 \& int RSA_padding_add_PKCS1_type_1(unsigned char *to, int tlen,
-\&                                  unsigned char *f, int fl);
+\&                                  const unsigned char *f, int fl);
 \&
 \& int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
-\&                                    unsigned char *f, int fl, int rsa_len);
+\&                                    const unsigned char *f, int fl, int rsa_len);
 \&
 \& int RSA_padding_add_PKCS1_type_2(unsigned char *to, int tlen,
-\&                                  unsigned char *f, int fl);
+\&                                  const unsigned char *f, int fl);
 \&
 \& int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
-\&                                    unsigned char *f, int fl, int rsa_len);
+\&                                    const unsigned char *f, int fl, int rsa_len);
 \&
 \& int RSA_padding_add_PKCS1_OAEP(unsigned char *to, int tlen,
-\&                                unsigned char *f, int fl, unsigned char *p, int pl);
+\&                                const unsigned char *f, int fl,
+\&                                const unsigned char *p, int pl);
 \&
 \& int RSA_padding_check_PKCS1_OAEP(unsigned char *to, int tlen,
-\&                                  unsigned char *f, int fl, int rsa_len,
-\&                                  unsigned char *p, int pl);
+\&                                  const unsigned char *f, int fl, int rsa_len,
+\&                                  const unsigned char *p, int pl);
+\&
+\& int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
+\&                                     const unsigned char *f, int fl,
+\&                                     const unsigned char *p, int pl,
+\&                                     const EVP_MD *md, const EVP_MD *mgf1md);
+\&
+\& int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
+\&                                       const unsigned char *f, int fl, int rsa_len,
+\&                                       const unsigned char *p, int pl,
+\&                                       const EVP_MD *md, const EVP_MD *mgf1md);
 \&
 \& int RSA_padding_add_SSLv23(unsigned char *to, int tlen,
-\&                            unsigned char *f, int fl);
+\&                            const unsigned char *f, int fl);
 \&
 \& int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
-\&                              unsigned char *f, int fl, int rsa_len);
+\&                              const unsigned char *f, int fl, int rsa_len);
 \&
 \& int RSA_padding_add_none(unsigned char *to, int tlen,
-\&                          unsigned char *f, int fl);
+\&                          const unsigned char *f, int fl);
 \&
 \& int RSA_padding_check_none(unsigned char *to, int tlen,
-\&                            unsigned char *f, int fl, int rsa_len);
+\&                            const unsigned char *f, int fl, int rsa_len);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -220,6 +231,10 @@ at \fBto\fR.
 .PP
 For \fBRSA_padding_xxx_OAEP()\fR, \fBp\fR points to the encoding parameter
 of length \fBpl\fR. \fBp\fR may be \fB\s-1NULL\s0\fR if \fBpl\fR is 0.
+.PP
+For \fBRSA_padding_xxx_OAEP_mgf1()\fR, \fBmd\fR points to the md hash,
+if \fBmd\fR is \fB\s-1NULL\s0\fR that means md=sha1, and \fBmgf1md\fR points to
+the mgf1 hash, if \fBmgf1md\fR is \fB\s-1NULL\s0\fR that means mgf1md=md.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 The \fBRSA_padding_add_xxx()\fR functions return 1 on success, 0 on error.
@@ -228,15 +243,21 @@ recovered data, \-1 on error. Error codes can be obtained by calling
 \&\fBERR_get_error\fR\|(3).
 .SH "WARNING"
 .IX Header "WARNING"
-The \fBRSA_padding_check_PKCS1_type_2()\fR padding check leaks timing
+The result of \fBRSA_padding_check_PKCS1_type_2()\fR is a very sensitive
 information which can potentially be used to mount a Bleichenbacher
 padding oracle attack. This is an inherent weakness in the \s-1PKCS\s0 #1
-v1.5 padding design. Prefer \s-1PKCS1_OAEP\s0 padding. Otherwise it can
-be recommended to pass zero-padded \fBf\fR, so that \fBfl\fR equals to
-\&\fBrsa_len\fR, and if fixed by protocol, \fBtlen\fR being set to the
-expected length. In such case leakage would be minimal, it would
-take attacker's ability to observe memory access pattern with byte
-granilarity as it occurs, post-factum timing analysis won't do.
+v1.5 padding design. Prefer \s-1PKCS1_OAEP\s0 padding. If that is not
+possible, the result of \fBRSA_padding_check_PKCS1_type_2()\fR should be
+checked in constant time if it matches the expected length of the
+plaintext and additionally some application specific consistency
+checks on the plaintext need to be performed in constant time.
+If the plaintext is rejected it must be kept secret which of the
+checks caused the application to reject the message.
+Do not remove the zero-padding from the decrypted raw \s-1RSA\s0 data
+which was computed by \fBRSA_private_decrypt()\fR with \fB\s-1RSA_NO_PADDING\s0\fR,
+as this would create a small timing side channel which could be
+used to mount a Bleichenbacher attack against any padding mode
+including \s-1PKCS1_OAEP.\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBRSA_public_encrypt\fR\|(3),
@@ -244,7 +265,7 @@ granilarity as it occurs, post-factum timing analysis won't do.
 \&\fBRSA_sign\fR\|(3), \fBRSA_verify\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

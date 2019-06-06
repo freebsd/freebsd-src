@@ -1358,9 +1358,6 @@ dev/ciss/ciss.c			optional ciss
 dev/cmx/cmx.c			optional cmx
 dev/cmx/cmx_pccard.c		optional cmx pccard
 dev/cpufreq/ichss.c		optional cpufreq pci
-dev/cs/if_cs.c			optional cs
-dev/cs/if_cs_isa.c		optional cs isa
-dev/cs/if_cs_pccard.c		optional cs pccard
 dev/cxgb/cxgb_main.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_sge.c		optional cxgb pci \
@@ -1542,7 +1539,6 @@ dev/dc/pnphy.c			optional dc pci
 dev/dcons/dcons.c		optional dcons
 dev/dcons/dcons_crom.c		optional dcons_crom
 dev/dcons/dcons_os.c		optional dcons
-dev/de/if_de.c			optional de pci
 dev/dme/if_dme.c		optional dme
 dev/drm2/drm_agpsupport.c	optional drm2
 dev/drm2/drm_auth.c		optional drm2
@@ -1587,11 +1583,6 @@ dev/drm2/ttm/ttm_execbuf_util.c	optional drm2
 dev/drm2/ttm/ttm_memory.c	optional drm2
 dev/drm2/ttm/ttm_page_alloc.c	optional drm2
 dev/drm2/ttm/ttm_bo_vm.c	optional drm2
-dev/ed/if_ed.c			optional ed
-dev/ed/if_ed_novell.c		optional ed
-dev/ed/if_ed_rtl80x9.c		optional ed
-dev/ed/if_ed_pccard.c		optional ed pccard
-dev/ed/if_ed_pci.c		optional ed pci
 dev/efidev/efidev.c		optional efirt
 dev/efidev/efirt.c		optional efirt
 dev/efidev/efirtc.c		optional efirt
@@ -1642,9 +1633,6 @@ dev/ena/ena_sysctl.c 		optional ena \
 	compile-with "${NORMAL_C} -I$S/contrib"
 contrib/ena-com/ena_com.c	optional ena
 contrib/ena-com/ena_eth_com.c	optional ena
-dev/ep/if_ep.c			optional ep
-dev/ep/if_ep_isa.c		optional ep isa
-dev/ep/if_ep_pccard.c		optional ep pccard
 dev/esp/esp_pci.c		optional esp pci
 dev/esp/ncr53c9x.c		optional esp
 dev/etherswitch/arswitch/arswitch.c		optional arswitch
@@ -1676,9 +1664,6 @@ dev/evdev/evdev.c			optional evdev
 dev/evdev/evdev_mt.c			optional evdev
 dev/evdev/evdev_utils.c			optional evdev
 dev/evdev/uinput.c			optional evdev uinput
-dev/ex/if_ex.c			optional ex
-dev/ex/if_ex_isa.c		optional ex isa
-dev/ex/if_ex_pccard.c		optional ex pccard
 dev/exca/exca.c			optional cbb
 dev/extres/clk/clk.c		optional ext_resources clk fdt
 dev/extres/clk/clkdev_if.m	optional ext_resources clk fdt
@@ -1718,8 +1703,6 @@ dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
 	dependency	"${FDT_DTS_FILE:T:R}.dtb"
 dev/fdt/simplebus.c		optional fdt
 dev/fdt/simple_mfd.c		optional fdt
-dev/fe/if_fe.c			optional fe
-dev/fe/if_fe_pccard.c		optional fe pccard
 dev/filemon/filemon.c		optional filemon
 dev/firewire/firewire.c		optional firewire
 dev/firewire/fwcrom.c		optional firewire
@@ -2580,7 +2563,6 @@ dev/pci/pci_user.c		optional pci
 dev/pci/pcib_if.m		standard
 dev/pci/pcib_support.c		standard
 dev/pci/vga_pci.c		optional pci
-dev/pcn/if_pcn.c		optional pcn pci
 dev/pms/freebsd/driver/ini/src/agtiapi.c		optional pmspcv \
 	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
 dev/pms/RefTisa/sallsdk/spc/sadisc.c			optional pmspcv \
@@ -2776,9 +2758,9 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	clean		"rt2860.fw"
 dev/random/random_infra.c	optional random
 dev/random/random_harvestq.c	optional random
-dev/random/randomdev.c		optional random
+dev/random/randomdev.c		optional random !random_loadable
 dev/random/fortuna.c		optional random !random_loadable
-dev/random/hash.c		optional random
+dev/random/hash.c		optional random !random_loadable
 dev/rc/rc.c			optional rc
 dev/rccgpio/rccgpio.c		optional rccgpio gpio
 dev/re/if_re.c			optional re
@@ -3027,7 +3009,6 @@ dev/sdhci/sdhci_fdt_gpio.c	optional sdhci fdt gpio
 dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_acpi.c		optional sdhci acpi
 dev/sdhci/sdhci_pci.c		optional sdhci pci
-dev/sf/if_sf.c			optional sf pci
 dev/sge/if_sge.c		optional sge pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
@@ -3038,9 +3019,6 @@ dev/smbus/smbus.c		optional smbus
 dev/smbus/smbus_if.m		optional smbus
 dev/smc/if_smc.c		optional smc
 dev/smc/if_smc_fdt.c		optional smc fdt
-dev/sn/if_sn.c			optional sn
-dev/sn/if_sn_isa.c		optional sn isa
-dev/sn/if_sn_pccard.c		optional sn pccard
 dev/snp/snp.c			optional snp
 dev/sound/clone.c		optional sound
 dev/sound/unit.c		optional sound
@@ -3157,7 +3135,6 @@ dev/tcp_log/tcp_log_dev.c	optional tcp_blackbox inet | tcp_blackbox inet6
 dev/tdfx/tdfx_linux.c		optional tdfx_linux tdfx compat_linux
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/ti/if_ti.c			optional ti pci
-dev/tl/if_tl.c			optional tl pci
 dev/trm/trm.c			optional trm
 dev/twa/tw_cl_init.c		optional twa \
 	compile-with "${NORMAL_C} -I$S/dev/twa"
@@ -3178,8 +3155,6 @@ dev/tws/tws_cam.c		optional tws
 dev/tws/tws_hdm.c		optional tws
 dev/tws/tws_services.c		optional tws
 dev/tws/tws_user.c		optional tws
-dev/tx/if_tx.c			optional tx
-dev/txp/if_txp.c		optional txp
 dev/uart/uart_bus_acpi.c	optional uart acpi
 dev/uart/uart_bus_ebus.c	optional uart ebus
 dev/uart/uart_bus_fdt.c		optional uart fdt
@@ -3189,6 +3164,7 @@ dev/uart/uart_bus_pci.c		optional uart pci
 dev/uart/uart_bus_puc.c		optional uart puc
 dev/uart/uart_bus_scc.c		optional uart scc
 dev/uart/uart_core.c		optional uart
+dev/uart/uart_cpu_acpi.c	optional uart acpi
 dev/uart/uart_dbg.c		optional uart gdb
 dev/uart/uart_dev_msm.c		optional uart uart_msm fdt
 dev/uart/uart_dev_mvebu.c	optional uart uart_mvebu
@@ -3240,6 +3216,7 @@ dev/usb/usb_dev.c		optional usb
 dev/usb/usb_device.c		optional usb
 dev/usb/usb_dynamic.c		optional usb
 dev/usb/usb_error.c		optional usb
+dev/usb/usb_fdt_support.c	optional usb fdt
 dev/usb/usb_generic.c		optional usb
 dev/usb/usb_handle_request.c	optional usb
 dev/usb/usb_hid.c		optional usb
@@ -3429,7 +3406,6 @@ dev/vte/if_vte.c		optional vte pci
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_pci.c		optional vx pci
 dev/watchdog/watchdog.c		standard
-dev/wb/if_wb.c			optional wb pci
 dev/wi/if_wi.c			optional wi
 dev/wi/if_wi_pccard.c		optional wi pccard
 dev/wi/if_wi_pci.c		optional wi pci
@@ -3458,8 +3434,6 @@ dev/xdma/xdma_mbuf.c		optional xdma
 dev/xdma/xdma_queue.c		optional xdma
 dev/xdma/xdma_sg.c		optional xdma
 dev/xdma/xdma_sglist.c		optional xdma
-dev/xe/if_xe.c			optional xe
-dev/xe/if_xe_pccard.c		optional xe pccard
 dev/xen/balloon/balloon.c	optional xenhvm
 dev/xen/blkfront/blkfront.c	optional xenhvm
 dev/xen/blkback/blkback.c	optional xenhvm

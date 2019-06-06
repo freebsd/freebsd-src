@@ -61,8 +61,10 @@
 #define	FRAME_OFFSET	8
 #endif
 
-#define INKERNEL(x)	((x) <= VM_MAX_KERNEL_ADDRESS && \
-		(x) >= VM_MIN_KERNEL_ADDRESS)
+#define INKERNEL(x)	(((x) <= VM_MAX_KERNEL_ADDRESS && \
+		(x) >= VM_MIN_KERNEL_ADDRESS) || \
+		(PMAP_HAS_DMAP && (x) >= DMAP_BASE_ADDRESS && \
+		 (x) <= DMAP_MAX_ADDRESS))
 
 static __inline int
 dtrace_sp_inkernel(uintptr_t sp)
@@ -70,6 +72,9 @@ dtrace_sp_inkernel(uintptr_t sp)
 	struct trapframe *frame;
 	vm_offset_t callpc;
 
+	/* Not within the kernel, or not aligned. */
+	if (!INKERNEL(sp) || (sp & 0xf) != 0)
+		return (0);
 #ifdef __powerpc64__
 	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET64);
 #else
@@ -84,8 +89,6 @@ dtrace_sp_inkernel(uintptr_t sp)
 	 */
 	if (callpc + OFFSET == (vm_offset_t) &trapexit ||
 	    callpc + OFFSET == (vm_offset_t) &asttrapexit) {
-		if (sp == 0)
-			return (0);
 		frame = (struct trapframe *)(sp + FRAME_OFFSET);
 
 		return ((frame->srr1 & PSL_PR) == 0);
@@ -119,18 +122,13 @@ dtrace_next_sp_pc(uintptr_t sp, uintptr_t *nsp, uintptr_t *pc)
 			*nsp = frame->fixreg[1];
 		if (pc != NULL)
 			*pc = frame->srr0;
+		return;
 	}
 
 	if (nsp != NULL)
 		*nsp = *(uintptr_t *)sp;
 	if (pc != NULL)
 		*pc = callpc;
-}
-
-greg_t
-dtrace_getfp(void)
-{
-	return (greg_t)__builtin_frame_address(0);
 }
 
 void
@@ -148,7 +146,7 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 
 	aframes++;
 
-	sp = dtrace_getfp();
+	sp = (uintptr_t)__builtin_frame_address(0);
 
 	while (depth < pcstack_limit) {
 		if (sp <= osp)
@@ -418,7 +416,7 @@ uint64_t
 dtrace_getarg(int arg, int aframes)
 {
 	uintptr_t val;
-	uintptr_t *fp = (uintptr_t *)dtrace_getfp();
+	uintptr_t *fp = (uintptr_t *)__builtin_frame_address(0);
 	uintptr_t *stack;
 	int i;
 
@@ -432,8 +430,8 @@ dtrace_getarg(int arg, int aframes)
 		fp = (uintptr_t *)*fp;
 
 		/*
-		 * On ppc32 AIM, and booke, trapexit() is the immediately following
-		 * label.  On ppc64 AIM trapexit() follows a nop.
+		 * On ppc32 trapexit() is the immediately following label.  On
+		 * ppc64 AIM trapexit() follows a nop.
 		 */
 #ifdef __powerpc64__
 		if ((long)(fp[2]) + 4 == (long)trapexit) {
@@ -506,9 +504,7 @@ dtrace_getstackdepth(int aframes)
 	vm_offset_t callpc;
 
 	osp = PAGE_SIZE;
-	aframes++;
-	sp = dtrace_getfp();
-	depth++;
+	sp = (uintptr_t)__builtin_frame_address(0);
 	for(;;) {
 		if (sp <= osp)
 			break;
@@ -516,17 +512,14 @@ dtrace_getstackdepth(int aframes)
 		if (!dtrace_sp_inkernel(sp))
 			break;
 
-		if (aframes == 0)
-			depth++;
-		else
-			aframes--;
+		depth++;
 		osp = sp;
 		dtrace_next_sp_pc(sp, &sp, NULL);
 	}
 	if (depth < aframes)
 		return (0);
 
-	return (depth);
+	return (depth - aframes);
 }
 
 ulong_t

@@ -26,7 +26,7 @@
  *
  * Portions Copyright 2010 Robert Milkowski
  *
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
@@ -1321,6 +1321,7 @@ zvol_close(struct g_provider *pp, int flag, int count)
 	return (error);
 }
 
+/* ARGSUSED */
 static void
 zvol_get_done(zgd_t *zgd, int error)
 {
@@ -1328,9 +1329,6 @@ zvol_get_done(zgd_t *zgd, int error)
 		dmu_buf_rele(zgd->zgd_db, zgd);
 
 	zfs_range_unlock(zgd->zgd_rl);
-
-	if (error == 0 && zgd->zgd_bp)
-		zil_lwb_add_block(zgd->zgd_lwb, zgd->zgd_bp);
 
 	kmem_free(zgd, sizeof (zgd_t));
 }
@@ -2259,43 +2257,63 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 
 	case DKIOCFREE:
 	{
-		dkioc_free_t df;
+		dkioc_free_list_t *dfl;
 		dmu_tx_t *tx;
 
 		if (!zvol_unmap_enabled)
 			break;
 
-		if (ddi_copyin((void *)arg, &df, sizeof (df), flag)) {
-			error = SET_ERROR(EFAULT);
-			break;
+		if (!(flag & FKIOCTL)) {
+			error = dfl_copyin((void *)arg, &dfl, flag, KM_SLEEP);
+			if (error != 0)
+				break;
+		} else {
+			dfl = (dkioc_free_list_t *)arg;
+			ASSERT3U(dfl->dfl_num_exts, <=, DFL_COPYIN_MAX_EXTS);
+			if (dfl->dfl_num_exts > DFL_COPYIN_MAX_EXTS) {
+				error = SET_ERROR(EINVAL);
+				break;
+			}
 		}
-
-		/*
-		 * Apply Postel's Law to length-checking.  If they overshoot,
-		 * just blank out until the end, if there's a need to blank
-		 * out anything.
-		 */
-		if (df.df_start >= zv->zv_volsize)
-			break;	/* No need to do anything... */
 
 		mutex_exit(&zfsdev_state_lock);
 
-		rl = zfs_range_lock(&zv->zv_znode, df.df_start, df.df_length,
-		    RL_WRITER);
-		tx = dmu_tx_create(zv->zv_objset);
-		dmu_tx_mark_netfree(tx);
-		error = dmu_tx_assign(tx, TXG_WAIT);
-		if (error != 0) {
-			dmu_tx_abort(tx);
-		} else {
-			zvol_log_truncate(zv, tx, df.df_start,
-			    df.df_length, B_TRUE);
-			dmu_tx_commit(tx);
-			error = dmu_free_long_range(zv->zv_objset, ZVOL_OBJ,
-			    df.df_start, df.df_length);
-		}
+		for (int i = 0; i < dfl->dfl_num_exts; i++) {
+			uint64_t start = dfl->dfl_exts[i].dfle_start,
+			    length = dfl->dfl_exts[i].dfle_length,
+			    end = start + length;
 
-		zfs_range_unlock(rl);
+			/*
+			 * Apply Postel's Law to length-checking.  If they
+			 * overshoot, just blank out until the end, if there's
+			 * a need to blank out anything.
+			 */
+			if (start >= zv->zv_volsize)
+				continue;	/* No need to do anything... */
+			if (end > zv->zv_volsize) {
+				end = DMU_OBJECT_END;
+				length = end - start;
+			}
+
+			rl = zfs_range_lock(&zv->zv_znode, start, length,
+			    RL_WRITER);
+			tx = dmu_tx_create(zv->zv_objset);
+			error = dmu_tx_assign(tx, TXG_WAIT);
+			if (error != 0) {
+				dmu_tx_abort(tx);
+			} else {
+				zvol_log_truncate(zv, tx, start, length,
+				    B_TRUE);
+				dmu_tx_commit(tx);
+				error = dmu_free_long_range(zv->zv_objset,
+				    ZVOL_OBJ, start, length);
+			}
+
+			zfs_range_unlock(rl);
+
+			if (error != 0)
+				break;
+		}
 
 		/*
 		 * If the write-cache is disabled, 'sync' property
@@ -2308,9 +2326,12 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		if ((error == 0) && zvol_unmap_sync_enabled &&
 		    (!(zv->zv_flags & ZVOL_WCE) ||
 		    (zv->zv_objset->os_sync == ZFS_SYNC_ALWAYS) ||
-		    (df.df_flags & DF_WAIT_SYNC))) {
+		    (dfl->dfl_flags & DF_WAIT_SYNC))) {
 			zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		}
+
+		if (!(flag & FKIOCTL))
+			dfl_free(dfl);
 
 		return (error);
 	}

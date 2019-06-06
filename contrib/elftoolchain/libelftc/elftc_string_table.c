@@ -167,11 +167,9 @@ elftc_string_table_destroy(Elftc_String_Table *st)
 
 	for (n = 0; n < st->st_nbuckets; n++)
 		SLIST_FOREACH_SAFE(s, &st->st_buckets[n], ste_next, t)
-		    free(s);
+			free(s);
 	free(st->st_string_pool);
 	free(st);
-
-	return;
 }
 
 Elftc_String_Table *
@@ -318,7 +316,7 @@ elftc_string_table_insert(Elftc_String_Table *st, const char *string)
 		if ((ste = malloc(sizeof(*ste))) == NULL)
 			return (0);
 		if ((ste->ste_idx = elftc_string_table_add_to_pool(st,
-			    string)) == 0) {
+		    string)) == 0) {
 			free(ste);
 			return (0);
 		}

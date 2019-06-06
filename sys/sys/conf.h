@@ -43,7 +43,7 @@
 #define	_SYS_CONF_H_
 
 #ifdef _KERNEL
-#include <sys/eventhandler.h>
+#include <sys/_eventhandler.h>
 #else
 #include <sys/queue.h>
 #endif

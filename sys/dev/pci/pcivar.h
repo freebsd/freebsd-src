@@ -33,7 +33,7 @@
 #define	_PCIVAR_H_
 
 #include <sys/queue.h>
-#include <sys/eventhandler.h>
+#include <sys/_eventhandler.h>
 
 /* some PCI bus constants */
 #define	PCI_MAXMAPS_0	6	/* max. no. of memory/port maps */

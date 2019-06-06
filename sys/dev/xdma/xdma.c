@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -312,8 +313,7 @@ xdma_handle_mem_node(vmem_t *vmem, phandle_t memory)
 	pcell_t *regp;
 	int addr_cells, size_cells;
 	int i, reg_len, ret, tuple_size, tuples;
-	vmem_addr_t mem_start;
-	vmem_size_t mem_size;
+	u_long mem_start, mem_size;
 
 	if ((ret = fdt_addrsize_cells(OF_parent(memory), &addr_cells,
 	    &size_cells)) != 0)

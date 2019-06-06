@@ -156,6 +156,7 @@ static struct __vmmeter {
 	u_int v_free_min;
 	u_int v_free_count;
 	u_int v_wire_count;
+	u_long v_user_wire_count;
 	u_int v_active_count;
 	u_int v_inactive_target;
 	u_int v_inactive_count;
@@ -566,6 +567,7 @@ fill_vmmeter(struct __vmmeter *vmmp)
 		GET_VM_STATS(vm, v_free_min);
 		GET_VM_STATS(vm, v_free_count);
 		GET_VM_STATS(vm, v_wire_count);
+		GET_VM_STATS(vm, v_user_wire_count);
 		GET_VM_STATS(vm, v_active_count);
 		GET_VM_STATS(vm, v_inactive_target);
 		GET_VM_STATS(vm, v_inactive_count);
@@ -1057,6 +1059,8 @@ dosum(void)
 	    sum.v_laundry_count);
 	xo_emit("{:wired-pages/%9u} {N:pages wired down}\n",
 	    sum.v_wire_count);
+	xo_emit("{:virtual-user-wired-pages/%9lu} {N:virtual user pages wired "
+	    "down}\n", sum.v_user_wire_count);
 	xo_emit("{:free-pages/%9u} {N:pages free}\n",
 	    sum.v_free_count);
 	xo_emit("{:bytes-per-page/%9u} {N:bytes per page}\n", sum.v_page_size);

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_WRITE 3"
-.TH SSL_WRITE 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH SSL_WRITE 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -231,9 +231,6 @@ Call \fBSSL_get_error()\fR with the return value \fBret\fR to find out the reaso
 Old documentation indicated a difference between 0 and \-1, and that \-1 was
 retryable.
 You should instead call \fBSSL_get_error()\fR to find out if it's retryable.
-.SH "HISTORY"
-.IX Header "HISTORY"
-The \fBSSL_write_ex()\fR function was added in OpenSSL 1.1.1.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBSSL_get_error\fR\|(3), \fBSSL_read_ex\fR\|(3), \fBSSL_read\fR\|(3)
@@ -241,9 +238,12 @@ The \fBSSL_write_ex()\fR function was added in OpenSSL 1.1.1.
 \&\fBSSL_connect\fR\|(3), \fBSSL_accept\fR\|(3)
 \&\fBSSL_set_connect_state\fR\|(3),
 \&\fBssl\fR\|(7), \fBbio\fR\|(7)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The \fBSSL_write_ex()\fR function was added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

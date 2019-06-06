@@ -425,7 +425,7 @@ dmar_fini_qi(struct dmar_unit *unit)
 {
 	struct dmar_qi_genseq gseq;
 
-	if (unit->qi_enabled)
+	if (!unit->qi_enabled)
 		return;
 	taskqueue_drain(unit->qi_taskqueue, &unit->qi_task);
 	taskqueue_free(unit->qi_taskqueue);

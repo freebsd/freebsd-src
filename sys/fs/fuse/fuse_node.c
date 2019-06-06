@@ -375,7 +375,7 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid)
  * FUSE_GETATTR.
  */
 int
-fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
+fuse_vnode_setsize(struct vnode *vp, off_t newsize)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct vattr *attrs;
@@ -395,7 +395,7 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 	if (newsize < oldsize) {
 		daddr_t lbn;
 
-		err = vtruncbuf(vp, cred, newsize, fuse_iosize(vp));
+		err = vtruncbuf(vp, newsize, fuse_iosize(vp));
 		if (err)
 			goto out;
 		if (newsize % iosize == 0)

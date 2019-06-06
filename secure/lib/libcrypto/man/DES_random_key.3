@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DES_RANDOM_KEY 3"
-.TH DES_RANDOM_KEY 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH DES_RANDOM_KEY 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -421,6 +421,10 @@ last 4 bytes of the checksum of the input.
 .PP
 \&\fBDES_fcrypt()\fR returns a pointer to the caller-provided buffer and \fBDES_crypt()\fR \-
 to a static buffer on success; otherwise they return \s-1NULL.\s0
+.SH "SEE ALSO"
+.IX Header "SEE ALSO"
+\&\fBdes_modes\fR\|(7),
+\&\fBEVP_EncryptInit\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The requirement that the \fBsalt\fR parameter to \fBDES_crypt()\fR and \fBDES_fcrypt()\fR
@@ -428,13 +432,9 @@ be two \s-1ASCII\s0 characters was first enforced in
 OpenSSL 1.1.0.  Previous versions tried to use the letter uppercase \fBA\fR
 if both character were not present, and could crash when given non-ASCII
 on some platforms.
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\fBdes_modes\fR\|(7),
-\&\fBEVP_EncryptInit\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

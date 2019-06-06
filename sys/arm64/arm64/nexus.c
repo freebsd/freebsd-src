@@ -292,9 +292,11 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 
-	/* TODO: This is wrong, it's needed for ACPI */
-	device_printf(dev, "bus_config_intr is obsolete and not supported!\n");
-	return (EOPNOTSUPP);
+	/*
+	 * On arm64 (due to INTRNG), ACPI interrupt configuration is 
+	 * done in nexus_acpi_map_intr().
+	 */
+	return (0);
 }
 
 static int

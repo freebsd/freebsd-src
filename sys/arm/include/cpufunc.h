@@ -359,6 +359,64 @@ extern u_int	arm_cache_level;
 extern u_int	arm_cache_loc;
 extern u_int	arm_cache_type[14];
 
+#if __ARM_ARCH >= 6
+#define	HAVE_INLINE_FFS
+
+static __inline __pure2 int
+ffs(int mask)
+{
+
+	return (__builtin_ffs(mask));
+}
+
+#define	HAVE_INLINE_FFSL
+
+static __inline __pure2 int
+ffsl(long mask)
+{
+
+	return (__builtin_ffsl(mask));
+}
+
+#define	HAVE_INLINE_FFSLL
+
+static __inline __pure2 int
+ffsll(long long mask)
+{
+
+	return (__builtin_ffsll(mask));
+}
+
+#define	HAVE_INLINE_FLS
+
+static __inline __pure2 int
+fls(int mask)
+{
+
+	return (mask == 0 ? 0 :
+	    8 * sizeof(mask) - __builtin_clz((u_int)mask));
+}
+
+#define	HAVE_INLINE_FLSL
+
+static __inline __pure2 int
+flsl(long mask)
+{
+
+	return (mask == 0 ? 0 :
+	    8 * sizeof(mask) - __builtin_clzl((u_long)mask));
+}
+
+#define	HAVE_INLINE_FLSLL
+
+static __inline __pure2 int
+flsll(long long mask)
+{
+
+	return (mask == 0 ? 0 :
+	    8 * sizeof(mask) - __builtin_clzll((unsigned long long)mask));
+}
+#endif
 #else	/* !_KERNEL */
 
 static __inline void

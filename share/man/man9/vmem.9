@@ -27,7 +27,7 @@
 .\" $FreeBSD$
 .\"
 .\" ------------------------------------------------------------
-.Dd July 12, 2013
+.Dd May 17, 2019
 .Dt VMEM 9
 .Os
 .\" ------------------------------------------------------------
@@ -95,17 +95,8 @@ The smallest unit of allocation.
 The largest size of allocations which can be served by quantum cache.
 It is merely a hint and can be ignored.
 .It Fa flags
-Combination of
 .Xr malloc 9
-wait flag and
-.Nm
-allocation strategy flag:
-.Bl -tag -width M_FIRSTFIT
-.It Dv M_FIRSTFIT
-Prefer allocation performance.
-.It Dv M_BESTFIT
-Prefer space efficiency.
-.El
+wait flag.
 .El
 .Pp
 .\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -169,10 +160,16 @@ if the caller does not care.
 A bitwise OR of an allocation strategy and a
 .Xr malloc 9
 wait flag.
-The allocation strategy is one of
-.Dv M_FIRSTFIT
-and
-.Dv M_BESTFIT .
+The allocation strategy is one of:
+.Bl -tag width indent
+.It Dv M_FIRSTFIT
+Prefer allocation performance.
+.It Dv M_BESTFIT
+Prefer space efficiency.
+.It Dv M_NEXTFIT
+Perform an address-ordered search for free addresses, beginning where
+the previous search ended.
+.El
 .It Fa addrp
 On success, if
 .Fa addrp

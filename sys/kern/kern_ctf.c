@@ -193,8 +193,12 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	    NOCRED, NULL, td)) != 0)
 		goto out;
 
-	/* Check the CTF magic number. (XXX check for big endian!) */
+	/* Check the CTF magic number. */
+#ifdef __LITTLE_ENDIAN__
 	if (ctf_hdr[0] != 0xf1 || ctf_hdr[1] != 0xcf) {
+#else
+	if (ctf_hdr[0] != 0xcf || ctf_hdr[1] != 0xf1) {
+#endif
 		printf("%s(%d): module %s has invalid format\n",
 		    __func__, __LINE__, lf->pathname);
 		error = EFTYPE;

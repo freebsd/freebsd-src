@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_NEW 3"
-.TH SSL_CTX_NEW 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH SSL_CTX_NEW 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -296,6 +296,10 @@ the reason.
 The return value points to an allocated \s-1SSL_CTX\s0 object.
 .Sp
 \&\fBSSL_CTX_up_ref()\fR returns 1 for success and 0 for failure.
+.SH "SEE ALSO"
+.IX Header "SEE ALSO"
+\&\fBSSL_CTX_set_options\fR\|(3), \fBSSL_CTX_free\fR\|(3), \fBSSL_accept\fR\|(3),
+\&\fBSSL_CTX_set_min_proto_version\fR\|(3), \fBssl\fR\|(7), \fBSSL_set_connect_state\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 Support for SSLv2 and the corresponding \fBSSLv2_method()\fR,
@@ -304,16 +308,12 @@ removed in OpenSSL 1.1.0.
 .PP
 \&\fBSSLv23_method()\fR, \fBSSLv23_server_method()\fR and \fBSSLv23_client_method()\fR
 were deprecated and the preferred \fBTLS_method()\fR, \fBTLS_server_method()\fR
-and \fBTLS_client_method()\fR functions were introduced in OpenSSL 1.1.0.
+and \fBTLS_client_method()\fR functions were added in OpenSSL 1.1.0.
 .PP
 All version-specific methods were deprecated in OpenSSL 1.1.0.
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\fBSSL_CTX_set_options\fR\|(3), \fBSSL_CTX_free\fR\|(3), \fBSSL_accept\fR\|(3),
-\&\fBSSL_CTX_set_min_proto_version\fR\|(3), \fBssl\fR\|(7), \fBSSL_set_connect_state\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

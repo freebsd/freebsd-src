@@ -30,10 +30,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/ips/ipsreg.h>
-#include <dev/ips/ips.h>
+#include <sys/types.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+
+#include <dev/ips/ipsreg.h>
+#include <dev/ips/ips.h>
 
 static d_open_t ips_open;
 static d_close_t ips_close;
@@ -283,10 +287,11 @@ static int ips_diskdev_free(ips_softc_t *sc)
 	int i;
 	int error = 0;
 	for(i = 0; i < IPS_MAX_NUM_DRIVES; i++){
-		if(sc->diskdev[i])
+		if(sc->diskdev[i]) {
 			error = device_delete_child(sc->dev, sc->diskdev[i]);
 			if(error)
 				return error;
+		}
 	}
 	bus_generic_detach(sc->dev);
 	return 0;

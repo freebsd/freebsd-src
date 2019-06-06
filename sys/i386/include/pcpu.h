@@ -84,11 +84,15 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	struct	sx pc_copyout_slock;					\
 	char	*pc_copyout_buf;					\
 	vm_offset_t pc_pmap_eh_va;					\
-	caddr_t pc_pmap_eh_ptep;						\
+	caddr_t pc_pmap_eh_ptep;					\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
 	uint32_t pc_ibpb_set;						\
+	void	*pc_mds_buf;						\
+	void	*pc_mds_buf64;						\
+	uint32_t pc_pad[4];						\
+	uint8_t	pc_mds_tmp[64];						\
 	u_int	pc_ipi_bitmap;						\
-	char	__pad[3606]
+	char	__pad[3518]
 
 #ifdef _KERNEL
 

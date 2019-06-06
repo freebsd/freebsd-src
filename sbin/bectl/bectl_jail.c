@@ -155,7 +155,7 @@ build_jailcmd(char ***argvp, bool interactive, int argc, char *argv[])
 			nargv += argc;
 	}
 
-	jargv = *argvp = calloc(nargv, sizeof(jargv));
+	jargv = *argvp = calloc(nargv, sizeof(*jargv));
 	if (jargv == NULL)
 		err(2, "calloc");
 
@@ -346,6 +346,7 @@ bectl_cmd_jail(int argc, char *argv[])
 	case 0:
 		execv("/usr/sbin/jail", jargv);
 		fprintf(stderr, "bectl jail: failed to execute\n");
+		return (1);
 	default:
 		waitpid(pid, NULL, 0);
 	}
@@ -410,7 +411,12 @@ bectl_locate_jail(const char *ident)
 
 	/* Try the easy-match first */
 	jid = jail_getid(ident);
-	if (jid != -1)
+	/*
+	 * jail_getid(0) will always return 0, because this prison does exist.
+	 * bectl(8) knows that this is not what it wants, so we should fall
+	 * back to mount point search.
+	 */
+	if (jid > 0)
 		return (jid);
 
 	/* Attempt to try it as a BE name, first */

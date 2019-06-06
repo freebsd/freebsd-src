@@ -261,6 +261,10 @@ DRIVER_MODULE(virtio_blk, virtio_pci, vtblk_driver, vtblk_devclass,
 MODULE_VERSION(virtio_blk, 1);
 MODULE_DEPEND(virtio_blk, virtio, 1, 1, 1);
 
+VIRTIO_SIMPLE_PNPTABLE(virtio_blk, VIRTIO_ID_BLOCK, "VirtIO Block Adapter");
+VIRTIO_SIMPLE_PNPINFO(virtio_mmio, virtio_blk);
+VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_blk);
+
 static int
 vtblk_modevent(module_t mod, int type, void *unused)
 {
@@ -285,13 +289,7 @@ vtblk_modevent(module_t mod, int type, void *unused)
 static int
 vtblk_probe(device_t dev)
 {
-
-	if (virtio_get_device_type(dev) != VIRTIO_ID_BLOCK)
-		return (ENXIO);
-
-	device_set_desc(dev, "VirtIO Block Adapter");
-
-	return (BUS_PROBE_DEFAULT);
+	return (VIRTIO_SIMPLE_PROBE(dev, virtio_blk));
 }
 
 static int

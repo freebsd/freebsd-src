@@ -24,72 +24,113 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2018
+.Dd May 13, 2019
 .Dt CAP_SYSCTL 3
 .Os
 .Sh NAME
-.Nm cap_sysctlbyname
+.Nm cap_sysctl
 .Nd "library for getting or setting system information in capability mode"
 .Sh LIBRARY
 .Lb libcap_sysctl
 .Sh SYNOPSIS
-.In sys/nv.h
 .In libcasper.h
 .In casper/cap_sysctl.h
 .Ft int
-.Fn cap_sysctlbyname "cap_channel_t *chan" " const char *name" " void *oldp" " size_t *oldlenp" " const void *newp" " size_t newlen"
+.Fn cap_sysctl "cap_channel_t *chan" "const int *name" "u_int namelen" "void *oldp" "size_t *oldlenp" "const void *newp" "size_t newlen"
+.Ft int
+.Fn cap_sysctlbyname "cap_channel_t *chan" "const char *name" "void *oldp" "size_t *oldlenp" "const void *newp" "size_t newlen"
+.Ft int
+.Fn cap_sysctlnametomib "cap_channel_t *chan" "const char *name" "int *mibp" "size_t *sizep"
+.Ft void *
+.Fn cap_sysctl_limit_init "cap_channel_t *chan"
+.Ft void *
+.Fn cap_sysctl_limit_name "void *limit" "const char *name" "int flags"
+.Ft void *
+.Fn cap_sysctl_limit_mib "void *limit" "int *mibp" "u_int miblen" "int flags"
+.Ft int
+.Fn cap_sysctl_limit "void *limit"
 .Sh DESCRIPTION
-The function
+The
+.Fn cap_sysctl ,
 .Fn cap_sysctlbyname
-is equivalent to
+and
+.Fn cap_sysctlnametomib
+functions are equivalent to
+.Xr sysctl 3 ,
 .Xr sysctlbyname 3
-except that the connection to the
-.Nm system.sysctl
-service needs to be provided.
+and
+.Xr sysctlnametomib 3 ,
+except that they are implemented by the
+.Ql system.sysctl
+.Xr libcasper 3
+service and require a corresponding
+.Xr libcasper 3
+capability.
 .Sh LIMITS
-The service can be limited using
-.Xr cap_limit_set 3
-function.
+By default, the
+.Nm
+capability provides unrestricted access to the sysctl namespace.
+Applications typically only require access to a small number of sysctl
+variables; the
+.Fn cap_sysctl_limit
+interface can be used to restrict the sysctls that can be accessed using
+the
+.Nm
+capability.
+.Fn cap_sysctl_limit_init
+returns an opaque limit handle used to store a list of permitted sysctls
+and access rights.
+Rights are encoded using the following flags:
+.Pp
+.Bd -literal -offset indent -compact
+CAP_SYSCTL_READ		allow reads of the sysctl variable
+CAP_SYSCTL_WRITE        allow writes of the sysctl variable
+CAP_SYSCTL_RDWR         allow reads and writes of the sysctl variable
+CAP_RECURSIVE           permit access to any child of the sysctl variable
+.Ed
+.Pp
 The
-.Xr nvlist 9
-for that function can contain the following values and types:
-.Bl -ohang -offset indent
-.It ( NV_TYPE_NUMBER )
-The name of the element with type number will be treated as the limited sysctl.
-The value of the element will describe the access rights for given sysctl.
-There are four different rights
+.Fn cap_sysctl_limit_name
+function adds the sysctl identified by
+.Ar name
+to the limit list, and
+.Fn cap_sysctl_limit_mib
+function adds the sysctl identified by
+.Ar mibp
+to the limit list.
+The access rights for the sysctl are specified in the
+.Ar flags
+parameter; at least one of
 .Dv CAP_SYSCTL_READ ,
-.Dv CAP_SYSCTL_WRITE ,
-.Dv CAP_SYSCTL_RDWR ,
+.Dv CAP_SYSCTL_WRITE
 and
-.Dv CAP_SYSCTL_RECURSIVE .
-The
-.Dv CAP_SYSCTL_READ
-flag allows to fetch the value of a given sysctl.
-The
-.Dv CAP_SYSCTL_WIRTE
-flag allows to override the value of a given sysctl.
-The
 .Dv CAP_SYSCTL_RDWR
-is combination of the
-.Dv CAP_SYSCTL_WIRTE
-and
-.Dv CAP_SYSCTL_READ
-and allows to read and write the value of a given sysctl.
-The
-.Dv CAP_SYSCTL_RECURSIVE
-allows access to all children of a given sysctl.
-This right must be combined with at least one other right.
+must be specified.
+.Fn cap_sysctl_limit
+applies a set of sysctl limits to the capability, denying access to sysctl
+variables not belonging to the set.
+.Pp
+Once a set of limits is applied, subsequent calls to
+.Fn cap_sysctl_limit
+will fail unless the new set is a subset of the current set.
+.Pp
+.Fn cap_sysctlnametomib
+will succeed so long as the named sysctl variable is present in the limit set,
+regardless of its access rights.
+When a sysctl variable name is added to a limit set, its MIB identifier is
+automatically added to the set.
 .Sh EXAMPLES
-The following example first opens a capability to casper and then uses this
+The following example first opens a capability to casper, uses this
 capability to create the
 .Nm system.sysctl
-casper service and uses it to get the value of
+casper service, and then uses the
+.Nm
+capability to get the value of
 .Dv kern.trap_enotcap .
 .Bd -literal
 cap_channel_t *capcas, *capsysctl;
 const char *name = "kern.trap_enotcap";
-nvlist_t *limits;
+void *limit;
 int value;
 size_t size;
 
@@ -111,11 +152,11 @@ if (capsysctl == NULL)
 cap_close(capcas);
 
 /* Create limit for one MIB with read access only. */
-limits = nvlist_create(0);
-nvlist_add_number(limits, name, CAP_SYSCTL_READ);
+limit = cap_sysctl_limit_init(capsysctl);
+(void)cap_sysctl_limit_name(limit, name, CAP_SYSCTL_READ);
 
 /* Limit system.sysctl. */
-if (cap_limit_set(capsysctl, limits) < 0)
+if (cap_sysctl_limit(limit) < 0)
 	err(1, "Unable to set limits");
 
 /* Fetch value. */
@@ -129,7 +170,9 @@ cap_close(capsysctl);
 .Sh SEE ALSO
 .Xr cap_enter 2 ,
 .Xr err 3 ,
+.Xr sysctl 3 ,
 .Xr sysctlbyname 3 ,
+.Xr sysctlnametomib 3 ,
 .Xr capsicum 4 ,
 .Xr nv 9
 .Sh AUTHORS

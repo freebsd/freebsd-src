@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2017 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,8 @@
 #ifndef _ENA_COMMON_H_
 #define _ENA_COMMON_H_
 
-#define ENA_COMMON_SPEC_VERSION_MAJOR	0 /*  */
-#define ENA_COMMON_SPEC_VERSION_MINOR	10 /*  */
+#define ENA_COMMON_SPEC_VERSION_MAJOR        2
+#define ENA_COMMON_SPEC_VERSION_MINOR        0
 
 /* ENA operates with 48-bit memory addresses. ena_mem_addr_t */
 struct ena_common_mem_addr {

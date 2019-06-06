@@ -72,6 +72,7 @@ emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t val)
 			return (0);
 
 		case MSR_NB_CFG1:
+		case MSR_LS_CFG:
 		case MSR_IC_CFG:
 			return (0);	/* Ignore writes */
 
@@ -141,6 +142,7 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 			break;
 
 		case MSR_NB_CFG1:
+		case MSR_LS_CFG:
 		case MSR_IC_CFG:
 			/*
 			 * The reset value is processor family dependent so

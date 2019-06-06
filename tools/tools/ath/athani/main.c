@@ -169,7 +169,7 @@ ani_read_state(struct ath_driver_req *req, const char *ifname)
 	printf("  firstep_level=%d\n", state.firstepLevel);
 	printf("  ofdm_weak_signal_detect=%d\n", state.ofdmWeakSigDetectOff);
 	printf("  cck_weak_signal_threshold=%d\n", state.cckWeakSigThreshold);
-	printf("  mrc_cck=%d\n", state.mrcCckOff);
+	printf("  mrc_cck=%d\n", state.mrcCck);
 	/* XXX TODO: cycle counts? */
 }
 

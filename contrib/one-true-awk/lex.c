@@ -204,6 +204,7 @@ int yylex(void)
 		yylval.i = c;
 		switch (c) {
 		case '\n':	/* {EOL} */
+			lineno++;
 			RET(NL);
 		case '\r':	/* assume \n is coming */
 		case ' ':	/* {WS}+ */
@@ -219,6 +220,7 @@ int yylex(void)
 		case '\\':
 			if (peek() == '\n') {
 				input();
+				lineno++;
 			} else if (peek() == '\r') {
 				input(); input();	/* \n */
 				lineno++;
@@ -376,10 +378,11 @@ int string(void)
 		case '\n':
 		case '\r':
 		case 0:
+			*bp = '\0';
 			SYNTAX( "non-terminated string %.10s...", buf );
-			lineno++;
 			if (c == 0)	/* hopeless */
 				FATAL( "giving up" );
+			lineno++;
 			break;
 		case '\\':
 			c = input();
@@ -521,6 +524,7 @@ int regexpr(void)
 		if (!adjbuf(&buf, &bufsz, bp-buf+3, 500, &bp, "regexpr"))
 			FATAL("out of space for reg expr %.10s...", buf);
 		if (c == '\n') {
+			*bp = '\0';
 			SYNTAX( "newline in regular expression %.10s...", buf ); 
 			unput('\n');
 			break;
@@ -559,19 +563,19 @@ int input(void)	/* get next lexical input character */
 			lexprog++;
 	} else				/* awk -f ... */
 		c = pgetc();
-	if (c == '\n')
-		lineno++;
-	else if (c == EOF)
+	if (c == EOF)
 		c = 0;
 	if (ep >= ebuf + sizeof ebuf)
 		ep = ebuf;
-	return *ep++ = c;
+	*ep = c;
+	if (c != 0) {
+		ep++;
+	}
+	return (c);
 }
 
 void unput(int c)	/* put lexical character back on input */
 {
-	if (c == '\n')
-		lineno--;
 	if (yysptr >= yysbuf + sizeof(yysbuf))
 		FATAL("pushed back too much: %.20s...", yysbuf);
 	*yysptr++ = c;

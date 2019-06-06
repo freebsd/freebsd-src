@@ -47,6 +47,17 @@ struct l_sockaddr {
 #define	LINUX_ARPHRD_LOOPBACK	772
 
 /*
+ * Supported address families
+ */
+#define	LINUX_AF_UNSPEC		0
+#define	LINUX_AF_UNIX		1
+#define	LINUX_AF_INET		2
+#define	LINUX_AF_AX25		3
+#define	LINUX_AF_IPX		4
+#define	LINUX_AF_APPLETALK	5
+#define	LINUX_AF_INET6		10
+
+/*
  * net device flags
  */
 #define	LINUX_IFF_UP		0x0001

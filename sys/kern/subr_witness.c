@@ -576,7 +576,6 @@ static struct witness_order_list_entry order_lists[] = {
 	 * BPF
 	 */
 	{ "bpf global lock", &lock_class_sx },
-	{ "bpf interface lock", &lock_class_rw },
 	{ "bpf cdev lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*

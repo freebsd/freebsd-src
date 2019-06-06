@@ -388,9 +388,6 @@ create_elf(struct elfcopy *ecp)
 	 */
 	copy_content(ecp);
 
-	/* Generate section name string table (.shstrtab). */
-	set_shstrtab(ecp);
-
 	/*
 	 * Second processing of output sections: Update section headers.
 	 * At this stage we set name string index, update st_link and st_info
@@ -485,6 +482,9 @@ free_elf(struct elfcopy *ecp)
 
 	/* Free symbol table buffers. */
 	free_symtab(ecp);
+
+	/* Free section name string table. */
+	elftc_string_table_destroy(ecp->shstrtab->strtab);
 
 	/* Free internal section list. */
 	if (!TAILQ_EMPTY(&ecp->v_sec)) {
@@ -1565,7 +1565,6 @@ main(int argc, char **argv)
 	ecp = calloc(1, sizeof(*ecp));
 	if (ecp == NULL)
 		err(EXIT_FAILURE, "calloc failed");
-	memset(ecp, 0, sizeof(*ecp));
 
 	ecp->itf = ecp->otf = ETF_ELF;
 	ecp->iec = ecp->oec = ELFCLASSNONE;

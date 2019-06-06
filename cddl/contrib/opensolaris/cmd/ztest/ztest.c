@@ -338,7 +338,6 @@ ztest_func_t ztest_spa_create_destroy;
 ztest_func_t ztest_fault_inject;
 ztest_func_t ztest_ddt_repair;
 ztest_func_t ztest_dmu_snapshot_hold;
-ztest_func_t ztest_spa_rename;
 ztest_func_t ztest_scrub;
 ztest_func_t ztest_dsl_dataset_promote_busy;
 ztest_func_t ztest_vdev_attach_detach;
@@ -384,7 +383,6 @@ ztest_info_t ztest_info[] = {
 	{ ztest_ddt_repair,			1,	&zopt_sometimes	},
 	{ ztest_dmu_snapshot_hold,		1,	&zopt_sometimes	},
 	{ ztest_reguid,				1,	&zopt_rarely	},
-	{ ztest_spa_rename,			1,	&zopt_rarely	},
 	{ ztest_scrub,				1,	&zopt_often	},
 	{ ztest_spa_upgrade,			1,	&zopt_rarely	},
 	{ ztest_dsl_dataset_promote_busy,	1,	&zopt_rarely	},
@@ -1935,6 +1933,7 @@ zil_replay_func_t *ztest_replay_vector[TX_MAX_TYPE] = {
  * ZIL get_data callbacks
  */
 
+/* ARGSUSED */
 static void
 ztest_get_done(zgd_t *zgd, int error)
 {
@@ -1946,9 +1945,6 @@ ztest_get_done(zgd_t *zgd, int error)
 
 	ztest_range_unlock(zgd->zgd_rl);
 	ztest_object_unlock(zd, object);
-
-	if (error == 0 && zgd->zgd_bp)
-		zil_lwb_add_block(zgd->zgd_lwb, zgd->zgd_bp);
 
 	umem_free(zgd, sizeof (*zgd));
 }
@@ -5550,59 +5546,6 @@ ztest_reguid(ztest_ds_t *zd, uint64_t id)
 	VERIFY3U(load, ==, spa_load_guid(spa));
 }
 
-/*
- * Rename the pool to a different name and then rename it back.
- */
-/* ARGSUSED */
-void
-ztest_spa_rename(ztest_ds_t *zd, uint64_t id)
-{
-	char *oldname, *newname;
-	spa_t *spa;
-
-	rw_enter(&ztest_name_lock, RW_WRITER);
-
-	oldname = ztest_opts.zo_pool;
-	newname = umem_alloc(strlen(oldname) + 5, UMEM_NOFAIL);
-	(void) strcpy(newname, oldname);
-	(void) strcat(newname, "_tmp");
-
-	/*
-	 * Do the rename
-	 */
-	VERIFY3U(0, ==, spa_rename(oldname, newname));
-
-	/*
-	 * Try to open it under the old name, which shouldn't exist
-	 */
-	VERIFY3U(ENOENT, ==, spa_open(oldname, &spa, FTAG));
-
-	/*
-	 * Open it under the new name and make sure it's still the same spa_t.
-	 */
-	VERIFY3U(0, ==, spa_open(newname, &spa, FTAG));
-
-	ASSERT(spa == ztest_spa);
-	spa_close(spa, FTAG);
-
-	/*
-	 * Rename it back to the original
-	 */
-	VERIFY3U(0, ==, spa_rename(newname, oldname));
-
-	/*
-	 * Make sure it can still be opened
-	 */
-	VERIFY3U(0, ==, spa_open(oldname, &spa, FTAG));
-
-	ASSERT(spa == ztest_spa);
-	spa_close(spa, FTAG);
-
-	umem_free(newname, strlen(newname) + 1);
-
-	rw_exit(&ztest_name_lock);
-}
-
 static vdev_t *
 ztest_random_concrete_vdev_leaf(vdev_t *vd)
 {
@@ -6661,7 +6604,6 @@ main(int argc, char **argv)
 	ztest_shared_callstate_t *zc;
 	char timebuf[100];
 	char numbuf[NN_NUMBUF_SZ];
-	spa_t *spa;
 	char *cmd;
 	boolean_t hasalt;
 	char *fd_data_str = getenv("ZTEST_FD_DATA");
@@ -6835,24 +6777,6 @@ main(int argc, char **argv)
 			}
 			(void) printf("\n");
 		}
-
-		/*
-		 * It's possible that we killed a child during a rename test,
-		 * in which case we'll have a 'ztest_tmp' pool lying around
-		 * instead of 'ztest'.  Do a blind rename in case this happened.
-		 */
-		kernel_init(FREAD);
-		if (spa_open(ztest_opts.zo_pool, &spa, FTAG) == 0) {
-			spa_close(spa, FTAG);
-		} else {
-			char tmpname[ZFS_MAX_DATASET_NAME_LEN];
-			kernel_fini();
-			kernel_init(FREAD | FWRITE);
-			(void) snprintf(tmpname, sizeof (tmpname), "%s_tmp",
-			    ztest_opts.zo_pool);
-			(void) spa_rename(tmpname, ztest_opts.zo_pool);
-		}
-		kernel_fini();
 
 		ztest_run_zdb(ztest_opts.zo_pool);
 	}

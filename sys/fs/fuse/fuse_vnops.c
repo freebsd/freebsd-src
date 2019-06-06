@@ -654,7 +654,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		goto out;
 	}
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnop_create");
-	fuse_internal_cache_attrs(*vpp, cred, &feo->attr, feo->attr_valid,
+	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
 		feo->attr_valid_nsec, NULL);
 
 	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, td, cred, foo);
@@ -820,7 +820,6 @@ fuse_vnop_link(struct vop_link_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct vnode *tdvp = ap->a_tdvp;
 	struct componentname *cnp = ap->a_cnp;
-	struct ucred *cred = cnp->cn_cred;
 
 	struct vattr *vap = VTOVA(vp);
 
@@ -862,7 +861,7 @@ fuse_vnop_link(struct vop_link_args *ap)
 		 * should've updated its mtime and ctime
 		 */
 		fuse_vnode_clear_attr_cache(tdvp);
-		fuse_internal_cache_attrs(vp, cred, &feo->attr, feo->attr_valid,
+		fuse_internal_cache_attrs(vp, &feo->attr, feo->attr_valid,
 			feo->attr_valid_nsec, NULL);
 	}
 out:
@@ -1103,7 +1102,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			}
 
 			MPASS(feo != NULL);
-			fuse_internal_cache_attrs(*vpp, cred, &feo->attr,
+			fuse_internal_cache_attrs(*vpp, &feo->attr,
 				feo->attr_valid, feo->attr_valid_nsec, NULL);
 			fuse_validity_2_bintime(feo->entry_valid,
 				feo->entry_valid_nsec,

@@ -2866,6 +2866,12 @@ struct bge_gib {
 #define	BGE_DMA_MAXADDR		0xFFFFFFFFFF
 #endif
 
+#if (BUS_SPACE_MAXSIZE > 0xFFFFFFFF)
+#define	BGE_DMA_BNDRY		0x100000000
+#else
+#define	BGE_DMA_BNDRY		0
+#endif
+
 /*
  * Ring structures. Most of these reside in host memory and we tell
  * the NIC where they are via the ring control blocks. The exceptions
@@ -3067,11 +3073,3 @@ struct bge_softc {
 #define	BGE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->bge_mtx, MA_OWNED)
 #define	BGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->bge_mtx)
 #define	BGE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->bge_mtx)
-
-#ifdef BUS_SPACE_MAXADDR
-#if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
-#define	BGE_DMA_BOUNDARY	(0x100000000)
-#else
-#define	BGE_DMA_BOUNDARY	0
-#endif
-#endif

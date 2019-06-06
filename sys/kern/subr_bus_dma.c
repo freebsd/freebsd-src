@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
+#include <sys/ktr.h>
 #include <sys/mbuf.h>
 #include <sys/memdesc.h>
 #include <sys/proc.h>

@@ -58,6 +58,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/sockio.h>
@@ -537,9 +538,6 @@ tun_destroy(struct tuntap_softc *tp)
 		TUN_UNLOCK(tp);
 
 	CURVNET_SET(TUN2IFP(tp)->if_vnet);
-	sx_xlock(&tun_ioctl_sx);
-	TUN2IFP(tp)->if_softc = NULL;
-	sx_xunlock(&tun_ioctl_sx);
 
 	destroy_dev(tp->tun_dev);
 	seldrain(&tp->tun_rsel);
@@ -551,6 +549,9 @@ tun_destroy(struct tuntap_softc *tp)
 		bpfdetach(TUN2IFP(tp));
 		if_detach(TUN2IFP(tp));
 	}
+	sx_xlock(&tun_ioctl_sx);
+	TUN2IFP(tp)->if_softc = NULL;
+	sx_xunlock(&tun_ioctl_sx);
 	free_unr(tp->tun_drv->unrhdr, TUN2IFP(tp)->if_dunit);
 	if_free(TUN2IFP(tp));
 	mtx_destroy(&tp->tun_mtx);

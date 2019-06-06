@@ -443,7 +443,8 @@ aac_pci_attach(device_t dev)
 	 * Note that some of these controllers are 64-bit capable.
 	 */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
-			       PAGE_SIZE, 0,		/* algnmnt, boundary */
+			       PAGE_SIZE,		/* algnmnt */
+			       ((bus_size_t)((uint64_t)1 << 32)), /* boundary*/
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
@@ -493,7 +494,7 @@ static driver_t aacch_driver = {
 
 static devclass_t	aacch_devclass;
 DRIVER_MODULE(aacch, pci, aacch_driver, aacch_devclass, NULL, NULL);
-MODULE_PNP_INFO("U16:vendor;U16:device;", pci, aac,
+MODULE_PNP_INFO("U16:vendor;U16:device;", pci, aacch,
     aac_identifiers, nitems(aac_identifiers) - 1);
 
 static int

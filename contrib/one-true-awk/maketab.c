@@ -62,6 +62,7 @@ struct xx
 	{ DIVIDE, "arith", " / " },
 	{ MOD, "arith", " % " },
 	{ UMINUS, "arith", " -" },
+	{ UPLUS, "arith", " +" },
 	{ POWER, "arith", " **" },
 	{ PREINCR, "incrdecr", "++" },
 	{ POSTINCR, "incrdecr", "++" },
@@ -124,8 +125,12 @@ int main(int argc, char *argv[])
 	for (i = SIZE; --i >= 0; )
 		names[i] = "";
 
-	if ((fp = fopen("ytab.h", "r")) == NULL) {
-		fprintf(stderr, "maketab can't open ytab.h!\n");
+	if (argc != 2) {
+		fprintf(stderr, "usage: maketab YTAB_H\n");
+		exit(1);
+	}
+	if ((fp = fopen(argv[1], "r")) == NULL) {
+		fprintf(stderr, "maketab can't open %s!\n", argv[1]);
 		exit(1);
 	}
 	printf("static char *printname[%d] = {\n", SIZE);
@@ -133,6 +138,8 @@ int main(int argc, char *argv[])
 	while (fgets(buf, sizeof buf, fp) != NULL) {
 		n = sscanf(buf, "%1c %s %s %d", &c, def, name, &tok);
 		if (c != '#' || (n != 4 && strcmp(def,"define") != 0))	/* not a valid #define */
+			continue;
+		if (strcmp(name, "YYSTYPE_IS_DECLARED") == 0)
 			continue;
 		if (tok < FIRSTTOKEN || tok > LASTTOKEN) {
 			/* fprintf(stderr, "maketab funny token %d %s ignored\n", tok, buf); */

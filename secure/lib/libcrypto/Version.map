@@ -4433,5 +4433,18 @@ OPENSSL_1_1_1 {
         NAMING_AUTHORITY_it;
         PROFESSION_INFO_it;
         SCRYPT_PARAMS_it;
-    local: *;
 } OPENSSL_1_1_0j;
+
+OPENSSL_1_1_1b {
+    global:
+        OPENSSL_INIT_set_config_file_flags;
+        OPENSSL_INIT_set_config_filename;
+} OPENSSL_1_1_1;
+
+OPENSSL_1_1_1c {
+    global:
+        EVP_PKEY_get0_engine;
+    local: *;
+} OPENSSL_1_1_1b;
+
+

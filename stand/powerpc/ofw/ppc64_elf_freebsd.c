@@ -87,7 +87,7 @@ ppc64_ofw_elf_exec(struct preloaded_file *fp)
 	if ((error = md_load64(fp->f_args, &mdp, &dtbp)) != 0)
 		return (error);
 
-	printf("Kernel entry at 0x%lx ...\n", entry);
+	printf("Kernel entry at 0x%x ...\n", entry);
 
 	dev_cleanup();
 

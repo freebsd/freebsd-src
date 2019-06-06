@@ -35,7 +35,7 @@
 
 #include "acpi_if.h"
 #include "bus_if.h"
-#include <sys/eventhandler.h>
+#include <sys/_eventhandler.h>
 #ifdef INTRNG
 #include <sys/intr.h>
 #endif

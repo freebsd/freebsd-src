@@ -576,95 +576,8 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 }
 
 /*
- * Attempts to allocate a contiguous set of physical pages from existing
- * reservations.  See vm_reserv_alloc_contig() for a description of the
- * function's parameters.
- *
- * The page "mpred" must immediately precede the offset "pindex" within the
- * specified object.
- *
- * The object must be locked.
- */
-vm_page_t
-vm_reserv_extend_contig(int req, vm_object_t object, vm_pindex_t pindex,
-    int domain, u_long npages, vm_paddr_t low, vm_paddr_t high,
-    u_long alignment, vm_paddr_t boundary, vm_page_t mpred)
-{
-	struct vm_domain *vmd;
-	vm_paddr_t pa, size;
-	vm_page_t m, msucc;
-	vm_reserv_t rv;
-	int i, index;
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT(npages != 0, ("vm_reserv_alloc_contig: npages is 0"));
-
-	/*
-	 * Is a reservation fundamentally impossible?
-	 */
-	if (pindex < VM_RESERV_INDEX(object, pindex) ||
-	    pindex + npages > object->size || object->resident_page_count == 0)
-		return (NULL);
-
-	/*
-	 * All reservations of a particular size have the same alignment.
-	 * Assuming that the first page is allocated from a reservation, the
-	 * least significant bits of its physical address can be determined
-	 * from its offset from the beginning of the reservation and the size
-	 * of the reservation.
-	 *
-	 * Could the specified index within a reservation of the smallest
-	 * possible size satisfy the alignment and boundary requirements?
-	 */
-	pa = VM_RESERV_INDEX(object, pindex) << PAGE_SHIFT;
-	if ((pa & (alignment - 1)) != 0)
-		return (NULL);
-	size = npages << PAGE_SHIFT;
-	if (((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0)
-		return (NULL);
-
-	/*
-	 * Look for an existing reservation.
-	 */
-	rv = vm_reserv_from_object(object, pindex, mpred, &msucc);
-	if (rv == NULL)
-		return (NULL);
-	KASSERT(object != kernel_object || rv->domain == domain,
-	    ("vm_reserv_extend_contig: Domain mismatch from reservation."));
-	index = VM_RESERV_INDEX(object, pindex);
-	/* Does the allocation fit within the reservation? */
-	if (index + npages > VM_LEVEL_0_NPAGES)
-		return (NULL);
-	domain = rv->domain;
-	vmd = VM_DOMAIN(domain);
-	vm_reserv_lock(rv);
-	if (rv->object != object)
-		goto out;
-	m = &rv->pages[index];
-	pa = VM_PAGE_TO_PHYS(m);
-	if (pa < low || pa + size > high || (pa & (alignment - 1)) != 0 ||
-	    ((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0)
-		goto out;
-	/* Handle vm_page_rename(m, new_object, ...). */
-	for (i = 0; i < npages; i++) {
-		if (popmap_is_set(rv->popmap, index + i))
-			goto out;
-	}
-	if (!vm_domain_allocate(vmd, req, npages))
-		goto out;
-	for (i = 0; i < npages; i++)
-		vm_reserv_populate(rv, index + i);
-	vm_reserv_unlock(rv);
-	return (m);
-
-out:
-	vm_reserv_unlock(rv);
-	return (NULL);
-}
-
-/*
  * Allocates a contiguous set of physical pages of the given size "npages"
- * from newly created reservations.  All of the physical pages
+ * from existing or newly created reservations.  All of the physical pages
  * must be at or above the given physical address "low" and below the given
  * physical address "high".  The given value "alignment" determines the
  * alignment of the first physical page in the set.  If the given value
@@ -672,18 +585,15 @@ out:
  * physical address boundary that is a multiple of that value.  Both
  * "alignment" and "boundary" must be a power of two.
  *
- * Callers should first invoke vm_reserv_extend_contig() to attempt an
- * allocation from existing reservations.
- *
  * The page "mpred" must immediately precede the offset "pindex" within the
  * specified object.
  *
- * The object and free page queue must be locked.
+ * The object must be locked.
  */
 vm_page_t
-vm_reserv_alloc_contig(int req, vm_object_t object, vm_pindex_t pindex, int domain,
-    u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
-    vm_paddr_t boundary, vm_page_t mpred)
+vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req, vm_page_t mpred, u_long npages, vm_paddr_t low, vm_paddr_t high,
+    u_long alignment, vm_paddr_t boundary)
 {
 	struct vm_domain *vmd;
 	vm_paddr_t pa, size;
@@ -721,13 +631,42 @@ vm_reserv_alloc_contig(int req, vm_object_t object, vm_pindex_t pindex, int doma
 		return (NULL);
 
 	/*
-	 * Callers should've extended an existing reservation prior to
-	 * calling this function.  If a reservation exists it is
-	 * incompatible with the allocation.
+	 * Look for an existing reservation.
 	 */
 	rv = vm_reserv_from_object(object, pindex, mpred, &msucc);
-	if (rv != NULL)
+	if (rv != NULL) {
+		KASSERT(object != kernel_object || rv->domain == domain,
+		    ("vm_reserv_alloc_contig: domain mismatch"));
+		index = VM_RESERV_INDEX(object, pindex);
+		/* Does the allocation fit within the reservation? */
+		if (index + npages > VM_LEVEL_0_NPAGES)
+			return (NULL);
+		domain = rv->domain;
+		vmd = VM_DOMAIN(domain);
+		vm_reserv_lock(rv);
+		/* Handle reclaim race. */
+		if (rv->object != object)
+			goto out;
+		m = &rv->pages[index];
+		pa = VM_PAGE_TO_PHYS(m);
+		if (pa < low || pa + size > high ||
+		    (pa & (alignment - 1)) != 0 ||
+		    ((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0)
+			goto out;
+		/* Handle vm_page_rename(m, new_object, ...). */
+		for (i = 0; i < npages; i++)
+			if (popmap_is_set(rv->popmap, index + i))
+				goto out;
+		if (!vm_domain_allocate(vmd, req, npages))
+			goto out;
+		for (i = 0; i < npages; i++)
+			vm_reserv_populate(rv, index + i);
+		vm_reserv_unlock(rv);
+		return (m);
+out:
+		vm_reserv_unlock(rv);
 		return (NULL);
+	}
 
 	/*
 	 * Could at least one reservation fit between the first index to the
@@ -849,8 +788,7 @@ vm_reserv_alloc_contig(int req, vm_object_t object, vm_pindex_t pindex, int doma
 }
 
 /*
- * Attempts to extend an existing reservation and allocate the page to the
- * object.
+ * Allocate a physical page from an existing or newly created reservation.
  *
  * The page "mpred" must immediately precede the offset "pindex" within the
  * specified object.
@@ -858,67 +796,8 @@ vm_reserv_alloc_contig(int req, vm_object_t object, vm_pindex_t pindex, int doma
  * The object must be locked.
  */
 vm_page_t
-vm_reserv_extend(int req, vm_object_t object, vm_pindex_t pindex, int domain,
-    vm_page_t mpred)
-{
-	struct vm_domain *vmd;
-	vm_page_t m, msucc;
-	vm_reserv_t rv;
-	int index;
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-
-	/*
-	 * Could a reservation currently exist?
-	 */
-	if (pindex < VM_RESERV_INDEX(object, pindex) ||
-	    pindex >= object->size || object->resident_page_count == 0)
-		return (NULL);
-
-	/*
-	 * Look for an existing reservation.
-	 */
-	rv = vm_reserv_from_object(object, pindex, mpred, &msucc);
-	if (rv == NULL)
-		return (NULL);
-
-	KASSERT(object != kernel_object || rv->domain == domain,
-	    ("vm_reserv_extend: Domain mismatch from reservation."));
-	domain = rv->domain;
-	vmd = VM_DOMAIN(domain);
-	index = VM_RESERV_INDEX(object, pindex);
-	m = &rv->pages[index];
-	vm_reserv_lock(rv);
-	/* Handle reclaim race. */
-	if (rv->object != object ||
-	    /* Handle vm_page_rename(m, new_object, ...). */
-	    popmap_is_set(rv->popmap, index)) {
-		m = NULL;
-		goto out;
-	}
-	if (vm_domain_allocate(vmd, req, 1) == 0)
-		m = NULL;
-	else
-		vm_reserv_populate(rv, index);
-out:
-	vm_reserv_unlock(rv);
-
-	return (m);
-}
-
-/*
- * Attempts to allocate a new reservation for the object, and allocates a
- * page from that reservation.  Callers should first invoke vm_reserv_extend()
- * to attempt an allocation from an existing reservation.
- *
- * The page "mpred" must immediately precede the offset "pindex" within the
- * specified object.
- *
- * The object and free page queue must be locked.
- */
-vm_page_t
-vm_reserv_alloc_page(int req, vm_object_t object, vm_pindex_t pindex, int domain,
-    vm_page_t mpred)
+vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req, vm_page_t mpred)
 {
 	struct vm_domain *vmd;
 	vm_page_t m, msucc;
@@ -936,13 +815,32 @@ vm_reserv_alloc_page(int req, vm_object_t object, vm_pindex_t pindex, int domain
 		return (NULL);
 
 	/*
-	 * Callers should've extended an existing reservation prior to
-	 * calling this function.  If a reservation exists it is
-	 * incompatible with the allocation.
+	 * Look for an existing reservation.
 	 */
 	rv = vm_reserv_from_object(object, pindex, mpred, &msucc);
-	if (rv != NULL)
-		return (NULL);
+	if (rv != NULL) {
+		KASSERT(object != kernel_object || rv->domain == domain,
+		    ("vm_reserv_alloc_page: domain mismatch"));
+		domain = rv->domain;
+		vmd = VM_DOMAIN(domain);
+		index = VM_RESERV_INDEX(object, pindex);
+		m = &rv->pages[index];
+		vm_reserv_lock(rv);
+		/* Handle reclaim race. */
+		if (rv->object != object ||
+		    /* Handle vm_page_rename(m, new_object, ...). */
+		    popmap_is_set(rv->popmap, index)) {
+			m = NULL;
+			goto out;
+		}
+		if (vm_domain_allocate(vmd, req, 1) == 0)
+			m = NULL;
+		else
+			vm_reserv_populate(rv, index);
+out:
+		vm_reserv_unlock(rv);
+		return (m);
+	}
 
 	/*
 	 * Could a reservation fit between the first index to the left that
@@ -1030,56 +928,49 @@ vm_reserv_alloc_page(int req, vm_object_t object, vm_pindex_t pindex, int domain
 static void
 vm_reserv_break(vm_reserv_t rv)
 {
-	int begin_zeroes, hi, i, lo;
+	u_long changes;
+	int bitpos, hi, i, lo;
 
 	vm_reserv_assert_locked(rv);
 	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
 	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
 	vm_reserv_remove(rv);
 	rv->pages->psind = 0;
-	i = hi = 0;
-	do {
-		/* Find the next 0 bit.  Any previous 0 bits are < "hi". */
-		lo = ffsl(~(((1UL << hi) - 1) | rv->popmap[i]));
-		if (lo == 0) {
-			/* Redundantly clears bits < "hi". */
+	hi = lo = -1;
+	for (i = 0; i <= NPOPMAP; i++) {
+		/*
+		 * "changes" is a bitmask that marks where a new sequence of
+		 * 0s or 1s begins in popmap[i], with last bit in popmap[i-1]
+		 * considered to be 1 if and only if lo == hi.  The bits of
+		 * popmap[-1] and popmap[NPOPMAP] are considered all 1s.
+		 */
+		if (i == NPOPMAP)
+			changes = lo != hi;
+		else {
+			changes = rv->popmap[i];
+			changes ^= (changes << 1) | (lo == hi);
 			rv->popmap[i] = 0;
-			rv->popcnt -= NBPOPMAP - hi;
-			while (++i < NPOPMAP) {
-				lo = ffsl(~rv->popmap[i]);
-				if (lo == 0) {
-					rv->popmap[i] = 0;
-					rv->popcnt -= NBPOPMAP;
-				} else
-					break;
+		}
+		while (changes != 0) {
+			/*
+			 * If the next change marked begins a run of 0s, set
+			 * lo to mark that position.  Otherwise set hi and
+			 * free pages from lo up to hi.
+			 */
+			bitpos = ffsl(changes) - 1;
+			changes ^= 1UL << bitpos;
+			if (lo == hi)
+				lo = NBPOPMAP * i + bitpos;
+			else {
+				hi = NBPOPMAP * i + bitpos;
+				vm_domain_free_lock(VM_DOMAIN(rv->domain));
+				vm_phys_enqueue_contig(&rv->pages[lo], hi - lo);
+				vm_domain_free_unlock(VM_DOMAIN(rv->domain));
+				lo = hi;
 			}
-			if (i == NPOPMAP)
-				break;
-			hi = 0;
 		}
-		KASSERT(lo > 0, ("vm_reserv_break: lo is %d", lo));
-		/* Convert from ffsl() to ordinary bit numbering. */
-		lo--;
-		if (lo > 0) {
-			/* Redundantly clears bits < "hi". */
-			rv->popmap[i] &= ~((1UL << lo) - 1);
-			rv->popcnt -= lo - hi;
-		}
-		begin_zeroes = NBPOPMAP * i + lo;
-		/* Find the next 1 bit. */
-		do
-			hi = ffsl(rv->popmap[i]);
-		while (hi == 0 && ++i < NPOPMAP);
-		if (i != NPOPMAP)
-			/* Convert from ffsl() to ordinary bit numbering. */
-			hi--;
-		vm_domain_free_lock(VM_DOMAIN(rv->domain));
-		vm_phys_free_contig(&rv->pages[begin_zeroes], NBPOPMAP * i +
-		    hi - begin_zeroes);
-		vm_domain_free_unlock(VM_DOMAIN(rv->domain));
-	} while (i < NPOPMAP);
-	KASSERT(rv->popcnt == 0,
-	    ("vm_reserv_break: reserv %p's popcnt is corrupted", rv));
+	}
+	rv->popcnt = 0;
 	counter_u64_add(vm_reserv_broken, 1);
 }
 

@@ -38,8 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/iov.h>
 #include <sys/linker.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/pciio.h>
 #include <sys/queue.h>
 #include <sys/rman.h>

@@ -10,6 +10,7 @@ MAN=	termcap.5
 FILES=		termcap termcap.db
 FILESDIR=	${BINDIR}/misc
 CLEANFILES+=	termcap.db
+CONFS=		termcap.small
 
 .include <bsd.endian.mk>
 

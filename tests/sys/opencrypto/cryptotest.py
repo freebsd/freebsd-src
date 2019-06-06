@@ -2,6 +2,7 @@
 #
 # Copyright (c) 2014 The FreeBSD Foundation
 # All rights reserved.
+# Copyright 2019 Enji Cooper
 #
 # This software was developed by John-Mark Gurney under
 # the sponsorship from the FreeBSD Foundation.
@@ -30,6 +31,8 @@
 #
 
 from __future__ import print_function
+
+import binascii
 import errno
 import cryptodev
 import itertools
@@ -102,17 +105,21 @@ def GenTestCase(cname):
             else:
                 raise RuntimeError('unknown mode: %r' % repr(mode))
 
-            for bogusmode, lines in cryptodev.KATParser(fname,
-                [ 'Count', 'Key', 'IV', 'CT', 'AAD', 'Tag', 'PT', ]):
+            columns = [ 'Count', 'Key', 'IV', 'CT', 'AAD', 'Tag', 'PT', ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runGCMWithParser(parser, mode)
+
+        def runGCMWithParser(self, parser, mode):
+            for _, lines in next(parser):
                 for data in lines:
                     curcnt = int(data['Count'])
-                    cipherkey = data['Key'].decode('hex')
-                    iv = data['IV'].decode('hex')
-                    aad = data['AAD'].decode('hex')
-                    tag = data['Tag'].decode('hex')
+                    cipherkey = binascii.unhexlify(data['Key'])
+                    iv = binascii.unhexlify(data['IV'])
+                    aad = binascii.unhexlify(data['AAD'])
+                    tag = binascii.unhexlify(data['Tag'])
                     if 'FAIL' not in data:
-                        pt = data['PT'].decode('hex')
-                    ct = data['CT'].decode('hex')
+                        pt = binascii.unhexlify(data['PT'])
+                    ct = binascii.unhexlify(data['CT'])
 
                     if len(iv) != 12:
                         # XXX - isn't supported
@@ -139,8 +146,8 @@ def GenTestCase(cname):
                                 raise
                             continue
                         rtag = rtag[:len(tag)]
-                        data['rct'] = rct.encode('hex')
-                        data['rtag'] = rtag.encode('hex')
+                        data['rct'] = binascii.hexlify(rct)
+                        data['rtag'] = binascii.hexlify(rtag)
                         self.assertEqual(rct, ct, repr(data))
                         self.assertEqual(rtag, tag, repr(data))
                     else:
@@ -158,15 +165,19 @@ def GenTestCase(cname):
                                 if e.errno != errno.EINVAL:
                                     raise
                                 continue
-                            data['rpt'] = rpt.encode('hex')
-                            data['rtag'] = rtag.encode('hex')
+                            data['rpt'] = binascii.hexlify(rpt)
+                            data['rtag'] = binascii.hexlify(rtag)
                             self.assertEqual(rpt, pt,
                                 repr(data))
 
         def runCBC(self, fname):
+            columns = [ 'COUNT', 'KEY', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runCBCWithParser(parser)
+
+        def runCBCWithParser(self, parser):
             curfun = None
-            for mode, lines in cryptodev.KATParser(fname,
-                [ 'COUNT', 'KEY', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]):
+            for mode, lines in next(parser):
                 if mode == 'ENCRYPT':
                     swapptct = False
                     curfun = Crypto.encrypt
@@ -178,10 +189,10 @@ def GenTestCase(cname):
 
                 for data in lines:
                     curcnt = int(data['COUNT'])
-                    cipherkey = data['KEY'].decode('hex')
-                    iv = data['IV'].decode('hex')
-                    pt = data['PLAINTEXT'].decode('hex')
-                    ct = data['CIPHERTEXT'].decode('hex')
+                    cipherkey = binascii.unhexlify(data['KEY'])
+                    iv = binascii.unhexlify(data['IV'])
+                    pt = binascii.unhexlify(data['PLAINTEXT'])
+                    ct = binascii.unhexlify(data['CIPHERTEXT'])
 
                     if swapptct:
                         pt, ct = ct, pt
@@ -191,10 +202,14 @@ def GenTestCase(cname):
                     self.assertEqual(r, ct)
 
         def runXTS(self, fname, meth):
+            columns = [ 'COUNT', 'DataUnitLen', 'Key', 'DataUnitSeqNumber', 'PT',
+                        'CT']
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runXTSWithParser(parser, meth)
+
+        def runXTSWithParser(self, parser, meth):
             curfun = None
-            for mode, lines in cryptodev.KATParser(fname,
-                [ 'COUNT', 'DataUnitLen', 'Key', 'DataUnitSeqNumber', 'PT',
-                'CT' ]):
+            for mode, lines in next(parser):
                 if mode == 'ENCRYPT':
                     swapptct = False
                     curfun = Crypto.encrypt
@@ -207,10 +222,10 @@ def GenTestCase(cname):
                 for data in lines:
                     curcnt = int(data['COUNT'])
                     nbits = int(data['DataUnitLen'])
-                    cipherkey = data['Key'].decode('hex')
+                    cipherkey = binascii.unhexlify(data['Key'])
                     iv = struct.pack('QQ', int(data['DataUnitSeqNumber']), 0)
-                    pt = data['PT'].decode('hex')
-                    ct = data['CT'].decode('hex')
+                    pt = binascii.unhexlify(data['PT'])
+                    ct = binascii.unhexlify(data['CT'])
 
                     if nbits % 128 != 0:
                         # XXX - mark as skipped
@@ -229,20 +244,24 @@ def GenTestCase(cname):
                     self.assertEqual(r, ct)
 
         def runCCMEncrypt(self, fname):
-            for data in cryptodev.KATCCMParser(fname):
+            with cryptodev.KATCCMParser(fname) as parser:
+                self.runCCMEncryptWithParser(parser)
+
+        def runCCMEncryptWithParser(self, parser):
+            for data in next(parser):
                 Nlen = int(data['Nlen'])
                 if Nlen != 12:
                     # OCF only supports 12 byte IVs
                     continue
-                key = data['Key'].decode('hex')
-                nonce = data['Nonce'].decode('hex')
+                key = binascii.unhexlify(data['Key'])
+                nonce = binascii.unhexlify(data['Nonce'])
                 Alen = int(data['Alen'])
                 if Alen != 0:
-                    aad = data['Adata'].decode('hex')
+                    aad = binascii.unhexlify(data['Adata'])
                 else:
                     aad = None
-                payload = data['Payload'].decode('hex')
-                ct = data['CT'].decode('hex')
+                payload = binascii.unhexlify(data['Payload'])
+                ct = binascii.unhexlify(data['CT'])
 
                 try:
                     c = Crypto(crid=crid,
@@ -260,15 +279,19 @@ def GenTestCase(cname):
                 out = r + tag
                 self.assertEqual(out, ct,
                     "Count " + data['Count'] + " Actual: " + \
-                    repr(out.encode("hex")) + " Expected: " + \
+                    repr(binascii.hexlify(out)) + " Expected: " + \
                     repr(data) + " on " + cname)
 
         def runCCMDecrypt(self, fname):
+            with cryptodev.KATCCMParser(fname) as parser:
+                self.runCCMDecryptWithParser(parser)
+
+        def runCCMDecryptWithParser(self, parser):
             # XXX: Note that all of the current CCM
             # decryption test vectors use IV and tag sizes
             # that aren't supported by OCF none of the
             # tests are actually ran.
-            for data in cryptodev.KATCCMParser(fname):
+            for data in next(parser):
                 Nlen = int(data['Nlen'])
                 if Nlen != 12:
                     # OCF only supports 12 byte IVs
@@ -277,14 +300,14 @@ def GenTestCase(cname):
                 if Tlen != 16:
                     # OCF only supports 16 byte tags
                     continue
-                key = data['Key'].decode('hex')
-                nonce = data['Nonce'].decode('hex')
+                key = binascii.unhexlify(data['Key'])
+                nonce = binascii.unhexlify(data['Nonce'])
                 Alen = int(data['Alen'])
                 if Alen != 0:
-                    aad = data['Adata'].decode('hex')
+                    aad = binascii.unhexlify(data['Adata'])
                 else:
                     aad = None
-                ct = data['CT'].decode('hex')
+                ct = binascii.unhexlify(data['CT'])
                 tag = ct[-16:]
                 ct = ct[:-16]
 
@@ -306,12 +329,12 @@ def GenTestCase(cname):
                     r = Crypto.decrypt(c, payload, nonce,
                         aad, tag)
 
-                    payload = data['Payload'].decode('hex')
+                    payload = binascii.unhexlify(data['Payload'])
                     plen = int(data('Plen'))
                     payload = payload[:plen]
                     self.assertEqual(r, payload,
                         "Count " + data['Count'] + \
-                        " Actual: " + repr(r.encode("hex")) + \
+                        " Actual: " + repr(binascii.hexlify(r)) + \
                         " Expected: " + repr(data) + \
                         " on " + cname)
 
@@ -324,9 +347,13 @@ def GenTestCase(cname):
                 self.runTDES(i)
 
         def runTDES(self, fname):
+            columns = [ 'COUNT', 'KEYs', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runTDESWithParser(parser)
+
+        def runTDESWithParser(self, parser):
             curfun = None
-            for mode, lines in cryptodev.KATParser(fname,
-                [ 'COUNT', 'KEYs', 'IV', 'PLAINTEXT', 'CIPHERTEXT', ]):
+            for mode, lines in next(parser):
                 if mode == 'ENCRYPT':
                     swapptct = False
                     curfun = Crypto.encrypt
@@ -339,10 +366,10 @@ def GenTestCase(cname):
                 for data in lines:
                     curcnt = int(data['COUNT'])
                     key = data['KEYs'] * 3
-                    cipherkey = key.decode('hex')
-                    iv = data['IV'].decode('hex')
-                    pt = data['PLAINTEXT'].decode('hex')
-                    ct = data['CIPHERTEXT'].decode('hex')
+                    cipherkey = binascii.unhexlify(key)
+                    iv = binascii.unhexlify(data['IV'])
+                    pt = binascii.unhexlify(data['PLAINTEXT'])
+                    ct = binascii.unhexlify(data['CIPHERTEXT'])
 
                     if swapptct:
                         pt, ct = ct, pt
@@ -363,9 +390,12 @@ def GenTestCase(cname):
             # Skip SHA512_(224|256) tests
             if fname.find('SHA512_') != -1:
                 return
+            columns = [ 'Len', 'Msg', 'MD' ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runSHAWithParser(parser)
 
-            for hashlength, lines in cryptodev.KATParser(fname,
-                [ 'Len', 'Msg', 'MD' ]):
+        def runSHAWithParser(self, parser):
+            for hashlength, lines in next(parser):
                 # E.g., hashlength will be "L=20" (bytes)
                 hashlen = int(hashlength.split("=")[1])
 
@@ -387,9 +417,9 @@ def GenTestCase(cname):
                     continue
 
                 for data in lines:
-                    msg = data['Msg'].decode('hex')
+                    msg = binascii.unhexlify(data['Msg'])
                     msg = msg[:int(data['Len'])]
-                    md = data['MD'].decode('hex')
+                    md = binascii.unhexlify(data['MD'])
 
                     try:
                         c = Crypto(mac=alg, crid=crid,
@@ -403,7 +433,7 @@ def GenTestCase(cname):
                     _, r = c.encrypt(msg, iv="")
 
                     self.assertEqual(r, md, "Actual: " + \
-                        repr(r.encode("hex")) + " Expected: " + repr(data) + " on " + cname)
+                        repr(binascii.hexlify(r)) + " Expected: " + repr(data) + " on " + cname)
 
         @unittest.skipIf(cname not in shamodules, 'skipping SHA-HMAC on %s' % str(cname))
         def test_sha1hmac(self):
@@ -411,8 +441,12 @@ def GenTestCase(cname):
                 self.runSHA1HMAC(i)
 
         def runSHA1HMAC(self, fname):
-            for hashlength, lines in cryptodev.KATParser(fname,
-                [ 'Count', 'Klen', 'Tlen', 'Key', 'Msg', 'Mac' ]):
+            columns = [ 'Count', 'Klen', 'Tlen', 'Key', 'Msg', 'Mac' ]
+            with cryptodev.KATParser(fname, columns) as parser:
+                self.runSHA1HMACWithParser(parser)
+
+        def runSHA1HMACWithParser(self, parser):
+            for hashlength, lines in next(parser):
                 # E.g., hashlength will be "L=20" (bytes)
                 hashlen = int(hashlength.split("=")[1])
 
@@ -440,9 +474,9 @@ def GenTestCase(cname):
                     continue
 
                 for data in lines:
-                    key = data['Key'].decode('hex')
-                    msg = data['Msg'].decode('hex')
-                    mac = data['Mac'].decode('hex')
+                    key = binascii.unhexlify(data['Key'])
+                    msg = binascii.unhexlify(data['Msg'])
+                    mac = binascii.unhexlify(data['Mac'])
                     tlen = int(data['Tlen'])
 
                     if len(key) > blocksize:
@@ -460,7 +494,7 @@ def GenTestCase(cname):
                     _, r = c.encrypt(msg, iv="")
 
                     self.assertEqual(r[:tlen], mac, "Actual: " + \
-                        repr(r.encode("hex")) + " Expected: " + repr(data))
+                        repr(binascii.hexlify(r)) + " Expected: " + repr(data))
 
     return GendCryptoTestCase
 

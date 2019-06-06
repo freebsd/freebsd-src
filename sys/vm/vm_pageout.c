@@ -194,9 +194,10 @@ SYSCTL_UINT(_vm, OID_AUTO, background_launder_max, CTLFLAG_RWTUN,
 
 int vm_pageout_page_count = 32;
 
-int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
-SYSCTL_INT(_vm, OID_AUTO, max_wired,
-	CTLFLAG_RW, &vm_page_max_wired, 0, "System-wide limit to wired page count");
+u_long vm_page_max_user_wired;
+SYSCTL_ULONG(_vm, OID_AUTO, max_user_wired, CTLFLAG_RW,
+    &vm_page_max_user_wired, 0,
+    "system-wide limit to user-wired page count");
 
 static u_int isqrt(u_int num);
 static int vm_pageout_launder(struct vm_domain *vmd, int launder,
@@ -753,7 +754,7 @@ recheck:
 		 */
 		if (m->hold_count != 0)
 			continue;
-		if (m->wire_count != 0) {
+		if (vm_page_wired(m)) {
 			vm_page_dequeue_deferred(m);
 			continue;
 		}
@@ -1202,7 +1203,7 @@ act_scan:
 		/*
 		 * Wired pages are dequeued lazily.
 		 */
-		if (m->wire_count != 0) {
+		if (vm_page_wired(m)) {
 			vm_page_dequeue_deferred(m);
 			continue;
 		}
@@ -1429,7 +1430,7 @@ recheck:
 			addl_page_shortage++;
 			goto reinsert;
 		}
-		if (m->wire_count != 0) {
+		if (vm_page_wired(m)) {
 			vm_page_dequeue_deferred(m);
 			continue;
 		}
@@ -2041,8 +2042,8 @@ vm_pageout_init(void)
 	if (vm_pageout_update_period == 0)
 		vm_pageout_update_period = 600;
 
-	if (vm_page_max_wired == 0)
-		vm_page_max_wired = freecount / 3;
+	if (vm_page_max_user_wired == 0)
+		vm_page_max_user_wired = freecount / 3;
 }
 
 /*

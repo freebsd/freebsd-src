@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OCSP_CERT_TO_ID 3"
-.TH OCSP_CERT_TO_ID 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH OCSP_CERT_TO_ID 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -155,8 +155,8 @@ OCSP_cert_to_id, OCSP_cert_id_new, OCSP_CERTID_free, OCSP_id_issuer_cmp, OCSP_id
 \&
 \& void OCSP_CERTID_free(OCSP_CERTID *id);
 \&
-\& int OCSP_id_issuer_cmp(OCSP_CERTID *a, OCSP_CERTID *b);
-\& int OCSP_id_cmp(OCSP_CERTID *a, OCSP_CERTID *b);
+\& int OCSP_id_issuer_cmp(const OCSP_CERTID *a, const OCSP_CERTID *b);
+\& int OCSP_id_cmp(const OCSP_CERTID *a, const OCSP_CERTID *b);
 \&
 \& int OCSP_id_get0_info(ASN1_OCTET_STRING **piNameHash, ASN1_OBJECT **pmd,
 \&                       ASN1_OCTET_STRING **pikeyHash,
@@ -210,7 +210,7 @@ NOT\s0\fR be freed up by an application: they will be freed when the correspondi
 \&\fBOCSP_sendreq_new\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

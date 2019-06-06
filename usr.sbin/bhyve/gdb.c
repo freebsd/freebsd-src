@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
 #endif
+#include <sys/endian.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -767,15 +768,24 @@ gdb_read_mem(const uint8_t *data, size_t len)
 	bool started;
 	int error;
 
+	/* Skip 'm' */
+	data += 1;
+	len -= 1;
+
+	/* Parse and consume address. */
 	cp = memchr(data, ',', len);
-	if (cp == NULL) {
+	if (cp == NULL || cp == data) {
 		send_error(EINVAL);
 		return;
 	}
-	gva = parse_integer(data + 1, cp - (data + 1));
-	resid = parse_integer(cp + 1, len - (cp + 1 - data));
-	started = false;
+	gva = parse_integer(data, cp - data);
+	len -= (cp - data) + 1;
+	data += (cp - data) + 1;
 
+	/* Parse length. */
+	resid = parse_integer(data, len);
+
+	started = false;
 	while (resid > 0) {
 		error = guest_vaddr2paddr(cur_vcpu, gva, &gpa);
 		if (error == -1) {
@@ -861,6 +871,115 @@ gdb_read_mem(const uint8_t *data, size_t len)
 	finish_packet();
 }
 
+static void
+gdb_write_mem(const uint8_t *data, size_t len)
+{
+	uint64_t gpa, gva, val;
+	uint8_t *cp;
+	size_t resid, todo, bytes;
+	int error;
+
+	/* Skip 'M' */
+	data += 1;
+	len -= 1;
+
+	/* Parse and consume address. */
+	cp = memchr(data, ',', len);
+	if (cp == NULL || cp == data) {
+		send_error(EINVAL);
+		return;
+	}
+	gva = parse_integer(data, cp - data);
+	len -= (cp - data) + 1;
+	data += (cp - data) + 1;
+
+	/* Parse and consume length. */
+	cp = memchr(data, ':', len);
+	if (cp == NULL || cp == data) {
+		send_error(EINVAL);
+		return;
+	}
+	resid = parse_integer(data, cp - data);
+	len -= (cp - data) + 1;
+	data += (cp - data) + 1;
+
+	/* Verify the available bytes match the length. */
+	if (len != resid * 2) {
+		send_error(EINVAL);
+		return;
+	}
+
+	while (resid > 0) {
+		error = guest_vaddr2paddr(cur_vcpu, gva, &gpa);
+		if (error == -1) {
+			send_error(errno);
+			return;
+		}
+		if (error == 0) {
+			send_error(EFAULT);
+			return;
+		}
+
+		/* Write bytes to current page. */
+		todo = getpagesize() - gpa % getpagesize();
+		if (todo > resid)
+			todo = resid;
+
+		cp = paddr_guest2host(ctx, gpa, todo);
+		if (cp != NULL) {
+			/*
+			 * If this page is guest RAM, write it a byte
+			 * at a time.
+			 */
+			while (todo > 0) {
+				assert(len >= 2);
+				*cp = parse_byte(data);
+				data += 2;
+				len -= 2;
+				cp++;
+				gpa++;
+				gva++;
+				resid--;
+				todo--;
+			}
+		} else {
+			/*
+			 * If this page isn't guest RAM, try to handle
+			 * it via MMIO.  For MMIO requests, use
+			 * aligned writes of words when possible.
+			 */
+			while (todo > 0) {
+				if (gpa & 1 || todo == 1) {
+					bytes = 1;
+					val = parse_byte(data);
+				} else if (gpa & 2 || todo == 2) {
+					bytes = 2;
+					val = be16toh(parse_integer(data, 4));
+				} else {
+					bytes = 4;
+					val = be32toh(parse_integer(data, 8));
+				}
+				error = write_mem(ctx, cur_vcpu, gpa, val,
+				    bytes);
+				if (error == 0) {
+					gpa += bytes;
+					gva += bytes;
+					resid -= bytes;
+					todo -= bytes;
+					data += 2 * bytes;
+					len -= 2 * bytes;
+				} else {
+					send_error(EFAULT);
+					return;
+				}
+			}
+		}
+		assert(resid == 0 || gpa % getpagesize() == 0);
+	}
+	assert(len == 0);
+	send_ok();
+}
+
 static bool
 command_equals(const uint8_t *data, size_t len, const char *cmd)
 {
@@ -871,13 +990,72 @@ command_equals(const uint8_t *data, size_t len, const char *cmd)
 }
 
 static void
+check_features(const uint8_t *data, size_t len)
+{
+	char *feature, *next_feature, *str, *value;
+	bool supported;
+
+	str = malloc(len + 1);
+	memcpy(str, data, len);
+	str[len] = '\0';
+	next_feature = str;
+
+	while ((feature = strsep(&next_feature, ";")) != NULL) {
+		/*
+		 * Null features shouldn't exist, but skip if they
+		 * do.
+		 */
+		if (strcmp(feature, "") == 0)
+			continue;
+
+		/*
+		 * Look for the value or supported / not supported
+		 * flag.
+		 */
+		value = strchr(feature, '=');
+		if (value != NULL) {
+			*value = '\0';
+			value++;
+			supported = true;
+		} else {
+			value = feature + strlen(feature) - 1;
+			switch (*value) {
+			case '+':
+				supported = true;
+				break;
+			case '-':
+				supported = false;
+				break;
+			default:
+				/*
+				 * This is really a protocol error,
+				 * but we just ignore malformed
+				 * features for ease of
+				 * implementation.
+				 */
+				continue;
+			}
+			value = NULL;
+		}
+
+		/* No currently supported features. */
+	}
+	free(str);
+
+	start_packet();
+
+	/* This is an arbitrary limit. */
+	append_string("PacketSize=4096");
+	finish_packet();
+}
+
+static void
 gdb_query(const uint8_t *data, size_t len)
 {
 
 	/*
 	 * TODO:
 	 * - qSearch
-	 * - qSupported
 	 */
 	if (command_equals(data, len, "qAttached")) {
 		start_packet();
@@ -915,6 +1093,10 @@ gdb_query(const uint8_t *data, size_t len)
 		start_packet();
 		append_char('l');
 		finish_packet();
+	} else if (command_equals(data, len, "qSupported")) {
+		data += strlen("qSupported");
+		len -= strlen("qSupported");
+		check_features(data, len);
 	} else if (command_equals(data, len, "qThreadExtraInfo")) {
 		char buf[16];
 		int tid;
@@ -1000,6 +1182,9 @@ handle_command(const uint8_t *data, size_t len)
 	case 'm':
 		gdb_read_mem(data, len);
 		break;
+	case 'M':
+		gdb_write_mem(data, len);
+		break;
 	case 'T': {
 		int tid;
 
@@ -1035,7 +1220,6 @@ handle_command(const uint8_t *data, size_t len)
 		finish_packet();
 		break;
 	case 'G': /* TODO */
-	case 'M': /* TODO */
 	case 'v':
 		/* Handle 'vCont' */
 		/* 'vCtrlC' */

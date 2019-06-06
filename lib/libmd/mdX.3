@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2018
+.Dd May 21, 2019
 .Dt MDX 3
 .Os
 .Sh NAME
@@ -144,6 +144,26 @@ after use.
 If the
 .Fa buf
 argument is non-null it must point to at least 33 characters of buffer space.
+.Sh ERRORS
+The
+.Fn MDXEnd
+function called with a null buf argument may fail and return NULL if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient storage space is available.
+.El
+.Pp
+The
+.Fn MDXFile
+and
+.Fn MDXFileChunk
+may return NULL when underlying 
+.Xr open 2 ,
+.Xr fstat 2 ,
+.Xr lseek 2 ,
+or
+.Xr MDXEnd 2
+fail.
 .Sh SEE ALSO
 .Xr md4 3 ,
 .Xr md5 3 ,
@@ -188,6 +208,8 @@ This code is derived directly from these implementations by
 .Pp
 Phk ristede runen.
 .Sh BUGS
-No method is known to exist which finds two files having the same hash value,
-nor to find a file with a specific hash value.
-There is on the other hand no guarantee that such a method does not exist.
+The
+.Tn MD5
+algorithm has been proven to be vulnerable to practical collision
+attacks and should not be relied upon to produce unique outputs,
+.Em nor should they be used as part of a cryptographic signature scheme.

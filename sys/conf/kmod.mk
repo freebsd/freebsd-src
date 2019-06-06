@@ -138,7 +138,7 @@ CFLAGS+=	-fno-common
 LDFLAGS+=	-d -warn-common
 
 .if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mbuild-id}
-LDFLAGS+=	-Wl,--build-id=sha1
+LDFLAGS+=	--build-id=sha1
 .endif
 
 CFLAGS+=	${DEBUG_FLAGS}
@@ -348,8 +348,8 @@ afterinstall: _kldxref
 .ORDER: _installlinks _kldxref
 _kldxref: .PHONY
 	@if type kldxref >/dev/null 2>&1; then \
-		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
-		kldxref ${DESTDIR}${KMODDIR}; \
+		${ECHO} ${KLDXREF_CMD} ${DESTDIR}${KMODDIR}; \
+		${KLDXREF_CMD} ${DESTDIR}${KMODDIR}; \
 	fi
 .endif
 .endif # !target(realinstall)

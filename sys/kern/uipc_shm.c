@@ -36,16 +36,10 @@
  * shm_open(2) and shm_unlink(2).  While most of the implementation is
  * here, vm_mmap.c contains mapping logic changes.
  *
- * TODO:
- *
- * (1) Need to export data to a userland tool via a sysctl.  Should ipcs(1)
- *     and ipcrm(1) be expanded or should new tools to manage both POSIX
- *     kernel semaphores and POSIX shared memory be written?
- *
- * (2) Add support for this file type to fstat(1).
- *
- * (3) Resource limits?  Does this need its own resource limits or are the
- *     existing limits in mmap(2) sufficient?
+ * posixshmcontrol(1) allows users to inspect the state of the memory
+ * objects.  Per-uid swap resource limit controls total amount of
+ * memory that user can consume for anonymous objects, including
+ * shared.
  */
 
 #include <sys/cdefs.h>
@@ -76,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/refcount.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
+#include <sys/sbuf.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
@@ -419,6 +414,7 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	mtx_unlock(&shm_timestamp_lock);
 	sb->st_dev = shm_dev_ino;
 	sb->st_ino = shmfd->shm_ino;
+	sb->st_nlink = shmfd->shm_object->ref_count;
 
 	return (0);
 }
@@ -1100,34 +1096,89 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 }
 
 static int
-shm_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+shm_fill_kinfo_locked(struct shmfd *shmfd, struct kinfo_file *kif, bool list)
 {
 	const char *path, *pr_path;
-	struct shmfd *shmfd;
 	size_t pr_pathlen;
+	bool visible;
 
+	sx_assert(&shm_dict_lock, SA_LOCKED);
 	kif->kf_type = KF_TYPE_SHM;
-	shmfd = fp->f_data;
-
-	mtx_lock(&shm_timestamp_lock);
-	kif->kf_un.kf_file.kf_file_mode = S_IFREG | shmfd->shm_mode;	/* XXX */
-	mtx_unlock(&shm_timestamp_lock);
+	kif->kf_un.kf_file.kf_file_mode = S_IFREG | shmfd->shm_mode;
 	kif->kf_un.kf_file.kf_file_size = shmfd->shm_size;
 	if (shmfd->shm_path != NULL) {
-		sx_slock(&shm_dict_lock);
 		if (shmfd->shm_path != NULL) {
 			path = shmfd->shm_path;
 			pr_path = curthread->td_ucred->cr_prison->pr_path;
 			if (strcmp(pr_path, "/") != 0) {
 				/* Return the jail-rooted pathname. */
 				pr_pathlen = strlen(pr_path);
-				if (strncmp(path, pr_path, pr_pathlen) == 0 &&
-				    path[pr_pathlen] == '/')
+				visible = strncmp(path, pr_path, pr_pathlen)
+				    == 0 && path[pr_pathlen] == '/';
+				if (list && !visible)
+					return (EPERM);
+				if (visible)
 					path += pr_pathlen;
 			}
 			strlcpy(kif->kf_path, path, sizeof(kif->kf_path));
 		}
-		sx_sunlock(&shm_dict_lock);
 	}
 	return (0);
 }
+
+static int
+shm_fill_kinfo(struct file *fp, struct kinfo_file *kif,
+    struct filedesc *fdp __unused)
+{
+	int res;
+
+	sx_slock(&shm_dict_lock);
+	res = shm_fill_kinfo_locked(fp->f_data, kif, false);
+	sx_sunlock(&shm_dict_lock);
+	return (res);
+}
+
+static int
+sysctl_posix_shm_list(SYSCTL_HANDLER_ARGS)
+{
+	struct shm_mapping *shmm;
+	struct sbuf sb;
+	struct kinfo_file kif;
+	u_long i;
+	ssize_t curlen;
+	int error, error2;
+
+	sbuf_new_for_sysctl(&sb, NULL, sizeof(struct kinfo_file) * 5, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
+	curlen = 0;
+	error = 0;
+	sx_slock(&shm_dict_lock);
+	for (i = 0; i < shm_hash + 1; i++) {
+		LIST_FOREACH(shmm, &shm_dictionary[i], sm_link) {
+			error = shm_fill_kinfo_locked(shmm->sm_shmfd,
+			    &kif, true);
+			if (error == EPERM)
+				continue;
+			if (error != 0)
+				break;
+			pack_kinfo(&kif);
+			if (req->oldptr != NULL &&
+			    kif.kf_structsize + curlen > req->oldlen)
+				break;
+			error = sbuf_bcat(&sb, &kif, kif.kf_structsize) == 0 ?
+			    0 : ENOMEM;
+			if (error != 0)
+				break;
+			curlen += kif.kf_structsize;
+		}
+	}
+	sx_sunlock(&shm_dict_lock);
+	error2 = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error != 0 ? error : error2);
+}
+
+SYSCTL_PROC(_kern_ipc, OID_AUTO, posix_shm_list,
+    CTLFLAG_RD | CTLFLAG_MPSAFE | CTLTYPE_OPAQUE,
+    NULL, 0, sysctl_posix_shm_list, "",
+    "POSIX SHM list");

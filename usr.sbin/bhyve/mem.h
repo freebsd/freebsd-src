@@ -61,5 +61,7 @@ int	read_mem(struct vmctx *ctx, int vcpu, uint64_t gpa, uint64_t *rval,
 int	register_mem(struct mem_range *memp);
 int	register_mem_fallback(struct mem_range *memp);
 int	unregister_mem(struct mem_range *memp);
+int	write_mem(struct vmctx *ctx, int vcpu, uint64_t gpa, uint64_t wval,
+		  int size);
 
 #endif	/* _MEM_H_ */

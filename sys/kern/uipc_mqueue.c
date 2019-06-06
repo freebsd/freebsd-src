@@ -2042,6 +2042,12 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 	len = strlen(path);
 	if (len < 2 || path[0] != '/' || strchr(path + 1, '/') != NULL)
 		return (EINVAL);
+	/*
+	 * "." and ".." are magic directories, populated on the fly, and cannot
+	 * be opened as queues.
+	 */
+	if (strcmp(path, "/.") == 0 || strcmp(path, "/..") == 0)
+		return (EINVAL);
 	AUDIT_ARG_UPATH1_CANON(path);
 
 	error = falloc(td, &fp, &fd, O_CLOEXEC);
@@ -2141,6 +2147,8 @@ sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 
 	len = strlen(path);
 	if (len < 2 || path[0] != '/' || strchr(path + 1, '/') != NULL)
+		return (EINVAL);
+	if (strcmp(path, "/.") == 0 || strcmp(path, "/..") == 0)
 		return (EINVAL);
 	AUDIT_ARG_UPATH1_CANON(path);
 

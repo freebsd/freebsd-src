@@ -414,18 +414,32 @@ struct find_gid_index_context {
 	enum ib_gid_type gid_type;
 };
 
+
+/*
+ * This function will return true only if a inspected GID index
+ * matches the request based on the GID type and VLAN configuration
+ */
 static bool find_gid_index(const union ib_gid *gid,
 			   const struct ib_gid_attr *gid_attr,
 			   void *context)
 {
+	u16 vlan_diff;
 	struct find_gid_index_context *ctx =
 		(struct find_gid_index_context *)context;
 
 	if (ctx->gid_type != gid_attr->gid_type)
 		return false;
-	if (rdma_vlan_dev_vlan_id(gid_attr->ndev) != ctx->vlan_id)
-		return false;
-	return true;
+
+	/*
+	 * The following will verify:
+	 * 1. VLAN ID matching for VLAN tagged requests.
+	 * 2. prio-tagged/untagged to prio-tagged/untagged matching.
+	 *
+	 * This XOR is valid, since 0x0 < vlan_id < 0x0FFF.
+	 */
+	vlan_diff = rdma_vlan_dev_vlan_id(gid_attr->ndev) ^ ctx->vlan_id;
+
+	return (vlan_diff == 0x0000 || vlan_diff == 0xFFFF);
 }
 
 static int get_sgid_index_from_eth(struct ib_device *device, u8 port_num,

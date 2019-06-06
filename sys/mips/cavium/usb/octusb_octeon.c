@@ -179,12 +179,12 @@ octusb_octeon_detach(device_t dev)
 	if (nports > OCTUSB_MAX_PORTS)
 		panic("octusb: too many USB ports %d", nports);
 	for (i = 0; i < nports; i++) {
-		if (sc->sc_dci.sc_irq_res[0] && sc->sc_dci.sc_intr_hdl[0]) {
+		if (sc->sc_dci.sc_irq_res[i] && sc->sc_dci.sc_intr_hdl[i]) {
 			err = bus_teardown_intr(dev, sc->sc_dci.sc_irq_res[i],
 			    sc->sc_dci.sc_intr_hdl[i]);
 			sc->sc_dci.sc_intr_hdl[i] = NULL;
 		}
-		if (sc->sc_dci.sc_irq_res) {
+		if (sc->sc_dci.sc_irq_res[i]) {
 			bus_release_resource(dev, SYS_RES_IRQ, 0,
 			    sc->sc_dci.sc_irq_res[i]);
 			sc->sc_dci.sc_irq_res[i] = NULL;

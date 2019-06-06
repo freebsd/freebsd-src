@@ -6,6 +6,7 @@
 FILESGROUPS=	FILES
 NLS_ALIASES=	POSIX C \
 		en_US.US_ASCII C
+PWD_MKDB_CMD?=	pwd_mkdb
 
 # No need as it is empty and just causes rebuilds since this file does so much.
 UPDATE_DEPENDFILE=	no
@@ -14,18 +15,7 @@ UPDATE_DEPENDFILE=	no
 SUBDIR+=sendmail
 .endif
 
-BIN1=	\
-	group \
-	login.access \
-	rc.bsdextended \
-	rc.firewall \
-	termcap.small
-
 # NB: keep these sorted by MK_* knobs
-
-.if ${MK_SENDMAIL} != "no"
-BIN1+=	rc.sendmail
-.endif
 
 .if ${MK_SENDMAIL} == "no"
 ETCMAIL=mailer.conf aliases
@@ -62,23 +52,6 @@ distribution:
 .if !defined(DESTDIR)
 	@echo "set DESTDIR before running \"make ${.TARGET}\""
 	@false
-.endif
-	cd ${.CURDIR}; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		${BIN1} ${DESTDIR}/etc; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
-		master.passwd ${DESTDIR}/etc;
-
-.if ${MK_TCSH} == "no"
-	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
-.endif
-	pwd_mkdb -i -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
-.if defined(NO_ROOT)
-	( \
-		echo "./etc/passwd type=file mode=0644 uname=root gname=wheel"; \
-		echo "./etc/pwd.db type=file mode=0644 uname=root gname=wheel"; \
-		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
-	) | ${METALOG.add}
 .endif
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
@@ -188,11 +161,6 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 	${INSTALL_SYMLINK} "${nls}" "${DESTDIR}${SHAREDIR}/nls/${alias}"
 .endfor
 .endif
-
-etc-examples: ${META_DEPS}
-	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${BIN1} ${BIN2} \
-	    ${DESTDIR}${SHAREDIR}/examples/etc
 
 .include <bsd.prog.mk>
 

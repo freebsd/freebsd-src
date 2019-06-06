@@ -74,20 +74,21 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#include <sys/priv.h>
-#include <sys/proc.h>
 #include <sys/bio.h>
+#include <sys/blist.h>
 #include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/disk.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
+#include <sys/lock.h>
+#include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/pctrie.h>
+#include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
@@ -95,10 +96,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
-#include <sys/blist.h>
-#include <sys/lock.h>
+#include <sys/systm.h>
 #include <sys/sx.h>
 #include <sys/vmmeter.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -1678,7 +1679,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 		vm_page_dirty(m);
 #ifdef INVARIANTS
 		vm_page_lock(m);
-		if (m->wire_count == 0 && m->queue == PQ_NONE)
+		if (!vm_page_wired(m) && m->queue == PQ_NONE)
 			panic("page %p is neither wired nor queued", m);
 		vm_page_unlock(m);
 #endif
@@ -2229,7 +2230,6 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	sp->sw_vp = vp;
 	sp->sw_id = id;
 	sp->sw_dev = dev;
-	sp->sw_flags = 0;
 	sp->sw_nblks = nblks;
 	sp->sw_used = 0;
 	sp->sw_strategy = strategy;

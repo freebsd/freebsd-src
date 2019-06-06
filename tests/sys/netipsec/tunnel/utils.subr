@@ -8,6 +8,10 @@
 
 ist_init()
 {
+	if ! sysctl -q kern.features.ipsec >/dev/null ; then
+		atf_skip "This test requires ipsec"
+	fi
+
 	vnet_init
 }
 

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "HMAC 3"
-.TH HMAC 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH HMAC 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -190,7 +190,9 @@ If \fBmd\fR is \s-1NULL,\s0 the digest is placed in a static array.  The size of
 the output is placed in \fBmd_len\fR, unless it is \fB\s-1NULL\s0\fR. Note: passing a \s-1NULL\s0
 value for \fBmd\fR  to use the static array is not thread safe.
 .PP
-\&\fBevp_md\fR can be \fBEVP_sha1()\fR, \fBEVP_ripemd160()\fR etc.
+\&\fBevp_md\fR is a message digest such as \fBEVP_sha1()\fR, \fBEVP_ripemd160()\fR etc. \s-1HMAC\s0 does
+not support variable output length digests such as \fBEVP_shake128()\fR and
+\&\fBEVP_shake256()\fR.
 .PP
 \&\fBHMAC_CTX_new()\fR creates a new \s-1HMAC_CTX\s0 in heap memory.
 .PP

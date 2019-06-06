@@ -105,7 +105,7 @@ typedef void (usb_fifo_filter_t)(struct usb_fifo *fifo, struct usb_mbuf *m);
 
 /* USB events */
 #ifndef USB_GLOBAL_INCLUDE_FILE
-#include <sys/eventhandler.h>
+#include <sys/_eventhandler.h>
 #endif
 typedef void (*usb_dev_configured_t)(void *, struct usb_device *,
     struct usb_attach_arg *);

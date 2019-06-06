@@ -69,7 +69,7 @@ ATF_TC_BODY(splay_test, tc)
 
 	for (i = 0; i < ITER; i++) {
 		tmp = malloc(sizeof(struct node));
-		ATF_CHECK_MSG(tmp != NULL, "malloc failed");
+		ATF_REQUIRE_MSG(tmp != NULL, "malloc failed");
 		do {
 			tmp->key = arc4random_uniform(MAX-MIN);
 			tmp->key += MIN;
@@ -82,20 +82,22 @@ ATF_TC_BODY(splay_test, tc)
 			if (tmp->key < min)
 				min = tmp->key;
 		}
-		ATF_CHECK_EQ(NULL, SPLAY_INSERT(tree, &root, tmp));
+		ATF_REQUIRE_EQ(NULL, SPLAY_INSERT(tree, &root, tmp));
 	}
 
 	ins = SPLAY_MIN(tree, &root);
+	ATF_REQUIRE_MSG(ins != NULL, "SPLAY_MIN error");
 	ATF_CHECK_EQ(min, ins->key);
 	tmp = ins;
 	ins = SPLAY_MAX(tree, &root);
+	ATF_REQUIRE_MSG(ins != NULL, "SPLAY_MAX error");
 	ATF_CHECK_EQ(max, ins->key);
 
 	ATF_CHECK_EQ(tmp, SPLAY_REMOVE(tree, &root, tmp));
 
 	for (i = 0; i < ITER - 1; i++) {
 		tmp = SPLAY_ROOT(&root);
-		ATF_CHECK_MSG(tmp != NULL, "SPLAY_ROOT error");
+		ATF_REQUIRE_MSG(tmp != NULL, "SPLAY_ROOT error");
 		ATF_CHECK_EQ(tmp, SPLAY_REMOVE(tree, &root, tmp));
 		free(tmp);
 	}

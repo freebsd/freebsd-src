@@ -292,9 +292,6 @@ device		cpufreq
 
 # bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
 #       adapters.
-# ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
-#       HP PC Lan+, various PC Card devices
-#       (requires miibus)
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 #	Requires the ipw firmware module
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
@@ -312,7 +309,6 @@ device		cpufreq
 #	Requires the wpi firmware module
 
 device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
-device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 options 	ED_3C503
 options 	ED_HPP
 options 	ED_SIC

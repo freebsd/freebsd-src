@@ -24,7 +24,7 @@
 .\"
 .\" $Id: readelf.1 3642 2018-10-14 14:24:28Z jkoshy $
 .\"
-.Dd September 13, 2012
+.Dd May 30, 2019
 .Dt READELF 1
 .Os
 .Sh NAME
@@ -113,6 +113,8 @@ Print symbol tables.
 .It Fl t | Fl -section-details
 Print additional information about sections, such as the flags
 fields in section headers.
+Implies
+.Fl S .
 .It Fl v | Fl -version
 Prints a version identifier for
 .Nm

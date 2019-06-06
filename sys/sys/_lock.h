@@ -40,4 +40,38 @@ struct lock_object {
 	struct	witness *lo_witness;	/* Data for witness. */
 };
 
+#ifdef _KERNEL
+/*
+ * If any of WITNESS, INVARIANTS, or KTR_LOCK KTR tracing has been enabled,
+ * then turn on LOCK_DEBUG.  When this option is on, extra debugging
+ * facilities such as tracking the file and line number of lock operations
+ * are enabled.  Also, mutex locking operations are not inlined to avoid
+ * bloat from all the extra debugging code.  We also have to turn on all the
+ * calling conventions for this debugging code in modules so that modules can
+ * work with both debug and non-debug kernels.
+ */
+#if (defined(KLD_MODULE) && !defined(KLD_TIED)) || defined(WITNESS) || defined(INVARIANTS) || \
+    defined(LOCK_PROFILING) || defined(KTR)
+#define	LOCK_DEBUG	1
+#else
+#define	LOCK_DEBUG	0
+#endif
+
+/*
+ * In the LOCK_DEBUG case, use the filename and line numbers for debugging
+ * operations.  Otherwise, use default values to avoid the unneeded bloat.
+ */
+#if LOCK_DEBUG > 0
+#define LOCK_FILE_LINE_ARG_DEF	, const char *file, int line
+#define LOCK_FILE_LINE_ARG	, file, line
+#define	LOCK_FILE	__FILE__
+#define	LOCK_LINE	__LINE__
+#else
+#define LOCK_FILE_LINE_ARG_DEF
+#define LOCK_FILE_LINE_ARG
+#define	LOCK_FILE	NULL
+#define	LOCK_LINE	0
+#endif
+#endif /* _KERNEL */
+
 #endif /* !_SYS__LOCK_H_ */

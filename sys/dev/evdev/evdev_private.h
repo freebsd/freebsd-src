@@ -32,7 +32,9 @@
 
 #include <sys/bitstring.h>
 #include <sys/kbio.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>

@@ -230,9 +230,8 @@ fuse_internal_access(struct vnode *vp,
  * return the result to the caller).
  */
 void
-fuse_internal_cache_attrs(struct vnode *vp, struct ucred *cred,
-	struct fuse_attr *attr, uint64_t attr_valid, uint32_t attr_valid_nsec,
-	struct vattr *vap)
+fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
+	uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap)
 {
 	struct mount *mp;
 	struct fuse_vnode_data *fvdat;
@@ -242,8 +241,6 @@ fuse_internal_cache_attrs(struct vnode *vp, struct ucred *cred,
 	mp = vnode_mount(vp);
 	fvdat = VTOFUD(vp);
 	data = fuse_get_mpdata(mp);
-	if (!cred)
-		cred = curthread->td_ucred;
 
 	ASSERT_VOP_ELOCKED(vp, "fuse_internal_cache_attrs");
 
@@ -252,7 +249,7 @@ fuse_internal_cache_attrs(struct vnode *vp, struct ucred *cred,
 
 	/* Fix our buffers if the filesize changed without us knowing */
 	if (vnode_isreg(vp) && attr->size != fvdat->cached_attrs.va_size) {
-		(void)fuse_vnode_setsize(vp, cred, attr->size);
+		(void)fuse_vnode_setsize(vp, attr->size);
 		fvdat->cached_attrs.va_size = attr->size;
 	}
 
@@ -746,7 +743,7 @@ fuse_internal_newentry_core(struct vnode *dvp,
 	 */
 	fuse_vnode_clear_attr_cache(dvp);
 
-	fuse_internal_cache_attrs(*vpp, NULL, &feo->attr, feo->attr_valid,
+	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
 		feo->attr_valid_nsec, NULL);
 
 	return err;
@@ -843,7 +840,7 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	vtyp = IFTOVT(fao->attr.mode);
 	if (fvdat->flag & FN_SIZECHANGE)
 		fao->attr.size = old_filesize;
-	fuse_internal_cache_attrs(vp, NULL, &fao->attr, fao->attr_valid,
+	fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
 		fao->attr_valid_nsec, vap);
 	if (vtyp != vnode_vtype(vp)) {
 		fuse_internal_vnode_disappear(vp);
@@ -1074,7 +1071,7 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	}
 	if (err == 0) {
 		struct fuse_attr_out *fao = (struct fuse_attr_out*)fdi.answ;
-		fuse_internal_cache_attrs(vp, cred, &fao->attr, fao->attr_valid,
+		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
 			fao->attr_valid_nsec, NULL);
 	}
 

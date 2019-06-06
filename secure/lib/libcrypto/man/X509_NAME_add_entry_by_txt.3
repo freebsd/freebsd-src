@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_NAME_ADD_ENTRY_BY_TXT 3"
-.TH X509_NAME_ADD_ENTRY_BY_TXT 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH X509_NAME_ADD_ENTRY_BY_TXT 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -208,6 +208,14 @@ If \fBset\fR is \-1 or 1 it is added to the previous or next \s-1RDN\s0
 structure respectively. This will then be a multivalued \s-1RDN:\s0
 since multivalues RDNs are very seldom used \fBset\fR is almost
 always set to zero.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBX509_NAME_add_entry_by_txt()\fR, \fBX509_NAME_add_entry_by_OBJ()\fR,
+\&\fBX509_NAME_add_entry_by_NID()\fR and \fBX509_NAME_add_entry()\fR return 1 for
+success of 0 if an error occurred.
+.PP
+\&\fBX509_NAME_delete_entry()\fR returns either the deleted \fBX509_NAME_ENTRY\fR
+structure of \fB\s-1NULL\s0\fR if an error occurred.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Create an \fBX509_NAME\fR structure:
@@ -230,14 +238,6 @@ Create an \fBX509_NAME\fR structure:
 \&                                 "Joe Bloggs", \-1, \-1, 0))
 \&     /* Error */
 .Ve
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-\&\fBX509_NAME_add_entry_by_txt()\fR, \fBX509_NAME_add_entry_by_OBJ()\fR,
-\&\fBX509_NAME_add_entry_by_NID()\fR and \fBX509_NAME_add_entry()\fR return 1 for
-success of 0 if an error occurred.
-.PP
-\&\fBX509_NAME_delete_entry()\fR returns either the deleted \fBX509_NAME_ENTRY\fR
-structure of \fB\s-1NULL\s0\fR if an error occurred.
 .SH "BUGS"
 .IX Header "BUGS"
 \&\fBtype\fR can still be set to \fBV_ASN1_APP_CHOOSE\fR to use a
@@ -249,7 +249,7 @@ can result in invalid field types its use is strongly discouraged.
 \&\fBERR_get_error\fR\|(3), \fBd2i_X509_NAME\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

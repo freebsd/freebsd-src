@@ -124,6 +124,7 @@ badger [label="Eric Badger\nbadger@FreeBSD.org\n2016/07/01"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2011/12/23"]
 bcran [label="Rebecca Cran\nbcran@FreeBSD.org\n2010/01/29"]
 bde [label="Bruce Evans\nbde@FreeBSD.org\n1994/08/20"]
+bdragon [label="Brandon Bergren\nbdragon@FreeBSD.org\n2019/05/31"]
 bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2013/12/14"]
 benl [label="Ben Laurie\nbenl@FreeBSD.org\n2011/05/18"]
 benno [label="Benno Rice\nbenno@FreeBSD.org\n2000/11/02"]
@@ -317,6 +318,7 @@ sbruno [label="Sean Bruno\nsbruno@FreeBSD.org\n2008/08/02"]
 scf [label="Sean C. Farley\nscf@FreeBSD.org\n2007/06/24"]
 schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n2001/04/06"]
 scottl [label="Scott Long\nscottl@FreeBSD.org\n2000/09/28"]
+scottph [label="D Scott Phillips\nscottph@FreeBSD.org\n2019/05/28"]
 se [label="Stefan Esser\nse@FreeBSD.org\n1994/08/26"]
 sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
@@ -352,6 +354,7 @@ uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2010/01/28"]
 vangyzen [label="Eric van Gyzen\nvangyzen@FreeBSD.org\n2015/03/08"]
 vanhu [label="Yvan Vanhullebus\nvanhu@FreeBSD.org\n2008/07/21"]
 versus [label="Konrad Jankowski\nversus@FreeBSD.org\n2008/10/27"]
+vmaffione [label="Vincenzo Maffione\nvmaffione@FreeBSD.org\n2018/03/19"]
 weongyo [label="Weongyo Jeong\nweongyo@FreeBSD.org\n2007/12/21"]
 wes [label="Wes Peters\nwes@FreeBSD.org\n1998/11/25"]
 whu [label="Wei Hu\nwhu@FreeBSD.org\n2015/02/11"]
@@ -509,6 +512,7 @@ emaste -> lwhsu
 emaste -> markj
 emaste -> ngie
 emaste -> rstone
+emaste -> scottph
 
 emax -> markus
 
@@ -606,7 +610,9 @@ jhb -> pfg
 jhb -> rnoland
 jhb -> rpokala
 jhb -> arichardson
+jhb -> scottph
 
+jhibbits -> bdragon
 jhibbits -> leitao
 jhibbits -> luporl
 

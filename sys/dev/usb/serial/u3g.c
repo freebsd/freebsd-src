@@ -31,11 +31,11 @@
  */
 
 
+#include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/stdint.h>
 #include <sys/stddef.h>
-#include <sys/param.h>
 #include <sys/queue.h>
-#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>

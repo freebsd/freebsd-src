@@ -522,6 +522,8 @@ doreti_exit:
 2:	movl	$handle_ibrs_exit,%eax
 	pushl	%ecx			/* preserve enough call-used regs */
 	call	*%eax
+	movl	mds_handler,%eax
+	call	*%eax
 	popl	%ecx
 	movl	%esp, %esi
 	movl	PCPU(TRAMPSTK), %edx

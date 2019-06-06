@@ -37,15 +37,6 @@
 
 #define LINUX_LEGACY_SYSCALLS
 
-/*
- * debugging support
- */
-extern u_char linux_debug_map[];
-#define	ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
-#define	ARGS(nm, fmt)	"linux(%ld/%ld): "#nm"("fmt")\n",			\
-			(long)td->td_proc->p_pid, (long)td->td_tid
-#define	LMSG(fmt)	"linux(%ld/%ld): "fmt"\n",				\
-			(long)td->td_proc->p_pid, (long)td->td_tid
 #define	LINUX_DTRACE	linuxulator
 
 #define	LINUX_SHAREDPAGE	(VM_MAXUSER_ADDRESS - PAGE_SIZE)

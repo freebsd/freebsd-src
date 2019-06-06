@@ -186,6 +186,8 @@ cpu_startup(void *dummy)
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
 
+	printf("CPU model: %s\n", cpu_model);
+
 	printf("real memory  = %ju (%juK bytes)\n", ptoa((uintmax_t)realmem),
 	    ptoa((uintmax_t)realmem) / 1024);
 

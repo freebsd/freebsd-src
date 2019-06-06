@@ -590,8 +590,8 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		fvdat->flag &= ~FN_SIZECHANGE;
 	}
 
-	fuse_internal_cache_attrs(*vpp, td->td_ucred, &feo->attr,
-		feo->attr_valid, feo->attr_valid_nsec, NULL);
+	fuse_internal_cache_attrs(*vpp, &feo->attr, feo->attr_valid,
+		feo->attr_valid_nsec, NULL);
 	fuse_validity_2_bintime(feo->entry_valid, feo->entry_valid_nsec,
 		&fvdat->entry_cache_timeout);
 out:

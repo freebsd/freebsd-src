@@ -338,8 +338,8 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 {
 	struct thread *td;
 	struct lock_object *lock;
+	u_int delta;
 	bool comma;
-	int delta;
 
 	/* Determine which thread to examine. */
 	if (have_addr)
@@ -421,14 +421,14 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 	db_printf(" priority: %d\n", td->td_priority);
 	db_printf(" container lock: %s (%p)\n", lock->lo_name, lock);
 	if (td->td_swvoltick != 0) {
-		delta = (u_int)ticks - (u_int)td->td_swvoltick;
-		db_printf(" last voluntary switch: %d ms ago\n",
-		    1000 * delta / hz);
+		delta = ticks - td->td_swvoltick;
+		db_printf(" last voluntary switch: %u.%03u s ago\n",
+		    delta / hz, (delta % hz) * 1000 / hz);
 	}
 	if (td->td_swinvoltick != 0) {
-		delta = (u_int)ticks - (u_int)td->td_swinvoltick;
-		db_printf(" last involuntary switch: %d ms ago\n",
-		    1000 * delta / hz);
+		delta = ticks - td->td_swinvoltick;
+		db_printf(" last involuntary switch: %u.%03u s ago\n",
+		    delta / hz, (delta % hz) * 1000 / hz);
 	}
 }
 

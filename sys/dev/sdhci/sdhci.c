@@ -1762,7 +1762,9 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	/* Set data transfer mode. */
 	sdhci_set_transfer_mode(slot, cmd->data);
 	if (__predict_false(sdhci_debug > 1))
-		slot_printf(slot, "Starting command!\n");
+		slot_printf(slot, "Starting command opcode %#04x flags %#04x\n",
+		    cmd->opcode, flags);
+
 	/* Start command. */
 	WR2(slot, SDHCI_COMMAND_FLAGS, (cmd->opcode << 8) | (flags & 0xff));
 	/* Start timeout callout. */
@@ -1778,7 +1780,7 @@ sdhci_finish_command(struct sdhci_slot *slot)
 	uint8_t extra;
 
 	if (__predict_false(sdhci_debug > 1))
-		slot_printf(slot, "%s: called, err %d flags %d\n",
+		slot_printf(slot, "%s: called, err %d flags %#04x\n",
 		    __func__, slot->curcmd->error, slot->curcmd->flags);
 	slot->cmd_done = 1;
 	/*
@@ -1819,7 +1821,7 @@ sdhci_finish_command(struct sdhci_slot *slot)
 			slot->curcmd->resp[0] = RD4(slot, SDHCI_RESPONSE);
 	}
 	if (__predict_false(sdhci_debug > 1))
-		printf("Resp: %02x %02x %02x %02x\n",
+		slot_printf(slot, "Resp: %#04x %#04x %#04x %#04x\n",
 		    slot->curcmd->resp[0], slot->curcmd->resp[1],
 		    slot->curcmd->resp[2], slot->curcmd->resp[3]);
 

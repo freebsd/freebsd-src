@@ -57,7 +57,7 @@ amd64_set_fsbase_syscall(void *addr)
 	return (sysarch(AMD64_SET_FSBASE, &addr));
 }
 
-DEFINE_UIFUNC(, int, amd64_set_fsbase, (void *), static)
+DEFINE_UIFUNC(, int, amd64_set_fsbase, (void *))
 {
 
 	if (__getosreldate() >= P_OSREL_WRFSBASE &&

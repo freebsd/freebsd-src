@@ -264,10 +264,17 @@ amdgpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
 	reg = AMDGPIO_PIN_REGISTER(pin);
 	val = amdgpio_read_4(sc, reg);
 
-	if (val & BIT(OUTPUT_VALUE_OFF))
-		*value = GPIO_PIN_HIGH;
-	else
-		*value = GPIO_PIN_LOW;
+	if ((sc->sc_gpio_pins[pin].gp_flags & GPIO_PIN_OUTPUT) != 0) {
+		if (val & BIT(OUTPUT_VALUE_OFF))
+			*value = GPIO_PIN_HIGH;
+		else
+			*value = GPIO_PIN_LOW;
+	} else {
+		if (val & BIT(PIN_STS_OFF))
+			*value = GPIO_PIN_HIGH;
+		else
+			*value = GPIO_PIN_LOW;
+	}
 
 	dprintf("pin %d value 0x%x\n", pin, *value);
 
@@ -345,14 +352,13 @@ amdgpio_probe(device_t dev)
 {
 	static char *gpio_ids[] = { "AMD0030", "AMDI0030", NULL };
 	int rv;
-	
+
 	if (acpi_disabled("gpio"))
 		return (ENXIO);
 	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, gpio_ids, NULL);
-	
 	if (rv <= 0)
 		device_set_desc(dev, "AMD GPIO Controller");
-	
+
 	return (rv);
 }
 
@@ -386,7 +392,7 @@ amdgpio_attach(device_t dev)
 	/* Initialize all possible pins to be Invalid */
 	for (i = 0; i < AMD_GPIO_PINS_MAX ; i++) {
 		snprintf(sc->sc_gpio_pins[i].gp_name, GPIOMAXNAME,
-			"Unexposed PIN %d\n", i);
+			"Unexposed PIN %d", i);
 		sc->sc_gpio_pins[i].gp_pin = -1;
 		sc->sc_gpio_pins[i].gp_caps = 0;
 		sc->sc_gpio_pins[i].gp_flags = 0;
@@ -396,12 +402,13 @@ amdgpio_attach(device_t dev)
 	for (i = 0; i < AMD_GPIO_PINS_EXPOSED ; i++) {
 		pin = kernzp_pins[i].pin_num;
 		bank = pin/AMD_GPIO_PINS_PER_BANK;
-		snprintf(sc->sc_gpio_pins[pin].gp_name, GPIOMAXNAME, "%s%d_%s\n",
+		snprintf(sc->sc_gpio_pins[pin].gp_name, GPIOMAXNAME, "%s%d_%s",
 			AMD_GPIO_PREFIX, bank, kernzp_pins[i].pin_name);
 		sc->sc_gpio_pins[pin].gp_pin = pin;
 		sc->sc_gpio_pins[pin].gp_caps = AMDGPIO_DEFAULT_CAPS;
-		sc->sc_gpio_pins[pin].gp_flags = (amdgpio_is_pin_output(sc, pin)?
-						GPIO_PIN_OUTPUT : GPIO_PIN_INPUT);
+		sc->sc_gpio_pins[pin].gp_flags =
+		    amdgpio_is_pin_output(sc, pin) ?
+		    GPIO_PIN_OUTPUT : GPIO_PIN_INPUT;
 	}
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);

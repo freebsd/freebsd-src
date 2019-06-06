@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OBJ_NID2OBJ 3"
-.TH OBJ_NID2OBJ 3 "2019-02-26" "1.1.1b" "OpenSSL"
+.TH OBJ_NID2OBJ 3 "2019-05-28" "1.1.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -265,6 +265,16 @@ is a corresponding \s-1OBJECT IDENTIFIER\s0 by checking \fBOBJ_length()\fR is no
 These functions cannot return \fBconst\fR because an \fB\s-1ASN1_OBJECT\s0\fR can
 represent both an internal, constant, \s-1OID\s0 and a dynamically-created one.
 The latter cannot be constant because it needs to be freed after use.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBOBJ_nid2obj()\fR returns an \fB\s-1ASN1_OBJECT\s0\fR structure or \fB\s-1NULL\s0\fR is an
+error occurred.
+.PP
+\&\fBOBJ_nid2ln()\fR and \fBOBJ_nid2sn()\fR returns a valid string or \fB\s-1NULL\s0\fR
+on error.
+.PP
+\&\fBOBJ_obj2nid()\fR, \fBOBJ_ln2nid()\fR, \fBOBJ_sn2nid()\fR and \fBOBJ_txt2nid()\fR return
+a \s-1NID\s0 or \fBNID_undef\fR on error.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Create an object for \fBcommonName\fR:
@@ -300,16 +310,6 @@ to \fB\s-1NULL\s0\fR to determine the amount of data that should be written.
 Instead \fBbuf\fR must point to a valid buffer and \fBbuf_len\fR should
 be set to a positive value. A buffer length of 80 should be more
 than enough to handle any \s-1OID\s0 encountered in practice.
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-\&\fBOBJ_nid2obj()\fR returns an \fB\s-1ASN1_OBJECT\s0\fR structure or \fB\s-1NULL\s0\fR is an
-error occurred.
-.PP
-\&\fBOBJ_nid2ln()\fR and \fBOBJ_nid2sn()\fR returns a valid string or \fB\s-1NULL\s0\fR
-on error.
-.PP
-\&\fBOBJ_obj2nid()\fR, \fBOBJ_ln2nid()\fR, \fBOBJ_sn2nid()\fR and \fBOBJ_txt2nid()\fR return
-a \s-1NID\s0 or \fBNID_undef\fR on error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3)
@@ -319,7 +319,7 @@ a \s-1NID\s0 or \fBNID_undef\fR on error.
 and should not be used.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2019 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

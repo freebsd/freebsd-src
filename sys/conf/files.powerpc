@@ -22,7 +22,6 @@ cddl/dev/dtrace/powerpc/dtrace_subr.c		optional dtrace compile-with "${DTRACE_C}
 cddl/dev/fbt/powerpc/fbt_isa.c			optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
-dev/bm/if_bm.c			optional	bm powermac
 dev/adb/adb_bus.c		optional	adb
 dev/adb/adb_kbd.c		optional	adb
 dev/adb/adb_mouse.c		optional	adb
@@ -63,7 +62,7 @@ dev/ofw/ofw_standard.c		optional	aim powerpc
 dev/ofw/ofw_subr.c		standard
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_fdt.c	optional	quicc mpc85xx
-dev/random/darn.c		optional	powerpc64 random
+dev/random/darn.c		optional	powerpc64 random !random_loadable
 dev/scc/scc_bfe_macio.c		optional	scc powermac
 dev/sdhci/fsl_sdhci.c		optional	mpc85xx sdhci
 dev/sec/sec.c			optional	sec mpc85xx

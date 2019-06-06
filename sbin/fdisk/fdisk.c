@@ -175,6 +175,7 @@ static const char *const part_types[256] = {
 	[0x63] = "System V/386 (such as ISC UNIX), GNU HURD or Mach",
 	[0x64] = "Novell Netware/286 2.xx",
 	[0x65] = "Novell Netware/386 3.xx",
+	[0x6C] = "DragonFlyBSD",
 	[0x70] = "DiskSecure Multi-Boot",
 	[0x75] = "PCIX",
 	[0x77] = "QNX4.x",

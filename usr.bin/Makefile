@@ -114,6 +114,7 @@ SUBDIR=	alias \
 	patch \
 	pathchk \
 	perror \
+	posixshmcontrol \
 	pr \
 	printenv \
 	printf \

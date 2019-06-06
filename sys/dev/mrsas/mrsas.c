@@ -1182,6 +1182,39 @@ mrsas_detach(device_t dev)
 	return (0);
 }
 
+static int
+mrsas_shutdown(device_t dev)
+{
+	struct mrsas_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+	sc->remove_in_progress = 1;
+	if (panicstr == NULL) {
+		if (sc->ocr_thread_active)
+			wakeup(&sc->ocr_chan);
+		i = 0;
+		while (sc->reset_in_progress && i < 15) {
+			i++;
+			if ((i % MRSAS_RESET_NOTICE_INTERVAL) == 0) {
+				mrsas_dprint(sc, MRSAS_INFO,
+				    "[%2d]waiting for OCR to be finished "
+				    "from %s\n", i, __func__);
+			}
+			pause("mr_shutdown", hz);
+		}
+		if (sc->reset_in_progress) {
+			mrsas_dprint(sc, MRSAS_INFO,
+			    "gave up waiting for OCR to be finished\n");
+		}
+	}
+
+	mrsas_flush_cache(sc);
+	mrsas_shutdown_ctlr(sc, MR_DCMD_CTRL_SHUTDOWN);
+	mrsas_disable_intr(sc);
+	return (0);
+}
+
 /*
  * mrsas_free_mem:		Frees allocated memory
  * input:				Adapter instance soft state
@@ -5028,6 +5061,7 @@ static device_method_t mrsas_methods[] = {
 	DEVMETHOD(device_probe, mrsas_probe),
 	DEVMETHOD(device_attach, mrsas_attach),
 	DEVMETHOD(device_detach, mrsas_detach),
+	DEVMETHOD(device_shutdown, mrsas_shutdown),
 	DEVMETHOD(device_suspend, mrsas_suspend),
 	DEVMETHOD(device_resume, mrsas_resume),
 	DEVMETHOD(bus_print_child, bus_generic_print_child),

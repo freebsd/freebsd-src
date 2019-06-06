@@ -31,7 +31,7 @@
 #ifndef _SYS_CPU_H_
 #define _SYS_CPU_H_
 
-#include <sys/eventhandler.h>
+#include <sys/_eventhandler.h>
 
 /*
  * CPU device support.

@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2017 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,9 @@
 #include "ena-com/ena_com.h"
 #include "ena-com/ena_eth_com.h"
 
-#define DRV_MODULE_VER_MAJOR	0
-#define DRV_MODULE_VER_MINOR	8
-#define DRV_MODULE_VER_SUBMINOR 4
+#define DRV_MODULE_VER_MAJOR	2
+#define DRV_MODULE_VER_MINOR	0
+#define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
 
@@ -66,9 +66,16 @@
 
 #define	ENA_BUS_DMA_SEGS		32
 
+#define	ENA_DEFAULT_BUF_RING_SIZE	4096
+
 #define	ENA_DEFAULT_RING_SIZE		1024
 
+/*
+ * Refill Rx queue when number of required descriptors is above
+ * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DIVIDER or ENA_RX_REFILL_THRESH_PACKET
+ */
 #define	ENA_RX_REFILL_THRESH_DIVIDER	8
+#define	ENA_RX_REFILL_THRESH_PACKET	256
 
 #define	ENA_IRQNAME_SIZE		40
 
@@ -82,7 +89,7 @@
 #define	ENA_MAX_FRAME_LEN		10000
 #define	ENA_MIN_FRAME_LEN 		60
 
-#define ENA_TX_CLEANUP_THRESHOLD	128
+#define ENA_TX_RESUME_THRESH		(ENA_PKT_MAX_BUFS + 2)
 
 #define DB_THRESHOLD	64
 
@@ -120,6 +127,8 @@
 #define	ENA_IO_IRQ_FIRST_IDX		1
 #define	ENA_IO_IRQ_IDX(q)		(ENA_IO_IRQ_FIRST_IDX + (q))
 
+#define	ENA_MAX_NO_INTERRUPT_ITERATIONS	3
+
 /*
  * ENA device should send keep alive msg every 1 sec.
  * We wait for 6 sec just to be on the safe side.
@@ -145,6 +154,33 @@
 #define	PCI_DEV_ID_ENA_VF	0xec20
 #define	PCI_DEV_ID_ENA_LLQ_VF	0xec21
 
+/*
+ * Flags indicating current ENA driver state
+ */
+enum ena_flags_t {
+	ENA_FLAG_DEVICE_RUNNING,
+	ENA_FLAG_DEV_UP,
+	ENA_FLAG_LINK_UP,
+	ENA_FLAG_MSIX_ENABLED,
+	ENA_FLAG_TRIGGER_RESET,
+	ENA_FLAG_ONGOING_RESET,
+	ENA_FLAG_DEV_UP_BEFORE_RESET,
+	ENA_FLAG_RSS_ACTIVE,
+	ENA_FLAGS_NUMBER = ENA_FLAG_RSS_ACTIVE
+};
+
+BITSET_DEFINE(_ena_state, ENA_FLAGS_NUMBER);
+typedef struct _ena_state ena_state_t;
+
+#define ENA_FLAG_ZERO(adapter)		\
+	BIT_ZERO(ENA_FLAGS_NUMBER, &(adapter)->flags)
+#define ENA_FLAG_ISSET(bit, adapter)	\
+	BIT_ISSET(ENA_FLAGS_NUMBER, (bit), &(adapter)->flags)
+#define ENA_FLAG_SET_ATOMIC(bit, adapter)	\
+	BIT_SET_ATOMIC(ENA_FLAGS_NUMBER, (bit), &(adapter)->flags)
+#define ENA_FLAG_CLEAR_ATOMIC(bit, adapter)	\
+	BIT_CLR_ATOMIC(ENA_FLAGS_NUMBER, (bit), &(adapter)->flags)
+
 struct msix_entry {
 	int entry;
 	int vector;
@@ -159,7 +195,7 @@ typedef struct _ena_vendor_info_t {
 struct ena_irq {
 	/* Interrupt resources */
 	struct resource *res;
-	driver_intr_t *handler;
+	driver_filter_t *handler;
 	void *data;
 	void *cookie;
 	unsigned int vector;
@@ -172,8 +208,22 @@ struct ena_que {
 	struct ena_adapter *adapter;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
+
+	struct task cleanup_task;
+	struct taskqueue *cleanup_tq;
+
 	uint32_t id;
 	int cpu;
+};
+
+struct ena_calc_queue_size_ctx {
+	struct ena_com_dev_get_features_ctx *get_feat_ctx;
+	struct ena_com_dev *ena_dev;
+	device_t pdev;
+	uint16_t rx_queue_size;
+	uint16_t tx_queue_size;
+	uint16_t max_tx_sgl_size;
+	uint16_t max_rx_sgl_size;
 };
 
 struct ena_tx_buffer {
@@ -183,7 +233,13 @@ struct ena_tx_buffer {
 	unsigned int tx_descs;
 	/* # of buffers used by this mbuf */
 	unsigned int num_of_bufs;
-	bus_dmamap_t map;
+	bus_dmamap_t map_head;
+	bus_dmamap_t map_seg;
+
+	/* Indicate if segments of the mbuf were mapped */
+	bool seg_mapped;
+	/* Indicate if bufs[0] maps the linear data of the mbuf */
+	bool head_mapped;
 
 	/* Used to detect missing tx packets */
 	struct bintime timestamp;
@@ -208,6 +264,9 @@ struct ena_stats_tx {
 	counter_u64_t bad_req_id;
 	counter_u64_t collapse;
 	counter_u64_t collapse_err;
+	counter_u64_t queue_wakeup;
+	counter_u64_t queue_stop;
+	counter_u64_t llq_buffer_copy;
 };
 
 struct ena_stats_rx {
@@ -241,6 +300,9 @@ struct ena_ring {
 	/* The maximum length the driver can push to the device (For LLQ) */
 	uint8_t tx_max_header_size;
 
+	bool first_interrupt;
+	uint16_t no_interrupt_event_cnt;
+
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
 
 	/*
@@ -263,19 +325,14 @@ struct ena_ring {
 	int ring_size; /* number of tx/rx_buffer_info's entries */
 
 	struct buf_ring *br; /* only for TX */
+	uint32_t buf_ring_size;
 
 	struct mtx ring_mtx;
 	char mtx_name[16];
 
-	union {
-		struct {
-			struct task enqueue_task;
-			struct taskqueue *enqueue_tq;
-		};
-		struct {
-			struct task cmpl_task;
-			struct taskqueue *cmpl_tq;
-		};
+	struct {
+		struct task enqueue_task;
+		struct taskqueue *enqueue_tq;
 	};
 
 	union {
@@ -283,7 +340,17 @@ struct ena_ring {
 		struct ena_stats_rx rx_stats;
 	};
 
-	int empty_rx_queue;
+	union {
+		int empty_rx_queue;
+		/* For Tx ring to indicate if it's running or not */
+		bool running;
+	};
+
+	/* How many packets are sent in one Tx loop, used for doorbells */
+	uint32_t acum_pkts;
+
+	/* Used for LLQ */
+	uint8_t *push_buf_intermediate_buf;
 } __aligned(CACHE_LINE_SIZE);
 
 struct ena_stats_dev {
@@ -320,7 +387,6 @@ struct ena_adapter {
 	struct sx ioctl_sx;
 
 	/* MSI-X */
-	uint32_t msix_enabled;
 	struct msix_entry *msix_entries;
 	int msix_vecs;
 
@@ -342,17 +408,15 @@ struct ena_adapter {
 	unsigned int tx_ring_size;
 	unsigned int rx_ring_size;
 
+	uint16_t buf_ring_size;
+
 	/* RSS*/
 	uint8_t	rss_ind_tbl[ENA_RX_RSS_TABLE_SIZE];
-	bool rss_support;
 
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	/* mdio and phy*/
 
-	bool link_status;
-	bool trigger_reset;
-	bool up;
-	bool running;
+	ena_state_t flags;
 
 	/* Queue will represent one TX and one RX ring */
 	struct ena_que que[ENA_MAX_NUM_IO_QUEUES]

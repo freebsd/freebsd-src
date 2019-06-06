@@ -606,6 +606,6 @@ DRIVER_MODULE(at45d, spibus, at45d_driver, at45d_devclass, NULL, NULL);
 MODULE_DEPEND(at45d, spibus, 1, 1, 1);
 #ifdef FDT
 MODULE_DEPEND(at45d, fdt_slicer, 1, 1, 1);
-SPIBUS_PNP_INFO(compat_data);
+SPIBUS_FDT_PNP_INFO(compat_data);
 #endif
 

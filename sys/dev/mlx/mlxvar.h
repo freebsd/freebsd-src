@@ -28,6 +28,9 @@
  *	$FreeBSD$
  */
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 /*
  * Debugging levels:
  *  0 - quiet, only emit warnings

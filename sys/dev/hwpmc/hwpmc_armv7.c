@@ -315,11 +315,11 @@ armv7_intr(struct trapframe *tf)
 	int error;
 	int reg, cpu;
 
+	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[armv7,%d] CPU %d out of range", __LINE__, cpu));
 
 	retval = 0;
-	cpu = curcpu;
 	pc = armv7_pcpu[cpu];
 
 	for (ri = 0; ri < armv7_npmcs; ri++) {

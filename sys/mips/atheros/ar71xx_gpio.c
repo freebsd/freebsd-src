@@ -151,6 +151,8 @@ static int
 ar71xx_gpio_oe_is_high(void)
 {
 	switch (ar71xx_soc) {
+	case AR71XX_SOC_AR9341:
+	case AR71XX_SOC_AR9342:
 	case AR71XX_SOC_AR9344:
 	case AR71XX_SOC_QCA9533:
 	case AR71XX_SOC_QCA9533_V2:
@@ -559,7 +561,7 @@ ar71xx_gpio_attach(device_t dev)
 		    &gpiomode) != 0)
 			continue;
 
-		/* We only handle mode=1 for now */
+		/* We only handle mode=1 (output) for now */
 		if (gpiomode != 1)
 			continue;
 

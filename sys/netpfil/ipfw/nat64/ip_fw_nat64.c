@@ -83,6 +83,8 @@ vnet_ipfw_nat64_init(const void *arg __unused)
 
 	ch = &V_layer3_chain;
 	first = IS_DEFAULT_VNET(curvnet) ? 1: 0;
+	/* Initialize V_nat64out methods explicitly. */
+	nat64_set_output_method(0);
 	error = nat64stl_init(ch, first);
 	if (error != 0)
 		return (error);

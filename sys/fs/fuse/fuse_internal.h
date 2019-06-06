@@ -216,9 +216,8 @@ int fuse_internal_access(struct vnode *vp, accmode_t mode,
     struct thread *td, struct ucred *cred);
 
 /* attributes */
-void fuse_internal_cache_attrs(struct vnode *vp, struct ucred *cred,
-	struct fuse_attr *attr, uint64_t attr_valid, uint32_t attr_valid_nsec,
-	struct vattr *vap);
+void fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
+	uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap);
 
 /* fsync */
 
