@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2019
+.Dd April 29, 2019
 .Dt CCR 4
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
-.Bd -ragged -offset indeunt
+.Bd -ragged -offset indent
 .Cd "device ccr"
 .Ed
 .Pp
@@ -49,9 +49,10 @@ The
 .Nm
 driver provides support for the crypto accelerator engine included on
 PCI Express Ethernet adapters based on the Chelsio Terminator 6 ASIC (T6).
-The driver accelerates AES-CBC, AES-CTR, AES-GCM, AES-XTS, SHA1, SHA2-224,
-SHA2-256, SHA2-384, SHA2-512, SHA1-HMAC, SHA2-224-HMAC,
-SHA2-256-HMAC, SHA2-384-HMAC, and SHA2-512-HMAC operations for
+The driver accelerates AES-CBC, AES-CCM, AES-CTR, AES-GCM, AES-XTS,
+SHA1, SHA2-224, SHA2-256, SHA2-384, SHA2-512,
+SHA1-HMAC, SHA2-224-HMAC, SHA2-256-HMAC, SHA2-384-HMAC, and SHA2-512-HMAC
+operations for
 .Xr crypto 4
 and
 .Xr ipsec 4 .
