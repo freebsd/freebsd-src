@@ -101,7 +101,7 @@ Calloc(size_t n1, size_t n2, const char *file, int line)
  */
 static EFI_STATUS
 load_loader(const boot_module_t **modp, dev_info_t **devinfop, void **bufp,
-    size_t *bufsize, BOOLEAN preferred)
+    size_t *bufsize, int preferred)
 {
 	UINTN i;
 	dev_info_t *dev;
@@ -141,10 +141,9 @@ try_boot(void)
 	EFI_LOADED_IMAGE *loaded_image;
 	EFI_STATUS status;
 
-	status = load_loader(&mod, &dev, &loaderbuf, &loadersize, TRUE);
+	status = load_loader(&mod, &dev, &loaderbuf, &loadersize, 1);
 	if (status != EFI_SUCCESS) {
-		status = load_loader(&mod, &dev, &loaderbuf, &loadersize,
-		    FALSE);
+		status = load_loader(&mod, &dev, &loaderbuf, &loadersize, 0);
 		if (status != EFI_SUCCESS) {
 			printf("Failed to load '%s'\n", PATH_LOADER_EFI);
 			return (status);
@@ -232,107 +231,80 @@ errout:
 /*
  * probe_handle determines if the passed handle represents a logical partition
  * if it does it uses each module in order to probe it and if successful it
- * returns EFI_SUCCESS.
+ * returns 0.
  */
-static EFI_STATUS
-probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
+static int
+probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath)
 {
 	dev_info_t *devinfo;
 	EFI_BLOCK_IO *blkio;
 	EFI_DEVICE_PATH *devpath;
 	EFI_STATUS status;
 	UINTN i;
+	int preferred;
 
 	/* Figure out if we're dealing with an actual partition. */
 	status = BS->HandleProtocol(h, &DevicePathGUID, (void **)&devpath);
 	if (status == EFI_UNSUPPORTED)
-		return (status);
+		return (0);
 
 	if (status != EFI_SUCCESS) {
 		DPRINTF("\nFailed to query DevicePath (%lu)\n",
 		    EFI_ERROR_CODE(status));
-		return (status);
+		return (-1);
 	}
 #ifdef EFI_DEBUG
 	{
 		CHAR16 *text = efi_devpath_name(devpath);
-		DPRINTF("probing: %S\n", text);
+		DPRINTF("probing: %S ", text);
 		efi_free_devpath_name(text);
 	}
 #endif
 	status = BS->HandleProtocol(h, &BlockIoProtocolGUID, (void **)&blkio);
 	if (status == EFI_UNSUPPORTED)
-		return (status);
+		return (0);
 
 	if (status != EFI_SUCCESS) {
 		DPRINTF("\nFailed to query BlockIoProtocol (%lu)\n",
 		    EFI_ERROR_CODE(status));
-		return (status);
+		return (-1);
 	}
 
 	if (!blkio->Media->LogicalPartition)
-		return (EFI_UNSUPPORTED);
+		return (0);
 
-	*preferred = efi_devpath_same_disk(imgpath, devpath);
+	preferred = efi_devpath_same_disk(imgpath, devpath);
 
 	/* Run through each module, see if it can load this partition */
 	devinfo = malloc(sizeof(*devinfo));
 	if (devinfo == NULL) {
 		DPRINTF("\nFailed to allocate devinfo\n");
-		return (EFI_UNSUPPORTED);
+		return (-1);
 	}
 	devinfo->dev = blkio;
 	devinfo->devpath = devpath;
 	devinfo->devhandle = h;
-	devinfo->preferred = *preferred;
+	devinfo->preferred = preferred;
 	devinfo->next = NULL;
 
 	for (i = 0; i < NUM_BOOT_MODULES; i++) {
 		devinfo->devdata = NULL;
+
 		status = boot_modules[i]->probe(devinfo);
 		if (status == EFI_SUCCESS)
-			return (EFI_SUCCESS);
+			return (preferred + 1);
 	}
 	free(devinfo);
 
-	return (EFI_UNSUPPORTED);
+	return (0);
 }
 
-/*
- * probe_handle_status calls probe_handle and outputs the returned status
- * of the call.
- */
-static void
-probe_handle_status(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath)
-{
-	EFI_STATUS status;
-	BOOLEAN preferred;
-
-	preferred = FALSE;
-	status = probe_handle(h, imgpath, &preferred);
-	
-	DPRINTF("probe: ");
-	switch (status) {
-	case EFI_UNSUPPORTED:
-		printf(".");
-		DPRINTF(" not supported\n");
-		break;
-	case EFI_SUCCESS:
-		if (preferred) {
-			printf("%c", '*');
-			DPRINTF(" supported (preferred)\n");
-		} else {
-			printf("%c", '+');
-			DPRINTF(" supported\n");
-		}
-		break;
-	default:
-		printf("x");
-		DPRINTF(" error (%lu)\n", EFI_ERROR_CODE(status));
-		break;
-	}
-	DSTALL(500000);
-}
+const char *prio_str[] = {
+	"error",
+	"not supported",
+	"good",
+	"better"
+};
 
 EFI_STATUS
 efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
@@ -348,6 +320,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	UINT16 boot_current;
 	size_t sz;
 	UINT16 boot_order[100];
+	int rv;
 
 	/* Basic initialization*/
 	ST = Xsystab;
@@ -449,8 +422,14 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	printf("   Probing %zu block devices...", nhandles);
 	DPRINTF("\n");
 
-	for (i = 0; i < nhandles; i++)
-		probe_handle_status(handles[i], imgpath);
+	for (i = 0; i < nhandles; i++) {
+		rv = probe_handle(handles[i], imgpath);
+#ifdef EFI_DEBUG
+		printf("%c", "x.+*"[rv + 1]);
+#else
+		printf("%s\n", prio_str[rv + 1]);
+#endif
+	}
 	printf(" done\n");
 
 	/* Status summary. */
