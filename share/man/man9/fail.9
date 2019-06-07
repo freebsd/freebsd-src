@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2009 Isilon Inc http://www.isilon.com/
+.\" Copyright (c) 2009-2019 Dell EMC Isilon http://www.isilon.com/
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -26,30 +26,36 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2016
+.Dd June 6, 2019
 .Dt FAIL 9
 .Os
 .Sh NAME
+.Nm DEBUG_FP ,
 .Nm KFAIL_POINT_CODE ,
 .Nm KFAIL_POINT_CODE_FLAGS ,
 .Nm KFAIL_POINT_CODE_COND ,
+.Nm KFAIL_POINT_ERROR ,
+.Nm KFAIL_POINT_EVAL ,
+.Nm KFAIL_POINT_DECLARE ,
+.Nm KFAIL_POINT_DEFINE ,
+.Nm KFAIL_POINT_GOTO ,
 .Nm KFAIL_POINT_RETURN ,
 .Nm KFAIL_POINT_RETURN_VOID ,
-.Nm KFAIL_POINT_ERROR ,
-.Nm KFAIL_POINT_GOTO ,
 .Nm KFAIL_POINT_SLEEP_CALLBACKS ,
-.Nm fail_point ,
-.Nm DEBUG_FP
+.Nm fail_point
 .Nd fail points
 .Sh SYNOPSIS
 .In sys/fail.h
 .Fn KFAIL_POINT_CODE "parent" "name" "code"
 .Fn KFAIL_POINT_CODE_FLAGS "parent" "name" "flags" "code"
 .Fn KFAIL_POINT_CODE_COND "parent" "name" "cond" "flags" "code"
+.Fn KFAIL_POINT_ERROR "parent" "name" "error_var"
+.Fn KFAIL_POINT_EVAL "name" "code"
+.Fn KFAIL_POINT_DECLARE "name"
+.Fn KFAIL_POINT_DEFINE "parent" "name" "flags"
+.Fn KFAIL_POINT_GOTO "parent" "name" "error_var" "label"
 .Fn KFAIL_POINT_RETURN "parent" "name"
 .Fn KFAIL_POINT_RETURN_VOID "parent" "name"
-.Fn KFAIL_POINT_ERROR "parent" "name" "error_var"
-.Fn KFAIL_POINT_GOTO "parent" "name" "error_var" "label"
 .Fn KFAIL_POINT_SLEEP_CALLBACKS "parent" "name" "pre_func" "pre_arg" "post_func" "post_arg" "code"
 .Sh DESCRIPTION
 Fail points are used to add code points where errors may be injected
@@ -139,6 +145,22 @@ is the equivalent of
 .It Fn KFAIL_POINT_GOTO parent name error_var label
 is the equivalent of
 .Sy KFAIL_POINT_CODE(..., { error_var = RETURN_VALUE; goto label;})
+.El
+.Pp
+You can also introduce fail points by separating the declaration,
+definition, and evaluation portions.
+.Bl -inset
+.It Fn KFAIL_POINT_DECLARE name
+is used to declare the
+.Sy fail_point
+struct.
+.It Fn KFAIL_POINT_DEFINE parent name flags
+defines and initializes the
+.Sy fail_point
+and sets up its
+.Xr sysctl 9 .
+.It Fn KFAIL_POINT_EVAL name code
+is used at the point that the fail point is executed.
 .El
 .Sh SYSCTL VARIABLES
 The
