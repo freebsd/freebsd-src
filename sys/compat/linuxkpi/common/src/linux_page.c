@@ -317,7 +317,7 @@ linux_shmem_read_mapping_page_gfp(vm_object_t obj, int pindex, gfp_t gfp)
 			rv = vm_pager_get_pages(obj, &page, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(page);
-				vm_page_unwire(page, PQ_NONE);
+				vm_page_unwire_noq(page);
 				vm_page_free(page);
 				vm_page_unlock(page);
 				VM_OBJECT_WUNLOCK(obj);
