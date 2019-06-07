@@ -81,6 +81,7 @@ extern u_int	moea64_pte_overflow;
 
 extern int		moea64_large_page_shift;
 extern uint64_t		moea64_large_page_size;
+extern uint64_t		moea64_large_page_mask;
 extern u_long		moea64_pteg_count;
 extern u_long		moea64_pteg_mask;
 extern int		n_slbs;
