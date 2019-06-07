@@ -278,7 +278,7 @@ gref_list_dtor(struct cleanup_data_struct *cleanup_data)
 					continue;
 				gnttab_free_grant_reference(gref->gref_id);
 			}
-			vm_page_unwire(gref->page, PQ_NONE);
+			vm_page_unwire_noq(gref->page);
 			vm_page_free(gref->page);
 			gref->page = NULL;
 		}
