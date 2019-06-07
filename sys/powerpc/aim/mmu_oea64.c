@@ -638,7 +638,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 {
 	struct pvo_entry *pvo;
 	register_t msr;
-	vm_paddr_t pa;
+	vm_paddr_t pa, pkernelstart, pkernelend;
 	vm_offset_t size, off;
 	uint64_t pte_lo;
 	int i;
@@ -686,9 +686,11 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 	 */
 
 	if (!hw_direct_map || kernelstart < DMAP_BASE_ADDRESS) {
-		for (pa = kernelstart & ~PAGE_MASK; pa < kernelend;
+		pkernelstart = kernelstart & ~DMAP_BASE_ADDRESS;
+		pkernelend = kernelend & ~DMAP_BASE_ADDRESS;
+		for (pa = pkernelstart & ~PAGE_MASK; pa < pkernelend;
 		    pa += PAGE_SIZE)
-			moea64_kenter(mmup, pa, pa);
+			moea64_kenter(mmup, pa | DMAP_BASE_ADDRESS, pa);
 	}
 
 	if (!hw_direct_map) {
@@ -696,6 +698,10 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 		off = (vm_offset_t)(moea64_bpvo_pool);
 		for (pa = off; pa < off + size; pa += PAGE_SIZE)
 			moea64_kenter(mmup, pa, pa);
+
+		/* Map exception vectors */
+		for (pa = EXC_RSVD; pa < EXC_LAST; pa += PAGE_SIZE)
+			moea64_kenter(mmup, pa | DMAP_BASE_ADDRESS, pa);
 	}
 	ENABLE_TRANS(msr);
 
@@ -875,7 +881,7 @@ moea64_mid_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Initialise the bootstrap pvo pool.
 	 */
 	moea64_bpvo_pool = (struct pvo_entry *)moea64_bootstrap_alloc(
-		moea64_bpvo_pool_size*sizeof(struct pvo_entry), 0);
+		moea64_bpvo_pool_size*sizeof(struct pvo_entry), PAGE_SIZE);
 	moea64_bpvo_pool_index = 0;
 
 	/* Place at address usable through the direct map */
@@ -1169,15 +1175,19 @@ moea64_unwire(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
  */
 
 static __inline
-void moea64_set_scratchpage_pa(mmu_t mmup, int which, vm_paddr_t pa) {
+void moea64_set_scratchpage_pa(mmu_t mmup, int which, vm_paddr_t pa)
+{
+	struct pvo_entry *pvo;
 
 	KASSERT(!hw_direct_map, ("Using OEA64 scratchpage with a direct map!"));
 	mtx_assert(&moea64_scratchpage_mtx, MA_OWNED);
 
-	moea64_scratchpage_pvo[which]->pvo_pte.pa =
+	pvo = moea64_scratchpage_pvo[which];
+	PMAP_LOCK(pvo->pvo_pmap);
+	pvo->pvo_pte.pa =
 	    moea64_calc_wimg(pa, VM_MEMATTR_DEFAULT) | (uint64_t)pa;
-	MOEA64_PTE_REPLACE(mmup, moea64_scratchpage_pvo[which],
-	    MOEA64_PTE_INVALIDATE);
+	MOEA64_PTE_REPLACE(mmup, pvo, MOEA64_PTE_INVALIDATE);
+	PMAP_UNLOCK(pvo->pvo_pmap);
 	isync();
 }
 
