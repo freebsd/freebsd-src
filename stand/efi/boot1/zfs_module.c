@@ -144,7 +144,6 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 	struct stat st;
 	int err;
 	void *buf;
-	EFI_STATUS status;
 
 	spa = devinfo->devdata;
 

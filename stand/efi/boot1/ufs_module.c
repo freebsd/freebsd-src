@@ -140,7 +140,6 @@ static EFI_STATUS
 load(const char *filepath, dev_info_t *dev, void **bufp, size_t *bufsize)
 {
 	ufs_ino_t ino;
-	EFI_STATUS status;
 	size_t size;
 	ssize_t read;
 	void *buf;
