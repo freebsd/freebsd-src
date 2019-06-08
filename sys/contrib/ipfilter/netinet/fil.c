@@ -4982,16 +4982,16 @@ frrequest(softc, unit, req, data, set, makecopy)
 			error = ipf_outobj(softc, data, fp, IPFOBJ_FRENTRY);
 
 			if (error == 0) {
-				if ((f->fr_dsize != 0) && (uptr != NULL))
+				if ((f->fr_dsize != 0) && (uptr != NULL)) {
 					error = COPYOUT(f->fr_data, uptr,
 							f->fr_dsize);
-					if (error != 0) {
+					if (error == 0) {
+						f->fr_hits = 0;
+						f->fr_bytes = 0;
+					} else {
 						IPFERROR(28);
 						error = EFAULT;
 					}
-				if (error == 0) {
-					f->fr_hits = 0;
-					f->fr_bytes = 0;
 				}
 			}
 		}
