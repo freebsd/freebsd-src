@@ -749,7 +749,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 		} while (pa < end);
 	}
 
-	if (sizeof(phys_avail)/sizeof(phys_avail[0]) < regions_sz)
+	if (nitems(phys_avail) < regions_sz)
 		panic("moea_bootstrap: phys_avail too small");
 
 	phys_avail_count = 0;
