@@ -125,8 +125,6 @@ void dblfault_handler(void);
 extern inthand_t IDTVEC(bpt), IDTVEC(dbg), IDTVEC(int0x80_syscall);
 extern uint64_t pg_nx;
 
-#define MAX_TRAP_MSG		32
-
 struct trap_data {
 	bool		ei;
 	const char	*msg;
