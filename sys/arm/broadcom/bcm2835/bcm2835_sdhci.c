@@ -539,6 +539,22 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 	left = min(BCM_SDHCI_BUFFER_SIZE,
 	    slot->curcmd->data->len - slot->offset);
 
+	/*
+	 * If there is less than buffer size outstanding, we would not handle
+	 * it anymore using DMA if bcm_sdhci_will_handle_transfer() were asked.
+	 * Re-enable interrupts and return and let the SDHCI state machine
+	 * finish the job.
+	 */
+	if (left < BCM_SDHCI_BUFFER_SIZE) {
+		/* Re-enable data interrupts. */
+		slot->intmask |= SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL |
+		    SDHCI_INT_DATA_END;
+		bcm_sdhci_write_4(slot->bus, slot, SDHCI_SIGNAL_ENABLE,
+		    slot->intmask);
+		mtx_unlock(&slot->mtx);
+		return;
+	}
+
 	/* DATA END? */
 	reg = bcm_sdhci_read_4(slot->bus, slot, SDHCI_INT_STATUS);
 
