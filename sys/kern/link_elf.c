@@ -615,10 +615,14 @@ parse_dynamic(elf_file_t ef)
 	return (0);
 }
 
+#define	LS_PADDING	0x90909090
 static int
 parse_dpcpu(elf_file_t ef)
 {
 	int error, size;
+#if defined(__i386__)
+	uint32_t pad;
+#endif
 
 	ef->pcpu_start = 0;
 	ef->pcpu_stop = 0;
@@ -631,6 +635,26 @@ parse_dpcpu(elf_file_t ef)
 	/* Empty set? */
 	if (size < 1)
 		return (0);
+#if defined(__i386__)
+	/* In case we do find __start/stop_set_ symbols double-check. */
+	if (size < 4) {
+		uprintf("Kernel module '%s' must be recompiled with "
+		    "linker script\n", ef->lf.pathname);
+		return (ENOEXEC);
+	}
+
+	/* Padding from linker-script correct? */
+	pad = *(uint32_t *)((uintptr_t)ef->pcpu_stop - sizeof(pad));
+	if (pad != LS_PADDING) {
+		uprintf("Kernel module '%s' must be recompiled with "
+		    "linker script, invalid padding %#04x (%#04x)\n",
+		    ef->lf.pathname, pad, LS_PADDING);
+		return (ENOEXEC);
+	}
+	/* If we only have valid padding, nothing to do. */
+	if (size == 4)
+		return (0);
+#endif
 	/*
 	 * Allocate space in the primary pcpu area.  Copy in our
 	 * initialization from the data section and then initialize
@@ -656,6 +680,9 @@ static int
 parse_vnet(elf_file_t ef)
 {
 	int error, size;
+#if defined(__i386__)
+	uint32_t pad;
+#endif
 
 	ef->vnet_start = 0;
 	ef->vnet_stop = 0;
@@ -668,6 +695,26 @@ parse_vnet(elf_file_t ef)
 	/* Empty set? */
 	if (size < 1)
 		return (0);
+#if defined(__i386__)
+	/* In case we do find __start/stop_set_ symbols double-check. */
+	if (size < 4) {
+		uprintf("Kernel module '%s' must be recompiled with "
+		    "linker script\n", ef->lf.pathname);
+		return (ENOEXEC);
+	}
+
+	/* Padding from linker-script correct? */
+	pad = *(uint32_t *)((uintptr_t)ef->vnet_stop - sizeof(pad));
+	if (pad != LS_PADDING) {
+		uprintf("Kernel module '%s' must be recompiled with "
+		    "linker script, invalid padding %#04x (%#04x)\n",
+		    ef->lf.pathname, pad, LS_PADDING);
+		return (ENOEXEC);
+	}
+	/* If we only have valid padding, nothing to do. */
+	if (size == 4)
+		return (0);
+#endif
 	/*
 	 * Allocate space in the primary vnet area.  Copy in our
 	 * initialization from the data section and then initialize
@@ -688,6 +735,7 @@ parse_vnet(elf_file_t ef)
 	return (0);
 }
 #endif
+#undef LS_PADDING
 
 static int
 link_elf_link_preload(linker_class_t cls,
