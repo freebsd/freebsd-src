@@ -5,7 +5,7 @@
 BOOT1?=		boot1
 PROG=		${BOOT1}.sym
 INTERNALPROG=
-WARNS?=		6
+WARNS=		6
 
 CFLAGS+=	-DEFI_BOOT1
 # We implement a slightly non-standard %S in that it always takes a
@@ -28,7 +28,7 @@ CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
 CWARNFLAGS.zfs_module.c += -Wno-unused-function
 
 # architecture-specific loader code
-SRCS+=	boot1.c self_reloc.c start.S ufs_module.c devpath.c
+SRCS+=	boot1.c proto.c self_reloc.c start.S ufs_module.c devpath.c
 .if ${MK_LOADER_ZFS} != "no"
 SRCS+=		zfs_module.c
 CFLAGS.zfs_module.c+=	-I${ZFSSRC}
