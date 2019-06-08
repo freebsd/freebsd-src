@@ -955,6 +955,14 @@ libusb20_dev_alloc_config(struct libusb20_device *pdev, uint8_t configIndex)
 	uint8_t do_close;
 	int error;
 
+	/*
+	 * Catch invalid configuration descriptor reads early on to
+	 * avoid issues with devices that don't check for a valid USB
+	 * configuration read request.
+	 */
+	if (configIndex >= pdev->ddesc.bNumConfigurations)
+		return (NULL);
+
 	if (!pdev->is_opened) {
 		error = libusb20_dev_open(pdev, 0);
 		if (error) {
