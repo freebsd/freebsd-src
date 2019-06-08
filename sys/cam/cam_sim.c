@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/bus.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -82,6 +83,7 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	sim->sim_name = sim_name;
 	sim->softc = softc;
 	sim->path_id = CAM_PATH_ANY;
+	sim->sim_dev = NULL;	/* set only by cam_sim_alloc_dev */
 	sim->unit_number = unit;
 	sim->bus_id = 0;	/* set in xpt_bus_register */
 	sim->max_tagged_dev_openings = max_tagged_dev_transactions;
@@ -97,6 +99,25 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 		sim->flags |= CAM_SIM_MPSAFE;
 		callout_init(&sim->callout, 1);
 	}
+	return (sim);
+}
+
+struct cam_sim *
+cam_sim_alloc_dev(sim_action_func sim_action, sim_poll_func sim_poll,
+	      const char *sim_name, void *softc, device_t dev,
+	      struct mtx *mtx, int max_dev_transactions,
+	      int max_tagged_dev_transactions, struct cam_devq *queue)
+{
+	struct cam_sim *sim;
+
+	KASSERT(dev != NULL, ("%s: dev is null for sim_name %s softc %p\n",
+	    __func__, sim_name, softc));
+
+	sim = cam_sim_alloc(sim_action, sim_poll, sim_name, softc,
+	    device_get_unit(dev), mtx, max_dev_transactions,
+	    max_tagged_dev_transactions, queue);
+	if (sim != NULL)
+		sim->sim_dev = dev;
 	return (sim);
 }
 
