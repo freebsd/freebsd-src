@@ -111,7 +111,7 @@ xmalloc(size_t size)
 static int
 add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 {
-	struct mapping *mp;
+	struct mapping *mp, *mp_temp;
 	struct mapping_list *ml;
 
 	mapping_total++;
@@ -122,10 +122,19 @@ add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 	mp->m_length = 0;
 
 	ml = &maps[map_idx];
-	if (TAILQ_LAST(ml, mapping_list) != NULL &&
-	    TAILQ_LAST(ml, mapping_list)->m_char >= c)
-		errx(1, "Bad ordering at character %u", c);
-	TAILQ_INSERT_TAIL(ml, mp, m_list);
+	if (TAILQ_LAST(ml, mapping_list) == NULL ||
+	    TAILQ_LAST(ml, mapping_list)->m_char < c) {
+		/* Common case: empty list or new char at end of list. */
+		TAILQ_INSERT_TAIL(ml, mp, m_list);
+	} else {
+		/* Find insertion point for char; cannot be at end. */
+		TAILQ_FOREACH(mp_temp, ml, m_list) {
+			if (mp_temp->m_char >= c) {
+				TAILQ_INSERT_BEFORE(mp_temp, mp, m_list);
+				break;
+			}
+		}
+	}
 
 	map_count[map_idx]++;
 	mapping_unique++;
