@@ -119,7 +119,7 @@ static bool trap_user_dtrace(struct trapframe *,
 #endif
 
 static const char UNKNOWN[] = "unknown";
-static const char *trap_msg[] = {
+static const char *const trap_msg[] = {
 	[0] =			UNKNOWN,			/* unused */
 	[T_PRIVINFLT] =		"privileged instruction fault",
 	[2] =			UNKNOWN,			/* unused */
