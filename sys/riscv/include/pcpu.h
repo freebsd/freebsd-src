@@ -60,7 +60,7 @@ get_pcpu(void)
 {
 	struct pcpu *pcpu;
 
-	__asm __volatile("mv %0, gp" : "=&r"(pcpu));
+	__asm __volatile("mv %0, tp" : "=&r"(pcpu));
 
 	return (pcpu);
 }
@@ -70,7 +70,7 @@ get_curthread(void)
 {
 	struct thread *td;
 
-	__asm __volatile("ld %0, 0(gp)" : "=&r"(td));
+	__asm __volatile("ld %0, 0(tp)" : "=&r"(td));
 
 	return (td);
 }
