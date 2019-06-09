@@ -51,6 +51,9 @@ static const char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/6/93";
 #include <string.h>
 #include <unistd.h>
 
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
+
 #include "extern.h"
 
 /*
