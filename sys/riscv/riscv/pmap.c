@@ -3564,8 +3564,8 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 		}
 		mpte = pmap_remove_pt_page(pmap, pv->pv_va);
 		if (mpte != NULL) {
-			KASSERT(ml3->valid == VM_PAGE_BITS_ALL,
-			    ("pmap_remove_pages: l3 page not promoted"));
+			KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
+			    ("pmap_remove_pages: pte page not promoted"));
 			pmap_resident_count_dec(pmap, 1);
 			KASSERT(mpte->wire_count == Ln_ENTRIES,
 			    ("pmap_remove_pages: pte page wire count error"));
