@@ -1330,6 +1330,7 @@ mlx5e_destroy_rq(struct mlx5e_rq *rq)
 	}
 	free(rq->mbuf, M_MLX5EN);
 	mlx5_wq_destroy(&rq->wq_ctrl);
+	bus_dma_tag_destroy(rq->dma_tag);
 }
 
 static int
@@ -1654,6 +1655,7 @@ mlx5e_destroy_sq(struct mlx5e_sq *sq)
 	mlx5e_free_sq_db(sq);
 	mlx5_wq_destroy(&sq->wq_ctrl);
 	mlx5_unmap_free_uar(sq->priv->mdev, &sq->uar);
+	bus_dma_tag_destroy(sq->dma_tag);
 }
 
 int

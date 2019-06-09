@@ -156,6 +156,7 @@ mlx5e_rl_destroy_sq(struct mlx5e_sq *sq)
 
 	mlx5e_free_sq_db(sq);
 	mlx5_wq_destroy(&sq->wq_ctrl);
+	bus_dma_tag_destroy(sq->dma_tag);
 }
 
 static int
