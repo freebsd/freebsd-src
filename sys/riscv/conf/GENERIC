@@ -22,11 +22,7 @@ cpu		RISCV
 ident		GENERIC
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-# makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
-
-# FIXME: linker error. "--relax and -r may not be used together"
-makeoptions	WITHOUT_MODULES="usb otusfw mwlfw ispfw mwlfw ralfw rtwnfw"
-# makeoptions	NO_MODULES
+makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -52,11 +48,11 @@ options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
-# options 	GEOM_RAID		# Soft RAID functionality.
+options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_LABEL		# Provides labelization
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
-# options 	STACK			# stack(9) support
+options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
