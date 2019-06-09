@@ -1475,7 +1475,7 @@ camdd_probe_pass(struct cam_device *cam_dev, struct camdd_io_opts *io_opts,
 	struct kevent ke;
 	struct ccb_getdev cgd;
 	int retval;
-	int scsi_dev_type;
+	int scsi_dev_type = T_NODEVICE;
 
 	if ((retval = camdd_get_cgd(cam_dev, &cgd)) != 0) {
 		warnx("%s: error retrieving CGD", __func__);
