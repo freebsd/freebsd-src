@@ -89,7 +89,11 @@ SECTIONS
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
   . = ALIGN(8);
-  .sdata     : { *(.sdata) }
+  .sdata     :
+  {
+    __global_pointer$ = . + 0x800;
+    *(.sdata)
+  }
   _edata  =  .;
   PROVIDE (edata = .);
   /* Ensure __bss_start is associated with the next section in case orphan
