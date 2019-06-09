@@ -2602,7 +2602,7 @@ retry:
 						error = ENOMEM;
 						goto unlock;
 					}
-					KASSERT(m_new->wire_count == 0,
+					KASSERT(!vm_page_wired(m_new),
 					    ("page %p is wired", m_new));
 
 					/*
@@ -3399,7 +3399,7 @@ vm_page_activate(vm_page_t m)
 
 	vm_page_assert_locked(m);
 
-	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
+	if (vm_page_wired(m) || (m->oflags & VPO_UNMANAGED) != 0)
 		return;
 	if (vm_page_queue(m) == PQ_ACTIVE) {
 		if (m->act_count < ACT_INIT)
@@ -3474,7 +3474,7 @@ vm_page_free_prep(vm_page_t m)
 	m->valid = 0;
 	vm_page_undirty(m);
 
-	if (m->wire_count != 0)
+	if (vm_page_wired(m) != 0)
 		panic("vm_page_free_prep: freeing wired page %p", m);
 	if (m->hold_count != 0) {
 		m->flags &= ~PG_ZERO;
@@ -3575,7 +3575,7 @@ vm_page_wire(vm_page_t m)
 		    m));
 		return;
 	}
-	if (m->wire_count == 0) {
+	if (!vm_page_wired(m)) {
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0 ||
 		    m->queue == PQ_NONE,
 		    ("vm_page_wire: unmanaged page %p is queued", m));
@@ -3653,7 +3653,7 @@ vm_page_unwire_noq(vm_page_t m)
 	    ("vm_page_unwire: fictitious page %p's wire count isn't one", m));
 		return (false);
 	}
-	if (m->wire_count == 0)
+	if (!vm_page_wired(m))
 		panic("vm_page_unwire: page %p's wire count is zero", m);
 	m->wire_count--;
 	if (m->wire_count == 0) {
@@ -3675,7 +3675,7 @@ vm_page_deactivate(vm_page_t m)
 
 	vm_page_assert_locked(m);
 
-	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
+	if (vm_page_wired(m) || (m->oflags & VPO_UNMANAGED) != 0)
 		return;
 
 	if (!vm_page_inactive(m)) {
@@ -3699,7 +3699,7 @@ vm_page_deactivate_noreuse(vm_page_t m)
 
 	vm_page_assert_locked(m);
 
-	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
+	if (vm_page_wired(m) || (m->oflags & VPO_UNMANAGED) != 0)
 		return;
 
 	if (!vm_page_inactive(m)) {
@@ -3721,7 +3721,7 @@ vm_page_launder(vm_page_t m)
 {
 
 	vm_page_assert_locked(m);
-	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
+	if (vm_page_wired(m) || (m->oflags & VPO_UNMANAGED) != 0)
 		return;
 
 	if (vm_page_in_laundry(m))
@@ -3742,7 +3742,7 @@ vm_page_unswappable(vm_page_t m)
 {
 
 	vm_page_assert_locked(m);
-	KASSERT(m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0,
+	KASSERT(!vm_page_wired(m) && (m->oflags & VPO_UNMANAGED) == 0,
 	    ("page %p already unswappable", m));
 
 	vm_page_dequeue(m);

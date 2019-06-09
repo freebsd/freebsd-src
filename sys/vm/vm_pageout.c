@@ -753,7 +753,7 @@ recheck:
 		 */
 		if (m->hold_count != 0)
 			continue;
-		if (m->wire_count != 0) {
+		if (vm_page_wired(m)) {
 			vm_page_dequeue_deferred(m);
 			continue;
 		}
@@ -1204,7 +1204,7 @@ act_scan:
 		/*
 		 * Wired pages are dequeued lazily.
 		 */
-		if (m->wire_count != 0) {
+		if (vm_page_wired(m)) {
 			vm_page_dequeue_deferred(m);
 			continue;
 		}
@@ -1431,7 +1431,7 @@ recheck:
 			addl_page_shortage++;
 			goto reinsert;
 		}
-		if (m->wire_count != 0) {
+		if (vm_page_wired(m)) {
 			vm_page_dequeue_deferred(m);
 			continue;
 		}
