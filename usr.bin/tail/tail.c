@@ -212,7 +212,8 @@ main(int argc, char *argv[])
 			file->file_name = strdup(fn);
 			if (! file->file_name)
 				errx(1, "Couldn't malloc space for file name.");
-			if ((file->fp = fileargs_fopen(fa, file->file_name, "r")) == NULL ||
+			file->fp = fileargs_fopen(fa, file->file_name, "r");
+			if (file->fp == NULL ||
 			    fstat(fileno(file->fp), &file->st)) {
 				if (file->fp != NULL) {
 					fclose(file->fp);
