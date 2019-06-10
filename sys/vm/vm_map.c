@@ -454,18 +454,17 @@ vmspace_acquire_ref(struct proc *p)
 /*
  * Switch between vmspaces in an AIO kernel process.
  *
- * The AIO kernel processes switch to and from a user process's
- * vmspace while performing an I/O operation on behalf of a user
- * process.  The new vmspace is either the vmspace of a user process
- * obtained from an active AIO request or the initial vmspace of the
- * AIO kernel process (when it is idling).  Because user processes
- * will block to drain any active AIO requests before proceeding in
- * exit() or execve(), the vmspace reference count for these vmspaces
- * can never be 0.  This allows for a much simpler implementation than
- * the loop in vmspace_acquire_ref() above.  Similarly, AIO kernel
- * processes hold an extra reference on their initial vmspace for the
- * life of the process so that this guarantee is true for any vmspace
- * passed as 'newvm'.
+ * The new vmspace is either the vmspace of a user process obtained
+ * from an active AIO request or the initial vmspace of the AIO kernel
+ * process (when it is idling).  Because user processes will block to
+ * drain any active AIO requests before proceeding in exit() or
+ * execve(), the reference count for vmspaces from AIO requests can
+ * never be 0.  Similarly, AIO kernel processes hold an extra
+ * reference on their initial vmspace for the life of the process.  As
+ * a result, the 'newvm' vmspace always has a non-zero reference
+ * count.  This permits an additional reference on 'newvm' to be
+ * acquired via a simple atomic increment rather than the loop in
+ * vmspace_acquire_ref() above.
  */
 void
 vmspace_switch_aio(struct vmspace *newvm)
@@ -490,9 +489,6 @@ vmspace_switch_aio(struct vmspace *newvm)
 	/* Activate the new mapping. */
 	pmap_activate(curthread);
 
-	/* Remove the daemon's reference to the old address space. */
-	KASSERT(oldvm->vm_refcnt > 1,
-	    ("vmspace_switch_aio: oldvm dropping last reference"));
 	vmspace_free(oldvm);
 }
 
