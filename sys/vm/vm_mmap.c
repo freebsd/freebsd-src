@@ -259,7 +259,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
 	size = len + pageoff;			/* low end... */
 	size = round_page(size);		/* hi end */
 	/* Check for rounding up to zero. */
-	if (len < size)
+	if (len > size)
 		return (ENOMEM);
 
 	/* Ensure alignment is at least a page and fits in a pointer. */
