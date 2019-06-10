@@ -92,13 +92,14 @@ const char *opal_sensor_types[] = {
  * Retrieve the raw value from OPAL.  This will be cooked by the sysctl handler.
  */
 static int
-opal_sensor_get_val(uint32_t key, uint64_t *val)
+opal_sensor_get_val(struct opal_sensor_softc *sc, uint32_t key, uint64_t *val)
 {
 	struct opal_msg msg;
 	uint32_t val32;
 	int rv, token;
 
 	token = opal_alloc_async_token();
+	SENSOR_LOCK(sc);
 	rv = opal_call(OPAL_SENSOR_READ, key, token, vtophys(&val32));
 
 	if (rv == OPAL_ASYNC_COMPLETION) {
@@ -110,6 +111,7 @@ opal_sensor_get_val(uint32_t key, uint64_t *val)
 		if (rv == OPAL_SUCCESS)
 			val32 = msg.params[0];
 	}
+	SENSOR_UNLOCK(sc);
 
 	if (rv == OPAL_SUCCESS)
 		*val = val32;
@@ -131,9 +133,7 @@ opal_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = arg1;
 	sensor = arg2;
 
-	SENSOR_LOCK(sc);
-	error = opal_sensor_get_val(sensor, &sensval);
-	SENSOR_UNLOCK(sc);
+	error = opal_sensor_get_val(sc, sensor, &sensval);
 
 	if (error)
 		return (error);
