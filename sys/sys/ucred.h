@@ -89,12 +89,11 @@ struct xucred {
 	gid_t	cr_groups[XU_NGROUPS];	/* groups */
 	union {
 		void	*_cr_unused1;	/* compatibility with old ucred */
-		pid_t	_pid;
-	} _cr;
+		pid_t	cr_pid;
+	};
 };
 #define	XUCRED_VERSION	0
 
-#define	cr_pid _cr._pid
 /* This can be used for both ucred and xucred structures. */
 #define	cr_gid cr_groups[0]
 
