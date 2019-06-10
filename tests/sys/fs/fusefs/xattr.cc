@@ -28,6 +28,8 @@
  * SUCH DAMAGE.
  */
 
+/* Tests for all things relating to extended attributes and FUSE */
+
 extern "C" {
 #include <sys/types.h>
 #include <sys/extattr.h>
@@ -42,7 +44,6 @@ using namespace testing;
 const char FULLPATH[] = "mountpoint/some_file.txt";
 const char RELPATH[] = "some_file.txt";
 
-/* For testing filesystems without posix locking support */
 class Xattr: public FuseTest {
 public:
 void expect_getxattr(uint64_t ino, const char *attr, ProcessMockerT r)
