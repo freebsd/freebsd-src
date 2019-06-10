@@ -386,6 +386,9 @@ cryptof_ioctl(
 	struct crypt_op copc;
 	struct crypt_kop kopc;
 #endif
+	static struct timeval arc4warn, blfwarn, castwarn, deswarn, md5warn;
+	static struct timeval skipwarn, tdeswarn;
+	static struct timeval warninterval = { .tv_sec = 60, .tv_usec = 0 };
 
 	switch (cmd) {
 	case CIOCGSESSION:
@@ -406,18 +409,28 @@ cryptof_ioctl(
 		case 0:
 			break;
 		case CRYPTO_DES_CBC:
+			if (ratecheck(&deswarn, &warninterval))
+				gone_in(13, "DES cipher via /dev/crypto");
 			txform = &enc_xform_des;
 			break;
 		case CRYPTO_3DES_CBC:
+			if (ratecheck(&tdeswarn, &warninterval))
+				gone_in(13, "3DES cipher via /dev/crypto");
 			txform = &enc_xform_3des;
 			break;
 		case CRYPTO_BLF_CBC:
+			if (ratecheck(&blfwarn, &warninterval))
+				gone_in(13, "Blowfish cipher via /dev/crypto");
 			txform = &enc_xform_blf;
 			break;
 		case CRYPTO_CAST_CBC:
+			if (ratecheck(&castwarn, &warninterval))
+				gone_in(13, "CAST128 cipher via /dev/crypto");
 			txform = &enc_xform_cast5;
 			break;
 		case CRYPTO_SKIPJACK_CBC:
+			if (ratecheck(&skipwarn, &warninterval))
+				gone_in(13, "Skipjack cipher via /dev/crypto");
 			txform = &enc_xform_skipjack;
 			break;
 		case CRYPTO_AES_CBC:
@@ -430,6 +443,8 @@ cryptof_ioctl(
 			txform = &enc_xform_null;
 			break;
 		case CRYPTO_ARC4:
+			if (ratecheck(&arc4warn, &warninterval))
+				gone_in(13, "ARC4 cipher via /dev/crypto");
 			txform = &enc_xform_arc4;
 			break;
  		case CRYPTO_CAMELLIA_CBC:
@@ -458,6 +473,9 @@ cryptof_ioctl(
 		case 0:
 			break;
 		case CRYPTO_MD5_HMAC:
+			if (ratecheck(&md5warn, &warninterval))
+				gone_in(13,
+				    "MD5-HMAC authenticator via /dev/crypto");
 			thash = &auth_hash_hmac_md5;
 			break;
 		case CRYPTO_POLY1305:
