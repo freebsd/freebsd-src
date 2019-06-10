@@ -410,7 +410,12 @@ bectl_locate_jail(const char *ident)
 
 	/* Try the easy-match first */
 	jid = jail_getid(ident);
-	if (jid != -1)
+	/*
+	 * jail_getid(0) will always return 0, because this prison does exist.
+	 * bectl(8) knows that this is not what it wants, so we should fall
+	 * back to mount point search.
+	 */
+	if (jid > 0)
 		return (jid);
 
 	/* Attempt to try it as a BE name, first */
