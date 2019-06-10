@@ -257,7 +257,10 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
 
 	/* Adjust size for rounding (on both ends). */
 	size += pageoff;			/* low end... */
-	size = (vm_size_t) round_page(size);	/* hi end */
+	/* Check for rounding up to zero. */
+	if (round_page(size) < size)
+		return (EINVAL);
+	size = round_page(size);		/* hi end */
 
 	/* Ensure alignment is at least a page and fits in a pointer. */
 	align = flags & MAP_ALIGNMENT_MASK;
