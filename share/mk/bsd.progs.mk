@@ -95,7 +95,7 @@ $v =
 # Find common sources among the PROGS to depend on them before building
 # anything.  This allows parallelization without them each fighting over
 # the same objects.
-_PROGS_COMMON_SRCS=
+_PROGS_COMMON_SRCS= ${DPSRCS}
 _PROGS_ALL_SRCS=
 .for p in ${PROGS}
 .for s in ${SRCS.${p}}
