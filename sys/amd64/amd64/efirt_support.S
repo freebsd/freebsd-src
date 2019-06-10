@@ -47,6 +47,9 @@ ENTRY(efi_rt_arch_call)
 	movq	%r13, EC_R13(%rdi)
 	movq	%r14, EC_R14(%rdi)
 	movq	%r15, EC_R15(%rdi)
+	pushfq
+	popq	%rax
+	movq	%rax, EC_RFLAGS(%rdi)
 	movq	PCPU(CURTHREAD), %rax
 	movq	%rdi, TD_MD+MD_EFIRT_TMP(%rax)
 	movq	PCPU(CURPCB), %rsi
@@ -98,6 +101,8 @@ efi_rt_arch_call_tail:
 	movq	EC_RBP(%rdi), %rbp
 	movq	EC_RSP(%rdi), %rsp
 	movq	EC_RBX(%rdi), %rbx
+	pushq	EC_RFLAGS(%rdi)
+	popfq
 
 	popq	%rbp
 	ret
