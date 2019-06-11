@@ -146,11 +146,6 @@ struct cryptostats32 {
 #define	CIOCGSESSION232	_IOWR('c', 106, struct session2_op32)
 #define	CIOCKEY232	_IOWR('c', 107, struct crypt_kop32)
 
-static struct timeval warninterval = { .tv_sec = 60, .tv_usec = 0 };
-SYSCTL_TIMEVAL_SEC(_kern, OID_AUTO, cryptodev_warn_interval, CTLFLAG_RW,
-    &warninterval,
-    "Delay in seconds between warnings of deprecated /dev/crypto algorithms");
-
 static void
 session_op_from_32(const struct session_op32 *from, struct session_op *to)
 {
@@ -298,6 +293,11 @@ struct fcrypt {
 	TAILQ_HEAD(csessionlist, csession) csessions;
 	int		sesn;
 };
+
+static struct timeval warninterval = { .tv_sec = 60, .tv_usec = 0 };
+SYSCTL_TIMEVAL_SEC(_kern, OID_AUTO, cryptodev_warn_interval, CTLFLAG_RW,
+    &warninterval,
+    "Delay in seconds between warnings of deprecated /dev/crypto algorithms");
 
 static	int cryptof_ioctl(struct file *, u_long, void *,
 		    struct ucred *, struct thread *);
