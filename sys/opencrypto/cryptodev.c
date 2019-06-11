@@ -146,6 +146,11 @@ struct cryptostats32 {
 #define	CIOCGSESSION232	_IOWR('c', 106, struct session2_op32)
 #define	CIOCKEY232	_IOWR('c', 107, struct crypt_kop32)
 
+static struct timeval warninterval = { .tv_sec = 60, .tv_usec = 0 };
+SYSCTL_TIMEVAL_SEC(_kern, OID_AUTO, cryptodev_warn_interval, CTLFLAG_RW,
+    &warninterval,
+    "Delay in seconds between warnings of deprecated /dev/crypto algorithms");
+
 static void
 session_op_from_32(const struct session_op32 *from, struct session_op *to)
 {
@@ -388,7 +393,6 @@ cryptof_ioctl(
 #endif
 	static struct timeval arc4warn, blfwarn, castwarn, deswarn, md5warn;
 	static struct timeval skipwarn, tdeswarn;
-	static struct timeval warninterval = { .tv_sec = 60, .tv_usec = 0 };
 
 	switch (cmd) {
 	case CIOCGSESSION:
