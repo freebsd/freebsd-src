@@ -158,6 +158,29 @@ vdev_geom_attrchanged(struct g_consumer *cp, const char *attr)
 }
 
 static void
+vdev_geom_resize(struct g_consumer *cp)
+{
+	struct consumer_priv_t *priv;
+	struct consumer_vdev_elem *elem;
+	spa_t *spa;
+	vdev_t *vd;
+
+	priv = (struct consumer_priv_t *)&cp->private;
+	if (SLIST_EMPTY(priv))
+		return;
+
+	SLIST_FOREACH(elem, priv, elems) {
+		vd = elem->vd;
+		if (vd->vdev_state != VDEV_STATE_HEALTHY)
+			continue;
+		spa = vd->vdev_spa;
+		if (!spa->spa_autoexpand)
+			continue;
+		vdev_online(spa, vd->vdev_guid, ZFS_ONLINE_EXPAND, NULL);
+	}
+}
+
+static void
 vdev_geom_orphan(struct g_consumer *cp)
 {
 	struct consumer_priv_t *priv;
@@ -229,6 +252,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 		gp = g_new_geomf(&zfs_vdev_class, "zfs::vdev");
 		gp->orphan = vdev_geom_orphan;
 		gp->attrchanged = vdev_geom_attrchanged;
+		gp->resize = vdev_geom_resize;
 		cp = g_new_consumer(gp);
 		error = g_attach(cp, pp);
 		if (error != 0) {
