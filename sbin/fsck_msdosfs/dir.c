@@ -629,6 +629,15 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 					vallfn = NULL;
 				}
 				lidx = *p & LRNOMASK;
+				if (lidx == 0) {
+					pwarn("invalid long name\n");
+					if (!invlfn) {
+						invlfn = vallfn;
+						invcl = valcl;
+					}
+					vallfn = NULL;
+					continue;
+				}
 				t = longName + --lidx * 13;
 				for (k = 1; k < 11 && t < longName +
 				    sizeof(longName); k += 2) {
