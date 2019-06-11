@@ -59,10 +59,10 @@ Io(): m_backing_fd(-1), m_control_fd(-1) {};
 
 void SetUp()
 {
-	m_backing_fd = open("backing_file", O_RDWR | O_CREAT | O_TRUNC);
+	m_backing_fd = open("backing_file", O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (m_backing_fd < 0)
 		FAIL() << strerror(errno);
-	m_control_fd = open("control", O_RDWR | O_CREAT | O_TRUNC);
+	m_control_fd = open("control", O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (m_control_fd < 0)
 		FAIL() << strerror(errno);
 	srandom(22'9'1982);	// Seed with my birthday
@@ -251,12 +251,12 @@ TEST_F(Io, read_hole_from_cached_block)
 }
 
 /*
- * Reliable panic; I don't yet know why.
- * Disabled because it panics.
+ * Truncating a file into a dirty buffer should not causing anything untoward
+ * to happen when that buffer is eventually flushed.
  *
  * fsx -WR -P /tmp -S839 -d -N6 fsx.bin
  */
-TEST_F(Io, DISABLED_fault_on_nofault_entry)
+TEST_F(Io, truncate_into_dirty_buffer)
 {
 	off_t wofs0 = 0x3bad7;
 	ssize_t wsize0 = 0x4529;
@@ -272,5 +272,39 @@ TEST_F(Io, DISABLED_fault_on_nofault_entry)
 	do_ftruncate(truncsize0);
 	do_read(rsize, rofs);
 	do_ftruncate(truncsize1);
+	close(m_test_fd);
+}
+
+/*
+ * Truncating a file into a dirty buffer should not causing anything untoward
+ * to happen when that buffer is eventually flushed, even when the buffer's
+ * dirty_off is > 0.
+ *
+ * Based on this command with a few steps removed:
+ * fsx -WR -P /tmp -S677 -d -N8 fsx.bin
+ */
+TEST_F(Io, truncate_into_dirty_buffer2)
+{
+	off_t truncsize0 = 0x344f3;
+	off_t wofs = 0x2790c;
+	ssize_t wsize = 0xd86a;
+	off_t truncsize1 = 0x2de38;
+	off_t rofs2 = 0x1fd7a;
+	ssize_t rsize2 = 0xc594;
+	off_t truncsize2 = 0x31e71;
+
+	/* Sets the file size to something larger than the next write */
+	do_ftruncate(truncsize0);
+	/* 
+	 * Creates a dirty buffer.  The part in lbn 2 doesn't flush
+	 * synchronously.
+	 */
+	do_write(wsize, wofs);
+	/* Truncates part of the dirty buffer created in step 2 */
+	do_ftruncate(truncsize1);
+	/* XXX ?I don't know why this is necessary? */
+	do_read(rsize2, rofs2);
+	/* Truncates the dirty buffer */
+	do_ftruncate(truncsize2);
 	close(m_test_fd);
 }
