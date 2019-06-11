@@ -217,6 +217,15 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, standard_sm_blksz, CTLFLAG_RDTUN,
     &vdev_standard_sm_blksz, 0,
     "Block size for standard space map.  Power of 2 and greater than 4096.");
 
+/*
+ * Tunable parameter for debugging or performance analysis. Setting this
+ * will cause pool corruption on power loss if a volatile out-of-order
+ * write cache is enabled.
+ */
+boolean_t zfs_nocacheflush = B_FALSE;
+SYSCTL_INT(_vfs_zfs, OID_AUTO, cache_flush_disable, CTLFLAG_RWTUN,
+    &zfs_nocacheflush, 0, "Disable cache flush");
+
 /*PRINTFLIKE2*/
 void
 vdev_dbgmsg(vdev_t *vd, const char *fmt, ...)
