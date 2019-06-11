@@ -500,7 +500,7 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 .endif
 
 .if !empty(SRCS:Massym.inc) || !empty(DPSRCS:Massym.inc)
-CLEANFILES+=	assym.inc
+CLEANFILES+=	assym.inc genassym.o
 DEPENDOBJS+=	genassym.o
 DPSRCS+=	offset.inc
 .endif
