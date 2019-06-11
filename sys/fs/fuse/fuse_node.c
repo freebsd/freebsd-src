@@ -415,6 +415,7 @@ fuse_vnode_setsize(struct vnode *vp, off_t newsize)
 			goto out;	/* Nothing to do */
 		MPASS(bp->b_flags & B_VMIO);
 		vfs_bio_clrbuf(bp);
+		bp->b_dirtyend = MIN(bp->b_dirtyend, newsize - lbn * iosize);
 	}
 out:
 	if (bp)
