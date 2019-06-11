@@ -35,13 +35,13 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_ratelimit.h"
 #include "opt_ipsec.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mpath.h"
+#include "opt_ratelimit.h"
 #include "opt_route.h"
-#include "opt_sctp.h"
 #include "opt_rss.h"
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -283,6 +283,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	int no_route_but_check_spd = 0;
 #endif
+
 	M_ASSERTPKTHDR(m);
 
 	if (inp != NULL) {
