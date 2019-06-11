@@ -314,9 +314,6 @@ fuse_vfsop_mount(struct mount *mp)
 	__mntopts = 0;
 	td = curthread;
 
-	MNT_ILOCK(mp);
-	mp->mnt_flag |= MNT_SYNCHRONOUS;
-	MNT_IUNLOCK(mp);
 	/* Get the new options passed to mount */
 	opts = mp->mnt_optnew;
 

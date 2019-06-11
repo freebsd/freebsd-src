@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/sysctl.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -265,9 +266,10 @@ out:
 	return (err);
 }
 
-SDT_PROBE_DEFINE3(fusefs, , io, read_bio_backend_start, "int", "int", "int");
+SDT_PROBE_DEFINE4(fusefs, , io, read_bio_backend_start, "int", "int", "int", "int");
 SDT_PROBE_DEFINE2(fusefs, , io, read_bio_backend_feed, "int", "int");
-SDT_PROBE_DEFINE3(fusefs, , io, read_bio_backend_end, "int", "ssize_t", "int");
+SDT_PROBE_DEFINE4(fusefs, , io, read_bio_backend_end, "int", "ssize_t", "int",
+		"struct buf*");
 static int
 fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
     struct ucred *cred, struct fuse_filehandle *fufh, pid_t pid)
@@ -297,9 +299,6 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset & (biosize - 1);
 
-		SDT_PROBE3(fusefs, , io, read_bio_backend_start,
-			biosize, (int)lbn, on);
-
 		if ((off_t)lbn * biosize >= filesize) {
 			bcount = 0;
 		} else if ((off_t)(lbn + 1) * biosize > filesize) {
@@ -307,6 +306,9 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 		} else {
 			bcount = biosize;
 		}
+
+		SDT_PROBE4(fusefs, , io, read_bio_backend_start,
+			biosize, (int)lbn, on, bcount);
 
 		/* TODO: readahead.  See ext2_read for an example */
 		err = bread(vp, lbn, bcount, NOCRED, &bp);
@@ -333,8 +335,8 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 			err = uiomove(bp->b_data + on, n, uio);
 		}
 		vfs_bio_brelse(bp, ioflag);
-		SDT_PROBE3(fusefs, , io, read_bio_backend_end, err,
-			uio->uio_resid, n);
+		SDT_PROBE4(fusefs, , io, read_bio_backend_end, err,
+			uio->uio_resid, n, bp);
 	}
 
 	return (err);
@@ -564,6 +566,7 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 	off_t filesize;
 	int bcount;
 	int n, on, err = 0;
+	bool last_page;
 
 	const int biosize = fuse_iosize(vp);
 
@@ -612,6 +615,11 @@ again:
 			extending = true;
 			bcount = on + n;
 		}
+		if (howmany(((off_t)lbn * biosize + on + n - 1), PAGE_SIZE) >=
+		    howmany(filesize, PAGE_SIZE))
+			last_page = true;
+		else
+			last_page = false;
 		if (direct_append) {
 			/* 
 			 * Take care to preserve the buffer's B_CACHE state so
@@ -642,6 +650,8 @@ again:
 				break;
 			} 
 		}
+			if (biosize > bcount)
+				vfs_bio_clrbuf(bp);
 
 		SDT_PROBE6(fusefs, , io, write_biobackend_start,
 			lbn, on, n, uio, bcount, direct_append);
@@ -689,7 +699,6 @@ again:
 	         * If the chopping creates a reverse-indexed or degenerate
 	         * situation with dirtyoff/end, we 0 both of them.
 	         */
-
 		if (bp->b_dirtyend > bcount) {
 			SDT_PROBE2(fusefs, , io, write_biobackend_append_race,
 			    (long)bp->b_blkno * biosize,
@@ -738,6 +747,7 @@ again:
 			bp->b_error = err;
 			brelse(bp);
 			break;
+			/* TODO: vfs_bio_clrbuf like ffs_write does? */
 		}
 		/*
 	         * Only update dirtyoff/dirtyend if not a degenerate
@@ -753,7 +763,42 @@ again:
 			}
 			vfs_bio_set_valid(bp, on, n);
 		}
-		err = bwrite(bp);
+
+		vfs_bio_set_flags(bp, ioflag);
+
+		if (last_page) {
+			/* 
+			 * When writing the last page of a file we must write
+			 * synchronously.  If we didn't, then a subsequent
+			 * operation could extend the file, making the last
+			 * page of this buffer invalid because it would only be
+			 * partially cached.
+			 *
+			 * As an optimization, it would be allowable to only
+			 * write the last page synchronously.  Or, it should be
+			 * possible to synchronously flush the last
+			 * already-written page whenever extending a file with
+			 * ftruncate or another write.
+			 */
+			err = bwrite(bp);
+		} else if (ioflag & IO_SYNC) {
+			err = bwrite(bp);
+		} else if (vm_page_count_severe() ||
+			    buf_dirty_count_severe() ||
+			    (ioflag & IO_ASYNC)) {
+			/* TODO: enable write clustering later */
+			bawrite(bp);
+		} else if (on == 0 && n == bcount) {
+			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0)
+				bdwrite(bp);
+			else
+				bawrite(bp);
+		} else if (ioflag & IO_DIRECT) {
+			bawrite(bp);
+		} else {
+			bp->b_flags &= ~B_CLUSTEROK;
+			bdwrite(bp);
+		}
 		if (err)
 			break;
 	} while (uio->uio_resid > 0 && n > 0);
@@ -819,7 +864,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		io.iov_base = bp->b_data;
 		uiop->uio_rw = UIO_READ;
 
-		uiop->uio_offset = ((off_t)bp->b_blkno) * biosize;
+		uiop->uio_offset = ((off_t)bp->b_lblkno) * biosize;
 		error = fuse_read_directbackend(vp, uiop, cred, fufh);
 
 		if (!error && uiop->uio_resid) {
@@ -854,14 +899,14 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 			return (error);
 		}
 
-		if ((off_t)bp->b_blkno * biosize + bp->b_dirtyend > filesize)
+		if ((off_t)bp->b_lblkno * biosize + bp->b_dirtyend > filesize)
 			bp->b_dirtyend = filesize - 
-				(off_t)bp->b_blkno * biosize;
+				(off_t)bp->b_lblkno * biosize;
 
 		if (bp->b_dirtyend > bp->b_dirtyoff) {
 			io.iov_len = uiop->uio_resid = bp->b_dirtyend
 			    - bp->b_dirtyoff;
-			uiop->uio_offset = (off_t)bp->b_blkno * biosize
+			uiop->uio_offset = (off_t)bp->b_lblkno * biosize
 			    + bp->b_dirtyoff;
 			io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 			uiop->uio_rw = UIO_WRITE;
