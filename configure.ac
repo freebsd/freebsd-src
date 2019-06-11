@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.3.4dev])
-m4_define([LIBARCHIVE_VERSION_N],[3003004])
+m4_define([LIBARCHIVE_VERSION_S],[3.4.0])
+m4_define([LIBARCHIVE_VERSION_N],[3004000])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -636,7 +636,7 @@ AC_CHECK_FUNCS([nl_langinfo openat pipe poll posix_spawnp readlink readlinkat])
 AC_CHECK_FUNCS([readpassphrase])
 AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strrchr symlink timegm])
-AC_CHECK_FUNCS([tzset unsetenv utime utimensat utimes vfork])
+AC_CHECK_FUNCS([tzset unlinkat unsetenv utime utimensat utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove])
 AC_CHECK_FUNCS([_ctime64_s _fseeki64])
 AC_CHECK_FUNCS([_get_timezone _localtime64_s _mkgmtime64])

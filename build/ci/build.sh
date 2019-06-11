@@ -75,7 +75,7 @@ if [ -n "${DEBUG}" ]; then
 	else
 		export CFLAGS="-g -fsanitize=address"
 	fi
-	if ["${BS}" = "cmake" ]; then
+	if [ "${BS}" = "cmake" ]; then
 		CONFIGURE_ARGS="${CONFIGURE_ARGS} -DCMAKE_C_CFLAGS=-g -fsanitize=address"
 	fi
 fi
