@@ -1641,13 +1641,14 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length)
 {
 	vm_map_entry_t llist, rlist, root, y;
 	vm_size_t left_length;
+	vm_offset_t gap_end;
 
 	/*
 	 * Request must fit within min/max VM address and must avoid
 	 * address wrap.
 	 */
 	start = MAX(start, vm_map_min(map));
-	if (start + length > vm_map_max(map) || start + length < start)
+	if (start >= vm_map_max(map) || length > vm_map_max(map) - start)
 		return (vm_map_max(map) - length + 1);
 
 	/* Empty tree means wide open address space. */
@@ -1655,13 +1656,19 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length)
 		return (start);
 
 	/*
-	 * After splay, if start comes before root node, then there
-	 * must be a gap from start to the root.
+	 * After splay_split, if start is within an entry, push it to the start
+	 * of the following gap.  If rlist is at the end of the gap containing
+	 * start, save the end of that gap in gap_end to see if the gap is big
+	 * enough; otherwise set gap_end to start skip gap-checking and move
+	 * directly to a search of the right subtree.
 	 */
 	root = vm_map_splay_split(map, start, length, &llist, &rlist);
-	if (root != NULL)
+	gap_end = rlist->start;
+	if (root != NULL) {
 		start = root->end;
-	else if (rlist != &map->header) {
+		if (root->right != NULL)
+			gap_end = start;
+	} else if (rlist != &map->header) {
 		root = rlist;
 		rlist = root->left;
 		root->left = NULL;
@@ -1672,16 +1679,7 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length)
 	}
 	vm_map_splay_merge(map, root, llist, rlist);
 	VM_MAP_ASSERT_CONSISTENT(map);
-	if (start + length <= root->start)
-		return (start);
-
-	/*
-	 * Root is the last node that might begin its gap before
-	 * start, and this is the last comparison where address
-	 * wrap might be a problem.
-	 */
-	if (root->right == NULL &&
-	    start + length <= vm_map_max(map))
+	if (length <= gap_end - start)
 		return (start);
 
 	/* With max_free, can immediately tell if no solution. */
@@ -1800,8 +1798,8 @@ vm_map_alignspace(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	VM_MAP_ASSERT_LOCKED(map);
 	free_addr = *addr;
 	KASSERT(free_addr == vm_map_findspace(map, free_addr, length),
-	    ("caller failed to provide space %d at address %p",
-	     (int)length, (void*)free_addr));
+	    ("caller failed to provide space %#jx at address %p",
+	     (uintmax_t)length, (void *)free_addr));
 	for (;;) {
 		/*
 		 * At the start of every iteration, the free space at address
