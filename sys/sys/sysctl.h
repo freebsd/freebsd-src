@@ -218,6 +218,7 @@ int sysctl_handle_uma_zone_cur(SYSCTL_HANDLER_ARGS);
 
 int sysctl_msec_to_sbintime(SYSCTL_HANDLER_ARGS);
 int sysctl_usec_to_sbintime(SYSCTL_HANDLER_ARGS);
+int sysctl_sec_to_timeval(SYSCTL_HANDLER_ARGS);
 
 int sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS);
 int sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS);
@@ -854,6 +855,24 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	sysctl_add_oid(ctx, parent, nbr, name,				\
 	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
 	    __ptr, 0, sysctl_msec_to_sbintime, "Q", __DESCR(descr),	\
+	    NULL);							\
+})
+
+/* OID expressing a struct timeval as seconds */
+#define	SYSCTL_TIMEVAL_SEC(parent, nbr, name, access, ptr, descr)	\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    (ptr), 0, sysctl_sec_to_timeval, "I", descr);		\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_INT)
+#define	SYSCTL_ADD_TIMEVAL_SEC(ctx, parent, nbr, name, access, ptr, descr) \
+({									\
+	struct timeval *__ptr = (ptr);					\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_INT);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    __ptr, 0, sysctl_sec_to_timeval, "I", __DESCR(descr),	\
 	    NULL);							\
 })
 

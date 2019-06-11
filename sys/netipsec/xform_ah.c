@@ -109,7 +109,6 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_ah, IPSECCTL_STATS, stats, struct ahstat,
 
 static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
 static struct timeval md5warn, ripewarn, kpdkmd5warn, kpdksha1warn;
-static struct timeval warninterval = { .tv_sec = 1, .tv_usec = 0 };
 
 static int ah_input_cb(struct cryptop*);
 static int ah_output_cb(struct cryptop*);
@@ -189,19 +188,19 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 
 	switch (sav->alg_auth) {
 	case SADB_AALG_MD5HMAC:
-		if (ratecheck(&md5warn, &warninterval))
+		if (ratecheck(&md5warn, &ipsec_warn_interval))
 			gone_in(13, "MD5-HMAC authenticator for IPsec");
 		break;
 	case SADB_X_AALG_RIPEMD160HMAC:
-		if (ratecheck(&ripewarn, &warninterval))
+		if (ratecheck(&ripewarn, &ipsec_warn_interval))
 			gone_in(13, "RIPEMD160-HMAC authenticator for IPsec");
 		break;
 	case SADB_X_AALG_MD5:
-		if (ratecheck(&kpdkmd5warn, &warninterval))
+		if (ratecheck(&kpdkmd5warn, &ipsec_warn_interval))
 			gone_in(13, "Keyed-MD5 authenticator for IPsec");
 		break;
 	case SADB_X_AALG_SHA:
-		if (ratecheck(&kpdksha1warn, &warninterval))
+		if (ratecheck(&kpdksha1warn, &ipsec_warn_interval))
 			gone_in(13, "Keyed-SHA1 authenticator for IPsec");
 		break;
 	}
