@@ -43,62 +43,32 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_md.h"
 
-#ifdef MD_ROOT_MEM
 extern u_char *mfs_root;
-extern uint32_t mfs_root_size;
-#else
-#warning "MD_ROOT_MEM should be set to use ofw initrd as a md device"
-#endif
+extern int mfs_root_size;
 
-/* bus entry points */
-static int ofw_initrd_probe(device_t dev);
-static int ofw_initrd_attach(device_t dev);
-static void ofw_initrd_identify(driver_t *driver, device_t parent);
+static void ofw_initrd_probe_and_attach(void *junk);
 
-struct ofw_initrd_softc {
-	device_t	sc_dev;
-	vm_paddr_t	start;
-	vm_paddr_t	end;
-};
+SYSINIT(ofw_initrd_probe_and_attach, SI_SUB_KMEM, SI_ORDER_ANY,
+    ofw_initrd_probe_and_attach, NULL);
 
-static int
-ofw_initrd_probe(device_t dev)
+static void
+ofw_initrd_probe_and_attach(void *junk)
 {
 	phandle_t chosen;
-
-	/* limit this device to one unit */
-	if (device_get_unit(dev) != 0)
-		return (ENXIO);
-
-	chosen = OF_finddevice("/chosen");
-	if (chosen <= 0) {
-		return (ENXIO);
-	}
-
-	if (!OF_hasprop(chosen, "linux,initrd-start") ||
-	    !OF_hasprop(chosen, "linux,initrd-end"))
-		return (ENXIO);
-
-	device_set_desc(dev, "OFW initrd memregion loader");
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
-ofw_initrd_attach(device_t dev)
-{
-	struct ofw_initrd_softc *sc;
 	vm_paddr_t start, end;
-	phandle_t chosen;
 	pcell_t cell[2];
 	ssize_t size;
 
-	sc = device_get_softc(dev);
+	if (!hw_direct_map)
+		return;
 
 	chosen = OF_finddevice("/chosen");
-	if (chosen <= 0) {
-		device_printf(dev, "/chosen not found\n");
-		return (ENXIO);
-	}
+	if (chosen <= 0)
+		return;
+
+	if (!OF_hasprop(chosen, "linux,initrd-start") ||
+	    !OF_hasprop(chosen, "linux,initrd-end"))
+		return;
 
 	size = OF_getencprop(chosen, "linux,initrd-start", cell, sizeof(cell));
 	if (size == 4)
@@ -106,8 +76,8 @@ ofw_initrd_attach(device_t dev)
 	else if (size == 8)
 		start = (uint64_t)cell[0] << 32 | cell[1];
 	else {
-		device_printf(dev, "Wrong linux,initrd-start size\n");
-		return (ENXIO);
+		printf("ofw_initrd: Wrong linux,initrd-start size\n");
+		return;
 	}
 
 	size = OF_getencprop(chosen, "linux,initrd-end", cell, sizeof(cell));
@@ -116,44 +86,15 @@ ofw_initrd_attach(device_t dev)
 	else if (size == 8)
 		end = (uint64_t)cell[0] << 32 | cell[1];
 	else{
-		device_printf(dev, "Wrong linux,initrd-end size\n");
-		return (ENXIO);
+		printf("ofw_initrd: Wrong linux,initrd-end size\n");
+		return;
 	}
 
 	if (end - start > 0) {
 		mfs_root = (u_char *) PHYS_TO_DMAP(start);
 		mfs_root_size = end - start;
-
-		return (0);
+		printf("ofw_initrd: initrd loaded at 0x%08lx-0x%08lx\n",
+			start, end);
 	}
-
-	return (ENXIO);
 }
 
-static void
-ofw_initrd_identify(driver_t *driver, device_t parent)
-{
-	if (device_find_child(parent, "initrd", -1) != NULL)
-		return;
-
-	if (BUS_ADD_CHILD(parent, 10, "initrd", -1) == NULL)
-		device_printf(parent, "add ofw_initrd child failed\n");
-}
-
-static device_method_t ofw_initrd_methods[] = {
-	DEVMETHOD(device_identify,	ofw_initrd_identify),
-	DEVMETHOD(device_probe,		ofw_initrd_probe),
-	DEVMETHOD(device_attach,	ofw_initrd_attach),
-	DEVMETHOD_END
-};
-
-static driver_t ofw_initrd_driver = {
-        "ofw_initrd",
-        ofw_initrd_methods,
-        sizeof(struct ofw_initrd_softc)
-};
-
-static devclass_t ofw_initrd_devclass;
-
-DRIVER_MODULE(ofw_initrd, ofwbus, ofw_initrd_driver, ofw_initrd_devclass,
-    NULL, NULL);
