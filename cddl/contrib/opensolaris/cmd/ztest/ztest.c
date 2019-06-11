@@ -1933,6 +1933,7 @@ zil_replay_func_t *ztest_replay_vector[TX_MAX_TYPE] = {
  * ZIL get_data callbacks
  */
 
+/* ARGSUSED */
 static void
 ztest_get_done(zgd_t *zgd, int error)
 {
@@ -1944,9 +1945,6 @@ ztest_get_done(zgd_t *zgd, int error)
 
 	ztest_range_unlock(zgd->zgd_rl);
 	ztest_object_unlock(zd, object);
-
-	if (error == 0 && zgd->zgd_bp)
-		zil_lwb_add_block(zgd->zgd_lwb, zgd->zgd_bp);
 
 	umem_free(zgd, sizeof (*zgd));
 }
