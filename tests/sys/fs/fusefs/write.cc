@@ -249,6 +249,44 @@ TEST_F(Write, append)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
+/* If a file is cached, then appending to the end should not cause a read */
+TEST_F(Write, append_to_cached)
+{
+	const ssize_t BUFSIZE = 9;
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	char *oldcontents, *oldbuf;
+	const char CONTENTS[BUFSIZE] = "abcdefgh";
+	uint64_t ino = 42;
+	/* 
+	 * Set offset in between maxbcachebuf boundary to test buffer handling
+	 */
+	uint64_t oldsize = m_maxbcachebuf / 2;
+	int fd;
+
+	oldcontents = (char*)calloc(1, oldsize);
+	ASSERT_NE(NULL, oldcontents) << strerror(errno);
+	oldbuf = (char*)malloc(oldsize);
+	ASSERT_NE(NULL, oldbuf) << strerror(errno);
+
+	expect_lookup(RELPATH, ino, oldsize);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 0, oldsize, oldsize, oldcontents);
+	expect_write(ino, oldsize, BUFSIZE, BUFSIZE, CONTENTS);
+
+	/* Must open O_RDWR or fuse(4) implicitly sets direct_io */
+	fd = open(FULLPATH, O_RDWR | O_APPEND);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	/* Read the old data into the cache */
+	ASSERT_EQ((ssize_t)oldsize, read(fd, oldbuf, oldsize))
+		<< strerror(errno);
+
+	/* Write the new data.  There should be no more read operations */
+	ASSERT_EQ(BUFSIZE, write(fd, CONTENTS, BUFSIZE)) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
 TEST_F(Write, append_direct_io)
 {
 	const ssize_t BUFSIZE = 9;
@@ -789,7 +827,7 @@ TEST_F(WriteThrough, DISABLED_writethrough)
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
-	/* 
+	/*
 	 * A subsequent read should be serviced by cache, without querying the
 	 * filesystem daemon
 	 */
