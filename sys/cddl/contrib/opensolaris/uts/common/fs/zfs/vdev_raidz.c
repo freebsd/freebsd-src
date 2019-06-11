@@ -2020,7 +2020,7 @@ vdev_raidz_io_start(zio_t *zio)
 		return;
 	}
 
-	ASSERT(zio->io_type == ZIO_TYPE_READ);
+	ASSERT3U(zio->io_type, ==, ZIO_TYPE_READ);
 
 	/*
 	 * Iterate over the columns in reverse order so that we hit the parity
