@@ -81,6 +81,7 @@ Currently, the library automatically detects and reads the following fomats:
   * Binary cpio (big-endian or little-endian)
   * ISO9660 CD-ROM images (with optional Rockridge or Joliet extensions)
   * ZIP archives (with uncompressed or "deflate" compressed entries, including support for encrypted Zip archives)
+  * ZIPX archives (with support for bzip2, ppmd8, lzma and xz compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
   * 7-Zip archives

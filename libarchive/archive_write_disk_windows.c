@@ -1948,7 +1948,6 @@ current_fixup(struct archive_write_disk *a, const wchar_t *pathname)
 	return (a->current_fixup);
 }
 
-/* TODO: Make this work. */
 /*
  * TODO: The deep-directory support bypasses this; disable deep directory
  * support if we're doing symlink checks.
@@ -1958,7 +1957,6 @@ current_fixup(struct archive_write_disk *a, const wchar_t *pathname)
  * scan the path and both can be optimized by comparing against other
  * recent paths.
  */
-/* TODO: Extend this to support symlinks on Windows Vista and later. */
 static int
 check_symlinks(struct archive_write_disk *a)
 {

@@ -1111,6 +1111,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <unistd.h> header file. */
 #cmakedefine HAVE_UNISTD_H 1
 
+/* Define to 1 if you have the `unlinkat' function. */
+#cmakedefine HAVE_UNLINKAT 1
+
 /* Define to 1 if you have the `unsetenv' function. */
 #cmakedefine HAVE_UNSETENV 1
 
