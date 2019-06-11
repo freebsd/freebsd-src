@@ -3544,26 +3544,16 @@ set_mode(struct archive_write_disk *a, int mode)
 	}
 
 	if (S_ISLNK(a->mode)) {
+#ifdef HAVE_LCHMOD
 		/*
-		 * If this is a symlink, use fchmod() or lchmod().  If the
+		 * If this is a symlink, use lchmod().  If the
 		 * platform doesn't support lchmod(), just skip it.  A
 		 * platform that doesn't provide a way to set
 		 * permissions on symlinks probably ignores
 		 * permissions on symlinks, so a failure here has no
 		 * impact.
 		 */
-#ifdef HAVE_FCHMOD
-		if (a->fd > 0)
-			r2 = fchmod(a->fd, mode);
-		else
-#endif
-#ifdef HAVE_LCHMOD
-		r2 = lchmod(a->name, mode);
-#else
-		/* We don't have lchmod() here and a fd is not given */
-		r2 = 0;
-#endif
-		if (r2 != 0) {
+		if (lchmod(a->name, mode) != 0) {
 			switch (errno) {
 			case ENOTSUP:
 			case ENOSYS:
@@ -3582,6 +3572,7 @@ set_mode(struct archive_write_disk *a, int mode)
 				r = ARCHIVE_WARN;
 			}
 		}
+#endif
 	} else if (!S_ISDIR(a->mode)) {
 		/*
 		 * If it's not a symlink and not a dir, then use
