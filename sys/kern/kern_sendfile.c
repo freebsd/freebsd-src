@@ -303,7 +303,7 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 		for (int i = 0; i < sfio->npages; i++)
 			m = m_free(m);
 	} else
-		(void )(so->so_proto->pr_usrreqs->pru_ready)(so, sfio->m,
+		(void)(so->so_proto->pr_usrreqs->pru_ready)(so, sfio->m,
 		    sfio->npages);
 
 	SOCK_LOCK(so);
