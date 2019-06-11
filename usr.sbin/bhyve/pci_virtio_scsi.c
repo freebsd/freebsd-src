@@ -581,7 +581,7 @@ static void
 pci_vtscsi_eventq_notify(void *vsc, struct vqueue_info *vq)
 {
 
-	vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
+	vq_kick_disable(vq);
 }
 
 static void
