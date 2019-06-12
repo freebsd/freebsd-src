@@ -15,4 +15,4 @@ FIRMWS=	${_FIRM}:${KMOD}
 #FIRMWARE_LICENSE=
 
 ${_FIRM}: ${SRCTOP}/sys/contrib/dev/iwm/${_FIRM}.uu
-	uudecode -p $? > ${.TARGET}
+	uudecode -p ${.ALLSRC} > ${.TARGET}
