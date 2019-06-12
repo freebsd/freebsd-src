@@ -96,11 +96,11 @@ g_eli_crypto_hmac_final(struct hmac_ctx *ctx, uint8_t *md, size_t mdsize)
 
 	/* Complete inner hash */
 	SHA512_Final(digest, &ctx->innerctx);
-	
+
 	/* Complete outer hash */
 	SHA512_Update(&ctx->outerctx, digest, sizeof(digest));
 	SHA512_Final(digest, &ctx->outerctx);
-	
+
 	explicit_bzero(ctx, sizeof(*ctx));
 	/* mdsize == 0 means "Give me the whole hash!" */
 	if (mdsize == 0)
