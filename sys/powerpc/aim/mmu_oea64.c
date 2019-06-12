@@ -684,8 +684,16 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 	 * without a direct map or on which the kernel is not already executing
 	 * out of the direct-mapped region.
 	 */
-
-	if (!hw_direct_map || kernelstart < DMAP_BASE_ADDRESS) {
+	if (kernelstart < DMAP_BASE_ADDRESS) {
+		/*
+		 * For pre-dmap execution, we need to use identity mapping
+		 * because we will be operating with the mmu on but in the
+		 * wrong address configuration until we __restartkernel().
+		 */
+		for (pa = kernelstart & ~PAGE_MASK; pa < kernelend;
+		    pa += PAGE_SIZE)
+			moea64_kenter(mmup, pa, pa);
+	} else if (!hw_direct_map) {
 		pkernelstart = kernelstart & ~DMAP_BASE_ADDRESS;
 		pkernelend = kernelend & ~DMAP_BASE_ADDRESS;
 		for (pa = pkernelstart & ~PAGE_MASK; pa < pkernelend;
