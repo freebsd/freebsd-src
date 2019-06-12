@@ -91,6 +91,8 @@ static const struct modes cmodes[] = {
 	{ "-rtsflow",	0, CRTS_IFLOW },
 	{ "mdmbuf",	MDMBUF, 0 },
 	{ "-mdmbuf",	0, MDMBUF },
+	{ "rtsdtr",	0, CNO_RTSDTR },
+	{ "-rtsdtr",	CNO_RTSDTR, 0 },
 	{ NULL,		0, 0 },
 };
 
