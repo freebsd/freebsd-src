@@ -424,6 +424,39 @@ fileargs_free(fileargs_t *fa)
 	free(fa);
 }
 
+cap_channel_t *
+fileargs_unwrap(fileargs_t *fa, int *flags)
+{
+	cap_channel_t *chan;
+
+	if (fa == NULL)
+		return (NULL);
+
+	assert(fa->fa_magic == FILEARGS_MAGIC);
+
+	chan = fa->fa_chann;
+	if (flags != NULL) {
+		*flags = fa->fa_fdflags;
+	}
+
+	nvlist_destroy(fa->fa_cache);
+	explicit_bzero(&fa->fa_magic, sizeof(fa->fa_magic));
+	free(fa);
+
+	return (chan);
+}
+
+fileargs_t *
+fileargs_wrap(cap_channel_t *chan, int fdflags)
+{
+
+	if (chan == NULL) {
+		return (NULL);
+	}
+
+	return (fileargs_create(chan, fdflags));
+}
+
 /*
  * Service functions.
  */

@@ -54,6 +54,9 @@ int fileargs_lstat(fileargs_t *fa, const char *name, struct stat *sb);
 int fileargs_open(fileargs_t *fa, const char *name);
 void fileargs_free(fileargs_t *fa);
 FILE *fileargs_fopen(fileargs_t *fa, const char *name, const char *mode);
+
+fileargs_t *fileargs_wrap(cap_channel_t *chan, int fdflags);
+cap_channel_t *fileargs_unwrap(fileargs_t *fa, int *fdflags);
 #else
 typedef struct fileargs {
 	int	fa_flags;
@@ -114,7 +117,27 @@ FILE *fileargs_fopen(fileargs_t *fa, const char *name, const char *mode)
 	(void) fa;
 	return (fopen(name, mode));
 }
-#define	fileargs_free(fa)	(free(fa))
+#define	fileargs_free(fa)		(free(fa))
+
+static inline fileargs_t *
+fileargs_wrap(cap_channel_t *chan, int fdflags)
+{
+
+	cap_close(chan);
+	return (fileargs_init(0, NULL, fdflags, 0, NULL, 0));
+}
+
+static inline cap_channel_t *
+fileargs_unwrap(fileargs_t *fa, int *fdflags)
+{
+
+	if (fdflags != NULL) {
+		*fdflags = fa->fa_flags;
+	}
+	fileargs_free(fa);
+	return (cap_init());
+}
+
 #endif
 
 #endif	/* !_FILEARGS_H_ */
