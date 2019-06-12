@@ -64,29 +64,29 @@ ${mc:T:R}.cf: ${mc}
 all: ${ALL}
 
 distribution:
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 -T "package=sendmail" \
 	    ${.CURDIR}/freebsd.mc freebsd.cf ${DESTDIR}/etc/mail
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 -T "package=sendmail" \
 	    ${.CURDIR}/freebsd.submit.mc freebsd.submit.cf ${DESTDIR}/etc/mail
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 -T "package=sendmail" \
 	    ${SMDIR}/helpfile ${DESTDIR}/etc/mail
 .if defined(INSTALL_CF)
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 -T "package=sendmail" \
 	    ${INSTALL_CF} ${DEST_CF}
 .else
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 -T "package=sendmail" \
 	    freebsd.cf ${DEST_CF}
 .endif
 .if defined(SENDMAIL_ADDITIONAL_CF)
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 -T "package=sendmail" \
 	    ${SENDMAIL_ADDITIONAL_CF} ${DESTDIR}/etc/mail
 .endif
 .if !defined(SENDMAIL_SET_USER_ID)
 .if defined(INSTALL_SUBMIT_CF)
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 -T "package=sendmail" \
 	    ${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
 .else
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 -T "package=sendmail" \
 	    freebsd.submit.cf ${DEST_SUBMIT_CF}
 .endif
 .endif
