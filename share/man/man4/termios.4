@@ -1185,6 +1185,8 @@ flow control of output */
 /* RTS flow control of input */
 .It Dv MDMBUF
 /* flow control output via Carrier */
+.It Dv CNO_RTSDTR
+/* Do not assert RTS or DTR automatically */
 .El
 .Pp
 The
@@ -1266,6 +1268,12 @@ If
 .Dv MDMBUF
 is set then output flow control is controlled by the state
 of Carrier Detect.
+.Pp
+If
+.Dv CNO_RTSDTR
+is set then the RTS and DTR lines will not be asserted when the device
+is opened.
+As a result, this flag is only useful on initial-state devices.
 .Pp
 If the object for which the control modes are set is not an asynchronous
 serial connection, some of the modes may be ignored; for example, if an
