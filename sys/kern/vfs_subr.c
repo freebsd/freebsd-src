@@ -3138,7 +3138,7 @@ loop:
 
 			if ((vp->v_type == VNON ||
 			    (error == 0 && vattr.va_nlink > 0)) &&
-			    (vp->v_writecount == 0 || vp->v_type != VREG)) {
+			    (vp->v_writecount <= 0 || vp->v_type != VREG)) {
 				VOP_UNLOCK(vp, 0);
 				vdropl(vp);
 				continue;
@@ -3483,8 +3483,6 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_ETERNALDEV", sizeof(buf));
 	if (vp->v_vflag & VV_CACHEDLABEL)
 		strlcat(buf, "|VV_CACHEDLABEL", sizeof(buf));
-	if (vp->v_vflag & VV_TEXT)
-		strlcat(buf, "|VV_TEXT", sizeof(buf));
 	if (vp->v_vflag & VV_COPYONWRITE)
 		strlcat(buf, "|VV_COPYONWRITE", sizeof(buf));
 	if (vp->v_vflag & VV_SYSTEM)
@@ -3500,7 +3498,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	if (vp->v_vflag & VV_FORCEINSMQ)
 		strlcat(buf, "|VV_FORCEINSMQ", sizeof(buf));
 	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC | VV_ETERNALDEV |
-	    VV_CACHEDLABEL | VV_TEXT | VV_COPYONWRITE | VV_SYSTEM | VV_PROCDEP |
+	    VV_CACHEDLABEL | VV_COPYONWRITE | VV_SYSTEM | VV_PROCDEP |
 	    VV_NOKNOTE | VV_DELETED | VV_MD | VV_FORCEINSMQ);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VV(0x%lx)", flags);
