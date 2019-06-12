@@ -1480,21 +1480,21 @@ ipf_pcksum6(fin, ip6, off, len)
 
 	sp = (u_short *)&ip6->ip6_src;
 	sum = *sp++;   /* ip6_src */
-        sum += *sp++;
-        sum += *sp++;
-        sum += *sp++;
-        sum += *sp++;
-        sum += *sp++;
-        sum += *sp++;
-        sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
 	sum += *sp++;   /* ip6_dst */
-        sum += *sp++;
-        sum += *sp++;
-        sum += *sp++;
-        sum += *sp++;
-        sum += *sp++;
-        sum += *sp++;
-        sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
 	return(ipf_pcksum(fin, off, sum));
 }
 #endif
