@@ -184,6 +184,12 @@ print(struct termios *tp, struct winsize *wp, int ldisc, enum FMT fmt)
 	put("-dsrflow", CDSR_OFLOW, 0);
 	put("-dtrflow", CDTR_IFLOW, 0);
 	put("-mdmbuf", MDMBUF, 0);	/* XXX mdmbuf ==  dtrflow */
+	if (on(CNO_RTSDTR))
+		bput("-rtsdtr");
+	else {
+		if (fmt >= BSD)
+			bput("rtsdtr");
+	}
 
 	/* special control characters */
 	cc = tp->c_cc;
