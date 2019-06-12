@@ -52,7 +52,7 @@ xor(uint8_t *dst, const uint8_t *src, size_t size)
 
 void
 pkcs5v2_genkey(uint8_t *key, unsigned keylen, const uint8_t *salt,
-    size_t saltsize, const char passphrase[], u_int iterations)
+    size_t saltsize, const char *passphrase, u_int iterations)
 {
 	uint8_t md[SHA512_MDLEN], saltcount[saltsize + sizeof(uint32_t)];
 	uint8_t *counter, *keyp;
