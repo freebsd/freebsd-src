@@ -506,6 +506,58 @@ _vm_map_lock(vm_map_t map, const char *file, int line)
 	map->timestamp++;
 }
 
+void
+vm_map_entry_set_vnode_text(vm_map_entry_t entry, bool add)
+{
+	vm_object_t object, object1;
+	struct vnode *vp;
+
+	if ((entry->eflags & MAP_ENTRY_VN_EXEC) == 0)
+		return;
+	KASSERT((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
+	    ("Submap with execs"));
+	object = entry->object.vm_object;
+	KASSERT(object != NULL, ("No object for text, entry %p", entry));
+	VM_OBJECT_RLOCK(object);
+	while ((object1 = object->backing_object) != NULL) {
+		VM_OBJECT_RLOCK(object1);
+		VM_OBJECT_RUNLOCK(object);
+		object = object1;
+	}
+
+	vp = NULL;
+	if (object->type == OBJT_DEAD) {
+		/*
+		 * For OBJT_DEAD objects, v_writecount was handled in
+		 * vnode_pager_dealloc().
+		 */
+	} else if (object->type == OBJT_VNODE) {
+		vp = object->handle;
+	} else if (object->type == OBJT_SWAP) {
+		KASSERT((object->flags & OBJ_TMPFS_NODE) != 0,
+		    ("vm_map_entry_set_vnode_text: swap and !TMPFS "
+		    "entry %p, object %p, add %d", entry, object, add));
+		/*
+		 * Tmpfs VREG node, which was reclaimed, has
+		 * OBJ_TMPFS_NODE flag set, but not OBJ_TMPFS.  In
+		 * this case there is no v_writecount to adjust.
+		 */
+		if ((object->flags & OBJ_TMPFS) != 0)
+			vp = object->un_pager.swp.swp_tmpfs;
+	} else {
+		KASSERT(0,
+		    ("vm_map_entry_set_vnode_text: wrong object type, "
+		    "entry %p, object %p, add %d", entry, object, add));
+	}
+	if (vp != NULL) {
+		if (add)
+			VOP_SET_TEXT_CHECKED(vp);
+		else
+			VOP_UNSET_TEXT_CHECKED(vp);
+	}
+	VM_OBJECT_RUNLOCK(object);
+}
+
 static void
 vm_map_process_deferred(void)
 {
@@ -518,6 +570,9 @@ vm_map_process_deferred(void)
 	td->td_map_def_user = NULL;
 	while (entry != NULL) {
 		next = entry->next;
+		MPASS((entry->eflags & (MAP_ENTRY_VN_WRITECNT |
+		    MAP_ENTRY_VN_EXEC)) != (MAP_ENTRY_VN_WRITECNT |
+		    MAP_ENTRY_VN_EXEC));
 		if ((entry->eflags & MAP_ENTRY_VN_WRITECNT) != 0) {
 			/*
 			 * Decrement the object's writemappings and
@@ -530,6 +585,7 @@ vm_map_process_deferred(void)
 			vnode_pager_release_writecount(object, entry->start,
 			    entry->end);
 		}
+		vm_map_entry_set_vnode_text(entry, false);
 		vm_map_entry_deallocate(entry, FALSE);
 		entry = next;
 	}
@@ -1372,6 +1428,8 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		protoeflags |= MAP_ENTRY_GROWS_UP;
 	if (cow & MAP_VN_WRITECOUNT)
 		protoeflags |= MAP_ENTRY_VN_WRITECNT;
+	if (cow & MAP_VN_EXEC)
+		protoeflags |= MAP_ENTRY_VN_EXEC;
 	if ((cow & MAP_CREATE_GUARD) != 0)
 		protoeflags |= MAP_ENTRY_GUARD;
 	if ((cow & MAP_CREATE_STACK_GAP_DN) != 0)
@@ -1415,7 +1473,8 @@ charged:
 		VM_OBJECT_WUNLOCK(object);
 	} else if ((prev_entry->eflags & ~MAP_ENTRY_USER_WIRED) ==
 	    protoeflags &&
-	    (cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0 &&
+	    (cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP |
+	    MAP_VN_EXEC)) == 0 &&
 	    prev_entry->end == start && (prev_entry->cred == cred ||
 	    (prev_entry->object.vm_object != NULL &&
 	    prev_entry->object.vm_object->cred == cred)) &&
@@ -1937,7 +1996,7 @@ vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
  * another entry.
  */
 #define	MAP_ENTRY_NOMERGE_MASK	(MAP_ENTRY_GROWS_DOWN | MAP_ENTRY_GROWS_UP | \
-	    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP)
+	    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP | MAP_ENTRY_VN_EXEC)
 
 static bool
 vm_map_mergeable_neighbors(vm_map_entry_t prev, vm_map_entry_t entry)
@@ -2088,6 +2147,7 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 
 	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 		vm_object_reference(new_entry->object.vm_object);
+		vm_map_entry_set_vnode_text(new_entry, true);
 		/*
 		 * The object->un_pager.vnp.writemappings for the
 		 * object of MAP_ENTRY_VN_WRITECNT type entry shall be
@@ -2170,6 +2230,7 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 
 	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 		vm_object_reference(new_entry->object.vm_object);
+		vm_map_entry_set_vnode_text(new_entry, true);
 	}
 }
 
@@ -3858,6 +3919,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				vnode_pager_update_writecount(object,
 				    new_entry->start, new_entry->end);
 			}
+			vm_map_entry_set_vnode_text(new_entry, true);
 
 			/*
 			 * Insert the entry into the new map -- we know we're
@@ -3894,6 +3956,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			vmspace_map_entry_forked(vm1, vm2, new_entry);
 			vm_map_copy_entry(old_map, new_map, old_entry,
 			    new_entry, fork_charge);
+			vm_map_entry_set_vnode_text(new_entry, true);
 			break;
 
 		case VM_INHERIT_ZERO:
@@ -3908,7 +3971,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			new_entry->end = old_entry->end;
 			new_entry->eflags = old_entry->eflags &
 			    ~(MAP_ENTRY_USER_WIRED | MAP_ENTRY_IN_TRANSITION |
-			    MAP_ENTRY_VN_WRITECNT);
+			    MAP_ENTRY_VN_WRITECNT | MAP_ENTRY_VN_EXEC);
 			new_entry->protection = old_entry->protection;
 			new_entry->max_protection = old_entry->max_protection;
 			new_entry->inheritance = VM_INHERIT_ZERO;

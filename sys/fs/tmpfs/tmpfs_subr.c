@@ -488,6 +488,8 @@ tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
 	VI_LOCK(vp);
 	vm_object_clear_flag(obj, OBJ_TMPFS);
 	obj->un_pager.swp.swp_tmpfs = NULL;
+	if (vp->v_writecount < 0)
+		vp->v_writecount = 0;
 	VI_UNLOCK(vp);
 	VM_OBJECT_WUNLOCK(obj);
 }
