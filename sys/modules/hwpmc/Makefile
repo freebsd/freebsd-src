@@ -22,7 +22,7 @@ SRCS+=	hwpmc_x86.c hwpmc_uncore.c
 SRCS+=	hwpmc_arm.c
 .endif
 
-.if ${MACHINE_ARCH:Marmv[67]*} != ""
+.if ${MACHINE_ARCH} == "armv7"
 SRCS+= hwpmc_armv7.c
 .endif
 
