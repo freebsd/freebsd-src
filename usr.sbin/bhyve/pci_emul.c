@@ -634,7 +634,6 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 			mask = PCIM_BAR_MEM_BASE;
 			lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_64 |
 				 PCIM_BAR_MEM_PREFETCH;
-			break;
 		} else {
 			baseptr = &pci_emul_membase32;
 			limit = PCI_EMUL_MEMLIMIT32;
