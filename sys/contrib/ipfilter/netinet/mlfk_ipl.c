@@ -225,6 +225,9 @@ vnet_ipf_init(void)
 		""
 #endif
 		);
+	} else {
+		(void)ipf_pfil_hook();
+		ipf_event_reg();
 	}
 }
 VNET_SYSINIT(vnet_ipf_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
