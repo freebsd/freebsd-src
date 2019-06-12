@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_end.c 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: pam_end.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -61,7 +61,7 @@ pam_end(pam_handle_t *pamh,
 
 	ENTER();
 	if (pamh == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
+		RETURNC(PAM_BAD_HANDLE);
 
 	/* clear module data */
 	while ((dp = pamh->module_data) != NULL) {
@@ -94,7 +94,7 @@ pam_end(pam_handle_t *pamh,
 /*
  * Error codes:
  *
- *	PAM_SYSTEM_ERR
+ *	PAM_BAD_HANDLE
  */
 
 /**

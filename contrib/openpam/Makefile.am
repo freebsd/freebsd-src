@@ -1,8 +1,8 @@
-# $Id: Makefile.am 816 2014-09-12 07:50:22Z des $
+# $OpenPAM: Makefile.am 938 2017-04-30 21:34:42Z des $
 
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = lib bin modules include
+SUBDIRS = misc include lib bin modules
 
 if WITH_DOC
 SUBDIRS += doc

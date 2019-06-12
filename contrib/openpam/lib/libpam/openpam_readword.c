@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Dag-Erling Smørgrav
+ * Copyright (c) 2012-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_readword.c 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: openpam_readword.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -134,7 +134,7 @@ openpam_readword(FILE *f, int *lineno, size_t *lenp)
 	}
 	if (ch == EOF && (escape || quote)) {
 		/* Missing escaped character or closing quote. */
-		openpam_log(PAM_LOG_ERROR, "unexpected end of file");
+		openpam_log(PAM_LOG_DEBUG, "unexpected end of file");
 		free(word);
 		errno = EINVAL;
 		return (NULL);

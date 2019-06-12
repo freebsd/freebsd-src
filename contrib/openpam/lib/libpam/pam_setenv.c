@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,13 +32,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_setenv.c 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: pam_setenv.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -65,12 +66,12 @@ pam_setenv(pam_handle_t *pamh,
 	int r;
 
 	ENTER();
-	if (pamh == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
 
 	/* sanity checks */
-	if (name == NULL || value == NULL || strchr(name, '=') != NULL)
+	if (*name == '\0' || strchr(name, '=') != NULL) {
+		errno = EINVAL;
 		RETURNC(PAM_SYSTEM_ERR);
+	}
 
 	/* is it already there? */
 	if (!overwrite && openpam_findenv(pamh, name, strlen(name)) >= 0)

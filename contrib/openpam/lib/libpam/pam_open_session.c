@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_open_session.c 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: pam_open_session.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -60,7 +60,7 @@ pam_open_session(pam_handle_t *pamh,
 
 	ENTER();
 	if (flags & ~(PAM_SILENT))
-		RETURNC(PAM_SYMBOL_ERR);
+		RETURNC(PAM_BAD_CONSTANT);
 	r = openpam_dispatch(pamh, PAM_SM_OPEN_SESSION, flags);
 	RETURNC(r);
 }
@@ -71,7 +71,7 @@ pam_open_session(pam_handle_t *pamh,
  *	=openpam_dispatch
  *	=pam_sm_open_session
  *	!PAM_IGNORE
- *	PAM_SYMBOL_ERR
+ *	PAM_BAD_CONSTANT
  */
 
 /**
@@ -86,5 +86,5 @@ pam_open_session(pam_handle_t *pamh,
  *		Do not emit any messages.
  *
  * If any other bits are set, =pam_open_session will return
- * =PAM_SYMBOL_ERR.
+ * =PAM_BAD_CONSTANT.
  */

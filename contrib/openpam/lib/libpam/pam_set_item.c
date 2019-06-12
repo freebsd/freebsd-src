@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_set_item.c 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: pam_set_item.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -60,19 +60,17 @@ pam_set_item(pam_handle_t *pamh,
 	int item_type,
 	const void *item)
 {
-	void **slot, *tmp;
+	void **slot;
 	size_t nsize, osize;
 
 	ENTERI(item_type);
-	if (pamh == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
 	slot = &pamh->item[item_type];
 	osize = nsize = 0;
 	switch (item_type) {
 	case PAM_SERVICE:
 		/* set once only, by pam_start() */
-		if (*slot != NULL)
-			RETURNC(PAM_SYSTEM_ERR);
+		if (*slot != NULL && item != NULL)
+			RETURNC(PAM_BAD_ITEM);
 		/* fall through */
 	case PAM_USER:
 	case PAM_AUTHTOK:
@@ -96,28 +94,26 @@ pam_set_item(pam_handle_t *pamh,
 		osize = nsize = sizeof(struct pam_conv);
 		break;
 	default:
-		RETURNC(PAM_SYMBOL_ERR);
+		RETURNC(PAM_BAD_ITEM);
 	}
 	if (*slot != NULL) {
 		memset(*slot, 0xd0, osize);
 		FREE(*slot);
 	}
 	if (item != NULL) {
-		if ((tmp = malloc(nsize)) == NULL)
+		if ((*slot = malloc(nsize)) == NULL)
 			RETURNC(PAM_BUF_ERR);
-		memcpy(tmp, item, nsize);
+		memcpy(*slot, item, nsize);
 	} else {
-		tmp = NULL;
+		*slot = NULL;
 	}
-	*slot = tmp;
 	RETURNC(PAM_SUCCESS);
 }
 
 /*
  * Error codes:
  *
- *	PAM_SYMBOL_ERR
- *	PAM_SYSTEM_ERR
+ *	PAM_BAD_ITEM
  *	PAM_BUF_ERR
  */
 

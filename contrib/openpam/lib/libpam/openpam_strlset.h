@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Dag-Erling Smørgrav
+ * Copyright (c) 2014 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_strlset.h 807 2014-09-09 09:41:32Z des $
+ * $OpenPAM: openpam_strlset.h 938 2017-04-30 21:34:42Z des $
  */
 
 #ifndef OPENPAM_STRLSET_H_INCLUDED
