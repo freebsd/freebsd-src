@@ -20,7 +20,8 @@ LIBMAN_SRCS=	man.c \
 		man_macro.c \
 		man_validate.c
 
-LIBMDOC_SRCS=	att.c \
+LIBMDOC_SRCS=	arch.c \
+		att.c \
 		lib.c \
 		mdoc.c \
 		mdoc_argv.c \
@@ -46,6 +47,7 @@ LIB_SRCS=	${LIBMAN_SRCS} \
 		chars.c \
 		mandoc.c \
 		mandoc_aux.c \
+		mandoc_msg.c \
 		mandoc_ohash.c \
 		mandoc_xr.c \
 		msec.c \

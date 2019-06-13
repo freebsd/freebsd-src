@@ -1,4 +1,4 @@
-/*	$Id: preconv.c,v 1.16 2017/02/18 13:43:52 schwarze Exp $ */
+/*	$Id: preconv.c,v 1.17 2018/12/13 11:55:47 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -22,7 +22,10 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+
 #include "mandoc.h"
+#include "roff.h"
+#include "mandoc_parse.h"
 #include "libmandoc.h"
 
 int

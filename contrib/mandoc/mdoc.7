@@ -1,4 +1,4 @@
-.\"	$Id: mdoc.7,v 1.271 2018/07/28 18:34:15 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.276 2019/02/07 15:45:53 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013-2018 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 28 2018 $
+.Dd $Mdocdate: February 7 2019 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -94,18 +94,18 @@ document consists of a document prologue followed by one or more
 sections.
 .Pp
 The prologue, which consists of the
-.Sx \&Dd ,
-.Sx \&Dt ,
+.Ic \&Dd ,
+.Ic \&Dt ,
 and
-.Sx \&Os
+.Ic \&Os
 macros in that order, is required for every document.
 .Pp
 The first section (sections are denoted by
-.Sx \&Sh )
+.Ic \&Sh )
 must be the NAME section, consisting of at least one
-.Sx \&Nm
+.Ic \&Nm
 followed by
-.Sx \&Nd .
+.Ic \&Nd .
 .Pp
 Following that, convention dictates specifying at least the
 .Em SYNOPSIS
@@ -182,15 +182,15 @@ Multiple
 names should be separated by commas.
 .Pp
 The
-.Sx \&Nm
+.Ic \&Nm
 macro(s) must precede the
-.Sx \&Nd
+.Ic \&Nd
 macro.
 .Pp
 See
-.Sx \&Nm
+.Ic \&Nm
 and
-.Sx \&Nd .
+.Ic \&Nd .
 .It Em LIBRARY
 The name of the library containing the documented material, which is
 assumed to be a function in a section 2, 3, or 9 manual.
@@ -200,7 +200,7 @@ The syntax for this is as follows:
 .Ed
 .Pp
 See
-.Sx \&Lb .
+.Ic \&Lb .
 .It Em SYNOPSIS
 Documents the utility invocation syntax, function call syntax, or device
 configuration.
@@ -231,11 +231,11 @@ For the second, function calls (sections 2, 3, 9):
 .Ed
 .Pp
 Ordering of
-.Sx \&In ,
-.Sx \&Vt ,
-.Sx \&Fn ,
+.Ic \&In ,
+.Ic \&Vt ,
+.Ic \&Fn ,
 and
-.Sx \&Fo
+.Ic \&Fo
 macros should follow C header-file conventions.
 .Pp
 And for the third, configurations (section 4):
@@ -250,40 +250,40 @@ Manuals not in these sections generally don't need a
 Some macros are displayed differently in the
 .Em SYNOPSIS
 section, particularly
-.Sx \&Nm ,
-.Sx \&Cd ,
-.Sx \&Fd ,
-.Sx \&Fn ,
-.Sx \&Fo ,
-.Sx \&In ,
-.Sx \&Vt ,
+.Ic \&Nm ,
+.Ic \&Cd ,
+.Ic \&Fd ,
+.Ic \&Fn ,
+.Ic \&Fo ,
+.Ic \&In ,
+.Ic \&Vt ,
 and
-.Sx \&Ft .
+.Ic \&Ft .
 All of these macros are output on their own line.
 If two such dissimilar macros are pairwise invoked (except for
-.Sx \&Ft
+.Ic \&Ft
 before
-.Sx \&Fo
+.Ic \&Fo
 or
-.Sx \&Fn ) ,
+.Ic \&Fn ) ,
 they are separated by a vertical space, unless in the case of
-.Sx \&Fo ,
-.Sx \&Fn ,
+.Ic \&Fo ,
+.Ic \&Fn ,
 and
-.Sx \&Ft ,
+.Ic \&Ft ,
 which are always separated by vertical space.
 .Pp
 When text and macros following an
-.Sx \&Nm
+.Ic \&Nm
 macro starting an input line span multiple output lines,
 all output lines but the first will be indented to align
 with the text immediately following the
-.Sx \&Nm
+.Ic \&Nm
 macro, up to the next
-.Sx \&Nm ,
-.Sx \&Sh ,
+.Ic \&Nm ,
+.Ic \&Sh ,
 or
-.Sx \&Ss
+.Ic \&Ss
 macro or the end of an enclosing block, whichever comes first.
 .It Em DESCRIPTION
 This begins with an expansion of the brief, one line description in
@@ -315,12 +315,12 @@ Since the
 .Em DESCRIPTION
 section usually contains most of the text of a manual, longer manuals
 often use the
-.Sx \&Ss
+.Ic \&Ss
 macro to form subsections.
 In very long manuals, the
 .Em DESCRIPTION
 may be split into multiple sections, each started by an
-.Sx \&Sh
+.Ic \&Sh
 macro followed by a non-standard section name, and each having
 several subsections, like in the present
 .Nm
@@ -337,7 +337,7 @@ This section documents the
 return values of functions in sections 2, 3, and 9.
 .Pp
 See
-.Sx \&Rv .
+.Ic \&Rv .
 .It Em ENVIRONMENT
 Lists the environment variables used by the utility,
 and explains the syntax and semantics of their values.
@@ -346,14 +346,14 @@ The
 manual provides examples of typical content and formatting.
 .Pp
 See
-.Sx \&Ev .
+.Ic \&Ev .
 .It Em FILES
 Documents files used.
 It's helpful to document both the file name and a short description of how
 the file is used (created, modified, etc.).
 .Pp
 See
-.Sx \&Pa .
+.Ic \&Pa .
 .It Em EXIT STATUS
 This section documents the
 command exit status for section 1, 6, and 8 utilities.
@@ -362,7 +362,7 @@ Historically, this information was described in
 a practise that is now discouraged.
 .Pp
 See
-.Sx \&Ex .
+.Ic \&Ex .
 .It Em EXAMPLES
 Example usages.
 This often contains snippets of well-formed, well-tested invocations.
@@ -380,7 +380,7 @@ for manuals in sections 1, 6, and 8; however, this practise is
 discouraged.
 .Pp
 See
-.Sx \&Bl
+.Ic \&Bl
 .Fl diag .
 .It Em ERRORS
 Documents
@@ -388,7 +388,7 @@ Documents
 settings in sections 2, 3, 4, and 9.
 .Pp
 See
-.Sx \&Er .
+.Ic \&Er .
 .It Em SEE ALSO
 References other manuals with related topics.
 This section should exist for most manuals.
@@ -400,9 +400,9 @@ for example authoritative books or journal articles, may also be
 provided in this section.
 .Pp
 See
-.Sx \&Rs
+.Ic \&Rs
 and
-.Sx \&Xr .
+.Ic \&Xr .
 .It Em STANDARDS
 References any standards implemented or used.
 If not adhering to any standards, the
@@ -410,7 +410,7 @@ If not adhering to any standards, the
 section should be used instead.
 .Pp
 See
-.Sx \&St .
+.Ic \&St .
 .It Em HISTORY
 A brief history of the subject, including where it was first implemented,
 and when it was ported to or reimplemented for the operating system at hand.
@@ -419,7 +419,7 @@ Credits to the person or persons who wrote the code and/or documentation.
 Authors should generally be noted by both name and email address.
 .Pp
 See
-.Sx \&An .
+.Ic \&An .
 .It Em CAVEATS
 Common misuses and misunderstandings should be explained
 in this section.
@@ -437,208 +437,201 @@ in the alphabetical
 .Sx MACRO REFERENCE .
 .Ss Document preamble and NAME section macros
 .Bl -column "Brq, Bro, Brc" description
-.It Sx \&Dd Ta document date: Cm $\&Mdocdate$ | Ar month day , year
-.It Sx \&Dt Ta document title: Ar TITLE section Op Ar arch
-.It Sx \&Os Ta operating system version: Op Ar system Op Ar version
-.It Sx \&Nm Ta document name (one argument)
-.It Sx \&Nd Ta document description (one line)
+.It Ic \&Dd Ta document date: Cm $\&Mdocdate$ | Ar month day , year
+.It Ic \&Dt Ta document title: Ar TITLE section Op Ar arch
+.It Ic \&Os Ta operating system version: Op Ar system Op Ar version
+.It Ic \&Nm Ta document name (one argument)
+.It Ic \&Nd Ta document description (one line)
 .El
 .Ss Sections and cross references
 .Bl -column "Brq, Bro, Brc" description
-.It Sx \&Sh Ta section header (one line)
-.It Sx \&Ss Ta subsection header (one line)
-.It Sx \&Sx Ta internal cross reference to a section or subsection
-.It Sx \&Xr Ta cross reference to another manual page: Ar name section
-.It Sx \&Pp , \&Lp Ta start a text paragraph (no arguments)
+.It Ic \&Sh Ta section header (one line)
+.It Ic \&Ss Ta subsection header (one line)
+.It Ic \&Sx Ta internal cross reference to a section or subsection
+.It Ic \&Xr Ta cross reference to another manual page: Ar name section
+.It Ic \&Pp Ta start a text paragraph (no arguments)
 .El
 .Ss Displays and lists
 .Bl -column "Brq, Bro, Brc" description
-.It Sx \&Bd , \&Ed Ta display block:
+.It Ic \&Bd , \&Ed Ta display block:
 .Fl Ar type
 .Op Fl offset Ar width
 .Op Fl compact
-.It Sx \&D1 Ta indented display (one line)
-.It Sx \&Dl Ta indented literal display (one line)
-.It Sx \&Ql Ta in-line literal display: Ql text
-.It Sx \&Bl , \&El Ta list block:
+.It Ic \&D1 Ta indented display (one line)
+.It Ic \&Dl Ta indented literal display (one line)
+.It Ic \&Ql Ta in-line literal display: Ql text
+.It Ic \&Bl , \&El Ta list block:
 .Fl Ar type
 .Op Fl width Ar val
 .Op Fl offset Ar val
 .Op Fl compact
-.It Sx \&It Ta list item (syntax depends on Fl Ar type )
-.It Sx \&Ta Ta table cell separator in Sx \&Bl Fl column No lists
-.It Sx \&Rs , \&%* , \&Re Ta bibliographic block (references)
+.It Ic \&It Ta list item (syntax depends on Fl Ar type )
+.It Ic \&Ta Ta table cell separator in Ic \&Bl Fl column No lists
+.It Ic \&Rs , \&%* , \&Re Ta bibliographic block (references)
 .El
 .Ss Spacing control
 .Bl -column "Brq, Bro, Brc" description
-.It Sx \&Pf Ta prefix, no following horizontal space (one argument)
-.It Sx \&Ns Ta roman font, no preceding horizontal space (no arguments)
-.It Sx \&Ap Ta apostrophe without surrounding whitespace (no arguments)
-.It Sx \&Sm Ta switch horizontal spacing mode: Op Cm on | off
-.It Sx \&Bk , \&Ek Ta keep block: Fl words
+.It Ic \&Pf Ta prefix, no following horizontal space (one argument)
+.It Ic \&Ns Ta roman font, no preceding horizontal space (no arguments)
+.It Ic \&Ap Ta apostrophe without surrounding whitespace (no arguments)
+.It Ic \&Sm Ta switch horizontal spacing mode: Op Cm on | off
+.It Ic \&Bk , \&Ek Ta keep block: Fl words
 .El
 .Ss Semantic markup for command line utilities
 .Bl -column "Brq, Bro, Brc" description
-.It Sx \&Nm Ta start a SYNOPSIS block with the name of a utility
-.It Sx \&Fl Ta command line options (flags) (>=0 arguments)
-.It Sx \&Cm Ta command modifier (>0 arguments)
-.It Sx \&Ar Ta command arguments (>=0 arguments)
-.It Sx \&Op , \&Oo , \&Oc Ta optional syntax elements (enclosure)
-.It Sx \&Ic Ta internal or interactive command (>0 arguments)
-.It Sx \&Ev Ta environmental variable (>0 arguments)
-.It Sx \&Pa Ta file system path (>=0 arguments)
+.It Ic \&Nm Ta start a SYNOPSIS block with the name of a utility
+.It Ic \&Fl Ta command line options (flags) (>=0 arguments)
+.It Ic \&Cm Ta command modifier (>0 arguments)
+.It Ic \&Ar Ta command arguments (>=0 arguments)
+.It Ic \&Op , \&Oo , \&Oc Ta optional syntax elements (enclosure)
+.It Ic \&Ic Ta internal or interactive command (>0 arguments)
+.It Ic \&Ev Ta environmental variable (>0 arguments)
+.It Ic \&Pa Ta file system path (>=0 arguments)
 .El
 .Ss Semantic markup for function libraries
 .Bl -column "Brq, Bro, Brc" description
-.It Sx \&Lb Ta function library (one argument)
-.It Sx \&In Ta include file (one argument)
-.It Sx \&Fd Ta other preprocessor directive (>0 arguments)
-.It Sx \&Ft Ta function type (>0 arguments)
-.It Sx \&Fo , \&Fc Ta function block: Ar funcname
-.It Sx \&Fn Ta function name:
-.Op Ar functype
-.Ar funcname
-.Oo
-.Op Ar argtype
-.Ar argname
-.Oc
-.It Sx \&Fa Ta function argument (>0 arguments)
-.It Sx \&Vt Ta variable type (>0 arguments)
-.It Sx \&Va Ta variable name (>0 arguments)
-.It Sx \&Dv Ta defined variable or preprocessor constant (>0 arguments)
-.It Sx \&Er Ta error constant (>0 arguments)
-.It Sx \&Ev Ta environmental variable (>0 arguments)
+.It Ic \&Lb Ta function library (one argument)
+.It Ic \&In Ta include file (one argument)
+.It Ic \&Fd Ta other preprocessor directive (>0 arguments)
+.It Ic \&Ft Ta function type (>0 arguments)
+.It Ic \&Fo , \&Fc Ta function block: Ar funcname
+.It Ic \&Fn Ta function name: Ar funcname Op Ar argument ...
+.It Ic \&Fa Ta function argument (>0 arguments)
+.It Ic \&Vt Ta variable type (>0 arguments)
+.It Ic \&Va Ta variable name (>0 arguments)
+.It Ic \&Dv Ta defined variable or preprocessor constant (>0 arguments)
+.It Ic \&Er Ta error constant (>0 arguments)
+.It Ic \&Ev Ta environmental variable (>0 arguments)
 .El
 .Ss Various semantic markup
 .Bl -column "Brq, Bro, Brc" description
-.It Sx \&An Ta author name (>0 arguments)
-.It Sx \&Lk Ta hyperlink: Ar uri Op Ar name
-.It Sx \&Mt Ta Do mailto Dc hyperlink: Ar address
-.It Sx \&Cd Ta kernel configuration declaration (>0 arguments)
-.It Sx \&Ad Ta memory address (>0 arguments)
-.It Sx \&Ms Ta mathematical symbol (>0 arguments)
+.It Ic \&An Ta author name (>0 arguments)
+.It Ic \&Lk Ta hyperlink: Ar uri Op Ar display_name
+.It Ic \&Mt Ta Do mailto Dc hyperlink: Ar localpart Ns @ Ns Ar domain
+.It Ic \&Cd Ta kernel configuration declaration (>0 arguments)
+.It Ic \&Ad Ta memory address (>0 arguments)
+.It Ic \&Ms Ta mathematical symbol (>0 arguments)
 .El
 .Ss Physical markup
 .Bl -column "Brq, Bro, Brc" description
-.It Sx \&Em Ta italic font or underline (emphasis) (>0 arguments)
-.It Sx \&Sy Ta boldface font (symbolic) (>0 arguments)
-.It Sx \&Li Ta typewriter font (literal) (>0 arguments)
-.It Sx \&No Ta return to roman font (normal) (no arguments)
-.It Sx \&Bf , \&Ef Ta font block:
-.Op Fl Ar type | Cm \&Em | \&Li | \&Sy
+.It Ic \&Em Ta italic font or underline (emphasis) (>0 arguments)
+.It Ic \&Sy Ta boldface font (symbolic) (>0 arguments)
+.It Ic \&No Ta return to roman font (normal) (>0 arguments)
+.It Ic \&Bf , \&Ef Ta font block: Fl Ar type | Cm \&Em | \&Li | \&Sy
 .El
 .Ss Physical enclosures
 .Bl -column "Brq, Bro, Brc" description
-.It Sx \&Dq , \&Do , \&Dc Ta enclose in typographic double quotes: Dq text
-.It Sx \&Qq , \&Qo , \&Qc Ta enclose in typewriter double quotes: Qq text
-.It Sx \&Sq , \&So , \&Sc Ta enclose in single quotes: Sq text
-.It Sx \&Pq , \&Po , \&Pc Ta enclose in parentheses: Pq text
-.It Sx \&Bq , \&Bo , \&Bc Ta enclose in square brackets: Bq text
-.It Sx \&Brq , \&Bro , \&Brc Ta enclose in curly braces: Brq text
-.It Sx \&Aq , \&Ao , \&Ac Ta enclose in angle brackets: Aq text
-.It Sx \&Eo , \&Ec Ta generic enclosure
+.It Ic \&Dq , \&Do , \&Dc Ta enclose in typographic double quotes: Dq text
+.It Ic \&Qq , \&Qo , \&Qc Ta enclose in typewriter double quotes: Qq text
+.It Ic \&Sq , \&So , \&Sc Ta enclose in single quotes: Sq text
+.It Ic \&Pq , \&Po , \&Pc Ta enclose in parentheses: Pq text
+.It Ic \&Bq , \&Bo , \&Bc Ta enclose in square brackets: Bq text
+.It Ic \&Brq , \&Bro , \&Brc Ta enclose in curly braces: Brq text
+.It Ic \&Aq , \&Ao , \&Ac Ta enclose in angle brackets: Aq text
+.It Ic \&Eo , \&Ec Ta generic enclosure
 .El
 .Ss Text production
 .Bl -column "Brq, Bro, Brc" description
-.It Sx \&Ex Fl std Ta standard command exit values: Op Ar utility ...
-.It Sx \&Rv Fl std Ta standard function return values: Op Ar function ...
-.It Sx \&St Ta reference to a standards document (one argument)
-.It Sx \&At Ta At
-.It Sx \&Bx Ta Bx
-.It Sx \&Bsx Ta Bsx
-.It Sx \&Nx Ta Nx
-.It Sx \&Fx Ta Fx
-.It Sx \&Ox Ta Ox
-.It Sx \&Dx Ta Dx
+.It Ic \&Ex Fl std Ta standard command exit values: Op Ar utility ...
+.It Ic \&Rv Fl std Ta standard function return values: Op Ar function ...
+.It Ic \&St Ta reference to a standards document (one argument)
+.It Ic \&At Ta At
+.It Ic \&Bx Ta Bx
+.It Ic \&Bsx Ta Bsx
+.It Ic \&Nx Ta Nx
+.It Ic \&Fx Ta Fx
+.It Ic \&Ox Ta Ox
+.It Ic \&Dx Ta Dx
 .El
 .Sh MACRO REFERENCE
 This section is a canonical reference of all macros, arranged
 alphabetically.
 For the scoping of individual macros, see
 .Sx MACRO SYNTAX .
-.Ss \&%A
+.Bl -tag -width 3n
+.It Ic \&%A Ar first_name ... last_name
 Author name of an
-.Sx \&Rs
+.Ic \&Rs
 block.
 Multiple authors should each be accorded their own
-.Sx \%%A
+.Ic \%%A
 line.
 Author names should be ordered with full or abbreviated forename(s)
 first, then full surname.
-.Ss \&%B
+.It Ic \&%B Ar title
 Book title of an
-.Sx \&Rs
+.Ic \&Rs
 block.
 This macro may also be used in a non-bibliographic context when
 referring to book titles.
-.Ss \&%C
+.It Ic \&%C Ar location
 Publication city or location of an
-.Sx \&Rs
+.Ic \&Rs
 block.
-.Ss \&%D
+.It Ic \&%D Oo Ar month day , Oc Ar year
 Publication date of an
-.Sx \&Rs
+.Ic \&Rs
 block.
-Recommended formats of arguments are
-.Ar month day , year
-or just
+Provide the full English name of the
+.Ar month
+and all four digits of the
 .Ar year .
-.Ss \&%I
+.It Ic \&%I Ar name
 Publisher or issuer name of an
-.Sx \&Rs
+.Ic \&Rs
 block.
-.Ss \&%J
+.It Ic \&%J Ar name
 Journal name of an
-.Sx \&Rs
+.Ic \&Rs
 block.
-.Ss \&%N
+.It Ic \&%N Ar number
 Issue number (usually for journals) of an
-.Sx \&Rs
+.Ic \&Rs
 block.
-.Ss \&%O
+.It Ic \&%O Ar line
 Optional information of an
-.Sx \&Rs
+.Ic \&Rs
 block.
-.Ss \&%P
+.It Ic \&%P Ar number
 Book or journal page number of an
-.Sx \&Rs
+.Ic \&Rs
 block.
-.Ss \&%Q
+.It Ic \&%Q Ar name
 Institutional author (school, government, etc.) of an
-.Sx \&Rs
+.Ic \&Rs
 block.
 Multiple institutional authors should each be accorded their own
-.Sx \&%Q
+.Ic \&%Q
 line.
-.Ss \&%R
+.It Ic \&%R Ar name
 Technical report name of an
-.Sx \&Rs
+.Ic \&Rs
 block.
-.Ss \&%T
+.It Ic \&%T Ar title
 Article title of an
-.Sx \&Rs
+.Ic \&Rs
 block.
 This macro may also be used in a non-bibliographical context when
 referring to article titles.
-.Ss \&%U
+.It Ic \&%U Ar protocol Ns :// Ns Ar path
 URI of reference document.
-.Ss \&%V
+.It Ic \&%V Ar number
 Volume number of an
-.Sx \&Rs
+.Ic \&Rs
 block.
-.Ss \&Ac
+.It Ic \&Ac
 Close an
-.Sx \&Ao
+.Ic \&Ao
 block.
 Does not have any tail arguments.
-.Ss \&Ad
+.It Ic \&Ad Ar address
 Memory address.
 Do not use this for postal addresses.
 .Pp
 Examples:
 .Dl \&.Ad [0,$]
 .Dl \&.Ad 0x00000000
-.Ss \&An
+.It Ic \&An Fl split | nosplit | Ar first_name ... last_name
 Author name.
 Can be used both for the authors of the program, function, or driver
 documented in the manual, or for the authors of the manual itself.
@@ -647,7 +640,7 @@ Requires either the name of an author or one of the following arguments:
 .Bl -tag -width "-nosplitX" -offset indent -compact
 .It Fl split
 Start a new output line before each subsequent invocation of
-.Sx \&An .
+.Ic \&An .
 .It Fl nosplit
 The opposite of
 .Fl split .
@@ -671,25 +664,25 @@ for all other author listings.
 Examples:
 .Dl \&.An -nosplit
 .Dl \&.An Kristaps Dzonsons \&Aq \&Mt kristaps@bsd.lv
-.Ss \&Ao
+.It Ic \&Ao Ar block
 Begin a block enclosed by angle brackets.
 Does not have any head arguments.
 This macro is almost never useful.
 See
-.Sx \&Aq
+.Ic \&Aq
 for more details.
-.Ss \&Ap
+.It Ic \&Ap
 Inserts an apostrophe without any surrounding whitespace.
 This is generally used as a grammatical device when referring to the verb
 form of a function.
 .Pp
 Examples:
 .Dl \&.Fn execve \&Ap d
-.Ss \&Aq
-Encloses its arguments in angle brackets.
+.It Ic \&Aq Ar line
+Enclose the rest of the input line in angle brackets.
 The only important use case is for email addresses.
 See
-.Sx \&Mt
+.Ic \&Mt
 for an example.
 .Pp
 Occasionally, it is used for names of characters and keys, for example:
@@ -700,19 +693,19 @@ key to ...
 .Ed
 .Pp
 For URIs, use
-.Sx \&Lk
+.Ic \&Lk
 instead, and
-.Sx \&In
+.Ic \&In
 for
 .Dq #include
 directives.
 Never wrap
-.Sx \&Ar
+.Ic \&Ar
 in
-.Sx \&Aq .
+.Ic \&Aq .
 .Pp
 Since
-.Sx \&Aq
+.Ic \&Aq
 usually renders with non-ASCII characters in non-ASCII output modes,
 do not use it where the ASCII characters
 .Sq <
@@ -721,15 +714,15 @@ and
 are required as syntax elements.
 Instead, use these characters directly in such cases, combining them
 with the macros
-.Sx \&Pf ,
-.Sx \&Ns ,
+.Ic \&Pf ,
+.Ic \&Ns ,
 or
-.Sx \&Eo
+.Ic \&Eo
 as needed.
 .Pp
 See also
-.Sx \&Ao .
-.Ss \&Ar
+.Ic \&Ao .
+.It Ic \&Ar Op Ar placeholder ...
 Command arguments.
 If an argument is not provided, the string
 .Dq file ...\&
@@ -741,13 +734,13 @@ Examples:
 .Dl ".Ar arg1 , arg2 ."
 .Pp
 The arguments to the
-.Sx \&Ar
+.Ic \&Ar
 macro are names and placeholders for command arguments;
 for fixed strings to be passed verbatim as arguments, use
-.Sx \&Fl
+.Ic \&Fl
 or
-.Sx \&Cm .
-.Ss \&At
+.Ic \&Cm .
+.It Ic \&At Op Ar version
 Formats an
 .At
 version.
@@ -772,28 +765,20 @@ Examples:
 .Dl \&.At V.1
 .Pp
 See also
-.Sx \&Bsx ,
-.Sx \&Bx ,
-.Sx \&Dx ,
-.Sx \&Fx ,
-.Sx \&Nx ,
+.Ic \&Bsx ,
+.Ic \&Bx ,
+.Ic \&Dx ,
+.Ic \&Fx ,
+.Ic \&Nx ,
 and
-.Sx \&Ox .
-.Ss \&Bc
+.Ic \&Ox .
+.It Ic \&Bc
 Close a
-.Sx \&Bo
+.Ic \&Bo
 block.
 Does not have any tail arguments.
-.Ss \&Bd
+.It Ic \&Bd Fl Ns Ar type Oo Fl offset Ar width Oc Op Fl compact
 Begin a display block.
-Its syntax is as follows:
-.Bd -ragged -offset indent
-.Pf \. Sx \&Bd
-.Fl Ns Ar type
-.Op Fl offset Ar width
-.Op Fl compact
-.Ed
-.Pp
 Display blocks are used to select a different indentation and
 justification than the one used by the surrounding text.
 They may contain both macro lines and text lines.
@@ -879,20 +864,11 @@ Examples:
 .Ed
 .Pp
 See also
-.Sx \&D1
+.Ic \&D1
 and
-.Sx \&Dl .
-.Ss \&Bf
+.Ic \&Dl .
+.It Ic \&Bf Fl emphasis | literal | symbolic | Cm \&Em | \&Li | \&Sy
 Change the font mode for a scoped block of text.
-Its syntax is as follows:
-.Bd -ragged -offset indent
-.Pf \. Sx \&Bf
-.Oo
-.Fl emphasis | literal | symbolic |
-.Cm \&Em | \&Li | \&Sy
-.Oc
-.Ed
-.Pp
 The
 .Fl emphasis
 and
@@ -908,30 +884,27 @@ and
 Without an argument, this macro does nothing.
 The font mode continues until broken by a new font mode in a nested
 scope or
-.Sx \&Ef
+.Ic \&Ef
 is encountered.
 .Pp
 See also
-.Sx \&Li ,
-.Sx \&Ef ,
-.Sx \&Em ,
+.Ic \&Li ,
+.Ic \&Ef ,
+.Ic \&Em ,
 and
-.Sx \&Sy .
-.Ss \&Bk
+.Ic \&Sy .
+.It Ic \&Bk Fl words
 For each macro, keep its output together on the same output line,
 until the end of the macro or the end of the input line is reached,
 whichever comes first.
 Line breaks in text lines are unaffected.
-The syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Bk Fl words
 .Pp
 The
 .Fl words
 argument is required; additional arguments are ignored.
 .Pp
 The following example will not break within each
-.Sx \&Op
+.Ic \&Op
 macro line:
 .Bd -literal -offset indent
 \&.Bk \-words
@@ -942,20 +915,18 @@ macro line:
 .Pp
 Be careful in using over-long lines within a keep block!
 Doing so will clobber the right margin.
-.Ss \&Bl
-Begin a list.
-Lists consist of items specified using the
-.Sx \&It
-macro, containing a head or a body or both.
-The list syntax is as follows:
-.Bd -ragged -offset indent
-.Pf \. Sx \&Bl
+.It Xo
+.Ic \&Bl
 .Fl Ns Ar type
 .Op Fl width Ar val
 .Op Fl offset Ar val
 .Op Fl compact
-.Op HEAD ...
-.Ed
+.Op Ar col ...
+.Xc
+Begin a list.
+Lists consist of items specified using the
+.Ic \&It
+macro, containing a head or a body or both.
 .Pp
 The list
 .Ar type
@@ -965,7 +936,7 @@ The
 and
 .Fl offset
 arguments accept macro names as described for
-.Sx \&Bd
+.Ic \&Bd
 .Fl offset ,
 scaling widths as described in
 .Xr roff 7 ,
@@ -1001,14 +972,14 @@ specifies the width of one column.
 If the first line of the body of a
 .Fl column
 list is not an
-.Sx \&It
+.Ic \&It
 macro line,
-.Sx \&It
+.Ic \&It
 contexts spanning one input line each are implied until an
-.Sx \&It
+.Ic \&It
 macro line is encountered, at which point items start being interpreted as
 described in the
-.Sx \&It
+.Ic \&It
 documentation.
 .It Fl dash
 Like
@@ -1071,10 +1042,10 @@ and
 lists may not be portable.
 .Pp
 See also
-.Sx \&El
+.Ic \&El
 and
-.Sx \&It .
-.Ss \&Bo
+.Ic \&It .
+.It Ic \&Bo Ar block
 Begin a block enclosed by square brackets.
 Does not have any head arguments.
 .Pp
@@ -1085,8 +1056,8 @@ Examples:
 .Ed
 .Pp
 See also
-.Sx \&Bq .
-.Ss \&Bq
+.Ic \&Bq .
+.It Ic \&Bq Ar line
 Encloses its arguments in square brackets.
 .Pp
 Examples:
@@ -1095,19 +1066,19 @@ Examples:
 .Em Remarks :
 this macro is sometimes abused to emulate optional arguments for
 commands; the correct macros to use for this purpose are
-.Sx \&Op ,
-.Sx \&Oo ,
+.Ic \&Op ,
+.Ic \&Oo ,
 and
-.Sx \&Oc .
+.Ic \&Oc .
 .Pp
 See also
-.Sx \&Bo .
-.Ss \&Brc
+.Ic \&Bo .
+.It Ic \&Brc
 Close a
-.Sx \&Bro
+.Ic \&Bro
 block.
 Does not have any tail arguments.
-.Ss \&Bro
+.It Ic \&Bro Ar block
 Begin a block enclosed by curly braces.
 Does not have any head arguments.
 .Pp
@@ -1118,16 +1089,16 @@ Examples:
 .Ed
 .Pp
 See also
-.Sx \&Brq .
-.Ss \&Brq
+.Ic \&Brq .
+.It Ic \&Brq Ar line
 Encloses its arguments in curly braces.
 .Pp
 Examples:
 .Dl \&.Brq 1 , ... , \&Va n
 .Pp
 See also
-.Sx \&Bro .
-.Ss \&Bsx
+.Ic \&Bro .
+.It Ic \&Bsx Op Ar version
 Format the
 .Bsx
 version provided as an argument, or a default value if
@@ -1138,18 +1109,18 @@ Examples:
 .Dl \&.Bsx
 .Pp
 See also
-.Sx \&At ,
-.Sx \&Bx ,
-.Sx \&Dx ,
-.Sx \&Fx ,
-.Sx \&Nx ,
+.Ic \&At ,
+.Ic \&Bx ,
+.Ic \&Dx ,
+.Ic \&Fx ,
+.Ic \&Nx ,
 and
-.Sx \&Ox .
-.Ss \&Bt
+.Ic \&Ox .
+.It Ic \&Bt
 Supported only for compatibility, do not use this in new manuals.
 Prints
 .Dq is currently in beta test.
-.Ss \&Bx
+.It Ic \&Bx Op Ar version Op Ar variant
 Format the
 .Bx
 version provided as an argument, or a default value if no
@@ -1161,14 +1132,14 @@ Examples:
 .Dl \&.Bx
 .Pp
 See also
-.Sx \&At ,
-.Sx \&Bsx ,
-.Sx \&Dx ,
-.Sx \&Fx ,
-.Sx \&Nx ,
+.Ic \&At ,
+.Ic \&Bsx ,
+.Ic \&Dx ,
+.Ic \&Fx ,
+.Ic \&Nx ,
 and
-.Sx \&Ox .
-.Ss \&Cd
+.Ic \&Ox .
+.It Ic \&Cd Ar line
 Kernel configuration declaration.
 This denotes strings accepted by
 .Xr config 8 .
@@ -1180,13 +1151,13 @@ Examples:
 .Em Remarks :
 this macro is commonly abused by using quoted literals to retain
 whitespace and align consecutive
-.Sx \&Cd
+.Ic \&Cd
 declarations.
 This practise is discouraged.
-.Ss \&Cm
+.It Ic \&Cm Ar keyword ...
 Command modifiers.
 Typically used for fixed strings passed as arguments, unless
-.Sx \&Fl
+.Ic \&Fl
 is more appropriate.
 Also useful when specifying configuration options or keys.
 .Pp
@@ -1196,7 +1167,7 @@ Examples:
 .Dl ".Nm dd Cm if= Ns Ar file1 Cm of= Ns Ar file2"
 .Dl ".Cm IdentityFile Pa ~/.ssh/id_rsa"
 .Dl ".Cm LogLevel Dv DEBUG"
-.Ss \&D1
+.It Ic \&D1 Ar line
 One-line indented display.
 This is formatted by the default rules and is useful for simple indented
 statements.
@@ -1206,29 +1177,26 @@ Examples:
 .Dl \&.D1 \&Fl abcdefgh
 .Pp
 See also
-.Sx \&Bd
+.Ic \&Bd
 and
-.Sx \&Dl .
-.Ss \&Db
+.Ic \&Dl .
+.It Ic \&Db
 This macro is obsolete.
 No replacement is needed.
 It is ignored by
 .Xr mandoc 1
 and groff including its arguments.
 It was formerly used to toggle a debugging mode.
-.Ss \&Dc
+.It Ic \&Dc
 Close a
-.Sx \&Do
+.Ic \&Do
 block.
 Does not have any tail arguments.
-.Ss \&Dd
+.It Ic \&Dd Cm $\&Mdocdate$ | Ar month day , year
 Document date for display in the page footer.
 This is the mandatory first macro of any
 .Nm
 manual.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Dd Ar month day , year
 .Pp
 The
 .Ar month
@@ -1268,10 +1236,10 @@ Examples:
 .Dl \&.Dd July 2, 2018
 .Pp
 See also
-.Sx \&Dt
+.Ic \&Dt
 and
-.Sx \&Os .
-.Ss \&Dl
+.Ic \&Os .
+.It Ic \&Dl Ar line
 One-line indented display.
 This is formatted as literal text and is useful for commands and
 invocations.
@@ -1281,12 +1249,11 @@ Examples:
 .Dl \&.Dl % mandoc mdoc.7 \e(ba less
 .Pp
 See also
-.Sx \&Ql ,
-.Sx \&Bd
-.Fl literal ,
+.Ic \&Ql ,
+.Ic \&Bd Fl literal ,
 and
-.Sx \&D1 .
-.Ss \&Do
+.Ic \&D1 .
+.It Ic \&Do Ar block
 Begin a block enclosed by double quotes.
 Does not have any head arguments.
 .Pp
@@ -1299,8 +1266,8 @@ April is the cruellest month
 .Ed
 .Pp
 See also
-.Sx \&Dq .
-.Ss \&Dq
+.Ic \&Dq .
+.It Ic \&Dq Ar line
 Encloses its arguments in
 .Dq typographic
 double-quotes.
@@ -1312,22 +1279,15 @@ Examples:
 .Ed
 .Pp
 See also
-.Sx \&Qq ,
-.Sx \&Sq ,
+.Ic \&Qq ,
+.Ic \&Sq ,
 and
-.Sx \&Do .
-.Ss \&Dt
+.Ic \&Do .
+.It Ic \&Dt Ar TITLE section Op Ar arch
 Document title for display in the page header.
 This is the mandatory second macro of any
 .Nm
 file.
-Its syntax is as follows:
-.Bd -ragged -offset indent
-.Pf \. Sx \&Dt
-.Ar TITLE
-.Ar section
-.Op Ar arch
-.Ed
 .Pp
 Its arguments are as follows:
 .Bl -tag -width section -offset 2n
@@ -1379,10 +1339,10 @@ Examples:
 .Dl \&.Dt FOO 9 i386
 .Pp
 See also
-.Sx \&Dd
+.Ic \&Dd
 and
-.Sx \&Os .
-.Ss \&Dv
+.Ic \&Os .
+.It Ic \&Dv Ar identifier ...
 Defined variables such as preprocessor constants, constant symbols,
 enumeration values, and so on.
 .Pp
@@ -1392,16 +1352,16 @@ Examples:
 .Dl \&.Dv STDOUT_FILENO
 .Pp
 See also
-.Sx \&Er
+.Ic \&Er
 and
-.Sx \&Ev
+.Ic \&Ev
 for special-purpose constants,
-.Sx \&Va
+.Ic \&Va
 for variable symbols, and
-.Sx \&Fd
+.Ic \&Fd
 for listing preprocessor variable definitions in the
 .Em SYNOPSIS .
-.Ss \&Dx
+.It Ic \&Dx Op Ar version
 Format the
 .Dx
 version provided as an argument, or a default
@@ -1412,55 +1372,49 @@ Examples:
 .Dl \&.Dx
 .Pp
 See also
-.Sx \&At ,
-.Sx \&Bsx ,
-.Sx \&Bx ,
-.Sx \&Fx ,
-.Sx \&Nx ,
+.Ic \&At ,
+.Ic \&Bsx ,
+.Ic \&Bx ,
+.Ic \&Fx ,
+.Ic \&Nx ,
 and
-.Sx \&Ox .
-.Ss \&Ec
+.Ic \&Ox .
+.It Ic \&Ec Op Ar closing_delimiter
 Close a scope started by
-.Sx \&Eo .
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Ec Op Ar TERM
+.Ic \&Eo .
 .Pp
 The
-.Ar TERM
+.Ar closing_delimiter
 argument is used as the enclosure tail, for example, specifying \e(rq
 will emulate
-.Sx \&Dc .
-.Ss \&Ed
+.Ic \&Dc .
+.It Ic \&Ed
 End a display context started by
-.Sx \&Bd .
-.Ss \&Ef
+.Ic \&Bd .
+.It Ic \&Ef
 End a font mode context started by
-.Sx \&Bf .
-.Ss \&Ek
+.Ic \&Bf .
+.It Ic \&Ek
 End a keep context started by
-.Sx \&Bk .
-.Ss \&El
+.Ic \&Bk .
+.It Ic \&El
 End a list context started by
-.Sx \&Bl .
-.Pp
+.Ic \&Bl .
 See also
-.Sx \&Bl
-and
-.Sx \&It .
-.Ss \&Em
+.Ic \&It .
+.It Ic \&Em Ar word ...
 Request an italic font.
 If the output device does not provide that, underline.
 .Pp
 This is most often used for stress emphasis (not to be confused with
 importance, see
-.Sx \&Sy ) .
+.Ic \&Sy ) .
 In the rare cases where none of the semantic markup macros fit,
 it can also be used for technical terms and placeholders, except
 that for syntax elements,
-.Sx \&Sy
+.Ic \&Sy
 and
-.Sx \&Ar
+.Ic \&Ar
 are preferred, respectively.
 .Pp
 Examples:
@@ -1474,32 +1428,27 @@ to save the pattern space for subsequent retrieval.
 .Ed
 .Pp
 See also
-.Sx \&Bf ,
-.Sx \&Li ,
-.Sx \&No ,
+.Ic \&No ,
+.Ic \&Ql ,
 and
-.Sx \&Sy .
-.Ss \&En
+.Ic \&Sy .
+.It Ic \&En Ar word ...
 This macro is obsolete.
 Use
-.Sx \&Eo
+.Ic \&Eo
 or any of the other enclosure macros.
 .Pp
 It encloses its argument in the delimiters specified by the last
-.Sx \&Es
+.Ic \&Es
 macro.
-.Ss \&Eo
+.It Ic \&Eo Op Ar opening_delimiter
 An arbitrary enclosure.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Eo Op Ar TERM
-.Pp
 The
-.Ar TERM
+.Ar opening_delimiter
 argument is used as the enclosure head, for example, specifying \e(lq
 will emulate
-.Sx \&Do .
-.Ss \&Er
+.Ic \&Do .
+.It Ic \&Er Ar identifier ...
 Error constants for definitions of the
 .Va errno
 libc global variable.
@@ -1510,18 +1459,18 @@ Examples:
 .Dl \&.Er ENOENT
 .Pp
 See also
-.Sx \&Dv
+.Ic \&Dv
 for general constants.
-.Ss \&Es
+.It Ic \&Es Ar opening_delimiter closing_delimiter
 This macro is obsolete.
 Use
-.Sx \&Eo
+.Ic \&Eo
 or any of the other enclosure macros.
 .Pp
 It takes two arguments, defining the delimiters to be used by subsequent
-.Sx \&En
+.Ic \&En
 macros.
-.Ss \&Ev
+.It Ic \&Ev Ar identifier ...
 Environmental variables such as those specified in
 .Xr environ 7 .
 .Pp
@@ -1530,38 +1479,26 @@ Examples:
 .Dl \&.Ev PATH
 .Pp
 See also
-.Sx \&Dv
+.Ic \&Dv
 for general constants.
-.Ss \&Ex
+.It Ic \&Ex Fl std Op Ar utility ...
 Insert a standard sentence regarding command exit values of 0 on success
 and >0 on failure.
 This is most often used in section 1, 6, and 8 manual pages.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Ex Fl std Op Ar utility ...
 .Pp
 If
 .Ar utility
 is not specified, the document's name set by
-.Sx \&Nm
+.Ic \&Nm
 is used.
 Multiple
 .Ar utility
 arguments are treated as separate utilities.
 .Pp
 See also
-.Sx \&Rv .
-.Ss \&Fa
+.Ic \&Rv .
+.It Ic \&Fa Ar argument ...
 Function argument or parameter.
-Its syntax is as follows:
-.Bd -ragged -offset indent
-.Pf \. Sx \&Fa
-.Qo
-.Op Ar argtype
-.Op Ar argname
-.Qc Ar \&...
-.Ed
-.Pp
 Each argument may be a name and a type (recommended for the
 .Em SYNOPSIS
 section), a name alone (for function invocations),
@@ -1569,22 +1506,22 @@ or a type alone (for function prototypes).
 If both a type and a name are given or if the type consists of multiple
 words, all words belonging to the same function argument have to be
 given in a single argument to the
-.Sx \&Fa
+.Ic \&Fa
 macro.
 .Pp
 This macro is also used to specify the field name of a structure.
 .Pp
 Most often, the
-.Sx \&Fa
+.Ic \&Fa
 macro is used in the
 .Em SYNOPSIS
 within
-.Sx \&Fo
+.Ic \&Fo
 blocks when documenting multi-line function prototypes.
 If invoked with multiple arguments, the arguments are separated by a
 comma.
 Furthermore, if the following macro is another
-.Sx \&Fa ,
+.Ic \&Fa ,
 the last argument will also have a trailing comma.
 .Pp
 Examples:
@@ -1593,23 +1530,16 @@ Examples:
 .Dl \&.Fa \(dqchar *\(dq size_t
 .Pp
 See also
-.Sx \&Fo .
-.Ss \&Fc
+.Ic \&Fo .
+.It Ic \&Fc
 End a function context started by
-.Sx \&Fo .
-.Ss \&Fd
+.Ic \&Fo .
+.It Ic \&Fd Pf # Ar directive Op Ar argument ...
 Preprocessor directive, in particular for listing it in the
 .Em SYNOPSIS .
 Historically, it was also used to document include files.
 The latter usage has been deprecated in favour of
-.Sx \&In .
-.Pp
-Its syntax is as follows:
-.Bd -ragged -offset indent
-.Pf \. Sx \&Fd
-.Li # Ns Ar directive
-.Op Ar argument ...
-.Ed
+.Ic \&In .
 .Pp
 Examples:
 .Dl \&.Fd #define sa_handler __sigaction_u.__sa_handler
@@ -1621,10 +1551,10 @@ Examples:
 .Pp
 See also
 .Sx MANUAL STRUCTURE ,
-.Sx \&In ,
+.Ic \&In ,
 and
-.Sx \&Dv .
-.Ss \&Fl
+.Ic \&Dv .
+.It Ic \&Fl Op Ar word ...
 Command-line flag or option.
 Used when listing arguments to command-line utilities.
 Prints a fixed-width hyphen
@@ -1642,16 +1572,9 @@ Examples:
 .Dl ".Fl o Fl"
 .Pp
 See also
-.Sx \&Cm .
-.Ss \&Fn
+.Ic \&Cm .
+.It Ic \&Fn Ar funcname Op Ar argument ...
 A function name.
-Its syntax is as follows:
-.Bd -ragged -offset indent
-.Pf . Sx \&Fn
-.Op Ar functype
-.Ar funcname
-.Op Oo Ar argtype Oc Ar argname
-.Ed
 .Pp
 Function arguments are surrounded in parenthesis and
 are delimited by commas.
@@ -1665,62 +1588,55 @@ Examples:
 .Dl \&.Fn \(dqint funcname\(dq \(dqint arg0\(dq \(dqint arg1\(dq
 .Dl \&.Fn funcname \(dqint arg0\(dq
 .Dl \&.Fn funcname arg0
-.Pp
-.Bd -literal -offset indent -compact
+.Bd -literal -offset indent
 \&.Ft functype
 \&.Fn funcname
 .Ed
 .Pp
 When referring to a function documented in another manual page, use
-.Sx \&Xr
+.Ic \&Xr
 instead.
 See also
 .Sx MANUAL STRUCTURE ,
-.Sx \&Fo ,
+.Ic \&Fo ,
 and
-.Sx \&Ft .
-.Ss \&Fo
+.Ic \&Ft .
+.It Ic \&Fo Ar funcname
 Begin a function block.
 This is a multi-line version of
-.Sx \&Fn .
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Fo Ar funcname
+.Ic \&Fn .
 .Pp
 Invocations usually occur in the following context:
 .Bd -ragged -offset indent
-.Pf \. Sx \&Ft Ar functype
+.Pf \. Ic \&Ft Ar functype
 .br
-.Pf \. Sx \&Fo Ar funcname
+.Pf \. Ic \&Fo Ar funcname
 .br
-.Pf \. Sx \&Fa Qq Ar argtype Ar argname
+.Pf \. Ic \&Fa Qq Ar argtype Ar argname
 .br
 \&.\.\.
 .br
-.Pf \. Sx \&Fc
+.Pf \. Ic \&Fc
 .Ed
 .Pp
 A
-.Sx \&Fo
+.Ic \&Fo
 scope is closed by
-.Sx \&Fc .
+.Ic \&Fc .
 .Pp
 See also
 .Sx MANUAL STRUCTURE ,
-.Sx \&Fa ,
-.Sx \&Fc ,
+.Ic \&Fa ,
+.Ic \&Fc ,
 and
-.Sx \&Ft .
-.Ss \&Fr
+.Ic \&Ft .
+.It Ic \&Fr Ar number
 This macro is obsolete.
 No replacement markup is needed.
 .Pp
 It was used to show numerical function return values in an italic font.
-.Ss \&Ft
+.It Ic \&Ft Ar functype
 A function type.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Ft Ar functype
 .Pp
 In the
 .Em SYNOPSIS
@@ -1735,10 +1651,10 @@ Examples:
 .Pp
 See also
 .Sx MANUAL STRUCTURE ,
-.Sx \&Fn ,
+.Ic \&Fn ,
 and
-.Sx \&Fo .
-.Ss \&Fx
+.Ic \&Fo .
+.It Ic \&Fx Op Ar version
 Format the
 .Fx
 version provided as an argument, or a default value
@@ -1749,25 +1665,21 @@ Examples:
 .Dl \&.Fx
 .Pp
 See also
-.Sx \&At ,
-.Sx \&Bsx ,
-.Sx \&Bx ,
-.Sx \&Dx ,
-.Sx \&Nx ,
+.Ic \&At ,
+.Ic \&Bsx ,
+.Ic \&Bx ,
+.Ic \&Dx ,
+.Ic \&Nx ,
 and
-.Sx \&Ox .
-.Ss \&Hf
+.Ic \&Ox .
+.It Ic \&Hf Ar filename
 This macro is not implemented in
 .Xr mandoc 1 .
-.Pp
 It was used to include the contents of a (header) file literally.
-The syntax was:
-.Pp
-.Dl Pf . Sx \&Hf Ar filename
-.Ss \&Ic
+.It Ic \&Ic Ar keyword ...
 Designate an internal or interactive command.
 This is similar to
-.Sx \&Cm
+.Ic \&Cm
 but used for instructions rather than values.
 .Pp
 Examples:
@@ -1776,13 +1688,14 @@ Examples:
 .Dl \&.Ic alias
 .Pp
 Note that using
-.Sx \&Bd Fl literal
+.Ic \&Ql ,
+.Ic \&Dl ,
 or
-.Sx \&D1
-is preferred for displaying code; the
-.Sx \&Ic
-macro is used when referring to specific instructions.
-.Ss \&In
+.Ic \&Bd Fl literal
+is preferred for displaying code samples; the
+.Ic \&Ic
+macro is used when referring to an individual command name.
+.It Ic \&In Ar filename
 The name of an include file.
 This macro is most often used in section 2, 3, and 9 manual pages.
 .Pp
@@ -1801,7 +1714,7 @@ Examples:
 .Pp
 See also
 .Sx MANUAL STRUCTURE .
-.Ss \&It
+.It Ic \&It Op Ar head
 A list item.
 The syntax of this macro depends on the list type.
 .Pp
@@ -1814,7 +1727,7 @@ and
 .Fl diag
 have the following syntax:
 .Pp
-.D1 Pf \. Sx \&It Ar args
+.D1 Pf \. Ic \&It Ar args
 .Pp
 Lists of type
 .Fl bullet ,
@@ -1825,20 +1738,20 @@ and
 .Fl item
 have the following syntax:
 .Pp
-.D1 Pf \. Sx \&It
+.D1 Pf \. Ic \&It
 .Pp
 with subsequent lines interpreted within the scope of the
-.Sx \&It
+.Ic \&It
 until either a closing
-.Sx \&El
+.Ic \&El
 or another
-.Sx \&It .
+.Ic \&It .
 .Pp
 The
 .Fl tag
 list has the following syntax:
 .Pp
-.D1 Pf \. Sx \&It Op Cm args
+.D1 Pf \. Ic \&It Op Cm args
 .Pp
 Subsequent lines are interpreted as with
 .Fl bullet
@@ -1851,13 +1764,13 @@ The
 list is the most complicated.
 Its syntax is as follows:
 .Pp
-.D1 Pf \. Sx \&It Ar cell Op Sx \&Ta Ar cell ...
-.D1 Pf \. Sx \&It Ar cell Op <TAB> Ar cell ...
+.D1 Pf \. Ic \&It Ar cell Op Ic \&Ta Ar cell ...
+.D1 Pf \. Ic \&It Ar cell Op <TAB> Ar cell ...
 .Pp
 The arguments consist of one or more lines of text and macros
 representing a complete table line.
 Cells within the line are delimited by the special
-.Sx \&Ta
+.Ic \&Ta
 block macro or by literal tab characters.
 .Pp
 Using literal tabs is strongly discouraged because they are very
@@ -1871,16 +1784,16 @@ that word is never interpreted as a macro call, but always output
 literally.
 .Pp
 The tab cell delimiter may only be used within the
-.Sx \&It
+.Ic \&It
 line itself; on following lines, only the
-.Sx \&Ta
+.Ic \&Ta
 macro can be used to delimit cells, and portability requires that
-.Sx \&Ta
+.Ic \&Ta
 is called by other macros: some parsers do not recognize it when
 it appears as the first macro on a line.
 .Pp
 Note that quoted strings may span tab-delimited cells on an
-.Sx \&It
+.Ic \&It
 line.
 For example,
 .Pp
@@ -1890,19 +1803,16 @@ will preserve the whitespace before both commas,
 but not the whitespace before the semicolon.
 .Pp
 See also
-.Sx \&Bl .
-.Ss \&Lb
+.Ic \&Bl .
+.It Ic \&Lb Cm lib Ns Ar name
 Specify a library.
-The syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Lb Ar library
 .Pp
 The
-.Ar library
+.Ar name
 parameter may be a system library, such as
-.Cm libz
+.Cm z
 or
-.Cm libpam ,
+.Cm pam ,
 in which case a small library description is printed next to the linker
 invocation; or a custom library, in which case the library name is
 printed in quotes.
@@ -1914,71 +1824,56 @@ section as described in
 Examples:
 .Dl \&.Lb libz
 .Dl \&.Lb libmandoc
-.Ss \&Li
-Denotes text that should be in a
-.Li literal
-font mode.
-Note that this is a presentation term and should not be used for
-stylistically decorating technical terms.
-.Pp
-On terminal output devices, this is often indistinguishable from
-normal text.
-.Pp
-See also
-.Sx \&Bf ,
-.Sx \&Em ,
-.Sx \&No ,
-and
-.Sx \&Sy .
-.Ss \&Lk
+.It Ic \&Li Ar word ...
+Request a typewriter (literal) font.
+Deprecated because on terminal output devices, this is usually
+indistinguishable from normal text.
+For literal displays, use
+.Ic \&Ql Pq in-line ,
+.Ic \&Dl Pq single line ,
+or
+.Ic \&Bd Fl literal Pq multi-line
+instead.
+.It Ic \&Lk Ar uri Op Ar display_name
 Format a hyperlink.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Lk Ar uri Op Ar name
 .Pp
 Examples:
 .Dl \&.Lk http://bsd.lv \(dqThe BSD.lv Project\(dq
 .Dl \&.Lk http://bsd.lv
 .Pp
 See also
-.Sx \&Mt .
-.Ss \&Lp
-Synonym for
-.Sx \&Pp .
-.Ss \&Ms
+.Ic \&Mt .
+.It Ic \&Lp
+Deprecated synonym for
+.Ic \&Pp .
+.It Ic \&Ms Ar name
 Display a mathematical symbol.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Ms Ar symbol
 .Pp
 Examples:
 .Dl \&.Ms sigma
 .Dl \&.Ms aleph
-.Ss \&Mt
+.It Ic \&Mt Ar localpart Ns @ Ns Ar domain
 Format a
 .Dq mailto:
 hyperlink.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Mt Ar address
 .Pp
 Examples:
 .Dl \&.Mt discuss@manpages.bsd.lv
 .Dl \&.An Kristaps Dzonsons \&Aq \&Mt kristaps@bsd.lv
-.Ss \&Nd
+.It Ic \&Nd Ar line
 A one line description of the manual's content.
 This is the mandatory last macro of the
 .Em NAME
 section and not appropriate for other sections.
 .Pp
 Examples:
-.Dl Pf . Sx \&Nd mdoc language reference
-.Dl Pf . Sx \&Nd format and display UNIX manuals
+.Dl Pf . Ic \&Nd mdoc language reference
+.Dl Pf . Ic \&Nd format and display UNIX manuals
 .Pp
 The
-.Sx \&Nd
+.Ic \&Nd
 macro technically accepts child macros and terminates with a subsequent
-.Sx \&Sh
+.Ic \&Sh
 invocation.
 Do not assume this behaviour: some
 .Xr whatis 1
@@ -1986,13 +1881,13 @@ database generators are not smart enough to parse more than the line
 arguments and will display macros verbatim.
 .Pp
 See also
-.Sx \&Nm .
-.Ss \&Nm
+.Ic \&Nm .
+.It Ic \&Nm Op Ar name
 The name of the manual page, or \(em in particular in section 1, 6,
 and 8 pages \(em of an additional command or feature documented in
 the manual page.
 When first invoked, the
-.Sx \&Nm
+.Ic \&Nm
 macro expects a single argument, the name of the manual page.
 Usually, the first invocation happens in the
 .Em NAME
@@ -2000,7 +1895,7 @@ section of the page.
 The specified name will be remembered and used whenever the macro is
 called again without arguments later in the page.
 The
-.Sx \&Nm
+.Ic \&Nm
 macro uses
 .Sx Block full-implicit
 semantics when invoked as the first macro on an input line in the
@@ -2020,41 +1915,40 @@ Examples:
 In the
 .Em SYNOPSIS
 of section 2, 3 and 9 manual pages, use the
-.Sx \&Fn
+.Ic \&Fn
 macro rather than
-.Sx \&Nm
+.Ic \&Nm
 to mark up the name of the manual page.
-.Ss \&No
+.It Ic \&No Ar word ...
 Normal text.
 Closes the scope of any preceding in-line macro.
 When used after physical formatting macros like
-.Sx \&Em
+.Ic \&Em
 or
-.Sx \&Sy ,
+.Ic \&Sy ,
 switches back to the standard font face and weight.
 Can also be used to embed plain text strings in macro lines
 using semantic annotation macros.
 .Pp
 Examples:
 .Dl ".Em italic , Sy bold , No and roman"
-.Pp
-.Bd -literal -offset indent -compact
+.Bd -literal -offset indent
 \&.Sm off
 \&.Cm :C No / Ar pattern No / Ar replacement No /
 \&.Sm on
 .Ed
 .Pp
 See also
-.Sx \&Em ,
-.Sx \&Li ,
+.Ic \&Em ,
+.Ic \&Ql ,
 and
-.Sx \&Sy .
-.Ss \&Ns
+.Ic \&Sy .
+.It Ic \&Ns
 Suppress a space between the output of the preceding macro
 and the following text or macro.
 Following invocation, input is interpreted as normal text
 just like after an
-.Sx \&No
+.Ic \&No
 macro.
 .Pp
 This has no effect when invoked at the start of a macro line.
@@ -2065,10 +1959,10 @@ Examples:
 .Dl ".Fl o Ns Ar output"
 .Pp
 See also
-.Sx \&No
+.Ic \&No
 and
-.Sx \&Sm .
-.Ss \&Nx
+.Ic \&Sm .
+.It Ic \&Nx Op Ar version
 Format the
 .Nx
 version provided as an argument, or a default value if
@@ -2079,20 +1973,20 @@ Examples:
 .Dl \&.Nx
 .Pp
 See also
-.Sx \&At ,
-.Sx \&Bsx ,
-.Sx \&Bx ,
-.Sx \&Dx ,
-.Sx \&Fx ,
+.Ic \&At ,
+.Ic \&Bsx ,
+.Ic \&Bx ,
+.Ic \&Dx ,
+.Ic \&Fx ,
 and
-.Sx \&Ox .
-.Ss \&Oc
+.Ic \&Ox .
+.It Ic \&Oc
 Close multi-line
-.Sx \&Oo
+.Ic \&Oo
 context.
-.Ss \&Oo
+.It Ic \&Oo Ar block
 Multi-line version of
-.Sx \&Op .
+.Ic \&Op .
 .Pp
 Examples:
 .Bd -literal -offset indent -compact
@@ -2100,7 +1994,7 @@ Examples:
 \&.Op Fl flag Ns Ar value
 \&.Oc
 .Ed
-.Ss \&Op
+.It Ic \&Op Ar line
 Optional part of a command line.
 Prints the argument(s) in brackets.
 This is most often used in the
@@ -2112,16 +2006,13 @@ Examples:
 .Dl \&.Op \&Ar a | b
 .Pp
 See also
-.Sx \&Oo .
-.Ss \&Os
+.Ic \&Oo .
+.It Ic \&Os Op Ar system Op Ar version
 Operating system version for display in the page footer.
 This is the mandatory third macro of
 any
 .Nm
 file.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Os Op Ar system Op Ar version
 .Pp
 The optional
 .Ar system
@@ -2143,13 +2034,13 @@ Examples:
 .Dl \&.Os BSD 4.3
 .Pp
 See also
-.Sx \&Dd
+.Ic \&Dd
 and
-.Sx \&Dt .
-.Ss \&Ot
+.Ic \&Dt .
+.It Ic \&Ot Ar functype
 This macro is obsolete.
 Use
-.Sx \&Ft
+.Ic \&Ft
 instead; with
 .Xr mandoc 1 ,
 both have the same effect.
@@ -2158,7 +2049,7 @@ Historical
 .Nm
 packages described it as
 .Dq "old function type (FORTRAN)" .
-.Ss \&Ox
+.It Ic \&Ox Op Ar version
 Format the
 .Ox
 version provided as an argument, or a default value
@@ -2169,14 +2060,14 @@ Examples:
 .Dl \&.Ox
 .Pp
 See also
-.Sx \&At ,
-.Sx \&Bsx ,
-.Sx \&Bx ,
-.Sx \&Dx ,
-.Sx \&Fx ,
+.Ic \&At ,
+.Ic \&Bsx ,
+.Ic \&Bx ,
+.Ic \&Dx ,
+.Ic \&Fx ,
 and
-.Sx \&Nx .
-.Ss \&Pa
+.Ic \&Nx .
+.It Ic \&Pa Ar name ...
 An absolute or relative file system path, or a file or directory name.
 If an argument is not provided, the character
 .Sq \(ti
@@ -2187,19 +2078,15 @@ Examples:
 .Dl \&.Pa /usr/share/man/man7/mdoc.7
 .Pp
 See also
-.Sx \&Lk .
-.Ss \&Pc
+.Ic \&Lk .
+.It Ic \&Pc
 Close parenthesised context opened by
-.Sx \&Po .
-.Ss \&Pf
+.Ic \&Po .
+.It Ic \&Pf Ar prefix macro Op Ar argument ...
 Removes the space between its argument and the following macro.
-Its syntax is as follows:
+It is equivalent to:
 .Pp
-.D1 .Pf Ar prefix macro arguments ...
-.Pp
-This is equivalent to:
-.Pp
-.D1 .No \e& Ns Ar prefix No \&Ns Ar macro arguments ...
+.D1 Ic \&No Pf \e& Ar prefix Ic \&Ns Ar macro Op Ar argument ...
 .Pp
 The
 .Ar prefix
@@ -2212,93 +2099,87 @@ Examples:
 .Dl ".Pf 0x Ar hex_digits"
 .Pp
 See also
-.Sx \&Ns
+.Ic \&Ns
 and
-.Sx \&Sm .
-.Ss \&Po
+.Ic \&Sm .
+.It Ic \&Po Ar block
 Multi-line version of
-.Sx \&Pq .
-.Ss \&Pp
+.Ic \&Pq .
+.It Ic \&Pp
 Break a paragraph.
 This will assert vertical space between prior and subsequent macros
 and/or text.
 .Pp
 Paragraph breaks are not needed before or after
-.Sx \&Sh
+.Ic \&Sh
 or
-.Sx \&Ss
+.Ic \&Ss
 macros or before displays
-.Pq Sx \&Bd
+.Pq Ic \&Bd Ar line
 or lists
-.Pq Sx \&Bl
+.Pq Ic \&Bl
 unless the
 .Fl compact
 flag is given.
-.Ss \&Pq
+.It Ic \&Pq Ar line
 Parenthesised enclosure.
 .Pp
 See also
-.Sx \&Po .
-.Ss \&Qc
+.Ic \&Po .
+.It Ic \&Qc
 Close quoted context opened by
-.Sx \&Qo .
-.Ss \&Ql
+.Ic \&Qo .
+.It Ic \&Ql Ar line
 In-line literal display.
-This can for example be used for complete command invocations and
-for multi-word code fragments when more specific markup is not
-appropriate and an indented display is not desired.
-While
-.Xr mandoc 1
-always encloses the arguments in single quotes, other formatters
-usually omit the quotes on non-terminal output devices when the
-arguments have three or more characters.
+This can be used for complete command invocations and for multi-word
+code examples when an indented display is not desired.
 .Pp
 See also
-.Sx \&Dl
+.Ic \&Dl
 and
-.Sx \&Bd
+.Ic \&Bd
 .Fl literal .
-.Ss \&Qo
+.It Ic \&Qo Ar block
 Multi-line version of
-.Sx \&Qq .
-.Ss \&Qq
+.Ic \&Qq .
+.It Ic \&Qq Ar line
 Encloses its arguments in
 .Qq typewriter
 double-quotes.
 Consider using
-.Sx \&Dq .
+.Ic \&Dq .
 .Pp
 See also
-.Sx \&Dq ,
-.Sx \&Sq ,
+.Ic \&Dq ,
+.Ic \&Sq ,
 and
-.Sx \&Qo .
-.Ss \&Re
+.Ic \&Qo .
+.It Ic \&Re
 Close an
-.Sx \&Rs
+.Ic \&Rs
 block.
 Does not have any tail arguments.
-.Ss \&Rs
+.It Ic \&Rs
 Begin a bibliographic
 .Pq Dq reference
 block.
 Does not have any head arguments.
 The block macro may only contain
-.Sx \&%A ,
-.Sx \&%B ,
-.Sx \&%C ,
-.Sx \&%D ,
-.Sx \&%I ,
-.Sx \&%J ,
-.Sx \&%N ,
-.Sx \&%O ,
-.Sx \&%P ,
-.Sx \&%Q ,
-.Sx \&%R ,
-.Sx \&%T ,
-.Sx \&%U ,
+.Ic \&%A ,
+.Ic \&%B ,
+.Ic \&%C ,
+.Ic \&%D ,
+.Ic \&%I ,
+.Ic \&%J ,
+.Ic \&%N ,
+.Ic \&%O ,
+.Ic \&%P ,
+.Ic \&%Q ,
+.Ic \&%R ,
+.Ic \&%T ,
+.Ic \&%U ,
 and
-.Sx \&%V
+.Ic \&%V
 child macros (at least one must be specified).
 .Pp
 Examples:
@@ -2314,34 +2195,31 @@ Examples:
 .Ed
 .Pp
 If an
-.Sx \&Rs
+.Ic \&Rs
 block is used within a SEE ALSO section, a vertical space is asserted
 before the rendered output, else the block continues on the current
 line.
-.Ss \&Rv
+.It Ic \&Rv Fl std Op Ar function ...
 Insert a standard sentence regarding a function call's return value of 0
 on success and \-1 on error, with the
 .Va errno
 libc global variable set on error.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Rv Fl std Op Ar function ...
 .Pp
 If
 .Ar function
 is not specified, the document's name set by
-.Sx \&Nm
+.Ic \&Nm
 is used.
 Multiple
 .Ar function
 arguments are treated as separate functions.
 .Pp
 See also
-.Sx \&Ex .
-.Ss \&Sc
+.Ic \&Ex .
+.It Ic \&Sc
 Close single-quoted context opened by
-.Sx \&So .
-.Ss \&Sh
+.Ic \&So .
+.It Ic \&Sh Ar TITLE LINE
 Begin a new section.
 For a list of conventional manual sections, see
 .Sx MANUAL STRUCTURE .
@@ -2349,21 +2227,18 @@ These sections should be used unless it's absolutely necessary that
 custom sections be used.
 .Pp
 Section names should be unique so that they may be keyed by
-.Sx \&Sx .
+.Ic \&Sx .
 Although this macro is parsed, it should not consist of child node or it
 may not be linked with
-.Sx \&Sx .
+.Ic \&Sx .
 .Pp
 See also
-.Sx \&Pp ,
-.Sx \&Ss ,
+.Ic \&Pp ,
+.Ic \&Ss ,
 and
-.Sx \&Sx .
-.Ss \&Sm
+.Ic \&Sx .
+.It Ic \&Sm Op Cm on | off
 Switches the spacing mode for output generated from macros.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Sm Op Cm on | off
 .Pp
 By default, spacing is
 .Cm on .
@@ -2374,26 +2249,26 @@ output generated from adjacent macros, but text lines
 still get normal spacing between words and sentences.
 .Pp
 When called without an argument, the
-.Sx \&Sm
+.Ic \&Sm
 macro toggles the spacing mode.
 Using this is not recommended because it makes the code harder to read.
-.Ss \&So
+.It Ic \&So Ar block
 Multi-line version of
-.Sx \&Sq .
-.Ss \&Sq
+.Ic \&Sq .
+.It Ic \&Sq Ar line
 Encloses its arguments in
 .Sq typewriter
 single-quotes.
 .Pp
 See also
-.Sx \&Dq ,
-.Sx \&Qq ,
+.Ic \&Dq ,
+.Ic \&Qq ,
 and
-.Sx \&So .
-.Ss \&Ss
+.Ic \&So .
+.It Ic \&Ss Ar Title line
 Begin a new subsection.
 Unlike with
-.Sx \&Sh ,
+.Ic \&Sh ,
 there is no convention for the naming of subsections.
 Except
 .Em DESCRIPTION ,
@@ -2402,17 +2277,17 @@ the conventional sections described in
 rarely have subsections.
 .Pp
 Sub-section names should be unique so that they may be keyed by
-.Sx \&Sx .
+.Ic \&Sx .
 Although this macro is parsed, it should not consist of child node or it
 may not be linked with
-.Sx \&Sx .
+.Ic \&Sx .
 .Pp
 See also
-.Sx \&Pp ,
-.Sx \&Sh ,
+.Ic \&Pp ,
+.Ic \&Sh ,
 and
-.Sx \&Sx .
-.Ss \&St
+.Ic \&Sx .
+.It Ic \&St Fl Ns Ar abbreviation
 Replace an abbreviation for a standard with the full form.
 The following standards are recognised.
 Where multiple lines are given without a blank line in between,
@@ -2622,7 +2497,7 @@ Ethernet local area networks.
 .St -ieee1275-94
 .El
 .El
-.Ss \&Sx
+.It Ic \&Sx Ar Title line
 Reference a section or subsection in the same manual page.
 The referenced section or subsection name must be identical to the
 enclosed argument, including whitespace.
@@ -2631,15 +2506,15 @@ Examples:
 .Dl \&.Sx MANUAL STRUCTURE
 .Pp
 See also
-.Sx \&Sh
+.Ic \&Sh
 and
-.Sx \&Ss .
-.Ss \&Sy
+.Ic \&Ss .
+.It Ic \&Sy Ar word ...
 Request a boldface font.
 .Pp
 This is most often used to indicate importance or seriousness (not to be
 confused with stress emphasis, see
-.Sx \&Em ) .
+.Ic \&Em ) .
 When none of the semantic macros fit, it is also adequate for syntax
 elements that have to be given or that appear verbatim.
 .Pp
@@ -2655,31 +2530,30 @@ program.
 .Ed
 .Pp
 See also
-.Sx \&Bf ,
-.Sx \&Em ,
-.Sx \&Li ,
+.Ic \&Em ,
+.Ic \&No ,
 and
-.Sx \&No .
-.Ss \&Ta
+.Ic \&Ql .
+.It Ic \&Ta
 Table cell separator in
-.Sx \&Bl Fl column
+.Ic \&Bl Fl column
 lists; can only be used below
-.Sx \&It .
-.Ss \&Tn
+.Ic \&It .
+.It Ic \&Tn Ar word ...
 Supported only for compatibility, do not use this in new manuals.
 Even though the macro name
 .Pq Dq tradename
 suggests a semantic function, historic usage is inconsistent, mostly
 using it as a presentation-level macro to request a small caps font.
-.Ss \&Ud
+.It Ic \&Ud
 Supported only for compatibility, do not use this in new manuals.
 Prints out
 .Dq currently under development.
-.Ss \&Ux
+.It Ic \&Ux
 Supported only for compatibility, do not use this in new manuals.
 Prints out
 .Dq Ux .
-.Ss \&Va
+.It Ic \&Va Oo Ar type Oc Ar identifier ...
 A variable name.
 .Pp
 Examples:
@@ -2687,13 +2561,13 @@ Examples:
 .Dl \&.Va const char *bar ;
 .Pp
 For function arguments and parameters, use
-.Sx \&Fa
+.Ic \&Fa
 instead.
 For declarations of global variables in the
 .Em SYNOPSIS
 section, use
-.Sx \&Vt .
-.Ss \&Vt
+.Ic \&Vt .
+.It Ic \&Vt Ar type Op Ar identifier
 A variable type.
 .Pp
 This is also used for indicating global variables in the
@@ -2715,33 +2589,30 @@ Examples:
 .Dl \&.Vt extern const char * const sys_signame[] \&;
 .Pp
 For parameters in function prototypes, use
-.Sx \&Fa
+.Ic \&Fa
 instead, for function return types
-.Sx \&Ft ,
+.Ic \&Ft ,
 and for variable names outside the
 .Em SYNOPSIS
 section
-.Sx \&Va ,
+.Ic \&Va ,
 even when including a type with the name.
 See also
 .Sx MANUAL STRUCTURE .
-.Ss \&Xc
+.It Ic \&Xc
 Close a scope opened by
-.Sx \&Xo .
-.Ss \&Xo
+.Ic \&Xo .
+.It Ic \&Xo Ar block
 Extend the header of an
-.Sx \&It
+.Ic \&It
 macro or the body of a partial-implicit block macro
 beyond the end of the input line.
 This macro originally existed to work around the 9-argument limit
 of historic
 .Xr roff 7 .
-.Ss \&Xr
+.It Ic \&Xr Ar name section
 Link to another manual
 .Pq Qq cross-reference .
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Xr Ar name section
 .Pp
 Cross reference the
 .Ar name
@@ -2753,6 +2624,7 @@ Examples:
 .Dl \&.Xr mandoc 1
 .Dl \&.Xr mandoc 1 \&;
 .Dl \&.Xr mandoc 1 \&Ns s behaviour
+.El
 .Sh MACRO SYNTAX
 The syntax of a macro depends on its classification.
 In this section,
@@ -2800,10 +2672,10 @@ column, if applicable, describes closure rules.
 .Ss Block full-explicit
 Multi-line scope closed by an explicit closing macro.
 All macros contains bodies; only
-.Sx \&Bf
+.Ic \s&Bf
 and
 .Pq optionally
-.Sx \&Bl
+.Ic \&Bl
 contain a head.
 .Bd -literal -offset indent
 \&.Yo \(lB\-arg \(lBparm...\(rB\(rB \(lBhead...\(rB
@@ -2812,20 +2684,20 @@ contain a head.
 .Ed
 .Bl -column "MacroX" "CallableX" "ParsedX" "closed by XXX" -offset indent
 .It Em Macro Ta Em Callable Ta Em Parsed Ta Em Scope
-.It Sx \&Bd  Ta    \&No     Ta    \&No     Ta    closed by Sx \&Ed
-.It Sx \&Bf  Ta    \&No     Ta    \&No     Ta    closed by Sx \&Ef
-.It Sx \&Bk  Ta    \&No     Ta    \&No     Ta    closed by Sx \&Ek
-.It Sx \&Bl  Ta    \&No     Ta    \&No     Ta    closed by Sx \&El
-.It Sx \&Ed  Ta    \&No     Ta    \&No     Ta    opened by Sx \&Bd
-.It Sx \&Ef  Ta    \&No     Ta    \&No     Ta    opened by Sx \&Bf
-.It Sx \&Ek  Ta    \&No     Ta    \&No     Ta    opened by Sx \&Bk
-.It Sx \&El  Ta    \&No     Ta    \&No     Ta    opened by Sx \&Bl
+.It Ic \&Bd  Ta    \&No     Ta    \&No     Ta    closed by Ic \&Ed
+.It Ic \&Bf  Ta    \&No     Ta    \&No     Ta    closed by Ic \&Ef
+.It Ic \&Bk  Ta    \&No     Ta    \&No     Ta    closed by Ic \&Ek
+.It Ic \&Bl  Ta    \&No     Ta    \&No     Ta    closed by Ic \&El
+.It Ic \&Ed  Ta    \&No     Ta    \&No     Ta    opened by Ic \&Bd
+.It Ic \&Ef  Ta    \&No     Ta    \&No     Ta    opened by Ic \&Bf
+.It Ic \&Ek  Ta    \&No     Ta    \&No     Ta    opened by Ic \&Bk
+.It Ic \&El  Ta    \&No     Ta    \&No     Ta    opened by Ic \&Bl
 .El
 .Ss Block full-implicit
 Multi-line scope closed by end-of-file or implicitly by another macro.
 All macros have bodies; some
 .Po
-.Sx \&It Fl bullet ,
+.Ic \&It Fl bullet ,
 .Fl hyphen ,
 .Fl dash ,
 .Fl enum ,
@@ -2833,9 +2705,9 @@ All macros have bodies; some
 .Pc
 don't have heads; only one
 .Po
-.Sx \&It
+.Ic \&It
 in
-.Sx \&Bl Fl column
+.Ic \&Bl Fl column
 .Pc
 has multiple heads.
 .Bd -literal -offset indent
@@ -2844,15 +2716,15 @@ has multiple heads.
 .Ed
 .Bl -column "MacroX" "CallableX" "ParsedX" "closed by XXXXXXXXXXX" -offset indent
 .It Em Macro Ta Em Callable Ta Em Parsed Ta Em Scope
-.It Sx \&It Ta \&No Ta Yes  Ta closed by Sx \&It , Sx \&El
-.It Sx \&Nd Ta \&No Ta \&No Ta closed by Sx \&Sh
-.It Sx \&Nm Ta \&No Ta Yes  Ta closed by Sx \&Nm , Sx \&Sh , Sx \&Ss
-.It Sx \&Sh Ta \&No Ta Yes  Ta closed by Sx \&Sh
-.It Sx \&Ss Ta \&No Ta Yes  Ta closed by Sx \&Sh , Sx \&Ss
+.It Ic \&It Ta \&No Ta Yes  Ta closed by Ic \&It , Ic \&El
+.It Ic \&Nd Ta \&No Ta \&No Ta closed by Ic \&Sh
+.It Ic \&Nm Ta \&No Ta Yes  Ta closed by Ic \&Nm , Ic \&Sh , Ic \&Ss
+.It Ic \&Sh Ta \&No Ta Yes  Ta closed by Ic \&Sh
+.It Ic \&Ss Ta \&No Ta Yes  Ta closed by Ic \&Sh , Ic \&Ss
 .El
 .Pp
 Note that the
-.Sx \&Nm
+.Ic \&Nm
 macro is a
 .Sx Block full-implicit
 macro only when invoked as the first macro
@@ -2864,11 +2736,11 @@ section line, else it is
 Like block full-explicit, but also with single-line scope.
 Each has at least a body and, in limited circumstances, a head
 .Po
-.Sx \&Fo ,
-.Sx \&Eo
+.Ic \&Fo ,
+.Ic \&Eo
 .Pc
 and/or tail
-.Pq Sx \&Ec .
+.Pq Ic \&Ec .
 .Bd -literal -offset indent
 \&.Yo \(lB\-arg \(lBparm...\(rB\(rB \(lBhead...\(rB
 \(lBbody...\(rB
@@ -2879,30 +2751,30 @@ and/or tail
 .Ed
 .Bl -column "MacroX" "CallableX" "ParsedX" "closed by XXXX" -offset indent
 .It Em Macro Ta Em Callable Ta Em Parsed Ta Em Scope
-.It Sx \&Ac  Ta    Yes      Ta    Yes      Ta    opened by Sx \&Ao
-.It Sx \&Ao  Ta    Yes      Ta    Yes      Ta    closed by Sx \&Ac
-.It Sx \&Bc  Ta    Yes      Ta    Yes      Ta    closed by Sx \&Bo
-.It Sx \&Bo  Ta    Yes      Ta    Yes      Ta    opened by Sx \&Bc
-.It Sx \&Brc Ta    Yes      Ta    Yes      Ta    opened by Sx \&Bro
-.It Sx \&Bro Ta    Yes      Ta    Yes      Ta    closed by Sx \&Brc
-.It Sx \&Dc  Ta    Yes      Ta    Yes      Ta    opened by Sx \&Do
-.It Sx \&Do  Ta    Yes      Ta    Yes      Ta    closed by Sx \&Dc
-.It Sx \&Ec  Ta    Yes      Ta    Yes      Ta    opened by Sx \&Eo
-.It Sx \&Eo  Ta    Yes      Ta    Yes      Ta    closed by Sx \&Ec
-.It Sx \&Fc  Ta    Yes      Ta    Yes      Ta    opened by Sx \&Fo
-.It Sx \&Fo  Ta    \&No     Ta    \&No     Ta    closed by Sx \&Fc
-.It Sx \&Oc  Ta    Yes      Ta    Yes      Ta    closed by Sx \&Oo
-.It Sx \&Oo  Ta    Yes      Ta    Yes      Ta    opened by Sx \&Oc
-.It Sx \&Pc  Ta    Yes      Ta    Yes      Ta    closed by Sx \&Po
-.It Sx \&Po  Ta    Yes      Ta    Yes      Ta    opened by Sx \&Pc
-.It Sx \&Qc  Ta    Yes      Ta    Yes      Ta    opened by Sx \&Oo
-.It Sx \&Qo  Ta    Yes      Ta    Yes      Ta    closed by Sx \&Oc
-.It Sx \&Re  Ta    \&No     Ta    \&No     Ta    opened by Sx \&Rs
-.It Sx \&Rs  Ta    \&No     Ta    \&No     Ta    closed by Sx \&Re
-.It Sx \&Sc  Ta    Yes      Ta    Yes      Ta    opened by Sx \&So
-.It Sx \&So  Ta    Yes      Ta    Yes      Ta    closed by Sx \&Sc
-.It Sx \&Xc  Ta    Yes      Ta    Yes      Ta    opened by Sx \&Xo
-.It Sx \&Xo  Ta    Yes      Ta    Yes      Ta    closed by Sx \&Xc
+.It Ic \&Ac  Ta    Yes      Ta    Yes      Ta    opened by Ic \&Ao
+.It Ic \&Ao  Ta    Yes      Ta    Yes      Ta    closed by Ic \&Ac
+.It Ic \&Bc  Ta    Yes      Ta    Yes      Ta    closed by Ic \&Bo
+.It Ic \&Bo  Ta    Yes      Ta    Yes      Ta    opened by Ic \&Bc
+.It Ic \&Brc Ta    Yes      Ta    Yes      Ta    opened by Ic \&Bro
+.It Ic \&Bro Ta    Yes      Ta    Yes      Ta    closed by Ic \&Brc
+.It Ic \&Dc  Ta    Yes      Ta    Yes      Ta    opened by Ic \&Do
+.It Ic \&Do  Ta    Yes      Ta    Yes      Ta    closed by Ic \&Dc
+.It Ic \&Ec  Ta    Yes      Ta    Yes      Ta    opened by Ic \&Eo
+.It Ic \&Eo  Ta    Yes      Ta    Yes      Ta    closed by Ic \&Ec
+.It Ic \&Fc  Ta    Yes      Ta    Yes      Ta    opened by Ic \&Fo
+.It Ic \&Fo  Ta    \&No     Ta    \&No     Ta    closed by Ic \&Fc
+.It Ic \&Oc  Ta    Yes      Ta    Yes      Ta    closed by Ic \&Oo
+.It Ic \&Oo  Ta    Yes      Ta    Yes      Ta    opened by Ic \&Oc
+.It Ic \&Pc  Ta    Yes      Ta    Yes      Ta    closed by Ic \&Po
+.It Ic \&Po  Ta    Yes      Ta    Yes      Ta    opened by Ic \&Pc
+.It Ic \&Qc  Ta    Yes      Ta    Yes      Ta    opened by Ic \&Oo
+.It Ic \&Qo  Ta    Yes      Ta    Yes      Ta    closed by Ic \&Oc
+.It Ic \&Re  Ta    \&No     Ta    \&No     Ta    opened by Ic \&Rs
+.It Ic \&Rs  Ta    \&No     Ta    \&No     Ta    closed by Ic \&Re
+.It Ic \&Sc  Ta    Yes      Ta    Yes      Ta    opened by Ic \&So
+.It Ic \&So  Ta    Yes      Ta    Yes      Ta    closed by Ic \&Sc
+.It Ic \&Xc  Ta    Yes      Ta    Yes      Ta    opened by Ic \&Xo
+.It Ic \&Xo  Ta    Yes      Ta    Yes      Ta    closed by Ic \&Xc
 .El
 .Ss Block partial-implicit
 Like block full-implicit, but with single-line scope closed by the
@@ -2912,23 +2784,23 @@ end of the line.
 .Ed
 .Bl -column "MacroX" "CallableX" "ParsedX" -offset indent
 .It Em Macro Ta Em Callable Ta Em Parsed
-.It Sx \&Aq  Ta    Yes      Ta    Yes
-.It Sx \&Bq  Ta    Yes      Ta    Yes
-.It Sx \&Brq Ta    Yes      Ta    Yes
-.It Sx \&D1  Ta    \&No     Ta    \&Yes
-.It Sx \&Dl  Ta    \&No     Ta    Yes
-.It Sx \&Dq  Ta    Yes      Ta    Yes
-.It Sx \&En  Ta    Yes      Ta    Yes
-.It Sx \&Op  Ta    Yes      Ta    Yes
-.It Sx \&Pq  Ta    Yes      Ta    Yes
-.It Sx \&Ql  Ta    Yes      Ta    Yes
-.It Sx \&Qq  Ta    Yes      Ta    Yes
-.It Sx \&Sq  Ta    Yes      Ta    Yes
-.It Sx \&Vt  Ta    Yes      Ta    Yes
+.It Ic \&Aq  Ta    Yes      Ta    Yes
+.It Ic \&Bq  Ta    Yes      Ta    Yes
+.It Ic \&Brq Ta    Yes      Ta    Yes
+.It Ic \&D1  Ta    \&No     Ta    \&Yes
+.It Ic \&Dl  Ta    \&No     Ta    Yes
+.It Ic \&Dq  Ta    Yes      Ta    Yes
+.It Ic \&En  Ta    Yes      Ta    Yes
+.It Ic \&Op  Ta    Yes      Ta    Yes
+.It Ic \&Pq  Ta    Yes      Ta    Yes
+.It Ic \&Ql  Ta    Yes      Ta    Yes
+.It Ic \&Qq  Ta    Yes      Ta    Yes
+.It Ic \&Sq  Ta    Yes      Ta    Yes
+.It Ic \&Vt  Ta    Yes      Ta    Yes
 .El
 .Pp
 Note that the
-.Sx \&Vt
+.Ic \&Vt
 macro is a
 .Sx Block partial-implicit
 only when invoked as the first macro
@@ -2938,17 +2810,17 @@ section line, else it is
 .Sx In-line .
 .Ss Special block macro
 The
-.Sx \&Ta
+.Ic \&Ta
 macro can only be used below
-.Sx \&It
+.Ic \&It
 in
-.Sx \&Bl Fl column
+.Ic \&Bl Fl column
 lists.
 It delimits blocks representing table cells;
 these blocks have bodies, but no heads.
 .Bl -column "MacroX" "CallableX" "ParsedX" "closed by XXXX" -offset indent
 .It Em Macro Ta Em Callable Ta Em Parsed Ta Em Scope
-.It Sx \&Ta  Ta    Yes      Ta    Yes    Ta closed by Sx \&Ta , Sx \&It
+.It Ic \&Ta  Ta    Yes      Ta    Yes    Ta closed by Ic \&Ta , Ic \&It
 .El
 .Ss In-line
 Closed by the end of the line, fixed argument lengths,
@@ -2966,77 +2838,77 @@ then the macro accepts an arbitrary number of arguments.
 .Ed
 .Bl -column "MacroX" "CallableX" "ParsedX" "Arguments" -offset indent
 .It Em Macro Ta Em Callable Ta Em Parsed Ta Em Arguments
-.It Sx \&%A  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%B  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%C  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%D  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%I  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%J  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%N  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%O  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%P  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%Q  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%R  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%T  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%U  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&%V  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&Ad  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&An  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Ap  Ta    Yes      Ta    Yes      Ta    0
-.It Sx \&Ar  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&At  Ta    Yes      Ta    Yes      Ta    1
-.It Sx \&Bsx Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&Bt  Ta    \&No     Ta    \&No     Ta    0
-.It Sx \&Bx  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&Cd  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Cm  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Db  Ta    \&No     Ta    \&No     Ta    1
-.It Sx \&Dd  Ta    \&No     Ta    \&No     Ta    n
-.It Sx \&Dt  Ta    \&No     Ta    \&No     Ta    n
-.It Sx \&Dv  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Dx  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&Em  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Er  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Es  Ta    Yes      Ta    Yes      Ta    2
-.It Sx \&Ev  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Ex  Ta    \&No     Ta    \&No     Ta    n
-.It Sx \&Fa  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Fd  Ta    \&No     Ta    \&No     Ta    >0
-.It Sx \&Fl  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&Fn  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Fr  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Ft  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Fx  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&Hf  Ta    \&No     Ta    \&No     Ta    n
-.It Sx \&Ic  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&In  Ta    \&No     Ta    \&No     Ta    1
-.It Sx \&Lb  Ta    \&No     Ta    \&No     Ta    1
-.It Sx \&Li  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Lk  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Lp  Ta    \&No     Ta    \&No     Ta    0
-.It Sx \&Ms  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Mt  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Nm  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&No  Ta    Yes      Ta    Yes      Ta    0
-.It Sx \&Ns  Ta    Yes      Ta    Yes      Ta    0
-.It Sx \&Nx  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&Os  Ta    \&No     Ta    \&No     Ta    n
-.It Sx \&Ot  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Ox  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&Pa  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&Pf  Ta    Yes      Ta    Yes      Ta    1
-.It Sx \&Pp  Ta    \&No     Ta    \&No     Ta    0
-.It Sx \&Rv  Ta    \&No     Ta    \&No     Ta    n
-.It Sx \&Sm  Ta    \&No     Ta    \&No     Ta    <2
-.It Sx \&St  Ta    \&No     Ta    Yes      Ta    1
-.It Sx \&Sx  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Sy  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Tn  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Ud  Ta    \&No     Ta    \&No     Ta    0
-.It Sx \&Ux  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&Va  Ta    Yes      Ta    Yes      Ta    n
-.It Sx \&Vt  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Xr  Ta    Yes      Ta    Yes      Ta    2
+.It Ic \&%A  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%B  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%C  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%D  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%I  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%J  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%N  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%O  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%P  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%Q  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%R  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%T  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%U  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&%V  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&Ad  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&An  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Ap  Ta    Yes      Ta    Yes      Ta    0
+.It Ic \&Ar  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&At  Ta    Yes      Ta    Yes      Ta    1
+.It Ic \&Bsx Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&Bt  Ta    \&No     Ta    \&No     Ta    0
+.It Ic \&Bx  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&Cd  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Cm  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Db  Ta    \&No     Ta    \&No     Ta    1
+.It Ic \&Dd  Ta    \&No     Ta    \&No     Ta    n
+.It Ic \&Dt  Ta    \&No     Ta    \&No     Ta    n
+.It Ic \&Dv  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Dx  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&Em  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Er  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Es  Ta    Yes      Ta    Yes      Ta    2
+.It Ic \&Ev  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Ex  Ta    \&No     Ta    \&No     Ta    n
+.It Ic \&Fa  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Fd  Ta    \&No     Ta    \&No     Ta    >0
+.It Ic \&Fl  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&Fn  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Fr  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Ft  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Fx  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&Hf  Ta    \&No     Ta    \&No     Ta    n
+.It Ic \&Ic  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&In  Ta    \&No     Ta    \&No     Ta    1
+.It Ic \&Lb  Ta    \&No     Ta    \&No     Ta    1
+.It Ic \&Li  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Lk  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Lp  Ta    \&No     Ta    \&No     Ta    0
+.It Ic \&Ms  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Mt  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Nm  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&No  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Ns  Ta    Yes      Ta    Yes      Ta    0
+.It Ic \&Nx  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&Os  Ta    \&No     Ta    \&No     Ta    n
+.It Ic \&Ot  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Ox  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&Pa  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&Pf  Ta    Yes      Ta    Yes      Ta    1
+.It Ic \&Pp  Ta    \&No     Ta    \&No     Ta    0
+.It Ic \&Rv  Ta    \&No     Ta    \&No     Ta    n
+.It Ic \&Sm  Ta    \&No     Ta    \&No     Ta    <2
+.It Ic \&St  Ta    \&No     Ta    Yes      Ta    1
+.It Ic \&Sx  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Sy  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Tn  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Ud  Ta    \&No     Ta    \&No     Ta    0
+.It Ic \&Ux  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&Va  Ta    Yes      Ta    Yes      Ta    n
+.It Ic \&Vt  Ta    Yes      Ta    Yes      Ta    >0
+.It Ic \&Xr  Ta    Yes      Ta    Yes      Ta    2
 .El
 .Ss Delimiters
 When a macro argument consists of one single input character
@@ -3151,7 +3023,7 @@ The following problematic behaviour is found in groff:
 .Pp
 .Bl -dash -compact
 .It
-.Sx \&Dd
+.Ic \&Dd
 with non-standard arguments behaves very strangely.
 When there are three arguments, they are printed verbatim.
 Any other number of arguments is replaced by the current date,
@@ -3159,17 +3031,17 @@ but without any arguments the string
 .Dq Epoch
 is printed.
 .It
-.Sx \&Lk
+.Ic \&Lk
 only accepts a single link-name argument; the remainder is misformatted.
 .It
-.Sx \&Pa
+.Ic \&Pa
 does not format its arguments when used in the FILES section under
 certain list types.
 .It
-.Sx \&Ta
+.Ic \&Ta
 can only be called by other macros, but not at the beginning of a line.
 .It
-.Sx \&%C
+.Ic \&%C
 is not implemented (up to and including groff-1.22.2).
 .It
 .Sq \ef
@@ -3188,23 +3060,22 @@ The following features are unimplemented in mandoc:
 .Pp
 .Bl -dash -compact
 .It
-.Sx \&Bd
-.Fl file Ar file
+.Ic \&Bd Fl file Ar file
 is unsupported for security reasons.
 .It
-.Sx \&Bd
+.Ic \&Bd
 .Fl filled
 does not adjust the right margin, but is an alias for
-.Sx \&Bd
+.Ic \&Bd
 .Fl ragged .
 .It
-.Sx \&Bd
+.Ic \&Bd
 .Fl literal
 does not use a literal font, but is an alias for
-.Sx \&Bd
+.Ic \&Bd
 .Fl unfilled .
 .It
-.Sx \&Bd
+.Ic \&Bd
 .Fl offset Cm center
 and
 .Fl offset Cm right

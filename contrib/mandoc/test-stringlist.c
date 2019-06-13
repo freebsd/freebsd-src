@@ -1,4 +1,4 @@
-/*	$Id: test-stringlist.c,v 1.2 2015/10/06 18:32:20 schwarze Exp $	*/
+/*	$Id: test-stringlist.c,v 1.3 2018/08/15 02:48:51 schwarze Exp $	*/
 /*
  * Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <stddef.h>
 #include <stringlist.h>
 
 int

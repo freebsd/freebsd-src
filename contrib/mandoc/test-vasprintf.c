@@ -1,4 +1,4 @@
-/*	$Id: test-vasprintf.c,v 1.4 2016/07/18 18:35:05 schwarze Exp $	*/
+/*	$Id: test-vasprintf.c,v 1.5 2018/08/15 02:15:52 schwarze Exp $	*/
 /*
  * Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -14,10 +14,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
-#if defined(__linux__) || defined(__MINT__)
-#define _GNU_SOURCE /* vasprintf() */
-#endif
 
 #include <stdarg.h>
 #include <stdio.h>

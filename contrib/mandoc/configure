@@ -1,8 +1,8 @@
 #!/bin/sh
 #
-# $Id: configure,v 1.66 2018/07/31 15:34:00 schwarze Exp $
+# $Id: configure,v 1.70 2019/03/06 16:04:31 schwarze Exp $
 #
-# Copyright (c) 2014,2015,2016,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014-2019 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -37,6 +37,7 @@ SOURCEDIR=`dirname "$0"`
 
 MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
 MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
+OSENUM=
 OSNAME=
 UTF8_LOCALE=
 
@@ -64,6 +65,7 @@ HAVE_FTS_COMPARE_CONST=
 HAVE_GETLINE=
 HAVE_GETSUBOPT=
 HAVE_ISBLANK=
+HAVE_LESS_T=
 HAVE_MKDTEMP=
 HAVE_NANOSLEEP=
 HAVE_NTOHL=
@@ -89,6 +91,9 @@ HAVE_STRTONUM=
 HAVE_SYS_ENDIAN=
 HAVE_VASPRINTF=
 HAVE_WCHAR=
+
+NEED_GNU_SOURCE=0
+NEED_OPENBSD_SOURCE=0
 
 PREFIX="/usr/local"
 BINDIR=
@@ -154,31 +159,34 @@ ismanual() {
 # In case of failure, do not decide anything yet.
 # Arguments: test file name, test var name, additional CFLAGS
 singletest() {
+	n=${1}${3}${4}
 	cat 1>&3 << __HEREDOC__
-testing ${1}${3} ...
-${COMP} -o test-${1} test-${1}.c ${3}
+testing ${n} ...
+${COMP} -o test-${1} test-${1}.c ${3} ${4}
 __HEREDOC__
 
-	if ${COMP} -o "test-${1}" "${SOURCEDIR}/test-${1}.c" ${3} 1>&3 2>&3
+	if ${COMP} -o "test-${1}" "${SOURCEDIR}/test-${1}.c" ${3} ${4} 1>&3 2>&3
 	then
-		echo "partial result of ${1}${3}: ${CC} succeeded" 1>&3
+		echo "partial result of ${n}: ${CC} succeeded" 1>&3
 	else
-		echo "result of ${1}${3}: ${CC} failed with exit status $?" 1>&3
-		echo "result of compiling ${1}${3}: no" 1>&3
+		echo "result of ${n}: ${CC} failed with exit status $?" 1>&3
+		echo "result of compiling ${n}: no" 1>&3
 		echo 1>&3
 		return 1
 	fi
 
 	if ./test-${1} 1>&3 2>&3; then
-		echo "tested ${1}${3}: yes" 1>&2
-		echo "result of running ${1}${3}: yes" 1>&3
+		echo "tested ${n}: yes" 1>&2
+		echo "result of running ${n}: yes" 1>&3
 		echo 1>&3
 		eval HAVE_${2}=1
+		[ "X$3" = "X-D_GNU_SOURCE" ] && NEED_GNU_SOURCE=1
+		[ "X$3" = "X-D_OPENBSD_SOURCE" ] && NEED_OPENBSD_SOURCE=1
 		rm "test-${1}"
 		return 0
 	else
-		echo "result of ${1}${3}: execution failed with exit status $?" 1>&3
-		echo "result of running ${1}${3}: no" 1>&3
+		echo "result of ${n}: execution failed with exit status $?" 1>&3
+		echo "result of running ${n}: no" 1>&3
 		echo 1>&3
 		rm "test-${1}"
 		return 1
@@ -191,8 +199,8 @@ __HEREDOC__
 runtest() {
 	eval _manual=\${HAVE_${2}}
 	ismanual "${1}" "${2}" "${_manual}" && return 0
-	singletest "${1}" "${2}" "${3}" && return 0
-	echo "tested ${1}${3}: no" 1>&2
+	singletest "${1}" "${2}" "${3}" "${4}" && return 0
+	echo "tested ${1}${3}${4}: no" 1>&2
 	eval HAVE_${2}=0
 	return 1
 }
@@ -213,28 +221,52 @@ get_locale() {
 	return 0;
 }
 
+# --- operating system -------------------------------------------------
+
+if [ -n "${OSENUM}" ]; then
+	echo "OSENUM specified manually: ${OSENUM}" 1>&2
+	echo "OSENUM specified manually: ${OSENUM}" 1>&3
+else
+	OSDETECT=`uname`
+	if [ "X${OSDETECT}" = "XNetBSD" ]; then
+		OSENUM=MANDOC_OS_NETBSD
+	elif [ "X${OSDETECT}" = "XOpenBSD" ]; then
+		OSENUM=MANDOC_OS_OPENBSD
+	else
+		OSENUM=MANDOC_OS_OTHER
+	fi
+	echo "tested operating system: ${OSDETECT} -> OSENUM=${OSENUM}" 1>&2
+	echo "tested operating system: ${OSDETECT} -> OSENUM=${OSENUM}" 1>&3
+	unset OSDETECT
+fi
+echo 1>&3
+
 # --- compiler options -------------------------------------------------
 
+DEFCFLAGS="-g -W -Wall -Wmissing-prototypes -Wstrict-prototypes -Wwrite-strings -Wno-unused-parameter"
+
 if [ -n "${CFLAGS}" ]; then
-	COMP="${CC} ${CFLAGS}"
-	echo "selected CFLAGS=\"${CFLAGS}\" (manual)" 1>&2
-	echo "selected CFLAGS=\"${CFLAGS}\" (manual)" 1>&3
-	echo 1>&3
-else
-	CFLAGS="-g -W -Wall -Wmissing-prototypes -Wstrict-prototypes"
-	CFLAGS="${CFLAGS} -Wwrite-strings -Wno-unused-parameter"
 	COMP="${CC} ${CFLAGS} -Wno-unused -Werror"
-	echo -n "tested ${CC} -W: " 1>&2
-	echo -n "testing ${CC} -W: " 1>&3
-	runtest noop WFLAG || true
-	if [ "${HAVE_WFLAG}" -eq 0 ]; then
-		CFLAGS="-g"
-		COMP="${CC} ${CFLAGS}"
-	fi
-	echo "selected CFLAGS=\"${CFLAGS}\"" 1>&2
-	echo "selected CFLAGS=\"${CFLAGS}\"" 1>&3
-	echo 1>&3
+else
+	COMP="${CC} ${DEFCFLAGS} -Wno-unused -Werror"
 fi
+echo -n "tested ${CC} -W: " 1>&2
+echo -n "testing ${CC} -W: " 1>&3
+runtest noop WFLAG || true
+
+if [ -n "${CFLAGS}" ]; then
+	echo "CFLAGS specified manually:" 1>&3
+elif [ ${HAVE_WFLAG} -eq 0 ]; then
+	CFLAGS="-g"
+else
+	CFLAGS="${DEFCFLAGS}"
+fi
+echo "selected CFLAGS=\"${CFLAGS}\"" 1>&2
+echo "selected CFLAGS=\"${CFLAGS}\"" 1>&3
+echo 1>&3
+
+COMP="${CC} ${CFLAGS}"
+[ ${HAVE_WFLAG} -eq 0 ] || COMP="${COMP} -Wno-unused -Werror"
 
 if [ -n "${STATIC}" ]; then
 	echo "selected STATIC=\"${STATIC}\" (manual)" 1>&2
@@ -257,7 +289,8 @@ runtest be32toh		SYS_ENDIAN	-DSYS_ENDIAN || true
 runtest EFTYPE		EFTYPE		|| true
 runtest err		ERR		|| true
 runtest getline		GETLINE		|| true
-runtest getsubopt	GETSUBOPT	|| true
+singletest getsubopt	GETSUBOPT	|| \
+   runtest getsubopt	GETSUBOPT	-D_GNU_SOURCE || true
 runtest isblank		ISBLANK		|| true
 runtest mkdtemp		MKDTEMP		|| true
 runtest ntohl		NTOHL		|| true
@@ -266,19 +299,25 @@ runtest PATH_MAX	PATH_MAX	|| true
 runtest pledge		PLEDGE		|| true
 runtest sandbox_init	SANDBOX_INIT	|| true
 runtest progname	PROGNAME	|| true
-runtest reallocarray	REALLOCARRAY	|| true
-runtest recallocarray	RECALLOCARRAY	|| true
+singletest reallocarray	REALLOCARRAY	|| \
+   runtest reallocarray	REALLOCARRAY	-D_OPENBSD_SOURCE || true
+singletest recallocarray RECALLOCARRAY	|| \
+   runtest recallocarray RECALLOCARRAY	-D_OPENBSD_SOURCE || true
 runtest rewb-bsd	REWB_BSD	|| true
 runtest rewb-sysv	REWB_SYSV	|| true
-runtest strcasestr	STRCASESTR	|| true
+singletest strcasestr	STRCASESTR	|| \
+   runtest strcasestr	STRCASESTR	-D_GNU_SOURCE || true
 runtest stringlist	STRINGLIST	|| true
 runtest strlcat		STRLCAT		|| true
 runtest strlcpy		STRLCPY		|| true
 runtest strndup		STRNDUP		|| true
-runtest strptime	STRPTIME	|| true
+singletest strptime	STRPTIME	|| \
+   runtest strptime	STRPTIME	-D_GNU_SOURCE || true
 runtest strsep		STRSEP		|| true
-runtest strtonum	STRTONUM	|| true
-runtest vasprintf	VASPRINTF	|| true
+singletest strtonum	STRTONUM	|| \
+   runtest strtonum	STRTONUM	-D_OPENBSD_SOURCE || true
+singletest vasprintf	VASPRINTF	|| \
+   runtest vasprintf	VASPRINTF	-D_GNU_SOURCE || true
 
 if [ ${HAVE_ENDIAN} -eq 0 -a \
      ${HAVE_SYS_ENDIAN} -eq 0 -a \
@@ -296,9 +335,25 @@ else
 	runtest fts FTS || true
 fi
 
+if ismanual "less -T" LESS_T ${HAVE_LESS_T}; then
+	:
+elif less -ET /dev/null test-noop.c 1>/dev/null 2>&3; then
+	HAVE_LESS_T=1
+	echo "tested less -T: yes" 1>&2
+	echo "tested less -T: yes" 1>&3
+	echo 1>&3
+else
+	HAVE_LESS_T=0
+	echo "tested less -T: no" 1>&2
+	echo "tested less -T: no" 1>&3
+	echo 1>&3
+fi
+
 # --- wide character and locale support ---
 if get_locale; then
-	runtest wchar WCHAR -DUTF8_LOCALE=\"${UTF8_LOCALE}\" || true
+	singletest wchar WCHAR -DUTF8_LOCALE=\"${UTF8_LOCALE}\" || \
+	runtest wchar WCHAR -D_GNU_SOURCE \
+			    -DUTF8_LOCALE=\"${UTF8_LOCALE}\" || true
 else
 	HAVE_WCHAR=0
 	echo "tested wchar: no (no UTF8_LOCALE)" 1>&2
@@ -383,11 +438,10 @@ cat << __HEREDOC__
 #define __attribute__(x)
 #endif
 
-#if defined(__linux__) || defined(__MINT__)
-#define _GNU_SOURCE	/* See test-*.c what needs this. */
-#endif
-
 __HEREDOC__
+
+[ ${NEED_GNU_SOURCE} -eq 0 ] || echo "#define _GNU_SOURCE"
+[ ${NEED_OPENBSD_SOURCE} -eq 0 ] || echo "#define _OPENBSD_SOURCE"
 
 [ ${HAVE_GETLINE} -eq 0 -o \
   ${HAVE_REALLOCARRAY} -eq 0 -o ${HAVE_RECALLOCARRAY} -eq 0 -o \
@@ -401,6 +455,7 @@ echo
 echo "#define MAN_CONF_FILE \"/etc/${MANM_MANCONF}\""
 echo "#define MANPATH_BASE \"${MANPATH_BASE}\""
 echo "#define MANPATH_DEFAULT \"${MANPATH_DEFAULT}\""
+echo "#define OSENUM ${OSENUM}"
 [ -n "${OSNAME}" ] && echo "#define OSNAME \"${OSNAME}\""
 [ -n "${UTF8_LOCALE}" ] && echo "#define UTF8_LOCALE \"${UTF8_LOCALE}\""
 [ -n "${HOMEBREWDIR}" ] && echo "#define HOMEBREWDIR \"${HOMEBREWDIR}\""
@@ -422,6 +477,7 @@ cat << __HEREDOC__
 #define HAVE_GETLINE ${HAVE_GETLINE}
 #define HAVE_GETSUBOPT ${HAVE_GETSUBOPT}
 #define HAVE_ISBLANK ${HAVE_ISBLANK}
+#define HAVE_LESS_T ${HAVE_LESS_T}
 #define HAVE_MKDTEMP ${HAVE_MKDTEMP}
 #define HAVE_NTOHL ${HAVE_NTOHL}
 #define HAVE_PLEDGE ${HAVE_PLEDGE}

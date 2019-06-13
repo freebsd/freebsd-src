@@ -1,9 +1,9 @@
-.\"	$Id: man.1,v 1.33 2018/04/19 23:41:16 schwarze Exp $
+.\"	$Id: man.1,v 1.35 2019/03/09 15:55:01 schwarze Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\" Copyright (c) 2003, 2007, 2008, 2014 Jason McIntyre <jmc@openbsd.org>
-.\" Copyright (c) 2010, 2011, 2014-2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010, 2011, 2014-2018 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)man.1	8.2 (Berkeley) 1/2/94
 .\"
-.Dd $Mdocdate: April 19 2018 $
+.Dd $Mdocdate: March 9 2019 $
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -218,12 +218,24 @@ Guidelines for writing
 man pages can be found in
 .Xr mdoc 7 .
 .Pp
+The
+.Xr mandoc.db 5
+database is used for looking up manual page entries.
+In cases where the database is absent, outdated, or corrupt,
+.Nm
+falls back to looking for files called
+.Ar name . Ns Ar section .
 If both a formatted and an unformatted version of the same manual page,
 for example
 .Pa cat1/foo.0
 and
 .Pa man1/foo.1 ,
 exist in the same directory, only the unformatted version is used.
+The database is kept up to date with
+.Xr makewhatis 8 ,
+which is run by the
+.Xr weekly 8
+maintenance script.
 .Sh ENVIRONMENT
 .Bl -tag -width MANPATHX
 .It Ev MACHINE
@@ -266,6 +278,13 @@ and
 can be used to move to the next and to the previous place providing
 information about the term last searched for with
 .Ic :t .
+The
+.Fl O Cm tag Ns Op = Ns Ar term
+option documented in the
+.Xr mandoc 1
+manual opens a manual page at the definition of a specific
+.Ar term
+rather than at the beginning.
 .It Ev MANPATH
 The standard search path used by
 .Nm

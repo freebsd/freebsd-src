@@ -1,7 +1,7 @@
-/*	$Id: term.h,v 1.130 2017/07/08 14:51:05 schwarze Exp $ */
+/*	$Id: term.h,v 1.131 2019/01/04 03:21:02 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2015, 2017, 2019 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -99,6 +99,8 @@ struct	termp {
 #define	TERMP_NEWMC	 (1 << 18)	/* No .mc printed yet. */
 #define	TERMP_ENDMC	 (1 << 19)	/* Next break ends .mc mode. */
 #define	TERMP_MULTICOL	 (1 << 20)	/* Multiple column mode. */
+#define	TERMP_CENTER	 (1 << 21)	/* Center output lines. */
+#define	TERMP_RIGHT	 (1 << 22)	/* Adjust to the right margin. */
 	enum termtype	  type;		/* Terminal, PS, or PDF. */
 	enum termenc	  enc;		/* Type of encoding. */
 	enum termfont	  fontl;	/* Last font set. */
