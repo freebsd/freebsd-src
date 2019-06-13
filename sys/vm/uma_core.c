@@ -146,7 +146,7 @@ static struct sx uma_drain_lock;
 
 /* kmem soft limit. */
 static unsigned long uma_kmem_limit = LONG_MAX;
-static volatile unsigned long uma_kmem_total;
+static unsigned long uma_kmem_total;
 
 /* Is the VM done starting up? */
 static enum { BOOT_COLD = 0, BOOT_STRAPPED, BOOT_PAGEALLOC, BOOT_BUCKETS,
@@ -3857,14 +3857,14 @@ unsigned long
 uma_size(void)
 {
 
-	return (uma_kmem_total);
+	return (atomic_load_long(&uma_kmem_total));
 }
 
 long
 uma_avail(void)
 {
 
-	return (uma_kmem_limit - uma_kmem_total);
+	return (uma_kmem_limit - uma_size());
 }
 
 void
