@@ -109,5 +109,4 @@ extern const boot_module_t zfs_module;
 
 /* Functions available to modules. */
 extern void add_device(dev_info_t **devinfop, dev_info_t *devinfo);
-extern int vsnprintf(char *str, size_t sz, const char *fmt, va_list ap);
 #endif
