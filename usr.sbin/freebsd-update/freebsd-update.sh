@@ -222,7 +222,15 @@ config_KeepModifiedMetadata () {
 config_Components () {
 	for C in $@; do
 		if [ "$C" = "src" ]; then
-			if [ -e "${BASEDIR}/usr/src/COPYRIGHT" ]; then
+			if [ -n "${BASEDIR}" ]; then
+				basedir="${BASEDIR}/"
+			elif [ -n "${BASEDIR_saved}" ]; then
+				basedir="${BASEDIR_saved}/"
+			else
+				basedir="/"
+			fi
+
+			if [ -e "${basedir}usr/src/COPYRIGHT" ]; then
 				COMPONENTS="${COMPONENTS} ${C}"
 			else
 				echo "src component not installed, skipped"
