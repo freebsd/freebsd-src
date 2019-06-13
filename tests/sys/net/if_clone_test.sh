@@ -39,6 +39,52 @@
 
 TESTLEN=10	# seconds
 
+atf_test_case epair_stress cleanup
+epair_stress_head()
+{
+	atf_set "descr" "Simultaneously create and destroy an epair(4)"
+	atf_set "require.user" "root"
+}
+epair_stress_body()
+{
+	do_stress "epair"
+}
+epair_stress_cleanup()
+{
+	cleanup_ifaces
+}
+
+atf_test_case epair_up_stress cleanup
+epair_up_stress_head()
+{
+	atf_set "descr" "Simultaneously up and detroy an epair(4)"
+	atf_set "require.user" "root"
+}
+epair_up_stress_body()
+{
+	do_up_stress "epair" "" ""
+}
+epair_up_stress_cleanup()
+{
+	cleanup_ifaces
+}
+
+atf_test_case epair_ipv6_up_stress cleanup
+epair_ipv6_up_stress_head()
+{
+	atf_set "descr" "Simultaneously up and destroy an epair(4) with IPv6"
+	atf_set "require.user" "root"
+}
+epair_ipv6_up_stress_body()
+{
+	atf_skip "Quickly panics: page fault in in6_unlink_ifa (PR 225438)"
+	do_up_stress "epair" "6" ""
+}
+epair_ipv6_up_stress_cleanup()
+{
+	cleanup_ifaces
+}
+
 atf_test_case faith_stress cleanup
 faith_stress_head()
 {
@@ -369,7 +415,9 @@ vmnet_ipv6_up_stress_cleanup()
 
 atf_init_test_cases()
 {
-	# TODO: add epair(4) tests, which need a different syntax
+	atf_add_test_case epair_ipv6_up_stress
+	atf_add_test_case epair_stress
+	atf_add_test_case epair_up_stress
 	atf_add_test_case faith_ipv6_up_stress
 	atf_add_test_case faith_stress
 	atf_add_test_case faith_up_stress
@@ -396,13 +444,13 @@ atf_init_test_cases()
 
 do_stress()
 {
-	local IFACE
+	local IFACE CREATOR_PID DESTROYER_PID
 
 	IFACE=`get_iface $1`
 
 	# First thread: create the interface
 	while true; do
-		ifconfig $IFACE create 2>/dev/null && \
+		ifconfig ${IFACE%a} create 2>/dev/null && \
 			echo -n . >> creator_count.txt
 	done &
 	CREATOR_PID=$!
@@ -417,7 +465,7 @@ do_stress()
 	sleep ${TESTLEN}
 	kill $CREATOR_PID
 	kill $DESTROYER_PID
-	echo "Created $IFACE `stat -f %z creator_count.txt` times."
+	echo "Created ${IFACE%a} `stat -f %z creator_count.txt` times."
 	echo "Destroyed it `stat -f %z destroyer_count.txt` times."
 }
 
@@ -428,7 +476,8 @@ do_stress()
 # $3	p2p for point to point interfaces, anything else for normal interfaces
 do_up_stress()
 {
-	local IFACE IPv6 MAC P2P SRCDIR
+	local ADDR DSTADDR MASK MEAN_SLEEP_SECONDS MAX_SLEEP_USECS \
+	    IFACE IPV6 P2P SRCDIR LOOP_PID ipv6_cmd up_cmd
 
 	# Configure the interface to use an RFC5737 nonrouteable addresses
 	ADDR="192.0.2.2"
@@ -464,7 +513,7 @@ do_up_stress()
 			ifconfig $IFACE destroy &&
 			echo -n . >> destroy_count.txt ; } &
 		wait
-		ifconfig $IFACE create
+		ifconfig ${IFACE%a} create
 	done &
 	LOOP_PID=$!
 
@@ -489,7 +538,11 @@ get_iface()
 			N=$(($N + 1))
 		fi
 	done
-	local DEV=${CLASS}${N}
+	if [ ${CLASS} = "epair" ]; then
+		DEV=${CLASS}${N}a
+	else
+		DEV=${CLASS}${N}
+	fi
 	# Record the device so we can clean it up later
 	echo ${DEV} >> "devices_to_cleanup"
 	echo ${DEV}
@@ -501,11 +554,7 @@ cleanup_ifaces()
 	local DEV
 
 	for DEV in `cat "devices_to_cleanup"`; do
-		if [ ${DEV%%[0-9]*a} = "epair" ]; then
-			ifconfig ${DEV}a destroy
-		else
-			ifconfig ${DEV} destroy
-		fi
+		ifconfig ${DEV} destroy
 	done
 	true
 }
