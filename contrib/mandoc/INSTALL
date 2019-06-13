@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.22 2018/07/31 15:34:00 schwarze Exp $
+$Id: INSTALL,v 1.23 2019/03/06 15:58:10 schwarze Exp $
 
 About the portable mandoc distribution
 --------------------------------------
@@ -18,7 +18,7 @@ tech@ mailing list, too.
 
 Enjoy using the mandoc toolset!
 
-Ingo Schwarze, Karlsruhe, August 2018
+Ingo Schwarze, Karlsruhe, March 2019
 
 
 Installation
@@ -67,7 +67,8 @@ variables into "configure.local" and go back to step 4.
 7. Optionally run the regression suite.
 Basically, that amounts to "cd regress && ./regress.pl".
 But you should probably look at "./mandoc -l regress/regress.pl.1"
-first.
+first.  In particular, regarding Solaris systems, look at the BUGS
+section of that manual page.
 
 8. Run "sudo make install".  If you intend to build a binary
 package using some kind of fake root mechanism, you may need a

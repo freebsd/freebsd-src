@@ -1,4 +1,4 @@
-/*	$Id: test-getsubopt.c,v 1.4 2015/10/06 18:32:20 schwarze Exp $	*/
+/*	$Id: test-getsubopt.c,v 1.6 2018/08/15 14:37:41 schwarze Exp $	*/
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -15,11 +15,14 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#if defined(__linux__) || defined(__MINT__)
-#define _GNU_SOURCE /* getsubopt() */
-#endif
-
 #include <stdlib.h>
+
+/*
+ * NetBSD declared this function in the wrong header before August 2018.
+ * No harm is done by allowing that, too:
+ * The only file using it, main.c, also includes unistd.h, anyway.
+ */
+#include <unistd.h>
 
 int
 main(void)

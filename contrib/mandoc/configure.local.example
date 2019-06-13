@@ -1,6 +1,6 @@
-# $Id: configure.local.example,v 1.34 2018/07/31 15:34:00 schwarze Exp $
+# $Id: configure.local.example,v 1.36 2019/03/06 10:18:58 schwarze Exp $
 #
-# Copyright (c) 2014,2015,2016,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014-2019 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -67,6 +67,17 @@ MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
 
 MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
 
+# When man(1) is called with the -S option and no manual page is
+# found matching the requested name and the requested architecture,
+# it tries to figure out whether the requested architecture is valid
+# for the present operating system.  Normally, ./configure detects
+# the operating system using uname(1).  If that fails or is not
+# desired, either of the following lines can be used:
+
+OSENUM=MANDOC_OS_NETBSD
+OSENUM=MANDOC_OS_OPENBSD
+OSENUM=MANDOC_OS_OTHER
+
 # In manual pages written in the mdoc(7) language, the operating system
 # version is displayed in the page footer line.  If an operating system
 # is specified as an argument to the .Os macro, that is always used.
@@ -77,7 +88,7 @@ MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
 # If you do not want uname(3) to be called but instead want a fixed
 # string to be used, use the following line:
 
-OSNAME="OpenBSD 6.3"
+OSNAME="OpenBSD 6.5"
 
 # The following installation directories are used.
 # It is possible to set only one or a few of these variables,
@@ -293,6 +304,7 @@ HAVE_FTS_COMPARE_CONST=0  # Setting this implies HAVE_FTS=1.
 HAVE_GETLINE=0
 HAVE_GETSUBOPT=0
 HAVE_ISBLANK=0
+HAVE_LESS_T=0
 HAVE_MKDTEMP=0
 HAVE_NTOHL=0
 HAVE_O_DIRECTORY=0

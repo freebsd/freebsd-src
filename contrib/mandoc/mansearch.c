@@ -1,7 +1,7 @@
-/*	$Id: mansearch.c,v 1.77 2017/08/22 17:50:11 schwarze Exp $ */
+/*	$Id: mansearch.c,v 1.80 2018/12/13 11:55:46 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013-2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013-2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -36,7 +36,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "mandoc.h"
 #include "mandoc_aux.h"
 #include "mandoc_ohash.h"
 #include "manconf.h"
@@ -201,7 +200,6 @@ mansearch(const struct mansearch *search,
 			mpage->names = buildnames(page);
 			mpage->output = buildoutput(outkey, page);
 			mpage->ipath = i;
-			mpage->bits = rp->bits;
 			mpage->sec = *page->sect - '0';
 			if (mpage->sec < 0 || mpage->sec > 9)
 				mpage->sec = 10;
@@ -296,10 +294,8 @@ manmerge_term(struct expr *e, struct ohash *htab)
 				break;
 			slot = ohash_lookup_memory(htab,
 			    (char *)&res, sizeof(res.page), res.page);
-			if ((rp = ohash_find(htab, slot)) != NULL) {
-				rp->bits |= res.bits;
+			if ((rp = ohash_find(htab, slot)) != NULL)
 				continue;
-			}
 			rp = mandoc_malloc(sizeof(*rp));
 			*rp = res;
 			ohash_insert(htab, slot, rp);
@@ -412,8 +408,7 @@ manpage_compare(const void *vp1, const void *vp2)
 
 	mp1 = vp1;
 	mp2 = vp2;
-	if ((diff = mp2->bits - mp1->bits) ||
-	    (diff = mp1->sec - mp2->sec))
+	if ((diff = mp1->sec - mp2->sec))
 		return diff;
 
 	/* Fall back to alphabetic ordering of names. */
@@ -774,8 +769,9 @@ exprterm(const struct mansearch *search, int argc, char *argv[], int *argi)
 		cs = 0;
 	} else if ((val = strpbrk(argv[*argi], "=~")) == NULL) {
 		e->bits = TYPE_Nm | TYPE_Nd;
-		e->match.type = DBM_SUB;
-		e->match.str = argv[*argi];
+		e->match.type = DBM_REGEX;
+		val = argv[*argi];
+		cs = 0;
 	} else {
 		if (val == argv[*argi])
 			e->bits = TYPE_Nm | TYPE_Nd;

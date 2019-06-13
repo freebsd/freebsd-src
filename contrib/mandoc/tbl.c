@@ -1,4 +1,4 @@
-/*	$Id: tbl.c,v 1.42 2017/07/08 17:52:50 schwarze Exp $ */
+/*	$Id: tbl.c,v 1.46 2018/12/14 06:33:14 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -25,10 +25,12 @@
 #include <string.h>
 #include <time.h>
 
-#include "mandoc.h"
 #include "mandoc_aux.h"
+#include "mandoc.h"
+#include "tbl.h"
 #include "libmandoc.h"
-#include "libroff.h"
+#include "tbl_parse.h"
+#include "tbl_int.h"
 
 
 void
@@ -86,14 +88,15 @@ tbl_read(struct tbl_node *tbl, int ln, const char *p, int pos)
 }
 
 struct tbl_node *
-tbl_alloc(int pos, int line, struct mparse *parse)
+tbl_alloc(int pos, int line, struct tbl_node *last_tbl)
 {
 	struct tbl_node	*tbl;
 
 	tbl = mandoc_calloc(1, sizeof(*tbl));
+	if (last_tbl != NULL)
+		last_tbl->next = tbl;
 	tbl->line = line;
 	tbl->pos = pos;
-	tbl->parse = parse;
 	tbl->part = TBL_PART_OPTS;
 	tbl->opts.tab = '\t';
 	tbl->opts.decimal = '.';
@@ -103,76 +106,77 @@ tbl_alloc(int pos, int line, struct mparse *parse)
 void
 tbl_free(struct tbl_node *tbl)
 {
+	struct tbl_node	*old_tbl;
 	struct tbl_row	*rp;
 	struct tbl_cell	*cp;
 	struct tbl_span	*sp;
 	struct tbl_dat	*dp;
 
-	while ((rp = tbl->first_row) != NULL) {
-		tbl->first_row = rp->next;
-		while (rp->first != NULL) {
-			cp = rp->first;
-			rp->first = cp->next;
-			free(cp->wstr);
-			free(cp);
+	while (tbl != NULL) {
+		while ((rp = tbl->first_row) != NULL) {
+			tbl->first_row = rp->next;
+			while (rp->first != NULL) {
+				cp = rp->first;
+				rp->first = cp->next;
+				free(cp->wstr);
+				free(cp);
+			}
+			free(rp);
 		}
-		free(rp);
-	}
-
-	while ((sp = tbl->first_span) != NULL) {
-		tbl->first_span = sp->next;
-		while (sp->first != NULL) {
-			dp = sp->first;
-			sp->first = dp->next;
-			free(dp->string);
-			free(dp);
+		while ((sp = tbl->first_span) != NULL) {
+			tbl->first_span = sp->next;
+			while (sp->first != NULL) {
+				dp = sp->first;
+				sp->first = dp->next;
+				free(dp->string);
+				free(dp);
+			}
+			free(sp);
 		}
-		free(sp);
+		old_tbl = tbl;
+		tbl = tbl->next;
+		free(old_tbl);
 	}
-
-	free(tbl);
 }
 
 void
 tbl_restart(int line, int pos, struct tbl_node *tbl)
 {
 	if (tbl->part == TBL_PART_CDATA)
-		mandoc_msg(MANDOCERR_TBLDATA_BLK, tbl->parse,
-		    line, pos, "T&");
+		mandoc_msg(MANDOCERR_TBLDATA_BLK, line, pos, "T&");
 
 	tbl->part = TBL_PART_LAYOUT;
 	tbl->line = line;
 	tbl->pos = pos;
 }
 
-const struct tbl_span *
+struct tbl_span *
 tbl_span(struct tbl_node *tbl)
 {
 	struct tbl_span	 *span;
 
-	assert(tbl);
 	span = tbl->current_span ? tbl->current_span->next
 				 : tbl->first_span;
-	if (span)
+	if (span != NULL)
 		tbl->current_span = span;
 	return span;
 }
 
 int
-tbl_end(struct tbl_node *tbl)
+tbl_end(struct tbl_node *tbl, int still_open)
 {
 	struct tbl_span *sp;
 
-	if (tbl->part == TBL_PART_CDATA)
-		mandoc_msg(MANDOCERR_TBLDATA_BLK, tbl->parse,
-		    tbl->line, tbl->pos, "TE");
+	if (still_open)
+		mandoc_msg(MANDOCERR_BLK_NOEND, tbl->line, tbl->pos, "TS");
+	else if (tbl->part == TBL_PART_CDATA)
+		mandoc_msg(MANDOCERR_TBLDATA_BLK, tbl->line, tbl->pos, "TE");
 
 	sp = tbl->first_span;
 	while (sp != NULL && sp->first == NULL)
 		sp = sp->next;
 	if (sp == NULL) {
-		mandoc_msg(MANDOCERR_TBLDATA_NONE, tbl->parse,
-		    tbl->line, tbl->pos, NULL);
+		mandoc_msg(MANDOCERR_TBLDATA_NONE, tbl->line, tbl->pos, NULL);
 		return 0;
 	}
 	return 1;

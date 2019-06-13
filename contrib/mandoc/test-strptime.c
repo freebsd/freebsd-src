@@ -1,7 +1,3 @@
-#if defined(__linux__) || defined(__MINT__)
-# define _GNU_SOURCE /* strptime() */
-#endif
-
 #include <time.h>
 
 int

@@ -1,7 +1,7 @@
-.\"	$Id: apropos.1,v 1.47 2018/02/23 18:54:02 schwarze Exp $
+.\"	$Id: apropos.1,v 1.49 2018/11/22 12:33:52 schwarze Exp $
 .\"
 .\" Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011, 2012, 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011,2012,2014,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: February 23 2018 $
+.Dd $Mdocdate: November 22 2018 $
 .Dt APROPOS 1
 .Os
 .Sh NAME
@@ -51,8 +51,7 @@ searches for
 .Xr makewhatis 8
 databases in the default paths stipulated by
 .Xr man 1
-and uses case-insensitive substring matching
-.Pq the Cm = No operator
+and uses case-insensitive extended regular expression matching
 over manual names and descriptions
 .Pq the Li \&Nm No and Li \&Nd No macro keys .
 Multiple terms imply pairwise
@@ -93,7 +92,7 @@ format.
 Search for all words in
 .Ar expression
 in manual page names only.
-The search is case insensitive and matches whole words only.
+The search is case-insensitive and matches whole words only.
 In this mode, macro keys, comparison operators, and logical operators
 are not available.
 .It Fl k
@@ -123,7 +122,7 @@ Restrict the search to pages for the specified
 .Xr machine 1
 architecture.
 .Ar arch
-is case insensitive.
+is case-insensitive.
 By default, pages for all architectures are shown.
 .It Fl s Ar section
 Restrict the search to the specified section of the manual.
@@ -199,7 +198,7 @@ Operator
 .Cm =
 evaluates a substring, while
 .Cm \(ti
-evaluates a regular expression.
+evaluates a case-sensitive extended regular expression.
 .It Fl i Ar term
 If
 .Ar term
@@ -208,26 +207,10 @@ is evaluated case-insensitively.
 Has no effect on substring terms.
 .El
 .Pp
-Results are sorted according to the following criteria:
-.Bl -enum
-.It
-The manpath directory tree the page is found in, according to the
-order specified with
-.Fl M ,
-.Fl m ,
-the
-.Ev MANPATH
-environment variable, the
-.Xr man.conf 5
-configuration file, or the default documented in
-.Xr man.conf 5 .
-.It
-The section number in ascending numerical order.
-.It
-The page name in ascending
+Results are sorted first according to the section number in ascending
+numerical order, then by the page name in ascending
 .Xr ascii 7
 alphabetical order, case-insensitive.
-.El
 .Pp
 Each output line is formatted as
 .Pp
@@ -339,7 +322,7 @@ function arguments appearing on
 .Ic \&Fn
 lines
 .It Li \&Fn
-fuction names marked up with
+function names marked up with
 .Ic \&Fo
 macros
 .It Li \&In
@@ -407,7 +390,7 @@ Search for
 .Qq .cf
 as a substring of manual names and descriptions:
 .Pp
-.Dl $ apropos .cf
+.Dl $ apropos =.cf
 .Pp
 Include matches for
 .Qq .cnf
@@ -415,9 +398,9 @@ and
 .Qq .conf
 as well:
 .Pp
-.Dl $ apropos .cf .cnf .conf
+.Dl $ apropos =.cf =.cnf =.conf
 .Pp
-Search in names and descriptions using a regular expression:
+Search in names and descriptions using a case-sensitive regular expression:
 .Pp
 .Dl $ apropos \(aq\(tiset.?[ug]id\(aq
 .Pp
@@ -448,6 +431,24 @@ The following two invocations are equivalent:
 .Xr man 1 ,
 .Xr re_format 7 ,
 .Xr makewhatis 8
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification of
+.Xr man 1
+.Fl k .
+.Pp
+All options, the
+.Nm whatis
+command, support for logical operators, macro keys,
+substring matching, sorting of results, the environment variables
+.Ev MANPAGER
+and
+.Ev MANPATH ,
+the database format, and the configuration file
+are extensions to that specification.
 .Sh HISTORY
 Part of the functionality of
 .Nm whatis

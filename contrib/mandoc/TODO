@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.258 2018/08/06 14:16:30 schwarze Exp $
+* $Id: TODO,v 1.289 2019/03/04 13:01:57 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -38,18 +38,6 @@ are mere guesses, and some may be wrong.
 
 --- missing roff features ----------------------------------------------
 
-- .nop prints its arguments as text,
-  see groff(7) for an example
-
-- .ft CB selects constant-width bold font
-  see groff_out(7) for examples
-
-- \*(.T prints the device being used,
-  see groff_char(7) for an example
-
-- \[charNN], \[charNNN] prints a single-byte codepoint
-  see groff_char(7) for examples
-
 - .ad (adjust margins)
   .ad l -- adjust left margin only (flush left)
   .ad r -- adjust right margin only (flush right)
@@ -69,33 +57,10 @@ are mere guesses, and some may be wrong.
   reported by brad@  Sat, 15 Jan 2011 15:45:23 -0500
   loc ***  exist ***  algo ***  size **  imp *
 
-- .while and .shift
-  found by jca@ in ratpoison(1)  Sun, 30 Jun 2013 12:01:09 +0200
-  loc *  exist **  algo **  size **  imp **
-
 - \w'' improve width measurements
   would not be very useful without an expression parser, see below
   needed for Tcl_NewStringObj(3) via wiz@  Wed, 5 Mar 2014 22:27:43 +0100
   loc **  exist ***  algo ***  size *  imp ***
-
-- \\ in high-level macro arguments
-  Currently, \\ is expanded in two situations:
-  1) macro and string definition (roff.c setstrn())
-  2) macro argument parsing (mandoc.c mandoc_getarg())
-  For user defined macros, the second happens in time because of ROFF_REPARSE.
-  But for standard high-level macros, it only happens after entering the
-  high level parsers, which is too late because the code doesn't get
-  back to roff.c roff_res() from that point.  Because this requires
-  distinguishing requests, user-defined macros and standard macros
-  on the roff_res() level, it is hard to solve without the parser reorg.
-  Found by naddy@ in devel/cutils cobfusc(1)  Mon, 16 Feb 2015 19:10:52 +0100
-  loc ***  exist ***  algo ***  size **  imp *
-
-- check for missing roff escape sequences, implement those that are
-  trivial even if not usually appearing in manual pages, gracefully
-  ignore the non-trivial ones, document what they are supposed to do
-  and what mandoc does instead
-  loc *  exist **  algo *  size *  imp *
 
 --- missing mdoc features ----------------------------------------------
 
@@ -111,13 +76,6 @@ are mere guesses, and some may be wrong.
   .Sh .Nm .Bk .Nm .Ek .Sh found by jmc@ in ssh-keygen(1)
   from jmc@  Wed, 14 Jul 2010 18:10:32 +0100
   loc *  exist ***  algo ***  size **  imp **
-
-- .Bd -centered implies -filled, not -unfilled, which is not
-  easy to implement; it requires code similar to .ce, which
-  we don't have either.
-  Besides, groff has bug causing text right *before* .Bd -centered
-  to be centered as well.
-  loc ***  exist ***  algo **  size **  imp **  (parser reorg would help)
 
 - .Bd -filled should not be the same as .Bd -ragged, but align both
   the left and right margin.  In groff, it is implemented in terms
@@ -174,15 +132,6 @@ are mere guesses, and some may be wrong.
 
 --- missing man features -----------------------------------------------
 
-- .SY and .YS,
-  used by many groff manual pages
-
-- preserve punctuation following .ME,
-  see ditroff(7) for an example
-
-- .TQ tagged paragraph continuation,
-  see groff_diff(7) for examples
-
 - groff_www(7) .MTO and .URL
   These macros were used by the GNU grep(1) man page.
   The groff_www(7) manual page itself uses them, too.
@@ -193,17 +142,9 @@ are mere guesses, and some may be wrong.
 
 --- missing tbl features -----------------------------------------------
 
-- the "s" layout column specifier is used for placement of data
-  into columns, but ignored during column width calculations
-  synaptics(4) found by tedu@  Mon, 17 Aug 2015 21:17:42 -0400
-  loc *  exist **  algo ***  size *  imp **
-
 - vertical centering in cells vertically spanned with ^
   pali dot rohar at gmail dot com 16 Jul 2018 13:03:35 +0200
   loc *  exist ***  algo ***  size **  imp *
-
-- support .ds requests inside tbl(7) code,
-  see tbl(1) for an example
 
 - support mdoc(7) and man(7) macros inside tbl(7) code;
   probably requires the parser reorg and letting tbl(7)
@@ -212,35 +153,24 @@ are mere guesses, and some may be wrong.
   loc ***  exist **  algo ***  size **  imp ***
 
 - look at the POSIX manuals in the books/man-pages-posix port,
-  they use some unsupported tbl(7) features.
+  they use some unsupported tbl(7) features, mostly macros in tbl(7).
   loc *  exist **  algo **  size **  imp ***
 
 - look what Joerg Schilling manual pages use
   Thu, 19 Mar 2015 18:31:48 +0100
 
-- use Unicode U+2500 to U+256C for table borders
-  in tbl(7) -Tutf-8 output
-  suggested by bentley@  Tue, 14 Oct 2014 04:10:55 -0600
-  loc *  exist **  algo *  size *  imp **
-
-- implement horizontal and vertical alignment in HTML output
-  pali dot rohar at gmail dot com 16 Jul 2018 13:03:35 +0200
-  loc *  exist *  algo *  size *  imp ***
-
-- implement cell spanning in HTML output
-  pali dot rohar at gmail dot com 16 Jul 2018 13:03:35 +0200
-  loc *  exist *  algo **  size **  imp **
-
-- implement table borders in HTML output
-  pali dot rohar at gmail dot com 16 Jul 2018 13:03:35 +0200
-  loc *  exist *  algo **  size **  imp **
-
 --- missing eqn features -----------------------------------------------
 
 - In a matrix, break the output line after each matrix line.
-  Found in the discussion at CDBUG 2015.
-  Suggested by Avi Weinstock.
-  loc *  exist *  algo *  size *  imp **
+  Found in the discussion at CDBUG 2015.  Suggested by Avi Weinstock.
+  This may not be the ideal solution after all: eqn(7) matrices
+  are lists of columns, so Avi's proposal would show each *column*
+  on its own *line*, which is likely to cause confusion.
+  A better solution, but much harder to implement, would be to
+  actually show the coordinates of column vectors on different
+  terminal output lines, using the clumnated output facilities
+  developed for .Bl -tag, .Bl -column, and also used for tbl(7).
+  loc *  exist *  algo **  size **  imp **
 
 - The "size" keyword is parsed, but ignored by the formatter.
   loc *  exist *  algo *  size *  imp *
@@ -341,9 +271,6 @@ are mere guesses, and some may be wrong.
 * formatting issues: ugly output
 ************************************************************************
 
-- .UR can nest inside .TP,
-  see roff(7) for examples
-
 - revisit empty in-line macros
   look at the difference between "Em x Em ." and "Sq x Em ."
   Carsten Kunze  Fri, 12 Dec 2014 00:15:41 +0100
@@ -400,6 +327,8 @@ are mere guesses, and some may be wrong.
 
 - a line starting with "\fB something" counts as starting with whitespace
   and triggers a line break; found in audio/normalize-mp3(1)
+  This will become easier once escape sequences are represented
+  by syntax tree nodes.
   loc **  exist *  algo **  size *  imp **
 
 - formatting /usr/local/man/man1/latex2man.1 with groff and mandoc
@@ -420,17 +349,6 @@ are mere guesses, and some may be wrong.
   loc *  exist **  algo **  size *  imp **
 
 --- HTML issues --------------------------------------------------------
-
-- wrap Sh and Ss content into <div>
-  Laura Morales <lauretas at mail dot com> 21 Apr 2018 18:10:48 +0200
-  (Evaluate whether this is really useful and has no adverse
-   side effects before implementing; if it is possible,
-   it does seem cleaner.)
-  loc **  exist **  algo *  size *  imp ***
-
-- format ".IP *" etc. as <ul> rather than <dl>
-  https://github.com/Debian/debiman/issues/67
-  loc ** exist ** algo ** size * imp ***
 
 - .Bf at the beginning of a paragraph inserts a bogus 1ex horizontal
   space, see for example random(3).  Introduced in
@@ -558,17 +476,10 @@ are mere guesses, and some may be wrong.
   all over mdoc_macro.c and all subtly different.
   loc **  exist **  algo **  size **  imp **
 
-- style message about suspicious uses of - vs. \- vs. \(mi
-  e.g. -1 is likely wrong (from the mdoclint TODO)
-
 - warn about punctuation - e.g. ',' and ';' - at the beginning
   of a text line, if it is likely intended to follow the preceding
   output without intervening whitespace, in particular after a
   macro line (from the mdoclint TODO)
-
-- mandoc_special does not really check the escape sequence,
-  but just the overall format
-  loc **  exist **  algo ***  size **  imp **
 
 - makewhatis -p complains about language subdirectories:
   /usr/local/man//ru: Unknown directory part
@@ -577,9 +488,6 @@ are mere guesses, and some may be wrong.
 ************************************************************************
 * documentation issues
 ************************************************************************
-
-- dashes, hyphens, and minus signs in manual pages
-  jmc@ Fri, 28 Mar 2014 07:19:27 +0000
 
 - mark macros as: page structure domain, manual domain, general text domain
   is this useful?
@@ -606,10 +514,6 @@ are mere guesses, and some may be wrong.
   Found by Aaron M. Ucko in the GNU Hurd via Bdale Garbee,
   https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=829624
 
-- We use the input line number at several places to distinguish
-  same-line from different-line input.  That plainly doesn't work
-  with user-defined macros, leading to random breakage.
-
 - Is it possible to further simplify ENDBODY_SPACE?
 
 - Find better ways to prevent endless loops
@@ -629,8 +533,6 @@ are mere guesses, and some may be wrong.
    output through libz.
  - Privilege separation (see OpenSSH).
  - Enable caching support via HTTP 304 and If-Modified-Since.
- - Have Mac OSX systems automatically disable -static compilation of the
-   CGI: -static isn't supported.
 
 ************************************************************************
 * to improve in the groff_mdoc(7) macros

@@ -1,7 +1,7 @@
-/*	$Id: libman.h,v 1.81 2017/04/29 12:45:41 schwarze Exp $ */
+/*	$Id: libman.h,v 1.86 2018/12/31 10:04:39 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015, 2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,6 +16,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+struct	roff_node;
+struct	roff_man;
+
 #define	MACRO_PROT_ARGS	  struct roff_man *man, \
 			  enum roff_tok tok, \
 			  int line, \
@@ -26,15 +29,14 @@
 struct	man_macro {
 	void		(*fp)(MACRO_PROT_ARGS);
 	int		  flags;
-#define	MAN_SCOPED	 (1 << 0)  /* Optional next-line scope. */
-#define	MAN_NSCOPED	 (1 << 1)  /* Allowed in next-line element scope. */
-#define	MAN_BSCOPE	 (1 << 2)  /* Break next-line block scope. */
-#define	MAN_JOIN	 (1 << 3)  /* Join arguments together. */
+#define	MAN_BSCOPED	 (1 << 0)  /* Optional next-line block scope. */
+#define	MAN_ESCOPED	 (1 << 1)  /* Optional next-line element scope. */
+#define	MAN_NSCOPED	 (1 << 2)  /* Allowed in next-line element scope. */
+#define	MAN_XSCOPE	 (1 << 3)  /* Exit next-line block scope. */
+#define	MAN_JOIN	 (1 << 4)  /* Join arguments together. */
 };
 
-extern	const struct man_macro *const man_macros;
+const struct man_macro *man_macro(enum roff_tok);
 
-
-void		  man_node_validate(struct roff_man *);
-void		  man_state(struct roff_man *, struct roff_node *);
+void		  man_descope(struct roff_man *, int, int, char *);
 void		  man_unscope(struct roff_man *, const struct roff_node *);
