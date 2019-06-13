@@ -261,19 +261,12 @@
       <para revision="334607">The &man.xz.1; utility has been updated
 	to version 5.2.4.</para>
 
-      <para revision="337817">The <application>WPA</application>
-	utilities have been updated to version 2.6.</para>
-
       <para revision="337827">The &man.file.1; utility has been
 	updated to version 5.34.</para>
 
       <para revision="338414" contrib="sponsor" sponsor="&ff;">The
 	<application>ELF Tool Chain</application> has been updated to
 	version r3614.</para>
-
-      <para revision="338795">The &man.libarchive.3; library has been
-	updated to version 3.3.3, with additional fixes from
-	upstream.</para>
 
       <para revision="339100" contrib="sponsor" sponsor="&ff;">The
 	<application>lld</application> utility has been updated to add
@@ -284,25 +277,35 @@
 	updated to fix incorrect date reporting for &man.dump.8;
 	files.</para>
 
-      <para revision="344213">The <application>clang</application>,
-	<application>llvm</application>,
-	<application>lld</application>,
-	<application>lldb</application>, and
-	<application>compiler-rt</application> utilities as well as
-	<application>libc++</application> have been updated to
-	upstream version 7.0.1.</para>
-
       <para revision="344220">The <application>LUA</application>
 	&man.loader.8; has been merged.</para>
-
-      <para revision="344604"><application>OpenSSL</application> has
-	been updated to version 1.0.2r.</para>
 
       <para revision="344884">The &man.ntpd.8; utilities have been
 	updated to version 4.2.8p13.</para>
 
       <para revision="345670">Timezone data files have been updated to
 	version 2019a.</para>
+
+      <para revision="346296">The <application>clang</application>,
+	<application>llvm</application>,
+	<application>lld</application>,
+	<application>lldb</application>, and
+	<application>compiler-rt</application> utilities as well as
+	<application>libc++</application> have been updated to
+	upstream version 8.0.0.</para>
+
+      <para revision="346981">The <application>WPA</application>
+	utilities have been updated to version 2.8.</para>
+
+      <para revision="348343"><application>OpenSSL</application> has
+	been updated to version 1.0.2s.</para>
+
+      <para revision="348607">The &man.libarchive.3; library has been
+	updated to version 3.3.3, with additional fixes from
+	upstream.</para>
+
+      <para revision="348980"><application>OpenPAM</application> has
+	been updated to the latest upstream version.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -405,6 +408,10 @@
 	<acronym>ID</acronym> when logging a process exit.  The
 	&man.jail.8; <acronym>ID</acronym> <literal>0</literal>
 	represents processes that are not jailed.</para>
+
+      <para revision="348753">Warnings for features deprecated in
+	future releases will now be printed on all &os;
+	versions.</para>
     </sect2>
 
     <sect2 xml:id="kernel-bugfix">
@@ -473,6 +480,17 @@
 	sponsor="&chelsio;">The &man.ccr.4; driver has been added,
 	providing support for Chelsio&reg; T6&trade; cryptography
 	accelerators.</para>
+
+      <para revision="346855" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
+	to include support for hash filters, <acronym>NAT</acronym>
+	offloading, and
+	<acronym>SMAC</acronym>/<acronym>DMAC</acronym> swapping
+	filters.</para>
+
+      <para revision="346940" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; T4, T5, and T6 firmware
+	has been updated to version 1.23.0.0.</para>
     </sect2>
   </sect1>
 
@@ -517,7 +535,8 @@
     <sect2 xml:id="storage-general">
       <title>General Storage</title>
 
-      <para>&nbsp;</para>
+      <para revision="348588">Deprecation warnings have been added for
+	weaker algorithms when creating &man.geli.8; providers.</para>
     </sect2>
 
     <sect2 xml:id="storage-net">
@@ -533,6 +552,10 @@
 	issue that could result in a system hang during
 	<acronym>ZFS</acronym> vnode reclamation has been
 	fixed.</para>
+
+      <para revision="346690" contrib="sponsor" sponsor="&gandi;">The
+	<acronym>ZFS</acronym> filesystem has been updated to
+	implement parallel mounting.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
@@ -588,6 +611,11 @@
 	updated to include new rule options,
 	<literal>record-state</literal>, <literal>set-limit</literal>,
 	and <literal>defer-action</literal>.</para>
+
+      <para revision="346212" contrib="sponsor"
+	sponsor="&yandex;">Support for <acronym>NAT64</acronym>
+	<acronym>CLAT</acronym> has been added, as defined in
+	<acronym>RFC</acronym>6877.</para>
     </sect2>
 
     <sect2 xml:id="network-protocols">
