@@ -51,6 +51,27 @@ const char FULLPATH[] = "mountpoint/some_file.txt";
 const char RELPATH[] = "some_file.txt";
 const uint64_t ino = 42;
 
+static void compare(const void *tbuf, const void *controlbuf, off_t baseofs,
+	ssize_t size)
+{
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (((const char*)tbuf)[i] != ((const char*)controlbuf)[i]) {
+			off_t ofs = baseofs + i;
+			FAIL() << "miscompare at offset "
+			       << std::hex
+			       << std::showbase
+			       << ofs
+			       << ".  expected = "
+			       << std::setw(2)
+			       << (unsigned)((const uint8_t*)controlbuf)[i]
+			       << " got = "
+			       << (unsigned)((const uint8_t*)tbuf)[i];
+		}
+	}
+}
+
 class Io: public FuseTest {
 public:
 int m_backing_fd, m_control_fd, m_test_fd;
@@ -171,7 +192,7 @@ void do_read(ssize_t size, off_t offs)
 	ASSERT_EQ(size, pread(m_control_fd, control_buf, size, offs))
 		<< strerror(errno);
 
-	ASSERT_EQ(0, memcmp(test_buf, control_buf, size));
+	compare(test_buf, control_buf, offs, size);
 
 	free(control_buf);
 	free(test_buf);
@@ -306,5 +327,37 @@ TEST_F(Io, truncate_into_dirty_buffer2)
 	do_read(rsize2, rofs2);
 	/* Truncates the dirty buffer */
 	do_ftruncate(truncsize2);
+	close(m_test_fd);
+}
+
+/*
+ * Regression test for a bug introduced in r348931
+ *
+ * Sequence of operations:
+ * 1) The first write reads lbn so it can modify it
+ * 2) The first write flushes lbn 3 immediately because it's the end of file
+ * 3) The first write then flushes lbn 4 because it's the end of the file
+ * 4) The second write modifies the cached versions of lbn 3 and 4
+ * 5) The third write's getblkx invalidates lbn 4's B_CACHE because it's
+ *    extending the buffer.  Then it flushes lbn 4 because B_DELWRI was set but
+ *    B_CACHE was clear.
+ * 6) fuse_write_biobackend erroneously called vfs_bio_clrbuf, putting the
+ *    buffer into a weird write-only state.  All read operations would return
+ *    0.  Writes were apparently still processed, because the buffer's contents
+ *    were correct when examined in a core dump.
+ * 7) The third write reads lbn 4 because cache is clear
+ * 9) uiomove dutifully copies new data into the buffer
+ * 10) The buffer's dirty is flushed to lbn 4
+ * 11) The read returns all zeros because of step 6.
+ *
+ * Based on:
+ * fsx -WR -l 524388 -o 131072 -P /tmp -S6456 -q  fsx.bin
+ */
+TEST_F(Io, resize_a_valid_buffer_while_extending)
+{
+	do_write(0x14530, 0x36ee6);	/* [0x36ee6, 0x4b415] */
+	do_write(0x1507c, 0x33256);	/* [0x33256, 0x482d1] */
+	do_write(0x175c, 0x4c03d);	/* [0x4c03d, 0x4d798] */
+	do_read(0xe277, 0x3599c);	/* [0x3599c, 0x43c12] */
 	close(m_test_fd);
 }

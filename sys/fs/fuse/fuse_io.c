@@ -267,7 +267,7 @@ out:
 }
 
 SDT_PROBE_DEFINE4(fusefs, , io, read_bio_backend_start, "int", "int", "int", "int");
-SDT_PROBE_DEFINE2(fusefs, , io, read_bio_backend_feed, "int", "int");
+SDT_PROBE_DEFINE2(fusefs, , io, read_bio_backend_feed, "int", "struct buf*");
 SDT_PROBE_DEFINE4(fusefs, , io, read_bio_backend_end, "int", "ssize_t", "int",
 		"struct buf*");
 static int
@@ -330,8 +330,7 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 		if (on < bcount)
 			n = MIN((unsigned)(bcount - on), uio->uio_resid);
 		if (n > 0) {
-			SDT_PROBE2(fusefs, , io, read_bio_backend_feed,
-				n, n + (int)bp->b_resid);
+			SDT_PROBE2(fusefs, , io, read_bio_backend_feed, n, bp);
 			err = uiomove(bp->b_data + on, n, uio);
 		}
 		vfs_bio_brelse(bp, ioflag);
@@ -344,8 +343,8 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 
 SDT_PROBE_DEFINE1(fusefs, , io, read_directbackend_start,
 	"struct fuse_read_in*");
-SDT_PROBE_DEFINE2(fusefs, , io, read_directbackend_complete,
-	"struct fuse_dispatcher*", "struct uio*");
+SDT_PROBE_DEFINE3(fusefs, , io, read_directbackend_complete,
+	"struct fuse_dispatcher*", "struct fuse_read_in*", "struct uio*");
 
 static int
 fuse_read_directbackend(struct vnode *vp, struct uio *uio,
@@ -390,8 +389,8 @@ fuse_read_directbackend(struct vnode *vp, struct uio *uio,
 		if ((err = fdisp_wait_answ(&fdi)))
 			goto out;
 
-		SDT_PROBE2(fusefs, , io, read_directbackend_complete,
-			fdi.iosize, uio);
+		SDT_PROBE3(fusefs, , io, read_directbackend_complete,
+			&fdi, fri, uio);
 
 		if ((err = uiomove(fdi.answ, MIN(fri->size, fdi.iosize), uio)))
 			break;
@@ -555,6 +554,7 @@ retry:
 SDT_PROBE_DEFINE6(fusefs, , io, write_biobackend_start, "int64_t", "int", "int",
 		"struct uio*", "int", "bool");
 SDT_PROBE_DEFINE2(fusefs, , io, write_biobackend_append_race, "long", "int");
+SDT_PROBE_DEFINE2(fusefs, , io, write_biobackend_issue, "int", "struct buf*");
 
 static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
@@ -602,14 +602,14 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 again:
 		/* Get or create a buffer for the write */
 		direct_append = uio->uio_offset == filesize && n;
-		if ((off_t)lbn * biosize + on + n < filesize) {
+		if (uio->uio_offset + n < filesize) {
 			extending = false;
 			if ((off_t)(lbn + 1) * biosize < filesize) {
 				/* Not the file's last block */
 				bcount = biosize;
 			} else {
 				/* The file's last block */
-				bcount = filesize - (off_t)lbn *biosize;
+				bcount = filesize - (off_t)lbn * biosize;
 			}
 		} else {
 			extending = true;
@@ -650,8 +650,6 @@ again:
 				break;
 			} 
 		}
-			if (biosize > bcount)
-				vfs_bio_clrbuf(bp);
 
 		SDT_PROBE6(fusefs, , io, write_biobackend_start,
 			lbn, on, n, uio, bcount, direct_append);
@@ -733,6 +731,7 @@ again:
 	                 * reasons: the only way to know if a write is valid
 	                 * if its actually written out.)
 	                 */
+			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 0, bp);
 			bwrite(bp);
 			if (bp->b_error == EINTR) {
 				err = EINTR;
@@ -780,23 +779,33 @@ again:
 			 * already-written page whenever extending a file with
 			 * ftruncate or another write.
 			 */
+			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 1, bp);
 			err = bwrite(bp);
 		} else if (ioflag & IO_SYNC) {
+			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 2, bp);
 			err = bwrite(bp);
 		} else if (vm_page_count_severe() ||
 			    buf_dirty_count_severe() ||
 			    (ioflag & IO_ASYNC)) {
 			/* TODO: enable write clustering later */
+			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 3, bp);
 			bawrite(bp);
 		} else if (on == 0 && n == bcount) {
-			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0)
+			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
+				SDT_PROBE2(fusefs, , io, write_biobackend_issue,
+					4, bp);
 				bdwrite(bp);
-			else
+			} else {
+				SDT_PROBE2(fusefs, , io, write_biobackend_issue,
+					5, bp);
 				bawrite(bp);
+			}
 		} else if (ioflag & IO_DIRECT) {
+			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 6, bp);
 			bawrite(bp);
 		} else {
 			bp->b_flags &= ~B_CLUSTEROK;
+			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 7, bp);
 			bdwrite(bp);
 		}
 		if (err)
