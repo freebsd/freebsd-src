@@ -219,13 +219,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 		}
 		break;
 	case UIO_WRITE:
-		/*
-		 * Kludge: simulate write-through caching via write-around
-		 * caching.  Same effect, as far as never caching dirty data,
-		 * but slightly pessimal in that newly written data is not
-		 * cached.
-		 */
-		if (directio || fuse_data_cache_mode == FUSE_CACHE_WT) {
+		if (directio) {
 			const int iosize = fuse_iosize(vp);
 			off_t start, end, filesize;
 
@@ -250,6 +244,8 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 		} else {
 			SDT_PROBE2(fusefs, , io, trace, 1,
 				"buffered write of vnode");
+			if (fuse_data_cache_mode == FUSE_CACHE_WT)
+				ioflag |= IO_SYNC;
 			err = fuse_write_biobackend(vp, uio, cred, fufh, ioflag,
 				pid);
 		}
