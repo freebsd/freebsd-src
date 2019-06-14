@@ -336,7 +336,7 @@ void MockFS::debug_response(const mockfs_buf_out &out) {
 
 MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags,
-	uint32_t kernel_minor_version)
+	uint32_t kernel_minor_version, uint32_t max_write, bool async)
 {
 	struct sigaction sa;
 	struct iovec *iov = NULL;
@@ -347,6 +347,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	m_daemon_id = NULL;
 	m_kernel_minor_version = kernel_minor_version;
 	m_maxreadahead = max_readahead;
+	m_maxwrite = max_write;
 	m_nready = -1;
 	m_pm = pm;
 	m_quit = false;
@@ -404,6 +405,10 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 		build_iovec(&iov, &iovlen, "ro",
 			__DECONST(void*, &trueval), sizeof(bool));
 	}
+	if (async) {
+		build_iovec(&iov, &iovlen, "async", __DECONST(void*, &trueval),
+			sizeof(bool));
+	}
 	if (nmount(iov, iovlen, 0))
 		throw(std::system_error(errno, std::system_category(),
 			"Couldn't mount filesystem"));
@@ -449,15 +454,7 @@ void MockFS::init(uint32_t flags) {
 	out->body.init.minor = m_kernel_minor_version;;
 	out->body.init.flags = in->body.init.flags & flags;
 
-	/*
-	 * The default max_write is set to this formula in libfuse, though
-	 * individual filesystems can lower it.  The "- 4096" was added in
-	 * commit 154ffe2, with the commit message "fix".
-	 */
-	uint32_t default_max_write = 32 * getpagesize() + 0x1000 - 4096;
-	/* For testing purposes, it should be distinct from MAXPHYS */
-	m_max_write = MIN(default_max_write, MAXPHYS / 2);
-	out->body.init.max_write = m_max_write;
+	out->body.init.max_write = m_maxwrite;
 
 	out->body.init.max_readahead = m_maxreadahead;
 	SET_OUT_HEADER_LEN(*out, init);

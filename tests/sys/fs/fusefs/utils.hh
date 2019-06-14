@@ -40,9 +40,12 @@ inline void nap()
 	usleep(NAP_NS / 1000);
 }
 
+extern const uint32_t libfuse_max_write;
+extern const uint32_t default_max_write;
 class FuseTest : public ::testing::Test {
 	protected:
 	uint32_t m_maxreadahead;
+	uint32_t m_maxwrite;
 	uint32_t m_init_flags;
 	bool m_allow_other;
 	bool m_default_permissions;
@@ -50,6 +53,7 @@ class FuseTest : public ::testing::Test {
 	enum poll_method m_pm;
 	bool m_push_symlinks_in;
 	bool m_ro;
+	bool m_async;
 	MockFS *m_mock = NULL;
 	const static uint64_t FH = 0xdeadbeef1a7ebabe;
 
@@ -62,13 +66,15 @@ class FuseTest : public ::testing::Test {
 		 * be lowered
 		 */
 		m_maxreadahead(UINT_MAX),
+		m_maxwrite(default_max_write),
 		m_init_flags(0),
 		m_allow_other(false),
 		m_default_permissions(false),
 		m_kernel_minor_version(FUSE_KERNEL_MINOR_VERSION),
 		m_pm(BLOCKING),
 		m_push_symlinks_in(false),
-		m_ro(false)
+		m_ro(false),
+		m_async(false)
 	{}
 
 	virtual void SetUp();

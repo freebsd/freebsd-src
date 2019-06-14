@@ -565,10 +565,12 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 	daddr_t lbn;
 	off_t filesize;
 	int bcount;
-	int n, on, err = 0;
+	int n, on, seqcount, err = 0;
 	bool last_page;
 
 	const int biosize = fuse_iosize(vp);
+
+	seqcount = ioflag >> IO_SEQSHIFT;
 
 	KASSERT(uio->uio_rw == UIO_WRITE, ("fuse_write_biobackend mode"));
 	if (vp->v_type != VREG)
@@ -644,6 +646,7 @@ again:
 			 * with other readers
 			 */
 			err = fuse_vnode_setsize(vp, uio->uio_offset + n);
+			filesize = uio->uio_offset + n;
 			fvdat->flag |= FN_SIZECHANGE;
 			if (err) {
 				brelse(bp);
@@ -787,20 +790,22 @@ again:
 		} else if (vm_page_count_severe() ||
 			    buf_dirty_count_severe() ||
 			    (ioflag & IO_ASYNC)) {
-			/* TODO: enable write clustering later */
+			bp->b_flags |= B_CLUSTEROK;
 			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 3, bp);
 			bawrite(bp);
 		} else if (on == 0 && n == bcount) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
+				bp->b_flags |= B_CLUSTEROK;
 				SDT_PROBE2(fusefs, , io, write_biobackend_issue,
 					4, bp);
-				bdwrite(bp);
+				cluster_write(vp, bp, filesize, seqcount, 0);
 			} else {
 				SDT_PROBE2(fusefs, , io, write_biobackend_issue,
 					5, bp);
 				bawrite(bp);
 			}
 		} else if (ioflag & IO_DIRECT) {
+			bp->b_flags |= B_CLUSTEROK;
 			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 6, bp);
 			bawrite(bp);
 		} else {

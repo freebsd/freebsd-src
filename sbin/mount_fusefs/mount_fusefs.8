@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 19, 2019
+.Dd June 14, 2019
 .Dt MOUNT_FUSEFS 8
 .Os
 .Sh NAME
@@ -136,21 +136,24 @@ The following options are available (and also their negated versions,
 by prefixing them with
 .Dq no ) :
 .Bl -tag -width indent
-.It Cm default_permissions
-Enable traditional (file mode based) permission checking in kernel
 .It Cm allow_other
 Do not apply
 .Sx STRICT ACCESS POLICY .
 Only root can use this option
+.It Cm async
+I/O to the file system may be done asynchronously.
+Writes may delayed and/or reordered.
+.It Cm default_permissions
+Enable traditional (file mode based) permission checking in kernel
 .It Cm max_read Ns = Ns Ar n
 Limit size of read requests to
 .Ar n
+.It Cm neglect_shares
+Do not refuse unmounting if there are secondary mounts
 .It Cm private
 Refuse shared mounting of the daemon.
 This is the default behaviour, to allow sharing, expicitly use
 .Fl o Cm noprivate
-.It Cm neglect_shares
-Do not refuse unmounting if there are secondary mounts
 .It Cm push_symlinks_in
 Prefix absolute symlinks with the mountpoint
 .It Cm subtype Ns = Ns Ar fsname

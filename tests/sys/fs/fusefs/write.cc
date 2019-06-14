@@ -29,7 +29,7 @@
  */
 
 extern "C" {
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -176,6 +176,19 @@ void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 {
 	FuseTest::expect_write(ino, offset, isize, osize, FUSE_WRITE_CACHE, 0,
 		contents);
+}
+};
+
+/* Tests for clustered writes with WriteBack cacheing */
+class WriteCluster: public WriteBack {
+public:
+virtual void SetUp() {
+	if (MAXPHYS < 2 * DFLTPHYS)
+		GTEST_SKIP() << "MAXPHYS must be at least twice DFLTPHYS"
+			<< "for this test";
+	m_async = true;
+	m_maxwrite = MAXPHYS;
+	WriteBack::SetUp();
 }
 };
 
@@ -617,7 +630,7 @@ TEST_F(Write, write_large)
 	int fd;
 	ssize_t halfbufsize, bufsize;
 
-	halfbufsize = m_mock->m_max_write;
+	halfbufsize = m_mock->m_maxwrite;
 	bufsize = halfbufsize * 2;
 	contents = (int*)malloc(bufsize);
 	ASSERT_NE(NULL, contents);
@@ -708,6 +721,89 @@ TEST_F(WriteBack, close)
 	ASSERT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	close(fd);
+}
+
+/* In writeback mode, adjacent writes will be clustered together */
+TEST_F(WriteCluster, clustering)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int i, fd;
+	void *wbuf, *wbuf2x;
+	ssize_t bufsize = 65536;
+	off_t filesize = 327680;
+
+	wbuf = malloc(bufsize);
+	ASSERT_NE(NULL, wbuf) << strerror(errno);
+	memset(wbuf, 'X', bufsize);
+	wbuf2x = malloc(2 * bufsize);
+	ASSERT_NE(NULL, wbuf2x) << strerror(errno);
+	memset(wbuf2x, 'X', 2 * bufsize);
+
+	expect_lookup(RELPATH, ino, filesize);
+	expect_open(ino, 0, 1);
+	/*
+	 * Writes of bufsize-bytes each should be clustered into greater sizes.
+	 * The amount of clustering is adaptive, so the first write actually
+	 * issued will be 2x bufsize and subsequent writes may be larger
+	 */
+	expect_write(ino, 0, 2 * bufsize, 2 * bufsize, wbuf2x);
+	expect_write(ino, 2 * bufsize, 2 * bufsize, 2 * bufsize, wbuf2x);
+	expect_flush(ino, 1, ReturnErrno(0));
+	expect_release(ino, ReturnErrno(0));
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	for (i = 0; i < 4; i++) {
+		ASSERT_EQ(bufsize, write(fd, wbuf, bufsize))
+			<< strerror(errno);
+	}
+	close(fd);
+}
+
+/* 
+ * When clustering writes, an I/O error to any of the cluster's children should
+ * not panic the system on unmount
+ */
+/*
+ * Disabled because it panics.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=238565
+ */
+TEST_F(WriteCluster, DISABLED_cluster_write_err)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int i, fd;
+	void *wbuf;
+	ssize_t bufsize = 65536;
+	off_t filesize = 262144;
+
+	wbuf = malloc(bufsize);
+	ASSERT_NE(NULL, wbuf) << strerror(errno);
+	memset(wbuf, 'X', bufsize);
+
+	expect_lookup(RELPATH, ino, filesize);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_WRITE);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnErrno(EIO)));
+	expect_flush(ino, 1, ReturnErrno(0));
+	expect_release(ino, ReturnErrno(0));
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	for (i = 0; i < 3; i++) {
+		ASSERT_EQ(bufsize, write(fd, wbuf, bufsize))
+			<< strerror(errno);
+	}
 	close(fd);
 }
 
