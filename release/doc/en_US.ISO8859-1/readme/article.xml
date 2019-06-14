@@ -44,6 +44,7 @@
       <year>2016</year>
       <year>2017</year>
       <year>2018</year>
+      <year>2019</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
 	Project</holder>
     </copyright>
@@ -231,7 +232,7 @@
 	please send mail to the &a.questions;.</para>
 
       <para>If you are tracking the &release.branch; development
-	efforts, you <emphasis>must</emphasis> join the &a.current;,
+	efforts, you <emphasis>must</emphasis> join the &a.stable;,
 	in order to keep abreast of recent developments and changes
 	that may affect the way you use and maintain the
 	system.</para>
