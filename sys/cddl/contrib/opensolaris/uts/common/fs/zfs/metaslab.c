@@ -259,7 +259,9 @@ int zfs_metaslab_switch_threshold = 2;
  * Internal switch to enable/disable the metaslab allocation tracing
  * facility.
  */
+#ifdef _METASLAB_TRACING
 boolean_t metaslab_trace_enabled = B_TRUE;
+#endif
 
 /*
  * Maximum entries that the metaslab allocation tracing facility will keep
@@ -269,7 +271,9 @@ boolean_t metaslab_trace_enabled = B_TRUE;
  * to every exceed this value. In debug mode, the system will panic if this
  * limit is ever reached allowing for further investigation.
  */
+#ifdef _METASLAB_TRACING
 uint64_t metaslab_trace_max_entries = 5000;
+#endif
 
 static uint64_t metaslab_weight(metaslab_t *);
 static void metaslab_set_fragmentation(metaslab_t *);
@@ -277,8 +281,9 @@ static void metaslab_free_impl(vdev_t *, uint64_t, uint64_t, boolean_t);
 static void metaslab_check_free_impl(vdev_t *, uint64_t, uint64_t);
 static void metaslab_passivate(metaslab_t *msp, uint64_t weight);
 static uint64_t metaslab_weight_from_range_tree(metaslab_t *msp);
-
+#ifdef _METASLAB_TRACING
 kmem_cache_t *metaslab_alloc_trace_cache;
+#endif
 
 /*
  * ==========================================================================
@@ -2797,6 +2802,7 @@ metaslab_distance(metaslab_t *msp, dva_t *dva)
  * Metaslab allocation tracing facility
  * ==========================================================================
  */
+#ifdef _METASLAB_TRACING
 kstat_t *metaslab_trace_ksp;
 kstat_named_t metaslab_trace_over_limit;
 
@@ -2900,6 +2906,32 @@ metaslab_trace_fini(zio_alloc_list_t *zal)
 	list_destroy(&zal->zal_list);
 	zal->zal_size = 0;
 }
+
+#else
+
+#define	metaslab_trace_add(zal, mg, msp, psize, id, off, alloc)
+
+void
+metaslab_alloc_trace_init(void)
+{
+}
+
+void
+metaslab_alloc_trace_fini(void)
+{
+}
+
+void
+metaslab_trace_init(zio_alloc_list_t *zal)
+{
+}
+
+void
+metaslab_trace_fini(zio_alloc_list_t *zal)
+{
+}
+
+#endif /* _METASLAB_TRACING */
 
 /*
  * ==========================================================================
