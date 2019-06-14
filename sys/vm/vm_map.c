@@ -734,18 +734,17 @@ SYSCTL_INT(_debug, OID_AUTO, vmmap_check, CTLFLAG_RWTUN,
 static void
 _vm_map_assert_consistent(vm_map_t map)
 {
-	vm_map_entry_t entry;
-	vm_map_entry_t child;
+	vm_map_entry_t child, entry, prev;
 	vm_size_t max_left, max_right;
 
 	if (!enable_vmmap_check)
 		return;
 
-	for (entry = map->header.next; entry != &map->header;
-	    entry = entry->next) {
-		KASSERT(entry->prev->end <= entry->start,
+	for (prev = &map->header; (entry = prev->next) != &map->header;
+	    prev = entry) {
+		KASSERT(prev->end <= entry->start,
 		    ("map %p prev->end = %jx, start = %jx", map,
-		    (uintmax_t)entry->prev->end, (uintmax_t)entry->start));
+		    (uintmax_t)prev->end, (uintmax_t)entry->start));
 		KASSERT(entry->start < entry->end,
 		    ("map %p start = %jx, end = %jx", map,
 		    (uintmax_t)entry->start, (uintmax_t)entry->end));
@@ -762,7 +761,7 @@ _vm_map_assert_consistent(vm_map_t map)
 		    (uintmax_t)entry->start, (uintmax_t)entry->right->start));
 		child = entry->left;
 		max_left = (child != NULL) ? child->max_free :
-			entry->start - entry->prev->end;
+			entry->start - prev->end;
 		child = entry->right;
 		max_right = (child != NULL) ? child->max_free :
 			entry->next->start - entry->end;
@@ -4811,15 +4810,15 @@ vm_map_pmap_KBI(vm_map_t map)
 static void
 vm_map_print(vm_map_t map)
 {
-	vm_map_entry_t entry;
+	vm_map_entry_t entry, prev;
 
 	db_iprintf("Task map %p: pmap=%p, nentries=%d, version=%u\n",
 	    (void *)map,
 	    (void *)map->pmap, map->nentries, map->timestamp);
 
 	db_indent += 2;
-	for (entry = map->header.next; entry != &map->header;
-	    entry = entry->next) {
+	for (prev = &map->header; (entry = prev->next) != &map->header;
+	    prev = entry) {
 		db_iprintf("map entry %p: start=%p, end=%p, eflags=%#x, \n",
 		    (void *)entry, (void *)entry->start, (void *)entry->end,
 		    entry->eflags);
@@ -4830,7 +4829,8 @@ vm_map_print(vm_map_t map)
 			db_iprintf(" prot=%x/%x/%s",
 			    entry->protection,
 			    entry->max_protection,
-			    inheritance_name[(int)(unsigned char)entry->inheritance]);
+			    inheritance_name[(int)(unsigned char)
+			    entry->inheritance]);
 			if (entry->wired_count != 0)
 				db_printf(", wired");
 		}
@@ -4838,9 +4838,9 @@ vm_map_print(vm_map_t map)
 			db_printf(", share=%p, offset=0x%jx\n",
 			    (void *)entry->object.sub_map,
 			    (uintmax_t)entry->offset);
-			if ((entry->prev == &map->header) ||
-			    (entry->prev->object.sub_map !=
-				entry->object.sub_map)) {
+			if (prev == &map->header ||
+			    prev->object.sub_map !=
+				entry->object.sub_map) {
 				db_indent += 2;
 				vm_map_print((vm_map_t)entry->object.sub_map);
 				db_indent -= 2;
@@ -4860,9 +4860,9 @@ vm_map_print(vm_map_t map)
 				    (entry->eflags & MAP_ENTRY_NEEDS_COPY) ? "needed" : "done");
 			db_printf("\n");
 
-			if ((entry->prev == &map->header) ||
-			    (entry->prev->object.vm_object !=
-				entry->object.vm_object)) {
+			if (prev == &map->header ||
+			    prev->object.vm_object !=
+				entry->object.vm_object) {
 				db_indent += 2;
 				vm_object_print((db_expr_t)(intptr_t)
 						entry->object.vm_object,
