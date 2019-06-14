@@ -531,60 +531,13 @@ TEST_F(Write, mmap)
 	free(zeros);
 }
 
-/* In WriteThrough mode, a write should evict overlapping cached data */
-TEST_F(WriteThrough, evicts_read_cache)
-{
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
-	ssize_t bufsize = 65536;
-	/* End the write in the middle of a page */
-	ssize_t wrsize = bufsize - 1000;
-	char *contents0, *contents1, *readbuf, *expected;
-	uint64_t ino = 42;
-	int fd;
-
-	contents0 = (char*)malloc(bufsize);
-	memset(contents0, 'X', bufsize);
-	contents0[bufsize - 1] = '\0';	// Null-terminate
-	contents1 = (char*)malloc(wrsize);
-	memset(contents1, 'Y', wrsize);
-	readbuf = (char*)calloc(bufsize, 1);
-	expected = (char*)malloc(bufsize);
-	memset(expected, 'Y', wrsize);
-	memset(expected + wrsize, 'X', bufsize - wrsize);
-	expected[bufsize - 1] = '\0';	// Null-terminate
-
-	expect_lookup(RELPATH, ino, bufsize);
-	expect_open(ino, 0, 1);
-	expect_read(ino, 0, bufsize, bufsize, contents0);
-	expect_write(ino, 0, wrsize, wrsize, contents1);
-
-	fd = open(FULLPATH, O_RDWR);
-	EXPECT_LE(0, fd) << strerror(errno);
-
-	// Prime cache
-	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
-
-	// Write directly, evicting cache
-	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
-	ASSERT_EQ(wrsize, write(fd, contents1, wrsize)) << strerror(errno);
-
-	// Read again.  Cache should be bypassed
-	expect_read(ino, 0, bufsize, bufsize, expected);
-	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
-	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
-	ASSERT_STREQ(readbuf, expected);
-
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
-}
-
 TEST_F(WriteThrough, pwrite)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	const char *CONTENTS = "abcdefgh";
 	uint64_t ino = 42;
-	uint64_t offset = 4096;
+	uint64_t offset = 65536;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
 
@@ -901,11 +854,7 @@ TEST_F(WriteBack, o_direct)
 /*
  * Without direct_io, writes should be committed to cache
  */
-/* 
- * Disabled because we don't yet implement write-through caching.  No bugzilla
- * entry, because that's a feature request, not a bug.
- */
-TEST_F(WriteThrough, DISABLED_writethrough)
+TEST_F(WriteThrough, writethrough)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -927,6 +876,7 @@ TEST_F(WriteThrough, DISABLED_writethrough)
 	 * A subsequent read should be serviced by cache, without querying the
 	 * filesystem daemon
 	 */
+	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
 	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
