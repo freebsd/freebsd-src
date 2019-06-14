@@ -1410,8 +1410,6 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 	}
 	pmap_invalidate_page(pmap, va);
 
-	vm_wire_sub(1);
-
 	/*
 	 * Put page on a list so that it is released after
 	 * *ALL* TLB shootdown is done
@@ -2030,9 +2028,8 @@ next_chunk:
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
-		vm_wire_add(1);
 	}
-	vm_page_free_pages_toq(&free, false);
+	vm_page_free_pages_toq(&free, true);
 	return (m_pc);
 }
 
@@ -2470,8 +2467,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 			pmap_resident_count_dec(pmap, 1);
 			KASSERT(ml3->wire_count == NL3PG,
 			    ("pmap_remove_l2: l3 page wire count error"));
-			ml3->wire_count = 1;
-			vm_page_unwire_noq(ml3);
+			ml3->wire_count = 0;
 			pmap_add_delayed_free_list(ml3, free, FALSE);
 		}
 	}
@@ -2624,7 +2620,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (lock != NULL)
 		rw_wunlock(lock);
 	PMAP_UNLOCK(pmap);
-	vm_page_free_pages_toq(&free, false);
+	vm_page_free_pages_toq(&free, true);
 }
 
 /*
@@ -2729,7 +2725,7 @@ retry:
 	}
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	rw_wunlock(lock);
-	vm_page_free_pages_toq(&free, false);
+	vm_page_free_pages_toq(&free, true);
 }
 
 /*
@@ -3397,7 +3393,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 				    lockp) != 0)
 					break;
 			}
-		vm_page_free_pages_toq(&free, false);
+		vm_page_free_pages_toq(&free, true);
 		if (va >= VM_MAXUSER_ADDRESS) {
 			/*
 			 * Both pmap_remove_l2() and pmap_remove_l3() will
@@ -3425,7 +3421,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 				 * Invalidate those entries.
 				 */
 				pmap_invalidate_page(pmap, va);
-				vm_page_free_pages_toq(&free, false);
+				vm_page_free_pages_toq(&free, true);
 			}
 			CTR2(KTR_PMAP,
 			    "pmap_enter_l2: failure for va %#lx in pmap %p",
@@ -3614,7 +3610,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			SLIST_INIT(&free);
 			if (pmap_unwire_l3(pmap, va, mpte, &free)) {
 				pmap_invalidate_page(pmap, va);
-				vm_page_free_pages_toq(&free, false);
+				vm_page_free_pages_toq(&free, true);
 			}
 			mpte = NULL;
 		}
@@ -4097,8 +4093,7 @@ pmap_remove_pages(pmap_t pmap)
 						pmap_resident_count_dec(pmap,1);
 						KASSERT(ml3->wire_count == NL3PG,
 						    ("pmap_remove_pages: l3 page wire count error"));
-						ml3->wire_count = 1;
-						vm_page_unwire_noq(ml3);
+						ml3->wire_count = 0;
 						pmap_add_delayed_free_list(ml3,
 						    &free, FALSE);
 					}
@@ -4136,7 +4131,7 @@ pmap_remove_pages(pmap_t pmap)
 	if (lock != NULL)
 		rw_wunlock(lock);
 	PMAP_UNLOCK(pmap);
-	vm_page_free_pages_toq(&free, false);
+	vm_page_free_pages_toq(&free, true);
 }
 
 /*
@@ -4596,7 +4591,7 @@ small_mappings:
 	    not_cleared < PMAP_TS_REFERENCED_MAX);
 out:
 	rw_wunlock(lock);
-	vm_page_free_pages_toq(&free, false);
+	vm_page_free_pages_toq(&free, true);
 	return (cleared + not_cleared);
 }
 
@@ -5019,7 +5014,7 @@ pmap_demote_l2_abort(pmap_t pmap, vm_offset_t va, pt_entry_t *l2,
 	SLIST_INIT(&free);
 	(void)pmap_remove_l2(pmap, l2, va, pmap_load(pmap_l1(pmap, va)), &free,
 	    lockp);
-	vm_page_free_pages_toq(&free, false);
+	vm_page_free_pages_toq(&free, true);
 }
 
 /*
