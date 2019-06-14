@@ -29,7 +29,7 @@
 .\"     @(#)dump.8	8.3 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd June 11, 2018
+.Dd June 13, 2019
 .Dt DUMP 8
 .Os
 .Sh NAME
@@ -266,6 +266,12 @@ used to update a remote copy of a level 0 dump,
 since the date changes for each dump.
 This option sets both dates to the epoch, permitting
 rsync to be much more efficient when transferring a dump file.
+The
+.Fl r
+option can be used only to create level 0 dumps.
+A dump using the
+.Fl r
+option cannot be used as the basis for a later incremental dump.
 .It Fl R
 Be even more rsync-friendly.
 This option disables the storage of the actual inode access time
@@ -277,6 +283,12 @@ The
 .Fl R
 option also sets
 .Fl r .
+The
+.Fl R
+option can be used only to create level 0 dumps.
+A dump using the
+.Fl R
+option cannot be used as the basis for a later incremental dump.
 .It Fl S
 Display an estimate of the backup size and the number of
 tapes required, and exit without actually performing the dump.
