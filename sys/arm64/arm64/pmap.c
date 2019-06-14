@@ -2791,8 +2791,15 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		for (l3p = pmap_l2_to_l3(l2, sva); sva != va_next; l3p++,
 		    sva += L3_SIZE) {
 			l3 = pmap_load(l3p);
-			if (!pmap_l3_valid(l3))
+			if (!pmap_l3_valid(l3)) {
+				if (va != va_next) {
+					pmap_invalidate_range(pmap, va, sva);
+					va = va_next;
+				}
 				continue;
+			}
+			if (va == va_next)
+				va = sva;
 
 			nbits = 0;
 			if ((prot & VM_PROT_WRITE) == 0) {
@@ -2807,9 +2814,9 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				nbits |= ATTR_XN;
 
 			pmap_set(l3p, nbits);
-			/* XXX: Use pmap_invalidate_range */
-			pmap_invalidate_page(pmap, sva);
 		}
+		if (va != va_next)
+			pmap_invalidate_range(pmap, va, sva);
 	}
 	PMAP_UNLOCK(pmap);
 }
