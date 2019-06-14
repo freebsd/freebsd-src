@@ -644,6 +644,7 @@ statclock(int cnt, int usermode)
 	struct proc *p;
 	long rss;
 	long *cp_time;
+	uint64_t runtime, new_switchtime;
 
 	td = curthread;
 	p = td->td_proc;
@@ -699,6 +700,17 @@ statclock(int cnt, int usermode)
 	    "prio:%d", td->td_priority, "stathz:%d", (stathz)?stathz:hz);
 	SDT_PROBE2(sched, , , tick, td, td->td_proc);
 	thread_lock_flags(td, MTX_QUIET);
+
+	/*
+	 * Compute the amount of time during which the current
+	 * thread was running, and add that to its total so far.
+	 */
+	new_switchtime = cpu_ticks();
+	runtime = new_switchtime - PCPU_GET(switchtime);
+	td->td_runtime += runtime;
+	td->td_incruntime += runtime;
+	PCPU_SET(switchtime, new_switchtime);
+
 	for ( ; cnt > 0; cnt--)
 		sched_clock(td);
 	thread_unlock(td);
