@@ -252,7 +252,7 @@ class MockFS {
 
 	int m_kq;
 
-	/* The max_readahead filesystem option */
+	/* The max_readahead file system option */
 	uint32_t m_maxreadahead;
 
 	/* pid of the test process */
@@ -288,7 +288,7 @@ class MockFS {
 	pid_t m_child_pid;
 
 	/* Maximum size of a FUSE_WRITE write */
-	uint32_t m_max_write;
+	uint32_t m_maxwrite;
 
 	/* 
 	 * Number of events that were available from /dev/fuse after the last
@@ -303,7 +303,7 @@ class MockFS {
 	MockFS(int max_readahead, bool allow_other,
 		bool default_permissions, bool push_symlinks_in, bool ro,
 		enum poll_method pm, uint32_t flags,
-		uint32_t kernel_minor_version);
+		uint32_t kernel_minor_version, uint32_t max_write, bool async);
 
 	virtual ~MockFS();
 

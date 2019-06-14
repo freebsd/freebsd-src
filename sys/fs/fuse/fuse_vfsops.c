@@ -433,6 +433,7 @@ fuse_vfsop_mount(struct mount *mp)
 	}
 	copystr(fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &len);
 	bzero(mp->mnt_stat.f_mntfromname + len, MNAMELEN - len);
+	mp->mnt_iosize_max = MAXPHYS;
 
 	/* Now handshaking with daemon */
 	fuse_internal_send_init(data, td);

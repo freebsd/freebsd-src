@@ -88,6 +88,8 @@ static struct mntopt mopts[] = {
 	{ "large_read",          0, 0x00, 1 },
 	/* "nonempty", just the first two chars are stripped off during parsing */
 	{ "nempty",              0, 0x00, 1 },
+	{ "async",               0, MNT_ASYNC, 0},
+	{ "noasync",             1, MNT_ASYNC, 0},
 	MOPT_STDOPTS,
 	MOPT_END
 };

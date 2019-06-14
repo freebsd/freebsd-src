@@ -50,6 +50,20 @@ extern "C" {
 
 using namespace testing;
 
+/*
+ * The default max_write is set to this formula in libfuse, though
+ * individual filesystems can lower it.  The "- 4096" was added in
+ * commit 154ffe2, with the commit message "fix".
+ */
+const uint32_t libfuse_max_write = 32 * getpagesize() + 0x1000 - 4096;
+
+/* 
+ * Set the default max_write to a distinct value from MAXPHYS to catch bugs
+ * that confuse the two.
+ */
+const uint32_t default_max_write = MIN(libfuse_max_write, MAXPHYS / 2);
+
+
 /* Check that fusefs(4) is accessible and the current user can mount(2) */
 void check_environment()
 {
@@ -98,7 +112,8 @@ void FuseTest::SetUp() {
 	try {
 		m_mock = new MockFS(m_maxreadahead, m_allow_other,
 			m_default_permissions, m_push_symlinks_in, m_ro,
-			m_pm, m_init_flags, m_kernel_minor_version);
+			m_pm, m_init_flags, m_kernel_minor_version,
+			m_maxwrite, m_async);
 		/* 
 		 * FUSE_ACCESS is called almost universally.  Expecting it in
 		 * each test case would be super-annoying.  Instead, set a
