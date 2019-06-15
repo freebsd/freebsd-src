@@ -105,8 +105,8 @@ english.base: dump ${SCAN} #Makefile
 	sort -nu > $@
 
 
-dump: dump.c ${BUILD_TOOLS_META}
-	${CC:N${CCACHE_BIN}} -o ${.TARGET} ${.ALLSRC}
+DEPENDOBJS+=	dump
+dump: ${BUILD_TOOLS_META}
 
 CLEANFILES+= dump ${CAT} english.base *.check __ck1 __ck2
 

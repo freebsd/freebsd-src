@@ -48,6 +48,7 @@ builtins.h: .NOMETA
 builtins.c builtins.h: mkbuiltins builtins.def
 	sh ${.CURDIR}/mkbuiltins ${.CURDIR}
 
+DEPENDOBJS+= mknodes mksyntax
 mknodes mksyntax: ${BUILD_TOOLS_META}
 
 .ORDER: nodes.c nodes.h
