@@ -186,7 +186,9 @@ DEPENDSRCS+=	${DPSRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 .if !empty(DEPENDSRCS)
 DEPENDOBJS+=	${DEPENDSRCS:${OBJS_SRCS_FILTER:ts:}:S,$,.o,}
 .endif
+.if !empty(DEPENDOBJS)
 DEPENDFILES+=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
+.endif
 .if defined(_SKIP_DEPEND)
 # Don't bother statting any .meta files for .depend*
 ${DEPENDOBJS}:	.NOMETA
