@@ -251,18 +251,17 @@ _depfile=	${.OBJDIR}/${_meta_obj}
 .else
 _depfile=	${.OBJDIR}/${_dep_obj}
 .endif
-.if !exists(${_depfile})
-${__obj}: ${OBJS_DEPEND_GUESS}
-${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
-.elif defined(_meta_filemon)
-# For meta mode we still need to know which file to depend on to avoid
-# ambiguous suffix transformation rules from .PATH.  Meta mode does not
-# use .depend files.  We really only need source files, not headers since
-# they are typically in SRCS/beforebuild already.  For target-specific
-# guesses do include headers though since they may not be in SRCS.
+.if !exists(${_depfile}) || defined(_meta_filemon)
+# - Headers are normally built in beforebuild when included in DPSRCS or SRCS.
+#   So we don't need it as a guessed dependency (it may lead to cyclic problems
+#   if custom rules are defined).  The only time this causes a problem is when
+#   'make foo.o' is ran.
+# - For meta mode we still need to know which file to depend on to avoid
+#   ambiguous suffix transformation rules from .PATH.  Meta mode does not
+#   use .depend files when filemon is in use.
 ${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
-.endif	# !exists(${_depfile})
+.endif	# !exists(${_depfile}) || defined(_meta_filemon)
 .endfor
 
 # Always run 'make depend' to generate dependencies early and to avoid the
