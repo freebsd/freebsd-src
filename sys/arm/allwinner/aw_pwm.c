@@ -150,8 +150,16 @@ aw_pwm_attach(device_t dev)
 		goto fail;
 	}
 	error = clk_enable(sc->clk);
+	if (error != 0) {
+		device_printf(dev, "cannot enable clock\n");
+		goto fail;
+	}
 
 	error = clk_get_freq(sc->clk, &sc->clk_freq);
+	if (error != 0) {
+		device_printf(dev, "cannot get clock frequency\n");
+		goto fail;
+	}
 
 	if (bus_alloc_resources(dev, aw_pwm_spec, &sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");
