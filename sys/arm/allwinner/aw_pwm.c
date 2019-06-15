@@ -226,7 +226,7 @@ aw_pwm_detach(device_t dev)
 }
 
 static int
-aw_pwm_channel_count(device_t dev, int *nchannel)
+aw_pwm_channel_count(device_t dev, u_int *nchannel)
 {
 
 	*nchannel = 1;
@@ -235,7 +235,7 @@ aw_pwm_channel_count(device_t dev, int *nchannel)
 }
 
 static int
-aw_pwm_channel_config(device_t dev, int channel, unsigned int period, unsigned int duty)
+aw_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 {
 	struct aw_pwm_softc *sc;
 	uint64_t period_freq, duty_freq;
@@ -298,7 +298,7 @@ aw_pwm_channel_config(device_t dev, int channel, unsigned int period, unsigned i
 }
 
 static int
-aw_pwm_channel_get_config(device_t dev, int channel, unsigned int *period, unsigned int *duty)
+aw_pwm_channel_get_config(device_t dev, u_int channel, u_int *period, u_int *duty)
 {
 	struct aw_pwm_softc *sc;
 
@@ -311,7 +311,7 @@ aw_pwm_channel_get_config(device_t dev, int channel, unsigned int *period, unsig
 }
 
 static int
-aw_pwm_channel_enable(device_t dev, int channel, bool enable)
+aw_pwm_channel_enable(device_t dev, u_int channel, bool enable)
 {
 	struct aw_pwm_softc *sc;
 	uint32_t reg;
@@ -335,7 +335,7 @@ aw_pwm_channel_enable(device_t dev, int channel, bool enable)
 }
 
 static int
-aw_pwm_channel_is_enabled(device_t dev, int channel, bool *enabled)
+aw_pwm_channel_is_enabled(device_t dev, u_int channel, bool *enabled)
 {
 	struct aw_pwm_softc *sc;
 
