@@ -51,16 +51,16 @@ CLEANFILES+=	${COMMONHDRS} cs-tm.h cs-tconfig.h options.h optionlist
 ${OBJS} beforedepend: ${COMMONHDRS}
 
 ${OBJS_T}: libgcov.c
-	${CC_T} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	${CC_T} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c:[1]}
 
 .if !defined(NO_PIC)
 ${OBJS_S}: libgcov.c
-	${CC_S} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	${CC_S} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c:[1]}
 .endif
 
 .if ${MK_PROFILE} != "no"
 ${OBJS_P}: libgcov.c
-	${CC_P} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	${CC_P} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c:[1]}
 .endif
 
 .include <bsd.lib.mk>
