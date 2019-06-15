@@ -381,4 +381,5 @@ static driver_t aw_pwm_driver = {
 static devclass_t aw_pwm_devclass;
 
 DRIVER_MODULE(aw_pwm, simplebus, aw_pwm_driver, aw_pwm_devclass, 0, 0);
+MODULE_VERSION(aw_pwm, 1);
 SIMPLEBUS_PNP_INFO(compat_data);
