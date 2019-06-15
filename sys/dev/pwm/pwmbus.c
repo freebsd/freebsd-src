@@ -57,7 +57,7 @@ struct pwmbus_softc {
 	device_t	dev;
 	device_t	parent;
 
-	int		nchannels;
+	u_int		nchannels;
 };
 
 static int
@@ -103,43 +103,43 @@ pwmbus_detach(device_t dev)
 }
 
 static int
-pwmbus_channel_config(device_t dev, int chan, u_int period, u_int duty)
+pwmbus_channel_config(device_t dev, u_int chan, u_int period, u_int duty)
 {
 	return (PWMBUS_CHANNEL_CONFIG(device_get_parent(dev), chan, period, duty));
 }
 
 static int
-pwmbus_channel_get_config(device_t dev, int chan, u_int *period, u_int *duty)
+pwmbus_channel_get_config(device_t dev, u_int chan, u_int *period, u_int *duty)
 {
 	return (PWMBUS_CHANNEL_GET_CONFIG(device_get_parent(dev), chan, period, duty));
 }
 
 static int
-pwmbus_channel_get_flags(device_t dev, int chan, uint32_t *flags)
+pwmbus_channel_get_flags(device_t dev, u_int chan, uint32_t *flags)
 {
 	return (PWMBUS_CHANNEL_GET_FLAGS(device_get_parent(dev), chan, flags));
 }
 
 static int
-pwmbus_channel_enable(device_t dev, int chan, bool enable)
+pwmbus_channel_enable(device_t dev, u_int chan, bool enable)
 {
 	return (PWMBUS_CHANNEL_ENABLE(device_get_parent(dev), chan, enable));
 }
 
 static int
-pwmbus_channel_set_flags(device_t dev, int chan, uint32_t flags)
+pwmbus_channel_set_flags(device_t dev, u_int chan, uint32_t flags)
 {
 	return (PWMBUS_CHANNEL_SET_FLAGS(device_get_parent(dev), chan, flags));
 }
 
 static int
-pwmbus_channel_is_enabled(device_t dev, int chan, bool *enable)
+pwmbus_channel_is_enabled(device_t dev, u_int chan, bool *enable)
 {
 	return (PWMBUS_CHANNEL_IS_ENABLED(device_get_parent(dev), chan, enable));
 }
 
 static int
-pwmbus_channel_count(device_t dev, int *nchannel)
+pwmbus_channel_count(device_t dev, u_int *nchannel)
 {
 	return (PWMBUS_CHANNEL_COUNT(device_get_parent(dev), nchannel));
 }

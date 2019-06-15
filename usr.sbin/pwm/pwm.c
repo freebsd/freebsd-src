@@ -66,7 +66,7 @@ main(int argc, char *argv[])
 {
 	struct pwm_state state;
 	int fd;
-	int channel, nchannels;
+	u_int channel, nchannels;
 	int period, duty;
 	int action, ch;
 	cap_rights_t right_ioctl;
@@ -75,7 +75,7 @@ main(int argc, char *argv[])
 
 	action = 0;
 	fd = -1;
-	channel = -1;
+	channel = -1u;
 	period = duty = -1;
 
 	while ((ch = getopt(argc, argv, "f:c:EDCp:d:")) != -1) {
@@ -110,9 +110,9 @@ main(int argc, char *argv[])
 				usage();
 			break;
 		case 'c':
-			if (channel != -1)
+			if (channel != -1u)
 				usage();
-			channel = strtol(optarg, NULL, 10);
+			channel = strtoul(optarg, NULL, 10);
 			break;
 		case 'f':
 			if ((fd = open(optarg, O_RDWR)) < 0) {
