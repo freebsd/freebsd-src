@@ -101,81 +101,81 @@ pwmbus_detach(device_t dev)
 }
 
 static int
-pwmbus_channel_config(device_t bus, int channel, unsigned int period, unsigned int duty)
+pwmbus_channel_config(device_t bus, int chan, u_int period, u_int duty)
 {
 	struct pwmbus_softc *sc;
 
 	sc = device_get_softc(bus);
 
-	if (channel > sc->nchannels)
+	if (chan > sc->nchannels)
 		return (EINVAL);
 
-	return (PWM_CHANNEL_CONFIG(sc->dev, channel, period, duty));
+	return (PWM_CHANNEL_CONFIG(sc->dev, chan, period, duty));
 }
 
 static int
-pwmbus_channel_get_config(device_t bus, int channel, unsigned int *period, unsigned int *duty)
+pwmbus_channel_get_config(device_t bus, int chan, u_int *period, u_int *duty)
 {
 	struct pwmbus_softc *sc;
 
 	sc = device_get_softc(bus);
 
-	if (channel > sc->nchannels)
+	if (chan > sc->nchannels)
 		return (EINVAL);
 
-	return (PWM_CHANNEL_GET_CONFIG(sc->dev, channel, period, duty));
+	return (PWM_CHANNEL_GET_CONFIG(sc->dev, chan, period, duty));
 }
 
 static int
-pwmbus_channel_set_flags(device_t bus, int channel, uint32_t flags)
+pwmbus_channel_set_flags(device_t bus, int chan, uint32_t flags)
 {
 	struct pwmbus_softc *sc;
 
 	sc = device_get_softc(bus);
 
-	if (channel > sc->nchannels)
+	if (chan > sc->nchannels)
 		return (EINVAL);
 
-	return (PWM_CHANNEL_SET_FLAGS(sc->dev, channel, flags));
+	return (PWM_CHANNEL_SET_FLAGS(sc->dev, chan, flags));
 }
 
 static int
-pwmbus_channel_get_flags(device_t bus, int channel, uint32_t *flags)
+pwmbus_channel_get_flags(device_t bus, int chan, uint32_t *flags)
 {
 	struct pwmbus_softc *sc;
 
 	sc = device_get_softc(bus);
 
-	if (channel > sc->nchannels)
+	if (chan > sc->nchannels)
 		return (EINVAL);
 
-	return (PWM_CHANNEL_GET_FLAGS(sc->dev, channel, flags));
+	return (PWM_CHANNEL_GET_FLAGS(sc->dev, chan, flags));
 }
 
 static int
-pwmbus_channel_enable(device_t bus, int channel, bool enable)
+pwmbus_channel_enable(device_t bus, int chan, bool enable)
 {
 	struct pwmbus_softc *sc;
 
 	sc = device_get_softc(bus);
 
-	if (channel > sc->nchannels)
+	if (chan > sc->nchannels)
 		return (EINVAL);
 
-	return (PWM_CHANNEL_ENABLE(sc->dev, channel, enable));
+	return (PWM_CHANNEL_ENABLE(sc->dev, chan, enable));
 }
 
 static int
-pwmbus_channel_is_enabled(device_t bus, int channel, bool *enable)
+pwmbus_channel_is_enabled(device_t bus, int chan, bool *enable)
 {
 	struct pwmbus_softc *sc;
 
 	sc = device_get_softc(bus);
 
-	if (channel > sc->nchannels)
+	if (chan > sc->nchannels)
 		return (EINVAL);
 
-	return (PWM_CHANNEL_IS_ENABLED(sc->dev, channel, enable));
+	return (PWM_CHANNEL_IS_ENABLED(sc->dev, chan, enable));
 }
 
 static device_method_t pwmbus_methods[] = {
