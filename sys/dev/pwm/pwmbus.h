@@ -31,7 +31,6 @@
 #ifndef _PWMBUS_H_
 
 #include <dev/ofw/openfirm.h>
-#include <sys/pwm.h>
 
 struct pwm_channel {
 	device_t	dev;
