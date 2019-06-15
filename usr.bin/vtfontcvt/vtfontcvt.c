@@ -176,6 +176,7 @@ add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 	glyph_total++;
 	glyph_count[map_idx]++;
 
+	/* Return existing glyph if we have an identical one. */
 	hash = fnv_32_buf(bytes, wbytes * height, FNV1_32_INIT) % FONTCVT_NHASH;
 	SLIST_FOREACH(gl, &glyph_hash[hash], g_hash) {
 		if (memcmp(gl->g_data, bytes, wbytes * height) == 0) {
@@ -184,6 +185,7 @@ add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 		}
 	}
 
+	/* Allocate new glyph. */
 	gl = xmalloc(sizeof *gl);
 	gl->g_data = xmalloc(wbytes * height);
 	memcpy(gl->g_data, bytes, wbytes * height);
