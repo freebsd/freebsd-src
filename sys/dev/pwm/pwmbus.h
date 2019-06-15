@@ -34,7 +34,6 @@
 
 struct pwm_channel {
 	device_t	dev;
-	device_t	busdev;
 	int		channel;
 	uint64_t	period;
 	uint64_t	duty;

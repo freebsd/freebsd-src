@@ -105,3 +105,11 @@ METHOD int channel_is_enabled {
 	int channel;
 	bool *enabled;
 };
+
+#
+# Get the number of channels
+#
+METHOD int channel_count {
+	device_t bus;
+	int *nchannel;
+};
