@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pwm/pwmbus.h>
 
-#include "pwm_if.h"
+#include "pwmbus_if.h"
 
 #define	AW_PWM_CTRL			0x00
 #define	 AW_PWM_CTRL_PRESCALE_MASK	0xF
@@ -346,28 +346,18 @@ aw_pwm_channel_is_enabled(device_t dev, int channel, bool *enabled)
 	return (0);
 }
 
-static device_t
-aw_pwm_get_bus(device_t dev)
-{
-	struct aw_pwm_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	return (sc->busdev);
-}
 static device_method_t aw_pwm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		aw_pwm_probe),
 	DEVMETHOD(device_attach,	aw_pwm_attach),
 	DEVMETHOD(device_detach,	aw_pwm_detach),
 
-	/* pwm interface */
-	DEVMETHOD(pwm_get_bus,			aw_pwm_get_bus),
-	DEVMETHOD(pwm_channel_count,		aw_pwm_channel_count),
-	DEVMETHOD(pwm_channel_config,		aw_pwm_channel_config),
-	DEVMETHOD(pwm_channel_get_config,	aw_pwm_channel_get_config),
-	DEVMETHOD(pwm_channel_enable,		aw_pwm_channel_enable),
-	DEVMETHOD(pwm_channel_is_enabled,	aw_pwm_channel_is_enabled),
+	/* pwmbus interface */
+	DEVMETHOD(pwmbus_channel_count,		aw_pwm_channel_count),
+	DEVMETHOD(pwmbus_channel_config,	aw_pwm_channel_config),
+	DEVMETHOD(pwmbus_channel_get_config,	aw_pwm_channel_get_config),
+	DEVMETHOD(pwmbus_channel_enable,	aw_pwm_channel_enable),
+	DEVMETHOD(pwmbus_channel_is_enabled,	aw_pwm_channel_is_enabled),
 
 	DEVMETHOD_END
 };
