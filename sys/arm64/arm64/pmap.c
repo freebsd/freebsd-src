@@ -4067,7 +4067,7 @@ pmap_remove_pages(pmap_t pmap)
 					switch (lvl) {
 					case 1:
 						for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++)
-							vm_page_dirty(m);
+							vm_page_dirty(mt);
 						break;
 					case 2:
 						vm_page_dirty(m);
