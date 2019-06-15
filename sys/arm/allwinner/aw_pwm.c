@@ -192,12 +192,20 @@ static int
 aw_pwm_detach(device_t dev)
 {
 	struct aw_pwm_softc *sc;
+	int error;
 
 	sc = device_get_softc(dev);
 
-	bus_generic_detach(sc->dev);
+	if (((error = bus_generic_detach(sc->dev)) != 0) {
+		device_printf(sc->dev, "cannot detach child devices\n");
+		return (error);
+	}
 
-	bus_release_resources(dev, aw_pwm_spec, &sc->res);
+	if (sc->busdev != NULL)
+		device_delete_child(dev, sc->busdev);
+
+	if (sc->res != NULL)
+		bus_release_resources(dev, aw_pwm_spec, &sc->res);
 
 	return (0);
 }
