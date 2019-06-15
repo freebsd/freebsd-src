@@ -48,10 +48,6 @@ CODE {
 	}
 };
 
-HEADER {
-	#include <sys/pwm.h>
-};
-
 #
 # Config the period (Total number of cycle in ns) and
 # the duty (active number of cycle in ns)
