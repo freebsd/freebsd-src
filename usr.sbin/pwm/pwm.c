@@ -31,8 +31,8 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <stdbool.h>
-#include <sys/pwm.h>
 #include <sys/capsicum.h>
+#include <dev/pwm/pwmc.h>
 
 #include <err.h>
 #include <errno.h>
