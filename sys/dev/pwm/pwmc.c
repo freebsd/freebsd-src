@@ -137,6 +137,10 @@ pwmc_attach(device_t dev)
 static int
 pwmc_detach(device_t dev)
 {
+	struct pwmc_softc *sc;
+ 
+	sc = device_get_softc(dev);
+	destroy_dev(sc->pwm_dev);
 
 	return (0);
 }
@@ -150,12 +154,12 @@ static device_method_t pwmc_methods[] = {
 	DEVMETHOD_END
 };
 
-driver_t pwmc_driver = {
+static driver_t pwmc_driver = {
 	"pwmc",
 	pwmc_methods,
 	sizeof(struct pwmc_softc),
 };
-devclass_t pwmc_devclass;
+static devclass_t pwmc_devclass;
 
 DRIVER_MODULE(pwmc, pwm, pwmc_driver, pwmc_devclass, 0, 0);
 MODULE_VERSION(pwmc, 1);
