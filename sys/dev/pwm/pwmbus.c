@@ -61,35 +61,6 @@ struct pwmbus_softc {
 	int		nchannels;
 };
 
-device_t
-pwmbus_attach_bus(device_t dev)
-{
-	device_t busdev;
-#ifdef FDT
-	phandle_t node;
-#endif
-
-	busdev = device_add_child(dev, "pwmbus", -1);
-	if (busdev == NULL) {
-		device_printf(dev, "Cannot add child pwmbus\n");
-		return (NULL);
-	}
-	if (device_add_child(dev, "pwmc", -1) == NULL) {
-		device_printf(dev, "Cannot add pwmc\n");
-		device_delete_child(dev, busdev);
-		return (NULL);
-	}
-
-#ifdef FDT
-	node = ofw_bus_get_node(dev);
-	OF_device_register_xref(OF_xref_from_node(node), dev);
-#endif
-
-	bus_generic_attach(dev);
-
-	return (busdev);
-}
-
 static int
 pwmbus_probe(device_t dev)
 {
