@@ -226,7 +226,7 @@ aw_pwm_detach(device_t dev)
 }
 
 static int
-aw_pwm_channel_max(device_t dev, int *nchannel)
+aw_pwm_channel_count(device_t dev, int *nchannel)
 {
 
 	*nchannel = 1;
@@ -363,7 +363,7 @@ static device_method_t aw_pwm_methods[] = {
 
 	/* pwm interface */
 	DEVMETHOD(pwm_get_bus,			aw_pwm_get_bus),
-	DEVMETHOD(pwm_channel_max,		aw_pwm_channel_max),
+	DEVMETHOD(pwm_channel_count,		aw_pwm_channel_count),
 	DEVMETHOD(pwm_channel_config,		aw_pwm_channel_config),
 	DEVMETHOD(pwm_channel_get_config,	aw_pwm_channel_get_config),
 	DEVMETHOD(pwm_channel_enable,		aw_pwm_channel_enable),

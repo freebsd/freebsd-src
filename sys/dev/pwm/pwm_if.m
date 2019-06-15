@@ -100,7 +100,7 @@ METHOD int channel_is_enabled {
 #
 # Get the number of channels
 #
-METHOD int channel_max {
+METHOD int channel_count {
 	device_t dev;
 	int *nchannel;
 };
