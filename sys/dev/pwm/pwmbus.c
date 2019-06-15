@@ -92,20 +92,12 @@ pwmbus_attach(device_t dev)
 static int
 pwmbus_detach(device_t dev)
 {
-	device_t *devlist;
-	int i, rv, ndevs;
+	int rv;
 
-	rv = bus_generic_detach(dev);
-	if (rv != 0)
-		return (rv);
+	if ((rv = bus_generic_detach(dev)) == 0)
+		rv = device_delete_children(dev);
 
-	rv = device_get_children(dev, &devlist, &ndevs);
-	if (rv != 0)
-		return (rv);
-	for (i = 0; i < ndevs; i++)
-		device_delete_child(dev, devlist[i]);
-
-	return (0);
+	return (rv);
 }
 
 static int
