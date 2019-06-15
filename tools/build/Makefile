@@ -70,7 +70,8 @@ SUBDIR=		cross-build
 .endif
 
 # Needed to build config (since it uses libnv)
-SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h
+SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h \
+		${SRCTOP}/sys/sys/dnv.h
 
 # We want to run the build with only ${WORLDTMP} in $PATH to ensure we don't
 # accidentally run tools that are incompatible but happen to be in $PATH.
