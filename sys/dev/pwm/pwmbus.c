@@ -195,12 +195,12 @@ static device_method_t pwmbus_methods[] = {
 	DEVMETHOD_END
 };
 
-driver_t pwmbus_driver = {
+static driver_t pwmbus_driver = {
 	"pwmbus",
 	pwmbus_methods,
 	sizeof(struct pwmbus_softc),
 };
-devclass_t pwmbus_devclass;
+static devclass_t pwmbus_devclass;
 
 EARLY_DRIVER_MODULE(pwmbus, pwm, pwmbus_driver, pwmbus_devclass, 0, 0,
   BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
