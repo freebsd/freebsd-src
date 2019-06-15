@@ -376,7 +376,6 @@ struct iflib_fl {
 	uint64_t	ifl_cl_dequeued;
 #endif
 	/* implicit pad */
-
 	bitstr_t 	*ifl_rx_bitmap;
 	qidx_t		ifl_fragidx;
 	/* constant */
@@ -1250,7 +1249,6 @@ iflib_netmap_timer_adjust(if_ctx_t ctx, iflib_txq_t txq, uint32_t *reset_on)
 #define netmap_rx_irq(ifp, qid, budget) (0)
 #define netmap_tx_irq(ifp, qid) do {} while (0)
 #define iflib_netmap_timer_adjust(ctx, txq, reset_on)
-
 #endif
 
 #if defined(__i386__) || defined(__amd64__)
@@ -1537,17 +1535,17 @@ _iflib_irq_alloc(if_ctx_t ctx, if_irq_t irq, int rid,
 		 driver_filter_t filter, driver_intr_t handler, void *arg,
 		 const char *name)
 {
-	int rc, flags;
 	struct resource *res;
 	void *tag = NULL;
 	device_t dev = ctx->ifc_dev;
+	int flags, i, rc;
 
 	flags = RF_ACTIVE;
 	if (ctx->ifc_flags & IFC_LEGACY)
 		flags |= RF_SHAREABLE;
 	MPASS(rid < 512);
-	irq->ii_rid = rid;
-	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irq->ii_rid, flags);
+	i = rid;
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i, flags);
 	if (res == NULL) {
 		device_printf(dev,
 		    "failed to allocate IRQ for rid %d, name %s.\n", rid, name);
@@ -1568,7 +1566,6 @@ _iflib_irq_alloc(if_ctx_t ctx, if_irq_t irq, int rid,
 	irq->ii_tag = tag;
 	return (0);
 }
-
 
 /*********************************************************************
  *
@@ -4332,12 +4329,10 @@ iflib_led_func(void *arg, int onoff)
 int
 iflib_device_probe(device_t dev)
 {
-	pci_vendor_info_t *ent;
-
-	uint16_t	pci_vendor_id, pci_device_id;
-	uint16_t	pci_subvendor_id, pci_subdevice_id;
-	uint16_t	pci_rev_id;
+	const pci_vendor_info_t *ent;
 	if_shared_ctx_t sctx;
+	uint16_t pci_device_id, pci_rev_id, pci_subdevice_id, pci_subvendor_id;
+	uint16_t pci_vendor_id;
 
 	if ((sctx = DEVICE_REGISTER(dev)) == NULL || sctx->isc_magic != IFLIB_MAGIC)
 		return (ENOTSUP);
@@ -4397,8 +4392,6 @@ iflib_reset_qvalues(if_ctx_t ctx)
 	device_t dev = ctx->ifc_dev;
 	int i;
 
-	scctx->isc_txrx_budget_bytes_max = IFLIB_MAX_TX_BYTES;
-	scctx->isc_tx_qdepth = IFLIB_DEFAULT_TX_QDEPTH;
 	if (ctx->ifc_sysctl_ntxqs != 0)
 		scctx->isc_ntxqsets = ctx->ifc_sysctl_ntxqs;
 	if (ctx->ifc_sysctl_nrxqs != 0)
@@ -6037,15 +6030,14 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	struct resource *res;
 	struct taskqgroup *tqg;
 	gtask_fn_t *fn;
-	int tqrid;
 	void *q;
-	int err;
+	int err, tqrid;
 
 	q = &ctx->ifc_rxqs[0];
 	info = &rxq[0].ifr_filter_info;
 	gtask = &rxq[0].ifr_task;
 	tqg = qgroup_if_io_tqg;
-	tqrid = irq->ii_rid = *rid;
+	tqrid = *rid;
 	fn = _task_fn_rx;
 
 	ctx->ifc_flags |= IFC_LEGACY;
@@ -6112,7 +6104,7 @@ iflib_iov_intr_deferred(if_ctx_t ctx)
 }
 
 void
-iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu, char *name)
+iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu, const char *name)
 {
 
 	taskqgroup_attach_cpu(qgroup_if_io_tqg, gt, uniq, cpu, NULL, NULL,

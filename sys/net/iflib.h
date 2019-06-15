@@ -132,12 +132,12 @@ typedef struct if_pkt_info {
 	uint8_t			ipi_mflags;	/* packet mbuf flags */
 
 	uint32_t		ipi_tcp_seq;	/* tcp seqno */
-	uint32_t		ipi_tcp_sum;	/* tcp csum */
+	uint32_t		__spare0__;
 } *if_pkt_info_t;
 
 typedef struct if_irq {
 	struct resource  *ii_res;
-	int               ii_rid;
+	int               __spare0__;
 	void             *ii_tag;
 } *if_irq_t;
 
@@ -166,7 +166,7 @@ typedef struct pci_vendor_info {
 	uint32_t	pvi_subdevice_id;
 	uint32_t	pvi_rev_id;
 	uint32_t	pvi_class_mask;
-	caddr_t		pvi_name;
+	const char	*pvi_name;
 } pci_vendor_info_t;
 
 #define PVID(vendor, devid, name) {vendor, devid, 0, 0, 0, 0, name}
@@ -194,9 +194,8 @@ typedef struct if_softc_ctx {
 	int isc_vectors;
 	int isc_nrxqsets;
 	int isc_ntxqsets;
-	uint8_t isc_min_tx_latency; /* disable doorbell update batching */
-	uint8_t isc_rx_mvec_enable; /* generate mvecs on rx */
-	uint32_t isc_txrx_budget_bytes_max;
+	uint16_t __spare0__;
+	uint32_t __spare1__;
 	int isc_msix_bar;		/* can be model specific - initialize in attach_pre */
 	int isc_tx_nsegments;		/* can be model specific - initialize in attach_pre */
 	int isc_ntxd[8];
@@ -218,19 +217,24 @@ typedef struct if_softc_ctx {
 	int isc_rss_table_mask;
 	int isc_nrxqsets_max;
 	int isc_ntxqsets_max;
-	uint32_t isc_tx_qdepth;
+	uint32_t __spare2__;
 
 	iflib_intr_mode_t isc_intr;
 	uint16_t isc_max_frame_size; /* set at init time by driver */
 	uint16_t isc_min_frame_size; /* set at init time by driver, only used if
 					IFLIB_NEED_ETHER_PAD is set. */
 	uint32_t isc_pause_frames;   /* set by driver for iflib_timer to detect */
-	pci_vendor_info_t isc_vendor_info;	/* set by iflib prior to attach_pre */
+	uint32_t __spare3__;
+	uint32_t __spare4__;
+	uint32_t __spare5__;
+	uint32_t __spare6__;
+	uint32_t __spare7__;
+	uint32_t __spare8__;
+	caddr_t __spare9__;
 	int isc_disable_msix;
 	if_txrx_t isc_txrx;
 	struct ifmedia *isc_media;
 } *if_softc_ctx_t;
-
 
 /*
  * Initialization values for device
@@ -249,7 +253,7 @@ struct if_shared_ctx {
 	int isc_admin_intrcnt;		/* # of admin/link interrupts */
 
 	/* fields necessary for probe */
-	pci_vendor_info_t *isc_vendor_info;
+	const pci_vendor_info_t *isc_vendor_info;
 	const char *isc_driver_version;
 	/* optional function to transform the read values to match the table*/
 	void (*isc_parse_devinfo) (uint16_t *device_id, uint16_t *subvendor_id,
@@ -265,7 +269,7 @@ struct if_shared_ctx {
 	int isc_nfl __aligned(CACHE_LINE_SIZE);
 	int isc_ntxqs;			/* # of tx queues per tx qset - usually 1 */
 	int isc_nrxqs;			/* # of rx queues per rx qset - intel 1, chelsio 2, broadcom 3 */
-	int isc_rx_process_limit;
+	int __spare0__;
 	int isc_tx_reclaim_thresh;
 	int isc_flags;
 	const char *isc_name;
@@ -288,11 +292,6 @@ typedef enum {
 	IFLIB_INTR_ADMIN,
 	IFLIB_INTR_IOV,
 } iflib_intr_type_t;
-
-#ifndef ETH_ADDR_LEN
-#define ETH_ADDR_LEN 6
-#endif
-
 
 /*
  * Interface has a separate command queue for RX
@@ -368,7 +367,6 @@ typedef enum {
  */
 #define IFLIB_DRIVER_MEDIA	0x20000
 
-
 /*
  * field accessors
  */
@@ -406,7 +404,6 @@ int iflib_device_shutdown(device_t);
  */
 int iflib_device_probe_vendor(device_t);
 
-
 int iflib_device_iov_init(device_t, uint16_t, const nvlist_t *);
 void iflib_device_iov_uninit(device_t);
 int iflib_device_iov_add_vf(device_t, uint16_t, const nvlist_t *);
@@ -418,8 +415,6 @@ int iflib_device_iov_add_vf(device_t, uint16_t, const nvlist_t *);
 int iflib_device_register(device_t dev, void *softc, if_shared_ctx_t sctx, if_ctx_t *ctxp);
 int iflib_device_deregister(if_ctx_t);
 
-
-
 int iflib_irq_alloc(if_ctx_t, if_irq_t, int, driver_filter_t, void *filter_arg, driver_intr_t, void *arg, const char *name);
 int iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 			    iflib_intr_type_t type, driver_filter_t *filter,
@@ -428,34 +423,28 @@ void iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t t
 
 void iflib_irq_free(if_ctx_t ctx, if_irq_t irq);
 
-void iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu, char *name);
+void iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu,
+    const char *name);
 
 void iflib_config_gtask_init(void *ctx, struct grouptask *gtask,
 			     gtask_fn_t *fn, const char *name);
-
 void iflib_config_gtask_deinit(struct grouptask *gtask);
-
-
 
 void iflib_tx_intr_deferred(if_ctx_t ctx, int txqid);
 void iflib_rx_intr_deferred(if_ctx_t ctx, int rxqid);
 void iflib_admin_intr_deferred(if_ctx_t ctx);
 void iflib_iov_intr_deferred(if_ctx_t ctx);
 
-
 void iflib_link_state_change(if_ctx_t ctx, int linkstate, uint64_t baudrate);
 
 int iflib_dma_alloc(if_ctx_t ctx, int size, iflib_dma_info_t dma, int mapflags);
 int iflib_dma_alloc_align(if_ctx_t ctx, int size, int align, iflib_dma_info_t dma, int mapflags);
 void iflib_dma_free(iflib_dma_info_t dma);
-
 int iflib_dma_alloc_multi(if_ctx_t ctx, int *sizes, iflib_dma_info_t *dmalist, int mapflags, int count);
 
 void iflib_dma_free_multi(iflib_dma_info_t *dmalist, int count);
 
-
 struct sx *iflib_ctx_lock_get(if_ctx_t);
-struct mtx *iflib_qset_lock_get(if_ctx_t, uint16_t);
 
 void iflib_led_create(if_ctx_t ctx);
 
@@ -467,4 +456,5 @@ void iflib_add_int_delay_sysctl(if_ctx_t, const char *, const char *,
  */
 if_pseudo_t iflib_clone_register(if_shared_ctx_t);
 void iflib_clone_deregister(if_pseudo_t);
+
 #endif /*  __IFLIB_H_ */
