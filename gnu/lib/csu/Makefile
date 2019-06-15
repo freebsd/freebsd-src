@@ -14,6 +14,7 @@ CCDIR=	${SRCTOP}/gnu/usr.bin/cc
 SRCS=		crtstuff.c ${COMMONHDRS}
 OBJS=		crtbegin.o crtend.o crtbeginT.o
 SOBJS=		crtbeginS.o crtendS.o
+DEPENDOBJS+=	${OBJS} ${SOBJS}
 CSTD?=		gnu89
 CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR -DDT_CONFIG -D__GLIBC__=3
 CFLAGS.gcc+=	-finhibit-size-directive -fno-toplevel-reorder
