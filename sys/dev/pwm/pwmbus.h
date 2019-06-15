@@ -43,10 +43,6 @@ struct pwm_channel {
 };
 typedef struct pwm_channel *pwm_channel_t;
 
-device_t pwmbus_attach_bus(device_t dev);
-int pwmbus_acquire_channel(device_t bus, int channel);
-int pwmbus_release_channel(device_t bus, int channel);
-
 int
 pwm_get_by_ofw_propidx(device_t consumer, phandle_t node,
     const char *prop_name, int idx, pwm_channel_t *channel);
