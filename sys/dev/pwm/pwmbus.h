@@ -43,17 +43,13 @@ struct pwm_channel {
 };
 typedef struct pwm_channel *pwm_channel_t;
 
-int
-pwm_get_by_ofw_propidx(device_t consumer, phandle_t node,
+int pwm_get_by_ofw_propidx(device_t consumer, phandle_t node,
     const char *prop_name, int idx, pwm_channel_t *channel);
-int
-pwm_get_by_ofw_idx(device_t consumer, phandle_t node, int idx,
+int pwm_get_by_ofw_idx(device_t consumer, phandle_t node, int idx,
     pwm_channel_t *out_channel);
-int
-pwm_get_by_ofw_property(device_t consumer, phandle_t node,
+int pwm_get_by_ofw_property(device_t consumer, phandle_t node,
     const char *prop_name, pwm_channel_t *out_channel);
-int
-pwm_get_by_ofw_name(device_t consumer, phandle_t node, const char *name,
+int pwm_get_by_ofw_name(device_t consumer, phandle_t node, const char *name,
     pwm_channel_t *out_channel);
 
 #endif /* _PWMBUS_H_ */
