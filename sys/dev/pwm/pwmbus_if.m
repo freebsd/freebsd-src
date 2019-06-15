@@ -33,14 +33,14 @@ INTERFACE pwmbus;
 
 CODE {
 	static int
-	pwm_default_set_flags(device_t dev, int channel, uint32_t flags)
+	pwm_default_set_flags(device_t dev, u_int channel, uint32_t flags)
 	{
 
 		return (EOPNOTSUPP);
 	}
 
 	static int
-	pwm_default_get_flags(device_t dev, int channel, uint32_t *flags)
+	pwm_default_get_flags(device_t dev, u_int channel, uint32_t *flags)
 	{
 
 		*flags = 0;
@@ -54,7 +54,7 @@ CODE {
 #
 METHOD int channel_config {
 	device_t bus;
-	int channel;
+	u_int channel;
 	unsigned int period;
 	unsigned int duty;
 };
@@ -65,7 +65,7 @@ METHOD int channel_config {
 #
 METHOD int channel_get_config {
 	device_t bus;
-	int channel;
+	u_int channel;
 	unsigned int *period;
 	unsigned int *duty;
 };
@@ -75,7 +75,7 @@ METHOD int channel_get_config {
 #
 METHOD int channel_set_flags {
 	device_t bus;
-	int channel;
+	u_int channel;
 	uint32_t flags;
 } DEFAULT pwm_default_set_flags;
 
@@ -84,7 +84,7 @@ METHOD int channel_set_flags {
 #
 METHOD int channel_get_flags {
 	device_t dev;
-	int channel;
+	u_int channel;
 	uint32_t *flags;
 } DEFAULT pwm_default_get_flags;
 
@@ -93,7 +93,7 @@ METHOD int channel_get_flags {
 #
 METHOD int channel_enable {
 	device_t bus;
-	int channel;
+	u_int channel;
 	bool enable;
 };
 
@@ -102,7 +102,7 @@ METHOD int channel_enable {
 #
 METHOD int channel_is_enabled {
 	device_t bus;
-	int channel;
+	u_int channel;
 	bool *enabled;
 };
 
@@ -111,5 +111,5 @@ METHOD int channel_is_enabled {
 #
 METHOD int channel_count {
 	device_t bus;
-	int *nchannel;
+	u_int *nchannel;
 };
