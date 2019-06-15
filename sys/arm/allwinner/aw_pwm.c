@@ -138,6 +138,7 @@ aw_pwm_attach(device_t dev)
 	struct aw_pwm_softc *sc;
 	uint64_t clk_freq;
 	uint32_t reg;
+	phandle_t node;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -158,9 +159,6 @@ aw_pwm_attach(device_t dev)
 		goto fail;
 	}
 
-	if ((sc->busdev = pwmbus_attach_bus(dev)) == NULL)
-		device_printf(dev, "Cannot attach pwm bus\n");
-
 	/* Read the configuration left by U-Boot */
 	reg = AW_PWM_READ(sc, AW_PWM_CTRL);
 	if (reg & (AW_PWM_CTRL_GATE | AW_PWM_CTRL_EN))
@@ -170,7 +168,7 @@ aw_pwm_attach(device_t dev)
 	reg &= AW_PWM_CTRL_PRESCALE_MASK;
 	if (reg > nitems(aw_pwm_clk_prescaler)) {
 		device_printf(dev, "Bad prescaler %x, cannot guess current settings\n", reg);
-		goto out;
+		goto skipcfg;
 	}
 	clk_freq = sc->clk_freq / aw_pwm_clk_prescaler[reg];
 
@@ -180,8 +178,17 @@ aw_pwm_attach(device_t dev)
 	sc->duty = NS_PER_SEC /
 		(clk_freq / ((reg >> AW_PWM_PERIOD_ACTIVE_SHIFT) & AW_PWM_PERIOD_ACTIVE_MASK));
 
-out:
-	return (0);
+skipcfg:
+	/*
+	 * Note that we don't check for failure to attach pwmbus -- even without
+	 * it we can still service clients who connect via fdt xref data.
+	 */
+	node = ofw_bus_get_node(dev);
+	OF_device_register_xref(OF_xref_from_node(node), dev);
+
+	sc->busdev = device_add_child(dev, "pwmbus", -1);
+
+	return (bus_generic_attach(dev));
 
 fail:
 	aw_pwm_detach(dev);
@@ -196,7 +203,7 @@ aw_pwm_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (((error = bus_generic_detach(sc->dev)) != 0) {
+	if ((error = bus_generic_detach(sc->dev)) != 0) {
 		device_printf(sc->dev, "cannot detach child devices\n");
 		return (error);
 	}
