@@ -224,11 +224,11 @@ ${T}_OBJS_S =	${${T}_FUNCS:S/$/.pico/}
 SOBJS +=	${${T}_FUNCS:S/$/.pico/}
 
 ${${T}_OBJS_T}: ${${T}_CFILE} ${COMMONHDRS}
-	${CC_T} ${${T}_CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	${CC_T} ${${T}_CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c:[1]}
 ${${T}_OBJS_P}: ${${T}_CFILE} ${COMMONHDRS}
-	${CC_P} ${${T}_CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	${CC_P} ${${T}_CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c:[1]}
 ${${T}_OBJS_S}: ${${T}_CFILE} ${COMMONHDRS}
-	${CC_S} ${${T}_CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	${CC_S} ${${T}_CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c:[1]}
 .endfor
 
 #-----------------------------------------------------------------------
@@ -249,9 +249,9 @@ STAT_OBJS_P = 	${SYMS_ST:S/$/.po/}
 STATICOBJS  =	${SYMS_ST:S/$/.o/}
 
 ${STAT_OBJS_T}:	${STD_CFILE} ${COMMONHDRS}
-	${CC_T} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	${CC_T} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c:[1]}
 ${STAT_OBJS_P}:	${STD_CFILE} ${COMMONHDRS}
-	${CC_P} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	${CC_P} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c:[1]}
 
 #-----------------------------------------------------------------------
 #
