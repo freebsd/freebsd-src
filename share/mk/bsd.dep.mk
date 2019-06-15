@@ -173,7 +173,7 @@ ${_D}.nossppico: ${_DSRC} ${SOBJS:S/^${_D}.nossppico$//}
 .endif
 .endfor
 .endfor
-
+.endif	# defined(SRCS)
 
 .if ${MAKE_VERSION} < 20160220
 DEPEND_MP?=	-MP
@@ -181,11 +181,15 @@ DEPEND_MP?=	-MP
 # Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
 # avoid collisions.
 DEPEND_FILTER=	C,/,_,g
+.if !empty(OBJS)
+DEPENDOBJS+=	${OBJS}
+.else
 DEPENDSRCS+=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 DEPENDSRCS+=	${DPSRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 .if !empty(DEPENDSRCS)
 DEPENDOBJS+=	${DEPENDSRCS:${OBJS_SRCS_FILTER:ts:}:S,$,.o,}
 .endif
+.endif	# !empty(OBJS)
 .if !empty(DEPENDOBJS)
 DEPENDFILES+=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
 .endif
@@ -215,7 +219,6 @@ CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .endif
 .endfor
 .endif	# !defined(_meta_filemon)
-.endif	# defined(SRCS)
 
 .if ${MK_DIRDEPS_BUILD} == "yes" && ${.MAKE.DEPENDFILE} != "/dev/null"
 # Prevent meta.autodep.mk from tracking "local dependencies".
