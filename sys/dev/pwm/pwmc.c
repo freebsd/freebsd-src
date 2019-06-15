@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/time.h>
 
-#include <sys/pwm.h>
+#include <dev/pwm/pwmc.h>
 
 #include "pwmbus_if.h"
 #include "pwm_if.h"
