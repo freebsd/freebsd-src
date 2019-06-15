@@ -78,7 +78,7 @@ pwmbus_attach(device_t dev)
 	sc->busdev = dev;
 	sc->dev = device_get_parent(dev);
 
-	if (PWM_CHANNEL_MAX(sc->dev, &sc->nchannels) != 0 ||
+	if (PWM_CHANNEL_COUNT(sc->dev, &sc->nchannels) != 0 ||
 	    sc->nchannels == 0)
 		return (ENXIO);
 

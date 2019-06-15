@@ -67,7 +67,7 @@ pwm_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	switch (cmd) {
 	case PWMMAXCHANNEL:
 		nchannel = -1;
-		rv = PWM_CHANNEL_MAX(sc->pdev, &nchannel);
+		rv = PWM_CHANNEL_COUNT(sc->pdev, &nchannel);
 		bcopy(&nchannel, data, sizeof(nchannel));
 		break;
 	case PWMSETSTATE:
