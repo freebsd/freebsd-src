@@ -2186,17 +2186,22 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT(entry->end > start && entry->start < start,
 	    ("_vm_map_clip_start: invalid clip of entry %p", entry));
+	vm_map_simplify_entry(map, entry);
 
 	/*
-	 * Split off the front portion -- note that we must insert the new
-	 * entry BEFORE this one, so that this entry has the specified
-	 * starting address.
+	 * Create a backing object now, if none exists, so that more individual
+	 * objects won't be created after the map entry is split.
 	 */
-	vm_map_simplify_entry(map, entry);
 	vm_map_entry_charge_object(map, entry);
+
+	/* Clone the entry. */
 	new_entry = vm_map_entry_create(map);
 	*new_entry = *entry;
 
+	/*
+	 * Split off the front portion.  Insert the new entry BEFORE this one,
+	 * so that this entry has the specified starting address.
+	 */
 	new_entry->end = start;
 	entry->offset += (start - entry->start);
 	entry->start = start;
@@ -2244,14 +2249,20 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 	KASSERT(entry->start < end && entry->end > end,
 	    ("_vm_map_clip_end: invalid clip of entry %p", entry));
 
-
 	/*
-	 * Create a new entry and insert it AFTER the specified entry
+	 * Create a backing object now, if none exists, so that more individual
+	 * objects won't be created after the map entry is split.
 	 */
 	vm_map_entry_charge_object(map, entry);
+
+	/* Clone the entry. */
 	new_entry = vm_map_entry_create(map);
 	*new_entry = *entry;
 
+	/*
+	 * Split off the back portion.  Insert the new entry AFTER this one,
+	 * so that this entry has the specified ending address.
+	 */
 	new_entry->start = entry->end = end;
 	new_entry->offset += (end - entry->start);
 	if (new_entry->cred != NULL)
