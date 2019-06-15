@@ -1167,9 +1167,11 @@ pcib_pcie_intr_hotplug(void *arg)
 {
 	struct pcib_softc *sc;
 	device_t dev;
+	uint16_t old_slot_sta;
 
 	sc = arg;
 	dev = sc->dev;
+	old_slot_sta = sc->pcie_slot_sta;
 	sc->pcie_slot_sta = pcie_read_config(dev, PCIER_SLOT_STA, 2);
 
 	/* Clear the events just reported. */
@@ -1185,7 +1187,8 @@ pcib_pcie_intr_hotplug(void *arg)
 			    "Attention Button Pressed: Detach Cancelled\n");
 			sc->flags &= ~PCIB_DETACH_PENDING;
 			callout_stop(&sc->pcie_ab_timer);
-		} else {
+		} else if (old_slot_sta & PCIEM_SLOT_STA_PDS) {
+			/* Only initiate detach sequence if device present. */
 			device_printf(dev,
 		    "Attention Button Pressed: Detaching in 5 seconds\n");
 			sc->flags |= PCIB_DETACH_PENDING;
