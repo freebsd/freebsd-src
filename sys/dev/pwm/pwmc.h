@@ -34,9 +34,9 @@
 #define	PWM_POLARITY_INVERTED	(1 << 0)
 
 struct pwm_state {
-	int		channel;
-	unsigned int	period;
-	unsigned int	duty;
+	u_int		channel;
+	u_int		period;
+	u_int		duty;
 	uint32_t	flags;
 	bool		enable;
 };
