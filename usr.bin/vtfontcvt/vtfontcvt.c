@@ -367,6 +367,7 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 	dwidth = bbw = bbh = 0;
 	rewind(fp);
 	linenum = 0;
+	bbwbytes = 0; /* GCC 4.2.1 "may be used uninitialized" workaround. */
 	bytes = xmalloc(wbytes * height);
 	bytes_r = xmalloc(wbytes * height);
 	line = xmalloc(wbytes * 2);
