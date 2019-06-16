@@ -37,28 +37,131 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 
-#include <machine/bus.h>
+#include <dev/pwm/pwmbus.h>
 
 #include "pwmbus_if.h"
 
-struct pwmbus_channel_data {
-	int	reserved;
-	char	*name;
-};
-
 struct pwmbus_softc {
 	device_t	dev;
-	device_t	parent;
-
 	u_int		nchannels;
 };
+
+/*
+ * bus_if methods...
+ */
+
+static device_t
+pwmbus_add_child(device_t dev, u_int order, const char *name, int unit)
+{
+	device_t child;
+	struct pwmbus_ivars *ivars;
+
+	child = device_add_child_ordered(dev, order, name, unit);
+	if (child == NULL) 
+		return (child);
+
+	ivars = malloc(sizeof(struct pwmbus_ivars), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (ivars == NULL) {
+		device_delete_child(dev, child);
+		return (NULL);
+	}
+	device_set_ivars(child, ivars);
+
+	return (child);
+}
+
+static int
+pwmbus_child_location_str(device_t dev, device_t child, char *buf, size_t blen)
+{
+	struct pwmbus_ivars *ivars;
+
+	ivars = device_get_ivars(child);
+	snprintf(buf, blen, "hwdev=%s channel=%u", 
+	    device_get_nameunit(device_get_parent(dev)), ivars->pi_channel);
+
+	return (0);
+}
+
+static int
+pwmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+	*buf = '\0';
+	return (0);
+}
+
+static void
+pwmbus_hinted_child(device_t dev, const char *dname, int dunit)
+{
+	struct pwmbus_ivars *ivars;
+	device_t child;
+
+	child = pwmbus_add_child(dev, 0, dname, dunit);
+
+	/*
+	 * If there is a channel hint, use it.  Otherwise pi_channel was
+	 * initialized to zero, so that's the channel we'll use.
+	 */
+	ivars = device_get_ivars(child);
+	resource_int_value(dname, dunit, "channel", &ivars->pi_channel);
+}
+
+static int
+pwmbus_print_child(device_t dev, device_t child)
+{
+	struct pwmbus_ivars *ivars;
+	int rv;
+
+	ivars = device_get_ivars(child);
+
+	rv  = bus_print_child_header(dev, child);
+	rv += printf(" channel %u", ivars->pi_channel);
+	rv += bus_print_child_footer(dev, child);
+
+	return (rv);
+}
+
+static void
+pwmbus_probe_nomatch(device_t dev, device_t child)
+{
+	struct pwmbus_ivars *ivars;
+
+	ivars = device_get_ivars(child);
+	if (ivars != NULL)
+		device_printf(dev, "<unknown> on channel %u\n",
+		    ivars->pi_channel);
+
+	return;
+}
+
+static int
+pwmbus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+{
+	struct pwmbus_ivars *ivars;
+
+	ivars = device_get_ivars(child);
+
+	switch (which) {
+	case PWMBUS_IVAR_CHANNEL:
+		*(u_int *)result = ivars->pi_channel;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+/*
+ * device_if methods...
+ */
 
 static int
 pwmbus_probe(device_t dev)
 {
-
 	device_set_desc(dev, "PWM bus");
 	return (BUS_PROBE_GENERIC);
 }
@@ -67,20 +170,33 @@ static int
 pwmbus_attach(device_t dev)
 {
 	struct pwmbus_softc *sc;
+	struct pwmbus_ivars *ivars;
+	device_t child, parent;
+	u_int chan;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->parent = device_get_parent(dev);
+	parent = device_get_parent(dev);
 
-	if (PWMBUS_CHANNEL_COUNT(sc->parent, &sc->nchannels) != 0 ||
+	if (PWMBUS_CHANNEL_COUNT(parent, &sc->nchannels) != 0 ||
 	    sc->nchannels == 0) {
 		device_printf(sc->dev, "No channels on parent %s\n",
-		    device_get_nameunit(sc->parent));
+		    device_get_nameunit(parent));
 		return (ENXIO);
 	}
 
-	device_add_child(sc->dev, "pwmc", -1);
+	/* Add a pwmc(4) child for each channel. */
+	for (chan = 0; chan < sc->nchannels; ++chan) {
+		if ((child = pwmbus_add_child(sc->dev, 0, "pwmc", -1)) == NULL) {
+			device_printf(dev, "failed to add pwmc child device "
+			    "for channel %u\n", chan);
+			continue;
+		}
+		ivars = device_get_ivars(child);
+		ivars->pi_channel = chan;
+	}
 
+	bus_enumerate_hinted_children(dev);
 	bus_generic_probe(dev);
 
 	return (bus_generic_attach(dev));
@@ -96,6 +212,10 @@ pwmbus_detach(device_t dev)
 
 	return (rv);
 }
+
+/*
+ * pwmbus_if methods...
+ */
 
 static int
 pwmbus_channel_config(device_t dev, u_int chan, u_int period, u_int duty)
@@ -145,6 +265,15 @@ static device_method_t pwmbus_methods[] = {
 	DEVMETHOD(device_attach, pwmbus_attach),
 	DEVMETHOD(device_detach, pwmbus_detach),
 
+        /* bus_if */
+	DEVMETHOD(bus_add_child,		pwmbus_add_child),
+	DEVMETHOD(bus_child_location_str,	pwmbus_child_location_str),
+	DEVMETHOD(bus_child_pnpinfo_str,	pwmbus_child_pnpinfo_str),
+	DEVMETHOD(bus_hinted_child,		pwmbus_hinted_child),
+	DEVMETHOD(bus_print_child,		pwmbus_print_child),
+	DEVMETHOD(bus_probe_nomatch,		pwmbus_probe_nomatch),
+	DEVMETHOD(bus_read_ivar,		pwmbus_read_ivar),
+
         /* pwmbus_if  */
 	DEVMETHOD(pwmbus_channel_count,		pwmbus_channel_count),
 	DEVMETHOD(pwmbus_channel_config,	pwmbus_channel_config),
@@ -157,13 +286,13 @@ static device_method_t pwmbus_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t pwmbus_driver = {
+driver_t pwmbus_driver = {
 	"pwmbus",
 	pwmbus_methods,
 	sizeof(struct pwmbus_softc),
 };
-static devclass_t pwmbus_devclass;
+devclass_t pwmbus_devclass;
 
 EARLY_DRIVER_MODULE(pwmbus, pwm, pwmbus_driver, pwmbus_devclass, 0, 0,
-  BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
+  BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(pwmbus, 1);
