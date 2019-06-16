@@ -3767,9 +3767,21 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			continue;
 
 		if ((pmap_load(l2) & ATTR_DESCR_MASK) == L2_BLOCK) {
-			l3 = pmap_demote_l2(pmap, l2, sva);
-			if (l3 == NULL)
+			if ((pmap_load(l2) & ATTR_SW_WIRED) == 0)
+				panic("pmap_unwire: l2 %#jx is missing "
+				    "ATTR_SW_WIRED", (uintmax_t)pmap_load(l2));
+
+			/*
+			 * Are we unwiring the entire large page?  If not,
+			 * demote the mapping and fall through.
+			 */
+			if (sva + L2_SIZE == va_next && eva >= va_next) {
+				atomic_clear_64(l2, ATTR_SW_WIRED);
+				pmap_resident_count_dec(pmap, L2_SIZE /
+				    PAGE_SIZE);
 				continue;
+			} else if (pmap_demote_l2(pmap, l2, sva) == NULL)
+				panic("pmap_unwire: demotion failed");
 		}
 		KASSERT((pmap_load(l2) & ATTR_DESCR_MASK) == L2_TABLE,
 		    ("pmap_unwire: Invalid l2 entry after demotion"));
@@ -3785,11 +3797,11 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 				    "ATTR_SW_WIRED", (uintmax_t)pmap_load(l3));
 
 			/*
-			 * PG_W must be cleared atomically.  Although the pmap
-			 * lock synchronizes access to PG_W, another processor
-			 * could be setting PG_M and/or PG_A concurrently.
+			 * ATTR_SW_WIRED must be cleared atomically.  Although
+			 * the pmap lock synchronizes access to ATTR_SW_WIRED,
+			 * the System MMU may write to the entry concurrently.
 			 */
-			atomic_clear_long(l3, ATTR_SW_WIRED);
+			atomic_clear_64(l3, ATTR_SW_WIRED);
 			pmap->pm_stats.wired_count--;
 		}
 	}
