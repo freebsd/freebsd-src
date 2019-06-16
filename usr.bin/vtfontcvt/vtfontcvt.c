@@ -383,7 +383,8 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 		    sscanf(ln + 4, "%d %d %d %d", &bbw, &bbh, &bbox,
 		     &bboy) == 4) {
 			if (bbw < 1 || bbh < 1 || bbw > fbbw || bbh > fbbh ||
-			    bbox < fbbox || bboy < fbboy)
+			    bbox < fbbox || bboy < fbboy ||
+			    bbh + bboy > fbbh + fbboy)
 				errx(1, "broken bitmap with BBX %d %d %d %d at line %u",
 				    bbw, bbh, bbox, bboy, linenum);
 			bbwbytes = howmany(bbw, 8);
