@@ -63,10 +63,10 @@
 #define _CRYPTO_CRYPTO_H_
 
 #include <sys/ioccom.h>
-#include <sys/_task.h>
 
 #ifdef _KERNEL
 #include <opencrypto/_cryptodev.h>
+#include <sys/_task.h>
 #endif
 
 /* Some initial values */
