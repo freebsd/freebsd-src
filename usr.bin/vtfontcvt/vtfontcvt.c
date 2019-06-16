@@ -379,9 +379,10 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 			curchar = atoi(ln + 9);
 		} else if (strncmp(ln, "DWIDTH ", 7) == 0) {
 			dwidth = atoi(ln + 7);
-		} else if (strncmp(ln, "BBX ", 4) == 0 &&
-		    sscanf(ln + 4, "%d %d %d %d", &bbw, &bbh, &bbox,
-		     &bboy) == 4) {
+		} else if (strncmp(ln, "BBX ", 4) == 0) {
+			if (sscanf(ln + 4, "%d %d %d %d", &bbw, &bbh, &bbox,
+			     &bboy) != 4)
+				errx(1, "invalid BBX at line %u", linenum);
 			if (bbw < 1 || bbh < 1 || bbw > fbbw || bbh > fbbh ||
 			    bbox < fbbox || bboy < fbboy ||
 			    bbh + bboy > fbbh + fbboy)
