@@ -484,7 +484,7 @@ parse_hex(FILE *fp, unsigned int map_idx)
 				    "malformed input: broken bitmap, character %06x",
 				    curchar);
 			gwidth = width * 2;
-			gwbytes = howmany(width, 8);
+			gwbytes = howmany(gwidth, 8);
 			if (chars_per_row < gwbytes * 2 || gwidth <= 8) {
 				gwidth = width; /* Single-width character. */
 				gwbytes = wbytes;
