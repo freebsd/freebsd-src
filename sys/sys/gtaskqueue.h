@@ -38,7 +38,6 @@
 #endif
 
 struct gtaskqueue;
-typedef void (*gtaskqueue_enqueue_fn)(void *context);
 
 /*
  * Taskqueue groups.  Manages dynamic thread groups and irq binding for
@@ -55,28 +54,29 @@ void	gtaskqueue_drain_all(struct gtaskqueue *queue);
 void	grouptask_block(struct grouptask *grouptask);
 void	grouptask_unblock(struct grouptask *grouptask);
 int	grouptaskqueue_enqueue(struct gtaskqueue *queue, struct gtask *task);
+
 void	taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *grptask,
 	    void *uniq, int irq, const char *name);
-int		taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *grptask,
-		void *uniq, int cpu, int irq, const char *name);
+int	taskqgroup_attach_cpu(struct taskqgroup *qgroup,
+	    struct grouptask *grptask, void *uniq, int cpu, int irq,
+	    const char *name);
 void	taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask);
 struct taskqgroup *taskqgroup_create(const char *name);
 void	taskqgroup_destroy(struct taskqgroup *qgroup);
 int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
-void	taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
-		const char *name);
+void	taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask,
+	    gtask_fn_t *fn, const char *name);
 void	taskqgroup_config_gtask_deinit(struct grouptask *gtask);
 
 #define TASK_ENQUEUED			0x1
 #define TASK_SKIP_WAKEUP		0x2
 #define TASK_NOENQUEUE			0x4
 
-
-#define GTASK_INIT(task, flags, priority, func, context) do {	\
-	(task)->ta_flags = flags;				\
-	(task)->ta_priority = (priority);		\
-	(task)->ta_func = (func);			\
-	(task)->ta_context = (context);			\
+#define	GTASK_INIT(gtask, flags, priority, func, context) do {	\
+	(gtask)->ta_flags = flags;				\
+	(gtask)->ta_priority = (priority);			\
+	(gtask)->ta_func = (func);				\
+	(gtask)->ta_context = (context);			\
 } while (0)
 
 #define	GROUPTASK_INIT(gtask, priority, func, context)	\

@@ -64,6 +64,8 @@ struct gtaskqueue_busy {
 
 static struct gtask * const TB_DRAIN_WAITER = (struct gtask *)0x1;
 
+typedef void (*gtaskqueue_enqueue_fn)(void *context);
+
 struct gtaskqueue {
 	STAILQ_HEAD(, gtask)	tq_queue;
 	gtaskqueue_enqueue_fn	tq_enqueue;
@@ -681,7 +683,7 @@ taskqgroup_find(struct taskqgroup *qgroup, void *uniq)
 		}
 	}
 	if (idx == -1)
-		panic("taskqgroup_find: Failed to pick a qid.");
+		panic("%s: failed to pick a qid.", __func__);
 
 	return (idx);
 }
@@ -734,7 +736,8 @@ taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
 		mtx_unlock(&qgroup->tqg_lock);
 		error = intr_setaffinity(irq, CPU_WHICH_IRQ, &mask);
 		if (error)
-			printf("%s: setaffinity failed for %s: %d\n", __func__, gtask->gt_name, error);
+			printf("%s: binding interrupt failed for %s: %d\n",
+			    __func__, gtask->gt_name, error);
 	} else
 		mtx_unlock(&qgroup->tqg_lock);
 }
@@ -756,13 +759,12 @@ taskqgroup_attach_deferred(struct taskqgroup *qgroup, struct grouptask *gtask)
 		error = intr_setaffinity(gtask->gt_irq, CPU_WHICH_IRQ, &mask);
 		mtx_lock(&qgroup->tqg_lock);
 		if (error)
-			printf("%s: %s setaffinity failed: %d\n", __func__, gtask->gt_name, error);
+			printf("%s: binding interrupt failed for %s: %d\n",
+			    __func__, gtask->gt_name, error);
 
 	}
 	qgroup->tqg_queue[qid].tgc_cnt++;
-
-	LIST_INSERT_HEAD(&qgroup->tqg_queue[qid].tgc_tasks, gtask,
-			 gt_list);
+	LIST_INSERT_HEAD(&qgroup->tqg_queue[qid].tgc_tasks, gtask, gt_list);
 	MPASS(qgroup->tqg_queue[qid].tgc_taskq != NULL);
 	gtask->gt_taskqueue = qgroup->tqg_queue[qid].tgc_taskq;
 	mtx_unlock(&qgroup->tqg_lock);
@@ -770,7 +772,7 @@ taskqgroup_attach_deferred(struct taskqgroup *qgroup, struct grouptask *gtask)
 
 int
 taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
-	void *uniq, int cpu, int irq, const char *name)
+    void *uniq, int cpu, int irq, const char *name)
 {
 	cpuset_t mask;
 	int i, qid, error;
@@ -805,7 +807,8 @@ taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
 	if (irq != -1 && tqg_smp_started) {
 		error = intr_setaffinity(irq, CPU_WHICH_IRQ, &mask);
 		if (error)
-			printf("%s: setaffinity failed: %d\n", __func__, error);
+			printf("%s: binding interrupt failed for %s: %d\n",
+			    __func__, gtask->gt_name, error);
 	}
 	return (0);
 }
@@ -843,7 +846,8 @@ taskqgroup_attach_cpu_deferred(struct taskqgroup *qgroup, struct grouptask *gtas
 	if (irq != -1) {
 		error = intr_setaffinity(irq, CPU_WHICH_IRQ, &mask);
 		if (error)
-			printf("%s: setaffinity failed: %d\n", __func__, error);
+			printf("%s: binding interrupt failed for %s: %d\n",
+			    __func__, gtask->gt_name, error);
 	}
 	return (0);
 }
@@ -859,7 +863,7 @@ taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask)
 		if (qgroup->tqg_queue[i].tgc_taskq == gtask->gt_taskqueue)
 			break;
 	if (i == qgroup->tqg_cnt)
-		panic("taskqgroup_detach: task %s not in group\n", gtask->gt_name);
+		panic("%s: task %s not in group", __func__, gtask->gt_name);
 	qgroup->tqg_queue[i].tgc_cnt--;
 	LIST_REMOVE(gtask, gt_list);
 	mtx_unlock(&qgroup->tqg_lock);
@@ -882,8 +886,7 @@ taskqgroup_binder(void *ctx)
 	thread_unlock(curthread);
 
 	if (error)
-		printf("%s: setaffinity failed: %d\n", __func__,
-		    error);
+		printf("%s: binding curthread failed: %d\n", __func__, error);
 	free(gtask, M_DEVBUF);
 }
 
@@ -1051,7 +1054,7 @@ taskqgroup_destroy(struct taskqgroup *qgroup)
 
 void
 taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
-	const char *name)
+    const char *name)
 {
 
 	GROUPTASK_INIT(gtask, 0, fn, ctx);
@@ -1061,5 +1064,6 @@ taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
 void
 taskqgroup_config_gtask_deinit(struct grouptask *gtask)
 {
+
 	taskqgroup_detach(qgroup_config, gtask);
 }
