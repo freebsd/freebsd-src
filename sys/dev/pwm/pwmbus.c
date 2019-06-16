@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <dev/pwm/pwmbus.h>
 
 #include "pwmbus_if.h"
