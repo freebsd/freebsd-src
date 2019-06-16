@@ -37,14 +37,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/time.h>
 
+#include <dev/pwm/pwmbus.h>
 #include <dev/pwm/pwmc.h>
 
 #include "pwmbus_if.h"
 
 struct pwmc_softc {
 	device_t	dev;
-	struct cdev	*pwm_dev;
-	char		name[32];
+	struct cdev	*cdev;
+	u_int		chan;
 };
 
 static int
@@ -68,19 +69,19 @@ pwm_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		break;
 	case PWMSETSTATE:
 		bcopy(data, &state, sizeof(state));
-		rv = PWMBUS_CHANNEL_CONFIG(bus, state.channel,
+		rv = PWMBUS_CHANNEL_CONFIG(bus, sc->chan,
 		    state.period, state.duty);
 		if (rv == 0)
-			rv = PWMBUS_CHANNEL_ENABLE(bus, state.channel,
+			rv = PWMBUS_CHANNEL_ENABLE(bus, sc->chan,
 			    state.enable);
 		break;
 	case PWMGETSTATE:
 		bcopy(data, &state, sizeof(state));
-		rv = PWMBUS_CHANNEL_GET_CONFIG(bus, state.channel,
+		rv = PWMBUS_CHANNEL_GET_CONFIG(bus, sc->chan,
 		    &state.period, &state.duty);
 		if (rv != 0)
 			return (rv);
-		rv = PWMBUS_CHANNEL_IS_ENABLED(bus, state.channel,
+		rv = PWMBUS_CHANNEL_IS_ENABLED(bus, sc->chan,
 		    &state.enable);
 		if (rv != 0)
 			return (rv);
@@ -93,7 +94,7 @@ pwm_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 
 static struct cdevsw pwm_cdevsw = {
 	.d_version	= D_VERSION,
-	.d_name		= "pwm",
+	.d_name		= "pwmc",
 	.d_ioctl	= pwm_ioctl
 };
 
@@ -101,7 +102,7 @@ static int
 pwmc_probe(device_t dev)
 {
 
-	device_set_desc(dev, "PWM Controller");
+	device_set_desc(dev, "PWM Control");
 	return (BUS_PROBE_NOWILDCARD);
 }
 
@@ -110,22 +111,35 @@ pwmc_attach(device_t dev)
 {
 	struct pwmc_softc *sc;
 	struct make_dev_args args;
+	const char *label;
+	int error;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	snprintf(sc->name, sizeof(sc->name), "pwmc%d", device_get_unit(dev));
+	if ((error = pwmbus_get_channel(dev, &sc->chan)) != 0)
+		return (error);
+
 	make_dev_args_init(&args);
 	args.mda_flags = MAKEDEV_CHECKNAME | MAKEDEV_WAITOK;
 	args.mda_devsw = &pwm_cdevsw;
 	args.mda_uid = UID_ROOT;
 	args.mda_gid = GID_OPERATOR;
-	args.mda_mode = 0600;
+	args.mda_mode = 0660;
 	args.mda_si_drv1 = sc;
-	if (make_dev_s(&args, &sc->pwm_dev, "%s", sc->name) != 0) {
+	error = make_dev_s(&args, &sc->cdev, "pwmc%d.%d",
+	    device_get_unit(device_get_parent(dev)), sc->chan);
+	if (error != 0) {
 		device_printf(dev, "Failed to make PWM device\n");
-		return (ENXIO);
+		return (error);
 	}
+
+	/* If there is a label hint, create an alias with that name. */
+	if (resource_string_value(device_get_name(dev), device_get_unit(dev),
+	    "label", &label) == 0) {
+		make_dev_alias(sc->cdev, "pwm/%s", label);
+	}
+
 	return (0);
 }
 
@@ -135,7 +149,7 @@ pwmc_detach(device_t dev)
 	struct pwmc_softc *sc;
  
 	sc = device_get_softc(dev);
-	destroy_dev(sc->pwm_dev);
+	destroy_dev(sc->cdev);
 
 	return (0);
 }
