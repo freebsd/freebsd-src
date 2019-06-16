@@ -2729,6 +2729,51 @@ retry:
 }
 
 /*
+ * pmap_protect_l2: do the things to protect a 2MB page in a pmap
+ */
+static void
+pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t nbits)
+{
+	pd_entry_t old_l2;
+	vm_page_t m, mt;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT((sva & L2_OFFSET) == 0,
+	    ("pmap_protect_l2: sva is not 2mpage aligned"));
+	old_l2 = pmap_load(l2);
+	KASSERT((old_l2 & ATTR_DESCR_MASK) == L2_BLOCK,
+	    ("pmap_protect_l2: L2e %lx is not a block mapping", old_l2));
+
+	/*
+	 * Return if the L2 entry already has the desired access restrictions
+	 * in place.
+	 */
+	if ((old_l2 | nbits) == old_l2)
+		return;
+
+	/*
+	 * When a dirty read/write superpage mapping is write protected,
+	 * update the dirty field of each of the superpage's constituent 4KB
+	 * pages.
+	 */
+	if ((nbits & ATTR_AP(ATTR_AP_RO)) != 0 &&
+	    (old_l2 & ATTR_SW_MANAGED) != 0 &&
+	    pmap_page_dirty(old_l2)) {
+		m = PHYS_TO_VM_PAGE(old_l2 & ~ATTR_MASK);
+		for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++)
+			vm_page_dirty(mt);
+	}
+
+	pmap_set(l2, nbits);
+
+	/*
+	 * Since a promotion must break the 4KB page mappings before making
+	 * the 2MB page mapping, a pmap_invalidate_page() suffices.
+	 */
+	pmap_invalidate_page(pmap, sva);
+}
+
+/*
  *	Set the physical protection on the
  *	specified range of this map as requested.
  */
@@ -2745,8 +2790,12 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 	}
 
-	if ((prot & (VM_PROT_WRITE | VM_PROT_EXECUTE)) ==
-	    (VM_PROT_WRITE | VM_PROT_EXECUTE))
+	nbits = 0;
+	if ((prot & VM_PROT_WRITE) == 0)
+		nbits |= ATTR_AP(ATTR_AP_RO);
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		nbits |= ATTR_XN;
+	if (nbits == 0)
 		return;
 
 	PMAP_LOCK(pmap);
@@ -2777,8 +2826,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			continue;
 
 		if ((pmap_load(l2) & ATTR_DESCR_MASK) == L2_BLOCK) {
-			l3p = pmap_demote_l2(pmap, l2, sva);
-			if (l3p == NULL)
+			if (sva + L2_SIZE == va_next && eva >= va_next) {
+				pmap_protect_l2(pmap, l2, sva, nbits);
+				continue;
+			} else if (pmap_demote_l2(pmap, l2, sva) == NULL)
 				continue;
 		}
 		KASSERT((pmap_load(l2) & ATTR_DESCR_MASK) == L2_TABLE,
@@ -2790,8 +2841,16 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		va = va_next;
 		for (l3p = pmap_l2_to_l3(l2, sva); sva != va_next; l3p++,
 		    sva += L3_SIZE) {
+			/*
+			 * Go to the next L3 entry if the current one is
+			 * invalid or already has the desired access
+			 * restrictions in place.  (The latter case occurs
+			 * frequently.  For example, in a "buildworld"
+			 * workload, almost 1 out of 4 L3 entries already
+			 * have the desired restrictions.)
+			 */
 			l3 = pmap_load(l3p);
-			if (!pmap_l3_valid(l3)) {
+			if (!pmap_l3_valid(l3) || (l3 | nbits) == l3) {
 				if (va != va_next) {
 					pmap_invalidate_range(pmap, va, sva);
 					va = va_next;
@@ -2801,17 +2860,14 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			if (va == va_next)
 				va = sva;
 
-			nbits = 0;
-			if ((prot & VM_PROT_WRITE) == 0) {
-				if ((l3 & ATTR_SW_MANAGED) &&
-				    pmap_page_dirty(l3)) {
-					vm_page_dirty(PHYS_TO_VM_PAGE(l3 &
-					    ~ATTR_MASK));
-				}
-				nbits |= ATTR_AP(ATTR_AP_RO);
-			}
-			if ((prot & VM_PROT_EXECUTE) == 0)
-				nbits |= ATTR_XN;
+			/*
+			 * When a dirty read/write mapping is write protected,
+			 * update the page's dirty field.
+			 */
+			if ((nbits & ATTR_AP(ATTR_AP_RO)) != 0 &&
+			    (l3 & ATTR_SW_MANAGED) != 0 &&
+			    pmap_page_dirty(l3))
+				vm_page_dirty(PHYS_TO_VM_PAGE(l3 & ~ATTR_MASK));
 
 			pmap_set(l3p, nbits);
 		}
