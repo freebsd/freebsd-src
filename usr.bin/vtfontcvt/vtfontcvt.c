@@ -313,7 +313,7 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 	int bbw, bbh, bbox, bboy;		/* Glyph bounding box. */
 	int fbbw = 0, fbbh, fbbox, fbboy;	/* Font bounding box. */
 	int dwidth = 0, dwy = 0;
-	int rv;
+	int rv = -1;
 	char spc = '\0';
 
 	/*
