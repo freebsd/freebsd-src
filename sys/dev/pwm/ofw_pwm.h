@@ -28,7 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef _PWMBUS_H_
+#ifndef _OFW_PWM_H_
+#define _OFW_PWM_H_
 
 #include <dev/ofw/openfirm.h>
 
@@ -51,4 +52,4 @@ int pwm_get_by_ofw_property(device_t consumer, phandle_t node,
 int pwm_get_by_ofw_name(device_t consumer, phandle_t node, const char *name,
     pwm_channel_t *out_channel);
 
-#endif /* _PWMBUS_H_ */
+#endif /* _OFW_PWM_H_ */

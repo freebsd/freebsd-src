@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 
-#include <dev/pwm/pwmbus.h>
-
 #include "pwmbus_if.h"
 
 #define	AW_PWM_CTRL			0x00
