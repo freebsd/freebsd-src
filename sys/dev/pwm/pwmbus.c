@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/pwm/pwmbus.h>
-
 #include "pwmbus_if.h"
 
 struct pwmbus_channel_data {

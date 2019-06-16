@@ -38,9 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/pwm/pwmbus.h>
-
-#include "pwmbus_if.h"
+#include <dev/pwm/ofw_pwm.h>
 
 int
 pwm_get_by_ofw_propidx(device_t consumer, phandle_t node,
