@@ -223,91 +223,66 @@ add_char(unsigned curchar, unsigned map_idx, uint8_t *bytes, uint8_t *bytes_r)
 	return (0);
 }
 
-
+/*
+ * Right-shift glyph row by _shift_ bits. Row _len_ bits wide, _size_ bytes.
+ */
 static int
-parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
-    unsigned int dwidth)
+rshift_row(uint8_t *line, size_t size, size_t len, size_t shift)
 {
-	uint8_t *p;
-	unsigned int i, subline;
+	size_t d, s, i;
+	uint16_t t;
 
-	if (dwidth != width && dwidth != width * 2)
-		errx(1, "Bitmap with unsupported width %u!", dwidth);
+	assert(size > 0 && len > 0);
+	assert(size * 8 >= len);
 
-	/* Move pixel data right to simplify splitting double characters. */
-	line >>= (howmany(dwidth, 8) * 8) - dwidth;
+	if (shift == 0)
+		return (0);
 
-	for (i = dwidth / width; i > 0; i--) {
-		p = (i == 2) ? right : left;
+	d = shift / 8;
+	s = 8 - shift % 8;
+	i = howmany(len, 8);
 
-		subline = line & ((1 << width) - 1);
-		subline <<= (howmany(width, 8) * 8) - width;
+	while (i > 0) {
+		i--;
 
-		if (wbytes == 1) {
-			*p = subline;
-		} else if (wbytes == 2) {
-			*p++ = subline >> 8;
-			*p = subline;
-		} else {
-			errx(1, "Unsupported wbytes %u!", wbytes);
-		}
+		t = *(line + i);
+		*(line + i) = 0;
 
-		line >>= width;
+		t <<= s;
+
+		if (i + d + 1 < size)
+			*(line + i + d + 1) |= (uint8_t)t;
+		if (i + d < size)
+			*(line + i + d) = t >> 8;
 	}
-
 	return (0);
 }
 
+/*
+ * Split double-width characters into left and right half. Single-width
+ * characters in _left_ only.
+ */
 static int
-parse_bdf(FILE *fp, unsigned int map_idx)
+split_row(uint8_t *left, uint8_t *right, uint8_t *line, size_t w)
 {
-	char *ln;
-	size_t length;
-	uint8_t bytes[wbytes * height], bytes_r[wbytes * height];
-	unsigned int curchar = 0, dwidth = 0, i, line;
+	size_t s, i;
 
-	while ((ln = fgetln(fp, &length)) != NULL) {
-		ln[length - 1] = '\0';
+	s = wbytes * 8 - width;
 
-		if (strncmp(ln, "ENCODING ", 9) == 0) {
-			curchar = atoi(ln + 9);
+	memcpy(left, line, wbytes);
+	*(left + wbytes - 1) &= 0xFF << s;
+
+	if (w > width) { /* Double-width character. */
+		uint8_t t;
+
+		for (i = 0; i < wbytes; i++) {
+			t = *(line + wbytes + i - 1);
+			t <<= 8 - s;
+			t |= *(line + wbytes + i) >> s;
+			*(right + i) = t;
 		}
-
-		if (strncmp(ln, "DWIDTH ", 7) == 0) {
-			dwidth = atoi(ln + 7);
-		}
-
-		if (strncmp(ln, "BITMAP", 6) == 0 &&
-		    (ln[6] == ' ' || ln[6] == '\0')) {
-			/*
-			 * Assume that the next _height_ lines are bitmap
-			 * data.  ENDCHAR is allowed to terminate the bitmap
-			 * early but is not otherwise checked; any extra data
-			 * is ignored.
-			 */
-			for (i = 0; i < height; i++) {
-				if ((ln = fgetln(fp, &length)) == NULL)
-					errx(1, "Unexpected EOF!");
-				ln[length - 1] = '\0';
-				if (strcmp(ln, "ENDCHAR") == 0) {
-					memset(bytes + i * wbytes, 0,
-					    (height - i) * wbytes);
-					memset(bytes_r + i * wbytes, 0,
-					    (height - i) * wbytes);
-					break;
-				}
-				sscanf(ln, "%x", &line);
-				if (parse_bitmap_line(bytes + i * wbytes,
-				     bytes_r + i * wbytes, line, dwidth) != 0)
-					return (1);
-			}
-
-			if (add_char(curchar, map_idx, bytes,
-			    dwidth == width * 2 ? bytes_r : NULL) != 0)
-				return (1);
-		}
+		*(right + wbytes - 1) &= 0xFF << s;
 	}
-
 	return (0);
 }
 
@@ -329,13 +304,156 @@ set_width(int w)
 }
 
 static int
+parse_bdf(FILE *fp, unsigned int map_idx)
+{
+	char *line, *ln, *p;
+	size_t length;
+	uint8_t *bytes, *bytes_r;
+	unsigned int curchar = 0, i, j, linenum = 0, bbwbytes;
+	int bbw, bbh, bbox, bboy;		/* Glyph bounding box. */
+	int fbbw = 0, fbbh, fbbox, fbboy;	/* Font bounding box. */
+	int dwidth = 0, dwy = 0;
+	int rv;
+	char spc = '\0';
+
+	/*
+	 * Step 1: Parse FONT logical font descriptor and FONTBOUNDINGBOX
+	 * bounding box.
+	 */
+	while ((ln = fgetln(fp, &length)) != NULL) {
+		linenum++;
+		ln[length - 1] = '\0';
+
+		if (strncmp(ln, "FONT ", 5) == 0) {
+			p = ln + 5;
+			i = 0;
+			while ((p = strchr(p, '-')) != NULL) {
+				p++;
+				i++;
+				if (i == 11) {
+					spc = *p;
+					break;
+				}
+			}
+		} else if (strncmp(ln, "FONTBOUNDINGBOX ", 16) == 0 &&
+		    sscanf(ln + 16, "%d %d %d %d", &fbbw, &fbbh, &fbbox,
+		    &fbboy) == 4) {
+			set_width(fbbw);
+			set_height(fbbh);
+			break;
+		}
+	}
+	if (fbbw == 0)
+		errx(1, "broken font header");
+	if (spc != 'c' && spc != 'C')
+		errx(1, "font spacing \"C\" (character cell) required");
+
+	/* Step 2: Validate DWIDTH (Device Width) of all glyphs. */
+	while ((ln = fgetln(fp, &length)) != NULL) {
+		linenum++;
+		ln[length - 1] = '\0';
+
+		if (strncmp(ln, "DWIDTH ", 7) == 0 &&
+		    sscanf(ln + 7, "%d %d", &dwidth, &dwy) == 2) {
+			if (dwy != 0 || (dwidth != fbbw && dwidth * 2 != fbbw))
+				errx(1, "bitmap with unsupported DWIDTH %d %d at line %u",
+				    dwidth, dwy, linenum);
+			if (dwidth < fbbw)
+				set_width(dwidth);
+		}
+	}
+
+	/* Step 3: Restart at the beginning of the file and read glyph data. */
+	dwidth = bbw = bbh = 0;
+	rewind(fp);
+	linenum = 0;
+	bytes = xmalloc(wbytes * height);
+	bytes_r = xmalloc(wbytes * height);
+	line = xmalloc(wbytes * 2);
+	while ((ln = fgetln(fp, &length)) != NULL) {
+		linenum++;
+		ln[length - 1] = '\0';
+
+		if (strncmp(ln, "ENCODING ", 9) == 0) {
+			curchar = atoi(ln + 9);
+		} else if (strncmp(ln, "DWIDTH ", 7) == 0) {
+			dwidth = atoi(ln + 7);
+		} else if (strncmp(ln, "BBX ", 4) == 0 &&
+		    sscanf(ln + 4, "%d %d %d %d", &bbw, &bbh, &bbox,
+		     &bboy) == 4) {
+			if (bbw < 1 || bbh < 1 || bbw > fbbw || bbh > fbbh ||
+			    bbox < fbbox || bboy < fbboy)
+				errx(1, "broken bitmap with BBX %d %d %d %d at line %u",
+				    bbw, bbh, bbox, bboy, linenum);
+			bbwbytes = howmany(bbw, 8);
+		} else if (strncmp(ln, "BITMAP", 6) == 0 &&
+		    (ln[6] == ' ' || ln[6] == '\0')) {
+			if (dwidth == 0 || bbw == 0 || bbh == 0)
+				errx(1, "broken char header at line %u!",
+				    linenum);
+			memset(bytes, 0, wbytes * height);
+			memset(bytes_r, 0, wbytes * height);
+
+			/*
+			 * Assume that the next _bbh_ lines are bitmap data.
+			 * ENDCHAR is allowed to terminate the bitmap
+			 * early but is not otherwise checked; any extra data
+			 * is ignored.
+			 */
+			for (i = (fbbh + fbboy) - (bbh + bboy);
+			    i < (unsigned int)((fbbh + fbboy) - bboy); i++) {
+				if ((ln = fgetln(fp, &length)) == NULL)
+					errx(1, "unexpected EOF");
+				linenum++;
+				ln[length - 1] = '\0';
+				if (strcmp(ln, "ENDCHAR") == 0)
+					break;
+				if (strlen(ln) < bbwbytes * 2)
+					errx(1, "broken bitmap at line %u",
+					    linenum);
+				memset(line, 0, wbytes * 2);
+				for (j = 0; j < bbwbytes; j++) {
+					unsigned int val;
+					if (sscanf(ln + j * 2, "%2x", &val) ==
+					    0)
+						break;
+					*(line + j) = (uint8_t)val;
+				}
+
+				rv = rshift_row(line, wbytes * 2, bbw,
+				    bbox - fbbox);
+				if (rv != 0)
+					goto out;
+
+				rv = split_row(bytes + i * wbytes,
+				     bytes_r + i * wbytes, line, dwidth);
+				if (rv != 0)
+					goto out;
+			}
+
+			rv = add_char(curchar, map_idx, bytes,
+			    dwidth > (int)width ? bytes_r : NULL);
+			if (rv != 0)
+				goto out;
+
+			dwidth = bbw = bbh = 0;
+		}
+	}
+
+out:
+	free(bytes);
+	free(bytes_r);
+	free(line);
+	return (rv);
+}
+
+static int
 parse_hex(FILE *fp, unsigned int map_idx)
 {
 	char *ln, *p;
-	char fmt_str[8];
 	size_t length;
-	uint8_t *bytes = NULL, *bytes_r = NULL;
-	unsigned curchar = 0, i, line, chars_per_row, dwidth;
+	uint8_t *bytes = NULL, *bytes_r = NULL, *line = NULL;
+	unsigned curchar = 0, gwidth, gwbytes, i, j, chars_per_row;
 	int rv = 0;
 
 	while ((ln = fgetln(fp, &length)) != NULL) {
@@ -353,36 +471,46 @@ parse_hex(FILE *fp, unsigned int map_idx)
 			if (bytes == NULL) {
 				bytes = xmalloc(wbytes * height);
 				bytes_r = xmalloc(wbytes * height);
+				line = xmalloc(wbytes * 2);
 			}
 			/* ln is guaranteed to have a colon here. */
 			p = strchr(ln, ':') + 1;
 			chars_per_row = strlen(p) / height;
-			dwidth = width;
-			if (chars_per_row / 2 > (width + 7) / 8)
-				dwidth *= 2; /* Double-width character. */
-			snprintf(fmt_str, sizeof(fmt_str), "%%%ux",
-			    chars_per_row);
+			if (chars_per_row < wbytes * 2)
+				errx(1,
+				    "malformed input: broken bitmap, character %06x",
+				    curchar);
+			gwidth = width * 2;
+			gwbytes = howmany(width, 8);
+			if (chars_per_row < gwbytes * 2 || gwidth <= 8) {
+				gwidth = width; /* Single-width character. */
+				gwbytes = wbytes;
+			}
 
 			for (i = 0; i < height; i++) {
-				sscanf(p, fmt_str, &line);
-				p += chars_per_row;
-				if (parse_bitmap_line(bytes + i * wbytes,
-				    bytes_r + i * wbytes, line, dwidth) != 0) {
-					rv = 1;
-					goto out;
+				for (j = 0; j < gwbytes; j++) {
+					unsigned int val;
+					if (sscanf(p + j * 2, "%2x", &val) == 0)
+						break;
+					*(line + j) = (uint8_t)val;
 				}
+				rv = split_row(bytes + i * wbytes,
+				    bytes_r + i * wbytes, line, gwidth);
+				if (rv != 0)
+					goto out;
+				p += gwbytes * 2;
 			}
 
-			if (add_char(curchar, map_idx, bytes,
-			    dwidth == width * 2 ? bytes_r : NULL) != 0) {
-				rv = 1;
+			rv = add_char(curchar, map_idx, bytes,
+			    gwidth != width ? bytes_r : NULL);
+			if (rv != 0)
 				goto out;
-			}
 		}
 	}
 out:
 	free(bytes);
 	free(bytes_r);
+	free(line);
 	return (rv);
 }
 
