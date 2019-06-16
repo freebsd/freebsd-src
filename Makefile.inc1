@@ -553,16 +553,23 @@ VERSION=	FreeBSD ${_REVISION}-${_BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDA
 .endif
 
 .if !defined(PKG_VERSION)
-.if ${_BRANCH:MSTABLE*} || ${_BRANCH:MCURRENT*} || ${_BRANCH:MALPHA*}
+.if ${_BRANCH:MSTABLE*} || ${_BRANCH:MCURRENT*}
 TIMENOW=	%Y%m%d%H%M%S
 EXTRA_REVISION=	.s${TIMENOW:gmtime}
-.endif
-.if ${_BRANCH:M*-p*}
+.elif ${_BRANCH:MALPHA*}
+EXTRA_REVISION= _${_BRANCH:C/-ALPHA/.a/}
+.elif ${_BRANCH:MBETA*}
+EXTRA_REVISION= _${_BRANCH:C/-BETA/.b/}
+.elif ${_BRANCH:MRC*}
+EXTRA_REVISION= _${_BRANCH:C/-RC/.r/}
+.elif ${_BRANCH:MPRERELEASE*}
+EXTRA_REVISION= _${_BRANCH:C/-PRERELEASE/.p/}
+.elif ${_BRANCH:M*-p*}
 EXTRA_REVISION=	_${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .endif
 PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
-.endif	# !defined(_MKSHOWCONFIG)
+.endif	# !defined(PKG_VERSION)
 
 .if !defined(_MKSHOWCONFIG)
 _CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} -f /dev/null \
