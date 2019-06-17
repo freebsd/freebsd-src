@@ -113,6 +113,11 @@ PROF=		-pg
 .endif
 DEFINED_PROF=	${PROF}
 
+KASAN_ENABLED!=                grep KASAN opt_sanitizer.h || true ; echo
+.if !empty(KASAN_ENABLED)
+SAN_CFLAGS+=   -fsanitize=kernel-address -mllvm -asan-stack=false -mllvm -asan-instrumentation-with-call-threshold=0
+.endif
+
 KUBSAN_ENABLED!=	grep KUBSAN opt_global.h || true ; echo
 .if !empty(KUBSAN_ENABLED)
 SAN_CFLAGS+=	-fsanitize=undefined

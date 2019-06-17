@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+include GENERIC
+
+makeoptions     KASAN=1     # Kernel ASLR
+options     KASAN

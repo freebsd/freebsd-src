@@ -160,7 +160,8 @@
  * 0xffff808000000000 - 0xffff847fffffffff   large map (can be tuned up)
  * 0xffff848000000000 - 0xfffff7ffffffffff   unused (large map extends there)
  * 0xfffff80000000000 - 0xfffffbffffffffff   4TB direct map
- * 0xfffffc0000000000 - 0xfffffdffffffffff   unused
+ * 0xfffffce000000000 - 0xfffffcefffffffff   unused
+ * 0xfffffdf000000000 - 0xfffffdffffffffff   KASAN //TODO
  * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
  *
  * Within the kernel map:

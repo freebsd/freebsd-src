@@ -69,6 +69,9 @@ NUM_CORE_FILES	opt_global.h
 TSLOG	opt_global.h
 TSLOGSIZE	opt_global.h
 
+# Kernel Sanitizers
+KASAN          opt_sanitizer.h
+
 # Miscellaneous options.
 ALQ
 ALTERA_SDCARD_FAST_SIM	opt_altera_sdcard.h

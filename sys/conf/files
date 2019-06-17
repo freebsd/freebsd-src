@@ -2700,11 +2700,11 @@ dev/puc/puc.c			optional puc
 dev/puc/puc_cfg.c		optional puc
 dev/puc/puc_pccard.c		optional puc pccard
 dev/puc/puc_pci.c		optional puc pci
-dev/pwm/pwmc.c			optional pwm | pwmc
-dev/pwm/pwmbus.c		optional pwm | pwmbus
-dev/pwm/pwmbus_if.m		optional pwm | pwmbus
-dev/pwm/ofw_pwm.c		optional pwm fdt | pwmbus fdt
-dev/pwm/ofw_pwmbus.c		optional pwm fdt | pwmbus fdt
+dev/pwm/pwmc.c			optional pwm
+dev/pwm/pwmbus.c		optional pwm
+dev/pwm/pwm_if.m		optional pwm
+dev/pwm/pwmbus_if.m		optional pwm
+dev/pwm/ofw_pwm.c		optional pwm fdt
 dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
@@ -3728,6 +3728,8 @@ kern/init_sysent.c		standard
 kern/ksched.c			optional _kposix_priority_scheduling
 kern/kern_acct.c		standard
 kern/kern_alq.c			optional alq
+kern/kern_asan.c               optional kasan  \
+       compile-with "${CC} -c ${CFLAGS:N-fsanitize=kernel-address} ${WERROR} ${PROF} ${.IMPSRC}"
 kern/kern_clock.c		standard
 kern/kern_condvar.c		standard
 kern/kern_conf.c		standard
@@ -3982,9 +3984,9 @@ crypto/chacha20/chacha.c	standard
 libkern/asprintf.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
+libkern/crc32.c			standard
 libkern/explicit_bzero.c	standard
 libkern/fnmatch.c		standard
-libkern/gsb_crc32.c		standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
 libkern/iconv_ucs.c		optional libiconv
