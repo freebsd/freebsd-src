@@ -6254,7 +6254,7 @@ ipf_ioctlswitch(softc, unit, data, cmd, mode, uid, ctx)
  * Flags:
  * 1 = minimum size, not absolute size
  */
-static	int	ipf_objbytes[IPFOBJ_COUNT][3] = {
+static const int	ipf_objbytes[IPFOBJ_COUNT][3] = {
 	{ 1,	sizeof(struct frentry),		5010000 },	/* 0 */
 	{ 1,	sizeof(struct friostat),	5010000 },
 	{ 0,	sizeof(struct fr_info),		5010000 },
