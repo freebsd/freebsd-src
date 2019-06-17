@@ -628,8 +628,11 @@ TEST_F(Read_7_8, read)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-/* If the filesystem allows it, the kernel should try to readahead */
-TEST_F(ReadCacheable, default_readahead)
+/* 
+ * If cacheing is enabled, the kernel should try to read an entire cache block
+ * at a time.
+ */
+TEST_F(ReadCacheable, cache_block)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -637,9 +640,7 @@ TEST_F(ReadCacheable, default_readahead)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = 8;
-	/* hard-coded in fuse_internal.c */
-	size_t default_maxreadahead = 65536;
-	ssize_t filesize = default_maxreadahead * 2;
+	ssize_t filesize = m_maxbcachebuf * 2;
 	char *contents;
 	char buf[bufsize];
 	const char *contents1 = CONTENTS0 + bufsize;
@@ -650,7 +651,7 @@ TEST_F(ReadCacheable, default_readahead)
 
 	expect_lookup(RELPATH, ino, filesize);
 	expect_open(ino, 0, 1);
-	expect_read(ino, 0, default_maxreadahead, default_maxreadahead,
+	expect_read(ino, 0, m_maxbcachebuf, m_maxbcachebuf,
 		contents);
 
 	fd = open(FULLPATH, O_RDONLY);
