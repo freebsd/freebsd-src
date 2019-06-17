@@ -223,6 +223,17 @@ aw_pwm_detach(device_t dev)
 	return (0);
 }
 
+static phandle_t
+aw_pwm_get_node(device_t bus, device_t dev)
+{
+
+	/*
+	 * Share our controller node with our pwmbus child; it instantiates
+	 * devices by walking the children contained within our node.
+	 */
+	return ofw_bus_get_node(bus);
+}
+
 static int
 aw_pwm_channel_count(device_t dev, u_int *nchannel)
 {
@@ -349,6 +360,9 @@ static device_method_t aw_pwm_methods[] = {
 	DEVMETHOD(device_probe,		aw_pwm_probe),
 	DEVMETHOD(device_attach,	aw_pwm_attach),
 	DEVMETHOD(device_detach,	aw_pwm_detach),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	aw_pwm_get_node),
 
 	/* pwmbus interface */
 	DEVMETHOD(pwmbus_channel_count,		aw_pwm_channel_count),
