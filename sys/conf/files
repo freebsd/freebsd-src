@@ -3982,9 +3982,9 @@ crypto/chacha20/chacha.c	standard
 libkern/asprintf.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
-libkern/crc32.c			standard
 libkern/explicit_bzero.c	standard
 libkern/fnmatch.c		standard
+libkern/gsb_crc32.c		standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
 libkern/iconv_ucs.c		optional libiconv

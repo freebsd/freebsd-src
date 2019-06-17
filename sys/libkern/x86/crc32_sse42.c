@@ -29,14 +29,14 @@ __FBSDID("$FreeBSD$");
 /*
  * This file is compiled in userspace in order to run ATF unit tests.
  */
-#ifdef USERSPACE_TESTING
+#ifndef _KERNEL
 #include <stdint.h>
 #include <stdlib.h>
 #else
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 #endif
+#include <sys/gsb_crc32.h>
 
 static __inline uint32_t
 _mm_crc32_u8(uint32_t x, uint8_t y)
@@ -199,7 +199,7 @@ crc32c_shift(uint32_t zeros[][256], uint32_t crc)
 
 /* Initialize tables for shifting crcs. */
 static void
-#ifdef USERSPACE_TESTING
+#ifndef _KERNEL
 __attribute__((__constructor__))
 #endif
 crc32c_init_hw(void)
@@ -214,9 +214,6 @@ SYSINIT(crc32c_sse42, SI_SUB_LOCK, SI_ORDER_ANY, crc32c_init_hw, NULL);
 #endif
 
 /* Compute CRC-32C using the Intel hardware instruction. */
-#ifdef USERSPACE_TESTING
-uint32_t sse42_crc32c(uint32_t, const unsigned char *, unsigned);
-#endif
 uint32_t
 sse42_crc32c(uint32_t crc, const unsigned char *buf, unsigned len)
 {

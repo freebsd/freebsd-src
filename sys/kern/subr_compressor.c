@@ -66,6 +66,7 @@ SET_DECLARE(compressors, struct compressor_methods);
 
 #ifdef GZIO
 
+#include <sys/gsb_crc32.h>
 #include <sys/zutil.h>
 
 struct gz_stream {
