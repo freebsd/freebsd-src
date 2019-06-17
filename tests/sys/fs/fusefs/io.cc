@@ -72,7 +72,8 @@ static void compare(const void *tbuf, const void *controlbuf, off_t baseofs,
 	}
 }
 
-class Io: public FuseTest {
+class Io: public FuseTest,
+	  public WithParamInterface<tuple<uint32_t, uint32_t, bool>> {
 public:
 int m_backing_fd, m_control_fd, m_test_fd;
 
@@ -87,6 +88,11 @@ void SetUp()
 	if (m_control_fd < 0)
 		FAIL() << strerror(errno);
 	srandom(22'9'1982);	// Seed with my birthday
+
+	m_init_flags = get<0>(GetParam());
+	m_maxwrite = get<1>(GetParam());
+	m_async = get<2>(GetParam());
+
 	FuseTest::SetUp();
 	if (IsSkipped())
 		return;
@@ -221,7 +227,7 @@ void do_write(ssize_t size, off_t offs)
  *
  * fsx -WR -P /tmp -S8 -N3 fsx.bin
  */
-TEST_F(Io, extend_from_dirty_page)
+TEST_P(Io, extend_from_dirty_page)
 {
 	off_t wofs = 0x21a0;
 	ssize_t wsize = 0xf0a8;
@@ -241,7 +247,7 @@ TEST_F(Io, extend_from_dirty_page)
  *
  * fsx -WR -P /tmp -S642 -N3 fsx.bin
  */
-TEST_F(Io, last_page)
+TEST_P(Io, last_page)
 {
 	off_t wofs0 = 0x1134f;
 	ssize_t wsize0 = 0xcc77;
@@ -260,7 +266,7 @@ TEST_F(Io, last_page)
  *
  * fsx -WR -P /tmp -S55  fsx.bin
  */
-TEST_F(Io, read_hole_from_cached_block)
+TEST_P(Io, read_hole_from_cached_block)
 {
 	off_t wofs = 0x160c5;
 	ssize_t wsize = 0xa996;
@@ -277,7 +283,7 @@ TEST_F(Io, read_hole_from_cached_block)
  *
  * fsx -WR -P /tmp -S839 -d -N6 fsx.bin
  */
-TEST_F(Io, truncate_into_dirty_buffer)
+TEST_P(Io, truncate_into_dirty_buffer)
 {
 	off_t wofs0 = 0x3bad7;
 	ssize_t wsize0 = 0x4529;
@@ -304,7 +310,7 @@ TEST_F(Io, truncate_into_dirty_buffer)
  * Based on this command with a few steps removed:
  * fsx -WR -P /tmp -S677 -d -N8 fsx.bin
  */
-TEST_F(Io, truncate_into_dirty_buffer2)
+TEST_P(Io, truncate_into_dirty_buffer2)
 {
 	off_t truncsize0 = 0x344f3;
 	off_t wofs = 0x2790c;
@@ -353,7 +359,7 @@ TEST_F(Io, truncate_into_dirty_buffer2)
  * Based on:
  * fsx -WR -l 524388 -o 131072 -P /tmp -S6456 -q  fsx.bin
  */
-TEST_F(Io, resize_a_valid_buffer_while_extending)
+TEST_P(Io, resize_a_valid_buffer_while_extending)
 {
 	do_write(0x14530, 0x36ee6);	/* [0x36ee6, 0x4b415] */
 	do_write(0x1507c, 0x33256);	/* [0x33256, 0x482d1] */
@@ -361,3 +367,8 @@ TEST_F(Io, resize_a_valid_buffer_while_extending)
 	do_read(0xe277, 0x3599c);	/* [0x3599c, 0x43c12] */
 	close(m_test_fd);
 }
+
+INSTANTIATE_TEST_CASE_P(Io, Io,
+	Combine(Values(0, FUSE_ASYNC_READ),		/* m_init_flags */
+		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
+		Bool()));				/* m_async */
