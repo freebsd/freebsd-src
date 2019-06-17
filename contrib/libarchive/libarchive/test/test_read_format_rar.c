@@ -3776,6 +3776,35 @@ DEFINE_TEST(test_read_format_rar_ppmd_use_after_free)
   assertA(ARCHIVE_OK == archive_read_next_header(a, &ae));
   assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
 
+  /* Test EOF */
+  assertA(1 == archive_read_next_header(a, &ae));
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_rar_ppmd_use_after_free2)
+{
+  uint8_t buf[16];
+  const char* reffile = "test_read_format_rar_ppmd_use_after_free2.rar";
+
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+  assertA(ARCHIVE_OK == archive_read_next_header(a, &ae));
+  assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+  assertA(ARCHIVE_OK == archive_read_next_header(a, &ae));
+  assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+
+  /* Test EOF */
+  assertA(1 == archive_read_next_header(a, &ae));
+
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
