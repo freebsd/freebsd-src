@@ -1282,9 +1282,9 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 		zkva += PAGE_SIZE;
 	}
 	return ((void*)addr);
- fail:
+fail:
 	TAILQ_FOREACH_SAFE(p, &alloctail, listq, p_next) {
-		vm_page_unwire(p, PQ_NONE);
+		vm_page_unwire_noq(p);
 		vm_page_free(p);
 	}
 	return (NULL);
@@ -1334,7 +1334,7 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 		 * exit.
 		 */
 		TAILQ_FOREACH_SAFE(p, &alloctail, listq, p_next) {
-			vm_page_unwire(p, PQ_NONE);
+			vm_page_unwire_noq(p);
 			vm_page_free(p); 
 		}
 		return (NULL);
@@ -1395,7 +1395,7 @@ pcpu_page_free(void *mem, vm_size_t size, uint8_t flags)
 	for (curva = sva; curva < sva + size; curva += PAGE_SIZE) {
 		paddr = pmap_kextract(curva);
 		m = PHYS_TO_VM_PAGE(paddr);
-		vm_page_unwire(m, PQ_NONE);
+		vm_page_unwire_noq(m);
 		vm_page_free(m);
 	}
 	pmap_qremove(sva, size >> PAGE_SHIFT);
