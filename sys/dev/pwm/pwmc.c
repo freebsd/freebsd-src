@@ -182,7 +182,7 @@ pwmc_attach(device_t dev)
 	args.mda_gid = GID_OPERATOR;
 	args.mda_mode = 0660;
 	args.mda_si_drv1 = sc;
-	error = make_dev_s(&args, &sc->cdev, "pwmc%d.%d",
+	error = make_dev_s(&args, &sc->cdev, "pwm/pwmc%d.%d",
 	    device_get_unit(device_get_parent(dev)), sc->chan);
 	if (error != 0) {
 		device_printf(dev, "Failed to make PWM device\n");
