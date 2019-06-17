@@ -190,39 +190,6 @@ size_t	 strspn(const char *, const char *);
 char	*strstr(const char *, const char *);
 int	 strvalid(const char *, size_t);
 
-extern const uint32_t crc32_tab[];
-
-static __inline uint32_t
-crc32_raw(const void *buf, size_t size, uint32_t crc)
-{
-	const uint8_t *p = (const uint8_t *)buf;
-
-	while (size--)
-		crc = crc32_tab[(crc ^ *p++) & 0xFF] ^ (crc >> 8);
-	return (crc);
-}
-
-static __inline uint32_t
-crc32(const void *buf, size_t size)
-{
-	uint32_t crc;
-
-	crc = crc32_raw(buf, size, ~0U);
-	return (crc ^ ~0U);
-}
-
-uint32_t
-calculate_crc32c(uint32_t crc32c, const unsigned char *buffer,
-    unsigned int length);
-#ifdef _KERNEL
-#if defined(__amd64__) || defined(__i386__)
-uint32_t sse42_crc32c(uint32_t, const unsigned char *, unsigned);
-#endif
-#if defined(__aarch64__)
-uint32_t armv8_crc32c(uint32_t, const unsigned char *, unsigned int);
-#endif
-#endif
-
 static __inline char *
 index(const char *p, int ch)
 {

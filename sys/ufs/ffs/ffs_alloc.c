@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/gsb_crc32.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
