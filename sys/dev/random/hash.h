@@ -61,7 +61,7 @@ void randomdev_hash_iterate(struct randomdev_hash *, const void *, size_t);
 void randomdev_hash_finish(struct randomdev_hash *, void *);
 
 void randomdev_encrypt_init(union randomdev_key *, const void *);
-void randomdev_keystream(union randomdev_key *context, uint128_t *, void *, u_int);
+void randomdev_keystream(union randomdev_key *context, uint128_t *, void *, size_t);
 void randomdev_getkey(union randomdev_key *, const void **, size_t *);
 
 #endif /* SYS_DEV_RANDOM_HASH_H_INCLUDED */
