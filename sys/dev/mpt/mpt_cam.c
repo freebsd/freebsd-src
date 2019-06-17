@@ -1246,7 +1246,8 @@ mpt_timeout(void *arg)
 
 	MPT_LOCK_ASSERT(mpt);
 	req = ccb->ccb_h.ccb_req_ptr;
-	mpt_prt(mpt, "request %p:%u timed out for ccb %p (req->ccb %p)\n", req,
+	mpt_lprt(mpt, MPT_PRT_DEBUG,
+	"request %p:%u timed out for ccb %p (req->ccb %p)\n", req,
 	    req->serno, ccb, req->ccb);
 /* XXX: WHAT ARE WE TRYING TO DO HERE? */
 	if ((req->state & REQ_STATE_QUEUED) == REQ_STATE_QUEUED) {
@@ -2571,7 +2572,8 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 	scsi_req = (MSG_SCSI_IO_REQUEST *)req->req_vbuf;
 	ccb = req->ccb;
 	if (ccb == NULL) {
-		mpt_prt(mpt, "mpt_scsi_reply_handler: req %p:%u with no ccb\n",
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		"mpt_scsi_reply_handler: req %p:%u with no ccb\n",
 		    req, req->serno);
 		return (TRUE);
 	}
@@ -2628,7 +2630,8 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 	if ((req->state & REQ_STATE_TIMEDOUT) == 0) {
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 	} else {
-		mpt_prt(mpt, "completing timedout/aborted req %p:%u\n",
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		"completing timedout/aborted req %p:%u\n",
 		    req, req->serno);
 		TAILQ_REMOVE(&mpt->request_timeout_list, req, links);
 	}
@@ -3988,7 +3991,8 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		uint8_t response;
 		MSG_REQUEST_HEADER *hdrp = req->req_vbuf;
 
-		mpt_prt(mpt, "attempting to abort req %p:%u function %x\n",
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		"attempting to abort req %p:%u function %x\n",
 		    req, req->serno, hdrp->Function);
 		ccb = req->ccb;
 		if (ccb == NULL) {
@@ -4063,7 +4067,8 @@ mpt_recover_commands(struct mpt_softc *mpt)
 			mpt_reset(mpt, TRUE);
 			continue;
 		}
-		mpt_prt(mpt, "abort of req %p:%u completed\n", req, req->serno);
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		"abort of req %p:%u completed\n", req, req->serno);
 	}
 }
 
