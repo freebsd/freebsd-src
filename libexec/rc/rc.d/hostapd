@@ -11,7 +11,7 @@
 
 name="hostapd"
 desc="Authenticator for IEEE 802.11 networks"
-command="/usr/sbin/${name}"
+command=${hostapd_program}
 
 ifn="$2"
 if [ -z "$ifn" ]; then
