@@ -114,6 +114,7 @@ struct dirlist {
 struct exportlist {
 	struct dirlist	*ex_dirl;
 	struct dirlist	*ex_defdir;
+	struct grouplist *ex_grphead;
 	int		ex_flag;
 	fsid_t		ex_fs;
 	char		*ex_fsdir;
@@ -235,7 +236,6 @@ static void	terminate(int);
 
 static struct exportlisthead exphead = SLIST_HEAD_INITIALIZER(&exphead);
 static SLIST_HEAD(, mountlist) mlhead = SLIST_HEAD_INITIALIZER(&mlhead);
-static struct grouplist *grphead;
 static char *exnames_default[2] = { _PATH_EXPORTS, NULL };
 static char **exnames;
 static char **hosts = NULL;
@@ -455,7 +455,6 @@ main(int argc, char **argv)
 
 	argc -= optind;
 	argv += optind;
-	grphead = (struct grouplist *)NULL;
 	if (argc > 0)
 		exnames = argv;
 	else
@@ -1692,8 +1691,8 @@ get_exportlist_one(void)
 		 */
 		if (has_host) {
 			hang_dirp(dirhead, tgrp, ep, opt_flags);
-			grp->gr_next = grphead;
-			grphead = tgrp;
+			grp->gr_next = ep->ex_grphead;
+			ep->ex_grphead = tgrp;
 		} else {
 			hang_dirp(dirhead, (struct grouplist *)NULL, ep,
 				opt_flags);
@@ -1720,7 +1719,6 @@ nextline:
 static void
 get_exportlist(void)
 {
-	struct grouplist *grp, *tgrp;
 	struct export_args export;
 	struct iovec *iov;
 	struct statfs *mntbufp;
@@ -1742,14 +1740,6 @@ get_exportlist(void)
 	 * First, get rid of the old list
 	 */
 	free_exports(&exphead);
-
-	grp = grphead;
-	while (grp) {
-		tgrp = grp;
-		grp = grp->gr_next;
-		free_grp(tgrp);
-	}
-	grphead = (struct grouplist *)NULL;
 
 	/*
 	 * and the old V4 root dir.
@@ -2448,6 +2438,7 @@ get_host(char *cp, struct grouplist *grp, struct grouplist *tgrp)
 static void
 free_exp(struct exportlist *ep)
 {
+	struct grouplist *grp, *tgrp;
 
 	if (ep->ex_defdir) {
 		free_host(ep->ex_defdir->dp_hosts);
@@ -2458,6 +2449,12 @@ free_exp(struct exportlist *ep)
 	if (ep->ex_indexfile)
 		free(ep->ex_indexfile);
 	free_dir(ep->ex_dirl);
+	grp = ep->ex_grphead;
+	while (grp) {
+		tgrp = grp;
+		grp = grp->gr_next;
+		free_grp(tgrp);
+	}
 	free((caddr_t)ep);
 }
 
