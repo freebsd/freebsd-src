@@ -74,7 +74,7 @@ _Static_assert(CHACHA_STATELEN == RANDOM_BLOCKSIZE, "");
  * Benefits include somewhat faster keystream generation compared with
  * unaccelerated AES-ICM.
  */
-bool random_chachamode = false;
+bool random_chachamode __read_frequently = false;
 #ifdef _KERNEL
 SYSCTL_BOOL(_kern_random, OID_AUTO, use_chacha20_cipher, CTLFLAG_RDTUN,
     &random_chachamode, 0,
