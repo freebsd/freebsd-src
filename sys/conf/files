@@ -3234,6 +3234,7 @@ dev/usb/usb_generic.c		optional usb
 dev/usb/usb_handle_request.c	optional usb
 dev/usb/usb_hid.c		optional usb
 dev/usb/usb_hub.c		optional usb
+dev/usb/usb_hub_acpi.c		optional usb acpi
 dev/usb/usb_if.m		optional usb
 dev/usb/usb_lookup.c		optional usb
 dev/usb/usb_mbuf.c		optional usb
