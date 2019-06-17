@@ -486,8 +486,8 @@ mpt_default_reply_handler(struct mpt_softc *mpt, request_t *req,
 {
 
 	mpt_prt(mpt,
-	    "Default Handler Called: req=%p:%u reply_descriptor=%x frame=%p\n",
-	    req, req->serno, reply_desc, reply_frame);
+	    "Default Handler Called: req=%u:%u reply_descriptor=%x frame=%p\n",
+	    req->index, req->serno, reply_desc, reply_frame);
 
 	if (reply_frame != NULL)
 		mpt_dump_reply_frame(mpt, reply_frame);
