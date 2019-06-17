@@ -166,7 +166,7 @@ arm_install_base() {
 		TARGET=${EMBEDDED_TARGET} \
 		TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
 		DESTDIR=${DESTDIR} KERNCONF=${KERNEL} \
-		installworld installkernel distribution
+		${CONF_FILES} installworld installkernel distribution
 	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/boot/msdos
 
 	arm_create_user
