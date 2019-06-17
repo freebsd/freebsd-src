@@ -65,6 +65,21 @@ uint128_increment(uint128_t *big_uintp)
 #endif
 }
 
+static __inline void
+uint128_add64(uint128_t *big_uintp, uint64_t add)
+{
+#ifdef USE_REAL_UINT128_T
+	(*big_uintp) += add;
+#else
+	uint64_t word0p;
+
+	word0p = big_uintp->u128t_word0 + add;
+	if (word0p < big_uintp->u128t_word0)
+		big_uintp->u128t_word1++;
+	big_uintp->u128t_word0 = word0p;
+#endif
+}
+
 static __inline bool
 uint128_equals(uint128_t a, uint128_t b)
 {

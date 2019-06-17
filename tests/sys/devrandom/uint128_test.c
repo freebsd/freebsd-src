@@ -152,6 +152,62 @@ ATF_TC_BODY(uint128_inc, tc)
 	}
 }
 
+ATF_TC_WITHOUT_HEAD(uint128_add64);
+ATF_TC_BODY(uint128_add64, tc)
+{
+	static const struct u128_add64_tc {
+		uint32_t input[4];
+		uint64_t addend;
+		uint32_t expected[4];
+		const char *descr;
+	} tests[] = {
+		{
+			.input = { 0, 0, 0, 0 },
+			.addend = 1,
+			.expected = { 1, 0, 0, 0 },
+			.descr = "0 + 1 -> 1",
+		},
+		{
+			.input = { 1, 0, 0, 0 },
+			.addend = UINT32_MAX,
+			.expected = { 0, 1, 0, 0 },
+			.descr = "1 + (2^32 - 1) -> 2^32 (word carry)",
+		},
+		{
+			.input = { 1, 0, 0, 0 },
+			.addend = UINT64_MAX,
+			.expected = { 0, 0, 1, 0 },
+			.descr = "1 + (2^64 - 1) -> 2^64 (u128t_word0 carry)",
+		},
+		{
+			.input = { 0x11111111, 0x11111111, 0, 0 },
+			.addend = 0xf0123456789abcdeULL,
+			.expected = { 0x89abcdef, 0x01234567, 1, 0 },
+			.descr = "0x1111_1111_1111_1111 +"
+				 "0xf012_3456_789a_bcde ->"
+			       "0x1_0123_4567_89ab_cdef",
+		},
+		{
+			.input = { 1, 0, UINT32_MAX, 0 },
+			.addend = UINT64_MAX,
+			.expected = { 0, 0, 0, 1 },
+			.descr = "Carry ~2^96",
+		},
+	};
+	uint8_t inputle[16], expectedle[16];
+	uint128_t a;
+	size_t i;
+
+	for (i = 0; i < nitems(tests); i++) {
+		vec_u32_tole128(inputle, tests[i].input);
+		vec_u32_tole128(expectedle, tests[i].expected);
+
+		a = le128dec(inputle);
+		uint128_add64(&a, tests[i].addend);
+		u128_check_equality(le128dec(expectedle), a, tests[i].descr);
+	}
+}
+
 /*
  * Test assumptions about Chacha incrementing counter in the same way as
  * uint128.h
@@ -219,6 +275,7 @@ ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, uint128_inc);
+	ATF_TP_ADD_TC(tp, uint128_add64);
 	ATF_TP_ADD_TC(tp, uint128_chacha_ctr);
 	return (atf_no_error());
 }

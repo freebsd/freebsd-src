@@ -32,6 +32,10 @@
 #include <crypto/chacha20/_chacha.h>
 #include <dev/random/uint128.h>
 
+#ifndef _KERNEL
+#define	__read_frequently
+#endif
+
 /* Keys are formed from cipher blocks */
 #define	RANDOM_KEYSIZE		32	/* (in bytes) == 256 bits */
 #define	RANDOM_KEYSIZE_WORDS	(RANDOM_KEYSIZE/sizeof(uint32_t))

@@ -36,12 +36,14 @@ typedef struct mtx mtx_t;
 #define	RANDOM_RESEED_LOCK(x)			mtx_lock(&fortuna_state.fs_mtx)
 #define	RANDOM_RESEED_UNLOCK(x)			mtx_unlock(&fortuna_state.fs_mtx)
 #define	RANDOM_RESEED_ASSERT_LOCK_OWNED(x)	mtx_assert(&fortuna_state.fs_mtx, MA_OWNED)
+#define	RANDOM_RESEED_ASSERT_LOCK_NOT_OWNED()	mtx_assert(&fortuna_state.fs_mtx, MA_NOTOWNED)
 #else
 #define	RANDOM_RESEED_INIT_LOCK(x)		mtx_init(&fortuna_state.fs_mtx, mtx_plain)
 #define	RANDOM_RESEED_DEINIT_LOCK(x)		mtx_destroy(&fortuna_state.fs_mtx)
 #define	RANDOM_RESEED_LOCK(x)			mtx_lock(&fortuna_state.fs_mtx)
 #define	RANDOM_RESEED_UNLOCK(x)			mtx_unlock(&fortuna_state.fs_mtx)
 #define	RANDOM_RESEED_ASSERT_LOCK_OWNED(x)
+#define	RANDOM_RESEED_ASSERT_LOCK_NOT_OWNED()
 #endif
 
 #endif /* SYS_DEV_RANDOM_FORTUNA_H_INCLUDED */
