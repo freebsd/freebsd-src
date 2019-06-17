@@ -271,15 +271,21 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
     struct ucred *cred, struct fuse_filehandle *fufh, pid_t pid)
 {
 	struct buf *bp;
-	daddr_t lbn;
-	int bcount;
-	int err, n = 0, on = 0;
+	struct mount *mp;
+	struct fuse_data *data;
+	daddr_t lbn, nextlbn;
+	int bcount, nextsize;
+	int err, n = 0, on = 0, seqcount;
 	off_t filesize;
 
 	const int biosize = fuse_iosize(vp);
+	mp = vnode_mount(vp);
+	data = fuse_get_mpdata(mp);
 
 	if (uio->uio_offset < 0)
 		return (EINVAL);
+
+	seqcount = ioflag >> IO_SEQSHIFT;
 
 	err = fuse_vnode_size(vp, &filesize, cred, curthread);
 	if (err)
@@ -302,12 +308,25 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 		} else {
 			bcount = biosize;
 		}
+		nextlbn = lbn + 1;
+		nextsize = MIN(biosize, filesize - nextlbn * biosize);
 
 		SDT_PROBE4(fusefs, , io, read_bio_backend_start,
 			biosize, (int)lbn, on, bcount);
 
-		/* TODO: readahead.  See ext2_read for an example */
-		err = bread(vp, lbn, bcount, NOCRED, &bp);
+		if (bcount < biosize) {
+			/* If near EOF, don't do readahead */
+			err = bread(vp, lbn, bcount, NOCRED, &bp);
+		/* TODO: clustered read */
+		} else if (seqcount > 1 && data->max_readahead >= nextsize) {
+			/* Try non-clustered readahead */
+			err = breadn(vp, lbn, bcount, &nextlbn, &nextsize, 1,
+				NOCRED, &bp);
+		} else {
+			/* Just read what was requested */
+			err = bread(vp, lbn, bcount, NOCRED, &bp);
+		}
+
 		if (err) {
 			brelse(bp);
 			bp = NULL;

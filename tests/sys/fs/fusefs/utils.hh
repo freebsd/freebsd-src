@@ -61,11 +61,7 @@ class FuseTest : public ::testing::Test {
 	int m_maxbcachebuf;
 
 	FuseTest():
-		/*
-		 * libfuse's default max_readahead is UINT_MAX, though it can
-		 * be lowered
-		 */
-		m_maxreadahead(UINT_MAX),
+		m_maxreadahead(0),
 		m_maxwrite(default_max_write),
 		m_init_flags(0),
 		m_allow_other(false),

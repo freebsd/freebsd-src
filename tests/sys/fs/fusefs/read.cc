@@ -112,7 +112,7 @@ virtual void SetUp() {
 class ReadAhead: public ReadCacheable, public WithParamInterface<uint32_t> {
 	virtual void SetUp() {
 		m_maxreadahead = GetParam();
-		Read::SetUp();
+		ReadCacheable::SetUp();
 	}
 };
 
@@ -747,37 +747,40 @@ TEST_F(ReadCacheable, DISABLED_sendfile_eio)
 }
 
 /* fuse(4) should honor the filesystem's requested m_readahead parameter */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236472 */
-TEST_P(ReadAhead, DISABLED_readahead) {
+TEST_P(ReadAhead, readahead) {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	const char *CONTENTS0 = "abcdefghijklmnop";
 	uint64_t ino = 42;
-	int fd;
-	ssize_t bufsize = 8;
-	ssize_t filesize = m_maxbcachebuf * 2;
-	char *contents;
-	char buf[bufsize];
+	int fd, i;
+	ssize_t bufsize = m_maxbcachebuf;
+	ssize_t filesize = m_maxbcachebuf * 4;
+	char *rbuf, *contents;
 
-	ASSERT_TRUE(GetParam() < (uint32_t)m_maxbcachebuf)
-		<< "Test assumes that max_readahead < maxbcachebuf";
-
-	contents = (char*)calloc(1, filesize);
+	contents = (char*)malloc(filesize);
 	ASSERT_NE(NULL, contents);
-	memmove(contents, CONTENTS0, strlen(CONTENTS0));
+	memset(contents, 'X', filesize);
+	rbuf = (char*)calloc(1, bufsize);
 
 	expect_lookup(RELPATH, ino, filesize);
 	expect_open(ino, 0, 1);
 	/* fuse(4) should only read ahead the allowed amount */
-	expect_read(ino, 0, GetParam(), GetParam(), contents);
+	expect_read(ino, 0, m_maxbcachebuf, m_maxbcachebuf, contents);
+	for (i = 0; i < (int)GetParam() / m_maxbcachebuf; i++) {
+		off_t offs = (i + 1) * m_maxbcachebuf;
+		expect_read(ino, offs, m_maxbcachebuf, m_maxbcachebuf,
+			contents + offs);
+	}
 
 	fd = open(FULLPATH, O_RDONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
 
-	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
-	ASSERT_EQ(0, memcmp(buf, CONTENTS0, bufsize));
+	/* Set the internal readahead counter to a "large" value */
+	ASSERT_EQ(0, fcntl(fd, F_READAHEAD, 1'000'000'000)) << strerror(errno);
+
+	ASSERT_EQ(bufsize, read(fd, rbuf, bufsize)) << strerror(errno);
+	ASSERT_EQ(0, memcmp(rbuf, contents, bufsize));
 
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-INSTANTIATE_TEST_CASE_P(RA, ReadAhead, ::testing::Values(0u, 2048u));
+INSTANTIATE_TEST_CASE_P(RA, ReadAhead, ::testing::Values(0u, 65536));
