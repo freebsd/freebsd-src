@@ -54,7 +54,7 @@ union randomdev_key {
 	struct chacha_ctx chacha;
 };
 
-extern bool fortuna_chachamode;
+extern bool random_chachamode;
 
 void randomdev_hash_init(struct randomdev_hash *);
 void randomdev_hash_iterate(struct randomdev_hash *, const void *, size_t);
