@@ -37,12 +37,16 @@ __FBSDID("$FreeBSD$");
 #else /* !_KERNEL */
 #include <sys/param.h>
 #include <sys/types.h>
+#include <assert.h>
 #include <inttypes.h>
+#include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <threads.h>
-#include "unit_test.h"
+#define KASSERT(x, y)	assert(x)
+#define CTASSERT(x)	_Static_assert(x, "CTASSERT " #x)
 #endif /* _KERNEL */
 
 #define CHACHA_EMBED
