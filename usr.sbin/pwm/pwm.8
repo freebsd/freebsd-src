@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2019
+.Dd June 17, 2019
 .Dt PWM 8
 .Os
 .Sh NAME
@@ -61,8 +61,11 @@ Channel number to operate on
 .It Fl f Ar device
 Device to operate on.
 If not specified,
-.Pa /dev/pwmc0
+.Pa /dev/pwm/pwmc0.0
 is used.
+If an unqualified name is provided,
+.Pa /dev/pwm
+is automatically prepended.
 .It Fl E
 Enable the pwm channel
 .It Fl D
@@ -79,17 +82,21 @@ Configure the duty (in nanoseconds or percentage) of the pwm channel
 .It
 Show the configuration of the pwm channel:
 .Bd -literal
-pwm -f /dev/pwmc0 -C
+pwm -f /dev/pwm/pwmc0.1 -C
 .Ed
 .It
-Configure a 50000 ns period and a 25000 duty cycle:
+Configure a 50000 ns period and a 25000 ns duty cycle:
 .Bd -literal
-pwm -f /dev/pwmc0 -p 50000 -d 25000
+pwm -f pwmc1.1 -p 50000 -d 25000
 .Ed
 .It
-Configure a 50% duty cycle:
+Configure a 50% duty cycle on the device and channel which
+were configured in
+.Xr pwmc 4
+to have the label
+.Pa backlight :
 .Bd -literal
-pwm -f /dev/pwmc0 -d 50%
+pwm -f backlight -d 50%
 .Ed
 .El
 .Sh SEE ALSO
