@@ -44,11 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include "pwmbus_if.h"
 
-struct pwmbus_softc {
-	device_t	dev;
-	u_int		nchannels;
-};
-
 /*
  * bus_if methods...
  */
