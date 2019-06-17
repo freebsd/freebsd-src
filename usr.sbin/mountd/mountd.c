@@ -200,6 +200,8 @@ static void	free_host(struct hostlist *);
 static void	get_exportlist(void);
 static void	insert_exports(struct exportlist *, struct exportlisthead *);
 static void	free_exports(struct exportlisthead *);
+static void	read_exportfile(void);
+static void	delete_export(struct iovec *, int, struct statfs *, char *);
 static int	get_host(char *, struct grouplist *, struct grouplist *);
 static struct hostlist *get_ht(void);
 static int	get_line(void);
@@ -1721,12 +1723,10 @@ get_exportlist(void)
 	struct grouplist *grp, *tgrp;
 	struct export_args export;
 	struct iovec *iov;
-	struct statfs *fsp, *mntbufp;
-	struct xvfsconf vfc;
+	struct statfs *mntbufp;
 	char errmsg[255];
 	int num, i;
 	int iovlen;
-	int done;
 	struct nfsex_args eargs;
 
 	if (suspend_nfsd != 0)
@@ -1781,47 +1781,8 @@ get_exportlist(void)
 		build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 	}
 
-	for (i = 0; i < num; i++) {
-		fsp = &mntbufp[i];
-		if (getvfsbyname(fsp->f_fstypename, &vfc) != 0) {
-			syslog(LOG_ERR, "getvfsbyname() failed for %s",
-			    fsp->f_fstypename);
-			continue;
-		}
-
-		/*
-		 * We do not need to delete "export" flag from
-		 * filesystems that do not have it set.
-		 */
-		if (!(fsp->f_flags & MNT_EXPORTED))
-		    continue;
-		/*
-		 * Do not delete export for network filesystem by
-		 * passing "export" arg to nmount().
-		 * It only makes sense to do this for local filesystems.
-		 */
-		if (vfc.vfc_flags & VFCF_NETWORK)
-			continue;
-
-		iov[1].iov_base = fsp->f_fstypename;
-		iov[1].iov_len = strlen(fsp->f_fstypename) + 1;
-		iov[3].iov_base = fsp->f_mntonname;
-		iov[3].iov_len = strlen(fsp->f_mntonname) + 1;
-		iov[5].iov_base = fsp->f_mntfromname;
-		iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
-		errmsg[0] = '\0';
-
-		/*
-		 * EXDEV is returned when path exists but is not a
-		 * mount point.  May happens if raced with unmount.
-		 */
-		if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
-		    errno != ENOENT && errno != ENOTSUP && errno != EXDEV) {
-			syslog(LOG_ERR,
-			    "can't delete exports for %s: %m %s",
-			    fsp->f_mntonname, errmsg);
-		}
-	}
+	for (i = 0; i < num; i++)
+		delete_export(iov, iovlen, &mntbufp[i], errmsg);
 
 	if (iov != NULL) {
 		/* Free strings allocated by strdup() in getmntopts.c */
@@ -1837,26 +1798,7 @@ get_exportlist(void)
 		iovlen = 0;
 	}
 
-	/*
-	 * Read in the exports file and build the list, calling
-	 * nmount() as we go along to push the export rules into the kernel.
-	 */
-	done = 0;
-	for (i = 0; exnames[i] != NULL; i++) {
-		if (debug)
-			warnx("reading exports from %s", exnames[i]);
-		if ((exp_file = fopen(exnames[i], "r")) == NULL) {
-			syslog(LOG_WARNING, "can't open %s", exnames[i]);
-			continue;
-		}
-		get_exportlist_one();
-		fclose(exp_file);
-		done++;
-	}
-	if (done == 0) {
-		syslog(LOG_ERR, "can't open any exports file");
-		exit(2);
-	}
+	read_exportfile();
 
 	/*
 	 * If there was no public fh, clear any previous one set.
@@ -1891,6 +1833,84 @@ free_exports(struct exportlisthead *exhp)
 		free_exp(ep);
 	}
 	SLIST_INIT(exhp);
+}
+
+/*
+ * Read the exports file(s) and call get_exportlist_one() for each line.
+ */
+static void
+read_exportfile(void)
+{
+	int done, i;
+
+	/*
+	 * Read in the exports file and build the list, calling
+	 * nmount() as we go along to push the export rules into the kernel.
+	 */
+	done = 0;
+	for (i = 0; exnames[i] != NULL; i++) {
+		if (debug)
+			warnx("reading exports from %s", exnames[i]);
+		if ((exp_file = fopen(exnames[i], "r")) == NULL) {
+			syslog(LOG_WARNING, "can't open %s", exnames[i]);
+			continue;
+		}
+		get_exportlist_one();
+		fclose(exp_file);
+		done++;
+	}
+	if (done == 0) {
+		syslog(LOG_ERR, "can't open any exports file");
+		exit(2);
+	}
+}
+
+/*
+ * Delete an exports entry.
+ */
+static void
+delete_export(struct iovec *iov, int iovlen, struct statfs *fsp, char *errmsg)
+{
+	struct xvfsconf vfc;
+
+	if (getvfsbyname(fsp->f_fstypename, &vfc) != 0) {
+		syslog(LOG_ERR, "getvfsbyname() failed for %s",
+		    fsp->f_fstypename);
+		return;
+	}
+	
+	/*
+	 * We do not need to delete "export" flag from
+	 * filesystems that do not have it set.
+	 */
+	if (!(fsp->f_flags & MNT_EXPORTED))
+		return;
+	/*
+	 * Do not delete export for network filesystem by
+	 * passing "export" arg to nmount().
+	 * It only makes sense to do this for local filesystems.
+	 */
+	if (vfc.vfc_flags & VFCF_NETWORK)
+		return;
+	
+	iov[1].iov_base = fsp->f_fstypename;
+	iov[1].iov_len = strlen(fsp->f_fstypename) + 1;
+	iov[3].iov_base = fsp->f_mntonname;
+	iov[3].iov_len = strlen(fsp->f_mntonname) + 1;
+	iov[5].iov_base = fsp->f_mntfromname;
+	iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
+	errmsg[0] = '\0';
+	
+	/*
+	 * EXDEV is returned when path exists but is not a
+	 * mount point.  May happens if raced with unmount.
+	 */
+	if (nmount(iov, iovlen, fsp->f_flags) < 0 && errno != ENOENT &&
+	    errno != ENOTSUP && errno != EXDEV) {
+		syslog(LOG_ERR,
+		    "can't delete exports for %s: %m %s",
+		    fsp->f_mntonname, errmsg);
+	}
 }
 
 /*
