@@ -726,6 +726,8 @@
                 ..
             ..
         ..
+        devrandom
+        ..
         dtrace
         ..
         fifo
