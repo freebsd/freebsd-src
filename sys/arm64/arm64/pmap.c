@@ -4644,7 +4644,6 @@ small_mappings:
 				 */
 				pmap_remove_l3(pmap, pte, pv->pv_va, tpde,
 				    &free, &lock);
-				pmap_invalidate_page(pmap, pv->pv_va);
 				cleared++;
 				if (pvf == pv)
 					pvf = NULL;
