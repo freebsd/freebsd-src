@@ -50,6 +50,18 @@ using namespace testing;
 
 class Notify: public FuseTest {
 public:
+/* Ignore an optional FUSE_FSYNC */
+void maybe_expect_fsync(uint64_t ino)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_FSYNC &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(0)));
+}
+
 void expect_lookup(uint64_t parent, const char *relpath, uint64_t ino,
 	off_t size, Sequence &seq)
 {
@@ -76,6 +88,7 @@ virtual void SetUp() {
 	int val = 0;
 	size_t size = sizeof(val);
 
+	m_async = true;
 	Notify::SetUp();
 	if (IsSkipped())
 		return;
@@ -363,8 +376,7 @@ TEST_F(Notify, inval_inode_with_clean_cache)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=238312 */
-TEST_F(NotifyWriteback, DISABLED_inval_inode_with_dirty_cache)
+TEST_F(NotifyWriteback, inval_inode_with_dirty_cache)
 {
 	const static char FULLPATH[] = "mountpoint/foo";
 	const static char RELPATH[] = "foo";
@@ -384,8 +396,14 @@ TEST_F(NotifyWriteback, DISABLED_inval_inode_with_dirty_cache)
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 
-	/* Evict the data cache */
 	expect_write(ino, 0, bufsize, CONTENTS);
+	/* 
+	 * The FUSE protocol does not require an fsync here, but FreeBSD's
+	 * bufobj_invalbuf sends it anyway
+	 */
+	maybe_expect_fsync(ino);
+
+	/* Evict the data cache */
 	iia.mock = m_mock;
 	iia.ino = ino;
 	iia.off = 0;
@@ -398,8 +416,7 @@ TEST_F(NotifyWriteback, DISABLED_inval_inode_with_dirty_cache)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=238312 */
-TEST_F(NotifyWriteback, DISABLED_inval_inode_attrs_only)
+TEST_F(NotifyWriteback, inval_inode_attrs_only)
 {
 	const static char FULLPATH[] = "mountpoint/foo";
 	const static char RELPATH[] = "foo";
@@ -425,7 +442,7 @@ TEST_F(NotifyWriteback, DISABLED_inval_inode_attrs_only)
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_GETATTR &&
-				in.header.nodeid == FUSE_ROOT_ID);
+				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {

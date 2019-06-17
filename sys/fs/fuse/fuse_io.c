@@ -789,23 +789,7 @@ again:
 
 		vfs_bio_set_flags(bp, ioflag);
 
-		if (last_page) {
-			/* 
-			 * When writing the last page of a file we must write
-			 * synchronously.  If we didn't, then a subsequent
-			 * operation could extend the file, making the last
-			 * page of this buffer invalid because it would only be
-			 * partially cached.
-			 *
-			 * As an optimization, it would be allowable to only
-			 * write the last page synchronously.  Or, it should be
-			 * possible to synchronously flush the last
-			 * already-written page whenever extending a file with
-			 * ftruncate or another write.
-			 */
-			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 1, bp);
-			err = bwrite(bp);
-		} else if (ioflag & IO_SYNC) {
+		if (ioflag & IO_SYNC) {
 			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 2, bp);
 			err = bwrite(bp);
 		} else if (vm_page_count_severe() ||

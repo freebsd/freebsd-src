@@ -90,6 +90,31 @@ void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 	FuseTest::expect_write(ino, offset, isize, osize, 0, 0, contents);
 }
 
+/* Expect a write that may or may not come, depending on the cache mode */
+void maybe_expect_write(uint64_t ino, uint64_t offset, uint64_t size,
+	const void *contents)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *buf = (const char*)in.body.bytes +
+				sizeof(struct fuse_write_in);
+
+			return (in.header.opcode == FUSE_WRITE &&
+				in.header.nodeid == ino &&
+				in.body.write.offset == offset  &&
+				in.body.write.size == size &&
+				0 == bcmp(buf, contents, size));
+		}, Eq(true)),
+		_)
+	).Times(AtMost(1))
+	.WillRepeatedly(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
+			SET_OUT_HEADER_LEN(out, write);
+			out.body.write.size = size;
+		})
+	));
+}
+
 };
 
 class WriteCacheable: public Write {
@@ -193,6 +218,14 @@ void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 {
 	FuseTest::expect_write(ino, offset, isize, osize, FUSE_WRITE_CACHE, 0,
 		contents);
+}
+};
+
+class WriteBackAsync: public WriteBack {
+public:
+virtual void SetUp() {
+	m_async = true;
+	WriteBack::SetUp();
 }
 };
 
@@ -302,7 +335,7 @@ TEST_F(Write, append_to_cached)
 	expect_lookup(RELPATH, ino, oldsize);
 	expect_open(ino, 0, 1);
 	expect_read(ino, 0, oldsize, oldsize, oldcontents);
-	expect_write(ino, oldsize, BUFSIZE, BUFSIZE, CONTENTS);
+	maybe_expect_write(ino, oldsize, BUFSIZE, CONTENTS);
 
 	/* Must open O_RDWR or fuse(4) implicitly sets direct_io */
 	fd = open(FULLPATH, O_RDWR | O_APPEND);
@@ -610,7 +643,7 @@ TEST_F(Write, write_large)
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	expect_write(ino, 0, halfbufsize, halfbufsize, contents);
-	expect_write(ino, halfbufsize, halfbufsize, halfbufsize,
+	maybe_expect_write(ino, halfbufsize, halfbufsize,
 		&contents[halfbufsize / sizeof(int)]);
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -662,7 +695,7 @@ TEST_F(Write_7_8, write)
 }
 
 /* In writeback mode, dirty data should be written on close */
-TEST_F(WriteBack, close)
+TEST_F(WriteBackAsync, close)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -795,7 +828,7 @@ TEST_F(WriteBack, rmw)
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, fsize, 1);
 	expect_open(ino, 0, 1);
 	expect_read(ino, 0, fsize, fsize, INITIAL, O_WRONLY);
-	expect_write(ino, offset, bufsize, bufsize, CONTENTS);
+	maybe_expect_write(ino, offset, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -808,7 +841,7 @@ TEST_F(WriteBack, rmw)
 /*
  * Without direct_io, writes should be committed to cache
  */
-TEST_F(WriteBack, writeback)
+TEST_F(WriteBack, cache)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -865,6 +898,36 @@ TEST_F(WriteBack, o_direct)
 	ASSERT_EQ(0, fcntl(fd, F_SETFL, 0)) << strerror(errno);
 	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/*
+ * When mounted with -o async, the writeback cache mode should delay writes
+ */
+TEST_F(WriteBackAsync, delay)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	/* Write should be cached, but FUSE_WRITE shouldn't be sent */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_WRITE);
+		}, Eq(true)),
+		_)
+	).Times(0);
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+
+	/* Don't close the file because that would flush the cache */
 }
 
 /*
