@@ -908,6 +908,7 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 
 	if (fuse_libabi_geq(data, 7, 5)) {
 		if (fticket_resp(tick)->len == sizeof(struct fuse_init_out)) {
+			data->max_readahead = fiio->max_readahead;
 			data->max_write = fiio->max_write;
 			if (fiio->flags & FUSE_ASYNC_READ)
 				data->dataflags |= FSESS_ASYNC_READ;
@@ -951,9 +952,8 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	fiii->major = FUSE_KERNEL_VERSION;
 	fiii->minor = FUSE_KERNEL_MINOR_VERSION;
 	/* 
-	 * fusefs currently doesn't do any readahead other than fetching whole
-	 * buffer cache block sized regions at once.  So the max readahead is
-	 * the size of a buffer cache block.
+	 * fusefs currently reads ahead no more than one cache block at a time.
+	 * See fuse_read_biobackend
 	 */
 	fiii->max_readahead = maxbcachebuf;
 	/*
