@@ -380,6 +380,8 @@ FreeBSD 5.2           |      |                 |                       |
  *--FreeBSD           |     |      v           |                       |
  |   12.0             |     |                  |               DragonFly 5.4.1
  |                    |     |             OpenBSD 6.5                  |
+ |                    |  NetBSD                |                       |
+ |                    |    8.1                 |               DragonFly 5.6
  |                    |     |                  |                       |
 FreeBSD 13 -current   | NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |     |                  |                       |
@@ -763,6 +765,8 @@ DragonFly 5.4.0		2018-12-03 [DFB]
 FreeBSD 12.0		2018-12-11 [FBD]
 DragonFly 5.4.1		2018-12-24 [DFB]
 OpenBSD 6.5		2019-05-01 [OBD]
+NetBSD 8.1		2019-06-04 [NBD]
+DragonFly 5.6		2019-06-17 [DFB]
 
 Bibliography
 ------------------------
