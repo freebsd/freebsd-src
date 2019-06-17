@@ -128,7 +128,7 @@ static uint8_t zero_region[RANDOM_ZERO_BLOCKSIZE];
 #endif
 
 static void random_fortuna_pre_read(void);
-static void random_fortuna_read(uint8_t *, u_int);
+static void random_fortuna_read(uint8_t *, size_t);
 static bool random_fortuna_seeded(void);
 static bool random_fortuna_seeded_internal(void);
 static void random_fortuna_process_event(struct harvest_event *);
@@ -306,49 +306,45 @@ random_fortuna_reseed_internal(uint32_t *entropy_data, u_int blockcount)
 }
 
 /*-
- * FS&K - GenerateBlocks()
- * Generate a number of complete blocks of random output.
- */
-static __inline void
-random_fortuna_genblocks(uint8_t *buf, u_int blockcount)
-{
-
-	RANDOM_RESEED_ASSERT_LOCK_OWNED();
-	KASSERT(!uint128_is_zero(fortuna_state.fs_counter), ("FS&K: C != 0"));
-
-	/*
-	 * Fills buf with RANDOM_BLOCKSIZE * blockcount bytes of keystream.
-	 * Increments fs_counter as it goes.
-	 */
-	randomdev_keystream(&fortuna_state.fs_key, &fortuna_state.fs_counter,
-	    buf, blockcount);
-}
-
-/*-
  * FS&K - PseudoRandomData()
- * This generates no more than 2^20 bytes of data, and cleans up its
- * internal state when finished. It is assumed that a whole number of
- * blocks are available for writing; any excess generated will be
- * ignored.
+ *
+ * If Chacha20 is used, output size is unrestricted.  If AES-CTR is used,
+ * output size MUST be <= 1MB and a multiple of RANDOM_BLOCKSIZE.  The
+ * reasoning for this is discussed in FS&K 9.4; the significant distinction
+ * between the two ciphers is that AES has a *block* size of 128 bits while
+ * Chacha has a *block* size of 512 bits.
  */
 static __inline void
-random_fortuna_genrandom(uint8_t *buf, u_int bytecount)
+random_fortuna_genrandom(uint8_t *buf, size_t bytecount)
 {
-	uint8_t temp[RANDOM_BLOCKSIZE * RANDOM_KEYS_PER_BLOCK];
-	u_int blockcount;
+	uint8_t newkey[RANDOM_KEYSIZE];
 
 	RANDOM_RESEED_ASSERT_LOCK_OWNED();
+
 	/*-
-	 * FS&K - assert(n < 2^20 (== 1 MB)
+	 * FS&K - assert(n < 2^20 (== 1 MB)) when 128-bit block cipher is used
 	 *      - r = first-n-bytes(GenerateBlocks(ceil(n/16)))
 	 *      - K = GenerateBlocks(2)
 	 */
-	KASSERT((bytecount <= RANDOM_FORTUNA_MAX_READ), ("invalid single read request to Fortuna of %d bytes", bytecount));
-	blockcount = howmany(bytecount, RANDOM_BLOCKSIZE);
-	random_fortuna_genblocks(buf, blockcount);
-	random_fortuna_genblocks(temp, RANDOM_KEYS_PER_BLOCK);
-	randomdev_encrypt_init(&fortuna_state.fs_key, temp);
-	explicit_bzero(temp, sizeof(temp));
+	KASSERT(random_chachamode || bytecount <= RANDOM_FORTUNA_MAX_READ,
+	    ("%s: invalid large read request: %zu bytes", __func__,
+	     bytecount));
+
+	/*
+	 * This is where FS&K would invoke GenerateBlocks().  GenerateBlocks()
+	 * doesn't make a lot of sense or have much value if we use bytecount
+	 * for the API (which is useful for ciphers that do not require
+	 * block-sized output, like Chacha20).
+	 *
+	 * Just invoke our PRF abstraction directly, which is responsible for
+	 * updating fs_counter ('C').
+	 */
+	randomdev_keystream(&fortuna_state.fs_key, &fortuna_state.fs_counter,
+	    buf, bytecount);
+	randomdev_keystream(&fortuna_state.fs_key, &fortuna_state.fs_counter,
+	    newkey, sizeof(newkey));
+	randomdev_encrypt_init(&fortuna_state.fs_key, newkey);
+	explicit_bzero(newkey, sizeof(newkey));
 }
 
 /*-
@@ -441,18 +437,71 @@ random_fortuna_pre_read(void)
  * FS&K - RandomData() (Part 2)
  * Main read from Fortuna, continued. May be called multiple times after
  * the random_fortuna_pre_read() above.
- * The supplied buf MUST be a multiple of RANDOM_BLOCKSIZE in size.
- * Lots of code presumes this for efficiency, both here and in other
- * routines. You are NOT allowed to break this!
+ *
+ * The supplied buf MAY not be a multiple of RANDOM_BLOCKSIZE in size; it is
+ * the responsibility of the algorithm to accommodate partial block reads, if a
+ * block output mode is used.
  */
 void
-random_fortuna_read(uint8_t *buf, u_int bytecount)
+random_fortuna_read(uint8_t *buf, size_t bytecount)
 {
+	uint8_t remainder_buf[RANDOM_BLOCKSIZE];
+	size_t read_directly_len, read_chunk;
 
-	KASSERT((bytecount % RANDOM_BLOCKSIZE) == 0, ("%s(): bytecount (= %d) must be a multiple of %d", __func__, bytecount, RANDOM_BLOCKSIZE ));
+	/*
+	 * The underlying AES generator expects multiples of RANDOM_BLOCKSIZE.
+	 */
+	if (random_chachamode)
+		read_directly_len = bytecount;
+	else
+		read_directly_len = rounddown(bytecount, RANDOM_BLOCKSIZE);
+
 	RANDOM_RESEED_LOCK();
-	random_fortuna_genrandom(buf, bytecount);
+	KASSERT(!uint128_is_zero(fortuna_state.fs_counter), ("FS&K: C != 0"));
+
+	while (read_directly_len > 0) {
+		/*
+		 * 128-bit block ciphers like AES must be re-keyed at 1MB
+		 * intervals to avoid unacceptable statistical differentiation
+		 * from true random data.
+		 *
+		 * 512-bit block ciphers like Chacha20 do not have this
+		 * problem. (FS&K 9.4)
+		 */
+		if (random_chachamode)
+			read_chunk = read_directly_len;
+		else
+			read_chunk = MIN(read_directly_len,
+			    RANDOM_FORTUNA_MAX_READ);
+
+		/*
+		 * For now, we hold the global Fortuna mutex, so yield
+		 * periodically to provide vague availability to other lock
+		 * users.  PAGE_SIZE is chosen to match existing behavior.
+		 */
+		read_chunk = MIN(read_chunk, PAGE_SIZE);
+
+		random_fortuna_genrandom(buf, read_chunk);
+		buf += read_chunk;
+		read_directly_len -= read_chunk;
+		bytecount -= read_chunk;
+
+		/* Perform the actual yield. */
+		if (read_directly_len != 0) {
+			RANDOM_RESEED_UNLOCK();
+			RANDOM_RESEED_LOCK();
+		}
+	}
+
+	if (bytecount > 0)
+		random_fortuna_genrandom(remainder_buf, sizeof(remainder_buf));
+
 	RANDOM_RESEED_UNLOCK();
+
+	if (bytecount > 0) {
+		memcpy(buf, remainder_buf, bytecount);
+		explicit_bzero(remainder_buf, sizeof(remainder_buf));
+	}
 }
 
 #ifdef _KERNEL

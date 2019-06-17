@@ -125,16 +125,18 @@ randomdev_encrypt_init(union randomdev_key *context, const void *data)
 }
 
 /*
- * Create a psuedorandom output stream of 'blockcount' blocks using a CTR-mode
+ * Create a psuedorandom output stream of 'bytecount' bytes using a CTR-mode
  * cipher or similar.  The 128-bit counter is supplied in the in-out parmeter
- * 'ctr.'  The output stream goes to 'd_out.'  'blockcount' RANDOM_BLOCKSIZE
- * bytes are generated.
+ * 'ctr.'  The output stream goes to 'd_out.'
+ *
+ * If AES is used, 'bytecount' is guaranteed to be a multiple of
+ * RANDOM_BLOCKSIZE.
  */
 void
 randomdev_keystream(union randomdev_key *context, uint128_t *ctr,
-    void *d_out, u_int blockcount)
+    void *d_out, size_t bytecount)
 {
-	u_int i;
+	size_t i, blockcount, read_chunk;
 
 	if (random_chachamode) {
 		uint128_t lectr;
@@ -147,8 +149,20 @@ randomdev_keystream(union randomdev_key *context, uint128_t *ctr,
 		le128enc(&lectr, *ctr);
 
 		chacha_ivsetup(&context->chacha, NULL, (const void *)&lectr);
-		chacha_encrypt_bytes(&context->chacha, NULL, d_out,
-		    RANDOM_BLOCKSIZE * blockcount);
+		while (bytecount > 0) {
+			/*
+			 * We are limited by the chacha_encrypt_bytes API to
+			 * u32 bytes per chunk.
+			 */
+			read_chunk = MIN(bytecount,
+			    rounddown((size_t)UINT32_MAX, CHACHA_BLOCKLEN));
+
+			chacha_encrypt_bytes(&context->chacha, NULL, d_out,
+			    read_chunk);
+
+			d_out = (char *)d_out + read_chunk;
+			bytecount -= read_chunk;
+		}
 
 		/*
 		 * Decode Chacha-updated LE counter to native endian and store
@@ -156,7 +170,14 @@ randomdev_keystream(union randomdev_key *context, uint128_t *ctr,
 		 */
 		chacha_ctrsave(&context->chacha, (void *)&lectr);
 		*ctr = le128dec(&lectr);
+
+		explicit_bzero(&lectr, sizeof(lectr));
 	} else {
+		KASSERT(bytecount % RANDOM_BLOCKSIZE == 0,
+		    ("%s: AES mode invalid bytecount, not a multiple of native "
+		     "block size", __func__));
+
+		blockcount = bytecount / RANDOM_BLOCKSIZE;
 		for (i = 0; i < blockcount; i++) {
 			/*-
 			 * FS&K - r = r|E(K,C)
