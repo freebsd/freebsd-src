@@ -132,7 +132,7 @@ pwmc_setup_label(struct pwmc_softc *sc)
 static void
 pwmc_setup_label(struct pwmc_softc *sc)
 {
-	char *label;
+	const char *label;
 
 	if (resource_string_value(device_get_name(sc->dev),
 	    device_get_unit(sc->dev), "label", &label) == 0) {
