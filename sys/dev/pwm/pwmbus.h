@@ -30,6 +30,11 @@
 #ifndef _PWMBUS_H_
 #define _PWMBUS_H_
 
+struct pwmbus_softc {
+	device_t	dev;
+	u_int		nchannels;
+};
+
 struct pwmbus_ivars {
 	u_int	pi_channel;
 };
@@ -53,6 +58,12 @@ pwmbus_set_ ## A(device_t dev, T t)					\
 }
 
 PWMBUS_ACCESSOR(channel, CHANNEL, u_int)
+
+#ifdef FDT
+#define	PWMBUS_FDT_PNP_INFO(t)	FDTCOMPAT_PNP_INFO(t, pwmbus)
+#else
+#define	PWMBUS_FDT_PNP_INFO(t)
+#endif
 
 extern driver_t   pwmbus_driver;
 extern devclass_t pwmbus_devclass;

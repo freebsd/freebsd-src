@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -41,6 +43,20 @@ __FBSDID("$FreeBSD$");
 #include <dev/pwm/pwmc.h>
 
 #include "pwmbus_if.h"
+
+#ifdef FDT
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
+static struct ofw_compat_data compat_data[] = {
+	{"freebsd,pwmc", true},
+	{NULL,           false},
+};
+
+PWMBUS_FDT_PNP_INFO(compat_data);
+
+#endif
 
 struct pwmc_softc {
 	device_t	dev;
@@ -98,12 +114,52 @@ static struct cdevsw pwm_cdevsw = {
 	.d_ioctl	= pwm_ioctl
 };
 
+#ifdef FDT
+
+static void
+pwmc_setup_label(struct pwmc_softc *sc)
+{
+	void *label;
+
+	if (OF_getprop_alloc(ofw_bus_get_node(sc->dev), "label", &label) > 0) {
+		make_dev_alias(sc->cdev, "pwm/%s", (char *)label);
+		OF_prop_free(label);
+	}
+}
+
+#else /* FDT */
+
+static void
+pwmc_setup_label(struct pwmc_softc *sc)
+{
+	char *label;
+
+	if (resource_string_value(device_get_name(sc->dev),
+	    device_get_unit(sc->dev), "label", &label) == 0) {
+		make_dev_alias(sc->cdev, "pwm/%s", label);
+	}
+}
+
+#endif /* FDT */
+
 static int
 pwmc_probe(device_t dev)
 {
+	int rv;
+
+	rv = BUS_PROBE_NOWILDCARD;
+
+#ifdef FDT
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data != 0) {
+		rv = BUS_PROBE_DEFAULT;
+	}
+#endif
 
 	device_set_desc(dev, "PWM Control");
-	return (BUS_PROBE_NOWILDCARD);
+	return (rv);
 }
 
 static int
@@ -111,7 +167,6 @@ pwmc_attach(device_t dev)
 {
 	struct pwmc_softc *sc;
 	struct make_dev_args args;
-	const char *label;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -134,11 +189,7 @@ pwmc_attach(device_t dev)
 		return (error);
 	}
 
-	/* If there is a label hint, create an alias with that name. */
-	if (resource_string_value(device_get_name(dev), device_get_unit(dev),
-	    "label", &label) == 0) {
-		make_dev_alias(sc->cdev, "pwm/%s", label);
-	}
+	pwmc_setup_label(sc);
 
 	return (0);
 }

@@ -2704,6 +2704,7 @@ dev/pwm/pwmc.c			optional pwm | pwmc
 dev/pwm/pwmbus.c		optional pwm | pwmbus
 dev/pwm/pwmbus_if.m		optional pwm | pwmbus
 dev/pwm/ofw_pwm.c		optional pwm fdt | pwmbus fdt
+dev/pwm/ofw_pwmbus.c		optional pwm fdt | pwmbus fdt
 dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
