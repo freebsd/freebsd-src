@@ -37,6 +37,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +49,18 @@
 #define	PWM_SHOW_CONFIG	0x0004
 #define	PWM_PERIOD	0x0008
 #define	PWM_DUTY	0x0010
+
+static char device_name[PATH_MAX] = "/dev/pwm/pwmc0.0";
+
+static void
+set_device_name(const char *name)
+{
+
+	if (name[0] == '/')
+		strlcpy(device_name, name, sizeof(device_name));
+	else
+		snprintf(device_name, sizeof(device_name), "/dev/pwm/%s", name);
+}
 
 static void
 usage(void)
@@ -72,8 +85,10 @@ main(int argc, char *argv[])
 	cap_rights_t right_ioctl;
 	const unsigned long pwm_ioctls[] = {PWMGETSTATE, PWMSETSTATE, PWMMAXCHANNEL};
 	char *percent;
+	bool setname;
 
 	action = 0;
+	setname = false;
 	fd = -1;
 	channel = -1u;
 	period = duty = -1;
@@ -115,24 +130,23 @@ main(int argc, char *argv[])
 			channel = strtoul(optarg, NULL, 10);
 			break;
 		case 'f':
-			if ((fd = open(optarg, O_RDWR)) < 0) {
-				fprintf(stderr, "pwm: cannot open %s %s\n",
-				  optarg, strerror(errno));
-				exit(1);
-			}
+			setname = true;
+			set_device_name(optarg);
+			break;
 		}
 	}
 
-	if (fd == -1) {
-		if ((fd = open("/dev/pwmc0", O_RDWR)) < 0) {
-			fprintf(stderr, "pwm: cannot open %s %s\n",
-			    optarg, strerror(errno));
-			exit(1);
-		}
-	}
-
-	if (action == 0 || fd == -1)
+	if (action == 0)
 		usage();
+
+	if ((fd = open(device_name, O_RDWR)) == -1) {
+		fprintf(stderr, "pwm: cannot open %s: %s\n",
+		    device_name, strerror(errno));
+		if (setname)
+			exit(1);
+		else
+			usage();
+	}
 
 	if (caph_limit_stdio() < 0) {
 		fprintf(stderr, "can't limit stdio rights");
