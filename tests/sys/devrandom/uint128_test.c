@@ -209,8 +209,7 @@ ATF_TC_BODY(uint128_chacha_ctr, tc)
 		vec_u32_tole128(expectedle, tests[i].expected);
 
 		a = le128dec(inputle);
-		randomdev_keystream(&context, &a, trash, sizeof(trash) /
-		    RANDOM_BLOCKSIZE);
+		randomdev_keystream(&context, &a, trash, sizeof(trash));
 		u128_check_equality(le128dec(expectedle), a, tests[i].descr);
 	}
 
