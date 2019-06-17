@@ -57,7 +57,7 @@ utility can be used to configure pwm controllers.
 The options are as follow:
 .Bl -tag -width "-c channel"
 .It Fl c Ar channel
-Channel number to operate on
+Channel number to operate on.
 .It Fl f Ar device
 Device to operate on.
 If not specified,
@@ -67,15 +67,18 @@ If an unqualified name is provided,
 .Pa /dev/pwm
 is automatically prepended.
 .It Fl E
-Enable the pwm channel
+Enable the pwm channel.
 .It Fl D
-Disable the pwm channel
+Disable the pwm channel.
 .It Fl C
-Show the configuration of the pwm channel
+Show the configuration of the pwm channel.
 .It Fl p Ar period
 Configure the period (in nanoseconds) of the pwm channel
 .It Fl d Ar duty
-Configure the duty (in nanoseconds or percentage) of the pwm channel
+Configure the duty (in nanoseconds or percentage) of the pwm channel.
+Duty is the portion of the
+.Ar period
+during which the signal is asserted.
 .El
 .Sh EXAMPLES
 .Bl -bullet
