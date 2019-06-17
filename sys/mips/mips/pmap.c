@@ -1553,7 +1553,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
-	vm_page_unwire(m, PQ_NONE);
+	vm_page_unwire_noq(m);
 	vm_page_free(m);
 }
 
