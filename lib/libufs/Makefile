@@ -5,7 +5,8 @@ LIB=	ufs
 SHLIBDIR?= /lib
 SHLIB_MAJOR=	7
 
-SRCS=	block.c cgroup.c crc32.c inode.c sblock.c type.c ffs_subr.c ffs_tables.c
+SRCS=	block.c cgroup.c gsb_crc32.c inode.c sblock.c type.c ffs_subr.c
+SRCS+= ffs_tables.c
 INCS=	libufs.h
 
 MAN=	bread.3 cgread.3 getinode.3 libufs.3 sbread.3 ufs_disk_close.3
