@@ -317,7 +317,13 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 		if (bcount < biosize) {
 			/* If near EOF, don't do readahead */
 			err = bread(vp, lbn, bcount, NOCRED, &bp);
-		/* TODO: clustered read */
+		} else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
+			/* Try clustered read */
+			long totread = uio->uio_resid + on;
+			seqcount = MIN(seqcount,
+				data->max_readahead / biosize + 1);
+			err = cluster_read(vp, filesize, lbn, bcount, NOCRED,
+				totread, seqcount, 0, &bp);
 		} else if (seqcount > 1 && data->max_readahead >= nextsize) {
 			/* Try non-clustered readahead */
 			err = breadn(vp, lbn, bcount, &nextlbn, &nextsize, 1,
