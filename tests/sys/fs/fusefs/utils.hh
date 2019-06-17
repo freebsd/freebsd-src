@@ -54,6 +54,7 @@ class FuseTest : public ::testing::Test {
 	bool m_push_symlinks_in;
 	bool m_ro;
 	bool m_async;
+	bool m_noclusterr;
 	MockFS *m_mock = NULL;
 	const static uint64_t FH = 0xdeadbeef1a7ebabe;
 
@@ -70,7 +71,8 @@ class FuseTest : public ::testing::Test {
 		m_pm(BLOCKING),
 		m_push_symlinks_in(false),
 		m_ro(false),
-		m_async(false)
+		m_async(false),
+		m_noclusterr(false)
 	{}
 
 	virtual void SetUp();

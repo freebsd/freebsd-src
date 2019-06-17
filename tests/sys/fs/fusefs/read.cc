@@ -109,9 +109,12 @@ virtual void SetUp() {
 }
 };
 
-class ReadAhead: public ReadCacheable, public WithParamInterface<uint32_t> {
+class ReadAhead: public ReadCacheable,
+		 public WithParamInterface<tuple<bool, uint32_t>>
+{
 	virtual void SetUp() {
-		m_maxreadahead = GetParam();
+		m_maxreadahead = get<1>(GetParam());
+		m_noclusterr = get<0>(GetParam());
 		ReadCacheable::SetUp();
 	}
 };
@@ -746,6 +749,48 @@ TEST_F(ReadCacheable, DISABLED_sendfile_eio)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
+/* Large reads should be clustered, even across cache block boundaries */
+/* 
+ * Disabled because clustered reads requires VOP_BMAP, which fusefs does not
+ * yet support
+ */
+TEST_P(ReadAhead, DISABLED_cluster) {
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd, maxcontig;
+	ssize_t bufsize = 4 * m_maxbcachebuf;
+	ssize_t filesize = bufsize;
+	uint64_t len;
+	char *rbuf, *contents;
+	off_t offs;
+
+	contents = (char*)malloc(filesize);
+	ASSERT_NE(NULL, contents);
+	memset(contents, 'X', filesize);
+	rbuf = (char*)calloc(1, bufsize);
+
+	expect_lookup(RELPATH, ino, filesize);
+	expect_open(ino, 0, 1);
+	maxcontig = m_noclusterr ? m_maxbcachebuf :
+				   m_maxbcachebuf + (int)get<1>(GetParam());
+	for (offs = 0; offs < bufsize; offs += maxcontig) {
+		len = std::min((size_t)maxcontig, (size_t)(filesize - offs));
+		expect_read(ino, offs, len, len, contents + offs);
+	}
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	/* Set the internal readahead counter to a "large" value */
+	ASSERT_EQ(0, fcntl(fd, F_READAHEAD, 1'000'000'000)) << strerror(errno);
+
+	ASSERT_EQ(bufsize, read(fd, rbuf, bufsize)) << strerror(errno);
+	ASSERT_EQ(0, memcmp(rbuf, contents, bufsize));
+
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
 /* fuse(4) should honor the filesystem's requested m_readahead parameter */
 TEST_P(ReadAhead, readahead) {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -753,7 +798,7 @@ TEST_P(ReadAhead, readahead) {
 	uint64_t ino = 42;
 	int fd, i;
 	ssize_t bufsize = m_maxbcachebuf;
-	ssize_t filesize = m_maxbcachebuf * 4;
+	ssize_t filesize = m_maxbcachebuf * 6;
 	char *rbuf, *contents;
 
 	contents = (char*)malloc(filesize);
@@ -765,7 +810,7 @@ TEST_P(ReadAhead, readahead) {
 	expect_open(ino, 0, 1);
 	/* fuse(4) should only read ahead the allowed amount */
 	expect_read(ino, 0, m_maxbcachebuf, m_maxbcachebuf, contents);
-	for (i = 0; i < (int)GetParam() / m_maxbcachebuf; i++) {
+	for (i = 0; i < (int)get<1>(GetParam()) / m_maxbcachebuf; i++) {
 		off_t offs = (i + 1) * m_maxbcachebuf;
 		expect_read(ino, offs, m_maxbcachebuf, m_maxbcachebuf,
 			contents + offs);
@@ -783,4 +828,10 @@ TEST_P(ReadAhead, readahead) {
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-INSTANTIATE_TEST_CASE_P(RA, ReadAhead, ::testing::Values(0u, 65536));
+INSTANTIATE_TEST_CASE_P(RA, ReadAhead,
+	Values(tuple<bool, int>(false, 0u),
+	       tuple<bool, int>(false, 0x10000),
+	       tuple<bool, int>(false, 0x20000),
+	       tuple<bool, int>(false, 0x30000),
+	       tuple<bool, int>(true, 0u),
+	       tuple<bool, int>(true, 0x10000)));

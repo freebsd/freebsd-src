@@ -113,7 +113,7 @@ void FuseTest::SetUp() {
 		m_mock = new MockFS(m_maxreadahead, m_allow_other,
 			m_default_permissions, m_push_symlinks_in, m_ro,
 			m_pm, m_init_flags, m_kernel_minor_version,
-			m_maxwrite, m_async);
+			m_maxwrite, m_async, m_noclusterr);
 		/* 
 		 * FUSE_ACCESS is called almost universally.  Expecting it in
 		 * each test case would be super-annoying.  Instead, set a
