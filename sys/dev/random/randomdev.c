@@ -172,17 +172,21 @@ randomdev_wait_until_seeded(bool interruptible)
 int
 READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 {
-	uint8_t *random_buf;
-	int error;
-	ssize_t read_len, total_read, c;
 	/* 16 MiB takes about 0.08 s CPU time on my 2017 AMD Zen CPU */
 #define SIGCHK_PERIOD (16 * 1024 * 1024)
 	const size_t sigchk_period = SIGCHK_PERIOD;
-
 	CTASSERT(SIGCHK_PERIOD % PAGE_SIZE == 0);
 #undef SIGCHK_PERIOD
 
-	random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
+	uint8_t *random_buf;
+	size_t total_read, read_len;
+	ssize_t bufsize;
+	int error;
+
+
+	KASSERT(uio->uio_rw == UIO_READ, ("%s: bogus write", __func__));
+	KASSERT(uio->uio_resid >= 0, ("%s: bogus negative resid", __func__));
+
 	p_random_alg_context->ra_pre_read();
 	error = 0;
 	/* (Un)Blocking logic */
@@ -193,44 +197,64 @@ READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 			error = randomdev_wait_until_seeded(
 			    SEEDWAIT_INTERRUPTIBLE);
 	}
-	if (error == 0) {
-		read_rate_increment((uio->uio_resid + sizeof(uint32_t))/sizeof(uint32_t));
-		total_read = 0;
-		while (uio->uio_resid && !error) {
-			read_len = uio->uio_resid;
-			/*
-			 * Belt-and-braces.
-			 * Round up the read length to a crypto block size multiple,
-			 * which is what the underlying generator is expecting.
-			 * See the random_buf size requirements in the Fortuna code.
-			 */
-			read_len = roundup(read_len, RANDOM_BLOCKSIZE);
-			/* Work in chunks page-sized or less */
-			read_len = MIN(read_len, PAGE_SIZE);
-			p_random_alg_context->ra_read(random_buf, read_len);
-			c = MIN(uio->uio_resid, read_len);
-			/*
-			 * uiomove() may yield the CPU before each 'c' bytes
-			 * (up to PAGE_SIZE) are copied out.
-			 */
-			error = uiomove(random_buf, c, uio);
-			total_read += c;
-			/*
-			 * Poll for signals every few MBs to avoid very long
-			 * uninterruptible syscalls.
-			 */
-			if (error == 0 && uio->uio_resid != 0 &&
-			    total_read % sigchk_period == 0) {
-				error = tsleep_sbt(&random_alg_context, PCATCH,
-				    "randrd", SBT_1NS, 0, C_HARDCLOCK);
-				/* Squash tsleep timeout condition */
-				if (error == EWOULDBLOCK)
-					error = 0;
-			}
-		}
-		if (error == ERESTART || error == EINTR)
-			error = 0;
+	if (error != 0)
+		return (error);
+
+	read_rate_increment(howmany(uio->uio_resid + 1, sizeof(uint32_t)));
+	total_read = 0;
+
+	/* Easy to deal with the trivial 0 byte case. */
+	if (__predict_false(uio->uio_resid == 0))
+		return (0);
+
+	/*
+	 * If memory is plentiful, use maximally sized requests to avoid
+	 * per-call algorithm overhead.  But fall back to a single page
+	 * allocation if the full request isn't immediately available.
+	 */
+	bufsize = MIN(sigchk_period, (size_t)uio->uio_resid);
+	random_buf = malloc(bufsize, M_ENTROPY, M_NOWAIT);
+	if (random_buf == NULL) {
+		bufsize = PAGE_SIZE;
+		random_buf = malloc(bufsize, M_ENTROPY, M_WAITOK);
 	}
+
+	error = 0;
+	while (uio->uio_resid > 0 && error == 0) {
+		read_len = MIN((size_t)uio->uio_resid, bufsize);
+
+		p_random_alg_context->ra_read(random_buf, read_len);
+
+		/*
+		 * uiomove() may yield the CPU before each 'read_len' bytes (up
+		 * to bufsize) are copied out.
+		 */
+		error = uiomove(random_buf, read_len, uio);
+		total_read += read_len;
+
+		/*
+		 * Poll for signals every few MBs to avoid very long
+		 * uninterruptible syscalls.
+		 */
+		if (error == 0 && uio->uio_resid != 0 &&
+		    total_read % sigchk_period == 0) {
+			error = tsleep_sbt(&random_alg_context, PCATCH,
+			    "randrd", SBT_1NS, 0, C_HARDCLOCK);
+			/* Squash tsleep timeout condition */
+			if (error == EWOULDBLOCK)
+				error = 0;
+		}
+	}
+
+	/*
+	 * Short reads due to signal interrupt should not indicate error.
+	 * Instead, the uio will reflect that the read was shorter than
+	 * requested.
+	 */
+	if (error == ERESTART || error == EINTR)
+		error = 0;
+
+	explicit_bzero(random_buf, bufsize);
 	free(random_buf, M_ENTROPY);
 	return (error);
 }
@@ -249,7 +273,6 @@ READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 void
 READ_RANDOM(void *random_buf, u_int len)
 {
-	u_int read_directly_len;
 
 	KASSERT(random_buf != NULL, ("No suitable random buffer in %s", __func__));
 	p_random_alg_context->ra_pre_read();
@@ -278,23 +301,7 @@ READ_RANDOM(void *random_buf, u_int len)
 		(void)randomdev_wait_until_seeded(SEEDWAIT_UNINTERRUPTIBLE);
 	}
 	read_rate_increment(roundup2(len, sizeof(uint32_t)));
-	/*
-	 * The underlying generator expects multiples of
-	 * RANDOM_BLOCKSIZE.
-	 */
-	read_directly_len = rounddown(len, RANDOM_BLOCKSIZE);
-	if (read_directly_len > 0)
-		p_random_alg_context->ra_read(random_buf, read_directly_len);
-	if (read_directly_len < len) {
-		uint8_t remainder_buf[RANDOM_BLOCKSIZE];
-
-		p_random_alg_context->ra_read(remainder_buf,
-		    sizeof(remainder_buf));
-		memcpy((char *)random_buf + read_directly_len, remainder_buf,
-		    len - read_directly_len);
-
-		explicit_bzero(remainder_buf, sizeof(remainder_buf));
-	}
+	p_random_alg_context->ra_read(random_buf, len);
 }
 
 bool
