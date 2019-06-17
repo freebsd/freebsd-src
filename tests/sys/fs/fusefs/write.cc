@@ -92,6 +92,23 @@ void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 
 };
 
+class WriteCacheable: public Write {
+public:
+virtual void SetUp() {
+	const char *node = "vfs.fusefs.data_cache_mode";
+	int val = 0;
+	size_t size = sizeof(val);
+
+	FuseTest::SetUp();
+
+	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
+		<< strerror(errno);
+	if (val == 0)
+		GTEST_SKIP() <<
+			"fusefs data caching must be enabled for this test";
+}
+};
+
 sig_atomic_t Write::s_sigxfsz = 0;
 
 class Write_7_8: public FuseTest {
@@ -483,8 +500,7 @@ TEST_F(Write, rlimit_fsize)
  * write, then it must set the FUSE_WRITE_CACHE bit
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236378 */
-// TODO: check vfs.fusefs.mmap_enable
-TEST_F(Write, mmap)
+TEST_F(WriteCacheable, mmap)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
