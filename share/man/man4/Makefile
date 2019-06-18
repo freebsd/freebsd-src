@@ -418,6 +418,7 @@ MAN=	aac.4 \
 	pts.4 \
 	pty.4 \
 	puc.4 \
+	pwmc.4 \
 	${_qlxge.4} \
 	${_qlxgb.4} \
 	${_qlxgbe.4} \
