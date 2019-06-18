@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190618: sys/capability.h removed (sys/capsicum.h is the one to use)
+OLD_FILES+=usr/include/sys/capability.h
 # 20190615: sys/pwm.h renamed to dev/pwmc.h
 OLD_FILES+=usr/include/sys/pwm.h
 # 20190612: new clang import which bumps version from 8.0.0 to 8.0.1.
