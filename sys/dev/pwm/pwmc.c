@@ -108,33 +108,24 @@ static struct cdevsw pwm_cdevsw = {
 	.d_ioctl	= pwm_ioctl
 };
 
-#ifdef FDT
-
 static void
 pwmc_setup_label(struct pwmc_softc *sc)
 {
+	const char *hintlabel;
+#ifdef FDT
 	void *label;
 
 	if (OF_getprop_alloc(ofw_bus_get_node(sc->dev), "label", &label) > 0) {
 		make_dev_alias(sc->cdev, "pwm/%s", (char *)label);
 		OF_prop_free(label);
 	}
-}
-
-#else /* FDT */
-
-static void
-pwmc_setup_label(struct pwmc_softc *sc)
-{
-	const char *label;
+#endif
 
 	if (resource_string_value(device_get_name(sc->dev),
-	    device_get_unit(sc->dev), "label", &label) == 0) {
-		make_dev_alias(sc->cdev, "pwm/%s", label);
+	    device_get_unit(sc->dev), "label", &hintlabel) == 0) {
+		make_dev_alias(sc->cdev, "pwm/%s", hintlabel);
 	}
 }
-
-#endif /* FDT */
 
 static int
 pwmc_probe(device_t dev)
