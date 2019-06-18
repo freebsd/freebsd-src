@@ -475,6 +475,7 @@ run_command(struct cfjail *j)
 		if (down) {
 			argv[4] = NULL;
 			argv[3] = argv[1];
+			argv[1] = "-ft";
 			argv[0] = "/sbin/umount";
 		} else {
 			if (argc == 4) {
@@ -488,9 +489,9 @@ run_command(struct cfjail *j)
 				argv[4] = argv[1];
 				argv[3] = argv[0];
 			}
+			argv[1] = "-t";
 			argv[0] = _PATH_MOUNT;
 		}
-		argv[1] = "-t";
 		break;
 
 	case IP_MOUNT_DEVFS:
