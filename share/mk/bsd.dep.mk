@@ -264,7 +264,9 @@ _depfile=	${.OBJDIR}/${_dep_obj}
 # - For meta mode we still need to know which file to depend on to avoid
 #   ambiguous suffix transformation rules from .PATH.  Meta mode does not
 #   use .depend files when filemon is in use.
-${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
+.if !target(${__obj})
+${__obj}: ${OBJS_DEPEND_GUESS}
+.endif
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .endif	# !exists(${_depfile}) || defined(_meta_filemon)
 .endfor
