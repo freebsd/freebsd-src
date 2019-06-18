@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -43,8 +43,8 @@
 
 
 #define I40E_FW_API_VERSION_MAJOR	0x0001
-#define I40E_FW_API_VERSION_MINOR_X722	0x0005
-#define I40E_FW_API_VERSION_MINOR_X710	0x0007
+#define I40E_FW_API_VERSION_MINOR_X722	0x0008
+#define I40E_FW_API_VERSION_MINOR_X710	0x0008
 
 #define I40E_FW_MINOR_VERSION(_h) ((_h)->mac.type == I40E_MAC_XL710 ? \
 					I40E_FW_API_VERSION_MINOR_X710 : \
@@ -52,6 +52,8 @@
 
 /* API version 1.7 implements additional link and PHY-specific APIs  */
 #define I40E_MINOR_VER_GET_LINK_INFO_XL710 0x0007
+/* API version 1.6 for X722 devices adds ability to stop FW LLDP agent */
+#define I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722 0x0006
 
 struct i40e_aq_desc {
 	__le16 flags;
@@ -289,6 +291,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_get_cee_dcb_cfg	= 0x0A07,
 	i40e_aqc_opc_lldp_set_local_mib	= 0x0A08,
 	i40e_aqc_opc_lldp_stop_start_spec_agent	= 0x0A09,
+	i40e_aqc_opc_lldp_restore		= 0x0A0A,
 
 	/* Tunnel commands */
 	i40e_aqc_opc_add_udp_tunnel	= 0x0B00,
@@ -1782,6 +1785,8 @@ enum i40e_aq_phy_type {
 	I40E_PHY_TYPE_25GBASE_LR		= 0x22,
 	I40E_PHY_TYPE_25GBASE_AOC		= 0x23,
 	I40E_PHY_TYPE_25GBASE_ACC		= 0x24,
+	I40E_PHY_TYPE_2_5GBASE_T		= 0x30,
+	I40E_PHY_TYPE_5GBASE_T			= 0x31,
 	I40E_PHY_TYPE_MAX,
 	I40E_PHY_TYPE_NOT_SUPPORTED_HIGH_TEMP	= 0xFD,
 	I40E_PHY_TYPE_EMPTY			= 0xFE,
@@ -1823,19 +1828,25 @@ enum i40e_aq_phy_type {
 				BIT_ULL(I40E_PHY_TYPE_25GBASE_SR) | \
 				BIT_ULL(I40E_PHY_TYPE_25GBASE_LR) | \
 				BIT_ULL(I40E_PHY_TYPE_25GBASE_AOC) | \
-				BIT_ULL(I40E_PHY_TYPE_25GBASE_ACC))
+				BIT_ULL(I40E_PHY_TYPE_25GBASE_ACC) | \
+				BIT_ULL(I40E_PHY_TYPE_2_5GBASE_T) | \
+				BIT_ULL(I40E_PHY_TYPE_5GBASE_T))
 
+#define I40E_LINK_SPEED_2_5GB_SHIFT	0x0
 #define I40E_LINK_SPEED_100MB_SHIFT	0x1
 #define I40E_LINK_SPEED_1000MB_SHIFT	0x2
 #define I40E_LINK_SPEED_10GB_SHIFT	0x3
 #define I40E_LINK_SPEED_40GB_SHIFT	0x4
 #define I40E_LINK_SPEED_20GB_SHIFT	0x5
 #define I40E_LINK_SPEED_25GB_SHIFT	0x6
+#define I40E_LINK_SPEED_5GB_SHIFT	0x7
 
 enum i40e_aq_link_speed {
 	I40E_LINK_SPEED_UNKNOWN	= 0,
 	I40E_LINK_SPEED_100MB	= (1 << I40E_LINK_SPEED_100MB_SHIFT),
 	I40E_LINK_SPEED_1GB	= (1 << I40E_LINK_SPEED_1000MB_SHIFT),
+	I40E_LINK_SPEED_2_5GB	= (1 << I40E_LINK_SPEED_2_5GB_SHIFT),
+	I40E_LINK_SPEED_5GB	= (1 << I40E_LINK_SPEED_5GB_SHIFT),
 	I40E_LINK_SPEED_10GB	= (1 << I40E_LINK_SPEED_10GB_SHIFT),
 	I40E_LINK_SPEED_40GB	= (1 << I40E_LINK_SPEED_40GB_SHIFT),
 	I40E_LINK_SPEED_20GB	= (1 << I40E_LINK_SPEED_20GB_SHIFT),
@@ -1865,12 +1876,15 @@ struct i40e_aq_get_phy_abilities_resp {
 #define I40E_AQ_PHY_FEC_ABILITY_KR	0x40
 #define I40E_AQ_PHY_FEC_ABILITY_RS	0x80
 	__le16	eee_capability;
+#define I40E_AQ_EEE_AUTO		0x0001
 #define I40E_AQ_EEE_100BASE_TX		0x0002
 #define I40E_AQ_EEE_1000BASE_T		0x0004
 #define I40E_AQ_EEE_10GBASE_T		0x0008
 #define I40E_AQ_EEE_1000BASE_KX		0x0010
 #define I40E_AQ_EEE_10GBASE_KX4		0x0020
 #define I40E_AQ_EEE_10GBASE_KR		0x0040
+#define I40E_AQ_EEE_2_5GBASE_T		0x0100
+#define I40E_AQ_EEE_5GBASE_T		0x0200
 	__le32	eeer_val;
 	u8	d3_lpan;
 #define I40E_AQ_SET_PHY_D3_LPAN_ENA	0x01
@@ -1881,6 +1895,8 @@ struct i40e_aq_get_phy_abilities_resp {
 #define I40E_AQ_PHY_TYPE_EXT_25G_LR	0x08
 #define I40E_AQ_PHY_TYPE_EXT_25G_AOC	0x10
 #define I40E_AQ_PHY_TYPE_EXT_25G_ACC	0x20
+#define I40E_AQ_PHY_TYPE_EXT_2_5GBASE_T	0x40
+#define I40E_AQ_PHY_TYPE_EXT_5GBASE_T	0x80
 	u8	fec_cfg_curr_mod_ext_info;
 #define I40E_AQ_ENABLE_FEC_KR		0x01
 #define I40E_AQ_ENABLE_FEC_RS		0x02
@@ -2122,15 +2138,29 @@ enum i40e_aq_phy_reg_type {
 	I40E_AQC_PHY_REG_EXERNAL_MODULE	= 0x3
 };
 
+#pragma pack(1)
 /* Run PHY Activity (0x0626) */
 struct i40e_aqc_run_phy_activity {
-	__le16  activity_id;
-	u8      flags;
-	u8      reserved1;
-	__le32  control;
-	__le32  data;
-	u8      reserved2[4];
+	u8	cmd_flags;
+	__le16	activity_id;
+#define I40E_AQ_RUN_PHY_ACTIVITY_ACTIVITY_ID_USER_DEFINED	0x10
+	u8	reserved;
+	union {
+		struct {
+			__le32  dnl_opcode;
+#define I40E_AQ_RUN_PHY_ACTIVITY_DNL_OPCODE_GET_EEE_STATISTICS	0x801b
+			__le32  data;
+			u8	reserved2[4];
+		} cmd;
+		struct {
+			__le32	cmd_status;
+#define I40E_AQ_RUN_PHY_ACTIVITY_CMD_STATUS_SUCCESS		0x4
+			__le32	data0;
+			__le32	data1;
+		} resp;
+	} params;
 };
+#pragma pack()
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_run_phy_activity);
 
@@ -2142,7 +2172,9 @@ struct i40e_aqc_phy_register_access {
 #define I40E_AQ_PHY_REG_ACCESS_EXTERNAL	1
 #define I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE	2
 	u8	dev_addres;
-	u8	reserved1[2];
+	u8	cmd_flags;
+#define I40E_AQ_PHY_REG_ACCESS_DONT_CHANGE_QSFP_PAGE	1
+	u8	reserved1;
 	__le32	reg_address;
 	__le32	reg_value;
 	u8	reserved2[4];
@@ -2157,6 +2189,8 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_phy_register_access);
 struct i40e_aqc_nvm_update {
 	u8	command_flags;
 #define I40E_AQ_NVM_LAST_CMD			0x01
+#define I40E_AQ_NVM_REARRANGE_TO_FLAT		0x20
+#define I40E_AQ_NVM_REARRANGE_TO_STRUCT		0x40
 #define I40E_AQ_NVM_FLASH_ONLY			0x80
 #define I40E_AQ_NVM_PRESERVATION_FLAGS_SHIFT	1
 #define I40E_AQ_NVM_PRESERVATION_FLAGS_MASK	0x03
@@ -2404,18 +2438,19 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_update_tlv);
 /* Stop LLDP (direct 0x0A05) */
 struct i40e_aqc_lldp_stop {
 	u8	command;
-#define I40E_AQ_LLDP_AGENT_STOP		0x0
-#define I40E_AQ_LLDP_AGENT_SHUTDOWN	0x1
+#define I40E_AQ_LLDP_AGENT_STOP			0x0
+#define I40E_AQ_LLDP_AGENT_SHUTDOWN		0x1
+#define I40E_AQ_LLDP_AGENT_STOP_PERSIST		0x2
 	u8	reserved[15];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_stop);
 
 /* Start LLDP (direct 0x0A06) */
-
 struct i40e_aqc_lldp_start {
 	u8	command;
-#define I40E_AQ_LLDP_AGENT_START	0x1
+#define I40E_AQ_LLDP_AGENT_START		0x1
+#define I40E_AQ_LLDP_AGENT_START_PERSIST	0x2
 	u8	reserved[15];
 };
 
@@ -2534,6 +2569,16 @@ struct i40e_aqc_lldp_stop_start_specific_agent {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_stop_start_specific_agent);
+
+/* Restore LLDP Agent factory settings (direct 0x0A0A) */
+struct i40e_aqc_lldp_restore {
+	u8	command;
+#define I40E_AQ_LLDP_AGENT_RESTORE_NOT		0x0
+#define I40E_AQ_LLDP_AGENT_RESTORE		0x1
+	u8	reserved[15];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_restore);
 
 /* Add Udp Tunnel command and completion (direct 0x0B00) */
 struct i40e_aqc_add_udp_tunnel {

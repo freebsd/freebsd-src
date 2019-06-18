@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -33,6 +33,7 @@
 /*$FreeBSD$*/
 
 #include <sys/limits.h>
+#include <sys/time.h>
 
 #include "ixl.h"
 
@@ -161,27 +162,15 @@ i40e_destroy_spinlock(struct i40e_spinlock *lock)
 		mtx_destroy(&lock->mutex);
 }
 
+#ifndef MSEC_2_TICKS
+#define MSEC_2_TICKS(m) max(1, (uint32_t)((hz == 1000) ? \
+	  (m) : ((uint64_t)(m) * (uint64_t)hz)/(uint64_t)1000))
+#endif
+
 void
 i40e_msec_pause(int msecs)
 {
-	int ticks_to_pause = (msecs * hz) / 1000;
-	int start_ticks = ticks;
-
-	if (cold || SCHEDULER_STOPPED()) {
-		i40e_msec_delay(msecs);
-		return;
-	}
-
-	while (1) {
-		kern_yield(PRI_USER);
-		int yielded_ticks = ticks - start_ticks;
-		if (yielded_ticks > ticks_to_pause)
-			break;
-		else if (yielded_ticks < 0
-		    && (yielded_ticks + INT_MAX + 1 > ticks_to_pause)) {
-			break;
-		}
-	}
+	pause("i40e_msec_pause", MSEC_2_TICKS(msecs));
 }
 
 /*

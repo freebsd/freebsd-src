@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -826,6 +826,7 @@ static const char *i40e_nvm_update_state_str[] = {
 	"I40E_NVMUPD_EXEC_AQ",
 	"I40E_NVMUPD_GET_AQ_RESULT",
 	"I40E_NVMUPD_GET_AQ_EVENT",
+	"I40E_NVMUPD_GET_FEATURES",
 };
 
 /**
@@ -884,6 +885,31 @@ enum i40e_status_code i40e_nvmupd_command(struct i40e_hw *hw,
 		/* Clear error status on read */
 		if (hw->nvmupd_state == I40E_NVMUPD_STATE_ERROR)
 			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+
+		return I40E_SUCCESS;
+	}
+
+	/*
+	 * A supported features request returns immediately
+	 * rather than going into state machine
+	 */
+	if (upd_cmd == I40E_NVMUPD_FEATURES) {
+		if (cmd->data_size < hw->nvmupd_features.size) {
+			*perrno = -EFAULT;
+			return I40E_ERR_BUF_TOO_SHORT;
+		}
+
+		/*
+		 * If buffer is bigger than i40e_nvmupd_features structure,
+		 * make sure the trailing bytes are set to 0x0.
+		 */
+		if (cmd->data_size > hw->nvmupd_features.size)
+			i40e_memset(bytes + hw->nvmupd_features.size, 0x0,
+				    cmd->data_size - hw->nvmupd_features.size,
+				    I40E_NONDMA_MEM);
+
+		i40e_memcpy(bytes, &hw->nvmupd_features,
+			    hw->nvmupd_features.size, I40E_NONDMA_MEM);
 
 		return I40E_SUCCESS;
 	}
@@ -1354,10 +1380,20 @@ static enum i40e_nvmupd_cmd i40e_nvmupd_validate_command(struct i40e_hw *hw,
 			upd_cmd = I40E_NVMUPD_READ_SA;
 			break;
 		case I40E_NVM_EXEC:
-			if (module == 0xf)
-				upd_cmd = I40E_NVMUPD_STATUS;
-			else if (module == 0)
+			switch (module) {
+			case I40E_NVM_EXEC_GET_AQ_RESULT:
 				upd_cmd = I40E_NVMUPD_GET_AQ_RESULT;
+				break;
+			case I40E_NVM_EXEC_FEATURES:
+				upd_cmd = I40E_NVMUPD_FEATURES;
+				break;
+			case I40E_NVM_EXEC_STATUS:
+				upd_cmd = I40E_NVMUPD_STATUS;
+				break;
+			default:
+				*perrno = -EFAULT;
+				return I40E_NVMUPD_INVALID;
+			}
 			break;
 		case I40E_NVM_AQE:
 			upd_cmd = I40E_NVMUPD_GET_AQ_EVENT;

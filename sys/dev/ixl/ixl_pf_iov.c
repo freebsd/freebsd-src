@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -197,15 +197,16 @@ ixl_vf_setup_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	int error;
 
 	hw = &pf->hw;
+	vf->vsi.flags |= IXL_FLAGS_IS_VF;
 
 	error = ixl_vf_alloc_vsi(pf, vf);
 	if (error != 0)
 		return (error);
 
-	vf->vsi.hw_filters_add = 0;
-	vf->vsi.hw_filters_del = 0;
-	ixl_add_filter(&vf->vsi, ixl_bcast_addr, IXL_VLAN_ANY);
-	ixl_reconfigure_filters(&vf->vsi);
+	vf->vsi.dev = pf->dev;
+	vf->vsi.num_hw_filters = 0;
+
+	ixl_init_filters(&vf->vsi);
 
 	return (0);
 }
@@ -1722,7 +1723,7 @@ ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 	struct i40e_hw *hw;
 	struct ixl_vsi *pf_vsi;
 	enum i40e_status_code ret;
-	int i, error;
+	int error;
 
 	pf = device_get_softc(dev);
 	hw = &pf->hw;
@@ -1737,9 +1738,6 @@ ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 		goto fail;
 	}
 
-	for (i = 0; i < num_vfs; i++)
-		sysctl_ctx_init(&pf->vfs[i].ctx);
-
 	ret = i40e_aq_add_veb(hw, pf_vsi->uplink_seid, pf_vsi->seid,
 	    1, FALSE, &pf->veb_seid, FALSE, NULL);
 	if (ret != I40E_SUCCESS) {
@@ -1748,6 +1746,13 @@ ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 		    error);
 		goto fail;
 	}
+
+	/*
+	 * Adding a VEB brings back the default MAC filter(s). Remove them,
+	 * and let the driver add the proper filters back.
+	 */
+	ixl_del_default_hw_filters(pf_vsi);
+	ixl_reconfigure_filters(pf_vsi);
 
 	pf->num_vfs = num_vfs;
 	IXL_PF_UNLOCK(pf);
@@ -1800,7 +1805,7 @@ ixl_iov_uninit(device_t dev)
 
 	/* Do this after the unlock as sysctl_ctx_free might sleep. */
 	for (i = 0; i < num_vfs; i++)
-		sysctl_ctx_free(&vfs[i].ctx);
+		sysctl_ctx_free(&vfs[i].vsi.sysctl_ctx);
 	free(vfs, M_IXL);
 }
 
@@ -1838,7 +1843,7 @@ ixl_vf_reserve_queues(struct ixl_pf *pf, struct ixl_vf *vf, int num_queues)
 int
 ixl_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 {
-	char sysctl_name[QUEUE_NAME_LEN];
+	char sysctl_name[IXL_QUEUE_NAME_LEN];
 	struct ixl_pf *pf;
 	struct ixl_vf *vf;
 	const void *mac;
@@ -1851,10 +1856,8 @@ ixl_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 
 	IXL_PF_LOCK(pf);
 	vf->vf_num = vfnum;
-
 	vf->vsi.back = pf;
 	vf->vf_flags = VF_FLAG_ENABLED;
-	SLIST_INIT(&vf->vsi.ftl);
 
 	/* Reserve queue allocation from PF */
 	vf_num_queues = nvlist_get_number(params, "num-queues");
@@ -1892,7 +1895,7 @@ out:
 	IXL_PF_UNLOCK(pf);
 	if (error == 0) {
 		snprintf(sysctl_name, sizeof(sysctl_name), "vf%d", vfnum);
-		ixl_add_vsi_sysctls(pf, &vf->vsi, &vf->ctx, sysctl_name);
+		ixl_vsi_add_sysctls(&vf->vsi, sysctl_name, false);
 	}
 
 	return (error);

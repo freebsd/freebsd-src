@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -83,8 +83,8 @@ ixl_pf_qmgr_alloc_contiguous(struct ixl_pf_qmgr *qmgr, u16 num, struct ixl_pf_qt
 	qtag->qmgr = qmgr;
 	qtag->type = IXL_PF_QALLOC_CONTIGUOUS;
 	qtag->qidx[0] = block_start;
-	qtag->num_allocated = num;
-	qtag->num_active = alloc_size;
+	qtag->num_allocated = alloc_size;
+	qtag->num_active = num;
 
 	return (0);
 }
