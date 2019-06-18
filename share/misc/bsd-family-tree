@@ -64,14 +64,14 @@ Tenth Edition     |                      |
    |                    |   4.4BSD-Encumbered  |             |
    |                -NetBSD 0.8                |           BSD/386 1.0
    |               /    |                      |             |
-FreeBSD 1.0 <-----'  NetBSD 0.9                |           BSD/386 1.1
+FreeBSD 1.0 <-----'     *--NetBSD 0.9          |           BSD/386 1.1
    |                    |           .----- 4.4BSD Lite       |
-FreeBSD 1.1             |          /   /       |     \       |
-   |                    |         /   /        |      \      |
-FreeBSD 1.1.5       .---|--------'   /         |       \     |
-   |               /    |           /          |        \    |
-FreeBSD 1.1.5.1   /     |          /           |         \   |
-   |             /   NetBSD 1.0 <-'            |          \  |
+FreeBSD 1.1             |          /     /     |     \       |
+   |                    |         /     |      |      \      |
+FreeBSD 1.1.5       .---|--------'      |      |       \     |
+   |               /    |               |      |        \    |
+FreeBSD 1.1.5.1   /     |               |      |         \   |
+   |             /      *--NetBSD 1.0 <-'      |          \  |
    |            /       |                      |           \ |
 FreeBSD 2.0 <--'        |                      |           BSD/OS 2.0
    |                     \                     |             |
@@ -83,9 +83,9 @@ FreeBSD 2.0.5             \                    |           BSD/OS 2.0.1
    |                 | |     |           OpenBSD 2.3 |       |
    |                 | |     |                BSD/OS 3.0     |
 FreeBSD 2.1          | |     |                               |
- |   |               | |  NetBSD 1.1 ------.               BSD/OS 2.1
- | FreeBSD 2.1.5     | |     |              \                |
- |     |             | |  NetBSD 1.2         \             BSD/OS 3.0
+ |   |               | |     *--NetBSD 1.1 -.              BSD/OS 2.1
+ | FreeBSD 2.1.5     | |     |               \               |
+ |     |             | |     *--NetBSD 1.2    \            BSD/OS 3.0
  | FreeBSD 2.1.6     | |     |  \          OpenBSD 2.0       |
  |     |             | |     |   \             |             |
  | FreeBSD 2.1.6.1   | |     |    \            |             |
@@ -103,7 +103,7 @@ FreeBSD 2.1          | |     |                               |
  |         |         | |     |                 |             |
  |     FreeBSD 2.2.5 | |     |                 |             |
  |         |         | |     |             OpenBSD 2.2       |
- |         |         | |  NetBSD 1.3           |             |
+ |         |         | |     *--NetBSD 1.3     |             |
  |     FreeBSD 2.2.6 | |     |    |            |             |
  |         |         | |     | NetBSD 1.3.1    |           BSD/OS 3.1
  |         |         | |     |    |        OpenBSD 2.3       |
@@ -119,7 +119,7 @@ FreeBSD 3.0 <--------* |     |    v            |             |
  |                     |     | NetBSD 1.3.3    |             |
  *---FreeBSD 3.1       |     |                 |             |
  |       |             |     |                 |           BSD/OS 4.0.1
- |   FreeBSD 3.2----*  |  NetBSD 1.4       OpenBSD 2.5       |
+ |   FreeBSD 3.2----*  |  .--*--NetBSD 1.4 OpenBSD 2.5       |
  |       |          |  |  |  |    |            |             |
  |       |          |  |  |  |    |            |             |
  |       |          |  |  |  |    |            |             |
@@ -142,7 +142,7 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |      |         Mac OS X   |             OpenBSD 2.8     BSD/OS 4.2
  |      |             |      |                 |             |
  |      |             |      |                 |             |
- |      |           10.0  NetBSD 1.5           |             |
+ |      |           10.0     *--NetBSD 1.5     |             |
  |   FreeBSD 4.3      |      |    |            |             |
  |      |             |      |    |        OpenBSD 2.9       |
  |      |             |      | NetBSD 1.5.1    |             |
@@ -157,7 +157,7 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |   FreeBSD 4.6.2 Mac OS X  |                 |             |
  |      |            10.2    |                 |             |
  |   FreeBSD 4.7      |      |                 |             |
- |      |             |   NetBSD 1.6       OpenBSD 3.2       |
+ |      |             |      *--NetBSD 1.6 OpenBSD 3.2       |
  |   FreeBSD 4.8      |      |    |            |             |
  |      |             |      | NetBSD 1.6.1    |             |
  |      |--------.    |      |    |        OpenBSD 3.3     BSD/OS 5.0
@@ -176,7 +176,7 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |                    |      |                 |                      \
 FreeBSD 5.0           |      |                 |                       |
  |                    |      |                 |                       |
-FreeBSD 5.1           |      |                 |                DragonFly 1.0
+FreeBSD 5.1           |      |                 |               DragonFly 1.0
  |          \         |      |                 |                       |
  |           ----- Mac OS X  |                 |                       |
  |                   10.3    |                 |                       |
@@ -186,7 +186,7 @@ FreeBSD 5.2           |      |                 |                       |
  |                    |      |                 |                       |
  *-------FreeBSD 5.3  |      |                 |                       |
  |           |        |      |             OpenBSD 3.6                 |
- |           |        |   NetBSD 2.0           |                       |
+ |           |        |      *--NetBSD 2.0     |                       |
  |           |        |      | |  |            |               DragonFly 1.2.0
  |           |     Mac OS X  | | NetBSD 2.0.2  |                       |
  |           |       10.4    | |  |            |                       |
@@ -199,7 +199,7 @@ FreeBSD 5.2           |      |                 |                       |
  |     |     |        |      |  \              |                       |
  |     |     |        |      | NetBSD 2.1      |                       |
  |     |     |        |      |                 |                       |
- |     |     |        |   NetBSD 3.0           |                       |
+ |     |     |        |      *--NetBSD 3.0     |                       |
  |     |     |        |      | |  |            |               DragonFly 1.4.0
  |     |     |        |      | |  |        OpenBSD 3.9                 |
  |  FreeBSD  |        |      | |  |            |                       |
@@ -217,7 +217,7 @@ FreeBSD 5.2           |      |                 |                       |
  |     |           Mac OS X  |                 |                       |
  |     |             10.5    |                 |                       |
  |     |              |      |             OpenBSD 4.2                 |
- |     |              |   NetBSD 4.0           |                       |
+ |     |              |      *--NetBSD 4.0     |                       |
  | FreeBSD 6.3        |      |    |            |                       |
  |            \       |      |    |            |                       |
  *--FreeBSD    |      |      |    |            |               DragonFly 1.12.0
@@ -229,104 +229,112 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |      |                 |                       |
  |  FreeBSD 7.1       |      |                 |                       |
  |     |              |      |                 |               DragonFly 2.2.0
- |  FreeBSD 7.2       |   NetBSD 5.0       OpenBSD 4.5                 |
- |             \      |      | |    \          |                       |
- |              |  Mac OS X  | |     \         |                       |
- |              |    10.6    | |      \        |                       |
- |              |     |      | |   NetBSD      |               DragonFly 2.4.0
- |              |     |      | |    5.0.1  OpenBSD 4.6                 |
- |              |     |      | |       |       |                       |
- *--FreeBSD     |     |      | |       |       |                       |
- |    8.0       |     |      | |       |       |                       |
- |     |     FreeBSD  |      | |   NetBSD      |                       |
- |     |       7.3    |      | |    5.0.2      |               DragonFly 2.6.0
- |     |        |     |      | |           OpenBSD 4.7                 |
- |  FreeBSD     |     |      | |               |                       |
- |    8.1       |     |      | |               |                       |
- |     |        |     |      | |               |               DragonFly 2.8.2
- |     |        |     |      | |           OpenBSD 4.8                 |
- |     |        |     |      | *--NetBSD       |                       |
- |  FreeBSD  FreeBSD  |      | |    5.1        |                       |
- |    8.2      7.4    |      | |      |        |               DragonFly 2.10.1
- |     |              |      | |      |    OpenBSD 4.9                 |
- |     `-----.     Mac OS X  | |      |        |                       |
- |            \      10.7    | |      |        |                       |
- |             |      |      | |      |    OpenBSD 5.0                 |
- *--FreeBSD    |      |      | |      |        |                       |
- |    9.0      |      |      | |   NetBSD      |               DragonFly 3.0.1
- |     |    FreeBSD   |      | |    5.1.2      |                       |
- |     |      8.3     |      | |      |        |                       |
- |     |       |      |      | |   NetBSD      |                       |
- |     |       |      |      | |    5.1.3      |                       |
- |     |       |      |      | |      |        |                       |
- |     |       |      |      | |   NetBSD      |                       |
- |     |       |      |      | |    5.1.4      |                       |
- |     |       |      |      | |           OpenBSD 5.1                 |
- |     |       |   Mac OS X  | `----.          |                       |
- |     |       |     10.8    |       \         |                       |
- |     |       |      |   NetBSD 6.0  |        |                       |
- |     |       |      |      | | |    |    OpenBSD 5.2         DragonFly 3.2.1
- |  FreeBSD    |      |      | | | NetBSD      |                       |
- |    9.1      |      |      | | |   5.2       |                       |
- |     |       |      |      | | |    |        |                       |
- |     |       |      |      | | | NetBSD      |                       |
- |     |       |      |      | | |  5.2.1      |                       |
- |     |       |      |      | | |    |        |                       |
- |     |       |      |      | | | NetBSD      |                       |
- |     |       |      |      | | |  5.2.2      |                       |
- |     |       |      |      | | |             |                       |
- |     |       |      |      | |  \            |                       |
- |     |       |      |      | |   NetBSD      |                       |
- |     |       |      |      | |    6.0.1      |                       |
- |     |       |      |      | |      |   OpenBSD 5.3          DragonFly 3.4.1
- |     |       |      |      | |   NetBSD      |                       |
- |     |       |      |      | |    6.0.2      |                       |
- |     |       |      |      | |      |        |                       |
- |     |       |      |      | |   NetBSD      |                       |
- |     |       |      |      | |    6.0.3      |                       |
- |     |       |      |      | |      |        |                       |
- |     |       |      |      | |   NetBSD      |                       |
- |     |       |      |      | |    6.0.4      |                       |
- |     |       |      |      | |      |        |                       |
- |     |       |      |      | |   NetBSD      |                       |
- |     |       |      |      | |    6.0.5      |                       |
- |     |       |      |      | |      |        |                       |
- |     |       |      |      | |   NetBSD      |                       |
- |     |       |      |      | |    6.0.6      |                       |
- |     |       |      |      | |               |                       |
- |     |       |      |      | |`-NetBSD 6.1   |                       |
- |     |    FreeBSD   |      |       |         |                       |
- |     |      8.4     |      |    NetBSD 6.1.1 |                       |
- |     |              |      |       |         |                       |
- |  FreeBSD           |      |    NetBSD 6.1.2 |                       |
- |    9.2          Mac OS X  |       |         |                       |
- |     |             10.9    |       |    OpenBSD 5.4                  |
- |     `-----.        |      |       |         |               DragonFly 3.6.0
- |            \       |      |       |         |                       |
- *--FreeBSD    |      |      |    NetBSD 6.1.3 |                       |
- |   10.0      |      |      |       |         |                       |
- |     |       |      |      |       |         |               DragonFly 3.6.1
- |     |       |      |      |       |         |                       |
- |     |       |      |      |       |         |                       |
- |     |       |      |      |       |         |               DragonFly 3.6.2
- |     |       |      |      |    NetBSD 6.1.4 |                       |
- |     |       |      |      |       |         |                       |
- |     |       |      |      |       |    OpenBSD 5.5                  |
- |     |       |      |      |       |         |                       |
- |     |       |      |      |       |         |               DragonFly 3.8.0
- |     |       |      |      |       |         |                       |
- |     |       |      |      |       |         |                       |
- |     |       |      |      |       |         |               DragonFly 3.8.1
- |     |       |      |      |       |         |                       |
- |     |       |      |      |       |         |                       |
- |     |       |      |      |       |         |               DragonFly 3.6.3
- |     |       |      |      |       |         |                       |
- |     |    FreeBSD   |      |       |         |                       |
- |     |      9.3     |      |       |         |                       |
- |     |              |      |    NetBSD 6.1.5 |               DragonFly 3.8.2
+ |  FreeBSD 7.2       |      *--NetBSD     OpenBSD 4.5                 |
+ |             \      |      |   5.0           |                       |
+ |             \      |      |  / | \          |                       |
+ |              |  Mac OS X  |  | |  \         |                       |
+ |              |    10.6    |  | |   \        |                       |
+ |              |     |      |  | | NetBSD     |               DragonFly 2.4.0
+ |              |     |      |  | |  5.0.1 OpenBSD 4.6                 |
+ |              |     |      |  | |    |       |                       |
+ *--FreeBSD     |     |      |  | |    |       |                       |
+ |    8.0       |     |      |  | |    |       |                       |
+ |     |     FreeBSD  |      |  | | NetBSD     |                       |
+ |     |       7.3    |      |  | |  5.0.2     |               DragonFly 2.6.0
+ |     |        |     |      |  | |        OpenBSD 4.7                 |
+ |  FreeBSD     |     |      |  | |            |                       |
+ |    8.1       |     |      |  | |            |                       |
+ |     |        |     |      |  | |            |               DragonFly 2.8.2
+ |     |        |     |      |  | |        OpenBSD 4.8                 |
+ |     |        |     |      |  | *--NetBSD    |                       |
+ |  FreeBSD  FreeBSD  |      |  |    5.1       |                       |
+ |    8.2      7.4    |      |  |     |        |               DragonFly 2.10.1
+ |     |              |      |  |     |    OpenBSD 4.9                 |
+ |     `-----.     Mac OS X  |  |     |        |                       |
+ |            \      10.7    |  |     |        |                       |
+ |             |      |      |  |     |    OpenBSD 5.0                 |
+ *--FreeBSD    |      |      |  |     |        |                       |
+ |    9.0      |      |      |  |  NetBSD      |               DragonFly 3.0.1
+ |     |    FreeBSD   |      |  |   5.1.2      |                       |
+ |     |      8.3     |      |  |     |        |                       |
+ |     |       |      |      |  |  NetBSD      |                       |
+ |     |       |      |      |  |   5.1.3      |                       |
+ |     |       |      |      |  |     |        |                       |
+ |     |       |      |      |  |  NetBSD      |                       |
+ |     |       |      |      |  |   5.1.4      |                       |
+ |     |       |      |      |  |          OpenBSD 5.1                 |
+ |     |       |   Mac OS X  |  `--------.     |                       |
+ |     |       |     10.8    |           |     |                       |
+ |     |       |      |      *--NetBSD   |     |                       |
+ |     |       |      |      |    6.0    |     |                       | 
+ |     |       |      |      |    | |    | OpenBSD 5.2         DragonFly 3.2.1
+ |  FreeBSD    |      |      |    | | NetBSD   |                       |
+ |    9.1      |      |      |    | |   5.2    |                       |
+ |     |       |      |      |    | |    |     |                       |
+ |     |       |      |      |    | | NetBSD   |                       |
+ |     |       |      |      |    | |  5.2.1   |                       |
+ |     |       |      |      |    | |    |     |                       |
+ |     |       |      |      |    | | NetBSD   |                       |
+ |     |       |      |      |    | |  5.2.2   |                       |
+ |     |       |      |      |    | |          |                       |
+ |     |       |      |      |    |  \         |                       |
+ |     |       |      |      |    |   NetBSD   |                       |
+ |     |       |      |      |    |    6.0.1   |                       |
+ |     |       |      |      |    |      | OpenBSD 5.3         DragonFly 3.4.1
+ |     |       |      |      |    |   NetBSD   |                       |
+ |     |       |      |      |    |    6.0.2   |                       |
+ |     |       |      |      |    |      |     |                       |
+ |     |       |      |      |    |   NetBSD   |                       |
+ |     |       |      |      |    |    6.0.3   |                       |
+ |     |       |      |      |    |      |     |                       |
+ |     |       |      |      |    |   NetBSD   |                       |
+ |     |       |      |      |    |    6.0.4   |                       |
+ |     |       |      |      |    |      |     |                       |
+ |     |       |      |      |    |   NetBSD   |                       |
+ |     |       |      |      |    |    6.0.5   |                       |
+ |     |       |      |      |    |      |     |                       |
+ |     |       |      |      |    |   NetBSD   |                       |
+ |     |       |      |      |    |    6.0.6   |                       |
+ |     |       |      |      |    |            |                       |
+ |     |       |      |      |    *--NetBSD    |                       |
+ |     |       |      |      |         6.1     |                       |
+ |     |    FreeBSD   |      |          |      |                       |
+ |     |      8.4     |      |       NetBSD    |                       |
+ |     |       |      |      |        6.1.1    |                       |
+ |     |              |      |          |      |                       |
+ |  FreeBSD           |      |       NetBSD    |                       |
+ |    9.2             |      |        6.1.2    |                       |
+ |     |           Mac OS X  |          |      |                       |
+ |     |             10.9    |          |  OpenBSD 5.4                 |
+ |     `-----.        |      |          |      |               DragonFly 3.6.0
+ |            \       |      |          |      |                       |
+ *--FreeBSD    |      |      |       NetBSD    |                       |
+ |   10.0      |      |      |        6.1.3    |                       |
+ |     |       |      |      |          |      |                       |
+ |     |       |      |      |          |      |               DragonFly 3.6.1
+ |     |       |      |      |          |      |                       |
+ |     |       |      |      |          |      |                       |
+ |     |       |      |      |          |      |               DragonFly 3.6.2
+ |     |       |      |      |       NetBSD    |                       |
+ |     |       |      |      |        6.1.4    |                       |
+ |     |       |      |      |          |      |                       |
+ |     |       |      |      |          |  OpenBSD 5.5                 |
+ |     |       |      |      |          |      |                       |
+ |     |       |      |      |          |      |               DragonFly 3.8.0
+ |     |       |      |      |          |      |                       |
+ |     |       |      |      |          |      |                       |
+ |     |       |      |      |          |      |               DragonFly 3.8.1
+ |     |       |      |      |          |      |                       |
+ |     |       |      |      |          |      |                       |
+ |     |       |      |      |          |      |               DragonFly 3.6.3
+ |     |       |      |      |          |      |                       |
+ |     |    FreeBSD   |      |          |      |                       |
+ |     |      9.3     |      |          |      |                       |
+ |     |              |      |       NetBSD    |               DragonFly 3.8.2
+ |     |              |      |        6.1.5    |                       |
  |     |           Mac OS X  |                 |                       |
  |     |             10.10   |                 |                       |
- |     |              |      |            OpenBSD 5.6                  |
+ |     |              |      |             OpenBSD 5.6                 |
  |  FreeBSD           |      |                 |                       |
  |   10.1             |      |                 |               DragonFly 4.0.1
  |     |              |      |                 |                       |
@@ -338,54 +346,62 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |      |                 |                       |
  |     |              |      |                 |               DragonFly 4.0.5
  |     |              |      |                 |                       |
- |     |              |      |            OpenBSD 5.7                  |
+ |     |              |      |             OpenBSD 5.7                 |
  |     |              |      |                 |               DragonFly 4.2.0
  |  FreeBSD           |      |                 |                       |
  |   10.2             |      |                 |                       |
- |     |            macOS  NetBSD 7.0          |                       |
- |     |            10.11   | | |         OpenBSD 5.8                  |
- |     |              |     | | `--.           |               DragonFly 4.4.1
- |  FreeBSD           |     | |    |      OpenBSD 5.9                  |
- |   10.3             |     | |    |           |                       |
- |     |              |     | | NetBSD 7.0.1   |                       |
- |     `------.       |     | |    |           |               DragonFly 4.6.0
- |            |       |     | |    |           |                       |
- |            |       |     | |    |           |                       |
- *--FreeBSD   |     macOS   | |    |      OpenBSD 6.0                  |
- |   11.0     |     10.12   | | NetBSD 7.0.2   |                       |
- |     |      |       |     | |                |                       |
- |     |      |       |     | *- NetBSD 7.1    |                       |
- |     |      |       |     |      |           |                       |
- |     |      |       |     |      |           |                       |
- |     |      |     macOS   |      |           |               DragonFly 4.8.0
- |     |      |     10.13   |      |      OpenBSD 6.1                  |
- |  FreeBSD   |       |     |      |           |               DragonFly 5.0.0
- |   11.1  FreeBSD    |     |      |           |                       |
- |     |    10.4      |     |      |      OpenBSD 6.2          DragonFly 5.0.1
- |     |              |     |      |           |                       |
- |     `------.       |     |  NetBSD 7.1.1    |               DragonFly 5.0.2
- |            |       |     |      |           |                       |
- |            |       |     |  NetBSD 7.1.2    |                       |
- |            |       |     |      |           |                       |
- |            |       |     |      |      OpenBSD 6.3                  |
- |            |       |  NetBSD    |           |               DragonFly 5.2.0
- |            |       |    8.0     |           |                       |
- |            |       |     |      |           |               DragonFly 5.2.1
- |            |       |     |      |           |                       |
- |            |       |     |      |           |               DragonFly 5.2.2
- |         FreeBSD    |     |  NetBSD 7.2      |                       |
- |           11.2   macOS   |      |           |                       |
- |                  10.14   |      |      OpenBSD 6.4                  |
- |                    |     |      |           |               DragonFly 5.4.0
- *--FreeBSD           |     |      v           |                       |
- |   12.0             |     |                  |               DragonFly 5.4.1
- |                    |     |             OpenBSD 6.5                  |
- |                    |  NetBSD                |                       |
- |                    |    8.1                 |               DragonFly 5.6
- |                    |     |                  |                       |
-FreeBSD 13 -current   | NetBSD -current   OpenBSD -current    DragonFly -current
- |                    |     |                  |                       |
- v                    v     v                  v                       v
+ |     |            macOS    *--NetBSD 7.0     |                       |
+ |     |            10.11    |   | |       OpenBSD 5.8                 |
+ |     |              |      |   | `--.        |               DragonFly 4.4.1
+ |  FreeBSD           |      |   |    |    OpenBSD 5.9                 |
+ |   10.3             |      |   |    |        |                       |
+ |     |              |      |   | NetBSD      |                       |
+ |     |              |      |   |  7.0.1      |                       |
+ |     `------.       |      |   |    |        |               DragonFly 4.6.0
+ |            |       |      |   |    |        |                       |
+ |            |       |      |   |    |        |                       |
+ *--FreeBSD   |     macOS    |   |    |    OpenBSD 6.0                 |
+ |   11.0     |     10.12    |   | NetBSD      |                       |
+ |     |      |       |      |   |  7.0.2      |                       |
+ |     |      |       |      |   |             |                       |
+ |     |      |       |      |   *--NetBSD     |                       |
+ |     |      |       |      |   |   7.1       |                       |
+ |     |      |       |      |   |    |        |                       |
+ |     |      |       |      |   |    |        |                       |
+ |     |      |     macOS    |   |    |        |               DragonFly 4.8.0
+ |     |      |     10.13    |   |    |    OpenBSD 6.1                 |
+ |  FreeBSD   |       |      |   |    |        |               DragonFly 5.0.0
+ |   11.1  FreeBSD    |      |   |    |        |                       |
+ |     |    10.4      |      |   |    |    OpenBSD 6.2          DragonFly 5.0.1
+ |     |              |      |   |    |        |                       |
+ |     `------.       |      |   | NetBSD      |               DragonFly 5.0.2
+ |            |       |      |   |  7.1.1      |                       |
+ |            |       |      |   |    |        |                       |
+ |            |       |      |   | NetBSD      |                       |
+ |            |       |      |   |  7.1.2      `--.                    |
+ |            |       |      |   |                |                    |
+ |            |       |      |   `-----.      OpenBSD 6.3              |
+ |            |       |      *--NetBSD |          |             DragonFly 5.2.0
+ |            |       |      |   8.0   |          |                    |
+ |            |       |      |   |     |          |            DragonFly 5.2.1
+ |            |       |      |   |     |          |                    |
+ |            |       |      |   |     |          |            DragonFly 5.2.2
+ |         FreeBSD    |      |   |     *--NetBSD  |                    |
+ |           11.2     |      |   |         7.2    |                    |
+ |                  macOS    |   |         |      |                    |
+ |                  10.14    |   |         |  OpenBSD 6.4              |
+ |                    |      |   |         |      |                    |
+ |                    |      |   |         |      |            DragonFly 5.4.0
+ *--FreeBSD           |      |   |         v      |                    |
+ |   12.0             |      |   |                |            DragonFly 5.4.1
+ |                    |      |   |            OpenBSD 6.5              |
+ |                    |      |   |                |                    |
+ |                    |      |  NetBSD            |                    |
+ |                    |      |   8.1              |            DragonFly 5.6
+ |                    |      |                    |                    |
+FreeBSD 13 -current   |  NetBSD -current   OpenBSD -current   DragonFly -current
+ |                    |      |                    |                    |
+ v                    v      v                    v                    v
 
 Time
 ----------------
