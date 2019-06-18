@@ -27,7 +27,7 @@
 .Os
 .Sh NAME
 .Nm pwm
-.Nd configure pwm controller
+.Nd configure PWM (Pulse Width Modulation) hardware
 .Sh SYNOPSIS
 .Nm
 .Op Fl f Ar device
@@ -47,9 +47,26 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility can be used to configure pwm controllers.
+utility can be used to configure pwm hardware.
+.Nm
+uses a
+.Xr pwmc 4
+device to communicate with the hardware.
+Some PWM hardware supports multiple output channels within a single
+controller block; each
+.Xr pwmc 4
+instance controls a single PWM channel.
 .Pp
-The options are as follow:
+.Xr pwmc 4
+devices are named
+.Pa /dev/pwm/pwmcX.Y ,
+where
+.Va X
+is the controller unit number and
+.Va Y
+is the channel number within that unit.
+.Pp
+The options are as follows:
 .Bl -tag -width "-f device"
 .It Fl f Ar device
 Device to operate on.
@@ -60,15 +77,15 @@ If an unqualified name is provided,
 .Pa /dev/pwm
 is automatically prepended.
 .It Fl E
-Enable the pwm channel.
+Enable the PWM channel.
 .It Fl D
-Disable the pwm channel.
+Disable the PWM channel.
 .It Fl C
-Show the configuration of the pwm channel.
+Show the configuration of the PWM channel.
 .It Fl p Ar period
-Configure the period (in nanoseconds) of the pwm channel
+Configure the period (in nanoseconds) of the PWM channel
 .It Fl d Ar duty
-Configure the duty (in nanoseconds or percentage) of the pwm channel.
+Configure the duty (in nanoseconds or percentage) of the PWM channel.
 Duty is the portion of the
 .Ar period
 during which the signal is asserted.
@@ -76,7 +93,7 @@ during which the signal is asserted.
 .Sh EXAMPLES
 .Bl -bullet
 .It
-Show the configuration of the pwm channel:
+Show the configuration of the PWM channel:
 .Bd -literal
 pwm -f /dev/pwm/pwmc0.1 -C
 .Ed
