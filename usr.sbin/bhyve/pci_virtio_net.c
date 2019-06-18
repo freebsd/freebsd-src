@@ -583,10 +583,12 @@ pci_vtnet_ping_rxq(void *vsc, struct vqueue_info *vq)
 	/*
 	 * A qnotify means that the rx process can now begin
 	 */
+	pthread_mutex_lock(&sc->rx_mtx);
 	if (sc->vsc_rx_ready == 0) {
 		sc->vsc_rx_ready = 1;
 		vq_kick_disable(vq);
 	}
+	pthread_mutex_unlock(&sc->rx_mtx);
 }
 
 static void
