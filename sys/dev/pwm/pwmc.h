@@ -34,7 +34,6 @@
 #define	PWM_POLARITY_INVERTED	(1 << 0)
 
 struct pwm_state {
-	u_int		channel;
 	u_int		period;
 	u_int		duty;
 	uint32_t	flags;
@@ -45,9 +44,8 @@ struct pwm_state {
  * ioctls
  */
 
-#define	PWMMAXCHANNEL	_IOWR('G', 0, int)
-#define	PWMGETSTATE	_IOWR('G', 1, struct pwm_state)
-#define	PWMSETSTATE	_IOWR('G', 2, struct pwm_state)
+#define	PWMGETSTATE	_IOWR('G', 0, struct pwm_state)
+#define	PWMSETSTATE	_IOWR('G', 1, struct pwm_state)
 
 
 #endif /* _PWM_H_ */
