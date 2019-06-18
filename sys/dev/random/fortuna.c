@@ -489,7 +489,7 @@ random_fortuna_genbytes(uint8_t *buf, size_t bytecount,
 	if (!random_chachamode)
 		chunk_size = rounddown(chunk_size, RANDOM_BLOCKSIZE);
 
-	while (bytecount >= chunk_size) {
+	while (bytecount >= chunk_size && chunk_size > 0) {
 		randomdev_keystream(p_key, p_counter, buf, chunk_size);
 
 		buf += chunk_size;
