@@ -66,11 +66,8 @@ static void
 usage(void)
 {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\tpwm [-f dev] -E\n");
-	fprintf(stderr, "\tpwm [-f dev] -D\n");
 	fprintf(stderr, "\tpwm [-f dev] -C\n");
-	fprintf(stderr, "\tpwm [-f dev] -p period\n");
-	fprintf(stderr, "\tpwm [-f dev] -d duty\n");
+	fprintf(stderr, "\tpwm [-f dev] [-D | -E] [-p period] [-d duty[%%]]\n");
 	exit(1);
 }
 
@@ -94,14 +91,14 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "f:EDCp:d:")) != -1) {
 		switch (ch) {
 		case 'E':
-			if (action)
+			if (action & (PWM_DISABLE | PWM_SHOW_CONFIG))
 				usage();
-			action = PWM_ENABLE;
+			action |= PWM_ENABLE;
 			break;
 		case 'D':
-			if (action)
+			if (action & (PWM_ENABLE | PWM_SHOW_CONFIG))
 				usage();
-			action = PWM_DISABLE;
+			action |= PWM_DISABLE;
 			break;
 		case 'C':
 			if (action)
@@ -109,17 +106,23 @@ main(int argc, char *argv[])
 			action = PWM_SHOW_CONFIG;
 			break;
 		case 'p':
-			if (action & ~(PWM_PERIOD | PWM_DUTY))
+			if (action & PWM_SHOW_CONFIG)
 				usage();
-			action = PWM_PERIOD;
+			action |= PWM_PERIOD;
 			period = strtol(optarg, NULL, 10);
 			break;
 		case 'd':
-			if (action & ~(PWM_PERIOD | PWM_DUTY))
+			if (action & PWM_SHOW_CONFIG)
 				usage();
-			action = PWM_DUTY;
+			action |= PWM_DUTY;
 			duty = strtol(optarg, &percent, 10);
-			if (*percent != '\0' && *percent != '%')
+			if (*percent == '%') {
+				if (duty < 0 || duty > 100) {
+					fprintf(stderr, 
+					    "Invalid duty percentage\n");
+					usage();
+				}
+			} else if (*percent != '\0')
 				usage();
 			break;
 		case 'f':
@@ -169,49 +172,31 @@ main(int argc, char *argv[])
 		goto fail;
 	}
 
-	switch (action) {
-	case PWM_ENABLE:
-		if (state.enable == false) {
-			state.enable = true;
-			if (ioctl(fd, PWMSETSTATE, &state) == -1) {
-				fprintf(stderr,
-				    "Cannot enable the pwm controller\n");
-				goto fail;
-			}
-		}
-		break;
-	case PWM_DISABLE:
-		if (state.enable == true) {
-			state.enable = false;
-			if (ioctl(fd, PWMSETSTATE, &state) == -1) {
-				fprintf(stderr,
-				    "Cannot disable the pwm controller\n");
-				goto fail;
-			}
-		}
-		break;
-	case PWM_SHOW_CONFIG:
+	if (action == PWM_SHOW_CONFIG) {
 		printf("period: %u\nduty: %u\nenabled:%d\n",
 		    state.period,
 		    state.duty,
 		    state.enable);
-		break;
-	case PWM_PERIOD:
-	case PWM_DUTY:
-		if (period != -1)
+		goto fail;
+	} else {
+		if (action & PWM_ENABLE)
+			state.enable = true;
+		if (action & PWM_DISABLE)
+			state.enable = false;
+		if (action & PWM_PERIOD)
 			state.period = period;
-		if (duty != -1) {
+		if (action & PWM_DUTY) {
 			if (*percent != '\0')
 				state.duty = state.period * duty / 100;
 			else
 				state.duty = duty;
 		}
+	
 		if (ioctl(fd, PWMSETSTATE, &state) == -1) {
 			fprintf(stderr,
 			  "Cannot configure the pwm controller\n");
 			goto fail;
 		}
-		break;
 	}
 
 	close(fd);
