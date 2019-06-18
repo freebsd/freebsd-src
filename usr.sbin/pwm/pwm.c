@@ -66,11 +66,11 @@ static void
 usage(void)
 {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\tpwm [-f dev] -c channel -E\n");
-	fprintf(stderr, "\tpwm [-f dev] -c channel -D\n");
-	fprintf(stderr, "\tpwm [-f dev] -c channel -C\n");
-	fprintf(stderr, "\tpwm [-f dev] -c channel -p period\n");
-	fprintf(stderr, "\tpwm [-f dev] -c channel -d duty\n");
+	fprintf(stderr, "\tpwm [-f dev] -E\n");
+	fprintf(stderr, "\tpwm [-f dev] -D\n");
+	fprintf(stderr, "\tpwm [-f dev] -C\n");
+	fprintf(stderr, "\tpwm [-f dev] -p period\n");
+	fprintf(stderr, "\tpwm [-f dev] -d duty\n");
 	exit(1);
 }
 
@@ -79,21 +79,19 @@ main(int argc, char *argv[])
 {
 	struct pwm_state state;
 	int fd;
-	u_int channel, nchannels;
 	int period, duty;
 	int action, ch;
 	cap_rights_t right_ioctl;
-	const unsigned long pwm_ioctls[] = {PWMGETSTATE, PWMSETSTATE, PWMMAXCHANNEL};
+	const unsigned long pwm_ioctls[] = {PWMGETSTATE, PWMSETSTATE};
 	char *percent;
 	bool setname;
 
 	action = 0;
 	setname = false;
 	fd = -1;
-	channel = -1u;
 	period = duty = -1;
 
-	while ((ch = getopt(argc, argv, "f:c:EDCp:d:")) != -1) {
+	while ((ch = getopt(argc, argv, "f:EDCp:d:")) != -1) {
 		switch (ch) {
 		case 'E':
 			if (action)
@@ -124,14 +122,12 @@ main(int argc, char *argv[])
 			if (*percent != '\0' && *percent != '%')
 				usage();
 			break;
-		case 'c':
-			if (channel != -1u)
-				usage();
-			channel = strtoul(optarg, NULL, 10);
-			break;
 		case 'f':
 			setname = true;
 			set_device_name(optarg);
+			break;
+		case '?':
+			usage();
 			break;
 		}
 	}
@@ -167,19 +163,7 @@ main(int argc, char *argv[])
 		goto fail;
 	}
 
-	/* Check if the channel is correct */
-	if (ioctl(fd, PWMMAXCHANNEL, &nchannels) == -1) {
-		fprintf(stderr, "ioctl: %s\n", strerror(errno));
-		goto fail;
-	}
-	if (channel > nchannels) {
-		fprintf(stderr, "pwm controller only support %d channels\n",
-		    nchannels);
-		goto fail;
-	}
-
 	/* Fill the common args */
-	state.channel = channel;
 	if (ioctl(fd, PWMGETSTATE, &state) == -1) {
 		fprintf(stderr, "Cannot get current state of the pwm controller\n");
 		goto fail;

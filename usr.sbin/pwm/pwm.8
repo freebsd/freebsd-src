@@ -31,23 +31,18 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f Ar device
-.Fl c Ar channel
 .Fl E
 .Nm
 .Op Fl f Ar device
-.Fl c Ar channel
 .Fl D
 .Nm
 .Op Fl f Ar device
-.Fl c Ar channel
 .Fl C
 .Nm
 .Op Fl f Ar device
-.Fl c Ar channel
 .Fl p Ar period
 .Nm
 .Op Fl f Ar device
-.Fl c Ar channel
 .Fl d Ar duty
 .Sh DESCRIPTION
 The
@@ -55,9 +50,7 @@ The
 utility can be used to configure pwm controllers.
 .Pp
 The options are as follow:
-.Bl -tag -width "-c channel"
-.It Fl c Ar channel
-Channel number to operate on.
+.Bl -tag -width "-f device"
 .It Fl f Ar device
 Device to operate on.
 If not specified,
