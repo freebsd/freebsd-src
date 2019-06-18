@@ -119,21 +119,19 @@ is_remove_reloc_sec(struct elfcopy *ecp, uint32_t sh_info)
 		errx(EXIT_FAILURE, "elf_getshstrndx failed: %s",
 		    elf_errmsg(-1));
 
-	is = NULL;
-	while ((is = elf_nextscn(ecp->ein, is)) != NULL) {
-		if (sh_info == elf_ndxscn(is)) {
-			if (gelf_getshdr(is, &ish) == NULL)
-				errx(EXIT_FAILURE, "gelf_getshdr failed: %s",
-				    elf_errmsg(-1));
-			if ((name = elf_strptr(ecp->ein, indx, ish.sh_name)) ==
-			    NULL)
-				errx(EXIT_FAILURE, "elf_strptr failed: %s",
-				    elf_errmsg(-1));
-			if (is_remove_section(ecp, name))
-				return (1);
-			else
-				return (0);
-		}
+	is = elf_getscn(ecp->ein, sh_info);
+	if (is != NULL) {
+		if (gelf_getshdr(is, &ish) == NULL)
+			errx(EXIT_FAILURE, "gelf_getshdr failed: %s",
+			    elf_errmsg(-1));
+		if ((name = elf_strptr(ecp->ein, indx, ish.sh_name)) ==
+		    NULL)
+			errx(EXIT_FAILURE, "elf_strptr failed: %s",
+			    elf_errmsg(-1));
+		if (is_remove_section(ecp, name))
+			return (1);
+		else
+			return (0);
 	}
 	elferr = elf_errno();
 	if (elferr != 0)
