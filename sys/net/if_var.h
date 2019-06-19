@@ -381,8 +381,7 @@ struct ifnet {
 	 */
 	struct netdump_methods *if_netdump_methods;
 	struct epoch_context	if_epoch_ctx;
-	struct epoch_tracker	if_addr_et;
-	struct epoch_tracker	if_maddr_et;
+	void 		       *if_unused[4];
 
 	/*
 	 * Spare fields to be added before branching a stable branch, so

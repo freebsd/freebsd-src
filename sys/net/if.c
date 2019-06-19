@@ -62,6 +62,8 @@
 #include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/priv.h>
+#include <sys/sched.h>
+#include <sys/smp.h>
 
 #include <machine/stdarg.h>
 #include <vm/uma.h>
@@ -1755,6 +1757,30 @@ if_data_copy(struct ifnet *ifp, struct if_data *ifd)
 	ifd->ifi_noproto = ifp->if_get_counter(ifp, IFCOUNTER_NOPROTO);
 }
 
+struct ifnet_read_lock {
+	struct mtx mtx;	/* lock protecting tracker below */
+	struct epoch_tracker et;
+};
+
+DPCPU_DEFINE_STATIC(struct ifnet_read_lock, ifnet_addr_read_lock);
+DPCPU_DEFINE_STATIC(struct ifnet_read_lock, ifnet_maddr_read_lock);
+
+static void
+ifnet_read_lock_init(void __unused *arg)
+{
+	struct ifnet_read_lock *pifrl;
+	int cpu;
+
+	CPU_FOREACH(cpu) {
+		pifrl = DPCPU_ID_PTR(cpu, ifnet_addr_read_lock);
+		mtx_init(&pifrl->mtx, "ifnet_addr_read_lock", NULL, MTX_DEF);
+
+		pifrl = DPCPU_ID_PTR(cpu, ifnet_maddr_read_lock);
+		mtx_init(&pifrl->mtx, "ifnet_maddr_read_lock", NULL, MTX_DEF);
+	}
+}
+SYSINIT(ifnet_read_lock_init, SI_SUB_CPU + 1, SI_ORDER_FIRST, &ifnet_read_lock_init, NULL);
+
 /*
  * Wrapper functions for struct ifnet address list locking macros.  These are
  * used by kernel modules to avoid encoding programming interface or binary
@@ -1764,35 +1790,47 @@ if_data_copy(struct ifnet *ifp, struct if_data *ifd)
 void
 if_addr_rlock(struct ifnet *ifp)
 {
-	MPASS(*(uint64_t *)&ifp->if_addr_et == 0);
-	epoch_enter_preempt(net_epoch_preempt, &ifp->if_addr_et);
+	struct ifnet_read_lock *pifrl;
+
+	sched_pin();
+	pifrl = DPCPU_PTR(ifnet_addr_read_lock);
+	mtx_lock(&pifrl->mtx);
+	epoch_enter_preempt(net_epoch_preempt, &pifrl->et);
 }
 
 void
 if_addr_runlock(struct ifnet *ifp)
 {
-	epoch_exit_preempt(net_epoch_preempt, &ifp->if_addr_et);
-#ifdef INVARIANTS
-	bzero(&ifp->if_addr_et, sizeof(struct epoch_tracker));
-#endif
+	struct ifnet_read_lock *pifrl;
+
+	pifrl = DPCPU_PTR(ifnet_addr_read_lock);
+
+	epoch_exit_preempt(net_epoch_preempt, &pifrl->et);
+	mtx_unlock(&pifrl->mtx);
+	sched_unpin();
 }
 
 void
 if_maddr_rlock(if_t ifp)
 {
+	struct ifnet_read_lock *pifrl;
 
-	MPASS(*(uint64_t *)&ifp->if_maddr_et == 0);
-	epoch_enter_preempt(net_epoch_preempt, &ifp->if_maddr_et);
+	sched_pin();
+	pifrl = DPCPU_PTR(ifnet_maddr_read_lock);
+	mtx_lock(&pifrl->mtx);
+	epoch_enter_preempt(net_epoch_preempt, &pifrl->et);
 }
 
 void
 if_maddr_runlock(if_t ifp)
 {
+	struct ifnet_read_lock *pifrl;
 
-	epoch_exit_preempt(net_epoch_preempt, &ifp->if_maddr_et);
-#ifdef INVARIANTS
-	bzero(&ifp->if_maddr_et, sizeof(struct epoch_tracker));
-#endif
+	pifrl = DPCPU_PTR(ifnet_maddr_read_lock);
+
+	epoch_exit_preempt(net_epoch_preempt, &pifrl->et);
+	mtx_unlock(&pifrl->mtx);
+	sched_unpin();
 }
 
 /*
