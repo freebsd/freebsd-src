@@ -3777,8 +3777,8 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			 */
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
 				atomic_clear_64(l2, ATTR_SW_WIRED);
-				pmap_resident_count_dec(pmap, L2_SIZE /
-				    PAGE_SIZE);
+				pmap->pm_stats.wired_count -= L2_SIZE /
+				    PAGE_SIZE;
 				continue;
 			} else if (pmap_demote_l2(pmap, l2, sva) == NULL)
 				panic("pmap_unwire: demotion failed");
