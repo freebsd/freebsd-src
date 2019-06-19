@@ -3401,35 +3401,6 @@ vm_page_requeue(vm_page_t m)
 }
 
 /*
- *	vm_page_activate:
- *
- *	Put the specified page on the active list (if appropriate).
- *	Ensure that act_count is at least ACT_INIT but do not otherwise
- *	mess with it.
- *
- *	The page must be locked.
- */
-void
-vm_page_activate(vm_page_t m)
-{
-
-	vm_page_assert_locked(m);
-
-	if (vm_page_wired(m) || (m->oflags & VPO_UNMANAGED) != 0)
-		return;
-	if (vm_page_queue(m) == PQ_ACTIVE) {
-		if (m->act_count < ACT_INIT)
-			m->act_count = ACT_INIT;
-		return;
-	}
-
-	vm_page_dequeue(m);
-	if (m->act_count < ACT_INIT)
-		m->act_count = ACT_INIT;
-	vm_page_enqueue(m, PQ_ACTIVE);
-}
-
-/*
  *	vm_page_free_prep:
  *
  *	Prepares the given page to be put on the free list,
@@ -3677,6 +3648,35 @@ vm_page_unwire_noq(vm_page_t m)
 		return (true);
 	} else
 		return (false);
+}
+
+/*
+ *	vm_page_activate:
+ *
+ *	Put the specified page on the active list (if appropriate).
+ *	Ensure that act_count is at least ACT_INIT but do not otherwise
+ *	mess with it.
+ *
+ *	The page must be locked.
+ */
+void
+vm_page_activate(vm_page_t m)
+{
+
+	vm_page_assert_locked(m);
+
+	if (vm_page_wired(m) || (m->oflags & VPO_UNMANAGED) != 0)
+		return;
+	if (vm_page_queue(m) == PQ_ACTIVE) {
+		if (m->act_count < ACT_INIT)
+			m->act_count = ACT_INIT;
+		return;
+	}
+
+	vm_page_dequeue(m);
+	if (m->act_count < ACT_INIT)
+		m->act_count = ACT_INIT;
+	vm_page_enqueue(m, PQ_ACTIVE);
 }
 
 /*
