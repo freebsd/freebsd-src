@@ -253,7 +253,6 @@ DEBUG_FILES_CFLAGS?= -g
 .if ${MK_WARNS} != "no"
 CFLAGS+=	${CWARNFLAGS:M*} ${CWARNFLAGS.${COMPILER_TYPE}}
 CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
-CFLAGS+=	${CWARNFLAGS.${.TARGET:T}}
 CXXFLAGS+=	${CXXWARNFLAGS:M*} ${CXXWARNFLAGS.${COMPILER_TYPE}}
 CXXFLAGS+=	${CXXWARNFLAGS.${.IMPSRC:T}}
 .endif
@@ -266,14 +265,23 @@ AFLAGS+=	${AFLAGS.${.TARGET:T}}
 ACFLAGS+=	${ACFLAGS.${.IMPSRC:T}}
 ACFLAGS+=	${ACFLAGS.${.TARGET:T}}
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
-CFLAGS+=	${CFLAGS.${.TARGET:T}}
 CXXFLAGS+=	${CXXFLAGS.${.IMPSRC:T}}
-CXXFLAGS+=	${CXXFLAGS.${.TARGET:T}}
 
 LDFLAGS+=	${LDFLAGS.${LINKER_TYPE}}
+
+# Only allow .TARGET when not using PROGS as it has the same syntax
+# per PROG which is ambiguous with this syntax. This is only needed
+# for PROG_VARS vars.
+.if !defined(_RECURSING_PROGS)
+.if ${MK_WARNS} != "no"
+CFLAGS+=	${CWARNFLAGS.${.TARGET:T}}
+.endif
+CFLAGS+=	${CFLAGS.${.TARGET:T}}
+CXXFLAGS+=	${CXXFLAGS.${.TARGET:T}}
 LDFLAGS+=	${LDFLAGS.${.TARGET:T}}
 LDADD+=		${LDADD.${.TARGET:T}}
 LIBADD+=	${LIBADD.${.TARGET:T}}
+.endif
 
 .if defined(SRCTOP)
 # Prevent rebuilding during install to support read-only objdirs.
