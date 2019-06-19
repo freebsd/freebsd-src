@@ -108,6 +108,8 @@ gpioled_attach(device_t dev)
 	if (resource_string_value(device_get_name(dev), 
 	    device_get_unit(dev), "name", &name))
 		name = NULL;
+	resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "state", &state);
 
 	sc->sc_leddev = led_create_state(gpioled_control, sc, name ? name :
 	    device_get_nameunit(dev), state);
@@ -148,3 +150,4 @@ static driver_t gpioled_driver = {
 
 DRIVER_MODULE(gpioled, gpiobus, gpioled_driver, gpioled_devclass, 0, 0);
 MODULE_DEPEND(gpioled, gpiobus, 1, 1, 1);
+MODULE_VERSION(gpioled, 1);
