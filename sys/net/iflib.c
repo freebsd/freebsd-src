@@ -2688,10 +2688,10 @@ iflib_get_ip_forwarding(struct lro_ctrl *lc, bool *v4, bool *v6)
 {
 	CURVNET_SET(lc->ifp->if_vnet);
 #if defined(INET6)
-	*v6 = VNET(ip6_forwarding);
+	*v6 = V_ip6_forwarding;
 #endif
 #if defined(INET)
-	*v4 = VNET(ipforwarding);
+	*v4 = V_ipforwarding;
 #endif
 	CURVNET_RESTORE();
 }
