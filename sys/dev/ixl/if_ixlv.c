@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -32,6 +32,8 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
+#include "sys/limits.h"
+
 #include "ixl.h"
 #include "ixlv.h"
 
@@ -40,7 +42,7 @@
  *********************************************************************/
 #define IXLV_DRIVER_VERSION_MAJOR	1
 #define IXLV_DRIVER_VERSION_MINOR	5
-#define IXLV_DRIVER_VERSION_BUILD	4
+#define IXLV_DRIVER_VERSION_BUILD	8
 
 char ixlv_driver_version[] = __XSTRING(IXLV_DRIVER_VERSION_MAJOR) "."
 			     __XSTRING(IXLV_DRIVER_VERSION_MINOR) "."
@@ -1494,6 +1496,33 @@ ixlv_assign_msix(struct ixlv_sc *sc)
 }
 
 /*
+ * Special implementation of pause for reset flow because
+ * there is a lock used.
+ */
+static void
+ixlv_msec_pause(int msecs)
+{
+	int ticks_to_pause = (msecs * hz) / 1000;
+	int start_ticks = ticks;
+
+	if (cold || SCHEDULER_STOPPED()) {
+		i40e_msec_delay(msecs);
+		return;
+	}
+
+	while (1) {
+		kern_yield(PRI_USER);
+		int yielded_ticks = ticks - start_ticks;
+		if (yielded_ticks > ticks_to_pause)
+			break;
+		else if (yielded_ticks < 0
+				&& (yielded_ticks + INT_MAX + 1 > ticks_to_pause)) {
+			break;
+		}
+	}
+}
+
+/*
 ** Requests a VF reset from the PF.
 **
 ** Requires the VF's Admin Queue to be initialized.
@@ -1509,7 +1538,7 @@ ixlv_reset(struct ixlv_sc *sc)
 	if (sc->init_state != IXLV_RESET_PENDING)
 		ixlv_request_reset(sc);
 
-	i40e_msec_pause(100);
+	ixlv_msec_pause(100);
 	error = ixlv_reset_complete(hw);
 	if (error) {
 		device_printf(dev, "%s: VF reset failed\n",
@@ -1547,7 +1576,7 @@ ixlv_reset_complete(struct i40e_hw *hw)
                 if ((reg == VIRTCHNL_VFR_VFACTIVE) ||
 		    (reg == VIRTCHNL_VFR_COMPLETED))
 			return (0);
-		i40e_msec_pause(100);
+		ixlv_msec_pause(100);
 	}
 
 	return (EBUSY);
@@ -1802,6 +1831,7 @@ ixlv_setup_queues(struct ixlv_sc *sc)
 			goto err_free_queues;
 		}
 	}
+	sysctl_ctx_init(&vsi->sysctl_ctx);
 
 	return (0);
 
@@ -2269,6 +2299,11 @@ ixlv_msix_que(void *arg)
 	if (!(vsi->ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 
+	/* There are drivers which disable auto-masking of interrupts,
+	 * which is a global setting for all ports. We have to make sure
+	 * to mask it to not lose IRQs */
+	ixlv_disable_queue_irq(hw, que->me);
+
 	++que->irqs;
 
 	more_rx = ixl_rxeof(que, IXL_RX_LIMIT);
@@ -2680,6 +2715,7 @@ ixlv_free_queues(struct ixl_vsi *vsi)
 		ixlv_free_queue(sc, que);
 	}
 
+	sysctl_ctx_free(&vsi->sysctl_ctx);
 	free(vsi->queues, M_DEVBUF);
 }
 
@@ -2972,21 +3008,10 @@ ixlv_add_sysctls(struct ixlv_sc *sc)
 {
 	device_t dev = sc->dev;
 	struct ixl_vsi *vsi = &sc->vsi;
-	struct i40e_eth_stats *es = &vsi->eth_stats;
 
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
 	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
-
-	struct sysctl_oid *vsi_node, *queue_node;
-	struct sysctl_oid_list *vsi_list, *queue_list;
-
-#define QUEUE_NAME_LEN 32
-	char queue_namebuf[QUEUE_NAME_LEN];
-
-	struct ixl_queue *queues = vsi->queues;
-	struct tx_ring *txr;
-	struct rx_ring *rxr;
 
 	/* Driver statistics sysctls */
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "watchdog_events",
@@ -3008,105 +3033,12 @@ ixlv_add_sysctls(struct ixlv_sc *sc)
 			sc, 0, ixlv_sysctl_current_speed,
 			"A", "Current Port Speed");
 
+	ixl_add_sysctls_eth_stats(ctx, child, &vsi->eth_stats);
+
 	/* VSI statistics sysctls */
-	vsi_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "vsi",
+	vsi->vsi_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "vsi",
 				   CTLFLAG_RD, NULL, "VSI-specific statistics");
-	vsi_list = SYSCTL_CHILDREN(vsi_node);
-
-	struct ixl_sysctl_info ctls[] =
-	{
-		{&es->rx_bytes, "good_octets_rcvd", "Good Octets Received"},
-		{&es->rx_unicast, "ucast_pkts_rcvd",
-			"Unicast Packets Received"},
-		{&es->rx_multicast, "mcast_pkts_rcvd",
-			"Multicast Packets Received"},
-		{&es->rx_broadcast, "bcast_pkts_rcvd",
-			"Broadcast Packets Received"},
-		{&es->rx_discards, "rx_discards", "Discarded RX packets"},
-		{&es->rx_unknown_protocol, "rx_unknown_proto", "RX unknown protocol packets"},
-		{&es->tx_bytes, "good_octets_txd", "Good Octets Transmitted"},
-		{&es->tx_unicast, "ucast_pkts_txd", "Unicast Packets Transmitted"},
-		{&es->tx_multicast, "mcast_pkts_txd",
-			"Multicast Packets Transmitted"},
-		{&es->tx_broadcast, "bcast_pkts_txd",
-			"Broadcast Packets Transmitted"},
-		{&es->tx_errors, "tx_errors", "TX packet errors"},
-		// end
-		{0,0,0}
-	};
-	struct ixl_sysctl_info *entry = ctls;
-	while (entry->stat != NULL)
-	{
-		SYSCTL_ADD_QUAD(ctx, child, OID_AUTO, entry->name,
-				CTLFLAG_RD, entry->stat,
-				entry->description);
-		entry++;
-	}
-
-	/* Queue sysctls */
-	for (int q = 0; q < vsi->num_queues; q++) {
-		snprintf(queue_namebuf, QUEUE_NAME_LEN, "que%d", q);
-		queue_node = SYSCTL_ADD_NODE(ctx, vsi_list, OID_AUTO, queue_namebuf,
-					     CTLFLAG_RD, NULL, "Queue Name");
-		queue_list = SYSCTL_CHILDREN(queue_node);
-
-		txr = &(queues[q].txr);
-		rxr = &(queues[q].rxr);
-
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "mbuf_defrag_failed",
-				CTLFLAG_RD, &(queues[q].mbuf_defrag_failed),
-				"m_defrag() failed");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "dropped",
-				CTLFLAG_RD, &(queues[q].dropped_pkts),
-				"Driver dropped packets");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "irqs",
-				CTLFLAG_RD, &(queues[q].irqs),
-				"irqs on this queue");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tso_tx",
-				CTLFLAG_RD, &(queues[q].tso),
-				"TSO");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_dmamap_failed",
-				CTLFLAG_RD, &(queues[q].tx_dmamap_failed),
-				"Driver tx dma failure in xmit");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",
-				CTLFLAG_RD, &(txr->no_desc),
-				"Queue No Descriptor Available");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_packets",
-				CTLFLAG_RD, &(txr->total_packets),
-				"Queue Packets Transmitted");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_bytes",
-				CTLFLAG_RD, &(txr->tx_bytes),
-				"Queue Bytes Transmitted");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_packets",
-				CTLFLAG_RD, &(rxr->rx_packets),
-				"Queue Packets Received");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
-				CTLFLAG_RD, &(rxr->rx_bytes),
-				"Queue Bytes Received");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "rx_itr",
-				CTLFLAG_RD, &(rxr->itr), 0,
-				"Queue Rx ITR Interval");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "tx_itr",
-				CTLFLAG_RD, &(txr->itr), 0,
-				"Queue Tx ITR Interval");
-
-#ifdef IXL_DEBUG
-		/* Examine queue state */
-		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "qtx_head", 
-				CTLTYPE_UINT | CTLFLAG_RD, &queues[q],
-				sizeof(struct ixl_queue),
-				ixlv_sysctl_qtx_tail_handler, "IU",
-				"Queue Transmit Descriptor Tail");
-		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "qrx_head", 
-				CTLTYPE_UINT | CTLFLAG_RD, &queues[q],
-				sizeof(struct ixl_queue),
-				ixlv_sysctl_qrx_tail_handler, "IU",
-				"Queue Receive Descriptor Tail");
-		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "watchdog_timer",
-				CTLFLAG_RD, &(txr.watchdog_timer), 0,
-				"Ticks before watchdog event is triggered");
-#endif
-	}
+	ixl_vsi_add_queues_stats(vsi);
 }
 
 static void
@@ -3242,4 +3174,3 @@ ixlv_sysctl_qrx_tail_handler(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 #endif
-

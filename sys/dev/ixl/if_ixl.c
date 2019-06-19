@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -48,7 +48,7 @@
  *  Driver version
  *********************************************************************/
 #define IXL_DRIVER_VERSION_MAJOR	1
-#define IXL_DRIVER_VERSION_MINOR	9
+#define IXL_DRIVER_VERSION_MINOR	11
 #define IXL_DRIVER_VERSION_BUILD	9
 
 char ixl_driver_version[] = __XSTRING(IXL_DRIVER_VERSION_MAJOR) "."
@@ -83,6 +83,9 @@ static ixl_vendor_info_t ixl_vendor_info_array[] =
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_SFP_I_X722, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_25G_B, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_25G_SFP28, 0, 0, 0},
+	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_BASE_T_BC, 0, 0, 0},
+	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_SFP, 0, 0, 0},
+	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_B, 0, 0, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
 };
@@ -190,6 +193,13 @@ SYSCTL_INT(_hw_ixl, OID_AUTO, enable_tx_fc_filter, CTLFLAG_RDTUN,
     &ixl_enable_tx_fc_filter, 0,
     "Filter out packets with Ethertype 0x8808 from being sent out by non-HW sources");
 
+static int ixl_i2c_access_method = 0;
+TUNABLE_INT("hw.ixl.i2c_access_method",
+		    &ixl_i2c_access_method);
+SYSCTL_INT(_hw_ixl, OID_AUTO, i2c_access_method, CTLFLAG_RDTUN,
+		    &ixl_i2c_access_method, 0,
+		        IXL_SYSCTL_HELP_I2C_METHOD);
+
 /*
  * Different method for processing TX descriptor
  * completion.
@@ -214,6 +224,7 @@ TUNABLE_INT("hw.ixl.shared_debug_mask",
 SYSCTL_INT(_hw_ixl, OID_AUTO, shared_debug_mask, CTLFLAG_RDTUN,
     &ixl_shared_debug_mask, 0,
     "Display debug statements that are printed in shared code");
+
 
 /*
 ** Controls for Interrupt Throttling 
@@ -335,8 +346,14 @@ ixl_save_pf_tunables(struct ixl_pf *pf)
 #else
 	pf->vsi.enable_head_writeback = !!(ixl_enable_head_writeback);
 #endif
-
 	ixl_vsi_setup_rings_size(&pf->vsi, ixl_tx_ring_size, ixl_rx_ring_size);
+
+	if (ixl_i2c_access_method > IXL_I2C_ACCESS_METHOD_TYPE_LENGTH - 1
+	    || ixl_i2c_access_method < IXL_I2C_ACCESS_METHOD_BEST_AVAILABLE)
+		pf->i2c_access_method = IXL_I2C_ACCESS_METHOD_BEST_AVAILABLE;
+	else
+		pf->i2c_access_method =
+		    (enum ixl_i2c_access_method_t)ixl_i2c_access_method;
 
 	if (ixl_tx_itr < 0 || ixl_tx_itr > IXL_MAX_ITR) {
 		device_printf(dev, "Invalid tx_itr value of %d set!\n",
@@ -365,6 +382,65 @@ ixl_save_pf_tunables(struct ixl_pf *pf)
 	return (0);
 }
 
+static int
+ixl_attach_recovery_mode(struct ixl_pf *pf)
+{
+	struct ixl_vsi *vsi = &pf->vsi;
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	int error = 0;
+
+	device_printf(dev, "Firmware recovery mode detected. Limiting functionality. Refer to Intel(R) Ethernet Adapters and Devices User Guide for details on firmware recovery mode.\n");
+
+	atomic_set_int(&pf->state, IXL_PF_STATE_RECOVERY_MODE);
+
+	i40e_get_mac_addr(hw, hw->mac.addr);
+
+	pf->msix = ixl_init_msix(pf);
+	ixl_setup_stations(pf);
+	ixl_setup_interface(pf->dev, vsi);
+
+	if (pf->msix > 1) {
+		error = ixl_setup_adminq_msix(pf);
+		if (error) {
+			device_printf(dev, "ixl_setup_adminq_msix() error: %d\n",
+			    error);
+			goto recovery_err_late;
+		}
+		error = ixl_setup_adminq_tq(pf);
+		if (error) {
+			device_printf(dev, "ixl_setup_adminq_tq() error: %d\n",
+			    error);
+			goto recovery_err_late;
+		}
+		ixl_configure_intr0_msix(pf);
+		ixl_enable_intr0(hw);
+	} else {
+		error = ixl_setup_legacy(pf);
+
+		error = ixl_setup_adminq_tq(pf);
+		if (error) {
+			device_printf(dev, "ixl_setup_adminq_tq() error: %d\n",
+			    error);
+			goto recovery_err_late;
+		}
+	}
+
+	/* Get the bus configuration and set the shared code's config */
+	ixl_get_bus_info(pf);
+
+	/* Initialize statistics & add sysctls */
+	ixl_add_device_sysctls(pf);
+
+	/* Start the local timer */
+	IXL_PF_LOCK(pf);
+	callout_reset(&pf->timer, hz, ixl_local_timer, pf);
+	IXL_PF_UNLOCK(pf);
+
+recovery_err_late:
+	return (error);
+}
+
 /*********************************************************************
  *  Device initialization routine
  *
@@ -381,6 +457,7 @@ ixl_attach(device_t dev)
 	struct ixl_pf	*pf;
 	struct i40e_hw	*hw;
 	struct ixl_vsi  *vsi;
+	enum i40e_get_fw_lldp_status_resp lldp_status;
 	enum i40e_status_code status;
 	int             error = 0;
 
@@ -412,19 +489,22 @@ ixl_attach(device_t dev)
 
 	/* Do PCI setup - map BAR0, etc */
 	if (ixl_allocate_pci_resources(pf)) {
-		device_printf(dev, "Allocation of PCI resources failed\n");
 		error = ENXIO;
 		goto err_out;
 	}
 
 	/* Establish a clean starting point */
 	i40e_clear_hw(hw);
-	status = i40e_pf_reset(hw);
-	if (status) {
-		device_printf(dev, "PF reset failure %s\n",
-		    i40e_stat_str(hw, status));
-		error = EIO;
-		goto err_out;
+
+	/* Don't try to reset device if it's in recovery mode */
+	if (!ixl_fw_recovery_mode(pf)) {
+		status = i40e_pf_reset(hw);
+		if (status) {
+			device_printf(dev, "PF reset failure %s\n",
+			    i40e_stat_str(hw, status));
+			error = EIO;
+			goto err_out;
+		}
 	}
 
 	/* Initialize the shared code */
@@ -471,6 +551,9 @@ ixl_attach(device_t dev)
 		    "an older version of the NVM image than expected.\n");
 		device_printf(dev, "Please update the NVM image.\n");
 	}
+
+	if (ixl_fw_recovery_mode(pf))
+		return ixl_attach_recovery_mode(pf);
 
 	/* Clear PXE mode */
 	i40e_clear_pxe_mode(hw);
@@ -521,12 +604,19 @@ ixl_attach(device_t dev)
 	device_printf(dev, "Allocating %d queues for PF LAN VSI; %d queues active\n",
 	    pf->qtag.num_allocated, pf->qtag.num_active);
 
-	/* Disable LLDP from the firmware for certain NVM versions */
-	if (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 3)) ||
-	    (pf->hw.aq.fw_maj_ver < 4)) {
-		i40e_aq_stop_lldp(hw, TRUE, NULL);
+	/* Disable LLDP from the firmware on XL710 for certain NVM versions */
+	if (hw->mac.type == I40E_MAC_XL710 &&
+	    (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 3)) ||
+	    (hw->aq.fw_maj_ver < 4))) {
+		i40e_aq_stop_lldp(hw, true, false, NULL);
 		pf->state |= IXL_PF_STATE_FW_LLDP_DISABLED;
 	}
+
+	/* Try enabling Energy Efficient Ethernet (EEE) mode */
+	if(i40e_enable_eee(hw, true) == I40E_SUCCESS)
+		atomic_set_int(&pf->state, IXL_PF_STATE_EEE_ENABLED);
+	else
+		atomic_clear_int(&pf->state, IXL_PF_STATE_EEE_ENABLED);
 
 	/* Get MAC addresses from hardware */
 	i40e_get_mac_addr(hw, hw->mac.addr);
@@ -539,15 +629,18 @@ ixl_attach(device_t dev)
 	i40e_get_port_mac_addr(hw, hw->mac.port_addr);
 
 	/* Query device FW LLDP status */
-	ixl_get_fw_lldp_status(pf);
-	/* Tell FW to apply DCB config on link up */
-	if ((hw->mac.type != I40E_MAC_X722)
-	    && ((pf->hw.aq.api_maj_ver > 1)
-	    || (pf->hw.aq.api_maj_ver == 1 && pf->hw.aq.api_min_ver >= 7)))
-		i40e_aq_set_dcb_parameters(hw, true, NULL);
+	if (i40e_get_fw_lldp_status(hw, &lldp_status) == I40E_SUCCESS) {
+		if (lldp_status == I40E_GET_FW_LLDP_STATUS_DISABLED) {
+			atomic_set_int(&pf->state,
+			    IXL_PF_STATE_FW_LLDP_DISABLED);
+		} else {
+			atomic_clear_int(&pf->state,
+			    IXL_PF_STATE_FW_LLDP_DISABLED);
+		}
+	}
 
-	/* Initialize mac filter list for VSI */
-	SLIST_INIT(&vsi->ftl);
+	/* Tell FW to apply DCB config on link up */
+	i40e_aq_set_dcb_parameters(hw, true, NULL);
 
 	/* Set up SW VSI and allocate queue memory and rings */
 	if (ixl_setup_stations(pf)) { 
@@ -648,6 +741,9 @@ ixl_attach(device_t dev)
 	ixl_update_stats_counters(pf);
 	ixl_add_hw_stats(pf);
 
+	/* Add protocol filters to list */
+	ixl_init_filters(vsi);
+
 	/* Register for VLAN events */
 	vsi->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
 	    ixl_register_vlan, vsi, EVENTHANDLER_PRI_FIRST);
@@ -682,6 +778,10 @@ ixl_attach(device_t dev)
 		device_printf(dev, "The device is not iWARP enabled\n");
 	}
 #endif
+	/* Start the local timer */
+	IXL_PF_LOCK(pf);
+	callout_reset(&pf->timer, hz, ixl_local_timer, pf);
+	IXL_PF_UNLOCK(pf);
 
 	INIT_DEBUGOUT("ixl_attach: end");
 	return (0);
@@ -747,30 +847,36 @@ ixl_detach(device_t dev)
 		ixl_stop(pf);
 
 	/* Shutdown LAN HMC */
-	status = i40e_shutdown_lan_hmc(hw);
-	if (status)
-		device_printf(dev,
-		    "Shutdown LAN HMC failed with code %d\n", status);
+	if (hw->hmc.hmc_obj) {
+		status = i40e_shutdown_lan_hmc(hw);
+		if (status)
+			device_printf(dev,
+			    "Shutdown LAN HMC failed with code %s\n", i40e_stat_str(hw, status));
+	}
 
 	/* Teardown LAN queue resources */
 	ixl_teardown_queue_msix(vsi);
 	ixl_free_queue_tqs(vsi);
+
+	/* Timer enqueues admin task. Stop it before freeing the admin taskqueue */
+	callout_drain(&pf->timer);
+
 	/* Shutdown admin queue */
 	ixl_disable_intr0(hw);
 	ixl_teardown_adminq_msix(pf);
-	ixl_free_adminq_tq(pf);
+
 	status = i40e_shutdown_adminq(hw);
 	if (status)
 		device_printf(dev,
 		    "Shutdown Admin queue failed with code %d\n", status);
+
+	ixl_free_adminq_tq(pf);
 
 	/* Unregister VLAN events */
 	if (vsi->vlan_attach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_config, vsi->vlan_attach);
 	if (vsi->vlan_detach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, vsi->vlan_detach);
-
-	callout_drain(&pf->timer);
 
 #ifdef IXL_IW
 	if (ixl_enable_iwarp && pf->iw_enabled) {

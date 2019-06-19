@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -56,7 +56,7 @@
 #define I40E_MAX_PF_VSI			64
 #define I40E_MAX_PF_QP			128
 #define I40E_MAX_VSI_QP			16
-#define I40E_MAX_VF_VSI			3
+#define I40E_MAX_VF_VSI			4
 #define I40E_MAX_CHAINED_RX_BUFFERS	5
 #define I40E_MAX_PF_UDP_OFFLOAD_PORTS	16
 
@@ -345,6 +345,12 @@ struct i40e_phy_info {
 					     I40E_PHY_TYPE_OFFSET)
 #define I40E_CAP_PHY_TYPE_25GBASE_ACC BIT_ULL(I40E_PHY_TYPE_25GBASE_ACC + \
 					     I40E_PHY_TYPE_OFFSET)
+/* Offset for 2.5G/5G PHY Types value to bit number conversion */
+#define I40E_PHY_TYPE_OFFSET2 (-10)
+#define I40E_CAP_PHY_TYPE_2_5GBASE_T BIT_ULL(I40E_PHY_TYPE_2_5GBASE_T + \
+					     I40E_PHY_TYPE_OFFSET2)
+#define I40E_CAP_PHY_TYPE_5GBASE_T BIT_ULL(I40E_PHY_TYPE_5GBASE_T + \
+					     I40E_PHY_TYPE_OFFSET2)
 #define I40E_HW_CAP_MAX_GPIO			30
 #define I40E_HW_CAP_MDIO_PORT_MODE_MDIO		0
 #define I40E_HW_CAP_MDIO_PORT_MODE_I2C		1
@@ -487,6 +493,7 @@ enum i40e_nvmupd_cmd {
 	I40E_NVMUPD_EXEC_AQ,
 	I40E_NVMUPD_GET_AQ_RESULT,
 	I40E_NVMUPD_GET_AQ_EVENT,
+	I40E_NVMUPD_FEATURES,
 };
 
 enum i40e_nvmupd_state {
@@ -522,6 +529,10 @@ enum i40e_nvmupd_state {
 #define I40E_NVM_AQE				0xe
 #define I40E_NVM_EXEC				0xf
 
+#define I40E_NVM_EXEC_GET_AQ_RESULT		0x0
+#define I40E_NVM_EXEC_FEATURES			0xe
+#define I40E_NVM_EXEC_STATUS			0xf
+
 #define I40E_NVM_ADAPT_SHIFT	16
 #define I40E_NVM_ADAPT_MASK	(0xffffULL << I40E_NVM_ADAPT_SHIFT)
 
@@ -534,6 +545,20 @@ struct i40e_nvm_access {
 	u32 offset;	/* in bytes */
 	u32 data_size;	/* in bytes */
 	u8 data[1];
+};
+
+/* NVMUpdate features API */
+#define I40E_NVMUPD_FEATURES_API_VER_MAJOR		0
+#define I40E_NVMUPD_FEATURES_API_VER_MINOR		14
+#define I40E_NVMUPD_FEATURES_API_FEATURES_ARRAY_LEN	12
+
+#define I40E_NVMUPD_FEATURE_FLAT_NVM_SUPPORT		BIT(0)
+
+struct i40e_nvmupd_features {
+	u8 major;
+	u8 minor;
+	u16 size;
+	u8 features[I40E_NVMUPD_FEATURES_API_FEATURES_ARRAY_LEN];
 };
 
 /* (Q)SFP module access definitions */
@@ -727,12 +752,17 @@ struct i40e_hw {
 #define I40E_HW_FLAG_802_1AD_CAPABLE        BIT_ULL(1)
 #define I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE  BIT_ULL(2)
 #define I40E_HW_FLAG_NVM_READ_REQUIRES_LOCK BIT_ULL(3)
+#define I40E_HW_FLAG_FW_LLDP_STOPPABLE	    BIT_ULL(4)
+#define I40E_HW_FLAG_FW_LLDP_PERSISTENT     BIT_ULL(5)
 	u64 flags;
 
 	/* Used in set switch config AQ command */
 	u16 switch_tag;
 	u16 first_tag;
 	u16 second_tag;
+
+	/* NVMUpdate features */
+	struct i40e_nvmupd_features nvmupd_features;
 
 	/* debug mask */
 	u32 debug_mask;
@@ -1698,4 +1728,10 @@ struct i40e_lldp_variables {
 #define I40E_FLEX_56_MASK		(0x1ULL << I40E_FLEX_56_SHIFT)
 #define I40E_FLEX_57_SHIFT		6
 #define I40E_FLEX_57_MASK		(0x1ULL << I40E_FLEX_57_SHIFT)
+
+#define I40E_BCM_PHY_PCS_STATUS1_PAGE	0x3
+#define I40E_BCM_PHY_PCS_STATUS1_REG	0x0001
+#define I40E_BCM_PHY_PCS_STATUS1_RX_LPI	BIT(8)
+#define I40E_BCM_PHY_PCS_STATUS1_TX_LPI	BIT(9)
+
 #endif /* _I40E_TYPE_H_ */

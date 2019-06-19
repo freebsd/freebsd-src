@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -45,15 +45,16 @@
 #endif
 
 #ifdef DEV_NETMAP
-#include <net/netmap.h>
-#include <sys/selinfo.h>
-#include <dev/netmap/netmap_kern.h>
+#include <dev/netmap/if_ixl_netmap.h>
 #endif /* DEV_NETMAP */
 
 static int	ixl_vsi_setup_queue(struct ixl_vsi *, struct ixl_queue *, int);
 static u64	ixl_max_aq_speed_to_value(u8);
 static u8	ixl_convert_sysctl_aq_link_speed(u8, bool);
 static void	ixl_sbuf_print_bytes(struct sbuf *, u8 *, int, int, bool);
+static enum i40e_status_code ixl_set_lla(struct ixl_vsi *);
+static const char * ixl_link_speed_string(u8 link_speed);
+
 
 /* Sysctls */
 static int	ixl_sysctl_set_flowcntl(SYSCTL_HANDLER_ARGS);
@@ -64,6 +65,7 @@ static int	ixl_sysctl_show_fw(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_unallocated_queues(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_pf_tx_itr(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_pf_rx_itr(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_eee_enable(SYSCTL_HANDLER_ARGS);
 
 /* Debug Sysctls */
 static int 	ixl_sysctl_link_status(SYSCTL_HANDLER_ARGS);
@@ -84,10 +86,8 @@ static int	ixl_sysctl_fec_rs_request(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_fec_auto_enable(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_dump_debug_data(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_fw_lldp(SYSCTL_HANDLER_ARGS);
-#ifdef IXL_DEBUG
-static int	ixl_sysctl_qtx_tail_handler(SYSCTL_HANDLER_ARGS);
-static int	ixl_sysctl_qrx_tail_handler(SYSCTL_HANDLER_ARGS);
-#endif
+static int	ixl_sysctl_read_i2c_diag_data(SYSCTL_HANDLER_ARGS);
+
 
 #ifdef IXL_IW
 extern int ixl_enable_iwarp;
@@ -165,6 +165,12 @@ ixl_print_nvm_version(struct ixl_pf *pf)
 	sbuf_delete(sbuf);
 }
 
+bool
+ixl_fw_recovery_mode(struct ixl_pf *pf)
+{
+	return (rd32(&pf->hw, I40E_GL_FWSTS) & I40E_GL_FWSTS_FWS1B_MASK);
+}
+
 static void
 ixl_configure_tx_itr(struct ixl_pf *pf)
 {
@@ -213,7 +219,6 @@ ixl_configure_itr(struct ixl_pf *pf)
 	ixl_configure_rx_itr(pf);
 }
 
-
 /*********************************************************************
  *  Init entry point
  *
@@ -232,11 +237,14 @@ ixl_init_locked(struct ixl_pf *pf)
 	struct ifnet	*ifp = vsi->ifp;
 	device_t 	dev = pf->dev;
 	struct i40e_filter_control_settings	filter;
-	u8		tmpaddr[ETHER_ADDR_LEN];
-	int		ret;
 
 	INIT_DEBUGOUT("ixl_init_locked: begin");
 	IXL_PF_LOCK_ASSERT(pf);
+
+	if ((pf->state & IXL_PF_STATE_RECOVERY_MODE) != 0) {
+		device_printf(dev, "Running in recovery mode, only firmware update available\n");
+		return;
+	}
 
 	ixl_stop_locked(pf);
 
@@ -252,25 +260,10 @@ ixl_init_locked(struct ixl_pf *pf)
 	}
 
 	/* Get the latest mac address... User might use a LAA */
-	bcopy(IF_LLADDR(vsi->ifp), tmpaddr,
-	      ETH_ALEN);
-	if (!cmp_etheraddr(hw->mac.addr, tmpaddr) &&
-	    (i40e_validate_mac_addr(tmpaddr) == I40E_SUCCESS)) {
-		device_printf(dev, "ixl_init_locked: reconfigure MAC addr\n");
-		ixl_del_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
-		bcopy(tmpaddr, hw->mac.addr,
-		    ETH_ALEN);
-		ret = i40e_aq_mac_address_write(hw,
-		    I40E_AQC_WRITE_TYPE_LAA_ONLY,
-		    hw->mac.addr, NULL);
-		if (ret) {
-			device_printf(dev, "LLA address"
-			 "change failed!!\n");
-			return;
-		}
+	if (ixl_set_lla(vsi)) {
+		device_printf(dev, "LLA address change failed!\n");
+		return;
 	}
-
-	ixl_add_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
 
 	/* Set the various hardware offload abilities */
 	ifp->if_hwassist = 0;
@@ -299,12 +292,6 @@ ixl_init_locked(struct ixl_pf *pf)
 	/* Set up RSS */
 	ixl_config_rss(pf);
 
-	/* Add protocol filters to list */
-	ixl_init_filters(vsi);
-
-	/* Setup vlan's if needed */
-	ixl_setup_vlan_filters(vsi);
-
 	/* Set up MSI/X routing and the ITR settings */
 	if (pf->msix > 1) {
 		ixl_configure_queue_intr_msix(pf);
@@ -318,6 +305,10 @@ ixl_init_locked(struct ixl_pf *pf)
 
 	ixl_reconfigure_filters(vsi);
 
+	/* Check if PROMISC or ALLMULTI flags have been set
+	 * by user before bringing interface up */
+	ixl_set_promisc(vsi);
+
 	/* And now turn on interrupts */
 	ixl_enable_intr(vsi);
 
@@ -326,15 +317,12 @@ ixl_init_locked(struct ixl_pf *pf)
 	i40e_get_link_status(hw, &pf->link_up);
 	ixl_update_link_status(pf);
 
-	/* Start the local timer */
-	callout_reset(&pf->timer, hz, ixl_local_timer, pf);
-
 	/* Now inform the stack we're ready */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 #ifdef IXL_IW
 	if (ixl_enable_iwarp && pf->iw_enabled) {
-		ret = ixl_iw_pf_init(pf);
+		int ret = ixl_iw_pf_init(pf);
 		if (ret)
 			device_printf(dev,
 			    "initialize iwarp failed, code %d\n", ret);
@@ -355,9 +343,14 @@ ixl_get_hw_capabilities(struct ixl_pf *pf)
 	struct i40e_aqc_list_capabilities_element_resp *buf;
 	struct i40e_hw	*hw = &pf->hw;
 	device_t 	dev = pf->dev;
-	int             error, len;
+	int             error, len, i2c_intfc_num;
 	u16		needed;
 	bool		again = TRUE;
+
+	if ((pf->state & IXL_PF_STATE_RECOVERY_MODE) != 0) {
+		hw->func_caps.iwarp = 0;
+		return 0;
+	}
 
 	len = 40 * sizeof(struct i40e_aqc_list_capabilities_element_resp);
 retry:
@@ -383,9 +376,6 @@ retry:
 		return (ENODEV);
 	}
 
-	/* Capture this PF's starting queue pair */
-	pf->qbase = hw->func_caps.base_queue;
-
 #ifdef IXL_DEBUG
 	device_printf(dev, "pf_id=%d, num_vfs=%d, msix_pf=%d, "
 	    "msix_vf=%d, fd_g=%d, fd_b=%d, tx_qp=%d rx_qp=%d qbase=%d\n",
@@ -398,10 +388,45 @@ retry:
 	    hw->func_caps.num_rx_qp,
 	    hw->func_caps.base_queue);
 #endif
-	struct i40e_osdep *osdep = (struct i40e_osdep *)hw->back;
-	osdep->i2c_intfc_num = ixl_find_i2c_interface(pf);
-	if (osdep->i2c_intfc_num != -1)
+	/*
+	 * Some devices have both MDIO and I2C; since this isn't reported
+	 * by the FW, check registers to see if an I2C interface exists.
+	 */
+	i2c_intfc_num = ixl_find_i2c_interface(pf);
+	if (i2c_intfc_num != -1)
 		pf->has_i2c = true;
+
+	/* Determine functions to use for driver I2C accesses */
+	switch (pf->i2c_access_method) {
+	case IXL_I2C_ACCESS_METHOD_BEST_AVAILABLE: {
+		if (hw->mac.type == I40E_MAC_XL710 &&
+		    hw->aq.api_maj_ver == 1 &&
+		    hw->aq.api_min_ver >= 7) {
+			pf->read_i2c_byte = ixl_read_i2c_byte_aq;
+			pf->write_i2c_byte = ixl_write_i2c_byte_aq;
+		} else {
+			pf->read_i2c_byte = ixl_read_i2c_byte_reg;
+			pf->write_i2c_byte = ixl_write_i2c_byte_reg;
+		}
+		break;
+	}
+	case IXL_I2C_ACCESS_METHOD_AQ:
+		pf->read_i2c_byte = ixl_read_i2c_byte_aq;
+		pf->write_i2c_byte = ixl_write_i2c_byte_aq;
+		break;
+	case IXL_I2C_ACCESS_METHOD_REGISTER_I2CCMD:
+		pf->read_i2c_byte = ixl_read_i2c_byte_reg;
+		pf->write_i2c_byte = ixl_write_i2c_byte_reg;
+		break;
+	case IXL_I2C_ACCESS_METHOD_BIT_BANG_I2CPARAMS:
+		pf->read_i2c_byte = ixl_read_i2c_byte_bb;
+		pf->write_i2c_byte = ixl_write_i2c_byte_bb;
+		break;
+	default:
+		/* Should not happen */
+		device_printf(dev, "Error setting I2C access functions\n");
+		break;
+	}
 
 	/* Print a subset of the capability information. */
 	device_printf(dev, "PF-ID[%d]: VFs %d, MSIX %d, VF MSIX %d, QPs %d, %s\n",
@@ -690,6 +715,8 @@ ixl_intr(void *arg)
         u32			icr0;
 	bool			more;
 
+	ixl_disable_intr0(hw);
+
 	pf->admin_irq++;
 
 	/* Clear PBA at start of ISR if using legacy interrupts */
@@ -745,6 +772,11 @@ ixl_msix_que(void *arg)
 	/* Protect against spurious interrupts */
 	if (!(vsi->ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
+
+	/* There are drivers which disable auto-masking of interrupts,
+	 * which is a global setting for all ports. We have to make sure
+	 * to mask it to not lose IRQs */
+	ixl_disable_queue(hw, que->me);
 
 	++que->irqs;
 
@@ -904,7 +936,7 @@ ixl_set_promisc(struct ixl_vsi *vsi)
 void
 ixl_add_multi(struct ixl_vsi *vsi)
 {
-	struct	ifmultiaddr	*ifma;
+	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp = vsi->ifp;
 	struct i40e_hw		*hw = vsi->hw;
 	int			mcnt = 0, flags;
@@ -993,26 +1025,37 @@ ixl_del_multi(struct ixl_vsi *vsi)
  *  This routine checks for link status, updates statistics,
  *  and runs the watchdog check.
  *
- *  Only runs when the driver is configured UP and RUNNING.
- *
  **********************************************************************/
 
 void
 ixl_local_timer(void *arg)
 {
 	struct ixl_pf		*pf = arg;
+	struct ifnet *ifp = pf->vsi.ifp;
+
+	if (ixl_fw_recovery_mode(pf)) {
+		if (!(atomic_load_acq_int(&pf->state) & IXL_PF_STATE_RECOVERY_MODE)) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			    ixl_stop_locked(pf);
+			atomic_set_int(&pf->state, IXL_PF_STATE_RECOVERY_MODE | IXL_PF_STATE_EMPR_RESETTING);
+			device_printf(pf->dev, "Firmware recovery mode detected. Limiting functionality. Refer to Intel(R) Ethernet Adapters and Devices User Guide for details on firmware recovery mode.\n");
+		}
+	}
 
 	IXL_PF_LOCK_ASSERT(pf);
 
 	/* Fire off the adminq task */
 	taskqueue_enqueue(pf->tq, &pf->adminq);
 
-	/* Update stats */
-	ixl_update_stats_counters(pf);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		/* Update stats */
+		ixl_update_stats_counters(pf);
+	}
 
-	/* Increment stat when a queue shows hung */
-	if (ixl_queue_hang_check(&pf->vsi))
+	if (ixl_queue_hang_check(&pf->vsi)) {
+		/* Increment stat when a queue shows hung */
 		pf->watchdog_events++;
+	}
 
 	callout_reset(&pf->timer, hz, ixl_local_timer, pf);
 }
@@ -1043,7 +1086,7 @@ ixl_link_up_msg(struct ixl_pf *pf)
 
 	log(LOG_NOTICE, "%s: Link is up, %s Full Duplex, Requested FEC: %s, Negotiated FEC: %s, Autoneg: %s, Flow Control: %s\n",
 	    ifp->if_xname,
-	    ixl_aq_speed_to_str(hw->phy.link_info.link_speed),
+	    ixl_link_speed_string(hw->phy.link_info.link_speed),
 	    req_fec_string, neg_fec_string,
 	    (hw->phy.link_info.an_info & I40E_AQ_AN_COMPLETED) ? "True" : "False",
 	    (hw->phy.link_info.an_info & I40E_AQ_LINK_PAUSE_TX &&
@@ -1109,20 +1152,17 @@ ixl_stop_locked(struct ixl_pf *pf)
 
 	IXL_PF_LOCK_ASSERT(pf);
 
+	/* Tell the stack that the interface is no longer active */
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING);
+
 #ifdef IXL_IW
 	/* Stop iWARP device */
 	if (ixl_enable_iwarp && pf->iw_enabled)
 		ixl_iw_pf_stop(pf);
 #endif
 
-	/* Stop the local timer */
-	callout_stop(&pf->timer);
-
 	ixl_disable_rings_intr(vsi);
 	ixl_disable_rings(vsi);
-
-	/* Tell the stack that the interface is no longer active */
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING);
 }
 
 void
@@ -1807,6 +1847,12 @@ ixl_add_ifmedia(struct ixl_vsi *vsi, u64 phy_types)
 	if (phy_types & (I40E_CAP_PHY_TYPE_1000BASE_LX))
 		ifmedia_add(&vsi->media, IFM_ETHER | IFM_1000_LX, 0, NULL);
 
+	if (phy_types & (I40E_CAP_PHY_TYPE_2_5GBASE_T))
+		ifmedia_add(&vsi->media, IFM_ETHER | IFM_2500_T, 0, NULL);
+
+	if (phy_types & (I40E_CAP_PHY_TYPE_5GBASE_T))
+		ifmedia_add(&vsi->media, IFM_ETHER | IFM_5000_T, 0, NULL);
+
 	if (phy_types & (I40E_CAP_PHY_TYPE_XAUI) ||
 	    phy_types & (I40E_CAP_PHY_TYPE_XFI) ||
 	    phy_types & (I40E_CAP_PHY_TYPE_10GBASE_SFPP_CU))
@@ -1887,7 +1933,7 @@ ixl_setup_interface(device_t dev, struct ixl_vsi *vsi)
 	ifp = vsi->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not allocate ifnet structure\n");
-		return (-1);
+		return (ENOMEM);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
@@ -1950,30 +1996,32 @@ ixl_setup_interface(device_t dev, struct ixl_vsi *vsi)
 	ifmedia_init(&vsi->media, IFM_IMASK, ixl_media_change,
 		     ixl_media_status);
 
-	aq_error = i40e_aq_get_phy_capabilities(hw,
-	    FALSE, TRUE, &abilities, NULL);
-	/* May need delay to detect fiber correctly */
-	if (aq_error == I40E_ERR_UNKNOWN_PHY) {
-		i40e_msec_delay(200);
-		aq_error = i40e_aq_get_phy_capabilities(hw, FALSE,
-		    TRUE, &abilities, NULL);
-	}
-	if (aq_error) {
-		if (aq_error == I40E_ERR_UNKNOWN_PHY)
-			device_printf(dev, "Unknown PHY type detected!\n");
-		else
-			device_printf(dev,
-			    "Error getting supported media types, err %d,"
-			    " AQ error %d\n", aq_error, hw->aq.asq_last_status);
-	} else {
-		pf->supported_speeds = abilities.link_speed;
+	if ((atomic_load_acq_int(&pf->state) & IXL_PF_STATE_RECOVERY_MODE) == 0) {
+		aq_error = i40e_aq_get_phy_capabilities(hw,
+		    FALSE, TRUE, &abilities, NULL);
+		/* May need delay to detect fiber correctly */
+		if (aq_error == I40E_ERR_UNKNOWN_PHY) {
+			i40e_msec_delay(200);
+			aq_error = i40e_aq_get_phy_capabilities(hw, FALSE,
+			    TRUE, &abilities, NULL);
+		}
+		if (aq_error) {
+			if (aq_error == I40E_ERR_UNKNOWN_PHY)
+				device_printf(dev, "Unknown PHY type detected!\n");
+			else
+				device_printf(dev,
+				    "Error getting supported media types, err %d,"
+				    " AQ error %d\n", aq_error, hw->aq.asq_last_status);
+		} else {
+			pf->supported_speeds = abilities.link_speed;
 #if __FreeBSD_version >= 1100000
-		ifp->if_baudrate = ixl_max_aq_speed_to_value(pf->supported_speeds);
+			ifp->if_baudrate = ixl_max_aq_speed_to_value(pf->supported_speeds);
 #else
-		if_initbaudrate(ifp, ixl_max_aq_speed_to_value(pf->supported_speeds));
+			if_initbaudrate(ifp, ixl_max_aq_speed_to_value(pf->supported_speeds));
 #endif
 
-		ixl_add_ifmedia(vsi, hw->phy.phy_types);
+			ixl_add_ifmedia(vsi, hw->phy.phy_types);
+		}
 	}
 
 	/* Use autoselect media by default */
@@ -2138,8 +2186,6 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 
 	/* Reset VSI statistics */
 	ixl_vsi_reset_stats(vsi);
-	vsi->hw_filters_add = 0;
-	vsi->hw_filters_del = 0;
 
 	ctxt.flags = htole16(I40E_AQ_VSI_TYPE_PF);
 
@@ -2262,9 +2308,6 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 	return (err);
 }
 
-
-
-
 void
 ixl_vsi_free_queues(struct ixl_vsi *vsi)
 {
@@ -2298,6 +2341,8 @@ ixl_vsi_free_queues(struct ixl_vsi *vsi)
 		IXL_RX_UNLOCK(rxr);
 		IXL_RX_LOCK_DESTROY(rxr);
 	}
+
+	sysctl_ctx_free(&vsi->sysctl_ctx);
 }
 
 
@@ -2309,7 +2354,6 @@ ixl_vsi_free_queues(struct ixl_vsi *vsi)
 void
 ixl_free_vsi(struct ixl_vsi *vsi)
 {
-
 	/* Free station queues */
 	ixl_vsi_free_queues(vsi);
 	if (vsi->queues)
@@ -2329,6 +2373,8 @@ ixl_free_mac_filters(struct ixl_vsi *vsi)
 		SLIST_REMOVE_HEAD(&vsi->ftl, next);
 		free(f, M_DEVBUF);
 	}
+
+	vsi->num_hw_filters = 0;
 }
 
 /*
@@ -2455,6 +2501,9 @@ ixl_vsi_setup_queues(struct ixl_vsi *vsi)
 		if (error)
 			break;
 	}
+	if (error == 0)
+		sysctl_ctx_init(&vsi->sysctl_ctx);
+
 	return (error);
 }
 
@@ -2647,67 +2696,23 @@ ixl_set_queue_tx_itr(struct ixl_queue *que)
 }
 
 void
-ixl_add_vsi_sysctls(struct ixl_pf *pf, struct ixl_vsi *vsi,
-    struct sysctl_ctx_list *ctx, const char *sysctl_name)
+ixl_vsi_add_sysctls(struct ixl_vsi * vsi, const char * sysctl_name, bool queues_sysctls)
 {
 	struct sysctl_oid *tree;
 	struct sysctl_oid_list *child;
 	struct sysctl_oid_list *vsi_list;
 
-	tree = device_get_sysctl_tree(pf->dev);
+	tree = device_get_sysctl_tree(vsi->dev);
 	child = SYSCTL_CHILDREN(tree);
-	vsi->vsi_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, sysctl_name,
-				   CTLFLAG_RD, NULL, "VSI Number");
+	vsi->vsi_node = SYSCTL_ADD_NODE(&vsi->sysctl_ctx, child, OID_AUTO, sysctl_name,
+			CTLFLAG_RD, NULL, "VSI Number");
+
 	vsi_list = SYSCTL_CHILDREN(vsi->vsi_node);
+	ixl_add_sysctls_eth_stats(&vsi->sysctl_ctx, vsi_list, &vsi->eth_stats);
 
-	ixl_add_sysctls_eth_stats(ctx, vsi_list, &vsi->eth_stats);
+	if (queues_sysctls)
+		ixl_vsi_add_queues_stats(vsi);
 }
-
-#ifdef IXL_DEBUG
-/**
- * ixl_sysctl_qtx_tail_handler
- * Retrieves I40E_QTX_TAIL value from hardware
- * for a sysctl.
- */
-static int
-ixl_sysctl_qtx_tail_handler(SYSCTL_HANDLER_ARGS)
-{
-	struct ixl_queue *que;
-	int error;
-	u32 val;
-
-	que = ((struct ixl_queue *)oidp->oid_arg1);
-	if (!que) return 0;
-
-	val = rd32(que->vsi->hw, que->txr.tail);
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return (0);
-}
-
-/**
- * ixl_sysctl_qrx_tail_handler
- * Retrieves I40E_QRX_TAIL value from hardware
- * for a sysctl.
- */
-static int
-ixl_sysctl_qrx_tail_handler(SYSCTL_HANDLER_ARGS)
-{
-	struct ixl_queue *que;
-	int error;
-	u32 val;
-
-	que = ((struct ixl_queue *)oidp->oid_arg1);
-	if (!que) return 0;
-
-	val = rd32(que->vsi->hw, que->rxr.tail);
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return (0);
-}
-#endif
 
 /*
  * Used to set the Tx ITR value for all of the PF LAN VSI's queues.
@@ -2781,21 +2786,11 @@ void
 ixl_add_hw_stats(struct ixl_pf *pf)
 {
 	device_t dev = pf->dev;
-	struct ixl_vsi *vsi = &pf->vsi;
-	struct ixl_queue *queues = vsi->queues;
 	struct i40e_hw_port_stats *pf_stats = &pf->stats;
 
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
 	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
-	struct sysctl_oid_list *vsi_list;
-
-	struct sysctl_oid *queue_node;
-	struct sysctl_oid_list *queue_list;
-
-	struct tx_ring *txr;
-	struct rx_ring *rxr;
-	char queue_namebuf[QUEUE_NAME_LEN];
 
 	/* Driver statistics */
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "watchdog_events",
@@ -2805,127 +2800,9 @@ ixl_add_hw_stats(struct ixl_pf *pf)
 			CTLFLAG_RD, &pf->admin_irq,
 			"Admin Queue IRQ Handled");
 
-	ixl_add_vsi_sysctls(pf, &pf->vsi, ctx, "pf");
-	vsi_list = SYSCTL_CHILDREN(pf->vsi.vsi_node);
-
-	/* Queue statistics */
-	for (int q = 0; q < vsi->num_queues; q++) {
-		snprintf(queue_namebuf, QUEUE_NAME_LEN, "que%d", q);
-		queue_node = SYSCTL_ADD_NODE(ctx, vsi_list,
-		    OID_AUTO, queue_namebuf, CTLFLAG_RD, NULL, "Queue #");
-		queue_list = SYSCTL_CHILDREN(queue_node);
-
-		txr = &(queues[q].txr);
-		rxr = &(queues[q].rxr);
-
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "mbuf_defrag_failed",
-				CTLFLAG_RD, &(queues[q].mbuf_defrag_failed),
-				"m_defrag() failed");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irqs",
-				CTLFLAG_RD, &(queues[q].irqs),
-				"irqs on this queue");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tso_tx",
-				CTLFLAG_RD, &(queues[q].tso),
-				"TSO");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_dmamap_failed",
-				CTLFLAG_RD, &(queues[q].tx_dmamap_failed),
-				"Driver tx dma failure in xmit");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "mss_too_small",
-				CTLFLAG_RD, &(queues[q].mss_too_small),
-				"TSO sends with an MSS less than 64");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",
-				CTLFLAG_RD, &(txr->no_desc),
-				"Queue No Descriptor Available");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
-				CTLFLAG_RD, &(txr->total_packets),
-				"Queue Packets Transmitted");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_bytes",
-				CTLFLAG_RD, &(txr->tx_bytes),
-				"Queue Bytes Transmitted");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
-				CTLFLAG_RD, &(rxr->rx_packets),
-				"Queue Packets Received");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
-				CTLFLAG_RD, &(rxr->rx_bytes),
-				"Queue Bytes Received");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_desc_err",
-				CTLFLAG_RD, &(rxr->desc_errs),
-				"Queue Rx Descriptor Errors");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "rx_itr",
-				CTLFLAG_RD, &(rxr->itr), 0,
-				"Queue Rx ITR Interval");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "tx_itr",
-				CTLFLAG_RD, &(txr->itr), 0,
-				"Queue Tx ITR Interval");
-#ifdef IXL_DEBUG
-		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "txr_watchdog",
-				CTLFLAG_RD, &(txr->watchdog_timer), 0,
-				"Ticks before watchdog timer causes interface reinit");
-		SYSCTL_ADD_U16(ctx, queue_list, OID_AUTO, "tx_next_avail",
-				CTLFLAG_RD, &(txr->next_avail), 0,
-				"Next TX descriptor to be used");
-		SYSCTL_ADD_U16(ctx, queue_list, OID_AUTO, "tx_next_to_clean",
-				CTLFLAG_RD, &(txr->next_to_clean), 0,
-				"Next TX descriptor to be cleaned");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_not_done",
-				CTLFLAG_RD, &(rxr->not_done),
-				"Queue Rx Descriptors not Done");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "rx_next_refresh",
-				CTLFLAG_RD, &(rxr->next_refresh), 0,
-				"Queue Rx Descriptors not Done");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "rx_next_check",
-				CTLFLAG_RD, &(rxr->next_check), 0,
-				"Queue Rx Descriptors not Done");
-		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "qrx_tail",
-				CTLTYPE_UINT | CTLFLAG_RD, &queues[q],
-				sizeof(struct ixl_queue),
-				ixl_sysctl_qrx_tail_handler, "IU",
-				"Queue Receive Descriptor Tail");
-		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "qtx_tail", 
-				CTLTYPE_UINT | CTLFLAG_RD, &queues[q],
-				sizeof(struct ixl_queue),
-				ixl_sysctl_qtx_tail_handler, "IU",
-				"Queue Transmit Descriptor Tail");
-#endif
-	}
-
+	ixl_vsi_add_sysctls(&pf->vsi, "pf", true);
 	/* MAC stats */
 	ixl_add_sysctls_mac_stats(ctx, child, pf_stats);
-}
-
-void
-ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
-	struct sysctl_oid_list *child,
-	struct i40e_eth_stats *eth_stats)
-{
-	struct ixl_sysctl_info ctls[] =
-	{
-		{&eth_stats->rx_bytes, "good_octets_rcvd", "Good Octets Received"},
-		{&eth_stats->rx_unicast, "ucast_pkts_rcvd",
-			"Unicast Packets Received"},
-		{&eth_stats->rx_multicast, "mcast_pkts_rcvd",
-			"Multicast Packets Received"},
-		{&eth_stats->rx_broadcast, "bcast_pkts_rcvd",
-			"Broadcast Packets Received"},
-		{&eth_stats->rx_discards, "rx_discards", "Discarded RX packets"},
-		{&eth_stats->tx_bytes, "good_octets_txd", "Good Octets Transmitted"},
-		{&eth_stats->tx_unicast, "ucast_pkts_txd", "Unicast Packets Transmitted"},
-		{&eth_stats->tx_multicast, "mcast_pkts_txd",
-			"Multicast Packets Transmitted"},
-		{&eth_stats->tx_broadcast, "bcast_pkts_txd",
-			"Broadcast Packets Transmitted"},
-		// end
-		{0,0,0}
-	};
-
-	struct ixl_sysctl_info *entry = ctls;
-	while (entry->stat != 0)
-	{
-		SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, entry->name,
-				CTLFLAG_RD, entry->stat,
-				entry->description);
-		entry++;
-	}
 }
 
 void
@@ -3164,54 +3041,83 @@ ixl_unregister_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 }
 
 /*
-** This routine updates vlan filters, called by init
-** it scans the filter table and then updates the hw
-** after a soft reset.
-*/
+ * In some firmware versions there is default MAC/VLAN filter
+ * configured which interferes with filters managed by driver.
+ * Make sure it's removed.
+ */
 void
-ixl_setup_vlan_filters(struct ixl_vsi *vsi)
+ixl_del_default_hw_filters(struct ixl_vsi *vsi)
 {
-	struct ixl_mac_filter	*f;
-	int			cnt = 0, flags;
+	struct i40e_aqc_remove_macvlan_element_data e;
 
-	if (vsi->num_vlans == 0)
-		return;
-	/*
-	** Scan the filter list for vlan entries,
-	** mark them for addition and then call
-	** for the AQ update.
-	*/
-	SLIST_FOREACH(f, &vsi->ftl, next) {
-		if (f->flags & IXL_FILTER_VLAN) {
-			f->flags |=
-			    (IXL_FILTER_ADD |
-			    IXL_FILTER_USED);
-			cnt++;
-		}
-	}
-	if (cnt == 0) {
-		printf("setup vlan: no filters found!\n");
-		return;
-	}
-	flags = IXL_FILTER_VLAN;
-	flags |= (IXL_FILTER_ADD | IXL_FILTER_USED);
-	ixl_add_hw_filters(vsi, flags, cnt);
-	return;
+	bzero(&e, sizeof(e));
+	bcopy(vsi->hw->mac.perm_addr, e.mac_addr, ETHER_ADDR_LEN);
+	e.vlan_tag = 0;
+	e.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
+	i40e_aq_remove_macvlan(vsi->hw, vsi->seid, &e, 1, NULL);
+
+	bzero(&e, sizeof(e));
+	bcopy(vsi->hw->mac.perm_addr, e.mac_addr, ETHER_ADDR_LEN);
+	e.vlan_tag = 0;
+	e.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH |
+		I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
+	i40e_aq_remove_macvlan(vsi->hw, vsi->seid, &e, 1, NULL);
+}
+
+static enum i40e_status_code
+ixl_set_lla(struct ixl_vsi *vsi)
+{
+	struct i40e_hw	*hw = vsi->hw;
+	u8		tmpaddr[ETHER_ADDR_LEN];
+	enum i40e_status_code status;
+
+	status = I40E_SUCCESS;
+
+	bcopy(IF_LLADDR(vsi->ifp), tmpaddr, ETHER_ADDR_LEN);
+	if (memcmp(hw->mac.addr, tmpaddr, ETHER_ADDR_LEN) == 0)
+		goto set_lla_exit;
+
+	status = i40e_validate_mac_addr(tmpaddr);
+	if (status != I40E_SUCCESS)
+		goto set_lla_exit;
+
+	ixl_del_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
+	bcopy(tmpaddr, hw->mac.addr, ETHER_ADDR_LEN);
+	status = i40e_aq_mac_address_write(hw,
+			I40E_AQC_WRITE_TYPE_LAA_ONLY,
+			hw->mac.addr, NULL);
+	if (status != I40E_SUCCESS)
+		goto set_lla_exit;
+
+	ixl_add_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
+set_lla_exit:
+	return (status);
 }
 
 /*
 ** Initialize filter list and add filters that the hardware
 ** needs to know about.
 **
-** Requires VSI's filter list & seid to be set before calling.
+** Requires VSI's seid to be set before calling.
 */
 void
 ixl_init_filters(struct ixl_vsi *vsi)
 {
 	struct ixl_pf *pf = (struct ixl_pf *)vsi->back;
 
+	/* Initialize mac filter list for VSI */
+	SLIST_INIT(&vsi->ftl);
+	vsi->num_hw_filters = 0;
+
 	/* Add broadcast address */
 	ixl_add_filter(vsi, ixl_bcast_addr, IXL_VLAN_ANY);
+
+	if (IXL_VSI_IS_VF(vsi))
+		return;
+
+	ixl_del_default_hw_filters(vsi);
+
+	ixl_add_filter(vsi, vsi->hw->mac.addr, IXL_VLAN_ANY);
 
 	/*
 	 * Prevent Tx flow control frames from being sent out by
@@ -3251,7 +3157,7 @@ ixl_add_mc_filter(struct ixl_vsi *vsi, u8 *macaddr)
 void
 ixl_reconfigure_filters(struct ixl_vsi *vsi)
 {
-	ixl_add_hw_filters(vsi, IXL_FILTER_USED, vsi->num_macs);
+	ixl_add_hw_filters(vsi, IXL_FILTER_USED, vsi->num_hw_filters);
 }
 
 /*
@@ -3404,7 +3310,7 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, int flags, int cnt)
 			device_printf(dev, "aq_add_macvlan err %d, "
 			    "aq_error %d\n", err, hw->aq.asq_last_status);
 		else
-			vsi->hw_filters_add += j;
+			vsi->num_hw_filters += j;
 	}
 	free(a, M_DEVBUF);
 	return;
@@ -3463,12 +3369,12 @@ ixl_del_hw_filters(struct ixl_vsi *vsi, int cnt)
 			int sc = 0;
 			for (int i = 0; i < j; i++)
 				sc += (!d[i].error_code);
-			vsi->hw_filters_del += sc;
+			vsi->num_hw_filters -= sc;
 			device_printf(dev,
 			    "Failed to remove %d/%d filters, aq error %d\n",
 			    j - sc, j, hw->aq.asq_last_status);
 		} else
-			vsi->hw_filters_del += j;
+			vsi->num_hw_filters -= j;
 	}
 	free(d, M_DEVBUF);
 
@@ -3971,6 +3877,16 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 	ixl_stat_update32(hw, I40E_GLPRT_RJC(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_jabber, &nsd->rx_jabber);
+	/* EEE */
+	i40e_get_phy_lpi_status(hw, nsd);
+
+	ixl_stat_update32(hw, I40E_PRTPM_TLPIC,
+			  pf->stat_offsets_loaded,
+			  &osd->tx_lpi_count, &nsd->tx_lpi_count);
+	ixl_stat_update32(hw, I40E_PRTPM_RLPIC,
+			  pf->stat_offsets_loaded,
+			  &osd->rx_lpi_count, &nsd->rx_lpi_count);
+
 	pf->stat_offsets_loaded = true;
 	/* End hw stats */
 
@@ -3998,10 +3914,14 @@ ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up)
 
 	ixl_teardown_queue_msix(vsi);
 
-	error = i40e_shutdown_lan_hmc(hw);
-	if (error)
-		device_printf(dev,
-		    "Shutdown LAN HMC failed with code %d\n", error);
+	if (hw->hmc.hmc_obj) {
+		error = i40e_shutdown_lan_hmc(hw);
+		if (error)
+			device_printf(dev,
+			    "Shutdown LAN HMC failed with code %d\n", error);
+	}
+
+	callout_drain(&pf->timer);
 
 	ixl_disable_intr0(hw);
 	ixl_teardown_adminq_msix(pf);
@@ -4011,13 +3931,8 @@ ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up)
 		device_printf(dev,
 		    "Shutdown Admin queue failed with code %d\n", error);
 
-	callout_drain(&pf->timer);
-
 	/* Free ring buffers, locks and filters */
 	ixl_vsi_free_queues(vsi);
-
-	/* Free VSI filter list */
-	ixl_free_mac_filters(vsi);
 
 	ixl_pf_qmgr_release(&pf->qmgr, &pf->qtag);
 
@@ -4030,16 +3945,19 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 	struct i40e_hw *hw = &pf->hw;
 	struct ixl_vsi *vsi = &pf->vsi;
 	device_t dev = pf->dev;
+	enum i40e_get_fw_lldp_status_resp lldp_status;
 	int error = 0;
 
 	device_printf(dev, "Rebuilding driver state...\n");
 
-	error = i40e_pf_reset(hw);
-	if (error) {
-		device_printf(dev, "PF reset failure %s\n",
-		    i40e_stat_str(hw, error));
-		goto ixl_rebuild_hw_structs_after_reset_err;
+	if (!(atomic_load_acq_int(&pf->state) & IXL_PF_STATE_RECOVERY_MODE)) {
+		if (ixl_fw_recovery_mode(pf)) {
+			atomic_set_int(&pf->state, IXL_PF_STATE_RECOVERY_MODE);
+			pf->link_up = FALSE;
+			ixl_update_link_status(pf);
+		}
 	}
+
 
 	/* Setup */
 	error = i40e_init_adminq(hw);
@@ -4056,43 +3974,61 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 		device_printf(dev, "ixl_get_hw_capabilities failed: %d\n", error);
 		goto ixl_rebuild_hw_structs_after_reset_err;
 	}
+	ixl_configure_intr0_msix(pf);
+	ixl_enable_intr0(hw);
 
-	error = i40e_init_lan_hmc(hw, hw->func_caps.num_tx_qp,
-	    hw->func_caps.num_rx_qp, 0, 0);
-	if (error) {
-		device_printf(dev, "init_lan_hmc failed: %d\n", error);
-		goto ixl_rebuild_hw_structs_after_reset_err;
-	}
+	/* Do not init LAN HMC and bring interface up in recovery mode */
+	if ((pf->state & IXL_PF_STATE_RECOVERY_MODE) == 0) {
+		error = i40e_init_lan_hmc(hw, hw->func_caps.num_tx_qp,
+		    hw->func_caps.num_rx_qp, 0, 0);
+		if (error) {
+			device_printf(dev, "init_lan_hmc failed: %d\n", error);
+			goto ixl_rebuild_hw_structs_after_reset_err;
+		}
 
-	error = i40e_configure_lan_hmc(hw, I40E_HMC_MODEL_DIRECT_ONLY);
-	if (error) {
-		device_printf(dev, "configure_lan_hmc failed: %d\n", error);
-		goto ixl_rebuild_hw_structs_after_reset_err;
-	}
+		error = i40e_configure_lan_hmc(hw, I40E_HMC_MODEL_DIRECT_ONLY);
+		if (error) {
+			device_printf(dev, "configure_lan_hmc failed: %d\n", error);
+			goto ixl_rebuild_hw_structs_after_reset_err;
+		}
 
-	/* reserve a contiguous allocation for the PF's VSI */
-	error = ixl_pf_qmgr_alloc_contiguous(&pf->qmgr, vsi->num_queues, &pf->qtag);
-	if (error) {
-		device_printf(dev, "Failed to reserve queues for PF LAN VSI, error %d\n",
-		    error);
-		/* TODO: error handling */
-	}
+		if (!pf->qmgr.qinfo) {
+			/* Init queue allocation manager */
+			error = ixl_pf_qmgr_init(&pf->qmgr, hw->func_caps.num_rx_qp);
+			if (error) {
+				device_printf(dev, "Failed to init queue manager for PF queues, error %d\n",
+				    error);
+				goto ixl_rebuild_hw_structs_after_reset_err;
+			}
+		}
+		/* reserve a contiguous allocation for the PF's VSI */
+		error = ixl_pf_qmgr_alloc_contiguous(&pf->qmgr, vsi->num_queues, &pf->qtag);
+		if (error) {
+			device_printf(dev, "Failed to reserve queues for PF LAN VSI, error %d\n",
+			    error);
+			/* TODO: error handling */
+		} else
+			device_printf(dev, "Allocating %d queues for PF LAN VSI; %d queues active\n",
+			    pf->qtag.num_allocated, pf->qtag.num_active);
 
-	device_printf(dev, "Allocating %d queues for PF LAN VSI; %d queues active\n",
-	    pf->qtag.num_allocated, pf->qtag.num_active);
+		error = ixl_switch_config(pf);
+		if (error) {
+			device_printf(dev, "ixl_rebuild_hw_structs_after_reset: ixl_switch_config() failed: %d\n",
+			     error);
+			goto ixl_rebuild_hw_structs_after_reset_err;
+		}
+	} /* not in recovery mode */
 
-	error = ixl_switch_config(pf);
-	if (error) {
-		device_printf(dev, "ixl_rebuild_hw_structs_after_reset: ixl_switch_config() failed: %d\n",
-		     error);
-		goto ixl_rebuild_hw_structs_after_reset_err;
-	}
+	/* Remove default filters reinstalled by FW on reset */
+	ixl_del_default_hw_filters(vsi);
 
 	if (ixl_vsi_setup_queues(vsi)) {
 		device_printf(dev, "setup queues failed!\n");
 		error = ENOMEM;
 		goto ixl_rebuild_hw_structs_after_reset_err;
 	}
+
+	ixl_vsi_add_sysctls(vsi, "pf", true);
 
 	if (pf->msix > 1) {
 		error = ixl_setup_adminq_msix(pf);
@@ -4111,6 +4047,12 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 			    error);
 			goto ixl_rebuild_hw_structs_after_reset_err;
 		}
+		error = ixl_setup_queue_tqs(vsi);
+		if (error) {
+			device_printf(dev, "ixl_setup_queue_tqs() error: %d\n",
+			    error);
+			goto ixl_rebuild_hw_structs_after_reset_err;
+		}
 	} else {
 		error = ixl_setup_legacy(pf);
 		if (error) {
@@ -4120,6 +4062,10 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 		}
 	}
 
+	/* Do not bring interface up in recovery mode */
+	if ((pf->state & IXL_PF_STATE_RECOVERY_MODE) != 0)
+		return (error);
+
 	/* Determine link state */
 	if (ixl_attach_get_link_status(pf)) {
 		error = EINVAL;
@@ -4127,12 +4073,25 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 	}
 
 	i40e_aq_set_dcb_parameters(hw, TRUE, NULL);
-	ixl_get_fw_lldp_status(pf);
+
+	/* Query device FW LLDP status */
+	if (i40e_get_fw_lldp_status(hw, &lldp_status) == I40E_SUCCESS) {
+		if (lldp_status == I40E_GET_FW_LLDP_STATUS_DISABLED) {
+			atomic_set_int(&pf->state,
+			    IXL_PF_STATE_FW_LLDP_DISABLED);
+		} else {
+			atomic_clear_int(&pf->state,
+			    IXL_PF_STATE_FW_LLDP_DISABLED);
+		}
+	}
 
 	if (is_up)
 		ixl_init(pf);
 
 	device_printf(dev, "Rebuilding driver state done.\n");
+	IXL_PF_LOCK(pf);
+	callout_reset(&pf->timer, hz, ixl_local_timer, pf);
+	IXL_PF_UNLOCK(pf);
 	return (0);
 
 ixl_rebuild_hw_structs_after_reset_err:
@@ -4146,22 +4105,20 @@ ixl_handle_empr_reset(struct ixl_pf *pf)
 	struct ixl_vsi	*vsi = &pf->vsi;
 	struct i40e_hw	*hw = &pf->hw;
 	bool is_up = !!(vsi->ifp->if_drv_flags & IFF_DRV_RUNNING);
-	int count = 0;
-	u32 reg;
+	int error = 0;
 
 	ixl_prepare_for_reset(pf, is_up);
-
-	/* Typically finishes within 3-4 seconds */
-	while (count++ < 100) {
-		reg = rd32(hw, I40E_GLGEN_RSTAT)
-			& I40E_GLGEN_RSTAT_DEVSTATE_MASK;
-		if (reg)
-			i40e_msec_delay(100);
-		else
-			break;
+	/*
+	 * i40e_pf_reset checks the type of reset and acts
+	 * accordingly. If EMP or Core reset was performed
+	 * doing PF reset is not necessary and it sometimes
+	 * fails.
+	 */
+	error = i40e_pf_reset(hw);
+	if (error) {
+		device_printf(pf->dev, "PF reset failure %s\n",
+				i40e_stat_str(hw, error));
 	}
-	ixl_dbg(pf, IXL_DBG_INFO,
-			"EMPR reset wait count: %d\n", count);
 
 	ixl_rebuild_hw_structs_after_reset(pf, is_up);
 
@@ -4181,7 +4138,7 @@ ixl_do_adminq(void *context, int pending)
 	i40e_status			ret;
 	device_t			dev = pf->dev;
 	u32				loop = 0;
-	u16				opcode, result;
+	u16				opcode, arq_pending;
 
 	if (pf->state & IXL_PF_STATE_EMPR_RESETTING) {
 		/* Flag cleared at end of this function */
@@ -4202,7 +4159,7 @@ ixl_do_adminq(void *context, int pending)
 	IXL_PF_LOCK(pf);
 	/* clean and process any events */
 	do {
-		ret = i40e_clean_arq_element(hw, &event, &result);
+		ret = i40e_clean_arq_element(hw, &event, &arq_pending);
 		if (ret)
 			break;
 		opcode = LE16_TO_CPU(event.desc.opcode);
@@ -4222,15 +4179,12 @@ ixl_do_adminq(void *context, int pending)
 			break;
 		}
 
-	} while (result && (loop++ < IXL_ADM_LIMIT));
+	} while (arq_pending && (loop++ < IXL_ADM_LIMIT));
 
 	free(event.msg_buf, M_DEVBUF);
 
-	/*
-	 * If there are still messages to process, reschedule ourselves.
-	 * Otherwise, re-enable our interrupt.
-	 */
-	if (result > 0)
+	/* If there are still messages to process, reschedule. */
+	if (arq_pending > 0)
 		taskqueue_enqueue(pf->tq, &pf->adminq);
 	else
 		ixl_enable_intr0(hw);
@@ -4248,12 +4202,10 @@ ixl_update_eth_stats(struct ixl_vsi *vsi)
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_eth_stats *es;
 	struct i40e_eth_stats *oes;
-	struct i40e_hw_port_stats *nsd;
 	u16 stat_idx = vsi->info.stat_counter_idx;
 
 	es = &vsi->eth_stats;
 	oes = &vsi->eth_stats_offsets;
-	nsd = &pf->stats;
 
 	/* Gather up the stats that the hw collects */
 	ixl_stat_update32(hw, I40E_GLV_TEPC(stat_idx),
@@ -4432,6 +4384,9 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	struct sysctl_oid *fec_node;
 	struct sysctl_oid_list *fec_list;
 
+	struct sysctl_oid *eee_node;
+	struct sysctl_oid_list *eee_list;
+
 	/* Set up sysctls */
 	SYSCTL_ADD_PROC(ctx, ctx_list,
 	    OID_AUTO, "fc", CTLTYPE_INT | CTLFLAG_RW,
@@ -4515,6 +4470,31 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	    OID_AUTO, "fw_lldp", CTLTYPE_INT | CTLFLAG_RW,
 	    pf, 0, ixl_sysctl_fw_lldp, "I", IXL_SYSCTL_HELP_FW_LLDP);
 
+	eee_node = SYSCTL_ADD_NODE(ctx, ctx_list,
+	    OID_AUTO, "eee", CTLFLAG_RD, NULL,
+	    "Energy Efficient Ethernet (EEE) Sysctls");
+	eee_list = SYSCTL_CHILDREN(eee_node);
+
+	SYSCTL_ADD_PROC(ctx, eee_list,
+	    OID_AUTO, "enable", CTLTYPE_INT | CTLFLAG_RW,
+	    pf, 0, ixl_sysctl_eee_enable, "I",
+	    "Enable Energy Efficient Ethernet (EEE)");
+
+	SYSCTL_ADD_UINT(ctx, eee_list, OID_AUTO, "tx_lpi_status",
+	    CTLFLAG_RD, &pf->stats.tx_lpi_status, 0,
+	    "TX LPI status");
+
+	SYSCTL_ADD_UINT(ctx, eee_list, OID_AUTO, "rx_lpi_status",
+	    CTLFLAG_RD, &pf->stats.rx_lpi_status, 0,
+	    "RX LPI status");
+
+	SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "tx_lpi_count",
+	    CTLFLAG_RD, &pf->stats.tx_lpi_count,
+	    "TX LPI count");
+
+	SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "rx_lpi_count",
+	    CTLFLAG_RD, &pf->stats.rx_lpi_count,
+	    "RX LPI count");
 	/* Add sysctls meant to print debug information, but don't list them
 	 * in "sysctl -a" output. */
 	debug_node = SYSCTL_ADD_NODE(ctx, ctx_list,
@@ -4577,6 +4557,10 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 		SYSCTL_ADD_PROC(ctx, debug_list,
 		    OID_AUTO, "write_i2c_byte", CTLTYPE_INT | CTLFLAG_RW,
 		    pf, 0, ixl_sysctl_write_i2c_byte, "I", "Write byte to I2C bus");
+
+		SYSCTL_ADD_PROC(ctx, debug_list,
+		    OID_AUTO, "read_i2c_diag_data", CTLTYPE_STRING | CTLFLAG_RD,
+		    pf, 0, ixl_sysctl_read_i2c_diag_data, "A", "Dump selected diagnostic data from FW");
 	}
 
 #ifdef PCI_IOV
@@ -4625,6 +4609,11 @@ ixl_sysctl_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &requested_fc, 0, req);
 	if ((error) || (req->newptr == NULL))
 		return (error);
+	if ((pf->state & IXL_PF_STATE_RECOVERY_MODE) != 0) {
+		device_printf(dev, "Interface is currently in FW recovery mode. "
+				"Setting flow control not supported\n");
+		return (EINVAL);
+	}
 	if (requested_fc < 0 || requested_fc > 3) {
 		device_printf(dev,
 		    "Invalid fc mode; valid modes are 0 through 3\n");
@@ -4650,12 +4639,11 @@ ixl_sysctl_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-char *
-ixl_aq_speed_to_str(enum i40e_aq_link_speed link_speed)
-{
-	int index;
 
-	char *speeds[] = {
+static const char *
+ixl_link_speed_string(u8 link_speed)
+{
+	const char * link_speed_str[] = {
 		"Unknown",
 		"100 Mbps",
 		"1 Gbps",
@@ -4663,34 +4651,43 @@ ixl_aq_speed_to_str(enum i40e_aq_link_speed link_speed)
 		"40 Gbps",
 		"20 Gbps",
 		"25 Gbps",
+		"2.5 Gbps",
+		"5 Gbps"
 	};
+	int index;
 
 	switch (link_speed) {
-	case I40E_LINK_SPEED_100MB:
-		index = 1;
-		break;
-	case I40E_LINK_SPEED_1GB:
-		index = 2;
-		break;
-	case I40E_LINK_SPEED_10GB:
-		index = 3;
-		break;
-	case I40E_LINK_SPEED_40GB:
-		index = 4;
-		break;
-	case I40E_LINK_SPEED_20GB:
-		index = 5;
-		break;
-	case I40E_LINK_SPEED_25GB:
-		index = 6;
-		break;
-	case I40E_LINK_SPEED_UNKNOWN:
-	default:
-		index = 0;
-		break;
+		case I40E_LINK_SPEED_100MB:
+			index = 1;
+			break;
+		case I40E_LINK_SPEED_1GB:
+			index = 2;
+			break;
+		case I40E_LINK_SPEED_10GB:
+			index = 3;
+			break;
+		case I40E_LINK_SPEED_40GB:
+			index = 4;
+			break;
+		case I40E_LINK_SPEED_20GB:
+			index = 5;
+			break;
+		case I40E_LINK_SPEED_25GB:
+			index = 6;
+			break;
+		case I40E_LINK_SPEED_2_5GB:
+			index = 7;
+			break;
+		case I40E_LINK_SPEED_5GB:
+			index = 8;
+			break;
+		case I40E_LINK_SPEED_UNKNOWN:
+		default:
+			index = 0;
+			break;
 	}
 
-	return speeds[index];
+	return (link_speed_str[index]);
 }
 
 int
@@ -4703,8 +4700,10 @@ ixl_sysctl_current_speed(SYSCTL_HANDLER_ARGS)
 	ixl_update_link_status(pf);
 
 	error = sysctl_handle_string(oidp,
-	    ixl_aq_speed_to_str(hw->phy.link_info.link_speed),
+	    __DECONST(void *,
+		ixl_link_speed_string(hw->phy.link_info.link_speed)),
 	    8, req);
+
 	return (error);
 }
 
@@ -4715,17 +4714,20 @@ ixl_sysctl_current_speed(SYSCTL_HANDLER_ARGS)
 static u8
 ixl_convert_sysctl_aq_link_speed(u8 speeds, bool to_aq)
 {
-	static u16 speedmap[6] = {
+#define SPEED_MAP_SIZE 8
+	static u16 speedmap[SPEED_MAP_SIZE] = {
 		(I40E_LINK_SPEED_100MB | (0x1 << 8)),
 		(I40E_LINK_SPEED_1GB   | (0x2 << 8)),
 		(I40E_LINK_SPEED_10GB  | (0x4 << 8)),
 		(I40E_LINK_SPEED_20GB  | (0x8 << 8)),
 		(I40E_LINK_SPEED_25GB  | (0x10 << 8)),
-		(I40E_LINK_SPEED_40GB  | (0x20 << 8))
+		(I40E_LINK_SPEED_40GB  | (0x20 << 8)),
+		(I40E_LINK_SPEED_2_5GB | (0x40 << 8)),
+		(I40E_LINK_SPEED_5GB   | (0x80 << 8)),
 	};
 	u8 retval = 0;
 
-	for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < SPEED_MAP_SIZE; i++) {
 		if (to_aq)
 			retval |= (speeds & (speedmap[i] >> 8)) ? (speedmap[i] & 0xff) : 0;
 		else
@@ -4768,7 +4770,8 @@ ixl_set_advertised_speeds(struct ixl_pf *pf, int speeds, bool from_aq)
 	config.eee_capability = abilities.eee_capability;
 	config.eeer = abilities.eeer_val;
 	config.low_power_ctrl = abilities.d3_lpan;
-	config.fec_config = (abilities.fec_cfg_curr_mod_ext_info & 0x1e);
+	config.fec_config = abilities.fec_cfg_curr_mod_ext_info
+	    & I40E_AQ_PHY_FEC_CONFIG_MASK;
 
 	/* Do aq command & restart link */
 	aq_error = i40e_aq_set_phy_config(hw, &config, NULL);
@@ -4784,7 +4787,7 @@ ixl_set_advertised_speeds(struct ixl_pf *pf, int speeds, bool from_aq)
 }
 
 /*
-** Supported link speedsL
+** Supported link speeds
 **	Flags:
 **	 0x1 - 100 Mb
 **	 0x2 - 1G
@@ -4792,6 +4795,8 @@ ixl_set_advertised_speeds(struct ixl_pf *pf, int speeds, bool from_aq)
 **	 0x8 - 20G
 **	0x10 - 25G
 **	0x20 - 40G
+**	0x40 - 2.5G
+**	0x80 - 5G
 */
 static int
 ixl_sysctl_supported_speeds(SYSCTL_HANDLER_ARGS)
@@ -4811,6 +4816,8 @@ ixl_sysctl_supported_speeds(SYSCTL_HANDLER_ARGS)
 **	 0x8 - advertise 20G
 **	0x10 - advertise 25G
 **	0x20 - advertise 40G
+**	0x40 - advertise 2.5G
+**	0x80 - advertise 5G
 **
 **	Set to 0 to disable link
 */
@@ -4828,9 +4835,14 @@ ixl_sysctl_set_advertise(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &requested_ls, 0, req);
 	if ((error) || (req->newptr == NULL))
 		return (error);
+	if ((pf->state & IXL_PF_STATE_RECOVERY_MODE) != 0) {
+		device_printf(dev, "Interface is currently in FW recovery mode. "
+				"Setting advertise speed not supported\n");
+		return (EINVAL);
+	}
 
 	/* Error out if bits outside of possible flag range are set */
-	if ((requested_ls & ~((u8)0x3F)) != 0) {
+	if ((requested_ls & ~((u8)0xFF)) != 0) {
 		device_printf(dev, "Input advertised speed out of range; "
 		    "valid flags are: 0x%02x\n",
 		    ixl_convert_sysctl_aq_link_speed(pf->supported_speeds, false));
@@ -4869,6 +4881,10 @@ ixl_max_aq_speed_to_value(u8 link_speeds)
 		return IF_Gbps(20);
 	if (link_speeds & I40E_LINK_SPEED_10GB)
 		return IF_Gbps(10);
+	if (link_speeds & I40E_LINK_SPEED_5GB)
+		return IF_Gbps(5);
+	if (link_speeds & I40E_LINK_SPEED_2_5GB)
+		return IF_Mbps(2500);
 	if (link_speeds & I40E_LINK_SPEED_1GB)
 		return IF_Gbps(1);
 	if (link_speeds & I40E_LINK_SPEED_100MB)
@@ -5089,6 +5105,48 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 		return (perrno);
 }
 
+int
+ixl_handle_i2c_eeprom_read_cmd(struct ixl_pf *pf, struct ifreq *ifr)
+{
+	struct ifi2creq i2c;
+	int error = 0;
+	int i;
+
+	if (pf->read_i2c_byte == NULL)
+		return (EINVAL);
+
+#ifdef ifr_data
+	error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+#else
+	error = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
+#endif
+
+	if (error != 0)
+		return (error);
+	if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
+		error = EINVAL;
+		return (error);
+	}
+	if (i2c.len > sizeof(i2c.data)) {
+		error = EINVAL;
+		return (error);
+	}
+
+	for (i = 0; i < i2c.len; ++i) {
+		if (pf->read_i2c_byte(pf, i2c.offset + i,
+		    i2c.dev_addr, &i2c.data[i]))
+		return (EIO);
+	}
+
+#ifdef ifr_data
+	error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+#else
+	error = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
+#endif
+
+	return (error);
+}
+
 /*********************************************************************
  *
  *  Media Ioctl callback
@@ -5148,6 +5206,14 @@ ixl_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 			break;
 		case I40E_PHY_TYPE_1000BASE_T_OPTICAL:
 			ifmr->ifm_active |= IFM_1000_T;
+			break;
+		/* 2.5 G */
+		case I40E_PHY_TYPE_2_5GBASE_T:
+			ifmr->ifm_active |= IFM_2500_T;
+			break;
+		/* 5 G */
+		case I40E_PHY_TYPE_5GBASE_T:
+			ifmr->ifm_active |= IFM_5000_T;
 			break;
 		/* 10 G */
 		case I40E_PHY_TYPE_10GBASE_SFPP_CU:
@@ -5300,6 +5366,28 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 #endif
 	int             error = 0;
 
+	if ((atomic_load_acq_int(&pf->state) & IXL_PF_STATE_RECOVERY_MODE) != 0) {
+		/* We are in recovery mode supporting only NVM update */
+		switch (command) {
+		case SIOCSDRVSPEC:
+		case SIOCGDRVSPEC:
+			IOCTL_DEBUGOUT("ioctl: SIOCxDRVSPEC (Get/Set Driver-specific "
+			    "Info)\n");
+
+			/* NVM update command */
+			if (ifd->ifd_cmd == I40E_NVM_ACCESS)
+				error = ixl_handle_nvmupd_cmd(pf, ifd);
+			else
+				error = EINVAL;
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+
+		return (error);
+	}
+
 	switch (command) {
 
         case SIOCSIFADDR:
@@ -5353,16 +5441,11 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 				    (IFF_PROMISC | IFF_ALLMULTI)) {
 					ixl_set_promisc(vsi);
 				}
-			} else {
-				IXL_PF_UNLOCK(pf);
-				ixl_init(pf);
-				IXL_PF_LOCK(pf);
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				ixl_stop_locked(pf);
-			}
-		}
+			} else
+				ixl_init_locked(pf);
+		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			ixl_stop_locked(pf);
+
 		pf->if_flags = ifp->if_flags;
 		IXL_PF_UNLOCK(pf);
 		break;
@@ -5434,31 +5517,11 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 #if __FreeBSD_version >= 1003000
 	case SIOCGI2C:
 	{
-		struct ifi2creq i2c;
-		int i;
-
 		IOCTL_DEBUGOUT("ioctl: SIOCGI2C (Get I2C Data)");
 		if (!pf->has_i2c)
 			return (ENOTTY);
 
-		error = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
-		if (error != 0)
-			break;
-		if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
-			error = EINVAL;
-			break;
-		}
-		if (i2c.len > sizeof(i2c.data)) {
-			error = EINVAL;
-			break;
-		}
-
-		for (i = 0; i < i2c.len; i++)
-			if (ixl_read_i2c_byte(pf, i2c.offset + i,
-			    i2c.dev_addr, &i2c.data[i]))
-				return (EIO);
-
-		error = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
+		error = ixl_handle_i2c_eeprom_read_cmd(pf, ifr);
 		break;
 	}
 #endif
@@ -5535,14 +5598,23 @@ ixl_phy_type_string(u32 bit_pos, bool ext)
 		"25GBASE-LR",
 		"25GBASE-AOC",
 		"25GBASE-ACC",
-		"Reserved (6)",
-		"Reserved (7)"
+		"2.5GBASE-T",
+		"5GBASE-T"
 	};
 
 	if (ext && bit_pos > 7) return "Invalid_Ext";
 	if (bit_pos > 31) return "Invalid";
 
 	return (ext) ? ext_phy_types_str[bit_pos] : phy_types_str[bit_pos];
+}
+
+static char *
+ixl_phy_type_string_ls(u8 val)
+{
+	if (val >= 0x1F)
+		return ixl_phy_type_string(val - 0x1F, true);
+	else
+		return ixl_phy_type_string(val, false);
 }
 
 int
@@ -5569,15 +5641,6 @@ ixl_aq_get_link_status(struct ixl_pf *pf, struct i40e_aqc_get_link_status *link_
 
 	bcopy(aq_link_status, link_status, sizeof(struct i40e_aqc_get_link_status));
 	return (0);
-}
-
-static char *
-ixl_phy_type_string_ls(u8 val)
-{
-	if (val >= 0x1F)
-		return ixl_phy_type_string(val - 0x1F, true);
-	else
-		return ixl_phy_type_string(val, false);
 }
 
 static int
@@ -5667,23 +5730,35 @@ ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS)
 		for (int i = 0; i < 32; i++)
 			if ((1 << i) & abilities.phy_type)
 				sbuf_printf(buf, "%s,", ixl_phy_type_string(i, false));
-		sbuf_printf(buf, ">\n");
+		sbuf_printf(buf, ">");
 	}
 
-	sbuf_printf(buf, "PHY Ext  : %02x",
+	sbuf_printf(buf, "\nPHY Ext  : %02x",
 	    abilities.phy_type_ext);
 
 	if (abilities.phy_type_ext != 0) {
 		sbuf_printf(buf, "<");
 		for (int i = 0; i < 4; i++)
 			if ((1 << i) & abilities.phy_type_ext)
-				sbuf_printf(buf, "%s,", ixl_phy_type_string(i, true));
+				sbuf_printf(buf, "%s,",
+				    ixl_phy_type_string(i, true));
 		sbuf_printf(buf, ">");
 	}
-	sbuf_printf(buf, "\n");
 
-	sbuf_printf(buf,
-	    "Speed    : %02x\n"
+	sbuf_printf(buf, "\nSpeed    : %02x", abilities.link_speed);
+	if (abilities.link_speed != 0) {
+		u8 link_speed;
+		sbuf_printf(buf, " <");
+		for (int i = 0; i < 8; i++) {
+			link_speed = (1 << i) & abilities.link_speed;
+			if (link_speed)
+				sbuf_printf(buf, "%s, ",
+				    ixl_link_speed_string(link_speed));
+		}
+		sbuf_printf(buf, ">");
+	}
+
+	sbuf_printf(buf, "\n"
 	    "Abilities: %02x\n"
 	    "EEE cap  : %04x\n"
 	    "EEER reg : %08x\n"
@@ -5693,7 +5768,6 @@ ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS)
 	    "ModType E: %01x\n"
 	    "FEC Cfg  : %02x\n"
 	    "Ext CC   : %02x",
-	    abilities.link_speed, 
 	    abilities.abilities, abilities.eee_capability,
 	    abilities.eeer_val, abilities.d3_lpan,
 	    abilities.phy_id[0], abilities.phy_id[1],
@@ -6181,6 +6255,93 @@ ixl_sysctl_fw_link_management(SYSCTL_HANDLER_ARGS)
 }
 
 /*
+ * Read some diagnostic data from a (Q)SFP+ module
+ *
+ *             SFP A2   QSFP Lower Page
+ * Temperature 96-97	22-23
+ * Vcc         98-99    26-27
+ * TX power    102-103  34-35..40-41
+ * RX power    104-105  50-51..56-57
+ */
+static int
+ixl_sysctl_read_i2c_diag_data(SYSCTL_HANDLER_ARGS)
+{
+	struct ixl_pf *pf = (struct ixl_pf *)arg1;
+	device_t dev = pf->dev;
+	struct sbuf *sbuf;
+	int error = 0;
+	u8 output;
+
+	if (req->oldptr == NULL) {
+		error = SYSCTL_OUT(req, 0, 128);
+		return (0);
+	}
+
+	error = pf->read_i2c_byte(pf, 0, 0xA0, &output);
+	if (error) {
+		device_printf(dev, "Error reading from i2c\n");
+		return (error);
+	}
+
+	/* 0x3 for SFP; 0xD/0x11 for QSFP+/QSFP28 */
+	if (output == 0x3) {
+		/*
+		 * Check for:
+		 * - Internally calibrated data
+		 * - Diagnostic monitoring is implemented
+		 */
+		pf->read_i2c_byte(pf, 92, 0xA0, &output);
+		if (!(output & 0x60)) {
+			device_printf(dev, "Module doesn't support diagnostics: %02X\n", output);
+			return (0);
+		}
+
+		sbuf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+
+		for (u8 offset = 96; offset < 100; offset++) {
+			pf->read_i2c_byte(pf, offset, 0xA2, &output);
+			sbuf_printf(sbuf, "%02X ", output);
+		}
+		for (u8 offset = 102; offset < 106; offset++) {
+			pf->read_i2c_byte(pf, offset, 0xA2, &output);
+			sbuf_printf(sbuf, "%02X ", output);
+		}
+	} else if (output == 0xD || output == 0x11) {
+		/*
+		 * QSFP+ modules are always internally calibrated, and must indicate
+		 * what types of diagnostic monitoring are implemented
+		 */
+		sbuf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+
+		for (u8 offset = 22; offset < 24; offset++) {
+			pf->read_i2c_byte(pf, offset, 0xA0, &output);
+			sbuf_printf(sbuf, "%02X ", output);
+		}
+		for (u8 offset = 26; offset < 28; offset++) {
+			pf->read_i2c_byte(pf, offset, 0xA0, &output);
+			sbuf_printf(sbuf, "%02X ", output);
+		}
+		/* Read the data from the first lane */
+		for (u8 offset = 34; offset < 36; offset++) {
+			pf->read_i2c_byte(pf, offset, 0xA0, &output);
+			sbuf_printf(sbuf, "%02X ", output);
+		}
+		for (u8 offset = 50; offset < 52; offset++) {
+			pf->read_i2c_byte(pf, offset, 0xA0, &output);
+			sbuf_printf(sbuf, "%02X ", output);
+		}
+	} else {
+		device_printf(dev, "Module is not SFP/SFP+/SFP28/QSFP+ (%02X)\n", output);
+		return (0);
+	}
+
+	sbuf_finish(sbuf);
+	sbuf_delete(sbuf);
+
+	return (0);
+}
+
+/*
  * Sysctl to read a byte from I2C bus.
  *
  * Input: 32-bit value:
@@ -6196,8 +6357,6 @@ ixl_sysctl_read_i2c_byte(SYSCTL_HANDLER_ARGS)
 	device_t dev = pf->dev;
 	int input = -1, error = 0;
 
-	device_printf(dev, "%s: start\n", __func__);
-
 	u8 dev_addr, offset, output;
 
 	/* Read in I2C read parameters */
@@ -6211,7 +6370,7 @@ ixl_sysctl_read_i2c_byte(SYSCTL_HANDLER_ARGS)
 	}
 	offset = (input >> 8) & 0xFF;
 
-	error = ixl_read_i2c_byte(pf, offset, dev_addr, &output);
+	error = pf->read_i2c_byte(pf, offset, dev_addr, &output);
 	if (error)
 		return (error);
 
@@ -6250,7 +6409,7 @@ ixl_sysctl_write_i2c_byte(SYSCTL_HANDLER_ARGS)
 	offset = (input >> 8) & 0xFF;
 	value = (input >> 16) & 0xFF;
 
-	error = ixl_write_i2c_byte(pf, offset, dev_addr, value);
+	error = pf->write_i2c_byte(pf, offset, dev_addr, value);
 	if (error)
 		return (error);
 
@@ -6426,10 +6585,6 @@ ixl_sysctl_dump_debug_data(SYSCTL_HANDLER_ARGS)
 	/* This amount is only necessary if reading the entire cluster into memory */
 #define IXL_FINAL_BUFF_SIZE	(1280 * 1024)
 	final_buff = malloc(IXL_FINAL_BUFF_SIZE, M_DEVBUF, M_WAITOK);
-	if (final_buff == NULL) {
-		device_printf(dev, "Could not allocate memory for output.\n");
-		goto out;
-	}
 	int final_buff_len = 0;
 
 	u8 cluster_id = 1;
@@ -6488,7 +6643,6 @@ ixl_sysctl_dump_debug_data(SYSCTL_HANDLER_ARGS)
 
 free_out:
 	free(final_buff, M_DEVBUF);
-out:
 	error = sbuf_finish(buf);
 	if (error)
 		device_printf(dev, "Error finishing sbuf: %d\n", error);
@@ -6498,14 +6652,80 @@ out:
 }
 
 static int
+ixl_start_fw_lldp(struct ixl_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	enum i40e_status_code status;
+
+	status = i40e_aq_start_lldp(hw, false, NULL);
+	if (status != I40E_SUCCESS) {
+		switch (hw->aq.asq_last_status) {
+		case I40E_AQ_RC_EEXIST:
+			device_printf(pf->dev,
+			    "FW LLDP agent is already running\n");
+			break;
+		case I40E_AQ_RC_EPERM:
+			device_printf(pf->dev,
+			    "Device configuration forbids SW from starting "
+			    "the LLDP agent. Set the \"LLDP Agent\" UEFI HII "
+			    "attribute to \"Enabled\" to use this sysctl\n");
+			return (EINVAL);
+		default:
+			device_printf(pf->dev,
+			    "Starting FW LLDP agent failed: error: %s, %s\n",
+			    i40e_stat_str(hw, status),
+			    i40e_aq_str(hw, hw->aq.asq_last_status));
+			return (EINVAL);
+		}
+	}
+
+	atomic_clear_int(&pf->state, IXL_PF_STATE_FW_LLDP_DISABLED);
+	return (0);
+}
+
+static int
+ixl_stop_fw_lldp(struct ixl_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	enum i40e_status_code status;
+
+	if (hw->func_caps.npar_enable != 0) {
+		device_printf(dev,
+		    "Disabling FW LLDP agent is not supported on this device\n");
+		return (EINVAL);
+	}
+
+	if ((hw->flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE) == 0) {
+		device_printf(dev,
+		    "Disabling FW LLDP agent is not supported in this FW version. Please update FW to enable this feature.\n");
+		return (EINVAL);
+	}
+
+	status = i40e_aq_stop_lldp(hw, true, false, NULL);
+	if (status != I40E_SUCCESS) {
+		if (hw->aq.asq_last_status != I40E_AQ_RC_EPERM) {
+			device_printf(dev,
+			    "Disabling FW LLDP agent failed: error: %s, %s\n",
+			    i40e_stat_str(hw, status),
+			    i40e_aq_str(hw, hw->aq.asq_last_status));
+			return (EINVAL);
+		}
+
+		device_printf(dev, "FW LLDP agent is already stopped\n");
+	}
+
+	i40e_aq_set_dcb_parameters(hw, true, NULL);
+	atomic_set_int(&pf->state, IXL_PF_STATE_FW_LLDP_DISABLED);
+	return (0);
+}
+
+static int
 ixl_sysctl_fw_lldp(SYSCTL_HANDLER_ARGS)
 {
 	struct ixl_pf *pf = (struct ixl_pf *)arg1;
-	struct i40e_hw *hw = &pf->hw;
-	device_t dev = pf->dev;
-	int error = 0;
-	int state, new_state;
-	enum i40e_status_code status;
+	int state, new_state, error = 0;
+
 	state = new_state = ((pf->state & IXL_PF_STATE_FW_LLDP_DISABLED) == 0);
 
 	/* Read in new mode */
@@ -6517,57 +6737,45 @@ ixl_sysctl_fw_lldp(SYSCTL_HANDLER_ARGS)
 	if (new_state == state)
 		return (error);
 
-	if (new_state == 0) {
-		if (hw->mac.type == I40E_MAC_X722 || hw->func_caps.npar_enable != 0) {
-			device_printf(dev, "Disabling FW LLDP agent is not supported on this device\n");
-			return (EINVAL);
-		}
+	if (new_state == 0)
+		return ixl_stop_fw_lldp(pf);
 
-		if (pf->hw.aq.api_maj_ver < 1 ||
-		    (pf->hw.aq.api_maj_ver == 1 &&
-		    pf->hw.aq.api_min_ver < 7)) {
-			device_printf(dev, "Disabling FW LLDP agent is not supported in this FW version. Please update FW to enable this feature.\n");
-			return (EINVAL);
-		}
-
-		i40e_aq_stop_lldp(&pf->hw, true, NULL);
-		i40e_aq_set_dcb_parameters(&pf->hw, true, NULL);
-		atomic_set_int(&pf->state, IXL_PF_STATE_FW_LLDP_DISABLED);
-	} else {
-		status = i40e_aq_start_lldp(&pf->hw, NULL);
-		if (status != I40E_SUCCESS && hw->aq.asq_last_status == I40E_AQ_RC_EEXIST)
-			device_printf(dev, "FW LLDP agent is already running\n");
-		atomic_clear_int(&pf->state, IXL_PF_STATE_FW_LLDP_DISABLED);
-	}
-
-	return (0);
+	return ixl_start_fw_lldp(pf);
 }
 
-/*
- * Get FW LLDP Agent status
- */
-int
-ixl_get_fw_lldp_status(struct ixl_pf *pf)
+static int
+ixl_sysctl_eee_enable(SYSCTL_HANDLER_ARGS)
 {
-	enum i40e_status_code ret = I40E_SUCCESS;
-	struct i40e_lldp_variables lldp_cfg;
-	struct i40e_hw *hw = &pf->hw;
-	u8 adminstatus = 0;
+	struct ixl_pf         *pf = (struct ixl_pf *)arg1;
+	int                   state, new_state;
+	int                   sysctl_handle_status = 0;
+	enum i40e_status_code cmd_status;
 
-	ret = i40e_read_lldp_cfg(hw, &lldp_cfg);
-	if (ret)
-		return ret;
+	/* Init states' values */
+	state = new_state = (!!(pf->state & IXL_PF_STATE_EEE_ENABLED));
 
-	/* Get the LLDP AdminStatus for the current port */
-	adminstatus = lldp_cfg.adminstatus >> (hw->port * 4);
-	adminstatus &= 0xf;
+	/* Get requested mode */
+	sysctl_handle_status = sysctl_handle_int(oidp, &new_state, 0, req);
+	if ((sysctl_handle_status) || (req->newptr == NULL))
+		return (sysctl_handle_status);
 
-	/* Check if LLDP agent is disabled */
-	if (!adminstatus) {
-		device_printf(pf->dev, "FW LLDP agent is disabled for this PF.\n");
-		atomic_set_int(&pf->state, IXL_PF_STATE_FW_LLDP_DISABLED);
-	} else
-		atomic_clear_int(&pf->state, IXL_PF_STATE_FW_LLDP_DISABLED);
+	/* Check if state has changed */
+	if (new_state == state)
+		return (0);
+
+	/* Set new state */
+	cmd_status = i40e_enable_eee(&pf->hw, (bool)(!!new_state));
+
+	/* Save new state or report error */
+	if (!cmd_status) {
+		if (new_state == 0)
+			atomic_clear_int(&pf->state, IXL_PF_STATE_EEE_ENABLED);
+		else
+			atomic_set_int(&pf->state, IXL_PF_STATE_EEE_ENABLED);
+	} else if (cmd_status == I40E_ERR_CONFIG)
+		return (EPERM);
+	else
+		return (EIO);
 
 	return (0);
 }

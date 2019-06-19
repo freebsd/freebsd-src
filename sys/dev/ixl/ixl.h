@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -104,6 +104,7 @@
 
 #include "i40e_type.h"
 #include "i40e_prototype.h"
+#include "i40e_dcb.h"
 
 #define MAC_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_FORMAT_ARGS(mac_addr) \
@@ -294,6 +295,9 @@ enum ixl_dbg_mask {
 #define IXL_FLAGS_USES_MSIX	(1 << 2)
 #define IXL_FLAGS_IS_VF		(1 << 3)
 
+#define IXL_VSI_IS_PF(v)	((v->flags & IXL_FLAGS_IS_VF) == 0)
+#define IXL_VSI_IS_VF(v)	((v->flags & IXL_FLAGS_IS_VF) != 0)
+
 #define IXL_VF_RESET_TIMEOUT	100
 
 #define IXL_VSI_DATA_PORT	0x01
@@ -386,6 +390,9 @@ enum ixl_dbg_mask {
 #define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
 #endif
 
+/* For stats sysctl naming */
+#define IXL_QUEUE_NAME_LEN 32
+
 /*
  *****************************************************************************
  * vendor_info_array
@@ -456,7 +463,7 @@ struct tx_ring {
 
 	/* Used for Dynamic ITR calculation */
 	u32			packets;
-	u32 			bytes;
+	u32			bytes;
 
 	/* Soft Stats */
 	u64			tx_bytes;
@@ -478,7 +485,7 @@ struct rx_ring {
 	bool			hdr_split;
 	bool			discard;
         u32			next_refresh;
-        u32 			next_check;
+        u32			next_check;
 	u32			itr;
 	u32			latency;
 	char			mtx_name[16];
@@ -490,14 +497,14 @@ struct rx_ring {
 
 	/* Used for Dynamic ITR calculation */
 	u32			packets;
-	u32 			bytes;
+	u32			bytes;
 
 	/* Soft stats */
 	u64			split;
 	u64			rx_packets;
-	u64 			rx_bytes;
-	u64 			desc_errs;
-	u64 			not_done;
+	u64			rx_bytes;
+	u64			desc_errs;
+	u64			not_done;
 };
 
 /*
@@ -535,7 +542,7 @@ struct ixl_queue {
 */
 SLIST_HEAD(ixl_ftl_head, ixl_mac_filter);
 struct ixl_vsi {
-	void 			*back;
+	void			*back;
 	struct ifnet		*ifp;
 	struct device		*dev;
 	struct i40e_hw		*hw;
@@ -561,18 +568,19 @@ struct ixl_vsi {
 	/* MAC/VLAN Filter list */
 	struct ixl_ftl_head	ftl;
 	u16			num_macs;
+	u64			num_hw_filters;
 
 	/* Contains readylist & stat counter id */
 	struct i40e_aqc_vsi_properties_data info;
 
-	eventhandler_tag 	vlan_attach;
-	eventhandler_tag 	vlan_detach;
+	eventhandler_tag	vlan_attach;
+	eventhandler_tag	vlan_detach;
 	u16			num_vlans;
 
 	/* Per-VSI stats from hardware */
 	struct i40e_eth_stats	eth_stats;
 	struct i40e_eth_stats	eth_stats_offsets;
-	bool 			stat_offsets_loaded;
+	bool			stat_offsets_loaded;
 	/* VSI stat counters */
 	u64			ipackets;
 	u64			ierrors;
@@ -586,13 +594,10 @@ struct ixl_vsi {
 	u64			oqdrops;
 	u64			noproto;
 
-	/* Driver statistics */
-	u64			hw_filters_del;
-	u64			hw_filters_add;
-
 	/* Misc. */
-	u64 			flags;
+	u64			flags;
 	struct sysctl_oid	*vsi_node;
+	struct sysctl_ctx_list  sysctl_ctx;
 };
 
 /*
@@ -600,9 +605,9 @@ struct ixl_vsi {
 */
 static inline u16
 ixl_rx_unrefreshed(struct ixl_queue *que)
-{       
+{
         struct rx_ring	*rxr = &que->rxr;
-        
+
 	if (rxr->next_check > rxr->next_refresh)
 		return (rxr->next_check - rxr->next_refresh - 1);
 	else
@@ -632,16 +637,16 @@ ixl_get_filter(struct ixl_vsi *vsi)
 */
 static inline bool
 cmp_etheraddr(const u8 *ea1, const u8 *ea2)
-{       
+{
 	bool cmp = FALSE;
 
 	if ((ea1[0] == ea2[0]) && (ea1[1] == ea2[1]) &&
 	    (ea1[2] == ea2[2]) && (ea1[3] == ea2[3]) &&
-	    (ea1[4] == ea2[4]) && (ea1[5] == ea2[5])) 
+	    (ea1[4] == ea2[4]) && (ea1[5] == ea2[5]))
 		cmp = TRUE;
 
 	return (cmp);
-}       
+}
 
 /*
  * Return next largest power of 2, unsigned
@@ -692,6 +697,9 @@ int	ixl_mq_start(struct ifnet *, struct mbuf *);
 int	ixl_mq_start_locked(struct ifnet *, struct tx_ring *);
 void	ixl_deferred_mq_start(void *, int);
 
+void	ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *, struct sysctl_oid_list *,
+		struct i40e_eth_stats *);
+void	ixl_vsi_add_queues_stats(struct ixl_vsi *);
 void	ixl_vsi_setup_rings_size(struct ixl_vsi *, int, int);
 int	ixl_queue_hang_check(struct ixl_vsi *);
 void	ixl_free_vsi(struct ixl_vsi *);

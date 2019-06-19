@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation 
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -893,22 +893,23 @@ out:
 /**
  * i40e_init_dcb
  * @hw: pointer to the hw struct
+ * @enable_mib_change: enable mib change event
  *
  * Update DCB configuration from the Firmware
  **/
-enum i40e_status_code i40e_init_dcb(struct i40e_hw *hw)
+enum i40e_status_code i40e_init_dcb(struct i40e_hw *hw, bool enable_mib_change)
 {
 	enum i40e_status_code ret = I40E_SUCCESS;
 	struct i40e_lldp_variables lldp_cfg;
 	u8 adminstatus = 0;
 
 	if (!hw->func_caps.dcb)
-		return ret;
+		return I40E_NOT_SUPPORTED;
 
 	/* Read LLDP NVM area */
 	ret = i40e_read_lldp_cfg(hw, &lldp_cfg);
 	if (ret)
-		return ret;
+		return I40E_ERR_NOT_READY;
 
 	/* Get the LLDP AdminStatus for the current port */
 	adminstatus = lldp_cfg.adminstatus >> (hw->port * 4);
@@ -917,7 +918,7 @@ enum i40e_status_code i40e_init_dcb(struct i40e_hw *hw)
 	/* LLDP agent disabled */
 	if (!adminstatus) {
 		hw->dcbx_status = I40E_DCBX_STATUS_DISABLED;
-		return ret;
+		return I40E_ERR_NOT_READY;
 	}
 
 	/* Get DCBX status */
@@ -926,29 +927,66 @@ enum i40e_status_code i40e_init_dcb(struct i40e_hw *hw)
 		return ret;
 
 	/* Check the DCBX Status */
-	switch (hw->dcbx_status) {
-	case I40E_DCBX_STATUS_DONE:
-	case I40E_DCBX_STATUS_IN_PROGRESS:
+	if (hw->dcbx_status == I40E_DCBX_STATUS_DONE ||
+	    hw->dcbx_status == I40E_DCBX_STATUS_IN_PROGRESS) {
 		/* Get current DCBX configuration */
 		ret = i40e_get_dcb_config(hw);
 		if (ret)
 			return ret;
-		break;
-	case I40E_DCBX_STATUS_DISABLED:
-		return ret;
-	case I40E_DCBX_STATUS_NOT_STARTED:
-	case I40E_DCBX_STATUS_MULTIPLE_PEERS:
-	default:
-		break;
+	} else if (hw->dcbx_status == I40E_DCBX_STATUS_DISABLED) {
+		return I40E_ERR_NOT_READY;
 	}
 
 	/* Configure the LLDP MIB change event */
-	ret = i40e_aq_cfg_lldp_mib_change_event(hw, TRUE, NULL);
-	if (ret)
-		return ret;
+	if (enable_mib_change)
+		ret = i40e_aq_cfg_lldp_mib_change_event(hw, TRUE, NULL);
 
 	return ret;
 }
+
+/**
+ * i40e_get_fw_lldp_status
+ * @hw: pointer to the hw struct
+ * @lldp_status: pointer to the status enum
+ *
+ * Get status of FW Link Layer Discovery Protocol (LLDP) Agent.
+ * Status of agent is reported via @lldp_status parameter.
+ **/
+enum i40e_status_code
+i40e_get_fw_lldp_status(struct i40e_hw *hw,
+			enum i40e_get_fw_lldp_status_resp *lldp_status)
+{
+	enum i40e_status_code ret;
+	struct i40e_virt_mem mem;
+	u8 *lldpmib;
+
+	if (!lldp_status)
+		return I40E_ERR_PARAM;
+
+	/* Allocate buffer for the LLDPDU */
+	ret = i40e_allocate_virt_mem(hw, &mem, I40E_LLDPDU_SIZE);
+	if (ret)
+		return ret;
+
+	lldpmib = (u8 *)mem.va;
+	ret = i40e_aq_get_lldp_mib(hw, 0, 0, (void *)lldpmib,
+				   I40E_LLDPDU_SIZE, NULL, NULL, NULL);
+
+	if (ret == I40E_SUCCESS) {
+		*lldp_status = I40E_GET_FW_LLDP_STATUS_ENABLED;
+	} else if (hw->aq.asq_last_status == I40E_AQ_RC_ENOENT) {
+		/* MIB is not available yet but the agent is running */
+		*lldp_status = I40E_GET_FW_LLDP_STATUS_ENABLED;
+		ret = I40E_SUCCESS;
+	} else if (hw->aq.asq_last_status == I40E_AQ_RC_EPERM) {
+		*lldp_status = I40E_GET_FW_LLDP_STATUS_DISABLED;
+		ret = I40E_SUCCESS;
+	}
+
+	i40e_free_virt_mem(hw, &mem);
+	return ret;
+}
+
 
 /**
  * i40e_add_ieee_ets_tlv - Prepare ETS TLV in IEEE format

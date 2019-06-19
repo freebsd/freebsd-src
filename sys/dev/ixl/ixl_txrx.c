@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -67,8 +67,15 @@ static inline bool ixl_tso_detect_sparse(struct mbuf *mp);
 static inline u32 ixl_get_tx_head(struct ixl_queue *que);
 
 #ifdef DEV_NETMAP
-#include <dev/netmap/if_ixl_netmap.h>
+#include <net/netmap.h>
+#include <sys/selinfo.h>
+#include <dev/netmap/netmap_kern.h>
 #endif /* DEV_NETMAP */
+
+#ifdef IXL_DEBUG
+static int	ixl_sysctl_qtx_tail_handler(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_qrx_tail_handler(SYSCTL_HANDLER_ARGS);
+#endif
 
 /*
  * @key key is saved into this parameter
@@ -100,14 +107,18 @@ i40e_vc_stat_str(struct i40e_hw *hw, enum virtchnl_status_code stat_err)
 		return "OK";
 	case VIRTCHNL_ERR_PARAM:
 		return "VIRTCHNL_ERR_PARAM";
+	case VIRTCHNL_STATUS_ERR_NO_MEMORY:
+		return "VIRTCHNL_STATUS_ERR_NO_MEMORY";
 	case VIRTCHNL_STATUS_ERR_OPCODE_MISMATCH:
 		return "VIRTCHNL_STATUS_ERR_OPCODE_MISMATCH";
 	case VIRTCHNL_STATUS_ERR_CQP_COMPL_ERROR:
 		return "VIRTCHNL_STATUS_ERR_CQP_COMPL_ERROR";
 	case VIRTCHNL_STATUS_ERR_INVALID_VF_ID:
 		return "VIRTCHNL_STATUS_ERR_INVALID_VF_ID";
-	case VIRTCHNL_STATUS_NOT_SUPPORTED:
-		return "VIRTCHNL_STATUS_NOT_SUPPORTED";
+	case VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR:
+		return "VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR";
+	case VIRTCHNL_STATUS_ERR_NOT_SUPPORTED:
+		return "VIRTCHNL_STATUS_ERR_NOT_SUPPORTED";
 	}
 
 	snprintf(hw->err_str, sizeof(hw->err_str), "%d", stat_err);
@@ -2072,25 +2083,207 @@ ixl_vsi_setup_rings_size(struct ixl_vsi * vsi, int tx_ring_size, int rx_ring_siz
 
 }
 
+void
+ixl_vsi_add_queues_stats(struct ixl_vsi * vsi)
+{
+	char queue_namebuf[IXL_QUEUE_NAME_LEN];
+	struct sysctl_oid_list	*vsi_list, *queue_list;
+	struct ixl_queue	*queues = vsi->queues;
+	struct sysctl_oid 	*queue_node;
+	struct sysctl_ctx_list	*ctx;
+	struct tx_ring		*txr;
+	struct rx_ring		*rxr;
+
+	vsi_list = SYSCTL_CHILDREN(vsi->vsi_node);
+	ctx = &vsi->sysctl_ctx;
+
+	/* Queue statistics */
+	for (int q = 0; q < vsi->num_queues; q++) {
+		snprintf(queue_namebuf, IXL_QUEUE_NAME_LEN, "que%d", q);
+		queue_node = SYSCTL_ADD_NODE(ctx, vsi_list,
+		    OID_AUTO, queue_namebuf, CTLFLAG_RD, NULL, "Queue #");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		txr = &(queues[q].txr);
+		rxr = &(queues[q].rxr);
+
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "mbuf_defrag_failed",
+				CTLFLAG_RD, &(queues[q].mbuf_defrag_failed),
+				"m_defrag() failed");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irqs",
+				CTLFLAG_RD, &(queues[q].irqs),
+				"irqs on this queue");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tso_tx",
+				CTLFLAG_RD, &(queues[q].tso),
+				"TSO");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_dmamap_failed",
+				CTLFLAG_RD, &(queues[q].tx_dmamap_failed),
+				"Driver tx dma failure in xmit");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "mss_too_small",
+				CTLFLAG_RD, &(queues[q].mss_too_small),
+				"TSO sends with an MSS less than 64");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",
+				CTLFLAG_RD, &(txr->no_desc),
+				"Queue No Descriptor Available");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
+				CTLFLAG_RD, &(txr->total_packets),
+				"Queue Packets Transmitted");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_bytes",
+				CTLFLAG_RD, &(txr->tx_bytes),
+				"Queue Bytes Transmitted");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
+				CTLFLAG_RD, &(rxr->rx_packets),
+				"Queue Packets Received");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
+				CTLFLAG_RD, &(rxr->rx_bytes),
+				"Queue Bytes Received");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_desc_err",
+				CTLFLAG_RD, &(rxr->desc_errs),
+				"Queue Rx Descriptor Errors");
+		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "rx_itr",
+				CTLFLAG_RD, &(rxr->itr), 0,
+				"Queue Rx ITR Interval");
+		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "tx_itr",
+				CTLFLAG_RD, &(txr->itr), 0,
+				"Queue Tx ITR Interval");
+#ifdef IXL_DEBUG
+		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "txr_watchdog",
+				CTLFLAG_RD, &(txr->watchdog_timer), 0,
+				"Ticks before watchdog timer causes interface reinit");
+		SYSCTL_ADD_U16(ctx, queue_list, OID_AUTO, "tx_next_avail",
+				CTLFLAG_RD, &(txr->next_avail), 0,
+				"Next TX descriptor to be used");
+		SYSCTL_ADD_U16(ctx, queue_list, OID_AUTO, "tx_next_to_clean",
+				CTLFLAG_RD, &(txr->next_to_clean), 0,
+				"Next TX descriptor to be cleaned");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_not_done",
+				CTLFLAG_RD, &(rxr->not_done),
+				"Queue Rx Descriptors not Done");
+		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "rx_next_refresh",
+				CTLFLAG_RD, &(rxr->next_refresh), 0,
+				"Queue Rx Descriptors not Done");
+		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "rx_next_check",
+				CTLFLAG_RD, &(rxr->next_check), 0,
+				"Queue Rx Descriptors not Done");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "qrx_tail",
+				CTLTYPE_UINT | CTLFLAG_RD, &queues[q],
+				sizeof(struct ixl_queue),
+				ixl_sysctl_qrx_tail_handler, "IU",
+				"Queue Receive Descriptor Tail");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "qtx_tail",
+				CTLTYPE_UINT | CTLFLAG_RD, &queues[q],
+				sizeof(struct ixl_queue),
+				ixl_sysctl_qtx_tail_handler, "IU",
+				"Queue Transmit Descriptor Tail");
+#endif
+	}
+
+}
+
+void
+ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
+	struct sysctl_oid_list *child,
+	struct i40e_eth_stats *eth_stats)
+{
+	struct ixl_sysctl_info ctls[] =
+	{
+		{&eth_stats->rx_bytes, "good_octets_rcvd", "Good Octets Received"},
+		{&eth_stats->rx_unicast, "ucast_pkts_rcvd",
+			"Unicast Packets Received"},
+		{&eth_stats->rx_multicast, "mcast_pkts_rcvd",
+			"Multicast Packets Received"},
+		{&eth_stats->rx_broadcast, "bcast_pkts_rcvd",
+			"Broadcast Packets Received"},
+		{&eth_stats->rx_discards, "rx_discards", "Discarded RX packets"},
+		{&eth_stats->rx_unknown_protocol, "rx_unknown_proto",
+			"RX unknown protocol packets"},
+		{&eth_stats->tx_bytes, "good_octets_txd", "Good Octets Transmitted"},
+		{&eth_stats->tx_unicast, "ucast_pkts_txd", "Unicast Packets Transmitted"},
+		{&eth_stats->tx_multicast, "mcast_pkts_txd",
+			"Multicast Packets Transmitted"},
+		{&eth_stats->tx_broadcast, "bcast_pkts_txd",
+			"Broadcast Packets Transmitted"},
+		{&eth_stats->tx_errors, "tx_errors", "TX packet errors"},
+		// end
+		{0,0,0}
+	};
+
+	struct ixl_sysctl_info *entry = ctls;
+
+	while (entry->stat != 0)
+	{
+		SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, entry->name,
+				CTLFLAG_RD, entry->stat,
+				entry->description);
+		entry++;
+	}
+}
+
+#ifdef IXL_DEBUG
+/**
+ * ixl_sysctl_qtx_tail_handler
+ * Retrieves I40E_QTX_TAIL value from hardware
+ * for a sysctl.
+ */
+static int
+ixl_sysctl_qtx_tail_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct ixl_queue *que;
+	int error;
+	u32 val;
+
+	que = ((struct ixl_queue *)oidp->oid_arg1);
+	if (!que) return 0;
+
+	val = rd32(que->vsi->hw, que->txr.tail);
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return (0);
+}
+
+/**
+ * ixl_sysctl_qrx_tail_handler
+ * Retrieves I40E_QRX_TAIL value from hardware
+ * for a sysctl.
+ */
+static int
+ixl_sysctl_qrx_tail_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct ixl_queue *que;
+	int error;
+	u32 val;
+
+	que = ((struct ixl_queue *)oidp->oid_arg1);
+	if (!que) return 0;
+
+	val = rd32(que->vsi->hw, que->rxr.tail);
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return (0);
+}
+#endif
+
 static void
 ixl_queue_sw_irq(struct ixl_vsi *vsi, int qidx)
 {
 	struct i40e_hw *hw = vsi->hw;
 	u32	reg, mask;
 
-	if ((vsi->flags & IXL_FLAGS_IS_VF) != 0) {
+	if (IXL_VSI_IS_PF(vsi)) {
+		mask = (I40E_PFINT_DYN_CTLN_INTENA_MASK |
+			I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
+			I40E_PFINT_DYN_CTLN_ITR_INDX_MASK);
+
+		reg = ((vsi->flags & IXL_FLAGS_USES_MSIX) != 0) ?
+			I40E_PFINT_DYN_CTLN(qidx) : I40E_PFINT_DYN_CTL0;
+	} else {
 		mask = (I40E_VFINT_DYN_CTLN1_INTENA_MASK |
 			I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
 			I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK);
 
 		reg = I40E_VFINT_DYN_CTLN1(qidx);
-	} else {
-		mask = (I40E_PFINT_DYN_CTLN_INTENA_MASK |
-				I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
-				I40E_PFINT_DYN_CTLN_ITR_INDX_MASK);
-
-		reg = ((vsi->flags & IXL_FLAGS_USES_MSIX) != 0) ?
-			I40E_PFINT_DYN_CTLN(qidx) : I40E_PFINT_DYN_CTL0;
 	}
 
 	wr32(hw, reg, mask);

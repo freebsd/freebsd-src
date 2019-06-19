@@ -1,8 +1,8 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2017, Intel Corporation
+  Copyright (c) 2013-2019, Intel Corporation
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with or without 
   modification, are permitted provided that the following conditions are met:
   
@@ -47,6 +47,16 @@
 
 #define IXL_PF_STATE_EMPR_RESETTING	(1 << 0)
 #define IXL_PF_STATE_FW_LLDP_DISABLED	(1 << 1)
+#define IXL_PF_STATE_RECOVERY_MODE	(1 << 2)
+#define IXL_PF_STATE_EEE_ENABLED	(1 << 3)
+
+enum ixl_i2c_access_method_t {
+	IXL_I2C_ACCESS_METHOD_BEST_AVAILABLE = 0,
+	IXL_I2C_ACCESS_METHOD_BIT_BANG_I2CPARAMS = 1,
+	IXL_I2C_ACCESS_METHOD_REGISTER_I2CCMD = 2,
+	IXL_I2C_ACCESS_METHOD_AQ = 3,
+	IXL_I2C_ACCESS_METHOD_TYPE_LENGTH = 4
+};
 
 struct ixl_vf {
 	struct ixl_vsi		vsi;
@@ -57,7 +67,6 @@ struct ixl_vf {
 	uint32_t		version;
 
 	struct ixl_pf_qtag	qtag;
-	struct sysctl_ctx_list	ctx;
 };
 
 /* Physical controller structure */
@@ -85,7 +94,7 @@ struct ixl_pf {
 	bool			iw_enabled;
 #endif
 	int			if_flags;
-	int			state;
+	volatile int		state;
 	bool			init_in_progress;
 	u8			supported_speeds;
 
@@ -103,7 +112,6 @@ struct ixl_pf {
 
 	struct mtx		pf_mtx;
 
-	u32			qbase;
 	u32 			admvec;
 	struct task     	adminq;
 	struct taskqueue	*tq;
@@ -124,6 +132,13 @@ struct ixl_pf {
 	struct i40e_hw_port_stats	stats_offsets;
 	bool 				stat_offsets_loaded;
 
+	/* I2C access methods */
+	enum ixl_i2c_access_method_t i2c_access_method;
+	s32 (*read_i2c_byte)(struct ixl_pf *pf, u8 byte_offset,
+	    u8 dev_addr, u8 *data);
+	s32 (*write_i2c_byte)(struct ixl_pf *pf, u8 byte_offset,
+	    u8 dev_addr, u8 data);
+
 	/* SR-IOV */
 	struct ixl_vf		*vfs;
 	int			num_vfs;
@@ -131,6 +146,7 @@ struct ixl_pf {
 	struct task		vflr_task;
 	int			vc_debug_lvl;
 };
+
 
 /*
  * Defines used for NVM update ioctls.
@@ -153,7 +169,9 @@ struct ixl_pf {
 "\t 0x4 - advertise 10G\n"		\
 "\t 0x8 - advertise 20G\n"		\
 "\t0x10 - advertise 25G\n"		\
-"\t0x20 - advertise 40G\n\n"		\
+"\t0x20 - advertise 40G\n"		\
+"\t0x40 - advertise 2.5G\n"		\
+"\t0x80 - advertise 5G\n\n"		\
 "Set to 0 to disable link.\n"		\
 "Use \"sysctl -x\" to view flags properly."
 
@@ -165,7 +183,9 @@ struct ixl_pf {
 "\t 0x4 - 10G\n"			\
 "\t 0x8 - 20G\n"			\
 "\t0x10 - 25G\n"			\
-"\t0x20 - 40G\n\n"			\
+"\t0x20 - 40G\n"			\
+"\t0x40 - 2.5G\n"			\
+"\t0x80 - 5G\n\n"			\
 "Use \"sysctl -x\" to view flags properly."
 
 #define IXL_SYSCTL_HELP_FC				\
@@ -183,6 +203,14 @@ struct ixl_pf {
 "\nFW LLDP engine:\n"			\
 "\t0 - disable\n"			\
 "\t1 - enable\n"
+
+#define IXL_SYSCTL_HELP_I2C_METHOD		\
+"\nI2C access method that driver will use:\n"	\
+"\t0 - best available method\n"			\
+"\t1 - bit bang via I2CPARAMS register\n"	\
+"\t2 - register read/write via I2CCMD register\n" \
+"\t3 - Use Admin Queue command (best)\n"	\
+"Using the Admin Queue is only supported on 710 devices with FW version 1.7 or higher"
 
 extern const char * const ixl_fc_string[6];
 
@@ -210,9 +238,6 @@ MALLOC_DECLARE(M_IXL);
 #define ixl_dbg(p, m, s, ...)	ixl_debug_core(p, m, s, ##__VA_ARGS__)
 void	ixl_debug_core(struct ixl_pf *, enum ixl_dbg_mask, char *, ...);
 
-/* For stats sysctl naming */
-#define QUEUE_NAME_LEN 32
-
 /* For netmap(4) compatibility */
 #define ixl_disable_intr(vsi)	ixl_disable_rings_intr(vsi)
 
@@ -222,7 +247,6 @@ void	ixl_debug_core(struct ixl_pf *, enum ixl_dbg_mask, char *, ...);
 
 int	ixl_setup_interface(device_t, struct ixl_vsi *);
 void	ixl_print_nvm_cmd(device_t, struct i40e_nvm_access *);
-char *	ixl_aq_speed_to_str(enum i40e_aq_link_speed);
 
 void	ixl_handle_que(void *context, int pending);
 
@@ -260,7 +284,7 @@ void	ixl_stat_update32(struct i40e_hw *, u32, bool,
 		    u64 *, u64 *);
 
 void	ixl_stop(struct ixl_pf *);
-void	ixl_add_vsi_sysctls(struct ixl_pf *pf, struct ixl_vsi *vsi, struct sysctl_ctx_list *ctx, const char *sysctl_name);
+void	ixl_vsi_add_sysctls(struct ixl_vsi *, const char *, bool);
 int	ixl_get_hw_capabilities(struct ixl_pf *);
 void	ixl_link_up_msg(struct ixl_pf *);
 void    ixl_update_link_status(struct ixl_pf *);
@@ -300,6 +324,7 @@ int	ixl_aq_get_link_status(struct ixl_pf *,
     struct i40e_aqc_get_link_status *);
 
 int	ixl_handle_nvmupd_cmd(struct ixl_pf *, struct ifdrv *);
+int	ixl_handle_i2c_eeprom_read_cmd(struct ixl_pf *, struct ifreq *ifr);
 void	ixl_handle_empr_reset(struct ixl_pf *);
 int	ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up);
 int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *, bool is_up);
@@ -334,10 +359,10 @@ void	ixl_disable_rings_intr(struct ixl_vsi *);
 void	ixl_set_promisc(struct ixl_vsi *);
 void	ixl_add_multi(struct ixl_vsi *);
 void	ixl_del_multi(struct ixl_vsi *);
-void	ixl_setup_vlan_filters(struct ixl_vsi *);
 void	ixl_init_filters(struct ixl_vsi *);
 void	ixl_add_hw_filters(struct ixl_vsi *, int, int);
 void	ixl_del_hw_filters(struct ixl_vsi *, int);
+void	ixl_del_default_hw_filters(struct ixl_vsi *);
 struct ixl_mac_filter *
 		ixl_find_filter(struct ixl_vsi *, const u8 *, s16);
 void	ixl_add_mc_filter(struct ixl_vsi *, u8 *);
@@ -348,16 +373,24 @@ void	ixl_vsi_reset_stats(struct ixl_vsi *);
 int	ixl_vsi_setup_queues(struct ixl_vsi *vsi);
 void	ixl_vsi_free_queues(struct ixl_vsi *vsi);
 
+bool	ixl_fw_recovery_mode(struct ixl_pf *);
 /*
  * I2C Function prototypes
  */
 int	ixl_find_i2c_interface(struct ixl_pf *);
-s32	ixl_read_i2c_byte(struct ixl_pf *pf, u8 byte_offset,
+s32	ixl_read_i2c_byte_bb(struct ixl_pf *pf, u8 byte_offset,
 	    u8 dev_addr, u8 *data);
-s32	ixl_write_i2c_byte(struct ixl_pf *pf, u8 byte_offset,
+s32	ixl_write_i2c_byte_bb(struct ixl_pf *pf, u8 byte_offset,
+	    u8 dev_addr, u8 data);
+s32	ixl_read_i2c_byte_reg(struct ixl_pf *pf, u8 byte_offset,
+	    u8 dev_addr, u8 *data);
+s32	ixl_write_i2c_byte_reg(struct ixl_pf *pf, u8 byte_offset,
+	    u8 dev_addr, u8 data);
+s32	ixl_read_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
+	    u8 dev_addr, u8 *data);
+s32	ixl_write_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
 	    u8 dev_addr, u8 data);
 
-int	ixl_get_fw_lldp_status(struct ixl_pf *pf);
 int	ixl_attach_get_link_status(struct ixl_pf *);
 
 #endif /* _IXL_PF_H_ */
