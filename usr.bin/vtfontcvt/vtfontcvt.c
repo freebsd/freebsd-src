@@ -63,10 +63,10 @@ struct glyph {
 TAILQ_HEAD(glyph_list, glyph);
 static SLIST_HEAD(, glyph) glyph_hash[FONTCVT_NHASH];
 static struct glyph_list glyphs[VFNT_MAPS] = {
-    TAILQ_HEAD_INITIALIZER(glyphs[0]),
-    TAILQ_HEAD_INITIALIZER(glyphs[1]),
-    TAILQ_HEAD_INITIALIZER(glyphs[2]),
-    TAILQ_HEAD_INITIALIZER(glyphs[3]),
+	TAILQ_HEAD_INITIALIZER(glyphs[0]),
+	TAILQ_HEAD_INITIALIZER(glyphs[1]),
+	TAILQ_HEAD_INITIALIZER(glyphs[2]),
+	TAILQ_HEAD_INITIALIZER(glyphs[3]),
 };
 static unsigned int glyph_total, glyph_count[4], glyph_unique, glyph_dupe;
 
@@ -79,10 +79,10 @@ struct mapping {
 
 TAILQ_HEAD(mapping_list, mapping);
 static struct mapping_list maps[VFNT_MAPS] = {
-    TAILQ_HEAD_INITIALIZER(maps[0]),
-    TAILQ_HEAD_INITIALIZER(maps[1]),
-    TAILQ_HEAD_INITIALIZER(maps[2]),
-    TAILQ_HEAD_INITIALIZER(maps[3]),
+	TAILQ_HEAD_INITIALIZER(maps[0]),
+	TAILQ_HEAD_INITIALIZER(maps[1]),
+	TAILQ_HEAD_INITIALIZER(maps[2]),
+	TAILQ_HEAD_INITIALIZER(maps[3]),
 };
 static unsigned int mapping_total, map_count[4], map_folded_count[4],
     mapping_unique, mapping_dupe;
@@ -201,8 +201,7 @@ add_char(unsigned curchar, unsigned map_idx, uint8_t *bytes, uint8_t *bytes_r)
 			return (1);
 		if (bytes_r != NULL) {
 			gl = add_glyph(bytes_r, map_idx + 1, 0);
-			if (add_mapping(gl, curchar,
-			    map_idx + 1) != 0)
+			if (add_mapping(gl, curchar, map_idx + 1) != 0)
 				return (1);
 		}
 	}
@@ -496,9 +495,9 @@ write_fnt(const char *filename)
 
 	if (write_glyphs(fp) != 0 ||
 	    write_mappings(fp, VFNT_MAP_NORMAL) != 0 ||
-	    write_mappings(fp, 1) != 0 ||
+	    write_mappings(fp, VFNT_MAP_NORMAL_RH) != 0 ||
 	    write_mappings(fp, VFNT_MAP_BOLD) != 0 ||
-	    write_mappings(fp, 3) != 0) {
+	    write_mappings(fp, VFNT_MAP_BOLD_RH) != 0) {
 		perror(filename);
 		fclose(fp);
 		return (1);
