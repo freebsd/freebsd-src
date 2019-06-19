@@ -54,8 +54,10 @@ struct rack_sendmap {
 	uint8_t r_sndcnt;	/* Retran count, not limited by
 				 * RACK_NUM_OF_RETRANS */
 	uint8_t r_in_tmap;	/* Flag to see if its in the r_tnext array */
-	uint8_t r_resv[3];
+	uint8_t r_limit_type;	/* is this entry counted against a limit? */
+	uint8_t r_resv[2];
 };
+#define RACK_LIMIT_TYPE_SPLIT	1
 
 TAILQ_HEAD(rack_head, rack_sendmap);
 
@@ -241,7 +243,7 @@ struct rack_control {
 	uint32_t rc_num_maps_alloced;	/* Number of map blocks (sacks) we
 					 * have allocated */
 	uint32_t rc_rcvtime;	/* When we last received data */
-	uint32_t rc_notused;
+	uint32_t rc_num_split_allocs;	/* num split map entries allocated */
 	uint32_t rc_last_output_to; 
 	uint32_t rc_went_idle_time;
 
@@ -310,7 +312,8 @@ struct tcp_rack {
 	uint8_t rack_tlp_threshold_use;
 	uint8_t rc_allow_data_af_clo: 1,
 		delayed_ack : 1,
-		rc_avail : 6;
+		alloc_limit_reported : 1,
+		rc_avail : 5;
 	uint8_t r_resv[2];	/* Fill to cache line boundary */
 	/* Cache line 2 0x40 */
 	struct rack_control r_ctl;
