@@ -2705,18 +2705,16 @@ static bool
 iflib_check_lro_possible(struct mbuf *m, bool v4_forwarding, bool v6_forwarding)
 {
 	struct ether_header *eh;
-	uint16_t eh_type;
 
 	eh = mtod(m, struct ether_header *);
-	eh_type = ntohs(eh->ether_type);
-	switch (eh_type) {
+	switch (eh->ether_type) {
 #if defined(INET6)
-		case ETHERTYPE_IPV6:
-			return !v6_forwarding;
+		case htons(ETHERTYPE_IPV6):
+			return (!v6_forwarding);
 #endif
 #if defined (INET)
-		case ETHERTYPE_IP:
-			return !v4_forwarding;
+		case htons(ETHERTYPE_IP):
+			return (!v4_forwarding);
 #endif
 	}
 
