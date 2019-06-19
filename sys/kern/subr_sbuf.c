@@ -342,7 +342,7 @@ sbuf_setpos(struct sbuf *s, ssize_t pos)
 }
 
 /*
- * Drain into a counter.  Counts amount of data without prodicing output.
+ * Drain into a counter.  Counts amount of data without producing output.
  * Useful for cases like sysctl, where user may first request only size.
  * This allows to avoid pointless allocation/freeing of large buffers.
  */
