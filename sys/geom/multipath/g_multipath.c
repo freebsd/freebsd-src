@@ -1450,7 +1450,7 @@ g_multipath_ctl_getactive(struct gctl_req *req, struct g_class *mp)
 	} else if (sc->sc_active && sc->sc_active->provider) {
 		sbuf_printf(sb, "%s\n", sc->sc_active->provider->name);
 	} else {
-		sbuf_printf(sb, "none\n");
+		sbuf_cat(sb, "none\n");
 	}
 	sbuf_finish(sb);
 	gctl_set_param_err(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);

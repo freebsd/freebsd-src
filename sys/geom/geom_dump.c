@@ -105,10 +105,10 @@ g_confdot(void *p, int flag )
 	KASSERT(flag != EV_CANCEL, ("g_confdot was cancelled"));
 	sb = p;
 	g_topology_assert();
-	sbuf_printf(sb, "digraph geom {\n");
+	sbuf_cat(sb, "digraph geom {\n");
 	LIST_FOREACH(mp, &g_classes, class)
 		g_confdot_class(sb, mp);
-	sbuf_printf(sb, "}\n");
+	sbuf_cat(sb, "}\n");
 	sbuf_finish(sb);
 }
 
@@ -125,7 +125,7 @@ g_conftxt_geom(struct sbuf *sb, struct g_geom *gp, int level)
 		    pp->name, (uintmax_t)pp->mediasize, pp->sectorsize);
 		if (gp->dumpconf != NULL)
 			gp->dumpconf(sb, NULL, gp, NULL, pp);
-		sbuf_printf(sb, "\n");
+		sbuf_cat(sb, "\n");
 		LIST_FOREACH(cp, &pp->consumers, consumers)
 			g_conftxt_geom(sb, cp->geom, level + 1);
 	}
@@ -156,21 +156,12 @@ g_conftxt(void *p, int flag)
 	sbuf_finish(sb);
 }
 
-
 void
-g_conf_printf_escaped(struct sbuf *sb, const char *fmt, ...)
+g_conf_cat_escaped(struct sbuf *sb, const char *buf)
 {
-	struct sbuf *s;
 	const u_char *c;
-	va_list ap;
 
-	s = sbuf_new_auto();
-	va_start(ap, fmt);
-	sbuf_vprintf(s, fmt, ap);
-	va_end(ap);
-	sbuf_finish(s);
-
-	for (c = sbuf_data(s); *c != '\0'; c++) {
+	for (c = buf; *c != '\0'; c++) {
 		if (*c == '&' || *c == '<' || *c == '>' ||
 		    *c == '\'' || *c == '"' || *c > 0x7e)
 			sbuf_printf(sb, "&#x%X;", *c);
@@ -179,6 +170,21 @@ g_conf_printf_escaped(struct sbuf *sb, const char *fmt, ...)
 		else
 			sbuf_putc(sb, '?');
 	}
+}
+
+void
+g_conf_printf_escaped(struct sbuf *sb, const char *fmt, ...)
+{
+	struct sbuf *s;
+	va_list ap;
+
+	s = sbuf_new_auto();
+	va_start(ap, fmt);
+	sbuf_vprintf(s, fmt, ap);
+	va_end(ap);
+	sbuf_finish(s);
+
+	g_conf_cat_escaped(sb, sbuf_data(s));
 	sbuf_delete(s);
 }
 
@@ -195,11 +201,11 @@ g_conf_consumer(struct sbuf *sb, struct g_consumer *cp)
 	if (cp->geom->flags & G_GEOM_WITHER)
 		;
 	else if (cp->geom->dumpconf != NULL) {
-		sbuf_printf(sb, "\t  <config>\n");
+		sbuf_cat(sb, "\t  <config>\n");
 		cp->geom->dumpconf(sb, "\t    ", cp->geom, cp, NULL);
-		sbuf_printf(sb, "\t  </config>\n");
+		sbuf_cat(sb, "\t  </config>\n");
 	}
-	sbuf_printf(sb, "\t</consumer>\n");
+	sbuf_cat(sb, "\t</consumer>\n");
 }
 
 static void
@@ -210,24 +216,24 @@ g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 	sbuf_printf(sb, "\t  <geom ref=\"%p\"/>\n", pp->geom);
 	sbuf_printf(sb, "\t  <mode>r%dw%de%d</mode>\n",
 	    pp->acr, pp->acw, pp->ace);
-	sbuf_printf(sb, "\t  <name>");
-	g_conf_printf_escaped(sb, "%s", pp->name);
-	sbuf_printf(sb, "</name>\n");
+	sbuf_cat(sb, "\t  <name>");
+	g_conf_cat_escaped(sb, pp->name);
+	sbuf_cat(sb, "</name>\n");
 	sbuf_printf(sb, "\t  <mediasize>%jd</mediasize>\n",
 	    (intmax_t)pp->mediasize);
 	sbuf_printf(sb, "\t  <sectorsize>%u</sectorsize>\n", pp->sectorsize);
 	sbuf_printf(sb, "\t  <stripesize>%ju</stripesize>\n", (uintmax_t)pp->stripesize);
 	sbuf_printf(sb, "\t  <stripeoffset>%ju</stripeoffset>\n", (uintmax_t)pp->stripeoffset);
 	if (pp->flags & G_PF_WITHER)
-		sbuf_printf(sb, "\t  <wither/>\n");
+		sbuf_cat(sb, "\t  <wither/>\n");
 	else if (pp->geom->flags & G_GEOM_WITHER)
 		;
 	else if (pp->geom->dumpconf != NULL) {
-		sbuf_printf(sb, "\t  <config>\n");
+		sbuf_cat(sb, "\t  <config>\n");
 		pp->geom->dumpconf(sb, "\t    ", pp->geom, NULL, pp);
-		sbuf_printf(sb, "\t  </config>\n");
+		sbuf_cat(sb, "\t  </config>\n");
 	}
-	sbuf_printf(sb, "\t</provider>\n");
+	sbuf_cat(sb, "\t</provider>\n");
 }
 
 
@@ -240,16 +246,16 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 
 	sbuf_printf(sb, "    <geom id=\"%p\">\n", gp);
 	sbuf_printf(sb, "      <class ref=\"%p\"/>\n", gp->class);
-	sbuf_printf(sb, "      <name>");
-	g_conf_printf_escaped(sb, "%s", gp->name);
-	sbuf_printf(sb, "</name>\n");
+	sbuf_cat(sb, "      <name>");
+	g_conf_cat_escaped(sb, gp->name);
+	sbuf_cat(sb, "</name>\n");
 	sbuf_printf(sb, "      <rank>%d</rank>\n", gp->rank);
 	if (gp->flags & G_GEOM_WITHER)
-		sbuf_printf(sb, "      <wither/>\n");
+		sbuf_cat(sb, "      <wither/>\n");
 	else if (gp->dumpconf != NULL) {
-		sbuf_printf(sb, "      <config>\n");
+		sbuf_cat(sb, "      <config>\n");
 		gp->dumpconf(sb, "\t", gp, NULL, NULL);
-		sbuf_printf(sb, "      </config>\n");
+		sbuf_cat(sb, "      </config>\n");
 	}
 	LIST_FOREACH(cp2, &gp->consumer, consumer) {
 		if (cp != NULL && cp != cp2)
@@ -263,11 +269,11 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 		g_conf_provider(sb, pp2);
 	}
 	LIST_FOREACH(gap, &gp->aliases, ga_next) {
-		sbuf_printf(sb, "      <alias>\n");
-		g_conf_printf_escaped(sb, "%s", gap->ga_alias);
-		sbuf_printf(sb, "      </alias>\n");
+		sbuf_cat(sb, "      <alias>\n");
+		g_conf_cat_escaped(sb, gap->ga_alias);
+		sbuf_cat(sb, "      </alias>\n");
 	}
-	sbuf_printf(sb, "    </geom>\n");
+	sbuf_cat(sb, "    </geom>\n");
 }
 
 static void
@@ -276,15 +282,15 @@ g_conf_class(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_pr
 	struct g_geom *gp2;
 
 	sbuf_printf(sb, "  <class id=\"%p\">\n", mp);
-	sbuf_printf(sb, "    <name>");
-	g_conf_printf_escaped(sb, "%s", mp->name);
-	sbuf_printf(sb, "</name>\n");
+	sbuf_cat(sb, "    <name>");
+	g_conf_cat_escaped(sb, mp->name);
+	sbuf_cat(sb, "</name>\n");
 	LIST_FOREACH(gp2, &mp->geom, geom) {
 		if (gp != NULL && gp != gp2)
 			continue;
 		g_conf_geom(sb, gp2, pp, cp);
 	}
-	sbuf_printf(sb, "  </class>\n");
+	sbuf_cat(sb, "  </class>\n");
 }
 
 void
@@ -293,13 +299,13 @@ g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g
 	struct g_class *mp2;
 
 	g_topology_assert();
-	sbuf_printf(sb, "<mesh>\n");
+	sbuf_cat(sb, "<mesh>\n");
 	LIST_FOREACH(mp2, &g_classes, class) {
 		if (mp != NULL && mp != mp2)
 			continue;
 		g_conf_class(sb, mp2, gp, pp, cp);
 	}
-	sbuf_printf(sb, "</mesh>\n");
+	sbuf_cat(sb, "</mesh>\n");
 	sbuf_finish(sb);
 }
 
