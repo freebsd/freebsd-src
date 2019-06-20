@@ -562,12 +562,11 @@ intel_iicbb_attach(device_t idev)
 	sc->bus = &dev_priv->gmbus[pin];
 
 	/* add generic bit-banging code */
-	sc->iic_dev = device_add_child(idev, "iicbb", -1);
+	sc->iic_dev = device_add_child(idev, "iicbb_nostop", -1);
 	if (sc->iic_dev == NULL)
 		return (ENXIO);
 	device_quiet(sc->iic_dev);
 	bus_generic_attach(idev);
-	iicbus_set_nostop(idev, true);
 
 	return (0);
 }
@@ -608,7 +607,83 @@ static driver_t intel_iicbb_driver = {
 static devclass_t intel_iicbb_devclass;
 DRIVER_MODULE_ORDERED(intel_iicbb, drmn, intel_iicbb_driver,
     intel_iicbb_devclass, 0, 0, SI_ORDER_FIRST);
-DRIVER_MODULE(iicbb, intel_iicbb, iicbb_driver, iicbb_devclass, 0, 0);
+
+/*
+ * XXX This is a copy of struct iicbb_softc in sys/dev/iicbus/iicbb.c.
+ * There should really be a shared definition.
+ */
+struct iicbb_softc {
+	device_t iicbus;
+	int udelay;		/* signal toggle delay in usec */
+};
+
+static int
+iicbb_nostop_transfer_impl(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
+{
+	int i, error, lenread, lenwrote, addr;
+	struct iicbb_softc *sc;
+	device_t bus;
+	bool started;
+
+	sc = device_get_softc(dev);
+	bus = sc->iicbus;
+	started = false;
+	for (i = 0, error = 0; i < nmsgs && error == 0; i++) {
+		addr = msgs[i].slave;
+		if (msgs[i].flags & IIC_M_RD)
+			addr |= LSB;
+		else
+			addr &= ~LSB;
+
+		if ((msgs[i].flags & IIC_M_NOSTART) == 0) {
+			if (i == 0)
+				error = iicbus_start(bus, addr, 0);
+			else
+				error = iicbus_repeated_start(bus, addr, 0);
+			if (error != 0)
+				break;
+			started = true;
+		}
+
+		if ((msgs[i].flags & IIC_M_RD) != 0)
+			error = iicbus_read(bus, msgs[i].buf, msgs[i].len,
+			    &lenread, IIC_LAST_READ, 0);
+		else
+			error = iicbus_write(bus, msgs[i].buf, msgs[i].len,
+			    &lenwrote, 0);
+	}
+	if (started)
+		iicbus_stop(bus);
+	return (error);
+}
+
+static int
+iicbb_nostop_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
+{
+	int error;
+
+	error = IICBB_PRE_XFER(device_get_parent(dev));
+	if (error)
+		return (error);
+
+	error = iicbb_nostop_transfer_impl(dev, msgs, nmsgs);
+
+	IICBB_POST_XFER(device_get_parent(dev));
+	return (error);
+}
+
+static device_method_t iicbb_nostop_methods[] = {
+	DEVMETHOD(iicbus_transfer,	iicbb_nostop_transfer),
+
+	DEVMETHOD_END
+};
+
+static devclass_t iicbb_nostop_devclass;
+
+DEFINE_CLASS_1(iicbb_nostop, iicbb_nostop_driver, iicbb_nostop_methods,
+    sizeof(struct iicbb_softc), iicbb_driver);
+DRIVER_MODULE(iicbb_nostop, intel_iicbb, iicbb_nostop_driver,
+    iicbb_nostop_devclass, NULL, NULL);
 
 /**
  * intel_gmbus_setup - instantiate all Intel i2c GMBuses
@@ -672,7 +747,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 
 		/* bbbus */
 		iic_dev = device_find_child(bus->bbbus_bridge,
-		    "iicbb", -1);
+		    "iicbb_nostop", -1);
 		if (iic_dev == NULL) {
 			DRM_ERROR("bbbus bridge doesn't have iicbb child\n");
 			goto err;
