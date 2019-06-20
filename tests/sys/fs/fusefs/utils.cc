@@ -129,6 +129,20 @@ void FuseTest::SetUp() {
 			_)
 		).Times(AnyNumber())
 		.WillRepeatedly(Invoke(ReturnErrno(ENOSYS)));
+		/*
+		 * FUSE_BMAP is called for most test cases that read data.  Set
+		 * a default expectation and return ENOSYS.
+		 *
+		 * Individual test cases can override this expectation since
+		 * googlemock evaluates expectations in LIFO order.
+		 */
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in.header.opcode == FUSE_BMAP);
+			}, Eq(true)),
+			_)
+		).Times(AnyNumber())
+		.WillRepeatedly(Invoke(ReturnErrno(ENOSYS)));
 	} catch (std::system_error err) {
 		FAIL() << err.what();
 	}

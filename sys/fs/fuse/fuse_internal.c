@@ -908,7 +908,8 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 
 	if (fuse_libabi_geq(data, 7, 5)) {
 		if (fticket_resp(tick)->len == sizeof(struct fuse_init_out)) {
-			data->max_readahead = fiio->max_readahead;
+			data->max_readahead_blocks = fiio->max_readahead /
+				maxbcachebuf;
 			data->max_write = fiio->max_write;
 			if (fiio->flags & FUSE_ASYNC_READ)
 				data->dataflags |= FSESS_ASYNC_READ;

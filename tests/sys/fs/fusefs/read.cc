@@ -29,7 +29,7 @@
  */
 
 extern "C" {
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -749,16 +749,15 @@ TEST_F(ReadCacheable, DISABLED_sendfile_eio)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-/* Large reads should be clustered, even across cache block boundaries */
-/* 
- * Disabled because clustered reads requires VOP_BMAP, which fusefs does not
- * yet support
+/*
+ * Sequential reads should use readahead.  And if allowed, large reads should
+ * be clustered.
  */
-TEST_P(ReadAhead, DISABLED_cluster) {
+TEST_P(ReadAhead, readahead) {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
-	int fd, maxcontig;
+	int fd, maxcontig, clustersize;
 	ssize_t bufsize = 4 * m_maxbcachebuf;
 	ssize_t filesize = bufsize;
 	uint64_t len;
@@ -774,46 +773,10 @@ TEST_P(ReadAhead, DISABLED_cluster) {
 	expect_open(ino, 0, 1);
 	maxcontig = m_noclusterr ? m_maxbcachebuf :
 				   m_maxbcachebuf + (int)get<1>(GetParam());
-	for (offs = 0; offs < bufsize; offs += maxcontig) {
-		len = std::min((size_t)maxcontig, (size_t)(filesize - offs));
+	clustersize = MIN(maxcontig, MAXPHYS);
+	for (offs = 0; offs < bufsize; offs += clustersize) {
+		len = std::min((size_t)clustersize, (size_t)(filesize - offs));
 		expect_read(ino, offs, len, len, contents + offs);
-	}
-
-	fd = open(FULLPATH, O_RDONLY);
-	ASSERT_LE(0, fd) << strerror(errno);
-
-	/* Set the internal readahead counter to a "large" value */
-	ASSERT_EQ(0, fcntl(fd, F_READAHEAD, 1'000'000'000)) << strerror(errno);
-
-	ASSERT_EQ(bufsize, read(fd, rbuf, bufsize)) << strerror(errno);
-	ASSERT_EQ(0, memcmp(rbuf, contents, bufsize));
-
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
-}
-
-/* fuse(4) should honor the filesystem's requested m_readahead parameter */
-TEST_P(ReadAhead, readahead) {
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
-	uint64_t ino = 42;
-	int fd, i;
-	ssize_t bufsize = m_maxbcachebuf;
-	ssize_t filesize = m_maxbcachebuf * 6;
-	char *rbuf, *contents;
-
-	contents = (char*)malloc(filesize);
-	ASSERT_NE(NULL, contents);
-	memset(contents, 'X', filesize);
-	rbuf = (char*)calloc(1, bufsize);
-
-	expect_lookup(RELPATH, ino, filesize);
-	expect_open(ino, 0, 1);
-	/* fuse(4) should only read ahead the allowed amount */
-	expect_read(ino, 0, m_maxbcachebuf, m_maxbcachebuf, contents);
-	for (i = 0; i < (int)get<1>(GetParam()) / m_maxbcachebuf; i++) {
-		off_t offs = (i + 1) * m_maxbcachebuf;
-		expect_read(ino, offs, m_maxbcachebuf, m_maxbcachebuf,
-			contents + offs);
 	}
 
 	fd = open(FULLPATH, O_RDONLY);
@@ -834,4 +797,5 @@ INSTANTIATE_TEST_CASE_P(RA, ReadAhead,
 	       tuple<bool, int>(false, 0x20000),
 	       tuple<bool, int>(false, 0x30000),
 	       tuple<bool, int>(true, 0u),
-	       tuple<bool, int>(true, 0x10000)));
+	       tuple<bool, int>(true, 0x10000),
+	       tuple<bool, int>(true, 0x20000)));

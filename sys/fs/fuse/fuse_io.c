@@ -321,10 +321,10 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 			/* Try clustered read */
 			long totread = uio->uio_resid + on;
 			seqcount = MIN(seqcount,
-				data->max_readahead / biosize + 1);
+				data->max_readahead_blocks + 1);
 			err = cluster_read(vp, filesize, lbn, bcount, NOCRED,
 				totread, seqcount, 0, &bp);
-		} else if (seqcount > 1 && data->max_readahead >= nextsize) {
+		} else if (seqcount > 1 && data->max_readahead_blocks >= 1) {
 			/* Try non-clustered readahead */
 			err = breadn(vp, lbn, bcount, &nextlbn, &nextsize, 1,
 				NOCRED, &bp);
