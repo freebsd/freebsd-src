@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2018
+.Dd June 19, 2019
 .Dt SLEEP 9
 .Os
 .Sh NAME
@@ -38,7 +38,9 @@
 .Nm pause_sbt ,
 .Nm tsleep ,
 .Nm tsleep_sbt ,
-.Nm wakeup
+.Nm wakeup ,
+.Nm wakeup_one ,
+.Nm wakeup_any
 .Nd wait for events
 .Sh SYNOPSIS
 .In sys/param.h
@@ -70,6 +72,8 @@
 .Fn wakeup "void *chan"
 .Ft void
 .Fn wakeup_one "void *chan"
+.Ft void
+.Fn wakeup_any "void *chan"
 .Sh DESCRIPTION
 The functions
 .Fn tsleep ,
@@ -79,8 +83,9 @@ The functions
 .Fn pause_sig ,
 .Fn pause_sbt ,
 .Fn wakeup ,
+.Fn wakeup_one ,
 and
-.Fn wakeup_one
+.Fn wakeup_any
 handle event-based thread blocking.
 If a thread must wait for an
 external event, it is put to sleep by
@@ -252,9 +257,10 @@ function is a wrapper around
 .Fn tsleep
 that suspends execution of the current thread for the indicated timeout.
 The thread can not be awakened early by signals or calls to
-.Fn wakeup
+.Fn wakeup ,
+.Fn wakeup_one
 or
-.Fn wakeup_one .
+.Fn wakeup_any .
 The
 .Fn pause_sig
 function is a variant of
@@ -263,8 +269,8 @@ which can be awakened early by signals.
 .Pp
 The
 .Fn wakeup_one
-function makes the first thread in the queue that is sleeping on the
-parameter
+function makes the first highest priority thread in the queue that is
+sleeping on the parameter
 .Fa chan
 runnable.
 This reduces the load when a large number of threads are sleeping on
@@ -292,6 +298,16 @@ to
 pay particular attention to ensure that no other threads wait on the
 same
 .Fa chan .
+.Pp
+The
+.Fn wakeup_any
+function is similar to
+.Fn wakeup_one ,
+except that it makes runnable last thread on the queue (sleeping less),
+ignoring fairness.
+It can be used when threads sleeping on the
+.Fa chan
+are known to be identical and there is no reason to be fair.
 .Pp
 If the timeout given by
 .Fa timo
