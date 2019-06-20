@@ -124,6 +124,7 @@ struct fuse_create_out_7_8 {
 
 union fuse_payloads_in {
 	fuse_access_in	access;
+	fuse_bmap_in	bmap;
 	/* value is from fuse_kern_chan.c in fusefs-libs */
 	uint8_t		bytes[0x21000 - sizeof(struct fuse_in_header)];
 	fuse_create_in	create;
@@ -164,6 +165,7 @@ struct mockfs_buf_in {
 union fuse_payloads_out {
 	fuse_attr_out		attr;
 	fuse_attr_out_7_8	attr_7_8;
+	fuse_bmap_out		bmap;
 	fuse_create_out		create;
 	fuse_create_out_7_8	create_7_8;
 	/*

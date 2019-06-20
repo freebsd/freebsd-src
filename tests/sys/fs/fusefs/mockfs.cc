@@ -168,6 +168,10 @@ void MockFS::debug_request(const mockfs_buf_in &in)
 		case FUSE_ACCESS:
 			printf(" mask=%#x", in.body.access.mask);
 			break;
+		case FUSE_BMAP:
+			printf(" block=%#lx blocksize=%#x", in.body.bmap.block,
+				in.body.bmap.blocksize);
+			break;
 		case FUSE_CREATE:
 			if (m_kernel_minor_version >= 12)
 				name = (const char*)in.body.bytes +

@@ -711,6 +711,10 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 	opcode = fticket_opcode(ftick);
 
 	switch (opcode) {
+	case FUSE_BMAP:
+		err = (blen == sizeof(struct fuse_bmap_out)) ? 0 : EINVAL;
+		break;
+
 	case FUSE_LINK:
 	case FUSE_LOOKUP:
 	case FUSE_MKDIR:

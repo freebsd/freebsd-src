@@ -120,6 +120,7 @@ SDT_PROBE_DEFINE2(fusefs, , vnops, trace, "int", "char*");
 /* vnode ops */
 static vop_access_t fuse_vnop_access;
 static vop_advlock_t fuse_vnop_advlock;
+static vop_bmap_t fuse_vnop_bmap;
 static vop_close_t fuse_fifo_close;
 static vop_close_t fuse_vnop_close;
 static vop_create_t fuse_vnop_create;
@@ -174,6 +175,7 @@ struct vop_vector fuse_vnops = {
 	.vop_default = &default_vnodeops,
 	.vop_access = fuse_vnop_access,
 	.vop_advlock = fuse_vnop_advlock,
+	.vop_bmap = fuse_vnop_bmap,
 	.vop_close = fuse_vnop_close,
 	.vop_create = fuse_vnop_create,
 	.vop_deleteextattr = fuse_vnop_deleteextattr,
@@ -464,6 +466,92 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 	}
 
 	return err;
+}
+
+/* {
+	struct vnode *a_vp;
+	daddr_t a_bn;
+	struct bufobj **a_bop;
+	daddr_t *a_bnp;
+	int *a_runp;
+	int *a_runb;
+} */
+static int
+fuse_vnop_bmap(struct vop_bmap_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct bufobj **bo = ap->a_bop;
+	struct thread *td = curthread;
+	struct mount *mp;
+	struct fuse_dispatcher fdi;
+	struct fuse_bmap_in *fbi;
+	struct fuse_bmap_out *fbo;
+	struct fuse_data *data;
+	uint64_t biosize;
+	off_t filesize;
+	daddr_t lbn = ap->a_bn;
+	daddr_t *pbn = ap->a_bnp;
+	int *runp = ap->a_runp;
+	int *runb = ap->a_runb;
+	int error = 0;
+	int maxrun;
+
+	if (fuse_isdeadfs(vp)) {
+		return ENXIO;
+	}
+
+	mp = vnode_mount(vp);
+	data = fuse_get_mpdata(mp);
+	biosize = fuse_iosize(vp);
+	maxrun = MIN(vp->v_mount->mnt_iosize_max / biosize - 1,
+		data->max_readahead_blocks);
+
+	if (bo != NULL)
+		*bo = &vp->v_bufobj;
+
+	/*
+	 * The FUSE_BMAP operation does not include the runp and runb
+	 * variables, so we must guess.  Report nonzero contiguous runs so
+	 * cluster_read will combine adjacent reads.  It's worthwhile to reduce
+	 * upcalls even if we don't know the true physical layout of the file.
+	 * 
+	 * FUSE file systems may opt out of read clustering in two ways:
+	 * * mounting with -onoclusterr
+	 * * Setting max_readahead <= maxbcachebuf during FUSE_INIT
+	 */
+	if (runb != NULL)
+		*runb = MIN(lbn, maxrun);
+	if (runp != NULL) {
+		error = fuse_vnode_size(vp, &filesize, td->td_ucred, td);
+		if (error == 0)
+			*runp = MIN(MAX(0, filesize / biosize - lbn - 1),
+				    maxrun);
+		else
+			*runp = 0;
+	}
+
+	if (fsess_isimpl(mp, FUSE_BMAP)) {
+		fdisp_init(&fdi, sizeof(*fbi));
+		fdisp_make_vp(&fdi, FUSE_BMAP, vp, td, td->td_ucred);
+		fbi = fdi.indata;
+		fbi->block = lbn;
+		fbi->blocksize = biosize;
+		error = fdisp_wait_answ(&fdi);
+		if (error == ENOSYS) {
+			fsess_set_notimpl(mp, FUSE_BMAP);
+			error = 0;
+		} else {
+			fbo = fdi.answ;
+			if (error == 0 && pbn != NULL)
+				*pbn = fbo->block;
+			return error;
+		}
+	}
+
+	/* If the daemon doesn't support BMAP, make up a sensible default */
+	if (pbn != NULL)
+		*pbn = lbn * btodb(biosize);
+	return (error);
 }
 
 /*

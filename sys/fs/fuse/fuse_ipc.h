@@ -197,7 +197,7 @@ struct fuse_data {
 	uint32_t			fuse_libabi_major;
 	uint32_t			fuse_libabi_minor;
 
-	uint32_t			max_readahead;
+	uint32_t			max_readahead_blocks;
 	uint32_t			max_write;
 	uint32_t			max_read;
 	uint32_t			subtype;

@@ -9,6 +9,7 @@ TESTSDIR=	${TESTSBASE}/sys/fs/fusefs
 # out, so we get more granular reporting.
 GTESTS+=	access
 GTESTS+=	allow_other
+GTESTS+=	bmap
 GTESTS+=	create
 GTESTS+=	default_permissions
 GTESTS+=	default_permissions_privileged
