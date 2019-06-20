@@ -64,7 +64,12 @@ is TRUE,
 is treated as the new
 .Va max_protection
 setting for each underlying entry.
-Otherwise, only the
+Protection bits not included
+.Fa new_prot
+will be cleared from existing entries.
+If
+.Fa set_max
+is FALSE only the
 .Va protection
 field is affected.
 .Pp
