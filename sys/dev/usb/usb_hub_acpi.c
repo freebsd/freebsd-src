@@ -243,13 +243,14 @@ acpi_uhub_parse_pld(device_t dev, unsigned int port, ACPI_HANDLE ah)
 }
 
 ACPI_STATUS
-acpi_uhub_find_rh(device_t dev, ACPI_HANDLE * ah){
+acpi_uhub_find_rh(device_t dev, ACPI_HANDLE * ah)
+{
 	device_t grand;
 	ACPI_HANDLE gah;
 
+	*ah = NULL;
 	grand = device_get_parent(device_get_parent(dev));
 	if ((gah = acpi_get_handle(grand)) == NULL) {
-		*ah = NULL;
 		return AE_ERROR;
 	}
 	return AcpiWalkNamespace(ACPI_TYPE_DEVICE, gah, 1,
@@ -257,7 +258,8 @@ acpi_uhub_find_rh(device_t dev, ACPI_HANDLE * ah){
 }
 
 ACPI_STATUS
-acpi_usb_hub_port_probe_cb(ACPI_HANDLE ah, UINT32 lv, void *ctx, void **rv){
+acpi_usb_hub_port_probe_cb(ACPI_HANDLE ah, UINT32 lv, void *ctx, void **rv)
+{
 	ACPI_DEVICE_INFO *devinfo;
 	device_t dev = ctx;
 	struct acpi_uhub_softc *sc = device_get_softc(dev);
@@ -281,7 +283,8 @@ acpi_usb_hub_port_probe_cb(ACPI_HANDLE ah, UINT32 lv, void *ctx, void **rv){
 }
 
 ACPI_STATUS
-acpi_usb_hub_port_probe(device_t dev, ACPI_HANDLE ah){
+acpi_usb_hub_port_probe(device_t dev, ACPI_HANDLE ah)
+{
 	return AcpiWalkNamespace(ACPI_TYPE_DEVICE,
 	    ah, 1,
 	    acpi_usb_hub_port_probe_cb,
@@ -293,6 +296,9 @@ acpi_uhub_root_probe(device_t dev)
 	ACPI_HANDLE ah;
 	ACPI_STATUS status;
 
+	if(acpi_disabled("usb")) {
+		return ENXIO;
+	}
 	status = acpi_uhub_find_rh(dev, &ah);
 	if (ACPI_SUCCESS(status)
 	    && ah != NULL
@@ -308,7 +314,7 @@ acpi_uhub_probe(device_t dev)
 {
 	ACPI_HANDLE ah = acpi_get_handle(dev);
 
-	if (ah && (uhub_probe(dev) <= 0)) {
+	if (!acpi_disabled("usb") && ah && (uhub_probe(dev) <= 0)) {
 		/*success prior than non - acpi hub*/
 		    return (BUS_PROBE_DEFAULT + 1);
 	}
@@ -335,7 +341,6 @@ acpi_uhub_root_attach(device_t dev)
 	sc->nports = uh->nports;
 	sc->porthandle = malloc(sizeof(ACPI_HANDLE) * uh->nports,
 	    M_USBDEV, M_WAITOK | M_ZERO);
-	acpi_uhub_find_rh(dev, &devhandle);
 	acpi_usb_hub_port_probe(dev, devhandle);
 
 	return 0;
