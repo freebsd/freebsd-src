@@ -220,7 +220,7 @@ release_ddp_resources(struct toepcb *toep)
 	int i;
 
 	DDP_LOCK(toep);
-	toep->flags |= DDP_DEAD;
+	toep->ddp.flags |= DDP_DEAD;
 	for (i = 0; i < nitems(toep->ddp.db); i++) {
 		free_ddp_buffer(toep->td, &toep->ddp.db[i]);
 	}
