@@ -493,11 +493,13 @@ fuse_vfsop_unmount(struct mount *mp, int mntflags)
 	if (fdata_get_dead(data)) {
 		goto alreadydead;
 	}
-	fdisp_init(&fdi, 0);
-	fdisp_make(&fdi, FUSE_DESTROY, mp, 0, td, NULL);
+	if (fsess_isimpl(mp, FUSE_DESTROY)) {
+		fdisp_init(&fdi, 0);
+		fdisp_make(&fdi, FUSE_DESTROY, mp, 0, td, NULL);
 
-	err = fdisp_wait_answ(&fdi);
-	fdisp_destroy(&fdi);
+		(void)fdisp_wait_answ(&fdi);
+		fdisp_destroy(&fdi);
+	}
 
 	fdata_set_dead(data);
 
