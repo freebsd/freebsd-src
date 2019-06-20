@@ -2553,6 +2553,7 @@ NXBDIRS+= \
     usr.bin/find \
     usr.bin/grep \
     usr.bin/gzip \
+    usr.bin/head \
     usr.bin/id \
     usr.bin/lex \
     usr.bin/limits \
