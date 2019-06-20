@@ -896,20 +896,21 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 	}
 	fiio = fticket_resp(tick)->base;
 
-	/* XXX: Do we want to check anything further besides this? */
-	if (fiio->major < 7) {
+	data->fuse_libabi_major = fiio->major;
+	data->fuse_libabi_minor = fiio->minor;
+	if (!fuse_libabi_geq(data, 7, 4)) {
+		/* 
+		 * With a little work we could support servers as old as 7.1.
+		 * But there would be little payoff.
+		 */
 		SDT_PROBE2(fusefs, , internal, trace, 1,
 			"userpace version too low");
 		err = EPROTONOSUPPORT;
 		goto out;
 	}
-	data->fuse_libabi_major = fiio->major;
-	data->fuse_libabi_minor = fiio->minor;
 
 	if (fuse_libabi_geq(data, 7, 5)) {
 		if (fticket_resp(tick)->len == sizeof(struct fuse_init_out)) {
-			data->max_readahead_blocks = fiio->max_readahead /
-				maxbcachebuf;
 			data->max_write = fiio->max_write;
 			if (fiio->flags & FUSE_ASYNC_READ)
 				data->dataflags |= FSESS_ASYNC_READ;
@@ -929,8 +930,19 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 			err = EINVAL;
 		}
 	} else {
-		/* Old fix values */
+		/* Old fixed values */
 		data->max_write = 4096;
+	}
+
+	if (fuse_libabi_geq(data, 7, 6))
+		data->max_readahead_blocks = fiio->max_readahead / maxbcachebuf;
+
+	if (!fuse_libabi_geq(data, 7, 7))
+		fsess_set_notimpl(data->mp, FUSE_INTERRUPT);
+
+	if (!fuse_libabi_geq(data, 7, 8)) {
+		fsess_set_notimpl(data->mp, FUSE_BMAP);
+		fsess_set_notimpl(data->mp, FUSE_DESTROY);
 	}
 
 out:
