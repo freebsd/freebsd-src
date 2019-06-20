@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2019
+.Dd June 11, 2019
 .Dt SYSCTL 9
 .Os
 .Sh NAME
@@ -50,6 +50,7 @@
 .Nm SYSCTL_ADD_STRING ,
 .Nm SYSCTL_ADD_CONST_STRING ,
 .Nm SYSCTL_ADD_STRUCT ,
+.Nm SYSCTL_ADD_TIMEVAL_SEC ,
 .Nm SYSCTL_ADD_U8 ,
 .Nm SYSCTL_ADD_U16 ,
 .Nm SYSCTL_ADD_U32 ,
@@ -70,6 +71,7 @@
 .Nm SYSCTL_INT ,
 .Nm SYSCTL_INT_WITH_LABEL ,
 .Nm SYSCTL_LONG ,
+.Nm sysctl_msec_to_ticks ,
 .Nm SYSCTL_NODE ,
 .Nm SYSCTL_NODE_WITH_LABEL ,
 .Nm SYSCTL_OPAQUE ,
@@ -85,6 +87,7 @@
 .Nm SYSCTL_STRING ,
 .Nm SYSCTL_CONST_STRING ,
 .Nm SYSCTL_STRUCT ,
+.Nm SYSCTL_TIMEVAL_SEC ,
 .Nm SYSCTL_U8 ,
 .Nm SYSCTL_U16 ,
 .Nm SYSCTL_U32 ,
@@ -314,6 +317,16 @@
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_TIMEVAL_SEC
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "struct timeval *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
 .Fo SYSCTL_ADD_U8
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
@@ -442,6 +455,8 @@
 .Fn SYSCTL_INT parent number name ctlflags ptr val descr
 .Fn SYSCTL_INT_WITH_LABEL parent number name ctlflags ptr val descr label
 .Fn SYSCTL_LONG parent number name ctlflags ptr val descr
+.Ft int
+.Fn sysctl_msec_to_ticks SYSCTL_HANDLER_ARGS
 .Fn SYSCTL_NODE parent number name ctlflags handler descr
 .Fn SYSCTL_NODE_WITH_LABEL parent number name ctlflags handler descr label
 .Fn SYSCTL_OPAQUE parent number name ctlflags ptr len format descr
@@ -457,6 +472,7 @@
 .Fn SYSCTL_STRING parent number name ctlflags arg len descr
 .Fn SYSCTL_CONST_STRING parent number name ctlflags arg descr
 .Fn SYSCTL_STRUCT parent number name ctlflags ptr struct_type descr
+.Fn SYSCTL_TIMEVAL_SEC parent number name ctlflags ptr descr
 .Fn SYSCTL_U8 parent number name ctlflags ptr val descr
 .Fn SYSCTL_U16 parent number name ctlflags ptr val descr
 .Fn SYSCTL_U32 parent number name ctlflags ptr val descr
@@ -466,6 +482,7 @@
 .Fn SYSCTL_UQUAD parent number name ctlflags ptr val descr
 .Fn SYSCTL_UMA_MAX parent number name ctlflags ptr descr
 .Fn SYSCTL_UMA_CUR parent number name ctlflags ptr descr
+
 .Sh DESCRIPTION
 The
 .Nm SYSCTL
@@ -596,6 +613,70 @@ Labels should only be applied to siblings that are structurally similar
 and encode the same type of value,
 as aggregation is of no use otherwise.
 .El
+.Sh NODE VALUE TYPES
+Most of the macros and functions used to create sysctl nodes export a
+read-only constant or in-kernel variable whose type matches the type
+of the node's value.
+For example,
+.Fn SYSCTL_INT
+reports the raw value of an associated variable of type
+.Vt int .
+However, nodes may also export a value that is a translatation of an internal
+representation.
+.Pp
+The
+.Fn sysctl_msec_to_ticks
+handler can be used with
+.Fn SYSCTL_PROC
+or
+.Fn SYSCTL_ADD_PROC
+to export a millisecond time interval.
+When using this handler,
+the
+.Fa arg2
+parameter points to an in-kernel variable of type
+.Vt int
+which stores a tick count suitable for use with functions like
+.Xr tsleep 9 .
+The
+.Fn sysctl_msec_to_ticks
+function converts this value to milliseconds when reporting the node's value.
+Similarly,
+.Fn sysctl_msec_to_ticks
+accepts new values in milliseconds and stores an equivalent value in ticks to
+.Fa *arg2 .
+Note that new code should use kernel variables of type
+.Vt sbintime_t
+instead of tick counts.
+.Pp
+The
+.Fn SYSCTL_ADD_SBINTIME_MSEC
+and
+.Fn SYSCTL_ADD_SBINTIME_USEC
+functions and
+.Fn SYSCTL_SBINTIME_MSEC
+and
+.Fn SYSCTL_SBINTIME_USEC
+macros all create nodes which export an in-kernel variable of type
+.Vt sbintime_t .
+These nodes do not export the raw value of the associated variable.
+Instead, they export a 64-bit integer containing a count of either
+milliseconds (the MSEC variants) or microseconds (the USEC variants).
+.Pp
+The
+.Fn SYSCTL_ADD_TIMEVAL_SEC
+function and
+.Fn SYSCTL_TIMEVAL_SEC
+macro create nodes which export an in-kernel variable of type
+.Vt struct timeval .
+These nodes do not export full value of the associated structure.
+Instead, they export a count in seconds as a simple integer which is
+stored in the
+.Fa tv_sec
+field of the associated variable.
+This function and macro are intended to be used with variables which
+store a non-negative interval rather than an absolute time.
+As a result, they reject attempts to store negative values.
 .Sh CREATING ROOT NODES
 Sysctl MIBs or OIDs are created in a hierarchical tree.
 The nodes at the bottom of the tree are called root nodes, and have no
@@ -678,6 +759,7 @@ Static sysctls are declared using one of the
 .Fn SYSCTL_STRING ,
 .Fn SYSCTL_CONST_STRING ,
 .Fn SYSCTL_STRUCT ,
+.Fn SYSCTL_TIMEVAL_SEC ,
 .Fn SYSCTL_U8 ,
 .Fn SYSCTL_U16 ,
 .Fn SYSCTL_U32 ,
@@ -711,6 +793,7 @@ Dynamic nodes are created using one of the
 .Fn SYSCTL_ADD_STRING ,
 .Fn SYSCTL_ADD_CONST_STRING ,
 .Fn SYSCTL_ADD_STRUCT ,
+.Fn SYSCTL_ADD_TIMEVAL_SEC ,
 .Fn SYSCTL_ADD_U8 ,
 .Fn SYSCTL_ADD_U16 ,
 .Fn SYSCTL_ADD_U32 ,

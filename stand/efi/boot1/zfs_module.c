@@ -115,19 +115,17 @@ probe(dev_info_t *dev)
 {
 	spa_t *spa;
 	dev_info_t *tdev;
-	EFI_STATUS status;
 
 	/* ZFS consumes the dev on success so we need a copy. */
-	if ((status = BS->AllocatePool(EfiLoaderData, sizeof(*dev),
-	    (void**)&tdev)) != EFI_SUCCESS) {
-		DPRINTF("Failed to allocate tdev (%lu)\n",
-		    EFI_ERROR_CODE(status));
-		return (status);
+	tdev = malloc(sizeof(*dev));
+	if (tdev == NULL) {
+		DPRINTF("Failed to allocate tdev\n");
+		return (EFI_OUT_OF_RESOURCES);
 	}
 	memcpy(tdev, dev, sizeof(*dev));
 
 	if (vdev_probe(vdev_read, tdev, &spa) != 0) {
-		(void)BS->FreePool(tdev);
+		free(tdev);
 		return (EFI_UNSUPPORTED);
 	}
 
@@ -146,7 +144,6 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 	struct stat st;
 	int err;
 	void *buf;
-	EFI_STATUS status;
 
 	spa = devinfo->devdata;
 
@@ -185,17 +182,17 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 		return (EFI_INVALID_PARAMETER);
 	}
 
-	if ((status = BS->AllocatePool(EfiLoaderData, (UINTN)st.st_size, &buf))
-	    != EFI_SUCCESS) {
-		printf("Failed to allocate load buffer %jd for pool '%s' for '%s' "
-		    "(%lu)\n", (intmax_t)st.st_size, spa->spa_name, filepath, EFI_ERROR_CODE(status));
+	buf = malloc(st.st_size);
+	if (buf == NULL) {
+		printf("Failed to allocate load buffer %jd for pool '%s' for '%s' ",
+		    (intmax_t)st.st_size, spa->spa_name, filepath);
 		return (EFI_INVALID_PARAMETER);
 	}
 
 	if ((err = dnode_read(spa, &dn, 0, buf, st.st_size)) != 0) {
 		printf("Failed to read node from %s (%d)\n", spa->spa_name,
 		    err);
-		(void)BS->FreePool(buf);
+		free(buf);
 		return (EFI_INVALID_PARAMETER);
 	}
 

@@ -49,11 +49,10 @@ __FBSDID("$FreeBSD$");
  */
 struct lafe_line_reader {
 	FILE *f;
-	char *buff, *buff_end, *line_start, *line_end, *p;
+	char *buff, *buff_end, *line_start, *line_end;
 	char *pathname;
 	size_t buff_length;
 	int nullSeparator; /* Lines separated by null, not CR/CRLF/etc. */
-	int ret;
 };
 
 struct lafe_line_reader *

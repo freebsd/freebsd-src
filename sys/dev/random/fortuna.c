@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include "unit_test.h"
 #endif /* _KERNEL */
 
+#include <crypto/chacha20/chacha.h>
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha256.h>
 
@@ -75,7 +76,10 @@ __FBSDID("$FreeBSD$");
 /* Defined in FS&K */
 #define	RANDOM_FORTUNA_NPOOLS 32		/* The number of accumulation pools */
 #define	RANDOM_FORTUNA_DEFPOOLSIZE 64		/* The default pool size/length for a (re)seed */
-#define	RANDOM_FORTUNA_MAX_READ (1 << 20)	/* Max bytes in a single read */
+#define	RANDOM_FORTUNA_MAX_READ (1 << 20)	/* Max bytes from AES before rekeying */
+#define	RANDOM_FORTUNA_BLOCKS_PER_KEY (1 << 16)	/* Max blocks from AES before rekeying */
+CTASSERT(RANDOM_FORTUNA_BLOCKS_PER_KEY * RANDOM_BLOCKSIZE ==
+    RANDOM_FORTUNA_MAX_READ);
 
 /*
  * The allowable range of RANDOM_FORTUNA_DEFPOOLSIZE. The default value is above.
@@ -120,6 +124,26 @@ static struct fortuna_state {
 	mtx_t fs_mtx;
 } fortuna_state;
 
+/*
+ * Experimental concurrent reads feature.  For now, disabled by default.  But
+ * we may enable it in the future.
+ *
+ * The benefit is improved concurrency in Fortuna.  That is reflected in two
+ * related aspects:
+ *
+ * 1. Concurrent devrandom readers can achieve similar throughput to a single
+ *    reader thread.
+ *
+ * 2. The rand_harvestq process spends much less time spinning when one or more
+ *    readers is processing a large request.  Partially this is due to
+ *    rand_harvestq / ra_event_processor design, which only passes one event at
+ *    a time to the underlying algorithm.  Each time, Fortuna must take its
+ *    global state mutex, potentially blocking on a reader.  Our adaptive
+ *    mutexes assume that a lock holder currently on CPU will release the lock
+ *    quickly, and spin if the owning thread is currently running.
+ */
+static bool fortuna_concurrent_read __read_frequently = false;
+
 #ifdef _KERNEL
 static struct sysctl_ctx_list random_clist;
 RANDOM_CHECK_UINT(fs_minpoolsize, RANDOM_FORTUNA_MINPOOLSIZE, RANDOM_FORTUNA_MAXPOOLSIZE);
@@ -128,7 +152,7 @@ static uint8_t zero_region[RANDOM_ZERO_BLOCKSIZE];
 #endif
 
 static void random_fortuna_pre_read(void);
-static void random_fortuna_read(uint8_t *, u_int);
+static void random_fortuna_read(uint8_t *, size_t);
 static bool random_fortuna_seeded(void);
 static bool random_fortuna_seeded_internal(void);
 static void random_fortuna_process_event(struct harvest_event *);
@@ -176,6 +200,11 @@ random_fortuna_init_alg(void *unused __unused)
 		random_check_uint_fs_minpoolsize, "IU",
 		"Minimum pool size necessary to cause a reseed");
 	KASSERT(fortuna_state.fs_minpoolsize > 0, ("random: Fortuna threshold must be > 0 at startup"));
+
+	SYSCTL_ADD_BOOL(&random_clist, SYSCTL_CHILDREN(random_fortuna_o),
+	    OID_AUTO, "concurrent_read", CTLFLAG_RDTUN,
+	    &fortuna_concurrent_read, 0, "If non-zero, enable EXPERIMENTAL "
+	    "feature to improve concurrent Fortuna performance.");
 #endif
 
 	/*-
@@ -306,52 +335,6 @@ random_fortuna_reseed_internal(uint32_t *entropy_data, u_int blockcount)
 }
 
 /*-
- * FS&K - GenerateBlocks()
- * Generate a number of complete blocks of random output.
- */
-static __inline void
-random_fortuna_genblocks(uint8_t *buf, u_int blockcount)
-{
-
-	RANDOM_RESEED_ASSERT_LOCK_OWNED();
-	KASSERT(!uint128_is_zero(fortuna_state.fs_counter), ("FS&K: C != 0"));
-
-	/*
-	 * Fills buf with RANDOM_BLOCKSIZE * blockcount bytes of keystream.
-	 * Increments fs_counter as it goes.
-	 */
-	randomdev_keystream(&fortuna_state.fs_key, &fortuna_state.fs_counter,
-	    buf, blockcount);
-}
-
-/*-
- * FS&K - PseudoRandomData()
- * This generates no more than 2^20 bytes of data, and cleans up its
- * internal state when finished. It is assumed that a whole number of
- * blocks are available for writing; any excess generated will be
- * ignored.
- */
-static __inline void
-random_fortuna_genrandom(uint8_t *buf, u_int bytecount)
-{
-	uint8_t temp[RANDOM_BLOCKSIZE * RANDOM_KEYS_PER_BLOCK];
-	u_int blockcount;
-
-	RANDOM_RESEED_ASSERT_LOCK_OWNED();
-	/*-
-	 * FS&K - assert(n < 2^20 (== 1 MB)
-	 *      - r = first-n-bytes(GenerateBlocks(ceil(n/16)))
-	 *      - K = GenerateBlocks(2)
-	 */
-	KASSERT((bytecount <= RANDOM_FORTUNA_MAX_READ), ("invalid single read request to Fortuna of %d bytes", bytecount));
-	blockcount = howmany(bytecount, RANDOM_BLOCKSIZE);
-	random_fortuna_genblocks(buf, blockcount);
-	random_fortuna_genblocks(temp, RANDOM_KEYS_PER_BLOCK);
-	randomdev_encrypt_init(&fortuna_state.fs_key, temp);
-	explicit_bzero(temp, sizeof(temp));
-}
-
-/*-
  * FS&K - RandomData() (Part 1)
  * Used to return processed entropy from the PRNG. There is a pre_read
  * required to be present (but it can be a stub) in order to allow
@@ -437,22 +420,267 @@ random_fortuna_pre_read(void)
 	explicit_bzero(temp, sizeof(temp));
 }
 
+/*
+ * This is basically GenerateBlocks() from FS&K.
+ *
+ * It differs in two ways:
+ *
+ * 1. Chacha20 is tolerant of non-block-multiple request sizes, so we do not
+ * need to handle any remainder bytes specially and can just pass the length
+ * directly to the PRF construction; and
+ *
+ * 2. Chacha20 is a 512-bit block size cipher (whereas AES has 128-bit block
+ * size, regardless of key size).  This means Chacha does not require re-keying
+ * every 1MiB.  This is implied by the math in FS&K 9.4 and mentioned
+ * explicitly in the conclusion, "If we had a block cipher with a 256-bit [or
+ * greater] block size, then the collisions would not have been an issue at
+ * all" (p. 144).
+ *
+ * 3. In conventional ("locked") mode, we produce a maximum of PAGE_SIZE output
+ * at a time before dropping the lock, to not bully the lock especially.  This
+ * has been the status quo since 2015 (r284959).
+ *
+ * The upstream caller random_fortuna_read is responsible for zeroing out
+ * sensitive buffers provided as parameters to this routine.
+ */
+enum {
+	FORTUNA_UNLOCKED = false,
+	FORTUNA_LOCKED = true
+};
+static void
+random_fortuna_genbytes(uint8_t *buf, size_t bytecount,
+    uint8_t newkey[static RANDOM_KEYSIZE], uint128_t *p_counter,
+    union randomdev_key *p_key, bool locked)
+{
+	uint8_t remainder_buf[RANDOM_BLOCKSIZE];
+	size_t chunk_size;
+
+	if (locked)
+		RANDOM_RESEED_ASSERT_LOCK_OWNED();
+	else
+		RANDOM_RESEED_ASSERT_LOCK_NOT_OWNED();
+
+	/*
+	 * Easy case: don't have to worry about bullying the global mutex,
+	 * don't have to worry about rekeying Chacha; API is byte-oriented.
+	 */
+	if (!locked && random_chachamode) {
+		randomdev_keystream(p_key, p_counter, buf, bytecount);
+		return;
+	}
+
+	if (locked) {
+		/*
+		 * While holding the global lock, limit PRF generation to
+		 * mitigate, but not eliminate, bullying symptoms.
+		 */
+		chunk_size = PAGE_SIZE;
+	} else {
+		/*
+		* 128-bit block ciphers like AES must be re-keyed at 1MB
+		* intervals to avoid unacceptable statistical differentiation
+		* from true random data (FS&K 9.4, p. 143-144).
+		*/
+		MPASS(!random_chachamode);
+		chunk_size = RANDOM_FORTUNA_MAX_READ;
+	}
+
+	chunk_size = MIN(bytecount, chunk_size);
+	if (!random_chachamode)
+		chunk_size = rounddown(chunk_size, RANDOM_BLOCKSIZE);
+
+	while (bytecount >= chunk_size && chunk_size > 0) {
+		randomdev_keystream(p_key, p_counter, buf, chunk_size);
+
+		buf += chunk_size;
+		bytecount -= chunk_size;
+
+		/* We have to rekey if there is any data remaining to be
+		 * generated, in two scenarios:
+		 *
+		 * locked: we need to rekey before we unlock and release the
+		 * global state to another consumer; or
+		 *
+		 * unlocked: we need to rekey because we're in AES mode and are
+		 * required to rekey at chunk_size==1MB.  But we do not need to
+		 * rekey during the last trailing <1MB chunk.
+		 */
+		if (bytecount > 0) {
+			if (locked || chunk_size == RANDOM_FORTUNA_MAX_READ) {
+				randomdev_keystream(p_key, p_counter, newkey,
+				    RANDOM_KEYSIZE);
+				randomdev_encrypt_init(p_key, newkey);
+			}
+
+			/*
+			 * If we're holding the global lock, yield it briefly
+			 * now.
+			 */
+			if (locked) {
+				RANDOM_RESEED_UNLOCK();
+				RANDOM_RESEED_LOCK();
+			}
+
+			/*
+			 * At the trailing end, scale down chunk_size from 1MB or
+			 * PAGE_SIZE to all remaining full blocks (AES) or all
+			 * remaining bytes (Chacha).
+			 */
+			if (bytecount < chunk_size) {
+				if (random_chachamode)
+					chunk_size = bytecount;
+				else if (bytecount >= RANDOM_BLOCKSIZE)
+					chunk_size = rounddown(bytecount,
+					    RANDOM_BLOCKSIZE);
+				else
+					break;
+			}
+		}
+	}
+
+	/*
+	 * Generate any partial AES block remaining into a temporary buffer and
+	 * copy the desired substring out.
+	 */
+	if (bytecount > 0) {
+		MPASS(!random_chachamode);
+
+		randomdev_keystream(p_key, p_counter, remainder_buf,
+		    sizeof(remainder_buf));
+	}
+
+	/*
+	 * In locked mode, re-key global K before dropping the lock, which we
+	 * don't need for memcpy/bzero below.
+	 */
+	if (locked) {
+		randomdev_keystream(p_key, p_counter, newkey, RANDOM_KEYSIZE);
+		randomdev_encrypt_init(p_key, newkey);
+		RANDOM_RESEED_UNLOCK();
+	}
+
+	if (bytecount > 0) {
+		memcpy(buf, remainder_buf, bytecount);
+		explicit_bzero(remainder_buf, sizeof(remainder_buf));
+	}
+}
+
+
+/*
+ * Handle only "concurrency-enabled" Fortuna reads to simplify logic.
+ *
+ * Caller (random_fortuna_read) is responsible for zeroing out sensitive
+ * buffers provided as parameters to this routine.
+ */
+static void
+random_fortuna_read_concurrent(uint8_t *buf, size_t bytecount,
+    uint8_t newkey[static RANDOM_KEYSIZE])
+{
+	union randomdev_key key_copy;
+	uint128_t counter_copy;
+	size_t blockcount;
+
+	MPASS(fortuna_concurrent_read);
+
+	/*
+	 * Compute number of blocks required for the PRF request ('delta C').
+	 * We will step the global counter 'C' by this number under lock, and
+	 * then actually consume the counter values outside the lock.
+	 *
+	 * This ensures that contemporaneous but independent requests for
+	 * randomness receive distinct 'C' values and thus independent PRF
+	 * results.
+	 */
+	if (random_chachamode) {
+		blockcount = howmany(bytecount, CHACHA_BLOCKLEN);
+	} else {
+		blockcount = howmany(bytecount, RANDOM_BLOCKSIZE);
+
+		/*
+		 * Need to account for the additional blocks generated by
+		 * rekeying when updating the global fs_counter.
+		 */
+		blockcount += RANDOM_KEYS_PER_BLOCK *
+		    (blockcount / RANDOM_FORTUNA_BLOCKS_PER_KEY);
+	}
+
+	RANDOM_RESEED_LOCK();
+	KASSERT(!uint128_is_zero(fortuna_state.fs_counter), ("FS&K: C != 0"));
+	/*
+	 * Technically, we only need mutual exclusion to update shared state
+	 * appropriately.  Nothing about updating the shared internal state
+	 * requires that we perform (most) expensive cryptographic keystream
+	 * generation under lock.  (We still need to generate 256 bits of
+	 * keystream to re-key between consumers.)
+	 *
+	 * Save the original counter and key values that will be used as the
+	 * PRF for this particular consumer.
+	 */
+	memcpy(&counter_copy, &fortuna_state.fs_counter, sizeof(counter_copy));
+	memcpy(&key_copy, &fortuna_state.fs_key, sizeof(key_copy));
+
+	/*
+	 * Step the counter as if we had generated 'bytecount' blocks for this
+	 * consumer.  I.e., ensure that the next consumer gets an independent
+	 * range of counter values once we drop the global lock.
+	 */
+	uint128_add64(&fortuna_state.fs_counter, blockcount);
+
+	/*
+	 * We still need to Rekey the global 'K' between independent calls;
+	 * this is no different from conventional Fortuna.  Note that
+	 * 'randomdev_keystream()' will step the fs_counter 'C' appropriately
+	 * for the blocks needed for the 'newkey'.
+	 *
+	 * (This is part of PseudoRandomData() in FS&K, 9.4.4.)
+	 */
+	randomdev_keystream(&fortuna_state.fs_key, &fortuna_state.fs_counter,
+	    newkey, RANDOM_KEYSIZE);
+	randomdev_encrypt_init(&fortuna_state.fs_key, newkey);
+
+	/*
+	 * We have everything we need to generate a unique PRF for this
+	 * consumer without touching global state.
+	 */
+	RANDOM_RESEED_UNLOCK();
+
+	random_fortuna_genbytes(buf, bytecount, newkey, &counter_copy,
+	    &key_copy, FORTUNA_UNLOCKED);
+	RANDOM_RESEED_ASSERT_LOCK_NOT_OWNED();
+
+	explicit_bzero(&counter_copy, sizeof(counter_copy));
+	explicit_bzero(&key_copy, sizeof(key_copy));
+}
+
 /*-
  * FS&K - RandomData() (Part 2)
  * Main read from Fortuna, continued. May be called multiple times after
  * the random_fortuna_pre_read() above.
- * The supplied buf MUST be a multiple of RANDOM_BLOCKSIZE in size.
- * Lots of code presumes this for efficiency, both here and in other
- * routines. You are NOT allowed to break this!
+ *
+ * The supplied buf MAY not be a multiple of RANDOM_BLOCKSIZE in size; it is
+ * the responsibility of the algorithm to accommodate partial block reads, if a
+ * block output mode is used.
  */
 void
-random_fortuna_read(uint8_t *buf, u_int bytecount)
+random_fortuna_read(uint8_t *buf, size_t bytecount)
 {
+	uint8_t newkey[RANDOM_KEYSIZE];
 
-	KASSERT((bytecount % RANDOM_BLOCKSIZE) == 0, ("%s(): bytecount (= %d) must be a multiple of %d", __func__, bytecount, RANDOM_BLOCKSIZE ));
+	if (fortuna_concurrent_read) {
+		random_fortuna_read_concurrent(buf, bytecount, newkey);
+		goto out;
+	}
+
 	RANDOM_RESEED_LOCK();
-	random_fortuna_genrandom(buf, bytecount);
-	RANDOM_RESEED_UNLOCK();
+	KASSERT(!uint128_is_zero(fortuna_state.fs_counter), ("FS&K: C != 0"));
+
+	random_fortuna_genbytes(buf, bytecount, newkey,
+	    &fortuna_state.fs_counter, &fortuna_state.fs_key, FORTUNA_LOCKED);
+	/* Returns unlocked */
+	RANDOM_RESEED_ASSERT_LOCK_NOT_OWNED();
+
+out:
+	explicit_bzero(newkey, sizeof(newkey));
 }
 
 #ifdef _KERNEL

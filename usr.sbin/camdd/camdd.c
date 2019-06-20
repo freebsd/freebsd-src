@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_pass.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/smp_all.h>
+#include <cam/nvme/nvme_all.h>
 #include <camlib.h>
 #include <mtlib.h>
 #include <zlib.h>
@@ -463,6 +464,9 @@ int camdd_probe_tape(int fd, char *filename, uint64_t *max_iosize,
 int camdd_probe_pass_scsi(struct cam_device *cam_dev, union ccb *ccb,
          camdd_argmask arglist, int probe_retry_count,
          int probe_timeout, uint64_t *maxsector, uint32_t *block_len);
+int camdd_probe_pass_nvme(struct cam_device *cam_dev, union ccb *ccb,
+         camdd_argmask arglist, int probe_retry_count,
+         int probe_timeout, uint64_t *maxsector, uint32_t *block_len);
 struct camdd_dev *camdd_probe_file(int fd, struct camdd_io_opts *io_opts,
 				   int retry_count, int timeout);
 struct camdd_dev *camdd_probe_pass(struct cam_device *cam_dev,
@@ -470,6 +474,11 @@ struct camdd_dev *camdd_probe_pass(struct cam_device *cam_dev,
 				   camdd_argmask arglist, int probe_retry_count,
 				   int probe_timeout, int io_retry_count,
 				   int io_timeout);
+void nvme_read_write(struct ccb_nvmeio *nvmeio, uint32_t retries,
+		void (*cbfcnp)(struct cam_periph *, union ccb *),
+		uint32_t nsid, int readop, uint64_t lba,
+		uint32_t block_count, uint8_t *data_ptr, uint32_t dxfer_len,
+		uint32_t timeout);
 void *camdd_file_worker(void *arg);
 camdd_buf_status camdd_ccb_status(union ccb *ccb, int protocol);
 int camdd_get_cgd(struct cam_device *device, struct ccb_getdev *cgd);
@@ -1379,6 +1388,72 @@ bailout:
 	return retval;
 }
 
+int
+camdd_probe_pass_nvme(struct cam_device *cam_dev, union ccb *ccb,
+		 camdd_argmask arglist, int probe_retry_count,
+		 int probe_timeout, uint64_t *maxsector, uint32_t *block_len)
+{
+	struct nvme_command *nc = NULL;
+	struct nvme_namespace_data nsdata;
+	uint32_t nsid = cam_dev->target_lun & UINT32_MAX;
+	uint8_t format = 0, lbads = 0;
+	int retval = -1;
+
+	if (ccb == NULL) {
+		warnx("%s: error passed ccb is NULL", __func__);
+		goto bailout;
+	}
+
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->nvmeio);
+
+	/* Send Identify Namespace to get block size and capacity */
+	nc = &ccb->nvmeio.cmd;
+	nc->opc = NVME_OPC_IDENTIFY;
+
+	nc->nsid = nsid;
+	nc->cdw10 = 0; /* Identify Namespace is CNS = 0 */
+
+	cam_fill_nvmeadmin(&ccb->nvmeio,
+			/*retries*/ probe_retry_count,
+			/*cbfcnp*/ NULL,
+			CAM_DIR_IN,
+			(uint8_t *)&nsdata,
+			sizeof(nsdata),
+			probe_timeout);
+
+	/* Disable freezing the device queue */
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if (arglist & CAMDD_ARG_ERR_RECOVER)
+		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
+
+	if (cam_send_ccb(cam_dev, ccb) < 0) {
+		warn("error sending Identify Namespace command");
+
+		cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
+				CAM_EPF_ALL, stderr);
+
+		goto bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		cam_error_print(cam_dev, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
+		goto bailout;
+	}
+
+	*maxsector = nsdata.nsze;
+	/* The LBA Data Size (LBADS) is reported as a power of 2 */
+	format = nsdata.flbas & NVME_NS_DATA_FLBAS_FORMAT_MASK;
+	lbads = (nsdata.lbaf[format] >> NVME_NS_DATA_LBAF_LBADS_SHIFT) &
+	    NVME_NS_DATA_LBAF_LBADS_MASK;
+	*block_len = 1 << lbads;
+
+	retval = 0;
+
+bailout:
+	return retval;
+}
+
 /*
  * Need to implement this.  Do a basic probe:
  * - Check the inquiry data, make sure we're talking to a device that we
@@ -1400,7 +1475,7 @@ camdd_probe_pass(struct cam_device *cam_dev, struct camdd_io_opts *io_opts,
 	struct kevent ke;
 	struct ccb_getdev cgd;
 	int retval;
-	int scsi_dev_type;
+	int scsi_dev_type = T_NODEVICE;
 
 	if ((retval = camdd_get_cgd(cam_dev, &cgd)) != 0) {
 		warnx("%s: error retrieving CGD", __func__);
@@ -1437,6 +1512,13 @@ camdd_probe_pass(struct cam_device *cam_dev, struct camdd_io_opts *io_opts,
 		}
 
 		if ((retval = camdd_probe_pass_scsi(cam_dev, ccb, probe_retry_count,
+						arglist, probe_timeout, &maxsector,
+						&block_len))) {
+			goto bailout;
+		}
+		break;
+	case PROTO_NVME:
+		if ((retval = camdd_probe_pass_nvme(cam_dev, ccb, probe_retry_count,
 						arglist, probe_timeout, &maxsector,
 						&block_len))) {
 			goto bailout;
@@ -1574,6 +1656,34 @@ bailout_error:
 	camdd_free_dev(dev);
 
 	return (NULL);
+}
+
+void
+nvme_read_write(struct ccb_nvmeio *nvmeio, uint32_t retries,
+		void (*cbfcnp)(struct cam_periph *, union ccb *),
+		uint32_t nsid, int readop, uint64_t lba,
+		uint32_t block_count, uint8_t *data_ptr, uint32_t dxfer_len,
+		uint32_t timeout)
+{
+	struct nvme_command *nc = &nvmeio->cmd;
+
+	nc->opc = readop ? NVME_OPC_READ : NVME_OPC_WRITE;
+
+	nc->nsid = nsid;
+
+	nc->cdw10 = lba & UINT32_MAX;
+	nc->cdw11 = lba >> 32;
+
+	/* NLB (bits 15:0) is a zero based value */
+	nc->cdw12 = (block_count - 1) & UINT16_MAX;
+
+	cam_fill_nvmeio(nvmeio,
+			retries,
+			cbfcnp,
+			readop ? CAM_DIR_IN : CAM_DIR_OUT,
+			data_ptr,
+			dxfer_len,
+			timeout);
 }
 
 void *
@@ -1826,6 +1936,16 @@ camdd_ccb_status(union ccb *ccb, int protocol)
 			}
 			break;
 		}
+		default:
+			status = CAMDD_STATUS_ERROR;
+			break;
+		}
+		break;
+	case PROTO_NVME:
+		switch (ccb_status) {
+		case CAM_REQ_CMP:
+			status = CAMDD_STATUS_OK;
+			break;
 		default:
 			status = CAMDD_STATUS_ERROR;
 			break;
@@ -2233,6 +2353,10 @@ camdd_pass_fetch(struct camdd_dev *dev)
 			data->resid = ccb.csio.resid;
 			dev->bytes_transferred += (ccb.csio.dxfer_len - ccb.csio.resid);
 			break;
+		case PROTO_NVME:
+			data->resid = 0;
+			dev->bytes_transferred += ccb.nvmeio.dxfer_len;
+			break;
 		default:
 			return -1;
 			break;
@@ -2554,6 +2678,23 @@ camdd_pass_run(struct camdd_dev *dev)
 		if (data->sg_count != 0) {
 			ccb->csio.sglist_cnt = data->sg_count;
 		}
+		break;
+	case PROTO_NVME:
+		CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->nvmeio);
+
+		nvme_read_write(&ccb->nvmeio,
+				/*retries*/ dev->retry_count,
+				/*cbfcnp*/ NULL,
+				/*nsid*/ pass_dev->dev->target_lun & UINT32_MAX,
+				/*readop*/ dev->write_dev == 0,
+				/*lba*/ buf->lba,
+				/*block_count*/ num_blocks,
+				/*data_ptr*/ (data->sg_count != 0) ?
+					     (uint8_t *)data->segs : data->buf,
+				/*dxfer_len*/ (num_blocks * pass_dev->block_len),
+				/*timeout*/ dev->io_timeout);
+
+		ccb->nvmeio.sglist_cnt = data->sg_count;
 		break;
 	default:
 		retval = -1;

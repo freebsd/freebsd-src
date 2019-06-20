@@ -68,6 +68,16 @@ usbdevs_data.h			optional usb				   \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -d" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"usbdevs_data.h"
+sdiodevs.h			optional mmccam				   \
+	dependency	"$S/tools/sdiodevs2h.awk $S/dev/sdio/sdiodevs" \
+	compile-with	"${AWK} -f $S/tools/sdiodevs2h.awk $S/dev/sdio/sdiodevs -h" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"sdiodevs.h"
+sdiodevs_data.h			optional mmccam				   \
+	dependency	"$S/tools/sdiodevs2h.awk $S/dev/sdio/sdiodevs" \
+	compile-with	"${AWK} -f $S/tools/sdiodevs2h.awk $S/dev/sdio/sdiodevs -d" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"sdiodevs_data.h"
 cam/cam.c			optional scbus
 cam/cam_compat.c		optional scbus
 cam/cam_iosched.c		optional scbus
@@ -2690,11 +2700,11 @@ dev/puc/puc.c			optional puc
 dev/puc/puc_cfg.c		optional puc
 dev/puc/puc_pccard.c		optional puc pccard
 dev/puc/puc_pci.c		optional puc pci
-dev/pwm/pwmc.c			optional pwm
-dev/pwm/pwmbus.c		optional pwm
-dev/pwm/pwm_if.m		optional pwm
-dev/pwm/pwmbus_if.m		optional pwm
-dev/pwm/ofw_pwm.c		optional pwm fdt
+dev/pwm/pwmc.c			optional pwm | pwmc
+dev/pwm/pwmbus.c		optional pwm | pwmbus
+dev/pwm/pwmbus_if.m		optional pwm | pwmbus
+dev/pwm/ofw_pwm.c		optional pwm fdt | pwmbus fdt
+dev/pwm/ofw_pwmbus.c		optional pwm fdt | pwmbus fdt
 dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
@@ -3009,6 +3019,9 @@ dev/sdhci/sdhci_fdt_gpio.c	optional sdhci fdt gpio
 dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_acpi.c		optional sdhci acpi
 dev/sdhci/sdhci_pci.c		optional sdhci pci
+dev/sdio/sdio_if.m		optional mmccam
+dev/sdio/sdio_subr.c		optional mmccam
+dev/sdio/sdiob.c		optional mmccam
 dev/sge/if_sge.c		optional sge pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
@@ -3221,6 +3234,7 @@ dev/usb/usb_generic.c		optional usb
 dev/usb/usb_handle_request.c	optional usb
 dev/usb/usb_hid.c		optional usb
 dev/usb/usb_hub.c		optional usb
+dev/usb/usb_hub_acpi.c		optional usb acpi
 dev/usb/usb_if.m		optional usb
 dev/usb/usb_lookup.c		optional usb
 dev/usb/usb_mbuf.c		optional usb
@@ -3969,9 +3983,9 @@ crypto/chacha20/chacha.c	standard
 libkern/asprintf.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
-libkern/crc32.c			standard
 libkern/explicit_bzero.c	standard
 libkern/fnmatch.c		standard
+libkern/gsb_crc32.c		standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
 libkern/iconv_ucs.c		optional libiconv

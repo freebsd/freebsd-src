@@ -12,4 +12,4 @@ FIRMWS=	${_FIRM}:${KMOD}:111
 # FIRMWARE_LICENSE=	realtek
 
 ${_FIRM}: ${SRCTOP}/sys/contrib/dev/rtwn/${_FIRM}.uu
-	uudecode -p $? > ${.TARGET}
+	uudecode -p ${.ALLSRC} > ${.TARGET}

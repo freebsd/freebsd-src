@@ -74,4 +74,15 @@ __ElfType(Auxinfo);
 /* TODO: set correct value */
 #define	ET_DYN_LOAD_ADDR 0x100000
 
+/* Flags passed in AT_HWCAP */
+#define	HWCAP_ISA_BIT(c)	(1 << ((c) - 'A'))
+#define	HWCAP_ISA_I		HWCAP_ISA_BIT('I')
+#define	HWCAP_ISA_M		HWCAP_ISA_BIT('M')
+#define	HWCAP_ISA_A		HWCAP_ISA_BIT('A')
+#define	HWCAP_ISA_F		HWCAP_ISA_BIT('F')
+#define	HWCAP_ISA_D		HWCAP_ISA_BIT('D')
+#define	HWCAP_ISA_C		HWCAP_ISA_BIT('C')
+#define	HWCAP_ISA_G		\
+    (HWCAP_ISA_I | HWCAP_ISA_M | HWCAP_ISA_A | HWCAP_ISA_F | HWCAP_ISA_D)
+
 #endif /* !_MACHINE_ELF_H_ */

@@ -248,7 +248,7 @@ gpioregulator_parse_fdt(struct gpioregulator_softc *sc)
 	/* "gpios" property */
 	sc->init_def.npins = 32 - __builtin_clz(mask);
 	sc->init_def.pins = malloc(sc->init_def.npins *
-	    sizeof(sc->init_def.pins), M_DEVBUF, M_WAITOK);
+	    sizeof(sc->init_def.pins), M_DEVBUF, M_WAITOK | M_ZERO);
 	for (n = 0; n < sc->init_def.npins; n++) {
 		error = gpio_pin_get_by_ofw_idx(sc->dev, node, n,
 		    &sc->init_def.pins[n]);

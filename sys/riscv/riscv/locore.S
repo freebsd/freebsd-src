@@ -171,12 +171,18 @@ va:
 	li	t0, 0
 	csrw	sscratch, t0
 
+	/* Set the global pointer */
+.option push
+.option norelax
+	la	gp, __global_pointer$
+.option pop
+
 	/* Initialize stack pointer */
 	la	s3, initstack_end
 	mv	sp, s3
 	addi	sp, sp, -PCB_SIZE
 
-	/* Clear BSS  */
+	/* Clear BSS */
 	la	s0, _C_LABEL(__bss_start)
 	la	s1, _C_LABEL(_end)
 1:
@@ -251,12 +257,6 @@ virt_map:
 hart_lottery:
 	.space	4
 
-	/* Not in use, but required for linking. */
-	.align 3
-	.globl __global_pointer$
-__global_pointer$:
-	.space	8
-
 	.globl init_pt_va
 init_pt_va:
 	.quad pagetable_l2	/* XXX: Keep page tables VA */
@@ -323,6 +323,12 @@ mpva:
 	/* Ensure sscratch is zero */
 	li	t0, 0
 	csrw	sscratch, t0
+
+	/* Set the global pointer */
+.option push
+.option norelax
+	la	gp, __global_pointer$
+.option pop
 
 	call	init_secondary
 END(mpentry)

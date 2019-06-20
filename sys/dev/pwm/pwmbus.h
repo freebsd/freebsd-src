@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2018 Emmanuel Vadot <manu@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2019 Ian Lepore <ian@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,36 +28,46 @@
  */
 
 #ifndef _PWMBUS_H_
+#define _PWMBUS_H_
 
-#include <dev/ofw/openfirm.h>
-#include <sys/pwm.h>
-
-struct pwm_channel {
+struct pwmbus_softc {
 	device_t	dev;
-	device_t	busdev;
-	int		channel;
-	uint64_t	period;
-	uint64_t	duty;
-	uint32_t	flags;
-	bool		enabled;
+	u_int		nchannels;
 };
-typedef struct pwm_channel *pwm_channel_t;
 
-device_t pwmbus_attach_bus(device_t dev);
-int pwmbus_acquire_channel(device_t bus, int channel);
-int pwmbus_release_channel(device_t bus, int channel);
+struct pwmbus_ivars {
+	u_int	pi_channel;
+};
 
-int
-pwm_get_by_ofw_propidx(device_t consumer, phandle_t node,
-    const char *prop_name, int idx, pwm_channel_t *channel);
-int
-pwm_get_by_ofw_idx(device_t consumer, phandle_t node, int idx,
-    pwm_channel_t *out_channel);
-int
-pwm_get_by_ofw_property(device_t consumer, phandle_t node,
-    const char *prop_name, pwm_channel_t *out_channel);
-int
-pwm_get_by_ofw_name(device_t consumer, phandle_t node, const char *name,
-    pwm_channel_t *out_channel);
+enum {
+	PWMBUS_IVAR_CHANNEL,	/* Channel used by child dev */
+};
+
+#define PWMBUS_ACCESSOR(A, B, T)					\
+static inline int							\
+pwmbus_get_ ## A(device_t dev, T *t)					\
+{									\
+	return BUS_READ_IVAR(device_get_parent(dev), dev,		\
+	    PWMBUS_IVAR_ ## B, (uintptr_t *) t);			\
+}									\
+static inline int							\
+pwmbus_set_ ## A(device_t dev, T t)					\
+{									\
+	return BUS_WRITE_IVAR(device_get_parent(dev), dev,		\
+	    PWMBUS_IVAR_ ## B, (uintptr_t) t);				\
+}
+
+PWMBUS_ACCESSOR(channel, CHANNEL, u_int)
+
+#ifdef FDT
+#define	PWMBUS_FDT_PNP_INFO(t)	FDTCOMPAT_PNP_INFO(t, pwmbus)
+#else
+#define	PWMBUS_FDT_PNP_INFO(t)
+#endif
+
+extern driver_t   pwmbus_driver;
+extern devclass_t pwmbus_devclass;
+extern driver_t   ofw_pwmbus_driver;
+extern devclass_t ofw_pwmbus_devclass;
 
 #endif /* _PWMBUS_H_ */

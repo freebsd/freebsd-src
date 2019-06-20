@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_sctp.h"
 
+#include <sys/gsb_crc32.h>
 #ifdef SCTP
 #include <netinet/sctp_os.h>
 #include <netinet/sctp.h>

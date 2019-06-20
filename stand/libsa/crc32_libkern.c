@@ -1,3 +1,3 @@
 /* $FreeBSD$ */
 
-#include "../../sys/libkern/crc32.c"
+#include "../../sys/libkern/gsb_crc32.c"

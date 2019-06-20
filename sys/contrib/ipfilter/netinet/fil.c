@@ -3422,35 +3422,21 @@ fr_cksum(fin, ip, l4proto, l4hdr)
 		sum += *sp++;
 		sum += *sp++;	/* ip_dst */
 		sum += *sp++;
+		slen = fin->fin_plen - off;
+		sum += htons(slen);
 #ifdef	USE_INET6
 	} else if (IP_V(ip) == 6) {
+		mb_t *m;
+
+		m = fin->fin_m;
 		ip6 = (ip6_t *)ip;
-		hlen = sizeof(*ip6);
-		off = ((char *)fin->fin_dp - (char *)fin->fin_ip);
-		sp = (u_short *)&ip6->ip6_src;
-		sum += *sp++;	/* ip6_src */
-		sum += *sp++;
-		sum += *sp++;
-		sum += *sp++;
-		sum += *sp++;
-		sum += *sp++;
-		sum += *sp++;
-		sum += *sp++;
-		/* This needs to be routing header aware. */
-		sum += *sp++;	/* ip6_dst */
-		sum += *sp++;
-		sum += *sp++;
-		sum += *sp++;
-		sum += *sp++;
-		sum += *sp++;
-		sum += *sp++;
-		sum += *sp++;
+		off = ((caddr_t)ip6 - m->m_data) + sizeof(struct ip6_hdr);
+		int len = ntohs(ip6->ip6_plen) - (off - sizeof(*ip6));
+		return(ipf_pcksum6(fin, ip6, off, len));
 	} else {
 		return 0xffff;
 	}
 #endif
-	slen = fin->fin_plen - off;
-	sum += htons(slen);
 
 	switch (l4proto)
 	{
@@ -6268,7 +6254,7 @@ ipf_ioctlswitch(softc, unit, data, cmd, mode, uid, ctx)
  * Flags:
  * 1 = minimum size, not absolute size
  */
-static	int	ipf_objbytes[IPFOBJ_COUNT][3] = {
+static const int	ipf_objbytes[IPFOBJ_COUNT][3] = {
 	{ 1,	sizeof(struct frentry),		5010000 },	/* 0 */
 	{ 1,	sizeof(struct friostat),	5010000 },
 	{ 0,	sizeof(struct fr_info),		5010000 },
@@ -6645,6 +6631,12 @@ ipf_checkl4sum(fin)
 	if ((fin->fin_flx & (FI_FRAG|FI_SHORT|FI_BAD)) != 0)
 		return 1;
 
+	DT2(l4sumo, int, fin->fin_out, int, (int)fin->fin_p);
+	if (fin->fin_out == 1) {
+		fin->fin_cksum = FI_CK_SUMOK;
+		return 0;
+	}
+
 	csump = NULL;
 	hdrsum = 0;
 	dosum = 0;
@@ -6696,7 +6688,11 @@ ipf_checkl4sum(fin)
 	}
 #endif
 	DT2(l4sums, u_short, hdrsum, u_short, sum);
+#ifdef USE_INET6
+	if (hdrsum == sum || (sum == 0 && fin->fin_p == IPPROTO_ICMPV6)) {
+#else
 	if (hdrsum == sum) {
+#endif
 		fin->fin_cksum = FI_CK_SUMOK;
 		return 0;
 	}

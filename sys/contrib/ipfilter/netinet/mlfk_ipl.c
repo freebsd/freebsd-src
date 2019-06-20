@@ -211,7 +211,7 @@ vnet_ipf_init(void)
 	else
 		defpass = "no-match -> block";
 
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
 	    printf("%s initialized.  Default = %s all, Logging = %s%s\n",
 		ipfilter_version, defpass,
 #ifdef IPFILTER_LOG
@@ -225,6 +225,10 @@ vnet_ipf_init(void)
 		""
 #endif
 		);
+	} else {
+		(void)ipf_pfil_hook();
+		ipf_event_reg();
+	}
 }
 VNET_SYSINIT(vnet_ipf_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
     vnet_ipf_init, NULL);

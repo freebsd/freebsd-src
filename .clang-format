@@ -1,0 +1,77 @@
+# $FreeBSD$
+# Basic .clang-format
+---
+BasedOnStyle: WebKit
+AlignAfterOpenBracket: DontAlign
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignEscapedNewlines: Left
+AlignOperands: false
+AlignTrailingComments: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: TopLevelDefinitions
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: MultiLine
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: WebKit
+BreakBeforeTernaryOperators: false
+# TODO: BreakStringLiterals can cause very strange formatting so turn it off?
+BreakStringLiterals: false
+PenaltyBreakBeforeFirstCallParameter: 1000
+CompactNamespaces: true
+DerivePointerAlignment: false
+DisableFormat: false
+ForEachMacros:
+  - SLIST_FOREACH
+  - SLIST_FOREACH_SAFE
+  - LIST_FOREACH
+  - LIST_FOREACH_SAFE
+  - STAILQ_FOREACH
+  - STAILQ_FOREACH_SAFE
+  - TAILQ_FOREACH
+  - TAILQ_FOREACH_SAFE
+  - TAILQ_FOREACH_REVERSE
+  - TAILQ_FOREACH_REVERSE_SAFE
+  - RB_FOREACH
+  - RB_FOREACH_SAFE
+  - RB_FOREACH_FROM
+  - RB_FOREACH_REVERSE
+  - RB_FOREACH_REVERSE_FROM
+  - RB_FOREACH_REVERSE_SAFE
+  - FOREACH_THREAD_IN_PROC
+  - FOREACH_PROC_IN_SYSTEM
+  - FOREACH_PRISON_CHILD
+  - FOREACH_PRISON_DESCENDANT
+  - FOREACH_PRISON_DESCENDANT_LOCKED
+  - FOREACH_PRISON_DESCENDANT_LOCKED_LEVEL
+  - MNT_VNODE_FOREACH_ALL
+  - MNT_VNODE_FOREACH_ACTIVE
+IndentCaseLabels: false
+IndentPPDirectives: None
+Language: Cpp
+NamespaceIndentation: None
+PointerAlignment: Right
+ContinuationIndentWidth: 4
+IndentWidth: 8
+TabWidth: 8
+ColumnLimit: 80
+UseTab: Always
+SpaceAfterCStyleCast: false
+SortIncludes: false
+KeepEmptyLinesAtTheStartOfBlocks: true
+# The options below will only be supported starting with clang 9.0:
+# TODO-CLANG-9: TypenameMacros:
+# TODO-CLANG-9:   - SLIST_HEAD
+# TODO-CLANG-9:   - SLIST_ENTRY
+# TODO-CLANG-9:   - TAILQ_ENTRY
+# TODO-CLANG-9:   - TAILQ_HEAD
+# TODO-CLANG-9:   - STAILQ_ENTRY
+# TODO-CLANG-9:   - STAILQ_HEAD
+...

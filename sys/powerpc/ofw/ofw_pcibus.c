@@ -294,7 +294,7 @@ ofw_pcibus_child_deleted(device_t dev, device_t child)
 {
 	struct ofw_pcibus_devinfo *dinfo;
 
-	dinfo = device_get_ivars(dev);
+	dinfo = device_get_ivars(child);
 	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
 	pci_child_deleted(dev, child);
 }

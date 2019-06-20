@@ -586,6 +586,7 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 {
 	int error;
 	uint64_t *baseptr, limit, addr, mask, lobits, bar;
+	uint16_t cmd, enbit;
 
 	assert(idx >= 0 && idx <= PCI_BARMAX);
 
@@ -604,13 +605,14 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 	switch (type) {
 	case PCIBAR_NONE:
 		baseptr = NULL;
-		addr = mask = lobits = 0;
+		addr = mask = lobits = enbit = 0;
 		break;
 	case PCIBAR_IO:
 		baseptr = &pci_emul_iobase;
 		limit = PCI_EMUL_IOLIMIT;
 		mask = PCIM_BAR_IO_BASE;
 		lobits = PCIM_BAR_IO_SPACE;
+		enbit = PCIM_CMD_PORTEN;
 		break;
 	case PCIBAR_MEM64:
 		/*
@@ -632,19 +634,20 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 			mask = PCIM_BAR_MEM_BASE;
 			lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_64 |
 				 PCIM_BAR_MEM_PREFETCH;
-			break;
 		} else {
 			baseptr = &pci_emul_membase32;
 			limit = PCI_EMUL_MEMLIMIT32;
 			mask = PCIM_BAR_MEM_BASE;
 			lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_64;
 		}
+		enbit = PCIM_CMD_MEMEN;
 		break;
 	case PCIBAR_MEM32:
 		baseptr = &pci_emul_membase32;
 		limit = PCI_EMUL_MEMLIMIT32;
 		mask = PCIM_BAR_MEM_BASE;
 		lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_32;
+		enbit = PCIM_CMD_MEMEN;
 		break;
 	default:
 		printf("pci_emul_alloc_base: invalid bar type %d\n", type);
@@ -671,6 +674,9 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 		pci_set_cfgdata32(pdi, PCIR_BAR(idx + 1), bar >> 32);
 	}
 
+	cmd = pci_get_cfgdata16(pdi, PCIR_COMMAND);
+	if ((cmd & enbit) != enbit)
+		pci_set_cfgdata16(pdi, PCIR_COMMAND, cmd | enbit);
 	register_bar(pdi, idx);
 
 	return (0);
@@ -756,8 +762,7 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	pci_set_cfgdata8(pdi, PCIR_INTLINE, 255);
 	pci_set_cfgdata8(pdi, PCIR_INTPIN, 0);
 
-	pci_set_cfgdata8(pdi, PCIR_COMMAND,
-		    PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	pci_set_cfgdata8(pdi, PCIR_COMMAND, PCIM_CMD_BUSMASTEREN);
 
 	err = (*pde->pe_init)(ctx, pdi, fi->fi_param);
 	if (err == 0)
@@ -947,15 +952,23 @@ pci_emul_add_pciecap(struct pci_devinst *pi, int type)
 	int err;
 	struct pciecap pciecap;
 
-	if (type != PCIEM_TYPE_ROOT_PORT)
-		return (-1);
-
 	bzero(&pciecap, sizeof(pciecap));
 
+	/*
+	 * Use the integrated endpoint type for endpoints on a root complex bus.
+	 *
+	 * NB: bhyve currently only supports a single PCI bus that is the root
+	 * complex bus, so all endpoints are integrated.
+	 */
+	if ((type == PCIEM_TYPE_ENDPOINT) && (pi->pi_bus == 0))
+		type = PCIEM_TYPE_ROOT_INT_EP;
+
 	pciecap.capid = PCIY_EXPRESS;
-	pciecap.pcie_capabilities = PCIECAP_VERSION | PCIEM_TYPE_ROOT_PORT;
-	pciecap.link_capabilities = 0x411;	/* gen1, x1 */
-	pciecap.link_status = 0x11;		/* gen1, x1 */
+	pciecap.pcie_capabilities = PCIECAP_VERSION | type;
+	if (type != PCIEM_TYPE_ROOT_INT_EP) {
+		pciecap.link_capabilities = 0x411;	/* gen1, x1 */
+		pciecap.link_status = 0x11;		/* gen1, x1 */
+	}
 
 	err = pci_emul_add_capability(pi, (u_char *)&pciecap, sizeof(pciecap));
 	return (err);
@@ -1673,11 +1686,64 @@ pci_emul_hdrtype_fixup(int bus, int slot, int off, int bytes, uint32_t *rv)
 	}
 }
 
+/*
+ * Update device state in response to changes to the PCI command
+ * register.
+ */
+void
+pci_emul_cmd_changed(struct pci_devinst *pi, uint16_t old)
+{
+	int i;
+	uint16_t changed, new;
+
+	new = pci_get_cfgdata16(pi, PCIR_COMMAND);
+	changed = old ^ new;
+
+	/*
+	 * If the MMIO or I/O address space decoding has changed then
+	 * register/unregister all BARs that decode that address space.
+	 */
+	for (i = 0; i <= PCI_BARMAX; i++) {
+		switch (pi->pi_bar[i].type) {
+			case PCIBAR_NONE:
+			case PCIBAR_MEMHI64:
+				break;
+			case PCIBAR_IO:
+				/* I/O address space decoding changed? */
+				if (changed & PCIM_CMD_PORTEN) {
+					if (new & PCIM_CMD_PORTEN)
+						register_bar(pi, i);
+					else
+						unregister_bar(pi, i);
+				}
+				break;
+			case PCIBAR_MEM32:
+			case PCIBAR_MEM64:
+				/* MMIO address space decoding changed? */
+				if (changed & PCIM_CMD_MEMEN) {
+					if (new & PCIM_CMD_MEMEN)
+						register_bar(pi, i);
+					else
+						unregister_bar(pi, i);
+				}
+				break;
+			default:
+				assert(0);
+		}
+	}
+
+	/*
+	 * If INTx has been unmasked and is pending, assert the
+	 * interrupt.
+	 */
+	pci_lintr_update(pi);
+}
+
 static void
 pci_emul_cmdsts_write(struct pci_devinst *pi, int coff, uint32_t new, int bytes)
 {
-	int i, rshift;
-	uint32_t cmd, cmd2, changed, old, readonly;
+	int rshift;
+	uint32_t cmd, old, readonly;
 
 	cmd = pci_get_cfgdata16(pi, PCIR_COMMAND);	/* stash old value */
 
@@ -1696,47 +1762,7 @@ pci_emul_cmdsts_write(struct pci_devinst *pi, int coff, uint32_t new, int bytes)
 	new |= (old & readonly);
 	CFGWRITE(pi, coff, new, bytes);			/* update config */
 
-	cmd2 = pci_get_cfgdata16(pi, PCIR_COMMAND);	/* get updated value */
-	changed = cmd ^ cmd2;
-
-	/*
-	 * If the MMIO or I/O address space decoding has changed then
-	 * register/unregister all BARs that decode that address space.
-	 */
-	for (i = 0; i <= PCI_BARMAX; i++) {
-		switch (pi->pi_bar[i].type) {
-			case PCIBAR_NONE:
-			case PCIBAR_MEMHI64:
-				break;
-			case PCIBAR_IO:
-				/* I/O address space decoding changed? */
-				if (changed & PCIM_CMD_PORTEN) {
-					if (porten(pi))
-						register_bar(pi, i);
-					else
-						unregister_bar(pi, i);
-				}
-				break;
-			case PCIBAR_MEM32:
-			case PCIBAR_MEM64:
-				/* MMIO address space decoding changed? */
-				if (changed & PCIM_CMD_MEMEN) {
-					if (memen(pi))
-						register_bar(pi, i);
-					else
-						unregister_bar(pi, i);
-				}
-				break;
-			default:
-				assert(0);
-		}
-	}
-
-	/*
-	 * If INTx has been unmasked and is pending, assert the
-	 * interrupt.
-	 */
-	pci_lintr_update(pi);
+	pci_emul_cmd_changed(pi, cmd);
 }
 
 static void

@@ -299,6 +299,7 @@ SUBDIR=	\
 	${_pst} \
 	pty  \
 	puc \
+	pwm \
 	${_qlxge} \
 	${_qlxgb} \
 	${_qlxgbe} \
@@ -324,6 +325,7 @@ SUBDIR=	\
 	sdhci \
 	${_sdhci_acpi} \
 	sdhci_pci \
+	sdio \
 	sem \
 	send \
 	${_sfxge} \

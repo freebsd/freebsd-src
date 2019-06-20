@@ -46,8 +46,11 @@ __FBSDID("$FreeBSD$");
 static void
 arcfour_init(struct krb5_key_state *ks)
 {
+	static struct timeval lastwarn;
 
 	ks->ks_priv = NULL;
+	if (ratecheck(&lastwarn, &krb5_warn_interval))
+		gone_in(13, "RC4 cipher for Kerberos GSS");
 }
 
 static void

@@ -5,7 +5,7 @@
 BOOT1?=		boot1
 PROG=		${BOOT1}.sym
 INTERNALPROG=
-WARNS?=		6
+WARNS=		6
 
 CFLAGS+=	-DEFI_BOOT1
 # We implement a slightly non-standard %S in that it always takes a
@@ -13,9 +13,11 @@ CFLAGS+=	-DEFI_BOOT1
 # seems to matter on arm64 where wchar_t defaults to an int instead
 # of a short. There's no good cast to use here so just ignore the
 # warnings for now.
+CWARNFLAGS.proto.c+=	-Wno-format
 CWARNFLAGS.boot1.c+=	-Wno-format
 
 # Disable bogus alignment issues
+CWARNFLAGS.ufs_module.c += -Wno-format
 CWARNFLAGS.ufs_module.c += -Wno-cast-align
 
 # Disable warnings that are currently incompatible with the zfs boot code
@@ -28,7 +30,7 @@ CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
 CWARNFLAGS.zfs_module.c += -Wno-unused-function
 
 # architecture-specific loader code
-SRCS+=	boot1.c self_reloc.c start.S ufs_module.c devpath.c
+SRCS+=	boot1.c proto.c self_reloc.c start.S ufs_module.c devpath.c
 .if ${MK_LOADER_ZFS} != "no"
 SRCS+=		zfs_module.c
 CFLAGS.zfs_module.c+=	-I${ZFSSRC}
@@ -56,9 +58,10 @@ CFLAGS+=	-DEFI_DEBUG
 .PATH:		${EFISRC}/libefi
 CFLAGS+=	-I${LDRSRC}
 
-.ifndef(NOFAT)
-FILES=	${BOOT1}.efi ${BOOT1}.efifat
+FILES=	${BOOT1}.efi
 FILESMODE_${BOOT1}.efi=	${BINMODE}
+.ifndef(NOFAT)
+FILES+= ${BOOT1}.efifat
 .endif
 
 LDSCRIPT=	${EFISRC}/loader/arch/${MACHINE}/ldscript.${MACHINE}

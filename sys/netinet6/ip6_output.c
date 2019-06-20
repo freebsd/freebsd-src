@@ -67,11 +67,11 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ratelimit.h"
 #include "opt_ipsec.h"
-#include "opt_sctp.h"
+#include "opt_ratelimit.h"
 #include "opt_route.h"
 #include "opt_rss.h"
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>

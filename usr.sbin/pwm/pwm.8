@@ -22,74 +22,88 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2019
+.Dd June 17, 2019
 .Dt PWM 8
 .Os
 .Sh NAME
 .Nm pwm
-.Nd configure pwm controller
+.Nd configure PWM (Pulse Width Modulation) hardware
 .Sh SYNOPSIS
 .Nm
 .Op Fl f Ar device
-.Fl c Ar channel
-.Fl E
-.Nm
-.Op Fl f Ar device
-.Fl c Ar channel
-.Fl D
-.Nm
-.Op Fl f Ar device
-.Fl c Ar channel
 .Fl C
 .Nm
 .Op Fl f Ar device
-.Fl c Ar channel
-.Fl p Ar period
-.Nm
-.Op Fl f Ar device
-.Fl c Ar channel
-.Fl d Ar duty
+.Op Fl D | Fl E
+.Op Fl p Ar period
+.Op Fl d Ar duty
 .Sh DESCRIPTION
 The
 .Nm
-utility can be used to configure pwm controllers.
+utility can be used to configure pwm hardware.
+.Nm
+uses a
+.Xr pwmc 4
+device to communicate with the hardware.
+Some PWM hardware supports multiple output channels within a single
+controller block; each
+.Xr pwmc 4
+instance controls a single PWM channel.
 .Pp
-The options are as follow:
-.Bl -tag -width "-c channel"
-.It Fl c Ar channel
-Channel number to operate on
+.Xr pwmc 4
+devices are named
+.Pa /dev/pwm/pwmcX.Y ,
+where
+.Va X
+is the controller unit number and
+.Va Y
+is the channel number within that unit.
+.Pp
+The options are as follows:
+.Bl -tag -width "-f device"
 .It Fl f Ar device
 Device to operate on.
 If not specified,
-.Pa /dev/pwmc0
+.Pa /dev/pwm/pwmc0.0
 is used.
-.It Fl E
-Enable the pwm channel
-.It Fl D
-Disable the pwm channel
+If an unqualified name is provided,
+.Pa /dev/pwm
+is automatically prepended.
 .It Fl C
-Show the configuration of the pwm channel
-.It Fl p Ar period
-Configure the period (in nanoseconds) of the pwm channel
+Show the configuration of the PWM channel.
+.It Fl D
+Disable the PWM channel.
 .It Fl d Ar duty
-Configure the duty (in nanoseconds or percentage) of the pwm channel
+Configure the duty cycle (in nanoseconds or percentage) of the PWM channel.
+Duty is the portion of the
+.Ar period
+during which the signal is asserted.
+.It Fl E
+Enable the PWM channel.
+.It Fl p Ar period
+Configure the period (in nanoseconds) of the PWM channel.
 .El
 .Sh EXAMPLES
 .Bl -bullet
 .It
-Show the configuration of the pwm channel:
+Show the configuration of the PWM channel:
 .Bd -literal
-pwm -f /dev/pwmc0 -C
+pwm -f /dev/pwm/pwmc0.1 -C
 .Ed
 .It
-Configure a 50000 ns period and a 25000 duty cycle:
+Configure a 50000 ns period and a 25000 ns duty cycle
+and enable the channel:
 .Bd -literal
-pwm -f /dev/pwmc0 -p 50000 -d 25000
+pwm -f pwmc1.1 -E -p 50000 -d 25000
 .Ed
 .It
-Configure a 50% duty cycle:
+Configure a 50% duty cycle on the device and channel which
+were configured in
+.Xr pwmc 4
+to have the label
+.Pa backlight :
 .Bd -literal
-pwm -f /dev/pwmc0 -d 50%
+pwm -f backlight -d 50%
 .Ed
 .El
 .Sh SEE ALSO

@@ -49,7 +49,7 @@ readboot(int dosfs, struct bootblock *boot)
 	u_char backup[DOSBOOTBLOCKSIZE];
 	int ret = FSOK;
 	int i;
-	
+
 	if ((size_t)read(dosfs, block, sizeof block) != sizeof block) {
 		perr("could not read boot block");
 		return FSFATAL;
@@ -219,7 +219,7 @@ readboot(int dosfs, struct bootblock *boot)
 	boot->NumClusters = (boot->NumSectors - boot->ClusterOffset) /
 	    boot->bpbSecPerClust;
 
-	if (boot->flags&FAT32)
+	if (boot->flags & FAT32)
 		boot->ClustMask = CLUST32_MASK;
 	else if (boot->NumClusters < (CLUST_RSRVD&CLUST12_MASK))
 		boot->ClustMask = CLUST12_MASK;

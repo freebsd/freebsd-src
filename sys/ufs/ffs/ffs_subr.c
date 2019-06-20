@@ -59,6 +59,7 @@ struct malloc_type;
 
 #else /* _KERNEL */
 #include <sys/systm.h>
+#include <sys/gsb_crc32.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>

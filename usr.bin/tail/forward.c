@@ -57,6 +57,9 @@ static const char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 #include <string.h>
 #include <unistd.h>
 
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
+
 #include "extern.h"
 
 static void rlines(FILE *, const char *fn, off_t, struct stat *);
@@ -310,6 +313,7 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 	int active, ev_change, i, n = -1;
 	struct stat sb2;
 	file_info_t *file;
+	FILE *ftmp;
 	struct timespec ts;
 
 	/* Position each of the files */
@@ -346,7 +350,9 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 		if (Fflag) {
 			for (i = 0, file = files; i < no_files; i++, file++) {
 				if (!file->fp) {
-					file->fp = fopen(file->file_name, "r");
+					file->fp =
+					    fileargs_fopen(fa, file->file_name,
+					    "r");
 					if (file->fp != NULL &&
 					    fstat(fileno(file->fp), &file->st)
 					    == -1) {
@@ -359,13 +365,18 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 				}
 				if (fileno(file->fp) == STDIN_FILENO)
 					continue;
-				if (stat(file->file_name, &sb2) == -1) {
+				ftmp = fileargs_fopen(fa, file->file_name, "r");
+				if (ftmp == NULL ||
+				    fstat(fileno(file->fp), &sb2) == -1) {
 					if (errno != ENOENT)
 						ierr(file->file_name);
 					show(file);
 					if (file->fp != NULL) {
 						fclose(file->fp);
 						file->fp = NULL;
+					}
+					if (ftmp != NULL) {
+						fclose(ftmp);
 					}
 					ev_change++;
 					continue;
@@ -375,14 +386,13 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 				    sb2.st_dev != file->st.st_dev ||
 				    sb2.st_nlink == 0) {
 					show(file);
-					file->fp = freopen(file->file_name, "r",
-					    file->fp);
-					if (file->fp != NULL)
-						memcpy(&file->st, &sb2,
-						    sizeof(struct stat));
-					else if (errno != ENOENT)
-						ierr(file->file_name);
+					fclose(file->fp);
+					file->fp = ftmp;
+					memcpy(&file->st, &sb2,
+					    sizeof(struct stat));
 					ev_change++;
+				} else {
+					fclose(ftmp);
 				}
 			}
 		}

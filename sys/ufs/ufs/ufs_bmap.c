@@ -200,12 +200,15 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 			*bnp = blkptrtodb(ump, ip->i_din2->di_extb[-1 - bn]);
 			if (*bnp == 0)
 				*bnp = -1;
-			if (nbp == NULL)
-				panic("ufs_bmaparray: mapping ext data");
+			if (nbp == NULL) {
+				/* indirect block not found */
+				return (EINVAL);
+			}
 			nbp->b_xflags |= BX_ALTDATA;
 			return (0);
 		} else {
-			panic("ufs_bmaparray: blkno out of range");
+			/* blkno out of range */
+			return (EINVAL);
 		}
 		/*
 		 * Since this is FFS independent code, we are out of
