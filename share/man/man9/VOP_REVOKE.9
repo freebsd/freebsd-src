@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2002
+.Dd June 20, 2019
 .Dt VOP_REVOKE 9
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ to signify that all access will be revoked; any other value is invalid.
 .Sh LOCKS
 The
 .Fa vp
-must be unlocked on entry, and will remain unlocked upon return.
+must be exclusively locked on entry, and will remain locked upon return.
 .Sh SEE ALSO
 .Xr make_dev_alias 9 ,
 .Xr vnode 9
