@@ -921,6 +921,10 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 			 * Don't bother to check FUSE_BIG_WRITES, because it's
 			 * redundant with max_write
 			 */
+			/* 
+			 * max_background and congestion_threshold are not
+			 * implemented
+			 */
 		} else {
 			err = EINVAL;
 		}
