@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2017
+.Dd June 20, 2019
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -112,6 +112,22 @@ Pages may be written.
 .It Dv PROT_EXEC
 Pages may be executed.
 .El
+.Pp
+In addition to these protection flags,
+.Fx
+provides the ability to set the maximum protection of a region allocated by
+.Nm
+and later altered by
+.Xr mprotect 2 .
+This is accomplished by
+.Em or Ns 'ing
+one or more
+.Dv PROT_
+values wrapped in the
+.Dv PROT_MAX()
+macro into the
+.Fa prot
+argument.
 .Pp
 The
 .Fa flags
@@ -415,6 +431,11 @@ referenced a regular file or shared memory.
 An invalid value was passed in the
 .Fa prot
 argument.
+.It Bq Er EINVAL
+The
+.Fa prot
+argument contains permissions which are not a subset of the specified
+maximum permissions.
 .It Bq Er EINVAL
 An undefined option was set in the
 .Fa flags
