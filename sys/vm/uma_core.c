@@ -256,7 +256,7 @@ static void keg_small_init(uma_keg_t keg);
 static void keg_large_init(uma_keg_t keg);
 static void zone_foreach(void (*zfunc)(uma_zone_t));
 static void zone_timeout(uma_zone_t zone);
-static int hash_alloc(struct uma_hash *);
+static int hash_alloc(struct uma_hash *, u_int);
 static int hash_expand(struct uma_hash *, struct uma_hash *);
 static void hash_free(struct uma_hash *hash);
 static void uma_timeout(void *);
@@ -571,6 +571,7 @@ zone_domain_update_wss(uma_zone_domain_t zdom)
 static void
 keg_timeout(uma_keg_t keg)
 {
+	u_int slabs;
 
 	KEG_LOCK(keg);
 	/*
@@ -581,7 +582,8 @@ keg_timeout(uma_keg_t keg)
 	 * may be a little aggressive.  Should I allow for two collisions max?
 	 */
 	if (keg->uk_flags & UMA_ZONE_HASH &&
-	    keg->uk_pages / keg->uk_ppera >= keg->uk_hash.uh_hashsize) {
+	    (slabs = keg->uk_pages / keg->uk_ppera) >
+	     keg->uk_hash.uh_hashsize) {
 		struct uma_hash newhash;
 		struct uma_hash oldhash;
 		int ret;
@@ -592,9 +594,8 @@ keg_timeout(uma_keg_t keg)
 		 * I have to do everything in stages and check for
 		 * races.
 		 */
-		newhash = keg->uk_hash;
 		KEG_UNLOCK(keg);
-		ret = hash_alloc(&newhash);
+		ret = hash_alloc(&newhash, 1 << fls(slabs));
 		KEG_LOCK(keg);
 		if (ret) {
 			if (hash_expand(&keg->uk_hash, &newhash)) {
@@ -635,16 +636,13 @@ zone_timeout(uma_zone_t zone)
  *	1 on success and 0 on failure.
  */
 static int
-hash_alloc(struct uma_hash *hash)
+hash_alloc(struct uma_hash *hash, u_int size)
 {
-	u_int oldsize;
 	size_t alloc;
 
-	oldsize = hash->uh_hashsize;
-
-	/* We're just going to go to a power of two greater */
-	if (oldsize)  {
-		hash->uh_hashsize = oldsize * 2;
+	KASSERT(powerof2(size), ("hash size must be power of 2"));
+	if (size > UMA_HASH_SIZE_INIT)  {
+		hash->uh_hashsize = size;
 		alloc = sizeof(hash->uh_slab_hash[0]) * hash->uh_hashsize;
 		hash->uh_slab_hash = (struct slabhead *)malloc(alloc,
 		    M_UMAHASH, M_NOWAIT);
@@ -1733,7 +1731,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	}
 
 	if (keg->uk_flags & UMA_ZONE_HASH)
-		hash_alloc(&keg->uk_hash);
+		hash_alloc(&keg->uk_hash, 0);
 
 	CTR5(KTR_UMA, "keg_ctor %p zone %s(%p) out %d free %d\n",
 	    keg, zone->uz_name, zone,
