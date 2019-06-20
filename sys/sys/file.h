@@ -179,7 +179,10 @@ struct file {
 	/*
 	 *  DTYPE_VNODE specific fields.
 	 */
-	int		f_seqcount;	/* (a) Count of sequential accesses. */
+	union {
+		int16_t	f_seqcount;	/* (a) Count of sequential accesses. */
+		int	f_pipegen;
+	};
 	off_t		f_nextoff;	/* next expected read/write offset. */
 	union {
 		struct cdev_privdata *fvn_cdevpriv;
