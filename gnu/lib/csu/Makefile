@@ -14,6 +14,7 @@ CCDIR=	${SRCTOP}/gnu/usr.bin/cc
 SRCS=		crtstuff.c ${COMMONHDRS}
 OBJS=		crtbegin.o crtend.o crtbeginT.o
 SOBJS=		crtbeginS.o crtendS.o
+DEPENDOBJS+=	${OBJS} ${SOBJS}
 CSTD?=		gnu89
 CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR -DDT_CONFIG -D__GLIBC__=3
 CFLAGS.gcc+=	-finhibit-size-directive -fno-toplevel-reorder
@@ -49,23 +50,23 @@ CLEANFILES=	${OBJS} ${SOBJS} ${TGTOBJS}
 
 crtbegin.o:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN \
-		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+	    -c -o ${.TARGET} ${.ALLSRC:N*.h:[1]}
 
 crtbeginT.o:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN -DCRTSTUFFT_O \
-		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+	    -c -o ${.TARGET} ${.ALLSRC:N*.h:[1]}
 
 crtbeginS.o:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+	    -c -o ${.TARGET} ${.ALLSRC:N*.h:[1]}
 
 crtend.o:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END \
-		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+	    -c -o ${.TARGET} ${.ALLSRC:N*.h:[1]}
 
 crtendS.o:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${.ALLSRC:N*.h}
+	    -c -o ${.TARGET} ${.ALLSRC:N*.h:[1]}
 
 COMMONHDRS+=	tm.h tconfig.h options.h
 CLEANFILES+=	${COMMONHDRS} optionlist cs-tconfig.h cs-tm.h

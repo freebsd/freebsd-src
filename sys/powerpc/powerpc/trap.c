@@ -69,9 +69,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
-#include <machine/trap.h>
+#include <machine/slb.h>
 #include <machine/spr.h>
 #include <machine/sr.h>
+#include <machine/trap.h>
 
 /* Below matches setjmp.S */
 #define	FAULTBUF_LR	21
@@ -92,9 +93,6 @@ static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
 
 #if defined(__powerpc64__) && defined(AIM)
-       void	handle_kernel_slb_spill(int, register_t, register_t);
-static int	handle_user_slb_spill(pmap_t pm, vm_offset_t addr);
-extern int	n_slbs;
 static void	normalize_inputs(void);
 #endif
 
@@ -720,89 +718,6 @@ syscall(struct trapframe *frame)
 	error = syscallenter(td);
 	syscallret(td, error);
 }
-
-#if defined(__powerpc64__) && defined(AIM)
-/* Handle kernel SLB faults -- runs in real mode, all seat belts off */
-void
-handle_kernel_slb_spill(int type, register_t dar, register_t srr0)
-{
-	struct slb *slbcache;
-	uint64_t slbe, slbv;
-	uint64_t esid, addr;
-	int i;
-
-	addr = (type == EXC_ISE) ? srr0 : dar;
-	slbcache = PCPU_GET(aim.slb);
-	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
-	slbe = (esid << SLBE_ESID_SHIFT) | SLBE_VALID;
-	
-	/* See if the hardware flushed this somehow (can happen in LPARs) */
-	for (i = 0; i < n_slbs; i++)
-		if (slbcache[i].slbe == (slbe | (uint64_t)i))
-			return;
-
-	/* Not in the map, needs to actually be added */
-	slbv = kernel_va_to_slbv(addr);
-	if (slbcache[USER_SLB_SLOT].slbe == 0) {
-		for (i = 0; i < n_slbs; i++) {
-			if (i == USER_SLB_SLOT)
-				continue;
-			if (!(slbcache[i].slbe & SLBE_VALID))
-				goto fillkernslb;
-		}
-
-		if (i == n_slbs)
-			slbcache[USER_SLB_SLOT].slbe = 1;
-	}
-
-	/* Sacrifice a random SLB entry that is not the user entry */
-	i = mftb() % n_slbs;
-	if (i == USER_SLB_SLOT)
-		i = (i+1) % n_slbs;
-
-fillkernslb:
-	/* Write new entry */
-	slbcache[i].slbv = slbv;
-	slbcache[i].slbe = slbe | (uint64_t)i;
-
-	/* Trap handler will restore from cache on exit */
-}
-
-static int 
-handle_user_slb_spill(pmap_t pm, vm_offset_t addr)
-{
-	struct slb *user_entry;
-	uint64_t esid;
-	int i;
-
-	if (pm->pm_slb == NULL)
-		return (-1);
-
-	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
-
-	PMAP_LOCK(pm);
-	user_entry = user_va_to_slb_entry(pm, addr);
-
-	if (user_entry == NULL) {
-		/* allocate_vsid auto-spills it */
-		(void)allocate_user_vsid(pm, esid, 0);
-	} else {
-		/*
-		 * Check that another CPU has not already mapped this.
-		 * XXX: Per-thread SLB caches would be better.
-		 */
-		for (i = 0; i < pm->pm_slb_len; i++)
-			if (pm->pm_slb[i] == user_entry)
-				break;
-
-		if (i == pm->pm_slb_len)
-			slb_insert_user(pm, user_entry);
-	}
-	PMAP_UNLOCK(pm);
-
-	return (0);
-}
-#endif
 
 static int
 trap_pfault(struct trapframe *frame, int user)

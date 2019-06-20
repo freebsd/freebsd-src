@@ -6232,8 +6232,10 @@ t4_sysctls(struct adapter *sc)
 		    &sc->tt.sndbuf, 0, "max hardware send buffer size");
 
 		sc->tt.ddp = 0;
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ddp", CTLFLAG_RW,
-		    &sc->tt.ddp, 0, "DDP allowed");
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ddp",
+		    CTLFLAG_RW | CTLFLAG_SKIP, &sc->tt.ddp, 0, "");
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_zcopy", CTLFLAG_RW,
+		    &sc->tt.ddp, 0, "Enable zero-copy aio_read(2)");
 
 		sc->tt.rx_coalesce = 1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_coalesce",

@@ -12,4 +12,4 @@ CLEANFILES+=	${_FIRM}
 FIRMWS=	${_FIRM}:${KMOD}
 
 ${_FIRM}: ${SRCTOP}/sys/contrib/dev/ral/${_FIRM}.uu
-	uudecode -p $? > ${.TARGET}
+	uudecode -p ${.ALLSRC} > ${.TARGET}

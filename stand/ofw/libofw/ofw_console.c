@@ -97,7 +97,11 @@ ofw_cons_getchar()
 		return l;
 	}
 
-	if (OF_read(stdin, &ch, 1) > 0)
+	/* At least since version 4.0.0, QEMU became bug-compatible
+	 * with PowerVM's vty, by inserting a \0 after every \r.
+	 * As this confuses loader's interpreter and as a \0 coming
+	 * from the console doesn't seem reasonable, it's filtered here. */
+	if (OF_read(stdin, &ch, 1) > 0 && ch != '\0')
 		return (ch);
 
 	return (-1);

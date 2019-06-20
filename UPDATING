@@ -31,7 +31,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20190606:
+20190620:
 	The vfs.fusefs.sync_unmount and vfs.fusefs.init_backgrounded sysctls
 	and the "-o sync_unmount" and "-o init_backgrounded" mount options have
 	been removed from mount_fusefs(8).  You can safely remove them from
@@ -42,6 +42,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	vfs.fusefs.data_cache_invalidate sysctls have been removed.  If you
 	felt the need to set any of them to a non-default value, please tell
 	asomers@FreeBSD.org why.
+
+20190612:
+	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
+	been upgraded to 8.0.1.  Please see the 20141231 entry below for
+	information about prerequisites and upgrading, if you are not already
+	using clang 3.5.0 or higher.
+
+20190608:
+	A fix was applied to i386 kernel modules to avoid panics with
+	dpcpu or vnet.  Users need to recompile i386 kernel modules
+	having pcpu or vnet sections or they will refuse to load.
 
 20190513:
 	User-wired pages now have their own counter,

@@ -75,7 +75,7 @@ usage() {
 	echo "       -E: Use UEFI mode"
 	echo "       -f: Use a specific UEFI firmware"
 	echo "       -F: Use a custom UEFI GOP framebuffer size" \
-	    "(default: ${DEFAULT_VNCSIZE}"
+	    "(default: ${DEFAULT_VNCSIZE})"
 	echo "       -g: listen for connection from kgdb at <gdbport>"
 	echo "       -H: host filesystem to export to the loader"
 	echo "       -i: force boot of the Installation CDROM image"

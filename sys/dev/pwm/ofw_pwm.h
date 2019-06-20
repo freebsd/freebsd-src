@@ -1,11 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2018 Emmanuel Vadot <manu@FreeBSD.org>
  * All rights reserved.
- *
- * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,17 +28,28 @@
  * $FreeBSD$
  */
 
-/*
- * Historically, the key userspace and kernel Capsicum definitions were found
- * in this file.  However, it conflicted with POSIX.1e's capability.h, so has
- * been renamed capsicum.h.  The file remains for backwards compatibility
- * reasons as a nested include.  It is expected to be removed before
- * FreeBSD 13.
- */
-#ifndef _SYS_CAPABILITY_H_
-#define	_SYS_CAPABILITY_H_
+#ifndef _OFW_PWM_H_
+#define _OFW_PWM_H_
 
-#warning this file includes <sys/capability.h> which is deprecated
-#include <sys/capsicum.h>
+#include <dev/ofw/openfirm.h>
 
-#endif /* !_SYS_CAPABILITY_H_ */
+struct pwm_channel {
+	device_t	dev;
+	u_int		channel;
+	uint64_t	period;
+	uint64_t	duty;
+	uint32_t	flags;
+	bool		enabled;
+};
+typedef struct pwm_channel *pwm_channel_t;
+
+int pwm_get_by_ofw_propidx(device_t consumer, phandle_t node,
+    const char *prop_name, int idx, pwm_channel_t *channel);
+int pwm_get_by_ofw_idx(device_t consumer, phandle_t node, int idx,
+    pwm_channel_t *out_channel);
+int pwm_get_by_ofw_property(device_t consumer, phandle_t node,
+    const char *prop_name, pwm_channel_t *out_channel);
+int pwm_get_by_ofw_name(device_t consumer, phandle_t node, const char *name,
+    pwm_channel_t *out_channel);
+
+#endif /* _OFW_PWM_H_ */

@@ -107,12 +107,14 @@ struct bcm_sdhci_softc {
 	bus_dma_tag_t		sc_dma_tag;
 	bus_dmamap_t		sc_dma_map;
 	vm_paddr_t		sc_sdhci_buffer_phys;
-	uint32_t		cmd_and_mode;
 	bus_addr_t		dmamap_seg_addrs[NUM_DMA_SEGS];
 	bus_size_t		dmamap_seg_sizes[NUM_DMA_SEGS];
 	int			dmamap_seg_count;
 	int			dmamap_seg_index;
 	int			dmamap_status;
+	uint32_t		blksz_and_count;
+	uint32_t		cmd_and_mode;
+	bool			need_update_blk;
 };
 
 static int bcm_sdhci_probe(device_t);
@@ -269,6 +271,10 @@ bcm_sdhci_attach(device_t dev)
 
 	sdhci_start_slot(&sc->sc_slot);
 
+	/* Seed our copies. */
+	sc->blksz_and_count = SDHCI_READ_4(dev, &sc->sc_slot, SDHCI_BLOCK_SIZE);
+	sc->cmd_and_mode = SDHCI_READ_4(dev, &sc->sc_slot, SDHCI_TRANSFER_MODE);
+
 	return (0);
 
 fail:
@@ -338,17 +344,21 @@ static uint16_t
 bcm_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
-	uint32_t val = RD4(sc, off & ~3);
+	uint32_t val32;
 
 	/*
-	 * Standard 32-bit handling of command and transfer mode.
+	 * Standard 32-bit handling of command and transfer mode, as
+	 * well as block size and count.
 	 */
-	if (off == SDHCI_TRANSFER_MODE) {
-		return (sc->cmd_and_mode >> 16);
-	} else if (off == SDHCI_COMMAND_FLAGS) {
-		return (sc->cmd_and_mode & 0x0000ffff);
-	}
-	return ((val >> (off & 3)*8) & 0xffff);
+	if ((off == SDHCI_BLOCK_SIZE || off == SDHCI_BLOCK_COUNT) &&
+	    sc->need_update_blk)
+		val32 = sc->blksz_and_count;
+	else if (off == SDHCI_TRANSFER_MODE || off == SDHCI_COMMAND_FLAGS)
+		val32 = sc->cmd_and_mode;
+	else
+		val32 = RD4(sc, off & ~3);
+
+	return ((val32 >> (off & 3)*8) & 0xffff);
 }
 
 static uint32_t
@@ -383,18 +393,43 @@ bcm_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val32;
-	if (off == SDHCI_COMMAND_FLAGS)
+
+	/*
+	 * If we have a queued up 16bit value for blk size or count, use and
+	 * update the saved value rather than doing any real register access.
+	 * If we did not touch either since the last write, then read from
+	 * register as at least block count can change.
+	 * Similarly, if we are about to issue a command, always use the saved
+	 * value for transfer mode as we can never write that without issuing
+	 * a command.
+	 */
+	if ((off == SDHCI_BLOCK_SIZE || off == SDHCI_BLOCK_COUNT) &&
+	    sc->need_update_blk)
+		val32 = sc->blksz_and_count;
+	else if (off == SDHCI_COMMAND_FLAGS)
 		val32 = sc->cmd_and_mode;
 	else
 		val32 = RD4(sc, off & ~3);
+
 	val32 &= ~(0xffff << (off & 3)*8);
 	val32 |= (val << (off & 3)*8);
+
 	if (off == SDHCI_TRANSFER_MODE)
 		sc->cmd_and_mode = val32;
-	else {
-		WR4(sc, off & ~3, val32);
-		if (off == SDHCI_COMMAND_FLAGS)
+	else if (off == SDHCI_BLOCK_SIZE || off == SDHCI_BLOCK_COUNT) {
+		sc->blksz_and_count = val32;
+		sc->need_update_blk = true;
+	} else {
+		if (off == SDHCI_COMMAND_FLAGS) {
+			/* If we saved blk writes, do them now before cmd. */
+			if (sc->need_update_blk) {
+				WR4(sc, SDHCI_BLOCK_SIZE, sc->blksz_and_count);
+				sc->need_update_blk = false;
+			}
+			/* Always save cmd and mode registers. */
 			sc->cmd_and_mode = val32;
+		}
+		WR4(sc, off & ~3, val32);
 	}
 }
 
@@ -503,6 +538,22 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 
 	left = min(BCM_SDHCI_BUFFER_SIZE,
 	    slot->curcmd->data->len - slot->offset);
+
+	/*
+	 * If there is less than buffer size outstanding, we would not handle
+	 * it anymore using DMA if bcm_sdhci_will_handle_transfer() were asked.
+	 * Re-enable interrupts and return and let the SDHCI state machine
+	 * finish the job.
+	 */
+	if (left < BCM_SDHCI_BUFFER_SIZE) {
+		/* Re-enable data interrupts. */
+		slot->intmask |= SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL |
+		    SDHCI_INT_DATA_END;
+		bcm_sdhci_write_4(slot->bus, slot, SDHCI_SIGNAL_ENABLE,
+		    slot->intmask);
+		mtx_unlock(&slot->mtx);
+		return;
+	}
 
 	/* DATA END? */
 	reg = bcm_sdhci_read_4(slot->bus, slot, SDHCI_INT_STATUS);
@@ -657,6 +708,7 @@ static device_method_t bcm_sdhci_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
+	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),

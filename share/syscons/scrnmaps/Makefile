@@ -12,6 +12,7 @@ CLEANFILES+= ${SCRMAPS_MK} ${SCRMAPS}
 FILES=	${SCRMAPS}
 FILESDIR= ${SHAREDIR}/syscons/scrnmaps
 
+DEPENDOBJS+= ${SCRMAPS_MK}
 build-tools: ${SCRMAPS_MK}
 
 ${SCRMAPS}: ${.TARGET:R}.mk

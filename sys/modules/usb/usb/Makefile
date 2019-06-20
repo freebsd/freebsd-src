@@ -39,6 +39,11 @@ SRCS=	bus_if.h device_if.h usb_if.h usb_if.c vnode_if.h \
 	usb_msctest.c usb_parse.c usb_pf.c usb_process.c usb_request.c \
 	usb_transfer.c usb_util.c 
 
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
+SRCS += opt_acpi.h usb_hub_acpi.c acpi_if.h
+.endif
+
 .if !empty(OPT_FDT)
 SRCS+=	usb_fdt_support.c ofw_bus_if.h
 .endif

@@ -32,6 +32,10 @@
 #include <crypto/chacha20/_chacha.h>
 #include <dev/random/uint128.h>
 
+#ifndef _KERNEL
+#define	__read_frequently
+#endif
+
 /* Keys are formed from cipher blocks */
 #define	RANDOM_KEYSIZE		32	/* (in bytes) == 256 bits */
 #define	RANDOM_KEYSIZE_WORDS	(RANDOM_KEYSIZE/sizeof(uint32_t))
@@ -54,14 +58,14 @@ union randomdev_key {
 	struct chacha_ctx chacha;
 };
 
-extern bool fortuna_chachamode;
+extern bool random_chachamode;
 
 void randomdev_hash_init(struct randomdev_hash *);
 void randomdev_hash_iterate(struct randomdev_hash *, const void *, size_t);
 void randomdev_hash_finish(struct randomdev_hash *, void *);
 
 void randomdev_encrypt_init(union randomdev_key *, const void *);
-void randomdev_keystream(union randomdev_key *context, uint128_t *, void *, u_int);
+void randomdev_keystream(union randomdev_key *context, uint128_t *, void *, size_t);
 void randomdev_getkey(union randomdev_key *, const void **, size_t *);
 
 #endif /* SYS_DEV_RANDOM_HASH_H_INCLUDED */

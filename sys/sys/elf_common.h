@@ -535,6 +535,10 @@ typedef struct {
 #define	PT_ARM_EXIDX	0x70000001	/* ARM exception unwind tables. */
 #define	PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 
+#define	PT_OPENBSD_RANDOMIZE	0x65A3DBE6	/* OpenBSD random data segment */
+#define	PT_OPENBSD_WXNEEDED	0x65A3DBE7	/* OpenBSD EXEC/WRITE pages needed */
+#define	PT_OPENBSD_BOOTDATA	0x65A41BE6	/* OpenBSD section for boot args */
+
 /* Values for p_flags. */
 #define	PF_X		0x1		/* Executable. */
 #define	PF_W		0x2		/* Writable. */

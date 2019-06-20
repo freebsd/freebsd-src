@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #endif /* _KERNEL */
 
 static void random_other_pre_read(void);
-static void random_other_read(uint8_t *, u_int);
+static void random_other_read(uint8_t *, size_t);
 static bool random_other_seeded(void);
 static void random_other_process_event(struct harvest_event *);
 static void random_other_init_alg(void *);
@@ -165,10 +165,10 @@ random_other_pre_read(void)
 }
 
 /*
- * void random_other_read(uint8_t *buf, u_int count)
+ * void random_other_read(uint8_t *buf, size_t count)
  *
  * Generate <count> bytes of output into <*buf>.
- * You may use the fact that <count> will be a multiple of
+ * You may NOT use the fact that <count> will be a multiple of
  * RANDOM_BLOCKSIZE for optimization purposes.
  *
  * This function will always be called with your generator
@@ -176,7 +176,7 @@ random_other_pre_read(void)
  * output here, then feel free to KASSERT() or panic().
  */
 static void
-random_other_read(uint8_t *buf, u_int count)
+random_other_read(uint8_t *buf, size_t count)
 {
 
 	RANDOM_RESEED_LOCK();

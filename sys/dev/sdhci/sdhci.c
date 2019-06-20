@@ -185,15 +185,20 @@ sdhci_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 slot_printf(const struct sdhci_slot *slot, const char * fmt, ...)
 {
+	char buf[128];
 	va_list ap;
 	int retval;
 
-	retval = printf("%s-slot%d: ",
-	    device_get_nameunit(slot->bus), slot->num);
-
+	/*
+	 * Make sure we print a single line all together rather than in two
+	 * halves to avoid console gibberish bingo.
+	 */
 	va_start(ap, fmt);
-	retval += vprintf(fmt, ap);
+	retval = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
+
+	retval += printf("%s-slot%d: %s",
+	    device_get_nameunit(slot->bus), slot->num, buf);
 	return (retval);
 }
 
@@ -2513,8 +2518,8 @@ sdhci_start_slot(struct sdhci_slot *slot)
 		goto fail;
 
 	mtx_init(&slot->sim_mtx, "sdhcisim", NULL, MTX_DEF);
-	slot->sim = cam_sim_alloc(sdhci_cam_action, sdhci_cam_poll,
-	    "sdhci_slot", slot, device_get_unit(slot->bus),
+	slot->sim = cam_sim_alloc_dev(sdhci_cam_action, sdhci_cam_poll,
+	    "sdhci_slot", slot, slot->bus,
 	    &slot->sim_mtx, 1, 1, slot->devq);
 
 	if (slot->sim == NULL) {

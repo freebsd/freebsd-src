@@ -399,6 +399,7 @@ MAN=	accept_filter.9 \
 	VOP_ADVLOCK.9 \
 	VOP_ALLOCATE.9 \
 	VOP_ATTRIB.9 \
+	VOP_BMAP.9 \
 	VOP_BWRITE.9 \
 	VOP_CREATE.9 \
 	VOP_FSYNC.9 \
@@ -1880,7 +1881,8 @@ MLINKS+=sleep.9 msleep.9 \
 	sleep.9 tsleep.9 \
 	sleep.9 tsleep_sbt.9 \
 	sleep.9 wakeup.9 \
-	sleep.9 wakeup_one.9
+	sleep.9 wakeup_one.9 \
+	sleep.9 wakeup_any.9
 MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_abort.9 \
 	sleepqueue.9 sleepq_add.9 \
@@ -1996,6 +1998,7 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_ADD_S64.9 \
 	sysctl.9 SYSCTL_ADD_STRING.9 \
 	sysctl.9 SYSCTL_ADD_STRUCT.9 \
+	sysctl.9 SYSCTL_ADD_TIMEVAL_SEC.9 \
 	sysctl.9 SYSCTL_ADD_U8.9 \
 	sysctl.9 SYSCTL_ADD_U16.9 \
 	sysctl.9 SYSCTL_ADD_U32.9 \
@@ -2011,6 +2014,7 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_INT.9 \
 	sysctl.9 SYSCTL_INT_WITH_LABEL.9 \
 	sysctl.9 SYSCTL_LONG.9 \
+	sysctl.9 sysctl_msec_to_ticks.9 \
 	sysctl.9 SYSCTL_NODE.9 \
 	sysctl.9 SYSCTL_NODE_WITH_LABEL.9 \
 	sysctl.9 SYSCTL_OPAQUE.9 \
@@ -2023,6 +2027,7 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_S64.9 \
 	sysctl.9 SYSCTL_STRING.9 \
 	sysctl.9 SYSCTL_STRUCT.9 \
+	sysctl.9 SYSCTL_TIMEVAL_SEC.9 \
 	sysctl.9 SYSCTL_U8.9 \
 	sysctl.9 SYSCTL_U16.9 \
 	sysctl.9 SYSCTL_U32.9 \

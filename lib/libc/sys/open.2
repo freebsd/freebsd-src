@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2018
+.Dd June 14, 2019
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -224,10 +224,7 @@ The descriptor remains in non-blocking mode for subsequent operations.
 If
 .Dv O_FSYNC
 is used in the mask, all writes will
-immediately be written to disk,
-the kernel will not cache written data
-and all writes on the descriptor will not return until
-the data to be written completes.
+immediately and synchronously be written to disk.
 .Pp
 .Dv O_SYNC
 is a synonym for

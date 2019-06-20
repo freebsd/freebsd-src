@@ -242,7 +242,13 @@ ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
 .endif
+.if !defined(FIRMWS) && (${MACHINE_CPUARCH} == "i386")
+	${LD} -m ${LD_EMULATION} ${_LDFLAGS} -r \
+	    -T ${SYSDIR}/conf/ldscript.set_padding \
+	    -d -o ${.TARGET} ${OBJS}
+.else
 	${LD} -m ${LD_EMULATION} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+.endif
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
@@ -475,6 +481,18 @@ usbdevs_data.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs
 	${AWK} -f ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs -d
 .endif
 
+.if !empty(SRCS:Msdiodevs.h)
+CLEANFILES+=	sdiodevs.h
+sdiodevs.h: ${SYSDIR}/tools/sdiodevs2h.awk ${SYSDIR}/dev/sdio/sdiodevs
+	${AWK} -f ${SYSDIR}/tools/sdiodevs2h.awk ${SYSDIR}/dev/sdio/sdiodevs -h
+.endif
+
+.if !empty(SRCS:Msdiodevs_data.h)
+CLEANFILES+=	sdiodevs_data.h
+sdiodevs_data.h: ${SYSDIR}/tools/sdiodevs2h.awk ${SYSDIR}/dev/sdio/sdiodevs
+	${AWK} -f ${SYSDIR}/tools/sdiodevs2h.awk ${SYSDIR}/dev/sdio/sdiodevs -d
+.endif
+
 .if !empty(SRCS:Macpi_quirks.h)
 CLEANFILES+=	acpi_quirks.h
 acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
@@ -482,7 +500,7 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 .endif
 
 .if !empty(SRCS:Massym.inc) || !empty(DPSRCS:Massym.inc)
-CLEANFILES+=	assym.inc
+CLEANFILES+=	assym.inc genassym.o
 DEPENDOBJS+=	genassym.o
 DPSRCS+=	offset.inc
 .endif

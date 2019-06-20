@@ -1053,7 +1053,7 @@ static int	pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde,
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte, struct rwlock **lockp);
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
-static int pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
+static int pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte, bool promoted);
 static void pmap_invalidate_cache_range_selfsnoop(vm_offset_t sva,
     vm_offset_t eva);
 static void pmap_invalidate_cache_range_all(vm_offset_t sva,
@@ -1757,8 +1757,13 @@ pmap_init(void)
 		mpte->pindex = pmap_pde_pindex(KERNBASE) + i;
 		mpte->phys_addr = KPTphys + (i << PAGE_SHIFT);
 		mpte->wire_count = 1;
+
+		/*
+		 * Collect the page table pages that were replaced by a 2MB
+		 * page in create_pagetables().  They are zero filled.
+		 */
 		if (i << PDRSHIFT < KERNend &&
-		    pmap_insert_pt_page(kernel_pmap, mpte))
+		    pmap_insert_pt_page(kernel_pmap, mpte, false))
 			panic("pmap_init: pmap_insert_pt_page failed");
 	}
 	PMAP_UNLOCK(kernel_pmap);
@@ -3129,12 +3134,15 @@ pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
  * of idle page table pages.  Each of a pmap's page table pages is responsible
  * for mapping a distinct range of virtual addresses.  The pmap's collection is
  * ordered by this virtual address range.
+ *
+ * If "promoted" is false, then the page table page "mpte" must be zero filled.
  */
 static __inline int
-pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte)
+pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte, bool promoted)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	mpte->valid = promoted ? VM_PAGE_BITS_ALL : 0;
 	return (vm_radix_insert(&pmap->pm_root, mpte));
 }
 
@@ -4081,7 +4089,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
-	vm_page_unwire(m, PQ_NONE);
+	vm_page_unwire_noq(m);
 	vm_page_free(m);
 }
 
@@ -4626,7 +4634,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	 * If the page table page is not leftover from an earlier promotion,
 	 * initialize it.
 	 */
-	if ((oldpde & PG_PROMOTED) == 0)
+	if (mpte->valid == 0)
 		pmap_fill_ptp(firstpte, newpte);
 
 	pmap_demote_pde_check(firstpte, newpte);
@@ -4699,9 +4707,11 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	newpde = mptepa | X86_PG_M | X86_PG_A | X86_PG_RW | X86_PG_V;
 
 	/*
-	 * Initialize the page table page.
+	 * If this page table page was unmapped by a promotion, then it
+	 * contains valid mappings.  Zero it to invalidate those mappings.
 	 */
-	pagezero((void *)PHYS_TO_DMAP(mptepa));
+	if (mpte->valid != 0)
+		pagezero((void *)PHYS_TO_DMAP(mptepa));
 
 	/*
 	 * Demote the mapping.
@@ -4766,6 +4776,8 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 	} else {
 		mpte = pmap_remove_pt_page(pmap, sva);
 		if (mpte != NULL) {
+			KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
+			    ("pmap_remove_pde: pte page not promoted"));
 			pmap_resident_count_dec(pmap, 1);
 			KASSERT(mpte->wire_count == NPTEPG,
 			    ("pmap_remove_pde: pte page wire count error"));
@@ -5399,7 +5411,7 @@ setpte:
 	    ("pmap_promote_pde: page table page is out of range"));
 	KASSERT(mpte->pindex == pmap_pde_pindex(va),
 	    ("pmap_promote_pde: page table page's pindex is wrong"));
-	if (pmap_insert_pt_page(pmap, mpte)) {
+	if (pmap_insert_pt_page(pmap, mpte, true)) {
 		atomic_add_long(&pmap_pde_p_failures, 1);
 		CTR2(KTR_PMAP,
 		    "pmap_promote_pde: failure for va %#lx in pmap %p", va,
@@ -5826,15 +5838,13 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 		}
 		vm_page_free_pages_toq(&free, true);
 		if (va >= VM_MAXUSER_ADDRESS) {
+			/*
+			 * Both pmap_remove_pde() and pmap_remove_ptes() will
+			 * leave the kernel page table page zero filled.
+			 */
 			mt = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
-			if (pmap_insert_pt_page(pmap, mt)) {
-				/*
-				 * XXX Currently, this can't happen because
-				 * we do not perform pmap_enter(psind == 1)
-				 * on the kernel pmap.
-				 */
+			if (pmap_insert_pt_page(pmap, mt, false))
 				panic("pmap_enter_pde: trie insert failed");
-			}
 		} else
 			KASSERT(*pde == 0, ("pmap_enter_pde: non-zero pde %p",
 			    pde));
@@ -6824,6 +6834,8 @@ pmap_remove_pages(pmap_t pmap)
 					}
 					mpte = pmap_remove_pt_page(pmap, pv->pv_va);
 					if (mpte != NULL) {
+						KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
+						    ("pmap_remove_pages: pte page not promoted"));
 						pmap_resident_count_dec(pmap, 1);
 						KASSERT(mpte->wire_count == NPTEPG,
 						    ("pmap_remove_pages: pte page wire count error"));

@@ -59,7 +59,8 @@ distribution:
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
-		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
+		${INSTALL_SYMLINK} -T "package=unbound" \
+		../var/unbound ${DESTDIR}/etc/unbound; \
 	fi
 .endif
 .if ${MK_SENDMAIL} != "no"
@@ -68,26 +69,29 @@ distribution:
 .if ${MK_KERBEROS} != "no"
 	cd ${.CURDIR}/root; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		-T "package=runtime" \
 		dot.k5login ${DESTDIR}/root/.k5login;
 .endif
 
 .if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${ETCMAIL} ${DESTDIR}/etc/mail
+	    -T "package=runtime" ${ETCMAIL} ${DESTDIR}/etc/mail
 	if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
 	      ! -f ${DESTDIR}/etc/aliases ]; then \
-		${INSTALL_SYMLINK} mail/aliases ${DESTDIR}/etc/aliases; \
+		${INSTALL_SYMLINK} -T "package=runtime" \
+		mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
 .endif
 .if ${MK_LOCATE} != "no"
-	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
-	    ${DESTDIR}/var/db/locate.database
+	${INSTALL} -o nobody -g ${BINGRP} -m 644 -T "package=runtime"\
+	    /dev/null ${DESTDIR}/var/db/locate.database
 .endif
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${FREEBSD} ${DESTDIR}/
+		-T "package=runtime" ${FREEBSD} ${DESTDIR}/
 .if ${MK_BOOT} != "no"
 .if exists(${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints)
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    -T "package=runtime" \
 	    ${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints \
 	    ${DESTDIR}/boot/device.hints
 .endif

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2017
+.Dd June 3, 2019
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -198,7 +198,7 @@ options and before extracting any files.
 .It Fl Fl clear-nochange-fflags
 (x mode only)
 Before removing file system objects to replace them, clear platform-specific
-file flags that might prevent removal.
+file attributes or file flags that might prevent removal.
 .It Fl Fl exclude Ar pattern
 Do not process files or directories that match the
 specified pattern.
@@ -218,7 +218,8 @@ and
 .Sq Darcs .
 .It Fl Fl fflags
 (c, r, u, x modes only)
-Archive or extract file flags. This is the reverse of
+Archive or extract platform-specific file attributes or file flags.
+This is the reverse of
 .Fl Fl no-fflags
 and the default behavior in c, r, and u modes or if
 .Nm
@@ -389,8 +390,8 @@ Do not extract modification time.
 By default, the modification time is set to the time stored in the archive.
 .It Fl Fl mac-metadata
 (c, r, u and x mode only)
-Mac OS X specific. Archive or extract extended ACLs and extended attributes
-using
+Mac OS X specific. Archive or extract extended ACLs and extended file
+attributes using
 .Xr copyfile 3
 in AppleDouble format. This is the reverse of
 .Fl Fl no-mac-metadata .
@@ -445,21 +446,21 @@ and the default behavior if
 is run as non-root in x mode (on Mac OS X as any user in c, r, u and x modes).
 .It Fl Fl no-fflags
 (c, r, u, x modes only)
-Do not archive or extract file flags. This is the reverse of
+Do not archive or extract file attributes or file flags. This is the reverse of
 .Fl Fl fflags
 and the default behavior if
 .Nm
 is run as non-root in x mode.
 .It Fl Fl no-mac-metadata
 (x mode only)
-Mac OS X specific. Do not archive or extract ACLs and extended attributes using
+Mac OS X specific. Do not archive or extract ACLs and extended file attributes
+using
 .Xr copyfile 3
 in AppleDouble format. This is the reverse of
 .Fl Fl mac-metadata .
 and the default behavior if
 .Nm
 is run as non-root in x mode.
-.It Fl n , Fl Fl norecurse , Fl Fl no-recursion
 .It Fl Fl no-same-owner
 (x mode only)
 Do not extract owner and group IDs.
@@ -470,8 +471,8 @@ and the default behavior if
 is run as non-root.
 .It Fl Fl no-same-permissions
 (x mode only)
-Do not extract full permissions (SGID, SUID, sticky bit, ACLs,
-extended attributes or extended file flags).
+Do not extract full permissions (SGID, SUID, sticky bit,
+file attributes or file flags, extended file attributes and ACLs).
 This is the reverse of
 .Fl p
 and the default behavior if
@@ -479,7 +480,7 @@ and the default behavior if
 is run as non-root.
 .It Fl Fl no-xattrs
 (c, r, u, x modes only)
-Do not archive or extract extended attributes. This is the reverse of
+Do not archive or extract extended file attributes. This is the reverse of
 .Fl Fl xattrs
 and the default behavior if
 .Nm
@@ -667,13 +668,13 @@ This option suppresses these behaviors.
 .It Fl p , Fl Fl insecure , Fl Fl preserve-permissions
 (x mode only)
 Preserve file permissions.
-Attempt to restore the full permissions, including owner, file modes, ACLs,
-extended attributes and extended file flags, if available, for each item
-extracted from the archive. This is te reverse of
+Attempt to restore the full permissions, including file modes, file attributes
+or file flags, extended file attributes and ACLs, if available, for each item
+extracted from the archive. This is the reverse of
 .Fl Fl no-same-permissions
 and the default if
 .Nm
-is being run by root and can be partially overridden by also specifying
+is being run as root. It can be partially overridden by also specifying
 .Fl Fl no-acls ,
 .Fl Fl no-fflags ,
 .Fl Fl no-mac-metadata
@@ -844,7 +845,7 @@ See
 for more information about the handling of exclusions.
 .It Fl Fl xattrs
 (c, r, u, x modes only)
-Archive or extract extended attributes. This is the reverse of
+Archive or extract extended file attributes. This is the reverse of
 .Fl Fl no-xattrs
 and the default behavior in c, r, and u modes or if
 .Nm

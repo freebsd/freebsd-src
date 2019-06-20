@@ -117,6 +117,7 @@ csh.1: tcsh.man
 
 build-tools: gethost
 
+DEPENDOBJS+= gethost
 gethost: gethost.c sh.err.h tc.const.h sh.h ${BUILD_TOOLS_META}
 	@rm -f ${.TARGET}
 	${CC:N${CCACHE_BIN}} -o gethost ${LDFLAGS} ${CFLAGS:C/-DHAVE_ICONV//} \

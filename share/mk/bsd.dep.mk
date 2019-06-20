@@ -173,7 +173,7 @@ ${_D}.nossppico: ${_DSRC} ${SOBJS:S/^${_D}.nossppico$//}
 .endif
 .endfor
 .endfor
-
+.endif	# defined(SRCS)
 
 .if ${MAKE_VERSION} < 20160220
 DEPEND_MP?=	-MP
@@ -181,12 +181,18 @@ DEPEND_MP?=	-MP
 # Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
 # avoid collisions.
 DEPEND_FILTER=	C,/,_,g
+.if !empty(OBJS)
+DEPENDOBJS+=	${OBJS}
+.else
 DEPENDSRCS+=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 DEPENDSRCS+=	${DPSRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 .if !empty(DEPENDSRCS)
 DEPENDOBJS+=	${DEPENDSRCS:${OBJS_SRCS_FILTER:ts:}:S,$,.o,}
 .endif
+.endif	# !empty(OBJS)
+.if !empty(DEPENDOBJS)
 DEPENDFILES+=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
+.endif
 .if defined(_SKIP_DEPEND)
 # Don't bother statting any .meta files for .depend*
 ${DEPENDOBJS}:	.NOMETA
@@ -213,7 +219,6 @@ CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .endif
 .endfor
 .endif	# !defined(_meta_filemon)
-.endif	# defined(SRCS)
 
 .if ${MK_DIRDEPS_BUILD} == "yes" && ${.MAKE.DEPENDFILE} != "/dev/null"
 # Prevent meta.autodep.mk from tracking "local dependencies".
@@ -251,18 +256,19 @@ _depfile=	${.OBJDIR}/${_meta_obj}
 .else
 _depfile=	${.OBJDIR}/${_dep_obj}
 .endif
-.if !exists(${_depfile})
+.if !exists(${_depfile}) || defined(_meta_filemon)
+# - Headers are normally built in beforebuild when included in DPSRCS or SRCS.
+#   So we don't need it as a guessed dependency (it may lead to cyclic problems
+#   if custom rules are defined).  The only time this causes a problem is when
+#   'make foo.o' is ran.
+# - For meta mode we still need to know which file to depend on to avoid
+#   ambiguous suffix transformation rules from .PATH.  Meta mode does not
+#   use .depend files when filemon is in use.
+.if !target(${__obj})
 ${__obj}: ${OBJS_DEPEND_GUESS}
+.endif
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
-.elif defined(_meta_filemon)
-# For meta mode we still need to know which file to depend on to avoid
-# ambiguous suffix transformation rules from .PATH.  Meta mode does not
-# use .depend files.  We really only need source files, not headers since
-# they are typically in SRCS/beforebuild already.  For target-specific
-# guesses do include headers though since they may not be in SRCS.
-${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
-${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
-.endif	# !exists(${_depfile})
+.endif	# !exists(${_depfile}) || defined(_meta_filemon)
 .endfor
 
 # Always run 'make depend' to generate dependencies early and to avoid the

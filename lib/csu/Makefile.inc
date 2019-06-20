@@ -22,10 +22,11 @@ crtend.o: crtend.c
 crtendS.o: crtend.c
 
 crtbegin.o crtend.o crtbeginT.o:
-	${CC} ${CFLAGS} -I${.CURDIR} -c -o ${.TARGET} ${.ALLSRC}
+	${CC} ${CFLAGS} -I${.CURDIR} -c -o ${.TARGET} ${.ALLSRC:N*.h:[1]}
 
 crtbeginS.o crtendS.o:
-	${CC} ${CFLAGS} -I${.CURDIR} ${CFLAGS_CRTS} -c -o ${.TARGET} ${.ALLSRC}
+	${CC} ${CFLAGS} -I${.CURDIR} ${CFLAGS_CRTS} -c -o ${.TARGET} \
+	    ${.ALLSRC:N*.h:[1]}
 
 .endif
 

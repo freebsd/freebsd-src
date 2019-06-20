@@ -1027,6 +1027,7 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
     if (ret != ARCHIVE_OK && ret != ARCHIVE_WARN) {
       __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context);
       rar->start_new_table = 1;
+      rar->ppmd_valid = 0;
     }
     break;
 

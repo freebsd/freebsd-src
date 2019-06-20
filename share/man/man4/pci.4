@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2018
+.Dd June 17, 2019
 .Dt PCI 4
 .Os
 .Sh NAME
@@ -290,7 +290,7 @@ This
 .Xr ioctl 2
 reads the
 .Tn PCI
-configuration registers specified by the passed-in
+configuration register specified by the passed-in
 .Va pci_io
 structure.
 The
@@ -307,7 +307,7 @@ from the ioctl.
 .It pi_reg
 The
 .Tn PCI
-configuration register the user would like to access.
+configuration registers the user would like to access.
 .It pi_width
 The width, in bytes, of the data the user would like to read.
 This value
@@ -323,7 +323,7 @@ This
 .Xr ioctl 2
 allows users to write to the
 .Tn PCI
-specified in the passed-in
+configuration registers specified in the passed-in
 .Va pci_io
 structure.
 The
@@ -333,6 +333,26 @@ The limitations on data width described for
 reading registers, above, also apply to writing
 .Tn PCI
 configuration registers.
+.It PCIOCATTACHED
+This
+.Xr ioctl 2
+allows users to query if a driver is attached to the
+.Tn PCI
+device specified in the passed-in
+.Va pci_io
+structure.
+The
+.Va pci_io
+structure is described above, however, the
+.Va pi_reg
+and
+.Va pi_width
+fields are not used.
+The status of the device is stored in the
+.Va pi_data
+field.
+A value of 0 indicates no driver is attached, while a value larger than 0
+indicates that a driver is attached.
 .It PCIOCBARMMAP
 This
 .Xr ioctl 2

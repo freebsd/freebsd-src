@@ -62,7 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/tslog.h>
 #include <sys/ucontext.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -124,22 +126,40 @@ cpuset_t all_harts;
 extern int *end;
 extern int *initstack_end;
 
-uintptr_t mcall_trap(uintptr_t mcause, uintptr_t* regs);
-
-uintptr_t
-mcall_trap(uintptr_t mcause, uintptr_t* regs)
-{
-
-	return (0);
-}
-
 static void
 cpu_startup(void *dummy)
 {
 
 	identify_cpu();
 
+	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)realmem),
+	    ptoa((uintmax_t)realmem) / (1024 * 1024));
+
+	/*
+	 * Display any holes after the first chunk of extended memory.
+	 */
+	if (bootverbose) {
+		int indx;
+
+		printf("Physical memory chunk(s):\n");
+		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
+			vm_paddr_t size;
+
+			size = phys_avail[indx + 1] - phys_avail[indx];
+			printf(
+			    "0x%016jx - 0x%016jx, %ju bytes (%ju pages)\n",
+			    (uintmax_t)phys_avail[indx],
+			    (uintmax_t)phys_avail[indx + 1] - 1,
+			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
+		}
+	}
+
 	vm_ksubmap_init(&kmi);
+
+	printf("avail memory = %ju (%ju MB)\n",
+	    ptoa((uintmax_t)vm_free_count()),
+	    ptoa((uintmax_t)vm_free_count()) / (1024 * 1024));
+
 	bufinit();
 	vm_pager_bufferinit();
 }
@@ -816,13 +836,15 @@ initriscv(struct riscv_bootparams *rvbp)
 	caddr_t kmdp;
 	int i;
 
+	TSRAW(&thread0, TS_ENTER, __func__, NULL);
+
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	pcpup->pc_hart = boot_hart;
 
 	/* Set the pcpu pointer */
-	__asm __volatile("mv gp, %0" :: "r"(pcpup));
+	__asm __volatile("mv tp, %0" :: "r"(pcpup));
 
 	PCPU_SET(curthread, &thread0);
 
@@ -888,6 +910,8 @@ initriscv(struct riscv_bootparams *rvbp)
 	kdb_init();
 
 	early_boot = 0;
+
+	TSEXIT();
 }
 
 #undef bzero

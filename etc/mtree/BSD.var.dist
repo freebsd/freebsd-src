@@ -3,7 +3,7 @@
 # Please see the file src/etc/mtree/README before making changes to this file.
 #
 
-/set type=dir uname=root gname=wheel mode=0755
+/set type=dir uname=root gname=wheel mode=0755 tags=package=runtime
 .
     account
     ..
@@ -32,7 +32,7 @@
     ..
     crash
     ..
-    cron                tags=package=runtime
+    cron
         tabs            mode=0700
         ..
     ..
@@ -59,21 +59,21 @@
             ..
         ..
     ..
-    empty           mode=0555 flags=schg tags=package=runtime
+    empty           mode=0555 flags=schg
     ..
     games           gname=games mode=0775
     ..
     heimdal         mode=0700
     ..
-    log             tags=package=runtime
+    log
     ..
-    mail            gname=mail mode=0775 tags=package=runtime
+    mail            gname=mail mode=0775
     ..
     msgs            uname=daemon
     ..
     preserve
     ..
-    run             tags=package=runtime
+    run
         dhclient
         ..
         ppp             gname=network mode=0770
@@ -84,14 +84,16 @@
     rwho            gname=daemon mode=0775
     ..
     spool
-        dma             uname=root gname=mail mode=0770
+        clientmqueue    uname=smmsp gname=smmsp mode=0770 tags=package=sendmail
+        ..
+        dma             uname=root gname=mail mode=0770 tags=package=dma
         ..
         lock            uname=uucp gname=dialer mode=0775
         ..
 /set gname=daemon
         lpd
         ..
-        mqueue
+        mqueue          tags=package=sendmail
         ..
         opielocks       mode=0700
         ..
@@ -101,7 +103,7 @@
         ..
 /set gname=wheel
     ..
-    tmp             mode=01777 tags=package=runtime
+    tmp             mode=01777
         vi.recover      mode=01777
         ..
     ..

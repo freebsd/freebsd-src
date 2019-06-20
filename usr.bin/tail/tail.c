@@ -65,6 +65,7 @@ static const char sccsid[] = "@(#)tail.c	8.1 (Berkeley) 6/6/93";
 #include "extern.h"
 
 int Fflag, fflag, qflag, rflag, rval, no_files;
+fileargs_t *fa;
 
 static file_info_t *files;
 
@@ -90,10 +91,9 @@ main(int argc, char *argv[])
 	int i, ch, first;
 	file_info_t *file;
 	char *p;
-	fileargs_t *fa;
 	cap_rights_t rights;
 
-	cap_rights_init(&rights, CAP_FSTAT, CAP_FCNTL, CAP_MMAP_RW);
+	cap_rights_init(&rights, CAP_FSTAT, CAP_FSTATFS, CAP_FCNTL, CAP_MMAP_RW);
 	if (caph_rights_limit(STDIN_FILENO, &rights) < 0 ||
 	    caph_limit_stderr() < 0 || caph_limit_stdout() < 0)
 		err(1, "can't limit stdio rights");
@@ -212,7 +212,8 @@ main(int argc, char *argv[])
 			file->file_name = strdup(fn);
 			if (! file->file_name)
 				errx(1, "Couldn't malloc space for file name.");
-			if ((file->fp = fileargs_fopen(fa, file->file_name, "r")) == NULL ||
+			file->fp = fileargs_fopen(fa, file->file_name, "r");
+			if (file->fp == NULL ||
 			    fstat(fileno(file->fp), &file->st)) {
 				if (file->fp != NULL) {
 					fclose(file->fp);

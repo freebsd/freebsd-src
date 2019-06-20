@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 #include "pci_emul.h"
 #include "mevent.h"
+#include "net_utils.h"
 
 /* Hardware/register definitions XXX: move some to common code. */
 #define E82545_VENDOR_ID_INTEL			0x8086
@@ -2259,37 +2260,15 @@ e82545_open_tap(struct e82545_softc *sc, char *opts)
 }
 
 static int
-e82545_parsemac(char *mac_str, uint8_t *mac_addr)
-{
-	struct ether_addr *ea;
-	char *tmpstr;
-	char zero_addr[ETHER_ADDR_LEN] = { 0, 0, 0, 0, 0, 0 };
-
-	tmpstr = strsep(&mac_str,"=");
-	if ((mac_str != NULL) && (!strcmp(tmpstr,"mac"))) {
-		ea = ether_aton(mac_str);
-		if (ea == NULL || ETHER_IS_MULTICAST(ea->octet) ||
-		    memcmp(ea->octet, zero_addr, ETHER_ADDR_LEN) == 0) {
-			fprintf(stderr, "Invalid MAC %s\n", mac_str);
-			return (1);
-		} else
-			memcpy(mac_addr, ea->octet, ETHER_ADDR_LEN);
-	}
-	return (0);
-}
-
-static int
 e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
-	DPRINTF("Loading with options: %s\r\n", opts);
-
-	MD5_CTX mdctx;
-	unsigned char digest[16];
 	char nstr[80];
 	struct e82545_softc *sc;
 	char *devname;
 	char *vtopts;
 	int mac_provided;
+
+	DPRINTF("Loading with options: %s\r\n", opts);
 
 	/* Setup our softc */
 	sc = calloc(1, sizeof(*sc));
@@ -2340,7 +2319,7 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		(void) strsep(&vtopts, ",");
 
 		if (vtopts != NULL) {
-			err = e82545_parsemac(vtopts, sc->esc_mac.octet);
+			err = net_parsemac(vtopts, sc->esc_mac.octet);
 			if (err != 0) {
 				free(devname);
 				return (err);
@@ -2355,24 +2334,8 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		free(devname);
 	}
 
-	/*
-	 * The default MAC address is the standard NetApp OUI of 00-a0-98,
-	 * followed by an MD5 of the PCI slot/func number and dev name
-	 */
 	if (!mac_provided) {
-		snprintf(nstr, sizeof(nstr), "%d-%d-%s", pi->pi_slot,
-		    pi->pi_func, vmname);
-
-		MD5Init(&mdctx);
-		MD5Update(&mdctx, nstr, strlen(nstr));
-		MD5Final(digest, &mdctx);
-
-		sc->esc_mac.octet[0] = 0x00;
-		sc->esc_mac.octet[1] = 0xa0;
-		sc->esc_mac.octet[2] = 0x98;
-		sc->esc_mac.octet[3] = digest[0];
-		sc->esc_mac.octet[4] = digest[1];
-		sc->esc_mac.octet[5] = digest[2];
+		net_genmac(pi, sc->esc_mac.octet);
 	}
 
 	/* H/w initiated reset */

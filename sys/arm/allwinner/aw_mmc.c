@@ -1104,7 +1104,6 @@ aw_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 		}
 		if (cmd->data->flags & MMC_DATA_WRITE)
 			cmdreg |= AW_MMC_CMDR_DIR_WRITE;
-		blksz = min(cmd->data->len, MMC_SECTOR_SIZE);
 #ifdef MMCCAM
 		if (cmd->data->flags & MMC_DATA_BLOCK_SIZE) {
 			AW_MMC_WRITE_4(sc, AW_MMC_BKSR, cmd->data->block_size);
@@ -1112,6 +1111,7 @@ aw_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 		} else
 #endif
 		{
+			blksz = min(cmd->data->len, MMC_SECTOR_SIZE);
 			AW_MMC_WRITE_4(sc, AW_MMC_BKSR, blksz);
 			AW_MMC_WRITE_4(sc, AW_MMC_BYCR, cmd->data->len);
 		}
