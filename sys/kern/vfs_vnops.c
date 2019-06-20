@@ -1458,6 +1458,25 @@ vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	return (0);
 }
 
+/* generic FIOBMAP2 implementation */
+static int
+vn_ioc_bmap2(struct file *fp, struct fiobmap2_arg *arg, struct ucred *cred)
+{
+	struct vnode *vp = fp->f_vnode;
+	daddr_t lbn = arg->bn;
+	int error;
+
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+#ifdef MAC
+	error = mac_vnode_check_read(cred, fp->f_cred, vp);
+	if (error == 0)
+#endif
+		error = VOP_BMAP(vp, lbn, NULL, &arg->bn, &arg->runp,
+			&arg->runb);
+	VOP_UNLOCK(vp, 0);
+	return (error);
+}
+
 /*
  * File table vnode ioctl routine.
  */
@@ -1481,6 +1500,9 @@ vn_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
 			if (error == 0)
 				*(int *)data = vattr.va_size - fp->f_offset;
 			return (error);
+		case FIOBMAP2:
+			return (vn_ioc_bmap2(fp, (struct fiobmap2_arg*)data,
+				active_cred));
 		case FIONBIO:
 		case FIOASYNC:
 			return (0);

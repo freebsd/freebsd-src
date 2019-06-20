@@ -62,6 +62,13 @@ struct fiodgname_arg {
 /* Handle lseek SEEK_DATA and SEEK_HOLE for holey file knowledge. */
 #define	FIOSEEKDATA	_IOWR('f', 97, off_t)	/* SEEK_DATA */
 #define	FIOSEEKHOLE	_IOWR('f', 98, off_t)	/* SEEK_HOLE */
+struct fiobmap2_arg {
+	int64_t	bn;
+	int	runp;
+	int	runb;
+};
+/* Get the file's bmap info for the logical block bn */
+#define FIOBMAP2	_IOWR('f', 99, struct fiobmap2_arg)
 
 #ifdef _KERNEL
 #ifdef COMPAT_FREEBSD32
