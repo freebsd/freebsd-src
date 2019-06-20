@@ -16,7 +16,7 @@
 .\"	$Id: traceroute.8,v 1.19 2000/09/21 08:44:19 leres Exp $
 .\"	$FreeBSD$
 .\"
-.Dd May 31, 2015
+.Dd June 20, 2019
 .Dt TRACEROUTE 8
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Op Fl m Ar max_ttl
 .Op Fl P Ar proto
 .Op Fl p Ar port
-.Op Fl q Ar nqueries
+.Op Fl q Ar nprobes
 .Op Fl s Ar src_addr
 .Op Fl t Ar tos
 .Op Fl w Ar waittime
@@ -125,14 +125,14 @@ Traceroute hopes that nothing is listening on UDP ports (or UDP-Lite ports
 if used by
 .Nm
 and supported by the peer)
-.Em base + 1
+.Em port + 1
 to
-.Em base + nhops * nprobes
+.Em port + (max_ttl - first_ttl + 1) * nprobes
 at the destination host (so an ICMP PORT_UNREACHABLE message will
 be returned to terminate the route tracing).  If something is
 listening on a port in the default range, this option can be used
 to pick an unused port range.
-.It Fl q Ar nqueries
+.It Fl q Ar nprobes
 Set the number of probes per hop (default is 3,
 unless
 .Fl D
