@@ -518,7 +518,19 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		case FUSE_NOTIFY_INVAL_INODE:
 			err = fuse_internal_invalidate_inode(mp, uio);
 			break;
+		case FUSE_NOTIFY_RETRIEVE:
+		case FUSE_NOTIFY_STORE:
+			/*
+			 * Unimplemented.  I don't know of any file systems
+			 * that use them, and the protocol isn't sound anyway,
+			 * since the notification messages don't include the
+			 * inode's generation number.  Without that, it's
+			 * possible to manipulate the cache of the wrong vnode.
+			 * Finally, it's not defined what this message should
+			 * do for a file with dirty cache.
+			 */
 		case FUSE_NOTIFY_POLL:
+			/* Unimplemented.  See comments in fuse_vnops */
 		default:
 			/* Not implemented */
 			err = ENOSYS;

@@ -181,6 +181,8 @@ union fuse_payloads_out {
 	/* The inval_entry structure should be followed by the entry's name */
 	fuse_notify_inval_entry_out	inval_entry;
 	fuse_notify_inval_inode_out	inval_inode;
+	/* The store structure should be followed by the data to store */
+	fuse_notify_store_out		store;
 	fuse_listxattr_out	listxattr;
 	fuse_open_out		open;
 	fuse_statfs_out		statfs;
@@ -345,6 +347,20 @@ class MockFS {
 	 * 			to invalidate all cached data.
 	 */
 	int notify_inval_inode(ino_t ino, off_t off, ssize_t len);
+
+	/*
+	 * Send an asynchronous notification to store data directly into an
+	 * inode's cache.  Similar to libfuse's fuse_lowlevel_notify_store.
+	 *
+	 * This method will block until the client has responded, so it should
+	 * generally be run in a separate thread from request processing.
+	 *
+	 * @param	ino	File's inode number
+	 * @param	off	Offset at which to store data
+	 * @param	data	Pointer to the data to cache
+	 * @param	len	Size of data
+	 */
+	int notify_store(ino_t ino, off_t off, void* data, ssize_t size);
 
 	/* 
 	 * Request handler
