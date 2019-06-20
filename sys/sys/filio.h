@@ -40,6 +40,7 @@
 #ifndef	_SYS_FILIO_H_
 #define	_SYS_FILIO_H_
 
+#include <sys/types.h>
 #include <sys/ioccom.h>
 
 /* Generic file-descriptor ioctl's. */
