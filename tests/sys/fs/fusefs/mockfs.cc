@@ -333,6 +333,13 @@ void MockFS::debug_response(const mockfs_buf_out &out) {
 				out.body.inval_inode.off,
 				out.body.inval_inode.len);
 			break;
+		case FUSE_NOTIFY_STORE:
+			printf("<- STORE ino=%" PRIu64 " off=%" PRIu64
+				" size=%" PRIu32 "\n",
+				out.body.store.nodeid,
+				out.body.store.offset,
+				out.body.store.size);
+			break;
 		default:
 			break;
 	}
@@ -539,6 +546,22 @@ int MockFS::notify_inval_inode(ino_t ino, off_t off, ssize_t len)
 	out->body.inval_inode.off = off;
 	out->body.inval_inode.len = len;
 	out->header.len = sizeof(out->header) + sizeof(out->body.inval_inode);
+	debug_response(*out);
+	write_response(*out);
+	return 0;
+}
+
+int MockFS::notify_store(ino_t ino, off_t off, void* data, ssize_t size)
+{
+	std::unique_ptr<mockfs_buf_out> out(new mockfs_buf_out);
+
+	out->header.unique = 0;	/* 0 means asynchronous notification */
+	out->header.error = FUSE_NOTIFY_STORE;
+	out->body.store.nodeid = ino;
+	out->body.store.offset = off;
+	out->body.store.size = size;
+	bcopy(data, (char*)&out->body.bytes + sizeof(out->body.store), size);
+	out->header.len = sizeof(out->header) + sizeof(out->body.store) + size;
 	debug_response(*out);
 	write_response(*out);
 	return 0;

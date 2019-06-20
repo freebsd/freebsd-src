@@ -133,11 +133,30 @@ struct inval_inode_args {
 	ssize_t		len;
 };
 
+struct store_args {
+	MockFS		*mock;
+	ino_t		nodeid;
+	off_t		offset;
+	ssize_t		size;
+	void*		data;
+};
+
 static void* inval_inode(void* arg) {
 	const struct inval_inode_args *iia = (struct inval_inode_args*)arg;
 	ssize_t r;
 
 	r = iia->mock->notify_inval_inode(iia->ino, iia->off, iia->len);
+	if (r >= 0)
+		return 0;
+	else
+		return (void*)(intptr_t)errno;
+}
+
+static void* store(void* arg) {
+	const struct store_args *sa = (struct store_args*)arg;
+	ssize_t r;
+
+	r = sa->mock->notify_store(sa->nodeid, sa->offset, sa->data, sa->size);
 	if (r >= 0)
 		return 0;
 	else
@@ -370,6 +389,65 @@ TEST_F(Notify, inval_inode_with_clean_cache)
 
 	/* This read should not be serviced by cache */
 	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
+	ASSERT_EQ(size1, read(fd, buf, size1)) << strerror(errno);
+	EXPECT_EQ(0, memcmp(buf, CONTENTS1, size1));
+
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* FUSE_NOTIFY_STORE with a file that's not in the entry cache */
+/* disabled because FUSE_NOTIFY_STORE is not yet implemented */
+TEST_F(Notify, DISABLED_store_nonexistent)
+{
+	struct store_args sa;
+	ino_t ino = 42;
+	void *thr0_value;
+	pthread_t th0;
+
+	sa.mock = m_mock;
+	sa.nodeid = ino;
+	sa.offset = 0;
+	sa.size = 0;
+	ASSERT_EQ(0, pthread_create(&th0, NULL, store, &sa)) << strerror(errno);
+	pthread_join(th0, &thr0_value);
+	/* It's not an error for a file to be unknown to the kernel */
+	EXPECT_EQ(0, (intptr_t)thr0_value);
+}
+
+/* Store data into for a file that does not yet have anything cached */
+/* disabled because FUSE_NOTIFY_STORE is not yet implemented */
+TEST_F(Notify, DISABLED_store_with_blank_cache)
+{
+	const static char FULLPATH[] = "mountpoint/foo";
+	const static char RELPATH[] = "foo";
+	const char CONTENTS1[] = "ijklmnopqrstuvwxyz";
+	struct store_args sa;
+	ino_t ino = 42;
+	void *thr0_value;
+	Sequence seq;
+	pthread_t th0;
+	ssize_t size1 = sizeof(CONTENTS1);
+	char buf[80];
+	int fd;
+
+	expect_lookup(FUSE_ROOT_ID, RELPATH, ino, size1, seq);
+	expect_open(ino, 0, 1);
+
+	/* Fill the data cache */
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	/* Evict the data cache */
+	sa.mock = m_mock;
+	sa.nodeid = ino;
+	sa.offset = 0;
+	sa.size = size1;
+	sa.data = (void*)CONTENTS1;
+	ASSERT_EQ(0, pthread_create(&th0, NULL, store, &sa)) << strerror(errno);
+	pthread_join(th0, &thr0_value);
+	EXPECT_EQ(0, (intptr_t)thr0_value);
+
+	/* This read should be serviced by cache */
 	ASSERT_EQ(size1, read(fd, buf, size1)) << strerror(errno);
 	EXPECT_EQ(0, memcmp(buf, CONTENTS1, size1));
 
