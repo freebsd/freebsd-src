@@ -61,6 +61,9 @@
  * 7.13
  *  - make max number of background requests and congestion threshold
  *    tunables
+ *
+ * 7.14
+ *  - add splice support to fuse device
  */
 
 #ifndef _FUSE_FUSE_KERNEL_H
@@ -81,7 +84,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 13
+#define FUSE_KERNEL_MINOR_VERSION 14
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
