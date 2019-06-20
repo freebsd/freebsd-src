@@ -489,6 +489,7 @@ int	pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr,
 	_sleep((chan), NULL, (pri), (wmesg), (bt), (pr), (flags))
 void	wakeup(void * chan);
 void	wakeup_one(void * chan);
+void	wakeup_any(void * chan);
 
 /*
  * Common `struct cdev *' stuff are declared here to avoid #include poisoning

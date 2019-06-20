@@ -368,6 +368,19 @@ wakeup_one(void *ident)
 		kick_proc0();
 }
 
+void
+wakeup_any(void *ident)
+{
+	int wakeup_swapper;
+
+	sleepq_lock(ident);
+	wakeup_swapper = sleepq_signal(ident, SLEEPQ_SLEEP | SLEEPQ_UNFAIR,
+	    0, 0);
+	sleepq_release(ident);
+	if (wakeup_swapper)
+		kick_proc0();
+}
+
 static void
 kdb_switch(void)
 {
