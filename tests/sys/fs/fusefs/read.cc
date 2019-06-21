@@ -412,6 +412,69 @@ TEST_F(Read, eio)
 }
 
 /* 
+ * If the server returns a short read when direct io is not in use, that
+ * indicates EOF and we should update the file size.
+ */
+TEST_F(ReadCacheable, eof)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefghijklmnop";
+	uint64_t ino = 42;
+	int fd;
+	uint64_t offset = 100;
+	ssize_t bufsize = strlen(CONTENTS);
+	ssize_t partbufsize = 3 * bufsize / 4;
+	char buf[bufsize];
+	struct stat sb;
+
+	expect_lookup(RELPATH, ino, offset + bufsize);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 0, offset + bufsize, offset + partbufsize, CONTENTS);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(partbufsize, pread(fd, buf, bufsize, offset))
+		<< strerror(errno);
+	ASSERT_EQ(0, fstat(fd, &sb));
+	EXPECT_EQ((off_t)(offset + partbufsize), sb.st_size);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* Like ReadCacheable.eof, but causes an entire buffer to be invalidated */
+TEST_F(ReadCacheable, eof_of_whole_buffer)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefghijklmnop";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+	off_t old_filesize = m_maxbcachebuf * 2 + bufsize;
+	char buf[bufsize];
+	struct stat sb;
+
+	expect_lookup(RELPATH, ino, old_filesize);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 2 * m_maxbcachebuf, bufsize, bufsize, CONTENTS);
+	expect_read(ino, m_maxbcachebuf, m_maxbcachebuf, 0, CONTENTS);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	/* Cache the third block */
+	ASSERT_EQ(bufsize, pread(fd, buf, bufsize, m_maxbcachebuf * 2))
+		<< strerror(errno);
+	/* Try to read the 2nd block, but it's past EOF */
+	ASSERT_EQ(0, pread(fd, buf, bufsize, m_maxbcachebuf))
+		<< strerror(errno);
+	ASSERT_EQ(0, fstat(fd, &sb));
+	EXPECT_EQ((off_t)(m_maxbcachebuf), sb.st_size);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* 
  * With the keep_cache option, the kernel may keep its read cache across
  * multiple open(2)s.
  */
