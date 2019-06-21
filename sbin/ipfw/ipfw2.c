@@ -338,6 +338,7 @@ static struct _s_x rule_options[] = {
 	{ "tcpdatalen",		TOK_TCPDATALEN },
 	{ "tcpflags",		TOK_TCPFLAGS },
 	{ "tcpflgs",		TOK_TCPFLAGS },
+	{ "tcpmss",		TOK_TCPMSS },
 	{ "tcpoptions",		TOK_TCPOPTS },
 	{ "tcpopts",		TOK_TCPOPTS },
 	{ "tcpseq",		TOK_TCPSEQ },
@@ -881,6 +882,7 @@ static struct _s_x _port_name[] = {
 	{"ipttl",	O_IPTTL},
 	{"mac-type",	O_MAC_TYPE},
 	{"tcpdatalen",	O_TCPDATALEN},
+	{"tcpmss",	O_TCPMSS},
 	{"tcpwin",	O_TCPWIN},
 	{"tagged",	O_TAGGED},
 	{NULL,		0}
@@ -1588,6 +1590,7 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 	case O_IPTTL:
 	case O_IPLEN:
 	case O_TCPDATALEN:
+	case O_TCPMSS:
 	case O_TCPWIN:
 		if (F_LEN(cmd) == 1) {
 			switch (cmd->opcode) {
@@ -1602,6 +1605,9 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 				break;
 			case O_TCPDATALEN:
 				s = "tcpdatalen";
+				break;
+			case O_TCPMSS:
+				s = "tcpmss";
 				break;
 			case O_TCPWIN:
 				s = "tcpwin";
@@ -4709,14 +4715,18 @@ read_options:
 			av++;
 			break;
 
+		case TOK_TCPMSS:
 		case TOK_TCPWIN:
-			NEED1("tcpwin requires length");
+			NEED1("tcpmss/tcpwin requires size");
 			if (strpbrk(*av, "-,")) {
-			    if (!add_ports(cmd, *av, 0, O_TCPWIN, cblen))
-				errx(EX_DATAERR, "invalid tcpwin len %s", *av);
+				if (add_ports(cmd, *av, 0,
+				    i == TOK_TCPWIN ? O_TCPWIN : O_TCPMSS,
+				    cblen) == NULL)
+					errx(EX_DATAERR, "invalid %s size %s",
+					    s, *av);
 			} else
-			    fill_cmd(cmd, O_TCPWIN, 0,
-				    strtoul(*av, NULL, 0));
+				fill_cmd(cmd, i == TOK_TCPWIN ? O_TCPWIN :
+				    O_TCPMSS, 0, strtoul(*av, NULL, 0));
 			av++;
 			break;
 
