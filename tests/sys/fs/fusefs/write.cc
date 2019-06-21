@@ -931,6 +931,54 @@ TEST_F(WriteBackAsync, delay)
 }
 
 /*
+ * In WriteBack mode, writes may be cached beyond what the server thinks is the
+ * EOF.  In this case, a short read at EOF should _not_ cause fusefs to update
+ * the file's size.
+ */
+TEST_F(WriteBackAsync, eof)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS0 = "abcdefgh";
+	const char *CONTENTS1 = "ijklmnop";
+	uint64_t ino = 42;
+	int fd;
+	off_t offset = m_maxbcachebuf;
+	ssize_t wbufsize = strlen(CONTENTS1);
+	off_t old_filesize = (off_t)strlen(CONTENTS0);
+	ssize_t rbufsize = 2 * old_filesize;
+	char readbuf[rbufsize];
+	size_t holesize = rbufsize - old_filesize;
+	char hole[holesize];
+	struct stat sb;
+	ssize_t r;
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 0, m_maxbcachebuf, old_filesize, CONTENTS0);
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	/* Write and cache data beyond EOF */
+	ASSERT_EQ(wbufsize, pwrite(fd, CONTENTS1, wbufsize, offset))
+		<< strerror(errno);
+
+	/* Read from the old EOF */
+	r = pread(fd, readbuf, rbufsize, 0);
+	ASSERT_LE(0, r) << strerror(errno);
+	EXPECT_EQ(rbufsize, r) << "read should've synthesized a hole";
+	EXPECT_EQ(0, memcmp(CONTENTS0, readbuf, old_filesize));
+	bzero(hole, holesize);
+	EXPECT_EQ(0, memcmp(hole, readbuf + old_filesize, holesize));
+
+	/* The file's size should still be what was established by pwrite */
+	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
+	EXPECT_EQ(offset + wbufsize, sb.st_size);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/*
  * Without direct_io, writes should be committed to cache
  */
 TEST_F(WriteThrough, writethrough)

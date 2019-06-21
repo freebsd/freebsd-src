@@ -348,8 +348,9 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 	         */
 
 		n = 0;
-		if (on < bcount)
-			n = MIN((unsigned)(bcount - on), uio->uio_resid);
+		if (on < bcount - bp->b_resid)
+			n = MIN((unsigned)(bcount - bp->b_resid - on),
+			    uio->uio_resid);
 		if (n > 0) {
 			SDT_PROBE2(fusefs, , io, read_bio_backend_feed, n, bp);
 			err = uiomove(bp->b_data + on, n, uio);
@@ -357,6 +358,11 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 		vfs_bio_brelse(bp, ioflag);
 		SDT_PROBE4(fusefs, , io, read_bio_backend_end, err,
 			uio->uio_resid, n, bp);
+		if (bp->b_resid > 0) {
+			/* Short read indicates EOF */
+			(void)fuse_vnode_setsize(vp, uio->uio_offset);
+			break;
+		}
 	}
 
 	return (err);
@@ -415,8 +421,13 @@ fuse_read_directbackend(struct vnode *vp, struct uio *uio,
 
 		if ((err = uiomove(fdi.answ, MIN(fri->size, fdi.iosize), uio)))
 			break;
-		if (fdi.iosize < fri->size)
+		if (fdi.iosize < fri->size) {
+			/* 
+			 * Short read.  Should only happen at EOF or with
+			 * direct io.
+			 */
 			break;
+		}
 	}
 
 out:
@@ -828,6 +839,7 @@ again:
 int
 fuse_io_strategy(struct vnode *vp, struct buf *bp)
 {
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
 	struct ucred *cred;
 	struct uio *uiop;
@@ -888,19 +900,35 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 
 		if (!error && uiop->uio_resid) {
 			/*
-	                 * If we had a short read with no error, we must have
-	                 * hit a file hole.  We should zero-fill the remainder.
-	                 * This can also occur if the server hits the file EOF.
-	                 *
-	                 * Holes used to be able to occur due to pending
-	                 * writes, but that is not possible any longer.
+			 * A short read with no error, when not using direct io,
+			 * and when no writes are cached, indicates EOF.
+			 * Update the file size accordingly.
 	                 */
-			int nread = bp->b_bcount - uiop->uio_resid;
-			int left = uiop->uio_resid;
-
-			if (left > 0)
+			if (fuse_data_cache_mode != FUSE_CACHE_WB || 
+			    (fvdat->flag & FN_SIZECHANGE) == 0) {
+				SDT_PROBE2(fusefs, , io, trace, 1,
+					"Short read of a clean file");
+				/* 
+				 * XXX To prevent lock order problems, we must
+				 * truncate the file upstack
+				 */
+			} else {
+				/*
+				 * If dirty writes _are_ cached beyond EOF,
+				 * that indicates a newly created hole that the
+				 * server doesn't know about.  Fill it in.
+				 * XXX: we don't currently track whether dirty
+				 * writes are cached beyond EOF, before EOF, or
+				 * both.
+				 */
+				SDT_PROBE2(fusefs, , io, trace, 1,
+					"Short read of a dirty file");
+				int nread = bp->b_bcount - uiop->uio_resid;
+				int left = uiop->uio_resid;
 				bzero((char *)bp->b_data + nread, left);
-			uiop->uio_resid = 0;
+				uiop->uio_resid = 0;
+			}
+
 		}
 		if (error) {
 			bp->b_ioflags |= BIO_ERROR;
