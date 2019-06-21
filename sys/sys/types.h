@@ -101,7 +101,7 @@ typedef	__clockid_t	clockid_t;
 #endif
 
 typedef	__critical_t	critical_t;	/* Critical section value */
-typedef	__int64_t	daddr_t;	/* disk address */
+typedef	__daddr_t	daddr_t;	/* disk address */
 
 #ifndef _DEV_T_DECLARED
 typedef	__dev_t		dev_t;		/* device number or struct cdev */
