@@ -812,7 +812,9 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		break;
 
 	case FUSE_INIT:
-		if (blen == sizeof(struct fuse_init_out) || blen == 8) {
+		if (blen == sizeof(struct fuse_init_out) ||
+		    blen == FUSE_COMPAT_INIT_OUT_SIZE ||
+		    blen == FUSE_COMPAT_22_INIT_OUT_SIZE) {
 			err = 0;
 		} else {
 			err = EINVAL;

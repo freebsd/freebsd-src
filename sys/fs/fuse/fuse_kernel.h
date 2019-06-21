@@ -90,6 +90,18 @@
  * 7.21
  *  - add FUSE_READDIRPLUS
  *  - send the requested events in POLL request
+ *
+ * 7.22
+ *  - add FUSE_ASYNC_DIO
+ *
+ * 7.23
+ *  - add FUSE_WRITEBACK_CACHE
+ *  - add time_gran to fuse_init_out
+ *  - add reserved space to fuse_init_out
+ *  - add FATTR_CTIME
+ *  - add ctime and ctimensec to fuse_setattr_in
+ *  - add FUSE_RENAME2 request
+ *  - add FUSE_NO_OPEN_SUPPORT flag
  */
 
 #ifndef _FUSE_FUSE_KERNEL_H
@@ -105,7 +117,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 21
+#define FUSE_KERNEL_MINOR_VERSION 23
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -165,6 +177,7 @@ struct fuse_file_lock {
 #define FATTR_ATIME_NOW	(1 << 7)
 #define FATTR_MTIME_NOW	(1 << 8)
 #define FATTR_LOCKOWNER	(1 << 9)
+#define FATTR_CTIME	(1 << 10)
 
 /**
  * Flags returned by the OPEN request
@@ -195,6 +208,9 @@ struct fuse_file_lock {
  * FUSE_AUTO_INVAL_DATA: automatically invalidate cached pages
  * FUSE_DO_READDIRPLUS: do READDIRPLUS (READDIR+LOOKUP in one)
  * FUSE_READDIRPLUS_AUTO: adaptive readdirplus
+ * FUSE_ASYNC_DIO: asynchronous direct I/O submission
+ * FUSE_WRITEBACK_CACHE: use writeback cache for buffered writes
+ * FUSE_NO_OPEN_SUPPORT: kernel supports zero-message opens
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -211,6 +227,9 @@ struct fuse_file_lock {
 #define FUSE_AUTO_INVAL_DATA	(1 << 12)
 #define FUSE_DO_READDIRPLUS	(1 << 13)
 #define FUSE_READDIRPLUS_AUTO	(1 << 14)
+#define FUSE_ASYNC_DIO		(1 << 15)
+#define FUSE_WRITEBACK_CACHE	(1 << 16)
+#define FUSE_NO_OPEN_SUPPORT	(1 << 17)
 
 #ifdef linux
 /**
@@ -320,6 +339,7 @@ enum fuse_opcode {
 	FUSE_BATCH_FORGET  = 42,
 	FUSE_FALLOCATE     = 43,
 	FUSE_READDIRPLUS   = 44,
+	FUSE_RENAME2       = 45,
 
 #ifdef linux
 	/* CUSE specific operations */
@@ -400,6 +420,12 @@ struct fuse_rename_in {
 	uint64_t	newdir;
 };
 
+struct fuse_rename2_in {
+	uint64_t	newdir;
+	uint32_t	flags;
+	uint32_t	padding;
+};
+
 struct fuse_link_in {
 	uint64_t	oldnodeid;
 };
@@ -412,10 +438,10 @@ struct fuse_setattr_in {
 	uint64_t	lock_owner;
 	uint64_t	atime;
 	uint64_t	mtime;
-	uint64_t	unused2;
+	uint64_t	ctime;
 	uint32_t	atimensec;
 	uint32_t	mtimensec;
-	uint32_t	unused3;
+	uint32_t	ctimensec;
 	uint32_t	mode;
 	uint32_t	unused4;
 	uint32_t	uid;
@@ -543,6 +569,9 @@ struct fuse_init_in {
 	uint32_t	flags;
 };
 
+#define FUSE_COMPAT_INIT_OUT_SIZE 8
+#define FUSE_COMPAT_22_INIT_OUT_SIZE 24
+
 struct fuse_init_out {
 	uint32_t	major;
 	uint32_t	minor;
@@ -551,6 +580,8 @@ struct fuse_init_out {
 	uint16_t	max_background;
 	uint16_t	congestion_threshold;
 	uint32_t	max_write;
+	uint32_t	time_gran;
+	uint32_t	unused[9];
 };
 
 #ifdef linux
@@ -615,7 +646,7 @@ struct fuse_poll_in {
 	uint64_t	fh;
 	uint64_t	kh;
 	uint32_t	flags;
-	uint32_t   events;
+	uint32_t	events;
 };
 
 struct fuse_poll_out {
@@ -661,7 +692,8 @@ struct fuse_dirent {
 };
 
 #define FUSE_NAME_OFFSET offsetof(struct fuse_dirent, name)
-#define FUSE_DIRENT_ALIGN(x) (((x) + sizeof(uint64_t) - 1) & ~(sizeof(uint64_t) - 1))
+#define FUSE_DIRENT_ALIGN(x) \
+	(((x) + sizeof(uint64_t) - 1) & ~(sizeof(uint64_t) - 1))
 #define FUSE_DIRENT_SIZE(d) \
 	FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET + (d)->namelen)
 
