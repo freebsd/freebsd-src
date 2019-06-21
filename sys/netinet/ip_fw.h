@@ -293,6 +293,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_EXTERNAL_DATA,	/* variable length data */
 
 	O_SKIP_ACTION,		/* none				*/
+	O_TCPMSS,		/* arg1=MSS value */
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
