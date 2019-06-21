@@ -565,31 +565,6 @@ struct fuse_notify_poll_wakeup_out {
 	__u64	kh;
 };
 
-struct fuse_notify_store_out {
-	__u64	nodeid;
-	__u64	offset;
-	__u32	size;
-	__u32	padding;
-};
-
-struct fuse_notify_retrieve_out {
-	__u64	notify_unique;
-	__u64	nodeid;
-	__u64	offset;
-	__u32	size;
-	__u32	padding;
-};
-
-/* Matches the size of fuse_write_in */
-struct fuse_notify_retrieve_in {
-	__u64	dummy1;
-	__u64	offset;
-	__u32	size;
-	__u32	dummy2;
-	__u64	dummy3;
-	__u64	dummy4;
-};
-
 struct fuse_in_header {
 	__u32	len;
 	__u32	opcode;
@@ -630,6 +605,31 @@ struct fuse_notify_inval_entry_out {
 	__u64	parent;
 	__u32	namelen;
 	__u32	padding;
+};
+
+struct fuse_notify_store_out {
+	__u64	nodeid;
+	__u64	offset;
+	__u32	size;
+	__u32	padding;
+};
+
+struct fuse_notify_retrieve_out {
+	__u64	notify_unique;
+	__u64	nodeid;
+	__u64	offset;
+	__u32	size;
+	__u32	padding;
+};
+
+/* Matches the size of fuse_write_in */
+struct fuse_notify_retrieve_in {
+	__u64	dummy1;
+	__u64	offset;
+	__u32	size;
+	__u32	dummy2;
+	__u64	dummy3;
+	__u64	dummy4;
 };
 
 #endif /* _FUSE_FUSE_KERNEL_H */
