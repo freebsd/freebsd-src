@@ -48,7 +48,6 @@ device		pl310			# PL310 L2 cache controller
 device		mpcore_timer
 
 device		loop
-device		random
 device		ether
 device		cgem			# Zynq-7000 gig ethernet device
 device		mii

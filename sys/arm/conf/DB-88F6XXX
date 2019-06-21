@@ -46,7 +46,6 @@ device		pci
 # Pseudo devices
 device		loop
 device		md
-device		random
 
 # Serial ports
 device		uart

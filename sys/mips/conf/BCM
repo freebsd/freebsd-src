@@ -82,7 +82,6 @@ device		uart
 #Base
 device		loop
 device		ether
-device 		random
 device		md
 
 #Performance

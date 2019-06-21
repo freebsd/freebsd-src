@@ -66,7 +66,6 @@ makeoptions	FDT_DTS_FILE=xlp-basic.dts
 
 # Pseudo
 device		loop
-device		random
 device		md
 device		bpf
 

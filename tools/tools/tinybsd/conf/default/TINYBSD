@@ -140,7 +140,6 @@ device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		random		# Entropy device
 device		ether		# Ethernet support
 device		ppp		# Kernel PPP
 device		tun		# Packet tunnel.

@@ -129,7 +129,6 @@ device		wlan		# 802.11 support
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		random		# Entropy device
 device		ether		# Ethernet support
 device		pty		# Pseudo-ttys (telnet etc)
 device          md              # Memory "disks"

@@ -93,7 +93,6 @@ device  	mmcsd
 device		pass
 device		pci
 device		quicc
-device		random
 #device		rl
 device		scbus
 device		scc
