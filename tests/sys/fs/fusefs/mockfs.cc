@@ -469,11 +469,15 @@ void MockFS::init(uint32_t flags) {
 	out->body.init.major = FUSE_KERNEL_VERSION;
 	out->body.init.minor = m_kernel_minor_version;;
 	out->body.init.flags = in->body.init.flags & flags;
-
 	out->body.init.max_write = m_maxwrite;
-
 	out->body.init.max_readahead = m_maxreadahead;
-	SET_OUT_HEADER_LEN(*out, init);
+
+	if (m_kernel_minor_version < 23) {
+		SET_OUT_HEADER_LEN(*out, init_7_22);
+	} else {
+		SET_OUT_HEADER_LEN(*out, init);
+	}
+
 	write(m_fuse_fd, out.get(), out->header.len);
 }
 

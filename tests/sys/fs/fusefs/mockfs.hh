@@ -122,6 +122,17 @@ struct fuse_create_out_7_8 {
 	struct fuse_open_out	open;
 };
 
+/* Output struct for FUSE_INIT for protocol 7.22 and earlier servers */
+struct fuse_init_out_7_22 {
+	uint32_t	major;
+	uint32_t	minor;
+	uint32_t	max_readahead;
+	uint32_t	flags;
+	uint16_t	max_background;
+	uint16_t	congestion_threshold;
+	uint32_t	max_write;
+};
+
 union fuse_payloads_in {
 	fuse_access_in	access;
 	fuse_bmap_in	bmap;
@@ -178,6 +189,7 @@ union fuse_payloads_out {
 	fuse_lk_out		getlk;
 	fuse_getxattr_out	getxattr;
 	fuse_init_out		init;
+	fuse_init_out_7_22	init_7_22;
 	/* The inval_entry structure should be followed by the entry's name */
 	fuse_notify_inval_entry_out	inval_entry;
 	fuse_notify_inval_inode_out	inval_inode;
