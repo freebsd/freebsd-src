@@ -46,7 +46,6 @@ options 	BOOTP_WIRED_TO=mge0
 
 # Pseudo devices
 device		loop
-device		random
 
 # Serial ports
 device		uart

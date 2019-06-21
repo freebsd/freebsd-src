@@ -59,7 +59,6 @@ device		sdhci			# generic sdhci
 # Pseudo devices
 
 device		loop
-device		random
 device		pty
 device		md
 device		gpio

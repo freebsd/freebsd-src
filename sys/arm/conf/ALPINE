@@ -41,7 +41,6 @@ device		al_udma			# Universal DMA
 
 # Pseudo devices
 device		loop
-device		random
 device		pty
 device		md
 device		gpio
