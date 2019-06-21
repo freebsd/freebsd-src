@@ -899,33 +899,37 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		error = fuse_read_directbackend(vp, uiop, cred, fufh);
 
 		if (!error && uiop->uio_resid) {
-			/*
-			 * A short read with no error, when not using direct io,
-			 * and when no writes are cached, indicates EOF.
-			 * Update the file size accordingly.
-	                 */
+			int nread = bp->b_bcount - uiop->uio_resid;
+			int left = uiop->uio_resid;
+			bzero((char *)bp->b_data + nread, left);
+
 			if (fuse_data_cache_mode != FUSE_CACHE_WB || 
 			    (fvdat->flag & FN_SIZECHANGE) == 0) {
-				SDT_PROBE2(fusefs, , io, trace, 1,
-					"Short read of a clean file");
-				/* 
+				/*
+				 * A short read with no error, when not using
+				 * direct io, and when no writes are cached,
+				 * indicates EOF.  Update the file size
+				 * accordingly.  We must still bzero the
+				 * remaining buffer so uninitialized data
+				 * doesn't get exposed by a future truncate
+				 * that extends the file.
+				 * 
 				 * XXX To prevent lock order problems, we must
 				 * truncate the file upstack
 				 */
+				SDT_PROBE2(fusefs, , io, trace, 1,
+					"Short read of a clean file");
 			} else {
 				/*
 				 * If dirty writes _are_ cached beyond EOF,
 				 * that indicates a newly created hole that the
-				 * server doesn't know about.  Fill it in.
+				 * server doesn't know about.
 				 * XXX: we don't currently track whether dirty
 				 * writes are cached beyond EOF, before EOF, or
 				 * both.
 				 */
 				SDT_PROBE2(fusefs, , io, trace, 1,
 					"Short read of a dirty file");
-				int nread = bp->b_bcount - uiop->uio_resid;
-				int left = uiop->uio_resid;
-				bzero((char *)bp->b_data + nread, left);
 				uiop->uio_resid = 0;
 			}
 
