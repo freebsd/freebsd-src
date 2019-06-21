@@ -53,13 +53,14 @@ __FBSDID("$FreeBSD$");
 
 #define	PWM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	PWM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	PWM_LOCK_ASSERT(_sc)    mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define	PWM_LOCK_INIT(_sc)	mtx_init(&(_sc)->sc_mtx, \
     device_get_nameunit(_sc->sc_dev), "am335x_ehrpwm softc", MTX_DEF)
 #define	PWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
-#define	EPWM_READ2(_sc, reg)	bus_read_2((_sc)->sc_mem_res, reg);
+#define	EPWM_READ2(_sc, reg)	bus_read_2((_sc)->sc_mem_res, reg)
 #define	EPWM_WRITE2(_sc, reg, value)	\
-    bus_write_2((_sc)->sc_mem_res, reg, value);
+    bus_write_2((_sc)->sc_mem_res, reg, value)
 
 #define	EPWM_TBCTL		0x00
 #define		TBCTL_FREERUN		(2 << 14)
@@ -140,7 +141,8 @@ struct am335x_ehrpwm_softc {
 	struct mtx		sc_mtx;
 	struct resource		*sc_mem_res;
 	int			sc_mem_rid;
-	/* sysctl for configuration */
+
+	/* Things used for configuration via sysctl [deprecated]. */
 	int			sc_pwm_clkdiv;
 	int			sc_pwm_freq;
 	struct sysctl_oid	*sc_clkdiv_oid;
@@ -153,21 +155,12 @@ struct am335x_ehrpwm_softc {
 	uint32_t		sc_pwm_dutyB;
 };
 
-static device_method_t am335x_ehrpwm_methods[] = {
-	DEVMETHOD(device_probe,		am335x_ehrpwm_probe),
-	DEVMETHOD(device_attach,	am335x_ehrpwm_attach),
-	DEVMETHOD(device_detach,	am335x_ehrpwm_detach),
-
-	DEVMETHOD_END
+static struct ofw_compat_data compat_data[] = {
+	{"ti,am33xx-ehrpwm",    true},
+	{NULL,                  false},
 };
+SIMPLEBUS_PNP_INFO(compat_data);
 
-static driver_t am335x_ehrpwm_driver = {
-	"am335x_ehrpwm",
-	am335x_ehrpwm_methods,
-	sizeof(struct am335x_ehrpwm_softc),
-};
-
-static devclass_t am335x_ehrpwm_devclass;
 
 static void
 am335x_ehrpwm_freq(struct am335x_ehrpwm_softc *sc)
@@ -337,7 +330,7 @@ am335x_ehrpwm_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "ti,am33xx-ehrpwm"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "AM335x EHRPWM");
@@ -365,7 +358,7 @@ am335x_ehrpwm_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Init backlight interface */
+	/* Init sysctl interface */
 	ctx = device_get_sysctl_ctx(sc->sc_dev);
 	tree = device_get_sysctl_tree(sc->sc_dev);
 
@@ -441,6 +434,22 @@ am335x_ehrpwm_detach(device_t dev)
 
 	return (0);
 }
+
+static device_method_t am335x_ehrpwm_methods[] = {
+	DEVMETHOD(device_probe,		am335x_ehrpwm_probe),
+	DEVMETHOD(device_attach,	am335x_ehrpwm_attach),
+	DEVMETHOD(device_detach,	am335x_ehrpwm_detach),
+
+	DEVMETHOD_END
+};
+
+static driver_t am335x_ehrpwm_driver = {
+	"pwm",
+	am335x_ehrpwm_methods,
+	sizeof(struct am335x_ehrpwm_softc),
+};
+
+static devclass_t am335x_ehrpwm_devclass;
 
 DRIVER_MODULE(am335x_ehrpwm, am335x_pwmss, am335x_ehrpwm_driver, am335x_ehrpwm_devclass, 0, 0);
 MODULE_VERSION(am335x_ehrpwm, 1);
