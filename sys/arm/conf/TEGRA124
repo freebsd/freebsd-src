@@ -43,7 +43,6 @@ device		regulator
 
 # Pseudo devices.
 device		loop			# Network loopback
-device		random			# Entropy device
 device		vlan			# 802.1Q VLAN support
 #device		tuntap			# Packet tunnel.
 device		md			# Memory "disks"

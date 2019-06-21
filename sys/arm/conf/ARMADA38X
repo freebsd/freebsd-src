@@ -25,7 +25,6 @@ options 	SMP
 options		VM_KMEM_SIZE_MAX=0x9CCD000
 
 # Pseudo devices
-device		random
 device		pty
 device		loop
 device		md

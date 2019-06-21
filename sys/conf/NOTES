@@ -1170,9 +1170,6 @@ options 	NFS_DEBUG		# Enable NFS Debugging
 #
 options 	EXT2FS
 
-# Cryptographically secure random number generator; /dev/random
-device		random
-
 # The system memory devices; /dev/mem, /dev/kmem
 device		mem
 
