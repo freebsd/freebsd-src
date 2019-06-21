@@ -79,40 +79,40 @@ struct fuse_create_out {
 /* Protocol 7.8 version of struct fuse_attr */
 struct fuse_attr_7_8
 {
-	__u64	ino;
-	__u64	size;
-	__u64	blocks;
-	__u64	atime;
-	__u64	mtime;
-	__u64	ctime;
-	__u32	atimensec;
-	__u32	mtimensec;
-	__u32	ctimensec;
-	__u32	mode;
-	__u32	nlink;
-	__u32	uid;
-	__u32	gid;
-	__u32	rdev;
+	uint64_t	ino;
+	uint64_t	size;
+	uint64_t	blocks;
+	uint64_t	atime;
+	uint64_t	mtime;
+	uint64_t	ctime;
+	uint32_t	atimensec;
+	uint32_t	mtimensec;
+	uint32_t	ctimensec;
+	uint32_t	mode;
+	uint32_t	nlink;
+	uint32_t	uid;
+	uint32_t	gid;
+	uint32_t	rdev;
 };
 
 /* Protocol 7.8 version of struct fuse_attr_out */
 struct fuse_attr_out_7_8
 {
-	__u64	attr_valid;
-	__u32	attr_valid_nsec;
-	__u32	dummy;
+	uint64_t	attr_valid;
+	uint32_t	attr_valid_nsec;
+	uint32_t	dummy;
 	struct fuse_attr_7_8 attr;
 };
 
 /* Protocol 7.8 version of struct fuse_entry_out */
 struct fuse_entry_out_7_8 {
-	__u64	nodeid;		/* Inode ID */
-	__u64	generation;	/* Inode generation: nodeid:gen must
+	uint64_t	nodeid;		/* Inode ID */
+	uint64_t	generation;	/* Inode generation: nodeid:gen must
 				   be unique for the fs's lifetime */
-	__u64	entry_valid;	/* Cache timeout for the name */
-	__u64	attr_valid;	/* Cache timeout for the attributes */
-	__u32	entry_valid_nsec;
-	__u32	attr_valid_nsec;
+	uint64_t	entry_valid;	/* Cache timeout for the name */
+	uint64_t	attr_valid;	/* Cache timeout for the attributes */
+	uint32_t	entry_valid_nsec;
+	uint32_t	attr_valid_nsec;
 	struct fuse_attr_7_8 attr;
 };
 
