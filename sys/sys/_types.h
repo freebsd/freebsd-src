@@ -68,6 +68,7 @@ typedef	unsigned int	__useconds_t;	/* microseconds (unsigned) */
 typedef	int		__cpuwhich_t;	/* which parameter for cpuset. */
 typedef	int		__cpulevel_t;	/* level parameter for cpuset. */
 typedef int		__cpusetid_t;	/* cpuset identifier. */
+typedef __int64_t	__daddr_t;	/* bwrite(3), FIOBMAP2, etc */
 
 /*
  * Unusual type definitions.
