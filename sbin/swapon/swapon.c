@@ -43,9 +43,8 @@ static char sccsid[] = "@(#)swapon.c	8.1 (Berkeley) 6/5/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/disk.h>
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/disk.h>
 #include <sys/mdioctl.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -754,7 +753,7 @@ swap_trim(const char *name)
 		errx(1, "Cannot stat %s", name);
 	if (S_ISREG(sb.st_mode))
 		sz = sb.st_size;
-	else if (S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) {
+	else if (S_ISCHR(sb.st_mode)) {
 		if (ioctl(fd, DIOCGMEDIASIZE, &sz) != 0)
 			err(1, "ioctl(DIOCGMEDIASIZE)");
 	} else
