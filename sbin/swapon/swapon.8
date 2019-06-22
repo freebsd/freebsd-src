@@ -28,7 +28,7 @@
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2016
+.Dd June 21, 2019
 .Dt SWAPON 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nm swapon
 .Oo Fl F Ar fstab
 .Oc
-.Fl aLq | Ar
+.Fl aLq | E Ar
 .Nm swapoff
 .Oo Fl F Ar fstab
 .Oc
@@ -86,6 +86,11 @@ If the
 option is used,
 informational messages will not be
 written to standard output when a swap device is added.
+The
+.Fl E
+option causes each of following devices to receive a
+.Dv BIO_DELETE
+command to mark all blocks as unused.
 .Pp
 The
 .Nm swapoff

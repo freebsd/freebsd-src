@@ -216,6 +216,12 @@ then the special file is made available as a piece of swap
 space by the
 .Xr swapon 8
 command at the end of the system reboot procedure.
+For swap devices, the keyword
+.Dq trimonce
+triggers the delivery of a
+.Dv BIO_DELETE
+command to the device to mark
+all blocks as unused.
 For vnode-backed swap spaces,
 .Dq file
 is supported in the
