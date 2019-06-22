@@ -2510,6 +2510,82 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 }
 
 /*
+ * Remove the specified range of addresses from the L3 page table that is
+ * identified by the given L2 entry.
+ */
+static void
+pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
+    vm_offset_t eva, struct spglist *free, struct rwlock **lockp)
+{
+	struct md_page *pvh;
+	struct rwlock *new_lock;
+	pt_entry_t *l3, old_l3;
+	vm_offset_t va;
+	vm_page_t m;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT(rounddown2(sva, L2_SIZE) + L2_SIZE == roundup2(eva, L2_SIZE),
+	    ("pmap_remove_l3_range: range crosses an L3 page table boundary"));
+	va = eva;
+	for (l3 = pmap_l2_to_l3(&l2e, sva); sva != eva; l3++, sva += L3_SIZE) {
+		if (!pmap_l3_valid(pmap_load(l3))) {
+			if (va != eva) {
+				pmap_invalidate_range(pmap, va, sva);
+				va = eva;
+			}
+			continue;
+		}
+		old_l3 = pmap_load_clear(l3);
+		if ((old_l3 & ATTR_SW_WIRED) != 0)
+			pmap->pm_stats.wired_count--;
+		pmap_resident_count_dec(pmap, 1);
+		if ((old_l3 & ATTR_SW_MANAGED) != 0) {
+			m = PHYS_TO_VM_PAGE(old_l3 & ~ATTR_MASK);
+			if (pmap_page_dirty(old_l3))
+				vm_page_dirty(m);
+			if ((old_l3 & ATTR_AF) != 0)
+				vm_page_aflag_set(m, PGA_REFERENCED);
+			new_lock = PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m));
+			if (new_lock != *lockp) {
+				if (*lockp != NULL) {
+					/*
+					 * Pending TLB invalidations must be
+					 * performed before the PV list lock is
+					 * released.  Otherwise, a concurrent
+					 * pmap_remove_all() on a physical page
+					 * could return while a stale TLB entry
+					 * still provides access to that page. 
+					 */
+					if (va != eva) {
+						pmap_invalidate_range(pmap, va,
+						    sva);
+						va = eva;
+					}
+					rw_wunlock(*lockp);
+				}
+				*lockp = new_lock;
+				rw_wlock(*lockp);
+			}
+			pmap_pvh_free(&m->md, pmap, sva);
+			if (TAILQ_EMPTY(&m->md.pv_list) &&
+			    (m->flags & PG_FICTITIOUS) == 0) {
+				pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+				if (TAILQ_EMPTY(&pvh->pv_list))
+					vm_page_aflag_clear(m, PGA_WRITEABLE);
+			}
+		}
+		if (va == eva)
+			va = sva;
+		if (pmap_unuse_pt(pmap, sva, l2e, free)) {
+			sva += L3_SIZE;
+			break;
+		}
+	}
+	if (va != eva)
+		pmap_invalidate_range(pmap, va, sva);
+}
+
+/*
  *	Remove the given range of addresses from the specified map.
  *
  *	It is assumed that the start and end are properly
@@ -2519,9 +2595,9 @@ void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	struct rwlock *lock;
-	vm_offset_t va, va_next;
+	vm_offset_t va_next;
 	pd_entry_t *l0, *l1, *l2;
-	pt_entry_t l3_paddr, *l3;
+	pt_entry_t l3_paddr;
 	struct spglist free;
 
 	/*
@@ -2594,28 +2670,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (va_next > eva)
 			va_next = eva;
 
-		va = va_next;
-		for (l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++,
-		    sva += L3_SIZE) {
-			if (l3 == NULL)
-				panic("l3 == NULL");
-			if (pmap_load(l3) == 0) {
-				if (va != va_next) {
-					pmap_invalidate_range(pmap, va, sva);
-					va = va_next;
-				}
-				continue;
-			}
-			if (va == va_next)
-				va = sva;
-			if (pmap_remove_l3(pmap, l3, sva, l3_paddr, &free,
-			    &lock)) {
-				sva += L3_SIZE;
-				break;
-			}
-		}
-		if (va != va_next)
-			pmap_invalidate_range(pmap, va, sva);
+		pmap_remove_l3_range(pmap, l3_paddr, sva, va_next, &free,
+		    &lock);
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
@@ -3419,8 +3475,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
     vm_page_t m, struct rwlock **lockp)
 {
 	struct spglist free;
-	pd_entry_t *l2, *l3, old_l2;
-	vm_offset_t sva;
+	pd_entry_t *l2, old_l2;
 	vm_page_t l2pg, mt;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -3449,13 +3504,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 			(void)pmap_remove_l2(pmap, l2, va,
 			    pmap_load(pmap_l1(pmap, va)), &free, lockp);
 		else
-			for (sva = va; sva < va + L2_SIZE; sva += PAGE_SIZE) {
-				l3 = pmap_l2_to_l3(l2, sva);
-				if (pmap_l3_valid(pmap_load(l3)) &&
-				    pmap_remove_l3(pmap, l3, sva, old_l2, &free,
-				    lockp) != 0)
-					break;
-			}
+			pmap_remove_l3_range(pmap, old_l2, va, va + L2_SIZE,
+			    &free, lockp);
 		vm_page_free_pages_toq(&free, true);
 		if (va >= VM_MAXUSER_ADDRESS) {
 			/*
