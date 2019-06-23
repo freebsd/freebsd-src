@@ -128,6 +128,12 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 		++sc->owncount;
 		if (sc->owner == NULL) {
 			sc->owner = dev;
+			/*
+			 * Mark the device busy while it owns the bus, to
+			 * prevent detaching the device, bus, or hardware
+			 * controller, until ownership is relinquished.
+			 */
+			device_busy(dev);
 			/* 
 			 * Drop the lock around the call to the bus driver, it
 			 * should be allowed to sleep in the IIC_WAIT case.
@@ -177,6 +183,7 @@ iicbus_release_bus(device_t bus, device_t dev)
 		IICBUS_LOCK(sc);
 		sc->owner = NULL;
 		wakeup_one(sc);
+		device_unbusy(dev);
 	}
 	IICBUS_UNLOCK(sc);
 	return (0);
