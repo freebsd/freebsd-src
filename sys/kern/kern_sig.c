@@ -3597,10 +3597,11 @@ coredump(struct thread *td)
 
 	/*
 	 * Don't dump to non-regular files or files with links.
-	 * Do not dump into system files.
+	 * Do not dump into system files. Real user must own the corefile.
 	 */
 	if (vp->v_type != VREG || VOP_GETATTR(vp, &vattr, cred) != 0 ||
-	    vattr.va_nlink != 1 || (vp->v_vflag & VV_SYSTEM) != 0) {
+	    vattr.va_nlink != 1 || (vp->v_vflag & VV_SYSTEM) != 0 ||
+	    vattr.va_uid != cred->cr_ruid) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
 		goto out;
