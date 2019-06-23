@@ -539,7 +539,7 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 				      fdi.answ)->attr.size;
 
 		if (fvdat->filesize != new_filesize) {
-			fuse_vnode_setsize(vp, cred, new_filesize);
+			fuse_vnode_setsize(vp, new_filesize);
 		}
 	}
 	debug_printf("fuse_getattr e: returning 0\n");
@@ -1649,7 +1649,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 out:
 	fdisp_destroy(&fdi);
 	if (!err && sizechanged) {
-		fuse_vnode_setsize(vp, cred, newsize);
+		fuse_vnode_setsize(vp, newsize);
 		VTOFUD(vp)->flag &= ~FN_SIZECHANGE;
 	}
 	return err;
