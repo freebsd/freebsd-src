@@ -22,6 +22,10 @@ SRCS+=	device_if.h bus_if.h
 SRCS+=	hwpmc_arm.c
 .endif
 
+.if ${MACHINE_ARCH} == "armv7"
+SRCS+= hwpmc_armv7.c
+.endif
+
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	hwpmc_amd.c hwpmc_core.c hwpmc_intel.c
 SRCS+=	hwpmc_tsc.c hwpmc_x86.c hwpmc_uncore.c
