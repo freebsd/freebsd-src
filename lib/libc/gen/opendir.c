@@ -99,8 +99,8 @@ static int
 opendir_compar(const void *p1, const void *p2)
 {
 
-	return (strcmp((*(const struct dirent **)p1)->d_name,
-	    (*(const struct dirent **)p2)->d_name));
+	return (strcmp((*(const struct dirent * const *)p1)->d_name,
+	    (*(const struct dirent * const *)p2)->d_name));
 }
 
 /*
