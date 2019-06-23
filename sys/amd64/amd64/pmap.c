@@ -484,6 +484,9 @@ static struct pmap_invl_gen pmap_invl_gen_head = {
 	.next = NULL,
 };
 static u_long pmap_invl_gen = 1;
+static int pmap_invl_waiters;
+static struct callout pmap_invl_callout;
+static bool pmap_invl_callout_inited;
 
 #define	PMAP_ASSERT_NOT_IN_DI() \
     KASSERT(pmap_not_in_di(), ("DI already started"))
@@ -538,6 +541,34 @@ pmap_thread_init_invl_gen_l(struct thread *td)
 	invl_gen->gen = 0;
 }
 
+static void
+pmap_delayed_invl_wait_block(u_long *m_gen, u_long *invl_gen)
+{
+	struct turnstile *ts;
+
+	ts = turnstile_trywait(&invl_gen_ts);
+	if (*m_gen > atomic_load_long(invl_gen))
+		turnstile_wait(ts, NULL, TS_SHARED_QUEUE);
+	else
+		turnstile_cancel(ts);
+}
+
+static void
+pmap_delayed_invl_finish_unblock(u_long new_gen)
+{
+	struct turnstile *ts;
+
+	turnstile_chain_lock(&invl_gen_ts);
+	ts = turnstile_lookup(&invl_gen_ts);
+	if (new_gen != 0)
+		pmap_invl_gen = new_gen;
+	if (ts != NULL) {
+		turnstile_broadcast(ts, TS_SHARED_QUEUE);
+		turnstile_unpend(ts);
+	}
+	turnstile_chain_unlock(&invl_gen_ts);
+}
+
 /*
  * Start a new Delayed Invalidation (DI) block of code, executed by
  * the current thread.  Within a DI block, the current thread may
@@ -582,24 +613,15 @@ static void
 pmap_delayed_invl_finish_l(void)
 {
 	struct pmap_invl_gen *invl_gen, *next;
-	struct turnstile *ts;
 
 	invl_gen = &curthread->td_md.md_invl_gen;
 	KASSERT(invl_gen->gen != 0, ("missed invl_start"));
 	mtx_lock(&invl_gen_mtx);
 	next = LIST_NEXT(invl_gen, link);
-	if (next == NULL) {
-		turnstile_chain_lock(&invl_gen_ts);
-		ts = turnstile_lookup(&invl_gen_ts);
-		pmap_invl_gen = invl_gen->gen;
-		if (ts != NULL) {
-			turnstile_broadcast(ts, TS_SHARED_QUEUE);
-			turnstile_unpend(ts);
-		}
-		turnstile_chain_unlock(&invl_gen_ts);
-	} else {
+	if (next == NULL)
+		pmap_delayed_invl_finish_unblock(invl_gen->gen);
+	else
 		next->gen = invl_gen->gen;
-	}
 	LIST_REMOVE(invl_gen, link);
 	mtx_unlock(&invl_gen_mtx);
 	invl_gen->gen = 0;
@@ -856,6 +878,8 @@ again:
 		goto again;
 	}
 	critical_exit();
+	if (atomic_load_int(&pmap_invl_waiters) > 0)
+		pmap_delayed_invl_finish_unblock(0);
 	if (invl_gen->saved_pri != 0) {
 		thread_lock(td);
 		sched_prio(td, invl_gen->saved_pri);
@@ -888,6 +912,9 @@ DB_SHOW_COMMAND(di_queue, pmap_di_queue)
 static long invl_wait;
 SYSCTL_LONG(_vm_pmap, OID_AUTO, invl_wait, CTLFLAG_RD, &invl_wait, 0,
     "Number of times DI invalidation blocked pmap_remove_all/write");
+static long invl_wait_slow;
+SYSCTL_LONG(_vm_pmap, OID_AUTO, invl_wait_slow, CTLFLAG_RD, &invl_wait_slow, 0,
+    "Number of slow invalidation waits for lockless DI");
 #endif
 
 static u_long *
@@ -896,6 +923,27 @@ pmap_delayed_invl_genp(vm_page_t m)
 
 	return (&pv_invl_gen[pa_index(VM_PAGE_TO_PHYS(m)) % NPV_LIST_LOCKS]);
 }
+
+static void
+pmap_delayed_invl_callout_func(void *arg __unused)
+{
+
+	if (atomic_load_int(&pmap_invl_waiters) == 0)
+		return;
+	pmap_delayed_invl_finish_unblock(0);
+}
+
+static void
+pmap_delayed_invl_callout_init(void *arg __unused)
+{
+
+	if (pmap_di_locked())
+		return;
+	callout_init(&pmap_invl_callout, 1);
+	pmap_invl_callout_inited = true;
+}
+SYSINIT(pmap_di_callout, SI_SUB_CPU + 1, SI_ORDER_ANY,
+    pmap_delayed_invl_callout_init, NULL);
 
 /*
  * Ensure that all currently executing DI blocks, that need to flush
@@ -914,7 +962,6 @@ pmap_delayed_invl_genp(vm_page_t m)
 static void
 pmap_delayed_invl_wait_l(vm_page_t m)
 {
-	struct turnstile *ts;
 	u_long *m_gen;
 #ifdef PV_STATS
 	bool accounted = false;
@@ -928,11 +975,7 @@ pmap_delayed_invl_wait_l(vm_page_t m)
 			accounted = true;
 		}
 #endif
-		ts = turnstile_trywait(&invl_gen_ts);
-		if (*m_gen > pmap_invl_gen)
-			turnstile_wait(ts, NULL, TS_SHARED_QUEUE);
-		else
-			turnstile_cancel(ts);
+		pmap_delayed_invl_wait_block(m_gen, &pmap_invl_gen);
 	}
 }
 
@@ -940,19 +983,53 @@ static void
 pmap_delayed_invl_wait_u(vm_page_t m)
 {
 	u_long *m_gen;
-#ifdef PV_STATS
-	bool accounted = false;
-#endif
+	struct lock_delay_arg lda;
+	bool fast;
 
+	fast = true;
 	m_gen = pmap_delayed_invl_genp(m);
+	lock_delay_arg_init(&lda, &di_delay);
 	while (*m_gen > atomic_load_long(&pmap_invl_gen_head.gen)) {
-#ifdef PV_STATS
-		if (!accounted) {
-			atomic_add_long(&invl_wait, 1);
-			accounted = true;
+		if (fast || !pmap_invl_callout_inited) {
+			PV_STAT(atomic_add_long(&invl_wait, 1));
+			lock_delay(&lda);
+			fast = false;
+		} else {
+			/*
+			 * The page's invalidation generation number
+			 * is still below the current thread's number.
+			 * Prepare to block so that we do not waste
+			 * CPU cycles or worse, suffer livelock.
+			 *
+			 * Since it is impossible to block without
+			 * racing with pmap_delayed_invl_finish_u(),
+			 * prepare for the race by incrementing
+			 * pmap_invl_waiters and arming a 1-tick
+			 * callout which will unblock us if we lose
+			 * the race.
+			 */
+			atomic_add_int(&pmap_invl_waiters, 1);
+
+			/*
+			 * Re-check the current thread's invalidation
+			 * generation after incrementing
+			 * pmap_invl_waiters, so that there is no race
+			 * with pmap_delayed_invl_finish_u() setting
+			 * the page generation and checking
+			 * pmap_invl_waiters.  The only race allowed
+			 * is for a missed unblock, which is handled
+			 * by the callout.
+			 */
+			if (*m_gen >
+			    atomic_load_long(&pmap_invl_gen_head.gen)) {
+				callout_reset(&pmap_invl_callout, 1,
+				    pmap_delayed_invl_callout_func, NULL);
+				PV_STAT(atomic_add_long(&invl_wait_slow, 1));
+				pmap_delayed_invl_wait_block(m_gen,
+				    &pmap_invl_gen_head.gen);
+			}
+			atomic_add_int(&pmap_invl_waiters, -1);
 		}
-#endif
-		kern_yield(PRI_USER);
 	}
 }
 
