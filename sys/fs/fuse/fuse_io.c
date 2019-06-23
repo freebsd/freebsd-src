@@ -361,7 +361,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 		uio->uio_resid += diff;
 		uio->uio_offset -= diff;
 		if (uio->uio_offset > fvdat->filesize)
-			fuse_vnode_setsize(vp, cred, uio->uio_offset);
+			fuse_vnode_setsize(vp, uio->uio_offset);
 	}
 
 	fdisp_destroy(&fdi);
@@ -433,7 +433,7 @@ again:
 			if (bp != NULL) {
 				long save;
 
-				err = fuse_vnode_setsize(vp, cred, 
+				err = fuse_vnode_setsize(vp,
 							 uio->uio_offset + n);
 				if (err) {
 					brelse(bp);
@@ -460,7 +460,7 @@ again:
 			FS_DEBUG("getting block from OS, bcount %d\n", bcount);
 			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
 			if (bp && uio->uio_offset + n > fvdat->filesize) {
-				err = fuse_vnode_setsize(vp, cred, 
+				err = fuse_vnode_setsize(vp,
 							 uio->uio_offset + n);
 				if (err) {
 					brelse(bp);

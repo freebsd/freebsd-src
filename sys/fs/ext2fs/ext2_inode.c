@@ -263,7 +263,7 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 		oip->i_ib[i] = oldblks[NDADDR + i];
 	}
 	oip->i_size = osize;
-	error = vtruncbuf(ovp, cred, length, (int)fs->e2fs_bsize);
+	error = vtruncbuf(ovp, length, (int)fs->e2fs_bsize);
 	if (error && (allerror == 0))
 		allerror = error;
 	vnode_pager_setsize(ovp, length);
