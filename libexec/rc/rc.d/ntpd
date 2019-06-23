@@ -90,9 +90,10 @@ ntpd_precmd()
 	if can_run_nonroot; then
 		_user="ntpd"
 		driftopt="-f ${_ntp_default_driftfile}"
-	elif [ -z "${rc_flags##*-f*}" ] ||
-	     [ -z "${rc_flags##*--driftfile*}" ] ||
-	     grep -q "^[ \t]*driftfile" "${ntpd_config}"; then
+	elif grep -q "^[ \t]*driftfile" "${ntpd_config}" ||
+	     [ -n "${rc_flags}" ] &&
+	     ( [ -z "${rc_flags##*-f*}" ] ||
+	       [ -z "${rc_flags##*--driftfile*}" ] ); then
 		driftopt="" # admin set the option, we don't need to add it.
 	elif [ -f "${_ntp_old_driftfile}" ]; then
 		driftopt="-f ${_ntp_old_driftfile}"
