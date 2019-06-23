@@ -1792,7 +1792,9 @@ dev/iicbus/isl12xx.c		optional isl12xx
 dev/iicbus/lm75.c		optional lm75
 dev/iicbus/nxprtc.c		optional nxprtc | pcf8563
 dev/iicbus/ofw_iicbus.c		optional fdt iicbus
+dev/iicbus/rtc8583.c		optional rtc8583
 dev/iicbus/s35390a.c		optional s35390a
+dev/iicbus/sy8106a.c		optional sy8106a
 dev/iir/iir.c			optional iir
 dev/iir/iir_ctrl.c		optional iir
 dev/iir/iir_pci.c		optional iir pci
