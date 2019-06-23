@@ -72,6 +72,12 @@ IICBUS_ACCESSOR(nostop,		NOSTOP,		bool)
 #define	IICBUS_UNLOCK(sc)      		mtx_unlock(&(sc)->lock)
 #define	IICBUS_ASSERT_LOCKED(sc)       	mtx_assert(&(sc)->lock, MA_OWNED)
 
+#ifdef FDT
+#define	IICBUS_FDT_PNP_INFO(t)	FDTCOMPAT_PNP_INFO(t, iicbus)
+#else
+#define	IICBUS_FDT_PNP_INFO(t)
+#endif
+
 int  iicbus_generic_intr(device_t dev, int event, char *buf);
 void iicbus_init_frequency(device_t dev, u_int bus_freq);
 
