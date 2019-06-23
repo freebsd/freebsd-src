@@ -155,7 +155,7 @@ SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, 1, "Floating point instructions executed in hardware");
 
 int lazy_fpu_switch = 0;
-SYSCTL_INT(_hw, OID_AUTO, lazy_fpu_switch, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+SYSCTL_INT(_hw, OID_AUTO, lazy_fpu_switch, CTLFLAG_RD,
     &lazy_fpu_switch, 0,
     "Lazily load FPU context after context switch");
 
@@ -269,7 +269,6 @@ fpuinit_bsp1(void)
 	uint64_t xsave_mask_user;
 	bool old_wp;
 
-	TUNABLE_INT_FETCH("hw.lazy_fpu_switch", &lazy_fpu_switch);
 	if (!use_xsave)
 		return;
 	cpuid_count(0xd, 0x0, cp);
@@ -774,8 +773,7 @@ void
 fpu_activate_sw(struct thread *td)
 {
 
-	if (lazy_fpu_switch || (td->td_pflags & TDP_KTHREAD) != 0 ||
-	    !PCB_USER_FPU(td->td_pcb)) {
+	if ((td->td_pflags & TDP_KTHREAD) != 0 || !PCB_USER_FPU(td->td_pcb)) {
 		PCPU_SET(fpcurthread, NULL);
 		start_emulating();
 	} else if (PCPU_GET(fpcurthread) != td) {
