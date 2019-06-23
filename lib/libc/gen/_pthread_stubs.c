@@ -130,6 +130,7 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEX_CONSISTENT */
 	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEXATTR_GETROBUST */
 	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEXATTR_SETROBUST */
+	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_GETTHREADID_NP */
 };
 
 /*
@@ -248,6 +249,7 @@ STUB_FUNC1(pthread_rwlock_trywrlock, PJT_RWLOCK_TRYWRLOCK, int, void *)
 STUB_FUNC1(pthread_rwlock_unlock, PJT_RWLOCK_UNLOCK, int, void *)
 STUB_FUNC1(pthread_rwlock_wrlock, PJT_RWLOCK_WRLOCK, int, void *)
 STUB_FUNC(pthread_self,		PJT_SELF, pthread_t)
+STUB_FUNC(pthread_getthreadid_np, PJT_GETTHREADID_NP, int)
 STUB_FUNC2(pthread_setspecific, PJT_SETSPECIFIC, int, pthread_key_t, void *)
 STUB_FUNC3(pthread_sigmask, PJT_SIGMASK, int, int, void *, void *)
 STUB_FUNC3(pthread_atfork, PJT_ATFORK, int, void *, void *, void*)
