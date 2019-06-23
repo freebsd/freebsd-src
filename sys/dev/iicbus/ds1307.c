@@ -435,3 +435,4 @@ static devclass_t ds1307_devclass;
 DRIVER_MODULE(ds1307, iicbus, ds1307_driver, ds1307_devclass, NULL, NULL);
 MODULE_VERSION(ds1307, 1);
 MODULE_DEPEND(ds1307, iicbus, 1, 1, 1);
+IICBUS_FDT_PNP_INFO(ds1307_compat_data);

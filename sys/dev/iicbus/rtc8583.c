@@ -300,3 +300,4 @@ static devclass_t rtc8583_devclass;
 DRIVER_MODULE(rtc8583, iicbus, rtc8583_driver, rtc8583_devclass, NULL, NULL);
 MODULE_VERSION(rtc8583, 1);
 MODULE_DEPEND(rtc8583, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+IICBUS_FDT_PNP_INFO(compat_data);
