@@ -338,6 +338,7 @@ FBSD_1.2 {
 	getutxid;
 	getutxline;
 	getutxuser;
+	pthread_getthreadid_np;
 	pututxline;
 	sem_close;
 	sem_destroy;
