@@ -3408,7 +3408,7 @@ validate:
 			    __func__, pmap, va, new_l3);
 		}
 	} else {
-		/* New mappig */
+		/* New mapping */
 		pmap_load_store(l3, new_l3);
 		dsb(ishst);
 	}
@@ -3706,6 +3706,9 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		l3 = pmap_l2_to_l3(pde, va);
 	}
 
+	/*
+	 * Abort if a mapping already exists.
+	 */
 	if (pmap_load(l3) != 0) {
 		if (mpte != NULL) {
 			mpte->wire_count--;
@@ -3755,7 +3758,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		cpu_icache_sync_range(PHYS_TO_DMAP(pa), PAGE_SIZE);
 
 	pmap_load_store(l3, l3_val);
-	pmap_invalidate_page(pmap, va);
+	dsb(ishst);
 	return (mpte);
 }
 
