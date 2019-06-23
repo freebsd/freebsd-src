@@ -111,41 +111,41 @@ void dblfault_handler(struct trapframe *frame);
 static int trap_pfault(struct trapframe *, int);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 
-#define MAX_TRAP_MSG		32
-static char *trap_msg[] = {
-	"",					/*  0 unused */
-	"privileged instruction fault",		/*  1 T_PRIVINFLT */
-	"",					/*  2 unused */
-	"breakpoint instruction fault",		/*  3 T_BPTFLT */
-	"",					/*  4 unused */
-	"",					/*  5 unused */
-	"arithmetic trap",			/*  6 T_ARITHTRAP */
-	"",					/*  7 unused */
-	"",					/*  8 unused */
-	"general protection fault",		/*  9 T_PROTFLT */
-	"debug exception",			/* 10 T_TRCTRAP */
-	"",					/* 11 unused */
-	"page fault",				/* 12 T_PAGEFLT */
-	"",					/* 13 unused */
-	"alignment fault",			/* 14 T_ALIGNFLT */
-	"",					/* 15 unused */
-	"",					/* 16 unused */
-	"",					/* 17 unused */
-	"integer divide fault",			/* 18 T_DIVIDE */
-	"non-maskable interrupt trap",		/* 19 T_NMI */
-	"overflow trap",			/* 20 T_OFLOW */
-	"FPU bounds check fault",		/* 21 T_BOUND */
-	"FPU device not available",		/* 22 T_DNA */
-	"double fault",				/* 23 T_DOUBLEFLT */
-	"FPU operand fetch fault",		/* 24 T_FPOPFLT */
-	"invalid TSS fault",			/* 25 T_TSSFLT */
-	"segment not present fault",		/* 26 T_SEGNPFLT */
-	"stack fault",				/* 27 T_STKFLT */
-	"machine check trap",			/* 28 T_MCHK */
-	"SIMD floating-point exception",	/* 29 T_XMMFLT */
-	"reserved (unknown) fault",		/* 30 T_RESERVED */
-	"",					/* 31 unused (reserved) */
-	"DTrace pid return trap",		/* 32 T_DTRACE_RET */
+static const char UNKNOWN[] = "unknown";
+static const char *const trap_msg[] = {
+	[0] =			UNKNOWN,			/* unused */
+	[T_PRIVINFLT] =		"privileged instruction fault",
+	[2] =			UNKNOWN,			/* unused */
+	[T_BPTFLT] =		"breakpoint instruction fault",
+	[4] =			UNKNOWN,			/* unused */
+	[5] =			UNKNOWN,			/* unused */
+	[T_ARITHTRAP] =		"arithmetic trap",
+	[7] =			UNKNOWN,			/* unused */
+	[8] =			UNKNOWN,			/* unused */
+	[T_PROTFLT] =		"general protection fault",
+	[T_TRCTRAP] =		"debug exception",
+	[11] =			UNKNOWN,			/* unused */
+	[T_PAGEFLT] =		"page fault",
+	[13] =			UNKNOWN,			/* unused */
+	[T_ALIGNFLT] =		"alignment fault",
+	[15] =			UNKNOWN,			/* unused */
+	[16] =			UNKNOWN,			/* unused */
+	[17] =			UNKNOWN,			/* unused */
+	[T_DIVIDE] =		"integer divide fault",
+	[T_NMI] =		"non-maskable interrupt trap",
+	[T_OFLOW] =		"overflow trap",
+	[T_BOUND] =		"FPU bounds check fault",
+	[T_DNA] =		"FPU device not available",
+	[T_DOUBLEFLT] =		"double fault",
+	[T_FPOPFLT] =		"FPU operand fetch fault",
+	[T_TSSFLT] =		"invalid TSS fault",
+	[T_SEGNPFLT] =		"segment not present fault",
+	[T_STKFLT] =		"stack fault",
+	[T_MCHK] =		"machine check trap",
+	[T_XMMFLT] =		"SIMD floating-point exception",
+	[T_RESERVED] =		"reserved (unknown) fault",
+	[31] =			UNKNOWN,			/* reserved */
+	[T_DTRACE_RET] =	"DTrace pid return trap",
 };
 
 static int prot_fault_translation;
@@ -837,7 +837,6 @@ trap_fatal(frame, eva)
 	int code, ss;
 	u_int type;
 	struct soft_segment_descriptor softseg;
-	char *msg;
 #ifdef KDB
 	bool handled;
 #endif
@@ -847,11 +846,8 @@ trap_fatal(frame, eva)
 	sdtossd(&gdt[NGDT * PCPU_GET(cpuid) + IDXSEL(frame->tf_cs & 0xffff)],
 	    &softseg);
 
-	if (type <= MAX_TRAP_MSG)
-		msg = trap_msg[type];
-	else
-		msg = "UNKNOWN";
-	printf("\n\nFatal trap %d: %s while in %s mode\n", type, msg,
+	printf("\n\nFatal trap %d: %s while in %s mode\n", type,
+	    type < nitems(trap_msg) ? trap_msg[type] : UNKNOWN,
 	    TRAPF_USERMODE(frame) ? "user" : "kernel");
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
@@ -900,10 +896,8 @@ trap_fatal(frame, eva)
 	}
 #endif
 	printf("trap number		= %d\n", type);
-	if (type <= MAX_TRAP_MSG)
-		panic("%s", trap_msg[type]);
-	else
-		panic("unknown/reserved trap");
+	panic("%s", type < nitems(trap_msg) ? trap_msg[type] :
+	    "unknown/reserved trap");
 }
 
 /*
