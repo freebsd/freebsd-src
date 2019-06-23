@@ -166,6 +166,12 @@ cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
 	clean		"cloudabi32_vdso_blob.o"
 #
 
+#
+ukbdmap.h			optional	ukbd_dflt_keymap	\
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"ukbdmap.h"
+
 # Annapurna support
 arm/annapurna/alpine/alpine_ccu.c		optional al_ccu fdt
 arm/annapurna/alpine/alpine_nb_service.c	optional al_nb_service fdt
