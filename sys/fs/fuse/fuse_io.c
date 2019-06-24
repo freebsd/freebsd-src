@@ -164,6 +164,8 @@ fuse_io_clear_suid_on_write(struct vnode *vp, struct ucred *cred,
 
 SDT_PROBE_DEFINE5(fusefs, , io, io_dispatch, "struct vnode*", "struct uio*",
 		"int", "struct ucred*", "struct fuse_filehandle*");
+SDT_PROBE_DEFINE5(fusefs, , io, io_dispatch_filehandles_closed, "struct vnode*",
+    "struct uio*", "int", "bool", "struct ucred*");
 int
 fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
     struct ucred *cred, pid_t pid)
@@ -186,6 +188,8 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 		closefufh = true;
 	}
 	else if (err) {
+		SDT_PROBE5(fusefs, , io, io_dispatch_filehandles_closed,
+			vp, uio, ioflag, pages, cred);
 		printf("FUSE: io dispatch: filehandles are closed\n");
 		return err;
 	}
@@ -860,6 +864,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 	fflag = bp->b_iocmd == BIO_READ ? FREAD : FWRITE;
 	cred = bp->b_iocmd == BIO_READ ? bp->b_rcred : bp->b_wcred;
 	error = fuse_filehandle_getrw(vp, fflag, &fufh, cred, pid);
+	bp->b_fsprivate1 = (void*)(intptr_t)0;
 	if (bp->b_iocmd == BIO_READ && error == EBADF) {
 		/* 
 		 * This may be a read-modify-write operation on a cached file
