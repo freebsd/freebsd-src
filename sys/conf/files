@@ -1751,7 +1751,7 @@ dev/gpio/gpiospi.c		optional gpiospi
 dev/gpio/gpioths.c		optional gpioths
 dev/gpio/gpio_if.m		optional gpio
 dev/gpio/gpiobus_if.m		optional gpio
-dev/gpio/gpiopps.c		optional gpiopps
+dev/gpio/gpiopps.c		optional gpiopps fdt
 dev/gpio/ofw_gpiobus.c		optional fdt gpio
 dev/hifn/hifn7751.c		optional hifn
 dev/hme/if_hme.c		optional hme
