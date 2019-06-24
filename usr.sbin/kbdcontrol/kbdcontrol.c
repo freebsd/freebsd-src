@@ -1220,9 +1220,12 @@ main(int argc, char **argv)
 	int		opt;
 
 	/* Collect any -P arguments, regardless of where they appear. */
-	while ((opt = getopt(argc, argv, optstring)) != -1)
+	while ((opt = getopt(argc, argv, optstring)) != -1) {
 		if (opt == 'P')
 			add_keymap_path(optarg);
+		if (opt == '?')
+			usage();
+	}
 
 	optind = optreset = 1;
 	while ((opt = getopt(argc, argv, optstring)) != -1)
