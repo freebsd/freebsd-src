@@ -747,9 +747,7 @@ gicv3_its_attach(device_t dev)
 		if (domain < MAXMEMDOM)
 			CPU_COPY(&cpuset_domain[domain], &sc->sc_cpus);
 	} else {
-		/* XXX : cannot handle more than one ITS per cpu */
-		if (device_get_unit(dev) == 0)
-			CPU_COPY(&all_cpus, &sc->sc_cpus);
+		CPU_COPY(&all_cpus, &sc->sc_cpus);
 	}
 
 	/* Allocate the command circular buffer */
