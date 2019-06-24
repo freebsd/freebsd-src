@@ -390,10 +390,6 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case GICV3_IVAR_NIRQS:
 		*result = (NIRQ - sc->gic_nirqs) / sc->gic_nchildren;
 		return (0);
-	case GICV3_IVAR_REDIST_VADDR:
-		*result = (uintptr_t)rman_get_virtual(
-		    &sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res);
-		return (0);
 	case GICV3_IVAR_REDIST:
 		*result = (uintptr_t)sc->gic_redists.pcpu[PCPU_GET(cpuid)];
 		return (0);
