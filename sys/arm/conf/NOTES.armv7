@@ -1,0 +1,64 @@
+# armv7-specific changes for doing a LINT build.
+#
+# The contents of sys/conf/NOTES, sys/arm/conf/NOTES, and this file are
+# concatenated (in that order) to create the LINT-V7 kernel config file.
+#
+# $FreeBSD$
+
+
+#NO_UNIVERSE
+
+machine		arm armv7
+cpu		CPU_CORTEXA
+cpu		CPU_MV_PJ4B
+makeoptions	CONF_CFLAGS+="-march=armv7a"
+
+# Add options for armv7 that are not in sys/conf/NOTES...
+
+options 	ARM_L2_PIPT		# Only L2 PIPT is supported
+options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
+options 	INTRNG			# Include INTRNG framework
+options 	LINUX_BOOT_ABI		# Process metadata passed from U-Boot
+options 	PLATFORM		# Include platform_if support
+options 	SMP			# Most v7 SoCs are multicore
+options 	VFP			# Enable floating point hardware support
+
+# NOTE: dtrace introduces CDDL-licensed components into the kernel
+device		dtrace			# dtrace core
+device		dtraceall		# include all dtrace modules
+options 	KDTRACE_HOOKS
+
+# Add misc devices which are specific to various arm platforms...
+
+device		generic_timer   # ARM Generic Timer
+device		gic		# Interrupt controller
+device		gpio		# gpio interface and bus
+device		mpcore_timer	# ARM MPCore Timer
+device		pl310		# PL310 L2 cache controller
+device		pmu		# PMU support (for CCNT).
+
+# Add EXT_RESOURCES pseudo devices...
+
+options 	EXT_RESOURCES
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+
+# Build SOC-specific modules...
+
+makeoptions	MODULES_EXTRA+="allwinner"
+makeoptions	MODULES_EXTRA+="arm_ti"
+makeoptions	MODULES_EXTRA+="imx"
+
+# Build dtb files...
+
+makeoptions	MODULES_EXTRA+="dtb/allwinner"
+makeoptions	MODULES_EXTRA+="dtb/am335x"
+makeoptions	MODULES_EXTRA+="dtb/imx6"
+makeoptions	MODULES_EXTRA+="dtb/nvidia"
+makeoptions	MODULES_EXTRA+="dtb/omap4"
+makeoptions	MODULES_EXTRA+="dtb/rpi"
+makeoptions	MODULES_EXTRA+="dtb/zynq"
