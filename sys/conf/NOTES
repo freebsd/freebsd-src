@@ -2481,6 +2481,18 @@ device		pps
 device		lpbb
 device		pcfclock
 
+# General Purpose I/O pins
+device  	gpio		# gpio interfaces and bus support
+device  	gpiobacklight	# sysctl control of gpio-based backlight
+device  	gpioiic		# i2c via gpio bitbang
+device  	gpiokeys	# kbd(4) glue for gpio-based key input
+device  	gpioled		# led(4) gpio glue
+device  	gpiopower	# event handler for gpio-based powerdown
+device  	gpiopps		# Pulse per second input from gpio pin
+device  	gpioregulator	# extres/regulator glue for gpio pin
+device  	gpiospi		# SPI via gpio bitbang
+device  	gpioths		# 1-wire temp/humidity sensor on gpio pin
+
 #
 # Etherswitch framework and drivers
 #
