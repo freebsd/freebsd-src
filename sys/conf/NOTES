@@ -2493,6 +2493,10 @@ device  	gpioregulator	# extres/regulator glue for gpio pin
 device  	gpiospi		# SPI via gpio bitbang
 device  	gpioths		# 1-wire temp/humidity sensor on gpio pin
 
+# Pulse width modulation
+device  	pwmbus		# pwm interface and bus support
+device  	pwmc		# userland control access to pwm outputs
+
 #
 # Etherswitch framework and drivers
 #
