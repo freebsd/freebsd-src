@@ -176,6 +176,12 @@
       <para revision="343469">The default &man.devd.conf.5; has been
 	updated to prevent duplicated &man.hostapd.8; and
 	&man.wpa.supplicant.8; startup via &man.devd.8;.</para>
+
+      <para revision="346479">A new variable,
+	<literal>init_exec</literal>, has been added to &man.kenv.1;,
+	allowing &man.init.8; to run an executable file after opening
+	the console, replacing &man.init.8; as <acronym>PID</acronym>
+	1.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -253,6 +259,10 @@
       <para revision="345878">The &man.patch.1; utility has been
 	updated to exit successfully if the input patch file is
 	zero-length.</para>
+
+      <para revision="346518">The &man.spi.8; utility has been added,
+	which is used to communicate with devices on an
+	<acronym>SPI</acronym> bus through the userland.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -456,6 +466,18 @@
       <para revision="345981">The &man.random.4; driver has been
 	updated to improve performance during expensive
 	reseeding.</para>
+
+      <para revision="347962">The <literal>ae(4)</literal>,
+	<literal>bm(4)</literal>, <literal>cs(4)</literal>,
+	<literal>de(4)</literal>, <literal>dme(4)</literal>,
+	<literal>ed(4)</literal>, <literal>ep(4)</literal>,
+	<literal>ex(4)</literal>, <literal>fe(4)</literal>,
+	<literal>pcn(4)</literal>, <literal>sf(4)</literal>,
+	<literal>sn(4)</literal>, <literal>tl(4)</literal>,
+	<literal>tx(4)</literal>, <literal>txp(4)</literal>,
+	<literal>vx(4)</literal>, <literal>wb(4)</literal>, and
+	<literal>xe(4)</literal> drivers have been marked as
+	deprecated, and are not present in &os;&nbsp;13.0.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
@@ -616,6 +638,10 @@
 	sponsor="&yandex;">Support for <acronym>NAT64</acronym>
 	<acronym>CLAT</acronym> has been added, as defined in
 	<acronym>RFC</acronym>6877.</para>
+
+      <para revision="348482">Warnings have been added for
+	<acronym>IPSec</acronym> algorithms deprecated in
+	<acronym>RFC</acronym> 8221.</para>
     </sect2>
 
     <sect2 xml:id="network-protocols">
@@ -673,7 +699,14 @@
     <sect2 xml:id="releng-changes">
       <title>Integration Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="347037" contrib="sponsor" sponsor="&ff;">The
+	default size of virtual machine disk images has been reduced
+	from 30GB to 3GB.  The <literal>raw</literal> disk images may
+	be resized with &man.truncate.1;, after which the
+	<filename>growfs</filename> &man.rc.8; script will resize the
+	filesystem within the virtual machine.  Other disk image
+	formats should be resized with the appropriate tool provided
+	by the hypervisor being used.</para>
     </sect2>
   </sect1>
 </article>
