@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/boot.h>
+#include <paths.h>
 #include <stdint.h>
 #include <string.h>
 #include <setjmp.h>
@@ -237,8 +238,8 @@ sanity_check_currdev(void)
 {
 	struct stat st;
 
-	return (stat("/boot/defaults/loader.conf", &st) == 0 ||
-	    stat("/boot/kernel/kernel", &st) == 0);
+	return (stat(PATH_DEFAULTS_LOADER_CONF, &st) == 0 ||
+	    stat(PATH_KERNEL, &st) == 0);
 }
 
 #ifdef EFI_ZFS_BOOT
