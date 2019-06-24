@@ -348,8 +348,8 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 	         */
 
 		n = 0;
-		if (on < bcount - bp->b_resid)
-			n = MIN((unsigned)(bcount - bp->b_resid - on),
+		if (on < bcount - (intptr_t)bp->b_fsprivate1)
+			n = MIN((unsigned)(bcount - (intptr_t)bp->b_fsprivate1 - on),
 			    uio->uio_resid);
 		if (n > 0) {
 			SDT_PROBE2(fusefs, , io, read_bio_backend_feed, n, bp);
@@ -358,9 +358,10 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 		vfs_bio_brelse(bp, ioflag);
 		SDT_PROBE4(fusefs, , io, read_bio_backend_end, err,
 			uio->uio_resid, n, bp);
-		if (bp->b_resid > 0) {
+		if ((intptr_t)bp->b_fsprivate1 > 0) {
 			/* Short read indicates EOF */
 			(void)fuse_vnode_setsize(vp, uio->uio_offset);
+			bp->b_fsprivate1 = (void*)0;
 			break;
 		}
 	}
@@ -891,16 +892,23 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 	KASSERT(!(bp->b_flags & B_DONE),
 	    ("fuse_io_strategy: bp %p already marked done", bp));
 	if (bp->b_iocmd == BIO_READ) {
+		ssize_t left;
+
 		io.iov_len = uiop->uio_resid = bp->b_bcount;
 		io.iov_base = bp->b_data;
 		uiop->uio_rw = UIO_READ;
 
 		uiop->uio_offset = ((off_t)bp->b_lblkno) * biosize;
 		error = fuse_read_directbackend(vp, uiop, cred, fufh);
+		left = uiop->uio_resid;
+		/* 
+		 * Store the amount we failed to read in the buffer's private
+		 * field, so callers can truncate the file if necessary'
+		 */
+		bp->b_fsprivate1 = (void*)(intptr_t)left;
 
 		if (!error && uiop->uio_resid) {
 			int nread = bp->b_bcount - uiop->uio_resid;
-			int left = uiop->uio_resid;
 			bzero((char *)bp->b_data + nread, left);
 
 			if (fuse_data_cache_mode != FUSE_CACHE_WB || 
@@ -914,11 +922,12 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 				 * doesn't get exposed by a future truncate
 				 * that extends the file.
 				 * 
-				 * XXX To prevent lock order problems, we must
+				 * To prevent lock order problems, we must
 				 * truncate the file upstack
 				 */
 				SDT_PROBE2(fusefs, , io, trace, 1,
 					"Short read of a clean file");
+				uiop->uio_resid = 0;
 			} else {
 				/*
 				 * If dirty writes _are_ cached beyond EOF,

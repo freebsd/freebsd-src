@@ -29,6 +29,8 @@
  */
 
 extern "C" {
+#include <sys/mman.h>
+
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -76,11 +78,13 @@ class Io: public FuseTest,
 	  public WithParamInterface<tuple<uint32_t, uint32_t, bool>> {
 public:
 int m_backing_fd, m_control_fd, m_test_fd;
+off_t m_filesize;
 
 Io(): m_backing_fd(-1), m_control_fd(-1) {};
 
 void SetUp()
 {
+	m_filesize = 0;
 	m_backing_fd = open("backing_file", O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (m_backing_fd < 0)
 		FAIL() << strerror(errno);
@@ -126,10 +130,11 @@ void SetUp()
 		ssize_t isize = in.body.write.size;
 		off_t iofs = in.body.write.offset;
 		void *buf = out.body.bytes;
+		ssize_t osize;
 
-		ASSERT_LE(0, pread(m_backing_fd, buf, isize, iofs))
-			<< strerror(errno);
-		out.header.len = sizeof(struct fuse_out_header) + isize;
+		osize = pread(m_backing_fd, buf, isize, iofs);
+		ASSERT_LE(0, osize) << strerror(errno);
+		out.header.len = sizeof(struct fuse_out_header) + osize;
 	})));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -182,26 +187,94 @@ void do_ftruncate(off_t offs)
 {
 	ASSERT_EQ(0, ftruncate(m_test_fd, offs)) << strerror(errno);
 	ASSERT_EQ(0, ftruncate(m_control_fd, offs)) << strerror(errno);
+	m_filesize = offs;
+}
+
+void do_mapread(ssize_t size, off_t offs)
+{
+	void *control_buf, *p;
+	off_t pg_offset, page_mask;
+	size_t map_size;
+
+	page_mask = getpagesize() - 1;
+	pg_offset = offs & page_mask;
+	map_size = pg_offset + size;
+
+	p = mmap(NULL, map_size, PROT_READ, MAP_FILE | MAP_SHARED, m_test_fd,
+	    offs - pg_offset);
+	ASSERT_NE(p, MAP_FAILED) << strerror(errno);
+
+	control_buf = malloc(size);
+	ASSERT_NE(NULL, control_buf) << strerror(errno);
+
+	ASSERT_EQ(size, pread(m_control_fd, control_buf, size, offs))
+		<< strerror(errno);
+
+	compare((void*)((char*)p + pg_offset), control_buf, offs, size);
+
+	ASSERT_EQ(0, munmap(p, map_size)) << strerror(errno);
+	free(control_buf);
 }
 
 void do_read(ssize_t size, off_t offs)
 {
 	void *test_buf, *control_buf;
+	ssize_t r;
 
 	test_buf = malloc(size);
 	ASSERT_NE(NULL, test_buf) << strerror(errno);
 	control_buf = malloc(size);
 	ASSERT_NE(NULL, control_buf) << strerror(errno);
 
-	ASSERT_EQ(size, pread(m_test_fd, test_buf, size, offs))
-		<< strerror(errno);
-	ASSERT_EQ(size, pread(m_control_fd, control_buf, size, offs))
-		<< strerror(errno);
+	errno = 0;
+	r = pread(m_test_fd, test_buf, size, offs);
+	ASSERT_NE(-1, r) << strerror(errno);
+	ASSERT_EQ(size, r) << "unexpected short read";
+	r = pread(m_control_fd, control_buf, size, offs);
+	ASSERT_NE(-1, r) << strerror(errno);
+	ASSERT_EQ(size, r) << "unexpected short read";
 
 	compare(test_buf, control_buf, offs, size);
 
 	free(control_buf);
 	free(test_buf);
+}
+
+void do_mapwrite(ssize_t size, off_t offs)
+{
+	char *buf;
+	void *p;
+	off_t pg_offset, page_mask;
+	size_t map_size;
+	long i;
+
+	page_mask = getpagesize() - 1;
+	pg_offset = offs & page_mask;
+	map_size = pg_offset + size;
+
+	buf = (char*)malloc(size);
+	ASSERT_NE(NULL, buf) << strerror(errno);
+	for (i=0; i < size; i++)
+		buf[i] = random();
+
+	if (offs + size > m_filesize) {
+		/* 
+		 * Must manually extend.  vm_mmap_vnode will not implicitly
+		 * extend a vnode
+		 */
+		do_ftruncate(offs + size);
+	}
+
+	p = mmap(NULL, map_size, PROT_READ | PROT_WRITE,
+	    MAP_FILE | MAP_SHARED, m_test_fd, offs - pg_offset);
+	ASSERT_NE(p, MAP_FAILED) << strerror(errno);
+
+	bcopy(buf, (char*)p + pg_offset, size);
+	ASSERT_EQ(size, pwrite(m_control_fd, buf, size, offs))
+		<< strerror(errno);
+
+	free(buf);
+	ASSERT_EQ(0, munmap(p, map_size)) << strerror(errno);
 }
 
 void do_write(ssize_t size, off_t offs)
@@ -218,6 +291,9 @@ void do_write(ssize_t size, off_t offs)
 		<< strerror(errno);
 	ASSERT_EQ(size, pwrite(m_control_fd, buf, size, offs))
 		<< strerror(errno);
+	m_filesize = std::max(m_filesize, offs + size);
+
+	free(buf);
 }
 
 };
@@ -241,6 +317,18 @@ TEST_P(Io, extend_from_dirty_page)
 }
 
 /*
+ * mapwrite into a newly extended part of a file.
+ *
+ * fsx -c 100 -i 100 -l 524288 -o 131072 -N5 -P /tmp -S19 fsx.bin
+ */
+TEST_P(Io, extend_by_mapwrite)
+{
+	do_mapwrite(0x849e, 0x29a3a);	/* [0x29a3a, 0x31ed7] */
+	do_mapwrite(0x3994, 0x3c7d8);	/* [0x3c7d8, 0x4016b] */
+	do_read(0xf556, 0x30c16);	/* [0x30c16, 0x4016b] */
+}
+
+/*
  * When writing the last page of a file, it must be written synchronously.
  * Otherwise the cached page can become invalid by a subsequent extend
  * operation.
@@ -249,16 +337,20 @@ TEST_P(Io, extend_from_dirty_page)
  */
 TEST_P(Io, last_page)
 {
-	off_t wofs0 = 0x1134f;
-	ssize_t wsize0 = 0xcc77;
-	off_t wofs1 = 0x2096a;
-	ssize_t wsize1 = 0xdfa7;
-	off_t rofs = 0x1a3aa;
-	ssize_t rsize = 0xb5b7;
+	do_write(0xcc77, 0x1134f);	/* [0x1134f, 0x1dfc5] */
+	do_write(0xdfa7, 0x2096a);	/* [0x2096a, 0x2e910] */
+	do_read(0xb5b7, 0x1a3aa);	/* [0x1a3aa, 0x25960] */
+}
 
-	do_write(wsize0, wofs0);
-	do_write(wsize1, wofs1);
-	do_read(rsize, rofs);
+/*
+ * Read a hole using mmap
+ *
+ * fsx -c 100 -i 100 -l 524288 -o 131072 -N11 -P /tmp  -S14 fsx.bin
+ */
+TEST_P(Io, mapread_hole)
+{
+	do_write(0x123b7, 0xf205);	/* [0xf205, 0x215bb] */
+	do_mapread(0xeeea, 0x2f4c);	/* [0x2f4c, 0x11e35] */
 }
 
 /* 
