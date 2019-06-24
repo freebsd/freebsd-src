@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_config.h"
 
 #include <sys/param.h>
+#include <sys/boot.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
