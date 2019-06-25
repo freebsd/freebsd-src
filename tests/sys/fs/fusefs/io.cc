@@ -29,7 +29,9 @@
  */
 
 extern "C" {
+#include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/sysctl.h>
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -175,12 +177,25 @@ void SetUp()
 
 void TearDown()
 {
+	if (m_test_fd >= 0)
+		close(m_test_fd);
 	if (m_backing_fd >= 0)
 		close(m_backing_fd);
 	if (m_control_fd >= 0)
 		close(m_control_fd);
 	FuseTest::TearDown();
 	/* Deliberately leak test_fd */
+}
+
+void do_closeopen()
+{
+	ASSERT_EQ(0, close(m_test_fd)) << strerror(errno);
+	m_test_fd = open("backing_file", O_RDWR);
+	ASSERT_LE(0, m_test_fd) << strerror(errno);
+
+	ASSERT_EQ(0, close(m_control_fd)) << strerror(errno);
+	m_control_fd = open("control", O_RDWR);
+	ASSERT_LE(0, m_control_fd) << strerror(errno);
 }
 
 void do_ftruncate(off_t offs)
@@ -298,6 +313,22 @@ void do_write(ssize_t size, off_t offs)
 
 };
 
+class IoCacheable: public Io {
+public:
+virtual void SetUp() {
+	const char *node = "vfs.fusefs.data_cache_mode";
+	int val = 0;
+	size_t size = sizeof(val);
+
+	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
+		<< strerror(errno);
+	if (val == 0)
+		GTEST_SKIP() <<
+			"fusefs data caching must be enabled for this test";
+	Io::SetUp();
+}
+};
+
 /*
  * Extend a file with dirty data in the last page of the last block.
  *
@@ -321,7 +352,7 @@ TEST_P(Io, extend_from_dirty_page)
  *
  * fsx -c 100 -i 100 -l 524288 -o 131072 -N5 -P /tmp -S19 fsx.bin
  */
-TEST_P(Io, extend_by_mapwrite)
+TEST_P(IoCacheable, extend_by_mapwrite)
 {
 	do_mapwrite(0x849e, 0x29a3a);	/* [0x29a3a, 0x31ed7] */
 	do_mapwrite(0x3994, 0x3c7d8);	/* [0x3c7d8, 0x4016b] */
@@ -347,7 +378,7 @@ TEST_P(Io, last_page)
  *
  * fsx -c 100 -i 100 -l 524288 -o 131072 -N11 -P /tmp  -S14 fsx.bin
  */
-TEST_P(Io, mapread_hole)
+TEST_P(IoCacheable, mapread_hole)
 {
 	do_write(0x123b7, 0xf205);	/* [0xf205, 0x215bb] */
 	do_mapread(0xeeea, 0x2f4c);	/* [0x2f4c, 0x11e35] */
@@ -461,6 +492,11 @@ TEST_P(Io, resize_a_valid_buffer_while_extending)
 }
 
 INSTANTIATE_TEST_CASE_P(Io, Io,
+	Combine(Values(0, FUSE_ASYNC_READ),		/* m_init_flags */
+		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
+		Bool()));				/* m_async */
+
+INSTANTIATE_TEST_CASE_P(Io, IoCacheable,
 	Combine(Values(0, FUSE_ASYNC_READ),		/* m_init_flags */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
 		Bool()));				/* m_async */
