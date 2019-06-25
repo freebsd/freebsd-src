@@ -96,7 +96,7 @@ be_mount_iter(zfs_handle_t *zfs_hdl, void *data)
 	    NULL, NULL, 0, 1))
 		return (1);
 
-	if (strcmp("none", zfs_mnt) == 0) {
+	if (strcmp("none", zfs_mnt) == 0 || info->depth == 0) {
 		/*
 		 * mountpoint=none; we'll mount it at info->mountpoint assuming
 		 * we're at the root.  If we're not at the root, we're likely
