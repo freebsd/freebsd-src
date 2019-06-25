@@ -40,16 +40,27 @@ __FBSDID("$FreeBSD$");
 	 */
 HIDENAME(cerror):
 	mflr	%r0
-	stwu	%r1,-16(%r1)		/* allocate new stack frame */
-	stw	%r0,20(%r1)		/* and save lr, r31 */
-	stw	%r31,8(%r1)
+	stwu	%r1,-20(%r1)		/* allocate new stack frame */
+	stw	%r0,24(%r1)		/* and save lr, r31 */
+	stw	%r31,12(%r1)
+#ifdef __PIC__
+	stw	%r30,8(%r1)
+	bcl	20,31,1f
+1:
+	mflr	%r30
+	addis	%r30,%r30,_GLOBAL_OFFSET_TABLE_-1b@ha
+	addi	%r30,%r30,_GLOBAL_OFFSET_TABLE_-1b@l
+#endif
 	mr	%r31,%r3          /* stash errval in callee-saved register */
 	bl	PIC_PLT(CNAME(__error))
 	stw	%r31,0(%r3)		/* store errval into &errno */
-	lwz	%r0,20(%r1)
-	lwz	%r31,8(%r1)
+	lwz	%r0,24(%r1)
+	lwz	%r31,12(%r1)
+#ifdef __PIC__
+	lwz	%r30,8(%r1)
+#endif
 	mtlr	%r0
-	la	%r1,16(%r1)
+	la	%r1,20(%r1)
 	li	%r3,-1
 	li	%r4,-1
 	blr				/* return to callers caller */

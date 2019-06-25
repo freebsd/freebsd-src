@@ -190,8 +190,12 @@ typedef struct Struct_Obj_Entry {
     Elf_Word gotsym;		/* First dynamic symbol in GOT */
     Elf_Addr *mips_pltgot;	/* Second PLT GOT */
 #endif
+#ifdef __powerpc__
 #ifdef __powerpc64__
     Elf_Addr glink;		/* GLINK PLT call stub section */
+#else
+    Elf_Addr *gotptr;		/* GOT pointer (secure-plt only) */
+#endif
 #endif
 
     const Elf_Verneed *verneed; /* Required versions. */

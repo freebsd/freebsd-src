@@ -52,35 +52,22 @@ _ENTRY(.rtld_start)
 	 *  - use link-time constants to determine offset to the
 	 *    _DYNAMIC section and the GOT. Add these to the PC to
 	 *    convert to absolute addresses.
-	 *  - sync icache to allow execution of the SVR4 ABI-specified
-	 *    blrl instruction preceding the GOT
-	 *  - Use this instruction to determine the GOT absolute address
 	 *  - read GOT[0], which is the SVR4 ABI-specified link-time
 	 *    value of _DYNAMIC. Subtract this value from the absolute
 	 *    value to determine the load address
 	 *  - call reloc_non_plt_self() to fix up ld-elf.so's relocations
 	 */
-	bl	1f
-	.long	_DYNAMIC-.
-	.long	_GLOBAL_OFFSET_TABLE_-.	/* branch lr + 4 */
-1:
-	mflr	%r3		/* PC value at .long */
-	lwz	%r4,4(%r3)
-	add	%r4,%r4,%r3	/* &_GLOBAL_OFFSET_TABLE-4, blrl insn. */
-	dcbst   %r0,%r4         /* sync i-cache with d-cache */
-	sync
-	icbi    %r0,%r4
-	isync
-
-	lwz	%r4,0(%r3)	/* offset to _DYNAMIC */
-	add	%r3,%r4,%r3	/* r3 = &_DYNAMIC, absolute value */
-
-	bl	_GLOBAL_OFFSET_TABLE_@local-4
-	mflr	%r4		/* &_GLOBAL_OFFSET_TABLE_, absolute value */
-	lwz	%r4,0(%r4)	/* linker &_DYNAMIC, from got[0] */
-	subf	%r4,%r4,%r3	/* subtract to calculate relocbase */
-
-	bl	reloc_non_plt_self@plt /* reloc_non_plt_self(&_DYNAMIC,base) */
+	bcl	20,31,1f
+1:	mflr	%r30
+	mr	%r3,%r30		# save for _DYNAMIC
+	addis	%r30,%r30,_GLOBAL_OFFSET_TABLE_-1b@ha
+	addi	%r30,%r30,_GLOBAL_OFFSET_TABLE_-1b@l
+	addis	%r3,%r3,_DYNAMIC-1b@ha	# get _DYNAMIC actual address
+	addi	%r3,%r3,_DYNAMIC-1b@l
+	lwz	%r28,0(%r30)		# get base-relative &_DYNAMIC
+	sub	%r28,%r3,%r28		# r28 = relocbase
+	mr	%r4,%r28		# r4 = relocbase
+	bl	reloc_non_plt_self /* reloc_non_plt_self(&_DYNAMIC,base) */
 
 	/*
 	 * The _rtld() function likes to see a stack layout containing
@@ -95,7 +82,7 @@ _ENTRY(.rtld_start)
 	addi	%r4,%r1,8	/* &exit_proc on stack */
 	addi	%r5,%r1,12	/* &obj_main on stack */
 
-	bl      _rtld@plt	/* &_start = _rtld(sp, &exit_proc, &obj_main)*/
+	bl      _rtld		/* &_start = _rtld(sp, &exit_proc, &obj_main)*/
 	mtlr    %r3
 
 	/*
@@ -115,6 +102,29 @@ _ENTRY(.rtld_start)
 	sc
 
 /*
+ * _rtld_bind_secureplt_start()
+ *
+ * Call into the MI binder (Secure-PLT stub).
+ * secure-plt expects %r11 to be the offset to the rela entry.
+ * bss-plt expects %r11 to be index of the rela entry.
+ * So for bss-plt, we multiply the index by 12 to get the offset.
+ */
+_ENTRY(_rtld_bind_secureplt_start)
+	stwu    %r1,-160(%r1)		# stack space for 29 regs + r0/lr/cr
+	stw     %r0,20(%r1)		# save r0
+
+	/*
+	 * Instead of division which is costly we will use multiplicative
+	 * inverse.  a / n = ((a * inv(n)) >> 32)
+	 * where inv(n) = (0x100000000 + n - 1) / n
+	 */
+	mr	%r0,%r11
+	lis	%r11,0x15555556@h	# load multiplicative inverse of 12
+	ori	%r11,%r11,0x15555556@l
+	mulhwu	%r11,%r11,%r0		# get high half of multiplication
+	b	1f
+
+/*
  * _rtld_bind_start()
  *
  * Call into the MI binder. This routine is reached via the PLT call cell,
@@ -129,6 +139,7 @@ _ENTRY(.rtld_start)
 _ENTRY(_rtld_bind_start)
 	stwu    %r1,-160(%r1)		# stack space for 29 regs + r0/lr/cr
 	stw     %r0,20(%r1)		# save r0
+1:
 	mflr    %r0
 	stw     %r0,16(%r1)		# save lr
 	mfcr    %r0
@@ -137,7 +148,7 @@ _ENTRY(_rtld_bind_start)
 
 	mr      %r3,%r12		# obj
 	mulli   %r4,%r11,12		# rela index * sizeof(Elf_Rela)
-	bl      _rtld_bind@PLT		# target addr = _rtld_bind(obj, reloff)
+	bl      _rtld_bind		# target addr = _rtld_bind(obj, reloff)
 	mtctr   %r3			# move absolute target addr into ctr
 
         lmw     %r3,24(%r1)		# restore r3-r31
