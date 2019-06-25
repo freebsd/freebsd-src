@@ -1041,8 +1041,8 @@ TEST_F(WriteThrough, writethrough)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-/* With writethrough caching, writes update the cached file size */
-TEST_F(WriteThrough, update_file_size)
+/* Writes that extend a file should update the cached file size */
+TEST_F(Write, update_file_size)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";

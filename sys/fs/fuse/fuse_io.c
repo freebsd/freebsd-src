@@ -541,8 +541,7 @@ retry:
 		diff = fwi->size - fwo->size;
 		as_written_offset = uio->uio_offset - diff;
 
-		if (as_written_offset - diff > filesize &&
-		    fuse_data_cache_mode != FUSE_CACHE_UC)
+		if (as_written_offset - diff > filesize)
 			fuse_vnode_setsize(vp, as_written_offset);
 		if (as_written_offset - diff >= filesize)
 			fvdat->flag &= ~FN_SIZECHANGE;
