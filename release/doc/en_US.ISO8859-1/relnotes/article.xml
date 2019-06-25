@@ -318,12 +318,6 @@
 	been updated to the latest upstream version.</para>
     </sect2>
 
-    <sect2 xml:id="userland-installer">
-      <title>Installation and Configuration Tools</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="userland-rc">
       <title><filename class="directory">/etc/rc.d</filename>
 	Scripts</title>
@@ -379,18 +373,6 @@
       <para revision="338707">The &man.pthread.3; library has been
 	updated to improve <acronym>POSIX</acronym> compliance.</para>
     </sect2>
-
-    <sect2 xml:id="userland-abi">
-      <title>ABI Compatibility</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-debug">
-      <title>Userland Debugging</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="kernel">
@@ -423,30 +405,6 @@
 	future releases will now be printed on all &os;
 	versions.</para>
     </sect2>
-
-    <sect2 xml:id="kernel-bugfix">
-      <title>Kernel Bug Fixes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="kernel-config">
-      <title>Kernel Configuration</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="kernel-modules">
-      <title>Kernel Modules</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="kernel-sysctl">
-      <title>System Tuning and Controls</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="drivers">
@@ -478,12 +436,6 @@
 	<literal>vx(4)</literal>, <literal>wb(4)</literal>, and
 	<literal>xe(4)</literal> drivers have been marked as
 	deprecated, and are not present in &os;&nbsp;13.0.</para>
-    </sect2>
-
-    <sect2 xml:id="drivers-storage">
-      <title>Storage Drivers</title>
-
-      <para>&nbsp;</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
@@ -555,12 +507,6 @@
 	<literal>NumLock</literal>, <literal>ScrollLock</literal>, and
 	numerical keypad keys has been added to &man.bhyve.8;.</para>
     </sect2>
-
-    <sect2 xml:id="hardware-arm">
-      <title>ARM Support</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="storage">
@@ -576,12 +522,6 @@
 	weaker algorithms when creating &man.geli.8; providers.</para>
     </sect2>
 
-    <sect2 xml:id="storage-net">
-      <title>Networked Storage</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="storage-zfs">
       <title>ZFS</title>
 
@@ -593,12 +533,6 @@
       <para revision="346690" contrib="sponsor" sponsor="&gandi;">The
 	<acronym>ZFS</acronym> filesystem has been updated to
 	implement parallel mounting.</para>
-    </sect2>
-
-    <sect2 xml:id="storage-geom">
-      <title><literal>geom(4)</literal></title>
-
-      <para>&nbsp;</para>
     </sect2>
   </sect1>
 
@@ -627,12 +561,6 @@
 	console type and device if not defined in
 	&man.loader.conf.5;.</para>
     </sect2>
-
-    <sect2 xml:id="boot-menu">
-      <title>Boot Menu Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="network">
@@ -658,12 +586,6 @@
 	<acronym>IPSec</acronym> algorithms deprecated in
 	<acronym>RFC</acronym> 8221.</para>
     </sect2>
-
-    <sect2 xml:id="network-protocols">
-      <title>Network Protocols</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="ports">
@@ -673,33 +595,8 @@
       Collection, package infrastructure, and package maintenance and
       installation tools.</para>
 
-    <sect2 xml:id="ports-infrastructure">
-      <title>Infrastructure Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="ports-packages ">
       <title>Packaging Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="doc">
-    <title>Documentation</title>
-
-    <para>This section covers changes to the &os;&nbsp;Documentation
-      Project sources and toolchain.</para>
-
-    <sect2 xml:id="doc-sources">
-      <title>Documentation Source Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="doc-toolchain">
-      <title>Documentation Toolchain Changes</title>
 
       <para>&nbsp;</para>
     </sect2>
