@@ -4,7 +4,7 @@
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
 	"http://www.FreeBSD.org/release/XML/share/xml/release.ent">
 %release;
-<!ENTITY local.rel "11.1">
+<!ENTITY local.rel "11.3">
 ]>
 
 <article xmlns="http://docbook.org/ns/docbook"
@@ -82,8 +82,7 @@
       <para>The &man.freebsd-update.8; utility supports binary
 	upgrades of &arch.i386; and &arch.amd64; systems running
 	earlier FreeBSD releases.  Systems running
-	<literal>10.3-RELEASE</literal>,
-	<literal>11.0-RELEASE</literal> can upgrade as follows:</para>
+	<literal>11.2-RELEASE</literal> can upgrade as follows:</para>
 
       <screen>&prompt.root; freebsd-update fetch
 &prompt.root; freebsd-update install</screen>
