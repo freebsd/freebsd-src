@@ -413,7 +413,8 @@ TEST_F(Read, eio)
 
 /* 
  * If the server returns a short read when direct io is not in use, that
- * indicates EOF and we should update the file size.
+ * indicates EOF, because of a server-side truncation.  We should invalidate
+ * all cached attributes.  We may update the file size, 
  */
 TEST_F(ReadCacheable, eof)
 {
@@ -425,18 +426,21 @@ TEST_F(ReadCacheable, eof)
 	uint64_t offset = 100;
 	ssize_t bufsize = strlen(CONTENTS);
 	ssize_t partbufsize = 3 * bufsize / 4;
+	ssize_t r;
 	char buf[bufsize];
 	struct stat sb;
 
 	expect_lookup(RELPATH, ino, offset + bufsize);
 	expect_open(ino, 0, 1);
 	expect_read(ino, 0, offset + bufsize, offset + partbufsize, CONTENTS);
+	expect_getattr(ino, offset + partbufsize);
 
 	fd = open(FULLPATH, O_RDONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
 
-	ASSERT_EQ(partbufsize, pread(fd, buf, bufsize, offset))
-		<< strerror(errno);
+	r = pread(fd, buf, bufsize, offset);
+	ASSERT_LE(0, r) << strerror(errno);
+	EXPECT_EQ(partbufsize, r) << strerror(errno);
 	ASSERT_EQ(0, fstat(fd, &sb));
 	EXPECT_EQ((off_t)(offset + partbufsize), sb.st_size);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
@@ -459,6 +463,7 @@ TEST_F(ReadCacheable, eof_of_whole_buffer)
 	expect_open(ino, 0, 1);
 	expect_read(ino, 2 * m_maxbcachebuf, bufsize, bufsize, CONTENTS);
 	expect_read(ino, m_maxbcachebuf, m_maxbcachebuf, 0, CONTENTS);
+	expect_getattr(ino, m_maxbcachebuf);
 
 	fd = open(FULLPATH, O_RDONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -581,6 +586,57 @@ TEST_F(ReadCacheable, mmap)
 	ASSERT_NE(MAP_FAILED, p) << strerror(errno);
 
 	ASSERT_EQ(0, memcmp(p, CONTENTS, bufsize));
+
+	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* 
+ * A read via mmap comes up short, indicating that the file was truncated
+ * server-side.
+ */
+TEST_F(ReadCacheable, mmap_eof)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t len;
+	size_t bufsize = strlen(CONTENTS);
+	struct stat sb;
+	void *p;
+
+	len = getpagesize();
+
+	expect_lookup(RELPATH, ino, 100000);
+	expect_open(ino, 0, 1);
+	/* mmap may legitimately try to read more data than is available */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_READ &&
+				in.header.nodeid == ino &&
+				in.body.read.fh == Read::FH &&
+				in.body.read.offset == 0 &&
+				in.body.read.size >= bufsize);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		out.header.len = sizeof(struct fuse_out_header) + bufsize;
+		memmove(out.body.bytes, CONTENTS, bufsize);
+	})));
+	expect_getattr(ino, bufsize);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	p = mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0);
+	ASSERT_NE(MAP_FAILED, p) << strerror(errno);
+
+	/* The file size should be automatically truncated */
+	ASSERT_EQ(0, memcmp(p, CONTENTS, bufsize));
+	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
+	EXPECT_EQ((off_t)bufsize, sb.st_size);
 
 	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */

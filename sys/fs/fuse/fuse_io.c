@@ -100,6 +100,12 @@ __FBSDID("$FreeBSD$");
 #include "fuse_ipc.h"
 #include "fuse_io.h"
 
+/* 
+ * Set in a struct buf to indicate that the write came from the buffer cache
+ * and the originating cred and pid are no longer known.
+ */
+#define B_FUSEFS_WRITE_CACHE B_FS_FLAG1
+
 SDT_PROVIDER_DECLARE(fusefs);
 /* 
  * Fuse trace probe:
@@ -164,10 +170,10 @@ fuse_io_clear_suid_on_write(struct vnode *vp, struct ucred *cred,
 
 SDT_PROBE_DEFINE5(fusefs, , io, io_dispatch, "struct vnode*", "struct uio*",
 		"int", "struct ucred*", "struct fuse_filehandle*");
-SDT_PROBE_DEFINE5(fusefs, , io, io_dispatch_filehandles_closed, "struct vnode*",
-    "struct uio*", "int", "bool", "struct ucred*");
+SDT_PROBE_DEFINE4(fusefs, , io, io_dispatch_filehandles_closed, "struct vnode*",
+    "struct uio*", "int", "struct ucred*");
 int
-fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
+fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
     struct ucred *cred, pid_t pid)
 {
 	struct fuse_filehandle *fufh;
@@ -188,8 +194,8 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 		closefufh = true;
 	}
 	else if (err) {
-		SDT_PROBE5(fusefs, , io, io_dispatch_filehandles_closed,
-			vp, uio, ioflag, pages, cred);
+		SDT_PROBE4(fusefs, , io, io_dispatch_filehandles_closed,
+			vp, uio, ioflag, cred);
 		printf("FUSE: io dispatch: filehandles are closed\n");
 		return err;
 	}
@@ -236,15 +242,13 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag, bool pages,
 
 			start = uio->uio_offset;
 			end = start + uio->uio_resid;
-			/* 
-			 * Invalidate the write cache unless we're coming from
-			 * VOP_PUTPAGES, in which case we're writing _from_ the
-			 * write cache
-			 */
-			if (!pages )
-				v_inval_buf_range(vp, start, end, iosize);
+			KASSERT((ioflag & (IO_VMIO | IO_DIRECT)) !=
+				(IO_VMIO | IO_DIRECT),
+			    ("IO_DIRECT used for a cache flush?"));
+			/* Invalidate the write cache when writing directly */
+			v_inval_buf_range(vp, start, end, iosize);
 			err = fuse_write_directbackend(vp, uio, cred, fufh,
-				filesize, ioflag, pages);
+				filesize, ioflag, false);
 		} else {
 			SDT_PROBE2(fusefs, , io, trace, 1,
 				"buffered write of vnode");
@@ -352,8 +356,8 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 	         */
 
 		n = 0;
-		if (on < bcount - (intptr_t)bp->b_fsprivate1)
-			n = MIN((unsigned)(bcount - (intptr_t)bp->b_fsprivate1 - on),
+		if (on < bcount - bp->b_resid)
+			n = MIN((unsigned)(bcount - bp->b_resid - on),
 			    uio->uio_resid);
 		if (n > 0) {
 			SDT_PROBE2(fusefs, , io, read_bio_backend_feed, n, bp);
@@ -362,10 +366,8 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
 		vfs_bio_brelse(bp, ioflag);
 		SDT_PROBE4(fusefs, , io, read_bio_backend_end, err,
 			uio->uio_resid, n, bp);
-		if ((intptr_t)bp->b_fsprivate1 > 0) {
+		if (bp->b_resid > 0) {
 			/* Short read indicates EOF */
-			(void)fuse_vnode_setsize(vp, uio->uio_offset);
-			bp->b_fsprivate1 = (void*)0;
 			break;
 		}
 	}
@@ -725,6 +727,21 @@ again:
 				brelse(bp);
 				break;
 			}
+			if (bp->b_resid > 0) {
+				/* 
+				 * Short read indicates EOF.  Update file size
+				 * from the server and try again.
+				 */
+				SDT_PROBE2(fusefs, , io, trace, 1,
+					"Short read during a RMW");
+				brelse(bp);
+				err = fuse_vnode_size(vp, &filesize, cred,
+				    curthread);
+				if (err)
+					break;
+				else
+					goto again;
+			}
 		}
 		if (bp->b_wcred == NOCRED)
 			bp->b_wcred = crhold(cred);
@@ -805,8 +822,11 @@ again:
 
 		vfs_bio_set_flags(bp, ioflag);
 
+		bp->b_flags |= B_FUSEFS_WRITE_CACHE;
 		if (ioflag & IO_SYNC) {
 			SDT_PROBE2(fusefs, , io, write_biobackend_issue, 2, bp);
+			if (!(ioflag & IO_VMIO))
+				bp->b_flags &= ~B_FUSEFS_WRITE_CACHE;
 			err = bwrite(bp);
 		} else if (vm_page_count_severe() ||
 			    buf_dirty_count_severe() ||
@@ -864,7 +884,6 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 	fflag = bp->b_iocmd == BIO_READ ? FREAD : FWRITE;
 	cred = bp->b_iocmd == BIO_READ ? bp->b_rcred : bp->b_wcred;
 	error = fuse_filehandle_getrw(vp, fflag, &fufh, cred, pid);
-	bp->b_fsprivate1 = (void*)(intptr_t)0;
 	if (bp->b_iocmd == BIO_READ && error == EBADF) {
 		/* 
 		 * This may be a read-modify-write operation on a cached file
@@ -905,39 +924,40 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 
 		uiop->uio_offset = ((off_t)bp->b_lblkno) * biosize;
 		error = fuse_read_directbackend(vp, uiop, cred, fufh);
-		left = uiop->uio_resid;
 		/* 
 		 * Store the amount we failed to read in the buffer's private
 		 * field, so callers can truncate the file if necessary'
 		 */
-		bp->b_fsprivate1 = (void*)(intptr_t)left;
 
 		if (!error && uiop->uio_resid) {
 			int nread = bp->b_bcount - uiop->uio_resid;
+			left = uiop->uio_resid;
 			bzero((char *)bp->b_data + nread, left);
 
-			if (fuse_data_cache_mode != FUSE_CACHE_WB || 
-			    (fvdat->flag & FN_SIZECHANGE) == 0) {
+			if ((fvdat->flag & FN_SIZECHANGE) == 0) {
 				/*
 				 * A short read with no error, when not using
 				 * direct io, and when no writes are cached,
-				 * indicates EOF.  Update the file size
-				 * accordingly.  We must still bzero the
-				 * remaining buffer so uninitialized data
-				 * doesn't get exposed by a future truncate
-				 * that extends the file.
+				 * indicates EOF caused by a server-side
+				 * truncation.  Clear the attr cache so we'll
+				 * pick up the new file size and timestamps.
+				 *
+				 * We must still bzero the remaining buffer so
+				 * uninitialized data doesn't get exposed by a
+				 * future truncate that extends the file.
 				 * 
 				 * To prevent lock order problems, we must
-				 * truncate the file upstack
+				 * truncate the file upstack, not here.
 				 */
 				SDT_PROBE2(fusefs, , io, trace, 1,
 					"Short read of a clean file");
-				uiop->uio_resid = 0;
+				fuse_vnode_clear_attr_cache(vp);
 			} else {
 				/*
 				 * If dirty writes _are_ cached beyond EOF,
 				 * that indicates a newly created hole that the
-				 * server doesn't know about.
+				 * server doesn't know about.  Those don't pose
+				 * any problem.
 				 * XXX: we don't currently track whether dirty
 				 * writes are cached beyond EOF, before EOF, or
 				 * both.
@@ -976,8 +996,9 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 			io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 			uiop->uio_rw = UIO_WRITE;
 
+			bool pages = bp->b_flags & B_FUSEFS_WRITE_CACHE;
 			error = fuse_write_directbackend(vp, uiop, cred, fufh,
-				filesize, 0, false);
+				filesize, 0, pages);
 
 			if (error == EINTR || error == ETIMEDOUT) {
 				bp->b_flags &= ~(B_INVAL | B_NOCACHE);

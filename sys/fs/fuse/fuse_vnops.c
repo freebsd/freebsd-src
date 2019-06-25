@@ -150,7 +150,6 @@ static vop_strategy_t fuse_vnop_strategy;
 static vop_symlink_t fuse_vnop_symlink;
 static vop_write_t fuse_vnop_write;
 static vop_getpages_t fuse_vnop_getpages;
-static vop_putpages_t fuse_vnop_putpages;
 static vop_print_t fuse_vnop_print;
 static vop_vptofh_t fuse_vnop_vptofh;
 
@@ -215,7 +214,6 @@ struct vop_vector fuse_vnops = {
 	.vop_symlink = fuse_vnop_symlink,
 	.vop_write = fuse_vnop_write,
 	.vop_getpages = fuse_vnop_getpages,
-	.vop_putpages = fuse_vnop_putpages,
 	.vop_print = fuse_vnop_print,
 	.vop_vptofh = fuse_vnop_vptofh,
 };
@@ -1381,7 +1379,7 @@ fuse_vnop_read(struct vop_read_args *ap)
 		ioflag |= IO_DIRECT;
 	}
 
-	return fuse_io_dispatch(vp, uio, ioflag, false, cred, pid);
+	return fuse_io_dispatch(vp, uio, ioflag, cred, pid);
 }
 
 /*
@@ -1960,10 +1958,39 @@ fuse_vnop_write(struct vop_write_args *ap)
 		ioflag |= IO_DIRECT;
 	}
 
-	return fuse_io_dispatch(vp, uio, ioflag, false, cred, pid);
+	return fuse_io_dispatch(vp, uio, ioflag, cred, pid);
 }
 
-SDT_PROBE_DEFINE1(fusefs, , vnops, vnop_getpages_error, "int");
+static daddr_t
+fuse_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
+{
+	const int biosize = fuse_iosize(vp);
+
+	return (off / biosize);
+}
+
+static int
+fuse_gbp_getblksz(struct vnode *vp, daddr_t lbn)
+{
+	off_t filesize;
+	int blksz, err;
+	const int biosize = fuse_iosize(vp);
+
+	err = fuse_vnode_size(vp, &filesize, NULL, NULL);
+	KASSERT(err == 0, ("vfs_bio_getpages can't handle errors here"));
+	if (err)
+		return biosize;
+
+	if ((off_t)lbn * biosize >= filesize) {
+		blksz = 0;
+	} else if ((off_t)(lbn + 1) * biosize > filesize) {
+		blksz = filesize - (off_t)lbn *biosize;
+	} else {
+		blksz = biosize;
+	}
+	return (blksz);
+}
+
 /*
     struct vnop_getpages_args {
 	struct vnode *a_vp;
@@ -1975,23 +2002,7 @@ SDT_PROBE_DEFINE1(fusefs, , vnops, vnop_getpages_error, "int");
 static int
 fuse_vnop_getpages(struct vop_getpages_args *ap)
 {
-	int i, error, nextoff, size, toff, count, npages;
-	struct uio uio;
-	struct iovec iov;
-	vm_offset_t kva;
-	struct buf *bp;
-	struct vnode *vp;
-	struct thread *td;
-	struct ucred *cred;
-	vm_page_t *pages;
-	pid_t pid = curthread->td_proc->p_pid;
-
-	vp = ap->a_vp;
-	KASSERT(vp->v_object, ("objectless vp passed to getpages"));
-	td = curthread;			/* XXX */
-	cred = curthread->td_ucred;	/* XXX */
-	pages = ap->a_m;
-	npages = ap->a_count;
+	struct vnode *vp = ap->a_vp;
 
 	if (!fsess_opt_mmap(vnode_mount(vp))) {
 		SDT_PROBE2(fusefs, , vnops, trace, 1,
@@ -1999,190 +2010,8 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 		return (VM_PAGER_ERROR);
 	}
 
-	/*
-	 * If the last page is partially valid, just return it and allow
-	 * the pager to zero-out the blanks.  Partially valid pages can
-	 * only occur at the file EOF.
-	 *
-	 * XXXGL: is that true for FUSE, which is a local filesystem,
-	 * but still somewhat disconnected from the kernel?
-	 */
-	VM_OBJECT_WLOCK(vp->v_object);
-	if (pages[npages - 1]->valid != 0 && --npages == 0)
-		goto out;
-	VM_OBJECT_WUNLOCK(vp->v_object);
-
-	/*
-	 * We use only the kva address for the buffer, but this is extremely
-	 * convenient and fast.
-	 */
-	bp = uma_zalloc(fuse_pbuf_zone, M_WAITOK);
-
-	kva = (vm_offset_t)bp->b_data;
-	pmap_qenter(kva, pages, npages);
-	VM_CNT_INC(v_vnodein);
-	VM_CNT_ADD(v_vnodepgsin, npages);
-
-	count = npages << PAGE_SHIFT;
-	iov.iov_base = (caddr_t)kva;
-	iov.iov_len = count;
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = IDX_TO_OFF(pages[0]->pindex);
-	uio.uio_resid = count;
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_READ;
-	uio.uio_td = td;
-
-	error = fuse_io_dispatch(vp, &uio, IO_DIRECT, true, cred, pid);
-	pmap_qremove(kva, npages);
-
-	uma_zfree(fuse_pbuf_zone, bp);
-
-	if (error && (uio.uio_resid == count)) {
-		SDT_PROBE1(fusefs, , vnops, vnop_getpages_error, error);
-		return VM_PAGER_ERROR;
-	}
-	/*
-	 * Calculate the number of bytes read and validate only that number
-	 * of bytes.  Note that due to pending writes, size may be 0.  This
-	 * does not mean that the remaining data is invalid!
-	 */
-
-	size = count - uio.uio_resid;
-	VM_OBJECT_WLOCK(vp->v_object);
-	fuse_vm_page_lock_queues();
-	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
-		vm_page_t m;
-
-		nextoff = toff + PAGE_SIZE;
-		m = pages[i];
-
-		if (nextoff <= size) {
-			/*
-			 * Read operation filled an entire page
-			 */
-			m->valid = VM_PAGE_BITS_ALL;
-			KASSERT(m->dirty == 0,
-			    ("fuse_getpages: page %p is dirty", m));
-		} else if (size > toff) {
-			/*
-			 * Read operation filled a partial page.
-			 */
-			m->valid = 0;
-			vm_page_set_valid_range(m, 0, size - toff);
-			KASSERT(m->dirty == 0,
-			    ("fuse_getpages: page %p is dirty", m));
-		} else {
-			/*
-			 * Read operation was short.  If no error occurred
-			 * we may have hit a zero-fill section.   We simply
-			 * leave valid set to 0.
-			 */
-			;
-		}
-	}
-	fuse_vm_page_unlock_queues();
-out:
-	VM_OBJECT_WUNLOCK(vp->v_object);
-	if (ap->a_rbehind)
-		*ap->a_rbehind = 0;
-	if (ap->a_rahead)
-		*ap->a_rahead = 0;
-	return (VM_PAGER_OK);
-}
-
-/*
-    struct vnop_putpages_args {
-	struct vnode *a_vp;
-	vm_page_t *a_m;
-	int a_count;
-	int a_sync;
-	int *a_rtvals;
-	vm_ooffset_t a_offset;
-    };
-*/
-static int
-fuse_vnop_putpages(struct vop_putpages_args *ap)
-{
-	struct uio uio;
-	struct iovec iov;
-	vm_offset_t kva;
-	struct buf *bp;
-	int i, error, npages, count;
-	off_t offset;
-	int *rtvals;
-	struct vnode *vp;
-	struct thread *td;
-	struct ucred *cred;
-	vm_page_t *pages;
-	vm_ooffset_t fsize;
-	pid_t pid = curthread->td_proc->p_pid;
-
-	vp = ap->a_vp;
-	KASSERT(vp->v_object, ("objectless vp passed to putpages"));
-	fsize = vp->v_object->un_pager.vnp.vnp_size;
-	td = curthread;			/* XXX */
-	cred = curthread->td_ucred;	/* XXX */
-	pages = ap->a_m;
-	count = ap->a_count;
-	rtvals = ap->a_rtvals;
-	npages = btoc(count);
-	offset = IDX_TO_OFF(pages[0]->pindex);
-
-	if (!fsess_opt_mmap(vnode_mount(vp))) {
-		SDT_PROBE2(fusefs, , vnops, trace, 1,
-			"called on non-cacheable vnode??\n");
-	}
-	for (i = 0; i < npages; i++)
-		rtvals[i] = VM_PAGER_AGAIN;
-
-	/*
-	 * When putting pages, do not extend file past EOF.
-	 */
-
-	if (offset + count > fsize) {
-		count = fsize - offset;
-		if (count < 0)
-			count = 0;
-	}
-	/*
-	 * We use only the kva address for the buffer, but this is extremely
-	 * convenient and fast.
-	 */
-	bp = uma_zalloc(fuse_pbuf_zone, M_WAITOK);
-
-	kva = (vm_offset_t)bp->b_data;
-	pmap_qenter(kva, pages, npages);
-	VM_CNT_INC(v_vnodeout);
-	VM_CNT_ADD(v_vnodepgsout, count);
-
-	iov.iov_base = (caddr_t)kva;
-	iov.iov_len = count;
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = offset;
-	uio.uio_resid = count;
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_WRITE;
-	uio.uio_td = td;
-
-	error = fuse_io_dispatch(vp, &uio, IO_DIRECT, true, cred, pid);
-
-	pmap_qremove(kva, npages);
-	uma_zfree(fuse_pbuf_zone, bp);
-
-	if (!error) {
-		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
-
-		for (i = 0; i < nwritten; i++) {
-			rtvals[i] = VM_PAGER_OK;
-			VM_OBJECT_WLOCK(pages[i]->object);
-			vm_page_undirty(pages[i]);
-			VM_OBJECT_WUNLOCK(pages[i]->object);
-		}
-	}
-	return rtvals[0];
+	return (vfs_bio_getpages(vp, ap->a_m, ap->a_count, ap->a_rbehind,
+	    ap->a_rahead, fuse_gbp_getblkno, fuse_gbp_getblksz));
 }
 
 static const char extattr_namespace_separator = '.';

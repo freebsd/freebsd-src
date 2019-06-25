@@ -528,6 +528,39 @@ TEST_F(Write, rlimit_fsize)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
+/* 
+ * A short read indicates EOF.  Test that nothing bad happens if we get EOF
+ * during the R of a RMW operation.
+ */
+TEST_F(WriteCacheable, eof_during_rmw)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	const char *INITIAL   = "XXXXXXXXXX";
+	uint64_t ino = 42;
+	uint64_t offset = 1;
+	ssize_t bufsize = strlen(CONTENTS);
+	off_t orig_fsize = 10;
+	off_t truncated_fsize = 5;
+	off_t final_fsize = bufsize;
+	int fd;
+
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, orig_fsize, 1);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 0, orig_fsize, truncated_fsize, INITIAL, O_RDWR);
+	expect_getattr(ino, truncated_fsize);
+	expect_read(ino, 0, final_fsize, final_fsize, INITIAL, O_RDWR);
+	maybe_expect_write(ino, offset, bufsize, CONTENTS);
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(bufsize, pwrite(fd, CONTENTS, bufsize, offset))
+		<< strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
 /*
  * If the kernel cannot be sure which uid, gid, or pid was responsible for a
  * write, then it must set the FUSE_WRITE_CACHE bit
