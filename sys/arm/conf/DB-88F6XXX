@@ -78,9 +78,6 @@ device		twsi
 # SATA
 device		mvs
 
-# NAND
-device		nand
-
 # GPIO
 device		gpio
 

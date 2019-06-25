@@ -157,14 +157,6 @@ options 	ALTQ_PRIQ		# Priority Queueing
 options 	ALTQ_NOPCC		# Required if the TSC is unusable
 #options 	ALTQ_DEBUG
 
-# To use this configuration with the (rare) model 1001N (nand flash),
-# create a kernel config file that looks like this:
-#
-# include DREAMPLUG-1001
-# nomakeoptions	FDT_DTS_FILE
-# makeoptions	FDT_DTS_FILE=dreamplug-1001N.dts
-# device 	nand
-
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 options 	FDT_DTB_STATIC

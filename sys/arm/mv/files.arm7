@@ -29,7 +29,6 @@ dev/iicbus/twsi/mv_twsi.c	optional	twsi
 dev/mge/if_mge.c		optional	mge
 dev/neta/if_mvneta_fdt.c	optional	neta fdt
 dev/neta/if_mvneta.c		optional	neta mdio mii
-dev/nand/nfc_mv.c		optional	nand
 dev/mvs/mvs_soc.c		optional	mvs
 dev/uart/uart_dev_ns8250.c	optional	uart
 dev/uart/uart_dev_snps.c	optional	uart

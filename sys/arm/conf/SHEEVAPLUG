@@ -72,9 +72,6 @@ device		scbus
 device		pass
 device		da
 
-# NAND
-device		nand
-
 # GPIO
 device		gpio
 

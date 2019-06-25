@@ -43,8 +43,6 @@ dev/iicbus/max6690.c		optional	max6690 powermac
 dev/iicbus/ofw_iicbus.c		optional	iicbus aim
 dev/ipmi/ipmi.c			optional	ipmi
 dev/ipmi/ipmi_opal.c		optional	powernv ipmi
-dev/nand/nfc_fsl.c		optional	nand mpc85xx
-dev/nand/nfc_rb.c		optional	nand mpc85xx
 # Most ofw stuff below is brought in by conf/files for options FDT, but
 # we always want it, even on non-FDT platforms.
 dev/fdt/simplebus.c		standard

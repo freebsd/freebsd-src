@@ -57,7 +57,6 @@ static const uuid_t gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 static const uuid_t gpt_uuid_efi = GPT_ENT_TYPE_EFI;
 static const uuid_t gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static const uuid_t gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
-static const uuid_t gpt_uuid_freebsd_nandfs = GPT_ENT_TYPE_FREEBSD_NANDFS;
 static const uuid_t gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 static const uuid_t gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
 static const uuid_t gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
@@ -91,7 +90,6 @@ static struct parttypes {
 	{ PART_EFI,		"EFI" },
 	{ PART_FREEBSD,		"FreeBSD" },
 	{ PART_FREEBSD_BOOT,	"FreeBSD boot" },
-	{ PART_FREEBSD_NANDFS,	"FreeBSD nandfs" },
 	{ PART_FREEBSD_UFS,	"FreeBSD UFS" },
 	{ PART_FREEBSD_ZFS,	"FreeBSD ZFS" },
 	{ PART_FREEBSD_SWAP,	"FreeBSD swap" },
@@ -141,8 +139,6 @@ gpt_parttype(uuid_t type)
 		return (PART_FREEBSD_SWAP);
 	else if (uuid_equal(&type, &gpt_uuid_freebsd_vinum, NULL))
 		return (PART_FREEBSD_VINUM);
-	else if (uuid_equal(&type, &gpt_uuid_freebsd_nandfs, NULL))
-		return (PART_FREEBSD_NANDFS);
 	else if (uuid_equal(&type, &gpt_uuid_freebsd, NULL))
 		return (PART_FREEBSD);
 	return (PART_UNKNOWN);
@@ -445,8 +441,6 @@ bsd_parttype(uint8_t type)
 {
 
 	switch (type) {
-	case FS_NANDFS:
-		return (PART_FREEBSD_NANDFS);
 	case FS_SWAP:
 		return (PART_FREEBSD_SWAP);
 	case FS_BSDFFS:
@@ -527,8 +521,6 @@ vtoc8_parttype(uint16_t type)
 {
 
 	switch (type) {
-	case VTOC_TAG_FREEBSD_NANDFS:
-		return (PART_FREEBSD_NANDFS);
 	case VTOC_TAG_FREEBSD_SWAP:
 		return (PART_FREEBSD_SWAP);
 	case VTOC_TAG_FREEBSD_UFS:
