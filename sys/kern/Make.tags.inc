@@ -28,7 +28,6 @@ COMM=	${SYS}/sys/vnode.h \
 	${SYS}/fs/fifofs/*.[ch] \
 	${SYS}/fs/fuse/*.[ch] \
 	${SYS}/fs/msdosfs/*.[ch] \
-	${SYS}/fs/nandfs/*.[ch] \
 	${SYS}/fs/nfs/*.[ch] \
 	${SYS}/fs/nfsclient/*.[ch] \
 	${SYS}/fs/nfsserver/*.[ch] \
@@ -82,7 +81,6 @@ COMMDIR2= ${SYS}/dev/alc \
 	${SYS}/fs/fifofs \
 	${SYS}/fs/fuse \
 	${SYS}/fs/msdosfs \
-	${SYS}/fs/nandfs \
 	${SYS}/fs/nfs \
 	${SYS}/fs/nfsclient \
 	${SYS}/fs/nfsserver \

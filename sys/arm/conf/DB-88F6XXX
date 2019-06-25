@@ -17,7 +17,6 @@ options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	FFS			# Berkeley Fast Filesystem
-options 	NANDFS			# NAND Filesystem
 options 	NFSCL			# Network Filesystem Client
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
