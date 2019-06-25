@@ -110,10 +110,16 @@ virtual void SetUp() {
 };
 
 class ReadAhead: public ReadCacheable,
-		 public WithParamInterface<tuple<bool, uint32_t>>
+		 public WithParamInterface<tuple<bool, int>>
 {
 	virtual void SetUp() {
-		m_maxreadahead = get<1>(GetParam());
+		int val;
+		const char *node = "vfs.maxbcachebuf";
+		size_t size = sizeof(val);
+		ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
+			<< strerror(errno);
+
+		m_maxreadahead = val * get<1>(GetParam());
 		m_noclusterr = get<0>(GetParam());
 		ReadCacheable::SetUp();
 	}
@@ -892,8 +898,8 @@ TEST_P(ReadAhead, readahead) {
 	expect_lookup(RELPATH, ino, filesize);
 	expect_open(ino, 0, 1);
 	maxcontig = m_noclusterr ? m_maxbcachebuf :
-				   m_maxbcachebuf + (int)get<1>(GetParam());
-	clustersize = MIN(maxcontig, MAXPHYS);
+		m_maxbcachebuf + m_maxreadahead;
+	clustersize = MIN(maxcontig, m_maxphys);
 	for (offs = 0; offs < bufsize; offs += clustersize) {
 		len = std::min((size_t)clustersize, (size_t)(filesize - offs));
 		expect_read(ino, offs, len, len, contents + offs);
@@ -912,10 +918,10 @@ TEST_P(ReadAhead, readahead) {
 }
 
 INSTANTIATE_TEST_CASE_P(RA, ReadAhead,
-	Values(tuple<bool, int>(false, 0u),
-	       tuple<bool, int>(false, 0x10000),
-	       tuple<bool, int>(false, 0x20000),
-	       tuple<bool, int>(false, 0x30000),
-	       tuple<bool, int>(true, 0u),
-	       tuple<bool, int>(true, 0x10000),
-	       tuple<bool, int>(true, 0x20000)));
+	Values(tuple<bool, int>(false, 0),
+	       tuple<bool, int>(false, 1),
+	       tuple<bool, int>(false, 2),
+	       tuple<bool, int>(false, 3),
+	       tuple<bool, int>(true, 0),
+	       tuple<bool, int>(true, 1),
+	       tuple<bool, int>(true, 2)));

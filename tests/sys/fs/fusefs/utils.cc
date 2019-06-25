@@ -93,7 +93,8 @@ class FuseEnv: public Environment {
 };
 
 void FuseTest::SetUp() {
-	const char *node = "vfs.maxbcachebuf";
+	const char *maxbcachebuf_node = "vfs.maxbcachebuf";
+	const char *maxphys_node = "kern.maxphys";
 	int val = 0;
 	size_t size = sizeof(val);
 
@@ -105,9 +106,12 @@ void FuseTest::SetUp() {
 	if (IsSkipped())
 		return;
 
-	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
+	ASSERT_EQ(0, sysctlbyname(maxbcachebuf_node, &val, &size, NULL, 0))
 		<< strerror(errno);
 	m_maxbcachebuf = val;
+	ASSERT_EQ(0, sysctlbyname(maxphys_node, &val, &size, NULL, 0))
+		<< strerror(errno);
+	m_maxphys = val;
 
 	try {
 		m_mock = new MockFS(m_maxreadahead, m_allow_other,

@@ -99,8 +99,8 @@ TEST_F(Bmap, bmap)
 	arg.runb = -1;
 	ASSERT_EQ(0, ioctl(fd, FIOBMAP2, &arg)) << strerror(errno);
 	EXPECT_EQ(arg.bn, pbn);
-	EXPECT_EQ(arg.runp, MAXPHYS / m_maxbcachebuf - 1);
-	EXPECT_EQ(arg.runb, MAXPHYS / m_maxbcachebuf - 1);
+	EXPECT_EQ(arg.runp, m_maxphys / m_maxbcachebuf - 1);
+	EXPECT_EQ(arg.runb, m_maxphys / m_maxbcachebuf - 1);
 }
 
 /* 
@@ -134,7 +134,7 @@ TEST_F(Bmap, default_)
 	arg.runb = -1;
 	ASSERT_EQ(0, ioctl(fd, FIOBMAP2, &arg)) << strerror(errno);
 	EXPECT_EQ(arg.bn, 0);
-	EXPECT_EQ(arg.runp, MAXPHYS / m_maxbcachebuf - 1);
+	EXPECT_EQ(arg.runp, m_maxphys / m_maxbcachebuf - 1);
 	EXPECT_EQ(arg.runb, 0);
 
 	/* In the middle */
@@ -144,8 +144,8 @@ TEST_F(Bmap, default_)
 	arg.runb = -1;
 	ASSERT_EQ(0, ioctl(fd, FIOBMAP2, &arg)) << strerror(errno);
 	EXPECT_EQ(arg.bn, lbn * m_maxbcachebuf / DEV_BSIZE);
-	EXPECT_EQ(arg.runp, MAXPHYS / m_maxbcachebuf - 1);
-	EXPECT_EQ(arg.runb, MAXPHYS / m_maxbcachebuf - 1);
+	EXPECT_EQ(arg.runp, m_maxphys / m_maxbcachebuf - 1);
+	EXPECT_EQ(arg.runb, m_maxphys / m_maxbcachebuf - 1);
 
 	/* Last block */
 	lbn = filesize / m_maxbcachebuf - 1;
@@ -155,5 +155,5 @@ TEST_F(Bmap, default_)
 	ASSERT_EQ(0, ioctl(fd, FIOBMAP2, &arg)) << strerror(errno);
 	EXPECT_EQ(arg.bn, lbn * m_maxbcachebuf / DEV_BSIZE);
 	EXPECT_EQ(arg.runp, 0);
-	EXPECT_EQ(arg.runb, MAXPHYS / m_maxbcachebuf - 1);
+	EXPECT_EQ(arg.runb, m_maxphys / m_maxbcachebuf - 1);
 }
