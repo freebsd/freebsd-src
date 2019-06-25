@@ -57,6 +57,8 @@
 #define JMPTAB_BASE(N)		(18 + N*2 + ((N > PLT_EXTENDED_BEGIN) ? \
 				    (N - PLT_EXTENDED_BEGIN)*2 : 0))
 
+void _rtld_bind_secureplt_start(void);
+
 /*
  * Process the R_PPC_COPY relocations
  */
@@ -361,6 +363,11 @@ reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
 	if (reloff < 0)
 		return (-1);
 
+	if (obj->gotptr != NULL) {
+		*where += (Elf_Addr)obj->relocbase;
+		return (0);
+	}
+
 	pltlongresolve = obj->pltgot + 5;
 	pltresolve = pltlongresolve + 5;
 
@@ -425,7 +432,7 @@ reloc_plt(Obj_Entry *obj, int flags __unused, RtldLockState *lockstate __unused)
 	 * Sync the icache for the byte range represented by the
 	 * trampoline routines and call slots.
 	 */
-	if (obj->pltgot != NULL)
+	if (obj->pltgot != NULL && obj->gotptr == NULL)
 		__syncicache(obj->pltgot, JMPTAB_BASE(N)*4);
 
 	return (0);
@@ -500,6 +507,14 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target,
 	 * address.
 	 */
 	offset = target - (Elf_Addr)wherep;
+
+	if (obj->gotptr != NULL) {
+		assert(wherep >= (Elf_Word *)obj->pltgot);
+		assert(wherep <
+		    (Elf_Word *)obj->pltgot + obj->pltrelasize);
+		*wherep = target;
+		goto out;
+	}
 
 	if (abs((int)offset) < 32*1024*1024) {     /* inside 32MB? */
 		/* b    value   # branch directly */
@@ -576,6 +591,16 @@ init_pltgot(Obj_Entry *obj)
 	pltcall = obj->pltgot;
 
 	if (pltcall == NULL) {
+		return;
+	}
+
+	/* Handle Secure-PLT first, if applicable. */
+	if (obj->gotptr != NULL) {
+		obj->gotptr[1] = (Elf_Addr)_rtld_bind_secureplt_start;
+		obj->gotptr[2] = (Elf_Addr)obj;
+		dbg("obj %s secure-plt gotptr=%p start=%p obj=%p",
+		    obj->path, obj->gotptr,
+		    (void *)obj->gotptr[1], (void *)obj->gotptr[2]);
 		return;
 	}
 

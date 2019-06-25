@@ -595,3 +595,16 @@ bzero(void *buf, size_t len)
 		len--;
 	}
 }
+
+/* __stack_chk_fail_local() is called in secure-plt (32-bit). */
+#if !defined(__powerpc64__)
+extern void __stack_chk_fail(void);
+void __stack_chk_fail_local(void);
+
+void
+__stack_chk_fail_local(void)
+{
+
+	__stack_chk_fail();
+}
+#endif
