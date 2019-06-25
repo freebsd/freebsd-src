@@ -110,6 +110,7 @@ struct ip6_direct_ctx {
 	uint32_t	ip6dc_off;	/* offset to next header */
 };
 
+#if defined(_NETINET6_IN6_VAR_H_) && defined(_KERNEL)
 /*
  * Structure attached to inpcb.in6p_moptions and
  * passed to ip6_output when IPv6 multicast options are in use.
@@ -119,13 +120,11 @@ struct ip6_moptions {
 	struct	ifnet *im6o_multicast_ifp; /* ifp for outgoing multicasts */
 	u_char	im6o_multicast_hlim;	/* hoplimit for outgoing multicasts */
 	u_char	im6o_multicast_loop;	/* 1 >= hear sends if a member */
-	u_short	im6o_num_memberships;	/* no. memberships this socket */
-	u_short	im6o_max_memberships;	/* max memberships this socket */
-	struct	in6_multi **im6o_membership;	/* group memberships */
-	struct	in6_mfilter *im6o_mfilters;	/* source filters */
-	struct	epoch_context imo6_epoch_ctx;
+	struct ip6_mfilter_head im6o_head; /* group membership list */
 };
-
+#else
+struct ip6_moptions;
+#endif
 /*
  * Control options for outgoing packets
  */

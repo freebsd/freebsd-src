@@ -102,7 +102,8 @@ RB_GENERATE(ip6_msource_tree, ip6_msource, im6s_link, ip6_msource_cmp);
 
 /*
  * Locking:
- * - Lock order is: Giant, INP_WLOCK, IN6_MULTI_LOCK, MLD_LOCK, IF_ADDR_LOCK.
+ * - Lock order is: Giant, IN6_MULTI_LOCK, INP_WLOCK,
+ *   IN6_MULTI_LIST_LOCK, MLD_LOCK, IF_ADDR_LOCK.
  * - The IF_ADDR_LOCK is implicitly taken by in6m_lookup() earlier, however
  *   it can be taken by code in net/if.c also.
  * - ip6_moptions and in6_mfilter are covered by the INP_WLOCK.
@@ -134,12 +135,11 @@ static int	im6f_prune(struct in6_mfilter *, const struct sockaddr_in6 *);
 static void	im6f_purge(struct in6_mfilter *);
 static void	im6f_rollback(struct in6_mfilter *);
 static void	im6f_reap(struct in6_mfilter *);
-static int	im6o_grow(struct ip6_moptions *);
-static size_t	im6o_match_group(const struct ip6_moptions *,
+static struct in6_mfilter *
+		im6o_match_group(const struct ip6_moptions *,
 		    const struct ifnet *, const struct sockaddr *);
 static struct in6_msource *
-		im6o_match_source(const struct ip6_moptions *, const size_t,
-		    const struct sockaddr *);
+		im6o_match_source(struct in6_mfilter *, const struct sockaddr *);
 static void	im6s_merge(struct ip6_msource *ims,
 		    const struct in6_msource *lims, const int rollback);
 static int	in6_getmulti(struct ifnet *, const struct in6_addr *,
@@ -228,55 +228,25 @@ im6f_init(struct in6_mfilter *imf, const int st0, const int st1)
 	imf->im6f_st[1] = st1;
 }
 
-/*
- * Resize the ip6_moptions vector to the next power-of-two minus 1.
- * May be called with locks held; do not sleep.
- */
-static int
-im6o_grow(struct ip6_moptions *imo)
+struct in6_mfilter *
+ip6_mfilter_alloc(const int mflags, const int st0, const int st1)
 {
-	struct in6_multi	**nmships;
-	struct in6_multi	**omships;
-	struct in6_mfilter	 *nmfilters;
-	struct in6_mfilter	 *omfilters;
-	size_t			  idx;
-	size_t			  newmax;
-	size_t			  oldmax;
+	struct in6_mfilter *imf;
 
-	nmships = NULL;
-	nmfilters = NULL;
-	omships = imo->im6o_membership;
-	omfilters = imo->im6o_mfilters;
-	oldmax = imo->im6o_max_memberships;
-	newmax = ((oldmax + 1) * 2) - 1;
+	imf = malloc(sizeof(*imf), M_IN6MFILTER, mflags);
 
-	if (newmax <= IPV6_MAX_MEMBERSHIPS) {
-		nmships = (struct in6_multi **)realloc(omships,
-		    sizeof(struct in6_multi *) * newmax, M_IP6MOPTS, M_NOWAIT);
-		nmfilters = (struct in6_mfilter *)realloc(omfilters,
-		    sizeof(struct in6_mfilter) * newmax, M_IN6MFILTER,
-		    M_NOWAIT);
-		if (nmships != NULL && nmfilters != NULL) {
-			/* Initialize newly allocated source filter heads. */
-			for (idx = oldmax; idx < newmax; idx++) {
-				im6f_init(&nmfilters[idx], MCAST_UNDEFINED,
-				    MCAST_EXCLUDE);
-			}
-			imo->im6o_max_memberships = newmax;
-			imo->im6o_membership = nmships;
-			imo->im6o_mfilters = nmfilters;
-		}
-	}
+	if (imf != NULL)
+		im6f_init(imf, st0, st1);
 
-	if (nmships == NULL || nmfilters == NULL) {
-		if (nmships != NULL)
-			free(nmships, M_IP6MOPTS);
-		if (nmfilters != NULL)
-			free(nmfilters, M_IN6MFILTER);
-		return (ETOOMANYREFS);
-	}
+	return (imf);
+}
 
-	return (0);
+void
+ip6_mfilter_free(struct in6_mfilter *imf)
+{
+
+	im6f_purge(imf);
+	free(imf, M_IN6MFILTER);
 }
 
 /*
@@ -284,36 +254,27 @@ im6o_grow(struct ip6_moptions *imo)
  * which matches the specified group, and optionally an interface.
  * Return its index into the array, or -1 if not found.
  */
-static size_t
+static struct in6_mfilter *
 im6o_match_group(const struct ip6_moptions *imo, const struct ifnet *ifp,
     const struct sockaddr *group)
 {
 	const struct sockaddr_in6 *gsin6;
-	struct in6_multi	**pinm;
-	int		  idx;
-	int		  nmships;
+        struct in6_mfilter *imf;
+        struct in6_multi *inm;
 
-	gsin6 = (const struct sockaddr_in6 *)group;
+        gsin6 = (const struct sockaddr_in6 *)group;
 
-	/* The im6o_membership array may be lazy allocated. */
-	if (imo->im6o_membership == NULL || imo->im6o_num_memberships == 0)
-		return (-1);
-
-	nmships = imo->im6o_num_memberships;
-	pinm = &imo->im6o_membership[0];
-	for (idx = 0; idx < nmships; idx++, pinm++) {
-		if (*pinm == NULL)
+	IP6_MFILTER_FOREACH(imf, &imo->im6o_head) {
+		inm = imf->im6f_in6m;
+		if (inm == NULL)
 			continue;
-		if ((ifp == NULL || ((*pinm)->in6m_ifp == ifp)) &&
-		    IN6_ARE_ADDR_EQUAL(&(*pinm)->in6m_addr,
+		if ((ifp == NULL || (inm->in6m_ifp == ifp)) &&
+		    IN6_ARE_ADDR_EQUAL(&inm->in6m_addr,
 		    &gsin6->sin6_addr)) {
 			break;
 		}
 	}
-	if (idx >= nmships)
-		idx = -1;
-
-	return (idx);
+	return (imf);
 }
 
 /*
@@ -328,22 +289,13 @@ im6o_match_group(const struct ip6_moptions *imo, const struct ifnet *ifp,
  * it exists, which may not be the desired behaviour.
  */
 static struct in6_msource *
-im6o_match_source(const struct ip6_moptions *imo, const size_t gidx,
-    const struct sockaddr *src)
+im6o_match_source(struct in6_mfilter *imf, const struct sockaddr *src)
 {
 	struct ip6_msource	 find;
-	struct in6_mfilter	*imf;
 	struct ip6_msource	*ims;
 	const sockunion_t	*psa;
 
 	KASSERT(src->sa_family == AF_INET6, ("%s: !AF_INET6", __func__));
-	KASSERT(gidx != -1 && gidx < imo->im6o_num_memberships,
-	    ("%s: invalid index %d\n", __func__, (int)gidx));
-
-	/* The im6o_mfilters array may be lazy allocated. */
-	if (imo->im6o_mfilters == NULL)
-		return (NULL);
-	imf = &imo->im6o_mfilters[gidx];
 
 	psa = (const sockunion_t *)src;
 	find.im6s_addr = psa->sin6.sin6_addr;
@@ -363,14 +315,14 @@ int
 im6o_mc_filter(const struct ip6_moptions *imo, const struct ifnet *ifp,
     const struct sockaddr *group, const struct sockaddr *src)
 {
-	size_t gidx;
+	struct in6_mfilter *imf;
 	struct in6_msource *ims;
 	int mode;
 
 	KASSERT(ifp != NULL, ("%s: null ifp", __func__));
 
-	gidx = im6o_match_group(imo, ifp, group);
-	if (gidx == -1)
+	imf = im6o_match_group(imo, ifp, group);
+	if (imf == NULL)
 		return (MCAST_NOTGMEMBER);
 
 	/*
@@ -382,8 +334,8 @@ im6o_mc_filter(const struct ip6_moptions *imo, const struct ifnet *ifp,
 	 * NOTE: We are comparing group state here at MLD t1 (now)
 	 * with socket-layer t0 (since last downcall).
 	 */
-	mode = imo->im6o_mfilters[gidx].im6f_st[1];
-	ims = im6o_match_source(imo, gidx, src);
+	mode = imf->im6f_st[1];
+	ims = im6o_match_source(imf, src);
 
 	if ((ims == NULL && mode == MCAST_INCLUDE) ||
 	    (ims != NULL && ims->im6sl_st[0] != mode))
@@ -1447,7 +1399,6 @@ in6p_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	struct ip6_moptions		*imo;
 	struct in6_msource		*ims;
 	struct in6_multi			*inm;
-	size_t				 idx;
 	uint16_t			 fmode;
 	int				 error, doblock;
 #ifdef KTR
@@ -1504,16 +1455,12 @@ in6p_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	 * Check if we are actually a member of this group.
 	 */
 	imo = in6p_findmoptions(inp);
-	idx = im6o_match_group(imo, ifp, &gsa->sa);
-	if (idx == -1 || imo->im6o_mfilters == NULL) {
+	imf = im6o_match_group(imo, ifp, &gsa->sa);
+	if (imf == NULL) {
 		error = EADDRNOTAVAIL;
 		goto out_in6p_locked;
 	}
-
-	KASSERT(imo->im6o_mfilters != NULL,
-	    ("%s: im6o_mfilters not allocated", __func__));
-	imf = &imo->im6o_mfilters[idx];
-	inm = imo->im6o_membership[idx];
+	inm = imf->im6f_in6m;
 
 	/*
 	 * Attempting to use the delta-based API on an
@@ -1531,7 +1478,7 @@ in6p_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	 *  Asked to unblock, but nothing to unblock.
 	 * If adding a new block entry, allocate it.
 	 */
-	ims = im6o_match_source(imo, idx, &ssa->sa);
+	ims = im6o_match_source(imf, &ssa->sa);
 	if ((ims != NULL && doblock) || (ims == NULL && !doblock)) {
 		CTR3(KTR_MLD, "%s: source %s %spresent", __func__,
 		    ip6_sprintf(ip6tbuf, &ssa->sin6.sin6_addr),
@@ -1601,9 +1548,6 @@ static struct ip6_moptions *
 in6p_findmoptions(struct inpcb *inp)
 {
 	struct ip6_moptions	 *imo;
-	struct in6_multi		**immp;
-	struct in6_mfilter	 *imfp;
-	size_t			  idx;
 
 	INP_WLOCK(inp);
 	if (inp->in6p_moptions != NULL)
@@ -1612,27 +1556,14 @@ in6p_findmoptions(struct inpcb *inp)
 	INP_WUNLOCK(inp);
 
 	imo = malloc(sizeof(*imo), M_IP6MOPTS, M_WAITOK);
-	immp = malloc(sizeof(*immp) * IPV6_MIN_MEMBERSHIPS, M_IP6MOPTS,
-	    M_WAITOK | M_ZERO);
-	imfp = malloc(sizeof(struct in6_mfilter) * IPV6_MIN_MEMBERSHIPS,
-	    M_IN6MFILTER, M_WAITOK);
 
 	imo->im6o_multicast_ifp = NULL;
 	imo->im6o_multicast_hlim = V_ip6_defmcasthlim;
 	imo->im6o_multicast_loop = in6_mcast_loop;
-	imo->im6o_num_memberships = 0;
-	imo->im6o_max_memberships = IPV6_MIN_MEMBERSHIPS;
-	imo->im6o_membership = immp;
-
-	/* Initialize per-group source filters. */
-	for (idx = 0; idx < IPV6_MIN_MEMBERSHIPS; idx++)
-		im6f_init(&imfp[idx], MCAST_UNDEFINED, MCAST_EXCLUDE);
-	imo->im6o_mfilters = imfp;
+	STAILQ_INIT(&imo->im6o_head);
 
 	INP_WLOCK(inp);
 	if (inp->in6p_moptions != NULL) {
-		free(imfp, M_IN6MFILTER);
-		free(immp, M_IP6MOPTS);
 		free(imo, M_IP6MOPTS);
 		return (inp->in6p_moptions);
 	}
@@ -1652,33 +1583,26 @@ in6p_findmoptions(struct inpcb *inp)
 static void
 inp_gcmoptions(struct ip6_moptions *imo)
 {
-	struct in6_mfilter	*imf;
+	struct in6_mfilter *imf;
 	struct in6_multi *inm;
 	struct ifnet *ifp;
-	size_t			 idx, nmships;
 
-	nmships = imo->im6o_num_memberships;
-	for (idx = 0; idx < nmships; ++idx) {
-		imf = imo->im6o_mfilters ? &imo->im6o_mfilters[idx] : NULL;
-		if (imf)
-			im6f_leave(imf);
-		inm = imo->im6o_membership[idx];
-		ifp = inm->in6m_ifp;
-		if (ifp != NULL) {
-			CURVNET_SET(ifp->if_vnet);
-			(void)in6_leavegroup(inm, imf);
-			CURVNET_RESTORE();
-		} else {
-			(void)in6_leavegroup(inm, imf);
-		}
-		if (imf)
-			im6f_purge(imf);
-	}
+	while ((imf = ip6_mfilter_first(&imo->im6o_head)) != NULL) {
+                ip6_mfilter_remove(&imo->im6o_head, imf);
 
-	if (imo->im6o_mfilters)
-		free(imo->im6o_mfilters, M_IN6MFILTER);
-	free(imo->im6o_membership, M_IP6MOPTS);
-	free(imo, M_IP6MOPTS);
+                im6f_leave(imf);
+                if ((inm = imf->im6f_in6m) != NULL) {
+                        if ((ifp = inm->in6m_ifp) != NULL) {
+                                CURVNET_SET(ifp->if_vnet);
+                                (void)in6_leavegroup(inm, imf);
+                                CURVNET_RESTORE();
+                        } else {
+                                (void)in6_leavegroup(inm, imf);
+                        }
+                }
+                ip6_mfilter_free(imf);
+        }
+        free(imo, M_IP6MOPTS);
 }
 
 void
@@ -1707,7 +1631,7 @@ in6p_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	struct sockaddr_storage	*ptss;
 	struct sockaddr_storage	*tss;
 	int			 error;
-	size_t			 idx, nsrcs, ncsrcs;
+	size_t			 nsrcs, ncsrcs;
 
 	INP_WLOCK_ASSERT(inp);
 
@@ -1741,12 +1665,11 @@ in6p_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Lookup group on the socket.
 	 */
-	idx = im6o_match_group(imo, ifp, &gsa->sa);
-	if (idx == -1 || imo->im6o_mfilters == NULL) {
+	imf = im6o_match_group(imo, ifp, &gsa->sa);
+	if (imf == NULL) {
 		INP_WUNLOCK(inp);
 		return (EADDRNOTAVAIL);
 	}
-	imf = &imo->im6o_mfilters[idx];
 
 	/*
 	 * Ignore memberships which are in limbo.
@@ -1943,15 +1866,12 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	struct ip6_moptions		*imo;
 	struct in6_multi		*inm;
 	struct in6_msource		*lims;
-	size_t				 idx;
 	int				 error, is_new;
 
 	SLIST_INIT(&inmh);
 	ifp = NULL;
-	imf = NULL;
 	lims = NULL;
 	error = 0;
-	is_new = 0;
 
 	memset(&gsr, 0, sizeof(struct group_source_req));
 	gsa = (sockunion_t *)&gsr.gsr_group;
@@ -2052,13 +1972,25 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	 */
 	(void)in6_setscope(&gsa->sin6.sin6_addr, ifp, NULL);
 
+	IN6_MULTI_LOCK();
+
+	/*
+	 * Find the membership in the membership list.
+	 */
 	imo = in6p_findmoptions(inp);
-	idx = im6o_match_group(imo, ifp, &gsa->sa);
-	if (idx == -1) {
+	imf = im6o_match_group(imo, ifp, &gsa->sa);
+	if (imf == NULL) {
 		is_new = 1;
+		inm = NULL;
+
+		if (ip6_mfilter_count(&imo->im6o_head) >= IPV6_MAX_MEMBERSHIPS) {
+			error = ENOMEM;
+			goto out_in6p_locked;
+		}
 	} else {
-		inm = imo->im6o_membership[idx];
-		imf = &imo->im6o_mfilters[idx];
+		is_new = 0;
+		inm = imf->im6f_in6m;
+
 		if (ssa->ss.ss_family != AF_UNSPEC) {
 			/*
 			 * MCAST_JOIN_SOURCE_GROUP on an exclusive membership
@@ -2085,7 +2017,7 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 			 * full-state SSM API with the delta-based API,
 			 * which is discouraged in the relevant RFCs.
 			 */
-			lims = im6o_match_source(imo, idx, &ssa->sa);
+			lims = im6o_match_source(imf, &ssa->sa);
 			if (lims != NULL /*&&
 			    lims->im6sl_st[1] == MCAST_INCLUDE*/) {
 				error = EADDRNOTAVAIL;
@@ -2113,27 +2045,6 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	 */
 	INP_WLOCK_ASSERT(inp);
 
-	if (is_new) {
-		if (imo->im6o_num_memberships == imo->im6o_max_memberships) {
-			error = im6o_grow(imo);
-			if (error)
-				goto out_in6p_locked;
-		}
-		/*
-		 * Allocate the new slot upfront so we can deal with
-		 * grafting the new source filter in same code path
-		 * as for join-source on existing membership.
-		 */
-		idx = imo->im6o_num_memberships;
-		imo->im6o_membership[idx] = NULL;
-		imo->im6o_num_memberships++;
-		KASSERT(imo->im6o_mfilters != NULL,
-		    ("%s: im6f_mfilters vector was not allocated", __func__));
-		imf = &imo->im6o_mfilters[idx];
-		KASSERT(RB_EMPTY(&imf->im6f_sources),
-		    ("%s: im6f_sources not empty", __func__));
-	}
-
 	/*
 	 * Graft new source into filter list for this inpcb's
 	 * membership of the group. The in6_multi may not have
@@ -2149,7 +2060,11 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 		/* Membership starts in IN mode */
 		if (is_new) {
 			CTR1(KTR_MLD, "%s: new join w/source", __func__);
-			im6f_init(imf, MCAST_UNDEFINED, MCAST_INCLUDE);
+			imf = ip6_mfilter_alloc(M_NOWAIT, MCAST_UNDEFINED, MCAST_INCLUDE);
+			if (imf == NULL) {
+				error = ENOMEM;
+				goto out_in6p_locked;
+			}
 		} else {
 			CTR2(KTR_MLD, "%s: %s source", __func__, "allow");
 		}
@@ -2158,81 +2073,88 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 			CTR1(KTR_MLD, "%s: merge imf state failed",
 			    __func__);
 			error = ENOMEM;
-			goto out_im6o_free;
+			goto out_in6p_locked;
 		}
 	} else {
 		/* No address specified; Membership starts in EX mode */
 		if (is_new) {
 			CTR1(KTR_MLD, "%s: new join w/o source", __func__);
-			im6f_init(imf, MCAST_UNDEFINED, MCAST_EXCLUDE);
+			imf = ip6_mfilter_alloc(M_NOWAIT, MCAST_UNDEFINED, MCAST_EXCLUDE);
+			if (imf == NULL) {
+				error = ENOMEM;
+				goto out_in6p_locked;
+			}
 		}
 	}
 
 	/*
 	 * Begin state merge transaction at MLD layer.
 	 */
-	in_pcbref(inp);
-	INP_WUNLOCK(inp);
-	IN6_MULTI_LOCK();
-
 	if (is_new) {
+		in_pcbref(inp);
+		INP_WUNLOCK(inp);
+
 		error = in6_joingroup_locked(ifp, &gsa->sin6.sin6_addr, imf,
-		    &inm, 0);
+		    &imf->im6f_in6m, 0);
+
+		INP_WLOCK(inp);
+		if (in_pcbrele_wlocked(inp)) {
+			error = ENXIO;
+			goto out_in6p_unlocked;
+		}
 		if (error) {
-			IN6_MULTI_UNLOCK();
-			goto out_im6o_free;
+			goto out_in6p_locked;
 		}
 		/*
 		 * NOTE: Refcount from in6_joingroup_locked()
 		 * is protecting membership.
 		 */
-		imo->im6o_membership[idx] = inm;
 	} else {
 		CTR1(KTR_MLD, "%s: merge inm state", __func__);
 		IN6_MULTI_LIST_LOCK();
 		error = in6m_merge(inm, imf);
-		if (error)
+		if (error) {
 			CTR1(KTR_MLD, "%s: failed to merge inm state",
 			    __func__);
-		else {
-			CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-			error = mld_change_state(inm, 0);
-			if (error)
-				CTR1(KTR_MLD, "%s: failed mld downcall",
-				    __func__);
-		}
-		IN6_MULTI_LIST_UNLOCK();
-	}
-
-	IN6_MULTI_UNLOCK();
-	INP_WLOCK(inp);
-	if (in_pcbrele_wlocked(inp))
-		return (ENXIO);
-	if (error) {
-		im6f_rollback(imf);
-		if (is_new)
-			im6f_purge(imf);
-		else
-			im6f_reap(imf);
-	} else {
-		im6f_commit(imf);
-	}
-
-out_im6o_free:
-	if (error && is_new) {
-		inm = imo->im6o_membership[idx];
-		if (inm != NULL) {
-			IN6_MULTI_LIST_LOCK();
-			in6m_rele_locked(&inmh, inm);
 			IN6_MULTI_LIST_UNLOCK();
+			im6f_rollback(imf);
+			im6f_reap(imf);
+			goto out_in6p_locked;
 		}
-		imo->im6o_membership[idx] = NULL;
-		--imo->im6o_num_memberships;
+		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+		error = mld_change_state(inm, 0);
+		IN6_MULTI_LIST_UNLOCK();
+
+		if (error) {
+			CTR1(KTR_MLD, "%s: failed mld downcall",
+			     __func__);
+			im6f_rollback(imf);
+			im6f_reap(imf);
+			goto out_in6p_locked;
+		}
 	}
+
+	if (is_new)
+		ip6_mfilter_insert(&imo->im6o_head, imf);
+
+	im6f_commit(imf);
+	imf = NULL;
 
 out_in6p_locked:
 	INP_WUNLOCK(inp);
-	in6m_release_list_deferred(&inmh);
+out_in6p_unlocked:
+	IN6_MULTI_UNLOCK();
+
+	if (is_new && imf) {
+		if (imf->im6f_in6m != NULL) {
+			struct in6_multi_head inmh;
+
+			SLIST_INIT(&inmh);
+			SLIST_INSERT_HEAD(&inmh, imf->im6f_in6m, in6m_defer);
+			in6m_release_list_deferred(&inmh);
+		}
+		ip6_mfilter_free(imf);
+	}
 	return (error);
 }
 
@@ -2251,8 +2173,8 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	struct in6_msource		*ims;
 	struct in6_multi		*inm;
 	uint32_t			 ifindex;
-	size_t				 idx;
-	int				 error, is_final;
+	int				 error;
+	bool				 is_final;
 #ifdef KTR
 	char				 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
@@ -2260,7 +2182,7 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	ifp = NULL;
 	ifindex = 0;
 	error = 0;
-	is_final = 1;
+	is_final = true;
 
 	memset(&gsr, 0, sizeof(struct group_source_req));
 	gsa = (sockunion_t *)&gsr.gsr_group;
@@ -2378,20 +2300,21 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	CTR2(KTR_MLD, "%s: ifp = %p", __func__, ifp);
 	KASSERT(ifp != NULL, ("%s: ifp did not resolve", __func__));
 
+	IN6_MULTI_LOCK();
+
 	/*
-	 * Find the membership in the membership array.
+	 * Find the membership in the membership list.
 	 */
 	imo = in6p_findmoptions(inp);
-	idx = im6o_match_group(imo, ifp, &gsa->sa);
-	if (idx == -1) {
+	imf = im6o_match_group(imo, ifp, &gsa->sa);
+	if (imf == NULL) {
 		error = EADDRNOTAVAIL;
 		goto out_in6p_locked;
 	}
-	inm = imo->im6o_membership[idx];
-	imf = &imo->im6o_mfilters[idx];
+	inm = imf->im6f_in6m;
 
 	if (ssa->ss.ss_family != AF_UNSPEC)
-		is_final = 0;
+		is_final = false;
 
 	/*
 	 * Begin state merge transaction at socket layer.
@@ -2403,13 +2326,14 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	 * MCAST_LEAVE_SOURCE_GROUP is only valid for inclusive memberships.
 	 */
 	if (is_final) {
+		ip6_mfilter_remove(&imo->im6o_head, imf);
 		im6f_leave(imf);
 	} else {
 		if (imf->im6f_st[0] == MCAST_EXCLUDE) {
 			error = EADDRNOTAVAIL;
 			goto out_in6p_locked;
 		}
-		ims = im6o_match_source(imo, idx, &ssa->sa);
+		ims = im6o_match_source(imf, &ssa->sa);
 		if (ims == NULL) {
 			CTR3(KTR_MLD, "%s: source %p %spresent", __func__,
 			    ip6_sprintf(ip6tbuf, &ssa->sin6.sin6_addr),
@@ -2429,60 +2353,47 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Begin state merge transaction at MLD layer.
 	 */
-	in_pcbref(inp);
-	INP_WUNLOCK(inp);
-	IN6_MULTI_LOCK();
+	if (!is_final) {
+		CTR1(KTR_MLD, "%s: merge inm state", __func__);
+		IN6_MULTI_LIST_LOCK();
+		error = in6m_merge(inm, imf);
+		if (error) {
+			CTR1(KTR_MLD, "%s: failed to merge inm state",
+			    __func__);
+			IN6_MULTI_LIST_UNLOCK();
+			im6f_rollback(imf);
+			im6f_reap(imf);
+                        goto out_in6p_locked;
+		}
 
-	if (is_final) {
+		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+		error = mld_change_state(inm, 0);
+		IN6_MULTI_LIST_UNLOCK();
+		if (error) {
+			CTR1(KTR_MLD, "%s: failed mld downcall",
+			     __func__);
+			im6f_rollback(imf);
+			im6f_reap(imf);
+                        goto out_in6p_locked;
+		}
+	}
+
+	im6f_commit(imf);
+	im6f_reap(imf);
+
+out_in6p_locked:
+	INP_WUNLOCK(inp);
+
+	if (is_final && imf) {
 		/*
 		 * Give up the multicast address record to which
 		 * the membership points.
 		 */
 		(void)in6_leavegroup_locked(inm, imf);
-	} else {
-		CTR1(KTR_MLD, "%s: merge inm state", __func__);
-		IN6_MULTI_LIST_LOCK();
-		error = in6m_merge(inm, imf);
-		if (error)
-			CTR1(KTR_MLD, "%s: failed to merge inm state",
-			    __func__);
-		else {
-			CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-			error = mld_change_state(inm, 0);
-			if (error)
-				CTR1(KTR_MLD, "%s: failed mld downcall",
-				    __func__);
-		}
-		IN6_MULTI_LIST_UNLOCK();
+		ip6_mfilter_free(imf);
 	}
 
 	IN6_MULTI_UNLOCK();
-	INP_WLOCK(inp);
-	if (in_pcbrele_wlocked(inp))
-		return (ENXIO);
-
-	if (error)
-		im6f_rollback(imf);
-	else
-		im6f_commit(imf);
-
-	im6f_reap(imf);
-
-	if (is_final) {
-		/* Remove the gap in the membership array. */
-		KASSERT(RB_EMPTY(&imf->im6f_sources),
-		    ("%s: im6f_sources not empty", __func__));
-		for (++idx; idx < imo->im6o_num_memberships; ++idx) {
-			imo->im6o_membership[idx - 1] = imo->im6o_membership[idx];
-			imo->im6o_mfilters[idx - 1] = imo->im6o_mfilters[idx];
-		}
-		im6f_init(&imo->im6o_mfilters[idx - 1], MCAST_UNDEFINED,
-		    MCAST_EXCLUDE);
-		imo->im6o_num_memberships--;
-	}
-
-out_in6p_locked:
-	INP_WUNLOCK(inp);
 	return (error);
 }
 
@@ -2540,7 +2451,6 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	struct in6_mfilter	*imf;
 	struct ip6_moptions	*imo;
 	struct in6_multi		*inm;
-	size_t			 idx;
 	int			 error;
 
 	error = sooptcopyin(sopt, &msfr, sizeof(struct __msfilterreq),
@@ -2577,13 +2487,12 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	 * Check if this socket is a member of this group.
 	 */
 	imo = in6p_findmoptions(inp);
-	idx = im6o_match_group(imo, ifp, &gsa->sa);
-	if (idx == -1 || imo->im6o_mfilters == NULL) {
+	imf = im6o_match_group(imo, ifp, &gsa->sa);
+	if (imf == NULL) {
 		error = EADDRNOTAVAIL;
 		goto out_in6p_locked;
 	}
-	inm = imo->im6o_membership[idx];
-	imf = &imo->im6o_mfilters[idx];
+	inm = imf->im6f_in6m;
 
 	/*
 	 * Begin state merge transaction at socket layer.
