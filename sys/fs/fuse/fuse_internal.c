@@ -818,6 +818,8 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	struct fuse_getattr_in *fgai;
 	struct fuse_attr_out *fao;
 	off_t old_filesize = fvdat->cached_attrs.va_size;
+	struct timespec old_ctime = fvdat->cached_attrs.va_ctime;
+	struct timespec old_mtime = fvdat->cached_attrs.va_mtime;
 	enum vtype vtyp;
 	int err;
 
@@ -840,6 +842,14 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	vtyp = IFTOVT(fao->attr.mode);
 	if (fvdat->flag & FN_SIZECHANGE)
 		fao->attr.size = old_filesize;
+	if (fvdat->flag & FN_CTIMECHANGE) {
+		fao->attr.ctime = old_ctime.tv_sec;
+		fao->attr.ctimensec = old_ctime.tv_nsec;
+	}
+	if (fvdat->flag & FN_MTIMECHANGE) {
+		fao->attr.mtime = old_mtime.tv_sec;
+		fao->attr.mtimensec = old_mtime.tv_nsec;
+	}
 	fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
 		fao->attr_valid_nsec, vap);
 	if (vtyp != vnode_vtype(vp)) {
@@ -996,6 +1006,7 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	struct thread *td, struct ucred *cred)
 {
+	struct fuse_vnode_data *fvdat;
 	struct fuse_dispatcher fdi;
 	struct fuse_setattr_in *fsai;
 	struct mount *mp;
@@ -1008,6 +1019,7 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	uint64_t newsize = 0;
 
 	mp = vnode_mount(vp);
+	fvdat = VTOFUD(vp);
 	data = fuse_get_mpdata(mp);
 	dataflags = data->dataflags;
 
@@ -1057,6 +1069,10 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 		fsai->valid |= FATTR_MTIME;
 		if (vap->va_vaflags & VA_UTIMES_NULL)
 			fsai->valid |= FATTR_MTIME_NOW;
+	} else if (fvdat->flag & FN_MTIMECHANGE) {
+		fsai->mtime = fvdat->cached_attrs.va_mtime.tv_sec;
+		fsai->mtimensec = fvdat->cached_attrs.va_mtime.tv_nsec;
+		fsai->valid |= FATTR_MTIME;
 	}
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		fsai->mode = vap->va_mode & ALLPERMS;
@@ -1089,6 +1105,7 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	}
 	if (err == 0) {
 		struct fuse_attr_out *fao = (struct fuse_attr_out*)fdi.answ;
+		fuse_vnode_undirty_cached_timestamps(vp);
 		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
 			fao->attr_valid_nsec, NULL);
 	}

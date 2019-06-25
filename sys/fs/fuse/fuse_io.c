@@ -229,6 +229,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		}
 		break;
 	case UIO_WRITE:
+		fuse_vnode_update(vp, FN_MTIMECHANGE | FN_CTIMECHANGE);
 		if (directio) {
 			const int iosize = fuse_iosize(vp);
 			off_t start, end, filesize;
@@ -458,6 +459,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	int diff;
 	int err = 0;
 	bool direct_io = fufh->fuse_open_flags & FOPEN_DIRECT_IO;
+	bool wrote_anything = false;
 	uint32_t write_flags;
 
 	data = fuse_get_mpdata(vp->v_mount);
@@ -533,6 +535,8 @@ retry:
 			break;
 		} else if (err) {
 			break;
+		} else {
+			wrote_anything = true;
 		}
 
 		fwo = ((struct fuse_write_out *)fdi.answ);
@@ -585,6 +589,9 @@ retry:
 	}
 
 	fdisp_destroy(&fdi);
+
+	if (wrote_anything)
+		fuse_vnode_undirty_cached_timestamps(vp);
 
 	return (err);
 }

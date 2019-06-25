@@ -140,10 +140,10 @@ void SetUp()
 	})));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			uint32_t valid = FATTR_SIZE | FATTR_FH;
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
-				in.body.setattr.valid == valid);
+				(in.body.setattr.valid & FATTR_SIZE));
+				
 		}, Eq(true)),
 		_)
 	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto& out) {

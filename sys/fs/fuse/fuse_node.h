@@ -66,18 +66,26 @@
 
 #include "fuse_file.h"
 
-#define FN_REVOKED           0x00000020
-#define FN_FLUSHINPROG       0x00000040
-#define FN_FLUSHWANT         0x00000080
+#define	FN_REVOKED		0x00000020
+#define	FN_FLUSHINPROG		0x00000040
+#define	FN_FLUSHWANT		0x00000080
 /* 
  * Indicates that the file's size is dirty; the kernel has changed it but not
  * yet send the change to the daemon.  When this bit is set, the
- * cache_attrs.va_size field does not time out
+ * cache_attrs.va_size field does not time out.
  */
-#define FN_SIZECHANGE        0x00000100
-#define FN_DIRECTIO          0x00000200
+#define	FN_SIZECHANGE		0x00000100
+#define	FN_DIRECTIO		0x00000200
 /* Indicates that parent_nid is valid */
-#define FN_PARENT_NID        0x00000400
+#define	FN_PARENT_NID		0x00000400
+
+/* 
+ * Indicates that the file's cached timestamps are dirty.  They will be flushed
+ * during the next SETATTR or WRITE.  Until then, the cached fields will not
+ * time out.
+ */
+#define	FN_MTIMECHANGE		0x00000800
+#define	FN_CTIMECHANGE		0x00001000
 
 struct fuse_vnode_data {
 	/** self **/
@@ -180,4 +188,7 @@ int fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid);
 
 int fuse_vnode_setsize(struct vnode *vp, off_t newsize);
 
+void fuse_vnode_undirty_cached_timestamps(struct vnode *vp);
+
+void fuse_vnode_update(struct vnode *vp, int flags);
 #endif /* _FUSE_NODE_H_ */
