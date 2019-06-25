@@ -19,6 +19,7 @@ FTPDIR?=		${RELEASEDIR}/ftp-stage
 .if exists(${RELEASEDIR})
 STAGE_TARGETS?=		iso-images-stage
 .endif
+SRCBRANCH!=		${SVN_CMD} info --show-item relative-url ${WORLDDIR}
 
 .if (defined(EMBEDDED_TARGET) && !empty(EMBEDDED_TARGET)) || (defined(EMBEDDEDBUILD) && !empty(EMBEDDEDBUILD))
 . if ${TARGET:Marm*} != "" || ${EMBEDDED_TARGET:Marm*} != ""
@@ -185,6 +186,9 @@ iso-images-stage:
 .if exists(${RELEASEDIR}/ftp)
 	mkdir -p ${FTP_DIR}
 	cp -p ${RELEASEDIR}/ftp/*.txz ${RELEASEDIR}/ftp/MANIFEST ${FTP_DIR}
+	echo ${BUILDDATE} > ${FTP_DIR}/BUILDDATE
+	echo ${SRCBRANCH} > ${FTP_DIR}/SRCBRANCH
+	echo r${SVNREVISION} > ${FTP_DIR}/REVISION
 	cd ${TLD}/${TARGET} && \
 		ln -s ${TARGET_ARCH}/${REVISION}-${BRANCH} \
 			${REVISION}-${BRANCH}
