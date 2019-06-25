@@ -4,6 +4,7 @@ RELN_ROOT?= ${.CURDIR}/..
 
 SUBDIR = relnotes
 SUBDIR+= hardware
+SUBDIR+= installation
 SUBDIR+= readme
 SUBDIR+= errata
 
