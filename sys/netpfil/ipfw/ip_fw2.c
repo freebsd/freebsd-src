@@ -3364,6 +3364,7 @@ vnet_ipfw_init(const void *unused)
 
 	/* fill and insert the default rule */
 	rule = ipfw_alloc_rule(chain, sizeof(struct ip_fw));
+	rule->flags |= IPFW_RULE_NOOPT;
 	rule->cmd_len = 1;
 	rule->cmd[0].len = 1;
 	rule->cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
