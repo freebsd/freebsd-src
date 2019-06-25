@@ -174,7 +174,6 @@ SUBDIR.${MK_GOOGLETEST}+=	googletest
 SUBDIR.${MK_LIBTHR}+=	libthr
 SUBDIR.${MK_LLVM_LIBUNWIND}+=	libgcc_eh
 SUBDIR.${MK_LLVM_LIBUNWIND}+=	libgcc_s
-SUBDIR.${MK_NAND}+=	libnandfs
 SUBDIR.${MK_NETGRAPH}+=	libnetgraph
 SUBDIR.${MK_NIS}+=	libypclnt
 

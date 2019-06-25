@@ -37,7 +37,6 @@ options 	PLATFORM		# Platform based SoC
 #options 	BOOTP_WIRED_TO=ffec0
 
 #options 	ROOTDEVNAME=\"nfs:10.5.0.1:/tftpboot/cosmic\"
-#options 	ROOTDEVNAME=\"nandfs:/dev/gnand0s.root\"
 options 	ROOTDEVNAME=\"ufs:/dev/da0\"
 
 options 	MUTEX_NOINLINE
@@ -79,8 +78,6 @@ device		pass
 #device		ata
 #device		atadisk
 #device		mvs
-
-device		nand
 
 # Serial ports
 device		uart
