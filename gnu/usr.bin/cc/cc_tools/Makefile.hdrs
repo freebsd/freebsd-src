@@ -21,6 +21,9 @@ TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
 TARGET_INC+=	${GCC_CPU}/unix.h
 TARGET_INC+=	${GCC_CPU}/att.h
 .endif
+.if ${TARGET_CPUARCH} == "powerpc"
+TARGET_INC+=	${GCC_CPU}/secureplt.h
+.endif
 TARGET_INC+=	dbxelf.h
 TARGET_INC+=	elfos-undef.h
 TARGET_INC+=	elfos.h
