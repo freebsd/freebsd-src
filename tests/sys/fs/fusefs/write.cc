@@ -235,10 +235,13 @@ public:
 virtual void SetUp() {
 	if (MAXPHYS < 2 * DFLTPHYS)
 		GTEST_SKIP() << "MAXPHYS must be at least twice DFLTPHYS"
-			<< "for this test";
+			<< " for this test";
 	m_async = true;
 	m_maxwrite = MAXPHYS;
 	WriteBack::SetUp();
+	if (MAXPHYS < 2 * m_maxbcachebuf)
+		GTEST_SKIP() << "MAXPHYS must be at least twice maxbcachebuf"
+			<< " for this test";
 }
 };
 
@@ -619,7 +622,7 @@ TEST_F(WriteThrough, pwrite)
 	const char RELPATH[] = "some_file.txt";
 	const char *CONTENTS = "abcdefgh";
 	uint64_t ino = 42;
-	uint64_t offset = 65536;
+	uint64_t offset = m_maxbcachebuf;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
 
@@ -767,8 +770,8 @@ TEST_F(WriteCluster, clustering)
 	uint64_t ino = 42;
 	int i, fd;
 	void *wbuf, *wbuf2x;
-	ssize_t bufsize = 65536;
-	off_t filesize = 327680;
+	ssize_t bufsize = m_maxbcachebuf;
+	off_t filesize = 5 * bufsize;
 
 	wbuf = malloc(bufsize);
 	ASSERT_NE(NULL, wbuf) << strerror(errno);
@@ -814,8 +817,8 @@ TEST_F(WriteCluster, DISABLED_cluster_write_err)
 	uint64_t ino = 42;
 	int i, fd;
 	void *wbuf;
-	ssize_t bufsize = 65536;
-	off_t filesize = 262144;
+	ssize_t bufsize = m_maxbcachebuf;
+	off_t filesize = 4 * bufsize;
 
 	wbuf = malloc(bufsize);
 	ASSERT_NE(NULL, wbuf) << strerror(errno);

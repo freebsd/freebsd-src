@@ -163,7 +163,7 @@ TEST_F(AioRead, async_read_disabled)
 	ssize_t bufsize = 50;
 	char buf0[bufsize], buf1[bufsize];
 	off_t off0 = 0;
-	off_t off1 = 65536;
+	off_t off1 = m_maxbcachebuf;
 	struct aiocb iocb0, iocb1;
 	volatile sig_atomic_t read_count = 0;
 
@@ -243,13 +243,14 @@ TEST_F(AsyncRead, async_read)
 	ssize_t bufsize = 50;
 	char buf0[bufsize], buf1[bufsize];
 	off_t off0 = 0;
-	off_t off1 = 65536;
+	off_t off1 = m_maxbcachebuf;
+	off_t fsize = 2 * m_maxbcachebuf;
 	struct aiocb iocb0, iocb1;
 	sem_t sem;
 
 	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
-	expect_lookup(RELPATH, ino, 131072);
+	expect_lookup(RELPATH, ino, fsize);
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
