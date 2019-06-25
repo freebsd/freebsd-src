@@ -441,3 +441,28 @@ fuse_vnode_size(struct vnode *vp, off_t *filesize, struct ucred *cred,
 
 	return error;
 }
+
+void
+fuse_vnode_undirty_cached_timestamps(struct vnode *vp)
+{
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+
+	fvdat->flag &= ~(FN_MTIMECHANGE | FN_CTIMECHANGE);
+}
+
+/* Update a fuse file's cached timestamps */
+void
+fuse_vnode_update(struct vnode *vp, int flags)
+{
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct timespec ts;
+
+	vfs_timestamp(&ts);
+
+	if (flags & FN_MTIMECHANGE)
+		fvdat->cached_attrs.va_mtime = ts;
+	if (flags & FN_CTIMECHANGE)
+		fvdat->cached_attrs.va_ctime = ts;
+	
+	fvdat->flag |= flags;
+}

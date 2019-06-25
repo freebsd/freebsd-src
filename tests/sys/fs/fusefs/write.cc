@@ -638,6 +638,35 @@ TEST_F(WriteThrough, pwrite)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
+/* Writing a file should update its cached mtime and ctime */
+TEST_F(Write, timestamps)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	ssize_t bufsize = strlen(CONTENTS);
+	uint64_t ino = 42;
+	struct stat sb0, sb1;
+	int fd;
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	maybe_expect_write(ino, 0, bufsize, CONTENTS);
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd, &sb0)) << strerror(errno);
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+
+	nap();
+
+	ASSERT_EQ(0, fstat(fd, &sb1)) << strerror(errno);
+
+	EXPECT_EQ(sb0.st_atime, sb1.st_atime);
+	EXPECT_NE(sb0.st_mtime, sb1.st_mtime);
+	EXPECT_NE(sb0.st_ctime, sb1.st_ctime);
+}
+
 TEST_F(Write, write)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -1012,6 +1041,99 @@ TEST_F(WriteBackAsync, eof)
 	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
 	EXPECT_EQ(offset + wbufsize, sb.st_size);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* 
+ * When a file has dirty writes that haven't been flushed, the server's notion
+ * of its mtime and ctime will be wrong.  The kernel should ignore those if it
+ * gets them from a FUSE_GETATTR before flushing.
+ */
+TEST_F(WriteBackAsync, timestamps)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	ssize_t bufsize = strlen(CONTENTS);
+	uint64_t ino = 42;
+	uint64_t attr_valid = 0;
+	uint64_t attr_valid_nsec = 0;
+	uint64_t server_time = 12345;
+	mode_t mode = S_IFREG | 0644;
+	int fd;
+
+	struct stat sb;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillRepeatedly(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = attr_valid;
+		out.body.entry.attr_valid_nsec = attr_valid_nsec;
+	})));
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(
+	ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = mode;
+		out.body.attr.attr_valid = attr_valid;
+		out.body.attr.attr_valid_nsec = attr_valid_nsec;
+		out.body.attr.attr.atime = server_time;
+		out.body.attr.attr.mtime = server_time;
+		out.body.attr.attr.ctime = server_time;
+	})));
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+
+	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
+	EXPECT_EQ((time_t)server_time, sb.st_atime);
+	EXPECT_NE((time_t)server_time, sb.st_mtime);
+	EXPECT_NE((time_t)server_time, sb.st_ctime);
+}
+
+/* Any dirty timestamp fields should be flushed during a SETATTR */
+TEST_F(WriteBackAsync, timestamps_during_setattr)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	ssize_t bufsize = strlen(CONTENTS);
+	uint64_t ino = 42;
+	const mode_t newmode = 0755;
+	int fd;
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			/* In protocol 7.23, ctime will be changed too */
+			uint32_t valid = FATTR_MODE | FATTR_MTIME;
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = S_IFREG | newmode;
+	})));
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	ASSERT_EQ(0, fchmod(fd, newmode)) << strerror(errno);
 }
 
 /*
