@@ -489,9 +489,16 @@
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
 
+      <para revision="338938">The &man.oce.4; driver has been updated
+	to version 11.0.50.0.</para>
+
       <para revision="340369">The TP-Link&reg; TL-WN321G&trade;
 	network adapter now uses the &man.run.4; driver instead of the
 	&man.rum.4; driver.</para>
+
+      <para revision="341987" contrib="sponsor"
+	sponsor="&mellanox;">The &man.mlx4en.4; and &man.mlx5en.4;
+	drivers have been updated to version 3.5.0.</para>
 
       <para revision="342206" contrib="sponsor" sponsor="&ix;">The
 	&man.lagg.4; driver has been updated to allow changing the
@@ -513,6 +520,14 @@
       <para revision="346940" contrib="sponsor"
 	sponsor="&chelsio;">The &man.cxgbe.4; T4, T5, and T6 firmware
 	has been updated to version 1.23.0.0.</para>
+
+      <para revision="349181" contrib="sponsor"
+	sponsor="&intelcorp;">The &man.ixl.4; driver has been updated
+	version 1.11.9.</para>
+
+      <para revision="349181" contrib="sponsor"
+	sponsor="&intelcorp;">The &man.ixlv.4; driver has been updated
+	version 1.5.8.</para>
     </sect2>
   </sect1>
 
