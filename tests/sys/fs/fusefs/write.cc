@@ -233,13 +233,13 @@ virtual void SetUp() {
 class WriteCluster: public WriteBack {
 public:
 virtual void SetUp() {
-	if (MAXPHYS < 2 * DFLTPHYS)
+	if (m_maxphys < 2 * DFLTPHYS)
 		GTEST_SKIP() << "MAXPHYS must be at least twice DFLTPHYS"
 			<< " for this test";
 	m_async = true;
-	m_maxwrite = MAXPHYS;
+	m_maxwrite = m_maxphys;
 	WriteBack::SetUp();
-	if (MAXPHYS < 2 * m_maxbcachebuf)
+	if (m_maxphys < 2 * m_maxbcachebuf)
 		GTEST_SKIP() << "MAXPHYS must be at least twice maxbcachebuf"
 			<< " for this test";
 }
@@ -678,7 +678,7 @@ TEST_F(Write, write_large)
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
-	expect_write(ino, 0, halfbufsize, halfbufsize, contents);
+	maybe_expect_write(ino, 0, halfbufsize, contents);
 	maybe_expect_write(ino, halfbufsize, halfbufsize,
 		&contents[halfbufsize / sizeof(int)]);
 
