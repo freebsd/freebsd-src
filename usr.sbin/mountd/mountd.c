@@ -385,8 +385,8 @@ strsep_quote(char **stringp, const char *delim)
 		*dstptr++ = *srcptr++;
 	}
 
-	*dstptr = 0; /* Terminate the string */
 	*stringp = (*srcptr == '\0') ? NULL : srcptr + 1;
+	*dstptr = 0; /* Terminate the string */
 	return (retval);
 }
 
