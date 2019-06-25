@@ -2326,9 +2326,11 @@ ata_do_identify(struct cam_device *device, int retry_count, int timeout,
 		}
 	}
 
+	ident_buf = (struct ata_params *)ptr;
+	ata_param_fixup(ident_buf);
+
 	error = 1;
 	for (i = 0; i < sizeof(struct ata_params) / 2; i++) {
-		ptr[i] = le16toh(ptr[i]);
 		if (ptr[i] != 0)
 			error = 0;
 	}
@@ -2345,26 +2347,6 @@ ata_do_identify(struct cam_device *device, int retry_count, int timeout,
 		free(ptr);
 		return (error);
 	}
-
-	ident_buf = (struct ata_params *)ptr;
-	if (strncmp(ident_buf->model, "FX", 2) &&
-	    strncmp(ident_buf->model, "NEC", 3) &&
-	    strncmp(ident_buf->model, "Pioneer", 7) &&
-	    strncmp(ident_buf->model, "SHARP", 5)) {
-		ata_bswap(ident_buf->model, sizeof(ident_buf->model));
-		ata_bswap(ident_buf->revision, sizeof(ident_buf->revision));
-		ata_bswap(ident_buf->serial, sizeof(ident_buf->serial));
-		ata_bswap(ident_buf->media_serial, sizeof(ident_buf->media_serial));
-	}
-	ata_btrim(ident_buf->model, sizeof(ident_buf->model));
-	ata_bpack(ident_buf->model, ident_buf->model, sizeof(ident_buf->model));
-	ata_btrim(ident_buf->revision, sizeof(ident_buf->revision));
-	ata_bpack(ident_buf->revision, ident_buf->revision, sizeof(ident_buf->revision));
-	ata_btrim(ident_buf->serial, sizeof(ident_buf->serial));
-	ata_bpack(ident_buf->serial, ident_buf->serial, sizeof(ident_buf->serial));
-	ata_btrim(ident_buf->media_serial, sizeof(ident_buf->media_serial));
-	ata_bpack(ident_buf->media_serial, ident_buf->media_serial,
-	    sizeof(ident_buf->media_serial));
 
 	*ident_bufp = ident_buf;
 
