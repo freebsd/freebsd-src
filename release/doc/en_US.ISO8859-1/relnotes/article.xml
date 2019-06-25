@@ -598,7 +598,14 @@
     <sect2 xml:id="ports-packages ">
       <title>Packaging Changes</title>
 
-      <para>&nbsp;</para>
+      <para>The &man.pkg.8; utility has been updated to version
+	1.10.5.</para>
+
+      <para>The <application>KDE</application> desktop environment has
+	been updated to version 5.15.3.</para>
+
+      <para>The <application>GNOME</application> desktop environment
+	has been updated to version 3.28.</para>
     </sect2>
   </sect1>
 
