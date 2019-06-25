@@ -256,7 +256,6 @@ FDESCFS		opt_dontuse.h
 FFS		opt_dontuse.h
 FUSEFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
-NANDFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
