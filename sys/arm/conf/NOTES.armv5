@@ -31,8 +31,3 @@ options 	ARM_MANY_BOARD
 options 	SOC_MV_DISCOVERY
 options 	SOC_MV_KIRKWOOD
 options 	SOC_MV_ORION
-
-# Add devices which are specific to various arm platforms...
-
-device		nand
-

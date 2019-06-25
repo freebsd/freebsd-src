@@ -215,10 +215,6 @@ DIRDEPS+= \
 DIRDEPS+= stand/libsa32
 .endif
 
-.if ${MK_NAND} != "no"
-DIRDEPS+= lib/libnandfs
-.endif
-
 .if ${MK_CASPER} != "no"
 DIRDEPS+= \
 	lib/libcasper/libcasper \

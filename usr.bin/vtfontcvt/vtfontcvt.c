@@ -335,11 +335,9 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 					break;
 				}
 			}
-		} else if (strncmp(ln, "FONTBOUNDINGBOX ", 16) == 0) {
-			if (sscanf(ln + 16, "%d %d %d %d", &fbbw, &fbbh, &fbbox,
-			    &fbboy) != 4)
-				errx(1, "invalid FONTBOUNDINGBOX at line %u",
-				    linenum);
+		} else if (strncmp(ln, "FONTBOUNDINGBOX ", 16) == 0 &&
+		    sscanf(ln + 16, "%d %d %d %d", &fbbw, &fbbh, &fbbox,
+		    &fbboy) == 4) {
 			set_width(fbbw);
 			set_height(fbbh);
 			break;
@@ -355,9 +353,8 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 		linenum++;
 		ln[length - 1] = '\0';
 
-		if (strncmp(ln, "DWIDTH ", 7) == 0) {
-			if (sscanf(ln + 7, "%d %d", &dwidth, &dwy) != 2)
-				errx(1, "invalid DWIDTH at line %u", linenum);
+		if (strncmp(ln, "DWIDTH ", 7) == 0 &&
+		    sscanf(ln + 7, "%d %d", &dwidth, &dwy) == 2) {
 			if (dwy != 0 || (dwidth != fbbw && dwidth * 2 != fbbw))
 				errx(1, "bitmap with unsupported DWIDTH %d %d at line %u",
 				    dwidth, dwy, linenum);
