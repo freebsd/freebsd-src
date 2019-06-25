@@ -138,7 +138,8 @@ void PPCSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   if (isDarwin())
     HasLazyResolverStubs = true;
 
-  if (TargetTriple.isOSNetBSD() || TargetTriple.isOSOpenBSD())
+  if ((TargetTriple.isOSFreeBSD() && TargetTriple.getOSMajorVersion() >= 13)
+      || TargetTriple.isOSNetBSD() || TargetTriple.isOSOpenBSD())
     SecurePlt = true;
 
   if (HasSPE && IsPPC64)
