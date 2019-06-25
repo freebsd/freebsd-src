@@ -1719,6 +1719,11 @@ do {								\
 			default:
 				break;
 			}
+		} else {
+			if (offset == 1 && proto == IPPROTO_TCP) {
+				/* RFC 3128 */
+				goto pullup_failed;
+			}
 		}
 
 		UPDATE_POINTERS();
