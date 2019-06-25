@@ -232,7 +232,59 @@ struct in_mfilter {
 	struct ip_msource_tree	imf_sources; /* source list for (S,G) */
 	u_long			imf_nsrc;    /* # of source entries */
 	uint8_t			imf_st[2];   /* state before/at commit */
+	struct in_multi	       *imf_inm;     /* associated multicast address */
+	STAILQ_ENTRY(in_mfilter) imf_entry;  /* list entry */
 };
+
+/*
+ * Helper types and functions for IPv4 multicast filters.
+ */
+STAILQ_HEAD(ip_mfilter_head, in_mfilter);
+
+struct in_mfilter *ip_mfilter_alloc(int mflags, int st0, int st1);
+void ip_mfilter_free(struct in_mfilter *);
+
+static inline void
+ip_mfilter_init(struct ip_mfilter_head *head)
+{
+
+	STAILQ_INIT(head);
+}
+
+static inline struct in_mfilter *
+ip_mfilter_first(const struct ip_mfilter_head *head)
+{
+
+	return (STAILQ_FIRST(head));
+}
+
+static inline void
+ip_mfilter_insert(struct ip_mfilter_head *head, struct in_mfilter *imf)
+{
+
+	STAILQ_INSERT_TAIL(head, imf, imf_entry);
+}
+
+static inline void
+ip_mfilter_remove(struct ip_mfilter_head *head, struct in_mfilter *imf)
+{
+
+	STAILQ_REMOVE(head, imf, in_mfilter, imf_entry);
+}
+
+#define	IP_MFILTER_FOREACH(imf, head) \
+	STAILQ_FOREACH(imf, head, imf_entry)
+
+static inline size_t
+ip_mfilter_count(struct ip_mfilter_head *head)
+{
+	struct in_mfilter *imf;
+	size_t num = 0;
+
+	STAILQ_FOREACH(imf, head, imf_entry)
+		num++;
+	return (num);
+}
 
 /*
  * IPv4 group descriptor.

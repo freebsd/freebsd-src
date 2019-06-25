@@ -86,6 +86,9 @@ __FBSDID("$FreeBSD$");
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#ifdef INET
+#include <netinet/in_var.h>
+#endif
 #include <netinet/ip_var.h>
 #include <netinet/tcp_var.h>
 #ifdef TCPHPTS
@@ -93,16 +96,13 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-#endif
-#ifdef INET
-#include <netinet/in_var.h>
-#endif
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #endif /* INET6 */
+#endif
 
 #include <netipsec/ipsec_support.h>
 
@@ -1779,8 +1779,9 @@ void
 in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 {
 	struct inpcb *inp;
+	struct in_multi *inm;
+	struct in_mfilter *imf;
 	struct ip_moptions *imo;
-	int i, gap;
 
 	INP_INFO_WLOCK(pcbinfo);
 	CK_LIST_FOREACH(inp, pcbinfo->ipi_listhead, inp_list) {
@@ -1801,17 +1802,18 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 			 *
 			 * XXX This can all be deferred to an epoch_call
 			 */
-			for (i = 0, gap = 0; i < imo->imo_num_memberships;
-			    i++) {
-				if (imo->imo_membership[i]->inm_ifp == ifp) {
-					IN_MULTI_LOCK_ASSERT();
-					in_leavegroup_locked(imo->imo_membership[i], NULL);
-					gap++;
-				} else if (gap != 0)
-					imo->imo_membership[i - gap] =
-					    imo->imo_membership[i];
+restart:
+			IP_MFILTER_FOREACH(imf, &imo->imo_head) {
+				if ((inm = imf->imf_inm) == NULL)
+					continue;
+				if (inm->inm_ifp != ifp)
+					continue;
+				ip_mfilter_remove(&imo->imo_head, imf);
+				IN_MULTI_LOCK_ASSERT();
+				in_leavegroup_locked(inm, NULL);
+				ip_mfilter_free(imf);
+				goto restart;
 			}
-			imo->imo_num_memberships -= gap;
 		}
 		INP_WUNLOCK(inp);
 	}
