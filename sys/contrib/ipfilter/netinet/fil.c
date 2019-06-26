@@ -1723,6 +1723,10 @@ ipf_pr_ipv4hdr(fin)
 	 * calculate the byte offset that it represents.
 	 */
 	off &= IP_MF|IP_OFFMASK;
+	if (off == 1 && p == IPPROTO_TCP) {
+		fin->fin_flx |= FI_SHORT;	/* RFC 3128 */
+		DT1(ipf_fi_tcp_frag_off_1, fr_info_t *, fin);
+	}
 	if (off != 0) {
 		int morefrag = off & IP_MF;
 
