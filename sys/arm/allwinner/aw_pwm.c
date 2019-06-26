@@ -44,9 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 
-#include <dev/pwm/pwmbus.h>
-
-#include "pwm_if.h"
+#include "pwmbus_if.h"
 
 #define	AW_PWM_CTRL			0x00
 #define	 AW_PWM_CTRL_PRESCALE_MASK	0xF
@@ -138,6 +136,7 @@ aw_pwm_attach(device_t dev)
 	struct aw_pwm_softc *sc;
 	uint64_t clk_freq;
 	uint32_t reg;
+	phandle_t node;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -149,17 +148,22 @@ aw_pwm_attach(device_t dev)
 		goto fail;
 	}
 	error = clk_enable(sc->clk);
+	if (error != 0) {
+		device_printf(dev, "cannot enable clock\n");
+		goto fail;
+	}
 
 	error = clk_get_freq(sc->clk, &sc->clk_freq);
+	if (error != 0) {
+		device_printf(dev, "cannot get clock frequency\n");
+		goto fail;
+	}
 
 	if (bus_alloc_resources(dev, aw_pwm_spec, &sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");
 		error = ENXIO;
 		goto fail;
 	}
-
-	if ((sc->busdev = pwmbus_attach_bus(dev)) == NULL)
-		device_printf(dev, "Cannot attach pwm bus\n");
 
 	/* Read the configuration left by U-Boot */
 	reg = AW_PWM_READ(sc, AW_PWM_CTRL);
@@ -170,7 +174,7 @@ aw_pwm_attach(device_t dev)
 	reg &= AW_PWM_CTRL_PRESCALE_MASK;
 	if (reg > nitems(aw_pwm_clk_prescaler)) {
 		device_printf(dev, "Bad prescaler %x, cannot guess current settings\n", reg);
-		goto out;
+		goto skipcfg;
 	}
 	clk_freq = sc->clk_freq / aw_pwm_clk_prescaler[reg];
 
@@ -180,8 +184,17 @@ aw_pwm_attach(device_t dev)
 	sc->duty = NS_PER_SEC /
 		(clk_freq / ((reg >> AW_PWM_PERIOD_ACTIVE_SHIFT) & AW_PWM_PERIOD_ACTIVE_MASK));
 
-out:
-	return (0);
+skipcfg:
+	/*
+	 * Note that we don't check for failure to attach pwmbus -- even without
+	 * it we can still service clients who connect via fdt xref data.
+	 */
+	node = ofw_bus_get_node(dev);
+	OF_device_register_xref(OF_xref_from_node(node), dev);
+
+	sc->busdev = device_add_child(dev, "pwmbus", -1);
+
+	return (bus_generic_attach(dev));
 
 fail:
 	aw_pwm_detach(dev);
@@ -192,18 +205,37 @@ static int
 aw_pwm_detach(device_t dev)
 {
 	struct aw_pwm_softc *sc;
+	int error;
 
 	sc = device_get_softc(dev);
 
-	bus_generic_detach(sc->dev);
+	if ((error = bus_generic_detach(sc->dev)) != 0) {
+		device_printf(sc->dev, "cannot detach child devices\n");
+		return (error);
+	}
 
-	bus_release_resources(dev, aw_pwm_spec, &sc->res);
+	if (sc->busdev != NULL)
+		device_delete_child(dev, sc->busdev);
+
+	if (sc->res != NULL)
+		bus_release_resources(dev, aw_pwm_spec, &sc->res);
 
 	return (0);
 }
 
+static phandle_t
+aw_pwm_get_node(device_t bus, device_t dev)
+{
+
+	/*
+	 * Share our controller node with our pwmbus child; it instantiates
+	 * devices by walking the children contained within our node.
+	 */
+	return ofw_bus_get_node(bus);
+}
+
 static int
-aw_pwm_channel_max(device_t dev, int *nchannel)
+aw_pwm_channel_count(device_t dev, u_int *nchannel)
 {
 
 	*nchannel = 1;
@@ -212,7 +244,7 @@ aw_pwm_channel_max(device_t dev, int *nchannel)
 }
 
 static int
-aw_pwm_channel_config(device_t dev, int channel, unsigned int period, unsigned int duty)
+aw_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 {
 	struct aw_pwm_softc *sc;
 	uint64_t period_freq, duty_freq;
@@ -275,7 +307,7 @@ aw_pwm_channel_config(device_t dev, int channel, unsigned int period, unsigned i
 }
 
 static int
-aw_pwm_channel_get_config(device_t dev, int channel, unsigned int *period, unsigned int *duty)
+aw_pwm_channel_get_config(device_t dev, u_int channel, u_int *period, u_int *duty)
 {
 	struct aw_pwm_softc *sc;
 
@@ -288,7 +320,7 @@ aw_pwm_channel_get_config(device_t dev, int channel, unsigned int *period, unsig
 }
 
 static int
-aw_pwm_channel_enable(device_t dev, int channel, bool enable)
+aw_pwm_channel_enable(device_t dev, u_int channel, bool enable)
 {
 	struct aw_pwm_softc *sc;
 	uint32_t reg;
@@ -312,7 +344,7 @@ aw_pwm_channel_enable(device_t dev, int channel, bool enable)
 }
 
 static int
-aw_pwm_channel_is_enabled(device_t dev, int channel, bool *enabled)
+aw_pwm_channel_is_enabled(device_t dev, u_int channel, bool *enabled)
 {
 	struct aw_pwm_softc *sc;
 
@@ -323,28 +355,21 @@ aw_pwm_channel_is_enabled(device_t dev, int channel, bool *enabled)
 	return (0);
 }
 
-static device_t
-aw_pwm_get_bus(device_t dev)
-{
-	struct aw_pwm_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	return (sc->busdev);
-}
 static device_method_t aw_pwm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		aw_pwm_probe),
 	DEVMETHOD(device_attach,	aw_pwm_attach),
 	DEVMETHOD(device_detach,	aw_pwm_detach),
 
-	/* pwm interface */
-	DEVMETHOD(pwm_get_bus,			aw_pwm_get_bus),
-	DEVMETHOD(pwm_channel_max,		aw_pwm_channel_max),
-	DEVMETHOD(pwm_channel_config,		aw_pwm_channel_config),
-	DEVMETHOD(pwm_channel_get_config,	aw_pwm_channel_get_config),
-	DEVMETHOD(pwm_channel_enable,		aw_pwm_channel_enable),
-	DEVMETHOD(pwm_channel_is_enabled,	aw_pwm_channel_is_enabled),
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	aw_pwm_get_node),
+
+	/* pwmbus interface */
+	DEVMETHOD(pwmbus_channel_count,		aw_pwm_channel_count),
+	DEVMETHOD(pwmbus_channel_config,	aw_pwm_channel_config),
+	DEVMETHOD(pwmbus_channel_get_config,	aw_pwm_channel_get_config),
+	DEVMETHOD(pwmbus_channel_enable,	aw_pwm_channel_enable),
+	DEVMETHOD(pwmbus_channel_is_enabled,	aw_pwm_channel_is_enabled),
 
 	DEVMETHOD_END
 };
@@ -358,4 +383,5 @@ static driver_t aw_pwm_driver = {
 static devclass_t aw_pwm_devclass;
 
 DRIVER_MODULE(aw_pwm, simplebus, aw_pwm_driver, aw_pwm_devclass, 0, 0);
+MODULE_VERSION(aw_pwm, 1);
 SIMPLEBUS_PNP_INFO(compat_data);

@@ -174,6 +174,9 @@ device		ti_spi
 # ADC support
 device		ti_adc
 
+# PWM
+device		pwm
+
 # Watchdog support
 # If we don't enable the watchdog driver, the BealeBone could potentially
 # reboot automatically because the boot loader might have enabled the
@@ -266,4 +269,16 @@ device		imx6_snvs		# On-chip RTC
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-makeoptions	MODULES_EXTRA="dtb/allwinner dtb/am335x dtb/imx6 dtb/nvidia dtb/rpi dtb/zynq dtb/omap4"
+makeoptions	MODULES_EXTRA+="dtb/allwinner"
+makeoptions	MODULES_EXTRA+="dtb/am335x"
+makeoptions	MODULES_EXTRA+="dtb/imx6"
+makeoptions	MODULES_EXTRA+="dtb/nvidia"
+makeoptions	MODULES_EXTRA+="dtb/omap4"
+makeoptions	MODULES_EXTRA+="dtb/rpi"
+makeoptions	MODULES_EXTRA+="dtb/zynq"
+
+# SOC-specific modules
+makeoptions	MODULES_EXTRA+="allwinner"
+makeoptions	MODULES_EXTRA+="arm_ti"
+makeoptions	MODULES_EXTRA+="imx"
+

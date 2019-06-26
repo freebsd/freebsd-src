@@ -22,70 +22,85 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2018
+.Dd June 21, 2019
 .Dt PWMBUS 9
 .Os
 .Sh NAME
 .Nm pwmbus ,
-.Nm pwmbus_attach_bus ,
-.Nm PWMBUS_GET_BUS ,
 .Nm PWMBUS_CHANNEL_CONFIG ,
-.Nm PWMBUS_CHANNEL_GET_CONFIG ,
-.Nm PWMBUS_CHANNEL_SET_FLAGS ,
-.Nm PWMBUS_CHANNEL_GET_FLAGS ,
+.Nm PWMBUS_CHANNEL_COUNT ,
 .Nm PWMBUS_CHANNEL_ENABLE ,
+.Nm PWMBUS_CHANNEL_GET_CONFIG ,
+.Nm PWMBUS_CHANNEL_GET_FLAGS ,
 .Nm PWMBUS_CHANNEL_IS_ENABLED ,
-.Nm PWMBUS_CHANNEL_MAX
+.Nm PWMBUS_CHANNEL_SET_FLAGS ,
+.Nm PWMBUS_GET_BUS
 .Nd PWMBUS methods
 .Sh SYNOPSIS
 .Cd "device pwm"
 .In "pwmbus_if.h"
-.Ft device_t
-.Fn pwmbus_attach_bus "device_t dev"
 .Ft int
 .Fn PWMBUS_CHANNEL_CONFIG "device_t bus" "int channel" "uint64_t period" "uint64_t duty"
 .Ft int
-.Fn PWMBUS_CHANNEL_GET_CONFIG "device_t bus" "int channel" "uint64_t *period" "uint64_t *duty"
-.Ft int
-.Fn PWMBUS_CHANNEL_SET_FLAGS "device_t bus" "int channel" "uint32_t flags"
-.Ft int
-.Fn PWMBUS_CHANNEL_GET_FLAGS "device_t bus" "int channel" "uint32_t *flags"
+.Fn PWMBUS_CHANNEL_COUNT "device_t bus" "int channel" "int *nchannel"
 .Ft int
 .Fn PWMBUS_CHANNEL_ENABLE "device_t bus" "int channel" "bool enable"
 .Ft int
+.Fn PWMBUS_CHANNEL_GET_CONFIG "device_t bus" "int channel" "uint64_t *period" "uint64_t *duty"
+.Ft int
+.Fn PWMBUS_CHANNEL_GET_FLAGS "device_t bus" "int channel" "uint32_t *flags"
+.Ft int
 .Fn PWMBUS_CHANNEL_IS_ENABLED "device_t bus" "int channel" "bool *enabled"
 .Ft int
-.Fn PWMBUS_CHANNEL_MAX "device_t bus" "int channel" "int *nchannel"
+.Fn PWMBUS_CHANNEL_SET_FLAGS "device_t bus" "int channel" "uint32_t flags"
 .Sh DESCRIPTION
-The PWMBUS (Pulse-Width Modulation) interface allows the device driver to register to a global
-bus so other devices in the kernel can use them in a generic way
+The PWMBUS (Pulse-Width Modulation) interface allows a device driver to
+register to a global bus so other devices in the kernel can use them in a
+generic way.
+.Pp
+For all
+.Nm
+methods, the
+.Va period
+argument is the duration in nanoseconds of one complete on-off cycle, and the
+.Va duty
+argument is the duration in nanoseconds of the on portion of that cycle.
+.Pp
+Some PWM hardware is organized as a single controller with multiple channels.
+Channel numbers count up from zero.
+When multiple channels are present, they sometimes share a common clock or 
+other resources.
+In such cases, changing the period or duty cycle of any one channel may affect 
+other channels within the hardware which share the same resources.
+Consult the documentation for the underlying PWM hardware device driver for 
+details on channels that share resources.
 .Sh INTERFACE
 .Bl -tag -width indent
-.It Fn pwmbus_attach_bus "device_t dev"
-Attach the
-.Nm pwmbus
-to the device driver
 .It Fn PWMBUS_CHANNEL_CONFIG "device_t bus" "int channel" "uint64_t period" "uint64_t duty"
-Configure the period and duty (in nanoseconds) in the PWM controller on the bus for the specified channel.
+Configure the period and duty (in nanoseconds) in the PWM controller on the bus
+for the specified channel.
 Returns 0 on success or
 .Er EINVAL
-is the values are not supported by the controller or
+if the values are not supported by the controller or
 .Er EBUSY
-is the PWMBUS controller is in use and doesn't support changing the value on the fly.
-.It Fn PWMBUS_CHANNEL_GET_CONFIG "device_t bus" "int channel" "uint64_t *period" "uint64_t *duty"
-Get the current configuration of the period and duty for the specified channel.
-.It Fn PWMBUS_CHANNEL_SET_FLAGS "device_t bus" "int channel" "uint32_t flags"
-Set the flags of the channel (like inverted polarity), if the driver or controller
-doesn't support this a default method is used.
-.It Fn PWMBUS_CHANNEL_GET_FLAGS "device_t bus" "int channel" "uint32_t *flags"
-Get the current flags for the channel, if the driver or controller
-doesn't support this, a default method is used.
+if the PWMBUS controller is in use and does not support changing the value on
+the fly.
+.It Fn PWMBUS_CHANNEL_COUNT "device_t bus" "int *nchannel"
+Get the number of channels supported by the controller.
 .It Fn PWMBUS_CHANNEL_ENABLE "device_t bus" "int channel" "bool enable"
 Enable the PWM channel.
-.It Fn PWMBUS_CHANNEL_ISENABLED "device_t bus" "int channel" "bool *enable"
-Test if the PWM channel is enabled.
-.It PWMBUS_CHANNEL_MAX "device_t bus" "int channel" "int *nchannel"
-Get the maximum number of channel supported by the controller.
+.It Fn PWMBUS_CHANNEL_GET_CONFIG "device_t bus" "int channel" "uint64_t *period" "uint64_t *duty"
+Get the current configuration of the period and duty for the specified channel.
+.It Fn PWMBUS_CHANNEL_GET_FLAGS "device_t bus" "int channel" "uint32_t *flags"
+Get the current flags for the channel.
+If the driver or controller
+does not support this, a default method returns a flags value of zero.
+.It Fn PWMBUS_CHANNEL_IS_ENABLED "device_t bus" "int channel" "bool *enable"
+Test whether the PWM channel is enabled.
+.It Fn PWMBUS_CHANNEL_SET_FLAGS "device_t bus" "int channel" "uint32_t flags"
+Set the flags of the channel (such as inverted polarity).
+If the driver or controller does not support this a do-nothing default method
+is used.
 .El
 .Sh HISTORY
 The

@@ -1,7 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2019 Ian Lepore <ian@FreeBSD.org>
+ * Copyright (c) 2018 Emmanuel Vadot <manu@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,47 +28,24 @@
  * $FreeBSD$
  */
 
-#ifndef _PWMBUS_H_
-#define _PWMBUS_H_
+#ifndef _PWM_H_
+#define	_PWM_H_
 
-struct pwmbus_softc {
-	device_t	dev;
-	u_int		nchannels;
+#define	PWM_POLARITY_INVERTED	(1 << 0)
+
+struct pwm_state {
+	u_int		period;
+	u_int		duty;
+	uint32_t	flags;
+	bool		enable;
 };
 
-struct pwmbus_ivars {
-	u_int	pi_channel;
-};
+/*
+ * ioctls
+ */
 
-enum {
-	PWMBUS_IVAR_CHANNEL,	/* Channel used by child dev */
-};
+#define	PWMGETSTATE	_IOWR('G', 0, struct pwm_state)
+#define	PWMSETSTATE	_IOWR('G', 1, struct pwm_state)
 
-#define PWMBUS_ACCESSOR(A, B, T)					\
-static inline int							\
-pwmbus_get_ ## A(device_t dev, T *t)					\
-{									\
-	return BUS_READ_IVAR(device_get_parent(dev), dev,		\
-	    PWMBUS_IVAR_ ## B, (uintptr_t *) t);			\
-}									\
-static inline int							\
-pwmbus_set_ ## A(device_t dev, T t)					\
-{									\
-	return BUS_WRITE_IVAR(device_get_parent(dev), dev,		\
-	    PWMBUS_IVAR_ ## B, (uintptr_t) t);				\
-}
 
-PWMBUS_ACCESSOR(channel, CHANNEL, u_int)
-
-#ifdef FDT
-#define	PWMBUS_FDT_PNP_INFO(t)	FDTCOMPAT_PNP_INFO(t, pwmbus)
-#else
-#define	PWMBUS_FDT_PNP_INFO(t)
-#endif
-
-extern driver_t   pwmbus_driver;
-extern devclass_t pwmbus_devclass;
-extern driver_t   ofw_pwmbus_driver;
-extern devclass_t ofw_pwmbus_devclass;
-
-#endif /* _PWMBUS_H_ */
+#endif /* _PWM_H_ */

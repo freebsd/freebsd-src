@@ -28,26 +28,28 @@
  * $FreeBSD$
  */
 
-#ifndef _PWM_H_
-#define	_PWM_H_
+#ifndef _OFW_PWM_H_
+#define _OFW_PWM_H_
 
-#define	PWM_POLARITY_INVERTED	(1 << 0)
+#include <dev/ofw/openfirm.h>
 
-struct pwm_state {
-	int		channel;
-	unsigned int	period;
-	unsigned int	duty;
+struct pwm_channel {
+	device_t	dev;
+	u_int		channel;
+	uint64_t	period;
+	uint64_t	duty;
 	uint32_t	flags;
-	bool		enable;
+	bool		enabled;
 };
+typedef struct pwm_channel *pwm_channel_t;
 
-/*
- * ioctls
- */
+int pwm_get_by_ofw_propidx(device_t consumer, phandle_t node,
+    const char *prop_name, int idx, pwm_channel_t *channel);
+int pwm_get_by_ofw_idx(device_t consumer, phandle_t node, int idx,
+    pwm_channel_t *out_channel);
+int pwm_get_by_ofw_property(device_t consumer, phandle_t node,
+    const char *prop_name, pwm_channel_t *out_channel);
+int pwm_get_by_ofw_name(device_t consumer, phandle_t node, const char *name,
+    pwm_channel_t *out_channel);
 
-#define	PWMMAXCHANNEL	_IOWR('G', 0, int)
-#define	PWMGETSTATE	_IOWR('G', 1, struct pwm_state)
-#define	PWMSETSTATE	_IOWR('G', 2, struct pwm_state)
-
-
-#endif /* _PWM_H_ */
+#endif /* _OFW_PWM_H_ */
