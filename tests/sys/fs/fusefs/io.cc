@@ -77,7 +77,7 @@ static void compare(const void *tbuf, const void *controlbuf, off_t baseofs,
 }
 
 class Io: public FuseTest,
-	  public WithParamInterface<tuple<uint32_t, uint32_t, bool>> {
+	  public WithParamInterface<tuple<bool, uint32_t, bool, bool>> {
 public:
 int m_backing_fd, m_control_fd, m_test_fd;
 off_t m_filesize;
@@ -95,9 +95,12 @@ void SetUp()
 		FAIL() << strerror(errno);
 	srandom(22'9'1982);	// Seed with my birthday
 
-	m_init_flags = get<0>(GetParam());
+	if (get<0>(GetParam()))
+		m_init_flags |= FUSE_ASYNC_READ;
 	m_maxwrite = get<1>(GetParam());
-	m_async = get<2>(GetParam());
+	if (get<2>(GetParam()))
+		m_init_flags |= FUSE_WRITEBACK_CACHE;
+	m_async = get<3>(GetParam());
 
 	FuseTest::SetUp();
 	if (IsSkipped())
@@ -316,15 +319,6 @@ void do_write(ssize_t size, off_t offs)
 class IoCacheable: public Io {
 public:
 virtual void SetUp() {
-	const char *node = "vfs.fusefs.data_cache_mode";
-	int val = 0;
-	size_t size = sizeof(val);
-
-	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	if (val == 0)
-		GTEST_SKIP() <<
-			"fusefs data caching must be enabled for this test";
 	Io::SetUp();
 }
 };
@@ -492,11 +486,13 @@ TEST_P(Io, resize_a_valid_buffer_while_extending)
 }
 
 INSTANTIATE_TEST_CASE_P(Io, Io,
-	Combine(Values(0, FUSE_ASYNC_READ),		/* m_init_flags */
+	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
+		Bool(),					/* writeback cache */
 		Bool()));				/* m_async */
 
 INSTANTIATE_TEST_CASE_P(Io, IoCacheable,
-	Combine(Values(0, FUSE_ASYNC_READ),		/* m_init_flags */
+	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
+		Bool(),					/* writeback cache */
 		Bool()));				/* m_async */
