@@ -206,6 +206,7 @@ struct fuse_data {
 	struct selinfo			ks_rsel;
 
 	int				daemon_timeout;
+	unsigned			time_gran;
 	uint64_t			notimpl;
 	uint64_t			mnt_flag;
 };

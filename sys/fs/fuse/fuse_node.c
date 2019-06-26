@@ -455,9 +455,13 @@ void
 fuse_vnode_update(struct vnode *vp, int flags)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct fuse_data *data = fuse_get_mpdata(vnode_mount(vp));
 	struct timespec ts;
 
 	vfs_timestamp(&ts);
+
+	if (data->time_gran > 1)
+		ts.tv_nsec = rounddown(ts.tv_nsec, data->time_gran);
 
 	if (flags & FN_MTIMECHANGE)
 		fvdat->cached_attrs.va_mtime = ts;

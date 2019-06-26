@@ -277,6 +277,9 @@ class MockFS {
 	/* Method the daemon should use for I/O to and from /dev/fuse */
 	enum poll_method m_pm;
 
+	/* Timestamp granularity in nanoseconds */
+	unsigned m_time_gran;
+
 	void debug_request(const mockfs_buf_in&);
 	void debug_response(const mockfs_buf_out&);
 
@@ -320,7 +323,7 @@ class MockFS {
 		bool default_permissions, bool push_symlinks_in, bool ro,
 		enum poll_method pm, uint32_t flags,
 		uint32_t kernel_minor_version, uint32_t max_write, bool async,
-		bool no_clusterr);
+		bool no_clusterr, unsigned time_gran);
 
 	virtual ~MockFS();
 

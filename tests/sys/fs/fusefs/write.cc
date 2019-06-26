@@ -229,6 +229,14 @@ virtual void SetUp() {
 }
 };
 
+class TimeGran: public WriteBackAsync, public WithParamInterface<unsigned> {
+public:
+virtual void SetUp() {
+	m_time_gran = 1 << GetParam();
+	WriteBackAsync::SetUp();
+}
+};
+
 /* Tests for clustered writes with WriteBack cacheing */
 class WriteCluster: public WriteBack {
 public:
@@ -1134,6 +1142,43 @@ TEST_F(WriteBackAsync, timestamps_during_setattr)
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, fchmod(fd, newmode)) << strerror(errno);
 }
+
+/* fuse_init_out.time_gran controls the granularity of timestamps */
+TEST_P(TimeGran, timestamps_during_setattr)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	ssize_t bufsize = strlen(CONTENTS);
+	uint64_t ino = 42;
+	const mode_t newmode = 0755;
+	int fd;
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			uint32_t valid = FATTR_MODE | FATTR_MTIME | FATTR_CTIME;
+			return (in.header.opcode == FUSE_SETATTR &&
+				in.header.nodeid == ino &&
+				in.body.setattr.valid == valid &&
+				in.body.setattr.mtimensec % m_time_gran == 0 &&
+				in.body.setattr.ctimensec % m_time_gran == 0);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr.ino = ino;
+		out.body.attr.attr.mode = S_IFREG | newmode;
+	})));
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	ASSERT_EQ(0, fchmod(fd, newmode)) << strerror(errno);
+}
+
+INSTANTIATE_TEST_CASE_P(RA, TimeGran, Range(0u, 10u));
 
 /*
  * Without direct_io, writes should be committed to cache

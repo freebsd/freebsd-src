@@ -348,7 +348,7 @@ void MockFS::debug_response(const mockfs_buf_out &out) {
 MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags,
 	uint32_t kernel_minor_version, uint32_t max_write, bool async,
-	bool noclusterr)
+	bool noclusterr, unsigned time_gran)
 {
 	struct sigaction sa;
 	struct iovec *iov = NULL;
@@ -362,6 +362,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	m_maxwrite = max_write;
 	m_nready = -1;
 	m_pm = pm;
+	m_time_gran = time_gran;
 	m_quit = false;
 	if (m_pm == KQ)
 		m_kq = kqueue();
@@ -475,6 +476,7 @@ void MockFS::init(uint32_t flags) {
 	if (m_kernel_minor_version < 23) {
 		SET_OUT_HEADER_LEN(*out, init_7_22);
 	} else {
+		out->body.init.time_gran = m_time_gran;
 		SET_OUT_HEADER_LEN(*out, init);
 	}
 
