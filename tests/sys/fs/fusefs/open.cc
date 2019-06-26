@@ -64,7 +64,7 @@ void test_ok(int os_flags, int fuse_flags) {
 
 	fd = open(FULLPATH, os_flags);
 	EXPECT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 };
 

@@ -136,7 +136,8 @@ TEST_F(AioRead, aio_read)
 	ASSERT_EQ(0, aio_read(&iocb)) << strerror(errno);
 	ASSERT_EQ(bufsize, aio_waitcomplete(&piocb, NULL)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+
+	leak(fd);
 }
 
 /* 
@@ -216,7 +217,7 @@ TEST_F(AioRead, async_read_disabled)
 	/* Wait for AIO activity to complete, but ignore errors */
 	(void)aio_waitcomplete(NULL, NULL);
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -295,7 +296,7 @@ TEST_F(AsyncRead, async_read)
 	/* Wait for AIO activity to complete, but ignore errors */
 	(void)aio_waitcomplete(NULL, NULL);
 	
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 0-length reads shouldn't cause any confusion */
@@ -315,7 +316,7 @@ TEST_F(Read, direct_io_read_nothing)
 	ASSERT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(0, pread(fd, buf, 0, offset)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -348,7 +349,7 @@ TEST_F(Read, direct_io_pread)
 	expect_read(ino, offset, bufsize, bufsize, CONTENTS);
 	ASSERT_EQ(bufsize, pread(fd, buf, bufsize, offset)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -377,7 +378,7 @@ TEST_F(Read, direct_io_short_read)
 	ASSERT_EQ(halfbufsize, pread(fd, buf, bufsize, offset))
 		<< strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, halfbufsize));
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Read, eio)
@@ -404,7 +405,7 @@ TEST_F(Read, eio)
 
 	ASSERT_EQ(-1, read(fd, buf, bufsize)) << strerror(errno);
 	ASSERT_EQ(EIO, errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -439,7 +440,7 @@ TEST_F(Read, eof)
 	EXPECT_EQ(partbufsize, r) << strerror(errno);
 	ASSERT_EQ(0, fstat(fd, &sb));
 	EXPECT_EQ((off_t)(offset + partbufsize), sb.st_size);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Like Read.eof, but causes an entire buffer to be invalidated */
@@ -472,7 +473,7 @@ TEST_F(Read, eof_of_whole_buffer)
 		<< strerror(errno);
 	ASSERT_EQ(0, fstat(fd, &sb));
 	EXPECT_EQ((off_t)(m_maxbcachebuf), sb.st_size);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -506,7 +507,8 @@ TEST_F(Read, keep_cache)
 	 */
 	ASSERT_EQ(bufsize, read(fd1, buf, bufsize)) << strerror(errno);
 
-	/* Deliberately leak fd0 and fd1. */
+	leak(fd0);
+	leak(fd1);
 }
 
 /* 
@@ -542,7 +544,8 @@ TEST_F(Read, keep_cache_disabled)
 	ASSERT_EQ(0, lseek(fd0, 0, SEEK_SET)) << strerror(errno);
 	ASSERT_EQ(bufsize, read(fd0, buf, bufsize)) << strerror(errno);
 
-	/* Deliberately leak fd0 and fd1. */
+	leak(fd0);
+	leak(fd1);
 }
 
 TEST_F(Read, mmap)
@@ -584,7 +587,7 @@ TEST_F(Read, mmap)
 	ASSERT_EQ(0, memcmp(p, CONTENTS, bufsize));
 
 	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -635,7 +638,7 @@ TEST_F(Read, mmap_eof)
 	EXPECT_EQ((off_t)bufsize, sb.st_size);
 
 	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -670,7 +673,7 @@ TEST_F(Read, o_direct)
 	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Read, pread)
@@ -697,7 +700,7 @@ TEST_F(Read, pread)
 
 	ASSERT_EQ(bufsize, pread(fd, buf, bufsize, offset)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Read, read)
@@ -720,7 +723,7 @@ TEST_F(Read, read)
 	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Read_7_8, read)
@@ -743,7 +746,7 @@ TEST_F(Read_7_8, read)
 	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -781,7 +784,7 @@ TEST_F(Read, cache_block)
 	/* A subsequent read should be serviced by cache */
 	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, contents1, bufsize));
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Reading with sendfile should work (though it obviously won't be 0-copy) */
@@ -827,7 +830,7 @@ TEST_F(Read, sendfile)
 
 	close(sp[1]);
 	close(sp[0]);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* sendfile should fail gracefully if fuse declines the read */
@@ -861,7 +864,7 @@ TEST_F(Read, DISABLED_sendfile_eio)
 
 	close(sp[1]);
 	close(sp[0]);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -903,7 +906,7 @@ TEST_P(ReadAhead, readahead) {
 	ASSERT_EQ(bufsize, read(fd, rbuf, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(rbuf, contents, bufsize));
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 INSTANTIATE_TEST_CASE_P(RA, ReadAhead,

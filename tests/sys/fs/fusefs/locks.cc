@@ -127,7 +127,7 @@ TEST_F(FlockFallback, local)
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(0, flock(fd, LOCK_EX)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -148,7 +148,7 @@ TEST_F(Flock, local)
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(0, flock(fd, LOCK_EX)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Set a new flock lock with FUSE_SETLK */
@@ -167,7 +167,7 @@ TEST_F(Flock, DISABLED_set)
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(0, flock(fd, LOCK_EX)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Fail to set a flock lock in non-blocking mode */
@@ -187,7 +187,7 @@ TEST_F(Flock, DISABLED_eagain)
 	ASSERT_LE(0, fd) << strerror(errno);
 	ASSERT_NE(0, flock(fd, LOCK_EX | LOCK_NB));
 	ASSERT_EQ(EAGAIN, errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -214,7 +214,7 @@ TEST_F(GetlkFallback, local)
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
 	ASSERT_NE(-1, fcntl(fd, F_GETLK, &fl)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -260,7 +260,7 @@ TEST_F(Getlk, no_locks)
 	fl.l_sysid = 0;
 	ASSERT_NE(-1, fcntl(fd, F_GETLK, &fl)) << strerror(errno);
 	ASSERT_EQ(F_UNLCK, fl.l_type);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* A different pid does have a lock */
@@ -311,7 +311,7 @@ TEST_F(Getlk, lock_exists)
 	EXPECT_EQ(F_WRLCK, fl.l_type);
 	EXPECT_EQ(SEEK_SET, fl.l_whence);
 	EXPECT_EQ(0, fl.l_sysid);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -338,7 +338,7 @@ TEST_F(SetlkFallback, local)
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
 	ASSERT_NE(-1, fcntl(fd, F_SETLK, &fl)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Set a new lock with FUSE_SETLK */
@@ -364,7 +364,7 @@ TEST_F(Setlk, set)
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
 	ASSERT_NE(-1, fcntl(fd, F_SETLK, &fl)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* l_len = 0 is a flag value that means to lock until EOF */
@@ -390,7 +390,7 @@ TEST_F(Setlk, set_eof)
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
 	ASSERT_NE(-1, fcntl(fd, F_SETLK, &fl)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Fail to set a new lock with FUSE_SETLK due to a conflict */
@@ -417,7 +417,7 @@ TEST_F(Setlk, eagain)
 	fl.l_sysid = 0;
 	ASSERT_EQ(-1, fcntl(fd, F_SETLK, &fl));
 	ASSERT_EQ(EAGAIN, errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -444,7 +444,7 @@ TEST_F(SetlkwFallback, local)
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
 	ASSERT_NE(-1, fcntl(fd, F_SETLKW, &fl)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -474,5 +474,5 @@ TEST_F(Setlkw, set)
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
 	ASSERT_NE(-1, fcntl(fd, F_SETLKW, &fl)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }

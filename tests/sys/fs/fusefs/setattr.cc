@@ -322,7 +322,7 @@ TEST_F(Setattr, fchmod)
 	fd = open(FULLPATH, O_RDONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(0, fchmod(fd, newmode)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Change the size of an open file, by its file descriptor */
@@ -376,7 +376,7 @@ TEST_F(Setattr, ftruncate)
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(0, ftruncate(fd, newsize)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Change the size of the file */

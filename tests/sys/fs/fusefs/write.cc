@@ -231,7 +231,7 @@ TEST_F(AioWrite, DISABLED_aio_write)
 	iocb.aio_sigevent.sigev_notify = SIGEV_NONE;
 	ASSERT_EQ(0, aio_write(&iocb)) << strerror(errno);
 	ASSERT_EQ(bufsize, aio_waitcomplete(&piocb, NULL)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -267,7 +267,7 @@ TEST_F(Write, append)
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(BUFSIZE, write(fd, CONTENTS, BUFSIZE)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* If a file is cached, then appending to the end should not cause a read */
@@ -305,7 +305,7 @@ TEST_F(Write, append_to_cached)
 
 	/* Write the new data.  There should be no more read operations */
 	ASSERT_EQ(BUFSIZE, write(fd, CONTENTS, BUFSIZE)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Write, append_direct_io)
@@ -326,7 +326,7 @@ TEST_F(Write, append_direct_io)
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(BUFSIZE, write(fd, CONTENTS, BUFSIZE)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* A direct write should evict any overlapping cached data */
@@ -364,7 +364,7 @@ TEST_F(Write, direct_io_evicts_cache)
 	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
 	ASSERT_STREQ(readbuf, CONTENTS1);
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -394,7 +394,7 @@ TEST_F(Write, indirect_io_short_write)
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -419,7 +419,7 @@ TEST_F(Write, direct_io_short_write)
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(halfbufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -453,7 +453,7 @@ TEST_F(Write, direct_io_short_write_iov)
 	iov[1].iov_base = (void*)CONTENTS1;
 	iov[1].iov_len = strlen(CONTENTS1);
 	ASSERT_EQ(size0, writev(fd, iov, 2)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* fusefs should respect RLIMIT_FSIZE */
@@ -483,7 +483,7 @@ TEST_F(Write, rlimit_fsize)
 	ASSERT_EQ(-1, pwrite(fd, CONTENTS, bufsize, offset));
 	EXPECT_EQ(EFBIG, errno);
 	EXPECT_EQ(1, s_sigxfsz);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -516,7 +516,7 @@ TEST_F(Write, eof_during_rmw)
 
 	ASSERT_EQ(bufsize, pwrite(fd, CONTENTS, bufsize, offset))
 		<< strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -590,7 +590,7 @@ TEST_F(Write, pwrite)
 
 	ASSERT_EQ(bufsize, pwrite(fd, CONTENTS, bufsize, offset))
 		<< strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Writing a file should update its cached mtime and ctime */
@@ -639,7 +639,7 @@ TEST_F(Write, write)
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* fuse(4) should not issue writes of greater size than the daemon requests */
@@ -670,7 +670,7 @@ TEST_F(Write, write_large)
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(bufsize, write(fd, contents, bufsize)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 
 	free(contents);
 }
@@ -691,7 +691,7 @@ TEST_F(Write, write_nothing)
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Write_7_8, write)
@@ -711,7 +711,7 @@ TEST_F(Write_7_8, write)
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* In writeback mode, dirty data should be written on close */
@@ -855,7 +855,7 @@ TEST_F(WriteBack, rmw)
 
 	ASSERT_EQ(bufsize, pwrite(fd, CONTENTS, bufsize, offset))
 		<< strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -885,7 +885,7 @@ TEST_F(WriteBack, cache)
 	 */
 	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
 	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -917,7 +917,7 @@ TEST_F(WriteBack, o_direct)
 	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
 	ASSERT_EQ(0, fcntl(fd, F_SETFL, 0)) << strerror(errno);
 	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -995,7 +995,7 @@ TEST_F(WriteBackAsync, eof)
 	/* The file's size should still be what was established by pwrite */
 	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
 	EXPECT_EQ(offset + wbufsize, sb.st_size);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -1154,7 +1154,7 @@ TEST_F(Write, writethrough)
 	 */
 	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
 	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Writes that extend a file should update the cached file size */
@@ -1179,5 +1179,5 @@ TEST_F(Write, update_file_size)
 	/* Get cached attributes */
 	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
 	ASSERT_EQ(bufsize, sb.st_size);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
