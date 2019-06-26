@@ -122,6 +122,7 @@ static void
 get_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)
 {
 	struct pcb *curpcb;
+	int i;
 
 	critical_enter();
 	curpcb = curthread->td_pcb;
@@ -137,8 +138,8 @@ get_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)
 				("Called get_fpcontext while the kernel is using the VFP"));
 		KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
 				("Non-userspace FPU flags set in get_fpcontext"));
-		memcpy(mcp->mcv_reg, curpcb->pcb_fpustate.vfp_regs,
-				sizeof(mcp->mcv_reg));
+		for (i = 0; i < 32; i++)
+			mcp->mcv_reg[i] = (uint64_t)curpcb->pcb_fpustate.vfp_regs[i];
 		mcp->mcv_fpscr = VFP_FPSCR_FROM_SRCR(curpcb->pcb_fpustate.vfp_fpcr,
 				curpcb->pcb_fpustate.vfp_fpsr);
 	}
@@ -149,13 +150,14 @@ static void
 set_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)
 {
 	struct pcb *pcb;
+	int i;
 
 	critical_enter();
 	pcb = td->td_pcb;
 	if (td == curthread)
 		vfp_discard(td);
-	memcpy(pcb->pcb_fpustate.vfp_regs, mcp->mcv_reg,
-			sizeof(pcb->pcb_fpustate.vfp_regs));
+	for (i = 0; i < 32; i++)
+		pcb->pcb_fpustate.vfp_regs[i] = mcp->mcv_reg[i];
 	pcb->pcb_fpustate.vfp_fpsr = VFP_FPSR_FROM_FPSCR(mcp->mcv_fpscr);
 	pcb->pcb_fpustate.vfp_fpcr = VFP_FPSR_FROM_FPSCR(mcp->mcv_fpscr);
 	critical_exit();
