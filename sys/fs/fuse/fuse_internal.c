@@ -934,8 +934,8 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 			 * redundant with max_write
 			 */
 			/* 
-			 * max_background, congestion_threshold, and time_gran
-			 * are not implemented
+			 * max_background and congestion_threshold are not
+			 * implemented
 			 */
 		} else {
 			err = EINVAL;
@@ -955,6 +955,12 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 		fsess_set_notimpl(data->mp, FUSE_BMAP);
 		fsess_set_notimpl(data->mp, FUSE_DESTROY);
 	}
+
+	if (fuse_libabi_geq(data, 7, 23) && fiio->time_gran >= 1 &&
+	    fiio->time_gran <= 1000000000)
+		data->time_gran = fiio->time_gran;
+	else
+		data->time_gran = 1;
 
 out:
 	if (err) {
