@@ -51,6 +51,28 @@ extern "C" {
 
 using namespace testing;
 
+enum cache_mode {
+	Uncached,
+	Writethrough,
+	Writeback,
+	WritebackAsync
+};
+
+const char *cache_mode_to_s(enum cache_mode cm) {
+	switch (cm) {
+	case Uncached:
+		return "Uncached";
+	case Writethrough:
+		return "Writethrough";
+	case Writeback:
+		return "Writeback";
+	case WritebackAsync:
+		return "WritebackAsync";
+	default:
+		return "Unknown";
+	}
+}
+
 const char FULLPATH[] = "mountpoint/some_file.txt";
 const char RELPATH[] = "some_file.txt";
 const uint64_t ino = 42;
@@ -76,13 +98,15 @@ static void compare(const void *tbuf, const void *controlbuf, off_t baseofs,
 	}
 }
 
-class Io: public FuseTest,
-	  public WithParamInterface<tuple<bool, uint32_t, bool, bool>> {
+typedef tuple<bool, uint32_t, cache_mode> IoParam;
+
+class Io: public FuseTest, public WithParamInterface<IoParam> {
 public:
 int m_backing_fd, m_control_fd, m_test_fd;
 off_t m_filesize;
+bool m_direct_io;
 
-Io(): m_backing_fd(-1), m_control_fd(-1) {};
+Io(): m_backing_fd(-1), m_control_fd(-1), m_direct_io(false) {};
 
 void SetUp()
 {
@@ -98,16 +122,35 @@ void SetUp()
 	if (get<0>(GetParam()))
 		m_init_flags |= FUSE_ASYNC_READ;
 	m_maxwrite = get<1>(GetParam());
-	if (get<2>(GetParam()))
-		m_init_flags |= FUSE_WRITEBACK_CACHE;
-	m_async = get<3>(GetParam());
+	switch (get<2>(GetParam())) {
+		case Uncached:
+			m_direct_io = true;
+			break;
+		case WritebackAsync:
+			m_async = true;
+			/* FALLTHROUGH */
+		case Writeback:
+			m_init_flags |= FUSE_WRITEBACK_CACHE;
+			/* FALLTHROUGH */
+		case Writethrough:
+			break;
+		default:
+			FAIL() << "Unknown cache mode";
+	}
 
 	FuseTest::SetUp();
 	if (IsSkipped())
 		return;
 
+	if (verbosity > 0) {
+		printf("Test Parameters: init_flags=%#x maxwrite=%#x "
+		    "%sasync cache=%s\n",
+		    m_init_flags, m_maxwrite, m_async? "" : "no",
+		    cache_mode_to_s(get<2>(GetParam())));
+	}
+
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
-	expect_open(ino, 0, 1);
+	expect_open(ino, m_direct_io ? FOPEN_DIRECT_IO : 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_WRITE &&
@@ -488,11 +531,13 @@ TEST_P(Io, resize_a_valid_buffer_while_extending)
 INSTANTIATE_TEST_CASE_P(Io, Io,
 	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
-		Bool(),					/* writeback cache */
-		Bool()));				/* m_async */
+		Values(Uncached, Writethrough, Writeback, WritebackAsync)
+	)
+);
 
 INSTANTIATE_TEST_CASE_P(Io, IoCacheable,
 	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
-		Bool(),					/* writeback cache */
-		Bool()));				/* m_async */
+		Values(Writethrough, Writeback, WritebackAsync)
+	)
+);
