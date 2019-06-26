@@ -270,8 +270,10 @@ rfb_recv_set_encodings_msg(struct rfb_softc *rc, int cfd)
 			rc->enc_raw_ok = true;
 			break;
 		case RFB_ENCODING_ZLIB:
-			rc->enc_zlib_ok = true;
-			deflateInit(&rc->zstream, Z_BEST_SPEED);
+			if (!rc->enc_zlib_ok) {
+				deflateInit(&rc->zstream, Z_BEST_SPEED);
+				rc->enc_zlib_ok = true;
+			}
 			break;
 		case RFB_ENCODING_RESIZE:
 			rc->enc_resize_ok = true;
