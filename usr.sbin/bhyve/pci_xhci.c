@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <xhcireg.h>
 
 #include "bhyverun.h"
+#include "config.h"
 #include "debug.h"
 #include "pci_emul.h"
 #include "pci_xhci.h"
@@ -276,7 +277,6 @@ struct pci_xhci_softc {
 	struct pci_xhci_portregs *portregs;
 	struct pci_xhci_dev_emu  **devices; /* XHCI[port] = device */
 	struct pci_xhci_dev_emu  **slots;   /* slots assigned from 1 */
-	int		ndevices;
 
 	int		usb2_port_start;
 	int		usb3_port_start;
@@ -570,7 +570,8 @@ pci_xhci_get_dev_ctx(struct pci_xhci_softc *sc, uint32_t slot)
 	uint64_t devctx_addr;
 	struct xhci_dev_ctx *devctx;
 
-	assert(slot > 0 && slot <= sc->ndevices);
+	assert(slot > 0 && slot <= XHCI_MAX_DEVS);
+	assert(XHCI_SLOTDEV_PTR(sc, slot) != NULL);
 	assert(sc->opregs.dcbaa_p != NULL);
 
 	devctx_addr = sc->opregs.dcbaa_p->dcba[slot];
@@ -843,7 +844,7 @@ pci_xhci_cmd_disable_slot(struct pci_xhci_softc *sc, uint32_t slot)
 	if (sc->portregs == NULL)
 		goto done;
 
-	if (slot > sc->ndevices) {
+	if (slot > XHCI_MAX_SLOTS) {
 		cmderr = XHCI_TRB_ERROR_SLOT_NOT_ON;
 		goto done;
 	}
@@ -857,7 +858,8 @@ pci_xhci_cmd_disable_slot(struct pci_xhci_softc *sc, uint32_t slot)
 			cmderr = XHCI_TRB_ERROR_SUCCESS;
 			/* TODO: reset events and endpoints */
 		}
-	}
+	} else
+		cmderr = XHCI_TRB_ERROR_SLOT_NOT_ON;
 
 done:
 	return (cmderr);
@@ -1906,7 +1908,7 @@ pci_xhci_device_doorbell(struct pci_xhci_softc *sc, uint32_t slot,
 	DPRINTF(("pci_xhci doorbell slot %u epid %u stream %u",
 	    slot, epid, streamid));
 
-	if (slot == 0 || slot > sc->ndevices) {
+	if (slot == 0 || slot > XHCI_MAX_SLOTS) {
 		DPRINTF(("pci_xhci: invalid doorbell slot %u", slot));
 		return;
 	}
@@ -2643,67 +2645,129 @@ pci_xhci_dev_event(struct usb_hci *hci, enum hci_usbev evid, void *param)
 	return (0);
 }
 
-
-
-static void
-pci_xhci_device_usage(char *opt)
+/*
+ * Each controller contains a "slot" node which contains a list of
+ * child nodes each of which is a device.  Each slot node's name
+ * corresponds to a specific controller slot.  These nodes
+ * contain a "device" variable identifying the device model of the
+ * USB device.  For example:
+ *
+ * pci.0.1.0
+ *          .device="xhci"
+ *          .slot
+ *               .1
+ *                 .device="tablet"
+ */
+static int
+pci_xhci_legacy_config(nvlist_t *nvl, const char *opts)
 {
+	char node_name[16];
+	nvlist_t *slots_nvl, *slot_nvl;
+	char *cp, *opt, *str, *tofree;
+	int slot;
 
-	EPRINTLN("Invalid USB emulation \"%s\"", opt);
+	if (opts == NULL)
+		return (0);
+
+	slots_nvl = create_relative_config_node(nvl, "slot");
+	slot = 1;
+	tofree = str = strdup(opts);
+	while ((opt = strsep(&str, ",")) != NULL) {
+		/* device[=<config>] */
+		cp = strchr(opt, '=');
+		if (cp != NULL) {
+			*cp = '\0';
+			cp++;
+		}
+
+		snprintf(node_name, sizeof(node_name), "%d", slot);
+		slot++;
+		slot_nvl = create_relative_config_node(slots_nvl, node_name);
+		set_config_value_node(slot_nvl, "device", opt);
+
+		/*
+		 * NB: Given that we split on commas above, the legacy
+		 * format only supports a single option.
+		 */
+		if (cp != NULL && *cp != '\0')
+			pci_parse_legacy_config(slot_nvl, cp);
+	}
+	free(tofree);
+	return (0);
 }
 
 static int
-pci_xhci_parse_opts(struct pci_xhci_softc *sc, char *opts)
+pci_xhci_parse_devices(struct pci_xhci_softc *sc, nvlist_t *nvl)
 {
-	struct pci_xhci_dev_emu	**devices;
 	struct pci_xhci_dev_emu	*dev;
 	struct usb_devemu	*ue;
-	void	*devsc;
-	char	*uopt, *xopts, *config;
-	int	usb3_port, usb2_port, i;
+	const nvlist_t *slots_nvl, *slot_nvl;
+	const char *name, *device;
+	char	*cp;
+	void	*devsc, *cookie;
+	long	slot;
+	int	type, usb3_port, usb2_port, i, ndevices;
 
-	uopt = NULL;
-	usb3_port = sc->usb3_port_start - 1;
-	usb2_port = sc->usb2_port_start - 1;
-	devices = NULL;
+	usb3_port = sc->usb3_port_start;
+	usb2_port = sc->usb2_port_start;
 
-	if (opts == NULL)
+	sc->devices = calloc(XHCI_MAX_DEVS, sizeof(struct pci_xhci_dev_emu *));
+	sc->slots = calloc(XHCI_MAX_SLOTS, sizeof(struct pci_xhci_dev_emu *));
+
+	/* port and slot numbering start from 1 */
+	sc->devices--;
+	sc->slots--;
+
+	ndevices = 0;
+
+	slots_nvl = find_relative_config_node(nvl, "slots");
+	if (slots_nvl == NULL)
 		goto portsfinal;
 
-	devices = calloc(XHCI_MAX_DEVS, sizeof(struct pci_xhci_dev_emu *));
-
-	sc->slots = calloc(XHCI_MAX_SLOTS, sizeof(struct pci_xhci_dev_emu *));
-	sc->devices = devices;
-	sc->ndevices = 0;
-
-	uopt = strdup(opts);
-	for (xopts = strtok(uopt, ",");
-	     xopts != NULL;
-	     xopts = strtok(NULL, ",")) {
-		if (usb2_port == ((sc->usb2_port_start-1) + XHCI_MAX_DEVS/2) ||
-		    usb3_port == ((sc->usb3_port_start-1) + XHCI_MAX_DEVS/2)) {
+	cookie = NULL;
+	while ((name = nvlist_next(slots_nvl, &type, &cookie)) != NULL) {
+		if (usb2_port == ((sc->usb2_port_start) + XHCI_MAX_DEVS/2) ||
+		    usb3_port == ((sc->usb3_port_start) + XHCI_MAX_DEVS/2)) {
 			WPRINTF(("pci_xhci max number of USB 2 or 3 "
 			     "devices reached, max %d", XHCI_MAX_DEVS/2));
-			usb2_port = usb3_port = -1;
-			goto done;
+			goto bad;
 		}
 
-		/* device[=<config>] */
-		if ((config = strchr(xopts, '=')) == NULL)
-			config = "";		/* no config */
-		else
-			*config++ = '\0';
+		if (type != NV_TYPE_NVLIST) {
+			EPRINTLN(
+			    "pci_xhci: config variable '%s' under slot node",
+			     name);
+			goto bad;
+		}
 
-		ue = usb_emu_finddev(xopts);
+		slot = strtol(name, &cp, 0);
+		if (*cp != '\0' || slot <= 0 || slot > XHCI_MAX_SLOTS) {
+			EPRINTLN("pci_xhci: invalid slot '%s'", name);
+			goto bad;
+		}
+
+		if (XHCI_SLOTDEV_PTR(sc, slot) != NULL) {
+			EPRINTLN("pci_xhci: duplicate slot '%s'", name);
+			goto bad;
+		}
+
+		slot_nvl = nvlist_get_nvlist(slots_nvl, name);
+		device = get_config_value_node(slot_nvl, "device");
+		if (device == NULL) {
+			EPRINTLN(
+			    "pci_xhci: missing \"device\" value for slot '%s'",
+				name);
+			goto bad;
+		}
+
+		ue = usb_emu_finddev(device);
 		if (ue == NULL) {
-			pci_xhci_device_usage(xopts);
-			DPRINTF(("pci_xhci device not found %s", xopts));
-			usb2_port = usb3_port = -1;
-			goto done;
+			EPRINTLN("pci_xhci: unknown device model \"%s\"",
+			    device);
+			goto bad;
 		}
 
-		DPRINTF(("pci_xhci adding device %s, opts \"%s\"",
-		        xopts, config));
+		DPRINTF(("pci_xhci adding device %s", device));
 
 		dev = calloc(1, sizeof(struct pci_xhci_dev_emu));
 		dev->xsc = sc;
@@ -2712,66 +2776,64 @@ pci_xhci_parse_opts(struct pci_xhci_softc *sc, char *opts)
 		dev->hci.hci_event = pci_xhci_dev_event;
 
 		if (ue->ue_usbver == 2) {
-			dev->hci.hci_port = usb2_port + 1;
-			devices[usb2_port] = dev;
+			if (usb2_port == sc->usb2_port_start +
+			    XHCI_MAX_DEVS / 2) {
+				WPRINTF(("pci_xhci max number of USB 2 devices "
+				     "reached, max %d", XHCI_MAX_DEVS / 2));
+				goto bad;
+			}
+			dev->hci.hci_port = usb2_port;
 			usb2_port++;
 		} else {
-			dev->hci.hci_port = usb3_port + 1;
-			devices[usb3_port] = dev;
+			if (usb3_port == sc->usb3_port_start +
+			    XHCI_MAX_DEVS / 2) {
+				WPRINTF(("pci_xhci max number of USB 3 devices "
+				     "reached, max %d", XHCI_MAX_DEVS / 2));
+				goto bad;
+			}
+			dev->hci.hci_port = usb3_port;
 			usb3_port++;
 		}
+		XHCI_DEVINST_PTR(sc, dev->hci.hci_port) = dev;
 
 		dev->hci.hci_address = 0;
-		devsc = ue->ue_init(&dev->hci, config);
+		devsc = ue->ue_init(&dev->hci, nvl);
 		if (devsc == NULL) {
-			pci_xhci_device_usage(xopts);
-			usb2_port = usb3_port = -1;
-			goto done;
+			goto bad;
 		}
 
 		dev->dev_ue = ue;
 		dev->dev_sc = devsc;
 
-		/* assign slot number to device */
-		sc->slots[sc->ndevices] = dev;
-
-		sc->ndevices++;
+		XHCI_SLOTDEV_PTR(sc, slot) = dev;
 	}
 
 portsfinal:
 	sc->portregs = calloc(XHCI_MAX_DEVS, sizeof(struct pci_xhci_portregs));
+	sc->portregs--;
 
-	if (sc->ndevices > 0) {
-		/* port and slot numbering start from 1 */
-		sc->devices--;
-		sc->portregs--;
-		sc->slots--;
-
+	if (ndevices > 0) {
 		for (i = 1; i <= XHCI_MAX_DEVS; i++) {
 			pci_xhci_init_port(sc, i);
 		}
 	} else {
 		WPRINTF(("pci_xhci no USB devices configured"));
-		sc->ndevices = 1;
+	}
+	return (0);
+
+bad:
+	for (i = 1; i <= XHCI_MAX_DEVS; i++) {
+		free(XHCI_DEVINST_PTR(sc, i));
 	}
 
-done:
-	if (devices != NULL) {
-		if (usb2_port <= 0 && usb3_port <= 0) {
-			sc->devices = NULL;
-			for (i = 0; devices[i] != NULL; i++)
-				free(devices[i]);
-			sc->ndevices = -1;
+	free(sc->devices + 1);
+	free(sc->slots + 1);
 
-			free(devices);
-		}
-	}
-	free(uopt);
-	return (sc->ndevices);
+	return (-1);
 }
 
 static int
-pci_xhci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+pci_xhci_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_xhci_softc *sc;
 	int	error;
@@ -2790,7 +2852,7 @@ pci_xhci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->usb3_port_start = 1;
 
 	/* discover devices */
-	error = pci_xhci_parse_opts(sc, opts);
+	error = pci_xhci_parse_devices(sc, nvl);
 	if (error < 0)
 		goto done;
 	else
@@ -3109,7 +3171,6 @@ pci_xhci_snapshot(struct vm_snapshot_meta *meta)
 		SNAPSHOT_VAR_OR_LEAVE(dev->hci.hci_port, meta, ret, done);
 	}
 
-	SNAPSHOT_VAR_OR_LEAVE(sc->ndevices, meta, ret, done);
 	SNAPSHOT_VAR_OR_LEAVE(sc->usb2_port_start, meta, ret, done);
 	SNAPSHOT_VAR_OR_LEAVE(sc->usb3_port_start, meta, ret, done);
 
@@ -3121,6 +3182,7 @@ done:
 struct pci_devemu pci_de_xhci = {
 	.pe_emu =	"xhci",
 	.pe_init =	pci_xhci_init,
+	.pe_legacy_config = pci_xhci_legacy_config,
 	.pe_barwrite =	pci_xhci_write,
 	.pe_barread =	pci_xhci_read,
 #ifdef BHYVE_SNAPSHOT

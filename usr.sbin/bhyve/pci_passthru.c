@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 #include <vmmapi.h>
+
+#include "config.h"
+#include "debug.h"
 #include "pci_emul.h"
 #include "mem.h"
 
@@ -648,10 +651,34 @@ done:
 }
 
 static int
-passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+passthru_legacy_config(nvlist_t *nvl, const char *opts)
+{
+	char value[16];
+	int bus, slot, func;
+
+	if (opts == NULL)
+		return (0);
+
+	if (sscanf(opts, "%d/%d/%d", &bus, &slot, &func) != 3) {
+		EPRINTLN("passthru: invalid options \"%s\"", opts);
+		return (-1);
+	}
+
+	snprintf(value, sizeof(value), "%d", bus);
+	set_config_value_node(nvl, "bus", value);
+	snprintf(value, sizeof(value), "%d", slot);
+	set_config_value_node(nvl, "slot", value);
+	snprintf(value, sizeof(value), "%d", func);
+	set_config_value_node(nvl, "func", value);
+	return (0);
+}
+
+static int
+passthru_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	int bus, slot, func, error, memflags;
 	struct passthru_softc *sc;
+	const char *value;
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
 	cap_ioctl_t pci_ioctls[] = { PCIOCREAD, PCIOCWRITE, PCIOCGETBAR };
@@ -716,11 +743,18 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
-	if (opts == NULL ||
-	    sscanf(opts, "%d/%d/%d", &bus, &slot, &func) != 3) {
-		warnx("invalid passthru options");
-		return (error);
-	}
+#define GET_INT_CONFIG(var, name) do {					\
+	value = get_config_value_node(nvl, name);			\
+	if (value == NULL) {						\
+		EPRINTLN("passthru: missing required %s setting", name); \
+		return (error);						\
+	}								\
+	var = atoi(value);						\
+} while (0)
+
+	GET_INT_CONFIG(bus, "bus");
+	GET_INT_CONFIG(slot, "slot");
+	GET_INT_CONFIG(func, "func");
 
 	if (vm_assign_pptdev(ctx, bus, slot, func) != 0) {
 		warnx("PCI device at %d/%d/%d is not using the ppt(4) driver",
@@ -957,6 +991,7 @@ passthru_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 struct pci_devemu passthru = {
 	.pe_emu		= "passthru",
 	.pe_init	= passthru_init,
+	.pe_legacy_config = passthru_legacy_config,
 	.pe_cfgwrite	= passthru_cfgwrite,
 	.pe_cfgread	= passthru_cfgread,
 	.pe_barwrite 	= passthru_write,

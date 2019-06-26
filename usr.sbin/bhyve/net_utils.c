@@ -40,11 +40,12 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "bhyverun.h"
+#include "config.h"
 #include "debug.h"
 #include "net_utils.h"
 
 int
-net_parsemac(char *mac_str, uint8_t *mac_addr)
+net_parsemac(const char *mac_str, uint8_t *mac_addr)
 {
         struct ether_addr *ea;
         char zero_addr[ETHER_ADDR_LEN] = { 0, 0, 0, 0, 0, 0 };
@@ -107,7 +108,7 @@ net_genmac(struct pci_devinst *pi, uint8_t *macaddr)
 	char nstr[80];
 
 	snprintf(nstr, sizeof(nstr), "%d-%d-%s", pi->pi_slot,
-	    pi->pi_func, vmname);
+	    pi->pi_func, get_config_value("name"));
 
 	MD5Init(&mdctx);
 	MD5Update(&mdctx, nstr, (unsigned int)strlen(nstr));

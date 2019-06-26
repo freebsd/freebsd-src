@@ -72,8 +72,7 @@ struct inout_port {
 	DATA_SET(inout_port_set, __CONCAT(__inout_port, __LINE__))
 	
 void	init_inout(void);
-int	emulate_inout(struct vmctx *, int vcpu, struct vm_exit *vmexit,
-		      int strict);
+int	emulate_inout(struct vmctx *, int vcpu, struct vm_exit *vmexit);
 int	register_inout(struct inout_port *iop);
 int	unregister_inout(struct inout_port *iop);
 

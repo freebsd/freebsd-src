@@ -34,7 +34,7 @@
 #include "pci_emul.h"
 
 void	net_genmac(struct pci_devinst *pi, uint8_t *macaddr);
-int	net_parsemac(char *mac_str, uint8_t *mac_addr);
+int	net_parsemac(const char *mac_str, uint8_t *mac_addr);
 int	net_parsemtu(const char *mtu_str, unsigned long *mtu);
 
 #endif /* _NET_UTILS_H_ */

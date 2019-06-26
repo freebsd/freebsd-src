@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "mii.h"
 
 #include "bhyverun.h"
+#include "config.h"
 #include "debug.h"
 #include "pci_emul.h"
 #include "mevent.h"
@@ -2277,15 +2278,12 @@ e82545_reset(struct e82545_softc *sc, int drvr)
 }
 
 static int
-e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+e82545_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	char nstr[80];
 	struct e82545_softc *sc;
-	char *optscopy;
-	char *vtopts;
-	int mac_provided;
-
-	DPRINTF("Loading with options: %s", opts);
+	const char *mac;
+	int err;
 
 	/* Setup our softc */
 	sc = calloc(1, sizeof(*sc));
@@ -2323,56 +2321,20 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_emul_alloc_bar(pi, E82545_BAR_IO, PCIBAR_IO,
 		E82545_BAR_IO_LEN);
 
-	/*
-	 * Attempt to open the net backend and read the MAC address
-	 * if specified.  Copied from virtio-net, slightly modified.
-	 */
-	mac_provided = 0;
-	sc->esc_be = NULL;
-	if (opts != NULL) {
-		int err = 0;
-
-		optscopy = vtopts = strdup(opts);
-		(void) strsep(&vtopts, ",");
-
-		/*
-		 * Parse the list of options in the form
-		 *     key1=value1,...,keyN=valueN.
-		 */
-		while (vtopts != NULL) {
-			char *value = vtopts;
-			char *key;
-
-			key = strsep(&value, "=");
-			if (value == NULL)
-				break;
-			vtopts = value;
-			(void) strsep(&vtopts, ",");
-
-			if (strcmp(key, "mac") == 0) {
-				err = net_parsemac(value, sc->esc_mac.octet);
-				if (err)
-					break;
-				mac_provided = 1;
-			}
-		}
-
-		free(optscopy);
-
+	mac = get_config_value_node(nvl, "mac");
+	if (mac != NULL) {
+		err = net_parsemac(mac, sc->esc_mac.octet);
 		if (err) {
 			free(sc);
 			return (err);
 		}
-
-		err = netbe_init(&sc->esc_be, opts, e82545_rx_callback, sc);
-		if (err) {
-			free(sc);
-			return (err);
-		}
-	}
-
-	if (!mac_provided) {
+	} else
 		net_genmac(pi, sc->esc_mac.octet);
+
+	err = netbe_init(&sc->esc_be, nvl, e82545_rx_callback, sc);
+	if (err) {
+		free(sc);
+		return (err);
 	}
 
 	netbe_rx_enable(sc->esc_be);
@@ -2540,6 +2502,7 @@ done:
 struct pci_devemu pci_de_e82545 = {
 	.pe_emu = 	"e1000",
 	.pe_init =	e82545_init,
+	.pe_legacy_config = netbe_legacy_config,
 	.pe_barwrite =	e82545_write,
 	.pe_barread =	e82545_read,
 #ifdef BHYVE_SNAPSHOT

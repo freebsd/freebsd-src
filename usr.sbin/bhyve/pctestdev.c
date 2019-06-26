@@ -89,15 +89,6 @@ pctestdev_getname(void)
 }
 
 int
-pctestdev_parse(const char *opts)
-{
-	if (opts != NULL && *opts != '\0')
-		return (-1);
-
-	return (0);
-}
-
-int
 pctestdev_init(struct vmctx *ctx)
 {
 	struct mem_range iomem;

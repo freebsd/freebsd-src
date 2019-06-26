@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 
 #include "acpi.h"
+#include "config.h"
 #include "pci_lpc.h"
 #include "rtc.h"
 
@@ -59,13 +60,13 @@ __FBSDID("$FreeBSD$");
  * Returns the current RTC time as number of seconds since 00:00:00 Jan 1, 1970
  */
 static time_t
-rtc_time(struct vmctx *ctx, int use_localtime)
+rtc_time(struct vmctx *ctx)
 {
 	struct tm tm;
 	time_t t;
 
 	time(&t);
-	if (use_localtime) {
+	if (get_config_bool_default("rtc.use_localtime", true)) {
 		localtime_r(&t, &tm);
 		t = timegm(&tm);
 	}
@@ -73,7 +74,7 @@ rtc_time(struct vmctx *ctx, int use_localtime)
 }
 
 void
-rtc_init(struct vmctx *ctx, int use_localtime)
+rtc_init(struct vmctx *ctx)
 {	
 	size_t himem;
 	size_t lomem;
@@ -101,7 +102,7 @@ rtc_init(struct vmctx *ctx, int use_localtime)
 	err = vm_rtc_write(ctx, RTC_HMEM_MSB, himem >> 16);
 	assert(err == 0);
 
-	err = vm_rtc_settime(ctx, rtc_time(ctx, use_localtime));
+	err = vm_rtc_settime(ctx, rtc_time(ctx));
 	assert(err == 0);
 }
 

@@ -205,7 +205,7 @@ struct hda_codec_softc {
  * HDA Codec module function declarations
  */
 static int hda_codec_init(struct hda_codec_inst *hci, const char *play,
-    const char *rec, const char *opts);
+    const char *rec);
 static int hda_codec_reset(struct hda_codec_inst *hci);
 static int hda_codec_command(struct hda_codec_inst *hci, uint32_t cmd_data);
 static int hda_codec_notify(struct hda_codec_inst *hci, uint8_t run,
@@ -391,7 +391,7 @@ verb_func_t hda_codec_verb_handlers[HDA_CODEC_NODES_COUNT] = {
 
 static int
 hda_codec_init(struct hda_codec_inst *hci, const char *play,
-    const char *rec, const char *opts)
+    const char *rec)
 {
 	struct hda_codec_softc *sc = NULL;
 	struct hda_codec_stream *st = NULL;
@@ -399,8 +399,6 @@ hda_codec_init(struct hda_codec_inst *hci, const char *play,
 
 	if (!(play || rec))
 		return (-1);
-
-	DPRINTF("cad: 0x%x opts: %s", hci->cad, opts);
 
 	sc = calloc(1, sizeof(*sc));
 	if (!sc)

@@ -31,15 +31,30 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stdlib.h>
+
+#include "config.h"
 #include "pci_emul.h"
 
 static int
-pci_hostbridge_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+pci_hostbridge_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
+	const char *value;
+	u_int vendor, device;
+
+	vendor = 0x1275;	/* NetApp */
+	device = 0x1275;	/* NetApp */
+
+	value = get_config_value_node(nvl, "vendor");
+	if (value != NULL)
+		vendor = strtol(value, NULL, 0);
+	value = get_config_value_node(nvl, "device");
+	if (value != NULL)
+		device = strtol(value, NULL, 0);
 
 	/* config space */
-	pci_set_cfgdata16(pi, PCIR_VENDOR, 0x1275);	/* NetApp */
-	pci_set_cfgdata16(pi, PCIR_DEVICE, 0x1275);	/* NetApp */
+	pci_set_cfgdata16(pi, PCIR_VENDOR, vendor);
+	pci_set_cfgdata16(pi, PCIR_DEVICE, device);
 	pci_set_cfgdata8(pi, PCIR_HDRTYPE, PCIM_HDRTYPE_NORMAL);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_BRIDGE);
 	pci_set_cfgdata8(pi, PCIR_SUBCLASS, PCIS_BRIDGE_HOST);
@@ -50,18 +65,19 @@ pci_hostbridge_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 }
 
 static int
-pci_amd_hostbridge_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+pci_amd_hostbridge_legacy_config(nvlist_t *nvl, const char *opts)
 {
-	(void) pci_hostbridge_init(ctx, pi, opts);
-	pci_set_cfgdata16(pi, PCIR_VENDOR, 0x1022);	/* AMD */
-	pci_set_cfgdata16(pi, PCIR_DEVICE, 0x7432);	/* made up */
+
+	set_config_value_node(nvl, "vendor", "0x1022");	/* AMD */
+	set_config_value_node(nvl, "device", "0x7432");	/* made up */
 
 	return (0);
 }
 
 struct pci_devemu pci_de_amd_hostbridge = {
 	.pe_emu = "amd_hostbridge",
-	.pe_init = pci_amd_hostbridge_init,
+	.pe_legacy_config = pci_amd_hostbridge_legacy_config,
+	.pe_alias = "hostbridge",
 };
 PCI_EMUL_SET(pci_de_amd_hostbridge);
 
