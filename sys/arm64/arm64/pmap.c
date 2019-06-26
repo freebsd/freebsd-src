@@ -3758,7 +3758,15 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		cpu_icache_sync_range(PHYS_TO_DMAP(pa), PAGE_SIZE);
 
 	pmap_load_store(l3, l3_val);
-	dsb(ishst);
+
+	/*
+	 * XXX In principle, because this L3 entry was invalid, we should not
+	 * need to perform a TLB invalidation here.  However, in practice,
+	 * when simply performing a "dsb ishst" here, processes are being
+	 * terminated due to bus errors and segmentation violations. 
+	 */
+	pmap_invalidate_page(pmap, va);
+
 	return (mpte);
 }
 
