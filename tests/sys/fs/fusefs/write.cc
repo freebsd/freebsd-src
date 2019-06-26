@@ -1117,8 +1117,7 @@ TEST_F(WriteBackAsync, timestamps_during_setattr)
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
-			uint32_t valid = FATTR_MODE | FATTR_MTIME;
+			uint32_t valid = FATTR_MODE | FATTR_MTIME | FATTR_CTIME;
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
 				in.body.setattr.valid == valid);

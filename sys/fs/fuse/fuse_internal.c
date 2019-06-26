@@ -1074,6 +1074,11 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 		fsai->mtimensec = fvdat->cached_attrs.va_mtime.tv_nsec;
 		fsai->valid |= FATTR_MTIME;
 	}
+	if (fuse_libabi_geq(data, 7, 23) && fvdat->flag & FN_CTIMECHANGE) {
+		fsai->ctime = fvdat->cached_attrs.va_ctime.tv_sec;
+		fsai->ctimensec = fvdat->cached_attrs.va_ctime.tv_nsec;
+		fsai->valid |= FATTR_CTIME;
+	}
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		fsai->mode = vap->va_mode & ALLPERMS;
 		fsai->valid |= FATTR_MODE;
