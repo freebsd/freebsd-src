@@ -962,6 +962,13 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 	else
 		data->time_gran = 1;
 
+	if (!fuse_libabi_geq(data, 7, 23))
+		data->cache_mode = fuse_data_cache_mode;
+	else if (fiio->flags & FUSE_WRITEBACK_CACHE)
+		data->cache_mode = FUSE_CACHE_WB;
+	else
+		data->cache_mode = FUSE_CACHE_WT;
+
 out:
 	if (err) {
 		fdata_set_dead(data);
@@ -996,9 +1003,18 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 * FUSE_ATOMIC_O_TRUNC: our VFS cannot support it
 	 * FUSE_DONT_MASK: unlike Linux, FreeBSD always applies the umask, even
 	 *	when default ACLs are in use.
+	 * FUSE_SPLICE_WRITE, FUSE_SPLICE_MOVE, FUSE_SPLICE_READ: FreeBSD
+	 *	doesn't have splice(2).
+	 * FUSE_FLOCK_LOCKS: not yet implemented
+	 * FUSE_HAS_IOCTL_DIR: not yet implemented
+	 * FUSE_AUTO_INVAL_DATA: not yet implemented
+	 * FUSE_DO_READDIRPLUS: not yet implemented
+	 * FUSE_READDIRPLUS_AUTO: not yet implemented
+	 * FUSE_ASYNC_DIO: not yet implemented
+	 * FUSE_NO_OPEN_SUPPORT: not yet implemented
 	 */
 	fiii->flags = FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_EXPORT_SUPPORT
-		| FUSE_BIG_WRITES;
+		| FUSE_BIG_WRITES | FUSE_WRITEBACK_CACHE;
 
 	fuse_insert_callback(fdi.tick, fuse_internal_init_callback);
 	fuse_insert_message(fdi.tick, false);

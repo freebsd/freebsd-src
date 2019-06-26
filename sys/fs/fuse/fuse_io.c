@@ -253,7 +253,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		} else {
 			SDT_PROBE2(fusefs, , io, trace, 1,
 				"buffered write of vnode");
-			if (fuse_data_cache_mode == FUSE_CACHE_WT)
+			if (!fsess_opt_writeback(vnode_mount(vp)))
 				ioflag |= IO_SYNC;
 			err = fuse_write_biobackend(vp, uio, cred, fufh, ioflag,
 				pid);
@@ -481,7 +481,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	write_flags = !pages && (
 		(ioflag & IO_DIRECT) ||
 		!fsess_opt_datacache(vnode_mount(vp)) ||
-		fuse_data_cache_mode != FUSE_CACHE_WB) ? 0 : FUSE_WRITE_CACHE;
+		!fsess_opt_writeback(vnode_mount(vp))) ? 0 : FUSE_WRITE_CACHE;
 
 	if (uio->uio_resid == 0)
 		return (0);

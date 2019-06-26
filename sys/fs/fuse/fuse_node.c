@@ -108,6 +108,16 @@ SYSCTL_INT(_vfs_fusefs, OID_AUTO, node_count, CTLFLAG_RD,
 
 int	fuse_data_cache_mode = FUSE_CACHE_WT;
 
+/*
+ * DEPRECATED
+ * This sysctl is no longer needed as of fuse protocol 7.23.  Individual
+ * servers can select the cache behavior they need for each mountpoint:
+ * - writethrough: the default
+ * - writeback: set FUSE_WRITEBACK_CACHE in fuse_init_out.flags
+ * - uncached: set FOPEN_DIRECT_IO for every file
+ * The sysctl is retained primarily for use by jails supporting older FUSE
+ * protocols.  It may be removed entirely once FreeBSD 11.3 and 12.0 are EOL.
+ */
 SYSCTL_PROC(_vfs_fusefs, OID_AUTO, data_cache_mode, CTLTYPE_INT|CTLFLAG_RW,
     &fuse_data_cache_mode, 0, sysctl_fuse_cache_mode, "I",
     "Zero: disable caching of FUSE file data; One: write-through caching "

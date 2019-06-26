@@ -63,6 +63,12 @@
 #include <sys/param.h>
 #include <sys/refcount.h>
 
+enum fuse_data_cache_mode {
+	FUSE_CACHE_UC,
+	FUSE_CACHE_WT,
+	FUSE_CACHE_WB,
+};
+
 struct fuse_iov {
 	void   *base;
 	size_t  len;
@@ -209,6 +215,7 @@ struct fuse_data {
 	unsigned			time_gran;
 	uint64_t			notimpl;
 	uint64_t			mnt_flag;
+	enum fuse_data_cache_mode	cache_mode;
 };
 
 #define FSESS_DEAD                0x0001 /* session is to be closed */
@@ -223,12 +230,6 @@ struct fuse_data {
 #define FSESS_MNTOPTS_MASK	( \
 	FSESS_DAEMON_CAN_SPY | FSESS_PUSH_SYMLINKS_IN | \
 	FSESS_DEFAULT_PERMISSIONS)
-
-enum fuse_data_cache_mode {
-	FUSE_CACHE_UC,
-	FUSE_CACHE_WT,
-	FUSE_CACHE_WB,
-};
 
 extern int fuse_data_cache_mode;
 
@@ -257,13 +258,23 @@ fsess_set_notimpl(struct mount *mp, int opcode)
 static inline bool
 fsess_opt_datacache(struct mount *mp)
 {
-	return (fuse_data_cache_mode != FUSE_CACHE_UC);
+	struct fuse_data *data = fuse_get_mpdata(mp);
+
+	return (data->cache_mode != FUSE_CACHE_UC);
 }
 
 static inline bool
 fsess_opt_mmap(struct mount *mp)
 {
-	return (fuse_data_cache_mode != FUSE_CACHE_UC);
+	return (fsess_opt_datacache(mp));
+}
+
+static inline bool
+fsess_opt_writeback(struct mount *mp)
+{
+	struct fuse_data *data = fuse_get_mpdata(mp);
+
+	return (data->cache_mode == FUSE_CACHE_WB);
 }
 
 /* Insert a new upgoing message */

@@ -92,24 +92,7 @@ class AsyncRead: public AioRead {
 	}
 };
 
-class ReadCacheable: public Read {
-public:
-virtual void SetUp() {
-	const char *node = "vfs.fusefs.data_cache_mode";
-	int val = 0;
-	size_t size = sizeof(val);
-
-	FuseTest::SetUp();
-
-	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	if (val == 0)
-		GTEST_SKIP() <<
-			"fusefs data caching must be enabled for this test";
-}
-};
-
-class ReadAhead: public ReadCacheable,
+class ReadAhead: public Read,
 		 public WithParamInterface<tuple<bool, int>>
 {
 	virtual void SetUp() {
@@ -121,7 +104,7 @@ class ReadAhead: public ReadCacheable,
 
 		m_maxreadahead = val * get<1>(GetParam());
 		m_noclusterr = get<0>(GetParam());
-		ReadCacheable::SetUp();
+		Read::SetUp();
 	}
 };
 
@@ -359,6 +342,12 @@ TEST_F(Read, direct_io_pread)
 
 	ASSERT_EQ(bufsize, pread(fd, buf, bufsize, offset)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
+
+	// With FOPEN_DIRECT_IO, the cache should be bypassed.  The server will
+	// get a 2nd read request.
+	expect_read(ino, offset, bufsize, bufsize, CONTENTS);
+	ASSERT_EQ(bufsize, pread(fd, buf, bufsize, offset)) << strerror(errno);
+	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
@@ -423,7 +412,7 @@ TEST_F(Read, eio)
  * indicates EOF, because of a server-side truncation.  We should invalidate
  * all cached attributes.  We may update the file size, 
  */
-TEST_F(ReadCacheable, eof)
+TEST_F(Read, eof)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -453,8 +442,8 @@ TEST_F(ReadCacheable, eof)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-/* Like ReadCacheable.eof, but causes an entire buffer to be invalidated */
-TEST_F(ReadCacheable, eof_of_whole_buffer)
+/* Like Read.eof, but causes an entire buffer to be invalidated */
+TEST_F(Read, eof_of_whole_buffer)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -490,7 +479,7 @@ TEST_F(ReadCacheable, eof_of_whole_buffer)
  * With the keep_cache option, the kernel may keep its read cache across
  * multiple open(2)s.
  */
-TEST_F(ReadCacheable, keep_cache)
+TEST_F(Read, keep_cache)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -556,7 +545,7 @@ TEST_F(Read, keep_cache_disabled)
 	/* Deliberately leak fd0 and fd1. */
 }
 
-TEST_F(ReadCacheable, mmap)
+TEST_F(Read, mmap)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -602,7 +591,7 @@ TEST_F(ReadCacheable, mmap)
  * A read via mmap comes up short, indicating that the file was truncated
  * server-side.
  */
-TEST_F(ReadCacheable, mmap_eof)
+TEST_F(Read, mmap_eof)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -680,7 +669,7 @@ TEST_F(Read, o_direct)
 	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
 	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
-	
+
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
@@ -761,7 +750,7 @@ TEST_F(Read_7_8, read)
  * If cacheing is enabled, the kernel should try to read an entire cache block
  * at a time.
  */
-TEST_F(ReadCacheable, cache_block)
+TEST_F(Read, cache_block)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -796,7 +785,7 @@ TEST_F(ReadCacheable, cache_block)
 }
 
 /* Reading with sendfile should work (though it obviously won't be 0-copy) */
-TEST_F(ReadCacheable, sendfile)
+TEST_F(Read, sendfile)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -843,7 +832,7 @@ TEST_F(ReadCacheable, sendfile)
 
 /* sendfile should fail gracefully if fuse declines the read */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236466 */
-TEST_F(ReadCacheable, DISABLED_sendfile_eio)
+TEST_F(Read, DISABLED_sendfile_eio)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";

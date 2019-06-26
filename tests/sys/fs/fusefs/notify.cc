@@ -84,20 +84,11 @@ void expect_lookup(uint64_t parent, const char *relpath, uint64_t ino,
 class NotifyWriteback: public Notify {
 public:
 virtual void SetUp() {
-	const char *node = "vfs.fusefs.data_cache_mode";
-	int val = 0;
-	size_t size = sizeof(val);
-
+	m_init_flags |= FUSE_WRITEBACK_CACHE;
 	m_async = true;
 	Notify::SetUp();
 	if (IsSkipped())
 		return;
-
-	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	if (val != 2)
-		GTEST_SKIP() << "vfs.fusefs.data_cache_mode must be set to 2 "
-			"(writeback) for this test";
 }
 
 void expect_write(uint64_t ino, uint64_t offset, uint64_t size,

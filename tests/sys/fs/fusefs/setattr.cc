@@ -415,8 +415,7 @@ TEST_F(Setattr, truncate) {
 
 /*
  * Truncating a file should discard cached data past the truncation point.
- * This is a regression test for bug 233783.  The bug only applies when
- * vfs.fusefs.data_cache_mode=1 or 2, but the test should pass regardless.
+ * This is a regression test for bug 233783.
  *
  * There are two distinct failure modes.  The first one is a failure to zero
  * the portion of the file's final buffer past EOF.  It can be reproduced by
@@ -476,11 +475,6 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 		out.body.attr.attr.mode = mode;
 		out.body.attr.attr.size = cur_size;
 	})));
-	/* 
-	 * The exact pattern of FUSE_WRITE operations depends on the setting of
-	 * vfs.fusefs.data_cache_mode.  But it's not important for this test.
-	 * Just set the mocks to accept anything
-	 */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_WRITE);
@@ -510,7 +504,6 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 		cur_size = trunc_size;
 	})));
 
-	/* exact pattern of FUSE_READ depends on vfs.fusefs.data_cache_mode */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_READ);
@@ -534,7 +527,7 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 	ASSERT_EQ(static_cast<ssize_t>(w0_size),
 		pwrite(fd, w0buf, w0_size, w0_offset));
 	should_have_data = true;
-	/* Fill the cache, if data_cache_mode == 1 */
+	/* Fill the cache */
 	ASSERT_EQ(static_cast<ssize_t>(r0_size),
 		pread(fd, r0buf, r0_size, r0_offset));
 	/* 1st truncate should discard cached data */

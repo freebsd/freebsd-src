@@ -117,23 +117,6 @@ void maybe_expect_write(uint64_t ino, uint64_t offset, uint64_t size,
 
 };
 
-class WriteCacheable: public Write {
-public:
-virtual void SetUp() {
-	const char *node = "vfs.fusefs.data_cache_mode";
-	int val = 0;
-	size_t size = sizeof(val);
-
-	FuseTest::SetUp();
-
-	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	if (val == 0)
-		GTEST_SKIP() <<
-			"fusefs data caching must be enabled for this test";
-}
-};
-
 sig_atomic_t Write::s_sigxfsz = 0;
 
 class Write_7_8: public FuseTest {
@@ -167,50 +150,14 @@ virtual void SetUp() {
 }
 };
 
-/* Tests for the write-through cache mode */
-class WriteThrough: public Write {
-public:
-virtual void SetUp() {
-	const char *cache_mode_node = "vfs.fusefs.data_cache_mode";
-	int val = 0;
-	size_t size = sizeof(val);
-
-	FuseTest::SetUp();
-	if (IsSkipped())
-		return;
-
-	ASSERT_EQ(0, sysctlbyname(cache_mode_node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	if (val != 1)
-		GTEST_SKIP() << "vfs.fusefs.data_cache_mode must be set to 1 "
-			"(writethrough) for this test";
-}
-
-void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
-	uint64_t osize, const void *contents)
-{
-	FuseTest::expect_write(ino, offset, isize, osize, 0, FUSE_WRITE_CACHE,
-		contents);
-}
-};
-
 /* Tests for the writeback cache mode */
 class WriteBack: public Write {
 public:
 virtual void SetUp() {
-	const char *node = "vfs.fusefs.data_cache_mode";
-	int val = 0;
-	size_t size = sizeof(val);
-
+	m_init_flags |= FUSE_WRITEBACK_CACHE;
 	FuseTest::SetUp();
 	if (IsSkipped())
 		return;
-
-	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	if (val != 2)
-		GTEST_SKIP() << "vfs.fusefs.data_cache_mode must be set to 2 "
-			"(writeback) for this test";
 }
 
 void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
@@ -241,12 +188,12 @@ virtual void SetUp() {
 class WriteCluster: public WriteBack {
 public:
 virtual void SetUp() {
-	if (m_maxphys < 2 * DFLTPHYS)
-		GTEST_SKIP() << "MAXPHYS must be at least twice DFLTPHYS"
-			<< " for this test";
 	m_async = true;
 	m_maxwrite = m_maxphys;
 	WriteBack::SetUp();
+	if (m_maxphys < 2 * DFLTPHYS)
+		GTEST_SKIP() << "MAXPHYS must be at least twice DFLTPHYS"
+			<< " for this test";
 	if (m_maxphys < 2 * m_maxbcachebuf)
 		GTEST_SKIP() << "MAXPHYS must be at least twice maxbcachebuf"
 			<< " for this test";
@@ -543,7 +490,7 @@ TEST_F(Write, rlimit_fsize)
  * A short read indicates EOF.  Test that nothing bad happens if we get EOF
  * during the R of a RMW operation.
  */
-TEST_F(WriteCacheable, eof_during_rmw)
+TEST_F(Write, eof_during_rmw)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -577,7 +524,7 @@ TEST_F(WriteCacheable, eof_during_rmw)
  * write, then it must set the FUSE_WRITE_CACHE bit
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236378 */
-TEST_F(WriteCacheable, mmap)
+TEST_F(Write, mmap)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -624,7 +571,7 @@ TEST_F(WriteCacheable, mmap)
 	free(zeros);
 }
 
-TEST_F(WriteThrough, pwrite)
+TEST_F(Write, pwrite)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -1183,7 +1130,7 @@ INSTANTIATE_TEST_CASE_P(RA, TimeGran, Range(0u, 10u));
 /*
  * Without direct_io, writes should be committed to cache
  */
-TEST_F(WriteThrough, writethrough)
+TEST_F(Write, writethrough)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
