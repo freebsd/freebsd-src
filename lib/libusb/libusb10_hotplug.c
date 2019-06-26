@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2016 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2016-2019 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -200,6 +200,8 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 
 	HOTPLUG_LOCK(ctx);
 	if (ctx->hotplug_handler == NO_THREAD) {
+	  	libusb_hotplug_enumerate(ctx, &ctx->hotplug_devs);
+
 		if (pthread_create(&ctx->hotplug_handler, NULL,
 		    &libusb_hotplug_scan, ctx) != 0)
 			ctx->hotplug_handler = NO_THREAD;
@@ -210,8 +212,6 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 	handle->devclass = dev_class;
 	handle->fn = cb_fn;
 	handle->user_data = user_data;
-
-	libusb_hotplug_enumerate(ctx, &ctx->hotplug_devs);
 
 	if (flags & LIBUSB_HOTPLUG_ENUMERATE) {
 		TAILQ_FOREACH(adev, &ctx->hotplug_devs, hotplug_entry) {
