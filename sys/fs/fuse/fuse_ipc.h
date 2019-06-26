@@ -212,25 +212,17 @@ struct fuse_data {
 };
 
 #define FSESS_DEAD                0x0001 /* session is to be closed */
-#define FSESS_UNUSED0             0x0002 /* unused */
 #define FSESS_INITED              0x0004 /* session has been inited */
 #define FSESS_DAEMON_CAN_SPY      0x0010 /* let non-owners access this fs */
                                          /* (and being observed by the daemon) */
 #define FSESS_PUSH_SYMLINKS_IN    0x0020 /* prefix absolute symlinks with mp */
 #define FSESS_DEFAULT_PERMISSIONS 0x0040 /* kernel does permission checking */
-#define FSESS_NO_ATTRCACHE        0x0080 /* no attribute caching */
-#define FSESS_NO_READAHEAD        0x0100 /* no readaheads */
-#define FSESS_NO_DATACACHE        0x0200 /* disable buffer cache */
-#define FSESS_NO_NAMECACHE        0x0400 /* disable name cache */
-#define FSESS_NO_MMAP             0x0800 /* disable mmap */
 #define FSESS_ASYNC_READ          0x1000 /* allow multiple reads of some file */
 #define FSESS_POSIX_LOCKS         0x2000 /* daemon supports POSIX locks */
 #define FSESS_EXPORT_SUPPORT      0x10000 /* daemon supports NFS-style lookups */
 #define FSESS_MNTOPTS_MASK	( \
 	FSESS_DAEMON_CAN_SPY | FSESS_PUSH_SYMLINKS_IN | \
-	FSESS_DEFAULT_PERMISSIONS | FSESS_NO_ATTRCACHE | \
-	FSESS_NO_READAHEAD | FSESS_NO_DATACACHE | \
-	FSESS_NO_NAMECACHE | FSESS_NO_MMAP)
+	FSESS_DEFAULT_PERMISSIONS)
 
 enum fuse_data_cache_mode {
 	FUSE_CACHE_UC,
@@ -265,20 +257,13 @@ fsess_set_notimpl(struct mount *mp, int opcode)
 static inline bool
 fsess_opt_datacache(struct mount *mp)
 {
-	struct fuse_data *data = fuse_get_mpdata(mp);
-
-	return (fuse_data_cache_mode != FUSE_CACHE_UC &&
-	    (data->dataflags & FSESS_NO_DATACACHE) == 0);
+	return (fuse_data_cache_mode != FUSE_CACHE_UC);
 }
 
 static inline bool
 fsess_opt_mmap(struct mount *mp)
 {
-	struct fuse_data *data = fuse_get_mpdata(mp);
-
-	if (fuse_data_cache_mode == FUSE_CACHE_UC)
-		return (false);
-	return ((data->dataflags & (FSESS_NO_DATACACHE | FSESS_NO_MMAP)) == 0);
+	return (fuse_data_cache_mode != FUSE_CACHE_UC);
 }
 
 /* Insert a new upgoing message */

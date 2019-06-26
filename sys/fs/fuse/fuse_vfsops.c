@@ -331,11 +331,6 @@ fuse_vfsop_mount(struct mount *mp)
 	FUSE_FLAGOPT(allow_other, FSESS_DAEMON_CAN_SPY);
 	FUSE_FLAGOPT(push_symlinks_in, FSESS_PUSH_SYMLINKS_IN);
 	FUSE_FLAGOPT(default_permissions, FSESS_DEFAULT_PERMISSIONS);
-	FUSE_FLAGOPT(no_attrcache, FSESS_NO_ATTRCACHE);
-	FUSE_FLAGOPT(no_readahed, FSESS_NO_READAHEAD);
-	FUSE_FLAGOPT(no_datacache, FSESS_NO_DATACACHE);
-	FUSE_FLAGOPT(no_namecache, FSESS_NO_NAMECACHE);
-	FUSE_FLAGOPT(no_mmap, FSESS_NO_MMAP);
 
 	(void)vfs_scanopt(opts, "max_read=", "%u", &max_read);
 	if (vfs_scanopt(opts, "timeout=", "%u", &daemon_timeout) == 1) {
