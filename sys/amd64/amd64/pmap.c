@@ -4998,6 +4998,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	pmap_delayed_invl_start();
 	PMAP_LOCK(pmap);
+	pmap_pkru_on_remove(pmap, sva, eva);
 
 	/*
 	 * special handling of removing one page.  a very
@@ -5091,7 +5092,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 out:
 	if (anyvalid)
 		pmap_invalidate_all(pmap);
-	pmap_pkru_on_remove(pmap, sva, eva);
 	PMAP_UNLOCK(pmap);
 	pmap_delayed_invl_finish();
 	vm_page_free_pages_toq(&free, true);
