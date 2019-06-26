@@ -7474,10 +7474,6 @@ ipf_resolvedest(softc, base, fdp, v)
 	}
 	fdp->fd_ptr = ifp;
 
-	if ((ifp != NULL) && (ifp != (void *)-1)) {
-		fdp->fd_local = ipf_deliverlocal(softc, v, ifp, &fdp->fd_ip6);
-	}
-
 	return errval;
 }
 
