@@ -230,7 +230,7 @@ void TearDown()
 	if (m_control_fd >= 0)
 		close(m_control_fd);
 	FuseTest::TearDown();
-	/* Deliberately leak test_fd */
+	leak(m_test_fd);
 }
 
 void do_closeopen()

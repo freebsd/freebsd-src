@@ -488,7 +488,7 @@ TEST_F(Create, ok)
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, 0644);
 	EXPECT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Create, eacces)
@@ -763,7 +763,7 @@ TEST_F(Open, ok)
 
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Rename, eacces_on_srcdir)
@@ -1024,7 +1024,7 @@ TEST_F(Setattr, ftruncate_of_newly_created_file)
 	fd = open(FULLPATH, O_CREAT | O_RDWR, 0);
 	ASSERT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(0, ftruncate(fd, 100)) << strerror(errno);
-	/* Deliberately leak fd */
+	leak(fd);
 }
 
 /* 
@@ -1242,7 +1242,7 @@ TEST_F(Write, clear_suid)
 	ASSERT_EQ(1, write(fd, wbuf, sizeof(wbuf))) << strerror(errno);
 	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
 	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* A write by a non-owner should clear a file's SGID bit */
@@ -1268,7 +1268,7 @@ TEST_F(Write, clear_sgid)
 	ASSERT_EQ(1, write(fd, wbuf, sizeof(wbuf))) << strerror(errno);
 	ASSERT_EQ(0, fstat(fd, &sb)) << strerror(errno);
 	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* Regression test for a specific recurse-of-nonrecursive-lock panic
@@ -1297,7 +1297,7 @@ TEST_F(Write, recursion_panic_while_clearing_suid)
 	fd = open(FULLPATH, O_WRONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(1, write(fd, wbuf, sizeof(wbuf))) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 

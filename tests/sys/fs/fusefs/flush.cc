@@ -227,5 +227,6 @@ TEST_F(FlushWithLocks, unlock_on_close)
 	fd2 = open(FULLPATH, O_WRONLY);
 	ASSERT_LE(0, fd2) << strerror(errno);
 	ASSERT_EQ(0, close(fd2)) << strerror(errno);
-	/* Deliberately leak fd */
+	leak(fd);
+	leak(fd2);
 }

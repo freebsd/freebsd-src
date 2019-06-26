@@ -142,7 +142,7 @@ TEST_F(Create, attr_cache)
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* A successful CREATE operation should purge the parent dir's attr cache */
@@ -185,7 +185,7 @@ TEST_F(Create, clear_attr_cache)
 	EXPECT_LE(0, fd) << strerror(errno);
 	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -253,7 +253,7 @@ TEST_F(Create, Enosys)
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -287,7 +287,7 @@ TEST_F(Create, entry_cache_negative)
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	ASSERT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -323,7 +323,7 @@ TEST_F(Create, entry_cache_negative_purge)
 	expect_lookup(RELPATH, ino, S_IFREG | mode, 0, 1);
 
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* 
@@ -365,7 +365,7 @@ TEST_F(Create, ok)
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -397,7 +397,7 @@ TEST_F(Create, wronly_0444)
 
 	fd = open(FULLPATH, O_CREAT | O_WRONLY, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Create_7_8, ok)
@@ -421,7 +421,7 @@ TEST_F(Create_7_8, ok)
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Create_7_11, ok)
@@ -445,5 +445,5 @@ TEST_F(Create_7_11, ok)
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }

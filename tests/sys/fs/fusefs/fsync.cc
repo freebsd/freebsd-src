@@ -106,7 +106,7 @@ TEST_F(Fsync, aio_fsync)
 	ASSERT_EQ(0, aio_fsync(O_SYNC, &iocb)) << strerror(errno);
 	ASSERT_EQ(0, aio_waitcomplete(&piocb, NULL)) << strerror(errno);
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -171,7 +171,7 @@ TEST_F(Fsync, eio)
 	ASSERT_NE(0, fdatasync(fd));
 	ASSERT_EQ(EIO, errno);
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /*
@@ -200,7 +200,7 @@ TEST_F(Fsync, enosys)
 
 	/* Subsequent calls shouldn't query the daemon*/
 	EXPECT_EQ(0, fdatasync(fd));
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 
@@ -223,7 +223,7 @@ TEST_F(Fsync, fdatasync)
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, fdatasync(fd)) << strerror(errno);
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(Fsync, fsync)
@@ -245,5 +245,5 @@ TEST_F(Fsync, fsync)
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, fsync(fd)) << strerror(errno);
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }

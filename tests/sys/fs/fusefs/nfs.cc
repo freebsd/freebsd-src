@@ -340,5 +340,5 @@ TEST_F(Readdir, getdirentries)
 	r = getdirentries(fd, buf, sizeof(buf), 0);
 	ASSERT_EQ(0, r) << strerror(errno);
 
-	/* Deliberately leak fd.  RELEASEDIR will be tested separately */
+	leak(fd);
 }

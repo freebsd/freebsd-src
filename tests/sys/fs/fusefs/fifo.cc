@@ -106,7 +106,7 @@ TEST_F(Fifo, read_write)
 	}
 	ASSERT_STREQ(message, MESSAGE);
 
-	/* Deliberately leak fd */
+	leak(fd);
 }
 
 /* Writer thread */
@@ -203,5 +203,5 @@ TEST_F(Socket, read_write)
 	}
 	ASSERT_STREQ(message, MESSAGE);
 
-	/* Deliberately leak fd */
+	leak(fd);
 }

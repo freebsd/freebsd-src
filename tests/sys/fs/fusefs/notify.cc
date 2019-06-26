@@ -383,7 +383,7 @@ TEST_F(Notify, inval_inode_with_clean_cache)
 	ASSERT_EQ(size1, read(fd, buf, size1)) << strerror(errno);
 	EXPECT_EQ(0, memcmp(buf, CONTENTS1, size1));
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 /* FUSE_NOTIFY_STORE with a file that's not in the entry cache */
@@ -442,7 +442,7 @@ TEST_F(Notify, DISABLED_store_with_blank_cache)
 	ASSERT_EQ(size1, read(fd, buf, size1)) << strerror(errno);
 	EXPECT_EQ(0, memcmp(buf, CONTENTS1, size1));
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(NotifyWriteback, inval_inode_with_dirty_cache)
@@ -482,7 +482,7 @@ TEST_F(NotifyWriteback, inval_inode_with_dirty_cache)
 	pthread_join(th0, &thr0_value);
 	EXPECT_EQ(0, (intptr_t)thr0_value);
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }
 
 TEST_F(NotifyWriteback, inval_inode_attrs_only)
@@ -541,5 +541,5 @@ TEST_F(NotifyWriteback, inval_inode_attrs_only)
 	EXPECT_EQ(uid, sb.st_uid);
 	EXPECT_EQ(bufsize, sb.st_size);
 
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }

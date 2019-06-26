@@ -182,11 +182,12 @@ TEST_F(AllowOther, privilege_escalation)
 				strerror(errno));
 			return 1;
 		}
+		leak(fd0);
 		return 0;
 	}
 	);
 	ASSERT_EQ(0, WEXITSTATUS(status));
-	/* Deliberately leak fd1.  close(2) will be tested in release.cc */
+	leak(fd1);
 }
 
 TEST_F(NoAllowOther, disallowed)

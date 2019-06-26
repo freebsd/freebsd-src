@@ -135,5 +135,5 @@ TEST_F(Unlink, open_but_deleted)
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(0, unlink(FULLPATH)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	leak(fd);
 }

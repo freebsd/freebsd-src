@@ -30,6 +30,8 @@
 
 struct _sem;
 typedef struct _sem sem_t;
+struct _dirdesc;
+typedef struct _dirdesc DIR;
 
 /* Nanoseconds to sleep, for tests that must */
 #define NAP_NS	(100'000'000)
@@ -210,4 +212,23 @@ class FuseTest : public ::testing::Test {
 	void fork(bool drop_privs, int *status,
 		std::function<void()> parent_func,
 		std::function<int()> child_func);
+
+	/*
+	 * Deliberately leak a file descriptor.
+	 *
+	 * Closing a file descriptor on fusefs would cause the server to
+	 * receive FUSE_CLOSE and possibly FUSE_INACTIVE.  Handling those
+	 * operations would needlessly complicate most tests.  So most tests
+	 * deliberately leak the file descriptors instead.  This method serves
+	 * to document the leakage, and provide a single point of suppression
+	 * for static analyzers.
+	 */
+	static void leak(int fd __unused) {}
+
+	/*
+	 * Deliberately leak a DIR* pointer
+	 *
+	 * See comments for FuseTest::leak
+	 */
+	static void leakdir(DIR* dirp __unused) {}
 };

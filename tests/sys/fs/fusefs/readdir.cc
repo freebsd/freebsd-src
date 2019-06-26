@@ -117,7 +117,7 @@ TEST_F(Readdir, dots)
 	ASSERT_EQ(NULL, readdir(dir));
 	ASSERT_EQ(0, errno);
 
-	/* Deliberately leak dir.  RELEASEDIR will be tested separately */
+	leakdir(dir);
 }
 
 TEST_F(Readdir, eio)
@@ -148,7 +148,7 @@ TEST_F(Readdir, eio)
 	ASSERT_EQ(NULL, de);
 	ASSERT_EQ(EIO, errno);
 
-	/* Deliberately leak dir.  RELEASEDIR will be tested separately */
+	leakdir(dir);
 }
 
 /* getdirentries(2) can use a larger buffer size than readdir(3) */
@@ -181,7 +181,7 @@ TEST_F(Readdir, getdirentries)
 	r = getdirentries(fd, buf, sizeof(buf), 0);
 	ASSERT_EQ(0, r) << strerror(errno);
 
-	/* Deliberately leak fd.  RELEASEDIR will be tested separately */
+	leak(fd);
 }
 
 /* 
@@ -228,7 +228,8 @@ TEST_F(Readdir, getdirentries_concurrent)
 	r = getdirentries(fd1, buf, sizeof(buf), 0);
 	ASSERT_EQ(0, r) << strerror(errno);
 
-	/* Deliberately leak fd1. */
+	leak(fd0);
+	leak(fd1);
 }
 
 /*
@@ -263,7 +264,7 @@ TEST_F(Readdir, nodots)
 	ASSERT_EQ(NULL, readdir(dir));
 	ASSERT_EQ(0, errno);
 
-	/* Deliberately leak dir.  RELEASEDIR will be tested separately */
+	leakdir(dir);
 }
 
 /* telldir(3) and seekdir(3) should work with fuse */
@@ -339,7 +340,7 @@ TEST_F(Readdir, seekdir)
 	ASSERT_NE(NULL, de) << strerror(errno);
 	EXPECT_EQ(130ul, de->d_fileno);
 
-	/* Deliberately leak dir.  RELEASEDIR will be tested separately */
+	leakdir(dir);
 }
 
 TEST_F(Readdir_7_8, nodots)
@@ -370,5 +371,5 @@ TEST_F(Readdir_7_8, nodots)
 	ASSERT_EQ(NULL, readdir(dir));
 	ASSERT_EQ(0, errno);
 
-	/* Deliberately leak dir.  RELEASEDIR will be tested separately */
+	leakdir(dir);
 }
