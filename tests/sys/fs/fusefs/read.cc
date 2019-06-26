@@ -563,14 +563,13 @@ TEST_F(Read, mmap)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	/* mmap may legitimately try to read more data than is available */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_READ &&
 				in.header.nodeid == ino &&
 				in.body.read.fh == Read::FH &&
 				in.body.read.offset == 0 &&
-				in.body.read.size >= bufsize);
+				in.body.read.size == bufsize);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
@@ -608,16 +607,15 @@ TEST_F(Read, mmap_eof)
 
 	len = getpagesize();
 
-	expect_lookup(RELPATH, ino, 100000);
+	expect_lookup(RELPATH, ino, m_maxbcachebuf);
 	expect_open(ino, 0, 1);
-	/* mmap may legitimately try to read more data than is available */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_READ &&
 				in.header.nodeid == ino &&
 				in.body.read.fh == Read::FH &&
 				in.body.read.offset == 0 &&
-				in.body.read.size >= bufsize);
+				in.body.read.size == (uint32_t)m_maxbcachebuf);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
@@ -802,14 +800,13 @@ TEST_F(Read, sendfile)
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
-	/* Like mmap, sendfile may request more data than is available */
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_READ &&
 				in.header.nodeid == ino &&
 				in.body.read.fh == Read::FH &&
 				in.body.read.offset == 0 &&
-				in.body.read.size >= bufsize);
+				in.body.read.size == bufsize);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
