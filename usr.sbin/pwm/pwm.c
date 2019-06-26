@@ -31,12 +31,13 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <stdbool.h>
-#include <sys/pwm.h>
 #include <sys/capsicum.h>
+#include <dev/pwm/pwmc.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,15 +50,24 @@
 #define	PWM_PERIOD	0x0008
 #define	PWM_DUTY	0x0010
 
+static char device_name[PATH_MAX] = "/dev/pwm/pwmc0.0";
+
+static void
+set_device_name(const char *name)
+{
+
+	if (name[0] == '/')
+		strlcpy(device_name, name, sizeof(device_name));
+	else
+		snprintf(device_name, sizeof(device_name), "/dev/pwm/%s", name);
+}
+
 static void
 usage(void)
 {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\tpwm [-f dev] -c channel -E\n");
-	fprintf(stderr, "\tpwm [-f dev] -c channel -D\n");
-	fprintf(stderr, "\tpwm [-f dev] -c channel -C\n");
-	fprintf(stderr, "\tpwm [-f dev] -c channel -p period\n");
-	fprintf(stderr, "\tpwm [-f dev] -c channel -d duty\n");
+	fprintf(stderr, "\tpwm [-f dev] -C\n");
+	fprintf(stderr, "\tpwm [-f dev] [-D | -E] [-p period] [-d duty[%%]]\n");
 	exit(1);
 }
 
@@ -66,29 +76,29 @@ main(int argc, char *argv[])
 {
 	struct pwm_state state;
 	int fd;
-	int channel, nchannels;
 	int period, duty;
 	int action, ch;
 	cap_rights_t right_ioctl;
-	const unsigned long pwm_ioctls[] = {PWMGETSTATE, PWMSETSTATE, PWMMAXCHANNEL};
+	const unsigned long pwm_ioctls[] = {PWMGETSTATE, PWMSETSTATE};
 	char *percent;
+	bool setname;
 
 	action = 0;
+	setname = false;
 	fd = -1;
-	channel = -1;
 	period = duty = -1;
 
-	while ((ch = getopt(argc, argv, "f:c:EDCp:d:")) != -1) {
+	while ((ch = getopt(argc, argv, "f:EDCp:d:")) != -1) {
 		switch (ch) {
 		case 'E':
-			if (action)
+			if (action & (PWM_DISABLE | PWM_SHOW_CONFIG))
 				usage();
-			action = PWM_ENABLE;
+			action |= PWM_ENABLE;
 			break;
 		case 'D':
-			if (action)
+			if (action & (PWM_ENABLE | PWM_SHOW_CONFIG))
 				usage();
-			action = PWM_DISABLE;
+			action |= PWM_DISABLE;
 			break;
 		case 'C':
 			if (action)
@@ -96,43 +106,46 @@ main(int argc, char *argv[])
 			action = PWM_SHOW_CONFIG;
 			break;
 		case 'p':
-			if (action & ~(PWM_PERIOD | PWM_DUTY))
+			if (action & PWM_SHOW_CONFIG)
 				usage();
-			action = PWM_PERIOD;
+			action |= PWM_PERIOD;
 			period = strtol(optarg, NULL, 10);
 			break;
 		case 'd':
-			if (action & ~(PWM_PERIOD | PWM_DUTY))
+			if (action & PWM_SHOW_CONFIG)
 				usage();
-			action = PWM_DUTY;
+			action |= PWM_DUTY;
 			duty = strtol(optarg, &percent, 10);
-			if (*percent != '\0' && *percent != '%')
+			if (*percent == '%') {
+				if (duty < 0 || duty > 100) {
+					fprintf(stderr, 
+					    "Invalid duty percentage\n");
+					usage();
+				}
+			} else if (*percent != '\0')
 				usage();
-			break;
-		case 'c':
-			if (channel != -1)
-				usage();
-			channel = strtol(optarg, NULL, 10);
 			break;
 		case 'f':
-			if ((fd = open(optarg, O_RDWR)) < 0) {
-				fprintf(stderr, "pwm: cannot open %s %s\n",
-				  optarg, strerror(errno));
-				exit(1);
-			}
+			setname = true;
+			set_device_name(optarg);
+			break;
+		case '?':
+			usage();
+			break;
 		}
 	}
 
-	if (fd == -1) {
-		if ((fd = open("/dev/pwmc0", O_RDWR)) < 0) {
-			fprintf(stderr, "pwm: cannot open %s %s\n",
-			    optarg, strerror(errno));
-			exit(1);
-		}
-	}
-
-	if (action == 0 || fd == -1)
+	if (action == 0)
 		usage();
+
+	if ((fd = open(device_name, O_RDWR)) == -1) {
+		fprintf(stderr, "pwm: cannot open %s: %s\n",
+		    device_name, strerror(errno));
+		if (setname)
+			exit(1);
+		else
+			usage();
+	}
 
 	if (caph_limit_stdio() < 0) {
 		fprintf(stderr, "can't limit stdio rights");
@@ -153,67 +166,37 @@ main(int argc, char *argv[])
 		goto fail;
 	}
 
-	/* Check if the channel is correct */
-	if (ioctl(fd, PWMMAXCHANNEL, &nchannels) == -1) {
-		fprintf(stderr, "ioctl: %s\n", strerror(errno));
-		goto fail;
-	}
-	if (channel > nchannels) {
-		fprintf(stderr, "pwm controller only support %d channels\n",
-		    nchannels);
-		goto fail;
-	}
-
 	/* Fill the common args */
-	state.channel = channel;
 	if (ioctl(fd, PWMGETSTATE, &state) == -1) {
 		fprintf(stderr, "Cannot get current state of the pwm controller\n");
 		goto fail;
 	}
 
-	switch (action) {
-	case PWM_ENABLE:
-		if (state.enable == false) {
-			state.enable = true;
-			if (ioctl(fd, PWMSETSTATE, &state) == -1) {
-				fprintf(stderr,
-				    "Cannot enable the pwm controller\n");
-				goto fail;
-			}
-		}
-		break;
-	case PWM_DISABLE:
-		if (state.enable == true) {
-			state.enable = false;
-			if (ioctl(fd, PWMSETSTATE, &state) == -1) {
-				fprintf(stderr,
-				    "Cannot disable the pwm controller\n");
-				goto fail;
-			}
-		}
-		break;
-	case PWM_SHOW_CONFIG:
+	if (action == PWM_SHOW_CONFIG) {
 		printf("period: %u\nduty: %u\nenabled:%d\n",
 		    state.period,
 		    state.duty,
 		    state.enable);
-		break;
-	case PWM_PERIOD:
-	case PWM_DUTY:
-		if (period != -1)
+		goto fail;
+	} else {
+		if (action & PWM_ENABLE)
+			state.enable = true;
+		if (action & PWM_DISABLE)
+			state.enable = false;
+		if (action & PWM_PERIOD)
 			state.period = period;
-		if (duty != -1) {
+		if (action & PWM_DUTY) {
 			if (*percent != '\0')
 				state.duty = state.period * duty / 100;
 			else
 				state.duty = duty;
 		}
+	
 		if (ioctl(fd, PWMSETSTATE, &state) == -1) {
 			fprintf(stderr,
 			  "Cannot configure the pwm controller\n");
 			goto fail;
 		}
-		break;
 	}
 
 	close(fd);

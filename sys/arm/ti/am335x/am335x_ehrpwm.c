@@ -45,21 +45,43 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include "pwmbus_if.h"
+
 #include "am335x_pwm.h"
+
+/*******************************************************************************
+ * Enhanced resolution PWM driver.  Many of the advanced featues of the hardware
+ * are not supported by this driver.  What is implemented here is simple
+ * variable-duty-cycle PWM output.
+ *
+ * Note that this driver was historically configured using a set of sysctl
+ * variables/procs, and later gained support for the PWM(9) API.  The sysctl
+ * code is still present to support existing apps, but that interface is
+ * considered deprecated.
+ *
+ * An important caveat is that the original sysctl interface and the new PWM API
+ * cannot both be used at once.  If both interfaces are used to change
+ * configuration, it's quite likely you won't get the expected results.  Also,
+ * reading the sysctl values after configuring via PWM will not return the right
+ * results.
+ ******************************************************************************/
 
 /* In ticks */
 #define	DEFAULT_PWM_PERIOD	1000
 #define	PWM_CLOCK		100000000UL
 
+#define	NS_PER_SEC		1000000000
+
 #define	PWM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	PWM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	PWM_LOCK_ASSERT(_sc)    mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define	PWM_LOCK_INIT(_sc)	mtx_init(&(_sc)->sc_mtx, \
     device_get_nameunit(_sc->sc_dev), "am335x_ehrpwm softc", MTX_DEF)
 #define	PWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
-#define	EPWM_READ2(_sc, reg)	bus_read_2((_sc)->sc_mem_res, reg);
+#define	EPWM_READ2(_sc, reg)	bus_read_2((_sc)->sc_mem_res, reg)
 #define	EPWM_WRITE2(_sc, reg, value)	\
-    bus_write_2((_sc)->sc_mem_res, reg, value);
+    bus_write_2((_sc)->sc_mem_res, reg, value)
 
 #define	EPWM_TBCTL		0x00
 #define		TBCTL_FREERUN		(2 << 14)
@@ -119,6 +141,11 @@ __FBSDID("$FreeBSD$");
 #define		AQCTL_ZRO_TOGGLE	(3 << 0)
 #define	EPWM_AQSFRC		0x1a
 #define	EPWM_AQCSFRC		0x1c
+#define		AQCSFRC_OFF		0
+#define		AQCSFRC_LO		1
+#define		AQCSFRC_HI		2
+#define		AQCSFRC_MASK		3
+#define		AQCSFRC(chan, hilo)	((hilo) << (2 * chan))
 
 /* Trip-Zone module */
 #define	EPWM_TZCTL		0x28
@@ -135,12 +162,21 @@ static device_detach_t am335x_ehrpwm_detach;
 
 static int am335x_ehrpwm_clkdiv[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
 
+struct ehrpwm_channel {
+	u_int	duty;		/* on duration, in ns */
+	bool	enabled;	/* channel enabled? */
+	bool	inverted;	/* signal inverted? */
+};
+#define	NUM_CHANNELS	2
+
 struct am335x_ehrpwm_softc {
 	device_t		sc_dev;
+	device_t		sc_busdev;
 	struct mtx		sc_mtx;
 	struct resource		*sc_mem_res;
 	int			sc_mem_rid;
-	/* sysctl for configuration */
+
+	/* Things used for configuration via sysctl [deprecated]. */
 	int			sc_pwm_clkdiv;
 	int			sc_pwm_freq;
 	struct sysctl_oid	*sc_clkdiv_oid;
@@ -151,23 +187,130 @@ struct am335x_ehrpwm_softc {
 	uint32_t		sc_pwm_period;
 	uint32_t		sc_pwm_dutyA;
 	uint32_t		sc_pwm_dutyB;
+
+	/* Things used for configuration via pwm(9) api. */
+	u_int			sc_clkfreq; /* frequency in Hz */
+	u_int			sc_clktick; /* duration in ns */
+	u_int			sc_period;  /* duration in ns */
+	struct ehrpwm_channel	sc_channels[NUM_CHANNELS];
 };
 
-static device_method_t am335x_ehrpwm_methods[] = {
-	DEVMETHOD(device_probe,		am335x_ehrpwm_probe),
-	DEVMETHOD(device_attach,	am335x_ehrpwm_attach),
-	DEVMETHOD(device_detach,	am335x_ehrpwm_detach),
-
-	DEVMETHOD_END
+static struct ofw_compat_data compat_data[] = {
+	{"ti,am33xx-ehrpwm",    true},
+	{NULL,                  false},
 };
+SIMPLEBUS_PNP_INFO(compat_data);
 
-static driver_t am335x_ehrpwm_driver = {
-	"am335x_ehrpwm",
-	am335x_ehrpwm_methods,
-	sizeof(struct am335x_ehrpwm_softc),
-};
+static void
+am335x_ehrpwm_cfg_duty(struct am335x_ehrpwm_softc *sc, u_int chan, u_int duty)
+{
+	u_int tbcmp;
 
-static devclass_t am335x_ehrpwm_devclass;
+	if (duty == 0)
+		tbcmp = 0;
+	else
+		tbcmp = max(1, duty / sc->sc_clktick);
+
+	sc->sc_channels[chan].duty = tbcmp * sc->sc_clktick;
+
+	PWM_LOCK_ASSERT(sc);
+	EPWM_WRITE2(sc, (chan == 0) ? EPWM_CMPA : EPWM_CMPB, tbcmp);
+}
+
+static void
+am335x_ehrpwm_cfg_enable(struct am335x_ehrpwm_softc *sc, u_int chan, bool enable)
+{
+	uint16_t regval;
+
+	sc->sc_channels[chan].enabled = enable;
+
+	/*
+	 * Turn off any existing software-force of the channel, then force
+	 * it in the right direction (high or low) if it's not being enabled.
+	 */
+	PWM_LOCK_ASSERT(sc);
+	regval = EPWM_READ2(sc, EPWM_AQCSFRC);
+	regval &= ~AQCSFRC(chan, AQCSFRC_MASK);
+	if (!sc->sc_channels[chan].enabled) {
+		if (sc->sc_channels[chan].inverted)
+			regval |= AQCSFRC(chan, AQCSFRC_HI);
+		else
+			regval |= AQCSFRC(chan, AQCSFRC_LO);
+	}
+	EPWM_WRITE2(sc, EPWM_AQCSFRC, regval);
+}
+
+static bool
+am335x_ehrpwm_cfg_period(struct am335x_ehrpwm_softc *sc, u_int period)
+{
+	uint16_t regval;
+	u_int clkdiv, hspclkdiv, pwmclk, pwmtick, tbprd;
+
+	/* Can't do a period shorter than 2 clock ticks. */
+	if (period < 2 * NS_PER_SEC / PWM_CLOCK) {
+		sc->sc_clkfreq = 0;
+		sc->sc_clktick = 0;
+		sc->sc_period  = 0;
+		return (false);
+	}
+
+	/*
+	 * Figure out how much we have to divide down the base 100MHz clock so
+	 * that we can express the requested period as a 16-bit tick count.
+	 */
+	tbprd = 0;
+	for (clkdiv = 0; clkdiv < 8; ++clkdiv) {
+		const u_int cd = 1 << clkdiv;
+		for (hspclkdiv = 0; hspclkdiv < 8; ++hspclkdiv) {
+			const u_int cdhs = max(1, hspclkdiv * 2);
+			pwmclk = PWM_CLOCK / (cd * cdhs);
+			pwmtick = NS_PER_SEC / pwmclk;
+			if (period / pwmtick < 65536) {
+				tbprd = period / pwmtick;
+				break;
+			}
+		}
+		if (tbprd != 0)
+			break;
+	}
+
+	/* Handle requested period too long for available clock divisors. */
+	if (tbprd == 0)
+		return (false);
+
+	/*
+	 * If anything has changed from the current settings, reprogram the
+	 * clock divisors and period register.
+	 */
+	if (sc->sc_clkfreq != pwmclk || sc->sc_clktick != pwmtick ||
+	    sc->sc_period != tbprd * pwmtick) {
+
+		sc->sc_clkfreq = pwmclk;
+		sc->sc_clktick = pwmtick;
+		sc->sc_period  = tbprd * pwmtick;
+	
+		PWM_LOCK_ASSERT(sc);
+		regval = EPWM_READ2(sc, EPWM_TBCTL);
+		regval &= ~(TBCTL_CLKDIV_MASK | TBCTL_HSPCLKDIV_MASK);
+		regval |= TBCTL_CLKDIV(clkdiv) | TBCTL_HSPCLKDIV(hspclkdiv);
+		EPWM_WRITE2(sc, EPWM_TBCTL, regval);
+		EPWM_WRITE2(sc, EPWM_TBPRD, tbprd - 1);
+#if 0
+		device_printf(sc->sc_dev, "clkdiv %u hspclkdiv %u tbprd %u "
+		    "clkfreq %u Hz clktick %u ns period got %u requested %u\n",
+		    clkdiv, hspclkdiv, tbprd - 1,
+		    sc->sc_clkfreq, sc->sc_clktick, sc->sc_period, period);
+#endif
+		/*
+		 * If the period changed, that invalidates the current CMP
+		 * registers (duty values), just zero them out.
+		 */
+		am335x_ehrpwm_cfg_duty(sc, 0, 0);
+		am335x_ehrpwm_cfg_duty(sc, 1, 0);
+	}
+
+	return (true);
+}
 
 static void
 am335x_ehrpwm_freq(struct am335x_ehrpwm_softc *sc)
@@ -331,13 +474,89 @@ am335x_ehrpwm_sysctl_period(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+am335x_ehrpwm_channel_count(device_t dev, u_int *nchannel)
+{
+
+	*nchannel = NUM_CHANNELS;
+
+	return (0);
+}
+
+static int
+am335x_ehrpwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
+{
+	struct am335x_ehrpwm_softc *sc;
+	bool status;
+
+	if (channel >= NUM_CHANNELS)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	PWM_LOCK(sc);
+	status = am335x_ehrpwm_cfg_period(sc, period);
+	if (status)
+		am335x_ehrpwm_cfg_duty(sc, channel, duty);
+	PWM_UNLOCK(sc);
+
+	return (status ? 0 : EINVAL);
+}
+
+static int
+am335x_ehrpwm_channel_get_config(device_t dev, u_int channel, 
+    u_int *period, u_int *duty)
+{
+	struct am335x_ehrpwm_softc *sc;
+
+	if (channel >= NUM_CHANNELS)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+	*period = sc->sc_period;
+	*duty = sc->sc_channels[channel].duty;
+	return (0);
+}
+
+static int
+am335x_ehrpwm_channel_enable(device_t dev, u_int channel, bool enable)
+{
+	struct am335x_ehrpwm_softc *sc;
+
+	if (channel >= NUM_CHANNELS)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	PWM_LOCK(sc);
+	am335x_ehrpwm_cfg_enable(sc, channel, enable);
+	PWM_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+am335x_ehrpwm_channel_is_enabled(device_t dev, u_int channel, bool *enabled)
+{
+	struct am335x_ehrpwm_softc *sc;
+
+	if (channel >= NUM_CHANNELS)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	*enabled = sc->sc_channels[channel].enabled;
+
+	return (0);
+}
+
+static int
 am335x_ehrpwm_probe(device_t dev)
 {
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "ti,am33xx-ehrpwm"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "AM335x EHRPWM");
@@ -365,7 +584,7 @@ am335x_ehrpwm_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Init backlight interface */
+	/* Init sysctl interface */
 	ctx = device_get_sysctl_ctx(sc->sc_dev);
 	tree = device_get_sysctl_tree(sc->sc_dev);
 
@@ -414,7 +633,13 @@ am335x_ehrpwm_attach(device_t dev)
 	EPWM_WRITE2(sc, EPWM_TZCTL, 0xf);
 	reg = EPWM_READ2(sc, EPWM_TZFLG);
 
-	return (0);
+	if ((sc->sc_busdev = device_add_child(dev, "pwmbus", -1)) == NULL) {
+		device_printf(dev, "Cannot add child pwmbus\n");
+		// This driver can still do things even without the bus child.
+	}
+
+	bus_generic_probe(dev);
+	return (bus_generic_attach(dev));
 fail:
 	PWM_LOCK_DESTROY(sc);
 	if (sc->sc_mem_res)
@@ -428,13 +653,22 @@ static int
 am335x_ehrpwm_detach(device_t dev)
 {
 	struct am335x_ehrpwm_softc *sc;
+	int error;
 
 	sc = device_get_softc(dev);
 
+	if ((error = bus_generic_detach(sc->sc_dev)) != 0)
+		return (error);
+
 	PWM_LOCK(sc);
+
+	if (sc->sc_busdev != NULL)
+		device_delete_child(dev, sc->sc_busdev);
+
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    sc->sc_mem_rid, sc->sc_mem_res);
+
 	PWM_UNLOCK(sc);
 
 	PWM_LOCK_DESTROY(sc);
@@ -442,6 +676,44 @@ am335x_ehrpwm_detach(device_t dev)
 	return (0);
 }
 
+static phandle_t
+am335x_ehrpwm_get_node(device_t bus, device_t dev)
+{
+
+	/*
+	 * Share our controller node with our pwmbus child; it instantiates
+	 * devices by walking the children contained within our node.
+	 */
+	return ofw_bus_get_node(bus);
+}
+
+static device_method_t am335x_ehrpwm_methods[] = {
+	DEVMETHOD(device_probe,		am335x_ehrpwm_probe),
+	DEVMETHOD(device_attach,	am335x_ehrpwm_attach),
+	DEVMETHOD(device_detach,	am335x_ehrpwm_detach),
+
+	/* ofw_bus_if */
+	DEVMETHOD(ofw_bus_get_node,	am335x_ehrpwm_get_node),
+
+	/* pwm interface */
+	DEVMETHOD(pwmbus_channel_count,		am335x_ehrpwm_channel_count),
+	DEVMETHOD(pwmbus_channel_config,	am335x_ehrpwm_channel_config),
+	DEVMETHOD(pwmbus_channel_get_config,	am335x_ehrpwm_channel_get_config),
+	DEVMETHOD(pwmbus_channel_enable,	am335x_ehrpwm_channel_enable),
+	DEVMETHOD(pwmbus_channel_is_enabled,	am335x_ehrpwm_channel_is_enabled),
+
+	DEVMETHOD_END
+};
+
+static driver_t am335x_ehrpwm_driver = {
+	"pwm",
+	am335x_ehrpwm_methods,
+	sizeof(struct am335x_ehrpwm_softc),
+};
+
+static devclass_t am335x_ehrpwm_devclass;
+
 DRIVER_MODULE(am335x_ehrpwm, am335x_pwmss, am335x_ehrpwm_driver, am335x_ehrpwm_devclass, 0, 0);
 MODULE_VERSION(am335x_ehrpwm, 1);
 MODULE_DEPEND(am335x_ehrpwm, am335x_pwmss, 1, 1, 1);
+MODULE_DEPEND(am335x_ehrpwm, pwmbus, 1, 1, 1);

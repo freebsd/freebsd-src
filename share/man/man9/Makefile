@@ -269,7 +269,6 @@ MAN=	accept_filter.9 \
 	proc_rwmem.9 \
 	pseudofs.9 \
 	psignal.9 \
-	pwm.9 \
 	pwmbus.9 \
 	random.9 \
 	random_harvest.9 \
@@ -1671,6 +1670,7 @@ MLINKS+=proc_rwmem.9 proc_readmem.9 \
 MLINKS+=psignal.9 gsignal.9 \
 	psignal.9 pgsignal.9 \
 	psignal.9 tdsignal.9
+MLINKS+=pwmbus.9 pwm.9
 MLINKS+=random.9 arc4rand.9 \
 	random.9 arc4random.9 \
 	random.9 read_random.9 \
