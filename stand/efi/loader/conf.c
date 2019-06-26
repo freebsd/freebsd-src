@@ -39,6 +39,7 @@ struct devsw *devsw[] = {
 	&efipart_fddev,
 	&efipart_cddev,
 	&efipart_hddev,
+	&efihttp_dev, /* ordering with efinet_dev matters */
 	&efinet_dev,
 	&vdisk_dev,
 #ifdef EFI_ZFS_BOOT
@@ -54,6 +55,7 @@ struct fs_ops *file_system[] = {
 	&dosfs_fsops,
 	&ufs_fsops,
 	&cd9660_fsops,
+	&efihttp_fsops,
 	&tftp_fsops,
 	&nfs_fsops,
 	&gzipfs_fsops,
