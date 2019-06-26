@@ -8,6 +8,7 @@ MAN+=	capsicum_helpers.3
 
 MLINKS+=capsicum_helpers.3 caph_enter.3
 MLINKS+=capsicum_helpers.3 caph_enter_casper.3
+MLINKS+=capsicum_helpers.3 caph_rights_limit.3
 MLINKS+=capsicum_helpers.3 caph_limit_stream.3
 MLINKS+=capsicum_helpers.3 caph_limit_stdin.3
 MLINKS+=capsicum_helpers.3 caph_limit_stderr.3
