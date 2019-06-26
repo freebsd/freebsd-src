@@ -61,8 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm_snapshot.h>
 
 #include "bhyverun.h"
+#include "config.h"
 #include "debug.h"
 #include "mevent.h"
+#include "pci_emul.h"
 #include "block_if.h"
 
 #define BLOCKIF_SIG	0xb109b109
@@ -427,18 +429,38 @@ blockif_init(void)
 	(void) signal(SIGCONT, SIG_IGN);
 }
 
+int
+blockif_legacy_config(nvlist_t *nvl, const char *opts)
+{
+	char *cp, *path;
+
+	if (opts == NULL)
+		return (0);
+
+	cp = strchr(opts, ',');
+	if (cp == NULL) {
+		set_config_value_node(nvl, "path", opts);
+		return (0);
+	}
+	path = strndup(opts, cp - opts);
+	set_config_value_node(nvl, "path", path);
+	free(path);
+	return (pci_parse_legacy_config(nvl, cp + 1));
+}
+
 struct blockif_ctxt *
-blockif_open(const char *optstr, const char *ident)
+blockif_open(nvlist_t *nvl, const char *ident)
 {
 	char tname[MAXCOMLEN + 1];
 	char name[MAXPATHLEN];
-	char *nopt, *xopts, *cp;
+	const char *path, *pssval, *ssval;
+	char *cp;
 	struct blockif_ctxt *bc;
 	struct stat sbuf;
 	struct diocgattr_arg arg;
 	off_t size, psectsz, psectoff;
 	int extra, fd, i, sectsz;
-	int nocache, sync, ro, candelete, geom, ssopt, pssopt;
+	int ro, candelete, geom, ssopt, pssopt;
 	int nodelete;
 
 #ifndef WITHOUT_CAPSICUM
@@ -449,59 +471,62 @@ blockif_open(const char *optstr, const char *ident)
 	pthread_once(&blockif_once, blockif_init);
 
 	fd = -1;
+	extra = 0;
 	ssopt = 0;
-	nocache = 0;
-	sync = 0;
 	ro = 0;
 	nodelete = 0;
 
-	/*
-	 * The first element in the optstring is always a pathname.
-	 * Optional elements follow
-	 */
-	nopt = xopts = strdup(optstr);
-	while (xopts != NULL) {
-		cp = strsep(&xopts, ",");
-		if (cp == nopt)		/* file or device pathname */
-			continue;
-		else if (!strcmp(cp, "nocache"))
-			nocache = 1;
-		else if (!strcmp(cp, "nodelete"))
-			nodelete = 1;
-		else if (!strcmp(cp, "sync") || !strcmp(cp, "direct"))
-			sync = 1;
-		else if (!strcmp(cp, "ro"))
-			ro = 1;
-		else if (sscanf(cp, "sectorsize=%d/%d", &ssopt, &pssopt) == 2)
-			;
-		else if (sscanf(cp, "sectorsize=%d", &ssopt) == 1)
+	if (get_config_bool_node_default(nvl, "nocache", false))
+		extra |= O_DIRECT;
+	if (get_config_bool_node_default(nvl, "nodelete", false))
+		nodelete = 1;
+	if (get_config_bool_node_default(nvl, "sync", false) ||
+	    get_config_bool_node_default(nvl, "direct", false))
+		extra |= O_SYNC;
+	if (get_config_bool_node_default(nvl, "ro", false))
+		ro = 1;
+	ssval = get_config_value_node(nvl, "sectorsize");
+	if (ssval != NULL) {
+		ssopt = strtol(ssval, &cp, 10);
+		if (cp == ssval) {
+			EPRINTLN("Invalid sector size \"%s\"", ssval);
+			goto err;
+		}
+		if (*cp == '\0') {
 			pssopt = ssopt;
-		else {
-			EPRINTLN("Invalid device option \"%s\"", cp);
+		} else if (*cp == '/') {
+			pssval = cp + 1;
+			pssopt = strtol(pssval, &cp, 10);
+			if (cp == pssval || *cp != '\0') {
+				EPRINTLN("Invalid sector size \"%s\"", ssval);
+				goto err;
+			}
+		} else {
+			EPRINTLN("Invalid sector size \"%s\"", ssval);
 			goto err;
 		}
 	}
 
-	extra = 0;
-	if (nocache)
-		extra |= O_DIRECT;
-	if (sync)
-		extra |= O_SYNC;
+	path = get_config_value_node(nvl, "path");
+	if (path == NULL) {
+		EPRINTLN("Missing \"path\" for block device.");
+		goto err;
+	}
 
-	fd = open(nopt, (ro ? O_RDONLY : O_RDWR) | extra);
+	fd = open(path, (ro ? O_RDONLY : O_RDWR) | extra);
 	if (fd < 0 && !ro) {
 		/* Attempt a r/w fail with a r/o open */
-		fd = open(nopt, O_RDONLY | extra);
+		fd = open(path, O_RDONLY | extra);
 		ro = 1;
 	}
 
 	if (fd < 0) {
-		warn("Could not open backing file: %s", nopt);
+		warn("Could not open backing file: %s", path);
 		goto err;
 	}
 
         if (fstat(fd, &sbuf) < 0) {
-		warn("Could not stat backing file %s", nopt);
+		warn("Could not stat backing file %s", path);
 		goto err;
         }
 
@@ -615,7 +640,6 @@ blockif_open(const char *optstr, const char *ident)
 err:
 	if (fd >= 0)
 		close(fd);
-	free(nopt);
 	return (NULL);
 }
 

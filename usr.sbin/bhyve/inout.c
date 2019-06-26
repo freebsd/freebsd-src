@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 
 #include "bhyverun.h"
+#include "config.h"
 #include "inout.h"
 
 SET_DECLARE(inout_port_set, struct inout_port);
@@ -103,7 +104,7 @@ register_default_iohandler(int start, int size)
 }
 
 int
-emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
+emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 {
 	int addrsize, bytes, flags, in, port, prot, rep;
 	uint32_t eax, val;
@@ -124,7 +125,8 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 
 	handler = inout_handlers[port].handler;
 
-	if (strict && handler == default_inout)
+	if (handler == default_inout &&
+	    get_config_bool_default("x86.strictio", false))
 		return (-1);
 
 	flags = inout_handlers[port].flags;

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 18, 2021
+.Dd March 18, 2021
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@
 .Oc
 .Sm on
 .Op Fl G Ar port
+.Op Fl k Ar file
 .Oo Fl l
 .Sm off
 .Cm help | Ar lpcdev Op Cm \&, Ar conf
@@ -59,6 +60,7 @@
 .Oc
 .Sm on
 .Oc
+.Op Fl o Ar var Ns Cm = Ns Ar value
 .Op Fl p Ar vcpu Ns Cm \&: Ns Ar hostcpu
 .Op Fl r Ar file
 .Oo Fl s
@@ -149,6 +151,17 @@ Print help message and exit.
 .It Fl H
 Yield the virtual CPU thread when a HLT instruction is detected.
 If this option is not specified, virtual CPUs will use 100% of a host CPU.
+.It Fl k Ar file
+Set configuration variables from a simple, key-value config file.
+Each line of the config file is expected to consist of a config variable
+name, an equals sign
+.Pq Sq = ,
+and a value.
+No spaces are permitted between the variable name, equals sign, or
+value.
+Blank lines and lines starting with
+.Sq #
+are ignored.
 .It Fl l Op Ar help|lpcdev Ns Op , Ns Ar conf
 Allow devices behind the LPC PCI-ISA bridge to be configured.
 The only supported devices are the TTY-class devices
@@ -174,6 +187,11 @@ If no suffix is given, the value is assumed to be in megabytes.
 .Pp
 .Ar memsize
 defaults to 256M.
+.It Fl o Ar var Ns Cm = Ns Ar value
+Set the configuration variable
+.Ar var
+to
+.Ar value .
 .It Fl p Ar vcpu:hostcpu
 Pin guest's virtual CPU
 .Em vcpu
@@ -594,6 +612,32 @@ Alphanumeric name of the guest.
 This should be the same as that created by
 .Xr bhyveload 8 .
 .El
+.Sh CONFIGURATION VARIABLES
+.Nm
+uses an internal tree of configuration variables to describe global and
+per-device settings.
+When
+.Nm
+starts,
+it parses command line options (including config files) in the order given
+on the command line.
+Each command line option sets one or more configuration variables.
+For example,
+the
+.Fl s
+option creates a new tree node for a PCI device and sets one or more variables
+under that node including the device model and device model-specific variables.
+Variables may be set multiple times during this parsing stage with the final
+value overriding previous values.
+.Pp
+Once all of the command line options have been processed,
+the configuration values are frozen.
+.Nm
+then uses the value of configuration values to initialize device models
+and global settings.
+.Pp
+More details on configuration variables can be found in
+.Xr bhyve_config 5 .
 .Sh DEBUG SERVER
 The current debug server provides limited support for debuggers.
 .Ss Registers
@@ -717,6 +761,7 @@ bhyve -c 2 -m 4G -w -H \\
 .Xr ng_socket 4 ,
 .Xr nmdm 4 ,
 .Xr vmm 4 ,
+.Xr bhyve_config 5 ,
 .Xr ethers 5 ,
 .Xr bhyvectl 8 ,
 .Xr bhyveload 8

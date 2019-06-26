@@ -10,7 +10,7 @@ CFLAGS+=-I${SRCTOP}/sys
 PROG=	bhyve
 PACKAGE=	bhyve
 
-MAN=	bhyve.8
+MAN=	bhyve.8 bhyve_config.5
 
 BHYVE_SYSDIR?=${SRCTOP}
 
@@ -22,6 +22,7 @@ SRCS=	\
 	bhyverun.c		\
 	block_if.c		\
 	bootrom.c		\
+	config.c		\
 	console.c		\
 	ctl_util.c		\
 	ctl_scsi_all.c		\
@@ -83,7 +84,7 @@ CFLAGS.kernemu_dev.c+=	-I${SRCTOP}/sys/amd64
 .PATH:  ${BHYVE_SYSDIR}/sys/amd64/vmm
 SRCS+=	vmm_instruction_emul.c
 
-LIBADD=	vmmapi md pthread z util sbuf cam 9p
+LIBADD=	vmmapi md nv pthread z util sbuf cam 9p
 
 .if ${MK_CASPER} != "no"
 LIBADD+=	casper

@@ -75,10 +75,12 @@ __FBSDID("$FreeBSD$");
 #include <netgraph.h>
 #endif
 
+#include "config.h"
 #include "debug.h"
 #include "iov.h"
 #include "mevent.h"
 #include "net_backends.h"
+#include "pci_emul.h"
 
 #include <sys/linker_set.h>
 
@@ -96,7 +98,7 @@ struct net_backend {
 	 * and should not be called by the frontend.
 	 */
 	int (*init)(struct net_backend *be, const char *devname,
-	    const char *opts, net_be_rxeof_t cb, void *param);
+	    nvlist_t *nvl, net_be_rxeof_t cb, void *param);
 	void (*cleanup)(struct net_backend *be);
 
 	/*
@@ -204,7 +206,7 @@ tap_cleanup(struct net_backend *be)
 
 static int
 tap_init(struct net_backend *be, const char *devname,
-	 const char *opts, net_be_rxeof_t cb, void *param)
+	 nvlist_t *nvl, net_be_rxeof_t cb, void *param)
 {
 	struct tap_priv *priv = (struct tap_priv *)be->opaque;
 	char tbuf[80];
@@ -398,18 +400,14 @@ DATA_SET(net_backend_set, vmnet_backend);
 
 static int
 ng_init(struct net_backend *be, const char *devname,
-	 const char *opts, net_be_rxeof_t cb, void *param)
+	 nvlist_t *nvl, net_be_rxeof_t cb, void *param)
 {
 	struct tap_priv *p = (struct tap_priv *)be->opaque;
 	struct ngm_connect ngc;
-	char *ngopts, *tofree;
-	char nodename[NG_NODESIZ];
+	const char *value, *nodename;
 	int sbsz;
 	int ctrl_sock;
 	int flags;
-	int path_provided;
-	int peerhook_provided;
-	int socket_provided;
 	unsigned long maxsbsz;
 	size_t msbsz;
 #ifndef WITHOUT_CAPSICUM
@@ -425,56 +423,27 @@ ng_init(struct net_backend *be, const char *devname,
 
 	memset(&ngc, 0, sizeof(ngc));
 
-	strncpy(ngc.ourhook, "vmlink", NG_HOOKSIZ - 1);
-
-	tofree = ngopts = strdup(opts);
-
-	if (ngopts == NULL) {
-		WPRINTF(("strdup error"));
-		return (-1);
-	}
-
-	socket_provided = 0;
-	path_provided = 0;
-	peerhook_provided = 0;
-
-	while (ngopts != NULL) {
-		char *value = ngopts;
-		char *key;
-
-		key = strsep(&value, "=");
-		if (value == NULL)
-			break;
-		ngopts = value;
-		(void) strsep(&ngopts, ",");
-
-		if (strcmp(key, "socket") == 0) {
-			strncpy(nodename, value, NG_NODESIZ - 1);
-			socket_provided = 1;
-		} else if (strcmp(key, "path") == 0) {
-			strncpy(ngc.path, value, NG_PATHSIZ - 1);
-			path_provided = 1;
-		} else if (strcmp(key, "hook") == 0) {
-			strncpy(ngc.ourhook, value, NG_HOOKSIZ - 1);
-		} else if (strcmp(key, "peerhook") == 0) {
-			strncpy(ngc.peerhook, value, NG_HOOKSIZ - 1);
-			peerhook_provided = 1;
-		}
-	}
-
-	free(tofree);
-
-	if (!path_provided) {
+	value = get_config_value_node(nvl, "path");
+	if (value == NULL) {
 		WPRINTF(("path must be provided"));
 		return (-1);
 	}
+	strncpy(ngc.path, value, NG_PATHSIZ - 1);
 
-	if (!peerhook_provided) {
+	value = get_config_value_node(nvl, "hook");
+	if (value == NULL)
+		value = "vmlink";
+	strncpy(ngc.ourhook, value, NG_HOOKSIZ - 1);
+
+	value = get_config_value_node(nvl, "peerhook");
+	if (value == NULL) {
 		WPRINTF(("peer hook must be provided"));
 		return (-1);
 	}
+	strncpy(ngc.peerhook, value, NG_HOOKSIZ - 1);
 
-	if (NgMkSockNode(socket_provided ? nodename : NULL,
+	nodename = get_config_value_node(nvl, "socket");
+	if (NgMkSockNode(nodename,
 		&ctrl_sock, &be->fd) < 0) {
 		WPRINTF(("can't get Netgraph sockets"));
 		return (-1);
@@ -664,7 +633,7 @@ netmap_set_cap(struct net_backend *be, uint64_t features,
 
 static int
 netmap_init(struct net_backend *be, const char *devname,
-	    const char *opts, net_be_rxeof_t cb, void *param)
+	    nvlist_t *nvl, net_be_rxeof_t cb, void *param)
 {
 	struct netmap_priv *priv = (struct netmap_priv *)be->opaque;
 
@@ -924,10 +893,29 @@ static struct net_backend vale_backend = {
 DATA_SET(net_backend_set, netmap_backend);
 DATA_SET(net_backend_set, vale_backend);
 
+int
+netbe_legacy_config(nvlist_t *nvl, const char *opts)
+{
+	char *backend, *cp;
+
+	if (opts == NULL)
+		return (0);
+
+	cp = strchr(opts, ',');
+	if (cp == NULL) {
+		set_config_value_node(nvl, "backend", opts);
+		return (0);
+	}
+	backend = strndup(opts, cp - opts);
+	set_config_value_node(nvl, "backend", backend);
+	free(backend);
+	return (pci_parse_legacy_config(nvl, cp + 1));
+}
+
 /*
  * Initialize a backend and attach to the frontend.
  * This is called during frontend initialization.
- *  @pbe is a pointer to the backend to be initialized
+ *  @ret is a pointer to the backend to be initialized
  *  @devname is the backend-name as supplied on the command line,
  * 	e.g. -s 2:0,frontend-name,backend-name[,other-args]
  *  @cb is the receive callback supplied by the frontend,
@@ -937,21 +925,19 @@ DATA_SET(net_backend_set, vale_backend);
  *	the argument for the callback.
  */
 int
-netbe_init(struct net_backend **ret, const char *opts, net_be_rxeof_t cb,
+netbe_init(struct net_backend **ret, nvlist_t *nvl, net_be_rxeof_t cb,
     void *param)
 {
 	struct net_backend **pbe, *nbe, *tbe = NULL;
+	const char *value;
 	char *devname;
-	char *options;
 	int err;
 
-	devname = options = strdup(opts);
-
-	if (devname == NULL) {
+	value = get_config_value_node(nvl, "backend");
+	if (value == NULL) {
 		return (-1);
 	}
-
-	devname = strsep(&options, ",");
+	devname = strdup(value);
 
 	/*
 	 * Find the network backend that matches the user-provided
@@ -985,7 +971,7 @@ netbe_init(struct net_backend **ret, const char *opts, net_be_rxeof_t cb,
 	nbe->fe_vnet_hdr_len = 0;
 
 	/* Initialize the backend. */
-	err = nbe->init(nbe, devname, options, cb, param);
+	err = nbe->init(nbe, devname, nvl, cb, param);
 	if (err) {
 		free(devname);
 		free(nbe);

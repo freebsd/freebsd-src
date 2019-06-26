@@ -38,6 +38,7 @@
 #ifndef _BLOCK_IF_H_
 #define _BLOCK_IF_H_
 
+#include <sys/nv.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
 
@@ -62,7 +63,8 @@ struct blockif_req {
 };
 
 struct blockif_ctxt;
-struct blockif_ctxt *blockif_open(const char *optstr, const char *ident);
+int	blockif_legacy_config(nvlist_t *nvl, const char *opts);
+struct blockif_ctxt *blockif_open(nvlist_t *nvl, const char *ident);
 off_t	blockif_size(struct blockif_ctxt *bc);
 void	blockif_chs(struct blockif_ctxt *bc, uint16_t *c, uint8_t *h,
     uint8_t *s);
