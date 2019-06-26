@@ -44,7 +44,10 @@ DTS=	\
 	allwinner/sun50i-a64-sopine-baseboard.dts \
 	allwinner/sun50i-h5-orangepi-pc2.dts
 
-DTSO=	sun50i-a64-sid.dtso \
+DTSO=	sun50i-a64-opp.dtso \
+	sun50i-a64-pwm.dtso \
+	sun50i-a64-rpwm.dtso \
+	sun50i-a64-sid.dtso \
 	sun50i-a64-ths.dtso \
 	sun50i-a64-timer.dtso
 

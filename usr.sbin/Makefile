@@ -67,6 +67,7 @@ SUBDIR=	adduser \
 	pstat \
 	pw \
 	pwd_mkdb \
+	pwm \
 	quot \
 	rarpd \
 	rmt \
