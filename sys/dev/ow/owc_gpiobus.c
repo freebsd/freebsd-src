@@ -417,6 +417,6 @@ static driver_t owc_gpiobus_driver = {
 };
 
 DRIVER_MODULE(owc_gpiobus, gpiobus, owc_gpiobus_driver, owc_gpiobus_devclass, 0, 0);
-MODULE_DEPEND(owc_gpiobust, ow, 1, 1, 1);
+MODULE_DEPEND(owc_gpiobus, ow, 1, 1, 1);
 MODULE_DEPEND(owc_gpiobus, gpiobus, 1, 1, 1);
 MODULE_VERSION(owc_gpiobus, 1);
