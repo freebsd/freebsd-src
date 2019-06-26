@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 SET_DECLARE(usb_emu_set, struct usb_devemu);
 
 struct usb_devemu *
-usb_emu_finddev(char *name)
+usb_emu_finddev(const char *name)
 {
 	struct usb_devemu **udpp, *udp;
 

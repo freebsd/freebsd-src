@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 #include "bhyverun.h"
+#include "config.h"
 #include "debug.h"
 #include "pci_emul.h"
 #include "uart_emul.h"
@@ -89,9 +90,19 @@ pci_uart_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 }
 
 static int
-pci_uart_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+pci_uart_legacy_config(nvlist_t *nvl, const char *opts)
+{
+
+	if (opts != NULL)
+		set_config_value_node(nvl, "path", opts);
+	return (0);
+}
+
+static int
+pci_uart_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct uart_softc *sc;
+	const char *device;
 
 	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, UART_IO_BAR_SIZE);
 	pci_lintr_request(pi);
@@ -104,9 +115,10 @@ pci_uart_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc = uart_init(pci_uart_intr_assert, pci_uart_intr_deassert, pi);
 	pi->pi_arg = sc;
 
-	if (uart_set_backend(sc, opts) != 0) {
+	device = get_config_value_node(nvl, "path");
+	if (uart_set_backend(sc, device) != 0) {
 		EPRINTLN("Unable to initialize backend '%s' for "
-		    "pci uart at %d:%d", opts, pi->pi_slot, pi->pi_func);
+		    "pci uart at %d:%d", device, pi->pi_slot, pi->pi_func);
 		return (-1);
 	}
 
@@ -116,6 +128,7 @@ pci_uart_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 struct pci_devemu pci_de_com = {
 	.pe_emu =	"uart",
 	.pe_init =	pci_uart_init,
+	.pe_legacy_config = pci_uart_legacy_config,
 	.pe_barwrite =	pci_uart_write,
 	.pe_barread =	pci_uart_read
 };

@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <camlib.h>
 
 #include "bhyverun.h"
+#include "config.h"
 #include "debug.h"
 #include "pci_emul.h"
 #include "virtio.h"
@@ -244,7 +245,7 @@ static void pci_vtscsi_eventq_notify(void *, struct vqueue_info *);
 static void pci_vtscsi_requestq_notify(void *, struct vqueue_info *);
 static int  pci_vtscsi_init_queue(struct pci_vtscsi_softc *,
     struct pci_vtscsi_queue *, int);
-static int pci_vtscsi_init(struct vmctx *, struct pci_devinst *, char *);
+static int pci_vtscsi_init(struct vmctx *, struct pci_devinst *, nvlist_t *);
 
 static struct virtio_consts vtscsi_vi_consts = {
 	"vtscsi",				/* our name */
@@ -665,32 +666,36 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
 }
 
 static int
-pci_vtscsi_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+pci_vtscsi_legacy_config(nvlist_t *nvl, const char *opts)
+{
+	char *cp, *devname;
+
+	cp = strchr(opts, ',');
+	if (cp == NULL) {
+		set_config_value_node(nvl, "dev", opts);
+		return (0);
+	}
+	devname = strndup(opts, cp - opts);
+	set_config_value_node(nvl, "dev", devname);
+	free(devname);
+	return (pci_parse_legacy_config(nvl, cp + 1));
+}
+
+static int
+pci_vtscsi_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vtscsi_softc *sc;
-	char *opt, *optname;
-	const char *devname;
-	int i, optidx = 0;
+	const char *devname, *value;;
+	int i;
 
 	sc = calloc(1, sizeof(struct pci_vtscsi_softc));
-	devname = "/dev/cam/ctl";
-	while ((opt = strsep(&opts, ",")) != NULL) {
-		optname = strsep(&opt, "=");
-		if (opt == NULL && optidx == 0) {
-			if (optname[0] != 0)
-				devname = optname;
-		} else if (strcmp(optname, "dev") == 0 && opt != NULL) {
-			devname = opt;
-		} else if (strcmp(optname, "iid") == 0 && opt != NULL) {
-			sc->vss_iid = strtoul(opt, NULL, 10);
-		} else {
-			EPRINTLN("Invalid option %s", optname);
-			free(sc);
-			return (1);
-		}
-		optidx++;
-	}
+	value = get_config_value_node(nvl, "iid");
+	if (value != NULL)
+		sc->vss_iid = strtoul(value, NULL, 10);
 
+	devname = get_config_value_node(nvl, "dev");
+	if (devname == NULL)
+		devname = "/dev/cam/ctl";
 	sc->vss_ctl_fd = open(devname, O_RDWR);
 	if (sc->vss_ctl_fd < 0) {
 		WPRINTF(("cannot open %s: %s", devname, strerror(errno)));

@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include "pci_hda.h"
 #include "bhyverun.h"
+#include "config.h"
 #include "pci_emul.h"
 #include "hdac_reg.h"
 
@@ -147,13 +148,11 @@ static inline uint32_t hda_get_reg_by_offset(struct hda_softc *sc,
 static inline void hda_set_field_by_offset(struct hda_softc *sc,
     uint32_t offset, uint32_t mask, uint32_t value);
 
-static uint8_t hda_parse_config(const char *opts, const char *key, char *val);
-static struct hda_softc *hda_init(const char *opts);
+static struct hda_softc *hda_init(nvlist_t *nvl);
 static void hda_update_intr(struct hda_softc *sc);
 static void hda_response_interrupt(struct hda_softc *sc);
 static int hda_codec_constructor(struct hda_softc *sc,
-    struct hda_codec_class *codec, const char *play, const char *rec,
-    const char *opts);
+    struct hda_codec_class *codec, const char *play, const char *rec);
 static struct hda_codec_class *hda_find_codec_class(const char *name);
 
 static int hda_send_command(struct hda_softc *sc, uint32_t verb);
@@ -210,7 +209,7 @@ static uint64_t hda_get_clock_ns(void);
 /*
  * PCI HDA function declarations
  */
-static int pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts);
+static int pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl);
 static void pci_hda_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
     int baridx, uint64_t offset, int size, uint64_t value);
 static uint64_t pci_hda_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
@@ -318,66 +317,19 @@ hda_set_field_by_offset(struct hda_softc *sc, uint32_t offset,
 	hda_set_reg_by_offset(sc, offset, reg_value);
 }
 
-static uint8_t
-hda_parse_config(const char *opts, const char *key, char *val)
-{
-	char buf[64];
-	char *s = buf;
-	char *tmp = NULL;
-	size_t len;
-	int i;
-
-	if (!opts)
-		return (0);
-
-	len = strlen(opts);
-	if (len >= sizeof(buf)) {
-		DPRINTF("Opts too big");
-		return (0);
-	}
-
-	DPRINTF("opts: %s", opts);
-
-	strcpy(buf, opts);
-
-	for (i = 0; i < len; i++)
-		if (buf[i] == ',') {
-			buf[i] = 0;
-			tmp = buf + i + 1;
-			break;
-		}
-
-	if (!memcmp(s, key, strlen(key))) {
-		strncpy(val, s + strlen(key), 64);
-		return (1);
-	}
-
-	if (!tmp)
-		return (0);
-
-	s = tmp;
-	if (!memcmp(s, key, strlen(key))) {
-		strncpy(val, s + strlen(key), 64);
-		return (1);
-	}
-
-	return (0);
-}
-
 static struct hda_softc *
-hda_init(const char *opts)
+hda_init(nvlist_t *nvl)
 {
 	struct hda_softc *sc = NULL;
 	struct hda_codec_class *codec = NULL;
-	char play[64];
-	char rec[64];
-	int err, p, r;
+	const char *value;
+	char *play;
+	char *rec;
+	int err;
 
 #if DEBUG_HDA == 1
 	dbg = fopen("/tmp/bhyve_hda.log", "w+");
 #endif
-
-	DPRINTF("opts: %s", opts);
 
 	sc = calloc(1, sizeof(*sc));
 	if (!sc)
@@ -386,19 +338,28 @@ hda_init(const char *opts)
 	hda_reset_regs(sc);
 
 	/*
-	 * TODO search all the codecs declared in opts
+	 * TODO search all configured codecs
 	 * For now we play with one single codec
 	 */
 	codec = hda_find_codec_class("hda_codec");
 	if (codec) {
-		p = hda_parse_config(opts, "play=", play);
-		r = hda_parse_config(opts, "rec=", rec);
+		value = get_config_value_node(nvl, "play");
+		if (value == NULL)
+			play = NULL;
+		else
+			play = strdup(value);
+		value = get_config_value_node(nvl, "rec");
+		if (value == NULL)
+			rec = NULL;
+		else
+			rec = strdup(value);
 		DPRINTF("play: %s rec: %s", play, rec);
-		if (p | r) {
-			err = hda_codec_constructor(sc, codec, p ?	\
-				play : NULL, r ? rec : NULL, NULL);
+		if (play != NULL || rec != NULL) {
+			err = hda_codec_constructor(sc, codec, play, rec);
 			assert(!err);
 		}
+		free(play);
+		free(rec);
 	}
 
 	return (sc);
@@ -470,7 +431,7 @@ hda_response_interrupt(struct hda_softc *sc)
 
 static int
 hda_codec_constructor(struct hda_softc *sc, struct hda_codec_class *codec,
-    const char *play, const char *rec, const char *opts)
+    const char *play, const char *rec)
 {
 	struct hda_codec_inst *hci = NULL;
 
@@ -493,7 +454,7 @@ hda_codec_constructor(struct hda_softc *sc, struct hda_codec_class *codec,
 		return (-1);
 	}
 
-	return (codec->init(hci, play, rec, opts));
+	return (codec->init(hci, play, rec));
 }
 
 static struct hda_codec_class *
@@ -1263,7 +1224,7 @@ static uint64_t hda_get_clock_ns(void)
  * PCI HDA function definitions
  */
 static int
-pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct hda_softc *sc = NULL;
 
@@ -1285,7 +1246,7 @@ pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	/* allocate an IRQ pin for our slot */
 	pci_lintr_request(pi);
 
-	sc = hda_init(opts);
+	sc = hda_init(nvl);
 	if (!sc)
 		return (-1);
 
