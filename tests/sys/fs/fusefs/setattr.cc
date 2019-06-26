@@ -123,7 +123,6 @@ TEST_F(Setattr, chmod)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_MODE;
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
@@ -225,7 +224,6 @@ TEST_F(Setattr, chown)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_GID | FATTR_UID;
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
@@ -308,7 +306,6 @@ TEST_F(Setattr, fchmod)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_MODE;
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
@@ -362,7 +359,6 @@ TEST_F(Setattr, ftruncate)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_SIZE | FATTR_FH;
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
@@ -401,7 +397,6 @@ TEST_F(Setattr, truncate) {
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_SIZE;
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
@@ -588,7 +583,6 @@ TEST_F(Setattr, utimensat) {
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_ATIME | FATTR_MTIME;
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
@@ -642,7 +636,6 @@ TEST_F(Setattr, utimensat_mtime_only) {
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_MTIME;
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
@@ -705,7 +698,6 @@ TEST_F(Setattr, utimensat_utime_now) {
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_ATIME | FATTR_ATIME_NOW |
 				FATTR_MTIME | FATTR_MTIME_NOW;
 			return (in.header.opcode == FUSE_SETATTR &&
@@ -770,7 +762,6 @@ TEST_F(Setattr_7_8, chmod)
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
-			/* In protocol 7.23, ctime will be changed too */
 			uint32_t valid = FATTR_MODE;
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
