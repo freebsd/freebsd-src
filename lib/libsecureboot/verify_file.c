@@ -246,7 +246,9 @@ severity_guess(const char *filename)
 }
 
 static void
-verify_tweak(char *tweak, int *accept_no_fp, int *verbose, int *verifying)
+verify_tweak(int fd, off_t off, struct stat *stp,
+    char *tweak, int *accept_no_fp,
+    int *verbose, int *verifying)
 {
 	if (strcmp(tweak, "off") == 0) {
 		*verifying = 0;
@@ -268,6 +270,25 @@ verify_tweak(char *tweak, int *accept_no_fp, int *verbose, int *verifying)
 		*verbose = 1;
 	} else if (strcmp(tweak, "quiet") == 0) {
 		*verbose = 0;
+	} else if (strncmp(tweak, "trust", 5) == 0) {
+		/* content is trust anchor to add or revoke */
+		unsigned char *ucp;
+		size_t num;
+
+		if (off > 0)
+			lseek(fd, 0, SEEK_SET);
+		ucp = read_fd(fd, stp->st_size);
+		if (ucp == NULL)
+			return;
+		if (strstr(tweak, "revoke")) {
+			num = ve_trust_anchors_revoke(ucp, stp->st_size);
+			DEBUG_PRINTF(3, ("revoked %d trust anchors\n",
+				(int) num));
+		} else {
+			num = ve_trust_anchors_add_buf(ucp, stp->st_size);
+			DEBUG_PRINTF(3, ("added %d trust anchors\n",
+				(int) num));
+		}
 	}
 }
 
@@ -317,8 +338,10 @@ verify_file(int fd, const char *filename, off_t off, int severity)
 		rc = verifying ? VE_NOT_CHECKED : VE_NOT_VERIFYING;
 		ve_status_set(0, rc);
 		ve_status_state = VE_STATUS_NONE;
-		if (verifying)
+		if (verifying) {
 			ve_self_tests();
+			ve_anchor_verbose_set(1);
+		}
 	}
 	if (!verifying)
 		return (0);
@@ -367,7 +390,7 @@ verify_file(int fd, const char *filename, off_t off, int severity)
 					cp++;
 					if (strncmp(cp, "loader.ve.", 10) == 0) {
 						cp += 10;
-						verify_tweak(cp,
+						verify_tweak(fd, off, &st, cp,
 						    &accept_no_fp, &verbose,
 						    &verifying);
 					}
