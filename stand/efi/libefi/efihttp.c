@@ -52,6 +52,8 @@ static EFI_GUID http_guid = EFI_HTTP_PROTOCOL_GUID;
 static EFI_GUID httpsb_guid = EFI_HTTP_SERVICE_BINDING_PROTOCOL_GUID;
 static EFI_GUID ip4config2_guid = EFI_IP4_CONFIG2_PROTOCOL_GUID;
 
+static bool efihttp_init_done = false;
+
 static int efihttp_dev_init(void);
 static int efihttp_dev_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     char *buf, size_t *rsize);
@@ -208,6 +210,9 @@ efihttp_dev_init(void)
 		return (efi_status_to_errno(status));
 
 	err = efi_register_handles(&efihttp_dev, &handle, NULL, 1);
+	if (!err)
+		efihttp_init_done = true;
+
 	return (err);
 }
 
@@ -235,6 +240,9 @@ efihttp_dev_open(struct open_file *f, ...)
 	EFI_HANDLE handle;
 	EFI_STATUS status;
 	int err, len;
+
+	if (!efihttp_init_done)
+		return (ENXIO);
 
 	imgpath = efi_lookup_image_devpath(IH);
 	if (imgpath == NULL)
@@ -555,6 +563,8 @@ efihttp_fs_open(const char *path, struct open_file *f)
 	char *path_slash;
 	int err;
 
+	if (!efihttp_init_done)
+		return (ENXIO);
 	/*
 	 * If any path fails to open, try with a trailing slash in
 	 * case it's a directory.
