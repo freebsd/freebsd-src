@@ -473,6 +473,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		    x_tick) {
 			if (itick->tk_unique == tick->irq_unique) {
 				fuse_aw_remove(itick);
+				fuse_ticket_drop(itick);
 				break;
 			}
 		}
