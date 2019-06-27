@@ -61,6 +61,7 @@
 #define _FUSE_INTERNAL_H_
 
 #include <sys/types.h>
+#include <sys/counter.h>
 #include <sys/uio.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
@@ -68,8 +69,8 @@
 #include "fuse_ipc.h"
 #include "fuse_node.h"
 
-extern u_long fuse_lookup_cache_hits;
-extern u_long fuse_lookup_cache_misses;
+extern counter_u64_t fuse_lookup_cache_hits;
+extern counter_u64_t fuse_lookup_cache_misses;
 
 static inline bool
 vfs_isrdonly(struct mount *mp)
@@ -311,5 +312,9 @@ void fuse_internal_forget_send(struct mount *mp, struct thread *td,
 
 int fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio);
 void fuse_internal_send_init(struct fuse_data *data, struct thread *td);
+
+/* module load/unload */
+void fuse_internal_init(void);
+void fuse_internal_destroy(void);
 
 #endif /* _FUSE_INTERNAL_H_ */

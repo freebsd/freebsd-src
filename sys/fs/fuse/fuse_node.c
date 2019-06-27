@@ -59,6 +59,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/counter.h>
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -101,10 +102,10 @@ MALLOC_DEFINE(M_FUSEVN, "fuse_vnode", "fuse vnode private data");
 
 static int sysctl_fuse_cache_mode(SYSCTL_HANDLER_ARGS);
 
-static int fuse_node_count = 0;
+static counter_u64_t fuse_node_count;
 
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, node_count, CTLFLAG_RD,
-    &fuse_node_count, 0, "Count of FUSE vnodes");
+SYSCTL_COUNTER_U64(_vfs_fusefs_stats, OID_AUTO, node_count, CTLFLAG_RD,
+    &fuse_node_count, "Count of FUSE vnodes");
 
 int	fuse_data_cache_mode = FUSE_CACHE_WT;
 
@@ -158,7 +159,7 @@ fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
 	vp->v_type = vtyp;
 	vp->v_data = fvdat;
 
-	atomic_add_acq_int(&fuse_node_count, 1);
+	counter_u64_add(fuse_node_count, 1);
 }
 
 void
@@ -171,7 +172,7 @@ fuse_vnode_destroy(struct vnode *vp)
 		("Destroying fuse vnode with open files!"));
 	free(fvdat, M_FUSEVN);
 
-	atomic_subtract_acq_int(&fuse_node_count, 1);
+	counter_u64_add(fuse_node_count, -1);
 }
 
 int
@@ -479,4 +480,17 @@ fuse_vnode_update(struct vnode *vp, int flags)
 		fvdat->cached_attrs.va_ctime = ts;
 	
 	fvdat->flag |= flags;
+}
+
+void
+fuse_node_init(void)
+{
+	fuse_node_count = counter_u64_alloc(M_WAITOK);
+	counter_u64_zero(fuse_node_count);
+}
+
+void
+fuse_node_destroy(void)
+{
+	counter_u64_free(fuse_node_count);
 }

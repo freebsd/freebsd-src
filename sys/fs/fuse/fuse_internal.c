@@ -59,6 +59,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/counter.h>
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -107,6 +108,15 @@ static int isbzero(void *buf, size_t len);
 
 #endif
 
+counter_u64_t fuse_lookup_cache_hits = 0;
+counter_u64_t fuse_lookup_cache_misses = 0;
+
+SYSCTL_COUNTER_U64(_vfs_fusefs_stats, OID_AUTO, lookup_cache_hits, CTLFLAG_RD,
+    &fuse_lookup_cache_hits, "number of positive cache hits in lookup");
+
+SYSCTL_COUNTER_U64(_vfs_fusefs_stats, OID_AUTO, lookup_cache_misses, CTLFLAG_RD,
+    &fuse_lookup_cache_misses, "number of cache misses in lookup");
+
 int
 fuse_internal_get_cached_vnode(struct mount* mp, ino_t ino, int flags,
 	struct vnode **vpp)
@@ -130,11 +140,11 @@ fuse_internal_get_cached_vnode(struct mount* mp, ino_t ino, int flags,
 	if (*vpp != NULL) {
 		getbinuptime(&now);
 		if (bintime_cmp(&(VTOFUD(*vpp)->entry_cache_timeout), &now, >)){
-			atomic_add_acq_long(&fuse_lookup_cache_hits, 1);
+			counter_u64_add(fuse_lookup_cache_hits, 1);
 			return 0;
 		} else {
 			/* Entry cache timeout */
-			atomic_add_acq_long(&fuse_lookup_cache_misses, 1);
+			counter_u64_add(fuse_lookup_cache_misses, 1);
 			cache_purge(*vpp);
 			vput(*vpp);
 			*vpp = NULL;
@@ -1157,3 +1167,19 @@ isbzero(void *buf, size_t len)
 }
 
 #endif
+
+void
+fuse_internal_init(void)
+{
+	fuse_lookup_cache_misses = counter_u64_alloc(M_WAITOK);
+	counter_u64_zero(fuse_lookup_cache_misses);
+	fuse_lookup_cache_hits = counter_u64_alloc(M_WAITOK);
+	counter_u64_zero(fuse_lookup_cache_hits);
+}
+
+void
+fuse_internal_destroy(void)
+{
+	counter_u64_free(fuse_lookup_cache_hits);
+	counter_u64_free(fuse_lookup_cache_misses);
+}

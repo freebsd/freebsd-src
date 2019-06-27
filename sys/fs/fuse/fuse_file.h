@@ -213,4 +213,7 @@ int fuse_filehandle_open(struct vnode *vp, int mode,
 int fuse_filehandle_close(struct vnode *vp, struct fuse_filehandle *fufh,
                           struct thread *td, struct ucred *cred);
 
+void fuse_file_init(void);
+void fuse_file_destroy(void);
+
 #endif /* _FUSE_FILE_H_ */

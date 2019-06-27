@@ -28,7 +28,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 26, 2019
+.Dd June 27, 2019
 .Dt FUSEFS 5
 .Os
 .Sh NAME
@@ -60,11 +60,9 @@ Finally, the
 API is portable.
 Many daemons can run on multiple operating systems with minimal modifications.
 .Sh SYSCTL VARIABLES
-The following variables are available as both
+The following 
 .Xr sysctl 8
-variables and
-.Xr loader 8
-tunables:
+variables are available:
 .Bl -tag -width indent
 .It Va vfs.fusefs.kernelabi_major
 Major version of the FUSE kernel ABI supported by this driver.
@@ -87,14 +85,19 @@ require network access.
 .Pp
 FUSE file systems using protocol 7.23 or later specify their cache behavior
 on a per-mountpoint basis, ignoring this sysctl.
+.It Va vfs.fusefs.stats.filehandle_count
+Current number of open FUSE file handles.
+.It Va vfs.fusefs.stats.lookup_cache_hits
+Total number of lookup cache hits.
+.It Va vfs.fusefs.stats.lookup_cache_misses
+Total number of lookup cache misses.
+.It Va vfs.fusefs.stats.node_count
+Current number of allocated FUSE vnodes.
+.It Va vfs.fusefs.stats.ticket_count
+Current number of allocated FUSE tickets, which is roughly equal to the number
+number of FUSE operations currently being processed by daemons.
 .\" Undocumented sysctls
 .\" ====================
-.\" Counters: I intend to rename to vfs.fusefs.stats.* for clarity
-.\" vfs.fusefs.lookup_cache_{hits, misses}
-.\" vfs.fusefs.filehandle_count
-.\" vfs.fusefs.ticker_count
-.\" vfs.fusefs.node_count
-.\"
 .\" vfs.fusefs.reclaim_revoked: I don't understand it well-enough
 .\" vfs.fusefs.enforce_dev_perms: I don't understand it well enough.
 .\" vfs.fusefs.iov_credit: I don't understand it well enough
