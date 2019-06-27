@@ -4,6 +4,7 @@ PACKAGE=	ipf
 PROG=		ipmon
 SRCS=		${GENHDRS} ipmon.c ipmon_y.c ipmon_l.c
 MAN=		ipmon.5 ipmon.8
+MLINKS=		ipmon.5 ipmon.conf.5
 
 CFLAGS+=	-DLOGFAC=LOG_LOCAL0 -I.
 
