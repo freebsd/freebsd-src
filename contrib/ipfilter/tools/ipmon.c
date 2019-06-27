@@ -1442,7 +1442,7 @@ static void usage(prog)
 		"\t[ -f <device> ] [ -L <facility> ] [ -N <device> ]\n"
 		"\t[ -o [NSI] ] [ -O [NSI] ] [ -P <pidfile> ] [ -S <device> ]\n"
 		"\t[ <filename> ]\n", prog);
-	exit(-1);
+	exit(1);
 }
 
 
