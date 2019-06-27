@@ -602,7 +602,59 @@ struct in6_mfilter {
 	struct ip6_msource_tree	im6f_sources; /* source list for (S,G) */
 	u_long			im6f_nsrc;    /* # of source entries */
 	uint8_t			im6f_st[2];   /* state before/at commit */
+	struct in6_multi       *im6f_in6m;    /* associated multicast address */
+	STAILQ_ENTRY(in6_mfilter) im6f_entry; /* list entry */
 };
+
+/*
+ * Helper types and functions for IPv4 multicast filters.
+ */
+STAILQ_HEAD(ip6_mfilter_head, in6_mfilter);
+
+struct in6_mfilter *ip6_mfilter_alloc(int mflags, int st0, int st1);
+void ip6_mfilter_free(struct in6_mfilter *);
+
+static inline void
+ip6_mfilter_init(struct ip6_mfilter_head *head)
+{
+
+	STAILQ_INIT(head);
+}
+
+static inline struct in6_mfilter *
+ip6_mfilter_first(const struct ip6_mfilter_head *head)
+{
+
+	return (STAILQ_FIRST(head));
+}
+
+static inline void
+ip6_mfilter_insert(struct ip6_mfilter_head *head, struct in6_mfilter *imf)
+{
+
+	STAILQ_INSERT_TAIL(head, imf, im6f_entry);
+}
+
+static inline void
+ip6_mfilter_remove(struct ip6_mfilter_head *head, struct in6_mfilter *imf)
+{
+
+	STAILQ_REMOVE(head, imf, in6_mfilter, im6f_entry);
+}
+
+#define	IP6_MFILTER_FOREACH(imf, head) \
+	STAILQ_FOREACH(imf, head, im6f_entry)
+
+static inline size_t
+ip6_mfilter_count(struct ip6_mfilter_head *head)
+{
+	struct in6_mfilter *imf;
+	size_t num = 0;
+
+	STAILQ_FOREACH(imf, head, im6f_entry)
+		num++;
+	return (num);
+}
 
 /*
  * Legacy KAME IPv6 multicast membership descriptor.

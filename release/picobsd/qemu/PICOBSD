@@ -56,7 +56,6 @@ device		if_bridge
 # qemu, so we set HZ explicitly.
 options		HZ=1000
 
-device		random			# used by ssh
 device		pci
 
 # Floppy drives

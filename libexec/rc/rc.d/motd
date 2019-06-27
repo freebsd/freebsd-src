@@ -37,11 +37,15 @@ motd_start()
 	uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > ${T}
 	awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> ${T}
 
-	cmp -s $T /etc/motd || {
-		cp $T /etc/motd
+	if ! cmp -s $T /etc/motd; then
+		mv -f $T /etc/.motd.tmp
+		fsync /etc/.motd.tmp
+		mv -f /etc/.motd.tmp /etc/motd
 		chmod ${PERMS} /etc/motd
-	}
-	rm -f $T
+		fsync /etc
+	else
+		rm -f $T
+	fi
 
 	check_startmsgs && echo '.'
 }

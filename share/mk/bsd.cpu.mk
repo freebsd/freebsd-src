@@ -369,6 +369,10 @@ CFLAGS += -mfloat-abi=softfp
 .endif
 .endif
 
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpcspe"
+LDFLAGS+= -Wl,--secure-plt
+.endif
+
 .if ${MACHINE_ARCH} == "powerpcspe"
 CFLAGS += -mcpu=8548 -Wa,-me500 -mspe=yes -mabi=spe -mfloat-gprs=double
 .endif

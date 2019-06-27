@@ -149,7 +149,6 @@ device		wlan_amrr	# AMRR transmit rate control algorithm
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		random		# Entropy device
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tuntap		# Packet tunnel.

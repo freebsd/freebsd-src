@@ -256,7 +256,6 @@ FDESCFS		opt_dontuse.h
 FFS		opt_dontuse.h
 FUSEFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
-NANDFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
@@ -734,7 +733,6 @@ DEV_PCI			opt_pci.h
 DEV_PF			opt_pf.h
 DEV_PFLOG		opt_pf.h
 DEV_PFSYNC		opt_pf.h
-DEV_RANDOM		opt_global.h
 DEV_SPLASH		opt_splash.h
 DEV_VLAN		opt_vlan.h
 
@@ -862,6 +860,12 @@ AH_INTERRUPT_DEBUGGING	opt_ah.h
 # AR5416 and later interrupt mitigation
 # XXX do not use this for AR9130
 AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
+
+# options for the Altera mSGDMA driver (altera_msgdma)
+ALTERA_MSGDMA_DESC_STD		opt_altera_msgdma.h
+ALTERA_MSGDMA_DESC_EXT		opt_altera_msgdma.h
+ALTERA_MSGDMA_DESC_PF_STD	opt_altera_msgdma.h
+ALTERA_MSGDMA_DESC_PF_EXT	opt_altera_msgdma.h
 
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h

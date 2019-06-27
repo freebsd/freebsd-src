@@ -101,10 +101,6 @@ MAN+=	freebsd-update.conf.5
 MAN+=	hesiod.conf.5 
 .endif
 
-.if ${MK_NAND} != "no"
-MAN+=	nandfs.5
-.endif
-
 .if ${MK_PF} != "no"
 MAN+=	pf.conf.5 \
 	pf.os.5

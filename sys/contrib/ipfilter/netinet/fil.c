@@ -1723,29 +1723,31 @@ ipf_pr_ipv4hdr(fin)
 	 * calculate the byte offset that it represents.
 	 */
 	off &= IP_MF|IP_OFFMASK;
+	if (off == 1 && p == IPPROTO_TCP) {
+		fin->fin_flx |= FI_SHORT;	/* RFC 3128 */
+		DT1(ipf_fi_tcp_frag_off_1, fr_info_t *, fin);
+	}
 	if (off != 0) {
 		int morefrag = off & IP_MF;
 
 		fi->fi_flx |= FI_FRAG;
 		off &= IP_OFFMASK;
-		if (off != 0) {
-			fin->fin_flx |= FI_FRAGBODY;
-			off <<= 3;
-			if ((off + fin->fin_dlen > 65535) ||
-			    (fin->fin_dlen == 0) ||
-			    ((morefrag != 0) && ((fin->fin_dlen & 7) != 0))) {
-				/*
-				 * The length of the packet, starting at its
-				 * offset cannot exceed 65535 (0xffff) as the
-				 * length of an IP packet is only 16 bits.
-				 *
-				 * Any fragment that isn't the last fragment
-				 * must have a length greater than 0 and it
-				 * must be an even multiple of 8.
-				 */
-				fi->fi_flx |= FI_BAD;
-				DT1(ipf_fi_bad_fragbody_gt_65535, fr_info_t *, fin);
-			}
+		fin->fin_flx |= FI_FRAGBODY;
+		off <<= 3;
+		if ((off + fin->fin_dlen > 65535) ||
+		    (fin->fin_dlen == 0) ||
+		    ((morefrag != 0) && ((fin->fin_dlen & 7) != 0))) {
+			/*
+			 * The length of the packet, starting at its
+			 * offset cannot exceed 65535 (0xffff) as the
+			 * length of an IP packet is only 16 bits.
+			 *
+			 * Any fragment that isn't the last fragment
+			 * must have a length greater than 0 and it
+			 * must be an even multiple of 8.
+			 */
+			fi->fi_flx |= FI_BAD;
+			DT1(ipf_fi_bad_fragbody_gt_65535, fr_info_t *, fin);
 		}
 	}
 	fin->fin_off = off;
@@ -7471,10 +7473,6 @@ ipf_resolvedest(softc, base, fdp, v)
 		}
 	}
 	fdp->fd_ptr = ifp;
-
-	if ((ifp != NULL) && (ifp != (void *)-1)) {
-		fdp->fd_local = ipf_deliverlocal(softc, v, ifp, &fdp->fd_ip6);
-	}
 
 	return errval;
 }

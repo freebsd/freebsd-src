@@ -43,6 +43,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	sysctls have been removed.  If you felt the need to set any of them to
 	a non-default value, please tell asomers@FreeBSD.org why.
 
+20190620:
+	Entropy collection and the /dev/random device are no longer optional
+	components.  The "device random" option has been removed.
+	Implementations of distilling algorithms can still be made loadable
+	with "options RANDOM_LOADABLE" (e.g., random_fortuna.ko).
+
 20190612:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 8.0.1.  Please see the 20141231 entry below for

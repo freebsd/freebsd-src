@@ -10,7 +10,7 @@
 #   some features (ACL, GJOURNAL) that GENERIC includes.
 # o acpi as a module has been reported flakey and not well tested, so
 #   is included in the kernel.
-# o random is included due to uncertaty...
+# o (non-loaded) random is included due to uncertainty...
 # o Many networking things are included
 #
 # For now, please run changes to these list past imp@freebsd.org
@@ -131,7 +131,6 @@ device		agp			# support several AGP chipsets
 
 # Pseudo devices.
 device		loop			# Network loopback
-device		random			# Entropy device
 device		padlock_rng		# VIA Padlock RNG
 device		rdrand_rng		# Intel Bull Mountain RNG
 device		ether			# Ethernet support

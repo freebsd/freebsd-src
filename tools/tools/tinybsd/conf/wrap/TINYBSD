@@ -102,7 +102,6 @@ device 		ath_rate_sample
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		random		# Entropy device
 device		ether		# Ethernet support
 device		ppp		# Kernel PPP
 device		tun		# Packet tunnel.

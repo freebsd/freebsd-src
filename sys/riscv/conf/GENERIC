@@ -137,7 +137,6 @@ options		ZSTDIO			# zstd-compressed kernel and user dumps
 # Pseudo devices.
 device		crypto		# core crypto support
 device		loop		# Network loopback
-device		random		# Entropy device
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tuntap		# Packet tunnel.

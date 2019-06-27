@@ -64,6 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
+#ifdef _KERNEL
+#include <cam/cam_xpt_internal.h>
+#endif /* _KERNEL */
 #include <cam/cam_sim.h>
 #include <cam/cam_iosched.h>
 
@@ -3613,15 +3616,7 @@ out:
 			break;
 		}
 
-		ata_params = (struct ata_params*)
-			malloc(sizeof(*ata_params), M_SCSIDA,M_NOWAIT|M_ZERO);
-
-		if (ata_params == NULL) {
-			xpt_print(periph->path, "Couldn't malloc ata_params "
-			    "data\n");
-			/* da_free_periph??? */
-			break;
-		}
+		ata_params = &periph->path->device->ident_data;
 
 		scsi_ata_identify(&start_ccb->csio,
 				  /*retries*/da_retry_count,
@@ -5192,7 +5187,7 @@ dadone_probeata(struct cam_periph *periph, union ccb *done_ccb)
 	struct da_softc *softc;
 	u_int32_t  priority;
 	int continue_probe;
-	int error, i;
+	int error;
 	int16_t *ptr;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probeata\n"));
@@ -5210,8 +5205,7 @@ dadone_probeata(struct cam_periph *periph, union ccb *done_ccb)
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		uint16_t old_rate;
 
-		for (i = 0; i < sizeof(*ata_params) / 2; i++)
-			ptr[i] = le16toh(ptr[i]);
+		ata_param_fixup(ata_params);
 		if (ata_params->support_dsm & ATA_SUPPORT_DSM_TRIM &&
 		    (softc->quirks & DA_Q_NO_UNMAP) == 0) {
 			dadeleteflag(softc, DA_DELETE_ATA_TRIM, 1);
@@ -5295,7 +5289,6 @@ dadone_probeata(struct cam_periph *periph, union ccb *done_ccb)
 		}
 	}
 
-	free(ata_params, M_SCSIDA);
 	if ((softc->zone_mode == DA_ZONE_HOST_AWARE)
 	 || (softc->zone_mode == DA_ZONE_HOST_MANAGED)) {
 		/*

@@ -2181,15 +2181,27 @@ struct ses_status_page_hdr {
 #define	SESCTL_DISABLE		0x20
 #define	SESCTL_RSTSWAP		0x10
 
-
-/* Control bits, Device Elements, byte 2 */
-#define	SESCTL_DRVLCK	0x40	/* "DO NOT REMOVE" */
+/* Control bits, Array Device Slot Elements, byte 1 */
+#define	SESCTL_RQSOK	0x80	/* RQST OK */
+#define	SESCTL_RQSRSV	0x40	/* RQST RSVD DEVICE */
+#define	SESCTL_RQSSPR	0x20	/* RQST HOT SPARE */
+#define	SESCTL_RQSCCH	0x10	/* RQST CONS CHECK */
+#define	SESCTL_RQSCRA	0x08	/* RQST IN CRIT ARRAY */
+#define	SESCTL_RQSFAA	0x04	/* RQST IN FAILED ARRAY */
+#define	SESCTL_RQSRR	0x02	/* RQST REBUI/REMAP */
+#define	SESCTL_RQSRRA	0x01	/* RQST R/R ABORT */
+/* Control bits, [Array] Device Slot Elements, byte 2 */
+#define	SESCTL_RQSACT	0x80	/* RQST ACTIVE */
+#define	SESCTL_DRVLCK	0x40	/* DO NOT REMOVE */
+#define	SESCTL_RQSMSN	0x10	/* RQST MISSING */
 #define	SESCTL_RQSINS	0x08	/* RQST INSERT */
 #define	SESCTL_RQSRMV	0x04	/* RQST REMOVE */
 #define	SESCTL_RQSID	0x02	/* RQST IDENT */
-/* Control bits, Device Elements, byte 3 */
+/* Control bits, [Array] Device Slot Elements, byte 3 */
 #define	SESCTL_RQSFLT	0x20	/* RQST FAULT */
 #define	SESCTL_DEVOFF	0x10	/* DEVICE OFF */
+#define	SESCTL_ENBYPA	0x08	/* ENABLE BYP A */
+#define	SESCTL_ENBYPB	0x04	/* ENABLE BYP B */
 
 /* Control bits, Generic, byte 3 */
 #define	SESCTL_RQSTFAIL	0x40
@@ -2398,6 +2410,17 @@ union ses_elm_sas_hdr {
 };
 int ses_elm_sas_type0_not_all_phys(union ses_elm_sas_hdr *);
 int ses_elm_sas_descr_type(union ses_elm_sas_hdr *);
+
+/*
+ * This structure for SPSP_PROTO_ATA is not defined by SES specs,
+ * but purely my own design to make AHCI EM interoperate with SES.
+ * Since no other software I know can talk to SEMB, and we do not
+ * expose this this outside, it should be safe to do what we want.
+ */
+struct ses_elm_ata_hdr {
+	uint8_t bus[4];
+	uint8_t target[4];
+};
 
 struct ses_elm_addlstatus_base_hdr {
 	uint8_t byte0;

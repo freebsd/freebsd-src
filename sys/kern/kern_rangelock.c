@@ -141,15 +141,33 @@ out:
 
 static void
 rangelock_unlock_locked(struct rangelock *lock, struct rl_q_entry *entry,
-    struct mtx *ilk)
+    struct mtx *ilk, bool do_calc_block)
 {
 
 	MPASS(lock != NULL && entry != NULL && ilk != NULL);
 	mtx_assert(ilk, MA_OWNED);
-	KASSERT(entry != lock->rl_currdep, ("stuck currdep"));
+
+	if (!do_calc_block) {
+		/*
+		 * This is the case where rangelock_enqueue() has been called
+		 * with trylock == true and just inserted this entry in the
+		 * queue.
+		 * If rl_currdep is this entry, rl_currdep needs to
+		 * be set to the next entry in the rl_waiters list.
+		 * However, since this entry is the last entry in the
+		 * list, the next entry is NULL.
+		 */
+		if (lock->rl_currdep == entry) {
+			KASSERT(TAILQ_NEXT(lock->rl_currdep, rl_q_link) == NULL,
+			    ("rangelock_enqueue: next entry not NULL"));
+			lock->rl_currdep = NULL;
+		}
+	} else
+		KASSERT(entry != lock->rl_currdep, ("stuck currdep"));
 
 	TAILQ_REMOVE(&lock->rl_waiters, entry, rl_q_link);
-	rangelock_calc_block(lock);
+	if (do_calc_block)
+		rangelock_calc_block(lock);
 	mtx_unlock(ilk);
 	if (curthread->td_rlqe == NULL)
 		curthread->td_rlqe = entry;
@@ -164,7 +182,7 @@ rangelock_unlock(struct rangelock *lock, void *cookie, struct mtx *ilk)
 	MPASS(lock != NULL && cookie != NULL && ilk != NULL);
 
 	mtx_lock(ilk);
-	rangelock_unlock_locked(lock, cookie, ilk);
+	rangelock_unlock_locked(lock, cookie, ilk, true);
 }
 
 /*
@@ -185,7 +203,7 @@ rangelock_unlock_range(struct rangelock *lock, void *cookie, off_t start,
 
 	mtx_lock(ilk);
 	if (entry->rl_q_end == end) {
-		rangelock_unlock_locked(lock, cookie, ilk);
+		rangelock_unlock_locked(lock, cookie, ilk, true);
 		return (NULL);
 	}
 	entry->rl_q_end = end;
@@ -196,11 +214,11 @@ rangelock_unlock_range(struct rangelock *lock, void *cookie, off_t start,
 
 /*
  * Add the lock request to the queue of the pending requests for
- * rangelock.  Sleep until the request can be granted.
+ * rangelock.  Sleep until the request can be granted unless trylock == true.
  */
 static void *
 rangelock_enqueue(struct rangelock *lock, off_t start, off_t end, int mode,
-    struct mtx *ilk)
+    struct mtx *ilk, bool trylock)
 {
 	struct rl_q_entry *entry;
 	struct thread *td;
@@ -226,11 +244,28 @@ rangelock_enqueue(struct rangelock *lock, off_t start, off_t end, int mode,
 	 */
 
 	TAILQ_INSERT_TAIL(&lock->rl_waiters, entry, rl_q_link);
+	/*
+	 * If rl_currdep == NULL, there is no entry waiting for a conflicting
+	 * range to be resolved, so set rl_currdep to this entry.  If there is
+	 * no conflicting entry for this entry, rl_currdep will be set back to
+	 * NULL by rangelock_calc_block().
+	 */
 	if (lock->rl_currdep == NULL)
 		lock->rl_currdep = entry;
 	rangelock_calc_block(lock);
-	while (!(entry->rl_q_flags & RL_LOCK_GRANTED))
+	while (!(entry->rl_q_flags & RL_LOCK_GRANTED)) {
+		if (trylock) {
+			/*
+			 * For this case, the range is not actually locked
+			 * yet, but removal from the list requires the same
+			 * steps, except for not doing a rangelock_calc_block()
+			 * call, since rangelock_calc_block() was called above.
+			 */
+			rangelock_unlock_locked(lock, entry, ilk, false);
+			return (NULL);
+		}
 		msleep(entry, ilk, 0, "range", 0);
+	}
 	mtx_unlock(ilk);
 	return (entry);
 }
@@ -239,12 +274,28 @@ void *
 rangelock_rlock(struct rangelock *lock, off_t start, off_t end, struct mtx *ilk)
 {
 
-	return (rangelock_enqueue(lock, start, end, RL_LOCK_READ, ilk));
+	return (rangelock_enqueue(lock, start, end, RL_LOCK_READ, ilk, false));
+}
+
+void *
+rangelock_tryrlock(struct rangelock *lock, off_t start, off_t end,
+    struct mtx *ilk)
+{
+
+	return (rangelock_enqueue(lock, start, end, RL_LOCK_READ, ilk, true));
 }
 
 void *
 rangelock_wlock(struct rangelock *lock, off_t start, off_t end, struct mtx *ilk)
 {
 
-	return (rangelock_enqueue(lock, start, end, RL_LOCK_WRITE, ilk));
+	return (rangelock_enqueue(lock, start, end, RL_LOCK_WRITE, ilk, false));
+}
+
+void *
+rangelock_trywlock(struct rangelock *lock, off_t start, off_t end,
+    struct mtx *ilk)
+{
+
+	return (rangelock_enqueue(lock, start, end, RL_LOCK_WRITE, ilk, true));
 }

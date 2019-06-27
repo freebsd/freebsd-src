@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2019
+.Dd June 21, 2019
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1989,6 +1989,12 @@ a non-zero offset.
 See the
 .Cm frag
 option for details on matching fragmented packets.
+.It Cm tcpmss Ar tcpmss-list
+Matches TCP packets whose MSS (maximum segment size) value is set to
+.Ar tcpmss-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
 .It Cm tcpseq Ar seq
 TCP packets only.
 Match if the TCP header sequence number field is set to

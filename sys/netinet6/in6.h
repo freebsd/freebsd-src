@@ -523,11 +523,8 @@ struct route_in6 {
 #define IPV6_DEFAULT_MULTICAST_LOOP 1	/* normally hear sends if a member */
 
 /*
- * The im6o_membership vector for each socket is now dynamically allocated at
- * run-time, bounded by USHRT_MAX, and is reallocated when needed, sized
- * according to a power-of-two increment.
+ * Limit for IPv6 multicast memberships
  */
-#define	IPV6_MIN_MEMBERSHIPS	31
 #define	IPV6_MAX_MEMBERSHIPS	4095
 
 /*

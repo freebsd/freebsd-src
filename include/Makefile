@@ -48,7 +48,7 @@ LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
 	dev/ic dev/iicbus dev/io dev/mfi dev/mmc dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/pwm \
 	dev/smbus dev/speaker dev/tcp_log dev/veriexec dev/vkbd dev/wi \
-	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
+	fs/devfs fs/fdescfs fs/msdosfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
@@ -158,7 +158,7 @@ copies: .PHONY .META
 		done; \
 	fi
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/hyperv:Ndev/nand:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/$i
@@ -174,13 +174,6 @@ copies: .PHONY .META
 	cd ${SRCTOP}/sys/dev/bktr; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/bktr
-.if ${MK_NAND} != "no"
-	cd ${SRCTOP}/sys/dev/nand; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nandsim.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/nand; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nand_dev.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/nand
-.endif
 	cd ${SRCTOP}/sys/dev/evdev; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 input.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev; \
@@ -268,7 +261,7 @@ symlinks: .PHONY .META
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/hyperv:Ndev/nand:Ndev/pci:Ndev/veriexec}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec}
 	cd ${SRCTOP}/sys/$i; \
 	for h in *.h; do \
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
@@ -289,13 +282,6 @@ symlinks: .PHONY .META
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/bktr/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/dev/bktr; \
 	done
-.if ${MK_NAND} != "no"
-	cd ${SRCTOP}/sys/dev/nand; \
-	for h in nandsim.h nand_dev.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/nand/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/dev/nand; \
-	done
-.endif
 	cd ${SRCTOP}/sys/dev/evdev; \
 	for h in input.h input-event-codes.h uinput.h; do \
 		ln -fs ../../../../sys/dev/evdev/$$h \

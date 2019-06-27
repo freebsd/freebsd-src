@@ -1144,7 +1144,7 @@ readrest:
 			    fs.object == fs.first_object->backing_object) {
 				vm_page_lock(fs.m);
 				vm_page_dequeue(fs.m);
-				vm_page_remove(fs.m);
+				(void)vm_page_remove(fs.m);
 				vm_page_unlock(fs.m);
 				vm_page_lock(fs.first_m);
 				vm_page_replace_checked(fs.m, fs.first_object,

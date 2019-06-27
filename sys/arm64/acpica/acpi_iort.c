@@ -370,19 +370,44 @@ srat_resolve_its_pxm(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	ACPI_SRAT_GIC_ITS_AFFINITY *gicits;
 	struct iort_node *its_node;
 	struct iort_its_entry *its_entry;
-	int i, matches;
+	int *map_counts;
+	int i, matches, dom;
 
 	if (entry->Type != ACPI_SRAT_TYPE_GIC_ITS_AFFINITY)
 		return;
 
 	matches = 0;
+	map_counts = arg;
 	gicits = (ACPI_SRAT_GIC_ITS_AFFINITY *)entry;
+	dom = acpi_map_pxm_to_vm_domainid(gicits->ProximityDomain);
+
+	/*
+	 * Catch firmware and config errors. map_counts keeps a
+	 * count of ProximityDomain values mapping to a domain ID
+	 */
+#if MAXMEMDOM > 1
+	if (dom == -1)
+		printf("Firmware Error: Proximity Domain %d could not be"
+		    " mapped for GIC ITS ID %d!\n",
+		    gicits->ProximityDomain, gicits->ItsId);
+#endif
+	/* use dom + 1 as index to handle the case where dom == -1 */
+	i = ++map_counts[dom + 1];
+	if (i > 1) {
+#ifdef NUMA
+		if (dom != -1)
+			printf("ERROR: Multiple Proximity Domains map to the"
+			    " same NUMA domain %d!\n", dom);
+#else
+		printf("WARNING: multiple Proximity Domains in SRAT but NUMA"
+		    " NOT enabled!\n");
+#endif
+	}
 	TAILQ_FOREACH(its_node, &its_groups, next) {
 		its_entry = its_node->entries.its;
 		for (i = 0; i < its_node->nentries; i++, its_entry++) {
 			if (its_entry->its_id == gicits->ItsId) {
-				its_entry->pxm = acpi_map_pxm_to_vm_domainid(
-				    gicits->ProximityDomain);
+				its_entry->pxm = dom;
 				matches++;
 			}
 		}
@@ -401,6 +426,7 @@ iort_post_process_its(void)
 	ACPI_TABLE_MADT *madt;
 	ACPI_TABLE_SRAT *srat;
 	vm_paddr_t madt_pa, srat_pa;
+	int map_counts[MAXMEMDOM + 1] = { 0 };
 
 	/* Check ITS block in MADT */
 	madt_pa = acpi_find_table(ACPI_SIG_MADT);
@@ -417,7 +443,7 @@ iort_post_process_its(void)
 		srat = acpi_map_table(srat_pa, ACPI_SIG_SRAT);
 		KASSERT(srat != NULL, ("can't map SRAT!"));
 		acpi_walk_subtables(srat + 1, (char *)srat + srat->Header.Length,
-		    srat_resolve_its_pxm, NULL);
+		    srat_resolve_its_pxm, map_counts);
 		acpi_unmap_table(srat);
 	}
 	return (0);

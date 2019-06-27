@@ -524,6 +524,8 @@ struct ahci_controller {
 	} interrupt[AHCI_MAX_PORTS];
 	void			(*ch_start)(struct ahci_channel *);
 	int			dma_coherent;	/* DMA is cache-coherent */
+	struct mtx		ch_mtx;		/* Lock for attached channels */
+	struct ahci_channel	*ch[AHCI_MAX_PORTS];	/* Attached channels */
 };
 
 enum ahci_err_type {
@@ -653,6 +655,12 @@ bus_dma_tag_t ahci_get_dma_tag(device_t dev, device_t child);
 int ahci_ctlr_reset(device_t dev);
 int ahci_ctlr_setup(device_t dev);
 void ahci_free_mem(device_t dev);
+
+/* Functions to allow AHCI EM to access other channels. */
+void ahci_attached(device_t dev, struct ahci_channel *ch);
+void ahci_detached(device_t dev, struct ahci_channel *ch);
+struct ahci_channel * ahci_getch(device_t dev, int n);
+void ahci_putch(struct ahci_channel *ch);
 
 extern devclass_t ahci_devclass;
 

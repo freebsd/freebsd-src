@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/xdma/xdma.h>
 #include "xdma_if.h"
+#include "opt_altera_msgdma.h"
 
 #include <dev/altera/msgdma/msgdma.h>
 
@@ -470,8 +471,8 @@ msgdma_channel_submit_sg(device_t dev, struct xdma_channel *xchan,
 	struct msgdma_channel *chan;
 	struct msgdma_desc *desc;
 	struct msgdma_softc *sc;
-	uint32_t src_addr_lo;
-	uint32_t dst_addr_lo;
+	bus_addr_t src_addr_lo;
+	bus_addr_t dst_addr_lo;
 	uint32_t len;
 	uint32_t tmp;
 	int i;
@@ -481,14 +482,18 @@ msgdma_channel_submit_sg(device_t dev, struct xdma_channel *xchan,
 	chan = (struct msgdma_channel *)xchan->chan;
 
 	for (i = 0; i < sg_n; i++) {
-		src_addr_lo = (uint32_t)sg[i].src_addr;
-		dst_addr_lo = (uint32_t)sg[i].dst_addr;
+		src_addr_lo = sg[i].src_addr;
+		dst_addr_lo = sg[i].dst_addr;
 		len = (uint32_t)sg[i].len;
 
 		dprintf("%s: src %x dst %x len %d\n", __func__,
 		    src_addr_lo, dst_addr_lo, len);
 
 		desc = chan->descs[chan->idx_head];
+#if defined(ALTERA_MSGDMA_DESC_EXT) || defined(ALTERA_MSGDMA_DESC_PF_EXT)
+		desc->read_hi = htole32(src_addr_lo >> 32);
+		desc->write_hi = htole32(dst_addr_lo >> 32);
+#endif
 		desc->read_lo = htole32(src_addr_lo);
 		desc->write_lo = htole32(dst_addr_lo);
 		desc->length = htole32(len);

@@ -893,14 +893,13 @@ noerror:
 	case PROBE_IDENTIFY:
 	{
 		struct ccb_pathinq cpi;
-		int16_t *ptr;
 		int veto = 0;
 
+		/*
+		 * Convert to host byte order, and fix the strings.
+		 */
 		ident_buf = &softc->ident_data;
-		for (ptr = (int16_t *)ident_buf;
-		     ptr < (int16_t *)ident_buf + sizeof(struct ata_params)/2; ptr++) {
-			*ptr = le16toh(*ptr);
-		}
+		ata_param_fixup(ident_buf);
 
 		/*
 		 * Allow others to veto this ATA disk attachment.  This
@@ -912,20 +911,6 @@ noerror:
 			goto device_fail;
 		}
 
-		if (strncmp(ident_buf->model, "FX", 2) &&
-		    strncmp(ident_buf->model, "NEC", 3) &&
-		    strncmp(ident_buf->model, "Pioneer", 7) &&
-		    strncmp(ident_buf->model, "SHARP", 5)) {
-			ata_bswap(ident_buf->model, sizeof(ident_buf->model));
-			ata_bswap(ident_buf->revision, sizeof(ident_buf->revision));
-			ata_bswap(ident_buf->serial, sizeof(ident_buf->serial));
-		}
-		ata_btrim(ident_buf->model, sizeof(ident_buf->model));
-		ata_bpack(ident_buf->model, ident_buf->model, sizeof(ident_buf->model));
-		ata_btrim(ident_buf->revision, sizeof(ident_buf->revision));
-		ata_bpack(ident_buf->revision, ident_buf->revision, sizeof(ident_buf->revision));
-		ata_btrim(ident_buf->serial, sizeof(ident_buf->serial));
-		ata_bpack(ident_buf->serial, ident_buf->serial, sizeof(ident_buf->serial));
 		/* Device may need spin-up before IDENTIFY become valid. */
 		if ((ident_buf->specconf == 0x37c8 ||
 		     ident_buf->specconf == 0x738c) &&
