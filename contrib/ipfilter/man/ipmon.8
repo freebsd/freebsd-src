@@ -27,7 +27,7 @@ ipmon \- monitors /dev/ipl for logged packets
 .LP
 \fBipmon\fP opens \fB/dev/ipl\fP for reading and awaits data to be saved from
 the packet filter.  The binary data read from the device is reprinted in
-human readable for, however, IP#'s are not mapped back to hostnames, nor are
+human readable form, however, IP#'s are not mapped back to hostnames, nor are
 ports mapped back to service names.  The output goes to standard output by
 default or a filename, if given on the command line.  Should the \fB\-s\fP
 option be used, output is instead sent to \fBsyslogd(8)\fP.  Messages sent
