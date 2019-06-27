@@ -59,6 +59,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/counter.h>
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -93,10 +94,10 @@ SDT_PROVIDER_DECLARE(fusefs);
  */
 SDT_PROBE_DEFINE2(fusefs, , file, trace, "int", "char*");
 
-static int fuse_fh_count = 0;
+static counter_u64_t fuse_fh_count = 0;
 
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, filehandle_count, CTLFLAG_RD,
-    &fuse_fh_count, 0, "number of open FUSE filehandles");
+SYSCTL_COUNTER_U64(_vfs_fusefs_stats, OID_AUTO, filehandle_count, CTLFLAG_RD,
+    &fuse_fh_count, "number of open FUSE filehandles");
 
 /* Get the FUFH type for a particular access mode */
 static inline fufh_type_t
@@ -190,7 +191,7 @@ fuse_filehandle_close(struct vnode *vp, struct fuse_filehandle *fufh,
 	fdisp_destroy(&fdi);
 
 out:
-	atomic_subtract_acq_int(&fuse_fh_count, 1);
+	counter_u64_add(fuse_fh_count, -1);
 	LIST_REMOVE(fufh, next);
 	free(fufh, M_FUSE_FILEHANDLE);
 
@@ -343,7 +344,7 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 	if (fufhp != NULL)
 		*fufhp = fufh;
 
-	atomic_add_acq_int(&fuse_fh_count, 1);
+	counter_u64_add(fuse_fh_count, 1);
 
 	if (foo->open_flags & FOPEN_DIRECT_IO) {
 		ASSERT_VOP_ELOCKED(vp, __func__);
@@ -355,4 +356,17 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 	        VTOFUD(vp)->flag &= ~FN_DIRECTIO;
 	}
 
+}
+
+void
+fuse_file_init(void)
+{
+	fuse_fh_count = counter_u64_alloc(M_WAITOK);
+	counter_u64_zero(fuse_fh_count);
+}
+
+void
+fuse_file_destroy(void)
+{
+	counter_u64_free(fuse_fh_count);
 }

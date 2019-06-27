@@ -77,6 +77,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include "fuse.h"
+#include "fuse_file.h"
+#include "fuse_ipc.h"
+#include "fuse_internal.h"
+#include "fuse_node.h"
 
 static void fuse_bringdown(eventhandler_tag eh_tag);
 static int fuse_loader(struct module *m, int what, void *arg);
@@ -97,6 +101,8 @@ static struct vfsconf fuse_vfsconf = {
 	.vfc_flags = VFCF_JAIL | VFCF_SYNTHETIC
 };
 
+SYSCTL_NODE(_vfs, OID_AUTO, fusefs, CTLFLAG_RW, 0, "FUSE tunables");
+SYSCTL_NODE(_vfs_fusefs, OID_AUTO, stats, CTLFLAG_RW, 0, "FUSE statistics");
 SYSCTL_INT(_vfs_fusefs, OID_AUTO, kernelabi_major, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, FUSE_KERNEL_VERSION, "FUSE kernel abi major version");
 SYSCTL_INT(_vfs_fusefs, OID_AUTO, kernelabi_minor, CTLFLAG_RD,
@@ -112,7 +118,9 @@ SDT_PROVIDER_DEFINE(fusefs);
 static void
 fuse_bringdown(eventhandler_tag eh_tag)
 {
-
+	fuse_node_destroy();
+	fuse_internal_destroy();
+	fuse_file_destroy();
 	fuse_ipc_destroy();
 	fuse_device_destroy();
 	mtx_destroy(&fuse_mtx);
@@ -133,6 +141,9 @@ fuse_loader(struct module *m, int what, void *arg)
 			return (err);
 		}
 		fuse_ipc_init();
+		fuse_file_init();
+		fuse_internal_init();
+		fuse_node_init();
 		fuse_pbuf_zone = pbuf_zsecond_create("fusepbuf", nswbuf / 2);
 
 		/* vfs_modevent ignores its first arg */

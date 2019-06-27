@@ -218,16 +218,6 @@ struct vop_vector fuse_vnops = {
 	.vop_vptofh = fuse_vnop_vptofh,
 };
 
-u_long fuse_lookup_cache_hits = 0;
-
-SYSCTL_ULONG(_vfs_fusefs, OID_AUTO, lookup_cache_hits, CTLFLAG_RD,
-    &fuse_lookup_cache_hits, 0, "number of positive cache hits in lookup");
-
-u_long fuse_lookup_cache_misses = 0;
-
-SYSCTL_ULONG(_vfs_fusefs, OID_AUTO, lookup_cache_misses, CTLFLAG_RD,
-    &fuse_lookup_cache_misses, 0, "number of cache misses in lookup");
-
 /*
  * XXX: This feature is highly experimental and can bring to instabilities,
  * needs revisiting before to be enabled by default.
@@ -1048,11 +1038,10 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		switch (err) {
 		case -1:		/* positive match */
 			if (timespeccmp(&timeout, &now, >)) {
-				atomic_add_acq_long(&fuse_lookup_cache_hits, 1);
+				counter_u64_add(fuse_lookup_cache_hits, 1);
 			} else {
 				/* Cache timeout */
-				atomic_add_acq_long(&fuse_lookup_cache_misses,
-					1);
+				counter_u64_add(fuse_lookup_cache_misses, 1);
 				bintime_clear(
 					&VTOFUD(*vpp)->entry_cache_timeout);
 				cache_purge(*vpp);
@@ -1066,7 +1055,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			return 0;
 
 		case 0:		/* no match in cache */
-			atomic_add_acq_long(&fuse_lookup_cache_misses, 1);
+			counter_u64_add(fuse_lookup_cache_misses, 1);
 			break;
 
 		case ENOENT:		/* negative match */

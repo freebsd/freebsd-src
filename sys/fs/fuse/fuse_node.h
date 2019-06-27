@@ -191,4 +191,7 @@ int fuse_vnode_setsize(struct vnode *vp, off_t newsize);
 void fuse_vnode_undirty_cached_timestamps(struct vnode *vp);
 
 void fuse_vnode_update(struct vnode *vp, int flags);
+
+void fuse_node_init(void);
+void fuse_node_destroy(void);
 #endif /* _FUSE_NODE_H_ */

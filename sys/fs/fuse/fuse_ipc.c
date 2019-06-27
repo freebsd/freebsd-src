@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
+#include <sys/counter.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
@@ -107,11 +108,10 @@ static int fuse_body_audit(struct fuse_ticket *ftick, size_t blen);
 
 static fuse_handler_t fuse_standard_handler;
 
-SYSCTL_NODE(_vfs, OID_AUTO, fusefs, CTLFLAG_RW, 0, "FUSE tunables");
-static int fuse_ticket_count = 0;
+static counter_u64_t fuse_ticket_count;
+SYSCTL_COUNTER_U64(_vfs_fusefs_stats, OID_AUTO, ticket_count, CTLFLAG_RD,
+    &fuse_ticket_count, "Number of allocated tickets");
 
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, ticket_count, CTLFLAG_RW,
-    &fuse_ticket_count, 0, "number of allocated tickets");
 static long fuse_iov_permanent_bufsize = 1 << 19;
 
 SYSCTL_LONG(_vfs_fusefs, OID_AUTO, iov_permanent_bufsize, CTLFLAG_RW,
@@ -326,7 +326,7 @@ fticket_ctor(void *mem, int size, void *arg, int flags)
 	ftick->irq_unique = 0;
 
 	refcount_init(&ftick->tk_refcount, 1);
-	atomic_add_acq_int(&fuse_ticket_count, 1);
+	counter_u64_add(fuse_ticket_count, 1);
 
 	return 0;
 }
@@ -341,7 +341,7 @@ fticket_dtor(void *mem, int size, void *arg)
 	FUSE_ASSERT_MS_DONE(ftick);
 	FUSE_ASSERT_AW_DONE(ftick);
 
-	atomic_subtract_acq_int(&fuse_ticket_count, 1);
+	counter_u64_add(fuse_ticket_count, -1);
 }
 
 static int
@@ -1075,10 +1075,13 @@ fuse_ipc_init(void)
 	ticket_zone = uma_zcreate("fuse_ticket", sizeof(struct fuse_ticket),
 	    fticket_ctor, fticket_dtor, fticket_init, fticket_fini,
 	    UMA_ALIGN_PTR, 0);
+	fuse_ticket_count = counter_u64_alloc(M_WAITOK);
+	counter_u64_zero(fuse_ticket_count);
 }
 
 void
 fuse_ipc_destroy(void)
 {
+	counter_u64_free(fuse_ticket_count);
 	uma_zdestroy(ticket_zone);
 }

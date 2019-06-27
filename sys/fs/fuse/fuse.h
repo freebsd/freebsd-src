@@ -66,6 +66,7 @@
 /* misc */
 
 SYSCTL_DECL(_vfs_fusefs);
+SYSCTL_DECL(_vfs_fusefs_stats);
 
 /* Fuse locking */
 
