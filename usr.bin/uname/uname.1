@@ -28,7 +28,7 @@
 .\"	@(#)uname.1	8.3 (Berkeley) 4/8/94
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2017
+.Dd June 27, 2019
 .Dt UNAME 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd display information about the system
 .Sh SYNOPSIS
 .Nm
-.Op Fl aiKmnoprsUv
+.Op Fl abiKmnoprsUv
 .Sh DESCRIPTION
 The
 .Nm
@@ -53,6 +53,8 @@ Behave as though the options
 and
 .Fl v
 were specified.
+.It Fl b
+Write the kernel's linker-generated build-id to standard output.
 .It Fl i
 Write the kernel ident to standard output.
 .It Fl K
@@ -152,3 +154,7 @@ and
 .Fl U
 extension flags appeared in
 .Fx 10.0 .
+The
+.Fl b
+extension flag appeared in
+.Fx 13.0 .
