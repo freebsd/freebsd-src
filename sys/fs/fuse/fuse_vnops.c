@@ -536,12 +536,14 @@ fuse_vnop_bmap(struct vop_bmap_args *ap)
 		fbi->blocksize = biosize;
 		error = fdisp_wait_answ(&fdi);
 		if (error == ENOSYS) {
+			fdisp_destroy(&fdi);
 			fsess_set_notimpl(mp, FUSE_BMAP);
 			error = 0;
 		} else {
 			fbo = fdi.answ;
 			if (error == 0 && pbn != NULL)
 				*pbn = fbo->block;
+			fdisp_destroy(&fdi);
 			return error;
 		}
 	}
@@ -693,6 +695,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	if (err) {
 		if (err == ENOSYS && op == FUSE_CREATE) {
 			fsess_set_notimpl(mp, FUSE_CREATE);
+			fdisp_destroy(fdip);
 			fdisp_make_mknod_for_fallback(fdip, cnp, dvp,
 				parentnid, td, cred, mode, &op);
 			err = fdisp_wait_answ(fdip);
