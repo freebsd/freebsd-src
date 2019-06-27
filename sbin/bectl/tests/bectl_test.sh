@@ -99,11 +99,35 @@ bectl_create_body()
 	mount=${cwd}/mnt
 
 	bectl_create_setup ${zpool} ${disk} ${mount}
+
+	# Create a child dataset that will be used to test creation
+	# of recursive and non-recursive boot environments.
+	atf_check zfs create -o mountpoint=/usr -o canmount=noauto \
+	    ${zpool}/ROOT/default/usr
+
 	# Test standard creation, creation of a snapshot, and creation from a
 	# snapshot.
 	atf_check bectl -r ${zpool}/ROOT create -e default default2
 	atf_check bectl -r ${zpool}/ROOT create default2@test_snap
 	atf_check bectl -r ${zpool}/ROOT create -e default2@test_snap default3
+
+	# Test standard creation, creation of a snapshot, and creation from a
+	# snapshot for recursive boot environments.
+	atf_check bectl -r ${zpool}/ROOT create -r -e default recursive
+	atf_check bectl -r ${zpool}/ROOT create -r recursive@test_snap
+	atf_check bectl -r ${zpool}/ROOT create -r -e recursive@test_snap recursive-snap
+
+	# Test that non-recursive boot environments have no child datasets.
+	atf_check -e not-empty -s not-exit:0 \
+		zfs list "${zpool}/ROOT/default2/usr"
+	atf_check -e not-empty -s not-exit:0 \
+		zfs list "${zpool}/ROOT/default3/usr"
+
+	# Test that recursive boot environments have child datasets.
+	atf_check -o not-empty \
+		zfs list "${zpool}/ROOT/recursive/usr"
+	atf_check -o not-empty \
+		zfs list "${zpool}/ROOT/recursive-snap/usr"
 }
 bectl_create_cleanup()
 {

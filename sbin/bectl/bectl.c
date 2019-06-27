@@ -184,7 +184,8 @@ bectl_cmd_activate(int argc, char *argv[])
 static int
 bectl_cmd_create(int argc, char *argv[])
 {
-	char *atpos, *bootenv, *snapname, *source;
+	char snapshot[BE_MAXPATHLEN];
+	char *atpos, *bootenv, *snapname;
 	int err, opt;
 	bool recursive;
 
@@ -214,6 +215,8 @@ bectl_cmd_create(int argc, char *argv[])
 	}
 
 	bootenv = *argv;
+
+	err = BE_ERR_SUCCESS;
 	if ((atpos = strchr(bootenv, '@')) != NULL) {
 		/*
 		 * This is the "create a snapshot variant". No new boot
@@ -221,24 +224,22 @@ bectl_cmd_create(int argc, char *argv[])
 		 */
 		*atpos++ = '\0';
 		err = be_snapshot(be, bootenv, atpos, recursive, NULL);
-	} else if (snapname != NULL) {
-		if (strchr(snapname, '@') != NULL)
-			err = be_create_from_existing_snap(be, bootenv,
-			    snapname);
-		else
-			err = be_create_from_existing(be, bootenv, snapname);
 	} else {
-		if ((snapname = strchr(bootenv, '@')) != NULL) {
-			*(snapname++) = '\0';
-			if ((err = be_snapshot(be, be_active_path(be),
-			    snapname, true, NULL)) != BE_ERR_SUCCESS)
-				fprintf(stderr, "failed to create snapshot\n");
-			asprintf(&source, "%s@%s", be_active_path(be), snapname);
-			err = be_create_from_existing_snap(be, bootenv,
-			    source);
-			return (err);
-		} else
-			err = be_create(be, bootenv);
+		if (snapname == NULL)
+			/* Create from currently booted BE */
+			err = be_snapshot(be, be_active_path(be), NULL,
+			    recursive, snapshot);
+		else if (strchr(snapname, '@') != NULL)
+			/* Create from given snapshot */
+			strlcpy(snapshot, snapname, sizeof(snapshot));
+		else
+			/* Create from given BE */
+			err = be_snapshot(be, snapname, NULL, recursive,
+			    snapshot);
+
+		if (err == BE_ERR_SUCCESS)
+			err = be_create_depth(be, bootenv, snapshot,
+					      recursive == true ? -1 : 0);
 	}
 
 	switch (err) {
