@@ -861,6 +861,12 @@ AH_INTERRUPT_DEBUGGING	opt_ah.h
 # XXX do not use this for AR9130
 AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
 
+# options for the Altera mSGDMA driver (altera_msgdma)
+ALTERA_MSGDMA_DESC_STD		opt_altera_msgdma.h
+ALTERA_MSGDMA_DESC_EXT		opt_altera_msgdma.h
+ALTERA_MSGDMA_DESC_PF_STD	opt_altera_msgdma.h
+ALTERA_MSGDMA_DESC_PF_EXT	opt_altera_msgdma.h
+
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h
 BWI_DEBUG_VERBOSE	opt_bwi.h
