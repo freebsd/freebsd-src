@@ -44,6 +44,7 @@ options 	DEVICE_POLLING
 #
 # DMA support
 #
+options		ALTERA_MSGDMA_DESC_PF_STD
 device		xdma
 device		altera_softdma
 device		altera_msgdma
