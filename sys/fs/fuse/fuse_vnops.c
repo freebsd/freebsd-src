@@ -218,15 +218,6 @@ struct vop_vector fuse_vnops = {
 	.vop_vptofh = fuse_vnop_vptofh,
 };
 
-/*
- * XXX: This feature is highly experimental and can bring to instabilities,
- * needs revisiting before to be enabled by default.
- */
-static int fuse_reclaim_revoked = 0;
-
-SYSCTL_INT(_vfs_fusefs, OID_AUTO, reclaim_revoked, CTLFLAG_RW,
-    &fuse_reclaim_revoked, 0, "");
-
 uma_zone_t fuse_pbuf_zone;
 
 #define fuse_vm_page_lock(m)		vm_page_lock((m));
@@ -880,9 +871,9 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 		fuse_filehandle_close(vp, fufh, td, NULL);
 	}
 
-	if ((fvdat->flag & FN_REVOKED) != 0 && fuse_reclaim_revoked) {
+	if ((fvdat->flag & FN_REVOKED) != 0)
 		vrecycle(vp);
-	}
+
 	return 0;
 }
 
@@ -1568,18 +1559,9 @@ fuse_vnop_remove(struct vop_remove_args *ap)
 	if (vnode_isdir(vp)) {
 		return EPERM;
 	}
-	cache_purge(vp);
 
 	err = fuse_internal_remove(dvp, vp, cnp, FUSE_UNLINK);
 
-	if (err == 0) {
-		fuse_internal_vnode_disappear(vp);
-		/* 
-		 * Purge the parent's attribute cache because the daemon
-		 * should've updated its mtime and ctime
-		 */
-		fuse_vnode_clear_attr_cache(dvp);
-	}
 	return err;
 }
 
@@ -1691,14 +1673,6 @@ fuse_vnop_rmdir(struct vop_rmdir_args *ap)
 	}
 	err = fuse_internal_remove(dvp, vp, ap->a_cnp, FUSE_RMDIR);
 
-	if (err == 0) {
-		fuse_internal_vnode_disappear(vp);
-		/* 
-		 * Purge the parent's attribute cache because the daemon
-		 * should've updated its mtime and ctime
-		 */
-		fuse_vnode_clear_attr_cache(dvp);
-	}
 	return err;
 }
 

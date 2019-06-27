@@ -30,6 +30,7 @@
 
 extern "C" {
 #include <fcntl.h>
+#include <semaphore.h>
 }
 
 #include "mockfs.hh"
@@ -55,11 +56,13 @@ void expect_getattr(uint64_t ino, mode_t mode)
 	})));
 }
 
-void expect_lookup(const char *relpath, uint64_t ino)
+void expect_lookup(const char *relpath, uint64_t ino, int times=1)
 {
 	EXPECT_LOOKUP(FUSE_ROOT_ID, relpath)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+	.Times(times)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr_valid = UINT64_MAX;
 		out.body.entry.attr.mode = S_IFDIR | 0755;
 		out.body.entry.nodeid = ino;
 		out.body.entry.attr.nlink = 2;
@@ -83,12 +86,15 @@ void expect_rmdir(uint64_t parent, const char *relpath, int error)
  * A successful rmdir should clear the parent directory's attribute cache,
  * because the fuse daemon should update its mtime and ctime
  */
-TEST_F(Rmdir, clear_attr_cache)
+TEST_F(Rmdir, parent_attr_cache)
 {
 	const char FULLPATH[] = "mountpoint/some_dir";
 	const char RELPATH[] = "some_dir";
 	struct stat sb;
+	sem_t sem;
 	uint64_t ino = 42;
+
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -105,9 +111,12 @@ TEST_F(Rmdir, clear_attr_cache)
 	})));
 	expect_lookup(RELPATH, ino);
 	expect_rmdir(FUSE_ROOT_ID, RELPATH, 0);
+	expect_forget(ino, 1, &sem);
 
 	ASSERT_EQ(0, rmdir(FULLPATH)) << strerror(errno);
 	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
+	sem_wait(&sem);
+	sem_destroy(&sem);
 }
 
 TEST_F(Rmdir, enotempty)
@@ -124,15 +133,40 @@ TEST_F(Rmdir, enotempty)
 	ASSERT_EQ(ENOTEMPTY, errno);
 }
 
+/* Removing a directory should expire its entry cache */
+TEST_F(Rmdir, entry_cache)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	sem_t sem;
+	uint64_t ino = 42;
+
+	expect_getattr(1, S_IFDIR | 0755);
+	expect_lookup(RELPATH, ino, 2);
+	expect_rmdir(FUSE_ROOT_ID, RELPATH, 0);
+	expect_forget(ino, 1, &sem);
+
+	ASSERT_EQ(0, rmdir(FULLPATH)) << strerror(errno);
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+	sem_wait(&sem);
+	sem_destroy(&sem);
+}
+
 TEST_F(Rmdir, ok)
 {
 	const char FULLPATH[] = "mountpoint/some_dir";
 	const char RELPATH[] = "some_dir";
+	sem_t sem;
 	uint64_t ino = 42;
+
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
 	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino);
 	expect_rmdir(FUSE_ROOT_ID, RELPATH, 0);
+	expect_forget(ino, 1, &sem);
 
 	ASSERT_EQ(0, rmdir(FULLPATH)) << strerror(errno);
+	sem_wait(&sem);
+	sem_destroy(&sem);
 }
