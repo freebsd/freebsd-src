@@ -1126,6 +1126,8 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		t->entry_fh = INVALID_HANDLE_VALUE;
 	}
 
+	archive_entry_clear(entry);
+
 	while ((r = next_entry(a, t, entry)) == ARCHIVE_RETRY)
 		archive_entry_clear(entry);
 

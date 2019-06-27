@@ -35,8 +35,6 @@ MacOS_task:
   matrix:
     osx_instance:
       image: mojave-xcode-10.2
-    osx_instance:
-      image: high-sierra-xcode-10.0
   prepare_script:
   - ./build/ci/cirrus_ci/ci.sh prepare
   configure_script:
@@ -50,9 +48,9 @@ MacOS_task:
   install_script:
   - ./build/ci/build.sh -a install
 
-Fedora_29_task:
+Fedora_30_task:
   container:
-    dockerfile: build/ci/cirrus_ci/Dockerfile.fc29
+    dockerfile: build/ci/cirrus_ci/Dockerfile.fc30
   matrix:
     env:
       BS: autotools
@@ -68,9 +66,9 @@ Fedora_29_task:
   install_script:
   - ./build/ci/build.sh -a install
 
-Fedora_29_distcheck_task:
+Fedora_30_distcheck_task:
   container:
-    dockerfile: build/ci/cirrus_ci/Dockerfile.fc29.distcheck
+    dockerfile: build/ci/cirrus_ci/Dockerfile.fc30.distcheck
   env:
     BS: autotools
   configure_script:
