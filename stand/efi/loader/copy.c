@@ -176,7 +176,11 @@ out:
 #endif /* __i386__ || __amd64__ */
 
 #ifndef EFI_STAGING_SIZE
+#if defined(__amd64__)
+#define	EFI_STAGING_SIZE	100
+#else
 #define	EFI_STAGING_SIZE	64
+#endif
 #endif
 
 EFI_PHYSICAL_ADDRESS	staging, staging_end;
