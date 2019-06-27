@@ -255,8 +255,6 @@ SUBDIR=	\
 	${_mwlfw} \
 	mxge \
 	my \
-	${_nandfs} \
-	${_nandsim} \
 	${_nctgpio} \
 	${_ndis} \
 	${_netgraph} \
@@ -487,11 +485,6 @@ _mthca=		mthca
 _mlx4ib=	mlx4ib
 _mlx5ib=	mlx5ib
 .endif
-.endif
-
-.if ${MK_NAND} != "no" || defined(ALL_MODULES)
-_nandfs=	nandfs
-_nandsim=	nandsim
 .endif
 
 .if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)

@@ -68,7 +68,6 @@ device		miibus
 device		bpf
 device		md
 device		uart
-device		random
 
 device		fdt_pinctrl
 

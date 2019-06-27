@@ -84,9 +84,6 @@ struct fs_ops *file_system[] = {
 #if defined(LOADER_CD9660_SUPPORT)
     &cd9660_fsops,
 #endif
-#if defined(LOADER_NANDFS_SUPPORT)
-    &nandfs_fsops,
-#endif
 #ifdef LOADER_NFS_SUPPORT 
     &nfs_fsops,
 #endif

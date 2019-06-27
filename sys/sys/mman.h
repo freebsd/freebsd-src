@@ -55,6 +55,14 @@
 #define	PROT_READ	0x01	/* pages can be read */
 #define	PROT_WRITE	0x02	/* pages can be written */
 #define	PROT_EXEC	0x04	/* pages can be executed */
+#if __BSD_VISIBLE
+#define	_PROT_ALL	(PROT_READ | PROT_WRITE | PROT_EXEC)
+#define	PROT_EXTRACT(prot)	((prot) & _PROT_ALL)
+
+#define	_PROT_MAX_SHIFT	16
+#define	PROT_MAX(prot)		((prot) << _PROT_MAX_SHIFT)
+#define	PROT_MAX_EXTRACT(prot)	(((prot) >> _PROT_MAX_SHIFT) & _PROT_ALL)
+#endif
 
 /*
  * Flags contain sharing type and options.

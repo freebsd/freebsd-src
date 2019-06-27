@@ -561,7 +561,7 @@ bool vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low,
 bool vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
 void vm_page_reference(vm_page_t m);
-void vm_page_remove (vm_page_t);
+bool vm_page_remove(vm_page_t);
 int vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_replace(vm_page_t mnew, vm_object_t object,
     vm_pindex_t pindex);

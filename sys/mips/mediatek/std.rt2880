@@ -73,9 +73,6 @@ device 		fdt_pinctrl
 # UART support
 device 		uart
 
-# random support
-device 		random
-
 # loop device support
 device 		loop
 

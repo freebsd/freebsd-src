@@ -35,17 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/resource.h>
-#include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
-
-#include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
-#include <machine/frame.h>
-#include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/iicbus/iiconf.h>
 

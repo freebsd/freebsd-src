@@ -38,6 +38,7 @@
 	.file	"tramp.asm"
 	.section ".text"
 	#include "ppc-asm.h"
+	#include "auto-host.h"
 
 #ifndef __powerpc64__
 	.type	trampoline_initial,@object
@@ -105,7 +106,7 @@ FUNC_START(__trampoline_setup)
 	blr
 
 .Labort:
-#if defined SHARED && defined HAVE_AS_REL16
+#if (defined(__PIC__) || defined(__pic__)) && defined HAVE_AS_REL16
 	bcl	20,31,1f
 1:	mflr	r30
 	addis	r30,r30,_GLOBAL_OFFSET_TABLE_-1b@ha

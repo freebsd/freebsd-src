@@ -25,9 +25,6 @@ makeoptions 	MODULES_OVERRIDE+="gpio ar71xx if_gif if_vlan if_gre if_tuntap"
 makeoptions 	MODULES_OVERRIDE+="if_bridge bridgestp usb"
 makeoptions 	MODULES_OVERRIDE+="alq"
 
-# Random - required during early boot!
-device 		random
-
 # net80211
 options 	IEEE80211_DEBUG
 options 	IEEE80211_SUPPORT_MESH

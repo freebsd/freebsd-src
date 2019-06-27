@@ -33,6 +33,10 @@ VE_SIGNATURE_EXT_LIST+= \
 	sig
 .endif
 
+# add OpenPGP support - possibly dormant
+VE_SIGNATURE_LIST+= OPENPGP
+VE_SIGNATURE_EXT_LIST+= asc
+
 SIGNER ?= ${SB_TOOLS_PATH:U/volume/buildtools/bin}/sign.py
 
 .if exists(${SIGNER})
@@ -42,7 +46,12 @@ SIGN_ECDSA= ${PYTHON} ${SIGNER} -u ${SIGN_HOST}:${ECDSA_PORT} -h sha256
 RSA2_PORT:= ${163%y:L:gmtime}
 SIGN_RSA2=   ${PYTHON} ${SIGNER} -u ${SIGN_HOST}:${RSA2_PORT} -h sha256
 
+# deal with quirk of our .esig format
+XCFLAGS.vets+= -DVE_ECDSA_HASH_AGAIN
+
 .if !empty(OPENPGP_SIGN_URL)
+XCFLAGS.opgp_key+= -DHAVE_TA_ASC_H
+
 VE_SIGNATURE_LIST+= OPENPGP
 VE_SIGNATURE_EXT_LIST+= asc
 

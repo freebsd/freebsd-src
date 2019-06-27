@@ -17,7 +17,6 @@ options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	FFS			# Berkeley Fast Filesystem
-options 	NANDFS			# NAND Filesystem
 options 	NFSCL			# Network Filesystem Client
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
@@ -46,7 +45,6 @@ device		pci
 # Pseudo devices
 device		loop
 device		md
-device		random
 
 # Serial ports
 device		uart
@@ -78,9 +76,6 @@ device		twsi
 
 # SATA
 device		mvs
-
-# NAND
-device		nand
 
 # GPIO
 device		gpio

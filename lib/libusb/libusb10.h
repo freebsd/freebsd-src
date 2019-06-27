@@ -89,6 +89,8 @@ struct libusb_hotplug_callback_handle_struct {
 	void *user_data;
 };
 
+TAILQ_HEAD(libusb_device_head, libusb_device);
+
 struct libusb_context {
 	int	debug;
 	int	debug_fixed;
@@ -106,7 +108,7 @@ struct libusb_context {
 	TAILQ_HEAD(, libusb_super_pollfd) pollfds;
 	TAILQ_HEAD(, libusb_super_transfer) tr_done;
 	TAILQ_HEAD(, libusb_hotplug_callback_handle_struct) hotplug_cbh;
-  	TAILQ_HEAD(, libusb_device) hotplug_devs;
+	struct libusb_device_head hotplug_devs;
 
 	struct libusb_super_pollfd ctx_poll;
 

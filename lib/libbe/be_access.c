@@ -89,25 +89,31 @@ be_mount_iter(zfs_handle_t *zfs_hdl, void *data)
 		return (0);
 	}
 
-	if (zfs_prop_get_int(zfs_hdl, ZFS_PROP_CANMOUNT) == ZFS_CANMOUNT_OFF)
-		return (0);
-
-	if (zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, zfs_mnt, BE_MAXPATHLEN,
-	    NULL, NULL, 0, 1))
-		return (1);
-
-	if (strcmp("none", zfs_mnt) == 0) {
-		/*
-		 * mountpoint=none; we'll mount it at info->mountpoint assuming
-		 * we're at the root.  If we're not at the root, we're likely
-		 * at some intermediate dataset (e.g. zroot/var) that will have
-		 * children that may need to be mounted.
-		 */
-		if (info->depth > 0)
-			goto skipmount;
-
+	/*
+	 * canmount and mountpoint are both ignored for the BE dataset, because
+	 * the rest of the system (kernel and loader) will effectively do the
+	 * same.
+	 */
+	if (info->depth == 0) {
 		snprintf(tmp, BE_MAXPATHLEN, "%s", info->mountpoint);
 	} else {
+		if (zfs_prop_get_int(zfs_hdl, ZFS_PROP_CANMOUNT) ==
+		    ZFS_CANMOUNT_OFF)
+			return (0);
+
+		if (zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, zfs_mnt,
+		    BE_MAXPATHLEN, NULL, NULL, 0, 1))
+			return (1);
+
+		/*
+		 * We've encountered mountpoint=none at some intermediate
+		 * dataset (e.g. zroot/var) that will have children that may
+		 * need to be mounted.  Skip mounting it, but iterate through
+		 * the children.
+		 */
+		if (strcmp("none", zfs_mnt) == 0)
+			goto skipmount;
+
 		mountpoint = be_mountpoint_augmented(info->lbh, zfs_mnt);
 		snprintf(tmp, BE_MAXPATHLEN, "%s%s", info->mountpoint,
 		    mountpoint);

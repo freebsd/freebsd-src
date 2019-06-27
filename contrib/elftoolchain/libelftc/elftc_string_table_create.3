@@ -24,7 +24,7 @@
 .\"
 .\" $Id: elftc_string_table_create.3 3645 2018-10-15 20:17:14Z jkoshy $
 .\"
-.Dd January 5, 2013
+.Dd June 19, 2019
 .Dt ELFTC_STRING_TABLE_CREATE 3
 .Os
 .Sh NAME
@@ -40,11 +40,11 @@
 .Sh SYNOPSIS
 .In libelftc.h
 .Ft "Elftc_String_Table *"
-.Fn elftc_string_table_create "int sizehint"
-.Ft int
+.Fn elftc_string_table_create "size_t sizehint"
+.Ft void
 .Fn elftc_string_table_destroy "Elftc_String_Table *table"
 .Ft "Elftc_String_Table *"
-.Fn elftc_string_table_from_section "Elf_Scn *scn" "int sizehint"
+.Fn elftc_string_table_from_section "Elf_Scn *scn" "size_t sizehint"
 .Ft "const char *"
 .Fo elftc_string_table_image
 .Fa "Elftc_String_Table *table"

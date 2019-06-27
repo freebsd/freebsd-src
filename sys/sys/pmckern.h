@@ -226,7 +226,7 @@ do {						\
  */
 #define	PMC_CALL_HOOK_UNLOCKED(t, cmd, arg)	\
 do {						\
-	if (pmc_hook != NULL)				\
+	if (pmc_hook != NULL)			\
 		(pmc_hook)((t), (cmd), (arg));	\
 } while (0)
 

@@ -321,10 +321,8 @@ ofw_gpiobus_setup_devinfo(device_t bus, device_t child, phandle_t node)
 		ofw_gpiobus_destroy_devinfo(bus, dinfo);
 		return (NULL);
 	}
-	for (i = 0; i < devi->npins; i++) {
-		devi->flags[i] = pins[i].flags;
+	for (i = 0; i < devi->npins; i++)
 		devi->pins[i] = pins[i].pin;
-	}
 	free(pins, M_DEVBUF);
 	/* Parse the interrupt resources. */
 	if (ofw_bus_intr_to_rl(bus, node, &dinfo->opd_dinfo.rl, NULL) != 0) {

@@ -72,7 +72,6 @@ device		loop
 device		ether
 device		md
 device		bpf
-device		random
 
 options 	ARGE_DEBUG	# Enable if_arge debugging for now
 

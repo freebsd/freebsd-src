@@ -51,7 +51,6 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 device		loop
 device		md
 device		pty
-device		random
 
 # Serial ports
 device		uart

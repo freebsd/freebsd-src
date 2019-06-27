@@ -51,6 +51,8 @@ ATF_TC_BODY(socket_afinet_bind_zero, tc)
 	int sd, rc;
 	struct sockaddr_in sin;
 
+	atf_tc_skip("doesn't work when mac_portacl(4) loaded (bug238781)");
+
 	sd = socket(PF_INET, SOCK_DGRAM, 0);
 	ATF_CHECK(sd >= 0);
 

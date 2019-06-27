@@ -121,7 +121,6 @@ device		pl011
 device		pty
 device		snp
 device		md			# Memory "disks"
-device		random			# Entropy device
 device		firmware		# firmware assist module
 device		pl310			# PL310 L2 cache controller
 device		psci
@@ -174,6 +173,9 @@ device		ti_spi
 
 # ADC support
 device		ti_adc
+
+# PWM
+device		pwm
 
 # Watchdog support
 # If we don't enable the watchdog driver, the BealeBone could potentially

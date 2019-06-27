@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd May 24, 2017
+.Dd May 21, 2019
 .Dt IFLIBDI 9
 .Os
 .Sh NAME
@@ -194,10 +194,10 @@ Allocate and initialize the
 \fIif_ctx_t\fP structure.
 Setup and initialize the MSI or MSI/X interrupt queues if necessary.
 Allocate memory for queues and qset structure setup.
-.It Fn iflib_device_irq_alloc
+.It Fn iflib_irq_alloc
 Allocate an interrupt resource for a given rid value with an associated filter
 and handler function.
-.It Fn iflib_device_irq_alloc_generic
+.It Fn iflib_irq_alloc_generic
 Performs the same function as iflib_device_irq_alloc along with the additional
 functionality of adding a taskgroup.
 The data fields and callback function are determined by the type of interrupt,

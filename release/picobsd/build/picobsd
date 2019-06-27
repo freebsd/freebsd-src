@@ -437,7 +437,7 @@ populate_floppy_fs() {		# OK
 		${MY_TREE}/floppy.tree.${SITE} ; do
 	if [ -d ${FLOPPY_TREE} ] ; then
 	    (cd ${FLOPPY_TREE} ; tar -cf - \
-		    --exclude .svn ${excl} . ) | \
+		    --exclude .git --exclude .svn ${excl} . ) | \
 		(cd ${dst} ; tar x${o_tarv}f - )
 	    log "Copied from ${FLOPPY_TREE}"
 	fi
@@ -698,7 +698,7 @@ populate_mfs_tree() {
     for MFS_TREE in ${PICO_TREE}/mfs_tree ${MY_TREE}/mfs_tree ; do
 	if [ -d ${MFS_TREE} ] ; then
 	    log "Copy ${MFS_TREE} ..."
-	    (cd ${MFS_TREE} ; tar -cf - --exclude .svn . ) | \
+	    (cd ${MFS_TREE} ; tar -cf - --exclude .git --exclude .svn . ) | \
 		    (cd ${dst} ; tar x${o_tarv}f - )
 	fi
     done

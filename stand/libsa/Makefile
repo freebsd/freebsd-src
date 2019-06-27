@@ -145,9 +145,6 @@ SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
 SRCS+=	pkgfs.c
-.if ${MK_NAND} != "no"
-SRCS+=	nandfs.c
-.endif
 
 # kernel ufs support
 .PATH: ${SRCTOP}/sys/ufs/ffs

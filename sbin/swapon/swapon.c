@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)swapon.c	8.1 (Berkeley) 6/5/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/disk.h>
 #include <sys/mdioctl.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -77,7 +77,7 @@ static int run_cmd(int *, const char *, ...) __printflike(2, 3);
 
 static enum { SWAPON, SWAPOFF, SWAPCTL } orig_prog, which_prog = SWAPCTL;
 
-static int qflag;
+static int Eflag, qflag;
 
 int
 main(int argc, char **argv)
@@ -100,7 +100,7 @@ main(int argc, char **argv)
 	
 	doall = 0;
 	etc_fstab = NULL;
-	while ((ch = getopt(argc, argv, "AadghklLmqsUF:")) != -1) {
+	while ((ch = getopt(argc, argv, "AadEghklLmqsUF:")) != -1) {
 		switch(ch) {
 		case 'A':
 			if (which_prog == SWAPCTL) {
@@ -118,6 +118,12 @@ main(int argc, char **argv)
 		case 'd':
 			if (which_prog == SWAPCTL)
 				which_prog = SWAPOFF;
+			else
+				usage();
+			break;
+		case 'E':
+			if (which_prog == SWAPON)
+				Eflag = 2;
 			else
 				usage();
 			break;
@@ -182,8 +188,10 @@ main(int argc, char **argv)
 				    strstr(fsp->fs_mntops, "late") == NULL &&
 				    late != 0)
 					continue;
+				Eflag |= (strstr(fsp->fs_mntops, "trimonce") != NULL);
 				swfile = swap_on_off(fsp->fs_spec, 1,
 				    fsp->fs_mntops);
+				Eflag &= ~1;
 				if (swfile == NULL) {
 					ret = 1;
 					continue;
@@ -378,12 +386,22 @@ swap_on_geli_args(const char *mntops)
 					return (NULL);
 				}
 			} else if (strcmp(token, "notrim") == 0) {
+				if (Eflag) {
+					warn("Options \"notrim\" and "
+					    "\"trimonce\" conflict");
+					free(ops);
+					return (NULL);
+				}
 				Tflag = " -T ";
 			} else if (strcmp(token, "late") == 0) {
 				/* ignore known option */
 			} else if (strcmp(token, "noauto") == 0) {
 				/* ignore known option */
-			} else if (strcmp(token, "sw") != 0) {
+			} else if (strcmp(token, "sw") == 0) {
+				/* ignore known option */
+			} else if (strcmp(token, "trimonce") == 0) {
+				/* ignore known option */
+			} else {
 				warnx("Invalid option: %s", token);
 				free(ops);
 				return (NULL);
@@ -721,14 +739,42 @@ run_cmd(int *ofd, const char *cmdline, ...)
 	return (WEXITSTATUS(status));
 }
 
+static void
+swap_trim(const char *name)
+{
+	struct stat sb;
+	off_t ioarg[2], sz;
+	int fd;
+
+	fd = open(name, O_WRONLY);
+	if (fd < 0)
+		errx(1, "Cannot open %s", name);
+	if (fstat(fd, &sb) < 0)
+		errx(1, "Cannot stat %s", name);
+	if (S_ISREG(sb.st_mode))
+		sz = sb.st_size;
+	else if (S_ISCHR(sb.st_mode)) {
+		if (ioctl(fd, DIOCGMEDIASIZE, &sz) != 0)
+			err(1, "ioctl(DIOCGMEDIASIZE)");
+	} else
+		errx(1, "%s has an invalid file type", name);
+	ioarg[0] = 0;
+	ioarg[1] = sz;
+	if (ioctl(fd, DIOCGDELETE, ioarg) != 0)
+		warn("ioctl(DIOCGDELETE)");
+	close(fd);
+}
+
 static const char *
 swap_on_off_sfile(const char *name, int doingall)
 {
 	int error;
 
-	if (which_prog == SWAPON)
+	if (which_prog == SWAPON) {
+		if (Eflag)
+			swap_trim(name);
 		error = swapon(name);
-	else /* SWAPOFF */
+	} else /* SWAPOFF */
 		error = swapoff(name);
 
 	if (error == -1) {
@@ -759,6 +805,8 @@ usage(void)
 	fprintf(stderr, "usage: %s ", getprogname());
 	switch(orig_prog) {
 	case SWAPON:
+	    fprintf(stderr, "[-F fstab] -aLq | [-E] file ...\n");
+	    break;
 	case SWAPOFF:
 	    fprintf(stderr, "[-F fstab] -aLq | file ...\n");
 	    break;

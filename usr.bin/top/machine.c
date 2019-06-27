@@ -150,6 +150,7 @@ static const char *swapnames[] = {
 };
 static int swap_stats[nitems(swapnames)];
 
+static int has_swap;
 
 /* these are for keeping track of the proc array */
 
@@ -248,12 +249,12 @@ update_layout(void)
 	y_mem = 3;
 	y_arc = 4;
 	y_carc = 5;
-	y_swap = 4 + arc_enabled + carc_enabled;
-	y_idlecursor = 5 + arc_enabled + carc_enabled;
-	y_message = 5 + arc_enabled + carc_enabled;
-	y_header = 6 + arc_enabled + carc_enabled;
-	y_procs = 7 + arc_enabled + carc_enabled;
-	Header_lines = 7 + arc_enabled + carc_enabled;
+	y_swap = 3 + arc_enabled + carc_enabled + has_swap;
+	y_idlecursor = 4 + arc_enabled + carc_enabled + has_swap;
+	y_message = 4 + arc_enabled + carc_enabled + has_swap;
+	y_header = 5 + arc_enabled + carc_enabled + has_swap;
+	y_procs = 6 + arc_enabled + carc_enabled + has_swap;
+	Header_lines = 6 + arc_enabled + carc_enabled + has_swap;
 
 	if (pcpu_stats) {
 		y_mem += ncpus - 1;
@@ -273,7 +274,7 @@ machine_init(struct statics *statics)
 {
 	int i, j, empty, pagesize;
 	uint64_t arc_size;
-	int carc_en;
+	int carc_en, nswapdev;
 	size_t size;
 
 	size = sizeof(smpmode);
@@ -297,6 +298,11 @@ machine_init(struct statics *statics)
 	kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, "kvm_open");
 	if (kd == NULL)
 		return (-1);
+
+	size = sizeof(nswapdev);
+	if (sysctlbyname("vm.nswapdev", &nswapdev, &size, NULL,
+		0) == 0 && nswapdev != 0)
+			has_swap = 1;
 
 	GETSYSCTL("kern.ccpu", ccpu);
 
@@ -332,7 +338,10 @@ machine_init(struct statics *statics)
 		statics->carc_names = carcnames;
 	else
 		statics->carc_names = NULL;
-	statics->swap_names = swapnames;
+	if (has_swap)
+		statics->swap_names = swapnames;
+	else
+		statics->swap_names = NULL;
 	statics->order_names = ordernames;
 
 	/* Allocate state for per-CPU stats. */

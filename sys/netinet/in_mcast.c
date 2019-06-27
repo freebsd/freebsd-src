@@ -94,7 +94,9 @@ static MALLOC_DEFINE(M_IPMSOURCE, "ip_msource",
 
 /*
  * Locking:
- * - Lock order is: Giant, INP_WLOCK, IN_MULTI_LIST_LOCK, IGMP_LOCK, IF_ADDR_LOCK.
+ *
+ * - Lock order is: Giant, IN_MULTI_LOCK, INP_WLOCK,
+ *   IN_MULTI_LIST_LOCK, IGMP_LOCK, IF_ADDR_LOCK.
  * - The IF_ADDR_LOCK is implicitly taken by inm_lookup() earlier, however
  *   it can be taken by code in net/if.c also.
  * - ip_moptions and in_mfilter are covered by the INP_WLOCK.
@@ -144,12 +146,11 @@ static int	imf_prune(struct in_mfilter *, const struct sockaddr_in *);
 static void	imf_purge(struct in_mfilter *);
 static void	imf_rollback(struct in_mfilter *);
 static void	imf_reap(struct in_mfilter *);
-static int	imo_grow(struct ip_moptions *);
-static size_t	imo_match_group(const struct ip_moptions *,
+static struct in_mfilter *
+		imo_match_group(const struct ip_moptions *,
 		    const struct ifnet *, const struct sockaddr *);
 static struct in_msource *
-		imo_match_source(const struct ip_moptions *, const size_t,
-		    const struct sockaddr *);
+		imo_match_source(struct in_mfilter *, const struct sockaddr *);
 static void	ims_merge(struct ip_msource *ims,
 		    const struct in_msource *lims, const int rollback);
 static int	in_getmulti(struct ifnet *, const struct in_addr *,
@@ -333,6 +334,26 @@ imf_init(struct in_mfilter *imf, const int st0, const int st1)
 	imf->imf_st[1] = st1;
 }
 
+struct in_mfilter *
+ip_mfilter_alloc(const int mflags, const int st0, const int st1)
+{
+	struct in_mfilter *imf;
+
+	imf = malloc(sizeof(*imf), M_INMFILTER, mflags);
+	if (imf != NULL)
+		imf_init(imf, st0, st1);
+
+	return (imf);
+}
+
+void
+ip_mfilter_free(struct in_mfilter *imf)
+{
+
+	imf_purge(imf);
+	free(imf, M_INMFILTER);
+}
+
 /*
  * Function for looking up an in_multi record for an IPv4 multicast address
  * on a given interface. ifp must be valid. If no record found, return NULL.
@@ -379,89 +400,30 @@ inm_lookup(struct ifnet *ifp, const struct in_addr ina)
 }
 
 /*
- * Resize the ip_moptions vector to the next power-of-two minus 1.
- * May be called with locks held; do not sleep.
- */
-static int
-imo_grow(struct ip_moptions *imo)
-{
-	struct in_multi		**nmships;
-	struct in_multi		**omships;
-	struct in_mfilter	 *nmfilters;
-	struct in_mfilter	 *omfilters;
-	size_t			  idx;
-	size_t			  newmax;
-	size_t			  oldmax;
-
-	nmships = NULL;
-	nmfilters = NULL;
-	omships = imo->imo_membership;
-	omfilters = imo->imo_mfilters;
-	oldmax = imo->imo_max_memberships;
-	newmax = ((oldmax + 1) * 2) - 1;
-
-	if (newmax <= IP_MAX_MEMBERSHIPS) {
-		nmships = (struct in_multi **)realloc(omships,
-		    sizeof(struct in_multi *) * newmax, M_IPMOPTS, M_NOWAIT);
-		nmfilters = (struct in_mfilter *)realloc(omfilters,
-		    sizeof(struct in_mfilter) * newmax, M_INMFILTER, M_NOWAIT);
-		if (nmships != NULL && nmfilters != NULL) {
-			/* Initialize newly allocated source filter heads. */
-			for (idx = oldmax; idx < newmax; idx++) {
-				imf_init(&nmfilters[idx], MCAST_UNDEFINED,
-				    MCAST_EXCLUDE);
-			}
-			imo->imo_max_memberships = newmax;
-			imo->imo_membership = nmships;
-			imo->imo_mfilters = nmfilters;
-		}
-	}
-
-	if (nmships == NULL || nmfilters == NULL) {
-		if (nmships != NULL)
-			free(nmships, M_IPMOPTS);
-		if (nmfilters != NULL)
-			free(nmfilters, M_INMFILTER);
-		return (ETOOMANYREFS);
-	}
-
-	return (0);
-}
-
-/*
  * Find an IPv4 multicast group entry for this ip_moptions instance
  * which matches the specified group, and optionally an interface.
  * Return its index into the array, or -1 if not found.
  */
-static size_t
+static struct in_mfilter *
 imo_match_group(const struct ip_moptions *imo, const struct ifnet *ifp,
     const struct sockaddr *group)
 {
 	const struct sockaddr_in *gsin;
-	struct in_multi	**pinm;
-	int		  idx;
-	int		  nmships;
+	struct in_mfilter *imf;
+	struct in_multi	*inm;
 
 	gsin = (const struct sockaddr_in *)group;
 
-	/* The imo_membership array may be lazy allocated. */
-	if (imo->imo_membership == NULL || imo->imo_num_memberships == 0)
-		return (-1);
-
-	nmships = imo->imo_num_memberships;
-	pinm = &imo->imo_membership[0];
-	for (idx = 0; idx < nmships; idx++, pinm++) {
-		if (*pinm == NULL)
+	IP_MFILTER_FOREACH(imf, &imo->imo_head) {
+		inm = imf->imf_inm;
+		if (inm == NULL)
 			continue;
-		if ((ifp == NULL || ((*pinm)->inm_ifp == ifp)) &&
-		    in_hosteq((*pinm)->inm_addr, gsin->sin_addr)) {
+		if ((ifp == NULL || (inm->inm_ifp == ifp)) &&
+		    in_hosteq(inm->inm_addr, gsin->sin_addr)) {
 			break;
 		}
 	}
-	if (idx >= nmships)
-		idx = -1;
-
-	return (idx);
+	return (imf);
 }
 
 /*
@@ -472,22 +434,13 @@ imo_match_group(const struct ip_moptions *imo, const struct ifnet *ifp,
  * it exists, which may not be the desired behaviour.
  */
 static struct in_msource *
-imo_match_source(const struct ip_moptions *imo, const size_t gidx,
-    const struct sockaddr *src)
+imo_match_source(struct in_mfilter *imf, const struct sockaddr *src)
 {
 	struct ip_msource	 find;
-	struct in_mfilter	*imf;
 	struct ip_msource	*ims;
 	const sockunion_t	*psa;
 
 	KASSERT(src->sa_family == AF_INET, ("%s: !AF_INET", __func__));
-	KASSERT(gidx != -1 && gidx < imo->imo_num_memberships,
-	    ("%s: invalid index %d\n", __func__, (int)gidx));
-
-	/* The imo_mfilters array may be lazy allocated. */
-	if (imo->imo_mfilters == NULL)
-		return (NULL);
-	imf = &imo->imo_mfilters[gidx];
 
 	/* Source trees are keyed in host byte order. */
 	psa = (const sockunion_t *)src;
@@ -507,14 +460,14 @@ int
 imo_multi_filter(const struct ip_moptions *imo, const struct ifnet *ifp,
     const struct sockaddr *group, const struct sockaddr *src)
 {
-	size_t gidx;
+	struct in_mfilter *imf;
 	struct in_msource *ims;
 	int mode;
 
 	KASSERT(ifp != NULL, ("%s: null ifp", __func__));
 
-	gidx = imo_match_group(imo, ifp, group);
-	if (gidx == -1)
+	imf = imo_match_group(imo, ifp, group);
+	if (imf == NULL)
 		return (MCAST_NOTGMEMBER);
 
 	/*
@@ -526,8 +479,8 @@ imo_multi_filter(const struct ip_moptions *imo, const struct ifnet *ifp,
 	 * NOTE: We are comparing group state here at IGMP t1 (now)
 	 * with socket-layer t0 (since last downcall).
 	 */
-	mode = imo->imo_mfilters[gidx].imf_st[1];
-	ims = imo_match_source(imo, gidx, src);
+	mode = imf->imf_st[1];
+	ims = imo_match_source(imf, src);
 
 	if ((ims == NULL && mode == MCAST_INCLUDE) ||
 	    (ims != NULL && ims->imsl_st[0] != mode))
@@ -1452,7 +1405,6 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	struct ip_moptions		*imo;
 	struct in_msource		*ims;
 	struct in_multi			*inm;
-	size_t				 idx;
 	uint16_t			 fmode;
 	int				 error, doblock;
 
@@ -1531,20 +1483,18 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
 
+	IN_MULTI_LOCK();
+
 	/*
 	 * Check if we are actually a member of this group.
 	 */
 	imo = inp_findmoptions(inp);
-	idx = imo_match_group(imo, ifp, &gsa->sa);
-	if (idx == -1 || imo->imo_mfilters == NULL) {
+	imf = imo_match_group(imo, ifp, &gsa->sa);
+	if (imf == NULL) {
 		error = EADDRNOTAVAIL;
 		goto out_inp_locked;
 	}
-
-	KASSERT(imo->imo_mfilters != NULL,
-	    ("%s: imo_mfilters not allocated", __func__));
-	imf = &imo->imo_mfilters[idx];
-	inm = imo->imo_membership[idx];
+	inm = imf->imf_inm;
 
 	/*
 	 * Attempting to use the delta-based API on an
@@ -1562,7 +1512,7 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	 *  Asked to unblock, but nothing to unblock.
 	 * If adding a new block entry, allocate it.
 	 */
-	ims = imo_match_source(imo, idx, &ssa->sa);
+	ims = imo_match_source(imf, &ssa->sa);
 	if ((ims != NULL && doblock) || (ims == NULL && !doblock)) {
 		CTR3(KTR_IGMPV3, "%s: source 0x%08x %spresent", __func__,
 		    ntohl(ssa->sin.sin_addr.s_addr), doblock ? "" : "not ");
@@ -1593,14 +1543,13 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Begin state merge transaction at IGMP layer.
 	 */
-	IN_MULTI_LOCK();
 	CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
 	IN_MULTI_LIST_LOCK();
 	error = inm_merge(inm, imf);
 	if (error) {
 		CTR1(KTR_IGMPV3, "%s: failed to merge inm state", __func__);
 		IN_MULTI_LIST_UNLOCK();
-		goto out_in_multi_locked;
+		goto out_imf_rollback;
 	}
 
 	CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
@@ -1609,9 +1558,6 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	if (error)
 		CTR1(KTR_IGMPV3, "%s: failed igmp downcall", __func__);
 
-out_in_multi_locked:
-
-	IN_MULTI_UNLOCK();
 out_imf_rollback:
 	if (error)
 		imf_rollback(imf);
@@ -1622,6 +1568,7 @@ out_imf_rollback:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
+	IN_MULTI_UNLOCK();
 	return (error);
 }
 
@@ -1636,9 +1583,6 @@ static struct ip_moptions *
 inp_findmoptions(struct inpcb *inp)
 {
 	struct ip_moptions	 *imo;
-	struct in_multi		**immp;
-	struct in_mfilter	 *imfp;
-	size_t			  idx;
 
 	INP_WLOCK(inp);
 	if (inp->inp_moptions != NULL)
@@ -1647,29 +1591,16 @@ inp_findmoptions(struct inpcb *inp)
 	INP_WUNLOCK(inp);
 
 	imo = malloc(sizeof(*imo), M_IPMOPTS, M_WAITOK);
-	immp = malloc(sizeof(*immp) * IP_MIN_MEMBERSHIPS, M_IPMOPTS,
-	    M_WAITOK | M_ZERO);
-	imfp = malloc(sizeof(struct in_mfilter) * IP_MIN_MEMBERSHIPS,
-	    M_INMFILTER, M_WAITOK);
 
 	imo->imo_multicast_ifp = NULL;
 	imo->imo_multicast_addr.s_addr = INADDR_ANY;
 	imo->imo_multicast_vif = -1;
 	imo->imo_multicast_ttl = IP_DEFAULT_MULTICAST_TTL;
 	imo->imo_multicast_loop = in_mcast_loop;
-	imo->imo_num_memberships = 0;
-	imo->imo_max_memberships = IP_MIN_MEMBERSHIPS;
-	imo->imo_membership = immp;
-
-	/* Initialize per-group source filters. */
-	for (idx = 0; idx < IP_MIN_MEMBERSHIPS; idx++)
-		imf_init(&imfp[idx], MCAST_UNDEFINED, MCAST_EXCLUDE);
-	imo->imo_mfilters = imfp;
+	STAILQ_INIT(&imo->imo_head);
 
 	INP_WLOCK(inp);
 	if (inp->inp_moptions != NULL) {
-		free(imfp, M_INMFILTER);
-		free(immp, M_IPMOPTS);
 		free(imo, M_IPMOPTS);
 		return (inp->inp_moptions);
 	}
@@ -1680,32 +1611,25 @@ inp_findmoptions(struct inpcb *inp)
 static void
 inp_gcmoptions(struct ip_moptions *imo)
 {
-	struct in_mfilter	*imf;
+	struct in_mfilter *imf;
 	struct in_multi *inm;
 	struct ifnet *ifp;
-	size_t			 idx, nmships;
 
-	nmships = imo->imo_num_memberships;
-	for (idx = 0; idx < nmships; ++idx) {
-		imf = imo->imo_mfilters ? &imo->imo_mfilters[idx] : NULL;
-		if (imf)
-			imf_leave(imf);
-		inm = imo->imo_membership[idx];
-		ifp = inm->inm_ifp;
-		if (ifp != NULL) {
-			CURVNET_SET(ifp->if_vnet);
-			(void)in_leavegroup(inm, imf);
-			CURVNET_RESTORE();
-		} else {
-			(void)in_leavegroup(inm, imf);
+	while ((imf = ip_mfilter_first(&imo->imo_head)) != NULL) {
+		ip_mfilter_remove(&imo->imo_head, imf);
+
+		imf_leave(imf);
+		if ((inm = imf->imf_inm) != NULL) {
+			if ((ifp = inm->inm_ifp) != NULL) {
+				CURVNET_SET(ifp->if_vnet);
+				(void)in_leavegroup(inm, imf);
+				CURVNET_RESTORE();
+			} else {
+				(void)in_leavegroup(inm, imf);
+			}
 		}
-		if (imf)
-			imf_purge(imf);
+		ip_mfilter_free(imf);
 	}
-
-	if (imo->imo_mfilters)
-		free(imo->imo_mfilters, M_INMFILTER);
-	free(imo->imo_membership, M_IPMOPTS);
 	free(imo, M_IPMOPTS);
 }
 
@@ -1741,7 +1665,7 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	struct sockaddr_storage	*ptss;
 	struct sockaddr_storage	*tss;
 	int			 error;
-	size_t			 idx, nsrcs, ncsrcs;
+	size_t			 nsrcs, ncsrcs;
 
 	INP_WLOCK_ASSERT(inp);
 
@@ -1768,12 +1692,11 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	 * Lookup group on the socket.
 	 */
 	gsa = (sockunion_t *)&msfr.msfr_group;
-	idx = imo_match_group(imo, ifp, &gsa->sa);
-	if (idx == -1 || imo->imo_mfilters == NULL) {
+	imf = imo_match_group(imo, ifp, &gsa->sa);
+	if (imf == NULL) {
 		INP_WUNLOCK(inp);
 		return (EADDRNOTAVAIL);
 	}
-	imf = &imo->imo_mfilters[idx];
 
 	/*
 	 * Ignore memberships which are in limbo.
@@ -2033,14 +1956,11 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	struct ip_moptions		*imo;
 	struct in_multi			*inm;
 	struct in_msource		*lims;
-	size_t				 idx;
 	int				 error, is_new;
 
 	ifp = NULL;
-	imf = NULL;
 	lims = NULL;
 	error = 0;
-	is_new = 0;
 
 	memset(&gsr, 0, sizeof(struct group_source_req));
 	gsa = (sockunion_t *)&gsr.gsr_group;
@@ -2148,13 +2068,25 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
 		return (EADDRNOTAVAIL);
 
+	IN_MULTI_LOCK();
+
+	/*
+	 * Find the membership in the membership list.
+	 */
 	imo = inp_findmoptions(inp);
-	idx = imo_match_group(imo, ifp, &gsa->sa);
-	if (idx == -1) {
+	imf = imo_match_group(imo, ifp, &gsa->sa);
+	if (imf == NULL) {
 		is_new = 1;
+		inm = NULL;
+
+		if (ip_mfilter_count(&imo->imo_head) >= IP_MAX_MEMBERSHIPS) {
+			error = ENOMEM;
+			goto out_inp_locked;
+		}
 	} else {
-		inm = imo->imo_membership[idx];
-		imf = &imo->imo_mfilters[idx];
+		is_new = 0;
+		inm = imf->imf_inm;
+
 		if (ssa->ss.ss_family != AF_UNSPEC) {
 			/*
 			 * MCAST_JOIN_SOURCE_GROUP on an exclusive membership
@@ -2181,7 +2113,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			 * full-state SSM API with the delta-based API,
 			 * which is discouraged in the relevant RFCs.
 			 */
-			lims = imo_match_source(imo, idx, &ssa->sa);
+			lims = imo_match_source(imf, &ssa->sa);
 			if (lims != NULL /*&&
 			    lims->imsl_st[1] == MCAST_INCLUDE*/) {
 				error = EADDRNOTAVAIL;
@@ -2214,27 +2146,6 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	 */
 	INP_WLOCK_ASSERT(inp);
 
-	if (is_new) {
-		if (imo->imo_num_memberships == imo->imo_max_memberships) {
-			error = imo_grow(imo);
-			if (error)
-				goto out_inp_locked;
-		}
-		/*
-		 * Allocate the new slot upfront so we can deal with
-		 * grafting the new source filter in same code path
-		 * as for join-source on existing membership.
-		 */
-		idx = imo->imo_num_memberships;
-		imo->imo_membership[idx] = NULL;
-		imo->imo_num_memberships++;
-		KASSERT(imo->imo_mfilters != NULL,
-		    ("%s: imf_mfilters vector was not allocated", __func__));
-		imf = &imo->imo_mfilters[idx];
-		KASSERT(RB_EMPTY(&imf->imf_sources),
-		    ("%s: imf_sources not empty", __func__));
-	}
-
 	/*
 	 * Graft new source into filter list for this inpcb's
 	 * membership of the group. The in_multi may not have
@@ -2250,7 +2161,11 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		/* Membership starts in IN mode */
 		if (is_new) {
 			CTR1(KTR_IGMPV3, "%s: new join w/source", __func__);
-			imf_init(imf, MCAST_UNDEFINED, MCAST_INCLUDE);
+			imf = ip_mfilter_alloc(M_NOWAIT, MCAST_UNDEFINED, MCAST_INCLUDE);
+			if (imf == NULL) {
+				error = ENOMEM;
+				goto out_inp_locked;
+			}
 		} else {
 			CTR2(KTR_IGMPV3, "%s: %s source", __func__, "allow");
 		}
@@ -2259,34 +2174,41 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			CTR1(KTR_IGMPV3, "%s: merge imf state failed",
 			    __func__);
 			error = ENOMEM;
-			goto out_imo_free;
+			goto out_inp_locked;
 		}
 	} else {
 		/* No address specified; Membership starts in EX mode */
 		if (is_new) {
 			CTR1(KTR_IGMPV3, "%s: new join w/o source", __func__);
-			imf_init(imf, MCAST_UNDEFINED, MCAST_EXCLUDE);
+			imf = ip_mfilter_alloc(M_NOWAIT, MCAST_UNDEFINED, MCAST_EXCLUDE);
+			if (imf == NULL) {
+				error = ENOMEM;
+				goto out_inp_locked;
+			}
 		}
 	}
 
 	/*
 	 * Begin state merge transaction at IGMP layer.
 	 */
-	in_pcbref(inp);
-	INP_WUNLOCK(inp);
-	IN_MULTI_LOCK();
-
 	if (is_new) {
+		in_pcbref(inp);
+		INP_WUNLOCK(inp);
+
 		error = in_joingroup_locked(ifp, &gsa->sin.sin_addr, imf,
-		    &inm);
+		    &imf->imf_inm);
+
+		INP_WLOCK(inp);
+		if (in_pcbrele_wlocked(inp)) {
+			error = ENXIO;
+			goto out_inp_unlocked;
+		}
 		if (error) {
                         CTR1(KTR_IGMPV3, "%s: in_joingroup_locked failed", 
                             __func__);
-                        IN_MULTI_LIST_UNLOCK();
-			goto out_imo_free;
+			goto out_inp_locked;
 		}
-		inm_acquire(inm);
-		imo->imo_membership[idx] = inm;
+		inm_acquire(imf->imf_inm);
 	} else {
 		CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
 		IN_MULTI_LIST_LOCK();
@@ -2295,7 +2217,9 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			CTR1(KTR_IGMPV3, "%s: failed to merge inm state",
 				 __func__);
 			IN_MULTI_LIST_UNLOCK();
-			goto out_in_multi_locked;
+			imf_rollback(imf);
+			imf_reap(imf);
+			goto out_inp_locked;
 		}
 		CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
 		error = igmp_change_state(inm);
@@ -2303,40 +2227,30 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		if (error) {
 			CTR1(KTR_IGMPV3, "%s: failed igmp downcall",
 			    __func__);
-			goto out_in_multi_locked;
-		}
-	}
-
-out_in_multi_locked:
-
-	IN_MULTI_UNLOCK();
-	INP_WLOCK(inp);
-	if (in_pcbrele_wlocked(inp))
-		return (ENXIO);
-	if (error) {
-		imf_rollback(imf);
-		if (is_new)
-			imf_purge(imf);
-		else
+			imf_rollback(imf);
 			imf_reap(imf);
-	} else {
-		imf_commit(imf);
-	}
-
-out_imo_free:
-	if (error && is_new) {
-		inm = imo->imo_membership[idx];
-		if (inm != NULL) {
-			IN_MULTI_LIST_LOCK();
-			inm_release_deferred(inm);
-			IN_MULTI_LIST_UNLOCK();
+			goto out_inp_locked;
 		}
-		imo->imo_membership[idx] = NULL;
-		--imo->imo_num_memberships;
 	}
+	if (is_new)
+		ip_mfilter_insert(&imo->imo_head, imf);
+
+	imf_commit(imf);
+	imf = NULL;
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
+out_inp_unlocked:
+	IN_MULTI_UNLOCK();
+
+	if (is_new && imf) {
+		if (imf->imf_inm != NULL) {
+			IN_MULTI_LIST_LOCK();
+			inm_release_deferred(imf->imf_inm);
+			IN_MULTI_LIST_UNLOCK();
+		}
+		ip_mfilter_free(imf);
+	}
 	return (error);
 }
 
@@ -2355,12 +2269,12 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	struct ip_moptions		*imo;
 	struct in_msource		*ims;
 	struct in_multi			*inm;
-	size_t				 idx;
-	int				 error, is_final;
+	int				 error;
+	bool				 is_final;
 
 	ifp = NULL;
 	error = 0;
-	is_final = 1;
+	is_final = true;
 
 	memset(&gsr, 0, sizeof(struct group_source_req));
 	gsa = (sockunion_t *)&gsr.gsr_group;
@@ -2460,20 +2374,21 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
 
+	IN_MULTI_LOCK();
+
 	/*
-	 * Find the membership in the membership array.
+	 * Find the membership in the membership list.
 	 */
 	imo = inp_findmoptions(inp);
-	idx = imo_match_group(imo, ifp, &gsa->sa);
-	if (idx == -1) {
+	imf = imo_match_group(imo, ifp, &gsa->sa);
+	if (imf == NULL) {
 		error = EADDRNOTAVAIL;
 		goto out_inp_locked;
 	}
-	inm = imo->imo_membership[idx];
-	imf = &imo->imo_mfilters[idx];
+	inm = imf->imf_inm;
 
 	if (ssa->ss.ss_family != AF_UNSPEC)
-		is_final = 0;
+		is_final = false;
 
 	/*
 	 * Begin state merge transaction at socket layer.
@@ -2485,13 +2400,14 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	 * MCAST_LEAVE_SOURCE_GROUP is only valid for inclusive memberships.
 	 */
 	if (is_final) {
+		ip_mfilter_remove(&imo->imo_head, imf);
 		imf_leave(imf);
 	} else {
 		if (imf->imf_st[0] == MCAST_EXCLUDE) {
 			error = EADDRNOTAVAIL;
 			goto out_inp_locked;
 		}
-		ims = imo_match_source(imo, idx, &ssa->sa);
+		ims = imo_match_source(imf, &ssa->sa);
 		if (ims == NULL) {
 			CTR3(KTR_IGMPV3, "%s: source 0x%08x %spresent",
 			    __func__, ntohl(ssa->sin.sin_addr.s_addr), "not ");
@@ -2510,17 +2426,7 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Begin state merge transaction at IGMP layer.
 	 */
-	in_pcbref(inp);
-	INP_WUNLOCK(inp);
-	IN_MULTI_LOCK();
-
-	if (is_final) {
-		/*
-		 * Give up the multicast address record to which
-		 * the membership points.
-		 */
-		(void)in_leavegroup_locked(inm, imf);
-	} else {
+	if (!is_final) {
 		CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);
 		IN_MULTI_LIST_LOCK();
 		error = inm_merge(inm, imf);
@@ -2528,7 +2434,9 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 			CTR1(KTR_IGMPV3, "%s: failed to merge inm state",
 			    __func__);
 			IN_MULTI_LIST_UNLOCK();
-			goto out_in_multi_locked;
+			imf_rollback(imf);
+			imf_reap(imf);
+			goto out_inp_locked;
 		}
 
 		CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
@@ -2537,38 +2445,27 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		if (error) {
 			CTR1(KTR_IGMPV3, "%s: failed igmp downcall",
 			    __func__);
+			imf_rollback(imf);
+			imf_reap(imf);
+			goto out_inp_locked;
 		}
 	}
-
-out_in_multi_locked:
-
-	IN_MULTI_UNLOCK();
-	INP_WLOCK(inp);
-	if (in_pcbrele_wlocked(inp))
-		return (ENXIO);
-
-	if (error)
-		imf_rollback(imf);
-	else
-		imf_commit(imf);
-
+	imf_commit(imf);
 	imf_reap(imf);
-
-	if (is_final) {
-		/* Remove the gap in the membership and filter array. */
-		KASSERT(RB_EMPTY(&imf->imf_sources),
-		    ("%s: imf_sources not empty", __func__));
-		for (++idx; idx < imo->imo_num_memberships; ++idx) {
-			imo->imo_membership[idx - 1] = imo->imo_membership[idx];
-			imo->imo_mfilters[idx - 1] = imo->imo_mfilters[idx];
-		}
-		imf_init(&imo->imo_mfilters[idx - 1], MCAST_UNDEFINED,
-		    MCAST_EXCLUDE);
-		imo->imo_num_memberships--;
-	}
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
+
+	if (is_final && imf) {
+		/*
+		 * Give up the multicast address record to which
+		 * the membership points.
+		 */
+		(void) in_leavegroup_locked(imf->imf_inm, imf);
+		ip_mfilter_free(imf);
+	}
+
+	IN_MULTI_UNLOCK();
 	return (error);
 }
 
@@ -2658,7 +2555,6 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	struct in_mfilter	*imf;
 	struct ip_moptions	*imo;
 	struct in_multi		*inm;
-	size_t			 idx;
 	int			 error;
 
 	error = sooptcopyin(sopt, &msfr, sizeof(struct __msfilterreq),
@@ -2690,18 +2586,19 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
 
+	IN_MULTI_LOCK();
+
 	/*
 	 * Take the INP write lock.
 	 * Check if this socket is a member of this group.
 	 */
 	imo = inp_findmoptions(inp);
-	idx = imo_match_group(imo, ifp, &gsa->sa);
-	if (idx == -1 || imo->imo_mfilters == NULL) {
+	imf = imo_match_group(imo, ifp, &gsa->sa);
+	if (imf == NULL) {
 		error = EADDRNOTAVAIL;
 		goto out_inp_locked;
 	}
-	inm = imo->imo_membership[idx];
-	imf = &imo->imo_mfilters[idx];
+	inm = imf->imf_inm;
 
 	/*
 	 * Begin state merge transaction at socket layer.
@@ -2778,7 +2675,6 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		goto out_imf_rollback;
 
 	INP_WLOCK_ASSERT(inp);
-	IN_MULTI_LOCK();
 
 	/*
 	 * Begin state merge transaction at IGMP layer.
@@ -2789,7 +2685,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (error) {
 		CTR1(KTR_IGMPV3, "%s: failed to merge inm state", __func__);
 		IN_MULTI_LIST_UNLOCK();
-		goto out_in_multi_locked;
+		goto out_imf_rollback;
 	}
 
 	CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
@@ -2797,10 +2693,6 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	IN_MULTI_LIST_UNLOCK();
 	if (error)
 		CTR1(KTR_IGMPV3, "%s: failed igmp downcall", __func__);
-
-out_in_multi_locked:
-
-	IN_MULTI_UNLOCK();
 
 out_imf_rollback:
 	if (error)
@@ -2812,6 +2704,7 @@ out_imf_rollback:
 
 out_inp_locked:
 	INP_WUNLOCK(inp);
+	IN_MULTI_UNLOCK();
 	return (error);
 }
 

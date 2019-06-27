@@ -32,6 +32,8 @@
 #ifndef _SYS_BOOT_H_
 #define _SYS_BOOT_H_
 
+#define PATH_KERNEL	"/boot/kernel/kernel"
+
 int boot_env_to_howto(void);
 void boot_howto_to_env(int howto);
 int boot_parse_arg(char *v);

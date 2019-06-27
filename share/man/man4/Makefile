@@ -303,8 +303,6 @@ MAN=	aac.4 \
 	mx25l.4 \
 	mxge.4 \
 	my.4 \
-	nand.4 \
-	nandsim.4 \
 	${_ndis.4} \
 	net80211.4 \
 	netdump.4 \

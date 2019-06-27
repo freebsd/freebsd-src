@@ -1170,9 +1170,6 @@ options 	NFS_DEBUG		# Enable NFS Debugging
 #
 options 	EXT2FS
 
-# Cryptographically secure random number generator; /dev/random
-device		random
-
 # The system memory devices; /dev/mem, /dev/kmem
 device		mem
 
@@ -2424,14 +2421,19 @@ device		iicoc		# OpenCores I2C controller support
 
 # I2C peripheral devices
 #
+device		ad7418		# Analog Devices temp and voltage sensor
 device		ds1307		# Dallas DS1307 RTC and compatible
 device		ds13rtc		# All Dallas/Maxim ds13xx chips
 device		ds1672		# Dallas DS1672 RTC
 device		ds3231		# Dallas DS3231 RTC + temperature
 device		icee		# AT24Cxxx and compatible EEPROMs
+device		isl12xx		# Intersil ISL12xx RTC
 device		lm75		# LM75 compatible temperature sensor
 device		nxprtc		# NXP RTCs: PCA/PFC212x PCA/PCF85xx
+device		rtc8583		# Epson RTC-8583
 device		s35390a		# Seiko Instruments S-35390A RTC
+device		sy8106a		# Silergy Corp. SY8106A buck regulator
+device		syr827		# Silergy Corp. DC/DC regulator
 
 # Parallel-Port Bus
 #
@@ -2478,6 +2480,22 @@ device		ppi
 device		pps
 device		lpbb
 device		pcfclock
+
+# General Purpose I/O pins
+device  	gpio		# gpio interfaces and bus support
+device  	gpiobacklight	# sysctl control of gpio-based backlight
+device  	gpioiic		# i2c via gpio bitbang
+device  	gpiokeys	# kbd(4) glue for gpio-based key input
+device  	gpioled		# led(4) gpio glue
+device  	gpiopower	# event handler for gpio-based powerdown
+device  	gpiopps		# Pulse per second input from gpio pin
+device  	gpioregulator	# extres/regulator glue for gpio pin
+device  	gpiospi		# SPI via gpio bitbang
+device  	gpioths		# 1-wire temp/humidity sensor on gpio pin
+
+# Pulse width modulation
+device  	pwmbus		# pwm interface and bus support
+device  	pwmc		# userland control access to pwm outputs
 
 #
 # Etherswitch framework and drivers

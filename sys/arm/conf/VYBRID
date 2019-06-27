@@ -26,7 +26,6 @@ makeoptions	WERROR="-Werror"
 
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM		# Platform based SoC
-#options 	NANDFS			# NAND Filesystem
 #options 	SMP			# Enable multiple cores
 
 # NFS root from boopt/dhcp
@@ -37,7 +36,6 @@ options 	PLATFORM		# Platform based SoC
 #options 	BOOTP_WIRED_TO=ffec0
 
 #options 	ROOTDEVNAME=\"nfs:10.5.0.1:/tftpboot/cosmic\"
-#options 	ROOTDEVNAME=\"nandfs:/dev/gnand0s.root\"
 options 	ROOTDEVNAME=\"ufs:/dev/da0\"
 
 options 	MUTEX_NOINLINE
@@ -59,7 +57,6 @@ device		sdhci			# generic sdhci
 # Pseudo devices
 
 device		loop
-device		random
 device		pty
 device		md
 device		gpio
@@ -80,8 +77,6 @@ device		pass
 #device		ata
 #device		atadisk
 #device		mvs
-
-device		nand
 
 # Serial ports
 device		uart

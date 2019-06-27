@@ -1458,20 +1458,21 @@ vm_page_insert_radixdone(vm_page_t m, vm_object_t object, vm_page_t mpred)
  *	vm_page_remove:
  *
  *	Removes the specified page from its containing object, but does not
- *	invalidate any backing storage.
+ *	invalidate any backing storage.  Return true if the page may be safely
+ *	freed and false otherwise.
  *
  *	The object must be locked.  The page must be locked if it is managed.
  */
-void
+bool
 vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
 	vm_page_t mrem;
 
+	object = m->object;
+
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		vm_page_assert_locked(m);
-	if ((object = m->object) == NULL)
-		return;
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (vm_page_xbusied(m))
 		vm_page_xunbusy_maybelocked(m);
@@ -1495,6 +1496,7 @@ vm_page_remove(vm_page_t m)
 		vdrop(object->handle);
 
 	m->object = NULL;
+	return (!vm_page_wired(m));
 }
 
 /*
@@ -1665,7 +1667,7 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	 */
 	m->pindex = opidx;
 	vm_page_lock(m);
-	vm_page_remove(m);
+	(void)vm_page_remove(m);
 
 	/* Return back to the new pindex to complete vm_page_insert(). */
 	m->pindex = new_pindex;
@@ -3436,7 +3438,8 @@ vm_page_free_prep(vm_page_t m)
 	if (vm_page_sbusied(m))
 		panic("vm_page_free_prep: freeing busy page %p", m);
 
-	vm_page_remove(m);
+	if (m->object != NULL)
+		(void)vm_page_remove(m);
 
 	/*
 	 * If fictitious remove object association and

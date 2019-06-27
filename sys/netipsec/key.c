@@ -7164,7 +7164,7 @@ key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		return key_senderror(so, m, ENOBUFS);
 
 	MGETHDR(n, M_NOWAIT, MT_DATA);
-	if (len > MHLEN) {
+	if (n != NULL && len > MHLEN) {
 		if (!(MCLGET(n, M_NOWAIT))) {
 			m_freem(n);
 			n = NULL;

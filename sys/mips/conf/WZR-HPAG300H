@@ -49,4 +49,4 @@ device		hwpmc
 # load these via modules, shrink kernel
 nodevice	if_bridge
 nodevice	bridgestp
-nodevice	random
+options		RANDOM_LOADABLE
