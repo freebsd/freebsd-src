@@ -35,7 +35,6 @@
 #include <machine/_bus.h>
 #include <sys/_bus_dma.h>
 #include <sys/ioccom.h>
-#include <sys/systm.h>
 
 /**
  * @defgroup NEWBUS newbus - a generic framework for managing devices
@@ -814,9 +813,12 @@ static __inline type varp ## _get_ ## var(device_t dev)			\
 	int e;								\
 	e = BUS_READ_IVAR(device_get_parent(dev), dev,			\
 	    ivarp ## _IVAR_ ## ivar, &v);				\
-	KASSERT(e == 0, ("%s failed for %s on bus %s, error = %d",	\
-	    __func__, device_get_nameunit(dev),				\
-	    device_get_nameunit(device_get_parent(dev)), e));		\
+	if (e != 0) {							\
+		device_printf(dev, "failed to read ivar "		\
+		    __XSTRING(ivarp ## _IVAR_ ## ivar) " on bus %s, "	\
+		    "error = %d\n",					\
+		    device_get_nameunit(device_get_parent(dev)), e);	\
+	}								\
 	return ((type) v);						\
 }									\
 									\
@@ -826,9 +828,12 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)		\
 	int e;								\
 	e = BUS_WRITE_IVAR(device_get_parent(dev), dev,			\
 	    ivarp ## _IVAR_ ## ivar, v);				\
-	KASSERT(e == 0, ("%s failed for %s on bus %s, error = %d",	\
-	    __func__, device_get_nameunit(dev),				\
-	    device_get_nameunit(device_get_parent(dev)), e));		\
+	if (e != 0) {							\
+		device_printf(dev, "failed to write ivar "		\
+		    __XSTRING(ivarp ## _IVAR_ ## ivar) " on bus %s, "	\
+		    "error = %d\n",					\
+		    device_get_nameunit(device_get_parent(dev)), e);	\
+	}								\
 }
 
 /**
