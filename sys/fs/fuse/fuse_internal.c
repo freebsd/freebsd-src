@@ -657,6 +657,7 @@ fuse_internal_remove(struct vnode *dvp,
     enum fuse_opcode op)
 {
 	struct fuse_dispatcher fdi;
+	nlink_t nlink;
 	int err = 0;
 
 	fdisp_init(&fdi, cnp->cn_namelen + 1);
@@ -667,6 +668,35 @@ fuse_internal_remove(struct vnode *dvp,
 
 	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);
+
+	if (err)
+		return (err);
+
+	/* 
+	 * Access the cached nlink even if the attr cached has expired.  If
+	 * it's inaccurate, the worst that will happen is:
+	 * 1) We'll recycle the vnode even though the file has another link we
+	 *    don't know about, costing a bit of cpu time, or
+	 * 2) We won't recycle the vnode even though all of its links are gone.
+	 *    It will linger around until vnlru reclaims it, costing a bit of
+	 *    temporary memory.
+	 */
+	nlink = VTOFUD(vp)->cached_attrs.va_nlink--;
+
+	/* 
+	 * Purge the parent's attribute cache because the daemon
+	 * should've updated its mtime and ctime.
+	 */
+	fuse_vnode_clear_attr_cache(dvp);
+
+	/* NB: nlink could be zero if it was never cached */
+	if (nlink <= 1 || vnode_vtype(vp) == VDIR) {
+		fuse_internal_vnode_disappear(vp);
+	} else {
+		cache_purge(vp);
+		fuse_vnode_update(vp, FN_CTIMECHANGE);
+	}
+
 	return err;
 }
 
@@ -894,8 +924,6 @@ fuse_internal_vnode_disappear(struct vnode *vp)
 
 	ASSERT_VOP_ELOCKED(vp, "fuse_internal_vnode_disappear");
 	fvdat->flag |= FN_REVOKED;
-	bintime_clear(&fvdat->attr_cache_timeout);
-	bintime_clear(&fvdat->entry_cache_timeout);
 	cache_purge(vp);
 }
 
