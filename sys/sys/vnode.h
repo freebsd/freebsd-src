@@ -720,8 +720,12 @@ int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
 	    VI_MTX(vp))
 #define	vn_rangelock_rlock(vp, start, end)				\
 	rangelock_rlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+#define	vn_rangelock_tryrlock(vp, start, end)				\
+	rangelock_tryrlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
 #define	vn_rangelock_wlock(vp, start, end)				\
 	rangelock_wlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+#define	vn_rangelock_trywlock(vp, start, end)				\
+	rangelock_trywlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
 
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
