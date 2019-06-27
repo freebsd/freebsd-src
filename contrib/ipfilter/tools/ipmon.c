@@ -1438,8 +1438,11 @@ printipflog:
 static void usage(prog)
 	char *prog;
 {
-	fprintf(stderr, "%s: [-NFhstvxX] [-f <logfile>]\n", prog);
-	exit(1);
+	fprintf(stderr, "Usage: %s [ -abDFhnpstvxX ] [ -B <binary-logfile> ] [ -C <config-file> ]\n"
+		"\t[ -f <device> ] [ -L <facility> ] [ -N <device> ]\n"
+		"\t[ -o [NSI] ] [ -O [NSI] ] [ -P <pidfile> ] [ -S <device> ]\n"
+		"\t[ <filename> ]\n", prog);
+	exit(-1);
 }
 
 
