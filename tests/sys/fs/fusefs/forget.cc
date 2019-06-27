@@ -96,6 +96,7 @@ TEST_F(Forget, ok)
 	ASSERT_EQ(0, err) << strerror(errno);
 
 	sem_wait(&sem);
+	sem_destroy(&sem);
 }
 
 /*
