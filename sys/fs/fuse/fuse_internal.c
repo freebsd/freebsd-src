@@ -108,8 +108,8 @@ static int isbzero(void *buf, size_t len);
 
 #endif
 
-counter_u64_t fuse_lookup_cache_hits = 0;
-counter_u64_t fuse_lookup_cache_misses = 0;
+counter_u64_t fuse_lookup_cache_hits;
+counter_u64_t fuse_lookup_cache_misses;
 
 SYSCTL_COUNTER_U64(_vfs_fusefs_stats, OID_AUTO, lookup_cache_hits, CTLFLAG_RD,
     &fuse_lookup_cache_hits, "number of positive cache hits in lookup");

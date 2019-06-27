@@ -94,7 +94,7 @@ SDT_PROVIDER_DECLARE(fusefs);
  */
 SDT_PROBE_DEFINE2(fusefs, , file, trace, "int", "char*");
 
-static counter_u64_t fuse_fh_count = 0;
+static counter_u64_t fuse_fh_count;
 
 SYSCTL_COUNTER_U64(_vfs_fusefs_stats, OID_AUTO, filehandle_count, CTLFLAG_RD,
     &fuse_fh_count, "number of open FUSE filehandles");
