@@ -640,6 +640,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 			continue;
 		dump_avail[map_slot] = start;
 		dump_avail[map_slot + 1] = end;
+		realmem += atop((vm_offset_t)(end - start));
 
 		if (start >= kernstart && end <= pa)
 			continue;
