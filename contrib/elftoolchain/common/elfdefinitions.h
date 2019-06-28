@@ -33,7 +33,7 @@
  *   See: http://www.sco.com/developers/gabi/latest/ch4.intro.html
  * - The May 1998 (version 1.5) draft of "The ELF-64 object format".
  * - Processor-specific ELF ABI definitions for sparc, i386, amd64, mips,
- *   ia64, and powerpc processors.
+ *   ia64, powerpc, and RISC-V processors.
  * - The "Linkers and Libraries Guide", from Sun Microsystems.
  */
 
@@ -426,6 +426,22 @@ _ELF_DEFINE_EF(EF_PPC_RELOCATABLE,  0x00010000UL,			\
 	"-mrelocatable flag")						\
 _ELF_DEFINE_EF(EF_PPC_RELOCATABLE_LIB, 0x00008000UL,			\
 	"-mrelocatable-lib flag")					\
+_ELF_DEFINE_EF(EF_RISCV_RVC,	    0x00000001UL,			\
+	"Compressed instruction extension")				\
+_ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_MASK, 0x00000006UL,			\
+	"Floating point ABI")						\
+_ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_SOFT, 0x00000000UL,			\
+	"Software emulated floating point")				\
+_ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_SINGLE, 0x00000002UL,			\
+	"Single precision floating point")				\
+_ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_DOUBLE, 0x00000004UL,			\
+	"Double precision floating point")				\
+_ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_QUAD, 0x00000006UL,			\
+	"Quad precision floating point")				\
+_ELF_DEFINE_EF(EF_RISCV_RVE,	    0x00000008UL,			\
+	"Compressed instruction ABI")					\
+_ELF_DEFINE_EF(EF_RISCV_TSO,	    0x00000010UL,			\
+	"RVTSO memory consistency model")				\
 _ELF_DEFINE_EF(EF_SPARC_EXT_MASK,   0x00ffff00UL,			\
 	"Vendor Extension mask")					\
 _ELF_DEFINE_EF(EF_SPARC_32PLUS,     0x00000100UL,			\
