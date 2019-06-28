@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2016
+.Dd June 28, 2019
 .Dt ETHERSWITCHCFG 8
 .Os
 .Sh NAME
@@ -147,6 +147,10 @@ MAC addresses.
 Disable the first lock option.
 Note that sometimes you need to reset the
 switch to really disable this option.
+.It Cm droptagged
+Drop packets with a VLAN tag.
+.It Fl droptagged
+Disable the drop tagged packets option.
 .It Cm dropuntagged
 Drop packets without a VLAN tag.
 .It Fl dropuntagged
