@@ -123,7 +123,6 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 		goto err3;
 	}
 	dma_unmap_addr_set(cq, mapping, cq->dma_addr);
-	memset(cq->queue, 0, cq->memsize);
 
 	/* build fw_ri_res_wr */
 	wr_len = sizeof *res_wr + sizeof *res;

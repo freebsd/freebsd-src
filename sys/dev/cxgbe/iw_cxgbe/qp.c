@@ -196,7 +196,6 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	}
 	wq->rq.phys_addr = vtophys(wq->rq.queue);
 	dma_unmap_addr_set(&wq->rq, mapping, wq->rq.dma_addr);
-	memset(wq->rq.queue, 0, wq->rq.memsize);
 
 	CTR5(KTR_IW_CXGBE,
 	    "%s QP sq base va 0x%p pa 0x%llx rq base va 0x%p pa 0x%llx",
