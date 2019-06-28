@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2019
+.Dd June 28, 2019
 .Dt PROCCONTROL 1
 .Os
 .Sh NAME
@@ -66,6 +66,8 @@ Note that process is only allowed to enable tracing for itself,
 not for any other process.
 .It Ar trapcap
 Controls the signalling of capability mode access violations.
+.It Ar kpti
+Controls the KPTI enable, AMD64 only.
 .El
 .Pp
 The
