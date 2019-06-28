@@ -2454,6 +2454,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_object_t obj;
 	struct ucred *cred;
 	vm_prot_t old_prot;
+	int rv;
 
 	if (start == end)
 		return (KERN_SUCCESS);
@@ -2508,10 +2509,13 @@ again:
 	}
 
 	/*
-	 * Do an accounting pass for private read-only mappings that
-	 * now will do cow due to allowed write (e.g. debugger sets
-	 * breakpoint on text segment)
+	 * Before changing the protections, try to reserve swap space for any
+	 * private (i.e., copy-on-write) mappings that are transitioning from
+	 * read-only to read/write access.  If a reservation fails, break out
+	 * of this loop early and let the next loop simplify the entries, since
+	 * some may now be mergeable.
 	 */
+	rv = KERN_SUCCESS;
 	vm_map_clip_start(map, entry, start);
 	for (current = entry; current->start < end; current = current->next) {
 
@@ -2529,8 +2533,9 @@ again:
 
 		if (obj == NULL || (current->eflags & MAP_ENTRY_NEEDS_COPY)) {
 			if (!swap_reserve(current->end - current->start)) {
-				vm_map_unlock(map);
-				return (KERN_RESOURCE_SHORTAGE);
+				rv = KERN_RESOURCE_SHORTAGE;
+				end = current->end;
+				break;
 			}
 			crhold(cred);
 			current->cred = cred;
@@ -2553,8 +2558,9 @@ again:
 		    obj, current));
 		if (!swap_reserve(ptoa(obj->size))) {
 			VM_OBJECT_WUNLOCK(obj);
-			vm_map_unlock(map);
-			return (KERN_RESOURCE_SHORTAGE);
+			rv = KERN_RESOURCE_SHORTAGE;
+			end = current->end;
+			break;
 		}
 
 		crhold(cred);
@@ -2564,11 +2570,14 @@ again:
 	}
 
 	/*
-	 * Go back and fix up protections. [Note that clipping is not
-	 * necessary the second time.]
+	 * If enough swap space was available, go back and fix up protections.
+	 * Otherwise, just simplify entries, since some may have been modified.
+	 * [Note that clipping is not necessary the second time.]
 	 */
-	for (current = entry; current->start < end; current = current->next) {
-		if ((current->eflags & MAP_ENTRY_GUARD) != 0)
+	for (current = entry; current->start < end;
+	    vm_map_simplify_entry(map, current), current = current->next) {
+		if (rv != KERN_SUCCESS ||
+		    (current->eflags & MAP_ENTRY_GUARD) != 0)
 			continue;
 
 		old_prot = current->protection;
@@ -2603,10 +2612,9 @@ again:
 			    current->protection & MASK(current));
 #undef	MASK
 		}
-		vm_map_simplify_entry(map, current);
 	}
 	vm_map_unlock(map);
-	return (KERN_SUCCESS);
+	return (rv);
 }
 
 /*
