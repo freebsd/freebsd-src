@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/tslog.h>
 #include <sys/ucontext.h>
 
 #include <vm/vm.h>
@@ -815,6 +816,8 @@ initriscv(struct riscv_bootparams *rvbp)
 	caddr_t kmdp;
 	int i;
 
+	TSRAW(&thread0, TS_ENTER, __func__, NULL);
+
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
@@ -887,6 +890,8 @@ initriscv(struct riscv_bootparams *rvbp)
 	kdb_init();
 
 	early_boot = 0;
+
+	TSEXIT();
 }
 
 #undef bzero
