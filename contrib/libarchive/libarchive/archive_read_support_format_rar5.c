@@ -623,9 +623,9 @@ static int run_arm_filter(struct rar5* rar, struct filter_info* flt) {
 	for(i = 0; i < flt->block_length - 3; i += 4) {
 		uint8_t* b = &rar->cstate.window_buf[
 		    (rar->cstate.solid_offset +
-		    flt->block_start + i) & rar->cstate.window_mask];
+		    flt->block_start + i + 3) & rar->cstate.window_mask];
 
-		if(b[3] == 0xEB) {
+		if(*b == 0xEB) {
 			/* 0xEB = ARM's BL (branch + link) instruction. */
 			offset = read_filter_data(rar,
 			    (rar->cstate.solid_offset + flt->block_start + i) &
