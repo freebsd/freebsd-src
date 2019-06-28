@@ -851,8 +851,7 @@ remove_tid(struct adapter *sc, int tid, int ntids)
  * What mtu_idx to use, given a 4-tuple.  Note that both s->mss and tcp_mssopt
  * have the MSS that we should advertise in our SYN.  Advertised MSS doesn't
  * account for any TCP options so the effective MSS (only payload, no headers or
- * options) could be different.  We fill up tp->t_maxseg with the effective MSS
- * at the end of the 3-way handshake.
+ * options) could be different.
  */
 int
 find_best_mtu_idx(struct adapter *sc, struct in_conninfo *inc,
