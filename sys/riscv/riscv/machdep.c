@@ -821,7 +821,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	pcpup->pc_hart = boot_hart;
 
 	/* Set the pcpu pointer */
-	__asm __volatile("mv gp, %0" :: "r"(pcpup));
+	__asm __volatile("mv tp, %0" :: "r"(pcpup));
 
 	PCPU_SET(curthread, &thread0);
 

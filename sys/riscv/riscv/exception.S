@@ -44,11 +44,18 @@ __FBSDID("$FreeBSD$");
 	addi	sp, sp, -(TF_SIZE)
 
 	sd	ra, (TF_RA)(sp)
-	sd	tp, (TF_TP)(sp)
 
-.if \el == 0	/* We came from userspace. Load our pcpu */
+.if \el == 0	/* We came from userspace. */
 	sd	gp, (TF_GP)(sp)
-	ld	gp, (TF_SIZE)(sp)
+.option push
+.option norelax
+	/* Load the kernel's global pointer */
+	la	gp, __global_pointer$
+.option pop
+
+	/* Load our pcpu */
+	sd	tp, (TF_TP)(sp)
+	ld	tp, (TF_SIZE)(sp)
 .endif
 
 	sd	t0, (TF_T + 0 * 8)(sp)
@@ -80,16 +87,6 @@ __FBSDID("$FreeBSD$");
 	sd	a5, (TF_A + 5 * 8)(sp)
 	sd	a6, (TF_A + 6 * 8)(sp)
 	sd	a7, (TF_A + 7 * 8)(sp)
-
-#if 0
-	/* XXX: temporary test: spin if stack is not kernel one */
-.if \el == 1	/* kernel */
-	mv	t0, sp
-	srli	t0, t0, 63
-1:
-	beqz	t0, 1b
-.endif
-#endif
 
 .if \el == 1
 	/* Store kernel sp */
@@ -138,13 +135,15 @@ __FBSDID("$FreeBSD$");
 	ld	t0, (TF_SP)(sp)
 	csrw	sscratch, t0
 
-	/* And store our pcpu */
-	sd	gp, (TF_SIZE)(sp)
+	/* Store our pcpu */
+	sd	tp, (TF_SIZE)(sp)
+	ld	tp, (TF_TP)(sp)
+
+	/* And restore the user's global pointer */
 	ld	gp, (TF_GP)(sp)
 .endif
 
 	ld	ra, (TF_RA)(sp)
-	ld	tp, (TF_TP)(sp)
 
 	ld	t0, (TF_T + 0 * 8)(sp)
 	ld	t1, (TF_T + 1 * 8)(sp)
@@ -185,7 +184,7 @@ __FBSDID("$FreeBSD$");
 1:
 	csrci	sstatus, (SSTATUS_SIE)
 
-	ld	a1, PC_CURTHREAD(gp)
+	ld	a1, PC_CURTHREAD(tp)
 	lw	a2, TD_FLAGS(a1)
 
 	li	a3, (TDF_ASTPENDING|TDF_NEEDRESCHED)
