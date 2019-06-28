@@ -855,6 +855,7 @@ pci_bar_mmap(device_t pcidev, struct pci_bar_mmap *pbm)
 	struct thread *td;
 	struct sglist *sg;
 	struct pci_map *pm;
+	vm_paddr_t membase;
 	vm_paddr_t pbase;
 	vm_size_t plen;
 	vm_offset_t addr;
@@ -877,8 +878,9 @@ pci_bar_mmap(device_t pcidev, struct pci_bar_mmap *pbm)
 		return (EBUSY); /* XXXKIB enable if _ACTIVATE */
 	if (!PCI_BAR_MEM(pm->pm_value))
 		return (EIO);
-	pbase = trunc_page(pm->pm_value);
-	plen = round_page(pm->pm_value + ((pci_addr_t)1 << pm->pm_size)) -
+	membase = pm->pm_value & PCIM_BAR_MEM_BASE;
+	pbase = trunc_page(membase);
+	plen = round_page(membase + ((pci_addr_t)1 << pm->pm_size)) -
 	    pbase;
 	prot = VM_PROT_READ | (((pbm->pbm_flags & PCIIO_BAR_MMAP_RW) != 0) ?
 	    VM_PROT_WRITE : 0);
@@ -910,7 +912,7 @@ pci_bar_mmap(device_t pcidev, struct pci_bar_mmap *pbm)
 	}
 	pbm->pbm_map_base = (void *)addr;
 	pbm->pbm_map_length = plen;
-	pbm->pbm_bar_off = pm->pm_value - pbase;
+	pbm->pbm_bar_off = membase - pbase;
 	pbm->pbm_bar_length = (pci_addr_t)1 << pm->pm_size;
 
 out:
