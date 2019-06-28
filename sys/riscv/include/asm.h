@@ -59,7 +59,7 @@
 	.set alias,sym
 
 #define	SET_FAULT_HANDLER(handler, tmp)					\
-	ld	tmp, PC_CURTHREAD(gp);					\
+	ld	tmp, PC_CURTHREAD(tp);					\
 	ld	tmp, TD_PCB(tmp);		/* Load the pcb */	\
 	sd	handler, PCB_ONFAULT(tmp)	/* Set the handler */
 

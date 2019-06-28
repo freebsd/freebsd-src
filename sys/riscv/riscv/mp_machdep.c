@@ -233,7 +233,7 @@ init_secondary(uint64_t hart)
 
 	/* Setup the pcpu pointer */
 	pcpup = &__pcpu[cpuid];
-	__asm __volatile("mv gp, %0" :: "r"(pcpup));
+	__asm __volatile("mv tp, %0" :: "r"(pcpup));
 
 	/* Workaround: make sure wfi doesn't halt the hart */
 	csr_set(sie, SIE_SSIE);

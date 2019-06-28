@@ -217,15 +217,14 @@ ENTRY(cpu_throw)
 	mv	a0, s0
 
 	/* Store the new curthread */
-	sd	a0, PC_CURTHREAD(gp)
+	sd	a0, PC_CURTHREAD(tp)
 	/* And the new pcb */
 	ld	x13, TD_PCB(a0)
-	sd	x13, PC_CURPCB(gp)
+	sd	x13, PC_CURPCB(tp)
 
 	/* Load registers */
 	ld	ra, (PCB_RA)(x13)
 	ld	sp, (PCB_SP)(x13)
-	ld	tp, (PCB_TP)(x13)
 
 	/* s[0-11] */
 	ld	s0, (PCB_S + 0 * 8)(x13)
@@ -267,10 +266,10 @@ END(cpu_throw)
  */
 ENTRY(cpu_switch)
 	/* Store the new curthread */
-	sd	a1, PC_CURTHREAD(gp)
+	sd	a1, PC_CURTHREAD(tp)
 	/* And the new pcb */
 	ld	x13, TD_PCB(a1)
-	sd	x13, PC_CURPCB(gp)
+	sd	x13, PC_CURPCB(tp)
 
 	/* Save the old context. */
 	ld	x13, TD_PCB(a0)
@@ -278,7 +277,6 @@ ENTRY(cpu_switch)
 	/* Store ra, sp and the callee-saved registers */
 	sd	ra, (PCB_RA)(x13)
 	sd	sp, (PCB_SP)(x13)
-	sd	tp, (PCB_TP)(x13)
 
 	/* s[0-11] */
 	sd	s0, (PCB_S + 0 * 8)(x13)
@@ -340,7 +338,6 @@ ENTRY(cpu_switch)
 	ld	x13, TD_PCB(a1)
 
 	/* Restore the registers */
-	ld	tp, (PCB_TP)(x13)
 	ld	ra, (PCB_RA)(x13)
 	ld	sp, (PCB_SP)(x13)
 
@@ -429,15 +426,16 @@ ENTRY(fork_trampoline)
 	ld	a6, (TF_A + 6 * 8)(sp)
 	ld	a7, (TF_A + 7 * 8)(sp)
 
-	/* Load user ra and sp */
+	/* Load user ra and gp */
 	ld	ra, (TF_RA)(sp)
+	ld	gp, (TF_GP)(sp)
 
 	/*
 	 * Store our pcpup on stack, we will load it back
 	 * on kernel mode trap.
 	 */
-	sd	gp, (TF_SIZE)(sp)
-	ld	gp, (TF_GP)(sp)
+	sd	tp, (TF_SIZE)(sp)
+	ld	tp, (TF_TP)(sp)
 
 	/* Save kernel stack so we can use it doing a user trap */
 	addi	sp, sp, TF_SIZE
@@ -454,6 +452,7 @@ ENTRY(savectx)
 	sd	ra, (PCB_RA)(a0)
 	sd	sp, (PCB_SP)(a0)
 	sd	tp, (PCB_TP)(a0)
+	sd	gp, (PCB_GP)(a0)
 
 	/* s[0-11] */
 	sd	s0, (PCB_S + 0 * 8)(a0)
