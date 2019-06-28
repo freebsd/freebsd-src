@@ -32,17 +32,27 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/pcpu.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/elf.h>
+#include <machine/md_var.h>
 #include <machine/trap.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+#endif
 
 char machine[] = "riscv";
 
@@ -87,6 +97,84 @@ const struct cpu_implementers cpu_implementers[] = {
 	{ CPU_IMPL_UCB_ROCKET,	"UC Berkeley Rocket" },
 	CPU_IMPLEMENTER_NONE,
 };
+
+#ifdef FDT
+/*
+ * The ISA string is made up of a small prefix (e.g. rv64) and up to 26 letters
+ * indicating the presence of the 26 possible standard extensions. Therefore 32
+ * characters will be sufficient.
+ */
+#define	ISA_NAME_MAXLEN		32
+#define	ISA_PREFIX		("rv" __XSTRING(__riscv_xlen))
+#define	ISA_PREFIX_LEN		(sizeof(ISA_PREFIX) - 1)
+
+static void
+fill_elf_hwcap(void *dummy __unused)
+{
+	u_long caps[256] = {0};
+	char isa[ISA_NAME_MAXLEN];
+	u_long hwcap;
+	phandle_t node;
+	ssize_t len;
+	int i;
+
+	caps['i'] = caps['I'] = HWCAP_ISA_I;
+	caps['m'] = caps['M'] = HWCAP_ISA_M;
+	caps['a'] = caps['A'] = HWCAP_ISA_A;
+#ifdef FPE
+	caps['f'] = caps['F'] = HWCAP_ISA_F;
+	caps['d'] = caps['D'] = HWCAP_ISA_D;
+#endif
+	caps['c'] = caps['C'] = HWCAP_ISA_C;
+
+	node = OF_finddevice("/cpus");
+	if (node == -1) {
+		if (bootverbose)
+			printf("fill_elf_hwcap: Can't find cpus node\n");
+		return;
+	}
+
+	/*
+	 * Iterate through the CPUs and examine their ISA string. While we
+	 * could assign elf_hwcap to be whatever the boot CPU supports, to
+	 * handle the (unusual) case of running a system with hetergeneous
+	 * ISAs, keep only the extension bits that are common to all harts.
+	 */
+	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
+		if (!fdt_is_compatible_strict(node, "riscv")) {
+			if (bootverbose)
+				printf("fill_elf_hwcap: Can't find cpu\n");
+			return;
+		}
+
+		len = OF_getprop(node, "riscv,isa", isa, sizeof(isa));
+		KASSERT(len <= ISA_NAME_MAXLEN, ("ISA string truncated"));
+		if (len == -1) {
+			if (bootverbose)
+				printf("fill_elf_hwcap: "
+				    "Can't find riscv,isa property\n");
+			return;
+		} else if (strncmp(isa, ISA_PREFIX, ISA_PREFIX_LEN) != 0) {
+			if (bootverbose)
+				printf("fill_elf_hwcap: "
+				    "Unsupported ISA string: %s\n", isa);
+			return;
+		}
+
+		hwcap = 0;
+		for (i = ISA_PREFIX_LEN; i < len; i++)
+			hwcap |= caps[(unsigned char)isa[i]];
+
+		if (elf_hwcap != 0)
+			elf_hwcap &= hwcap;
+		else
+			elf_hwcap = hwcap;
+
+	}
+}
+
+SYSINIT(identcpu, SI_SUB_CPU, SI_ORDER_ANY, fill_elf_hwcap, NULL);
+#endif
 
 void
 identify_cpu(void)
