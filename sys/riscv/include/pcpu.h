@@ -54,7 +54,6 @@
 
 struct pcb;
 struct pcpu;
-extern struct pcpu *pcpup;
 
 static inline struct pcpu *
 get_pcpu(void)
