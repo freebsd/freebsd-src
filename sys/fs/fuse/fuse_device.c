@@ -157,6 +157,13 @@ fdata_dtor(void *arg)
 		fuse_ticket_drop(tick);
 	}
 	fuse_lck_mtx_unlock(fdata->aw_mtx);
+
+	/* Cleanup unsent operations */
+	fuse_lck_mtx_lock(fdata->ms_mtx);
+	while ((tick = fuse_ms_pop(fdata))) {
+		fuse_ticket_drop(tick);
+	}
+	fuse_lck_mtx_unlock(fdata->ms_mtx);
 	FUSE_UNLOCK();
 
 	fdata_trydestroy(fdata);
