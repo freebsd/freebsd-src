@@ -125,15 +125,6 @@ cpuset_t all_harts;
 extern int *end;
 extern int *initstack_end;
 
-uintptr_t mcall_trap(uintptr_t mcause, uintptr_t* regs);
-
-uintptr_t
-mcall_trap(uintptr_t mcause, uintptr_t* regs)
-{
-
-	return (0);
-}
-
 static void
 cpu_startup(void *dummy)
 {
