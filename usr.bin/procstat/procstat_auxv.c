@@ -185,6 +185,18 @@ procstat_auxv(struct procstat *procstat, struct kinfo_proc *kipp)
 			    prefix, "AT_EHDRFLAGS", (u_long)auxv[i].a_un.a_val);
 			break;
 #endif
+#ifdef AT_HWCAP
+		case AT_HWCAP:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}{:AT_HWCAP/%#lx}\n",
+			    prefix, "AT_HWCAP", (u_long)auxv[i].a_un.a_val);
+			break;
+#endif
+#ifdef AT_HWCAP2
+		case AT_HWCAP2:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}{:AT_HWCAP2/%#lx}\n",
+			    prefix, "AT_HWCAP2", (u_long)auxv[i].a_un.a_val);
+			break;
+#endif
 		default:
 			xo_emit("{dw:/%s}{Lw:/%16ld/%ld}{:UNKNOWN/%#lx}\n",
 			    prefix, auxv[i].a_type, auxv[i].a_un.a_val);
