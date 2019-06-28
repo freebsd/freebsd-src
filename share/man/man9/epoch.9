@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2018
+.Dd June 28, 2019
 .Dt EPOCH 9
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 .Nm epoch_exit ,
 .Nm epoch_wait ,
 .Nm epoch_call ,
+.Nm epoch_drain_callbacks ,
 .Nm in_epoch ,
 .Nd kernel epoch based reclamation
 .Sh SYNOPSIS
@@ -60,6 +61,8 @@
 .Fn epoch_wait_preempt "epoch_t epoch"
 .Ft void
 .Fn epoch_call "epoch_t epoch" "epoch_context_t ctx" "void (*callback) (epoch_context_t)"
+.Ft void
+.Fn epoch_drain_callbacks "epoch_t epoch"
 .Ft int
 .Fn in_epoch "epoch_t epoch"
 .Sh DESCRIPTION
@@ -120,6 +123,18 @@ routines must be used and the caller can no longer modify a list entry
 in place.
 An item to be modified must be handled with copy on write
 and frees must be deferred until after a grace period has elapsed.
+.Pp
+The
+.Fn epoch_drain_callbacks
+function is used to drain all pending callbacks which have been invoked by prior
+.Fn epoch_call
+function calls on the same epoch.
+This function is useful when there are shared memory structure(s)
+referred to by the epoch callback(s) which are not refcounted and are
+rarely freed.
+The typical place for calling this function is right before freeing or
+invalidating the shared resource(s) used by the epoch callback(s).
+This function can sleep and is not optimized for performance.
 .Sh RETURN VALUES
 .Fn in_epoch curepoch
 will return 1 if curthread is in curepoch, 0 otherwise.

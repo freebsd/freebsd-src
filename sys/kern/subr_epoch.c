@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/sx.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/turnstile.h>
@@ -64,6 +65,8 @@ static MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
 TAILQ_HEAD (epoch_tdlist, epoch_tracker);
 typedef struct epoch_record {
 	ck_epoch_record_t er_record;
+	struct epoch_context er_drain_ctx;
+	struct epoch *er_parent;
 	volatile struct epoch_tdlist er_tdlist;
 	volatile uint32_t er_gen;
 	uint32_t er_cpuid;
@@ -74,6 +77,9 @@ struct epoch {
 	epoch_record_t e_pcpu_record;
 	int	e_idx;
 	int	e_flags;
+	struct sx e_drain_sx;
+	struct mtx e_drain_mtx;
+	volatile int e_drain_count;
 };
 
 /* arbitrary --- needs benchmarking */
@@ -178,6 +184,7 @@ epoch_ctor(epoch_t epoch)
 		ck_epoch_register(&epoch->e_epoch, &er->er_record, NULL);
 		TAILQ_INIT((struct threadlist *)(uintptr_t)&er->er_tdlist);
 		er->er_cpuid = cpu;
+		er->er_parent = epoch;
 	}
 }
 
@@ -203,6 +210,8 @@ epoch_alloc(int flags)
 	MPASS(epoch_count < MAX_EPOCHS - 2);
 	epoch->e_flags = flags;
 	epoch->e_idx = epoch_count;
+	sx_init(&epoch->e_drain_sx, "epoch-drain-sx");
+	mtx_init(&epoch->e_drain_mtx, "epoch-drain-mtx", NULL, MTX_DEF);
 	allepochs[epoch_count++] = epoch;
 	return (epoch);
 }
@@ -210,18 +219,13 @@ epoch_alloc(int flags)
 void
 epoch_free(epoch_t epoch)
 {
-#ifdef INVARIANTS
-	struct epoch_record *er;
-	int cpu;
 
-	CPU_FOREACH(cpu) {
-		er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
-		MPASS(TAILQ_EMPTY(&er->er_tdlist));
-	}
-#endif
+	epoch_drain_callbacks(epoch);
 	allepochs[epoch->e_idx] = NULL;
 	epoch_wait(global_epoch);
 	uma_zfree_pcpu(pcpu_zone_record, epoch->e_pcpu_record);
+	mtx_destroy(&epoch->e_drain_mtx);
+	sx_destroy(&epoch->e_drain_sx);
 	free(epoch, M_EPOCH);
 }
 
@@ -655,6 +659,83 @@ int
 in_epoch(epoch_t epoch)
 {
 	return (in_epoch_verbose(epoch, 0));
+}
+
+static void
+epoch_drain_cb(struct epoch_context *ctx)
+{
+	struct epoch *epoch =
+	    __containerof(ctx, struct epoch_record, er_drain_ctx)->er_parent;
+
+	if (atomic_fetchadd_int(&epoch->e_drain_count, -1) == 1) {
+		mtx_lock(&epoch->e_drain_mtx);
+		wakeup(epoch);
+		mtx_unlock(&epoch->e_drain_mtx);
+	}
+}
+
+void
+epoch_drain_callbacks(epoch_t epoch)
+{
+	epoch_record_t er;
+	struct thread *td;
+	int was_bound;
+	int old_pinned;
+	int old_cpu;
+	int cpu;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+	    "epoch_drain_callbacks() may sleep!");
+
+	/* too early in boot to have epoch set up */
+	if (__predict_false(epoch == NULL))
+		return;
+#if !defined(EARLY_AP_STARTUP)
+	if (__predict_false(inited < 2))
+		return;
+#endif
+	DROP_GIANT();
+
+	sx_xlock(&epoch->e_drain_sx);
+	mtx_lock(&epoch->e_drain_mtx);
+
+	td = curthread;
+	thread_lock(td);
+	old_cpu = PCPU_GET(cpuid);
+	old_pinned = td->td_pinned;
+	was_bound = sched_is_bound(td);
+	sched_unbind(td);
+	td->td_pinned = 0;
+
+	CPU_FOREACH(cpu)
+		epoch->e_drain_count++;
+	CPU_FOREACH(cpu) {
+		er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
+		sched_bind(td, cpu);
+		epoch_call(epoch, &er->er_drain_ctx, &epoch_drain_cb);
+	}
+
+	/* restore CPU binding, if any */
+	if (was_bound != 0) {
+		sched_bind(td, old_cpu);
+	} else {
+		/* get thread back to initial CPU, if any */
+		if (old_pinned != 0)
+			sched_bind(td, old_cpu);
+		sched_unbind(td);
+	}
+	/* restore pinned after bind */
+	td->td_pinned = old_pinned;
+
+	thread_unlock(td);
+
+	while (epoch->e_drain_count != 0)
+		msleep(epoch, &epoch->e_drain_mtx, PZERO, "EDRAIN", 0);
+
+	mtx_unlock(&epoch->e_drain_mtx);
+	sx_xunlock(&epoch->e_drain_sx);
+
+	PICKUP_GIANT();
 }
 
 void
