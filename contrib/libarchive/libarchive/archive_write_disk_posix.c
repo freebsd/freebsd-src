@@ -165,6 +165,10 @@ __FBSDID("$FreeBSD$");
 #define O_NOFOLLOW 0
 #endif
 
+#ifndef AT_FDCWD
+#define AT_FDCWD -100
+#endif
+
 struct fixup_entry {
 	struct fixup_entry	*next;
 	struct archive_acl	 acl;
@@ -348,6 +352,8 @@ struct archive_write_disk {
 
 #define HFS_BLOCKS(s)	((s) >> 12)
 
+
+static int	la_opendirat(int, const char *);
 static void	fsobj_error(int *, struct archive_string *, int, const char *,
 		    const char *);
 static int	check_symlinks_fsobj(char *, int *, struct archive_string *,
@@ -399,6 +405,37 @@ static ssize_t	_archive_write_disk_data(struct archive *, const void *,
 		    size_t);
 static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
 		    size_t, int64_t);
+
+static int
+la_opendirat(int fd, const char *path) {
+	const int flags = O_CLOEXEC
+#if defined(O_BINARY)
+	    | O_BINARY
+#endif
+#if defined(O_DIRECTORY)
+	    | O_DIRECTORY
+#endif
+#if defined(O_PATH)
+	    | O_PATH
+#elif defined(O_SEARCH)
+	    | O_SEARCH
+#elif defined(O_EXEC)
+	    | O_EXEC
+#else
+	    | O_RDONLY
+#endif
+	    ;
+
+#if !defined(HAVE_OPENAT)
+	if (fd != AT_FDCWD) {
+		errno = ENOTSUP;
+		return (-1);
+	} else
+		return (open(fd, path, flags));
+#else
+	return (openat(fd, path, flags));
+#endif
+}
 
 static int
 lazy_stat(struct archive_write_disk *a)
@@ -1909,7 +1946,7 @@ edit_deep_directories(struct archive_write_disk *a)
 		return;
 
 	/* Try to record our starting dir. */
-	a->restore_pwd = open(".", O_RDONLY | O_BINARY | O_CLOEXEC);
+	a->restore_pwd = la_opendirat(AT_FDCWD, ".");
 	__archive_ensure_cloexec_flag(a->restore_pwd);
 	if (a->restore_pwd < 0)
 		return;
@@ -2342,7 +2379,7 @@ _archive_write_disk_close(struct archive *_a)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	struct fixup_entry *next, *p;
-	int ret;
+	int fd, ret;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
@@ -2353,21 +2390,33 @@ _archive_write_disk_close(struct archive *_a)
 	p = sort_dir_list(a->fixup_list);
 
 	while (p != NULL) {
+		fd = -1;
 		a->pst = NULL; /* Mark stat cache as out-of-date. */
+		if (p->fixup &
+		    (TODO_TIMES | TODO_MODE_BASE | TODO_ACLS | TODO_FFLAGS)) {
+			fd = open(p->name,
+			    O_WRONLY | O_BINARY | O_NOFOLLOW | O_CLOEXEC);
+		}
 		if (p->fixup & TODO_TIMES) {
-			set_times(a, -1, p->mode, p->name,
+			set_times(a, fd, p->mode, p->name,
 			    p->atime, p->atime_nanos,
 			    p->birthtime, p->birthtime_nanos,
 			    p->mtime, p->mtime_nanos,
 			    p->ctime, p->ctime_nanos);
 		}
-		if (p->fixup & TODO_MODE_BASE)
+		if (p->fixup & TODO_MODE_BASE) {
+#ifdef HAVE_FCHMOD
+			if (fd >= 0)
+				fchmod(fd, p->mode);
+			else
+#endif
 			chmod(p->name, p->mode);
+		}
 		if (p->fixup & TODO_ACLS)
-			archive_write_disk_set_acls(&a->archive, -1, p->name,
-			    &p->acl, p->mode);
+			archive_write_disk_set_acls(&a->archive, fd,
+			    p->name, &p->acl, p->mode);
 		if (p->fixup & TODO_FFLAGS)
-			set_fflags_platform(a, -1, p->name,
+			set_fflags_platform(a, fd, p->name,
 			    p->mode, p->fflags_set, 0);
 		if (p->fixup & TODO_MAC_METADATA)
 			set_mac_metadata(a, p->name, p->mac_metadata,
@@ -2376,6 +2425,8 @@ _archive_write_disk_close(struct archive *_a)
 		archive_acl_clear(&p->acl);
 		free(p->mac_metadata);
 		free(p->name);
+		if (fd >= 0)
+			close(fd);
 		free(p);
 		p = next;
 	}
@@ -2540,8 +2591,6 @@ fsobj_error(int *a_eno, struct archive_string *a_estr,
  * scan the path and both can be optimized by comparing against other
  * recent paths.
  */
-/* TODO: Extend this to support symlinks on Windows Vista and later. */
-
 /*
  * Checks the given path to see if any elements along it are symlinks.  Returns
  * ARCHIVE_OK if there are none, otherwise puts an error in errmsg.
@@ -2550,7 +2599,8 @@ static int
 check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
     int flags)
 {
-#if !defined(HAVE_LSTAT)
+#if !defined(HAVE_LSTAT) && \
+    !(defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT))
 	/* Platform doesn't have lstat, so we can't look for symlinks. */
 	(void)path; /* UNUSED */
 	(void)error_number; /* UNUSED */
@@ -2565,7 +2615,10 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	char c;
 	int r;
 	struct stat st;
-	int restore_pwd;
+	int chdir_fd;
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+	int fd;
+#endif
 
 	/* Nothing to do here if name is empty */
 	if(path[0] == '\0')
@@ -2586,9 +2639,9 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	 *  c holds what used to be in *tail
 	 *  last is 1 if this is the last tail
 	 */
-	restore_pwd = open(".", O_RDONLY | O_BINARY | O_CLOEXEC);
-	__archive_ensure_cloexec_flag(restore_pwd);
-	if (restore_pwd < 0) {
+	chdir_fd = la_opendirat(AT_FDCWD, ".");
+	__archive_ensure_cloexec_flag(chdir_fd);
+	if (chdir_fd < 0) {
 		fsobj_error(a_eno, a_estr, errno,
 		    "Could not open ", path);
 		return (ARCHIVE_FATAL);
@@ -2621,7 +2674,11 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 		c = tail[0];
 		tail[0] = '\0';
 		/* Check that we haven't hit a symlink. */
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+		r = fstatat(chdir_fd, head, &st, AT_SYMLINK_NOFOLLOW);
+#else
 		r = lstat(head, &st);
+#endif
 		if (r != 0) {
 			tail[0] = c;
 			/* We've hit a dir that doesn't exist; stop now. */
@@ -2647,7 +2704,19 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 			}
 		} else if (S_ISDIR(st.st_mode)) {
 			if (!last) {
-				if (chdir(head) != 0) {
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+				fd = la_opendirat(chdir_fd, head);
+				if (fd < 0)
+					r = -1;
+				else {
+					r = 0;
+					close(chdir_fd);
+					chdir_fd = fd;
+				}
+#else
+				r = chdir(head);
+#endif
+				if (r != 0) {
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, errno,
 					    "Could not chdir ", path);
@@ -2664,7 +2733,12 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				 * so we can overwrite it with the
 				 * item being extracted.
 				 */
-				if (unlink(head)) {
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+				r = unlinkat(chdir_fd, head, 0);
+#else
+				r = unlink(head);
+#endif
+				if (r != 0) {
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, errno,
 					    "Could not remove symlink ",
@@ -2694,7 +2768,12 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				break;
 			} else if (flags & ARCHIVE_EXTRACT_UNLINK) {
 				/* User asked us to remove problems. */
-				if (unlink(head) != 0) {
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+				r = unlinkat(chdir_fd, head, 0);
+#else
+				r = unlink(head);
+#endif
+				if (r != 0) {
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, 0,
 					    "Cannot remove intervening "
@@ -2712,7 +2791,11 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				 * This is needed to extract hardlinks over
 				 * symlinks.
 				 */
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+				r = fstatat(chdir_fd, head, &st, 0);
+#else
 				r = la_stat(head, &st);
+#endif
 				if (r != 0) {
 					tail[0] = c;
 					if (errno == ENOENT) {
@@ -2725,7 +2808,19 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 						break;
 					}
 				} else if (S_ISDIR(st.st_mode)) {
-					if (chdir(head) != 0) {
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+					fd = la_opendirat(chdir_fd, head);
+					if (fd < 0)
+						r = -1;
+					else {
+						r = 0;
+						close(chdir_fd);
+						chdir_fd = fd;
+					}
+#else
+					r = chdir(head);
+#endif
+					if (r != 0) {
 						tail[0] = c;
 						fsobj_error(a_eno, a_estr,
 						    errno,
@@ -2761,16 +2856,21 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	}
 	/* Catches loop exits via break */
 	tail[0] = c;
-#ifdef HAVE_FCHDIR
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+	/* If we operate with openat(), fstatat() and unlinkat() there was
+	 * no chdir(), so just close the fd */
+	if (chdir_fd >= 0)
+		close(chdir_fd);
+#elif HAVE_FCHDIR
 	/* If we changed directory above, restore it here. */
-	if (restore_pwd >= 0) {
-		r = fchdir(restore_pwd);
+	if (chdir_fd >= 0) {
+		r = fchdir(chdir_fd);
 		if (r != 0) {
 			fsobj_error(a_eno, a_estr, errno,
 			    "chdir() failure", "");
 		}
-		close(restore_pwd);
-		restore_pwd = -1;
+		close(chdir_fd);
+		chdir_fd = -1;
 		if (r != 0) {
 			res = (ARCHIVE_FATAL);
 		}
@@ -3387,6 +3487,7 @@ static int
 set_mode(struct archive_write_disk *a, int mode)
 {
 	int r = ARCHIVE_OK;
+	int r2;
 	mode &= 07777; /* Strip off file type bits. */
 
 	if (a->todo & TODO_SGID_CHECK) {
@@ -3480,21 +3581,19 @@ set_mode(struct archive_write_disk *a, int mode)
 		 * post-extract fixup, which is handled elsewhere.
 		 */
 #ifdef HAVE_FCHMOD
-		if (a->fd >= 0) {
-			if (fchmod(a->fd, mode) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Can't set permissions to 0%o", (int)mode);
-				r = ARCHIVE_WARN;
-			}
-		} else
+		if (a->fd >= 0)
+			r2 = fchmod(a->fd, mode);
+		else
 #endif
-			/* If this platform lacks fchmod(), then
-			 * we'll just use chmod(). */
-			if (chmod(a->name, mode) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Can't set permissions to 0%o", (int)mode);
-				r = ARCHIVE_WARN;
-			}
+		/* If this platform lacks fchmod(), then
+		 * we'll just use chmod(). */
+		r2 = chmod(a->name, mode);
+
+		if (r2 != 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't set permissions to 0%o", (int)mode);
+			r = ARCHIVE_WARN;
+		}
 	}
 	return (r);
 }
