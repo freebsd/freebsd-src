@@ -89,6 +89,78 @@ sbm_clrprotoflags(struct mbuf *m, int flags)
 }
 
 /*
+ * Compress M_NOTREADY mbufs after they have been readied by sbready().
+ *
+ * sbcompress() skips M_NOTREADY mbufs since the data is not available to
+ * be copied at the time of sbcompress().  This function combines small
+ * mbufs similar to sbcompress() once mbufs are ready.  'm0' is the first
+ * mbuf sbready() marked ready, and 'end' is the first mbuf still not
+ * ready.
+ */
+static void
+sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
+{
+	struct mbuf *m, *n;
+	int ext_size;
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	if ((sb->sb_flags & SB_NOCOALESCE) != 0)
+		return;
+
+	for (m = m0; m != end; m = m->m_next) {
+		MPASS((m->m_flags & M_NOTREADY) == 0);
+
+		/* Compress small unmapped mbufs into plain mbufs. */
+		if ((m->m_flags & M_NOMAP) && m->m_len <= MLEN) {
+			MPASS(m->m_flags & M_EXT);
+			ext_size = m->m_ext.ext_size;
+			if (mb_unmapped_compress(m) == 0) {
+				sb->sb_mbcnt -= ext_size;
+				sb->sb_ccnt -= 1;
+			}
+		}
+
+		/*
+		 * NB: In sbcompress(), 'n' is the last mbuf in the
+		 * socket buffer and 'm' is the new mbuf being copied
+		 * into the trailing space of 'n'.  Here, the roles
+		 * are reversed and 'n' is the next mbuf after 'm'
+		 * that is being copied into the trailing space of
+		 * 'm'.
+		 */
+		n = m->m_next;
+		while ((n != NULL) && (n != end) && (m->m_flags & M_EOR) == 0 &&
+		    M_WRITABLE(m) &&
+		    (m->m_flags & M_NOMAP) == 0 &&
+		    n->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
+		    n->m_len <= M_TRAILINGSPACE(m) &&
+		    m->m_type == n->m_type) {
+			KASSERT(sb->sb_lastrecord != n,
+		    ("%s: merging start of record (%p) into previous mbuf (%p)",
+			    __func__, n, m));
+			m_copydata(n, 0, n->m_len, mtodo(m, m->m_len));
+			m->m_len += n->m_len;
+			m->m_next = n->m_next;
+			m->m_flags |= n->m_flags & M_EOR;
+			if (sb->sb_mbtail == n)
+				sb->sb_mbtail = m;
+
+			sb->sb_mbcnt -= MSIZE;
+			sb->sb_mcnt -= 1;
+			if (n->m_flags & M_EXT) {
+				sb->sb_mbcnt -= n->m_ext.ext_size;
+				sb->sb_ccnt -= 1;
+			}
+			m_free(n);
+			n = m->m_next;
+		}
+	}
+	SBLASTRECORDCHK(sb);
+	SBLASTMBUFCHK(sb);
+}
+
+/*
  * Mark ready "count" units of I/O starting with "m".  Most mbufs
  * count as a single unit of I/O except for EXT_PGS-backed mbufs which
  * can be backed by multiple pages.
@@ -138,6 +210,7 @@ sbready(struct sockbuf *sb, struct mbuf *m0, int count)
 	}
 
 	if (!blocker) {
+		sbready_compress(sb, m0, m);
 		return (EINPROGRESS);
 	}
 
@@ -150,6 +223,7 @@ sbready(struct sockbuf *sb, struct mbuf *m0, int count)
 	}
 
 	sb->sb_fnrdy = m;
+	sbready_compress(sb, m0, m);
 
 	return (0);
 }
