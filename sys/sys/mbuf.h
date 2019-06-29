@@ -227,7 +227,15 @@ struct m_ext {
 		volatile u_int	 ext_count;
 		volatile u_int	*ext_cnt;
 	};
-	char		*ext_buf;	/* start of buffer */
+	union {
+		/*
+		 * If ext_type == EXT_PGS, 'ext_pgs' points to a
+		 * structure describing the buffer.  Otherwise,
+		 * 'ext_buf' points to the start of the buffer.
+		 */
+		struct mbuf_ext_pgs *ext_pgs;
+		char		*ext_buf;
+	};
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
 			 ext_flags:24;	/* external storage mbuf flags */
@@ -293,6 +301,92 @@ struct mbuf {
 	};
 };
 
+struct socket;
+
+/*
+ * TLS records for TLS 1.0-1.2 can have the following header lengths:
+ * - 5 (AES-CBC with implicit IV)
+ * - 21 (AES-CBC with explicit IV)
+ * - 13 (AES-GCM with 8 byte explicit IV)
+ */
+#define	MBUF_PEXT_HDR_LEN	24
+
+/*
+ * TLS records for TLS 1.0-1.2 can have the following maximum trailer
+ * lengths:
+ * - 16 (AES-GCM)
+ * - 36 (AES-CBC with SHA1 and up to 16 bytes of padding)
+ * - 48 (AES-CBC with SHA2-256 and up to 16 bytes of padding)
+ * - 64 (AES-CBC with SHA2-384 and up to 16 bytes of padding)
+ */
+#define	MBUF_PEXT_TRAIL_LEN	64
+
+#ifdef __LP64__
+#define	MBUF_PEXT_MAX_PGS	(152 / sizeof(vm_paddr_t))
+#else
+#define	MBUF_PEXT_MAX_PGS	(156 / sizeof(vm_paddr_t))
+#endif
+
+#define	MBUF_PEXT_MAX_BYTES						\
+    (MBUF_PEXT_MAX_PGS * PAGE_SIZE + MBUF_PEXT_HDR_LEN + MBUF_PEXT_TRAIL_LEN)
+
+/*
+ * This struct is 256 bytes in size and is arranged so that the most
+ * common case (accessing the first 4 pages of a 16KB TLS record) will
+ * fit in a single 64 byte cacheline.
+ */
+struct mbuf_ext_pgs {
+	uint8_t		npgs;			/* Number of attached pages */
+	uint8_t		nrdy;			/* Pages with I/O pending */
+	uint8_t		hdr_len;		/* TLS header length */
+	uint8_t		trail_len;		/* TLS trailer length */
+	uint16_t	first_pg_off;		/* Offset into 1st page */
+	uint16_t	last_pg_len;		/* Length of last page */
+	vm_paddr_t	pa[MBUF_PEXT_MAX_PGS];	/* phys addrs of pages */
+	char		hdr[MBUF_PEXT_HDR_LEN];	/* TLS header */
+	void		*tls;			/* TLS session */
+#if defined(__i386__) || \
+    (defined(__powerpc__) && !defined(__powerpc64__) && defined(BOOKE))
+	/*
+	 * i386 and Book-E PowerPC have 64-bit vm_paddr_t, so there is
+	 * a 4 byte remainder from the space allocated for pa[].
+	 */
+	uint32_t	pad;
+#endif
+	union {
+		char	trail[MBUF_PEXT_TRAIL_LEN]; /* TLS trailer */
+		struct {
+			struct socket *so;
+			void	*mbuf;
+			uint64_t seqno;
+			STAILQ_ENTRY(mbuf_ext_pgs) stailq;
+		};
+	};
+};
+
+#ifdef _KERNEL
+static inline int
+mbuf_ext_pg_len(struct mbuf_ext_pgs *ext_pgs, int pidx, int pgoff)
+{
+	KASSERT(pgoff == 0 || pidx == 0,
+	    ("page %d with non-zero offset %d in %p", pidx, pgoff, ext_pgs));
+	if (pidx == ext_pgs->npgs - 1) {
+		return (ext_pgs->last_pg_len);
+	} else {
+		return (PAGE_SIZE - pgoff);
+	}
+}
+
+#ifdef INVARIANT_SUPPORT
+void	mb_ext_pgs_check(struct mbuf_ext_pgs *ext_pgs);
+#endif
+#ifdef INVARIANTS
+#define	MBUF_EXT_PGS_ASSERT_SANITY(ext_pgs)	mb_ext_pgs_check((ext_pgs))
+#else
+#define	MBUF_EXT_PGS_ASSERT_SANITY(ext_pgs)
+#endif
+#endif
+
 /*
  * mbuf flags of global significance and layer crossing.
  * Those of only protocol/layer specific significance are to be mapped
@@ -307,7 +401,7 @@ struct mbuf {
 #define	M_MCAST		0x00000020 /* send/received as link-level multicast */
 #define	M_PROMISC	0x00000040 /* packet was not for us */
 #define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
-#define	M_NOMAP		0x00000100 /* mbuf data is unmapped (soon from Drew) */
+#define	M_NOMAP		0x00000100 /* mbuf data is unmapped */
 #define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 #define	M_TSTMP		0x00000400 /* rcv_tstmp field is valid */
 #define	M_TSTMP_HPREC	0x00000800 /* rcv_tstmp is high-prec, typically
@@ -348,7 +442,7 @@ struct mbuf {
  */
 #define	M_FLAG_BITS \
     "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY\5M_BCAST\6M_MCAST" \
-    "\7M_PROMISC\10M_VLANTAG\12M_NOFREE\13M_TSTMP\14M_TSTMP_HPREC"
+    "\7M_PROMISC\10M_VLANTAG\11M_NOMAP\12M_NOFREE\13M_TSTMP\14M_TSTMP_HPREC"
 #define	M_FLAG_PROTOBITS \
     "\15M_PROTO1\16M_PROTO2\17M_PROTO3\20M_PROTO4\21M_PROTO5" \
     "\22M_PROTO6\23M_PROTO7\24M_PROTO8\25M_PROTO9\26M_PROTO10" \
@@ -420,6 +514,7 @@ struct mbuf {
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
 #define	EXT_MBUF	7	/* external mbuf reference */
 #define	EXT_RXRING	8	/* data in NIC receive ring */
+#define	EXT_PGS		9	/* array of unmapped pages */
 
 #define	EXT_VENDOR1	224	/* for vendor-internal use */
 #define	EXT_VENDOR2	225	/* for vendor-internal use */
@@ -463,6 +558,11 @@ struct mbuf {
     "\21EXT_FLAG_VENDOR1\22EXT_FLAG_VENDOR2\23EXT_FLAG_VENDOR3" \
     "\24EXT_FLAG_VENDOR4\25EXT_FLAG_EXP1\26EXT_FLAG_EXP2\27EXT_FLAG_EXP3" \
     "\30EXT_FLAG_EXP4"
+
+#define MBUF_EXT_PGS_ASSERT(m)						\
+	KASSERT((((m)->m_flags & M_EXT) != 0) &&			\
+	    ((m)->m_ext.ext_type == EXT_PGS),				\
+	    ("%s: m %p !M_EXT or !EXT_PGS", __func__, m))
 
 /*
  * Flags indicating checksum, segmentation and other offload work to be
@@ -566,6 +666,7 @@ struct mbuf {
 #define	MBUF_JUMBO16_MEM_NAME	"mbuf_jumbo_16k"
 #define	MBUF_TAG_MEM_NAME	"mbuf_tag"
 #define	MBUF_EXTREFCNT_MEM_NAME	"mbuf_ext_refcnt"
+#define	MBUF_EXTPGS_MEM_NAME	"mbuf_extpgs"
 
 #ifdef _KERNEL
 
@@ -590,9 +691,15 @@ extern uma_zone_t	zone_pack;
 extern uma_zone_t	zone_jumbop;
 extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
+extern uma_zone_t	zone_extpgs;
 
 void		 mb_dupcl(struct mbuf *, struct mbuf *);
 void		 mb_free_ext(struct mbuf *);
+void		 mb_free_mext_pgs(struct mbuf *);
+struct mbuf	*mb_alloc_ext_pgs(int, bool, m_ext_free_t);
+int		 mb_unmapped_compress(struct mbuf *m);
+struct mbuf 	*mb_unmapped_to_ext(struct mbuf *m);
+void		 mb_free_notready(struct mbuf *m, int count);
 void		 m_adj(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
@@ -627,6 +734,7 @@ struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
 int		 m_mbuftouio(struct uio *, const struct mbuf *, int);
+int		 m_unmappedtouio(const struct mbuf *, int, struct uio *, int);
 void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
 int		 m_pkthdr_init(struct mbuf *, int);
 struct mbuf	*m_prepend(struct mbuf *, int, int);
@@ -881,7 +989,7 @@ m_extrefcnt(struct mbuf *m)
  * be both the local data payload, or an external buffer area, depending on
  * whether M_EXT is set).
  */
-#define	M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) &&			\
+#define	M_WRITABLE(m)	(((m)->m_flags & (M_RDONLY | M_NOMAP)) == 0 &&	\
 			 (!(((m)->m_flags & M_EXT)) ||			\
 			 (m_extrefcnt(m) == 1)))
 
@@ -904,7 +1012,8 @@ m_extrefcnt(struct mbuf *m)
  * handling external storage, packet-header mbufs, and regular data mbufs.
  */
 #define	M_START(m)							\
-	(((m)->m_flags & M_EXT) ? (m)->m_ext.ext_buf :			\
+	(((m)->m_flags & M_NOMAP) ? NULL :				\
+	 ((m)->m_flags & M_EXT) ? (m)->m_ext.ext_buf :			\
 	 ((m)->m_flags & M_PKTHDR) ? &(m)->m_pktdat[0] :		\
 	 &(m)->m_dat[0])
 
