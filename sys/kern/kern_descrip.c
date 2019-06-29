@@ -2761,6 +2761,7 @@ fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
 	if (maxprotp != NULL)
 		*maxprotp = VM_PROT_ALL;
 #else
+	cap_rights_t fdrights;
 	struct filedesc *fdp = td->td_proc->p_fd;
 	seqc_t seq;
 
@@ -2769,15 +2770,18 @@ fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
 		error = _fget(td, fd, fpp, 0, rightsp, &seq);
 		if (error != 0)
 			return (error);
-		/*
-		 * If requested, convert capability rights to access flags.
-		 */
 		if (maxprotp != NULL)
-			*maxprotp = cap_rights_to_vmprot(cap_rights(fdp, fd));
+			fdrights = *cap_rights(fdp, fd);
 		if (!fd_modified(fdp, fd, seq))
 			break;
 		fdrop(*fpp, td);
 	}
+
+	/*
+	 * If requested, convert capability rights to access flags.
+	 */
+	if (maxprotp != NULL)
+		*maxprotp = cap_rights_to_vmprot(&fdrights);
 #endif
 	return (error);
 }
