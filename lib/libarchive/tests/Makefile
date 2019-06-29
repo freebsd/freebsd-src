@@ -512,6 +512,7 @@ ${PACKAGE}FILES+=	test_read_format_rar_subblock.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_unicode.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_windows.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_arm.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_arm_filter_on_window_boundary.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_blake2.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_compressed.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_different_window_size.rar.uu
