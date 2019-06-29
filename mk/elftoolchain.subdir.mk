@@ -1,6 +1,6 @@
 #
 # Rules for recursing into directories
-# $Id: elftoolchain.subdir.mk 3608 2018-04-14 21:23:04Z jkoshy $
+# $Id: elftoolchain.subdir.mk 3720 2019-03-23 08:40:59Z jkoshy $
 
 # Pass down 'test' as a valid target.
 
@@ -9,7 +9,7 @@
 .if ${OS_HOST} == FreeBSD
 SUBDIR_TARGETS+=	clobber test
 .elif ${OS_HOST} == OpenBSD
-clobber test:: _SUBDIRUSE
+clobber: _SUBDIRUSE
 .else		# NetBSD, pmake on Linux
 TARGETS+=	cleandepend clobber test
 .endif

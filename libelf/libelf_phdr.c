@@ -31,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_phdr.c 3632 2018-10-10 21:12:43Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_phdr.c 3732 2019-04-22 11:08:38Z jkoshy $");
 
 void *
 _libelf_getphdr(Elf *e, int ec)
@@ -77,14 +77,18 @@ _libelf_getphdr(Elf *e, int ec)
 
 	assert(fsz > 0);
 
+	if (phoff + fsz < phoff) {	/* Numeric overflow. */
+		LIBELF_SET_ERROR(HEADER, 0);
+		return (NULL);
+	}
+
 	if ((uint64_t) e->e_rawsize < (phoff + fsz)) {
 		LIBELF_SET_ERROR(HEADER, 0);
 		return (NULL);
 	}
 
-	msz = _libelf_msize(ELF_T_PHDR, ec, EV_CURRENT);
-
-	assert(msz > 0);
+	if ((msz = _libelf_msize(ELF_T_PHDR, ec, EV_CURRENT)) == 0)
+		return (NULL);
 
 	if ((phdr = calloc(phnum, msz)) == NULL) {
 		LIBELF_SET_ERROR(RESOURCE, 0);
@@ -125,9 +129,8 @@ _libelf_newphdr(Elf *e, int ec, size_t count)
 	assert(ec == ELFCLASS32 || ec == ELFCLASS64);
 	assert(e->e_version == EV_CURRENT);
 
-	msz = _libelf_msize(ELF_T_PHDR, ec, e->e_version);
-
-	assert(msz > 0);
+	if ((msz = _libelf_msize(ELF_T_PHDR, ec, e->e_version)) == 0)
+		return (NULL);
 
 	newphdr = NULL;
 	if (count > 0 && (newphdr = calloc(count, msz)) == NULL) {

@@ -1,10 +1,11 @@
-# $Id: Makefile 1719 2011-08-12 08:24:14Z jkoshy $
+# $Id: Makefile 3690 2019-02-23 22:51:13Z jkoshy $
 
 TOP=	../../../..
 
 YAML_FILES=	check_elf \
 		getclass \
 		ehdr \
+		ehdr-malformed-1 \
 		fsize \
 		newehdr newscn newscn2 \
 		phdr \

@@ -36,7 +36,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_scn.c 3632 2018-10-10 21:12:43Z jkoshy $");
+ELFTC_VCSID("$Id: elf_scn.c 3712 2019-03-16 22:23:34Z jkoshy $");
 
 /*
  * Load an ELF section table and create a list of Elf_Scn structures.
@@ -58,10 +58,11 @@ _libelf_load_section_headers(Elf *e, void *ehdr)
 	assert((e->e_flags & LIBELF_F_SHDRS_LOADED) == 0);
 
 #define	CHECK_EHDR(E,EH)	do {				\
-		if (shoff > e->e_rawsize ||			\
+		uintmax_t rawsize = (uintmax_t) e->e_rawsize;	\
+		if (shoff > (uintmax_t) e->e_rawsize ||		\
 		    fsz != (EH)->e_shentsize ||			\
 		    shnum > SIZE_MAX / fsz ||			\
-		    fsz * shnum > e->e_rawsize - shoff) {	\
+		    fsz * shnum > rawsize - shoff) {		\
 			LIBELF_SET_ERROR(HEADER, 0);		\
 			return (0);				\
 		}						\

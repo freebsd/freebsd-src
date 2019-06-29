@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006-2008,2011 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2006-2008,2011,2019 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf.3 3643 2018-10-14 21:09:24Z jkoshy $
+.\" $Id: elf.3 3743 2019-06-12 19:36:30Z jkoshy $
 .\"
-.Dd October 10, 2018
+.Dd June 12, 2019
 .Dt ELF 3
 .Os
 .Sh NAME
@@ -266,36 +266,43 @@ The operating version for the data in this buffer.
 .El
 .Pp
 .Vt Elf_Data
-descriptors are usually associated with
+descriptors are usually used in conjunction with
 .Vt Elf_Scn
 descriptors.
-Existing data descriptors associated with an ELF section may be
-structures are retrieved using the
-.Fn elf_getdata
-and
-.Fn elf_rawdata
-functions.
-The
-.Fn elf_newdata
-function may be used to attach new data descriptors to an ELF section.
 .It Vt Elf_Scn
 .Vt Elf_Scn
-descriptors represent a section in an ELF object.
+descriptors represent sections in an ELF object.
+These descriptors are opaque and contain no application modifiable
+fields.
 .Pp
-They are retrieved using the
+The
+.Vt Elf_Scn
+descriptor for a specific section in an ELF object can be
+retrieved using the
 .Fn elf_getscn
 function.
-An application may iterate through the existing sections of an ELF
-object using the
+The sections contained in an ELF object can be traversed using the
 .Fn elf_nextscn
 function.
-New sections may be allocated using the
+New sections are allocated using the
 .Fn elf_newscn
 function.
 .Pp
 The
-.Vt Elf_Scn
-descriptor is opaque and contains no application modifiable fields.
+.Vt Elf_Data
+descriptors associated with a given section can be retrieved
+using the
+.Fn elf_getdata
+function.
+New data descriptors can be added to a section
+descriptor using the
+.Fn elf_newdata
+function.
+The untranslated
+.Dq file
+representation of data in a section can be retrieved using the
+.Fn elf_rawdata
+function.
 .El
 .Ss Supported Elf Types
 The following ELF datatypes are supported by the library.
@@ -608,8 +615,11 @@ descriptor itself.
 .Xr ar 5 ,
 .Xr elf 5
 .Sh HISTORY
-The original ELF(3) API was developed for Unix System V.
-The current implementation of the ELF(3) API appeared in
+The original
+.Nm
+API was developed for
+.At V .
+The current implementation of the API appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 The ELF library was written by

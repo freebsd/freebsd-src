@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf_flagdata.3 3639 2018-10-14 14:07:02Z jkoshy $
+.\" $Id: elf_flagdata.3 3743 2019-06-12 19:36:30Z jkoshy $
 .\"
-.Dd December 3, 2011
+.Dd June 12, 2019
 .Dt ELF_FLAGDATA 3
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .Nm elf_flagphdr ,
 .Nm elf_flagscn ,
 .Nm elf_flagshdr
-.Nd manipulate flags associated with ELF(3) data structures
+.Nd manipulate flags associated with ELF data structures
 .Sh LIBRARY
 .Lb libelf
 .Sh SYNOPSIS
@@ -65,7 +65,9 @@ and
 .Ar scn
 denote the data structures whose flags need to be changed.
 These values should have been returned by prior calls to
-functions in the ELF(3) API set:
+functions in the
+.Xr elf 3
+API set:
 .Bl -bullet -compact
 .It
 Argument
@@ -175,7 +177,9 @@ function and the
 .Dv ELF_F_ARCHIVE
 and
 .Dv ELF_F_ARCHIVE_SYSV
-flags are an extension to the ELF(3) API.
+flags are an extension to the
+.Xr elf 3
+API.
 .Sh ERRORS
 These functions may fail with the following errors:
 .Bl -tag -width "[ELF_E_RESOURCE]"

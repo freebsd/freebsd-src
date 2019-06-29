@@ -1,7 +1,7 @@
 /*
  * Iterate through an ar(1) archive.
  *
- * $Id: prog6.txt 2135 2011-11-10 08:59:47Z jkoshy $
+ * $Id: prog6.txt 3699 2019-02-28 06:34:53Z jkoshy $
  */
 
 #include <err.h>
@@ -16,6 +16,7 @@ main(int argc, char **argv)
 {
     int fd;
     Elf *ar, *e;
+    Elf_Cmd cmd;
     Elf_Arhdr *arh;
 
     if (argc != 2)
@@ -39,7 +40,8 @@ main(int argc, char **argv)
         errx(EXIT_FAILURE, "%s is not an ar(1) archive.",
             argv[1]);
 
-    while ((e = elf_begin(fd, ELF_C_READ, ar)) != NULL) { @\co{3}@
+    cmd = ELF_C_READ;
+    while ((e = elf_begin(fd, cmd, ar)) != NULL) { @\co{3}@
         if ((arh = elf_getarhdr(e)) == NULL) @\co{4}@
             errx(EXIT_FAILURE, "elf_getarhdr() failed: %s.",
                 elf_errmsg(-1));
@@ -47,7 +49,7 @@ main(int argc, char **argv)
         (void) printf("%20s %zd\n", arh->ar_name,
             arh->ar_size);
 
-        (void) elf_next(e); @\co{5}@
+        cmd = elf_next(e); @\co{5}@
         (void) elf_end(e); @\co{6}@
     }
 

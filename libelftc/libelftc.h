@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD: users/kaiwang27/elftc/libelftc.h 392 2009-05-31 19:17:46Z kaiwang27 $
- * $Id: libelftc.h 3489 2016-08-31 00:12:15Z emaste $
+ * $Id: libelftc.h 3744 2019-06-28 00:41:47Z emaste $
  */
 
 #ifndef	_LIBELFTC_H_
@@ -77,10 +77,10 @@ int		elftc_demangle(const char *_mangledname, char *_buffer,
     size_t _bufsize, unsigned int _flags);
 const char	*elftc_reloc_type_str(unsigned int mach, unsigned int type);
 int		elftc_set_timestamps(const char *_filename, struct stat *_sb);
-Elftc_String_Table	*elftc_string_table_create(int _hint);
+Elftc_String_Table	*elftc_string_table_create(size_t _sizehint);
 void		elftc_string_table_destroy(Elftc_String_Table *_table);
 Elftc_String_Table	*elftc_string_table_from_section(Elf_Scn *_scn,
-    int _hint);
+    size_t _sizehint);
 const char	*elftc_string_table_image(Elftc_String_Table *_table,
     size_t *_sz);
 size_t		elftc_string_table_insert(Elftc_String_Table *_table,

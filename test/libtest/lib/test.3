@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018, Joseph Koshy.
+.\" Copyright (c) 2018,2019 Joseph Koshy.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 25, 2018
+.Dd January 21, 2019
 .Dt TEST 3
 .Os
 .Sh NAME
@@ -34,20 +34,20 @@
 .Lb libtest
 .Sh SYNOPSIS
 .In test.h
-.Ft enum testcase_status
-.Fn testcase_setup "testcase_state *state"
-.Ft enum testcase_status
-.Fn testcase_teardown "testcase_state state"
+.Ft enum test_case_status
+.Fn test_case_setup "test_case_state *state"
+.Ft enum test_case_status
+.Fn test_case_teardown "test_case_state state"
 .Ft enum test_result
-.Fn test_function "testcase_state state"
+.Fn test_function "test_case_state state"
 .Vt "const char"
 .Va test_description [] ;
 .Vt "const char *"
 .Va test_tags [] ;
 .Vt "const char"
-.Va testcase_description [] ;
+.Va test_case_description [] ;
 .Vt "const char *"
-.Va testcase_tags [] ;
+.Va test_case_tags [] ;
 .Sh DESCRIPTION
 The
 .Lb libtest
@@ -76,7 +76,7 @@ If specified, this set up function would be invoked prior to any test
 function contained in the test case.
 The set up function can allocate and initialize test-specific state, to be
 passed to test functions.
-If no set up function is specified for the test case, a default no-op
+If no set up function is specified for the test case, a default (no-op)
 function will be supplied.
 .It
 An optional test case tear down function.

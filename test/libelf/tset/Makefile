@@ -1,5 +1,5 @@
 #
-# $Id: Makefile 3025 2014-04-18 16:20:25Z jkoshy $
+# $Id: Makefile 3715 2019-03-18 09:15:40Z jkoshy $
 #
 
 TOP=		../../..
@@ -36,6 +36,7 @@ SUBDIR+=	elf_ndxscn
 SUBDIR+=	elf_next
 SUBDIR+=	elf_newscn
 SUBDIR+=	elf_nextscn
+SUBDIR+=	elf_rand
 SUBDIR+=	elf_rawfile
 SUBDIR+=	elf_strptr
 SUBDIR+=	elf_update

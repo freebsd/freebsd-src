@@ -24,8 +24,35 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef	_LIBTEST_TEST_CASE_H_
+#define	_LIBTEST_TEST_CASE_H_
+
+#include "test.h"
+
 /*
- * An implementation of a test driver for test(3) tests.
+ * These structures describe the test cases that are linked into a
+ * test executable.
  */
 
-/* To be implemented. */
+/* A single test function, with its associated tags and description. */
+struct test_function_descriptor {
+	const char	*tf_name;	/* Test name. */
+	const char	*tf_description; /* Test description. */
+	const char	**tf_tags;	/* The tags for the test. */
+	test_function	*tf_func;	/* The function to invoke. */
+};
+
+/* A test case, with its associated tests. */
+struct test_case_descriptor {
+	const char	*tc_name;	/* Test case name. */
+	const char	*tc_description; /* Test case description. */
+	const char	**tc_tags;	/* Any associated tags. */
+	const struct test_function_descriptor *tc_tests; /* Contained tests. */
+	const int	tc_count;	/* The number of tests. */
+};
+
+/* All test cases linked into the test binary. */
+extern struct test_case_descriptor test_cases[];
+extern const int test_case_count;
+
+#endif	/* _LIBTEST_TEST_CASE_H_ */

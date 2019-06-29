@@ -1,7 +1,7 @@
 /*
  * Print the names of ELF sections.
  *
- * $Id: prog4.txt 2133 2011-11-10 08:28:22Z jkoshy $
+ * $Id: prog4.txt 3687 2019-02-22 07:55:09Z jkoshy $
  */
 
 #include <err.h>
@@ -18,11 +18,11 @@ main(int argc, char **argv)
 {
     int fd;
     Elf *e;
-    char *name, *p, pc[4*sizeof(char)];
     Elf_Scn *scn;
     Elf_Data *data;
     GElf_Shdr shdr;
     size_t n, shstrndx, sz;
+    char *name, *p, pc[(4 * sizeof(char)) + 1];
 
     if (argc != 2)
         errx(EXIT_FAILURE, "usage: %s file-name", argv[0]);

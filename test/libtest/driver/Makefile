@@ -6,9 +6,12 @@ TOP=	../../..
 
 CFLAGS+=	-I${TOP}/test/libtest/lib
 
-LIB=	test_main
-SRCS=	test_main.c
+LIB=	driver
+SRCS=	driver.c \
+	driver_main.c
 
 WARNS?=	6
+
+MAN=	test_driver.1
 
 .include "$(TOP)/mk/elftoolchain.lib.mk"

@@ -9,9 +9,8 @@ SUBDIR+=	lib
 SUBDIR+=	driver
 SUBDIR+=	examples
 
-.if !make(install)
+.if !make(install) && !make(test)
 .include "$(TOP)/mk/elftoolchain.subdir.mk"
 .else
-install:	.SILENT .PHONY
-	echo Nothing to install.
+install test:	.SILENT .PHONY
 .endif

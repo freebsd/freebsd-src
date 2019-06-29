@@ -24,7 +24,7 @@
 % out of the use of this software, even if advised of the possibility of
 % such damage.
 %
-% $Id: libelf-by-example.tex 2457 2012-03-09 14:38:10Z jkoshy $
+% $Id: libelf-by-example.tex 3699 2019-02-28 06:34:53Z jkoshy $
 %
 \documentclass[a4paper,pdftex]{book}
 
@@ -2700,6 +2700,12 @@ typedef struct {
     \emph{parent} archive descriptor (referenced by
     variable \parameter{ar} in this example) to return the next
     archive member on the next call to function \function{elf\_begin}.
+
+    The \function{elf\_next} function ordinarily returns the value
+    \constant{ELF\_C\_READ}, allowing the traversal of the archive to
+    continue normally. In the event of an error the function
+    returns the value \constant{ELF\_C\_NULL}, which causes the function
+    \function{elf\_begin} to stop archive traversal.
   \item[\coref{6}] It is good programming practice to call
     \function{elf\_end} on descriptors that are no longer needed.
   \end{description}

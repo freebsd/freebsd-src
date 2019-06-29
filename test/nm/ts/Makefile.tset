@@ -1,4 +1,4 @@
-# $Id: Makefile.tset 2085 2011-10-27 05:06:47Z jkoshy $
+# $Id: Makefile.tset 3719 2019-03-23 08:30:55Z jkoshy $
 
 NM_EXEC?=	${.CURDIR}/../../../../nm/nm
 CSTD?=		iso9899:1999
@@ -16,7 +16,7 @@ CLEANFILES+=	test_nm.c
 .endif
 .endfor
 
-.if !exists(${TS_DATA:R})
+.if !empty(${TS_DATA:R}) && !exists(${TS_DATA:R})
 ${TS_DATA}:
 	uudecode ${TS_DATA}.uu
 .endif

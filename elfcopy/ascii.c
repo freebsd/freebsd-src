@@ -36,7 +36,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: ascii.c 3487 2016-08-24 18:12:08Z emaste $");
+ELFTC_VCSID("$Id: ascii.c 3757 2019-06-28 01:15:28Z emaste $");
 
 static void append_data(struct section *s, const void *buf, size_t sz);
 static char hex_digit(uint8_t n);
@@ -378,9 +378,6 @@ done:
 		errx(EXIT_FAILURE, "gelf_update_ehdr() failed: %s",
 		    elf_errmsg(-1));
 
-	/* Generate section name string table (.shstrtab). */
-	set_shstrtab(ecp);
-
 	/* Update sh_name pointer for each section header entry. */
 	update_shdr(ecp, 0);
 
@@ -604,9 +601,6 @@ done:
 	if (gelf_update_ehdr(ecp->eout, &oeh) == 0)
 		errx(EXIT_FAILURE, "gelf_update_ehdr() failed: %s",
 		    elf_errmsg(-1));
-
-	/* Generate section name string table (.shstrtab). */
-	set_shstrtab(ecp);
 
 	/* Update sh_name pointer for each section header entry. */
 	update_shdr(ecp, 0);

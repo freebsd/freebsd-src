@@ -1,0 +1,23 @@
+%YAML 1.1
+# $Id$
+---
+ehdr: !Ehdr
+  e_ident: !Ident # e_ident[] members
+    ei_class:      ELFCLASSNONE
+    ei_data:       ELFDATANONE
+    ei_osabi:      ELFOSABI_SYSV
+    ei_abiversion: 0
+  # other members
+  e_type:       0xFF03
+  e_machine:    0x42
+  e_version:    0xFFFFFFFF
+  e_entry:      0xFFFFFFFFFFFFFFFF
+  e_phoff:      0xFFFFFFFFFFFFFFFF
+  e_shoff:      0xFFFFFFFFFFFFFFFF
+  e_flags:      [ 64, 8, 2, 1]
+  e_ehsize:     62
+  e_phentsize:  228
+  e_phnum:      0
+  e_shentsize:  8192
+  e_shnum:      0
+  e_shstrndx:   0

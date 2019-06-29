@@ -74,7 +74,7 @@
 # sections, a section index may be manually specified using a
 # 'sh_index' pseudo field.
 #
-# $Id: elfc 3614 2018-04-21 19:48:04Z jkoshy $
+# $Id: elfc 3689 2019-02-23 22:50:51Z jkoshy $
 
 version     = "%prog 1.0"
 usage       = "usage: %prog [options] [input-file]"
@@ -442,6 +442,14 @@ def check_dict(d, l, node=None):
 		raise ElfError(node, "{%s} Unknown key(s) %s" % \
 			       (node.tag, unknown))
 
+def bounded_value(v, encoding):
+	"""Return the value of 'v' bounded to the maximum size for a type."""
+	if encoding == "H":
+		return (v & 0xFFFF)
+	elif encoding == "I":
+		return (v & 0xFFFFFFFF)
+	return v
+
 #
 # Helper classes.
 #
@@ -559,8 +567,10 @@ class ElfType:
 		else:
 			n = 3
 		for t in self.fields:
-			if t[n] != "":
-				a.append(getattr(self, t[0]))
+			field_encoding = t[n]
+			if field_encoding != "":
+				v = getattr(self, t[0])
+				a.append(bounded_value(v, field_encoding))
 		return tuple(a)
 
 	def getfields(self, elfclass):

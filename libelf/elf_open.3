@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf_open.3 3643 2018-10-14 21:09:24Z jkoshy $
+.\" $Id: elf_open.3 3743 2019-06-12 19:36:30Z jkoshy $
 .\"
-.Dd May 31, 2012
+.Dd June 12, 2019
 .Dt ELF_OPEN 3
 .Os
 .Sh NAME
@@ -43,7 +43,9 @@ The functions
 .Fn elf_open
 and
 .Fn elf_openmemory
-are extensions to the ELF(3) API, for the internal use of the
+are extensions to the
+.Xr elf 3
+API, for the internal use of the
 Elftoolchain project.
 Portable applications should not use these functions.
 .Pp
@@ -71,7 +73,9 @@ specifies the size of the memory area in bytes.
 The function returns a pointer to a ELF descriptor if successful, or
 NULL if an error occurred.
 .Sh COMPATIBILITY
-These functions are non-standard extensions to the ELF(3) API set.
+These functions are non-standard extensions to the
+.Xr elf 3
+API set.
 .Pp
 The behavior of these functions differs from their counterparts
 .Xr elf_begin 3

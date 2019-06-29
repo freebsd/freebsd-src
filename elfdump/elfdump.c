@@ -50,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3584 2017-11-05 20:51:43Z jkoshy $");
+ELFTC_VCSID("$Id: elfdump.c 3762 2019-06-28 21:06:24Z emaste $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
@@ -343,17 +343,20 @@ elf_phdr_type_str(unsigned int type)
 	static char s_type[32];
 
 	switch (type) {
-	case PT_NULL:		return "PT_NULL";
-	case PT_LOAD:		return "PT_LOAD";
-	case PT_DYNAMIC:	return "PT_DYNAMIC";
-	case PT_INTERP:		return "PT_INTERP";
-	case PT_NOTE:		return "PT_NOTE";
-	case PT_SHLIB:		return "PT_SHLIB";
-	case PT_PHDR:		return "PT_PHDR";
-	case PT_TLS:		return "PT_TLS";
-	case PT_GNU_EH_FRAME:	return "PT_GNU_EH_FRAME";
-	case PT_GNU_STACK:	return "PT_GNU_STACK";
-	case PT_GNU_RELRO:	return "PT_GNU_RELRO";
+	case PT_NULL:			return "PT_NULL";
+	case PT_LOAD:			return "PT_LOAD";
+	case PT_DYNAMIC:		return "PT_DYNAMIC";
+	case PT_INTERP:			return "PT_INTERP";
+	case PT_NOTE:			return "PT_NOTE";
+	case PT_SHLIB:			return "PT_SHLIB";
+	case PT_PHDR:			return "PT_PHDR";
+	case PT_TLS:			return "PT_TLS";
+	case PT_GNU_EH_FRAME:		return "PT_GNU_EH_FRAME";
+	case PT_GNU_STACK:		return "PT_GNU_STACK";
+	case PT_GNU_RELRO:		return "PT_GNU_RELRO";
+	case PT_OPENBSD_RANDOMIZE:	return "PT_OPENBSD_RANDOMIZE";
+	case PT_OPENBSD_WXNEEDED:	return "PT_OPENBSD_WXNEEDED";
+	case PT_OPENBSD_BOOTDATA:	return "PT_OPENBSD_BOOTDATA";
 	}
 	snprintf(s_type, sizeof(s_type), "<unknown: %#x>", type);
 	return (s_type);
