@@ -43,7 +43,7 @@ functions contained in a test case named "``helloworld``":
 	/* File: test.c */
 	#include "test.h"
 
-	TESTCASE_DESCRIPTION(helloworld) =
+	TEST_CASE_DESCRIPTION(helloworld) =
 	    "A description of the helloworld test case.";
 
 	enum test_result
@@ -69,14 +69,14 @@ Test cases can define their own set up and tear down functions:
 	tc_setup_helloworld(testcase_state *tcs)
 	{
 		*tcs = ..allocate a struct helloworld_test.. ;
-		return (TESTCASE_OK);
+		return (TEST_CASE_OK);
 	}
 
 	enum testcase_status
 	tc_teardown_helloworld(testcase_state tcs)
 	{
 		.. deallocate test case state..
-		return (TESTCASE_OK);
+		return (TEST_CASE_OK);
 	}
 
 The set up function for a test case will be invoked prior to any of

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: getdata.m4 2090 2011-10-27 08:07:39Z jkoshy $
+ * $Id: getdata.m4 3695 2019-02-25 18:55:07Z jkoshy $
  */
 
 #include <libelf.h>
@@ -68,6 +68,36 @@ findscn(Elf *e, const char *name)
 	return (NULL);
 }
 
+/*
+ * Check the contents of an Elf_Data descriptor.
+ *
+ * The return value from this helper is as follows:
+ *
+ *  0 - the descriptor matched the specified content.
+ * -1 - the descriptor size had a mismatch.
+ * >0 - the content of the descriptor did not match. The returned value
+ *      is the index of the first byte that differs.
+ */
+static int
+match_content(Elf_Data *ed, size_t nbytes, const char *content)
+{
+	int n;
+	const char *buf;
+
+	if (ed->d_size != nbytes)
+		return (-1);
+
+	buf = (const char *) ed->d_buf;
+	for (n = 0; n < nbytes; n++) {
+		if (*buf != *content)
+			return (n);
+		buf++;
+		content++;
+	}
+
+	return (0);
+}
+
 define(`ZEROSECTION',".zerosection")
 undefine(`FN')
 define(`FN',`
@@ -106,6 +136,11 @@ tcZeroSection$1$2(void)
 		goto done;
 	}
 
+	if ((ed = elf_getdata(scn, ed)) != NULL) {
+		TP_FAIL("Extra data descriptor in section.");
+		goto done;
+	}
+
 	result = TET_PASS;
 
 done:
@@ -139,16 +174,17 @@ define(`_FN',`
 void
 tcNonZeroSection$1$2(void)
 {
-	Elf *e;
 	int error, fd, result;
-	const size_t strsectionsize = sizeof stringsection;
-	size_t n, shstrndx;
+	int match_error;
+	size_t shstrndx;
 	const char *buf;
 	Elf_Scn *scn;
 	Elf_Data *ed;
+	Elf *e;
 
-	e = NULL;
 	fd = -1;
+	e = NULL;
+	scn = NULL;
 	result = TET_UNRESOLVED;
 
 	TP_ANNOUNCE("a data descriptor for a non-zero sized section "
@@ -170,19 +206,22 @@ tcNonZeroSection$1$2(void)
 		goto done;
 	}
 
-	if (ed->d_size != strsectionsize) {
+	match_error = match_content(ed, sizeof(stringsection),
+	    stringsection);
+	if (match_error == -1) {
 		TP_FAIL("Illegal values returned: d_size %d != expected %d",
-		    (int) ed->d_size, strsectionsize);
+		    (int) ed->d_size, sizeof(stringsection));
+		goto done;
+	} else if (match_error > 0) {
+		buf = (const char *) ed->d_buf;
+		TP_FAIL("String mismatch: buf[%d] \"%c\" != \"%c\"",
+		    match_error, buf[match_error],
+		    stringsection[match_error]);
 		goto done;
 	}
 
-	if (memcmp(stringsection, ed->d_buf, strsectionsize) != 0) {
-		buf = (const char *) ed->d_buf;
-		for (n = 0; n < strsectionsize; n++)
-			if (buf[n] != stringsection[n])
-				break;
-		TP_FAIL("String mismatch: buf[%d] \"%c\" != \"%c\"",
-		    n, buf[n], stringsection[n]);
+	if ((ed = elf_getdata(scn, ed)) != NULL) {
+		TP_FAIL("Extra data descriptor in section.");
 		goto done;
 	}
 
@@ -196,6 +235,115 @@ done:
 	tet_result(result);
 }
 ')
+
+_FN(lsb,32)
+_FN(lsb,64)
+_FN(msb,32)
+_FN(msb,64)
+
+static const char new_content[] = {
+changequote({,})
+	'n', 'e', 'w', ' ', 'c', 'o', 'n', 't', 'e', 'n', 't', '\0'
+changequote
+};
+
+/*
+ * Verify that a section with multiple Elf_Data segments is handled correctly.
+ */
+undefine(`_FN')
+define(`_FN',`
+void
+tcDataTraversal$1$2(void)
+{
+	Elf *e;
+	Elf_Scn *scn;
+	Elf_Data *ed;
+	size_t shstrndx;
+	int error, fd, match_error, result;
+
+	e = NULL;
+	fd = -1;
+	result = TET_UNRESOLVED;
+
+	TP_ANNOUNCE("multiple Elf_Data segments can be traversed.");
+	_TS_OPEN_FILE(e, "zerosection.$1$2", ELF_C_READ, fd, goto done;);
+
+	if (elf_getshdrstrndx(e, &shstrndx) != 0 ||
+	    (scn = elf_getscn(e, shstrndx)) == NULL) {
+		TP_UNRESOLVED("Cannot find the string table");
+		goto done;
+	}
+
+	/*
+	 * Add new data to the string section.
+	 */
+	if ((ed = elf_newdata(scn)) == NULL) {
+		TP_UNRESOLVED("Cannot allocate new data.");
+		goto done;
+	}
+
+	ed->d_buf = (char *) new_content;
+	ed->d_size = sizeof(new_content);
+
+	/*
+	 * Rescan the descriptor list for the section.
+	 */
+	ed = NULL;
+	if ((ed = elf_getdata(scn, ed)) == NULL) {
+		error = elf_errno();
+		TP_FAIL("elf_getdata failed %d \"%s\"", error,
+		    elf_errmsg(error));
+		goto done;
+	}
+
+	match_error = match_content(ed, sizeof(stringsection),
+	    stringsection);
+	if (match_error == -1) {
+		TP_FAIL("Unexpected size of first descriptor: "
+		    "d_size %d != expected %d", (int) ed->d_size,
+		    sizeof(stringsection));
+		goto done;
+	} else if (match_error > 0) {
+		TP_FAIL("String content mismatch for data descriptor 1.");
+		goto done;
+	}
+
+	if ((ed = elf_getdata(scn, ed)) == NULL) {
+		error = elf_errno();
+		TP_FAIL("Missing second data section: %d \"%s\"", error,
+		    elf_errmsg(error));
+		goto done;
+	}
+
+	match_error = match_content(ed, sizeof(new_content),
+	    new_content);
+	if (match_error == -1) {
+		TP_FAIL("Unexpected size of second descriptor: "
+		    "d_size %d != expected %d", (int) ed->d_size,
+		    sizeof(new_content));
+		goto done;
+	} else if (match_error > 0) {
+		TP_FAIL("String content mismatch for data descriptor 2.");
+		goto done;
+	}
+
+	/*
+	 * There should be no other Elf_Data descriptors.
+	 */
+	if ((ed = elf_getdata(scn, ed)) != NULL) {
+		TP_FAIL("Too many Elf_Data descriptors for section.");
+		goto done;
+	}
+
+	result = TET_PASS;
+
+done:
+	if (e)
+		elf_end(e);
+	if (fd != -1)
+		(void) close(fd);
+	tet_result(result);
+}')
 
 _FN(lsb,32)
 _FN(lsb,64)

@@ -1,8 +1,8 @@
-# $Id: Makefile 1358 2011-01-08 05:40:41Z jkoshy $
+# $Id: Makefile 3691 2019-02-23 23:34:04Z jkoshy $
 
 TOP=	../../../..
 
 TS_SRCS=		ehdr.m4
-TS_YAML=		ehdr
+TS_YAML=		ehdr ehdr-malformed-1
 
 .include "${TOP}/mk/elftoolchain.tet.mk"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ehdr_template.m4 3174 2015-03-27 17:13:41Z emaste $
+ * $Id: ehdr_template.m4 3703 2019-03-02 20:41:03Z jkoshy $
  */
 
 include(`elfts.m4')
@@ -363,6 +363,54 @@ tcElfWrongSize$1(void)
 
 	tet_result(result);
 	
+}')
+
+FN(`LSB')
+FN(`MSB')
+
+/*
+ * Verify that malformed ELF objects are rejected.
+ */
+
+undefine(`FN')
+define(`FN',`
+void
+tcMalformed1$1(void)
+{
+	int error, fd, result;
+	Elf *e;
+	char *fn;
+	TS_EHDR *eh;
+
+	TP_CHECK_INITIALIZATION();
+
+	TP_ANNOUNCE("TS_ICNAME with a malformed ELF header "
+	    "fails with ELF_E_HEADER.");
+
+	e = NULL;
+	fd = -1;
+	fn = "ehdr-malformed-1.TOLOWER($1)`'TS_EHDRSZ";
+	result = TET_UNRESOLVED;
+
+	_TS_OPEN_FILE(e, fn, ELF_C_READ, fd, goto done;);
+
+	error = 0;
+	if ((eh = TS_ICFUNC`'(e)) != NULL) {
+		TP_FAIL("\"%s\" TS_ICNAME`'() succeeded.", fn);
+		goto done;
+	} else if ((error = elf_errno()) != ELF_E_HEADER) {
+		TP_FAIL("\"%s\" incorrect error (%d).", fn, error);
+		goto done;
+	}
+
+	result = TET_PASS;
+
+done:
+	if (e)
+		(void) elf_end(e);
+	if (fd != -1)
+		(void) close(fd);
+	tet_result(result);
 }')
 
 FN(`LSB')

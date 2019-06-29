@@ -1,7 +1,7 @@
 /*
  * Print the ELF Program Header Table in an ELF object.
  *
- * $Id: prog3.txt 2133 2011-11-10 08:28:22Z jkoshy $
+ * $Id: prog3.txt 3686 2019-02-22 07:54:47Z jkoshy $
  */
 
 #include <err.h>
@@ -11,7 +11,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <vis.h>
 
 void
 print_ptype(size_t pt) @\co{7}@

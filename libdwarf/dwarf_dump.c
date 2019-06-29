@@ -27,7 +27,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_dump.c 3494 2016-09-20 17:16:13Z emaste $");
+ELFTC_VCSID("$Id: dwarf_dump.c 3749 2019-06-28 01:10:44Z emaste $");
 
 int
 dwarf_get_ACCESS_name(unsigned access, const char **s)
@@ -605,7 +605,7 @@ dwarf_get_DS_name(unsigned ds, const char **s)
 	case DW_DS_leading_separate:
 		*s = "DW_DS_leading_separate"; break;
 	case DW_DS_trailing_separate:
-		*s = "DW_DS_trailing_separate";
+		*s = "DW_DS_trailing_separate"; break;
 	default:
 		return (DW_DLV_NO_ENTRY);
 	}
@@ -788,6 +788,42 @@ dwarf_get_LANG_name(unsigned lang, const char **s)
 		*s = "DW_LANG_UPC"; break;
 	case DW_LANG_D:
 		*s = "DW_LANG_D"; break;
+	case DW_LANG_Python:
+		*s = "DW_LANG_Python"; break;
+	case DW_LANG_OpenCL:
+		*s = "DW_LANG_OpenCL"; break;
+	case DW_LANG_Go:
+		*s = "DW_LANG_Go"; break;
+	case DW_LANG_Modula3:
+		*s = "DW_LANG_Modula3"; break;
+	case DW_LANG_Haskell:
+		*s = "DW_LANG_Haskell"; break;
+	case DW_LANG_C_plus_plus_03:
+		*s = "DW_LANG_C_plus_plus_03"; break;
+	case DW_LANG_C_plus_plus_11:
+		*s = "DW_LANG_C_plus_plus_11"; break;
+	case DW_LANG_OCaml:
+		*s = "DW_LANG_OCaml"; break;
+	case DW_LANG_Rust:
+		*s = "DW_LANG_Rust"; break;
+	case DW_LANG_C11:
+		*s = "DW_LANG_C11"; break;
+	case DW_LANG_Swift:
+		*s = "DW_LANG_Swift"; break;
+	case DW_LANG_Julia:
+		*s = "DW_LANG_Julia"; break;
+	case DW_LANG_Dylan:
+		*s = "DW_LANG_Dylan"; break;
+	case DW_LANG_C_plus_plus_14:
+		*s = "DW_LANG_C_plus_plus_14"; break;
+	case DW_LANG_Fortran03:
+		*s = "DW_LANG_Fortran03"; break;
+	case DW_LANG_Fortran08:
+		*s = "DW_LANG_Fortran08"; break;
+	case DW_LANG_RenderScript:
+		*s = "DW_LANG_RenderScript"; break;
+	case DW_LANG_BLISS:
+		*s = "DW_LANG_BLISS"; break;
 	case DW_LANG_lo_user:
 		*s = "DW_LANG_lo_user"; break;
 	case DW_LANG_Mips_Assembler:

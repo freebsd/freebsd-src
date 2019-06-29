@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: begin.m4 2933 2013-03-30 01:33:02Z jkoshy $
+ * $Id: begin.m4 3706 2019-03-02 20:57:45Z jkoshy $
  */
 
 #include <sys/stat.h>
@@ -634,3 +634,44 @@ tcArMemoryFdIgnored_$1(void)
 
 ARFN(`BSD')
 ARFN(`SVR4')
+
+/*
+ * Verify behavior with a corrupted header containing a too-large size.
+ */
+void
+tcArEntryTooLarge(void)
+{
+	Elf *ar_e, *e;
+	int error, fd, result;
+
+	result = TET_UNRESOLVED;
+	ar_e = NULL;
+	e = NULL;
+
+	TP_ANNOUNCE("elf_begin() returns ELF_E_ARCHIVE for too-large archive "
+	    "entries.");
+
+	TP_SET_VERSION();
+
+	_TS_OPEN_FILE(ar_e, "entry-too-large.ar", ELF_C_READ, fd, goto done;);
+
+	if ((e = elf_begin(fd, ELF_C_READ, ar_e)) != NULL) {
+		TP_FAIL("elf_begin() succeeded.");
+		goto done;
+	}
+
+	error = elf_errno();
+	if (error != ELF_E_ARCHIVE) {
+		TP_FAIL("unexpected error %d", error);
+		goto done;
+	}
+
+	result = TET_PASS;
+
+done:
+	if (e)
+		(void) elf_end(e);
+	if (ar_e)
+		(void) elf_end(ar_e);
+	tet_result(result);
+}
