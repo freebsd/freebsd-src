@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -22,7 +22,7 @@
 #include "position.h"
 
 static POSITION *table = NULL;	/* The position table */
-static int table_size;
+static int table_size = 0;
 
 extern int sc_width, sc_height;
 
@@ -92,7 +92,7 @@ add_back_pos(pos)
  * Initialize the position table, done whenever we clear the screen.
  */
 	public void
-pos_clear()
+pos_clear(VOID_PARAM)
 {
 	int i;
 
@@ -104,7 +104,7 @@ pos_clear()
  * Allocate or reallocate the position table.
  */
 	public void
-pos_init()
+pos_init(VOID_PARAM)
 {
 	struct scrpos scrpos;
 
@@ -150,7 +150,7 @@ onscreen(pos)
  * See if the entire screen is empty.
  */
 	public int
-empty_screen()
+empty_screen(VOID_PARAM)
 {
 	return (empty_lines(0, sc_height-1));
 }
@@ -187,8 +187,20 @@ get_scrpos(scrpos, where)
 
 	switch (where)
 	{
-	case TOP: i = 0; dir = +1; last = sc_height-2; break;
-	default:  i = sc_height-2; dir = -1; last = 0; break;
+	case TOP:
+		i = 0; dir = +1; last = sc_height-2;
+		break;
+	case BOTTOM: case BOTTOM_PLUS_ONE:
+		i = sc_height-2; dir = -1; last = 0;
+		break;
+	default:
+		i = where;
+		if (table[i] == NULL_POSITION) {
+			scrpos->pos = NULL_POSITION;
+			return;
+		}
+		/* Values of dir and last don't matter after this. */
+		break;
 	}
 
 	/*
