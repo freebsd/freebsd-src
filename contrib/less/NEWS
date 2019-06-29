@@ -11,6 +11,38 @@
 
 ======================================================================
 
+	Major changes between "less" versions 530 and 551
+
+* Add --mouse option.
+
+* Add --wheel-lines option.
+
+* Add --no-histdups option.
+
+* Add --save-marks option.
+
+* Support PCRE2 regular expression library.
+
+* Redraw screen on SIGWINCH even if screen size doesn't change.
+
+* Shell-escape filenames in history so they can be used again.
+
+* Ring bell if user enters invalid long option name.
+
+* Use PCRE_UTF8 flag for pcre regular expressions when in UTF-8 mode.
+
+* Windows: use wide-char string to set console title.
+
+* Don't count lines in initial screen if using -X with -F.
+
+* Support mingw build system.
+
+* Fix bug in v command on empty file.
+
+* Fix bug in v command when filename contains shell metacharacters.
+
+======================================================================
+
 	Major changes between "less" versions 487 and 530
 
 * Don't output terminal init sequence if using -F and file fits on one screen.

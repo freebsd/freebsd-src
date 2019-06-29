@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -35,6 +35,9 @@
 
 extern int erase_char, erase2_char, kill_char;
 extern int secure;
+extern int mousecap;
+extern int screen_trashed;
+extern int sc_height;
 
 #define SK(k) \
 	SK_SPECIAL_KEY, (k), 6, 1, 1, 1
@@ -65,6 +68,8 @@ static unsigned char cmdtable[] =
 	CONTROL('D'),0,			A_F_SCROLL,
 	'u',0,				A_B_SCROLL,
 	CONTROL('U'),0,			A_B_SCROLL,
+	ESC,'[','M',0,			A_X11MOUSE_IN,
+	ESC,'[','<',0,			A_X116MOUSE_IN,
 	' ',0,				A_F_SCREEN,
 	'f',0,				A_F_SCREEN,
 	CONTROL('F'),0,			A_F_SCREEN,
@@ -310,7 +315,7 @@ expand_cmd_table(tlist)
  * Expand special key abbreviations in all command tables.
  */
 	public void
-expand_cmd_tables()
+expand_cmd_tables(VOID_PARAM)
 {
 	expand_cmd_table(list_fcmd_tables);
 	expand_cmd_table(list_ecmd_tables);
@@ -323,7 +328,7 @@ expand_cmd_tables()
  * Initialize the command lists.
  */
 	public void
-init_cmds()
+init_cmds(VOID_PARAM)
 {
 	/*
 	 * Add the default command tables.
@@ -416,6 +421,116 @@ add_var_table(tlist, buf, len)
 }
 
 /*
+ * Return action for a mouse wheel down event.
+ */
+	static int
+mouse_wheel_down(VOID_PARAM)
+{
+	return ((mousecap == OPT_ONPLUS) ? A_B_MOUSE : A_F_MOUSE);
+}
+
+/*
+ * Return action for a mouse wheel up event.
+ */
+	static int
+mouse_wheel_up(VOID_PARAM)
+{
+	return ((mousecap == OPT_ONPLUS) ? A_F_MOUSE : A_B_MOUSE);
+}
+
+/*
+ * Return action for a mouse button release event.
+ */
+	static int
+mouse_button_rel(x, y)
+	int x;
+	int y;
+{
+	/*
+	 * {{ It would be better to return an action and then do this 
+	 *    in commands() but it's nontrivial to pass y to it. }}
+	 */
+	if (y < sc_height-1)
+	{
+		setmark('#', y);
+		screen_trashed = 1;
+	}
+	return (A_NOACTION);
+}
+
+/*
+ * Read a decimal integer. Return the integer and set *pterm to the terminating char.
+ */
+	static int
+getcc_int(pterm)
+	char* pterm;
+{
+	int num = 0;
+	int digits = 0;
+	for (;;)
+	{
+		char ch = getcc();
+		if (ch < '0' || ch > '9')
+		{
+			if (pterm != NULL) *pterm = ch;
+			if (digits == 0)
+				return (-1);
+			return (num);
+		}
+		num = (10 * num) + (ch - '0');
+		++digits;
+	}
+}
+
+/*
+ * Read suffix of mouse input and return the action to take.
+ * The prefix ("\e[M") has already been read.
+ */
+	static int
+x11mouse_action(VOID_PARAM)
+{
+	int b = getcc() - X11MOUSE_OFFSET;
+	int x = getcc() - X11MOUSE_OFFSET-1;
+	int y = getcc() - X11MOUSE_OFFSET-1;
+	switch (b) {
+	default:
+		return (A_NOACTION);
+	case X11MOUSE_WHEEL_DOWN:
+		return mouse_wheel_down();
+	case X11MOUSE_WHEEL_UP:
+		return mouse_wheel_up();
+	case X11MOUSE_BUTTON_REL:
+		return mouse_button_rel(x, y);
+	}
+}
+
+/*
+ * Read suffix of mouse input and return the action to take.
+ * The prefix ("\e[<") has already been read.
+ */
+	static int
+x116mouse_action(VOID_PARAM)
+{
+	char ch;
+	int x, y;
+	int b = getcc_int(&ch);
+	if (b < 0 || ch != ';') return (A_NOACTION);
+	x = getcc_int(&ch) - 1;
+	if (x < 0 || ch != ';') return (A_NOACTION);
+	y = getcc_int(&ch) - 1;
+	if (y < 0) return (A_NOACTION);
+	switch (b) {
+	case X11MOUSE_WHEEL_DOWN:
+		return mouse_wheel_down();
+	case X11MOUSE_WHEEL_UP:
+		return mouse_wheel_up();
+	default:
+		if (ch != 'm') return (A_NOACTION);
+		return mouse_button_rel(x, y);
+	}
+}
+
+/*
  * Search a single command table for the command string in cmd.
  */
 	static int
@@ -464,6 +579,10 @@ cmd_search(cmd, table, endtable, sp)
 					*sp = ++p;
 					a &= ~A_EXTRA;
 				}
+				if (a == A_X11MOUSE_IN)
+					a = x11mouse_action();
+				else if (a == A_X116MOUSE_IN)
+					a = x116mouse_action();
 				return (a);
 			}
 		} else if (*q == '\0')
@@ -577,6 +696,16 @@ lgetenv(var)
 	if (a == EV_OK)
 		return (s);
 	return (NULL);
+}
+
+/*
+ * Is a string null or empty? 
+ */
+	public int
+isnullenv(s)
+	char* s;
+{
+	return (s == NULL || *s == '\0');
 }
 
 #if USERFILE
@@ -791,7 +920,13 @@ editchar(c, flags)
 	if (c == erase_char || c == erase2_char)
 		return (EC_BACKSPACE);
 	if (c == kill_char)
+	{
+#if MSDOS_COMPILER==WIN32C
+		if (!win32_kbhit())
+#endif
+
 		return (EC_LINEKILL);
+	}
 		
 	/*
 	 * Collect characters in a buffer.

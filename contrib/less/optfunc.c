@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -50,8 +50,10 @@ extern int jump_sline;
 extern long jump_sline_fraction;
 extern int shift_count;
 extern long shift_count_fraction;
-extern LWCHAR rscroll_char;
+extern char rscroll_char;
 extern int rscroll_attr;
+extern int mousecap;
+extern int wheel_lines;
 extern int less_is_more;
 #if LOGFILE
 extern char *namelogfile;
@@ -203,7 +205,7 @@ opt_j(type, s)
 }
 
 	public void
-calc_jump_sline()
+calc_jump_sline(VOID_PARAM)
 {
 	if (jump_sline_fraction < 0)
 		return;
@@ -267,7 +269,7 @@ opt_shift(type, s)
 	}
 }
 	public void
-calc_shift_count()
+calc_shift_count(VOID_PARAM)
 {
 	if (shift_count_fraction < 0)
 		return;
@@ -509,33 +511,13 @@ opt__V(type, s)
 		putstr("less ");
 		putstr(version);
 		putstr(" (");
-#if HAVE_GNU_REGEX
-		putstr("GNU ");
-#endif
-#if HAVE_POSIX_REGCOMP
-		putstr("POSIX ");
-#endif
-#if HAVE_PCRE
-		putstr("PCRE ");
-#endif
-#if HAVE_RE_COMP
-		putstr("BSD ");
-#endif
-#if HAVE_REGCMP
-		putstr("V8 ");
-#endif
-#if HAVE_V8_REGCOMP
-		putstr("Spencer V8 ");
-#endif
-#if !HAVE_GNU_REGEX && !HAVE_POSIX_REGCOMP && !HAVE_PCRE && !HAVE_RE_COMP && !HAVE_REGCMP && !HAVE_V8_REGCOMP
-		putstr("no ");
-#endif
-		putstr("regular expressions)\n");
-		putstr("Copyright (C) 1984-2017  Mark Nudelman\n\n");
+		putstr(pattern_lib_name());
+		putstr(" regular expressions)\n");
+		putstr("Copyright (C) 1984-2019  Mark Nudelman\n\n");
 		putstr("less comes with NO WARRANTY, to the extent permitted by law.\n");
 		putstr("For information about the terms of redistribution,\n");
 		putstr("see the file named README in the less distribution.\n");
-		putstr("Homepage: http://www.greenwoodsoftware.com/less\n");
+		putstr("Home page: http://www.greenwoodsoftware.com/less\n");
 		quit(QUIT_OK);
 		break;
 	}
@@ -809,10 +791,54 @@ opt_query(type, s)
 }
 
 /*
+ * Handler for the --mouse option.
+ */
+	/*ARGSUSED*/
+	public void
+opt_mousecap(type, s)
+	int type;
+	char *s;
+{
+	switch (type)
+	{
+	case TOGGLE:
+		if (mousecap == OPT_OFF)
+			deinit_mouse();
+		else
+			init_mouse();
+		break;
+	case INIT:
+	case QUERY:
+		break;
+	}
+}
+
+/*
+ * Handler for the --wheel-lines option.
+ */
+	/*ARGSUSED*/
+	public void
+opt_wheel_lines(type, s)
+	int type;
+	char *s;
+{
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE:
+		if (wheel_lines <= 0)
+			wheel_lines = default_wheel_lines();
+		break;
+	case QUERY:
+		break;
+	}
+}
+
+/*
  * Get the "screen window" size.
  */
 	public int
-get_swindow()
+get_swindow(VOID_PARAM)
 {
 	if (swindow > 0)
 		return (swindow);
