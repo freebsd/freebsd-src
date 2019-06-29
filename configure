@@ -1307,7 +1307,7 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-secure           Compile in secure mode
   --with-no-float         Do not use floating point
-  --with-regex=LIB        select regular expression library (LIB is one of auto,none,gnu,pcre,posix,regcmp,re_comp,regcomp,regcomp-local) [auto]
+  --with-regex=LIB        select regular expression library (LIB is one of auto,none,gnu,pcre,pcre2,posix,regcmp,re_comp,regcomp,regcomp-local) [auto]
   --with-editor=PROGRAM   use PROGRAM as the default editor [vi]
 
 Some influential environment variables:
@@ -4611,6 +4611,7 @@ fi
 
 
 
+
 # Checks for identifiers.
 ac_fn_c_check_type "$LINENO" "off_t" "ac_cv_type_off_t" "$ac_includes_default"
 if test "x$ac_cv_type_off_t" = xyes; then :
@@ -4771,7 +4772,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-for ac_func in fsync popen _setjmp sigprocmask sigsetmask snprintf stat system fchmod
+for ac_func in fsync popen _setjmp sigprocmask sigsetmask snprintf stat system fchmod realpath
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -5308,6 +5309,52 @@ else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
+fi
+fi
+
+if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = pcre2; then
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcre2_compile_8 in -lpcre2-8" >&5
+$as_echo_n "checking for pcre2_compile_8 in -lpcre2-8... " >&6; }
+if ${ac_cv_lib_pcre2_8_pcre2_compile_8+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpcre2-8  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pcre2_compile_8 ();
+int
+main ()
+{
+return pcre2_compile_8 ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_pcre2_8_pcre2_compile_8=yes
+else
+  ac_cv_lib_pcre2_8_pcre2_compile_8=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pcre2_8_pcre2_compile_8" >&5
+$as_echo "$ac_cv_lib_pcre2_8_pcre2_compile_8" >&6; }
+if test "x$ac_cv_lib_pcre2_8_pcre2_compile_8" = xyes; then :
+  $as_echo "#define HAVE_PCRE2 1" >>confdefs.h
+ LIBS="$LIBS -lpcre2-8" have_regex=yes; supported_regex="$supported_regex pcre2"
+fi
+
 fi
 fi
 

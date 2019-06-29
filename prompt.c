@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -66,7 +66,7 @@ static char *mp;
  * Initialize the prompt prototype strings.
  */
 	public void
-init_prompt()
+init_prompt(VOID_PARAM)
 {
 	prproto[0] = save(s_proto);
 	prproto[1] = save(less_is_more ? more_proto : m_proto);
@@ -150,7 +150,7 @@ ap_int(num)
  * Append a question mark to the end of the message.
  */
 	static void
-ap_quest()
+ap_quest(VOID_PARAM)
 {
 	ap_str("?");
 }
@@ -196,10 +196,13 @@ cond(c, where)
 	case 'e':	/* At end of file? */
 		return (eof_displayed());
 	case 'f':	/* Filename known? */
+	case 'g':
 		return (strcmp(get_filename(curr_ifile), "-") != 0);
 	case 'l':	/* Line number known? */
 	case 'd':	/* Same as l */
-		return (linenums);
+		if (!linenums)
+			return 0;
+		return (currline(where) != 0);
 	case 'L':	/* Final line number known? */
 	case 'D':	/* Final page number known? */
 		return (linenums && ch_length() != NULL_POSITION);
@@ -254,6 +257,7 @@ protochar(c, where, iseditproto)
 	LINENUM linenum;
 	LINENUM last_linenum;
 	IFILE h;
+	char *s;
 
 #undef  PAGE_NUM
 #define PAGE_NUM(linenum)  ((((linenum) - 1) / (sc_height - 1)) + 1)
@@ -304,6 +308,11 @@ protochar(c, where, iseditproto)
 		break;
 	case 'F':	/* Last component of file name */
 		ap_str(last_component(get_filename(curr_ifile)));
+		break;
+	case 'g':	/* Shell-escaped file name */
+		s = shell_quote(get_filename(curr_ifile));
+		ap_str(s);
+		free(s);
 		break;
 	case 'i':	/* Index into list of files */
 #if TAGS
@@ -551,7 +560,7 @@ pr_expand(proto, maxwidth)
  * Return a message suitable for printing by the "=" command.
  */
 	public char *
-eq_message()
+eq_message(VOID_PARAM)
 {
 	return (pr_expand(eqproto, 0));
 }
@@ -563,7 +572,7 @@ eq_message()
  * and the caller will prompt with a colon.
  */
 	public char *
-pr_string()
+pr_string(VOID_PARAM)
 {
 	char *prompt;
 	int type;
@@ -580,7 +589,7 @@ pr_string()
  * Return a message suitable for printing while waiting in the F command.
  */
 	public char *
-wait_message()
+wait_message(VOID_PARAM)
 {
 	return (pr_expand(wproto, sc_width-so_s_width-so_e_width-2));
 }

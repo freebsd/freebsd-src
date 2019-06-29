@@ -4,7 +4,7 @@ use strict;
 my $USAGE = <<__EOF__;
    usage: mkutable [-n] [-f#] type... [--] [<] UnicodeData.txt
           -n = take non-matching types
-      -f = zero-based type field (default 2)
+          -f = zero-based type field (default 2)
 __EOF__
 
 use vars qw( $opt_f $opt_n );

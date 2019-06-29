@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -171,7 +171,7 @@ close_pipe(FILE *pipefd)
  * Close the current input file.
  */
 	static void
-close_file()
+close_file(VOID_PARAM)
 {
 	struct scrpos scrpos;
 	int chflags;
@@ -486,7 +486,12 @@ edit_ifile(ifile)
 		clr_hilite();
 #endif
 		if (strcmp(filename, FAKE_HELPFILE) && strcmp(filename, FAKE_EMPTYFILE))
-			cmd_addhist(ml_examine, filename, 1);
+		{
+			char *qfilename = shell_quote(filename);
+			cmd_addhist(ml_examine, qfilename, 1);
+			free(qfilename);
+		}
+
 		if (no_display && errmsgs > 0)
 		{
 			/*
@@ -570,8 +575,10 @@ edit_list(filelist)
  * Edit the first file in the command line (ifile) list.
  */
 	public int
-edit_first()
+edit_first(VOID_PARAM)
 {
+	if (nifile() == 0)
+		return (edit_stdin());
 	curr_ifile = NULL_IFILE;
 	return (edit_next(1));
 }
@@ -580,7 +587,7 @@ edit_first()
  * Edit the last file in the command line (ifile) list.
  */
 	public int
-edit_last()
+edit_last(VOID_PARAM)
 {
 	curr_ifile = NULL_IFILE;
 	return (edit_prev(1));
@@ -687,7 +694,7 @@ edit_index(n)
 }
 
 	public IFILE
-save_curr_ifile()
+save_curr_ifile(VOID_PARAM)
 {
 	if (curr_ifile != NULL_IFILE)
 		hold_ifile(curr_ifile, 1);
@@ -740,7 +747,7 @@ reedit_ifile(save_ifile)
 }
 
 	public void
-reopen_curr_ifile()
+reopen_curr_ifile(VOID_PARAM)
 {
 	IFILE save_ifile = save_curr_ifile();
 	close_file();
@@ -751,7 +758,7 @@ reopen_curr_ifile()
  * Edit standard input.
  */
 	public int
-edit_stdin()
+edit_stdin(VOID_PARAM)
 {
 	if (isatty(fd0))
 	{
@@ -766,7 +773,7 @@ edit_stdin()
  * Used if standard output is not a tty.
  */
 	public void
-cat_file()
+cat_file(VOID_PARAM)
 {
 	int c;
 

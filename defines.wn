@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -86,7 +86,7 @@
 #define	PIPEC		1
 
 /*
- * LOGFILE is 1 if you wish to allow the -l option (to create log files).
+ * LOGFILE is 1 if you wish to allow the -o option (to create log files).
  */
 #define	LOGFILE		(!SECURE)
 
@@ -172,7 +172,7 @@
 /*
  * Sizes of various buffers.
  */
-#if 0 /* old sizes for small memory machines
+#if 0 /* old sizes for small memory machines */
 #define	CMDBUF_SIZE	512	/* Buffer for multichar commands */
 #define	UNGOT_SIZE	100	/* Max chars to unget() */
 #define	LINEBUF_SIZE	1024	/* Max size of line in input file */
@@ -216,9 +216,26 @@
 /* #undef HAVE_POSIX_REGCOMP */
 /* #undef HAVE_RE_COMP */
 /* #undef HAVE_REGCMP */
+#ifdef MINGW
+    #ifdef USE_POSIX_REGCOMP
+	#define HAVE_POSIX_REGCOMP 1
+    #else
+	#ifdef USE_GNU_REGEX
+	    #define HAVE_GNU_REGEX  1
+        #else
+            #ifdef USE_REGEXP_C
+		#define HAVE_V8_REGCOMP 1
+		#define HAVE_REGEXEC2   1
+            #else
+                #define NO_REGEX 1
+	    #endif
+	#endif
+    #endif
+#else
 #define HAVE_V8_REGCOMP 1
 /* #undef NO_REGEX */
 #define HAVE_REGEXEC2 1
+#endif
 
 /* Define HAVE_VOID if your compiler supports the "void" type. */
 #define HAVE_VOID 1
@@ -239,7 +256,11 @@
 /* Define MUST_DEFINE_ERRNO if you have errno but it is not define 
  * in errno.h */
 #define HAVE_ERRNO 1
+#ifdef MINGW
+#define MUST_DEFINE_ERRNO 0
+#else
 #define MUST_DEFINE_ERRNO 1
+#endif
 
 /* Define HAVE_SYS_ERRLIST if you have the sys_errlist[] variable */
 #define HAVE_SYS_ERRLIST 1
@@ -339,19 +360,28 @@
 #define HAVE_TIME_H 1
 
 /* Define if you have the <unistd.h> header file.  */
+#ifdef MINGW
+#define HAVE_UNISTD_H 1
+#else
 #define HAVE_UNISTD_H 0
+#endif
 
 /* Define if you have the <values.h> header file.  */
 #ifdef _MSC_VER
 #define HAVE_VALUES_H 0
 #else
+#ifdef MINGW
+#define HAVE_VALUES_H 0
+#else
 #define HAVE_VALUES_H 1
+#endif
 #endif
 
 #define	popen	_popen
-#define	pclose	_pclose
 #if !defined(_MSC_VER) || (_MSC_VER < 1900) 
 #define snprintf	_snprintf
 #endif
 
+#ifndef MINGW
 #pragma warning(disable:4996)
+#endif

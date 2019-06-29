@@ -112,6 +112,13 @@ ubin.uni: unicode/UnicodeData.txt
 wide.uni: unicode/EastAsianWidth.txt
 	./mkutable -f1 W F -- unicode/EastAsianWidth.txt > $@
 
+unicode/UnicodeData.txt:
+	mkdir -p unicode
+	curl -s -o $@ ftp://ftp.unicode.org/Public/UNIDATA/UnicodeData.txt
+unicode/EastAsianWidth.txt:
+	mkdir -p unicode
+	curl -s -o $@ ftp://ftp.unicode.org/Public/UNIDATA/EastAsianWidth.txt
+
 distfiles: ${DISTFILES}
 
 dist: ${DISTFILES}
@@ -137,4 +144,4 @@ dist: ${DISTFILES}
 tagall:
 	@REL=`sed -e '/char version/!d' -e 's/[^0-9.]*\([0-9.]*\).*/v\1/' -e q ${srcdir}/version.c`; \
 	echo "tagging $$REL"; \
-	$(GIT) tag -f "$$REL"
+	$(GIT) tag -a -f -m "$$REL" "$$REL"

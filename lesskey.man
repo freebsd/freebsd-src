@@ -337,7 +337,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 
 
 [1mCOPYRIGHT[0m
-       Copyright (C) 1984-2017  Mark Nudelman
+       Copyright (C) 1984-2019  Mark Nudelman
 
        less  is  part of the GNU project and is free software.  You can redis-
        tribute it and/or modify it under the terms of either (1) the GNU  Gen-
@@ -361,4 +361,4 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 
 
 
-                           Version 530: 05 Dec 2017                 LESSKEY(1)
+                           Version 551: 11 Jun 2019                 LESSKEY(1)

@@ -83,7 +83,7 @@
 #define	PIPEC		(!SECURE)
 
 /*
- * LOGFILE is 1 if you wish to allow the -l option (to create log files).
+ * LOGFILE is 1 if you wish to allow the -o option (to create log files).
  */
 #define	LOGFILE		(!SECURE)
 
@@ -263,11 +263,17 @@
 /* PCRE (Perl-compatible regular expression) library */
 #undef HAVE_PCRE
 
+/* PCRE2 (Perl-compatible regular expression) library */
+#undef HAVE_PCRE2
+
 /* Define to 1 if you have the `popen' function. */
 #undef HAVE_POPEN
 
 /* POSIX regcomp() and regex.h */
 #undef HAVE_POSIX_REGCOMP
+
+/* Define to 1 if you have the `realpath' function. */
+#undef HAVE_REALPATH
 
 /* System V regcmp() */
 #undef HAVE_REGCMP

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -121,6 +121,12 @@ new_ifile(filename, prev)
 	p->h_hold = 0;
 	p->h_filestate = NULL;
 	link_ifile(p, prev);
+	/*
+	 * {{ It's dodgy to call mark.c functions from here;
+	 *    there is potentially dangerous recursion.
+	 *    Probably need to revisit this design. }}
+	 */
+	mark_check_ifile(ext_ifile(p));
 	return (p);
 }
 
@@ -198,7 +204,7 @@ getoff_ifile(ifile)
  * Return the number of ifiles.
  */
 	public int
-nifile()
+nifile(VOID_PARAM)
 {
 	return (ifiles);
 }
@@ -211,11 +217,26 @@ find_ifile(filename)
 	char *filename;
 {
 	struct ifile *p;
+	char *rfilename = lrealpath(filename);
 
 	for (p = anchor.h_next;  p != &anchor;  p = p->h_next)
-		if (strcmp(filename, p->h_filename) == 0)
-			return (p);
-	return (NULL);
+	{
+		if (strcmp(filename, p->h_filename) == 0 ||
+		    strcmp(rfilename, p->h_filename) == 0)
+		{
+			/*
+			 * If given name is shorter than the name we were
+			 * previously using for this file, adopt shorter name.
+			 */
+			if (strlen(filename) < strlen(p->h_filename))
+				strcpy(p->h_filename, filename);
+			break;
+		}
+	}
+	free(rfilename);
+	if (p == &anchor)
+		p = NULL;
+	return (p);
 }
 
 /*
@@ -365,7 +386,7 @@ get_altfilename(ifile)
 
 #if 0
 	public void
-if_dump()
+if_dump(VOID_PARAM)
 {
 	struct ifile *p;
 

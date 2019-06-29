@@ -183,6 +183,8 @@ AH_TEMPLATE([HAVE_POSIX_REGCOMP],
 	[POSIX regcomp() and regex.h])
 AH_TEMPLATE([HAVE_PCRE],
 	[PCRE (Perl-compatible regular expression) library])
+AH_TEMPLATE([HAVE_PCRE2],
+	[PCRE2 (Perl-compatible regular expression) library])
 AH_TEMPLATE([HAVE_RE_COMP],
 	[BSD re_comp()])
 AH_TEMPLATE([HAVE_REGCMP],
@@ -258,7 +260,7 @@ AC_TRY_COMPILE([], [int f(int a) { return a; }],
 
 # Checks for library functions.
 AC_TYPE_SIGNAL
-AC_CHECK_FUNCS([fsync popen _setjmp sigprocmask sigsetmask snprintf stat system fchmod])
+AC_CHECK_FUNCS([fsync popen _setjmp sigprocmask sigsetmask snprintf stat system fchmod realpath])
 
 # AC_CHECK_FUNCS may not work for inline functions, so test these separately.
 AC_MSG_CHECKING(for memcpy)
@@ -393,7 +395,7 @@ supported_regex=""
 # Select a regular expression library.
 WANT_REGEX=auto
 AC_ARG_WITH(regex,
-  [  --with-regex=LIB        select regular expression library (LIB is one of auto,none,gnu,pcre,posix,regcmp,re_comp,regcomp,regcomp-local) [[auto]]],
+  [  --with-regex=LIB        select regular expression library (LIB is one of auto,none,gnu,pcre,pcre2,posix,regcmp,re_comp,regcomp,regcomp-local) [[auto]]],
   WANT_REGEX="$withval")
 
 if test $have_regex = no; then
@@ -428,6 +430,13 @@ elif test $have_posix_regex = unknown; then
 else
   AC_MSG_RESULT(no)
 fi
+fi
+fi
+
+if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = pcre2; then
+AC_CHECK_LIB(pcre2-8, pcre2_compile_8, 
+[AC_DEFINE(HAVE_PCRE2) LIBS="$LIBS -lpcre2-8" have_regex=yes; supported_regex="$supported_regex pcre2"], [])
 fi
 fi
 
@@ -575,7 +584,7 @@ AH_TOP([
 #define	PIPEC		(!SECURE)
 
 /*
- * LOGFILE is 1 if you wish to allow the -l option (to create log files).
+ * LOGFILE is 1 if you wish to allow the -o option (to create log files).
  */
 #define	LOGFILE		(!SECURE)
 
