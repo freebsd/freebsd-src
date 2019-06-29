@@ -213,7 +213,7 @@ flag bits are defined as follows:
 #define	M_PKTHDR	0x00000002 /* start of record */
 #define	M_EOR		0x00000004 /* end of record */
 #define	M_RDONLY	0x00000008 /* associated data marked read-only */
-#define	M_NOMAP		0x00000100 /* mbuf data is unmapped (soon from Drew) */
+#define	M_NOMAP		0x00000100 /* mbuf data is unmapped */
 #define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 #define	M_BCAST		0x00000010 /* send/received as link-level broadcast */
 #define	M_MCAST		0x00000020 /* send/received as link-level multicast */
@@ -272,6 +272,7 @@ The available external buffer types are defined as follows:
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
 #define	EXT_MBUF	7	/* external mbuf reference */
 #define	EXT_RXRING	8	/* data in NIC receive ring */
+#define	EXT_PGS		9	/* array of unmapped pages */
 
 #define	EXT_VENDOR1	224	/* for vendor-internal use */
 #define	EXT_VENDOR2	225	/* for vendor-internal use */
