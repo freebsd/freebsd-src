@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* Internal mbuf flags stored in PH_loc.eight[1]. */
+#define	MC_NOMAP		0x01
 #define	MC_RAW_WR		0x02
 
 /*
@@ -2434,15 +2435,78 @@ m_advance(struct mbuf **pm, int *poffset, int len)
 	return ((void *)p);
 }
 
+static inline int
+count_mbuf_ext_pgs(struct mbuf *m, int skip, vm_paddr_t *nextaddr)
+{
+	struct mbuf_ext_pgs *ext_pgs;
+	vm_paddr_t paddr;
+	int i, len, off, pglen, pgoff, seglen, segoff;
+	int nsegs = 0;
+
+	MBUF_EXT_PGS_ASSERT(m);
+	ext_pgs = m->m_ext.ext_pgs;
+	off = mtod(m, vm_offset_t);
+	len = m->m_len;
+	off += skip;
+	len -= skip;
+
+	if (ext_pgs->hdr_len != 0) {
+		if (off >= ext_pgs->hdr_len) {
+			off -= ext_pgs->hdr_len;
+		} else {
+			seglen = ext_pgs->hdr_len - off;
+			segoff = off;
+			seglen = min(seglen, len);
+			off = 0;
+			len -= seglen;
+			paddr = pmap_kextract(
+			    (vm_offset_t)&ext_pgs->hdr[segoff]);
+			if (*nextaddr != paddr)
+				nsegs++;
+			*nextaddr = paddr + seglen;
+		}
+	}
+	pgoff = ext_pgs->first_pg_off;
+	for (i = 0; i < ext_pgs->npgs && len > 0; i++) {
+		pglen = mbuf_ext_pg_len(ext_pgs, i, pgoff);
+		if (off >= pglen) {
+			off -= pglen;
+			pgoff = 0;
+			continue;
+		}
+		seglen = pglen - off;
+		segoff = pgoff + off;
+		off = 0;
+		seglen = min(seglen, len);
+		len -= seglen;
+		paddr = ext_pgs->pa[i] + segoff;
+		if (*nextaddr != paddr)
+			nsegs++;
+		*nextaddr = paddr + seglen;
+		pgoff = 0;
+	};
+	if (len != 0) {
+		seglen = min(len, ext_pgs->trail_len - off);
+		len -= seglen;
+		paddr = pmap_kextract((vm_offset_t)&ext_pgs->trail[off]);
+		if (*nextaddr != paddr)
+			nsegs++;
+		*nextaddr = paddr + seglen;
+	}
+
+	return (nsegs);
+}
+
+
 /*
  * Can deal with empty mbufs in the chain that have m_len = 0, but the chain
  * must have at least one mbuf that's not empty.  It is possible for this
  * routine to return 0 if skip accounts for all the contents of the mbuf chain.
  */
 static inline int
-count_mbuf_nsegs(struct mbuf *m, int skip)
+count_mbuf_nsegs(struct mbuf *m, int skip, uint8_t *cflags)
 {
-	vm_paddr_t lastb, next;
+	vm_paddr_t nextaddr, paddr;
 	vm_offset_t va;
 	int len, nsegs;
 
@@ -2451,9 +2515,8 @@ count_mbuf_nsegs(struct mbuf *m, int skip)
 	MPASS(m->m_pkthdr.len >= skip);
 
 	nsegs = 0;
-	lastb = 0;
+	nextaddr = 0;
 	for (; m; m = m->m_next) {
-
 		len = m->m_len;
 		if (__predict_false(len == 0))
 			continue;
@@ -2461,14 +2524,20 @@ count_mbuf_nsegs(struct mbuf *m, int skip)
 			skip -= len;
 			continue;
 		}
+		if ((m->m_flags & M_NOMAP) != 0) {
+			*cflags |= MC_NOMAP;
+			nsegs += count_mbuf_ext_pgs(m, skip, &nextaddr);
+			skip = 0;
+			continue;
+		}
 		va = mtod(m, vm_offset_t) + skip;
 		len -= skip;
 		skip = 0;
-		next = pmap_kextract(va);
+		paddr = pmap_kextract(va);
 		nsegs += sglist_count((void *)(uintptr_t)va, len);
-		if (lastb + 1 == next)
+		if (paddr == nextaddr)
 			nsegs--;
-		lastb = pmap_kextract(va + len - 1);
+		nextaddr = pmap_kextract(va + len - 1) + 1;
 	}
 
 	return (nsegs);
@@ -2490,7 +2559,9 @@ parse_pkt(struct adapter *sc, struct mbuf **mp)
 	struct tcphdr *tcp;
 #endif
 	uint16_t eh_type;
+	uint8_t cflags;
 
+	cflags = 0;
 	M_ASSERTPKTHDR(m0);
 	if (__predict_false(m0->m_pkthdr.len < ETHER_HDR_LEN)) {
 		rc = EINVAL;
@@ -2506,7 +2577,7 @@ restart:
 	 */
 	M_ASSERTPKTHDR(m0);
 	MPASS(m0->m_pkthdr.len > 0);
-	nsegs = count_mbuf_nsegs(m0, 0);
+	nsegs = count_mbuf_nsegs(m0, 0, &cflags);
 	if (nsegs > (needs_tso(m0) ? TX_SGL_SEGS_TSO : TX_SGL_SEGS)) {
 		if (defragged++ > 0 || (m = m_defrag(m0, M_NOWAIT)) == NULL) {
 			rc = EFBIG;
@@ -2516,7 +2587,8 @@ restart:
 		goto restart;
 	}
 
-	if (__predict_false(nsegs > 2 && m0->m_pkthdr.len <= MHLEN)) {
+	if (__predict_false(nsegs > 2 && m0->m_pkthdr.len <= MHLEN &&
+	    !(cflags & MC_NOMAP))) {
 		m0 = m_pullup(m0, m0->m_pkthdr.len);
 		if (m0 == NULL) {
 			/* Should have left well enough alone. */
@@ -2527,7 +2599,7 @@ restart:
 		goto restart;
 	}
 	set_mbuf_nsegs(m0, nsegs);
-	set_mbuf_cflags(m0, 0);
+	set_mbuf_cflags(m0, cflags);
 	if (sc->flags & IS_VF)
 		set_mbuf_len16(m0, txpkt_vm_len16(nsegs, needs_tso(m0)));
 	else
@@ -2616,7 +2688,9 @@ restart:
 		/* EO WRs have the headers in the WR and not the GL. */
 		immhdrs = m0->m_pkthdr.l2hlen + m0->m_pkthdr.l3hlen +
 		    m0->m_pkthdr.l4hlen;
-		nsegs = count_mbuf_nsegs(m0, immhdrs);
+		cflags = 0;
+		nsegs = count_mbuf_nsegs(m0, immhdrs, &cflags);
+		MPASS(cflags == mbuf_cflags(m0));
 		set_mbuf_eo_nsegs(m0, nsegs);
 		set_mbuf_eo_len16(m0,
 		    txpkt_eo_len16(nsegs, immhdrs, needs_tso(m0)));
@@ -4723,7 +4797,8 @@ write_txpkt_wr(struct sge_txq *txq, struct fw_eth_tx_pkt_wr *wr,
 	ctrl = sizeof(struct cpl_tx_pkt_core);
 	if (needs_tso(m0))
 		ctrl += sizeof(struct cpl_tx_pkt_lso_core);
-	else if (pktlen <= imm_payload(2) && available >= 2) {
+	else if (!(mbuf_cflags(m0) & MC_NOMAP) && pktlen <= imm_payload(2) &&
+	    available >= 2) {
 		/* Immediate data.  Recalculate len16 and set nsegs to 0. */
 		ctrl += pktlen;
 		len16 = howmany(sizeof(struct fw_eth_tx_pkt_wr) +

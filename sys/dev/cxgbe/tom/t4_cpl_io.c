@@ -650,6 +650,8 @@ write_tx_sgl(void *dst, struct mbuf *start, struct mbuf *stop, int nsegs, int n)
 		if (IS_AIOTX_MBUF(m))
 			rc = sglist_append_vmpages(&sg, aiotx_mbuf_pages(m),
 			    aiotx_mbuf_pgoff(m), m->m_len);
+		else if (m->m_flags & M_NOMAP)
+			rc = sglist_append_mb_ext_pgs(&sg, m);
 		else
 			rc = sglist_append(&sg, mtod(m, void *), m->m_len);
 		if (__predict_false(rc != 0))
@@ -771,6 +773,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			if (IS_AIOTX_MBUF(m))
 				n = sglist_count_vmpages(aiotx_mbuf_pages(m),
 				    aiotx_mbuf_pgoff(m), m->m_len);
+			else if (m->m_flags & M_NOMAP)
+				n = sglist_count_mb_ext_pgs(m);
 			else
 				n = sglist_count(mtod(m, void *), m->m_len);
 
