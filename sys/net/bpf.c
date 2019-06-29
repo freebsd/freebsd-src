@@ -2369,6 +2369,7 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 	 * Note that we cut corners here; we only setup what's
 	 * absolutely needed--this mbuf should never go anywhere else.
 	 */
+	mb.m_flags = 0;
 	mb.m_next = m;
 	mb.m_data = data;
 	mb.m_len = dlen;

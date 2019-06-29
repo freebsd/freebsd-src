@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2019
+.Dd June 28, 2019
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -538,6 +538,12 @@ large receive offloading, enable LRO on the interface.
 If the driver supports
 .Xr tcp 4
 large receive offloading, disable LRO on the interface.
+.It Cm nomap
+If the driver supports unmapped network buffers,
+enable them on the interface.
+.It Fl nomap
+If the driver supports unmapped network buffers,
+disable them on the interface.
 .It Cm wol , wol_ucast , wol_mcast , wol_magic
 Enable Wake On Lan (WOL) support, if available.
 WOL is a facility whereby a machine in a low power state may be woken

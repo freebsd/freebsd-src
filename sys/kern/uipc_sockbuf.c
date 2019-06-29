@@ -89,28 +89,57 @@ sbm_clrprotoflags(struct mbuf *m, int flags)
 }
 
 /*
- * Mark ready "count" mbufs starting with "m".
+ * Mark ready "count" units of I/O starting with "m".  Most mbufs
+ * count as a single unit of I/O except for EXT_PGS-backed mbufs which
+ * can be backed by multiple pages.
  */
 int
-sbready(struct sockbuf *sb, struct mbuf *m, int count)
+sbready(struct sockbuf *sb, struct mbuf *m0, int count)
 {
+	struct mbuf *m;
 	u_int blocker;
 
 	SOCKBUF_LOCK_ASSERT(sb);
 	KASSERT(sb->sb_fnrdy != NULL, ("%s: sb %p NULL fnrdy", __func__, sb));
+	KASSERT(count > 0, ("%s: invalid count %d", __func__, count));
 
+	m = m0;
 	blocker = (sb->sb_fnrdy == m) ? M_BLOCKED : 0;
 
-	for (int i = 0; i < count; i++, m = m->m_next) {
+	while (count > 0) {
 		KASSERT(m->m_flags & M_NOTREADY,
 		    ("%s: m %p !M_NOTREADY", __func__, m));
+		if ((m->m_flags & M_EXT) != 0 &&
+		    m->m_ext.ext_type == EXT_PGS) {
+			if (count < m->m_ext.ext_pgs->nrdy) {
+				m->m_ext.ext_pgs->nrdy -= count;
+				count = 0;
+				break;
+			}
+			count -= m->m_ext.ext_pgs->nrdy;
+			m->m_ext.ext_pgs->nrdy = 0;
+		} else
+			count--;
+
 		m->m_flags &= ~(M_NOTREADY | blocker);
 		if (blocker)
 			sb->sb_acc += m->m_len;
+		m = m->m_next;
 	}
 
-	if (!blocker)
+	/*
+	 * If the first mbuf is still not fully ready because only
+	 * some of its backing pages were readied, no further progress
+	 * can be made.
+	 */
+	if (m0 == m) {
+		MPASS(m->m_flags & M_NOTREADY);
 		return (EINPROGRESS);
+	}
+
+	if (!blocker) {
+		return (EINPROGRESS);
+	}
 
 	/* This one was blocking all the queue. */
 	for (; m && (m->m_flags & M_NOTREADY) == 0; m = m->m_next) {
@@ -1030,12 +1059,11 @@ sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 		    M_WRITABLE(n) &&
 		    ((sb->sb_flags & SB_NOCOALESCE) == 0) &&
 		    !(m->m_flags & M_NOTREADY) &&
-		    !(n->m_flags & M_NOTREADY) &&
+		    !(n->m_flags & (M_NOTREADY | M_NOMAP)) &&
 		    m->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
 		    m->m_len <= M_TRAILINGSPACE(n) &&
 		    n->m_type == m->m_type) {
-			bcopy(mtod(m, caddr_t), mtod(n, caddr_t) + n->m_len,
-			    (unsigned)m->m_len);
+			m_copydata(m, 0, m->m_len, mtodo(n, n->m_len));
 			n->m_len += m->m_len;
 			sb->sb_ccc += m->m_len;
 			if (sb->sb_fnrdy == NULL)
@@ -1046,6 +1074,9 @@ sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 			m = m_free(m);
 			continue;
 		}
+		if (m->m_len <= MLEN && (m->m_flags & M_NOMAP) &&
+		    (m->m_flags & M_NOTREADY) == 0)
+			(void)mb_unmapped_compress(m);
 		if (n)
 			n->m_next = m;
 		else
