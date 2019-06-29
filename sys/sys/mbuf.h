@@ -1129,6 +1129,7 @@ extern int		max_hdr;	/* Largest link + protocol header */
 extern int		max_linkhdr;	/* Largest link-level header */
 extern int		max_protohdr;	/* Largest protocol header */
 extern int		nmbclusters;	/* Maximum number of clusters */
+extern bool		mb_use_ext_pgs;	/* Use ext_pgs for sendfile */
 
 /*-
  * Network packets may have annotations attached by affixing a list of
