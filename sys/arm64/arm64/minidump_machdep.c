@@ -414,9 +414,10 @@ fail:
 	}
 	else if (error == ECANCELED)
 		printf("Dump aborted\n");
-	else if (error == E2BIG)
-		printf("Dump failed. Partition too small.\n");
-	else
+	else if (error == E2BIG) {
+		printf("Dump failed. Partition too small (about %lluMB were "
+		    "needed this time).\n", (long long)dumpsize >> 20);
+	} else
 		printf("** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);
 }
