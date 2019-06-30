@@ -17,6 +17,7 @@
 #include "rtld.h"
 #include "libmap.h"
 #include "paths.h"
+#include "rtld_libc.h"
 
 TAILQ_HEAD(lm_list, lm);
 struct lm {
