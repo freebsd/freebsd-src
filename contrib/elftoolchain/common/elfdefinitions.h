@@ -439,7 +439,7 @@ _ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_DOUBLE, 0x00000004UL,			\
 _ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_QUAD, 0x00000006UL,			\
 	"Quad precision floating point")				\
 _ELF_DEFINE_EF(EF_RISCV_RVE,	    0x00000008UL,			\
-	"Compressed instruction ABI")					\
+	"RV32E embedded ABI")						\
 _ELF_DEFINE_EF(EF_RISCV_TSO,	    0x00000010UL,			\
 	"RVTSO memory consistency model")				\
 _ELF_DEFINE_EF(EF_SPARC_EXT_MASK,   0x00ffff00UL,			\
