@@ -108,7 +108,7 @@ struct fs_ops efihttp_fsops = {
 };
 
 static void EFIAPI
-notify(EFI_EVENT event, void *context)
+notify(EFI_EVENT event __unused, void *context)
 {
 	bool *b;
 
@@ -217,8 +217,9 @@ efihttp_dev_init(void)
 }
 
 static int
-efihttp_dev_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
-    size_t *rsize)
+efihttp_dev_strategy(void *devdata __unused, int rw __unused,
+    daddr_t blk __unused, size_t size __unused, char *buf __unused,
+    size_t *rsize __unused)
 {
 	return (EIO);
 }
@@ -583,7 +584,7 @@ efihttp_fs_open(const char *path, struct open_file *f)
 }
 
 static int
-efihttp_fs_close(struct open_file *f)
+efihttp_fs_close(struct open_file *f __unused)
 {
 	return (0);
 }
@@ -677,7 +678,8 @@ end:
 }
 
 static int
-efihttp_fs_write(struct open_file *f, const void *buf, size_t size, size_t *resid)
+efihttp_fs_write(struct open_file *f __unused, const void *buf __unused,
+    size_t size __unused, size_t *resid __unused)
 {
 	return (EIO);
 }
