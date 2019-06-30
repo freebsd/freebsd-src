@@ -396,7 +396,7 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 	struct open_efihttp *oh;
 	struct file_efihttp *fh;
 	EFI_STATUS status;
-	int i;
+	UINTN i;
 	int polltime;
 	bool done;
 
