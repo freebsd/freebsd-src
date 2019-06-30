@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 2001,2003 Networks Associates Technology, Inc.
- * Copyright (c) 2017 Dag-Erling Smørgrav
+ * Copyright (c) 2017-2019 Dag-Erling Smørgrav
  * Copyright (c) 2018 Thomas Munro
  * All rights reserved.
  *
@@ -110,6 +110,7 @@ struct pe_opts {
 	int	capture_stdout;
 	int	capture_stderr;
 	int	expose_authtok;
+	int	use_first_pass;
 };
 
 static int
@@ -139,6 +140,8 @@ parse_options(const char *func, int *argc, const char **argv[],
 			options->return_prog_exit_status = 1;
 		} else if (strcmp((*argv)[i], "expose_authtok") == 0) {
 			options->expose_authtok = 1;
+		} else if (strcmp((*argv)[i], "use_first_pass") == 0) {
+			options->use_first_pass = 1;
 		} else {
 			if (strcmp((*argv)[i], "--") == 0) {
 				(*argc)--;
@@ -252,13 +255,20 @@ _pam_exec(pam_handle_t *pamh,
 			openpam_log(PAM_LOG_ERROR, "%s: fcntl(): %m", func);
 			OUT(PAM_SYSTEM_ERR);
 		}
-		rc = pam_get_authtok(pamh, PAM_AUTHTOK, &authtok, NULL);
+		if (options->use_first_pass ||
+		    strcmp(func, "pam_sm_setcred") == 0) {
+			/* don't prompt, only expose existing token */
+			rc = pam_get_item(pamh, PAM_AUTHTOK, &item);
+			authtok = item;
+		} else {
+			rc = pam_get_authtok(pamh, PAM_AUTHTOK, &authtok, NULL);
+		}
 		if (rc == PAM_SUCCESS) {
-			/* We include the trailing NUL-terminator. */
+			/* We include the trailing null terminator. */
 			authtok_size = strlen(authtok) + 1;
 		} else {
-			openpam_log(PAM_LOG_ERROR, "%s: pam_get_authtok(): %s", func,
-						pam_strerror(pamh, rc));
+			openpam_log(PAM_LOG_ERROR, "%s: pam_get_authtok(): %s",
+			    func, pam_strerror(pamh, rc));
 			OUT(PAM_SYSTEM_ERR);
 		}
 	}
