@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.9.1.
+# See unbound.conf(5) man page, version 1.9.2.
 #
 # this is a comment.
 
@@ -103,6 +103,7 @@ server:
 	# so-sndbuf: 0
 
 	# use SO_REUSEPORT to distribute queries over threads.
+	# at extreme load it could be better to turn it off to distribute even.
 	# so-reuseport: yes
 
 	# use IP_TRANSPARENT so the interface: addresses can be non-local
@@ -492,7 +493,7 @@ server:
 
 	# trust anchor signaling sends a RFC8145 key tag query after priming.
 	# trust-anchor-signaling: yes
-	
+
 	# Root key trust anchor sentinel (draft-ietf-dnsop-kskroll-sentinel)
 	# root-key-sentinel: yes
 
@@ -721,7 +722,7 @@ server:
 
 	# cipher setting for TLSv1.2
 	# tls-ciphers: "DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256"
-	# cipher setting for TLSv1.3 
+	# cipher setting for TLSv1.3
 	# tls-ciphersuites: "TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_8_SHA256:TLS_AES_128_CCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256"
 
 	# Add the secret file for TLS Session Ticket.
@@ -793,7 +794,7 @@ server:
 	# fast-server-permil: 0
 	# the number of servers that will be used in the fast server selection.
 	# fast-server-num: 3
-	
+
 	# Specific options for ipsecmod. unbound needs to be configured with
 	# --enable-ipsecmod for these to take effect.
 	#
@@ -912,24 +913,24 @@ remote-control:
 # notifies.
 # auth-zone:
 #	name: "."
-#	master: 199.9.14.201         # b.root-servers.net	
-#	master: 192.33.4.12          # c.root-servers.net	
-#	master: 199.7.91.13          # d.root-servers.net	
-#	master: 192.5.5.241          # f.root-servers.net	
-#	master: 192.112.36.4         # g.root-servers.net	
-#	master: 193.0.14.129         # k.root-servers.net	
-#	master: 192.0.47.132         # xfr.cjr.dns.icann.org	
-#	master: 192.0.32.132         # xfr.lax.dns.icann.org	
-#	master: 2001:500:200::b      # b.root-servers.net	
-#	master: 2001:500:2::c        # c.root-servers.net	
-#	master: 2001:500:2d::d       # d.root-servers.net	
-#	master: 2001:500:2f::f       # f.root-servers.net	
-#	master: 2001:500:12::d0d     # g.root-servers.net	
-#	master: 2001:7fd::1          # k.root-servers.net	
-#	master: 2620:0:2830:202::132 # xfr.cjr.dns.icann.org	
-#	master: 2620:0:2d0:202::132  # xfr.lax.dns.icann.org	
-#	fallback-enabled: yes	
-#	for-downstream: no	
+#	master: 199.9.14.201         # b.root-servers.net
+#	master: 192.33.4.12          # c.root-servers.net
+#	master: 199.7.91.13          # d.root-servers.net
+#	master: 192.5.5.241          # f.root-servers.net
+#	master: 192.112.36.4         # g.root-servers.net
+#	master: 193.0.14.129         # k.root-servers.net
+#	master: 192.0.47.132         # xfr.cjr.dns.icann.org
+#	master: 192.0.32.132         # xfr.lax.dns.icann.org
+#	master: 2001:500:200::b      # b.root-servers.net
+#	master: 2001:500:2::c        # c.root-servers.net
+#	master: 2001:500:2d::d       # d.root-servers.net
+#	master: 2001:500:2f::f       # f.root-servers.net
+#	master: 2001:500:12::d0d     # g.root-servers.net
+#	master: 2001:7fd::1          # k.root-servers.net
+#	master: 2620:0:2830:202::132 # xfr.cjr.dns.icann.org
+#	master: 2620:0:2d0:202::132  # xfr.lax.dns.icann.org
+#	fallback-enabled: yes
+#	for-downstream: no
 #	for-upstream: yes
 # auth-zone:
 #	name: "example.org"

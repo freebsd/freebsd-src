@@ -334,33 +334,37 @@ update_cache(struct module_qstate *qstate, int id)
 	/* Step 1, general qinfo lookup */
 	struct lruhash_entry *lru_entry = slabhash_lookup(subnet_msg_cache, h,
 		&qstate->qinfo, 1);
-	int acquired_lock = (lru_entry != NULL);
+	int need_to_insert = (lru_entry == NULL);
 	if (!lru_entry) {
+		void* data = calloc(1,
+			sizeof(struct subnet_msg_cache_data));
+		if(!data) {
+			log_err("malloc failed");
+			return;
+		}
 		qinf = qstate->qinfo;
 		qinf.qname = memdup(qstate->qinfo.qname,
 			qstate->qinfo.qname_len);
 		if(!qinf.qname) {
+			free(data);
 			log_err("memdup failed");
 			return;
 		}
-		mrep_entry = query_info_entrysetup(&qinf, NULL, h);
+		mrep_entry = query_info_entrysetup(&qinf, data, h);
 		free(qinf.qname); /* if qname 'consumed', it is set to NULL */
 		if (!mrep_entry) {
+			free(data);
 			log_err("query_info_entrysetup failed");
 			return;
 		}
 		lru_entry = &mrep_entry->entry;
 		lock_rw_wrlock(&lru_entry->lock);
-		lru_entry->data = calloc(1,
-			sizeof(struct subnet_msg_cache_data));
-		if (!lru_entry->data) {
-			log_err("malloc failed");
-			return;
-		}
 	}
+	/* lru_entry->lock is locked regardless of how we got here,
+	 * either from the slabhash_lookup, or above in the new allocated */
 	/* Step 2, find the correct tree */
 	if (!(tree = get_tree(lru_entry->data, edns, sne, qstate->env->cfg))) {
-		if (acquired_lock) lock_rw_unlock(&lru_entry->lock);
+		lock_rw_unlock(&lru_entry->lock);
 		log_err("Subnet cache insertion failed");
 		return;
 	}
@@ -368,7 +372,7 @@ update_cache(struct module_qstate *qstate, int id)
 	rep = reply_info_copy(qstate->return_msg->rep, &sne->alloc, NULL);
 	lock_quick_unlock(&sne->alloc.lock);
 	if (!rep) {
-		if (acquired_lock) lock_rw_unlock(&lru_entry->lock);
+		lock_rw_unlock(&lru_entry->lock);
 		log_err("Subnet cache insertion failed");
 		return;
 	}
@@ -385,10 +389,9 @@ update_cache(struct module_qstate *qstate, int id)
 		edns->subnet_source_mask, 
 		sq->ecs_server_in.subnet_scope_mask, rep,
 		rep->ttl, *qstate->env->now);
-	if (acquired_lock) {
-		lock_rw_unlock(&lru_entry->lock);
-	} else {
-		lock_rw_unlock(&lru_entry->lock);
+
+	lock_rw_unlock(&lru_entry->lock);
+	if (need_to_insert) {
 		slabhash_insert(subnet_msg_cache, h, lru_entry, lru_entry->data,
 			NULL);
 	}

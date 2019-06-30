@@ -802,6 +802,16 @@ void* listen_sslctx_create(char* key, char* pem, char* verifypem)
 		log_crypto_err("could not SSL_CTX_new");
 		return NULL;
 	}
+	if(!key || key[0] == 0) {
+		log_err("error: no tls-service-key file specified");
+		SSL_CTX_free(ctx);
+		return NULL;
+	}
+	if(!pem || pem[0] == 0) {
+		log_err("error: no tls-service-pem file specified");
+		SSL_CTX_free(ctx);
+		return NULL;
+	}
 	if(!listen_sslctx_setup(ctx)) {
 		SSL_CTX_free(ctx);
 		return NULL;
@@ -1235,7 +1245,12 @@ listen_sslctx_delete_ticket_keys(void)
 	struct tls_session_ticket_key *key;
 	if(!ticket_keys) return;
 	for(key = ticket_keys; key->key_name != NULL; key++) {
-		memset(key->key_name, 0xdd, 80); /* wipe key data from memory*/
+		/* wipe key data from memory*/
+#ifdef HAVE_EXPLICIT_BZERO
+		explicit_bzero(key->key_name, 80);
+#else
+		memset(key->key_name, 0xdd, 80);
+#endif
 		free(key->key_name);
 	}
 	free(ticket_keys);

@@ -1211,6 +1211,19 @@ iter_scrub_ds(struct dns_msg* msg, struct ub_packed_rrset_key* ns, uint8_t* z)
 	}
 }
 
+void
+iter_scrub_nxdomain(struct dns_msg* msg)
+{
+	if(msg->rep->an_numrrsets == 0)
+		return;
+
+	memmove(msg->rep->rrsets, msg->rep->rrsets+msg->rep->an_numrrsets,
+		sizeof(struct ub_packed_rrset_key*) *
+		(msg->rep->rrset_count-msg->rep->an_numrrsets));
+	msg->rep->rrset_count -= msg->rep->an_numrrsets;
+	msg->rep->an_numrrsets = 0;
+}
+
 void iter_dec_attempts(struct delegpt* dp, int d)
 {
 	struct delegpt_addr* a;

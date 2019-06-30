@@ -242,6 +242,7 @@
     RR_TYPE_MAILA = 254,
     /**  any type (wildcard) */
     RR_TYPE_ANY = 255,
+    RR_TYPE_CAA = 257,
 
     /* RFC 4431, 5074, DNSSEC Lookaside Validation */
     RR_TYPE_DLV = 32769,
@@ -823,8 +824,7 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
        """
        return self.rcode2str[self.rcode]
 
-   __swig_getmethods__["rcode_str"] = _get_rcode_str
-   if _newclass:rcode_str = _swig_property(_get_rcode_str)
+   rcode_str = property(_get_rcode_str)
 
    def _get_raw_data(self):
        """Result data, a list of network order DNS rdata items. 
@@ -833,15 +833,13 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
        """
        return self._ub_result_data(self)
 
-   __swig_getmethods__["rawdata"] = _get_raw_data
    rawdata = property(_get_raw_data, doc="Returns raw data, a list of rdata items. To decode RAW data use the :attr:`data` attribute which returns an instance of :class:`ub_data` containing the conversion functions.")
 
    def _get_data(self):
        if not self.havedata: return None
        return ub_data(self._ub_result_data(self))
   
-   __swig_getmethods__["data"] = _get_data
-   __swig_getmethods__["packet"] = _packet
+   packet = property(_packet)
    data = property(_get_data, doc="Returns :class:`ub_data` instance containing various decoding functions or None")
 
 %}

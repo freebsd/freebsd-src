@@ -570,12 +570,14 @@ struct comm_point* outnet_comm_point_for_udp(struct outside_network* outnet,
  * @param timeout: timeout for the TCP connection.
  * 	timeout in milliseconds, or -1 for no (change to the) timeout.
  *	So seconds*1000.
+ * @param ssl: set to true for TLS.
+ * @param host: hostname for host name verification of TLS (or NULL if no TLS).
  * @return tcp_out commpoint, or NULL.
  */
 struct comm_point* outnet_comm_point_for_tcp(struct outside_network* outnet,
 	comm_point_callback_type* cb, void* cb_arg,
 	struct sockaddr_storage* to_addr, socklen_t to_addrlen,
-	struct sldns_buffer* query, int timeout);
+	struct sldns_buffer* query, int timeout, int ssl, char* host);
 
 /**
  * Create http commpoint suitable for communication to the destination.

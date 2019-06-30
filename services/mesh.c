@@ -354,6 +354,10 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 	int was_detached = 0;
 	int was_noreply = 0;
 	int added = 0;
+	struct sldns_buffer* r_buffer = rep->c->buffer;
+	if(rep->c->tcp_req_info) {
+		r_buffer = rep->c->tcp_req_info->spool_buffer;
+	}
 	if(!unique)
 		s = mesh_area_find(mesh, cinfo, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
 	/* does this create a new reply state? */
@@ -389,7 +393,7 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 			if(!inplace_cb_reply_servfail_call(mesh->env, qinfo, NULL, NULL,
 				LDNS_RCODE_SERVFAIL, edns, rep, mesh->env->scratch))
 					edns->opt_list = NULL;
-			error_encode(rep->c->buffer, LDNS_RCODE_SERVFAIL,
+			error_encode(r_buffer, LDNS_RCODE_SERVFAIL,
 				qinfo, qid, qflags, edns);
 			comm_point_send_reply(rep);
 			return;
@@ -405,7 +409,7 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 				if(!inplace_cb_reply_servfail_call(mesh->env, qinfo, NULL,
 					NULL, LDNS_RCODE_SERVFAIL, edns, rep, mesh->env->scratch))
 						edns->opt_list = NULL;
-				error_encode(rep->c->buffer, LDNS_RCODE_SERVFAIL,
+				error_encode(r_buffer, LDNS_RCODE_SERVFAIL,
 					qinfo, qid, qflags, edns);
 				comm_point_send_reply(rep);
 				return;
@@ -434,7 +438,7 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 			if(!inplace_cb_reply_servfail_call(mesh->env, qinfo, &s->s,
 				NULL, LDNS_RCODE_SERVFAIL, edns, rep, mesh->env->scratch))
 					edns->opt_list = NULL;
-			error_encode(rep->c->buffer, LDNS_RCODE_SERVFAIL,
+			error_encode(r_buffer, LDNS_RCODE_SERVFAIL,
 				qinfo, qid, qflags, edns);
 			comm_point_send_reply(rep);
 			if(added)
@@ -1192,12 +1196,16 @@ void mesh_query_done(struct mesh_state* mstate)
 			comm_point_drop_reply(&r->query_reply);
 		else {
 			struct sldns_buffer* r_buffer = r->query_reply.c->buffer;
-			if(r->query_reply.c->tcp_req_info)
+			if(r->query_reply.c->tcp_req_info) {
 				r_buffer = r->query_reply.c->tcp_req_info->spool_buffer;
+				prev_buffer = NULL;
+			}
 			mesh_send_reply(mstate, mstate->s.return_rcode, rep,
 				r, r_buffer, prev, prev_buffer);
-			if(r->query_reply.c->tcp_req_info)
+			if(r->query_reply.c->tcp_req_info) {
 				tcp_req_info_remove_mesh_state(r->query_reply.c->tcp_req_info, mstate);
+				r_buffer = NULL;
+			}
 			prev = r;
 			prev_buffer = r_buffer;
 		}
@@ -1341,21 +1349,14 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
 		log_assert(qinfo->local_alias->rrset->rk.dname ==
 			sldns_buffer_at(rep->c->buffer, LDNS_HEADER_SIZE));
 
-		d = regional_alloc_init(s->s.region, dsrc,
-			sizeof(struct packed_rrset_data)
-			+ sizeof(size_t) + sizeof(uint8_t*) + sizeof(time_t));
+		/* the rrset is not packed, like in the cache, but it is
+		 * individualy allocated with an allocator from localzone. */
+		d = regional_alloc_zero(s->s.region, sizeof(*d));
 		if(!d)
 			return 0;
 		r->local_alias->rrset->entry.data = d;
-		d->rr_len = (size_t*)((uint8_t*)d +
-			sizeof(struct packed_rrset_data));
-		d->rr_data = (uint8_t**)&(d->rr_len[1]);
-		d->rr_ttl = (time_t*)&(d->rr_data[1]);
-		d->rr_len[0] = dsrc->rr_len[0];
-		d->rr_ttl[0] = dsrc->rr_ttl[0];
-		d->rr_data[0] = regional_alloc_init(s->s.region,
-			dsrc->rr_data[0], d->rr_len[0]);
-		if(!d->rr_data[0])
+		if(!rrset_insert_rr(s->s.region, d, dsrc->rr_data[0],
+			dsrc->rr_len[0], dsrc->rr_ttl[0], "CNAME local alias"))
 			return 0;
 	} else
 		r->local_alias = NULL;

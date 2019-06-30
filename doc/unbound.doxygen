@@ -629,6 +629,7 @@ EXCLUDE                = ./build \
                          libunbound/python/doc \
                          libunbound/python/examples \
                          ./ldns-src \
+			 README.md \
 			 doc/control_proto_spec.txt \
 			 doc/requirements.txt
 
