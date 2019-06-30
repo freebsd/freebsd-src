@@ -54,7 +54,7 @@ import time
 sys.path.append('/usr/lib')
 
 import bus
-import busdma
+from bus import dma as busdma
 
 
 # ILACC initialization block definition
@@ -161,7 +161,7 @@ def ip_str(a):
 
 
 def mac_is(l, r):
-    for i in xrange(6):
+    for i in range(6):
         if l[i] != r[i]:
             return False
     return True
@@ -203,7 +203,7 @@ def stop():
 
 mac = ()
 bcast = ()
-for o in xrange(6):
+for o in range(6):
     mac += (bus.read_1(io, o),)
     bcast += (0xff,)
 logging.info('ethernet address = ' + MACFMT % mac)
@@ -237,23 +237,23 @@ addr_txbufs = addr_rxbufs + bufsize * nrxbufs
 
 ib = initblock.from_address(addr_initblock)
 ib.mode = ((ffs(ntxbufs) - 1) << 28) | ((ffs(nrxbufs) - 1) << 20)
-for i in xrange(len(mac)):
+for i in range(len(mac)):
     ib.hwaddr[i] = mac[i]
-for i in xrange(4):
+for i in range(4):
     ib.filter[i] = 0xffff
 ib.rxdesc = busaddr + (addr_rxdesc - cpuaddr)
 ib.txdesc = busaddr + (addr_txdesc - cpuaddr)
 ib._pad1_ = 0
 ib._pad2_ = 0
 
-for i in xrange(nrxbufs):
+for i in range(nrxbufs):
     bd = bufdesc.from_address(addr_rxdesc + ctypes.sizeof(bufdesc) * i)
     bd.buffer = busaddr + (addr_rxbufs - cpuaddr) + bufsize * i
     bd.flags = (1 << 31) | (15 << 12) | (-bufsize & 0xfff)
     bd.length = 0
     bd._pad_ = 0
 
-for i in xrange(ntxbufs):
+for i in range(ntxbufs):
     bd = bufdesc.from_address(addr_txdesc + ctypes.sizeof(bufdesc) * i)
     bd.buffer = busaddr + (addr_txbufs - cpuaddr) + bufsize * i
     bd.flags = (15 << 12)
@@ -280,10 +280,10 @@ start()
 pkt = packet.from_address(addr_txbufs)
 ctypes.memset(addr_txbufs, 0, ctypes.sizeof(pkt))
 options = [53, 1, 1]
-for i in xrange(len(options)):
+for i in range(len(options)):
     pkt.dhcp_options[i] = options[i]
 pkt.dhcp_magic = 0x63825363
-for i in xrange(6):
+for i in range(6):
     pkt.bootp_chaddr[i] = mac[i]
 pkt.bootp_hlen = 6
 pkt.bootp_htype = 1
@@ -298,7 +298,7 @@ pkt.ip_ttl = 64
 pkt.ip_len = ctypes.sizeof(pkt) - 14
 pkt.ip_vl = 0x45
 pkt.eth_type = 0x0800
-for i in xrange(6):
+for i in range(6):
     pkt.eth_src[i] = mac[i]
     pkt.eth_dest[i] = bcast[i]
 pktlen = ctypes.sizeof(pkt)
@@ -325,7 +325,7 @@ stop()
 busdma.sync_range(dmamem, busdma.SYNC_PREWRITE, addr_rxdesc - cpuaddr,
                   ctypes.sizeof(bufdesc) * nrxbufs)
 
-for i in xrange(nrxbufs):
+for i in range(nrxbufs):
     bd = bufdesc.from_address(addr_rxdesc + ctypes.sizeof(bufdesc) * i)
     if (bd.flags & 0x80000000):
         continue
