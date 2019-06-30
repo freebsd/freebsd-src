@@ -58,7 +58,7 @@ _libc_other_objects+=aeabi_unwind_cpp
 .elif ${LIBC_ARCH} == "i386"
 # __udivdi3 is needed by kvprintf() in rtld_printf.c
 # i386 also needs i386_set_gsbase for allocate_initial_tls()
-_libc_other_objects+=udivdi3 qdivrem i386_set_gsbase
+_libc_other_objects+=umoddi3 udivdi3 qdivrem i386_set_gsbase
 .elif ${LIBC_ARCH} == "powerpc" || ${LIBC_ARCH} == "powerpcspe"
 # ppc needs __syncicache for reloc.c and __umoddi3+__udivdi3 for rtld_printf.c
 _libc_other_objects+=syncicache umoddi3 udivdi3 qdivrem
