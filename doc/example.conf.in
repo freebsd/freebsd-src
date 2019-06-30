@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.9.0.
+# See unbound.conf(5) man page, version 1.9.1.
 #
 # this is a comment.
 
@@ -475,6 +475,9 @@ server:
 
 	# module configuration of the server. A string with identifiers
 	# separated by spaces. Syntax: "[dns64] [validator] iterator"
+	# most modules have to be listed at the beginning of the line,
+	# except cachedb(just before iterator), and python (at the beginning,
+	# or, just before the iterator).
 	# module-config: "validator iterator"
 
 	# File with trusted keys, kept uptodate using RFC5011 probes,
@@ -673,6 +676,7 @@ server:
 	# o typetransparent resolves normally for other types and other names
 	# o inform acts like transparent, but logs client IP address
 	# o inform_deny drops queries and logs client IP address
+	# o inform_redirect redirects queries and logs client IP address
 	# o always_transparent, always_refuse, always_nxdomain, resolve in
 	#   that way but ignore local data for that name
 	# o noview breaks out of that view towards global local-zones.
@@ -822,6 +826,8 @@ server:
 # Python config section. To enable:
 # o use --with-pythonmodule to configure before compiling.
 # o list python in the module-config string (above) to enable.
+#   It can be at the start, it gets validated results, or just before
+#   the iterator and process before DNSSEC validation.
 # o and give a python-script to run.
 python:
 	# Script file to load
@@ -972,7 +978,7 @@ remote-control:
 # Enable external backend DB as auxiliary cache.  Specify the backend name
 # (default is "testframe", which has no use other than for debugging and
 # testing) and backend-specific options.  The 'cachedb' module must be
-# included in module-config.
+# included in module-config, just before the iterator module.
 # cachedb:
 #     backend: "testframe"
 #     # secret seed string to calculate hashed keys

@@ -1049,11 +1049,19 @@ void* outgoing_ssl_fd(void* sslctx, int fd)
 static lock_basic_type *ub_openssl_locks = NULL;
 
 /** callback that gets thread id for openssl */
+#ifdef HAVE_CRYPTO_THREADID_SET_CALLBACK
+static void
+ub_crypto_id_cb(CRYPTO_THREADID *id)
+{
+	CRYPTO_THREADID_set_numeric(id, (unsigned long)log_thread_get());
+}
+#else
 static unsigned long
 ub_crypto_id_cb(void)
 {
 	return (unsigned long)log_thread_get();
 }
+#endif
 
 static void
 ub_crypto_lock_cb(int mode, int type, const char *ATTR_UNUSED(file),
@@ -1078,7 +1086,11 @@ int ub_openssl_lock_init(void)
 	for(i=0; i<CRYPTO_num_locks(); i++) {
 		lock_basic_init(&ub_openssl_locks[i]);
 	}
+#  ifdef HAVE_CRYPTO_THREADID_SET_CALLBACK
+	CRYPTO_THREADID_set_callback(&ub_crypto_id_cb);
+#  else
 	CRYPTO_set_id_callback(&ub_crypto_id_cb);
+#  endif
 	CRYPTO_set_locking_callback(&ub_crypto_lock_cb);
 #endif /* OPENSSL_THREADS */
 	return 1;
@@ -1090,7 +1102,11 @@ void ub_openssl_lock_delete(void)
 	int i;
 	if(!ub_openssl_locks)
 		return;
+#  ifdef HAVE_CRYPTO_THREADID_SET_CALLBACK
+	CRYPTO_THREADID_set_callback(NULL);
+#  else
 	CRYPTO_set_id_callback(NULL);
+#  endif
 	CRYPTO_set_locking_callback(NULL);
 	for(i=0; i<CRYPTO_num_locks(); i++) {
 		lock_basic_destroy(&ub_openssl_locks[i]);
@@ -1219,6 +1235,7 @@ listen_sslctx_delete_ticket_keys(void)
 	struct tls_session_ticket_key *key;
 	if(!ticket_keys) return;
 	for(key = ticket_keys; key->key_name != NULL; key++) {
+		memset(key->key_name, 0xdd, 80); /* wipe key data from memory*/
 		free(key->key_name);
 	}
 	free(ticket_keys);

@@ -183,6 +183,8 @@ respip_action_cfg(struct respip_set* set, const char* ipstr,
                 action = respip_inform;
         else if(strcmp(actnstr, "inform_deny") == 0)
                 action = respip_inform_deny;
+        else if(strcmp(actnstr, "inform_redirect") == 0)
+                action = respip_inform_redirect;
         else if(strcmp(actnstr, "always_transparent") == 0)
                 action = respip_always_transparent;
         else if(strcmp(actnstr, "always_refuse") == 0)
@@ -245,7 +247,8 @@ respip_enter_rr(struct regional* region, struct resp_addr* raddr,
 	struct packed_rrset_data* pd;
 	struct sockaddr* sa;
 	int ret;
-	if(raddr->action != respip_redirect) {
+	if(raddr->action != respip_redirect
+		&& raddr->action != respip_inform_redirect) {
 		log_err("cannot parse response-ip-data %s: response-ip "
 			"action for %s is not redirect", rrstr, netblock);
 		return 0;
@@ -750,7 +753,8 @@ respip_nodata_answer(uint16_t qtype, enum respip_action action,
 		*new_repp = new_rep;
 		return 1;
 	} else if(action == respip_static || action == respip_redirect ||
-		action == respip_always_nxdomain) {
+		action == respip_always_nxdomain ||
+		action == respip_inform_redirect) {
 		/* Since we don't know about other types of the owner name,
 		 * we generally return NOERROR/NODATA unless an NXDOMAIN action
 		 * is explicitly specified. */

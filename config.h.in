@@ -69,6 +69,9 @@
 /* Define to 1 if you have the `CRYPTO_cleanup_all_ex_data' function. */
 #undef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA
 
+/* Define to 1 if you have the `CRYPTO_THREADID_set_callback' function. */
+#undef HAVE_CRYPTO_THREADID_SET_CALLBACK
+
 /* Define to 1 if you have the `ctime_r' function. */
 #undef HAVE_CTIME_R
 

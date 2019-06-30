@@ -1636,10 +1636,12 @@ tcp_req_info_setup_listen(struct tcp_req_info* req)
 	
 	if(wr) {
 		req->cp->tcp_is_reading = 0;
+		comm_point_stop_listening(req->cp);
 		comm_point_start_listening(req->cp, -1,
 			req->cp->tcp_timeout_msec);
 	} else if(rd) {
 		req->cp->tcp_is_reading = 1;
+		comm_point_stop_listening(req->cp);
 		comm_point_start_listening(req->cp, -1,
 			req->cp->tcp_timeout_msec);
 		/* and also read it (from SSL stack buffers), so
@@ -1647,6 +1649,7 @@ tcp_req_info_setup_listen(struct tcp_req_info* req)
 		 * the TLS frame is sitting in the buffers. */
 		req->read_again = 1;
 	} else {
+		comm_point_stop_listening(req->cp);
 		comm_point_start_listening(req->cp, -1,
 			req->cp->tcp_timeout_msec);
 		comm_point_listen_for_rw(req->cp, 0, 0);
@@ -1759,6 +1762,7 @@ tcp_req_info_handle_readdone(struct tcp_req_info* req)
 		 * clear to write to */
 	send_it:
 		c->tcp_is_reading = 0;
+		comm_point_stop_listening(c);
 		comm_point_start_listening(c, -1, c->tcp_timeout_msec);
 		return;
 	}
@@ -1779,6 +1783,12 @@ tcp_req_info_handle_readdone(struct tcp_req_info* req)
 	/* If mesh failed(mallocfail) and called commpoint_send_reply with
 	 * something like servfail then we pick up that reply below. */
 	if(req->is_reply) {
+		/* reply from mesh is in the spool_buffer */
+		sldns_buffer_clear(c->buffer);
+		sldns_buffer_write(c->buffer,
+			sldns_buffer_begin(req->spool_buffer),
+			sldns_buffer_limit(req->spool_buffer));
+		sldns_buffer_flip(c->buffer);
 		goto send_it;
 	}
 

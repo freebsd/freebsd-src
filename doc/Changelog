@@ -1,5 +1,85 @@
-5 February 2019: Wouter
-	- Fix tls-ciphers spelling in example.conf
+1 March 2019: Wouter
+	- output forwarder log in ssl_req_order test.
+
+28 February 2019: Wouter
+	- Remove memory leak on pythonmod python2 script file init.
+	- Remove swig gcc8 python function cast warnings, they are ignored.
+	- Print correct module that failed when module-config is wrong.
+
+27 February 2019: Wouter
+	- Fix #4229: Unbound man pages lack information, about access-control
+	  order and local zone tags, and elements in views.
+	- Fix #14: contrib/unbound.init: Fix wrong comparison judgment
+	  before copying.
+	- Fix for python module on Windows, fix fopen.
+
+25 February 2019: Wouter
+	- Fix #4227: pair event del and add for libevent for tcp_req_info.
+
+21 February 2019: Wouter
+	- Fix the error for unknown module in module-config is understandable,
+	  and explains it was not compiled in and where to see the list.
+	- In example.conf explain where to put cachedb module in module-config.
+	- In man page and example config explain that most modules have to
+	  be listed at the start of module-config.
+
+20 February 2019: Wouter
+	- Fix pythonmod include and sockaddr_un ifdefs for compile on
+	  Windows, and for libunbound.
+
+18 February 2019: Wouter
+	- Print query name with ip_ratelimit exceeded log lines.
+	- Spaces instead of tabs in that log message.
+	- Print query name and IP address when domain rate limit exceeded.
+
+14 February 2019: Wouter
+	- Fix capsforid canonical sort qsort callback.
+
+11 February 2019: Wouter
+	- Note default for module-config in man page.
+	- Fix recursion lame test for qname minimisation asked queries,
+	  that were not present in the set of prepared answers.
+	- Fix #13: Remove left-over requirements on OpenSSL >= 1.1.0 for
+	  cert name matching, from man page.
+	- make depend, with newer gcc, nicer layout.
+
+7 February 2019: Wouter
+	- Fix #4206: OpenSSL 1.0.2 hostname verification for FreeBSD 11.2.
+	- Fix that qname minimisation does not skip a label when missing
+	  nameserver targets need to be fetched.
+	- Fix #4225: clients seem to erroneously receive no answer with
+	  DNS-over-TLS and qname-minimisation.
+
+4 February 2019: Wouter
+	- Fix that log-replies prints the correct name for local-alias
+	  names, for names that have a CNAME in local-data configuration.
+	  It logs the original query name, not the target of the CNAME.
+	- Add local-zone type inform_redirect, which logs like type inform,
+	  and redirects like type redirect.
+	- Perform canonical sort for 0x20 capsforid compare of replies,
+	  this sorts rrsets in the authority and additional section before
+	  comparison, so that out of order rrsets do not cause failure.
+
+31 January 2019: Wouter
+	- Set ub_ctx_set_tls call signature in ltrace config file for
+	  libunbound in contrib/libunbound.so.conf.
+	- improve documentation for tls-service-key and forward-first.
+	- #10: fixed pkg-config operations, PKG_PROG_PKG_CONFIG moved out of
+	  conditional section, fixes systemd builds, from Enrico Scholz.
+	- #9: For openssl 1.0.2 use the CRYPTO_THREADID locking callbacks,
+	  still supports the set_id_callback previous API.  And for 1.1.0
+	  no locking callbacks are needed.
+	- #8: Fix OpenSSL without ENGINE support compilation.
+	- Wipe TLS session key data from memory on exit.
+
+30 January 2019: Ralph
+	- Fix case in which query timeout can result in marking delegation
+	  as edns_lame_known.
+
+29 January 2019: Wouter
+	- Fix spelling of tls-ciphers in example.conf.in.
+	- Fix #4224: auth_xfr_notify.rpl test broken due to typo
+	- Fix locking for libunbound context setup with broken port config.
 
 28 January 2019: Wouter
 	- ub_ctx_set_tls call for libunbound that enables DoT for the machines
@@ -8,7 +88,9 @@
 	- List example config for root zone copy locally hosted with auth-zone
 	  as suggested from draft-ietf-dnsop-7706-bis-02.  But with updated
 	  B root address.
-	- set version to 1.9.0 for release.
+	- set version to 1.9.0 for release.  And this was released with the
+	  spelling for tls-ciphers fix as 1.9.0 on Feb 5.  Trunk has 1.9.1 in
+	  development.
 
 25 January 2019: Wouter
 	- Fix that tcp for auth zone and outgoing does not remove and

@@ -770,7 +770,7 @@ daemon_delete(struct daemon* daemon)
 #  endif
 #  ifdef HAVE_OPENSSL_CONFIG
 	EVP_cleanup();
-#  if OPENSSL_VERSION_NUMBER < 0x10100000
+#  if (OPENSSL_VERSION_NUMBER < 0x10100000) && !defined(OPENSSL_NO_ENGINE)
 	ENGINE_cleanup();
 #  endif
 	CONF_modules_free();
