@@ -247,6 +247,9 @@ int pythonmod_init(struct module_env* env, int id)
    PyObject* py_init_arg, *res;
    PyGILState_STATE gil;
    int init_standard = 1;
+#if PY_MAJOR_VERSION < 3
+   PyObject* PyFileObject = NULL;
+#endif
 
    struct pythonmod_env* pe = (struct pythonmod_env*)calloc(1, sizeof(struct pythonmod_env));
    if (!pe)
@@ -307,7 +310,15 @@ int pythonmod_init(struct module_env* env, int id)
    }
 
    /* Check Python file load */
-   if ((script_py = fopen(pe->fname, "r")) == NULL)
+   /* uses python to open the file, this works on other platforms,
+    * eg. Windows, to open the file in the correct mode for python */
+#if PY_MAJOR_VERSION < 3
+   PyFileObject = PyFile_FromString((char*)pe->fname, "r");
+   script_py = PyFile_AsFile(PyFileObject);
+#else
+   script_py = _Py_fopen(pe->fname, "r");
+#endif
+   if (script_py == NULL)
    {
       log_err("pythonmod: can't open file %s for reading", pe->fname);
       PyGILState_Release(gil);
@@ -343,7 +354,11 @@ int pythonmod_init(struct module_env* env, int id)
       PyGILState_Release(gil);
       return 0;
    }
+#if PY_MAJOR_VERSION < 3
+   Py_XDECREF(PyFileObject);
+#else
    fclose(script_py);
+#endif
 
    if ((pe->func_init = PyDict_GetItemString(pe->dict, "init_standard")) == NULL)
    {
@@ -517,8 +532,7 @@ void pythonmod_clear(struct module_qstate* qstate, int id)
       return;
 
    pq = (struct pythonmod_qstate*)qstate->minfo[id];
-   verbose(VERB_ALGO, "pythonmod: clear, id: %d, pq:%lX", id,
-   	(unsigned long int)pq);
+   verbose(VERB_ALGO, "pythonmod: clear, id: %d, pq:%p", id, pq);
    if(pq != NULL)
    {
       PyGILState_STATE gil = PyGILState_Ensure();
@@ -534,8 +548,7 @@ void pythonmod_clear(struct module_qstate* qstate, int id)
 size_t pythonmod_get_mem(struct module_env* env, int id)
 {
    struct pythonmod_env* pe = (struct pythonmod_env*)env->modinfo[id];
-   verbose(VERB_ALGO, "pythonmod: get_mem, id: %d, pe:%lX", id,
-   	(unsigned long int)pe);
+   verbose(VERB_ALGO, "pythonmod: get_mem, id: %d, pe:%p", id, pe);
    if(!pe)
       return 0;
    return sizeof(*pe);

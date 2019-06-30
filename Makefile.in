@@ -1075,8 +1075,7 @@ unitlruhash.lo unitlruhash.o: $(srcdir)/testcode/unitlruhash.c config.h $(srcdir
  $(srcdir)/util/log.h $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/storage/slabhash.h
 unitmain.lo unitmain.o: $(srcdir)/testcode/unitmain.c config.h \
  $(srcdir)/sldns/rrdef.h $(srcdir)/sldns/keyraw.h \
- $(srcdir)/util/log.h \
- $(srcdir)/testcode/unitmain.h $(srcdir)/util/alloc.h $(srcdir)/util/locks.h $(srcdir)/util/net_help.h \
+ $(srcdir)/util/log.h $(srcdir)/testcode/unitmain.h $(srcdir)/util/alloc.h $(srcdir)/util/locks.h $(srcdir)/util/net_help.h \
  $(srcdir)/util/config_file.h $(srcdir)/util/rtt.h $(srcdir)/util/timehist.h $(srcdir)/iterator/iterator.h \
  $(srcdir)/services/outbound_list.h $(srcdir)/util/data/msgreply.h $(srcdir)/util/storage/lruhash.h \
  $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/module.h $(srcdir)/util/data/msgparse.h \

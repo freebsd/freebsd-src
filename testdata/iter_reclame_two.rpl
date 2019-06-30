@@ -110,6 +110,26 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR RA NOERROR
 SECTION QUESTION
+ns.example.com. IN A
+SECTION ANSWER
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RA NOERROR
+SECTION QUESTION
+lame.example.com. IN A
+SECTION ANSWER
+lame.example.com.		IN 	A	1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RA NOERROR
+SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
 www.example.com. IN A	10.20.30.40

@@ -989,10 +989,10 @@ tcp_callback_writer(struct comm_point* c)
 		c->tcp_is_reading = 1;
 	c->tcp_byte_count = 0;
 	/* switch from listening(write) to listening(read) */
-	comm_point_stop_listening(c);
 	if(c->tcp_req_info) {
 		tcp_req_info_handle_writedone(c->tcp_req_info);
 	} else {
+		comm_point_stop_listening(c);
 		comm_point_start_listening(c, -1, -1);
 	}
 }
@@ -1006,11 +1006,11 @@ tcp_callback_reader(struct comm_point* c)
 	if(c->tcp_do_toggle_rw)
 		c->tcp_is_reading = 0;
 	c->tcp_byte_count = 0;
-	if(c->type == comm_tcp)
-		comm_point_stop_listening(c);
 	if(c->tcp_req_info) {
 		tcp_req_info_handle_readdone(c->tcp_req_info);
 	} else {
+		if(c->type == comm_tcp)
+			comm_point_stop_listening(c);
 		fptr_ok(fptr_whitelist_comm_point(c->callback));
 		if( (*c->callback)(c, c->cb_arg, NETEVENT_NOERROR, &c->repinfo) ) {
 			comm_point_start_listening(c, -1, c->tcp_timeout_msec);

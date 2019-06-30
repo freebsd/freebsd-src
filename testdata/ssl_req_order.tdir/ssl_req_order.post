@@ -9,3 +9,4 @@
 kill_pid $FWD_PID
 kill_pid $UNBOUND_PID
 cat unbound.log
+cat fwd.log

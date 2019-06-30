@@ -195,7 +195,7 @@ ENTRY_END
 RANGE_END
 
 ; lookups for notify hostnames.
-STEP 1 TIME_PASSES ELAPSED 0
+STEP 1 TIME_PASSES ELAPSE 0
 
 ; now the query
 STEP 2 QUERY

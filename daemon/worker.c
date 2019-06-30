@@ -1171,7 +1171,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 
 	/* check if this query should be dropped based on source ip rate limiting */
 	if(!infra_ip_ratelimit_inc(worker->env.infra_cache, repinfo,
-			*worker->env.now)) {
+			*worker->env.now, c->buffer)) {
 		/* See if we are passed through with slip factor */
 		if(worker->env.cfg->ip_ratelimit_factor != 0 &&
 			ub_random_max(worker->env.rnd,
@@ -1559,8 +1559,17 @@ send_reply_rc:
 	if(worker->env.cfg->log_replies)
 	{
 		struct timeval tv = {0, 0};
-		log_reply_info(0, &qinfo, &repinfo->addr, repinfo->addrlen,
-			tv, 1, c->buffer);
+		if(qinfo.local_alias && qinfo.local_alias->rrset &&
+			qinfo.local_alias->rrset->rk.dname) {
+			/* log original qname, before the local alias was
+			 * used to resolve that CNAME to something else */
+			qinfo.qname = qinfo.local_alias->rrset->rk.dname;
+			log_reply_info(0, &qinfo, &repinfo->addr, repinfo->addrlen,
+				tv, 1, c->buffer);
+		} else {
+			log_reply_info(0, &qinfo, &repinfo->addr, repinfo->addrlen,
+				tv, 1, c->buffer);
+		}
 	}
 #ifdef USE_DNSCRYPT
 	if(!dnsc_handle_uncurved_request(repinfo)) {
