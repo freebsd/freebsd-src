@@ -199,7 +199,7 @@ efihttp_dev_init(void)
 		    DevicePathSubType(devpath) != MSG_URI_DP)
 			continue;
 		uri = (URI_DEVICE_PATH *)devpath;
-		if (strncmp("http", uri->Uri, 4) == 0)
+		if (strncmp("http", (const char *)uri->Uri, 4) == 0)
 			found_http = true;
 	}
 	if (!found_http)
@@ -341,7 +341,7 @@ efihttp_dev_open(struct open_file *f, ...)
 		err = ENOMEM;
 		goto end;
 	}
-	strncpy(oh->uri_base, uri->Uri, len);
+	strncpy(oh->uri_base, (const char *)uri->Uri, len);
 	oh->uri_base[len] = '\0';
 	c = strrchr(oh->uri_base, '/');
 	if (c != NULL)
@@ -468,12 +468,12 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 	message.Body = NULL;
 	request.Method = HttpMethodGet;
 	request.Url = calloc(strlen(oh->uri_base) + strlen(path) + 1, 2);
-	headers[0].FieldName = "Host";
-	headers[0].FieldValue = hostp;
-	headers[1].FieldName = "Connection";
-	headers[1].FieldValue = "close";
-	headers[2].FieldName = "Accept";
-	headers[2].FieldValue = "*/*";
+	headers[0].FieldName = (CHAR8 *)"Host";
+	headers[0].FieldValue = (CHAR8 *)hostp;
+	headers[1].FieldName = (CHAR8 *)"Connection";
+	headers[1].FieldValue = (CHAR8 *)"close";
+	headers[2].FieldName = (CHAR8 *)"Accept";
+	headers[2].FieldValue = (CHAR8 *)"*/*";
 	cpy8to16(oh->uri_base, request.Url, strlen(oh->uri_base));
 	cpy8to16(path, request.Url + strlen(oh->uri_base), strlen(path));
 	status = oh->http->Request(oh->http, &token);
@@ -542,14 +542,14 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 	fh->size = 0;
 	fh->is_dir = false;
 	for (i = 0; i < message.HeaderCount; i++) {
-		if (strcasecmp(message.Headers[i].FieldName,
+		if (strcasecmp((const char *)message.Headers[i].FieldName,
 		    "Content-Length") == 0)
-			fh->size = strtoul(message.Headers[i].FieldValue, NULL,
-			    10);
-		else if (strcasecmp(message.Headers[i].FieldName,
+			fh->size = strtoul((const char *)
+			    message.Headers[i].FieldValue, NULL, 10);
+		else if (strcasecmp((const char *)message.Headers[i].FieldName,
 		    "Content-type") == 0) {
-			if (strncmp(message.Headers[i].FieldValue, "text/html",
-			    9) == 0)
+			if (strncmp((const char *)message.Headers[i].FieldValue,
+			    "text/html", 9) == 0)
 				fh->is_dir = true;
 		}
 	}
