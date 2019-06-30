@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Mar 12, 2019" "NLnet Labs" "unbound 1.9.1"
+.TH "unbound.conf" "5" "Jun 17, 2019" "NLnet Labs" "unbound 1.9.2"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -300,6 +300,8 @@ it may also work.  You can enable it (on any platform and kernel),
 it then attempts to open the port and passes the option if it was available
 at compile time, if that works it is used, if it fails, it continues
 silently (unless verbosity 3) without the option.
+At extreme load it could be better to turn it off to distribute the queries
+evenly, reported for Linux systems (4.4.x).
 .TP
 .B ip\-transparent: \fI<yes or no>
 If yes, then use IP_TRANSPARENT socket option on sockets where unbound
@@ -828,7 +830,7 @@ Can be given multiple times, for different domains.
 .TP
 .B qname\-minimisation: \fI<yes or no>
 Send minimum amount of information to upstream servers to enhance privacy.
-Only sent minimum required labels of the QNAME and set QTYPE to A when
+Only send minimum required labels of the QNAME and set QTYPE to A when
 possible. Best effort approach; full QNAME and original QTYPE will be sent when
 upstream replies with a RCODE other than NOERROR, except when receiving
 NXDOMAIN from a DNSSEC signed zone. Default is yes.
@@ -1675,6 +1677,7 @@ Name of the authority zone.
 .B master: \fI<IP address or host name>
 Where to download a copy of the zone from, with AXFR and IXFR.  Multiple
 masters can be specified.  They are all tried if one fails.
+With the "ip#name" notation a AXFR over TLS can be used.
 .TP
 .B url: \fI<url to zonefile>
 Where to download a zonefile for the zone.  With http or https.  An example

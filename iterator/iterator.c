@@ -2718,8 +2718,15 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 			&& !(iq->chase_flags & BIT_RD)) {
 			if(FLAGS_GET_RCODE(iq->response->rep->flags) != 
 				LDNS_RCODE_NOERROR) {
-				if(qstate->env->cfg->qname_minimisation_strict)
-					return final_state(iq);
+				if(qstate->env->cfg->qname_minimisation_strict) {
+					if(FLAGS_GET_RCODE(iq->response->rep->flags) ==
+						LDNS_RCODE_NXDOMAIN) {
+						iter_scrub_nxdomain(iq->response);
+						return final_state(iq);
+					}
+					return error_response(qstate, id,
+						LDNS_RCODE_SERVFAIL);
+				}
 				/* Best effort qname-minimisation. 
 				 * Stop minimising and send full query when
 				 * RCODE is not NOERROR. */

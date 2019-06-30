@@ -1,3 +1,168 @@
+12 June 2019: Wouter
+	- Fix another spoolbuf storage code point, in prefetch.
+	- 1.9.2rc3 release candidate tag.
+
+11 June 2019: Wouter
+	- Fix that fixes the Fix that spoolbuf is not used to store tcp
+	  pipelined response between mesh send and callback end, this fixes
+	  error cases that did not use the correct spoolbuf.
+	- 1.9.2rc2 release candidate tag.
+
+6 June 2019: Wouter
+	- 1.9.2rc1 release candidate tag.
+
+4 June 2019: Wouter
+	- iana portlist updated.
+
+29 May 2019: Wouter
+	- Fix to guard _OPENBSD_SOURCE from redefinition.
+
+28 May 2019: Wouter
+	- Fix to define _OPENBSD_SOURCE to get reallocarray on NetBSD.
+	- gitignore config.h.in~.
+
+27 May 2019: Wouter
+	- Fix double file close in tcp pipelined response code.
+
+24 May 2019: Wouter
+	- Fix that spoolbuf is not used to store tcp pipelined response
+	  between mesh send and callback end.
+
+20 May 2019: Wouter
+	- Note that so-reuseport at extreme load is better turned off,
+	  otherwise queries are not distributed evenly, on Linux 4.4.x.
+
+16 May 2019: Wouter
+	- Fix #31: swig 4.0 and python module.
+
+13 May 2019: Wouter
+	- Squelch log messages from tcp send about connection reset by peer.
+	  They can be enabled with verbosity at higher values for diagnosing
+	  network connectivity issues.
+	- Attempt to fix malformed tcp response.
+
+9 May 2019: Wouter
+	- Revert fix for oss-fuzz, error is in that build script that
+	  unconditionally includes .o files detected by configure, also
+	  when the machine architecture uses different LIBOBJS files.
+
+8 May 2019: Wouter
+	- Attempt to fix build failure in oss-fuzz because of reallocarray.
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=14648.
+	  Does not omit compile flags from commandline.
+
+7 May 2019: Wouter
+	- Fix edns-subnet locks, in error cases the lock was not unlocked.
+	- Fix doxygen output error on readme markdown vignettes.
+
+6 May 2019: Wouter
+	- Fix #29: Solaris 11.3 and missing symbols be64toh, htobe64.
+	- Fix #30: AddressSanitizer finding in lookup3.c.  This sets the
+	  hash function to use a slower but better auditable code that does
+	  not read beyond array boundaries.  This makes code better security
+	  checkable, and is better for security.  It is fixed to be slower,
+	  but not read outside of the array.
+
+2 May 2019: Wouter
+	- contrib/fastrpz.patch updated for code changes, and with git diff.
+	- Fix .gitignore, add pythonmod and dnstap generated files.
+	  And unit test generated files, and generated doc files.
+
+1 May 2019: Wouter
+	- Update makedist for git.
+	- Nicer travis output for clang analysis.
+	- PR #16: XoT support, AXFR over TLS, turn it on with
+	  master: <ip>#<authname> in unbound.conf.  This uses TLS to
+	  download the AXFR (or IXFR).
+
+25 April 2019: Wouter
+	- Fix wrong query name in local zone redirect answers with a CNAME,
+	  the copy of the local alias is in unpacked form.
+
+18 April 2019: Ralph
+	- Scrub RRs from answer section when reusing NXDOMAIN message for
+	  subdomain answers.
+	- For harden-below-nxdomain: do not consider a name to be non-exitent
+	  when message contains a CNAME record.
+
+18 April 2019: Wouter
+	- travis build file.
+
+16 April 2019: Wouter
+	- Better braces in if statement in TCP fastopen code.
+	- iana portlist updated.
+
+15 April 2019: Wouter
+	- Fix tls write event for read state change to re-call SSL_write and
+	  not resume the TLS handshake.
+
+11 April 2019: George
+	- Update python documentation for init_standard().
+	- Typos.
+
+11 April 2019: Wouter
+	- Fix that auth zone uses correct network type for sockets for
+	  SOA serial probes.  This fixes that probes fail because earlier
+	  probe addresses are unreachable.
+	- Fix that auth zone fails over to next master for timeout in tcp.
+	- Squelch SSL read and write connection reset by peer and broken pipe 
+	  messages.  Verbosity 2 and higher enables them.
+
+8 April 2019: Wouter
+	- Fix to use event_assign with libevent for thread-safety.
+	- verbose information about auth zone lookup process, also lookup
+	  start, timeout and fail.
+	- Fix #17: Add python module example from Jan Janak, that is a
+	  plugin for the Unbound DNS resolver to resolve DNS records in
+	  multicast DNS [RFC 6762] via Avahi.  The plugin communicates
+	  with Avahi via DBus. The comment section at the beginning of
+	  the file contains detailed documentation.
+	- Fix to wipe ssl ticket keys from memory with explicit_bzero,
+	  if available.
+
+5 April 2019: Wouter
+	- Fix to reinit event structure for accepted TCP (and TLS) sockets.
+
+4 April 2019: Wouter
+	- Fix spelling error in log output for event method.
+
+3 April 2019: Wouter
+	- Move goto label in answer_from_cache to the end of the function
+	  where it is more visible.
+	- Fix auth-zone NSEC3 response for wildcard nodata answers,
+	  include the closest encloser in the answer.
+
+2 April 2019: Wouter
+	- Fix auth-zone NSEC3 response for empty nonterminals with exact
+	  match nsec3 records.
+	- Fix for out of bounds integers, thanks to OSTIF audit.  It is in
+	  allocation debug code.
+	- Fix for auth zone nsec3 ent fix for wildcard nodata.
+
+25 March 2019: Wouter
+	- Fix that tls-session-ticket-keys: "" on its own in unbound.conf
+	  disables the tls session ticker key calls into the OpenSSL API.
+	- Fix crash if tls-servic-pem not filled in when necessary.
+
+21 March 2019: Wouter
+	- Fix #4240: Fix whitespace cleanup in example.conf.
+
+19 March 2019: Wouter
+	- add type CAA to libpyunbound (accessing libunbound from python).
+
+18 March 2019: Wouter
+	- Add log message, at verbosity 4, that says the query is encrypted
+	  with TLS, if that is enabled for the query.
+	- Fix #4239: set NOTIMPL when deny-any is enabled, for RFC8482.
+
+7 March 2019: Wouter
+	- Fix for #4233: guard use of NDEBUG, so that it can be passed in
+	  CFLAGS into configure.
+
+5 March 2019: Wouter
+	- Tag release 1.9.1rc1.  Which became 1.9.1 on 12 March 2019.  Trunk
+	  has 1.9.2 in development.
+
 1 March 2019: Wouter
 	- output forwarder log in ssl_req_order test.
 

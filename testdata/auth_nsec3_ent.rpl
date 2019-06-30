@@ -1,0 +1,224 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+
+auth-zone:
+	name: "unbound-auth-test.nlnetlabs.nl."
+	## zonefile (or none).
+	## zonefile: "example.com.zone"
+	## master by IP address or hostname
+	## can list multiple masters, each on one line.
+	## master:
+	## url for http fetch
+	## url:
+	## queries from downstream clients get authoritative answers.
+	## for-downstream: yes
+	for-downstream: yes
+	## queries are used to fetch authoritative answers from this zone,
+	## instead of unbound itself sending queries there.
+	## for-upstream: yes
+	for-upstream: yes
+	## on failures with for-upstream, fallback to sending queries to
+	## the authority servers
+	## fallback-enabled: no
+
+	## this line generates zonefile: \n"/tmp/xxx.example.com"\n
+	zonefile:
+TEMPFILE_NAME unbound-auth-test.nlnetlabs.nl
+	## this is the inline file /tmp/xxx.unbound-auth-test.nlnetlabs.nl
+	## the tempfiles are deleted when the testrun is over.
+TEMPFILE_CONTENTS unbound-auth-test.nlnetlabs.nl
+;; Zone: unbound-auth-test.nlnetlabs.nl.
+;
+unbound-auth-test.nlnetlabs.nl.	3600	IN	SOA	ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1554201247 14400 3600 604800 3600
+unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	SOA 13 3 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. NLFcC2oet+HC+1dhT4D/2JJFIcMiRtTM81KwvT7u8ybF3iDE4bnyrILvQk8DsizpYKwk+D3J3tMC3TV5+//qFw==
+;
+unbound-auth-test.nlnetlabs.nl.	3600	IN	NS	ns.nlnetlabs.nl.
+unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	NS 13 3 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. Gm0UF77ljiInG4/HZ6Tkzx7z9N45WwwmbBt9KxeN3z1BkdBLiy10Du71ZBFLP71b+USs1rv5SJQ0hteZFbl8sg==
+unbound-auth-test.nlnetlabs.nl.	3600	IN	DNSKEY	256 3 13 S3Da9HqpFj0pEbI8WXOdkvN3vgZ6qxNSz4XyKkmWWAG28kq5T+/lWp36DUDvnMI9wJNuixzUHtgZ6oZoAaVrPg== ;{id = 15486 (zsk), size = 256b}
+unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	DNSKEY 13 3 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. 1cLFaDb6kP8KnRJujW1ieHUdS5Tgdv59TCZ+FloCRJMJBwQAow6UKAIY7HHlTb8IHTajyUrjlxX/dN8S/5VwuA==
+unbound-auth-test.nlnetlabs.nl.	3600	IN	NSEC3PARAM	1 0 1 -
+unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	NSEC3PARAM 13 3 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. GWgtJArNpfJ4ifoinUBUVRTlkk0CMemdozhMKY13dk3EQMP0jb4g49PcTAgEP2dBUs9efttQVQQpmFPyTGfN1w==
+tvdhfml24jp7cott1qijj9812qu9ibh3.unbound-auth-test.nlnetlabs.nl.	3600	IN	NSEC3	1 0 1 -  41pcah2j3fr8k99gj5pveh4igrjfc871 NS SOA RRSIG DNSKEY NSEC3PARAM  ;{ flags: -, from: unbound-auth-test.nlnetlabs.nl. to: b.b.unbound-auth-test.nlnetlabs.nl.}
+tvdhfml24jp7cott1qijj9812qu9ibh3.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	NSEC3 13 4 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. DzwQTaZj4j29eHXEKllIFcq4yNWA7VMqkh8+gCrBO+GEek9+hGxL6ANsU0Hv6glyBmPDeYUZcy4xy0EEj1R4hQ==
+;
+;; Empty nonterminal: b.unbound-auth-test.nlnetlabs.nl.
+apejmh1fqds9gir0nnsf4d5gtno10tg1.unbound-auth-test.nlnetlabs.nl.	3600	IN	NSEC3	1 0 1 -  dbs0aj50410urbvt3ghfr644n7h06gs5 ;{ flags: -, from: b.unbound-auth-test.nlnetlabs.nl. to: c.b.unbound-auth-test.nlnetlabs.nl.}
+apejmh1fqds9gir0nnsf4d5gtno10tg1.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	NSEC3 13 4 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. m9B0W8xDZF6ml/m8OujrZZBiF1O0wAeKciK/5FMT/hCjHR0hMrbXBPg/ZntpVJD/Pko2HcBvWKu87U721yTHyQ==
+;
+;; Empty nonterminal: a.b.unbound-auth-test.nlnetlabs.nl.
+toqivctpt4pdcp5g19neqt19fvtgbgeu.unbound-auth-test.nlnetlabs.nl.	3600	IN	NSEC3	1 0 1 -  tvdhfml24jp7cott1qijj9812qu9ibh3 ;{ flags: -, from: a.b.unbound-auth-test.nlnetlabs.nl. to: unbound-auth-test.nlnetlabs.nl.}
+toqivctpt4pdcp5g19neqt19fvtgbgeu.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	NSEC3 13 4 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. Jr1oPPs+DGBVV13n4gG4AGVFsleItluLbtCIyQDcYZEA+e5JMkrLzfW3rXqXaUSUauR4iEu5FmTfs4GTsumdUw==
+;
+*.a.b.unbound-auth-test.nlnetlabs.nl.	3600	IN	TXT	"*.a.b"
+*.a.b.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	TXT 13 5 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. NrMUaNzZp88lXit/HLL/iDBHspDSfoM//K+/0VwUYRZjmVJQQHCHtHBGgR4NgrLi3ffvCAWq2LNGxDm+YMSl3g==
+jrtu61ssgd18lfjglqrbbs5b2vmbh6cl.unbound-auth-test.nlnetlabs.nl.	3600	IN	NSEC3	1 0 1 -  k8r2bchsbehs5dbu5d6ivjfnmjb3jc8s TXT RRSIG  ;{ flags: -, from: *.a.b.unbound-auth-test.nlnetlabs.nl. to: *.c.b.unbound-auth-test.nlnetlabs.nl.}
+jrtu61ssgd18lfjglqrbbs5b2vmbh6cl.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	NSEC3 13 4 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. kLIhE9+iz1OybJwXbtRJZst+Mk5u4OAtpZGWSwJUfqD6dXAk+h6msKAR18jpPeL7cCjXjIAKIv3x4oYRkl+uKw==
+;
+;; Empty nonterminal: b.b.unbound-auth-test.nlnetlabs.nl.
+41pcah2j3fr8k99gj5pveh4igrjfc871.unbound-auth-test.nlnetlabs.nl.	3600	IN	NSEC3	1 0 1 -  apejmh1fqds9gir0nnsf4d5gtno10tg1 ;{ flags: -, from: b.b.unbound-auth-test.nlnetlabs.nl. to: b.unbound-auth-test.nlnetlabs.nl.}
+41pcah2j3fr8k99gj5pveh4igrjfc871.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	NSEC3 13 4 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. XlIjnuF313w0GXn6vymrAcsyuxZSaN6IShFjxQ5T2HUFePHBNvtRkL+TtMQZNlR8nTR3+MWcON0cOZIGjVCCjg==
+;
+*.b.b.unbound-auth-test.nlnetlabs.nl.	3600	IN	TXT	"*.b.b"
+*.b.b.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	TXT 13 5 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. FkS3ceWpoHyOKaa8OtywIl148Bwo0vkzBd263vqYe0puhuRa6IvNEk5ERdwfWt9eNEq+6IlizPT/dYxA2fXYXA==
+ft7dasbom0copm9e2ak9k151dj08kjfs.unbound-auth-test.nlnetlabs.nl.	3600	IN	NSEC3	1 0 1 -  jrtu61ssgd18lfjglqrbbs5b2vmbh6cl TXT RRSIG  ;{ flags: -, from: *.b.b.unbound-auth-test.nlnetlabs.nl. to: *.a.b.unbound-auth-test.nlnetlabs.nl.}
+ft7dasbom0copm9e2ak9k151dj08kjfs.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	NSEC3 13 4 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. 5QhLGohTRLQSGC8vstzDjqcwfrbOnLUG2OelSjvsZFy1smsWUxJBCQXQdx1+JX7xamZHlZESQtS+cELuZUqpvA==
+;
+;; Empty nonterminal: c.b.unbound-auth-test.nlnetlabs.nl.
+dbs0aj50410urbvt3ghfr644n7h06gs5.unbound-auth-test.nlnetlabs.nl.	3600	IN	NSEC3	1 0 1 -  ft7dasbom0copm9e2ak9k151dj08kjfs ;{ flags: -, from: c.b.unbound-auth-test.nlnetlabs.nl. to: *.b.b.unbound-auth-test.nlnetlabs.nl.}
+dbs0aj50410urbvt3ghfr644n7h06gs5.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	NSEC3 13 4 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. hjk1foJWW68JK3O1Ktf0ZogoXVrMDw3mHVBBYTrpaBKX1gWR5icmJiOCYZWYx3z88PUnGkfH+kx4oDUjioqN+Q==
+;
+*.c.b.unbound-auth-test.nlnetlabs.nl.	3600	IN	TXT	"*.c.b"
+*.c.b.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	TXT 13 5 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. b7rFR5tlx5Y5SQqNdYBtfD6DrkNx9h79GCmnZfWrUzRz+A256k2v08IPRJDK+WxEHuYHjfNnVWxjRr9M1OW2Iw==
+k8r2bchsbehs5dbu5d6ivjfnmjb3jc8s.unbound-auth-test.nlnetlabs.nl.	3600	IN	NSEC3	1 0 1 -  toqivctpt4pdcp5g19neqt19fvtgbgeu TXT RRSIG  ;{ flags: -, from: *.c.b.unbound-auth-test.nlnetlabs.nl. to: a.b.unbound-auth-test.nlnetlabs.nl.}
+k8r2bchsbehs5dbu5d6ivjfnmjb3jc8s.unbound-auth-test.nlnetlabs.nl.	3600	IN	RRSIG	NSEC3 13 4 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. 34BS1ajedCNdfXgUfxTyiAK1ichfFLshhJ3TnfplrUps0UsZaQLEG+EIlP4wTBtro2c6V8YCSmOuxuce4gYoDw==
+;
+TEMPFILE_END
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test authority zone with NSEC3 empty nonterminal
+; with exact match NSEC3 in existence (eg. not a CE-proof)
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com. IN A 1.2.3.44
+ENTRY_END
+RANGE_END
+
+; ns.example.net.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.44
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.net. IN NS
+SECTION ANSWER
+example.net.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.net.		IN 	A	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN A
+SECTION ANSWER
+ns.example.net. IN A	1.2.3.44
+SECTION AUTHORITY
+example.net.	IN NS	ns.example.net.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN AAAA
+SECTION AUTHORITY
+example.net.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+www.example.net. IN A	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.net.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.b.unbound-auth-test.nlnetlabs.nl. IN TXT
+ENTRY_END
+
+; recursion happens here.
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+a.b.unbound-auth-test.nlnetlabs.nl. IN TXT
+SECTION ANSWER
+SECTION AUTHORITY
+unbound-auth-test.nlnetlabs.nl.	3600 IN	SOA	ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1554201247 14400 3600 604800 3600
+unbound-auth-test.nlnetlabs.nl.	3600 IN	RRSIG	SOA 13 3 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. NLFcC2oet+HC+1dhT4D/2JJFIcMiRtTM81KwvT7u8ybF3iDE4bnyrILv Qk8DsizpYKwk+D3J3tMC3TV5+//qFw==
+toqivctpt4pdcp5g19neqt19fvtgbgeu.unbound-auth-test.nlnetlabs.nl. 3600 IN NSEC3 1 0 1 - TVDHFML24JP7COTT1QIJJ9812QU9IBH3
+toqivctpt4pdcp5g19neqt19fvtgbgeu.unbound-auth-test.nlnetlabs.nl. 3600 IN RRSIG NSEC3 13 4 3600 20190430103407 20190402103407 15486 unbound-auth-test.nlnetlabs.nl. Jr1oPPs+DGBVV13n4gG4AGVFsleItluLbtCIyQDcYZEA+e5JMkrLzfW3 rXqXaUSUauR4iEu5FmTfs4GTsumdUw==
+ENTRY_END
+
+SCENARIO_END

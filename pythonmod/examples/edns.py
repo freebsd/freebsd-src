@@ -78,7 +78,7 @@ def init_standard(id, env):
     extra functionality during init.
     ..note:: This function is preferred by unbound over the old init function.
     ..note:: The previously accessible configuration options can now be found in
-             env.cgf.
+             env.cfg.
     """
     log_info("python: inited script {}".format(env.cfg.python_script))
 

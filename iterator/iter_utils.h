@@ -335,6 +335,13 @@ void iter_scrub_ds(struct dns_msg* msg, struct ub_packed_rrset_key* ns,
 	uint8_t* z);
 
 /**
+ * Prepare an NXDOMAIN message to be used for a subdomain answer by removing all
+ * RRs from the ANSWER section.
+ * @param msg: the response to scrub.
+ */
+void iter_scrub_nxdomain(struct dns_msg* msg);
+
+/**
  * Remove query attempts from all available ips. For 0x20.
  * @param dp: delegpt.
  * @param d: decrease.

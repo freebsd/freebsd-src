@@ -200,4 +200,31 @@ i6pi4e3o98e7vtkpjfhqn7g77d3mjcnv.test-ns-signed.dev.internet.nl. 3600 IN NSEC3 1
 i6pi4e3o98e7vtkpjfhqn7g77d3mjcnv.test-ns-signed.dev.internet.nl.	3600	IN	RRSIG	NSEC3 8 5 3600 20190205132351 20190108132351 32784 test-ns-signed.dev.internet.nl. xLysIqn3r3rdHE3GvwVjZwUyuFClhkhgrQdwyc66RuHKE3MfSuhVr9cHTCJzhipF5TwQTbUpLOr74r99bzdiIY8Xkgjy2M0nc76v1ObSGJdPPjGTevbhDOnavUURwOR/q0NqqO2iPrgFjOVMZ+8uwRJtCty2iAVZfVG+qDzs8hU=
 ENTRY_END
 
+; Check that the reply for a wildcard nodata answer contains the NSEC3s.
+; qname denial NSEC3, closest encloser NSEC3, and type bitmap NSEC3.
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+something.a.b.test-ns-signed.dev.internet.nl. IN AAAA
+ENTRY_END
+
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+something.a.b.test-ns-signed.dev.internet.nl. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+test-ns-signed.dev.internet.nl.	3600	IN	SOA	ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 4 14400 3600 604800 3600
+test-ns-signed.dev.internet.nl.	3600	IN	RRSIG	SOA 8 4 3600 20190205132351 20190108132351 32784 test-ns-signed.dev.internet.nl. ybb0Hc7NC+QOFEEv4cX2+Umlk+miiOAHmeP2Uwvg6lqfxkk+3g7yWBEKMinXjLKz0odWZ6fki6M/3yBPQX8SV0OCRY5gYvAHAjbxAIHozIM+5iwOkRQhNF1DRgQ3BLjL93f6T5e5Z4y1812iOpu4GYswXW/UTOZACXz2UiaCPAg= ;{id = 32784}
+7ag3p2pfrvq09dpn63cvga8ub1rnrrg1.test-ns-signed.dev.internet.nl.	3600	IN	NSEC3	1 0 1 - 93stp7o7i5n9gb83uu7vv6h8qltk14ig TXT RRSIG
+7ag3p2pfrvq09dpn63cvga8ub1rnrrg1.test-ns-signed.dev.internet.nl.	3600	IN	RRSIG	NSEC3 8 5 3600 20190205132351 20190108132351 32784 test-ns-signed.dev.internet.nl. gtxoiTa3FRUqoRLvkWSxmWQ+DfijVd26gpKH3+GmGIcNB/sr/Cf8kERRwVVHvgzYIcvdJcys5b2LUXnZJwcdAlx7efZPWgNZzWxJrw6ES25LCWJOrp31isWn9FlAZGIbnpyEXxD2apBSmtyPnKbTgU6lHHS9jrsYHu4G8Zouv3k= ;{id = 32784}
+fee0c2kfhi6bnljce6vehaenqq3pbupu.test-ns-signed.dev.internet.nl.	3600	IN	NSEC3	1 0 1 - i6pi4e3o98e7vtkpjfhqn7g77d3mjcnv
+fee0c2kfhi6bnljce6vehaenqq3pbupu.test-ns-signed.dev.internet.nl.	3600	IN	RRSIG	NSEC3 8 5 3600 20190205132351 20190108132351 32784 test-ns-signed.dev.internet.nl. WIb3ISP1nlafbyWoWa4z7sG5IS+V86PyvEMHdD/64hgsFkrCu483XK7VNnBz28SL/631JXA1R19O+UxeWhTUyctp8QSt6cEZcMPY8b7yG97rNFNvhSw75rSXXt+JwgIYHPHQV5oqPtVmEpQM5SfJd+hs+Nn1bJcWB3UaESNNAMQ= ;{id = 32784}
+i6pi4e3o98e7vtkpjfhqn7g77d3mjcnv.test-ns-signed.dev.internet.nl.	3600	IN	NSEC3	1 0 1 - kl94uofq16t2vlq0bmampf6e4o9k5hbi A AAAA RRSIG
+i6pi4e3o98e7vtkpjfhqn7g77d3mjcnv.test-ns-signed.dev.internet.nl.	3600	IN	RRSIG	NSEC3 8 5 3600 20190205132351 20190108132351 32784 test-ns-signed.dev.internet.nl. xLysIqn3r3rdHE3GvwVjZwUyuFClhkhgrQdwyc66RuHKE3MfSuhVr9cHTCJzhipF5TwQTbUpLOr74r99bzdiIY8Xkgjy2M0nc76v1ObSGJdPPjGTevbhDOnavUURwOR/q0NqqO2iPrgFjOVMZ+8uwRJtCty2iAVZfVG+qDzs8hU= ;{id = 32784}
+ENTRY_END
+
 SCENARIO_END
