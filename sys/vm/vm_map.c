@@ -2186,7 +2186,6 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT(entry->end > start && entry->start < start,
 	    ("_vm_map_clip_start: invalid clip of entry %p", entry));
-	vm_map_simplify_entry(map, entry);
 
 	/*
 	 * Create a backing object now, if none exists, so that more individual
