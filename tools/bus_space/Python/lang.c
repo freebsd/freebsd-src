@@ -412,6 +412,12 @@ busdma_sync_range(PyObject *self, PyObject *args)
 	Py_RETURN_NONE;
 }
 
+/*
+ * Module methods and initialization.
+ */
+
+static char bus_docstr[] = "Access to H/W bus memory and register areas.";
+
 static PyMethodDef bus_methods[] = {
     { "read_1", bus_read_1, METH_VARARGS, "Read a 1-byte data item." },
     { "read_2", bus_read_2, METH_VARARGS, "Read a 2-byte data item." },
@@ -430,6 +436,9 @@ static PyMethodDef bus_methods[] = {
 
     { NULL, NULL, 0, NULL }
 };
+
+static char busdma_docstr[] = "A bus- and device-independent interface"
+    " to Direct Memory Access (DMA) mechanisms.";
 
 static PyMethodDef busdma_methods[] = {
     { "tag_create", busdma_tag_create, METH_VARARGS,
@@ -470,18 +479,12 @@ static PyMethodDef busdma_methods[] = {
     { NULL, NULL, 0, NULL }
 };
 
-PyMODINIT_FUNC
-initbus(void)
+static PyObject *
+module_initialize(PyObject *bus, PyObject *busdma)
 {
-	PyObject *bus, *busdma;
 
-	bus = Py_InitModule("bus", bus_methods);
-	if (bus == NULL)
-		return;
-	busdma = Py_InitModule("busdma", busdma_methods);
-	if (busdma == NULL)
-		return;
-	PyModule_AddObject(bus, "dma", busdma);
+	if (bus == NULL || busdma == NULL)
+		return (NULL);
 
 	PyModule_AddObject(busdma, "MD_BUS_SPACE", Py_BuildValue("i", 0));
 	PyModule_AddObject(busdma, "MD_PHYS_SPACE", Py_BuildValue("i", 1));
@@ -491,4 +494,49 @@ initbus(void)
 	PyModule_AddObject(busdma, "SYNC_POSTREAD", Py_BuildValue("i", 2));
 	PyModule_AddObject(busdma, "SYNC_PREWRITE", Py_BuildValue("i", 4));
 	PyModule_AddObject(busdma, "SYNC_POSTWRITE", Py_BuildValue("i", 8));
+
+	PyModule_AddObject(bus, "dma", busdma);
+	return (bus);
 }
+
+#if PY_MAJOR_VERSION >= 3
+
+static struct PyModuleDef bus_module = {
+	PyModuleDef_HEAD_INIT,
+	"bus",
+	bus_docstr,
+        -1,
+	bus_methods,
+};
+
+static struct PyModuleDef busdma_module = {
+	PyModuleDef_HEAD_INIT,
+	"busdma",
+	busdma_docstr,
+        -1,
+	busdma_methods,
+};
+
+PyMODINIT_FUNC
+PyInit_bus(void)
+{
+	PyObject *bus, *busdma;
+
+	bus = PyModule_Create(&bus_module);
+	busdma = PyModule_Create(&busdma_module);
+	return (module_initialize(bus, busdma));
+}
+
+#else /* PY_MAJOR_VERSION >= 3 */
+
+PyMODINIT_FUNC
+initbus(void)
+{
+	PyObject *bus, *busdma;
+
+	bus = Py_InitModule3("bus", bus_methods, bus_docstr);
+	busdma = Py_InitModule3("busdma", busdma_methods, busdma_docstr);
+	(void)module_initialize(bus, busdma);
+}
+
+#endif /* PY_MAJOR_VERSION >= 3 */
