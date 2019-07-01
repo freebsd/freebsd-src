@@ -695,6 +695,8 @@ int	vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
 int	vn_start_secondary_write(struct vnode *vp, struct mount **mpp,
 	    int flags);
+int	vn_truncate_locked(struct vnode *vp, off_t length, bool sync,
+	    struct ucred *cred);
 int	vn_writechk(struct vnode *vp);
 int	vn_extattr_get(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, int *buflen, char *buf, struct thread *td);
