@@ -444,6 +444,7 @@ nm_os_generic_xmit_frame(struct nm_os_gen_arg *a)
 	m->m_ext.ext_size = len;
 #endif /* __FreeBSD_version >= 1100000 */
 
+	m->m_flags |= M_PKTHDR;
 	m->m_len = m->m_pkthdr.len = len;
 
 	/* mbuf refcnt is not contended, no need to use atomic
@@ -452,7 +453,9 @@ nm_os_generic_xmit_frame(struct nm_os_gen_arg *a)
 	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	m->m_pkthdr.flowid = a->ring_nr;
 	m->m_pkthdr.rcvif = ifp; /* used for tx notification */
+	CURVNET_SET(ifp->if_vnet);
 	ret = NA(ifp)->if_transmit(ifp, m);
+	CURVNET_RESTORE();
 	return ret ? -1 : 0;
 }
 
