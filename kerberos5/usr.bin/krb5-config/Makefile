@@ -5,8 +5,12 @@ MAN=	krb5-config.1
 
 CLEANFILES= krb5-config
 
+# In order for this to work on MacOS we need to set LC_ALL=C since the
+# krb5-config.in file contains characters that will be rejected by MacOS with
+# a UTF-8 locale (see https://stackoverflow.com/a/23584470/894271)
+# TODO: Should we just require LC_ALL=C during the build?
 krb5-config: krb5-config.in
-	sed -e "s,@PACKAGE@,FreeBSD heimdal,g" \
+	env LC_ALL=C sed -e "s,@PACKAGE@,FreeBSD heimdal,g" \
 	    -e "s,@VERSION@,1.1.0,g" \
 	    -e "s,@prefix@,/usr,g" \
 	    -e "s,@exec_prefix@,/usr,g" \
