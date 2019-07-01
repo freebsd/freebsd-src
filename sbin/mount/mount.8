@@ -355,6 +355,12 @@ Lookups will be done in the mounted file system first.
 If those operations fail due to a non-existent file the underlying
 directory is then accessed.
 All creates are done in the mounted file system.
+.It Cm untrusted
+The file system is untrusted and the kernel should use more
+extensive checks on the file-system's metadata before using it.
+This option is intended to be used when mounting file systems
+from untrusted media such as USB memory sticks or other
+externally-provided media.
 .El
 .Pp
 Any additional options specific to a file system type that is not

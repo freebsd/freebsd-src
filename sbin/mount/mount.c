@@ -118,6 +118,7 @@ static struct opt {
 	{ MNT_GJOURNAL,		"gjournal" },
 	{ MNT_AUTOMOUNTED,	"automounted" },
 	{ MNT_VERIFIED,		"verified" },
+	{ MNT_UNTRUSTED,	"untrusted" },
 	{ 0, NULL }
 };
 
@@ -972,6 +973,7 @@ flags2opts(int flags)
 	if (flags & MNT_MULTILABEL)	res = catopt(res, "multilabel");
 	if (flags & MNT_ACLS)		res = catopt(res, "acls");
 	if (flags & MNT_NFS4ACLS)	res = catopt(res, "nfsv4acls");
+	if (flags & MNT_UNTRUSTED)	res = catopt(res, "untrusted");
 
 	return (res);
 }
