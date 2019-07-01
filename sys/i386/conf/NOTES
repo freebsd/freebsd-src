@@ -838,6 +838,11 @@ device		amdtemp
 device		cpuctl
 
 #
+# SuperIO driver.
+#
+device		superio
+
+#
 # System Management Bus (SMB)
 #
 options 	ENABLE_ALART		# Control alarm on Intel intpm driver
