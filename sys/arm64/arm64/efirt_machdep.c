@@ -208,20 +208,14 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			mode = VM_MEMATTR_WRITE_THROUGH;
 		else if ((p->md_attr & EFI_MD_ATTR_WC) != 0)
 			mode = VM_MEMATTR_WRITE_COMBINING;
-		else if ((p->md_attr & EFI_MD_ATTR_UC) != 0)
+		else
 			mode = VM_MEMATTR_DEVICE;
-		else {
-			if (bootverbose)
-				printf("EFI Runtime entry %d mapping "
-				    "attributes unsupported\n", i);
-			mode = VM_MEMATTR_UNCACHEABLE;
-		}
 
 		printf("MAP %lx mode %x pages %lu\n", p->md_phys, mode, p->md_pages);
 
 		l3_attr = ATTR_DEFAULT | ATTR_IDX(mode) | ATTR_AP(ATTR_AP_RW) |
 		    L3_PAGE;
-		if (mode == VM_MEMATTR_DEVICE)
+		if (mode == VM_MEMATTR_DEVICE || p->md_attr & EFI_MD_ATTR_XP)
 			l3_attr |= ATTR_UXN | ATTR_PXN;
 
 		VM_OBJECT_WLOCK(obj_1t1_pt);
