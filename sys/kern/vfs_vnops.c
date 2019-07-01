@@ -1289,7 +1289,6 @@ static int
 vn_truncate(struct file *fp, off_t length, struct ucred *active_cred,
     struct thread *td)
 {
-	struct vattr vattr;
 	struct mount *mp;
 	struct vnode *vp;
 	void *rl_cookie;
@@ -1316,20 +1315,35 @@ vn_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 	if (error)
 		goto out;
 #endif
-	error = VOP_ADD_WRITECOUNT(vp, 1);
-	if (error == 0) {
-		VATTR_NULL(&vattr);
-		vattr.va_size = length;
-		if ((fp->f_flag & O_FSYNC) != 0)
-			vattr.va_vaflags |= VA_SYNC;
-		error = VOP_SETATTR(vp, &vattr, fp->f_cred);
-		VOP_ADD_WRITECOUNT_CHECKED(vp, -1);
-	}
+	error = vn_truncate_locked(vp, length, (fp->f_flag & O_FSYNC) != 0,
+	    fp->f_cred);
 out:
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 out1:
 	vn_rangelock_unlock(vp, rl_cookie);
+	return (error);
+}
+
+/*
+ * Truncate a file that is already locked.
+ */
+int
+vn_truncate_locked(struct vnode *vp, off_t length, bool sync,
+    struct ucred *cred)
+{
+	struct vattr vattr;
+	int error;
+
+	error = VOP_ADD_WRITECOUNT(vp, 1);
+	if (error == 0) {
+		VATTR_NULL(&vattr);
+		vattr.va_size = length;
+		if (sync)
+			vattr.va_vaflags |= VA_SYNC;
+		error = VOP_SETATTR(vp, &vattr, cred);
+		VOP_ADD_WRITECOUNT_CHECKED(vp, -1);
+	}
 	return (error);
 }
 
