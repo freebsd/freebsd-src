@@ -529,7 +529,7 @@ nct_attach(device_t dev)
 		pin->gp_caps = NCT_GPIO_CAPS;
 		pin->gp_flags = 0;
 
-		snprintf(pin->gp_name, GPIOMAXNAME, "GPIO%02u", i);
+		snprintf(pin->gp_name, GPIOMAXNAME, "GPIO%02o", i);
 		pin->gp_name[GPIOMAXNAME - 1] = '\0';
 
 		if (nct_pin_is_input(sc, i))
