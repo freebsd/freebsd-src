@@ -331,10 +331,10 @@ ipopts_match(struct ip *ip, ipfw_insn *cmd)
 }
 
 static int
-tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
+tcpopts_parse(struct tcphdr *tcp, uint16_t *mss)
 {
-	int optlen, bits = 0;
 	u_char *cp = (u_char *)(tcp + 1);
+	int optlen, bits = 0;
 	int x = (tcp->th_off << 2) - sizeof(struct tcphdr);
 
 	for (; x > 0; x -= optlen, cp += optlen) {
@@ -350,12 +350,13 @@ tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
 		}
 
 		switch (opt) {
-
 		default:
 			break;
 
 		case TCPOPT_MAXSEG:
 			bits |= IP_FW_TCPOPT_MSS;
+			if (mss != NULL)
+				*mss = be16dec(cp + 2);
 			break;
 
 		case TCPOPT_WINDOW:
@@ -370,10 +371,16 @@ tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
 		case TCPOPT_TIMESTAMP:
 			bits |= IP_FW_TCPOPT_TS;
 			break;
-
 		}
 	}
-	return (flags_match(cmd, bits));
+	return (bits);
+}
+
+static int
+tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
+{
+
+	return (flags_match(cmd, tcpopts_parse(tcp, NULL)));
 }
 
 static int
@@ -2273,6 +2280,31 @@ do {								\
 				match = (proto == IPPROTO_TCP && offset == 0 &&
 				    ((ipfw_insn_u32 *)cmd)->d[0] ==
 					TCP(ulp)->th_ack);
+				break;
+
+			case O_TCPMSS:
+				if (proto == IPPROTO_TCP &&
+				    (args->f_id._flags & TH_SYN) != 0 &&
+				    ulp != NULL) {
+					uint16_t mss, *p;
+					int i;
+
+					PULLUP_LEN(hlen, ulp,
+					    (TCP(ulp)->th_off << 2));
+					if ((tcpopts_parse(TCP(ulp), &mss) &
+					    IP_FW_TCPOPT_MSS) == 0)
+						break;
+					if (cmdlen == 1) {
+						match = (cmd->arg1 == mss);
+						break;
+					}
+					/* Otherwise we have ranges. */
+					p = ((ipfw_insn_u16 *)cmd)->ports;
+					i = cmdlen - 1;
+					for (; !match && i > 0; i--, p += 2)
+						match = (mss >= p[0] &&
+						    mss <= p[1]);
+				}
 				break;
 
 			case O_TCPWIN:
