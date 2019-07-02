@@ -1282,6 +1282,9 @@ mb_free_ext(struct mbuf *m)
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_PGS:
+			KASSERT(mref->m_ext.ext_free != NULL,
+			    ("%s: ext_free not set", __func__));
+			mref->m_ext.ext_free(mref);
 			uma_zfree(zone_extpgs, mref->m_ext.ext_pgs);
 			uma_zfree(zone_mbuf, mref);
 			break;
