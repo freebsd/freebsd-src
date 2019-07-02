@@ -66,6 +66,9 @@ Note that process is only allowed to enable tracing for itself,
 not for any other process.
 .It Ar trapcap
 Controls the signalling of capability mode access violations.
+.It Ar protmax
+Controls the implicit PROT_MAX application for
+.Xr mmap 2 .
 .It Ar kpti
 Controls the KPTI enable, AMD64 only.
 .El
