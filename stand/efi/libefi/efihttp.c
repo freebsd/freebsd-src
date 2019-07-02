@@ -127,9 +127,11 @@ setup_ipv4_config2(EFI_HANDLE handle, MAC_ADDR_DEVICE_PATH *mac,
 	    (void **)&ip4config2, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
-	if (ipv4) {
-		setenv("boot.netif.hwaddr",
-		    ether_sprintf((u_char *)mac->MacAddress.Addr), 1);
+	if (ipv4 != NULL) {
+		if (mac != NULL) {
+			setenv("boot.netif.hwaddr",
+			    ether_sprintf((u_char *)mac->MacAddress.Addr), 1);
+		}
 		setenv("boot.netif.ip",
 		    inet_ntoa(*(struct in_addr *)ipv4->LocalIpAddress.Addr), 1);
 		setenv("boot.netif.netmask",
@@ -160,7 +162,7 @@ setup_ipv4_config2(EFI_HANDLE handle, MAC_ADDR_DEVICE_PATH *mac,
 				return (efi_status_to_errno(status));
 		}
 
-		if (dns) {
+		if (dns != NULL) {
 			status = ip4config2->SetData(ip4config2,
 			    Ip4Config2DataTypeDnsServer,
 			    sizeof(EFI_IPv4_ADDRESS), &dns->DnsServerIp);
@@ -252,6 +254,7 @@ efihttp_dev_open(struct open_file *f, ...)
 	status = BS->LocateDevicePath(&httpsb_guid, &devpath, &handle);
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
+	mac = NULL;
 	ipv4 = NULL;
 	dns = NULL;
 	uri = NULL;
@@ -662,7 +665,7 @@ static int
 efihttp_fs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 {
 	size_t res;
-	int err;
+	int err = 0;
 
 	while (size > 0) {
 		err = _efihttp_fs_read(f, buf, size, &res);
