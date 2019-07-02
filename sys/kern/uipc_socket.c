@@ -2200,7 +2200,7 @@ soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	/* Prevent other readers from entering the socket. */
 	error = sblock(sb, SBLOCKWAIT(flags));
 	if (error)
-		goto out;
+		return (error);
 	SOCKBUF_LOCK(sb);
 
 	/* Easy one, no space to copyout anything. */
