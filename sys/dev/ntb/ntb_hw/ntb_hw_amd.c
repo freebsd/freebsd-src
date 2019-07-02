@@ -93,6 +93,26 @@ SYSCTL_UINT(_hw_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
                 device_printf(ntb->device, __VA_ARGS__);	\
 } while (0)
 
+#ifdef __i386__
+static __inline uint64_t
+bus_space_read_8(bus_space_tag_t tag, bus_space_handle_t handle,
+    bus_size_t offset)
+{
+
+	return (bus_space_read_4(tag, handle, offset) |
+	    ((uint64_t)bus_space_read_4(tag, handle, offset + 4)) << 32);
+}
+
+static __inline void
+bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t handle,
+    bus_size_t offset, uint64_t val)
+{
+
+	bus_space_write_4(tag, handle, offset, val);
+	bus_space_write_4(tag, handle, offset + 4, val >> 32);
+}
+#endif
+
 /*
  * AMD NTB INTERFACE ROUTINES
  */
@@ -316,11 +336,6 @@ amd_ntb_mw_get_range(device_t dev, unsigned mw_idx, vm_paddr_t *base,
 			*plimit = BUS_SPACE_MAXADDR_32BIT;
 	}
 
-	amd_ntb_printf(1, "%s: mw %d padd %p vadd %p psize 0x%lx "
-	    "align 0x%lx asize 0x%lx alimit %p\n", __func__, mw_idx,
-	    (void *)*base, (void *)*vbase, (uint64_t)*size, (uint64_t)*align,
-	    (uint64_t)*align_size, (void *)*plimit);
-
 	return (0);
 }
 
@@ -353,14 +368,14 @@ amd_ntb_mw_set_trans(device_t dev, unsigned mw_idx, bus_addr_t addr, size_t size
 	 * set and verify setting the translation address
 	 */
 	amd_ntb_peer_reg_write(8, bar_info->xlat_off, (uint64_t)addr);
-	amd_ntb_printf(0, "%s: mw %d xlat_off 0x%x cur_val 0x%lx addr %p\n",
+	amd_ntb_printf(0, "%s: mw %d xlat_off 0x%x cur_val 0x%jx addr %p\n",
 	    __func__, mw_idx, bar_info->xlat_off,
 	    amd_ntb_peer_reg_read(8, bar_info->xlat_off), (void *)addr);
 
 	/* set and verify setting the limit */
 	if (mw_idx != 0) {
 		amd_ntb_reg_write(8, bar_info->limit_off, (uint64_t)size);
-		amd_ntb_printf(1, "%s: limit_off 0x%x cur_val 0x%lx limit 0x%x\n",
+		amd_ntb_printf(1, "%s: limit_off 0x%x cur_val 0x%jx limit 0x%x\n",
 		    __func__, bar_info->limit_off,
 		    amd_ntb_peer_reg_read(8, bar_info->limit_off), (uint32_t)size);
 	} else {
@@ -470,7 +485,7 @@ amd_ntb_db_read(device_t dev)
 
 	dbstat_off = (uint64_t)amd_ntb_reg_read(2, AMD_DBSTAT_OFFSET);
 
-	amd_ntb_printf(1, "%s: dbstat_off 0x%lx\n", __func__, dbstat_off);
+	amd_ntb_printf(1, "%s: dbstat_off 0x%jx\n", __func__, dbstat_off);
 
 	return (dbstat_off);
 }
@@ -480,7 +495,7 @@ amd_ntb_db_clear(device_t dev, uint64_t db_bits)
 {
 	struct amd_ntb_softc *ntb = device_get_softc(dev);
 
-	amd_ntb_printf(1, "%s: db_bits 0x%lx\n", __func__, db_bits);
+	amd_ntb_printf(1, "%s: db_bits 0x%jx\n", __func__, db_bits);
 	amd_ntb_reg_write(2, AMD_DBSTAT_OFFSET, (uint16_t)db_bits);
 }
 
@@ -490,7 +505,7 @@ amd_ntb_db_set_mask(device_t dev, uint64_t db_bits)
 	struct amd_ntb_softc *ntb = device_get_softc(dev);
 
 	DB_MASK_LOCK(ntb);
-	amd_ntb_printf(1, "%s: db_mask 0x%x db_bits 0x%lx\n",
+	amd_ntb_printf(1, "%s: db_mask 0x%x db_bits 0x%jx\n",
 	    __func__, ntb->db_mask, db_bits);
 
 	ntb->db_mask |= db_bits;
@@ -504,7 +519,7 @@ amd_ntb_db_clear_mask(device_t dev, uint64_t db_bits)
 	struct amd_ntb_softc *ntb = device_get_softc(dev);
 
 	DB_MASK_LOCK(ntb);
-	amd_ntb_printf(1, "%s: db_mask 0x%x db_bits 0x%lx\n",
+	amd_ntb_printf(1, "%s: db_mask 0x%x db_bits 0x%jx\n",
 	    __func__, ntb->db_mask, db_bits);
 
 	ntb->db_mask &= ~db_bits;
@@ -517,7 +532,7 @@ amd_ntb_peer_db_set(device_t dev, uint64_t db_bits)
 {
 	struct amd_ntb_softc *ntb = device_get_softc(dev);
 
-	amd_ntb_printf(1, "%s: db_bits 0x%lx\n", __func__, db_bits);
+	amd_ntb_printf(1, "%s: db_bits 0x%jx\n", __func__, db_bits);
 	amd_ntb_reg_write(2, AMD_DBREQ_OFFSET, (uint16_t)db_bits);
 }
 
@@ -660,17 +675,17 @@ amd_ntb_hw_info_handler(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb, "AMD Doorbell: 0x%x\n",
 	    amd_ntb_reg_read(4, AMD_DBSTAT_OFFSET));
 	sbuf_printf(sb, "AMD NTB Incoming XLAT: \n");
-	sbuf_printf(sb, "AMD XLAT1: 0x%lx\n",
+	sbuf_printf(sb, "AMD XLAT1: 0x%jx\n",
 	    amd_ntb_peer_reg_read(8, AMD_BAR1XLAT_OFFSET));
-	sbuf_printf(sb, "AMD XLAT23: 0x%lx\n",
+	sbuf_printf(sb, "AMD XLAT23: 0x%jx\n",
 	    amd_ntb_peer_reg_read(8, AMD_BAR23XLAT_OFFSET));
-	sbuf_printf(sb, "AMD XLAT45: 0x%lx\n",
+	sbuf_printf(sb, "AMD XLAT45: 0x%jx\n",
 	    amd_ntb_peer_reg_read(8, AMD_BAR45XLAT_OFFSET));
 	sbuf_printf(sb, "AMD LMT1: 0x%x\n",
 	    amd_ntb_reg_read(4, AMD_BAR1LMT_OFFSET));
-	sbuf_printf(sb, "AMD LMT23: 0x%lx\n",
+	sbuf_printf(sb, "AMD LMT23: 0x%jx\n",
 	    amd_ntb_reg_read(8, AMD_BAR23LMT_OFFSET));
-	sbuf_printf(sb, "AMD LMT45: 0x%lx\n",
+	sbuf_printf(sb, "AMD LMT45: 0x%jx\n",
 	    amd_ntb_reg_read(8, AMD_BAR45LMT_OFFSET));
 
 	rc = sbuf_finish(sb);
