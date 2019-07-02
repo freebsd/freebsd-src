@@ -8,5 +8,5 @@
 # time zone abbreviation "-00", indicating that the actual time zone
 # is unknown.
 
-# Zone	NAME	GMTOFF	RULES	FORMAT
+# Zone	NAME	STDOFF	RULES	FORMAT
 Zone	Factory	0	- "Local time zone must be set--use tzsetup"
