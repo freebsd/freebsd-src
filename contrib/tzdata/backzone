@@ -38,7 +38,7 @@
 # commentary and rules associated with the entry.
 #
 # As explained in the zic man page, the zone columns are:
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 
 # Ethiopia
 # From Paul Eggert (2014-07-31):
