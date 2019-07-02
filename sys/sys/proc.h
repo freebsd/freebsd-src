@@ -761,6 +761,8 @@ struct proc {
 #define	P2_ASLR_ENABLE	0x00000040	/* Force enable ASLR. */
 #define	P2_ASLR_DISABLE	0x00000080	/* Force disable ASLR. */
 #define	P2_ASLR_IGNSTART 0x00000100	/* Enable ASLR to consume sbrk area. */
+#define	P2_PROTMAX_ENABLE 0x00000200	/* Force enable implied PROT_MAX. */
+#define	P2_PROTMAX_DISABLE 0x00000400	/* Force disable implied PROT_MAX. */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
