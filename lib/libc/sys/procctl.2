@@ -94,7 +94,7 @@ Same notes as for
 .Dv PROC_ASLR_FORCE_ENABLE
 apply.
 .It Dv PROC_ASLR_NOFORCE
-Use system-wide configured policy for ASLR.
+Use the system-wide configured policy for ASLR.
 .El
 .It Dv PROC_ASLR_STATUS
 Returns the current status of ASLR enablement for the target process.
@@ -111,6 +111,47 @@ following values is written:
 If the currently executed image in the process itself has ASLR enabled,
 the
 .Dv PROC_ASLR_ACTIVE
+flag is or-ed with the value listed above.
+.It Dv PROC_PROTMAX_CTL
+Controls implicit application of PROT_MAX protection equal to the
+.Fa prot
+argument of the
+.Xr mmap 2
+syscall, in the target process.
+The
+.Va arg
+parameter must point to the integer variable holding one of the following
+values:
+.Bl -tag -width PROC_PROTMAX_FORCE_DISABLE
+.It Dv PROC_PROTMAX_FORCE_ENABLE
+Enables implicit PROT_MAX application,
+even if it is disabled system-wide by the sysctl
+.Va vm.imply_prot_max .
+The image flag might still prevent the enablement.
+.It Dv PROC_ASLR_FORCE_DISABLE
+Request that implicit application of PROT_MAX be disabled.
+Same notes as for
+.Dv PROC_PROTMAX_FORCE_ENABLE
+apply.
+.It Dv PROC_PROTMAX_NOFORCE
+Use the system-wide configured policy for PROT_MAX.
+.El
+.It Dv PROC_PROTMAX_STATUS
+Returns the current status of implicit PROT_MAX enablement for the
+target process.
+The
+.Va arg
+parameter must point to the integer variable, where one of the
+following values is written:
+.Bl -tag -width PROC_PROTMAX_FORCE_DISABLE
+.It Dv PROC_PROTMAX_FORCE_ENABLE
+.It Dv PROC_PROTMAX_FORCE_DISABLE
+.It Dv PROC_PROTMAX_NOFORCE
+.El
+.Pp
+If the currently executed image in the process itself has implicit PROT_MAX
+application enabled, the
+.Dv PROC_PROTMAX_ACTIVE
 flag is or-ed with the value listed above.
 .It Dv PROC_SPROTECT
 Set process protection state.
@@ -575,6 +616,8 @@ or invalid signal number.
 .Xr cap_enter 2,
 .Xr kill 2 ,
 .Xr ktrace 2 ,
+.Xr mmap 2 ,
+.Xr mprotect 2 ,
 .Xr ptrace 2 ,
 .Xr wait 2 ,
 .Xr capsicum 4 ,

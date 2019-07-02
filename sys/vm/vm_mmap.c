@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
+#include <sys/elf.h>
 #include <sys/filedesc.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -182,6 +183,19 @@ sys_mmap(struct thread *td, struct mmap_args *uap)
 }
 
 int
+kern_mmap_maxprot(struct proc *p, int prot)
+{
+
+	if ((p->p_flag2 & P2_PROTMAX_DISABLE) != 0 ||
+	    (p->p_fctl0 & NT_FREEBSD_FCTL_PROTMAX_DISABLE) != 0)
+		return (_PROT_ALL);
+	if (((p->p_flag2 & P2_PROTMAX_ENABLE) != 0 || imply_prot_max) &&
+	    prot != PROT_NONE)
+		 return (prot);
+	return (_PROT_ALL);
+}
+
+int
 kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
     int fd, off_t pos)
 {
@@ -206,12 +220,9 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
 	/*
 	 * Always honor PROT_MAX if set.  If not, default to all
 	 * permissions unless we're implying maximum permissions.
-	 *
-	 * XXX: should be tunable per process and ABI.
 	 */
 	if (max_prot == 0)
-		max_prot = (imply_prot_max && prot != PROT_NONE) ?
-		    prot : _PROT_ALL;
+		max_prot = kern_mmap_maxprot(p, prot);
 
 	vms = p->p_vmspace;
 	fp = NULL;

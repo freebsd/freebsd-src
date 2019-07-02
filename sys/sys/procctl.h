@@ -59,6 +59,8 @@
 #define	PROC_PDEATHSIG_STATUS	12	/* get parent death signal */
 #define	PROC_ASLR_CTL		13	/* en/dis ASLR */
 #define	PROC_ASLR_STATUS	14	/* query ASLR status */
+#define	PROC_PROTMAX_CTL	15	/* en/dis implicit PROT_MAX */
+#define	PROC_PROTMAX_STATUS	16	/* query implicit PROT_MAX status */
 
 /* Operations for PROC_SPROTECT (passed in integer arg). */
 #define	PPROT_OP(x)	((x) & 0xf)
@@ -126,6 +128,11 @@ struct procctl_reaper_kill {
 #define	PROC_ASLR_FORCE_DISABLE		2
 #define	PROC_ASLR_NOFORCE		3
 #define	PROC_ASLR_ACTIVE		0x80000000
+
+#define	PROC_PROTMAX_FORCE_ENABLE	1
+#define	PROC_PROTMAX_FORCE_DISABLE	2
+#define	PROC_PROTMAX_NOFORCE		3
+#define	PROC_PROTMAX_ACTIVE		0x80000000
 
 #ifndef _KERNEL
 __BEGIN_DECLS
