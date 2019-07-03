@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2016 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2016-2019 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -85,20 +85,35 @@ libusb_hotplug_filter(libusb_context *ctx, libusb_hotplug_callback_handle pcbh,
 	return (pcbh->fn(ctx, dev, event, pcbh->user_data));
 }
 
+static int
+libusb_hotplug_enumerate(libusb_context *ctx, struct libusb_device_head *phead)
+{
+	libusb_device **ppdev;
+	ssize_t count;
+	ssize_t x;
+
+	count = libusb_get_device_list(ctx, &ppdev);
+	if (count < 0)
+		return (-1);
+
+	for (x = 0; x != count; x++)
+		TAILQ_INSERT_TAIL(phead, ppdev[x], hotplug_entry);
+
+	libusb_free_device_list(ppdev, 0);
+	return (0);
+}
+
 static void *
 libusb_hotplug_scan(void *arg)
 {
-	TAILQ_HEAD(, libusb_device) hotplug_devs;
+	struct libusb_device_head hotplug_devs;
 	libusb_hotplug_callback_handle acbh;
 	libusb_hotplug_callback_handle bcbh;
 	libusb_context *ctx = arg;
-	libusb_device **ppdev;
 	libusb_device *temp;
 	libusb_device *adev;
 	libusb_device *bdev;
 	unsigned do_loop = 1;
-	ssize_t count;
-	ssize_t x;
 
 	while (do_loop) {
 		usleep(4000000);
@@ -108,14 +123,8 @@ libusb_hotplug_scan(void *arg)
 		TAILQ_INIT(&hotplug_devs);
 
 		if (ctx->hotplug_handler != NO_THREAD) {
-			count = libusb_get_device_list(ctx, &ppdev);
-			if (count < 0)
+			if (libusb_hotplug_enumerate(ctx, &hotplug_devs) < 0)
 				continue;
-			for (x = 0; x != count; x++) {
-				TAILQ_INSERT_TAIL(&hotplug_devs, ppdev[x],
-				    hotplug_entry);
-			}
-			libusb_free_device_list(ppdev, 0);
 		} else {
 			do_loop = 0;
 		}
@@ -191,6 +200,8 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 
 	HOTPLUG_LOCK(ctx);
 	if (ctx->hotplug_handler == NO_THREAD) {
+	  	libusb_hotplug_enumerate(ctx, &ctx->hotplug_devs);
+
 		if (pthread_create(&ctx->hotplug_handler, NULL,
 		    &libusb_hotplug_scan, ctx) != 0)
 			ctx->hotplug_handler = NO_THREAD;
