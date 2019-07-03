@@ -145,14 +145,23 @@ fsck_readdir(struct inodesc *idesc)
 	struct direct *dp, *ndp;
 	struct bufarea *bp;
 	long size, blksiz, fix, dploc;
+	int dc;
 
 	blksiz = idesc->id_numfrags * sblock.fs_fsize;
 	bp = getdirblk(idesc->id_blkno, blksiz);
 	if (idesc->id_loc % DIRBLKSIZ == 0 && idesc->id_filesize > 0 &&
 	    idesc->id_loc < blksiz) {
 		dp = (struct direct *)(bp->b_un.b_buf + idesc->id_loc);
-		if (dircheck(idesc, dp))
+		if ((dc = dircheck(idesc, dp)) > 0) {
+			if (dc == 2) {
+				/*
+				 * dircheck() cleared unused directory space.
+				 * Mark the buffer as dirty to write it out.
+				 */
+				dirty(bp);
+			}
 			goto dpok;
+		}
 		if (idesc->id_fix == IGNORE)
 			return (0);
 		fix = dofix(idesc, "DIRECTORY CORRUPTED");
@@ -179,19 +188,26 @@ dpok:
 	if ((idesc->id_loc % DIRBLKSIZ) == 0)
 		return (dp);
 	ndp = (struct direct *)(bp->b_un.b_buf + idesc->id_loc);
-	if (idesc->id_loc < blksiz && idesc->id_filesize > 0 &&
-	    dircheck(idesc, ndp) == 0) {
-		size = DIRBLKSIZ - (idesc->id_loc % DIRBLKSIZ);
-		idesc->id_loc += size;
-		idesc->id_filesize -= size;
-		if (idesc->id_fix == IGNORE)
-			return (0);
-		fix = dofix(idesc, "DIRECTORY CORRUPTED");
-		bp = getdirblk(idesc->id_blkno, blksiz);
-		dp = (struct direct *)(bp->b_un.b_buf + dploc);
-		dp->d_reclen += size;
-		if (fix)
+	if (idesc->id_loc < blksiz && idesc->id_filesize > 0) {
+		if ((dc = dircheck(idesc, ndp)) == 0) {
+			size = DIRBLKSIZ - (idesc->id_loc % DIRBLKSIZ);
+			idesc->id_loc += size;
+			idesc->id_filesize -= size;
+			if (idesc->id_fix == IGNORE)
+				return (0);
+			fix = dofix(idesc, "DIRECTORY CORRUPTED");
+			bp = getdirblk(idesc->id_blkno, blksiz);
+			dp = (struct direct *)(bp->b_un.b_buf + dploc);
+			dp->d_reclen += size;
+			if (fix)
+				dirty(bp);
+		} else if (dc == 2) {
+			/*
+			 * dircheck() cleared unused directory space.
+			 * Mark the buffer as dirty to write it out.
+			 */
 			dirty(bp);
+		}
 	}
 	return (dp);
 }
@@ -199,6 +215,11 @@ dpok:
 /*
  * Verify that a directory entry is valid.
  * This is a superset of the checks made in the kernel.
+ * Also optionally clears padding and unused directory space.
+ *
+ * Returns 0 if the entry is bad, 1 if the entry is good and no changes
+ * were made, and 2 if the entry is good but modified to clear out padding
+ * and unused space and needs to be written back to disk.
  */
 static int
 dircheck(struct inodesc *idesc, struct direct *dp)
@@ -207,15 +228,39 @@ dircheck(struct inodesc *idesc, struct direct *dp)
 	char *cp;
 	u_char type;
 	u_int8_t namlen;
-	int spaceleft;
+	int spaceleft, modified, unused;
 
+	modified = 0;
 	spaceleft = DIRBLKSIZ - (idesc->id_loc % DIRBLKSIZ);
 	if (dp->d_reclen == 0 ||
 	    dp->d_reclen > spaceleft ||
-	    (dp->d_reclen & 0x3) != 0)
+	    (dp->d_reclen & (DIR_ROUNDUP - 1)) != 0)
 		goto bad;
-	if (dp->d_ino == 0)
-		return (1);
+	if (dp->d_ino == 0) {
+		/*
+		 * Special case of an unused directory entry. Normally
+		 * the kernel would coalesce unused space with the previous
+		 * entry by extending its d_reclen, but there are situations
+		 * (e.g. fsck) where that doesn't occur.
+		 * If we're clearing out directory cruft (-z flag), then make
+		 * sure this entry gets fully cleared as well.
+		 */
+		if (zflag && fswritefd >= 0) {
+			if (dp->d_type != 0) {
+				dp->d_type = 0;
+				modified = 1;
+			}
+			if (dp->d_namlen != 0) {
+				dp->d_namlen = 0;
+				modified = 1;
+			}
+			if (dp->d_name[0] != '\0') {
+				dp->d_name[0] = '\0';
+				modified = 1;
+			}
+		}
+		goto good;
+	}
 	size = DIRSIZ(0, dp);
 	namlen = dp->d_namlen;
 	type = dp->d_type;
@@ -229,7 +274,37 @@ dircheck(struct inodesc *idesc, struct direct *dp)
 			goto bad;
 	if (*cp != '\0')
 		goto bad;
+
+good:
+	if (zflag && fswritefd >= 0) {
+		/*
+		 * Clear unused directory entry space, including the d_name
+		 * padding.
+		 */
+		/* First figure the number of pad bytes. */
+		unused = roundup2(namlen + 1, DIR_ROUNDUP) - (namlen + 1);
+
+		/* Add in the free space to the end of the record. */
+		unused += dp->d_reclen - DIRSIZ(0, dp);
+
+		/*
+		 * Now clear out the unused space, keeping track if we actually
+		 * changed anything.
+		 */
+		for (cp = &dp->d_name[namlen + 1]; unused > 0; unused--, cp++) {
+			if (*cp != '\0') {
+				*cp = '\0';
+				modified = 1;
+			}
+		}
+		
+		if (modified) {
+			return 2;
+		}
+	}
+
 	return (1);
+
 bad:
 	if (debug)
 		printf("Bad dir: ino %d reclen %d namlen %d type %d name %s\n",

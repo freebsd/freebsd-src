@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd January 13, 2018
+.Dd May 3, 2019
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Op Fl BCdEFfnpRrSyZ
+.Op Fl BCdEFfnpRrSyZz
 .Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
@@ -301,6 +301,9 @@ If both
 and
 .Fl Z
 are specified, blocks are first zeroed and then erased.
+.It Fl z
+Clear unused directory space.
+The cleared space includes deleted file names and name padding.
 .El
 .Pp
 Inconsistencies checked are as follows:
