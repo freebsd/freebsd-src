@@ -127,11 +127,6 @@ TAILQ_HEAD(pagesetq, pageset);
 #define	PS_WIRED		0x0001	/* Pages wired rather than held. */
 #define	PS_PPODS_WRITTEN	0x0002	/* Page pods written to the card. */
 
-#define	EXT_FLAG_AIOTX		EXT_FLAG_VENDOR1
-
-#define	IS_AIOTX_MBUF(m)						\
-	((m)->m_flags & M_EXT && (m)->m_ext.ext_flags & EXT_FLAG_AIOTX)
-
 struct ddp_buffer {
 	struct pageset *ps;
 
@@ -151,12 +146,6 @@ struct ddp_pcb {
 	struct task requeue_task;
 	struct kaiocb *queueing;
 	struct mtx lock;
-};
-
-struct aiotx_buffer {
-	struct pageset ps;
-	struct kaiocb *job;
-	int refcount;
 };
 
 struct toepcb {
