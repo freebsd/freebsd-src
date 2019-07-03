@@ -825,6 +825,7 @@ OLD_FILES+=usr/share/man/man3/arc4random_stir.3.gz
 OLD_FILES+=usr/bin/send-pr
 # 20180725: Cleanup old libcasper.so.0
 OLD_LIBS+=lib/libcasper.so.0
+OLD_LIBS+=lib32/libcasper.so.0
 # 20180722: indent(1) option renamed, test files follow
 OLD_FILES+=usr/bin/indent/tests/nsac.0
 OLD_FILES+=usr/bin/indent/tests/nsac.0.pro
