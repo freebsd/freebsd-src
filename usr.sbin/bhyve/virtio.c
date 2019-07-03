@@ -428,7 +428,8 @@ vq_relchain(struct vqueue_info *vq, uint16_t idx, uint32_t iolen)
 
 	/*
 	 * Ensure the used descriptor is visible before updating the index.
-	 * This is necessary on ISAs with memory ordering less strict than x86.
+	 * This is necessary on ISAs with memory ordering less strict than x86
+	 * (and even on x86 to act as a compiler barrier).
 	 */
 	atomic_thread_fence_rel();
 	vuh->vu_idx = uidx;
