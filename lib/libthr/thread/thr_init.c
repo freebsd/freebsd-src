@@ -272,6 +272,7 @@ static pthread_func_t jmp_table[][2] = {
 	{DUAL_ENTRY(_pthread_mutex_consistent)},/* PJT_MUTEX_CONSISTENT */
 	{DUAL_ENTRY(_pthread_mutexattr_getrobust)},/* PJT_MUTEXATTR_GETROBUST */
 	{DUAL_ENTRY(_pthread_mutexattr_setrobust)},/* PJT_MUTEXATTR_SETROBUST */
+	{DUAL_ENTRY(_pthread_getthreadid_np)},	/* PJT_GETTHREADID_NP */
 };
 
 static int init_once = 0;
