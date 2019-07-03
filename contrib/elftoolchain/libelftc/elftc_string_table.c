@@ -119,7 +119,7 @@ elftc_string_table_add_to_pool(Elftc_String_Table *st, const char *string)
 		st->st_string_pool_size = newsize;
 	}
 
-	strcpy(st->st_string_pool + stlen, string);
+	memcpy(st->st_string_pool + stlen, string, len);
 	ELFTC_STRING_TABLE_UPDATE_LENGTH(st, stlen + len);
 
 	return (stlen);
