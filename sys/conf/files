@@ -1712,7 +1712,7 @@ dev/fdt/fdt_slicer.c		optional fdt cfi | fdt mx25l | fdt n25q | fdt at45d
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
 	dependency	"${FDT_DTS_FILE:T:R}.dtb"
 dev/fdt/simplebus.c		optional fdt
-dev/fdt/simple_mfd.c		optional fdt
+dev/fdt/simple_mfd.c		optional syscon fdt
 dev/filemon/filemon.c		optional filemon
 dev/firewire/firewire.c		optional firewire
 dev/firewire/fwcrom.c		optional firewire
