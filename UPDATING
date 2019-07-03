@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190702	p11	FreeBSD-EN-19:12.tzdata
+			FreeBSD-SA-19:09.iconv
+			FreeBSD-SA-19:10.ufs
+			FreeBSD-SA-19:11.cd_ioctl
+
+	Import tzdata 2019b. [EN-19:12.tzdata]
+
+	Fix iconv buffer overflow. [SA-19:09.iconv]
+
+	Fix kernel stack disclosure in UFS/FFS. [SA-19:10.ufs]
+
+	Fix privilege escalation in cd(4) driver. [SA-19:11.cd_ioctl]
+
 20190514	p10	FreeBSD-EN-19:08.tzdata
 			FreeBSD-EN-19:09.xinstall
 			FreeBSD-SA-19:03.wpa
