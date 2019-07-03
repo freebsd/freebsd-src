@@ -1398,7 +1398,23 @@ update_shdr(struct elfcopy *ecp, int update_link)
 void
 init_shstrtab(struct elfcopy *ecp)
 {
+	Elf_Scn *shstrtab;
+	GElf_Shdr shdr;
 	struct section *s;
+	size_t indx, sizehint;
+
+	if (elf_getshstrndx(ecp->ein, &indx) != 0) {
+		shstrtab = elf_getscn(ecp->ein, indx);
+		if (shstrtab == NULL)
+			errx(EXIT_FAILURE, "elf_getscn failed: %s",
+			    elf_errmsg(-1));
+		if (gelf_getshdr(shstrtab, &shdr) != &shdr)
+			errx(EXIT_FAILURE, "gelf_getshdr failed: %s",
+			    elf_errmsg(-1));
+		sizehint = shdr.sh_size;
+	} else {
+		sizehint = 0;
+	}
 
 	if ((ecp->shstrtab = calloc(1, sizeof(*ecp->shstrtab))) == NULL)
 		err(EXIT_FAILURE, "calloc failed");
@@ -1410,7 +1426,7 @@ init_shstrtab(struct elfcopy *ecp)
 	s->loadable = 0;
 	s->type = SHT_STRTAB;
 	s->vma = 0;
-	s->strtab = elftc_string_table_create(0);
+	s->strtab = elftc_string_table_create(sizehint);
 
 	add_to_shstrtab(ecp, "");
 	add_to_shstrtab(ecp, ".symtab");
