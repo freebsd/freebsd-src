@@ -89,6 +89,7 @@ cpudep_ap_early_bootstrap(void)
 		break;
 	case IBMPOWER8:
 	case IBMPOWER8E:
+	case IBMPOWER8NVL:
 	case IBMPOWER9:
 #ifdef __powerpc64__
 		if (mfmsr() & PSL_HV) {
@@ -398,6 +399,7 @@ cpudep_ap_setup()
 	case IBMPOWER7PLUS:
 	case IBMPOWER8:
 	case IBMPOWER8E:
+	case IBMPOWER8NVL:
 	case IBMPOWER9:
 #ifdef __powerpc64__
 		if (mfmsr() & PSL_HV) {
