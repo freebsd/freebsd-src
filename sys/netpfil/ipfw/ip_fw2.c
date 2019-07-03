@@ -1688,6 +1688,11 @@ do {								\
 			default:
 				break;
 			}
+		} else {
+			if (offset == 1 && proto == IPPROTO_TCP) {
+				/* RFC 3128 */
+				goto pullup_failed;
+			}
 		}
 
 		ip = mtod(m, struct ip *);
