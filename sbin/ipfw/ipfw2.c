@@ -2223,6 +2223,8 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	}
 
 	print_proto(bp, fo, &state);
+	if (co->do_compact != 0 && (rule->flags & IPFW_RULE_NOOPT))
+		goto justopts;
 
 	/* Print source */
 	bprintf(bp, " from");
@@ -4395,6 +4397,8 @@ chkarg:
 	}
     OR_BLOCK(get_proto);
 
+	first_cmd = cmd; /* update pointer to use in compact form */
+
 	/*
 	 * "from", mandatory
 	 */
@@ -4466,6 +4470,8 @@ chkarg:
 				cmd = next_cmd(cmd, &cblen);
 		}
 	}
+	if (first_cmd == cmd)
+		rule->flags |= IPFW_RULE_NOOPT;
 
 read_options:
 	prev = NULL;
