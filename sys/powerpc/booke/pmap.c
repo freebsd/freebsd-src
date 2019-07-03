@@ -2973,19 +2973,19 @@ mmu_booke_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 
 	/* XXX KASSERT off and size are within a single page? */
 
-	if (hw_direct_map) {
-		va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-		bzero((caddr_t)va + off, size);
-	} else {
-		mtx_lock(&zero_page_mutex);
-		va = zero_page_va;
+#ifdef __powerpc64__
+	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+	bzero((caddr_t)va + off, size);
+#else
+	mtx_lock(&zero_page_mutex);
+	va = zero_page_va;
 
-		mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
-		bzero((caddr_t)va + off, size);
-		mmu_booke_kremove(mmu, va);
+	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
+	bzero((caddr_t)va + off, size);
+	mmu_booke_kremove(mmu, va);
 
-		mtx_unlock(&zero_page_mutex);
-	}
+	mtx_unlock(&zero_page_mutex);
+#endif
 }
 
 /*
@@ -2996,23 +2996,24 @@ mmu_booke_zero_page(mmu_t mmu, vm_page_t m)
 {
 	vm_offset_t off, va;
 
-	if (hw_direct_map) {
-		va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-	} else {
-		va = zero_page_va;
-		mtx_lock(&zero_page_mutex);
+#ifdef __powerpc64__
+	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 
-		mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
-	}
+	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
+		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
+#else
+	va = zero_page_va;
+	mtx_lock(&zero_page_mutex);
+
+	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
 
 	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
 		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
 
-	if (!hw_direct_map) {
-		mmu_booke_kremove(mmu, va);
+	mmu_booke_kremove(mmu, va);
 
-		mtx_unlock(&zero_page_mutex);
-	}
+	mtx_unlock(&zero_page_mutex);
+#endif
 }
 
 /*
@@ -3025,23 +3026,23 @@ mmu_booke_copy_page(mmu_t mmu, vm_page_t sm, vm_page_t dm)
 {
 	vm_offset_t sva, dva;
 
+#ifdef __powerpc64__
+	sva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(sm));
+	dva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dm));
+	memcpy((caddr_t)dva, (caddr_t)sva, PAGE_SIZE);
+#else
+	mtx_lock(&copy_page_mutex);
+	mmu_booke_kenter(mmu, sva, VM_PAGE_TO_PHYS(sm));
+	mmu_booke_kenter(mmu, dva, VM_PAGE_TO_PHYS(dm));
 	sva = copy_page_src_va;
 	dva = copy_page_dst_va;
 
-	if (hw_direct_map) {
-		sva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(sm));
-		dva = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dm));
-	} else {
-		mtx_lock(&copy_page_mutex);
-		mmu_booke_kenter(mmu, sva, VM_PAGE_TO_PHYS(sm));
-		mmu_booke_kenter(mmu, dva, VM_PAGE_TO_PHYS(dm));
-	}
 	memcpy((caddr_t)dva, (caddr_t)sva, PAGE_SIZE);
-	if (!hw_direct_map) {
-		mmu_booke_kremove(mmu, dva);
-		mmu_booke_kremove(mmu, sva);
-		mtx_unlock(&copy_page_mutex);
-	}
+
+	mmu_booke_kremove(mmu, dva);
+	mmu_booke_kremove(mmu, sva);
+	mtx_unlock(&copy_page_mutex);
+#endif
 }
 
 static inline void
@@ -3052,48 +3053,61 @@ mmu_booke_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
 
-	if (hw_direct_map) {
-		a_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*ma)) +
-		    a_offset);
-		b_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*mb)) +
-		    b_offset);
-		bcopy(a_cp, b_cp, xfersize);
-	} else {
-		mtx_lock(&copy_page_mutex);
-		while (xfersize > 0) {
-			a_pg_offset = a_offset & PAGE_MASK;
-			cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
-			mmu_booke_kenter(mmu, copy_page_src_va,
-			    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]));
-			a_cp = (char *)copy_page_src_va + a_pg_offset;
-			b_pg_offset = b_offset & PAGE_MASK;
-			cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-			mmu_booke_kenter(mmu, copy_page_dst_va,
-			    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]));
-			b_cp = (char *)copy_page_dst_va + b_pg_offset;
-			bcopy(a_cp, b_cp, cnt);
-			mmu_booke_kremove(mmu, copy_page_dst_va);
-			mmu_booke_kremove(mmu, copy_page_src_va);
-			a_offset += cnt;
-			b_offset += cnt;
-			xfersize -= cnt;
-		}
-		mtx_unlock(&copy_page_mutex);
+#ifdef __powerpc64__
+	vm_page_t pa, pb;
+
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		pa = ma[a_offset >> PAGE_SHIFT];
+		b_pg_offset = b_offset & PAGE_MASK;
+		pb = mb[b_offset >> PAGE_SHIFT];
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		a_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pa)) +
+		    a_pg_offset);
+		b_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pb)) +
+		    b_pg_offset);
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
 	}
+#else
+	mtx_lock(&copy_page_mutex);
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		mmu_booke_kenter(mmu, copy_page_src_va,
+		    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]));
+		a_cp = (char *)copy_page_src_va + a_pg_offset;
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		mmu_booke_kenter(mmu, copy_page_dst_va,
+		    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]));
+		b_cp = (char *)copy_page_dst_va + b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		mmu_booke_kremove(mmu, copy_page_dst_va);
+		mmu_booke_kremove(mmu, copy_page_src_va);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
+	mtx_unlock(&copy_page_mutex);
+#endif
 }
 
 static vm_offset_t
 mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m)
 {
+#ifdef __powerpc64__
+	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+#else
 	vm_paddr_t paddr;
 	vm_offset_t qaddr;
 	uint32_t flags;
 	pte_t *pte;
 
 	paddr = VM_PAGE_TO_PHYS(m);
-
-	if (hw_direct_map)
-		return (PHYS_TO_DMAP(paddr));
 
 	flags = PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
 	flags |= tlb_calc_wimg(paddr, pmap_page_get_memattr(m)) << PTE_MAS2_SHIFT;
@@ -3121,15 +3135,14 @@ mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m)
 		__syncicache((void *)qaddr, PAGE_SIZE);
 
 	return (qaddr);
+#endif
 }
 
 static void
 mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr)
 {
+#ifndef __powerpc64__
 	pte_t *pte;
-
-	if (hw_direct_map)
-		return;
 
 	pte = pte_find(mmu, kernel_pmap, addr);
 
@@ -3140,6 +3153,7 @@ mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr)
 
 	*pte = 0;
 	critical_exit();
+#endif
 }
 
 /*
@@ -3890,7 +3904,7 @@ tlb1_read_entry(tlb_entry_t *entry, unsigned int slot)
 		entry->mas7 = 0;
 		break;
 	}
-	mtmsr(msr);
+	__asm __volatile("wrtee %0" :: "r"(msr));
 
 	entry->virt = entry->mas2 & MAS2_EPN_MASK;
 	entry->phys = ((vm_paddr_t)(entry->mas7 & MAS7_RPN) << 32) |
@@ -3965,7 +3979,7 @@ tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
 		msr = mfmsr();
 		__asm __volatile("wrteei 0");
 		tlb1_write_entry_int(&args);
-		mtmsr(msr);
+		__asm __volatile("wrtee %0" :: "r"(msr));
 	}
 }
 
@@ -4364,7 +4378,7 @@ tid_flush(tlbtid_t tid)
 		mtspr(SPR_MAS6, tid << MAS6_SPID0_SHIFT);
 		/* tlbilxpid */
 		__asm __volatile("isync; .long 0x7c000024; isync; msync");
-		mtmsr(msr);
+		__asm __volatile("wrtee %0" :: "r"(msr));
 		return;
 	}
 
@@ -4389,7 +4403,7 @@ tid_flush(tlbtid_t tid)
 			mtspr(SPR_MAS1, mas1);
 			__asm __volatile("isync; tlbwe; isync; msync");
 		}
-	mtmsr(msr);
+	__asm __volatile("wrtee %0" :: "r"(msr));
 }
 
 #ifdef DDB
