@@ -149,7 +149,9 @@ static const char *errstr_table[USB_ERR_MAX] = {
 	[USB_ERR_NOT_LOCKED]		= "NOT_LOCKED",
 };
 
-static const char *xfertype_table[4] = {
+#define	USB_XFERTYPE_MAX 4
+
+static const char *xfertype_table[USB_XFERTYPE_MAX] = {
 	[UE_CONTROL]			= "CTRL",
 	[UE_ISOCHRONOUS]		= "ISOC",
 	[UE_BULK]			= "BULK",
@@ -318,6 +320,15 @@ usb_speedstr(uint8_t speed)
 		return ("UNKNOWN");
 	else
 		return (speed_table[speed]);
+}
+
+static const char *
+usb_xferstr(uint8_t type)
+{
+	if (type >= USB_XFERTYPE_MAX  || xfertype_table[type] == NULL)
+		return ("UNKN");
+	else
+		return (xfertype_table[type]);
 }
 
 static void
@@ -496,7 +507,7 @@ print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 		    (int)len, buf, tv.tv_usec,
 		    (int)up->up_busunit, (int)up->up_address,
 		    (up->up_type == USBPF_XFERTAP_SUBMIT) ? "SUBM" : "DONE",
-		    xfertype_table[up->up_xfertype],
+		    usb_xferstr(up->up_xfertype),
 		    (unsigned int)up->up_endpoint,
 		    usb_speedstr(up->up_speed),
 		    (int)up->up_frames,
