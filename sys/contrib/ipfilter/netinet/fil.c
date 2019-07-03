@@ -1728,6 +1728,10 @@ ipf_pr_ipv4hdr(fin)
 
 		fi->fi_flx |= FI_FRAG;
 		off &= IP_OFFMASK;
+		if (off == 1 && p == IPPROTO_TCP) {
+			fin->fin_flx |= FI_SHORT;	/* RFC 3128 */
+			DT1(ipf_fi_tcp_frag_off_1, fr_info_t *, fin);
+		}
 		if (off != 0) {
 			fin->fin_flx |= FI_FRAGBODY;
 			off <<= 3;
