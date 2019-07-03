@@ -144,7 +144,7 @@ _citrus_NONE_stdenc_cstomb(struct _citrus_stdenc * __restrict ce __unused,
 		s[2] = (char)(idx >> 16);
 		*nresult = 3;
 	} else {
-		if (n < 3) {
+		if (n < 4) {
 			*nresult = (size_t)-1;
 			return (E2BIG);
 		}
