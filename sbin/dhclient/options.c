@@ -896,6 +896,5 @@ do_packet(struct interface_info *interface, struct dhcp_packet *packet,
 
 	/* Free the data associated with the options. */
 	for (i = 0; i < 256; i++)
-		if (tp.options[i].len && tp.options[i].data)
-			free(tp.options[i].data);
+		free(tp.options[i].data);
 }
