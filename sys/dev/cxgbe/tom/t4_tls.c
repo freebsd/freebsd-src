@@ -1193,7 +1193,6 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 
 		/* Read the header of the next TLS record. */
 		sndptr = sbsndmbuf(sb, tls_ofld->sb_off, &sndptroff);
-		MPASS(!IS_AIOTX_MBUF(sndptr));
 		m_copydata(sndptr, sndptroff, sizeof(thdr), (caddr_t)&thdr);
 		tls_size = htons(thdr.length);
 		plen = TLS_HEADER_LENGTH + tls_size;
