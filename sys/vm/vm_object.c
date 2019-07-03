@@ -1595,10 +1595,8 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			vm_page_lock(p);
 			KASSERT(!pmap_page_is_mapped(p),
 			    ("freeing mapped page %p", p));
-			if (!vm_page_wired(p))
+			if (vm_page_remove(p))
 				vm_page_free(p);
-			else
-				vm_page_remove(p);
 			vm_page_unlock(p);
 			continue;
 		}
@@ -1639,10 +1637,8 @@ vm_object_collapse_scan(vm_object_t object, int op)
 			vm_page_lock(p);
 			KASSERT(!pmap_page_is_mapped(p),
 			    ("freeing mapped page %p", p));
-			if (!vm_page_wired(p))
+			if (vm_page_remove(p))
 				vm_page_free(p);
-			else
-				vm_page_remove(p);
 			vm_page_unlock(p);
 			continue;
 		}
