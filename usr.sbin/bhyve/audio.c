@@ -103,6 +103,7 @@ audio_init(const char *dev_name, uint8_t dir)
 	if (aud->fd == -1) {
 		DPRINTF("Failed to open dev: %s, errno: %d\n",
 		    aud->dev_name, errno);
+		free(aud);
 		return (NULL);
 	}
 
