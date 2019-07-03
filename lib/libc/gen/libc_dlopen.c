@@ -48,8 +48,8 @@ libc_dlopen(const char *path, int mode)
 	if (__libc_restricted_mode) {
 		_rtld_error("Service unavailable -- libc in restricted mode");
 		return (NULL);
-	} else
-		return (dlopen(path, mode));
+	}
+	return (dlopen(path, mode));
 }
 
 void
@@ -57,6 +57,5 @@ __FreeBSD_libc_enter_restricted_mode(void)
 {
 
 	__libc_restricted_mode = 1;
-	return;
 }
 
