@@ -93,10 +93,6 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 		unsigned long npages = 1UL << order;
 		int req = VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_NORMAL;
 
-#ifdef __GFP_NOTWIRED
-		if ((flags & __GFP_NOTWIRED) != 0)
-			req &= ~VM_ALLOC_WIRED;
-#endif
 		if ((flags & M_ZERO) != 0)
 			req |= VM_ALLOC_ZERO;
 		if (order == 0 && (flags & GFP_DMA32) == 0) {
