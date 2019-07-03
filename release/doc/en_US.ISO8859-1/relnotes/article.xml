@@ -293,9 +293,6 @@
       <para revision="344884">The &man.ntpd.8; utilities have been
 	updated to version 4.2.8p13.</para>
 
-      <para revision="345670">Timezone data files have been updated to
-	version 2019a.</para>
-
       <para revision="346296">The <application>clang</application>,
 	<application>llvm</application>,
 	<application>lld</application>,
@@ -340,6 +337,9 @@
 	variable has been added to &man.rc.subr.8;, which defaults to
 	the path of the service being executed in case the service
 	needs to re-invoke itself.</para>
+
+      <para revision="349620">Timezone data files have been updated to
+	version 2019b.</para>
     </sect2>
 
     <sect2 xml:id="userland-periodic">
