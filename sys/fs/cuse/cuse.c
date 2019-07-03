@@ -673,14 +673,14 @@ cuse_server_unref(struct cuse_server *pcs)
 
 	TAILQ_REMOVE(&cuse_server_head, pcs, entry);
 
-	cuse_free_unit_by_id_locked(pcs, -1);
-
 	while ((pcsd = TAILQ_FIRST(&pcs->hdev)) != NULL) {
 		TAILQ_REMOVE(&pcs->hdev, pcsd, entry);
 		cuse_unlock();
 		cuse_server_free_dev(pcsd);
 		cuse_lock();
 	}
+
+	cuse_free_unit_by_id_locked(pcs, -1);
 
 	while ((mem = TAILQ_FIRST(&pcs->hmem)) != NULL) {
 		TAILQ_REMOVE(&pcs->hmem, mem, entry);
