@@ -2624,7 +2624,8 @@ do_cv_broadcast(struct thread *td, struct ucond *cv)
 }
 
 static int
-do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag, struct _umtx_time *timeout)
+do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag,
+    struct _umtx_time *timeout)
 {
 	struct abs_timeout timo;
 	struct umtx_q *uq;
