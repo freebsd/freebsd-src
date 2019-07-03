@@ -560,7 +560,6 @@ typedef	struct	frdest	{
 	addrfamily_t	fd_addr;
 	fr_dtypes_t	fd_type;
 	int		fd_name;
-	int		fd_local;
 } frdest_t;
 
 #define	fd_ip6	fd_addr.adf_addr
