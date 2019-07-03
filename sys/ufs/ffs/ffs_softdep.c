@@ -2098,7 +2098,6 @@ pagedep_find(pagedephd, ino, lbn, pagedeppp)
  * Look up a pagedep. Return 1 if found, 0 otherwise.
  * If not found, allocate if DEPALLOC flag is passed.
  * Found or allocated entry is returned in pagedeppp.
- * This routine must be called with splbio interrupts blocked.
  */
 static int
 pagedep_lookup(mp, bp, ino, lbn, flags, pagedeppp)
@@ -2190,7 +2189,6 @@ inodedep_find(inodedephd, inum, inodedeppp)
  * Look up an inodedep. Return 1 if found, 0 if not found.
  * If not found, allocate if DEPALLOC flag is passed.
  * Found or allocated entry is returned in inodedeppp.
- * This routine must be called with splbio interrupts blocked.
  */
 static int
 inodedep_lookup(mp, inum, flags, inodedeppp)
@@ -5466,7 +5464,6 @@ jnewblk_merge(new, old, wkhd)
 
 /*
  * Replace an old allocdirect dependency with a newer one.
- * This routine must be called with splbio interrupts blocked.
  */
 static void
 allocdirect_merge(adphead, newadp, oldadp)
@@ -7519,7 +7516,6 @@ free_newblk(newblk)
 
 /*
  * Free a newdirblk. Clear the NEWBLOCK flag on its associated pagedep.
- * This routine must be called with splbio interrupts blocked.
  */
 static void
 free_newdirblk(newdirblk)
@@ -7650,7 +7646,6 @@ softdep_freefile(pvp, ino, mode)
 /*
  * Check to see if an inode has never been written to disk. If
  * so free the inodedep and return success, otherwise return failure.
- * This routine must be called with splbio interrupts blocked.
  *
  * If we still have a bitmap dependency, then the inode has never
  * been written to disk. Drop the dependency as it is no longer
@@ -8882,8 +8877,7 @@ cancel_diradd(dap, dirrem, jremref, dotremref, dotdotremref)
 }
 
 /*
- * Free a diradd dependency structure. This routine must be called
- * with splbio interrupts blocked.
+ * Free a diradd dependency structure.
  */
 static void
 free_diradd(dap, wkhd)
@@ -11168,9 +11162,7 @@ softdep_disk_write_complete(bp)
 }
 
 /*
- * Called from within softdep_disk_write_complete above. Note that
- * this routine is always called from interrupt level with further
- * splbio interrupts blocked.
+ * Called from within softdep_disk_write_complete above.
  */
 static void 
 handle_allocdirect_partdone(adp, wkhd)
@@ -11182,6 +11174,7 @@ handle_allocdirect_partdone(adp, wkhd)
 	struct inodedep *inodedep;
 	long bsize;
 
+	LOCK_OWNED(VFSTOUFS(adp->ad_block.nb_list.wk_mp));
 	if ((adp->ad_state & ALLCOMPLETE) != ALLCOMPLETE)
 		return;
 	/*
@@ -11788,7 +11781,6 @@ handle_written_indirdep(indirdep, bp, bpp, flags)
 
 /*
  * Process a diradd entry after its dependent inode has been written.
- * This routine must be called with splbio interrupts blocked.
  */
 static void
 diradd_inode_written(dap, inodedep)
@@ -11796,6 +11788,7 @@ diradd_inode_written(dap, inodedep)
 	struct inodedep *inodedep;
 {
 
+	LOCK_OWNED(VFSTOUFS(dap->da_list.wk_mp));
 	dap->da_state |= COMPLETE;
 	complete_diradd(dap);
 	WORKLIST_INSERT(&inodedep->id_pendinghd, &dap->da_list);
@@ -12356,8 +12349,7 @@ retry:
 
 /*
  * Merge the a new inode dependency list (such as id_newinoupdt) into an
- * old inode dependency list (such as id_inoupdt). This routine must be
- * called with splbio interrupts blocked.
+ * old inode dependency list (such as id_inoupdt).
  */
 static void
 merge_inode_lists(newlisthead, oldlisthead)
@@ -12367,6 +12359,8 @@ merge_inode_lists(newlisthead, oldlisthead)
 	struct allocdirect *listadp, *newadp;
 
 	newadp = TAILQ_FIRST(newlisthead);
+	if (newadp != NULL)
+		LOCK_OWNED(VFSTOUFS(newadp->ad_block.nb_list.wk_mp));
 	for (listadp = TAILQ_FIRST(oldlisthead); listadp && newadp;) {
 		if (listadp->ad_offset < newadp->ad_offset) {
 			listadp = TAILQ_NEXT(listadp, ad_next);
@@ -12861,7 +12855,6 @@ out:
 
 /*
  * Flush the dependencies associated with an inodedep.
- * Called with splbio blocked.
  */
 static int
 flush_inodedep_deps(vp, mp, ino)
@@ -12926,7 +12919,6 @@ restart:
 
 /*
  * Flush an inode dependency list.
- * Called with splbio blocked.
  */
 static int
 flush_deplist(listhead, waitfor, errorp)
@@ -13068,7 +13060,6 @@ flush_newblk_dep(vp, mp, lbn)
 
 /*
  * Eliminate a pagedep dependency by flushing out all its diradd dependencies.
- * Called with splbio blocked.
  */
 static int
 flush_pagedep_deps(pvp, mp, diraddhdp)
