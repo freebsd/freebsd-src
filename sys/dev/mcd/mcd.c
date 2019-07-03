@@ -134,8 +134,7 @@ static void	mcd_soft_reset(struct mcd_softc *);
 static int	mcd_hard_reset(struct mcd_softc *);
 static int 	mcd_setmode(struct mcd_softc *, int mode);
 static int	mcd_getqchan(struct mcd_softc *, struct mcd_qchninfo *q);
-static int	mcd_subchan(struct mcd_softc *, struct ioc_read_subchannel *sc,
-		    int nocopyout);
+static int	mcd_subchan(struct mcd_softc *, struct ioc_read_subchannel *sc);
 static int	mcd_toc_header(struct mcd_softc *, struct ioc_toc_header *th);
 static int	mcd_read_toc(struct mcd_softc *);
 static int	mcd_toc_entrys(struct mcd_softc *, struct ioc_read_toc_entry *te);
@@ -482,10 +481,8 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 	case CDIOCPLAYMSF:
 		r = mcd_playmsf(sc, (struct ioc_play_msf *) addr);
 		break;
-	case CDIOCREADSUBCHANNEL_SYSSPACE:
-		return mcd_subchan(sc, (struct ioc_read_subchannel *) addr, 1);
 	case CDIOCREADSUBCHANNEL:
-		return mcd_subchan(sc, (struct ioc_read_subchannel *) addr, 0);
+		return mcd_subchan(sc, (struct ioc_read_subchannel *) addr);
 	case CDIOREADTOCHEADER:
 		r = mcd_toc_header(sc, (struct ioc_toc_header *) addr);
 		break;
@@ -1411,7 +1408,7 @@ mcd_getqchan(struct mcd_softc *sc, struct mcd_qchninfo *q)
 }
 
 static int
-mcd_subchan(struct mcd_softc *sc, struct ioc_read_subchannel *sch, int nocopyout)
+mcd_subchan(struct mcd_softc *sc, struct ioc_read_subchannel *sch)
 {
 	struct mcd_qchninfo q;
 	struct cd_sub_channel_info data;
@@ -1478,10 +1475,7 @@ mcd_subchan(struct mcd_softc *sc, struct ioc_read_subchannel *sch, int nocopyout
 	}
 
 	MCD_UNLOCK(sc);
-	if (nocopyout == 0)
-		return copyout(&data, sch->data, min(sizeof(struct cd_sub_channel_info), sch->data_len));
-	bcopy(&data, sch->data, min(sizeof(struct cd_sub_channel_info), sch->data_len));
-	return (0);
+	return (copyout(&data, sch->data, min(sizeof(struct cd_sub_channel_info), sch->data_len)));
 }
 
 static int
