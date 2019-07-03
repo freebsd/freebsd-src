@@ -89,7 +89,7 @@ main(int argc, char *argv[])
 	sync();
 	skipclean = 1;
 	inoopt = 0;
-	while ((ch = getopt(argc, argv, "b:Bc:CdEfFm:npRrSyZ")) != -1) {
+	while ((ch = getopt(argc, argv, "b:Bc:CdEfFm:npRrSyZz")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -164,6 +164,10 @@ main(int argc, char *argv[])
 
 		case 'Z':
 			Zflag++;
+			break;
+
+		case 'z':
+			zflag++;
 			break;
 
 		default:
