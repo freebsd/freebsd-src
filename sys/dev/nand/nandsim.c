@@ -295,7 +295,7 @@ nandsim_chip_status(struct sim_chip *chip)
 	nand_debug(NDBG_SIM,"status for chip num:%d at ctrl:%d", chip->num,
 	    chip->ctrl_num);
 
-	if (chip->ctrl_num >= MAX_SIM_DEV &&
+	if (chip->ctrl_num >= MAX_SIM_DEV ||
 	    chip->num >= MAX_CTRL_CS)
 		return (EINVAL);
 
