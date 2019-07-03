@@ -829,37 +829,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 #undef	IPOPT_AH
 #define	IPOPT_AH	256+IPPROTO_AH
 
-#ifndef TCPOPT_EOL
-# define TCPOPT_EOL		0
-#endif
-#ifndef TCPOPT_NOP
-# define TCPOPT_NOP		1
-#endif
-#ifndef TCPOPT_MAXSEG
-# define TCPOPT_MAXSEG		2
-#endif
-#ifndef TCPOLEN_MAXSEG
-# define TCPOLEN_MAXSEG		4
-#endif
-#ifndef TCPOPT_WINDOW
-# define TCPOPT_WINDOW		3
-#endif
-#ifndef TCPOLEN_WINDOW
-# define TCPOLEN_WINDOW		3
-#endif
-#ifndef TCPOPT_SACK_PERMITTED
-# define TCPOPT_SACK_PERMITTED	4
-#endif
-#ifndef TCPOLEN_SACK_PERMITTED
-# define TCPOLEN_SACK_PERMITTED	2
-#endif
-#ifndef TCPOPT_SACK
-# define TCPOPT_SACK		5
-#endif
-#ifndef TCPOPT_TIMESTAMP
-# define TCPOPT_TIMESTAMP	8
-#endif
-
 #ifndef	ICMP_MINLEN
 # define	ICMP_MINLEN	8
 #endif
