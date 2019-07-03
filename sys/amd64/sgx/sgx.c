@@ -358,7 +358,7 @@ sgx_page_remove(struct sgx_softc *sc, vm_page_t p)
 	uint64_t offs;
 
 	vm_page_lock(p);
-	vm_page_remove(p);
+	(void)vm_page_remove(p);
 	vm_page_unlock(p);
 
 	dprintf("%s: p->pidx %ld\n", __func__, p->pindex);
