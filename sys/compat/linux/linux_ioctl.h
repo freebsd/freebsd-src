@@ -749,6 +749,7 @@
  * Linux btrfs clone operation
  */
 #define LINUX_BTRFS_IOC_CLONE		0x9409 /* 0x40049409 */
+#define LINUX_FS_IOC_FIEMAP		0x660b
 
 /*
  * Linux evdev ioctl min and max
