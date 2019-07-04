@@ -290,7 +290,7 @@ xdma_prep_sg(xdma_channel_t *xchan, uint32_t xr_num,
 	}
 
 	/* Allocate buffers if required. */
-	if ((xchan->caps & XCHAN_CAP_NOBUFS) == 0) {
+	if (xchan->caps & (XCHAN_CAP_BUSDMA | XCHAN_CAP_BOUNCE)) {
 		ret = xchan_bufs_alloc(xchan);
 		if (ret != 0) {
 			device_printf(xdma->dev,
@@ -347,9 +347,8 @@ xchan_seg_done(xdma_channel_t *xchan,
 				bus_dmamap_sync(xchan->dma_tag_bufs, b->map, 
 				    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(xchan->dma_tag_bufs, b->map);
-		} else {
-			if ((xchan->caps & XCHAN_CAP_NOBUFS) == 0 &&
-			    xr->req_type == XR_TYPE_MBUF &&
+		} else if (xchan->caps & XCHAN_CAP_BOUNCE) {
+			if (xr->req_type == XR_TYPE_MBUF &&
 			    xr->direction == XDMA_DEV_TO_MEM)
 				m_copyback(xr->m, 0, st->transferred,
 				    (void *)xr->buf.vaddr);
@@ -494,13 +493,14 @@ _xdma_load_data(xdma_channel_t *xchan, struct xdma_request *xr,
 
 	switch (xr->req_type) {
 	case XR_TYPE_MBUF:
-		if ((xchan->caps & XCHAN_CAP_NOBUFS) == 0) {
+		if (xchan->caps & XCHAN_CAP_BUSDMA)
+			seg[0].ds_addr = mtod(m, bus_addr_t);
+		else if (xchan->caps & XCHAN_CAP_BOUNCE) {
 			if (xr->direction == XDMA_MEM_TO_DEV)
 				m_copydata(m, 0, m->m_pkthdr.len,
 				    (void *)xr->buf.vaddr);
 			seg[0].ds_addr = (bus_addr_t)xr->buf.paddr;
-		} else
-			seg[0].ds_addr = mtod(m, bus_addr_t);
+		}
 		seg[0].ds_len = m->m_pkthdr.len;
 		break;
 	case XR_TYPE_BIO:
@@ -626,7 +626,7 @@ xdma_queue_submit_sg(xdma_channel_t *xchan)
 
 	sg = xchan->sg;
 
-	if ((xchan->caps & XCHAN_CAP_NOBUFS) == 0 &&
+	if ((xchan->caps & (XCHAN_CAP_BOUNCE | XCHAN_CAP_BUSDMA)) &&
 	   (xchan->flags & XCHAN_BUFS_ALLOCATED) == 0) {
 		device_printf(xdma->dev,
 		    "%s: Can't submit a transfer: no bufs\n",
