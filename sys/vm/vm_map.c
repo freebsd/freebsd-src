@@ -2867,6 +2867,7 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	}
 	last_timestamp = map->timestamp;
 	entry = first_entry;
+	rv = KERN_SUCCESS;
 	while (entry->start < end) {
 		if (entry->eflags & MAP_ENTRY_IN_TRANSITION) {
 			/*
@@ -2902,7 +2903,7 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 						}
 						end = saved_start;
 						rv = KERN_INVALID_ADDRESS;
-						goto done;
+						break;
 					}
 				}
 				if (entry == first_entry)
@@ -2933,7 +2934,7 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		    (entry->end < end && entry->next->start > entry->end)) {
 			end = entry->end;
 			rv = KERN_INVALID_ADDRESS;
-			goto done;
+			break;
 		}
 		/*
 		 * If system unwiring, require that the entry is system wired.
@@ -2942,12 +2943,10 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		    vm_map_entry_system_wired_count(entry) == 0) {
 			end = entry->end;
 			rv = KERN_INVALID_ARGUMENT;
-			goto done;
+			break;
 		}
 		entry = entry->next;
 	}
-	rv = KERN_SUCCESS;
-done:
 	need_wakeup = false;
 	if (first_entry == NULL &&
 	    !vm_map_lookup_entry(map, start, &first_entry)) {
