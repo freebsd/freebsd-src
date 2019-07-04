@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Marcel Moolenaar
+ * Copyright (c) 2015, 2019 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/rman.h>
 #include <sys/sbuf.h>
+#include <sys/sx.h>
 #include <sys/uio.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -355,6 +356,7 @@ proto_busdma_attach(struct proto_softc *sc)
 	struct proto_busdma *busdma;
 
 	busdma = malloc(sizeof(*busdma), M_PROTO_BUSDMA, M_WAITOK | M_ZERO);
+	sx_init(&busdma->sxlck, "proto-busdma");
 	return (busdma);
 }
 
@@ -363,6 +365,7 @@ proto_busdma_detach(struct proto_softc *sc, struct proto_busdma *busdma)
 {
 
 	proto_busdma_cleanup(sc, busdma);
+	sx_destroy(&busdma->sxlck);
 	free(busdma, M_PROTO_BUSDMA);
 	return (0);
 }
@@ -373,10 +376,12 @@ proto_busdma_cleanup(struct proto_softc *sc, struct proto_busdma *busdma)
 	struct proto_md *md, *md1;
 	struct proto_tag *tag, *tag1;
 
+	sx_xlock(&busdma->sxlck);
 	LIST_FOREACH_SAFE(md, &busdma->mds, mds, md1)
 		proto_busdma_md_destroy_internal(busdma, md);
 	LIST_FOREACH_SAFE(tag, &busdma->tags, tags, tag1)
 		proto_busdma_tag_destroy(busdma, tag);
+	sx_xunlock(&busdma->sxlck);
 	return (0);
 }
 
@@ -387,6 +392,8 @@ proto_busdma_ioctl(struct proto_softc *sc, struct proto_busdma *busdma,
 	struct proto_tag *tag;
 	struct proto_md *md;
 	int error;
+
+	sx_xlock(&busdma->sxlck);
 
 	error = 0;
 	switch (ioc->request) {
@@ -470,6 +477,9 @@ proto_busdma_ioctl(struct proto_softc *sc, struct proto_busdma *busdma,
 		error = EINVAL;
 		break;
 	}
+
+	sx_xunlock(&busdma->sxlck);
+
 	return (error);
 }
 
@@ -477,11 +487,20 @@ int
 proto_busdma_mmap_allowed(struct proto_busdma *busdma, vm_paddr_t physaddr)
 {
 	struct proto_md *md;
+	int result;
 
+	sx_xlock(&busdma->sxlck);
+
+	result = 0;
 	LIST_FOREACH(md, &busdma->mds, mds) {
 		if (physaddr >= trunc_page(md->physaddr) &&
-		    physaddr <= trunc_page(md->physaddr + md->tag->maxsz))
-			return (1);
+		    physaddr <= trunc_page(md->physaddr + md->tag->maxsz)) {
+			result = 1;
+			break;
+		}
 	}
-	return (0);
+
+	sx_xunlock(&busdma->sxlck);
+
+	return (result);
 }
