@@ -97,7 +97,34 @@
 
     <itemizedlist>
       <listitem>
-	<para>No open issues at this time.</para>
+	<para>[2019-07-04] An issue which can cause a crash when
+	  connecting to a &man.bhyve.4; instance with
+	  a <acronym>VNC</acronym> client under certain circumstances
+	  had been reported.  An errata notice is planned
+	  post-release.</para>
+      </listitem>
+
+      <listitem>
+	<para>[2019-07-04] An issue booting &man.bhyve.4; virtual
+	  machines compiled with &man.clang.1; version 8.0.0 or later
+	  had been reported late in the release cycle.  An errata
+	  notice is planned post-release.</para>
+      </listitem>
+
+      <listitem>
+	<para>[2019-07-04] An issue when upgrading from &os;&nbsp;11.3
+	  to &os;&nbsp;12.0 (which occurred earlier in time,
+	  comparatively), had been reported where the
+	  <literal>com.delphix:spacemap_v2</literal> &man.zpool.8;
+	  feature does not exist on &os;&nbsp;12.0, will fail to
+	  import the <acronym>ZFS</acronym> pool.</para>
+
+	<para>At this time, it is advised to defer migrating from
+	  &os;&nbsp;11.3 to &os;&nbsp;12.x until &os;&nbsp;12.1 is
+	  available.</para>
+
+	<para>Upgrading from earlier &os;&nbsp;11.x releases to
+	  &os;&nbsp;12.0 are believed to be unaffected.</para>
       </listitem>
     </itemizedlist>
   </sect1>
