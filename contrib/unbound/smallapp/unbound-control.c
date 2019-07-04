@@ -154,6 +154,8 @@ usage(void)
 	printf("  view_local_zone view name type  	add local-zone in view\n");
 	printf("  view_local_zone_remove view name  	remove local-zone in view\n");
 	printf("  view_local_data view RR...		add local-data in view\n");
+	printf("  view_local_datas view 		add list of local-data to view\n");
+	printf("  					one entry per line read from stdin\n");
 	printf("  view_local_data_remove view name  	remove local-data in view\n");
 	printf("Version %s\n", PACKAGE_VERSION);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
@@ -245,7 +247,8 @@ static void print_uptime(struct ub_shm_stat_info* shm_stat)
 }
 
 /** print memory usage */
-static void print_mem(struct ub_shm_stat_info* shm_stat)
+static void print_mem(struct ub_shm_stat_info* shm_stat,
+	struct ub_stats_info* s)
 {
 	PR_LL("mem.cache.rrset", shm_stat->mem.rrset);
 	PR_LL("mem.cache.message", shm_stat->mem.msg);
@@ -264,6 +267,7 @@ static void print_mem(struct ub_shm_stat_info* shm_stat)
 	PR_LL("mem.cache.dnscrypt_nonce",
 		shm_stat->mem.dnscrypt_nonce);
 #endif
+	PR_LL("mem.streamwait", s->svr.mem_stream_wait);
 }
 
 /** print histogram */
@@ -326,6 +330,7 @@ static void print_extended(struct ub_stats_info* s)
 	PR_UL("num.query.tcp", s->svr.qtcp);
 	PR_UL("num.query.tcpout", s->svr.qtcp_outgoing);
 	PR_UL("num.query.tls", s->svr.qtls);
+	PR_UL("num.query.tls_resume", s->svr.qtls_resume);
 	PR_UL("num.query.ipv6", s->svr.qipv6);
 
 	/* flags */
@@ -397,7 +402,7 @@ static void do_stats_shm(struct config_file* cfg, struct ub_stats_info* stats,
 	pr_stats("total", &stats[0]);
 	print_uptime(shm_stat);
 	if(cfg->stat_extended) {
-		print_mem(shm_stat);
+		print_mem(shm_stat, &stats[0]);
 		print_hist(stats);
 		print_extended(stats);
 	}
@@ -717,9 +722,10 @@ go_cmd(SSL* ssl, int fd, int quiet, int argc, char* argv[])
 	if(argc == 1 && strcmp(argv[0], "load_cache") == 0) {
 		send_file(ssl, fd, stdin, buf, sizeof(buf));
 	}
-	else if(argc == 1 && (strcmp(argv[0], "local_zones") == 0 ||
+	else if(argc >= 1 && (strcmp(argv[0], "local_zones") == 0 ||
 		strcmp(argv[0], "local_zones_remove") == 0 ||
 		strcmp(argv[0], "local_datas") == 0 ||
+		strcmp(argv[0], "view_local_datas") == 0 ||
 		strcmp(argv[0], "local_datas_remove") == 0)) {
 		send_file(ssl, fd, stdin, buf, sizeof(buf));
 		send_eof(ssl, fd);

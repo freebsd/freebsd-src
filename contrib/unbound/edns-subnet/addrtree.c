@@ -119,7 +119,7 @@ node_size(const struct addrtree *tree, const struct addrnode *n)
 
 struct addrtree * 
 addrtree_create(addrlen_t max_depth, void (*delfunc)(void *, void *), 
-	size_t (*sizefunc)(void *), void *env, unsigned int max_node_count)
+	size_t (*sizefunc)(void *), void *env, uint32_t max_node_count)
 {
 	struct addrtree *tree;
 	log_assert(delfunc != NULL);
