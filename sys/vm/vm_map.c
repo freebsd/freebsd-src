@@ -2849,15 +2849,16 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_offset_t saved_start;
 	unsigned int last_timestamp;
 	int rv;
-	boolean_t need_wakeup, result, user_unwire;
+	bool holes_ok, need_wakeup, user_unwire;
 
 	if (start == end)
 		return (KERN_SUCCESS);
-	user_unwire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
+	holes_ok = (flags & VM_MAP_WIRE_HOLESOK) != 0;
+	user_unwire = (flags & VM_MAP_WIRE_USER) != 0;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
-		if (flags & VM_MAP_WIRE_HOLESOK)
+		if (holes_ok)
 			first_entry = first_entry->next;
 		else {
 			vm_map_unlock(map);
@@ -2889,7 +2890,7 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				 */
 				if (!vm_map_lookup_entry(map, saved_start,
 				    &tmp_entry)) {
-					if (flags & VM_MAP_WIRE_HOLESOK)
+					if (holes_ok)
 						tmp_entry = tmp_entry->next;
 					else {
 						if (saved_start == start) {
@@ -2926,9 +2927,9 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		entry->wiring_thread = curthread;
 		/*
 		 * Check the map for holes in the specified region.
-		 * If VM_MAP_WIRE_HOLESOK was specified, skip this check.
+		 * If holes_ok, skip this check.
 		 */
-		if (((flags & VM_MAP_WIRE_HOLESOK) == 0) &&
+		if (!holes_ok &&
 		    (entry->end < end && entry->next->start > entry->end)) {
 			end = entry->end;
 			rv = KERN_INVALID_ADDRESS;
@@ -2947,17 +2948,15 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	}
 	rv = KERN_SUCCESS;
 done:
-	need_wakeup = FALSE;
-	if (first_entry == NULL) {
-		result = vm_map_lookup_entry(map, start, &first_entry);
-		if (!result && (flags & VM_MAP_WIRE_HOLESOK))
-			first_entry = first_entry->next;
-		else
-			KASSERT(result, ("vm_map_unwire: lookup failed"));
+	need_wakeup = false;
+	if (first_entry == NULL &&
+	    !vm_map_lookup_entry(map, start, &first_entry)) {
+		KASSERT(holes_ok, ("vm_map_unwire: lookup failed"));
+		first_entry = first_entry->next;
 	}
 	for (entry = first_entry; entry->start < end; entry = entry->next) {
 		/*
-		 * If VM_MAP_WIRE_HOLESOK was specified, an empty
+		 * If holes_ok was specified, an empty
 		 * space in the unwired region could have been mapped
 		 * while the map lock was dropped for draining
 		 * MAP_ENTRY_IN_TRANSITION.  Moreover, another thread
@@ -2967,7 +2966,7 @@ done:
 		 */
 		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) == 0 ||
 		    entry->wiring_thread != curthread) {
-			KASSERT((flags & VM_MAP_WIRE_HOLESOK) != 0,
+			KASSERT(holes_ok,
 			    ("vm_map_unwire: !HOLESOK and new/changed entry"));
 			continue;
 		}
@@ -2989,7 +2988,7 @@ done:
 		entry->wiring_thread = NULL;
 		if (entry->eflags & MAP_ENTRY_NEEDS_WAKEUP) {
 			entry->eflags &= ~MAP_ENTRY_NEEDS_WAKEUP;
-			need_wakeup = TRUE;
+			need_wakeup = true;
 		}
 		vm_map_simplify_entry(map, entry);
 	}
@@ -3083,7 +3082,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 	u_long npages;
 	u_int last_timestamp;
 	int rv;
-	boolean_t need_wakeup, result, user_wire;
+	bool holes_ok, need_wakeup, user_wire;
 	vm_prot_t prot;
 
 	VM_MAP_ASSERT_LOCKED(map);
@@ -3093,10 +3092,11 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 	prot = 0;
 	if (flags & VM_MAP_WIRE_WRITE)
 		prot |= VM_PROT_WRITE;
-	user_wire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
+	holes_ok = (flags & VM_MAP_WIRE_HOLESOK) != 0;
+	user_wire = (flags & VM_MAP_WIRE_USER) != 0;
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
-		if (flags & VM_MAP_WIRE_HOLESOK)
+		if (holes_ok)
 			first_entry = first_entry->next;
 		else
 			return (KERN_INVALID_ADDRESS);
@@ -3126,7 +3126,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 				 */
 				if (!vm_map_lookup_entry(map, saved_start,
 				    &tmp_entry)) {
-					if (flags & VM_MAP_WIRE_HOLESOK)
+					if (holes_ok)
 						tmp_entry = tmp_entry->next;
 					else {
 						if (saved_start == start) {
@@ -3163,7 +3163,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 		if ((entry->protection & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0
 		    || (entry->protection & prot) != prot) {
 			entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
-			if ((flags & VM_MAP_WIRE_HOLESOK) == 0) {
+			if (!holes_ok) {
 				end = entry->end;
 				rv = KERN_INVALID_ADDRESS;
 				goto done;
@@ -3208,9 +3208,10 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 				 * may have been clipped, but NOT merged or
 				 * deleted.
 				 */
-				result = vm_map_lookup_entry(map, saved_start,
-				    &tmp_entry);
-				KASSERT(result, ("vm_map_wire: lookup failed"));
+				if (!vm_map_lookup_entry(map, saved_start,
+				    &tmp_entry))
+					KASSERT(false,
+					    ("vm_map_wire: lookup failed"));
 				if (entry == first_entry)
 					first_entry = tmp_entry;
 				else
@@ -3244,9 +3245,9 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 		}
 		/*
 		 * Check the map for holes in the specified region.
-		 * If VM_MAP_WIRE_HOLESOK was specified, skip this check.
+		 * If holes_ok was specified, skip this check.
 		 */
-		if ((flags & VM_MAP_WIRE_HOLESOK) == 0 &&
+		if (!holes_ok &&
 		    entry->end < end && entry->next->start > entry->end) {
 			end = entry->end;
 			rv = KERN_INVALID_ADDRESS;
@@ -3256,17 +3257,15 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 	}
 	rv = KERN_SUCCESS;
 done:
-	need_wakeup = FALSE;
-	if (first_entry == NULL) {
-		result = vm_map_lookup_entry(map, start, &first_entry);
-		if (!result && (flags & VM_MAP_WIRE_HOLESOK))
-			first_entry = first_entry->next;
-		else
-			KASSERT(result, ("vm_map_wire: lookup failed"));
+	need_wakeup = false;
+	if (first_entry == NULL &&
+	    !vm_map_lookup_entry(map, start, &first_entry)) {
+		KASSERT(holes_ok, ("vm_map_wire: lookup failed"));
+		first_entry = first_entry->next;
 	}
 	for (entry = first_entry; entry->start < end; entry = entry->next) {
 		/*
-		 * If VM_MAP_WIRE_HOLESOK was specified, an empty
+		 * If holes_ok was specified, an empty
 		 * space in the unwired region could have been mapped
 		 * while the map lock was dropped for faulting in the
 		 * pages or draining MAP_ENTRY_IN_TRANSITION.
@@ -3276,7 +3275,7 @@ done:
 		 */
 		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) == 0 ||
 		    entry->wiring_thread != curthread) {
-			KASSERT((flags & VM_MAP_WIRE_HOLESOK) != 0,
+			KASSERT(holes_ok,
 			    ("vm_map_wire: !HOLESOK and new/changed entry"));
 			continue;
 		}
@@ -3317,7 +3316,7 @@ done:
 		entry->wiring_thread = NULL;
 		if (entry->eflags & MAP_ENTRY_NEEDS_WAKEUP) {
 			entry->eflags &= ~MAP_ENTRY_NEEDS_WAKEUP;
-			need_wakeup = TRUE;
+			need_wakeup = true;
 		}
 		vm_map_simplify_entry(map, entry);
 	}
