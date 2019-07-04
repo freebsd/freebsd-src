@@ -1,0 +1,16 @@
+sudo: false
+language: c
+compiler:
+  - gcc
+addons:
+  apt:
+    packages:
+    - libssl-dev
+    - libevent-dev
+    - libexpat-dev
+    - clang
+script:
+  - ./configure --enable-debug --disable-flto
+  - make
+  - make test
+  - (cd testdata/clang-analysis.tdir; bash clang-analysis.test)

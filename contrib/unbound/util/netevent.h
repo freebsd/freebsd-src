@@ -268,6 +268,9 @@ struct comm_point {
 	/** the entry for the connection. */
 	struct tcl_addr* tcl_addr;
 
+	/** the structure to keep track of open requests on this channel */
+	struct tcp_req_info* tcp_req_info;
+
 #ifdef USE_MSG_FASTOPEN
 	/** used to track if the sendto() call should be done when using TFO. */
 	int tcp_do_fastopen;
@@ -455,6 +458,8 @@ struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
  * @param idle_timeout: TCP idle timeout in ms.
  * @param tcp_conn_limit: TCP connection limit info.
  * @param bufsize: size of buffer to create for handlers.
+ * @param spoolbuf: shared spool buffer for tcp_req_info structures.
+ * 	or NULL to not create those structures in the tcp handlers.
  * @param callback: callback function pointer for TCP handlers.
  * @param callback_arg: will be passed to your callback function.
  * @return: returns the TCP listener commpoint. You can find the
@@ -464,7 +469,8 @@ struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
  */
 struct comm_point* comm_point_create_tcp(struct comm_base* base,
 	int fd, int num, int idle_timeout, struct tcl_list* tcp_conn_limit,
-	size_t bufsize, comm_point_callback_type* callback, void* callback_arg);
+	size_t bufsize, struct sldns_buffer* spoolbuf,
+	comm_point_callback_type* callback, void* callback_arg);
 
 /**
  * Create an outgoing TCP commpoint. No file descriptor is opened, left at -1.

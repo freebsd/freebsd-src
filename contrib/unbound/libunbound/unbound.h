@@ -310,6 +310,17 @@ int ub_ctx_config(struct ub_ctx* ctx, const char* fname);
 int ub_ctx_set_fwd(struct ub_ctx* ctx, const char* addr);
 
 /**
+ * Use DNS over TLS to send queries to machines set with ub_ctx_set_fwd().
+ *
+ * @param ctx: context.
+ *	At this time it is only possible to set configuration before the
+ *	first resolve is done.
+ * @param tls: enable or disable DNS over TLS
+ * @return 0 if OK, else error.
+ */
+int ub_ctx_set_tls(struct ub_ctx* ctx, int tls);
+
+/**
  * Add a stub zone, with given address to send to.  This is for custom
  * root hints or pointing to a local authoritative dns server.
  * For dns resolvers and the 'DHCP DNS' ip address, use ub_ctx_set_fwd.
@@ -770,6 +781,10 @@ struct ub_server_stats {
 	/** number of queries answered from edns-subnet specific data, and
 	 * the answer was from the edns-subnet cache. */
 	long long num_query_subnet_cache;
+	/** number of bytes in the stream wait buffers */
+	long long mem_stream_wait;
+	/** number of TLS connection resume */
+	long long qtls_resume;
 };
 
 /** 

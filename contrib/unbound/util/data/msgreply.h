@@ -157,7 +157,7 @@ struct reply_info {
 	time_t prefetch_ttl;
 
 	/** 
-	 * Reply TTL extended with serve exipred TTL, to limit time to serve
+	 * Reply TTL extended with serve expired TTL, to limit time to serve
 	 * expired message.
 	 */
 	time_t serve_expired_ttl;

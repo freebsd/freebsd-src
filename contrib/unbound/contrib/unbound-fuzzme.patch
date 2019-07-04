@@ -1,0 +1,148 @@
+>From cc9b927f8f29d989ddb8415fe6508a538546abca Mon Sep 17 00:00:00 2001
+From: Jacob Hoffman-Andrews <github@hoffman-andrews.com>
+Date: Wed, 2 Jan 2019 22:52:51 -0800
+Subject: [PATCH] Add unbound-fuzzme.
+
+This is a small program that simply parses a packet provided on stdout,
+for the purposes of fuzzing.
+---
+ .gitignore                |  1 +
+ Makefile.in               | 22 ++++++++++++++++++++--
+ smallapp/unbound-fuzzme.c | 38 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 2 deletions(-)
+ create mode 100644 smallapp/unbound-fuzzme.c
+
+diff --git a/.gitignore b/.gitignore
+index f4527fd8..6163f905 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -24,6 +24,7 @@
+ /unbound-checkconf
+ /unbound-control
+ /unbound-control-setup
++/unbound-fuzzme
+ /unbound-host
+ /unbound.h
+ /asynclook
+diff --git a/Makefile.in b/Makefile.in
+index af5b10f6..dacf1ab5 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -177,6 +177,10 @@ shm_main.lo remote.lo stats.lo unbound.lo \
+ worker.lo @WIN_DAEMON_OBJ@
+ DAEMON_OBJ_LINK=$(DAEMON_OBJ) $(COMMON_OBJ_ALL_SYMBOLS) $(SLDNS_OBJ) \
+ $(COMPAT_OBJ) @WIN_DAEMON_OBJ_LINK@
++FUZZME_SRC=smallapp/unbound-fuzzme.c
++FUZZME_OBJ=unbound-fuzzme.lo
++FUZZME_OBJ_LINK=$(FUZZME_OBJ) worker_cb.lo $(COMMON_OBJ_ALL_SYMBOLS) $(SLDNS_OBJ) \
++$(COMPAT_OBJ)
+ CHECKCONF_SRC=smallapp/unbound-checkconf.c smallapp/worker_cb.c
+ CHECKCONF_OBJ=unbound-checkconf.lo worker_cb.lo
+ CHECKCONF_OBJ_LINK=$(CHECKCONF_OBJ) $(COMMON_OBJ_ALL_SYMBOLS) $(SLDNS_OBJ) \
+@@ -252,6 +256,7 @@ RSRC_OBJ=rsrc_svcinst.o rsrc_svcuninst.o rsrc_anchorupd.o rsrc_unbound.o \
+ 	rsrc_unbound_checkconf.o
+ 
+ ALL_SRC=$(COMMON_SRC) $(UNITTEST_SRC) $(DAEMON_SRC) \
++	$(FUZZME_SRC) \
+ 	$(TESTBOUND_SRC) $(LOCKVERIFY_SRC) $(PKTVIEW_SRC) \
+ 	$(MEMSTATS_SRC) $(CHECKCONF_SRC) $(LIBUNBOUND_SRC) $(HOST_SRC) \
+ 	$(ASYNCLOOK_SRC) $(STREAMTCP_SRC) $(PERF_SRC) $(DELAYER_SRC) \
+@@ -259,6 +264,7 @@ ALL_SRC=$(COMMON_SRC) $(UNITTEST_SRC) $(DAEMON_SRC) \
+ 	$(PYTHONMOD_SRC) $(PYUNBOUND_SRC) $(WIN_DAEMON_THE_SRC)\
+ 	$(SVCINST_SRC) $(SVCUNINST_SRC) $(ANCHORUPD_SRC) $(SLDNS_SRC)
+ ALL_OBJ=$(COMMON_OBJ) $(UNITTEST_OBJ) $(DAEMON_OBJ) \
++	$(FUZZME_OBJ) \
+ 	$(TESTBOUND_OBJ) $(LOCKVERIFY_OBJ) $(PKTVIEW_OBJ) \
+ 	$(MEMSTATS_OBJ) $(CHECKCONF_OBJ) $(LIBUNBOUND_OBJ) $(HOST_OBJ) \
+ 	$(ASYNCLOOK_OBJ) $(STREAMTCP_OBJ) $(PERF_OBJ) $(DELAYER_OBJ) \
+@@ -274,7 +280,7 @@ LINK_LIB=$(LIBTOOL) --tag=CC --mode=link $(CC) $(RUNTIME_PATH) $(CPPFLAGS) $(CFL
+ 
+ all:	$(COMMON_OBJ) $(ALLTARGET)
+ 
+-alltargets:	unbound$(EXEEXT) unbound-checkconf$(EXEEXT) lib unbound-host$(EXEEXT) unbound-control$(EXEEXT) unbound-anchor$(EXEEXT) unbound-control-setup $(WINAPPS) $(PYUNBOUND_TARGET)
++alltargets:	unbound$(EXEEXT) unbound-checkconf$(EXEEXT) lib unbound-host$(EXEEXT) unbound-control$(EXEEXT) unbound-anchor$(EXEEXT) unbound-control-setup unbound-fuzzme$(EXEEXT) $(WINAPPS) $(PYUNBOUND_TARGET)
+ 
+ # compat with BSD make, register suffix, and an implicit rule to actualise it.
+ .SUFFIXES: .lo
+@@ -325,6 +331,9 @@ libunbound.la:	$(LIBUNBOUND_OBJ_LINK)
+ unbound$(EXEEXT):	$(DAEMON_OBJ_LINK) libunbound.la
+ 	$(LINK) -o $@ $(DAEMON_OBJ_LINK) $(EXTRALINK) $(SSLLIB) $(LIBS)
+ 
++unbound-fuzzme$(EXEEXT):	$(FUZZME_OBJ_LINK) libunbound.la
++	$(LINK) -o $@ $(FUZZME_OBJ_LINK) $(EXTRALINK) $(SSLLIB) $(LIBS)
++
+ unbound-checkconf$(EXEEXT):	$(CHECKCONF_OBJ_LINK) libunbound.la
+ 	$(LINK) -o $@ $(CHECKCONF_OBJ_LINK) $(EXTRALINK) $(SSLLIB) $(LIBS)
+ 
+@@ -447,7 +456,7 @@ util/configparser.c util/configparser.h:  $(srcdir)/util/configparser.y
+ 
+ clean:
+ 	rm -f *.o *.d *.lo *~ tags
+-	rm -f unbound$(EXEEXT) unbound-checkconf$(EXEEXT) unbound-host$(EXEEXT) unbound-control$(EXEEXT) unbound-anchor$(EXEEXT) unbound-control-setup libunbound.la unbound.h
++	rm -f unbound$(EXEEXT) unbound-checkconf$(EXEEXT) unbound-fuzzme$(EXEEXT) unbound-host$(EXEEXT) unbound-control$(EXEEXT) unbound-anchor$(EXEEXT) unbound-control-setup libunbound.la unbound.h
+ 	rm -f $(ALL_SRC:.c=.lint)
+ 	rm -f _unbound.la libunbound/python/libunbound_wrap.c libunbound/python/unbound.py pythonmod/interface.h pythonmod/unboundmodule.py
+ 	rm -rf autom4te.cache .libs build doc/html doc/xml
+@@ -1183,6 +1192,15 @@ stats.lo stats.o: $(srcdir)/daemon/stats.c config.h $(srcdir)/daemon/stats.h $(s
+  $(srcdir)/util/storage/slabhash.h $(srcdir)/services/cache/infra.h $(srcdir)/util/storage/dnstree.h \
+  $(srcdir)/util/rtt.h $(srcdir)/services/authzone.h $(srcdir)/validator/val_kcache.h \
+  $(srcdir)/validator/val_neg.h
++unbound-fuzzme.lo unbound-fuzzme.o: $(srcdir)/smallapp/unbound-fuzzme.c \
++ $(srcdir)/util/locks.h $(srcdir)/util/alloc.h $(srcdir)/services/modstack.h  \
++  $(srcdir)/daemon/remote.h $(srcdir)/util/config_file.h \
++ $(srcdir)/util/storage/slabhash.h $(srcdir)/util/storage/lruhash.h $(srcdir)/services/listen_dnsport.h \
++ $(srcdir)/util/netevent.h $(srcdir)/dnscrypt/dnscrypt.h $(srcdir)/services/cache/rrset.h \
++ $(srcdir)/util/data/packed_rrset.h $(srcdir)/services/cache/infra.h $(srcdir)/util/storage/dnstree.h \
++ $(srcdir)/util/rbtree.h $(srcdir)/util/rtt.h $(srcdir)/util/data/msgreply.h $(srcdir)/util/fptr_wlist.h \
++ $(srcdir)/util/module.h $(srcdir)/util/data/msgparse.h $(srcdir)/sldns/pkthdr.h $(srcdir)/sldns/rrdef.h \
++ $(srcdir)/util/tube.h $(srcdir)/services/mesh.h $(srcdir)/util/net_help.h $(srcdir)/util/ub_event.h
+ unbound.lo unbound.o: $(srcdir)/daemon/unbound.c config.h $(srcdir)/util/log.h $(srcdir)/daemon/daemon.h \
+  $(srcdir)/util/locks.h $(srcdir)/util/alloc.h $(srcdir)/services/modstack.h  \
+   $(srcdir)/daemon/remote.h \
+diff --git a/smallapp/unbound-fuzzme.c b/smallapp/unbound-fuzzme.c
+new file mode 100644
+index 00000000..74ae5204
+--- /dev/null
++++ b/smallapp/unbound-fuzzme.c
+@@ -0,0 +1,38 @@
++/*
++ * unbound-fuzzme.c - parse a packet provided on stdin (for fuzzing).
++ *
++ */
++#include "config.h"
++#include "util/regional.h"
++#include "util/fptr_wlist.h"
++#include "sldns/sbuffer.h"
++
++#define SZ 10000
++
++int main() {
++	char buffer[SZ];
++	size_t n_read = fread(buffer, 1, SZ, stdin);
++	if (n_read == SZ) {
++		printf("input too big\n");
++		return 1;
++	}
++	sldns_buffer *pkt = sldns_buffer_new(n_read);
++	sldns_buffer_init_frm_data(pkt, buffer, n_read);
++
++	struct regional *region = regional_create();
++
++	struct msg_parse* prs;
++	struct edns_data edns;
++	prs = (struct msg_parse*)malloc(sizeof(struct msg_parse));
++	if(!prs) {
++		printf("out of memory on incoming message\n");
++		return 1;
++	}
++	memset(prs, 0, sizeof(*prs));
++	memset(&edns, 0, sizeof(edns));
++	sldns_buffer_set_position(pkt, 0);
++	if(parse_packet(pkt, prs, region) != LDNS_RCODE_NOERROR) {
++		printf("parse error\n");
++		return 1;
++	}
++}
+-- 
+2.17.1
+

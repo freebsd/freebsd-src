@@ -70,6 +70,9 @@
 /* Define to 1 if you have the `CRYPTO_cleanup_all_ex_data' function. */
 /* #undef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA */
 
+/* Define to 1 if you have the `CRYPTO_THREADID_set_callback' function. */
+/* #undef HAVE_CRYPTO_THREADID_SET_CALLBACK */
+
 /* Define to 1 if you have the `ctime_r' function. */
 #define HAVE_CTIME_R 1
 
@@ -83,6 +86,10 @@
 /* Define to 1 if you have the declaration of `arc4random_uniform', and to 0
    if you don't. */
 /* #undef HAVE_DECL_ARC4RANDOM_UNIFORM */
+
+/* Define to 1 if you have the declaration of `evsignal_assign', and to 0 if
+   you don't. */
+/* #undef HAVE_DECL_EVSIGNAL_ASSIGN */
 
 /* Define to 1 if you have the declaration of `inet_ntop', and to 0 if you
    don't. */
@@ -164,6 +171,9 @@
 /* Define to 1 if you have the `ERR_load_crypto_strings' function. */
 /* #undef HAVE_ERR_LOAD_CRYPTO_STRINGS */
 
+/* Define to 1 if you have the `event_assign' function. */
+/* #undef HAVE_EVENT_ASSIGN */
+
 /* Define to 1 if you have the `event_base_free' function. */
 /* #undef HAVE_EVENT_BASE_FREE */
 
@@ -179,6 +189,9 @@
 /* Define to 1 if you have the <event.h> header file. */
 /* #undef HAVE_EVENT_H */
 
+/* Define to 1 if you have the `EVP_aes_256_cbc' function. */
+#define HAVE_EVP_AES_256_CBC 1
+
 /* Define to 1 if you have the `EVP_cleanup' function. */
 /* #undef HAVE_EVP_CLEANUP */
 
@@ -187,6 +200,9 @@
 
 /* Define to 1 if you have the `EVP_dss1' function. */
 /* #undef HAVE_EVP_DSS1 */
+
+/* Define to 1 if you have the `EVP_EncryptInit_ex' function. */
+#define HAVE_EVP_ENCRYPTINIT_EX 1
 
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
 #define HAVE_EVP_MD_CTX_NEW 1
@@ -259,6 +275,9 @@
 
 /* Define to 1 if you have the <hiredis/hiredis.h> header file. */
 /* #undef HAVE_HIREDIS_HIREDIS_H */
+
+/* Define to 1 if you have the `HMAC_Init_ex' function. */
+#define HAVE_HMAC_INIT_EX 1
 
 /* If you have HMAC_Update */
 #define HAVE_HMAC_UPDATE 1
@@ -395,7 +414,7 @@
 /* Define to 1 if you have the `RAND_cleanup' function. */
 /* #undef HAVE_RAND_CLEANUP */
 
-/* Define to 1 if you have the `reallocarray' function. */
+/* If we have reallocarray(3) */
 #define HAVE_REALLOCARRAY 1
 
 /* Define to 1 if you have the `recvmsg' function. */
@@ -452,8 +471,14 @@
 /* Define if you have the SSL libraries installed. */
 #define HAVE_SSL /**/
 
+/* Define to 1 if you have the `SSL_CTX_set_ciphersuites' function. */
+#define HAVE_SSL_CTX_SET_CIPHERSUITES 1
+
 /* Define to 1 if you have the `SSL_CTX_set_security_level' function. */
 #define HAVE_SSL_CTX_SET_SECURITY_LEVEL 1
+
+/* Define to 1 if you have the `SSL_CTX_set_tlsext_ticket_key_cb' function. */
+/* #undef HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_CB */
 
 /* Define to 1 if you have the `SSL_get0_peername' function. */
 #define HAVE_SSL_GET0_PEERNAME 1
@@ -587,6 +612,9 @@
 /* Define to 1 if you have the <ws2tcpip.h> header file. */
 /* #undef HAVE_WS2TCPIP_H */
 
+/* Define to 1 if you have the `X509_VERIFY_PARAM_set1_host' function. */
+#define HAVE_X509_VERIFY_PARAM_SET1_HOST 1
+
 /* Define to 1 if you have the `_beginthreadex' function. */
 /* #undef HAVE__BEGINTHREADEX */
 
@@ -643,7 +671,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.8.1"
+#define PACKAGE_STRING "unbound 1.9.2"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -652,7 +680,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.8.1"
+#define PACKAGE_VERSION "1.9.2"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -674,7 +702,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,8,1,0
+#define RSRC_PACKAGE_VERSION 1,9,2,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -945,8 +973,14 @@
 
 
 
+#ifndef _OPENBSD_SOURCE
+#define _OPENBSD_SOURCE 1
+#endif
+
 #ifndef UNBOUND_DEBUG
+# ifndef NDEBUG
 #  define NDEBUG
+# endif
 #endif
 
 /** Use small-ldns codebase */

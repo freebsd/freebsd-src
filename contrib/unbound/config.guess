@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/usr/bin/sh
 # Attempt to guess a canonical system name.
 #   Copyright 1992-2016 Free Software Foundation, Inc.
 

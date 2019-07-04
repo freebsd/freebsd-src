@@ -72,6 +72,19 @@
 #  define be64toh(x) OSSwapBigToHostInt64(x)
 #endif
 
+/* Some compilers do not define __BYTE_ORDER__, like IBM XLC on AIX */
+#ifndef be64toh
+#if defined(__sun) || defined(_AIX)
+#  if __BIG_ENDIAN__
+#    define be64toh(n) (n)
+#    define htobe64(n) (n)
+#  else
+#    define be64toh(n) (((uint64_t)htonl((n) & 0xFFFFFFFF) << 32) | htonl((n) >> 32))
+#    define htobe64(n) (((uint64_t)htonl((n) & 0xFFFFFFFF) << 32) | htonl((n) >> 32))
+#  endif
+#endif
+#endif /* be64toh */
+
 /** the unit test testframe for cachedb, its module state contains
  * a cache for a couple queries (in memory). */
 struct testframe_moddata {

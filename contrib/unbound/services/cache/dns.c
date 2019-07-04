@@ -40,6 +40,7 @@
  */
 #include "config.h"
 #include "iterator/iter_delegpt.h"
+#include "iterator/iter_utils.h"
 #include "validator/val_nsec.h"
 #include "validator/val_utils.h"
 #include "services/cache/dns.h"
@@ -721,6 +722,19 @@ fill_any(struct module_env* env,
 	int i, num=6; /* number of RR types to look up */
 	log_assert(lookup[num] == 0);
 
+	if(env->cfg->deny_any) {
+		/* return empty message */
+		msg = dns_msg_create(qname, qnamelen, qtype, qclass,
+			region, 0);
+		if(!msg) {
+			return NULL;
+		}
+		/* set NOTIMPL for RFC 8482 */
+		msg->rep->flags |= LDNS_RCODE_NOTIMPL;
+		msg->rep->security = sec_status_indeterminate;
+		return msg;
+	}
+
 	for(i=0; i<num; i++) {
 		/* look up this RR for inclusion in type ANY response */
 		struct ub_packed_rrset_key* rrset = rrset_cache_lookup(
@@ -901,12 +915,15 @@ dns_cache_lookup(struct module_env* env,
 			struct dns_msg* msg;
 			if(FLAGS_GET_RCODE(data->flags) == LDNS_RCODE_NXDOMAIN
 			  && data->security == sec_status_secure
+			  && (data->an_numrrsets == 0 ||
+				ntohs(data->rrsets[0]->rk.type) != LDNS_RR_TYPE_CNAME)
 			  && (msg=tomsg(env, &k, data, region, now, scratch))){
 				lock_rw_unlock(&e->lock);
 				msg->qinfo.qname=qname;
 				msg->qinfo.qname_len=qnamelen;
 				/* check that DNSSEC really works out */
 				msg->rep->security = sec_status_unchecked;
+				iter_scrub_nxdomain(msg);
 				return msg;
 			}
 			lock_rw_unlock(&e->lock);

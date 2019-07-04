@@ -335,6 +335,13 @@ void iter_scrub_ds(struct dns_msg* msg, struct ub_packed_rrset_key* ns,
 	uint8_t* z);
 
 /**
+ * Prepare an NXDOMAIN message to be used for a subdomain answer by removing all
+ * RRs from the ANSWER section.
+ * @param msg: the response to scrub.
+ */
+void iter_scrub_nxdomain(struct dns_msg* msg);
+
+/**
  * Remove query attempts from all available ips. For 0x20.
  * @param dp: delegpt.
  * @param d: decrease.
@@ -368,5 +375,14 @@ int iter_ds_toolow(struct dns_msg* msg, struct delegpt* dp);
  * the current response seems to be the one and only, best possible, response.
  */
 int iter_dp_cangodown(struct query_info* qinfo, struct delegpt* dp);
+
+/** 
+ * Lookup if no_cache is set in stub or fwd.
+ * @param qstate: query state with env with hints and fwds.
+ * @param qinf: query name to lookup for.
+ * @return true if no_cache is set in stub or fwd.
+ */
+int iter_stub_fwd_no_cache(struct module_qstate *qstate,
+	struct query_info *qinf);
 
 #endif /* ITERATOR_ITER_UTILS_H */
