@@ -7566,12 +7566,12 @@ bxe_attn_int_deasserted4(struct bxe_softc *sc,
                          uint32_t         attn)
 {
     uint32_t val;
-    boolean_t err_flg = FALSE;
+    bool err_flg = false;
 
     if (attn & AEU_INPUTS_ATTN_BITS_PGLUE_HW_INTERRUPT) {
         val = REG_RD(sc, PGLUE_B_REG_PGLUE_B_INT_STS_CLR);
         BLOGE(sc, "PGLUE hw attention 0x%08x\n", val);
-        err_flg = TRUE;
+        err_flg = true;
         if (val & PGLUE_B_PGLUE_B_INT_STS_REG_ADDRESS_ERROR)
             BLOGE(sc, "PGLUE_B_PGLUE_B_INT_STS_REG_ADDRESS_ERROR\n");
         if (val & PGLUE_B_PGLUE_B_INT_STS_REG_INCORRECT_RCV_BEHAVIOR)
@@ -7595,7 +7595,7 @@ bxe_attn_int_deasserted4(struct bxe_softc *sc,
     if (attn & AEU_INPUTS_ATTN_BITS_ATC_HW_INTERRUPT) {
         val = REG_RD(sc, ATC_REG_ATC_INT_STS_CLR);
         BLOGE(sc, "ATC hw attention 0x%08x\n", val);
-	err_flg = TRUE;
+	err_flg = true;
         if (val & ATC_ATC_INT_STS_REG_ADDRESS_ERROR)
             BLOGE(sc, "ATC_ATC_INT_STS_REG_ADDRESS_ERROR\n");
         if (val & ATC_ATC_INT_STS_REG_ATC_TCPL_TO_NOT_PEND)
@@ -7615,7 +7615,7 @@ bxe_attn_int_deasserted4(struct bxe_softc *sc,
         BLOGE(sc, "FATAL parity attention set4 0x%08x\n",
               (uint32_t)(attn & (AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR |
                                  AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR)));
-	err_flg = TRUE;
+	err_flg = true;
     }
     if (err_flg) {
 	BXE_SET_ERROR_BIT(sc, BXE_ERR_MISC);
@@ -8019,7 +8019,7 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
     int reg_offset;
     uint32_t val0, mask0, val1, mask1;
     uint32_t val;
-    boolean_t err_flg = FALSE;
+    bool err_flg = false;
 
     if (attn & AEU_INPUTS_ATTN_BITS_CFC_HW_INTERRUPT) {
         val = REG_RD(sc, CFC_REG_CFC_INT_STS_CLR);
@@ -8027,7 +8027,7 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
         /* CFC error attention */
         if (val & 0x2) {
             BLOGE(sc, "FATAL error from CFC\n");
-	    err_flg = TRUE;
+	    err_flg = true;
         }
     }
 
@@ -8037,13 +8037,13 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
         /* RQ_USDMDP_FIFO_OVERFLOW */
         if (val & 0x18000) {
             BLOGE(sc, "FATAL error from PXP\n");
-	    err_flg = TRUE;
+	    err_flg = true;
         }
 
         if (!CHIP_IS_E1x(sc)) {
             val = REG_RD(sc, PXP_REG_PXP_INT_STS_CLR_1);
             BLOGE(sc, "PXP hw attention-1 0x%08x\n", val);
-	    err_flg = TRUE;
+	    err_flg = true;
         }
     }
 
@@ -8080,7 +8080,7 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
              */
             if (val0 & PXP2_EOP_ERROR_BIT) {
                 BLOGE(sc, "PXP2_WR_PGLUE_EOP_ERROR\n");
-		err_flg = TRUE;
+		err_flg = true;
 
                 /*
                  * if only PXP2_PXP2_INT_STS_0_REG_WR_PGLUE_EOP_ERROR is
@@ -8103,7 +8103,7 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
 
         BLOGE(sc, "FATAL HW block attention set2 0x%x\n",
               (uint32_t)(attn & HW_INTERRUT_ASSERT_SET_2));
-	err_flg = TRUE;
+	err_flg = true;
         bxe_panic(sc, ("HW block attention set2\n"));
     }
     if(err_flg) {
@@ -8121,7 +8121,7 @@ bxe_attn_int_deasserted1(struct bxe_softc *sc,
     int port = SC_PORT(sc);
     int reg_offset;
     uint32_t val;
-    boolean_t err_flg = FALSE;
+    bool err_flg = false;
 
     if (attn & AEU_INPUTS_ATTN_BITS_DOORBELLQ_HW_INTERRUPT) {
         val = REG_RD(sc, DORQ_REG_DORQ_INT_STS_CLR);
@@ -8129,7 +8129,7 @@ bxe_attn_int_deasserted1(struct bxe_softc *sc,
         /* DORQ discard attention */
         if (val & 0x2) {
             BLOGE(sc, "FATAL error from DORQ\n");
-	    err_flg = TRUE;
+	    err_flg = true;
         }
     }
 
@@ -8143,7 +8143,7 @@ bxe_attn_int_deasserted1(struct bxe_softc *sc,
 
         BLOGE(sc, "FATAL HW block attention set1 0x%08x\n",
               (uint32_t)(attn & HW_INTERRUT_ASSERT_SET_1));
-        err_flg = TRUE;
+        err_flg = true;
         bxe_panic(sc, ("HW block attention set1\n"));
     }
     if(err_flg) {
