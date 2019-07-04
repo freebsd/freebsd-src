@@ -965,14 +965,25 @@ aml8726_mmc_read_ivar(device_t bus, device_t child,
 	case MMCBR_IVAR_POWER_MODE:
 		*(int *)result = sc->host.ios.power_mode;
 		break;
+	case MMCBR_IVAR_RETUNE_REQ:
+		*(int *)result = return_req_none;
 	case MMCBR_IVAR_VDD:
 		*(int *)result = sc->host.ios.vdd;
+		break;
+	case MMCBR_IVAR_VCCQ:
+		*result = sc->sc_host.ios.vccq;
 		break;
 	case MMCBR_IVAR_CAPS:
 		*(int *)result = sc->host.caps;
 		break;
+	case MMCBR_IVAR_TIMING:
+		*(int *)result = sc->sc_host.ios.timing;
+		break;
 	case MMCBR_IVAR_MAX_DATA:
 		*(int *)result = AML_MMC_MAX_DMA / MMC_SECTOR_SIZE;
+		break;
+	case MMCBR_IVAR_MAX_BUSY_TIMEOUT:
+		*(int *)result = 1000000;	/* 1s max */
 		break;
 	default:
 		return (EINVAL);
@@ -1011,6 +1022,12 @@ aml8726_mmc_write_ivar(device_t bus, device_t child,
 		break;
 	case MMCBR_IVAR_VDD:
 		sc->host.ios.vdd = value;
+		break;
+	case MMCBR_IVAR_VCCQ:
+		sc->sc_host.ios.vccq = value;
+		break;
+	case MMCBR_IVAR_TIMING:
+		sc->sc_host.ios.timing = value;
 		break;
 	/* These are read-only */
 	case MMCBR_IVAR_CAPS:
