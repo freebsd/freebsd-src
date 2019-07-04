@@ -464,7 +464,8 @@ lz_enter_rr_into_zone(struct local_zone* z, const char* rrstr)
 		return 0;
 	}
 	log_assert(z->dclass == rrclass);
-	if(z->type == local_zone_redirect &&
+	if((z->type == local_zone_redirect ||
+		z->type == local_zone_inform_redirect) &&
 		query_dname_compare(z->name, nm) != 0) {
 		log_err("local-data in redirect zone must reside at top of zone"
 			", not at %s", rrstr);
@@ -481,7 +482,8 @@ lz_enter_rr_into_zone(struct local_zone* z, const char* rrstr)
 
 	/* Reject it if we would end up having CNAME and other data (including
 	 * another CNAME) for a redirect zone. */
-	if(z->type == local_zone_redirect && node->rrsets) {
+	if((z->type == local_zone_redirect ||
+		z->type == local_zone_inform_redirect) && node->rrsets) {
 		const char* othertype = NULL;
 		if (rrtype == LDNS_RR_TYPE_CNAME)
 			othertype = "other";
@@ -1323,7 +1325,8 @@ local_data_answer(struct local_zone* z, struct module_env* env,
 	key.name = qinfo->qname;
 	key.namelen = qinfo->qname_len;
 	key.namelabs = labs;
-	if(lz_type == local_zone_redirect) {
+	if(lz_type == local_zone_redirect ||
+		lz_type == local_zone_inform_redirect) {
 		key.name = z->name;
 		key.namelen = z->namelen;
 		key.namelabs = z->namelabs;
@@ -1355,7 +1358,8 @@ local_data_answer(struct local_zone* z, struct module_env* env,
 		return 0;
 
 	/* Special case for alias matching.  See local_data_answer(). */
-	if(lz_type == local_zone_redirect &&
+	if((lz_type == local_zone_redirect ||
+		lz_type == local_zone_inform_redirect) &&
 		qinfo->qtype != LDNS_RR_TYPE_CNAME &&
 		lr->rrset->rk.type == htons(LDNS_RR_TYPE_CNAME)) {
 		qinfo->local_alias =
@@ -1370,7 +1374,8 @@ local_data_answer(struct local_zone* z, struct module_env* env,
 		qinfo->local_alias->rrset->rk.dname_len = qinfo->qname_len;
 		return 1;
 	}
-	if(lz_type == local_zone_redirect) {
+	if(lz_type == local_zone_redirect ||
+		lz_type == local_zone_inform_redirect) {
 		/* convert rrset name to query name; like a wildcard */
 		struct ub_packed_rrset_key r = *lr->rrset;
 		r.rk.dname = qinfo->qname;
@@ -1442,6 +1447,7 @@ lz_zone_answer(struct local_zone* z, struct module_env* env,
 		return 1;
 	} else if(lz_type == local_zone_static ||
 		lz_type == local_zone_redirect ||
+		lz_type == local_zone_inform_redirect ||
 		lz_type == local_zone_always_nxdomain) {
 		/* for static, reply nodata or nxdomain
 		 * for redirect, reply nodata */
@@ -1450,7 +1456,8 @@ lz_zone_answer(struct local_zone* z, struct module_env* env,
 		 * or using closest match for NSEC.
 		 * or using closest match for returning delegation downwards
 		 */
-		int rcode = (ld || lz_type == local_zone_redirect)?
+		int rcode = (ld || lz_type == local_zone_redirect ||
+			lz_type == local_zone_inform_redirect)?
 			LDNS_RCODE_NOERROR:LDNS_RCODE_NXDOMAIN;
 		if(z->soa)
 			return local_encode(qinfo, env, edns, repinfo, buf, temp,
@@ -1624,7 +1631,9 @@ local_zones_answer(struct local_zones* zones, struct module_env* env,
 		}
 	}
 	if((env->cfg->log_local_actions ||
-			lzt == local_zone_inform || lzt == local_zone_inform_deny)
+			lzt == local_zone_inform ||
+			lzt == local_zone_inform_deny ||
+			lzt == local_zone_inform_redirect)
 			&& repinfo)
 		lz_inform_print(z, qinfo, repinfo);
 
@@ -1656,6 +1665,7 @@ const char* local_zone_type2str(enum localzone_type t)
 		case local_zone_nodefault: return "nodefault";
 		case local_zone_inform: return "inform";
 		case local_zone_inform_deny: return "inform_deny";
+		case local_zone_inform_redirect: return "inform_redirect";
 		case local_zone_always_transparent: return "always_transparent";
 		case local_zone_always_refuse: return "always_refuse";
 		case local_zone_always_nxdomain: return "always_nxdomain";
@@ -1682,6 +1692,8 @@ int local_zone_str2type(const char* type, enum localzone_type* t)
 		*t = local_zone_inform;
 	else if(strcmp(type, "inform_deny") == 0)
 		*t = local_zone_inform_deny;
+	else if(strcmp(type, "inform_redirect") == 0)
+		*t = local_zone_inform_redirect;
 	else if(strcmp(type, "always_transparent") == 0)
 		*t = local_zone_always_transparent;
 	else if(strcmp(type, "always_refuse") == 0)

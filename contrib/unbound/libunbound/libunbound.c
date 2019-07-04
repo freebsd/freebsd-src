@@ -724,7 +724,7 @@ ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype,
 		*async_id = 0;
 	lock_basic_lock(&ctx->cfglock);
 	if(!ctx->finalized) {
-		int r = context_finalize(ctx);
+		r = context_finalize(ctx);
 		if(r) {
 			lock_basic_unlock(&ctx->cfglock);
 			return r;
@@ -962,6 +962,19 @@ ub_ctx_set_fwd(struct ub_ctx* ctx, const char* addr)
 		errno=ENOMEM;
 		return UB_NOMEM;
 	}
+	lock_basic_unlock(&ctx->cfglock);
+	return UB_NOERROR;
+}
+
+int ub_ctx_set_tls(struct ub_ctx* ctx, int tls)
+{
+	lock_basic_lock(&ctx->cfglock);
+	if(ctx->finalized) {
+		lock_basic_unlock(&ctx->cfglock);
+		errno=EINVAL;
+		return UB_AFTERFINAL;
+	}
+	ctx->env->cfg->ssl_upstream = tls;
 	lock_basic_unlock(&ctx->cfglock);
 	return UB_NOERROR;
 }

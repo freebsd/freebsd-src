@@ -83,6 +83,8 @@ struct subnet_qstate {
 	struct ecs_data	ecs_server_out;
 	int subnet_downstream;
 	int subnet_sent;
+	/** has the subnet module been started with no_cache_store? */
+	int started_no_cache_store;
 };
 
 void subnet_data_delete(void* d, void* ATTR_UNUSED(arg));
@@ -130,5 +132,8 @@ int ecs_edns_back_parsed(struct module_qstate* qstate, int id, void* cbargs);
 /** Remove ECS record from back_out when query resulted in REFUSED response. */
 int ecs_query_response(struct module_qstate* qstate, struct dns_msg* response,
 	int id, void* cbargs);
+
+/** mark subnet msg to be deleted */
+void subnet_markdel(void* key);
 
 #endif /* SUBNETMOD_H */

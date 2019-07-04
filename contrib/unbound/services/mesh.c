@@ -61,6 +61,7 @@
 #include "services/localzone.h"
 #include "util/data/dname.h"
 #include "respip/respip.h"
+#include "services/listen_dnsport.h"
 
 /** subtract timers and the values do not overflow or become negative */
 static void
@@ -353,6 +354,10 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 	int was_detached = 0;
 	int was_noreply = 0;
 	int added = 0;
+	struct sldns_buffer* r_buffer = rep->c->buffer;
+	if(rep->c->tcp_req_info) {
+		r_buffer = rep->c->tcp_req_info->spool_buffer;
+	}
 	if(!unique)
 		s = mesh_area_find(mesh, cinfo, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
 	/* does this create a new reply state? */
@@ -388,7 +393,7 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 			if(!inplace_cb_reply_servfail_call(mesh->env, qinfo, NULL, NULL,
 				LDNS_RCODE_SERVFAIL, edns, rep, mesh->env->scratch))
 					edns->opt_list = NULL;
-			error_encode(rep->c->buffer, LDNS_RCODE_SERVFAIL,
+			error_encode(r_buffer, LDNS_RCODE_SERVFAIL,
 				qinfo, qid, qflags, edns);
 			comm_point_send_reply(rep);
 			return;
@@ -404,7 +409,7 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 				if(!inplace_cb_reply_servfail_call(mesh->env, qinfo, NULL,
 					NULL, LDNS_RCODE_SERVFAIL, edns, rep, mesh->env->scratch))
 						edns->opt_list = NULL;
-				error_encode(rep->c->buffer, LDNS_RCODE_SERVFAIL,
+				error_encode(r_buffer, LDNS_RCODE_SERVFAIL,
 					qinfo, qid, qflags, edns);
 				comm_point_send_reply(rep);
 				return;
@@ -429,15 +434,22 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 	/* add reply to s */
 	if(!mesh_state_add_reply(s, edns, rep, qid, qflags, qinfo)) {
 			log_err("mesh_new_client: out of memory; SERVFAIL");
+		servfail_mem:
 			if(!inplace_cb_reply_servfail_call(mesh->env, qinfo, &s->s,
 				NULL, LDNS_RCODE_SERVFAIL, edns, rep, mesh->env->scratch))
 					edns->opt_list = NULL;
-			error_encode(rep->c->buffer, LDNS_RCODE_SERVFAIL,
+			error_encode(r_buffer, LDNS_RCODE_SERVFAIL,
 				qinfo, qid, qflags, edns);
 			comm_point_send_reply(rep);
 			if(added)
 				mesh_state_delete(&s->s);
 			return;
+	}
+	if(rep->c->tcp_req_info) {
+		if(!tcp_req_info_add_meshstate(rep->c->tcp_req_info, mesh, s)) {
+			log_err("mesh_new_client: out of memory add tcpreqinfo");
+			goto servfail_mem;
+		}
 	}
 	/* update statistics */
 	if(was_detached) {
@@ -732,9 +744,13 @@ mesh_state_cleanup(struct mesh_state* mstate)
 	mesh = mstate->s.env->mesh;
 	/* drop unsent replies */
 	if(!mstate->replies_sent) {
-		struct mesh_reply* rep;
+		struct mesh_reply* rep = mstate->reply_list;
 		struct mesh_cb* cb;
-		for(rep=mstate->reply_list; rep; rep=rep->next) {
+		/* in tcp_req_info, the mstates linked are removed, but
+		 * the reply_list is now NULL, so the remove-from-empty-list
+		 * takes no time and also it does not do the mesh accounting */
+		mstate->reply_list = NULL;
+		for(; rep; rep=rep->next) {
 			comm_point_drop_reply(&rep->query_reply);
 			mesh->num_reply_addrs--;
 		}
@@ -1031,11 +1047,14 @@ mesh_do_callback(struct mesh_state* m, int rcode, struct reply_info* rep,
  * @param rcode: if not 0, error code.
  * @param rep: reply to send (or NULL if rcode is set).
  * @param r: reply entry
+ * @param r_buffer: buffer to use for reply entry.
  * @param prev: previous reply, already has its answer encoded in buffer.
+ * @param prev_buffer: buffer for previous reply.
  */
 static void
 mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
-	struct mesh_reply* r, struct mesh_reply* prev)
+	struct mesh_reply* r, struct sldns_buffer* r_buffer,
+	struct mesh_reply* prev, struct sldns_buffer* prev_buffer)
 {
 	struct timeval end_time;
 	struct timeval duration;
@@ -1063,7 +1082,7 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 	 * and still reuse the previous answer if they are the same, but that
 	 * would be complicated and error prone for the relatively minor case.
 	 * So we err on the side of safety. */
-	if(prev && prev->qflags == r->qflags && 
+	if(prev && prev_buffer && prev->qflags == r->qflags && 
 		!prev->local_alias && !r->local_alias &&
 		prev->edns.edns_present == r->edns.edns_present && 
 		prev->edns.bits == r->edns.bits && 
@@ -1071,13 +1090,11 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 		edns_opt_list_compare(prev->edns.opt_list, r->edns.opt_list)
 		== 0) {
 		/* if the previous reply is identical to this one, fix ID */
-		if(prev->query_reply.c->buffer != r->query_reply.c->buffer)
-			sldns_buffer_copy(r->query_reply.c->buffer, 
-				prev->query_reply.c->buffer);
-		sldns_buffer_write_at(r->query_reply.c->buffer, 0, 
-			&r->qid, sizeof(uint16_t));
-		sldns_buffer_write_at(r->query_reply.c->buffer, 12, 
-			r->qname, m->s.qinfo.qname_len);
+		if(prev_buffer != r_buffer)
+			sldns_buffer_copy(r_buffer, prev_buffer);
+		sldns_buffer_write_at(r_buffer, 0, &r->qid, sizeof(uint16_t));
+		sldns_buffer_write_at(r_buffer, 12, r->qname,
+			m->s.qinfo.qname_len);
 		comm_point_send_reply(&r->query_reply);
 	} else if(rcode) {
 		m->s.qinfo.qname = r->qname;
@@ -1091,8 +1108,8 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 				&r->edns, NULL, m->s.region))
 					r->edns.opt_list = NULL;
 		}
-		error_encode(r->query_reply.c->buffer, rcode, &m->s.qinfo,
-			r->qid, r->qflags, &r->edns);
+		error_encode(r_buffer, rcode, &m->s.qinfo, r->qid,
+			r->qflags, &r->edns);
 		comm_point_send_reply(&r->query_reply);
 	} else {
 		size_t udp_size = r->edns.udp_size;
@@ -1108,16 +1125,15 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 				m->s.env->cfg, r->query_reply.c,
 				m->s.region) ||
 			!reply_info_answer_encode(&m->s.qinfo, rep, r->qid, 
-			r->qflags, r->query_reply.c->buffer, 0, 1, 
-			m->s.env->scratch, udp_size, &r->edns, 
-			(int)(r->edns.bits & EDNS_DO), secure)) 
+			r->qflags, r_buffer, 0, 1, m->s.env->scratch,
+			udp_size, &r->edns, (int)(r->edns.bits & EDNS_DO),
+			secure)) 
 		{
 			if(!inplace_cb_reply_servfail_call(m->s.env, &m->s.qinfo, &m->s,
 			rep, LDNS_RCODE_SERVFAIL, &r->edns, NULL, m->s.region))
 				r->edns.opt_list = NULL;
-			error_encode(r->query_reply.c->buffer, 
-				LDNS_RCODE_SERVFAIL, &m->s.qinfo, r->qid, 
-				r->qflags, &r->edns);
+			error_encode(r_buffer, LDNS_RCODE_SERVFAIL,
+				&m->s.qinfo, r->qid, r->qflags, &r->edns);
 		}
 		r->edns = edns_bak;
 		comm_point_send_reply(&r->query_reply);
@@ -1132,19 +1148,17 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 	timeval_add(&m->s.env->mesh->replies_sum_wait, &duration);
 	timehist_insert(m->s.env->mesh->histogram, &duration);
 	if(m->s.env->cfg->stat_extended) {
-		uint16_t rc = FLAGS_GET_RCODE(sldns_buffer_read_u16_at(r->
-			query_reply.c->buffer, 2));
+		uint16_t rc = FLAGS_GET_RCODE(sldns_buffer_read_u16_at(
+			r_buffer, 2));
 		if(secure) m->s.env->mesh->ans_secure++;
 		m->s.env->mesh->ans_rcode[ rc ] ++;
-		if(rc == 0 && LDNS_ANCOUNT(sldns_buffer_begin(r->
-			query_reply.c->buffer)) == 0)
+		if(rc == 0 && LDNS_ANCOUNT(sldns_buffer_begin(r_buffer)) == 0)
 			m->s.env->mesh->ans_nodata++;
 	}
 	/* Log reply sent */
 	if(m->s.env->cfg->log_replies) {
 		log_reply_info(0, &m->s.qinfo, &r->query_reply.addr,
-			r->query_reply.addrlen, duration, 0,
-			r->query_reply.c->buffer);
+			r->query_reply.addrlen, duration, 0, r_buffer);
 	}
 }
 
@@ -1152,6 +1166,7 @@ void mesh_query_done(struct mesh_state* mstate)
 {
 	struct mesh_reply* r;
 	struct mesh_reply* prev = NULL;
+	struct sldns_buffer* prev_buffer = NULL;
 	struct mesh_cb* c;
 	struct reply_info* rep = (mstate->s.return_msg?
 		mstate->s.return_msg->rep:NULL);
@@ -1180,9 +1195,19 @@ void mesh_query_done(struct mesh_state* mstate)
 		if(mstate->s.is_drop)
 			comm_point_drop_reply(&r->query_reply);
 		else {
+			struct sldns_buffer* r_buffer = r->query_reply.c->buffer;
+			if(r->query_reply.c->tcp_req_info) {
+				r_buffer = r->query_reply.c->tcp_req_info->spool_buffer;
+				prev_buffer = NULL;
+			}
 			mesh_send_reply(mstate, mstate->s.return_rcode, rep,
-				r, prev);
+				r, r_buffer, prev, prev_buffer);
+			if(r->query_reply.c->tcp_req_info) {
+				tcp_req_info_remove_mesh_state(r->query_reply.c->tcp_req_info, mstate);
+				r_buffer = NULL;
+			}
 			prev = r;
+			prev_buffer = r_buffer;
 		}
 	}
 	mstate->replies_sent = 1;
@@ -1324,21 +1349,14 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
 		log_assert(qinfo->local_alias->rrset->rk.dname ==
 			sldns_buffer_at(rep->c->buffer, LDNS_HEADER_SIZE));
 
-		d = regional_alloc_init(s->s.region, dsrc,
-			sizeof(struct packed_rrset_data)
-			+ sizeof(size_t) + sizeof(uint8_t*) + sizeof(time_t));
+		/* the rrset is not packed, like in the cache, but it is
+		 * individualy allocated with an allocator from localzone. */
+		d = regional_alloc_zero(s->s.region, sizeof(*d));
 		if(!d)
 			return 0;
 		r->local_alias->rrset->entry.data = d;
-		d->rr_len = (size_t*)((uint8_t*)d +
-			sizeof(struct packed_rrset_data));
-		d->rr_data = (uint8_t**)&(d->rr_len[1]);
-		d->rr_ttl = (time_t*)&(d->rr_data[1]);
-		d->rr_len[0] = dsrc->rr_len[0];
-		d->rr_ttl[0] = dsrc->rr_ttl[0];
-		d->rr_data[0] = regional_alloc_init(s->s.region,
-			dsrc->rr_data[0], d->rr_len[0]);
-		if(!d->rr_data[0])
+		if(!rrset_insert_rr(s->s.region, d, dsrc->rr_data[0],
+			dsrc->rr_len[0], dsrc->rr_ttl[0], "CNAME local alias"))
 			return 0;
 	} else
 		r->local_alias = NULL;
@@ -1392,7 +1410,7 @@ mesh_continue(struct mesh_area* mesh, struct mesh_state* mstate,
 		/* module is looping. Stop it. */
 		log_err("internal error: looping module (%s) stopped",
 			mesh->mods.mod[mstate->s.curmod]->name);
-		log_query_info(VERB_QUERY, "pass error for qstate",
+		log_query_info(0, "pass error for qstate",
 			&mstate->s.qinfo);
 		s = module_error;
 	}
@@ -1612,4 +1630,39 @@ void mesh_list_remove(struct mesh_state* m, struct mesh_state** fp,
 	if(m->prev)
 		m->prev->next = m->next;
 	else	*fp = m->next;
+}
+
+void mesh_state_remove_reply(struct mesh_area* mesh, struct mesh_state* m,
+	struct comm_point* cp)
+{
+	struct mesh_reply* n, *prev = NULL;
+	n = m->reply_list;
+	/* when in mesh_cleanup, it sets the reply_list to NULL, so that
+	 * there is no accounting twice */
+	if(!n) return; /* nothing to remove, also no accounting needed */
+	while(n) {
+		if(n->query_reply.c == cp) {
+			/* unlink it */
+			if(prev) prev->next = n->next;
+			else m->reply_list = n->next;
+			/* delete it, but allocated in m region */
+			mesh->num_reply_addrs--;
+
+			/* prev = prev; */
+			n = n->next;
+			continue;
+		}
+		prev = n;
+		n = n->next;
+	}
+	/* it was not detached (because it had a reply list), could be now */
+	if(!m->reply_list && !m->cb_list
+		&& m->super_set.count == 0) {
+		mesh->num_detached_states++;
+	}
+	/* if not replies any more in mstate, it is no longer a reply_state */
+	if(!m->reply_list && !m->cb_list) {
+		log_assert(mesh->num_reply_states > 0);
+		mesh->num_reply_states--;
+	}
 }
