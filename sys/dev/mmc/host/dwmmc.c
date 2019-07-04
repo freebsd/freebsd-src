@@ -1145,7 +1145,7 @@ dwmmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 		sc->host.ios.timing = value;
 		break;
 	case MMCBR_IVAR_VCCQ:
-		sc->sc_host.ios.vccq = value;
+		sc->host.ios.vccq = value;
 		break;
 	/* These are read-only */
 	case MMCBR_IVAR_CAPS:
