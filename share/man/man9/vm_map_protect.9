@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2003
+.Dd June 20, 2019
 .Dt VM_MAP_PROTECT 9
 .Os
 .Sh NAME
@@ -51,6 +51,11 @@ within the map
 .Fa map
 to
 .Fa new_prot .
+The value specified by
+.Fa new_prot
+may not include any protection bits that are not set in
+.Va max_protection
+on every entry within the range.
 .Pp
 If
 .Fa set_max
@@ -59,7 +64,12 @@ is TRUE,
 is treated as the new
 .Va max_protection
 setting for each underlying entry.
-Otherwise, only the
+Protection bits not included
+.Fa new_prot
+will be cleared from existing entries.
+If
+.Fa set_max
+is FALSE only the
 .Va protection
 field is affected.
 .Pp
