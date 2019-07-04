@@ -2446,8 +2446,8 @@ netmap_mem_pt_guest_ifp_del(struct netmap_mem_d *nmd, struct ifnet *ifp)
 			} else {
 				ptnmd->pt_ifs = curr->next;
 			}
-			nm_prinf("removed (ifp=%p,nifp_offset=%u)",
-			  curr->ifp, curr->nifp_offset);
+			nm_prinf("removed (ifp=%s,nifp_offset=%u)",
+			  curr->ifp->if_xname, curr->nifp_offset);
 			nm_os_free(curr);
 			ret = 0;
 			break;
