@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014, 2015 Marcel Moolenaar
+ * Copyright (c) 2014, 2015, 2019 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,8 @@
 #define	PROTO_RES_BUSDMA	11
 
 struct proto_res {
-	int		r_type;
+	u_int		r_type:8;
+	u_int		r_opened:1;
 	int		r_rid;
 	union {
 		struct resource *res;
@@ -47,13 +48,14 @@ struct proto_res {
 		void		*cookie;
 		struct cdev	*cdev;
 	} r_u;
-	uintptr_t	r_opened;
 };
 
 struct proto_softc {
 	device_t	sc_dev;
 	struct proto_res sc_res[PROTO_RES_MAX];
 	int		sc_rescnt;
+	int		sc_opencnt;
+	struct mtx	sc_mtx;
 };
 
 extern devclass_t proto_devclass;

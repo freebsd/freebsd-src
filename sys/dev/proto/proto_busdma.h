@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Marcel Moolenaar
+ * Copyright (c) 2015, 2019 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,6 +60,7 @@ struct proto_busdma {
 	LIST_HEAD(,proto_tag)	tags;
 	LIST_HEAD(,proto_md)	mds;
 	bus_dma_tag_t		bd_roottag;
+	struct sx		sxlck;
 };
 
 struct proto_busdma *proto_busdma_attach(struct proto_softc *);
