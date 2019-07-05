@@ -34,3 +34,4 @@
 #define	_PATH_EXPORTS		"/etc/exports"
 #define	_PATH_RMOUNTLIST	"/var/db/mountdtab"
 #define _PATH_MOUNTDPID		"/var/run/mountd.pid"
+#define	_PATH_MOUNTDDEBUG	"/var/log/mountd.debug"
