@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/assym.h>
 #include <sys/proc.h>
 
-OFFSYM(td_pre_epoch_prio, thread, u_char);
 OFFSYM(td_priority, thread, u_char);
 OFFSYM(td_epochnest, thread, u_char);
 OFFSYM(td_critnest, thread, u_int);
