@@ -1059,7 +1059,6 @@ do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags,
 			if (owner == UMUTEX_RB_NOTRECOV)
 				return (ENOTRECOVERABLE);
 
-
 			/*
 			 * Try the uncontested case.  This should be
 			 * done in userland.
@@ -2658,7 +2657,8 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag,
 
 		/* try to lock it */
 		while (!(state & wrflags)) {
-			if (__predict_false(URWLOCK_READER_COUNT(state) == URWLOCK_MAX_READERS)) {
+			if (__predict_false(URWLOCK_READER_COUNT(state) ==
+			    URWLOCK_MAX_READERS)) {
 				umtx_key_release(&uq->uq_key);
 				return (EAGAIN);
 			}
@@ -2725,7 +2725,10 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag,
 		}
 
 sleep:
-		/* contention bit is set, before sleeping, increase read waiter count */
+		/*
+		 * Contention bit is set, before sleeping, increase
+		 * read waiter count.
+		 */
 		rv = fueword32(&rwlock->rw_blocked_readers,
 		    &blocked_readers);
 		if (rv == -1) {
@@ -2829,7 +2832,8 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, struct _umtx_time *timeo
 			umtx_key_release(&uq->uq_key);
 			return (EFAULT);
 		}
-		while (!(state & URWLOCK_WRITE_OWNER) && URWLOCK_READER_COUNT(state) == 0) {
+		while ((state & URWLOCK_WRITE_OWNER) == 0 &&
+		    URWLOCK_READER_COUNT(state) == 0) {
 			rv = casueword32(&rwlock->rw_state, state,
 			    &oldstate, state | URWLOCK_WRITE_OWNER);
 			if (rv == -1) {
@@ -2865,8 +2869,8 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, struct _umtx_time *timeo
 		umtxq_unlock(&uq->uq_key);
 
 		/*
-		 * re-read the state, in case it changed between the try-lock above
-		 * and the check below
+		 * Re-read the state, in case it changed between the
+		 * try-lock above and the check below.
 		 */
 		rv = fueword32(&rwlock->rw_state, &state);
 		if (rv == -1)
@@ -2893,7 +2897,8 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, struct _umtx_time *timeo
 			break;
 		}
 
-		if (!(state & URWLOCK_WRITE_OWNER) && URWLOCK_READER_COUNT(state) == 0) {
+		if ((state & URWLOCK_WRITE_OWNER) == 0 &&
+		    URWLOCK_READER_COUNT(state) == 0) {
 			umtxq_unbusy_unlocked(&uq->uq_key);
 			error = umtxq_check_susp(td);
 			if (error != 0)
@@ -2908,9 +2913,10 @@ sleep:
 			error = EFAULT;
 			break;
 		}
-		suword32(&rwlock->rw_blocked_writers, blocked_writers+1);
+		suword32(&rwlock->rw_blocked_writers, blocked_writers + 1);
 
-		while ((state & URWLOCK_WRITE_OWNER) || URWLOCK_READER_COUNT(state) != 0) {
+		while ((state & URWLOCK_WRITE_OWNER) ||
+		    URWLOCK_READER_COUNT(state) != 0) {
 			umtxq_lock(&uq->uq_key);
 			umtxq_insert_queue(uq, UMTX_EXCLUSIVE_QUEUE);
 			umtxq_unbusy(&uq->uq_key);
