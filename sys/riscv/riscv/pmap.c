@@ -2298,9 +2298,9 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	pd_entry_t *l1, *l2, l2e;
 	pt_entry_t *l3, l3e, mask;
-	vm_page_t m;
+	vm_page_t m, mt;
 	vm_paddr_t pa;
-	vm_offset_t va, va_next;
+	vm_offset_t va_next;
 	bool anychanged, pv_lists_locked;
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
@@ -2340,12 +2340,13 @@ resume:
 		if ((l2e & PTE_RWX) != 0) {
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
 retryl2:
-				if ((l2e & (PTE_SW_MANAGED | PTE_D)) ==
+				if ((prot & VM_PROT_WRITE) == 0 &&
+				    (l2e & (PTE_SW_MANAGED | PTE_D)) ==
 				    (PTE_SW_MANAGED | PTE_D)) {
 					pa = PTE_TO_PHYS(l2e);
-					for (va = sva, m = PHYS_TO_VM_PAGE(pa);
-					    va < va_next; m++, va += PAGE_SIZE)
-						vm_page_dirty(m);
+					m = PHYS_TO_VM_PAGE(pa);
+					for (mt = m; mt < &m[Ln_ENTRIES]; mt++)
+						vm_page_dirty(mt);
 				}
 				if (!atomic_fcmpset_long(l2, &l2e, l2e & ~mask))
 					goto retryl2;
