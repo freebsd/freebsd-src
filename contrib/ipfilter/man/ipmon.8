@@ -7,6 +7,10 @@ ipmon \- monitors /dev/ipl for logged packets
 [
 .B \-abBDFhnpstvxX
 ] [
+.B "\-B <binarylogfile>"
+] [
+.B "\-C <configfile>"
+] [
 .B "\-N <device>"
 ] [
 .B "\-L <facility>"
@@ -91,6 +95,10 @@ the packet contents after the headers.
 Enable logging of the raw, unformatted binary data to the specified
 \fI<binarylogfilename>\fP file.  This can be read, later, using \fBipmon\fP
 with the \fB-f\fP option.
+.TP
+.B \-C <configfilename>
+This option specifies a file to be used to specify optional extra actions
+when it sees specific log entries from the kernel.
 .TP
 .B \-D
 Cause ipmon to turn itself into a daemon.  Using subshells or backgrounding
@@ -178,9 +186,11 @@ recorded data.
 .br
 /dev/ipstate
 .br
+/etc/ipmon.conf
+.br
 /etc/services
 .SH SEE ALSO
-ipl(4), ipf(8), ipfstat(8), ipnat(8)
+ipl(4), ipmon(5), ipf(8), ipfstat(8), ipnat(8)
 .SH BUGS
 .PP
 If you find any, please send email to me at darrenr@pobox.com
