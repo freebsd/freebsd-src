@@ -772,9 +772,11 @@ _in6_ifdetach(struct ifnet *ifp, int purgeulp)
 		in6_purgeaddr(ifa);
 	}
 	if (purgeulp) {
+		IN6_MULTI_LOCK();
 		in6_pcbpurgeif0(&V_udbinfo, ifp);
 		in6_pcbpurgeif0(&V_ulitecbinfo, ifp);
 		in6_pcbpurgeif0(&V_ripcbinfo, ifp);
+		IN6_MULTI_UNLOCK();
 	}
 	/* leave from all multicast groups joined */
 	in6_purgemaddrs(ifp);

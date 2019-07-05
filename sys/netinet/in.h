@@ -505,13 +505,9 @@ __END_DECLS
 #define	IP_DEFAULT_MULTICAST_LOOP 1	/* normally hear sends if a member  */
 
 /*
- * The imo_membership vector for each socket is now dynamically allocated at
- * run-time, bounded by USHRT_MAX, and is reallocated when needed, sized
- * according to a power-of-two increment.
+ * Limit for IPv4 multicast memberships
  */
-#define	IP_MIN_MEMBERSHIPS	31
 #define	IP_MAX_MEMBERSHIPS	4095
-#define	IP_MAX_SOURCE_FILTER	1024	/* XXX to be unused */
 
 /*
  * Default resource limits for IPv4 multicast source filtering.

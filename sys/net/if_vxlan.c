@@ -1134,7 +1134,7 @@ vxlan_socket_mc_join_group(struct vxlan_socket *vso,
 		 * If we really need to, we can of course look in the INP's
 		 * membership list:
 		 *     sotoinpcb(vso->vxlso_sock)->inp_moptions->
-		 *         imo_membership[]->inm_ifp
+		 *         imo_head[]->imf_inm->inm_ifp
 		 * similarly to imo_match_group().
 		 */
 		source->in4.sin_addr = local->in4.sin_addr;
