@@ -803,8 +803,9 @@ void
 in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 {
 	struct inpcb *in6p;
+	struct in6_multi *inm;
+	struct in6_mfilter *imf;
 	struct ip6_moptions *im6o;
-	int i, gap;
 
 	INP_INFO_WLOCK(pcbinfo);
 	CK_LIST_FOREACH(in6p, pcbinfo->ipi_listhead, inp_list) {
@@ -825,18 +826,18 @@ in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 			 * Drop multicast group membership if we joined
 			 * through the interface being detached.
 			 */
-			gap = 0;
-			for (i = 0; i < im6o->im6o_num_memberships; i++) {
-				if (im6o->im6o_membership[i]->in6m_ifp ==
-				    ifp) {
-					in6_leavegroup(im6o->im6o_membership[i], NULL);
-					gap++;
-				} else if (gap != 0) {
-					im6o->im6o_membership[i - gap] =
-					    im6o->im6o_membership[i];
-				}
+restart:
+			IP6_MFILTER_FOREACH(imf, &im6o->im6o_head) {
+				if ((inm = imf->im6f_in6m) == NULL)
+					continue;
+				if (inm->in6m_ifp != ifp)
+					continue;
+				ip6_mfilter_remove(&im6o->im6o_head, imf);
+				IN6_MULTI_LOCK_ASSERT();
+				in6_leavegroup_locked(inm, NULL);
+				ip6_mfilter_free(imf);
+				goto restart;
 			}
-			im6o->im6o_num_memberships -= gap;
 		}
 		INP_WUNLOCK(in6p);
 	}

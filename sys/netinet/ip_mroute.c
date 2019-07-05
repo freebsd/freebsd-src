@@ -1678,7 +1678,6 @@ static void
 send_packet(struct vif *vifp, struct mbuf *m)
 {
 	struct ip_moptions imo;
-	struct in_multi *imm[2];
 	int error __unused;
 
 	VIF_LOCK_ASSERT();
@@ -1687,9 +1686,7 @@ send_packet(struct vif *vifp, struct mbuf *m)
 	imo.imo_multicast_ttl  = mtod(m, struct ip *)->ip_ttl - 1;
 	imo.imo_multicast_loop = 1;
 	imo.imo_multicast_vif  = -1;
-	imo.imo_num_memberships = 0;
-	imo.imo_max_memberships = 2;
-	imo.imo_membership  = &imm[0];
+	STAILQ_INIT(&imo.imo_head);
 
 	/*
 	 * Re-entrancy should not be a problem here, because
