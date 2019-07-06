@@ -121,6 +121,7 @@ __FBSDID("$FreeBSD$");
 #define malloc(a,b,c)	calloc(a, 1)
 #define free(a,b)	free(a)
 #define ummin(a,b)	((a) < (b) ? (a) : (b))
+#define imin(a,b)	((a) < (b) ? (a) : (b))
 #define KASSERT(a,b)	assert(a)
 
 #include <sys/blist.h>
@@ -300,8 +301,8 @@ blist_alloc(blist_t bl, int *count, int maxcount)
 
 	KASSERT(*count <= maxcount,
 	    ("invalid parameters %d > %d", *count, maxcount));
-	KASSERT(maxcount <= BLIST_MAX_ALLOC,
-	    ("allocation too large: %d", maxcount));
+	KASSERT(*count <= BLIST_MAX_ALLOC,
+	    ("minimum allocation too large: %d", *count));
 
 	/*
 	 * This loop iterates at most twice.  An allocation failure in the
@@ -606,58 +607,79 @@ blist_stats(blist_t bl, struct sbuf *s)
  */
 
 /*
- * BLST_NEXT_LEAF_ALLOC() - allocate the first few blocks in the next leaf.
+ * BLST_NEXT_LEAF_ALLOC() - allocate the blocks starting with the next leaf.
  *
- *	'scan' is a leaf node, associated with a block containing 'blk'.
- *	The next leaf node could be adjacent, or several nodes away if the
- *	least common ancestor of 'scan' and its neighbor is several levels
- *	up.  Use 'blk' to determine how many meta-nodes lie between the
- *	leaves.  If the next leaf has enough initial bits set, clear them
- *	and clear the bits in the meta nodes on the path up to the least
- *	common ancestor to mark any subtrees made completely empty.
+ *	'scan' is a leaf node, and its first block is at address 'start'.  The
+ *	next leaf node could be adjacent, or several nodes away if the least
+ *	common ancestor of 'scan' and its neighbor is several levels up.  Use
+ *	addresses to determine how many meta-nodes lie between the leaves.  If
+ *	sequence of leaves starting with the next one has enough initial bits
+ *	set, clear them and clear the bits in the meta nodes on the path up to
+ *	the least common ancestor to mark any subtrees made completely empty.
  */
 static int
-blst_next_leaf_alloc(blmeta_t *scan, daddr_t blk, int count, int maxcount)
+blst_next_leaf_alloc(blmeta_t *scan, daddr_t start, int count, int maxcount)
 {
-	blmeta_t *next;
 	u_daddr_t radix;
+	daddr_t blk;
 	int avail, digit;
 
-	next = scan + 1;
-	blk += BLIST_BMAP_RADIX;
-	radix = BLIST_BMAP_RADIX;
-	while ((next->bm_bitmap & 1) == 1 &&
-	    (digit = ((blk / radix) & BLIST_META_MASK)) == 0) {
-		next++;
-		radix *= BLIST_META_RADIX;
+	start += BLIST_BMAP_RADIX;
+	for (blk = start; blk - start < maxcount; blk += BLIST_BMAP_RADIX) {
+		/* Skip meta-nodes, as long as they promise more free blocks. */
+		radix = BLIST_BMAP_RADIX;
+		while (((++scan)->bm_bitmap & 1) == 1 &&
+		    ((blk / radix) & BLIST_META_MASK) == 0)
+			radix *= BLIST_META_RADIX;
+		if (~scan->bm_bitmap != 0) {
+			/*
+			 * Either there is no next leaf with any free blocks,
+			 * or we've reached the next leaf and found that some
+			 * of its blocks are not free.  In the first case,
+			 * bitpos() returns zero here.
+			 */
+			avail = blk - start + bitpos(~scan->bm_bitmap);
+			if (avail < count) {
+				/*
+				 * There isn't a next leaf with enough free
+				 * blocks at its beginning to complete the
+				 * spanning allocation.
+				 */
+				return (avail);
+			}
+			maxcount = imin(avail, maxcount);
+		}
 	}
-	if ((next->bm_bitmap & 1) != 1)
-		return (0);
-	avail = (~next->bm_bitmap != 0) ?
-	    bitpos(~next->bm_bitmap) : BLIST_BMAP_RADIX;
-	if (avail < count) {
- 		/*
- 		 * The next leaf doesn't have enough free blocks at the
- 		 * beginning to complete the spanning allocation.
- 		 */
-		return (0);
-	}
-	count = imin(avail, maxcount);
-	/* Clear the first 'count' bits in the next leaf to allocate. */
-	next->bm_bitmap &= ~bitrange(0, count);
-
+	
 	/*
-	 * Update bitmaps of next-ancestors, up to least common ancestor.
+	 * 'scan' is the last leaf that provides blocks.  Clear from 1 to
+	 * BLIST_BMAP_RADIX bits to represent the allocation of those last
+	 * blocks.
 	 */
-	while (next->bm_bitmap == 0) {
-		if (--next == scan) {
+	if (maxcount % BLIST_BMAP_RADIX != 0)
+		scan->bm_bitmap &= ~bitrange(0, maxcount % BLIST_BMAP_RADIX);
+	else
+		scan->bm_bitmap = 0;
+
+	for (;;) {
+		/* Back up over meta-nodes, clearing bits if necessary. */
+		blk -= BLIST_BMAP_RADIX;
+		radix = BLIST_BMAP_RADIX;
+		while ((digit = ((blk / radix) & BLIST_META_MASK)) == 0) {
+			if ((scan--)->bm_bitmap == 0)
+				scan->bm_bitmap ^= 1;
+			radix *= BLIST_META_RADIX;
+		}
+		if ((scan--)->bm_bitmap == 0)
 			scan[-digit * radix_to_skip(radix)].bm_bitmap ^=
 			    (u_daddr_t)1 << digit;
+
+		if (blk == start)
 			break;
-		}
-		next->bm_bitmap ^= 1;
- 	}
-	return (count);
+		/* Clear all the bits of this leaf. */
+		scan->bm_bitmap = 0;
+	}
+	return (maxcount);
 }
 
 /*
