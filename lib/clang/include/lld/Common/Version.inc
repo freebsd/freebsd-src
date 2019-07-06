@@ -7,4 +7,4 @@
 
 #define LLD_REPOSITORY_STRING "FreeBSD"
 // <Upstream revision at import>-<Local identifier in __FreeBSD_version style>
-#define LLD_REVISION_STRING "363030-1300004"
+#define LLD_REVISION_STRING "364487-1300004"
