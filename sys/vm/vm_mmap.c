@@ -187,13 +187,15 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
 {
 	struct vmspace *vms;
 	struct file *fp;
+	struct proc *p;
 	vm_offset_t addr;
 	vm_size_t pageoff;
 	vm_prot_t cap_maxprot;
 	int align, error;
 	cap_rights_t rights;
 
-	vms = td->td_proc->p_vmspace;
+	p = td->td_proc;
+	vms = p->p_vmspace;
 	fp = NULL;
 	AUDIT_ARG_FD(fd);
 	addr = addr0;
@@ -213,7 +215,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
 	 * pos.
 	 */
 	if (!SV_CURPROC_FLAG(SV_AOUT)) {
-		if ((size == 0 && curproc->p_osrel >= P_OSREL_MAP_ANON) ||
+		if ((size == 0 && p->p_osrel >= P_OSREL_MAP_ANON) ||
 		    ((flags & MAP_ANON) != 0 && (fd != -1 || pos != 0)))
 			return (EINVAL);
 	} else {
@@ -356,7 +358,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
 		if (error != 0)
 			goto done;
 		if ((flags & (MAP_SHARED | MAP_PRIVATE)) == 0 &&
-		    td->td_proc->p_osrel >= P_OSREL_MAP_FSTRICT) {
+		    p->p_osrel >= P_OSREL_MAP_FSTRICT) {
 			error = EINVAL;
 			goto done;
 		}
