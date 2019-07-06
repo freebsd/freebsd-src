@@ -1972,7 +1972,7 @@ vm_pageout_init_domain(int domain)
 		vmd->vmd_free_min = 4 + (vmd->vmd_page_count - 1024) / 200;
 	else
 		vmd->vmd_free_min = 4;
-	vmd->vmd_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
+	vmd->vmd_pageout_free_min = 2 * MAXBSIZE / PAGE_SIZE +
 	    vmd->vmd_interrupt_free_min;
 	vmd->vmd_free_reserved = vm_pageout_page_count +
 	    vmd->vmd_pageout_free_min + (vmd->vmd_page_count / 768);
