@@ -523,7 +523,7 @@ swap_pager_swap_init(void)
 	 * but it isn't very efficient).
 	 *
 	 * The nsw_cluster_max is constrained by the bp->b_pages[]
-	 * array (MAXPHYS/PAGE_SIZE) and our locally defined
+	 * array MAXPHYS / PAGE_SIZE and our locally defined
 	 * MAX_PAGEOUT_CLUSTER.   Also be aware that swap ops are
 	 * constrained by the swap device interleave stripe size.
 	 *
@@ -538,7 +538,7 @@ swap_pager_swap_init(void)
 	 * have one NFS swap device due to the command/ack latency over NFS.
 	 * So it all works out pretty well.
 	 */
-	nsw_cluster_max = min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER);
+	nsw_cluster_max = min(MAXPHYS / PAGE_SIZE, MAX_PAGEOUT_CLUSTER);
 
 	nsw_wcount_async = 4;
 	nsw_wcount_async_max = nsw_wcount_async;
