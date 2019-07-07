@@ -342,6 +342,21 @@ sbuf_setpos(struct sbuf *s, ssize_t pos)
 }
 
 /*
+ * Drain into a counter.  Counts amount of data without prodicing output.
+ * Useful for cases like sysctl, where user may first request only size.
+ * This allows to avoid pointless allocation/freeing of large buffers.
+ */
+int
+sbuf_count_drain(void *arg, const char *data __unused, int len)
+{
+	size_t *sizep;
+
+	sizep = (size_t *)arg;
+	*sizep += len;
+	return (len);
+}
+
+/*
  * Set up a drain function and argument on an sbuf to flush data to
  * when the sbuf buffer overflows.
  */
