@@ -1262,6 +1262,7 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 	cdai.flags = CDAI_FLAG_NONE;
 	cdai.bufsiz = len;
+	cdai.buf = buf;
 
 	if (!strcmp(attr, "GEOM::ident"))
 		cdai.buftype = CDAI_TYPE_SERIAL_NUM;
@@ -1271,14 +1272,14 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 		 strcmp(attr, "GEOM::lunname") == 0) {
 		cdai.buftype = CDAI_TYPE_SCSI_DEVID;
 		cdai.bufsiz = CAM_SCSI_DEVID_MAXLEN;
+		cdai.buf = malloc(cdai.bufsiz, M_CAMXPT, M_NOWAIT);
+		if (cdai.buf == NULL) {
+			ret = ENOMEM;
+			goto out;
+		}
 	} else
 		goto out;
 
-	cdai.buf = malloc(cdai.bufsiz, M_CAMXPT, M_NOWAIT|M_ZERO);
-	if (cdai.buf == NULL) {
-		ret = ENOMEM;
-		goto out;
-	}
 	xpt_action((union ccb *)&cdai); /* can only be synchronous */
 	if ((cdai.ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(cdai.ccb_h.path, 0, 0, 0, FALSE);
@@ -1343,13 +1344,15 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 				ret = EFAULT;
 		}
 	} else {
-		ret = 0;
-		if (strlcpy(buf, cdai.buf, len) >= len)
+		if (cdai.provsiz < len) {
+			cdai.buf[cdai.provsiz] = 0;
+			ret = 0;
+		} else
 			ret = EFAULT;
 	}
 
 out:
-	if (cdai.buf != NULL)
+	if ((char *)cdai.buf != buf)
 		free(cdai.buf, M_CAMXPT);
 	return ret;
 }
