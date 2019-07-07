@@ -81,6 +81,12 @@ ctl_set_sense_data_va(struct scsi_sense_data *sense_data, u_int *sense_len,
 	 */
 	if (sense_format == SSD_TYPE_NONE) {
 		/*
+		 * SPC-3 and up require some UAs to be returned as fixed.
+		 */
+		if (asc == 0x29 || (asc == 0x2A && ascq == 0x01))
+			sense_format = SSD_TYPE_FIXED;
+		else
+		/*
 		 * If the format isn't specified, we only return descriptor
 		 * sense if the LUN exists and descriptor sense is turned
 		 * on for that LUN.
