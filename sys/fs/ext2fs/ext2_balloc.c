@@ -308,7 +308,6 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		 */
 		if ((error = bwrite(nbp)) != 0) {
 			ext2_blkfree(ip, nb, fs->e2fs_bsize);
-			EXT2_UNLOCK(ump);
 			brelse(bp);
 			return (error);
 		}
