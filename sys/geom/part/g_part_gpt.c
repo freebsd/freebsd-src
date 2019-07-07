@@ -712,14 +712,14 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 	entry = (struct g_part_gpt_entry *)baseentry;
 	if (indent == NULL) {
 		/* conftxt: libdisk compatibility */
-		sbuf_printf(sb, " xs GPT xt ");
+		sbuf_cat(sb, " xs GPT xt ");
 		sbuf_printf_uuid(sb, &entry->ent.ent_type);
 	} else if (entry != NULL) {
 		/* confxml: partition entry information */
 		sbuf_printf(sb, "%s<label>", indent);
 		g_gpt_printf_utf16(sb, entry->ent.ent_name,
 		    sizeof(entry->ent.ent_name) >> 1);
-		sbuf_printf(sb, "</label>\n");
+		sbuf_cat(sb, "</label>\n");
 		if (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTME)
 			sbuf_printf(sb, "%s<attrib>bootme</attrib>\n", indent);
 		if (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTONCE) {
@@ -732,16 +732,16 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		}
 		sbuf_printf(sb, "%s<rawtype>", indent);
 		sbuf_printf_uuid(sb, &entry->ent.ent_type);
-		sbuf_printf(sb, "</rawtype>\n");
+		sbuf_cat(sb, "</rawtype>\n");
 		sbuf_printf(sb, "%s<rawuuid>", indent);
 		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
-		sbuf_printf(sb, "</rawuuid>\n");
+		sbuf_cat(sb, "</rawuuid>\n");
 		sbuf_printf(sb, "%s<efimedia>", indent);
 		sbuf_printf(sb, "HD(%d,GPT,", entry->base.gpe_index);
 		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
 		sbuf_printf(sb, ",%#jx,%#jx)", (intmax_t)entry->base.gpe_start,
 		    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
-		sbuf_printf(sb, "</efimedia>\n");
+		sbuf_cat(sb, "</efimedia>\n");
 	} else {
 		/* confxml: scheme information */
 	}

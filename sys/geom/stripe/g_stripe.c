@@ -1248,24 +1248,24 @@ g_stripe_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, "%s<Type>", indent);
 		switch (sc->sc_type) {
 		case G_STRIPE_TYPE_AUTOMATIC:
-			sbuf_printf(sb, "AUTOMATIC");
+			sbuf_cat(sb, "AUTOMATIC");
 			break;
 		case G_STRIPE_TYPE_MANUAL:
-			sbuf_printf(sb, "MANUAL");
+			sbuf_cat(sb, "MANUAL");
 			break;
 		default:
-			sbuf_printf(sb, "UNKNOWN");
+			sbuf_cat(sb, "UNKNOWN");
 			break;
 		}
-		sbuf_printf(sb, "</Type>\n");
+		sbuf_cat(sb, "</Type>\n");
 		sbuf_printf(sb, "%s<Status>Total=%u, Online=%u</Status>\n",
 		    indent, sc->sc_ndisks, g_stripe_nvalid(sc));
 		sbuf_printf(sb, "%s<State>", indent);
 		if (sc->sc_provider != NULL && sc->sc_provider->error == 0)
-			sbuf_printf(sb, "UP");
+			sbuf_cat(sb, "UP");
 		else
-			sbuf_printf(sb, "DOWN");
-		sbuf_printf(sb, "</State>\n");
+			sbuf_cat(sb, "DOWN");
+		sbuf_cat(sb, "</State>\n");
 	}
 }
 
