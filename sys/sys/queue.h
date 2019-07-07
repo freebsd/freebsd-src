@@ -833,6 +833,10 @@ struct {								\
 #define	TAILQ_PREV(elm, headname, field)				\
 	(*(((struct headname *)((elm)->field.tqe_prev))->tqh_last))
 
+#define	TAILQ_PREV_FAST(elm, head, type, field)				\
+    ((elm)->field.tqe_prev == &(head)->tqh_first ? NULL :		\
+     __containerof((elm)->field.tqe_prev, QUEUE_TYPEOF(type), field.tqe_next))
+
 #define	TAILQ_REMOVE(head, elm, field) do {				\
 	QMD_SAVELINK(oldnext, (elm)->field.tqe_next);			\
 	QMD_SAVELINK(oldprev, (elm)->field.tqe_prev);			\

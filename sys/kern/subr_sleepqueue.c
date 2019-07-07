@@ -124,7 +124,7 @@ CTASSERT(powerof2(SC_TABLESIZE));
  *  c - sleep queue chain lock
  */
 struct sleepqueue {
-	TAILQ_HEAD(, thread) sq_blocked[NR_SLEEPQS];	/* (c) Blocked threads. */
+	struct threadqueue sq_blocked[NR_SLEEPQS]; /* (c) Blocked threads. */
 	u_int sq_blockedcnt[NR_SLEEPQS];	/* (c) N. of blocked threads. */
 	LIST_ENTRY(sleepqueue) sq_hash;		/* (c) Chain and free list. */
 	LIST_HEAD(, sleepqueue) sq_free;	/* (c) Free queues. */
@@ -890,12 +890,14 @@ sleepq_init(void *mem, int size, int flags)
 }
 
 /*
- * Find the highest priority thread sleeping on a wait channel and resume it.
+ * Find thread sleeping on a wait channel and resume it.
  */
 int
 sleepq_signal(void *wchan, int flags, int pri, int queue)
 {
+	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
+	struct threadqueue *head;
 	struct thread *td, *besttd;
 	int wakeup_swapper;
 
@@ -908,16 +910,33 @@ sleepq_signal(void *wchan, int flags, int pri, int queue)
 	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
 	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
 
-	/*
-	 * Find the highest priority thread on the queue.  If there is a
-	 * tie, use the thread that first appears in the queue as it has
-	 * been sleeping the longest since threads are always added to
-	 * the tail of sleep queues.
-	 */
-	besttd = TAILQ_FIRST(&sq->sq_blocked[queue]);
-	TAILQ_FOREACH(td, &sq->sq_blocked[queue], td_slpq) {
-		if (td->td_priority < besttd->td_priority)
+	head = &sq->sq_blocked[queue];
+	if (flags & SLEEPQ_UNFAIR) {
+		/*
+		 * Find the most recently sleeping thread, but try to
+		 * skip threads still in process of context switch to
+		 * avoid spinning on the thread lock.
+		 */
+		sc = SC_LOOKUP(wchan);
+		besttd = TAILQ_LAST_FAST(head, thread, td_slpq);
+		while (besttd->td_lock != &sc->sc_lock) {
+			td = TAILQ_PREV_FAST(besttd, head, thread, td_slpq);
+			if (td == NULL)
+				break;
 			besttd = td;
+		}
+	} else {
+		/*
+		 * Find the highest priority thread on the queue.  If there
+		 * is a tie, use the thread that first appears in the queue
+		 * as it has been sleeping the longest since threads are
+		 * always added to the tail of sleep queues.
+		 */
+		besttd = td = TAILQ_FIRST(head);
+		while ((td = TAILQ_NEXT(td, td_slpq)) != NULL) {
+			if (td->td_priority < besttd->td_priority)
+				besttd = td;
+		}
 	}
 	MPASS(besttd != NULL);
 	thread_lock(besttd);
