@@ -230,9 +230,6 @@ ttydev_leave(struct tty *tp)
 
 	tp->t_flags |= TF_OPENCLOSE;
 
-	/* Stop asynchronous I/O. */
-	funsetown(&tp->t_sigio);
-
 	/* Remove console TTY. */
 	if (constty == tp)
 		constty_clear();
@@ -1122,6 +1119,9 @@ tty_rel_free(struct tty *tp)
 		tty_unlock(tp);
 		return;
 	}
+
+	/* Stop asynchronous I/O. */
+	funsetown(&tp->t_sigio);
 
 	/* TTY can be deallocated. */
 	dev = tp->t_dev;
