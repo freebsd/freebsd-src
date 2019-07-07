@@ -599,15 +599,15 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 		 */
 		sbuf_printf(sb, "%s<rotationrate>", indent);
 		if (dp->d_rotation_rate == DISK_RR_UNKNOWN) /* Old drives */
-			sbuf_printf(sb, "unknown");	/* don't report RPM. */
+			sbuf_cat(sb, "unknown");	/* don't report RPM. */
 		else if (dp->d_rotation_rate == DISK_RR_NON_ROTATING)
-			sbuf_printf(sb, "0");
+			sbuf_cat(sb, "0");
 		else if ((dp->d_rotation_rate >= DISK_RR_MIN) &&
 		    (dp->d_rotation_rate <= DISK_RR_MAX))
 			sbuf_printf(sb, "%u", dp->d_rotation_rate);
 		else
-			sbuf_printf(sb, "invalid");
-		sbuf_printf(sb, "</rotationrate>\n");
+			sbuf_cat(sb, "invalid");
+		sbuf_cat(sb, "</rotationrate>\n");
 		if (dp->d_getattr != NULL) {
 			buf = g_malloc(DISK_IDENT_SIZE, M_WAITOK);
 			bp = g_alloc_bio();
@@ -617,35 +617,34 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 			bp->bio_data = buf;
 			res = dp->d_getattr(bp);
 			sbuf_printf(sb, "%s<ident>", indent);
-			g_conf_printf_escaped(sb, "%s",
-			    res == 0 ? buf: dp->d_ident);
-			sbuf_printf(sb, "</ident>\n");
+			g_conf_cat_escaped(sb, res == 0 ? buf : dp->d_ident);
+			sbuf_cat(sb, "</ident>\n");
 			bp->bio_attribute = "GEOM::lunid";
 			bp->bio_length = DISK_IDENT_SIZE;
 			bp->bio_data = buf;
 			if (dp->d_getattr(bp) == 0) {
 				sbuf_printf(sb, "%s<lunid>", indent);
-				g_conf_printf_escaped(sb, "%s", buf);
-				sbuf_printf(sb, "</lunid>\n");
+				g_conf_cat_escaped(sb, buf);
+				sbuf_cat(sb, "</lunid>\n");
 			}
 			bp->bio_attribute = "GEOM::lunname";
 			bp->bio_length = DISK_IDENT_SIZE;
 			bp->bio_data = buf;
 			if (dp->d_getattr(bp) == 0) {
 				sbuf_printf(sb, "%s<lunname>", indent);
-				g_conf_printf_escaped(sb, "%s", buf);
-				sbuf_printf(sb, "</lunname>\n");
+				g_conf_cat_escaped(sb, buf);
+				sbuf_cat(sb, "</lunname>\n");
 			}
 			g_destroy_bio(bp);
 			g_free(buf);
 		} else {
 			sbuf_printf(sb, "%s<ident>", indent);
-			g_conf_printf_escaped(sb, "%s", dp->d_ident);
-			sbuf_printf(sb, "</ident>\n");
+			g_conf_cat_escaped(sb, dp->d_ident);
+			sbuf_cat(sb, "</ident>\n");
 		}
 		sbuf_printf(sb, "%s<descr>", indent);
-		g_conf_printf_escaped(sb, "%s", dp->d_descr);
-		sbuf_printf(sb, "</descr>\n");
+		g_conf_cat_escaped(sb, dp->d_descr);
+		sbuf_cat(sb, "</descr>\n");
 	}
 }
 

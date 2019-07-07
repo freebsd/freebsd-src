@@ -2372,7 +2372,7 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 				sbuf_printf(sb, "%s ",
 				    g_raid_get_diskname(sd->sd_disk));
 			} else {
-				sbuf_printf(sb, "NONE ");
+				sbuf_cat(sb, "NONE ");
 			}
 			sbuf_printf(sb, "(%s",
 			    g_raid_subdisk_state2str(sd->sd_state));
@@ -2382,11 +2382,11 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 				    (int)(sd->sd_rebuild_pos * 100 /
 				     sd->sd_size));
 			}
-			sbuf_printf(sb, ")");
+			sbuf_cat(sb, ")");
 			if (i + 1 < vol->v_disks_count)
-				sbuf_printf(sb, ", ");
+				sbuf_cat(sb, ", ");
 		}
-		sbuf_printf(sb, "</Subdisks>\n");
+		sbuf_cat(sb, "</Subdisks>\n");
 		sx_xunlock(&sc->sc_lock);
 		g_topology_lock();
 	} else if (cp != NULL) {
@@ -2398,7 +2398,7 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, "%s<State>%s", indent,
 		    g_raid_disk_state2str(disk->d_state));
 		if (!TAILQ_EMPTY(&disk->d_subdisks)) {
-			sbuf_printf(sb, " (");
+			sbuf_cat(sb, " (");
 			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
 				sbuf_printf(sb, "%s",
 				    g_raid_subdisk_state2str(sd->sd_state));
@@ -2409,11 +2409,11 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 					     sd->sd_size));
 				}
 				if (TAILQ_NEXT(sd, sd_next))
-					sbuf_printf(sb, ", ");
+					sbuf_cat(sb, ", ");
 			}
-			sbuf_printf(sb, ")");
+			sbuf_cat(sb, ")");
 		}
-		sbuf_printf(sb, "</State>\n");
+		sbuf_cat(sb, "</State>\n");
 		sbuf_printf(sb, "%s<Subdisks>", indent);
 		TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
 			sbuf_printf(sb, "r%d(%s):%d@%ju",
@@ -2421,9 +2421,9 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			    sd->sd_volume->v_name,
 			    sd->sd_pos, sd->sd_offset);
 			if (TAILQ_NEXT(sd, sd_next))
-				sbuf_printf(sb, ", ");
+				sbuf_cat(sb, ", ");
 		}
-		sbuf_printf(sb, "</Subdisks>\n");
+		sbuf_cat(sb, "</Subdisks>\n");
 		sbuf_printf(sb, "%s<ReadErrors>%d</ReadErrors>\n", indent,
 		    disk->d_read_errs);
 		sx_xunlock(&sc->sc_lock);
