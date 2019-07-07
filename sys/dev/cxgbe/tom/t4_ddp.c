@@ -220,7 +220,7 @@ release_ddp_resources(struct toepcb *toep)
 	int i;
 
 	DDP_LOCK(toep);
-	toep->flags |= DDP_DEAD;
+	toep->ddp.flags |= DDP_DEAD;
 	for (i = 0; i < nitems(toep->ddp.db); i++) {
 		free_ddp_buffer(toep->td, &toep->ddp.db[i]);
 	}
@@ -263,8 +263,8 @@ complete_ddp_buffer(struct toepcb *toep, struct ddp_buffer *db,
 		} else
 			toep->ddp.active_id ^= 1;
 #ifdef VERBOSE_TRACES
-		CTR2(KTR_CXGBE, "%s: ddp_active_id = %d", __func__,
-		    toep->ddp.active_id);
+		CTR3(KTR_CXGBE, "%s: tid %u, ddp_active_id = %d", __func__,
+		    toep->tid, toep->ddp.active_id);
 #endif
 	} else {
 		KASSERT(toep->ddp.active_count != 0 &&
@@ -534,8 +534,8 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 	tp->rcv_wnd -= len;
 #endif
 #ifdef VERBOSE_TRACES
-	CTR4(KTR_CXGBE, "%s: DDP[%d] placed %d bytes (%#x)", __func__, db_idx,
-	    len, report);
+	CTR5(KTR_CXGBE, "%s: tid %u, DDP[%d] placed %d bytes (%#x)", __func__,
+	    toep->tid, db_idx, len, report);
 #endif
 
 	/* receive buffer autosize */
@@ -573,8 +573,9 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 	} else {
 		copied = job->aio_received;
 #ifdef VERBOSE_TRACES
-		CTR4(KTR_CXGBE, "%s: completing %p (copied %ld, placed %d)",
-		    __func__, job, copied, len);
+		CTR5(KTR_CXGBE,
+		    "%s: tid %u, completing %p (copied %ld, placed %d)",
+		    __func__, toep->tid, job, copied, len);
 #endif
 		aio_complete(job, copied + len, 0);
 		t4_rcvd(&toep->td->tod, tp);
@@ -1791,8 +1792,9 @@ sbcopy:
 	}
 
 #ifdef VERBOSE_TRACES
-	CTR5(KTR_CXGBE, "%s: scheduling %p for DDP[%d] (flags %#lx/%#lx)",
-	    __func__, job, db_idx, ddp_flags, ddp_flags_mask);
+	CTR6(KTR_CXGBE,
+	    "%s: tid %u, scheduling %p for DDP[%d] (flags %#lx/%#lx)", __func__,
+	    toep->tid, job, db_idx, ddp_flags, ddp_flags_mask);
 #endif
 	/* Give the chip the go-ahead. */
 	t4_wrq_tx(sc, wr);
@@ -1918,7 +1920,7 @@ t4_aio_queue_ddp(struct socket *so, struct kaiocb *job)
 	 */
 
 #ifdef VERBOSE_TRACES
-	CTR2(KTR_CXGBE, "%s: queueing %p", __func__, job);
+	CTR3(KTR_CXGBE, "%s: queueing %p for tid %u", __func__, job, toep->tid);
 #endif
 	if (!aio_set_cancel_function(job, t4_aio_cancel_queued))
 		panic("new job was cancelled");
