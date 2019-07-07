@@ -1888,7 +1888,8 @@ MLINKS+=sleep.9 msleep.9 \
 	sleep.9 tsleep.9 \
 	sleep.9 tsleep_sbt.9 \
 	sleep.9 wakeup.9 \
-	sleep.9 wakeup_one.9
+	sleep.9 wakeup_one.9 \
+	sleep.9 wakeup_any.9
 MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_abort.9 \
 	sleepqueue.9 sleepq_add.9 \
