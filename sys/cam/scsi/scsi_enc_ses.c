@@ -442,6 +442,7 @@ ses_iter_next(struct ses_iterator *iter)
 		iter->type_element_index       = ITERATOR_INDEX_END;
 		iter->global_element_index     = ITERATOR_INDEX_END;
 		iter->individual_element_index = ITERATOR_INDEX_END;
+		iter->saved_individual_element_index = ITERATOR_INDEX_END;
 		return (NULL);
 	}
 
@@ -466,17 +467,12 @@ ses_iter_next(struct ses_iterator *iter)
 		 */
 		iter->type_index++;
 		iter->type_element_index = 0;
-		iter->saved_individual_element_index
-		    = iter->individual_element_index;
 		iter->individual_element_index = ITERATOR_INDEX_INVALID;
 	}
 
 	if (iter->type_element_index > 0) {
-		if (iter->type_element_index == 1) {
-			iter->individual_element_index
-			    = iter->saved_individual_element_index;
-		}
-		iter->individual_element_index++;
+		iter->individual_element_index =
+		    ++iter->saved_individual_element_index;
 	}
 
 	return (&iter->cache->elm_map[iter->global_element_index]);
