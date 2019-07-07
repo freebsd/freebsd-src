@@ -294,6 +294,7 @@ release_offload_resources(struct toepcb *toep)
 	if (toep->ulp_mode == ULP_MODE_TCPDDP)
 		ddp_assert_empty(toep);
 #endif
+	MPASS(TAILQ_EMPTY(&toep->aiotx_jobq));
 
 	if (toep->l2te)
 		t4_l2t_release(toep->l2te);
