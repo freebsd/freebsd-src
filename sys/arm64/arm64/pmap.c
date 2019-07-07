@@ -3134,8 +3134,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pt_entry_t new_l3, orig_l3;
 	pt_entry_t *l2, *l3;
 	pv_entry_t pv;
-	vm_paddr_t opa, pa, l1_pa, l2_pa, l3_pa;
-	vm_page_t mpte, om, l1_m, l2_m, l3_m;
+	vm_paddr_t opa, pa;
+	vm_page_t mpte, om;
 	boolean_t nosleep;
 	int lvl, rv;
 
@@ -3159,7 +3159,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	CTR2(KTR_PMAP, "pmap_enter: %.16lx -> %.16lx", va, pa);
 
 	lock = NULL;
-	mpte = NULL;
 	PMAP_LOCK(pmap);
 	if (psind == 1) {
 		/* Assert the required virtual and physical alignment. */
@@ -3169,9 +3168,22 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		    flags, m, &lock);
 		goto out;
 	}
+	mpte = NULL;
 
+	/*
+	 * In the case that a page table page is not
+	 * resident, we are creating it here.
+	 */
+retry:
 	pde = pmap_pde(pmap, va, &lvl);
-	if (pde != NULL && lvl == 1) {
+	if (pde != NULL && lvl == 2) {
+		l3 = pmap_l2_to_l3(pde, va);
+		if (va < VM_MAXUSER_ADDRESS && mpte == NULL) {
+			mpte = PHYS_TO_VM_PAGE(pmap_load(pde) & ~ATTR_MASK);
+			mpte->wire_count++;
+		}
+		goto havel3;
+	} else if (pde != NULL && lvl == 1) {
 		l2 = pmap_l1_to_l2(pde, va);
 		if ((pmap_load(l2) & ATTR_DESCR_MASK) == L2_BLOCK &&
 		    (l3 = pmap_demote_l2_locked(pmap, l2, va, &lock)) != NULL) {
@@ -3183,83 +3195,26 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			}
 			goto havel3;
 		}
+		/* We need to allocate an L3 table. */
 	}
-
 	if (va < VM_MAXUSER_ADDRESS) {
 		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
-		mpte = pmap_alloc_l3(pmap, va, nosleep ? NULL : &lock);
+
+		/*
+		 * We use _pmap_alloc_l3() instead of pmap_alloc_l3() in order
+		 * to handle the possibility that a superpage mapping for "va"
+		 * was created while we slept.
+		 */
+		mpte = _pmap_alloc_l3(pmap, pmap_l2_pindex(va),
+		    nosleep ? NULL : &lock);
 		if (mpte == NULL && nosleep) {
 			CTR0(KTR_PMAP, "pmap_enter: mpte == NULL");
-			if (lock != NULL)
-				rw_wunlock(lock);
-			PMAP_UNLOCK(pmap);
-			return (KERN_RESOURCE_SHORTAGE);
+			rv = KERN_RESOURCE_SHORTAGE;
+			goto out;
 		}
-		pde = pmap_pde(pmap, va, &lvl);
-		KASSERT(pde != NULL,
-		    ("pmap_enter: Invalid page entry, va: 0x%lx", va));
-		KASSERT(lvl == 2,
-		    ("pmap_enter: Invalid level %d", lvl));
-	} else {
-		/*
-		 * If we get a level 2 pde it must point to a level 3 entry
-		 * otherwise we will need to create the intermediate tables
-		 */
-		if (lvl < 2) {
-			switch (lvl) {
-			default:
-			case -1:
-				/* Get the l0 pde to update */
-				pde = pmap_l0(pmap, va);
-				KASSERT(pde != NULL, ("..."));
-
-				l1_m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-				    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-				    VM_ALLOC_ZERO);
-				if (l1_m == NULL)
-					panic("pmap_enter: l1 pte_m == NULL");
-				if ((l1_m->flags & PG_ZERO) == 0)
-					pmap_zero_page(l1_m);
-
-				l1_pa = VM_PAGE_TO_PHYS(l1_m);
-				pmap_load_store(pde, l1_pa | L0_TABLE);
-				/* FALLTHROUGH */
-			case 0:
-				/* Get the l1 pde to update */
-				pde = pmap_l1_to_l2(pde, va);
-				KASSERT(pde != NULL, ("..."));
-
-				l2_m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-				    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-				    VM_ALLOC_ZERO);
-				if (l2_m == NULL)
-					panic("pmap_enter: l2 pte_m == NULL");
-				if ((l2_m->flags & PG_ZERO) == 0)
-					pmap_zero_page(l2_m);
-
-				l2_pa = VM_PAGE_TO_PHYS(l2_m);
-				pmap_load_store(pde, l2_pa | L1_TABLE);
-				/* FALLTHROUGH */
-			case 1:
-				/* Get the l2 pde to update */
-				pde = pmap_l1_to_l2(pde, va);
-				KASSERT(pde != NULL, ("..."));
-
-				l3_m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
-				    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-				    VM_ALLOC_ZERO);
-				if (l3_m == NULL)
-					panic("pmap_enter: l3 pte_m == NULL");
-				if ((l3_m->flags & PG_ZERO) == 0)
-					pmap_zero_page(l3_m);
-
-				l3_pa = VM_PAGE_TO_PHYS(l3_m);
-				pmap_load_store(pde, l3_pa | L2_TABLE);
-				break;
-			}
-		}
-	}
-	l3 = pmap_l2_to_l3(pde, va);
+		goto retry;
+	} else
+		panic("pmap_enter: missing L3 table for kernel va %#lx", va);
 
 havel3:
 	orig_l3 = pmap_load(l3);
