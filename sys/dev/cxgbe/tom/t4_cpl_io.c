@@ -327,31 +327,33 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
  * reported by HW to FreeBSD's native format.
  */
 static void
-assign_rxopt(struct tcpcb *tp, unsigned int opt)
+assign_rxopt(struct tcpcb *tp, uint16_t opt)
 {
 	struct toepcb *toep = tp->t_toe;
 	struct inpcb *inp = tp->t_inpcb;
 	struct adapter *sc = td_adapter(toep->td);
-	int n;
 
 	INP_LOCK_ASSERT(inp);
 
+	toep->tcp_opt = opt;
+	toep->mtu_idx = G_TCPOPT_MSS(opt);
+	tp->t_maxseg = sc->params.mtus[toep->mtu_idx];
 	if (inp->inp_inc.inc_flags & INC_ISIPV6)
-		n = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
+		tp->t_maxseg -= sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
 	else
-		n = sizeof(struct ip) + sizeof(struct tcphdr);
-	tp->t_maxseg = sc->params.mtus[G_TCPOPT_MSS(opt)] - n;
+		tp->t_maxseg -= sizeof(struct ip) + sizeof(struct tcphdr);
 
+	toep->emss = tp->t_maxseg;
 	if (G_TCPOPT_TSTAMP(opt)) {
 		tp->t_flags |= TF_RCVD_TSTMP;	/* timestamps ok */
 		tp->ts_recent = 0;		/* hmmm */
 		tp->ts_recent_age = tcp_ts_getticks();
-		tp->t_maxseg -= TCPOLEN_TSTAMP_APPA;
+		toep->emss -= TCPOLEN_TSTAMP_APPA;
 	}
 
-	CTR5(KTR_CXGBE, "%s: tid %d, mtu_idx %u (%u), mss %u", __func__,
-	    toep->tid, G_TCPOPT_MSS(opt), sc->params.mtus[G_TCPOPT_MSS(opt)],
-	    tp->t_maxseg);
+	CTR6(KTR_CXGBE, "%s: tid %d, mtu_idx %u (%u), t_maxseg %u, emss %u",
+	    __func__, toep->tid, toep->mtu_idx,
+	    sc->params.mtus[G_TCPOPT_MSS(opt)], tp->t_maxseg, toep->emss);
 
 	if (G_TCPOPT_SACK(opt))
 		tp->t_flags |= TF_SACK_PERMIT;	/* should already be set */
@@ -399,7 +401,7 @@ make_established(struct toepcb *toep, uint32_t iss, uint32_t irs, uint16_t opt)
 
 	tp->irs = irs;
 	tcp_rcvseqinit(tp);
-	tp->rcv_wnd = toep->opt0_rcv_bufsize << 10;
+	tp->rcv_wnd = (u_int)toep->opt0_rcv_bufsize << 10;
 	tp->rcv_adv += tp->rcv_wnd;
 	tp->last_ack_sent = tp->rcv_nxt;
 
@@ -421,7 +423,7 @@ make_established(struct toepcb *toep, uint32_t iss, uint32_t irs, uint16_t opt)
 	ftxp.snd_nxt = tp->snd_nxt;
 	ftxp.rcv_nxt = tp->rcv_nxt;
 	ftxp.snd_space = bufsize;
-	ftxp.mss = tp->t_maxseg;
+	ftxp.mss = toep->emss;
 	send_flowc_wr(toep, &ftxp);
 
 	soisconnected(so);
@@ -613,7 +615,7 @@ write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
 	if (txalign > 0) {
 		struct tcpcb *tp = intotcpcb(toep->inp);
 
-		if (plen < 2 * tp->t_maxseg)
+		if (plen < 2 * toep->emss)
 			txwr->lsodisable_to_flags |=
 			    htobe32(F_FW_OFLD_TX_DATA_WR_LSODISABLE);
 		else
