@@ -405,7 +405,7 @@ devtype_to_str(superio_dev_type_t type)
 {
 	switch (type) {
 	case SUPERIO_DEV_NONE:
-		return ("invalid");
+		return ("none");
 	case SUPERIO_DEV_HWM:
 		return ("HWM");
 	case SUPERIO_DEV_WDT:
@@ -415,6 +415,7 @@ devtype_to_str(superio_dev_type_t type)
 	case SUPERIO_DEV_MAX:
 		return ("invalid");
 	}
+	return ("invalid");
 }
 
 static int
