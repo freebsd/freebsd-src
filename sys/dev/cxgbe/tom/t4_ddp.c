@@ -112,15 +112,12 @@ free_pageset(struct tom_data *td, struct pageset *ps)
 	if (ps->prsv.prsv_nppods > 0)
 		t4_free_page_pods(&ps->prsv);
 
-	if (ps->flags & PS_WIRED) {
-		for (i = 0; i < ps->npages; i++) {
-			p = ps->pages[i];
-			vm_page_lock(p);
-			vm_page_unwire(p, PQ_INACTIVE);
-			vm_page_unlock(p);
-		}
-	} else
-		vm_page_unhold_pages(ps->pages, ps->npages);
+	for (i = 0; i < ps->npages; i++) {
+		p = ps->pages[i];
+		vm_page_lock(p);
+		vm_page_unwire(p, PQ_INACTIVE);
+		vm_page_unlock(p);
+	}
 	mtx_lock(&ddp_orphan_pagesets_lock);
 	TAILQ_INSERT_TAIL(&ddp_orphan_pagesets, ps, link);
 	taskqueue_enqueue(taskqueue_thread, &ddp_orphan_task);
@@ -150,7 +147,7 @@ recycle_pageset(struct toepcb *toep, struct pageset *ps)
 {
 
 	DDP_ASSERT_LOCKED(toep);
-	if (!(toep->ddp.flags & DDP_DEAD) && ps->flags & PS_WIRED) {
+	if (!(toep->ddp.flags & DDP_DEAD)) {
 		KASSERT(toep->ddp.cached_count + toep->ddp.active_count <
 		    nitems(toep->ddp.db), ("too many wired pagesets"));
 		TAILQ_INSERT_HEAD(&toep->ddp.cached_pagesets, ps, link);
@@ -1179,35 +1176,14 @@ t4_write_page_pods_for_buf(struct adapter *sc, struct sge_wrq *wrq, int tid,
 	return (0);
 }
 
-static void
-wire_pageset(struct pageset *ps)
-{
-	vm_page_t p;
-	int i;
-
-	KASSERT(!(ps->flags & PS_WIRED), ("pageset already wired"));
-
-	for (i = 0; i < ps->npages; i++) {
-		p = ps->pages[i];
-		vm_page_lock(p);
-		vm_page_wire(p);
-		vm_page_unhold(p);
-		vm_page_unlock(p);
-	}
-	ps->flags |= PS_WIRED;
-}
-
 /*
- * Prepare a pageset for DDP.  This wires the pageset and sets up page
- * pods.
+ * Prepare a pageset for DDP.  This sets up page pods.
  */
 static int
 prep_pageset(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 {
 	struct tom_data *td = sc->tom_softc;
 
-	if (!(ps->flags & PS_WIRED))
-		wire_pageset(ps);
 	if (ps->prsv.prsv_nppods == 0 &&
 	    !t4_alloc_page_pods_for_ps(&td->pr, ps)) {
 		return (0);

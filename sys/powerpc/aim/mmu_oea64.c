@@ -1595,7 +1595,7 @@ retry:
 		    pvo->pvo_pte.pa & LPTE_RPGN, &pa))
 			goto retry;
 		m = PHYS_TO_VM_PAGE(pvo->pvo_pte.pa & LPTE_RPGN);
-		vm_page_hold(m);
+		vm_page_wire(m);
 	}
 	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);

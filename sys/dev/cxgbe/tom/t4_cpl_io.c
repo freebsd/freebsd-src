@@ -1944,7 +1944,7 @@ aiotx_free_pgs(struct mbuf *m)
 	for (int i = 0; i < ext_pgs->npgs; i++) {
 		pg = PHYS_TO_VM_PAGE(ext_pgs->pa[i]);
 		vm_page_change_lock(pg, &mtx);
-		vm_page_unhold(pg);
+		vm_page_unwire(pg, PQ_ACTIVE);
 	}
 	if (mtx != NULL)
 		mtx_unlock(mtx);

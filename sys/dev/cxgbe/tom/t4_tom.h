@@ -124,8 +124,7 @@ struct pageset {
 
 TAILQ_HEAD(pagesetq, pageset);
 
-#define	PS_WIRED		0x0001	/* Pages wired rather than held. */
-#define	PS_PPODS_WRITTEN	0x0002	/* Page pods written to the card. */
+#define	PS_PPODS_WRITTEN	0x0001	/* Page pods written to the card. */
 
 struct ddp_buffer {
 	struct pageset *ps;
