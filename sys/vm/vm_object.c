@@ -1212,7 +1212,7 @@ next_page:
 		if (tm->valid != VM_PAGE_BITS_ALL)
 			goto next_pindex;
 		vm_page_lock(tm);
-		if (vm_page_held(tm)) {
+		if (vm_page_wired(tm)) {
 			vm_page_unlock(tm);
 			goto next_pindex;
 		}
