@@ -65,11 +65,12 @@ static MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
 TAILQ_HEAD (epoch_tdlist, epoch_tracker);
 typedef struct epoch_record {
 	ck_epoch_record_t er_record;
-	struct epoch_context er_drain_ctx;
-	struct epoch *er_parent;
 	volatile struct epoch_tdlist er_tdlist;
 	volatile uint32_t er_gen;
 	uint32_t er_cpuid;
+	/* fields above are part of KBI and cannot be modified */
+	struct epoch_context er_drain_ctx;
+	struct epoch *er_parent;
 } __aligned(EPOCH_ALIGN)     *epoch_record_t;
 
 struct epoch {
@@ -77,6 +78,7 @@ struct epoch {
 	epoch_record_t e_pcpu_record;
 	int	e_idx;
 	int	e_flags;
+	/* fields above are part of KBI and cannot be modified */
 	struct sx e_drain_sx;
 	struct mtx e_drain_mtx;
 	volatile int e_drain_count;
@@ -736,4 +738,41 @@ epoch_drain_callbacks(epoch_t epoch)
 	sx_xunlock(&epoch->e_drain_sx);
 
 	PICKUP_GIANT();
+}
+
+/* for binary compatibility */
+
+struct epoch_tracker_KBI {
+	void *datap[3];
+#ifdef EPOCH_TRACKER_DEBUG
+	int datai[5];
+#else
+	int datai[1];
+#endif
+} __aligned(sizeof(void *));
+
+CTASSERT(sizeof(struct epoch_tracker_KBI) >= sizeof(struct epoch_tracker));
+
+void
+epoch_enter_preempt_KBI(epoch_t epoch, epoch_tracker_t et)
+{
+	epoch_enter_preempt(epoch, et);
+}
+
+void
+epoch_exit_preempt_KBI(epoch_t epoch, epoch_tracker_t et)
+{
+	epoch_exit_preempt(epoch, et);
+}
+
+void
+epoch_enter_KBI(epoch_t epoch)
+{
+	epoch_enter(epoch);
+}
+
+void
+epoch_exit_KBI(epoch_t epoch)
+{
+	epoch_exit(epoch);
 }
