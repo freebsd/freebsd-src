@@ -83,5 +83,11 @@ void epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et);
 void epoch_enter(epoch_t epoch);
 void epoch_exit(epoch_t epoch);
 
+/* for binary compatibility - do not use */
+void epoch_enter_preempt_KBI(epoch_t epoch, epoch_tracker_t et);
+void epoch_exit_preempt_KBI(epoch_t epoch, epoch_tracker_t et);
+void epoch_enter_KBI(epoch_t epoch);
+void epoch_exit_KBI(epoch_t epoch);
+
 #endif	/* _KERNEL */
 #endif	/* _SYS_EPOCH_H_ */
