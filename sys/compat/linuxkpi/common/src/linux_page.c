@@ -198,23 +198,11 @@ linux_get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages,
 	vm_prot_t prot;
 	size_t len;
 	int count;
-	int i;
 
 	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
 	len = ((size_t)nr_pages) << PAGE_SHIFT;
 	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
-	if (count == -1)
-		return (-EFAULT);
-
-	for (i = 0; i != nr_pages; i++) {
-		struct page *pg = pages[i];
-
-		vm_page_lock(pg);
-		vm_page_wire(pg);
-		vm_page_unhold(pg);
-		vm_page_unlock(pg);
-	}
-	return (nr_pages);
+	return (count == -1 ? -EFAULT : nr_pages);
 }
 
 int
@@ -243,11 +231,6 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		*mp = pmap_extract_and_hold(map->pmap, va, prot);
 		if (*mp == NULL)
 			break;
-
-		vm_page_lock(*mp);
-		vm_page_wire(*mp);
-		vm_page_unhold(*mp);
-		vm_page_unlock(*mp);
 
 		if ((prot & VM_PROT_WRITE) != 0 &&
 		    (*mp)->dirty != VM_PAGE_BITS_ALL) {

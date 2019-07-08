@@ -204,15 +204,14 @@ struct vm_page {
 	struct md_page md;		/* machine dependent stuff */
 	u_int wire_count;		/* wired down maps refs (P) */
 	volatile u_int busy_lock;	/* busy owners lock */
-	uint16_t hold_count;		/* page hold count (P) */
 	uint16_t flags;			/* page PG_* flags (P) */
+	uint8_t	order;			/* index of the buddy queue (F) */
+	uint8_t pool;			/* vm_phys freepool index (F) */
 	uint8_t aflags;			/* access is atomic */
 	uint8_t oflags;			/* page VPO_* flags (O) */
 	uint8_t queue;			/* page queue index (Q) */
 	int8_t psind;			/* pagesizes[] index (O) */
 	int8_t segind;			/* vm_phys segment index (C) */
-	uint8_t	order;			/* index of the buddy queue (F) */
-	uint8_t pool;			/* vm_phys freepool index (F) */
 	u_char	act_count;		/* page usage count (P) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
@@ -388,7 +387,6 @@ extern struct mtx_padalign pa_lock[];
 #define	PG_ZERO		0x0008		/* page is zeroed */
 #define	PG_MARKER	0x0010		/* special queue marker page */
 #define	PG_NODUMP	0x0080		/* don't include this page in a dump */
-#define	PG_UNHOLDFREE	0x0100		/* delayed free of a held page */
 
 /*
  * Misc constants.
@@ -516,8 +514,6 @@ malloc2vm_flags(int malloc_flags)
 void vm_page_busy_downgrade(vm_page_t m);
 void vm_page_busy_sleep(vm_page_t m, const char *msg, bool nonshared);
 void vm_page_flash(vm_page_t m);
-void vm_page_hold(vm_page_t mem);
-void vm_page_unhold(vm_page_t mem);
 void vm_page_free(vm_page_t m);
 void vm_page_free_zero(vm_page_t m);
 
@@ -816,17 +812,10 @@ vm_page_in_laundry(vm_page_t m)
 }
 
 /*
- *	vm_page_held:
+ *	vm_page_wired:
  *
  *	Return true if a reference prevents the page from being reclaimable.
  */
-static inline bool
-vm_page_held(vm_page_t m)
-{
-
-	return (m->hold_count > 0 || m->wire_count > 0);
-}
-
 static inline bool
 vm_page_wired(vm_page_t m)
 {
