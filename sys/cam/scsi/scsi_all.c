@@ -5574,6 +5574,7 @@ scsi_devid_is_naa_ieee_reg(uint8_t *bufp)
 {
 	struct scsi_vpd_id_descriptor *descr;
 	struct scsi_vpd_id_naa_basic *naa;
+	int n;
 
 	descr = (struct scsi_vpd_id_descriptor *)bufp;
 	naa = (struct scsi_vpd_id_naa_basic *)descr->identifier;
@@ -5581,7 +5582,8 @@ scsi_devid_is_naa_ieee_reg(uint8_t *bufp)
 		return 0;
 	if (descr->length < sizeof(struct scsi_vpd_id_naa_ieee_reg))
 		return 0;
-	if ((naa->naa >> SVPD_ID_NAA_NAA_SHIFT) != SVPD_ID_NAA_IEEE_REG)
+	n = naa->naa >> SVPD_ID_NAA_NAA_SHIFT;
+	if (n != SVPD_ID_NAA_LOCAL_REG && n != SVPD_ID_NAA_IEEE_REG)
 		return 0;
 	return 1;
 }
