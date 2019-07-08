@@ -1602,7 +1602,7 @@ mpssas_scsiio_timeout(void *data)
 	 * and been re-used, though this is unlikely.
 	 */
 	mps_intr_locked(sc);
-	if (cm->cm_state != MPS_CM_STATE_INQUEUE) {
+	if (cm->cm_flags & MPS_CM_FLAGS_ON_RECOVERY) {
 		mpssas_log_command(cm, MPS_XINFO,
 		    "SCSI command %p almost timed out\n", cm);
 		return;
@@ -1626,7 +1626,7 @@ mpssas_scsiio_timeout(void *data)
 	 * operational.  if not, do a diag reset.
 	 */
 	mpssas_set_ccbstatus(cm->cm_ccb, CAM_CMD_TIMEOUT);
-	cm->cm_state = MPS_CM_STATE_TIMEDOUT;
+	cm->cm_flags |= MPS_CM_FLAGS_ON_RECOVERY | MPS_CM_FLAGS_TIMEDOUT;
 	TAILQ_INSERT_TAIL(&targ->timedout_commands, cm, cm_recovery);
 
 	if (targ->tm != NULL) {
@@ -2040,9 +2040,11 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		biotrack(ccb->csio.bio, __func__);
 #endif
 
-	if (cm->cm_state == MPS_CM_STATE_TIMEDOUT) {
+	if (cm->cm_flags & MPS_CM_FLAGS_ON_RECOVERY) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
-		cm->cm_state = MPS_CM_STATE_BUSY;
+		KASSERT(cm->cm_state == MPS_CM_STATE_BUSY,
+		    ("Not busy for CM_FLAGS_TIMEDOUT: %d\n", cm->cm_state));
+		cm->cm_flags &= ~MPS_CM_FLAGS_ON_RECOVERY;
 		if (cm->cm_reply != NULL)
 			mpssas_log_command(cm, MPS_RECOVERY,
 			    "completed timedout cm %p ccb %p during recovery "
@@ -2325,7 +2327,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 * retry counter), the only difference is what gets printed
 		 * on the console.
 		 */
-		if (cm->cm_state == MPS_CM_STATE_TIMEDOUT)
+		if (cm->cm_flags & MPS_CM_FLAGS_TIMEDOUT)
 			mpssas_set_ccbstatus(ccb, CAM_CMD_TIMEOUT);
 		else
 			mpssas_set_ccbstatus(ccb, CAM_REQ_ABORTED);
