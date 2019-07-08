@@ -1985,7 +1985,7 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 	last = NULL;
 	while (len > 0) {
 		mlen = imin(len, MBUF_PEXT_MAX_PGS * PAGE_SIZE - pgoff);
-		KASSERT(mlen == len || (start + mlen & PAGE_MASK) == 0,
+		KASSERT(mlen == len || ((start + mlen) & PAGE_MASK) == 0,
 		    ("%s: next start (%#jx + %#x) is not page aligned",
 		    __func__, (uintmax_t)start, mlen));
 
