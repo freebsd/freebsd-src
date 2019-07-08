@@ -416,6 +416,7 @@ slb_alloc_tree(void)
 	struct slbtnode *root;
 
 	root = uma_zalloc(slbt_zone, M_NOWAIT | M_ZERO);
+	KASSERT(root != NULL, ("unhandled NULL case"));
 	root->ua_level = UAD_ROOT_LEVEL;
 
 	return (root);
