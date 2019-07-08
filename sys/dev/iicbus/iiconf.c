@@ -150,6 +150,7 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 				sc->owner = NULL;
 				sc->owncount = 0;
 				wakeup_one(sc);
+				device_unbusy(dev);
 			}
 		}
 	}
