@@ -41,6 +41,7 @@ struct iicbus_softc
 {
 	device_t dev;		/* Myself */
 	device_t owner;		/* iicbus owner device structure */
+	device_t busydev;	/* iicbus_release_bus calls unbusy on this */
 	u_int owncount;		/* iicbus ownership nesting count */
 	u_char started;		/* address of the 'started' slave
 				 * 0 if no start condition succeeded */
