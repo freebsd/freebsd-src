@@ -275,11 +275,12 @@ struct mpr_command {
 #define	MPR_CM_FLAGS_ERROR_MASK		MPR_CM_FLAGS_CHAIN_FAILED
 #define	MPR_CM_FLAGS_USE_CCB		(1 << 9)
 #define	MPR_CM_FLAGS_SATA_ID_TIMEOUT	(1 << 10)
+#define MPR_CM_FLAGS_ON_RECOVERY	(1 << 12)
+#define MPR_CM_FLAGS_TIMEDOUT		(1 << 13)
 	u_int				cm_state;
 #define MPR_CM_STATE_FREE		0
 #define MPR_CM_STATE_BUSY		1
-#define MPR_CM_STATE_TIMEDOUT		2
-#define MPR_CM_STATE_INQUEUE		3
+#define MPR_CM_STATE_INQUEUE		2
 	bus_dmamap_t			cm_dmamap;
 	struct scsi_sense_data		*cm_sense;
 	uint64_t			*nvme_error_response;
