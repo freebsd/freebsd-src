@@ -1,7 +1,7 @@
 #
 # $FreeBSD$
 #
-# Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+# Copyright (c) 2019 Hans Petter Selasky. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -25,20 +25,12 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${SRCTOP}/sys/dev/usb ${SRCTOP}/sys/dev/usb/controller
+.PATH: ${SRCTOP}/sys/dev/usb
 
-KMOD=	usb
+KMOD=	uacpi
 SRCS=	bus_if.h device_if.h usb_if.h usb_if.c vnode_if.h \
 	opt_usb.h opt_bus.h opt_ddb.h \
-	usb_pf.h usbdevs.h usbdevs_data.h \
-	usb_busdma.c usb_controller.c usb_core.c usb_debug.c \
-	usb_dev.c usb_device.c usb_dynamic.c usb_error.c usb_generic.c \
-	usb_handle_request.c usb_hid.c usb_hub.c usb_lookup.c usb_mbuf.c \
-	usb_msctest.c usb_parse.c usb_pf.c usb_process.c usb_request.c \
-	usb_transfer.c usb_util.c 
-
-.if !empty(OPT_FDT)
-SRCS+=	usb_fdt_support.c ofw_bus_if.h
-.endif
+	opt_acpi.h acpi_if.h \
+	usb_hub_acpi.c
 
 .include <bsd.kmod.mk>
