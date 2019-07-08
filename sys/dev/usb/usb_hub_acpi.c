@@ -440,6 +440,10 @@ static driver_t acpi_uhub_root_driver = {
 	.baseclasses = uhub_baseclasses,
 };
 
-DRIVER_MODULE(acpi_uhub, uhub, acpi_uhub_driver, uhub_devclass, 0, 0);
-MODULE_DEPEND(acpi_uhub, acpi, 1, 1, 1);
-DRIVER_MODULE(acpi_uhub, usbus, acpi_uhub_root_driver, uhub_devclass, 0, 0);
+DRIVER_MODULE(uacpi, uhub, acpi_uhub_driver, uhub_devclass, 0, 0);
+DRIVER_MODULE(uacpi, usbus, acpi_uhub_root_driver, uhub_devclass, 0, 0);
+
+MODULE_DEPEND(uacpi, acpi, 1, 1, 1);
+MODULE_DEPEND(uacpi, usb, 1, 1, 1);
+
+MODULE_VERSION(uacpi, 1);
