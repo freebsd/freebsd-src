@@ -103,7 +103,11 @@ struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
 	struct mtx_padalign vmd_free_mtx;
 	struct mtx_padalign vmd_pageout_mtx;
-	uma_zone_t vmd_pgcache;		/* (c) page free cache. */
+	struct vm_pgcache {
+		int domain;
+		int pool;
+		uma_zone_t zone;
+	} vmd_pgcache[VM_NFREEPOOL];
 	struct vmem *vmd_kernel_arena;	/* (c) per-domain kva R/W arena. */
 	struct vmem *vmd_kernel_rwx_arena; /* (c) per-domain kva R/W/X arena. */
 	u_int vmd_domain;		/* (c) Domain number. */
