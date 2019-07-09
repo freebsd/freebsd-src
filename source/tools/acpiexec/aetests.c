@@ -629,7 +629,7 @@ AeLateTest (
  *****************************************************************************/
 
 static void
-AeGlobalAddressRangeCheck(
+AeGlobalAddressRangeCheck (
     void)
 {
     ACPI_STATUS             Status;
@@ -638,18 +638,18 @@ AeGlobalAddressRangeCheck(
     UINT32                  i;
 
 
-    ReturnBuffer.Length = ACPI_ALLOCATE_BUFFER;
-    AcpiUtInitializeBuffer (&ReturnBuffer, ACPI_ALLOCATE_BUFFER);
-
     for (i = 0; i < ACPI_ADDRESS_RANGE_MAX; i++)
     {
         Current = AcpiGbl_AddressRangeList[i];
 
         while (Current)
         {
+            ReturnBuffer.Length = ACPI_ALLOCATE_BUFFER;
+
             Status = AcpiGetName (Current->RegionNode, ACPI_SINGLE_NAME, &ReturnBuffer);
             ACPI_CHECK_OK (AcpiGetname, Status);
 
+            AcpiOsFree (ReturnBuffer.Pointer);
             Current = Current->Next;
         }
     }

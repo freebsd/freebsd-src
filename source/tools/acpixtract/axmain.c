@@ -196,7 +196,7 @@ DisplayUsage (
  *
  ******************************************************************************/
 
-int
+int ACPI_SYSTEM_XFACE
 main (
     int                     argc,
     char                    *argv[])
