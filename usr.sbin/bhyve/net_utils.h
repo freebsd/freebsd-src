@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2019 Vincenzo Maffione <v.maffione@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
