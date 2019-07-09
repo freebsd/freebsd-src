@@ -85,69 +85,68 @@ syscallenter(struct thread *td)
 	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "arg0:%p", sa->args[0],
 	    "arg1:%p", sa->args[1], "arg2:%p", sa->args[2]);
 
-	if (error == 0) {
+	if (error != 0)
+		goto retval;
 
-		STOPEVENT(p, S_SCE, sa->narg);
-		if (p->p_flag & P_TRACED) {
-			PROC_LOCK(p);
-			if (p->p_ptevents & PTRACE_SCE)
-				ptracestop((td), SIGTRAP, NULL);
-			PROC_UNLOCK(p);
-		}
-		if (td->td_dbgflags & TDB_USERWR) {
-			/*
-			 * Reread syscall number and arguments if
-			 * debugger modified registers or memory.
-			 */
-			error = (p->p_sysent->sv_fetch_syscall_args)(td);
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_SYSCALL))
-				ktrsyscall(sa->code, sa->narg, sa->args);
-#endif
-			if (error != 0)
-				goto retval;
-		}
-
-#ifdef CAPABILITY_MODE
+	STOPEVENT(p, S_SCE, sa->narg);
+	if ((p->p_flag & P_TRACED) != 0) {
+		PROC_LOCK(p);
+		if (p->p_ptevents & PTRACE_SCE)
+			ptracestop((td), SIGTRAP, NULL);
+		PROC_UNLOCK(p);
+	}
+	if ((td->td_dbgflags & TDB_USERWR) != 0) {
 		/*
-		 * In capability mode, we only allow access to system calls
-		 * flagged with SYF_CAPENABLED.
+		 * Reread syscall number and arguments if debugger
+		 * modified registers or memory.
 		 */
-		if (IN_CAPABILITY_MODE(td) &&
-		    !(sa->callp->sy_flags & SYF_CAPENABLED)) {
-			error = ECAPMODE;
-			goto retval;
-		}
+		error = (p->p_sysent->sv_fetch_syscall_args)(td);
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSCALL))
+			ktrsyscall(sa->code, sa->narg, sa->args);
 #endif
-
-		error = syscall_thread_enter(td, sa->callp);
 		if (error != 0)
 			goto retval;
-
-#ifdef KDTRACE_HOOKS
-		/* Give the syscall:::entry DTrace probe a chance to fire. */
-		if (__predict_false(systrace_enabled &&
-		    sa->callp->sy_entry != 0))
-			(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
-#endif
-
-		AUDIT_SYSCALL_ENTER(sa->code, td);
-		error = (sa->callp->sy_call)(td, sa->args);
-		AUDIT_SYSCALL_EXIT(error, td);
-
-		/* Save the latest error return value. */
-		if ((td->td_pflags & TDP_NERRNO) == 0)
-			td->td_errno = error;
-
-#ifdef KDTRACE_HOOKS
-		/* Give the syscall:::return DTrace probe a chance to fire. */
-		if (__predict_false(systrace_enabled &&
-		    sa->callp->sy_return != 0))
-			(*systrace_probe_func)(sa, SYSTRACE_RETURN,
-			    error ? -1 : td->td_retval[0]);
-#endif
-		syscall_thread_exit(td, sa->callp);
 	}
+
+#ifdef CAPABILITY_MODE
+	/*
+	 * In capability mode, we only allow access to system calls
+	 * flagged with SYF_CAPENABLED.
+	 */
+	if (IN_CAPABILITY_MODE(td) &&
+	    !(sa->callp->sy_flags & SYF_CAPENABLED)) {
+		error = ECAPMODE;
+		goto retval;
+	}
+#endif
+
+	error = syscall_thread_enter(td, sa->callp);
+	if (error != 0)
+		goto retval;
+
+#ifdef KDTRACE_HOOKS
+	/* Give the syscall:::entry DTrace probe a chance to fire. */
+	if (__predict_false(systrace_enabled && sa->callp->sy_entry != 0))
+		(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
+#endif
+
+	AUDIT_SYSCALL_ENTER(sa->code, td);
+	error = (sa->callp->sy_call)(td, sa->args);
+	AUDIT_SYSCALL_EXIT(error, td);
+
+	/* Save the latest error return value. */
+	if ((td->td_pflags & TDP_NERRNO) == 0)
+		td->td_errno = error;
+
+#ifdef KDTRACE_HOOKS
+	/* Give the syscall:::return DTrace probe a chance to fire. */
+	if (__predict_false(systrace_enabled && sa->callp->sy_return != 0))
+		(*systrace_probe_func)(sa, SYSTRACE_RETURN,
+		    error ? -1 : td->td_retval[0]);
+#endif
+	syscall_thread_exit(td, sa->callp);
+
  retval:
 	KTR_STOP4(KTR_SYSC, "syscall", syscallname(p, sa->code),
 	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "error:%d", error,
