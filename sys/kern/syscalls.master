@@ -523,13 +523,13 @@
 	}
 79	AUE_GETGROUPS	STD {
 		int getgroups(
-		    u_int gidsetsize,
+		    int gidsetsize,
 		    _Out_writes_opt_(gidsetsize) gid_t *gidset
 		);
 	}
 80	AUE_SETGROUPS	STD {
 		int setgroups(
-		    u_int gidsetsize,
+		    int gidsetsize,
 		    _In_reads_(gidsetsize) gid_t *gidset
 		);
 	}
