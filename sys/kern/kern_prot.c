@@ -288,7 +288,7 @@ sys_getegid(struct thread *td, struct getegid_args *uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct getgroups_args {
-	u_int	gidsetsize;
+	int	gidsetsize;
 	gid_t	*gidset;
 };
 #endif
@@ -296,8 +296,7 @@ int
 sys_getgroups(struct thread *td, struct getgroups_args *uap)
 {
 	struct ucred *cred;
-	u_int ngrp;
-	int error;
+	int ngrp, error;
 
 	cred = td->td_ucred;
 	ngrp = cred->cr_ngroups;
@@ -791,7 +790,7 @@ fail:
 
 #ifndef _SYS_SYSPROTO_H_
 struct setgroups_args {
-	u_int	gidsetsize;
+	int	gidsetsize;
 	gid_t	*gidset;
 };
 #endif
@@ -801,11 +800,10 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 {
 	gid_t smallgroups[XU_NGROUPS];
 	gid_t *groups;
-	u_int gidsetsize;
-	int error;
+	int gidsetsize, error;
 
 	gidsetsize = uap->gidsetsize;
-	if (gidsetsize > ngroups_max + 1)
+	if (gidsetsize > ngroups_max + 1 || gidsetsize < 0)
 		return (EINVAL);
 
 	if (gidsetsize > XU_NGROUPS)
