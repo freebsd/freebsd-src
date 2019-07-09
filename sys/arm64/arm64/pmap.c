@@ -315,6 +315,7 @@ static __inline vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
  * They need to be atomic as the System MMU may write to the table at
  * the same time as the CPU.
  */
+#define	pmap_clear(table) atomic_store_64(table, 0)
 #define	pmap_load_store(table, entry) atomic_swap_64(table, entry)
 #define	pmap_set(table, mask) atomic_set_64(table, mask)
 #define	pmap_load_clear(table) atomic_swap_64(table, 0)
@@ -1208,7 +1209,7 @@ pmap_kremove(vm_offset_t va)
 	KASSERT(pte != NULL, ("pmap_kremove: Invalid address"));
 	KASSERT(lvl == 3, ("pmap_kremove: Invalid pte level %d", lvl));
 
-	pmap_load_clear(pte);
+	pmap_clear(pte);
 	pmap_invalidate_page(kernel_pmap, va);
 }
 
@@ -1230,7 +1231,7 @@ pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 		KASSERT(pte != NULL, ("Invalid page table, va: 0x%lx", va));
 		KASSERT(lvl == 3,
 		    ("Invalid device pagetable level: %d != 3", lvl));
-		pmap_load_clear(pte);
+		pmap_clear(pte);
 
 		va += PAGE_SIZE;
 		size -= PAGE_SIZE;
@@ -1315,7 +1316,7 @@ pmap_qremove(vm_offset_t sva, int count)
 		KASSERT(lvl == 3,
 		    ("Invalid device pagetable level: %d != 3", lvl));
 		if (pte != NULL) {
-			pmap_load_clear(pte);
+			pmap_clear(pte);
 		}
 
 		va += PAGE_SIZE;
@@ -1374,19 +1375,19 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		pd_entry_t *l0;
 
 		l0 = pmap_l0(pmap, va);
-		pmap_load_clear(l0);
+		pmap_clear(l0);
 	} else if (m->pindex >= NUL2E) {
 		/* l2 page */
 		pd_entry_t *l1;
 
 		l1 = pmap_l1(pmap, va);
-		pmap_load_clear(l1);
+		pmap_clear(l1);
 	} else {
 		/* l3 page */
 		pd_entry_t *l2;
 
 		l2 = pmap_l2(pmap, va);
-		pmap_load_clear(l2);
+		pmap_clear(l2);
 	}
 	pmap_resident_count_dec(pmap, 1);
 	if (m->pindex < NUL2E) {
@@ -2760,8 +2761,7 @@ retry:
 		tpde = pmap_load(pde);
 
 		pte = pmap_l2_to_l3(pde, pv->pv_va);
-		tpte = pmap_load(pte);
-		pmap_load_clear(pte);
+		tpte = pmap_load_clear(pte);
 		pmap_invalidate_page(pmap, pv->pv_va);
 		if (tpte & ATTR_SW_WIRED)
 			pmap->pm_stats.wired_count--;
@@ -2986,7 +2986,7 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	critical_enter();
 
 	/* Clear the old mapping */
-	pmap_load_clear(pte);
+	pmap_clear(pte);
 	pmap_invalidate_range_nopin(pmap, va, va + size);
 
 	/* Create the new mapping */
@@ -3265,9 +3265,10 @@ havel3:
 		}
 
 		/*
-		 * The physical page has changed.
+		 * The physical page has changed.  Temporarily invalidate
+		 * the mapping.
 		 */
-		(void)pmap_load_clear(l3);
+		orig_l3 = pmap_load_clear(l3);
 		KASSERT((orig_l3 & ~ATTR_MASK) == opa,
 		    ("pmap_enter: unexpected pa update for %#lx", va));
 		if ((orig_l3 & ATTR_SW_MANAGED) != 0) {
@@ -4282,7 +4283,12 @@ pmap_remove_pages(pmap_t pmap)
 				    ("pmap_remove_pages: bad pte %#jx",
 				    (uintmax_t)tpte));
 
-				pmap_load_clear(pte);
+				/*
+				 * Because this pmap is not active on other
+				 * processors, the dirty bit cannot have
+				 * changed state since we last loaded pte.
+				 */
+				pmap_clear(pte);
 
 				/*
 				 * Update the vm_page_t clean/reference bits.
@@ -5002,7 +5008,7 @@ pmap_unmapbios(vm_offset_t va, vm_size_t size)
 			    ("pmap_unmapbios: Invalid page entry, va: 0x%lx",
 			    va_trunc));
 			l2 = pmap_l1_to_l2(pde, va_trunc);
-			pmap_load_clear(l2);
+			pmap_clear(l2);
 
 			if (block == (l2_blocks - 1))
 				break;
