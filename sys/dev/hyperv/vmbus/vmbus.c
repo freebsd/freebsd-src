@@ -140,7 +140,10 @@ SYSCTL_INT(_hw_vmbus, OID_AUTO, pin_evttask, CTLFLAG_RDTUN,
 
 extern inthand_t IDTVEC(vmbus_isr), IDTVEC(vmbus_isr_pti);
 
+uint32_t			vmbus_current_version;
+
 static const uint32_t		vmbus_version[] = {
+	VMBUS_VERSION_WIN10,
 	VMBUS_VERSION_WIN8_1,
 	VMBUS_VERSION_WIN8,
 	VMBUS_VERSION_WIN7,
@@ -414,6 +417,7 @@ vmbus_init(struct vmbus_softc *sc)
 
 		error = vmbus_connect(sc, vmbus_version[i]);
 		if (!error) {
+			vmbus_current_version = vmbus_version[i];
 			sc->vmbus_version = vmbus_version[i];
 			device_printf(sc->vmbus_dev, "version %u.%u\n",
 			    VMBUS_VERSION_MAJOR(sc->vmbus_version),

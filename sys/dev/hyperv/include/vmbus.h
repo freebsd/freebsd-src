@@ -40,11 +40,15 @@
  * 1.1   --  Windows 7
  * 2.4   --  Windows 8
  * 3.0   --  Windows 8.1
+ * 4.0   --  Windows 10
+ * 5.0   --  Newer Windows 10
  */
 #define VMBUS_VERSION_WS2008		((0 << 16) | (13))
 #define VMBUS_VERSION_WIN7		((1 << 16) | (1))
 #define VMBUS_VERSION_WIN8		((2 << 16) | (4))
 #define VMBUS_VERSION_WIN8_1		((3 << 16) | (0))
+#define VMBUS_VERSION_WIN10		((4 << 16) | (0))
+#define VMBUS_VERSION_WIN10_V5		((5 << 16) | (0))
 
 #define VMBUS_VERSION_MAJOR(ver)	(((uint32_t)(ver)) >> 16)
 #define VMBUS_VERSION_MINOR(ver)	(((uint32_t)(ver)) & 0xffff)

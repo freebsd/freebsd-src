@@ -94,6 +94,11 @@ extern hyperv_tc64_t	hyperv_tc64;
 extern u_int		hyperv_features;	/* CPUID_HV_MSR_ */
 extern u_int		hyperv_ver_major;
 
+/*
+ * Vmbus version after negotiation with host.
+ */
+extern uint32_t		vmbus_current_version;
+
 #endif	/* _KERNEL */
 
 #endif  /* _HYPERV_H_ */
