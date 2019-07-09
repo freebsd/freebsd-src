@@ -223,11 +223,26 @@ const char                          *AslGbl_OpFlagNames[ACPI_NUM_OP_FLAGS] =
     "OP_NOT_FOUND_DURING_LOAD"
 };
 
+const char                          *AslGbl_SpecialNamedObjects [MAX_SPECIAL_NAMES] =
+{
+    NAMESEG__PTS,
+    NAMESEG__WAK,
+    NAMESEG__S0,
+    NAMESEG__S1,
+    NAMESEG__S2,
+    NAMESEG__S3,
+    NAMESEG__S4,
+    NAMESEG__S5,
+    NAMESEG__TTS
+};
+
 #else
 extern ASL_FILE_DESC                AslGbl_FileDescs [ASL_NUM_FILES];
 extern UINT32                       AslGbl_ExceptionCount[ASL_NUM_REPORT_LEVELS];
 extern const char                   *AslGbl_OpFlagNames[ACPI_NUM_OP_FLAGS];
+extern const char                   *AslGbl_SpecialNamedObjects[MAX_SPECIAL_NAMES];
 #endif
+
 
 
 /*
