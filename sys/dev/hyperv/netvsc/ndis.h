@@ -115,8 +115,8 @@ struct ndis_offload_params {
 	/* NDIS >= 6.30 */
 	uint8_t			ndis_rsc_ip4;	/* NDIS_OFFLOAD_RSC_ */
 	uint8_t			ndis_rsc_ip6;	/* NDIS_OFFLOAD_RSC_ */
-	uint8_t			ndis_encap;	/* NDIS_OFFLOAD_SET_ */
-	uint8_t			ndis_encap_types;/* NDIS_ENCAP_TYPE_ */
+	uint32_t		ndis_encap;	/* NDIS_OFFLOAD_SET_ */
+	uint32_t		ndis_encap_types;/* NDIS_ENCAP_TYPE_ */
 };
 
 #define	NDIS_OFFLOAD_PARAMS_SIZE	sizeof(struct ndis_offload_params)
