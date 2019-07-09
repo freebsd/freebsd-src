@@ -24,7 +24,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2018</year>
+      <year>2019</year>
 
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
 	Project</holder>
@@ -49,7 +49,8 @@
 	&os;.</para>
 
       <para>This errata document for &os; &release; will be maintained
-	until the release of &os; &release.next;.</para>
+	until the release of &os; &release.next; (if
+	applicable).</para>
     </abstract>
   </info>
 
@@ -96,157 +97,37 @@
 
     <itemizedlist>
       <listitem>
-	<para>&os;/&arch.i386; installed on ZFS may crash during boot
-	  when the ZFS pool mount is attempted while booting an
-	  unmodified <literal>GENERIC</literal> kernel.</para>
-
-	<para>A system tunable has been added as of revision
-	  <literal>r286584</literal> to make the
-	  <literal>kern.kstack_pages</literal> tunable configurable
-	  without recompiling the kernel.</para>
-
-	<para>To mitigate system crashes with such configurations,
-	  choose <literal>Escape to loader prompt</literal> in the
-	  boot menu and enter the following lines from &man.loader.8;
-	  prompt, after an <literal>OK</literal>:</para>
-
-	<screen>set kern.kstack_pages=4
-boot</screen>
-
-	<para>Add this line to
-	  <filename>/boot/loader.conf</filename> for the change to
-	  persist across reboots:</para>
-
-	<programlisting>kern.kstack_pages=4</programlisting>
+	<para>[2019-07-04] An issue which can cause a crash when
+	  connecting to a &man.bhyve.4; instance with
+	  a <acronym>VNC</acronym> client under certain circumstances
+	  had been reported.  An errata notice is planned
+	  post-release.</para>
       </listitem>
 
       <listitem>
-	<para>[2017-07-25] &os;/&arch.arm64; currently lacks
-	  <acronym>EFI</acronym> real-time clock
-	  (<acronym>RTC</acronym>) support, which may cause the system
-	  to boot with the wrong time set.</para>
+	<para>[2019-07-04] An issue booting &man.bhyve.4; virtual
+	  machines compiled with &man.clang.1; version 8.0.0 or later
+	  had been reported late in the release cycle.  An errata
+	  notice is planned post-release.</para>
 
-	<para>As a workaround, either enable &man.ntpdate.8; or
-	  include <literal>ntpd_sync_on_start="YES"</literal> in
-	  &man.rc.conf.5;.</para>
+	<para>This issue is believed to only affect OpenBSD virtual
+	  machines compiled with &man.clang.1;.</para>
       </listitem>
 
       <listitem>
-	<para>[2017-07-25] A late issue was discovered with
-	  &os;/&arch.arm64; and &quot;root on
-	  <acronym>ZFS</acronym>&quot; installations where the root
-	  <acronym>ZFS</acronym> pool would fail to be located.</para>
+	<para>[2019-07-04] An issue when upgrading from &os;&nbsp;11.3
+	  to &os;&nbsp;12.0 (which occurred earlier in time,
+	  comparatively), had been reported where the
+	  <literal>com.delphix:spacemap_v2</literal> &man.zpool.8;
+	  feature does not exist on &os;&nbsp;12.0, will fail to
+	  import the <acronym>ZFS</acronym> pool.</para>
 
-	<para>There currently is no workaround.</para>
-      </listitem>
+	<para>At this time, it is advised to defer migrating from
+	  &os;&nbsp;11.3 to &os;&nbsp;12.x until &os;&nbsp;12.1 is
+	  available.</para>
 
-      <listitem>
-	<para>[2017-11-06] An issue with &os; virtual machines with
-	  <application>vagrant</application> was discovered that
-	  affects the <application>VirtualBox</application> where the
-	  virtual machine will not start on the initial boot invoked
-	  with <literal>vagrant up</literal>.</para>
-
-	<para>The issue is due to the virtual machine
-	  <acronym>MAC</acronym> being unset, as &os; does not provide
-	  a default <filename>Vagrantfile</filename>.</para>
-
-	<para>It has been observed, however, that a subsequent
-	  invocation of <literal>vagrant up</literal> will allow the
-	  virtual machine to successfully boot, allowing access via
-	  <literal>vagrant ssh</literal>.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2018-06-21] An issue had been discovered late in the
-	  release cycle where removing <acronym>ZFS</acronym> vdevs
-	  from a pool under certain conditions would cause a system
-	  crash when &man.zfsd.8; is enabled in
-	  &man.rc.conf.5;.</para>
-
-	<para>At present, it is believed to be limited to removal of
-	  a <literal>mirror</literal> vdev from a pool consisting of
-	  multiple <literal>mirror</literal> vdevs.</para>
-
-	<para>See <acronym>PR</acronym> <link
-	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=228750">228750</link>
-	  for more information and updates as the issue is
-	  investigated.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2018-06-26] An issue had been discovered late in the
-	  release cycle where a system crash could occur after
-	  installing <filename
-	    role="package">emulators/virtualbox-ose-kmod</filename>
-	  from upstream package mirrors via &man.pkg.8;.</para>
-
-	<para>Building <filename
-	    role="package">emulators/virtualbox-ose-kmod</filename>
-	  from the &man.ports.7; collection has been observed to work
-	  around the crash.</para>
-
-	<para>See <acronym>PR</acronym> <link
-	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=228535">228535</link>
-	  for more information.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2018-06-26] It was discovered after the <filename
-	    class="directory">releng/11.2</filename> branch was tagged
-	  for &os;&nbsp;11.2-RELEASE that a few device drivers were
-	  missing from the <link
-	    xlink:href="https://www.FreeBSD.org/releases/11.2R/hardware.html">hardware</link>
-	  page.  The missing drivers, &man.alc.4;, &man.cxgbev.4;,
-	  &man.liquidio.4;, and &man.mos.4; were added to the
-	  11-STABLE <link
-	    xlink:href="https://www.FreeBSD.org/relnotes/11-STABLE/hardware/support.html">hardware
-	    page</link>.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2018-06-26] The <acronym>URL</acronym> to the
-	  instructions for source-based upgrades in
-	  <filename>UPDATING</filename> incorrectly points to a page
-	  that no longer exists.  The correct URL is <link
-	    xlink:href="https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html" />.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2018-06-27] The announcement email for &os;&nbsp;11.2
-	  incorrectly states the <literal>ocs_fw(4)</literal> driver
-	  had been added; this should have stated
-	  &man.ocs.fc.4;.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2018-06-28] An issue had been reported after the
-	  release of &os;&nbsp;11.2 with <filename
-	    role="package">x11/nvidia-driver</filename> installed from
-	  the upstream package mirrors via &man.pkg.8;.</para>
-
-	<para>Building <filename
-	    role="package">x11/nvidia-driver</filename> from
-	  the &man.ports.7; collection has been reported to resolve
-	  the issue.</para>
-
-	<para>See <acronym>PR</acronym> <link
-	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=228536">228536</link>
-	  for more information.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2018-10-18] A &os; system with a custom kernel
-	  configuration excluding <acronym>NFS</acronym> on 10.x did
-	  not explicitly require the <literal>krpc</literal> option to
-	  be included when booting via <acronym>ZFS</acronym>-on-root
-	  and, for example, setting
-	  <literal>MODULES_OVERRIDE="zfs opensolaris"</literal> in the
-	  kernel configuration.</para>
-
-	<para>In 11.x, however, <literal>krpc</literal> is explicitly
-	  required if the kernel configuration excludes
-	  <literal>NFS</literal>.</para>
+	<para>Upgrading from earlier &os;&nbsp;11.x releases to
+	  &os;&nbsp;12.0 are believed to be unaffected.</para>
       </listitem>
     </itemizedlist>
   </sect1>
