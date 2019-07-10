@@ -191,7 +191,7 @@ owc_gpiobus_write_one(device_t dev, struct ow_timing *t)
 	sc = device_get_softc(dev);
 	error = GETBUS(sc);
 	if (error != 0)
-		return error;
+		return (error);
 
 	critical_enter();
 
@@ -205,10 +205,10 @@ owc_gpiobus_write_one(device_t dev, struct ow_timing *t)
 	DELAY(t->t_slot - t->t_low1 + t->t_rec);
 
 	critical_exit();
-	
+
 	RELBUS(sc);
-	
-	return 0;
+
+	return (0);
 }
 
 /*
@@ -232,7 +232,7 @@ owc_gpiobus_write_zero(device_t dev, struct ow_timing *t)
 	sc = device_get_softc(dev);
 	error = GETBUS(sc);
 	if (error != 0)
-		return error;
+		return (error);
 
 	critical_enter();
 
@@ -248,8 +248,8 @@ owc_gpiobus_write_zero(device_t dev, struct ow_timing *t)
 	critical_exit();
 
 	RELBUS(sc);
-	
-	return 0;
+
+	return (0);
 }
 
 /*
@@ -277,7 +277,7 @@ owc_gpiobus_read_data(device_t dev, struct ow_timing *t, int *bit)
 	sc = device_get_softc(dev);
 	error = GETBUS(sc);
 	if (error != 0)
-		return error;
+		return (error);
 
 	/* Force low for t_lowr microseconds */
 	then = sbinuptime();
@@ -309,8 +309,8 @@ owc_gpiobus_read_data(device_t dev, struct ow_timing *t, int *bit)
 	} while ((now - then) / SBT_1US < t->t_slot);
 
 	RELBUS(sc);
-	
-	return 0;
+
+	return (error);
 }
 
 /*
@@ -338,10 +338,9 @@ owc_gpiobus_reset_and_presence(device_t dev, struct ow_timing *t, int *bit)
 	sc = device_get_softc(dev);
 	error = GETBUS(sc);
 	if (error != 0)
-		return error;
-	
+		return (error);
 
-	/* 
+	/*
 	 * Read the current state of the bus. The steady state of an idle bus is
 	 * high. Badly wired buses that are missing the required pull up, or
 	 * that have a short circuit to ground cause all kinds of mischief when
@@ -353,7 +352,7 @@ owc_gpiobus_reset_and_presence(device_t dev, struct ow_timing *t, int *bit)
 	if (buf == 0) {
 		*bit = -1;
 		RELBUS(sc);
-		return EIO;
+		return (EIO);
 	}
 
 	critical_enter();
@@ -384,12 +383,12 @@ owc_gpiobus_reset_and_presence(device_t dev, struct ow_timing *t, int *bit)
 	if (buf == 0) {
 		*bit = -1;
 		RELBUS(sc);
-		return EIO;
+		return (EIO);
 	}
 
 	RELBUS(sc);
 
-	return 0;
+	return (0);
 }
 
 static devclass_t owc_gpiobus_devclass;
