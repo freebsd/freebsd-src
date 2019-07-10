@@ -28,21 +28,13 @@ __FBSDID("$FreeBSD$");
 #include <libsecureboot.h>
 
 unsigned char *
-read_file(const char *path, size_t *len)
+read_fd(int fd, size_t len)
 {
-	int fd, m, n, x;
-	struct stat st;
+	int m, n, x;
 	unsigned char *buf;
 
-	if (len)
-		*len = 0;
-	if ((fd = open(path, O_RDONLY)) < 0)
-		return (NULL);
-	fstat(fd, &st);
-	if (len)
-		*len = st.st_size;
-	buf = malloc(st.st_size + 1);
-	for (x = 0, m = st.st_size; m > 0; ) {
+	buf = malloc(len + 1);
+	for (x = 0, m = len; m > 0; ) {
 		n = read(fd, &buf[x], m);
 		if (n < 0)
 			break;
@@ -51,11 +43,30 @@ read_file(const char *path, size_t *len)
 			x += n;
 		}
 	}
-	close(fd);
 	if (m == 0) {
-		buf[st.st_size] = '\0';
+		buf[len] = '\0';
 		return (buf);
 	}
 	free(buf);
 	return (NULL);
 }
+
+unsigned char *
+read_file(const char *path, size_t *len)
+{
+	struct stat st;
+	unsigned char *ucp;
+	int fd;
+
+    	if (len)
+		*len = 0;
+	if ((fd = open(path, O_RDONLY)) < 0)
+		return (NULL);
+	fstat(fd, &st);
+	ucp = read_fd(fd, st.st_size);
+	close(fd);
+	if (len != NULL && ucp != NULL)
+		*len = st.st_size;
+	return (ucp);
+}
+
