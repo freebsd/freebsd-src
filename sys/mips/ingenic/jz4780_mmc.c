@@ -775,7 +775,7 @@ jz4780_mmc_read_ivar(device_t bus, device_t child, int which,
 		*(int *)result = sc->sc_host.ios.power_mode;
 		break;
 	case MMCBR_IVAR_RETUNE_REQ:
-		*(int *)result = return_req_none;
+		*(int *)result = retune_req_none;
 		break;
 	case MMCBR_IVAR_VDD:
 		*(int *)result = sc->sc_host.ios.vdd;
