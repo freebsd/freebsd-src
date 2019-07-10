@@ -140,8 +140,15 @@ chrp_attach(platform_t plat)
 	if (!(mfmsr() & PSL_HV)) {
 		struct mem_region *phys, *avail;
 		int nphys, navail;
+		vm_offset_t off;
+
 		mem_regions(&phys, &nphys, &avail, &navail);
-		realmaxaddr = phys[0].mr_size;
+
+		realmaxaddr = 0;
+		for (i = 0; i < nphys; i++) {
+			off = phys[i].mr_start + phys[i].mr_size;
+			realmaxaddr = MAX(off, realmaxaddr);
+		}
 
 		pmap_mmu_install("mmu_phyp", BUS_PROBE_SPECIFIC);
 		cpu_idle_hook = phyp_cpu_idle;
