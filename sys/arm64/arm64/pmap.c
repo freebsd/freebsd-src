@@ -536,7 +536,7 @@ CTASSERT(L1_BLOCK == L2_BLOCK);
  * arm64 so for now assume is a page mapped as rw was accessed it is.
  */
 static inline int
-pmap_page_dirty(pt_entry_t pte)
+pmap_pte_dirty(pt_entry_t pte)
 {
 
 	return ((pte & (ATTR_AF | ATTR_AP_RW_BIT)) ==
@@ -1952,7 +1952,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 				tpte = pmap_load_clear(pte);
 				pmap_invalidate_page(pmap, va);
 				m = PHYS_TO_VM_PAGE(tpte & ~ATTR_MASK);
-				if (pmap_page_dirty(tpte))
+				if (pmap_pte_dirty(tpte))
 					vm_page_dirty(m);
 				if ((tpte & ATTR_AF) != 0)
 					vm_page_aflag_set(m, PGA_REFERENCED);
@@ -2449,7 +2449,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 		eva = sva + L2_SIZE;
 		for (va = sva, m = PHYS_TO_VM_PAGE(old_l2 & ~ATTR_MASK);
 		    va < eva; va += PAGE_SIZE, m++) {
-			if (pmap_page_dirty(old_l2))
+			if (pmap_pte_dirty(old_l2))
 				vm_page_dirty(m);
 			if (old_l2 & ATTR_AF)
 				vm_page_aflag_set(m, PGA_REFERENCED);
@@ -2494,7 +2494,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 	pmap_resident_count_dec(pmap, 1);
 	if (old_l3 & ATTR_SW_MANAGED) {
 		m = PHYS_TO_VM_PAGE(old_l3 & ~ATTR_MASK);
-		if (pmap_page_dirty(old_l3))
+		if (pmap_pte_dirty(old_l3))
 			vm_page_dirty(m);
 		if (old_l3 & ATTR_AF)
 			vm_page_aflag_set(m, PGA_REFERENCED);
@@ -2542,7 +2542,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 		pmap_resident_count_dec(pmap, 1);
 		if ((old_l3 & ATTR_SW_MANAGED) != 0) {
 			m = PHYS_TO_VM_PAGE(old_l3 & ~ATTR_MASK);
-			if (pmap_page_dirty(old_l3))
+			if (pmap_pte_dirty(old_l3))
 				vm_page_dirty(m);
 			if ((old_l3 & ATTR_AF) != 0)
 				vm_page_aflag_set(m, PGA_REFERENCED);
@@ -2771,7 +2771,7 @@ retry:
 		/*
 		 * Update the vm_page_t clean and reference bits.
 		 */
-		if (pmap_page_dirty(tpte))
+		if (pmap_pte_dirty(tpte))
 			vm_page_dirty(m);
 		pmap_unuse_pt(pmap, pv->pv_va, tpde, &free);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
@@ -2814,7 +2814,7 @@ pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t nbits)
 	 */
 	if ((nbits & ATTR_AP(ATTR_AP_RO)) != 0 &&
 	    (old_l2 & ATTR_SW_MANAGED) != 0 &&
-	    pmap_page_dirty(old_l2)) {
+	    pmap_pte_dirty(old_l2)) {
 		m = PHYS_TO_VM_PAGE(old_l2 & ~ATTR_MASK);
 		for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++)
 			vm_page_dirty(mt);
@@ -2922,7 +2922,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			 */
 			if ((nbits & ATTR_AP(ATTR_AP_RO)) != 0 &&
 			    (l3 & ATTR_SW_MANAGED) != 0 &&
-			    pmap_page_dirty(l3))
+			    pmap_pte_dirty(l3))
 				vm_page_dirty(PHYS_TO_VM_PAGE(l3 & ~ATTR_MASK));
 
 			pmap_set(l3p, nbits);
@@ -3279,7 +3279,7 @@ havel3:
 			 * concurrent calls to pmap_page_test_mappings() and
 			 * pmap_ts_referenced().
 			 */
-			if (pmap_page_dirty(orig_l3))
+			if (pmap_pte_dirty(orig_l3))
 				vm_page_dirty(om);
 			if ((orig_l3 & ATTR_AF) != 0)
 				vm_page_aflag_set(om, PGA_REFERENCED);
@@ -3344,7 +3344,7 @@ validate:
 			/* same PA, different attributes */
 			pmap_load_store(l3, new_l3);
 			pmap_invalidate_page(pmap, va);
-			if (pmap_page_dirty(orig_l3) &&
+			if (pmap_pte_dirty(orig_l3) &&
 			    (orig_l3 & ATTR_SW_MANAGED) != 0)
 				vm_page_dirty(m);
 		} else {
@@ -4684,7 +4684,7 @@ retry:
 		    ("pmap_ts_referenced: found an invalid l1 table"));
 		pte = pmap_l1_to_l2(pde, pv->pv_va);
 		tpte = pmap_load(pte);
-		if (pmap_page_dirty(tpte)) {
+		if (pmap_pte_dirty(tpte)) {
 			/*
 			 * Although "tpte" is mapping a 2MB page, because
 			 * this function is called at a 4KB page granularity,
@@ -4788,7 +4788,7 @@ small_mappings:
 		    ("pmap_ts_referenced: found an invalid l2 table"));
 		pte = pmap_l2_to_l3(pde, pv->pv_va);
 		tpte = pmap_load(pte);
-		if (pmap_page_dirty(tpte))
+		if (pmap_pte_dirty(tpte))
 			vm_page_dirty(m);
 		if ((tpte & ATTR_AF) != 0) {
 			if (safe_to_clear_referenced(pmap, tpte)) {
@@ -5454,7 +5454,7 @@ retry:
 		val = MINCORE_INCORE;
 		if (lvl != 3)
 			val |= MINCORE_SUPER;
-		if (pmap_page_dirty(tpte))
+		if (pmap_pte_dirty(tpte))
 			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
 		if ((tpte & ATTR_AF) == ATTR_AF)
 			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
