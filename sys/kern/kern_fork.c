@@ -465,7 +465,8 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 */
 	p2->p_flag = P_INMEM;
 	p2->p_flag2 = p1->p_flag2 & (P2_ASLR_DISABLE | P2_ASLR_ENABLE |
-	    P2_ASLR_IGNSTART | P2_NOTRACE | P2_NOTRACE_EXEC | P2_TRAPCAP);
+	    P2_ASLR_IGNSTART | P2_NOTRACE | P2_NOTRACE_EXEC |
+	    P2_PROTMAX_ENABLE | P2_PROTMAX_DISABLE | P2_TRAPCAP);
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
