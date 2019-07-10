@@ -1655,10 +1655,11 @@ env_init(void)
 		char hbuf[256+1];
 		char *cp2 = strchr((char *)ep->value, ':');
 
-		gethostname(hbuf, 256);
-		hbuf[256] = '\0';
-		cp = (char *)malloc(strlen(hbuf) + strlen(cp2) + 1);
-		sprintf((char *)cp, "%s%s", hbuf, cp2);
+		gethostname(hbuf, sizeof(hbuf));
+		hbuf[sizeof(hbuf)-1] = '\0';
+                unsigned int buflen = strlen(hbuf) + strlen(cp2) + 1;
+		cp = (char *)malloc(sizeof(char)*buflen);
+		snprintf((char *)cp, buflen, "%s%s", hbuf, cp2);
 		free(ep->value);
 		ep->value = (unsigned char *)cp;
 	}
