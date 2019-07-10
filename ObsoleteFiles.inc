@@ -40,8 +40,8 @@
 
 # 20190618: sys/capability.h removed (sys/capsicum.h is the one to use)
 OLD_FILES+=usr/include/sys/capability.h
-# 20190615: sys/pwm.h renamed to dev/pwmc.h
-OLD_FILES+=usr/include/sys/pwm.h
+# 20190615: sys/pwm.h renamed to dev/pwmc.h and pwm(9) removed
+OLD_FILES+=usr/include/sys/pwm.h usr/share/man/man9/pwm.9
 # 20190612: new clang import which bumps version from 8.0.0 to 8.0.1.
 OLD_FILES+=usr/lib/clang/8.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/8.0.0/include/sanitizer/asan_interface.h
