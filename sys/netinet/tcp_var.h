@@ -102,7 +102,8 @@ struct tcpcb {
 		t_state:4,		/* state of this connection */
 		t_idle_reduce : 1,
 		t_delayed_ack: 7,	/* Delayed ack variable */
-		bits_spare : 4;
+		t_fin_is_rst: 1,	/* Are fin's treated as resets */
+		bits_spare : 3;
 	u_int	t_flags;
 	tcp_seq	snd_una;		/* sent but unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
@@ -271,6 +272,11 @@ struct tcp_function_block {
 	void	(*tfb_tcp_do_segment)(struct mbuf *, struct tcphdr *,
 			    struct socket *, struct tcpcb *,
 		        int, int, uint8_t);
+	int     (*tfb_do_queued_segments)(struct socket *, struct tcpcb *, int);
+	int      (*tfb_do_segment_nounlock)(struct mbuf *, struct tcphdr *,
+			    struct socket *, struct tcpcb *,
+			    int, int, uint8_t,
+			    int, struct timeval *);
 	void	(*tfb_tcp_hpts_do_segment)(struct mbuf *, struct tcphdr *,
 			    struct socket *, struct tcpcb *,
 			    int, int, uint8_t,

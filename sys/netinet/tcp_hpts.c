@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
  * pacing packets out onto the wire. It can be used in two ways
  * by a given TCP stack (and those two methods can be used simultaneously).
  *
- * First, and probably the main thing its used by Rack and BBR for, it can
+ * First, and probably the main thing its used by Rack and BBR, it can
  * be used to call tcp_output() of a transport stack at some time in the future.
  * The normal way this is done is that tcp_output() of the stack schedules
  * itself to be called again by calling tcp_hpts_insert(tcpcb, slot). The
@@ -59,42 +59,57 @@ __FBSDID("$FreeBSD$");
  * to prevent output processing until the time alotted has gone by.
  * Of course this is a bare bones example and the stack will probably
  * have more consideration then just the above.
- *
- * Now the tcp_hpts system will call tcp_output in one of two forms, 
- * it will first check to see if the stack as defined a 
- * tfb_tcp_output_wtime() function, if so that is the routine it
- * will call, if that function is not defined then it will call the
- * tfb_tcp_output() function. The only difference between these
- * two calls is that the former passes the time in to the function
- * so the function does not have to access the time (which tcp_hpts
- * already has). What these functions do is of course totally up
- * to the individual tcp stack.
- *
+ * 
  * Now the second function (actually two functions I guess :D)
  * the tcp_hpts system provides is the  ability to either abort 
- * a connection (later) or process  input on a connection. 
- * Why would you want to do this? To keep processor locality.
+ * a connection (later) or process input on a connection. 
+ * Why would you want to do this? To keep processor locality
+ * and or not have to worry about untangling any recursive
+ * locks. The input function now is hooked to the new LRO
+ * system as well. 
  *
- * So in order to use the input redirection function the
- * stack changes its tcp_do_segment() routine to instead
- * of process the data call the function:
+ * In order to use the input redirection function the
+ * tcp stack must define an input function for 
+ * tfb_do_queued_segments(). This function understands
+ * how to dequeue a array of packets that were input and
+ * knows how to call the correct processing routine. 
  *
- * tcp_queue_pkt_to_input()
- *
- * You will note that the arguments to this function look
- * a lot like tcp_do_segments's arguments. This function
- * will assure that the tcp_hpts system will
- * call the functions tfb_tcp_hpts_do_segment() from the
- * correct CPU. Note that multiple calls can get pushed
- * into the tcp_hpts system this will be indicated by
- * the next to last argument to tfb_tcp_hpts_do_segment()
- * (nxt_pkt). If nxt_pkt is a 1 then another packet is
- * coming. If nxt_pkt is a 0 then this is the last call
- * that the tcp_hpts system has available for the tcp stack.
+ * Locking in this is important as well so most likely the 
+ * stack will need to define the tfb_do_segment_nounlock()
+ * splitting tfb_do_segment() into two parts. The main processing
+ * part that does not unlock the INP and returns a value of 1 or 0.
+ * It returns 0 if all is well and the lock was not released. It
+ * returns 1 if we had to destroy the TCB (a reset received etc).
+ * The remains of tfb_do_segment() then become just a simple call
+ * to the tfb_do_segment_nounlock() function and check the return
+ * code and possibly unlock.
  * 
- * The other point of the input system is to be able to safely
- * drop a tcp connection without worrying about the recursive 
- * locking that may be occuring on the INP_WLOCK. So if
+ * The stack must also set the flag on the INP that it supports this
+ * feature i.e. INP_SUPPORTS_MBUFQ. The LRO code recoginizes
+ * this flag as well and will queue packets when it is set.
+ * There are other flags as well INP_MBUF_QUEUE_READY and
+ * INP_DONT_SACK_QUEUE. The first flag tells the LRO code
+ * that we are in the pacer for output so there is no
+ * need to wake up the hpts system to get immediate
+ * input. The second tells the LRO code that its okay
+ * if a SACK arrives you can still defer input and let
+ * the current hpts timer run (this is usually set when
+ * a rack timer is up so we know SACK's are happening
+ * on the connection already and don't want to wakeup yet).
+ *
+ * There is a common functions within the rack_bbr_common code
+ * version i.e. ctf_do_queued_segments(). This function
+ * knows how to take the input queue of packets from 
+ * tp->t_in_pkts and process them digging out 
+ * all the arguments, calling any bpf tap and 
+ * calling into tfb_do_segment_nounlock(). The common
+ * function (ctf_do_queued_segments())  requires that 
+ * you have defined the tfb_do_segment_nounlock() as
+ * described above.
+ *
+ * The second feature of the input side of hpts is the
+ * dropping of a connection. This is due to the way that
+ * locking may have occured on the INP_WLOCK. So if
  * a stack wants to drop a connection it calls:
  *
  *     tcp_set_inp_to_drop(tp, ETIMEDOUT)
@@ -156,6 +171,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
 #include <netinet/tcp_hpts.h>
+#include <netinet/tcp_log_buf.h>
 
 #ifdef tcpdebug
 #include <netinet/tcp_debug.h>
@@ -168,24 +184,19 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
 #ifdef RSS
-#include <net/netisr.h>
-#include <net/rss_config.h>
 static int tcp_bind_threads = 1;
 #else
 static int tcp_bind_threads = 2;
 #endif
 TUNABLE_INT("net.inet.tcp.bind_hptss", &tcp_bind_threads);
 
-static uint32_t tcp_hpts_logging_size = DEFAULT_HPTS_LOG;
-
-TUNABLE_INT("net.inet.tcp.hpts_logging_sz", &tcp_hpts_logging_size);
-
 static struct tcp_hptsi tcp_pace;
+static int hpts_does_tp_logging = 0;
 
 static void tcp_wakehpts(struct tcp_hpts_entry *p);
 static void tcp_wakeinput(struct tcp_hpts_entry *p);
 static void tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv);
-static void tcp_hptsi(struct tcp_hpts_entry *hpts, struct timeval *ctick);
+static void tcp_hptsi(struct tcp_hpts_entry *hpts);
 static void tcp_hpts_thread(void *ctx);
 static void tcp_init_hptsi(void *st);
 
@@ -204,8 +215,6 @@ SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hpts, CTLFLAG_RW, 0, "TCP Hpts controls");
 		}							\
 	} while (0)
 
-static int32_t logging_on = 0;
-static int32_t hpts_sleep_max = (NUM_OF_HPTSI_SLOTS - 2);
 static int32_t tcp_hpts_precision = 120;
 
 struct hpts_domain_info {
@@ -219,44 +228,75 @@ SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, precision, CTLFLAG_RW,
     &tcp_hpts_precision, 120,
     "Value for PRE() precision of callout");
 
-SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, logging, CTLFLAG_RW,
-    &logging_on, 0,
-    "Turn on logging if compiled in");
+counter_u64_t hpts_hopelessly_behind;
+
+SYSCTL_COUNTER_U64(_net_inet_tcp_hpts, OID_AUTO, hopeless, CTLFLAG_RD,
+    &hpts_hopelessly_behind,
+    "Number of times hpts could not catch up and was behind hopelessly");
 
 counter_u64_t hpts_loops;
 
 SYSCTL_COUNTER_U64(_net_inet_tcp_hpts, OID_AUTO, loops, CTLFLAG_RD,
     &hpts_loops, "Number of times hpts had to loop to catch up");
 
+
 counter_u64_t back_tosleep;
 
 SYSCTL_COUNTER_U64(_net_inet_tcp_hpts, OID_AUTO, no_tcbsfound, CTLFLAG_RD,
     &back_tosleep, "Number of times hpts found no tcbs");
 
-static int32_t in_newts_every_tcb = 0;
+counter_u64_t combined_wheel_wrap;
 
-SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, in_tsperpcb, CTLFLAG_RW,
-    &in_newts_every_tcb, 0,
-    "Do we have a new cts every tcb we process for input");
-static int32_t in_ts_percision = 0;
+SYSCTL_COUNTER_U64(_net_inet_tcp_hpts, OID_AUTO, comb_wheel_wrap, CTLFLAG_RD,
+    &combined_wheel_wrap, "Number of times the wheel lagged enough to have an insert see wrap");
 
-SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, in_tspercision, CTLFLAG_RW,
-    &in_ts_percision, 0,
-    "Do we use percise timestamp for clients on input");
-static int32_t out_newts_every_tcb = 0;
+counter_u64_t wheel_wrap;
 
-SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, out_tsperpcb, CTLFLAG_RW,
-    &out_newts_every_tcb, 0,
-    "Do we have a new cts every tcb we process for output");
+SYSCTL_COUNTER_U64(_net_inet_tcp_hpts, OID_AUTO, wheel_wrap, CTLFLAG_RD,
+    &wheel_wrap, "Number of times the wheel lagged enough to have an insert see wrap");
+
 static int32_t out_ts_percision = 0;
 
 SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, out_tspercision, CTLFLAG_RW,
     &out_ts_percision, 0,
     "Do we use a percise timestamp for every output cts");
+SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, logging, CTLFLAG_RW,
+    &hpts_does_tp_logging, 0,
+    "Do we add to any tp that has logging on pacer logs");
 
-SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, maxsleep, CTLFLAG_RW,
+static int32_t max_pacer_loops = 10;
+SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, loopmax, CTLFLAG_RW,
+    &max_pacer_loops, 10,
+    "What is the maximum number of times the pacer will loop trying to catch up");
+
+#define HPTS_MAX_SLEEP_ALLOWED (NUM_OF_HPTSI_SLOTS/2)
+
+static uint32_t hpts_sleep_max = HPTS_MAX_SLEEP_ALLOWED;
+
+
+static int
+sysctl_net_inet_tcp_hpts_max_sleep(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	uint32_t new;
+
+	new = hpts_sleep_max;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		if ((new < (NUM_OF_HPTSI_SLOTS / 4)) ||
+		    (new > HPTS_MAX_SLEEP_ALLOWED)) 
+			error = EINVAL;
+		else
+			hpts_sleep_max = new;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp_hpts, OID_AUTO, maxsleep,
+    CTLTYPE_UINT | CTLFLAG_RW,
     &hpts_sleep_max, 0,
-    "The maximum time the hpts will sleep <1 - 254>");
+    &sysctl_net_inet_tcp_hpts_max_sleep, "IU",
+    "Maximum time hpts will sleep");
 
 SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, minsleep, CTLFLAG_RW,
     &tcp_min_hptsi_time, 0,
@@ -267,54 +307,34 @@ SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, skip_swi, CTLFLAG_RW,
     "Do we have the callout call directly to the hpts?");
 
 static void
-__tcp_hpts_log_it(struct tcp_hpts_entry *hpts, struct inpcb *inp, int event, uint32_t slot,
-    uint32_t ticknow, int32_t line)
+tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
+	     int ticks_to_run, int idx)
 {
-	struct hpts_log *pl;
-
-	HPTS_MTX_ASSERT(hpts);
-	if (hpts->p_log == NULL)
-		return;
-	pl = &hpts->p_log[hpts->p_log_at];
-	hpts->p_log_at++;
-	if (hpts->p_log_at >= hpts->p_logsize) {
-		hpts->p_log_at = 0;
-		hpts->p_log_wrapped = 1;
-	}
-	pl->inp = inp;
-	if (inp) {
-		pl->t_paceslot = inp->inp_hptsslot;
-		pl->t_hptsreq = inp->inp_hpts_request;
-		pl->p_onhpts = inp->inp_in_hpts;
-		pl->p_oninput = inp->inp_in_input;
-	} else {
-		pl->t_paceslot = 0;
-		pl->t_hptsreq = 0;
-		pl->p_onhpts = 0;
-		pl->p_oninput = 0;
-	}
-	pl->is_notempty = 1;
-	pl->event = event;
-	pl->line = line;
-	pl->cts = tcp_get_usecs(NULL);
-	pl->p_curtick = hpts->p_curtick;
-	pl->p_prevtick = hpts->p_prevtick;
-	pl->p_on_queue_cnt = hpts->p_on_queue_cnt;
-	pl->ticknow = ticknow;
-	pl->slot_req = slot;
-	pl->p_nxt_slot = hpts->p_nxt_slot;
-	pl->p_cur_slot = hpts->p_cur_slot;
-	pl->p_hpts_sleep_time = hpts->p_hpts_sleep_time;
-	pl->p_flags = (hpts->p_cpu & 0x7f);
-	pl->p_flags <<= 7;
-	pl->p_flags |= (hpts->p_num & 0x7f);
-	pl->p_flags <<= 2;
-	if (hpts->p_hpts_active) {
-		pl->p_flags |= HPTS_HPTS_ACTIVE;
-	}
+	union tcp_log_stackspecific log;
+	
+	memset(&log.u_bbr, 0, sizeof(log.u_bbr));
+	log.u_bbr.flex1 = hpts->p_nxt_slot;
+	log.u_bbr.flex2 = hpts->p_cur_slot;
+	log.u_bbr.flex3 = hpts->p_prev_slot;
+	log.u_bbr.flex4 = idx;
+	log.u_bbr.flex5 = hpts->p_curtick;
+	log.u_bbr.flex6 = hpts->p_on_queue_cnt;
+	log.u_bbr.use_lt_bw = 1;
+	log.u_bbr.inflight = ticks_to_run;
+	log.u_bbr.applimited = hpts->overidden_sleep;
+	log.u_bbr.delivered = hpts->saved_curtick;
+	log.u_bbr.timeStamp = tcp_tv_to_usectick(tv);
+	log.u_bbr.epoch = hpts->saved_curslot;
+	log.u_bbr.lt_epoch = hpts->saved_prev_slot;
+	log.u_bbr.pkts_out = hpts->p_delayed_by;
+	log.u_bbr.lost = hpts->p_hpts_sleep_time;
+	log.u_bbr.cur_del_rate = hpts->p_runningtick;
+	TCP_LOG_EVENTP(tp, NULL,
+		       &tp->t_inpcb->inp_socket->so_rcv,
+		       &tp->t_inpcb->inp_socket->so_snd,
+		       BBR_LOG_HPTSDIAG, 0,
+		       0, &log, false, tv);
 }
-
-#define tcp_hpts_log_it(a, b, c, d, e) __tcp_hpts_log_it(a, b, c, d, e, __LINE__)
 
 static void
 hpts_timeout_swi(void *arg)
@@ -346,12 +366,6 @@ hpts_sane_pace_remove(struct tcp_hpts_entry *hpts, struct inpcb *inp, struct hpt
 	if (inp->inp_in_hpts == 0) {
 		/* We are not on the hpts? */
 		panic("%s: hpts:%p inp:%p not on the hpts?", __FUNCTION__, hpts, inp);
-	}
-	if (TAILQ_EMPTY(head) &&
-	    (hpts->p_on_queue_cnt != 0)) {
-		/* We should not be empty with a queue count */
-		panic("%s hpts:%p hpts bucket empty but cnt:%d",
-		    __FUNCTION__, hpts, hpts->p_on_queue_cnt);
 	}
 #endif
 	TAILQ_REMOVE(head, inp, inp_hpts);
@@ -456,58 +470,13 @@ hpts_sane_input_insert(struct tcp_hpts_entry *hpts, struct inpcb *inp, int line)
 	in_pcbref(inp);
 }
 
-static int
-sysctl_tcp_hpts_log(SYSCTL_HANDLER_ARGS)
-{
-	struct tcp_hpts_entry *hpts;
-	size_t sz;
-	int32_t logging_was, i;
-	int32_t error = 0;
-
-	/*
-	 * HACK: Turn off logging so no locks are required this really needs
-	 * a memory barrier :)
-	 */
-	logging_was = logging_on;
-	logging_on = 0;
-	if (!req->oldptr) {
-		/* How much? */
-		sz = 0;
-		for (i = 0; i < tcp_pace.rp_num_hptss; i++) {
-			hpts = tcp_pace.rp_ent[i];
-			if (hpts->p_log == NULL)
-				continue;
-			sz += (sizeof(struct hpts_log) * hpts->p_logsize);
-		}
-		error = SYSCTL_OUT(req, 0, sz);
-	} else {
-		for (i = 0; i < tcp_pace.rp_num_hptss; i++) {
-			hpts = tcp_pace.rp_ent[i];
-			if (hpts->p_log == NULL)
-				continue;
-			if (hpts->p_log_wrapped)
-				sz = (sizeof(struct hpts_log) * hpts->p_logsize);
-			else
-				sz = (sizeof(struct hpts_log) * hpts->p_log_at);
-			error = SYSCTL_OUT(req, hpts->p_log, sz);
-		}
-	}
-	logging_on = logging_was;
-	return error;
-}
-
-SYSCTL_PROC(_net_inet_tcp_hpts, OID_AUTO, log, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    0, 0, sysctl_tcp_hpts_log, "A", "tcp hptsi log");
-
-
 static void
 tcp_wakehpts(struct tcp_hpts_entry *hpts)
 {
 	HPTS_MTX_ASSERT(hpts);
-	swi_sched(hpts->ie_cookie, 0);
-	if (hpts->p_hpts_active == 2) {
-		/* Rare sleeping on a ENOBUF */
-		wakeup_one(hpts);
+	if (hpts->p_hpts_wake_scheduled == 0) {
+		hpts->p_hpts_wake_scheduled = 1;
+		swi_sched(hpts->ie_cookie, 0);
 	}
 }
 
@@ -515,10 +484,9 @@ static void
 tcp_wakeinput(struct tcp_hpts_entry *hpts)
 {
 	HPTS_MTX_ASSERT(hpts);
-	swi_sched(hpts->ie_cookie, 0);
-	if (hpts->p_hpts_active == 2) {
-		/* Rare sleeping on a ENOBUF */
-		wakeup_one(hpts);
+	if (hpts->p_hpts_wake_scheduled == 0) {
+		hpts->p_hpts_wake_scheduled = 1;
+		swi_sched(hpts->ie_cookie, 0);
 	}
 }
 
@@ -648,8 +616,8 @@ tcp_hpts_remove_locked_input(struct tcp_hpts_entry *hpts, struct inpcb *inp, int
  * Valid values in the flags are
  * HPTS_REMOVE_OUTPUT - remove from the output of the hpts.
  * HPTS_REMOVE_INPUT - remove from the input of the hpts.
- * Note that you can or both values together and get two
- * actions.
+ * Note that you can use one or both values together 
+ * and get two actions.
  */
 void
 __tcp_hpts_remove(struct inpcb *inp, int32_t flags, int32_t line)
@@ -670,53 +638,198 @@ __tcp_hpts_remove(struct inpcb *inp, int32_t flags, int32_t line)
 }
 
 static inline int
-hpts_tick(struct tcp_hpts_entry *hpts, int32_t plus)
+hpts_tick(uint32_t wheel_tick, uint32_t plus)
 {
-	return ((hpts->p_prevtick + plus) % NUM_OF_HPTSI_SLOTS);
+	/*
+	 * Given a slot on the wheel, what slot
+	 * is that plus ticks out?
+	 */
+	KASSERT(wheel_tick < NUM_OF_HPTSI_SLOTS, ("Invalid tick %u not on wheel", wheel_tick));
+	return ((wheel_tick + plus) % NUM_OF_HPTSI_SLOTS);
+}
+
+static inline int
+tick_to_wheel(uint32_t cts_in_wticks)
+{
+	/* 
+	 * Given a timestamp in wheel ticks (10usec inc's)
+	 * map it to our limited space wheel.
+	 */
+	return (cts_in_wticks % NUM_OF_HPTSI_SLOTS);
+}
+
+static inline int
+hpts_ticks_diff(int prev_tick, int tick_now)
+{
+	/*
+	 * Given two ticks that are someplace
+	 * on our wheel. How far are they apart?
+	 */
+	if (tick_now > prev_tick)
+		return (tick_now - prev_tick);
+	else if (tick_now == prev_tick)
+		/* 
+		 * Special case, same means we can go all of our 
+		 * wheel less one slot.
+		 */
+		return (NUM_OF_HPTSI_SLOTS - 1);
+	else
+		return ((NUM_OF_HPTSI_SLOTS - prev_tick) + tick_now);
+}
+
+/*
+ * Given a tick on the wheel that is the current time
+ * mapped to the wheel (wheel_tick), what is the maximum
+ * distance forward that can be obtained without
+ * wrapping past either prev_tick or running_tick
+ * depending on the htps state? Also if passed
+ * a uint32_t *, fill it with the tick location.
+ *
+ * Note if you do not give this function the current
+ * time (that you think it is) mapped to the wheel 
+ * then the results will not be what you expect and
+ * could lead to invalid inserts.
+ */
+static inline int32_t
+max_ticks_available(struct tcp_hpts_entry *hpts, uint32_t wheel_tick, uint32_t *target_tick)
+{
+	uint32_t dis_to_travel, end_tick, pacer_to_now, avail_on_wheel;
+
+	if ((hpts->p_hpts_active == 1) &&
+	    (hpts->p_wheel_complete == 0)) {
+		end_tick = hpts->p_runningtick;
+		/* Back up one tick */
+		if (end_tick == 0)
+			end_tick = NUM_OF_HPTSI_SLOTS - 1;
+		else
+			end_tick--;
+		if (target_tick)
+			*target_tick = end_tick;
+	} else {
+		/*
+		 * For the case where we are
+		 * not active, or we have
+		 * completed the pass over
+		 * the wheel, we can use the
+		 * prev tick and subtract one from it. This puts us
+		 * as far out as possible on the wheel.
+		 */
+		end_tick = hpts->p_prev_slot;
+		if (end_tick == 0)
+			end_tick = NUM_OF_HPTSI_SLOTS - 1;
+		else
+			end_tick--;
+		if (target_tick)
+			*target_tick = end_tick;
+		/* 
+		 * Now we have close to the full wheel left minus the 
+		 * time it has been since the pacer went to sleep. Note
+		 * that wheel_tick, passed in, should be the current time
+		 * from the perspective of the caller, mapped to the wheel.
+		 */
+		if (hpts->p_prev_slot != wheel_tick)
+			dis_to_travel = hpts_ticks_diff(hpts->p_prev_slot, wheel_tick);
+		else
+			dis_to_travel = 1;
+		/* 
+		 * dis_to_travel in this case is the space from when the 
+		 * pacer stopped (p_prev_slot) and where our wheel_tick 
+		 * is now. To know how many slots we can put it in we 
+		 * subtract from the wheel size. We would not want
+		 * to place something after p_prev_slot or it will
+		 * get ran too soon.
+		 */
+		return (NUM_OF_HPTSI_SLOTS - dis_to_travel);
+	}
+	/* 
+	 * So how many slots are open between p_runningtick -> p_cur_slot 
+	 * that is what is currently un-available for insertion. Special
+	 * case when we are at the last slot, this gets 1, so that
+	 * the answer to how many slots are available is all but 1.
+	 */
+	if (hpts->p_runningtick == hpts->p_cur_slot)
+		dis_to_travel = 1;
+	else
+		dis_to_travel = hpts_ticks_diff(hpts->p_runningtick, hpts->p_cur_slot);
+	/* 
+	 * How long has the pacer been running?
+	 */
+	if (hpts->p_cur_slot != wheel_tick) {
+		/* The pacer is a bit late */
+		pacer_to_now = hpts_ticks_diff(hpts->p_cur_slot, wheel_tick);
+	} else {
+		/* The pacer is right on time, now == pacers start time */
+		pacer_to_now = 0;
+	}
+	/* 
+	 * To get the number left we can insert into we simply
+	 * subract the distance the pacer has to run from how
+	 * many slots there are.
+	 */
+	avail_on_wheel = NUM_OF_HPTSI_SLOTS - dis_to_travel;
+	/* 
+	 * Now how many of those we will eat due to the pacer's 
+	 * time (p_cur_slot) of start being behind the 
+	 * real time (wheel_tick)?
+	 */
+	if (avail_on_wheel <= pacer_to_now) {
+		/* 
+		 * Wheel wrap, we can't fit on the wheel, that
+		 * is unusual the system must be way overloaded!
+		 * Insert into the assured tick, and return special
+		 * "0".
+		 */
+		counter_u64_add(combined_wheel_wrap, 1);
+		*target_tick = hpts->p_nxt_slot;
+		return (0);
+	} else {
+		/* 
+		 * We know how many slots are open
+		 * on the wheel (the reverse of what
+		 * is left to run. Take away the time
+		 * the pacer started to now (wheel_tick)
+		 * and that tells you how many slots are
+		 * open that can be inserted into that won't
+		 * be touched by the pacer until later.
+		 */
+		return (avail_on_wheel - pacer_to_now);
+	}
 }
 
 static int
 tcp_queue_to_hpts_immediate_locked(struct inpcb *inp, struct tcp_hpts_entry *hpts, int32_t line, int32_t noref)
 {
-	int32_t need_wake = 0;
-	uint32_t ticknow = 0;
-
+	uint32_t need_wake = 0;
+	
 	HPTS_MTX_ASSERT(hpts);
 	if (inp->inp_in_hpts == 0) {
 		/* Ok we need to set it on the hpts in the current slot */
-		if (hpts->p_hpts_active == 0) {
-			/* A sleeping hpts we want in next slot to run */
-			if (logging_on) {
-				tcp_hpts_log_it(hpts, inp, HPTSLOG_INSERT_SLEEPER, 0,
-				    hpts_tick(hpts, 1));
-			}
-			inp->inp_hptsslot = hpts_tick(hpts, 1);
-			inp->inp_hpts_request = 0;
-			if (logging_on) {
-				tcp_hpts_log_it(hpts, inp, HPTSLOG_SLEEP_BEFORE, 1, ticknow);
-			}
-			need_wake = 1;
+		inp->inp_hpts_request = 0;
+		if ((hpts->p_hpts_active == 0) ||
+		    (hpts->p_wheel_complete)) {
+			/*
+			 * A sleeping hpts we want in next slot to run 
+			 * note that in this state p_prev_slot == p_cur_slot
+			 */
+			inp->inp_hptsslot = hpts_tick(hpts->p_prev_slot, 1);
+			if ((hpts->p_on_min_sleep == 0) && (hpts->p_hpts_active == 0))
+				need_wake = 1;
 		} else if ((void *)inp == hpts->p_inp) {
 			/*
+			 * The hpts system is running and the caller
+			 * was awoken by the hpts system. 
 			 * We can't allow you to go into the same slot we
-			 * are in. We must put you out.
+			 * are in (we don't want a loop :-D).
 			 */
 			inp->inp_hptsslot = hpts->p_nxt_slot;
 		} else
-			inp->inp_hptsslot = hpts->p_cur_slot;
+			inp->inp_hptsslot = hpts->p_runningtick;
 		hpts_sane_pace_insert(hpts, inp, &hpts->p_hptss[inp->inp_hptsslot], line, noref);
-		inp->inp_hpts_request = 0;
-		if (logging_on) {
-			tcp_hpts_log_it(hpts, inp, HPTSLOG_IMMEDIATE, 0, 0);
-		}
 		if (need_wake) {
 			/*
 			 * Activate the hpts if it is sleeping and its
 			 * timeout is not 1.
 			 */
-			if (logging_on) {
-				tcp_hpts_log_it(hpts, inp, HPTSLOG_WAKEUP_HPTS, 0, ticknow);
-			}
 			hpts->p_direct_wake = 1;
 			tcp_wakehpts(hpts);
 		}
@@ -737,141 +850,129 @@ __tcp_queue_to_hpts_immediate(struct inpcb *inp, int32_t line)
 	return (ret);
 }
 
+#ifdef INVARIANTS
 static void
-tcp_hpts_insert_locked(struct tcp_hpts_entry *hpts, struct inpcb *inp, uint32_t slot, uint32_t cts, int32_t line,
-    struct hpts_diag *diag, int32_t noref)
+check_if_slot_would_be_wrong(struct tcp_hpts_entry *hpts, struct inpcb *inp, uint32_t inp_hptsslot, int line)
 {
-	int32_t need_new_to = 0;
-	int32_t need_wakeup = 0;
-	uint32_t largest_slot;
-	uint32_t ticknow = 0;
-	uint32_t slot_calc;
+	/*
+	 * Sanity checks for the pacer with invariants 
+	 * on insert.
+	 */
+	if (inp_hptsslot >= NUM_OF_HPTSI_SLOTS)
+		panic("hpts:%p inp:%p slot:%d > max",
+		      hpts, inp, inp_hptsslot);
+	if ((hpts->p_hpts_active) &&
+	    (hpts->p_wheel_complete == 0)) {
+		/* 
+		 * If the pacer is processing a arc
+		 * of the wheel, we need to make
+		 * sure we are not inserting within
+		 * that arc.
+		 */
+		int distance, yet_to_run;
+
+		distance = hpts_ticks_diff(hpts->p_runningtick, inp_hptsslot);
+		if (hpts->p_runningtick != hpts->p_cur_slot)
+			yet_to_run = hpts_ticks_diff(hpts->p_runningtick, hpts->p_cur_slot);
+		else
+			yet_to_run = 0;	/* processing last slot */
+		if (yet_to_run > distance) {
+			panic("hpts:%p inp:%p slot:%d distance:%d yet_to_run:%d rs:%d cs:%d",
+			      hpts, inp, inp_hptsslot,
+			      distance, yet_to_run,
+			      hpts->p_runningtick, hpts->p_cur_slot);
+		}
+	}
+}
+#endif
+
+static void
+tcp_hpts_insert_locked(struct tcp_hpts_entry *hpts, struct inpcb *inp, uint32_t slot, int32_t line,
+		       struct hpts_diag *diag, struct timeval *tv)
+{
+	uint32_t need_new_to = 0;
+	uint32_t wheel_cts, last_tick;
+	int32_t wheel_tick, maxticks;
+	int8_t need_wakeup = 0;
 
 	HPTS_MTX_ASSERT(hpts);
 	if (diag) {
 		memset(diag, 0, sizeof(struct hpts_diag));
 		diag->p_hpts_active = hpts->p_hpts_active;
+		diag->p_prev_slot = hpts->p_prev_slot;
+		diag->p_runningtick = hpts->p_runningtick;
 		diag->p_nxt_slot = hpts->p_nxt_slot;
 		diag->p_cur_slot = hpts->p_cur_slot;
+		diag->p_curtick = hpts->p_curtick;
+		diag->p_lasttick = hpts->p_lasttick;
 		diag->slot_req = slot;
+		diag->p_on_min_sleep = hpts->p_on_min_sleep;
+		diag->hpts_sleep_time = hpts->p_hpts_sleep_time;
 	}
-	if ((inp->inp_in_hpts == 0) || noref) {
-		inp->inp_hpts_request = slot;
+	if (inp->inp_in_hpts == 0) {
 		if (slot == 0) {
 			/* Immediate */
-			tcp_queue_to_hpts_immediate_locked(inp, hpts, line, noref);
+			tcp_queue_to_hpts_immediate_locked(inp, hpts, line, 0);
 			return;
 		}
-		if (hpts->p_hpts_active) {
-			/*
-			 * Its slot - 1 since nxt_slot is the next tick that
-			 * will go off since the hpts is awake
-			 */
-			if (logging_on) {
-				tcp_hpts_log_it(hpts, inp, HPTSLOG_INSERT_NORMAL, slot, 0);
-			}
-			/*
-			 * We want to make sure that we don't place a inp in
-			 * the range of p_cur_slot <-> p_nxt_slot. If we
-			 * take from p_nxt_slot to the end, plus p_cur_slot
-			 * and then take away 2, we will know how many is
-			 * the max slots we can use.
-			 */
-			if (hpts->p_nxt_slot > hpts->p_cur_slot) {
-				/*
-				 * Non-wrap case nxt_slot <-> cur_slot we
-				 * don't want to land in. So the diff gives
-				 * us what is taken away from the number of
-				 * slots.
+		/* Get the current time relative to the wheel */
+		wheel_cts = tcp_tv_to_hptstick(tv);
+		/* Map it onto the wheel */
+		wheel_tick = tick_to_wheel(wheel_cts);
+		/* Now what's the max we can place it at? */
+		maxticks = max_ticks_available(hpts, wheel_tick, &last_tick);
+		if (diag) {
+			diag->wheel_tick = wheel_tick;
+			diag->maxticks = maxticks;
+			diag->wheel_cts = wheel_cts;
+		}
+		if (maxticks == 0) {
+			/* The pacer is in a wheel wrap behind, yikes! */
+			if (slot > 1) {
+				/* 
+				 * Reduce by 1 to prevent a forever loop in
+				 * case something else is wrong. Note this
+				 * probably does not hurt because the pacer
+				 * if its true is so far behind we will be
+				 * > 1second late calling anyway.
 				 */
-				largest_slot = NUM_OF_HPTSI_SLOTS - (hpts->p_nxt_slot - hpts->p_cur_slot);
-			} else if (hpts->p_nxt_slot == hpts->p_cur_slot) {
-				largest_slot = NUM_OF_HPTSI_SLOTS - 2;
-			} else {
-				/*
-				 * Wrap case so the diff gives us the number
-				 * of slots that we can land in.
-				 */
-				largest_slot = hpts->p_cur_slot - hpts->p_nxt_slot;
+				slot--;
 			}
-			/*
-			 * We take away two so we never have a problem (20
-			 * usec's) out of 1024000 usecs
-			 */
-			largest_slot -= 2;
-			if (inp->inp_hpts_request > largest_slot) {
-				/*
-				 * Restrict max jump of slots and remember
-				 * leftover
-				 */
-				slot = largest_slot;
-				inp->inp_hpts_request -= largest_slot;
-			} else {
-				/* This one will run when we hit it */
-				inp->inp_hpts_request = 0;
-			}
-			if (hpts->p_nxt_slot == hpts->p_cur_slot)
-				slot_calc = (hpts->p_nxt_slot + slot) % NUM_OF_HPTSI_SLOTS;
-			else
-				slot_calc = (hpts->p_nxt_slot + slot - 1) % NUM_OF_HPTSI_SLOTS;
-			if (slot_calc == hpts->p_cur_slot) {
-#ifdef INVARIANTS
-				/* TSNH */
-				panic("Hpts:%p impossible slot calculation slot_calc:%u slot:%u largest:%u\n",
-				    hpts, slot_calc, slot, largest_slot);
-#endif
-				if (slot_calc)
-					slot_calc--;
-				else
-					slot_calc = NUM_OF_HPTSI_SLOTS - 1;
-			}
-			inp->inp_hptsslot = slot_calc;
-			if (diag) {
-				diag->inp_hptsslot = inp->inp_hptsslot;
-			}
+			inp->inp_hptsslot = last_tick;
+			inp->inp_hpts_request = slot;
+		} else 	if (maxticks >= slot) {
+			/* It all fits on the wheel */
+			inp->inp_hpts_request = 0;
+			inp->inp_hptsslot = hpts_tick(wheel_tick, slot);
 		} else {
+			/* It does not fit */
+			inp->inp_hpts_request = slot - maxticks;
+			inp->inp_hptsslot = last_tick;
+		}
+		if (diag) {
+			diag->slot_remaining = inp->inp_hpts_request;
+			diag->inp_hptsslot = inp->inp_hptsslot;
+		}
+#ifdef INVARIANTS
+		check_if_slot_would_be_wrong(hpts, inp, inp->inp_hptsslot, line);
+#endif
+		hpts_sane_pace_insert(hpts, inp, &hpts->p_hptss[inp->inp_hptsslot], line, 0);
+		if ((hpts->p_hpts_active == 0) &&
+		    (inp->inp_hpts_request == 0) &&
+		    (hpts->p_on_min_sleep == 0)) {
 			/*
-			 * The hpts is sleeping, we need to figure out where
+			 * The hpts is sleeping and not on a minimum
+			 * sleep time, we need to figure out where
 			 * it will wake up at and if we need to reschedule
 			 * its time-out.
 			 */
 			uint32_t have_slept, yet_to_sleep;
-			uint32_t slot_now;
-			struct timeval tv;
 
-			ticknow = tcp_gethptstick(&tv);
-			slot_now = ticknow % NUM_OF_HPTSI_SLOTS;
-			/*
-			 * The user wants to be inserted at (slot_now +
-			 * slot) % NUM_OF_HPTSI_SLOTS, so lets set that up.
-			 */
-			largest_slot = NUM_OF_HPTSI_SLOTS - 2;
-			if (inp->inp_hpts_request > largest_slot) {
-				/* Adjust the residual in inp_hpts_request */
-				slot = largest_slot;
-				inp->inp_hpts_request -= largest_slot;
-			} else {
-				/* No residual it all fits */
-				inp->inp_hpts_request = 0;
-			}
-			inp->inp_hptsslot = (slot_now + slot) % NUM_OF_HPTSI_SLOTS;
-			if (diag) {
-				diag->slot_now = slot_now;
-				diag->inp_hptsslot = inp->inp_hptsslot;
-				diag->p_on_min_sleep = hpts->p_on_min_sleep;
-			}
-			if (logging_on) {
-				tcp_hpts_log_it(hpts, inp, HPTSLOG_INSERT_SLEEPER, slot, ticknow);
-			}
 			/* Now do we need to restart the hpts's timer? */
-			if (TSTMP_GT(ticknow, hpts->p_curtick))
-				have_slept = ticknow - hpts->p_curtick;
-			else
-				have_slept = 0;
-			if (have_slept < hpts->p_hpts_sleep_time) {
-				/* This should be what happens */
+			have_slept = hpts_ticks_diff(hpts->p_prev_slot, wheel_tick);
+			if (have_slept < hpts->p_hpts_sleep_time)
 				yet_to_sleep = hpts->p_hpts_sleep_time - have_slept;
-			} else {
+			else {
 				/* We are over-due */
 				yet_to_sleep = 0;
 				need_wakeup = 1;
@@ -879,19 +980,15 @@ tcp_hpts_insert_locked(struct tcp_hpts_entry *hpts, struct inpcb *inp, uint32_t 
 			if (diag) {
 				diag->have_slept = have_slept;
 				diag->yet_to_sleep = yet_to_sleep;
-				diag->hpts_sleep_time = hpts->p_hpts_sleep_time;
 			}
-			if ((hpts->p_on_min_sleep == 0) && (yet_to_sleep > slot)) {
+			if (yet_to_sleep &&
+			    (yet_to_sleep > slot)) {
 				/*
-				 * We need to reschedule the hptss time-out.
+				 * We need to reschedule the hpts's time-out.
 				 */
 				hpts->p_hpts_sleep_time = slot;
 				need_new_to = slot * HPTS_TICKS_PER_USEC;
 			}
-		}
-		hpts_sane_pace_insert(hpts, inp, &hpts->p_hptss[inp->inp_hptsslot], line, noref);
-		if (logging_on) {
-			tcp_hpts_log_it(hpts, inp, HPTSLOG_INSERTED, slot, ticknow);
 		}
 		/*
 		 * Now how far is the hpts sleeping to? if active is 1, its
@@ -899,9 +996,6 @@ tcp_hpts_insert_locked(struct tcp_hpts_entry *hpts, struct inpcb *inp, uint32_t 
 		 * reschedule its callout if need_new_to is set from above.
 		 */
 		if (need_wakeup) {
-			if (logging_on) {
-				tcp_hpts_log_it(hpts, inp, HPTSLOG_RESCHEDULE, 1, 0);
-			}
 			hpts->p_direct_wake = 1;
 			tcp_wakehpts(hpts);
 			if (diag) {
@@ -944,9 +1038,10 @@ tcp_hpts_insert_locked(struct tcp_hpts_entry *hpts, struct inpcb *inp, uint32_t 
 }
 
 uint32_t
-tcp_hpts_insert_diag(struct inpcb *inp, uint32_t slot, int32_t line, struct hpts_diag *diag){
+tcp_hpts_insert_diag(struct inpcb *inp, uint32_t slot, int32_t line, struct hpts_diag *diag)
+{
 	struct tcp_hpts_entry *hpts;
-	uint32_t slot_on, cts;
+	uint32_t slot_on;
 	struct timeval tv;
 
 	/*
@@ -956,12 +1051,8 @@ tcp_hpts_insert_diag(struct inpcb *inp, uint32_t slot, int32_t line, struct hpts
 	 */
 	INP_WLOCK_ASSERT(inp);
 	hpts = tcp_hpts_lock(inp);
-	if (in_ts_percision)
-		microuptime(&tv);
-	else
-		getmicrouptime(&tv);
-	cts = tcp_tv_to_usectick(&tv);
-	tcp_hpts_insert_locked(hpts, inp, slot, cts, line, diag, 0);
+	microuptime(&tv);
+	tcp_hpts_insert_locked(hpts, inp, slot, line, diag, &tv);
 	slot_on = hpts->p_nxt_slot;
 	mtx_unlock(&hpts->p_mtx);
 	return (slot_on);
@@ -971,7 +1062,6 @@ uint32_t
 __tcp_hpts_insert(struct inpcb *inp, uint32_t slot, int32_t line){
 	return (tcp_hpts_insert_diag(inp, slot, line, NULL));
 }
-
 int
 __tcp_queue_to_input_locked(struct inpcb *inp, struct tcp_hpts_entry *hpts, int32_t line)
 {
@@ -986,9 +1076,6 @@ __tcp_queue_to_input_locked(struct inpcb *inp, struct tcp_hpts_entry *hpts, int3
 			/*
 			 * Activate the hpts if it is sleeping.
 			 */
-			if (logging_on) {
-				tcp_hpts_log_it(hpts, inp, HPTSLOG_WAKEUP_INPUT, 0, 0);
-			}
 			retval = 2;
 			hpts->p_direct_wake = 1;
 			tcp_wakeinput(hpts);
@@ -1001,36 +1088,14 @@ __tcp_queue_to_input_locked(struct inpcb *inp, struct tcp_hpts_entry *hpts, int3
 	return (retval);
 }
 
-void
-tcp_queue_pkt_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos)
-{
-	/* Setup packet for input first */
-	INP_WLOCK_ASSERT(tp->t_inpcb);
-	m->m_pkthdr.pace_thoff = (uint16_t) ((caddr_t)th - mtod(m, caddr_t));
-	m->m_pkthdr.pace_tlen = (uint16_t) tlen;
-	m->m_pkthdr.pace_drphdrlen = drop_hdrlen;
-	m->m_pkthdr.pace_tos = iptos;
-	m->m_pkthdr.pace_lock = (curthread->td_epochnest != 0);
-	if (tp->t_in_pkt == NULL) {
-		tp->t_in_pkt = m;
-		tp->t_tail_pkt = m;
-	} else {
-		tp->t_tail_pkt->m_nextpkt = m;
-		tp->t_tail_pkt = m;
-	}
-}
-
-
 int32_t
-__tcp_queue_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, int32_t line){
+__tcp_queue_to_input(struct inpcb *inp, int line)
+{
 	struct tcp_hpts_entry *hpts;
 	int32_t ret;
 
-	tcp_queue_pkt_to_input(tp, m, th, tlen, drop_hdrlen, iptos);
-	hpts = tcp_input_lock(tp->t_inpcb);
-	ret = __tcp_queue_to_input_locked(tp->t_inpcb, hpts, line);
+	hpts = tcp_input_lock(inp);
+	ret = __tcp_queue_to_input_locked(inp, hpts, line);
 	mtx_unlock(&hpts->p_mtx);
 	return (ret);
 }
@@ -1132,6 +1197,25 @@ hpts_cpuid(struct inpcb *inp){
 #endif
 }
 
+static void
+tcp_drop_in_pkts(struct tcpcb *tp)
+{
+	struct mbuf *m, *n;
+	
+	m = tp->t_in_pkt;
+	if (m)
+		n = m->m_nextpkt;
+	else
+		n = NULL;
+	tp->t_in_pkt = NULL;
+	while (m) {
+		m_freem(m);
+		m = n;
+		if (m)
+			n = m->m_nextpkt;
+	}
+}
+
 /*
  * Do NOT try to optimize the processing of inp's
  * by first pulling off all the inp's into a temporary
@@ -1142,7 +1226,7 @@ hpts_cpuid(struct inpcb *inp){
  * but then while you were processing one of the inp's
  * some other one that you switch will get a new
  * packet on the different CPU. It will insert it
- * on the new hptss input list. Creating a temporary
+ * on the new hpts's input list. Creating a temporary
  * link in the inp will not fix it either, since
  * the other hpts will be doing the same thing and
  * you will both end up using the temporary link.
@@ -1155,16 +1239,18 @@ hpts_cpuid(struct inpcb *inp){
 static void
 tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 {
-	struct mbuf *m, *n;
 	struct tcpcb *tp;
 	struct inpcb *inp;
 	uint16_t drop_reason;
 	int16_t set_cpu;
 	uint32_t did_prefetch = 0;
-	int32_t ti_locked = TI_UNLOCKED;
+	int dropped;
 	struct epoch_tracker et;
 
 	HPTS_MTX_ASSERT(hpts);
+#ifndef VIMAGE
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+#endif
 	while ((inp = TAILQ_FIRST(&hpts->p_input)) != NULL) {
 		HPTS_MTX_ASSERT(hpts);
 		hpts_sane_input_remove(hpts, inp, 0);
@@ -1177,26 +1263,22 @@ tcp_input_data(struct tcp_hpts_entry *hpts, struct timeval *tv)
 		drop_reason = inp->inp_hpts_drop_reas;
 		inp->inp_in_input = 0;
 		mtx_unlock(&hpts->p_mtx);
-		CURVNET_SET(inp->inp_vnet);
-		if (drop_reason) {
-			INP_INFO_RLOCK_ET(&V_tcbinfo, et);
-			ti_locked = TI_RLOCKED;
-		} else {
-			ti_locked = TI_UNLOCKED;
-		}
 		INP_WLOCK(inp);
+#ifdef VIMAGE
+		CURVNET_SET(inp->inp_vnet);
+		INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+#endif
 		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
 		    (inp->inp_flags2 & INP_FREED)) {
 out:
 			hpts->p_inp = NULL;
-			if (ti_locked == TI_RLOCKED) {
-				INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
-			}
 			if (in_pcbrele_wlocked(inp) == 0) {
 				INP_WUNLOCK(inp);
 			}
-			ti_locked = TI_UNLOCKED;
+#ifdef VIMAGE
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			CURVNET_RESTORE();
+#endif
 			mtx_lock(&hpts->p_mtx);
 			continue;
 		}
@@ -1206,26 +1288,17 @@ out:
 		}
 		if (drop_reason) {
 			/* This tcb is being destroyed for drop_reason */
-			m = tp->t_in_pkt;
-			if (m)
-				n = m->m_nextpkt;
-			else
-				n = NULL;
-			tp->t_in_pkt = NULL;
-			while (m) {
-				m_freem(m);
-				m = n;
-				if (m)
-					n = m->m_nextpkt;
-			}
+			tcp_drop_in_pkts(tp);
 			tp = tcp_drop(tp, drop_reason);
-			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			if (tp == NULL) {
 				INP_WLOCK(inp);
 			}
 			if (in_pcbrele_wlocked(inp) == 0)
 				INP_WUNLOCK(inp);
+#ifdef VIMAGE
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			CURVNET_RESTORE();
+#endif
 			mtx_lock(&hpts->p_mtx);
 			continue;
 		}
@@ -1246,220 +1319,184 @@ out:
 			 */
 			tcp_set_hpts(inp);
 		}
-		m = tp->t_in_pkt;
-		n = NULL;
-		if (m != NULL &&
-		    (m->m_pkthdr.pace_lock == TI_RLOCKED ||
-		    tp->t_state != TCPS_ESTABLISHED)) {
-			ti_locked = TI_RLOCKED;
-			INP_INFO_RLOCK_ET(&V_tcbinfo, et);
-			m = tp->t_in_pkt;
-		}
-		if (in_newts_every_tcb) {
-			if (in_ts_percision)
-				microuptime(tv);
-			else
-				getmicrouptime(tv);
-		}
 		if (tp->t_fb_ptr != NULL) {
 			kern_prefetch(tp->t_fb_ptr, &did_prefetch);
 			did_prefetch = 1;
 		}
-		/* Any input work to do, if so do it first */
-		if ((m != NULL) && (m == tp->t_in_pkt)) {
-			struct tcphdr *th;
-			int32_t tlen, drop_hdrlen, nxt_pkt;
-			uint8_t iptos;
-
-			n = m->m_nextpkt;
-			tp->t_in_pkt = tp->t_tail_pkt = NULL;
-			while (m) {
-				th = (struct tcphdr *)(mtod(m, caddr_t)+m->m_pkthdr.pace_thoff);
-				tlen = m->m_pkthdr.pace_tlen;
-				drop_hdrlen = m->m_pkthdr.pace_drphdrlen;
-				iptos = m->m_pkthdr.pace_tos;
-				m->m_nextpkt = NULL;
-				if (n)
-					nxt_pkt = 1;
-				else
-					nxt_pkt = 0;
-				inp->inp_input_calls = 1;
-				if (tp->t_fb->tfb_tcp_hpts_do_segment) {
-					/* Use the hpts specific do_segment */
-					(*tp->t_fb->tfb_tcp_hpts_do_segment) (m, th, inp->inp_socket,
-					    tp, drop_hdrlen,
-					    tlen, iptos, nxt_pkt, tv);
-				} else {
-					/* Use the default do_segment */
-					(*tp->t_fb->tfb_tcp_do_segment) (m, th, inp->inp_socket,
-					    tp, drop_hdrlen,
-						tlen, iptos);
-				}
-				if (ti_locked == TI_RLOCKED)
-					INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
-				/*
-				 * Do segment returns unlocked we need the
-				 * lock again but we also need some kasserts
-				 * here.
-				 */
-				INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
-				INP_UNLOCK_ASSERT(inp);
-				m = n;
-				if (m)
-					n = m->m_nextpkt;
-				if (m != NULL &&
-				    m->m_pkthdr.pace_lock == TI_RLOCKED) {
-					INP_INFO_RLOCK_ET(&V_tcbinfo, et);
-					ti_locked = TI_RLOCKED;
-				} else
-					ti_locked = TI_UNLOCKED;
+		if ((inp->inp_flags2 & INP_SUPPORTS_MBUFQ) && tp->t_in_pkt) {
+			if (inp->inp_in_input)
+				tcp_hpts_remove(inp, HPTS_REMOVE_INPUT);
+			dropped = (*tp->t_fb->tfb_do_queued_segments)(inp->inp_socket, tp, 0);
+			if (dropped) {
+				/* Re-acquire the wlock so we can release the reference */
 				INP_WLOCK(inp);
-				/*
-				 * Since we have an opening here we must
-				 * re-check if the tcb went away while we
-				 * were getting the lock(s).
-				 */
-				if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
-				    (inp->inp_flags2 & INP_FREED)) {
-					while (m) {
-						m_freem(m);
-						m = n;
-						if (m)
-							n = m->m_nextpkt;
-					}
-					goto out;
-				}
-				/*
-				 * Now that we hold the INP lock, check if
-				 * we need to upgrade our lock.
-				 */
-				if (ti_locked == TI_UNLOCKED &&
-				    (tp->t_state != TCPS_ESTABLISHED)) {
-					ti_locked = TI_RLOCKED;
-					INP_INFO_RLOCK_ET(&V_tcbinfo, et);
-				}
-			}	/** end while(m) */
-		}		/** end if ((m != NULL)  && (m == tp->t_in_pkt)) */
+			}
+		} else if (tp->t_in_pkt) {
+			/* 
+			 * We reach here only if we had a 
+			 * stack that supported INP_SUPPORTS_MBUFQ
+			 * and then somehow switched to a stack that
+			 * does not. The packets are basically stranded
+			 * and would hang with the connection until
+			 * cleanup without this code. Its not the
+			 * best way but I know of no other way to
+			 * handle it since the stack needs functions
+			 * it does not have to handle queued packets.
+			 */
+			tcp_drop_in_pkts(tp);
+		}
 		if (in_pcbrele_wlocked(inp) == 0)
 			INP_WUNLOCK(inp);
-		if (ti_locked == TI_RLOCKED)
-			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
-		INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 		INP_UNLOCK_ASSERT(inp);
-		ti_locked = TI_UNLOCKED;
+#ifdef VIMAGE
+		INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+		CURVNET_RESTORE();
+#endif
 		mtx_lock(&hpts->p_mtx);
 		hpts->p_inp = NULL;
-		CURVNET_RESTORE();
 	}
-}
-
-static int
-tcp_hpts_est_run(struct tcp_hpts_entry *hpts)
-{
-	int32_t ticks_to_run;
-
-	if (hpts->p_prevtick && (SEQ_GT(hpts->p_curtick, hpts->p_prevtick))) {
-		ticks_to_run = hpts->p_curtick - hpts->p_prevtick;
-		if (ticks_to_run >= (NUM_OF_HPTSI_SLOTS - 1)) {
-			ticks_to_run = NUM_OF_HPTSI_SLOTS - 2;
-		}
-	} else {
-		if (hpts->p_prevtick == hpts->p_curtick) {
-			/* This happens when we get woken up right away */
-			return (-1);
-		}
-		ticks_to_run = 1;
-	}
-	/* Set in where we will be when we catch up */
-	hpts->p_nxt_slot = (hpts->p_cur_slot + ticks_to_run) % NUM_OF_HPTSI_SLOTS;
-	if (hpts->p_nxt_slot == hpts->p_cur_slot) {
-		panic("Impossible math -- hpts:%p p_nxt_slot:%d p_cur_slot:%d ticks_to_run:%d",
-		    hpts, hpts->p_nxt_slot, hpts->p_cur_slot, ticks_to_run);
-	}
-	return (ticks_to_run);
+#ifndef VIMAGE
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+#endif
 }
 
 static void
-tcp_hptsi(struct tcp_hpts_entry *hpts, struct timeval *ctick)
+tcp_hptsi(struct tcp_hpts_entry *hpts)
 {
+	struct epoch_tracker et;
 	struct tcpcb *tp;
 	struct inpcb *inp = NULL, *ninp;
 	struct timeval tv;
-	int32_t ticks_to_run, i, error, tick_now, interum_tick;
+	int32_t ticks_to_run, i, error;
 	int32_t paced_cnt = 0;
+	int32_t loop_cnt = 0;
 	int32_t did_prefetch = 0;
 	int32_t prefetch_ninp = 0;
 	int32_t prefetch_tp = 0;
-	uint32_t cts;
+	int32_t wrap_loop_cnt = 0;
 	int16_t set_cpu;
 
 	HPTS_MTX_ASSERT(hpts);
-	hpts->p_curtick = tcp_tv_to_hptstick(ctick);
-	cts = tcp_tv_to_usectick(ctick);
-	memcpy(&tv, ctick, sizeof(struct timeval));
-	hpts->p_cur_slot = hpts_tick(hpts, 1);
+	/* record previous info for any logging */
+	hpts->saved_lasttick = hpts->p_lasttick;
+	hpts->saved_curtick = hpts->p_curtick;
+	hpts->saved_curslot = hpts->p_cur_slot;
+	hpts->saved_prev_slot = hpts->p_prev_slot;
 
-	/* Figure out if we had missed ticks */
+	hpts->p_lasttick = hpts->p_curtick;
+	hpts->p_curtick = tcp_gethptstick(&tv);
+	hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
+	if ((hpts->p_on_queue_cnt == 0) ||
+	    (hpts->p_lasttick == hpts->p_curtick)) {
+		/* 
+		 * No time has yet passed, 
+		 * or nothing to do.
+		 */
+		hpts->p_prev_slot = hpts->p_cur_slot;
+		hpts->p_lasttick = hpts->p_curtick;
+		goto no_run;
+	}
 again:
+	hpts->p_wheel_complete = 0;
 	HPTS_MTX_ASSERT(hpts);
-	ticks_to_run = tcp_hpts_est_run(hpts);
-	if (!TAILQ_EMPTY(&hpts->p_input)) {
-		tcp_input_data(hpts, &tv);
+	ticks_to_run = hpts_ticks_diff(hpts->p_prev_slot, hpts->p_cur_slot);
+	if (((hpts->p_curtick - hpts->p_lasttick) > ticks_to_run) &&
+	    (hpts->p_on_queue_cnt != 0)) {
+		/* 
+		 * Wheel wrap is occuring, basically we
+		 * are behind and the distance between
+		 * run's has spread so much it has exceeded
+		 * the time on the wheel (1.024 seconds). This
+		 * is ugly and should NOT be happening. We
+		 * need to run the entire wheel. We last processed
+		 * p_prev_slot, so that needs to be the last slot
+		 * we run. The next slot after that should be our
+		 * reserved first slot for new, and then starts
+		 * the running postion. Now the problem is the
+		 * reserved "not to yet" place does not exist
+		 * and there may be inp's in there that need
+		 * running. We can merge those into the
+		 * first slot at the head.
+		 */
+		wrap_loop_cnt++;
+		hpts->p_nxt_slot = hpts_tick(hpts->p_prev_slot, 1);
+		hpts->p_runningtick = hpts_tick(hpts->p_prev_slot, 2);
+		/* 
+		 * Adjust p_cur_slot to be where we are starting from
+		 * hopefully we will catch up (fat chance if something
+		 * is broken this bad :( )
+		 */
+		hpts->p_cur_slot = hpts->p_prev_slot;
+		/*
+		 * The next slot has guys to run too, and that would
+		 * be where we would normally start, lets move them into
+		 * the next slot (p_prev_slot + 2) so that we will
+		 * run them, the extra 10usecs of late (by being
+		 * put behind) does not really matter in this situation.
+		 */
+#ifdef INVARIANTS
+		/* 
+		 * To prevent a panic we need to update the inpslot to the
+		 * new location. This is safe since it takes both the
+		 * INP lock and the pacer mutex to change the inp_hptsslot.
+		 */
+		TAILQ_FOREACH(inp, &hpts->p_hptss[hpts->p_nxt_slot], inp_hpts) {
+			inp->inp_hptsslot = hpts->p_runningtick;
+		}
+#endif
+		TAILQ_CONCAT(&hpts->p_hptss[hpts->p_runningtick],
+			     &hpts->p_hptss[hpts->p_nxt_slot], inp_hpts);
+		ticks_to_run = NUM_OF_HPTSI_SLOTS - 1;
+		counter_u64_add(wheel_wrap, 1);
+	} else {
+		/* 
+		 * Nxt slot is always one after p_runningtick though
+		 * its not used usually unless we are doing wheel wrap.
+		 */
+		hpts->p_nxt_slot = hpts->p_prev_slot;
+		hpts->p_runningtick = hpts_tick(hpts->p_prev_slot, 1);
 	}
 #ifdef INVARIANTS
 	if (TAILQ_EMPTY(&hpts->p_input) &&
 	    (hpts->p_on_inqueue_cnt != 0)) {
 		panic("tp:%p in_hpts input empty but cnt:%d",
-		    hpts, hpts->p_on_inqueue_cnt);
+		      hpts, hpts->p_on_inqueue_cnt);
 	}
 #endif
 	HPTS_MTX_ASSERT(hpts);
-	/* Reset the ticks to run and time if we need too */
-	interum_tick = tcp_gethptstick(&tv);
-	if (interum_tick != hpts->p_curtick) {
-		/* Save off the new time we execute to */
-		*ctick = tv;
-		hpts->p_curtick = interum_tick;
-		cts = tcp_tv_to_usectick(&tv);
-		hpts->p_cur_slot = hpts_tick(hpts, 1);
-		ticks_to_run = tcp_hpts_est_run(hpts);
-	}
-	if (ticks_to_run == -1) {
-		goto no_run;
-	}
-	if (logging_on) {
-		tcp_hpts_log_it(hpts, inp, HPTSLOG_SETTORUN, ticks_to_run, 0);
-	}
 	if (hpts->p_on_queue_cnt == 0) {
 		goto no_one;
 	}
 	HPTS_MTX_ASSERT(hpts);
+#ifndef VIMAGE
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+#endif
 	for (i = 0; i < ticks_to_run; i++) {
 		/*
 		 * Calculate our delay, if there are no extra ticks there
-		 * was not any
+		 * was not any (i.e. if ticks_to_run == 1, no delay).
 		 */
 		hpts->p_delayed_by = (ticks_to_run - (i + 1)) * HPTS_TICKS_PER_USEC;
 		HPTS_MTX_ASSERT(hpts);
-		while ((inp = TAILQ_FIRST(&hpts->p_hptss[hpts->p_cur_slot])) != NULL) {
+		while ((inp = TAILQ_FIRST(&hpts->p_hptss[hpts->p_runningtick])) != NULL) {
 			/* For debugging */
-			if (logging_on) {
-				tcp_hpts_log_it(hpts, inp, HPTSLOG_HPTSI, ticks_to_run, i);
-			}
 			hpts->p_inp = inp;
 			paced_cnt++;
-			if (hpts->p_cur_slot != inp->inp_hptsslot) {
+#ifdef INVARIANTS
+			if (hpts->p_runningtick != inp->inp_hptsslot) {
 				panic("Hpts:%p inp:%p slot mis-aligned %u vs %u",
-				    hpts, inp, hpts->p_cur_slot, inp->inp_hptsslot);
+				      hpts, inp, hpts->p_runningtick, inp->inp_hptsslot);
 			}
+#endif
 			/* Now pull it */
 			if (inp->inp_hpts_cpu_set == 0) {
 				set_cpu = 1;
 			} else {
 				set_cpu = 0;
 			}
-			hpts_sane_pace_remove(hpts, inp, &hpts->p_hptss[hpts->p_cur_slot], 0);
-			if ((ninp = TAILQ_FIRST(&hpts->p_hptss[hpts->p_cur_slot])) != NULL) {
+			hpts_sane_pace_remove(hpts, inp, &hpts->p_hptss[hpts->p_runningtick], 0);
+			if ((ninp = TAILQ_FIRST(&hpts->p_hptss[hpts->p_runningtick])) != NULL) {
 				/* We prefetch the next inp if possible */
 				kern_prefetch(ninp, &prefetch_ninp);
 				prefetch_ninp = 1;
@@ -1467,25 +1504,36 @@ again:
 			if (inp->inp_hpts_request) {
 				/*
 				 * This guy is deferred out further in time
-				 * then our wheel had on it. Push him back
-				 * on the wheel.
+				 * then our wheel had available on it. 
+				 * Push him back on the wheel or run it
+				 * depending.
 				 */
-				int32_t remaining_slots;
-
+				uint32_t maxticks, last_tick, remaining_slots;
+				
 				remaining_slots = ticks_to_run - (i + 1);
 				if (inp->inp_hpts_request > remaining_slots) {
 					/*
-					 * Keep INVARIANTS happy by clearing
-					 * the flag
+					 * How far out can we go?
 					 */
-					tcp_hpts_insert_locked(hpts, inp, inp->inp_hpts_request, cts, __LINE__, NULL, 1);
+					maxticks = max_ticks_available(hpts, hpts->p_cur_slot, &last_tick);
+					if (maxticks >= inp->inp_hpts_request) {
+						/* we can place it finally to be processed  */
+						inp->inp_hptsslot = hpts_tick(hpts->p_runningtick, inp->inp_hpts_request);
+						inp->inp_hpts_request = 0;
+					} else {
+						/* Work off some more time */
+						inp->inp_hptsslot = last_tick;
+						inp->inp_hpts_request-= maxticks;
+					}
+					hpts_sane_pace_insert(hpts, inp, &hpts->p_hptss[inp->inp_hptsslot], __LINE__, 1);
 					hpts->p_inp = NULL;
 					continue;
 				}
 				inp->inp_hpts_request = 0;
+				/* Fall through we will so do it now */
 			}
 			/*
-			 * We clear the hpts flag here after dealing with
+			 * We clear the hpts flag here after dealing with	
 			 * remaining slots. This way anyone looking with the
 			 * TCB lock will see its on the hpts until just
 			 * before we unlock.
@@ -1495,23 +1543,20 @@ again:
 			INP_WLOCK(inp);
 			if (in_pcbrele_wlocked(inp)) {
 				mtx_lock(&hpts->p_mtx);
-				if (logging_on)
-					tcp_hpts_log_it(hpts, hpts->p_inp, HPTSLOG_INP_DONE, 0, 1);
 				hpts->p_inp = NULL;
 				continue;
 			}
-			if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-out_now:
+			if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
+			    (inp->inp_flags2 & INP_FREED)) {
+			out_now:
 #ifdef INVARIANTS
 				if (mtx_owned(&hpts->p_mtx)) {
 					panic("Hpts:%p owns mtx prior-to lock line:%d",
-					    hpts, __LINE__);
+					      hpts, __LINE__);
 				}
 #endif
 				INP_WUNLOCK(inp);
 				mtx_lock(&hpts->p_mtx);
-				if (logging_on)
-					tcp_hpts_log_it(hpts, hpts->p_inp, HPTSLOG_INP_DONE, 0, 3);
 				hpts->p_inp = NULL;
 				continue;
 			}
@@ -1539,16 +1584,14 @@ out_now:
 				 */
 				tcp_set_hpts(inp);
 			}
-			if (out_newts_every_tcb) {
-				struct timeval sv;
-
-				if (out_ts_percision)
-					microuptime(&sv);
-				else
-					getmicrouptime(&sv);
-				cts = tcp_tv_to_usectick(&sv);
-			}
+#ifdef VIMAGE
 			CURVNET_SET(inp->inp_vnet);
+			INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+#endif
+			/* Lets do any logging that we might want to */
+			if (hpts_does_tp_logging && (tp->t_logstate != TCP_LOG_STATE_OFF)) {
+				tcp_hpts_log(hpts, tp, &tv, ticks_to_run, i);
+			}
 			/*
 			 * There is a hole here, we get the refcnt on the
 			 * inp so it will still be preserved but to make
@@ -1560,19 +1603,23 @@ out_now:
 #ifdef INVARIANTS
 			if (mtx_owned(&hpts->p_mtx)) {
 				panic("Hpts:%p owns mtx before tcp-output:%d",
-				    hpts, __LINE__);
+				      hpts, __LINE__);
 			}
 #endif
 			if (tp->t_fb_ptr != NULL) {
 				kern_prefetch(tp->t_fb_ptr, &did_prefetch);
 				did_prefetch = 1;
 			}
-			inp->inp_hpts_calls = 1;
-			if (tp->t_fb->tfb_tcp_output_wtime != NULL) {
-				error = (*tp->t_fb->tfb_tcp_output_wtime) (tp, &tv);
-			} else {
-				error = tp->t_fb->tfb_tcp_output(tp);
+			if ((inp->inp_flags2 & INP_SUPPORTS_MBUFQ) && tp->t_in_pkt) {
+				error = (*tp->t_fb->tfb_do_queued_segments)(inp->inp_socket, tp, 0);
+				if (error) {
+					/* The input killed the connection */
+					goto skip_pacing;
+				}
 			}
+			inp->inp_hpts_calls = 1;
+			error = tp->t_fb->tfb_tcp_output(tp);
+			inp->inp_hpts_calls = 0;
 			if (ninp && ninp->inp_ppcb) {
 				/*
 				 * If we have a nxt inp, see if we can
@@ -1609,74 +1656,112 @@ out_now:
 				prefetch_tp = 1;
 			}
 			INP_WUNLOCK(inp);
-			INP_UNLOCK_ASSERT(inp);
+		skip_pacing:
+#ifdef VIMAGE
+			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			CURVNET_RESTORE();
+#endif
+			INP_UNLOCK_ASSERT(inp);
 #ifdef INVARIANTS
 			if (mtx_owned(&hpts->p_mtx)) {
 				panic("Hpts:%p owns mtx prior-to lock line:%d",
-				    hpts, __LINE__);
+				      hpts, __LINE__);
 			}
 #endif
 			mtx_lock(&hpts->p_mtx);
-			if (logging_on)
-				tcp_hpts_log_it(hpts, hpts->p_inp, HPTSLOG_INP_DONE, 0, 4);
 			hpts->p_inp = NULL;
 		}
 		HPTS_MTX_ASSERT(hpts);
 		hpts->p_inp = NULL;
-		hpts->p_cur_slot++;
-		if (hpts->p_cur_slot >= NUM_OF_HPTSI_SLOTS) {
-			hpts->p_cur_slot = 0;
+		hpts->p_runningtick++;
+		if (hpts->p_runningtick >= NUM_OF_HPTSI_SLOTS) {
+			hpts->p_runningtick = 0;
 		}
 	}
+#ifndef VIMAGE
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+#endif
 no_one:
 	HPTS_MTX_ASSERT(hpts);
-	hpts->p_prevtick = hpts->p_curtick;
 	hpts->p_delayed_by = 0;
 	/*
 	 * Check to see if we took an excess amount of time and need to run
 	 * more ticks (if we did not hit eno-bufs).
 	 */
-	/* Re-run any input that may be there */
-	(void)tcp_gethptstick(&tv);
-	if (!TAILQ_EMPTY(&hpts->p_input)) {
-		tcp_input_data(hpts, &tv);
-	}
 #ifdef INVARIANTS
 	if (TAILQ_EMPTY(&hpts->p_input) &&
 	    (hpts->p_on_inqueue_cnt != 0)) {
 		panic("tp:%p in_hpts input empty but cnt:%d",
-		    hpts, hpts->p_on_inqueue_cnt);
+		      hpts, hpts->p_on_inqueue_cnt);
 	}
 #endif
-	tick_now = tcp_gethptstick(&tv);
-	if (SEQ_GT(tick_now, hpts->p_prevtick)) {
-		struct timeval res;
-
-		/* Did we really spend a full tick or more in here? */
-		timersub(&tv, ctick, &res);
-		if (res.tv_sec || (res.tv_usec >= HPTS_TICKS_PER_USEC)) {
+	hpts->p_prev_slot = hpts->p_cur_slot;
+	hpts->p_lasttick = hpts->p_curtick;
+	if (loop_cnt > max_pacer_loops) {	    
+		/*
+		 * Something is serious slow we have
+		 * looped through processing the wheel
+		 * and by the time we cleared the
+		 * needs to run max_pacer_loops time
+		 * we still needed to run. That means
+		 * the system is hopelessly behind and
+		 * can never catch up :(
+		 *
+		 * We will just lie to this thread
+		 * and let it thing p_curtick is 
+		 * correct. When it next awakens
+		 * it will find itself further behind.
+		 */
+		counter_u64_add(hpts_hopelessly_behind, 1);
+		goto no_run;
+	}
+	hpts->p_curtick = tcp_gethptstick(&tv);
+	hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
+	if ((wrap_loop_cnt < 2) &&
+	    (hpts->p_lasttick != hpts->p_curtick)) {
+		counter_u64_add(hpts_loops, 1);
+		loop_cnt++;
+		goto again;
+	}
+no_run:
+	/*
+	 * Set flag to tell that we are done for
+	 * any slot input that happens during
+	 * input.
+	 */
+	hpts->p_wheel_complete = 1;
+	/* 
+	 * Run any input that may be there not covered
+	 * in running data.
+	 */
+	if (!TAILQ_EMPTY(&hpts->p_input)) {
+		tcp_input_data(hpts, &tv);
+		/*
+		 * Now did we spend too long running
+		 * input and need to run more ticks?
+		 */
+		KASSERT(hpts->p_prev_slot == hpts->p_cur_slot,
+			("H:%p p_prev_slot:%u not equal to p_cur_slot:%u", hpts,
+			 hpts->p_prev_slot, hpts->p_cur_slot));
+		KASSERT(hpts->p_lasttick == hpts->p_curtick,
+			("H:%p p_lasttick:%u not equal to p_curtick:%u", hpts,
+			 hpts->p_lasttick, hpts->p_curtick));
+		hpts->p_curtick = tcp_gethptstick(&tv);
+		if (hpts->p_lasttick != hpts->p_curtick) {
 			counter_u64_add(hpts_loops, 1);
-			if (logging_on) {
-				tcp_hpts_log_it(hpts, inp, HPTSLOG_TOLONG, (uint32_t) res.tv_usec, tick_now);
-			}
-			*ctick = res;
-			hpts->p_curtick = tick_now;
+			hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
 			goto again;
 		}
 	}
-no_run:
 	{
 		uint32_t t = 0, i, fnd = 0;
 
-		if (hpts->p_on_queue_cnt) {
-
-
+		if ((hpts->p_on_queue_cnt) && (wrap_loop_cnt < 2)) {
 			/*
 			 * Find next slot that is occupied and use that to
 			 * be the sleep time.
 			 */
-			for (i = 1, t = hpts->p_nxt_slot; i < NUM_OF_HPTSI_SLOTS; i++) {
+			for (i = 0, t = hpts_tick(hpts->p_cur_slot, 1); i < NUM_OF_HPTSI_SLOTS; i++) {
 				if (TAILQ_EMPTY(&hpts->p_hptss[t]) == 0) {
 					fnd = 1;
 					break;
@@ -1684,26 +1769,22 @@ no_run:
 				t = (t + 1) % NUM_OF_HPTSI_SLOTS;
 			}
 			if (fnd) {
-				hpts->p_hpts_sleep_time = i;
+				hpts->p_hpts_sleep_time = min((i + 1), hpts_sleep_max);
 			} else {
-				counter_u64_add(back_tosleep, 1);
 #ifdef INVARIANTS
-				panic("Hpts:%p cnt:%d but non found", hpts, hpts->p_on_queue_cnt);
+				panic("Hpts:%p cnt:%d but none found", hpts, hpts->p_on_queue_cnt);
 #endif
+				counter_u64_add(back_tosleep, 1);
 				hpts->p_on_queue_cnt = 0;
 				goto non_found;
 			}
-			t++;
+		} else if (wrap_loop_cnt >= 2) {
+			/* Special case handling */
+			hpts->p_hpts_sleep_time = tcp_min_hptsi_time;
 		} else {
-			/* No one on the wheel sleep for all but 2 slots  */
-non_found:
-			if (hpts_sleep_max == 0)
-				hpts_sleep_max = 1;
-			hpts->p_hpts_sleep_time = min((NUM_OF_HPTSI_SLOTS - 2), hpts_sleep_max);
-			t = 0;
-		}
-		if (logging_on) {
-			tcp_hpts_log_it(hpts, inp, HPTSLOG_SLEEPSET, t, (hpts->p_hpts_sleep_time * HPTS_TICKS_PER_USEC));
+			/* No one on the wheel sleep for all but 400 slots or sleep max  */
+		non_found:
+			hpts->p_hpts_sleep_time = hpts_sleep_max;
 		}
 	}
 }
@@ -1746,33 +1827,29 @@ tcp_hpts_thread(void *ctx)
 	mtx_lock(&hpts->p_mtx);
 	if (hpts->p_direct_wake) {
 		/* Signaled by input */
-		if (logging_on)
-			tcp_hpts_log_it(hpts, NULL, HPTSLOG_AWAKE, 1, 1);
 		callout_stop(&hpts->co);
 	} else {
 		/* Timed out */
 		if (callout_pending(&hpts->co) ||
 		    !callout_active(&hpts->co)) {
-			if (logging_on)
-				tcp_hpts_log_it(hpts, NULL, HPTSLOG_AWAKE, 2, 2);
 			mtx_unlock(&hpts->p_mtx);
 			return;
 		}
 		callout_deactivate(&hpts->co);
-		if (logging_on)
-			tcp_hpts_log_it(hpts, NULL, HPTSLOG_AWAKE, 3, 3);
 	}
+	hpts->p_hpts_wake_scheduled = 0;
 	hpts->p_hpts_active = 1;
-	(void)tcp_gethptstick(&tv);
-	tcp_hptsi(hpts, &tv);
+	tcp_hptsi(hpts);
 	HPTS_MTX_ASSERT(hpts);
 	tv.tv_sec = 0;
 	tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_TICKS_PER_USEC;
 	if (tcp_min_hptsi_time && (tv.tv_usec < tcp_min_hptsi_time)) {
+		hpts->overidden_sleep = tv.tv_usec;
 		tv.tv_usec = tcp_min_hptsi_time;
 		hpts->p_on_min_sleep = 1;
 	} else {
 		/* Clear the min sleep flag */
+		hpts->overidden_sleep = 0;
 		hpts->p_on_min_sleep = 0;
 	}
 	hpts->p_hpts_active = 0;
@@ -1809,9 +1886,11 @@ tcp_init_hptsi(void *st)
 
 	tcp_pace.rp_proc = NULL;
 	tcp_pace.rp_num_hptss = ncpus;
+	hpts_hopelessly_behind = counter_u64_alloc(M_WAITOK);
 	hpts_loops = counter_u64_alloc(M_WAITOK);
 	back_tosleep = counter_u64_alloc(M_WAITOK);
-
+	combined_wheel_wrap = counter_u64_alloc(M_WAITOK);
+	wheel_wrap = counter_u64_alloc(M_WAITOK);
 	sz = (tcp_pace.rp_num_hptss * sizeof(struct tcp_hpts_entry *));
 	tcp_pace.rp_ent = malloc(sz, M_TCPHPTS, M_WAITOK | M_ZERO);
 	asz = sizeof(struct hptsh) * NUM_OF_HPTSI_SLOTS;
@@ -1850,7 +1929,7 @@ tcp_init_hptsi(void *st)
 		    OID_AUTO, "out_qcnt", CTLFLAG_RD,
 		    &hpts->p_on_queue_cnt, 0,
 		    "Count TCB's awaiting output processing");
-		SYSCTL_ADD_UINT(&hpts->hpts_ctx,
+		SYSCTL_ADD_U16(&hpts->hpts_ctx,
 		    SYSCTL_CHILDREN(hpts->hpts_root),
 		    OID_AUTO, "active", CTLFLAG_RD,
 		    &hpts->p_hpts_active, 0,
@@ -1859,29 +1938,23 @@ tcp_init_hptsi(void *st)
 		    SYSCTL_CHILDREN(hpts->hpts_root),
 		    OID_AUTO, "curslot", CTLFLAG_RD,
 		    &hpts->p_cur_slot, 0,
-		    "What the current slot is if active");
+		    "What the current running pacers goal");
+		SYSCTL_ADD_UINT(&hpts->hpts_ctx,
+		    SYSCTL_CHILDREN(hpts->hpts_root),
+		    OID_AUTO, "runtick", CTLFLAG_RD,
+		    &hpts->p_runningtick, 0,
+		    "What the running pacers current slot is");
 		SYSCTL_ADD_UINT(&hpts->hpts_ctx,
 		    SYSCTL_CHILDREN(hpts->hpts_root),
 		    OID_AUTO, "curtick", CTLFLAG_RD,
 		    &hpts->p_curtick, 0,
-		    "What the current tick on if active");
-		SYSCTL_ADD_UINT(&hpts->hpts_ctx,
-		    SYSCTL_CHILDREN(hpts->hpts_root),
-		    OID_AUTO, "logsize", CTLFLAG_RD,
-		    &hpts->p_logsize, 0,
-		    "Hpts logging buffer size");
-		hpts->p_hpts_sleep_time = NUM_OF_HPTSI_SLOTS - 2;
+		    "What the running pacers last tick mapped to the wheel was");
+		hpts->p_hpts_sleep_time = hpts_sleep_max;
 		hpts->p_num = i;
-		hpts->p_prevtick = hpts->p_curtick = tcp_gethptstick(&tv);
-		hpts->p_prevtick -= 1;
-		hpts->p_prevtick %= NUM_OF_HPTSI_SLOTS;
+		hpts->p_curtick = tcp_gethptstick(&tv);
+		hpts->p_prev_slot = hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
 		hpts->p_cpu = 0xffff;
-		hpts->p_nxt_slot = 1;
-		hpts->p_logsize = tcp_hpts_logging_size;
-		if (hpts->p_logsize) {
-			sz = (sizeof(struct hpts_log) * hpts->p_logsize);
-			hpts->p_log = malloc(sz, M_TCPHPTS, M_WAITOK | M_ZERO);
-		}
+		hpts->p_nxt_slot = hpts_tick(hpts->p_cur_slot, 1);
 		callout_init(&hpts->co, 1);
 	}
 

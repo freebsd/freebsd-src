@@ -45,112 +45,80 @@ TAILQ_HEAD(hptsh, inpcb);
 
 /* Number of useconds in a hpts tick */
 #define HPTS_TICKS_PER_USEC 10
-#define HPTS_MS_TO_SLOTS(x) (x * 100)
+#define HPTS_MS_TO_SLOTS(x) ((x * 100) + 1)
 #define HPTS_USEC_TO_SLOTS(x) ((x+9) /10)
 #define HPTS_USEC_IN_SEC 1000000
 #define HPTS_MSEC_IN_SEC 1000
 #define HPTS_USEC_IN_MSEC 1000
 
-#define DEFAULT_HPTS_LOG 3072
-
-/*
- * Log flags consist of
- *  7f      7f         1            1 bits
- * p_cpu | p_num | INPUT_ACTIVE | HPTS_ACTIVE
- *
- * So for example cpu 10, number 10 would with
- * input active would show up as:
- * p_flags = 0001010 0001010 1 0
- *  <or>
- * p_flags = 0x142a
- */
-#define HPTS_HPTS_ACTIVE 0x01
-#define HPTS_INPUT_ACTIVE 0x02
-
-#define HPTSLOG_IMMEDIATE	1
-#define HPTSLOG_INSERT_NORMAL	2
-#define HPTSLOG_INSERT_SLEEPER	3
-#define HPTSLOG_SLEEP_AFTER	4
-#define HPTSLOG_SLEEP_BEFORE	5
-#define HPTSLOG_INSERTED	6
-#define HPTSLOG_WAKEUP_HPTS	7
-#define HPTSLOG_SETTORUN	8
-#define HPTSLOG_HPTSI		9
-#define HPTSLOG_TOLONG		10
-#define HPTSLOG_AWAKENS	11
-#define HPTSLOG_TIMESOUT	12
-#define HPTSLOG_SLEEPSET	13
-#define HPTSLOG_WAKEUP_INPUT	14
-#define HPTSLOG_RESCHEDULE     15
-#define HPTSLOG_AWAKE		16
-#define HPTSLOG_INP_DONE	17
-
-struct hpts_log {
-	struct inpcb *inp;
-	int32_t event;
-	uint32_t cts;
-	int32_t line;
-	uint32_t ticknow;
-	uint32_t t_paceslot;
-	uint32_t t_hptsreq;
-	uint32_t p_curtick;
-	uint32_t p_prevtick;
-	uint32_t slot_req;
-	uint32_t p_on_queue_cnt;
-	uint32_t p_nxt_slot;
-	uint32_t p_cur_slot;
-	uint32_t p_hpts_sleep_time;
-	uint16_t p_flags;
-	uint8_t p_onhpts;
-	uint8_t p_oninput;
-	uint8_t is_notempty;
-};
 
 struct hpts_diag {
-	uint32_t p_hpts_active;
-	uint32_t p_nxt_slot;
-	uint32_t p_cur_slot;
-	uint32_t slot_req;
-	uint32_t inp_hptsslot;
-	uint32_t slot_now;
-	uint32_t have_slept;
-	uint32_t hpts_sleep_time;
-	uint32_t yet_to_sleep;
-	uint32_t need_new_to;
-	int32_t co_ret;
-	uint8_t p_on_min_sleep;
+	uint32_t p_hpts_active; 	/* bbr->flex7 x */
+	uint32_t p_nxt_slot;		/* bbr->flex1 x */
+	uint32_t p_cur_slot;		/* bbr->flex2 x */
+	uint32_t p_prev_slot;		/* bbr->delivered */
+	uint32_t p_runningtick;		/* bbr->inflight */
+	uint32_t slot_req;		/* bbr->flex3 x */
+	uint32_t inp_hptsslot;		/* bbr->flex4 x */
+	uint32_t slot_remaining;	/* bbr->flex5 x */
+	uint32_t have_slept;		/* bbr->epoch x */
+	uint32_t hpts_sleep_time;	/* bbr->applimited x */
+	uint32_t yet_to_sleep;		/* bbr->lt_epoch x */
+	uint32_t need_new_to;		/* bbr->flex6 x  */
+	uint32_t wheel_tick;		/* bbr->bw_inuse x */
+	uint32_t maxticks;		/* bbr->delRate x */
+	uint32_t wheel_cts;		/* bbr->rttProp x */
+	int32_t co_ret; 		/* bbr->pkts_out x */
+	uint32_t p_curtick;		/* upper bbr->cur_del_rate */
+	uint32_t p_lasttick;		/* lower bbr->cur_del_rate */
+	uint8_t p_on_min_sleep; 	/* bbr->flex8 x */
 };
+
+/* Magic flags to tell whats cooking on the pacing wheel */
+#define PACE_TMR_DELACK 0x01	/* Delayed ack timer running */
+#define PACE_TMR_RACK   0x02	/* RACK timer running */
+#define PACE_TMR_TLP    0x04	/* TLP timer running */
+#define PACE_TMR_RXT    0x08	/* Retransmit timer running */
+#define PACE_TMR_PERSIT 0x10	/* Persists timer running */
+#define PACE_TMR_KEEP   0x20	/* Keep alive timer running */
+#define PACE_PKT_OUTPUT 0x40	/* Output Packets being paced */
+#define PACE_TMR_MASK   (PACE_TMR_KEEP|PACE_TMR_PERSIT|PACE_TMR_RXT|PACE_TMR_TLP|PACE_TMR_RACK|PACE_TMR_DELACK)
 
 #ifdef _KERNEL
 /* Each hpts has its own p_mtx which is used for locking */
 struct tcp_hpts_entry {
 	/* Cache line 0x00 */
 	struct mtx p_mtx;	/* Mutex for hpts */
-	uint32_t p_hpts_active; /* Flag that says hpts is awake  */
-	uint32_t p_curtick;	/* Current tick in 10 us the hpts is at */
-	uint32_t p_prevtick;	/* Previous tick in 10 us the hpts ran */
+	uint16_t p_hpts_active; /* Flag that says hpts is awake  */
+	uint8_t p_hpts_wake_scheduled;	/* Have we scheduled a wakeup? */
+	uint8_t p_wheel_complete; /* have we completed the wheel arc walk? */
+	uint32_t p_curtick;	/* Tick in 10 us the hpts is going to */
+	uint32_t p_runningtick; /* Current tick we are at if we are running */
+	uint32_t p_prev_slot;	/* Previous slot we were on */
 	uint32_t p_cur_slot;	/* Current slot in wheel hpts is draining */
 	uint32_t p_nxt_slot;	/* The next slot outside the current range of
 				 * slots that the hpts is running on. */
 	int32_t p_on_queue_cnt;	/* Count on queue in this hpts */
-	uint32_t enobuf_cnt;
-	uint16_t p_log_at;
+	uint32_t p_lasttick;	/* Last tick before the current one */
 	uint8_t p_direct_wake :1, /* boolean */
-		p_log_wrapped :1, /* boolean */
-		p_on_min_sleep:1; /* boolean */
-	uint8_t p_fill;
+		p_on_min_sleep:1, /* boolean */
+		p_avail:6; 
+	uint8_t p_fill[3];	  /* Fill to 32 bits */
 	/* Cache line 0x40 */
 	void *p_inp;
 	struct hptsh p_input;	/* For the tcp-input runner */
 	/* Hptsi wheel */
 	struct hptsh *p_hptss;
-	struct hpts_log *p_log;
-	uint32_t p_logsize;
 	int32_t p_on_inqueue_cnt; /* Count on input queue in this hpts */
 	uint32_t hit_no_enobuf;
 	uint32_t p_dyn_adjust;
 	uint32_t p_hpts_sleep_time;	/* Current sleep interval having a max
 					 * of 255ms */
+	uint32_t overidden_sleep;	/* what was overrided by min-sleep for logging */
+	uint32_t saved_lasttick;	/* for logging */
+	uint32_t saved_curtick;		/* for logging */
+	uint32_t saved_curslot;		/* for logging */
+	uint32_t saved_prev_slot;       /* for logging */
 	uint32_t p_delayed_by;	/* How much were we delayed by */
 	/* Cache line 0x80 */
 	struct sysctl_ctx_list hpts_ctx;
@@ -236,13 +204,9 @@ tcp_hpts_insert_diag(struct inpcb *inp, uint32_t slot, int32_t line, struct hpts
 int
     __tcp_queue_to_input_locked(struct inpcb *inp, struct tcp_hpts_entry *hpts, int32_t line);
 #define tcp_queue_to_input_locked(a, b) __tcp_queue_to_input_locked(a, b, __LINE__);
-void
-tcp_queue_pkt_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos);
 int
-__tcp_queue_to_input(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
-    int32_t tlen, int32_t drop_hdrlen, uint8_t iptos, int32_t line);
-#define tcp_queue_to_input(a, b, c, d, e, f, g) __tcp_queue_to_input(a, b, c, d, e, f, g, __LINE__)
+__tcp_queue_to_input(struct inpcb *inp, int32_t line);
+#define tcp_queue_to_input(a) __tcp_queue_to_input(a, __LINE__)
 
 uint16_t tcp_hpts_delayedby(struct inpcb *inp);
 
