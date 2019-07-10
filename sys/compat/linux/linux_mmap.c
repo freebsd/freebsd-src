@@ -228,6 +228,11 @@ int
 linux_mprotect_common(struct thread *td, uintptr_t addr, size_t len, int prot)
 {
 
+	/* XXX Ignore PROT_GROWSDOWN and PROT_GROWSUP for now. */
+	prot &= ~(LINUX_PROT_GROWSDOWN | LINUX_PROT_GROWSUP);
+	if ((prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0)
+		return (EINVAL);
+
 #if defined(__amd64__)
 	linux_fixup_prot(td, &prot);
 #endif
