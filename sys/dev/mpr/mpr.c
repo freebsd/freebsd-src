@@ -2367,6 +2367,7 @@ mpr_complete_command(struct mpr_softc *sc, struct mpr_command *cm)
 		return;
 	}
 
+	cm->cm_state = MPR_CM_STATE_BUSY;
 	if (cm->cm_flags & MPR_CM_FLAGS_POLLED)
 		cm->cm_flags |= MPR_CM_FLAGS_COMPLETE;
 
@@ -3879,7 +3880,7 @@ mpr_request_polled(struct mpr_softc *sc, struct mpr_command **cmp)
 			break;
 		}
 	}
-
+	cm->cm_state = MPR_CM_STATE_BUSY;
 	if (error) {
 		mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s\n", __func__);
 		rc = mpr_reinit(sc);
