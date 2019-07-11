@@ -144,6 +144,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	#endif
 	size_t sfpsize;
 	caddr_t sfp, usfp;
+	register_t sp;
 	int oonstack, rndfsize;
 	int sig;
 	int code;
@@ -155,7 +156,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	psp = p->p_sigacts;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	tf = td->td_frame;
-	oonstack = sigonstack(tf->fixreg[1]);
 
 	/*
 	 * Fill siginfo structure.
@@ -173,6 +173,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sfp = (caddr_t)&sf32;
 		sfpsize = sizeof(sf32);
 		rndfsize = roundup(sizeof(sf32), 16);
+		sp = (uint32_t)tf->fixreg[1];
+		oonstack = sigonstack(sp);
 
 		/*
 		 * Save user context
@@ -203,6 +205,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		#else
 		rndfsize = roundup(sizeof(sf), 16);
 		#endif
+		sp = tf->fixreg[1];
+		oonstack = sigonstack(sp);
 
 		/*
 		 * Save user context
@@ -232,7 +236,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		usfp = (void *)(((uintptr_t)td->td_sigstk.ss_sp +
 		   td->td_sigstk.ss_size - rndfsize) & ~0xFul);
 	} else {
-		usfp = (void *)((tf->fixreg[1] - rndfsize) & ~0xFul);
+		usfp = (void *)((sp - rndfsize) & ~0xFul);
 	}
 
 	/*
