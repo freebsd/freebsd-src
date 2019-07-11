@@ -5484,8 +5484,10 @@ pmap_activate(struct thread *td)
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	td->td_proc->p_md.md_l0addr = vtophys(pmap->pm_l0);
-	__asm __volatile("msr ttbr0_el1, %0" : :
-	    "r"(td->td_proc->p_md.md_l0addr));
+	__asm __volatile(
+	    "msr ttbr0_el1, %0	\n"
+	    "isb		\n"
+	    : : "r"(td->td_proc->p_md.md_l0addr));
 	pmap_invalidate_all(pmap);
 	critical_exit();
 }
