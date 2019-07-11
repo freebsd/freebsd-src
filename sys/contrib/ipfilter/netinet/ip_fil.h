@@ -590,14 +590,14 @@ typedef	struct	frpcmp	{
 
 
 /*
- * Structure containing all the relevant TCP things that can be checked in
+ * Structure containing all the relevant TCP/UDP things that can be checked in
  * a filter rule.
  */
 typedef	struct	frtuc	{
 	u_char		ftu_tcpfm;	/* tcp flags mask */
 	u_char		ftu_tcpf;	/* tcp flags */
-	frpcmp_t	ftu_src;
-	frpcmp_t	ftu_dst;
+	frpcmp_t	ftu_src;	/* source port */
+	frpcmp_t	ftu_dst;	/* destination port */
 } frtuc_t;
 
 #define	ftu_scmp	ftu_src.frp_cmp
