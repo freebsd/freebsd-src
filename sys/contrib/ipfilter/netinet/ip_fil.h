@@ -584,8 +584,8 @@ typedef enum fr_ctypes_e {
  */
 typedef	struct	frpcmp	{
 	fr_ctypes_t	frp_cmp;	/* data for port comparisons */
-	u_32_t		frp_port;	/* top port for <> and >< */
-	u_32_t		frp_top;	/* top port for <> and >< */
+	u_32_t		frp_port;	/* low port for <> and >< */
+	u_32_t		frp_top;	/* high port for <> and >< */
 } frpcmp_t;
 
 
