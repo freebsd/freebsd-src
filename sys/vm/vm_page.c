@@ -1808,8 +1808,9 @@ vm_page_alloc_domain_after(vm_object_t object, vm_pindex_t pindex, int domain,
 	if (object != NULL)
 		VM_OBJECT_ASSERT_WLOCKED(object);
 
-again:
+	flags = 0;
 	m = NULL;
+again:
 #if VM_NRESERVLEVEL > 0
 	/*
 	 * Can we allocate the page from a reservation?
@@ -1825,8 +1826,10 @@ again:
 	vmd = VM_DOMAIN(domain);
 	if (object != NULL && vmd->vmd_pgcache != NULL) {
 		m = uma_zalloc(vmd->vmd_pgcache, M_NOWAIT);
-		if (m != NULL)
+		if (m != NULL) {
+			flags |= PG_PCPU_CACHE;
 			goto found;
+		}
 	}
 	if (vm_domain_allocate(vmd, req, 1)) {
 		/*
@@ -1854,10 +1857,8 @@ again:
 	}
 
 	/*
-	 *  At this point we had better have found a good page.
+	 * At this point we had better have found a good page.
 	 */
-	KASSERT(m != NULL, ("missing page"));
-
 found:
 	vm_page_dequeue(m);
 	vm_page_alloc_check(m);
@@ -1865,10 +1866,8 @@ found:
 	/*
 	 * Initialize the page.  Only the PG_ZERO flag is inherited.
 	 */
-	flags = 0;
 	if ((req & VM_ALLOC_ZERO) != 0)
-		flags = PG_ZERO;
-	flags &= m->flags;
+		flags |= (m->flags & PG_ZERO);
 	if ((req & VM_ALLOC_NODUMP) != 0)
 		flags |= PG_NODUMP;
 	m->flags = flags;
@@ -2014,6 +2013,7 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	 * Can we allocate the pages without the number of free pages falling
 	 * below the lower bound for the allocation class?
 	 */
+	m_ret = NULL;
 again:
 #if VM_NRESERVLEVEL > 0
 	/*
@@ -2029,7 +2029,6 @@ again:
 		goto found;
 	}
 #endif
-	m_ret = NULL;
 	vmd = VM_DOMAIN(domain);
 	if (vm_domain_allocate(vmd, req, npages)) {
 		/*
@@ -3475,7 +3474,7 @@ vm_page_free_toq(vm_page_t m)
 		return;
 
 	vmd = vm_pagequeue_domain(m);
-	if (m->pool == VM_FREEPOOL_DEFAULT && vmd->vmd_pgcache != NULL) {
+	if ((m->flags & PG_PCPU_CACHE) != 0 && vmd->vmd_pgcache != NULL) {
 		uma_zfree(vmd->vmd_pgcache, m);
 		return;
 	}
