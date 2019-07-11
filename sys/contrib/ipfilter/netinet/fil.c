@@ -4473,11 +4473,10 @@ frrequest(softc, unit, req, data, set, makecopy)
 	caddr_t data;
 {
 	int error = 0, in, family, need_free = 0;
-	enum {	OP_UNDEF,	/* undefined */
-			OP_ADD,		/* add rule */
-			OP_REM,		/* remove rule */
-			OP_ZERO 	/* zero statistics and counters */ }
-		addrem = OP_UNDEF;
+	enum {	OP_ADD,		/* add rule */
+		OP_REM,		/* remove rule */
+		OP_ZERO 	/* zero statistics and counters */ }
+		addrem = OP_ADD;
 	frentry_t frd, *fp, *f, **fprev, **ftail;
 	void *ptr, *uptr, *cptr;
 	u_int *p, *pp;
@@ -4583,7 +4582,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 			goto donenolock;
 		}
 
-		if (addrem == OP_UNDEF) {
+		if (addrem == OP_ADD) {
 			error = ipf_funcinit(softc, fp);
 			if (error != 0)
 				goto donenolock;
@@ -4647,7 +4646,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 			 * them to be created if they don't already exit.
 			 */
 			group = FR_NAME(fp, fr_group);
-			if (addrem == OP_UNDEF) {
+			if (addrem == OP_ADD) {
 				fg = ipf_group_add(softc, group, NULL,
 						   fp->fr_flags, unit, set);
 				fp->fr_grp = fg;
@@ -5111,7 +5110,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 		if (fp->fr_next != NULL)
 			fp->fr_next->fr_pnext = &fp->fr_next;
 		*ftail = fp;
-		if (addrem == OP_UNDEF)
+		if (addrem == OP_ADD)
 			ipf_fixskip(ftail, fp, 1);
 
 		fp->fr_icmpgrp = NULL;
