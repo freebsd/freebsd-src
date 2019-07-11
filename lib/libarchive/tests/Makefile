@@ -515,6 +515,7 @@ FILES+=	test_read_format_rar_subblock.rar.uu
 FILES+=	test_read_format_rar_unicode.rar.uu
 FILES+=	test_read_format_rar_windows.rar.uu
 FILES+=	test_read_format_rar5_arm.rar.uu
+FILES+=	test_read_format_rar5_arm_filter_on_window_boundary.rar.uu
 FILES+=	test_read_format_rar5_blake2.rar.uu
 FILES+=	test_read_format_rar5_compressed.rar.uu
 FILES+=	test_read_format_rar5_different_window_size.rar.uu
