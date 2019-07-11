@@ -639,15 +639,27 @@ blst_next_leaf_alloc(blmeta_t *scan, daddr_t start, int count, int maxcount)
 			 * bitpos() returns zero here.
 			 */
 			avail = blk - start + bitpos(~scan->bm_bitmap);
-			if (avail < count) {
+			if (avail < count || avail == 0) {
 				/*
 				 * There isn't a next leaf with enough free
-				 * blocks at its beginning to complete the
-				 * spanning allocation.
+				 * blocks at its beginning to bother
+				 * allocating.
 				 */
 				return (avail);
 			}
 			maxcount = imin(avail, maxcount);
+			if (maxcount % BLIST_BMAP_RADIX == 0) {
+				/*
+				 * There was no next leaf.  Back scan up to
+				 * last leaf.
+				 */
+				--scan;
+				while (radix != BLIST_BMAP_RADIX) {
+					radix /= BLIST_META_RADIX;
+					--scan;
+				}
+				blk -= BLIST_BMAP_RADIX;
+			}
 		}
 	}
 	
