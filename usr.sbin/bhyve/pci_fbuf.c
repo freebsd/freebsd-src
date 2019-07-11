@@ -225,12 +225,12 @@ pci_fbuf_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 static int
 pci_fbuf_parse_opts(struct pci_fbuf_softc *sc, char *opts)
 {
-	char	*uopts, *xopts, *config;
+	char	*uopts, *uoptsbak, *xopts, *config;
 	char	*tmpstr;
 	int	ret;
 
 	ret = 0;
-	uopts = strdup(opts);
+	uoptsbak = uopts = strdup(opts);
 	while ((xopts = strsep(&uopts, ",")) != NULL) {
 		if (strcmp(xopts, "wait") == 0) {
 			sc->rfb_wait = 1;
