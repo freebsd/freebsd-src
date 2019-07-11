@@ -67,9 +67,7 @@ __FBSDID("$FreeBSD$");
 void
 initialize (void)
 {
-#ifdef _STANDALONE
-    ve_trust_init();
-#endif
+	openpgp_trust_init();
 }
 
 #else
