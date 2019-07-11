@@ -1143,6 +1143,8 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		t->entry_fd = -1;
 	}
 
+	archive_entry_clear(entry);
+
 	for (;;) {
 		r = next_entry(a, t, entry);
 		if (t->entry_fd >= 0) {
