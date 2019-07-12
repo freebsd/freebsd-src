@@ -70,6 +70,7 @@
 #define	UGENSA_CONFIG_INDEX	0
 #define	UGENSA_IFACE_INDEX	0
 #define	UGENSA_IFACE_MAX	8	/* exclusivly */
+#define	UGENSA_PORT_MAX		8	/* exclusivly */
 
 enum {
 	UGENSA_BULK_DT_WR,
@@ -84,11 +85,11 @@ struct ugensa_sub_softc {
 
 struct ugensa_softc {
 	struct ucom_super_softc sc_super_ucom;
-	struct ucom_softc sc_ucom[UGENSA_IFACE_MAX];
-	struct ugensa_sub_softc sc_sub[UGENSA_IFACE_MAX];
+	struct ucom_softc sc_ucom[UGENSA_PORT_MAX];
+	struct ugensa_sub_softc sc_sub[UGENSA_PORT_MAX];
 
 	struct mtx sc_mtx;
-	uint8_t	sc_niface;
+	uint8_t	sc_nports;
 };
 
 /* prototypes */
@@ -154,12 +155,13 @@ static driver_t ugensa_driver = {
 	.size = sizeof(struct ugensa_softc),
 };
 
+/* Driver-info is max number of serial ports per interface */
 static const STRUCT_USB_HOST_ID ugensa_devs[] = {
-	{USB_VPI(USB_VENDOR_AIRPRIME, USB_PRODUCT_AIRPRIME_PC5220, 0)},
-	{USB_VPI(USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CDMA_MODEM1, 0)},
-	{USB_VPI(USB_VENDOR_KYOCERA2, USB_PRODUCT_KYOCERA2_CDMA_MSM_K, 0)},
-	{USB_VPI(USB_VENDOR_HP, USB_PRODUCT_HP_49GPLUS, 0)},
-	{USB_VPI(USB_VENDOR_NOVATEL2, USB_PRODUCT_NOVATEL2_FLEXPACKGPS, 0)},
+	{USB_VPI(USB_VENDOR_AIRPRIME, USB_PRODUCT_AIRPRIME_PC5220, 1)},
+	{USB_VPI(USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CDMA_MODEM1, 1)},
+	{USB_VPI(USB_VENDOR_KYOCERA2, USB_PRODUCT_KYOCERA2_CDMA_MSM_K, 1)},
+	{USB_VPI(USB_VENDOR_HP, USB_PRODUCT_HP_49GPLUS, 1)},
+	{USB_VPI(USB_VENDOR_NOVATEL2, USB_PRODUCT_NOVATEL2_FLEXPACKGPS, 3)},
 };
 
 DRIVER_MODULE(ugensa, uhub, ugensa_driver, ugensa_devclass, NULL, 0);
@@ -192,65 +194,68 @@ ugensa_attach(device_t dev)
 	struct ugensa_softc *sc = device_get_softc(dev);
 	struct ugensa_sub_softc *ssc;
 	struct usb_interface *iface;
+	struct usb_config xfer_config[UGENSA_N_TRANSFER];
 	int32_t error;
 	uint8_t iface_index;
-	int x, cnt;
+	int x, maxports;
 
+	maxports = USB_GET_DRIVER_INFO(uaa);
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ugensa", NULL, MTX_DEF);
 	ucom_ref(&sc->sc_super_ucom);
 
-	/* Figure out how many interfaces this device has got */
-	for (cnt = 0; cnt < UGENSA_IFACE_MAX; cnt++) {
-		if ((usbd_get_endpoint(uaa->device, cnt, ugensa_xfer_config + 0) == NULL) ||
-		    (usbd_get_endpoint(uaa->device, cnt, ugensa_xfer_config + 1) == NULL)) {
-			/* we have reached the end */
-			break;
-		}
-	}
+	for (iface_index = UGENSA_IFACE_INDEX; iface_index < UGENSA_IFACE_MAX; iface_index++) {
 
-	if (cnt == 0) {
-		device_printf(dev, "No interfaces\n");
-		goto detach;
-	}
-	for (x = 0; x < cnt; x++) {
-		iface = usbd_get_iface(uaa->device, x);
-		if (iface->idesc->bInterfaceClass != UICLASS_VENDOR)
+		iface = usbd_get_iface(uaa->device, iface_index);
+		if (iface == NULL || iface->idesc->bInterfaceClass != UICLASS_VENDOR)
 			/* Not a serial port, most likely a SD reader */
 			continue;
 
-		ssc = sc->sc_sub + sc->sc_niface;
-		ssc->sc_ucom_ptr = sc->sc_ucom + sc->sc_niface;
+		/* Loop over all endpoints pairwise */
+		for (x = 0; x < maxports && sc->sc_nports < UGENSA_PORT_MAX; x++) {
 
-		iface_index = (UGENSA_IFACE_INDEX + x);
-		error = usbd_transfer_setup(uaa->device,
-		    &iface_index, ssc->sc_xfer, ugensa_xfer_config,
-		    UGENSA_N_TRANSFER, ssc, &sc->sc_mtx);
+			ssc = sc->sc_sub + sc->sc_nports;
+			ssc->sc_ucom_ptr = sc->sc_ucom + sc->sc_nports;
 
-		if (error) {
-			device_printf(dev, "allocating USB "
-			    "transfers failed\n");
-			goto detach;
+			memcpy(xfer_config, ugensa_xfer_config, sizeof ugensa_xfer_config);
+			xfer_config[UGENSA_BULK_DT_RD].ep_index = x;
+			xfer_config[UGENSA_BULK_DT_WR].ep_index = x;
+
+			error = usbd_transfer_setup(uaa->device,
+			    &iface_index, ssc->sc_xfer, xfer_config,
+			    UGENSA_N_TRANSFER, ssc, &sc->sc_mtx);
+
+			if (error) {
+				if (x == 0) {
+					device_printf(dev, "allocating USB "
+					    "transfers failed (%d)\n", error);
+					goto detach;
+				}
+				break;
+			}
+
+			/* clear stall at first run */
+			mtx_lock(&sc->sc_mtx);
+			usbd_xfer_set_stall(ssc->sc_xfer[UGENSA_BULK_DT_WR]);
+			usbd_xfer_set_stall(ssc->sc_xfer[UGENSA_BULK_DT_RD]);
+			mtx_unlock(&sc->sc_mtx);
+
+			/* initialize port number */
+			ssc->sc_ucom_ptr->sc_portno = sc->sc_nports;
+			if (iface_index != uaa->info.bIfaceIndex) {
+				usbd_set_parent_iface(uaa->device, iface_index,
+				    uaa->info.bIfaceIndex);
+			}
+			sc->sc_nports++;
 		}
-		/* clear stall at first run */
-		mtx_lock(&sc->sc_mtx);
-		usbd_xfer_set_stall(ssc->sc_xfer[UGENSA_BULK_DT_WR]);
-		usbd_xfer_set_stall(ssc->sc_xfer[UGENSA_BULK_DT_RD]);
-		mtx_unlock(&sc->sc_mtx);
-
-		/* initialize port number */
-		ssc->sc_ucom_ptr->sc_portno = sc->sc_niface;
-		sc->sc_niface++;
-		if (x != uaa->info.bIfaceIndex)
-			usbd_set_parent_iface(uaa->device, x,
-			    uaa->info.bIfaceIndex);
 	}
-	device_printf(dev, "Found %d interfaces.\n", sc->sc_niface);
+	device_printf(dev, "Found %d serial ports.\n", sc->sc_nports);
 
-	error = ucom_attach(&sc->sc_super_ucom, sc->sc_ucom, sc->sc_niface, sc,
+	error = ucom_attach(&sc->sc_super_ucom, sc->sc_ucom, sc->sc_nports, sc,
 	    &ugensa_callback, &sc->sc_mtx);
+
 	if (error) {
-		DPRINTF("attach failed\n");
+		DPRINTF("ucom attach failed\n");
 		goto detach;
 	}
 	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
@@ -270,7 +275,7 @@ ugensa_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom);
 
-	for (x = 0; x < sc->sc_niface; x++) {
+	for (x = 0; x < sc->sc_nports; x++) {
 		usbd_transfer_unsetup(sc->sc_sub[x].sc_xfer, UGENSA_N_TRANSFER);
 	}
 
