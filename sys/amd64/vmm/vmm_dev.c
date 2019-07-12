@@ -291,7 +291,7 @@ alloc_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg)
 	 */
 	if (VM_MEMSEG_NAME(mseg)) {
 		sysmem = false;
-		name = malloc(sizeof(mseg->name) M_VMMDEV, M_WAITOK);
+		name = malloc(sizeof(mseg->name), M_VMMDEV, M_WAITOK);
 		error = copystr(mseg->name, name, sizeof(mseg->name), NULL);
 		if (error)
 			goto done;
