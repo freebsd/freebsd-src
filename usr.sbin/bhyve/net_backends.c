@@ -175,7 +175,6 @@ tap_init(struct net_backend *be, const char *devname,
 {
 	struct tap_priv *priv = (struct tap_priv *)be->opaque;
 	char tbuf[80];
-	int fd;
 	int opt = 1;
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
@@ -189,8 +188,8 @@ tap_init(struct net_backend *be, const char *devname,
 	strcpy(tbuf, "/dev/");
 	strlcat(tbuf, devname, sizeof(tbuf));
 
-	fd = open(tbuf, O_RDWR);
-	if (fd == -1) {
+	be->fd = open(tbuf, O_RDWR);
+	if (be->fd == -1) {
 		WPRINTF(("open of tap device %s failed\n", tbuf));
 		goto error;
 	}
@@ -199,24 +198,22 @@ tap_init(struct net_backend *be, const char *devname,
 	 * Set non-blocking and register for read
 	 * notifications with the event loop
 	 */
-	if (ioctl(fd, FIONBIO, &opt) < 0) {
+	if (ioctl(be->fd, FIONBIO, &opt) < 0) {
 		WPRINTF(("tap device O_NONBLOCK failed\n"));
 		goto error;
 	}
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
-	if (caph_rights_limit(fd, &rights) == -1)
+	if (caph_rights_limit(be->fd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
-	priv->mevp = mevent_add(fd, EVF_READ, cb, param);
+	priv->mevp = mevent_add(be->fd, EVF_READ, cb, param);
 	if (priv->mevp == NULL) {
 		WPRINTF(("Could not register event\n"));
 		goto error;
 	}
-
-	be->fd = fd;
 
 	return (0);
 
