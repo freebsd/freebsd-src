@@ -179,6 +179,10 @@ static	int		ipf_updateipid __P((fr_info_t *));
 static	int		ipf_settimeout __P((struct ipf_main_softc_s *,
 					    struct ipftuneable *,
 					    ipftuneval_t *));
+#ifdef	USE_INET6
+static	u_int		ipf_pcksum6 __P((fr_info_t *, ip6_t *,
+						u_int32_t, u_int32_t));
+#endif
 #if !defined(_KERNEL) || SOLARIS
 static	int		ppsratecheck(struct timeval *, int *, int);
 #endif
@@ -10226,4 +10230,55 @@ ipf_inet6_mask_del(bits, mask, mtab)
 	mtab->imt6_max--;
 	ASSERT(mtab->imt6_max >= 0);
 }
+
+#ifdef	_KERNEL
+static u_int
+ipf_pcksum6(fin, ip6, off, len)
+	fr_info_t *fin;
+	ip6_t *ip6;
+	u_int32_t off;
+	u_int32_t len;
+{
+	struct mbuf *m;
+	int sum;
+
+	m = fin->fin_m;
+	if (m->m_len < sizeof(struct ip6_hdr)) {
+		return 0xffff;
+	}
+
+	sum = in6_cksum(m, ip6->ip6_nxt, off, len);
+	return(sum);
+}
+#else
+static u_int
+ipf_pcksum6(fin, ip6, off, len)
+	fr_info_t *fin;
+	ip6_t *ip6;
+	u_int32_t off;
+	u_int32_t len;
+{
+	u_short *sp;
+	u_int sum;
+
+	sp = (u_short *)&ip6->ip6_src;
+	sum = *sp++;   /* ip6_src */
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;   /* ip6_dst */
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	sum += *sp++;
+	return(ipf_pcksum(fin, off, sum));
+}
+#endif
 #endif
