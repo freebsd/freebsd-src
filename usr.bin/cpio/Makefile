@@ -18,11 +18,6 @@ CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"${_LIBARCHIVECONFDIR}/config_freebsd.h\"
 CFLAGS+= -I${_LIBARCHIVEDIR}/cpio -I${_LIBARCHIVEDIR}/libarchive_fe
 
-.ifdef RELEASE_CRUNCH
-# FreeBSD's installer uses cpio in crunched binaries that are
-# statically linked, cannot use -lcrypto, and are size sensitive.
-CFLAGS+= -DSMALLER
-.endif
 LIBADD=	archive
 
 .if ${MK_ICONV} != "no"
