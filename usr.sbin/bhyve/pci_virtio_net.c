@@ -411,6 +411,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 			err = net_parsemac(vtopts, sc->vsc_config.mac);
 			if (err != 0) {
 				free(devname);
+				free(sc);
 				return (err);
 			}
 			mac_provided = 1;
@@ -419,8 +420,10 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		err = netbe_init(&sc->vsc_be, devname, pci_vtnet_rx_callback,
 		          sc);
 		free(devname);
-		if (err)
+		if (err) {
+			free(sc);
 			return (err);
+		}
 		sc->vsc_consts.vc_hv_caps |= netbe_get_cap(sc->vsc_be);
 	}
 
@@ -442,8 +445,10 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->vsc_vs.vs_mtx = &sc->vsc_mtx;
 
 	/* use BAR 1 to map MSI-X table and PBA, if we're using MSI-X */
-	if (vi_intr_init(&sc->vsc_vs, 1, fbsdrun_virtio_msix()))
+	if (vi_intr_init(&sc->vsc_vs, 1, fbsdrun_virtio_msix())) {
+		free(sc);
 		return (1);
+	}
 
 	/* use BAR 0 to map config regs in IO space */
 	vi_set_io_bar(&sc->vsc_vs, 0);
