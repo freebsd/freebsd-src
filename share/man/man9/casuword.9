@@ -41,13 +41,31 @@
 .In sys/types.h
 .In sys/systm.h
 .Ft int
-.Fn casueword "volatile u_long *base" "u_long oldval" "u_long *oldvalp" "u_long newval"
+.Fo casueword
+.Fa "volatile u_long *base"
+.Fa "u_long oldval"
+.Fa "u_long *oldvalp"
+.Fa "u_long newval"
+.Fc
 .Ft int
-.Fn casueword32 "volatile uint32_t *base" "uint32_t oldval" "uint32_t *oldvalp" "uint32_t newval"
+.Fo casueword32
+.Fa "volatile uint32_t *base"
+.Fa "uint32_t oldval"
+.Fa "uint32_t *oldvalp"
+.Fa "uint32_t newval"
+.Fc
 .Ft u_long
-.Fn casuword "volatile u_long *base" "u_long oldval" "u_long newval"
+.Fo casuword
+.Fa "volatile u_long *base"
+.Fa "u_long oldval"
+.Fa "u_long newval"
+.Fc
 .Ft uint32_t
-.Fn casuword32 "volatile uint32_t *base" "uint32_t oldval" "uint32_t newval"
+.Fo casuword32
+.Fa "volatile uint32_t *base"
+.Fa "uint32_t oldval"
+.Fa "uint32_t newval"
+.Fc
 .Sh DESCRIPTION
 The
 .Nm
