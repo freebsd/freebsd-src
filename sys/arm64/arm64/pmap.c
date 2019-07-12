@@ -2812,9 +2812,8 @@ pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t nbits)
 	 * update the dirty field of each of the superpage's constituent 4KB
 	 * pages.
 	 */
-	if ((nbits & ATTR_AP(ATTR_AP_RO)) != 0 &&
-	    (old_l2 & ATTR_SW_MANAGED) != 0 &&
-	    pmap_pte_dirty(old_l2)) {
+	if ((old_l2 & ATTR_SW_MANAGED) != 0 &&
+	    (nbits & ATTR_AP(ATTR_AP_RO)) != 0 && pmap_pte_dirty(old_l2)) {
 		m = PHYS_TO_VM_PAGE(old_l2 & ~ATTR_MASK);
 		for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++)
 			vm_page_dirty(mt);
@@ -2920,8 +2919,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			 * When a dirty read/write mapping is write protected,
 			 * update the page's dirty field.
 			 */
-			if ((nbits & ATTR_AP(ATTR_AP_RO)) != 0 &&
-			    (l3 & ATTR_SW_MANAGED) != 0 &&
+			if ((l3 & ATTR_SW_MANAGED) != 0 &&
+			    (nbits & ATTR_AP(ATTR_AP_RO)) != 0 &&
 			    pmap_pte_dirty(l3))
 				vm_page_dirty(PHYS_TO_VM_PAGE(l3 & ~ATTR_MASK));
 
@@ -3344,8 +3343,8 @@ validate:
 			/* same PA, different attributes */
 			pmap_load_store(l3, new_l3);
 			pmap_invalidate_page(pmap, va);
-			if (pmap_pte_dirty(orig_l3) &&
-			    (orig_l3 & ATTR_SW_MANAGED) != 0)
+			if ((orig_l3 & ATTR_SW_MANAGED) != 0 &&
+			    pmap_pte_dirty(orig_l3))
 				vm_page_dirty(m);
 		} else {
 			/*
@@ -4293,8 +4292,7 @@ pmap_remove_pages(pmap_t pmap)
 				/*
 				 * Update the vm_page_t clean/reference bits.
 				 */
-				if ((tpte & ATTR_AP_RW_BIT) ==
-				    ATTR_AP(ATTR_AP_RW)) {
+				if (pmap_pte_dirty(tpte)) {
 					switch (lvl) {
 					case 1:
 						for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++)
