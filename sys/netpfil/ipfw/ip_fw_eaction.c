@@ -387,7 +387,7 @@ ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
 	while (l > 0) {
 		cmdlen = F_LEN(cmd);
 		l -= cmdlen;
-		if (cmd->opcode == O_EXTERNAL_ACTION)
+		if (cmd->opcode == O_EXTERNAL_ACTION || l <= 0)
 			break;
 		cmd += cmdlen;
 	}
