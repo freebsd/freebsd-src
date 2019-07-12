@@ -664,21 +664,19 @@ altcons_open(char *path)
 static int
 disk_open(char *path)
 {
-	int err, fd;
+	int fd;
 
 	if (ndisks >= NDISKS)
 		return (ERANGE);
 
-	err = 0;
 	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return (errno);
 
-	if (fd > 0) {
-		disk_fd[ndisks] = fd;
-		ndisks++;
-	} else 
-		err = errno;
+	disk_fd[ndisks] = fd;
+	ndisks++;
 
-	return (err);
+	return (0);
 }
 
 static void
