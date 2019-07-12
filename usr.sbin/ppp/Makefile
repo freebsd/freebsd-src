@@ -12,7 +12,6 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 	tcpmss.c throughput.c timer.c tty.c tun.c udp.c vjcomp.c
 WARNS?=	3
 .if defined(RELEASE_CRUNCH)
-CFLAGS+=-DRELEASE_CRUNCH
 PPP_NO_DES=
 PPP_NO_KLDLOAD=
 PPP_NO_NAT=
