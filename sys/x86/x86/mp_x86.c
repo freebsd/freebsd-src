@@ -235,6 +235,7 @@ add_deterministic_cache(int type, int level, int share_count)
  *  - BKDG For AMD Family 10h Processors (Publication # 31116)
  *  - BKDG For AMD Family 15h Models 00h-0Fh Processors (Publication # 42301)
  *  - BKDG For AMD Family 16h Models 00h-0Fh Processors (Publication # 48751)
+ *  - PPR For AMD Family 17h Models 00h-0Fh Processors (Publication # 54945)
  */
 static void
 topo_probe_amd(void)
