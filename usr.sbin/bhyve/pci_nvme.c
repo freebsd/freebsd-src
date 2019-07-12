@@ -978,6 +978,7 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 	
 	while (sqhead != atomic_load_acq_short(&sq->tail)) {
 		cmd = &(sq->qbase)[sqhead];
+		compl.cdw0 = 0;
 		compl.status = 0;
 
 		switch (cmd->opc) {
