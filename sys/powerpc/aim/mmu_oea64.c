@@ -2838,6 +2838,9 @@ moea64_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 	vm_paddr_t pa;
 	vm_size_t len;
 
+	if (__predict_false(pm == NULL))
+		pm = &curthread->td_proc->p_vmspace->vm_pmap;
+
 	PMAP_LOCK(pm);
 	while (sz > 0) {
 		lim = round_page(va+1);
