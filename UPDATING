@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190713:
+    Default permissions on the /var/account/acct file (and copies of it rotated 
+    by periodic daily scripts) are changed from 0644 to 0640 because the file 
+    contains sensitive information that should not be world-readable.  If the 
+    /var/account directory must be created by rc.d/accounting, the mode used is 
+    now 0750.  Admins who use the accounting feature are encouraged to change 
+    the mode of an existing /var/account directory to 0750 or 0700.  
+
 20190620:
 	Entropy collection and the /dev/random device are no longer optional
 	components.  The "device random" option has been removed.
