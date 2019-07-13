@@ -8,6 +8,8 @@ SRCS+=	\
 	_setjmp.S \
 	alloca.S \
 	arm_initfini.c \
+	arm_drain_writebuf.c \
+	arm_sync_icache.c \
 	fabs.c \
 	flt_rounds.c \
 	getcontextx.c \
@@ -17,6 +19,10 @@ SRCS+=	\
 	setjmp.S \
 	signalcontext.c \
 	sigsetjmp.S \
+
+MAN+=	\
+	arm_drain_writebuf.2 \
+	arm_sync_icache.2 \
 
 .if ${MACHINE_ARCH:Marmv[67]*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
 
