@@ -235,7 +235,7 @@ static int	moea64_pvo_enter(mmu_t mmu, struct pvo_entry *pvo,
 static void	moea64_pvo_remove_from_pmap(mmu_t mmu, struct pvo_entry *pvo);
 static void	moea64_pvo_remove_from_page(mmu_t mmu, struct pvo_entry *pvo);
 static void	moea64_pvo_remove_from_page_locked(mmu_t mmu,
-		    struct pvo_entry *pvo);
+		    struct pvo_entry *pvo, vm_page_t m);
 static struct	pvo_entry *moea64_pvo_find_va(pmap_t, vm_offset_t);
 
 /*
@@ -2452,7 +2452,7 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 		wasdead = (pvo->pvo_vaddr & PVO_DEAD);
 		if (!wasdead)
 			moea64_pvo_remove_from_pmap(mmu, pvo);
-		moea64_pvo_remove_from_page_locked(mmu, pvo);
+		moea64_pvo_remove_from_page_locked(mmu, pvo, m);
 		if (!wasdead)
 			LIST_INSERT_HEAD(&freequeue, pvo, pvo_vlink);
 		PMAP_UNLOCK(pmap);
@@ -2626,7 +2626,7 @@ moea64_pvo_remove_from_pmap(mmu_t mmu, struct pvo_entry *pvo)
 }
 
 static inline void
-_moea64_pvo_remove_from_page_locked(mmu_t mmu, struct pvo_entry *pvo,
+moea64_pvo_remove_from_page_locked(mmu_t mmu, struct pvo_entry *pvo,
     vm_page_t m)
 {
 
@@ -2655,17 +2655,6 @@ _moea64_pvo_remove_from_page_locked(mmu_t mmu, struct pvo_entry *pvo,
 }
 
 static void
-moea64_pvo_remove_from_page_locked(mmu_t mmu, struct pvo_entry *pvo)
-{
-	vm_page_t pg = NULL;
-
-	if (pvo->pvo_vaddr & PVO_MANAGED)
-		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pa & LPTE_RPGN);
-
-	_moea64_pvo_remove_from_page_locked(mmu, pvo, pg);
-}
-
-static void
 moea64_pvo_remove_from_page(mmu_t mmu, struct pvo_entry *pvo)
 {
 	vm_page_t pg = NULL;
@@ -2674,7 +2663,7 @@ moea64_pvo_remove_from_page(mmu_t mmu, struct pvo_entry *pvo)
 		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pa & LPTE_RPGN);
 
 	PV_LOCK(pvo->pvo_pte.pa & LPTE_RPGN);
-	_moea64_pvo_remove_from_page_locked(mmu, pvo, pg);
+	moea64_pvo_remove_from_page_locked(mmu, pvo, pg);
 	PV_UNLOCK(pvo->pvo_pte.pa & LPTE_RPGN);
 }
 
