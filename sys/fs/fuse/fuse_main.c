@@ -95,7 +95,6 @@ struct mtx fuse_mtx;
 extern struct vfsops fuse_vfsops;
 extern struct cdevsw fuse_cdevsw;
 extern struct vop_vector fuse_fifonops;
-extern struct vop_vector fuse_vnops;
 extern uma_zone_t fuse_pbuf_zone;
 
 static struct vfsconf fuse_vfsconf = {
