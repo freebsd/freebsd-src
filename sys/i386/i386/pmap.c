@@ -5096,13 +5096,6 @@ __CONCAT(PMTYPE, ts_referenced)(vm_page_t m)
 			 * reference bit will result in clearing that bit.
 			 * This function is designed to avoid the selection of
 			 * the same 4KB page for every 2- or 4MB page mapping.
-			 *
-			 * On demotion, a mapping that hasn't been referenced
-			 * is simply destroyed.  To avoid the possibility of a
-			 * subsequent page fault on a demoted wired mapping,
-			 * always leave its reference bit set.  Moreover,
-			 * since the superpage is wired, the current state of
-			 * its reference bit won't affect page replacement.
 			 */
 			if ((((pa >> PAGE_SHIFT) ^ (pv->pv_va >> PDRSHIFT) ^
 			    (uintptr_t)pmap) & (NPTEPG - 1)) == 0 &&
