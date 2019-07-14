@@ -52,7 +52,7 @@ thr_set_name_np(struct pthread *thread, const char *name)
 {
 
 	free(thread->name);
-	thread->name = strdup(name);
+	thread->name = name != NULL ? strdup(name) : NULL;
 }
 
 /* Set the thread name for debug. */
