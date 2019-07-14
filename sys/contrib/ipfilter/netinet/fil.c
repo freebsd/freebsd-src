@@ -4436,8 +4436,8 @@ ipf_rule_compare(frentry_t *fr1, frentry_t *fr2)
 		return (2);
 	if (fr1->fr_dsize != fr2->fr_dsize)
 		return (3);
-	if (bcmp((char *)&fr1->fr_func, (char *)&fr2->fr_func,
-		 fr1->fr_size - offsetof(struct frentry, fr_func)) != 0)
+	if (bcmp((char *)&fr1->fr_func, (char *)&fr2->fr_func, FR_CMPSIZ(fr1))
+	    != 0)
 		return (4);
 	if (fr1->fr_data && !fr2->fr_data)
 		return (5);
