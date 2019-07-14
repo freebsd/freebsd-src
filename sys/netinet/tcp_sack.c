@@ -279,6 +279,45 @@ tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_start, tcp_seq rcv_end)
 	tp->rcv_numsacks = num_head + num_saved;
 }
 
+void
+tcp_clean_dsack_blocks(struct tcpcb *tp)
+{
+	struct sackblk saved_blks[MAX_SACK_BLKS];
+	int num_saved, i;
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+	/*
+	 * Clean up any DSACK blocks that
+	 * are in our queue of sack blocks.
+	 * 
+	 */
+	num_saved = 0;
+	for (i = 0; i < tp->rcv_numsacks; i++) {
+		tcp_seq start = tp->sackblks[i].start;
+		tcp_seq end = tp->sackblks[i].end;
+		if (SEQ_GEQ(start, end) || SEQ_LEQ(start, tp->rcv_nxt)) {
+			/*
+			 * Discard this D-SACK block.
+			 */
+			continue;
+		}
+		/*
+		 * Save this SACK block.
+		 */
+		saved_blks[num_saved].start = start;
+		saved_blks[num_saved].end = end;
+		num_saved++;
+	}
+	if (num_saved > 0) {
+		/*
+		 * Copy the saved SACK blocks back.
+		 */
+		bcopy(saved_blks, &tp->sackblks[0],
+		      sizeof(struct sackblk) * num_saved);
+	}
+	tp->rcv_numsacks = num_saved;
+}
+
 /*
  * Delete all receiver-side SACK information.
  */
