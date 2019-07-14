@@ -908,7 +908,8 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	/* We are GOOD to go */
 	stcb = sctp_aloc_assoc(inp, addr, &error, 0, vrf_id,
 	    inp->sctp_ep.pre_open_stream_count,
-	    inp->sctp_ep.port, p);
+	    inp->sctp_ep.port, p,
+	    SCTP_INITIALIZE_AUTH_PARAMS);
 	SCTP_ASOC_CREATE_UNLOCK(inp);
 	if (stcb == NULL) {
 		/* Gak! no memory */
@@ -921,10 +922,6 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	}
 	SCTP_SET_STATE(stcb, SCTP_STATE_COOKIE_WAIT);
 	(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
-
-	/* initialize authentication parameters for the assoc */
-	sctp_initialize_auth_params(inp, stcb);
-
 	sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
 	SCTP_TCB_UNLOCK(stcb);
 	return (error);
