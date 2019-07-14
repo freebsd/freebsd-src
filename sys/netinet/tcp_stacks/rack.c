@@ -5087,9 +5087,8 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 
 	/* Clean receiver SACK report if present */
-/*	if (tp->rcv_numsacks)
+	if (tp->rcv_numsacks)
 	        tcp_clean_sackreport(tp);
-*/
 	TCPSTAT_INC(tcps_preddat);
 	tp->rcv_nxt += tlen;
 	/*
@@ -8537,10 +8536,10 @@ out:
 	 * retransmit.  In persist state, just set snd_max.
 	 */
 	if (error == 0) {
-/*		if (TCPS_HAVEESTABLISHED(tp->t_state) &&
+		if (TCPS_HAVEESTABLISHED(tp->t_state) &&
 		    (tp->t_flags & TF_SACK_PERMIT) &&
 		    tp->rcv_numsacks > 0)
-		    tcp_clean_dsack_blocks(tp);*/
+		    tcp_clean_dsack_blocks(tp);
 		if (len == 0)
 			counter_u64_add(rack_out_size[TCP_MSS_ACCT_SNDACK], 1);
 		else if (len == 1) {
