@@ -12769,7 +12769,8 @@ sctp_lower_sosend(struct socket *so,
 			stcb = sctp_aloc_assoc(inp, addr, &error, 0, vrf_id,
 			    inp->sctp_ep.pre_open_stream_count,
 			    inp->sctp_ep.port,
-			    p);
+			    p,
+			    SCTP_INITIALIZE_AUTH_PARAMS);
 			if (stcb == NULL) {
 				/* Error is setup for us in the call */
 				goto out_unlocked;
@@ -12797,9 +12798,6 @@ sctp_lower_sosend(struct socket *so,
 			asoc = &stcb->asoc;
 			SCTP_SET_STATE(stcb, SCTP_STATE_COOKIE_WAIT);
 			(void)SCTP_GETTIME_TIMEVAL(&asoc->time_entered);
-
-			/* initialize authentication params for the assoc */
-			sctp_initialize_auth_params(inp, stcb);
 
 			if (control) {
 				if (sctp_process_cmsgs_for_init(stcb, control, &error)) {
