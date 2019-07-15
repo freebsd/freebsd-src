@@ -236,10 +236,43 @@ static nxprtc_compat_data compat_data[] = {
 };
 
 static int
+nxprtc_readfrom(device_t slavedev, uint8_t regaddr, void *buffer,
+    uint16_t buflen, int waithow)
+{
+	struct iic_msg msg;
+	int err;
+	uint8_t slaveaddr;
+
+	/*
+	 * Two transfers back to back with a stop and start between them; first we
+	 * write the address-within-device, then we read from the device.  This
+	 * is used instead of the standard iicdev_readfrom() because some of the
+	 * chips we service don't support i2c repeat-start operations (grrrrr)
+	 * so we do two completely separate transfers with a full stop between.
+	 */
+	slaveaddr = iicbus_get_addr(slavedev);
+
+	msg.slave = slaveaddr;
+	msg.flags = IIC_M_WR;
+	msg.len   = 1;
+	msg.buf   = &regaddr;
+
+	if ((err = iicbus_transfer_excl(slavedev, &msg, 1, waithow)) != 0)
+		return (err);
+
+	msg.slave = slaveaddr;
+	msg.flags = IIC_M_RD;
+	msg.len   = buflen;
+	msg.buf   = buffer;
+
+	return (iicbus_transfer_excl(slavedev, &msg, 1, waithow));
+}
+
+static int
 read_reg(struct nxprtc_softc *sc, uint8_t reg, uint8_t *val)
 {
 
-	return (iicdev_readfrom(sc->dev, reg, val, sizeof(*val), WAITFLAGS));
+	return (nxprtc_readfrom(sc->dev, reg, val, sizeof(*val), WAITFLAGS));
 }
 
 static int
@@ -272,7 +305,7 @@ read_timeregs(struct nxprtc_softc *sc, struct time_regs *tregs, uint8_t *tmr)
 			if (tmr1 != tmr2)
 				continue;
 		}
-		if ((err = iicdev_readfrom(sc->dev, sc->secaddr, tregs,
+		if ((err = nxprtc_readfrom(sc->dev, sc->secaddr, tregs,
 		    sizeof(*tregs), WAITFLAGS)) != 0)
 			break;
 	} while (sc->use_timer && tregs->sec != sec);
