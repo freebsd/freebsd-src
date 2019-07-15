@@ -593,7 +593,6 @@ void
 syscall(struct trapframe *tf)
 {
 	struct thread *td;
-	int error;
 
 	td = curthread;
 	td->td_frame = tf;
@@ -608,6 +607,6 @@ syscall(struct trapframe *tf)
 	td->td_pcb->pcb_tpc = tf->tf_tpc;
 	TF_DONE(tf);
 
-	error = syscallenter(td);
-	syscallret(td, error);
+	syscallenter(td);
+	syscallret(td);
 }

@@ -1169,7 +1169,6 @@ SYSCTL_PROC(_machdep, OID_AUTO, syscall_ret_flush_l1d, CTLTYPE_INT |
 void
 amd64_syscall(struct thread *td, int traced)
 {
-	int error;
 	ksiginfo_t ksi;
 
 #ifdef DIAGNOSTIC
@@ -1178,7 +1177,7 @@ amd64_syscall(struct thread *td, int traced)
 		/* NOT REACHED */
 	}
 #endif
-	error = syscallenter(td);
+	syscallenter(td);
 
 	/*
 	 * Traced syscall.
@@ -1203,7 +1202,7 @@ amd64_syscall(struct thread *td, int traced)
 	    syscallname(td->td_proc, td->td_sa.code),
 	    td->td_md.md_invl_gen.gen));
 
-	syscallret(td, error);
+	syscallret(td);
 
 	/*
 	 * If the user-supplied value of %rip is not a canonical
@@ -1216,5 +1215,5 @@ amd64_syscall(struct thread *td, int traced)
 	if (__predict_false(td->td_frame->tf_rip >= VM_MAXUSER_ADDRESS))
 		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 
-	amd64_syscall_ret_flush_l1d_inline(error);
+	amd64_syscall_ret_flush_l1d_inline(td->td_errno);
 }
