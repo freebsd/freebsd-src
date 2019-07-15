@@ -21,14 +21,8 @@ WARNS?=		2
 
 LIBADD=		telnet ncursesw
 
-.if !defined(RELEASE_CRUNCH)
 CFLAGS+=	-DIPSEC
 LIBADD+=	ipsec
-.else
-.PATH:         ${TELNETDIR}/libtelnet
-SRCS+=		genget.c getent.c misc.c
-CFLAGS+=	-DHAS_CGETENT
-.endif
 
 .if ${MK_OPENSSL} != "no"
 SRCS+=		authenc.c
