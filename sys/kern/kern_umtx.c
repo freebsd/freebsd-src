@@ -1926,7 +1926,7 @@ do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
 				if (error == 0) {
 					error = umtxq_check_susp(td, true);
 					if (error != 0)
-						return (error);
+						break;
 				}
 
 				/*
