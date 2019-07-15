@@ -1126,7 +1126,8 @@ generic_netmap_attach(struct ifnet *ifp)
 
 	nm_os_generic_set_features(gna);
 
-	nm_prinf("Emulated adapter for %s created (prev was %s)", na->name, gna->prev->name);
+	nm_prinf("Emulated adapter for %s created (prev was %s)", na->name,
+	    gna->prev ? gna->prev->name : "NULL");
 
 	return retval;
 }
