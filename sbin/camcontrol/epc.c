@@ -767,7 +767,7 @@ epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
 
 	switch (devtype) {
 	case CC_DT_ATA:
-	case CC_DT_ATA_BEHIND_SCSI:
+	case CC_DT_SATL:
 		break;
 	default:
 		warnx("The epc subcommand only works with ATA protocol "
