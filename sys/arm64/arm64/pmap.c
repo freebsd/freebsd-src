@@ -217,6 +217,13 @@ __FBSDID("$FreeBSD$");
 #define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
 			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
 
+/*
+ * The presence of this flag indicates that the mapping is writeable.
+ * If the ATTR_AP_RO bit is also set, then the mapping is clean, otherwise it is
+ * dirty.  This flag may only be set on managed mappings.
+ */
+static pt_entry_t ATTR_SW_DBM;
+
 struct pmap kernel_pmap_store;
 
 /* Used for mapping ACPI memory before VM is initialized */
@@ -315,11 +322,12 @@ static __inline vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
  * They need to be atomic as the System MMU may write to the table at
  * the same time as the CPU.
  */
-#define	pmap_clear(table) atomic_store_64(table, 0)
-#define	pmap_load_store(table, entry) atomic_swap_64(table, entry)
-#define	pmap_set(table, mask) atomic_set_64(table, mask)
-#define	pmap_load_clear(table) atomic_swap_64(table, 0)
-#define	pmap_load(table) (*table)
+#define	pmap_clear(table)		atomic_store_64(table, 0)
+#define	pmap_clear_bits(table, bits)	atomic_clear_64(table, bits)
+#define	pmap_load(table)		(*table)
+#define	pmap_load_clear(table)		atomic_swap_64(table, 0)
+#define	pmap_load_store(table, entry)	atomic_swap_64(table, entry)
+#define	pmap_set_bits(table, bits)	atomic_set_64(table, bits)
 
 /********************/
 /* Inline functions */
@@ -532,15 +540,18 @@ pmap_l3_valid(pt_entry_t l3)
 CTASSERT(L1_BLOCK == L2_BLOCK);
 
 /*
- * Checks if the page is dirty. We currently lack proper tracking of this on
- * arm64 so for now assume is a page mapped as rw was accessed it is.
+ * Checks if the PTE is dirty.
  */
 static inline int
 pmap_pte_dirty(pt_entry_t pte)
 {
 
-	return ((pte & (ATTR_AF | ATTR_AP_RW_BIT)) ==
-	    (ATTR_AF | ATTR_AP(ATTR_AP_RW)));
+	KASSERT((pte & ATTR_SW_MANAGED) != 0, ("pte %#lx is unmanaged", pte));
+	KASSERT((pte & (ATTR_AP_RW_BIT | ATTR_SW_DBM)) != 0,
+	    ("pte %#lx is writeable and missing ATTR_SW_DBM", pte));
+
+	return ((pte & (ATTR_AP_RW_BIT | ATTR_SW_DBM)) ==
+	    (ATTR_AP(ATTR_AP_RW) | ATTR_SW_DBM));
 }
 
 static __inline void
@@ -765,12 +776,17 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
     vm_size_t kernlen)
 {
 	u_int l1_slot, l2_slot;
-	uint64_t kern_delta;
 	pt_entry_t *l2;
 	vm_offset_t va, freemempos;
 	vm_offset_t dpcpu, msgbufpv;
 	vm_paddr_t start_pa, pa, min_pa;
+	uint64_t kern_delta, reg;
 	int i;
+
+	/* Determine whether the hardware implements DBM management. */
+	reg = READ_SPECIALREG(ID_AA64MMFR1_EL1);
+	ATTR_SW_DBM = ID_AA64MMFR1_HAFDBS(reg) == ID_AA64MMFR1_HAFDBS_AF_DBS ?
+	    ATTR_DBM : _ATTR_SW_DBM;
 
 	kern_delta = KERNBASE - kernstart;
 
@@ -2478,7 +2494,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 /*
  * pmap_remove_l3: do the things to unmap a page in a process
  */
-static int
+static int __unused
 pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
     pd_entry_t l2e, struct spglist *free, struct rwlock **lockp)
 {
@@ -2788,7 +2804,8 @@ retry:
  * pmap_protect_l2: do the things to protect a 2MB page in a pmap
  */
 static void
-pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t nbits)
+pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t mask,
+    pt_entry_t nbits)
 {
 	pd_entry_t old_l2;
 	vm_page_t m, mt;
@@ -2804,7 +2821,8 @@ pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t nbits)
 	 * Return if the L2 entry already has the desired access restrictions
 	 * in place.
 	 */
-	if ((old_l2 | nbits) == old_l2)
+retry:
+	if ((old_l2 & mask) == nbits)
 		return;
 
 	/*
@@ -2819,7 +2837,8 @@ pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t nbits)
 			vm_page_dirty(mt);
 	}
 
-	pmap_set(l2, nbits);
+	if (!atomic_fcmpset_64(l2, &old_l2, (old_l2 & ~mask) | nbits))
+		goto retry;
 
 	/*
 	 * Since a promotion must break the 4KB page mappings before making
@@ -2837,7 +2856,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	vm_offset_t va, va_next;
 	pd_entry_t *l0, *l1, *l2;
-	pt_entry_t *l3p, l3, nbits;
+	pt_entry_t *l3p, l3, mask, nbits;
 
 	KASSERT((prot & ~VM_PROT_ALL) == 0, ("invalid prot %x", prot));
 	if (prot == VM_PROT_NONE) {
@@ -2845,12 +2864,16 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 	}
 
-	nbits = 0;
-	if ((prot & VM_PROT_WRITE) == 0)
+	mask = nbits = 0;
+	if ((prot & VM_PROT_WRITE) == 0) {
+		mask |= ATTR_AP_RW_BIT | ATTR_SW_DBM;
 		nbits |= ATTR_AP(ATTR_AP_RO);
-	if ((prot & VM_PROT_EXECUTE) == 0)
+	}
+	if ((prot & VM_PROT_EXECUTE) == 0) {
+		mask |= ATTR_XN;
 		nbits |= ATTR_XN;
-	if (nbits == 0)
+	}
+	if (mask == 0)
 		return;
 
 	PMAP_LOCK(pmap);
@@ -2882,7 +2905,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 		if ((pmap_load(l2) & ATTR_DESCR_MASK) == L2_BLOCK) {
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
-				pmap_protect_l2(pmap, l2, sva, nbits);
+				pmap_protect_l2(pmap, l2, sva, mask, nbits);
 				continue;
 			} else if (pmap_demote_l2(pmap, l2, sva) == NULL)
 				continue;
@@ -2896,6 +2919,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		va = va_next;
 		for (l3p = pmap_l2_to_l3(l2, sva); sva != va_next; l3p++,
 		    sva += L3_SIZE) {
+			l3 = pmap_load(l3p);
+retry:
 			/*
 			 * Go to the next L3 entry if the current one is
 			 * invalid or already has the desired access
@@ -2904,16 +2929,13 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			 * workload, almost 1 out of 4 L3 entries already
 			 * have the desired restrictions.)
 			 */
-			l3 = pmap_load(l3p);
-			if (!pmap_l3_valid(l3) || (l3 | nbits) == l3) {
+			if (!pmap_l3_valid(l3) || (l3 & mask) == nbits) {
 				if (va != va_next) {
 					pmap_invalidate_range(pmap, va, sva);
 					va = va_next;
 				}
 				continue;
 			}
-			if (va == va_next)
-				va = sva;
 
 			/*
 			 * When a dirty read/write mapping is write protected,
@@ -2924,7 +2946,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			    pmap_pte_dirty(l3))
 				vm_page_dirty(PHYS_TO_VM_PAGE(l3 & ~ATTR_MASK));
 
-			pmap_set(l3p, nbits);
+			if (!atomic_fcmpset_64(l3p, &l3, (l3 & ~mask) | nbits))
+				goto retry;
+			if (va == va_next)
+				va = sva;
 		}
 		if (va != va_next)
 			pmap_invalidate_range(pmap, va, sva);
@@ -3059,17 +3084,32 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	firstl3 = pmap_l2_to_l3(l2, sva);
 	newl2 = pmap_load(firstl3);
 
-	/* Check the alingment is valid */
-	if (((newl2 & ~ATTR_MASK) & L2_OFFSET) != 0) {
+setl2:
+	if (((newl2 & (~ATTR_MASK | ATTR_AF)) & L2_OFFSET) != ATTR_AF) {
 		atomic_add_long(&pmap_l2_p_failures, 1);
 		CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx"
 		    " in pmap %p", va, pmap);
 		return;
 	}
 
+	if ((newl2 & (ATTR_AP_RW_BIT | ATTR_SW_DBM)) ==
+	    (ATTR_AP(ATTR_AP_RO) | ATTR_SW_DBM)) {
+		if (!atomic_fcmpset_64(l2, &newl2, newl2 & ~ATTR_SW_DBM))
+			goto setl2;
+		newl2 &= ~ATTR_SW_DBM;
+	}
+
 	pa = newl2 + L2_SIZE - PAGE_SIZE;
 	for (l3 = firstl3 + NL3PG - 1; l3 > firstl3; l3--) {
 		oldl3 = pmap_load(l3);
+setl3:
+		if ((oldl3 & (ATTR_AP_RW_BIT | ATTR_SW_DBM)) ==
+		    (ATTR_AP(ATTR_AP_RO) | ATTR_SW_DBM)) {
+			if (!atomic_fcmpset_64(l3, &oldl3, oldl3 &
+			    ~ATTR_SW_DBM))
+				goto setl3;
+			oldl3 &= ~ATTR_SW_DBM;
+		}
 		if (oldl3 != pa) {
 			atomic_add_long(&pmap_l2_p_failures, 1);
 			CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx"
@@ -3152,8 +3192,14 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l3 |= ATTR_SW_WIRED;
 	if (va < VM_MAXUSER_ADDRESS)
 		new_l3 |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
-	if ((m->oflags & VPO_UNMANAGED) == 0)
+	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		new_l3 |= ATTR_SW_MANAGED;
+		if ((prot & VM_PROT_WRITE) != 0) {
+			new_l3 |= ATTR_SW_DBM;
+			if ((flags & VM_PROT_WRITE) == 0)
+				new_l3 |= ATTR_AP(ATTR_AP_RO);
+		}
+	}
 
 	CTR2(KTR_PMAP, "pmap_enter: %.16lx -> %.16lx", va, pa);
 
@@ -3341,6 +3387,7 @@ validate:
 		KASSERT(opa == pa, ("pmap_enter: invalid update"));
 		if ((orig_l3 & ~ATTR_AF) != (new_l3 & ~ATTR_AF)) {
 			/* same PA, different attributes */
+			/* XXXMJ need to reload orig_l3 for hardware DBM. */
 			pmap_load_store(l3, new_l3);
 			pmap_invalidate_page(pmap, va);
 			if ((orig_l3 & ATTR_SW_MANAGED) != 0 &&
@@ -3403,8 +3450,10 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	new_l2 = (pd_entry_t)(VM_PAGE_TO_PHYS(m) | ATTR_DEFAULT |
 	    ATTR_IDX(m->md.pv_memattr) | ATTR_AP(ATTR_AP_RO) | L2_BLOCK);
-	if ((m->oflags & VPO_UNMANAGED) == 0)
+	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		new_l2 |= ATTR_SW_MANAGED;
+		new_l2 &= ~ATTR_AF;
+	}
 	if ((prot & VM_PROT_EXECUTE) == 0 || m->md.pv_memattr == DEVICE_MEMORY)
 		new_l2 |= ATTR_XN;
 	if (va < VM_MAXUSER_ADDRESS)
@@ -3704,8 +3753,10 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	/*
 	 * Now validate mapping with RO protection
 	 */
-	if ((m->oflags & VPO_UNMANAGED) == 0)
+	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		l3_val |= ATTR_SW_MANAGED;
+		l3_val &= ~ATTR_AF;
+	}
 
 	/* Sync icache before the mapping is stored to PTE */
 	if ((prot & VM_PROT_EXECUTE) && pmap != kernel_pmap &&
@@ -3834,7 +3885,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	struct rwlock *lock;
 	struct spglist free;
 	pd_entry_t *l0, *l1, *l2, srcptepaddr;
-	pt_entry_t *dst_pte, ptetemp, *src_pte;
+	pt_entry_t *dst_pte, mask, nbits, ptetemp, *src_pte;
 	vm_offset_t addr, end_addr, va_next;
 	vm_page_t dst_l2pg, dstmpte, srcmpte;
 
@@ -3885,8 +3936,12 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			    ((srcptepaddr & ATTR_SW_MANAGED) == 0 ||
 			    pmap_pv_insert_l2(dst_pmap, addr, srcptepaddr,
 			    PMAP_ENTER_NORECLAIM, &lock))) {
-				(void)pmap_load_store(l2, srcptepaddr &
-				    ~ATTR_SW_WIRED);
+				mask = ATTR_AF | ATTR_SW_WIRED;
+				nbits = 0;
+				if ((srcptepaddr & ATTR_SW_DBM) != 0)
+					nbits |= ATTR_AP_RW_BIT;
+				(void)pmap_load_store(l2,
+				    (srcptepaddr & ~mask) | nbits);
 				pmap_resident_count_inc(dst_pmap, L2_SIZE /
 				    PAGE_SIZE);
 				atomic_add_long(&pmap_l2_mappings, 1);
@@ -3930,11 +3985,13 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				/*
 				 * Clear the wired, modified, and accessed
 				 * (referenced) bits during the copy.
-				 *
-				 * XXX not yet
 				 */
-				(void)pmap_load_store(dst_pte, ptetemp &
-				    ~ATTR_SW_WIRED);
+				mask = ATTR_AF | ATTR_SW_WIRED;
+				nbits = 0;
+				if ((ptetemp & ATTR_SW_DBM) != 0)
+					nbits |= ATTR_AP_RW_BIT;
+				(void)pmap_load_store(dst_pte,
+				    (ptetemp & ~mask) | nbits);
 				pmap_resident_count_inc(dst_pmap, 1);
 			} else {
 				SLIST_INIT(&free);
@@ -4560,7 +4617,7 @@ retry_pv_loop:
 		}
 		va = pv->pv_va;
 		pte = pmap_pte(pmap, pv->pv_va, &lvl);
-		if ((pmap_load(pte) & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RW))
+		if ((pmap_load(pte) & ATTR_SW_DBM) != 0)
 			(void)pmap_demote_l2_locked(pmap, pte, va, &lock);
 		KASSERT(lock == VM_PAGE_TO_PV_LIST_LOCK(m),
 		    ("inconsistent pv lock %p %p for page %p",
@@ -4583,13 +4640,14 @@ retry_pv_loop:
 			}
 		}
 		pte = pmap_pte(pmap, pv->pv_va, &lvl);
-retry:
 		oldpte = pmap_load(pte);
-		if ((oldpte & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RW)) {
-			if (!atomic_cmpset_long(pte, oldpte,
-			    oldpte | ATTR_AP(ATTR_AP_RO)))
+retry:
+		if ((oldpte & ATTR_SW_DBM) != 0) {
+			if (!atomic_fcmpset_long(pte, &oldpte,
+			    (oldpte | ATTR_AP_RW_BIT) & ~ATTR_SW_DBM))
 				goto retry;
-			if ((oldpte & ATTR_AF) != 0)
+			if ((oldpte & ATTR_AP_RW_BIT) ==
+			    ATTR_AP(ATTR_AP_RW))
 				vm_page_dirty(m);
 			pmap_invalidate_page(pmap, pv->pv_va);
 		}
@@ -4597,13 +4655,6 @@ retry:
 	}
 	rw_wunlock(lock);
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
-}
-
-static __inline boolean_t
-safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
-{
-
-	return (FALSE);
 }
 
 /*
@@ -4631,12 +4682,10 @@ pmap_ts_referenced(vm_page_t m)
 	struct rwlock *lock;
 	pd_entry_t *pde, tpde;
 	pt_entry_t *pte, tpte;
-	pt_entry_t *l3;
 	vm_offset_t va;
 	vm_paddr_t pa;
-	int cleared, md_gen, not_cleared, lvl, pvh_gen;
+	int cleared, lvl, md_gen, not_cleared, pvh_gen;
 	struct spglist free;
-	bool demoted;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
@@ -4683,17 +4732,18 @@ retry:
 			 */
 			vm_page_dirty(m);
 		}
+
 		if ((tpte & ATTR_AF) != 0) {
 			/*
-			 * Since this reference bit is shared by 512 4KB
-			 * pages, it should not be cleared every time it is
-			 * tested.  Apply a simple "hash" function on the
-			 * physical page number, the virtual superpage number,
-			 * and the pmap address to select one 4KB page out of
-			 * the 512 on which testing the reference bit will
-			 * result in clearing that reference bit.  This
-			 * function is designed to avoid the selection of the
-			 * same 4KB page for every 2MB page mapping.
+			 * Since this reference bit is shared by 512 4KB pages,
+			 * it should not be cleared every time it is tested.
+			 * Apply a simple "hash" function on the physical page
+			 * number, the virtual superpage number, and the pmap
+			 * address to select one 4KB page out of the 512 on
+			 * which testing the reference bit will result in
+			 * clearing that reference bit.  This function is
+			 * designed to avoid the selection of the same 4KB page
+			 * for every 2MB page mapping.
 			 *
 			 * On demotion, a mapping that hasn't been referenced
 			 * is simply destroyed.  To avoid the possibility of a
@@ -4705,39 +4755,9 @@ retry:
 			if ((((pa >> PAGE_SHIFT) ^ (pv->pv_va >> L2_SHIFT) ^
 			    (uintptr_t)pmap) & (Ln_ENTRIES - 1)) == 0 &&
 			    (tpte & ATTR_SW_WIRED) == 0) {
-				if (safe_to_clear_referenced(pmap, tpte)) {
-					/*
-					 * TODO: We don't handle the access
-					 * flag at all. We need to be able
-					 * to set it in  the exception handler.
-					 */
-					panic("ARM64TODO: "
-					    "safe_to_clear_referenced\n");
-				} else if (pmap_demote_l2_locked(pmap, pte,
-				    pv->pv_va, &lock) != NULL) {
-					demoted = true;
-					va += VM_PAGE_TO_PHYS(m) -
-					    (tpte & ~ATTR_MASK);
-					l3 = pmap_l2_to_l3(pte, va);
-					pmap_remove_l3(pmap, l3, va,
-					    pmap_load(pte), NULL, &lock);
-				} else
-					demoted = true;
-
-				if (demoted) {
-					/*
-					 * The superpage mapping was removed
-					 * entirely and therefore 'pv' is no
-					 * longer valid.
-					 */
-					if (pvf == pv)
-						pvf = NULL;
-					pv = NULL;
-				}
+				pmap_clear_bits(pte, ATTR_AF);
+				pmap_invalidate_page(pmap, pv->pv_va);
 				cleared++;
-				KASSERT(lock == VM_PAGE_TO_PV_LIST_LOCK(m),
-				    ("inconsistent pv lock %p %p for page %p",
-				    lock, VM_PAGE_TO_PV_LIST_LOCK(m), m));
 			} else
 				not_cleared++;
 		}
@@ -4782,29 +4802,10 @@ small_mappings:
 		if (pmap_pte_dirty(tpte))
 			vm_page_dirty(m);
 		if ((tpte & ATTR_AF) != 0) {
-			if (safe_to_clear_referenced(pmap, tpte)) {
-				/*
-				 * TODO: We don't handle the access flag
-				 * at all. We need to be able to set it in
-				 * the exception handler.
-				 */
-				panic("ARM64TODO: safe_to_clear_referenced\n");
-			} else if ((tpte & ATTR_SW_WIRED) == 0) {
-				/*
-				 * Wired pages cannot be paged out so
-				 * doing accessed bit emulation for
-				 * them is wasted effort. We do the
-				 * hard work for unwired pages only.
-				 */
-				pmap_remove_l3(pmap, pte, pv->pv_va, tpde,
-				    &free, &lock);
+			if ((tpte & ATTR_SW_WIRED) == 0) {
+				pmap_clear_bits(pte, ATTR_AF);
+				pmap_invalidate_page(pmap, pv->pv_va);
 				cleared++;
-				if (pvf == pv)
-					pvf = NULL;
-				pv = NULL;
-				KASSERT(lock == VM_PAGE_TO_PV_LIST_LOCK(m),
-				    ("inconsistent pv lock %p %p for page %p",
-				    lock, VM_PAGE_TO_PV_LIST_LOCK(m), m));
 			} else
 				not_cleared++;
 		}
@@ -4839,6 +4840,14 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 void
 pmap_clear_modify(vm_page_t m)
 {
+	struct md_page *pvh;
+	struct rwlock *lock;
+	pmap_t pmap;
+	pv_entry_t next_pv, pv;
+	pd_entry_t *l2, oldl2;
+	pt_entry_t *l3, oldl3;
+	vm_offset_t va;
+	int md_gen, pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
@@ -4847,14 +4856,81 @@ pmap_clear_modify(vm_page_t m)
 	    ("pmap_clear_modify: page %p is exclusive busied", m));
 
 	/*
-	 * If the page is not PGA_WRITEABLE, then no PTEs can have PG_M set.
-	 * If the object containing the page is locked and the page is not
+	 * If the page is not PGA_WRITEABLE, then no PTEs can have ATTR_SW_DBM
+	 * set.  If the object containing the page is locked and the page is not
 	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
-
-	/* ARM64TODO: We lack support for tracking if a page is modified */
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
+	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	rw_wlock(lock);
+restart:
+	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
+		pmap = PV_PMAP(pv);
+		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen) {
+				PMAP_UNLOCK(pmap);
+				goto restart;
+			}
+		}
+		va = pv->pv_va;
+		l2 = pmap_l2(pmap, va);
+		oldl2 = pmap_load(l2);
+		if ((oldl2 & ATTR_SW_DBM) != 0) {
+			if (pmap_demote_l2_locked(pmap, l2, va, &lock)) {
+				if ((oldl2 & ATTR_SW_WIRED) == 0) {
+					/*
+					 * Write protect the mapping to a
+					 * single page so that a subsequent
+					 * write access may repromote.
+					 */
+					va += VM_PAGE_TO_PHYS(m) -
+					    (oldl2 & ~ATTR_MASK);
+					l3 = pmap_l2_to_l3(l2, va);
+					oldl3 = pmap_load(l3);
+					if (pmap_l3_valid(oldl3)) {
+						while (!atomic_fcmpset_long(l3,
+						    &oldl3, (oldl3 & ~ATTR_SW_DBM) |
+						    ATTR_AP(ATTR_AP_RO)))
+							cpu_spinwait();
+						vm_page_dirty(m);
+						pmap_invalidate_page(pmap, va);
+					}
+				}
+			}
+		}
+		PMAP_UNLOCK(pmap);
+	}
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
+		pmap = PV_PMAP(pv);
+		if (!PMAP_TRYLOCK(pmap)) {
+			md_gen = m->md.pv_gen;
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen || md_gen != m->md.pv_gen) {
+				PMAP_UNLOCK(pmap);
+				goto restart;
+			}
+		}
+		l2 = pmap_l2(pmap, pv->pv_va);
+		l3 = pmap_l2_to_l3(l2, pv->pv_va);
+		oldl3 = pmap_load(l3);
+		if (pmap_l3_valid(oldl3) &&
+		    (oldl3 & (ATTR_AP_RW_BIT | ATTR_SW_DBM)) == ATTR_SW_DBM) {
+			pmap_set_bits(l3, ATTR_AP(ATTR_AP_RO));
+			pmap_invalidate_page(pmap, pv->pv_va);
+		}
+		PMAP_UNLOCK(pmap);
+	}
+	rw_wunlock(lock);
 }
 
 void *
@@ -5328,14 +5404,15 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 			pmap_resident_count_inc(pmap, 1);
 		}
 	}
-
 	l3phys = VM_PAGE_TO_PHYS(ml3);
 	l3 = (pt_entry_t *)PHYS_TO_DMAP(l3phys);
-
 	/* Address the range points at */
 	phys = oldl2 & ~ATTR_MASK;
 	/* The attributed from the old l2 table to be copied */
 	newl3 = (oldl2 & (ATTR_MASK & ~ATTR_DESCR_MASK)) | L3_PAGE;
+	KASSERT((oldl2 & (ATTR_AP_RW_BIT | ATTR_SW_DBM)) !=
+	    (ATTR_AP(ATTR_AP_RO) | ATTR_SW_DBM),
+	    ("pmap_demote_l2: L2 entry is writeable but not dirty"));
 
 	/*
 	 * If the page table page is not leftover from an earlier promotion,
@@ -5442,15 +5519,16 @@ retry:
 			panic("pmap_mincore: invalid level %d", lvl);
 		}
 
+		managed = (tpte & ATTR_SW_MANAGED) != 0;
 		val = MINCORE_INCORE;
 		if (lvl != 3)
 			val |= MINCORE_SUPER;
-		if (pmap_pte_dirty(tpte))
+		if ((managed && pmap_pte_dirty(tpte)) || (!managed &&
+		    (tpte & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RW)))
 			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
 		if ((tpte & ATTR_AF) == ATTR_AF)
 			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
 
-		managed = (tpte & ATTR_SW_MANAGED) == ATTR_SW_MANAGED;
 		pa = (tpte & ~ATTR_MASK) | (addr & mask);
 	} else
 		managed = false;
@@ -5560,22 +5638,58 @@ pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 int
 pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 {
-#ifdef SMP
+	pt_entry_t *pte;
 	register_t intr;
-	uint64_t par;
+	uint64_t ec, par;
+	int lvl, rv;
 
-	switch (ESR_ELx_EXCEPTION(esr)) {
+	rv = KERN_FAILURE;
+
+	ec = ESR_ELx_EXCEPTION(esr);
+	switch (ec) {
 	case EXCP_INSN_ABORT_L:
 	case EXCP_INSN_ABORT:
 	case EXCP_DATA_ABORT_L:
 	case EXCP_DATA_ABORT:
 		break;
 	default:
-		return (KERN_FAILURE);
+		return (rv);
 	}
 
-	/* Data and insn aborts use same encoding for FCS field. */
+	/* Data and insn aborts use same encoding for FSC field. */
 	switch (esr & ISS_DATA_DFSC_MASK) {
+	case ISS_DATA_DFSC_AFF_L1:
+	case ISS_DATA_DFSC_AFF_L2:
+	case ISS_DATA_DFSC_AFF_L3:
+		PMAP_LOCK(pmap);
+		pte = pmap_pte(pmap, far, &lvl);
+		if (pte != NULL) {
+			pmap_set_bits(pte, ATTR_AF);
+			rv = KERN_SUCCESS;
+			/*
+			 * XXXMJ as an optimization we could mark the entry
+			 * dirty if this is a write fault.
+			 */
+		}
+		PMAP_UNLOCK(pmap);
+		break;
+	case ISS_DATA_DFSC_PF_L1:
+	case ISS_DATA_DFSC_PF_L2:
+	case ISS_DATA_DFSC_PF_L3:
+		if ((ec != EXCP_DATA_ABORT_L && ec != EXCP_DATA_ABORT) ||
+		    (esr & ISS_DATA_WnR) == 0)
+			return (rv);
+		PMAP_LOCK(pmap);
+		pte = pmap_pte(pmap, far, &lvl);
+		if (pte != NULL &&
+		    (pmap_load(pte) & (ATTR_AP_RW_BIT | ATTR_SW_DBM)) ==
+		    (ATTR_AP(ATTR_AP_RO) | ATTR_SW_DBM)) {
+			pmap_clear_bits(pte, ATTR_AP_RW_BIT);
+			pmap_invalidate_page(pmap, trunc_page(far));
+			rv = KERN_SUCCESS;
+		}
+		PMAP_UNLOCK(pmap);
+		break;
 	case ISS_DATA_DFSC_TF_L0:
 	case ISS_DATA_DFSC_TF_L1:
 	case ISS_DATA_DFSC_TF_L2:
@@ -5596,14 +5710,11 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 		 * return success to the trap handler.
 		 */
 		if (PAR_SUCCESS(par))
-			return (KERN_SUCCESS);
-		break;
-	default:
+			rv = KERN_SUCCESS;
 		break;
 	}
-#endif
 
-	return (KERN_FAILURE);
+	return (rv);
 }
 
 /*
