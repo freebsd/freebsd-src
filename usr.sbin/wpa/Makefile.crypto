@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
+.if ${MK_OPENSSL} != "no"
 SRCS+=	crypto_openssl.c random.c sha1-prf.c sha256-prf.c sha256-tlsprf.c \
 	sha512.c
 LIBADD+=	ssl crypto
