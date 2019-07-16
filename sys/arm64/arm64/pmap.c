@@ -5310,6 +5310,17 @@ pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 }
 
 static void
+pmap_fill_l3(pt_entry_t *firstl3, pt_entry_t newl3)
+{
+	pt_entry_t *l3;
+
+	for (l3 = firstl3; l3 - firstl3 < Ln_ENTRIES; l3++) {
+		*l3 = newl3;
+		newl3 += L3_SIZE;
+	}
+}
+
+static void
 pmap_demote_l2_abort(pmap_t pmap, vm_offset_t va, pt_entry_t *l2,
     struct rwlock **lockp)
 {
@@ -5330,9 +5341,8 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 {
 	pt_entry_t *l3, newl3, oldl2;
 	vm_offset_t tmpl2;
-	vm_paddr_t l3phys, phys;
+	vm_paddr_t l3phys;
 	vm_page_t ml3;
-	int i;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	l3 = NULL;
@@ -5406,27 +5416,17 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 	}
 	l3phys = VM_PAGE_TO_PHYS(ml3);
 	l3 = (pt_entry_t *)PHYS_TO_DMAP(l3phys);
-	/* Address the range points at */
-	phys = oldl2 & ~ATTR_MASK;
-	/* The attributed from the old l2 table to be copied */
-	newl3 = (oldl2 & (ATTR_MASK & ~ATTR_DESCR_MASK)) | L3_PAGE;
+	newl3 = (oldl2 & ~ATTR_DESCR_MASK) | L3_PAGE;
 	KASSERT((oldl2 & (ATTR_AP_RW_BIT | ATTR_SW_DBM)) !=
 	    (ATTR_AP(ATTR_AP_RO) | ATTR_SW_DBM),
 	    ("pmap_demote_l2: L2 entry is writeable but not dirty"));
 
 	/*
 	 * If the page table page is not leftover from an earlier promotion,
-	 * initialize it.
+	 * or the mapping attributes have changed, (re)initialize the L3 table.
 	 */
-	if (ml3->valid == 0) {
-		for (i = 0; i < Ln_ENTRIES; i++) {
-			l3[i] = newl3 | phys;
-			phys += L3_SIZE;
-		}
-	}
-	KASSERT(l3[0] == ((oldl2 & ~ATTR_DESCR_MASK) | L3_PAGE),
-	    ("Invalid l3 page (%lx != %lx)", l3[0],
-	    (oldl2 & ~ATTR_DESCR_MASK) | L3_PAGE));
+	if (ml3->valid == 0 || (l3[0] & ATTR_MASK) != (newl3 & ATTR_MASK))
+		pmap_fill_l3(l3, newl3);
 
 	/*
 	 * Map the temporary page so we don't lose access to the l2 table.
