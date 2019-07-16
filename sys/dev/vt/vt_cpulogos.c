@@ -227,9 +227,8 @@ vt_init_logos(void *dummy)
 		return;
 
 	VT_LOCK(vd);
-	KASSERT((vd->vd_flags & VDF_INITIALIZED) != 0,
-	    ("vd %p not initialized", vd));
-
+	if ((vd->vd_flags & VDF_INITIALIZED) == 0)
+		goto out;
 	if ((vd->vd_flags & (VDF_DEAD | VDF_TEXTMODE)) != 0)
 		goto out;
 	if (vd->vd_height <= vt_logo_sprite_height)
