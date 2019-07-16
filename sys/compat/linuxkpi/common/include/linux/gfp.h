@@ -58,9 +58,6 @@
 #define	__GFP_NO_KSWAPD	0
 #define	__GFP_WAIT	M_WAITOK
 #define	__GFP_DMA32	(1U << 24) /* LinuxKPI only */
-#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION == 50000
-#define	__GFP_NOTWIRED	(1U << 25)
-#endif
 #define	__GFP_BITS_SHIFT 25
 #define	__GFP_BITS_MASK	((1 << __GFP_BITS_SHIFT) - 1)
 #define	__GFP_NOFAIL	M_WAITOK
@@ -101,9 +98,6 @@ static inline struct page *
 alloc_page(gfp_t flags)
 {
 
-#ifdef __GFP_NOTWIRED
-	flags |= __GFP_NOTWIRED;
-#endif
 	return (linux_alloc_pages(flags, 0));
 }
 
@@ -111,9 +105,6 @@ static inline struct page *
 alloc_pages(gfp_t flags, unsigned int order)
 {
 
-#ifdef __GFP_NOTWIRED
-	flags |= __GFP_NOTWIRED;
-#endif
 	return (linux_alloc_pages(flags, order));
 }
 
@@ -121,9 +112,6 @@ static inline struct page *
 alloc_pages_node(int node_id, gfp_t flags, unsigned int order)
 {
 
-#ifdef __GFP_NOTWIRED
-	flags |= __GFP_NOTWIRED;
-#endif
 	return (linux_alloc_pages(flags, order));
 }
 
