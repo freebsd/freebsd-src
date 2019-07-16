@@ -30,8 +30,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/wait.h>
 #include <sys/nv.h>
 
@@ -39,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -375,11 +377,106 @@ ATF_TC_BODY(nvlist_send_recv__send_closed_fd, tc)
 	ATF_REQUIRE_ERRNO(EBADF, nvlist_send(socks[1], nvl) != 0);
 }
 
+static int
+nopenfds(void)
+{
+	size_t len;
+	int error, mib[4], n;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_NFDS;
+	mib[3] = 0;
+
+	len = sizeof(n);
+	error = sysctl(mib, nitems(mib), &n, &len, NULL, 0);
+	if (error != 0)
+		return (-1);
+	return (n);
+}
+
+#define	NFDS	512
+
+static void
+send_many_fds_child(int sock)
+{
+	char name[16];
+	nvlist_t *nvl;
+	int anfds, bnfds, fd, i, j;
+
+	fd = open(_PATH_DEVNULL, O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
+
+	for (i = 1; i < NFDS; i++) {
+		nvl = nvlist_create(0);
+		bnfds = nopenfds();
+		if (bnfds == -1)
+			err(EXIT_FAILURE, "sysctl");
+
+		for (j = 0; j < i; j++) {
+			snprintf(name, sizeof(name), "fd%d", j);
+			nvlist_add_descriptor(nvl, name, fd);
+		}
+		nvlist_send(sock, nvl);
+		nvlist_destroy(nvl);
+
+		anfds = nopenfds();
+		if (anfds == -1)
+			err(EXIT_FAILURE, "sysctl");
+		if (anfds != bnfds)
+			errx(EXIT_FAILURE, "fd count mismatch");
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_many_fds);
+ATF_TC_BODY(nvlist_send_recv__send_many_fds, tc)
+{
+	char name[16];
+	nvlist_t *nvl;
+	int anfds, bnfds, fd, i, j, socks[2], status;
+	pid_t pid;
+
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, socks) == 0);
+
+	pid = fork();
+	ATF_REQUIRE(pid >= 0);
+	if (pid == 0) {
+		/* Child. */
+		(void)close(socks[0]);
+		send_many_fds_child(socks[1]);
+		_exit(0);
+	}
+
+	(void)close(socks[1]);
+
+	for (i = 1; i < NFDS; i++) {
+		bnfds = nopenfds();
+		ATF_REQUIRE(bnfds != -1);
+
+		nvl = nvlist_recv(socks[0], 0);
+		ATF_REQUIRE(nvl != NULL);
+		for (j = 0; j < i; j++) {
+			snprintf(name, sizeof(name), "fd%d", j);
+			fd = nvlist_take_descriptor(nvl, name);
+			ATF_REQUIRE(close(fd) == 0);
+		}
+		nvlist_destroy(nvl);
+
+		anfds = nopenfds();
+		ATF_REQUIRE(anfds != -1);
+		ATF_REQUIRE(anfds == bnfds);
+	}
+
+	ATF_REQUIRE(waitpid(pid, &status, 0) == pid);
+	ATF_REQUIRE(status == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_nvlist);
 	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_closed_fd);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_many_fds);
 
 	return (atf_no_error());
 }
