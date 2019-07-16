@@ -69,7 +69,7 @@ ATF_TC_BODY(write_err, tc)
 	errno = 0;
 	ATF_REQUIRE_ERRNO(EBADF, write(-1, wbuf, sizeof(wbuf)) == -1);
 
-	fd = open(path, O_RDWR | O_CREAT);
+	fd = open(path, O_RDWR | O_CREAT, 0600);
 
 	if (fd >= 0) {
 
@@ -141,7 +141,7 @@ ATF_TC_BODY(write_pos, tc)
 	size_t i;
 	int fd;
 
-	fd = open(path, O_RDWR | O_CREAT);
+	fd = open(path, O_RDWR | O_CREAT, 0600);
 	ATF_REQUIRE(fd >= 0);
 
 	for (i = 0; i < n; i++) {
@@ -171,7 +171,7 @@ ATF_TC_BODY(write_ret, tc)
 	size_t i, j;
 	int fd;
 
-	fd = open(path, O_WRONLY | O_CREAT);
+	fd = open(path, O_WRONLY | O_CREAT, 0600);
 	ATF_REQUIRE(fd >= 0);
 
 	(void)memset(buf, 'x', sizeof(buf));

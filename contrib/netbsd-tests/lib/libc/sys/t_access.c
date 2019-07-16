@@ -62,7 +62,7 @@ ATF_TC_BODY(access_access, tc)
 	size_t i;
 	int fd;
 
-	fd = open(path, O_RDONLY | O_CREAT);
+	fd = open(path, O_RDONLY | O_CREAT, 0600);
 
 	if (fd < 0)
 		return;
