@@ -200,7 +200,7 @@ main(int argc, char **argv)
 		err(1, "Unable to initialize casper fileargs");
 
 	caph_cache_catpages();
-	if (caph_limit_stdio() < 0 && caph_enter_casper() < 0) {
+	if (caph_limit_stdio() < 0 || caph_enter_casper() < 0) {
 		fileargs_free(fa);
 		err(1, "Unable to enter capability mode");
 	}
