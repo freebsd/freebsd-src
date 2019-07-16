@@ -972,6 +972,10 @@ main(int argc, char *argv[])
 							++got_there;
 							break;
 						}
+					} else if (type == ICMP6_PARAM_PROB &&
+					    code == ICMP6_PARAMPROB_NEXTHEADER) {
+						printf(" !H");
+						++got_there;
 					} else if (type == ICMP6_ECHO_REPLY) {
 						if (rcvhlim >= 0 &&
 						    rcvhlim <= 1)
@@ -1345,7 +1349,9 @@ packet_ok(struct msghdr *mhdr, int cc, int seq, u_char *type, u_char *code)
 	*code = icp->icmp6_code;
 	if ((*type == ICMP6_TIME_EXCEEDED &&
 	    *code == ICMP6_TIME_EXCEED_TRANSIT) ||
-	    (*type == ICMP6_DST_UNREACH)) {
+	    (*type == ICMP6_DST_UNREACH) ||
+	    (*type == ICMP6_PARAM_PROB &&
+	    *code == ICMP6_PARAMPROB_NEXTHEADER)) {
 		struct ip6_hdr *hip;
 		struct icmp6_hdr *icmp;
 		struct sctp_init_chunk *init;
