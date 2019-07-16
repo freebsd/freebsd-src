@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 26, 2019
+.Dd June 27, 2019
 .Dt GPIO 4
 .Os
 .Sh NAME
@@ -109,7 +109,7 @@ based system these hints can be used to configure drivers for devices
 attached to
 .Nm
 pins:
-.Bl -tag -width ".Va hint.driver.unit.pins"
+.Bl -tag -width ".Va hint.driver.unit.pin_list"
 .It Va hint.driver.unit.at
 The
 .Nm gpiobus
@@ -125,6 +125,20 @@ This is a bitmask of the pins on the
 .Nm gpiobus
 that are connected to the device.
 The pins will be allocated to the specified driver instance.
+Only pins with numbers from 0 to 31 can be specified using this hint.
+.It Va hint.driver.unit.pin_list
+This is a list of pin numbers of pins on the
+.Nm gpiobus
+that are connected to the device.
+The pins will be allocated to the specified driver instance.
+This is a more user friendly alternative to the
+.Ar pins
+hint.
+Additionally, this hint allows specifying pin numbers greater than 31.
+The numbers can be decimal or hexadecimal with 0x prefix.
+Any non-digit character can be used as a separator.
+For example, it can be a comma, a slash or a space.
+The separator can be followed by any number of space characters.
 .El
 .Pp
 The following
