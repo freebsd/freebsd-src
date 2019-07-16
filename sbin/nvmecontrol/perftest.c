@@ -45,11 +45,69 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-#define PERFTEST_USAGE							       \
-	"perftest <-n num_threads> <-o read|write>\n"	       \
-	"         <-s size_in_bytes> <-t time_in_seconds>\n"	       \
-	"         <-i intr|wait> [-f refthread] [-p]\n"	       \
-	"         <namespace id>\n"
+/* Tables for command line parsing */
+
+static cmd_fn_t perftest;
+
+#define NONE 0xffffffffu
+static struct options {
+	bool		perthread;
+	uint32_t	threads;
+	uint32_t	size;
+	uint32_t	time;
+	const char	*op;
+	const char	*intr;
+	const char	*flags;
+	const char	*dev;
+} opt = {
+	.perthread = false,
+	.threads = 0,
+	.size = 0,
+	.time = 0,
+	.op = NULL,
+	.intr = NULL,
+	.flags = NULL,
+	.dev = NULL,
+};
+
+
+static const struct opts perftest_opts[] = {
+#define OPT(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
+	OPT("perthread", 'p', arg_none, opt, perthread,
+	    "Report per-thread results"),
+	OPT("threads", 'n', arg_uint32, opt, threads,
+	    "Number of threads to run"),
+	OPT("size", 's', arg_uint32, opt, size,
+	    "Size of the test"),
+	OPT("time", 't', arg_uint32, opt, time,
+	    "How long to run the test in seconds"),
+	OPT("operation", 'o', arg_string, opt, op,
+	    "Operation type: 'read' or 'write'"),
+	OPT("interrupt", 'i', arg_string, opt, intr,
+	    "Interrupt mode: 'intr' or 'wait'"),
+	OPT("flags", 'f', arg_string, opt, flags,
+	    "Turn on testing flags: refthread"),
+	{ NULL, 0, arg_none, NULL, NULL }
+};
+#undef OPT
+
+static const struct args perftest_args[] = {
+	{ arg_string, &opt.dev, "namespace-id" },
+	{ arg_none, NULL, NULL },
+};
+
+static struct cmd perftest_cmd = {
+	.name = "perftest",
+	.fn = perftest,
+	.descr = "Perform low-level driver performance testing.",
+	.ctx_size = sizeof(opt),
+	.opts = perftest_opts,
+	.args = perftest_args,
+};
+
+CMD_COMMAND(perftest_cmd);
+
+/* End of tables for command line parsing */
 
 static void
 print_perftest(struct nvme_io_test *io_test, bool perthread)
@@ -75,105 +133,54 @@ print_perftest(struct nvme_io_test *io_test, bool perthread)
 }
 
 static void
-perftest(const struct nvme_function *nf, int argc, char *argv[])
+perftest(const struct cmd *f, int argc, char *argv[])
 {
 	struct nvme_io_test		io_test;
 	int				fd;
-	int				opt;
-	char				*p;
 	u_long				ioctl_cmd = NVME_IO_TEST;
-	bool				nflag, oflag, sflag, tflag;
-	int				perthread = 0;
-
-	nflag = oflag = sflag = tflag = false;
 
 	memset(&io_test, 0, sizeof(io_test));
-
-	while ((opt = getopt(argc, argv, "f:i:n:o:ps:t:")) != -1) {
-		switch (opt) {
-		case 'f':
-			if (!strcmp(optarg, "refthread"))
-				io_test.flags |= NVME_TEST_FLAG_REFTHREAD;
-			break;
-		case 'i':
-			if (!strcmp(optarg, "bio") ||
-			    !strcmp(optarg, "wait"))
-				ioctl_cmd = NVME_BIO_TEST;
-			else if (!strcmp(optarg, "io") ||
-				 !strcmp(optarg, "intr"))
-				ioctl_cmd = NVME_IO_TEST;
-			break;
-		case 'n':
-			nflag = true;
-			io_test.num_threads = strtoul(optarg, &p, 0);
-			if (p != NULL && *p != '\0') {
-				fprintf(stderr,
-				    "\"%s\" not valid number of threads.\n",
-				    optarg);
-				usage(nf);
-			} else if (io_test.num_threads == 0 ||
-				   io_test.num_threads > 128) {
-				fprintf(stderr,
-				    "\"%s\" not valid number of threads.\n",
-				    optarg);
-				usage(nf);
-			}
-			break;
-		case 'o':
-			oflag = true;
-			if (!strcmp(optarg, "read") || !strcmp(optarg, "READ"))
-				io_test.opc = NVME_OPC_READ;
-			else if (!strcmp(optarg, "write") ||
-				 !strcmp(optarg, "WRITE"))
-				io_test.opc = NVME_OPC_WRITE;
-			else {
-				fprintf(stderr, "\"%s\" not valid opcode.\n",
-				    optarg);
-				usage(nf);
-			}
-			break;
-		case 'p':
-			perthread = 1;
-			break;
-		case 's':
-			sflag = true;
-			io_test.size = strtoul(optarg, &p, 0);
-			if (p == NULL || *p == '\0' || toupper(*p) == 'B') {
-				// do nothing
-			} else if (toupper(*p) == 'K') {
-				io_test.size *= 1024;
-			} else if (toupper(*p) == 'M') {
-				io_test.size *= 1024 * 1024;
-			} else {
-				fprintf(stderr, "\"%s\" not valid size.\n",
-				    optarg);
-				usage(nf);
-			}
-			break;
-		case 't':
-			tflag = true;
-			io_test.time = strtoul(optarg, &p, 0);
-			if (p != NULL && *p != '\0') {
-				fprintf(stderr,
-				    "\"%s\" not valid time duration.\n",
-				    optarg);
-				usage(nf);
-			}
-			break;
+	if (arg_parse(argc, argv, f))
+		return;
+	
+	if (opt.flags == NULL || opt.op == NULL)
+		arg_help(argc, argv, f);
+	if (strcmp(opt.flags, "refthread") == 0)
+		io_test.flags |= NVME_TEST_FLAG_REFTHREAD;
+	if (opt.intr != NULL) {
+		if (strcmp(opt.intr, "bio") == 0 ||
+		    strcmp(opt.intr, "wait") == 0)
+			ioctl_cmd = NVME_BIO_TEST;
+		else if (strcmp(opt.intr, "io") == 0 ||
+		    strcmp(opt.intr, "intr") == 0)
+			ioctl_cmd = NVME_IO_TEST;
+		else {
+			fprintf(stderr, "Unknown interrupt test type %s\n", opt.intr);
+			arg_help(argc, argv, f);
 		}
 	}
-
-	if (!nflag || !oflag || !sflag || !tflag || optind >= argc)
-		usage(nf);
-
-
-	open_dev(argv[optind], &fd, 1, 1);
+	if (opt.threads <= 0 || opt.threads > 128) {
+		fprintf(stderr, "Bad number of threads %d\n", opt.threads);
+		arg_help(argc, argv, f);
+	}
+	if (strcasecmp(opt.op, "read") == 0)
+		io_test.opc = NVME_OPC_READ;
+	else if (strcasecmp(opt.op, "write") == 0)
+		io_test.opc = NVME_OPC_WRITE;
+	else {
+		fprintf(stderr, "\"%s\" not valid opcode.\n", opt.op);
+		arg_help(argc, argv, f);
+	}
+	if (opt.time == 0) {
+		fprintf(stderr, "No time speciifed\n");
+		arg_help(argc, argv, f);
+	}
+	io_test.time = opt.time;
+	open_dev(opt.dev, &fd, 1, 1);
 	if (ioctl(fd, ioctl_cmd, &io_test) < 0)
 		err(1, "ioctl NVME_IO_TEST failed");
 
 	close(fd);
-	print_perftest(&io_test, perthread);
+	print_perftest(&io_test, opt.perthread);
 	exit(0);
 }
-
-NVME_COMMAND(top, perftest, perftest, PERFTEST_USAGE);

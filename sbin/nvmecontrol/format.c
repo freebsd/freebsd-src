@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,57 +44,104 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-#define FORMAT_USAGE							       \
-	"format [-f fmt] [-m mset] [-p pi] [-l pil] [-E] [-C] <controller id|namespace id>\n"
+#define NONE 0xffffffffu
+#define SES_NONE 0
+#define SES_USER 1
+#define SES_CRYPTO 2
+
+/* Tables for command line parsing */
+
+static cmd_fn_t format;
+
+static struct options {
+	uint32_t	lbaf;
+	uint32_t	ms;
+	uint32_t	pi;
+	uint32_t	pil;
+	uint32_t	ses;
+	bool		Eflag;
+	bool		Cflag;
+	const char	*dev;
+} opt = {
+	.lbaf = NONE,
+	.ms = NONE,
+	.pi = NONE,
+	.pil = NONE,
+	.ses = SES_NONE,
+	.Eflag = false,
+	.Cflag = false,
+	.dev = NULL,
+};
+
+static const struct opts format_opts[] = {
+#define OPT(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
+	OPT("crypto", 'C', arg_none, opt, Cflag,
+	    "Crptographically erase user data by forgetting key"),
+	OPT("erase", 'E', arg_none, opt, Eflag,
+	    "Erase user data"),
+	OPT("lbaf", 'f', arg_uint32, opt, lbaf,
+	    "Set the LBA Format to apply to the media"),
+	OPT("ms", 'm', arg_uint32, opt, ms,
+	    "Slot to activate and/or download format to"),
+	OPT("pi", 'p', arg_uint32, opt, pi,
+	    "Slot to activate and/or download format to"),
+	OPT("pil", 'l', arg_uint32, opt, pil,
+	    "Slot to activate and/or download format to"),
+	OPT("ses", 's', arg_uint32, opt, ses,
+	    "Slot to activate and/or download format to"),
+	{ NULL, 0, arg_none, NULL, NULL }
+};
+#undef OPT
+
+static const struct args format_args[] = {
+	{ arg_string, &opt.dev, "controller-id|namespace-id" },
+	{ arg_none, NULL, NULL },
+};
+
+static struct cmd format_cmd = {
+	.name = "format",
+	.fn = format,
+	.descr = "Format/erase one or all the namespaces.",
+	.ctx_size = sizeof(opt),
+	.opts = format_opts,
+	.args = format_args,
+};
+
+CMD_COMMAND(format_cmd);
+
+/* End of tables for command line parsing */
 
 static void
-format(const struct nvme_function *nf, int argc, char *argv[])
+format(const struct cmd *f, int argc, char *argv[])
 {
 	struct nvme_controller_data	cd;
 	struct nvme_namespace_data	nsd;
 	struct nvme_pt_command		pt;
 	char				path[64];
-	char				*target;
+	const char			*target;
 	uint32_t			nsid;
-	int				ch, fd;
-	int lbaf = -1, mset = -1, pi = -1, pil = -1, ses = 0;
+	int				lbaf, ms, pi, pil, ses, fd;
 
-	if (argc < 2)
-		usage(nf);
+	if (arg_parse(argc, argv, f))
+		return;
 
-	while ((ch = getopt(argc, argv, "f:m:p:l:EC")) != -1) {
-		switch ((char)ch) {
-		case 'f':
-			lbaf = strtol(optarg, NULL, 0);
-			break;
-		case 'm':
-			mset = strtol(optarg, NULL, 0);
-			break;
-		case 'p':
-			pi = strtol(optarg, NULL, 0);
-			break;
-		case 'l':
-			pil = strtol(optarg, NULL, 0);
-			break;
-		case 'E':
-			if (ses == 2)
-				errx(1, "-E and -C are mutually exclusive");
-			ses = 1;
-			break;
-		case 'C':
-			if (ses == 1)
-				errx(1, "-E and -C are mutually exclusive");
-			ses = 2;
-			break;
-		default:
-			usage(nf);
-		}
+	if (opt.Eflag || opt.Cflag || opt.ses != SES_NONE) {
+		fprintf(stderr,
+		    "Only one of -E, -C or -s may be specified\n");
+		arg_help(argc, argv, f);
 	}
 
-	/* Check that a controller or namespace was specified. */
-	if (optind >= argc)
-		usage(nf);
-	target = argv[optind];
+	target = opt.dev;
+	lbaf = opt.lbaf;
+	ms = opt.ms;
+	pi = opt.pi;
+	pil = opt.pil;
+	if (opt.Eflag)
+		ses = SES_USER;
+	else if (opt.Cflag)
+		ses = SES_CRYPTO;
+	else
+		ses = opt.ses;
 
 	/*
 	 * Check if the specified device node exists before continuing.
@@ -126,15 +174,15 @@ format(const struct nvme_function *nf, int argc, char *argv[])
 	    NVME_CTRLR_DATA_OACS_FORMAT_MASK) == 0)
 		errx(1, "controller does not support format");
 	if (((cd.fna >> NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_SHIFT) &
-	    NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_MASK) == 0 && ses == 2)
+	    NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_MASK) == 0 && ses == SES_CRYPTO)
 		errx(1, "controller does not support cryptographic erase");
 
 	if (nsid != NVME_GLOBAL_NAMESPACE_TAG) {
 		if (((cd.fna >> NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT) &
-		    NVME_CTRLR_DATA_FNA_FORMAT_ALL_MASK) && ses == 0)
+		    NVME_CTRLR_DATA_FNA_FORMAT_ALL_MASK) && ses == SES_NONE)
 			errx(1, "controller does not support per-NS format");
 		if (((cd.fna >> NVME_CTRLR_DATA_FNA_ERASE_ALL_SHIFT) &
-		    NVME_CTRLR_DATA_FNA_ERASE_ALL_MASK) && ses != 0)
+		    NVME_CTRLR_DATA_FNA_ERASE_ALL_MASK) && ses != SES_NONE)
 			errx(1, "controller does not support per-NS erase");
 
 		/* Try to keep previous namespace parameters. */
@@ -144,8 +192,8 @@ format(const struct nvme_function *nf, int argc, char *argv[])
 			    & NVME_NS_DATA_FLBAS_FORMAT_MASK;
 		if (lbaf > nsd.nlbaf)
 			errx(1, "LBA format is out of range");
-		if (mset < 0)
-			mset = (nsd.flbas >> NVME_NS_DATA_FLBAS_EXTENDED_SHIFT)
+		if (ms < 0)
+			ms = (nsd.flbas >> NVME_NS_DATA_FLBAS_EXTENDED_SHIFT)
 			    & NVME_NS_DATA_FLBAS_EXTENDED_MASK;
 		if (pi < 0)
 			pi = (nsd.dps >> NVME_NS_DATA_DPS_MD_START_SHIFT)
@@ -158,8 +206,8 @@ format(const struct nvme_function *nf, int argc, char *argv[])
 		/* We have no previous parameters, so default to zeroes. */
 		if (lbaf < 0)
 			lbaf = 0;
-		if (mset < 0)
-			mset = 0;
+		if (ms < 0)
+			ms = 0;
 		if (pi < 0)
 			pi = 0;
 		if (pil < 0)
@@ -170,7 +218,7 @@ format(const struct nvme_function *nf, int argc, char *argv[])
 	pt.cmd.opc = NVME_OPC_FORMAT_NVM;
 	pt.cmd.nsid = htole32(nsid);
 	pt.cmd.cdw10 = htole32((ses << 9) + (pil << 8) + (pi << 5) +
-	    (mset << 4) + lbaf);
+	    (ms << 4) + lbaf);
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(1, "format request failed");
@@ -180,5 +228,3 @@ format(const struct nvme_function *nf, int argc, char *argv[])
 	close(fd);
 	exit(0);
 }
-
-NVME_COMMAND(top, format, format, FORMAT_USAGE);
