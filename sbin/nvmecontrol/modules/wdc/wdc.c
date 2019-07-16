@@ -41,21 +41,57 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-#define WDC_USAGE							       \
-	"wdc (cap-diag)\n"
+/* Tables for command line parsing */
 
-NVME_CMD_DECLARE(wdc, struct nvme_function);
+static cmd_fn_t wdc;
+static cmd_fn_t wdc_cap_diag;
+
+#define NONE 0xffffffffu
+#define NONE64 0xffffffffffffffffull
+#define OPT(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
+#define OPT_END	{ NULL, 0, arg_none, NULL, NULL }
+
+static struct cmd wdc_cmd = {
+	.name = "wdc", .fn = wdc, .descr = "wdc vendor specific commands", .ctx_size = 0, .opts = NULL, .args = NULL,
+};
+
+CMD_COMMAND(wdc_cmd);
+
+static struct options 
+{
+	const char *template;
+	const char *dev;
+} opt = {
+	.template = NULL,
+	.dev = NULL,
+};
+
+static const struct opts opts[] = {
+	OPT("template", 'o', arg_string, opt, template,
+	    "Template for paths to use for different logs"),
+	OPT_END
+};
+
+static const struct args args[] = {
+	{ arg_string, &opt.dev, "controller-id" },
+	{ arg_none, NULL, NULL },
+};
+
+static struct cmd cap_diag_cmd = {
+	.name = "cap-diag",
+	.fn = wdc_cap_diag,
+	.descr = "Retrieve the cap-diag logs from the drive",
+	.ctx_size = sizeof(struct options),
+	.opts = opts,
+	.args = args,
+};
+
+CMD_SUBCOMMAND(wdc_cmd, cap_diag_cmd);
 
 #define WDC_NVME_TOC_SIZE	8
 
 #define WDC_NVME_CAP_DIAG_OPCODE	0xe6
 #define WDC_NVME_CAP_DIAG_CMD		0x0000
-
-static void wdc_cap_diag(const struct nvme_function *nf, int argc, char *argv[]);
-
-#define WDC_CAP_DIAG_USAGE	"wdc cap-diag [-o path-template]\n"
-
-NVME_COMMAND(wdc, cap-diag, wdc_cap_diag, WDC_CAP_DIAG_USAGE);
 
 static void
 wdc_append_serial_name(int fd, char *buf, size_t len, const char *suffix)
@@ -153,27 +189,20 @@ wdc_do_dump(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 }
 
 static void
-wdc_cap_diag(const struct nvme_function *nf, int argc, char *argv[])
+wdc_cap_diag(const struct cmd *f, int argc, char *argv[])
 {
-	char path_tmpl[MAXPATHLEN];
-	int ch, fd;
+	char tmpl[MAXPATHLEN];
+ 	int fd;
 
-	path_tmpl[0] = '\0';
-	while ((ch = getopt(argc, argv, "o:")) != -1) {
-		switch ((char)ch) {
-		case 'o':
-			strlcpy(path_tmpl, optarg, MAXPATHLEN);
-			break;
-		default:
-			usage(nf);
-		}
+	if (arg_parse(argc, argv, f))
+		return;
+	if (opt.template == NULL) {
+		fprintf(stderr, "Missing template arg.\n");
+		arg_help(argc, argv, f);
 	}
-	/* Check that a controller was specified. */
-	if (optind >= argc)
-		usage(nf);
-	open_dev(argv[optind], &fd, 1, 1);
-
-	wdc_do_dump(fd, path_tmpl, "cap_diag", WDC_NVME_CAP_DIAG_OPCODE,
+	strlcpy(tmpl, opt.template, sizeof(tmpl));
+	open_dev(opt.dev, &fd, 1, 1);
+	wdc_do_dump(fd, tmpl, "cap_diag", WDC_NVME_CAP_DIAG_OPCODE,
 	    WDC_NVME_CAP_DIAG_CMD, 4);
 
 	close(fd);
@@ -182,10 +211,10 @@ wdc_cap_diag(const struct nvme_function *nf, int argc, char *argv[])
 }
 
 static void
-wdc(const struct nvme_function *nf __unused, int argc, char *argv[])
+wdc(const struct cmd *nf __unused, int argc, char *argv[])
 {
 
-	DISPATCH(argc, argv, wdc);
+	cmd_dispatch(argc, argv, &wdc_cmd);
 }
 
 /*
@@ -593,4 +622,3 @@ NVME_LOGPAGE(hgst_info,
 NVME_LOGPAGE(wdc_info,
     HGST_INFO_LOG,			"wdc",	"Detailed Health/SMART",
     print_hgst_info_log,		DEFAULT_SIZE);
-NVME_COMMAND(top, wdc, wdc, WDC_USAGE);
