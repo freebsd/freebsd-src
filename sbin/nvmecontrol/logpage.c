@@ -48,8 +48,56 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-#define LOGPAGE_USAGE							       \
-	"logpage <-p page_id> [-b] [-v vendor] [-x] <controller id|namespace id>\n"  \
+/* Tables for command line parsing */
+
+static cmd_fn_t logpage;
+
+#define NONE 0xffffffffu
+static struct options {
+	bool		binary;
+	bool		hex;
+	uint32_t	page;
+	const char	*vendor;
+	const char	*dev;
+} opt = {
+	.binary = false,
+	.hex = false,
+	.page = NONE,
+	.vendor = NULL,
+	.dev = NULL,
+};
+
+static const struct opts logpage_opts[] = {
+#define OPT(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
+	OPT("binary", 'b', arg_none, opt, binary,
+	    "Dump the log page as binary"),
+	OPT("hex", 'x', arg_none, opt, hex,
+	    "Dump the log page as hex"),
+	OPT("page", 'p', arg_uint32, opt, page,
+	    "Page to dump"),
+	OPT("vendor", 'v', arg_string, opt, vendor,
+	    "Vendor specific formatting"),
+	{ NULL, 0, arg_none, NULL, NULL }
+};
+#undef OPT
+
+static const struct args logpage_args[] = {
+	{ arg_string, &opt.dev, "<controller id|namespace id>" },
+	{ arg_none, NULL, NULL },
+};
+
+static struct cmd logpage_cmd = {
+	.name = "logpage",
+	.fn = logpage,
+	.descr = "Print logpages in human-readable form",
+	.ctx_size = sizeof(opt),
+	.opts = logpage_opts,
+	.args = logpage_args,
+};
+
+CMD_COMMAND(logpage_cmd);
+
+/* End of tables for command line parsing */
 
 #define MAX_FW_SLOTS	(7)
 
@@ -348,69 +396,40 @@ logpage_help(void)
 }
 
 static void
-logpage(const struct nvme_function *nf, int argc, char *argv[])
+logpage(const struct cmd *f, int argc, char *argv[])
 {
 	int				fd;
-	int				log_page = 0, pageflag = false;
-	int				binflag = false, hexflag = false, ns_specified;
-	int				opt;
-	char				*p;
+	bool				ns_specified;
 	char				cname[64];
 	uint32_t			nsid, size;
 	void				*buf;
 	const char			*vendor = NULL;
-	const struct logpage_function	*f;
+	const struct logpage_function	*lpf;
 	struct nvme_controller_data	cdata;
 	print_fn_t			print_fn;
 	uint8_t				ns_smart;
 
-	while ((opt = getopt(argc, argv, "bp:xv:")) != -1) {
-		switch (opt) {
-		case 'b':
-			binflag = true;
-			break;
-		case 'p':
-			if (strcmp(optarg, "help") == 0)
-				logpage_help();
-
-			/* TODO: Add human-readable ASCII page IDs */
-			log_page = strtol(optarg, &p, 0);
-			if (p != NULL && *p != '\0') {
-				fprintf(stderr,
-				    "\"%s\" not valid log page id.\n",
-				    optarg);
-				usage(nf);
-			}
-			pageflag = true;
-			break;
-		case 'x':
-			hexflag = true;
-			break;
-		case 'v':
-			if (strcmp(optarg, "help") == 0)
-				logpage_help();
-			vendor = optarg;
-			break;
-		}
+	if (arg_parse(argc, argv, f))
+		return;
+	if (opt.hex && opt.binary) {
+		fprintf(stderr,
+		    "Can't specify both binary and hex\n");
+		arg_help(argc, argv, f);
 	}
-
-	if (!pageflag) {
-		printf("Missing page_id (-p).\n");
-		usage(nf);
+	if (opt.vendor != NULL && strcmp(opt.vendor, "help") == 0)
+		logpage_help();
+	if (opt.page == NONE) {
+		fprintf(stderr, "Missing page_id (-p).\n");
+		arg_help(argc, argv, f);
 	}
-
-	/* Check that a controller and/or namespace was specified. */
-	if (optind >= argc)
-		usage(nf);
-
-	if (strstr(argv[optind], NVME_NS_PREFIX) != NULL) {
+	if (strstr(opt.dev, NVME_NS_PREFIX) != NULL) {
 		ns_specified = true;
-		parse_ns_str(argv[optind], cname, &nsid);
+		parse_ns_str(opt.dev, cname, &nsid);
 		open_dev(cname, &fd, 1, 1);
 	} else {
 		ns_specified = false;
 		nsid = NVME_GLOBAL_NAMESPACE_TAG;
-		open_dev(argv[optind], &fd, 1, 1);
+		open_dev(opt.dev, &fd, 1, 1);
 	}
 
 	read_controller_data(fd, &cdata);
@@ -424,9 +443,9 @@ logpage(const struct nvme_function *nf, int argc, char *argv[])
 	 * namespace basis.
 	 */
 	if (ns_specified) {
-		if (log_page != NVME_LOG_HEALTH_INFORMATION)
+		if (opt.page != NVME_LOG_HEALTH_INFORMATION)
 			errx(1, "log page %d valid only at controller level",
-			    log_page);
+			    opt.page);
 		if (ns_smart == 0)
 			errx(1,
 			    "controller does not support per namespace "
@@ -435,9 +454,9 @@ logpage(const struct nvme_function *nf, int argc, char *argv[])
 
 	print_fn = print_log_hex;
 	size = DEFAULT_SIZE;
-	if (binflag)
+	if (opt.binary)
 		print_fn = print_bin;
-	if (!binflag && !hexflag) {
+	if (!opt.binary && !opt.hex) {
 		/*
 		 * See if there is a pretty print function for the specified log
 		 * page.  If one isn't found, we just revert to the default
@@ -445,30 +464,28 @@ logpage(const struct nvme_function *nf, int argc, char *argv[])
 		 * the page is vendor specific, don't match the print function
 		 * unless the vendors match.
 		 */
-		SLIST_FOREACH(f, &logpages, link) {
-			if (f->vendor != NULL && vendor != NULL &&
-			    strcmp(f->vendor, vendor) != 0)
+		SLIST_FOREACH(lpf, &logpages, link) {
+			if (lpf->vendor != NULL && vendor != NULL &&
+			    strcmp(lpf->vendor, vendor) != 0)
 				continue;
-			if (log_page != f->log_page)
+			if (opt.page != lpf->log_page)
 				continue;
-			print_fn = f->print_fn;
-			size = f->size;
+			print_fn = lpf->print_fn;
+			size = lpf->size;
 			break;
 		}
 	}
 
-	if (log_page == NVME_LOG_ERROR) {
+	if (opt.page == NVME_LOG_ERROR) {
 		size = sizeof(struct nvme_error_information_entry);
 		size *= (cdata.elpe + 1);
 	}
 
 	/* Read the log page */
 	buf = get_log_buffer(size);
-	read_logpage(fd, log_page, nsid, buf, size);
+	read_logpage(fd, opt.page, nsid, buf, size);
 	print_fn(&cdata, buf, size);
 
 	close(fd);
 	exit(0);
 }
-
-NVME_COMMAND(top, logpage, logpage, LOGPAGE_USAGE);
