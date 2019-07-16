@@ -780,13 +780,17 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	vm_offset_t va, freemempos;
 	vm_offset_t dpcpu, msgbufpv;
 	vm_paddr_t start_pa, pa, min_pa;
-	uint64_t kern_delta, reg;
+	uint64_t kern_delta;
 	int i;
 
+#ifdef notyet
 	/* Determine whether the hardware implements DBM management. */
-	reg = READ_SPECIALREG(ID_AA64MMFR1_EL1);
+	uint64_t reg = READ_SPECIALREG(ID_AA64MMFR1_EL1);
 	ATTR_SW_DBM = ID_AA64MMFR1_HAFDBS(reg) == ID_AA64MMFR1_HAFDBS_AF_DBS ?
 	    ATTR_DBM : _ATTR_SW_DBM;
+#else
+	ATTR_SW_DBM = _ATTR_SW_DBM;
+#endif
 
 	kern_delta = KERNBASE - kernstart;
 
