@@ -192,9 +192,6 @@ iicbus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	case IICBUS_IVAR_ADDR:
 		*result = devi->addr;
 		break;
-	case IICBUS_IVAR_NOSTOP:
-		*result = devi->nostop;
-		break;
 	}
 	return (0);
 }
@@ -211,9 +208,6 @@ iicbus_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 		if (devi->addr != 0)
 			return (EINVAL);
 		devi->addr = value;
-	case IICBUS_IVAR_NOSTOP:
-		devi->nostop = value;
-		break;
 	}
 	return (0);
 }
