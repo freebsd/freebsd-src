@@ -1255,7 +1255,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 
 	/* Get ready timeout value from controller, in units of 500ms. */
 	cap_lo = nvme_mmio_read_4(ctrlr, cap_lo);
-	to = (cap_lo >> NVME_CAP_LO_REG_TO_SHIFT) & NVME_CAP_LO_REG_TO_MASK;
+	to = ((cap_lo >> NVME_CAP_LO_REG_TO_SHIFT) & NVME_CAP_LO_REG_TO_MASK) + 1;
 	ctrlr->ready_timeout_in_ms = to * 500;
 
 	timeout_period = NVME_DEFAULT_TIMEOUT_PERIOD;
