@@ -65,7 +65,7 @@ ATF_TC_BODY(ftok_link, tc)
 	key_t k1, k2, k3;
 	int fd;
 
-	fd = open(path, O_RDONLY | O_CREAT);
+	fd = open(path, O_RDONLY | O_CREAT, 0600);
 
 	ATF_REQUIRE(fd >= 0);
 	(void)close(fd);
