@@ -456,13 +456,13 @@ casueword32(volatile uint32_t *addr, uint32_t old, uint32_t *oldvalp,
 		"cmplw %4, %0\n\t"		/* compare */
 		"bne 1f\n\t"			/* exit if not equal */
 		"stwcx. %5, 0, %3\n\t"      	/* attempt to store */
-		"bne- 1f\n\t"			/* if failed */
-		"b 2f\n\t"			/* we've succeeded */
+		"bne- 2f\n\t"			/* if failed */
+		"b 3f\n\t"			/* we've succeeded */
 		"1:\n\t"
-		"stwcx. %0, 0, %4\n\t"       	/* clear reservation (74xx) */
-		"li %2, 1\n\t"
-		"2:\n\t"
-		: "=&r" (val), "=m" (*p), "=&r" (res)
+		"stwcx. %0, 0, %3\n\t"       	/* clear reservation (74xx) */
+		"2:li %2, 1\n\t"
+		"3:\n\t"
+		: "=&r" (val), "=m" (*p), "+&r" (res)
 		: "r" (p), "r" (old), "r" (new), "m" (*p)
 		: "cr0", "memory");
 
@@ -511,13 +511,13 @@ casueword(volatile u_long *addr, u_long old, u_long *oldvalp, u_long new)
 		"cmpld %4, %0\n\t"		/* compare */
 		"bne 1f\n\t"			/* exit if not equal */
 		"stdcx. %5, 0, %3\n\t"      	/* attempt to store */
-		"bne- 1f\n\t"			/* if failed */
-		"b 2f\n\t"			/* we've succeeded */
+		"bne- 2f\n\t"			/* if failed */
+		"b 3f\n\t"			/* we've succeeded */
 		"1:\n\t"
 		"stdcx. %0, 0, %3\n\t"       	/* clear reservation (74xx) */
-		"li %2, 1\n\t"
-		"2:\n\t"
-		: "=&r" (val), "=m" (*p), "=&r" (res)
+		"2:li %2, 1\n\t"
+		"3:\n\t"
+		: "=&r" (val), "=m" (*p), "+&r" (res)
 		: "r" (p), "r" (old), "r" (new), "m" (*p)
 		: "cr0", "memory");
 
