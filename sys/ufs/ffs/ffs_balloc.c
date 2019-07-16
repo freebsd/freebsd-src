@@ -108,8 +108,6 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	ufs2_daddr_t *lbns_remfree, lbns[UFS_NIADDR + 1];
 	int unwindidx = -1;
 	int saved_inbdflush;
-	static struct timeval lastfail;
-	static int curfail;
 	int gbflags, reclaimed;
 
 	ip = VTOI(vp);
@@ -315,17 +313,21 @@ retry:
 		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags | IO_BUFLOCKED, cred, &newb)) != 0) {
 			brelse(bp);
+			UFS_LOCK(ump);
 			if (DOINGSOFTDEP(vp) && ++reclaimed == 1) {
-				UFS_LOCK(ump);
 				softdep_request_cleanup(fs, vp, cred,
 				    FLUSH_BLOCKS_WAIT);
 				UFS_UNLOCK(ump);
 				goto retry;
 			}
-			if (ppsratecheck(&lastfail, &curfail, 1)) {
+			if (ppsratecheck(&ump->um_last_fullmsg,
+			    &ump->um_secs_fullmsg, 1)) {
+				UFS_UNLOCK(ump);
 				ffs_fserr(fs, ip->i_number, "filesystem full");
 				uprintf("\n%s: write failed, filesystem "
 				    "is full\n", fs->fs_fsmnt);
+			} else {
+				UFS_UNLOCK(ump);
 			}
 			goto fail;
 		}
@@ -394,17 +396,21 @@ retry:
 		    flags | IO_BUFLOCKED, cred, &newb);
 		if (error) {
 			brelse(bp);
+			UFS_LOCK(ump);
 			if (DOINGSOFTDEP(vp) && ++reclaimed == 1) {
-				UFS_LOCK(ump);
 				softdep_request_cleanup(fs, vp, cred,
 				    FLUSH_BLOCKS_WAIT);
 				UFS_UNLOCK(ump);
 				goto retry;
 			}
-			if (ppsratecheck(&lastfail, &curfail, 1)) {
+			if (ppsratecheck(&ump->um_last_fullmsg,
+			    &ump->um_secs_fullmsg, 1)) {
+				UFS_UNLOCK(ump);
 				ffs_fserr(fs, ip->i_number, "filesystem full");
 				uprintf("\n%s: write failed, filesystem "
 				    "is full\n", fs->fs_fsmnt);
+			} else {
+				UFS_UNLOCK(ump);
 			}
 			goto fail;
 		}
@@ -582,8 +588,6 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	int deallocated, osize, nsize, num, i, error;
 	int unwindidx = -1;
 	int saved_inbdflush;
-	static struct timeval lastfail;
-	static int curfail;
 	int gbflags, reclaimed;
 
 	ip = VTOI(vp);
@@ -902,17 +906,21 @@ retry:
 		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags | IO_BUFLOCKED, cred, &newb)) != 0) {
 			brelse(bp);
+			UFS_LOCK(ump);
 			if (DOINGSOFTDEP(vp) && ++reclaimed == 1) {
-				UFS_LOCK(ump);
 				softdep_request_cleanup(fs, vp, cred,
 				    FLUSH_BLOCKS_WAIT);
 				UFS_UNLOCK(ump);
 				goto retry;
 			}
-			if (ppsratecheck(&lastfail, &curfail, 1)) {
+			if (ppsratecheck(&ump->um_last_fullmsg,
+			    &ump->um_secs_fullmsg, 1)) {
+				UFS_UNLOCK(ump);
 				ffs_fserr(fs, ip->i_number, "filesystem full");
 				uprintf("\n%s: write failed, filesystem "
 				    "is full\n", fs->fs_fsmnt);
+			} else {
+				UFS_UNLOCK(ump);
 			}
 			goto fail;
 		}
@@ -982,17 +990,21 @@ retry:
 		    flags | IO_BUFLOCKED, cred, &newb);
 		if (error) {
 			brelse(bp);
+			UFS_LOCK(ump);
 			if (DOINGSOFTDEP(vp) && ++reclaimed == 1) {
-				UFS_LOCK(ump);
 				softdep_request_cleanup(fs, vp, cred,
 				    FLUSH_BLOCKS_WAIT);
 				UFS_UNLOCK(ump);
 				goto retry;
 			}
-			if (ppsratecheck(&lastfail, &curfail, 1)) {
+			if (ppsratecheck(&ump->um_last_fullmsg,
+			    &ump->um_secs_fullmsg, 1)) {
+				UFS_UNLOCK(ump);
 				ffs_fserr(fs, ip->i_number, "filesystem full");
 				uprintf("\n%s: write failed, filesystem "
 				    "is full\n", fs->fs_fsmnt);
+			} else {
+				UFS_UNLOCK(ump);
 			}
 			goto fail;
 		}

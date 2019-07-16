@@ -100,6 +100,8 @@ struct ufsmount {
 	char	um_qflags[MAXQUOTAS];		/* (i) quota specific flags */
 	int64_t	um_savedmaxfilesize;		/* (c) track maxfilesize */
 	u_int	um_flags;			/* (i) filesystem flags */
+	struct	timeval um_last_fullmsg;	/* (i) last full msg time */
+	int	um_secs_fullmsg;		/* (i) seconds since full msg */
 	u_int	um_trim_inflight;		/* (i) outstanding trim count */
 	u_int	um_trim_inflight_blks;		/* (i) outstanding trim blks */
 	u_long	um_trim_total;			/* (i) total trim count */
