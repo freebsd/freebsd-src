@@ -427,7 +427,7 @@ iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
 	int i, error, lenread, lenwrote, nkid, rpstart, addr;
 	device_t *children, bus;
-	bool nostop, started;
+	bool started;
 
 	if ((error = device_get_children(dev, &children, &nkid)) != 0)
 		return (IIC_ERESOURCE);
@@ -438,7 +438,6 @@ iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	bus = children[0];
 	rpstart = 0;
 	free(children, M_TEMP);
-	nostop = iicbus_get_nostop(dev);
 	started = false;
 	for (i = 0, error = 0; i < nmsgs && error == 0; i++) {
 		addr = msgs[i].slave;
@@ -466,12 +465,11 @@ iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		if (error != 0)
 			break;
 
-		if ((msgs[i].flags & IIC_M_NOSTOP) != 0 ||
-		    (nostop && i + 1 < nmsgs)) {
-			rpstart = 1;	/* Next message gets repeated start */
-		} else {
+		if (!(msgs[i].flags & IIC_M_NOSTOP)) {
 			rpstart = 0;
 			iicbus_stop(bus);
+		} else {
+			rpstart = 1;	/* Next message gets repeated start */
 		}
 	}
 	if (error != 0 && started)
