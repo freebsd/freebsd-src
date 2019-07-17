@@ -34,14 +34,9 @@ static char sccsid[] = "@(#) tcpdchk.c 1.8 97/02/12 02:13:25";
 #include <setjmp.h>
 #include <errno.h>
 #include <netdb.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdlib.h>
-
-extern int errno;
-extern void exit();
-extern int optind;
-extern char *optarg;
 
 #ifndef INADDR_NONE
 #define INADDR_NONE     (-1)		/* XXX should be 0xffffffff */
