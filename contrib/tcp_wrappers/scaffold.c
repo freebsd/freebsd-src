@@ -39,7 +39,6 @@ static char sccs_id[] = "@(#) scaffold.c 1.6 97/03/21 19:27:24";
   */
 int     allow_severity = SEVERITY;
 int     deny_severity = LOG_WARNING;
-int     rfc931_timeout = RFC931_TIMEOUT;
 
 #ifndef INET6
 /* dup_hostent - create hostent in one memory block */
