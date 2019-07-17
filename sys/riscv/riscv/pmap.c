@@ -464,7 +464,7 @@ pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
 {
 	u_int l1_slot, l2_slot;
 	pt_entry_t *l2;
-	u_int ret;
+	vm_paddr_t ret;
 
 	l2 = pmap_early_page_idx(l1pt, va, &l1_slot, &l2_slot);
 
