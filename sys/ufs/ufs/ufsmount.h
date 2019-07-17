@@ -102,6 +102,8 @@ struct ufsmount {
 	u_int	um_flags;			/* (i) filesystem flags */
 	struct	timeval um_last_fullmsg;	/* (i) last full msg time */
 	int	um_secs_fullmsg;		/* (i) seconds since full msg */
+	struct	timeval um_last_integritymsg;	/* (i) last integrity msg */
+	int	um_secs_integritymsg;		/* (i) secs since integ msg */
 	u_int	um_trim_inflight;		/* (i) outstanding trim count */
 	u_int	um_trim_inflight_blks;		/* (i) outstanding trim blks */
 	u_long	um_trim_total;			/* (i) total trim count */
@@ -121,6 +123,7 @@ struct ufsmount {
 	void	(*um_ifree)(struct ufsmount *, struct inode *);
 	int	(*um_rdonly)(struct inode *);
 	void	(*um_snapgone)(struct inode *);
+	int	(*um_check_blkno)(struct mount *, ino_t, daddr_t, int);
 };
 
 /*
@@ -145,6 +148,9 @@ struct ufsmount {
 #define	UFS_IFREE(aa, bb) ((aa)->um_ifree(aa, bb))
 #define	UFS_RDONLY(aa) (ITOUMP(aa)->um_rdonly(aa))
 #define	UFS_SNAPGONE(aa) (ITOUMP(aa)->um_snapgone(aa))
+#define	UFS_CHECK_BLKNO(aa, bb, cc, dd) 		\
+	(VFSTOUFS(aa)->um_check_blkno == NULL ? 0 :	\
+	 VFSTOUFS(aa)->um_check_blkno(aa, bb, cc, dd))
 
 #define	UFS_LOCK(aa)	mtx_lock(&(aa)->um_lock)
 #define	UFS_UNLOCK(aa)	mtx_unlock(&(aa)->um_lock)

@@ -99,6 +99,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	struct fs *fs;
 	ufs1_daddr_t nb;
 	struct buf *bp, *nbp;
+	struct mount *mp;
 	struct ufsmount *ump;
 	struct indir indirs[UFS_NIADDR + 2];
 	int deallocated, osize, nsize, num, i, error;
@@ -113,6 +114,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	ip = VTOI(vp);
 	dp = ip->i_din1;
 	fs = ITOFS(ip);
+	mp = ITOVFS(ip);
 	ump = ITOUMP(ip);
 	lbn = lblkno(fs, startoffset);
 	size = blkoff(fs, startoffset) + size;
@@ -295,6 +297,11 @@ retry:
 		}
 		bap = (ufs1_daddr_t *)bp->b_data;
 		nb = bap[indirs[i].in_off];
+		if ((error = UFS_CHECK_BLKNO(mp, ip->i_number, nb,
+		    fs->fs_bsize)) != 0) {
+			brelse(bp);
+			goto fail;
+		}
 		if (i == num)
 			break;
 		i += 1;
@@ -580,6 +587,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	ufs_lbn_t lbn, lastlbn;
 	struct fs *fs;
 	struct buf *bp, *nbp;
+	struct mount *mp;
 	struct ufsmount *ump;
 	struct indir indirs[UFS_NIADDR + 2];
 	ufs2_daddr_t nb, newb, *bap, pref;
@@ -593,6 +601,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	ip = VTOI(vp);
 	dp = ip->i_din2;
 	fs = ITOFS(ip);
+	mp = ITOVFS(ip);
 	ump = ITOUMP(ip);
 	lbn = lblkno(fs, startoffset);
 	size = blkoff(fs, startoffset) + size;
@@ -888,6 +897,11 @@ retry:
 		}
 		bap = (ufs2_daddr_t *)bp->b_data;
 		nb = bap[indirs[i].in_off];
+		if ((error = UFS_CHECK_BLKNO(mp, ip->i_number, nb,
+		    fs->fs_bsize)) != 0) {
+			brelse(bp);
+			goto fail;
+		}
 		if (i == num)
 			break;
 		i += 1;
