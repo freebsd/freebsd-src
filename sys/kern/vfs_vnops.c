@@ -499,8 +499,13 @@ sequential_heuristic(struct uio *uio, struct file *fp)
 		 * closely related to the best I/O size for real disks than
 		 * to any block size used by software.
 		 */
-		fp->f_seqcount += lmin(IO_SEQMAX,
-		    howmany(uio->uio_resid, 16384));
+		if (uio->uio_resid >= IO_SEQMAX * 16384)
+			fp->f_seqcount = IO_SEQMAX;
+		else {
+			fp->f_seqcount += howmany(uio->uio_resid, 16384);
+			if (fp->f_seqcount > IO_SEQMAX)
+				fp->f_seqcount = IO_SEQMAX;
+		}
 		return (fp->f_seqcount << IO_SEQSHIFT);
 	}
 
