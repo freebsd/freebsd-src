@@ -51,8 +51,8 @@ extern char *optarg;
 #include "inetcf.h"
 #include "scaffold.h"
 
-static void usage();
-static void tcpdmatch();
+static void usage(char *myname);
+static void tcpdmatch(struct request_info *request);
 
 /* The main program */
 

@@ -71,8 +71,8 @@ extern jmp_buf tcpd_buf;		/* tcpd_jump() support */
 static char whitespace_eq[] = "= \t\r\n";
 #define whitespace (whitespace_eq + 1)
 
-static char *get_field();		/* chew :-delimited field off string */
-static char *chop_string();		/* strip leading and trailing blanks */
+static char *get_field(char *string);		/* chew :-delimited field off string */
+static char *chop_string(char *string);		/* strip leading and trailing blanks */
 
 /* List of functions that implement the options. Add yours here. */
 

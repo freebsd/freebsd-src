@@ -7,9 +7,9 @@
   */
 
 #ifdef INET6
-extern struct addrinfo *find_inet_addr();
+extern struct addrinfo *find_inet_addr(char *host);
 #else
-extern struct hostent *find_inet_addr();
+extern struct hostent *find_inet_addr(char *host);
 #endif
-extern int check_dns();
-extern int check_path();
+extern int check_dns(char *host);
+extern int check_path(char *path, struct stat *st);

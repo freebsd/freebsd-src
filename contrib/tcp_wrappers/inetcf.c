@@ -39,8 +39,9 @@ char   *inet_files[] = {
     0,
 };
 
-static void inet_chk();
-static char *base_name();
+static void inet_chk(char *protocol, char *path, char *arg0, char *arg1);
+static char *base_name(char *path);
+extern char *percent_m(char *obuf, char *ibuf);
 
  /*
   * Structure with everything we know about a service.
@@ -69,7 +70,6 @@ char   *conf;
     char   *arg0;
     char   *arg1;
     struct tcpd_context saved_context;
-    char   *percent_m();
     int     i;
     struct stat st;
 
