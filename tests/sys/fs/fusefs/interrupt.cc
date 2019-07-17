@@ -352,65 +352,6 @@ TEST_F(Interrupt, enosys)
 }
 
 /*
- * Upon receipt of a fatal signal, fusefs should return ASAP after sending
- * FUSE_INTERRUPT.
- */
-TEST_F(Interrupt, fatal_signal)
-{
-	int status;
-	pthread_t self;
-	uint64_t mkdir_unique;
-	sem_t sem;
-
-	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
-	self = pthread_self();
-
-	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
-	.WillOnce(Invoke(ReturnErrno(ENOENT)));
-	expect_mkdir(&mkdir_unique);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([&](auto in) {
-			return (in.header.opcode == FUSE_INTERRUPT &&
-				in.body.interrupt.unique == mkdir_unique);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([&](auto in __unused, auto &out __unused) {
-		sem_post(&sem);
-		/* Don't respond.  The process should exit anyway */
-	}));
-
-	fork(false, &status, [&] {
-	}, [&]() {
-		struct sigaction sa;
-		int r;
-		pthread_t killer_th;
-		pthread_t self;
-
-		/* SIGUSR2 terminates the process by default */
-		bzero(&sa, sizeof(sa));
-		sa.sa_handler = SIG_DFL;
-		r = sigaction(SIGUSR2, &sa, NULL);
-		if (r != 0) {
-			perror("sigaction");
-			return 1;
-		}
-		self = pthread_self();
-		r = pthread_create(&killer_th, NULL, killer, (void*)self);
-		if (r != 0) {
-			perror("pthread_create");
-			return 1;
-		}
-
-		mkdir(FULLDIRPATH0, MODE);
-		return 1;
-	});
-	ASSERT_EQ(SIGUSR2, WTERMSIG(status));
-
-	EXPECT_EQ(0, sem_wait(&sem)) << strerror(errno);
-	sem_destroy(&sem);
-}
-
-/*
  * A FUSE filesystem is legally allowed to ignore INTERRUPT operations, and
  * complete the original operation whenever it damn well pleases.
  */
