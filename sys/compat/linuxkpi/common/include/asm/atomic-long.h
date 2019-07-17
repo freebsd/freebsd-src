@@ -42,6 +42,7 @@ typedef struct {
 } atomic_long_t;
 
 #define	atomic_long_add(i, v)		atomic_long_add_return((i), (v))
+#define	atomic_long_sub(i, v)		atomic_long_add_return(-(i), (v))
 #define	atomic_long_inc_return(v)	atomic_long_add_return(1, (v))
 #define	atomic_long_inc_not_zero(v)	atomic_long_add_unless((v), 1, 0)
 
