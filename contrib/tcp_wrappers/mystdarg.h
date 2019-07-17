@@ -16,4 +16,4 @@
 #define	VAEND(ap)              va_end(ap);}
 #endif
 
-extern char *percent_m();
+extern char *percent_m(char *obuf, char *ibuf);
