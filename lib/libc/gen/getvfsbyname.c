@@ -52,7 +52,6 @@ are_fusefs(const char *fsname, const char *vfc_name)
 	const static char fusefs[] = "fusefs";
 	const static char fusefs_dot[] = "fusefs.";
 
-
 	return (strncmp(fsname, fusefs_dot, sizeof(fusefs_dot) - 1) == 0 &&
 	    strcmp(fusefs, vfc_name) == 0);
 }
@@ -80,8 +79,7 @@ getvfsbyname(const char *fsname, struct xvfsconf *vfcp)
 	cnt = buflen / sizeof(struct xvfsconf);
 	for (i = 0; i < cnt; i++) {
 		if (strcmp(fsname, xvfsp[i].vfc_name) == 0 ||
-		    are_fusefs(fsname, xvfsp[i].vfc_name))
-		{
+		    are_fusefs(fsname, xvfsp[i].vfc_name)) {
 			memcpy(vfcp, xvfsp + i, sizeof(struct xvfsconf));
 			free(xvfsp);
 			return (0);
