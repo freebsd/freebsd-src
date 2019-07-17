@@ -115,6 +115,8 @@ install-zoneinfo:
 .endfor
 	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
+	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	    ${CONTRIBDIR}/zone1970.tab ${DESTDIR}/usr/share/zoneinfo/
 
 afterinstall:
 #
