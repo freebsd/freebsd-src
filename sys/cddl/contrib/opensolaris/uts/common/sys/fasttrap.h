@@ -42,7 +42,7 @@ extern "C" {
 #define	FASTTRAPIOC_MAKEPROBE	(FASTTRAPIOC | 1)
 #define	FASTTRAPIOC_GETINSTR	(FASTTRAPIOC | 2)
 #else
-#define	FASTTRAPIOC_GETINSTR	_IOWR('f', 2, uint8_t)
+#define	FASTTRAPIOC_GETINSTR	_IO('f', 2)
 #define	FASTTRAPIOC_MAKEPROBE	_IO('f', 3)
 #endif
 
