@@ -464,7 +464,8 @@ vnode_pager_setsize(struct vnode *vp, vm_ooffset_t nsize)
 		 * File has shrunk. Toss any cached pages beyond the new EOF.
 		 */
 		if (nobjsize < object->size)
-			vm_object_page_remove(object, nobjsize, 0, 0);
+			vm_object_page_remove(object, nobjsize, object->size,
+			    0);
 		/*
 		 * this gets rid of garbage at the end of a page that is now
 		 * only partially backed by the vnode.
