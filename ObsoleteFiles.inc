@@ -2374,9 +2374,6 @@ OLD_FILES+=usr/tests/usr.sbin/pw/pw_useradd
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_userdel
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_usermod
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_usernext
-# 20170322: garbage collect old references to igb(4)
-OLD_FILES+=usr/share/man/man4/if_igb.4.gz
-OLD_FILES+=usr/share/man/man4/igb.4.gz
 # 20170319: io_test requires zh_TW.Big5 locale.
 OLD_FILES+=usr/tests/lib/libc/locale/io_test
 # 20170319: remove nls for non supported Big5* locales
