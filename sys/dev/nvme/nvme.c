@@ -452,8 +452,7 @@ nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
 	int i;
 
 	/*
-	 * TODO: add locking around consumer registration.  Not an issue
-	 *  right now since we only have one nvme consumer - nvd(4).
+	 * TODO: add locking around consumer registration.
 	 */
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
 		if (nvme_consumer[i].id == INVALID_CONSUMER_ID) {
