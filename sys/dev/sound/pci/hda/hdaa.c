@@ -5034,11 +5034,13 @@ hdaa_audio_prepare_pin_ctrl(struct hdaa_devinfo *devinfo)
 		pincap = w->wclass.pin.cap;
 
 		/* Disable everything. */
-		w->wclass.pin.ctrl &= ~(
-		    HDA_CMD_SET_PIN_WIDGET_CTRL_HPHN_ENABLE |
-		    HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE |
-		    HDA_CMD_SET_PIN_WIDGET_CTRL_IN_ENABLE |
-		    HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE_MASK);
+		if (devinfo->init_clear) {
+			w->wclass.pin.ctrl &= ~(
+		    	HDA_CMD_SET_PIN_WIDGET_CTRL_HPHN_ENABLE |
+		    	HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE |
+		    	HDA_CMD_SET_PIN_WIDGET_CTRL_IN_ENABLE |
+		    	HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE_MASK);
+		}
 
 		if (w->enable == 0) {
 			/* Pin is unused so left it disabled. */
@@ -6671,6 +6673,10 @@ hdaa_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "reconfig", CTLTYPE_INT | CTLFLAG_RW,
 	    dev, 0, hdaa_sysctl_reconfig, "I", "Reprocess configuration");
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "init_clear", CTLFLAG_RW,
+	    &devinfo->init_clear, 1,"Clear initial pin widget configuration");
 	bus_generic_attach(dev);
 	return (0);
 }
