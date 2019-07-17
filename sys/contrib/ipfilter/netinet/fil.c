@@ -4431,23 +4431,23 @@ static int
 ipf_rule_compare(frentry_t *fr1, frentry_t *fr2)
 {
 	if (fr1->fr_cksum != fr2->fr_cksum)
-		return 1;
+		return (1);
 	if (fr1->fr_size != fr2->fr_size)
-		return 2;
+		return (2);
 	if (fr1->fr_dsize != fr2->fr_dsize)
-		return 3;
+		return (3);
 	if (bcmp((char *)&fr1->fr_func, (char *)&fr2->fr_func,
 		 fr1->fr_size - offsetof(struct frentry, fr_func)) != 0)
-		return 4;
+		return (4);
 	if (fr1->fr_data && !fr2->fr_data)
-		return 5;
+		return (5);
 	if (!fr1->fr_data && fr2->fr_data)
-		return 6;
+		return (6);
 	if (fr1->fr_data) {
 		if (bcmp(fr1->fr_caddr, fr2->fr_caddr, fr1->fr_dsize))
-			return 7;
+			return (7);
 	}
-	return 0;
+	return (0);
 }
 
 
