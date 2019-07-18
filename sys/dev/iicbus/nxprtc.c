@@ -360,7 +360,7 @@ pcf8523_start(struct nxprtc_softc *sc)
 		is212x = true;
 		break;
 	default:
-		is212x = true;
+		is212x = false;
 		break;
 	}
 
