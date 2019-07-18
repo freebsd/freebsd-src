@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2019
+.Dd July 18, 2019
 .Dt MOUNT_FUSEFS 8
 .Os
 .Sh NAME
@@ -150,6 +150,11 @@ I/O to the file system may be done asynchronously.
 Writes may delayed and/or reordered.
 .It Cm default_permissions
 Enable traditional (file mode based) permission checking in kernel
+.It Cm intr
+Allow signals to interrupt operations that are blocked waiting for a reply from the server.
+When this option is in use, system calls may fail with
+.Er EINTR
+whenever a signal is received.
 .It Cm max_read Ns = Ns Ar n
 Limit size of read requests to
 .Ar n

@@ -438,10 +438,11 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 	struct thread *td = curthread;
 	sigset_t blockedset, oldset;
 	int err = 0, stops_deferred;
-	struct fuse_data *data;
+	struct fuse_data *data = ftick->tk_data;
 	bool interrupted = false;
 
-	if (fsess_isimpl(ftick->tk_data->mp, FUSE_INTERRUPT)) {
+	if (fsess_isimpl(ftick->tk_data->mp, FUSE_INTERRUPT) &&
+	    data->dataflags & FSESS_INTR) {
 		SIGEMPTYSET(blockedset);
 	} else {
 		/* Block all signals except (implicitly) SIGKILL */
@@ -456,7 +457,6 @@ retry:
 	if (fticket_answered(ftick)) {
 		goto out;
 	}
-	data = ftick->tk_data;
 
 	if (fdata_get_dead(data)) {
 		err = ENOTCONN;
