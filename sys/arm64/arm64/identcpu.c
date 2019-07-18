@@ -216,7 +216,7 @@ static struct mrs_field id_aa64isar0_fields[] = {
 	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SM3_SHIFT),
 	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SHA3_SHIFT),
 	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_RDM_SHIFT),
-	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_ATOMIC_SHIFT),
+	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_Atomic_SHIFT),
 	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_CRC32_SHIFT),
 	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SHA2_SHIFT),
 	MRS_FIELD(false, MRS_LOWER, ID_AA64ISAR0_SHA1_SHIFT),
@@ -240,7 +240,7 @@ static struct mrs_field id_aa64pfr0_fields[] = {
 	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_SVE_SHIFT),
 	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_RAS_SHIFT),
 	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_GIC_SHIFT),
-	MRS_FIELD(true,  MRS_LOWER, ID_AA64PFR0_ADV_SIMD_SHIFT),
+	MRS_FIELD(true,  MRS_LOWER, ID_AA64PFR0_AdvSIMD_SHIFT),
 	MRS_FIELD(true,  MRS_LOWER, ID_AA64PFR0_FP_SHIFT),
 	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_EL3_SHIFT),
 	MRS_FIELD(false, MRS_EXACT, ID_AA64PFR0_EL2_SHIFT),
@@ -250,13 +250,13 @@ static struct mrs_field id_aa64pfr0_fields[] = {
 };
 
 static struct mrs_field id_aa64dfr0_fields[] = {
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_PMS_VER_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_CTX_CMPS_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_WRPS_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_BRPS_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_PMU_VER_SHIFT),
-	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_TRACE_VER_SHIFT),
-	MRS_FIELD(false, MRS_EXACT_VAL(0x6), ID_AA64DFR0_DEBUG_VER_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_PMSVer_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_CTX_CMPs_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_WRPs_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_BRPs_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_PMUVer_SHIFT),
+	MRS_FIELD(false, MRS_EXACT, ID_AA64DFR0_TraceVer_SHIFT),
+	MRS_FIELD(false, MRS_EXACT_VAL(0x6), ID_AA64DFR0_DebugVer_SHIFT),
 	MRS_FIELD_END,
 };
 
@@ -420,9 +420,9 @@ identify_cpu_sysinit(void *dummy __unused)
 	/* Create a user visible cpu description with safe values */
 	memset(&user_cpu_desc, 0, sizeof(user_cpu_desc));
 	/* Safe values for these registers */
-	user_cpu_desc.id_aa64pfr0 = ID_AA64PFR0_ADV_SIMD_NONE |
+	user_cpu_desc.id_aa64pfr0 = ID_AA64PFR0_AdvSIMD_NONE |
 	    ID_AA64PFR0_FP_NONE | ID_AA64PFR0_EL1_64 | ID_AA64PFR0_EL0_64;
-	user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DEBUG_VER_8;
+	user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DebugVer_8;
 
 
 	CPU_FOREACH(cpu) {
@@ -552,10 +552,10 @@ print_cpu_features(u_int cpu)
 			sbuf_printf(sb, "%sUnknown RDM", SEP_STR);
 		}
 
-		switch (ID_AA64ISAR0_ATOMIC(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_ATOMIC_NONE:
+		switch (ID_AA64ISAR0_Atomic(cpu_desc[cpu].id_aa64isar0)) {
+		case ID_AA64ISAR0_Atomic_NONE:
 			break;
-		case ID_AA64ISAR0_ATOMIC_IMPL:
+		case ID_AA64ISAR0_Atomic_IMPL:
 			sbuf_printf(sb, "%sAtomic", SEP_STR);
 			break;
 		default:
@@ -760,13 +760,13 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64PFR0_ADV_SIMD(cpu_desc[cpu].id_aa64pfr0)) {
-		case ID_AA64PFR0_ADV_SIMD_NONE:
+		switch (ID_AA64PFR0_AdvSIMD(cpu_desc[cpu].id_aa64pfr0)) {
+		case ID_AA64PFR0_AdvSIMD_NONE:
 			break;
-		case ID_AA64PFR0_ADV_SIMD_IMPL:
+		case ID_AA64PFR0_AdvSIMD_IMPL:
 			sbuf_printf(sb, "%sAdvSIMD", SEP_STR);
 			break;
-		case ID_AA64PFR0_ADV_SIMD_HP:
+		case ID_AA64PFR0_AdvSIMD_HP:
 			sbuf_printf(sb, "%sAdvSIMD+HP", SEP_STR);
 			break;
 		default:
@@ -861,10 +861,10 @@ print_cpu_features(u_int cpu)
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR0) != 0) {
 		printed = 0;
 		sbuf_printf(sb, "      Memory Model Features 0 = <");
-		switch (ID_AA64MMFR0_TGRAN4(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_TGRAN4_NONE:
+		switch (ID_AA64MMFR0_TGran4(cpu_desc[cpu].id_aa64mmfr0)) {
+		case ID_AA64MMFR0_TGran4_NONE:
 			break;
-		case ID_AA64MMFR0_TGRAN4_IMPL:
+		case ID_AA64MMFR0_TGran4_IMPL:
 			sbuf_printf(sb, "%s4k Granule", SEP_STR);
 			break;
 		default:
@@ -872,10 +872,10 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR0_TGRAN64(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_TGRAN64_NONE:
+		switch (ID_AA64MMFR0_TGran64(cpu_desc[cpu].id_aa64mmfr0)) {
+		case ID_AA64MMFR0_TGran64_NONE:
 			break;
-		case ID_AA64MMFR0_TGRAN64_IMPL:
+		case ID_AA64MMFR0_TGran64_IMPL:
 			sbuf_printf(sb, "%s64k Granule", SEP_STR);
 			break;
 		default:
@@ -883,10 +883,10 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR0_TGRAN16(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_TGRAN16_NONE:
+		switch (ID_AA64MMFR0_TGran16(cpu_desc[cpu].id_aa64mmfr0)) {
+		case ID_AA64MMFR0_TGran16_NONE:
 			break;
-		case ID_AA64MMFR0_TGRAN16_IMPL:
+		case ID_AA64MMFR0_TGran16_IMPL:
 			sbuf_printf(sb, "%s16k Granule", SEP_STR);
 			break;
 		default:
@@ -894,10 +894,10 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR0_BIGEND_EL0(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_BIGEND_EL0_FIXED:
+		switch (ID_AA64MMFR0_BigEndEL0(cpu_desc[cpu].id_aa64mmfr0)) {
+		case ID_AA64MMFR0_BigEndEL0_FIXED:
 			break;
-		case ID_AA64MMFR0_BIGEND_EL0_MIXED:
+		case ID_AA64MMFR0_BigEndEL0_MIXED:
 			sbuf_printf(sb, "%sEL0 MixEndian", SEP_STR);
 			break;
 		default:
@@ -905,10 +905,10 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR0_S_NS_MEM(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_S_NS_MEM_NONE:
+		switch (ID_AA64MMFR0_SNSMem(cpu_desc[cpu].id_aa64mmfr0)) {
+		case ID_AA64MMFR0_SNSMem_NONE:
 			break;
-		case ID_AA64MMFR0_S_NS_MEM_DISTINCT:
+		case ID_AA64MMFR0_SNSMem_DISTINCT:
 			sbuf_printf(sb, "%sS/NS Mem", SEP_STR);
 			break;
 		default:
@@ -916,10 +916,10 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR0_BIGEND(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_BIGEND_FIXED:
+		switch (ID_AA64MMFR0_BigEnd(cpu_desc[cpu].id_aa64mmfr0)) {
+		case ID_AA64MMFR0_BigEnd_FIXED:
 			break;
-		case ID_AA64MMFR0_BIGEND_MIXED:
+		case ID_AA64MMFR0_BigEnd_MIXED:
 			sbuf_printf(sb, "%sMixedEndian", SEP_STR);
 			break;
 		default:
@@ -927,11 +927,11 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR0_ASID_BITS(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_ASID_BITS_8:
+		switch (ID_AA64MMFR0_ASIDBits(cpu_desc[cpu].id_aa64mmfr0)) {
+		case ID_AA64MMFR0_ASIDBits_8:
 			sbuf_printf(sb, "%s8bit ASID", SEP_STR);
 			break;
-		case ID_AA64MMFR0_ASID_BITS_16:
+		case ID_AA64MMFR0_ASIDBits_16:
 			sbuf_printf(sb, "%s16bit ASID", SEP_STR);
 			break;
 		default:
@@ -939,26 +939,26 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR0_PA_RANGE(cpu_desc[cpu].id_aa64mmfr0)) {
-		case ID_AA64MMFR0_PA_RANGE_4G:
+		switch (ID_AA64MMFR0_PARange(cpu_desc[cpu].id_aa64mmfr0)) {
+		case ID_AA64MMFR0_PARange_4G:
 			sbuf_printf(sb, "%s4GB PA", SEP_STR);
 			break;
-		case ID_AA64MMFR0_PA_RANGE_64G:
+		case ID_AA64MMFR0_PARange_64G:
 			sbuf_printf(sb, "%s64GB PA", SEP_STR);
 			break;
-		case ID_AA64MMFR0_PA_RANGE_1T:
+		case ID_AA64MMFR0_PARange_1T:
 			sbuf_printf(sb, "%s1TB PA", SEP_STR);
 			break;
-		case ID_AA64MMFR0_PA_RANGE_4T:
+		case ID_AA64MMFR0_PARange_4T:
 			sbuf_printf(sb, "%s4TB PA", SEP_STR);
 			break;
-		case ID_AA64MMFR0_PA_RANGE_16T:
+		case ID_AA64MMFR0_PARange_16T:
 			sbuf_printf(sb, "%s16TB PA", SEP_STR);
 			break;
-		case ID_AA64MMFR0_PA_RANGE_256T:
+		case ID_AA64MMFR0_PARange_256T:
 			sbuf_printf(sb, "%s256TB PA", SEP_STR);
 			break;
-		case ID_AA64MMFR0_PA_RANGE_4P:
+		case ID_AA64MMFR0_PARange_4P:
 			sbuf_printf(sb, "%s4PB PA", SEP_STR);
 			break;
 		default:
@@ -990,10 +990,10 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR1_SPEC_SEI(cpu_desc[cpu].id_aa64mmfr1)) {
-		case ID_AA64MMFR1_SPEC_SEI_NONE:
+		switch (ID_AA64MMFR1_SpecSEI(cpu_desc[cpu].id_aa64mmfr1)) {
+		case ID_AA64MMFR1_SpecSEI_NONE:
 			break;
-		case ID_AA64MMFR1_SPEC_SEI_IMPL:
+		case ID_AA64MMFR1_SpecSEI_IMPL:
 			sbuf_printf(sb, "%sSpecSEI", SEP_STR);
 			break;
 		default:
@@ -1051,10 +1051,10 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR1_VMIDBITS(cpu_desc[cpu].id_aa64mmfr1)) {
-		case ID_AA64MMFR1_VMIDBITS_8:
+		switch (ID_AA64MMFR1_VMIDBits(cpu_desc[cpu].id_aa64mmfr1)) {
+		case ID_AA64MMFR1_VMIDBits_8:
 			break;
-		case ID_AA64MMFR1_VMIDBITS_16:
+		case ID_AA64MMFR1_VMIDBits_16:
 			sbuf_printf(sb, "%s16 VMID bits", SEP_STR);
 			break;
 		default:
@@ -1112,11 +1112,11 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR2_VA_RANGE(cpu_desc[cpu].id_aa64mmfr2)) {
-		case ID_AA64MMFR2_VA_RANGE_48:
+		switch (ID_AA64MMFR2_VARange(cpu_desc[cpu].id_aa64mmfr2)) {
+		case ID_AA64MMFR2_VARange_48:
 			sbuf_printf(sb, "%s48b VA", SEP_STR);
 			break;
-		case ID_AA64MMFR2_VA_RANGE_52:
+		case ID_AA64MMFR2_VARange_52:
 			sbuf_printf(sb, "%s52b VA", SEP_STR);
 			break;
 		default:
@@ -1157,10 +1157,10 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64MMFR2_CNP(cpu_desc[cpu].id_aa64mmfr2)) {
-		case ID_AA64MMFR2_CNP_NONE:
+		switch (ID_AA64MMFR2_CnP(cpu_desc[cpu].id_aa64mmfr2)) {
+		case ID_AA64MMFR2_CnP_NONE:
 			break;
-		case ID_AA64MMFR2_CNP_IMPL:
+		case ID_AA64MMFR2_CnP_IMPL:
 			sbuf_printf(sb, "%sCnP", SEP_STR);
 			break;
 		default:
@@ -1180,10 +1180,10 @@ print_cpu_features(u_int cpu)
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_DFR0) != 0) {
 		printed = 0;
 		sbuf_printf(sb, "             Debug Features 0 = <");
-		switch(ID_AA64DFR0_PMS_VER(cpu_desc[cpu].id_aa64dfr0)) {
-		case ID_AA64DFR0_PMS_VER_NONE:
+		switch(ID_AA64DFR0_PMSVer(cpu_desc[cpu].id_aa64dfr0)) {
+		case ID_AA64DFR0_PMSVer_NONE:
 			break;
-		case ID_AA64DFR0_PMS_VER_V1:
+		case ID_AA64DFR0_PMSVer_V1:
 			sbuf_printf(sb, "%sSPE v1", SEP_STR);
 			break;
 		default:
@@ -1192,24 +1192,24 @@ print_cpu_features(u_int cpu)
 		}
 
 		sbuf_printf(sb, "%s%lu CTX Breakpoints", SEP_STR,
-		    ID_AA64DFR0_CTX_CMPS(cpu_desc[cpu].id_aa64dfr0));
+		    ID_AA64DFR0_CTX_CMPs(cpu_desc[cpu].id_aa64dfr0));
 
 		sbuf_printf(sb, "%s%lu Watchpoints", SEP_STR,
-		    ID_AA64DFR0_WRPS(cpu_desc[cpu].id_aa64dfr0));
+		    ID_AA64DFR0_WRPs(cpu_desc[cpu].id_aa64dfr0));
 
 		sbuf_printf(sb, "%s%lu Breakpoints", SEP_STR,
-		    ID_AA64DFR0_BRPS(cpu_desc[cpu].id_aa64dfr0));
+		    ID_AA64DFR0_BRPs(cpu_desc[cpu].id_aa64dfr0));
 
-		switch (ID_AA64DFR0_PMU_VER(cpu_desc[cpu].id_aa64dfr0)) {
-		case ID_AA64DFR0_PMU_VER_NONE:
+		switch (ID_AA64DFR0_PMUVer(cpu_desc[cpu].id_aa64dfr0)) {
+		case ID_AA64DFR0_PMUVer_NONE:
 			break;
-		case ID_AA64DFR0_PMU_VER_3:
+		case ID_AA64DFR0_PMUVer_3:
 			sbuf_printf(sb, "%sPMUv3", SEP_STR);
 			break;
-		case ID_AA64DFR0_PMU_VER_3_1:
+		case ID_AA64DFR0_PMUVer_3_1:
 			sbuf_printf(sb, "%sPMUv3+16 bit evtCount", SEP_STR);
 			break;
-		case ID_AA64DFR0_PMU_VER_IMPL:
+		case ID_AA64DFR0_PMUVer_IMPL:
 			sbuf_printf(sb, "%sImplementation defined PMU", SEP_STR);
 			break;
 		default:
@@ -1217,10 +1217,10 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64DFR0_TRACE_VER(cpu_desc[cpu].id_aa64dfr0)) {
-		case ID_AA64DFR0_TRACE_VER_NONE:
+		switch (ID_AA64DFR0_TraceVer(cpu_desc[cpu].id_aa64dfr0)) {
+		case ID_AA64DFR0_TraceVer_NONE:
 			break;
-		case ID_AA64DFR0_TRACE_VER_IMPL:
+		case ID_AA64DFR0_TraceVer_IMPL:
 			sbuf_printf(sb, "%sTrace", SEP_STR);
 			break;
 		default:
@@ -1228,14 +1228,14 @@ print_cpu_features(u_int cpu)
 			break;
 		}
 
-		switch (ID_AA64DFR0_DEBUG_VER(cpu_desc[cpu].id_aa64dfr0)) {
-		case ID_AA64DFR0_DEBUG_VER_8:
+		switch (ID_AA64DFR0_DebugVer(cpu_desc[cpu].id_aa64dfr0)) {
+		case ID_AA64DFR0_DebugVer_8:
 			sbuf_printf(sb, "%sDebug v8", SEP_STR);
 			break;
-		case ID_AA64DFR0_DEBUG_VER_8_VHE:
+		case ID_AA64DFR0_DebugVer_8_VHE:
 			sbuf_printf(sb, "%sDebug v8+VHE", SEP_STR);
 			break;
-		case ID_AA64DFR0_DEBUG_VER_8_2:
+		case ID_AA64DFR0_DebugVer_8_2:
 			sbuf_printf(sb, "%sDebug v8.2", SEP_STR);
 			break;
 		default:
