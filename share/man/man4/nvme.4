@@ -151,6 +151,17 @@ This value may also be set in the kernel config file with
 .Bd -literal -offset indent
 .Cd options NVME_USE_NVD=0
 .Ed
+.Pp
+When there is an error,
+.Nm
+prints only the most relevant information about the command by default.
+To enable dumping of all information about the command, set the following tunable
+value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.nvme.verbose_cmd_dump=1
+.Ed
+.Pp
 .Sh SYSCTL VARIABLES
 The following controller-level sysctls are currently implemented:
 .Bl -tag -width indent
