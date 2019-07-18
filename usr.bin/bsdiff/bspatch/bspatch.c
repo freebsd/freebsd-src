@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include <bzlib.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
