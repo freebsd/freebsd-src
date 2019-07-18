@@ -439,11 +439,12 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 	sigset_t blockedset, oldset;
 	int err = 0, stops_deferred;
 	struct fuse_data *data;
+	bool interrupted = false;
 
 	if (fsess_isimpl(ftick->tk_data->mp, FUSE_INTERRUPT)) {
 		SIGEMPTYSET(blockedset);
 	} else {
-		/* May as well block all signals */
+		/* Block all signals except (implicitly) SIGKILL */
 		SIGFILLSET(blockedset);
 	}
 	stops_deferred = sigdeferstop(SIGDEFERSTOP_SILENT);
@@ -489,7 +490,6 @@ retry:
 		 * or EAGAIN to the interrupt.
 		 */
 		sigset_t tmpset;
-		int sig;
 
 		SDT_PROBE2(fusefs, , ipc, trace, 4,
 			"fticket_wait_answer: interrupt");
@@ -498,22 +498,28 @@ retry:
 
 		PROC_LOCK(td->td_proc);
 		mtx_lock(&td->td_proc->p_sigacts->ps_mtx);
-		sig = cursig(td);
 		tmpset = td->td_proc->p_siglist;
 		SIGSETOR(tmpset, td->td_siglist);
 		mtx_unlock(&td->td_proc->p_sigacts->ps_mtx);
 		PROC_UNLOCK(td->td_proc);
 
 		fuse_lck_mtx_lock(ftick->tk_aw_mtx);
-		if (!SIGISMEMBER(tmpset, SIGKILL)) { 
+		if (!interrupted && !SIGISMEMBER(tmpset, SIGKILL)) { 
 			/* 
-			 * Block the just-delivered signal while we wait for an
-			 * interrupt response
+			 * Block all signals while we wait for an interrupt
+			 * response.  The protocol doesn't discriminate between
+			 * different signals.
 			 */
-			SIGADDSET(blockedset, sig);
+			SIGFILLSET(blockedset);
+			interrupted = true;
 			goto retry;
 		} else {
-			/* Return immediately for fatal signals */
+			/*
+			 * Return immediately for fatal signals, or if this is
+			 * the second interruption.  We should only be
+			 * interrupted twice if the thread is stopped, for
+			 * example during sigexit.
+			 */
 		}
 	} else if (err) {
 		SDT_PROBE2(fusefs, , ipc, trace, 6,
