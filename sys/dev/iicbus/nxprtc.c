@@ -351,9 +351,18 @@ pcf8523_start(struct nxprtc_softc *sc)
 {
 	int err;
 	uint8_t cs1, cs3, clkout;
-	bool is2129;
+	bool is212x;
 
-	is2129 = (sc->chiptype == TYPE_PCA2129 || sc->chiptype == TYPE_PCF2129);
+	switch (sc->chiptype) {
+	case TYPE_PCF2127:
+	case TYPE_PCA2129:
+	case TYPE_PCF2129:
+		is212x = true;
+		break;
+	default:
+		is212x = true;
+		break;
+	}
 
 	/* Read and sanity-check the control registers. */
 	if ((err = read_reg(sc, PCF85xx_R_CS1, &cs1)) != 0) {
@@ -389,7 +398,7 @@ pcf8523_start(struct nxprtc_softc *sc)
 		 * to zero then back to 1, then wait 100ms for the refresh, and
 		 * finally set the bit back to zero with the COF_HIGHZ write.
 		 */
-		if (is2129) {
+		if (is212x) {
 			clkout = PCF2129_B_CLKOUT_HIGHZ;
 			if ((err = write_reg(sc, PCF8523_R_TMR_CLKOUT,
 			    clkout)) != 0) {
@@ -429,7 +438,7 @@ pcf8523_start(struct nxprtc_softc *sc)
 		device_printf(sc->dev, "WARNING: RTC battery is low\n");
 
 	/* Remember whether we're running in AM/PM mode. */
-	if (is2129) {
+	if (is212x) {
 		if (cs1 & PCF2129_B_CS1_12HR)
 			sc->use_ampm = true;
 	} else {
