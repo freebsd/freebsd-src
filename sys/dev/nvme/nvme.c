@@ -54,6 +54,9 @@ struct nvme_consumer nvme_consumer[NVME_MAX_CONSUMERS];
 
 uma_zone_t	nvme_request_zone;
 int32_t		nvme_retry_count;
+int		nvme_verbose_cmd_dump;
+
+TUNABLE_INT("hw.nvme.verbose_cmd_dump", &nvme_verbose_cmd_dump);
 
 MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
 
