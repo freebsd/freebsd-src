@@ -5114,8 +5114,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 		if (fp->fr_next != NULL)
 			fp->fr_next->fr_pnext = &fp->fr_next;
 		*ftail = fp;
-		if (addrem == OP_ADD)
-			ipf_fixskip(ftail, fp, 1);
+		ipf_fixskip(ftail, fp, 1);
 
 		fp->fr_icmpgrp = NULL;
 		if (fp->fr_icmphead != -1) {
