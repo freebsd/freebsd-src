@@ -348,7 +348,7 @@ void MockFS::debug_response(const mockfs_buf_out &out) {
 MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags,
 	uint32_t kernel_minor_version, uint32_t max_write, bool async,
-	bool noclusterr, unsigned time_gran)
+	bool noclusterr, unsigned time_gran, bool nointr)
 {
 	struct sigaction sa;
 	struct iovec *iov = NULL;
@@ -424,6 +424,13 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	}
 	if (noclusterr) {
 		build_iovec(&iov, &iovlen, "noclusterr",
+			__DECONST(void*, &trueval), sizeof(bool));
+	}
+	if (nointr) {
+		build_iovec(&iov, &iovlen, "nointr",
+			__DECONST(void*, &trueval), sizeof(bool));
+	} else {
+		build_iovec(&iov, &iovlen, "intr",
 			__DECONST(void*, &trueval), sizeof(bool));
 	}
 	if (nmount(iov, iovlen, 0))

@@ -84,6 +84,8 @@ static struct mntopt mopts[] = {
 	 */
 	#define ALTF_AUTOMOUNTED 0x100
 	{ "automounted",	0, ALTF_AUTOMOUNTED, 1 },
+	#define ALTF_INTR 0x200
+	{ "intr",		0, ALTF_INTR, 1 },
 	/* Linux specific options, we silently ignore them */
 	{ "fsname=",             0, 0x00, 1 },
 	{ "fd=",                 0, 0x00, 1 },
@@ -469,6 +471,7 @@ helpmsg(void)
 	        "    -o allow_other         allow access to other users\n"
 	        /* "    -o nonempty            allow mounts over non-empty file/dir\n" */
 	        "    -o default_permissions enable permission checking by kernel\n"
+		"    -o intr                interruptible mount\n"
 		/*
 	        "    -o fsname=NAME         set filesystem name\n"
 	        "    -o large_read          issue large read requests (2.4 only)\n"

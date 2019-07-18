@@ -232,9 +232,10 @@ struct fuse_data {
 #define FSESS_ASYNC_READ          0x1000 /* allow multiple reads of some file */
 #define FSESS_POSIX_LOCKS         0x2000 /* daemon supports POSIX locks */
 #define FSESS_EXPORT_SUPPORT      0x10000 /* daemon supports NFS-style lookups */
+#define FSESS_INTR                0x20000 /* interruptible mounts */
 #define FSESS_MNTOPTS_MASK	( \
 	FSESS_DAEMON_CAN_SPY | FSESS_PUSH_SYMLINKS_IN | \
-	FSESS_DEFAULT_PERMISSIONS)
+	FSESS_DEFAULT_PERMISSIONS | FSESS_INTR)
 
 extern int fuse_data_cache_mode;
 

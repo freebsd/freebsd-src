@@ -185,6 +185,15 @@ void TearDown() {
 }
 };
 
+class Intr: public Interrupt {};
+
+class Nointr: public Interrupt {
+	void SetUp() {
+		m_nointr = true;
+		Interrupt::SetUp();
+	}
+};
+
 static void* mkdir0(void* arg __unused) {
 	ssize_t r;
 
@@ -213,7 +222,7 @@ static void* read1(void* arg) {
  * complete should generate an EAGAIN response.
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236530 */
-TEST_F(Interrupt, already_complete)
+TEST_F(Intr, already_complete)
 {
 	uint64_t ino = 42;
 	pthread_t self;
@@ -271,7 +280,7 @@ TEST_F(Interrupt, already_complete)
  * kernel should not attempt to interrupt any other operations on that mount
  * point.
  */
-TEST_F(Interrupt, enosys)
+TEST_F(Intr, enosys)
 {
 	uint64_t ino0 = 42, ino1 = 43;;
 	uint64_t mkdir_unique;
@@ -356,7 +365,7 @@ TEST_F(Interrupt, enosys)
  * complete the original operation whenever it damn well pleases.
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236530 */
-TEST_F(Interrupt, ignore)
+TEST_F(Intr, ignore)
 {
 	uint64_t ino = 42;
 	pthread_t self;
@@ -392,7 +401,7 @@ TEST_F(Interrupt, ignore)
  * that hasn't yet been sent to userland can be interrupted without sending
  * FUSE_INTERRUPT, and will be automatically restarted.
  */
-TEST_F(Interrupt, in_kernel_restartable)
+TEST_F(Intr, in_kernel_restartable)
 {
 	const char FULLPATH1[] = "mountpoint/other_file.txt";
 	const char RELPATH1[] = "other_file.txt";
@@ -462,7 +471,7 @@ TEST_F(Interrupt, in_kernel_restartable)
  * without sending FUSE_INTERRUPT.  If it's a non-restartable operation (write
  * or setextattr) it will return EINTR.
  */
-TEST_F(Interrupt, in_kernel_nonrestartable)
+TEST_F(Intr, in_kernel_nonrestartable)
 {
 	const char FULLPATH1[] = "mountpoint/other_file.txt";
 	const char RELPATH1[] = "other_file.txt";
@@ -533,7 +542,7 @@ TEST_F(Interrupt, in_kernel_nonrestartable)
  * return EINTR to userspace
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236530 */
-TEST_F(Interrupt, in_progress)
+TEST_F(Intr, in_progress)
 {
 	pthread_t self;
 	uint64_t mkdir_unique;
@@ -563,7 +572,7 @@ TEST_F(Interrupt, in_progress)
 }
 
 /* Reads should also be interruptible */
-TEST_F(Interrupt, in_progress_read)
+TEST_F(Intr, in_progress_read)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -601,8 +610,56 @@ TEST_F(Interrupt, in_progress_read)
 	EXPECT_EQ(EINTR, errno);
 }
 
+/*
+ * When mounted with -o nointr, fusefs will block signals while waiting for the
+ * server.
+ */
+TEST_F(Nointr, block)
+{
+	uint64_t ino = 42;
+	pthread_t self;
+	sem_t sem0;
+
+	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
+	signaled_semaphore = &sem0;
+	self = pthread_self();
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_MKDIR);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([&](auto in __unused, auto& out) {
+		/* Let the killer proceed */
+		sem_post(blocked_semaphore);
+
+		/* Wait until after the signal has been sent */
+		sem_wait(signaled_semaphore);
+		/* Allow time for the mkdir thread to receive the signal */
+		nap();
+
+		/* Finally, complete the original op */
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.create.entry.attr.mode = S_IFDIR | MODE;
+		out.body.create.entry.nodeid = ino;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([&](auto in) {
+			return (in.header.opcode == FUSE_INTERRUPT);
+		}, Eq(true)),
+		_)
+	).Times(0);
+
+	setup_interruptor(self);
+	ASSERT_EQ(0, mkdir(FULLDIRPATH0, MODE)) << strerror(errno);
+
+	sem_destroy(&sem0);
+}
+
 /* FUSE_INTERRUPT operations should take priority over other pending ops */
-TEST_F(Interrupt, priority)
+TEST_F(Intr, priority)
 {
 	Sequence seq;
 	uint64_t ino1 = 43;
@@ -688,7 +745,7 @@ TEST_F(Interrupt, priority)
  * successfully interrupts the original
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236530 */
-TEST_F(Interrupt, too_soon)
+TEST_F(Intr, too_soon)
 {
 	Sequence seq;
 	pthread_t self;
