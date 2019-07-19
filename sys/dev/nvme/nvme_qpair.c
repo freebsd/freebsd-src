@@ -393,6 +393,8 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 	error = nvme_completion_is_error(cpl);
 	retry = error && nvme_completion_is_retry(cpl) &&
 	   req->retries < nvme_retry_count;
+	if (retry)
+		qpair->num_retries++;
 
 	if (error && (print_on_error == ERROR_PRINT_ALL ||
 		(!retry && print_on_error == ERROR_PRINT_NO_RETRY))) {
@@ -684,6 +686,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 
 	qpair->num_cmds = 0;
 	qpair->num_intr_handler_calls = 0;
+	qpair->num_retries = 0;
 	qpair->cmd = (struct nvme_command *)queuemem;
 	qpair->cpl = (struct nvme_completion *)(queuemem + cmdsz);
 	prpmem = (uint8_t *)(queuemem + cmdsz + cplsz);
