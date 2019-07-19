@@ -5,8 +5,6 @@
 
 MAN=	builtin.1 intro.1
 
-PACKAGE=runtime-manuals
-
 .if ${MK_TESTS} != "no"
 ATF=	${SRCTOP}/contrib/atf
 .PATH:	${ATF}/doc
