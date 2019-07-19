@@ -27,10 +27,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
-#if __FreeBSD_version < 700000
-#define strchr index
-#endif
-
 /*%
  * WARNING: Don't even consider trying to compile this on a system where
  * sizeof(int) < 4.  sizeof(int) > 4 is fine; all the world's not a VAX.
