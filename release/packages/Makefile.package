@@ -78,3 +78,5 @@ unbound_COMMENT= 	Unbound DNS Resolver
 unbound_DESC= 		Unbound DNS Resolver
 vi_COMMENT= 		Vi Editor
 vi_DESC= 		Vi Editor
+wpa_COMMENT=		802.11 Supplicant
+wpa_DESC=		802.11 Supplicant
