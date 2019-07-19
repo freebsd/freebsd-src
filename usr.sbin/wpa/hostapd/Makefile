@@ -10,6 +10,7 @@
 	${WPA_DISTDIR}/src/drivers \
 	${WPA_DISTDIR}/wpa_supplicant
 
+PACKAGE=	hostapd
 PROG=	hostapd
 SRCS=	accounting.c \
 	ap_config.c \

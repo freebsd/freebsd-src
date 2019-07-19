@@ -4,6 +4,7 @@
 
 .PATH.c:${HOSTAPD_DISTDIR}
 
+PACKAGE=	hostapd
 PROG=	hostapd_cli
 SRCS=	cli.c common.c edit.c eloop.c hostapd_cli.c os_unix.c \
 	wpa_ctrl.c wpa_debug.c
