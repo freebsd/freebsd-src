@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/rwlock.h>
+#include <sys/sdt.h>
 #include <sys/sf_buf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -62,6 +63,8 @@ __FBSDID("$FreeBSD$");
 
 #define	EXT_FLAG_SYNC		EXT_FLAG_VENDOR1
 #define	EXT_FLAG_NOCACHE	EXT_FLAG_VENDOR2
+
+SDT_PROVIDER_DECLARE(vfs);
 
 /*
  * Structure describing a single sendfile(2) I/O, which may consist of
@@ -312,17 +315,18 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 	free(sfio, M_TEMP);
 }
 
+SDT_PROBE_DEFINE1(vfs, sendfile, swapin, pager_error, "int");
 /*
  * Iterate through pages vector and request paging for non-valid pages.
  */
 static int
-sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
-    int npages, int rhpages, int flags)
+sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
+    off_t len, int npages, int rhpages, int flags)
 {
 	vm_page_t *pa = sfio->pa;
-	int grabbed, nios;
+	int grabbed;
 
-	nios = 0;
+	*nios = 0;
 	flags = (flags & SF_NODISKIO) ? VM_ALLOC_NOWAIT : 0;
 
 	/*
@@ -341,7 +345,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 	}
 
 	for (int i = 0; i < npages;) {
-		int j, a, count, rv __unused;
+		int j, a, count, rv;
 
 		/* Skip valid pages. */
 		if (vm_page_is_valid(pa[i], vmoff(i, off) & PAGE_MASK,
@@ -404,6 +408,16 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		rv = vm_pager_get_pages_async(obj, pa + i, count, NULL,
 		    i + count == npages ? &rhpages : NULL,
 		    &sendfile_iodone, sfio);
+		if (rv != VM_PAGER_OK) {
+			SDT_PROBE1(vfs, sendfile, swapin, pager_error, rv);
+			for (j = 0; j < count; j++) {
+				vm_page_lock(*(pa + i + j));
+				vm_page_unwire(*(pa + i + j), PQ_INACTIVE);
+				vm_page_unlock(*(pa + i + j));
+			}
+			VM_OBJECT_WUNLOCK(obj);
+			return EIO;
+		}
 		KASSERT(rv == VM_PAGER_OK, ("%s: pager fail obj %p page %p",
 		    __func__, obj, pa[i]));
 
@@ -425,15 +439,15 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 
 			}
 		i += count;
-		nios++;
+		(*nios)++;
 	}
 
 	VM_OBJECT_WUNLOCK(obj);
 
-	if (nios == 0 && npages != 0)
+	if (*nios == 0 && npages != 0)
 		SFSTAT_INC(sf_noiocnt);
 
-	return (nios);
+	return (0);
 }
 
 static int
@@ -743,8 +757,14 @@ retry_space:
 		sfio->so = so;
 		sfio->error = 0;
 
-		nios = sendfile_swapin(obj, sfio, off, space, npages, rhpages,
-		    flags);
+		error = sendfile_swapin(obj, sfio, &nios, off, space, npages,
+		    rhpages, flags);
+		if (error) {
+			free(sfio, M_TEMP);
+			if (vp != NULL)
+				VOP_UNLOCK(vp, 0);
+			goto done;
+		}
 
 		/*
 		 * Loop and construct maximum sized mbuf chain to be bulk

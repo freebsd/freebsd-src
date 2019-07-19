@@ -832,7 +832,7 @@ TEST_F(Read, sendfile)
 
 /* sendfile should fail gracefully if fuse declines the read */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236466 */
-TEST_F(Read, DISABLED_sendfile_eio)
+TEST_F(Read, sendfile_eio)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
