@@ -785,7 +785,7 @@ suboption(void)
 	    name = gettermname();
 	    len = strlen(name) + 4 + 2;
 	    if (len < NETROOM()) {
-		sprintf(temp, "%c%c%c%c%s%c%c", IAC, SB, TELOPT_TTYPE,
+		snprintf(temp, sizeof(temp), "%c%c%c%c%s%c%c", IAC, SB, TELOPT_TTYPE,
 				TELQUAL_IS, name, IAC, SE);
 		ring_supply_data(&netoring, temp, len);
 		printsub('>', &temp[2], len-2);
@@ -807,7 +807,7 @@ suboption(void)
 
 	    TerminalSpeeds(&ispeed, &ospeed);
 
-	    sprintf((char *)temp, "%c%c%c%c%ld,%ld%c%c", IAC, SB, TELOPT_TSPEED,
+	    snprintf((char *)temp, sizeof(temp), "%c%c%c%c%ld,%ld%c%c", IAC, SB, TELOPT_TSPEED,
 		    TELQUAL_IS, ospeed, ispeed, IAC, SE);
 	    len = strlen((char *)temp+4) + 4;	/* temp[3] is 0 ... */
 
