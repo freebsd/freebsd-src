@@ -167,6 +167,7 @@ nvme_qpair_reset_stats(struct nvme_qpair *qpair)
 	qpair->num_cmds = 0;
 	qpair->num_intr_handler_calls = 0;
 	qpair->num_retries = 0;
+	qpair->num_failures = 0;
 }
 
 static int
@@ -212,6 +213,21 @@ nvme_sysctl_num_retries(SYSCTL_HANDLER_ARGS)
 		num_retries += ctrlr->ioq[i].num_retries;
 
 	return (sysctl_handle_64(oidp, &num_retries, 0, req));
+}
+
+static int
+nvme_sysctl_num_failures(SYSCTL_HANDLER_ARGS)
+{
+	struct nvme_controller 	*ctrlr = arg1;
+	int64_t			num_failures = 0;
+	int			i;
+
+	num_failures = ctrlr->adminq.num_failures;
+
+	for (i = 0; i < ctrlr->num_io_queues; i++)
+		num_failures += ctrlr->ioq[i].num_failures;
+
+	return (sysctl_handle_64(oidp, &num_failures, 0, req));
 }
 
 static int
@@ -267,6 +283,9 @@ nvme_sysctl_initialize_queue(struct nvme_qpair *qpair,
 	    "coalescing)");
 	SYSCTL_ADD_QUAD(ctrlr_ctx, que_list, OID_AUTO, "num_retries",
 	    CTLFLAG_RD, &qpair->num_retries, "Number of commands retried");
+	SYSCTL_ADD_QUAD(ctrlr_ctx, que_list, OID_AUTO, "num_failures",
+	    CTLFLAG_RD, &qpair->num_failures,
+	    "Number of commands ending in failure after all retries");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, que_list, OID_AUTO,
 	    "dump_debug", CTLTYPE_UINT | CTLFLAG_RW, qpair, 0,
@@ -322,6 +341,11 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	    "num_retries", CTLTYPE_S64 | CTLFLAG_RD,
 	    ctrlr, 0, nvme_sysctl_num_retries, "IU",
 	    "Number of commands retried");
+
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "num_failures", CTLTYPE_S64 | CTLFLAG_RD,
+	    ctrlr, 0, nvme_sysctl_num_failures, "IU",
+	    "Number of commands ending in failure after all retries");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "reset_stats", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
