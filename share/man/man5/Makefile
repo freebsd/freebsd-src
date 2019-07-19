@@ -3,8 +3,6 @@
 
 .include <src.opts.mk>
 
-PACKAGE=runtime-manuals
-
 #MISSING: dump.5 plot.5
 MAN=	acct.5 \
 	ar.5 \

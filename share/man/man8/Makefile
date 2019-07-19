@@ -3,8 +3,6 @@
 
 .include <src.opts.mk>
 
-PACKAGE=runtime-manuals
-
 MAN=	\
 	beinstall.8 \
 	crash.8 \

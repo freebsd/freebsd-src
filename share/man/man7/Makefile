@@ -3,8 +3,6 @@
 
 .include <src.opts.mk>
 
-PACKAGE=runtime-manuals
-
 #MISSING: eqnchar.7 ms.7 term.7
 MAN=	arch.7 \
 	ascii.7 \
