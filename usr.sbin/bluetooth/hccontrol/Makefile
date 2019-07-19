@@ -1,6 +1,7 @@
 # $Id: Makefile,v 1.7 2003/08/14 20:06:17 max Exp $
 # $FreeBSD$
 
+PACKAGE=	bluetooth
 CONFS=		bluetooth.device.conf
 CONFSDIR=	/etc/defaults
 PROG=		hccontrol
