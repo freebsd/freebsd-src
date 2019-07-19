@@ -43,7 +43,7 @@ STAGE_SETS+=	${group:C,[/*],_,g}
 
 .      if defined(NO_ROOT)
 .        if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
-.          if defined(${${group}PACKAGE})
+.          if defined(${group}PACKAGE)
 ${group}TAGS+=		package=${${group}PACKAGE:Uruntime}
 .          else
 ${group}TAGS+=		package=${PACKAGE:Uruntime}
