@@ -3,6 +3,7 @@
 
 .PATH:	${.CURDIR:H}/bthidd
 
+PACKAGE=	bluetooth
 PROG=		bthidcontrol
 MAN=		bthidcontrol.8
 SRCS=		bthidcontrol.c hid.c lexer.l  parser.y sdp.c
