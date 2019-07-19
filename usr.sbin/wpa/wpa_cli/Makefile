@@ -9,6 +9,7 @@
 	${WPA_DISTDIR}/src/eap_peer \
 	${WPA_DISTDIR}/src/drivers
 
+PACKAGE=	wpa
 PROG=	wpa_cli
 SRCS=	base64.c bitfield.c blacklist.c bss.c cli.c common.c config.c \
 	config_file.c \
