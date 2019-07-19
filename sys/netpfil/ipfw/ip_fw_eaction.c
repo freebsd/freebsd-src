@@ -377,35 +377,51 @@ ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
     uint16_t eaction_id, uint16_t default_id, uint16_t instance_id)
 {
 	ipfw_insn *cmd, *icmd;
+	int l, cmdlen;
 
 	IPFW_UH_WLOCK_ASSERT(ch);
 	IPFW_WLOCK_ASSERT(ch);
 
 	cmd = ACTION_PTR(rule);
+	l = rule->cmd_len - rule->act_ofs;
+	while (l > 0) {
+		cmdlen = F_LEN(cmd);
+		l -= cmdlen;
+		if (cmd->opcode == O_EXTERNAL_ACTION || l <= 0)
+			break;
+		cmd += cmdlen;
+	}
+	/*
+	 * Return if there is not O_EXTERNAL_ACTION or its id is
+	 * different.
+	 */
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
 	    cmd->arg1 != eaction_id)
 		return (0);
-
-	if (instance_id != 0 && rule->act_ofs < rule->cmd_len - 1) {
+	/*
+	 * If instance_id is specified, we need to truncate the
+	 * rule length. Check if there is O_EXTERNAL_INSTANCE opcode.
+	 */
+	if (instance_id != 0 && l > 0) {
+		MPASS(cmdlen == 1);
 		icmd = cmd + 1;
 		if (icmd->opcode != O_EXTERNAL_INSTANCE ||
 		    icmd->arg1 != instance_id)
 			return (0);
-		/* FALLTHROUGH */
+		/*
+		 * Since named_object related to this instance will be
+		 * destroyed, truncate the chain of opcodes to remove
+		 * the rest of cmd chain just after O_EXTERNAL_ACTION
+		 * opcode.
+		 */
+		EACTION_DEBUG("truncate rule %d: len %u -> %u",
+		    rule->rulenum, rule->cmd_len, rule->cmd_len - l);
+		rule->cmd_len -= l;
+		MPASS(((uint32_t *)icmd -
+		    (uint32_t *)rule->cmd) == rule->cmd_len);
 	}
 
 	cmd->arg1 = default_id; /* Set to default id */
-	/*
-	 * Since named_object related to this instance will be
-	 * also destroyed, truncate the chain of opcodes to
-	 * remove the rest of cmd chain just after O_EXTERNAL_ACTION
-	 * opcode.
-	 */
-	if (rule->act_ofs < rule->cmd_len - 1) {
-		EACTION_DEBUG("truncate rule %d: len %u -> %u",
-		    rule->rulenum, rule->cmd_len, rule->act_ofs + 1);
-		rule->cmd_len = rule->act_ofs + 1;
-	}
 	/*
 	 * Return 1 when reset successfully happened.
 	 */
