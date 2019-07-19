@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	dpv
+
 PROG=		dpv
 
 CFLAGS+=	-I${.CURDIR}
