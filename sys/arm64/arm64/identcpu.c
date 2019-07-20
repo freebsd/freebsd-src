@@ -44,8 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/undefined.h>
+#include <machine/elf.h>
 
 static int ident_lock;
+static void print_cpu_features(u_int cpu);
+static u_long parse_cpu_features_hwcap(u_int cpu);
 
 char machine[] = "arm64";
 
@@ -412,10 +415,14 @@ update_user_regs(u_int cpu)
 	}
 }
 
+/* HWCAP */
+extern u_long elf_hwcap;
+
 static void
 identify_cpu_sysinit(void *dummy __unused)
 {
 	int cpu;
+	u_long hwcap;
 
 	/* Create a user visible cpu description with safe values */
 	memset(&user_cpu_desc, 0, sizeof(user_cpu_desc));
@@ -427,6 +434,11 @@ identify_cpu_sysinit(void *dummy __unused)
 
 	CPU_FOREACH(cpu) {
 		print_cpu_features(cpu);
+		hwcap = parse_cpu_features_hwcap(cpu);
+		if (elf_hwcap == 0)
+			elf_hwcap = hwcap;
+		else
+			elf_hwcap &= hwcap;
 		update_user_regs(cpu);
 	}
 
@@ -434,7 +446,95 @@ identify_cpu_sysinit(void *dummy __unused)
 }
 SYSINIT(idenrity_cpu, SI_SUB_SMP, SI_ORDER_ANY, identify_cpu_sysinit, NULL);
 
-void
+static u_long
+parse_cpu_features_hwcap(u_int cpu)
+{
+	u_long hwcap = 0;
+
+	if (ID_AA64ISAR0_DP(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_DP_IMPL)
+		hwcap |= HWCAP_ASIMDDP;
+
+	if (ID_AA64ISAR0_SM4(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_SM4_IMPL)
+		hwcap |= HWCAP_SM4;
+
+	if (ID_AA64ISAR0_SM3(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_SM3_IMPL)
+		hwcap |= HWCAP_SM3;
+
+	if (ID_AA64ISAR0_RDM(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_RDM_IMPL)
+		hwcap |= HWCAP_ASIMDRDM;
+
+	if (ID_AA64ISAR0_Atomic(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_Atomic_IMPL)
+		hwcap |= HWCAP_ATOMICS;
+
+	if (ID_AA64ISAR0_CRC32(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_CRC32_BASE)
+		hwcap |= HWCAP_CRC32;
+
+	switch (ID_AA64ISAR0_SHA2(cpu_desc[cpu].id_aa64isar0)) {
+		case ID_AA64ISAR0_SHA2_BASE:
+			hwcap |= HWCAP_SHA2;
+			break;
+		case ID_AA64ISAR0_SHA2_512:
+			hwcap |= HWCAP_SHA2 | HWCAP_SHA512;
+			break;
+	default:
+		break;
+	}
+
+	if (ID_AA64ISAR0_SHA1(cpu_desc[cpu].id_aa64isar0))
+		hwcap |= HWCAP_SHA1;
+
+	switch (ID_AA64ISAR0_AES(cpu_desc[cpu].id_aa64isar0)) {
+	case ID_AA64ISAR0_AES_BASE:
+		hwcap |= HWCAP_AES;
+		break;
+	case ID_AA64ISAR0_AES_PMULL:
+		hwcap |= HWCAP_PMULL | HWCAP_AES;
+		break;
+	default:
+		break;
+	}
+
+	if (ID_AA64ISAR1_LRCPC(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_LRCPC_IMPL)
+		hwcap |= HWCAP_LRCPC;
+
+	if (ID_AA64ISAR1_FCMA(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_FCMA_IMPL)
+		hwcap |= HWCAP_FCMA;
+
+	if (ID_AA64ISAR1_JSCVT(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_JSCVT_IMPL)
+		hwcap |= HWCAP_JSCVT;
+
+	if (ID_AA64ISAR1_DPB(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_DPB_IMPL)
+		hwcap |= HWCAP_DCPOP;
+
+	if (ID_AA64PFR0_SVE(cpu_desc[cpu].id_aa64pfr0) == ID_AA64PFR0_SVE_IMPL)
+		hwcap |= HWCAP_SVE;
+
+	switch (ID_AA64PFR0_AdvSIMD(cpu_desc[cpu].id_aa64pfr0)) {
+	case ID_AA64PFR0_AdvSIMD_IMPL:
+		hwcap |= HWCAP_ASIMD;
+		break;
+	case ID_AA64PFR0_AdvSIMD_HP:
+		hwcap |= HWCAP_ASIMD | HWCAP_ASIMDDP;
+		break;
+	default:
+		break;
+	}
+
+	switch (ID_AA64PFR0_FP(cpu_desc[cpu].id_aa64pfr0)) {
+	case ID_AA64PFR0_FP_IMPL:
+		hwcap |= HWCAP_FP;
+		break;
+	case ID_AA64PFR0_FP_HP:
+		hwcap |= HWCAP_FP | HWCAP_FPHP;
+		break;
+	default:
+		break;
+	}
+
+	return (hwcap);
+}
+
+static void
 print_cpu_features(u_int cpu)
 {
 	struct sbuf *sb;
@@ -487,9 +587,6 @@ print_cpu_features(u_int cpu)
 		printf("WARNING: ThunderX Pass 1.1 detected.\nThis has known "
 		    "hardware bugs that may cause the incorrect operation of "
 		    "atomic operations.\n");
-
-	if (cpu != 0 && cpu_print_regs == 0)
-		return;
 
 #define SEP_STR	((printed++) == 0) ? "" : ","
 
