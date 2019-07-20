@@ -64,6 +64,8 @@ TEST_METADATA+= timeout=10
 
 FUSEFS=		${SRCTOP}/sys/fs/fuse
 MOUNT=		${SRCTOP}/sbin/mount
+# Suppress warnings that GCC generates for the libc++ and gtest headers.
+CWARNFLAGS.gcc+=	-Wno-placement-new -Wno-attributes -Wno-class-memaccess
 CXXFLAGS+=	-I${SRCTOP}/tests
 CXXFLAGS+=	-I${FUSEFS}
 CXXFLAGS+=	-I${MOUNT}

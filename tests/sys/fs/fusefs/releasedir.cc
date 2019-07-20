@@ -71,10 +71,10 @@ TEST_F(ReleaseDir, dup)
 	expect_releasedir(ino, ReturnErrno(0));
 	
 	dir = opendir(FULLPATH);
-	ASSERT_NE(NULL, dir) << strerror(errno);
+	ASSERT_NE(nullptr, dir) << strerror(errno);
 
 	dir2 = fdopendir(dup(dirfd(dir)));
-	ASSERT_NE(NULL, dir2) << strerror(errno);
+	ASSERT_NE(nullptr, dir2) << strerror(errno);
 
 	ASSERT_EQ(0, closedir(dir)) << strerror(errno);
 	ASSERT_EQ(0, closedir(dir2)) << strerror(errno);
@@ -92,7 +92,7 @@ TEST_F(ReleaseDir, ok)
 	expect_releasedir(ino, ReturnErrno(0));
 	
 	dir = opendir(FULLPATH);
-	ASSERT_NE(NULL, dir) << strerror(errno);
+	ASSERT_NE(nullptr, dir) << strerror(errno);
 
 	ASSERT_EQ(0, closedir(dir)) << strerror(errno);
 }

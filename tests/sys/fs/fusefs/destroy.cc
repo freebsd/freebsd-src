@@ -110,10 +110,10 @@ TEST_F(Death, unsent_operations)
 	 * One thread's operation will be sent to the daemon and block, and the
 	 * other's will be stuck in the message queue.
 	 */
-	ASSERT_EQ(0, pthread_create(&th0, NULL, open_th, (void*)FULLPATH0))
-		<< strerror(errno);
-	ASSERT_EQ(0, pthread_create(&th1, NULL, open_th, (void*)FULLPATH1))
-		<< strerror(errno);
+	ASSERT_EQ(0, pthread_create(&th0, NULL, open_th,
+		__DECONST(void*, FULLPATH0))) << strerror(errno);
+	ASSERT_EQ(0, pthread_create(&th1, NULL, open_th,
+		__DECONST(void*, FULLPATH1))) << strerror(errno);
 
 	/* Wait for the first thread to block */
 	sem_wait(&sem);

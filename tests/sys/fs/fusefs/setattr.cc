@@ -449,16 +449,16 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 	bool should_have_data = false;
 
 	w0buf = malloc(w0_size);
-	ASSERT_NE(NULL, w0buf) << strerror(errno);
+	ASSERT_NE(nullptr, w0buf) << strerror(errno);
 	memset(w0buf, 'X', w0_size);
 
 	r0buf = malloc(r0_size);
-	ASSERT_NE(NULL, r0buf) << strerror(errno);
+	ASSERT_NE(nullptr, r0buf) << strerror(errno);
 	r1buf = malloc(r1_size);
-	ASSERT_NE(NULL, r1buf) << strerror(errno);
+	ASSERT_NE(nullptr, r1buf) << strerror(errno);
 
 	expected = malloc(r1_size);
-	ASSERT_NE(NULL, expected) << strerror(errno);
+	ASSERT_NE(nullptr, expected) << strerror(errno);
 	memset(expected, 0, r1_size);
 
 	expect_lookup(RELPATH, ino, mode, 0, 1);
@@ -580,10 +580,12 @@ TEST_F(Setattr, utimensat) {
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
 				in.body.setattr.valid == valid &&
-				in.body.setattr.atime == newtimes[0].tv_sec &&
+				(time_t)in.body.setattr.atime ==
+					newtimes[0].tv_sec &&
 				in.body.setattr.atimensec ==
 					newtimes[0].tv_nsec &&
-				in.body.setattr.mtime == newtimes[1].tv_sec &&
+				(time_t)in.body.setattr.mtime ==
+					newtimes[1].tv_sec &&
 				in.body.setattr.mtimensec ==
 					newtimes[1].tv_nsec);
 		}, Eq(true)),
@@ -633,7 +635,8 @@ TEST_F(Setattr, utimensat_mtime_only) {
 			return (in.header.opcode == FUSE_SETATTR &&
 				in.header.nodeid == ino &&
 				in.body.setattr.valid == valid &&
-				in.body.setattr.mtime == newtimes[1].tv_sec &&
+				(time_t)in.body.setattr.mtime ==
+					newtimes[1].tv_sec &&
 				in.body.setattr.mtimensec ==
 					newtimes[1].tv_nsec);
 		}, Eq(true)),

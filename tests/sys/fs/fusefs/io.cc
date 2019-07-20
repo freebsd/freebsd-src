@@ -266,7 +266,7 @@ void do_mapread(ssize_t size, off_t offs)
 	ASSERT_NE(p, MAP_FAILED) << strerror(errno);
 
 	control_buf = malloc(size);
-	ASSERT_NE(NULL, control_buf) << strerror(errno);
+	ASSERT_NE(nullptr, control_buf) << strerror(errno);
 
 	ASSERT_EQ(size, pread(m_control_fd, control_buf, size, offs))
 		<< strerror(errno);
@@ -283,9 +283,9 @@ void do_read(ssize_t size, off_t offs)
 	ssize_t r;
 
 	test_buf = malloc(size);
-	ASSERT_NE(NULL, test_buf) << strerror(errno);
+	ASSERT_NE(nullptr, test_buf) << strerror(errno);
 	control_buf = malloc(size);
-	ASSERT_NE(NULL, control_buf) << strerror(errno);
+	ASSERT_NE(nullptr, control_buf) << strerror(errno);
 
 	errno = 0;
 	r = pread(m_test_fd, test_buf, size, offs);
@@ -314,7 +314,7 @@ void do_mapwrite(ssize_t size, off_t offs)
 	map_size = pg_offset + size;
 
 	buf = (char*)malloc(size);
-	ASSERT_NE(NULL, buf) << strerror(errno);
+	ASSERT_NE(nullptr, buf) << strerror(errno);
 	for (i=0; i < size; i++)
 		buf[i] = random();
 
@@ -344,7 +344,7 @@ void do_write(ssize_t size, off_t offs)
 	long i;
 
 	buf = (char*)malloc(size);
-	ASSERT_NE(NULL, buf) << strerror(errno);
+	ASSERT_NE(nullptr, buf) << strerror(errno);
 	for (i=0; i < size; i++)
 		buf[i] = random();
 

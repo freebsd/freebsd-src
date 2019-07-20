@@ -542,12 +542,14 @@ TEST_F(Setxattr, enosys)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 	expect_setxattr(ino, "user.foo", value, ReturnErrno(ENOSYS));
 
-	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	r = extattr_set_file(FULLPATH, ns, "foo", (const void*)value,
+		value_len);
 	ASSERT_EQ(-1, r);
 	EXPECT_EQ(EOPNOTSUPP, errno);
 
 	/* Subsequent attempts should not query the filesystem at all */
-	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	r = extattr_set_file(FULLPATH, ns, "foo", (const void*)value,
+		value_len);
 	ASSERT_EQ(-1, r);
 	EXPECT_EQ(EOPNOTSUPP, errno);
 }
@@ -567,7 +569,8 @@ TEST_F(Setxattr, enotsup)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_setxattr(ino, "user.foo", value, ReturnErrno(ENOTSUP));
 
-	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	r = extattr_set_file(FULLPATH, ns, "foo", (const void*)value,
+		value_len);
 	ASSERT_EQ(-1, r);
 	EXPECT_EQ(ENOTSUP, errno);
 }
@@ -586,7 +589,8 @@ TEST_F(Setxattr, user)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_setxattr(ino, "user.foo", value, ReturnErrno(0));
 
-	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	r = extattr_set_file(FULLPATH, ns, "foo", (const void*)value,
+		value_len);
 	ASSERT_EQ(value_len, r) << strerror(errno);
 }
 
@@ -604,7 +608,8 @@ TEST_F(Setxattr, system)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_setxattr(ino, "system.foo", value, ReturnErrno(0));
 
-	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	r = extattr_set_file(FULLPATH, ns, "foo", (const void*)value,
+		value_len);
 	ASSERT_EQ(value_len, r) << strerror(errno);
 }
 
@@ -629,7 +634,8 @@ TEST_F(RofsXattr, setextattr_erofs)
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 
-	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	r = extattr_set_file(FULLPATH, ns, "foo", (const void*)value,
+		value_len);
 	ASSERT_EQ(-1, r);
 	EXPECT_EQ(EROFS, errno);
 }

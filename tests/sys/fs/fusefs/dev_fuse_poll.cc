@@ -204,12 +204,12 @@ TEST_F(Kqueue, data)
 	access("mountpoint/bar", F_OK);
 	access("mountpoint/baz", F_OK);
 	ASSERT_EQ(0, pthread_create(&th0, NULL, statter,
-		(void*)"mountpoint/foo")) << strerror(errno);
+		__DECONST(void*, "mountpoint/foo"))) << strerror(errno);
 	EXPECT_EQ(0, sem_wait(&sem0)) << strerror(errno);
 	ASSERT_EQ(0, pthread_create(&th1, NULL, statter,
-		(void*)"mountpoint/bar")) << strerror(errno);
+		__DECONST(void*, "mountpoint/bar"))) << strerror(errno);
 	ASSERT_EQ(0, pthread_create(&th2, NULL, statter,
-		(void*)"mountpoint/baz")) << strerror(errno);
+		__DECONST(void*, "mountpoint/baz"))) << strerror(errno);
 
 	nap();		// Allow th1 and th2 to send their ops to the daemon
 	EXPECT_EQ(0, sem_post(&sem1)) << strerror(errno);

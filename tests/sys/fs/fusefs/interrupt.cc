@@ -520,7 +520,8 @@ TEST_F(Intr, in_kernel_nonrestartable)
 
 	setup_interruptor(self, true);
 
-	r = extattr_set_fd(fd1, ns, "foo", (void*)value, value_len);
+	r = extattr_set_fd(fd1, ns, "foo", (const void*)value, value_len);
+	EXPECT_NE(0, r);
 	EXPECT_EQ(EINTR, errno);
 
 	/* Unstick the daemon */
@@ -664,12 +665,11 @@ TEST_F(Intr, priority)
 	Sequence seq;
 	uint64_t ino1 = 43;
 	uint64_t mkdir_unique;
-	pthread_t self, th0;
+	pthread_t th0;
 	sem_t sem0, sem1;
 
 	ASSERT_EQ(0, sem_init(&sem0, 0, 0)) << strerror(errno);
 	ASSERT_EQ(0, sem_init(&sem1, 0, 0)) << strerror(errno);
-	self = pthread_self();
 
 	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH0)
 	.WillOnce(Invoke(ReturnErrno(ENOENT)));

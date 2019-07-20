@@ -564,7 +564,7 @@ int MockFS::notify_inval_inode(ino_t ino, off_t off, ssize_t len)
 	return 0;
 }
 
-int MockFS::notify_store(ino_t ino, off_t off, void* data, ssize_t size)
+int MockFS::notify_store(ino_t ino, off_t off, const void* data, ssize_t size)
 {
 	std::unique_ptr<mockfs_buf_out> out(new mockfs_buf_out);
 
