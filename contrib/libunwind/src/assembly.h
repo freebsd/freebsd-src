@@ -117,7 +117,9 @@
   .globl SYMBOL_NAME(name) SEPARATOR                      \
   HIDDEN_SYMBOL(SYMBOL_NAME(name)) SEPARATOR              \
   SYMBOL_IS_FUNC(SYMBOL_NAME(name)) SEPARATOR             \
-  SYMBOL_NAME(name):
+  PPC64_OPD1                                              \
+  SYMBOL_NAME(name):                                      \
+  PPC64_OPD2
 
 #if defined(__arm__)
 #if !defined(__ARM_ARCH)
