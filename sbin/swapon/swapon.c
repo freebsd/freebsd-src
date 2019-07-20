@@ -739,12 +739,12 @@ run_cmd(int *ofd, const char *cmdline, ...)
 	return (WEXITSTATUS(status));
 }
 
-static void
-swap_trim(const char *name)
+static int
+swapon_trim(const char *name)
 {
 	struct stat sb;
 	off_t ioarg[2], sz;
-	int fd;
+	int error, fd;
 
 	fd = open(name, O_WRONLY);
 	if (fd < 0)
@@ -762,7 +762,16 @@ swap_trim(const char *name)
 	ioarg[1] = sz;
 	if (ioctl(fd, DIOCGDELETE, ioarg) != 0)
 		warn("ioctl(DIOCGDELETE)");
+
+	/*
+	 * swapon is invoked after trimming, so that the trimming doesn't happen
+	 * after the device is in use for swapping, but before the fd is closed,
+	 * for the benefit of geli, which could otherwise detach the device,
+	 * before swapon, on close.
+	 */
+	error = swapon(name);
 	close(fd);
+	return (error);
 }
 
 static const char *
@@ -770,11 +779,9 @@ swap_on_off_sfile(const char *name, int doingall)
 {
 	int error;
 
-	if (which_prog == SWAPON) {
-		if (Eflag)
-			swap_trim(name);
-		error = swapon(name);
-	} else /* SWAPOFF */
+	if (which_prog == SWAPON)
+		error = Eflag ? swapon_trim(name) : swapon(name);
+	else /* SWAPOFF */
 		error = swapoff(name);
 
 	if (error == -1) {
