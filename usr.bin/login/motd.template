@@ -1,4 +1,3 @@
-FreeBSD ?.?.?  (UNKNOWN)
 
 Welcome to FreeBSD!
 
@@ -18,4 +17,4 @@ Please include that output and any error messages when posting questions.
 Introduction to manual pages:  man man
 FreeBSD directory layout:      man hier
 
-Edit /etc/motd to change this login announcement.
+Edit /etc/motd.template to change this login announcement.
