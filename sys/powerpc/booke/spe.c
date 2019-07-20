@@ -572,6 +572,7 @@ spe_handle_fpdata(struct trapframe *frame)
 			frame->fixreg[rd] = frame->fixreg[ra] ^ (1U << 31);
 			break;
 		case EFSCFD:
+			mtmsr(msr | PSL_VEC);
 			spe_explode(&fpemu, &fpemu.fe_f3, DOUBLE,
 			    spe_save_reg_high(rb), frame->fixreg[rb]);
 			result = &fpemu.fe_f3;
