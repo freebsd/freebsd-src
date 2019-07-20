@@ -375,7 +375,7 @@ class MockFS {
 	 * @param	data	Pointer to the data to cache
 	 * @param	len	Size of data
 	 */
-	int notify_store(ino_t ino, off_t off, void* data, ssize_t size);
+	int notify_store(ino_t ino, off_t off, const void* data, ssize_t size);
 
 	/* 
 	 * Request handler

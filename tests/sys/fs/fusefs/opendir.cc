@@ -151,5 +151,5 @@ TEST_F(Opendir, opendir)
 	}));
 
 	errno = 0;
-	EXPECT_NE(NULL, opendir(FULLPATH)) << strerror(errno);
+	EXPECT_NE(nullptr, opendir(FULLPATH)) << strerror(errno);
 }

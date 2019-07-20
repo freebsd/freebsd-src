@@ -90,11 +90,11 @@ TEST_F(Readdir, dots)
 
 	errno = 0;
 	dir = opendir(FULLPATH);
-	ASSERT_NE(NULL, dir) << strerror(errno);
+	ASSERT_NE(nullptr, dir) << strerror(errno);
 
 	errno = 0;
 	de = readdir(dir);
-	ASSERT_NE(NULL, de) << strerror(errno);
+	ASSERT_NE(nullptr, de) << strerror(errno);
 	EXPECT_EQ(2ul, de->d_fileno);
 	/*
 	 * fuse(4) doesn't actually set d_off, which is ok for now because
@@ -107,14 +107,14 @@ TEST_F(Readdir, dots)
 
 	errno = 0;
 	de = readdir(dir);
-	ASSERT_NE(NULL, de) << strerror(errno);
+	ASSERT_NE(nullptr, de) << strerror(errno);
 	EXPECT_EQ(3ul, de->d_fileno);
 	//EXPECT_EQ(3000, de->d_off);
 	EXPECT_EQ(DT_DIR, de->d_type);
 	EXPECT_EQ(1, de->d_namlen);
 	EXPECT_EQ(0, strcmp(".", de->d_name));
 
-	ASSERT_EQ(NULL, readdir(dir));
+	ASSERT_EQ(nullptr, readdir(dir));
 	ASSERT_EQ(0, errno);
 
 	leakdir(dir);
@@ -141,11 +141,11 @@ TEST_F(Readdir, eio)
 
 	errno = 0;
 	dir = opendir(FULLPATH);
-	ASSERT_NE(NULL, dir) << strerror(errno);
+	ASSERT_NE(nullptr, dir) << strerror(errno);
 
 	errno = 0;
 	de = readdir(dir);
-	ASSERT_EQ(NULL, de);
+	ASSERT_EQ(nullptr, de);
 	ASSERT_EQ(EIO, errno);
 
 	leakdir(dir);
@@ -259,9 +259,9 @@ TEST_F(Readdir, nodots)
 
 	errno = 0;
 	dir = opendir(FULLPATH);
-	ASSERT_NE(NULL, dir) << strerror(errno);
+	ASSERT_NE(nullptr, dir) << strerror(errno);
 	errno = 0;
-	ASSERT_EQ(NULL, readdir(dir));
+	ASSERT_EQ(nullptr, readdir(dir));
 	ASSERT_EQ(0, errno);
 
 	leakdir(dir);
@@ -318,12 +318,12 @@ TEST_F(Readdir, seekdir)
 
 	errno = 0;
 	dir = opendir(FULLPATH);
-	ASSERT_NE(NULL, dir) << strerror(errno);
+	ASSERT_NE(nullptr, dir) << strerror(errno);
 
 	for (i=0; i < 128; i++) {
 		errno = 0;
 		de = readdir(dir);
-		ASSERT_NE(NULL, de) << strerror(errno);
+		ASSERT_NE(nullptr, de) << strerror(errno);
 		EXPECT_EQ(2 + (ino_t)i, de->d_fileno);
 	}
 	bookmark = telldir(dir);
@@ -331,13 +331,13 @@ TEST_F(Readdir, seekdir)
 	for (; i < 232; i++) {
 		errno = 0;
 		de = readdir(dir);
-		ASSERT_NE(NULL, de) << strerror(errno);
+		ASSERT_NE(nullptr, de) << strerror(errno);
 		EXPECT_EQ(2 + (ino_t)i, de->d_fileno);
 	}
 
 	seekdir(dir, bookmark);
 	de = readdir(dir);
-	ASSERT_NE(NULL, de) << strerror(errno);
+	ASSERT_NE(nullptr, de) << strerror(errno);
 	EXPECT_EQ(130ul, de->d_fileno);
 
 	leakdir(dir);
@@ -366,9 +366,9 @@ TEST_F(Readdir_7_8, nodots)
 
 	errno = 0;
 	dir = opendir(FULLPATH);
-	ASSERT_NE(NULL, dir) << strerror(errno);
+	ASSERT_NE(nullptr, dir) << strerror(errno);
 	errno = 0;
-	ASSERT_EQ(NULL, readdir(dir));
+	ASSERT_EQ(nullptr, readdir(dir));
 	ASSERT_EQ(0, errno);
 
 	leakdir(dir);

@@ -67,7 +67,7 @@ TEST_F(Statfs, enotconn)
 
 	m_mock->kill_daemon();
 
-	ASSERT_NE(NULL, getcwd(mp, PATH_MAX)) << strerror(errno);
+	ASSERT_NE(nullptr, getcwd(mp, PATH_MAX)) << strerror(errno);
 	strlcat(mp, "/mountpoint", PATH_MAX);
 	ASSERT_EQ(0, statfs("mountpoint", &statbuf)) << strerror(errno);
 
@@ -112,7 +112,7 @@ TEST_F(Statfs, enotconn_while_blocked)
 		/* Just block until the daemon dies */
 	}));
 
-	ASSERT_NE(NULL, getcwd(mp, PATH_MAX)) << strerror(errno);
+	ASSERT_NE(nullptr, getcwd(mp, PATH_MAX)) << strerror(errno);
 	strlcat(mp, "/mountpoint", PATH_MAX);
 	ASSERT_EQ(0, pthread_create(&th0, NULL, statfs_th, (void*)&statbuf))
 		<< strerror(errno);
@@ -150,7 +150,7 @@ TEST_F(Statfs, ok)
 		out.body.statfs.st.frsize = 1024;
 	})));
 
-	ASSERT_NE(NULL, getcwd(mp, PATH_MAX)) << strerror(errno);
+	ASSERT_NE(nullptr, getcwd(mp, PATH_MAX)) << strerror(errno);
 	strlcat(mp, "/mountpoint", PATH_MAX);
 	ASSERT_EQ(0, statfs("mountpoint", &statbuf)) << strerror(errno);
 	EXPECT_EQ(1024ul, statbuf.f_bsize);

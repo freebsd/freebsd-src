@@ -131,8 +131,6 @@ TEST_F(AllowOther, creds)
  */
 TEST_F(AllowOther, privilege_escalation)
 {
-	const static char FULLPATH[] = "mountpoint/some_file.txt";
-	const static char RELPATH[] = "some_file.txt";
 	int fd1, status;
 	const static uint64_t ino = 42;
 	const static uint64_t fh = 100;
@@ -220,8 +218,6 @@ TEST_F(NoAllowOther, disallowed)
  */
 TEST_F(NoAllowOther, disallowed_beneath_root)
 {
-	const static char FULLPATH[] = "mountpoint/some_dir";
-	const static char RELPATH[] = "some_dir";
 	const static char RELPATH2[] = "other_dir";
 	const static uint64_t ino = 42;
 	const static uint64_t ino2 = 43;
@@ -291,7 +287,7 @@ TEST_F(NoAllowOther, setextattr)
 			ssize_t r;
 
 			r = extattr_set_file(FULLPATH, ns, "foo",
-				(void*)value, value_len);
+				(const void*)value, value_len);
 			if (r >= 0) {
 				fprintf(stderr, "should've failed\n");
 				return(1);

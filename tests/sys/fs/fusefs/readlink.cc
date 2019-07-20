@@ -113,7 +113,7 @@ TEST_F(PushSymlinksIn, readlink)
 		out.header.len = sizeof(out.header) + strlen(dst) + 1;
 	}));
 
-	ASSERT_NE(NULL, getcwd(wd, sizeof(wd))) << strerror(errno);
+	ASSERT_NE(nullptr, getcwd(wd, sizeof(wd))) << strerror(errno);
 	len = snprintf(want, sizeof(want), "%s/mountpoint%s", wd, dst);
 	ASSERT_LE(0, len) << strerror(errno);
 

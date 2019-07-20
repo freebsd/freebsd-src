@@ -765,7 +765,7 @@ TEST_F(Read, cache_block)
 	const char *contents1 = CONTENTS0 + bufsize;
 
 	contents = (char*)calloc(1, filesize);
-	ASSERT_NE(NULL, contents);
+	ASSERT_NE(nullptr, contents);
 	memmove(contents, CONTENTS0, strlen(CONTENTS0));
 
 	expect_lookup(RELPATH, ino, filesize);
@@ -880,7 +880,7 @@ TEST_P(ReadAhead, readahead) {
 	off_t offs;
 
 	contents = (char*)malloc(filesize);
-	ASSERT_NE(NULL, contents);
+	ASSERT_NE(nullptr, contents);
 	memset(contents, 'X', filesize);
 	rbuf = (char*)calloc(1, bufsize);
 

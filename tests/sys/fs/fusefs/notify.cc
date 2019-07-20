@@ -129,7 +129,7 @@ struct store_args {
 	ino_t		nodeid;
 	off_t		offset;
 	ssize_t		size;
-	void*		data;
+	const void*	data;
 };
 
 static void* inval_inode(void* arg) {
@@ -433,7 +433,7 @@ TEST_F(Notify, DISABLED_store_with_blank_cache)
 	sa.nodeid = ino;
 	sa.offset = 0;
 	sa.size = size1;
-	sa.data = (void*)CONTENTS1;
+	sa.data = (const void*)CONTENTS1;
 	ASSERT_EQ(0, pthread_create(&th0, NULL, store, &sa)) << strerror(errno);
 	pthread_join(th0, &thr0_value);
 	EXPECT_EQ(0, (intptr_t)thr0_value);

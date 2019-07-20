@@ -226,7 +226,7 @@ TEST_F(AioWrite, DISABLED_aio_write)
 
 	iocb.aio_nbytes = bufsize;
 	iocb.aio_fildes = fd;
-	iocb.aio_buf = (void *)CONTENTS;
+	iocb.aio_buf = __DECONST(void *, CONTENTS);
 	iocb.aio_offset = offset;
 	iocb.aio_sigevent.sigev_notify = SIGEV_NONE;
 	ASSERT_EQ(0, aio_write(&iocb)) << strerror(errno);
@@ -286,9 +286,9 @@ TEST_F(Write, append_to_cached)
 	int fd;
 
 	oldcontents = (char*)calloc(1, oldsize);
-	ASSERT_NE(NULL, oldcontents) << strerror(errno);
+	ASSERT_NE(nullptr, oldcontents) << strerror(errno);
 	oldbuf = (char*)malloc(oldsize);
-	ASSERT_NE(NULL, oldbuf) << strerror(errno);
+	ASSERT_NE(nullptr, oldbuf) << strerror(errno);
 
 	expect_lookup(RELPATH, ino, oldsize);
 	expect_open(ino, 0, 1);
@@ -448,9 +448,9 @@ TEST_F(Write, direct_io_short_write_iov)
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
 
-	iov[0].iov_base = (void*)CONTENTS0;
+	iov[0].iov_base = __DECONST(void*, CONTENTS0);
 	iov[0].iov_len = strlen(CONTENTS0);
-	iov[1].iov_base = (void*)CONTENTS1;
+	iov[1].iov_base = __DECONST(void*, CONTENTS1);
 	iov[1].iov_len = strlen(CONTENTS1);
 	ASSERT_EQ(size0, writev(fd, iov, 2)) << strerror(errno);
 	leak(fd);
@@ -540,9 +540,9 @@ TEST_F(Write, mmap)
 	len = getpagesize();
 
 	zeros = calloc(1, len);
-	ASSERT_NE(NULL, zeros);
+	ASSERT_NE(nullptr, zeros);
 	expected = calloc(1, len);
-	ASSERT_NE(NULL, expected);
+	ASSERT_NE(nullptr, expected);
 	memmove((uint8_t*)expected + offset, CONTENTS, bufsize);
 
 	expect_lookup(RELPATH, ino, len);
@@ -655,7 +655,7 @@ TEST_F(Write, write_large)
 	halfbufsize = m_mock->m_maxwrite;
 	bufsize = halfbufsize * 2;
 	contents = (int*)malloc(bufsize);
-	ASSERT_NE(NULL, contents);
+	ASSERT_NE(nullptr, contents);
 	for (int i = 0; i < (int)bufsize / (int)sizeof(i); i++) {
 		contents[i] = i;
 	}
@@ -758,10 +758,10 @@ TEST_F(WriteCluster, clustering)
 	off_t filesize = 5 * bufsize;
 
 	wbuf = malloc(bufsize);
-	ASSERT_NE(NULL, wbuf) << strerror(errno);
+	ASSERT_NE(nullptr, wbuf) << strerror(errno);
 	memset(wbuf, 'X', bufsize);
 	wbuf2x = malloc(2 * bufsize);
-	ASSERT_NE(NULL, wbuf2x) << strerror(errno);
+	ASSERT_NE(nullptr, wbuf2x) << strerror(errno);
 	memset(wbuf2x, 'X', 2 * bufsize);
 
 	expect_lookup(RELPATH, ino, filesize);
@@ -805,7 +805,7 @@ TEST_F(WriteCluster, DISABLED_cluster_write_err)
 	off_t filesize = 4 * bufsize;
 
 	wbuf = malloc(bufsize);
-	ASSERT_NE(NULL, wbuf) << strerror(errno);
+	ASSERT_NE(nullptr, wbuf) << strerror(errno);
 	memset(wbuf, 'X', bufsize);
 
 	expect_lookup(RELPATH, ino, filesize);

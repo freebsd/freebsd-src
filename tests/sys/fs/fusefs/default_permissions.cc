@@ -231,7 +231,7 @@ static gid_t excluded_group()
 	gid_t newgid, groups[ngroups];
 
 	getgrouplist(getlogin(), getegid(), groups, &ngroups);
-	for (newgid = 0; newgid >= 0; newgid++) {
+	for (newgid = 0; ; newgid++) {
 		bool belongs = false;
 
 		for (i = 0; i < ngroups; i++) {
@@ -1090,7 +1090,8 @@ TEST_F(Setextattr, ok)
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, geteuid());
 	expect_setxattr(0);
 
-	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	r = extattr_set_file(FULLPATH, ns, "foo", (const void*)value,
+		value_len);
 	ASSERT_EQ(value_len, r) << strerror(errno);
 }
 
@@ -1106,8 +1107,8 @@ TEST_F(Setextattr, eacces)
 	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, 0);
 
-	ASSERT_EQ(-1,
-		extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len));
+	ASSERT_EQ(-1, extattr_set_file(FULLPATH, ns, "foo", (const void*)value,
+		value_len));
 	ASSERT_EQ(EACCES, errno);
 }
 
@@ -1124,8 +1125,8 @@ TEST_F(Setextattr, system)
 	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0666, UINT64_MAX, geteuid());
 
-	ASSERT_EQ(-1,
-		extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len));
+	ASSERT_EQ(-1, extattr_set_file(FULLPATH, ns, "foo", (const void*)value,
+		value_len));
 	ASSERT_EQ(EPERM, errno);
 }
 
@@ -1144,7 +1145,8 @@ TEST_F(Setextattr, user)
 	expect_lookup(RELPATH, ino, S_IFREG | 0666, UINT64_MAX, 0);
 	expect_setxattr(0);
 
-	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	r = extattr_set_file(FULLPATH, ns, "foo", (const void*)value,
+		value_len);
 	ASSERT_EQ(value_len, r) << strerror(errno);
 }
 
