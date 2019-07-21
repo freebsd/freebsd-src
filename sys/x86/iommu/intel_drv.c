@@ -769,6 +769,13 @@ dmar_find(device_t dev, bool verbose)
 	const char *banner;
 	int i, dev_domain, dev_busno, dev_path_len;
 
+	/*
+	 * This function can only handle PCI(e) devices.
+	 */
+	if (device_get_devclass(device_get_parent(dev)) !=
+	    devclass_find("pci"))
+		return (NULL);
+
 	dmar_dev = NULL;
 	dev_domain = pci_get_domain(dev);
 	dev_path_len = dmar_dev_depth(dev);
