@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
@@ -108,6 +109,8 @@ __FBSDID("$FreeBSD$");
 
 #define	PCF2127_R_TS_CTL	0x12	/* Timestamp control */
 #define	PCF2127_B_TSOFF		0x40	/* Turn off timestamp function */
+
+#define	PCF2127_R_AGING_OFFSET	0x19	/* Frequency aging offset in PPM */
 
 /*
  * PCA/PCF2129-specific registers, bits, and masks.
@@ -204,6 +207,7 @@ struct nxprtc_softc {
 	u_int		flags;		/* SC_F_* flags */
 	u_int		chiptype;	/* Type of PCF85xx chip */
 	time_t		bat_time;	/* Next time to check battery */
+	int		freqadj;	/* Current freq adj in PPM */
 	uint8_t		secaddr;	/* Address of seconds register */
 	uint8_t		tmcaddr;	/* Address of timer count register */
 	bool		use_timer;	/* Use timer for fractional sec */
@@ -356,6 +360,30 @@ write_timeregs(struct nxprtc_softc *sc, struct time_regs *tregs)
 }
 
 static int
+freqadj_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct nxprtc_softc *sc;
+	int err, freqppm, newppm;
+
+	sc = arg1;
+
+	/* PPM range [-7,8] maps to reg value range [0,15] */
+	freqppm = newppm = 8 - sc->freqadj;
+
+	err = sysctl_handle_int(oidp, &newppm, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+	if (freqppm != newppm) {
+		if (newppm < -7 || newppm > 8)
+			return (EINVAL);
+		sc->freqadj = 8 - newppm;
+		err = write_reg(sc, PCF2127_R_AGING_OFFSET, sc->freqadj);
+	}
+
+	return (err);
+}
+
+static int
 pcf8523_battery_check(struct nxprtc_softc *sc)
 {
 	struct timespec ts;
@@ -409,6 +437,8 @@ pcf8523_battery_check(struct nxprtc_softc *sc)
 static int
 pcf8523_start(struct nxprtc_softc *sc)
 {
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *tree;
 	struct csr {
 		uint8_t	cs1;
 		uint8_t	cs2;
@@ -416,7 +446,7 @@ pcf8523_start(struct nxprtc_softc *sc)
 		uint8_t sec;
 	} csr;
 	int err;
-	uint8_t clkout;
+	uint8_t clkout, freqadj;
 
 	/* Read the control and status registers. */
 	if ((err = nxprtc_readfrom(sc->dev, PCF85xx_R_CS1, &csr,
@@ -492,10 +522,28 @@ pcf8523_start(struct nxprtc_softc *sc)
 	 * Remember whether we're running in AM/PM mode.  The chip default is
 	 * 24-hour mode, but if we're co-existing with some other OS that
 	 * prefers AM/PM we can run that way too.
+	 *
+	 * Also, for 212x chips, retrieve the current frequency aging offset,
+	 * and set up the sysctl handler for reading/setting it.
 	 */
 	if (sc->is212x) {
 		if (csr.cs1 & PCF2129_B_CS1_12HR)
 			sc->use_ampm = true;
+
+		err = read_reg(sc, PCF2127_R_AGING_OFFSET, &freqadj);
+		if (err != 0) {
+			device_printf(sc->dev,
+			    "cannot read AGINGOFFSET register\n");
+			return (err);
+		}
+		sc->freqadj = (int8_t)freqadj;
+
+		ctx = device_get_sysctl_ctx(sc->dev);
+		tree = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
+
+		SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "freqadj",
+		    CTLFLAG_RWTUN | CTLTYPE_INT | CTLFLAG_MPSAFE, sc, 0,
+		    freqadj_sysctl, "I", "Frequency adjust in PPM, range [-7,+8]");
 	} else {
 		if (csr.cs1 & PCF8523_B_CS1_12HR)
 			sc->use_ampm = true;
