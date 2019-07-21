@@ -3361,7 +3361,7 @@ havel3:
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
-		if ((new_l3 & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RW))
+		if ((new_l3 & ATTR_SW_DBM) != 0)
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
 
@@ -3554,7 +3554,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 			    va, pmap);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
-		if ((new_l2 & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RW))
+		if ((new_l2 & ATTR_SW_DBM) != 0)
 			for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++)
 				vm_page_aflag_set(mt, PGA_WRITEABLE);
 	}
