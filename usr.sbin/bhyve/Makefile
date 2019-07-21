@@ -3,7 +3,7 @@
 #
 
 .include <src.opts.mk>
-CFLAGS+=-I${SRCTOP}/sys -DWITHOUT_CAPSICUM
+CFLAGS+=-I${SRCTOP}/sys
 .PATH:  ${SRCTOP}/sys/cam/ctl
 
 PROG=	bhyve
