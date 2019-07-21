@@ -3,7 +3,7 @@
 #
 
 .include <src.opts.mk>
-CFLAGS+=-I${SRCTOP}/sys
+CFLAGS+=-I${SRCTOP}/sys -DWITHOUT_CAPSICUM
 .PATH:  ${SRCTOP}/sys/cam/ctl
 
 PROG=	bhyve
@@ -32,6 +32,7 @@ SRCS=	\
 	mem.c			\
 	mevent.c		\
 	mptbl.c			\
+	net_backends.c		\
 	net_utils.c		\
 	pci_ahci.c		\
 	pci_e82545.c		\
