@@ -203,12 +203,8 @@ make_msg(int index, struct in6_addr *addr, u_int type, struct in6_addr *qaddr)
 	static struct iovec iov[2];
 	static u_char *cmsgbuf;
 	int cmsglen, hbhlen = 0;
-#ifdef USE_RFC2292BIS
 	void *hbhbuf = NULL, *optp = NULL;
 	int currentlen;
-#else
-	u_int8_t raopt[IP6OPT_RTALERT_LEN];
-#endif 
 	struct in6_pktinfo *pi;
 	struct cmsghdr *cmsgp;
 	u_short rtalert_code = htons(IP6OPT_RTALERT_MLD);
@@ -253,7 +249,6 @@ make_msg(int index, struct in6_addr *addr, u_int type, struct in6_addr *qaddr)
 	src.s6_addr[2] = src.s6_addr[3] = 0;
 #endif
 
-#ifdef USE_RFC2292BIS
 	if ((hbhlen = inet6_opt_init(NULL, 0)) == -1)
 		errx(1, "inet6_opt_init(0) failed");
 	if ((hbhlen = inet6_opt_append(NULL, 0, hbhlen, IP6OPT_ROUTER_ALERT, 2,
@@ -262,11 +257,6 @@ make_msg(int index, struct in6_addr *addr, u_int type, struct in6_addr *qaddr)
 	if ((hbhlen = inet6_opt_finish(NULL, 0, hbhlen)) == -1)
 		errx(1, "inet6_opt_finish(0) failed");
 	cmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) + CMSG_SPACE(hbhlen);
-#else
-	hbhlen = sizeof(raopt); 
-	cmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
-	    inet6_option_space(hbhlen);
-#endif 
 
 	if ((cmsgbuf = malloc(cmsglen)) == NULL)
 		errx(1, "can't allocate enough memory for cmsg");
@@ -282,7 +272,6 @@ make_msg(int index, struct in6_addr *addr, u_int type, struct in6_addr *qaddr)
 	memcpy(&pi->ipi6_addr, &src, sizeof(pi->ipi6_addr));
 	/* specifiy to insert router alert option in a hop-by-hop opt hdr. */
 	cmsgp = CMSG_NXTHDR(&m, cmsgp);
-#ifdef USE_RFC2292BIS
 	cmsgp->cmsg_len = CMSG_LEN(hbhlen);
 	cmsgp->cmsg_level = IPPROTO_IPV6;
 	cmsgp->cmsg_type = IPV6_HOPOPTS;
@@ -297,15 +286,6 @@ make_msg(int index, struct in6_addr *addr, u_int type, struct in6_addr *qaddr)
 	(void)inet6_opt_set_val(optp, 0, &rtalert_code, sizeof(rtalert_code));
 	if ((currentlen = inet6_opt_finish(hbhbuf, hbhlen, currentlen)) == -1)
 		errx(1, "inet6_opt_finish(buf) failed");
-#else  /* old advanced API */
-	if (inet6_option_init((void *)cmsgp, &cmsgp, IPV6_HOPOPTS))
-		errx(1, "inet6_option_init failed\n");
-	raopt[0] = IP6OPT_ROUTER_ALERT;
-	raopt[1] = IP6OPT_RTALERT_LEN - 2;
-	memcpy(&raopt[2], (caddr_t)&rtalert_code, sizeof(u_short));
-	if (inet6_option_append(cmsgp, raopt, 4, 0))
-		errx(1, "inet6_option_append failed\n");
-#endif 
 }
 
 void
