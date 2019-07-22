@@ -231,7 +231,7 @@ int		moea64_large_page_shift = 0;
  * PVO calls.
  */
 static int	moea64_pvo_enter(mmu_t mmu, struct pvo_entry *pvo,
-		    struct pvo_head *pvo_head);
+		    struct pvo_head *pvo_head, struct pvo_entry **oldpvo);
 static void	moea64_pvo_remove_from_pmap(mmu_t mmu, struct pvo_entry *pvo);
 static void	moea64_pvo_remove_from_page(mmu_t mmu, struct pvo_entry *pvo);
 static void	moea64_pvo_remove_from_page_locked(mmu_t mmu,
@@ -675,7 +675,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 			pvo->pvo_pte.prot = VM_PROT_READ | VM_PROT_WRITE |
 			    VM_PROT_EXECUTE;
 			pvo->pvo_pte.pa = pa | pte_lo;
-			moea64_pvo_enter(mmup, pvo, NULL);
+			moea64_pvo_enter(mmup, pvo, NULL, NULL);
 		  }
 		}
 		PMAP_UNLOCK(kernel_pmap);
@@ -1424,8 +1424,8 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			    (m->oflags & VPO_UNMANAGED) == 0)
 				vm_page_aflag_set(m, PGA_WRITEABLE);
 
-		oldpvo = moea64_pvo_find_va(pmap, va);
-		if (oldpvo != NULL) {
+		error = moea64_pvo_enter(mmu, pvo, pvo_head, &oldpvo);
+		if (error == EEXIST) {
 			if (oldpvo->pvo_vaddr == pvo->pvo_vaddr &&
 			    oldpvo->pvo_pte.pa == pvo->pvo_pte.pa &&
 			    oldpvo->pvo_pte.prot == prot) {
@@ -1449,8 +1449,8 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			KASSERT(oldpvo->pvo_pmap == pmap, ("pmap of old "
 			    "mapping does not match new mapping"));
 			moea64_pvo_remove_from_pmap(mmu, oldpvo);
+			error = moea64_pvo_enter(mmu, pvo, pvo_head, NULL);
 		}
-		error = moea64_pvo_enter(mmu, pvo, pvo_head);
 		PV_PAGE_UNLOCK(m);
 		PMAP_UNLOCK(pmap);
 
@@ -1641,7 +1641,7 @@ moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
 	init_pvo_entry(pvo, kernel_pmap, va);
 	pvo->pvo_vaddr |= PVO_WIRED;
 
-	moea64_pvo_enter(installed_mmu, pvo, NULL);
+	moea64_pvo_enter(installed_mmu, pvo, NULL, NULL);
 
 	if (needed_lock)
 		PMAP_UNLOCK(kernel_pmap);
@@ -1872,7 +1872,7 @@ moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 	if (oldpvo != NULL)
 		moea64_pvo_remove_from_pmap(mmu, oldpvo);
 	init_pvo_entry(pvo, kernel_pmap, va);
-	error = moea64_pvo_enter(mmu, pvo, NULL);
+	error = moea64_pvo_enter(mmu, pvo, NULL, NULL);
 	PMAP_UNLOCK(kernel_pmap);
 
 	/* Free any dead pages */
@@ -2514,9 +2514,11 @@ moea64_bootstrap_alloc(vm_size_t size, vm_size_t align)
 }
 
 static int
-moea64_pvo_enter(mmu_t mmu, struct pvo_entry *pvo, struct pvo_head *pvo_head)
+moea64_pvo_enter(mmu_t mmu, struct pvo_entry *pvo, struct pvo_head *pvo_head,
+    struct pvo_entry **oldpvop)
 {
 	int first, err;
+	struct pvo_entry *old_pvo;
 
 	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
 	KASSERT(moea64_pvo_find_va(pvo->pvo_pmap, PVO_VADDR(pvo)) == NULL,
@@ -2527,7 +2529,13 @@ moea64_pvo_enter(mmu_t mmu, struct pvo_entry *pvo, struct pvo_head *pvo_head)
 	/*
 	 * Add to pmap list
 	 */
-	RB_INSERT(pvo_tree, &pvo->pvo_pmap->pmap_pvo, pvo);
+	old_pvo = RB_INSERT(pvo_tree, &pvo->pvo_pmap->pmap_pvo, pvo);
+
+	if (old_pvo != NULL) {
+		if (oldpvop != NULL)
+			*oldpvop = old_pvo;
+		return (EEXIST);
+	}
 
 	/*
 	 * Remember if the list was empty and therefore will be the first
