@@ -1449,13 +1449,13 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			KASSERT(oldpvo->pvo_pmap == pmap, ("pmap of old "
 			    "mapping does not match new mapping"));
 			moea64_pvo_remove_from_pmap(mmu, oldpvo);
-			error = moea64_pvo_enter(mmu, pvo, pvo_head, NULL);
+			moea64_pvo_enter(mmu, pvo, pvo_head, NULL);
 		}
 		PV_PAGE_UNLOCK(m);
 		PMAP_UNLOCK(pmap);
 
 		/* Free any dead pages */
-		if (oldpvo != NULL) {
+		if (error == EEXIST) {
 			moea64_pvo_remove_from_page(mmu, oldpvo);
 			free_pvo_entry(oldpvo);
 		}
@@ -2521,8 +2521,6 @@ moea64_pvo_enter(mmu_t mmu, struct pvo_entry *pvo, struct pvo_head *pvo_head,
 	struct pvo_entry *old_pvo;
 
 	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
-	KASSERT(moea64_pvo_find_va(pvo->pvo_pmap, PVO_VADDR(pvo)) == NULL,
-	    ("Existing mapping for VA %#jx", (uintmax_t)PVO_VADDR(pvo)));
 
 	moea64_pvo_enter_calls++;
 
