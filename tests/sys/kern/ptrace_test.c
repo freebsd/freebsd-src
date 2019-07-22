@@ -867,7 +867,7 @@ ATF_TC_BODY(ptrace__follow_fork_child_detached_unrelated_debugger, tc)
 	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
-	atf_tc_skip("https://bugs.freebsd.org/bug239292");
+	atf_tc_skip("https://bugs.freebsd.org/239292");
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
 	ATF_REQUIRE((fpid = fork()) != -1);
