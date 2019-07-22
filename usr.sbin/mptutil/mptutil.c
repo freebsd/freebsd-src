@@ -114,6 +114,10 @@ main(int ac, char **av)
 	if (ac == 0)
 		usage();
 
+#if BYTE_ORDER == BIG_ENDIAN
+	warnx("mptutil is known to be broken on big-endian architectures");
+#endif
+
 	SET_FOREACH(cmd, MPT_DATASET(top)) {
 		if (strcmp((*cmd)->name, av[0]) == 0) {
 			if ((*cmd)->handler(ac, av))
