@@ -1964,7 +1964,7 @@ cache_changesize(int newmaxvnodes)
 }
 
 /*
- * Invalidate all entries to a particular vnode.
+ * Invalidate all entries from and to a particular vnode.
  */
 void
 cache_purge(struct vnode *vp)
