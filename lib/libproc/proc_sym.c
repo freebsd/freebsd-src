@@ -559,10 +559,11 @@ _proc_name2map(struct proc_handle *p, const char *name)
 	}
 	/* If we didn't find a match, try matching prefixes of the basename. */
 	for (i = 0; i < p->nmappings; i++) {
-		strlcpy(path, p->mappings[i].map.pr_mapname, sizeof(path));
+		mapping = &p->mappings[i];
+		strlcpy(path, mapping->map.pr_mapname, sizeof(path));
 		base = basename(path);
 		if (strncmp(base, name, len) == 0)
-			return (&p->mappings[i]);
+			return (mapping);
 	}
 	if (strcmp(name, "a.out") == 0)
 		return (_proc_addr2map(p,
