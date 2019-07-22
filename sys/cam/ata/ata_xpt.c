@@ -452,7 +452,7 @@ negotiate:
 			if (cts.xport_specific.ata.valid & CTS_ATA_VALID_MODE)
 				mode = cts.xport_specific.ata.mode;
 		} else {
-			if (cts.xport_specific.ata.valid & CTS_SATA_VALID_MODE)
+			if (cts.xport_specific.sata.valid & CTS_SATA_VALID_MODE)
 				mode = cts.xport_specific.sata.mode;
 		}
 		/* If SIM disagree - renegotiate. */
