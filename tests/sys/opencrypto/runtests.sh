@@ -61,6 +61,6 @@ done
 oldcdas=$(sysctl -e kern.cryptodevallowsoft)
 sysctl kern.cryptodevallowsoft=1
 
-python $(dirname $0)/cryptotest.py
+python2 $(dirname $0)/cryptotest.py
 
 sysctl "$oldcdas"

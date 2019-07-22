@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python2
 #
 # Copyright (c) 2014 The FreeBSD Foundation
 # All rights reserved.
