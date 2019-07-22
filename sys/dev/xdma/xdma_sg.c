@@ -327,6 +327,7 @@ xchan_seg_done(xdma_channel_t *xchan,
 	struct xdma_request *xr;
 	xdma_controller_t *xdma;
 	struct xchan_buf *b;
+	bus_addr_t addr;
 
 	xdma = xchan->xdma;
 
@@ -352,6 +353,12 @@ xchan_seg_done(xdma_channel_t *xchan,
 			    xr->direction == XDMA_DEV_TO_MEM)
 				m_copyback(xr->m, 0, st->transferred,
 				    (void *)xr->buf.vaddr);
+		} else if (xchan->caps & XCHAN_CAP_IOMMU) {
+			if (xr->direction == XDMA_MEM_TO_DEV)
+				addr = xr->src_addr;
+			else
+				addr = xr->dst_addr;
+			xdma_iommu_remove_entry(xchan, addr);
 		}
 		xr->status.error = st->error;
 		xr->status.transferred = st->transferred;
@@ -484,10 +491,16 @@ _xdma_load_data(xdma_channel_t *xchan, struct xdma_request *xr,
 	xdma_controller_t *xdma;
 	struct mbuf *m;
 	uint32_t nsegs;
+	vm_offset_t va, addr;
+	bus_addr_t pa;
+	vm_prot_t prot;
 
 	xdma = xchan->xdma;
 
 	m = xr->m;
+
+	KASSERT(xchan->caps & XCHAN_CAP_NOSEG,
+	    ("Handling segmented data is not implemented here."));
 
 	nsegs = 1;
 
@@ -498,6 +511,27 @@ _xdma_load_data(xdma_channel_t *xchan, struct xdma_request *xr,
 				m_copydata(m, 0, m->m_pkthdr.len,
 				    (void *)xr->buf.vaddr);
 			seg[0].ds_addr = (bus_addr_t)xr->buf.paddr;
+		} else if (xchan->caps & XCHAN_CAP_IOMMU) {
+			addr = mtod(m, bus_addr_t);
+			pa = vtophys(addr);
+
+			if (xr->direction == XDMA_MEM_TO_DEV)
+				prot = VM_PROT_READ;
+			else
+				prot = VM_PROT_WRITE;
+
+			xdma_iommu_add_entry(xchan, &va,
+			    pa, m->m_pkthdr.len, prot);
+
+			/*
+			 * Save VA so we can unload data later
+			 * after completion of this transfer.
+			 */
+			if (xr->direction == XDMA_MEM_TO_DEV)
+				xr->src_addr = va;
+			else
+				xr->dst_addr = va;
+			seg[0].ds_addr = va;
 		} else
 			seg[0].ds_addr = mtod(m, bus_addr_t);
 		seg[0].ds_len = m->m_pkthdr.len;

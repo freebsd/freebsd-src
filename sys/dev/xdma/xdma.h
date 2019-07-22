@@ -37,6 +37,14 @@
 #include <sys/proc.h>
 #include <sys/vmem.h>
 
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+#endif
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 enum xdma_direction {
 	XDMA_MEM_TO_MEM,
 	XDMA_MEM_TO_DEV,
@@ -121,6 +129,12 @@ struct xdma_sglist {
 	bool				last;
 };
 
+struct xdma_iommu {
+	struct pmap p;
+	vmem_t *vmem;		/* VA space */
+	device_t dev;		/* IOMMU device */
+};
+
 struct xdma_channel {
 	xdma_controller_t		*xdma;
 	vmem_t				*vmem;
@@ -138,6 +152,7 @@ struct xdma_channel {
 #define	XCHAN_CAP_BUSDMA		(1 << 0)
 #define	XCHAN_CAP_NOSEG			(1 << 1)
 #define	XCHAN_CAP_BOUNCE		(1 << 2)
+#define	XCHAN_CAP_IOMMU			(1 << 3)
 
 	/* A real hardware driver channel. */
 	void				*chan;
@@ -171,6 +186,9 @@ struct xdma_channel {
 	TAILQ_HEAD(, xdma_request)	queue_in;
 	TAILQ_HEAD(, xdma_request)	queue_out;
 	TAILQ_HEAD(, xdma_request)	processing;
+
+	/* iommu */
+	struct xdma_iommu		xio;
 };
 
 typedef struct xdma_channel xdma_channel_t;
@@ -216,6 +234,9 @@ xdma_controller_t *xdma_ofw_get(device_t dev, const char *prop);
 int xdma_put(xdma_controller_t *xdma);
 vmem_t * xdma_get_memory(device_t dev);
 void xdma_put_memory(vmem_t *vmem);
+#ifdef FDT
+int xdma_handle_mem_node(vmem_t *vmem, phandle_t memory);
+#endif
 
 /* xDMA channel ops */
 xdma_channel_t * xdma_channel_alloc(xdma_controller_t *, uint32_t caps);
@@ -270,5 +291,12 @@ void xchan_bank_init(xdma_channel_t *xchan);
 int xchan_bank_free(xdma_channel_t *xchan);
 struct xdma_request * xchan_bank_get(xdma_channel_t *xchan);
 int xchan_bank_put(xdma_channel_t *xchan, struct xdma_request *xr);
+
+/* IOMMU */
+void xdma_iommu_add_entry(xdma_channel_t *xchan, vm_offset_t *va,
+    vm_paddr_t pa, vm_size_t size, vm_prot_t prot);
+void xdma_iommu_remove_entry(xdma_channel_t *xchan, vm_offset_t va);
+int xdma_iommu_init(struct xdma_iommu *xio);
+int xdma_iommu_release(struct xdma_iommu *xio);
 
 #endif /* !_DEV_XDMA_XDMA_H_ */
