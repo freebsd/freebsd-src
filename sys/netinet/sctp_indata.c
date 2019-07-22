@@ -915,6 +915,9 @@ restart:
 			break;
 		}
 	}
+	if (cnt_added && strm->pd_api_started) {
+		sctp_wakeup_the_read_socket(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
+	}
 	if ((control->length > pd_point) && (strm->pd_api_started == 0)) {
 		strm->pd_api_started = 1;
 		control->pdapi_started = 1;
