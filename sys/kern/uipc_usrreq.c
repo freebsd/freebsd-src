@@ -2120,30 +2120,53 @@ unp_init(void)
 	UNP_DEFERRED_LOCK_INIT();
 }
 
+static void
+unp_internalize_cleanup_rights(struct mbuf *control)
+{
+	struct cmsghdr *cp;
+	struct mbuf *m;
+	void *data;
+	socklen_t datalen;
+
+	for (m = control; m != NULL; m = m->m_next) {
+		cp = mtod(m, struct cmsghdr *);
+		if (cp->cmsg_level != SOL_SOCKET ||
+		    cp->cmsg_type != SCM_RIGHTS)
+			continue;
+		data = CMSG_DATA(cp);
+		datalen = (caddr_t)cp + cp->cmsg_len - (caddr_t)data;
+		unp_freerights(data, datalen / sizeof(struct filedesc *));
+	}
+}
+
 static int
 unp_internalize(struct mbuf **controlp, struct thread *td)
 {
-	struct mbuf *control = *controlp;
-	struct proc *p = td->td_proc;
-	struct filedesc *fdesc = p->p_fd;
+	struct mbuf *control, **initial_controlp;
+	struct proc *p;
+	struct filedesc *fdesc;
 	struct bintime *bt;
-	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
+	struct cmsghdr *cm;
 	struct cmsgcred *cmcred;
 	struct filedescent *fde, **fdep, *fdev;
 	struct file *fp;
 	struct timeval *tv;
 	struct timespec *ts;
-	int i, *fdp;
 	void *data;
-	socklen_t clen = control->m_len, datalen;
-	int error, oldfds;
+	socklen_t clen, datalen;
+	int i, error, *fdp, oldfds;
 	u_int newlen;
 
 	UNP_LINK_UNLOCK_ASSERT();
 
+	p = td->td_proc;
+	fdesc = p->p_fd;
 	error = 0;
+	control = *controlp;
+	clen = control->m_len;
 	*controlp = NULL;
-	while (cm != NULL) {
+	initial_controlp = controlp;
+	for (cm = mtod(control, struct cmsghdr *); cm != NULL;) {
 		if (sizeof(*cm) > clen || cm->cmsg_level != SOL_SOCKET
 		    || cm->cmsg_len > clen || cm->cmsg_len < sizeof(*cm)) {
 			error = EINVAL;
@@ -2294,6 +2317,8 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 	}
 
 out:
+	if (error != 0 && initial_controlp != NULL)
+		unp_internalize_cleanup_rights(*initial_controlp);
 	m_freem(control);
 	return (error);
 }
