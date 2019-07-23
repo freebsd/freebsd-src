@@ -337,7 +337,6 @@ struct rx_ring {
 struct ix_rx_queue {
 	struct ixgbe_softc	*sc;
 	u32			msix;           /* This queue's MSIX vector */
-	u32			eims;           /* This queue's EIMS bit */
 	u32			eitr_setting;
 	struct resource		*res;
 	void			*tag;
@@ -440,7 +439,6 @@ struct ixgbe_softc {
 	 */
 	struct ix_tx_queue	*tx_queues;
 	struct ix_rx_queue	*rx_queues;
-	u64			active_queues;
 
 	/* Multicast array memory */
 	struct ixgbe_mc_addr    *mta;

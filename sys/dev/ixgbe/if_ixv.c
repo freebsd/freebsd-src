@@ -271,7 +271,6 @@ ixv_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 
 		txr->me = i;
 		txr->sc =  que->sc = sc;
-		sc->active_queues |= (u64)1 << txr->me;
 
 		/* Allocate report status array */
 		if (!(txr->tx_rsq = (qidx_t *)malloc(sizeof(qidx_t) * scctx->isc_ntxd[0], M_DEVBUF, M_NOWAIT | M_ZERO))) {
@@ -1039,8 +1038,6 @@ ixv_if_msix_intr_assign(if_ctx_t ctx, int msix)
 		}
 
 		rx_que->msix = vector;
-		sc->active_queues |= (u64)(1 << rx_que->msix);
-
 	}
 
 	for (int i = 0; i < sc->num_tx_queues; i++) {
