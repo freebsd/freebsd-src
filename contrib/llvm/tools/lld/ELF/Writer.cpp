@@ -547,6 +547,11 @@ static bool shouldKeepInSymtab(SectionBase *Sec, StringRef SymName,
   if (Config->Discard == DiscardPolicy::None)
     return true;
 
+  // If -emit-reloc is given, all symbols including local ones need to be
+  // copied because they may be referenced by relocations.
+  if (Config->EmitRelocs)
+    return true;
+
   // In ELF assembly .L symbols are normally discarded by the assembler.
   // If the assembler fails to do so, the linker discards them if
   // * --discard-locals is used.
@@ -2216,17 +2221,6 @@ template <class ELFT> void Writer<ELFT>::setPhdrs() {
     }
 
     if (P->p_type == PT_TLS && P->p_memsz) {
-      if (!Config->Shared &&
-          (Config->EMachine == EM_ARM || Config->EMachine == EM_AARCH64)) {
-        // On ARM/AArch64, reserve extra space (8 words) between the thread
-        // pointer and an executable's TLS segment by overaligning the segment.
-        // This reservation is needed for backwards compatibility with Android's
-        // TCB, which allocates several slots after the thread pointer (e.g.
-        // TLS_SLOT_STACK_GUARD==5). For simplicity, this overalignment is also
-        // done on other operating systems.
-        P->p_align = std::max<uint64_t>(P->p_align, Config->Wordsize * 8);
-      }
-
       // The TLS pointer goes after PT_TLS for variant 2 targets. At least glibc
       // will align it, so round up the size to make sure the offsets are
       // correct.

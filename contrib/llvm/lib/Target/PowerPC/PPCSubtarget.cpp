@@ -138,6 +138,10 @@ void PPCSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   if (isDarwin())
     HasLazyResolverStubs = true;
 
+  if ((TargetTriple.isOSFreeBSD() && TargetTriple.getOSMajorVersion() >= 13)
+      || TargetTriple.isOSNetBSD() || TargetTriple.isOSOpenBSD())
+    SecurePlt = true;
+
   if (HasSPE && IsPPC64)
     report_fatal_error( "SPE is only supported for 32-bit targets.\n", false);
   if (HasSPE && (HasAltivec || HasQPX || HasVSX || HasFPU))
