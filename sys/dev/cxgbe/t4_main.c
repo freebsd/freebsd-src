@@ -9909,6 +9909,7 @@ clear_stats(struct adapter *sc, u_int port_id)
 				txq->txpkts1_wrs = 0;
 				txq->txpkts0_pkts = 0;
 				txq->txpkts1_pkts = 0;
+				txq->raw_wrs = 0;
 				mp_ring_reset_stats(txq->r);
 			}
 
