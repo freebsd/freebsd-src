@@ -2078,6 +2078,8 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_stop, tc)
 	struct ptrace_lwpinfo pl;
 	struct sched_param sched_param;
 
+	atf_tc_skip("https://bugs.freebsd.org/220841");
+
 	ATF_REQUIRE((fpid = fork()) != -1);
 	if (fpid == 0) {
 		trace_me();
