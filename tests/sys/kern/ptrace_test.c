@@ -258,6 +258,8 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 	int cpipe[2], dpipe[2], status;
 	char c;
 
+	atf_tc_skip("https://bugs.freebsd.org/239399");
+
 	ATF_REQUIRE(pipe(cpipe) == 0);
 	ATF_REQUIRE((child = fork()) != -1);
 
