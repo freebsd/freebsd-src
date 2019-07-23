@@ -13409,10 +13409,10 @@ skip_preblock:
 					    stcb,
 					    SCTP_OUTPUT_FROM_USR_SEND, SCTP_SO_LOCKED);
 				}
-				if (hold_tcblock == 1) {
-					SCTP_TCB_UNLOCK(stcb);
-					hold_tcblock = 0;
-				}
+			}
+			if (hold_tcblock == 1) {
+				SCTP_TCB_UNLOCK(stcb);
+				hold_tcblock = 0;
 			}
 			SOCKBUF_LOCK(&so->so_snd);
 			/*-
