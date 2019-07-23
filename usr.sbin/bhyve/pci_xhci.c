@@ -2570,7 +2570,7 @@ pci_xhci_dev_intr(struct usb_hci *hci, int epctx)
 	struct pci_xhci_softc	*sc;
 	struct pci_xhci_portregs *p;
 	struct xhci_endp_ctx	*ep_ctx;
-	int	error;
+	int	error = 0;
 	int	dir_in;
 	int	epid;
 
