@@ -80,10 +80,10 @@ typedef void (*hda_set_reg_handler)(struct hda_softc *sc, uint32_t offset,
 		uint32_t old);
 
 struct hda_bdle {
-	uint32_t addrh;
 	uint32_t addrl;
-	uint32_t ioc;
+	uint32_t addrh;
 	uint32_t len;
+	uint32_t ioc;
 } __packed;
 
 struct hda_bdle_desc {
