@@ -41,6 +41,8 @@
 #define	LINUX_MAP_ANON		0x0020
 #define	LINUX_MAP_GROWSDOWN	0x0100
 
+#define	LINUX_PROT_GROWSDOWN	0x01000000
+#define	LINUX_PROT_GROWSUP	0x02000000
 
 int linux_mmap_common(struct thread *, uintptr_t, size_t, int, int,
 			int, off_t);
