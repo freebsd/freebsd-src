@@ -4785,6 +4785,7 @@ fail_queues:
 fail_unlock:
 	CTX_UNLOCK(ctx);
 fail_ctx_free:
+	device_set_softc(ctx->ifc_dev, NULL);
         if (ctx->ifc_flags & IFC_SC_ALLOCATED)
                 free(ctx->ifc_softc, M_IFLIB);
         free(ctx, M_IFLIB);
