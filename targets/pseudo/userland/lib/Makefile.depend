@@ -221,7 +221,6 @@ DIRDEPS+= \
 	lib/libcasper/services/cap_dns \
 	lib/libcasper/services/cap_grp \
 	lib/libcasper/services/cap_pwd \
-	lib/libcasper/services/cap_random \
 	lib/libcasper/services/cap_sysctl \
 
 .endif
