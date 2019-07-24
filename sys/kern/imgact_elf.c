@@ -610,8 +610,7 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	 * segment in the file is extended to provide bss.  It's a neat idea
 	 * to try and save a page, but it's a pain in the behind to implement.
 	 */
-	copy_len = filsz == 0 ? 0 : (offset + filsz) - trunc_page(offset +
-	    filsz);
+	copy_len = filsz == 0 ? 0 : (offset + filsz) & PAGE_MASK;
 	map_addr = trunc_page((vm_offset_t)vmaddr + filsz);
 	map_len = round_page((vm_offset_t)vmaddr + memsz) - map_addr;
 
