@@ -155,7 +155,7 @@ find_long(struct option *lopts, int ch)
 
 	for (i = 0; lopts[i].val != ch && lopts[i].name != NULL; i++)
 		continue;
-	return i;
+	return (i);
 }
 
 int
@@ -251,6 +251,8 @@ arg_parse(int argc, char * const * argv, const struct cmd *f)
 			if (optind >= argc) {
 				fprintf(stderr, "Missing arg %s\n", args->descr);
 				arg_help(argc, argv, f);
+				free(lopts);
+				free(shortopts);
 				return (1);
 			}
 			*(char **)args->ptr = argv[optind++];
@@ -258,10 +260,12 @@ arg_parse(int argc, char * const * argv, const struct cmd *f)
 		}
 	}
 	free(lopts);
+	free(shortopts);
 	return (0);
 bad_arg:
 	fprintf(stderr, "Bad value to --%s: %s\n", opts[idx].long_arg, optarg);
 	free(lopts);
+	free(shortopts);
 	exit(1);
 }
 
