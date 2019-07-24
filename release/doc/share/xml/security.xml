@@ -19,9 +19,45 @@
 
     <tbody>
       <row>
-	<entry>No advisories.</entry>
-	<entry>&nbsp;</entry>
-	<entry>&nbsp;</entry>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:12.telnet.asc">FreeBSD-SA-19:12.telnet</link></entry>
+	<entry>24&nbsp;July&nbsp;2019</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:13.pts.asc">FreeBSD-SA-19:13.pts</link></entry>
+	<entry>24&nbsp;July&nbsp;2019</entry>
+	<entry><para>Write-after-free vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:14.freebsd32.asc">FreeBSD-SA-19:14.freebsd32</link></entry>
+	<entry>24&nbsp;July&nbsp;2019</entry>
+	<entry><para>Kernel memory disclosure</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:15.mqueuefs.asc">FreeBSD-SA-19:15.mqueuefs</link></entry>
+	<entry>24&nbsp;July&nbsp;2019</entry>
+	<entry><para>Reference count overflow</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:16.bhyve.asc">FreeBSD-SA-19:16.bhyve</link></entry>
+	<entry>24&nbsp;July&nbsp;2019</entry>
+	<entry><para>&man.xhci.4; out-of-bounds read</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:17.fd.asc">FreeBSD-SA-19:17.fd</link></entry>
+	<entry>24&nbsp;July&nbsp;2019</entry>
+	<entry><para>Reference count leak</para></entry>
       </row>
     </tbody>
   </tgroup>

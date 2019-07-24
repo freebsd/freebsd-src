@@ -19,9 +19,11 @@
 
     <tbody>
       <row>
-	<entry>No errata notices.</entry>
-	<entry>&nbsp;</entry>
-	<entry>&nbsp;</entry>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-19:13.mds.asc">FreeBSD-EN-19:13.mds</link></entry>
+	<entry>24&nbsp;July&nbsp;2019</entry>
+	<entry><para>System crash from Intel CPU vulnerability
+	    mitigation</para></entry>
       </row>
     </tbody>
   </tgroup>
