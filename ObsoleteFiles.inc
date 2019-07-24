@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190722: cap_random(3) removed
+OLD_FILES+=lib/casper/libcap_random.so.1
+OLD_FILES+=usr/include/casper/cap_random.h
+OLD_FILES+=usr/share/man/man3/cap_random.3.gz
+OLD_FILES+=usr/share/man/man3/cap_random_buf.3.gz
 # 20190708: vm_page_hold() and _unhold() removed
 OLD_FILES+=usr/share/man/man9/vm_page_hold.9.gz
 # 20190618: sys/capability.h removed (sys/capsicum.h is the one to use)

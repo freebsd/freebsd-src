@@ -82,7 +82,6 @@ _LIBRARIES=	\
 		cap_fileargs \
 		cap_grp \
 		cap_pwd \
-		cap_random \
 		cap_sysctl \
 		cap_syslog \
 		com_err \
@@ -260,7 +259,6 @@ _DP_cap_dns=	nv
 _DP_cap_fileargs=	nv
 _DP_cap_grp=	nv
 _DP_cap_pwd=	nv
-_DP_cap_random=	nv
 _DP_cap_sysctl=	nv
 _DP_cap_syslog=	nv
 .if ${MK_OFED} != "no"
@@ -599,7 +597,6 @@ LIBCASPERDIR=	${OBJTOP}/lib/libcasper/libcasper
 LIBCAP_DNSDIR=	${OBJTOP}/lib/libcasper/services/cap_dns
 LIBCAP_GRPDIR=	${OBJTOP}/lib/libcasper/services/cap_grp
 LIBCAP_PWDDIR=	${OBJTOP}/lib/libcasper/services/cap_pwd
-LIBCAP_RANDOMDIR=	${OBJTOP}/lib/libcasper/services/cap_random
 LIBCAP_SYSCTLDIR=	${OBJTOP}/lib/libcasper/services/cap_sysctl
 LIBCAP_SYSLOGDIR=	${OBJTOP}/lib/libcasper/services/cap_syslog
 LIBBSDXMLDIR=	${OBJTOP}/lib/libexpat
