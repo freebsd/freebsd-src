@@ -32,7 +32,7 @@
 .\"     @(#)bsearch.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2013
+.Dd July 17, 2019
 .Dt BSEARCH 3
 .Os
 .Sh NAME
@@ -83,6 +83,70 @@ The
 function returns a pointer to a matching member of the array, or a null
 pointer if no match is found.
 If two members compare as equal, which member is matched is unspecified.
+.Sh EXAMPLES
+A sample program that searches people by age in a sorted array:
+.Bd -literal
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct person {
+	const char 	*name;
+	int 		age;
+};
+
+static int
+compare(const void *a, const void *b)
+{
+	const int *age;
+	const struct person *person;
+
+	age = a;
+	person = b;
+
+	return (*age - person->age);
+}
+
+int
+main(void)
+{
+	struct person *friend;
+	int age;
+	/* Sorted array */
+	const struct person friends[] = {
+		{ "paul", 22 },
+		{ "anne", 25 },
+		{ "fred", 25 },
+		{ "mary", 27 },
+		{ "mark", 35 },
+		{ "bill", 50 }
+	};
+	const size_t len = sizeof(friends) / sizeof(friends[0]);
+
+	age = 22;
+	friend = bsearch(&age, friends, len, sizeof(friends[0]), compare);
+	assert(strcmp(friend->name, "paul") == 0);
+	printf("name: %s\enage: %d\en", friend->name, friend->age);
+
+	age = 25;
+	friend = bsearch(&age, friends, len, sizeof(friends[0]), compare);
+
+	/*
+	 * For multiple elements with the same key, it is implementation
+	 * defined which will be returned
+	 */
+	assert(strcmp(friend->name, "fred") == 0 ||
+	    strcmp(friend->name, "anne") == 0);
+	printf("name: %s\enage: %d\en", friend->name, friend->age);
+
+	age = 30;
+	friend = bsearch(&age, friends, len, sizeof(friends[0]), compare);
+	assert(friend == NULL);
+	printf("friend aged 30 not found\en");
+}
+.Ed
 .Sh SEE ALSO
 .Xr db 3 ,
 .Xr lsearch 3 ,
