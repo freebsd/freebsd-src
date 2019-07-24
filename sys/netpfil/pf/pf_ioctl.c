@@ -2169,7 +2169,7 @@ relock_DIOCKILLSTATES:
 			break;
 		}
 
-		p = pstore = malloc(ps->ps_len, M_TEMP, M_WAITOK);
+		p = pstore = malloc(ps->ps_len, M_TEMP, M_WAITOK | M_ZERO);
 		nr = 0;
 
 		for (i = 0; i <= pf_hashmask; i++) {
