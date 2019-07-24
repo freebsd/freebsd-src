@@ -84,6 +84,15 @@ struct vxlan_socket_mc_info {
 	int				 vxlsomc_users;
 };
 
+/*
+ * The maximum MTU of encapsulated ethernet frame within IPv4/UDP packet.
+ */
+#define VXLAN_MAX_MTU	(IP_MAXPACKET - \
+		60 /* Maximum IPv4 header len */ - \
+		sizeof(struct udphdr) - \
+		sizeof(struct vxlan_header) - \
+		ETHER_HDR_LEN - ETHER_CRC_LEN - ETHER_VLAN_ENCAP_LEN)
+
 #define VXLAN_SO_MC_MAX_GROUPS		32
 
 #define VXLAN_SO_VNI_HASH_SHIFT		6
@@ -2247,10 +2256,11 @@ vxlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	ifr = (struct ifreq *) data;
 	ifd = (struct ifdrv *) data;
 
+	error = 0;
+
 	switch (cmd) {
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		error = 0;
 		break;
 
 	case SIOCGDRVSPEC:
@@ -2265,6 +2275,13 @@ vxlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->vxl_media, cmd);
+		break;
+
+	case SIOCSIFMTU:
+		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > VXLAN_MAX_MTU)
+			error = EINVAL;
+		else
+			ifp->if_mtu = ifr->ifr_mtu;
 		break;
 
 	default:
@@ -2747,8 +2764,8 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_ioctl = vxlan_ioctl;
 	ifp->if_transmit = vxlan_transmit;
 	ifp->if_qflush = vxlan_qflush;
-	ifp->if_capabilities |= IFCAP_LINKSTATE;
-	ifp->if_capenable |= IFCAP_LINKSTATE;
+	ifp->if_capabilities |= IFCAP_LINKSTATE | IFCAP_JUMBO_MTU;
+	ifp->if_capenable |= IFCAP_LINKSTATE | IFCAP_JUMBO_MTU;
 
 	ifmedia_init(&sc->vxl_media, 0, vxlan_media_change, vxlan_media_status);
 	ifmedia_add(&sc->vxl_media, IFM_ETHER | IFM_AUTO, 0, NULL);
