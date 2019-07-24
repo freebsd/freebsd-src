@@ -98,7 +98,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_stackprot	= VM_PROT_ALL,
 #ifdef __powerpc64__
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS32,
 	.sv_usrstack	= FREEBSD32_USRSTACK,
 	.sv_psstrings	= FREEBSD32_PS_STRINGS,
 	.sv_copyout_strings = freebsd32_copyout_strings,
