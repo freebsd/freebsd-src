@@ -403,7 +403,6 @@ logpage(const struct cmd *f, int argc, char *argv[])
 	char				cname[64];
 	uint32_t			nsid, size;
 	void				*buf;
-	const char			*vendor = NULL;
 	const struct logpage_function	*lpf;
 	struct nvme_controller_data	cdata;
 	print_fn_t			print_fn;
@@ -465,8 +464,8 @@ logpage(const struct cmd *f, int argc, char *argv[])
 		 * unless the vendors match.
 		 */
 		SLIST_FOREACH(lpf, &logpages, link) {
-			if (lpf->vendor == NULL || vendor == NULL ||
-			    strcmp(lpf->vendor, vendor) != 0)
+			if (lpf->vendor != NULL && opt.vendor != NULL &&
+			    strcmp(lpf->vendor, opt.vendor) != 0)
 				continue;
 			if (opt.page != lpf->log_page)
 				continue;
