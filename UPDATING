@@ -16,6 +16,25 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190724	p8	FreeBSD-EN-19:13.mds
+			FreeBSD-SA-19:12.telnet
+			FreeBSD-SA-19:13.pts
+			FreeBSD-SA-19:15.mqueuefs
+			FreeBSD-SA-19:16.bhyve
+			FreeBSD-SA-19:17.fd
+
+	Fix panic from Intel CPU vulnerability mitigation. [EN-19:13.mds]
+
+	Fix multiple telnet client vulnerabilities. [SA-19:12.telnet]
+
+	Fix pts write-after-free. [SA-19:13.pts]
+
+	Fix reference count overflow in mqueuefs. [SA-19:15.mqueuefs]
+
+	Fix byhve out-of-bounds read in XHCI device. [SA-19:16.bhyve]
+
+	Fix file descriptor reference count leak. [SA-19:17.fd]
+
 20190702	p7	FreeBSD-EN-19:12.tzdata
 			FreeBSD-SA-19:09.iconv
 			FreeBSD-SA-19:10.ufs
