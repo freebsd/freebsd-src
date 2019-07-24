@@ -1898,6 +1898,11 @@ pci_xhci_device_doorbell(struct pci_xhci_softc *sc, uint32_t slot,
 		return;
 	}
 
+	if (epid == 0 || epid >= XHCI_MAX_ENDPOINTS) {
+		DPRINTF(("pci_xhci: invalid endpoint %u\r\n", epid));
+		return;
+	}
+
 	dev = XHCI_SLOTDEV_PTR(sc, slot);
 	devep = &dev->eps[epid];
 	dev_ctx = pci_xhci_get_dev_ctx(sc, slot);
@@ -1923,6 +1928,23 @@ pci_xhci_device_doorbell(struct pci_xhci_softc *sc, uint32_t slot,
 
 	/* get next trb work item */
 	if (XHCI_EPCTX_0_MAXP_STREAMS_GET(ep_ctx->dwEpCtx0) != 0) {
+		struct xhci_stream_ctx *sctx;
+
+		/*
+		 * Stream IDs of 0, 65535 (any stream), and 65534
+		 * (prime) are invalid.
+		 */
+		if (streamid == 0 || streamid == 65534 || streamid == 65535) {
+			DPRINTF(("pci_xhci: invalid stream %u\r\n", streamid));
+			return;
+		}
+
+		sctx = NULL;
+		pci_xhci_find_stream(sc, ep_ctx, streamid, &sctx);
+		if (sctx == NULL) {
+			DPRINTF(("pci_xhci: invalid stream %u\r\n", streamid));
+			return;
+		}
 		sctx_tr = &devep->ep_sctx_trbs[streamid];
 		ringaddr = sctx_tr->ringaddr;
 		ccs = sctx_tr->ccs;
@@ -1931,6 +1953,10 @@ pci_xhci_device_doorbell(struct pci_xhci_softc *sc, uint32_t slot,
 		        streamid, ep_ctx->qwEpCtx2 & XHCI_TRB_3_CYCLE_BIT,
 		        trb->dwTrb3 & XHCI_TRB_3_CYCLE_BIT));
 	} else {
+		if (streamid != 0) {
+			DPRINTF(("pci_xhci: invalid stream %u\r\n", streamid));
+			return;
+		}
 		ringaddr = devep->ep_ringaddr;
 		ccs = devep->ep_ccs;
 		trb = devep->ep_tr;
