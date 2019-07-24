@@ -566,24 +566,26 @@ turnstile_trywait(struct lock_object *lock)
 	return (ts);
 }
 
-struct thread *
-turnstile_lock(struct turnstile *ts, struct lock_object **lockp)
+bool
+turnstile_lock(struct turnstile *ts, struct lock_object **lockp,
+    struct thread **tdp)
 {
 	struct turnstile_chain *tc;
 	struct lock_object *lock;
 
 	if ((lock = ts->ts_lockobj) == NULL)
-		return (NULL);
+		return (false);
 	tc = TC_LOOKUP(lock);
 	mtx_lock_spin(&tc->tc_lock);
 	mtx_lock_spin(&ts->ts_lock);
 	if (__predict_false(lock != ts->ts_lockobj)) {
 		mtx_unlock_spin(&tc->tc_lock);
 		mtx_unlock_spin(&ts->ts_lock);
-		return (NULL);
+		return (false);
 	}
 	*lockp = lock;
-	return (ts->ts_owner);
+	*tdp = ts->ts_owner;
+	return (true);
 }
 
 void
