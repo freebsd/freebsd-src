@@ -262,6 +262,8 @@ freebsd32_ioctl_pciocgetconf(struct thread *td,
 	vm_offset_t addr;
 	int error;
 
+	memset(&pmc, 0, sizeof(pmc));
+	memset(&pc32, 0, sizeof(pc32));
 	if ((error = copyin(uap->data, &pci32, sizeof(pci32))) != 0)
 		return (error);
 
