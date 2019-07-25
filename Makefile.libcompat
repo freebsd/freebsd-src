@@ -186,6 +186,7 @@ build${libcompat}: .PHONY
 .endif
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
+	ln -sf ${.CURDIR}/sys ${LIBCOMPATTMP}
 .for _t in ${_obj} includes
 .for _dir in ${_LC_INCDIRS}
 	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} MK_INCLUDES=yes \
