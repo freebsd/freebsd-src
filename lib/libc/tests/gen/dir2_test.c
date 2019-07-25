@@ -73,7 +73,7 @@ ATF_TC_BODY(telldir_after_seekdir, tc)
 		char filename[16];
 
 		snprintf(filename, sizeof(filename), "%d", i);
-		fd = openat(dirfd, filename, O_WRONLY | O_CREAT);
+		fd = openat(dirfd, filename, O_WRONLY | O_CREAT, 0600);
 		ATF_REQUIRE(fd > 0);
 		close(fd);
 	}
@@ -150,7 +150,7 @@ ATF_TC_BODY(telldir_at_end_of_block, tc)
 		char filename[16];
 
 		snprintf(filename, sizeof(filename), "%d", i);
-		fd = openat(dirfd, filename, O_WRONLY | O_CREAT);
+		fd = openat(dirfd, filename, O_WRONLY | O_CREAT, 0600);
 		ATF_REQUIRE(fd > 0);
 		close(fd);
 	}
