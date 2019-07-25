@@ -409,4 +409,5 @@ MIASM =  \
 	fhlink.o \
 	fhlinkat.o \
 	fhreadlink.o \
+	copy_file_range.o \
 	funlinkat.o
