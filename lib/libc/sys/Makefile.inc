@@ -175,6 +175,7 @@ MAN+=	abort2.2 \
 	closefrom.2 \
 	connect.2 \
 	connectat.2 \
+	copy_file_range.2 \
 	cpuset.2 \
 	cpuset_getaffinity.2 \
 	cpuset_getdomain.2 \
