@@ -364,7 +364,7 @@ mphyp_pte_unset(mmu_t mmu, struct pvo_entry *pvo)
 	    ("Error removing page: %d", err));
 
 	if (err == H_NOT_FOUND) {
-		moea64_pte_overflow--;
+		STAT_MOEA64(moea64_pte_overflow--);
 		return (-1);
 	}
 
@@ -485,7 +485,7 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 		result = phyp_pft_hcall(H_REMOVE, H_AVPN, index,
 		    evicted.pte_hi & LPTE_AVPN_MASK, 0, &junk, &lastptelo,
 		    &junk);
-		moea64_pte_overflow++;
+		STAT_MOEA64(moea64_pte_overflow++);
 		KASSERT(result == H_SUCCESS || result == H_NOT_FOUND,
 		    ("Error evicting page: %d", (int)result));
 	}
