@@ -58,7 +58,7 @@ ATF_TC_BODY(fdopen_close, tc)
 	 * used to fdopen(3) a stream is
 	 * closed once the stream is closed.
 	 */
-	fd = open(path, O_RDWR | O_CREAT);
+	fd = open(path, O_RDWR | O_CREAT, 0600);
 
 	ATF_REQUIRE(fd >= 0);
 
@@ -85,7 +85,7 @@ ATF_TC_BODY(fdopen_err, tc)
 {
 	int fd;
 
-	fd = open(path, O_RDONLY | O_CREAT);
+	fd = open(path, O_RDONLY | O_CREAT, 0600);
 	ATF_REQUIRE(fd >= 0);
 
 	errno = 0;
@@ -126,7 +126,7 @@ ATF_TC_BODY(fdopen_seek, tc)
 	 * with the stream corresponds with the offset
 	 * set earlier for the file descriptor.
 	 */
-	fd = open(path, O_RDWR | O_CREAT);
+	fd = open(path, O_RDWR | O_CREAT, 0600);
 
 	ATF_REQUIRE(fd >= 0);
 	ATF_REQUIRE(write(fd, "garbage", 7) == 7);
