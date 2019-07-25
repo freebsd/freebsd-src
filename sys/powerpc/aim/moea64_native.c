@@ -332,7 +332,7 @@ moea64_pte_unset_native(mmu_t mmu, struct pvo_entry *pvo)
 	if ((be64toh(pt->pte_hi & LPTE_AVPN_MASK)) !=
 	    (properpt.pte_hi & LPTE_AVPN_MASK)) {
 		/* Evicted */
-		moea64_pte_overflow--;
+		STAT_MOEA64(moea64_pte_overflow--);
 		rw_runlock(&moea64_eviction_lock);
 		return (-1);
 	}
@@ -352,7 +352,7 @@ moea64_pte_unset_native(mmu_t mmu, struct pvo_entry *pvo)
 	rw_runlock(&moea64_eviction_lock);
 
 	/* Keep statistics */
-	moea64_pte_valid--;
+	STAT_MOEA64(moea64_pte_valid--);
 
 	return (ptelo & (LPTE_CHG | LPTE_REF));
 }
@@ -656,8 +656,8 @@ moea64_insert_to_pteg_native(struct lpte *pvo_pt, uintptr_t slotbase,
 		    (ADDR_API_SHFT64 - ADDR_PIDX_SHFT);
 		PTESYNC();
 		TLBIE(va);
-		moea64_pte_valid--;
-		moea64_pte_overflow++;
+		STAT_MOEA64(moea64_pte_valid--);
+		STAT_MOEA64(moea64_pte_overflow++);
 	}
 
 	/*
@@ -670,7 +670,7 @@ moea64_insert_to_pteg_native(struct lpte *pvo_pt, uintptr_t slotbase,
 	PTESYNC();
 
 	/* Keep statistics */
-	moea64_pte_valid++;
+	STAT_MOEA64(moea64_pte_valid++);
 
 	return (k);
 }
