@@ -83,6 +83,7 @@ static int	dirent_exists(struct vnode *vp, const char *dirname,
 static int vop_stdis_text(struct vop_is_text_args *ap);
 static int vop_stdunset_text(struct vop_unset_text_args *ap);
 static int vop_stdadd_writecount(struct vop_add_writecount_args *ap);
+static int vop_stdcopy_file_range(struct vop_copy_file_range_args *ap);
 static int vop_stdfdatasync(struct vop_fdatasync_args *ap);
 static int vop_stdgetpages_async(struct vop_getpages_async_args *ap);
 
@@ -140,6 +141,7 @@ struct vop_vector default_vnodeops = {
 	.vop_set_text =		vop_stdset_text,
 	.vop_unset_text =	vop_stdunset_text,
 	.vop_add_writecount =	vop_stdadd_writecount,
+	.vop_copy_file_range =	vop_stdcopy_file_range,
 };
 
 /*
@@ -1210,6 +1212,17 @@ vfs_stdnosync (mp, waitfor)
 {
 
 	return (0);
+}
+
+static int
+vop_stdcopy_file_range(struct vop_copy_file_range_args *ap)
+{
+	int error;
+
+	error = vn_generic_copy_file_range(ap->a_invp, ap->a_inoffp,
+	    ap->a_outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags, ap->a_incred,
+	    ap->a_outcred, ap->a_fsizetd);
+	return (error);
 }
 
 int

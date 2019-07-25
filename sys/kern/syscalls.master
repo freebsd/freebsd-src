@@ -3175,6 +3175,16 @@
 		    int flag
 		);
 	}
+569	AUE_NULL	STD {
+		ssize_t copy_file_range(
+		    int infd,
+		    _Inout_opt_ off_t *inoffp,
+		    int outfd,
+		    _Inout_opt_ off_t *outoffp,
+		    size_t len,
+		    unsigned int flags
+		);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

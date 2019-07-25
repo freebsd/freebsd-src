@@ -4814,3 +4814,122 @@ sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 	    uap->advice);
 	return (kern_posix_error(td, error));
 }
+
+int
+kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
+    off_t *outoffp, size_t len, unsigned int flags)
+{
+	struct file *infp, *outfp;
+	struct vnode *invp, *outvp;
+	int error;
+	size_t retlen;
+	void *rl_rcookie, *rl_wcookie;
+	off_t savinoff, savoutoff;
+
+	infp = outfp = NULL;
+	rl_rcookie = rl_wcookie = NULL;
+	savinoff = -1;
+	error = 0;
+	retlen = 0;
+
+	if (flags != 0) {
+		error = EINVAL;
+		goto out;
+	}
+	if (len > SSIZE_MAX)
+		/*
+		 * Although the len argument is size_t, the return argument
+		 * is ssize_t (which is signed).  Therefore a size that won't
+		 * fit in ssize_t can't be returned.
+		 */
+		len = SSIZE_MAX;
+
+	/* Get the file structures for the file descriptors. */
+	error = fget_read(td, infd, &cap_read_rights, &infp);
+	if (error != 0)
+		goto out;
+	error = fget_write(td, outfd, &cap_write_rights, &outfp);
+	if (error != 0)
+		goto out;
+
+	/* Set the offset pointers to the correct place. */
+	if (inoffp == NULL)
+		inoffp = &infp->f_offset;
+	if (outoffp == NULL)
+		outoffp = &outfp->f_offset;
+	savinoff = *inoffp;
+	savoutoff = *outoffp;
+
+	invp = infp->f_vnode;
+	outvp = outfp->f_vnode;
+	/* Sanity check the f_flag bits. */
+	if ((outfp->f_flag & (FWRITE | FAPPEND)) != FWRITE ||
+	    (infp->f_flag & FREAD) == 0 || invp == outvp) {
+		error = EBADF;
+		goto out;
+	}
+
+	/* If len == 0, just return 0. */
+	if (len == 0)
+		goto out;
+
+	/* Range lock the byte ranges for both invp and outvp. */
+	for (;;) {
+		rl_wcookie = vn_rangelock_wlock(outvp, *outoffp, *outoffp +
+		    len);
+		rl_rcookie = vn_rangelock_tryrlock(invp, *inoffp, *inoffp +
+		    len);
+		if (rl_rcookie != NULL)
+			break;
+		vn_rangelock_unlock(outvp, rl_wcookie);
+		rl_rcookie = vn_rangelock_rlock(invp, *inoffp, *inoffp + len);
+		vn_rangelock_unlock(invp, rl_rcookie);
+	}
+
+	retlen = len;
+	error = vn_copy_file_range(invp, inoffp, outvp, outoffp, &retlen,
+	    flags, infp->f_cred, outfp->f_cred, td);
+out:
+	if (rl_rcookie != NULL)
+		vn_rangelock_unlock(invp, rl_rcookie);
+	if (rl_wcookie != NULL)
+		vn_rangelock_unlock(outvp, rl_wcookie);
+	if (savinoff != -1 && (error == EINTR || error == ERESTART)) {
+		*inoffp = savinoff;
+		*outoffp = savoutoff;
+	}
+	if (outfp != NULL)
+		fdrop(outfp, td);
+	if (infp != NULL)
+		fdrop(infp, td);
+	td->td_retval[0] = retlen;
+	return (error);
+}
+
+int
+sys_copy_file_range(struct thread *td, struct copy_file_range_args *uap)
+{
+	off_t inoff, outoff, *inoffp, *outoffp;
+	int error;
+
+	inoffp = outoffp = NULL;
+	if (uap->inoffp != NULL) {
+		error = copyin(uap->inoffp, &inoff, sizeof(off_t));
+		if (error != 0)
+			return (error);
+		inoffp = &inoff;
+	}
+	if (uap->outoffp != NULL) {
+		error = copyin(uap->outoffp, &outoff, sizeof(off_t));
+		if (error != 0)
+			return (error);
+		outoffp = &outoff;
+	}
+	error = kern_copy_file_range(td, uap->infd, inoffp, uap->outfd,
+	    outoffp, uap->len, uap->flags);
+	if (error == 0 && uap->inoffp != NULL)
+		error = copyout(inoffp, uap->inoffp, sizeof(off_t));
+	if (error == 0 && uap->outoffp != NULL)
+		error = copyout(outoffp, uap->outoffp, sizeof(off_t));
+	return (error);
+}
