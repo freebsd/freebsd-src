@@ -30,6 +30,8 @@
 #ifndef _POWERPC_AIM_MMU_OEA64_H
 #define _POWERPC_AIM_MMU_OEA64_H
 
+#include "opt_pmap.h"
+
 #include <machine/mmuvar.h>
 
 extern mmu_def_t oea64_mmu;
@@ -72,8 +74,13 @@ void		moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart,
  * Statistics
  */
 
+#ifdef MOEA64_STATS
 extern u_int	moea64_pte_valid;
 extern u_int	moea64_pte_overflow;
+#define STAT_MOEA64(x)	x
+#else
+#define	STAT_MOEA64(x) ((void)0)
+#endif
 
 /*
  * State variables
