@@ -373,24 +373,28 @@ vm_page_to_pvoh(vm_page_t m)
 }
 
 static struct pvo_entry *
-alloc_pvo_entry(int bootstrap)
+alloc_pvo_entry(int bootstrap, int flags)
 {
 	struct pvo_entry *pvo;
+
+	KASSERT(bootstrap || (flags & M_WAITOK) || (flags & M_NOWAIT),
+	    ("Either M_WAITOK or M_NOWAIT flag must be specified "
+	     "when bootstrap is 0"));
+	KASSERT(!bootstrap || !(flags & M_WAITOK),
+	    ("M_WAITOK can't be used with bootstrap"));
 
 	if (!moea64_initialized || bootstrap) {
 		if (moea64_bpvo_pool_index >= moea64_bpvo_pool_size) {
 			panic("moea64_enter: bpvo pool exhausted, %d, %d, %zd",
-			      moea64_bpvo_pool_index, moea64_bpvo_pool_size, 
+			      moea64_bpvo_pool_index, moea64_bpvo_pool_size,
 			      moea64_bpvo_pool_size * sizeof(struct pvo_entry));
 		}
 		pvo = &moea64_bpvo_pool[
 		    atomic_fetchadd_int(&moea64_bpvo_pool_index, 1)];
 		bzero(pvo, sizeof(*pvo));
 		pvo->pvo_vaddr = PVO_BOOTSTRAP;
-	} else {
-		pvo = uma_zalloc(moea64_pvo_zone, M_NOWAIT);
-		bzero(pvo, sizeof(*pvo));
-	}
+	} else
+		pvo = uma_zalloc(moea64_pvo_zone, flags | M_ZERO);
 
 	return (pvo);
 }
@@ -658,7 +662,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 		     pregions[i].mr_size; pa += moea64_large_page_size) {
 			pte_lo = LPTE_M;
 
-			pvo = alloc_pvo_entry(1 /* bootstrap */);
+			pvo = alloc_pvo_entry(1 /* bootstrap */, 0);
 			pvo->pvo_vaddr |= PVO_WIRED | PVO_LARGE;
 			init_pvo_entry(pvo, kernel_pmap, PHYS_TO_DMAP(pa));
 
@@ -1399,7 +1403,9 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
 
-	pvo = alloc_pvo_entry(0);
+	pvo = alloc_pvo_entry(0, M_NOWAIT);
+	if (pvo == NULL)
+		return (KERN_RESOURCE_SHORTAGE);
 	pvo->pvo_pmap = NULL; /* to be filled in later */
 	pvo->pvo_pte.prot = prot;
 
@@ -1415,61 +1421,53 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pvo_head = &m->md.mdpg_pvoh;
 		pvo->pvo_vaddr |= PVO_MANAGED;
 	}
-	
-	for (;;) {
-		PV_PAGE_LOCK(m);
-		PMAP_LOCK(pmap);
-		if (pvo->pvo_pmap == NULL)
-			init_pvo_entry(pvo, pmap, va);
-		if (prot & VM_PROT_WRITE)
-			if (pmap_bootstrapped &&
-			    (m->oflags & VPO_UNMANAGED) == 0)
-				vm_page_aflag_set(m, PGA_WRITEABLE);
 
-		error = moea64_pvo_enter(mmu, pvo, pvo_head, &oldpvo);
-		if (error == EEXIST) {
-			if (oldpvo->pvo_vaddr == pvo->pvo_vaddr &&
-			    oldpvo->pvo_pte.pa == pvo->pvo_pte.pa &&
-			    oldpvo->pvo_pte.prot == prot) {
-				/* Identical mapping already exists */
-				error = 0;
+	PV_PAGE_LOCK(m);
+	PMAP_LOCK(pmap);
+	if (pvo->pvo_pmap == NULL)
+		init_pvo_entry(pvo, pmap, va);
+	if (prot & VM_PROT_WRITE)
+		if (pmap_bootstrapped &&
+		    (m->oflags & VPO_UNMANAGED) == 0)
+			vm_page_aflag_set(m, PGA_WRITEABLE);
 
-				/* If not in page table, reinsert it */
-				if (MOEA64_PTE_SYNCH(mmu, oldpvo) < 0) {
-					STAT_MOEA64(moea64_pte_overflow--);
-					MOEA64_PTE_INSERT(mmu, oldpvo);
-				}
+	error = moea64_pvo_enter(mmu, pvo, pvo_head, &oldpvo);
+	if (error == EEXIST) {
+		if (oldpvo->pvo_vaddr == pvo->pvo_vaddr &&
+		    oldpvo->pvo_pte.pa == pvo->pvo_pte.pa &&
+		    oldpvo->pvo_pte.prot == prot) {
+			/* Identical mapping already exists */
+			error = 0;
 
-				/* Then just clean up and go home */
-				PV_PAGE_UNLOCK(m);
-				PMAP_UNLOCK(pmap);
-				free_pvo_entry(pvo);
-				break;
+			/* If not in page table, reinsert it */
+			if (MOEA64_PTE_SYNCH(mmu, oldpvo) < 0) {
+				STAT_MOEA64(moea64_pte_overflow--);
+				MOEA64_PTE_INSERT(mmu, oldpvo);
 			}
 
+			/* Then just clean up and go home */
+			PV_PAGE_UNLOCK(m);
+			PMAP_UNLOCK(pmap);
+			free_pvo_entry(pvo);
+			goto out;
+		} else {
 			/* Otherwise, need to kill it first */
 			KASSERT(oldpvo->pvo_pmap == pmap, ("pmap of old "
 			    "mapping does not match new mapping"));
 			moea64_pvo_remove_from_pmap(mmu, oldpvo);
 			moea64_pvo_enter(mmu, pvo, pvo_head, NULL);
 		}
-		PV_PAGE_UNLOCK(m);
-		PMAP_UNLOCK(pmap);
+	}
+	PV_PAGE_UNLOCK(m);
+	PMAP_UNLOCK(pmap);
 
-		/* Free any dead pages */
-		if (error == EEXIST) {
-			moea64_pvo_remove_from_page(mmu, oldpvo);
-			free_pvo_entry(oldpvo);
-		}
-
-		if (error != ENOMEM)
-			break;
-		if ((flags & PMAP_ENTER_NOSLEEP) != 0)
-			return (KERN_RESOURCE_SHORTAGE);
-		VM_OBJECT_ASSERT_UNLOCKED(m->object);
-		vm_wait(NULL);
+	/* Free any dead pages */
+	if (error == EEXIST) {
+		moea64_pvo_remove_from_page(mmu, oldpvo);
+		free_pvo_entry(oldpvo);
 	}
 
+out:
 	/*
 	 * Flush the page from the instruction cache if this page is
 	 * mapped executable and cacheable.
@@ -1632,7 +1630,7 @@ moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
 
 	va = VM_PAGE_TO_PHYS(m);
 
-	pvo = alloc_pvo_entry(1 /* bootstrap */);
+	pvo = alloc_pvo_entry(1 /* bootstrap */, 0);
 
 	pvo->pvo_pte.prot = VM_PROT_READ | VM_PROT_WRITE;
 	pvo->pvo_pte.pa = VM_PAGE_TO_PHYS(m) | LPTE_M;
@@ -1864,7 +1862,7 @@ moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 	int		error;	
 	struct pvo_entry *pvo, *oldpvo;
 
-	pvo = alloc_pvo_entry(0);
+	pvo = alloc_pvo_entry(0, M_WAITOK);
 	pvo->pvo_pte.prot = VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE;
 	pvo->pvo_pte.pa = (pa & ~ADDR_POFF) | moea64_calc_wimg(pa, ma);
 	pvo->pvo_vaddr |= PVO_WIRED;
