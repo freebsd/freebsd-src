@@ -575,4 +575,5 @@ const char *syscallnames[] = {
 	"fhlinkat",			/* 566 = fhlinkat */
 	"fhreadlink",			/* 567 = fhreadlink */
 	"funlinkat",			/* 568 = funlinkat */
+	"copy_file_range",			/* 569 = copy_file_range */
 };
