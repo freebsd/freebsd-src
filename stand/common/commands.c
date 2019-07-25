@@ -304,6 +304,36 @@ command_set(int argc, char *argv[])
 		command_errmsg = "wrong number of arguments";
 		return (CMD_ERROR);
 	} else {
+#ifdef LOADER_VERIEXEC
+		/*
+		 * Impose restrictions if input is not verified
+		 */
+		const char *restricted[] = {
+			"boot",
+			"init",
+			"loader.ve.",
+			"rootfs",
+			"secur",
+			"vfs.",
+			NULL,
+		};
+		const char **cp;
+		int ves;
+
+		ves = ve_status_get(-1);
+		if (ves == VE_UNVERIFIED_OK) {
+#ifdef LOADER_VERIEXEC_TESTING
+			printf("Checking: %s\n", argv[1]);
+#endif
+			for (cp = restricted; *cp; cp++) {
+				if (strncmp(argv[1], *cp, strlen(*cp)) == 0) {
+					printf("Ignoring restricted variable: %s\n",
+					    argv[1]);
+					return (CMD_OK);
+				}
+			}
+		}
+#endif
 		if ((err = putenv(argv[1])) != 0) {
 			command_errmsg = strerror(err);
 			return (CMD_ERROR);
