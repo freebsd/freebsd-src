@@ -93,7 +93,7 @@ It should be reduced by the number of bytes copied, which implies that
 the value pointed to by
 .Fa len
 will normally be zero for a non-error return.
-However, a copy of less bytes than requested is permitted.
+However, a copy of fewer bytes than requested is permitted.
 .Sh LOCKS
 The vnode are unlocked on entry and must be unlocked on return.
 The byte ranges for both
