@@ -123,9 +123,10 @@ CFLAGS.gcc.ioctl.c+= -Wno-redundant-decls
 CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
 DEPENDOBJS+=	tables.h
-tables.h: mktables ${SYSROOT}/sys/netinet/in.h ${SYSROOT}/sys/netinet/tcp.h \
-    ${SYSROOT}/sys/netinet6/in6.h
-	sh ${.CURDIR}/mktables ${SYSROOT:U${DESTDIR}}${INCLUDEDIR} ${.TARGET}.tmp && \
+incdir=${SYSROOT:U${DESTDIR}}${INCLUDEDIR}
+tables.h: mktables ${incdir}/netinet/in.h ${incdir}/netinet/tcp.h \
+    ${incdir}/netinet6/in6.h
+	sh ${.CURDIR}/mktables ${incdir} ${.TARGET}.tmp && \
 	    mv -f ${.TARGET}.tmp ${.TARGET}
 
 # mkioctls runs find(1) for headers so needs to rebuild every time.  This used
