@@ -28,7 +28,7 @@
 .\"     @(#)setmode.3	8.2 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2015
+.Dd July 18, 2019
 .Dt SETMODE 3
 .Os
 .Sh NAME
@@ -125,3 +125,10 @@ and
 .Fn setmode
 functions first appeared in
 .Bx 4.4 .
+.Sh BUGS
+The
+.Fn setmode
+function is not thread safe.
+Files created in other threads while
+.Fn setmode
+is being called may be created with a umask of 0.
