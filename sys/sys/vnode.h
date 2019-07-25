@@ -667,9 +667,17 @@ int	vn_bmap_seekhole(struct vnode *vp, u_long cmd, off_t *off,
 	    struct ucred *cred);
 int	vn_close(struct vnode *vp,
 	    int flags, struct ucred *file_cred, struct thread *td);
+int	vn_copy_file_range(struct vnode *invp, off_t *inoffp,
+	    struct vnode *outvp, off_t *outoffp, size_t *lenp,
+	    unsigned int flags, struct ucred *incred, struct ucred *outcred,
+	    struct thread *fsize_td);
 void	vn_finished_write(struct mount *mp);
 void	vn_finished_secondary_write(struct mount *mp);
 int	vn_fsync_buf(struct vnode *vp, int waitfor);
+int	vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
+	    struct vnode *outvp, off_t *outoffp, size_t *lenp,
+	    unsigned int flags, struct ucred *incred, struct ucred *outcred,
+	    struct thread *fsize_td);
 int	vn_isdisk(struct vnode *vp, int *errp);
 int	_vn_lock(struct vnode *vp, int flags, char *file, int line);
 #define vn_lock(vp, flags) _vn_lock(vp, flags, __FILE__, __LINE__)
