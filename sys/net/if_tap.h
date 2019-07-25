@@ -55,7 +55,7 @@
 #define	TAPGDEBUG		TUNGDEBUG
 #define	TAPSIFINFO		TUNSIFINFO
 #define	TAPGIFINFO		TUNGIFINFO
-#define	TAPGIFNAME		_IOR('t', 93, struct ifreq)
+#define	TAPGIFNAME		TUNGIFNAME
 
 /* VMware ioctl's */
 #define VMIO_SIOCSIFFLAGS	_IOWINT('V', 0)
