@@ -1,4 +1,4 @@
-.\"	$Id: man.7,v 1.143 2019/03/02 22:04:40 schwarze Exp $
+.\"	$Id: man.7,v 1.144 2019/07/09 03:46:59 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2011-2015,2017,2018,2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -17,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: March 2 2019 $
+.Dd $Mdocdate: July 9 2019 $
 .Dt MAN 7
 .Os
 .Sh NAME
@@ -160,7 +160,9 @@ This has no effect unless the tabulator positions were changed with the
 .Ic ta
 request.
 .It Ic EE
-This is a non-standard GNU extension.
+This is a non-standard Version 9
+.At
+extension later adopted by GNU.
 In
 .Xr mandoc 1 ,
 it does the same as the
@@ -168,7 +170,9 @@ it does the same as the
 .Ic fi
 request (switch to fill mode).
 .It Ic EX
-This is a non-standard GNU extension.
+This is a non-standard Version 9
+.At
+extension later adopted by GNU.
 In
 .Xr mandoc 1 ,
 it does the same as the
@@ -496,8 +500,8 @@ The syntax is as follows:
 .It Ic BI  Ta    n         Ta    current   Ta    \&
 .It Ic BR  Ta    n         Ta    current   Ta    \&
 .It Ic DT  Ta    0         Ta    current   Ta    \&
-.It Ic EE  Ta    0         Ta    current   Ta    GNU
-.It Ic EX  Ta    0         Ta    current   Ta    GNU
+.It Ic EE  Ta    0         Ta    current   Ta    Version 9 At
+.It Ic EX  Ta    0         Ta    current   Ta    Version 9 At
 .It Ic I   Ta    n         Ta    next-line Ta    \&
 .It Ic IB  Ta    n         Ta    current   Ta    \&
 .It Ic IR  Ta    n         Ta    current   Ta    \&

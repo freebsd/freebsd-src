@@ -1,4 +1,4 @@
-/*	$Id: man_term.c,v 1.228 2019/01/05 21:18:26 schwarze Exp $ */
+/*	$Id: man_term.c,v 1.232 2019/07/23 17:53:35 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2015, 2017-2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -27,10 +27,12 @@
 #include <string.h>
 
 #include "mandoc_aux.h"
+#include "mandoc.h"
 #include "roff.h"
 #include "man.h"
 #include "out.h"
 #include "term.h"
+#include "tag.h"
 #include "main.h"
 
 #define	MAXMARGINS	  64 /* maximum number of indented scopes */
@@ -92,6 +94,8 @@ static	void		  post_SY(DECL_ARGS);
 static	void		  post_TP(DECL_ARGS);
 static	void		  post_UR(DECL_ARGS);
 
+static	void		  tag_man(struct termp *, struct roff_node *);
+
 static const struct man_term_act man_term_acts[MAN_MAX - MAN_TH] = {
 	{ NULL, NULL, 0 }, /* TH */
 	{ pre_SH, post_SH, 0 }, /* SH */
@@ -146,7 +150,7 @@ terminal_man(void *arg, const struct roff_meta *man)
 {
 	struct mtermp		 mt;
 	struct termp		*p;
-	struct roff_node	*n;
+	struct roff_node	*n, *nc, *nn;
 	size_t			 save_defindent;
 
 	p = (struct termp *)arg;
@@ -165,18 +169,23 @@ terminal_man(void *arg, const struct roff_meta *man)
 
 	n = man->first->child;
 	if (p->synopsisonly) {
-		while (n != NULL) {
-			if (n->tok == MAN_SH &&
-			    n->child->child->type == ROFFT_TEXT &&
-			    !strcmp(n->child->child->string, "SYNOPSIS")) {
-				if (n->child->next->child != NULL)
-					print_man_nodelist(p, &mt,
-					    n->child->next->child, man);
-				term_newln(p);
+		for (nn = NULL; n != NULL; n = n->next) {
+			if (n->tok != MAN_SH)
+				continue;
+			nc = n->child->child;
+			if (nc->type != ROFFT_TEXT)
+				continue;
+			if (strcmp(nc->string, "SYNOPSIS") == 0)
 				break;
-			}
-			n = n->next;
+			if (nn == NULL && strcmp(nc->string, "NAME") == 0)
+				nn = n;
 		}
+		if (n == NULL)
+			n = nn;
+		p->flags |= TERMP_NOSPACE;
+		if (n != NULL && (n = n->child->next->child) != NULL)
+			print_man_nodelist(p, &mt, n, man);
+		term_newln(p);
 	} else {
 		term_begin(p, print_man_head, print_man_foot, man);
 		p->flags |= TERMP_NOSPACE;
@@ -310,7 +319,7 @@ pre_alternate(DECL_ARGS)
 		assert(nn->type == ROFFT_TEXT);
 		term_word(p, nn->string);
 		if (nn->flags & NODE_EOS)
-                	p->flags |= TERMP_SENTENCE;
+			p->flags |= TERMP_SENTENCE;
 		if (nn->next != NULL)
 			p->flags |= TERMP_NOSPACE;
 	}
@@ -529,8 +538,10 @@ pre_IP(DECL_ARGS)
 	case ROFFT_HEAD:
 		p->tcol->offset = mt->offset;
 		p->tcol->rmargin = mt->offset + len;
-		if (n->child != NULL)
+		if (n->child != NULL) {
 			print_man_node(p, mt, n->child, meta);
+			tag_man(p, n->child);
+		}
 		return 0;
 	case ROFFT_BODY:
 		p->tcol->offset = mt->offset + len;
@@ -609,6 +620,18 @@ pre_TP(DECL_ARGS)
 		nn = n->child;
 		while (nn != NULL && (nn->flags & NODE_LINE) == 0)
 			nn = nn->next;
+
+		if (nn == NULL)
+			return 0;
+
+		if (nn->type == ROFFT_TEXT)
+			tag_man(p, nn);
+		else if (nn->child != NULL &&
+		    nn->child->type == ROFFT_TEXT &&
+		    (nn->tok == MAN_B || nn->tok == MAN_BI ||
+		     nn->tok == MAN_BR || nn->tok == MAN_I ||
+		     nn->tok == MAN_IB || nn->tok == MAN_IR))
+			tag_man(p, nn->child);
 
 		while (nn != NULL) {
 			print_man_node(p, mt, nn, meta);
@@ -1142,4 +1165,61 @@ print_man_head(struct termp *p, const struct roff_meta *meta)
 		term_vspace(p);
 	}
 	free(title);
+}
+
+/*
+ * Skip leading whitespace, dashes, backslashes, and font escapes,
+ * then create a tag if the first following byte is a letter.
+ * Priority is high unless whitespace is present.
+ */
+static void
+tag_man(struct termp *p, struct roff_node *n)
+{
+	const char	*cp, *arg;
+	int		 prio, sz;
+
+	assert(n->type == ROFFT_TEXT);
+	cp = n->string;
+	prio = 1;
+	for (;;) {
+		switch (*cp) {
+		case ' ':
+		case '\t':
+			prio = INT_MAX;
+			/* FALLTHROUGH */
+		case '-':
+			cp++;
+			break;
+		case '\\':
+			cp++;
+			switch (mandoc_escape(&cp, &arg, &sz)) {
+			case ESCAPE_FONT:
+			case ESCAPE_FONTROMAN:
+			case ESCAPE_FONTITALIC:
+			case ESCAPE_FONTBOLD:
+			case ESCAPE_FONTPREV:
+			case ESCAPE_FONTBI:
+				break;
+			case ESCAPE_SPECIAL:
+				if (sz != 1)
+					return;
+				switch (*arg) {
+				case '&':
+				case '-':
+				case 'e':
+					break;
+				default:
+					return;
+				}
+				break;
+			default:
+				return;
+			}
+			break;
+		default:
+			if (isalpha((unsigned char)*cp))
+				tag_put(cp, prio, p->line);
+			return;
+		}
+	}
 }

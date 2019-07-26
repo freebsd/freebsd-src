@@ -1,4 +1,20 @@
-.Dd $Mdocdate: December 30 2018 $
+.\"	$Id: mandoc_headers.3,v 1.31 2019/03/17 18:21:45 schwarze Exp $
+.\"
+.\" Copyright (c) 2014-2019 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 17 2019 $
 .Dt MANDOC_HEADERS 3
 .Os
 .Sh NAME
@@ -129,19 +145,19 @@ and the function
 Uses pointers to the types
 .Vt struct ohash
 from
-.Pa mandoc_ohash.h ,
+.Qq Pa mandoc_ohash.h ,
 .Vt struct mdoc_arg
 and
 .Vt union mdoc_data
 from
-.Pa mdoc.h ,
+.Qq Pa mdoc.h ,
 .Vt struct tbl_span
 from
-.Pa tbl.h ,
+.Qq Pa tbl.h ,
 and
 .Vt struct eqn_box
 from
-.Pa eqn.h
+.Qq Pa eqn.h
 as opaque struct members.
 .It Qq Pa tbl.h
 Data structures for the
@@ -184,13 +200,13 @@ Top level parser interface, for use in the main program
 and in the main parser, but not in formatters.
 .Pp
 Requires
-.Pa mandoc.h
+.Qq Pa mandoc.h
 for
 .Vt enum mandocerr
 and
 .Vt enum mandoclevel
 and
-.Pa roff.h
+.Qq Pa roff.h
 for
 .Vt enum mandoc_os .
 .Pp
@@ -202,7 +218,7 @@ for function prototypes.
 Uses
 .Vt struct roff_meta
 from
-.Pa roff.h
+.Qq Pa roff.h
 as an opaque type for function prototypes.
 .It Qq Pa mandoc_xr.h
 Cross reference validation; intended for use in the main program
@@ -251,11 +267,11 @@ described in
 Uses the types
 .Vt struct roff_node
 from
-.Pa roff.h
+.Qq Pa roff.h
 and
 .Vt struct roff_man
 from
-.Pa roff_int.h
+.Qq Pa roff_int.h
 as opaque types for function prototypes.
 .Pp
 When this header is included, the same file should not include
@@ -269,7 +285,7 @@ described in
 Uses the type
 .Vt struct roff_man
 from
-.Pa roff.h
+.Qq Pa roff.h
 as an opaque type for function prototypes.
 .Pp
 When this header is included, the same file should not include
@@ -305,7 +321,7 @@ for function prototypes.
 Uses the type
 .Vt struct roff_man
 from
-.Pa roff.h
+.Qq Pa roff.h
 as an opaque type for function prototypes.
 .It Qq Pa roff_int.h
 Parser internals shared by multiple parsers.
@@ -334,24 +350,24 @@ and the two special functions
 and
 .Fn mdoc_argv_free
 because the latter two are needed by
-.Qq Pa roff.c .
+.Pa roff.c .
 .Pp
 Uses the types
 .Vt struct ohash
 from
-.Pa mandoc_ohash.h ,
+.Qq Pa mandoc_ohash.h ,
 .Vt struct roff_node
 and
 .Vt struct roff_meta
 from
-.Pa roff.h ,
+.Qq Pa roff.h ,
 .Vt struct roff
 from
 .Pa roff.c ,
 and
 .Vt struct mdoc_arg
 from
-.Pa mdoc.h
+.Qq Pa mdoc.h
 as opaque types for function prototypes.
 .It Qq Pa libmdoc.h
 Requires
@@ -372,14 +388,14 @@ parser.
 Uses the types
 .Vt struct roff_node
 from
-.Pa roff.h ,
+.Qq Pa roff.h ,
 .Vt struct roff_man
 from
-.Pa roff_int.h ,
+.Qq Pa roff_int.h ,
 and
 .Vt struct mdoc_arg
 from
-.Pa mdoc.h
+.Qq Pa mdoc.h
 as opaque types for function prototypes.
 .Pp
 When this header is included, the same file should not include
@@ -399,11 +415,11 @@ parser.
 Uses the types
 .Vt struct roff_node
 from
-.Pa roff.h
+.Qq Pa roff.h
 and
 .Vt struct roff_man
 from
-.Pa roff_int.h
+.Qq Pa roff_int.h
 as opaque types for function prototypes.
 .Pp
 When this header is included, the same file should not include
@@ -437,12 +453,12 @@ and
 Uses the type
 .Vt struct eqn_box
 from
-.Pa mandoc.h
+.Qq Pa mandoc.h
 as an opaque type for function prototypes.
 Uses the types
 .Vt struct roff_node
 from
-.Pa roff.h
+.Qq Pa roff.h
 and
 .Vt struct eqn_def
 from
@@ -466,11 +482,11 @@ Provides the functions documented in
 Uses the types
 .Vt struct tbl_span
 from
-.Pa tbl.h
+.Qq Pa tbl.h
 and
 .Vt struct tbl_node
 from
-.Pa tbl_int.h
+.Qq Pa tbl_int.h
 as opaque types for function prototypes.
 .Pp
 When this header is included, the same file should not include
@@ -523,11 +539,11 @@ and
 Uses
 .Vt struct tbl_span
 from
-.Pa mandoc.h
+.Qq Pa mandoc.h
 as an opaque type for function prototypes.
 .Pp
 When this header is included, the same file should not include
-.Pa mansearch.h .
+.Qq Pa mansearch.h .
 .It Qq Pa term.h
 Requires
 .In sys/types.h
@@ -558,27 +574,30 @@ Uses
 and
 .Vt struct eqn_box
 from
-.Pa mandoc.h
+.Qq Pa mandoc.h
 and
 .Vt struct roff_meta
 and
 .Vt struct roff_node
 from
-.Pa roff.h
+.Qq Pa roff.h
 as opaque types for function prototypes.
 .Pp
 When this header is included, the same file should not include
-.Pa html.h
+.Qq Pa html.h
 or
-.Pa mansearch.h .
+.Qq Pa mansearch.h .
 .It Qq Pa html.h
 Requires
 .In sys/types.h
 for
 .Vt size_t ,
-.Pa mandoc.h
+.Qq Pa mandoc.h
 for
 .Vt enum mandoc_esc ,
+.Qq Pa roff.h
+for
+.Vt enum roff_tok ,
 and
 .Qq Pa out.h
 for
@@ -602,17 +621,17 @@ Uses
 and
 .Vt struct eqn_box
 from
-.Pa mandoc.h
+.Qq Pa mandoc.h
 and
 .Vt struct roff_node
 from
-.Pa roff.h
+.Qq Pa roff.h
 as opaque types for function prototypes.
 .Pp
 When this header is included, the same file should not include
-.Pa term.h
+.Qq Pa term.h
 or
-.Pa mansearch.h .
+.Qq Pa mansearch.h .
 .It Qq Pa tag.h
 Requires
 .In sys/types.h
@@ -631,7 +650,7 @@ Provides the top level steering functions for all formatters.
 Uses the type
 .Vt struct roff_meta
 from
-.Pa roff.h
+.Qq Pa roff.h
 as an opaque type for function prototypes.
 .It Qq Pa manconf.h
 Requires
@@ -671,12 +690,12 @@ and
 Uses
 .Vt struct manpaths
 from
-.Pa manconf.h
+.Qq Pa manconf.h
 as an opaque type for function prototypes.
 .Pp
 When this header is included, the same file should not include
-.Pa out.h ,
-.Pa term.h ,
+.Qq Pa out.h ,
+.Qq Pa term.h ,
 or
-.Pa html.h .
+.Qq Pa html.h .
 .El
