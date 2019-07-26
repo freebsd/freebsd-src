@@ -505,7 +505,7 @@ vtpci_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		size = vtpci_read_config_2(sc, VIRTIO_PCI_QUEUE_NUM);
 
 		error = virtqueue_alloc(dev, idx, size, VIRTIO_PCI_VRING_ALIGN,
-		    0xFFFFFFFFUL, info, &vq);
+		    ~(vm_paddr_t)0, info, &vq);
 		if (error) {
 			device_printf(dev,
 			    "cannot allocate virtqueue %d: %d\n", idx, error);
