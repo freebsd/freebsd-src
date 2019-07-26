@@ -746,9 +746,11 @@ swapon_trim(const char *name)
 	off_t ioarg[2], sz;
 	int error, fd;
 
+	/* Open a descriptor to create a consumer of the device. */
 	fd = open(name, O_WRONLY);
 	if (fd < 0)
 		errx(1, "Cannot open %s", name);
+	/* Find the device size. */
 	if (fstat(fd, &sb) < 0)
 		errx(1, "Cannot stat %s", name);
 	if (S_ISREG(sb.st_mode))
@@ -758,18 +760,22 @@ swapon_trim(const char *name)
 			err(1, "ioctl(DIOCGMEDIASIZE)");
 	} else
 		errx(1, "%s has an invalid file type", name);
+	/* Trim the device. */
 	ioarg[0] = 0;
 	ioarg[1] = sz;
 	if (ioctl(fd, DIOCGDELETE, ioarg) != 0)
 		warn("ioctl(DIOCGDELETE)");
 
-	/*
-	 * swapon is invoked after trimming, so that the trimming doesn't happen
-	 * after the device is in use for swapping, but before the fd is closed,
-	 * for the benefit of geli, which could otherwise detach the device,
-	 * before swapon, on close.
-	 */
+	/* Start using the device for swapping, creating a second consumer. */
 	error = swapon(name);
+
+	/*
+	 * Do not close the device until the swap pager has attempted to create
+	 * another consumer.  For GELI devices created with the 'detach -l'
+	 * option, removing the last consumer causes the device to be detached
+	 * - that is, to disappear.  This ordering ensures that the device will
+	 * not be detached until swapoff is called.
+	 */
 	close(fd);
 	return (error);
 }
