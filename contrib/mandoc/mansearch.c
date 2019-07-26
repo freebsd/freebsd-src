@@ -1,4 +1,4 @@
-/*	$Id: mansearch.c,v 1.80 2018/12/13 11:55:46 schwarze Exp $ */
+/*	$Id: mansearch.c,v 1.82 2019/07/01 22:56:24 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013-2018 Ingo Schwarze <schwarze@openbsd.org>
@@ -191,7 +191,7 @@ mansearch(const struct mansearch *search,
 			    mpage->file, R_OK) == -1) {
 				warn("%s", mpage->file);
 				warnx("outdated mandoc.db contains "
-				    "bogus %s entry, run makewhatis %s", 
+				    "bogus %s entry, run makewhatis %s",
 				    page->file + 1, paths->paths[i]);
 				free(mpage->file);
 				free(rp);
@@ -199,6 +199,7 @@ mansearch(const struct mansearch *search,
 			}
 			mpage->names = buildnames(page);
 			mpage->output = buildoutput(outkey, page);
+			mpage->bits = search->firstmatch ? rp->bits : 0;
 			mpage->ipath = i;
 			mpage->sec = *page->sect - '0';
 			if (mpage->sec < 0 || mpage->sec > 9)
@@ -294,8 +295,10 @@ manmerge_term(struct expr *e, struct ohash *htab)
 				break;
 			slot = ohash_lookup_memory(htab,
 			    (char *)&res, sizeof(res.page), res.page);
-			if ((rp = ohash_find(htab, slot)) != NULL)
+			if ((rp = ohash_find(htab, slot)) != NULL) {
+				rp->bits |= res.bits;
 				continue;
+			}
 			rp = mandoc_malloc(sizeof(*rp));
 			*rp = res;
 			ohash_insert(htab, slot, rp);
@@ -408,7 +411,8 @@ manpage_compare(const void *vp1, const void *vp2)
 
 	mp1 = vp1;
 	mp2 = vp2;
-	if ((diff = mp1->sec - mp2->sec))
+	if ((diff = mp2->bits - mp1->bits) ||
+	    (diff = mp1->sec - mp2->sec))
 		return diff;
 
 	/* Fall back to alphabetic ordering of names. */

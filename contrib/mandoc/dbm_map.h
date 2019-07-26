@@ -1,4 +1,4 @@
-/*	$Id: dbm_map.h,v 1.1 2016/07/19 21:31:55 schwarze Exp $ */
+/*	$Id: dbm_map.h,v 1.2 2019/07/01 22:56:24 schwarze Exp $ */
 /*
  * Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * Private interface for low-level routines for the map-based version 
+ * Private interface for low-level routines for the map-based version
  * of the mandoc database, for read-only access.
  * To be used by dbm*.c only.
  */

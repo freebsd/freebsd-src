@@ -1,7 +1,7 @@
-.\"	$Id: mandoc.1,v 1.237 2019/02/23 18:53:54 schwarze Exp $
+.\"	$Id: mandoc.1,v 1.240 2019/07/10 19:39:01 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2012, 2014-2018 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2012, 2014-2019 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: February 23 2019 $
+.Dd $Mdocdate: July 10 2019 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -222,7 +222,8 @@ reads from standard input.
 .Pp
 The options
 .Fl fhklw
-are also supported and are documented in man(1).
+are also supported and are documented in
+.Xr man 1 .
 In
 .Fl f
 and
@@ -697,7 +698,7 @@ No input files have been read.
 .It 6
 An operating system error occurred, for example exhaustion
 of memory, file descriptors, or process table entries.
-Such errors cause
+Such errors may cause
 .Nm
 to exit at once, possibly in the middle of parsing or formatting a file.
 .El
@@ -777,6 +778,13 @@ fields.
 .Pp
 Message levels have the following meanings:
 .Bl -tag -width "warning"
+.It Cm syserr
+An operating system error occurred.
+There isn't necessarily anything wrong with the input files.
+Output may all the same be missing or incomplete.
+.It Cm badarg
+Invalid command line arguments were specified.
+No input files have been read and no output is produced.
 .It Cm unsupp
 An input file uses unsupported low-level
 .Xr roff 7
@@ -825,8 +833,7 @@ Messages of the
 .Cm error ,
 and
 .Cm unsupp
-levels except those about non-existent or unreadable input files
-are hidden unless their level, or a lower level, is requested using a
+levels are hidden unless their level, or a lower level, is requested using a
 .Fl W
 option or
 .Fl T Cm lint
@@ -1699,9 +1706,12 @@ The meaning of blank input lines is only well-defined in non-fill mode:
 In fill mode, line breaks of text input lines are not supposed to be
 significant.
 However, for compatibility with groff, blank lines in fill mode
-are replaced with
+are formatted like
 .Ic \&sp
 requests.
+To request a paragraph break, use
+.Ic \&Pp
+instead of a blank line.
 .It Sy "tab in filled text"
 .Pq mdoc , man
 The meaning of tab characters is only well-defined in non-fill mode:
@@ -2237,6 +2247,43 @@ or
 macro or of an undefined macro.
 The macro is ignored, and its arguments are handled
 as if they were a text line.
+.El
+.Ss Bad command line arguments
+.Bl -ohang
+.It Sy "bad command line argument"
+The argument following one of the
+.Fl IKMmOTW
+command line options is invalid, or a
+.Ar file
+given as a command line argument cannot be opened.
+.It Sy "duplicate command line argument"
+The
+.Fl I
+command line option was specified twice.
+.It Sy "option has a superfluous value"
+An argument to the
+.Fl O
+option has a value but does not accept one.
+.It Sy "missing option value"
+An argument to the
+.Fl O
+option has no argument but requires one.
+.It Sy "bad option value"
+An argument to the
+.Fl O
+.Cm indent
+or
+.Cm width
+option has an invalid value.
+.It Sy "duplicate option value"
+The same
+.Fl O
+option is specified more than once.
+.It Sy "no such tag"
+The
+.Fl O Cm tag
+option was specified but the tag was not found in any of the displayed
+manual pages.
 .El
 .Sh SEE ALSO
 .Xr apropos 1 ,

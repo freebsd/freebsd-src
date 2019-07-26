@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: configure,v 1.70 2019/03/06 16:04:31 schwarze Exp $
+# $Id: configure,v 1.71 2019/07/01 22:56:24 schwarze Exp $
 #
 # Copyright (c) 2014-2019 Ingo Schwarze <schwarze@openbsd.org>
 #
@@ -529,7 +529,7 @@ fi
 	echo "extern	char	 *mkdtemp(char *);"
 
 if [ ${HAVE_PROGNAME} -eq 0 ]; then
-	echo "extern 	const char *getprogname(void);"
+	echo "extern	const char *getprogname(void);"
 	echo "extern	void	  setprogname(const char *);"
 fi
 

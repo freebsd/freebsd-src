@@ -1,4 +1,4 @@
-.\"	$Id: roff.7,v 1.111 2019/01/01 03:45:29 schwarze Exp $
+.\"	$Id: roff.7,v 1.114 2019/07/15 19:20:30 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010-2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 1 2019 $
+.Dd $Mdocdate: July 15 2019 $
 .Dt ROFF 7
 .Os
 .Sh NAME
@@ -315,12 +315,18 @@ delimiters
 The proper spacing is also intelligently preserved if a sentence ends at
 the boundary of a macro line.
 .Pp
+If an input line happens to end with a period, exclamation or question
+mark that isn't the end of a sentence, append a zero-width space
+.Pq Sq \e& .
+.Pp
 Examples:
 .Bd -literal -offset indent -compact
 Do not end sentences mid-line like this.  Instead,
 end a sentence like this.
 A macro would end like this:
 \&.Xr mandoc 1 \&.
+An abbreviation at the end of an input line needs escaping, e.g.\e&
+like this.
 .Ed
 .Sh REQUEST SYNTAX
 A request or macro line consists of:
@@ -503,10 +509,9 @@ This is a Heirloom extension and currently unsupported.
 .It Ic \&br
 Break the output line.
 .It Ic \&break
-Break out of a
+Break out of the innermost
 .Ic \&while
 loop.
-Currently unsupported.
 .It Ic \&breakchar Ar char ...
 Optional line break characters.
 This is a Heirloom extension and currently ignored.
@@ -2279,7 +2284,7 @@ code.
 .Pp
 The special semantics of the
 .Cm nS
-number register is an idiosyncracy of
+number register is an idiosyncrasy of
 .Ox
 manuals and not supported by other
 .Xr mdoc 7

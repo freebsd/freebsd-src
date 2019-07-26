@@ -1,4 +1,4 @@
-/*	$Id: mdoc_validate.c,v 1.371 2019/03/04 13:01:57 schwarze Exp $ */
+/*	$Id: mdoc_validate.c,v 1.374 2019/06/27 15:07:30 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -64,7 +64,7 @@ static	size_t		macro2len(enum roff_tok);
 static	void	 rewrite_macro2len(struct roff_man *, char **);
 static	int	 similar(const char *, const char *);
 
-static	void	 post_abort(POST_ARGS);
+static	void	 post_abort(POST_ARGS) __attribute__((__noreturn__));
 static	void	 post_an(POST_ARGS);
 static	void	 post_an_norm(POST_ARGS);
 static	void	 post_at(POST_ARGS);
@@ -1903,8 +1903,7 @@ post_root(POST_ARGS)
 	/* Add missing prologue data. */
 
 	if (mdoc->meta.date == NULL)
-		mdoc->meta.date = mdoc->quick ? mandoc_strdup("") :
-		    mandoc_normdate(mdoc, NULL, 0, 0);
+		mdoc->meta.date = mandoc_normdate(mdoc, NULL, 0, 0);
 
 	if (mdoc->meta.title == NULL) {
 		mandoc_msg(MANDOCERR_DT_NOTITLE, 0, 0, "EOF");
@@ -2519,21 +2518,10 @@ post_dd(POST_ARGS)
 		mandoc_msg(MANDOCERR_PROLOG_ORDER,
 		    n->line, n->pos, "Dd after Os");
 
-	if (n->child == NULL || n->child->string[0] == '\0') {
-		mdoc->meta.date = mdoc->quick ? mandoc_strdup("") :
-		    mandoc_normdate(mdoc, NULL, n->line, n->pos);
-		return;
-	}
-
 	datestr = NULL;
 	deroff(&datestr, n);
-	if (mdoc->quick)
-		mdoc->meta.date = datestr;
-	else {
-		mdoc->meta.date = mandoc_normdate(mdoc,
-		    datestr, n->line, n->pos);
-		free(datestr);
-	}
+	mdoc->meta.date = mandoc_normdate(mdoc, datestr, n->line, n->pos);
+	free(datestr);
 }
 
 static void
