@@ -42,7 +42,7 @@ extern char *inet_ntoa();
 
 /* Forward declarations. */
 
-static void sock_sink();
+static void sock_sink(int);
 
 #ifdef APPEND_DOT
 
@@ -406,8 +406,7 @@ struct host_info *host;
 
 /* sock_sink - absorb unreceived IP datagram */
 
-static void sock_sink(fd)
-int     fd;
+static void sock_sink(int fd)
 {
     char    buf[BUFSIZ];
 #ifdef INET6
