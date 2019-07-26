@@ -6365,13 +6365,12 @@ int
 ctl_mode_sense(struct ctl_scsiio *ctsio)
 {
 	struct ctl_lun *lun = CTL_LUN(ctsio);
-	int pc, page_code, dbd, subpage;
-	int alloc_len, page_len, header_len, total_len;
-	struct scsi_mode_block_descr *block_desc;
+	int pc, page_code, llba, subpage;
+	int alloc_len, page_len, header_len, bd_len, total_len;
+	void *block_desc;
 	struct ctl_page_index *page_index;
 
-	dbd = 0;
-	block_desc = NULL;
+	llba = 0;
 
 	CTL_DEBUG_PRINT(("ctl_mode_sense\n"));
 
@@ -6383,9 +6382,10 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 		header_len = sizeof(struct scsi_mode_hdr_6);
 		if (cdb->byte2 & SMS_DBD)
-			dbd = 1;
+			bd_len = 0;
 		else
-			header_len += sizeof(struct scsi_mode_block_descr);
+			bd_len = sizeof(struct scsi_mode_block_descr);
+		header_len += bd_len;
 
 		pc = (cdb->page & SMS_PAGE_CTRL_MASK) >> 6;
 		page_code = cdb->page & SMS_PAGE_CODE;
@@ -6399,11 +6399,18 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		cdb = (struct scsi_mode_sense_10 *)ctsio->cdb;
 
 		header_len = sizeof(struct scsi_mode_hdr_10);
+		if (cdb->byte2 & SMS_DBD) {
+			bd_len = 0;
+		} else if (lun->be_lun->lun_type == T_DIRECT) {
+			if (cdb->byte2 & SMS10_LLBAA) {
+				llba = 1;
+				bd_len = sizeof(struct scsi_mode_block_descr_dlong);
+			} else
+				bd_len = sizeof(struct scsi_mode_block_descr_dshort);
+		} else
+			bd_len = sizeof(struct scsi_mode_block_descr);
+		header_len += bd_len;
 
-		if (cdb->byte2 & SMS_DBD)
-			dbd = 1;
-		else
-			header_len += sizeof(struct scsi_mode_block_descr);
 		pc = (cdb->page & SMS_PAGE_CTRL_MASK) >> 6;
 		page_code = cdb->page & SMS_PAGE_CODE;
 		subpage = cdb->subpage;
@@ -6536,12 +6543,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 			    (lun->MODE_CTRL.eca_and_aen & SCP_SWP) != 0)
 				header->dev_specific |= 0x80; /* WP */
 		}
-		if (dbd)
-			header->block_descr_len = 0;
-		else
-			header->block_descr_len =
-				sizeof(struct scsi_mode_block_descr);
-		block_desc = (struct scsi_mode_block_descr *)&header[1];
+		header->block_descr_len = bd_len;
+		block_desc = &header[1];
 		break;
 	}
 	case MODE_SENSE_10: {
@@ -6558,12 +6561,10 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 			    (lun->MODE_CTRL.eca_and_aen & SCP_SWP) != 0)
 				header->dev_specific |= 0x80; /* WP */
 		}
-		if (dbd)
-			scsi_ulto2b(0, header->block_descr_len);
-		else
-			scsi_ulto2b(sizeof(struct scsi_mode_block_descr),
-				    header->block_descr_len);
-		block_desc = (struct scsi_mode_block_descr *)&header[1];
+		if (llba)
+			header->flags |= SMH_LONGLBA;
+		scsi_ulto2b(bd_len, header->block_descr_len);
+		block_desc = &header[1];
 		break;
 	}
 	default:
@@ -6574,12 +6575,27 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	 * If we've got a disk, use its blocksize in the block
 	 * descriptor.  Otherwise, just set it to 0.
 	 */
-	if (dbd == 0) {
-		if (lun->be_lun->lun_type == T_DIRECT)
-			scsi_ulto3b(lun->be_lun->blocksize,
-				    block_desc->block_len);
-		else
-			scsi_ulto3b(0, block_desc->block_len);
+	if (bd_len > 0) {
+		if (lun->be_lun->lun_type == T_DIRECT) {
+			if (llba) {
+				struct scsi_mode_block_descr_dlong *bd = block_desc;
+				if (lun->be_lun->maxlba != 0)
+					scsi_u64to8b(lun->be_lun->maxlba + 1,
+					    bd->num_blocks);
+				scsi_ulto4b(lun->be_lun->blocksize,
+				    bd->block_len);
+			} else {
+				struct scsi_mode_block_descr_dshort *bd = block_desc;
+				if (lun->be_lun->maxlba != 0)
+					scsi_ulto4b(MIN(lun->be_lun->maxlba+1,
+					    UINT32_MAX), bd->num_blocks);
+				scsi_ulto3b(lun->be_lun->blocksize,
+				    bd->block_len);
+			}
+		} else {
+			struct scsi_mode_block_descr *bd = block_desc;
+			scsi_ulto3b(0, bd->block_len);
+		}
 	}
 
 	switch (page_code) {
