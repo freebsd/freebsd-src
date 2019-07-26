@@ -151,4 +151,21 @@ void operator delete[](void * ptr) NOEXCEPT
 	::operator delete(ptr);
 }
 
+// C++14 additional delete operators
 
+#if __cplusplus >= 201402L
+
+__attribute__((weak))
+void operator delete(void * ptr, size_t) NOEXCEPT
+{
+	::operator delete(ptr);
+}
+
+
+__attribute__((weak))
+void operator delete[](void * ptr, size_t) NOEXCEPT
+{
+	::operator delete(ptr);
+}
+
+#endif

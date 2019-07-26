@@ -10,7 +10,7 @@ set(CXXRT_SOURCES
     libelftc_dem_gnu3.c
    )
 
-
+add_definitions(-D_GNU_SOURCE)
 add_library(cxxrt-static STATIC ${CXXRT_SOURCES})
 add_library(cxxrt-shared SHARED ${CXXRT_SOURCES})
 target_link_libraries(cxxrt-shared ${CMAKE_DL_LIBS})
