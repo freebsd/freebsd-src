@@ -879,6 +879,13 @@ extern "C" void __cxa_rethrow()
 
 	assert(ex->handlerCount > 0 && "Rethrowing uncaught exception!");
 
+	// `globals->uncaughtExceptions` was decremented by `__cxa_begin_catch`.
+	// It's normally incremented by `throw_exception`, but this path invokes
+	// `_Unwind_Resume_or_Rethrow` directly to rethrow the exception.
+	// This path is only reachable if we're rethrowing a C++ exception -
+	// foreign exceptions don't adjust any of this state.
+	globals->uncaughtExceptions++;
+
 	// ex->handlerCount will be decremented in __cxa_end_catch in enclosing
 	// catch block
 	
@@ -1224,11 +1231,13 @@ extern "C" void *__cxa_begin_catch(void *e)
 	// we see is a foreign exception then we won't have called it yet.
 	__cxa_thread_info *ti = thread_info();
 	__cxa_eh_globals *globals = &ti->globals;
-	globals->uncaughtExceptions--;
 	_Unwind_Exception *exceptionObject = static_cast<_Unwind_Exception*>(e);
 
 	if (isCXXException(exceptionObject->exception_class))
 	{
+		// Only exceptions thrown with a C++ exception throwing function will
+		// increment this, so don't decrement it here.
+		globals->uncaughtExceptions--;
 		__cxa_exception *ex =  exceptionFromPointer(exceptionObject);
 
 		if (ex->handlerCount == 0)
@@ -1365,6 +1374,14 @@ extern "C" std::type_info *__cxa_current_exception_type()
 }
 
 /**
+ * Cleanup, ensures that `__cxa_end_catch` is called to balance an explicit
+ * `__cxa_begin_catch` call.
+ */
+static void end_catch(char *)
+{
+	__cxa_end_catch();
+}
+/**
  * ABI function, called when an exception specification is violated.
  *
  * This function does not return.
@@ -1372,6 +1389,12 @@ extern "C" std::type_info *__cxa_current_exception_type()
 extern "C" void __cxa_call_unexpected(void*exception) 
 {
 	_Unwind_Exception *exceptionObject = static_cast<_Unwind_Exception*>(exception);
+	// Wrap the call to the unexpected handler in calls to `__cxa_begin_catch`
+	// and `__cxa_end_catch` so that we correctly update exception counts if
+	// the unexpected handler throws an exception.
+	__cxa_begin_catch(exceptionObject);
+	__attribute__((cleanup(end_catch)))
+	char unused;
 	if (exceptionObject->exception_class == exception_class)
 	{
 		__cxa_exception *ex =  exceptionFromPointer(exceptionObject);
