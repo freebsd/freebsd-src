@@ -343,7 +343,11 @@ struct thread {
 	vm_offset_t	td_kstack;	/* (a) Kernel VA of kstack. */
 	int		td_kstack_pages; /* (a) Size of the kstack. */
 	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */
+#ifdef __amd64__
+	uint32_t	td_md_pad0[16];
+#else
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
+#endif
 	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
 	struct lpohead	td_lprof[2];	/* (a) lock profiling objects. */
 	struct kdtrace_thread	*td_dtrace; /* (*) DTrace-specific data. */
@@ -361,6 +365,9 @@ struct thread {
 	int		td_oncpu;	/* (t) Which cpu we are on. */
 	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
 	int		td_pmcpend;
+#ifdef __amd64__
+	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
+#endif
 };
 
 struct thread0_storage {
