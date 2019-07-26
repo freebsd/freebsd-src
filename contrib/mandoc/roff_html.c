@@ -1,4 +1,4 @@
-/*	$Id: roff_html.c,v 1.19 2019/01/07 07:26:29 schwarze Exp $ */
+/*	$Id: roff_html.c,v 1.20 2019/04/30 15:53:01 schwarze Exp $ */
 /*
  * Copyright (c) 2010 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2017, 2018, 2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -94,7 +94,7 @@ roff_html_pre_ft(ROFF_HTML_ARGS)
 	const char	*cp;
 
 	cp = n->child->string;
-	print_metaf(h, mandoc_font(cp, (int)strlen(cp)));
+	html_setfont(h, mandoc_font(cp, (int)strlen(cp)));
 }
 
 static void
