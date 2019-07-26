@@ -425,8 +425,10 @@ vdev_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t bytes)
 		}
 	}
 
-	if (lseek(fd, start_sec * secsz, SEEK_SET) == -1)
-		return (errno);
+	if (lseek(fd, start_sec * secsz, SEEK_SET) == -1) {
+		ret = errno;
+		goto error;
+	}
 
 	/* Partial data return from first sector */
 	if (head > 0) {
