@@ -261,7 +261,13 @@ efi_enter(void)
 		return (error);
 	}
 
-	return (efi_arch_enter());
+	error = efi_arch_enter();
+	if (error != 0) {
+		fpu_kern_leave(td, NULL);
+		mtx_unlock(&efi_lock);
+		PMAP_UNLOCK(curpmap);
+	}
+	return (error);
 }
 
 static void
