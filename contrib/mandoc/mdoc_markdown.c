@@ -1,4 +1,4 @@
-/*	$Id: mdoc_markdown.c,v 1.30 2018/12/30 00:49:55 schwarze Exp $ */
+/*	$Id: mdoc_markdown.c,v 1.31 2019/07/01 22:56:24 schwarze Exp $ */
 /*
  * Copyright (c) 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -1290,7 +1290,7 @@ md_post_It(struct roff_node *n)
 		while ((n = n->prev) != NULL && n->type != ROFFT_HEAD)
 			i++;
 
-		/* 
+		/*
 		 * If a width was specified for this column,
 		 * subtract what printed, and
 		 * add the same spacing as in mdoc_term.c.

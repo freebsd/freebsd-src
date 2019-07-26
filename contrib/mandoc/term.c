@@ -1,4 +1,4 @@
-/*	$Id: term.c,v 1.280 2019/01/15 12:16:18 schwarze Exp $ */
+/*	$Id: term.c,v 1.281 2019/06/03 20:23:41 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -281,6 +281,8 @@ term_fill(struct termp *p, size_t *nbr, size_t *vbr, size_t vtarget)
 			case ASCII_BREAK:
 				vn = vis;
 				break;
+			default:
+				abort();
 			}
 			/* Can break at the end of a word. */
 			if (breakline || vn > vtarget)
