@@ -440,7 +440,7 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		size = vtmmio_read_config_4(sc, VIRTIO_MMIO_QUEUE_NUM_MAX);
 
 		error = virtqueue_alloc(dev, idx, size,
-		    VIRTIO_MMIO_VRING_ALIGN, 0xFFFFFFFFUL, info, &vq);
+		    VIRTIO_MMIO_VRING_ALIGN, ~(vm_paddr_t)0, info, &vq);
 		if (error) {
 			device_printf(dev,
 			    "cannot allocate virtqueue %d: %d\n",
