@@ -50,10 +50,17 @@ struct proc_ldt {
 	int     ldt_refcnt;
 };
 
+#define PMAP_INVL_GEN_NEXT_INVALID	0x1ULL
 struct pmap_invl_gen {
 	u_long gen;			/* (k) */
-	LIST_ENTRY(pmap_invl_gen) link;	/* (pp) */
-};
+	union {
+		LIST_ENTRY(pmap_invl_gen) link;	/* (pp) */
+		struct {
+			struct pmap_invl_gen *next;
+			u_char saved_pri;
+		};
+	};
+} __aligned(16);
 
 /*
  * Machine-dependent part of the proc structure for AMD64.
