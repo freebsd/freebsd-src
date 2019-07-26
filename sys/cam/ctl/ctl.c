@@ -4450,12 +4450,14 @@ ctl_init_log_page_index(struct ctl_lun *lun)
 	lun->log_pages.index[0].page_len = j;
 	lun->log_pages.index[1].page_data = &lun->log_pages.subpages_page[0];
 	lun->log_pages.index[1].page_len = k * 2;
-	lun->log_pages.index[2].page_data = &lun->log_pages.lbp_page[0];
-	lun->log_pages.index[2].page_len = 12*CTL_NUM_LBP_PARAMS;
-	lun->log_pages.index[3].page_data = (uint8_t *)&lun->log_pages.stat_page;
-	lun->log_pages.index[3].page_len = sizeof(lun->log_pages.stat_page);
-	lun->log_pages.index[4].page_data = (uint8_t *)&lun->log_pages.ie_page;
-	lun->log_pages.index[4].page_len = sizeof(lun->log_pages.ie_page);
+	lun->log_pages.index[2].page_data = (uint8_t *)&lun->log_pages.temp_page;
+	lun->log_pages.index[2].page_len = sizeof(lun->log_pages.temp_page);
+	lun->log_pages.index[3].page_data = &lun->log_pages.lbp_page[0];
+	lun->log_pages.index[3].page_len = 12*CTL_NUM_LBP_PARAMS;
+	lun->log_pages.index[4].page_data = (uint8_t *)&lun->log_pages.stat_page;
+	lun->log_pages.index[4].page_len = sizeof(lun->log_pages.stat_page);
+	lun->log_pages.index[5].page_data = (uint8_t *)&lun->log_pages.ie_page;
+	lun->log_pages.index[5].page_len = sizeof(lun->log_pages.ie_page);
 
 	return (CTL_RETVAL_COMPLETE);
 }
@@ -6679,6 +6681,40 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 }
 
 int
+ctl_temp_log_sense_handler(struct ctl_scsiio *ctsio,
+			       struct ctl_page_index *page_index,
+			       int pc)
+{
+	struct ctl_lun *lun = CTL_LUN(ctsio);
+	struct scsi_log_temperature *data;
+	const char *value;
+
+	data = (struct scsi_log_temperature *)page_index->page_data;
+
+	scsi_ulto2b(SLP_TEMPERATURE, data->hdr.param_code);
+	data->hdr.param_control = SLP_LBIN;
+	data->hdr.param_len = sizeof(struct scsi_log_temperature) -
+	    sizeof(struct scsi_log_param_header);
+	if ((value = dnvlist_get_string(lun->be_lun->options, "temperature",
+	    NULL)) != NULL)
+		data->temperature = strtol(value, NULL, 0);
+	else
+		data->temperature = 0xff;
+	data++;
+
+	scsi_ulto2b(SLP_REFTEMPERATURE, data->hdr.param_code);
+	data->hdr.param_control = SLP_LBIN;
+	data->hdr.param_len = sizeof(struct scsi_log_temperature) -
+	    sizeof(struct scsi_log_param_header);
+	if ((value = dnvlist_get_string(lun->be_lun->options, "reftemperature",
+	    NULL)) != NULL)
+		data->temperature = strtol(value, NULL, 0);
+	else
+		data->temperature = 0xff;
+	return (0);
+}
+
+int
 ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 			       struct ctl_page_index *page_index,
 			       int pc)
@@ -6802,6 +6838,7 @@ ctl_ie_log_sense_handler(struct ctl_scsiio *ctsio,
 {
 	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_log_informational_exceptions *data;
+	const char *value;
 
 	data = (struct scsi_log_informational_exceptions *)page_index->page_data;
 
@@ -6811,7 +6848,11 @@ ctl_ie_log_sense_handler(struct ctl_scsiio *ctsio,
 	    sizeof(struct scsi_log_param_header);
 	data->ie_asc = lun->ie_asc;
 	data->ie_ascq = lun->ie_ascq;
-	data->temperature = 0xff;
+	if ((value = dnvlist_get_string(lun->be_lun->options, "temperature",
+	    NULL)) != NULL)
+		data->temperature = strtol(value, NULL, 0);
+	else
+		data->temperature = 0xff;
 	return (0);
 }
 

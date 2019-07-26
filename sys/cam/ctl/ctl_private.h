@@ -331,6 +331,8 @@ static const struct ctl_page_index log_page_index_template[] = {
 	 CTL_PAGE_FLAG_ALL, NULL, NULL},
 	{SLS_SUPPORTED_PAGES_PAGE, SLS_SUPPORTED_SUBPAGES_SUBPAGE, 0, NULL,
 	 CTL_PAGE_FLAG_ALL, NULL, NULL},
+	{SLS_TEMPERATURE, 0, 0, NULL,
+	 CTL_PAGE_FLAG_DIRECT, ctl_temp_log_sense_handler, NULL},
 	{SLS_LOGICAL_BLOCK_PROVISIONING, 0, 0, NULL,
 	 CTL_PAGE_FLAG_DIRECT, ctl_lbp_log_sense_handler, NULL},
 	{SLS_STAT_AND_PERF, 0, 0, NULL,
@@ -351,6 +353,7 @@ struct ctl_log_pages {
 		struct scsi_log_idle_time it;
 		struct scsi_log_time_interval ti;
 	} stat_page;
+	struct scsi_log_temperature	temp_page[2];
 	struct scsi_log_informational_exceptions	ie_page;
 	struct ctl_page_index		index[CTL_NUM_LOG_PAGES];
 };

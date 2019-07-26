@@ -158,6 +158,9 @@ int ctl_default_page_handler(struct ctl_scsiio *ctsio,
 int ctl_ie_page_handler(struct ctl_scsiio *ctsio,
 			struct ctl_page_index *page_index,
 			uint8_t *page_ptr);
+int ctl_temp_log_sense_handler(struct ctl_scsiio *ctsio,
+				   struct ctl_page_index *page_index,
+				   int pc);
 int ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);

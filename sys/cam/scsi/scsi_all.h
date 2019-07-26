@@ -568,6 +568,7 @@ struct scsi_log_sense
 #define	SLS_ERROR_NONMEDIUM_PAGE	0x06
 #define	SLS_ERROR_LASTN_PAGE		0x07
 #define	SLS_LOGICAL_BLOCK_PROVISIONING	0x0c
+#define	SLS_TEMPERATURE			0x0d
 #define	SLS_SELF_TEST_PAGE		0x10
 #define	SLS_SOLID_STATE_MEDIA		0x11
 #define	SLS_STAT_AND_PERF		0x19
@@ -680,6 +681,14 @@ struct scsi_log_informational_exceptions {
 #define	SLP_IE_GEN			0x0000
 	uint8_t	ie_asc;
 	uint8_t	ie_ascq;
+	uint8_t	temperature;
+};
+
+struct scsi_log_temperature {
+	struct scsi_log_param_header hdr;
+#define	SLP_TEMPERATURE			0x0000
+#define	SLP_REFTEMPERATURE		0x0001
+	uint8_t	reserved;
 	uint8_t	temperature;
 };
 
