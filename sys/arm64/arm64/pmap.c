@@ -2499,7 +2499,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 /*
  * pmap_remove_l3: do the things to unmap a page in a process
  */
-static int __unused
+static int
 pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
     pd_entry_t l2e, struct spglist *free, struct rwlock **lockp)
 {
@@ -4839,6 +4839,110 @@ out:
 void
 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 {
+	struct rwlock *lock;
+	vm_offset_t va, va_next;
+	vm_page_t m;
+	pd_entry_t *l0, *l1, *l2, oldl2;
+	pt_entry_t *l3, oldl3;
+
+	if (advice != MADV_DONTNEED && advice != MADV_FREE)
+		return;
+
+	PMAP_LOCK(pmap);
+	for (; sva < eva; sva = va_next) {
+		l0 = pmap_l0(pmap, sva);
+		if (pmap_load(l0) == 0) {
+			va_next = (sva + L0_SIZE) & ~L0_OFFSET;
+			if (va_next < sva)
+				va_next = eva;
+			continue;
+		}
+		l1 = pmap_l0_to_l1(l0, sva);
+		if (pmap_load(l1) == 0) {
+			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
+			if (va_next < sva)
+				va_next = eva;
+			continue;
+		}
+		va_next = (sva + L2_SIZE) & ~L2_OFFSET;
+		if (va_next < sva)
+			va_next = eva;
+		l2 = pmap_l1_to_l2(l1, sva);
+		oldl2 = pmap_load(l2);
+		if (oldl2 == 0)
+			continue;
+		if ((oldl2 & ATTR_DESCR_MASK) == L2_BLOCK) {
+			if ((oldl2 & ATTR_SW_MANAGED) == 0)
+				continue;
+			lock = NULL;
+			if (!pmap_demote_l2_locked(pmap, l2, sva, &lock)) {
+				if (lock != NULL)
+					rw_wunlock(lock);
+
+				/*
+				 * The 2MB page mapping was destroyed.
+				 */
+				continue;
+			}
+
+			/*
+			 * Unless the page mappings are wired, remove the
+			 * mapping to a single page so that a subsequent
+			 * access may repromote.  Since the underlying page
+			 * table page is fully populated, this removal never
+			 * frees a page table page.
+			 */
+			if ((oldl2 & ATTR_SW_WIRED) == 0) {
+				l3 = pmap_l2_to_l3(l2, sva);
+				KASSERT(pmap_load(l3) != 0,
+				    ("pmap_advise: invalid PTE"));
+				pmap_remove_l3(pmap, l3, sva, pmap_load(l2),
+				    NULL, &lock);
+			}
+			if (lock != NULL)
+				rw_wunlock(lock);
+		}
+		KASSERT((pmap_load(l2) & ATTR_DESCR_MASK) == L2_TABLE,
+		    ("pmap_advise: invalid L2 entry after demotion"));
+		if (va_next > eva)
+			va_next = eva;
+		va = va_next;
+		for (l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++,
+		    sva += L3_SIZE) {
+			oldl3 = pmap_load(l3);
+			if ((oldl3 & (ATTR_SW_MANAGED | ATTR_DESCR_MASK)) !=
+			    (ATTR_SW_MANAGED | L3_PAGE))
+				goto maybe_invlrng;
+			else if (pmap_pte_dirty(oldl3)) {
+				if (advice == MADV_DONTNEED) {
+					/*
+					 * Future calls to pmap_is_modified()
+					 * can be avoided by making the page
+					 * dirty now.
+					 */
+					m = PHYS_TO_VM_PAGE(oldl3 & ~ATTR_MASK);
+					vm_page_dirty(m);
+				}
+				while (!atomic_fcmpset_long(l3, &oldl3,
+				    (oldl3 & ~ATTR_AF) | ATTR_AP(ATTR_AP_RO)))
+					cpu_spinwait();
+			} else if ((oldl3 & ATTR_AF) != 0)
+				pmap_clear_bits(l3, ATTR_AF);
+			else
+				goto maybe_invlrng;
+			if (va == va_next)
+				va = sva;
+			continue;
+maybe_invlrng:
+			if (va != va_next) {
+				pmap_invalidate_range(pmap, va, sva);
+				va = va_next;
+			}
+		}
+		if (va != va_next)
+			pmap_invalidate_range(pmap, va, sva);
+	}
+	PMAP_UNLOCK(pmap);
 }
 
 /*
