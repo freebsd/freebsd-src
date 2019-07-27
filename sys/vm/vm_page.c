@@ -3461,7 +3461,12 @@ vm_page_free_prep(vm_page_t m)
 		pmap_page_set_memattr(m, VM_MEMATTR_DEFAULT);
 
 #if VM_NRESERVLEVEL > 0
-	if (vm_reserv_free_page(m))
+	/*
+	 * Determine whether the page belongs to a reservation.  If the page was
+	 * allocated from a per-CPU cache, it cannot belong to a reservation, so
+	 * as an optimization, we avoid the check in that case.
+	 */
+	if ((m->flags & PG_PCPU_CACHE) == 0 && vm_reserv_free_page(m))
 		return (false);
 #endif
 
