@@ -376,6 +376,10 @@ extern struct mtx_padalign pa_lock[];
 /*
  * Page flags.  If changed at any other time than page allocation or
  * freeing, the modification must be protected by the vm_page lock.
+ *
+ * The PG_PCPU_CACHE flag is set at allocation time if the page was
+ * allocated from a per-CPU cache.  It is cleared the next time that the
+ * page is allocated from the physical memory allocator.
  */
 #define	PG_PCPU_CACHE	0x0001		/* was allocated from per-CPU caches */
 #define	PG_FICTITIOUS	0x0004		/* physical page doesn't exist */
