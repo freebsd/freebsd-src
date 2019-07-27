@@ -957,8 +957,9 @@ ef10_rx_qps_packet_info(
 	*lengthp   = EFX_QWORD_FIELD(*qwordp, ES_DZ_PS_RX_PREFIX_ORIG_LEN);
 	buf_len    = EFX_QWORD_FIELD(*qwordp, ES_DZ_PS_RX_PREFIX_CAP_LEN);
 
-	buf_len = P2ROUNDUP(buf_len + EFX_RX_PACKED_STREAM_RX_PREFIX_SIZE,
-			    EFX_RX_PACKED_STREAM_ALIGNMENT);
+	buf_len = EFX_P2ROUNDUP(uint16_t,
+	    buf_len + EFX_RX_PACKED_STREAM_RX_PREFIX_SIZE,
+	    EFX_RX_PACKED_STREAM_ALIGNMENT);
 	*next_offsetp =
 	    current_offset + buf_len + EFX_RX_PACKED_STREAM_ALIGNMENT;
 
