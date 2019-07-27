@@ -40,6 +40,7 @@ device		clk
 device		phy
 device		hwreset
 device		regulator
+device		syscon
 
 # Pseudo devices.
 device		loop			# Network loopback
