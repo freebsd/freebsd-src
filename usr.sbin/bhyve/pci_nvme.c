@@ -1925,6 +1925,12 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		goto done;
 	}
 
+	error = pci_emul_add_pciecap(pi, PCIEM_TYPE_ROOT_INT_EP);
+	if (error) {
+		WPRINTF(("%s pci add Express capability failed\r\n", __func__));
+		goto done;
+	}
+
 	pthread_mutex_init(&sc->mtx, NULL);
 	sem_init(&sc->iosemlock, 0, sc->ioslots);
 
