@@ -947,15 +947,23 @@ pci_emul_add_pciecap(struct pci_devinst *pi, int type)
 	int err;
 	struct pciecap pciecap;
 
-	if (type != PCIEM_TYPE_ROOT_PORT)
-		return (-1);
-
 	bzero(&pciecap, sizeof(pciecap));
 
+	/*
+	 * Use the integrated endpoint type for endpoints on a root complex bus.
+	 *
+	 * NB: bhyve currently only supports a single PCI bus that is the root
+	 * complex bus, so all endpoints are integrated.
+	 */
+	if ((type == PCIEM_TYPE_ENDPOINT) && (pi->pi_bus == 0))
+		type = PCIEM_TYPE_ROOT_INT_EP;
+
 	pciecap.capid = PCIY_EXPRESS;
-	pciecap.pcie_capabilities = PCIECAP_VERSION | PCIEM_TYPE_ROOT_PORT;
-	pciecap.link_capabilities = 0x411;	/* gen1, x1 */
-	pciecap.link_status = 0x11;		/* gen1, x1 */
+	pciecap.pcie_capabilities = PCIECAP_VERSION | type;
+	if (type != PCIEM_TYPE_ROOT_INT_EP) {
+		pciecap.link_capabilities = 0x411;	/* gen1, x1 */
+		pciecap.link_status = 0x11;		/* gen1, x1 */
+	}
 
 	err = pci_emul_add_capability(pi, (u_char *)&pciecap, sizeof(pciecap));
 	return (err);
