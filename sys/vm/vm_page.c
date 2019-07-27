@@ -168,9 +168,9 @@ static int vm_page_reclaim_run(int req_class, int domain, u_long npages,
     vm_page_t m_run, vm_paddr_t high);
 static int vm_domain_alloc_fail(struct vm_domain *vmd, vm_object_t object,
     int req);
-static int vm_page_import(void *arg, void **store, int cnt, int domain,
+static int vm_page_zone_import(void *arg, void **store, int cnt, int domain,
     int flags);
-static void vm_page_release(void *arg, void **store, int cnt);
+static void vm_page_zone_release(void *arg, void **store, int cnt);
 
 SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
 
@@ -210,7 +210,7 @@ vm_page_init_cache_zones(void *dummy __unused)
 			pgcache->pool = pool;
 			pgcache->zone = uma_zcache_create("vm pgcache",
 			    sizeof(struct vm_page), NULL, NULL, NULL, NULL,
-			    vm_page_import, vm_page_release, pgcache,
+			    vm_page_zone_import, vm_page_zone_release, pgcache,
 			    UMA_ZONE_NOBUCKETCACHE | UMA_ZONE_MAXBUCKET |
 			    UMA_ZONE_VM);
 		}
@@ -2234,7 +2234,7 @@ again:
 }
 
 static int
-vm_page_import(void *arg, void **store, int cnt, int domain, int flags)
+vm_page_zone_import(void *arg, void **store, int cnt, int domain, int flags)
 {
 	struct vm_domain *vmd;
 	struct vm_pgcache *pgcache;
@@ -2257,7 +2257,7 @@ vm_page_import(void *arg, void **store, int cnt, int domain, int flags)
 }
 
 static void
-vm_page_release(void *arg, void **store, int cnt)
+vm_page_zone_release(void *arg, void **store, int cnt)
 {
 	struct vm_domain *vmd;
 	struct vm_pgcache *pgcache;
