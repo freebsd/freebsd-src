@@ -88,10 +88,6 @@ extern "C" {
 #define	IS_P2ALIGNED(v, a)	((((uintptr_t)(v)) & ((uintptr_t)(a) - 1)) == 0)
 #endif
 
-#ifndef P2ROUNDUP
-#define	P2ROUNDUP(x, align)	(-(-(x) & -(align)))
-#endif
-
 #ifndef P2ALIGN
 #define	P2ALIGN(_x, _a)		((_x) & -(_a))
 #endif
