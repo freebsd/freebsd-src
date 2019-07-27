@@ -85,6 +85,9 @@ static int nvme_debug = 0;
 
 #define	NVME_IOSLOTS		8
 
+/* The NVMe spec defines bits 13:4 in BAR0 as reserved */
+#define NVME_MMIO_SPACE_MIN	(1 << 14)
+
 #define	NVME_QUEUES		16
 #define	NVME_MAX_QENTRIES	2048
 
@@ -1897,9 +1900,16 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata8(pi, PCIR_PROGIF,
 	                 PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0);
 
-	/* allocate size of nvme registers + doorbell space for all queues */
+	/*
+	 * Allocate size of NVMe registers + doorbell space for all queues.
+	 *
+	 * The specification requires a minimum memory I/O window size of 16K.
+	 * The Windows driver will refuse to start a device with a smaller
+	 * window.
+	 */
 	pci_membar_sz = sizeof(struct nvme_registers) +
-	                2*sizeof(uint32_t)*(sc->max_queues + 1);
+	    2 * sizeof(uint32_t) * (sc->max_queues + 1);
+	pci_membar_sz = MAX(pci_membar_sz, NVME_MMIO_SPACE_MIN);
 
 	DPRINTF(("nvme membar size: %u\r\n", pci_membar_sz));
 
