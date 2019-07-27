@@ -375,8 +375,11 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		return (EINVAL);
 	}
 	/* Check for group size */
-	if (fs->e2fs_bpg == 0) {
-		printf("ext2fs: zero blocks per group\n");
+	if (fs->e2fs_bpg == 0 || fs->e2fs_fpg == 0) {
+		printf("ext2fs: zero blocks/fragments per group");
+		return (EINVAL);
+	} else if (fs->e2fs_bpg != fs->e2fs_fpg) {
+		printf("ext2fs: blocks per group not equal fragments per group");
 		return (EINVAL);
 	}
 	if (fs->e2fs_bpg != fs->e2fs_bsize * 8) {

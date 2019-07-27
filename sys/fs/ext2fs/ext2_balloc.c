@@ -67,7 +67,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 	struct indir indirs[NIADDR + 2];
 	e4fs_daddr_t nb, newb;
 	e2fs_daddr_t *bap, pref;
-	int osize, nsize, num, i, error;
+	int num, i, error;
 
 	*bpp = NULL;
 	if (lbn < 0)
@@ -93,56 +93,25 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		 * no new block is to be allocated, and no need to expand
 		 * the file
 		 */
-		if (nb != 0 && ip->i_size >= (lbn + 1) * fs->e2fs_bsize) {
+		if (nb != 0) {
 			error = bread(vp, lbn, fs->e2fs_bsize, NOCRED, &bp);
 			if (error) {
 				brelse(bp);
 				return (error);
 			}
 			bp->b_blkno = fsbtodb(fs, nb);
-			*bpp = bp;
-			return (0);
-		}
-		if (nb != 0) {
-			/*
-			 * Consider need to reallocate a fragment.
-			 */
-			osize = fragroundup(fs, blkoff(fs, ip->i_size));
-			nsize = fragroundup(fs, size);
-			if (nsize <= osize) {
-				error = bread(vp, lbn, osize, NOCRED, &bp);
-				if (error) {
-					brelse(bp);
-					return (error);
-				}
-				bp->b_blkno = fsbtodb(fs, nb);
-			} else {
-				/*
-				 * Godmar thinks: this shouldn't happen w/o
-				 * fragments
-				 */
-				printf("nsize %d(%d) > osize %d(%d) nb %d\n",
-				    (int)nsize, (int)size, (int)osize,
-				    (int)ip->i_size, (int)nb);
-				panic(
-				    "ext2_balloc: Something is terribly wrong");
-/*
- * please note there haven't been any changes from here on -
- * FFS seems to work.
- */
+			if (ip->i_size >= (lbn + 1) * fs->e2fs_bsize) {
+				*bpp = bp;
+				return (0);
 			}
 		} else {
-			if (ip->i_size < (lbn + 1) * fs->e2fs_bsize)
-				nsize = fragroundup(fs, size);
-			else
-				nsize = fs->e2fs_bsize;
 			EXT2_LOCK(ump);
 			error = ext2_alloc(ip, lbn,
 			    ext2_blkpref(ip, lbn, (int)lbn, &ip->i_db[0], 0),
-			    nsize, cred, &newb);
+			    fs->e2fs_bsize, cred, &newb);
 			if (error)
 				return (error);
-			bp = getblk(vp, lbn, nsize, 0, 0, 0);
+			bp = getblk(vp, lbn, fs->e2fs_bsize, 0, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
 			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
@@ -227,7 +196,6 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		 */
 		if ((error = bwrite(nbp)) != 0) {
 			ext2_blkfree(ip, nb, fs->e2fs_bsize);
-			EXT2_UNLOCK(ump);
 			brelse(bp);
 			return (error);
 		}
