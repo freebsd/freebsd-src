@@ -100,7 +100,8 @@ int	turnstile_signal(struct turnstile *, int);
 struct turnstile *turnstile_trywait(struct lock_object *);
 void	turnstile_unpend(struct turnstile *);
 void	turnstile_wait(struct turnstile *, struct thread *, int);
-struct thread *turnstile_lock(struct turnstile *, struct lock_object **);
+bool	turnstile_lock(struct turnstile *, struct lock_object **,
+	    struct thread **);
 void	turnstile_unlock(struct turnstile *, struct lock_object *);
 void	turnstile_assert(struct turnstile *);
 #endif	/* _KERNEL */

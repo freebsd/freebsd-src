@@ -440,26 +440,20 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused,
 			 */
 			critical_enter();
 			thread_unlock(td);
-			owner = turnstile_lock(ts, &lock);
-			/*
-			 * The owner pointer indicates that the lock succeeded.
-			 * Only in case we hold the lock and the turnstile we
-			 * locked is still the one that curwaittd is blocked on
-			 * can we continue. Otherwise the turnstile pointer has
-			 * been changed out from underneath us, as in the case
-			 * where the lock holder has signalled curwaittd,
-			 * and we need to continue.
-			 */
-			if (owner != NULL && ts == curwaittd->td_blocked) {
-				MPASS(TD_IS_INHIBITED(curwaittd) &&
-				    TD_ON_LOCK(curwaittd));
-				critical_exit();
-				turnstile_wait(ts, owner, curwaittd->td_tsqueue);
-				counter_u64_add(turnstile_count, 1);
-				thread_lock(td);
-				return;
-			} else if (owner != NULL)
+
+			if (turnstile_lock(ts, &lock, &owner)) {
+				if (ts == curwaittd->td_blocked) {
+					MPASS(TD_IS_INHIBITED(curwaittd) &&
+					    TD_ON_LOCK(curwaittd));
+					critical_exit();
+					turnstile_wait(ts, owner,
+					    curwaittd->td_tsqueue);
+					counter_u64_add(turnstile_count, 1);
+					thread_lock(td);
+					return;
+				}
 				turnstile_unlock(ts, lock);
+			}
 			thread_lock(td);
 			critical_exit();
 			KASSERT(td->td_locks == locksheld,
