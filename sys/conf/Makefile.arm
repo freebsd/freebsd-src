@@ -65,85 +65,12 @@ SYSTEM_LD_ = ${LD} -m ${LD_EMULATION} -Bdynamic -T ldscript.$M.noheader \
 	${_LDFLAGS} --no-warn-mismatch --warn-common --export-dynamic \
 	--dynamic-linker /red/herring \
 	-o ${FULLKERNEL}.noheader -X ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\
+SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M \
 		>ldscript.$M.noheader; \
 		${SYSTEM_LD_}; \
 		${OBJCOPY} -S -O binary ${FULLKERNEL}.noheader \
 		${KERNEL_KO}.bin; \
 		rm ${FULLKERNEL}.noheader
-
-FILES_CPU_FUNC = \
-	$S/$M/$M/cpufunc_asm_armv5_ec.S \
-	$S/$M/$M/cpufunc_asm_sheeva.S
-
-.if ${MACHINE_ARCH:Marmv[67]*} == "" && defined(KERNPHYSADDR)
-KERNEL_EXTRA=trampoline
-KERNEL_EXTRA_INSTALL=kernel.gz.tramp
-trampoline: ${KERNEL_KO}.tramp
-${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
-	echo "#define KERNNAME \"${KERNEL_KO}.tmp\"" >opt_kernname.h 
-	sed s/${KERNVIRTADDR}/${KERNPHYSADDR}/ ldscript.$M > ldscript.$M.tramp
-	sed s/" + SIZEOF_HEADERS"// ldscript.$M.tramp > \
-	    ldscript.$M.tramp.noheader
-	echo "#include <machine/asm.h>" >tmphack.S
-	echo "ENTRY(_start)" >>tmphack.S
-	echo "bl _startC" >>tmphack.S
-	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
-	    -g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
-	eval $$(stat -s ${KERNEL_KO}.tmp) && \
-	    echo "#define KERNSIZE $$st_size" >>opt_kernname.h
-	${CC} -O -nostdlib -I. -I$S \
-	    -Xlinker -T -Xlinker ldscript.$M.tramp \
-	    -DELF_TRAMPOLINE \
-	    tmphack.S \
-	    $S/$M/$M/elf_trampoline.c \
-	    $S/$M/$M/inckern.S \
-	    ${FILES_CPU_FUNC} \
-	    -o ${KERNEL_KO}.tramp
-	${CC} -O -nostdlib -I. -I$S \
-	    -Xlinker -T -Xlinker ldscript.$M.tramp.noheader \
-	    -DELF_TRAMPOLINE \
-	    tmphack.S \
-	    $S/$M/$M/elf_trampoline.c \
-	    $S/$M/$M/inckern.S \
-	    ${FILES_CPU_FUNC} \
-	    -o ${KERNEL_KO}.tramp.noheader 
-	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
-	    ${KERNEL_KO}.tramp.bin 
-	${OBJCOPY} ${STRIP_FLAGS} ${KERNEL_KO}.tmp 
-	echo "#define KERNNAME \"${KERNEL_KO}.tmp.gz\"" >opt_kernname.h 
-	eval $$(stat -s ${KERNEL_KO}.tmp) && \
-	    echo "#define KERNSIZE $$st_size" >>opt_kernname.h
-	gzip -f9 ${KERNEL_KO}.tmp
-	eval $$(stat -s ${KERNEL_KO}.tmp.gz) && \
-	    echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
-	${CC} -O2 -ffreestanding -I. -I$S -c \
-	    -DKZIP -DELF_TRAMPOLINE \
-	    $S/kern/subr_inflate.c \
-	    -o inflate-tramp.o
-	${CC} -O -nostdlib -I. -I$S \
-	    -Xlinker -T -Xlinker ldscript.$M.tramp \
-	    -DKZIP -DELF_TRAMPOLINE \
-	    tmphack.S \
-	    $S/$M/$M/elf_trampoline.c \
-	    inflate-tramp.o \
-	    $S/$M/$M/inckern.S \
-	    ${FILES_CPU_FUNC} \
-	    -o ${KERNEL_KO}.gz.tramp
-	${CC} -O -nostdlib -I. -I$S \
-	    -Xlinker -T -Xlinker ldscript.$M.tramp.noheader \
-	    -DKZIP -DELF_TRAMPOLINE \
-	    tmphack.S \
-	    $S/$M/$M/elf_trampoline.c \
-	    inflate-tramp.o \
-	    $S/$M/$M/inckern.S \
-	    ${FILES_CPU_FUNC} \
-	    -o ${KERNEL_KO}.tramp.noheader
-	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
-	    ${KERNEL_KO}.gz.tramp.bin
-	rm ${KERNEL_KO}.tmp.gz ${KERNEL_KO}.tramp.noheader opt_kernname.h \
-	    inflate-tramp.o tmphack.S
-.endif
 
 %BEFORE_DEPEND
 
@@ -159,13 +86,9 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 
 CLEAN+=	ldscript.$M ${KERNEL_KO}.bin ldscript.$M.noheader
 
-CLEAN+= ${KERNEL_KO}.tramp ${KERNEL_KO}.tramp.bin ldscript.$M.tramp \
-	ldscript.$M.tramp.noheader ${KERNEL_KO}.gz.tramp \
-	${KERNEL_KO}.gz.tramp.bin
-
 ldscript.$M: $S/conf/ldscript.$M
-	cat $S/conf/ldscript.$M|sed s/KERNPHYSADDR/${KERNPHYSADDR}/g| \
-	  sed s/KERNVIRTADDR/${KERNVIRTADDR}/g > ldscript.$M
+	sed s/KERNVIRTADDR/${KERNVIRTADDR}/g > ldscript.$M < $S/conf/ldscript.$M
+
 %RULES
 	
 .include "$S/conf/kern.post.mk"
