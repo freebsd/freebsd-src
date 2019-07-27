@@ -1073,7 +1073,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	params->lun_size_bytes = be_lun->size_bytes;
 
 	value = dnvlist_get_string(cbe_lun->options, "unmap", NULL);
-	if (value != NULL && strcmp(value, "off") != 0)
+	if (value == NULL || strcmp(value, "off") != 0)
 		cbe_lun->flags |= CTL_LUN_FLAG_UNMAP;
 	value = dnvlist_get_string(cbe_lun->options, "readonly", NULL);
 	if (value != NULL) {
