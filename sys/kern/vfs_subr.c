@@ -951,11 +951,12 @@ vattr_null(struct vattr *vap)
  * @param mp		 Try to reclaim vnodes from this mountpoint
  * @param reclaim_nc_src Only reclaim directories with outgoing namecache
  * 			 entries if this argument is strue
- * @param reclaim_free	 Only reclaim free vnodes if this is set.
+ * @param trigger	 Only reclaim vnodes with fewer than this many resident
+ *			 pages.
  * @return		 The number of vnodes that were reclaimed.
  */
 static int
-vlrureclaim(struct mount *mp, int reclaim_nc_src, int trigger)
+vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 {
 	struct vnode *vp;
 	int count, done, target;
@@ -1244,7 +1245,8 @@ vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
 	unsigned long onumvnodes;
-	int done, force, reclaim_nc_src, trigger, usevnodes;
+	int done, force, trigger, usevnodes;
+	bool reclaim_nc_src;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, vnlruproc,
 	    SHUTDOWN_PRI_FIRST);
