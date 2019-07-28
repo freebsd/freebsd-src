@@ -311,6 +311,7 @@ tcp_pcap_add(struct tcphdr *th, struct mbuf *m, struct mbufq *queue)
 			if (mhead->m_flags & M_EXT) {
 				switch (mhead->m_ext.ext_type) {
 				case EXT_SFBUF:
+				case EXT_PGS:
 					/* Don't mess around with these. */
 					tcp_pcap_m_freem(mhead);
 					continue;
@@ -383,8 +384,11 @@ tcp_pcap_add(struct tcphdr *th, struct mbuf *m, struct mbufq *queue)
 			__func__, n->m_flags));
 		n->m_data = n->m_dat + M_LEADINGSPACE_NOWRITE(m);
 		n->m_len = m->m_len;
-		bcopy(M_START(m), n->m_dat,
-			m->m_len + M_LEADINGSPACE_NOWRITE(m));
+		if (m->m_flags & M_NOMAP)
+			m_copydata(m, 0, m->m_len, n->m_data);
+		else
+			bcopy(M_START(m), n->m_dat,
+			    m->m_len + M_LEADINGSPACE_NOWRITE(m));
 	}
 	else {
 		/*

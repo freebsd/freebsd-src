@@ -137,7 +137,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 *  the MQES field in the capabilities register.
 	 */
 	cap_lo = nvme_mmio_read_4(ctrlr, cap_lo);
-	mqes = (cap_lo >> NVME_CAP_LO_REG_MQES_SHIFT) & NVME_CAP_LO_REG_MQES_MASK;
+	mqes = NVME_CAP_LO_MQES(cap_lo);
 	num_entries = min(num_entries, mqes + 1);
 
 	num_trackers = NVME_IO_TRACKERS;
@@ -1227,7 +1227,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	struct make_dev_args	md_args;
 	uint32_t	cap_lo;
 	uint32_t	cap_hi;
-	uint8_t		to;
+	uint32_t	to;
 	uint8_t		dstrd;
 	uint8_t		mpsmin;
 	int		status, timeout_period;
@@ -1246,16 +1246,16 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	 *  other than zero, but this driver is not set up to handle that.
 	 */
 	cap_hi = nvme_mmio_read_4(ctrlr, cap_hi);
-	dstrd = (cap_hi >> NVME_CAP_HI_REG_DSTRD_SHIFT) & NVME_CAP_HI_REG_DSTRD_MASK;
+	dstrd = NVME_CAP_HI_DSTRD(cap_hi);
 	if (dstrd != 0)
 		return (ENXIO);
 
-	mpsmin = (cap_hi >> NVME_CAP_HI_REG_MPSMIN_SHIFT) & NVME_CAP_HI_REG_MPSMIN_MASK;
+	mpsmin = NVME_CAP_HI_MPSMIN(cap_hi);
 	ctrlr->min_page_size = 1 << (12 + mpsmin);
 
 	/* Get ready timeout value from controller, in units of 500ms. */
 	cap_lo = nvme_mmio_read_4(ctrlr, cap_lo);
-	to = (cap_lo >> NVME_CAP_LO_REG_TO_SHIFT) & NVME_CAP_LO_REG_TO_MASK;
+	to = NVME_CAP_LO_TO(cap_lo) + 1;
 	ctrlr->ready_timeout_in_ms = to * 500;
 
 	timeout_period = NVME_DEFAULT_TIMEOUT_PERIOD;

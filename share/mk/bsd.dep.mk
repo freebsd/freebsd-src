@@ -121,17 +121,27 @@ CLEANFILES+= ${_LC}
 SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
 CLEANFILES+= ${_YC}
 .if !empty(YFLAGS:M-d) && !empty(SRCS:My.tab.h)
-.ORDER: ${_YC} y.tab.h
-y.tab.h: .NOMETA
-${_YC} y.tab.h: ${_YSRC}
+# Multi-output targets both expect a .meta file and will fight over it. Only
+# allow it on the .c file instead.
+y.tab.h: ${_YC} .NOMETA
+# Force rebuild the .c file if any of its other outputs are missing.
+.if !exists(y.tab.h)
+${_YC}: .PHONY .META
+.endif
+${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} ${.ALLSRC}
 	cp y.tab.c ${_YC}
 CLEANFILES+= y.tab.c y.tab.h
 .elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h
-.ORDER: ${_YC} ${_YH}
-${_YH}: .NOMETA
-${_YC} ${_YH}: ${_YSRC}
+# Multi-output targets both expect a .meta file and will fight over it. Only
+# allow it on the .c file instead.
+${_YH}: ${_YC} .NOMETA
+# Force rebuild the .c file if any of its other outputs are missing.
+.if !exists(${_YH})
+${_YC}: .PHONY .META
+.endif
+${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 SRCS+=	${_YH}
 CLEANFILES+= ${_YH}

@@ -365,7 +365,8 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_REGION_LENGTH */              "Operation Region declared with zero length",
 /*    ASL_MSG_TEMPORARY_OBJECT */           "Object is created temporarily in another method and cannot be accessed",
 /*    ASL_MSG_UNDEFINED_EXTERNAL */         "Named object was declared external but the actual definition does not exist",
-/*    ASL_MSG_BUFFER_FIELD_OVERFLOW */        "Buffer field extends beyond end of target buffer"
+/*    ASL_MSG_BUFFER_FIELD_OVERFLOW */      "Buffer field extends beyond end of target buffer",
+/*    ASL_MSG_INVALID_SPECIAL_NAME */       "declaration of this named object outside root scope is illegal"
 };
 
 /* Table compiler */

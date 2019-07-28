@@ -462,3 +462,28 @@ sf_buf_unmap(struct sf_buf *sf)
 	pmap_qremove(sf->kva, 1);
 	return (1);
 }
+
+uint32_t casuword32_int(volatile uint32_t *base, uint32_t oldval,
+    uint32_t newval);
+uint32_t
+casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval)
+{
+	uint32_t ret;
+
+	ret = casuword32_int(base, oldval, newval);
+	if (ret != -1)
+		ret = ret != oldval;
+	return (ret);
+}
+
+u_long casuword64_int(volatile u_long *p, u_long oldval, u_long newval);
+u_long
+casuword(volatile u_long *p, u_long oldval, u_long newval)
+{
+	u_long ret;
+
+	ret = casuword64_int(p, oldval, newval);
+	if (ret != -1L)
+		ret = ret != oldval;
+	return (ret);
+}

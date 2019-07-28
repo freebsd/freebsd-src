@@ -12,9 +12,14 @@ GENSNMPTREEFLAGS+=	-I${SHAREDIR}/snmpdefs
 ${MOD}_oid.h: ${MOD}_tree.def ${EXTRAMIBDEFS} ${EXTRAMIBSYMS}
 	cat ${.ALLSRC} | gensnmptree ${GENSNMPTREEFLAGS} -e ${XSYM} > ${.TARGET}
 
-.ORDER: ${MOD}_tree.c ${MOD}_tree.h
-${MOD}_tree.h: .NOMETA
-${MOD}_tree.c ${MOD}_tree.h: ${MOD}_tree.def ${EXTRAMIBDEFS}
+# Multi-output targets both expect a .meta file and will fight over it. Only
+# allow it on the .c file instead.
+${MOD}_tree.h: ${MOD}_tree.c .NOMETA
+# Force rebuild the .c file if any of its other outputs are missing.
+.if !exists(${MOD}_tree.h)
+${MOD}_tree.c: .PHONY .META
+.endif
+${MOD}_tree.c: ${MOD}_tree.def ${EXTRAMIBDEFS}
 	cat ${.ALLSRC} | gensnmptree -f ${GENSNMPTREEFLAGS} -p ${MOD}_
 
 .if defined(DEFS)

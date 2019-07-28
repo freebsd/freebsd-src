@@ -428,6 +428,7 @@ suword32(volatile void *base, int32_t word)
 struct casueword_arg0 {
 	uint32_t oldval;
 	uint32_t newval;
+	int res;
 };
 
 static void
@@ -436,7 +437,8 @@ casueword_slow0(vm_offset_t kva, void *arg)
 	struct casueword_arg0 *ca;
 
 	ca = arg;
-	atomic_fcmpset_int((u_int *)kva, &ca->oldval, ca->newval);
+	ca->res = 1 - atomic_fcmpset_int((u_int *)kva, &ca->oldval,
+	    ca->newval);
 }
 
 int
@@ -452,7 +454,7 @@ casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
 	    casueword_slow0, &ca);
 	if (res == 0) {
 		*oldvalp = ca.oldval;
-		return (0);
+		return (ca.res);
 	}
 	return (-1);
 }
@@ -469,7 +471,7 @@ casueword(volatile u_long *base, u_long oldval, u_long *oldvalp, u_long newval)
 	    casueword_slow0, &ca);
 	if (res == 0) {
 		*oldvalp = ca.oldval;
-		return (0);
+		return (ca.res);
 	}
 	return (-1);
 }

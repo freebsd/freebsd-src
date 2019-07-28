@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -67,7 +67,7 @@ extern int sc_width, sc_height;
 extern int utf_mode;
 extern POSITION start_attnpos;
 extern POSITION end_attnpos;
-extern LWCHAR rscroll_char;
+extern char rscroll_char;
 extern int rscroll_attr;
 
 static char mbc_buf[MAX_UTF_CHAR_LEN];
@@ -79,14 +79,14 @@ static POSITION mbc_pos;
  * Initialize from environment variables.
  */
 	public void
-init_line()
+init_line(VOID_PARAM)
 {
 	end_ansi_chars = lgetenv("LESSANSIENDCHARS");
-	if (end_ansi_chars == NULL || *end_ansi_chars == '\0')
+	if (isnullenv(end_ansi_chars))
 		end_ansi_chars = "m";
 
 	mid_ansi_chars = lgetenv("LESSANSIMIDCHARS");
-	if (mid_ansi_chars == NULL || *mid_ansi_chars == '\0')
+	if (isnullenv(mid_ansi_chars))
 		mid_ansi_chars = "0123456789:;[?!\"'#%()*+ ";
 
 	linebuf = (char *) ecalloc(LINEBUF_SIZE, sizeof(char));
@@ -98,7 +98,7 @@ init_line()
  * Expand the line buffer.
  */
 	static int
-expand_linebuf()
+expand_linebuf(VOID_PARAM)
 {
 	/* Double the size of the line buffer. */
 	int new_size = size_linebuf * 2;
@@ -119,15 +119,7 @@ expand_linebuf()
 			free(new_buf);
 		return 1;
 	}
-#if HAVE_REALLOC
-	/*
-	 * We realloc'd the buffers; they already have the old contents.
-	 */
-	#if 0
-	memset(new_buf + size_linebuf, 0, new_size - size_linebuf);
-	memset(new_attr + size_linebuf, 0, new_size - size_linebuf);
-	#endif
-#else
+#if !HAVE_REALLOC
 	/*
 	 * We just calloc'd the buffers; copy the old contents.
 	 */
@@ -156,7 +148,7 @@ is_ascii_char(ch)
  * Rewind the line buffer.
  */
 	public void
-prewind()
+prewind(VOID_PARAM)
 {
 	curr = 0;
 	column = 0;
@@ -179,7 +171,7 @@ prewind()
 	static void
 set_linebuf(n, ch, a)
 	int n;
-	LWCHAR ch;
+	char ch;
 	char a;
 {
 	linebuf[n] = ch;
@@ -191,7 +183,7 @@ set_linebuf(n, ch, a)
  */
 	static void
 add_linebuf(ch, a, w)
-	LWCHAR ch;
+	char ch;
 	char a;
 	int w;
 {
@@ -395,7 +387,7 @@ pshift(shift)
  *
  */
 	public void
-pshift_all()
+pshift_all(VOID_PARAM)
 {
 	pshift(column);
 }
@@ -519,7 +511,7 @@ pwidth(ch, a, prev_ch)
  * Return 1 if one is found.
  */
 	static int
-backc()
+backc(VOID_PARAM)
 {
 	LWCHAR prev_ch;
 	char *p = linebuf + curr;
@@ -547,7 +539,7 @@ backc()
  * Are we currently within a recognized ANSI escape sequence?
  */
 	static int
-in_ansi_esc_seq()
+in_ansi_esc_seq(VOID_PARAM)
 {
 	char *p;
 
@@ -1046,7 +1038,7 @@ do_append(ch, rep, pos)
  *
  */
 	public int
-pflushmbc()
+pflushmbc(VOID_PARAM)
 {
 	int r = 0;
 
@@ -1063,7 +1055,7 @@ pflushmbc()
  * Switch to normal attribute at end of line.
  */
 	static void
-add_attr_normal()
+add_attr_normal(VOID_PARAM)
 {
 	char *p = "\033[m";
 
@@ -1215,7 +1207,7 @@ gline(i, ap)
  * Indicate that there is no current line.
  */
 	public void
-null_line()
+null_line(VOID_PARAM)
 {
 	is_null_line = 1;
 	cshift = 0;
@@ -1349,7 +1341,7 @@ back_raw_line(curr_pos, linep, line_lenp)
  * Find the shift necessary to show the end of the longest displayed line.
  */
 	public int
-rrshift()
+rrshift(VOID_PARAM)
 {
 	POSITION pos;
 	int save_width;

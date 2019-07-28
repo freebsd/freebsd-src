@@ -160,7 +160,6 @@ void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
 void	identify_cpu(void);
 void	install_cpu_errata(void);
-void	print_cpu_features(u_int);
 void	swi_vm(void *v);
 
 #define	CPU_AFFINITY(cpu)	__cpu_affinity[(cpu)]

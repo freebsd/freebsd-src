@@ -35,11 +35,13 @@ DATAFORM=		main
 
 LOCALTIME=	GMT
 
-# If you want something other than Eastern United States time as a template
-# for handling ruleless POSIX-style timezone environment variables,
+# The POSIXRULES macro controls interpretation of nonstandard and obsolete
+# POSIX-like TZ settings like TZ='EET-2EEST' that lack DST transition rules.
+# In the reference implementation, if you want something other than Eastern
+# United States time as a template for handling these settings, you can
 # change the line below (after finding the timezone you want in the
 # one of the $(TDATA) source files, or adding it to a source file).
-# A ruleless environment setting like TZ='CST6CDT' uses the rules in the
+# A setting like TZ='EET-2EEST' is supposed to use the rules in the
 # template file to determine "spring forward" and "fall back" days and
 # times; the environment variable itself specifies UT offsets of standard and
 # daylight saving time.
@@ -49,6 +51,17 @@ LOCALTIME=	GMT
 # Use the command
 #	make zonenames
 # to get a list of the values you can use for POSIXRULES.
+#
+# If POSIXRULES is empty, no template is installed; this is the intended
+# future default for POSIXRULES.
+#
+# Nonempty POSIXRULES is obsolete and should not be relied on, because:
+# * It does not work correctly in popular implementations such as GNU/Linux.
+# * It does not work in the tzdb implementation for timestamps after 2037.
+# * It is incompatible with 'zic -b slim' if POSIXRULES specifies transitions
+#   at standard time or UT rather than at local time.
+# In short, software should avoid ruleless settings like TZ='EET-2EEST'
+# and so should not depend on the value of POSIXRULES.
 
 POSIXRULES=	America/New_York
 
@@ -231,6 +244,13 @@ LDLIBS=
 #	other than simply getting garbage data
 #  -DUSE_LTZ=0 to build zdump with the system time zone library
 #	Also set TZDOBJS=zdump.o and CHECK_TIME_T_ALTERNATIVES= below.
+#  -DZIC_BLOAT_DEFAULT=\"slim\" to default zic's -b option to "slim", and
+#	similarly for "fat".  Fat TZif files work around incompatibilities
+#	and bugs in some TZif readers, notably readers that mishandle 64-bit
+#	data in TZif files.  Slim TZif files are more efficient and do not
+#	work around these incompatibilities and bugs.  If not given, the
+#	current default is "fat" but this is intended to change as readers
+#	requiring fat files often mishandle timestamps after 2037 anyway.
 #  -DZIC_MAX_ABBR_LEN_WO_WARN=3
 #	(or some other number) to set the maximum time zone abbreviation length
 #	that zic will accept without a warning (the default is 6)
@@ -364,7 +384,9 @@ ZIC=		$(zic) $(ZFLAGS)
 
 # To shrink the size of installed TZif files,
 # append "-r @N" to omit data before N-seconds-after-the-Epoch.
-# See the zic man page for more about -r.
+# You can also append "-b slim" if that is not already the default;
+# see ZIC_BLOAT_DEFAULT above.
+# See the zic man page for more about -b and -r.
 ZFLAGS=
 
 # How to use zic to install TZif files.
@@ -387,6 +409,9 @@ KSHELL=		/bin/bash
 
 # Name of curl <https://curl.haxx.se/>, used for HTML validation.
 CURL=		curl
+
+# Name of GNU Privacy Guard <https://gnupg.org/>, used to sign distributions.
+GPG=		gpg
 
 # The path where SGML DTDs are kept and the catalog file(s) to use when
 # validating HTML 4.01.  The default should work on both Debian and Red Hat.
@@ -562,7 +587,9 @@ install:	all $(DATA) $(REDO) $(MANS)
 			'$(DESTDIR)$(LIBDIR)' \
 			'$(DESTDIR)$(MANDIR)/man3' '$(DESTDIR)$(MANDIR)/man5' \
 			'$(DESTDIR)$(MANDIR)/man8'
-		$(ZIC_INSTALL) -l $(LOCALTIME) -p $(POSIXRULES) \
+		$(ZIC_INSTALL) -l $(LOCALTIME) \
+			`case '$(POSIXRULES)' in ?*) echo '-p';; esac \
+			` $(POSIXRULES) \
 			-t '$(DESTDIR)$(TZDEFAULT)'
 		cp -f $(TABDATA) '$(DESTDIR)$(TZDIR)/.'
 		cp tzselect '$(DESTDIR)$(BINDIR)/.'
@@ -781,12 +808,6 @@ CHECK_CC_LIST = { n = split($$1,a,/,/); for (i=2; i<=n; i++) print a[1], a[i]; }
 check_sorted: backward backzone iso3166.tab zone.tab zone1970.tab
 		$(AWK) '/^Link/ {print $$3}' backward | LC_ALL=C sort -cu
 		$(AWK) '/^Zone/ {print $$2}' backzone | LC_ALL=C sort -cu
-		$(AWK) '/^[^#]/ {print $$1}' iso3166.tab | LC_ALL=C sort -cu
-		$(AWK) '/^[^#]/ {print $$1}' zone.tab | LC_ALL=C sort -c
-		$(AWK) '/^[^#]/ {print substr($$0, 1, 2)}' zone1970.tab | \
-		  LC_ALL=C sort -c
-		$(AWK) '/^[^#]/ $(CHECK_CC_LIST)' zone1970.tab | \
-		  LC_ALL=C sort -cu
 		touch $@
 
 check_links:	checklinks.awk $(TDATA_TO_CHECK) tzdata.zi
@@ -1051,7 +1072,7 @@ tzdata$(VERSION).tar.gz.asc: tzdata$(VERSION).tar.gz
 tzdata$(VERSION)-rearguard.tar.gz.asc: tzdata$(VERSION)-rearguard.tar.gz
 tzdb-$(VERSION).tar.lz.asc: tzdb-$(VERSION).tar.lz
 $(ALL_ASC):
-		gpg2 --armor --detach-sign $?
+		$(GPG) --armor --detach-sign $?
 
 TYPECHECK_CFLAGS = $(CFLAGS) -DTYPECHECK -D__time_t_defined -D_TIME_T
 typecheck: typecheck_long_long typecheck_unsigned

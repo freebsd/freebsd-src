@@ -227,7 +227,8 @@ struct syscall {
 };
 
 struct syscall *get_syscall(struct threadinfo *, u_int, u_int);
-char *print_arg(struct syscall_args *, unsigned long*, long *, struct trussinfo *);
+char *print_arg(struct syscall_args *, unsigned long*, register_t *,
+    struct trussinfo *);
 
 /*
  * Linux Socket defines
@@ -271,5 +272,5 @@ struct linux_socketcall_args {
 
 void init_syscalls(void);
 void print_syscall(struct trussinfo *);
-void print_syscall_ret(struct trussinfo *, int, long *);
+void print_syscall_ret(struct trussinfo *, int, register_t *);
 void print_summary(struct trussinfo *trussinfo);

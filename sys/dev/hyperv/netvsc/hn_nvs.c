@@ -365,7 +365,7 @@ hn_nvs_disconn_rxbuf(struct hn_softc *sc)
 		pause("lingtx", (200 * hz) / 1000);
 	}
 
-	if (sc->hn_rxbuf_gpadl != 0) {
+	if (vmbus_current_version < VMBUS_VERSION_WIN10 && sc->hn_rxbuf_gpadl != 0) {
 		/*
 		 * Disconnect RXBUF from primary channel.
 		 */
@@ -426,7 +426,7 @@ hn_nvs_disconn_chim(struct hn_softc *sc)
 		pause("lingtx", (200 * hz) / 1000);
 	}
 
-	if (sc->hn_chim_gpadl != 0) {
+	if (vmbus_current_version < VMBUS_VERSION_WIN10 && sc->hn_chim_gpadl != 0) {
 		/*
 		 * Disconnect chimney sending buffer from primary channel.
 		 */

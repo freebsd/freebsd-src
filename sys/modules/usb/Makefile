@@ -55,6 +55,7 @@ SUBDIR += uether aue axe axge cdce cue ${_kue} mos rue smsc udav uhso ipheth
 SUBDIR += muge
 SUBDIR += ure urndis
 SUBDIR += usfs umass urio
+SUBDIR += ${_uacpi}
 SUBDIR += quirk template
 SUBDIR += ${_g_audio} ${_g_keyboard} ${_g_modem} ${_g_mouse}
 
@@ -100,6 +101,11 @@ _avr32dci=	avr32dci
 
 .if ${MACHINE_CPUARCH} == "mips"
 _saf1761otg=	saf1761otg
+.endif
+
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
+_uacpi=		uacpi
 .endif
 
 .include <bsd.subdir.mk>

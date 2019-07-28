@@ -8,8 +8,7 @@ PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c
 LIBADD=	util
 
-.if !defined(RELEASE_CRUNCH) && \
-	${MK_LS_COLORS} != no
+.if ${MK_LS_COLORS} != no
 CFLAGS+= -DCOLORLS
 LIBADD+=	termcapw
 .endif

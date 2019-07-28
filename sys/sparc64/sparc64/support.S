@@ -403,28 +403,27 @@ fs_nofault_begin:
 	.set	susword, suword16
 	.set	suword, suword64
 
-	.globl	casuword32, casuword, fuptr, suptr
-	.set	casuword, casuword64
+	.globl	casuword32_int, casuword64_int, fuptr, suptr
 	.set	fuptr, fuword64
 	.set	suptr, suword64
 
 /*
  * int32_t casuword32(volatile int32_t *p, int32_t e, int32_t s)
  */
-ENTRY(casuword32)
+ENTRY(casuword32_int)
 	casa	[%o0] ASI_AIUP, %o1, %o2
 	retl
 	 mov	%o2, %o0
-END(casuword32)
+END(casuword32_int)
 
 /*
  * int64_t casuword64(volatile int64_t *p, int64_t e, int64_t s)
  */
-ENTRY(casuword64)
+ENTRY(casuword64_int)
 	casxa	[%o0] ASI_AIUP, %o1, %o2
 	retl
 	 mov	%o2, %o0
-END(casuword64)
+END(casuword64_int)
 
 /*
  * int fuword8(const void *base)

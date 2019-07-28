@@ -6330,12 +6330,9 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	if (!sc->sc_attached)
 		return 0;
 	sc->sc_attached = 0;
-
-	if (do_net80211)
+	if (do_net80211) {
 		ieee80211_draintask(&sc->sc_ic, &sc->sc_es_task);
-
-	callout_drain(&sc->sc_led_blink_to);
-	callout_drain(&sc->sc_watchdog_to);
+	}
 	iwm_stop_device(sc);
 	if (do_net80211) {
 		IWM_LOCK(sc);
@@ -6343,6 +6340,8 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		IWM_UNLOCK(sc);
 		ieee80211_ifdetach(&sc->sc_ic);
 	}
+	callout_drain(&sc->sc_led_blink_to);
+	callout_drain(&sc->sc_watchdog_to);
 
 	iwm_phy_db_free(sc->sc_phy_db);
 	sc->sc_phy_db = NULL;

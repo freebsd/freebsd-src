@@ -862,7 +862,6 @@ struct c4iw_ep {
 	u32 tx_chan;
 	u32 mtu;
 	u16 mss;
-	u16 emss;
 	u16 plen;
 	u16 rss_qid;
 	u16 txq_idx;

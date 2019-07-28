@@ -431,17 +431,28 @@ ino_dirty(ino_t ino)
 	struct iblkhd *hd;
 	struct suj_cg *sc;
 	ufs2_daddr_t blk;
+	int off;
 
 	blk = ino_to_fsba(fs, ino);
 	sc = cg_lookup(ino_to_cg(fs, ino));
 	iblk = sc->sc_lastiblk;
 	if (iblk && iblk->ib_blk == blk) {
+		if (fs->fs_magic == FS_UFS2_MAGIC) {
+			off = ino_to_fsbo(fs, ino);
+			ffs_update_dinode_ckhash(fs,
+			    &((struct ufs2_dinode *)iblk->ib_buf)[off]);
+		}
 		iblk->ib_dirty = 1;
 		return;
 	}
 	hd = &sc->sc_iblkhash[SUJ_HASH(fragstoblks(fs, blk))];
 	LIST_FOREACH(iblk, hd, ib_next) {
 		if (iblk->ib_blk == blk) {
+			if (fs->fs_magic == FS_UFS2_MAGIC) {
+				off = ino_to_fsbo(fs, ino);
+				ffs_update_dinode_ckhash(fs,
+				    &((struct ufs2_dinode *)iblk->ib_buf)[off]);
+			}
 			iblk->ib_dirty = 1;
 			return;
 		}

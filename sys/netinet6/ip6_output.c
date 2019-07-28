@@ -963,11 +963,30 @@ passout:
 	 */
 	if (sw_csum & CSUM_DELAY_DATA_IPV6) {
 		sw_csum &= ~CSUM_DELAY_DATA_IPV6;
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			error = ENOBUFS;
+			IP6STAT_INC(ip6s_odropped);
+			goto bad;
+		}
 		in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
+	} else if ((ifp->if_capenable & IFCAP_NOMAP) == 0) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			error = ENOBUFS;
+			IP6STAT_INC(ip6s_odropped);
+			goto bad;
+		}
 	}
 #ifdef SCTP
 	if (sw_csum & CSUM_SCTP_IPV6) {
 		sw_csum &= ~CSUM_SCTP_IPV6;
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			error = ENOBUFS;
+			IP6STAT_INC(ip6s_odropped);
+			goto bad;
+		}
 		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
 	}
 #endif
@@ -1055,11 +1074,23 @@ passout:
 		 * XXX-BZ handle the hw offloading case.  Need flags.
 		 */
 		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+			m = mb_unmapped_to_ext(m);
+			if (m == NULL) {
+				in6_ifstat_inc(ifp, ifs6_out_fragfail);
+				error = ENOBUFS;
+				goto bad;
+			}
 			in6_delayed_cksum(m, plen, hlen);
 			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
 		}
 #ifdef SCTP
 		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
+			m = mb_unmapped_to_ext(m);
+			if (m == NULL) {
+				in6_ifstat_inc(ifp, ifs6_out_fragfail);
+				error = ENOBUFS;
+				goto bad;
+			}
 			sctp_delayed_cksum(m, hlen);
 			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
 		}

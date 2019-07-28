@@ -528,7 +528,6 @@ set_tcpinfo(struct c4iw_ep *ep)
 	ep->hwtid = toep->tid;
 	ep->snd_seq = tp->snd_nxt;
 	ep->rcv_seq = tp->rcv_nxt;
-	ep->emss = max(tp->t_maxseg, 128);
 done:
 	INP_WUNLOCK(inp);
 	return (rc);

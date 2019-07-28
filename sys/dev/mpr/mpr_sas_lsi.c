@@ -1017,7 +1017,7 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 		cm = &sc->commands[i];
 		if (cm->cm_flags & MPR_CM_FLAGS_SATA_ID_TIMEOUT) {
 			targ->timeouts++;
-			cm->cm_state = MPR_CM_STATE_TIMEDOUT;
+			cm->cm_flags |= MPR_CM_FLAGS_TIMEDOUT;
 
 			if ((targ->tm = mprsas_alloc_tm(sc)) != NULL) {
 				mpr_dprint(sc, MPR_INFO, "%s: sending Target "
@@ -1244,9 +1244,11 @@ mprsas_ata_id_timeout(struct mpr_softc *sc, struct mpr_command *cm)
 	/*
 	 * The Abort Task cannot be sent from here because the driver has not
 	 * completed setting up targets.  Instead, the command is flagged so
-	 * that special handling will be used to send the abort.
+	 * that special handling will be used to send the abort. Now that
+	 * this command has timed out, it's no longer in the queue.
 	 */
 	cm->cm_flags |= MPR_CM_FLAGS_SATA_ID_TIMEOUT;
+	cm->cm_state = MPR_CM_STATE_BUSY;
 }
 
 static int

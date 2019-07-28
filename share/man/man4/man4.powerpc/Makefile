@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=runtime-manuals
-
 MAN=	adb.4 \
 	akbd.4 \
 	abtn.4 \

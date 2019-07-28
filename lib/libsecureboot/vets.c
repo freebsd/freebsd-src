@@ -345,7 +345,7 @@ ve_trust_init(void)
 
 	if (once >= 0)
 		return (once);
-
+	once = 0;			/* to be sure */
 	ve_utc_set(time(NULL));
 #ifdef BUILD_UTC
 	ve_utc_set(BUILD_UTC);		/* just in case */

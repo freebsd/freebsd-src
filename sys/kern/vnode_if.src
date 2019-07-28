@@ -718,6 +718,22 @@ vop_fdatasync {
 };
 
 
+%% copy_file_range	invp	U U U
+%% copy_file_range	outvp	U U U
+
+vop_copy_file_range {
+	IN struct vnode *invp;
+	INOUT off_t *inoffp;
+	IN struct vnode *outvp;
+	INOUT off_t *outoffp;
+	INOUT size_t *lenp;
+	IN unsigned int flags;
+	IN struct ucred *incred;
+	IN struct ucred *outcred;
+	IN struct thread *fsizetd;
+};
+
+
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should
 # be added above these spares.  When merging a new VOP to a stable branch,

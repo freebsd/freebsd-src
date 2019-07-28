@@ -1024,7 +1024,7 @@ generic_netmap_dtor(struct netmap_adapter *na)
 		         */
 		        netmap_adapter_put(prev_na);
 		}
-		nm_prinf("Native netmap adapter %p restored", prev_na);
+		nm_prinf("Native netmap adapter for %s restored", prev_na->name);
 	}
 	NM_RESTORE_NA(ifp, prev_na);
 	/*
@@ -1126,7 +1126,8 @@ generic_netmap_attach(struct ifnet *ifp)
 
 	nm_os_generic_set_features(gna);
 
-	nm_prinf("Emulated adapter for %s created (prev was %p)", na->name, gna->prev);
+	nm_prinf("Emulated adapter for %s created (prev was %s)", na->name,
+	    gna->prev ? gna->prev->name : "NULL");
 
 	return retval;
 }

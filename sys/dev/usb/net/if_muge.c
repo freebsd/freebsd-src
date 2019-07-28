@@ -1610,6 +1610,7 @@ muge_attach_post_sub(struct usb_ether *ue)
 	 * however currently only RX checksum is supported in the driver
 	 * (see top of file).
 	 */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_hwassist = 0;
 	if (MUGE_DEFAULT_RX_CSUM_ENABLE)
 		ifp->if_capabilities |= IFCAP_RXCSUM;

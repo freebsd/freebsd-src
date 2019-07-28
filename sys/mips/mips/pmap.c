@@ -811,7 +811,7 @@ retry:
 			if (vm_page_pa_tryrelock(pmap, pte_pa, &pa))
 				goto retry;
 			m = PHYS_TO_VM_PAGE(pte_pa);
-			vm_page_hold(m);
+			vm_page_wire(m);
 		}
 	}
 	PA_UNLOCK_COND(pa);

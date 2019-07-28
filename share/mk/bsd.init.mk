@@ -58,11 +58,12 @@ $xGRP=	${_gid}
 #   things like 'make all install' or 'make foo install'.
 # - non-build targets are called
 .if ${MK_DIRDEPS_BUILD} == "yes" && ${.MAKE.LEVEL:U1} == 0 && \
-    ${BUILD_AT_LEVEL0:Uyes:tl} == "no" && !make(clean*)
+    ${BUILD_AT_LEVEL0:Uyes:tl} == "no" && !make(clean*) && !make(*clean)
 _SKIP_BUILD=	not building at level 0
 .elif !empty(.MAKEFLAGS:M-V${_V_DO_BUILD}) || \
     ${.TARGETS:M*install*} == ${.TARGETS} || \
     ${.TARGETS:Mclean*} == ${.TARGETS} || \
+    ${.TARGETS:M*clean} == ${.TARGETS} || \
     ${.TARGETS:Mdestroy*} == ${.TARGETS} || \
     ${.TARGETS:Mobj} == ${.TARGETS} || \
     make(analyze) || make(print-dir)

@@ -1,5 +1,5 @@
 .\" Copyright (c) 2001,2003 Networks Associates Technology, Inc.
-.\" Copyright (c) 2017 Dag-Erling Smørgrav
+.\" Copyright (c) 2017-2019 Dag-Erling Smørgrav
 .\" Copyright (c) 2018 Thomas Munro
 .\" All rights reserved.
 .\"
@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2018
+.Dd May 24, 2019
 .Dt PAM_EXEC 8
 .Os
 .Sh NAME
@@ -76,6 +76,13 @@ It must be a valid return value for this function.
 .It Cm expose_authtok
 Write the authentication token to the program's standard input stream,
 followed by a NUL character.
+Ignored for
+.Fn pam_sm_setcred .
+.It Cm use_first_pass
+If
+.Cm expose_authtok
+was specified, do not prompt for an authentication token if one is not
+already available.
 .It Cm --
 Stop options parsing;
 program and its arguments follow.

@@ -38,16 +38,7 @@
 #define TCP_MSS_ACCT_SIZE    70
 #define TCP_MSS_SMALL_MAX_SIZE_DIV (TCP_MSS_ACCT_SIZE - TCP_MSS_SMALL_SIZE_OFF)
 
-
-/* Magic flags to tell whats cooking on the pacing wheel */
-#define PACE_PKT_OUTPUT 0x01	/* Output Packets being paced */
-#define PACE_TMR_RACK   0x02	/* RACK timer running */
-#define PACE_TMR_TLP    0x04	/* TLP timer running */
-#define PACE_TMR_RXT    0x08	/* Retransmit timer running */
-#define PACE_TMR_PERSIT 0x10	/* Persists timer running */
-#define PACE_TMR_KEEP   0x20	/* Keep alive timer running */
-#define PACE_TMR_DELACK 0x40	/* Delayed ack timer running */
-#define PACE_TMR_MASK   (PACE_TMR_KEEP|PACE_TMR_PERSIT|PACE_TMR_RXT|PACE_TMR_TLP|PACE_TMR_RACK|PACE_TMR_DELACK)
+#define DUP_ACK_THRESHOLD 3
 
 /* Magic flags for tracing progress events */
 #define PROGRESS_DROP   1
@@ -61,8 +52,66 @@
 #define USE_RTT_LOW  1
 #define USE_RTT_AVG  2
 
+#define PACE_MAX_IP_BYTES 65536
+#define USECS_IN_SECOND 1000000
+#define MSEC_IN_SECOND 1000
+#define MS_IN_USEC 1000
+#define USEC_TO_MSEC(x) (x / MS_IN_USEC)
+#define TCP_TS_OVERHEAD 12		/* Overhead of having Timestamps on */
+
 #ifdef _KERNEL
 /* We have only 7 bits in rack so assert its true */
 CTASSERT((PACE_TMR_MASK & 0x80) == 0);
+#ifdef KERN_TLS
+uint32_t ctf_get_opt_tls_size(struct socket *so, uint32_t rwnd);
+#endif
+int
+ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so,
+    struct mbuf *m, int has_pkt);
+int
+ctf_do_queued_segments(struct socket *so, struct tcpcb *tp, int have_pkt);
+uint32_t ctf_outstanding(struct tcpcb *tp);
+uint32_t ctf_flight_size(struct tcpcb *tp, uint32_t rc_sacked);
+int
+ctf_drop_checks(struct tcpopt *to, struct mbuf *m,
+    struct tcphdr *th, struct tcpcb *tp, int32_t * tlenp, int32_t * thf,
+    int32_t * drop_hdrlen, int32_t * ret_val);
+void
+ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp,
+    struct tcphdr *th, int32_t thflags, int32_t tlen, int32_t * ret_val);
+void
+ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp,
+	struct tcphdr *th, int32_t rstreason, int32_t tlen);
+void
+ctf_do_drop(struct mbuf *m, struct tcpcb *tp);
+
+int
+ctf_process_rst(struct mbuf *m, struct tcphdr *th,
+    struct socket *so, struct tcpcb *tp);
+
+void
+ctf_challenge_ack(struct mbuf *m, struct tcphdr *th,
+    struct tcpcb *tp, int32_t * ret_val);
+
+int
+ctf_ts_check(struct mbuf *m, struct tcphdr *th,
+    struct tcpcb *tp, int32_t tlen, int32_t thflags, int32_t * ret_val);
+
+void
+ctf_calc_rwin(struct socket *so, struct tcpcb *tp);
+
+void
+ctf_do_dropwithreset_conn(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
+    int32_t rstreason, int32_t tlen);
+
+uint32_t 
+ctf_fixed_maxseg(struct tcpcb *tp);
+
+void
+ctf_log_sack_filter(struct tcpcb *tp, int num_sack_blks, struct sackblk *sack_blocks);
+
+uint32_t 
+ctf_decay_count(uint32_t count, uint32_t decay_percentage);
+
 #endif
 #endif

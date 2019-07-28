@@ -7,8 +7,8 @@
    This file is part of bzip2/libbzip2, a program and library for
    lossless, block-sorting data compression.
 
-   bzip2/libbzip2 version 1.0.6 of 6 September 2010
-   Copyright (C) 1996-2010 Julian Seward <jseward@bzip.org>
+   bzip2/libbzip2 version 1.0.7 of 27 June 2019
+   Copyright (C) 1996-2010 Julian Seward <jseward@acm.org>
 
    Please read the WARNING, DISCLAIMER and PATENTS sections in the 
    README file.
@@ -554,7 +554,7 @@ static
 Bool testStream ( FILE *zStream )
 {
    BZFILE* bzf = NULL;
-   Int32   bzerr, bzerr_dummy, ret, nread, streamNo, i;
+   Int32   bzerr, bzerr_dummy, ret, streamNo, i;
    UChar   obuf[5000];
    UChar   unused[BZ_MAX_UNUSED];
    Int32   nUnused;
@@ -577,7 +577,7 @@ Bool testStream ( FILE *zStream )
       streamNo++;
 
       while (bzerr == BZ_OK) {
-         nread = BZ2_bzRead ( &bzerr, bzf, obuf, 5000 );
+         BZ2_bzRead ( &bzerr, bzf, obuf, 5000 );
          if (bzerr == BZ_DATA_ERROR_MAGIC) goto errhandler;
       }
       if (bzerr != BZ_STREAM_END) goto errhandler;
@@ -749,7 +749,7 @@ void panic ( const Char* s )
              "\n%s: PANIC -- internal consistency error:\n"
              "\t%s\n"
              "\tThis is a BUG.  Please report it to me at:\n"
-             "\tjseward@bzip.org\n",
+             "\tjseward@acm.org\n",
              progName, s );
    showFileNames();
    cleanUpAndFail( 3 );
@@ -829,7 +829,7 @@ void mySIGSEGVorSIGBUScatcher ( IntNative n )
       "   The user's manual, Section 4.3, has more info on (1) and (2).\n"
       "   \n"
       "   If you suspect this is a bug in bzip2, or are unsure about (1)\n"
-      "   or (2), feel free to report it to me at: jseward@bzip.org.\n"
+      "   or (2), feel free to report it to me at: jseward@acm.org.\n"
       "   Section 4.3 of the user's manual describes the info a useful\n"
       "   bug report should have.  If the manual is available on your\n"
       "   system, please try and read it before mailing me.  If you don't\n"
@@ -852,7 +852,7 @@ void mySIGSEGVorSIGBUScatcher ( IntNative n )
       "   The user's manual, Section 4.3, has more info on (2) and (3).\n"
       "   \n"
       "   If you suspect this is a bug in bzip2, or are unsure about (2)\n"
-      "   or (3), feel free to report it to me at: jseward@bzip.org.\n"
+      "   or (3), feel free to report it to me at: jseward@acm.org.\n"
       "   Section 4.3 of the user's manual describes the info a useful\n"
       "   bug report should have.  If the manual is available on your\n"
       "   system, please try and read it before mailing me.  If you don't\n"
@@ -1609,7 +1609,7 @@ void license ( void )
     "   \n"
     "   This program is free software; you can redistribute it and/or modify\n"
     "   it under the terms set out in the LICENSE file, which is included\n"
-    "   in the bzip2-1.0.6 source distribution.\n"
+    "   in the bzip2 source distribution.\n"
     "   \n"
     "   This program is distributed in the hope that it will be useful,\n"
     "   but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -2005,12 +2005,14 @@ IntNative main ( IntNative argc, Char *argv[] )
             testf ( aa->name );
 	 }
       }
-      if (testFailsExist && noisy) {
-         fprintf ( stderr,
-           "\n"
-           "You can use the `bzip2recover' program to attempt to recover\n"
-           "data from undamaged sections of corrupted files.\n\n"
-         );
+      if (testFailsExist) {
+	 if (noisy) {
+            fprintf ( stderr,
+               "\n"
+               "You can use the `bzip2recover' program to attempt to recover\n"
+               "data from undamaged sections of corrupted files.\n\n"
+            );
+	 }
          setExit(2);
          exit(exitValue);
       }

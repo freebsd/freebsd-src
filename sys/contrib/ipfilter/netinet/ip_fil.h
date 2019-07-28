@@ -584,20 +584,20 @@ typedef enum fr_ctypes_e {
  */
 typedef	struct	frpcmp	{
 	fr_ctypes_t	frp_cmp;	/* data for port comparisons */
-	u_32_t		frp_port;	/* top port for <> and >< */
-	u_32_t		frp_top;	/* top port for <> and >< */
+	u_32_t		frp_port;	/* low port for <> and >< */
+	u_32_t		frp_top;	/* high port for <> and >< */
 } frpcmp_t;
 
 
 /*
- * Structure containing all the relevant TCP things that can be checked in
+ * Structure containing all the relevant TCP/UDP things that can be checked in
  * a filter rule.
  */
 typedef	struct	frtuc	{
 	u_char		ftu_tcpfm;	/* tcp flags mask */
 	u_char		ftu_tcpf;	/* tcp flags */
-	frpcmp_t	ftu_src;
-	frpcmp_t	ftu_dst;
+	frpcmp_t	ftu_src;	/* source port */
+	frpcmp_t	ftu_dst;	/* destination port */
 } frtuc_t;
 
 #define	ftu_scmp	ftu_src.frp_cmp
@@ -827,7 +827,7 @@ typedef	struct	frentry {
 
 #define	FR_NOLOGTAG	0
 
-#define	FR_CMPSIZ	(sizeof(struct frentry) - \
+#define	FR_CMPSIZ(_f)	((_f)->fr_size - \
 			 offsetof(struct frentry, fr_func))
 #define	FR_NAME(_f, _n)	(_f)->fr_names + (_f)->_n
 
@@ -1835,10 +1835,6 @@ extern	int		ipf_matchicmpqueryreply __P((int, icmpinfo_t *,
 						     struct icmp *, int));
 extern	u_32_t		ipf_newisn __P((fr_info_t *));
 extern	u_int		ipf_pcksum __P((fr_info_t *, int, u_int));
-#ifdef	USE_INET6
-extern	u_int		ipf_pcksum6 __P((fr_info_t *, ip6_t *,
-						u_int32_t, u_int32_t));
-#endif
 extern	void		ipf_rule_expire __P((ipf_main_softc_t *));
 extern	int		ipf_scanlist __P((fr_info_t *, u_32_t));
 extern	frentry_t 	*ipf_srcgrpmap __P((fr_info_t *, u_32_t *));

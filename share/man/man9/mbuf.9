@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2017
+.Dd June 28, 2019
 .Dt MBUF 9
 .Os
 .\"
@@ -209,11 +209,21 @@ The
 .Vt mbuf
 flag bits are defined as follows:
 .Bd -literal
-/* mbuf flags */
 #define	M_EXT		0x00000001 /* has associated external storage */
 #define	M_PKTHDR	0x00000002 /* start of record */
 #define	M_EOR		0x00000004 /* end of record */
 #define	M_RDONLY	0x00000008 /* associated data marked read-only */
+#define	M_NOMAP		0x00000100 /* mbuf data is unmapped */
+#define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
+#define	M_BCAST		0x00000010 /* send/received as link-level broadcast */
+#define	M_MCAST		0x00000020 /* send/received as link-level multicast */
+#define	M_PROMISC	0x00000040 /* packet was not for us */
+#define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
+#define	M_TSTMP		0x00000400 /* rcv_tstmp field is valid */
+#define	M_TSTMP_HPREC	0x00000800 /* rcv_tstmp is high-prec, typically
+				      hw-stamped on port (useful for IEEE 1588
+				      and 802.1AS) */
+
 #define	M_PROTO1	0x00001000 /* protocol-specific */
 #define	M_PROTO2	0x00002000 /* protocol-specific */
 #define	M_PROTO3	0x00004000 /* protocol-specific */
@@ -226,38 +236,58 @@ flag bits are defined as follows:
 #define	M_PROTO10	0x00200000 /* protocol-specific */
 #define	M_PROTO11	0x00400000 /* protocol-specific */
 #define	M_PROTO12	0x00800000 /* protocol-specific */
-
-/* mbuf pkthdr flags (also stored in m_flags) */
-#define	M_BCAST		0x00000010 /* send/received as link-level broadcast */
-#define	M_MCAST		0x00000020 /* send/received as link-level multicast */
 .Ed
 .Pp
 The available
 .Vt mbuf
 types are defined as follows:
 .Bd -literal
-/* mbuf types */
 #define	MT_DATA		1	/* dynamic (data) allocation */
 #define	MT_HEADER	MT_DATA	/* packet header */
+
+#define	MT_VENDOR1	4	/* for vendor-internal use */
+#define	MT_VENDOR2	5	/* for vendor-internal use */
+#define	MT_VENDOR3	6	/* for vendor-internal use */
+#define	MT_VENDOR4	7	/* for vendor-internal use */
+
 #define	MT_SONAME	8	/* socket name */
+
+#define	MT_EXP1		9	/* for experimental use */
+#define	MT_EXP2		10	/* for experimental use */
+#define	MT_EXP3		11	/* for experimental use */
+#define	MT_EXP4		12	/* for experimental use */
+
 #define	MT_CONTROL	14	/* extra-data protocol message */
-#define	MT_OOBDATA	15	/* expedited data */
+#define	MT_EXTCONTROL	15	/* control message with externalized contents */
+#define	MT_OOBDATA	16	/* expedited data  */
 .Ed
 .Pp
 The available external buffer types are defined as follows:
 .Bd -literal
-/* external buffer types */
-#define EXT_CLUSTER	1	/* mbuf cluster */
-#define EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
-#define EXT_JUMBOP	3	/* jumbo cluster 4096 bytes */
-#define EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
-#define EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
-#define EXT_PACKET	6	/* mbuf+cluster from packet zone */
-#define EXT_MBUF	7	/* external mbuf reference */
-#define EXT_NET_DRV	252	/* custom ext_buf provided by net driver(s) */
-#define EXT_MOD_TYPE	253	/* custom module's ext_buf type */
-#define EXT_DISPOSABLE	254	/* can throw this buffer away w/page flipping */
-#define EXT_EXTREF	255	/* has externally maintained ref_cnt ptr */
+#define	EXT_CLUSTER	1	/* mbuf cluster */
+#define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
+#define	EXT_JUMBOP	3	/* jumbo cluster 4096 bytes */
+#define	EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
+#define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
+#define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
+#define	EXT_MBUF	7	/* external mbuf reference */
+#define	EXT_RXRING	8	/* data in NIC receive ring */
+#define	EXT_PGS		9	/* array of unmapped pages */
+
+#define	EXT_VENDOR1	224	/* for vendor-internal use */
+#define	EXT_VENDOR2	225	/* for vendor-internal use */
+#define	EXT_VENDOR3	226	/* for vendor-internal use */
+#define	EXT_VENDOR4	227	/* for vendor-internal use */
+
+#define	EXT_EXP1	244	/* for experimental use */
+#define	EXT_EXP2	245	/* for experimental use */
+#define	EXT_EXP3	246	/* for experimental use */
+#define	EXT_EXP4	247	/* for experimental use */
+
+#define	EXT_NET_DRV	252	/* custom ext_buf provided by net driver(s) */
+#define	EXT_MOD_TYPE	253	/* custom module's ext_buf type */
+#define	EXT_DISPOSABLE	254	/* can throw this buffer away w/page flipping */
+#define	EXT_EXTREF	255	/* has externally maintained ref_cnt ptr */
 .Ed
 .Pp
 If the

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -150,8 +150,11 @@ scan_option(s)
 			if (s == NULL)
 				return;
 			if (*str == '+')
+			{
+				if (every_first_cmd != NULL)
+					free(every_first_cmd);
 				every_first_cmd = save(str+1);
-			else
+			} else
 			{
 				ungetcc(CHAR_END_COMMAND);
 				ungetsc(str);
@@ -530,7 +533,7 @@ opt_prompt(o)
  * the previous option.
  */
 	public int
-isoptpending()
+isoptpending(VOID_PARAM)
 {
 	return (pendopt != NULL);
 }
@@ -551,7 +554,7 @@ nostring(printopt)
  * Print error message if a STRING type option is not followed by a string.
  */
 	public void
-nopendopt()
+nopendopt(VOID_PARAM)
 {
 	nostring(opt_desc(pendopt));
 }
@@ -699,7 +702,7 @@ getfraction(sp, printopt, errp)
  * Get the value of the -e flag.
  */
 	public int
-get_quit_at_eof()
+get_quit_at_eof(VOID_PARAM)
 {
 	if (!less_is_more)
 		return quit_at_eof;

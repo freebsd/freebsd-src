@@ -44,6 +44,7 @@
 #include "util/log.h"
 struct sock_list;
 struct regional;
+struct config_strlist;
 
 /** DNS constants for uint16_t style flag manipulation. host byteorder. 
  *                                1  1  1  1  1  1
@@ -98,6 +99,9 @@ extern int MINIMAL_RESPONSES;
 
 /** rrset order roundrobin */
 extern int RRSET_ROUNDROBIN;
+
+/** log tag queries with name instead of 'info' for filtering */
+extern int LOG_TAG_QUERYREPLY;
 
 /**
  * See if string is ip4 or ip6.
@@ -234,6 +238,12 @@ void sockaddr_store_port(struct sockaddr_storage* addr, socklen_t addrlen,
  */
 void log_nametypeclass(enum verbosity_value v, const char* str, 
 	uint8_t* name, uint16_t type, uint16_t dclass);
+
+/**
+ * Like log_nametypeclass, but logs with log_query for query logging
+ */
+void log_query_in(const char* str, uint8_t* name, uint16_t type,
+	uint16_t dclass);
 
 /**
  * Compare two sockaddrs. Imposes an ordering on the addresses.
@@ -427,5 +437,31 @@ int ub_openssl_lock_init(void);
  * De-init the allocated openssl locks
  */
 void ub_openssl_lock_delete(void);
+
+/**
+ * setup TLS session ticket
+ * @param sslctx: the SSL_CTX to use (from connect_sslctx_create())
+ * @param tls_session_ticket_keys: TLS ticket secret filenames
+ * @return false on failure (alloc failure).
+ */
+int listen_sslctx_setup_ticket_keys(void* sslctx,
+	struct config_strlist* tls_session_ticket_keys);
+
+/**
+ * callback TLS session ticket encrypt and decrypt
+ * For use with SSL_CTX_set_tlsext_ticket_key_cb
+ * @param s: the SSL_CTX to use (from connect_sslctx_create())
+ * @param key_name: secret name, 16 bytes
+ * @param iv: up to EVP_MAX_IV_LENGTH.
+ * @param evp_ctx: the evp cipher context, function sets this.
+ * @param hmac_ctx: the hmax context, function sets this.
+ * @param enc: 1 is encrypt, 0 is decrypt
+ * @return 0 on no ticket, 1 for okay, and 2 for okay but renew the ticket
+ * 	(the ticket is decrypt only). and <0 for failures.
+ */
+int tls_session_ticket_key_cb(void *s, unsigned char* key_name,unsigned char* iv, void *evp_ctx, void *hmac_ctx, int enc);
+
+/** Free memory used for TLS session ticket keys */
+void listen_sslctx_delete_ticket_keys(void);
 
 #endif /* NET_HELP_H */

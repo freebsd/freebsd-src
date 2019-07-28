@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -53,8 +53,12 @@ public int quit_on_intr;	/* Quit on interrupt */
 public int follow_mode;		/* F cmd Follows file desc or file name? */
 public int oldbot;		/* Old bottom of screen behavior {{REMOVE}} */
 public int opt_use_backslash;	/* Use backslash escaping in option parsing */
-public LWCHAR rscroll_char;	/* Char which marks chopped lines with -S */
+public char rscroll_char;	/* Char which marks chopped lines with -S */
 public int rscroll_attr;	/* Attribute of rscroll_char */
+public int no_hist_dups;	/* Remove dups from history list */
+public int mousecap;		/* Allow mouse for scrolling */
+public int wheel_lines;		/* Number of lines to scroll on mouse wheel scroll */
+public int perma_marks;		/* Save marks in history file */
 #if HILITE_SEARCH
 public int hilite_search;	/* Highlight matched search patterns? */
 #endif
@@ -120,6 +124,10 @@ static struct optname oldbot_optname = { "old-bot",              NULL };
 static struct optname follow_optname = { "follow-name",          NULL };
 static struct optname use_backslash_optname = { "use-backslash", NULL };
 static struct optname rscroll_optname = { "rscroll", NULL };
+static struct optname nohistdups_optname = { "no-histdups",      NULL };
+static struct optname mousecap_optname = { "mouse",              NULL };
+static struct optname wheel_lines_optname = { "wheel-lines",     NULL };
+static struct optname perma_marks_optname = { "save-marks",     NULL };
 
 
 /*
@@ -463,6 +471,38 @@ static struct loption option[] =
 		STRING|REPAINT|INIT_HANDLER, 0, NULL, opt_rscroll,
 		{ "right scroll character: ", NULL, NULL }
 	},
+	{ OLETTER_NONE, &nohistdups_optname,
+		BOOL, OPT_OFF, &no_hist_dups, NULL,
+		{
+			"Allow duplicates in history list",
+			"Remove duplicates from history list",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &mousecap_optname,
+		TRIPLE, OPT_OFF, &mousecap, opt_mousecap,
+		{
+			"Ignore mouse input",
+			"Use the mouse for scrolling",
+			"Use the mouse for scrolling (reverse)"
+		}
+	},
+	{ OLETTER_NONE, &wheel_lines_optname,
+		NUMBER|INIT_HANDLER, 0, &wheel_lines, opt_wheel_lines,
+		{
+			"Lines to scroll on mouse wheel: ",
+			"Scroll %d line(s) on mouse wheel",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &perma_marks_optname,
+		BOOL, OPT_OFF, &perma_marks, NULL,
+		{
+			"Don't save marks in history file",
+			"Save marks in history file",
+			NULL
+		}
+	},
 	{ '\0', NULL, NOVAR, 0, NULL, NULL, { NULL, NULL, NULL } }
 };
 
@@ -471,13 +511,13 @@ static struct loption option[] =
  * Initialize each option to its default value.
  */
 	public void
-init_option()
+init_option(VOID_PARAM)
 {
 	struct loption *o;
 	char *p;
 
 	p = lgetenv("LESS_IS_MORE");
-	if (p != NULL && *p != '\0')
+	if (!isnullenv(p))
 		less_is_more = 1;
 
 	for (o = option;  o->oletter != '\0';  o++)

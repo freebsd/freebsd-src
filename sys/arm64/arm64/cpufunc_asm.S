@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Macro to handle the cache. This takes the start address in x0, length
- * in x1. It will corrupt x0, x1, x2, and x3.
+ * in x1. It will corrupt x0, x1, x2, x3, and x4.
  */
 .macro cache_handle_range dcop = 0, ic = 0, icop = 0
 .if \ic == 0
@@ -64,17 +64,23 @@ __FBSDID("$FreeBSD$");
 	and	x2, x0, x4		/* Get the low bits of the address */
 	add	x1, x1, x2		/* Add these to the size */
 	bic	x0, x0, x4		/* Clear the low bit of the address */
+.if \ic != 0
+	mov	x2, x0			/* Save the address */
+	mov	x4, x1			/* Save the size */
+.endif
 1:
 	dc	\dcop, x0
-	dsb	ish
-.if \ic != 0
-	ic	\icop, x0
-	dsb	ish
-.endif
 	add	x0, x0, x3		/* Move to the next line */
 	subs	x1, x1, x3		/* Reduce the size */
 	b.hi	1b			/* Check if we are done */
+	dsb	ish
 .if \ic != 0
+2:
+	ic	\icop, x2
+	add	x2, x2, x3		/* Move to the next line */
+	subs	x4, x4, x3		/* Reduce the size */
+	b.hi	2b			/* Check if we are done */
+	dsb	ish
 	isb
 .endif
 .endm

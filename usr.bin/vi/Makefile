@@ -37,7 +37,7 @@ CFLAGS+=-I${.CURDIR} -I${SRCDIR} -I${SRCDIR}/regex
 LIBADD=	util ncursesw
 CFLAGS+=	-DUSE_WIDECHAR
 
-.if ${MK_ICONV} == "yes" && !defined(RESCUE) && !defined(RELEASE_CRUNCH)
+.if ${MK_ICONV} == "yes" && !defined(RESCUE)
 CFLAGS+=	-DUSE_ICONV
 .endif
 

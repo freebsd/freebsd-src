@@ -4023,17 +4023,16 @@ t4_handle_intr(struct adapter *adap, const struct intr_info *ii,
 	bool rc;
 	const struct intr_action *action;
 
-	/* read and display cause. */
-	cause = t4_read_reg(adap, ii->cause_reg);
-	if (verbose || cause != 0)
-		t4_show_intr_info(adap, ii, cause);
 	/*
-	 * The top level interrupt cause is a bit special and we need to ignore
-	 * the bits that are not in the enable.  Note that we did display them
-	 * above in t4_show_intr_info but will not clear them.
+	 * Read and display cause.  Note that the top level PL_INT_CAUSE is a
+	 * bit special and we need to completely ignore the bits that are not in
+	 * PL_INT_ENABLE.
 	 */
+	cause = t4_read_reg(adap, ii->cause_reg);
 	if (ii->cause_reg == A_PL_INT_CAUSE)
 		cause &= t4_read_reg(adap, ii->enable_reg);
+	if (verbose || cause != 0)
+		t4_show_intr_info(adap, ii, cause);
 	fatal = cause & ii->fatal;
 	if (fatal != 0 && ii->flags & NONFATAL_IF_DISABLED)
 		fatal &= t4_read_reg(adap, ii->enable_reg);

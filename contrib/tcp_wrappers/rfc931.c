@@ -66,8 +66,7 @@ int     protocol;
 
 /* timeout - handle timeouts */
 
-static void timeout(sig)
-int     sig;
+static void timeout(int sig)
 {
     longjmp(timebuf, sig);
 }

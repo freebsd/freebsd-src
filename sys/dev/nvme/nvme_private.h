@@ -114,6 +114,7 @@ MALLOC_DECLARE(M_NVME);
 
 extern uma_zone_t	nvme_request_zone;
 extern int32_t		nvme_retry_count;
+extern bool		nvme_verbose_cmd_dump;
 
 struct nvme_completion_poll_status {
 
@@ -189,6 +190,8 @@ struct nvme_qpair {
 
 	int64_t			num_cmds;
 	int64_t			num_intr_handler_calls;
+	int64_t			num_retries;
+	int64_t			num_failures;
 
 	struct nvme_command	*cmd;
 	struct nvme_completion	*cpl;

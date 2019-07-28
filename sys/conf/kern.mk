@@ -76,6 +76,7 @@ CWARNEXTRA?=	-Wno-uninitialized
 # GCC 4.2 doesn't have -Wno-error=cast-qual, so just disable the warning for
 # the few files that are already known to generate cast-qual warnings.
 NO_WCAST_QUAL= -Wno-cast-qual
+NO_WNONNULL=	-Wno-nonnull
 .endif
 .endif
 

@@ -119,7 +119,7 @@ mevent_pipe_read(int fd, enum ev_type type, void *param)
 static void
 mevent_notify(void)
 {
-	char c;
+	char c = '\0';
 	
 	/*
 	 * If calling from outside the i/o thread, write a byte on the

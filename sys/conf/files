@@ -1712,7 +1712,7 @@ dev/fdt/fdt_slicer.c		optional fdt cfi | fdt mx25l | fdt n25q | fdt at45d
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
 	dependency	"${FDT_DTS_FILE:T:R}.dtb"
 dev/fdt/simplebus.c		optional fdt
-dev/fdt/simple_mfd.c		optional fdt
+dev/fdt/simple_mfd.c		optional syscon fdt
 dev/filemon/filemon.c		optional filemon
 dev/firewire/firewire.c		optional firewire
 dev/firewire/fwcrom.c		optional firewire
@@ -3221,7 +3221,7 @@ dev/usb/usb_generic.c		optional usb
 dev/usb/usb_handle_request.c	optional usb
 dev/usb/usb_hid.c		optional usb
 dev/usb/usb_hub.c		optional usb
-dev/usb/usb_hub_acpi.c		optional usb acpi
+dev/usb/usb_hub_acpi.c		optional uacpi acpi
 dev/usb/usb_if.m		optional usb
 dev/usb/usb_lookup.c		optional usb
 dev/usb/usb_mbuf.c		optional usb
@@ -3431,6 +3431,7 @@ dev/xdma/xdma_bank.c		optional xdma
 dev/xdma/xdma_bio.c		optional xdma
 dev/xdma/xdma_fdt_test.c	optional xdma xdma_test fdt
 dev/xdma/xdma_if.m		optional xdma
+dev/xdma/xdma_iommu.c		optional xdma
 dev/xdma/xdma_mbuf.c		optional xdma
 dev/xdma/xdma_queue.c		optional xdma
 dev/xdma/xdma_sg.c		optional xdma
@@ -4255,7 +4256,8 @@ netinet/tcp_lro.c		optional inet | inet6
 netinet/tcp_output.c		optional inet | inet6
 netinet/tcp_offload.c		optional tcp_offload inet | tcp_offload inet6
 netinet/tcp_hpts.c              optional tcphpts inet | tcphpts inet6
-netinet/tcp_pcap.c		optional inet tcppcap | inet6 tcppcap
+netinet/tcp_pcap.c		optional inet tcppcap | inet6 tcppcap \
+	compile-with "${NORMAL_C} ${NO_WNONNULL}"
 netinet/tcp_reass.c		optional inet | inet6
 netinet/tcp_sack.c		optional inet | inet6
 netinet/tcp_subr.c		optional inet | inet6

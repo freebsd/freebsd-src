@@ -224,14 +224,14 @@ mps3_pte_unset(mmu_t mmu, struct pvo_entry *pvo)
 	mtx_lock(&mps3_table_lock);
 	refchg = mps3_pte_synch_locked(pvo);
 	if (refchg < 0) {
-		moea64_pte_overflow--;
+		STAT_MOEA64(moea64_pte_overflow--);
 		mtx_unlock(&mps3_table_lock);
 		return (-1);
 	}
 	/* XXX: race on RC bits between unset and sync. Anything to do? */
 	lv1_write_htab_entry(mps3_vas_id, pvo->pvo_pte.slot, 0, 0);
 	mtx_unlock(&mps3_table_lock);
-	moea64_pte_valid--;
+	STAT_MOEA64(moea64_pte_valid--);
 
 	return (refchg & (LPTE_REF | LPTE_CHG));
 }
@@ -272,13 +272,13 @@ mps3_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 		pvo->pvo_vaddr |= PVO_HID;
 	pvo->pvo_pte.slot = index;
 
-	moea64_pte_valid++;
+	STAT_MOEA64(moea64_pte_valid++);
 
 	if (evicted.pte_hi) {
 		KASSERT((evicted.pte_hi & (LPTE_WIRED | LPTE_LOCKED)) == 0,
 		    ("Evicted a wired PTE"));
-		moea64_pte_valid--;
-		moea64_pte_overflow++;
+		STAT_MOEA64(moea64_pte_valid--);
+		STAT_MOEA64(moea64_pte_overflow++);
 	}
 
 	return (0);

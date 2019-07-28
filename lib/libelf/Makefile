@@ -79,6 +79,13 @@ INCS=		libelf.h gelf.h
 #
 SRCS+=	sys/elf32.h sys/elf64.h sys/elf_common.h
 
+# Allow bootstrapping elftoolchain on Linux:
+.if defined(BOOTSTRAPPING) && ${.MAKE.OS} == "Linux"
+native-elf-format.h:
+	${ELFTCDIR}/common/native-elf-format > ${.TARGET} || rm ${.TARGET}
+SRCS+=	native-elf-format.h
+.endif
+
 GENSRCS=	libelf_fsize.c libelf_msize.c libelf_convert.c
 CLEANFILES=	${GENSRCS}
 CLEANDIRS=	sys

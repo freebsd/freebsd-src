@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2019
+.Dd July 25, 2019
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -185,7 +185,7 @@
 .Op Fl X
 .Op Fl c
 .Op Fl p
-.Aq all|off|bus Ns Op :target Ns Op :lun
+.Aq all | off | device id | bus Ns Op :target Ns Op :lun
 .Nm
 .Ic tags
 .Op device id
@@ -292,6 +292,13 @@
 .Op Fl U Ar pwd
 .Op Fl y
 .Nm
+.Ic ama
+.Op device id
+.Op generic args
+.Op Fl f
+.Op Fl q
+.Op Fl s Ar max_sectors
+.Nm
 .Ic persist
 .Op device id
 .Op generic args
@@ -352,6 +359,9 @@
 .Op device id
 .Op generic args
 .Ao Fl r Oo Ns Fl f Ar format | Fl m | Fl U Oc | Fl s Ao Fl f Ar format Fl T Ar time | Fl U Ac Ac
+.Nm
+.Ic devtype
+.Op device id
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -1266,13 +1276,11 @@ will not be asked about the timeout if a timeout is specified on the
 command line.
 .El
 .It Ic sanitize
-Issue the
-.Tn SCSI
-SANITIZE command to the named device.
+Issue the SANITIZE command to the named device.
 .Pp
 .Em WARNING! WARNING! WARNING!
 .Pp
-ALL data in the cache and on the disk will be destroyed or made inaccessible.
+ALL data on the disk will be destroyed or made inaccessible.
 Recovery of the data is not possible.
 Use extreme caution when issuing this command.
 .Pp
@@ -1596,6 +1604,40 @@ without prompting for confirmation
 .Pp
 The password for all HPA commands is limited to 32 characters, longer passwords
 will fail.
+.It Ic ama
+Update or report Accessible Max Address Configuration.
+By default
+.Nm
+will print out the Accessible Max Address Configuration support and associated
+settings of the device.
+The
+.Ic ama
+command takes several optional arguments:
+.Bl -tag -width 0n
+.It Fl f
+.Pp
+Freeze the Accessible Max Address Configuration of the specified device.
+.Pp
+After command completion any other commands that update the configuration
+shall be command aborted.
+Frozen mode is disabled by power-off.
+.It Fl q
+.Pp
+Be quiet, do not print any status messages.
+.It Fl s Ar max_sectors
+.Pp
+Configures the maximum user accessible sectors of the device.
+This will change the number of sectors the device reports.
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+Changing the max sectors of a device using this option will make the data on
+the device beyond the specified value indeterminate.
+.Pp
+Only one successful
+.Fl s Ar max_sectors
+call can be made without a power-on reset of the device.
+.El
 .It Ic fwdownload
 Program firmware of the named
 .Tn SCSI
@@ -2515,6 +2557,26 @@ option.
 .It Fl U
 Set the timestamp to the host system's time in UTC.
 .El
+.El
+.It Ic devtype
+Print out the device type for specified device.
+.Bl -tag -width 10n
+.It ata
+An ATA device attached directly to an ATA controller
+.It satl
+An SATA device attached behind a SAS controller via SCSI-ATA Translation Layer (SATL)
+.It scsi
+A SCSI device
+.It nvme
+An directly attached NVMe device
+.It mmcsd
+An MMC or SD device attached via a mmcsd bus
+.It none
+No device type reported
+.It unknown
+Device type is unknown
+.It illegal
+A programming error occurred
 .El
 .It Ic help
 Print out verbose usage information.

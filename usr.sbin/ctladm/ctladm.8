@@ -36,7 +36,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2018
+.Dd July 25, 2019
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -918,6 +918,9 @@ Specifies medium rotation rate of the device: 0 -- not reported,
 .It Va formfactor
 Specifies nominal form factor of the device: 0 -- not reported, 1 -- 5.25",
 2 -- 3.5", 3 -- 2.5", 4 -- 1.8", 5 -- less then 1.8".
+.It Va temperature
+.It Va reftemperature
+Specify current and reference (maximum) temperatures of the device.
 .It Va provisioning_type
 When UNMAP support is enabled, this option specifies provisioning type:
 "resource", "thin" or "unknown".

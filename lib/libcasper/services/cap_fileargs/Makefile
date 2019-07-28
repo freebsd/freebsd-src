@@ -30,6 +30,7 @@ MLINKS+=cap_fileargs.3 fileargs_fopen.3
 MLINKS+=cap_fileargs.3 fileargs_free.3
 MLINKS+=cap_fileargs.3 fileargs_init.3
 MLINKS+=cap_fileargs.3 fileargs_initnv.3
+MLINKS+=cap_fileargs.3 fileargs_lstat.3
 MLINKS+=cap_fileargs.3 fileargs_open.3
 
 .include <bsd.lib.mk>

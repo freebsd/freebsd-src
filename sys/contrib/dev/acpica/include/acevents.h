@@ -245,7 +245,8 @@ AcpiEvMaskGpe (
 
 ACPI_STATUS
 AcpiEvAddGpeReference (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
+    BOOLEAN                 ClearOnEnable);
 
 ACPI_STATUS
 AcpiEvRemoveGpeReference (

@@ -20,7 +20,8 @@ function record_hash(n, name)
 # Return a shortened rule name representing NAME,
 # and record this relationship to the hash table.
 
-function gen_rule_name(name, n)
+function gen_rule_name(name, \
+		       n)
 {
   # Use a simple memonic: the first two letters.
   n = substr(name, 1, 2)
@@ -29,7 +30,8 @@ function gen_rule_name(name, n)
   return n
 }
 
-function prehash_rule_names(name)
+function prehash_rule_names( \
+			    name)
 {
   # Rule names are not part of the tzdb API, so substitute shorter
   # ones.  Shortening them consistently from one release to the next
@@ -148,20 +150,21 @@ function prehash_rule_names(name)
   }
 }
 
-# Process an input line and save it for later output.
+# Process the input line LINE and save it for later output.
 
-function process_input_line(line, field, end, i, n, startdef)
+function process_input_line(line, \
+			    field, end, i, n, startdef, \
+			    linkline, ruleline, zoneline)
 {
   # Remove comments, normalize spaces, and append a space to each line.
   sub(/#.*/, "", line)
   line = line " "
   gsub(/[\t ]+/, " ", line)
 
-  # Abbreviate keywords.  Do not abbreviate "Link" to just "L",
-  # as pre-2017c zic erroneously diagnoses "Li" as ambiguous.
-  sub(/^Link /, "Li ", line)
-  sub(/^Rule /, "R ", line)
-  sub(/^Zone /, "Z ", line)
+  # Abbreviate keywords and determine line type.
+  linkline = sub(/^Link /, "L ", line)
+  ruleline = sub(/^Rule /, "R ", line)
+  zoneline = sub(/^Zone /, "Z ", line)
 
   # SystemV rules are not needed.
   if (line ~ /^R SystemV /) return
@@ -169,7 +172,7 @@ function process_input_line(line, field, end, i, n, startdef)
   # Replace FooAsia rules with the same rules without "Asia", as they
   # are duplicates.
   if (match(line, /[^ ]Asia /)) {
-    if (line ~ /^R /) return
+    if (ruleline) return
     line = substr(line, 1, RSTART) substr(line, RSTART + 5)
   }
 
@@ -179,21 +182,19 @@ function process_input_line(line, field, end, i, n, startdef)
   while (match(line, /:0[^:]/))
     line = substr(line, 1, RSTART - 1) substr(line, RSTART + 2)
 
-  # Abbreviate weekday names.  Do not abbreviate "Sun" and "Sat", as
-  # pre-2017c zic erroneously diagnoses "Su" and "Sa" as ambiguous.
+  # Abbreviate weekday names.
   while (match(line, / (last)?(Mon|Wed|Fri)[ <>]/)) {
     end = RSTART + RLENGTH
     line = substr(line, 1, end - 4) substr(line, end - 1)
   }
-  while (match(line, / (last)?(Tue|Thu)[ <>]/)) {
+  while (match(line, / (last)?(Sun|Tue|Thu|Sat)[ <>]/)) {
     end = RSTART + RLENGTH
     line = substr(line, 1, end - 3) substr(line, end - 1)
   }
 
-  # Abbreviate "max", "only" and month names.
-  # Do not abbreviate "min", as pre-2017c zic erroneously diagnoses "mi"
-  # as ambiguous.
+  # Abbreviate "max", "min", "only" and month names.
   gsub(/ max /, " ma ", line)
+  gsub(/ min /, " mi ", line)
   gsub(/ only /, " o ", line)
   gsub(/ Jan /, " Ja ", line)
   gsub(/ Feb /, " F ", line)
@@ -221,7 +222,7 @@ function process_input_line(line, field, end, i, n, startdef)
   n = split(line, field)
 
   # Abbreviate rule names.
-  i = field[1] == "Z" ? 4 : field[1] == "Li" ? 0 : 2
+  i = zoneline ? 4 : linkline ? 0 : 2
   if (i && field[i] ~ /^[^-+0-9]/) {
     if (!rule[field[i]])
       rule[field[i]] = gen_rule_name(field[i])
@@ -231,11 +232,11 @@ function process_input_line(line, field, end, i, n, startdef)
   # If this zone supersedes an earlier one, delete the earlier one
   # from the saved output lines.
   startdef = ""
-  if (field[1] == "Z")
+  if (zoneline)
     zonename = startdef = field[2]
-  else if (field[1] == "Li")
+  else if (linkline)
     zonename = startdef = field[3]
-  else if (field[1] == "R")
+  else if (ruleline)
     zonename = ""
   if (startdef) {
     i = zonedef[startdef]
@@ -254,7 +255,8 @@ function process_input_line(line, field, end, i, n, startdef)
   output_line[nout++] = line
 }
 
-function output_saved_lines(i)
+function output_saved_lines( \
+			    i)
 {
   for (i = 0; i < nout; i++)
     if (output_line[i])

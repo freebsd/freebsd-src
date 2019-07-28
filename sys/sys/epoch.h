@@ -69,6 +69,7 @@ epoch_t	epoch_alloc(int flags);
 void	epoch_free(epoch_t epoch);
 void	epoch_wait(epoch_t epoch);
 void	epoch_wait_preempt(epoch_t epoch);
+void	epoch_drain_callbacks(epoch_t epoch);
 void	epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
 int	in_epoch(epoch_t epoch);
 int in_epoch_verbose(epoch_t epoch, int dump_onfail);

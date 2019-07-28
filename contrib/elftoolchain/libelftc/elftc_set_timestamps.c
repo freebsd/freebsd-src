@@ -37,7 +37,7 @@ ELFTC_VCSID("$Id$");
  * stat'.
  */
 
-#if	defined(__FreeBSD__) || defined(__NetBSD__)
+#if	defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #define	ATIME	st_atimespec
 #define	MTIME	st_mtimespec
 #define	LIBELFTC_HAVE_UTIMES	1

@@ -38,3 +38,5 @@ distribution but may be helpful.
 * unbound-querycachedb.py: utility to show data stored in cachedb backend
   for a particular query name and type.  It requires dnspython and (for
   redis backend) redis Python modules.
+* unbound-fuzzme.patch: adds unbound-fuzzme program that parses a packet from
+  stdin.  Used with fuzzers, patch from Jacob Hoffman-Andrews.

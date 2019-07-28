@@ -1,0 +1,38 @@
+Release notes for FreeBSD 13.0.
+
+This file describes new user-visible features, changes and updates relevant to
+users of binary FreeBSD releases.  Each entry should describe the change in no
+more than several sentences and should reference manual pages where an
+interested user can find more information.  Entries should wrap after 80
+columns.  Each entry should begin with one or more commit IDs on one line,
+specified as a comma separated list and/or range, followed by a colon and a
+newline.  Entries should be separated by a newline.
+
+Changes to this file should not be MFCed.
+
+r350307:
+	libcap_random(3) has been removed.  Applications can use native
+	APIs to get random data in capability mode.
+
+r349352:
+	nand(4) and related components have been removed.
+
+r349349:
+	The UEFI loader now supports HTTP boot.
+
+r349335:
+	bhyve(8) now implements a High Definition Audio (HDA) driver, allowing
+	guests to play to and record audio data from the host.
+
+r349286:
+	swapon(8) can now erase a swap device immediately before enabling it,
+	similar to newfs(8)'s -E option.  This behaviour can be specified by
+	adding -E to swapon(8)'s command-line parameters, or by adding the
+	"trimonce" option to a swap device's /etc/fstab entry.
+
+r347908-r347923:
+	The following network drivers have been removed: bm(4), cs(4), de(4),
+	ed(4), ep(4), ex(4), fe(4), pcn(4), sf(4), sn(4), tl(4), tx(4), txp(4),
+	vx(4), wb(4), xe(4).
+
+$FreeBSD$

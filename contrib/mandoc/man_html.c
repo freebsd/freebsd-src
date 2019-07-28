@@ -1,4 +1,4 @@
-/*	$Id: man_html.c,v 1.173 2019/03/02 16:30:53 schwarze Exp $ */
+/*	$Id: man_html.c,v 1.174 2019/04/30 15:53:00 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013-2015, 2017-2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -203,9 +203,9 @@ print_man_node(MAN_ARGS)
 		 * Close out scope of font prior to opening a macro
 		 * scope.
 		 */
-		if (HTMLFONT_NONE != h->metac) {
+		if (h->metac != ESCAPE_FONTROMAN) {
 			h->metal = h->metac;
-			h->metac = HTMLFONT_NONE;
+			h->metac = ESCAPE_FONTROMAN;
 		}
 
 		/*
