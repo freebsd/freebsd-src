@@ -951,6 +951,132 @@ TEST_F(WriteBackAsync, delay)
 }
 
 /*
+ * A direct write should not evict dirty cached data from outside of its own
+ * byte range.
+ */
+TEST_F(WriteBackAsync, direct_io_ignores_unrelated_cached)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char CONTENTS0[] = "abcdefgh";
+	const char CONTENTS1[] = "ijklmnop";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS0) + 1;
+	ssize_t fsize = 2 * m_maxbcachebuf;
+	char readbuf[bufsize];
+	void *zeros;
+
+	zeros = calloc(1, m_maxbcachebuf);
+	ASSERT_NE(nullptr, zeros);
+
+	expect_lookup(RELPATH, ino, fsize);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 0, m_maxbcachebuf, m_maxbcachebuf, zeros);
+	FuseTest::expect_write(ino, m_maxbcachebuf, bufsize, bufsize, 0, 0,
+		CONTENTS1);
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	// Cache first block with dirty data.  This will entail first reading
+	// the existing data.
+	ASSERT_EQ(bufsize, pwrite(fd, CONTENTS0, bufsize, 0))
+		<< strerror(errno);
+
+	// Write directly to second block
+	ASSERT_EQ(0, fcntl(fd, F_SETFL, O_DIRECT)) << strerror(errno);
+	ASSERT_EQ(bufsize, pwrite(fd, CONTENTS1, bufsize, m_maxbcachebuf))
+		<< strerror(errno);
+
+	// Read from the first block again.  Should be serviced by cache.
+	ASSERT_EQ(0, fcntl(fd, F_SETFL, 0)) << strerror(errno);
+	ASSERT_EQ(bufsize, pread(fd, readbuf, bufsize, 0)) << strerror(errno);
+	ASSERT_STREQ(readbuf, CONTENTS0);
+
+	leak(fd);
+	free(zeros);
+}
+
+/*
+ * If a direct io write partially overlaps one or two blocks of dirty cached
+ * data, No dirty data should be lost.  Admittedly this is a weird test,
+ * because it would be unusual to use O_DIRECT and the writeback cache.
+ */
+TEST_F(WriteBackAsync, direct_io_partially_overlaps_cached_block)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+	off_t bs = m_maxbcachebuf;
+	ssize_t fsize = 3 * bs;
+	void *readbuf, *zeros, *ones, *zeroones, *onezeros;
+
+	readbuf = malloc(bs);
+	ASSERT_NE(nullptr, readbuf) << strerror(errno);
+	zeros = calloc(1, 3 * bs);
+	ASSERT_NE(nullptr, zeros);
+	ones = calloc(1, 2 * bs);
+	ASSERT_NE(nullptr, ones);
+	memset(ones, 1, 2 * bs);
+	zeroones = calloc(1, bs);
+	ASSERT_NE(nullptr, zeroones);
+	memset((uint8_t*)zeroones + bs / 2, 1, bs / 2);
+	onezeros = calloc(1, bs);
+	ASSERT_NE(nullptr, onezeros);
+	memset(onezeros, 1, bs / 2);
+
+	expect_lookup(RELPATH, ino, fsize);
+	expect_open(ino, 0, 1);
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	/* Cache first and third blocks with dirty data.  */
+	ASSERT_EQ(3 * bs, pwrite(fd, zeros, 3 * bs, 0)) << strerror(errno);
+
+	/*
+	 * Write directly to all three blocks.  The partially written blocks
+	 * will be flushed because they're dirty.
+	 */
+	FuseTest::expect_write(ino, 0, bs, bs, 0, 0, zeros);
+	FuseTest::expect_write(ino, 2 * bs, bs, bs, 0, 0, zeros);
+	/* The direct write is split in two because of the m_maxwrite value */
+	FuseTest::expect_write(ino,     bs / 2, bs, bs, 0, 0, ones);
+	FuseTest::expect_write(ino, 3 * bs / 2, bs, bs, 0, 0, ones);
+	ASSERT_EQ(0, fcntl(fd, F_SETFL, O_DIRECT)) << strerror(errno);
+	ASSERT_EQ(2 * bs, pwrite(fd, ones, 2 * bs, bs / 2)) << strerror(errno);
+
+	/*
+	 * Read from both the valid and invalid portions of the first and third
+	 * blocks again.  This will entail FUSE_READ operations because these
+	 * blocks were invalidated by the direct write.
+	 */
+	expect_read(ino, 0, bs, bs, zeroones);
+	expect_read(ino, 2 * bs, bs, bs, onezeros);
+	ASSERT_EQ(0, fcntl(fd, F_SETFL, 0)) << strerror(errno);
+	ASSERT_EQ(bs / 2, pread(fd, readbuf, bs / 2, 0)) << strerror(errno);
+	EXPECT_EQ(0, memcmp(zeros, readbuf, bs / 2));
+	ASSERT_EQ(bs / 2, pread(fd, readbuf, bs / 2, 5 * bs / 2))
+		<< strerror(errno);
+	EXPECT_EQ(0, memcmp(zeros, readbuf, bs / 2));
+	ASSERT_EQ(bs / 2, pread(fd, readbuf, bs / 2, bs / 2))
+		<< strerror(errno);
+	EXPECT_EQ(0, memcmp(ones, readbuf, bs / 2));
+	ASSERT_EQ(bs / 2, pread(fd, readbuf, bs / 2, 2 * bs))
+		<< strerror(errno);
+	EXPECT_EQ(0, memcmp(ones, readbuf, bs / 2));
+
+	leak(fd);
+	free(zeroones);
+	free(onezeros);
+	free(ones);
+	free(zeros);
+	free(readbuf);
+}
+
+/*
  * In WriteBack mode, writes may be cached beyond what the server thinks is the
  * EOF.  In this case, a short read at EOF should _not_ cause fusefs to update
  * the file's size.
