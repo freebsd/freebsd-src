@@ -118,6 +118,8 @@ static void	vfs_knl_assert_locked(void *arg);
 static void	vfs_knl_assert_unlocked(void *arg);
 static void	vnlru_return_batches(struct vfsops *mnt_op);
 static void	destroy_vpollinfo(struct vpollinfo *vi);
+static int	v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
+		    daddr_t startlbn, daddr_t endlbn);
 
 /*
  * These fences are intended for cases where some synchronization is
@@ -1954,9 +1956,8 @@ int
 vtruncbuf(struct vnode *vp, off_t length, int blksize)
 {
 	struct buf *bp, *nbp;
-	int anyfreed;
-	daddr_t trunclbn;
 	struct bufobj *bo;
+	daddr_t startlbn;
 
 	CTR4(KTR_VFS, "%s: vp %p with block %d:%ju", __func__,
 	    vp, blksize, (uintmax_t)length);
@@ -1964,62 +1965,16 @@ vtruncbuf(struct vnode *vp, off_t length, int blksize)
 	/*
 	 * Round up to the *next* lbn.
 	 */
-	trunclbn = howmany(length, blksize);
+	startlbn = howmany(length, blksize);
 
 	ASSERT_VOP_LOCKED(vp, "vtruncbuf");
-restart:
+
 	bo = &vp->v_bufobj;
+restart_unlocked:
 	BO_LOCK(bo);
-	anyfreed = 1;
-	for (;anyfreed;) {
-		anyfreed = 0;
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_bobufs, nbp) {
-			if (bp->b_lblkno < trunclbn)
-				continue;
-			if (BUF_LOCK(bp,
-			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_LOCKPTR(bo)) == ENOLCK)
-				goto restart;
 
-			bremfree(bp);
-			bp->b_flags |= (B_INVAL | B_RELBUF);
-			bp->b_flags &= ~B_ASYNC;
-			brelse(bp);
-			anyfreed = 1;
-
-			BO_LOCK(bo);
-			if (nbp != NULL &&
-			    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
-			    (nbp->b_vp != vp) ||
-			    (nbp->b_flags & B_DELWRI))) {
-				BO_UNLOCK(bo);
-				goto restart;
-			}
-		}
-
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
-			if (bp->b_lblkno < trunclbn)
-				continue;
-			if (BUF_LOCK(bp,
-			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_LOCKPTR(bo)) == ENOLCK)
-				goto restart;
-			bremfree(bp);
-			bp->b_flags |= (B_INVAL | B_RELBUF);
-			bp->b_flags &= ~B_ASYNC;
-			brelse(bp);
-			anyfreed = 1;
-
-			BO_LOCK(bo);
-			if (nbp != NULL &&
-			    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
-			    (nbp->b_vp != vp) ||
-			    (nbp->b_flags & B_DELWRI) == 0)) {
-				BO_UNLOCK(bo);
-				goto restart;
-			}
-		}
-	}
+	while (v_inval_buf_range_locked(vp, bo, startlbn, INT64_MAX) == EAGAIN)
+		;
 
 	if (length > 0) {
 restartsync:
@@ -2032,9 +1987,9 @@ restartsync:
 			 */
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_LOCKPTR(bo)) == ENOLCK) {
-				goto restart;
-			}
+			    BO_LOCKPTR(bo)) == ENOLCK)
+				goto restart_unlocked;
+
 			VNASSERT((bp->b_flags & B_DELWRI), vp,
 			    ("buf(%p) on dirty queue without DELWRI", bp));
 
@@ -2049,6 +2004,95 @@ restartsync:
 	BO_UNLOCK(bo);
 	vnode_pager_setsize(vp, length);
 
+	return (0);
+}
+
+/*
+ * Invalidate the cached pages of a file's buffer within the range of block
+ * numbers [startlbn, endlbn).
+ */
+void
+v_inval_buf_range(struct vnode *vp, daddr_t startlbn, daddr_t endlbn,
+    int blksize)
+{
+	struct bufobj *bo;
+	off_t start, end;
+
+	ASSERT_VOP_LOCKED(vp, "v_inval_buf_range");
+
+	start = blksize * startlbn;
+	end = blksize * endlbn;
+
+	bo = &vp->v_bufobj;
+	BO_LOCK(bo);
+	MPASS(blksize == bo->bo_bsize);
+
+	while (v_inval_buf_range_locked(vp, bo, startlbn, endlbn) == EAGAIN)
+		;
+
+	BO_UNLOCK(bo);
+	vn_pages_remove(vp, OFF_TO_IDX(start), OFF_TO_IDX(end + PAGE_SIZE - 1));
+}
+
+static int
+v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
+    daddr_t startlbn, daddr_t endlbn)
+{
+	struct buf *bp, *nbp;
+	bool anyfreed;
+
+	ASSERT_VOP_LOCKED(vp, "v_inval_buf_range_locked");
+	ASSERT_BO_LOCKED(bo);
+
+	do {
+		anyfreed = false;
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_bobufs, nbp) {
+			if (bp->b_lblkno < startlbn || bp->b_lblkno >= endlbn)
+				continue;
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+			    BO_LOCKPTR(bo)) == ENOLCK) {
+				BO_LOCK(bo);
+				return (EAGAIN);
+			}
+
+			bremfree(bp);
+			bp->b_flags |= B_INVAL | B_RELBUF;
+			bp->b_flags &= ~B_ASYNC;
+			brelse(bp);
+			anyfreed = true;
+
+			BO_LOCK(bo);
+			if (nbp != NULL &&
+			    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
+			    nbp->b_vp != vp ||
+			    (nbp->b_flags & B_DELWRI) != 0))
+				return (EAGAIN);
+		}
+
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
+			if (bp->b_lblkno < startlbn || bp->b_lblkno >= endlbn)
+				continue;
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+			    BO_LOCKPTR(bo)) == ENOLCK) {
+				BO_LOCK(bo);
+				return (EAGAIN);
+			}
+			bremfree(bp);
+			bp->b_flags |= B_INVAL | B_RELBUF;
+			bp->b_flags &= ~B_ASYNC;
+			brelse(bp);
+			anyfreed = true;
+
+			BO_LOCK(bo);
+			if (nbp != NULL &&
+			    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
+			    (nbp->b_vp != vp) ||
+			    (nbp->b_flags & B_DELWRI) == 0))
+				return (EAGAIN);
+		}
+	} while (anyfreed);
 	return (0);
 }
 
