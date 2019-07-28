@@ -1332,31 +1332,27 @@ swap_pager_getpages_async(vm_object_t object, vm_page_t *ma, int count,
  *	completion.
  *
  *	The parent has soft-busy'd the pages it passes us and will unbusy
- *	those whos rtvals[] entry is not set to VM_PAGER_PEND on return.
+ *	those whose rtvals[] entry is not set to VM_PAGER_PEND on return.
  *	We need to unbusy the rest on I/O completion.
  */
 static void
 swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
     int flags, int *rtvals)
 {
-	int i, n;
-	boolean_t sync;
-	daddr_t addr, n_free, s_free;
+	struct buf *bp;
+	daddr_t addr, blk, n_free, s_free;
+	vm_page_t mreq;
+	int i, j, n;
+	bool async;
 
-	swp_pager_init_freerange(&s_free, &n_free);
-	if (count && ma[0]->object != object) {
-		panic("swap_pager_putpages: object mismatch %p/%p",
-		    object,
-		    ma[0]->object
-		);
-	}
+	KASSERT(count == 0 || ma[0]->object == object,
+	    ("%s: object mismatch %p/%p",
+	    __func__, object, ma[0]->object));
 
 	/*
 	 * Step 1
 	 *
-	 * Turn object into OBJT_SWAP
-	 * check for bogus sysops
-	 * force sync if not pageout process
+	 * Turn object into OBJT_SWAP.  Force sync if not a pageout process.
 	 */
 	if (object->type != OBJT_SWAP) {
 		addr = swp_pager_meta_build(object, 0, SWAPBLK_NONE);
@@ -1364,12 +1360,8 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		    ("unexpected object swap block"));
 	}
 	VM_OBJECT_WUNLOCK(object);
-
-	n = 0;
-	if (curproc != pageproc)
-		sync = TRUE;
-	else
-		sync = (flags & VM_PAGER_PUT_SYNC) != 0;
+	async = curproc == pageproc && (flags & VM_PAGER_PUT_SYNC) == 0;
+	swp_pager_init_freerange(&s_free, &n_free);
 
 	/*
 	 * Step 2
@@ -1379,10 +1371,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 	 * successfully.
 	 */
 	for (i = 0; i < count; i += n) {
-		int j;
-		struct buf *bp;
-		daddr_t blk;
-
 		/* Maximum I/O size is limited by maximum swap block size. */
 		n = min(count - i, nsw_cluster_max);
 
@@ -1390,15 +1378,15 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		blk = swp_pager_getswapspace(&n, 4);
 		if (blk == SWAPBLK_NONE) {
 			for (j = 0; j < n; ++j)
-				rtvals[i+j] = VM_PAGER_FAIL;
+				rtvals[i + j] = VM_PAGER_FAIL;
 			continue;
 		}
 
 		/*
-		 * All I/O parameters have been satisfied, build the I/O
+		 * All I/O parameters have been satisfied.  Build the I/O
 		 * request and assign the swap space.
 		 */
-		if (sync != TRUE) {
+		if (async) {
 			mtx_lock(&swbuf_mtx);
 			while (nsw_wcount_async == 0)
 				msleep(&nsw_wcount_async, &swbuf_mtx, PVM,
@@ -1407,7 +1395,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 			mtx_unlock(&swbuf_mtx);
 		}
 		bp = uma_zalloc(swwbuf_zone, M_WAITOK);
-		if (sync != TRUE)
+		if (async)
 			bp->b_flags = B_ASYNC;
 		bp->b_flags |= B_PAGING;
 		bp->b_iocmd = BIO_WRITE;
@@ -1420,8 +1408,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 
 		VM_OBJECT_WLOCK(object);
 		for (j = 0; j < n; ++j) {
-			vm_page_t mreq = ma[i+j];
-
+			mreq = ma[i + j];
 			addr = swp_pager_meta_build(mreq->object, mreq->pindex,
 			    blk + j);
 			if (addr != SWAPBLK_NONE)
@@ -1455,9 +1442,9 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		/*
 		 * asynchronous
 		 *
-		 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
+		 * NOTE: b_blkno is destroyed by the call to swapdev_strategy.
 		 */
-		if (sync == FALSE) {
+		if (async) {
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
 			swp_pager_strategy(bp);
@@ -1467,7 +1454,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		/*
 		 * synchronous
 		 *
-		 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
+		 * NOTE: b_blkno is destroyed by the call to swapdev_strategy.
 		 */
 		bp->b_iodone = bdone;
 		swp_pager_strategy(bp);
@@ -1483,8 +1470,8 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		 */
 		swp_pager_async_iodone(bp);
 	}
-	VM_OBJECT_WLOCK(object);
 	swp_pager_freeswapspace(s_free, n_free);
+	VM_OBJECT_WLOCK(object);
 }
 
 /*
