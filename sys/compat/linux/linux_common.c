@@ -98,3 +98,4 @@ static moduledata_t linux_common_mod = {
 };
 
 DECLARE_MODULE(linuxcommon, linux_common_mod, SI_SUB_EXEC, SI_ORDER_ANY);
+MODULE_VERSION(linuxcommon, 1);

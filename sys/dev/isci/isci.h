@@ -75,6 +75,9 @@
 #define ISCI_NUM_PCI_BARS  2
 #define ISCI_MAX_LUN		 8
 
+/* This device cannot DMA across a 4GB boundary */
+#define	ISCI_DMA_BOUNDARY		((bus_addr_t)((uint64_t)1 << 32))
+
 MALLOC_DECLARE(M_ISCI);
 
 struct ISCI_TIMER {

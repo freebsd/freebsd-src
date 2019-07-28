@@ -113,8 +113,14 @@ modstack_config(struct module_stack* stack, const char* module_conf)
         for(i=0; i<stack->num; i++) {
                 stack->mod[i] = module_factory(&module_conf);
                 if(!stack->mod[i]) {
-                        log_err("Unknown value for next module: '%s'",
-                                module_conf);
+			char md[256];
+			snprintf(md, sizeof(md), "%s", module_conf);
+			if(strchr(md, ' ')) *(strchr(md, ' ')) = 0;
+			if(strchr(md, '\t')) *(strchr(md, '\t')) = 0;
+                        log_err("Unknown value in module-config, module: '%s'."
+				" This module is not present (not compiled in),"
+				" See the list of linked modules with unbound -h",
+                                md);
                         return 0;
                 }
         }

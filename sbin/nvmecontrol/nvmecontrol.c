@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <dlfcn.h>
-#include <dirent.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -48,101 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "nvmecontrol.h"
-
-SET_CONCAT_DEF(top, struct nvme_function);
-
-static void
-print_usage(const struct nvme_function *f)
-{
-	const char *cp;
-	char ch;
-	bool need_prefix = true;
-
-	cp = f->usage;
-	while (*cp) {
-		ch = *cp++;
-		if (need_prefix) {
-			if (ch != ' ')
-				fputs("        nvmecontrol ", stderr);
-			else
-				fputs("                    ", stderr);
-		}
-		fputc(ch, stderr);
-		need_prefix = (ch == '\n');
-	}
-	if (!need_prefix)
-		fputc('\n', stderr);
-}
-
-static void
-gen_usage_set(const struct nvme_function * const *f, const struct nvme_function * const *flimit)
-{
-
-	fprintf(stderr, "usage:\n");
-	while (f < flimit) {
-		print_usage(*f);
-		f++;
-	}
-	exit(1);
-}
-
-void
-usage(const struct nvme_function *f)
-{
-
-	fprintf(stderr, "usage:\n");
-	print_usage(f);
-	exit(1);
-}
-
-void
-dispatch_set(int argc, char *argv[], const struct nvme_function * const *tbl,
-    const struct nvme_function * const *tbl_limit)
-{
-	const struct nvme_function * const *f = tbl;
-
-	if (argv[1] == NULL) {
-		gen_usage_set(tbl, tbl_limit);
-		return;
-	}
-
-	while (f < tbl_limit) {
-		if (strcmp(argv[1], (*f)->name) == 0) {
-			(*f)->fn(*f, argc-1, &argv[1]);
-			return;
-		}
-		f++;
-	}
-
-	fprintf(stderr, "Unknown command: %s\n", argv[1]);
-	gen_usage_set(tbl, tbl_limit);
-}
-
-void
-set_concat_add(struct set_concat *m, void *b, void *e)
-{
-	void **bp, **ep;
-	int add_n, cur_n;
-
-	if (b == NULL)
-		return;
-	/*
-	 * Args are really pointers to arrays of pointers, but C's
-	 * casting rules kinda suck since you can't directly cast
-	 * struct foo ** to a void **.
-	 */
-	bp = (void **)b;
-	ep = (void **)e;
-	add_n = ep - bp;
-	cur_n = 0;
-	if (m->begin != NULL)
-		cur_n = m->limit - m->begin;
-	m->begin = reallocarray(m->begin, cur_n + add_n, sizeof(void *));
-	if (m->begin == NULL)
-		err(1, "expanding concat set");
-	memcpy(m->begin + cur_n, bp, add_n * sizeof(void *));
-	m->limit = m->begin + cur_n + add_n;
-}
 
 static void
 print_bytes(void *data, uint32_t length)
@@ -288,61 +192,16 @@ parse_ns_str(const char *ns_str, char *ctrlr_str, uint32_t *nsid)
 	snprintf(ctrlr_str, nsloc - ns_str + 1, "%s", ns_str);
 }
 
-/*
- * Loads all the .so's from the specified directory.
- */
-static void
-load_dir(const char *dir)
-{
-	DIR *d;
-	struct dirent *dent;
-	char *path = NULL;
-	void *h;
-
-	d = opendir(dir);
-	if (d == NULL)
-		return;
-	for (dent = readdir(d); dent != NULL; dent = readdir(d)) {
-		if (strcmp(".so", dent->d_name + dent->d_namlen - 3) != 0)
-			continue;
-		asprintf(&path, "%s/%s", dir, dent->d_name);
-		if (path == NULL)
-			err(1, "Can't malloc for path, giving up.");
-		if ((h = dlopen(path, RTLD_NOW | RTLD_GLOBAL)) == NULL)
-			warnx("Can't load %s: %s", path, dlerror());
-		else {
-			/*
-			 * Add in the top (for cli commands)linker sets. We have
-			 * to do this by hand because linker sets aren't
-			 * automatically merged.
-			 */
-			void *begin, *limit;
-
-			begin = dlsym(h, "__start_set_top");
-			limit = dlsym(h, "__stop_set_top");
-			if (begin)
-				add_to_top(begin, limit);
-			/* log pages use constructors so are done on load */
-		}
-		free(path);
-		path = NULL;
-	}
-	closedir(d);
-}
-
 int
 main(int argc, char *argv[])
 {
 
-	add_to_top(NVME_CMD_BEGIN(top), NVME_CMD_LIMIT(top));
+	cmd_init();
 
-	load_dir("/lib/nvmecontrol");
-	load_dir("/usr/local/lib/nvmecontrol");
+	cmd_load_dir("/lib/nvmecontrol", NULL, NULL);
+	cmd_load_dir("/usr/local/lib/nvmecontrol", NULL, NULL);
 
-	if (argc < 2)
-		gen_usage_set(top_begin(), top_limit());
-
-	dispatch_set(argc, argv, top_begin(), top_limit());
+	cmd_dispatch(argc, argv, NULL);
 
 	return (0);
 }

@@ -464,7 +464,7 @@ pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
 {
 	u_int l1_slot, l2_slot;
 	pt_entry_t *l2;
-	u_int ret;
+	vm_paddr_t ret;
 
 	l2 = pmap_early_page_idx(l1pt, va, &l1_slot, &l2_slot);
 
@@ -884,7 +884,7 @@ retry:
 			if (vm_page_pa_tryrelock(pmap, phys, &pa))
 				goto retry;
 			m = PHYS_TO_VM_PAGE(phys);
-			vm_page_hold(m);
+			vm_page_wire(m);
 		}
 	}
 	PA_UNLOCK_COND(pa);
@@ -2298,9 +2298,9 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	pd_entry_t *l1, *l2, l2e;
 	pt_entry_t *l3, l3e, mask;
-	vm_page_t m;
+	vm_page_t m, mt;
 	vm_paddr_t pa;
-	vm_offset_t va, va_next;
+	vm_offset_t va_next;
 	bool anychanged, pv_lists_locked;
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
@@ -2340,12 +2340,13 @@ resume:
 		if ((l2e & PTE_RWX) != 0) {
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
 retryl2:
-				if ((l2e & (PTE_SW_MANAGED | PTE_D)) ==
+				if ((prot & VM_PROT_WRITE) == 0 &&
+				    (l2e & (PTE_SW_MANAGED | PTE_D)) ==
 				    (PTE_SW_MANAGED | PTE_D)) {
 					pa = PTE_TO_PHYS(l2e);
-					for (va = sva, m = PHYS_TO_VM_PAGE(pa);
-					    va < va_next; m++, va += PAGE_SIZE)
-						vm_page_dirty(m);
+					m = PHYS_TO_VM_PAGE(pa);
+					for (mt = m; mt < &m[Ln_ENTRIES]; mt++)
+						vm_page_dirty(mt);
 				}
 				if (!atomic_fcmpset_long(l2, &l2e, l2e & ~mask))
 					goto retryl2;
@@ -3949,12 +3950,12 @@ pmap_ts_referenced(vm_page_t m)
 	pt_entry_t *l3, l3e;
 	vm_paddr_t pa;
 	vm_offset_t va;
-	int md_gen, pvh_gen, ret;
+	int cleared, md_gen, not_cleared, pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
 	SLIST_INIT(&free);
-	ret = 0;
+	cleared = 0;
 	pa = VM_PAGE_TO_PHYS(m);
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
 
@@ -3962,6 +3963,7 @@ pmap_ts_referenced(vm_page_t m)
 	rw_rlock(&pvh_global_lock);
 	rw_wlock(lock);
 retry:
+	not_cleared = 0;
 	if ((pvf = TAILQ_FIRST(&pvh->pv_list)) == NULL)
 		goto small_mappings;
 	pv = pvf;
@@ -4012,8 +4014,9 @@ retry:
 			    (l2e & PTE_SW_WIRED) == 0) {
 				pmap_clear_bits(l2, PTE_A);
 				pmap_invalidate_page(pmap, va);
-			}
-			ret++;
+				cleared++;
+			} else
+				not_cleared++;
 		}
 		PMAP_UNLOCK(pmap);
 		/* Rotate the PV list if it has more than one entry. */
@@ -4022,7 +4025,7 @@ retry:
 			TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
 			pvh->pv_gen++;
 		}
-		if (ret >= PMAP_TS_REFERENCED_MAX)
+		if (cleared + not_cleared >= PMAP_TS_REFERENCED_MAX)
 			goto out;
 	} while ((pv = TAILQ_FIRST(&pvh->pv_list)) != pvf);
 small_mappings:
@@ -4061,8 +4064,9 @@ small_mappings:
 				 */
 				pmap_clear_bits(l3, PTE_A);
 				pmap_invalidate_page(pmap, pv->pv_va);
-			}
-			ret++;
+				cleared++;
+			} else
+				not_cleared++;
 		}
 		PMAP_UNLOCK(pmap);
 		/* Rotate the PV list if it has more than one entry. */
@@ -4071,13 +4075,13 @@ small_mappings:
 			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 			m->md.pv_gen++;
 		}
-	} while ((pv = TAILQ_FIRST(&m->md.pv_list)) != pvf && ret <
-	    PMAP_TS_REFERENCED_MAX);
+	} while ((pv = TAILQ_FIRST(&m->md.pv_list)) != pvf && cleared +
+	    not_cleared < PMAP_TS_REFERENCED_MAX);
 out:
 	rw_wunlock(lock);
 	rw_runlock(&pvh_global_lock);
 	vm_page_free_pages_toq(&free, false);
-	return (ret);
+	return (cleared + not_cleared);
 }
 
 /*
@@ -4101,7 +4105,7 @@ pmap_clear_modify(vm_page_t m)
 	pmap_t pmap;
 	pv_entry_t next_pv, pv;
 	pd_entry_t *l2, oldl2;
-	pt_entry_t *l3, oldl3;
+	pt_entry_t *l3;
 	vm_offset_t va;
 	int md_gen, pvh_gen;
 
@@ -4139,28 +4143,19 @@ restart:
 		va = pv->pv_va;
 		l2 = pmap_l2(pmap, va);
 		oldl2 = pmap_load(l2);
-		if ((oldl2 & PTE_W) != 0) {
-			if (pmap_demote_l2_locked(pmap, l2, va, &lock)) {
-				if ((oldl2 & PTE_SW_WIRED) == 0) {
-					/*
-					 * Write protect the mapping to a
-					 * single page so that a subsequent
-					 * write access may repromote.
-					 */
-					va += VM_PAGE_TO_PHYS(m) -
-					    PTE_TO_PHYS(oldl2);
-					l3 = pmap_l2_to_l3(l2, va);
-					oldl3 = pmap_load(l3);
-					if ((oldl3 & PTE_V) != 0) {
-						while (!atomic_fcmpset_long(l3,
-						    &oldl3, oldl3 & ~(PTE_D |
-						    PTE_W)))
-							cpu_spinwait();
-						vm_page_dirty(m);
-						pmap_invalidate_page(pmap, va);
-					}
-				}
-			}
+		/* If oldl2 has PTE_W set, then it also has PTE_D set. */
+		if ((oldl2 & PTE_W) != 0 &&
+		    pmap_demote_l2_locked(pmap, l2, va, &lock) &&
+		    (oldl2 & PTE_SW_WIRED) == 0) {
+			/*
+			 * Write protect the mapping to a single page so that
+			 * a subsequent write access may repromote.
+			 */
+			va += VM_PAGE_TO_PHYS(m) - PTE_TO_PHYS(oldl2);
+			l3 = pmap_l2_to_l3(l2, va);
+			pmap_clear_bits(l3, PTE_D | PTE_W);
+			vm_page_dirty(m);
+			pmap_invalidate_page(pmap, va);
 		}
 		PMAP_UNLOCK(pmap);
 	}
@@ -4183,7 +4178,7 @@ restart:
 		    m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		if ((pmap_load(l3) & (PTE_D | PTE_W)) == (PTE_D | PTE_W)) {
-			pmap_clear_bits(l3, PTE_D);
+			pmap_clear_bits(l3, PTE_D | PTE_W);
 			pmap_invalidate_page(pmap, pv->pv_va);
 		}
 		PMAP_UNLOCK(pmap);

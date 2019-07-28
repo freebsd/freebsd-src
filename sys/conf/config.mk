@@ -45,6 +45,8 @@ KERN_OPTS+= INET TCP_OFFLOAD
 KERN_OPTS+= INET6
 .endif
 .elif !defined(KERN_OPTS)
+# Add all the options that are mentioned in any opt_*.h file when we
+# have a kernel build directory to pull them from.
 KERN_OPTS!=cat ${KERNBUILDDIR}/opt*.h | awk '{print $$2;}' | sort -u
 .export KERN_OPTS
 .endif

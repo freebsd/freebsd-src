@@ -41,30 +41,36 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-#define RESET_USAGE							       \
-	"reset <controller id>\n"
+static struct options {
+	const char *dev;
+} opt = {
+	.dev = NULL
+};
+
+static const struct args args[] = {
+	{ arg_string, &opt.dev, "controller-id" },
+	{ arg_none, NULL, NULL },
+};
 
 static void
-reset(const struct nvme_function *nf, int argc, char *argv[])
+reset(const struct cmd *f, int argc, char *argv[])
 {
-	int	ch, fd;
+	int	fd;
 
-	while ((ch = getopt(argc, argv, "")) != -1) {
-		switch ((char)ch) {
-		default:
-			usage(nf);
-		}
-	}
+	arg_parse(argc, argv, f);
+	open_dev(opt.dev, &fd, 1, 1);
 
-	/* Check that a controller was specified. */
-	if (optind >= argc)
-		usage(nf);
-
-	open_dev(argv[optind], &fd, 1, 1);
 	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0)
 		err(1, "reset request to %s failed", argv[optind]);
 
 	exit(0);
 }
 
-NVME_COMMAND(top, reset, reset, RESET_USAGE);
+static struct cmd reset_cmd = {
+	.name = "reset",
+	.fn = reset,
+	.descr = "Perform a controller-level reset.",
+	.args = args,
+};
+
+CMD_COMMAND(reset_cmd);

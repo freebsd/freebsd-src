@@ -474,13 +474,6 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		return (-ENOMEM);
 	}
 
-	for (i = 0; i < actual_pages; i++) {
-		vm_page_lock(pages[i]);
-		vm_page_wire(pages[i]);
-		vm_page_unhold(pages[i]);
-		vm_page_unlock(pages[i]);
-	}
-
 	pagelist->length = count;
 	pagelist->type = type;
 	pagelist->offset = offset;

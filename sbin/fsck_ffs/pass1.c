@@ -251,7 +251,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 	int j, ret, offset;
 
 	if ((dp = getnextinode(inumber, rebuildcg)) == NULL)
-		return (0);
+		goto unknown;
 	mode = DIP(dp, di_mode) & IFMT;
 	if (mode == 0) {
 		if ((sblock.fs_magic == FS_UFS1_MAGIC &&

@@ -57,6 +57,7 @@ struct sglist {
 
 struct bio;
 struct mbuf;
+struct mbuf_ext_pgs;
 struct uio;
 
 static __inline void
@@ -87,6 +88,9 @@ sglist_hold(struct sglist *sg)
 struct sglist *sglist_alloc(int nsegs, int mflags);
 int	sglist_append(struct sglist *sg, void *buf, size_t len);
 int	sglist_append_bio(struct sglist *sg, struct bio *bp);
+int	sglist_append_ext_pgs(struct sglist *sg, struct mbuf_ext_pgs *ext_pgs,
+	    size_t off, size_t len);
+int	sglist_append_mb_ext_pgs(struct sglist *sg, struct mbuf *m);
 int	sglist_append_mbuf(struct sglist *sg, struct mbuf *m0);
 int	sglist_append_phys(struct sglist *sg, vm_paddr_t paddr,
 	    size_t len);
@@ -101,6 +105,9 @@ struct sglist *sglist_build(void *buf, size_t len, int mflags);
 struct sglist *sglist_clone(struct sglist *sg, int mflags);
 int	sglist_consume_uio(struct sglist *sg, struct uio *uio, size_t resid);
 int	sglist_count(void *buf, size_t len);
+int	sglist_count_ext_pgs(struct mbuf_ext_pgs *ext_pgs, size_t off,
+	    size_t len);
+int	sglist_count_mb_ext_pgs(struct mbuf *m);
 int	sglist_count_vmpages(vm_page_t *m, size_t pgoff, size_t len);
 void	sglist_free(struct sglist *sg);
 int	sglist_join(struct sglist *first, struct sglist *second);

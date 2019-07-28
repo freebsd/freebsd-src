@@ -859,7 +859,7 @@ retry:
 			m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS(va));
 			(void)vm_page_pa_tryrelock(pm, TLB_DIRECT_TO_PHYS(va),
 			    &pa);
-			vm_page_hold(m);
+			vm_page_wire(m);
 		} else {
 			tp = tsb_kvtotte(va);
 			if ((tp->tte_data & TD_V) == 0)
@@ -872,7 +872,7 @@ retry:
 		if (vm_page_pa_tryrelock(pm, TTE_GET_PA(tp), &pa))
 			goto retry;
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
-		vm_page_hold(m);
+		vm_page_wire(m);
 	}
 	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pm);

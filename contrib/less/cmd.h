@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -71,6 +71,13 @@
 #define A_RRSHIFT              59
 #define A_CLRMARK              62
 #define A_SETMARKBOT           63
+#define A_X11MOUSE_IN          64
+#define A_X11MOUSE_IGNORE      65
+#define A_F_MOUSE              66
+#define A_B_MOUSE              67
+/* Note "X116" refers to extended (1006) X11 mouse reporting. */
+#define A_X116MOUSE_IN         68
+#define A_X116MOUSE_IGNORE     69
 
 #define A_INVALID              100
 #define A_NOACTION             101

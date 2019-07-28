@@ -691,11 +691,30 @@ sendit:
 
 	m->m_pkthdr.csum_flags |= CSUM_IP;
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA & ~ifp->if_hwassist) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			IPSTAT_INC(ips_odropped);
+			error = ENOBUFS;
+			goto bad;
+		}
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+	} else if ((ifp->if_capenable & IFCAP_NOMAP) == 0) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			IPSTAT_INC(ips_odropped);
+			error = ENOBUFS;
+			goto bad;
+		}
 	}
 #ifdef SCTP
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP & ~ifp->if_hwassist) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			IPSTAT_INC(ips_odropped);
+			error = ENOBUFS;
+			goto bad;
+		}
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
@@ -831,11 +850,23 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	 * fragmented packets, then do it here.
 	 */
 	if (m0->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		m0 = mb_unmapped_to_ext(m0);
+		if (m0 == NULL) {
+			error = ENOBUFS;
+			IPSTAT_INC(ips_odropped);
+			goto done;
+		}
 		in_delayed_cksum(m0);
 		m0->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 #ifdef SCTP
 	if (m0->m_pkthdr.csum_flags & CSUM_SCTP) {
+		m0 = mb_unmapped_to_ext(m0);
+		if (m0 == NULL) {
+			error = ENOBUFS;
+			IPSTAT_INC(ips_odropped);
+			goto done;
+		}
 		sctp_delayed_cksum(m0, hlen);
 		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}

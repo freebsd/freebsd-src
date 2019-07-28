@@ -231,9 +231,9 @@ The
 is defined as follows:
 .Bd -literal
 typedef struct ctf_preamble {
-	ushort_t ctp_magic;	/* magic number (CTF_MAGIC) */
-	uchar_t ctp_version;	/* data format version number (CTF_VERSION) */
-	uchar_t ctp_flags;	/* flags (see below) */
+	uint16_t ctp_magic;	/* magic number (CTF_MAGIC) */
+	uint8_t ctp_version;	/* data format version number (CTF_VERSION) */
+	uint8_t ctp_flags;	/* flags (see below) */
 } ctf_preamble_t;
 .Ed
 .Pp
@@ -313,14 +313,14 @@ and the two have a combined size of 36 bytes.
 .Bd -literal
 typedef struct ctf_header {
 	ctf_preamble_t cth_preamble;
-	uint_t cth_parlabel;	/* ref to name of parent lbl uniq'd against */
-	uint_t cth_parname;	/* ref to basename of parent */
-	uint_t cth_lbloff;	/* offset of label section */
-	uint_t cth_objtoff;	/* offset of object section */
-	uint_t cth_funcoff;	/* offset of function section */
-	uint_t cth_typeoff;	/* offset of type section */
-	uint_t cth_stroff;	/* offset of string section */
-	uint_t cth_strlen;	/* length of string section in bytes */
+	uint32_t cth_parlabel;	/* ref to name of parent lbl uniq'd against */
+	uint32_t cth_parname;	/* ref to basename of parent */
+	uint32_t cth_lbloff;	/* offset of label section */
+	uint32_t cth_objtoff;	/* offset of object section */
+	uint32_t cth_funcoff;	/* offset of function section */
+	uint32_t cth_typeoff;	/* offset of type section */
+	uint32_t cth_stroff;	/* offset of string section */
+	uint32_t cth_strlen;	/* length of string section in bytes */
 } ctf_header_t;
 .Ed
 .Pp
@@ -541,8 +541,8 @@ Each label is encoded in the file format using the following eight byte
 structure:
 .Bd -literal
 typedef struct ctf_lblent {
-	uint_t ctl_label;	/* ref to name of label */
-	uint_t ctl_typeidx;	/* last type associated with this label */
+	uint32_t ctl_label;	/* ref to name of label */
+	uint32_t ctl_typeidx;	/* last type associated with this label */
 } ctf_lblent_t;
 .Ed
 .Lp
@@ -728,23 +728,23 @@ The following definitions describe the short and long forms:
 #define	CTF_MAX_LSIZE	UINT64_MAX
 
 typedef struct ctf_stype {
-	uint_t ctt_name;	/* reference to name in string table */
-	ushort_t ctt_info;	/* encoded kind, variant length */
+	uint32_t ctt_name;	/* reference to name in string table */
+	uint16_t ctt_info;	/* encoded kind, variant length */
 	union {
-		ushort_t _size;	/* size of entire type in bytes */
-		ushort_t _type;	/* reference to another type */
+		uint16_t _size;	/* size of entire type in bytes */
+		uint16_t _type;	/* reference to another type */
 	} _u;
 } ctf_stype_t;
 
 typedef struct ctf_type {
-	uint_t ctt_name;	/* reference to name in string table */
-	ushort_t ctt_info;	/* encoded kind, variant length */
+	uint32_t ctt_name;	/* reference to name in string table */
+	uint16_t ctt_info;	/* encoded kind, variant length */
 	union {
-		ushort_t _size;	/* always CTF_LSIZE_SENT */
-		ushort_t _type; /* do not use */
+		uint16_t _size;	/* always CTF_LSIZE_SENT */
+		uint16_t _type; /* do not use */
 	} _u;
-	uint_t ctt_lsizehi;	/* high 32 bits of type size in bytes */
-	uint_t ctt_lsizelo;	/* low 32 bits of type size in bytes */
+	uint32_t ctt_lsizehi;	/* high 32 bits of type size in bytes */
+	uint32_t ctt_lsizelo;	/* low 32 bits of type size in bytes */
 } ctf_type_t;
 
 #define	ctt_size _u._size	/* for fundamental types that have a size */
@@ -754,7 +754,7 @@ typedef struct ctf_type {
 Type sizes are stored in
 .Sy bytes .
 The basic small form uses a
-.Sy ushort_t
+.Sy uint16_t
 to store the number of bytes.
 If the number of bytes in a structure would exceed 0xfffe, then the alternate
 form, the
@@ -806,8 +806,8 @@ various kinds.
 Integers, which are of type
 .Sy CTF_K_INTEGER ,
 have no variable length arguments.
-Instead, they are followed by a four byte
-.Sy uint_t
+Instead, they are followed by a
+.Sy uint32_t
 which describes their encoding.
 All integers must be encoded with a variable length of zero.
 The
@@ -937,9 +937,9 @@ member is set to zero.
 The structure that follows an array is defined as:
 .Bd -literal
 typedef struct ctf_array {
-	ushort_t cta_contents;	/* reference to type of array contents */
-	ushort_t cta_index;	/* reference to type of array index */
-	uint_t cta_nelems;	/* number of elements */
+	uint16_t cta_contents;	/* reference to type of array contents */
+	uint16_t cta_index;	/* reference to type of array index */
+	uint32_t cta_nelems;	/* number of elements */
 } ctf_array_t;
 .Ed
 .Lp
@@ -1005,17 +1005,17 @@ all members are encoded using the same structure.
 The structure for members is as follows:
 .Bd -literal
 typedef struct ctf_member {
-	uint_t ctm_name;	/* reference to name in string table */
-	ushort_t ctm_type;	/* reference to type of member */
-	ushort_t ctm_offset;	/* offset of this member in bits */
+	uint32_t ctm_name;	/* reference to name in string table */
+	uint16_t ctm_type;	/* reference to type of member */
+	uint16_t ctm_offset;	/* offset of this member in bits */
 } ctf_member_t;
 
 typedef struct ctf_lmember {
-	uint_t ctlm_name;	/* reference to name in string table */
-	ushort_t ctlm_type;	/* reference to type of member */
-	ushort_t ctlm_pad;	/* padding */
-	uint_t ctlm_offsethi;	/* high 32 bits of member offset in bits */
-	uint_t ctlm_offsetlo;	/* low 32 bits of member offset in bits */
+	uint32_t ctlm_name;	/* reference to name in string table */
+	uint16_t ctlm_type;	/* reference to type of member */
+	uint16_t ctlm_pad;	/* padding */
+	uint32_t ctlm_offsethi;	/* high 32 bits of member offset in bits */
+	uint32_t ctlm_offsetlo;	/* low 32 bits of member offset in bits */
 } ctf_lmember_t;
 .Ed
 .Lp
@@ -1088,8 +1088,8 @@ The enumerators encoded in an enumeration have the following structure in the
 variable list:
 .Bd -literal
 typedef struct ctf_enum {
-	uint_t cte_name;	/* reference to name in string table */
-	int cte_value;		/* value associated with this name */
+	uint32_t cte_name;	/* reference to name in string table */
+	int32_t cte_value;	/* value associated with this name */
 } ctf_enum_t;
 .Ed
 .Pp

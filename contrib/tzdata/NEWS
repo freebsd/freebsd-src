@@ -1,6 +1,100 @@
 News for the tz database
 
-Release 20198 - 2019-03-25 22:01:33 -0700
+Release 2019b - 2019-07-01 00:09:53 -0700
+
+  Briefly:
+    Brazil no longer observes DST.
+    'zic -b slim' outputs smaller TZif files; please try it out.
+    Palestine's 2019 spring-forward transition was on 03-29, not 03-30.
+
+  Changes to future timestamps
+
+    Brazil has canceled DST and will stay on standard time indefinitely.
+    (Thanks to Steffen Thorsen, Marcus Diniz, and Daniel Soares de
+    Oliveira.)
+
+    Predictions for Morocco now go through 2087 instead of 2037, to
+    work around a problem on newlib when using TZif files output by
+    zic 2019a or earlier.  (Problem reported by David Gauchard.)
+
+  Changes to past and future timestamps
+
+    Palestine's 2019 spring transition was 03-29 at 00:00, not 03-30
+    at 01:00.  (Thanks to Sharef Mustafa and Even Scharning.)  Guess
+    future transitions to be March's last Friday at 00:00.
+
+  Changes to past timestamps
+
+    Hong Kong's 1941-06-15 spring-forward transition was at 03:00, not
+    03:30.  Its 1945 transition from JST to HKT was on 11-18 at 02:00,
+    not 09-15 at 00:00.  In 1946 its spring-forward transition was on
+    04-21 at 00:00, not the previous day at 03:30.  From 1946 through
+    1952 its fall-back transitions occurred at 04:30, not at 03:30.
+    In 1947 its fall-back transition was on 11-30, not 12-30.
+    (Thanks to P Chan.)
+
+  Changes to past time zone abbreviations
+
+    Italy's 1866 transition to Rome Mean Time was on December 12, not
+    September 22.  This affects only the time zone abbreviation for
+    Europe/Rome between those dates.  (Thanks to Stephen Trainor and
+    Luigi Rosa.)
+
+  Changes affecting metadata only
+
+    Add info about the Crimea situation in zone1970.tab and zone.tab.
+    (Problem reported by Serhii Demediuk.)
+
+  Changes to code
+
+    zic's new -b option supports a way to control data bloat and to
+    test for year-2038 bugs in software that reads TZif files.
+    'zic -b fat' and 'zic -b slim' generate larger and smaller output;
+    for example, changing from fat to slim shrinks the Europe/London
+    file from 3648 to 1599 bytes, saving about 56%.  Fat and slim
+    files represent the same set of timestamps and use the same TZif
+    format as documented in tzfile(5) and in Internet RFC 8536.
+    Fat format attempts to work around bugs or incompatibilities in
+    older software, notably software that mishandles 64-bit TZif data
+    or uses obsolete TZ strings like "EET-2EEST" that lack DST rules.
+    Slim format is more efficient and does not work around 64-bit bugs
+    or obsolete TZ strings.  Currently zic defaults to fat format
+    unless you compile with -DZIC_BLOAT_DEFAULT=\"slim\"; this
+    out-of-the-box default is intended to change in future releases
+    as the buggy software often mishandles timestamps anyway.
+
+    zic no longer treats a set of rules ending in 2037 specially.
+    Previously, zic assumed that such a ruleset meant that future
+    timestamps could not be predicted, and therefore omitted a
+    POSIX-like TZ string in the TZif output.  The old behavior is no
+    longer needed for current tzdata, and caused problems with newlib
+    when used with older tzdata (reported by David Gauchard).
+
+    zic no longer generates some artifact transitions.  For example,
+    Europe/London no longer has a no-op transition in January 1996.
+
+  Changes to build procedure
+
+    tzdata.zi now assumes zic 2017c or later.  This shrinks tzdata.zi
+    by a percent or so.
+
+  Changes to documentation and commentary
+
+    The Makefile now documents the POSIXRULES macro as being obsolete,
+    and similarly, zic's -p POSIXRULES option is now documented as
+    being obsolete.  Although the POSIXRULES feature still exists and
+    works as before, in practice it is rarely used for its intended
+    purpose, and it does not work either in the default reference
+    implementation (for timestamps after 2037) or in common
+    implementations such as GNU/Linux (for contemporary timestamps).
+    Since POSIXRULES was designed primarily as a temporary transition
+    facility for System V platforms that died off decades ago, it is
+    being decommissioned rather than institutionalized.
+
+    New info on Bonin Islands and Marcus (thanks to Wakaba and Phake Nick).
+
+
+Release 2019a - 2019-03-25 22:01:33 -0700
 
   Briefly:
     Palestine "springs forward" on 2019-03-30 instead of 2019-03-23.
@@ -481,7 +575,7 @@ Release 2018d - 2018-03-22 07:05:46 -0700
     The code is a bit more portable to MS-Windows.  Installers can
     compile with -DRESERVE_STD_EXT_IDS on MS-Windows platforms that
     reserve identifiers like 'localtime'.  (Thanks to Manuela
-    Friedrich).
+    Friedrich.)
 
   Changes to documentation and commentary
 
@@ -2276,7 +2370,7 @@ Release 2014f - 2014-08-05 17:42:36 -0700
     warlord Jin Shuren in the data.
 
     Commentary about the coverage of each Russian zone has been standardized.
-    (Thanks to Tim Parenti).
+    (Thanks to Tim Parenti.)
 
     There is new commentary about contemporary timekeeping in Ethiopia.
 
@@ -2724,7 +2818,7 @@ Release 2013e - 2013-09-19 23:50:04 -0700
 
     Change the UT offset of Bern Mean Time from 0:29:44 to 0:29:46.
     This affects Europe/Zurich timestamps from 1853 to 1894.  (Thanks
-    to Alois Treindl).
+    to Alois Treindl.)
 
     Change the date of the circa-1850 Zurich transition from 1849-09-12
     to 1853-07-16, overriding Shanks with data from Messerli about
@@ -3034,7 +3128,7 @@ Release 2013a - 2013-02-27 09:20:35 -0800
     (Thanks to Arthur David Olson.)
 
     Improve the commentary about which districts observe what times
-    in Russia.  (Thanks to Oscar van Vlijmen and Arthur David Olson).
+    in Russia.  (Thanks to Oscar van Vlijmen and Arthur David Olson.)
 
     Add web page links to tz.js.
 

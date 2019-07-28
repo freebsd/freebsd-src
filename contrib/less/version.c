@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -853,6 +853,33 @@ v527  10/30/17  Fix search hilite bug on last page with -a.
 v528  11/3/17   Make second ESC-u clear status column.
 v529  11/12/17  Display Unicode formatting chars in hex if -U is set.
 v530  12/2/17   Minor doc change and add missing VOID_PARAM.
+-----------------------------------------------------------------
+v531  5/13/18   Fix bug with v on empty file; fix bug with v on file with 
+                metachars in name; add --nohistdups option.
+v532  7/27/18   Redraw screen on SIGWINCH even if screen size doesn't change.
+v533  8/1/18    Shell escape filenames in history; use PCRE_UTF8 flag; 
+                use wide-chars for Windows console title (thanks to Jason Hood).
+v534  8/9/18    Support PCRE2.
+v535  8/16/18   Don't count lines of initial screen if using -X with -F
+                (thanks to Linus Torvalds).
+v536  8/31/18   Use descriptive error messages for PCRE2.
+v537  8/31/18   Support mingw build system (thanks to Mike Soyka).
+v538  9/3/18    Clean up some WIN32 code.
+v539  9/13/18   Fix spurious input on Windows with CAPSLOCK.
+v540  10/29/18  Add --mouse option.
+v541  10/30/18  Add --MOUSE option.
+v542  11/6/18   Add mouse support for WIN32; add --wheel-lines option.
+                (thanks to Jason Hood).
+v543  11/12/18  Code cleanup.
+v544  11/16/18  Don't init/deinit keyboard/mouse if quit due to -F.
+v545  11/22/18  Fix Windows build, memory leaks.
+v546  11/29/18  Add --save-marks option.
+v547  11/30/18  Fix some bugs with saved marks.
+v548  12/14/18  Ignore mouse input when line editing.
+v549  2/10/19   Support X11 mouse extension 1006;
+                Win32 fixes (thanks to Jason Hood).
+v550  2/16/19   Fix Win32 build; don't enable mouse unless --mouse is set.
+v551  6/10/19   Doc changes.
 */
 
-char version[] = "530";
+char version[] = "551";

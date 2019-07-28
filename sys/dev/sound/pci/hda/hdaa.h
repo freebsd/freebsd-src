@@ -214,6 +214,7 @@ struct hdaa_devinfo {
 	struct hdaa_chan	*chans;
 	struct callout		poll_jack;
 	int			poll_ival;
+	uint32_t		init_clear;
 };
 
 #define HDAA_CHN_RUNNING	0x00000001

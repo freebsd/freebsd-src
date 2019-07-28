@@ -2002,7 +2002,7 @@ retry:
 			if (vm_page_pa_tryrelock(pmap, pa, &lockpa))
 				goto retry;
 			m = PHYS_TO_VM_PAGE(pa);
-			vm_page_hold(m);
+			vm_page_wire(m);
 		}
 	} else if (pte1_is_link(pte1)) {
 		pte2p = pmap_pte2(pmap, va);
@@ -2014,7 +2014,7 @@ retry:
 			if (vm_page_pa_tryrelock(pmap, pa, &lockpa))
 				goto retry;
 			m = PHYS_TO_VM_PAGE(pa);
-			vm_page_hold(m);
+			vm_page_wire(m);
 		}
 	}
 	PA_UNLOCK_COND(lockpa);
@@ -6710,10 +6710,9 @@ pmap_pid_dump(int pid)
 
 					pa = pte2_pa(pte2);
 					m = PHYS_TO_VM_PAGE(pa);
-					printf("va: 0x%x, pa: 0x%x, h: %d, w:"
-					    " %d, f: 0x%x", va, pa,
-					    m->hold_count, m->wire_count,
-					    m->flags);
+					printf("va: 0x%x, pa: 0x%x, w: %d, "
+					    "f: 0x%x", va, pa,
+					    m->wire_count, m->flags);
 					npte2++;
 					index++;
 					if (index >= 2) {
@@ -6823,8 +6822,8 @@ dump_link(pmap_t pmap, uint32_t pte1_idx, boolean_t invalid_ok)
 		printf(" 0x%08X: 0x%08X, TEX%d, s:%d, g:%d, m:%p", va , pte2,
 		    pte2_class(pte2), !!(pte2 & PTE2_S), !(pte2 & PTE2_NG), m);
 		if (m != NULL) {
-			printf(" v:%d h:%d w:%d f:0x%04X\n", m->valid,
-			    m->hold_count, m->wire_count, m->flags);
+			printf(" v:%d w:%d f:0x%04X\n", m->valid,
+			    m->wire_count, m->flags);
 		} else {
 			printf("\n");
 		}
@@ -6933,8 +6932,8 @@ dump_pt2tab(pmap_t pmap)
 		printf(" 0x%08X: 0x%08X, TEX%d, s:%d, m:%p", va, pte2,
 		    pte2_class(pte2), !!(pte2 & PTE2_S), m);
 		if (m != NULL)
-			printf(" , h: %d, w: %d, f: 0x%04X pidx: %lld",
-			    m->hold_count, m->wire_count, m->flags, m->pindex);
+			printf(" , w: %d, f: 0x%04X pidx: %lld",
+			    m->wire_count, m->flags, m->pindex);
 		printf("\n");
 	}
 }

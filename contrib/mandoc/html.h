@@ -1,4 +1,4 @@
-/*	$Id: html.h,v 1.102 2019/03/01 10:57:18 schwarze Exp $ */
+/*	$Id: html.h,v 1.103 2019/04/30 15:53:00 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2017, 2018, 2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -69,15 +69,6 @@ enum	htmltag {
 	TAG_MAX
 };
 
-enum	htmlfont {
-	HTMLFONT_NONE = 0,
-	HTMLFONT_BOLD,
-	HTMLFONT_ITALIC,
-	HTMLFONT_BI,
-	HTMLFONT_CW,
-	HTMLFONT_MAX
-};
-
 struct	tag {
 	struct tag	 *next;
 	int		  refcnt;
@@ -111,8 +102,8 @@ struct	html {
 	char		 *base_includes; /* base for include href */
 	char		 *style; /* style-sheet URI */
 	struct tag	 *metaf; /* current open font scope */
-	enum htmlfont	  metal; /* last used font */
-	enum htmlfont	  metac; /* current font mode */
+	enum mandoc_esc	  metal; /* last used font */
+	enum mandoc_esc	  metac; /* current font mode */
 	int		  oflags; /* output options */
 #define	HTML_FRAGMENT	 (1 << 0) /* don't emit HTML/HEAD/BODY */
 #define	HTML_TOC	 (1 << 1) /* emit a table of contents */
@@ -128,7 +119,6 @@ void		  roff_html_pre(struct html *, const struct roff_node *);
 void		  print_gen_comment(struct html *, struct roff_node *);
 void		  print_gen_decls(struct html *);
 void		  print_gen_head(struct html *);
-void		  print_metaf(struct html *, enum mandoc_esc);
 struct tag	 *print_otag(struct html *, enum htmltag, const char *, ...);
 void		  print_tagq(struct html *, const struct tag *);
 void		  print_stagq(struct html *, const struct tag *);
@@ -141,3 +131,4 @@ void		  print_endline(struct html *);
 void		  html_close_paragraph(struct html *);
 enum roff_tok	  html_fillmode(struct html *, enum roff_tok);
 char		 *html_make_id(const struct roff_node *, int);
+int		  html_setfont(struct html *, enum mandoc_esc);

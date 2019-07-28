@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 #include "mevent.h"
 #include "net_utils.h"
+#include "net_backends.h"
 
 /* Hardware/register definitions XXX: move some to common code. */
 #define E82545_VENDOR_ID_INTEL			0x8086
@@ -245,11 +246,10 @@ struct  eth_uni {
 struct e82545_softc {
 	struct pci_devinst *esc_pi;
 	struct vmctx	*esc_ctx;
-	struct mevent   *esc_mevp;
 	struct mevent   *esc_mevpitr;
 	pthread_mutex_t	esc_mtx;
 	struct ether_addr esc_mac;
-	int		esc_tapfd;
+	net_backend_t	*esc_be;
 
 	/* General */
 	uint32_t	esc_CTRL;	/* x0000 device ctl */
@@ -355,7 +355,7 @@ struct e82545_softc {
 static void e82545_reset(struct e82545_softc *sc, int dev);
 static void e82545_rx_enable(struct e82545_softc *sc);
 static void e82545_rx_disable(struct e82545_softc *sc);
-static void e82545_tap_callback(int fd, enum ev_type type, void *param);
+static void e82545_rx_callback(int fd, enum ev_type type, void *param);
 static void e82545_tx_start(struct e82545_softc *sc);
 static void e82545_tx_enable(struct e82545_softc *sc);
 static void e82545_tx_disable(struct e82545_softc *sc);
@@ -824,11 +824,9 @@ e82545_bufsz(uint32_t rctl)
 	return (256);	/* Forbidden value. */
 }
 
-static uint8_t dummybuf[2048];
-
 /* XXX one packet at a time until this is debugged */
 static void
-e82545_tap_callback(int fd, enum ev_type type, void *param)
+e82545_rx_callback(int fd, enum ev_type type, void *param)
 {
 	struct e82545_softc *sc = param;
 	struct e1000_rx_desc *rxd;
@@ -843,7 +841,7 @@ e82545_tap_callback(int fd, enum ev_type type, void *param)
 	if (!sc->esc_rx_enabled || sc->esc_rx_loopback) {
 		DPRINTF("rx disabled (!%d || %d) -- packet(s) dropped\r\n",
 		    sc->esc_rx_enabled, sc->esc_rx_loopback);
-		while (read(sc->esc_tapfd, dummybuf, sizeof(dummybuf)) > 0) {
+		while (netbe_rx_discard(sc->esc_be) > 0) {
 		}
 		goto done1;
 	}
@@ -856,7 +854,7 @@ e82545_tap_callback(int fd, enum ev_type type, void *param)
 	if (left < maxpktdesc) {
 		DPRINTF("rx overflow (%d < %d) -- packet(s) dropped\r\n",
 		    left, maxpktdesc);
-		while (read(sc->esc_tapfd, dummybuf, sizeof(dummybuf)) > 0) {
+		while (netbe_rx_discard(sc->esc_be) > 0) {
 		}
 		goto done1;
 	}
@@ -873,9 +871,9 @@ e82545_tap_callback(int fd, enum ev_type type, void *param)
 			    rxd->buffer_addr, bufsz);
 			vec[i].iov_len = bufsz;
 		}
-		len = readv(sc->esc_tapfd, vec, maxpktdesc);
+		len = netbe_recv(sc->esc_be, vec, maxpktdesc);
 		if (len <= 0) {
-			DPRINTF("tap: readv() returned %d\n", len);
+			DPRINTF("netbe_recv() returned %d\n", len);
 			goto done;
 		}
 
@@ -1050,10 +1048,10 @@ static void
 e82545_transmit_backend(struct e82545_softc *sc, struct iovec *iov, int iovcnt)
 {
 
-	if (sc->esc_tapfd == -1)
+	if (sc->esc_be == NULL)
 		return;
 
-	(void) writev(sc->esc_tapfd, iov, iovcnt);
+	(void) netbe_send(sc->esc_be, iov, iovcnt);
 }
 
 static void
@@ -2209,56 +2207,6 @@ e82545_reset(struct e82545_softc *sc, int drvr)
 	sc->esc_TXDCTL = 0;
 }
 
-static void
-e82545_open_tap(struct e82545_softc *sc, char *opts)
-{
-	char tbuf[80];
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_t rights;
-#endif
-	
-	if (opts == NULL) {
-		sc->esc_tapfd = -1;
-		return;
-	}
-
-	strcpy(tbuf, "/dev/");
-	strlcat(tbuf, opts, sizeof(tbuf));
-
-	sc->esc_tapfd = open(tbuf, O_RDWR);
-	if (sc->esc_tapfd == -1) {
-		DPRINTF("unable to open tap device %s\n", opts);
-		exit(4);
-	}
-
-	/*
-	 * Set non-blocking and register for read
-	 * notifications with the event loop
-	 */
-	int opt = 1;
-	if (ioctl(sc->esc_tapfd, FIONBIO, &opt) < 0) {
-		WPRINTF("tap device O_NONBLOCK failed: %d\n", errno);
-		close(sc->esc_tapfd);
-		sc->esc_tapfd = -1;
-	}
-
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
-	if (caph_rights_limit(sc->esc_tapfd, &rights) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
-	
-	sc->esc_mevp = mevent_add(sc->esc_tapfd,
-				  EVF_READ,
-				  e82545_tap_callback,
-				  sc);
-	if (sc->esc_mevp == NULL) {
-		DPRINTF("Could not register mevent %d\n", EVF_READ);
-		close(sc->esc_tapfd);
-		sc->esc_tapfd = -1;
-	}
-}
-
 static int
 e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
@@ -2307,11 +2255,11 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		E82545_BAR_IO_LEN);
 
 	/*
-	 * Attempt to open the tap device and read the MAC address
+	 * Attempt to open the net backend and read the MAC address
 	 * if specified.  Copied from virtio-net, slightly modified.
 	 */
 	mac_provided = 0;
-	sc->esc_tapfd = -1;
+	sc->esc_be = NULL;
 	if (opts != NULL) {
 		int err;
 
@@ -2327,11 +2275,10 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 			mac_provided = 1;
 		}
 
-		if (strncmp(devname, "tap", 3) == 0 ||
-		    strncmp(devname, "vmnet", 5) == 0)
-			e82545_open_tap(sc, devname);
-
+		err = netbe_init(&sc->esc_be, devname, e82545_rx_callback, sc);
 		free(devname);
+		if (err)
+			return (err);
 	}
 
 	if (!mac_provided) {

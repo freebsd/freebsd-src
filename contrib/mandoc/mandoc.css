@@ -1,4 +1,4 @@
-/* $Id: mandoc.css,v 1.45 2019/03/01 10:57:18 schwarze Exp $ */
+/* $Id: mandoc.css,v 1.46 2019/06/02 16:57:13 schwarze Exp $ */
 /*
  * Standard style sheet for mandoc(1) -Thtml and man.cgi(8).
  *
@@ -10,8 +10,13 @@
 
 /* Global defaults. */
 
-html {		max-width: 65em; }
-body {		font-family: Helvetica,Arial,sans-serif; }
+html {		max-width: 65em;
+		--bg: #FFFFFF;
+		--fg: #000000; }
+body {		background: var(--bg);
+		color: var(--fg);
+		font-family: Helvetica,Arial,sans-serif; }
+h1 {		font-size: 110%; }
 table {		margin-top: 0em;
 		margin-bottom: 0em;
 		border-collapse: collapse; }
@@ -69,8 +74,7 @@ td.foot-os {	text-align: right; }
 section.Sh { }
 h1.Sh {		margin-top: 1.2em;
 		margin-bottom: 0.6em;
-		margin-left: -3.2em;
-		font-size: 110%; }
+		margin-left: -3.2em; }
 section.Ss { }
 h2.Ss {		margin-top: 1.2em;
 		margin-bottom: 0.6em;
@@ -310,14 +314,14 @@ h1.Sh::before, h2.Ss::before, .St::before, .Sx::before, .Sy::before,
 		pointer-events: none;
 		position: absolute;
 		bottom: 100%;
-		box-shadow: 0 0 .35em #000;
+		box-shadow: 0 0 .35em var(--fg);
 		padding: .15em .25em;
 		white-space: nowrap;
 		font-family: Helvetica,Arial,sans-serif;
 		font-style: normal;
 		font-weight: bold;
-		color: black;
-		background: #fff; }
+		background: var(--bg);
+		color: var(--fg); }
 .An:hover::before, .Ar:hover::before, .Cd:hover::before, .Cm:hover::before,
 .Dv:hover::before, .Em:hover::before, .Er:hover::before, .Ev:hover::before,
 .Fa:hover::before, .Fd:hover::before, .Fl:hover::before, .Fn:hover::before,
@@ -344,4 +348,13 @@ h1.Sh, h2.Ss {	margin-left: 0em; }
 		margin-left: -2em; }
 .HP {		margin-left: 2em;
 		text-indent: -2em; }
+}
+
+/* Overrides for a dark color scheme for accessibility. */
+
+@media (prefers-color-scheme: dark) {
+html {		--bg: #1E1F21;
+		--fg: #EEEFF1; }
+:link {		color: #BAD7FF; }
+:visited {	color: #F6BAFF; }
 }

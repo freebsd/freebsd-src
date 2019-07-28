@@ -69,6 +69,9 @@
 /* Define to 1 if you have the `CRYPTO_cleanup_all_ex_data' function. */
 #undef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA
 
+/* Define to 1 if you have the `CRYPTO_THREADID_set_callback' function. */
+#undef HAVE_CRYPTO_THREADID_SET_CALLBACK
+
 /* Define to 1 if you have the `ctime_r' function. */
 #undef HAVE_CTIME_R
 
@@ -82,6 +85,10 @@
 /* Define to 1 if you have the declaration of `arc4random_uniform', and to 0
    if you don't. */
 #undef HAVE_DECL_ARC4RANDOM_UNIFORM
+
+/* Define to 1 if you have the declaration of `evsignal_assign', and to 0 if
+   you don't. */
+#undef HAVE_DECL_EVSIGNAL_ASSIGN
 
 /* Define to 1 if you have the declaration of `inet_ntop', and to 0 if you
    don't. */
@@ -163,6 +170,9 @@
 /* Define to 1 if you have the `ERR_load_crypto_strings' function. */
 #undef HAVE_ERR_LOAD_CRYPTO_STRINGS
 
+/* Define to 1 if you have the `event_assign' function. */
+#undef HAVE_EVENT_ASSIGN
+
 /* Define to 1 if you have the `event_base_free' function. */
 #undef HAVE_EVENT_BASE_FREE
 
@@ -178,6 +188,9 @@
 /* Define to 1 if you have the <event.h> header file. */
 #undef HAVE_EVENT_H
 
+/* Define to 1 if you have the `EVP_aes_256_cbc' function. */
+#undef HAVE_EVP_AES_256_CBC
+
 /* Define to 1 if you have the `EVP_cleanup' function. */
 #undef HAVE_EVP_CLEANUP
 
@@ -186,6 +199,9 @@
 
 /* Define to 1 if you have the `EVP_dss1' function. */
 #undef HAVE_EVP_DSS1
+
+/* Define to 1 if you have the `EVP_EncryptInit_ex' function. */
+#undef HAVE_EVP_ENCRYPTINIT_EX
 
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
 #undef HAVE_EVP_MD_CTX_NEW
@@ -258,6 +274,9 @@
 
 /* Define to 1 if you have the <hiredis/hiredis.h> header file. */
 #undef HAVE_HIREDIS_HIREDIS_H
+
+/* Define to 1 if you have the `HMAC_Init_ex' function. */
+#undef HAVE_HMAC_INIT_EX
 
 /* If you have HMAC_Update */
 #undef HAVE_HMAC_UPDATE
@@ -394,7 +413,7 @@
 /* Define to 1 if you have the `RAND_cleanup' function. */
 #undef HAVE_RAND_CLEANUP
 
-/* Define to 1 if you have the `reallocarray' function. */
+/* If we have reallocarray(3) */
 #undef HAVE_REALLOCARRAY
 
 /* Define to 1 if you have the `recvmsg' function. */
@@ -451,8 +470,14 @@
 /* Define if you have the SSL libraries installed. */
 #undef HAVE_SSL
 
+/* Define to 1 if you have the `SSL_CTX_set_ciphersuites' function. */
+#undef HAVE_SSL_CTX_SET_CIPHERSUITES
+
 /* Define to 1 if you have the `SSL_CTX_set_security_level' function. */
 #undef HAVE_SSL_CTX_SET_SECURITY_LEVEL
+
+/* Define to 1 if you have the `SSL_CTX_set_tlsext_ticket_key_cb' function. */
+#undef HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_CB
 
 /* Define to 1 if you have the `SSL_get0_peername' function. */
 #undef HAVE_SSL_GET0_PEERNAME
@@ -585,6 +610,9 @@
 
 /* Define to 1 if you have the <ws2tcpip.h> header file. */
 #undef HAVE_WS2TCPIP_H
+
+/* Define to 1 if you have the `X509_VERIFY_PARAM_set1_host' function. */
+#undef HAVE_X509_VERIFY_PARAM_SET1_HOST
 
 /* Define to 1 if you have the `_beginthreadex' function. */
 #undef HAVE__BEGINTHREADEX
@@ -944,8 +972,14 @@
 
 
 
+#ifndef _OPENBSD_SOURCE
+#define _OPENBSD_SOURCE 1
+#endif
+
 #ifndef UNBOUND_DEBUG
+# ifndef NDEBUG
 #  define NDEBUG
+# endif
 #endif
 
 /** Use small-ldns codebase */

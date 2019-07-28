@@ -63,7 +63,7 @@ EENTRY_NP(casueword32)
 	ldr	r4, =(VM_MAXUSER_ADDRESS-3)
 	cmp	r0, r4
 	mvncs	r0, #0
-	bcs	2f
+	bcs	1f
 
 	GET_PCB(r6)
 	ldr	r6, [r6]
@@ -78,12 +78,10 @@ EENTRY_NP(casueword32)
 	str	r4, [r6, #PCB_ONFAULT]
 
 #if __ARM_ARCH >= 6
-1:
+	mov	r5, #1
 	ldrex	r4, [r0]
 	cmp	r4, r1
 	strexeq	r5, r3, [r0]
-	cmpeq	r5, #1
-	beq	1b
 #else
 	ldrt	r4, [r0]
 	cmp	r4, r1
@@ -92,7 +90,10 @@ EENTRY_NP(casueword32)
 	str	r4, [r2]
 	mov	r0, #0
 	str	r0, [r6, #PCB_ONFAULT]
-2:
+#if __ARM_ARCH >= 6
+	mov	r0, r5
+#endif
+1:
 	ldmfd	sp!, {r4, r5, r6}
 	RET
 EEND(casueword32)

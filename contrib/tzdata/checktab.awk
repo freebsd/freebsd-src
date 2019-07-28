@@ -63,12 +63,19 @@ BEGIN {
 		coordinates = $2
 		tz = $3
 		comments = $4
-		if (cc < cc0) {
+
+		# Don't complain about a special case for Crimea in zone.tab.
+		# FIXME: zone.tab should be removed, since it is obsolete.
+		# Or at least put just "XX" in its country-code column.
+		if (cc < cc0 \
+		    && !(zone_table == "zone.tab" \
+			 && tz0 == "Europe/Simferopol")) {
 			printf "%s:%d: country code '%s' is out of order\n", \
 				zone_table, zone_NR, cc >>"/dev/stderr"
 			status = 1
 		}
 		cc0 = cc
+		tz0 = tz
 		tztab[tz] = 1
 		tz2comments[tz] = comments
 		tz2NR[tz] = zone_NR

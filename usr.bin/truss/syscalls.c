@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
+#define _WANT_KERNEL_ERRNO
+#include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <sched.h>
@@ -1556,7 +1558,7 @@ print_cmsgs(FILE *fp, pid_t pid, bool receive, struct msghdr *msghdr)
  * an array of all of the system call arguments.
  */
 char *
-print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
+print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
     struct trussinfo *trussinfo)
 {
 	FILE *fp;
@@ -2277,7 +2279,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		 * Overwrite the first retval to signal a successful
 		 * return as well.
 		 */
-		fprintf(fp, "{ %ld, %ld }", retval[0], retval[1]);
+		fprintf(fp, "{ %d, %d }", (int)retval[0], (int)retval[1]);
 		retval[0] = 0;
 		break;
 	case Utrace: {
@@ -2646,12 +2648,11 @@ print_syscall(struct trussinfo *trussinfo)
 }
 
 void
-print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
+print_syscall_ret(struct trussinfo *trussinfo, int error, register_t *retval)
 {
 	struct timespec timediff;
 	struct threadinfo *t;
 	struct syscall *sc;
-	int error;
 
 	t = trussinfo->curthread;
 	sc = t->cs.sc;
@@ -2659,7 +2660,7 @@ print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
 		timespecsub(&t->after, &t->before, &timediff);
 		timespecadd(&sc->time, &timediff, &sc->time);
 		sc->ncalls++;
-		if (errorp)
+		if (error != 0)
 			sc->nerror++;
 		return;
 	}
@@ -2676,11 +2677,14 @@ print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
 		return;
 	}
 
-	if (errorp) {
-		error = sysdecode_abi_to_freebsd_errno(t->proc->abi->abi,
-		    retval[0]);
-		fprintf(trussinfo->outfile, " ERR#%ld '%s'\n", retval[0],
-		    error == INT_MAX ? "Unknown error" : strerror(error));
+	if (error == ERESTART)
+		fprintf(trussinfo->outfile, " ERESTART\n");
+	else if (error == EJUSTRETURN)
+		fprintf(trussinfo->outfile, " EJUSTRETURN\n");
+	else if (error != 0) {
+		fprintf(trussinfo->outfile, " ERR#%d '%s'\n",
+		    sysdecode_freebsd_to_abi_errno(t->proc->abi->abi, error),
+		    strerror(error));
 	}
 #ifndef __LP64__
 	else if (sc->ret_type == 2) {
@@ -2696,8 +2700,8 @@ print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
 	}
 #endif
 	else
-		fprintf(trussinfo->outfile, " = %ld (0x%lx)\n", retval[0],
-		    retval[0]);
+		fprintf(trussinfo->outfile, " = %jd (0x%jx)\n",
+		    (intmax_t)retval[0], (intmax_t)retval[0]);
 }
 
 void

@@ -25,12 +25,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/wait.h>
 #include <sys/nv.h>
 
@@ -38,24 +40,18 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-static int ntest = 1;
+#include <atf-c.h>
 
-#define	CHECK(expr)	do {						\
-	if ((expr))							\
-		printf("ok # %d %s:%u\n", ntest, __FILE__, __LINE__);	\
-	else								\
-		printf("not ok # %d %s:%u\n", ntest, __FILE__, __LINE__);\
-	ntest++;							\
-} while (0)
-
+#define	ALPHABET	"abcdefghijklmnopqrstuvwxyz"
 #define	fd_is_valid(fd)	(fcntl((fd), F_GETFL) != -1 || errno != EBADF)
 
 static void
-child(int sock)
+send_nvlist_child(int sock)
 {
 	nvlist_t *nvl;
 	nvlist_t *empty;
@@ -74,9 +70,10 @@ child(int sock)
 	nvlist_add_number(nvl, "nvlist/number/INT64_MAX", INT64_MAX);
 	nvlist_add_string(nvl, "nvlist/string/", "");
 	nvlist_add_string(nvl, "nvlist/string/x", "x");
-	nvlist_add_string(nvl, "nvlist/string/abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz");
+	nvlist_add_string(nvl, "nvlist/string/" ALPHABET, ALPHABET);
 
-	nvlist_add_descriptor(nvl, "nvlist/descriptor/STDERR_FILENO", STDERR_FILENO);
+	nvlist_add_descriptor(nvl, "nvlist/descriptor/STDERR_FILENO",
+	    STDERR_FILENO);
 	if (pipe(pfd) == -1)
 		err(EXIT_FAILURE, "pipe");
 	if (write(pfd[1], "test", 4) != 4)
@@ -86,7 +83,8 @@ child(int sock)
 	close(pfd[0]);
 
 	nvlist_add_binary(nvl, "nvlist/binary/x", "x", 1);
-	nvlist_add_binary(nvl, "nvlist/binary/abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz", sizeof("abcdefghijklmnopqrstuvwxyz"));
+	nvlist_add_binary(nvl, "nvlist/binary/" ALPHABET, ALPHABET,
+	    sizeof(ALPHABET));
 	nvlist_move_nvlist(nvl, "nvlist/nvlist/empty", empty);
 	nvlist_add_nvlist(nvl, "nvlist/nvlist", nvl);
 
@@ -96,7 +94,7 @@ child(int sock)
 }
 
 static void
-parent(int sock)
+send_nvlist_parent(int sock)
 {
 	nvlist_t *nvl;
 	const nvlist_t *cnvl, *empty;
@@ -107,290 +105,378 @@ parent(int sock)
 	char buf[4];
 
 	nvl = nvlist_recv(sock, 0);
-	CHECK(nvlist_error(nvl) == 0);
+	ATF_REQUIRE(nvlist_error(nvl) == 0);
 	if (nvlist_error(nvl) != 0)
 		err(1, "nvlist_recv() failed");
 
 	cookie = NULL;
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_BOOL);
-	CHECK(strcmp(name, "nvlist/bool/true") == 0);
-	CHECK(nvlist_get_bool(nvl, name) == true);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_BOOL);
+	ATF_REQUIRE(strcmp(name, "nvlist/bool/true") == 0);
+	ATF_REQUIRE(nvlist_get_bool(nvl, name) == true);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_BOOL);
-	CHECK(strcmp(name, "nvlist/bool/false") == 0);
-	CHECK(nvlist_get_bool(nvl, name) == false);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_BOOL);
+	ATF_REQUIRE(strcmp(name, "nvlist/bool/false") == 0);
+	ATF_REQUIRE(nvlist_get_bool(nvl, name) == false);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_NUMBER);
-	CHECK(strcmp(name, "nvlist/number/0") == 0);
-	CHECK(nvlist_get_number(nvl, name) == 0);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(name, "nvlist/number/0") == 0);
+	ATF_REQUIRE(nvlist_get_number(nvl, name) == 0);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_NUMBER);
-	CHECK(strcmp(name, "nvlist/number/1") == 0);
-	CHECK(nvlist_get_number(nvl, name) == 1);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(name, "nvlist/number/1") == 0);
+	ATF_REQUIRE(nvlist_get_number(nvl, name) == 1);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_NUMBER);
-	CHECK(strcmp(name, "nvlist/number/-1") == 0);
-	CHECK((int)nvlist_get_number(nvl, name) == -1);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(name, "nvlist/number/-1") == 0);
+	ATF_REQUIRE((int)nvlist_get_number(nvl, name) == -1);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_NUMBER);
-	CHECK(strcmp(name, "nvlist/number/UINT64_MAX") == 0);
-	CHECK(nvlist_get_number(nvl, name) == UINT64_MAX);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(name, "nvlist/number/UINT64_MAX") == 0);
+	ATF_REQUIRE(nvlist_get_number(nvl, name) == UINT64_MAX);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_NUMBER);
-	CHECK(strcmp(name, "nvlist/number/INT64_MIN") == 0);
-	CHECK((int64_t)nvlist_get_number(nvl, name) == INT64_MIN);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(name, "nvlist/number/INT64_MIN") == 0);
+	ATF_REQUIRE((int64_t)nvlist_get_number(nvl, name) == INT64_MIN);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_NUMBER);
-	CHECK(strcmp(name, "nvlist/number/INT64_MAX") == 0);
-	CHECK((int64_t)nvlist_get_number(nvl, name) == INT64_MAX);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(name, "nvlist/number/INT64_MAX") == 0);
+	ATF_REQUIRE((int64_t)nvlist_get_number(nvl, name) == INT64_MAX);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_STRING);
-	CHECK(strcmp(name, "nvlist/string/") == 0);
-	CHECK(strcmp(nvlist_get_string(nvl, name), "") == 0);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_STRING);
+	ATF_REQUIRE(strcmp(name, "nvlist/string/") == 0);
+	ATF_REQUIRE(strcmp(nvlist_get_string(nvl, name), "") == 0);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_STRING);
-	CHECK(strcmp(name, "nvlist/string/x") == 0);
-	CHECK(strcmp(nvlist_get_string(nvl, name), "x") == 0);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_STRING);
+	ATF_REQUIRE(strcmp(name, "nvlist/string/x") == 0);
+	ATF_REQUIRE(strcmp(nvlist_get_string(nvl, name), "x") == 0);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_STRING);
-	CHECK(strcmp(name, "nvlist/string/abcdefghijklmnopqrstuvwxyz") == 0);
-	CHECK(strcmp(nvlist_get_string(nvl, name), "abcdefghijklmnopqrstuvwxyz") == 0);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_STRING);
+	ATF_REQUIRE(strcmp(name, "nvlist/string/" ALPHABET) == 0);
+	ATF_REQUIRE(strcmp(nvlist_get_string(nvl, name), ALPHABET) == 0);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_DESCRIPTOR);
-	CHECK(strcmp(name, "nvlist/descriptor/STDERR_FILENO") == 0);
-	CHECK(fd_is_valid(nvlist_get_descriptor(nvl, name)));
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_DESCRIPTOR);
+	ATF_REQUIRE(strcmp(name, "nvlist/descriptor/STDERR_FILENO") == 0);
+	ATF_REQUIRE(fd_is_valid(nvlist_get_descriptor(nvl, name)));
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_DESCRIPTOR);
-	CHECK(strcmp(name, "nvlist/descriptor/pipe_rd") == 0);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_DESCRIPTOR);
+	ATF_REQUIRE(strcmp(name, "nvlist/descriptor/pipe_rd") == 0);
 	fd = nvlist_get_descriptor(nvl, name);
-	CHECK(fd_is_valid(fd));
-	CHECK(read(fd, buf, sizeof(buf)) == 4);
-	CHECK(strncmp(buf, "test", sizeof(buf)) == 0);
+	ATF_REQUIRE(fd_is_valid(fd));
+	ATF_REQUIRE(read(fd, buf, sizeof(buf)) == 4);
+	ATF_REQUIRE(strncmp(buf, "test", sizeof(buf)) == 0);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_BINARY);
-	CHECK(strcmp(name, "nvlist/binary/x") == 0);
-	CHECK(memcmp(nvlist_get_binary(nvl, name, NULL), "x", 1) == 0);
-	CHECK(memcmp(nvlist_get_binary(nvl, name, &size), "x", 1) == 0);
-	CHECK(size == 1);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_BINARY);
+	ATF_REQUIRE(strcmp(name, "nvlist/binary/x") == 0);
+	ATF_REQUIRE(memcmp(nvlist_get_binary(nvl, name, NULL), "x", 1) == 0);
+	ATF_REQUIRE(memcmp(nvlist_get_binary(nvl, name, &size), "x", 1) == 0);
+	ATF_REQUIRE(size == 1);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_BINARY);
-	CHECK(strcmp(name, "nvlist/binary/abcdefghijklmnopqrstuvwxyz") == 0);
-	CHECK(memcmp(nvlist_get_binary(nvl, name, NULL), "abcdefghijklmnopqrstuvwxyz", sizeof("abcdefghijklmnopqrstuvwxyz")) == 0);
-	CHECK(memcmp(nvlist_get_binary(nvl, name, &size), "abcdefghijklmnopqrstuvwxyz", sizeof("abcdefghijklmnopqrstuvwxyz")) == 0);
-	CHECK(size == sizeof("abcdefghijklmnopqrstuvwxyz"));
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_BINARY);
+	ATF_REQUIRE(strcmp(name, "nvlist/binary/" ALPHABET) == 0);
+	ATF_REQUIRE(memcmp(nvlist_get_binary(nvl, name, NULL), ALPHABET,
+	    sizeof(ALPHABET)) == 0);
+	ATF_REQUIRE(memcmp(nvlist_get_binary(nvl, name, &size), ALPHABET,
+	    sizeof(ALPHABET)) == 0);
+	ATF_REQUIRE(size == sizeof(ALPHABET));
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_NVLIST);
-	CHECK(strcmp(name, "nvlist/nvlist/empty") == 0);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_NVLIST);
+	ATF_REQUIRE(strcmp(name, "nvlist/nvlist/empty") == 0);
 	cnvl = nvlist_get_nvlist(nvl, name);
-	CHECK(nvlist_empty(cnvl));
+	ATF_REQUIRE(nvlist_empty(cnvl));
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name != NULL);
-	CHECK(type == NV_TYPE_NVLIST);
-	CHECK(strcmp(name, "nvlist/nvlist") == 0);
+	ATF_REQUIRE(name != NULL);
+	ATF_REQUIRE(type == NV_TYPE_NVLIST);
+	ATF_REQUIRE(strcmp(name, "nvlist/nvlist") == 0);
 	cnvl = nvlist_get_nvlist(nvl, name);
 
 	ccookie = NULL;
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_BOOL);
-	CHECK(strcmp(cname, "nvlist/bool/true") == 0);
-	CHECK(nvlist_get_bool(cnvl, cname) == true);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_BOOL);
+	ATF_REQUIRE(strcmp(cname, "nvlist/bool/true") == 0);
+	ATF_REQUIRE(nvlist_get_bool(cnvl, cname) == true);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_BOOL);
-	CHECK(strcmp(cname, "nvlist/bool/false") == 0);
-	CHECK(nvlist_get_bool(cnvl, cname) == false);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_BOOL);
+	ATF_REQUIRE(strcmp(cname, "nvlist/bool/false") == 0);
+	ATF_REQUIRE(nvlist_get_bool(cnvl, cname) == false);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_NUMBER);
-	CHECK(strcmp(cname, "nvlist/number/0") == 0);
-	CHECK(nvlist_get_number(cnvl, cname) == 0);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(cname, "nvlist/number/0") == 0);
+	ATF_REQUIRE(nvlist_get_number(cnvl, cname) == 0);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_NUMBER);
-	CHECK(strcmp(cname, "nvlist/number/1") == 0);
-	CHECK(nvlist_get_number(cnvl, cname) == 1);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(cname, "nvlist/number/1") == 0);
+	ATF_REQUIRE(nvlist_get_number(cnvl, cname) == 1);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_NUMBER);
-	CHECK(strcmp(cname, "nvlist/number/-1") == 0);
-	CHECK((int)nvlist_get_number(cnvl, cname) == -1);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(cname, "nvlist/number/-1") == 0);
+	ATF_REQUIRE((int)nvlist_get_number(cnvl, cname) == -1);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_NUMBER);
-	CHECK(strcmp(cname, "nvlist/number/UINT64_MAX") == 0);
-	CHECK(nvlist_get_number(cnvl, cname) == UINT64_MAX);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(cname, "nvlist/number/UINT64_MAX") == 0);
+	ATF_REQUIRE(nvlist_get_number(cnvl, cname) == UINT64_MAX);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_NUMBER);
-	CHECK(strcmp(cname, "nvlist/number/INT64_MIN") == 0);
-	CHECK((int64_t)nvlist_get_number(cnvl, cname) == INT64_MIN);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(cname, "nvlist/number/INT64_MIN") == 0);
+	ATF_REQUIRE((int64_t)nvlist_get_number(cnvl, cname) == INT64_MIN);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_NUMBER);
-	CHECK(strcmp(cname, "nvlist/number/INT64_MAX") == 0);
-	CHECK((int64_t)nvlist_get_number(cnvl, cname) == INT64_MAX);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_NUMBER);
+	ATF_REQUIRE(strcmp(cname, "nvlist/number/INT64_MAX") == 0);
+	ATF_REQUIRE((int64_t)nvlist_get_number(cnvl, cname) == INT64_MAX);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_STRING);
-	CHECK(strcmp(cname, "nvlist/string/") == 0);
-	CHECK(strcmp(nvlist_get_string(cnvl, cname), "") == 0);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_STRING);
+	ATF_REQUIRE(strcmp(cname, "nvlist/string/") == 0);
+	ATF_REQUIRE(strcmp(nvlist_get_string(cnvl, cname), "") == 0);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_STRING);
-	CHECK(strcmp(cname, "nvlist/string/x") == 0);
-	CHECK(strcmp(nvlist_get_string(cnvl, cname), "x") == 0);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_STRING);
+	ATF_REQUIRE(strcmp(cname, "nvlist/string/x") == 0);
+	ATF_REQUIRE(strcmp(nvlist_get_string(cnvl, cname), "x") == 0);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_STRING);
-	CHECK(strcmp(cname, "nvlist/string/abcdefghijklmnopqrstuvwxyz") == 0);
-	CHECK(strcmp(nvlist_get_string(cnvl, cname), "abcdefghijklmnopqrstuvwxyz") == 0);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_STRING);
+	ATF_REQUIRE(strcmp(cname, "nvlist/string/" ALPHABET) == 0);
+	ATF_REQUIRE(strcmp(nvlist_get_string(cnvl, cname), ALPHABET) == 0);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_DESCRIPTOR);
-	CHECK(strcmp(cname, "nvlist/descriptor/STDERR_FILENO") == 0);
-	CHECK(fd_is_valid(nvlist_get_descriptor(cnvl, cname)));
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_DESCRIPTOR);
+	ATF_REQUIRE(strcmp(cname, "nvlist/descriptor/STDERR_FILENO") == 0);
+	ATF_REQUIRE(fd_is_valid(nvlist_get_descriptor(cnvl, cname)));
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_DESCRIPTOR);
-	CHECK(strcmp(cname, "nvlist/descriptor/pipe_rd") == 0);
-	CHECK(fd_is_valid(nvlist_get_descriptor(cnvl, cname)));
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_DESCRIPTOR);
+	ATF_REQUIRE(strcmp(cname, "nvlist/descriptor/pipe_rd") == 0);
+	ATF_REQUIRE(fd_is_valid(nvlist_get_descriptor(cnvl, cname)));
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_BINARY);
-	CHECK(strcmp(cname, "nvlist/binary/x") == 0);
-	CHECK(memcmp(nvlist_get_binary(cnvl, cname, NULL), "x", 1) == 0);
-	CHECK(memcmp(nvlist_get_binary(cnvl, cname, &size), "x", 1) == 0);
-	CHECK(size == 1);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_BINARY);
+	ATF_REQUIRE(strcmp(cname, "nvlist/binary/x") == 0);
+	ATF_REQUIRE(memcmp(nvlist_get_binary(cnvl, cname, NULL), "x", 1) == 0);
+	ATF_REQUIRE(memcmp(nvlist_get_binary(cnvl, cname, &size), "x", 1) == 0);
+	ATF_REQUIRE(size == 1);
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_BINARY);
-	CHECK(strcmp(cname, "nvlist/binary/abcdefghijklmnopqrstuvwxyz") == 0);
-	CHECK(memcmp(nvlist_get_binary(cnvl, cname, NULL), "abcdefghijklmnopqrstuvwxyz", sizeof("abcdefghijklmnopqrstuvwxyz")) == 0);
-	CHECK(memcmp(nvlist_get_binary(cnvl, cname, &size), "abcdefghijklmnopqrstuvwxyz", sizeof("abcdefghijklmnopqrstuvwxyz")) == 0);
-	CHECK(size == sizeof("abcdefghijklmnopqrstuvwxyz"));
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_BINARY);
+	ATF_REQUIRE(strcmp(cname, "nvlist/binary/" ALPHABET) == 0);
+	ATF_REQUIRE(memcmp(nvlist_get_binary(cnvl, cname, NULL), ALPHABET,
+	    sizeof(ALPHABET)) == 0);
+	ATF_REQUIRE(memcmp(nvlist_get_binary(cnvl, cname, &size), ALPHABET,
+	    sizeof(ALPHABET)) == 0);
+	ATF_REQUIRE(size == sizeof(ALPHABET));
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname != NULL);
-	CHECK(ctype == NV_TYPE_NVLIST);
-	CHECK(strcmp(cname, "nvlist/nvlist/empty") == 0);
+	ATF_REQUIRE(cname != NULL);
+	ATF_REQUIRE(ctype == NV_TYPE_NVLIST);
+	ATF_REQUIRE(strcmp(cname, "nvlist/nvlist/empty") == 0);
 	empty = nvlist_get_nvlist(cnvl, cname);
-	CHECK(nvlist_empty(empty));
+	ATF_REQUIRE(nvlist_empty(empty));
 
 	cname = nvlist_next(cnvl, &ctype, &ccookie);
-	CHECK(cname == NULL);
+	ATF_REQUIRE(cname == NULL);
 
 	name = nvlist_next(nvl, &type, &cookie);
-	CHECK(name == NULL);
+	ATF_REQUIRE(name == NULL);
 
 	nvlist_destroy(nvl);
 }
 
-static void
-send_nvlist(void)
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_nvlist);
+ATF_TC_BODY(nvlist_send_recv__send_nvlist, tc)
 {
-	int status, socks[2];
+	int socks[2], status;
 	pid_t pid;
 
-	if (socketpair(PF_UNIX, SOCK_STREAM, 0, socks) < 0)
-		err(1, "socketpair() failed");
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, socks) == 0);
+
 	pid = fork();
-	switch (pid) {
-	case -1:
-		/* Failure. */
-		err(1, "unable to fork");
-	case 0:
+	ATF_REQUIRE(pid >= 0);
+	if (pid == 0) {
 		/* Child. */
-		close(socks[0]);
-		child(socks[1]);
+		(void)close(socks[0]);
+		send_nvlist_child(socks[1]);
 		_exit(0);
-	default:
-		/* Parent. */
-		close(socks[1]);
-		parent(socks[0]);
-		break;
 	}
 
-	if (waitpid(pid, &status, 0) < 0)
-		err(1, "waitpid() failed");
+	(void)close(socks[1]);
+	send_nvlist_parent(socks[0]);
+
+	ATF_REQUIRE(waitpid(pid, &status, 0) == pid);
+	ATF_REQUIRE(status == 0);
 }
 
-static void
-send_closed_fd(void)
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_closed_fd);
+ATF_TC_BODY(nvlist_send_recv__send_closed_fd, tc)
 {
 	nvlist_t *nvl;
-	int error, socks[2];
+	int socks[2];
 
-	if (socketpair(PF_UNIX, SOCK_STREAM, 0, socks) < 0)
-		err(1, "socketpair() failed");
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, socks) == 0);
 
 	nvl = nvlist_create(0);
+	ATF_REQUIRE(nvl != NULL);
 	nvlist_add_descriptor(nvl, "fd", 12345);
-	error = nvlist_error(nvl);
-	CHECK(error == EBADF);
+	ATF_REQUIRE(nvlist_error(nvl) == EBADF);
 
-	error = nvlist_send(socks[1], nvl);
-	CHECK(error != 0 && errno == EBADF);
+	ATF_REQUIRE_ERRNO(EBADF, nvlist_send(socks[1], nvl) != 0);
 }
 
-int
-main(void)
+static int
+nopenfds(void)
+{
+	size_t len;
+	int error, mib[4], n;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_NFDS;
+	mib[3] = 0;
+
+	len = sizeof(n);
+	error = sysctl(mib, nitems(mib), &n, &len, NULL, 0);
+	if (error != 0)
+		return (-1);
+	return (n);
+}
+
+#define	NFDS	512
+
+static void
+send_many_fds_child(int sock)
+{
+	char name[16];
+	nvlist_t *nvl;
+	int anfds, bnfds, fd, i, j;
+
+	fd = open(_PATH_DEVNULL, O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
+
+	for (i = 1; i < NFDS; i++) {
+		nvl = nvlist_create(0);
+		bnfds = nopenfds();
+		if (bnfds == -1)
+			err(EXIT_FAILURE, "sysctl");
+
+		for (j = 0; j < i; j++) {
+			snprintf(name, sizeof(name), "fd%d", j);
+			nvlist_add_descriptor(nvl, name, fd);
+		}
+		nvlist_send(sock, nvl);
+		nvlist_destroy(nvl);
+
+		anfds = nopenfds();
+		if (anfds == -1)
+			err(EXIT_FAILURE, "sysctl");
+		if (anfds != bnfds)
+			errx(EXIT_FAILURE, "fd count mismatch");
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(nvlist_send_recv__send_many_fds);
+ATF_TC_BODY(nvlist_send_recv__send_many_fds, tc)
+{
+	char name[16];
+	nvlist_t *nvl;
+	int anfds, bnfds, fd, i, j, socks[2], status;
+	pid_t pid;
+
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_STREAM, 0, socks) == 0);
+
+	pid = fork();
+	ATF_REQUIRE(pid >= 0);
+	if (pid == 0) {
+		/* Child. */
+		(void)close(socks[0]);
+		send_many_fds_child(socks[1]);
+		_exit(0);
+	}
+
+	(void)close(socks[1]);
+
+	for (i = 1; i < NFDS; i++) {
+		bnfds = nopenfds();
+		ATF_REQUIRE(bnfds != -1);
+
+		nvl = nvlist_recv(socks[0], 0);
+		ATF_REQUIRE(nvl != NULL);
+		for (j = 0; j < i; j++) {
+			snprintf(name, sizeof(name), "fd%d", j);
+			fd = nvlist_take_descriptor(nvl, name);
+			ATF_REQUIRE(close(fd) == 0);
+		}
+		nvlist_destroy(nvl);
+
+		anfds = nopenfds();
+		ATF_REQUIRE(anfds != -1);
+		ATF_REQUIRE(anfds == bnfds);
+	}
+
+	ATF_REQUIRE(waitpid(pid, &status, 0) == pid);
+	ATF_REQUIRE(status == 0);
+}
+
+ATF_TP_ADD_TCS(tp)
 {
 
-	printf("1..146\n");
-	fflush(stdout);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_nvlist);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_closed_fd);
+	ATF_TP_ADD_TC(tp, nvlist_send_recv__send_many_fds);
 
-	send_nvlist();
-	send_closed_fd();
-
-	return (0);
+	return (atf_no_error());
 }

@@ -394,7 +394,8 @@ tlv_write(
 	if (len > 0) {
 		ptr[(len - 1) / sizeof (uint32_t)] = 0;
 		memcpy(ptr, data, len);
-		ptr += P2ROUNDUP(len, sizeof (uint32_t)) / sizeof (*ptr);
+		ptr += EFX_P2ROUNDUP(uint32_t, len,
+		    sizeof (uint32_t)) / sizeof (*ptr);
 	}
 
 	return (ptr);

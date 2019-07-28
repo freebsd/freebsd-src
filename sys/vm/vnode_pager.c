@@ -544,8 +544,8 @@ vnode_pager_addr(struct vnode *vp, vm_ooffset_t address, daddr_t *rtaddress,
 			*rtaddress += voffset / DEV_BSIZE;
 		if (run) {
 			*run += 1;
-			*run *= bsize/PAGE_SIZE;
-			*run -= voffset/PAGE_SIZE;
+			*run *= bsize / PAGE_SIZE;
+			*run -= voffset / PAGE_SIZE;
 		}
 	}
 

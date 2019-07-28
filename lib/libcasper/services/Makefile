@@ -6,7 +6,6 @@ SUBDIR=		cap_dns
 SUBDIR+=	cap_fileargs
 SUBDIR+=	cap_grp
 SUBDIR+=	cap_pwd
-SUBDIR+=	cap_random
 SUBDIR+=	cap_sysctl
 SUBDIR+=	cap_syslog
 

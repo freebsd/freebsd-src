@@ -108,7 +108,7 @@ struct fs_ops efihttp_fsops = {
 };
 
 static void EFIAPI
-notify(EFI_EVENT event, void *context)
+notify(EFI_EVENT event __unused, void *context)
 {
 	bool *b;
 
@@ -127,9 +127,11 @@ setup_ipv4_config2(EFI_HANDLE handle, MAC_ADDR_DEVICE_PATH *mac,
 	    (void **)&ip4config2, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
-	if (ipv4) {
-		setenv("boot.netif.hwaddr",
-		    ether_sprintf((u_char *)mac->MacAddress.Addr), 1);
+	if (ipv4 != NULL) {
+		if (mac != NULL) {
+			setenv("boot.netif.hwaddr",
+			    ether_sprintf((u_char *)mac->MacAddress.Addr), 1);
+		}
 		setenv("boot.netif.ip",
 		    inet_ntoa(*(struct in_addr *)ipv4->LocalIpAddress.Addr), 1);
 		setenv("boot.netif.netmask",
@@ -160,7 +162,7 @@ setup_ipv4_config2(EFI_HANDLE handle, MAC_ADDR_DEVICE_PATH *mac,
 				return (efi_status_to_errno(status));
 		}
 
-		if (dns) {
+		if (dns != NULL) {
 			status = ip4config2->SetData(ip4config2,
 			    Ip4Config2DataTypeDnsServer,
 			    sizeof(EFI_IPv4_ADDRESS), &dns->DnsServerIp);
@@ -199,7 +201,7 @@ efihttp_dev_init(void)
 		    DevicePathSubType(devpath) != MSG_URI_DP)
 			continue;
 		uri = (URI_DEVICE_PATH *)devpath;
-		if (strncmp("http", uri->Uri, 4) == 0)
+		if (strncmp("http", (const char *)uri->Uri, 4) == 0)
 			found_http = true;
 	}
 	if (!found_http)
@@ -217,8 +219,9 @@ efihttp_dev_init(void)
 }
 
 static int
-efihttp_dev_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
-    size_t *rsize)
+efihttp_dev_strategy(void *devdata __unused, int rw __unused,
+    daddr_t blk __unused, size_t size __unused, char *buf __unused,
+    size_t *rsize __unused)
 {
 	return (EIO);
 }
@@ -251,6 +254,7 @@ efihttp_dev_open(struct open_file *f, ...)
 	status = BS->LocateDevicePath(&httpsb_guid, &devpath, &handle);
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
+	mac = NULL;
 	ipv4 = NULL;
 	dns = NULL;
 	uri = NULL;
@@ -341,7 +345,7 @@ efihttp_dev_open(struct open_file *f, ...)
 		err = ENOMEM;
 		goto end;
 	}
-	strncpy(oh->uri_base, uri->Uri, len);
+	strncpy(oh->uri_base, (const char *)uri->Uri, len);
 	oh->uri_base[len] = '\0';
 	c = strrchr(oh->uri_base, '/');
 	if (c != NULL)
@@ -396,7 +400,7 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 	struct open_efihttp *oh;
 	struct file_efihttp *fh;
 	EFI_STATUS status;
-	int i;
+	UINTN i;
 	int polltime;
 	bool done;
 
@@ -468,12 +472,12 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 	message.Body = NULL;
 	request.Method = HttpMethodGet;
 	request.Url = calloc(strlen(oh->uri_base) + strlen(path) + 1, 2);
-	headers[0].FieldName = "Host";
-	headers[0].FieldValue = hostp;
-	headers[1].FieldName = "Connection";
-	headers[1].FieldValue = "close";
-	headers[2].FieldName = "Accept";
-	headers[2].FieldValue = "*/*";
+	headers[0].FieldName = (CHAR8 *)"Host";
+	headers[0].FieldValue = (CHAR8 *)hostp;
+	headers[1].FieldName = (CHAR8 *)"Connection";
+	headers[1].FieldValue = (CHAR8 *)"close";
+	headers[2].FieldName = (CHAR8 *)"Accept";
+	headers[2].FieldValue = (CHAR8 *)"*/*";
 	cpy8to16(oh->uri_base, request.Url, strlen(oh->uri_base));
 	cpy8to16(path, request.Url + strlen(oh->uri_base), strlen(path));
 	status = oh->http->Request(oh->http, &token);
@@ -542,14 +546,14 @@ _efihttp_fs_open(const char *path, struct open_file *f)
 	fh->size = 0;
 	fh->is_dir = false;
 	for (i = 0; i < message.HeaderCount; i++) {
-		if (strcasecmp(message.Headers[i].FieldName,
+		if (strcasecmp((const char *)message.Headers[i].FieldName,
 		    "Content-Length") == 0)
-			fh->size = strtoul(message.Headers[i].FieldValue, NULL,
-			    10);
-		else if (strcasecmp(message.Headers[i].FieldName,
+			fh->size = strtoul((const char *)
+			    message.Headers[i].FieldValue, NULL, 10);
+		else if (strcasecmp((const char *)message.Headers[i].FieldName,
 		    "Content-type") == 0) {
-			if (strncmp(message.Headers[i].FieldValue, "text/html",
-			    9) == 0)
+			if (strncmp((const char *)message.Headers[i].FieldValue,
+			    "text/html", 9) == 0)
 				fh->is_dir = true;
 		}
 	}
@@ -583,7 +587,7 @@ efihttp_fs_open(const char *path, struct open_file *f)
 }
 
 static int
-efihttp_fs_close(struct open_file *f)
+efihttp_fs_close(struct open_file *f __unused)
 {
 	return (0);
 }
@@ -661,7 +665,7 @@ static int
 efihttp_fs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 {
 	size_t res;
-	int err;
+	int err = 0;
 
 	while (size > 0) {
 		err = _efihttp_fs_read(f, buf, size, &res);
@@ -677,7 +681,8 @@ end:
 }
 
 static int
-efihttp_fs_write(struct open_file *f, const void *buf, size_t size, size_t *resid)
+efihttp_fs_write(struct open_file *f __unused, const void *buf __unused,
+    size_t size __unused, size_t *resid __unused)
 {
 	return (EIO);
 }

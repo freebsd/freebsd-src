@@ -18,7 +18,6 @@ files	"../mv/orion/files.ts7800"
 
 makeoptions	CONF_CFLAGS+="-march=armv5te"
 makeoptions	LDFLAGS="-zmuldefs"
-makeoptions	KERNPHYSADDR=0x00000000
 
 # Undo options from sys/conf/NOTES that we do not want...
 

@@ -1403,7 +1403,7 @@ init_shstrtab(struct elfcopy *ecp)
 	struct section *s;
 	size_t indx, sizehint;
 
-	if (elf_getshstrndx(ecp->ein, &indx) != 0) {
+	if (elf_getshdrstrndx(ecp->ein, &indx) == 0) {
 		shstrtab = elf_getscn(ecp->ein, indx);
 		if (shstrtab == NULL)
 			errx(EXIT_FAILURE, "elf_getscn failed: %s",
@@ -1413,6 +1413,8 @@ init_shstrtab(struct elfcopy *ecp)
 			    elf_errmsg(-1));
 		sizehint = shdr.sh_size;
 	} else {
+		/* Clear the error from elf_getshdrstrndx(3). */
+		(void)elf_errno();
 		sizehint = 0;
 	}
 

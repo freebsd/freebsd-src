@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,8 +44,15 @@ __FBSDID("$FreeBSD$");
 #include "nvmecontrol.h"
 #include "nvmecontrol_ext.h"
 
-#define IDENTIFY_USAGE							       \
-	"identify [-x [-v]] <controller id|namespace id>\n"
+static struct options {
+	bool		hex;
+	bool		verbose;
+	const char	*dev;
+} opt = {
+	.hex = false,
+	.verbose = false,
+	.dev = NULL,
+};
 
 static void
 print_namespace(struct nvme_namespace_data *nsdata)
@@ -160,35 +168,17 @@ print_namespace(struct nvme_namespace_data *nsdata)
 }
 
 static void
-identify_ctrlr(const struct nvme_function *nf, int argc, char *argv[])
+identify_ctrlr(const struct cmd *f, int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
-	int				ch, fd, hexflag = 0, hexlength;
-	int				verboseflag = 0;
+	int				fd, hexlength;
 
-	while ((ch = getopt(argc, argv, "vx")) != -1) {
-		switch ((char)ch) {
-		case 'v':
-			verboseflag = 1;
-			break;
-		case 'x':
-			hexflag = 1;
-			break;
-		default:
-			usage(nf);
-		}
-	}
-
-	/* Check that a controller was specified. */
-	if (optind >= argc)
-		usage(nf);
-
-	open_dev(argv[optind], &fd, 1, 1);
+	open_dev(opt.dev, &fd, 1, 1);
 	read_controller_data(fd, &cdata);
 	close(fd);
 
-	if (hexflag == 1) {
-		if (verboseflag == 1)
+	if (opt.hex) {
+		if (opt.verbose)
 			hexlength = sizeof(struct nvme_controller_data);
 		else
 			hexlength = offsetof(struct nvme_controller_data,
@@ -197,9 +187,9 @@ identify_ctrlr(const struct nvme_function *nf, int argc, char *argv[])
 		exit(0);
 	}
 
-	if (verboseflag == 1) {
+	if (opt.verbose) {
 		fprintf(stderr, "-v not currently supported without -x\n");
-		usage(nf);
+		arg_help(argc, argv, f);
 	}
 
 	nvme_print_controller(&cdata);
@@ -207,37 +197,19 @@ identify_ctrlr(const struct nvme_function *nf, int argc, char *argv[])
 }
 
 static void
-identify_ns(const struct nvme_function *nf,int argc, char *argv[])
+identify_ns(const struct cmd *f, int argc, char *argv[])
 {
 	struct nvme_namespace_data	nsdata;
 	char				path[64];
-	int				ch, fd, hexflag = 0, hexlength;
-	int				verboseflag = 0;
+	int				fd, hexlength;
 	uint32_t			nsid;
-
-	while ((ch = getopt(argc, argv, "vx")) != -1) {
-		switch ((char)ch) {
-		case 'v':
-			verboseflag = 1;
-			break;
-		case 'x':
-			hexflag = 1;
-			break;
-		default:
-			usage(nf);
-		}
-	}
-
-	/* Check that a namespace was specified. */
-	if (optind >= argc)
-		usage(nf);
 
 	/*
 	 * Check if the specified device node exists before continuing.
 	 *  This is a cleaner check for cases where the correct controller
 	 *  is specified, but an invalid namespace on that controller.
 	 */
-	open_dev(argv[optind], &fd, 1, 1);
+	open_dev(opt.dev, &fd, 1, 1);
 	close(fd);
 
 	/*
@@ -246,13 +218,13 @@ identify_ns(const struct nvme_function *nf,int argc, char *argv[])
 	 *  the IDENTIFY command itself.  So parse the namespace's device node
 	 *  string to get the controller substring and namespace ID.
 	 */
-	parse_ns_str(argv[optind], path, &nsid);
+	parse_ns_str(opt.dev, path, &nsid);
 	open_dev(path, &fd, 1, 1);
 	read_namespace_data(fd, nsid, &nsdata);
 	close(fd);
 
-	if (hexflag == 1) {
-		if (verboseflag == 1)
+	if (opt.hex) {
+		if (opt.verbose)
 			hexlength = sizeof(struct nvme_namespace_data);
 		else
 			hexlength = offsetof(struct nvme_namespace_data,
@@ -261,9 +233,9 @@ identify_ns(const struct nvme_function *nf,int argc, char *argv[])
 		exit(0);
 	}
 
-	if (verboseflag == 1) {
+	if (opt.verbose) {
 		fprintf(stderr, "-v not currently supported without -x\n");
-		usage(nf);
+		arg_help(argc, argv, f);
 	}
 
 	print_namespace(&nsdata);
@@ -271,32 +243,42 @@ identify_ns(const struct nvme_function *nf,int argc, char *argv[])
 }
 
 static void
-identify(const struct nvme_function *nf, int argc, char *argv[])
+identify(const struct cmd *f, int argc, char *argv[])
 {
-	char	*target;
-
-	if (argc < 2)
-		usage(nf);
-
-	while (getopt(argc, argv, "vx") != -1) ;
-
-	/* Check that a controller or namespace was specified. */
-	if (optind >= argc)
-		usage(nf);
-
-	target = argv[optind];
-
-	optreset = 1;
-	optind = 1;
+	arg_parse(argc, argv, f);
 
 	/*
 	 * If device node contains "ns", we consider it a namespace,
 	 *  otherwise, consider it a controller.
 	 */
-	if (strstr(target, NVME_NS_PREFIX) == NULL)
-		identify_ctrlr(nf, argc, argv);
+	if (strstr(opt.dev, NVME_NS_PREFIX) == NULL)
+		identify_ctrlr(f, argc, argv);
 	else
-		identify_ns(nf, argc, argv);
+		identify_ns(f, argc, argv);
 }
 
-NVME_COMMAND(top, identify, identify, IDENTIFY_USAGE);
+static const struct opts identify_opts[] = {
+#define OPT(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
+	OPT("hex", 'x', arg_none, opt, hex,
+	    "Print identiy information in hex"),
+	OPT("verbose", 'v', arg_none, opt, verbose,
+	    "More verbosity: print entire identify table"),
+	{ NULL, 0, arg_none, NULL, NULL }
+};
+#undef OPT
+
+static const struct args identify_args[] = {
+	{ arg_string, &opt.dev, "controller-id|namespace-id" },
+	{ arg_none, NULL, NULL },
+};
+
+static struct cmd identify_cmd = {
+	.name = "identify",
+	.fn = identify,
+	.descr = "Print a human-readable summary of the IDENTIFY information",
+	.ctx_size = sizeof(opt),
+	.opts = identify_opts,
+	.args = identify_args,
+};
+
+CMD_COMMAND(identify_cmd);

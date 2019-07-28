@@ -1142,7 +1142,6 @@ syscall(struct trapframe *frame)
 {
 	struct thread *td;
 	register_t orig_tf_eflags;
-	int error;
 	ksiginfo_t ksi;
 
 #ifdef DIAGNOSTIC
@@ -1157,7 +1156,7 @@ syscall(struct trapframe *frame)
 	td = curthread;
 	td->td_frame = frame;
 
-	error = syscallenter(td);
+	syscallenter(td);
 
 	/*
 	 * Traced syscall.
@@ -1178,5 +1177,5 @@ syscall(struct trapframe *frame)
 	    ("System call %s returning with mangled pcb_save",
 	     syscallname(td->td_proc, td->td_sa.code)));
 
-	syscallret(td, error);
+	syscallret(td);
 }

@@ -157,14 +157,23 @@ llan_attach(device_t dev)
 	struct llan_softc *sc;
 	phandle_t node;
 	int error, i;
+	ssize_t len;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
 	/* Get firmware properties */
 	node = ofw_bus_get_node(dev);
-	OF_getprop(node, "local-mac-address", sc->mac_address,
+	len = OF_getprop(node, "local-mac-address", sc->mac_address,
 	    sizeof(sc->mac_address));
+	/* If local-mac-address property has only 6 bytes (ETHER_ADDR_LEN)
+	 * instead of 8 (sizeof(sc->mac_address)), then its value must be
+	 * shifted 2 bytes to the right. */
+	if (len == ETHER_ADDR_LEN) {
+		bcopy(sc->mac_address, &sc->mac_address[2], len);
+		/* Zero out the first 2 bytes. */
+		bzero(sc->mac_address, 2);
+	}
 	OF_getencprop(node, "reg", &sc->unit, sizeof(sc->unit));
 
 	mtx_init(&sc->io_lock, "llan", NULL, MTX_DEF);
@@ -504,7 +513,7 @@ llan_set_multicast(struct llan_softc *sc)
 {
 	struct ifnet *ifp = sc->ifp;
 	struct ifmultiaddr *inm;
-	uint64_t macaddr;
+	uint64_t macaddr = 0;
 
 	mtx_assert(&sc->io_lock, MA_OWNED);
 

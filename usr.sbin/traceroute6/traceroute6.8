@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2018
+.Dd July 16, 2019
 .Dt TRACEROUTE6 8
 .Os
 .\"
@@ -172,6 +172,8 @@ Destination Unreachable - Administratively Prohibited.
 Destination Unreachable - Not a Neighbour.
 .It !A
 Destination Unreachable - Address Unreachable.
+.It !H
+Parameter Problem - Unrecognized Next Header Type.
 .It !\&
 This is printed if the hop limit is <= 1 on a port unreachable message.
 This means that the packet got to the destination,

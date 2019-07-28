@@ -178,6 +178,16 @@ nvme_qpair_print_command(struct nvme_qpair *qpair, struct nvme_command *cmd)
 		nvme_admin_qpair_print_command(qpair, cmd);
 	else
 		nvme_io_qpair_print_command(qpair, cmd);
+	if (nvme_verbose_cmd_dump) {
+		nvme_printf(qpair->ctrlr,
+		    "nsid:%#x rsvd2:%#x rsvd3:%#x mptr:%#jx prp1:%#jx prp2:%#jx\n",
+		    cmd->nsid, cmd->rsvd2, cmd->rsvd3, (uintmax_t)cmd->mptr,
+		    (uintmax_t)cmd->prp1, (uintmax_t)cmd->prp2);
+		nvme_printf(qpair->ctrlr,
+		    "cdw10: %#x cdw11:%#x cdw12:%#x cdw13:%#x cdw14:%#x cdw15:%#x\n",
+		    cmd->cdw10, cmd->cdw11, cmd->cdw12, cmd->cdw13, cmd->cdw14,
+		    cmd->cdw15);
+	}
 }
 
 struct nvme_status_string {
@@ -377,12 +387,16 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
     struct nvme_completion *cpl, error_print_t print_on_error)
 {
 	struct nvme_request	*req;
-	boolean_t		retry, error;
+	boolean_t		retry, error, retriable;
 
 	req = tr->req;
 	error = nvme_completion_is_error(cpl);
-	retry = error && nvme_completion_is_retry(cpl) &&
-	   req->retries < nvme_retry_count;
+	retriable = nvme_completion_is_retry(cpl);
+	retry = error && retriable && req->retries < nvme_retry_count;
+	if (retry)
+		qpair->num_retries++;
+	if (error && req->retries >= nvme_retry_count && retriable)
+		qpair->num_failures++;
 
 	if (error && (print_on_error == ERROR_PRINT_ALL ||
 		(!retry && print_on_error == ERROR_PRINT_NO_RETRY))) {
@@ -674,6 +688,8 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 
 	qpair->num_cmds = 0;
 	qpair->num_intr_handler_calls = 0;
+	qpair->num_retries = 0;
+	qpair->num_failures = 0;
 	qpair->cmd = (struct nvme_command *)queuemem;
 	qpair->cpl = (struct nvme_completion *)(queuemem + cmdsz);
 	prpmem = (uint8_t *)(queuemem + cmdsz + cplsz);

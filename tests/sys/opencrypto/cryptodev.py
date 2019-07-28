@@ -36,6 +36,7 @@ import array
 import binascii
 from fcntl import ioctl
 import os
+import platform
 import random
 import signal
 from struct import pack as _pack
@@ -116,14 +117,19 @@ class CryptAEAD(dpkt.Packet):
 # h2py.py can't handle multiarg macros
 CRIOGET = 3221513060
 CIOCGSESSION = 3224396645
-CIOCGSESSION2 = 3225445226
 CIOCFSESSION = 2147771238
-CIOCCRYPT = 3224396647
 CIOCKEY = 3230688104
 CIOCASYMFEAT = 1074029417
 CIOCKEY2 = 3230688107
 CIOCFINDDEV = 3223610220
-CIOCCRYPTAEAD = 3225445229
+if platform.architecture()[0] == '64bit':
+    CIOCGSESSION2 = 3225445226
+    CIOCCRYPT = 3224396647
+    CIOCCRYPTAEAD = 3225445229
+else:
+    CIOCGSESSION2 = 3224396650
+    CIOCCRYPT = 3223085927
+    CIOCCRYPTAEAD = 3223872365
 
 def _getdev():
     buf = array.array('I', [0])

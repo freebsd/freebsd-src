@@ -43,6 +43,7 @@ enum {
 	MODE_INVALID,
 	MODE_TRACE,
 	MODE_TRAPCAP,
+	MODE_PROTMAX,
 #ifdef PROC_KPTI_CTL
 	MODE_KPTI,
 #endif
@@ -72,7 +73,7 @@ static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "Usage: proccontrol -m (aslr|trace|trapcap"
+	fprintf(stderr, "Usage: proccontrol -m (aslr|protmax|trace|trapcap"
 	    KPTI_USAGE") [-q] "
 	    "[-s (enable|disable)] [-p pid | command]\n");
 	exit(1);
@@ -94,6 +95,8 @@ main(int argc, char *argv[])
 		case 'm':
 			if (strcmp(optarg, "aslr") == 0)
 				mode = MODE_ASLR;
+			else if (strcmp(optarg, "protmax") == 0)
+				mode = MODE_PROTMAX;
 			else if (strcmp(optarg, "trace") == 0)
 				mode = MODE_TRACE;
 			else if (strcmp(optarg, "trapcap") == 0)
@@ -147,6 +150,9 @@ main(int argc, char *argv[])
 		case MODE_TRAPCAP:
 			error = procctl(P_PID, pid, PROC_TRAPCAP_STATUS, &arg);
 			break;
+		case MODE_PROTMAX:
+			error = procctl(P_PID, pid, PROC_PROTMAX_STATUS, &arg);
+			break;
 #ifdef PROC_KPTI_CTL
 		case MODE_KPTI:
 			error = procctl(P_PID, pid, PROC_KPTI_STATUS, &arg);
@@ -194,6 +200,23 @@ main(int argc, char *argv[])
 				break;
 			}
 			break;
+		case MODE_PROTMAX:
+			switch (arg & ~PROC_PROTMAX_ACTIVE) {
+			case PROC_PROTMAX_FORCE_ENABLE:
+				printf("force enabled");
+				break;
+			case PROC_PROTMAX_FORCE_DISABLE:
+				printf("force disabled");
+				break;
+			case PROC_PROTMAX_NOFORCE:
+				printf("not forced");
+				break;
+			}
+			if ((arg & PROC_PROTMAX_ACTIVE) != 0)
+				printf(", active\n");
+			else
+				printf(", not active\n");
+			break;
 #ifdef PROC_KPTI_CTL
 		case MODE_KPTI:
 			switch (arg & ~PROC_KPTI_STATUS_ACTIVE) {
@@ -227,6 +250,11 @@ main(int argc, char *argv[])
 			arg = enable ? PROC_TRAPCAP_CTL_ENABLE :
 			    PROC_TRAPCAP_CTL_DISABLE;
 			error = procctl(P_PID, pid, PROC_TRAPCAP_CTL, &arg);
+			break;
+		case MODE_PROTMAX:
+			arg = enable ? PROC_PROTMAX_FORCE_ENABLE :
+			    PROC_PROTMAX_FORCE_DISABLE;
+			error = procctl(P_PID, pid, PROC_PROTMAX_CTL, &arg);
 			break;
 #ifdef PROC_KPTI_CTL
 		case MODE_KPTI:

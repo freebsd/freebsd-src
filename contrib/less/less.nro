@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 530: 05 Dec 2017"
+.TH LESS 1 "Version 551: 11 Jun 2019"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -762,6 +762,8 @@ The default is to ring the terminal bell in all such cases.
 .IP "\-Q or \-\-QUIET or \-\-SILENT"
 Causes totally "quiet" operation:
 the terminal bell is never rung.
+If the terminal has a "visual bell", it is used in all cases 
+where the terminal bell would have been rung.
 .IP "\-r or \-\-raw-control-chars"
 Causes "raw" control characters to be displayed.
 The default is to display control characters using the caret notation;
@@ -938,21 +940,48 @@ If the reopen succeeds and the file is a different file from the original
 with the same name as the original (now renamed) file),
 .I less
 will display the contents of that new file.
+.IP "\-\-mouse"
+Enables mouse input:
+scrolling the mouse wheel down moves forward in the file,
+scrolling the mouse wheel up moves backwards in the file,
+and clicking the mouse sets the "#" mark to the line 
+where the mouse is clicked.
+The number of lines to scroll when the wheel is moved 
+can be set by the \-\-wheel-lines option.
+Mouse input works only on terminals which support X11 mouse reporting,
+and on the Windows version of 
+.IR less .
+.IP "\-\-MOUSE"
+Like \-\-mouse, except the direction scrolled 
+on mouse wheel movement is reversed.
 .IP "\-\-no-keypad"
 Disables sending the keypad initialization and deinitialization strings
 to the terminal.
 This is sometimes useful if the keypad strings make the numeric
 keypad behave in an undesirable manner.
-.IP "\-\-use-backslash"
-This option changes the interpretations of options which follow this one.
-After the \-\-use-backslash option, any backslash in an option string is
-removed and the following character is taken literally.
-This allows a dollar sign to be included in option strings.
+.IP "\-\-no-histdups"
+This option changes the behavior so that if a search string or
+file name is typed in, and the same string is already in the history list, 
+the existing copy is removed from the history list before the new one is added.
+Thus, a given string will appear only once in the history list.
+Normally, a string may appear multiple times.
 .IP "\-\-rscroll"
 This option changes the character used to mark truncated lines.
 It may begin with a two-character attribute indicator like LESSBINFMT does.
 If there is no attribute indicator, standout is used.
 If set to "-", truncated lines are not marked.
+.IP "\-\-save-marks"
+Save marks in the history file, so marks are retained
+across different invocations of \fIless\fP.
+.IP "\-\-use-backslash"
+This option changes the interpretations of options which follow this one.
+After the \-\-use-backslash option, any backslash in an option string is
+removed and the following character is taken literally.
+This allows a dollar sign to be included in option strings.
+.IP "\-\-wheel-lines=\fIn\fP"
+Set the number of lines to scroll when the mouse wheel is scrolled
+and the \-\-mouse or \-\-MOUSE option is in effect.
+The default is 1 line.
 .IP \-\-
 A command line argument of "\-\-" marks the end of option arguments.
 Any arguments following this are interpreted as filenames.
@@ -1154,15 +1183,17 @@ lessopen.sh:
 .br
 	case "$1" in
 .br
-	*.Z)	uncompress \-c $1  >/tmp/less.$$  2>/dev/null
+	*.Z)	TEMPFILE=$(mktemp)
 .br
-		if [ \-s /tmp/less.$$ ]; then
+		uncompress \-c $1  >$TEMPFILE  2>/dev/null
 .br
-			echo /tmp/less.$$
+		if [ \-s $TEMPFILE ]; then
+.br
+			echo $TEMPFILE
 .br
 		else
 .br
-			rm \-f /tmp/less.$$
+			rm \-f $TEMPFILE
 .br
 		fi
 .br
@@ -1212,6 +1243,8 @@ lesspipe.sh:
 	case "$1" in
 .br
 	*.Z)	uncompress \-c $1  2>/dev/null
+.br
+		;;
 .br
 	*)	exit 1
 .br
@@ -1440,6 +1473,10 @@ See the discussion of the LESSEDIT feature below.
 Replaced by the name of the current input file.
 .IP "%F"
 Replaced by the last component of the name of the current input file.
+.IP "%g"
+Replaced by the shell-escaped name of the current input file.
+This is useful when the expanded string will be used in a shell command,
+such as in LESSEDIT.
 .IP "%i"
 Replaced by the index of the current file in the list of
 input files.
@@ -1575,11 +1612,11 @@ The LESSEDIT string is expanded in the same way as the prompt strings.
 The default value for LESSEDIT is:
 .nf
 .sp
-	%E\ ?lm+%lm.\ %f
+	%E\ ?lm+%lm.\ %g
 .sp
 .fi
 Note that this expands to the editor name, followed by a + and the
-line number, followed by the file name.
+line number, followed by the shell-escaped file name.
 If your editor does not accept the "+linenumber" syntax, or has other
 differences in invocation syntax, the LESSEDIT variable can be
 changed to modify this default.
@@ -1766,7 +1803,7 @@ The name of the editor (used for the v command).
 lesskey(1)
 
 .SH COPYRIGHT
-Copyright (C) 1984-2017  Mark Nudelman
+Copyright (C) 1984-2019  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
@@ -1791,9 +1828,7 @@ See the GNU General Public License for more details.
 .PP
 Mark Nudelman
 .br
-Send bug reports or comments to <bug-less@gnu.org>
-.br
-See http://www.greenwoodsoftware.com/less/bugs.html for the latest list of known bugs in less.
+Report bugs at https://github.com/gwsw/less/issues.
 .br
 For more information, see the less homepage at
 .br

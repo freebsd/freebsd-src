@@ -65,7 +65,7 @@ struct respip_client_info;
  * Maximum number of mesh state activations. Any more is likely an
  * infinite loop in the module. It is then terminated.
  */
-#define MESH_MAX_ACTIVATION 3000
+#define MESH_MAX_ACTIVATION 10000
 
 /**
  * Max number of references-to-references-to-references.. search size.
@@ -632,5 +632,15 @@ void mesh_list_insert(struct mesh_state* m, struct mesh_state** fp,
  */
 void mesh_list_remove(struct mesh_state* m, struct mesh_state** fp,
 	struct mesh_state** lp);
+
+/**
+ * Remove mesh reply entry from the reply entry list.  Searches for
+ * the comm_point pointer.
+ * @param mesh: to update the counters.
+ * @param m: the mesh state.
+ * @param cp: the comm_point to remove from the list.
+ */
+void mesh_state_remove_reply(struct mesh_area* mesh, struct mesh_state* m,
+	struct comm_point* cp);
 
 #endif /* SERVICES_MESH_H */

@@ -1,4 +1,4 @@
-/*	$Id: cgi.c,v 1.166 2019/03/06 12:32:41 schwarze Exp $ */
+/*	$Id: cgi.c,v 1.167 2019/07/10 12:49:20 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015, 2016, 2017, 2018 Ingo Schwarze <schwarze@usta.de>
@@ -869,7 +869,6 @@ resp_format(const struct req *req, const char *file)
 	memset(&conf, 0, sizeof(conf));
 	conf.fragment = 1;
 	conf.style = mandoc_strdup(CSS_DIR "/mandoc.css");
-	conf.toc = 1;
 	usepath = strcmp(req->q.manpath, req->p[0]);
 	mandoc_asprintf(&conf.man, "/%s%s%s%s%%N.%%S",
 	    scriptname, *scriptname == '\0' ? "" : "/",

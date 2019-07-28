@@ -245,7 +245,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	return (error);
 }
 
-CTASSERT(sizeof(((struct vm_memseg *)0)->name) >= SPECNAMELEN + 1);
+CTASSERT(sizeof(((struct vm_memseg *)0)->name) >= VM_MAX_SUFFIXLEN + 1);
 
 static int
 get_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg)
@@ -265,7 +265,8 @@ get_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg)
 		}
 		KASSERT(dsc != NULL, ("%s: devmem segment %d not found",
 		    __func__, mseg->segid));
-		error = copystr(dsc->name, mseg->name, SPECNAMELEN + 1, NULL);
+		error = copystr(dsc->name, mseg->name, sizeof(mseg->name),
+		    NULL);
 	} else {
 		bzero(mseg->name, sizeof(mseg->name));
 	}
@@ -284,10 +285,14 @@ alloc_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg)
 	name = NULL;
 	sysmem = true;
 
+	/*
+	 * The allocation is lengthened by 1 to hold a terminating NUL.  It'll
+	 * by stripped off when devfs processes the full string.
+	 */
 	if (VM_MEMSEG_NAME(mseg)) {
 		sysmem = false;
-		name = malloc(SPECNAMELEN + 1, M_VMMDEV, M_WAITOK);
-		error = copystr(mseg->name, name, SPECNAMELEN + 1, 0);
+		name = malloc(sizeof(mseg->name), M_VMMDEV, M_WAITOK);
+		error = copystr(mseg->name, name, sizeof(mseg->name), NULL);
 		if (error)
 			goto done;
 	}
@@ -894,26 +899,29 @@ vmmdev_destroy(void *arg)
 static int
 sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	char buf[VM_MAX_NAMELEN];
 	struct devmem_softc *dsc;
 	struct vmmdev_softc *sc;
 	struct cdev *cdev;
+	char *buf;
+	int error, buflen;
 
 	error = vmm_priv_check(req->td->td_ucred);
 	if (error)
 		return (error);
 
-	strlcpy(buf, "beavis", sizeof(buf));
-	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	buflen = VM_MAX_NAMELEN + 1;
+	buf = malloc(buflen, M_VMMDEV, M_WAITOK | M_ZERO);
+	strlcpy(buf, "beavis", buflen);
+	error = sysctl_handle_string(oidp, buf, buflen, req);
 	if (error != 0 || req->newptr == NULL)
-		return (error);
+		goto out;
 
 	mtx_lock(&vmmdev_mtx);
 	sc = vmmdev_lookup(buf);
 	if (sc == NULL || sc->cdev == NULL) {
 		mtx_unlock(&vmmdev_mtx);
-		return (EINVAL);
+		error = EINVAL;
+		goto out;
 	}
 
 	/*
@@ -943,7 +951,11 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 		destroy_dev_sched_cb(dsc->cdev, devmem_destroy, dsc);
 	}
 	destroy_dev_sched_cb(cdev, vmmdev_destroy, sc);
-	return (0);
+	error = 0;
+
+out:
+	free(buf, M_VMMDEV);
+	return (error);
 }
 SYSCTL_PROC(_hw_vmm, OID_AUTO, destroy,
 	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON,
@@ -961,30 +973,34 @@ static struct cdevsw vmmdevsw = {
 static int
 sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 {
-	int error;
 	struct vm *vm;
 	struct cdev *cdev;
 	struct vmmdev_softc *sc, *sc2;
-	char buf[VM_MAX_NAMELEN];
+	char *buf;
+	int error, buflen;
 
 	error = vmm_priv_check(req->td->td_ucred);
 	if (error)
 		return (error);
 
-	strlcpy(buf, "beavis", sizeof(buf));
-	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	buflen = VM_MAX_NAMELEN + 1;
+	buf = malloc(buflen, M_VMMDEV, M_WAITOK | M_ZERO);
+	strlcpy(buf, "beavis", buflen);
+	error = sysctl_handle_string(oidp, buf, buflen, req);
 	if (error != 0 || req->newptr == NULL)
-		return (error);
+		goto out;
 
 	mtx_lock(&vmmdev_mtx);
 	sc = vmmdev_lookup(buf);
 	mtx_unlock(&vmmdev_mtx);
-	if (sc != NULL)
-		return (EEXIST);
+	if (sc != NULL) {
+		error = EEXIST;
+		goto out;
+	}
 
 	error = vm_create(buf, &vm);
 	if (error != 0)
-		return (error);
+		goto out;
 
 	sc = malloc(sizeof(struct vmmdev_softc), M_VMMDEV, M_WAITOK | M_ZERO);
 	sc->vm = vm;
@@ -1004,14 +1020,15 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 
 	if (sc2 != NULL) {
 		vmmdev_destroy(sc);
-		return (EEXIST);
+		error = EEXIST;
+		goto out;
 	}
 
 	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &vmmdevsw, NULL,
 			   UID_ROOT, GID_WHEEL, 0600, "vmm/%s", buf);
 	if (error != 0) {
 		vmmdev_destroy(sc);
-		return (error);
+		goto out;
 	}
 
 	mtx_lock(&vmmdev_mtx);
@@ -1019,7 +1036,9 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	sc->cdev->si_drv1 = sc;
 	mtx_unlock(&vmmdev_mtx);
 
-	return (0);
+out:
+	free(buf, M_VMMDEV);
+	return (error);
 }
 SYSCTL_PROC(_hw_vmm, OID_AUTO, create,
 	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON,

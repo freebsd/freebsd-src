@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=runtime-manuals
-
 MAN=	apm.4 \
 	ce.4 \
 	cp.4 \

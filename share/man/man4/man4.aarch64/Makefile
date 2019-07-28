@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=runtime-manuals
-
 .PATH: ${.CURDIR}/../man4.arm # Some manpages are common to arm and aarch64
 
 MAN=	\

@@ -2367,6 +2367,7 @@ mpr_complete_command(struct mpr_softc *sc, struct mpr_command *cm)
 		return;
 	}
 
+	cm->cm_state = MPR_CM_STATE_BUSY;
 	if (cm->cm_flags & MPR_CM_FLAGS_POLLED)
 		cm->cm_flags |= MPR_CM_FLAGS_COMPLETE;
 
@@ -2617,12 +2618,17 @@ mpr_intr_locked(void *data)
 			} else {
 				cm = &sc->commands[
 				    le16toh(desc->AddressReply.SMID)];
-				if (cm->cm_state != MPR_CM_STATE_TIMEDOUT)
-					cm->cm_state = MPR_CM_STATE_BUSY;
-				cm->cm_reply = reply;
-				cm->cm_reply_data =
-				    le32toh(desc->AddressReply.
-				    ReplyFrameAddress);
+				if (cm->cm_state == MPR_CM_STATE_INQUEUE) {
+					cm->cm_reply = reply;
+					cm->cm_reply_data =
+					    le32toh(desc->AddressReply.
+						ReplyFrameAddress);
+				} else {
+					mpr_dprint(sc, MPR_RECOVERY,
+					    "Bad state for ADDRESS_REPLY status,"
+					    " ignoring state %d cm %p\n",
+					    cm->cm_state, cm);
+				}
 			}
 			break;
 		}
@@ -3874,7 +3880,7 @@ mpr_request_polled(struct mpr_softc *sc, struct mpr_command **cmp)
 			break;
 		}
 	}
-
+	cm->cm_state = MPR_CM_STATE_BUSY;
 	if (error) {
 		mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s\n", __func__);
 		rc = mpr_reinit(sc);

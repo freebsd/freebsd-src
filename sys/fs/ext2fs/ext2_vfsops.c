@@ -559,7 +559,12 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
 		    "zero blocks/fragments per group");
 		return (EINVAL);
+	} else if (fs->e2fs_bpg != fs->e2fs_fpg) {
+		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
+		    "blocks per group not equal fragments per group");
+		return (EINVAL);
 	}
+
 	if (fs->e2fs_bpg != fs->e2fs_bsize * 8) {
 		SDT_PROBE1(ext2fs, , vfsops, ext2_compute_sb_data_error,
 		    "non-standard group size unsupported");

@@ -100,11 +100,11 @@ parse_header(const gss_buffer_t input_token, gss_OID mech_oid)
 }		       
 
 static gss_OID_desc krb5_mechanism =
-{9, (void *)(uintptr_t) "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02"};
+{9, __DECONST(void *, "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02")};
 static gss_OID_desc ntlm_mechanism =
-{10, (void *)(uintptr_t) "\x2b\x06\x01\x04\x01\x82\x37\x02\x02\x0a"};
+{10, __DECONST(void *, "\x2b\x06\x01\x04\x01\x82\x37\x02\x02\x0a")};
 static gss_OID_desc spnego_mechanism =
-{6, (void *)(uintptr_t) "\x2b\x06\x01\x05\x05\x02"};
+{6, __DECONST(void *, "\x2b\x06\x01\x05\x05\x02")};
 
 static OM_uint32
 choose_mech(const gss_buffer_t input, gss_OID mech_oid)

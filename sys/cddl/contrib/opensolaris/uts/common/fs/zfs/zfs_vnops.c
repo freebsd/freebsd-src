@@ -455,7 +455,7 @@ page_unbusy(vm_page_t pp)
 }
 
 static vm_page_t
-page_hold(vnode_t *vp, int64_t start)
+page_wire(vnode_t *vp, int64_t start)
 {
 	vm_object_t obj;
 	vm_page_t pp;
@@ -482,9 +482,8 @@ page_hold(vnode_t *vp, int64_t start)
 
 			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
 			vm_page_lock(pp);
-			vm_page_hold(pp);
+			vm_page_wire(pp);
 			vm_page_unlock(pp);
-
 		} else
 			pp = NULL;
 		break;
@@ -493,11 +492,11 @@ page_hold(vnode_t *vp, int64_t start)
 }
 
 static void
-page_unhold(vm_page_t pp)
+page_unwire(vm_page_t pp)
 {
 
 	vm_page_lock(pp);
-	vm_page_unhold(pp);
+	vm_page_unwire(pp, PQ_ACTIVE);
 	vm_page_unlock(pp);
 }
 
@@ -647,7 +646,7 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 		vm_page_t pp;
 		uint64_t bytes = MIN(PAGESIZE - off, len);
 
-		if (pp = page_hold(vp, start)) {
+		if (pp = page_wire(vp, start)) {
 			struct sf_buf *sf;
 			caddr_t va;
 
@@ -660,7 +659,7 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 #endif
 			zfs_unmap_page(sf);
 			zfs_vmobject_wlock(obj);
-			page_unhold(pp);
+			page_unwire(pp);
 		} else {
 			zfs_vmobject_wunlock(obj);
 			error = dmu_read_uio_dbuf(sa_get_db(zp->z_sa_hdl),

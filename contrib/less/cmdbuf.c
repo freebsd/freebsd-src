@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -22,6 +22,8 @@
 
 extern int sc_width;
 extern int utf_mode;
+extern int no_hist_dups;
+extern int marks_modified;
 
 static char cmdbuf[CMDBUF_SIZE]; /* Buffer for holding a multi-char command */
 static int cmd_col;		/* Current column of the cursor */
@@ -58,6 +60,7 @@ public char closequote = '"';
 #define HISTFILE_FIRST_LINE      ".less-history-file:"
 #define HISTFILE_SEARCH_SECTION  ".search"
 #define HISTFILE_SHELL_SECTION   ".shell"
+#define HISTFILE_MARK_SECTION    ".mark"
 
 /*
  * A mlist structure represents a command history.
@@ -114,7 +117,7 @@ static int cmd_mbc_buf_index;
  * Reset command buffer (to empty).
  */
 	public void
-cmd_reset()
+cmd_reset(VOID_PARAM)
 {
 	cp = cmdbuf;
 	*cp = '\0';
@@ -129,7 +132,7 @@ cmd_reset()
  * Clear command line.
  */
 	public void
-clear_cmd()
+clear_cmd(VOID_PARAM)
 {
 	cmd_col = prompt_col = 0;
 	cmd_mbc_buf_len = 0;
@@ -169,7 +172,7 @@ cmd_putstr(s)
  * How many characters are in the command buffer?
  */
 	public int
-len_cmdbuf()
+len_cmdbuf(VOID_PARAM)
 {
 	char *s = cmdbuf;
 	char *endline = s + strlen(s);
@@ -302,7 +305,7 @@ cmd_repaint(old_cp)
  * and set cp to the corresponding char in cmdbuf.
  */
 	static void
-cmd_home()
+cmd_home(VOID_PARAM)
 {
 	while (cmd_col > prompt_col)
 	{
@@ -321,7 +324,7 @@ cmd_home()
  * Shift the cmdbuf display left a half-screen.
  */
 	static void
-cmd_lshift()
+cmd_lshift(VOID_PARAM)
 {
 	char *s;
 	char *save_cp;
@@ -359,7 +362,7 @@ cmd_lshift()
  * Shift the cmdbuf display right a half-screen.
  */
 	static void
-cmd_rshift()
+cmd_rshift(VOID_PARAM)
 {
 	char *s;
 	char *save_cp;
@@ -389,7 +392,7 @@ cmd_rshift()
  * Move cursor right one character.
  */
 	static int
-cmd_right()
+cmd_right(VOID_PARAM)
 {
 	char *pr;
 	char *ncp;
@@ -424,7 +427,7 @@ cmd_right()
  * Move cursor left one character.
  */
 	static int
-cmd_left()
+cmd_left(VOID_PARAM)
 {
 	char *ncp;
 	int width = 0;
@@ -492,7 +495,7 @@ cmd_ichar(cs, clen)
  * Delete the char to the left of the cursor.
  */
 	static int
-cmd_erase()
+cmd_erase(VOID_PARAM)
 {
 	char *s;
 	int clen;
@@ -541,7 +544,7 @@ cmd_erase()
  * Delete the char under the cursor.
  */
 	static int
-cmd_delete()
+cmd_delete(VOID_PARAM)
 {
 	if (*cp == '\0')
 	{
@@ -560,7 +563,7 @@ cmd_delete()
  * Delete the "word" to the left of the cursor.
  */
 	static int
-cmd_werase()
+cmd_werase(VOID_PARAM)
 {
 	if (cp > cmdbuf && cp[-1] == ' ')
 	{
@@ -586,7 +589,7 @@ cmd_werase()
  * Delete the "word" under the cursor.
  */
 	static int
-cmd_wdelete()
+cmd_wdelete(VOID_PARAM)
 {
 	if (*cp == ' ')
 	{
@@ -612,7 +615,7 @@ cmd_wdelete()
  * Delete all chars in the command buffer.
  */
 	static int
-cmd_kill()
+cmd_kill(VOID_PARAM)
 {
 	if (cmdbuf[0] == '\0')
 	{
@@ -702,6 +705,7 @@ cmd_updown(action)
 			s = ml->string;
 			if (s == NULL)
 				s = "";
+			cmd_offset = 0;
 			cmd_home();
 			clear_eol();
 			strcpy(cmdbuf, s);
@@ -717,6 +721,31 @@ cmd_updown(action)
 	return (CC_OK);
 }
 #endif
+
+/*
+ *
+ */
+	static void
+ml_link(mlist, ml)
+	struct mlist *mlist;
+	struct mlist *ml;
+{
+	ml->next = mlist;
+	ml->prev = mlist->prev;
+	mlist->prev->next = ml;
+	mlist->prev = ml;
+}
+
+/*
+ *
+ */
+	static void
+ml_unlink(ml)
+	struct mlist *ml;
+{
+	ml->prev->next = ml->next;
+	ml->next->prev = ml->prev;
+}
 
 /*
  * Add a string to an mlist.
@@ -736,6 +765,21 @@ cmd_addhist(mlist, cmd, modified)
 	if (strlen(cmd) == 0)
 		return;
 
+	if (no_hist_dups)
+	{
+		struct mlist *next = NULL;
+		for (ml = mlist->next;  ml->string != NULL;  ml = next)
+		{
+			next = ml->next;
+			if (strcmp(ml->string, cmd) == 0)
+			{
+				ml_unlink(ml);
+				free(ml->string);
+				free(ml);
+			}
+		}
+	}
+
 	/*
 	 * Save the command unless it's a duplicate of the
 	 * last command in the history.
@@ -750,10 +794,7 @@ cmd_addhist(mlist, cmd, modified)
 		ml = (struct mlist *) ecalloc(1, sizeof(struct mlist));
 		ml->string = save(cmd);
 		ml->modified = modified;
-		ml->next = mlist;
-		ml->prev = mlist->prev;
-		mlist->prev->next = ml;
-		mlist->prev = ml;
+		ml_link(mlist, ml);
 	}
 	/*
 	 * Point to the cmd just after the just-accepted command.
@@ -768,13 +809,13 @@ cmd_addhist(mlist, cmd, modified)
  * Add it to the currently selected history list.
  */
 	public void
-cmd_accept()
+cmd_accept(VOID_PARAM)
 {
 #if CMD_HISTORY
 	/*
 	 * Nothing to do if there is no currently selected history list.
 	 */
-	if (curr_mlist == NULL)
+	if (curr_mlist == NULL || curr_mlist == ml_examine)
 		return;
 	cmd_addhist(curr_mlist, cmdbuf, 1);
 	curr_mlist->modified = 1;
@@ -799,7 +840,7 @@ cmd_edit(c)
 #if TAB_COMPLETE_FILENAME
 #define	not_in_completion()	in_completion = 0
 #else
-#define	not_in_completion()
+#define	not_in_completion(VOID_PARAM)
 #endif
 	
 	/*
@@ -934,7 +975,7 @@ cmd_istr(str)
  * cursor at the end of the word.
  */
 	static char *
-delimit_word()
+delimit_word(VOID_PARAM)
 {
 	char *word;
 #if SPACES_IN_FILENAMES
@@ -1021,7 +1062,7 @@ delimit_word()
  * which start with that word, and set tk_text to that list.
  */
 	static void
-init_compl()
+init_compl(VOID_PARAM)
 {
 	char *word;
 	char c;
@@ -1148,9 +1189,9 @@ cmd_complete(action)
 		tk_trial = next_compl(action, tk_trial);
 	}
 	
-  	/*
-  	 * Remove the original word, or the previous trial completion.
-  	 */
+	/*
+	 * Remove the original word, or the previous trial completion.
+	 */
 	while (cp > tk_ipoint)
 		(void) cmd_erase();
 	
@@ -1323,7 +1364,7 @@ cmd_int(frac)
  * Return a pointer to the command buffer.
  */
 	public char *
-get_cmdbuf()
+get_cmdbuf(VOID_PARAM)
 {
 	return (cmdbuf);
 }
@@ -1333,7 +1374,7 @@ get_cmdbuf()
  * Return the last (most recent) string in the current command history.
  */
 	public char *
-cmd_lastpattern()
+cmd_lastpattern(VOID_PARAM)
 {
 	if (curr_mlist == NULL)
 		return (NULL);
@@ -1358,7 +1399,7 @@ mlist_size(ml)
  * Get the name of the history file.
  */
 	static char *
-histfile_name()
+histfile_name(VOID_PARAM)
 {
 	char *home;
 	char *name;
@@ -1366,7 +1407,7 @@ histfile_name()
 	
 	/* See if filename is explicitly specified by $LESSHISTFILE. */
 	name = lgetenv("LESSHISTFILE");
-	if (name != NULL && *name != '\0')
+	if (!isnullenv(name))
 	{
 		if (strcmp(name, "-") == 0 || strcmp(name, "/dev/null") == 0)
 			/* $LESSHISTFILE == "-" means don't use a history file. */
@@ -1380,11 +1421,11 @@ histfile_name()
 
 	/* Otherwise, file is in $HOME. */
 	home = lgetenv("HOME");
-	if (home == NULL || *home == '\0')
+	if (isnullenv(home))
 	{
 #if OS2
 		home = lgetenv("INIT");
-		if (home == NULL || *home == '\0')
+		if (isnullenv(home))
 #endif
 			return (NULL);
 	}
@@ -1447,6 +1488,9 @@ read_cmdhist2(action, uparam, skip_search, skip_shell)
 			ml = NULL;
 			skip = NULL;
 #endif
+		} else if (strcmp(line, HISTFILE_MARK_SECTION) == 0)
+		{
+			ml = NULL;
 		} else if (*line == '"')
 		{
 			if (ml != NULL)
@@ -1456,6 +1500,9 @@ read_cmdhist2(action, uparam, skip_search, skip_shell)
 				else
 					(*action)(uparam, ml, line+1);
 			}
+		} else if (*line == 'm')
+		{
+			(*action)(uparam, NULL, line);
 		}
 	}
 	fclose(f);
@@ -1475,9 +1522,10 @@ read_cmdhist(action, uparam, skip_search, skip_shell)
 	static void
 addhist_init(void *uparam, struct mlist *ml, char *string)
 {
-	if (ml == NULL || string == NULL)
-		return;
-	cmd_addhist(ml, string, 0);
+	if (ml != NULL)
+		cmd_addhist(ml, string, 0);
+	else if (string != NULL)
+		restore_mark(string);
 }
 #endif /* CMD_HISTORY */
 
@@ -1485,7 +1533,7 @@ addhist_init(void *uparam, struct mlist *ml, char *string)
  * Initialize history from a .lesshist file.
  */
 	public void
-init_cmdhist()
+init_cmdhist(VOID_PARAM)
 {
 #if CMD_HISTORY
 	read_cmdhist(&addhist_init, NULL, 0, 0);
@@ -1558,7 +1606,7 @@ copy_hist(void *uparam, struct mlist *ml, char *string)
 {
 	struct save_ctx *ctx = (struct save_ctx *) uparam;
 
-	if (ml != ctx->mlist) {
+	if (ml != NULL && ml != ctx->mlist) {
 		/* We're changing mlists. */
 		if (ctx->mlist)
 			/* Append any new entries to the end of the current mlist. */
@@ -1567,12 +1615,8 @@ copy_hist(void *uparam, struct mlist *ml, char *string)
 		ctx->mlist = ml;
 		write_mlist_header(ctx->mlist, ctx->fout);
 	}
-	if (string != NULL)
-	{
-		/* Copy the entry. */
-		fprintf(ctx->fout, "\"%s\n", string);
-	}
-	if (ml == NULL) /* End of file */
+
+	if (string == NULL) /* End of file */
 	{
 		/* Write any sections that were not in the original file. */
 		if (mlist_search.modified)
@@ -1587,7 +1631,12 @@ copy_hist(void *uparam, struct mlist *ml, char *string)
 			write_mlist(&mlist_shell, ctx->fout);
 		}
 #endif
+	} else if (ml != NULL)
+	{
+		/* Copy mlist entry. */
+		fprintf(ctx->fout, "\"%s\n", string);
 	}
+	/* Skip marks */
 }
 #endif /* CMD_HISTORY */
 
@@ -1616,12 +1665,16 @@ make_file_private(f)
  * Does the history file need to be updated?
  */
 	static int
-histfile_modified()
+histfile_modified(VOID_PARAM)
 {
 	if (mlist_search.modified)
 		return 1;
 #if SHELL_ESCAPE || PIPEC
 	if (mlist_shell.modified)
+		return 1;
+#endif
+#if CMD_HISTORY
+	if (marks_modified)
 		return 1;
 #endif
 	return 0;
@@ -1631,7 +1684,7 @@ histfile_modified()
  * Update the .lesshst file.
  */
 	public void
-save_cmdhist()
+save_cmdhist(VOID_PARAM)
 {
 #if CMD_HISTORY
 	char *histname;
@@ -1665,7 +1718,8 @@ save_cmdhist()
 		fprintf(fout, "%s\n", HISTFILE_FIRST_LINE);
 		ctx.fout = fout;
 		ctx.mlist = NULL;
-		read_cmdhist(copy_hist, &ctx, skip_search, skip_shell);
+		read_cmdhist(&copy_hist, &ctx, skip_search, skip_shell);
+		save_marks(fout, HISTFILE_MARK_SECTION);
 		fclose(fout);
 #if MSDOS_COMPILER==WIN32C
 		/*

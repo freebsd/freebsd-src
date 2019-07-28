@@ -243,6 +243,30 @@ ntb_db_event(device_t dev, uint32_t vec)
 	}
 }
 
+int
+ntb_port_number(device_t ntb)
+{
+	return (NTB_PORT_NUMBER(device_get_parent(ntb)));
+}
+
+int
+ntb_peer_port_count(device_t ntb)
+{
+	return (NTB_PEER_PORT_COUNT(device_get_parent(ntb)));
+}
+
+int
+ntb_peer_port_number(device_t ntb, int pidx)
+{
+	return (NTB_PEER_PORT_NUMBER(device_get_parent(ntb), pidx));
+}
+
+int
+ntb_peer_port_idx(device_t ntb, int port)
+{
+	return (NTB_PEER_PORT_IDX(device_get_parent(ntb), port));
+}
+
 bool
 ntb_link_is_up(device_t ntb, enum ntb_speed *speed, enum ntb_width *width)
 {

@@ -1489,16 +1489,26 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 		struct ioc_read_subchannel bsdsc;
 		struct cd_sub_channel_info bsdinfo;
 
+		error = copyin((void *)args->arg, &sc, sizeof(sc));
+		if (error)
+			break;
+
+		/*
+		 * Invoke the native ioctl and bounce the returned data through
+		 * the userspace buffer.  This works because the Linux structure
+		 * is the same size as our structures for the subchannel header
+		 * and position data.
+		 */
 		bsdsc.address_format = CD_LBA_FORMAT;
 		bsdsc.data_format = CD_CURRENT_POSITION;
 		bsdsc.track = 0;
-		bsdsc.data_len = sizeof(bsdinfo);
-		bsdsc.data = &bsdinfo;
-		error = fo_ioctl(fp, CDIOCREADSUBCHANNEL_SYSSPACE,
-		    (caddr_t)&bsdsc, td->td_ucred, td);
+		bsdsc.data_len = sizeof(sc);
+		bsdsc.data = (void *)args->arg;
+		error = fo_ioctl(fp, CDIOCREADSUBCHANNEL, (caddr_t)&bsdsc,
+		    td->td_ucred, td);
 		if (error)
 			break;
-		error = copyin((void *)args->arg, &sc, sizeof(sc));
+		error = copyin((void *)args->arg, &bsdinfo, sizeof(bsdinfo));
 		if (error)
 			break;
 		sc.cdsc_audiostatus = bsdinfo.header.audio_status;
@@ -3583,6 +3593,7 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 
 	switch (args->cmd & 0xffff) {
 	case LINUX_BTRFS_IOC_CLONE:
+	case LINUX_FS_IOC_FIEMAP:
 		return (ENOTSUP);
 
 	default:

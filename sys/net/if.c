@@ -1127,6 +1127,15 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	curvnet->vnet_ifcnt--;
 #endif
 	epoch_wait_preempt(net_epoch_preempt);
+
+	/*
+	 * Ensure all pending EPOCH(9) callbacks have been executed. This
+	 * fixes issues about late destruction of multicast options
+	 * which lead to leave group calls, which in turn access the
+	 * belonging ifnet structure:
+	 */
+	epoch_drain_callbacks(net_epoch_preempt);
+
 	/*
 	 * In any case (destroy or vmove) detach us from the groups
 	 * and remove/wait for pending events on the taskq.

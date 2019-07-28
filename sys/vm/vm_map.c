@@ -1422,7 +1422,7 @@ int
 vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max, int cow)
 {
-	vm_map_entry_t new_entry, prev_entry, temp_entry;
+	vm_map_entry_t new_entry, prev_entry;
 	struct ucred *cred;
 	vm_eflags_t protoeflags;
 	vm_inherit_t inheritance;
@@ -1447,10 +1447,8 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	 * Find the entry prior to the proposed starting address; if it's part
 	 * of an existing entry, this range is bogus.
 	 */
-	if (vm_map_lookup_entry(map, start, &temp_entry))
+	if (vm_map_lookup_entry(map, start, &prev_entry))
 		return (KERN_NO_SPACE);
-
-	prev_entry = temp_entry;
 
 	/*
 	 * Assert that the next entry doesn't overlap the end point.
@@ -2186,7 +2184,6 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT(entry->end > start && entry->start < start,
 	    ("_vm_map_clip_start: invalid clip of entry %p", entry));
-	vm_map_simplify_entry(map, entry);
 
 	/*
 	 * Create a backing object now, if none exists, so that more individual
@@ -2454,6 +2451,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_object_t obj;
 	struct ucred *cred;
 	vm_prot_t old_prot;
+	int rv;
 
 	if (start == end)
 		return (KERN_SUCCESS);
@@ -2508,10 +2506,13 @@ again:
 	}
 
 	/*
-	 * Do an accounting pass for private read-only mappings that
-	 * now will do cow due to allowed write (e.g. debugger sets
-	 * breakpoint on text segment)
+	 * Before changing the protections, try to reserve swap space for any
+	 * private (i.e., copy-on-write) mappings that are transitioning from
+	 * read-only to read/write access.  If a reservation fails, break out
+	 * of this loop early and let the next loop simplify the entries, since
+	 * some may now be mergeable.
 	 */
+	rv = KERN_SUCCESS;
 	vm_map_clip_start(map, entry, start);
 	for (current = entry; current->start < end; current = current->next) {
 
@@ -2529,8 +2530,9 @@ again:
 
 		if (obj == NULL || (current->eflags & MAP_ENTRY_NEEDS_COPY)) {
 			if (!swap_reserve(current->end - current->start)) {
-				vm_map_unlock(map);
-				return (KERN_RESOURCE_SHORTAGE);
+				rv = KERN_RESOURCE_SHORTAGE;
+				end = current->end;
+				break;
 			}
 			crhold(cred);
 			current->cred = cred;
@@ -2553,8 +2555,9 @@ again:
 		    obj, current));
 		if (!swap_reserve(ptoa(obj->size))) {
 			VM_OBJECT_WUNLOCK(obj);
-			vm_map_unlock(map);
-			return (KERN_RESOURCE_SHORTAGE);
+			rv = KERN_RESOURCE_SHORTAGE;
+			end = current->end;
+			break;
 		}
 
 		crhold(cred);
@@ -2564,11 +2567,14 @@ again:
 	}
 
 	/*
-	 * Go back and fix up protections. [Note that clipping is not
-	 * necessary the second time.]
+	 * If enough swap space was available, go back and fix up protections.
+	 * Otherwise, just simplify entries, since some may have been modified.
+	 * [Note that clipping is not necessary the second time.]
 	 */
-	for (current = entry; current->start < end; current = current->next) {
-		if ((current->eflags & MAP_ENTRY_GUARD) != 0)
+	for (current = entry; current->start < end;
+	    vm_map_simplify_entry(map, current), current = current->next) {
+		if (rv != KERN_SUCCESS ||
+		    (current->eflags & MAP_ENTRY_GUARD) != 0)
 			continue;
 
 		old_prot = current->protection;
@@ -2603,10 +2609,9 @@ again:
 			    current->protection & MASK(current));
 #undef	MASK
 		}
-		vm_map_simplify_entry(map, current);
 	}
 	vm_map_unlock(map);
-	return (KERN_SUCCESS);
+	return (rv);
 }
 
 /*
@@ -2832,6 +2837,55 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 }
 
 /*
+ *	vm_map_entry_in_transition:
+ *
+ *	Release the map lock, and sleep until the entry is no longer in
+ *	transition.  Awake and acquire the map lock.  If the map changed while
+ *	another held the lock, lookup a possibly-changed entry at or after the
+ *	'start' position of the old entry.
+ */
+static vm_map_entry_t
+vm_map_entry_in_transition(vm_map_t map, vm_offset_t in_start,
+    vm_offset_t *io_end, bool holes_ok, vm_map_entry_t in_entry)
+{
+	vm_map_entry_t entry;
+	vm_offset_t start;
+	u_int last_timestamp;
+
+	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT((in_entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0,
+	    ("not in-tranition map entry %p", in_entry));
+	/*
+	 * We have not yet clipped the entry.
+	 */
+	start = MAX(in_start, in_entry->start);
+	in_entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
+	last_timestamp = map->timestamp;
+	if (vm_map_unlock_and_wait(map, 0)) {
+		/*
+		 * Allow interruption of user wiring/unwiring?
+		 */
+	}
+	vm_map_lock(map);
+	if (last_timestamp + 1 == map->timestamp)
+		return (in_entry);
+
+	/*
+	 * Look again for the entry because the map was modified while it was
+	 * unlocked.  Specifically, the entry may have been clipped, merged, or
+	 * deleted.
+	 */
+	if (!vm_map_lookup_entry(map, start, &entry)) {
+		if (!holes_ok) {
+			*io_end = start;
+			return (NULL);
+		}
+		entry = entry->next;
+	}
+	return (entry);
+}
+
+/*
  *	vm_map_unwire:
  *
  *	Implements both kernel and user unwiring.
@@ -2840,74 +2894,46 @@ int
 vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
     int flags)
 {
-	vm_map_entry_t entry, first_entry, tmp_entry;
-	vm_offset_t saved_start;
-	unsigned int last_timestamp;
+	vm_map_entry_t entry, first_entry;
 	int rv;
-	boolean_t need_wakeup, result, user_unwire;
+	bool first_iteration, holes_ok, need_wakeup, user_unwire;
 
 	if (start == end)
 		return (KERN_SUCCESS);
-	user_unwire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
+	holes_ok = (flags & VM_MAP_WIRE_HOLESOK) != 0;
+	user_unwire = (flags & VM_MAP_WIRE_USER) != 0;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
-		if (flags & VM_MAP_WIRE_HOLESOK)
+		if (holes_ok)
 			first_entry = first_entry->next;
 		else {
 			vm_map_unlock(map);
 			return (KERN_INVALID_ADDRESS);
 		}
 	}
-	last_timestamp = map->timestamp;
+	first_iteration = true;
 	entry = first_entry;
+	rv = KERN_SUCCESS;
 	while (entry->start < end) {
 		if (entry->eflags & MAP_ENTRY_IN_TRANSITION) {
 			/*
 			 * We have not yet clipped the entry.
 			 */
-			saved_start = (start >= entry->start) ? start :
-			    entry->start;
-			entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
-			if (vm_map_unlock_and_wait(map, 0)) {
-				/*
-				 * Allow interruption of user unwiring?
-				 */
-			}
-			vm_map_lock(map);
-			if (last_timestamp+1 != map->timestamp) {
-				/*
-				 * Look again for the entry because the map was
-				 * modified while it was unlocked.
-				 * Specifically, the entry may have been
-				 * clipped, merged, or deleted.
-				 */
-				if (!vm_map_lookup_entry(map, saved_start,
-				    &tmp_entry)) {
-					if (flags & VM_MAP_WIRE_HOLESOK)
-						tmp_entry = tmp_entry->next;
-					else {
-						if (saved_start == start) {
-							/*
-							 * First_entry has been deleted.
-							 */
-							vm_map_unlock(map);
-							return (KERN_INVALID_ADDRESS);
-						}
-						end = saved_start;
-						rv = KERN_INVALID_ADDRESS;
-						goto done;
-					}
+			entry = vm_map_entry_in_transition(map, start, &end,
+			    holes_ok, entry);
+			if (entry == NULL) {
+				if (first_iteration) {
+					vm_map_unlock(map);
+					return (KERN_INVALID_ADDRESS);
 				}
-				if (entry == first_entry)
-					first_entry = tmp_entry;
-				else
-					first_entry = NULL;
-				entry = tmp_entry;
+				rv = KERN_INVALID_ADDRESS;
+				break;
 			}
-			last_timestamp = map->timestamp;
+			first_entry = first_iteration ? entry : NULL;
 			continue;
 		}
+		first_iteration = false;
 		vm_map_clip_start(map, entry, start);
 		vm_map_clip_end(map, entry, end);
 		/*
@@ -2921,13 +2947,13 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		entry->wiring_thread = curthread;
 		/*
 		 * Check the map for holes in the specified region.
-		 * If VM_MAP_WIRE_HOLESOK was specified, skip this check.
+		 * If holes_ok, skip this check.
 		 */
-		if (((flags & VM_MAP_WIRE_HOLESOK) == 0) &&
+		if (!holes_ok &&
 		    (entry->end < end && entry->next->start > entry->end)) {
 			end = entry->end;
 			rv = KERN_INVALID_ADDRESS;
-			goto done;
+			break;
 		}
 		/*
 		 * If system unwiring, require that the entry is system wired.
@@ -2936,23 +2962,19 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		    vm_map_entry_system_wired_count(entry) == 0) {
 			end = entry->end;
 			rv = KERN_INVALID_ARGUMENT;
-			goto done;
+			break;
 		}
 		entry = entry->next;
 	}
-	rv = KERN_SUCCESS;
-done:
-	need_wakeup = FALSE;
-	if (first_entry == NULL) {
-		result = vm_map_lookup_entry(map, start, &first_entry);
-		if (!result && (flags & VM_MAP_WIRE_HOLESOK))
-			first_entry = first_entry->next;
-		else
-			KASSERT(result, ("vm_map_unwire: lookup failed"));
+	need_wakeup = false;
+	if (first_entry == NULL &&
+	    !vm_map_lookup_entry(map, start, &first_entry)) {
+		KASSERT(holes_ok, ("vm_map_unwire: lookup failed"));
+		first_entry = first_entry->next;
 	}
 	for (entry = first_entry; entry->start < end; entry = entry->next) {
 		/*
-		 * If VM_MAP_WIRE_HOLESOK was specified, an empty
+		 * If holes_ok was specified, an empty
 		 * space in the unwired region could have been mapped
 		 * while the map lock was dropped for draining
 		 * MAP_ENTRY_IN_TRANSITION.  Moreover, another thread
@@ -2962,7 +2984,7 @@ done:
 		 */
 		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) == 0 ||
 		    entry->wiring_thread != curthread) {
-			KASSERT((flags & VM_MAP_WIRE_HOLESOK) != 0,
+			KASSERT(holes_ok,
 			    ("vm_map_unwire: !HOLESOK and new/changed entry"));
 			continue;
 		}
@@ -2984,7 +3006,7 @@ done:
 		entry->wiring_thread = NULL;
 		if (entry->eflags & MAP_ENTRY_NEEDS_WAKEUP) {
 			entry->eflags &= ~MAP_ENTRY_NEEDS_WAKEUP;
-			need_wakeup = TRUE;
+			need_wakeup = true;
 		}
 		vm_map_simplify_entry(map, entry);
 	}
@@ -3078,7 +3100,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 	u_long npages;
 	u_int last_timestamp;
 	int rv;
-	boolean_t need_wakeup, result, user_wire;
+	bool first_iteration, holes_ok, need_wakeup, user_wire;
 	vm_prot_t prot;
 
 	VM_MAP_ASSERT_LOCKED(map);
@@ -3088,62 +3110,34 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 	prot = 0;
 	if (flags & VM_MAP_WIRE_WRITE)
 		prot |= VM_PROT_WRITE;
-	user_wire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
+	holes_ok = (flags & VM_MAP_WIRE_HOLESOK) != 0;
+	user_wire = (flags & VM_MAP_WIRE_USER) != 0;
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
-		if (flags & VM_MAP_WIRE_HOLESOK)
+		if (holes_ok)
 			first_entry = first_entry->next;
 		else
 			return (KERN_INVALID_ADDRESS);
 	}
-	last_timestamp = map->timestamp;
+	first_iteration = true;
 	entry = first_entry;
 	while (entry->start < end) {
 		if (entry->eflags & MAP_ENTRY_IN_TRANSITION) {
 			/*
 			 * We have not yet clipped the entry.
 			 */
-			saved_start = (start >= entry->start) ? start :
-			    entry->start;
-			entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
-			if (vm_map_unlock_and_wait(map, 0)) {
-				/*
-				 * Allow interruption of user wiring?
-				 */
+			entry = vm_map_entry_in_transition(map, start, &end,
+			    holes_ok, entry);
+			if (entry == NULL) {
+				if (first_iteration)
+					return (KERN_INVALID_ADDRESS);
+				rv = KERN_INVALID_ADDRESS;
+				goto done;
 			}
-			vm_map_lock(map);
-			if (last_timestamp + 1 != map->timestamp) {
-				/*
-				 * Look again for the entry because the map was
-				 * modified while it was unlocked.
-				 * Specifically, the entry may have been
-				 * clipped, merged, or deleted.
-				 */
-				if (!vm_map_lookup_entry(map, saved_start,
-				    &tmp_entry)) {
-					if (flags & VM_MAP_WIRE_HOLESOK)
-						tmp_entry = tmp_entry->next;
-					else {
-						if (saved_start == start) {
-							/*
-							 * first_entry has been deleted.
-							 */
-							return (KERN_INVALID_ADDRESS);
-						}
-						end = saved_start;
-						rv = KERN_INVALID_ADDRESS;
-						goto done;
-					}
-				}
-				if (entry == first_entry)
-					first_entry = tmp_entry;
-				else
-					first_entry = NULL;
-				entry = tmp_entry;
-			}
-			last_timestamp = map->timestamp;
+			first_entry = first_iteration ? entry : NULL;
 			continue;
 		}
+		first_iteration = false;
 		vm_map_clip_start(map, entry, start);
 		vm_map_clip_end(map, entry, end);
 		/*
@@ -3158,14 +3152,12 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 		if ((entry->protection & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0
 		    || (entry->protection & prot) != prot) {
 			entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
-			if ((flags & VM_MAP_WIRE_HOLESOK) == 0) {
+			if (!holes_ok) {
 				end = entry->end;
 				rv = KERN_INVALID_ADDRESS;
 				goto done;
 			}
-			goto next_entry;
-		}
-		if (entry->wired_count == 0) {
+		} else if (entry->wired_count == 0) {
 			entry->wired_count++;
 
 			npages = atop(entry->end - entry->start);
@@ -3183,6 +3175,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 			 */
 			saved_start = entry->start;
 			saved_end = entry->end;
+			last_timestamp = map->timestamp;
 			vm_map_busy(map);
 			vm_map_unlock(map);
 
@@ -3205,9 +3198,10 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 				 * may have been clipped, but NOT merged or
 				 * deleted.
 				 */
-				result = vm_map_lookup_entry(map, saved_start,
-				    &tmp_entry);
-				KASSERT(result, ("vm_map_wire: lookup failed"));
+				if (!vm_map_lookup_entry(map, saved_start,
+				    &tmp_entry))
+					KASSERT(false,
+					    ("vm_map_wire: lookup failed"));
 				if (entry == first_entry)
 					first_entry = tmp_entry;
 				else
@@ -3227,7 +3221,6 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 					entry = entry->next;
 				}
 			}
-			last_timestamp = map->timestamp;
 			if (rv != KERN_SUCCESS) {
 				vm_map_wire_entry_failure(map, entry, faddr);
 				if (user_wire)
@@ -3241,10 +3234,9 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 		}
 		/*
 		 * Check the map for holes in the specified region.
-		 * If VM_MAP_WIRE_HOLESOK was specified, skip this check.
+		 * If holes_ok was specified, skip this check.
 		 */
-	next_entry:
-		if ((flags & VM_MAP_WIRE_HOLESOK) == 0 &&
+		if (!holes_ok &&
 		    entry->end < end && entry->next->start > entry->end) {
 			end = entry->end;
 			rv = KERN_INVALID_ADDRESS;
@@ -3254,17 +3246,15 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 	}
 	rv = KERN_SUCCESS;
 done:
-	need_wakeup = FALSE;
-	if (first_entry == NULL) {
-		result = vm_map_lookup_entry(map, start, &first_entry);
-		if (!result && (flags & VM_MAP_WIRE_HOLESOK))
-			first_entry = first_entry->next;
-		else
-			KASSERT(result, ("vm_map_wire: lookup failed"));
+	need_wakeup = false;
+	if (first_entry == NULL &&
+	    !vm_map_lookup_entry(map, start, &first_entry)) {
+		KASSERT(holes_ok, ("vm_map_wire: lookup failed"));
+		first_entry = first_entry->next;
 	}
 	for (entry = first_entry; entry->start < end; entry = entry->next) {
 		/*
-		 * If VM_MAP_WIRE_HOLESOK was specified, an empty
+		 * If holes_ok was specified, an empty
 		 * space in the unwired region could have been mapped
 		 * while the map lock was dropped for faulting in the
 		 * pages or draining MAP_ENTRY_IN_TRANSITION.
@@ -3274,15 +3264,14 @@ done:
 		 */
 		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) == 0 ||
 		    entry->wiring_thread != curthread) {
-			KASSERT((flags & VM_MAP_WIRE_HOLESOK) != 0,
+			KASSERT(holes_ok,
 			    ("vm_map_wire: !HOLESOK and new/changed entry"));
 			continue;
 		}
 
-		if ((entry->eflags & MAP_ENTRY_WIRE_SKIPPED) != 0)
-			goto next_entry_done;
-
-		if (rv == KERN_SUCCESS) {
+		if ((entry->eflags & MAP_ENTRY_WIRE_SKIPPED) != 0) {
+			/* do nothing */
+		} else if (rv == KERN_SUCCESS) {
 			if (user_wire)
 				entry->eflags |= MAP_ENTRY_USER_WIRED;
 		} else if (entry->wired_count == -1) {
@@ -3305,7 +3294,6 @@ done:
 			} else
 				entry->wired_count--;
 		}
-	next_entry_done:
 		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0,
 		    ("vm_map_wire: in-transition flag missing %p", entry));
 		KASSERT(entry->wiring_thread == curthread,
@@ -3315,7 +3303,7 @@ done:
 		entry->wiring_thread = NULL;
 		if (entry->eflags & MAP_ENTRY_NEEDS_WAKEUP) {
 			entry->eflags &= ~MAP_ENTRY_NEEDS_WAKEUP;
-			need_wakeup = TRUE;
+			need_wakeup = true;
 		}
 		vm_map_simplify_entry(map, entry);
 	}

@@ -2479,13 +2479,24 @@ mps_intr_locked(void *data)
 					    (MPI2_EVENT_NOTIFICATION_REPLY *)
 					    reply);
 			} else {
+				/*
+				 * Ignore commands not in INQUEUE state
+				 * since they've already been completed
+				 * via another path.
+				 */
 				cm = &sc->commands[
 				    le16toh(desc->AddressReply.SMID)];
-				if (cm->cm_state != MPS_CM_STATE_TIMEDOUT)
+				if (cm->cm_state == MPS_CM_STATE_INQUEUE) {
 					cm->cm_state = MPS_CM_STATE_BUSY;
-				cm->cm_reply = reply;
-				cm->cm_reply_data = le32toh(
-				    desc->AddressReply.ReplyFrameAddress);
+					cm->cm_reply = reply;
+					cm->cm_reply_data = le32toh(
+					    desc->AddressReply.ReplyFrameAddress);
+				} else {
+					mps_dprint(sc, MPS_RECOVERY,
+					    "Bad state for ADDRESS_REPLY status,"
+					    " ignoring state %d cm %p\n",
+					    cm->cm_state, cm);
+				}
 			}
 			break;
 		}

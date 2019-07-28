@@ -399,6 +399,7 @@ axidma_channel_alloc(device_t dev, struct xdma_channel *xchan)
 		if (axidma_reset(sc, data->id) != 0)
 			return (-1);
 		chan->xchan = xchan;
+		xchan->caps |= XCHAN_CAP_BOUNCE;
 		xchan->chan = (void *)chan;
 		chan->sc = sc;
 		chan->used = true;

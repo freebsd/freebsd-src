@@ -1190,8 +1190,7 @@ tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
 	INP_WLOCK(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
-		for (int i = 0; i < count; i++)
-			m = m_free(m);
+		mb_free_notready(m, count);
 		return (ECONNRESET);
 	}
 	tp = intotcpcb(inp);

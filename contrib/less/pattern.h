@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2017  Mark Nudelman
+ * Copyright (C) 1984-2019  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -29,6 +29,13 @@ extern int less_is_more;
 #if HAVE_PCRE
 #include <pcre.h>
 #define PATTERN_TYPE          pcre *
+#define CLEAR_PATTERN(name)   name = NULL
+#endif
+
+#if HAVE_PCRE2
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
+#define PATTERN_TYPE          pcre2_code *
 #define CLEAR_PATTERN(name)   name = NULL
 #endif
 

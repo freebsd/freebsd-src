@@ -40,6 +40,7 @@ struct tuninfo {
 #define	TUNSIFINFO	_IOW('t', 91, struct tuninfo)
 #define	TUNGIFINFO	_IOR('t', 92, struct tuninfo)
 #define	TUNSLMODE	_IOW('t', 93, int)
+#define	TUNGIFNAME	_IOR('t', 93, struct ifreq)
 #define	TUNSIFMODE	_IOW('t', 94, int)
 #define	TUNSIFPID	_IO('t', 95)
 #define	TUNSIFHEAD	_IOW('t', 96, int)

@@ -29,17 +29,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#if defined(__FreeBSD__)
-#include <sys/param.h>
-#if __FreeBSD_version >= 1001511
+#ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
-#define HAVE_CAPSICUM
-#endif
 #endif
 
 #include <bzlib.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
@@ -107,7 +102,7 @@ int main(int argc, char *argv[])
 	off_t oldpos, newpos;
 	off_t ctrl[3];
 	off_t i, lenread, offset;
-#ifdef HAVE_CAPSICUM
+#ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights_dir, rights_ro, rights_wr;
 #endif
 
@@ -143,7 +138,7 @@ int main(int argc, char *argv[])
 		err(1, "open(%s)", argv[2]);
 	atexit(exit_cleanup);
 
-#ifdef HAVE_CAPSICUM
+#ifndef WITHOUT_CAPSICUM
 	if (cap_enter() < 0)
 		err(1, "failed to enter security sandbox");
 

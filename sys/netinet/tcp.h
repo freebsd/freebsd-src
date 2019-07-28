@@ -201,9 +201,8 @@ struct tcphdr {
 #define TCP_RACK_TLP_THRESH   1063 /* RACK TLP theshold i.e. srtt+(srtt/N) */
 #define TCP_RACK_PKT_DELAY    1064 /* RACK added ms i.e. rack-rtt + reord + N */
 #define TCP_RACK_TLP_INC_VAR  1065 /* Does TLP include rtt variance in t-o */
-#define TCP_RACK_SESS_CWV     1066 /* Enable RFC7611 cwnd validation on sess */
 #define TCP_BBR_IWINTSO	      1067 /* Initial TSO window for BBRs first sends */
-#define TCP_BBR_RECFORCE      1068 /* Enter recovery force out a segment disregard pacer */
+#define TCP_BBR_RECFORCE      1068 /* Enter recovery force out a segment disregard pacer no longer valid */
 #define TCP_BBR_STARTUP_PG    1069 /* Startup pacing gain */
 #define TCP_BBR_DRAIN_PG      1070 /* Drain pacing gain */
 #define TCP_BBR_RWND_IS_APP   1071 /* Rwnd limited is considered app limited */
@@ -211,14 +210,18 @@ struct tcphdr {
 #define TCP_BBR_ONE_RETRAN    1073 /* Is only one segment allowed out during retran */
 #define TCP_BBR_STARTUP_LOSS_EXIT 1074	/* Do we exit a loss during startup if not 20% incr */
 #define TCP_BBR_USE_LOWGAIN   1075 /* lower the gain in PROBE_BW enable */
-#define TCP_BBR_LOWGAIN_THRESH 1076 /* How many cycles do we stay in lowgain */
-#define TCP_BBR_LOWGAIN_HALF  1077 /* Do we halfstep lowgain down */
-#define TCP_BBR_LOWGAIN_FD    1078 /* Do we force a drain when lowgain in place */
+#define TCP_BBR_LOWGAIN_THRESH 1076 /* Unused after 2.3 morphs to TSLIMITS >= 2.3 */
+#define TCP_BBR_TSLIMITS 1076	   /* Do we use experimental Timestamp limiting for our algo */
+#define TCP_BBR_LOWGAIN_HALF  1077 /* Unused after 2.3 */
+#define TCP_BBR_PACE_OH        1077 /* Reused in 4.2 for pacing overhead setting */
+#define TCP_BBR_LOWGAIN_FD    1078 /* Unused after 2.3 */
+#define TCP_BBR_HOLD_TARGET 1078	/* For 4.3 on */
 #define TCP_BBR_USEDEL_RATE   1079 /* Enable use of delivery rate for loss recovery */
 #define TCP_BBR_MIN_RTO       1080 /* Min RTO in milliseconds */
 #define TCP_BBR_MAX_RTO	      1081 /* Max RTO in milliseconds */
 #define TCP_BBR_REC_OVER_HPTS 1082 /* Recovery override htps settings 0/1/3 */
-#define TCP_BBR_UNLIMITED     1083 /* Does BBR, in non-recovery not use cwnd */
+#define TCP_BBR_UNLIMITED     1083 /* Not used before 2.3 and morphs to algorithm >= 2.3 */
+#define TCP_BBR_ALGORITHM     1083 /* What measurement algo does BBR use netflix=0, google=1 */
 #define TCP_BBR_DRAIN_INC_EXTRA 1084 /* Does the 3/4 drain target include the extra gain */
 #define TCP_BBR_STARTUP_EXIT_EPOCH 1085 /* what epoch gets us out of startup */
 #define TCP_BBR_PACE_PER_SEC   1086
@@ -227,17 +230,27 @@ struct tcphdr {
 #define TCP_BBR_PACE_SEG_MIN   1089
 #define TCP_BBR_PACE_CROSS     1090
 #define TCP_RACK_IDLE_REDUCE_HIGH 1092  /* Reduce the highest cwnd seen to IW on idle */
-#define TCP_RACK_IDLE_REDUCE_HIGH 1092  /* Reduce the highest cwnd seen to IW on idle */
 #define TCP_RACK_MIN_PACE      1093 	/* Do we enforce rack min pace time */
 #define TCP_RACK_MIN_PACE_SEG  1094	/* If so what is the seg threshould */
+#define TCP_RACK_GP_INCREASE   1094	/* After 4.1 its the GP increase */
 #define TCP_RACK_TLP_USE       1095
 #define TCP_BBR_ACK_COMP_ALG   1096 	/* Not used */
+#define TCP_BBR_TMR_PACE_OH    1096	/* Recycled in 4.2 */
 #define TCP_BBR_EXTRA_GAIN     1097
 #define TCP_BBR_RACK_RTT_USE   1098	/* what RTT should we use 0, 1, or 2? */
 #define TCP_BBR_RETRAN_WTSO    1099
 #define TCP_DATA_AFTER_CLOSE   1100
 #define TCP_BBR_PROBE_RTT_GAIN 1101
 #define TCP_BBR_PROBE_RTT_LEN  1102
+#define TCP_BBR_SEND_IWND_IN_TSO 1103	/* Do we burst out whole iwin size chunks at start? */
+#define TCP_BBR_USE_RACK_CHEAT 1104	/* Do we use the rack cheat for pacing rxt's */
+#define TCP_BBR_HDWR_PACE      1105	/* Enable/disable hardware pacing */
+#define TCP_BBR_UTTER_MAX_TSO  1106	/* Do we enforce an utter max TSO size */
+#define TCP_BBR_EXTRA_STATE    1107	/* Special exit-persist catch up */
+#define TCP_BBR_FLOOR_MIN_TSO  1108     /* The min tso size */
+#define TCP_BBR_MIN_TOPACEOUT  1109	/* Do we suspend pacing until */
+#define TCP_BBR_TSTMP_RAISES   1110	/* Can a timestamp measurement raise the b/w */
+#define TCP_BBR_POLICER_DETECT 1111	/* Turn on/off google mode policer detection */
 
 
 /* Start of reserved space for third-party user-settable options. */

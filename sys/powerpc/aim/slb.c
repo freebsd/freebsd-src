@@ -416,6 +416,7 @@ slb_alloc_tree(void)
 	struct slbtnode *root;
 
 	root = uma_zalloc(slbt_zone, M_NOWAIT | M_ZERO);
+	KASSERT(root != NULL, ("unhandled NULL case"));
 	root->ua_level = UAD_ROOT_LEVEL;
 
 	return (root);
@@ -544,7 +545,6 @@ slb_free_user_cache(struct slb **slb)
 	uma_zfree(slb_cache_zone, slb);
 }
 
-#if defined(__powerpc64__)
 /* Handle kernel SLB faults -- runs in real mode, all seat belts off */
 void
 handle_kernel_slb_spill(int type, register_t dar, register_t srr0)
@@ -625,4 +625,3 @@ handle_user_slb_spill(pmap_t pm, vm_offset_t addr)
 
 	return (0);
 }
-#endif

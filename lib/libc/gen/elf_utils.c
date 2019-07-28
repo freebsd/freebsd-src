@@ -38,7 +38,6 @@
 #include "libc_private.h"
 #include "static_tls.h"
 
-int __elf_phdr_match_addr(struct dl_phdr_info *, void *);
 void __pthread_map_stacks_exec(void);
 void __pthread_distribute_static_tls(size_t, void *, size_t, size_t);
 

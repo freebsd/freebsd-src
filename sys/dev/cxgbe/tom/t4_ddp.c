@@ -112,15 +112,12 @@ free_pageset(struct tom_data *td, struct pageset *ps)
 	if (ps->prsv.prsv_nppods > 0)
 		t4_free_page_pods(&ps->prsv);
 
-	if (ps->flags & PS_WIRED) {
-		for (i = 0; i < ps->npages; i++) {
-			p = ps->pages[i];
-			vm_page_lock(p);
-			vm_page_unwire(p, PQ_INACTIVE);
-			vm_page_unlock(p);
-		}
-	} else
-		vm_page_unhold_pages(ps->pages, ps->npages);
+	for (i = 0; i < ps->npages; i++) {
+		p = ps->pages[i];
+		vm_page_lock(p);
+		vm_page_unwire(p, PQ_INACTIVE);
+		vm_page_unlock(p);
+	}
 	mtx_lock(&ddp_orphan_pagesets_lock);
 	TAILQ_INSERT_TAIL(&ddp_orphan_pagesets, ps, link);
 	taskqueue_enqueue(taskqueue_thread, &ddp_orphan_task);
@@ -150,7 +147,7 @@ recycle_pageset(struct toepcb *toep, struct pageset *ps)
 {
 
 	DDP_ASSERT_LOCKED(toep);
-	if (!(toep->ddp.flags & DDP_DEAD) && ps->flags & PS_WIRED) {
+	if (!(toep->ddp.flags & DDP_DEAD)) {
 		KASSERT(toep->ddp.cached_count + toep->ddp.active_count <
 		    nitems(toep->ddp.db), ("too many wired pagesets"));
 		TAILQ_INSERT_HEAD(&toep->ddp.cached_pagesets, ps, link);
@@ -263,8 +260,8 @@ complete_ddp_buffer(struct toepcb *toep, struct ddp_buffer *db,
 		} else
 			toep->ddp.active_id ^= 1;
 #ifdef VERBOSE_TRACES
-		CTR2(KTR_CXGBE, "%s: ddp_active_id = %d", __func__,
-		    toep->ddp.active_id);
+		CTR3(KTR_CXGBE, "%s: tid %u, ddp_active_id = %d", __func__,
+		    toep->tid, toep->ddp.active_id);
 #endif
 	} else {
 		KASSERT(toep->ddp.active_count != 0 &&
@@ -534,8 +531,8 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 	tp->rcv_wnd -= len;
 #endif
 #ifdef VERBOSE_TRACES
-	CTR4(KTR_CXGBE, "%s: DDP[%d] placed %d bytes (%#x)", __func__, db_idx,
-	    len, report);
+	CTR5(KTR_CXGBE, "%s: tid %u, DDP[%d] placed %d bytes (%#x)", __func__,
+	    toep->tid, db_idx, len, report);
 #endif
 
 	/* receive buffer autosize */
@@ -574,8 +571,9 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 	} else {
 		copied = job->aio_received;
 #ifdef VERBOSE_TRACES
-		CTR4(KTR_CXGBE, "%s: completing %p (copied %ld, placed %d)",
-		    __func__, job, copied, len);
+		CTR5(KTR_CXGBE,
+		    "%s: tid %u, completing %p (copied %ld, placed %d)",
+		    __func__, toep->tid, job, copied, len);
 #endif
 		aio_complete(job, copied + len, 0);
 		t4_rcvd(&toep->td->tod, tp);
@@ -1178,35 +1176,14 @@ t4_write_page_pods_for_buf(struct adapter *sc, struct sge_wrq *wrq, int tid,
 	return (0);
 }
 
-static void
-wire_pageset(struct pageset *ps)
-{
-	vm_page_t p;
-	int i;
-
-	KASSERT(!(ps->flags & PS_WIRED), ("pageset already wired"));
-
-	for (i = 0; i < ps->npages; i++) {
-		p = ps->pages[i];
-		vm_page_lock(p);
-		vm_page_wire(p);
-		vm_page_unhold(p);
-		vm_page_unlock(p);
-	}
-	ps->flags |= PS_WIRED;
-}
-
 /*
- * Prepare a pageset for DDP.  This wires the pageset and sets up page
- * pods.
+ * Prepare a pageset for DDP.  This sets up page pods.
  */
 static int
 prep_pageset(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 {
 	struct tom_data *td = sc->tom_softc;
 
-	if (!(ps->flags & PS_WIRED))
-		wire_pageset(ps);
 	if (ps->prsv.prsv_nppods == 0 &&
 	    !t4_alloc_page_pods_for_ps(&td->pr, ps)) {
 		return (0);
@@ -1792,8 +1769,9 @@ sbcopy:
 	}
 
 #ifdef VERBOSE_TRACES
-	CTR5(KTR_CXGBE, "%s: scheduling %p for DDP[%d] (flags %#lx/%#lx)",
-	    __func__, job, db_idx, ddp_flags, ddp_flags_mask);
+	CTR6(KTR_CXGBE,
+	    "%s: tid %u, scheduling %p for DDP[%d] (flags %#lx/%#lx)", __func__,
+	    toep->tid, job, db_idx, ddp_flags, ddp_flags_mask);
 #endif
 	/* Give the chip the go-ahead. */
 	t4_wrq_tx(sc, wr);
@@ -1919,7 +1897,7 @@ t4_aio_queue_ddp(struct socket *so, struct kaiocb *job)
 	 */
 
 #ifdef VERBOSE_TRACES
-	CTR2(KTR_CXGBE, "%s: queueing %p", __func__, job);
+	CTR3(KTR_CXGBE, "%s: queueing %p for tid %u", __func__, job, toep->tid);
 #endif
 	if (!aio_set_cancel_function(job, t4_aio_cancel_queued))
 		panic("new job was cancelled");

@@ -38,4 +38,6 @@ aton_ether_subr.c: gen_ether_subr ${SRCTOP}/sys/net/if_ethersubr.c
 ${PACKAGE}FILES+=	hosts
 ${PACKAGE}FILES+=	resolv.conf
 
+ATF_TESTS_SH_SED_servent_test=	-e 's,services.cdb,services.db,g'
+
 .include <bsd.test.mk>

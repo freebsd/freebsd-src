@@ -2001,10 +2001,14 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 		flags |= PGET_CANDEBUG;
 	else
 		flags |= PGET_CANSEE;
-	error = pget(args->pid, flags, &p);
-	if (error != 0)
-		return (error);
-
+	if (args->pid == 0) {
+		p = td->td_proc;
+		PHOLD(p);
+	} else {
+		error = pget(args->pid, flags, &p);
+		if (error != 0)
+			return (error);
+	}
 	if (args->old != NULL) {
 		PROC_LOCK(p);
 		lim_rlimit_proc(p, which, &rlim);

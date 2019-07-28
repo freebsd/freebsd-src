@@ -117,7 +117,7 @@ ppc::ReadGOTPtrMode ppc::getPPCReadGOTPtrMode(const Driver &D, const llvm::Tripl
   if (Args.getLastArg(options::OPT_msecure_plt))
     return ppc::ReadGOTPtrMode::SecurePlt;
   if ((Triple.isOSFreeBSD() && Triple.getOSMajorVersion() >= 13) ||
-      Triple.isOSOpenBSD())
+      Triple.isOSNetBSD() || Triple.isOSOpenBSD())
     return ppc::ReadGOTPtrMode::SecurePlt;
   else
     return ppc::ReadGOTPtrMode::Bss;

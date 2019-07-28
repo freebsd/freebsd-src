@@ -295,11 +295,18 @@ ub_event_new(struct ub_event_base* base, int fd, short bits,
 	if (!ev)
 		return NULL;
 
+#ifndef HAVE_EVENT_ASSIGN
 	event_set(ev, fd, NATIVE_BITS(bits), NATIVE_BITS_CB(cb), arg);
 	if (event_base_set(AS_EVENT_BASE(base), ev) != 0) {
 		free(ev);
 		return NULL;
 	}
+#else
+	if (event_assign(ev, AS_EVENT_BASE(base), fd, bits, cb, arg) != 0) {
+		free(ev);
+		return NULL;
+	}
+#endif
 	return AS_UB_EVENT(ev);
 }
 
@@ -312,11 +319,18 @@ ub_signal_new(struct ub_event_base* base, int fd,
 	if (!ev)
 		return NULL;
 
+#if !HAVE_DECL_EVSIGNAL_ASSIGN
 	signal_set(ev, fd, NATIVE_BITS_CB(cb), arg);
 	if (event_base_set(AS_EVENT_BASE(base), ev) != 0) {
 		free(ev);
 		return NULL;
 	}
+#else
+	if (evsignal_assign(ev, AS_EVENT_BASE(base), fd, cb, arg) != 0) {
+		free(ev);
+		return NULL;
+	}
+#endif
 	return AS_UB_EVENT(ev);
 }
 

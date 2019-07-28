@@ -44,6 +44,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "rtld_printf.h"
+#include "rtld_libc.h"
 
 #define MAXNBUF	(sizeof(intmax_t) * NBBY + 1)
 
