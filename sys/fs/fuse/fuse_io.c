@@ -119,9 +119,11 @@ SDT_PROVIDER_DECLARE(fusefs);
  */
 SDT_PROBE_DEFINE2(fusefs, , io, trace, "int", "char*");
 
+static int
+fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end);
 static void
 fuse_io_clear_suid_on_write(struct vnode *vp, struct ucred *cred,
-	struct thread *td);
+    struct thread *td);
 static int 
 fuse_read_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh);
@@ -135,6 +137,58 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 static int 
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag, pid_t pid);
+
+/* Invalidate a range of cached data, whether dirty of not */
+static int
+fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end)
+{
+	struct buf *bp;
+	daddr_t left_lbn, end_lbn, right_lbn;
+	off_t new_filesize;
+	int iosize, left_on, right_on, right_blksize;
+
+	iosize = fuse_iosize(vp);
+	left_lbn = start / iosize;
+	end_lbn = howmany(end, iosize);
+	left_on = start & (iosize - 1);
+	if (left_on != 0) {
+		bp = getblk(vp, left_lbn, iosize, PCATCH, 0, 0);
+		if ((bp->b_flags & B_CACHE) != 0 && bp->b_dirtyend >= left_on) {
+			/* 
+			 * Flush the dirty buffer, because we don't have a
+			 * byte-granular way to record which parts of the
+			 * buffer are valid.
+			 */
+			bwrite(bp);
+			if (bp->b_error)
+				return (bp->b_error);
+		} else {
+			brelse(bp);
+		}
+	}
+	right_on = end & (iosize - 1);
+	if (right_on != 0) {
+		right_lbn = end / iosize;
+		new_filesize = MAX(filesize, end);
+		right_blksize = MIN(iosize, new_filesize - iosize * right_lbn);
+		bp = getblk(vp, right_lbn, right_blksize, PCATCH, 0, 0);
+		if ((bp->b_flags & B_CACHE) != 0 && bp->b_dirtyoff < right_on) {
+			/* 
+			 * Flush the dirty buffer, because we don't have a
+			 * byte-granular way to record which parts of the
+			 * buffer are valid.
+			 */
+			bwrite(bp);
+			if (bp->b_error)
+				return (bp->b_error);
+		} else {
+			brelse(bp);
+		}
+	}
+
+	v_inval_buf_range(vp, left_lbn, end_lbn, iosize);
+	return (0);
+}
 
 /*
  * FreeBSD clears the SUID and SGID bits on any write by a non-root user.
@@ -236,7 +290,6 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 	case UIO_WRITE:
 		fuse_vnode_update(vp, FN_MTIMECHANGE | FN_CTIMECHANGE);
 		if (directio) {
-			const int iosize = fuse_iosize(vp);
 			off_t start, end, filesize;
 
 			SDT_PROBE2(fusefs, , io, trace, 1,
@@ -252,7 +305,9 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 				(IO_VMIO | IO_DIRECT),
 			    ("IO_DIRECT used for a cache flush?"));
 			/* Invalidate the write cache when writing directly */
-			v_inval_buf_range(vp, start, end, iosize);
+			err = fuse_inval_buf_range(vp, filesize, start, end);
+			if (err)
+				return (err);
 			err = fuse_write_directbackend(vp, uio, cred, fufh,
 				filesize, ioflag, false);
 		} else {
