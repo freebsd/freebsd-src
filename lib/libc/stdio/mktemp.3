@@ -28,7 +28,7 @@
 .\"     @(#)mktemp.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2013
+.Dd July 29, 2019
 .Dt MKTEMP 3
 .Os
 .Sh NAME
@@ -46,6 +46,8 @@
 .Fn mkostemp "char *template" "int oflags"
 .Ft int
 .Fn mkostemps "char *template" "int suffixlen" "int oflags"
+.Ft int
+.Fn mkostempsat "int dfd" "char *template" "int suffixlen" "int oflags"
 .Ft char *
 .Fn mkdtemp "char *template"
 .In unistd.h
@@ -124,6 +126,21 @@ and
 .Fn mkostemps
 function
 are told the length of the suffix string.
+.Pp
+The
+.Fn mkostempsat
+function acts the same as
+.Fn mkostemps
+but takes an additional directory descriptor as a parameter.
+The temporary file is created relative to the corresponding
+directory, or to the current working directory if the special
+value
+.Dv AT_FDCWD
+is specified.
+If the template path is an absolute path, the
+.Fa dfd
+parameter is ignored and the behavior is identical to
+.Fn mkostemps .
 .Pp
 The
 .Fn mkdtemp
@@ -262,9 +279,10 @@ and is not specified by
 .St -p1003.1-2008 .
 The
 .Fn mkostemp ,
-.Fn mkstemps
-and
+.Fn mkstemps ,
 .Fn mkostemps
+and
+.Fn mkostempsat
 functions do not conform to any standard.
 .Sh HISTORY
 A
@@ -293,6 +311,10 @@ and
 .Fn mkostemps
 functions appeared in
 .Fx 10.0 .
+The
+.Fn mkostempsat
+function appeared in
+.Fx 13.0 .
 .Sh BUGS
 This family of functions produces filenames which can be guessed,
 though the risk is minimized when large numbers of
@@ -308,10 +330,11 @@ and opening it for use
 (later in the user application)
 particularly dangerous from a security perspective.
 Whenever it is possible,
-.Fn mkstemp
-or
+.Fn mkstemp ,
 .Fn mkostemp
-should be used instead, since it does not have the race condition.
+or
+.Fn mkostempsat
+should be used instead, since they do not have the race condition.
 If
 .Fn mkstemp
 cannot be used, the filename created by

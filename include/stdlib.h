@@ -297,6 +297,7 @@ int	 mergesort_b(void *, size_t, size_t, int (^)(const void *, const void *));
 #endif
 int	 mkostemp(char *, int);
 int	 mkostemps(char *, int, int);
+int	 mkostempsat(int, char *, int, int);
 void	 qsort_r(void *, size_t, size_t, void *,
 	    int (*)(void *, const void *, const void *));
 int	 radixsort(const unsigned char **, int, const unsigned char *,
