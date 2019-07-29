@@ -23,7 +23,7 @@ SRCS+=		libelftc_dem_gnu3.c\
 WARNS=		0
 CFLAGS+=	-isystem ${SRCDIR} -nostdinc++
 .if empty(CXXFLAGS:M-std=*)
-CXXFLAGS+=	-std=c++11
+CXXFLAGS+=	-std=c++14
 .endif
 VERSION_MAP=	${.CURDIR}/Version.map
 

@@ -277,6 +277,10 @@ CXXABI_1.3.9 {
         "typeinfo name for unsigned __int128 const*";
         "typeinfo name for unsigned __int128";
         "typeinfo name for unsigned __int128*";
+        "operator delete[](void*, unsigned int)";
+        "operator delete(void*, unsigned int)";
+        "operator delete[](void*, unsigned long)";
+        "operator delete(void*, unsigned long)";
     };
 } CXXABI_1.3.6;
 
