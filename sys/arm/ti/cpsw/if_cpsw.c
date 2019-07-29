@@ -755,7 +755,9 @@ cpsw_get_fdt_data(struct cpsw_softc *sc, int port)
 			continue;
 		}
 		OF_prop_free(name);
-		if (mdio_child_addr != slave_mdio_addr[port])
+
+		if (mdio_child_addr != slave_mdio_addr[port] &&
+		    mdio_child_addr != (slave_mdio_addr[port] & 0xFFF))
 			continue;
 
 		if (fdt_get_phyaddr(child, NULL, &phy, NULL) != 0){
