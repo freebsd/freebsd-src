@@ -377,33 +377,30 @@ ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
     uint16_t eaction_id, uint16_t default_id, uint16_t instance_id)
 {
 	ipfw_insn *cmd, *icmd;
-	int l, cmdlen;
+	int l;
 
 	IPFW_UH_WLOCK_ASSERT(ch);
 	IPFW_WLOCK_ASSERT(ch);
 
-	cmd = ACTION_PTR(rule);
-	l = rule->cmd_len - rule->act_ofs;
-	while (l > 0) {
-		cmdlen = F_LEN(cmd);
-		l -= cmdlen;
-		if (cmd->opcode == O_EXTERNAL_ACTION || l <= 0)
-			break;
-		cmd += cmdlen;
-	}
 	/*
 	 * Return if there is not O_EXTERNAL_ACTION or its id is
 	 * different.
 	 */
+	cmd = ipfw_get_action(rule);
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
 	    cmd->arg1 != eaction_id)
 		return (0);
 	/*
 	 * If instance_id is specified, we need to truncate the
 	 * rule length. Check if there is O_EXTERNAL_INSTANCE opcode.
+	 *
+	 * NOTE: F_LEN(cmd) must be 1 for O_EXTERNAL_ACTION opcode,
+	 *  and rule length should be enough to keep O_EXTERNAL_INSTANCE
+	 *  opcode, thus we do check for l > 1.
 	 */
-	if (instance_id != 0 && l > 0) {
-		MPASS(cmdlen == 1);
+	l = rule->cmd + rule->cmd_len - cmd;
+	if (instance_id != 0 && l > 1) {
+		MPASS(F_LEN(cmd) == 1);
 		icmd = cmd + 1;
 		if (icmd->opcode != O_EXTERNAL_INSTANCE ||
 		    icmd->arg1 != instance_id)
@@ -415,8 +412,9 @@ ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
 		 * opcode.
 		 */
 		EACTION_DEBUG("truncate rule %d: len %u -> %u",
-		    rule->rulenum, rule->cmd_len, rule->cmd_len - l);
-		rule->cmd_len -= l;
+		    rule->rulenum, rule->cmd_len,
+		    rule->cmd_len - F_LEN(icmd));
+		rule->cmd_len -= F_LEN(icmd);
 		MPASS(((uint32_t *)icmd -
 		    (uint32_t *)rule->cmd) == rule->cmd_len);
 	}
