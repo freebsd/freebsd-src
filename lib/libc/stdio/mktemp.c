@@ -49,17 +49,25 @@ __FBSDID("$FreeBSD$");
 
 char *_mktemp(char *);
 
-static int _gettemp(char *, int *, int, int, int);
+static int _gettemp(int, char *, int *, int, int, int);
 
 static const unsigned char padchar[] =
 "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+int
+mkostempsat(int dfd, char *path, int slen, int oflags)
+{
+	int fd;
+
+	return (_gettemp(dfd, path, &fd, 0, slen, oflags) ? fd : -1);
+}
 
 int
 mkostemps(char *path, int slen, int oflags)
 {
 	int fd;
 
-	return (_gettemp(path, &fd, 0, slen, oflags) ? fd : -1);
+	return (_gettemp(AT_FDCWD, path, &fd, 0, slen, oflags) ? fd : -1);
 }
 
 int
@@ -67,7 +75,7 @@ mkstemps(char *path, int slen)
 {
 	int fd;
 
-	return (_gettemp(path, &fd, 0, slen, 0) ? fd : -1);
+	return (_gettemp(AT_FDCWD, path, &fd, 0, slen, 0) ? fd : -1);
 }
 
 int
@@ -75,7 +83,7 @@ mkostemp(char *path, int oflags)
 {
 	int fd;
 
-	return (_gettemp(path, &fd, 0, 0, oflags) ? fd : -1);
+	return (_gettemp(AT_FDCWD, path, &fd, 0, 0, oflags) ? fd : -1);
 }
 
 int
@@ -83,19 +91,19 @@ mkstemp(char *path)
 {
 	int fd;
 
-	return (_gettemp(path, &fd, 0, 0, 0) ? fd : -1);
+	return (_gettemp(AT_FDCWD, path, &fd, 0, 0, 0) ? fd : -1);
 }
 
 char *
 mkdtemp(char *path)
 {
-	return (_gettemp(path, (int *)NULL, 1, 0, 0) ? path : (char *)NULL);
+	return (_gettemp(AT_FDCWD, path, (int *)NULL, 1, 0, 0) ? path : (char *)NULL);
 }
 
 char *
 _mktemp(char *path)
 {
-	return (_gettemp(path, (int *)NULL, 0, 0, 0) ? path : (char *)NULL);
+	return (_gettemp(AT_FDCWD, path, (int *)NULL, 0, 0, 0) ? path : (char *)NULL);
 }
 
 __warn_references(mktemp,
@@ -108,7 +116,7 @@ mktemp(char *path)
 }
 
 static int
-_gettemp(char *path, int *doopen, int domkdir, int slen, int oflags)
+_gettemp(int dfd, char *path, int *doopen, int domkdir, int slen, int oflags)
 {
 	char *start, *trv, *suffp, *carryp;
 	char *pad;
@@ -155,7 +163,7 @@ _gettemp(char *path, int *doopen, int domkdir, int slen, int oflags)
 		for (; trv > path; --trv) {
 			if (*trv == '/') {
 				*trv = '\0';
-				rval = stat(path, &sbuf);
+				rval = fstatat(dfd, path, &sbuf, 0);
 				*trv = '/';
 				if (rval != 0)
 					return (0);
@@ -168,11 +176,11 @@ _gettemp(char *path, int *doopen, int domkdir, int slen, int oflags)
 		}
 	}
 
+	oflags |= O_CREAT | O_EXCL | O_RDWR;
 	for (;;) {
 		if (doopen) {
-			if ((*doopen =
-			    _open(path, O_CREAT|O_EXCL|O_RDWR|oflags, 0600)) >=
-			    0)
+			*doopen = _openat(dfd, path, oflags, 0600);
+			if (*doopen >= 0)
 				return (1);
 			if (errno != EEXIST)
 				return (0);
