@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2015
+.Dd July 29, 2019
 .Dt CC_DCTCP 4
 .Os
 .Sh NAME
@@ -60,7 +60,7 @@ In addition, when classic ECN is used as sender and DCTCP is used as
 receiver, DCTCP avoids to mirror back ACKs only when the CWR flag is
 set in the incoming packet.
 .Pp
-The other specifications are based on the paper and Internet Draft referenced
+The other specifications are based on the paper and the RFC referenced
 in the
 .Sx SEE ALSO
 section below.
@@ -70,16 +70,27 @@ The algorithm exposes the following tunable variables in the
 branch of the
 .Xr sysctl 3
 MIB:
-.Bl -tag -width ".Va alpha"
+.Bl -tag -width ".Va slowstart"
 .It Va alpha
-An initial estimator of the congestion on the link.
-Default is 0.
-.It Va dctcp_shift_g
-An estimation gain in the alpha calculation.
-Default is 16.
+The initial value to estimate the congestion on the link.
+The valid range is from 0 to 1024, where 1024 reduces the congestion
+window to half, if a CE is observed in the first window and
+.Va alpha
+could not yet adjust to the congestion level on that path.
+Default is 1024.
+.It Va shift_g
+An estimation gain in the
+.Va alpha
+calculation.
+This influences the responsiveness when adjusting alpha
+to the most recent observed window.
+Valid range from 0 to 10, the default is 4, resulting in an effective
+gain of 1 / ( 2 ^
+.Va shift_g
+), or 1/16th.
 .It Va slowstart
-A trigger to halve congestion window after slow start.
-Default does nothing to halve window.
+A flag if the congestion window should be reduced by one half after slow start.
+Valid settings 0 and 1, default 0.
 .El
 .Sh SEE ALSO
 .Xr cc_chd 4 ,
@@ -108,10 +119,12 @@ Default does nothing to halve window.
 .Re
 .Rs
 .%A "Stephen Bensley"
-.%A "Lars Eggert"
 .%A "Dave Thaler"
-.%T "Microsoft's Datacenter TCP (DCTCP): TCP Congestion Control for Datacenters"
-.%U "http://tools.ietf.org/html/draft-bensley-tcpm-dctcp-01"
+.%A "Praveen Balasubramanian"
+.%A "Lars Eggert"
+.%A "Glenn Judd"
+.%T "Data Center TCP (DCTCP): TCP Congestion Control for Data Centers"
+.%U "https://tools.ietf.org/html/rfc8257"
 .Re
 .Sh HISTORY
 The
