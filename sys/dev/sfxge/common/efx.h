@@ -56,6 +56,10 @@ extern "C" {
 #define	EFX_P2ROUNDUP(_type, _value, _align)	\
 	(-(-(_type)(_value) & -(_type)(_align)))
 
+/* Align value down to the nearest power of two. */
+#define	EFX_P2ALIGN(_type, _value, _align)	\
+	((_type)(_value) & -(_type)(_align))
+
 /* Return codes */
 
 typedef __success(return == 0) int efx_rc_t;
