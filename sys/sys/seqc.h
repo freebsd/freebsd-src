@@ -40,55 +40,6 @@ typedef uint32_t seqc_t;
 
 #ifdef _KERNEL
 
-/*
- * seqc allows readers and writers to work with a consistent snapshot. Modifying
- * operations must be enclosed within a transaction delineated by
- * seqc_write_beg/seqc_write_end. The trick works by having the writer increment
- * the sequence number twice, at the beginning and end of the transaction.
- * The reader detects that the sequence number has not changed between its start
- * and end, and that the sequence number is even, to validate consistency.
- *
- * Some fencing (both hard fencing and compiler barriers) may be needed,
- * depending on the cpu. Modern AMD cpus provide strong enough guarantees to not
- * require any fencing by the reader or writer.
- *
- * Example usage:
- *
- * writers:
- *     lock_exclusive(&obj->lock);
- *     seqc_write_begin(&obj->seqc);
- *     obj->var1 = ...;
- *     obj->var2 = ...;
- *     seqc_write_end(&obj->seqc);
- *     unlock_exclusive(&obj->lock);
- *
- * readers:
- *    int var1, var2;
- *    seqc_t seqc;
- *
- *    for (;;) {
- *    	      seqc = seqc_read(&obj->seqc);
- *            var1 = obj->var1;
- *            var2 = obj->var2;
- *            if (seqc_consistent(&obj->seqc, seqc))
- *                   break;
- *    }
- *    .....
- *
- * Writers may not block or sleep in any way.
- *
- * There are 2 minor caveats in this implementation:
- *
- * 1. There is no guarantee of progress. That is, a large number of writers can
- * interfere with the execution of the readers and cause the code to live-lock
- * in a loop trying to acquire a consistent snapshot.
- *
- * 2. If the reader loops long enough, the counter may overflow and eventually
- * wrap back to its initial value, fooling the reader into accepting the
- * snapshot.  Given that this needs 4 billion transactional writes across a
- * single contended reader, it is unlikely to ever happen.
- */		
-
 /* A hack to get MPASS macro */
 #include <sys/lock.h>
 
