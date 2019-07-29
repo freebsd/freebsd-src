@@ -1,0 +1,138 @@
+.\"
+.\" Copyright (C) 2019 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 29, 2019
+.Dt SEQC 9
+.Os
+.Sh NAME
+.Nm seqc_consistent ,
+.Nm seqc_read ,
+.Nm seqc_write_begin ,
+.Nm seqc_write_end
+.Nd "lockless read algorithm"
+.Sh SYNOPSIS
+.In sys/seqc.h
+.Ft void
+.Fn seqc_write_begin "seqc_t *seqcp"
+.Ft void
+.Fn seqc_write_end "seqc_t *seqcp"
+.Ft seqc_t
+.Fn seqc_read "seqc_t *seqcp"
+.Ft seqc_t
+.Fn seqc_consistent "const seqc_t *seqcp" "seqc_t oldseqc"
+.Sh DESCRIPTION
+The
+.Nm seqc
+allows zero or more readers and zero or one writer to concurrently access
+an object, providing a consistent snapshot of the object for readers.
+No mutual exclusion between readers and writers is required,
+but readers may be starved indefinitely by writers.
+.Pp
+The functions
+.Fn seqc_write_begin
+and
+.Fn seqc_write_end
+are used to create a transaction for writer, and notify the readers that the
+object will be modified.
+.Pp
+The
+.Fn seqc_read
+function returns the current sequence number.
+If a writer has started a transaction, this function will spin until the
+transaction has ended.
+.Pp
+The
+.Fn seqc_consistent
+function compares the sequence number with a previously fetched value.
+The
+.Fa oldseqc
+variable should contain a sequence number from the beginning of read
+transaction.
+.Pp
+The reader at the end of a transaction checks if the sequence number has
+changed.
+If the sequence number didn't change the object wasn't modified, and fetched
+variables are valid.
+If the sequence number changed the object was modified and the fetch should be
+repeated.
+In case when sequence number is odd the object change is in progress and the
+reader will wait until the write will the sequence number will become even.
+.Sh EXAMPLES
+The following example for a writer changees the
+.Va var1
+and
+.Va var2
+variables in the
+.Va obj
+structure:
+.Bd -literal
+lock_exclusive(&obj->lock);
+seqc_write_begin(&obj->seqc);
+obj->var1 = 1;
+obj->var2 = 2;
+seqc_write_end(&obj->seqc);
+unlock_exclusive(&obj->lock);
+.Ed
+The following example for a reader reads the
+.Va var1
+and
+.Va var2
+variables from the
+.Va obj
+structure.
+In the case where the sequence number was changed it restarts the whole process.
+.Bd -literal
+int var1, var2;
+seqc_t seqc;
+
+for (;;) {
+	seqc = seqc_read(&obj->seqc);
+	var1 = obj->var1;
+	var2 = obj->var2;
+	if (seqc_consistent(&obj->seqc, seqc))
+		break;
+}
+.Ed
+.Sh AUTHORS
+The
+.Nm seqc
+functions was implemented by
+.An Mateusz Guzik Aq Mt mjg@FreeBSD.org .
+This manual page was written by
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org .
+.Sh CAVEATS
+There is no guarantee of progress for readers.
+In case when there are a lot of writers the reader can be starved.
+This concern may be solved by returning error after a few attempts.
+.Pp
+Theoretically if reading takes a very long time, and when there are many writers
+the counter may overflow and wrap around to the same value.
+In that case the reader will not notice that the object was changed.
+Given that this needs 4 billion transactional writes across a single contended
+reader, it is unlikely to ever happen.
+This could be avoided by extending the interface to allow 64-bit counters.
