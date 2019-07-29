@@ -521,9 +521,15 @@
 #define	PRIV_KDB_SET_BACKEND	690	/* Allow setting KDB backend. */
 
 /*
+ * veriexec override privileges - very rare!
+ */
+#define	PRIV_VERIEXEC_DIRECT	700	/* Can override 'indirect' */
+#define	PRIV_VERIEXEC_NOVERIFY	701	/* Can override O_VERIFY */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		691
+#define	_PRIV_HIGHEST		702
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid

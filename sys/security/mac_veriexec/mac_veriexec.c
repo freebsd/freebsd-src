@@ -51,6 +51,7 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <fs/nullfs/null.h>
+#include <security/mac/mac_framework.h>
 #include <security/mac/mac_policy.h>
 
 #include "mac_veriexec.h"
@@ -430,6 +431,18 @@ mac_veriexec_priv_check(struct ucred *cred, int priv)
 	return (0);
 }
 
+/**
+ * @internal
+ * @brief Check if the requested sysctl should be allowed
+ *
+ * @param cred         credentials to use
+ * @param oidp         sysctl OID
+ * @param arg1         first sysctl argument
+ * @param arg2         second sysctl argument
+ * @param req          sysctl request information
+ *
+ * @return 0 if the sysctl should be allowed, otherwise an error code.
+ */
 static int
 mac_veriexec_sysctl_check(struct ucred *cred, struct sysctl_oid *oidp,
     void *arg1, int arg2, struct sysctl_req *req)
@@ -533,6 +546,9 @@ mac_veriexec_check_vp(struct ucred *cred, struct vnode *vp, accmode_t accmode)
 				return (error);
 			break;
 		default:
+			/* Allow for overriding verification requirement */
+			if (mac_priv_grant(cred, PRIV_VERIEXEC_NOVERIFY) == 0)
+				return (0);
 			/*
 			 * Caller wants open to fail unless there is a valid
 			 * fingerprint registered.

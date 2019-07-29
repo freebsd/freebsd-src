@@ -42,10 +42,13 @@
 #include <sys/malloc.h>
 #include <sys/mount.h> 
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/syslog.h>
 #include <sys/vnode.h>
+
+#include <security/mac/mac_framework.h>
 
 #include "mac_veriexec.h"
 #include "mac_veriexec_internal.h"
@@ -292,7 +295,8 @@ mac_veriexec_fingerprint_check_image(struct image_params *imgp,
 
 	case FINGERPRINT_INDIRECT: /* fingerprint ok but need to check
 				      for direct execution */
-		if (!imgp->interpreted) {
+		if (!imgp->interpreted &&
+		    mac_priv_grant(td->td_ucred, PRIV_VERIEXEC_DIRECT) != 0) {
 			identify_error(imgp, td, "attempted direct execution");
 			if (prison0.pr_securelevel > 1 ||
 			    mac_veriexec_in_state(VERIEXEC_STATE_ENFORCE))
@@ -326,6 +330,23 @@ mac_veriexec_fingerprint_check_image(struct image_params *imgp,
 		identify_error(imgp, td, "invalid status field for vnode");
 		error = EPERM;
 	}
+	switch (status) {
+	case FINGERPRINT_NODEV:
+	case FINGERPRINT_NOENTRY:
+		/*
+		 * Check if this process has override allowed.
+		 * This will only be true if PRIV_VERIEXEC_DIRECT
+		 * already succeeded.
+		 */
+		if (error == EAUTH &&
+		    mac_priv_grant(td->td_ucred, PRIV_VERIEXEC_NOVERIFY) == 0) {
+			error = 0;
+		}
+		break;
+	default:
+		break;
+	}
+
 	return error; 
 }
 
