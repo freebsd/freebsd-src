@@ -60,6 +60,10 @@ extern "C" {
 #define	EFX_P2ALIGN(_type, _value, _align)	\
 	((_type)(_value) & -(_type)(_align))
 
+/* Test if value is power of 2 aligned. */
+#define	EFX_IS_P2ALIGNED(_type, _value, _align)	\
+	((((_type)(_value)) & ((_type)(_align) - 1)) == 0)
+
 /* Return codes */
 
 typedef __success(return == 0) int efx_rc_t;
