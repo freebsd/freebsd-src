@@ -49,7 +49,7 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	uint8_t str[128];
 	char cbuf[UINT128_DIG + 1];
 	uint16_t oncs, oacs;
-	uint8_t compare, write_unc, dsm, vwc_present;
+	uint8_t compare, write_unc, dsm, t;
 	uint8_t security, fmt, fw, nsmgmt;
 	uint8_t	fw_slot1_ro, fw_num_slots;
 	uint8_t ns_smart;
@@ -63,8 +63,6 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 		NVME_CTRLR_DATA_ONCS_WRITE_UNC_MASK;
 	dsm = (oncs >> NVME_CTRLR_DATA_ONCS_DSM_SHIFT) &
 		NVME_CTRLR_DATA_ONCS_DSM_MASK;
-	vwc_present = (cdata->vwc >> NVME_CTRLR_DATA_VWC_PRESENT_SHIFT) &
-		NVME_CTRLR_DATA_VWC_PRESENT_MASK;
 
 	oacs = cdata->oacs;
 	security = (oacs >> NVME_CTRLR_DATA_OACS_SECURITY_SHIFT) &
@@ -107,8 +105,10 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	printf("Recommended Arb Burst:       %d\n", cdata->rab);
 	printf("IEEE OUI Identifier:         %02x %02x %02x\n",
 		cdata->ieee[0], cdata->ieee[1], cdata->ieee[2]);
-	printf("Multi-Path I/O Capabilities: %s%s%s%s\n",
+	printf("Multi-Path I/O Capabilities: %s%s%s%s%s\n",
 	    (cdata->mic == 0) ? "Not Supported" : "",
+	    ((cdata->mic >> NVME_CTRLR_DATA_MIC_ANAR_SHIFT) &
+	     NVME_CTRLR_DATA_MIC_SRIOVVF_MASK) ? "Asymmetric, " : "",
 	    ((cdata->mic >> NVME_CTRLR_DATA_MIC_SRIOVVF_SHIFT) &
 	     NVME_CTRLR_DATA_MIC_SRIOVVF_MASK) ? "SR-IOV VF, " : "",
 	    ((cdata->mic >> NVME_CTRLR_DATA_MIC_MCTRLRS_SHIFT) &
@@ -149,9 +149,24 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	printf("Virtualization Management:   %sSupported\n",
 	    ((oacs >> NVME_CTRLR_DATA_OACS_VM_SHIFT) &
 	     NVME_CTRLR_DATA_OACS_VM_MASK) ? "" : "Not ");
-	printf("Doorbell Buffer Config       %sSupported\n",
+	printf("Doorbell Buffer Config:      %sSupported\n",
 	    ((oacs >> NVME_CTRLR_DATA_OACS_DBBUFFER_SHIFT) &
 	     NVME_CTRLR_DATA_OACS_DBBUFFER_MASK) ? "" : "Not ");
+	printf("Get LBA Status:              %sSupported\n",
+	    ((oacs >> NVME_CTRLR_DATA_OACS_GETLBA_SHIFT) &
+	     NVME_CTRLR_DATA_OACS_GETLBA_MASK) ? "" : "Not ");
+	printf("Sanitize:                    ");
+	if (cdata->sanicap != 0) {
+		printf("%s%s%s\n",
+		    ((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_CES_SHIFT) &
+		     NVME_CTRLR_DATA_SANICAP_CES_SHIFT) ? "crypto, " : "",
+		    ((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_BES_SHIFT) &
+		     NVME_CTRLR_DATA_SANICAP_BES_SHIFT) ? "block, " : "",
+		    ((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_OWS_SHIFT) &
+		     NVME_CTRLR_DATA_SANICAP_OWS_SHIFT) ? "overwrite" : "");
+	} else {
+		printf("Not Supported\n");
+	}
 	printf("Abort Command Limit:         %d\n", cdata->acl+1);
 	printf("Async Event Request Limit:   %d\n", cdata->aerl+1);
 	printf("Number of Firmware Slots:    ");
@@ -197,6 +212,9 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	printf("Timestamp feature:           %sSupported\n",
 	    ((oncs >> NVME_CTRLR_DATA_ONCS_TIMESTAMP_SHIFT) &
 	     NVME_CTRLR_DATA_ONCS_TIMESTAMP_MASK) ? "" : "Not ");
+	printf("Verify feature:              %sSupported\n",
+	    ((oncs >> NVME_CTRLR_DATA_ONCS_VERIFY_SHIFT) &
+	     NVME_CTRLR_DATA_ONCS_VERIFY_MASK) ? "" : "Not ");
 	printf("Fused Operation Support:     %s%s\n",
 	    (cdata->fuses == 0) ? "Not Supported" : "",
 	    ((cdata->fuses >> NVME_CTRLR_DATA_FUSES_CNW_SHIFT) &
@@ -208,8 +226,13 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	     NVME_CTRLR_DATA_FNA_ERASE_ALL_MASK) ? "All-NVM" : "Per-NS",
 	    ((cdata->fna >> NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT) &
 	     NVME_CTRLR_DATA_FNA_FORMAT_ALL_MASK) ? "All-NVM" : "Per-NS");
-	printf("Volatile Write Cache:        %s\n",
-		vwc_present ? "Present" : "Not Present");
+	t = (cdata->vwc >> NVME_CTRLR_DATA_VWC_ALL_SHIFT) &
+	    NVME_CTRLR_DATA_VWC_ALL_MASK;
+	printf("Volatile Write Cache:        %s%s\n",
+	    ((cdata->vwc >> NVME_CTRLR_DATA_VWC_PRESENT_SHIFT) &
+	     NVME_CTRLR_DATA_VWC_PRESENT_MASK) ? "Present" : "Not Present",
+	    (t == NVME_CTRLR_DATA_VWC_ALL_NO) ? ", no flush all" :
+	    (t == NVME_CTRLR_DATA_VWC_ALL_YES) ? ", flush all" : "");
 
 	if (nsmgmt) {
 		printf("\n");
