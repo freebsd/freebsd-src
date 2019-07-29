@@ -31,7 +31,7 @@
 .\"	@(#)printf.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2014
+.Dd July 29, 2019
 .Dt PRINTF 1
 .Os
 .Sh NAME
@@ -87,8 +87,6 @@ are as follows:
 Write a <bell> character.
 .It Cm \eb
 Write a <backspace> character.
-.It Cm \ec
-Ignore remaining characters in this string.
 .It Cm \ef
 Write a <form-feed> character.
 .It Cm \en
@@ -289,7 +287,12 @@ The permitted escape sequences are slightly different in that
 octal escapes are
 .Cm \e0 Ns Ar num
 instead of
-.Cm \e Ns Ar num .
+.Cm \e Ns Ar num
+and that an additional escape sequence
+.Cm \ec
+stops further output from this
+.Nm
+invocation.
 .It Cm n$
 Allows reordering of the output according to
 .Ar argument .
