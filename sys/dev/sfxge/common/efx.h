@@ -52,6 +52,10 @@ extern "C" {
 #define	EFX_FIELD_OFFSET(_type, _field)		\
 	((size_t) &(((_type *)0)->_field))
 
+/* Round value up to the nearest power of two. */
+#define	EFX_P2ROUNDUP(_type, _value, _align)	\
+	(-(-(_type)(_value) & -(_type)(_align)))
+
 /* Return codes */
 
 typedef __success(return == 0) int efx_rc_t;
@@ -451,10 +455,10 @@ typedef enum efx_link_mode_e {
 	    + /* bug16011 */ 16)				\
 
 #define	EFX_MAC_PDU(_sdu)					\
-	P2ROUNDUP((_sdu) + EFX_MAC_PDU_ADJUSTMENT, 8)
+	EFX_P2ROUNDUP(size_t, (_sdu) + EFX_MAC_PDU_ADJUSTMENT, 8)
 
 /*
- * Due to the P2ROUNDUP in EFX_MAC_PDU(), EFX_MAC_SDU_FROM_PDU() may give
+ * Due to the EFX_P2ROUNDUP in EFX_MAC_PDU(), EFX_MAC_SDU_FROM_PDU() may give
  * the SDU rounded up slightly.
  */
 #define	EFX_MAC_SDU_FROM_PDU(_pdu)	((_pdu) - EFX_MAC_PDU_ADJUSTMENT)
@@ -540,8 +544,9 @@ efx_mac_stat_name(
 
 #define	EFX_MAC_STATS_MASK_BITS_PER_PAGE	(8 * sizeof (uint32_t))
 
-#define	EFX_MAC_STATS_MASK_NPAGES	\
-	(P2ROUNDUP(EFX_MAC_NSTATS, EFX_MAC_STATS_MASK_BITS_PER_PAGE) / \
+#define	EFX_MAC_STATS_MASK_NPAGES				\
+	(EFX_P2ROUNDUP(uint32_t, EFX_MAC_NSTATS,		\
+		       EFX_MAC_STATS_MASK_BITS_PER_PAGE) /	\
 	    EFX_MAC_STATS_MASK_BITS_PER_PAGE)
 
 /*
