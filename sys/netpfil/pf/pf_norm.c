@@ -1139,9 +1139,8 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 	int			 off;
 	struct ip6_ext		 ext;
 	struct ip6_opt		 opt;
-	struct ip6_opt_jumbo	 jumbo;
 	struct ip6_frag		 frag;
-	u_int32_t		 jumbolen = 0, plen;
+	u_int32_t		 plen;
 	int			 optend;
 	int			 ooff;
 	u_int8_t		 proto;
@@ -1183,6 +1182,11 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 
 	/* Check for illegal packets */
 	if (sizeof(struct ip6_hdr) + IPV6_MAXPACKET < m->m_pkthdr.len)
+		goto drop;
+
+	plen = ntohs(h->ip6_plen);
+	/* jumbo payload option not supported */
+	if (plen == 0)
 		goto drop;
 
 	extoff = 0;
@@ -1228,26 +1232,8 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 					goto shortpkt;
 				if (ooff + sizeof(opt) + opt.ip6o_len > optend)
 					goto drop;
-				switch (opt.ip6o_type) {
-				case IP6OPT_JUMBO:
-					if (h->ip6_plen != 0)
-						goto drop;
-					if (!pf_pull_hdr(m, ooff, &jumbo,
-					    sizeof(jumbo), NULL, NULL,
-					    AF_INET6))
-						goto shortpkt;
-					memcpy(&jumbolen, jumbo.ip6oj_jumbo_len,
-					    sizeof(jumbolen));
-					jumbolen = ntohl(jumbolen);
-					if (jumbolen <= IPV6_MAXPACKET)
-						goto drop;
-					if (sizeof(struct ip6_hdr) + jumbolen !=
-					    m->m_pkthdr.len)
-						goto drop;
-					break;
-				default:
-					break;
-				}
+				if (opt.ip6o_type == IP6OPT_JUMBO)
+					goto drop;
 				ooff += sizeof(opt) + opt.ip6o_len;
 			} while (ooff < optend);
 
@@ -1260,13 +1246,6 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 		}
 	} while (!terminal);
 
-	/* jumbo payload option must be present, or plen > 0 */
-	if (ntohs(h->ip6_plen) == 0)
-		plen = jumbolen;
-	else
-		plen = ntohs(h->ip6_plen);
-	if (plen == 0)
-		goto drop;
 	if (sizeof(struct ip6_hdr) + plen > m->m_pkthdr.len)
 		goto shortpkt;
 
@@ -1275,10 +1254,6 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 	return (PF_PASS);
 
  fragment:
-	/* Jumbo payload packets cannot be fragmented. */
-	plen = ntohs(h->ip6_plen);
-	if (plen == 0 || jumbolen)
-		goto drop;
 	if (sizeof(struct ip6_hdr) + plen > m->m_pkthdr.len)
 		goto shortpkt;
 
