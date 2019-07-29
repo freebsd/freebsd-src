@@ -1187,6 +1187,12 @@ strip_main(struct elfcopy *ecp, int argc, char **argv)
 		ecp->strip = STRIP_ALL;
 	if (optind == argc)
 		strip_usage();
+	/*
+	 * Only accept a single input file if an output file had been
+	 * specified.
+	 */
+	if (outfile != NULL && argc != (optind + 1))
+		strip_usage();
 
 	for (i = optind; i < argc; i++)
 		create_file(ecp, argv[i], outfile);
