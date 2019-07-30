@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mmc/host/dwmmc_var.h>
 
+#include "opt_mmccam.h"
+
 static struct ofw_compat_data compat_data[] = {
 	{"altr,socfpga-dw-mshc",	1},
 	{NULL,				0},
