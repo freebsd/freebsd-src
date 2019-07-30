@@ -52,6 +52,10 @@ char machine[] = "arm64";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0,
     "Machine class");
 
+static char cpu_model[64];
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
+	cpu_model, sizeof(cpu_model), "Machine model");
+
 /*
  * Per-CPU affinity as provided in MPIDR_EL1
  * Indexed by CPU number in logical order selected by the system.
@@ -1292,6 +1296,10 @@ identify_cpu(void)
 
 	cpu_desc[cpu].cpu_revision = CPU_REV(midr);
 	cpu_desc[cpu].cpu_variant = CPU_VAR(midr);
+
+	snprintf(cpu_model, sizeof(cpu_model), "%s %s r%dp%d",
+	    cpu_desc[cpu].cpu_impl_name, cpu_desc[cpu].cpu_part_name,
+	    cpu_desc[cpu].cpu_variant, cpu_desc[cpu].cpu_revision);
 
 	/* Save affinity for current CPU */
 	cpu_desc[cpu].mpidr = get_mpidr();
