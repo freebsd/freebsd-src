@@ -70,19 +70,19 @@ TEST_F(Readdir, dots)
 	struct dirent *de;
 	vector<struct dirent> ents(2);
 	vector<struct dirent> empty_ents(0);
-	const char *dot = ".";
-	const char *dotdot = "..";
+	const char dot[] = ".";
+	const char dotdot[] = "..";
 
 	expect_lookup(RELPATH, ino);
 	expect_opendir(ino);
 	ents[0].d_fileno = 2;
 	ents[0].d_off = 2000;
-	ents[0].d_namlen = strlen(dotdot);
+	ents[0].d_namlen = sizeof(dotdot);
 	ents[0].d_type = DT_DIR;
 	strncpy(ents[0].d_name, dotdot, ents[0].d_namlen);
 	ents[1].d_fileno = 3;
 	ents[1].d_off = 3000;
-	ents[1].d_namlen = strlen(dot);
+	ents[1].d_namlen = sizeof(dot);
 	ents[1].d_type = DT_DIR;
 	strncpy(ents[1].d_name, dot, ents[1].d_namlen);
 	expect_readdir(ino, 0, ents);
@@ -102,8 +102,8 @@ TEST_F(Readdir, dots)
 	 */
 	//EXPECT_EQ(2000, de->d_off);
 	EXPECT_EQ(DT_DIR, de->d_type);
-	EXPECT_EQ(2, de->d_namlen);
-	EXPECT_EQ(0, strcmp("..", de->d_name));
+	EXPECT_EQ(sizeof(dotdot), de->d_namlen);
+	EXPECT_EQ(0, strcmp(dotdot, de->d_name));
 
 	errno = 0;
 	de = readdir(dir);
@@ -111,8 +111,8 @@ TEST_F(Readdir, dots)
 	EXPECT_EQ(3ul, de->d_fileno);
 	//EXPECT_EQ(3000, de->d_off);
 	EXPECT_EQ(DT_DIR, de->d_type);
-	EXPECT_EQ(1, de->d_namlen);
-	EXPECT_EQ(0, strcmp(".", de->d_name));
+	EXPECT_EQ(sizeof(dot), de->d_namlen);
+	EXPECT_EQ(0, strcmp(dot, de->d_name));
 
 	ASSERT_EQ(nullptr, readdir(dir));
 	ASSERT_EQ(0, errno);
