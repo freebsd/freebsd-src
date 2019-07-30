@@ -12,7 +12,6 @@ task:
   timeout_in: 90m
   install_script:
   - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
-  - fetch https://people.freebsd.org/~emaste/OVMF.fd
   script:
   - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
   test_script:
