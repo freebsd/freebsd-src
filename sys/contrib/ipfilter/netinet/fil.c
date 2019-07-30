@@ -4922,9 +4922,6 @@ frrequest(softc, unit, req, data, set, makecopy)
 	 * the constant part of the filter rule to make comparisons quicker
 	 * (this meaning no pointers are included).
 	 */
-	for (fp->fr_cksum = 0, p = (u_int *)&fp->fr_func, pp = &fp->fr_cksum;
-	     p < pp; p++)
-		fp->fr_cksum += *p;
 	pp = (u_int *)(fp->fr_caddr + fp->fr_dsize);
 	for (p = (u_int *)fp->fr_data; p < pp; p++)
 		fp->fr_cksum += *p;
