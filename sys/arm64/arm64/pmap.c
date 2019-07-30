@@ -5743,7 +5743,7 @@ pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 int
 pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 {
-	pt_entry_t *pte;
+	pt_entry_t pte, *ptep;
 	register_t intr;
 	uint64_t ec, par;
 	int lvl, rv;
@@ -5767,9 +5767,9 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 	case ISS_DATA_DFSC_AFF_L2:
 	case ISS_DATA_DFSC_AFF_L3:
 		PMAP_LOCK(pmap);
-		pte = pmap_pte(pmap, far, &lvl);
-		if (pte != NULL) {
-			pmap_set_bits(pte, ATTR_AF);
+		ptep = pmap_pte(pmap, far, &lvl);
+		if (ptep != NULL) {
+			pmap_set_bits(ptep, ATTR_AF);
 			rv = KERN_SUCCESS;
 			/*
 			 * XXXMJ as an optimization we could mark the entry
@@ -5785,12 +5785,13 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 		    (esr & ISS_DATA_WnR) == 0)
 			return (rv);
 		PMAP_LOCK(pmap);
-		pte = pmap_pte(pmap, far, &lvl);
-		if (pte != NULL &&
-		    (pmap_load(pte) & (ATTR_AP_RW_BIT | ATTR_SW_DBM)) ==
-		    (ATTR_AP(ATTR_AP_RO) | ATTR_SW_DBM)) {
-			pmap_clear_bits(pte, ATTR_AP_RW_BIT);
-			pmap_invalidate_page(pmap, far);
+		ptep = pmap_pte(pmap, far, &lvl);
+		if (ptep != NULL &&
+		    ((pte = pmap_load(ptep)) & ATTR_SW_DBM) != 0) {
+			if ((pte & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RO)) {
+				pmap_clear_bits(ptep, ATTR_AP_RW_BIT);
+				pmap_invalidate_page(pmap, far);
+			}
 			rv = KERN_SUCCESS;
 		}
 		PMAP_UNLOCK(pmap);
