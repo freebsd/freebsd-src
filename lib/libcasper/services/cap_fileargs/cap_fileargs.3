@@ -247,7 +247,7 @@ for (i = 0; i < argc; i++) {
 	fd = fileargs_open(fa, argv[i]);
 	if (fd < 0)
 		err(1, "unable to open file %s", argv[i]);
-	printf("File %s opened in capability mode\n", argv[i]);
+	printf("File %s opened in capability mode\en", argv[i]);
 	close(fd);
 }
 
