@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/rwlock.h>
-#include <sys/sdt.h>
 #include <sys/sf_buf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -65,8 +64,6 @@ __FBSDID("$FreeBSD$");
 #define	EXT_FLAG_SYNC		EXT_FLAG_VENDOR1
 #define	EXT_FLAG_NOCACHE	EXT_FLAG_VENDOR2
 #define	EXT_FLAG_CACHE_LAST	EXT_FLAG_VENDOR3
-
-SDT_PROVIDER_DECLARE(vfs);
 
 /*
  * Structure describing a single sendfile(2) I/O, which may consist of
@@ -346,7 +343,6 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 	free(sfio, M_TEMP);
 }
 
-SDT_PROBE_DEFINE1(vfs, sendfile, swapin, pager_error, "int");
 /*
  * Iterate through pages vector and request paging for non-valid pages.
  */
@@ -440,14 +436,15 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 		    i + count == npages ? &rhpages : NULL,
 		    &sendfile_iodone, sfio);
 		if (rv != VM_PAGER_OK) {
-			SDT_PROBE1(vfs, sendfile, swapin, pager_error, rv);
-			for (j = 0; j < count; j++) {
-				vm_page_lock(*(pa + i + j));
-				vm_page_unwire(*(pa + i + j), PQ_INACTIVE);
-				vm_page_unlock(*(pa + i + j));
+			for (j = i; j < i + count; j++) {
+				if (pa[j] != bogus_page) {
+					vm_page_lock(pa[j]);
+					vm_page_unwire(pa[j], PQ_INACTIVE);
+					vm_page_unlock(pa[j]);
+				}
 			}
 			VM_OBJECT_WUNLOCK(obj);
-			return EIO;
+			return (EIO);
 		}
 		KASSERT(rv == VM_PAGER_OK, ("%s: pager fail obj %p page %p",
 		    __func__, obj, pa[i]));
@@ -804,10 +801,10 @@ retry_space:
 
 		error = sendfile_swapin(obj, sfio, &nios, off, space, npages,
 		    rhpages, flags);
-		if (error) {
-			free(sfio, M_TEMP);
+		if (error != 0) {
 			if (vp != NULL)
 				VOP_UNLOCK(vp, 0);
+			free(sfio, M_TEMP);
 			goto done;
 		}
 

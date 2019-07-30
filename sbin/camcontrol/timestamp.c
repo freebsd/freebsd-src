@@ -79,7 +79,6 @@ set_restore_flags(struct cam_device *device, uint8_t *flags, int set_flag,
 	int error = 0;
 	struct scsi_control_ext_page *control_page = NULL;
 	struct scsi_mode_header_10 *mode_hdr = NULL;
-	struct scsi_mode_sense_10 *cdb = NULL;
 	union ccb *ccb = NULL;
 	unsigned long mode_buf_size = sizeof(struct scsi_mode_header_10) +
 	    sizeof(struct scsi_mode_blk_desc) +
@@ -96,25 +95,19 @@ set_restore_flags(struct cam_device *device, uint8_t *flags, int set_flag,
 	 * Get the control extension subpage, we'll send it back modified to
 	 * enable SCSI control over the tape drive's timestamp
 	 */
-	scsi_mode_sense_len(&ccb->csio,
+	scsi_mode_sense_subpage(&ccb->csio,
 	    /*retries*/ retry_count,
 	    /*cbfcnp*/ NULL,
 	    /*tag_action*/ task_attr,
 	    /*dbd*/ 0,
 	    /*page_control*/ SMS_PAGE_CTRL_CURRENT,
 	    /*page*/ SCEP_PAGE_CODE,
+	    /*subpage*/ SCEP_SUBPAGE_CODE,
 	    /*param_buf*/ &mode_buf[0],
 	    /*param_len*/ mode_buf_size,
 	    /*minimum_cmd_size*/ 10,
 	    /*sense_len*/ SSD_FULL_SIZE,
 	    /*timeout*/ timeout ? timeout : 5000);
-	/*
-	 * scsi_mode_sense_len does not have a subpage argument at the moment,
-	 * so we have to manually set the subpage code before calling
-	 * cam_send_ccb().
-	 */
-	cdb = (struct scsi_mode_sense_10 *)ccb->csio.cdb_io.cdb_bytes;
-	cdb->subpage = SCEP_SUBPAGE_CODE;
 
 	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
 	if (retry_count > 0)

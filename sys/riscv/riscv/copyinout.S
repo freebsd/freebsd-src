@@ -65,7 +65,7 @@ END(copyio_fault)
 	ENTER_USER_ACCESS(a7)
 
 	li	t2, XLEN_BYTES
-	blt	a2, t2, 3f		/* Byte-copy if len < XLEN_BYTES */
+	blt	a2, t2, 4f		/* Byte-copy if len < XLEN_BYTES */
 
 	/*
 	 * Compare lower bits of src and dest.
@@ -73,7 +73,7 @@ END(copyio_fault)
 	 */
 	andi	t0, a0, (XLEN_BYTES-1)	/* Low bits of src */
 	andi	t1, a1, (XLEN_BYTES-1)	/* Low bits of dest */
-	bne	t0, t1, 3f		/* Misaligned. Go to byte copy */
+	bne	t0, t1, 4f		/* Misaligned. Go to byte copy */
 	beqz	t0, 2f			/* Already word-aligned, skip ahead */
 
 	/* Byte copy until the first word-aligned address */
@@ -84,6 +84,7 @@ END(copyio_fault)
 	addi	a2, a2, -1		/* len-- */
 	andi	t0, a0, (XLEN_BYTES-1)
 	bnez	t0, 1b
+	j	3f
 
 	/* Copy words */
 2:	ld	a4, 0(a0)		/* Load word from src */
@@ -91,20 +92,20 @@ END(copyio_fault)
 	sd	a4, 0(a1)		/* Store word in dest */
 	addi	a1, a1, XLEN_BYTES
 	addi	a2, a2, -XLEN_BYTES	/* len -= XLEN_BYTES */
-	bgeu	a2, t2, 2b		/* Again if len >= XLEN_BYTES */
+3:	bgeu	a2, t2, 2b		/* Again if len >= XLEN_BYTES */
 
 	/* Check if we're finished */
-	beqz	a2, 4f
+	beqz	a2, 5f
 
 	/* Copy any remaining bytes */
-3:	lb	a4, 0(a0)		/* Load byte from src */
+4:	lb	a4, 0(a0)		/* Load byte from src */
 	addi	a0, a0, 1
 	sb	a4, 0(a1)		/* Store byte in dest */
 	addi	a1, a1, 1
 	addi	a2, a2, -1		/* len-- */
-	bnez	a2, 3b
+	bnez	a2, 4b
 
-4:	EXIT_USER_ACCESS(a7)
+5:	EXIT_USER_ACCESS(a7)
 	SET_FAULT_HANDLER(x0, a7)	/* Clear the handler */
 	.endm
 
