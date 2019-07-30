@@ -66,9 +66,17 @@ static int
 altera_dwmmc_attach(device_t dev)
 {
 	struct dwmmc_softc *sc;
+	phandle_t root;
 
 	sc = device_get_softc(dev);
 	sc->hwtype = HWTYPE_ALTERA;
+
+	root = OF_finddevice("/");
+
+	if (ofw_bus_node_is_compatible(root, "altr,socfpga-stratix10")) {
+		sc->bus_hz = 24000000;
+		sc->use_pio = 1;
+	}
 
 	return (dwmmc_attach(dev));
 }
