@@ -5790,7 +5790,7 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 		    (pmap_load(pte) & (ATTR_AP_RW_BIT | ATTR_SW_DBM)) ==
 		    (ATTR_AP(ATTR_AP_RO) | ATTR_SW_DBM)) {
 			pmap_clear_bits(pte, ATTR_AP_RW_BIT);
-			pmap_invalidate_page(pmap, trunc_page(far));
+			pmap_invalidate_page(pmap, far);
 			rv = KERN_SUCCESS;
 		}
 		PMAP_UNLOCK(pmap);
