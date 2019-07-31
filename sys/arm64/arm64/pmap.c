@@ -4888,15 +4888,23 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 			/*
 			 * Unless the page mappings are wired, remove the
 			 * mapping to a single page so that a subsequent
-			 * access may repromote.  Since the underlying page
-			 * table page is fully populated, this removal never
-			 * frees a page table page.
+			 * access may repromote.  Choosing the last page
+			 * within the address range [sva, min(va_next, eva))
+			 * generally results in more repromotions.  Since the
+			 * underlying page table page is fully populated, this
+			 * removal never frees a page table page.
 			 */
 			if ((oldl2 & ATTR_SW_WIRED) == 0) {
-				l3 = pmap_l2_to_l3(l2, sva);
+				va = eva;
+				if (va > va_next)
+					va = va_next;
+				va -= PAGE_SIZE;
+				KASSERT(va >= sva,
+				    ("pmap_advise: no address gap"));
+				l3 = pmap_l2_to_l3(l2, va);
 				KASSERT(pmap_load(l3) != 0,
 				    ("pmap_advise: invalid PTE"));
-				pmap_remove_l3(pmap, l3, sva, pmap_load(l2),
+				pmap_remove_l3(pmap, l3, va, pmap_load(l2),
 				    NULL, &lock);
 			}
 			if (lock != NULL)
