@@ -1133,7 +1133,6 @@ IgotPltSection::IgotPltSection()
                        Target->GotPltEntrySize, getIgotPltName()) {}
 
 void IgotPltSection::addEntry(Symbol &Sym) {
-  Sym.IsInIgot = true;
   assert(Sym.PltIndex == Entries.size());
   Entries.push_back(&Sym);
 }
@@ -2340,10 +2339,8 @@ void PltSection::writeTo(uint8_t *Buf) {
 template <class ELFT> void PltSection::addEntry(Symbol &Sym) {
   Sym.PltIndex = Entries.size();
   RelocationBaseSection *PltRelocSection = In.RelaPlt;
-  if (IsIplt) {
+  if (IsIplt)
     PltRelocSection = In.RelaIplt;
-    Sym.IsInIplt = true;
-  }
   unsigned RelOff =
       static_cast<RelocationSection<ELFT> *>(PltRelocSection)->getRelocOffset();
   Entries.push_back(std::make_pair(&Sym, RelOff));
