@@ -811,8 +811,8 @@ ufs_chown(vp, uid, gid, cred, td)
 		ip->i_dquot[GRPQUOTA] = NODQUOT;
 	}
 	change = DIP(ip, i_blocks);
-	(void) chkdq(ip, -change, cred, CHOWN);
-	(void) chkiq(ip, -1, cred, CHOWN);
+	(void) chkdq(ip, -change, cred, CHOWN|FORCE);
+	(void) chkiq(ip, -1, cred, CHOWN|FORCE);
 	for (i = 0; i < MAXQUOTAS; i++) {
 		dqrele(vp, ip->i_dquot[i]);
 		ip->i_dquot[i] = NODQUOT;
