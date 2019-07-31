@@ -58,6 +58,7 @@ struct mntopt {
 #define MOPT_ACLS		{ "acls",	0, MNT_ACLS, 0 }
 #define MOPT_NFS4ACLS		{ "nfsv4acls",	0, MNT_NFS4ACLS, 0 }
 #define MOPT_AUTOMOUNTED	{ "automounted",0, MNT_AUTOMOUNTED, 0 }
+#define MOPT_UNTRUSTED		{ "untrusted",  0, MNT_UNTRUSTED, 0 }
 
 /* Control flags. */
 #define MOPT_FORCE		{ "force",	0, MNT_FORCE, 0 }
@@ -93,7 +94,8 @@ struct mntopt {
 	MOPT_MULTILABEL,						\
 	MOPT_ACLS,							\
 	MOPT_NFS4ACLS,							\
-	MOPT_AUTOMOUNTED
+	MOPT_AUTOMOUNTED,						\
+	MOPT_UNTRUSTED
 
 void getmntopts(const char *, const struct mntopt *, int *, int *);
 void rmslashes(char *, char *);

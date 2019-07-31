@@ -8109,6 +8109,7 @@ indir_trunc(freework, dbn, lbn)
 	struct buf *bp;
 	struct fs *fs;
 	struct indirdep *indirdep;
+	struct mount *mp;
 	struct ufsmount *ump;
 	ufs1_daddr_t *bap1;
 	ufs2_daddr_t nb, nnb, *bap2;
@@ -8118,7 +8119,8 @@ indir_trunc(freework, dbn, lbn)
 	int goingaway, freedeps, needj, level, cnt, i;
 
 	freeblks = freework->fw_freeblks;
-	ump = VFSTOUFS(freeblks->fb_list.wk_mp);
+	mp = freeblks->fb_list.wk_mp;
+	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	/*
 	 * Get buffer of block pointers to be freed.  There are three cases:
@@ -8211,6 +8213,9 @@ indir_trunc(freework, dbn, lbn)
 	 */
 	key = ffs_blkrelease_start(ump, freeblks->fb_devvp, freeblks->fb_inum);
 	for (i = freework->fw_off; i < NINDIR(fs); i++, nb = nnb) {
+		if (UFS_CHECK_BLKNO(mp, freeblks->fb_inum, nb,
+		    fs->fs_bsize) != 0)
+			nb = 0;
 		if (i != NINDIR(fs) - 1) {
 			if (ufs1fmt)
 				nnb = bap1[i+1];

@@ -157,8 +157,6 @@ ffs_alloc(ip, lbn, bpref, size, flags, cred, bnp)
 	struct ufsmount *ump;
 	ufs2_daddr_t bno;
 	u_int cg, reclaimed;
-	static struct timeval lastfail;
-	static int curfail;
 	int64_t delta;
 #ifdef QUOTA
 	int error;
@@ -223,11 +221,14 @@ nospace:
 		softdep_request_cleanup(fs, ITOV(ip), cred, FLUSH_BLOCKS_WAIT);
 		goto retry;
 	}
-	UFS_UNLOCK(ump);
-	if (reclaimed > 0 && ppsratecheck(&lastfail, &curfail, 1)) {
+	if (reclaimed > 0 &&
+	    ppsratecheck(&ump->um_last_fullmsg, &ump->um_secs_fullmsg, 1)) {
+		UFS_UNLOCK(ump);
 		ffs_fserr(fs, ip->i_number, "filesystem full");
 		uprintf("\n%s: write failed, filesystem is full\n",
 		    fs->fs_fsmnt);
+	} else {
+		UFS_UNLOCK(ump);
 	}
 	return (ENOSPC);
 }
@@ -257,8 +258,6 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	u_int cg, request, reclaimed;
 	int error, gbflags;
 	ufs2_daddr_t bno;
-	static struct timeval lastfail;
-	static int curfail;
 	int64_t delta;
 
 	vp = ITOV(ip);
@@ -448,14 +447,17 @@ nospace:
 		softdep_request_cleanup(fs, vp, cred, FLUSH_BLOCKS_WAIT);
 		goto retry;
 	}
-	UFS_UNLOCK(ump);
-	if (bp)
-		brelse(bp);
-	if (reclaimed > 0 && ppsratecheck(&lastfail, &curfail, 1)) {
+	if (reclaimed > 0 &&
+	    ppsratecheck(&ump->um_last_fullmsg, &ump->um_secs_fullmsg, 1)) {
+		UFS_UNLOCK(ump);
 		ffs_fserr(fs, ip->i_number, "filesystem full");
 		uprintf("\n%s: write failed, filesystem is full\n",
 		    fs->fs_fsmnt);
+	} else {
+		UFS_UNLOCK(ump);
 	}
+	if (bp)
+		brelse(bp);
 	return (ENOSPC);
 }
 
@@ -1098,8 +1100,6 @@ ffs_valloc(pvp, mode, cred, vpp)
 	ino_t ino, ipref;
 	u_int cg;
 	int error, error1, reclaimed;
-	static struct timeval lastfail;
-	static int curfail;
 
 	*vpp = NULL;
 	pip = VTOI(pvp);
@@ -1190,11 +1190,13 @@ noinodes:
 		softdep_request_cleanup(fs, pvp, cred, FLUSH_INODES_WAIT);
 		goto retry;
 	}
-	UFS_UNLOCK(ump);
-	if (ppsratecheck(&lastfail, &curfail, 1)) {
+	if (ppsratecheck(&ump->um_last_fullmsg, &ump->um_secs_fullmsg, 1)) {
+		UFS_UNLOCK(ump);
 		ffs_fserr(fs, pip->i_number, "out of inodes");
 		uprintf("\n%s: create/symlink failed, no inodes free\n",
 		    fs->fs_fsmnt);
+	} else {
+		UFS_UNLOCK(ump);
 	}
 	return (ENOSPC);
 }
@@ -1369,7 +1371,7 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 	struct fs *fs;
 	u_int cg, inocg;
 	u_int avgbfree, startcg;
-	ufs2_daddr_t pref;
+	ufs2_daddr_t pref, prevbn;
 
 	KASSERT(indx <= 0 || bap != NULL, ("need non-NULL bap"));
 	mtx_assert(UFS_MTX(ITOUMP(ip)), MA_OWNED);
@@ -1419,7 +1421,15 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 	 * have a block allocated immediately preceding us, then we need
 	 * to decide where to start allocating new blocks.
 	 */
-	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
+	if (indx ==  0) {
+		prevbn = 0;
+	} else {
+		prevbn = bap[indx - 1];
+		if (UFS_CHECK_BLKNO(ITOVFS(ip), ip->i_number, prevbn,
+		    fs->fs_bsize) != 0)
+			prevbn = 0;
+	}
+	if (indx % fs->fs_maxbpg == 0 || prevbn == 0) {
 		/*
 		 * If we are allocating a directory data block, we want
 		 * to place it in the metadata area.
@@ -1437,10 +1447,10 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 		 * Find a cylinder with greater than average number of
 		 * unused data blocks.
 		 */
-		if (indx == 0 || bap[indx - 1] == 0)
+		if (indx == 0 || prevbn == 0)
 			startcg = inocg + lbn / fs->fs_maxbpg;
 		else
-			startcg = dtog(fs, bap[indx - 1]) + 1;
+			startcg = dtog(fs, prevbn) + 1;
 		startcg %= fs->fs_ncg;
 		avgbfree = fs->fs_cstotal.cs_nbfree / fs->fs_ncg;
 		for (cg = startcg; cg < fs->fs_ncg; cg++)
@@ -1458,7 +1468,7 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 	/*
 	 * Otherwise, we just always try to lay things out contiguously.
 	 */
-	return (bap[indx - 1] + fs->fs_frag);
+	return (prevbn + fs->fs_frag);
 }
 
 /*
@@ -1474,7 +1484,7 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 	struct fs *fs;
 	u_int cg, inocg;
 	u_int avgbfree, startcg;
-	ufs2_daddr_t pref;
+	ufs2_daddr_t pref, prevbn;
 
 	KASSERT(indx <= 0 || bap != NULL, ("need non-NULL bap"));
 	mtx_assert(UFS_MTX(ITOUMP(ip)), MA_OWNED);
@@ -1524,7 +1534,15 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 	 * have a block allocated immediately preceding us, then we need
 	 * to decide where to start allocating new blocks.
 	 */
-	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
+	if (indx ==  0) {
+		prevbn = 0;
+	} else {
+		prevbn = bap[indx - 1];
+		if (UFS_CHECK_BLKNO(ITOVFS(ip), ip->i_number, prevbn,
+		    fs->fs_bsize) != 0)
+			prevbn = 0;
+	}
+	if (indx % fs->fs_maxbpg == 0 || prevbn == 0) {
 		/*
 		 * If we are allocating a directory data block, we want
 		 * to place it in the metadata area.
@@ -1542,10 +1560,10 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 		 * Find a cylinder with greater than average number of
 		 * unused data blocks.
 		 */
-		if (indx == 0 || bap[indx - 1] == 0)
+		if (indx == 0 || prevbn == 0)
 			startcg = inocg + lbn / fs->fs_maxbpg;
 		else
-			startcg = dtog(fs, bap[indx - 1]) + 1;
+			startcg = dtog(fs, prevbn) + 1;
 		startcg %= fs->fs_ncg;
 		avgbfree = fs->fs_cstotal.cs_nbfree / fs->fs_ncg;
 		for (cg = startcg; cg < fs->fs_ncg; cg++)
@@ -1563,7 +1581,7 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 	/*
 	 * Otherwise, we just always try to lay things out contiguously.
 	 */
-	return (bap[indx - 1] + fs->fs_frag);
+	return (prevbn + fs->fs_frag);
 }
 
 /*

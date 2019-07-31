@@ -143,7 +143,7 @@ static struct buf_ops ffs_ops = {
 static const char *ffs_opts[] = { "acls", "async", "noatime", "noclusterr",
     "noclusterw", "noexec", "export", "force", "from", "groupquota",
     "multilabel", "nfsv4acls", "fsckpid", "snapshot", "nosuid", "suiddir",
-    "nosymfollow", "sync", "union", "userquota", NULL };
+    "nosymfollow", "sync", "union", "userquota", "untrusted", NULL };
 
 static int
 ffs_mount(struct mount *mp)
@@ -182,6 +182,9 @@ ffs_mount(struct mount *mp)
 		return (error);
 
 	mntorflags = 0;
+	if (vfs_getopt(mp->mnt_optnew, "untrusted", NULL, NULL) == 0)
+		mntorflags |= MNT_UNTRUSTED;
+
 	if (vfs_getopt(mp->mnt_optnew, "acls", NULL, NULL) == 0)
 		mntorflags |= MNT_ACLS;
 
@@ -911,6 +914,10 @@ ffs_mountfs(devvp, mp, td)
 	ump->um_ifree = ffs_ifree;
 	ump->um_rdonly = ffs_rdonly;
 	ump->um_snapgone = ffs_snapgone;
+	if ((mp->mnt_flag & MNT_UNTRUSTED) != 0)
+		ump->um_check_blkno = ffs_check_blkno;
+	else
+		ump->um_check_blkno = NULL;
 	mtx_init(UFS_MTX(ump), "FFS", "FFS Lock", MTX_DEF);
 	ffs_oldfscompat_read(fs, ump, fs->fs_sblockloc);
 	fs->fs_ronly = ronly;

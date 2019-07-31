@@ -264,8 +264,16 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 		if (error != 0)
 			return (error);
 
-		if (I_IS_UFS1(ip)) {
+		if (I_IS_UFS1(ip))
 			daddr = ((ufs1_daddr_t *)bp->b_data)[ap->in_off];
+		else
+			daddr = ((ufs2_daddr_t *)bp->b_data)[ap->in_off];
+		if ((error = UFS_CHECK_BLKNO(mp, ip->i_number, daddr,
+		     mp->mnt_stat.f_iosize)) != 0) {
+			bqrelse(bp);
+			return (error);
+		}
+		if (I_IS_UFS1(ip)) {
 			if (num == 1 && daddr && runp) {
 				for (bn = ap->in_off + 1;
 				    bn < MNINDIR(ump) && *runp < maxrun &&
@@ -284,7 +292,6 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 			}
 			continue;
 		}
-		daddr = ((ufs2_daddr_t *)bp->b_data)[ap->in_off];
 		if (num == 1 && daddr && runp) {
 			for (bn = ap->in_off + 1;
 			    bn < MNINDIR(ump) && *runp < maxrun &&

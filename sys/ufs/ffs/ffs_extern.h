@@ -68,6 +68,7 @@ ufs2_daddr_t ffs_blkpref_ufs1(struct inode *, ufs_lbn_t, int, ufs1_daddr_t *);
 ufs2_daddr_t ffs_blkpref_ufs2(struct inode *, ufs_lbn_t, int, ufs2_daddr_t *);
 void	ffs_blkrelease_finish(struct ufsmount *, u_long);
 u_long	ffs_blkrelease_start(struct ufsmount *, struct vnode *, ino_t);
+int	ffs_check_blkno(struct mount *, ino_t, ufs2_daddr_t, int);
 int	ffs_checkfreefile(struct fs *, struct vnode *, ino_t);
 void	ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_clusteracct(struct fs *, struct cg *, ufs1_daddr_t, int);
