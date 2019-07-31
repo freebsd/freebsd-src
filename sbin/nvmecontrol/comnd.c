@@ -50,10 +50,22 @@ __FBSDID("$FreeBSD$");
 static struct cmd top;
 
 static void
+print_tree(const struct cmd *f)
+{
+
+	if (f->parent != NULL)
+		print_tree(f->parent);
+	if (f->name != NULL)
+		fprintf(stderr, " %s", f->name);
+}
+
+static void
 print_usage(const struct cmd *f)
 {
 
-	fprintf(stderr, "    %s %-15s - %s\n", getprogname(), f->name, f->descr);
+	fprintf(stderr, "    %s", getprogname());
+	print_tree(f->parent);
+	fprintf(stderr, " %-15s - %s\n", f->name, f->descr);
 }
 
 static void
@@ -120,7 +132,8 @@ arg_help(int argc __unused, char * const *argv, const struct cmd *f)
 	// XXX walk up the cmd list...
 	if (argv[optind])
 		fprintf(stderr, "Unknown argument: %s\n", argv[optind]);
-	fprintf(stderr, "Usage:\n    %s %s", getprogname(), argv[0]);
+	fprintf(stderr, "Usage:\n    %s", getprogname());
+	print_tree(f);
 	if (opts)
 		fprintf(stderr, " <args>");
 	if (args) {
