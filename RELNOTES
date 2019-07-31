@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r350471:
+       gnop(8) can now configure a delay to be applied to read and write
+       request delays.  See the -d, -q and -x parameters.
+
 r350307:
 	libcap_random(3) has been removed.  Applications can use native
 	APIs to get random data in capability mode.
