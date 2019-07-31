@@ -1656,17 +1656,15 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
   // earlier.
   finalizeSynthetic(In.EhFrame);
 
-  for (Symbol *S : Symtab->getSymbols()) {
-    if (!S->IsPreemptible)
-      S->IsPreemptible = computeIsPreemptible(*S);
-    if (S->isGnuIFunc() && Config->ZIfuncnoplt)
-      S->ExportDynamic = true;
-  }
+  for (Symbol *S : Symtab->getSymbols())
+    S->IsPreemptible |= computeIsPreemptible(*S);
 
   // Scan relocations. This must be done after every symbol is declared so that
   // we can correctly decide if a dynamic relocation is needed.
   if (!Config->Relocatable)
     forEachRelSec(scanRelocations<ELFT>);
+
+  addIRelativeRelocs();
 
   if (In.Plt && !In.Plt->empty())
     In.Plt->addSymbols();
