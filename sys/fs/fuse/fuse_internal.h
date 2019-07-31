@@ -67,6 +67,7 @@
 
 #include <sys/types.h>
 #include <sys/counter.h>
+#include <sys/limits.h>
 #include <sys/uio.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
