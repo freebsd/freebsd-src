@@ -735,12 +735,16 @@ static	int
 tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
     struct thread *td)
 {
-	struct ifreq ifr;
+	struct ifreq ifr, *ifrp;
 	struct tun_softc *tp = dev->si_drv1;
 	struct tuninfo *tunp;
 	int error;
 
 	switch (cmd) {
+	case TUNGIFNAME:
+		ifrp = (struct ifreq *)data;
+		strlcpy(ifrp->ifr_name, TUN2IFP(tp)->if_xname, IFNAMSIZ);
+		break;
 	case TUNSIFINFO:
 		tunp = (struct tuninfo *)data;
 		if (TUN2IFP(tp)->if_type != tunp->type)
