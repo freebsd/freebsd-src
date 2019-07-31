@@ -5167,19 +5167,19 @@ __CONCAT(PMTYPE, advise)(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 	pt_entry_t *pte;
 	vm_offset_t va, pdnxt;
 	vm_page_t m;
-	boolean_t anychanged, pv_lists_locked;
+	bool anychanged, pv_lists_locked;
 
 	if (advice != MADV_DONTNEED && advice != MADV_FREE)
 		return;
 	if (pmap_is_current(pmap))
-		pv_lists_locked = FALSE;
+		pv_lists_locked = false;
 	else {
-		pv_lists_locked = TRUE;
+		pv_lists_locked = true;
 resume:
 		rw_wlock(&pvh_global_lock);
 		sched_pin();
 	}
-	anychanged = FALSE;
+	anychanged = false;
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = pdnxt) {
 		pdnxt = (sva + NBPDR) & ~PDRMASK;
@@ -5193,7 +5193,7 @@ resume:
 			if ((oldpde & PG_MANAGED) == 0)
 				continue;
 			if (!pv_lists_locked) {
-				pv_lists_locked = TRUE;
+				pv_lists_locked = true;
 				if (!rw_try_wlock(&pvh_global_lock)) {
 					if (anychanged)
 						pmap_invalidate_all_int(pmap);
@@ -5212,16 +5212,24 @@ resume:
 			/*
 			 * Unless the page mappings are wired, remove the
 			 * mapping to a single page so that a subsequent
-			 * access may repromote.  Since the underlying page
-			 * table page is fully populated, this removal never
-			 * frees a page table page.
+			 * access may repromote.  Choosing the last page
+			 * within the address range [sva, min(pdnxt, eva))
+			 * generally results in more repromotions.  Since the
+			 * underlying page table page is fully populated, this
+			 * removal never frees a page table page.
 			 */
 			if ((oldpde & PG_W) == 0) {
-				pte = pmap_pte_quick(pmap, sva);
+				va = eva;
+				if (va > pdnxt)
+					va = pdnxt;
+				va -= PAGE_SIZE;
+				KASSERT(va >= sva,
+				    ("pmap_advise: no address gap"));
+				pte = pmap_pte_quick(pmap, va);
 				KASSERT((*pte & PG_V) != 0,
 				    ("pmap_advise: invalid PTE"));
-				pmap_remove_pte(pmap, pte, sva, NULL);
-				anychanged = TRUE;
+				pmap_remove_pte(pmap, pte, va, NULL);
+				anychanged = true;
 			}
 		}
 		if (pdnxt > eva)
@@ -5250,7 +5258,7 @@ resume:
 				if (va == pdnxt)
 					va = sva;
 			} else
-				anychanged = TRUE;
+				anychanged = true;
 			continue;
 maybe_invlrng:
 			if (va != pdnxt) {
