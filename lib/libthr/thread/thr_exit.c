@@ -50,7 +50,8 @@ __FBSDID("$FreeBSD$");
 
 static void	exit_thread(void) __dead2;
 
-__weak_reference(_pthread_exit, pthread_exit);
+__weak_reference(_Tthr_exit, pthread_exit);
+__weak_reference(_Tthr_exit, _pthread_exit);
 
 #ifdef _PTHREAD_FORCED_UNWIND
 static int message_printed;
@@ -203,7 +204,7 @@ _thread_exit(const char *fname, int lineno, const char *msg)
 }
 
 void
-_pthread_exit(void *status)
+_Tthr_exit(void *status)
 {
 	_pthread_exit_mask(status, NULL);
 }

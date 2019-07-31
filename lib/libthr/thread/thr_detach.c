@@ -38,10 +38,11 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-__weak_reference(_pthread_detach, pthread_detach);
+__weak_reference(_thr_detach, pthread_detach);
+__weak_reference(_thr_detach, _pthread_detach);
 
 int
-_pthread_detach(pthread_t pthread)
+_thr_detach(pthread_t pthread)
 {
 	struct pthread *curthread = _get_curthread();
 	int rval;

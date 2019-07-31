@@ -203,76 +203,74 @@ STATIC_LIB_REQUIRE(_thread_state_running);
 	(pthread_func_t)entry, (pthread_func_t)entry
 
 static pthread_func_t jmp_table[][2] = {
-	{DUAL_ENTRY(_pthread_atfork)},	/* PJT_ATFORK */
-	{DUAL_ENTRY(_pthread_attr_destroy)},	/* PJT_ATTR_DESTROY */
-	{DUAL_ENTRY(_pthread_attr_getdetachstate)},	/* PJT_ATTR_GETDETACHSTATE */
-	{DUAL_ENTRY(_pthread_attr_getguardsize)},	/* PJT_ATTR_GETGUARDSIZE */
-	{DUAL_ENTRY(_pthread_attr_getinheritsched)},	/* PJT_ATTR_GETINHERITSCHED */
-	{DUAL_ENTRY(_pthread_attr_getschedparam)},	/* PJT_ATTR_GETSCHEDPARAM */
-	{DUAL_ENTRY(_pthread_attr_getschedpolicy)},	/* PJT_ATTR_GETSCHEDPOLICY */
-	{DUAL_ENTRY(_pthread_attr_getscope)},	/* PJT_ATTR_GETSCOPE */
-	{DUAL_ENTRY(_pthread_attr_getstackaddr)},	/* PJT_ATTR_GETSTACKADDR */
-	{DUAL_ENTRY(_pthread_attr_getstacksize)},	/* PJT_ATTR_GETSTACKSIZE */
-	{DUAL_ENTRY(_pthread_attr_init)},	/* PJT_ATTR_INIT */
-	{DUAL_ENTRY(_pthread_attr_setdetachstate)},	/* PJT_ATTR_SETDETACHSTATE */
-	{DUAL_ENTRY(_pthread_attr_setguardsize)},	/* PJT_ATTR_SETGUARDSIZE */
-	{DUAL_ENTRY(_pthread_attr_setinheritsched)},	/* PJT_ATTR_SETINHERITSCHED */
-	{DUAL_ENTRY(_pthread_attr_setschedparam)},	/* PJT_ATTR_SETSCHEDPARAM */
-	{DUAL_ENTRY(_pthread_attr_setschedpolicy)},	/* PJT_ATTR_SETSCHEDPOLICY */
-	{DUAL_ENTRY(_pthread_attr_setscope)},	/* PJT_ATTR_SETSCOPE */
-	{DUAL_ENTRY(_pthread_attr_setstackaddr)},	/* PJT_ATTR_SETSTACKADDR */
-	{DUAL_ENTRY(_pthread_attr_setstacksize)},	/* PJT_ATTR_SETSTACKSIZE */
-	{DUAL_ENTRY(_pthread_cancel)},	/* PJT_CANCEL */
-	{DUAL_ENTRY(_pthread_cleanup_pop)},	/* PJT_CLEANUP_POP */
-	{DUAL_ENTRY(_pthread_cleanup_push)},	/* PJT_CLEANUP_PUSH */
-	{DUAL_ENTRY(_pthread_cond_broadcast)},	/* PJT_COND_BROADCAST */
-	{DUAL_ENTRY(_pthread_cond_destroy)},	/* PJT_COND_DESTROY */
-	{DUAL_ENTRY(_pthread_cond_init)},	/* PJT_COND_INIT */
-	{DUAL_ENTRY(_pthread_cond_signal)},	/* PJT_COND_SIGNAL */
-	{DUAL_ENTRY(_pthread_cond_timedwait)},	/* PJT_COND_TIMEDWAIT */
-	{(pthread_func_t)__pthread_cond_wait,
-	 (pthread_func_t)_pthread_cond_wait},	/* PJT_COND_WAIT */
-	{DUAL_ENTRY(_pthread_detach)},	/* PJT_DETACH */
-	{DUAL_ENTRY(_pthread_equal)},	/* PJT_EQUAL */
-	{DUAL_ENTRY(_pthread_exit)},	/* PJT_EXIT */
-	{DUAL_ENTRY(_pthread_getspecific)},	/* PJT_GETSPECIFIC */
-	{DUAL_ENTRY(_pthread_join)},	/* PJT_JOIN */
-	{DUAL_ENTRY(_pthread_key_create)},	/* PJT_KEY_CREATE */
-	{DUAL_ENTRY(_pthread_key_delete)},	/* PJT_KEY_DELETE*/
-	{DUAL_ENTRY(_pthread_kill)},	/* PJT_KILL */
-	{DUAL_ENTRY(_pthread_main_np)},		/* PJT_MAIN_NP */
-	{DUAL_ENTRY(_pthread_mutexattr_destroy)}, /* PJT_MUTEXATTR_DESTROY */
-	{DUAL_ENTRY(_pthread_mutexattr_init)},	/* PJT_MUTEXATTR_INIT */
-	{DUAL_ENTRY(_pthread_mutexattr_settype)}, /* PJT_MUTEXATTR_SETTYPE */
-	{DUAL_ENTRY(_pthread_mutex_destroy)},	/* PJT_MUTEX_DESTROY */
-	{DUAL_ENTRY(_pthread_mutex_init)},	/* PJT_MUTEX_INIT */
-	{(pthread_func_t)__pthread_mutex_lock,
-	 (pthread_func_t)_pthread_mutex_lock},	/* PJT_MUTEX_LOCK */
-	{(pthread_func_t)__pthread_mutex_trylock,
-	 (pthread_func_t)_pthread_mutex_trylock},/* PJT_MUTEX_TRYLOCK */
-	{DUAL_ENTRY(_pthread_mutex_unlock)},	/* PJT_MUTEX_UNLOCK */
-	{DUAL_ENTRY(_pthread_once)},		/* PJT_ONCE */
-	{DUAL_ENTRY(_pthread_rwlock_destroy)},	/* PJT_RWLOCK_DESTROY */
-	{DUAL_ENTRY(_pthread_rwlock_init)},	/* PJT_RWLOCK_INIT */
-	{DUAL_ENTRY(_pthread_rwlock_rdlock)},	/* PJT_RWLOCK_RDLOCK */
-	{DUAL_ENTRY(_pthread_rwlock_tryrdlock)},/* PJT_RWLOCK_TRYRDLOCK */
-	{DUAL_ENTRY(_pthread_rwlock_trywrlock)},/* PJT_RWLOCK_TRYWRLOCK */
-	{DUAL_ENTRY(_pthread_rwlock_unlock)},	/* PJT_RWLOCK_UNLOCK */
-	{DUAL_ENTRY(_pthread_rwlock_wrlock)},	/* PJT_RWLOCK_WRLOCK */
-	{DUAL_ENTRY(_pthread_self)},		/* PJT_SELF */
-	{DUAL_ENTRY(_pthread_setcancelstate)},	/* PJT_SETCANCELSTATE */
-	{DUAL_ENTRY(_pthread_setcanceltype)},	/* PJT_SETCANCELTYPE */
-	{DUAL_ENTRY(_pthread_setspecific)},	/* PJT_SETSPECIFIC */
-	{DUAL_ENTRY(_pthread_sigmask)},		/* PJT_SIGMASK */
-	{DUAL_ENTRY(_pthread_testcancel)},	/* PJT_TESTCANCEL */
-	{DUAL_ENTRY(__pthread_cleanup_pop_imp)},/* PJT_CLEANUP_POP_IMP */
-	{DUAL_ENTRY(__pthread_cleanup_push_imp)},/* PJT_CLEANUP_PUSH_IMP */
-	{DUAL_ENTRY(_pthread_cancel_enter)},	/* PJT_CANCEL_ENTER */
-	{DUAL_ENTRY(_pthread_cancel_leave)},	/* PJT_CANCEL_LEAVE */
-	{DUAL_ENTRY(_pthread_mutex_consistent)},/* PJT_MUTEX_CONSISTENT */
-	{DUAL_ENTRY(_pthread_mutexattr_getrobust)},/* PJT_MUTEXATTR_GETROBUST */
-	{DUAL_ENTRY(_pthread_mutexattr_setrobust)},/* PJT_MUTEXATTR_SETROBUST */
-	{DUAL_ENTRY(_pthread_getthreadid_np)},	/* PJT_GETTHREADID_NP */
+	[PJT_ATFORK] = {DUAL_ENTRY(_thr_atfork)},
+	[PJT_ATTR_DESTROY] = {DUAL_ENTRY(_thr_attr_destroy)},
+	[PJT_ATTR_GETDETACHSTATE] = {DUAL_ENTRY(_thr_attr_getdetachstate)},
+	[PJT_ATTR_GETGUARDSIZE] = {DUAL_ENTRY(_thr_attr_getguardsize)},
+	[PJT_ATTR_GETINHERITSCHED] = {DUAL_ENTRY(_thr_attr_getinheritsched)},
+	[PJT_ATTR_GETSCHEDPARAM] = {DUAL_ENTRY(_thr_attr_getschedparam)},
+	[PJT_ATTR_GETSCHEDPOLICY] = {DUAL_ENTRY(_thr_attr_getschedpolicy)},
+	[PJT_ATTR_GETSCOPE] = {DUAL_ENTRY(_thr_attr_getscope)},
+	[PJT_ATTR_GETSTACKADDR] = {DUAL_ENTRY(_thr_attr_getstackaddr)},
+	[PJT_ATTR_GETSTACKSIZE] = {DUAL_ENTRY(_thr_attr_getstacksize)},
+	[PJT_ATTR_INIT] = {DUAL_ENTRY(_thr_attr_init)},
+	[PJT_ATTR_SETDETACHSTATE] = {DUAL_ENTRY(_thr_attr_setdetachstate)},
+	[PJT_ATTR_SETGUARDSIZE] = {DUAL_ENTRY(_thr_attr_setguardsize)},
+	[PJT_ATTR_SETINHERITSCHED] = {DUAL_ENTRY(_thr_attr_setinheritsched)},
+	[PJT_ATTR_SETSCHEDPARAM] = {DUAL_ENTRY(_thr_attr_setschedparam)},
+	[PJT_ATTR_SETSCHEDPOLICY] = {DUAL_ENTRY(_thr_attr_setschedpolicy)},
+	[PJT_ATTR_SETSCOPE] = {DUAL_ENTRY(_thr_attr_setscope)},
+	[PJT_ATTR_SETSTACKADDR] = {DUAL_ENTRY(_thr_attr_setstackaddr)},
+	[PJT_ATTR_SETSTACKSIZE] = {DUAL_ENTRY(_thr_attr_setstacksize)},
+	[PJT_CANCEL] = {DUAL_ENTRY(_thr_cancel)},
+	[PJT_CLEANUP_POP] = {DUAL_ENTRY(_thr_cleanup_pop)},
+	[PJT_CLEANUP_PUSH] = {DUAL_ENTRY(_thr_cleanup_push)},
+	[PJT_COND_BROADCAST] = {DUAL_ENTRY(_thr_cond_broadcast)},
+	[PJT_COND_DESTROY] = {DUAL_ENTRY(_thr_cond_destroy)},
+	[PJT_COND_INIT] = {DUAL_ENTRY(_thr_cond_init)},
+	[PJT_COND_SIGNAL] = {DUAL_ENTRY(_thr_cond_signal)},
+	[PJT_COND_TIMEDWAIT] = {DUAL_ENTRY(_thr_cond_timedwait)},
+	[PJT_COND_WAIT] = {(pthread_func_t)__thr_cond_wait,
+	    (pthread_func_t)_thr_cond_wait},
+	[PJT_DETACH] = {DUAL_ENTRY(_thr_detach)},
+	[PJT_EQUAL] = {DUAL_ENTRY(_thr_equal)},
+	[PJT_EXIT] = {DUAL_ENTRY(_Tthr_exit)},
+	[PJT_GETSPECIFIC] = {DUAL_ENTRY(_thr_getspecific)},
+	[PJT_JOIN] = {DUAL_ENTRY(_thr_join)},
+	[PJT_KEY_CREATE] = {DUAL_ENTRY(_thr_key_create)},
+	[PJT_KEY_DELETE] = {DUAL_ENTRY(_thr_key_delete)},
+	[PJT_KILL] = {DUAL_ENTRY(_Tthr_kill)},
+	[PJT_MAIN_NP] = {DUAL_ENTRY(_thr_main_np)},
+	[PJT_MUTEXATTR_DESTROY] = {DUAL_ENTRY(_thr_mutexattr_destroy)},
+	[PJT_MUTEXATTR_INIT] = {DUAL_ENTRY(_thr_mutexattr_init)},
+	[PJT_MUTEXATTR_SETTYPE] = {DUAL_ENTRY(_thr_mutexattr_settype)},
+	[PJT_MUTEX_DESTROY] = {DUAL_ENTRY(_thr_mutex_destroy)},
+	[PJT_MUTEX_INIT] = {DUAL_ENTRY(__Tthr_mutex_init)},
+	[PJT_MUTEX_LOCK] = {DUAL_ENTRY(__Tthr_mutex_lock)},
+	[PJT_MUTEX_TRYLOCK] = {DUAL_ENTRY(__Tthr_mutex_trylock)},
+	[PJT_MUTEX_UNLOCK] = {DUAL_ENTRY(_thr_mutex_unlock)},
+	[PJT_ONCE] = {DUAL_ENTRY(_thr_once)},
+	[PJT_RWLOCK_DESTROY] = {DUAL_ENTRY(_thr_rwlock_destroy)},
+	[PJT_RWLOCK_INIT] = {DUAL_ENTRY(_thr_rwlock_init)},
+	[PJT_RWLOCK_RDLOCK] = {DUAL_ENTRY(_Tthr_rwlock_rdlock)},
+	[PJT_RWLOCK_TRYRDLOCK] = {DUAL_ENTRY(_Tthr_rwlock_tryrdlock)},
+	[PJT_RWLOCK_TRYWRLOCK] = {DUAL_ENTRY(_Tthr_rwlock_trywrlock)},
+	[PJT_RWLOCK_UNLOCK] = {DUAL_ENTRY(_Tthr_rwlock_unlock)},
+	[PJT_RWLOCK_WRLOCK] = {DUAL_ENTRY(_Tthr_rwlock_wrlock)},
+	[PJT_SELF] = {DUAL_ENTRY(_Tthr_self)},
+	[PJT_SETCANCELSTATE] = {DUAL_ENTRY(_thr_setcancelstate)},
+	[PJT_SETCANCELTYPE] = {DUAL_ENTRY(_thr_setcanceltype)},
+	[PJT_SETSPECIFIC] = {DUAL_ENTRY(_thr_setspecific)},
+	[PJT_SIGMASK] = {DUAL_ENTRY(_thr_sigmask)},
+	[PJT_TESTCANCEL] = {DUAL_ENTRY(_Tthr_testcancel)},
+	[PJT_CLEANUP_POP_IMP] = {DUAL_ENTRY(__thr_cleanup_pop_imp)},
+	[PJT_CLEANUP_PUSH_IMP] = {DUAL_ENTRY(__thr_cleanup_push_imp)},
+	[PJT_CANCEL_ENTER] = {DUAL_ENTRY(_thr_cancel_enter)},
+	[PJT_CANCEL_LEAVE] = {DUAL_ENTRY(_thr_cancel_leave)},
+	[PJT_MUTEX_CONSISTENT] = {DUAL_ENTRY(_Tthr_mutex_consistent)},
+	[PJT_MUTEXATTR_GETROBUST] = {DUAL_ENTRY(_thr_mutexattr_getrobust)},
+	[PJT_MUTEXATTR_SETROBUST] = {DUAL_ENTRY(_thr_mutexattr_setrobust)},
+	[PJT_GETTHREADID_NP] = {DUAL_ENTRY(_thr_getthreadid_np)},
 };
 
 static int init_once = 0;

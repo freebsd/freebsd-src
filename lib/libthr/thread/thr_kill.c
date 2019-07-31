@@ -40,10 +40,11 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-__weak_reference(_pthread_kill, pthread_kill);
+__weak_reference(_Tthr_kill, _pthread_kill);
+__weak_reference(_Tthr_kill, pthread_kill);
 
 int
-_pthread_kill(pthread_t pthread, int sig)
+_Tthr_kill(pthread_t pthread, int sig)
 {
 	struct pthread *curthread;
 	int ret;
