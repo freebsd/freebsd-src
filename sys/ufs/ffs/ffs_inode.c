@@ -263,7 +263,7 @@ ffs_truncate(vp, length, flags, cred)
 			if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 				return (error);
 #ifdef QUOTA
-			(void) chkdq(ip, -extblocks, NOCRED, 0);
+			(void) chkdq(ip, -extblocks, NOCRED, FORCE);
 #endif
 			vinvalbuf(vp, V_ALT, 0, 0);
 			vn_pages_remove(vp,
@@ -621,7 +621,7 @@ done:
 		DIP_SET(ip, i_blocks, 0);
 	ip->i_flag |= IN_CHANGE;
 #ifdef QUOTA
-	(void) chkdq(ip, -blocksreleased, NOCRED, 0);
+	(void) chkdq(ip, -blocksreleased, NOCRED, FORCE);
 #endif
 	return (allerror);
 
