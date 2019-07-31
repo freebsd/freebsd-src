@@ -43,29 +43,36 @@ uint32_t version = G_NOP_VERSION;
 struct g_command class_commands[] = {
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
+		{ 'd', "delaymsec", "-1", G_TYPE_NUMBER },
 		{ 'e', "error", "-1", G_TYPE_NUMBER },
 		{ 'o', "offset", "0", G_TYPE_NUMBER },
 		{ 'p', "stripesize", "0", G_TYPE_NUMBER },
 		{ 'P', "stripeoffset", "0", G_TYPE_NUMBER },
+		{ 'q', "rdelayprob", "-1", G_TYPE_NUMBER },
 		{ 'r', "rfailprob", "-1", G_TYPE_NUMBER },
 		{ 's', "size", "0", G_TYPE_NUMBER },
 		{ 'S', "secsize", "0", G_TYPE_NUMBER },
 		{ 'w', "wfailprob", "-1", G_TYPE_NUMBER },
+		{ 'x', "wdelayprob", "1", G_TYPE_NUMBER },
 		{ 'z', "physpath", G_NOP_PHYSPATH_PASSTHROUGH, G_TYPE_STRING },
 		G_OPT_SENTINEL
 	    },
-	    "[-v] [-e error] [-o offset] [-p stripesize] [-P stripeoffset] "
-	    "[-r rfailprob] [-s size] [-S secsize] [-w wfailprob] "
-	    "[-z physpath] dev ..."
+	    "[-v] [-d delaymsec] [-e error] [-o offset] [-p stripesize] "
+	    "[-P stripeoffset] [-q rdelayprob] [-r rfailprob] [-s size] "
+	    "[-S secsize] [-w wfailprob] [-x wdelayprob] [-z physpath] dev ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
+		{ 'd', "delaymsec", "-1", G_TYPE_NUMBER },
 		{ 'e', "error", "-1", G_TYPE_NUMBER },
+		{ 'q', "rdelayprob", "-1", G_TYPE_NUMBER },
 		{ 'r', "rfailprob", "-1", G_TYPE_NUMBER },
 		{ 'w', "wfailprob", "-1", G_TYPE_NUMBER },
+		{ 'x', "wdelayprob", "1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-v] [-e error] [-r rfailprob] [-w wfailprob] prov ..."
+	    "[-v] [-d delaymsec] [-e error] [-q rdelayprob] [-r rfailprob] "
+	    "[-w wfailprob] [-x wdelayprob] prov ..."
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
