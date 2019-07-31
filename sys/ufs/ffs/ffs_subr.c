@@ -133,7 +133,56 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 		ip->i_gid = ip->i_din2->di_gid;
 	}
 }
-#endif /* KERNEL */
+
+/*
+ * Verify that a filesystem block number is a valid data block.
+ * This routine is only called on untrusted filesystems.
+ */
+int
+ffs_check_blkno(struct mount *mp, ino_t inum, ufs2_daddr_t daddr, int blksize)
+{
+	struct fs *fs;
+	struct ufsmount *ump;
+	ufs2_daddr_t end_daddr;
+	int cg, havemtx;
+
+	KASSERT((mp->mnt_flag & MNT_UNTRUSTED) != 0,
+	    ("ffs_check_blkno called on a trusted file system"));
+	ump = VFSTOUFS(mp);
+	fs = ump->um_fs;
+	cg = dtog(fs, daddr);
+	end_daddr = daddr + numfrags(fs, blksize);
+	/*
+	 * Verify that the block number is a valid data block. Also check
+	 * that it does not point to an inode block or a superblock. Accept
+	 * blocks that are unalloacted (0) or part of snapshot metadata
+	 * (BLK_NOCOPY or BLK_SNAP).
+	 *
+	 * Thus, the block must be in a valid range for the filesystem and
+	 * either in the space before a backup superblock (except the first
+	 * cylinder group where that space is used by the bootstrap code) or
+	 * after the inode blocks and before the end of the cylinder group.
+	 */
+	if ((uint64_t)daddr <= BLK_SNAP ||
+	    ((uint64_t)end_daddr <= fs->fs_size &&
+	    ((cg > 0 && end_daddr <= cgsblock(fs, cg)) ||
+	    (daddr >= cgdmin(fs, cg) &&
+	    end_daddr <= cgbase(fs, cg) + fs->fs_fpg))))
+		return (0);
+	if ((havemtx = mtx_owned(UFS_MTX(ump))) == 0)
+		UFS_LOCK(ump);
+	if (ppsratecheck(&ump->um_last_integritymsg,
+	    &ump->um_secs_integritymsg, 1)) {
+		UFS_UNLOCK(ump);
+		uprintf("\n%s: inode %jd, out-of-range indirect block "
+		    "number %jd\n", mp->mnt_stat.f_mntonname, inum, daddr);
+		if (havemtx)
+			UFS_LOCK(ump);
+	} else if (!havemtx)
+		UFS_UNLOCK(ump);
+	return (EIO);
+}
+#endif /* _KERNEL */
 
 /*
  * These are the low-level functions that actually read and write
