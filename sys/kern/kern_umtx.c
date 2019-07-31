@@ -3229,7 +3229,8 @@ again:
 	rv = casueword32(&sem->_has_waiters, 0, &count1, 1);
 	if (rv == 0)
 		rv1 = fueword32(&sem->_count, &count);
-	if (rv == -1 || (rv == 0 && (rv1 == -1 || count != 0)) || rv == 1) {
+	if (rv == -1 || (rv == 0 && (rv1 == -1 || count != 0)) ||
+	    (rv == 1 && count1 == 0)) {
 		umtxq_lock(&uq->uq_key);
 		umtxq_unbusy(&uq->uq_key);
 		umtxq_remove(uq);
