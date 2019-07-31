@@ -121,7 +121,7 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 		printf("Unlimited\n");
 	else
 		printf("%ld\n", PAGE_SIZE * (1L << cdata->mdts));
-	printf("Controller ID:               0x%02x\n", cdata->ctrlr_id);
+	printf("Controller ID:               0x%04x\n", cdata->ctrlr_id);
 	printf("Version:                     %d.%d.%d\n",
 	    (cdata->ver >> 16) & 0xffff, (cdata->ver >> 8) & 0xff,
 	    cdata->ver & 0xff);
