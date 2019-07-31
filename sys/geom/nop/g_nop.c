@@ -74,6 +74,12 @@ struct g_class g_nop_class = {
 	.start = g_nop_start,
 };
 
+struct g_nop_delay {
+	struct callout			 dl_cal;
+	struct bio			*dl_bio;
+	TAILQ_ENTRY(g_nop_delay)	 dl_next;
+};
+
 static void
 g_nop_orphan(struct g_consumer *cp)
 {
@@ -143,16 +149,48 @@ g_nop_kerneldump(struct bio *bp, struct g_nop_softc *sc)
 }
 
 static void
+g_nop_pass(struct bio *cbp, struct g_geom *gp)
+{
+
+	G_NOP_LOGREQ(cbp, "Sending request.");
+	g_io_request(cbp, LIST_FIRST(&gp->consumer));
+}
+
+static void
+g_nop_pass_timeout(void *data)
+{
+	struct g_nop_softc *sc;
+	struct g_geom *gp;
+	struct g_nop_delay *gndelay;
+
+	gndelay = (struct g_nop_delay *)data;
+
+	gp = gndelay->dl_bio->bio_to->geom;
+	sc = gp->softc;
+
+	mtx_lock(&sc->sc_lock);
+	TAILQ_REMOVE(&sc->sc_head_delay, gndelay, dl_next);
+	mtx_unlock(&sc->sc_lock);
+
+	g_nop_pass(gndelay->dl_bio, gp);
+
+	g_free(data);
+}
+
+static void
 g_nop_start(struct bio *bp)
 {
 	struct g_nop_softc *sc;
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct bio *cbp;
-	u_int failprob = 0;
+	u_int failprob, delayprob, delaytime;
+
+	failprob = delayprob = 0;
 
 	gp = bp->bio_to->geom;
 	sc = gp->softc;
+
 	G_NOP_LOGREQ(bp, "Request received.");
 	mtx_lock(&sc->sc_lock);
 	switch (bp->bio_cmd) {
@@ -160,11 +198,15 @@ g_nop_start(struct bio *bp)
 		sc->sc_reads++;
 		sc->sc_readbytes += bp->bio_length;
 		failprob = sc->sc_rfailprob;
+		delayprob = sc->sc_rdelayprob;
+		delaytime = sc->sc_delaymsec;
 		break;
 	case BIO_WRITE:
 		sc->sc_writes++;
 		sc->sc_wrotebytes += bp->bio_length;
 		failprob = sc->sc_wfailprob;
+		delayprob = sc->sc_wdelayprob;
+		delaytime = sc->sc_delaymsec;
 		break;
 	case BIO_DELETE:
 		sc->sc_deletes++;
@@ -208,6 +250,7 @@ g_nop_start(struct bio *bp)
 			return;
 		}
 	}
+
 	cbp = g_clone_bio(bp);
 	if (cbp == NULL) {
 		g_io_deliver(bp, ENOMEM);
@@ -218,8 +261,33 @@ g_nop_start(struct bio *bp)
 	pp = LIST_FIRST(&gp->provider);
 	KASSERT(pp != NULL, ("NULL pp"));
 	cbp->bio_to = pp;
-	G_NOP_LOGREQ(cbp, "Sending request.");
-	g_io_request(cbp, LIST_FIRST(&gp->consumer));
+
+	if (delayprob > 0) {
+		struct g_nop_delay *gndelay;
+		u_int rval;
+
+		rval = arc4random() % 100;
+		if (rval < delayprob) {
+			gndelay = g_malloc(sizeof(*gndelay), M_NOWAIT | M_ZERO);
+			if (gndelay != NULL) {
+				callout_init(&gndelay->dl_cal, 1);
+
+				gndelay->dl_bio = cbp;
+
+				mtx_lock(&sc->sc_lock);
+				TAILQ_INSERT_TAIL(&sc->sc_head_delay, gndelay,
+				    dl_next);
+				mtx_unlock(&sc->sc_lock);
+
+				callout_reset(&gndelay->dl_cal,
+				    MSEC_2_TICKS(delaytime), g_nop_pass_timeout,
+				    gndelay);
+				return;
+			}
+		}
+	}
+
+	g_nop_pass(cbp, gp);
 }
 
 static int
@@ -238,8 +306,9 @@ g_nop_access(struct g_provider *pp, int dr, int dw, int de)
 
 static int
 g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
-    int ioerror, u_int rfailprob, u_int wfailprob, off_t offset, off_t size,
-    u_int secsize, off_t stripesize, off_t stripeoffset, const char *physpath)
+    int ioerror, u_int rfailprob, u_int wfailprob, u_int delaymsec, u_int rdelayprob,
+    u_int wdelayprob, off_t offset, off_t size, u_int secsize, off_t stripesize,
+    off_t stripeoffset, const char *physpath)
 {
 	struct g_nop_softc *sc;
 	struct g_geom *gp;
@@ -317,6 +386,9 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	sc->sc_error = ioerror;
 	sc->sc_rfailprob = rfailprob;
 	sc->sc_wfailprob = wfailprob;
+	sc->sc_delaymsec = delaymsec;
+	sc->sc_rdelayprob = rdelayprob;
+	sc->sc_wdelayprob = wdelayprob;
 	sc->sc_reads = 0;
 	sc->sc_writes = 0;
 	sc->sc_deletes = 0;
@@ -327,6 +399,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	sc->sc_cmd2s = 0;
 	sc->sc_readbytes = 0;
 	sc->sc_wrotebytes = 0;
+	TAILQ_INIT(&sc->sc_head_delay);
 	mtx_init(&sc->sc_lock, "gnop lock", NULL, MTX_DEF);
 	gp->softc = sc;
 
@@ -367,6 +440,9 @@ g_nop_providergone(struct g_provider *pp)
 	struct g_geom *gp = pp->geom;
 	struct g_nop_softc *sc = gp->softc;
 
+	KASSERT(TAILQ_EMPTY(&sc->sc_head_delay),
+	    ("delayed request list is not empty"));
+
 	gp->softc = NULL;
 	free(sc->sc_physpath, M_GEOM);
 	mtx_destroy(&sc->sc_lock);
@@ -396,6 +472,7 @@ g_nop_destroy(struct g_geom *gp, boolean_t force)
 	} else {
 		G_NOP_DEBUG(0, "Device %s removed.", gp->name);
 	}
+
 	g_wither_geom(gp, ENXIO);
 
 	return (0);
@@ -413,7 +490,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_provider *pp;
 	intmax_t *error, *rfailprob, *wfailprob, *offset, *secsize, *size,
-	    *stripesize, *stripeoffset;
+	    *stripesize, *stripeoffset, *delaymsec, *rdelayprob, *wdelayprob;
 	const char *name, *physpath;
 	char param[16];
 	int i, *nargs;
@@ -450,6 +527,33 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 	}
 	if (*wfailprob < -1 || *wfailprob > 100) {
 		gctl_error(req, "Invalid '%s' argument", "wfailprob");
+		return;
+	}
+	delaymsec = gctl_get_paraml(req, "delaymsec", sizeof(*delaymsec));
+	if (delaymsec == NULL) {
+		gctl_error(req, "No '%s' argument", "delaymsec");
+		return;
+	}
+	if (*delaymsec < 1 && *delaymsec != -1) {
+		gctl_error(req, "Invalid '%s' argument", "delaymsec");
+		return;
+	}
+	rdelayprob = gctl_get_paraml(req, "rdelayprob", sizeof(*rdelayprob));
+	if (rdelayprob == NULL) {
+		gctl_error(req, "No '%s' argument", "rdelayprob");
+		return;
+	}
+	if (*rdelayprob < -1 || *rdelayprob > 100) {
+		gctl_error(req, "Invalid '%s' argument", "rdelayprob");
+		return;
+	}
+	wdelayprob = gctl_get_paraml(req, "wdelayprob", sizeof(*wdelayprob));
+	if (wdelayprob == NULL) {
+		gctl_error(req, "No '%s' argument", "wdelayprob");
+		return;
+	}
+	if (*wdelayprob < -1 || *wdelayprob > 100) {
+		gctl_error(req, "Invalid '%s' argument", "wdelayprob");
 		return;
 	}
 	offset = gctl_get_paraml(req, "offset", sizeof(*offset));
@@ -518,6 +622,9 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		    *error == -1 ? EIO : (int)*error,
 		    *rfailprob == -1 ? 0 : (u_int)*rfailprob,
 		    *wfailprob == -1 ? 0 : (u_int)*wfailprob,
+		    *delaymsec == -1 ? 1 : (u_int)*delaymsec,
+		    *rdelayprob == -1 ? 0 : (u_int)*rdelayprob,
+		    *wdelayprob == -1 ? 0 : (u_int)*wdelayprob,
 		    (off_t)*offset, (off_t)*size, (u_int)*secsize,
 		    (off_t)*stripesize, (off_t)*stripeoffset,
 		    physpath) != 0) {
@@ -531,7 +638,7 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_nop_softc *sc;
 	struct g_provider *pp;
-	intmax_t *error, *rfailprob, *wfailprob;
+	intmax_t *delaymsec, *error, *rdelayprob, *rfailprob, *wdelayprob, *wfailprob;
 	const char *name;
 	char param[16];
 	int i, *nargs;
@@ -571,6 +678,34 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
+	delaymsec = gctl_get_paraml(req, "delaymsec", sizeof(*delaymsec));
+	if (delaymsec == NULL) {
+		gctl_error(req, "No '%s' argument", "delaymsec");
+		return;
+	}
+	if (*delaymsec < 1 && *delaymsec != -1) {
+		gctl_error(req, "Invalid '%s' argument", "delaymsec");
+		return;
+	}
+	rdelayprob = gctl_get_paraml(req, "rdelayprob", sizeof(*rdelayprob));
+	if (rdelayprob == NULL) {
+		gctl_error(req, "No '%s' argument", "rdelayprob");
+		return;
+	}
+	if (*rdelayprob < -1 || *rdelayprob > 100) {
+		gctl_error(req, "Invalid '%s' argument", "rdelayprob");
+		return;
+	}
+	wdelayprob = gctl_get_paraml(req, "wdelayprob", sizeof(*wdelayprob));
+	if (wdelayprob == NULL) {
+		gctl_error(req, "No '%s' argument", "wdelayprob");
+		return;
+	}
+	if (*wdelayprob < -1 || *wdelayprob > 100) {
+		gctl_error(req, "Invalid '%s' argument", "wdelayprob");
+		return;
+	}
+
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
 		name = gctl_get_asciiparam(req, param);
@@ -593,6 +728,12 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			sc->sc_rfailprob = (u_int)*rfailprob;
 		if (*wfailprob != -1)
 			sc->sc_wfailprob = (u_int)*wfailprob;
+		if (*rdelayprob != -1)
+			sc->sc_rdelayprob = (u_int)*rdelayprob;
+		if (*wdelayprob != -1)
+			sc->sc_wdelayprob = (u_int)*wdelayprob;
+		if (*delaymsec != -1)
+			sc->sc_delaymsec = (u_int)*delaymsec;
 	}
 }
 
@@ -756,6 +897,11 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	    sc->sc_rfailprob);
 	sbuf_printf(sb, "%s<WriteFailProb>%u</WriteFailProb>\n", indent,
 	    sc->sc_wfailprob);
+	sbuf_printf(sb, "%s<ReadDelayedProb>%u</ReadDelayedProb>\n", indent,
+	    sc->sc_rdelayprob);
+	sbuf_printf(sb, "%s<WriteDelayedProb>%u</WriteDelayedProb>\n", indent,
+	    sc->sc_wdelayprob);
+	sbuf_printf(sb, "%s<Delay>%d</Delay>\n", indent, sc->sc_delaymsec);
 	sbuf_printf(sb, "%s<Error>%d</Error>\n", indent, sc->sc_error);
 	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
 	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);

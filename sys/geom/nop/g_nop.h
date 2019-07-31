@@ -62,26 +62,34 @@
 	}								\
 } while (0)
 
+struct g_nop_delay;
+
+TAILQ_HEAD(g_nop_delay_head, g_nop_delay);
+
 struct g_nop_softc {
-	int		sc_error;
-	off_t		sc_offset;
-	off_t		sc_explicitsize;
-	off_t		sc_stripesize;
-	off_t		sc_stripeoffset;
-	u_int		sc_rfailprob;
-	u_int		sc_wfailprob;
-	uintmax_t	sc_reads;
-	uintmax_t	sc_writes;
-	uintmax_t	sc_deletes;
-	uintmax_t	sc_getattrs;
-	uintmax_t	sc_flushes;
-	uintmax_t	sc_cmd0s;
-	uintmax_t	sc_cmd1s;
-	uintmax_t	sc_cmd2s;
-	uintmax_t	sc_readbytes;
-	uintmax_t	sc_wrotebytes;
-	char*		sc_physpath;
-	struct mtx	sc_lock;
+	int			 sc_error;
+	off_t			 sc_offset;
+	off_t			 sc_explicitsize;
+	off_t			 sc_stripesize;
+	off_t			 sc_stripeoffset;
+	u_int			 sc_rfailprob;
+	u_int			 sc_wfailprob;
+	u_int			 sc_delaymsec;
+	u_int			 sc_rdelayprob;
+	u_int			 sc_wdelayprob;
+	uintmax_t		 sc_reads;
+	uintmax_t		 sc_writes;
+	uintmax_t		 sc_deletes;
+	uintmax_t		 sc_getattrs;
+	uintmax_t		 sc_flushes;
+	uintmax_t		 sc_cmd0s;
+	uintmax_t		 sc_cmd1s;
+	uintmax_t		 sc_cmd2s;
+	uintmax_t		 sc_readbytes;
+	uintmax_t		 sc_wrotebytes;
+	char			*sc_physpath;
+	struct mtx		 sc_lock;
+	struct g_nop_delay_head	 sc_head_delay;
 };
 #endif	/* _KERNEL */
 
