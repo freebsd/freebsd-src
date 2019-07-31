@@ -28,7 +28,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 27, 2019
+.Dd July 31, 2019
 .Dt FUSEFS 5
 .Os
 .Sh NAME
@@ -60,7 +60,7 @@ Finally, the
 API is portable.
 Many daemons can run on multiple operating systems with minimal modifications.
 .Sh SYSCTL VARIABLES
-The following 
+The following
 .Xr sysctl 8
 variables are available:
 .Bl -tag -width indent
@@ -95,12 +95,13 @@ Total number of lookup cache misses.
 Current number of allocated FUSE vnodes.
 .It Va vfs.fusefs.stats.ticket_count
 Current number of allocated FUSE tickets, which is roughly equal to the number
-number of FUSE operations currently being processed by daemons.
+of FUSE operations currently being processed by daemons.
 .\" Undocumented sysctls
 .\" ====================
 .\" vfs.fusefs.enforce_dev_perms: I don't understand it well enough.
 .\" vfs.fusefs.iov_credit: I don't understand it well enough
 .\" vfs.fusefs.iov_permanent_bufsize: I don't understand it well enough
+.El
 .Sh SEE ALSO
 .Xr mount_fusefs 8
 .Sh HISTORY
@@ -109,7 +110,7 @@ The
 driver was written as the part of the
 .Fx
 implementation of the FUSE userspace file system framework (see
-.Xr https://github.com/libfuse/libfuse )
+.Lk https://github.com/libfuse/libfuse )
 and first appeared in the
 .Pa sysutils/fusefs-kmod
 port, supporting
