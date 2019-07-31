@@ -53,7 +53,7 @@ static cmd_fn_t devlist;
 static struct cmd devlist_cmd = {
 	.name = "devlist",
 	.fn = devlist,
-	.descr = "Display a list of NVMe controllers and namespaces."
+	.descr = "List NVMe controllers and namespaces"
 };
 
 CMD_COMMAND(devlist_cmd);
