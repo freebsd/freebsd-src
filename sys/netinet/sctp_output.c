@@ -9089,7 +9089,6 @@ sctp_send_heartbeat_ack(struct sctp_tcb *stcb,
 	struct sctp_chunkhdr *chdr;
 	struct sctp_tmit_chunk *chk;
 
-
 	if (net == NULL)
 		/* must have a net pointer */
 		return;
@@ -9107,13 +9106,8 @@ sctp_send_heartbeat_ack(struct sctp_tcb *stcb,
 	chdr = mtod(outchain, struct sctp_chunkhdr *);
 	chdr->chunk_type = SCTP_HEARTBEAT_ACK;
 	chdr->chunk_flags = 0;
-	if (chk_length % 4) {
-		/* need pad */
-		uint32_t cpthis = 0;
-		int padlen;
-
-		padlen = 4 - (chk_length % 4);
-		m_copyback(outchain, chk_length, padlen, (caddr_t)&cpthis);
+	if (chk_length % 4 != 0) {
+		sctp_pad_lastmbuf(outchain, 4 - (chk_length % 4), NULL);
 	}
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
