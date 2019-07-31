@@ -41,14 +41,21 @@ __FBSDID("$FreeBSD$");
 _Static_assert(sizeof(struct pthread_rwlock) <= PAGE_SIZE,
     "pthread_rwlock is too large for off-page");
 
-__weak_reference(_pthread_rwlock_destroy, pthread_rwlock_destroy);
-__weak_reference(_pthread_rwlock_init, pthread_rwlock_init);
-__weak_reference(_pthread_rwlock_rdlock, pthread_rwlock_rdlock);
+__weak_reference(_thr_rwlock_destroy, pthread_rwlock_destroy);
+__weak_reference(_thr_rwlock_destroy, _pthread_rwlock_destroy);
+__weak_reference(_thr_rwlock_init, pthread_rwlock_init);
+__weak_reference(_thr_rwlock_init, _pthread_rwlock_init);
+__weak_reference(_Tthr_rwlock_rdlock, pthread_rwlock_rdlock);
+__weak_reference(_Tthr_rwlock_rdlock, _pthread_rwlock_rdlock);
 __weak_reference(_pthread_rwlock_timedrdlock, pthread_rwlock_timedrdlock);
-__weak_reference(_pthread_rwlock_tryrdlock, pthread_rwlock_tryrdlock);
-__weak_reference(_pthread_rwlock_trywrlock, pthread_rwlock_trywrlock);
-__weak_reference(_pthread_rwlock_unlock, pthread_rwlock_unlock);
-__weak_reference(_pthread_rwlock_wrlock, pthread_rwlock_wrlock);
+__weak_reference(_Tthr_rwlock_tryrdlock, pthread_rwlock_tryrdlock);
+__weak_reference(_Tthr_rwlock_tryrdlock, _pthread_rwlock_tryrdlock);
+__weak_reference(_Tthr_rwlock_trywrlock, pthread_rwlock_trywrlock);
+__weak_reference(_Tthr_rwlock_trywrlock, _pthread_rwlock_trywrlock);
+__weak_reference(_Tthr_rwlock_unlock, pthread_rwlock_unlock);
+__weak_reference(_Tthr_rwlock_unlock, _pthread_rwlock_unlock);
+__weak_reference(_Tthr_rwlock_wrlock, pthread_rwlock_wrlock);
+__weak_reference(_Tthr_rwlock_wrlock, _pthread_rwlock_wrlock);
 __weak_reference(_pthread_rwlock_timedwrlock, pthread_rwlock_timedwrlock);
 
 static int init_static(struct pthread *thread, pthread_rwlock_t *rwlock);
@@ -110,7 +117,7 @@ rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
 }
 
 int
-_pthread_rwlock_destroy (pthread_rwlock_t *rwlock)
+_thr_rwlock_destroy(pthread_rwlock_t *rwlock)
 {
 	pthread_rwlock_t prwlock;
 	int ret;
@@ -150,7 +157,7 @@ init_static(struct pthread *thread, pthread_rwlock_t *rwlock)
 }
 
 int
-_pthread_rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
+_thr_rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
 {
 
 	*rwlock = NULL;
@@ -219,7 +226,7 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 }
 
 int
-_pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
+_Tthr_rwlock_rdlock(pthread_rwlock_t *rwlock)
 {
 	return (rwlock_rdlock_common(rwlock, NULL));
 }
@@ -232,7 +239,7 @@ _pthread_rwlock_timedrdlock(pthread_rwlock_t * __restrict rwlock,
 }
 
 int
-_pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
+_Tthr_rwlock_tryrdlock(pthread_rwlock_t *rwlock)
 {
 	struct pthread *curthread = _get_curthread();
 	pthread_rwlock_t prwlock;
@@ -268,7 +275,7 @@ _pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
 }
 
 int
-_pthread_rwlock_trywrlock (pthread_rwlock_t *rwlock)
+_Tthr_rwlock_trywrlock(pthread_rwlock_t *rwlock)
 {
 	struct pthread *curthread = _get_curthread();
 	pthread_rwlock_t prwlock;
@@ -285,7 +292,7 @@ _pthread_rwlock_trywrlock (pthread_rwlock_t *rwlock)
 }
 
 static int
-rwlock_wrlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
+rwlock_wrlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 {
 	struct pthread *curthread = _get_curthread();
 	pthread_rwlock_t prwlock;
@@ -331,7 +338,7 @@ rwlock_wrlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 }
 
 int
-_pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
+_Tthr_rwlock_wrlock(pthread_rwlock_t *rwlock)
 {
 	return (rwlock_wrlock_common (rwlock, NULL));
 }
@@ -344,7 +351,7 @@ _pthread_rwlock_timedwrlock(pthread_rwlock_t * __restrict rwlock,
 }
 
 int
-_pthread_rwlock_unlock(pthread_rwlock_t *rwlock)
+_Tthr_rwlock_unlock(pthread_rwlock_t *rwlock)
 {
 	struct pthread *curthread = _get_curthread();
 	pthread_rwlock_t prwlock;

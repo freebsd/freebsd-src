@@ -35,13 +35,14 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-__weak_reference(_pthread_getthreadid_np, pthread_getthreadid_np);
+__weak_reference(_thr_getthreadid_np, _pthread_getthreadid_np);
+__weak_reference(_thr_getthreadid_np, pthread_getthreadid_np);
 
 /*
  * Provide the equivelant to AIX pthread_getthreadid_np() function.
  */
 int
-_pthread_getthreadid_np(void)
+_thr_getthreadid_np(void)
 {
 	struct pthread *curthread;
 

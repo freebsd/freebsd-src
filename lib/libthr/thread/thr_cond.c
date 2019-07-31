@@ -49,7 +49,6 @@ _Static_assert(sizeof(struct pthread_cond) <= PAGE_SIZE,
 /*
  * Prototypes
  */
-int	__pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
 int	__pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 		       const struct timespec * abstime);
 static int cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
@@ -63,13 +62,18 @@ static int cond_broadcast_common(pthread_cond_t *cond);
  * versions are not and are provided for libc internal usage (which
  * shouldn't introduce cancellation points).
  */
-__weak_reference(__pthread_cond_wait, pthread_cond_wait);
+__weak_reference(__thr_cond_wait, pthread_cond_wait);
+__weak_reference(__thr_cond_wait, __pthread_cond_wait);
+__weak_reference(_thr_cond_wait, _pthread_cond_wait);
 __weak_reference(__pthread_cond_timedwait, pthread_cond_timedwait);
-
-__weak_reference(_pthread_cond_init, pthread_cond_init);
-__weak_reference(_pthread_cond_destroy, pthread_cond_destroy);
-__weak_reference(_pthread_cond_signal, pthread_cond_signal);
-__weak_reference(_pthread_cond_broadcast, pthread_cond_broadcast);
+__weak_reference(_thr_cond_init, pthread_cond_init);
+__weak_reference(_thr_cond_init, _pthread_cond_init);
+__weak_reference(_thr_cond_destroy, pthread_cond_destroy);
+__weak_reference(_thr_cond_destroy, _pthread_cond_destroy);
+__weak_reference(_thr_cond_signal, pthread_cond_signal);
+__weak_reference(_thr_cond_signal, _pthread_cond_signal);
+__weak_reference(_thr_cond_broadcast, pthread_cond_broadcast);
+__weak_reference(_thr_cond_broadcast, _pthread_cond_broadcast);
 
 #define CV_PSHARED(cvp)	(((cvp)->kcond.c_flags & USYNC_PROCESS_SHARED) != 0)
 
@@ -149,7 +153,7 @@ init_static(struct pthread *thread, pthread_cond_t *cond)
 	}
 
 int
-_pthread_cond_init(pthread_cond_t * __restrict cond,
+_thr_cond_init(pthread_cond_t * __restrict cond,
     const pthread_condattr_t * __restrict cond_attr)
 {
 
@@ -158,7 +162,7 @@ _pthread_cond_init(pthread_cond_t * __restrict cond,
 }
 
 int
-_pthread_cond_destroy(pthread_cond_t *cond)
+_thr_cond_destroy(pthread_cond_t *cond)
 {
 	struct pthread_cond *cvp;
 	int error;
@@ -377,14 +381,14 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 }
 
 int
-_pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
+_thr_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
 
 	return (cond_wait_common(cond, mutex, NULL, 0));
 }
 
 int
-__pthread_cond_wait(pthread_cond_t * __restrict cond,
+__thr_cond_wait(pthread_cond_t * __restrict cond,
     pthread_mutex_t * __restrict mutex)
 {
 
@@ -392,7 +396,7 @@ __pthread_cond_wait(pthread_cond_t * __restrict cond,
 }
 
 int
-_pthread_cond_timedwait(pthread_cond_t * __restrict cond,
+_thr_cond_timedwait(pthread_cond_t * __restrict cond,
     pthread_mutex_t * __restrict mutex,
     const struct timespec * __restrict abstime)
 {
@@ -541,14 +545,14 @@ cond_broadcast_common(pthread_cond_t *cond)
 }
 
 int
-_pthread_cond_signal(pthread_cond_t * cond)
+_thr_cond_signal(pthread_cond_t * cond)
 {
 
 	return (cond_signal_common(cond));
 }
 
 int
-_pthread_cond_broadcast(pthread_cond_t * cond)
+_thr_cond_broadcast(pthread_cond_t * cond)
 {
 
 	return (cond_broadcast_common(cond));
