@@ -126,6 +126,7 @@ read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdata)
 	memset(&pt, 0, sizeof(pt));
 	pt.cmd.opc = NVME_OPC_IDENTIFY;
 	pt.cmd.nsid = htole32(nsid);
+	pt.cmd.cdw10 = htole32(0);
 	pt.buf = nsdata;
 	pt.len = sizeof(*nsdata);
 	pt.is_read = 1;

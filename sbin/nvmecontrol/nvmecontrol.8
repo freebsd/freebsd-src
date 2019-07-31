@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2018
+.Dd July 31, 2019
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -68,6 +68,51 @@
 .Op Fl b
 .Aq device id
 .Aq namespace id
+.Nm
+.Ic ns active
+.Aq device id
+.Nm
+.Ic ns allocated
+.Aq device id
+.Nm
+.Ic ns attach
+.Aq Fl n Ar nsid
+.Aq Fl c Ar cntid
+.Aq device id
+.Nm
+.Ic ns attached
+.Aq Fl n Ar nsid
+.Aq device id
+.Nm
+.Ic ns controllers
+.Aq device id
+.Nm
+.Ic ns create
+.Aq Fl s Ar nsze
+.Op Fl c Ar ncap
+.Op Fl f Ar lbaf
+.Op Fl m Ar mset
+.Op Fl n Ar nmic
+.Op Fl p Ar pi
+.Op Fl l Ar pil
+.Op Fl L Ar flbas
+.Op Fl d Ar dps
+.Aq device id
+.Nm
+.Ic ns delete
+.Aq Fl n Ar nsid
+.Aq device id
+.Nm
+.Ic ns detach
+.Aq Fl n Ar nsid
+.Aq Fl c Ar cntid
+.Aq device id
+.Nm
+.Ic ns identify
+.Op Fl v
+.Op Fl x
+.Aq Fl n Ar nsid
+.Aq device id
 .Nm
 .Ic firmware
 .Op Fl s Ar slot
@@ -143,6 +188,10 @@ will list all valid vendors and pages.
 will print the page as hex.
 .Fl b
 will print the binary data for the page.
+.Ss ns
+Various namespace management commands.
+If namespace management is supported by device, allow list, create and delete
+namespaces, list, attach and detach controllers to namespaces.
 .Ss format
 Format either specified namespace, or all namespaces of specified controller,
 using specified parameters:
