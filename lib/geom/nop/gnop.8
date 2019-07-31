@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2018
+.Dd July 31, 2019
 .Dt GNOP 8
 .Os
 .Sh NAME
@@ -34,22 +34,28 @@
 .Nm
 .Cm create
 .Op Fl v
+.Op Fl d Ar delaymsec
 .Op Fl e Ar error
 .Op Fl o Ar offset
 .Op Fl p Ar stripesize
 .Op Fl P Ar stripeoffset
+.Op Fl q Ar rdelayprob
 .Op Fl r Ar rfailprob
 .Op Fl s Ar size
 .Op Fl S Ar secsize
 .Op Fl w Ar wfailprob
+.Op Fl x Ar wdelayprob
 .Op Fl z Ar physpath
 .Ar dev ...
 .Nm
 .Cm configure
 .Op Fl v
+.Op Fl d Ar delaymsec
 .Op Fl e Ar error
+.Op Fl q Ar rdelayprob
 .Op Fl r Ar rfailprob
 .Op Fl w Ar wfailprob
+.Op Fl x Ar wdelayprob
 .Ar prov ...
 .Nm
 .Cm destroy
@@ -113,6 +119,9 @@ See
 .Pp
 Additional options:
 .Bl -tag -width ".Fl r Ar rfailprob"
+.It Fl d Ar delaymsec
+Specifies the delay of the requests in milliseconds.
+Note that requests will be delayed before they are sent to the backing device.
 .It Fl e Ar error
 Specifies the error number to return on failure.
 .It Fl f
@@ -123,6 +132,8 @@ Where to begin on the original provider.
 Value of the stripesize property of the transparent provider.
 .It Fl P Ar stripeoffset
 Value of the stripeoffset property of the transparent provider.
+.It Fl q Ar rdelayprob
+Specifies read delay probability in percent.
 .It Fl r Ar rfailprob
 Specifies read failure probability in percent.
 .It Fl s Ar size
@@ -133,6 +144,8 @@ Sector size of the transparent provider.
 Specifies write failure probability in percent.
 .It Fl v
 Be more verbose.
+.It Fl x Ar wdelayprob
+Specifies write delay probability in percent.
 .It Fl z Ar physpath
 Physical path of the transparent provider.
 .El
