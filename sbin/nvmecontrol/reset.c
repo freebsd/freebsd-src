@@ -69,7 +69,7 @@ reset(const struct cmd *f, int argc, char *argv[])
 static struct cmd reset_cmd = {
 	.name = "reset",
 	.fn = reset,
-	.descr = "Perform a controller-level reset.",
+	.descr = "Perform a controller-level reset",
 	.args = args,
 };
 
