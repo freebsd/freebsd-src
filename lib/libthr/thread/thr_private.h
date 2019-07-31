@@ -1021,8 +1021,6 @@ void __thr_cleanup_push_imp(void (*)(void *), void *,
 void __thr_cleanup_pop_imp(int);
 void _thr_cleanup_push(void (*)(void *), void *);
 void _thr_cleanup_pop(int);
-void _thr_cancel_enter(struct pthread *);
-void _thr_cancel_leave(struct pthread *, int);
 void _Tthr_testcancel(void);
 int _thr_cancel(pthread_t);
 int _thr_atfork(void (*)(void), void (*)(void), void (*)(void));
