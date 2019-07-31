@@ -116,6 +116,7 @@ static int
 g_nop_dumper(void *priv, void *virtual, vm_offset_t physical, off_t offset,
     size_t length)
 {
+
 	return (0);
 }
 
@@ -213,7 +214,7 @@ g_nop_start(struct bio *bp)
 		break;
 	case BIO_GETATTR:
 		sc->sc_getattrs++;
-		if (sc->sc_physpath && 
+		if (sc->sc_physpath &&
 		    g_handleattr_str(bp, "GEOM::physpath", sc->sc_physpath))
 			;
 		else if (strcmp(bp->bio_attribute, "GEOM::kerneldump") == 0)
