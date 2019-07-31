@@ -312,27 +312,20 @@ MACHINE_CPU = v9 ultrasparc ultrasparc3
 
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS += -G0
+AFLAGS+= -${MIPS_ENDIAN} -mabi=${MIPS_ABI}
+CFLAGS+= -${MIPS_ENDIAN} -mabi=${MIPS_ABI}
+LDFLAGS+= -${MIPS_ENDIAN} -mabi=${MIPS_ABI}
 . if ${MACHINE_ARCH:Mmips*el*} != ""
-AFLAGS += -EL
-CFLAGS += -EL
-LDFLAGS += -EL
+MIPS_ENDIAN=	EL
 . else
-AFLAGS += -EB
-CFLAGS += -EB
-LDFLAGS += -EB
+MIPS_ENDIAN=	EB
 . endif
 . if ${MACHINE_ARCH:Mmips64*} != ""
-AFLAGS+= -mabi=64
-CFLAGS+= -mabi=64
-LDFLAGS+= -mabi=64
+MIPS_ABI?=	64
 . elif ${MACHINE_ARCH:Mmipsn32*} != ""
-AFLAGS+= -mabi=n32
-CFLAGS+= -mabi=n32
-LDFLAGS+= -mabi=n32
+MIPS_ABI?=	n32
 . else
-AFLAGS+= -mabi=32
-CFLAGS+= -mabi=32
-LDFLAGS+= -mabi=32
+MIPS_ABI?=	32
 . endif
 . if ${MACHINE_ARCH:Mmips*hf}
 CFLAGS += -mhard-float
