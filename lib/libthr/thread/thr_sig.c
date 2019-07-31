@@ -601,10 +601,11 @@ __thr_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 	return (__sys_sigprocmask(how, p, oset));
 }
 
-__weak_reference(_pthread_sigmask, pthread_sigmask);
+__weak_reference(_thr_sigmask, pthread_sigmask);
+__weak_reference(_thr_sigmask, _pthread_sigmask);
 
 int
-_pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
+_thr_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
 
 	if (__thr_sigprocmask(how, set, oset))
