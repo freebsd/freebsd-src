@@ -3752,7 +3752,7 @@ DIOCCHANGEADDR_error:
 
 		nr = 0;
 
-		p = pstore = malloc(psn->psn_len, M_TEMP, M_WAITOK);
+		p = pstore = malloc(psn->psn_len, M_TEMP, M_WAITOK | M_ZERO);
 		for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
 		    i++, sh++) {
 		    PF_HASHROW_LOCK(sh);
