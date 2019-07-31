@@ -5586,8 +5586,7 @@ do_a_abort:
 	m = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (m == NULL) {
 		/* No memory, INIT timer will re-attempt. */
-		if (op_err)
-			sctp_m_freem(op_err);
+		sctp_m_freem(op_err);
 		return;
 	}
 	chunk_len = (uint16_t)sizeof(struct sctp_init_ack_chunk);
@@ -5776,8 +5775,11 @@ do_a_abort:
 				net->ro._s_addr = sctp_source_address_selection(inp,
 				    stcb, (sctp_route_t *)&net->ro,
 				    net, 0, vrf_id);
-				if (net->ro._s_addr == NULL)
+				if (net->ro._s_addr == NULL) {
+					sctp_m_freem(op_err);
+					sctp_m_freem(m);
 					return;
+				}
 
 				net->src_addr_selected = 1;
 
@@ -5806,8 +5808,11 @@ do_a_abort:
 				net->ro._s_addr = sctp_source_address_selection(inp,
 				    stcb, (sctp_route_t *)&net->ro,
 				    net, 0, vrf_id);
-				if (net->ro._s_addr == NULL)
+				if (net->ro._s_addr == NULL) {
+					sctp_m_freem(op_err);
+					sctp_m_freem(m);
 					return;
+				}
 
 				net->src_addr_selected = 1;
 			}
@@ -5878,6 +5883,7 @@ do_a_abort:
 	so = inp->sctp_socket;
 	if (so == NULL) {
 		/* memory problem */
+		sctp_m_freem(op_err);
 		sctp_m_freem(m);
 		return;
 	} else {
