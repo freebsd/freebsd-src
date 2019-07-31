@@ -48,13 +48,15 @@ static struct options {
 	bool		hex;
 	bool		verbose;
 	const char	*dev;
+	uint32_t	nsid;
 } opt = {
 	.hex = false,
 	.verbose = false,
 	.dev = NULL,
+	.nsid = 0,
 };
 
-static void
+void
 print_namespace(struct nvme_namespace_data *nsdata)
 {
 	uint32_t	i;
@@ -204,22 +206,24 @@ identify_ns(const struct cmd *f, int argc, char *argv[])
 	int				fd, hexlength;
 	uint32_t			nsid;
 
-	/*
-	 * Check if the specified device node exists before continuing.
-	 *  This is a cleaner check for cases where the correct controller
-	 *  is specified, but an invalid namespace on that controller.
-	 */
 	open_dev(opt.dev, &fd, 1, 1);
-	close(fd);
-
-	/*
-	 * We send IDENTIFY commands to the controller, not the namespace,
-	 *  since it is an admin cmd.  The namespace ID will be specified in
-	 *  the IDENTIFY command itself.  So parse the namespace's device node
-	 *  string to get the controller substring and namespace ID.
-	 */
-	parse_ns_str(opt.dev, path, &nsid);
-	open_dev(path, &fd, 1, 1);
+	if (strstr(opt.dev, NVME_NS_PREFIX) != NULL) {
+		/*
+		 * Now we know that provided device name is valid, that is
+		 * good for error reporting if specified controller name is
+		 * valid, but namespace ID is not.  But we send IDENTIFY
+		 * commands to the controller, not the namespace, since it
+		 * is an admin cmd.  The namespace ID will be specified in
+		 * the IDENTIFY command itself.  So parse the namespace's
+		 * device node string to get the controller device substring
+		 * and namespace ID.
+		 */
+		close(fd);
+		parse_ns_str(opt.dev, path, &nsid);
+		open_dev(path, &fd, 1, 1);
+	} else {
+		nsid = opt.nsid;
+	}
 	read_namespace_data(fd, nsid, &nsdata);
 	close(fd);
 
@@ -248,10 +252,10 @@ identify(const struct cmd *f, int argc, char *argv[])
 	arg_parse(argc, argv, f);
 
 	/*
-	 * If device node contains "ns", we consider it a namespace,
-	 *  otherwise, consider it a controller.
+	 * If device node contains "ns" or nsid is specified, we consider
+	 * it a namespace request, otherwise, consider it a controller.
 	 */
-	if (strstr(opt.dev, NVME_NS_PREFIX) == NULL)
+	if (strstr(opt.dev, NVME_NS_PREFIX) == NULL && opt.nsid == 0)
 		identify_ctrlr(f, argc, argv);
 	else
 		identify_ns(f, argc, argv);
@@ -263,6 +267,8 @@ static const struct opts identify_opts[] = {
 	    "Print identiy information in hex"),
 	OPT("verbose", 'v', arg_none, opt, verbose,
 	    "More verbosity: print entire identify table"),
+	OPT("nsid", 'n', arg_uint32, opt, nsid,
+	    "Namespace ID to use if not in device name"),
 	{ NULL, 0, arg_none, NULL, NULL }
 };
 #undef OPT
@@ -275,7 +281,7 @@ static const struct args identify_args[] = {
 static struct cmd identify_cmd = {
 	.name = "identify",
 	.fn = identify,
-	.descr = "Print a human-readable summary of the IDENTIFY information",
+	.descr = "Print summary of the IDENTIFY information",
 	.ctx_size = sizeof(opt),
 	.opts = identify_opts,
 	.args = identify_args,
