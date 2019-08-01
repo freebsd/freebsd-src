@@ -4731,7 +4731,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 			    err);
 			goto fail_queues;
 		}
-	} else {
+	} else if (scctx->isc_intr != IFLIB_INTR_MSIX) {
 		rid = 0;
 		if (scctx->isc_intr == IFLIB_INTR_MSI) {
 			MPASS(msix == 1);
@@ -4741,6 +4741,11 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 			device_printf(dev, "iflib_legacy_setup failed %d\n", err);
 			goto fail_queues;
 		}
+	} else {
+		device_printf(dev,
+		    "Cannot use iflib with only 1 MSI-X interrupt!\n");
+		err = ENODEV;
+		goto fail_intr_free;
 	}
 
 	ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac.octet);
@@ -4781,6 +4786,7 @@ fail_intr_free:
 fail_queues:
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
+	taskqgroup_detach(qgroup_if_config_tqg, &ctx->ifc_admin_task);
 	IFDI_DETACH(ctx);
 fail_unlock:
 	CTX_UNLOCK(ctx);
