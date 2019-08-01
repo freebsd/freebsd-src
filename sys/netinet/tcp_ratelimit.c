@@ -1186,7 +1186,7 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 	 * in order to release our refcount.
 	 */
 	rs = __DECONST(struct tcp_rate_set *, crs);
-	pre = atomic_fetchadd_long(&rs->rs_flows_using, -1);
+	pre = atomic_fetchadd_64(&rs->rs_flows_using, -1);
 	if (pre == 1) {
 		mtx_lock(&rs_mtx);
 		/*
