@@ -26,8 +26,10 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
+
 #include <ar.h>
 #include <assert.h>
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <dwarf.h>
 #include <err.h>
@@ -44,6 +46,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 
 #include "_elftc.h"
 
@@ -7214,15 +7219,8 @@ process_members:
 }
 
 static void
-dump_object(struct readelf *re)
+dump_object(struct readelf *re, int fd)
 {
-	int fd;
-
-	if ((fd = open(re->filename, O_RDONLY)) == -1) {
-		warn("open %s failed", re->filename);
-		return;
-	}
-
 	if ((re->flags & DISPLAY_FILENAME) != 0)
 		printf("\nFile: %s\n", re->filename);
 
@@ -7589,9 +7587,11 @@ readelf_usage(int status)
 int
 main(int argc, char **argv)
 {
+	cap_rights_t	rights;
+	fileargs_t	*fa;
 	struct readelf	*re, re_storage;
 	unsigned long	 si;
-	int		 opt, i;
+	int		 fd, opt, i;
 	char		*ep;
 
 	re = &re_storage;
@@ -7714,9 +7714,28 @@ main(int argc, char **argv)
 		errx(EXIT_FAILURE, "ELF library initialization failed: %s",
 		    elf_errmsg(-1));
 
+	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_MMAP_R, CAP_SEEK);
+	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights, FA_OPEN);
+	if (fa == NULL)
+		err(1, "Unable to initialize casper fileargs");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0) {
+		fileargs_free(fa);
+		err(1, "Unable to limit stdio rights");
+	}
+	if (caph_enter_casper() < 0) {
+		fileargs_free(fa);
+		err(1, "Unable to enter capability mode");
+	}
+
 	for (i = 0; i < argc; i++) {
 		re->filename = argv[i];
-		dump_object(re);
+		fd = fileargs_open(fa, re->filename);
+		if (fd < 0)
+			warn("open %s failed", re->filename);
+		else
+			dump_object(re, fd);
 	}
 
 	exit(EXIT_SUCCESS);
