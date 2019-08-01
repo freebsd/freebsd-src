@@ -739,16 +739,18 @@ run_cmd(int *ofd, const char *cmdline, ...)
 	return (WEXITSTATUS(status));
 }
 
-static void
-swap_trim(const char *name)
+static int
+swapon_trim(const char *name)
 {
 	struct stat sb;
 	off_t ioarg[2], sz;
-	int fd;
+	int error, fd;
 
+	/* Open a descriptor to create a consumer of the device. */
 	fd = open(name, O_WRONLY);
 	if (fd < 0)
 		errx(1, "Cannot open %s", name);
+	/* Find the device size. */
 	if (fstat(fd, &sb) < 0)
 		errx(1, "Cannot stat %s", name);
 	if (S_ISREG(sb.st_mode))
@@ -758,11 +760,24 @@ swap_trim(const char *name)
 			err(1, "ioctl(DIOCGMEDIASIZE)");
 	} else
 		errx(1, "%s has an invalid file type", name);
+	/* Trim the device. */
 	ioarg[0] = 0;
 	ioarg[1] = sz;
 	if (ioctl(fd, DIOCGDELETE, ioarg) != 0)
 		warn("ioctl(DIOCGDELETE)");
+
+	/* Start using the device for swapping, creating a second consumer. */
+	error = swapon(name);
+
+	/*
+	 * Do not close the device until the swap pager has attempted to create
+	 * another consumer.  For GELI devices created with the 'detach -l'
+	 * option, removing the last consumer causes the device to be detached
+	 * - that is, to disappear.  This ordering ensures that the device will
+	 * not be detached until swapoff is called.
+	 */
 	close(fd);
+	return (error);
 }
 
 static const char *
@@ -770,11 +785,9 @@ swap_on_off_sfile(const char *name, int doingall)
 {
 	int error;
 
-	if (which_prog == SWAPON) {
-		if (Eflag)
-			swap_trim(name);
-		error = swapon(name);
-	} else /* SWAPOFF */
+	if (which_prog == SWAPON)
+		error = Eflag ? swapon_trim(name) : swapon(name);
+	else /* SWAPOFF */
 		error = swapoff(name);
 
 	if (error == -1) {
