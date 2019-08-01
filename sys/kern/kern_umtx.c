@@ -723,13 +723,11 @@ umtxq_check_susp(struct thread *td, bool sleep)
 	error = 0;
 	p = td->td_proc;
 	PROC_LOCK(p);
-	if (P_SHOULDSTOP(p) ||
-	    ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_SUSPEND))) {
-		if (p->p_flag & P_SINGLE_EXIT)
-			error = EINTR;
-		else
-			error = sleep ? thread_suspend_check(0) : ERESTART;
-	}
+	if (p->p_flag & P_SINGLE_EXIT)
+		error = EINTR;
+	else if (P_SHOULDSTOP(p) ||
+	    ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_SUSPEND)))
+		error = sleep ? thread_suspend_check(0) : ERESTART;
 	PROC_UNLOCK(p);
 	return (error);
 }
