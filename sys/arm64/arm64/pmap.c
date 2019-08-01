@@ -221,8 +221,11 @@ __FBSDID("$FreeBSD$");
  * The presence of this flag indicates that the mapping is writeable.
  * If the ATTR_AP_RO bit is also set, then the mapping is clean, otherwise it is
  * dirty.  This flag may only be set on managed mappings.
+ *
+ * The DBM bit is reserved on ARMv8.0 but it seems we can safely treat it
+ * as a software managed bit.
  */
-static pt_entry_t ATTR_SW_DBM;
+#define	ATTR_SW_DBM	ATTR_DBM
 
 struct pmap kernel_pmap_store;
 
@@ -783,15 +786,6 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	vm_paddr_t start_pa, pa, min_pa;
 	uint64_t kern_delta;
 	int i;
-
-#ifdef notyet
-	/* Determine whether the hardware implements DBM management. */
-	uint64_t reg = READ_SPECIALREG(ID_AA64MMFR1_EL1);
-	ATTR_SW_DBM = ID_AA64MMFR1_HAFDBS(reg) == ID_AA64MMFR1_HAFDBS_AF_DBS ?
-	    ATTR_DBM : _ATTR_SW_DBM;
-#else
-	ATTR_SW_DBM = _ATTR_SW_DBM;
-#endif
 
 	kern_delta = KERNBASE - kernstart;
 
