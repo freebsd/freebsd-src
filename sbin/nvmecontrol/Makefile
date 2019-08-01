@@ -3,7 +3,8 @@
 PACKAGE=runtime
 PROG=	nvmecontrol
 SRCS=	comnd.c nvmecontrol.c
-SRCS+=	devlist.c firmware.c format.c identify.c logpage.c ns.c perftest.c power.c reset.c
+SRCS+=	devlist.c firmware.c format.c identify.c logpage.c ns.c nsid.c
+SRCS+=	perftest.c power.c reset.c
 #SRCS+=	passthru.c
 SRCS+=	identify_ext.c nvme_util.c nc_util.c
 MAN=	nvmecontrol.8
