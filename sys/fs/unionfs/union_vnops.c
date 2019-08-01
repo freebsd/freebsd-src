@@ -2511,6 +2511,33 @@ unionfs_vptofh(struct vop_vptofh_args *ap)
 	return (EOPNOTSUPP);
 }
 
+static int
+unionfs_add_writecount(struct vop_add_writecount_args *ap)
+{
+	struct vnode *tvp, *vp;
+	struct unionfs_node *unp;
+	int error;
+
+	vp = ap->a_vp;
+	unp = VTOUNIONFS(vp);
+	tvp = unp->un_uppervp != NULL ? unp->un_uppervp : unp->un_lowervp;
+	VI_LOCK(vp);
+	/* text refs are bypassed to lowervp */
+	VNASSERT(vp->v_writecount >= 0, vp, ("wrong null writecount"));
+	VNASSERT(vp->v_writecount + ap->a_inc >= 0, vp,
+	    ("wrong writecount inc %d", ap->a_inc));
+	if (tvp != NULL)
+		error = VOP_ADD_WRITECOUNT(tvp, ap->a_inc);
+	else if (vp->v_writecount < 0)
+		error = ETXTBSY;
+	else
+		error = 0;
+	if (error == 0)
+		vp->v_writecount += ap->a_inc;
+	VI_UNLOCK(vp);
+	return (error);
+}
+
 struct vop_vector unionfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
 
@@ -2559,4 +2586,5 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_whiteout =		unionfs_whiteout,
 	.vop_write =		unionfs_write,
 	.vop_vptofh =		unionfs_vptofh,
+	.vop_add_writecount =	unionfs_add_writecount,
 };
