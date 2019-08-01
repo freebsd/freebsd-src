@@ -5115,55 +5115,42 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 			break;
 		case SCTP_HOSTNAME_ADDRESS:
 			{
-				/* We can NOT handle HOST NAME addresses!! */
+				/* Hostname parameters are deprecated. */
+				struct sctp_gen_error_cause *cause;
 				int l_len;
 
 				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Can't handle hostname addresses.. abort processing\n");
 				*abort_processing = 1;
-				if (op_err == NULL) {
-					/* Ok need to try to get a mbuf */
+				sctp_m_freem(op_err);
+				op_err = NULL;
 #ifdef INET6
-					l_len = SCTP_MIN_OVERHEAD;
+				l_len = SCTP_MIN_OVERHEAD;
 #else
-					l_len = SCTP_MIN_V4_OVERHEAD;
+				l_len = SCTP_MIN_V4_OVERHEAD;
 #endif
-					l_len += sizeof(struct sctp_chunkhdr);
-					l_len += sizeof(struct sctp_gen_error_cause);
-					op_err = sctp_get_mbuf_for_msg(l_len, 0, M_NOWAIT, 1, MT_DATA);
-					if (op_err) {
-						SCTP_BUF_LEN(op_err) = 0;
-						/*
-						 * Pre-reserve space for IP,
-						 * SCTP, and chunk header.
-						 */
-#ifdef INET6
-						SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
-#else
-						SCTP_BUF_RESV_UF(op_err, sizeof(struct ip));
-#endif
-						SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
-						SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
-					}
-				}
+				l_len += sizeof(struct sctp_chunkhdr);
+				l_len += sizeof(struct sctp_gen_error_cause);
+				op_err = sctp_get_mbuf_for_msg(l_len, 0, M_NOWAIT, 1, MT_DATA);
 				if (op_err) {
-					/* If we have space */
-					struct sctp_gen_error_cause cause;
-
-					if (err_at % 4) {
-						uint32_t cpthis = 0;
-
-						pad_needed = 4 - (err_at % 4);
-						m_copyback(op_err, err_at, pad_needed, (caddr_t)&cpthis);
-						err_at += pad_needed;
-					}
-					cause.code = htons(SCTP_CAUSE_UNRESOLVABLE_ADDR);
-					cause.length = htons((uint16_t)(sizeof(struct sctp_gen_error_cause) + plen));
-					m_copyback(op_err, err_at, sizeof(struct sctp_gen_error_cause), (caddr_t)&cause);
-					err_at += sizeof(struct sctp_gen_error_cause);
+					/*
+					 * Pre-reserve space for IP, SCTP,
+					 * and chunk header.
+					 */
+#ifdef INET6
+					SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
+#else
+					SCTP_BUF_RESV_UF(op_err, sizeof(struct ip));
+#endif
+					SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
+					SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
+					SCTP_BUF_LEN(op_err) = sizeof(struct sctp_gen_error_cause);
+					cause = mtod(op_err, struct sctp_gen_error_cause *);
+					cause->code = htons(SCTP_CAUSE_UNRESOLVABLE_ADDR);
+					cause->length = htons((uint16_t)(sizeof(struct sctp_gen_error_cause) + plen));
 					SCTP_BUF_NEXT(op_err) = SCTP_M_COPYM(mat, at, plen, M_NOWAIT);
 					if (SCTP_BUF_NEXT(op_err) == NULL) {
 						sctp_m_freem(op_err);
-						return (NULL);
+						op_err = NULL;
 					}
 				}
 				return (op_err);
@@ -5250,7 +5237,10 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 invalid_size:
 	SCTPDBG(SCTP_DEBUG_OUTPUT1, "abort flag set\n");
 	*abort_processing = 1;
-	if ((op_err == NULL) && phdr) {
+	sctp_m_freem(op_err);
+	op_err = NULL;
+	if (phdr != NULL) {
+		struct sctp_paramhdr *param;
 		int l_len;
 #ifdef INET6
 		l_len = SCTP_MIN_OVERHEAD;
@@ -5269,24 +5259,14 @@ invalid_size:
 #endif
 			SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
 			SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
+			SCTP_BUF_LEN(op_err) = 2 * sizeof(struct sctp_paramhdr);
+			param = mtod(op_err, struct sctp_paramhdr *);
+			param->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
+			param->param_length = htons(2 * sizeof(struct sctp_paramhdr));
+			param++;
+			param->param_type = htons(ptype);
+			param->param_length = htons(plen);
 		}
-	}
-	if ((op_err) && phdr) {
-		struct sctp_paramhdr s;
-
-		if (err_at % 4) {
-			uint32_t cpthis = 0;
-
-			pad_needed = 4 - (err_at % 4);
-			m_copyback(op_err, err_at, pad_needed, (caddr_t)&cpthis);
-			err_at += pad_needed;
-		}
-		s.param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
-		s.param_length = htons(sizeof(s) + sizeof(struct sctp_paramhdr));
-		m_copyback(op_err, err_at, sizeof(s), (caddr_t)&s);
-		err_at += sizeof(s);
-		/* Only copy back the p-hdr that caused the issue */
-		m_copyback(op_err, err_at, sizeof(struct sctp_paramhdr), (caddr_t)phdr);
 	}
 	return (op_err);
 }
