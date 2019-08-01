@@ -137,13 +137,10 @@ lapic_intr_msi(struct vm *vm, uint64_t addr, uint64_t msg)
 	return (0);
 }
 
-static boolean_t
+static bool
 x2apic_msr(u_int msr)
 {
-	if (msr >= 0x800 && msr <= 0xBFF)
-		return (TRUE);
-	else
-		return (FALSE);
+	return (msr >= 0x800 && msr <= 0xBFF);
 }
 
 static u_int
@@ -153,14 +150,11 @@ x2apic_msr_to_regoff(u_int msr)
 	return ((msr - 0x800) << 4);
 }
 
-boolean_t
+bool
 lapic_msr(u_int msr)
 {
 
-	if (x2apic_msr(msr) || (msr == MSR_APICBASE))
-		return (TRUE);
-	else
-		return (FALSE);
+	return (x2apic_msr(msr) || msr == MSR_APICBASE);
 }
 
 int

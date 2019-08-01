@@ -38,26 +38,20 @@ __FBSDID("$FreeBSD$");
 
 #include "vmm_util.h"
 
-boolean_t
+bool
 vmm_is_intel(void)
 {
 
-	if (strcmp(cpu_vendor, "GenuineIntel") == 0)
-		return (TRUE);
-	else
-		return (FALSE);
+	return (strcmp(cpu_vendor, "GenuineIntel") == 0);
 }
 
-boolean_t
+bool
 vmm_is_amd(void)
 {
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
-		return (TRUE);
-	else
-		return (FALSE);
+	return (strcmp(cpu_vendor, "AuthenticAMD") == 0);
 }
 
-boolean_t
+bool
 vmm_supports_1G_pages(void)
 {
 	unsigned int regs[4];
@@ -70,9 +64,9 @@ vmm_supports_1G_pages(void)
 	if (cpu_exthigh >= 0x80000001) {
 		do_cpuid(0x80000001, regs);
 		if (regs[3] & (1 << 26))
-			return (TRUE);
+			return (true);
 	}
-	return (FALSE);
+	return (false);
 }
 
 #include <sys/proc.h>

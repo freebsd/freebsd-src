@@ -33,9 +33,9 @@
 
 struct trapframe;
 
-boolean_t	vmm_is_intel(void);
-boolean_t	vmm_is_amd(void);
-boolean_t	vmm_supports_1G_pages(void);
+bool		vmm_is_intel(void);
+bool		vmm_is_amd(void);
+bool		vmm_supports_1G_pages(void);
 
 void		dump_trapframe(struct trapframe *tf);
 
