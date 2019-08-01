@@ -267,7 +267,7 @@ AcpiEnableGpe (
         if (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) !=
             ACPI_GPE_DISPATCH_NONE)
         {
-            Status = AcpiEvAddGpeReference (GpeEventInfo, TRUE);
+            Status = AcpiEvAddGpeReference (GpeEventInfo);
             if (ACPI_SUCCESS (Status) &&
                 ACPI_GPE_IS_POLLING_NEEDED (GpeEventInfo))
             {

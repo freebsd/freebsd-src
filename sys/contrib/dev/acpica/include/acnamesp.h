@@ -419,6 +419,10 @@ ACPI_STATUS
 AcpiNsEvaluate (
     ACPI_EVALUATE_INFO      *Info);
 
+void
+AcpiNsExecModuleCodeList (
+    void);
+
 
 /*
  * nsarguments - Argument count/type checking for predefined/reserved names
