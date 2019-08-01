@@ -883,8 +883,13 @@ struct sockaddr *
 	in_sockaddr(in_port_t port, struct in_addr *addr);
 void	in_pcbsosetlabel(struct socket *so);
 #ifdef RATELIMIT
-int	in_pcbattach_txrtlmt(struct inpcb *, struct ifnet *, uint32_t, uint32_t, uint32_t);
+int
+in_pcboutput_txrtlmt_locked(struct inpcb *, struct ifnet *,
+	    struct mbuf *, uint32_t);
+int	in_pcbattach_txrtlmt(struct inpcb *, struct ifnet *, uint32_t, uint32_t,
+	    uint32_t, struct m_snd_tag **);
 void	in_pcbdetach_txrtlmt(struct inpcb *);
+void    in_pcbdetach_tag(struct ifnet *ifp, struct m_snd_tag *mst);
 int	in_pcbmodify_txrtlmt(struct inpcb *, uint32_t);
 int	in_pcbquery_txrtlmt(struct inpcb *, uint32_t *);
 int	in_pcbquery_txrlevel(struct inpcb *, uint32_t *);

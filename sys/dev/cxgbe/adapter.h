@@ -1247,6 +1247,7 @@ int cxgbe_snd_tag_modify(struct m_snd_tag *, union if_snd_tag_modify_params *);
 int cxgbe_snd_tag_query(struct m_snd_tag *, union if_snd_tag_query_params *);
 void cxgbe_snd_tag_free(struct m_snd_tag *);
 void cxgbe_snd_tag_free_locked(struct cxgbe_snd_tag *);
+void cxgbe_ratelimit_query(struct ifnet *, struct if_ratelimit_query_results *);
 #endif
 
 /* t4_filter.c */
