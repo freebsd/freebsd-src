@@ -29,7 +29,7 @@
 
 /*
  * This file contains a wrapper around the deflate algo compression
- * functions using the zlib library (see libkern/zlib.c and sys/zlib.h})
+ * functions using the zlib library (see sys/contrib/zlib)
  */
 
 #include <sys/cdefs.h>
@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sdt.h>
 #include <sys/systm.h>
-#include <sys/zlib.h>
+#include <contrib/zlib/zlib.h>
 
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/deflate.h>
@@ -59,6 +59,22 @@ SDT_PROBE_DEFINE2(opencrypto, deflate, deflate_global, return,
 
 int window_inflate = -1 * MAX_WBITS;
 int window_deflate = -12;
+
+static void *
+crypto_zalloc(void *nil, u_int type, u_int size)
+{
+	void *ptr;
+
+	ptr = malloc(type *size, M_CRYPTO_DATA, M_NOWAIT);
+	return ptr;
+}
+
+static void
+crypto_zfree(void *nil, void *ptr)
+{
+
+	free(ptr, M_CRYPTO_DATA);
+}
 
 /*
  * This function takes a block of data and (de)compress it using the deflate
@@ -113,8 +129,8 @@ deflate_global(data, size, decomp, out)
 	bufp->size = size * i;
 
 	bzero(&zbuf, sizeof(z_stream));
-	zbuf.zalloc = z_alloc;
-	zbuf.zfree = z_free;
+	zbuf.zalloc = crypto_zalloc;
+	zbuf.zfree = crypto_zfree;
 	zbuf.opaque = Z_NULL;
 	zbuf.next_in = data;	/* Data that is going to be processed. */
 	zbuf.avail_in = size;	/* Total length of data to be processed. */
@@ -167,8 +183,8 @@ deflate_global(data, size, decomp, out)
 			zbuf.avail_out = bufp->size;
 		} else {
 			/* Unexpect result. */
-			SDT_PROBE6(opencrypto, deflate, deflate_global, bad,
-			    decomp, error, __LINE__,
+			SDT_PROBE6(opencrypto, deflate, deflate_global,
+			    bad, decomp, error, __LINE__,
 			    zbuf.avail_in, zbuf.avail_out, zbuf.total_out);
 			goto bad;
 		}
@@ -225,22 +241,4 @@ bad:
 bad2:
 	*out = NULL;
 	return 0;
-}
-
-void *
-z_alloc(nil, type, size)
-	void *nil;
-	u_int type, size;
-{
-	void *ptr;
-
-	ptr = malloc(type *size, M_CRYPTO_DATA, M_NOWAIT);
-	return ptr;
-}
-
-void
-z_free(nil, ptr)
-	void *nil, *ptr;
-{
-	free(ptr, M_CRYPTO_DATA);
 }

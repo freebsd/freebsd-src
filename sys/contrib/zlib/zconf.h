@@ -503,6 +503,9 @@ typedef uLong FAR uLongf;
 /*
  * This is hard-configured for FreeBSD.
  */
+#ifdef Z_SOLO
+#  include <sys/types.h>      /* for off_t */
+#endif
 #define	z_off_t	off_t
 #ifndef _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 64
