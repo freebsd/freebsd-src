@@ -362,7 +362,7 @@ AcpiDsInitializeObjects (
     if (ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_DSDT))
     {
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
-            "\nACPI table initialization:\n"));
+            "\nInitializing Namespace objects:\n"));
     }
 
     /* Summary of objects initialized */
