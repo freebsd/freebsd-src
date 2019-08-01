@@ -637,7 +637,7 @@ AcpiEvInitializeGpeBlock (
                 continue;
             }
 
-            Status = AcpiEvAddGpeReference (GpeEventInfo, FALSE);
+            Status = AcpiEvAddGpeReference (GpeEventInfo);
             if (ACPI_FAILURE (Status))
             {
                 ACPI_EXCEPTION ((AE_INFO, Status,

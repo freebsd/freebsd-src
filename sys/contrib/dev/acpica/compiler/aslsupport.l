@@ -220,7 +220,7 @@ AslDoLineDirective (
 
     while ((c = input()) != '\n' && c != EOF)
     {
-        *AslGbl_LineBufPtr = (char) c;
+        *AslGbl_LineBufPtr = c;
         AslGbl_LineBufPtr++;
     }
     *AslGbl_LineBufPtr = 0;
@@ -498,7 +498,7 @@ AslInsertLineBuffer (
 
         if (AcpiGbl_CaptureComments)
         {
-            CvProcessCommentState ((char) SourceChar);
+            CvProcessCommentState (SourceChar);
         }
     }
 }
@@ -601,7 +601,7 @@ loop:
         AslInsertLineBuffer (c);
         if (AcpiGbl_CaptureComments && CurrentState.CaptureComments)
         {
-            *StringBuffer = (char) c;
+            *StringBuffer = c;
             ++StringBuffer;
         }
         c1 = c;
@@ -629,7 +629,7 @@ loop:
     AslInsertLineBuffer (c);
     if (AcpiGbl_CaptureComments && CurrentState.CaptureComments)
     {
-        *StringBuffer = (char) c;
+        *StringBuffer = c;
         ++StringBuffer;
     }
 
@@ -720,7 +720,7 @@ AslDoCommentType2 (
         AslInsertLineBuffer (c);
         if (AcpiGbl_CaptureComments && CurrentState.CaptureComments)
         {
-            *StringBuffer = (char) c;
+            *StringBuffer = c;
             ++StringBuffer;
         }
     }
@@ -878,7 +878,7 @@ DoCharacter:
                 if (ACPI_IS_OCTAL_DIGIT (StringChar))
                 {
                     State = ASL_OCTAL_CONSTANT;
-                    ConvertBuffer[0] = (char) StringChar;
+                    ConvertBuffer[0] = StringChar;
                     i = 1;
                     continue;
                 }
@@ -934,7 +934,7 @@ DoCharacter:
 
             /* Append another digit of the constant */
 
-            ConvertBuffer[i] = (char) StringChar;
+            ConvertBuffer[i] = StringChar;
             i++;
             continue;
 
@@ -978,7 +978,7 @@ DoCharacter:
 
             /* Append another digit of the constant */
 
-            ConvertBuffer[i] = (char) StringChar;
+            ConvertBuffer[i] = StringChar;
             i++;
             continue;
 
@@ -989,7 +989,7 @@ DoCharacter:
 
         /* Save the finished character */
 
-        *StringBuffer = (char) StringChar;
+        *StringBuffer = StringChar;
         StringBuffer++;
         if (StringBuffer >= EndBuffer)
         {
