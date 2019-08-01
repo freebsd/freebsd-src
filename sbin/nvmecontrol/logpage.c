@@ -399,8 +399,7 @@ static void
 logpage(const struct cmd *f, int argc, char *argv[])
 {
 	int				fd;
-	bool				ns_specified;
-	char				cname[64];
+	char				*path;
 	uint32_t			nsid, size;
 	void				*buf;
 	const struct logpage_function	*lpf;
@@ -421,15 +420,15 @@ logpage(const struct cmd *f, int argc, char *argv[])
 		fprintf(stderr, "Missing page_id (-p).\n");
 		arg_help(argc, argv, f);
 	}
-	if (strstr(opt.dev, NVME_NS_PREFIX) != NULL) {
-		ns_specified = true;
-		parse_ns_str(opt.dev, cname, &nsid);
-		open_dev(cname, &fd, 1, 1);
-	} else {
-		ns_specified = false;
+	open_dev(opt.dev, &fd, 1, 1);
+	get_nsid(fd, &path, &nsid);
+	if (nsid == 0) {
 		nsid = NVME_GLOBAL_NAMESPACE_TAG;
-		open_dev(opt.dev, &fd, 1, 1);
+	} else {
+		close(fd);
+		open_dev(path, &fd, 1, 1);
 	}
+	free(path);
 
 	read_controller_data(fd, &cdata);
 
@@ -441,7 +440,7 @@ logpage(const struct cmd *f, int argc, char *argv[])
 	 * supports the SMART/Health information log page on a per
 	 * namespace basis.
 	 */
-	if (ns_specified) {
+	if (nsid != NVME_GLOBAL_NAMESPACE_TAG) {
 		if (opt.page != NVME_LOG_HEALTH_INFORMATION)
 			errx(1, "log page %d valid only at controller level",
 			    opt.page);

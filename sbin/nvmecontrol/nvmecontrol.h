@@ -69,7 +69,7 @@ void logpage_register(struct logpage_function *p);
 #define NVME_NS_PREFIX		"ns"
 
 int open_dev(const char *str, int *fd, int show_error, int exit_on_error);
-void parse_ns_str(const char *ns_str, char *ctrlr_str, uint32_t *nsid);
+void get_nsid(int fd, char **ctrlr_str, uint32_t *nsid);
 void read_controller_data(int fd, struct nvme_controller_data *cdata);
 void read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdata);
 void print_hex(void *data, uint32_t length);

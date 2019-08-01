@@ -146,16 +146,6 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 {
 	char		full_path[64];
 
-	if (!strnstr(str, NVME_CTRLR_PREFIX, strlen(NVME_CTRLR_PREFIX))) {
-		if (show_error)
-			warnx("controller/namespace ids must begin with '%s'",
-			    NVME_CTRLR_PREFIX);
-		if (exit_on_error)
-			exit(1);
-		else
-			return (EINVAL);
-	}
-
 	snprintf(full_path, sizeof(full_path), _PATH_DEV"%s", str);
 	*fd = open(full_path, O_RDWR);
 	if (*fd < 0) {
@@ -171,26 +161,16 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 }
 
 void
-parse_ns_str(const char *ns_str, char *ctrlr_str, uint32_t *nsid)
+get_nsid(int fd, char **ctrlr_str, uint32_t *nsid)
 {
-	char	*nsloc;
+	struct nvme_get_nsid gnsid;
 
-	/*
-	 * Pull the namespace id from the string. +2 skips past the "ns" part
-	 *  of the string.  Don't search past 10 characters into the string,
-	 *  otherwise we know it is malformed.
-	 */
-	nsloc = strnstr(ns_str, NVME_NS_PREFIX, 10);
-	if (nsloc != NULL)
-		*nsid = strtol(nsloc + 2, NULL, 10);
-	if (nsloc == NULL || (*nsid == 0 && errno != 0))
-		errx(1, "invalid namespace ID '%s'", ns_str);
-
-	/*
-	 * The controller string will include only the nvmX part of the
-	 *  nvmeXnsY string.
-	 */
-	snprintf(ctrlr_str, nsloc - ns_str + 1, "%s", ns_str);
+	if (ioctl(fd, NVME_GET_NSID, &gnsid) < 0)
+		err(1, "NVME_GET_NSID ioctl failed");
+	if (ctrlr_str != NULL)
+		*ctrlr_str = strndup(gnsid.cdev, sizeof(gnsid.cdev));
+	if (nsid != NULL)
+		*nsid = gnsid.nsid;
 }
 
 int

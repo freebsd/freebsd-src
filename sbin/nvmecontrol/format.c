@@ -1,8 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (C) 2018 Alexander Motin <mav@FreeBSD.org>
- * All rights reserved.
+ * Copyright (C) 2018-2019 Alexander Motin <mav@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -117,7 +116,7 @@ format(const struct cmd *f, int argc, char *argv[])
 	struct nvme_controller_data	cd;
 	struct nvme_namespace_data	nsd;
 	struct nvme_pt_command		pt;
-	char				path[64];
+	char				*path;
 	const char			*target;
 	uint32_t			nsid;
 	int				lbaf, ms, pi, pil, ses, fd;
@@ -143,18 +142,9 @@ format(const struct cmd *f, int argc, char *argv[])
 	else
 		ses = opt.ses;
 
-	/*
-	 * Check if the specified device node exists before continuing.
-	 * This is a cleaner check for cases where the correct controller
-	 * is specified, but an invalid namespace on that controller.
-	 */
 	open_dev(target, &fd, 1, 1);
-
-	/*
-	 * If device node contains "ns", we consider it a namespace,
-	 * otherwise, consider it a controller.
-	 */
-	if (strstr(target, NVME_NS_PREFIX) == NULL) {
+	get_nsid(fd, &path, &nsid);
+	if (nsid == 0) {
 		nsid = NVME_GLOBAL_NAMESPACE_TAG;
 	} else {
 		/*
@@ -164,9 +154,9 @@ format(const struct cmd *f, int argc, char *argv[])
 		 * string to get the controller substring and namespace ID.
 		 */
 		close(fd);
-		parse_ns_str(target, path, &nsid);
 		open_dev(path, &fd, 1, 1);
 	}
+	free(path);
 
 	/* Check that controller can execute this command. */
 	read_controller_data(fd, &cd);
