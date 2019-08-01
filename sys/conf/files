@@ -273,16 +273,7 @@ cddl/contrib/opensolaris/uts/common/os/callb.c				optional zfs compile-with "${Z
 cddl/contrib/opensolaris/uts/common/os/fm.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/os/list.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/os/nvpair_alloc_system.c		optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/zmod/adler32.c			optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/zmod/deflate.c			optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/zmod/inffast.c			optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/zmod/inflate.c			optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/zmod/inftrees.c			optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/zmod/opensolaris_crc32.c		optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/zmod/trees.c			optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/zmod/zmod.c				optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/zmod/zmod_subr.c			optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/zmod/zmod.c				optional zfs compile-with "${ZFS_C} ${ZLIB_CFLAGS}"
 # zfs lua support
 cddl/contrib/opensolaris/uts/common/fs/zfs/lua/lapi.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/lua/lauxlib.c		optional zfs compile-with "${ZFS_C}"
@@ -4005,6 +3996,36 @@ libkern/strvalid.c		standard
 libkern/timingsafe_bcmp.c	standard
 libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
 	ipsec_support | mxge | netgraph_deflate | ddb_ctf | gzio
+contrib/zlib/adler32.c	optional crypto | geom_uzip | ipsec | \
+	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+	compile-with "${ZLIB_C}"
+contrib/zlib/crc32.c	optional crypto | geom_uzip | ipsec | \
+	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+	compile-with "${ZLIB_C} -Wno-cast-qual"
+contrib/zlib/deflate.c	optional crypto | geom_uzip | ipsec | \
+	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+	compile-with "${ZLIB_C} -Wno-cast-qual"
+contrib/zlib/inffast.c	optional crypto | geom_uzip | ipsec | \
+	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+	compile-with "${ZLIB_C}"
+contrib/zlib/inflate.c	optional crypto | geom_uzip | ipsec | \
+	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+	compile-with "${ZLIB_C}"
+contrib/zlib/inftrees.c	optional crypto | geom_uzip | ipsec | \
+	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+	compile-with "${ZLIB_C}"
+contrib/zlib/trees.c		optional crypto | geom_uzip | ipsec | \
+	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+	compile-with "${ZLIB_C}"
+contrib/zlib/zutil.c		optional crypto | geom_uzip | ipsec | \
+	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+	compile-with "${ZLIB_C}"
+dev/zlib/zlib_mod.c		optional crypto | geom_uzip | ipsec | \
+	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+	compile-with "${ZLIB_C}"
+dev/zlib/zcalloc.c		optional crypto | geom_uzip | ipsec | \
+	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+	compile-with "${ZLIB_C}"
 net/altq/altq_cbq.c		optional altq
 net/altq/altq_codel.c		optional altq
 net/altq/altq_hfsc.c		optional altq
@@ -4756,7 +4777,8 @@ opencrypto/crypto.c		optional crypto | ipsec | ipsec_support
 opencrypto/cryptodev.c		optional cryptodev
 opencrypto/cryptodev_if.m	optional crypto | ipsec | ipsec_support
 opencrypto/cryptosoft.c		optional crypto | ipsec | ipsec_support
-opencrypto/cryptodeflate.c	optional crypto | ipsec | ipsec_support
+opencrypto/cryptodeflate.c	optional crypto | ipsec | ipsec_support \
+	compile-with "${ZLIB_C}"
 opencrypto/gmac.c		optional crypto | ipsec | ipsec_support
 opencrypto/gfmult.c		optional crypto | ipsec | ipsec_support
 opencrypto/rmd160.c		optional crypto | ipsec | ipsec_support

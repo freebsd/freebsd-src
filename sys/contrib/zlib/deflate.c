@@ -189,9 +189,10 @@ local const config configuration_table[10] = {
  * Initialize the hash table (avoiding 64K overflow for 16 bit systems).
  * prev[] will be initialized on the fly.
  */
-#define CLEAR_HASH(s) \
+#define CLEAR_HASH(s) do { \
     s->head[s->hash_size-1] = NIL; \
-    zmemzero((Bytef *)s->head, (unsigned)(s->hash_size-1)*sizeof(*s->head));
+    zmemzero((Bytef *)s->head, (unsigned)(s->hash_size-1)*sizeof(*s->head)); \
+    } while (0)
 
 /* ===========================================================================
  * Slide the hash table when sliding the window down (could be avoided with 32
@@ -1622,8 +1623,10 @@ local void fill_window(s)
 /* Maximum stored block length in deflate format (not including header). */
 #define MAX_STORED 65535
 
+#if !defined(MIN)
 /* Minimum of a and b. */
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
+#endif
 
 /* ===========================================================================
  * Copy without compression as much as possible from the input stream, return

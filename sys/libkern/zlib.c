@@ -25,14 +25,14 @@
 #define MY_ZCALLOC
 
 #if defined(__FreeBSD__) && defined(_KERNEL)
-#define	_tr_init		_zlib104_tr_init
-#define	_tr_align		_zlib104_tr_align
-#define	_tr_tally		_zlib104_tr_tally
-#define	_tr_flush_block		_zlib104_tr_flush_block
-#define	_tr_stored_block	_zlib104_tr_stored_block
-#define	inflate_fast		_zlib104_inflate_fast
-#define	inflate			_zlib104_inflate
-#define	zlibVersion		_zlib104_Version
+#define	_tr_init		zlib104_tr_init
+#define	_tr_align		zlib104_tr_align
+#define	_tr_tally		zlib104_tr_tally
+#define	_tr_flush_block		zlib104_tr_flush_block
+#define	_tr_stored_block	zlib104_tr_stored_block
+#define	inflate_fast		zlib104_inflate_fast
+#define	inflate			zlib104_inflate
+#define	zlibVersion		zlib104_Version
 #endif
 
 
@@ -65,8 +65,6 @@
 #include <sys/time.h>
 #include <sys/systm.h>
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #  define HAVE_MEMCPY
 
 #else
@@ -602,7 +600,6 @@ void _tr_stored_type_only OF((deflate_state *));
 
 /* #include "deflate.h" */
 
-char deflate_copyright[] = " deflate 1.0.4 Copyright 1995-1996 Jean-loup Gailly ";
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -4109,7 +4106,6 @@ int inflate_packet_flush(s)
 /* #include "zutil.h" */
 /* #include "inftrees.h" */
 
-char inflate_copyright[] = " inflate 1.0.4 Copyright 1995-1996 Mark Adler ";
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -5390,25 +5386,3 @@ uLong adler32(adler, buf, len)
     return (s2 << 16) | s1;
 }
 /* --- adler32.c */
-
-#ifdef _KERNEL
-static int
-zlib_modevent(module_t mod, int type, void *unused)
-{
-	switch (type) {
-	case MOD_LOAD:
-		return 0;
-	case MOD_UNLOAD:
-		return 0;
-	}
-	return EINVAL;
-}
-
-static moduledata_t zlib_mod = {
-	"zlib",
-	zlib_modevent,
-	0
-};
-DECLARE_MODULE(zlib, zlib_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
-MODULE_VERSION(zlib, 1);
-#endif /* _KERNEL */
