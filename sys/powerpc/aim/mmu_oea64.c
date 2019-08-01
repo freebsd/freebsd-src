@@ -2364,9 +2364,9 @@ void
 moea64_remove_pages(mmu_t mmu, pmap_t pm)
 {
 	struct pvo_entry *pvo, *tpvo;
-	struct pvo_tree tofree;
+	struct pvo_dlist tofree;
 
-	RB_INIT(&tofree);
+	SLIST_INIT(&tofree);
 
 	PMAP_LOCK(pm);
 	RB_FOREACH_SAFE(pvo, pvo_tree, &pm->pmap_pvo, tpvo) {
@@ -2379,13 +2379,14 @@ moea64_remove_pages(mmu_t mmu, pmap_t pm)
 		 * pass
 		 */
 		moea64_pvo_remove_from_pmap(mmu, pvo);
-		RB_INSERT(pvo_tree, &tofree, pvo);
+		SLIST_INSERT_HEAD(&tofree, pvo, pvo_dlink);
 	}
 	PMAP_UNLOCK(pm);
 
-	RB_FOREACH_SAFE(pvo, pvo_tree, &tofree, tpvo) {
+	while (!SLIST_EMPTY(&tofree)) {
+		pvo = SLIST_FIRST(&tofree);
+		SLIST_REMOVE_HEAD(&tofree, pvo_dlink);
 		moea64_pvo_remove_from_page(mmu, pvo);
-		RB_REMOVE(pvo_tree, &tofree, pvo);
 		free_pvo_entry(pvo);
 	}
 }
@@ -2397,7 +2398,7 @@ void
 moea64_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
 	struct  pvo_entry *pvo, *tpvo, key;
-	struct pvo_tree tofree;
+	struct pvo_dlist tofree;
 
 	/*
 	 * Perform an unsynchronized read.  This is, however, safe.
@@ -2407,7 +2408,7 @@ moea64_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 
 	key.pvo_vaddr = sva;
 
-	RB_INIT(&tofree);
+	SLIST_INIT(&tofree);
 
 	PMAP_LOCK(pm);
 	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
@@ -2420,13 +2421,14 @@ moea64_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 		 * pass
 		 */
 		moea64_pvo_remove_from_pmap(mmu, pvo);
-		RB_INSERT(pvo_tree, &tofree, pvo);
+		SLIST_INSERT_HEAD(&tofree, pvo, pvo_dlink);
 	}
 	PMAP_UNLOCK(pm);
 
-	RB_FOREACH_SAFE(pvo, pvo_tree, &tofree, tpvo) {
+	while (!SLIST_EMPTY(&tofree)) {
+		pvo = SLIST_FIRST(&tofree);
+		SLIST_REMOVE_HEAD(&tofree, pvo_dlink);
 		moea64_pvo_remove_from_page(mmu, pvo);
-		RB_REMOVE(pvo_tree, &tofree, pvo);
 		free_pvo_entry(pvo);
 	}
 }
