@@ -90,7 +90,10 @@ struct pvo_entry {
 #ifndef __powerpc64__
 	LIST_ENTRY(pvo_entry) pvo_olink;	/* Link to overflow entry */
 #endif
-	RB_ENTRY(pvo_entry) pvo_plink;	/* Link to pmap entries */
+	union {
+		RB_ENTRY(pvo_entry) pvo_plink;	/* Link to pmap entries */
+		SLIST_ENTRY(pvo_entry) pvo_dlink; /* Link to delete enty */
+	};
 	struct {
 #ifndef __powerpc64__
 		/* 32-bit fields */
@@ -106,6 +109,7 @@ struct pvo_entry {
 	uint64_t	pvo_vpn;		/* Virtual page number */
 };
 LIST_HEAD(pvo_head, pvo_entry);
+SLIST_HEAD(pvo_dlist, pvo_entry);
 RB_HEAD(pvo_tree, pvo_entry);
 int pvo_vaddr_compare(struct pvo_entry *, struct pvo_entry *);
 RB_PROTOTYPE(pvo_tree, pvo_entry, pvo_plink, pvo_vaddr_compare);
