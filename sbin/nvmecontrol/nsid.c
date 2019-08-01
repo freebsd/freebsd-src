@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 /* Tables for command line parsing */
 
-static cmd_fn_t nsid;
+static cmd_fn_t gnsid;
 
 static struct nsid_options {
 	const char	*dev;
@@ -54,7 +54,7 @@ static const struct args nsid_args[] = {
 
 static struct cmd nsid_cmd = {
 	.name = "nsid",
-	.fn = nsid,
+	.fn = gnsid,
 	.descr = "Get controller and NSID for namespace",
 	.ctx_size = sizeof(nsid_opt),
 	.opts = NULL,
@@ -64,7 +64,7 @@ static struct cmd nsid_cmd = {
 CMD_COMMAND(nsid_cmd);
 
 static void
-nsid(const struct cmd *f, int argc, char *argv[])
+gnsid(const struct cmd *f, int argc, char *argv[])
 {
 	char		*path;
 	int		fd;
