@@ -233,6 +233,10 @@ if [ -n "$git_cmd" ] ; then
 			git=" ${git}"
 		fi
 	fi
+	git_cnt=$($git_cmd rev-list --count HEAD 2>/dev/null)
+	if [ -n "$git_cnt" ] ; then
+		git="${git}-c${git_cnt}"
+	fi
 	git_b=`$git_cmd rev-parse --abbrev-ref HEAD`
 	if [ -n "$git_b" ] ; then
 		git="${git}(${git_b})"
