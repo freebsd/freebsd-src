@@ -322,11 +322,13 @@ static void dump_mips_specific_info(struct readelf *re);
 static void dump_notes(struct readelf *re);
 static void dump_notes_content(struct readelf *re, const char *buf, size_t sz,
     off_t off);
-static void dump_notes_data(const char *name, uint32_t type, const char *buf,
-    size_t sz);
+static void dump_notes_data(struct readelf *re, const char *name,
+    uint32_t type, const char *buf, size_t sz);
 static void dump_svr4_hash(struct section *s);
 static void dump_svr4_hash64(struct readelf *re, struct section *s);
 static void dump_gnu_hash(struct readelf *re, struct section *s);
+static void dump_gnu_property_type_0(struct readelf *re, const char *buf,
+    size_t sz);
 static void dump_hash(struct readelf *re);
 static void dump_phdr(struct readelf *re);
 static void dump_ppc_attributes(uint8_t *p, uint8_t *pe);
@@ -3517,6 +3519,62 @@ dump_gnu_hash(struct readelf *re, struct section *s)
 	free(bl);
 }
 
+static struct flag_desc gnu_property_x86_feature_1_and_bits[] = {
+	{ GNU_PROPERTY_X86_FEATURE_1_IBT,	"IBT" },
+	{ GNU_PROPERTY_X86_FEATURE_1_SHSTK,	"SHSTK" },
+	{ 0, NULL }
+};
+
+static void
+dump_gnu_property_type_0(struct readelf *re, const char *buf, size_t sz)
+{
+	size_t i;
+	uint32_t type, prop_sz;
+
+	printf("      Properties: ");
+	while (sz > 0) {
+		if (sz < 8)
+			goto bad;
+
+		type = *(const uint32_t *)(const void *)buf;
+		prop_sz = *(const uint32_t *)(const void *)(buf + 4);
+		buf += 8;
+		sz -= 8;
+
+		if (prop_sz > sz)
+			goto bad;
+
+		if (type >= GNU_PROPERTY_LOPROC &&
+		    type <= GNU_PROPERTY_HIPROC) {
+			if (re->ehdr.e_machine != EM_X86_64) {
+				printf("machine type %x unknown\n",
+				    re->ehdr.e_machine);
+				goto unknown;
+			}
+			switch (type) {
+			case GNU_PROPERTY_X86_FEATURE_1_AND:
+				printf("x86 features:");
+				if (prop_sz != 4)
+					goto bad;
+				dump_flags(gnu_property_x86_feature_1_and_bits,
+				    *(const uint32_t *)(const void *)buf);
+				break;
+			}
+		}
+
+		buf += roundup2(prop_sz, 8);
+		sz -= roundup2(prop_sz, 8);
+	}
+	return;
+bad:
+	printf("corrupt GNU property\n");
+unknown:
+	printf("remaining description data:");
+	for (i = 0; i < sz; i++)
+		printf(" %02x", (unsigned char)buf[i]);
+	printf("\n");
+}
+
 static void
 dump_hash(struct readelf *re)
 {
@@ -3608,7 +3666,8 @@ static struct flag_desc note_feature_ctl_flags[] = {
 };
 
 static void
-dump_notes_data(const char *name, uint32_t type, const char *buf, size_t sz)
+dump_notes_data(struct readelf *re, const char *name, uint32_t type,
+    const char *buf, size_t sz)
 {
 	size_t i;
 	const uint32_t *ubuf;
@@ -3638,6 +3697,12 @@ dump_notes_data(const char *name, uint32_t type, const char *buf, size_t sz)
 				goto unknown;
 			printf("   Features:");
 			dump_flags(note_feature_ctl_flags, ubuf[0]);
+			return;
+		}
+	} else if (strcmp(name, "GNU") == 0) {
+		switch (type) {
+		case NT_GNU_PROPERTY_TYPE_0:
+			dump_gnu_property_type_0(re, buf, sz);
 			return;
 		}
 	}
@@ -3684,7 +3749,7 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 		printf("  %-13s %#010jx", name, (uintmax_t) note->n_descsz);
 		printf("      %s\n", note_type(name, re->ehdr.e_type,
 		    note->n_type));
-		dump_notes_data(name, note->n_type, buf, note->n_descsz);
+		dump_notes_data(re, name, note->n_type, buf, note->n_descsz);
 		buf += roundup2(note->n_descsz, 4);
 	}
 }
