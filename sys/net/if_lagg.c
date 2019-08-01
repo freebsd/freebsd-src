@@ -144,6 +144,8 @@ static int	lagg_snd_tag_modify(struct m_snd_tag *,
 static int	lagg_snd_tag_query(struct m_snd_tag *,
 		    union if_snd_tag_query_params *);
 static void	lagg_snd_tag_free(struct m_snd_tag *);
+static void     lagg_ratelimit_query(struct ifnet *,
+		    struct if_ratelimit_query_results *);
 #endif
 static int	lagg_setmulti(struct lagg_port *);
 static int	lagg_clrmulti(struct lagg_port *);
@@ -537,6 +539,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_snd_tag_modify = lagg_snd_tag_modify;
 	ifp->if_snd_tag_query = lagg_snd_tag_query;
 	ifp->if_snd_tag_free = lagg_snd_tag_free;
+	ifp->if_ratelimit_query = lagg_ratelimit_query;
 #endif
 	ifp->if_capenable = ifp->if_capabilities = IFCAP_HWSTATS;
 
@@ -1670,6 +1673,20 @@ lagg_snd_tag_free(struct m_snd_tag *mst)
 	free(lst, M_LAGG);
 }
 
+static void
+lagg_ratelimit_query(struct ifnet *ifp __unused, struct if_ratelimit_query_results *q)
+{
+	/*
+	 * For lagg, we have an indirect
+	 * interface. The caller needs to
+	 * get a ratelimit tag on the actual
+	 * interface the flow will go on.
+	 */
+	q->rate_table = NULL;
+	q->flags = RT_IS_INDIRECT;
+	q->max_flows = 0;
+	q->number_of_rates = 0;
+}
 #endif
 
 static int

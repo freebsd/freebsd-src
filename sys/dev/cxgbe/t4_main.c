@@ -1658,6 +1658,7 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	ifp->if_snd_tag_modify = cxgbe_snd_tag_modify;
 	ifp->if_snd_tag_query = cxgbe_snd_tag_query;
 	ifp->if_snd_tag_free = cxgbe_snd_tag_free;
+	ifp->if_ratelimit_query = cxgbe_ratelimit_query;
 #endif
 
 	ifp->if_capabilities = T4_CAP;
