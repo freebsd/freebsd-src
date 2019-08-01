@@ -203,6 +203,8 @@ struct if_snd_tag_alloc_header {
 struct if_snd_tag_alloc_rate_limit {
 	struct if_snd_tag_alloc_header hdr;
 	uint64_t max_rate;	/* in bytes/s */
+	uint32_t flags;		/* M_NOWAIT or M_WAITOK */
+	uint32_t reserved;	/* alignment */
 };
 
 struct if_snd_tag_rate_limit_params {
@@ -210,7 +212,7 @@ struct if_snd_tag_rate_limit_params {
 	uint32_t queue_level;	/* 0 (empty) .. 65535 (full) */
 #define	IF_SND_QUEUE_LEVEL_MIN 0
 #define	IF_SND_QUEUE_LEVEL_MAX 65535
-	uint32_t reserved;	/* padding */
+	uint32_t flags;		/* M_NOWAIT or M_WAITOK */
 };
 
 union if_snd_tag_alloc_params {
@@ -229,11 +231,37 @@ union if_snd_tag_query_params {
 	struct if_snd_tag_rate_limit_params unlimited;
 };
 
+/* Query return flags */
+#define RT_NOSUPPORT	  0x00000000	/* Not supported */
+#define RT_IS_INDIRECT    0x00000001	/*
+					 * Interface like a lagg, select
+					 * the actual interface for
+					 * capabilities.
+					 */
+#define RT_IS_SELECTABLE  0x00000002	/*
+					 * No rate table, you select
+					 * rates and the first
+					 * number_of_rates are created.
+					 */
+#define RT_IS_FIXED_TABLE 0x00000004	/* A fixed table is attached */
+#define RT_IS_UNUSABLE	  0x00000008	/* It is not usable for this */
+
+struct if_ratelimit_query_results {
+	const uint64_t *rate_table;	/* Pointer to table if present */
+	uint32_t flags;			/* Flags indicating results */
+	uint32_t max_flows;		/* Max flows using, 0=unlimited */
+	uint32_t number_of_rates;	/* How many unique rates can be created */
+	uint32_t min_segment_burst;	/* The amount the adapter bursts at each send */
+};
+
 typedef int (if_snd_tag_alloc_t)(struct ifnet *, union if_snd_tag_alloc_params *,
     struct m_snd_tag **);
 typedef int (if_snd_tag_modify_t)(struct m_snd_tag *, union if_snd_tag_modify_params *);
 typedef int (if_snd_tag_query_t)(struct m_snd_tag *, union if_snd_tag_query_params *);
 typedef void (if_snd_tag_free_t)(struct m_snd_tag *);
+typedef void (if_ratelimit_query_t)(struct ifnet *,
+    struct if_ratelimit_query_results *);
+
 
 /*
  * Structure defining a network interface.
@@ -374,6 +402,7 @@ struct ifnet {
 	if_snd_tag_modify_t *if_snd_tag_modify;
 	if_snd_tag_query_t *if_snd_tag_query;
 	if_snd_tag_free_t *if_snd_tag_free;
+	if_ratelimit_query_t *if_ratelimit_query;
 
 	/* Ethernet PCP */
 	uint8_t if_pcp;
