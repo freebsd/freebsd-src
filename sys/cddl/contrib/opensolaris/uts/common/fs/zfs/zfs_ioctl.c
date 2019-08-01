@@ -7172,3 +7172,4 @@ MODULE_VERSION(zfsctrl, 1);
 MODULE_DEPEND(zfsctrl, opensolaris, 1, 1, 1);
 MODULE_DEPEND(zfsctrl, krpc, 1, 1, 1);
 MODULE_DEPEND(zfsctrl, acl_nfs4, 1, 1, 1);
+MODULE_DEPEND(zfsctrl, zlib, 1, 1, 1);
