@@ -3296,11 +3296,13 @@ in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
 	} else {
 		error = ifp->if_snd_tag_alloc(ifp, &params, &inp->inp_snd_tag);
 
+#ifdef INET
 		if (error == 0) {
 			counter_u64_add(rate_limit_set_ok, 1);
 			counter_u64_add(rate_limit_active, 1);
 		} else
 			counter_u64_add(rate_limit_alloc_fail, 1);
+#endif
 	}
 	return (error);
 }
@@ -3320,7 +3322,9 @@ in_pcbdetach_tag(struct ifnet *ifp, struct m_snd_tag *mst)
 
 	/* release reference count on network interface */
 	if_rele(ifp);
+#ifdef INET
 	counter_u64_add(rate_limit_active, -1);
+#endif
 }
 
 /*
@@ -3479,6 +3483,7 @@ in_pcboutput_eagain(struct inpcb *inp)
 		INP_DOWNGRADE(inp);
 }
 
+#ifdef INET
 static void
 rl_init(void *st)
 {
@@ -3488,4 +3493,5 @@ rl_init(void *st)
 }
 
 SYSINIT(rl, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, rl_init, NULL);
+#endif
 #endif /* RATELIMIT */
