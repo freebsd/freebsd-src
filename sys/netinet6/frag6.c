@@ -282,10 +282,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	struct ip6_direct_ctx *ip6dc;
 #endif
 
-#if 0
-	char ip6buf[INET6_ADDRSTRLEN];
-#endif
-
 	ip6 = mtod(m, struct ip6_hdr *);
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, offset, sizeof(struct ip6_frag), IPPROTO_DONE);
@@ -547,42 +543,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		if (af6->ip6af_off > ip6af->ip6af_off)
 			break;
 
-#if 0
-	/*
-	 * If there is a preceding segment, it may provide some of
-	 * our data already.  If so, drop the data from the incoming
-	 * segment.  If it provides all of our data, drop us.
-	 */
-	if (af6->ip6af_up != (struct ip6asfrag *)q6) {
-		i = af6->ip6af_up->ip6af_off + af6->ip6af_up->ip6af_frglen
-			- ip6af->ip6af_off;
-		if (i > 0) {
-			if (i >= ip6af->ip6af_frglen)
-				goto dropfrag;
-			m_adj(IP6_REASS_MBUF(ip6af), i);
-			ip6af->ip6af_off += i;
-			ip6af->ip6af_frglen -= i;
-		}
-	}
-
-	/*
-	 * While we overlap succeeding segments trim them or,
-	 * if they are completely covered, dequeue them.
-	 */
-	while (af6 != (struct ip6asfrag *)q6 &&
-	       ip6af->ip6af_off + ip6af->ip6af_frglen > af6->ip6af_off) {
-		i = (ip6af->ip6af_off + ip6af->ip6af_frglen) - af6->ip6af_off;
-		if (i < af6->ip6af_frglen) {
-			af6->ip6af_frglen -= i;
-			af6->ip6af_off += i;
-			m_adj(IP6_REASS_MBUF(af6), i);
-			break;
-		}
-		af6 = af6->ip6af_down;
-		m_freem(IP6_REASS_MBUF(af6->ip6af_up));
-		frag6_deq(af6->ip6af_up, hash);
-	}
-#else
 	/*
 	 * If the incoming framgent overlaps some existing fragments in
 	 * the reassembly queue, drop it, since it is dangerous to override
@@ -597,11 +557,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		i = af6->ip6af_up->ip6af_off + af6->ip6af_up->ip6af_frglen
 			- ip6af->ip6af_off;
 		if (i > 0) {
-#if 0				/* suppress the noisy log */
-			log(LOG_ERR, "%d bytes of a fragment from %s "
-			    "overlaps the previous fragment\n",
-			    i, ip6_sprintf(ip6buf, &q6->ip6q_src));
-#endif
 			free(ip6af, M_FTABLE);
 			goto dropfrag;
 		}
@@ -609,16 +564,10 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	if (af6 != (struct ip6asfrag *)q6) {
 		i = (ip6af->ip6af_off + ip6af->ip6af_frglen) - af6->ip6af_off;
 		if (i > 0) {
-#if 0				/* suppress the noisy log */
-			log(LOG_ERR, "%d bytes of a fragment from %s "
-			    "overlaps the succeeding fragment",
-			    i, ip6_sprintf(ip6buf, &q6->ip6q_src));
-#endif
 			free(ip6af, M_FTABLE);
 			goto dropfrag;
 		}
 	}
-#endif
 
 insert:
 #ifdef MAC
@@ -636,12 +585,6 @@ insert:
 	frag6_enq(ip6af, af6->ip6af_up, hash);
 	atomic_add_int(&frag6_nfrags, 1);
 	q6->ip6q_nfrag++;
-#if 0 /* xxx */
-	if (q6 != head->ip6q_next) {
-		frag6_remque(q6, hash);
-		frag6_insque_head(q6, head, hash);
-	}
-#endif
 	next = 0;
 	for (af6 = q6->ip6q_down; af6 != (struct ip6asfrag *)q6;
 	     af6 = af6->ip6af_down) {
@@ -700,9 +643,6 @@ insert:
 	if (q6->ip6q_ecn == IPTOS_ECN_CE)
 		ip6->ip6_flow |= htonl(IPTOS_ECN_CE << 20);
 	nxt = q6->ip6q_nxt;
-#ifdef notyet
-	*q6->ip6q_nxtp = (u_char)(nxt & 0xff);
-#endif
 
 	if (ip6_deletefraghdr(m, offset, M_NOWAIT) != 0) {
 		frag6_remque(q6, hash);
