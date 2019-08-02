@@ -570,6 +570,9 @@ is_log_page_id_valid(uint8_t page_id)
 	case NVME_LOG_HEALTH_INFORMATION:
 	case NVME_LOG_FIRMWARE_SLOT:
 	case NVME_LOG_CHANGED_NAMESPACE:
+	case NVME_LOG_COMMAND_EFFECT:
+	case NVME_LOG_RES_NOTIFICATION:
+	case NVME_LOG_SANITIZE_STATUS:
 		return (TRUE);
 	}
 
@@ -595,6 +598,15 @@ nvme_ctrlr_get_log_page_size(struct nvme_controller *ctrlr, uint8_t page_id)
 		break;
 	case NVME_LOG_CHANGED_NAMESPACE:
 		log_page_size = sizeof(struct nvme_ns_list);
+		break;
+	case NVME_LOG_COMMAND_EFFECT:
+		log_page_size = sizeof(struct nvme_command_effects_page);
+		break;
+	case NVME_LOG_RES_NOTIFICATION:
+		log_page_size = sizeof(struct nvme_res_notification_page);
+		break;
+	case NVME_LOG_SANITIZE_STATUS:
+		log_page_size = sizeof(struct nvme_sanitize_status_page);
 		break;
 	default:
 		log_page_size = 0;
@@ -665,6 +677,18 @@ nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
 		case NVME_LOG_CHANGED_NAMESPACE:
 			nvme_ns_list_swapbytes(
 			    (struct nvme_ns_list *)aer->log_page_buffer);
+			break;
+		case NVME_LOG_COMMAND_EFFECT:
+			nvme_command_effects_page_swapbytes(
+			    (struct nvme_command_effects_page *)aer->log_page_buffer);
+			break;
+		case NVME_LOG_RES_NOTIFICATION:
+			nvme_res_notification_page_swapbytes(
+			    (struct nvme_res_notification_page *)aer->log_page_buffer);
+			break;
+		case NVME_LOG_SANITIZE_STATUS:
+			nvme_sanitize_status_page_swapbytes(
+			    (struct nvme_sanitize_status_page *)aer->log_page_buffer);
 			break;
 		case INTEL_LOG_TEMP_STATS:
 			intel_log_temp_stats_swapbytes(
