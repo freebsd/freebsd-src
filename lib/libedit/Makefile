@@ -31,7 +31,7 @@ MLINKS=	editline.3 el_deletestr.3 editline.3 el_end.3 editline.3 el_init.3 \
 # For speed and debugging
 #SRCS=   ${OSRCS} readline.c tokenizer.c history.c
 # For protection
-SRCS=  readline.c tokenizer.c history.c
+SRCS=  ${OSRCS} readline.c tokenizer.c history.c
 SRCS+=	common.h emacs.h fcns.h func.h help.h vi.h
 
 # Widechar
@@ -39,7 +39,7 @@ SRCS+=	tokenizern.c historyn.c
 
 INCS=	histedit.h
 
-CLEANFILES+= common.h editline.c emacs.h fcns.c fcns.h help.c help.h vi.h
+CLEANFILES+= common.h emacs.h fcns.c fcns.h help.h vi.h
 CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit
 #CFLAGS+= -DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
 #CFLAGS+= -DDEBUG_PASTE -DDEBUG_EDIT
