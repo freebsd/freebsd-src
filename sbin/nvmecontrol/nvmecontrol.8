@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2019
+.Dd August 2, 2019
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -66,6 +66,9 @@
 .Op Fl x
 .Op Fl v Ar vendor-string
 .Op Fl b
+.Op Fl f Ar LSP
+.Op Fl i Ar LSI
+.Op Fl r
 .Aq device id
 .Aq namespace id
 .Nm
@@ -172,6 +175,14 @@ Drive Error Log
 Health/SMART Data
 .It Dv Page 0x03
 Firmware Information
+.It Dv Page 0x04
+Changed Namespace List
+.It Dv Page 0x05
+Commands Supported and Effects
+.It Dv Page 0x80
+Reservation Notification
+.It Dv Page 0x81
+Sanitize Status
 .It Dv Page 0xc1
 Advanced SMART information (WDC/HGST)
 .It Dv Page 0xc1
@@ -185,13 +196,19 @@ Advanced SMART information (Intel)
 .El
 .Pp
 Specifying
-.Fl p
+.Fl v
 .Ic help
 will list all valid vendors and pages.
 .Fl x
 will print the page as hex.
 .Fl b
 will print the binary data for the page.
+.Fl s
+will set Log Specific Field.
+.Fl i
+will set Log Specific Identifier.
+.Fl r
+will set Retain Asynchronous Event.
 .Ss ns
 Various namespace management commands.
 If namespace management is supported by device, allow list, create and delete
