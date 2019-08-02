@@ -384,10 +384,6 @@ VNET_DEFINE(int, ip6_accept_rtadv) = 0;
 VNET_DEFINE(int, ip6_no_radr) = 0;
 VNET_DEFINE(int, ip6_norbit_raif) = 0;
 VNET_DEFINE(int, ip6_rfc6204w3) = 0;
-VNET_DEFINE(int, ip6_maxfragpackets);	/* initialized in frag6.c:frag6_init() */
-int ip6_maxfrags;		/* initialized in frag6.c:frag6_init() */
-VNET_DEFINE(int, ip6_maxfragbucketsize);/* initialized in frag6.c:frag6_init() */
-VNET_DEFINE(int, ip6_maxfragsperpacket); /* initialized in frag6.c:frag6_init() */
 VNET_DEFINE(int, ip6_log_interval) = 5;
 VNET_DEFINE(int, ip6_hdrnestlimit) = 15;/* How many header options will we
 					 * process? */
@@ -474,20 +470,6 @@ sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-sysctl_ip6_maxfragpackets(SYSCTL_HANDLER_ARGS)
-{
-	int error, val;
-
-	val = V_ip6_maxfragpackets;
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error != 0 || !req->newptr)
-		return (error);
-	V_ip6_maxfragpackets = val;
-	frag6_set_bucketsize();
-	return (0);
-}
-
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_FORWARDING, forwarding,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_forwarding), 0,
 	"Enable forwarding of IPv6 packets between interfaces");
@@ -500,12 +482,6 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_DEFHLIM, hlim,
 SYSCTL_VNET_PCPUSTAT(_net_inet6_ip6, IPV6CTL_STATS, stats, struct ip6stat,
 	ip6stat,
 	"IP6 statistics (struct ip6stat, netinet6/ip6_var.h)");
-SYSCTL_PROC(_net_inet6_ip6, IPV6CTL_MAXFRAGPACKETS, maxfragpackets,
-	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
-	sysctl_ip6_maxfragpackets, "I",
-	"Default maximum number of outstanding fragmented IPv6 packets. "
-	"A value of 0 means no fragmented packets will be accepted, while a "
-	"a value of -1 means no limit");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_ACCEPT_RTADV, accept_rtadv,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_accept_rtadv), 0,
 	"Default value of per-interface flag for accepting ICMPv6 RA messages");
@@ -575,17 +551,6 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_PREFER_TEMPADDR, prefer_tempaddr,
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USE_DEFAULTZONE, use_defaultzone,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_use_defzone), 0,
 	"Use the default scope zone when none is specified");
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS, maxfrags,
-	CTLFLAG_RW, &ip6_maxfrags, 0,
-	"Maximum allowed number of outstanding IPv6 packet fragments. "
-	"A value of 0 means no fragmented packets will be accepted, while a "
-	"a value of -1 means no limit");
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGBUCKETSIZE, maxfragbucketsize,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfragbucketsize), 0,
-	"Maximum number of reassembly queues per hash bucket");
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGSPERPACKET, maxfragsperpacket,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfragsperpacket), 0,
-	"Maximum allowed number of fragments per packet");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MCAST_PMTU, mcast_pmtu,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_mcast_pmtu), 0,
 	"Enable path MTU discovery for multicast packets");
