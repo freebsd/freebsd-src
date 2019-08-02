@@ -4,7 +4,7 @@
 
 PACKAGE=clibs
 
-SHLIB_MAJOR=	7
+SHLIB_MAJOR=	8
 SHLIBDIR?= /lib
 
 WARNS?=	3
