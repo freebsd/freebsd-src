@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: parse.c,v 1.42 2019/07/23 10:18:52 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * parse.c: parse an editline extended command

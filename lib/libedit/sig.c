@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)sig.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: sig.c,v 1.26 2016/05/09 21:46:56 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * sig.c: Signal handling stuff.

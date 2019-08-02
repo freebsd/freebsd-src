@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: read.c,v 1.106 2019/07/23 10:18:52 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * read.c: Terminal read functions

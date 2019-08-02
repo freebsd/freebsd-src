@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: tty.c,v 1.68 2018/12/02 16:58:13 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * tty.c: tty interface stuff

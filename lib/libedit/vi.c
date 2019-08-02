@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)vi.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: vi.c,v 1.63 2019/07/23 10:18:52 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * vi.c: Vi mode commands.

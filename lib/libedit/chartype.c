@@ -33,6 +33,8 @@
 #if !defined(lint) && !defined(SCCSID)
 __RCSID("$NetBSD: chartype.c,v 1.35 2019/07/23 10:18:52 christos Exp $");
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <limits.h>

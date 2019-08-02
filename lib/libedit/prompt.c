@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)prompt.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: prompt.c,v 1.27 2017/06/27 23:25:13 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * prompt.c: Prompt printing functions

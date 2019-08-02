@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: map.c,v 1.52 2019/07/23 10:18:52 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * map.c: Editor function definitions

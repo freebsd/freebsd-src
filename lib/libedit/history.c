@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)history.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: history.c,v 1.62 2018/09/13 09:03:40 kre Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * hist.c: TYPE(History) access functions

@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 __RCSID("$NetBSD: terminal.c,v 1.39 2019/07/23 10:18:52 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * terminal.c: Editor/termcap-curses interface

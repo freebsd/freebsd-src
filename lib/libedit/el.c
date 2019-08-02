@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
 __RCSID("$NetBSD: el.c,v 1.99 2019/07/23 10:18:52 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * el.c: EditLine interface functions

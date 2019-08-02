@@ -33,6 +33,8 @@
 #if !defined(lint) && !defined(SCCSID)
 __RCSID("$NetBSD: literal.c,v 1.5 2019/07/23 13:10:11 christos Exp $");
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * literal.c: Literal sequences handling.

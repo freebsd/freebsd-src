@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: keymacro.c,v 1.24 2019/07/23 10:18:52 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * keymacro.c: This module contains the procedures for maintaining

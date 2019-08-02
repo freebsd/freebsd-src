@@ -29,6 +29,8 @@
 #if !defined(lint) && !defined(SCCSID)
 __RCSID("$NetBSD: eln.c,v 1.35 2019/04/26 16:56:57 christos Exp $");
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdarg.h>

@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)tokenizer.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: tokenizer.c,v 1.28 2016/04/11 18:56:31 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* We build this file twice, once as NARROW, once as WIDE. */
 /*

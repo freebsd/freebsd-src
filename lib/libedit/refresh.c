@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)refresh.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD: refresh.c,v 1.56 2019/01/04 03:03:44 uwe Exp $");
 #endif
 #endif /* not lint && not SCCSID */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * refresh.c: Lower level screen refreshing functions
