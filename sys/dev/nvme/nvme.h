@@ -1695,7 +1695,7 @@ void	nvme_health_information_page_swapbytes(struct nvme_health_information_page 
 	for (i = 0; i < 8; i++)
 		s->temp_sensor[i] = le16toh(s->temp_sensor[i]);
 	s->tmt1tc = le32toh(s->tmt1tc);
-	s->tmt1tc = le32toh(s->tmt2tc);
+	s->tmt2tc = le32toh(s->tmt2tc);
 	s->ttftmt1 = le32toh(s->ttftmt1);
 	s->ttftmt2 = le32toh(s->ttftmt2);
 }
