@@ -51,8 +51,9 @@ SRCS+=		explicit_bzero.c
 
 .if exists(/usr/include/capsicum_helpers.h)
 _WITH_CAPH_ENTER!= grep -c caph_enter /usr/include/capsicum_helpers.h || true
+_WITH_CAPH_RIGHTS_LIMIT!= grep -c caph_rights_limit /usr/include/capsicum_helpers.h || true
 .endif
-.if !defined(_WITH_CAPH_ENTER) || ${_WITH_CAPH_ENTER} == 0
+.if !defined(_WITH_CAPH_ENTER) || ${_WITH_CAPH_ENTER} == 0 || ${_WITH_CAPH_RIGHTS_LIMIT} == 0
 .PATH: ${SRCTOP}/lib/libcapsicum
 INCS+=		capsicum_helpers.h
 .PATH: ${SRCTOP}/lib/libcasper/libcasper

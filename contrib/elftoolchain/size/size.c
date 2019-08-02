@@ -25,6 +25,7 @@
  */
 
 #include <assert.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <fcntl.h>
 #include <gelf.h>
@@ -36,6 +37,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
+
 #include "_elftc.h"
 
 ELFTC_VCSID("$Id: size.c 3458 2016-05-09 15:01:25Z emaste $");
@@ -46,7 +50,6 @@ ELFTC_VCSID("$Id: size.c 3458 2016-05-09 15:01:25Z emaste $");
 
 enum return_code {
 	RETURN_OK,
-	RETURN_NOINPUT,
 	RETURN_DATAERR,
 	RETURN_USAGE
 };
@@ -68,7 +71,6 @@ static int show_totals;
 static int size_option;
 static enum radix_style radix = RADIX_DECIMAL;
 static enum output_style style = STYLE_BERKELEY;
-static const char *default_args[2] = { "a.out", NULL };
 
 static struct {
 	int row;
@@ -97,7 +99,7 @@ static void	berkeley_header(void);
 static void	berkeley_totals(void);
 static int	handle_core(char const *, Elf *elf, GElf_Ehdr *);
 static void	handle_core_note(Elf *, GElf_Ehdr *, GElf_Phdr *, char **);
-static int	handle_elf(char const *);
+static int	handle_elf(int, char const *);
 static void	handle_phdr(Elf *, GElf_Ehdr *, GElf_Phdr *, uint32_t,
 		    const char *);
 static void	show_version(void);
@@ -119,8 +121,11 @@ static void	tbl_flush(void);
 int
 main(int argc, char **argv)
 {
-	int ch, r, rc;
-	const char **files, *fn;
+	cap_rights_t rights;
+	fileargs_t *fa;
+	int ch, fd, r, rc;
+	const char *fn;
+	char *defaultfn;
 
 	rc = RETURN_OK;
 
@@ -193,21 +198,45 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	files = (argc == 0) ? default_args : (void *) argv;
+	if (argc == 0) {
+		defaultfn = strdup("a.out");
+		if (defaultfn == NULL)
+			err(EXIT_FAILURE, "strdup");
+		argc = 1;
+		argv = &defaultfn;
+	} else {
+		defaultfn = NULL;
+	}
 
-	while ((fn = *files) != NULL) {
-		rc = handle_elf(fn);
+	cap_rights_init(&rights, CAP_FSTAT, CAP_MMAP_R);
+	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights, FA_OPEN);
+	if (fa == NULL)
+		err(EXIT_FAILURE, "failed to initialize fileargs");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0)
+		err(EXIT_FAILURE, "failed to limit stdio rights");
+	if (caph_enter_casper() < 0)
+		err(EXIT_FAILURE, "failed to enter capability mode");
+
+	for (; argc > 0; argc--, argv++) {
+		fn = argv[0];
+		fd = fileargs_open(fa, fn);
+		if (fd < 0) {
+			warn("%s: Failed to open", fn);
+			continue;
+		}
+		rc = handle_elf(fd, fn);
 		if (rc != RETURN_OK)
-			warnx(rc == RETURN_NOINPUT ?
-			      "'%s': No such file" :
-			      "%s: File format not recognized", fn);
-		files++;
+			warnx("%s: File format not recognized", fn);
 	}
 	if (style == STYLE_BERKELEY) {
 		if (show_totals)
 			berkeley_totals();
 		tbl_flush();
 	}
+	fileargs_free(fa);
+	free(defaultfn);
         return (rc);
 }
 
@@ -582,7 +611,7 @@ handle_core(char const *name, Elf *elf, GElf_Ehdr *elfhdr)
  * or the size of the text, data, bss sections will be printed out.
  */
 static int
-handle_elf(char const *name)
+handle_elf(int fd, const char *name)
 {
 	GElf_Ehdr elfhdr;
 	GElf_Shdr shdr;
@@ -590,13 +619,7 @@ handle_elf(char const *name)
 	Elf_Arhdr *arhdr;
 	Elf_Scn *scn;
 	Elf_Cmd elf_cmd;
-	int exit_code, fd;
-
-	if (name == NULL)
-		return (RETURN_NOINPUT);
-
-	if ((fd = open(name, O_RDONLY, 0)) < 0)
-		return (RETURN_NOINPUT);
+	int exit_code;
 
 	elf_cmd = ELF_C_READ;
 	elf1 = elf_begin(fd, elf_cmd, NULL);

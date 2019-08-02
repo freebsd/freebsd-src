@@ -903,4 +903,35 @@ cxgbe_snd_tag_free(struct m_snd_tag *mst)
 	}
 	mtx_unlock(&cst->lock);
 }
+
+#define CXGBE_MAX_FLOWS 4000	/* Testing show so far thats all this adapter can do */
+#define CXGBE_UNIQUE_RATE_COUNT 16 /* Number of unique rates that can be setup */
+
+void
+cxgbe_ratelimit_query(struct ifnet *ifp __unused,
+     struct if_ratelimit_query_results *q)
+{
+	/*
+	 * This is a skeleton and needs future work
+	 * by the driver supporters. It should be
+	 * enhanced to look at the specific type of
+	 * interface and select approprate values
+	 * for these settings. This example goes
+	 * with an earlier card (t5), it has a maximum
+	 * number of 16 rates that the first guys in
+	 * select (thus the flags value RT_IS_SELECTABLE).
+	 * If it was a fixed table then we would setup a
+	 * const array (example mlx5). Note the card tested
+	 * can only support reasonably 4000 flows before
+	 * the adapter has issues with sending so here 
+	 * we limit the number of flows using hardware
+	 * pacing to that number, other cards may
+	 * be able to raise or eliminate this limit.
+	 */
+	q->rate_table = NULL;
+	q->flags = RT_IS_SELECTABLE;
+	q->max_flows = CXGBE_MAX_FLOWS;
+	q->number_of_rates = CXGBE_UNIQUE_RATE_COUNT;
+	q->min_segment_burst = 4;	/* Driver emits 4 in a burst */
+}
 #endif

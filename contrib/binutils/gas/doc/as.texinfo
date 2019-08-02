@@ -1295,6 +1295,9 @@ computer-readable series of instructions.  Different versions of
 @section The GNU Assembler
 
 @c man begin DESCRIPTION
+@sc{gnu} @command{as} will be removed from a future version of the
+FreeBSD base system.  Users who require
+@sc{gnu} @command{as} are advised to install the binutils port or package.
 
 @sc{gnu} @command{as} is really a family of assemblers.
 @ifclear GENERIC

@@ -26,8 +26,10 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
+
 #include <ar.h>
 #include <assert.h>
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <dwarf.h>
 #include <err.h>
@@ -44,6 +46,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 
 #include "_elftc.h"
 
@@ -322,11 +327,13 @@ static void dump_mips_specific_info(struct readelf *re);
 static void dump_notes(struct readelf *re);
 static void dump_notes_content(struct readelf *re, const char *buf, size_t sz,
     off_t off);
-static void dump_notes_data(const char *name, uint32_t type, const char *buf,
-    size_t sz);
+static void dump_notes_data(struct readelf *re, const char *name,
+    uint32_t type, const char *buf, size_t sz);
 static void dump_svr4_hash(struct section *s);
 static void dump_svr4_hash64(struct readelf *re, struct section *s);
 static void dump_gnu_hash(struct readelf *re, struct section *s);
+static void dump_gnu_property_type_0(struct readelf *re, const char *buf,
+    size_t sz);
 static void dump_hash(struct readelf *re);
 static void dump_phdr(struct readelf *re);
 static void dump_ppc_attributes(uint8_t *p, uint8_t *pe);
@@ -3517,6 +3524,62 @@ dump_gnu_hash(struct readelf *re, struct section *s)
 	free(bl);
 }
 
+static struct flag_desc gnu_property_x86_feature_1_and_bits[] = {
+	{ GNU_PROPERTY_X86_FEATURE_1_IBT,	"IBT" },
+	{ GNU_PROPERTY_X86_FEATURE_1_SHSTK,	"SHSTK" },
+	{ 0, NULL }
+};
+
+static void
+dump_gnu_property_type_0(struct readelf *re, const char *buf, size_t sz)
+{
+	size_t i;
+	uint32_t type, prop_sz;
+
+	printf("      Properties: ");
+	while (sz > 0) {
+		if (sz < 8)
+			goto bad;
+
+		type = *(const uint32_t *)(const void *)buf;
+		prop_sz = *(const uint32_t *)(const void *)(buf + 4);
+		buf += 8;
+		sz -= 8;
+
+		if (prop_sz > sz)
+			goto bad;
+
+		if (type >= GNU_PROPERTY_LOPROC &&
+		    type <= GNU_PROPERTY_HIPROC) {
+			if (re->ehdr.e_machine != EM_X86_64) {
+				printf("machine type %x unknown\n",
+				    re->ehdr.e_machine);
+				goto unknown;
+			}
+			switch (type) {
+			case GNU_PROPERTY_X86_FEATURE_1_AND:
+				printf("x86 features:");
+				if (prop_sz != 4)
+					goto bad;
+				dump_flags(gnu_property_x86_feature_1_and_bits,
+				    *(const uint32_t *)(const void *)buf);
+				break;
+			}
+		}
+
+		buf += roundup2(prop_sz, 8);
+		sz -= roundup2(prop_sz, 8);
+	}
+	return;
+bad:
+	printf("corrupt GNU property\n");
+unknown:
+	printf("remaining description data:");
+	for (i = 0; i < sz; i++)
+		printf(" %02x", (unsigned char)buf[i]);
+	printf("\n");
+}
+
 static void
 dump_hash(struct readelf *re)
 {
@@ -3608,7 +3671,8 @@ static struct flag_desc note_feature_ctl_flags[] = {
 };
 
 static void
-dump_notes_data(const char *name, uint32_t type, const char *buf, size_t sz)
+dump_notes_data(struct readelf *re, const char *name, uint32_t type,
+    const char *buf, size_t sz)
 {
 	size_t i;
 	const uint32_t *ubuf;
@@ -3638,6 +3702,12 @@ dump_notes_data(const char *name, uint32_t type, const char *buf, size_t sz)
 				goto unknown;
 			printf("   Features:");
 			dump_flags(note_feature_ctl_flags, ubuf[0]);
+			return;
+		}
+	} else if (strcmp(name, "GNU") == 0) {
+		switch (type) {
+		case NT_GNU_PROPERTY_TYPE_0:
+			dump_gnu_property_type_0(re, buf, sz);
 			return;
 		}
 	}
@@ -3684,7 +3754,7 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 		printf("  %-13s %#010jx", name, (uintmax_t) note->n_descsz);
 		printf("      %s\n", note_type(name, re->ehdr.e_type,
 		    note->n_type));
-		dump_notes_data(name, note->n_type, buf, note->n_descsz);
+		dump_notes_data(re, name, note->n_type, buf, note->n_descsz);
 		buf += roundup2(note->n_descsz, 4);
 	}
 }
@@ -7149,15 +7219,8 @@ process_members:
 }
 
 static void
-dump_object(struct readelf *re)
+dump_object(struct readelf *re, int fd)
 {
-	int fd;
-
-	if ((fd = open(re->filename, O_RDONLY)) == -1) {
-		warn("open %s failed", re->filename);
-		return;
-	}
-
 	if ((re->flags & DISPLAY_FILENAME) != 0)
 		printf("\nFile: %s\n", re->filename);
 
@@ -7524,9 +7587,11 @@ readelf_usage(int status)
 int
 main(int argc, char **argv)
 {
+	cap_rights_t	rights;
+	fileargs_t	*fa;
 	struct readelf	*re, re_storage;
 	unsigned long	 si;
-	int		 opt, i;
+	int		 fd, opt, i;
 	char		*ep;
 
 	re = &re_storage;
@@ -7649,9 +7714,28 @@ main(int argc, char **argv)
 		errx(EXIT_FAILURE, "ELF library initialization failed: %s",
 		    elf_errmsg(-1));
 
+	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_MMAP_R, CAP_SEEK);
+	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights, FA_OPEN);
+	if (fa == NULL)
+		err(1, "Unable to initialize casper fileargs");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0) {
+		fileargs_free(fa);
+		err(1, "Unable to limit stdio rights");
+	}
+	if (caph_enter_casper() < 0) {
+		fileargs_free(fa);
+		err(1, "Unable to enter capability mode");
+	}
+
 	for (i = 0; i < argc; i++) {
 		re->filename = argv[i];
-		dump_object(re);
+		fd = fileargs_open(fa, re->filename);
+		if (fd < 0)
+			warn("open %s failed", re->filename);
+		else
+			dump_object(re, fd);
 	}
 
 	exit(EXIT_SUCCESS);

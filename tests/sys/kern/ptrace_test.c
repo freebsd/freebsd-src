@@ -258,7 +258,8 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 	int cpipe[2], dpipe[2], status;
 	char c;
 
-	atf_tc_skip("https://bugs.freebsd.org/239399");
+	if (atf_tc_get_config_var_as_bool(tc, "ci"))
+		atf_tc_skip("https://bugs.freebsd.org/239399");
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
 	ATF_REQUIRE((child = fork()) != -1);
@@ -801,7 +802,8 @@ ATF_TC_BODY(ptrace__follow_fork_both_attached_unrelated_debugger, tc)
 	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
-	atf_tc_skip("https://bugs.freebsd.org/239397");
+	if (atf_tc_get_config_var_as_bool(tc, "ci"))
+		atf_tc_skip("https://bugs.freebsd.org/239397");
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
 	ATF_REQUIRE((fpid = fork()) != -1);
@@ -871,7 +873,8 @@ ATF_TC_BODY(ptrace__follow_fork_child_detached_unrelated_debugger, tc)
 	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
-	atf_tc_skip("https://bugs.freebsd.org/239292");
+	if (atf_tc_get_config_var_as_bool(tc, "ci"))
+		atf_tc_skip("https://bugs.freebsd.org/239292");
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
 	ATF_REQUIRE((fpid = fork()) != -1);
@@ -936,7 +939,8 @@ ATF_TC_BODY(ptrace__follow_fork_parent_detached_unrelated_debugger, tc)
 	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
-	atf_tc_skip("https://bugs.freebsd.org/239425");
+	if (atf_tc_get_config_var_as_bool(tc, "ci"))
+		atf_tc_skip("https://bugs.freebsd.org/239425");
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
 	ATF_REQUIRE((fpid = fork()) != -1);
@@ -2084,7 +2088,8 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_stop, tc)
 	struct ptrace_lwpinfo pl;
 	struct sched_param sched_param;
 
-	atf_tc_skip("https://bugs.freebsd.org/220841");
+	if (atf_tc_get_config_var_as_bool(tc, "ci"))
+		atf_tc_skip("https://bugs.freebsd.org/220841");
 
 	ATF_REQUIRE((fpid = fork()) != -1);
 	if (fpid == 0) {
