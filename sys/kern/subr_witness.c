@@ -1344,14 +1344,6 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			 * is allowed or has already been yelled about.
 			 */
 
-			/*
-			 * If the lock order is blessed, just bail.  We don't
-			 * look for other lock order violations though, which
-			 * may be a bug.
-			 */
-			if (blessed(w, w1))
-				goto out;
-
 			/* Bail if this violation is known */
 			if (w_rmatrix[w1->w_index][w->w_index] & WITNESS_REVERSAL)
 				goto out;
@@ -1361,6 +1353,14 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			w_rmatrix[w->w_index][w1->w_index] |= WITNESS_REVERSAL;
 			w->w_reversed = w1->w_reversed = 1;
 			witness_increment_graph_generation();
+
+			/*
+			 * If the lock order is blessed, bail before logging
+			 * anything.  We don't look for other lock order
+			 * violations though, which may be a bug.
+			 */
+			if (blessed(w, w1))
+				goto out;
 			mtx_unlock_spin(&w_mtx);
 
 #ifdef WITNESS_NO_VNODE
@@ -2650,6 +2650,9 @@ restart:
 				    &tmp_data2->wlod_stack);
 			}
 			mtx_unlock_spin(&w_mtx);
+
+			if (blessed(tmp_w1, tmp_w2))
+				continue;
 
 			sbuf_printf(sb,
 	    "\nLock order reversal between \"%s\"(%s) and \"%s\"(%s)!\n",
