@@ -270,9 +270,11 @@ rs_destroy(epoch_context_t ctx)
 
 }
 
+#ifdef INET
 extern counter_u64_t rate_limit_set_ok;
 extern counter_u64_t rate_limit_active;
 extern counter_u64_t rate_limit_alloc_fail;
+#endif
 
 static int
 rl_attach_txrtlmt(struct ifnet *ifp,
@@ -294,12 +296,14 @@ rl_attach_txrtlmt(struct ifnet *ifp,
 		error = EOPNOTSUPP;
 	} else {
 		error = ifp->if_snd_tag_alloc(ifp, &params, tag);
+#ifdef INET
 		if (error == 0) {
 			if_ref((*tag)->ifp);
 			counter_u64_add(rate_limit_set_ok, 1);
 			counter_u64_add(rate_limit_active, 1);
 		} else
 			counter_u64_add(rate_limit_alloc_fail, 1);
+#endif
 	}
 	return (error);
 }
