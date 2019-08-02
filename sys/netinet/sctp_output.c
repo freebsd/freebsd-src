@@ -4336,7 +4336,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				 * at the SCTP layer. So use the value from
 				 * the IP layer.
 				 */
-				flowlabel = ntohl(((struct in6pcb *)inp)->in6p_flowinfo);
+				flowlabel = ntohl(((struct inpcb *)inp)->inp_flow);
 			}
 			flowlabel &= 0x000fffff;
 			len = SCTP_MIN_OVERHEAD;
@@ -4391,7 +4391,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				 * at the SCTP layer. So use the value from
 				 * the IP layer.
 				 */
-				tos_value = (ntohl(((struct in6pcb *)inp)->in6p_flowinfo) >> 20) & 0xff;
+				tos_value = (ntohl(((struct inpcb *)inp)->inp_flow) >> 20) & 0xff;
 			}
 			tos_value &= 0xfc;
 			if (ecn_ok) {
