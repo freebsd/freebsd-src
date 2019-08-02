@@ -4070,6 +4070,7 @@ mlx5e_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params
 	}
 }
 
+#ifdef RATELIMIT
 #define NUM_HDWR_RATES_MLX 13
 static const uint64_t adapter_rates_mlx[NUM_HDWR_RATES_MLX] = {
 	135375,			/* 1,083,000 */
@@ -4111,6 +4112,7 @@ mlx5e_ratelimit_query(struct ifnet *ifp __unused, struct if_ratelimit_query_resu
 	q->number_of_rates = NUM_HDWR_RATES_MLX;
 	q->min_segment_burst = 1;
 }
+#endif
 
 static void
 mlx5e_snd_tag_free(struct m_snd_tag *pmt)
