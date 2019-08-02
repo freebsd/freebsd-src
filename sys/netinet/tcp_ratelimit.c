@@ -945,7 +945,7 @@ use_real_interface:
 		 * We use an atomic here for accounting so we don't have to
 		 * use locks when freeing.
 		 */
-		atomic_add_long(&rs->rs_flows_using, 1);
+		atomic_add_64(&rs->rs_flows_using, 1);
 	}
 	epoch_exit_preempt(net_epoch_preempt, &et);
 	return (rte);
