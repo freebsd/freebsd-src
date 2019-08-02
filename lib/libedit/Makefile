@@ -12,8 +12,8 @@ LIB=	edit
 
 LIBADD=	ncursesw
 
-OSRCS=	chared.c common.c el.c eln.c emacs.c fcns.c filecomplete.c help.c \
-	hist.c keymacro.c map.c chartype.c \
+OSRCS=	chared.c common.c el.c eln.c emacs.c filecomplete.c \
+	hist.c keymacro.c literal.c map.c chartype.c \
 	parse.c prompt.c read.c refresh.c search.c sig.c terminal.c tty.c vi.c
 
 MAN=	editline.3 editrc.5
@@ -31,17 +31,16 @@ MLINKS=	editline.3 el_deletestr.3 editline.3 el_end.3 editline.3 el_init.3 \
 # For speed and debugging
 #SRCS=   ${OSRCS} readline.c tokenizer.c history.c
 # For protection
-SRCS=	editline.c readline.c tokenizer.c history.c	
-SRCS+=	common.h emacs.h fcns.h help.h vi.h
+SRCS=  readline.c tokenizer.c history.c
+SRCS+=	common.h emacs.h fcns.h func.h help.h vi.h
 
 # Widechar
 SRCS+=	tokenizern.c historyn.c
-CLEANFILES+=	tokenizern.c historyn.c
 
 INCS=	histedit.h
 
 CLEANFILES+= common.h editline.c emacs.h fcns.c fcns.h help.c help.h vi.h
-CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit -DWIDECHAR
+CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit
 #CFLAGS+= -DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
 #CFLAGS+= -DDEBUG_PASTE -DDEBUG_EDIT
 
@@ -58,23 +57,11 @@ ${hdr}.h: ${hdr}.c makelist
 fcns.h: ${AHDR} makelist
 	sh ${.CURDIR}/makelist -fh ${AHDR} > ${.TARGET}
 
-fcns.c: ${AHDR} fcns.h makelist
+func.h: ${AHDR} makelist
 	sh ${.CURDIR}/makelist -fc ${AHDR} > ${.TARGET}
-
-help.c: ${ASRC} makelist
-	sh ${.CURDIR}/makelist -bc ${ASRC} > ${.TARGET}
 
 help.h: ${ASRC} makelist
 	sh ${.CURDIR}/makelist -bh ${ASRC} > ${.TARGET}
-
-editline.c: ${OSRCS}
-	sh ${.CURDIR}/makelist -e ${.ALLSRC:T} > ${.TARGET}
-
-tokenizern.c: makelist Makefile
-	sh ${.CURDIR}/makelist -n tokenizer.c > ${.TARGET}
-
-historyn.c: makelist Makefile
-	sh ${.CURDIR}/makelist -n history.c > ${.TARGET}
 
 # minimal dependency to make "make depend" optional
 editline.o editline.po editline.pico editline.ln:	\

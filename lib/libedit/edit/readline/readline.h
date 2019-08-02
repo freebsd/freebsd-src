@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.h,v 1.39 2016/02/17 19:47:49 christos Exp $	*/
+/*	$NetBSD: readline.h,v 1.46 2019/06/07 15:19:29 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -27,8 +27,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 #ifndef _READLINE_H_
 #define _READLINE_H_
@@ -40,11 +38,13 @@
 
 /* typedefs */
 typedef int	  Function(const char *, int);
+typedef char     *CPFunction(const char *, int);
 typedef void	  VFunction(void);
 typedef void	  rl_vcpfunc_t(char *);
 typedef char	**rl_completion_func_t(const char *, int, int);
 typedef char     *rl_compentry_func_t(const char *, int);
 typedef int	  rl_command_func_t(int, int);
+typedef int	  rl_hook_func_t(void);
 
 /* only supports length */
 typedef struct {
@@ -99,23 +99,23 @@ extern "C" {
 #endif
 extern const char	*rl_library_version;
 extern int		rl_readline_version;
-extern char		*rl_readline_name;
+extern const char	*rl_readline_name;
 extern FILE		*rl_instream;
 extern FILE		*rl_outstream;
 extern char		*rl_line_buffer;
 extern int		 rl_point, rl_end;
 extern int		 history_base, history_length;
 extern int		 max_input_history;
-extern char		*rl_basic_word_break_characters;
+extern const char	*rl_basic_word_break_characters;
 extern char		*rl_completer_word_break_characters;
-extern char		*rl_completer_quote_characters;
+extern const char	*rl_completer_quote_characters;
 extern rl_compentry_func_t *rl_completion_entry_function;
 extern char		*(*rl_completion_word_break_hook)(void);
 extern rl_completion_func_t *rl_attempted_completion_function;
 extern int		 rl_attempted_completion_over;
 extern int		rl_completion_type;
 extern int		rl_completion_query_items;
-extern char		*rl_special_prefixes;
+extern const char	*rl_special_prefixes;
 extern int		rl_completion_append_character;
 extern int		rl_inhibit_completion;
 extern Function		*rl_pre_input_hook;
@@ -123,6 +123,7 @@ extern Function		*rl_startup_hook;
 extern char		*rl_terminal_name;
 extern int		rl_already_prompted;
 extern char		*rl_prompt;
+extern int		rl_done;
 /*
  * The following is not implemented
  */
@@ -138,6 +139,7 @@ extern VFunction	*rl_redisplay_function;
 extern VFunction	*rl_completion_display_matches_hook;
 extern VFunction	*rl_prep_term_function;
 extern VFunction	*rl_deprep_term_function;
+extern rl_hook_func_t	*rl_event_hook;
 extern int		readline_echoing_p;
 extern int		_rl_print_completions_horizontally;
 
@@ -148,6 +150,7 @@ int		 rl_initialize(void);
 void		 using_history(void);
 int		 add_history(const char *);
 void		 clear_history(void);
+int		 append_history(int, const char *);
 void		 stifle_history(int);
 int		 unstifle_history(void);
 int		 history_is_stifled(void);
@@ -160,6 +163,7 @@ int		 history_total_bytes(void);
 int		 history_set_pos(int);
 HIST_ENTRY	*previous_history(void);
 HIST_ENTRY	*next_history(void);
+HIST_ENTRY     **history_list(void);
 int		 history_search(const char *, int);
 int		 history_search_prefix(const char *, int);
 int		 history_search_pos(const char *, int, int);
@@ -176,12 +180,13 @@ char		*filename_completion_function(const char *, int);
 char		*username_completion_function(const char *, int);
 int		 rl_complete(int, int);
 int		 rl_read_key(void);
-char	       **completion_matches(const char *, rl_compentry_func_t *);
+char	       **completion_matches(/* const */ char *, rl_compentry_func_t *);
 void		 rl_display_match_list(char **, int, int);
 
 int		 rl_insert(int, int);
 int		 rl_insert_text(const char *);
-void		 rl_reset_terminal(const char *);
+int		 rl_reset_terminal(const char *);
+void		 rl_resize_terminal(void);
 int		 rl_bind_key(int, rl_command_func_t *);
 int		 rl_newline(int, int);
 void		 rl_callback_read_char(void);
@@ -194,7 +199,7 @@ void		 rl_deprep_terminal(void);
 int		 rl_read_init_file(const char *);
 int		 rl_parse_and_bind(const char *);
 int		 rl_variable_bind(const char *, const char *);
-void		 rl_stuff_char(int);
+int		 rl_stuff_char(int);
 int		 rl_add_defun(const char *, rl_command_func_t *, int);
 HISTORY_STATE	*history_get_history_state(void);
 void		 rl_get_screen_size(int *, int *);
@@ -206,6 +211,8 @@ char	       **rl_completion_matches(const char *, rl_compentry_func_t *);
 void		 rl_forced_update_display(void);
 int		 rl_set_prompt(const char *);
 int		 rl_on_new_line(void);
+void		 rl_reset_after_signal(void);
+void		 rl_echo_signal_char(int);
 
 /*
  * The following are not implemented

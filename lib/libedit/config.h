@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
@@ -48,13 +47,13 @@
 /* #undef HAVE_LIBCURSES */
 
 /* Define to 1 if you have the `ncurses' library (-lncurses). */
-#define HAVE_LIBNCURSES 1
+/* #undef HAVE_LIBNCURSES */
 
 /* Define to 1 if you have the `termcap' library (-ltermcap). */
 /* #undef HAVE_LIBTERMCAP */
 
 /* Define to 1 if you have the `terminfo' library (-lterminfo). */
-/* #undef HAVE_LIBTERMINFO */
+#define HAVE_LIBTERMINFO 1
 
 /* Define to 1 if you have the `termlib' library (-ltermlib). */
 /* #undef HAVE_LIBTERMLIB */
@@ -75,7 +74,7 @@
 #define HAVE_MEMSET 1
 
 /* Define to 1 if you have the <ncurses.h> header file. */
-#define HAVE_NCURSES_H 1
+/* #undef HAVE_NCURSES_H */
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 /* #undef HAVE_NDIR_H */
@@ -257,9 +256,6 @@
 /* Define to 1 if the system provides the SIZE_MAX constant */
 #define HAVE_SIZE_MAX	1
 
-/* Define to 1 if you want wide-character code */
-/* #undef WIDECHAR */
-
 /* Define to 1 if on MINIX. */
 /* #undef _MINIX */
 
@@ -284,7 +280,7 @@
 
 
 #include "sys.h"
-#undef SCCSID
-#undef LIBC_SCCS
-#undef lint
-#undef SIZE_T_MAX
+/* #undef SCCSID */
+/* #undef LIBC_SCCS */
+/* #undef lint */
+

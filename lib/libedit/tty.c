@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.59 2016/03/22 01:34:32 christos Exp $	*/
+/*	$NetBSD: tty.c,v 1.68 2018/12/02 16:58:13 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,11 +37,9 @@
 #if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tty.c,v 1.59 2016/03/22 01:34:32 christos Exp $");
+__RCSID("$NetBSD: tty.c,v 1.68 2018/12/02 16:58:13 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 /*
  * tty.c: tty interface stuff
@@ -54,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>	/* for isatty */
 
 #include "el.h"
+#include "fcns.h"
 #include "parse.h"
 
 typedef struct ttymodes_t {
@@ -68,7 +67,7 @@ typedef struct ttymap_t {
 } ttymap_t;
 
 
-private const ttyperm_t ttyperm = {
+static const ttyperm_t ttyperm = {
 	{
 		{"iflag:", ICRNL, (INLCR | IGNCR)},
 		{"oflag:", (OPOST | ONLCR), ONLRET},
@@ -96,7 +95,7 @@ private const ttyperm_t ttyperm = {
 	}
 };
 
-private const ttychar_t ttychar = {
+static const ttychar_t ttychar = {
 	{
 		CINTR, CQUIT, CERASE, CKILL,
 		CEOF, CEOL, CEOL2, CSWTCH,
@@ -126,7 +125,7 @@ private const ttychar_t ttychar = {
 	}
 };
 
-private const ttymap_t tty_map[] = {
+static const ttymap_t tty_map[] = {
 #ifdef VERASE
 	{C_ERASE, VERASE,
 	{EM_DELETE_PREV_CHAR, VI_DELETE_PREV_CHAR, ED_PREV_CHAR}},
@@ -163,7 +162,7 @@ private const ttymap_t tty_map[] = {
 	{ED_UNASSIGNED, ED_UNASSIGNED, ED_UNASSIGNED}}
 };
 
-private const ttymodes_t ttymodes[] = {
+static const ttymodes_t ttymodes[] = {
 #ifdef	IGNBRK
 	{"ignbrk", IGNBRK, MD_INP},
 #endif /* IGNBRK */
@@ -457,21 +456,21 @@ private const ttymodes_t ttymodes[] = {
 #define	tty__geteightbit(td)	(((td)->c_cflag & CSIZE) == CS8)
 #define	tty__cooked_mode(td)	((td)->c_lflag & ICANON)
 
-private int	tty_getty(EditLine *, struct termios *);
-private int	tty_setty(EditLine *, int, const struct termios *);
-private int	tty__getcharindex(int);
-private void	tty__getchar(struct termios *, unsigned char *);
-private void	tty__setchar(struct termios *, unsigned char *);
-private speed_t	tty__getspeed(struct termios *);
-private int	tty_setup(EditLine *);
-private void	tty_setup_flags(EditLine *, struct termios *, int);
+static int	tty_getty(EditLine *, struct termios *);
+static int	tty_setty(EditLine *, int, const struct termios *);
+static int	tty__getcharindex(int);
+static void	tty__getchar(struct termios *, unsigned char *);
+static void	tty__setchar(struct termios *, unsigned char *);
+static speed_t	tty__getspeed(struct termios *);
+static int	tty_setup(EditLine *);
+static void	tty_setup_flags(EditLine *, struct termios *, int);
 
 #define	t_qu	t_ts
 
 /* tty_getty():
  *	Wrapper for tcgetattr to handle EINTR
  */
-private int
+static int
 tty_getty(EditLine *el, struct termios *t)
 {
 	int rv;
@@ -483,7 +482,7 @@ tty_getty(EditLine *el, struct termios *t)
 /* tty_setty():
  *	Wrapper for tcsetattr to handle EINTR
  */
-private int
+static int
 tty_setty(EditLine *el, int action, const struct termios *t)
 {
 	int rv;
@@ -495,10 +494,10 @@ tty_setty(EditLine *el, int action, const struct termios *t)
 /* tty_setup():
  *	Get the tty parameters and initialize the editing state
  */
-private int
+static int
 tty_setup(EditLine *el)
 {
-	int rst = 1;
+	int rst = (el->el_flags & NO_RESET) == 0;
 
 	if (el->el_flags & EDIT_DISABLED)
 		return 0;
@@ -569,7 +568,7 @@ tty_setup(EditLine *el)
 	return 0;
 }
 
-protected int
+libedit_private int
 tty_init(EditLine *el)
 {
 
@@ -585,9 +584,9 @@ tty_init(EditLine *el)
 /* tty_end():
  *	Restore the tty to its original settings
  */
-protected void
+libedit_private void
 /*ARGSUSED*/
-tty_end(EditLine *el)
+tty_end(EditLine *el, int how)
 {
 	if (el->el_flags & EDIT_DISABLED)
 		return;
@@ -595,7 +594,8 @@ tty_end(EditLine *el)
 	if (!el->el_tty.t_initialized)
 		return;
 
-	if (tty_setty(el, TCSAFLUSH, &el->el_tty.t_or) == -1) {
+	if (tty_setty(el, how, &el->el_tty.t_or) == -1)
+	{
 #ifdef DEBUG_TTY
 		(void) fprintf(el->el_errfile,
 		    "%s: tty_setty: %s\n", __func__, strerror(errno));
@@ -607,7 +607,7 @@ tty_end(EditLine *el)
 /* tty__getspeed():
  *	Get the tty speed
  */
-private speed_t
+static speed_t
 tty__getspeed(struct termios *td)
 {
 	speed_t spd;
@@ -620,7 +620,7 @@ tty__getspeed(struct termios *td)
 /* tty__getspeed():
  *	Return the index of the asked char in the c_cc array
  */
-private int
+static int
 tty__getcharindex(int i)
 {
 	switch (i) {
@@ -728,7 +728,7 @@ tty__getcharindex(int i)
 /* tty__getchar():
  *	Get the tty characters
  */
-private void
+static void
 tty__getchar(struct termios *td, unsigned char *s)
 {
 
@@ -810,7 +810,7 @@ tty__getchar(struct termios *td, unsigned char *s)
 /* tty__setchar():
  *	Set the tty characters
  */
-private void
+static void
 tty__setchar(struct termios *td, unsigned char *s)
 {
 
@@ -892,13 +892,13 @@ tty__setchar(struct termios *td, unsigned char *s)
 /* tty_bind_char():
  *	Rebind the editline functions
  */
-protected void
+libedit_private void
 tty_bind_char(EditLine *el, int force)
 {
 
 	unsigned char *t_n = el->el_tty.t_c[ED_IO];
 	unsigned char *t_o = el->el_tty.t_ed.c_cc;
-	Char new[2], old[2];
+	wchar_t new[2], old[2];
 	const ttymap_t *tp;
 	el_action_t *map, *alt;
 	const el_action_t *dmap, *dalt;
@@ -915,27 +915,29 @@ tty_bind_char(EditLine *el, int force)
 	}
 
 	for (tp = tty_map; tp->nch != (wint_t)-1; tp++) {
-		new[0] = (Char)t_n[tp->nch];
-		old[0] = (Char)t_o[tp->och];
+		new[0] = (wchar_t)t_n[tp->nch];
+		old[0] = (wchar_t)t_o[tp->och];
 		if (new[0] == old[0] && !force)
 			continue;
 		/* Put the old default binding back, and set the new binding */
 		keymacro_clear(el, map, old);
-		map[UC(old[0])] = dmap[UC(old[0])];
+		map[(unsigned char)old[0]] = dmap[(unsigned char)old[0]];
 		keymacro_clear(el, map, new);
 		/* MAP_VI == 1, MAP_EMACS == 0... */
-		map[UC(new[0])] = tp->bind[el->el_map.type];
+		map[(unsigned char)new[0]] = tp->bind[el->el_map.type];
 		if (dalt) {
 			keymacro_clear(el, alt, old);
-			alt[UC(old[0])] = dalt[UC(old[0])];
+			alt[(unsigned char)old[0]] =
+			    dalt[(unsigned char)old[0]];
 			keymacro_clear(el, alt, new);
-			alt[UC(new[0])] = tp->bind[el->el_map.type + 1];
+			alt[(unsigned char)new[0]] =
+			    tp->bind[el->el_map.type + 1];
 		}
 	}
 }
 
 
-private tcflag_t *
+static tcflag_t *
 tty__get_flag(struct termios *t, int kind) {
 	switch (kind) {
 	case MD_INP:
@@ -953,7 +955,7 @@ tty__get_flag(struct termios *t, int kind) {
 }
 
 
-private tcflag_t
+static tcflag_t
 tty_update_flag(EditLine *el, tcflag_t f, int mode, int kind)
 {
 	f &= ~el->el_tty.t_t[mode][kind].t_clrmask;
@@ -962,7 +964,7 @@ tty_update_flag(EditLine *el, tcflag_t f, int mode, int kind)
 }
 
 
-private void
+static void
 tty_update_flags(EditLine *el, int kind)
 {
 	tcflag_t *tt, *ed, *ex;
@@ -977,7 +979,7 @@ tty_update_flags(EditLine *el, int kind)
 }
 
 
-private void
+static void
 tty_update_char(EditLine *el, int mode, int c) {
 	if (!((el->el_tty.t_t[mode][MD_CHAR].t_setmask & C_SH(c)))
 	    && (el->el_tty.t_c[TS_IO][c] != el->el_tty.t_c[EX_IO][c]))
@@ -990,7 +992,7 @@ tty_update_char(EditLine *el, int mode, int c) {
 /* tty_rawmode():
  *	Set terminal into 1 character at a time mode.
  */
-protected int
+libedit_private int
 tty_rawmode(EditLine *el)
 {
 
@@ -1045,7 +1047,7 @@ tty_rawmode(EditLine *el)
 
 		if (i != C_NCC) {
 			/*
-			 * Propagate changes only to the unprotected
+			 * Propagate changes only to the unlibedit_private
 			 * chars that have been modified just now.
 			 */
 			for (i = 0; i < C_NCC; i++)
@@ -1075,7 +1077,7 @@ tty_rawmode(EditLine *el)
 /* tty_cookedmode():
  *	Set the tty back to normal mode
  */
-protected int
+libedit_private int
 tty_cookedmode(EditLine *el)
 {				/* set tty in normal setup */
 
@@ -1100,7 +1102,7 @@ tty_cookedmode(EditLine *el)
 /* tty_quotemode():
  *	Turn on quote mode
  */
-protected int
+libedit_private int
 tty_quotemode(EditLine *el)
 {
 	if (el->el_tty.t_mode == QU_IO)
@@ -1125,7 +1127,7 @@ tty_quotemode(EditLine *el)
 /* tty_noquotemode():
  *	Turn off quote mode
  */
-protected int
+libedit_private int
 tty_noquotemode(EditLine *el)
 {
 
@@ -1146,14 +1148,15 @@ tty_noquotemode(EditLine *el)
 /* tty_stty():
  *	Stty builtin
  */
-protected int
+libedit_private int
 /*ARGSUSED*/
-tty_stty(EditLine *el, int argc __attribute__((__unused__)), const Char **argv)
+tty_stty(EditLine *el, int argc __attribute__((__unused__)),
+    const wchar_t **argv)
 {
 	const ttymodes_t *m;
 	char x;
 	int aflag = 0;
-	const Char *s, *d;
+	const wchar_t *s, *d;
         char name[EL_BUFSIZ];
 	struct termios *tios = &el->el_tty.t_ex;
 	int z = EX_IO;
@@ -1237,7 +1240,7 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const Char **argv)
 		return 0;
 	}
 	while (argv && (s = *argv++)) {
-		const Char *p;
+		const wchar_t *p;
 		switch (*s) {
 		case '+':
 		case '-':
@@ -1248,7 +1251,7 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const Char **argv)
 			break;
 		}
 		d = s;
-		p = Strchr(s, '=');
+		p = wcschr(s, L'=');
 		for (m = ttymodes; m->m_name; m++)
 			if ((p ? strncmp(m->m_name, ct_encode_string(d,
 			    &el->el_scratch), (size_t)(p - d)) :
@@ -1259,7 +1262,7 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const Char **argv)
 
 		if (!m->m_name) {
 			(void) fprintf(el->el_errfile,
-			    "%s: Invalid argument `" FSTR "'.\n", name, d);
+			    "%s: Invalid argument `%ls'.\n", name, d);
 			return -1;
 		}
 		if (p) {
@@ -1308,7 +1311,7 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const Char **argv)
 /* tty_printchar():
  *	DEbugging routine to print the tty characters
  */
-private void
+static void
 tty_printchar(EditLine *el, unsigned char *s)
 {
 	ttyperm_t *m;
@@ -1329,12 +1332,42 @@ tty_printchar(EditLine *el, unsigned char *s)
 #endif /* notyet */
 
 
-private void
+static void
 tty_setup_flags(EditLine *el, struct termios *tios, int mode)
 {
 	int kind;
 	for (kind = MD_INP; kind <= MD_LIN; kind++) {
 		tcflag_t *f = tty__get_flag(tios, kind);
 		*f = tty_update_flag(el, *f, mode, kind);
+	}
+}
+
+libedit_private int
+tty_get_signal_character(EditLine *el, int sig)
+{
+#ifdef ECHOCTL
+	tcflag_t *ed = tty__get_flag(&el->el_tty.t_ed, MD_INP);
+	if ((*ed & ECHOCTL) == 0)
+		return -1;
+#endif
+	switch (sig) {
+#ifdef SIGINT
+	case SIGINT:
+		return el->el_tty.t_c[ED_IO][VINTR];
+#endif
+#ifdef SIGQUIT
+	case SIGQUIT:
+		return el->el_tty.t_c[ED_IO][VQUIT];
+#endif
+#ifdef SIGINFO
+	case SIGINFO:
+		return el->el_tty.t_c[ED_IO][VSTATUS];
+#endif
+#ifdef SIGTSTP
+	case SIGTSTP:
+		return el->el_tty.t_c[ED_IO][VSUSP];
+#endif
+	default:
+		return -1;
 	}
 }

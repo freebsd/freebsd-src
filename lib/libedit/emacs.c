@@ -1,4 +1,4 @@
-/*	$NetBSD: emacs.c,v 1.32 2016/02/16 22:53:14 christos Exp $	*/
+/*	$NetBSD: emacs.c,v 1.36 2016/05/09 21:46:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,11 +37,9 @@
 #if 0
 static char sccsid[] = "@(#)emacs.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: emacs.c,v 1.32 2016/02/16 22:53:14 christos Exp $");
+__RCSID("$NetBSD: emacs.c,v 1.36 2016/05/09 21:46:56 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 /*
  * emacs.c: Emacs functions
@@ -50,12 +48,13 @@ __FBSDID("$FreeBSD$");
 
 #include "el.h"
 #include "emacs.h"
+#include "fcns.h"
 
 /* em_delete_or_list():
  *	Delete character under cursor or list completions if at end of line
  *	[^D]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_delete_or_list(EditLine *el, wint_t c)
 {
@@ -91,11 +90,11 @@ em_delete_or_list(EditLine *el, wint_t c)
  *	Cut from cursor to end of current word
  *	[M-d]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_delete_next_word(EditLine *el, wint_t c __attribute__((__unused__)))
 {
-	Char *cp, *p, *kp;
+	wchar_t *cp, *p, *kp;
 
 	if (el->el_line.cursor == el->el_line.lastchar)
 		return CC_ERROR;
@@ -120,11 +119,11 @@ em_delete_next_word(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Paste cut buffer at cursor position
  *	[^Y]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_yank(EditLine *el, wint_t c __attribute__((__unused__)))
 {
-	Char *kp, *cp;
+	wchar_t *kp, *cp;
 
 	if (el->el_chared.c_kill.last == el->el_chared.c_kill.buf)
 		return CC_NORM;
@@ -156,11 +155,11 @@ em_yank(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Cut the entire line and save in cut buffer
  *	[^U]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_kill_line(EditLine *el, wint_t c __attribute__((__unused__)))
 {
-	Char *kp, *cp;
+	wchar_t *kp, *cp;
 
 	cp = el->el_line.buffer;
 	kp = el->el_chared.c_kill.buf;
@@ -178,11 +177,11 @@ em_kill_line(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Cut area between mark and cursor and save in cut buffer
  *	[^W]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_kill_region(EditLine *el, wint_t c __attribute__((__unused__)))
 {
-	Char *kp, *cp;
+	wchar_t *kp, *cp;
 
 	if (!el->el_chared.c_kill.mark)
 		return CC_ERROR;
@@ -211,11 +210,11 @@ em_kill_region(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Copy area between mark and cursor to cut buffer
  *	[M-W]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_copy_region(EditLine *el, wint_t c __attribute__((__unused__)))
 {
-	Char *kp, *cp;
+	wchar_t *kp, *cp;
 
 	if (!el->el_chared.c_kill.mark)
 		return CC_ERROR;
@@ -241,7 +240,7 @@ em_copy_region(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Exchange the two characters before the cursor
  *	Gosling emacs transpose chars [^T]
  */
-protected el_action_t
+libedit_private el_action_t
 em_gosmacs_transpose(EditLine *el, wint_t c)
 {
 
@@ -249,7 +248,7 @@ em_gosmacs_transpose(EditLine *el, wint_t c)
 		/* must have at least two chars entered */
 		c = el->el_line.cursor[-2];
 		el->el_line.cursor[-2] = el->el_line.cursor[-1];
-		el->el_line.cursor[-1] = (Char)c;
+		el->el_line.cursor[-1] = c;
 		return CC_REFRESH;
 	} else
 		return CC_ERROR;
@@ -260,7 +259,7 @@ em_gosmacs_transpose(EditLine *el, wint_t c)
  *	Move next to end of current word
  *	[M-f]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_next_word(EditLine *el, wint_t c __attribute__((__unused__)))
 {
@@ -285,18 +284,18 @@ em_next_word(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Uppercase the characters from cursor to end of current word
  *	[M-u]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_upper_case(EditLine *el, wint_t c __attribute__((__unused__)))
 {
-	Char *cp, *ep;
+	wchar_t *cp, *ep;
 
 	ep = c__next_word(el->el_line.cursor, el->el_line.lastchar,
 	    el->el_state.argument, ce__isword);
 
 	for (cp = el->el_line.cursor; cp < ep; cp++)
-		if (Islower(*cp))
-			*cp = Toupper(*cp);
+		if (iswlower(*cp))
+			*cp = towupper(*cp);
 
 	el->el_line.cursor = ep;
 	if (el->el_line.cursor > el->el_line.lastchar)
@@ -309,26 +308,26 @@ em_upper_case(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Capitalize the characters from cursor to end of current word
  *	[M-c]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_capitol_case(EditLine *el, wint_t c __attribute__((__unused__)))
 {
-	Char *cp, *ep;
+	wchar_t *cp, *ep;
 
 	ep = c__next_word(el->el_line.cursor, el->el_line.lastchar,
 	    el->el_state.argument, ce__isword);
 
 	for (cp = el->el_line.cursor; cp < ep; cp++) {
-		if (Isalpha(*cp)) {
-			if (Islower(*cp))
-				*cp = Toupper(*cp);
+		if (iswalpha(*cp)) {
+			if (iswlower(*cp))
+				*cp = towupper(*cp);
 			cp++;
 			break;
 		}
 	}
 	for (; cp < ep; cp++)
-		if (Isupper(*cp))
-			*cp = Tolower(*cp);
+		if (iswupper(*cp))
+			*cp = towlower(*cp);
 
 	el->el_line.cursor = ep;
 	if (el->el_line.cursor > el->el_line.lastchar)
@@ -341,18 +340,18 @@ em_capitol_case(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Lowercase the characters from cursor to end of current word
  *	[M-l]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_lower_case(EditLine *el, wint_t c __attribute__((__unused__)))
 {
-	Char *cp, *ep;
+	wchar_t *cp, *ep;
 
 	ep = c__next_word(el->el_line.cursor, el->el_line.lastchar,
 	    el->el_state.argument, ce__isword);
 
 	for (cp = el->el_line.cursor; cp < ep; cp++)
-		if (Isupper(*cp))
-			*cp = Tolower(*cp);
+		if (iswupper(*cp))
+			*cp = towlower(*cp);
 
 	el->el_line.cursor = ep;
 	if (el->el_line.cursor > el->el_line.lastchar)
@@ -365,7 +364,7 @@ em_lower_case(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Set the mark at cursor
  *	[^@]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_set_mark(EditLine *el, wint_t c __attribute__((__unused__)))
 {
@@ -379,11 +378,11 @@ em_set_mark(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Exchange the cursor and mark
  *	[^X^X]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_exchange_mark(EditLine *el, wint_t c __attribute__((__unused__)))
 {
-	Char *cp;
+	wchar_t *cp;
 
 	cp = el->el_line.cursor;
 	el->el_line.cursor = el->el_chared.c_kill.mark;
@@ -396,7 +395,7 @@ em_exchange_mark(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Universal argument (argument times 4)
  *	[^U]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_universal_argument(EditLine *el, wint_t c __attribute__((__unused__)))
 {				/* multiply current argument by 4 */
@@ -413,7 +412,7 @@ em_universal_argument(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Add 8th bit to next character typed
  *	[<ESC>]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_meta_next(EditLine *el, wint_t c __attribute__((__unused__)))
 {
@@ -426,7 +425,7 @@ em_meta_next(EditLine *el, wint_t c __attribute__((__unused__)))
 /* em_toggle_overwrite():
  *	Switch from insert to overwrite mode or vice versa
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_toggle_overwrite(EditLine *el, wint_t c __attribute__((__unused__)))
 {
@@ -440,11 +439,11 @@ em_toggle_overwrite(EditLine *el, wint_t c __attribute__((__unused__)))
 /* em_copy_prev_word():
  *	Copy current word to cursor
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_copy_prev_word(EditLine *el, wint_t c __attribute__((__unused__)))
 {
-	Char *cp, *oldc, *dp;
+	wchar_t *cp, *oldc, *dp;
 
 	if (el->el_line.cursor == el->el_line.buffer)
 		return CC_ERROR;
@@ -467,7 +466,7 @@ em_copy_prev_word(EditLine *el, wint_t c __attribute__((__unused__)))
 /* em_inc_search_next():
  *	Emacs incremental next search
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_inc_search_next(EditLine *el, wint_t c __attribute__((__unused__)))
 {
@@ -480,7 +479,7 @@ em_inc_search_next(EditLine *el, wint_t c __attribute__((__unused__)))
 /* em_inc_search_prev():
  *	Emacs incremental reverse search
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_inc_search_prev(EditLine *el, wint_t c __attribute__((__unused__)))
 {
@@ -494,7 +493,7 @@ em_inc_search_prev(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Delete the character to the left of the cursor
  *	[^?]
  */
-protected el_action_t
+libedit_private el_action_t
 /*ARGSUSED*/
 em_delete_prev_char(EditLine *el, wint_t c __attribute__((__unused__)))
 {

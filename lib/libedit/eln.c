@@ -1,4 +1,4 @@
-/*	$NetBSD: eln.c,v 1.28 2016/02/28 23:02:24 christos Exp $	*/
+/*	$NetBSD: eln.c,v 1.35 2019/04/26 16:56:57 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -27,10 +27,8 @@
  */
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: eln.c,v 1.28 2016/02/28 23:02:24 christos Exp $");
+__RCSID("$NetBSD: eln.c,v 1.35 2019/04/26 16:56:57 christos Exp $");
 #endif /* not lint && not SCCSID */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdarg.h>
@@ -39,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include "el.h"
 
-public int
+int
 el_getc(EditLine *el, char *cp)
 {
 	int num_read;
@@ -49,7 +47,7 @@ el_getc(EditLine *el, char *cp)
 	*cp = '\0';
 	if (num_read <= 0)
 		return num_read;
-	num_read = ct_wctob(wc);
+	num_read = wctob(wc);
 	if (num_read == EOF) {
 		errno = ERANGE;
 		return -1;
@@ -60,8 +58,7 @@ el_getc(EditLine *el, char *cp)
 }
 
 
-#ifdef WIDECHAR
-public void
+void
 el_push(EditLine *el, const char *str)
 {
 	/* Using multibyte->wide string decoding works fine under single-byte
@@ -70,7 +67,7 @@ el_push(EditLine *el, const char *str)
 }
 
 
-public const char *
+const char *
 el_gets(EditLine *el, int *nread)
 {
 	const wchar_t *tmp;
@@ -88,24 +85,23 @@ el_gets(EditLine *el, int *nread)
 }
 
 
-public int
+int
 el_parse(EditLine *el, int argc, const char *argv[])
 {
 	int ret;
 	const wchar_t **wargv;
 
-	wargv = (const wchar_t **)
-	    ct_decode_argv(argc, argv, &el->el_lgcyconv);
+	wargv = (void *)ct_decode_argv(argc, argv, &el->el_lgcyconv);
 	if (!wargv)
 		return -1;
 	ret = el_wparse(el, argc, wargv);
-	ct_free_argv(wargv);
+	el_free(wargv);
 
 	return ret;
 }
 
 
-public int
+int
 el_set(EditLine *el, int op, ...)
 {
 	va_list ap;
@@ -174,8 +170,7 @@ el_set(EditLine *el, int op, ...)
 			if ((argv[i] = va_arg(ap, const char *)) == NULL)
 			    break;
 		argv[0] = argv[i] = NULL;
-		wargv = (const wchar_t **)
-		    ct_decode_argv(i + 1, argv, &el->el_lgcyconv);
+		wargv = (void *)ct_decode_argv(i + 1, argv, &el->el_lgcyconv);
 		if (!wargv) {
 		    ret = -1;
 		    goto out;
@@ -187,29 +182,29 @@ el_set(EditLine *el, int op, ...)
 		 */
 		switch (op) {
 		case EL_BIND:
-			wargv[0] = STR("bind");
+			wargv[0] = L"bind";
 			ret = map_bind(el, i, wargv);
 			break;
 		case EL_TELLTC:
-			wargv[0] = STR("telltc");
+			wargv[0] = L"telltc";
 			ret = terminal_telltc(el, i, wargv);
 			break;
 		case EL_SETTC:
-			wargv[0] = STR("settc");
+			wargv[0] = L"settc";
 			ret = terminal_settc(el, i, wargv);
 			break;
 		case EL_ECHOTC:
-			wargv[0] = STR("echotc");
+			wargv[0] = L"echotc";
 			ret = terminal_echotc(el, i, wargv);
 			break;
 		case EL_SETTY:
-			wargv[0] = STR("setty");
+			wargv[0] = L"setty";
 			ret = tty_stty(el, i, wargv);
 			break;
 		default:
 			ret = -1;
 		}
-		ct_free_argv(wargv);
+		el_free(wargv);
 		break;
 	}
 
@@ -229,9 +224,9 @@ el_set(EditLine *el, int op, ...)
 		    goto out;
 		}
 		/* XXX: The two strdup's leak */
-		ret = map_addfunc(el, Strdup(wargv[0]), Strdup(wargv[1]),
+		ret = map_addfunc(el, wcsdup(wargv[0]), wcsdup(wargv[1]),
 		    func);
-		ct_free_argv(wargv);
+		el_free(wargv);
 		break;
 	}
 	case EL_HIST: {           /* hist_fun_t, const char * */
@@ -275,7 +270,7 @@ out:
 }
 
 
-public int
+int
 el_get(EditLine *el, int op, ...)
 {
 	va_list ap;
@@ -326,14 +321,12 @@ el_get(EditLine *el, int op, ...)
 		break;
 
 	case EL_GETTC: {
-		char *argv[20];
+		char *argv[3];
 		static char gettc[] = "gettc";
-		int i;
-		for (i = 1; i < (int)__arraycount(argv); ++i)
-			if ((argv[i] = va_arg(ap, char *)) == NULL)
-				break;
 		argv[0] = gettc;
-		ret = terminal_gettc(el, i, argv);
+		argv[1] = va_arg(ap, char *);
+		argv[2] = va_arg(ap, void *);
+		ret = terminal_gettc(el, 3, argv);
 		break;
 	}
 
@@ -368,7 +361,7 @@ el_line(EditLine *el)
 	const LineInfoW *winfo = el_wline(el);
 	LineInfo *info = &el->el_lgcylinfo;
 	size_t offset;
-	const Char *p;
+	const wchar_t *p;
 
 	info->buffer   = ct_encode_string(winfo->buffer, &el->el_lgcyconv);
 
@@ -391,4 +384,3 @@ el_insertstr(EditLine *el, const char *str)
 {
 	return el_winsertstr(el, ct_decode_string(str, &el->el_lgcyconv));
 }
-#endif /* WIDECHAR */
