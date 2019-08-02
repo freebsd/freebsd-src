@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 #include <machine/atomic.h>
@@ -90,12 +91,25 @@ struct ip6qbucket {
 	int		count;
 };
 
-VNET_DEFINE_STATIC(volatile u_int, frag6_nfragpackets);
-volatile u_int frag6_nfrags = 0;
-VNET_DEFINE_STATIC(struct ip6qbucket, ip6q[IP6REASS_NHASH]);
-VNET_DEFINE_STATIC(uint32_t, ip6q_hashseed);
+/* System wide (global) maximum and count of packets in reassembly queues. */ 
+static int ip6_maxfrags;
+static volatile u_int frag6_nfrags = 0;
 
+/* Maximum and current packets in per-VNET reassembly queue. */
+VNET_DEFINE_STATIC(int,			ip6_maxfragpackets);
+VNET_DEFINE_STATIC(volatile u_int,	frag6_nfragpackets);
+#define	V_ip6_maxfragpackets		VNET(ip6_maxfragpackets)
 #define	V_frag6_nfragpackets		VNET(frag6_nfragpackets)
+
+/* Maximum per-VNET reassembly queues per bucket and fragments per packet. */
+VNET_DEFINE_STATIC(int,			ip6_maxfragbucketsize);
+VNET_DEFINE_STATIC(int,			ip6_maxfragsperpacket);
+#define	V_ip6_maxfragbucketsize		VNET(ip6_maxfragbucketsize)
+#define	V_ip6_maxfragsperpacket		VNET(ip6_maxfragsperpacket)
+
+/* Per-VNET reassembly queue buckets. */
+VNET_DEFINE_STATIC(struct ip6qbucket,	ip6q[IP6REASS_NHASH]);
+VNET_DEFINE_STATIC(uint32_t,		ip6q_hashseed);
 #define	V_ip6q				VNET(ip6q)
 #define	V_ip6q_hashseed			VNET(ip6q_hashseed)
 
@@ -123,10 +137,13 @@ static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 #define	IP6_MAXFRAGS		(nmbclusters / 32)
 #define	IP6_MAXFRAGPACKETS	(imin(IP6_MAXFRAGS, IP6REASS_NHASH * 50))
 
+
 /*
- * Initialise reassembly queue and fragment identifier.
+ * Sysctls and helper function.
  */
-void
+SYSCTL_DECL(_net_inet6_ip6);
+
+static void
 frag6_set_bucketsize()
 {
 	int i;
@@ -135,6 +152,42 @@ frag6_set_bucketsize()
 		V_ip6_maxfragbucketsize = imax(i / (IP6REASS_NHASH / 2), 1);
 }
 
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS, maxfrags,
+	CTLFLAG_RW, &ip6_maxfrags, 0,
+	"Maximum allowed number of outstanding IPv6 packet fragments. "
+	"A value of 0 means no fragmented packets will be accepted, while a "
+	"a value of -1 means no limit");
+
+static int
+sysctl_ip6_maxfragpackets(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = V_ip6_maxfragpackets;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || !req->newptr)
+		return (error);
+	V_ip6_maxfragpackets = val;
+	frag6_set_bucketsize();
+	return (0);
+}
+SYSCTL_PROC(_net_inet6_ip6, IPV6CTL_MAXFRAGPACKETS, maxfragpackets,
+	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+	sysctl_ip6_maxfragpackets, "I",
+	"Default maximum number of outstanding fragmented IPv6 packets. "
+	"A value of 0 means no fragmented packets will be accepted, while a "
+	"a value of -1 means no limit");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGSPERPACKET, maxfragsperpacket,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfragsperpacket), 0,
+	"Maximum allowed number of fragments per packet");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGBUCKETSIZE, maxfragbucketsize,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfragbucketsize), 0,
+	"Maximum number of reassembly queues per hash bucket");
+
+
+/*
+ * Initialise reassembly queue and fragment identifier.
+ */
 static void
 frag6_change(void *tag)
 {
