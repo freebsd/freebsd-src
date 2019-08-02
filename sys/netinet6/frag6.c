@@ -144,7 +144,7 @@ VNET_DEFINE_STATIC(uint32_t,		ip6q_hashseed);
 SYSCTL_DECL(_net_inet6_ip6);
 
 static void
-frag6_set_bucketsize()
+frag6_set_bucketsize(void)
 {
 	int i;
 
