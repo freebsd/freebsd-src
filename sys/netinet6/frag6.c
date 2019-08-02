@@ -91,6 +91,8 @@ struct ip6qbucket {
 	int		count;
 };
 
+static MALLOC_DEFINE(M_FRAG6, "frag6", "IPv6 fragment reassembly header");
+
 /* System wide (global) maximum and count of packets in reassembly queues. */ 
 static int ip6_maxfrags;
 static volatile u_int frag6_nfrags = 0;
@@ -118,8 +120,6 @@ VNET_DEFINE_STATIC(uint32_t,		ip6q_hashseed);
 #define	IP6Q_LOCK_ASSERT(i)	mtx_assert(&V_ip6q[(i)].lock, MA_OWNED)
 #define	IP6Q_UNLOCK(i)		mtx_unlock(&V_ip6q[(i)].lock)
 #define	IP6Q_HEAD(i)		(&V_ip6q[(i)].ip6q)
-
-static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 
 /*
  * By default, limit the number of IP6 fragments across all reassembly
@@ -400,14 +400,13 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		    (u_int)V_ip6_maxfragpackets)
 			goto dropfrag;
 		atomic_add_int(&V_frag6_nfragpackets, 1);
-		q6 = (struct ip6q *)malloc(sizeof(struct ip6q), M_FTABLE,
-		    M_NOWAIT);
+		q6 = (struct ip6q *)malloc(sizeof(struct ip6q), M_FRAG6,
+		    M_NOWAIT | M_ZERO);
 		if (q6 == NULL)
 			goto dropfrag;
-		bzero(q6, sizeof(*q6));
 #ifdef MAC
 		if (mac_ip6q_init(q6, M_NOWAIT) != 0) {
-			free(q6, M_FTABLE);
+			free(q6, M_FRAG6);
 			goto dropfrag;
 		}
 		mac_ip6q_create(m, q6);
@@ -479,7 +478,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 
 				/* dequeue the fragment. */
 				frag6_deq(af6, hash);
-				free(af6, M_FTABLE);
+				free(af6, M_FRAG6);
 
 				/* adjust pointer. */
 				ip6err = mtod(merr, struct ip6_hdr *);
@@ -499,11 +498,10 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		}
 	}
 
-	ip6af = (struct ip6asfrag *)malloc(sizeof(struct ip6asfrag), M_FTABLE,
-	    M_NOWAIT);
+	ip6af = (struct ip6asfrag *)malloc(sizeof(struct ip6asfrag), M_FRAG6,
+	    M_NOWAIT | M_ZERO);
 	if (ip6af == NULL)
 		goto dropfrag;
-	bzero(ip6af, sizeof(*ip6af));
 	ip6af->ip6af_mff = ip6f->ip6f_offlg & IP6F_MORE_FRAG;
 	ip6af->ip6af_off = fragoff;
 	ip6af->ip6af_frglen = frgpartlen;
@@ -524,14 +522,14 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	ecn0 = q6->ip6q_ecn;
 	if (ecn == IPTOS_ECN_CE) {
 		if (ecn0 == IPTOS_ECN_NOTECT) {
-			free(ip6af, M_FTABLE);
+			free(ip6af, M_FRAG6);
 			goto dropfrag;
 		}
 		if (ecn0 != IPTOS_ECN_CE)
 			q6->ip6q_ecn = IPTOS_ECN_CE;
 	}
 	if (ecn == IPTOS_ECN_NOTECT && ecn0 != IPTOS_ECN_NOTECT) {
-		free(ip6af, M_FTABLE);
+		free(ip6af, M_FRAG6);
 		goto dropfrag;
 	}
 
@@ -557,14 +555,14 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		i = af6->ip6af_up->ip6af_off + af6->ip6af_up->ip6af_frglen
 			- ip6af->ip6af_off;
 		if (i > 0) {
-			free(ip6af, M_FTABLE);
+			free(ip6af, M_FRAG6);
 			goto dropfrag;
 		}
 	}
 	if (af6 != (struct ip6asfrag *)q6) {
 		i = (ip6af->ip6af_off + ip6af->ip6af_frglen) - af6->ip6af_off;
 		if (i > 0) {
-			free(ip6af, M_FTABLE);
+			free(ip6af, M_FRAG6);
 			goto dropfrag;
 		}
 	}
@@ -627,7 +625,7 @@ insert:
 		m_adj(IP6_REASS_MBUF(af6), af6->ip6af_offset);
 		m_demote_pkthdr(IP6_REASS_MBUF(af6));
 		m_cat(t, IP6_REASS_MBUF(af6));
-		free(af6, M_FTABLE);
+		free(af6, M_FRAG6);
 		af6 = af6dwn;
 	}
 
@@ -637,7 +635,7 @@ insert:
 
 	/* adjust offset to point where the original next header starts */
 	offset = ip6af->ip6af_offset - sizeof(struct ip6_frag);
-	free(ip6af, M_FTABLE);
+	free(ip6af, M_FRAG6);
 	ip6 = mtod(m, struct ip6_hdr *);
 	ip6->ip6_plen = htons((u_short)next + offset - sizeof(struct ip6_hdr));
 	if (q6->ip6q_ecn == IPTOS_ECN_CE)
@@ -650,7 +648,7 @@ insert:
 #ifdef MAC
 		mac_ip6q_destroy(q6);
 #endif
-		free(q6, M_FTABLE);
+		free(q6, M_FRAG6);
 		atomic_subtract_int(&V_frag6_nfragpackets, 1);
 
 		goto dropfrag;
@@ -668,7 +666,7 @@ insert:
 	mac_ip6q_reassemble(q6, m);
 	mac_ip6q_destroy(q6);
 #endif
-	free(q6, M_FTABLE);
+	free(q6, M_FRAG6);
 	atomic_subtract_int(&V_frag6_nfragpackets, 1);
 
 	if (m->m_flags & M_PKTHDR) { /* Isn't it always true? */
@@ -756,14 +754,14 @@ frag6_freef(struct ip6q *q6, uint32_t bucket)
 				    ICMP6_TIME_EXCEED_REASSEMBLY, 0);
 		} else
 			m_freem(m);
-		free(af6, M_FTABLE);
+		free(af6, M_FRAG6);
 	}
 	frag6_remque(q6, bucket);
 	atomic_subtract_int(&frag6_nfrags, q6->ip6q_nfrag);
 #ifdef MAC
 	mac_ip6q_destroy(q6);
 #endif
-	free(q6, M_FTABLE);
+	free(q6, M_FRAG6);
 	atomic_subtract_int(&V_frag6_nfragpackets, 1);
 }
 
