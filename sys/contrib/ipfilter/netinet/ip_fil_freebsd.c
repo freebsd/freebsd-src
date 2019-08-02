@@ -964,7 +964,7 @@ ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
 	i6addr_t *inp, *inpmask;
 {
 #ifdef USE_INET6
-	struct in6_addr *inp6 = NULL;
+	struct in6_addr *ia6 = NULL;
 #endif
 	struct sockaddr *sock, *mask;
 	struct sockaddr_in *sin;
@@ -992,9 +992,9 @@ ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
 			break;
 #ifdef USE_INET6
 		if ((v == 6) && (sin->sin_family == AF_INET6)) {
-			inp6 = &((struct sockaddr_in6 *)sin)->sin6_addr;
-			if (!IN6_IS_ADDR_LINKLOCAL(inp6) &&
-			    !IN6_IS_ADDR_LOOPBACK(inp6))
+			ia6 = &((struct sockaddr_in6 *)sin)->sin6_addr;
+			if (!IN6_IS_ADDR_LINKLOCAL(ia6) &&
+			    !IN6_IS_ADDR_LOOPBACK(ia6))
 				break;
 		}
 #endif

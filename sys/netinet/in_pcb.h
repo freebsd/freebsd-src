@@ -57,9 +57,6 @@
 #endif
 #include <sys/ck.h>
 
-#define	in6pcb		inpcb	/* for KAME src sync over BSD*'s */
-#define	in6p_sp		inp_sp	/* for KAME src sync over BSD*'s */
-
 /*
  * struct inpcb is the common protocol control block structure used in most
  * IP transport protocols.
@@ -342,7 +339,6 @@ struct inpcb {
 #define	in6p_faddr	inp_inc.inc6_faddr
 #define	in6p_laddr	inp_inc.inc6_laddr
 #define	in6p_zoneid	inp_inc.inc6_zoneid
-#define	in6p_flowinfo	inp_flow
 
 #define	inp_vnet	inp_pcbinfo->ipi_vnet
 
@@ -773,7 +769,6 @@ int	inp_so_options(const struct inpcb *inp);
 			    INPLOOKUP_WLOCKPCB)
 
 #define	sotoinpcb(so)	((struct inpcb *)(so)->so_pcb)
-#define	sotoin6pcb(so)	sotoinpcb(so) /* for KAME src sync over BSD*'s */
 
 #define	INP_SOCKAF(so) so->so_proto->pr_domain->dom_family
 
