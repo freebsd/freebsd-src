@@ -113,7 +113,7 @@ int	in6_getpeeraddr(struct socket *so, struct sockaddr **nam);
 int	in6_getsockaddr(struct socket *so, struct sockaddr **nam);
 int	in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam);
 int	in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam);
-int	in6_selecthlim(struct in6pcb *, struct ifnet *);
+int	in6_selecthlim(struct inpcb *, struct ifnet *);
 int	in6_pcbsetport(struct in6_addr *, struct inpcb *, struct ucred *);
 void	init_sin6(struct sockaddr_in6 *sin6, struct mbuf *m, int);
 #endif /* _KERNEL */

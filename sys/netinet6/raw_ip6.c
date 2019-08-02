@@ -161,7 +161,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	struct ifnet *ifp;
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
-	struct inpcb *in6p;
+	struct inpcb *inp;
 	struct inpcb *last = NULL;
 	struct mbuf *opts = NULL;
 	struct sockaddr_in6 fromsa;
@@ -174,18 +174,18 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	ifp = m->m_pkthdr.rcvif;
 
 	INP_INFO_RLOCK_ET(&V_ripcbinfo, et);
-	CK_LIST_FOREACH(in6p, &V_ripcb, inp_list) {
+	CK_LIST_FOREACH(inp, &V_ripcb, inp_list) {
 		/* XXX inp locking */
-		if ((in6p->inp_vflag & INP_IPV6) == 0)
+		if ((inp->inp_vflag & INP_IPV6) == 0)
 			continue;
-		if (in6p->inp_ip_p &&
-		    in6p->inp_ip_p != proto)
+		if (inp->inp_ip_p &&
+		    inp->inp_ip_p != proto)
 			continue;
-		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr) &&
-		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_laddr, &ip6->ip6_dst))
+		if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) &&
+		    !IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, &ip6->ip6_dst))
 			continue;
-		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
-		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
+		if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&
+		    !IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &ip6->ip6_src))
 			continue;
 		if (last != NULL) {
 			struct mbuf *n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
@@ -223,23 +223,23 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			INP_RUNLOCK(last);
 			last = NULL;
 		}
-		INP_RLOCK(in6p);
-		if (__predict_false(in6p->inp_flags2 & INP_FREED))
+		INP_RLOCK(inp);
+		if (__predict_false(inp->inp_flags2 & INP_FREED))
 			goto skip_2;
-		if (jailed_without_vnet(in6p->inp_cred)) {
+		if (jailed_without_vnet(inp->inp_cred)) {
 			/*
 			 * Allow raw socket in jail to receive multicast;
 			 * assume process had PRIV_NETINET_RAW at attach,
 			 * and fall through into normal filter path if so.
 			 */
 			if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
-			    prison_check_ip6(in6p->inp_cred,
+			    prison_check_ip6(inp->inp_cred,
 			    &ip6->ip6_dst) != 0)
 				goto skip_2;
 		}
-		if (in6p->in6p_cksum != -1) {
+		if (inp->in6p_cksum != -1) {
 			RIP6STAT_INC(rip6s_isum);
-			if (m->m_pkthdr.len - (*offp + in6p->in6p_cksum) < 2 ||
+			if (m->m_pkthdr.len - (*offp + inp->in6p_cksum) < 2 ||
 			    in6_cksum(m, proto, *offp,
 			    m->m_pkthdr.len - *offp)) {
 				RIP6STAT_INC(rip6s_badsum);
@@ -258,7 +258,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		 * should receive it, as multicast filtering is now
 		 * the responsibility of the transport layer.
 		 */
-		if (in6p->in6p_moptions &&
+		if (inp->in6p_moptions &&
 		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 			/*
 			 * If the incoming datagram is for MLD, allow it
@@ -288,7 +288,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 				mcaddr.sin6_family = AF_INET6;
 				mcaddr.sin6_addr = ip6->ip6_dst;
 
-				blocked = im6o_mc_filter(in6p->in6p_moptions,
+				blocked = im6o_mc_filter(inp->in6p_moptions,
 				    ifp,
 				    (struct sockaddr *)&mcaddr,
 				    (struct sockaddr *)&fromsa);
@@ -298,10 +298,10 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 				goto skip_2;
 			}
 		}
-		last = in6p;
+		last = inp;
 		continue;
 skip_2:
-		INP_RUNLOCK(in6p);
+		INP_RUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK_ET(&V_ripcbinfo, et);
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
@@ -394,7 +394,7 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	struct m_tag *mtag;
 	struct sockaddr_in6 *dstsock;
 	struct ip6_hdr *ip6;
-	struct inpcb *in6p;
+	struct inpcb *inp;
 	u_int	plen = m->m_pkthdr.len;
 	int error = 0;
 	struct ip6_pktopts opt, *optp;
@@ -411,18 +411,18 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	control = va_arg(ap, struct mbuf *);
 	va_end(ap);
 
-	in6p = sotoinpcb(so);
-	INP_WLOCK(in6p);
+	inp = sotoinpcb(so);
+	INP_WLOCK(inp);
 
 	if (control != NULL) {
 		if ((error = ip6_setpktopts(control, &opt,
-		    in6p->in6p_outputopts, so->so_cred,
+		    inp->in6p_outputopts, so->so_cred,
 		    so->so_proto->pr_protocol)) != 0) {
 			goto bad;
 		}
 		optp = &opt;
 	} else
-		optp = in6p->in6p_outputopts;
+		optp = inp->in6p_outputopts;
 
 	/*
 	 * Check and convert scope zone ID into internal form.
@@ -465,12 +465,12 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	/*
 	 * Source address selection.
 	 */
-	error = in6_selectsrc_socket(dstsock, optp, in6p, so->so_cred,
+	error = in6_selectsrc_socket(dstsock, optp, inp, so->so_cred,
 	    scope_ambiguous, &in6a, &hlim);
 
 	if (error)
 		goto bad;
-	error = prison_check_ip6(in6p->inp_cred, &in6a);
+	error = prison_check_ip6(inp->inp_cred, &in6a);
 	if (error != 0)
 		goto bad;
 	ip6->ip6_src = in6a;
@@ -481,18 +481,18 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	 * Fill in the rest of the IPv6 header fields.
 	 */
 	ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
-	    (in6p->inp_flow & IPV6_FLOWINFO_MASK);
+	    (inp->inp_flow & IPV6_FLOWINFO_MASK);
 	ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
 	    (IPV6_VERSION & IPV6_VERSION_MASK);
 
 	/*
 	 * ip6_plen will be filled in ip6_output, so not fill it here.
 	 */
-	ip6->ip6_nxt = in6p->inp_ip_p;
+	ip6->ip6_nxt = inp->inp_ip_p;
 	ip6->ip6_hlim = hlim;
 
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6 ||
-	    in6p->in6p_cksum != -1) {
+	    inp->in6p_cksum != -1) {
 		struct mbuf *n;
 		int off;
 		u_int16_t *p;
@@ -501,7 +501,7 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 		if (so->so_proto->pr_protocol == IPPROTO_ICMPV6)
 			off = offsetof(struct icmp6_hdr, icmp6_cksum);
 		else
-			off = in6p->in6p_cksum;
+			off = inp->in6p_cksum;
 		if (plen < off + 2) {
 			error = EINVAL;
 			goto bad;
@@ -537,7 +537,7 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 		}
 	}
 
-	error = ip6_output(m, optp, NULL, 0, in6p->in6p_moptions, &oifp, in6p);
+	error = ip6_output(m, optp, NULL, 0, inp->in6p_moptions, &oifp, inp);
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);
@@ -556,7 +556,7 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 		ip6_clearpktopts(&opt, -1);
 		m_freem(control);
 	}
-	INP_WUNLOCK(in6p);
+	INP_WUNLOCK(inp);
 	return (error);
 }
 

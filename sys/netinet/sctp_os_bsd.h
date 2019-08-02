@@ -97,9 +97,6 @@ __FBSDID("$FreeBSD$");
 #include <crypto/sha1.h>
 #include <crypto/sha2/sha256.h>
 
-#ifndef in6pcb
-#define in6pcb		inpcb
-#endif
 /* Declare all the malloc names for all the various mallocs */
 MALLOC_DECLARE(SCTP_M_MAP);
 MALLOC_DECLARE(SCTP_M_STRMI);
@@ -368,7 +365,7 @@ typedef struct callout sctp_os_timer_t;
  */
 
 /* get the v6 hop limit */
-#define SCTP_GET_HLIM(inp, ro)	in6_selecthlim((struct in6pcb *)&inp->ip_inp.inp, (ro ? (ro->ro_rt ? (ro->ro_rt->rt_ifp) : (NULL)) : (NULL)));
+#define SCTP_GET_HLIM(inp, ro)	in6_selecthlim((struct inpcb *)&inp->ip_inp.inp, (ro ? (ro->ro_rt ? (ro->ro_rt->rt_ifp) : (NULL)) : (NULL)));
 
 /* is the endpoint v6only? */
 #define SCTP_IPV6_V6ONLY(inp)	(((struct inpcb *)inp)->inp_flags & IN6P_IPV6_V6ONLY)
@@ -431,7 +428,7 @@ typedef struct rtentry sctp_rtentry_t;
 	m_clrprotoflags(o_pak); \
 	if (local_stcb && local_stcb->sctp_ep) \
 		result = ip6_output(o_pak, \
-				    ((struct in6pcb *)(local_stcb->sctp_ep))->in6p_outputopts, \
+				    ((struct inpcb *)(local_stcb->sctp_ep))->in6p_outputopts, \
 				    (ro), 0, 0, ifp, NULL); \
 	else \
 		result = ip6_output(o_pak, NULL, (ro), 0, 0, ifp, NULL); \
