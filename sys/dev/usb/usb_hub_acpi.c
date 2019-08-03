@@ -381,7 +381,8 @@ acpi_usb_hub_port_probe_cb(ACPI_HANDLE ah, UINT32 lv, void *ctx, void **rv)
 			struct sysctl_oid *oid;
 			struct sysctl_oid_list *tree;
 			
-			snprintf(buf, sizeof(buf), "port%lu", devinfo->Address);
+			snprintf(buf, sizeof(buf), "port%ju",
+			    (uintmax_t)devinfo->Address);
 			oid = SYSCTL_ADD_NODE(ctx,
 					      SYSCTL_CHILDREN(
 						      device_get_sysctl_tree(dev)),
