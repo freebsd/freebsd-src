@@ -299,6 +299,17 @@ static struct nvme_status_string media_error_status[] = {
 	{ 0xFFFF, "MEDIA ERROR" }
 };
 
+static struct nvme_status_string path_related_status[] = {
+	{ NVME_SC_INTERNAL_PATH_ERROR, "INTERNAL PATH ERROR" },
+	{ NVME_SC_ASYMMETRIC_ACCESS_PERSISTENT_LOSS, "ASYMMETRIC ACCESS PERSISTENT LOSS" },
+	{ NVME_SC_ASYMMETRIC_ACCESS_INACCESSIBLE, "ASYMMETRIC ACCESS INACCESSIBLE" },
+	{ NVME_SC_ASYMMETRIC_ACCESS_TRANSITION, "ASYMMETRIC ACCESS TRANSITION" },
+	{ NVME_SC_CONTROLLER_PATHING_ERROR, "CONTROLLER PATHING ERROR" },
+	{ NVME_SC_HOST_PATHING_ERROR, "HOST PATHING ERROR" },
+	{ NVME_SC_COMMAND_ABOTHED_BY_HOST, "COMMAND ABOTHED BY HOST" },
+	{ 0xFFFF, "PATH RELATED" },
+};
+
 static const char *
 get_status_string(uint16_t sct, uint16_t sc)
 {
@@ -313,6 +324,9 @@ get_status_string(uint16_t sct, uint16_t sc)
 		break;
 	case NVME_SCT_MEDIA_ERROR:
 		entry = media_error_status;
+		break;
+	case NVME_SCT_PATH_RELATED:
+		entry = path_related_status;
 		break;
 	case NVME_SCT_VENDOR_SPECIFIC:
 		return ("VENDOR SPECIFIC");
@@ -385,6 +399,17 @@ nvme_completion_is_retry(const struct nvme_completion *cpl)
 		}
 	case NVME_SCT_COMMAND_SPECIFIC:
 	case NVME_SCT_MEDIA_ERROR:
+		return (0);
+	case NVME_SCT_PATH_RELATED:
+		switch (sc) {
+		case NVME_SC_INTERNAL_PATH_ERROR:
+			if (dnr)
+				return (0);
+			else
+				return (1);
+		default:
+			return (0);
+		}
 	case NVME_SCT_VENDOR_SPECIFIC:
 	default:
 		return (0);

@@ -759,7 +759,7 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 	aer->log_page_id = (cpl->cdw0 & 0xFF0000) >> 16;
 
 	nvme_printf(aer->ctrlr, "async event occurred (type 0x%x, info 0x%02x,"
-	    " page 0x%02x)\n", (cpl->cdw0 & 0x03), (cpl->cdw0 & 0xFF00) >> 8,
+	    " page 0x%02x)\n", (cpl->cdw0 & 0x07), (cpl->cdw0 & 0xFF00) >> 8,
 	    aer->log_page_id);
 
 	if (is_log_page_id_valid(aer->log_page_id)) {
