@@ -776,21 +776,23 @@ void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 {
 
-	return (pmap_methods_ptr->pm_mapdev_attr(pa, size, mode));
+	return (pmap_methods_ptr->pm_mapdev_attr(pa, size, mode,
+	    MAPDEV_SETATTR));
 }
 
 void *
 pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
 
-	return (pmap_methods_ptr->pm_mapdev_attr(pa, size, PAT_UNCACHEABLE));
+	return (pmap_methods_ptr->pm_mapdev_attr(pa, size, PAT_UNCACHEABLE,
+	    MAPDEV_SETATTR));
 }
 
 void *
 pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 {
 
-	return (pmap_methods_ptr->pm_mapdev_attr(pa, size, PAT_WRITE_BACK));
+	return (pmap_methods_ptr->pm_mapdev_attr(pa, size, PAT_WRITE_BACK, 0));
 }
 
 void
