@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2019
+.Dd August 3, 2019
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -137,6 +137,16 @@
 .Aq device id
 .Aq namespace id
 .Nm
+.Ic sanitize
+.Aq Fl a Ar sanact
+.Op Fl c Ar owpass
+.Op Fl p Ar ovrpat
+.Op Fl r
+.Op Fl D
+.Op Fl I
+.Op Fl U
+.Aq device id
+.Nm
 .Ic power
 .Op Fl l
 .Op Fl p power_state
@@ -234,6 +244,65 @@ enables User Data Erase during format.
 Option
 .Fl C
 enables Cryptographic Erase during format.
+.Ss sanitize
+Sanitize NVM subsystem of specified controller,
+using specified parameters:
+.Bl -tag -width 6n
+.It Fl a Ar operation
+Specify the sanitize operation to perform.
+.Bl -tag -width 16n
+.It overwrite
+Perform an overwrite operation by writing a user supplied
+data pattern to the device one or more times.
+The pattern is given by the
+.Fl p
+argument.
+The number of times is given by the
+.Fl c
+argument.
+.It block
+Perform a block erase operation.
+All the device's blocks are set to a vendor defined
+value, typically zero.
+.It crypto
+Perform a cryptographic erase operation.
+The encryption keys are changed to prevent the decryption
+of the data.
+.It exitfailure
+Exits a previously failed sanitize operation.
+A failed sanitize operation can only be exited if it was
+run in the unrestricted completion mode, as provided by the
+.Fl U
+argument.
+.El
+.It Fl c Ar passes
+The number of passes when performing an
+.Sq overwrite
+operation.
+Valid values are between 1 and 16.
+The default is 1.
+.It Fl D
+No Deallocate After Sanitize.
+.It Fl I
+When performing an
+.Sq overwrite
+operation, the pattern is inverted between consecutive passes.
+.It Fl p Ar pattern
+32 bits of pattern to use when performing an
+.Sq overwrite
+operation.
+The pattern is repeated as needed to fill each block.
+.It Fl U
+Perform the sanitize in the unrestricted completion mode.
+If the operation fails, it can later be exited with the
+.Sq exitfailure
+operation.
+.It Fl r
+Run in
+.Dq report only
+mode.
+This will report status on a sanitize that is already running on the drive.
+.El
 .Ss wdc
 The various wdc command retrieve log data from the wdc/hgst drives.
 The
