@@ -204,17 +204,16 @@
 1:
 	.endm
 
-	.macro	PTI_ENTRY name, cont, has_err=0
+	.macro	PTI_ENTRY name, contk, contu, has_err=0
 	ALIGN_TEXT
 	.globl	X\name\()_pti
 	.type	X\name\()_pti,@function
 X\name\()_pti:
-	/* %rax, %rdx and possibly err not yet pushed */
-	testb	$SEL_RPL_MASK,PTI_CS-(2+1-\has_err)*8(%rsp)
-	jz	\cont
+	/* %rax, %rdx, and possibly err are not yet pushed */
+	testb	$SEL_RPL_MASK,PTI_CS-PTI_ERR-((1-\has_err)*8)(%rsp)
+	jz	\contk
 	PTI_UENTRY \has_err
-	swapgs
-	jmp	\cont
+	jmp	\contu
 	.endm
 
 	.macro	PTI_INTRENTRY vec_name
