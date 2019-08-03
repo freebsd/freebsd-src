@@ -531,16 +531,16 @@ opalpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	default:
 		error = OPAL_SUCCESS;
 		word = 0xffffffff;
+		width = 4;
 	}
 
 	/*
 	 * Poking config state for non-existant devices can make
 	 * the host bridge hang up. Clear any errors.
-	 *
-	 * XXX: Make this conditional on the existence of a freeze
 	 */
 	
-	if (error != OPAL_SUCCESS) {
+	if (error != OPAL_SUCCESS ||
+	    (word == ((1UL << (8 * width)) - 1))) {
 		if (error != OPAL_HARDWARE) {
 			opal_call(OPAL_PCI_EEH_FREEZE_STATUS, sc->phb_id,
 			    OPAL_PCI_DEFAULT_PE, vtophys(&eeh_state),
@@ -550,7 +550,8 @@ opalpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 				    sc->phb_id, OPAL_PCI_DEFAULT_PE,
 				    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 		}
-		word = 0xffffffff;
+		if (error != OPAL_SUCCESS)
+			word = 0xffffffff;
 	}
 
 	return (word);
@@ -563,8 +564,6 @@ opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	struct opalpci_softc *sc;
 	uint64_t config_addr;
 	int error = OPAL_SUCCESS;
-	uint16_t err_type;
-	uint8_t eeh_state;
 
 	sc = device_get_softc(dev);
 
@@ -591,13 +590,9 @@ opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 		 * the host bridge hang up. Clear any errors.
 		 */
 		if (error != OPAL_HARDWARE) {
-			opal_call(OPAL_PCI_EEH_FREEZE_STATUS, sc->phb_id,
-			    OPAL_PCI_DEFAULT_PE, vtophys(&eeh_state),
-			    vtophys(&err_type), NULL);
-			if (eeh_state != OPAL_EEH_STOPPED_NOT_FROZEN)
-				opal_call(OPAL_PCI_EEH_FREEZE_CLEAR,
-				    sc->phb_id, OPAL_PCI_DEFAULT_PE,
-				    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+			opal_call(OPAL_PCI_EEH_FREEZE_CLEAR,
+			    sc->phb_id, OPAL_PCI_DEFAULT_PE,
+			    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 		}
 	}
 }
