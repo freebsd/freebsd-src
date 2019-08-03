@@ -79,11 +79,22 @@
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
+#include <sys/sbuf.h>
+
+#define ACPI_PLD_SIZE 20
+struct acpi_uhub_port {
+	ACPI_HANDLE handle;
+#define    ACPI_UPC_CONNECTABLE 0x80000000
+#define    ACPI_UPC_PORTTYPE(x) ((x)&0xff)
+	uint32_t upc;
+	uint8_t	pld[ACPI_PLD_SIZE];
+};
 
 struct acpi_uhub_softc {
 	struct uhub_softc usc;
 	uint8_t	nports;
-	ACPI_HANDLE *porthandle;
+	ACPI_HANDLE ah;
+	struct acpi_uhub_port *port;
 };
 
 static UINT32
@@ -107,51 +118,157 @@ acpi_uhub_find_rh_cb(ACPI_HANDLE ah, UINT32 nl, void *ctx, void **status)
 	return (ret);
 }
 
+static const char *
+acpi_uhub_upc_type(uint8_t type)
+{
+	const char *typelist[] = {"TypeA", "MiniAB", "Express",
+				  "USB3-A", "USB3-B", "USB-MicroB",
+				  "USB3-MicroAB", "USB3-PowerB",
+				  "TypeC-USB2", "TypeC-Switch",
+				  "TypeC-nonSwitch"};
+	const int last = sizeof(typelist) / sizeof(typelist[0]);
+
+	if (type == 0xff) {
+		return "Proprietary";
+	}
+
+	return (type < last) ? typelist[type] : "Unknown";
+}
+
 static int
-acpi_uhub_parse_upc(device_t dev, unsigned int port, ACPI_HANDLE ah)
+acpi_uhub_parse_upc(device_t dev, unsigned int p, ACPI_HANDLE ah, struct sysctl_oid_list *poid)
 {
 	ACPI_BUFFER buf;
+	struct acpi_uhub_softc *sc = device_get_softc(dev);
+	struct acpi_uhub_port *port = &sc->port[p - 1];
 
 	buf.Pointer = NULL;
 	buf.Length = ACPI_ALLOCATE_BUFFER;
 
 	if (AcpiEvaluateObject(ah, "_UPC", NULL, &buf) == AE_OK) {
-		UINT64 porttypenum, conn;
-		const char *connectable;
-		const char *typelist[] = {
-			"TypeA", "MiniAB", "Express",
-			"USB3-A", "USB3-B", "USB-MicroB",
-			"USB3-MicroAB", "USB3-PowerB",
-			"TypeC-USB2", "TypeC-Switch",
-			"TypeC-nonSwitch"
-		};
-		const char *porttype;
-		const int last = sizeof(typelist) / sizeof(typelist[0]);
 		ACPI_OBJECT *obj = buf.Pointer;
+		UINT64 porttypenum, conn;
+		uint8_t *connectable;
 
 		acpi_PkgInt(obj, 0, &conn);
 		acpi_PkgInt(obj, 1, &porttypenum);
 		connectable = conn ? "" : "non";
-		if (porttypenum == 0xff)
-			porttype = "Proprietary";
-		else if (porttypenum < last) {
-			porttype = typelist[porttypenum];
-		} else {
-			porttype = "Unknown";
-		}
+
+		port->upc = porttypenum;
+		port->upc |= (conn) ? (ACPI_UPC_CONNECTABLE) : 0;
+
 		if (usb_debug)
 			device_printf(dev, "Port %u %sconnectable %s\n",
-			    port, connectable, porttype);
+			    p, connectable,
+			    acpi_uhub_upc_type(porttypenum));
+
+		SYSCTL_ADD_U32(
+		    device_get_sysctl_ctx(dev),
+		    poid, OID_AUTO,
+		    "upc",
+		    CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    SYSCTL_NULL_U32_PTR, port->upc,
+		    "UPC value. MSB is visible flag");
 	}
 	AcpiOsFree(buf.Pointer);
 
 	return (0);
 }
+static int
+acpi_uhub_port_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct acpi_uhub_port *port = oidp->oid_arg1;
+	struct sbuf sb;
+	int error;
+
+	sbuf_new_for_sysctl(&sb, NULL, 256, req);
+	sbuf_printf(&sb, "Handle %s\n", acpi_name(port->handle));
+	if (port->upc == 0xffffffff) {
+		sbuf_printf(&sb, "\tNo information\n");
+		goto end;
+	}
+	sbuf_printf(&sb, "\t");
+	if (port->upc & ACPI_UPC_CONNECTABLE) {
+		sbuf_printf(&sb, "Connectable ");
+	}
+	sbuf_printf(&sb, "%s port\n", acpi_uhub_upc_type(port->upc & 0xff));
+
+	if ((port->pld[0] & 0x80) == 0) {
+		sbuf_printf(&sb,
+		    "\tColor:#%02x%02x%02x\n",
+		    port->pld[1], port->pld[2],
+		    port->pld[3]);
+	}
+	sbuf_printf(&sb, "\tWidth %d mm Height %d mm\n",
+	    port->pld[4] | (port->pld[5] << 8),
+	    port->pld[6] | (port->pld[7] << 8));
+	if (port->pld[8] & 1) {
+		sbuf_printf(&sb, "\tVisible\n");
+	}
+	if (port->pld[8] & 2) {
+		sbuf_printf(&sb, "\tDock\n");
+	}
+	if (port->pld[8] & 4) {
+		sbuf_printf(&sb, "\tLid\n");
+	} {
+		int panelpos = (port->pld[8] >> 3) & 7;
+		const char *panposstr[] = {"Top", "Bottom", "Left",
+					   "Right", "Front", "Back",
+					   "Unknown", "Invalid"};
+		const char *shapestr[] = {
+			"Round", "Oval", "Square", "VRect", "HRect",
+			"VTrape", "HTrape", "Unknown", "Chamferd",
+			"Rsvd", "Rsvd", "Rsvd", "Rsvd",
+			"Rsvd", "Rsvd", "Rsvd", "Rsvd"};
+
+		sbuf_printf(&sb, "\tPanelPosition: %s\n", panposstr[panelpos]);
+		if (panelpos < 6) {
+			const char *posstr[] = {"Upper", "Center",
+			"Lower", "Invalid"};
+
+			sbuf_printf(&sb, "\tVertPosition: %s\n",
+			    posstr[(port->pld[8] >> 6) & 3]);
+			sbuf_printf(&sb, "\tHorizPosition: %s\n",
+			    posstr[(port->pld[9]) & 3]);
+
+
+		}
+		sbuf_printf(&sb, "\tShape: %s\n",
+		    shapestr[(port->pld[9] >> 2) & 0xf]);
+		sbuf_printf(&sb, "\tGroup Orientation %s\n",
+		    ((port->pld[9] >> 6) & 1) ? "Vertical" :
+		    "Horizontal");
+		sbuf_printf(&sb, "\tGroupToken %x\n",
+		    ((port->pld[9] >> 7)
+		    | (port->pld[10] << 1)) & 0xff);
+		sbuf_printf(&sb, "\tGroupPosition %x\n",
+		    ((port->pld[10] >> 7)
+		    | (port->pld[11] << 1)) & 0xff);
+		sbuf_printf(&sb, "\t%s %s %s\n",
+		    (port->pld[11] & 0x80) ?
+		    "Bay" : "",
+		    (port->pld[12] & 1) ? "Eject" : "",
+		    (port->pld[12] & 2) ? "OSPM" : ""
+		    );
+	}
+	if ((port->pld[0] & 0x7f) >= 2) {
+		sbuf_printf(&sb, "\tVOFF%d mm HOFF %dmm",
+		    port->pld[16] | (port->pld[17] << 8),
+		    port->pld[18] | (port->pld[19] << 8));
+	}
+
+end:
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error);
+}
 
 static int
-acpi_uhub_parse_pld(device_t dev, unsigned int port, ACPI_HANDLE ah)
+acpi_uhub_parse_pld(device_t dev, unsigned int p, ACPI_HANDLE ah, struct sysctl_oid_list *tree)
 {
 	ACPI_BUFFER buf;
+	struct acpi_uhub_softc *sc = device_get_softc(dev);
+	struct acpi_uhub_port *port = &sc->port[p - 1];
 
 	buf.Pointer = NULL;
 	buf.Length = ACPI_ALLOCATE_BUFFER;
@@ -176,6 +293,13 @@ acpi_uhub_parse_pld(device_t dev, unsigned int port, ACPI_HANDLE ah)
 		} else {
 			goto skip;
 		}
+		len = (len < ACPI_PLD_SIZE) ? len : ACPI_PLD_SIZE;
+		memcpy(port->pld, resbuf, len);
+		SYSCTL_ADD_OPAQUE(
+		    device_get_sysctl_ctx(dev), tree, OID_AUTO,
+		    "pldraw", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    port->pld, len, "A", "Raw PLD value");
+
 		if (usb_debug) {
 			device_printf(dev, "Revision:%d\n",
 			    resbuf[0] & 0x7f);
@@ -252,9 +376,28 @@ acpi_usb_hub_port_probe_cb(ACPI_HANDLE ah, UINT32 lv, void *ctx, void **rv)
 		if ((devinfo->Valid & ACPI_VALID_ADR) &&
 		    (devinfo->Address > 0) &&
 		    (devinfo->Address <= (uint64_t)sc->nports)) {
-			sc->porthandle[devinfo->Address - 1] = ah;
-			acpi_uhub_parse_upc(dev, devinfo->Address, ah);
-			acpi_uhub_parse_pld(dev, devinfo->Address, ah);
+			char buf[] = "portXXX";
+			struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+			struct sysctl_oid *oid;
+			struct sysctl_oid_list *tree;
+			
+			snprintf(buf, sizeof(buf), "port%lu", devinfo->Address);
+			oid = SYSCTL_ADD_NODE(ctx,
+					      SYSCTL_CHILDREN(
+						      device_get_sysctl_tree(dev)),
+					      OID_AUTO, buf, CTLFLAG_RD,
+					      NULL, "port nodes");
+			tree = SYSCTL_CHILDREN(oid);
+			sc->port[devinfo->Address - 1].handle = ah;
+			sc->port[devinfo->Address - 1].upc = 0xffffffff;
+			acpi_uhub_parse_upc(dev, devinfo->Address, ah, tree);
+			acpi_uhub_parse_pld(dev, devinfo->Address, ah, tree);
+			SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+					tree, OID_AUTO, "info",
+					CTLTYPE_STRING | CTLFLAG_RD,
+					&sc->port[devinfo->Address - 1], 0,
+					acpi_uhub_port_sysctl,
+					"A", "Port information");
 		}
 		AcpiOsFree(devinfo);
 	}
@@ -306,53 +449,76 @@ acpi_uhub_probe(device_t dev)
 	}
 	return (ENXIO);
 }
+static int
+acpi_uhub_attach_common(device_t dev)
+{
+	struct usb_hub *uh;
+	struct acpi_uhub_softc *sc = device_get_softc(dev);
+	ACPI_STATUS status;
+	int ret = ENXIO;
+
+	uh = sc->usc.sc_udev->hub;
+	sc->nports = uh->nports;
+	sc->port = malloc(sizeof(struct acpi_uhub_port) * uh->nports,
+	    M_USBDEV, M_WAITOK | M_ZERO);
+	status = acpi_usb_hub_port_probe(dev, sc->ah);
+
+	if (ACPI_SUCCESS(status)){
+		ret = 0;
+	} 
+
+	return (ret);
+}
+
+static int
+acpi_uhub_detach(device_t dev)
+{
+	struct acpi_uhub_softc *sc = device_get_softc(dev);
+
+	free(sc->port, M_USBDEV);
+
+	return (uhub_detach(dev));
+}
 
 static int
 acpi_uhub_root_attach(device_t dev)
 {
-	struct acpi_uhub_softc *sc = device_get_softc(dev);
-	ACPI_STATUS status;
-	ACPI_HANDLE ah;
 	int ret;
+	struct acpi_uhub_softc *sc = device_get_softc(dev);
 
-	ret = uhub_attach(dev);
-	if (ret != 0)
-		goto done;
-
-	status = acpi_uhub_find_rh(dev, &ah);
-	if (ACPI_SUCCESS(status) && ah != NULL) {
-		struct usb_hub *uh = sc->usc.sc_udev->hub;
-
-		sc->nports = uh->nports;
-		sc->porthandle = malloc(sizeof(ACPI_HANDLE) * uh->nports,
-		    M_USBDEV, M_WAITOK | M_ZERO);
-		acpi_usb_hub_port_probe(dev, ah);
+	if (ACPI_FAILURE(acpi_uhub_find_rh(dev, &sc->ah)) ||
+	    (sc->ah == NULL)) {
+		return (ENXIO);
 	}
-done:
-	return (ret);
+	if ((ret = uhub_attach(dev)) != 0) {
+		return (ret);
+	}
+	
+	if ((ret = acpi_uhub_attach_common(dev)) != 0) {
+		acpi_uhub_detach(dev);
+	}
+	return ret;
 }
 
 static int
 acpi_uhub_attach(device_t dev)
 {
-	struct acpi_uhub_softc *sc = device_get_softc(dev);
-	ACPI_HANDLE ah;
 	int ret;
+	struct acpi_uhub_softc *sc = device_get_softc(dev);
 
-	ret = uhub_attach(dev);
-	if (ret != 0)
-		goto done;
+	sc->ah = acpi_get_handle(dev);
 
-	ah = acpi_get_handle(dev);
-	if (ah != NULL) {
-		struct usb_hub *uh = sc->usc.sc_udev->hub;
-
-		sc->nports = uh->nports;
-		sc->porthandle = malloc(sizeof(ACPI_HANDLE) * uh->nports,
-		    M_USBDEV, M_WAITOK | M_ZERO);
-		acpi_usb_hub_port_probe(dev, ah);
+	if (sc->ah == NULL) {
+		return (ENXIO);
 	}
-done:
+	if ((ret = uhub_attach(dev)) != 0) {
+		return (ret);
+	}
+
+	if ((ret = acpi_uhub_attach_common(dev)) != 0) {
+		acpi_uhub_detach(dev);
+	}
+
 	return (ret);
 }
 
@@ -370,7 +536,7 @@ acpi_uhub_read_ivar(device_t dev, device_t child, int idx, uintptr_t *res)
 	if ((idx == ACPI_IVAR_HANDLE) &&
 	    (hres.portno > 0) &&
 	    (hres.portno <= sc->nports) &&
-	    (ah = sc->porthandle[hres.portno - 1])) {
+	    (ah = sc->port[hres.portno - 1].handle)) {
 		*res = (uintptr_t)ah;
 		return (0);
 	}
@@ -393,15 +559,6 @@ acpi_uhub_child_location_string(device_t parent, device_t child,
 	return (0);
 }
 
-static int
-acpi_uhub_detach(device_t dev)
-{
-	struct acpi_uhub_softc *sc = device_get_softc(dev);
-
-	free(sc->porthandle, M_USBDEV);
-
-	return (uhub_detach(dev));
-}
 
 static device_method_t acpi_uhub_methods[] = {
 	DEVMETHOD(device_probe, acpi_uhub_probe),
