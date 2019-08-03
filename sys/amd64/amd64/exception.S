@@ -105,14 +105,31 @@ MCOUNT_LABEL(btrap)
 
 /* Traps that we leave interrupts disabled for. */
 	.macro	TRAP_NOEN	l, trapno
-	PTI_ENTRY	\l,X\l
+	PTI_ENTRY	\l,\l\()_pti_k,\l\()_pti_u
+\l\()_pti_k:
+	subq	$TF_RIP,%rsp
+	movl	$\trapno,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	movq	$0,TF_ERR(%rsp)
+	jmp	alltraps_noen_k
+\l\()_pti_u:
+	subq	$TF_RIP,%rsp
+	movl	$\trapno,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	movq	$0,TF_ERR(%rsp)
+	jmp	alltraps_noen_u
+	
 	.globl	X\l
 	.type	X\l,@function
-X\l:	subq $TF_RIP,%rsp
-	movl $\trapno,TF_TRAPNO(%rsp)
-	movq $0,TF_ADDR(%rsp)
-	movq $0,TF_ERR(%rsp)
-	jmp alltraps_noen
+X\l:
+	subq	$TF_RIP,%rsp
+	movl	$\trapno,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	movq	$0,TF_ERR(%rsp)
+	testb	$SEL_RPL_MASK,TF_CS(%rsp)
+	jz	alltraps_noen_k
+	swapgs
+	jmp	alltraps_noen_u
 	.endm
 
 	TRAP_NOEN	bpt, T_BPTFLT
@@ -122,15 +139,31 @@ X\l:	subq $TF_RIP,%rsp
 
 /* Regular traps; The cpu does not supply tf_err for these. */
 	.macro	TRAP	l, trapno
-	PTI_ENTRY	\l,X\l
+	PTI_ENTRY	\l,\l\()_pti_k,\l\()_pti_u
+\l\()_pti_k:
+	subq	$TF_RIP,%rsp
+	movl	$\trapno,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	movq	$0,TF_ERR(%rsp)
+	jmp	alltraps_k
+\l\()_pti_u:
+	subq	$TF_RIP,%rsp
+	movl	$\trapno,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	movq	$0,TF_ERR(%rsp)
+	jmp	alltraps_u
+
 	.globl	X\l
 	.type	X\l,@function
 X\l:
-	subq $TF_RIP,%rsp
-	movl $\trapno,TF_TRAPNO(%rsp)
-	movq $0,TF_ADDR(%rsp)
-	movq $0,TF_ERR(%rsp)
-	jmp alltraps
+	subq	$TF_RIP,%rsp
+	movl	$\trapno,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	movq	$0,TF_ERR(%rsp)
+	testb	$SEL_RPL_MASK,TF_CS(%rsp)
+	jz	alltraps_k
+	swapgs
+	jmp	alltraps_u
 	.endm
 
 	TRAP	div, T_DIVIDE
@@ -145,42 +178,62 @@ X\l:
 
 /* This group of traps have tf_err already pushed by the cpu. */
 	.macro	TRAP_ERR	l, trapno
-	PTI_ENTRY	\l,X\l,has_err=1
+	PTI_ENTRY	\l,\l\()_pti_k,\l\()_pti_u,has_err=1
+\l\()_pti_k:
+	subq	$TF_ERR,%rsp
+	movl	$\trapno,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	jmp	alltraps_k
+\l\()_pti_u:
+	subq	$TF_ERR,%rsp
+	movl	$\trapno,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	jmp	alltraps_u
 	.globl	X\l
 	.type	X\l,@function
 X\l:
-	subq $TF_ERR,%rsp
-	movl $\trapno,TF_TRAPNO(%rsp)
-	movq $0,TF_ADDR(%rsp)
-	jmp alltraps
+	subq	$TF_ERR,%rsp
+	movl	$\trapno,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	testb	$SEL_RPL_MASK,TF_CS(%rsp)
+	jz	alltraps_k
+	swapgs
+	jmp	alltraps_u
 	.endm
 
 	TRAP_ERR	tss, T_TSSFLT
 	TRAP_ERR	align, T_ALIGNFLT
 
 	/*
-	 * alltraps entry point.  Use swapgs if this is the first time in the
-	 * kernel from userland.  Reenable interrupts if they were enabled
-	 * before the trap.  This approximates SDT_SYS386TGT on the i386 port.
+	 * alltraps_u/k entry points.
+	 * SWAPGS must be already performed by prologue,
+	 * if this is the first time in the kernel from userland.
+	 * Reenable interrupts if they were enabled before the trap.
+	 * This approximates SDT_SYS386TGT on the i386 port.
 	 */
 	SUPERALIGN_TEXT
-	.globl	alltraps
-	.type	alltraps,@function
-alltraps:
+	.globl	alltraps_u
+	.type	alltraps_u,@function
+alltraps_u:
 	movq	%rdi,TF_RDI(%rsp)
-	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
-	jz	1f		/* already running with kernel GS.base */
-	swapgs
-	movq	PCPU(CURPCB),%rdi
-	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
-1:	SAVE_SEGS
 	movq	%rdx,TF_RDX(%rsp)
 	movq	%rax,TF_RAX(%rsp)
 	movq	%rcx,TF_RCX(%rsp)
-	testb	$SEL_RPL_MASK,TF_CS(%rsp)
-	jz	2f
+	movq	PCPU(CURPCB),%rdi
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	call	handle_ibrs_entry
-2:	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jmp	alltraps_save_segs
+	SUPERALIGN_TEXT
+	.globl	alltraps_k
+	.type	alltraps_k,@function
+alltraps_k:
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+alltraps_save_segs:
+	SAVE_SEGS
+	testl	$PSL_I,TF_RFLAGS(%rsp)
 	jz	alltraps_pushregs_no_rax
 	sti
 alltraps_pushregs_no_rax:
@@ -234,21 +287,26 @@ calltrap:
 	jmp	doreti			/* Handle any pending ASTs */
 
 	/*
-	 * alltraps_noen entry point.  Unlike alltraps above, we want to
-	 * leave the interrupts disabled.  This corresponds to
-	 * SDT_SYS386IGT on the i386 port.
+	 * alltraps_noen_u/k entry points.
+	 * Again, SWAPGS must be already performed by prologue, if needed.
+	 * Unlike alltraps above, we want to leave the interrupts disabled.
+	 * This corresponds to SDT_SYS386IGT on the i386 port.
 	 */
 	SUPERALIGN_TEXT
-	.globl	alltraps_noen
-	.type	alltraps_noen,@function
-alltraps_noen:
+	.globl	alltraps_noen_u
+	.type	alltraps_noen_u,@function
+alltraps_noen_u:
 	movq	%rdi,TF_RDI(%rsp)
-	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
-	jz	1f /* already running with kernel GS.base */
-	swapgs
 	movq	PCPU(CURPCB),%rdi
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
-1:	SAVE_SEGS
+	jmp	alltraps_noen_save_segs
+	SUPERALIGN_TEXT
+	.globl	alltraps_noen_k
+	.type	alltraps_noen_k,@function
+alltraps_noen_k:
+	movq	%rdi,TF_RDI(%rsp)
+alltraps_noen_save_segs:
+	SAVE_SEGS
 	movq	%rdx,TF_RDX(%rsp)
 	movq	%rax,TF_RAX(%rsp)
 	movq	%rcx,TF_RCX(%rsp)
@@ -297,8 +355,8 @@ IDTVEC(dblfault)
 
 	ALIGN_TEXT
 IDTVEC(page_pti)
-	testb	$SEL_RPL_MASK,PTI_CS-2*8(%rsp)
-	jz	Xpage
+	testb	$SEL_RPL_MASK,PTI_CS-PTI_ERR(%rsp)
+	jz	page_k
 	swapgs
 	pushq	%rax
 	movq	%cr3,%rax
@@ -306,25 +364,31 @@ IDTVEC(page_pti)
 	cmpq	$~0,PCPU(UCR3)
 	jne	1f
 	popq	%rax
-	jmp	2f
+	jmp	page_u
 1:	pushq	%rdx
 	PTI_UUENTRY has_err=1
-2:	subq	$TF_ERR,%rsp
-	movq	%rdi,TF_RDI(%rsp)
-	movq	%rax,TF_RAX(%rsp)
-	movq	%rdx,TF_RDX(%rsp)
-	movq	%rcx,TF_RCX(%rsp)
 	jmp	page_u
+	ALIGN_TEXT
 IDTVEC(page)
+	testb	$SEL_RPL_MASK,TF_CS-TF_ERR(%rsp) /* Did we come from kernel? */
+	jnz	page_u_swapgs		/* already running with kernel GS.base */
+page_k:
 	subq	$TF_ERR,%rsp
 	movq	%rdi,TF_RDI(%rsp)	/* free up GP registers */
 	movq	%rax,TF_RAX(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
 	movq	%rcx,TF_RCX(%rsp)
-	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
-	jz	page_cr2		/* already running with kernel GS.base */
+	jmp	page_cr2
+	ALIGN_TEXT
+page_u_swapgs:
 	swapgs
-page_u:	movq	PCPU(CURPCB),%rdi
+page_u:
+	subq	$TF_ERR,%rsp
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	PCPU(CURPCB),%rdi
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	movq	PCPU(SAVED_UCR3),%rax
 	movq	%rax,PCB_SAVED_UCR3(%rdi)
