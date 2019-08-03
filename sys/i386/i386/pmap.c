@@ -5404,10 +5404,12 @@ pmap_pde_attr(pd_entry_t *pde, int cache_bits)
  * NOT real memory.
  */
 static void *
-__CONCAT(PMTYPE, mapdev_attr)(vm_paddr_t pa, vm_size_t size, int mode)
+__CONCAT(PMTYPE, mapdev_attr)(vm_paddr_t pa, vm_size_t size, int mode,
+    int flags)
 {
 	struct pmap_preinit_mapping *ppim;
 	vm_offset_t va, offset;
+	vm_page_t m;
 	vm_size_t tmpsize;
 	int i;
 
@@ -5415,9 +5417,11 @@ __CONCAT(PMTYPE, mapdev_attr)(vm_paddr_t pa, vm_size_t size, int mode)
 	size = round_page(offset + size);
 	pa = pa & PG_FRAME;
 
-	if (pa < PMAP_MAP_LOW && pa + size <= PMAP_MAP_LOW)
+	if (pa < PMAP_MAP_LOW && pa + size <= PMAP_MAP_LOW) {
 		va = pa + PMAP_MAP_LOW;
-	else if (!pmap_initialized) {
+		if ((flags & MAPDEV_SETATTR) == 0)
+			return ((void *)(va + offset));
+	} else if (!pmap_initialized) {
 		va = 0;
 		for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
 			ppim = pmap_preinit_mapping + i;
@@ -5440,15 +5444,25 @@ __CONCAT(PMTYPE, mapdev_attr)(vm_paddr_t pa, vm_size_t size, int mode)
 		for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
 			ppim = pmap_preinit_mapping + i;
 			if (ppim->pa == pa && ppim->sz == size &&
-			    ppim->mode == mode)
+			    (ppim->mode == mode ||
+			    (flags & MAPDEV_SETATTR) == 0))
 				return ((void *)(ppim->va + offset));
 		}
 		va = kva_alloc(size);
 		if (va == 0)
 			panic("%s: Couldn't allocate KVA", __func__);
 	}
-	for (tmpsize = 0; tmpsize < size; tmpsize += PAGE_SIZE)
+	for (tmpsize = 0; tmpsize < size; tmpsize += PAGE_SIZE) {
+		if ((flags & MAPDEV_SETATTR) == 0 && pmap_initialized) {
+			m = PHYS_TO_VM_PAGE(pa);
+			if (m != NULL && VM_PAGE_TO_PHYS(m) == pa) {
+				pmap_kenter_attr(va + tmpsize, pa + tmpsize,
+				    m->md.pat_mode);
+				continue;
+			}
+		}
 		pmap_kenter_attr(va + tmpsize, pa + tmpsize, mode);
+	}
 	pmap_invalidate_range_int(kernel_pmap, va, va + tmpsize);
 	pmap_invalidate_cache_range(va, va + size);
 	return ((void *)(va + offset));
