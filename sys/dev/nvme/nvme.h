@@ -81,12 +81,20 @@
 
 #define NVME_CAP_HI_REG_DSTRD_SHIFT			(0)
 #define NVME_CAP_HI_REG_DSTRD_MASK			(0xF)
+#define NVME_CAP_HI_REG_NSSRS_SHIFT			(4)
+#define NVME_CAP_HI_REG_NSSRS_MASK			(0x1)
 #define NVME_CAP_HI_REG_CSS_NVM_SHIFT			(5)
 #define NVME_CAP_HI_REG_CSS_NVM_MASK			(0x1)
+#define NVME_CAP_HI_REG_BPS_SHIFT			(13)
+#define NVME_CAP_HI_REG_BPS_MASK			(0x1)
 #define NVME_CAP_HI_REG_MPSMIN_SHIFT			(16)
 #define NVME_CAP_HI_REG_MPSMIN_MASK			(0xF)
 #define NVME_CAP_HI_REG_MPSMAX_SHIFT			(20)
 #define NVME_CAP_HI_REG_MPSMAX_MASK			(0xF)
+#define NVME_CAP_HI_REG_PMRS_SHIFT			(24)
+#define NVME_CAP_HI_REG_PMRS_MASK			(0x1)
+#define NVME_CAP_HI_REG_CMBS_SHIFT			(25)
+#define NVME_CAP_HI_REG_CMBS_MASK			(0x1)
 #define NVME_CAP_HI_DSTRD(x) \
 	(((x) >> NVME_CAP_HI_REG_DSTRD_SHIFT) & NVME_CAP_HI_REG_DSTRD_MASK)
 #define NVME_CAP_HI_CSS_NVM(x) \
@@ -117,6 +125,10 @@
 #define NVME_CSTS_REG_CFS_MASK				(0x1)
 #define NVME_CSTS_REG_SHST_SHIFT			(2)
 #define NVME_CSTS_REG_SHST_MASK				(0x3)
+#define NVME_CSTS_REG_NVSRO_SHIFT			(4)
+#define NVME_CSTS_REG_NVSRO_MASK			(0x1)
+#define NVME_CSTS_REG_PP_SHIFT				(5)
+#define NVME_CSTS_REG_PP_MASK				(0x1)
 
 #define NVME_CSTS_GET_SHST(csts)			(((csts) >> NVME_CSTS_REG_SHST_SHIFT) & NVME_CSTS_REG_SHST_MASK)
 
@@ -136,6 +148,8 @@
 #define NVME_STATUS_SC_MASK				(0xFF)
 #define NVME_STATUS_SCT_SHIFT				(9)
 #define NVME_STATUS_SCT_MASK				(0x7)
+#define NVME_STATUS_CRD_SHIFT				(12)
+#define NVME_STATUS_CRD_MASK				(0x3)
 #define NVME_STATUS_M_SHIFT				(14)
 #define NVME_STATUS_M_MASK				(0x1)
 #define NVME_STATUS_DNR_SHIFT				(15)
@@ -489,34 +503,37 @@ enum shst_value {
 
 struct nvme_registers
 {
-	/** controller capabilities */
-	uint32_t		cap_lo;
-	uint32_t		cap_hi;
-
-	uint32_t		vs;	/* version */
-	uint32_t		intms;	/* interrupt mask set */
-	uint32_t		intmc;	/* interrupt mask clear */
-
-	/** controller configuration */
-	uint32_t		cc;
-
-	uint32_t		reserved1;
-
-	/** controller status */
-	uint32_t		csts;
-
-	uint32_t		reserved2;
-
-	/** admin queue attributes */
-	uint32_t		aqa;
-
-	uint64_t		asq;	/* admin submission queue base addr */
-	uint64_t		acq;	/* admin completion queue base addr */
-	uint32_t		reserved3[0x3f2];
-
+	uint32_t	cap_lo; /* controller capabilities */
+	uint32_t	cap_hi;
+	uint32_t	vs;	/* version */
+	uint32_t	intms;	/* interrupt mask set */
+	uint32_t	intmc;	/* interrupt mask clear */
+	uint32_t	cc;	/* controller configuration */
+	uint32_t	reserved1;
+	uint32_t	csts;	/* controller status */
+	uint32_t	nssr;	/* NVM Subsystem Reset */
+	uint32_t	aqa;	/* admin queue attributes */
+	uint64_t	asq;	/* admin submission queue base addr */
+	uint64_t	acq;	/* admin completion queue base addr */
+	uint32_t	cmbloc;	/* Controller Memory Buffer Location */
+	uint32_t	cmbsz;	/* Controller Memory Buffer Size */
+	uint32_t	bpinfo;	/* Boot Partition Information */
+	uint32_t	bprsel;	/* Boot Partition Read Select */
+	uint64_t	bpmbl;	/* Boot Partition Memory Buffer Location */
+	uint64_t	cmbmsc;	/* Controller Memory Buffer Memory Space Control */
+	uint32_t	cmbsts;	/* Controller Memory Buffer Status */
+	uint8_t		reserved3[3492]; /* 5Ch - DFFh */
+	uint32_t	pmrcap;	/* Persistent Memory Capabilities */
+	uint32_t	pmrctl;	/* Persistent Memory Region Control */
+	uint32_t	pmrsts;	/* Persistent Memory Region Status */
+	uint32_t	pmrebs;	/* Persistent Memory Region Elasticity Buffer Size */
+	uint32_t	pmrswtp; /* Persistent Memory Region Sustained Write Throughput */
+	uint32_t	pmrmsc_lo; /* Persistent Memory Region Controller Memory Space Control */
+	uint32_t	pmrmsc_hi;
+	uint8_t		reserved4[484]; /* E1Ch - FFFh */
 	struct {
-	    uint32_t		sq_tdbl; /* submission queue tail doorbell */
-	    uint32_t		cq_hdbl; /* completion queue head doorbell */
+	    uint32_t	sq_tdbl; /* submission queue tail doorbell */
+	    uint32_t	cq_hdbl; /* completion queue head doorbell */
 	} doorbell[1] __packed;
 } __packed;
 
@@ -591,6 +608,7 @@ enum nvme_status_code_type {
 	NVME_SCT_GENERIC		= 0x0,
 	NVME_SCT_COMMAND_SPECIFIC	= 0x1,
 	NVME_SCT_MEDIA_ERROR		= 0x2,
+	NVME_SCT_PATH_RELATED		= 0x3,
 	/* 0x3-0x6 - reserved */
 	NVME_SCT_VENDOR_SPECIFIC	= 0x7,
 };
@@ -696,6 +714,17 @@ enum nvme_media_error_status_code {
 	NVME_SC_COMPARE_FAILURE			= 0x85,
 	NVME_SC_ACCESS_DENIED			= 0x86,
 	NVME_SC_DEALLOCATED_OR_UNWRITTEN	= 0x87,
+};
+
+/* path related status codes */
+enum nvme_path_related_status_code {
+	NVME_SC_INTERNAL_PATH_ERROR		= 0x00,
+	NVME_SC_ASYMMETRIC_ACCESS_PERSISTENT_LOSS = 0x01,
+	NVME_SC_ASYMMETRIC_ACCESS_INACCESSIBLE	= 0x02,
+	NVME_SC_ASYMMETRIC_ACCESS_TRANSITION	= 0x03,
+	NVME_SC_CONTROLLER_PATHING_ERROR	= 0x60,
+	NVME_SC_HOST_PATHING_ERROR		= 0x70,
+	NVME_SC_COMMAND_ABOTHED_BY_HOST		= 0x71,
 };
 
 /* admin opcodes */
