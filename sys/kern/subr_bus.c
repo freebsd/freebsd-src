@@ -3971,7 +3971,6 @@ bus_helper_reset_prepare(device_t dev, int flags)
 	return (0);
 }
 
-
 /**
  * @brief Helper function for implementing BUS_PRINT_CHILD().
  *
