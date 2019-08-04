@@ -169,7 +169,7 @@ vga_pci_map_bios(device_t dev, size_t *size)
 	device_t pcib;
 	uint32_t rom_addr;
 	uint16_t config;
-	volatile char *bios;
+	volatile unsigned char *bios;
 	int i, rid, found;
 
 #if defined(__amd64__) || defined(__i386__)
