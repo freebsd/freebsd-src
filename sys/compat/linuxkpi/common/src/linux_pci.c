@@ -400,8 +400,8 @@ pci_resource_start(struct pci_dev *pdev, int bar)
 	    PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 	MPASS(dev != NULL);
 	if (BUS_TRANSLATE_RESOURCE(dev, rle->type, rle->start, &newstart)) {
-		device_printf(pdev->dev.bsddev, "translate of %#lx failed\n",
-		    rle->start);
+		device_printf(pdev->dev.bsddev, "translate of %#jx failed\n",
+		    (uintmax_t)rle->start);
 		return (0);
 	}
 	return (newstart);
