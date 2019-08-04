@@ -391,7 +391,7 @@ unsigned long
 pci_resource_start(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
-	unsigned long newstart;
+	rman_res_t newstart;
 	device_t dev;
 
 	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
