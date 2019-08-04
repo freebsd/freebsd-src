@@ -42,6 +42,32 @@
  * XXX This is all x86 specific.  It should be bus space access.
  */
 
+
+/* rmb and wmb are declared in machine/atomic.h, so should be included first. */
+#ifndef __io_br
+#define	__io_br()	__compiler_membar()
+#endif
+
+#ifndef __io_ar
+#ifdef rmb
+#define	__io_ar()	rmb()
+#else
+#define	__io_ar()	__compiler_membar()
+#endif
+#endif
+
+#ifndef __io_bw
+#ifdef wmb
+#define	__io_bw()	wmb()
+#else
+#define	__io_bw()	__compiler_membar()
+#endif
+#endif
+
+#ifndef __io_aw
+#define	__io_aw()	__compiler_membar()
+#endif
+
 /* Access MMIO registers atomically without barriers and byte swapping. */
 
 static inline uint8_t
@@ -112,9 +138,9 @@ readb(const volatile void *addr)
 {
 	uint8_t v;
 
-	__compiler_membar();
+	__io_br();
 	v = *(const volatile uint8_t *)addr;
-	__compiler_membar();
+	__io_ar();
 	return (v);
 }
 #define	readb(addr)		readb(addr)
@@ -123,9 +149,9 @@ readb(const volatile void *addr)
 static inline void
 writeb(uint8_t v, volatile void *addr)
 {
-	__compiler_membar();
+	__io_bw();
 	*(volatile uint8_t *)addr = v;
-	__compiler_membar();
+	__io_aw();
 }
 #define	writeb(v, addr)		writeb(v, addr)
 
@@ -135,9 +161,9 @@ readw(const volatile void *addr)
 {
 	uint16_t v;
 
-	__compiler_membar();
-	v = *(const volatile uint16_t *)addr;
-	__compiler_membar();
+	__io_br();
+	v = le16toh(__raw_readw(addr));
+	__io_ar();
 	return (v);
 }
 #define	readw(addr)		readw(addr)
@@ -146,9 +172,9 @@ readw(const volatile void *addr)
 static inline void
 writew(uint16_t v, volatile void *addr)
 {
-	__compiler_membar();
-	*(volatile uint16_t *)addr = v;
-	__compiler_membar();
+	__io_bw();
+	__raw_writew(htole16(v), addr);
+	__io_aw();
 }
 #define	writew(v, addr)		writew(v, addr)
 
@@ -158,9 +184,9 @@ readl(const volatile void *addr)
 {
 	uint32_t v;
 
-	__compiler_membar();
-	v = *(const volatile uint32_t *)addr;
-	__compiler_membar();
+	__io_br();
+	v = le32toh(__raw_readl(addr));
+	__io_ar();
 	return (v);
 }
 #define	readl(addr)		readl(addr)
@@ -169,9 +195,9 @@ readl(const volatile void *addr)
 static inline void
 writel(uint32_t v, volatile void *addr)
 {
-	__compiler_membar();
-	*(volatile uint32_t *)addr = v;
-	__compiler_membar();
+	__io_bw();
+	__raw_writel(htole32(v), addr);
+	__io_aw();
 }
 #define	writel(v, addr)		writel(v, addr)
 
@@ -183,9 +209,9 @@ readq(const volatile void *addr)
 {
 	uint64_t v;
 
-	__compiler_membar();
-	v = *(const volatile uint64_t *)addr;
-	__compiler_membar();
+	__io_br();
+	v = le64toh(__raw_readq(addr));
+	__io_ar();
 	return (v);
 }
 #define	readq(addr)		readq(addr)
@@ -193,9 +219,9 @@ readq(const volatile void *addr)
 static inline void
 writeq(uint64_t v, volatile void *addr)
 {
-	__compiler_membar();
-	*(volatile uint64_t *)addr = v;
-	__compiler_membar();
+	__io_bw();
+	__raw_writeq(htole64(v), addr);
+	__io_aw();
 }
 #define	writeq(v, addr)		writeq(v, addr)
 #endif
@@ -206,7 +232,7 @@ writeq(uint64_t v, volatile void *addr)
 static inline uint8_t
 readb_relaxed(const volatile void *addr)
 {
-	return (*(const volatile uint8_t *)addr);
+	return (__raw_readb(addr));
 }
 #define	readb_relaxed(addr)	readb_relaxed(addr)
 
@@ -214,7 +240,7 @@ readb_relaxed(const volatile void *addr)
 static inline void
 writeb_relaxed(uint8_t v, volatile void *addr)
 {
-	*(volatile uint8_t *)addr = v;
+	__raw_writeb(v, addr);
 }
 #define	writeb_relaxed(v, addr)	writeb_relaxed(v, addr)
 
@@ -222,7 +248,7 @@ writeb_relaxed(uint8_t v, volatile void *addr)
 static inline uint16_t
 readw_relaxed(const volatile void *addr)
 {
-	return (*(const volatile uint16_t *)addr);
+	return (le16toh(__raw_readw(addr)));
 }
 #define	readw_relaxed(addr)	readw_relaxed(addr)
 
@@ -230,7 +256,7 @@ readw_relaxed(const volatile void *addr)
 static inline void
 writew_relaxed(uint16_t v, volatile void *addr)
 {
-	*(volatile uint16_t *)addr = v;
+	__raw_writew(htole16(v), addr);
 }
 #define	writew_relaxed(v, addr)	writew_relaxed(v, addr)
 
@@ -238,7 +264,7 @@ writew_relaxed(uint16_t v, volatile void *addr)
 static inline uint32_t
 readl_relaxed(const volatile void *addr)
 {
-	return (*(const volatile uint32_t *)addr);
+	return (le32toh(__raw_readl(addr)));
 }
 #define	readl_relaxed(addr)	readl_relaxed(addr)
 
@@ -246,7 +272,7 @@ readl_relaxed(const volatile void *addr)
 static inline void
 writel_relaxed(uint32_t v, volatile void *addr)
 {
-	*(volatile uint32_t *)addr = v;
+	__raw_writel(htole32(v), addr);
 }
 #define	writel_relaxed(v, addr)	writel_relaxed(v, addr)
 
@@ -256,14 +282,14 @@ writel_relaxed(uint32_t v, volatile void *addr)
 static inline uint64_t
 readq_relaxed(const volatile void *addr)
 {
-	return (*(const volatile uint64_t *)addr);
+	return (le64toh(__raw_readq(addr)));
 }
 #define	readq_relaxed(addr)	readq_relaxed(addr)
 
 static inline void
 writeq_relaxed(uint64_t v, volatile void *addr)
 {
-	*(volatile uint64_t *)addr = v;
+	__raw_writeq(htole64(v), addr);
 }
 #define	writeq_relaxed(v, addr)	writeq_relaxed(v, addr)
 #endif
@@ -290,7 +316,13 @@ ioread16(const volatile void *addr)
 static inline uint16_t
 ioread16be(const volatile void *addr)
 {
-	return (bswap16(readw(addr)));
+	uint16_t v;
+
+	__io_br();
+	v = (be16toh(__raw_readw(addr)));
+	__io_ar();
+
+	return (v);
 }
 #define	ioread16be(addr)	ioread16be(addr)
 
@@ -306,7 +338,13 @@ ioread32(const volatile void *addr)
 static inline uint32_t
 ioread32be(const volatile void *addr)
 {
-	return (bswap32(readl(addr)));
+	uint32_t v;
+
+	__io_br();
+	v = (be32toh(__raw_readl(addr)));
+	__io_ar();
+
+	return (v);
 }
 #define	ioread32be(addr)	ioread32be(addr)
 
@@ -338,7 +376,9 @@ iowrite32(uint32_t v, volatile void *addr)
 static inline void
 iowrite32be(uint32_t v, volatile void *addr)
 {
-	writel(bswap32(v), addr);
+	__io_bw();
+	__raw_writel(htobe32(v), addr);
+	__io_aw();
 }
 #define	iowrite32be(v, addr)	iowrite32be(v, addr)
 

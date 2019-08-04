@@ -205,6 +205,7 @@ struct pci_driver {
 
 struct pci_bus {
 	struct pci_dev	*self;
+	int		domain;
 	int		number;
 };
 
@@ -268,26 +269,6 @@ linux_pci_find_irq_dev(unsigned int irq)
 	}
 	spin_unlock(&pci_lock);
 	return (found);
-}
-
-static inline unsigned long
-pci_resource_start(struct pci_dev *pdev, int bar)
-{
-	struct resource_list_entry *rle;
-
-	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
-		return (0);
-	return rle->start;
-}
-
-static inline unsigned long
-pci_resource_len(struct pci_dev *pdev, int bar)
-{
-	struct resource_list_entry *rle;
-
-	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
-		return (0);
-	return rle->count;
 }
 
 static inline int
@@ -446,6 +427,9 @@ pci_disable_msix(struct pci_dev *pdev)
 	pdev->dev.msix = 0;
 	pdev->dev.msix_max = 0;
 }
+
+unsigned long	pci_resource_start(struct pci_dev *pdev, int bar);
+unsigned long	pci_resource_len(struct pci_dev *pdev, int bar);
 
 static inline bus_addr_t
 pci_bus_address(struct pci_dev *pdev, int bar)
@@ -633,7 +617,7 @@ static inline void pci_disable_sriov(struct pci_dev *dev)
 /* XXX This should not be necessary. */
 #define	pcix_set_mmrbc(d, v)	0
 #define	pcix_get_max_mmrbc(d)	0
-#define	pcie_set_readrq(d, v)	0
+#define	pcie_set_readrq(d, v)	pci_set_max_read_req(&(d)->dev, (v))
 
 #define	PCI_DMA_BIDIRECTIONAL	0
 #define	PCI_DMA_TODEVICE	1
