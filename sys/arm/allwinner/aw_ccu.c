@@ -53,38 +53,18 @@ __FBSDID("$FreeBSD$");
 #define	CCU_BASE	0x01c20000
 #define	CCU_SIZE	0x400
 
-#define	PRCM_BASE	0x01f01400
-#define	PRCM_SIZE	0x200
-
-#define	SYSCTRL_BASE	0x01c00000
-#define	SYSCTRL_SIZE	0x34
-
 struct aw_ccu_softc {
 	struct simplebus_softc	sc;
 	bus_space_tag_t		bst;
-	bus_space_handle_t	ccu_bsh;
-	bus_space_handle_t	prcm_bsh;
-	bus_space_handle_t	sysctrl_bsh;
+	bus_space_handle_t	bsh;
 	struct mtx		mtx;
 	int			flags;
 };
 
-#define	CLOCK_CCU	(1 << 0)
-#define	CLOCK_PRCM	(1 << 1)
-#define	CLOCK_SYSCTRL	(1 << 2)
-
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun4i-a10",	CLOCK_CCU },
-	{ "allwinner,sun5i-a13",	CLOCK_CCU },
-	{ "allwinner,sun7i-a20",	CLOCK_CCU },
-	{ "allwinner,sun6i-a31",	CLOCK_CCU },
-	{ "allwinner,sun6i-a31s",	CLOCK_CCU },
-	{ "allwinner,sun50i-a64",	CLOCK_CCU },
-	{ "allwinner,sun50i-h5",	CLOCK_CCU },
-	{ "allwinner,sun8i-a33",	CLOCK_CCU },
-	{ "allwinner,sun8i-a83t",	CLOCK_CCU|CLOCK_PRCM|CLOCK_SYSCTRL },
-	{ "allwinner,sun8i-h2-plus",	CLOCK_CCU|CLOCK_PRCM },
-	{ "allwinner,sun8i-h3",		CLOCK_CCU|CLOCK_PRCM },
+	{ "allwinner,sun7i-a20",	1 },
+	{ "allwinner,sun6i-a31",	1 },
+	{ "allwinner,sun6i-a31s",	1 },
 	{ NULL, 0 }
 };
 
@@ -92,22 +72,9 @@ static int
 aw_ccu_check_addr(struct aw_ccu_softc *sc, bus_addr_t addr,
     bus_space_handle_t *pbsh, bus_size_t *poff)
 {
-	if (addr >= CCU_BASE && addr < (CCU_BASE + CCU_SIZE) &&
-	    (sc->flags & CLOCK_CCU) != 0) {
+	if (addr >= CCU_BASE && addr < (CCU_BASE + CCU_SIZE)) {
 		*poff = addr - CCU_BASE;
-		*pbsh = sc->ccu_bsh;
-		return (0);
-	}
-	if (addr >= PRCM_BASE && addr < (PRCM_BASE + PRCM_SIZE) &&
-	    (sc->flags & CLOCK_PRCM) != 0) {
-		*poff = addr - PRCM_BASE;
-		*pbsh = sc->prcm_bsh;
-		return (0);
-	}
-	if (addr >= SYSCTRL_BASE && addr < (SYSCTRL_BASE + SYSCTRL_SIZE) &&
-	    (sc->flags & CLOCK_SYSCTRL) != 0) {
-		*poff = addr - SYSCTRL_BASE;
-		*pbsh = sc->sysctrl_bsh;
+		*pbsh = sc->bsh;
 		return (0);
 	}
 	return (EINVAL);
@@ -241,29 +208,11 @@ aw_ccu_attach(device_t dev)
 	 * properties.
 	 */
 	sc->bst = bus_get_bus_tag(dev);
-	if (sc->flags & CLOCK_CCU) {
-		error = bus_space_map(sc->bst, CCU_BASE, CCU_SIZE, 0,
-		    &sc->ccu_bsh);
-		if (error != 0) {
-			device_printf(dev, "couldn't map CCU: %d\n", error);
-			return (error);
-		}
-	}
-	if (sc->flags & CLOCK_PRCM) {
-		error = bus_space_map(sc->bst, PRCM_BASE, PRCM_SIZE, 0,
-		    &sc->prcm_bsh);
-		if (error != 0) {
-			device_printf(dev, "couldn't map PRCM: %d\n", error);
-			return (error);
-		}
-	}
-	if (sc->flags & CLOCK_SYSCTRL) {
-		error = bus_space_map(sc->bst, SYSCTRL_BASE, SYSCTRL_SIZE, 0,
-		    &sc->sysctrl_bsh);
-		if (error != 0) {
-			device_printf(dev, "couldn't map SYSCTRL: %d\n", error);
-			return (error);
-		}
+	error = bus_space_map(sc->bst, CCU_BASE, CCU_SIZE, 0,
+	    &sc->bsh);
+	if (error != 0) {
+		device_printf(dev, "couldn't map CCU: %d\n", error);
+		return (error);
 	}
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
