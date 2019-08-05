@@ -787,4 +787,4 @@ DEFINE_CLASS_1(ccu_h3ng, ccu_h3ng_driver, ccu_h3ng_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
 EARLY_DRIVER_MODULE(ccu_h3ng, simplebus, ccu_h3ng_driver,
-    ccu_h3ng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    ccu_h3ng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_LAST);
