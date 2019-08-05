@@ -5,7 +5,8 @@
 TESTSDIR=		${TESTSBASE}/sys/netpfil
 
 .if ${MK_PF} != "no"
-TESTS_SUBDIRS+=		pf
+TESTS_SUBDIRS+=		pf \
+					common
 .endif
 
 .include <bsd.test.mk>
