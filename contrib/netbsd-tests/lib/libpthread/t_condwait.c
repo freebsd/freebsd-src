@@ -51,6 +51,9 @@ static void *
 run(void *param)
 {
 	struct timespec ts, to, te;
+#ifdef __FreeBSD__
+	struct timespec tw;
+#endif
 	clockid_t clck;
 	pthread_condattr_t attr;
 	pthread_cond_t cond;
@@ -91,7 +94,15 @@ run(void *param)
 			/* Loose upper limit because of qemu timing bugs */
 			ATF_REQUIRE(to_seconds < WAITTIME * 2.5);
 		} else {
+#ifdef __FreeBSD__
+			tw.tv_sec = WAITTIME;
+			tw.tv_nsec = 0;
+			ATF_REQUIRE(timespeccmp(&to, &tw, >=));
+			tw.tv_sec++;
+			ATF_REQUIRE(timespeccmp(&to, &tw, <=));
+#else
 			ATF_REQUIRE_EQ(to.tv_sec, WAITTIME);
+#endif
 		}
 		break;
 	default:
