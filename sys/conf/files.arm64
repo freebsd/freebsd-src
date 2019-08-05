@@ -51,6 +51,7 @@ arm/allwinner/clkng/aw_clk_prediv_mux.c	optional	aw_ccu fdt
 arm/allwinner/clkng/ccu_a64.c		optional	soc_allwinner_a64 aw_ccu fdt
 arm/allwinner/clkng/ccu_h3.c		optional	soc_allwinner_h5 aw_ccu fdt
 arm/allwinner/clkng/ccu_sun8i_r.c	optional	aw_ccu fdt
+arm/allwinner/clkng/ccu_de2.c		optional	aw_ccu fdt
 
 # Allwinner padconf files
 arm/allwinner/a64/a64_padconf.c	optional	soc_allwinner_a64 fdt
