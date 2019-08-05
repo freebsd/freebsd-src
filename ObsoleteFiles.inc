@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190729: gzip'ed a.out support removed
+OLD_FILES+=usr/include/sys/inflate.h
 # 20190722: cap_random(3) removed
 OLD_FILES+=lib/casper/libcap_random.so.1
 OLD_FILES+=usr/include/casper/cap_random.h
