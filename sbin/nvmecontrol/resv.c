@@ -351,7 +351,7 @@ resvreport(const struct cmd *f, int argc, char *argv[])
 	struct nvme_pt_command	pt;
 	struct nvme_resv_status	*s;
 	struct nvme_resv_status_ext *e;
-	uint8_t		data[4096];
+	uint8_t		data[4096] __aligned(4);
 	int		fd;
 	u_int		i, n;
 	uint32_t	nsid;
