@@ -1401,6 +1401,56 @@ struct intel_log_temp_stats
 
 _Static_assert(sizeof(struct intel_log_temp_stats) == 13 * 8, "bad size for intel_log_temp_stats");
 
+struct nvme_resv_reg_ctrlr
+{
+	uint16_t		ctrlr_id;	/* Controller ID */
+	uint8_t			rcsts;		/* Reservation Status */
+	uint8_t			reserved3[5];
+	uint64_t		hostid;		/* Host Identifier */
+	uint64_t		rkey;		/* Reservation Key */
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_resv_reg_ctrlr) == 24, "bad size for nvme_resv_reg_ctrlr");
+
+struct nvme_resv_reg_ctrlr_ext
+{
+	uint16_t		ctrlr_id;	/* Controller ID */
+	uint8_t			rcsts;		/* Reservation Status */
+	uint8_t			reserved3[5];
+	uint64_t		rkey;		/* Reservation Key */
+	uint64_t		hostid[2];	/* Host Identifier */
+	uint8_t			reserved32[32];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_resv_reg_ctrlr_ext) == 64, "bad size for nvme_resv_reg_ctrlr_ext");
+
+struct nvme_resv_status
+{
+	uint32_t		gen;		/* Generation */
+	uint8_t			rtype;		/* Reservation Type */
+	uint8_t			regctl[2];	/* Number of Registered Controllers */
+	uint8_t			reserved7[2];
+	uint8_t			ptpls;		/* Persist Through Power Loss State */
+	uint8_t			reserved10[14];
+	struct nvme_resv_reg_ctrlr	ctrlr[0];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_resv_status) == 24, "bad size for nvme_resv_status");
+
+struct nvme_resv_status_ext
+{
+	uint32_t		gen;		/* Generation */
+	uint8_t			rtype;		/* Reservation Type */
+	uint8_t			regctl[2];	/* Number of Registered Controllers */
+	uint8_t			reserved7[2];
+	uint8_t			ptpls;		/* Persist Through Power Loss State */
+	uint8_t			reserved10[14];
+	uint8_t			reserved24[40];
+	struct nvme_resv_reg_ctrlr_ext	ctrlr[0];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_resv_status_ext) == 64, "bad size for nvme_resv_status_ext");
+
 #define NVME_TEST_MAX_THREADS	128
 
 struct nvme_io_test {
@@ -1859,6 +1909,36 @@ void	intel_log_temp_stats_swapbytes(struct intel_log_temp_stats *s)
 	s->max_oper_temp = le64toh(s->max_oper_temp);
 	s->min_oper_temp = le64toh(s->min_oper_temp);
 	s->est_offset = le64toh(s->est_offset);
+}
+
+static inline
+void	nvme_resv_status_swapbytes(struct nvme_resv_status *s, size_t size)
+{
+	u_int i, n;
+
+	s->gen = le32toh(s->gen);
+	n = (s->regctl[1] << 8) | s->regctl[0];
+	n = MIN(n, (size - sizeof(s)) / sizeof(s->ctrlr[0]));
+	for (i = 0; i < n; i++) {
+		s->ctrlr[i].ctrlr_id = le16toh(s->ctrlr[i].ctrlr_id);
+		s->ctrlr[i].hostid = le64toh(s->ctrlr[i].hostid);
+		s->ctrlr[i].rkey = le64toh(s->ctrlr[i].rkey);
+	}
+}
+
+static inline
+void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s, size_t size)
+{
+	u_int i, n;
+
+	s->gen = le32toh(s->gen);
+	n = (s->regctl[1] << 8) | s->regctl[0];
+	n = MIN(n, (size - sizeof(s)) / sizeof(s->ctrlr[0]));
+	for (i = 0; i < n; i++) {
+		s->ctrlr[i].ctrlr_id = le16toh(s->ctrlr[i].ctrlr_id);
+		s->ctrlr[i].rkey = le64toh(s->ctrlr[i].rkey);
+		nvme_le128toh((void *)s->ctrlr[i].hostid);
+	}
 }
 
 #endif /* __NVME_H__ */
