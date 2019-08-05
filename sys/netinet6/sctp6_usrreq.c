@@ -592,7 +592,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 	}
 	inp->ip_inp.inp.inp_vflag &= ~INP_IPV4;
 	inp->ip_inp.inp.inp_vflag |= INP_IPV6;
-	if ((addr != NULL) && (SCTP_IPV6_V6ONLY(&inp->ip_inp.inp) == 0)) {
+	if ((addr != NULL) && (SCTP_IPV6_V6ONLY(inp) == 0)) {
 		switch (addr->sa_family) {
 #ifdef INET
 		case AF_INET:
