@@ -174,6 +174,7 @@ arm_install_base() {
 	arm64_setup_multicons
 	arm_setup_fdt_overlays
 	arm_setup_minimal_loader
+	arm_do_quirk
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab
@@ -237,4 +238,8 @@ arm_install_uboot() {
 	# Override in the arm/KERNEL.conf file.
 
 	return 0
+}
+
+arm_do_quirk() {
+	# Override in the arm{,64}/BOARD.conf file.
 }
