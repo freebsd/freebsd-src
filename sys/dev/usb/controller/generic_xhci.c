@@ -64,6 +64,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/xhci.h>
 #include <dev/usb/controller/xhcireg.h>
 
+#ifdef EXT_RESOURCES
+#include <dev/extres/phy/phy.h>
+#endif
+
 #define	XHCI_HC_DEVSTR	"Marvell Integrated USB 3.0 controller"
 #define	XHCI_HC_VENDOR	"Marvell"
 
@@ -76,6 +80,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"marvell,armada-380-xhci",	true},
 	{"marvell,armada3700-xhci",	true},
 	{"marvell,armada-8k-xhci",	true},
+	{"generic-xhci",		true},
 	{NULL,				false}
 };
 
@@ -99,6 +104,10 @@ xhci_attach(device_t dev)
 {
 	struct xhci_softc *sc = device_get_softc(dev);
 	int err = 0, rid = 0;
+#ifdef EXT_RESOURCES
+	phandle_t node;
+	phy_t phy;
+#endif
 
 	sc->sc_bus.parent = dev;
 	sc->sc_bus.devices = sc->sc_devices;
@@ -123,6 +132,13 @@ xhci_attach(device_t dev)
 		xhci_detach(dev);
 		return (ENXIO);
 	}
+
+#ifdef EXT_RESOURCES
+	node = ofw_bus_get_node(dev);
+	if (phy_get_by_ofw_property(dev, node, "usb-phy", &phy) == 0)
+		if (phy_enable(phy) != 0)
+			device_printf(dev, "Cannot enable phy\n");
+#endif
 
 	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
 	if (sc->sc_bus.bdev == NULL) {
