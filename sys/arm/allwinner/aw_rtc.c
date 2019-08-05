@@ -185,6 +185,8 @@ static devclass_t aw_rtc_devclass;
 
 EARLY_DRIVER_MODULE(aw_rtc, simplebus, aw_rtc_driver, aw_rtc_devclass, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+MODULE_VERSION(aw_rtc, 1);
+SIMPLEBUS_PNP_INFO(compat_data);
 
 static int
 aw_rtc_probe(device_t dev)
