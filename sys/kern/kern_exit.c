@@ -475,7 +475,7 @@ exit1(struct thread *td, int rval, int signo)
 		PROC_LOCK(q);
 		q->p_sigparent = SIGCHLD;
 
-		if (!(q->p_flag & P_TRACED)) {
+		if ((q->p_flag & P_TRACED) == 0) {
 			proc_reparent(q, q->p_reaper, true);
 			if (q->p_state == PRS_ZOMBIE) {
 				/*
