@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 SUBDIR = \
+	ads111x \
 	controllers \
 	cyapa \
 	ds1307 \
