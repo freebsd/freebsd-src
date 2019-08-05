@@ -38,9 +38,12 @@ _ENTRY(_rtld_start)
 	stdu    %r1,-144(%r1)	/* 16-byte aligned stack for reg saves +
 				exit_proc & obj _rtld args +
 				backchain & lrsave stack frame */
-	std     %r3,96(%r1)	/*  argc */
+
+	/* Save and restore only initial argv, because _rtld will modify
+	 * argv and envp if invoked explicitly, making it necessary to
+	 * load the (possibly) adjusted values from the stack.
+	 */
 	std     %r4,104(%r1)	/*  argv */
-	std     %r5,112(%r1)	/*  envp */
 /*	std     %r6,120(%r1)   *//*  obj (always 0) */
 /*	std     %r7,128(%r1)   *//*  cleanup (always 0) */
 	std     %r8,136(%r1)	/*  ps_strings */
@@ -94,9 +97,14 @@ _ENTRY(_rtld_start)
 	/*
 	 * Restore args, with new obj/exit proc
 	 */
-	ld      %r3,96(%r1)     /* argc */
-	ld      %r4,104(%r1)	/* argv */
-	ld      %r5,112(%r1)	/* envp */
+	ld	%r4,104(%r1)	/* argv */
+	ld	%r3,-8(%r4)	/* argc */
+
+	/* envp = argv + argc + 1 */
+	addi	%r5,%r3,1
+	sldi	%r5,%r5,3	/* x8 */
+	add	%r5,%r4,%r5
+
 	ld      %r6,120(%r1)	/* obj */
 	ld      %r7,128(%r1)	/* exit proc */
 	ld      %r8,136(%r1)	/* ps_strings */
