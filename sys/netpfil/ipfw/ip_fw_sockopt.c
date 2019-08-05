@@ -1219,6 +1219,35 @@ move_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 }
 
 /*
+ * Returns pointer to action instruction, skips all possible rule
+ * modifiers like O_LOG, O_TAG, O_ALTQ.
+ */
+ipfw_insn *
+ipfw_get_action(struct ip_fw *rule)
+{
+	ipfw_insn *cmd;
+	int l, cmdlen;
+
+	cmd = ACTION_PTR(rule);
+	l = rule->cmd_len - rule->act_ofs;
+	while (l > 0) {
+		switch (cmd->opcode) {
+		case O_ALTQ:
+		case O_LOG:
+		case O_TAG:
+			break;
+		default:
+			return (cmd);
+		}
+		cmdlen = F_LEN(cmd);
+		l -= cmdlen;
+		cmd += cmdlen;
+	}
+	panic("%s: rule (%p) has not action opcode", __func__, rule);
+	return (NULL);
+}
+
+/*
  * Clear counters for a specific rule.
  * Normally run under IPFW_UH_RLOCK, but these are idempotent ops
  * so we only care that rules do not disappear.

@@ -141,13 +141,12 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 static void
 flush_nat_ptrs(struct ip_fw_chain *chain, const int ix)
 {
-	int i;
 	ipfw_insn_nat *cmd;
+	int i;
 
 	IPFW_WLOCK_ASSERT(chain);
 	for (i = 0; i < chain->n_rules; i++) {
-		cmd = (ipfw_insn_nat *)ACTION_PTR(chain->map[i]);
-		/* XXX skip log and the like ? */
+		cmd = (ipfw_insn_nat *)ipfw_get_action(chain->map[i]);
 		if (cmd->o.opcode == O_NAT && cmd->nat != NULL &&
 			    (ix < 0 || cmd->nat->id == ix))
 			cmd->nat = NULL;
