@@ -2741,7 +2741,6 @@ __elfN(stackgap)(struct image_params *imgp, u_long *stack_base)
 	if (pct > 50)
 		pct = 50;
 	range = imgp->eff_stack_sz * pct / 100;
-	range *= pct;
 	arc4rand(&rbase, sizeof(rbase), 0);
 	gap = rbase % range;
 	gap &= ~(sizeof(u_long) - 1);
