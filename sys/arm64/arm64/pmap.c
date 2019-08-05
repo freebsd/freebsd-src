@@ -3425,8 +3425,7 @@ validate:
 	}
 
 #if VM_NRESERVLEVEL > 0
-	if (pmap != pmap_kernel() &&
-	    (mpte == NULL || mpte->wire_count == NL3PG) &&
+	if ((mpte == NULL || mpte->wire_count == NL3PG) &&
 	    pmap_ps_enabled(pmap) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0) {
