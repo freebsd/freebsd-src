@@ -1,11 +1,6 @@
 # $FreeBSD$
 
 #
-# Standard ARM support.
-#
-kern/kern_clocksource.c			standard
-
-#
 # Standard tegra124 devices and support.
 #
 arm/nvidia/tegra124/tegra124_machdep.c	standard

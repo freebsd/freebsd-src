@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-kern/kern_clocksource.c				standard
-
 arm/samsung/exynos/exynos5_mct.c		standard
 arm/samsung/exynos/exynos5_mp.c			optional	smp
 arm/samsung/exynos/exynos5_machdep.c		standard

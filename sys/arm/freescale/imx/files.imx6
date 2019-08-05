@@ -1,11 +1,6 @@
 # $FreeBSD$
 
 #
-# Standard ARM support.
-#
-kern/kern_clocksource.c			standard
-
-#
 # Standard imx6 devices and support.
 #
 arm/freescale/fsl_ocotp.c		standard
