@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2013 Nathan Whitehorn
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2018 Rubicon Communications, LLC (Netgate)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,41 +27,56 @@
  * $FreeBSD$
  */
 
-#ifndef	_FDT_SIMPLEBUS_H
-#define	_FDT_SIMPLEBUS_H
+#ifndef _MV_CP110_SYSCON_H_
+#define	_MV_CP110_SYSCON_H_
 
-#include <dev/ofw/ofw_bus.h>
-
-/* FDT simplebus */
-DECLARE_CLASS(simplebus_driver);
-
-struct simplebus_range {
-	uint64_t bus;
-	uint64_t host;
-	uint64_t size;
+enum mv_cp110_clk_id {
+	CP110_PLL_0 = 0,
+	CP110_PPV2_CORE,
+	CP110_X2CORE,
+	CP110_CORE,
+	CP110_NAND,
+	CP110_SDIO,
+	CP110_MAX_CLOCK
 };
 
-/* devinfo and softc */
-struct simplebus_softc {
-	device_t dev;
-	phandle_t node;
+/* Gates */
+#define	CP110_CLOCK_GATING_OFFSET	0x220
 
-	struct simplebus_range *ranges;
-	int nranges;
-
-	pcell_t acells, scells;
+struct cp110_gate {
+	const char	*name;
+	uint32_t	shift;
 };
 
-struct simplebus_devinfo {
-	struct ofw_bus_devinfo	obdinfo;
-	struct resource_list	rl;
-};
+#define	CCU_GATE(idx, clkname, s)		\
+	[idx] = {					\
+		.name = clkname,			\
+		.shift = s,				\
+	},
 
-void simplebus_init(device_t dev, phandle_t node);
-device_t simplebus_add_device(device_t dev, phandle_t node, u_int order,
-    const char *name, int unit, struct simplebus_devinfo *di);
-struct simplebus_devinfo *simplebus_setup_dinfo(device_t dev, phandle_t node,
-    struct simplebus_devinfo *di);
-int simplebus_fill_ranges(phandle_t node,
-    struct simplebus_softc *sc);
-#endif	/* _FDT_SIMPLEBUS_H */
+#define	CP110_GATE_AUDIO		0
+#define	CP110_GATE_COMM_UNIT		1
+#define	CP110_GATE_NAND			2
+#define	CP110_GATE_PPV2			3
+#define	CP110_GATE_SDIO			4
+#define	CP110_GATE_MG			5
+#define	CP110_GATE_MG_CORE		6
+#define	CP110_GATE_XOR1			7
+#define	CP110_GATE_XOR0			8
+#define	CP110_GATE_GOP_DP		9
+#define	CP110_GATE_PCIE_X1_0		11
+#define	CP110_GATE_PCIE_X1_1		12
+#define	CP110_GATE_PCIE_X4		13
+#define	CP110_GATE_PCIE_XOR		14
+#define	CP110_GATE_SATA			15
+#define	CP110_GATE_SATA_USB		16
+#define	CP110_GATE_MAIN			17
+#define	CP110_GATE_SDMMC_GOP		18
+#define	CP110_GATE_SLOW_IO		21
+#define	CP110_GATE_USB3H0		22
+#define	CP110_GATE_USB3H1		23
+#define	CP110_GATE_USB3DEV		24
+#define	CP110_GATE_EIP150		25
+#define	CP110_GATE_EIP197		26
+
+#endif
