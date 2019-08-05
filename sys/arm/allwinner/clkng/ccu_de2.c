@@ -115,7 +115,6 @@ static struct aw_ccung_clk de2_ccu_clks[] = {
 
 static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun50i-a64-de2-clk", 1},
-	{"allwinner,sun50i-h5-de2-clk", 1},
 	{NULL,             0}
 };
 
