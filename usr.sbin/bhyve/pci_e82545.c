@@ -1079,8 +1079,9 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 	struct ck_info ckinfo[2];
 	struct iovec *iov;
 	union  e1000_tx_udesc *dsc;
-	int desc, dtype, len, ntype, iovcnt, tlen, hdrlen, vlen, tcp, tso;
+	int desc, dtype, len, ntype, iovcnt, tlen, tcp, tso;
 	int mss, paylen, seg, tiovcnt, left, now, nleft, nnow, pv, pvoff;
+	unsigned hdrlen, vlen;
 	uint32_t tcpsum, tcpseq;
 	uint16_t ipcs, tcpcs, ipid, ohead;
 
@@ -1224,6 +1225,68 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 	} else {
 		/* In case of TSO header length provided by software. */
 		hdrlen = sc->esc_txctx.tcp_seg_setup.fields.hdr_len;
+
+		/*
+		 * Cap the header length at 240 based on 7.2.4.5 of
+		 * the Intel 82576EB (Rev 2.63) datasheet.
+		 */
+		if (hdrlen > 240) {
+			WPRINTF("TSO hdrlen too large: %d\r\n", hdrlen);
+			goto done;
+		}
+
+		/*
+		 * If VLAN insertion is requested, ensure the header
+		 * at least holds the amount of data copied during
+		 * VLAN insertion below.
+		 *
+		 * XXX: Realistic packets will include a full Ethernet
+		 * header before the IP header at ckinfo[0].ck_start,
+		 * but this check is sufficient to prevent
+		 * out-of-bounds access below.
+		 */
+		if (vlen != 0 && hdrlen < ETHER_ADDR_LEN*2) {
+			WPRINTF("TSO hdrlen too small for vlan insertion "
+			    "(%d vs %d) -- dropped\r\n", hdrlen,
+			    ETHER_ADDR_LEN*2);
+			goto done;
+		}
+
+		/*
+		 * Ensure that the header length covers the used fields
+		 * in the IP and TCP headers as well as the IP and TCP
+		 * checksums.  The following fields are accessed below:
+		 *
+		 * Header | Field | Offset | Length
+		 * -------+-------+--------+-------
+		 * IPv4   | len   | 2      | 2
+		 * IPv4   | ID    | 4      | 2
+		 * IPv6   | len   | 4      | 2
+		 * TCP    | seq # | 4      | 4
+		 * TCP    | flags | 13     | 1
+		 * UDP    | len   | 4      | 4
+		 */
+		if (hdrlen < ckinfo[0].ck_start + 6 ||
+		    hdrlen < ckinfo[0].ck_off + 2) {
+			WPRINTF("TSO hdrlen too small for IP fields (%d) "
+			    "-- dropped\r\n", hdrlen);
+			goto done;
+		}
+		if (sc->esc_txctx.cmd_and_length & E1000_TXD_CMD_TCP) {
+			if (hdrlen < ckinfo[1].ck_start + 14 ||
+			    (ckinfo[1].ck_valid &&
+			    hdrlen < ckinfo[1].ck_off + 2)) {
+				WPRINTF("TSO hdrlen too small for TCP fields "
+				    "(%d) -- dropped\r\n", hdrlen);
+				goto done;
+			}
+		} else {
+			if (hdrlen < ckinfo[1].ck_start + 8) {
+				WPRINTF("TSO hdrlen too small for UDP fields "
+				    "(%d) -- dropped\r\n", hdrlen);
+				goto done;
+			}
+		}
 	}
 
 	/* Allocate, fill and prepend writable header vector. */
@@ -1245,7 +1308,8 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 		iovcnt++;
 		iov->iov_base = hdr;
 		iov->iov_len = hdrlen;
-	}
+	} else
+		hdr = NULL;
 
 	/* Insert VLAN tag. */
 	if (vlen != 0) {
@@ -1287,7 +1351,9 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 	DPRINTF("tx %s segmentation offload %d+%d/%d bytes %d iovs\r\n",
 	    tcp ? "TCP" : "UDP", hdrlen, paylen, mss, iovcnt);
 	ipid = ntohs(*(uint16_t *)&hdr[ckinfo[0].ck_start + 4]);
-	tcpseq = ntohl(*(uint32_t *)&hdr[ckinfo[1].ck_start + 4]);
+	tcpseq = 0;
+	if (tcp)
+		tcpseq = ntohl(*(uint32_t *)&hdr[ckinfo[1].ck_start + 4]);
 	ipcs = *(uint16_t *)&hdr[ckinfo[0].ck_off];
 	tcpcs = 0;
 	if (ckinfo[1].ck_valid)	/* Save partial pseudo-header checksum. */
