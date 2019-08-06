@@ -326,6 +326,13 @@ memstat_get_sleeps(const struct memory_type *mtp)
 	return (mtp->mt_sleeps);
 }
 
+uint64_t
+memstat_get_xdomain(const struct memory_type *mtp)
+{
+
+	return (mtp->mt_xdomain);
+}
+
 void *
 memstat_get_caller_pointer(const struct memory_type *mtp, int index)
 {

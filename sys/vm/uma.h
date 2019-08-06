@@ -282,7 +282,7 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
  */
 #define	UMA_ZONE_INHERIT						\
     (UMA_ZONE_OFFPAGE | UMA_ZONE_MALLOC | UMA_ZONE_NOFREE |		\
-    UMA_ZONE_HASH | UMA_ZONE_VTOSLAB | UMA_ZONE_PCPU)
+    UMA_ZONE_HASH | UMA_ZONE_VTOSLAB | UMA_ZONE_PCPU | UMA_ZONE_NUMA)
 
 /* Definitions for align */
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
@@ -689,7 +689,8 @@ struct uma_type_header {
 	uint64_t	uth_frees;	/* Zone: number of frees. */
 	uint64_t	uth_fails;	/* Zone: number of alloc failures. */
 	uint64_t	uth_sleeps;	/* Zone: number of alloc sleeps. */
-	uint64_t	_uth_reserved1[2];	/* Reserved. */
+	uint64_t	uth_xdomain;	/* Zone: Number of cross domain frees. */
+	uint64_t	_uth_reserved1[1];	/* Reserved. */
 };
 
 struct uma_percpu_stat {
