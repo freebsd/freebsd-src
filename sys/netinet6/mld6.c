@@ -139,14 +139,15 @@ static int	mld_v2_enqueue_group_record(struct mbufq *,
 		    struct in6_multi *, const int, const int, const int,
 		    const int);
 static int	mld_v2_input_query(struct ifnet *, const struct ip6_hdr *,
-		    struct mbuf *, const int, const int);
+		    struct mbuf *, struct mldv2_query *, const int, const int);
 static int	mld_v2_merge_state_changes(struct in6_multi *,
 		    struct mbufq *);
 static void	mld_v2_process_group_timers(struct in6_multi_head *,
 		    struct mbufq *, struct mbufq *,
 		    struct in6_multi *, const int);
 static int	mld_v2_process_group_query(struct in6_multi *,
-		    struct mld_ifsoftc *mli, int, struct mbuf *, const int);
+		    struct mld_ifsoftc *mli, int, struct mbuf *,
+		    struct mldv2_query *, const int);
 static int	sysctl_mld_gsr(SYSCTL_HANDLER_ARGS);
 static int	sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS);
 
@@ -803,16 +804,16 @@ mld_v1_update_group(struct in6_multi *inm, const int timer)
  * Process a received MLDv2 general, group-specific or
  * group-and-source-specific query.
  *
- * Assumes that the query header has been pulled up to sizeof(mldv2_query).
+ * Assumes that mld points to a struct mldv2_query which is stored in
+ * contiguous memory.
  *
  * Return 0 if successful, otherwise an appropriate error code is returned.
  */
 static int
 mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
-    struct mbuf *m, const int off, const int icmp6len)
+    struct mbuf *m, struct mldv2_query *mld, const int off, const int icmp6len)
 {
 	struct mld_ifsoftc	*mli;
-	struct mldv2_query	*mld;
 	struct in6_multi	*inm;
 	uint32_t		 maxdelay, nsrc, qqi;
 	int			 is_general_query;
@@ -843,8 +844,6 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	is_general_query = 0;
 
 	CTR2(KTR_MLD, "input v2 query on ifp %p(%s)", ifp, if_name(ifp));
-
-	mld = (struct mldv2_query *)(mtod(m, uint8_t *) + off);
 
 	maxdelay = ntohs(mld->mld_maxdelay);	/* in 1/10ths of a second */
 	if (maxdelay >= 32768) {
@@ -970,7 +969,7 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		 * group-specific or group-and-source query.
 		 */
 		if (mli->mli_v2_timer == 0 || mli->mli_v2_timer >= timer)
-			mld_v2_process_group_query(inm, mli, timer, m, off);
+			mld_v2_process_group_query(inm, mli, timer, m, mld, off);
 
 		/* XXX Clear embedded scope ID as userland won't expect it. */
 		in6_clearscope(&mld->mld_addr);
@@ -991,9 +990,8 @@ out_locked:
  */
 static int
 mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifsoftc *mli,
-    int timer, struct mbuf *m0, const int off)
+    int timer, struct mbuf *m0, struct mldv2_query *mld, const int off)
 {
-	struct mldv2_query	*mld;
 	int			 retval;
 	uint16_t		 nsrc;
 
@@ -1001,7 +999,6 @@ mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifsoftc *mli,
 	MLD_LOCK_ASSERT();
 
 	retval = 0;
-	mld = (struct mldv2_query *)(mtod(m0, uint8_t *) + off);
 
 	switch (inm->in6m_state) {
 	case MLD_NOT_MEMBER:
@@ -1020,6 +1017,15 @@ mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifsoftc *mli,
 	}
 
 	nsrc = ntohs(mld->mld_numsrc);
+
+	/* Length should be checked by calling function. */
+	KASSERT((m0->m_flags & M_PKTHDR) == 0 ||
+	    m0->m_pkthdr.len >= off + sizeof(struct mldv2_query) +
+	    nsrc * sizeof(struct in6_addr),
+	    ("mldv2 packet is too short: (%d bytes < %zd bytes, m=%p)",
+	    m0->m_pkthdr.len, off + sizeof(struct mldv2_query) +
+	    nsrc * sizeof(struct in6_addr), m0));
+
 
 	/*
 	 * Deal with group-specific queries upfront.
@@ -1062,28 +1068,20 @@ mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifsoftc *mli,
 	 * report for those sources.
 	 */
 	if (inm->in6m_nsrc > 0) {
-		struct mbuf		*m;
-		uint8_t			*sp;
+		struct in6_addr		 srcaddr;
 		int			 i, nrecorded;
 		int			 soff;
 
-		m = m0;
 		soff = off + sizeof(struct mldv2_query);
 		nrecorded = 0;
 		for (i = 0; i < nsrc; i++) {
-			sp = mtod(m, uint8_t *) + soff;
-			retval = in6m_record_source(inm,
-			    (const struct in6_addr *)sp);
+			m_copydata(m0, soff, sizeof(struct in6_addr),
+			    (caddr_t)&srcaddr);
+			retval = in6m_record_source(inm, &srcaddr);
 			if (retval < 0)
 				break;
 			nrecorded += retval;
 			soff += sizeof(struct in6_addr);
-			if (soff >= m->m_len) {
-				soff = soff - m->m_len;
-				m = m->m_next;
-				if (m == NULL)
-					break;
-			}
 		}
 		if (nrecorded > 0) {
 			CTR1(KTR_MLD,
@@ -1292,8 +1290,8 @@ mld_input(struct mbuf *m, int off, int icmp6len)
 			if (mld_v1_input_query(ifp, ip6, mld) != 0)
 				return (0);
 		} else if (icmp6len >= sizeof(struct mldv2_query)) {
-			if (mld_v2_input_query(ifp, ip6, m, off,
-			    icmp6len) != 0)
+			if (mld_v2_input_query(ifp, ip6, m,
+			    (struct mldv2_query *)mld, off, icmp6len) != 0)
 				return (0);
 		}
 		break;
