@@ -128,7 +128,7 @@ has_keyboard(void)
 	 */
 	hin_end = &hin[sz / sizeof(*hin)];
 	for (walker = hin; walker < hin_end; walker++) {
-		status = BS->HandleProtocol(*walker, &devid, (VOID **)&path);
+		status = OpenProtocolByHandle(*walker, &devid, (void **)&path);
 		if (EFI_ERROR(status))
 			continue;
 
@@ -864,7 +864,7 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_zfs_probe = efi_zfs_probe;
 
         /* Get our loaded image protocol interface structure. */
-	BS->HandleProtocol(IH, &imgid, (VOID**)&boot_img);
+	(void) OpenProtocolByHandle(IH, &imgid, (void **)&boot_img);
 
 	/*
 	 * Chicken-and-egg problem; we want to have console output early, but
@@ -1004,7 +1004,8 @@ main(int argc, CHAR16 *argv[])
 		efi_free_devpath_name(text);
 	}
 
-	rv = BS->HandleProtocol(boot_img->DeviceHandle, &devid, (void **)&imgpath);
+	rv = OpenProtocolByHandle(boot_img->DeviceHandle, &devid,
+	    (void **)&imgpath);
 	if (rv == EFI_SUCCESS) {
 		text = efi_devpath_name(imgpath);
 		if (text != NULL) {
@@ -1464,7 +1465,7 @@ command_chain(int argc, char *argv[])
 		command_errmsg = "LoadImage failed";
 		return (CMD_ERROR);
 	}
-	status = BS->HandleProtocol(loaderhandle, &LoadedImageGUID,
+	status = OpenProtocolByHandle(loaderhandle, &LoadedImageGUID,
 	    (void **)&loaded_image);
 
 	if (argc > 2) {

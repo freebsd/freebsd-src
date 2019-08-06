@@ -103,7 +103,7 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 
 	/* Use efi_exit() from here on... */
 
-	status = BS->HandleProtocol(IH, &image_protocol, (VOID**)&img);
+	status = OpenProtocolByHandle(IH, &image_protocol, (void**)&img);
 	if (status != EFI_SUCCESS)
 		efi_exit(status);
 

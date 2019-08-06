@@ -44,8 +44,8 @@ efi_lookup_image_devpath(EFI_HANDLE handle)
 	EFI_DEVICE_PATH *devpath;
 	EFI_STATUS status;
 
-	status = BS->HandleProtocol(handle, &ImageDevicePathGUID,
-	    (VOID **)&devpath);
+	status = OpenProtocolByHandle(handle, &ImageDevicePathGUID,
+	    (void **)&devpath);
 	if (EFI_ERROR(status))
 		devpath = NULL;
 	return (devpath);
@@ -57,7 +57,8 @@ efi_lookup_devpath(EFI_HANDLE handle)
 	EFI_DEVICE_PATH *devpath;
 	EFI_STATUS status;
 
-	status = BS->HandleProtocol(handle, &DevicePathGUID, (VOID **)&devpath);
+	status = OpenProtocolByHandle(handle, &DevicePathGUID,
+	    (void **)&devpath);
 	if (EFI_ERROR(status))
 		devpath = NULL;
 	return (devpath);
