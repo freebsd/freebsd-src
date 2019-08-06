@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
-#include <sys/_kstack_cache.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -505,7 +504,6 @@ db_findstack_cmd(db_expr_t addr, bool have_addr, db_expr_t dummy3 __unused,
 {
 	struct proc *p;
 	struct thread *td;
-	struct kstack_cache_entry *ks_ce;
 	vm_offset_t saddr;
 
 	if (have_addr)
@@ -522,15 +520,6 @@ db_findstack_cmd(db_expr_t addr, bool have_addr, db_expr_t dummy3 __unused,
 				db_printf("Thread %p\n", td);
 				return;
 			}
-		}
-	}
-
-	for (ks_ce = kstack_cache; ks_ce != NULL;
-	     ks_ce = ks_ce->next_ks_entry) {
-		if ((vm_offset_t)ks_ce <= saddr && saddr < (vm_offset_t)ks_ce +
-		    PAGE_SIZE * kstack_pages) {
-			db_printf("Cached stack %p\n", ks_ce);
-			return;
 		}
 	}
 }
