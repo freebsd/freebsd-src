@@ -208,6 +208,7 @@ typedef struct uma_bucket * uma_bucket_t;
 struct uma_cache {
 	uma_bucket_t	uc_freebucket;	/* Bucket we're freeing to */
 	uma_bucket_t	uc_allocbucket;	/* Bucket to allocate from */
+	uma_bucket_t	uc_crossbucket;	/* cross domain bucket */
 	uint64_t	uc_allocs;	/* Count of allocations */
 	uint64_t	uc_frees;	/* Count of frees */
 } UMA_ALIGN;
@@ -368,6 +369,7 @@ struct uma_zone {
 	counter_u64_t	uz_frees;	/* Total number of frees */
 	counter_u64_t	uz_fails;	/* Total number of alloc failures */
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
+	uint64_t	uz_xdomain;	/* Total number of cross-domain frees */
 
 	/*
 	 * This HAS to be the last item because we adjust the zone size
