@@ -85,7 +85,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/_kstack_cache.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/mount.h>
