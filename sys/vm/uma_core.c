@@ -209,6 +209,7 @@ struct uma_bucket_zone {
     (((sizeof(void *) * (n)) - sizeof(struct uma_bucket)) / sizeof(void *))
 
 #define	BUCKET_MAX	BUCKET_SIZE(256)
+#define	BUCKET_MIN	BUCKET_SIZE(4)
 
 struct uma_bucket_zone bucket_zones[] = {
 	{ NULL, "4 Bucket", BUCKET_SIZE(4), 4096 },
@@ -1867,9 +1868,12 @@ out:
 	KASSERT((arg->flags & (UMA_ZONE_MAXBUCKET | UMA_ZONE_NOBUCKET)) !=
 	    (UMA_ZONE_MAXBUCKET | UMA_ZONE_NOBUCKET),
 	    ("Invalid zone flag combination"));
-	if ((arg->flags & UMA_ZONE_MAXBUCKET) != 0)
+	if ((arg->flags & UMA_ZONE_MAXBUCKET) != 0) {
 		zone->uz_count = BUCKET_MAX;
-	else if ((arg->flags & UMA_ZONE_NOBUCKET) != 0)
+	} else if ((arg->flags & UMA_ZONE_MINBUCKET) != 0) {
+		zone->uz_count = BUCKET_MIN;
+		zone->uz_count_max = BUCKET_MIN;
+	} else if ((arg->flags & UMA_ZONE_NOBUCKET) != 0)
 		zone->uz_count = 0;
 	else
 		zone->uz_count = bucket_select(zone->uz_size);
