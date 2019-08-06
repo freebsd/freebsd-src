@@ -257,8 +257,8 @@ pci_pir_create_links(struct PIR_entry *entry, struct PIR_intpin *intpin,
 }
 
 /*
- * Look to see if any of the function on the PCI device at bus/device have
- * an interrupt routed to intpin 'pin' by the BIOS.
+ * Look to see if any of the functions on the PCI device at bus/device
+ * have an interrupt routed to intpin 'pin' by the BIOS.
  */
 static uint8_t
 pci_pir_search_irq(int bus, int device, int pin)
@@ -267,6 +267,9 @@ pci_pir_search_irq(int bus, int device, int pin)
 	uint8_t func, maxfunc;
 
 	/* See if we have a valid device at function 0. */
+	value = pci_cfgregread(bus, device, 0, PCIR_VENDOR, 2);
+	if (value == PCIV_INVALID)
+		return (PCI_INVALID_IRQ);
 	value = pci_cfgregread(bus, device, 0, PCIR_HDRTYPE, 1);
 	if ((value & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
 		return (PCI_INVALID_IRQ);
@@ -277,8 +280,8 @@ pci_pir_search_irq(int bus, int device, int pin)
 
 	/* Scan all possible functions at this device. */
 	for (func = 0; func <= maxfunc; func++) {
-		value = pci_cfgregread(bus, device, func, PCIR_DEVVENDOR, 4);
-		if (value == 0xffffffff)
+		value = pci_cfgregread(bus, device, func, PCIR_VENDOR, 2);
+		if (value == PCIV_INVALID)
 			continue;
 		value = pci_cfgregread(bus, device, func, PCIR_INTPIN, 1);
 
