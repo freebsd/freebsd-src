@@ -1,4 +1,9 @@
 .\" Copyright (C) 1998 Matthew Dillon. All rights reserved.
+.\" Copyright (c) 2019 The FreeBSD Foundation, Inc.
+.\"
+.\" Parts of this documentation were written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd July 27, 2019
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -941,12 +946,125 @@ option that SSH allows in its
 .Pa authorized_keys
 file to make the key only usable to entities logging in from specific
 machines.
+.Sh KNOBS AND TWEAKS
+.Fx
+provides several knobs and tweak handles that make some introspection
+information access more restricted.
+Some people consider this as improving system security, so the knobs are
+briefly listed there, together with controls which enable some mitigations
+of the hardware state leaks.
+.Bl -tag -width security.bsd.unprivileged_proc_debug
+.It Dv security.bsd.see_other_uids
+Controls visibility of processes owned by different uid.
+The knob directly affects the
+.Dv kern.proc
+sysctls filtering of data, which results in restricted output from
+utilities like
+.Xr ps 1 .
+.It Dv security.bsd.see_other_gids
+Same, for processes owned by different gid.
+.It Dv security.bsd.see_jail_proc
+Same, for processes belonging to a jail.
+.It Dv security.bsd.conservative_signals
+When enabled, unprivileged users are only allowed to send job control
+and usual termination signals like
+.Dv SIGKILL ,
+.Dv SIGINT ,
+and
+.Dv SIGTERM ,
+to the processes executing programs with changed uids.
+.It Dv security.bsd.unprivileged_proc_debug
+Controls availability of the process debugging facilities to non-root users.
+See also
+.Xr proccontrol 1
+mode
+.Dv trace .
+.It Dv vm.pmap.pti
+Tunable, amd64-only.
+Enables mode of operation of virtual memory system where usermode page
+tables are sanitized to prevent so-called Meltdown information leak on
+some Intel CPUs.
+By default, the system detects whether the CPU needs the workaround,
+and enables it automatically.
+See also
+.Xr proccontrol 1
+mode
+.Dv kpti .
+.It Dv hw.mds_disable
+amd64 and i386.
+Controls Microarchitectural Data Sampling hardware information leak
+mitigation.
+.It Dv hw.spec_store_bypass_disable
+amd64 and i386.
+Controls Speculative Store Bypass hardware information leak mitigation.
+.It Dv hw.ibrs_disable
+amd64 and i386.
+Controls Indirect Branch Restricted Speculation hardware information leak
+mitigation.
+.It Dv machdep.syscall_ret_l1d_flush
+amd64.
+Controls force-flush of L1D cache on return from syscalls which report
+errors other than
+.Ev EEXIST ,
+.Ev EAGAIN ,
+.Ev EXDEV ,
+.Ev ENOENT ,
+.Ev ENOTCONN ,
+and
+.Ev EINPROGRESS .
+This is mostly a paranoid setting added to prevent hypothetical exploitation
+of unknown gadgets for unknown hardware issues.
+The error codes exclusion list is composed of the most common errors which
+typically occurs on normal system operation.
+.It Dv machdep.nmi_flush_l1d_sw
+amd64.
+Controls force-flush of L1D cache on NMI;
+this provides software assist for bhyve mitigation of L1 terminal fault
+hardware information leak.
+.It Dv hw.vmm.vmx.l1d_flush
+amd64.
+Controls the mitigation of L1 Terminal Fault in bhyve hypervisor.
+.It Dv kern.elf32.aslr.enable
+Controls system-global Address Space Layour Randomization (ASLR) for
+normal non-PIE (Position Independent Executable) 32bit binaries.
+See also
+.Xr proccontrol 1
+mode
+.Dv aslr ,
+also affected by the per-image control note flag.
+.It Dv kern.elf32.aslr.pie_enable
+Controls system-global Address Space Layout Randomization for
+position-independent (PIE) 32bit binaries.
+.It Dv kern.elf32.aslr.honor_sbrk
+Makes ASLR less aggressive and more compatible with old binaries
+relying on the sbrk area.
+.It Dv kern.elf32.aslr.aslr_stack_gap
+If ASLR is enabled for a binary, a non-zero value creates a randomized
+stack gap between strings and the end of the aux vector.
+The value is the maximum percentage of main stack to waste on the gap.
+Cannot be greater than 50, i.e., at most half of the stack.
+.It Dv kern.elf64.aslr.enable
+64bit binaries ASLR control.
+.It Dv kern.elf64.aslr.pie_enable
+64bit PIE binaries ASLR control.
+.It Dv kern.elf64.aslr.honor_sbrk
+64bit binaries ASLR sbrk compatibility control.
+.It Dv kern.elf32.aslr.aslr_stack_gap
+Controls stack gap for 64bit binaries.
+.It Dv kern.elf32.nxstack
+Enables non-executable stack for 32bit processes.
+Enabled by default if supported by hardware and corresponding binary.
+.It Dv kern.elf64.nxstack
+Enables non-executable stack for 64bit processes.
+.El
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr find 1 ,
 .Xr md5 1 ,
 .Xr netstat 1 ,
 .Xr openssl 1 ,
+.Xr proccontrol 1 ,
+.Xr ps 1 ,
 .Xr ssh 1 ,
 .Xr xdm 1 Pq Pa ports/x11/xorg-clients ,
 .Xr group 5 ,
