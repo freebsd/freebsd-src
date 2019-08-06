@@ -196,6 +196,7 @@
 
 	.macro	PTI_UENTRY has_err
 	swapgs
+	lfence
 	cmpq	$~0,PCPU(UCR3)
 	je	1f
 	pushq	%rax
@@ -236,6 +237,7 @@ X\vec_name:
 	jz	.L\vec_name\()_u		/* Yes, dont swapgs again */
 	swapgs
 .L\vec_name\()_u:
+	lfence
 	subq	$TF_RIP,%rsp	/* skip dummy tf_err and tf_trapno */
 	movq	%rdi,TF_RDI(%rsp)
 	movq	%rsi,TF_RSI(%rsp)
