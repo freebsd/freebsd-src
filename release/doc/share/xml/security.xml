@@ -59,6 +59,36 @@
 	<entry>24&nbsp;July&nbsp;2019</entry>
 	<entry><para>Reference count leak</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:18.bzip2.asc">FreeBSD-SA-19:18.bzip2</link></entry>
+	<entry>6&nbsp;August&nbsp;2019</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:19.mldv2.asc">FreeBSD-SA-19:19.mldv2</link></entry>
+	<entry>6&nbsp;August&nbsp;2019</entry>
+	<entry><para>Out-of-bounds memory access</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:20.bsnmp.asc">FreeBSD-SA-19:20.bsnmp</link></entry>
+	<entry>6&nbsp;August&nbsp;2019</entry>
+	<entry><para>Insufficient message length
+	  validation</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:21.bhyve.asc">FreeBSD-SA-19:21.bhyve</link></entry>
+	<entry>6&nbsp;August&nbsp;2019</entry>
+	<entry><para>Insufficient validation of guest-supplied
+	  data</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

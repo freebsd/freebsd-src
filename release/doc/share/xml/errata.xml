@@ -25,6 +25,13 @@
 	<entry><para>System crash from Intel CPU vulnerability
 	    mitigation</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-19:15.libunwind.asc">FreeBSD-EN-19:15.libunwind</link></entry>
+	<entry>6&nbsp;August&nbsp;2019</entry>
+	<entry><para>Incorrect exception handling</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
