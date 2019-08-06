@@ -392,8 +392,6 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 			VM_OBJECT_WUNLOCK(obj);
 			return (EIO);
 		}
-		KASSERT(rv == VM_PAGER_OK, ("%s: pager fail obj %p page %p",
-		    __func__, obj, pa[i]));
 
 		SFSTAT_INC(sf_iocnt);
 		SFSTAT_ADD(sf_pages_read, count);
