@@ -16,6 +16,27 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190806	p9	FreeBSD-EN-19:14.epoch
+			FreeBSD-EN-19:15.libunwind
+			FreeBSD-SA-19:18.bzip2
+			FreeBSD-SA-19:19.mldv2
+			FreeBSD-SA-19:20.bsnmp
+			FreeBSD-SA-19:21.bhyve
+
+	Fix incorrect locking in epoch(9). [EN-19:14.epoch]
+
+	Fix incorrect exception handling. [EN-19:15.libunwind]
+
+	Fix multiple vulnerabilities in bzip2. [SA-19:18.bzip2]
+
+	Fix ICMPv6 / MLDv2 out-of-bounds memory access. [SA-19:19.mldv2]
+
+	Fix insufficient message length validation in bsnmp library.
+						[SA-19:20.bsnmp]
+
+	Fix insufficient validation of guest-supplied data (e1000 device).
+						[SA-19:21.bhyve]
+
 20190724	p8	FreeBSD-EN-19:13.mds
 			FreeBSD-SA-19:12.telnet
 			FreeBSD-SA-19:13.pts
