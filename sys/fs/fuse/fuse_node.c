@@ -491,7 +491,6 @@ void
 fuse_node_init(void)
 {
 	fuse_node_count = counter_u64_alloc(M_WAITOK);
-	counter_u64_zero(fuse_node_count);
 }
 
 void

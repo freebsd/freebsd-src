@@ -1087,7 +1087,6 @@ fuse_ipc_init(void)
 	    fticket_ctor, fticket_dtor, fticket_init, fticket_fini,
 	    UMA_ALIGN_PTR, 0);
 	fuse_ticket_count = counter_u64_alloc(M_WAITOK);
-	counter_u64_zero(fuse_ticket_count);
 }
 
 void
