@@ -297,7 +297,7 @@ FIXED_CLK(pll_audio_8x_clk,
     0);					/* flags */
 
 static const char *pll_video_parents[] = {"osc24M"};
-NM_CLK_WITH_FRAC(pll_video_clk,
+FRAC_CLK(pll_video_clk,
     CLK_PLL_VIDEO,				/* id */
     "pll_video", pll_video_parents,		/* name, parents */
     0x10,					/* offset */
@@ -309,7 +309,7 @@ NM_CLK_WITH_FRAC(pll_video_clk,
     24, 25);					/* mode sel, freq sel */
 
 static const char *pll_ve_parents[] = {"osc24M"};
-NM_CLK_WITH_FRAC(pll_ve_clk,
+FRAC_CLK(pll_ve_clk,
     CLK_PLL_VE,				/* id */
     "pll_ve", pll_ve_parents,			/* name, parents */
     0x18,					/* offset */
@@ -357,7 +357,7 @@ FIXED_CLK(pll_periph0_2x_clk,
     0);					/* flags */
 
 static const char *pll_gpu_parents[] = {"osc24M"};
-NM_CLK_WITH_FRAC(pll_gpu_clk,
+FRAC_CLK(pll_gpu_clk,
     CLK_PLL_GPU,				/* id */
     "pll_gpu", pll_gpu_parents,			/* name, parents */
     0x38,					/* offset */
@@ -382,7 +382,7 @@ NKMP_CLK(pll_periph1_clk,
     AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
 
 static const char *pll_de_parents[] = {"osc24M"};
-NM_CLK_WITH_FRAC(pll_de_clk,
+FRAC_CLK(pll_de_clk,
     CLK_PLL_DE,					/* id */
     "pll_de", pll_de_parents,			/* name, parents */
     0x48,					/* offset */
@@ -684,10 +684,10 @@ static struct aw_ccung_clk h3_ccu_clks[] = {
 	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_periph0_clk},
 	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_periph1_clk},
 	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_ddr_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &pll_video_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &pll_ve_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &pll_gpu_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &pll_de_clk},
+	{ .type = AW_CLK_FRAC, .clk.frac = &pll_video_clk},
+	{ .type = AW_CLK_FRAC, .clk.frac = &pll_ve_clk},
+	{ .type = AW_CLK_FRAC, .clk.frac = &pll_gpu_clk},
+	{ .type = AW_CLK_FRAC, .clk.frac = &pll_de_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &apb2_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &nand_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &mmc0_clk},

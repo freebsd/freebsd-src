@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2017 Emmanuel Vadot <manu@freebsd.org>
- * All rights reserved.
+ * Copyright (c) 2019 Emmanuel Vadot <manu@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,18 +25,18 @@
  * $FreeBSD$
  */
 
-#ifndef	__AW_CLK_NM_H__
-#define __AW_CLK_NM_H__
+#ifndef	__AW_CLK_FRAC_H__
+#define __AW_CLK_FRAC_H__
 
 #include <dev/extres/clk/clk.h>
 
-struct aw_clk_nm_def {
+struct aw_clk_frac_def {
 	struct clknode_init_def clkdef;
 	uint32_t		offset;
 
 	struct aw_clk_factor	m;
 	struct aw_clk_factor	n;
-	struct aw_clk_factor	prediv;
+	struct aw_clk_frac	frac;
 
 	uint32_t		mux_shift;
 	uint32_t		mux_width;
@@ -48,6 +47,6 @@ struct aw_clk_nm_def {
 	uint32_t		flags;
 };
 
-int	aw_clk_nm_register(struct clkdom *clkdom, struct aw_clk_nm_def *clkdef);
+int	aw_clk_frac_register(struct clkdom *clkdom, struct aw_clk_frac_def *clkdef);
 
-#endif /* __AW_CLK_NM_H__ */
+#endif /* __AW_CLK_FRAC_H__ */
