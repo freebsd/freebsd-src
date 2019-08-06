@@ -142,7 +142,7 @@ struct rt2860_softc {
 #define RT2860_PCIE		(1 << 2)
 #define	RT2860_RUNNING		(1 << 3)
 
-	struct ieee80211_node		*wcid2ni[RT2860_WCID_MAX];
+	struct ieee80211_node		*wcid2ni[RT2860_WCID_MAX + 1];
 
 	struct rt2860_tx_ring		txq[6];
 	struct rt2860_rx_ring		rxq;
