@@ -1205,9 +1205,7 @@ void
 fuse_internal_init(void)
 {
 	fuse_lookup_cache_misses = counter_u64_alloc(M_WAITOK);
-	counter_u64_zero(fuse_lookup_cache_misses);
 	fuse_lookup_cache_hits = counter_u64_alloc(M_WAITOK);
-	counter_u64_zero(fuse_lookup_cache_hits);
 }
 
 void

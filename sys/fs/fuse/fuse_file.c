@@ -367,7 +367,6 @@ void
 fuse_file_init(void)
 {
 	fuse_fh_count = counter_u64_alloc(M_WAITOK);
-	counter_u64_zero(fuse_fh_count);
 }
 
 void
