@@ -100,6 +100,11 @@ asn_get_header(struct asn_buf *b, u_char *type, asn_len_t *len)
 		*len = *b->asn_cptr++;
 		b->asn_len--;
 	}
+	if (*len > b->asn_len) {
+		asn_error(b, "len %u exceeding asn_len %u", *len, b->asn_len);
+		return (ASN_ERR_EOBUF);
+	}
+	
 	return (ASN_ERR_OK);
 }
 
