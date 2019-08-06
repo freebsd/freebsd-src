@@ -36,6 +36,7 @@ arm/allwinner/aw_ccu.c			standard
 arm/allwinner/aw_gmacclk.c		standard
 
 arm/allwinner/clkng/aw_ccung.c		standard
+arm/allwinner/clkng/aw_clk_frac.c	standard
 arm/allwinner/clkng/aw_clk_nkmp.c	standard
 arm/allwinner/clkng/aw_clk_nm.c		standard
 arm/allwinner/clkng/aw_clk_prediv_mux.c	standard

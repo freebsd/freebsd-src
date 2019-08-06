@@ -62,6 +62,12 @@ __FBSDID("$FreeBSD$");
 #include "clkdev_if.h"
 #include "hwreset_if.h"
 
+#if 0
+#define dprintf(format, arg...)	device_printf(dev, "%s: " format, __func__, arg)
+#else
+#define dprintf(format, arg...)
+#endif
+
 static struct resource_spec aw_ccung_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ -1, 0 }
@@ -76,6 +82,7 @@ aw_ccung_write_4(device_t dev, bus_addr_t addr, uint32_t val)
 	struct aw_ccung_softc *sc;
 
 	sc = device_get_softc(dev);
+	dprintf("offset=%lx write %x\n", addr, val);
 	CCU_WRITE4(sc, addr, val);
 	return (0);
 }
@@ -88,6 +95,7 @@ aw_ccung_read_4(device_t dev, bus_addr_t addr, uint32_t *val)
 	sc = device_get_softc(dev);
 
 	*val = CCU_READ4(sc, addr);
+	dprintf("offset=%lx Read %x\n", addr, *val);
 	return (0);
 }
 
@@ -99,6 +107,7 @@ aw_ccung_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set)
 
 	sc = device_get_softc(dev);
 
+	dprintf("offset=%lx clr: %x set: %x\n", addr, clr, set);
 	reg = CCU_READ4(sc, addr);
 	reg &= ~clr;
 	reg |= set;
@@ -115,6 +124,7 @@ aw_ccung_reset_assert(device_t dev, intptr_t id, bool reset)
 
 	sc = device_get_softc(dev);
 
+	dprintf("%sassert reset id %ld\n", reset ? "" : "De", id);
 	if (id >= sc->nresets || sc->resets[id].offset == 0)
 		return (0);
 
@@ -222,6 +232,11 @@ aw_ccung_init_clocks(struct aw_ccung_softc *sc)
 			}
 		}
 		if (sc->clk_init[i].default_freq != 0) {
+			if (bootverbose)
+				device_printf(sc->dev,
+				    "Setting freq %ju for %s\n",
+				    sc->clk_init[i].default_freq,
+				    sc->clk_init[i].name);
 			error = clknode_set_freq(clknode,
 			    sc->clk_init[i].default_freq, 0 , 0);
 			if (error != 0) {
@@ -287,6 +302,9 @@ aw_ccung_attach(device_t dev)
 		case AW_CLK_PREDIV_MUX:
 			aw_clk_prediv_mux_register(sc->clkdom,
 			    sc->clks[i].clk.prediv_mux);
+			break;
+		case AW_CLK_FRAC:
+			aw_clk_frac_register(sc->clkdom, sc->clks[i].clk.frac);
 			break;
 		}
 	}
