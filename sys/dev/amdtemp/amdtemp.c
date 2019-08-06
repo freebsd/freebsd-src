@@ -96,6 +96,7 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_MISC16_M30H	0x1583
 #define	DEVICEID_AMD_HOSTB17H_ROOT	0x1450
 #define	DEVICEID_AMD_HOSTB17H_M10H_ROOT	0x15d0
+#define	DEVICEID_AMD_HOSTB17H_M30H_ROOT	0x1480
 
 static const struct amdtemp_product {
 	uint16_t	amdtemp_vendorid;
@@ -118,6 +119,7 @@ static const struct amdtemp_product {
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC16_M30H, true },
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB17H_ROOT, false },
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB17H_M10H_ROOT, false },
+	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB17H_M30H_ROOT, false },
 };
 
 /*
