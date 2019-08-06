@@ -600,7 +600,7 @@ pdir_alloc(mmu_t mmu, pmap_t pmap, unsigned int pp2d_idx, bool nosleep)
 	pte_t          **pdir;
 	int		req;
 
-	KASSERT((pdir[pdir_idx] == NULL),
+	KASSERT((pdir[pp2d_idx] == NULL),
 		("%s: valid pdir entry exists!", __func__));
 
 	req = VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
