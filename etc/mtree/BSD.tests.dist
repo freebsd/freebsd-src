@@ -731,6 +731,8 @@
         file
         ..
         fs
+            fusefs
+            ..
             tmpfs
             ..
         ..

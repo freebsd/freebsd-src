@@ -32,6 +32,11 @@
  * 
  * Copyright (C) 2005 Csaba Henk.
  * All rights reserved.
+ *
+ * Copyright (c) 2019 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by BFF Storage Systems, LLC under
+ * sponsorship from the FreeBSD Foundation.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -61,7 +66,7 @@
 #define _FUSE_IO_H_
 
 int fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
-    struct ucred *cred);
+    struct ucred *cred, pid_t pid);
 int fuse_io_strategy(struct vnode *vp, struct buf *bp);
 int fuse_io_flushbuf(struct vnode *vp, int waitfor, struct thread *td);
 int fuse_io_invalbuf(struct vnode *vp, struct thread *td);
