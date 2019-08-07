@@ -98,10 +98,7 @@ VNET_DEFINE(ipf_main_softc_t, ipfmain) = {
 # include <sys/conf.h>
 #  include <net/pfil.h>
 
-VNET_DEFINE_STATIC(eventhandler_tag, ipf_arrivetag);
-VNET_DEFINE_STATIC(eventhandler_tag, ipf_departtag);
-#define	V_ipf_arrivetag		VNET(ipf_arrivetag)
-#define	V_ipf_departtag		VNET(ipf_departtag)
+static eventhandler_tag ipf_arrivetag, ipf_departtag;
 #if 0
 /*
  * Disable the "cloner" event handler;  we are getting interface
@@ -111,8 +108,7 @@ VNET_DEFINE_STATIC(eventhandler_tag, ipf_departtag);
  * If it turns out to be needed, well need a dedicated event handler
  * for it to deal with the ifc and the correct vnet.
  */
-VNET_DEFINE_STATIC(eventhandler_tag, ipf_clonetag);
-#define	V_ipf_clonetag		VNET(ipf_clonetag)
+static eventhandler_tag ipf_clonetag;
 #endif
 
 static void ipf_ifevent(void *arg, struct ifnet *ifp);
@@ -1388,14 +1384,14 @@ int ipf_pfil_hook(void) {
 void
 ipf_event_reg(void)
 {
-	V_ipf_arrivetag = EVENTHANDLER_REGISTER(ifnet_arrival_event, \
+	ipf_arrivetag = EVENTHANDLER_REGISTER(ifnet_arrival_event, \
 					       ipf_ifevent, NULL, \
 					       EVENTHANDLER_PRI_ANY);
-	V_ipf_departtag = EVENTHANDLER_REGISTER(ifnet_departure_event, \
+	ipf_departtag = EVENTHANDLER_REGISTER(ifnet_departure_event, \
 					       ipf_ifevent, NULL, \
 					       EVENTHANDLER_PRI_ANY);
 #if 0
-	V_ipf_clonetag  = EVENTHANDLER_REGISTER(if_clone_event, ipf_ifevent, \
+	ipf_clonetag  = EVENTHANDLER_REGISTER(if_clone_event, ipf_ifevent, \
 					       NULL, EVENTHANDLER_PRI_ANY);
 #endif
 }
@@ -1403,15 +1399,15 @@ ipf_event_reg(void)
 void
 ipf_event_dereg(void)
 {
-	if (V_ipf_arrivetag != NULL) {
-		EVENTHANDLER_DEREGISTER(ifnet_arrival_event, V_ipf_arrivetag);
+	if (ipf_arrivetag != NULL) {
+		EVENTHANDLER_DEREGISTER(ifnet_arrival_event, ipf_arrivetag);
 	}
-	if (V_ipf_departtag != NULL) {
-		EVENTHANDLER_DEREGISTER(ifnet_departure_event, V_ipf_departtag);
+	if (ipf_departtag != NULL) {
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ipf_departtag);
 	}
 #if 0
-	if (V_ipf_clonetag != NULL) {
-		EVENTHANDLER_DEREGISTER(if_clone_event, V_ipf_clonetag);
+	if (ipf_clonetag != NULL) {
+		EVENTHANDLER_DEREGISTER(if_clone_event, ipf_clonetag);
 	}
 #endif
 }

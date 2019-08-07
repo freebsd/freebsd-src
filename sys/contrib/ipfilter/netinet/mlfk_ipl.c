@@ -280,10 +280,6 @@ vnet_ipf_uninit(void)
 		V_ipfmain.ipf_running = -2;
 
 		ipf_destroy_all(&V_ipfmain);
-		if (!IS_DEFAULT_VNET(curvnet)) {
-			ipf_event_dereg();
-			(void)ipf_pfil_unhook();
-		}
 	}
 }
 VNET_SYSUNINIT(vnet_ipf_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
