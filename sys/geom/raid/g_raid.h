@@ -61,39 +61,13 @@ extern int g_raid_read_err_thresh;
 extern u_int g_raid_start_timeout;
 extern struct g_class g_raid_class;
 
-#define	G_RAID_DEBUG(lvl, fmt, ...)	do {				\
-	if (g_raid_debug >= (lvl)) {					\
-		if (g_raid_debug > 0) {					\
-			printf("GEOM_RAID[%u]: " fmt "\n",		\
-			    lvl, ## __VA_ARGS__);			\
-		} else {						\
-			printf("GEOM_RAID: " fmt "\n",			\
-			    ## __VA_ARGS__);				\
-		}							\
-	}								\
-} while (0)
-#define	G_RAID_DEBUG1(lvl, sc, fmt, ...)	do {			\
-	if (g_raid_debug >= (lvl)) {					\
-		if (g_raid_debug > 0) {					\
-			printf("GEOM_RAID[%u]: %s: " fmt "\n",		\
-			    lvl, (sc)->sc_name, ## __VA_ARGS__);	\
-		} else {						\
-			printf("GEOM_RAID: %s: " fmt "\n",		\
-			    (sc)->sc_name, ## __VA_ARGS__);		\
-		}							\
-	}								\
-} while (0)
-#define	G_RAID_LOGREQ(lvl, bp, fmt, ...)	do {			\
-	if (g_raid_debug >= (lvl)) {					\
-		if (g_raid_debug > 0) {					\
-			printf("GEOM_RAID[%u]: " fmt " ",		\
-			    lvl, ## __VA_ARGS__);			\
-		} else							\
-			printf("GEOM_RAID: " fmt " ", ## __VA_ARGS__);	\
-		g_print_bio(bp);					\
-		printf("\n");						\
-	}								\
-} while (0)
+#define	G_RAID_DEBUG(lvl, ...) \
+    _GEOM_DEBUG("GEOM_RAID", g_raid_debug, (lvl), NULL, __VA_ARGS__)
+#define	G_RAID_DEBUG1(lvl, sc, fmt, ...)				\
+    _GEOM_DEBUG("GEOM_RAID", g_raid_debug, (lvl), NULL, "%s: " fmt,	\
+	(sc)->sc_name, ## __VA_ARGS__)
+#define	G_RAID_LOGREQ(lvl, bp, ...) \
+    _GEOM_DEBUG("GEOM_RAID", g_raid_debug, (lvl), (bp), __VA_ARGS__)
 
 /*
  * Flags we use to distinguish I/O initiated by the TR layer to maintain

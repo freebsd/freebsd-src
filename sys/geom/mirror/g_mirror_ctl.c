@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <geom/geom_int.h>
 #include <geom/mirror/g_mirror.h>
 

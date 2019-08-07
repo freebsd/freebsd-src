@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <sys/endian.h>
 
 #include <geom/linux_lvm/g_linux_lvm.h>

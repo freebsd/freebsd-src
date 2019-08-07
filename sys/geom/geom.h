@@ -345,7 +345,8 @@ void g_reset_bio(struct bio *);
 void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error);
 int g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 int g_delete_data(struct g_consumer *cp, off_t offset, off_t length);
-void g_print_bio(struct bio *bp);
+void g_format_bio(struct sbuf *, const struct bio *bp);
+void g_print_bio(const char *prefix, const struct bio *bp, const char *fmtsuffix, ...) __printflike(3, 4);
 int g_use_g_read_data(void *, off_t, void **, int);
 int g_use_g_write_data(void *, off_t, void *, int);
 

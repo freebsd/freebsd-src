@@ -44,26 +44,10 @@
 #define	G_SCHED_SUFFIX		".sched."
 
 #ifdef _KERNEL
-#define	G_SCHED_DEBUG(lvl, ...)	do {				\
-	if (me.gs_debug >= (lvl)) {				\
-		printf("GEOM_SCHED");				\
-		if (me.gs_debug > 0)				\
-			printf("[%u]", lvl);			\
-		printf(": ");					\
-		printf(__VA_ARGS__);				\
-		printf("\n");					\
-	}							\
-} while (0)
-
-#define	G_SCHED_LOGREQ(bp, ...)	do {				\
-	if (me.gs_debug >= 2) {					\
-		printf("GEOM_SCHED[2]: ");			\
-		printf(__VA_ARGS__);				\
-		printf(" ");					\
-		g_print_bio(bp);				\
-		printf("\n");					\
-	}							\
-} while (0)
+#define	G_SCHED_DEBUG(lvl, ...) \
+    _GEOM_DEBUG("GEOM_SCHED", me.gs_debug, (lvl), NULL, __VA_ARGS__)
+#define	G_SCHED_LOGREQ(bp, ...) \
+    _GEOM_DEBUG("GEOM_SCHED", me.gs_debug, 2, (bp), __VA_ARGS__)
 
 LIST_HEAD(g_hash, g_sched_class);
 

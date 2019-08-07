@@ -47,30 +47,12 @@ struct virstor_map_entry {
 
 #ifdef _KERNEL
 
-#define	LOG_MSG(lvl, ...)       do {					\
-        if (g_virstor_debug >= (lvl)) {					\
-                printf("GEOM_" G_VIRSTOR_CLASS_NAME);			\
-                if ((lvl) > 0)						\
-                        printf("[%u]", (lvl));				\
-                printf(": ");						\
-                printf(__VA_ARGS__);					\
-                printf("\n");						\
-        }								\
-} while (0)
+#define	LOG_MSG(lvl, ...) \
+    _GEOM_DEBUG("GEOM_VIRSTOR", g_virstor_debug, (lvl), NULL, __VA_ARGS__)
 #define	LOG_MESSAGE LOG_MSG
 
-#define	LOG_REQ(lvl, bp, ...)  do {					\
-        if (g_virstor_debug >= (lvl)) {					\
-                printf("GEOM_" G_VIRSTOR_CLASS_NAME);			\
-                if ((lvl) > 0)						\
-                        printf("[%u]", (lvl));				\
-                printf(": ");						\
-                printf(__VA_ARGS__);					\
-                printf(" ");						\
-                g_print_bio(bp);					\
-                printf("\n");						\
-        }								\
-} while (0)
+#define	LOG_REQ(lvl, bp, ...) \
+    _GEOM_DEBUG("GEOM_VIRSTOR", g_virstor_debug, (lvl), (bp), __VA_ARGS__)
 #define	LOG_REQUEST LOG_REQ
 
 /* "critical" system announcements (e.g. "geom is up") */
