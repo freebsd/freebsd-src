@@ -187,39 +187,6 @@ sbuf_extend(struct sbuf *s, int addlen)
 }
 
 /*
- * Initialize the internals of an sbuf.
- * If buf is non-NULL, it points to a static or already-allocated string
- * big enough to hold at least length characters.
- */
-static struct sbuf *
-sbuf_newbuf(struct sbuf *s, char *buf, int length, int flags)
-{
-
-	memset(s, 0, sizeof(*s));
-	s->s_flags = flags;
-	s->s_size = length;
-	s->s_buf = buf;
-
-	if (!SBUF_CANEXTEND(s)) {
-		KASSERT(s->s_size >= SBUF_MINSIZE,
-		    ("attempt to create an sbuf smaller than %d bytes",
-		    SBUF_MINSIZE));
-	}
-
-	if (s->s_buf != NULL)
-		return (s);
-
-	if (SBUF_CANEXTEND(s))
-		s->s_size = sbuf_extendsize(s->s_size);
-
-	s->s_buf = SBMALLOC(s->s_size, SBUF_MALLOCFLAG(s));
-	if (s->s_buf == NULL)
-		return (NULL);
-	SBUF_SETFLAG(s, SBUF_DYNAMIC);
-	return (s);
-}
-
-/*
  * Initialize an sbuf.
  * If buf is non-NULL, it points to a static or already-allocated string
  * big enough to hold at least length characters.
@@ -232,19 +199,52 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 	    ("attempt to create an sbuf of negative length (%d)", length));
 	KASSERT((flags & ~SBUF_USRFLAGMSK) == 0,
 	    ("%s called with invalid flags", __func__));
+	KASSERT((flags & SBUF_AUTOEXTEND) || length >= SBUF_MINSIZE,
+	    ("sbuf buffer %d smaller than minimum %d bytes", length,
+	    SBUF_MINSIZE));
 
 	flags &= SBUF_USRFLAGMSK;
-	if (s != NULL)
-		return (sbuf_newbuf(s, buf, length, flags));
 
-	s = SBMALLOC(sizeof(*s), (flags & SBUF_NOWAIT) ? M_NOWAIT : M_WAITOK);
-	if (s == NULL)
-		return (NULL);
-	if (sbuf_newbuf(s, buf, length, flags) == NULL) {
-		SBFREE(s);
-		return (NULL);
+	/*
+	 * Allocate 'DYNSTRUCT' sbuf from the heap, if NULL 's' was provided.
+	 */
+	if (s == NULL) {
+		s = SBMALLOC(sizeof(*s),
+		    (flags & SBUF_NOWAIT) ?  M_NOWAIT : M_WAITOK);
+		if (s == NULL)
+			goto out;
+		SBUF_SETFLAG(s, SBUF_DYNSTRUCT);
+	} else {
+		/*
+		 * DYNSTRUCT SBMALLOC sbufs are allocated with M_ZERO, but
+		 * user-provided sbuf objects must be initialized.
+		 */
+		memset(s, 0, sizeof(*s));
 	}
-	SBUF_SETFLAG(s, SBUF_DYNSTRUCT);
+
+	s->s_flags |= flags;
+	s->s_size = length;
+	s->s_buf = buf;
+
+	/*
+	 * Allocate DYNAMIC, i.e., heap data buffer backing the sbuf, if no
+	 * buffer was provided.
+	 */
+	if (s->s_buf == NULL) {
+		if (SBUF_CANEXTEND(s))
+			s->s_size = sbuf_extendsize(s->s_size);
+		s->s_buf = SBMALLOC(s->s_size, SBUF_MALLOCFLAG(s));
+		if (s->s_buf == NULL)
+			goto out;
+		SBUF_SETFLAG(s, SBUF_DYNAMIC);
+	}
+
+out:
+	if (s != NULL && s->s_buf == NULL) {
+		if (SBUF_ISDYNSTRUCT(s))
+			SBFREE(s);
+		s = NULL;
+	}
 	return (s);
 }
 
