@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2016
+.Dd August 7, 2019
 .Dt PTHREAD_MUTEX_LOCK 3
 .Os
 .Sh NAME
@@ -66,8 +66,8 @@ A deadlock would occur if the thread blocked waiting for
 .It Bq Er EOWNERDEAD
 The argument
 .Fa mutex
-points to a robust mutex and the previous owning thread terminated
-while holding the mutex lock.
+points to a robust mutex and the process containing the previous owning
+thread terminated while holding the mutex lock.
 The lock was granted to the caller and it is up to the new owner
 to make the state consistent.
 .It Bq Er ENOTRECOVERABLE
