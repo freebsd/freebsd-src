@@ -163,17 +163,17 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	if (rate == sc->nrates)
 		return (0);
 
-	err = clknode_set_freq(p_main, best_p, 0, 1);
-	if (err != 0)
-		printf("Cannot set %s to %lu\n",
-		    clknode_get_name(p_main),
-		    best_p);
-
 	if ((flags & CLK_SET_DRYRUN) != 0) {
 		*fout = best;
 		*stop = 1;
 		return (0);
 	}
+
+	err = clknode_set_freq(p_main, best_p, 0, 1);
+	if (err != 0)
+		printf("Cannot set %s to %lu\n",
+		    clknode_get_name(p_main),
+		    best_p);
 
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->muxdiv_offset, &val);
