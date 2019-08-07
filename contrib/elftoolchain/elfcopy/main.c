@@ -1017,13 +1017,16 @@ elfcopy_main(struct elfcopy *ecp, int argc, char **argv)
 		}
 	}
 
-	if (optind == argc || optind + 2 < argc)
+	argc -= optind;
+	argv += optind;
+
+	if (argc == 0 || argc > 2)
 		elfcopy_usage();
 
-	infile = argv[optind];
+	infile = argv[0];
 	outfile = NULL;
-	if (optind + 1 < argc)
-		outfile = argv[optind + 1];
+	if (argc > 1)
+		outfile = argv[1];
 
 	create_file(ecp, infile, outfile);
 }
@@ -1067,7 +1070,10 @@ mcs_main(struct elfcopy *ecp, int argc, char **argv)
 		}
 	}
 
-	if (optind == argc)
+	argc -= optind;
+	argv += optind;
+
+	if (argc == 0)
 		mcs_usage();
 
 	/* Must specify one operation at least. */
@@ -1104,7 +1110,7 @@ mcs_main(struct elfcopy *ecp, int argc, char **argv)
 		sac->string = string;
 	}
 
-	for (i = optind; i < argc; i++) {
+	for (i = 0; i < argc; i++) {
 		/* If only -p is specified, output to /dev/null */
 		if (print && !append && !compress && !delete)
 			create_file(ecp, argv[i], "/dev/null");
@@ -1180,21 +1186,24 @@ strip_main(struct elfcopy *ecp, int argc, char **argv)
 		}
 	}
 
+	argc -= optind;
+	argv += optind;
+
 	if (ecp->strip == 0 &&
 	    ((ecp->flags & DISCARD_LOCAL) == 0) &&
 	    ((ecp->flags & DISCARD_LLABEL) == 0) &&
 	    lookup_symop_list(ecp, NULL, SYMOP_STRIP) == NULL)
 		ecp->strip = STRIP_ALL;
-	if (optind == argc)
+	if (argc == 0)
 		strip_usage();
 	/*
 	 * Only accept a single input file if an output file had been
 	 * specified.
 	 */
-	if (outfile != NULL && argc != (optind + 1))
+	if (outfile != NULL && argc != 1)
 		strip_usage();
 
-	for (i = optind; i < argc; i++)
+	for (i = 0; i < argc; i++)
 		create_file(ecp, argv[i], outfile);
 }
 
