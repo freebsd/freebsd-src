@@ -53,6 +53,7 @@ contrib/pjdfstest	asomers,ngie,pjd,#test	Pre-commit review requested.
 etc/mail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 fetch		des	Pre-commit review requested, email only.
+fusefs(5)	asomers	Pre-commit review requested.
 geli		pjd	Pre-commit review requested (both sys/geom/eli/ and sbin/geom/class/eli/).
 isci(4)		jimharris	Pre-commit review requested.
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org

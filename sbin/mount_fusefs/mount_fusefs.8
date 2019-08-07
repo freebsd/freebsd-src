@@ -3,6 +3,11 @@
 .\" Copyright (c) 2005, 2006 Csaba Henk
 .\" All rights reserved.
 .\"
+.\" Copyright (c) 2019 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by BFF Storage Systems under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -29,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2018
+.Dd July 31, 2019
 .Dt MOUNT_FUSEFS 8
 .Os
 .Sh NAME
@@ -108,27 +113,27 @@ Intended for use in scripts and the
 .Xr sudoers 5
 file.
 .It Fl S , Ic --safe
-Run in safe mode (i.e. reject invoking a filesystem daemon)
+Run in safe mode (i.e., reject invoking a filesystem daemon).
 .It Fl v
-Be verbose
-.It Fl D, Ic --daemon Ar daemon
+Be verbose.
+.It Fl D , Ic --daemon Ar daemon
 Call the specified
-.Ar daemon
-.It Fl O, Ic --daemon_opts Ar opts
+.Ar daemon .
+.It Fl O , Ic --daemon_opts Ar opts
 Add
 .Ar opts
-to the daemon's command line
-.It Fl s, Ic --special Ar special
+to the daemon's command line.
+.It Fl s , Ic --special Ar special
 Use
 .Ar special
-as special
-.It Fl m, Ic --mountpath Ar node
+as special.
+.It Fl m , Ic --mountpath Ar node
 Mount on
-.Ar node
-.It Fl h, Ic --help
-Show help
-.It Fl V, Ic --version
-Show version information
+.Ar node .
+.It Fl h , Ic --help
+Show help.
+.It Fl V , Ic --version
+Show version information.
 .It Fl o
 Mount options are specified via
 .Fl o .
@@ -136,23 +141,38 @@ The following options are available (and also their negated versions,
 by prefixing them with
 .Dq no ) :
 .Bl -tag -width indent
-.It Cm default_permissions
-Enable traditional (file mode based) permission checking in kernel
 .It Cm allow_other
 Do not apply
 .Sx STRICT ACCESS POLICY .
-Only root can use this option
+Only root can use this option.
+.It Cm async
+I/O to the file system may be done asynchronously.
+Writes may be delayed and/or reordered.
+.It Cm default_permissions
+Enable traditional (file mode based) permission checking in kernel.
+.It Cm intr
+Allow signals to interrupt operations that are blocked waiting for a reply from the server.
+When this option is in use, system calls may fail with
+.Er EINTR
+whenever a signal is received.
 .It Cm max_read Ns = Ns Ar n
 Limit size of read requests to
-.Ar n
+.Ar n .
+.It Cm neglect_shares
+Do not refuse unmounting if there are secondary mounts.
 .It Cm private
 Refuse shared mounting of the daemon.
 This is the default behaviour, to allow sharing, expicitly use
-.Fl o Cm noprivate
-.It Cm neglect_shares
-Do not refuse unmounting if there are secondary mounts
+.Fl o Cm noprivate .
 .It Cm push_symlinks_in
-Prefix absolute symlinks with the mountpoint
+Prefix absolute symlinks with the mountpoint.
+.It Cm subtype Ns = Ns Ar fsname
+Suffix
+.Ar fsname
+to the file system name as reported by
+.Xr statfs 2 .
+This option can be used to identify the file system implemented by
+.Ar fuse_daemon .
 .El
 .El
 .Pp
@@ -167,11 +187,11 @@ However, there are some which do require in-kernel support.
 Currently the options supported by the kernel are:
 .Bl -tag -width indent
 .It Cm direct_io
-Bypass the buffer cache system
+Bypass the buffer cache system.
 .It Cm kernel_cache
 By default cached buffers of a given file are flushed at each
 .Xr open 2 .
-This option disables this behaviour
+This option disables this behaviour.
 .El
 .Sh DAEMON MOUNTS
 Usually users do not need to use
@@ -194,7 +214,7 @@ only if the filesystem daemon has the same credentials (uid, real uid, gid,
 real gid) as the user.
 .Pp
 This is applied for Fuse mounts by default and only root can mount without
-the strict access policy (i.e. the
+the strict access policy (i.e., the
 .Cm allow_other
 mount option).
 .Pp
@@ -206,7 +226,7 @@ Users might opt to willingly relax strict access policy (as far they
 are concerned) by doing their own secondary mount (See
 .Sx SHARED MOUNTS ) .
 .Sh SHARED MOUNTS
-A Fuse daemon can be shared (i.e. mounted multiple times).
+A Fuse daemon can be shared (i.e., mounted multiple times).
 When doing the first (primary) mount, the spawner and the mounter of the daemon
 must have the same uid, or the mounter should be the superuser.
 .Pp
@@ -225,7 +245,7 @@ is used or not.
 .Pp
 The device name of a secondary mount is the device name of the corresponding
 primary mount, followed by a '#' character and the index of the secondary
-mount; e.g.
+mount; e.g.,
 .Pa /dev/fuse0#3 .
 .Sh SECURITY
 System administrators might want to use a custom mount policy (ie., one going
@@ -239,7 +259,7 @@ However, given that
 is capable of invoking an arbitrary program, one must be careful when doing this.
 .Nm
 is designed in a way such that it makes that easy.
-For this purpose, there are options which disable certain risky features (i.e.
+For this purpose, there are options which disable certain risky features (
 .Fl S
 and
 .Fl A ) ,
@@ -342,7 +362,7 @@ does not call any external utility and also provides a hacky
 was written as the part of the
 .Fx
 implementation of the Fuse userspace filesystem framework (see
-.Xr https://github.com/libfuse/libfuse )
+.Lk https://github.com/libfuse/libfuse )
 and first appeared in the
 .Pa sysutils/fusefs-kmod
 port, supporting
