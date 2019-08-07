@@ -73,7 +73,7 @@ error:
 	slen = wcslen(src);
 	if (slen < len)
 		(void) wcscpy(dest, src);
-	else {
+	else if (len > 0) {
 		(void) wcsncpy(dest, src, len - 1);
 		dest[len - 1] = L'\0';
 	}
