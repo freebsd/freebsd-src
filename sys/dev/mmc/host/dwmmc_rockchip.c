@@ -49,12 +49,12 @@ __FBSDID("$FreeBSD$");
 
 enum RKTYPE {
 	RK2928 = 1,
-	RK3328,
+	RK3288,
 };
 
 static struct ofw_compat_data compat_data[] = {
 	{"rockchip,rk2928-dw-mshc",	RK2928},
-	{"rockchip,rk3328-dw-mshc",	RK3328},
+	{"rockchip,rk3288-dw-mshc",	RK3288},
 	{NULL,				0},
 };
 

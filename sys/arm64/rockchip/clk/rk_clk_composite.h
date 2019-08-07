@@ -53,8 +53,6 @@ struct rk_clk_composite_def {
 #define	RK_CLK_COMPOSITE_HAVE_MUX	0x0001
 #define	RK_CLK_COMPOSITE_HAVE_GATE	0x0002
 
-#define	RK_CLK_COMPOSITE_MASK	0xFFFF0000
-
 int rk_clk_composite_register(struct clkdom *clkdom,
     struct rk_clk_composite_def *clkdef);
 
