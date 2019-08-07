@@ -307,7 +307,7 @@ ipf_modunload()
 
 	printf("%s unloaded\n", ipfilter_version);
 
-	return error;
+	return (0);
 }
 
 
