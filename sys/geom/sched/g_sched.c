@@ -118,6 +118,7 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>		/* we access curthread */
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include "gs_scheduler.h"
 #include "g_sched.h"		/* geom hooks */
 

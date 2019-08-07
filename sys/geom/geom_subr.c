@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/sbuf.h>
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <geom/geom_int.h>
 #include <machine/stdarg.h>
 
@@ -76,6 +77,44 @@ struct g_hh00 {
 	int			error;
 	int			post;
 };
+
+void
+g_dbg_printf(const char *classname, int lvl, struct bio *bp,
+    const char *format,
+    ...)
+{
+#ifndef PRINTF_BUFR_SIZE
+#define PRINTF_BUFR_SIZE 64
+#endif
+	char bufr[PRINTF_BUFR_SIZE];
+	struct sbuf sb, *sbp __unused;
+	va_list ap;
+
+	sbp = sbuf_new(&sb, bufr, sizeof(bufr), SBUF_FIXEDLEN);
+	KASSERT(sbp != NULL, ("sbuf_new misused?"));
+
+	sbuf_set_drain(&sb, sbuf_printf_drain, NULL);
+
+	sbuf_cat(&sb, classname);
+	if (lvl >= 0)
+		sbuf_printf(&sb, "[%d]", lvl);
+	
+	va_start(ap, format);
+	sbuf_vprintf(&sb, format, ap);
+	va_end(ap);
+
+	if (bp != NULL) {
+		sbuf_putc(&sb, ' ');
+		g_format_bio(&sb, bp);
+	}
+
+	/* Terminate the debug line with a single '\n'. */
+	sbuf_nl_terminate(&sb);
+
+	/* Flush line to printf. */
+	sbuf_finish(&sb);
+	sbuf_delete(&sb);
+}
 
 /*
  * This event offers a new class a chance to taste all preexisting providers.

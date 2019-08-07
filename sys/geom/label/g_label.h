@@ -50,16 +50,8 @@
 #ifdef _KERNEL
 extern u_int g_label_debug;
 
-#define	G_LABEL_DEBUG(lvl, ...)	do {					\
-	if (g_label_debug >= (lvl)) {					\
-		printf("GEOM_LABEL");					\
-		if (g_label_debug > 0)					\
-			printf("[%u]", lvl);				\
-		printf(": ");						\
-		printf(__VA_ARGS__);					\
-		printf("\n");						\
-	}								\
-} while (0)
+#define G_LABEL_DEBUG(lvl, ...) \
+    _GEOM_DEBUG("GEOM_LABEL", g_label_debug, (lvl), NULL, __VA_ARGS__)
 
 SYSCTL_DECL(_kern_geom_label);
 

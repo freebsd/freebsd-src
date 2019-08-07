@@ -86,28 +86,10 @@
 
 extern int g_mirror_debug;
 
-#define	G_MIRROR_DEBUG(lvl, ...)	do {				\
-	if (g_mirror_debug >= (lvl)) {					\
-		printf("GEOM_MIRROR");					\
-		if (g_mirror_debug > 0)					\
-			printf("[%u]", lvl);				\
-		printf(": ");						\
-		printf(__VA_ARGS__);					\
-		printf("\n");						\
-	}								\
-} while (0)
-#define	G_MIRROR_LOGREQ(lvl, bp, ...)	do {				\
-	if (g_mirror_debug >= (lvl)) {					\
-		printf("GEOM_MIRROR");					\
-		if (g_mirror_debug > 0)					\
-			printf("[%u]", lvl);				\
-		printf(": ");						\
-		printf(__VA_ARGS__);					\
-		printf(" ");						\
-		g_print_bio(bp);					\
-		printf("\n");						\
-	}								\
-} while (0)
+#define G_MIRROR_DEBUG(lvl, ...) \
+    _GEOM_DEBUG("GEOM_MIRROR", g_mirror_debug, (lvl), NULL, __VA_ARGS__)
+#define G_MIRROR_LOGREQ(lvl, bp, ...) \
+    _GEOM_DEBUG("GEOM_MIRROR", g_mirror_debug, (lvl), (bp), __VA_ARGS__)
 
 #define	G_MIRROR_BIO_FLAG_REGULAR	0x01
 #define	G_MIRROR_BIO_FLAG_SYNC		0x02

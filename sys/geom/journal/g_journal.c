@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 
 #include <geom/journal/g_journal.h>
 

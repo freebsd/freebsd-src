@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/ffs_extern.h>
 
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <geom/journal/g_journal.h>
 
 static int

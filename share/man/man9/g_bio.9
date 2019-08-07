@@ -24,13 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Mar 7, 2018
+.Dd August 7, 2019
 .Dt G_BIO 9
 .Os
 .Sh NAME
 .Nm g_new_bio ,
 .Nm g_clone_bio ,
 .Nm g_destroy_bio ,
+.Nm g_format_bio ,
 .Nm g_print_bio ,
 .Nm g_reset_bio
 .Nd "GEOM bio controlling functions"
@@ -48,7 +49,12 @@
 .Ft void
 .Fn g_destroy_bio "struct bio *bp"
 .Ft void
-.Fn g_print_bio "struct bio *bp"
+.Fn g_format_bio "struct sbuf *sb" "const struct bio *bp"
+.Ft void
+.Fo g_print_bio
+.Fa "struct sbuf *sb" "const char *prefix" "const struct bio *bp"
+.Fa "const char *fmtsuffix" ...
+.Fc
 .Ft void
 .Fn g_reset_bio "struct bio *bp"
 .Sh DESCRIPTION
@@ -204,10 +210,28 @@ function deallocates and destroys the given
 structure.
 .Pp
 The
-.Fn g_print_bio
+.Fn g_format_bio
 function prints information about the given
 .Vt bio
-structure (for debugging purposes).
+structure into the provided
+.Vt sbuf .
+.Pp
+The
+.Fn g_print_bio
+function is a convenience wrapper around
+.Fn g_format_bio
+that can be used for debugging purposes.
+It prints a provided
+.Fa prefix
+string, followed by the formatted
+.Vt bio ,
+followed by a
+.Fa fmtsuffix
+in the style of
+.Xr 9 printf .
+Any of the prefix or suffix strings may be the empty string.
+.Fn g_print_bio
+always prints a newline character at the end of the line.
 .Pp
 The
 .Fn g_reset_bio
@@ -261,9 +285,7 @@ example_start(struct bio *bp)
 	struct example_softc *sc;
 	struct bio *cbp;
 
-	printf("Request received: ");
-	g_print_bio(bp);
-	printf("\\n");
+	g_print_bio("Request received: ", bp, "");
 
 	sc = bp->bio_to->geom->softc;
 	if (sc == NULL) {

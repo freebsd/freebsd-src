@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <geom/mirror/g_mirror.h>
 
 FEATURE(geom_mirror, "GEOM mirroring support");

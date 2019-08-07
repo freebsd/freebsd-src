@@ -1,9 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2010 Edward Tomasz Napierala <trasz@FreeBSD.org>
- * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2019 Conrad Meyer <cem@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,31 +27,23 @@
  * $FreeBSD$
  */
 
-#ifndef	_G_MOUNTVER_H_
-#define	_G_MOUNTVER_H_
-
-#define	G_MOUNTVER_CLASS_NAME	"MOUNTVER"
-#define	G_MOUNTVER_VERSION	4
-#define	G_MOUNTVER_SUFFIX	".mountver"
+#pragma once
 
 #ifdef _KERNEL
 
-#define	G_MOUNTVER_DEBUG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_MOUNTVER", g_mountver_debug, (lvl), NULL, __VA_ARGS__)
-#define	G_MOUNTVER_LOGREQ(bp, ...) \
-    _GEOM_DEBUG("GEOM_MOUNTVER", g_mountver_debug, 2, (bp), __VA_ARGS__)
+#define _GEOM_DEBUG(classname, ctrlvar, loglvl, biop, formatstr, ...)	\
+do {									\
+	const int __control = (ctrlvar);				\
+	const int __level = (loglvl);					\
+									\
+	if (__control < __level)					\
+		break;							\
+									\
+	g_dbg_printf((classname), (__control > 0) ? __level : -1,	\
+	    (biop), ": " formatstr, ## __VA_ARGS__);			\
+} while (0)
 
-struct g_mountver_softc {
-	TAILQ_HEAD(, bio)		sc_queue;
-	struct mtx			sc_mtx;
-	char				*sc_provider_name;
-	char				sc_ident[DISK_IDENT_SIZE];
-	int				sc_orphaned;
-	int				sc_shutting_down;
-	int				sc_access_r;
-	int				sc_access_w;
-	int				sc_access_e;
-};
-#endif	/* _KERNEL */
+void g_dbg_printf(const char *classname, int lvl, struct bio *bp,
+    const char *format, ...) __printflike(4, 5);
 
-#endif	/* _G_MOUNTVER_H_ */
+#endif /* _KERNEL */
