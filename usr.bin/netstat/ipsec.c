@@ -125,33 +125,18 @@ static struct val2str ipsec_ahnames[] = {
 	{ SADB_AALG_NONE, "none", },
 	{ SADB_AALG_MD5HMAC, "hmac-md5", },
 	{ SADB_AALG_SHA1HMAC, "hmac-sha1", },
-	{ SADB_X_AALG_MD5, "md5", },
-	{ SADB_X_AALG_SHA, "sha", },
+	{ SADB_X_AALG_MD5, "keyed-md5", },
+	{ SADB_X_AALG_SHA, "keyed-sha1", },
 	{ SADB_X_AALG_NULL, "null", },
-#ifdef SADB_X_AALG_SHA2_256
 	{ SADB_X_AALG_SHA2_256, "hmac-sha2-256", },
-#endif
-#ifdef SADB_X_AALG_SHA2_384
 	{ SADB_X_AALG_SHA2_384, "hmac-sha2-384", },
-#endif
-#ifdef SADB_X_AALG_SHA2_512
 	{ SADB_X_AALG_SHA2_512, "hmac-sha2-512", },
-#endif
-#ifdef SADB_X_AALG_RIPEMD160HMAC
 	{ SADB_X_AALG_RIPEMD160HMAC, "hmac-ripemd160", },
-#endif
-#ifdef SADB_X_AALG_AES_XCBC_MAC
 	{ SADB_X_AALG_AES_XCBC_MAC, "aes-xcbc-mac", },
-#endif
-#ifdef SADB_X_AALG_AES128GMAC
+	{ SADB_X_AALG_TCP_MD5, "tcp-md5", },
 	{ SADB_X_AALG_AES128GMAC, "aes-gmac-128", },
-#endif
-#ifdef SADB_X_AALG_AES192GMAC
 	{ SADB_X_AALG_AES192GMAC, "aes-gmac-192", },
-#endif
-#ifdef SADB_X_AALG_AES256GMAC
 	{ SADB_X_AALG_AES256GMAC, "aes-gmac-256", },
-#endif
 	{ -1, NULL },
 };
 
@@ -162,15 +147,11 @@ static struct val2str ipsec_espnames[] = {
 	{ SADB_EALG_NULL, "null", },
 	{ SADB_X_EALG_CAST128CBC, "cast128-cbc", },
 	{ SADB_X_EALG_BLOWFISHCBC, "blowfish-cbc", },
-#ifdef SADB_X_EALG_RIJNDAELCBC
 	{ SADB_X_EALG_RIJNDAELCBC, "rijndael-cbc", },
-#endif
-#ifdef SADB_X_EALG_AESCTR
+	{ SADB_X_EALG_CAMELLIACBC, "camellia-cbc", },
 	{ SADB_X_EALG_AESCTR, "aes-ctr", },
-#endif
-#ifdef SADB_X_EALG_AESGCM16
 	{ SADB_X_EALG_AESGCM16, "aes-gcm-16", },
-#endif
+	{ SADB_X_EALG_AESGMAC, "aes-gmac", },
 	{ -1, NULL },
 };
 
