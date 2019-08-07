@@ -207,7 +207,7 @@ int stream_size;
     if (strm == Z_NULL) return Z_STREAM_ERROR;
     strm->msg = Z_NULL;                 /* in case we return an error */
     if (strm->zalloc == (alloc_func)0) {
-#ifdef Z_SOLO
+#if defined(Z_SOLO) && !defined(_KERNEL)
         return Z_STREAM_ERROR;
 #else
         strm->zalloc = zcalloc;
@@ -215,7 +215,7 @@ int stream_size;
 #endif
     }
     if (strm->zfree == (free_func)0)
-#ifdef Z_SOLO
+#if defined(Z_SOLO) && !defined(_KERNEL)
         return Z_STREAM_ERROR;
 #else
         strm->zfree = zcfree;
