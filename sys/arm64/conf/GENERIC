@@ -95,6 +95,7 @@ options 	SOC_HISI_HI6220
 options 	SOC_BRCM_BCM2837
 options 	SOC_MARVELL_8K
 options 	SOC_ROCKCHIP_RK3328
+options 	SOC_ROCKCHIP_RK3399
 options 	SOC_XILINX_ZYNQ
 
 # Timer drivers
@@ -206,6 +207,8 @@ device		fdt_pinctrl
 device		gpioregulator
 device		mv_gpio		# Marvell GPIO controller
 device		mvebu_pinctrl	# Marvell Pinmux Controller
+device		rk_gpio		# RockChip GPIO Controller
+device		rk_pinctrl	# RockChip Pinmux Controller
 
 # I2C
 device		aw_rsb		# Allwinner Reduced Serial Bus

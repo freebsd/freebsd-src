@@ -66,7 +66,10 @@ struct rk_clk_composite_sc {
 #define	DEVICE_UNLOCK(_clk)						\
 	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
-#define	RK_COMPOSITE_WRITE_MASK	0xFFFF0000
+#define	RK_CLK_COMPOSITE_MASK_SHIFT	16
+
+/* #define	dprintf(format, arg...)	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg) */
+#define	dprintf(format, arg...)
 
 static int
 rk_clk_composite_init(struct clknode *clk, device_t dev)
@@ -94,20 +97,21 @@ static int
 rk_clk_composite_set_gate(struct clknode *clk, bool enable)
 {
 	struct rk_clk_composite_sc *sc;
-	uint32_t val;
+	uint32_t val = 0;
 
 	sc = clknode_get_softc(clk);
 
 	if ((sc->flags & RK_CLK_COMPOSITE_HAVE_GATE) == 0)
 		return (0);
 
-	DEVICE_LOCK(clk);
-	READ4(clk, sc->gate_offset, &val);
-	if (enable)
-		val &= ~(1 << sc->gate_shift);
-	else
+	dprintf("%sabling gate\n", enable ? "En" : "Dis");
+	if (!enable)
 		val |= 1 << sc->gate_shift;
-	WRITE4(clk, sc->gate_offset, val | RK_CLK_COMPOSITE_MASK);
+	dprintf("sc->gate_shift: %x\n", sc->gate_shift);
+	val |= (1 << sc->gate_shift) << RK_CLK_COMPOSITE_MASK_SHIFT;
+	dprintf("Write: gate_offset=%x, val=%x\n", sc->gate_offset, val);
+	DEVICE_LOCK(clk);
+	WRITE4(clk, sc->gate_offset, val);
 	DEVICE_UNLOCK(clk);
 
 	return (0);
@@ -117,17 +121,18 @@ static int
 rk_clk_composite_set_mux(struct clknode *clk, int index)
 {
 	struct rk_clk_composite_sc *sc;
-	uint32_t val;
+	uint32_t val = 0;
 
 	sc = clknode_get_softc(clk);
 
 	if ((sc->flags & RK_CLK_COMPOSITE_HAVE_MUX) == 0)
 		return (0);
 
+	dprintf("Set mux to %d\n", index);
 	DEVICE_LOCK(clk);
-	READ4(clk, sc->muxdiv_offset, &val);
-	val &= ~sc->mux_mask;
-	val |= index << sc->mux_shift;
+	val |= (index << sc->mux_shift);
+	val |= sc->mux_mask << RK_CLK_COMPOSITE_MASK_SHIFT;
+	dprintf("Write: muxdiv_offset=%x, val=%x\n", sc->muxdiv_offset, val);
 	WRITE4(clk, sc->muxdiv_offset, val);
 	DEVICE_UNLOCK(clk);
 
@@ -145,11 +150,12 @@ rk_clk_composite_recalc(struct clknode *clk, uint64_t *freq)
 	DEVICE_LOCK(clk);
 
 	READ4(clk, sc->muxdiv_offset, &reg);
+	dprintf("Read: muxdiv_offset=%x, val=%x\n", sc->muxdiv_offset, reg);
 
 	DEVICE_UNLOCK(clk);
 
 	div = ((reg & sc->div_mask) >> sc->div_shift) + 1;
-
+	dprintf("parent_freq=%lu, div=%u\n", *freq, div);
 	*freq = *freq / div;
 
 	return (0);
@@ -183,22 +189,25 @@ rk_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	struct clknode *p_clk;
 	const char **p_names;
 	uint64_t best, cur;
-	uint32_t div, best_div, val;
+	uint32_t div, best_div, val = 0;
 	int p_idx, best_parent;
 
 	sc = clknode_get_softc(clk);
 
+	dprintf("Finding best parent/div for target freq of %lu\n", *fout);
 	p_names = clknode_get_parent_names(clk);
 	for (best_div = 0, best = 0, p_idx = 0;
 	     p_idx != clknode_get_parents_num(clk); p_idx++) {
 		p_clk = clknode_find_by_name(p_names[p_idx]);
 		clknode_get_freq(p_clk, &fparent);
+		dprintf("Testing with parent %s (%d) at freq %lu\n", clknode_get_name(p_clk), p_idx, fparent);
 		div = rk_clk_composite_find_best(sc, fparent, *fout);
 		cur = fparent / div;
 		if ((*fout - cur) < (*fout - best)) {
 			best = cur;
 			best_div = div;
 			best_parent = p_idx;
+			dprintf("Best parent so far %s (%d) with best freq at %lu\n", clknode_get_name(p_clk), p_idx, best);
 		}
 	}
 
@@ -222,14 +231,18 @@ rk_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		return (0);
 	}
 
-	if (p_idx != best_parent)
+	p_idx = clknode_get_parent_idx(clk);
+	if (p_idx != best_parent) {
+		dprintf("Switching parent index from %d to %d\n", p_idx, best_parent);
 		clknode_set_parent_by_idx(clk, best_parent);
+	}
 
+	dprintf("Setting divider to %d\n", best_div);
 	DEVICE_LOCK(clk);
-	READ4(clk, sc->muxdiv_offset, &val);
-	val &= ~sc->div_mask;
 	val |= (best_div - 1) << sc->div_shift;
-	WRITE4(clk, sc->muxdiv_offset, val | RK_CLK_COMPOSITE_MASK);
+	val |= (sc->div_mask << sc->div_shift) << RK_CLK_COMPOSITE_MASK_SHIFT;
+	dprintf("Write: muxdiv_offset=%x, val=%x\n", sc->muxdiv_offset, val);
+	WRITE4(clk, sc->muxdiv_offset, val);
 	DEVICE_UNLOCK(clk);
 
 	*fout = best;
