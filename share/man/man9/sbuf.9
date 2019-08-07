@@ -44,6 +44,7 @@
 .Nm sbuf_cat ,
 .Nm sbuf_copyin ,
 .Nm sbuf_cpy ,
+.Nm sbuf_nl_terminate ,
 .Nm sbuf_printf ,
 .Nm sbuf_vprintf ,
 .Nm sbuf_putc ,
@@ -122,6 +123,8 @@
 .Fa "struct sbuf *s"
 .Fa "const char *str"
 .Fc
+.Ft int
+.Fn sbuf_nl_terminate "struct sbuf *"
 .Ft int
 .Fo sbuf_printf
 .Fa "struct sbuf *s"
@@ -440,10 +443,14 @@ To do unbuffered draining, initialize the sbuf with a two-byte buffer.
 The drain will be called for every byte added to the sbuf.
 The
 .Fn sbuf_bcopyin ,
+.Fn sbuf_bcpy ,
+.Fn sbuf_clear ,
 .Fn sbuf_copyin ,
+.Fn sbuf_cpy ,
 .Fn sbuf_trim ,
+.Fn sbuf_data ,
 and
-.Fn sbuf_data
+.Fn sbuf_len
 functions cannot be used on an sbuf with a drain.
 .Pp
 The
@@ -474,6 +481,11 @@ or one which position has been reset to zero with
 .Fn sbuf_clear
 or
 .Fn sbuf_setpos .
+.Pp
+The
+.Fn sbuf_nl_terminate
+function appends a trailing newline character, if the current line is non-empty
+and not already terminated by a newline character.
 .Pp
 The
 .Fn sbuf_printf
