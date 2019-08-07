@@ -54,6 +54,8 @@ struct rk_clk_pll_sc {
 
 	struct rk_clk_pll_rate	*rates;
 	struct rk_clk_pll_rate	*frac_rates;
+
+	bool			normal_mode;
 };
 
 #define	WRITE4(_clk, off, val)					\
@@ -344,11 +346,13 @@ rk3399_clk_pll_init(struct clknode *clk, device_t dev)
 
 	sc = clknode_get_softc(clk);
 
-	/* Setting to normal mode */
-	reg = RK3399_CLK_PLL_MODE_NORMAL << RK3399_CLK_PLL_MODE_SHIFT;
-	reg |= RK3399_CLK_PLL_MODE_MASK << RK_CLK_PLL_MASK_SHIFT;
-	WRITE4(clk, sc->base_offset + RK3399_CLK_PLL_MODE_OFFSET,
-	    reg | RK3399_CLK_PLL_WRITE_MASK);
+	if (sc->normal_mode) {
+		/* Setting to normal mode */
+		reg = RK3399_CLK_PLL_MODE_NORMAL << RK3399_CLK_PLL_MODE_SHIFT;
+		reg |= RK3399_CLK_PLL_MODE_MASK << RK_CLK_PLL_MASK_SHIFT;
+		WRITE4(clk, sc->base_offset + RK3399_CLK_PLL_MODE_OFFSET,
+		    reg | RK3399_CLK_PLL_WRITE_MASK);
+	}
 
 	clknode_init_parent_idx(clk, 0);
 
@@ -359,43 +363,56 @@ static int
 rk3399_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
 {
 	struct rk_clk_pll_sc *sc;
-	uint64_t rate;
 	uint32_t dsmpd, refdiv, fbdiv;
-	uint32_t postdiv1, postdiv2, frac;
-	uint32_t raw1, raw2, raw3, raw4;
+	uint32_t postdiv1, postdiv2, fracdiv;
+	uint32_t con1, con2, con3, con4;
+	uint64_t foutvco;
 
 	sc = clknode_get_softc(clk);
 
 	DEVICE_LOCK(clk);
-	READ4(clk, sc->base_offset, &raw1);
-	READ4(clk, sc->base_offset + 4, &raw2);
-	READ4(clk, sc->base_offset + 8, &raw3);
-	READ4(clk, sc->base_offset + 0xC, &raw4);
+	READ4(clk, sc->base_offset, &con1);
+	READ4(clk, sc->base_offset + 4, &con2);
+	READ4(clk, sc->base_offset + 8, &con3);
+	READ4(clk, sc->base_offset + 0xC, &con4);
 	DEVICE_UNLOCK(clk);
 
-	fbdiv = (raw1 & RK3399_CLK_PLL_FBDIV_MASK) >> RK3399_CLK_PLL_FBDIV_SHIFT;
+	dprintf("con0: %x\n", con1);
+	dprintf("con1: %x\n", con2);
+	dprintf("con2: %x\n", con3);
+	dprintf("con3: %x\n", con4);
 
-	postdiv1 = (raw2 & RK3399_CLK_PLL_POSTDIV1_MASK) >> RK3399_CLK_PLL_POSTDIV1_SHIFT;
-	postdiv2 = (raw2 & RK3399_CLK_PLL_POSTDIV2_MASK) >> RK3399_CLK_PLL_POSTDIV2_SHIFT;
-	refdiv = (raw2 & RK3399_CLK_PLL_REFDIV_MASK) >> RK3399_CLK_PLL_REFDIV_SHIFT;
+	fbdiv = (con1 & RK3399_CLK_PLL_FBDIV_MASK) >> RK3399_CLK_PLL_FBDIV_SHIFT;
 
-	frac = (raw3 & RK3399_CLK_PLL_FRAC_MASK) >> RK3399_CLK_PLL_FRAC_SHIFT;
+	postdiv1 = (con2 & RK3399_CLK_PLL_POSTDIV1_MASK) >> RK3399_CLK_PLL_POSTDIV1_SHIFT;
+	postdiv2 = (con2 & RK3399_CLK_PLL_POSTDIV2_MASK) >> RK3399_CLK_PLL_POSTDIV2_SHIFT;
+	refdiv = (con2 & RK3399_CLK_PLL_REFDIV_MASK) >> RK3399_CLK_PLL_REFDIV_SHIFT;
 
-	dsmpd = (raw4 & RK3399_CLK_PLL_DSMPD_MASK) >> RK3399_CLK_PLL_DSMPD_SHIFT;
+	fracdiv = (con3 & RK3399_CLK_PLL_FRAC_MASK) >> RK3399_CLK_PLL_FRAC_SHIFT;
+	fracdiv >>= 24;
 
-	rate = *freq * fbdiv / refdiv;
+	dsmpd = (con4 & RK3399_CLK_PLL_DSMPD_MASK) >> RK3399_CLK_PLL_DSMPD_SHIFT;
+
+	dprintf("fbdiv: %d\n", fbdiv);
+	dprintf("postdiv1: %d\n", postdiv1);
+	dprintf("postdiv2: %d\n", postdiv2);
+	dprintf("refdiv: %d\n", refdiv);
+	dprintf("fracdiv: %d\n", fracdiv);
+	dprintf("dsmpd: %d\n", dsmpd);
+
+	dprintf("parent freq=%lu\n", *freq);
+
 	if (dsmpd == 0) {
 		/* Fractional mode */
-		uint64_t frac_rate;
-
-		frac_rate = *freq * frac / refdiv;
-		rate += frac_rate >> 24;
+		foutvco = *freq / refdiv * (fbdiv + fracdiv);
+	} else {
+		/* Integer mode */
+		foutvco = *freq / refdiv * fbdiv;
 	}
+	dprintf("foutvco: %lu\n", foutvco);
 
-	*freq = rate / postdiv1 / postdiv2;
-
-	if (*freq % 2)
-		*freq = *freq + 1;
+	*freq = foutvco / postdiv1 / postdiv2;
+	dprintf("freq: %lu\n", *freq);
 
 	return (0);
 }
@@ -508,6 +525,7 @@ rk3399_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef)
 	sc->flags = clkdef->flags;
 	sc->rates = clkdef->rates;
 	sc->frac_rates = clkdef->frac_rates;
+	sc->normal_mode = clkdef->normal_mode;
 
 	clknode_register(clkdom, clk);
 
