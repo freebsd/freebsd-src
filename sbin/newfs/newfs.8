@@ -111,6 +111,9 @@ for more details on how to set this option.
 .It Fl b Ar block-size
 The block size of the file system, in bytes.
 It must be a power of 2.
+.\" If changing the default block size and it causes the default
+.\" fragment size to change, be sure to update the location of
+.\" the first backup superblock on the fsck_ffs.8 manual page.
 The
 default size is 32768 bytes, and the smallest allowable size is 4096 bytes.
 The optimal block:fragment ratio is 8:1.
@@ -143,6 +146,9 @@ ranging in value between
 .Ar blocksize Ns /8
 and
 .Ar blocksize .
+.\" If changing the default fragment size or it changes because of a
+.\" change to the default block size, be sure to update the location
+.\" of the first backup superblock on the fsck_ffs.8 manual page.
 The default is 4096 bytes.
 .It Fl g Ar avgfilesize
 The expected average file size for the file system.
