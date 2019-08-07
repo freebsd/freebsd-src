@@ -79,7 +79,8 @@ int
 ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
     bus_size_t *psize, pcell_t *ppci_hi)
 {
-	pcell_t cell[32], pci_hi;
+	static pcell_t cell[256];
+	pcell_t pci_hi;
 	uint64_t addr, raddr, baddr;
 	uint64_t size, rsize;
 	uint32_t c, nbridge, naddr, nsize;
