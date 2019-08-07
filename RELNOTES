@@ -10,6 +10,26 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r350665:
+	The fuse driver has been renamed to fusefs(5) and been substantially
+	rewritten.  The new driver includes many bug fixes and performance
+	enhancements, as well as the following user-visible features:
+	* Optional kernel-side permissions checks (-o default_permissions)
+	* mknod(2), socket(2), and pipe(2) support
+	* server side locking with fcntl(2)
+	* FUSE operations are now interruptible when mounted with -o intr
+	* server side handling of UTIME_NOW during utimensat(2)
+	* mount options may be updated with "mount -u"
+	* fusefs file system may now be exported over NFS
+	* RLIMIT_FSIZE support
+	* support for fuse file systems using protocols as old as 7.4
+	
+	FUSE file system developers should also take note of the following new
+	features:
+	* The protocol level has been raised from 7.8 to 7.23
+	* kqueue support on /dev/fuse
+	* server-initiated cache invalidation via FUSE_NOTIFY_REPLY
+
 r350471:
 	gnop(8) can now configure a delay to be applied to read and write
 	request delays.  See the -d, -q and -x parameters.
