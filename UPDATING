@@ -26,6 +26,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190727:
+	The vfs.fusefs.sync_unmount and vfs.fusefs.init_backgrounded sysctls
+	and the "-o sync_unmount" and "-o init_backgrounded" mount options have
+	been removed from mount_fusefs(8).  You can safely remove them from
+	your scripts, because they had no effect.
+
+	The vfs.fusefs.fix_broken_io, vfs.fusefs.sync_resize,
+	vfs.fusefs.refresh_size, vfs.fusefs.mmap_enable,
+	vfs.fusefs.reclaim_revoked, and vfs.fusefs.data_cache_invalidate
+	sysctls have been removed.  If you felt the need to set any of them to
+	a non-default value, please tell asomers@FreeBSD.org why.
+
 20190713:
 	Default permissions on the /var/account/acct file (and copies of it 
 	rotated by periodic daily scripts) are changed from 0644 to 0640 

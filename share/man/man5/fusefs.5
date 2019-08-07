@@ -3,8 +3,8 @@
 .\"
 .\" Copyright (c) 2019 The FreeBSD Foundation
 .\"
-.\" This software was developed by BFF Storage Systems, LLC under sponsorship
-.\" from the FreeBSD Foundation.
+.\" This documentation was written by BFF Storage Systems, LLC under
+.\" sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 13, 2019
+.Dd July 31, 2019
 .Dt FUSEFS 5
 .Os
 .Sh NAME
@@ -60,11 +60,9 @@ Finally, the
 API is portable.
 Many daemons can run on multiple operating systems with minimal modifications.
 .Sh SYSCTL VARIABLES
-The following variables are available as both
+The following
 .Xr sysctl 8
-variables and
-.Xr loader 8
-tunables:
+variables are available:
 .Bl -tag -width indent
 .It Va vfs.fusefs.kernelabi_major
 Major version of the FUSE kernel ABI supported by this driver.
@@ -73,7 +71,7 @@ Minor version of the FUSE kernel ABI supported by this driver.
 .It Va vfs.fusefs.data_cache_mode
 Controls how
 .Nm
-will cache file data.
+will cache file data for pre-7.23 file systems.
 A value of 0 will disable caching entirely.
 Every data access will be forwarded to the daemon.
 A value of 1 will select write-through caching.
@@ -84,33 +82,26 @@ Reads and writes will both be cached, and writes will occasionally be flushed
 to the daemon by the page daemon.
 Write-back caching is usually unsafe, especially for FUSE file systems that
 require network access.
-.It Va vfs.fusefs.lookup_cache_enable
-Controls whether
-.Nm
-will cache lookup responses from the file system.
-FUSE file systems indicate whether lookup responses should be cacheable, but
-it may be useful to globally disable caching them if a file system is
-misbehaving.
+.Pp
+FUSE file systems using protocol 7.23 or later specify their cache behavior
+on a per-mountpoint basis, ignoring this sysctl.
+.It Va vfs.fusefs.stats.filehandle_count
+Current number of open FUSE file handles.
+.It Va vfs.fusefs.stats.lookup_cache_hits
+Total number of lookup cache hits.
+.It Va vfs.fusefs.stats.lookup_cache_misses
+Total number of lookup cache misses.
+.It Va vfs.fusefs.stats.node_count
+Current number of allocated FUSE vnodes.
+.It Va vfs.fusefs.stats.ticket_count
+Current number of allocated FUSE tickets, which is roughly equal to the number
+of FUSE operations currently being processed by daemons.
 .\" Undocumented sysctls
 .\" ====================
-.\" Counters: I intend to rename to vfs.fusefs.stats.* for clarity
-.\" vfs.fusefs.lookup_cache_{hits, misses}
-.\" vfs.fusefs.filehandle_count
-.\" vfs.fusefs.ticker_count
-.\" vfs.fusefs.node_count
-.\"
-.\" vfs.fusefs.version - useless since the driver moved in-tree
-.\" vfs.fusefs.reclaim_revoked: I don't understand it well-enough
-.\" vfs.fusefs.sync_unmount: dead code
 .\" vfs.fusefs.enforce_dev_perms: I don't understand it well enough.
-.\" vfs.fusefs.init_backgrounded: dead code
 .\" vfs.fusefs.iov_credit: I don't understand it well enough
 .\" vfs.fusefs.iov_permanent_bufsize: I don't understand it well enough
-.\" vfs.fusefs.fix_broken_io: I don't understand it well enough
-.\" vfs.fusefs.sync_resize: useless and should be removed
-.\" vfs.fusefs.refresh_size: probably useless?
-.\" vfs.fusefs.mmap_enable: why is this optional?
-.\" vfs.fusefs.data_cache_invalidate: what is this needed for?
+.El
 .Sh SEE ALSO
 .Xr mount_fusefs 8
 .Sh HISTORY
@@ -119,7 +110,7 @@ The
 driver was written as the part of the
 .Fx
 implementation of the FUSE userspace file system framework (see
-.Xr https://github.com/libfuse/libfuse )
+.Lk https://github.com/libfuse/libfuse )
 and first appeared in the
 .Pa sysutils/fusefs-kmod
 port, supporting
