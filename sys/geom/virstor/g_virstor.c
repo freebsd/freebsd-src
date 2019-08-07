@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <vm/uma.h>
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 
 #include <geom/virstor/g_virstor.h>
 #include <geom/virstor/g_virstor_md.h>

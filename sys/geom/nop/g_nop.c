@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <geom/nop/g_nop.h>
 
 

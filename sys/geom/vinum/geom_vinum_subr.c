@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>

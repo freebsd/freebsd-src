@@ -155,28 +155,10 @@ extern int g_eli_debug;
 extern u_int g_eli_overwrites;
 extern u_int g_eli_batch;
 
-#define	G_ELI_DEBUG(lvl, ...)	do {					\
-	if (g_eli_debug >= (lvl)) {					\
-		printf("GEOM_ELI");					\
-		if (g_eli_debug > 0)					\
-			printf("[%u]", lvl);				\
-		printf(": ");						\
-		printf(__VA_ARGS__);					\
-		printf("\n");						\
-	}								\
-} while (0)
-#define	G_ELI_LOGREQ(lvl, bp, ...)	do {				\
-	if (g_eli_debug >= (lvl)) {					\
-		printf("GEOM_ELI");					\
-		if (g_eli_debug > 0)					\
-			printf("[%u]", lvl);				\
-		printf(": ");						\
-		printf(__VA_ARGS__);					\
-		printf(" ");						\
-		g_print_bio(bp);					\
-		printf("\n");						\
-	}								\
-} while (0)
+#define	G_ELI_DEBUG(lvl, ...) \
+    _GEOM_DEBUG("GEOM_ELI", g_eli_debug, (lvl), NULL, __VA_ARGS__)
+#define	G_ELI_LOGREQ(lvl, bp, ...) \
+    _GEOM_DEBUG("GEOM_ELI", g_eli_debug, (lvl), (bp), __VA_ARGS__)
 
 struct g_eli_worker {
 	struct g_eli_softc	*w_softc;

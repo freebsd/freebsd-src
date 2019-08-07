@@ -103,28 +103,10 @@ struct g_gate_softc {
 	char			 sc_info[G_GATE_INFOSIZE]; /* P: (read-only) */
 };
 
-#define	G_GATE_DEBUG(lvl, ...)	do {					\
-	if (g_gate_debug >= (lvl)) {					\
-		printf("GEOM_GATE");					\
-		if (g_gate_debug > 0)					\
-			printf("[%u]", lvl);				\
-		printf(": ");						\
-		printf(__VA_ARGS__);					\
-		printf("\n");						\
-	}								\
-} while (0)
-#define	G_GATE_LOGREQ(lvl, bp, ...)	do {				\
-	if (g_gate_debug >= (lvl)) {					\
-		printf("GEOM_GATE");					\
-		if (g_gate_debug > 0)					\
-			printf("[%u]", lvl);				\
-		printf(": ");						\
-		printf(__VA_ARGS__);					\
-		printf(" ");						\
-		g_print_bio(bp);					\
-		printf("\n");						\
-	}								\
-} while (0)
+#define	G_GATE_DEBUG(lvl, ...) \
+    _GEOM_DEBUG("GEOM_GATE", g_gate_debug, (lvl), NULL, __VA_ARGS__)
+#define	G_GATE_LOGREQ(lvl, bp, ...) \
+    _GEOM_DEBUG("GEOM_GATE", g_gate_debug, (lvl), (bp), __VA_ARGS__)
 #endif	/* !_KERNEL */
 
 struct g_gate_ctl_create {

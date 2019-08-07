@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stddef.h>
 #include <sys/sysctl.h>
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <geom/geom_slice.h>
 #include <geom/label/g_label.h>
 

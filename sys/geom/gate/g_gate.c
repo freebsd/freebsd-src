@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <geom/gate/g_gate.h>
 
 FEATURE(geom_gate, "GEOM Gate module");

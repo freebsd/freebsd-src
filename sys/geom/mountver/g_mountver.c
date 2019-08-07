@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/eventhandler.h>
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <geom/mountver/g_mountver.h>
 
 

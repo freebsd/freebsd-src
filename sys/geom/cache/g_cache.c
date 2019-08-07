@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <vm/uma.h>
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <geom/cache/g_cache.h>
 
 FEATURE(geom_cache, "GEOM cache module");

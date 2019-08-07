@@ -49,28 +49,10 @@
 #ifdef _KERNEL
 extern int g_journal_debug;
 
-#define	GJ_DEBUG(lvl, ...)	do {					\
-	if (g_journal_debug >= (lvl)) {					\
-		printf("GEOM_JOURNAL");					\
-		if (g_journal_debug > 0)				\
-			printf("[%u]", lvl);				\
-		printf(": ");						\
-		printf(__VA_ARGS__);					\
-		printf("\n");						\
-	}								\
-} while (0)
-#define	GJ_LOGREQ(lvl, bp, ...)	do {					\
-	if (g_journal_debug >= (lvl)) {					\
-		printf("GEOM_JOURNAL");					\
-		if (g_journal_debug > 0)				\
-			printf("[%u]", lvl);				\
-		printf(": ");						\
-		printf(__VA_ARGS__);					\
-		printf(" ");						\
-		g_print_bio(bp);					\
-		printf("\n");						\
-	}								\
-} while (0)
+#define	GJ_DEBUG(lvl, ...) \
+    _GEOM_DEBUG("GEOM_JOURNAL", g_journal_debug, (lvl), NULL, __VA_ARGS__)
+#define	GJ_LOGREQ(lvl, bp, ...) \
+    _GEOM_DEBUG("GEOM_JOURNAL", g_journal_debug, (lvl), (bp), __VA_ARGS__)
 
 #define	JEMPTY(sc)	((sc)->sc_journal_offset -			\
 			 (sc)->sc_jprovider->sectorsize ==		\

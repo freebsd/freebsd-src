@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/systm.h>
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include "geom/raid/g_raid.h"
 #include "g_raid_tr_if.h"
 

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <vm/uma.h>
 #include <geom/geom.h>
+#include <geom/geom_dbg.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
 #include <sys/sched.h>
