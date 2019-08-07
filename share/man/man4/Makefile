@@ -103,6 +103,7 @@ MAN=	aac.4 \
 	ccr.4 \
 	cd.4 \
 	cdce.4 \
+	cdceem.4 \
 	cfi.4 \
 	cfumass.4 \
 	ch.4 \

@@ -444,6 +444,7 @@ typedef struct usb_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 
 #define	UIPROTO_CDC_NONE		0
 #define	UIPROTO_CDC_AT			1
+#define	UIPROTO_CDC_EEM			7
 
 #define	UICLASS_HID		0x03
 #define	UISUBCLASS_BOOT		1
