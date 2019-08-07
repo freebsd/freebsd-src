@@ -185,6 +185,11 @@ fileargs_create_limit(int argc, const char * const *argv, int flags,
 		nvlist_add_number(limits, "mode", (uint64_t)mode);
 
 	for (i = 0; i < argc; i++) {
+		if (strlen(argv[i]) >= MAXPATHLEN) {
+			nvlist_destroy(limits);
+			errno = ENAMETOOLONG;
+			return (NULL);
+		}
 		nvlist_add_null(limits, argv[i]);
 	}
 
