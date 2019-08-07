@@ -51,7 +51,8 @@ SUBDIR += atp cfumass uhid uhid_snes ukbd ums udbp ufm uep wmt wsp ugold uled
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
 SUBDIR += udl
-SUBDIR += uether aue axe axge cdce cue ${_kue} mos rue smsc udav uhso ipheth
+SUBDIR += uether aue axe axge cdce cdceem cue ${_kue} mos rue smsc udav uhso \
+	  ipheth
 SUBDIR += muge
 SUBDIR += ure urndis
 SUBDIR += usfs umass urio
