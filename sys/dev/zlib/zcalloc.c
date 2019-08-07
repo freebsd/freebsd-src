@@ -24,6 +24,13 @@ zcalloc_nowait(void *nil, u_int items, u_int size)
 	return mallocarray(items, size, M_ZLIB, M_NOWAIT);
 }
 
+void *
+zcalloc(void *nil, u_int items, u_int size)
+{
+
+	return zcalloc_nowait(nil, items, size);
+}
+
 void
 zcfree(void *nil, void *ptr)
 {

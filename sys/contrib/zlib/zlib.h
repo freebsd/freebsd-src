@@ -1213,7 +1213,7 @@ ZEXTERN uLong ZEXPORT zlibCompileFlags OF((void));
      27-31: 0 (reserved)
  */
 
-#ifndef Z_SOLO
+#if !defined(Z_SOLO) || defined(_KERNEL)
 
                         /* utility functions */
 
@@ -1288,6 +1288,9 @@ ZEXTERN int ZEXPORT uncompress2 OF((Bytef *dest,   uLongf *destLen,
    length of the source is *sourceLen.  On return, *sourceLen is the number of
    source bytes consumed.
 */
+#endif /* !Z_SOLO || _KERNEL */
+
+#ifndef Z_SOLO
 
                         /* gzip file access functions */
 
