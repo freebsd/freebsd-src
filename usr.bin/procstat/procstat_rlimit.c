@@ -31,7 +31,7 @@
 
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/resourcevar.h>
+#include <sys/resource.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
 
