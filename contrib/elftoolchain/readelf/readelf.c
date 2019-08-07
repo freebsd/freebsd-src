@@ -7732,10 +7732,12 @@ main(int argc, char **argv)
 	for (i = 0; i < argc; i++) {
 		re->filename = argv[i];
 		fd = fileargs_open(fa, re->filename);
-		if (fd < 0)
+		if (fd < 0) {
 			warn("open %s failed", re->filename);
-		else
+		} else {
 			dump_object(re, fd);
+			close(fd);
+		}
 	}
 
 	exit(EXIT_SUCCESS);
