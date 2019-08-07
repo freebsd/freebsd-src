@@ -3622,7 +3622,9 @@ struct scsi_mode_header_10
 	u_int8_t data_length[2];/* Sense data length */
 	u_int8_t medium_type;
 	u_int8_t dev_spec;
-	u_int8_t unused[2];
+	u_int8_t flags;
+#define	SMH_LONGLBA	0x01
+	u_int8_t unused;
 	u_int8_t blk_desc_len[2];
 };
 
