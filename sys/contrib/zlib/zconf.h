@@ -8,6 +8,12 @@
 #ifndef ZCONF_H
 #define ZCONF_H
 
+#ifdef __FreeBSD__
+#ifdef _KERNEL
+#define Z_SOLO
+#endif
+#endif
+
 /*
  * If you *really* need a unique prefix for all types and library functions,
  * compile with -DZ_PREFIX. The "standard" zlib should be compiled without it.
@@ -30,7 +36,7 @@
 #  define adler32_combine       z_adler32_combine
 #  define adler32_combine64     z_adler32_combine64
 #  define adler32_z             z_adler32_z
-#  ifndef Z_SOLO
+#  if !defined(Z_SOLO) && !defined(_KERNEL)
 #    define compress              z_compress
 #    define compress2             z_compress2
 #    define compressBound         z_compressBound
@@ -125,12 +131,12 @@
 #  define inflate_copyright     z_inflate_copyright
 #  define inflate_fast          z_inflate_fast
 #  define inflate_table         z_inflate_table
-#  ifndef Z_SOLO
+#  if !defined(Z_SOLO) && !defined(_KERNEL)
 #    define uncompress            z_uncompress
 #    define uncompress2           z_uncompress2
 #  endif
 #  define zError                z_zError
-#  ifndef Z_SOLO
+#  if !defined(Z_SOLO) && !defined(_KERNEL)
 #    define zcalloc               z_zcalloc
 #    define zcfree                z_zcfree
 #  endif
