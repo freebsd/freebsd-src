@@ -11,8 +11,8 @@ newline.  Entries should be separated by a newline.
 Changes to this file should not be MFCed.
 
 r350471:
-       gnop(8) can now configure a delay to be applied to read and write
-       request delays.  See the -d, -q and -x parameters.
+	gnop(8) can now configure a delay to be applied to read and write
+	request delays.  See the -d, -q and -x parameters.
 
 r350315, r350316:
 	Adds a Linux compatible copy_file_range(2) syscall.
