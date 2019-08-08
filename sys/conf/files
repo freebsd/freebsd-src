@@ -648,6 +648,8 @@ contrib/zstd/lib/common/entropy_common.c	optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/common/error_private.c		optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/common/xxhash.c		optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/compress/zstd_compress.c	optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_compress_literals.c	optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/zstd_compress_sequences.c	optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/compress/fse_compress.c	optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/compress/hist.c		optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/compress/huf_compress.c	optional zstdio compile-with ${ZSTD_C}
@@ -658,7 +660,9 @@ contrib/zstd/lib/compress/zstd_ldm.c		optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/compress/zstd_opt.c		optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/decompress/zstd_ddict.c	optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/decompress/zstd_decompress.c	optional zstdio compile-with ${ZSTD_C}
-contrib/zstd/lib/decompress/zstd_decompress_block.c	optional zstdio compile-with ${ZSTD_C}
+# See comment in sys/conf/kern.pre.mk
+contrib/zstd/lib/decompress/zstd_decompress_block.c	optional zstdio \
+	compile-with "${ZSTD_C} ${ZSTD_DECOMPRESS_BLOCK_FLAGS}"
 contrib/zstd/lib/decompress/huf_decompress.c	optional zstdio compile-with ${ZSTD_C}
 # Blake 2
 contrib/libb2/blake2b-ref.c	optional crypto | ipsec | ipsec_support \
