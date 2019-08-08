@@ -71,7 +71,12 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 #define	ATTR_DEFAULT	(ATTR_AF | ATTR_SH(ATTR_SH_IS))
 
-#define	ATTR_DESCR_MASK	3
+#define	ATTR_DESCR_MASK		3
+#define	ATTR_DESCR_VALID	1
+#define	ATTR_DESCR_TYPE_MASK	2
+#define	ATTR_DESCR_TYPE_TABLE	2
+#define	ATTR_DESCR_TYPE_PAGE	2
+#define	ATTR_DESCR_TYPE_BLOCK	0
 
 /* Level 0 table, 512GiB per entry */
 #define	L0_SHIFT	39
