@@ -332,6 +332,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 	probe_softc *softc;
 	struct cam_path *path;
 	struct ata_params *ident_buf;
+	u_int oif;
 
 	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("probestart\n"));
 
@@ -371,7 +372,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		      /*data_ptr*/(u_int8_t *)&softc->ident_data,
 		      /*dxfer_len*/sizeof(softc->ident_data),
 		      30 * 1000);
-		if (periph->path->device->protocol == PROTO_ATA)
+		if (path->device->protocol == PROTO_ATA)
 			ata_28bit_cmd(ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
 		else
 			ata_28bit_cmd(ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
@@ -407,7 +408,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 			if (cts.xport_specific.sata.valid & CTS_SATA_VALID_MODE)
 				mode = cts.xport_specific.sata.mode;
 		}
-		if (periph->path->device->protocol == PROTO_ATA) {
+		if (path->device->protocol == PROTO_ATA) {
 			if (ata_dma == 0 && (mode == 0 || mode > ATA_PIO_MAX))
 				mode = ATA_PIO_MAX;
 		} else {
@@ -447,11 +448,13 @@ negotiate:
 		if (mode != wantmode)
 			goto negotiate;
 		/* Remember what transport thinks about DMA. */
+		oif = path->device->inq_flags;
 		if (mode < ATA_DMA)
 			path->device->inq_flags &= ~SID_DMA;
 		else
 			path->device->inq_flags |= SID_DMA;
-		xpt_async(AC_GETDEV_CHANGED, path, NULL);
+		if (path->device->inq_flags != oif)
+			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		cam_fill_ataio(ataio,
 		      1,
 		      probedone,
@@ -504,11 +507,13 @@ negotiate:
 		break;
 	case PROBE_SETAN:
 		/* Remember what transport thinks about AEN. */
+		oif = path->device->inq_flags;
 		if (softc->caps & CTS_SATA_CAPS_H_AN)
 			path->device->inq_flags |= SID_AEN;
 		else
 			path->device->inq_flags &= ~SID_AEN;
-		xpt_async(AC_GETDEV_CHANGED, path, NULL);
+		if (path->device->inq_flags != oif)
+			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		cam_fill_ataio(ataio,
 		    1,
 		    probedone,
@@ -627,7 +632,7 @@ negotiate:
 	{
 		u_int inquiry_len;
 		struct scsi_inquiry_data *inq_buf =
-		    &periph->path->device->inq_data;
+		    &path->device->inq_data;
 
 		if (softc->action == PROBE_INQUIRY)
 			inquiry_len = SHORT_INQUIRY_LENGTH;
@@ -732,8 +737,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	struct cam_path *path;
 	cam_status status;
 	u_int32_t  priority;
-	u_int caps;
-	int changed = 1, found = 1;
+	u_int caps, oif;
+	int changed, found = 1;
 	static const uint8_t fake_device_id_hdr[8] =
 	    {0, SVPD_DEVICE_ID, 0, 12,
 	     SVPD_ID_CODESET_BINARY, SVPD_ID_TYPE_NAA, 0, 8};
@@ -928,23 +933,32 @@ noerror:
 			goto out;
 		}
 		ident_buf = &path->device->ident_data;
+
+		/* Check that it is the same device as we know. */
 		if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) == 0) {
-			/* Check that it is the same device. */
 			if (bcmp(softc->ident_data.model, ident_buf->model,
 			     sizeof(ident_buf->model)) ||
-			    bcmp(softc->ident_data.revision, ident_buf->revision,
-			     sizeof(ident_buf->revision)) ||
 			    bcmp(softc->ident_data.serial, ident_buf->serial,
 			     sizeof(ident_buf->serial))) {
-				/* Device changed. */
+				/* The device was replaced. */
+				changed = 2;
 				xpt_async(AC_LOST_DEVICE, path, NULL);
+			} else if (bcmp(&softc->ident_data, ident_buf,
+			     sizeof(*ident_buf))) {
+				/* The device is the same, but has changed. */
+				changed = 1;
 			} else {
-				bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
+				/* Nothing has changed. */
 				changed = 0;
 			}
+		} else {
+			/* This is a new device. */
+			changed = 2;
 		}
-		if (changed) {
+
+		if (changed != 0)
 			bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
+		if (changed == 2) {
 			/* Clean up from previous instance of this device */
 			if (path->device->serial_num != NULL) {
 				free(path->device->serial_num, M_CAMXPT);
@@ -981,10 +995,10 @@ noerror:
 					ata_bswap(path->device->device_id + 8, 8);
 				}
 			}
-
 			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
-			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		}
+		if (changed == 1)
+			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		if (ident_buf->satacapabilities & ATA_SUPPORT_NCQ) {
 			path->device->mintags = 2;
 			path->device->maxtags =
@@ -1008,7 +1022,7 @@ noerror:
 			}
 		}
 		ata_device_transport(path);
-		if (changed)
+		if (changed == 2)
 			proberequestdefaultnegotiation(periph);
 		PROBE_SET_ACTION(softc, PROBE_SETMODE);
 		xpt_release_ccb(done_ccb);
@@ -1064,6 +1078,7 @@ noerror:
 		 * capability information is not provided or transport is
 		 * SATA, we take support for granted.
 		 */
+		oif = path->device->inq_flags;
 		if (!(path->device->inq_flags & SID_DMA) ||
 		    (path->device->transport == XPORT_ATA &&
 		    (cts.xport_specific.ata.valid & CTS_ATA_VALID_CAPS) &&
@@ -1071,6 +1086,8 @@ noerror:
 			path->device->inq_flags &= ~SID_DMA48;
 		else
 			path->device->inq_flags |= SID_DMA48;
+		if (path->device->inq_flags != oif)
+			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		/* Store result to SIM. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
@@ -1241,6 +1258,7 @@ notsata:
 		else
 			caps = 0;
 		/* Remember what transport thinks about AEN. */
+		oif = path->device->inq_flags;
 		if ((caps & CTS_SATA_CAPS_H_AN) && path->device->protocol != PROTO_ATA)
 			path->device->inq_flags |= SID_AEN;
 		else
@@ -1254,7 +1272,6 @@ notsata:
 		cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
 		xpt_action((union ccb *)&cts);
 		softc->caps = caps;
-		xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 			xpt_acquire_device(path->device);
@@ -1262,6 +1279,8 @@ notsata:
 			xpt_action(done_ccb);
 			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
 		} else {
+			if (path->device->inq_flags != oif)
+				xpt_async(AC_GETDEV_CHANGED, path, NULL);
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
 			xpt_async(AC_SCSI_AEN, path, done_ccb);
@@ -1274,12 +1293,14 @@ notsata:
 			/* Check that it is the same device. */
 			if (bcmp(&softc->ident_data, ident_buf, 53)) {
 				/* Device changed. */
+				changed = 2;
 				xpt_async(AC_LOST_DEVICE, path, NULL);
 			} else {
 				bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
 				changed = 0;
 			}
-		}
+		} else
+			changed = 2;
 		if (changed) {
 			bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
 			/* Clean up from previous instance of this device */
