@@ -353,6 +353,9 @@
 .Op generic args
 .Ao Fl r Oo Ns Fl f Ar format | Fl m | Fl U Oc | Fl s Ao Fl f Ar format Fl T Ar time | Fl U Ac Ac
 .Nm
+.Ic devtype
+.Op device id
+.Nm
 .Ic help
 .Sh DESCRIPTION
 The
@@ -2515,6 +2518,26 @@ option.
 .It Fl U
 Set the timestamp to the host system's time in UTC.
 .El
+.El
+.It Ic devtype
+Print out the device type for specified device.
+.Bl -tag -width 10n
+.It ata
+An ATA device attached directly to an ATA controller
+.It satl
+An SATA device attached behind a SAS controller via SCSI-ATA Translation Layer (SATL)
+.It scsi
+A SCSI device
+.It nvme
+An directly attached NVMe device
+.It mmcsd
+An MMC or SD device attached via a mmcsd bus
+.It none
+No device type reported
+.It unknown
+Device type is unknown
+.It illegal
+A programming error occurred
 .El
 .It Ic help
 Print out verbose usage information.
