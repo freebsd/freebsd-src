@@ -61,8 +61,7 @@ CWARNEXTRA?=	-Wno-error=address				\
 CWARNEXTRA+=	-Wno-error=misleading-indentation		\
 		-Wno-error=nonnull-compare			\
 		-Wno-error=shift-overflow			\
-		-Wno-error=tautological-compare			\
-		-Wno-format-zero-length
+		-Wno-error=tautological-compare
 .endif
 .if ${COMPILER_VERSION} >= 70200
 CWARNEXTRA+=	-Wno-error=memset-elt-size
@@ -79,6 +78,9 @@ NO_WCAST_QUAL= -Wno-cast-qual
 NO_WNONNULL=	-Wno-nonnull
 .endif
 .endif
+
+# This warning is utter nonsense
+CWARNFLAGS+=	-Wno-format-zero-length
 
 # External compilers may not support our format extensions.  Allow them
 # to be disabled.  WARNING: format checking is disabled in this case.
