@@ -884,22 +884,14 @@ noerror:
 		int16_t *ptr;
 		int veto = 0;
 
+		/*
+		 * Convert to host byte order, and fix the strings.
+		 */
 		ident_buf = &softc->ident_data;
 		for (ptr = (int16_t *)ident_buf;
 		     ptr < (int16_t *)ident_buf + sizeof(struct ata_params)/2; ptr++) {
 			*ptr = le16toh(*ptr);
 		}
-
-		/*
-		 * Allow others to veto this ATA disk attachment.  This
-		 * is mainly used by VMs, whose disk controllers may
-		 * share the disks with the simulated ATA controllers.
-		 */
-		EVENTHANDLER_INVOKE(ada_probe_veto, path, ident_buf, &veto);
-		if (veto) {
-			goto device_fail;
-		}
-
 		if (strncmp(ident_buf->model, "FX", 2) &&
 		    strncmp(ident_buf->model, "NEC", 3) &&
 		    strncmp(ident_buf->model, "Pioneer", 7) &&
@@ -914,6 +906,17 @@ noerror:
 		ata_bpack(ident_buf->revision, ident_buf->revision, sizeof(ident_buf->revision));
 		ata_btrim(ident_buf->serial, sizeof(ident_buf->serial));
 		ata_bpack(ident_buf->serial, ident_buf->serial, sizeof(ident_buf->serial));
+
+		/*
+		 * Allow others to veto this ATA disk attachment.  This
+		 * is mainly used by VMs, whose disk controllers may
+		 * share the disks with the simulated ATA controllers.
+		 */
+		EVENTHANDLER_INVOKE(ada_probe_veto, path, ident_buf, &veto);
+		if (veto) {
+			goto device_fail;
+		}
+
 		/* Device may need spin-up before IDENTIFY become valid. */
 		if ((ident_buf->specconf == 0x37c8 ||
 		     ident_buf->specconf == 0x738c) &&
