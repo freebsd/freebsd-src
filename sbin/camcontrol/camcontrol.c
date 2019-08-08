@@ -5391,6 +5391,14 @@ get_device_type(struct cam_device *dev, int retry_count, int timeout,
 		*devtype = CC_DT_ATA;
 		goto bailout;
 		break; /*NOTREACHED*/
+	case PROTO_NVME:
+		*devtype = CC_DT_NVME;
+		goto bailout;
+		break; /*NOTREACHED*/
+	case PROTO_MMCSD:
+		*devtype = CC_DT_MMCSD;
+		goto bailout;
+		break; /*NOTREACHED*/
 	default:
 		*devtype = CC_DT_UNKNOWN;
 		goto bailout;

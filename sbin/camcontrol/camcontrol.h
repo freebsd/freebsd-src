@@ -44,6 +44,8 @@ typedef enum {
 	CC_DT_SCSI,
 	CC_DT_ATA_BEHIND_SCSI,
 	CC_DT_ATA,
+	CC_DT_NVME,
+	CC_DT_MMCSD,
 	CC_DT_UNKNOWN
 } camcontrol_devtype;
 
