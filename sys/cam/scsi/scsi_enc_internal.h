@@ -53,10 +53,8 @@ typedef struct enc_element {
 
 typedef enum {
 	ENC_NONE,
-	ENC_SES_SCSI2,
 	ENC_SES,
 	ENC_SES_PASSTHROUGH,
-	ENC_SEN,
 	ENC_SAFT,
 	ENC_SEMB_SES,
 	ENC_SEMB_SAFT

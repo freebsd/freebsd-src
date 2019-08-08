@@ -683,14 +683,8 @@ enc_type(struct ccb_getdev *cgd)
 	buflen = min(sizeof(cgd->inq_data),
 	    SID_ADDITIONAL_LENGTH(&cgd->inq_data));
 
-	if ((iqd[0] & 0x1f) == T_ENCLOSURE) {
-		if ((iqd[2] & 0x7) > 2) {
-			return (ENC_SES);
-		} else {
-			return (ENC_SES_SCSI2);
-		}
-		return (ENC_NONE);
-	}
+	if ((iqd[0] & 0x1f) == T_ENCLOSURE)
+		return (ENC_SES);
 
 #ifdef	SES_ENABLE_PASSTHROUGH
 	if ((iqd[6] & 0x40) && (iqd[2] & 0x7) >= 2) {
@@ -926,7 +920,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 
 	switch (enc->enc_type) {
 	case ENC_SES:
-	case ENC_SES_SCSI2:
 	case ENC_SES_PASSTHROUGH:
 	case ENC_SEMB_SES:
 		err = ses_softc_init(enc);
@@ -1015,17 +1008,14 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	case ENC_NONE:
 		tname = "No ENC device";
 		break;
-	case ENC_SES_SCSI2:
-		tname = "SCSI-2 ENC Device";
-		break;
 	case ENC_SES:
-		tname = "SCSI-3 ENC Device";
+		tname = "SES Device";
 		break;
         case ENC_SES_PASSTHROUGH:
-		tname = "ENC Passthrough Device";
+		tname = "SES Passthrough Device";
 		break;
         case ENC_SAFT:
-		tname = "SAF-TE Compliant Device";
+		tname = "SAF-TE Device";
 		break;
 	case ENC_SEMB_SES:
 		tname = "SEMB SES Device";
