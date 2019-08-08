@@ -2059,7 +2059,7 @@ ata_read_native_max(struct cam_device *device, int retry_count,
 			   /*sector_count*/0,
 			   /*data_ptr*/NULL,
 			   /*dxfer_len*/0,
-			   timeout ? timeout : 1000,
+			   timeout ? timeout : 5000,
 			   is48bit);
 
 	if (error)
