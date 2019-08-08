@@ -722,6 +722,8 @@ nvme_announce_periph(struct cam_periph *periph)
 	struct	ccb_trans_settings cts;
 	struct	cam_path *path = periph->path;
 	struct ccb_trans_settings_nvme	*nvmex;
+	struct sbuf	sb;
+	char		buffer[120];
 
 	cam_periph_assert(periph, MA_OWNED);
 
@@ -736,13 +738,18 @@ nvme_announce_periph(struct cam_periph *periph)
 
 	/* Ask the SIM for its base transfer speed */
 	xpt_path_inq(&cpi, periph->path);
-	printf("%s%d: nvme version %d.%d x%d (max x%d) lanes PCIe Gen%d (max Gen%d) link",
+	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
+	sbuf_printf(&sb, "%s%d: nvme version %d.%d",
 	    periph->periph_name, periph->unit_number,
 	    NVME_MAJOR(nvmex->spec),
-	    NVME_MINOR(nvmex->spec),
-	    nvmex->lanes, nvmex->max_lanes,
-	    nvmex->speed, nvmex->max_speed);
-	printf("\n");
+	    NVME_MINOR(nvmex->spec));
+	if (nvmex->valid & CTS_NVME_VALID_LINK)
+		sbuf_printf(&sb, " x%d (max x%d) lanes PCIe Gen%d (max Gen%d) link",
+		    nvmex->lanes, nvmex->max_lanes,
+		    nvmex->speed, nvmex->max_speed);
+	sbuf_printf(&sb, "\n");
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
 }
 
 static void
