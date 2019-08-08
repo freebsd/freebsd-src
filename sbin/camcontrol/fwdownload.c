@@ -212,6 +212,10 @@ static struct fw_vendor vendors_list[] = {
 	0x8000, 0x07, 0x07, 0, 1, FW_TUR_READY, WB_TIMEOUT, FW_TIMEOUT_DEFAULT},
 	{VENDOR_SMART,		"SmrtStor",	T_DIRECT,
 	0x8000, 0x07, 0x07, 0, 1, FW_TUR_READY, WB_TIMEOUT, FW_TIMEOUT_DEFAULT},
+	{VENDOR_HGST,	 	"WD",		T_DIRECT,
+	0x1000, 0x07, 0x07, 1, 0, FW_TUR_READY, WB_TIMEOUT, FW_TIMEOUT_DEFAULT},
+	{VENDOR_HGST,	 	"WDC",		T_DIRECT,
+	0x1000, 0x07, 0x07, 1, 0, FW_TUR_READY, WB_TIMEOUT, FW_TIMEOUT_DEFAULT},
 
 	/*
 	 * We match any ATA device.  This is really just a placeholder,
