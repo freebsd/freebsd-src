@@ -117,7 +117,8 @@ typedef enum {
 	ADA_Q_NCQ_TRIM_BROKEN	= 0x02,
 	ADA_Q_LOG_BROKEN	= 0x04,
 	ADA_Q_SMR_DM		= 0x08,
-	ADA_Q_NO_TRIM		= 0x10
+	ADA_Q_NO_TRIM		= 0x10,
+	ADA_Q_128KB		= 0x20
 } ada_quirks;
 
 #define ADA_Q_BIT_STRING	\
@@ -126,7 +127,8 @@ typedef enum {
 	"\002NCQ_TRIM_BROKEN"	\
 	"\003LOG_BROKEN"	\
 	"\004SMR_DM"		\
-	"\005NO_TRIM"
+	"\005NO_TRIM"		\
+	"\006128KB"
 
 typedef enum {
 	ADA_CCB_RAHEAD		= 0x01,
@@ -267,6 +269,11 @@ struct ada_quirk_entry {
 
 static struct ada_quirk_entry ada_quirk_table[] =
 {
+	{
+		/* Sandisk X400 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SanDisk?SD8SB8U1T00*", "X4162000*" },
+		/*quirks*/ADA_Q_128KB
+	},
 	{
 		/* Hitachi Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Hitachi H??????????E3*", "*" },
@@ -1808,6 +1815,8 @@ adaregister(struct cam_periph *periph, void *arg)
 		maxio = min(maxio, 65536 * softc->params.secsize);
 	else					/* 28bit ATA command limit */
 		maxio = min(maxio, 256 * softc->params.secsize);
+	if (softc->quirks & ADA_Q_128KB)
+		maxio = min(maxio, 128 * 1024);
 	softc->disk->d_maxsize = maxio;
 	softc->disk->d_unit = periph->unit_number;
 	softc->disk->d_flags = DISKFLAG_DIRECT_COMPLETION | DISKFLAG_CANZONE;
