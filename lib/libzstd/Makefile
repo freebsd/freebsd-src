@@ -11,6 +11,8 @@ SRCS=	entropy_common.c \
 	fse_compress.c \
 	huf_compress.c \
 	zstd_compress.c \
+	zstd_compress_literals.c \
+	zstd_compress_sequences.c \
 	zstdmt_compress.c \
 	huf_decompress.c \
 	zstd_ddict.c \
@@ -43,7 +45,20 @@ ZSTDDIR=	${SRCTOP}/sys/contrib/zstd
 	${ZSTDDIR}/lib/decompress ${ZSTDDIR}/lib/deprecated \
 	${ZSTDDIR}/lib/dictBuilder ${ZSTDDIR}/lib
 
+.include <bsd.compiler.mk>
+
+# https://github.com/facebook/zstd/commit/812e8f2a [zstd 1.4.1]
+# "Note that [GCC] autovectorization still does not do a good job on the
+# optimized version, so it's turned off via attribute and flag.  I found
+# that neither attribute nor command-line flag were entirely successful in
+# turning off vectorization, which is why there were both."
+.if ${COMPILER_TYPE} == "gcc"
+CFLAGS.zstd_decompress_block.c+=	-fno-tree-vectorize
+.endif
+
 # Work around for LLVM bug 35023, https://bugs.llvm.org/show_bug.cgi?id=35023
+# Fixed in https://reviews.llvm.org/rL349935 ; not sure if we have that version
+# in our LLVM or not yet.
 .if ${MACHINE_ARCH:Marm*} != ""
 CFLAGS.zstd_compress.c+= -O0
 .endif

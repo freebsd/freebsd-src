@@ -175,6 +175,14 @@ NORMAL_FWO= ${LD} -b binary --no-warn-mismatch -d -warn-common -r \
 
 # for ZSTD in the kernel (include zstd/lib/freebsd before other CFLAGS)
 ZSTD_C= ${CC} -c -DZSTD_HEAPMODE=1 -I$S/contrib/zstd/lib/freebsd ${CFLAGS} -I$S/contrib/zstd/lib -I$S/contrib/zstd/lib/common ${WERROR} -Wno-inline -Wno-missing-prototypes ${PROF} -U__BMI__ ${.IMPSRC}
+# https://github.com/facebook/zstd/commit/812e8f2a [zstd 1.4.1]
+# "Note that [GCC] autovectorization still does not do a good job on the
+# optimized version, so it's turned off via attribute and flag.  I found
+# that neither attribute nor command-line flag were entirely successful in
+# turning off vectorization, which is why there were both."
+.if ${COMPILER_TYPE} == "gcc"
+ZSTD_DECOMPRESS_BLOCK_FLAGS= -fno-tree-vectorize
+.endif
 
 # Common for dtrace / zfs
 CDDL_CFLAGS=	-DFREEBSD_NAMECACHE -nostdinc -I$S/cddl/compat/opensolaris -I$S/cddl/contrib/opensolaris/uts/common -I$S -I$S/cddl/contrib/opensolaris/common ${CFLAGS} -Wno-unknown-pragmas -Wno-missing-prototypes -Wno-undef -Wno-strict-prototypes -Wno-cast-qual -Wno-parentheses -Wno-redundant-decls -Wno-missing-braces -Wno-uninitialized -Wno-unused -Wno-inline -Wno-switch -Wno-pointer-arith -Wno-unknown-pragmas
