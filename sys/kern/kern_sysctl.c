@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
+#include <sys/kdb.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rmlock.h>
@@ -67,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DDB
-#include <sys/kdb.h>
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>
 #endif
