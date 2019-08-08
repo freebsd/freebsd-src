@@ -68,6 +68,7 @@
 
 #include <sys/epoch.h>
 
+struct ip6asfrag;
 /*
  * IP6 reassembly queue structure.  Each fragment
  * being reassembled is attached to one of these structures.
@@ -83,24 +84,9 @@ struct	ip6q {
 	struct ip6q	*ip6q_next;
 	struct ip6q	*ip6q_prev;
 	int		ip6q_unfrglen;	/* len of unfragmentable part */
-#ifdef notyet
-	u_char		*ip6q_nxtp;
-#endif
 	int		ip6q_nfrag;	/* # of fragments */
 	struct label	*ip6q_label;
 };
-
-struct	ip6asfrag {
-	struct ip6asfrag *ip6af_down;
-	struct ip6asfrag *ip6af_up;
-	struct mbuf	*ip6af_m;
-	int		ip6af_offset;	/* offset in ip6af_m to next header */
-	int		ip6af_frglen;	/* fragmentable part length */
-	int		ip6af_off;	/* fragment offset */
-	u_int16_t	ip6af_mff;	/* more fragment bit in frag off */
-};
-
-#define IP6_REASS_MBUF(ip6af) (*(struct mbuf **)&((ip6af)->ip6af_m))
 
 /*
  * IP6 reinjecting structure.
