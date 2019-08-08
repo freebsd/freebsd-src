@@ -135,6 +135,7 @@ void	ata_read_log(struct ccb_ataio *ataio, uint32_t retries,
 		     uint16_t block_count, uint32_t protocol,
 		     uint8_t *data_ptr, uint32_t dxfer_len, uint32_t timeout);
 
+void	ata_param_fixup(struct ata_params *ident_buf);
 void	ata_bswap(int8_t *buf, int len);
 void	ata_btrim(int8_t *buf, int len);
 void	ata_bpack(int8_t *src, int8_t *dst, int len);
