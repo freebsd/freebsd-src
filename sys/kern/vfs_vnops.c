@@ -2798,8 +2798,6 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	if (VOP_PATHCONF(invp, _PC_MIN_HOLE_SIZE, &holein) != 0)
 		holein = 0;
 	VOP_UNLOCK(invp, 0);
-	if (error != 0)
-		goto out;
 
 	mp = NULL;
 	error = vn_start_write(outvp, &mp, V_WAIT);
