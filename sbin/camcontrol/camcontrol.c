@@ -691,7 +691,7 @@ getdevtype(struct cam_device *cam_dev)
 	 * Get the device type and report it, request no I/O be done to do this.
 	 */
 	error = get_device_type(cam_dev, -1, 0, 0, &dt);
-	if (error != 0 || dt < CC_DT_NONE || dt > CC_DT_UNKNOWN) {
+	if (error != 0 || (unsigned)dt > CC_DT_UNKNOWN) {
 		fprintf(stdout, "illegal\n");
 		return (1);
 	}
