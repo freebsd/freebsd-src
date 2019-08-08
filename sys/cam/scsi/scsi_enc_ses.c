@@ -1679,7 +1679,6 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 	struct ses_iterator iter, titer;
 	int eip;
 	int err;
-	int ignore_index = 0;
 	int length;
 	int offset;
 	enc_cache_t *enc_cache;
@@ -1750,7 +1749,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 
 		elm_hdr = (struct ses_elm_addlstatus_base_hdr *)&buf[offset];
 		eip = ses_elm_addlstatus_eip(elm_hdr);
-		if (eip && !ignore_index) {
+		if (eip) {
 			struct ses_elm_addlstatus_eip_hdr *eip_hdr;
 			int expected_index, index;
 			ses_elem_index_type_t index_type;
@@ -1763,17 +1762,44 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 				index_type = SES_ELEM_INDEX_INDIVIDUAL;
 				expected_index = iter.individual_element_index;
 			}
+			if (eip_hdr->element_index < expected_index) {
+				ENC_VLOG(enc, "%s: provided %selement index "
+				    "%d is lower then expected %d\n",
+				    __func__, (eip_hdr->byte2 &
+				    SES_ADDL_EIP_EIIOE) ? "global " : "",
+				    eip_hdr->element_index, expected_index);
+				goto badindex;
+			}
 			titer = iter;
 			telement = ses_iter_seek_to(&titer,
 			    eip_hdr->element_index, index_type);
-			if (telement != NULL &&
-			    (ses_typehasaddlstatus(enc, titer.type_index) !=
-			     TYPE_ADDLSTATUS_NONE ||
-			     titer.type_index > ELMTYP_SAS_CONN)) {
+			if (telement == NULL) {
+				ENC_VLOG(enc, "%s: provided %selement index "
+				    "%d does not exist\n", __func__,
+				    (eip_hdr->byte2 & SES_ADDL_EIP_EIIOE) ?
+				    "global " : "", eip_hdr->element_index);
+				goto badindex;
+			}
+			if (ses_typehasaddlstatus(enc, titer.type_index) ==
+			    TYPE_ADDLSTATUS_NONE) {
+				ENC_VLOG(enc, "%s: provided %selement index "
+				    "%d can't have additional status\n",
+				    __func__,
+				    (eip_hdr->byte2 & SES_ADDL_EIP_EIIOE) ?
+				    "global " : "", eip_hdr->element_index);
+badindex:
+				/*
+				 * If we expected mandatory element, we may
+				 * guess it was just a wrong index and we may
+				 * use the status.  If element was optional,
+				 * then we have no idea where status belongs.
+				 */
+				if (status_type == TYPE_ADDLSTATUS_OPTIONAL)
+					break;
+			} else {
 				iter = titer;
 				element = telement;
-			} else
-				ignore_index = 1;
+			}
 
 			if (eip_hdr->byte2 & SES_ADDL_EIP_EIIOE)
 				index = iter.global_element_index;
@@ -1795,35 +1821,41 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 		    "type element index=%d, offset=0x%x, "
 		    "byte0=0x%x, length=0x%x\n", __func__,
 		    iter.global_element_index, iter.type_index,
-		    iter.type_element_index, offset, elmpriv->addl.hdr->byte0,
-		    elmpriv->addl.hdr->length);
+		    iter.type_element_index, offset, elm_hdr->byte0,
+		    elm_hdr->length);
 
 		/* Skip to after the length field */
 		offset += sizeof(struct ses_elm_addlstatus_base_hdr);
 
 		/* Make sure the descriptor is within bounds */
-		if ((offset + elmpriv->addl.hdr->length) > length) {
+		if ((offset + elm_hdr->length) > length) {
 			ENC_VLOG(enc, "Element %d Beyond End "
 			    "of Additional Element Status Descriptors\n",
 			    iter.global_element_index);
 			break;
 		}
 
+		/* Skip elements marked as invalid. */
+		if (ses_elm_addlstatus_invalid(elm_hdr)) {
+			offset += elm_hdr->length;
+			continue;
+		}
+
 		/* Advance to the protocol data, skipping eip bytes if needed */
 		offset += (eip * SES_EIP_HDR_EXTRA_LEN);
-		proto_info_len = elmpriv->addl.hdr->length
+		proto_info_len = elm_hdr->length
 			       - (eip * SES_EIP_HDR_EXTRA_LEN);
 
 		/* Errors in this block are ignored as they are non-fatal */
-		switch(ses_elm_addlstatus_proto(elmpriv->addl.hdr)) {
+		switch(ses_elm_addlstatus_proto(elm_hdr)) {
 		case SPSP_PROTO_FC:
-			if (elmpriv->addl.hdr->length == 0)
+			if (elm_hdr->length == 0)
 				break;
 			ses_get_elm_addlstatus_fc(enc, enc_cache,
 						  &buf[offset], proto_info_len);
 			break;
 		case SPSP_PROTO_SAS:
-			if (elmpriv->addl.hdr->length <= 2)
+			if (elm_hdr->length <= 2)
 				break;
 			ses_get_elm_addlstatus_sas(enc, enc_cache,
 						   &buf[offset],
@@ -1834,7 +1866,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 		default:
 			ENC_VLOG(enc, "Element %d: Unknown Additional Element "
 			    "Protocol 0x%x\n", iter.global_element_index,
-			    ses_elm_addlstatus_proto(elmpriv->addl.hdr));
+			    ses_elm_addlstatus_proto(elm_hdr));
 			break;
 		}
 
