@@ -212,7 +212,7 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_trans_settings_nvme	*nvmep;
 		struct ccb_trans_settings_nvme	*nvmex;
 		device_t dev;
-		uint32_t status, caps;
+		uint32_t status, caps, flags;
 
 		dev = ctrlr->dev;
 		cts = &ccb->cts;
@@ -221,12 +221,16 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 
 		status = pcie_read_config(dev, PCIER_LINK_STA, 2);
 		caps = pcie_read_config(dev, PCIER_LINK_CAP, 2);
-		nvmex->valid = CTS_NVME_VALID_SPEC | CTS_NVME_VALID_LINK;
+		flags = pcie_read_config(dev, PCIER_FLAGS, 2);
 		nvmex->spec = nvme_mmio_read_4(ctrlr, vs);
-		nvmex->speed = status & PCIEM_LINK_STA_SPEED;
-		nvmex->lanes = (status & PCIEM_LINK_STA_WIDTH) >> 4;
-		nvmex->max_speed = caps & PCIEM_LINK_CAP_MAX_SPEED;
-		nvmex->max_lanes = (caps & PCIEM_LINK_CAP_MAX_WIDTH) >> 4;
+		nvmex->valid = CTS_NVME_VALID_SPEC;
+		if ((flags & PCIEM_FLAGS_TYPE) == PCIEM_TYPE_ENDPOINT) {
+			nvmex->valid |= CTS_NVME_VALID_LINK;
+			nvmex->speed = status & PCIEM_LINK_STA_SPEED;
+			nvmex->lanes = (status & PCIEM_LINK_STA_WIDTH) >> 4;
+			nvmex->max_speed = caps & PCIEM_LINK_CAP_MAX_SPEED;
+			nvmex->max_lanes = (caps & PCIEM_LINK_CAP_MAX_WIDTH) >> 4;
+		}
 
 		/* XXX these should be something else maybe ? */
 		nvmep->valid = 1;
