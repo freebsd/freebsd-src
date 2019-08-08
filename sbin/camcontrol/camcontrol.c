@@ -106,6 +106,7 @@ typedef enum {
 	CAM_CMD_EPC		= 0x00000027,
 	CAM_CMD_TIMESTAMP	= 0x00000028,
 	CAM_CMD_POWER_MODE	= 0x0000002a,
+	CAM_CMD_DEVTYPE		= 0x0000002b,
 } cam_cmdmask;
 
 typedef enum {
@@ -219,6 +220,7 @@ static struct camcontrol_opts option_table[] = {
 	{"defectlist", CAM_CMD_READ_DEFECTS, CAM_ARG_NONE, readdefect_opts},
 #endif /* MINIMALISTIC */
 	{"devlist", CAM_CMD_DEVTREE, CAM_ARG_NONE, "-b"},
+	{"devtype", CAM_CMD_DEVTYPE, CAM_ARG_NONE, ""},
 #ifndef MINIMALISTIC
 	{"periphlist", CAM_CMD_DEVLIST, CAM_ARG_NONE, NULL},
 	{"modepage", CAM_CMD_MODE_PAGE, CAM_ARG_NONE, "bdelm:P:"},
@@ -267,6 +269,16 @@ struct cam_devlist {
 static cam_cmdmask cmdlist;
 static cam_argmask arglist;
 
+static const char *devtype_names[] = {
+	"none",
+	"scsi",
+	"satl",
+	"ata",
+	"nvme",
+	"mmcsd",
+	"unknown",
+};
+
 camcontrol_optret getoption(struct camcontrol_opts *table, char *arg,
 			    uint32_t *cmdnum, cam_argmask *argnum,
 			    const char **subopt);
@@ -274,6 +286,7 @@ camcontrol_optret getoption(struct camcontrol_opts *table, char *arg,
 static int getdevlist(struct cam_device *device);
 #endif /* MINIMALISTIC */
 static int getdevtree(int argc, char **argv, char *combinedopt);
+static int getdevtype(struct cam_device *device);
 #ifndef MINIMALISTIC
 static int testunitready(struct cam_device *device, int task_attr,
 			 int retry_count, int timeout, int quiet);
@@ -666,6 +679,24 @@ getdevtree(int argc, char **argv, char *combinedopt)
 	close(fd);
 
 	return (error);
+}
+
+static int
+getdevtype(struct cam_device *cam_dev)
+{
+	camcontrol_devtype dt;
+	int error;
+
+	/*
+	 * Get the device type and report it, request no I/O be done to do this.
+	 */
+	error = get_device_type(cam_dev, -1, 0, 0, &dt);
+	if (error != 0 || dt < CC_DT_NONE || dt > CC_DT_UNKNOWN) {
+		fprintf(stdout, "illegal\n");
+		return (1);
+	}
+	fprintf(stdout, "%s\n", devtype_names[dt]);
+	return (0);
 }
 
 #ifndef MINIMALISTIC
@@ -5178,7 +5209,7 @@ get_device_type(struct cam_device *dev, int retry_count, int timeout,
 		    int verbosemode, camcontrol_devtype *devtype)
 {
 	struct ccb_getdev cgd;
-	int retval = 0;
+	int retval;
 
 	retval = get_cgd(dev, &cgd);
 	if (retval != 0)
@@ -5203,21 +5234,34 @@ get_device_type(struct cam_device *dev, int retry_count, int timeout,
 		break; /*NOTREACHED*/
 	}
 
-	/*
-	 * Check for the ATA Information VPD page (0x89).  If this is an
-	 * ATA device behind a SCSI to ATA translation layer, this VPD page
-	 * should be present.
-	 *
-	 * If that VPD page isn't present, or we get an error back from the
-	 * INQUIRY command, we'll just treat it as a normal SCSI device.
-	 */
-	retval = dev_has_vpd_page(dev, SVPD_ATA_INFORMATION, retry_count,
-				  timeout, verbosemode);
-	if (retval == 1)
-		*devtype = CC_DT_SATL;
-	else
-		*devtype = CC_DT_SCSI;
-
+	if (retry_count == -1) {
+		/*
+		 * For a retry count of -1, used only the cached data to avoid
+		 * I/O to the drive. Sending the identify command to the drive
+		 * can cause issues for SATL attachaed drives since identify is
+		 * not an NCQ command.
+		 */
+		if (cgd.ident_data.config != 0)
+			*devtype = CC_DT_SATL;
+		else
+			*devtype = CC_DT_SCSI;
+	} else {
+		/*
+		 * Check for the ATA Information VPD page (0x89).  If this is an
+		 * ATA device behind a SCSI to ATA translation layer (SATL),
+		 * this VPD page should be present.
+		 *
+		 * If that VPD page isn't present, or we get an error back from
+		 * the INQUIRY command, we'll just treat it as a normal SCSI
+		 * device.
+		 */
+		retval = dev_has_vpd_page(dev, SVPD_ATA_INFORMATION, retry_count,
+		    timeout, verbosemode);
+		if (retval == 1)
+			*devtype = CC_DT_SATL;
+		else
+			*devtype = CC_DT_SCSI;
+	}
 	retval = 0;
 
 bailout:
@@ -9162,6 +9206,7 @@ usage(int printlong)
 "                              [-S power_src] [-T timer]\n"
 "        camcontrol timestamp  [dev_id][generic_args] <-r [-f format|-m|-U]>|\n"
 "                              <-s <-f format -T time | -U >>\n"
+"        camcontrol devtype    [dev_id]\n"
 "                              \n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
@@ -9209,6 +9254,7 @@ usage(int printlong)
 "zone        manage Zoned Block (Shingled) devices\n"
 "epc         send ATA Extended Power Conditions commands\n"
 "timestamp   report or set the device's timestamp\n"
+"devtype     report the type of device\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -9680,6 +9726,9 @@ main(int argc, char **argv)
 #endif /* MINIMALISTIC */
 	case CAM_CMD_DEVTREE:
 		error = getdevtree(argc, argv, combinedopt);
+		break;
+	case CAM_CMD_DEVTYPE:
+		error = getdevtype(cam_dev);
 		break;
 #ifndef MINIMALISTIC
 	case CAM_CMD_TUR:
