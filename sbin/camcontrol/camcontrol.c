@@ -1330,6 +1330,7 @@ atasata(struct ata_params *parm)
 static void
 atacapprint(struct ata_params *parm)
 {
+	const char *proto;
 	u_int32_t lbasize = (u_int32_t)parm->lba_size_1 |
 				((u_int32_t)parm->lba_size_2 << 16);
 
@@ -1340,7 +1341,19 @@ atacapprint(struct ata_params *parm)
 
 	printf("\n");
 	printf("protocol              ");
-	printf("ATA/ATAPI-%d", ata_version(parm->version_major));
+	proto = (parm->config == ATA_PROTO_CFA) ? "CFA" :
+		(parm->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA";
+	if (ata_version(parm->version_major) == 0) {
+		printf("%s", proto);
+	} else if (ata_version(parm->version_major) <= 7) {
+		printf("%s-%d", proto,
+		    ata_version(parm->version_major));
+	} else if (ata_version(parm->version_major) == 8) {
+		printf("%s8-ACS", proto);
+	} else {
+		printf("ACS-%d %s",
+		    ata_version(parm->version_major) - 7, proto);
+	}
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
 		if (parm->satacapabilities & ATA_SATA_GEN3)
 			printf(" SATA 3.x\n");
