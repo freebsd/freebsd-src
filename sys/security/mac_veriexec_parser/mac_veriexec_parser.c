@@ -364,7 +364,9 @@ parse_entry(char *entry, char *prefix)
 	rc = mac_veriexec_metadata_add_file(
 	    is_exec == 0,
 	    va.va_fsid, va.va_fileid, va.va_gen,
-	    digest, flags, fp_type, 1);
+	    digest,
+	    NULL, 0,
+	    flags, fp_type, 1);
 	mtx_unlock(&ve_mutex);
 
 out:
