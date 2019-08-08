@@ -100,6 +100,7 @@ typedef struct ses_addl_status {
 	union {
 		union ses_fcobj_hdr *fc;
 		union ses_elm_sas_hdr *sas;
+		struct ses_elm_ata_hdr *ata;
 	} proto_hdr;
 	union ses_addl_data proto_data;	/* array sizes stored in header */
 } ses_add_status_t;
@@ -823,14 +824,6 @@ ses_devids_iter(enc_softc_t *enc, enc_element_t *elm,
 	elmpriv = elm->elm_private;
 	addl = &(elmpriv->addl);
 
-	/*
-	 * Don't assume this object has additional status information, or
-	 * that it is a SAS device, or that it is a device slot device.
-	 */
-	if (addl->hdr == NULL || addl->proto_hdr.sas == NULL
-	 || addl->proto_data.sasdev_phys == NULL)
-		return;
-
 	devid_record_size = SVPD_DEVICE_ID_DESC_HDR_LEN
 			  + sizeof(struct scsi_vpd_id_naa_ieee_reg);
 	for (i = 0; i < addl->proto_hdr.sas->base_hdr.num_phys; i++) {
@@ -948,11 +941,40 @@ static void
 ses_paths_iter(enc_softc_t *enc, enc_element_t *elm,
 	       ses_path_callback_t *callback, void *callback_arg)
 {
-	ses_path_iter_args_t args;
+	ses_element_t *elmpriv;
+	struct ses_addl_status *addl;
 
-	args.callback     = callback;
-	args.callback_arg = callback_arg;
-	ses_devids_iter(enc, elm, ses_path_iter_devid_callback, &args);
+	elmpriv = elm->elm_private;
+	addl = &(elmpriv->addl);
+
+	if (addl->hdr == NULL)
+		return;
+
+	if (addl->proto_hdr.sas != NULL &&
+	    addl->proto_data.sasdev_phys != NULL) {
+		ses_path_iter_args_t args;
+
+		args.callback     = callback;
+		args.callback_arg = callback_arg;
+		ses_devids_iter(enc, elm, ses_path_iter_devid_callback, &args);
+	} else if (addl->proto_hdr.ata != NULL) {
+		struct cam_path *path;
+		struct ccb_getdev cgd;
+
+		if (xpt_create_path(&path, /*periph*/NULL,
+		    scsi_4btoul(addl->proto_hdr.ata->bus),
+		    scsi_4btoul(addl->proto_hdr.ata->target), 0)
+		     != CAM_REQ_CMP)
+			return;
+
+		xpt_setup_ccb(&cgd.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+		xpt_action((union ccb *)&cgd);
+		if (cgd.ccb_h.status == CAM_REQ_CMP)
+			callback(enc, elm, path, callback_arg);
+
+		xpt_free_path(path);
+	}
 }
 
 /**
@@ -1057,6 +1079,10 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	ret = EIO;
 	devid = NULL;
 
+	elmpriv = elm->elm_private;
+	if (elmpriv->addl.hdr == NULL)
+		goto out;
+
 	/*
 	 * Assemble the components of the physical path starting with
 	 * the device ID of the enclosure itself.
@@ -1089,7 +1115,6 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	    scsi_8btou64(idd->identifier), iter->type_index,
 	    iter->type_element_index);
 	/* Append the element descriptor if one exists */
-	elmpriv = elm->elm_private;
 	if (elmpriv->descr != NULL && elmpriv->descr_len > 0) {
 		sbuf_cat(&sb, "/elmdesc@");
 		for (i = 0, c = elmpriv->descr; i < elmpriv->descr_len;
@@ -1455,9 +1480,10 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 		    iter.global_element_index, iter.type_index, nelm,
 		    iter.type_element_index);
 		thdr = ses_cache->ses_types[iter.type_index].hdr;
+		element->elm_idx = iter.global_element_index;
+		element->elm_type = thdr->etype_elm_type;
 		element->subenclosure = thdr->etype_subenc;
-		element->enctype = thdr->etype_elm_type;
-		element->overall_status_elem = iter.type_element_index == 0;
+		element->type_elm_idx = iter.type_element_index;
 		element->elm_private = malloc(sizeof(ses_element_t),
 		    M_SCSIENC, M_WAITOK|M_ZERO);
 		ENC_DLOG(enc, "%s: creating elmpriv %d(%d,%d) subenc %d "
@@ -1661,6 +1687,8 @@ static int ses_get_elm_addlstatus_fc(enc_softc_t *, enc_cache_t *,
 				     uint8_t *, int);
 static int ses_get_elm_addlstatus_sas(enc_softc_t *, enc_cache_t *, uint8_t *,
 				      int, int, int, int);
+static int ses_get_elm_addlstatus_ata(enc_softc_t *, enc_cache_t *, uint8_t *,
+				      int, int, int, int);
 
 /**
  * \brief Parse the additional status element data for each object.
@@ -1816,7 +1844,6 @@ badindex:
 			}
 		}
 		elmpriv = element->elm_private;
-		elmpriv->addl.hdr = elm_hdr;
 		ENC_DLOG(enc, "%s: global element index=%d, type index=%d "
 		    "type element index=%d, offset=0x%x, "
 		    "byte0=0x%x, length=0x%x\n", __func__,
@@ -1840,6 +1867,7 @@ badindex:
 			offset += elm_hdr->length;
 			continue;
 		}
+		elmpriv->addl.hdr = elm_hdr;
 
 		/* Advance to the protocol data, skipping eip bytes if needed */
 		offset += (eip * SES_EIP_HDR_EXTRA_LEN);
@@ -1858,6 +1886,13 @@ badindex:
 			if (elm_hdr->length <= 2)
 				break;
 			ses_get_elm_addlstatus_sas(enc, enc_cache,
+						   &buf[offset],
+						   proto_info_len,
+						   eip, iter.type_index,
+						   iter.global_element_index);
+			break;
+		case SPSP_PROTO_ATA:
+			ses_get_elm_addlstatus_ata(enc, enc_cache,
 						   &buf[offset],
 						   proto_info_len,
 						   eip, iter.type_index,
@@ -2191,18 +2226,16 @@ ses_get_elm_addlstatus_fc(enc_softc_t *enc, enc_cache_t *enc_cache,
 }
 
 #define	SES_PRINT_PORTS(p, type) do {					\
-	sbuf_printf(sbp, " %s(", type);					\
-	if (((p) & SES_SASOBJ_DEV_PHY_PROTOMASK) == 0)			\
-		sbuf_printf(sbp, " None");				\
-	else {								\
+	if (((p) & SES_SASOBJ_DEV_PHY_PROTOMASK) != 0) {		\
+		sbuf_printf(sbp, " %s (", type);			\
 		if ((p) & SES_SASOBJ_DEV_PHY_SMP)			\
 			sbuf_printf(sbp, " SMP");			\
 		if ((p) & SES_SASOBJ_DEV_PHY_STP)			\
 			sbuf_printf(sbp, " STP");			\
 		if ((p) & SES_SASOBJ_DEV_PHY_SSP)			\
 			sbuf_printf(sbp, " SSP");			\
+		sbuf_printf(sbp, " )");					\
 	}								\
-	sbuf_printf(sbp, " )");						\
 } while(0)
 
 /**
@@ -2212,11 +2245,10 @@ ses_get_elm_addlstatus_fc(enc_softc_t *enc, enc_cache_t *enc_cache,
  * \param sesname	SES device name associated with the object.
  * \param sbp		Sbuf to print to.
  * \param obj		The object to print the data for.
- * \param periph_name	Peripheral string associated with the object.
  */
 static void
 ses_print_addl_data_sas_type0(char *sesname, struct sbuf *sbp,
-			      enc_element_t *obj, char *periph_name)
+			      enc_element_t *obj)
 {
 	int i;
 	ses_element_t *elmpriv;
@@ -2225,16 +2257,12 @@ ses_print_addl_data_sas_type0(char *sesname, struct sbuf *sbp,
 
 	elmpriv = obj->elm_private;
 	addl = &(elmpriv->addl);
-	if (addl->proto_hdr.sas == NULL)
-		return;
-	sbuf_printf(sbp, "%s: %s: SAS Device Slot Element:",
-	    sesname, periph_name);
-	sbuf_printf(sbp, " %d Phys", addl->proto_hdr.sas->base_hdr.num_phys);
+	sbuf_printf(sbp, ", SAS Slot: %d%s phys",
+	    addl->proto_hdr.sas->base_hdr.num_phys,
+	    ses_elm_sas_type0_not_all_phys(addl->proto_hdr.sas) ? "+" : "");
 	if (ses_elm_addlstatus_eip(addl->hdr))
-		sbuf_printf(sbp, " at Slot %d",
+		sbuf_printf(sbp, " at slot %d",
 		    addl->proto_hdr.sas->type0_eip.dev_slot_num);
-	if (ses_elm_sas_type0_not_all_phys(addl->proto_hdr.sas))
-		sbuf_printf(sbp, ", Not All Phys");
 	sbuf_printf(sbp, "\n");
 	if (addl->proto_data.sasdev_phys == NULL)
 		return;
@@ -2245,9 +2273,8 @@ ses_print_addl_data_sas_type0(char *sesname, struct sbuf *sbp,
 			/* Spec says all other fields are specific values */
 			sbuf_printf(sbp, " SATA device\n");
 		else {
-			sbuf_printf(sbp, " SAS device type %d id %d\n",
+			sbuf_printf(sbp, " SAS device type %d phy %d",
 			    ses_elm_sas_dev_phy_dev_type(phy), phy->phy_id);
-			sbuf_printf(sbp, "%s:  phy %d: protocols:", sesname, i);
 			SES_PRINT_PORTS(phy->initiator_ports, "Initiator");
 			SES_PRINT_PORTS(phy->target_ports, "Target");
 			sbuf_printf(sbp, "\n");
@@ -2261,32 +2288,16 @@ ses_print_addl_data_sas_type0(char *sesname, struct sbuf *sbp,
 #undef SES_PRINT_PORTS
 
 /**
- * \brief Report whether a given enclosure object is an expander.
- *
- * \param enc	SES softc associated with object.
- * \param obj	Enclosure object to report for.
- *
- * \return	1 if true, 0 otherwise.
- */
-static int
-ses_obj_is_expander(enc_softc_t *enc, enc_element_t *obj)
-{
-	return (obj->enctype == ELMTYP_SAS_EXP);
-}
-
-/**
  * \brief Print the additional element status data for this object, for SAS
  *	  type 1 objects.  See SES2 r20 Sections 6.1.13.3.3 and 6.1.13.3.4.
  *
- * \param enc		SES enclosure, needed for type identification.
  * \param sesname	SES device name associated with the object.
  * \param sbp		Sbuf to print to.
  * \param obj		The object to print the data for.
- * \param periph_name	Peripheral string associated with the object.
  */
 static void
-ses_print_addl_data_sas_type1(enc_softc_t *enc, char *sesname,
-    struct sbuf *sbp, enc_element_t *obj, char *periph_name)
+ses_print_addl_data_sas_type1(char *sesname, struct sbuf *sbp,
+			      enc_element_t *obj)
 {
 	int i, num_phys;
 	ses_element_t *elmpriv;
@@ -2296,12 +2307,10 @@ ses_print_addl_data_sas_type1(enc_softc_t *enc, char *sesname,
 
 	elmpriv = obj->elm_private;
 	addl = &(elmpriv->addl);
-	if (addl->proto_hdr.sas == NULL)
-		return;
-	sbuf_printf(sbp, "%s: %s: SAS ", sesname, periph_name);
-	if (ses_obj_is_expander(enc, obj)) {
+	sbuf_printf(sbp, ", SAS ");
+	if (obj->elm_type == ELMTYP_SAS_EXP) {
 		num_phys = addl->proto_hdr.sas->base_hdr.num_phys;
-		sbuf_printf(sbp, "Expander: %d Phys", num_phys);
+		sbuf_printf(sbp, "Expander: %d phys", num_phys);
 		if (addl->proto_data.sasexp_phys == NULL)
 			return;
 		for (i = 0;i < num_phys;i++) {
@@ -2312,7 +2321,7 @@ ses_print_addl_data_sas_type1(enc_softc_t *enc, char *sesname,
 		}
 	} else {
 		num_phys = addl->proto_hdr.sas->base_hdr.num_phys;
-		sbuf_printf(sbp, "Port: %d Phys", num_phys);
+		sbuf_printf(sbp, "Port: %d phys", num_phys);
 		if (addl->proto_data.sasport_phys == NULL)
 			return;
 		for (i = 0;i < num_phys;i++) {
@@ -2325,6 +2334,24 @@ ses_print_addl_data_sas_type1(enc_softc_t *enc, char *sesname,
 			    (uintmax_t)scsi_8btou64(port_phy->phy_addr));
 		}
 	}
+}
+
+/**
+ * \brief Print the additional element status data for this object, for
+ *	  ATA objects.
+ *
+ * \param sbp		Sbuf to print to.
+ * \param obj		The object to print the data for.
+ */
+static void
+ses_print_addl_data_ata(struct sbuf *sbp, enc_element_t *obj)
+{
+	ses_element_t *elmpriv = obj->elm_private;
+	struct ses_addl_status *addl = &elmpriv->addl;
+	struct ses_elm_ata_hdr *ata = addl->proto_hdr.ata;
+
+	sbuf_printf(sbp, ", SATA Slot: scbus%d target %d\n",
+	    scsi_4btoul(ata->bus), scsi_4btoul(ata->target));
 }
 
 /**
@@ -2358,27 +2385,45 @@ ses_print_addl_data(enc_softc_t *enc, enc_element_t *obj)
 	sbuf_printf(&sesname, "%s%d", enc->periph->periph_name,
 	    enc->periph->unit_number);
 	sbuf_finish(&sesname);
+	sbuf_printf(&out, "%s: %s in ", sbuf_data(&sesname), sbuf_data(&name));
 	if (elmpriv->descr != NULL)
-		sbuf_printf(&out, "%s: %s: Element descriptor: '%s'\n",
-		    sbuf_data(&sesname), sbuf_data(&name), elmpriv->descr);
+		sbuf_printf(&out, "'%s'", elmpriv->descr);
+	else {
+		if (obj->elm_type <= ELMTYP_LAST)
+			sbuf_cat(&out, elm_type_names[obj->elm_type]);
+		else
+			sbuf_printf(&out, "<Type 0x%02x>", obj->elm_type);
+		sbuf_printf(&out, " %d", obj->type_elm_idx);
+		if (obj->subenclosure != 0)
+			sbuf_printf(&out, " of subenc %d", obj->subenclosure);
+	}
 	switch(ses_elm_addlstatus_proto(addl->hdr)) {
+	case SPSP_PROTO_FC:
+		goto noaddl;	/* stubbed for now */
 	case SPSP_PROTO_SAS:
+		if (addl->proto_hdr.sas == NULL)
+			goto noaddl;
 		switch(ses_elm_sas_descr_type(addl->proto_hdr.sas)) {
 		case SES_SASOBJ_TYPE_SLOT:
 			ses_print_addl_data_sas_type0(sbuf_data(&sesname),
-			    &out, obj, sbuf_data(&name));
+			    &out, obj);
 			break;
 		case SES_SASOBJ_TYPE_OTHER:
-			ses_print_addl_data_sas_type1(enc, sbuf_data(&sesname),
-			    &out, obj, sbuf_data(&name));
+			ses_print_addl_data_sas_type1(sbuf_data(&sesname),
+			    &out, obj);
 			break;
 		default:
-			break;
+			goto noaddl;
 		}
 		break;
-	case SPSP_PROTO_FC:	/* stubbed for now */
+	case SPSP_PROTO_ATA:
+		if (addl->proto_hdr.ata == NULL)
+			goto noaddl;
+		ses_print_addl_data_ata(&out, obj);
 		break;
 	default:
+noaddl:
+		sbuf_cat(&out, "\n");
 		break;
 	}
 	sbuf_finish(&out);
@@ -2483,7 +2528,7 @@ ses_get_elm_addlstatus_sas_type1(enc_softc_t *enc, enc_cache_t *enc_cache,
 		goto out;
 
 	/* Process expanders differently from other type1 cases */
-	if (ses_obj_is_expander(enc, obj)) {
+	if (obj->elm_type == ELMTYP_SAS_EXP) {
 		offset += sizeof(struct ses_elm_sas_type1_expander_hdr);
 		physz = addl->proto_hdr.sas->base_hdr.num_phys *
 		    sizeof(struct ses_elm_sas_expander_phy);
@@ -2586,6 +2631,53 @@ ses_get_elm_addlstatus_sas(enc_softc_t *enc, enc_cache_t *enc_cache,
 		err = ENODEV;
 		break;
 	}
+
+out:
+	return (err);
+}
+
+/**
+ * \brief Update the softc with the additional element status data for this
+ * 	  object, for ATA objects.
+ *
+ * \param enc		SES softc to be updated.
+ * \param buf		The additional element status response buffer.
+ * \param bufsiz	Size of the response buffer.
+ * \param eip		The EIP bit value.
+ * \param tidx		Type index for this object.
+ * \param nobj		Number of objects attached to the SES softc.
+ * 
+ * \return		0 on success, errno otherwise.
+ */
+static int
+ses_get_elm_addlstatus_ata(enc_softc_t *enc, enc_cache_t *enc_cache,
+			   uint8_t *buf, int bufsiz, int eip, int tidx,
+			   int nobj)
+{
+	int err;
+	ses_cache_t *ses_cache;
+
+	if (bufsiz < sizeof(struct ses_elm_ata_hdr)) {
+		err = EIO;
+		goto out;
+	}
+
+	ses_cache = enc_cache->private;
+	switch(ses_cache->ses_types[tidx].hdr->etype_elm_type) {
+	case ELMTYP_DEVICE:
+	case ELMTYP_ARRAY_DEV:
+		break;
+	default:
+		ENC_VLOG(enc, "Element %d has Additional Status, "
+		    "invalid for SES element type 0x%x\n", nobj,
+		    ses_cache->ses_types[tidx].hdr->etype_elm_type);
+		err = ENODEV;
+		goto out;
+	}
+
+	((ses_element_t *)enc_cache->elm_map[nobj].elm_private)
+	    ->addl.proto_hdr.ata = (struct ses_elm_ata_hdr *)buf;
+	err = 0;
 
 out:
 	return (err);

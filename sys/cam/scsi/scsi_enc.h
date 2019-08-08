@@ -118,9 +118,41 @@ typedef enum {
 	ELMTYP_SCSI_INI		= 0x15,
 	ELMTYP_SUBENC		= 0x16,
 	ELMTYP_ARRAY_DEV	= 0x17,
-	ELMTYP_SAS_EXP		= 0x18, /* SAS expander */
-	ELMTYP_SAS_CONN		= 0x19  /* SAS connector */
+	ELMTYP_SAS_EXP		= 0x18,	/* SAS Expander */
+	ELMTYP_SAS_CONN		= 0x19,	/* SAS Connector */
+	ELMTYP_LAST		= ELMTYP_SAS_CONN
 } elm_type_t;
+
+#define	ELM_TYPE_NAMES	{				\
+	"Unspecified",					\
+	"Device Slot",					\
+	"Power Supply",					\
+	"Cooling",					\
+	"Temperature Sensors",				\
+	"Door",						\
+	"Audible alarm",				\
+	"Enclosure Services Controller Electronics",	\
+	"SCC Controller Electronics",			\
+	"Nonvolatile Cache",				\
+	"Invalid Operation Reason",			\
+	"Uninterruptible Power Supply",			\
+	"Display",					\
+	"Key Pad Entry",				\
+	"Enclosure",					\
+	"SCSI Port/Transceiver",			\
+	"Language",					\
+	"Communication Port",				\
+	"Voltage Sensor",				\
+	"Current Sensor",				\
+	"SCSI Target Port",				\
+	"SCSI Initiator Port",				\
+	"Simple Subenclosure",				\
+	"Array Device Slot",				\
+	"SAS Expander",					\
+	"SAS Connector"					\
+}
+
+extern const char *elm_type_names[];
 
 typedef struct encioc_element {
 	/* Element Index */

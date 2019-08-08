@@ -184,6 +184,7 @@ ahci_attach(device_t dev)
 	ctlr->ccc = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "ccc", &ctlr->ccc);
+	mtx_init(&ctlr->ch_mtx, "AHCI channels lock", NULL, MTX_DEF);
 
 	/* Setup our own memory management for channels. */
 	ctlr->sc_iomem.rm_start = rman_get_start(ctlr->r_mem);
@@ -376,6 +377,7 @@ ahci_detach(device_t dev)
 	/* Free memory. */
 	rman_fini(&ctlr->sc_iomem);
 	ahci_free_mem(dev);
+	mtx_destroy(&ctlr->ch_mtx);
 	return (0);
 }
 
@@ -663,6 +665,50 @@ ahci_get_dma_tag(device_t dev, device_t child)
 	return (ctlr->dma_tag);
 }
 
+void
+ahci_attached(device_t dev, struct ahci_channel *ch)
+{
+	struct ahci_controller *ctlr = device_get_softc(dev);
+
+	mtx_lock(&ctlr->ch_mtx);
+	ctlr->ch[ch->unit] = ch;
+	mtx_unlock(&ctlr->ch_mtx);
+}
+
+void
+ahci_detached(device_t dev, struct ahci_channel *ch)
+{
+	struct ahci_controller *ctlr = device_get_softc(dev);
+
+	mtx_lock(&ctlr->ch_mtx);
+	mtx_lock(&ch->mtx);
+	ctlr->ch[ch->unit] = NULL;
+	mtx_unlock(&ch->mtx);
+	mtx_unlock(&ctlr->ch_mtx);
+}
+
+struct ahci_channel *
+ahci_getch(device_t dev, int n)
+{
+	struct ahci_controller *ctlr = device_get_softc(dev);
+	struct ahci_channel *ch;
+
+	KASSERT(n >= 0 && n < AHCI_MAX_PORTS, ("Bad channel number %d", n));
+	mtx_lock(&ctlr->ch_mtx);
+	ch = ctlr->ch[n];
+	if (ch != NULL)
+		mtx_lock(&ch->mtx);
+	mtx_unlock(&ctlr->ch_mtx);
+	return (ch);
+}
+
+void
+ahci_putch(struct ahci_channel *ch)
+{
+
+	mtx_unlock(&ch->mtx);
+}
+
 static int
 ahci_ch_probe(device_t dev)
 {
@@ -821,6 +867,7 @@ ahci_ch_attach(device_t dev)
 		    ahci_ch_pm, ch);
 	}
 	mtx_unlock(&ch->mtx);
+	ahci_attached(device_get_parent(dev), ch);
 	ctx = device_get_sysctl_ctx(dev);
 	tree = device_get_sysctl_tree(dev);
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "disable_phy",
@@ -846,6 +893,7 @@ ahci_ch_detach(device_t dev)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 
+	ahci_detached(device_get_parent(dev), ch);
 	mtx_lock(&ch->mtx);
 	xpt_async(AC_LOST_DEVICE, ch->path, NULL);
 	/* Forget about reset. */

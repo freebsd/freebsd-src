@@ -37,16 +37,12 @@
 #include <sys/sysctl.h>
 
 typedef struct enc_element {
-	uint32_t
-		 enctype	: 8,	/* enclosure type */
-		 subenclosure : 8,	/* subenclosure id */
-		 svalid	: 1,		/* enclosure information valid */
-		 overall_status_elem: 1,/*
-					 * This object represents generic
-					 * status about all objects of this
-					 * type.
-					 */
-		 priv	: 14;		/* private data, per object */
+	uint8_t	 elm_idx;		/* index of element */
+	uint8_t	 elm_type;		/* element type */
+	uint8_t	 subenclosure;		/* subenclosure id */
+	uint8_t	 type_elm_idx;		/* index of element within type */
+	uint8_t	 svalid;		/* enclosure information valid */
+	uint16_t priv;			/* private data, per object */
 	uint8_t	 encstat[4];		/* state && stats */
 	uint8_t *physical_path;		/* Device physical path data. */
 	u_int    physical_path_len;	/* Length of device path data. */

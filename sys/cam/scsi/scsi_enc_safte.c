@@ -299,21 +299,21 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	 * in later fetches of status.
 	 */
 	for (i = 0; i < cfg->Nfans; i++)
-		enc->enc_cache.elm_map[r++].enctype = ELMTYP_FAN;
+		enc->enc_cache.elm_map[r++].elm_type = ELMTYP_FAN;
 	cfg->pwroff = (uint8_t) r;
 	for (i = 0; i < cfg->Npwr; i++)
-		enc->enc_cache.elm_map[r++].enctype = ELMTYP_POWER;
+		enc->enc_cache.elm_map[r++].elm_type = ELMTYP_POWER;
 	for (i = 0; i < cfg->DoorLock; i++)
-		enc->enc_cache.elm_map[r++].enctype = ELMTYP_DOORLOCK;
+		enc->enc_cache.elm_map[r++].elm_type = ELMTYP_DOORLOCK;
 	if (cfg->Nspkrs > 0)
-		enc->enc_cache.elm_map[r++].enctype = ELMTYP_ALARM;
+		enc->enc_cache.elm_map[r++].elm_type = ELMTYP_ALARM;
 	for (i = 0; i < cfg->Ntherm; i++)
-		enc->enc_cache.elm_map[r++].enctype = ELMTYP_THERM;
+		enc->enc_cache.elm_map[r++].elm_type = ELMTYP_THERM;
 	for (i = 0; i <= cfg->Ntstats; i++)
-		enc->enc_cache.elm_map[r++].enctype = ELMTYP_THERM;
+		enc->enc_cache.elm_map[r++].elm_type = ELMTYP_THERM;
 	cfg->slotoff = (uint8_t) r;
 	for (i = 0; i < cfg->Nslots; i++)
-		enc->enc_cache.elm_map[r++].enctype =
+		enc->enc_cache.elm_map[r++].elm_type =
 		    emulate_array_devices ? ELMTYP_ARRAY_DEV :
 		     ELMTYP_DEVICE;
 
@@ -503,7 +503,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	 */
 	for (i = 0; i < cfg->Nslots; i++) {
 		SAFT_BAIL(r, xfer_len);
-		if (cache->elm_map[cfg->slotoff + i].enctype == ELMTYP_DEVICE)
+		if (cache->elm_map[cfg->slotoff + i].elm_type == ELMTYP_DEVICE)
 			cache->elm_map[cfg->slotoff + i].encstat[1] = buf[r];
 		r++;
 	}
@@ -676,7 +676,7 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 	oid = cfg->slotoff;
 	for (r = i = 0; i < cfg->Nslots; i++, r += 4) {
 		SAFT_BAIL(r+3, xfer_len);
-		if (cache->elm_map[oid].enctype == ELMTYP_ARRAY_DEV)
+		if (cache->elm_map[oid].elm_type == ELMTYP_ARRAY_DEV)
 			cache->elm_map[oid].encstat[1] = 0;
 		cache->elm_map[oid].encstat[2] &= SESCTL_RQSID;
 		cache->elm_map[oid].encstat[3] = 0;
@@ -703,7 +703,7 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			cache->elm_map[oid].encstat[3] |= SESCTL_RQSFLT;
 		if (buf[r+0] & 0x40)
 			cache->elm_map[oid].encstat[0] |= SESCTL_PRDFAIL;
-		if (cache->elm_map[oid].enctype == ELMTYP_ARRAY_DEV) {
+		if (cache->elm_map[oid].elm_type == ELMTYP_ARRAY_DEV) {
 			if (buf[r+0] & 0x01)
 				cache->elm_map[oid].encstat[1] |= 0x80;
 			if (buf[r+0] & 0x04)
@@ -769,7 +769,7 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 	} else {
 		ep = &enc->enc_cache.elm_map[idx];
 
-		switch (ep->enctype) {
+		switch (ep->elm_type) {
 		case ELMTYP_DEVICE:
 		case ELMTYP_ARRAY_DEV:
 			switch (cfg->current_request_stage) {
@@ -779,7 +779,7 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 					ep->priv |= 0x40;
 				if (req->elm_stat[3] & SESCTL_RQSFLT)
 					ep->priv |= 0x02;
-				if (ep->enctype == ELMTYP_ARRAY_DEV) {
+				if (ep->elm_type == ELMTYP_ARRAY_DEV) {
 					if (req->elm_stat[1] & 0x01)
 						ep->priv |= 0x200;
 					if (req->elm_stat[1] & 0x02)
@@ -968,7 +968,7 @@ safte_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 		if (idx == SES_SETSTATUS_ENC_IDX)
 			type = -1;
 		else
-			type = enc->enc_cache.elm_map[idx].enctype;
+			type = enc->enc_cache.elm_map[idx].elm_type;
 		if (type == ELMTYP_DEVICE || type == ELMTYP_ARRAY_DEV)
 			enc_update_request(enc, SAFTE_UPDATE_READSLOTSTATUS);
 		else

@@ -88,6 +88,9 @@ int enc_verbose = 0;
 SYSCTL_INT(_kern_cam_enc, OID_AUTO, verbose, CTLFLAG_RWTUN,
            &enc_verbose, 0, "Enable verbose logging");
 
+const char *elm_type_names[] = ELM_TYPE_NAMES;
+CTASSERT(nitems(elm_type_names) - 1 == ELMTYP_LAST);
+
 static struct periph_driver encdriver = {
 	enc_init, "ses",
 	TAILQ_HEAD_INITIALIZER(encdriver.units), /* generation */ 0
@@ -239,11 +242,17 @@ enc_async(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 				struct enc_softc *softc;
 
 				softc = (struct enc_softc *)periph->softc;
-				if (xpt_path_path_id(periph->path) != path_id
-				 || softc == NULL
-				 || (softc->enc_flags & ENC_FLAG_INITIALIZED)
-				  == 0
-				 || softc->enc_vec.device_found == NULL)
+
+				/* Check this SEP is ready. */
+				if (softc == NULL || (softc->enc_flags &
+				     ENC_FLAG_INITIALIZED) == 0 ||
+				    softc->enc_vec.device_found == NULL)
+					continue;
+
+				/* Check this SEP may manage this device. */
+				if (xpt_path_path_id(periph->path) != path_id &&
+				    (softc->enc_type != ENC_SEMB_SES ||
+				     cgd->protocol != PROTO_ATA))
 					continue;
 
 				softc->enc_vec.device_found(softc);
@@ -439,7 +448,7 @@ enc_ioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag,
 			encioc_element_t kelm;
 			kelm.elm_idx = i;
 			kelm.elm_subenc_id = cache->elm_map[i].subenclosure;
-			kelm.elm_type = cache->elm_map[i].enctype;
+			kelm.elm_type = cache->elm_map[i].elm_type;
 			error = copyout(&kelm, &uelm[i], sizeof(kelm));
 			if (error)
 				break;
