@@ -3376,6 +3376,66 @@ atasecurity(struct cam_device *device, int retry_count, int timeout,
 #endif /* MINIMALISTIC */
 
 /*
+ * Convert periph name into a bus, target and lun.
+ *
+ * Returns the number of parsed components, or 0.
+ */
+static int
+parse_btl_name(char *tstr, path_id_t *bus, target_id_t *target, lun_id_t *lun,
+    cam_argmask *arglst)
+{
+	int fd;
+	union ccb ccb;
+
+	bzero(&ccb, sizeof(ccb));
+	ccb.ccb_h.func_code = XPT_GDEVLIST;
+	if (cam_get_device(tstr, ccb.cgdl.periph_name,
+	    sizeof(ccb.cgdl.periph_name), &ccb.cgdl.unit_number) == -1) {
+		warnx("%s", cam_errbuf);
+		return (0);
+	}
+
+	/*
+	 * Attempt to get the passthrough device.  This ioctl will
+	 * fail if the device name is null, if the device doesn't
+	 * exist, or if the passthrough driver isn't in the kernel.
+	 */
+	if ((fd = open(XPT_DEVICE, O_RDWR)) == -1) {
+		warn("Unable to open %s", XPT_DEVICE);
+		return (0);
+	}
+	if (ioctl(fd, CAMGETPASSTHRU, &ccb) == -1) {
+		warn("Unable to find bus:target:lun for device %s%d",
+		    ccb.cgdl.periph_name, ccb.cgdl.unit_number);
+		close(fd);
+		return (0);
+	}
+	close(fd);
+	if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		const struct cam_status_entry *entry;
+
+		entry = cam_fetch_status_entry(ccb.ccb_h.status);
+		warnx("Unable to find bus:target_lun for device %s%d, "
+		    "CAM status: %s (%#x)",
+		    ccb.cgdl.periph_name, ccb.cgdl.unit_number,
+		    entry ? entry->status_text : "Unknown",
+		    ccb.ccb_h.status);
+		return (0);
+	}
+
+	/*
+	 * The kernel fills in the bus/target/lun.  We don't
+	 * need the passthrough device name and unit number since
+	 * we aren't going to open it.
+	 */
+	*bus = ccb.ccb_h.path_id;
+	*target = ccb.ccb_h.target_id;
+	*lun = ccb.ccb_h.target_lun;
+	*arglst |= CAM_ARG_BUS | CAM_ARG_TARGET | CAM_ARG_LUN;
+	return (3);
+}
+
+/*
  * Parse out a bus, or a bus, target and lun in the following
  * format:
  * bus
@@ -3388,25 +3448,43 @@ static int
 parse_btl(char *tstr, path_id_t *bus, target_id_t *target, lun_id_t *lun,
     cam_argmask *arglst)
 {
-	char *tmpstr;
+	char *tmpstr, *end;
 	int convs = 0;
+
+	*bus = CAM_BUS_WILDCARD;
+	*target = CAM_TARGET_WILDCARD;
+	*lun = CAM_LUN_WILDCARD;
 
 	while (isspace(*tstr) && (*tstr != '\0'))
 		tstr++;
 
-	tmpstr = (char *)strtok(tstr, ":");
+	if (strncasecmp(tstr, "all", strlen("all")) == 0) {
+		arglist |= CAM_ARG_BUS;
+		return (1);
+	}
+
+	if (!isdigit(*tstr))
+		return (parse_btl_name(tstr, bus, target, lun, arglst));
+
+	tmpstr = strsep(&tstr, ":");
 	if ((tmpstr != NULL) && (*tmpstr != '\0')) {
-		*bus = strtol(tmpstr, NULL, 0);
+		*bus = strtol(tmpstr, &end, 0);
+		if (*end != '\0')
+			return (0);
 		*arglst |= CAM_ARG_BUS;
 		convs++;
-		tmpstr = (char *)strtok(NULL, ":");
+		tmpstr = strsep(&tstr, ":");
 		if ((tmpstr != NULL) && (*tmpstr != '\0')) {
-			*target = strtol(tmpstr, NULL, 0);
+			*target = strtol(tmpstr, &end, 0);
+			if (*end != '\0')
+				return (0);
 			*arglst |= CAM_ARG_TARGET;
 			convs++;
-			tmpstr = (char *)strtok(NULL, ":");
+			tmpstr = strsep(&tstr, ":");
 			if ((tmpstr != NULL) && (*tmpstr != '\0')) {
-				*lun = strtol(tmpstr, NULL, 0);
+				*lun = strtoll(tmpstr, &end, 0);
+				if (*end != '\0')
+					return (0);
 				*arglst |= CAM_ARG_LUN;
 				convs++;
 			}
@@ -3420,7 +3498,7 @@ static int
 dorescan_or_reset(int argc, char **argv, int rescan)
 {
 	static const char must[] =
-		"you must specify \"all\", a bus, or a bus:target:lun to %s";
+	    "you must specify \"all\", a bus, a bus:target:lun or periph to %s";
 	int rv, error = 0;
 	path_id_t bus = CAM_BUS_WILDCARD;
 	target_id_t target = CAM_TARGET_WILDCARD;
@@ -3437,117 +3515,18 @@ dorescan_or_reset(int argc, char **argv, int rescan)
 		tstr++;
 	if (strncasecmp(tstr, "all", strlen("all")) == 0)
 		arglist |= CAM_ARG_BUS;
-	else if (isdigit(*tstr)) {
+	else {
 		rv = parse_btl(argv[optind], &bus, &target, &lun, &arglist);
 		if (rv != 1 && rv != 3) {
-			warnx(must, rescan? "rescan" : "reset");
+			warnx(must, rescan ? "rescan" : "reset");
 			return (1);
 		}
-	} else {
-		char name[30];
-		int unit;
-		int fd = -1;
-		union ccb ccb;
-
-		/*
-		 * Note that resetting or rescanning a device used to
-		 * require a bus or bus:target:lun.  This is because the
-		 * device in question may not exist and you're trying to
-		 * get the controller to rescan to find it.  It may also be
-		 * because the device is hung / unresponsive, and opening
-		 * an unresponsive device is not desireable.
-		 *
-		 * It can be more convenient to reference a device by
-		 * peripheral name and unit number, though, and it is
-		 * possible to get the bus:target:lun for devices that
-		 * currently exist in the EDT.  So this can work for
-		 * devices that we want to reset, or devices that exist
-		 * that we want to rescan, but not devices that do not
-		 * exist yet.
-		 *
-		 * So, we are careful here to look up the bus/target/lun
-		 * for the device the user wants to operate on, specified
-		 * by peripheral instance (e.g. da0, pass32) without
-		 * actually opening that device.  The process is similar to
-		 * what cam_lookup_pass() does, except that we don't
-		 * actually open the passthrough driver instance in the end.
-		 */
-
-		if (cam_get_device(tstr, name, sizeof(name), &unit) == -1) {
-			warnx("%s", cam_errbuf);
-			error = 1;
-			goto bailout;
-		}
-
-		if ((fd = open(XPT_DEVICE, O_RDWR)) == -1) {
-			warn("Unable to open %s", XPT_DEVICE);
-			error = 1;
-			goto bailout;
-		}
-
-		bzero(&ccb, sizeof(ccb));
-
-		/*
-		 * The function code isn't strictly necessary for the
-		 * GETPASSTHRU ioctl.
-		 */
-		ccb.ccb_h.func_code = XPT_GDEVLIST;
-
-		/*
-		 * These two are necessary for the GETPASSTHRU ioctl to
-		 * work.
-		 */
-		strlcpy(ccb.cgdl.periph_name, name,
-			sizeof(ccb.cgdl.periph_name));
-		ccb.cgdl.unit_number = unit;
-
-		/*
-		 * Attempt to get the passthrough device.  This ioctl will
-		 * fail if the device name is null, if the device doesn't
-		 * exist, or if the passthrough driver isn't in the kernel.
-		 */
-		if (ioctl(fd, CAMGETPASSTHRU, &ccb) == -1) {
-			warn("Unable to find bus:target:lun for device %s%d",
-			    name, unit);
-			error = 1;
-			close(fd);
-			goto bailout;
-		}
-		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			const struct cam_status_entry *entry;
-
-			entry = cam_fetch_status_entry(ccb.ccb_h.status);
-			warnx("Unable to find bus:target_lun for device %s%d, "
-			    "CAM status: %s (%#x)", name, unit,
-			    entry ? entry->status_text : "Unknown",
-			    ccb.ccb_h.status);
-			error = 1;
-			close(fd);
-			goto bailout;
-		}
-
-		/*
-		 * The kernel fills in the bus/target/lun.  We don't
-		 * need the passthrough device name and unit number since
-		 * we aren't going to open it.
-		 */
-		bus = ccb.ccb_h.path_id;
-		target = ccb.ccb_h.target_id;
-		lun = ccb.ccb_h.target_lun;
-
-		arglist |= CAM_ARG_BUS | CAM_ARG_TARGET | CAM_ARG_LUN;
-
-		close(fd);
 	}
 
-	if ((arglist & CAM_ARG_BUS)
-	    && (arglist & CAM_ARG_TARGET)
-	    && (arglist & CAM_ARG_LUN))
+	if (arglist & CAM_ARG_LUN)
 		error = scanlun_or_reset_dev(bus, target, lun, rescan);
 	else
 		error = rescan_or_reset_bus(bus, rescan);
-
-bailout:
 
 	return (error);
 }
@@ -4935,9 +4914,9 @@ camdebug(int argc, char **argv, char *combinedopt)
 	path_id_t bus = CAM_BUS_WILDCARD;
 	target_id_t target = CAM_TARGET_WILDCARD;
 	lun_id_t lun = CAM_LUN_WILDCARD;
-	char *tstr, *tmpstr = NULL;
+	char *tstr;
 	union ccb ccb;
-	int error = 0;
+	int error = 0, rv;
 
 	bzero(&ccb, sizeof(union ccb));
 
@@ -4976,23 +4955,16 @@ camdebug(int argc, char **argv, char *combinedopt)
 		}
 	}
 
-	if ((fd = open(XPT_DEVICE, O_RDWR)) < 0) {
-		warnx("error opening transport layer device %s", XPT_DEVICE);
-		warn("%s", XPT_DEVICE);
-		return (1);
-	}
 	argc -= optind;
 	argv += optind;
 
 	if (argc <= 0) {
 		warnx("you must specify \"off\", \"all\" or a bus,");
-		warnx("bus:target, or bus:target:lun");
-		close(fd);
+		warnx("bus:target, bus:target:lun or periph");
 		return (1);
 	}
 
 	tstr = *argv;
-
 	while (isspace(*tstr) && (*tstr != '\0'))
 		tstr++;
 
@@ -5001,66 +4973,54 @@ camdebug(int argc, char **argv, char *combinedopt)
 		arglist &= ~(CAM_ARG_DEBUG_INFO|CAM_ARG_DEBUG_PERIPH|
 			     CAM_ARG_DEBUG_TRACE|CAM_ARG_DEBUG_SUBTRACE|
 			     CAM_ARG_DEBUG_XPT|CAM_ARG_DEBUG_PROBE);
-	} else if (strncmp(tstr, "all", 3) != 0) {
-		tmpstr = (char *)strtok(tstr, ":");
-		if ((tmpstr != NULL) && (*tmpstr != '\0')){
-			bus = strtol(tmpstr, NULL, 0);
-			arglist |= CAM_ARG_BUS;
-			tmpstr = (char *)strtok(NULL, ":");
-			if ((tmpstr != NULL) && (*tmpstr != '\0')){
-				target = strtol(tmpstr, NULL, 0);
-				arglist |= CAM_ARG_TARGET;
-				tmpstr = (char *)strtok(NULL, ":");
-				if ((tmpstr != NULL) && (*tmpstr != '\0')){
-					lun = strtol(tmpstr, NULL, 0);
-					arglist |= CAM_ARG_LUN;
-				}
-			}
-		} else {
-			error = 1;
+	} else {
+		rv = parse_btl(tstr, &bus, &target, &lun, &arglist);
+		if (rv < 1) {
 			warnx("you must specify \"all\", \"off\", or a bus,");
-			warnx("bus:target, or bus:target:lun to debug");
+			warnx("bus:target, bus:target:lun or periph to debug");
+			return (1);
 		}
 	}
 
-	if (error == 0) {
+	if ((fd = open(XPT_DEVICE, O_RDWR)) < 0) {
+		warnx("error opening transport layer device %s", XPT_DEVICE);
+		warn("%s", XPT_DEVICE);
+		return (1);
+	}
 
-		ccb.ccb_h.func_code = XPT_DEBUG;
-		ccb.ccb_h.path_id = bus;
-		ccb.ccb_h.target_id = target;
-		ccb.ccb_h.target_lun = lun;
+	ccb.ccb_h.func_code = XPT_DEBUG;
+	ccb.ccb_h.path_id = bus;
+	ccb.ccb_h.target_id = target;
+	ccb.ccb_h.target_lun = lun;
 
-		if (ioctl(fd, CAMIOCOMMAND, &ccb) == -1) {
-			warn("CAMIOCOMMAND ioctl failed");
+	if (ioctl(fd, CAMIOCOMMAND, &ccb) == -1) {
+		warn("CAMIOCOMMAND ioctl failed");
+		error = 1;
+	} else {
+		if ((ccb.ccb_h.status & CAM_STATUS_MASK) ==
+		     CAM_FUNC_NOTAVAIL) {
+			warnx("CAM debugging not available");
+			warnx("you need to put options CAMDEBUG in"
+			      " your kernel config file!");
 			error = 1;
-		}
-
-		if (error == 0) {
-			if ((ccb.ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_FUNC_NOTAVAIL) {
-				warnx("CAM debugging not available");
-				warnx("you need to put options CAMDEBUG in"
-				      " your kernel config file!");
-				error = 1;
-			} else if ((ccb.ccb_h.status & CAM_STATUS_MASK) !=
-				    CAM_REQ_CMP) {
-				warnx("XPT_DEBUG CCB failed with status %#x",
-				      ccb.ccb_h.status);
-				error = 1;
+		} else if ((ccb.ccb_h.status & CAM_STATUS_MASK) !=
+			    CAM_REQ_CMP) {
+			warnx("XPT_DEBUG CCB failed with status %#x",
+			      ccb.ccb_h.status);
+			error = 1;
+		} else {
+			if (ccb.cdbg.flags == CAM_DEBUG_NONE) {
+				fprintf(stderr,
+					"Debugging turned off\n");
 			} else {
-				if (ccb.cdbg.flags == CAM_DEBUG_NONE) {
-					fprintf(stderr,
-						"Debugging turned off\n");
-				} else {
-					fprintf(stderr,
-						"Debugging enabled for "
-						"%d:%d:%jx\n",
-						bus, target, (uintmax_t)lun);
-				}
+				fprintf(stderr,
+					"Debugging enabled for "
+					"%d:%d:%jx\n",
+					bus, target, (uintmax_t)lun);
 			}
 		}
-		close(fd);
 	}
+	close(fd);
 
 	return (error);
 }
@@ -9429,7 +9389,7 @@ usage(int printlong)
 "        camcontrol smpphylist [dev_id][generic args][-l][-q]\n"
 "        camcontrol smpmaninfo [dev_id][generic args][-l]\n"
 "        camcontrol debug      [-I][-P][-T][-S][-X][-c]\n"
-"                              <all|bus[:target[:lun]]|off>\n"
+"                              <all|dev_id|bus[:target[:lun]]|off>\n"
 "        camcontrol tags       [dev_id][generic args] [-N tags] [-q] [-v]\n"
 "        camcontrol negotiate  [dev_id][generic args] [-a][-c]\n"
 "                              [-D <enable|disable>][-M mode][-O offset]\n"
