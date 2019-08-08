@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/ktr.h>
 #include <sys/sysent.h>
+#include <sys/sysproto.h>
 #include <machine/armreg.h>
 #ifdef VFP
 #include <machine/vfp.h>
@@ -410,3 +411,30 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	mtx_lock(&psp->ps_mtx);
 
 }
+
+#ifdef COMPAT_43
+/*
+ * COMPAT_FREEBSD32 assumes we have this system call when COMPAT_43 is defined.
+ * FreeBSD/arm provies a similar getpagesize() syscall.
+ */
+#define ARM32_PAGE_SIZE 4096
+int
+ofreebsd32_getpagesize(struct thread *td,
+    struct ofreebsd32_getpagesize_args *uap)
+{
+
+	td->td_retval[0] = ARM32_PAGE_SIZE;
+	return (0);
+}
+
+/*
+ * Mirror the osigreturn definition in kern_sig.c for !i386 platforms. This
+ * mirrors what's connected to the FreeBSD/arm syscall.
+ */
+int
+ofreebsd32_sigreturn(struct thread *td, struct ofreebsd32_sigreturn_args *uap)
+{
+
+	return (nosys(td, (struct nosys_args *)uap));
+}
+#endif
