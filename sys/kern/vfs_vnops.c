@@ -2895,6 +2895,17 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 			endoff = startoff;
 			error = VOP_IOCTL(invp, FIOSEEKHOLE, &endoff, 0,
 			    incred, curthread);
+			/*
+			 * Since invp is unlocked, it may be possible for
+			 * another thread to do a truncate(), lseek(), write()
+			 * creating a hole at startoff between the above
+			 * VOP_IOCTL() calls, if the other thread does not do
+			 * rangelocking.
+			 * If that happens, startoff == endoff and finding
+			 * the hole has failed, so set an error.
+			 */
+			if (error == 0 && startoff == endoff)
+				error = EINVAL; /* Any error. Reset to 0. */
 		}
 		if (error == 0) {
 			if (startoff > *inoffp) {
