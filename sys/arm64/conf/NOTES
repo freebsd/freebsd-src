@@ -1,0 +1,245 @@
+#
+# NOTES -- Lines that can be cut/pasted into kernel and hints configs.
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.
+#
+# $FreeBSD$
+#
+
+#
+# We want LINT to cover profiling as well.
+# Except it's broken.
+#profile         2
+
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
+#
+# Most of the following is copied from ARM64 GENERIC.
+cpu		ARM64
+
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
+
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	KDTRACE_FRAME		# Ensure frames are compiled in
+options 	VFP			# Floating-point support
+options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
+options 	INTRNG
+
+nooptions 	GDB			# Support remote GDB -- not supported
+
+# SoC support
+options 	SOC_ALLWINNER_A64
+options 	SOC_ALLWINNER_H5
+options 	SOC_CAVM_THUNDERX
+options 	SOC_HISI_HI6220
+options 	SOC_BRCM_BCM2837
+options 	SOC_MARVELL_8K
+options 	SOC_ROCKCHIP_RK3328
+options 	SOC_ROCKCHIP_RK3399
+options 	SOC_XILINX_ZYNQ
+
+# Timer drivers
+device		a10_timer
+
+# Annapurna Alpine drivers
+device		al_ccu			# Alpine Cache Coherency Unit
+device		al_nb_service		# Alpine North Bridge Service
+device		al_iofic		# I/O Fabric Interrupt Controller
+device		al_serdes		# Serializer/Deserializer
+device		al_udma			# Universal DMA
+
+# Qualcomm Snapdragon drivers
+device		qcom_gcc		# Global Clock Controller
+
+# VirtIO support
+device		virtio
+device		virtio_pci
+device		virtio_mmio
+device		virtio_blk
+device		vtnet
+
+# CPU frequency control
+device		cpufreq
+
+# Bus drivers
+device		al_pci		# Annapurna Alpine PCI-E
+options 	PCI_HP			# PCI-Express native HotPlug
+options 	PCI_IOV		# PCI SR-IOV support
+
+# Ethernet NICs
+device		mdio
+device		awg		# Allwinner EMAC Gigabit Ethernet
+device		axgbe		# AMD Opteron A1100 integrated NIC
+device		neta		# Marvell Armada 370/38x/XP/3700 NIC
+device  	smc		# SMSC LAN91C111
+device		vnic		# Cavium ThunderX NIC
+device		al_eth		# Annapurna Alpine Ethernet NIC
+device		dwc_rk		# Rockchip Designware
+device		dwc_socfpga	# Altera SOCFPGA Ethernet MAC
+
+# Etherswitch devices
+device		e6000sw		# Marvell mv88e6085 based switches
+
+# NVM Express (NVMe) support
+device		nvme		# base NVMe driver
+options 	NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
+device		nvd		# expose NVMe namespaces as disks, depends on nvme
+
+# MMC/SD/SDIO Card slot support
+device		sdhci_xenon		# Marvell Xenon SD/MMC controller
+device		aw_mmc			# Allwinner SD/MMC controller
+device		dwmmc
+device		dwmmc_altera
+device		rk_emmcphy
+
+# Serial (COM) ports
+device		uart_msm	# Qualcomm MSM UART driver
+device		uart_mu		# RPI3 aux port
+device		uart_mvebu	# Armada 3700 UART driver
+device		uart_ns8250	# ns8250-type UART driver
+device		uart_snps
+device		pl011
+
+# USB support
+device		aw_ehci			# Allwinner EHCI USB interface (USB 2.0)
+device		aw_usbphy		# Allwinner USB PHY
+device		dwcotg			# DWC OTG controller
+device		ehci_mv			# Marvell EHCI USB interface
+
+# USB ethernet support
+device		muge
+device		smsc
+
+# Sound support
+device a10_codec
+
+# DMA controller
+device		a31_dmac
+
+# GPIO / PINCTRL
+device		a37x0_gpio	# Marvell Armada 37x0 GPIO controller
+device		aw_gpio		# Allwinner GPIO controller
+device		fdt_pinctrl
+device		mv_gpio		# Marvell GPIO controller
+device		mvebu_pinctrl	# Marvell Pinmux Controller
+device		rk_gpio		# RockChip GPIO Controller
+device		rk_pinctrl	# RockChip Pinmux Controller
+
+# I2C
+device		aw_rsb		# Allwinner Reduced Serial Bus
+device		bcm2835_bsc	# Broadcom BCM283x I2C bus
+device		twsi		# Allwinner I2C controller
+device		rk_i2c		# RockChip I2C controller
+
+# Clock and reset controllers
+device		aw_ccu		# Allwinner clock controller
+
+# Interrupt controllers
+device		aw_nmi		# Allwinner NMI support
+device		mv_cp110_icu	# Marvell CP110 ICU
+device		mv_ap806_gicp	# Marvell AP806 GICP
+
+# Real-time clock support
+device		aw_rtc		# Allwinner Real-time Clock
+device		mv_rtc		# Marvell Real-time Clock
+
+# Watchdog controllers
+device		aw_wdog		# Allwinner Watchdog
+
+# Power management controllers
+device		axp81x		# X-Powers AXP81x PMIC
+device		rk805		# RockChip RK805 PMIC
+
+# EFUSE
+device		aw_sid		# Allwinner Secure ID EFUSE
+
+# Thermal sensors
+device		aw_thermal	# Allwinner Thermal Sensor Controller
+device		mv_thermal	# Marvell Thermal Sensor Controller
+
+# SPI
+device		bcm2835_spi	# Broadcom BCM283x SPI bus
+
+# PWM
+device		pwm
+device		aw_pwm
+
+device		vt_efifb
+
+# EVDEV support
+options		EVDEV_SUPPORT		# evdev support in legacy drivers
+device		aw_cir
+
+# Pseudo devices.
+options 	EFIRT		# EFI Runtime Services
+
+# EXT_RESOURCES pseudo devices
+options 	EXT_RESOURCES
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+device		aw_syscon
+
+# Chip-specific errata
+options 	THUNDERX_PASS_1_1_ERRATA
+
+options 	FDT
+device		acpi
+
+# DTBs
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/rockchip dtb/rpi"
+
+# Add CAMDEBUG stuff
+options 	CAMDEBUG
+options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)
+
+# bring in camified MMC too
+options		MMCCAM
+
+# No support for floppies on arm64
+nodevice	fdc
+
+# arm64 doesn't support inb/outb, so disable chipset probing which needs it
+nooptions 	PPC_PROBE_CHIPSET
+
+# can't support syscons, no inb/outb, ditto for the screen savers
+nodevice	sc
+nodevice	blank_saver
+nodevice	daemon_saver
+nodevice	dragon_saver
+nodevice	fade_saver
+nodevice	fire_saver
+nodevice	green_saver
+nodevice	logo_saver
+nodevice	rain_saver
+nodevice	snake_saver
+nodevice	star_saver
+nodevice	warp_saver
+
+# These cause weird issues, not sure why
+nodevice	ukbd
+nooptions 	DEBUG
+
+# Makes assumptions about bus tags that aren't true on arm64
+nodevice	snd_cmi
+
+# arm64 didn't exist for these releases, so doesn't have the required compat
+# support. Just disable them because they are meaningless.
+nooptions 	COMPAT_FREEBSD4
+nooptions 	COMPAT_FREEBSD5
+nooptions 	COMPAT_FREEBSD6
+nooptions 	COMPAT_FREEBSD7
+nooptions 	COMPAT_FREEBSD9
+nooptions 	COMPAT_FREEBSD10
+
+# arm64 supports 32-bit FreeBSD/arm binaries (armv[67] ABIs)
+options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
