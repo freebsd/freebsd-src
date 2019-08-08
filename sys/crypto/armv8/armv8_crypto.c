@@ -274,9 +274,11 @@ armv8_crypto_newsession(device_t dev, crypto_session_t cses,
 	error = armv8_crypto_cipher_setup(ses, encini);
 	if (error != 0) {
 		CRYPTDEB("setup failed");
+		rw_wunlock(&sc->lock);
 		return (error);
 	}
 
+	rw_wunlock(&sc->lock);
 	return (0);
 }
 
