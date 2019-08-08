@@ -111,37 +111,84 @@ nvme_opc2str[] = {
 	"COMPARE",
 	"RSVD-6",
 	"RSVD-7",
-	"DATASET_MANAGEMENT"
+	"WRITE_ZEROES",
+	"DATASET_MANAGEMENT",
+	"RSVD-a",
+	"RSVD-b",
+	"RSVD-c",
+	"RESERVATION_REGISTER",
+	"RESERVATION_REPORT",
+	"RSVD-f",
+	"RSVD-10",
+	"RESERVATION_ACQUIRE",
+	"RSVD-12",
+	"RSVD-13",
+	"RSVD-14",
+	"RESERVATION_RELEASE",
 };
 
 const char *
-nvme_op_string(const struct nvme_command *cmd)
+nvme_op_string(const struct nvme_command *cmd, int admin)
 {
 
-	if (cmd->opc >= nitems(nvme_opc2str))
-		return "UNKNOWN";
-
-	return nvme_opc2str[cmd->opc];
+	if (admin) {
+		return "ADMIN";
+	} else {
+		if (cmd->opc >= nitems(nvme_opc2str))
+			return "UNKNOWN";
+		return nvme_opc2str[cmd->opc];
+	}
 }
 
 const char *
 nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
+{
+	struct sbuf sb;
+	int error;
+
+	if (len == 0)
+		return ("");
+
+	sbuf_new(&sb, cmd_string, len, SBUF_FIXEDLEN);
+	nvme_cmd_sbuf(cmd, &sb);
+
+	error = sbuf_finish(&sb);
+	if (error != 0 && error != ENOMEM)
+		return ("");
+
+	return(sbuf_data(&sb));
+}
+
+void
+nvme_cmd_sbuf(const struct nvme_command *cmd, struct sbuf *sb)
 {
 
 	/*
 	 * cid, rsvd areas and mptr not printed, since they are used
 	 * only internally by the SIM.
 	 */
-	snprintf(cmd_string, len,
+	sbuf_printf(sb,
 	    "opc=%x fuse=%x nsid=%x prp1=%llx prp2=%llx cdw=%x %x %x %x %x %x",
 	    cmd->opc, cmd->fuse, cmd->nsid,
 	    (unsigned long long)cmd->prp1, (unsigned long long)cmd->prp2,
 	    cmd->cdw10, cmd->cdw11, cmd->cdw12,
 	    cmd->cdw13, cmd->cdw14, cmd->cdw15);
-
-	return cmd_string;
 }
 
+/*
+ * nvme_command_sbuf() returns 0 for success and -1 for failure.
+ */
+int
+nvme_command_sbuf(struct ccb_nvmeio *nvmeio, struct sbuf *sb)
+{
+
+	sbuf_printf(sb, "%s. NCB: ", nvme_op_string(&nvmeio->cmd,
+	    nvmeio->ccb_h.func_code == XPT_NVME_ADMIN));
+	nvme_cmd_sbuf(&nvmeio->cmd, sb);
+	return(0);
+}
+
+#ifdef _KERNEL
 const void *
 nvme_get_identify_cntrl(struct cam_periph *periph)
 {
@@ -161,3 +208,4 @@ nvme_get_identify_ns(struct cam_periph *periph)
 
 	return device->nvme_data;
 }
+#endif
