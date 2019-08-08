@@ -694,7 +694,7 @@ fw_check_device_ready(struct cam_device *dev, camcontrol_devtype devtype,
 		    		     /*sense_len*/ SSD_FULL_SIZE,
 				     /*timeout*/ 5000);
 		break;
-	case CC_DT_ATA_BEHIND_SCSI:
+	case CC_DT_SATL:
 	case CC_DT_ATA: {
 		retval = build_ata_cmd(ccb,
 			     /*retries*/ 1,
@@ -853,7 +853,7 @@ fw_download_img(struct cam_device *cam_dev, struct fw_vendor *vp,
 			    timeout ? timeout : WB_TIMEOUT);	/* timeout*/
 			break;
 		case CC_DT_ATA:
-		case CC_DT_ATA_BEHIND_SCSI: {
+		case CC_DT_SATL: {
 			uint32_t	off;
 
 			off = (uint32_t)(pkt_ptr - buf);
@@ -969,7 +969,7 @@ fwdownload(struct cam_device *device, int argc, char **argv,
 		errx(1, "Unable to determine device type");
 
 	if ((devtype == CC_DT_ATA)
-	 || (devtype == CC_DT_ATA_BEHIND_SCSI)) {
+	 || (devtype == CC_DT_SATL)) {
 		ccb = cam_getccb(device);
 		if (ccb == NULL) {
 			warnx("couldn't allocate CCB");

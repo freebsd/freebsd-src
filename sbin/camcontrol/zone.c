@@ -466,7 +466,7 @@ restart_report:
 			    /*timeout*/ timeout ? timeout : 60000);
 			break;
 		case CC_DT_ATA:
-		case CC_DT_ATA_BEHIND_SCSI: {
+		case CC_DT_SATL: {
 			uint8_t command = 0;
 			uint8_t protocol = 0;
 			uint16_t features = 0, sector_count = 0;
@@ -558,7 +558,7 @@ restart_report:
 			    /*timeout*/ timeout ? timeout : 60000);
 			break;
 		case CC_DT_ATA:
-		case CC_DT_ATA_BEHIND_SCSI: {
+		case CC_DT_SATL: {
 			uint8_t command = 0;
 			uint8_t protocol = 0;
 			uint16_t features = 0, sector_count = 0;

@@ -5214,7 +5214,7 @@ get_device_type(struct cam_device *dev, int retry_count, int timeout,
 	retval = dev_has_vpd_page(dev, SVPD_ATA_INFORMATION, retry_count,
 				  timeout, verbosemode);
 	if (retval == 1)
-		*devtype = CC_DT_ATA_BEHIND_SCSI;
+		*devtype = CC_DT_SATL;
 	else
 		*devtype = CC_DT_SCSI;
 
