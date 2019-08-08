@@ -80,6 +80,14 @@ static enctyp enc_type(struct ccb_getdev *);
 SYSCTL_NODE(_kern_cam, OID_AUTO, enc, CTLFLAG_RD, 0,
             "CAM Enclosure Services driver");
 
+#if defined(DEBUG) || defined(ENC_DEBUG)
+int enc_verbose = 1;
+#else
+int enc_verbose = 0;
+#endif
+SYSCTL_INT(_kern_cam_enc, OID_AUTO, verbose, CTLFLAG_RWTUN,
+           &enc_verbose, 0, "Enable verbose logging");
+
 static struct periph_driver encdriver = {
 	enc_init, "ses",
 	TAILQ_HEAD_INITIALIZER(encdriver.units), /* generation */ 0

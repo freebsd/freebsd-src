@@ -34,6 +34,8 @@
 #ifndef	__SCSI_ENC_INTERNAL_H__
 #define	__SCSI_ENC_INTERNAL_H__
 
+#include <sys/sysctl.h>
+
 typedef struct enc_element {
 	uint32_t
 		 enctype	: 8,	/* enclosure type */
@@ -199,6 +201,9 @@ enc_softc_init_t	ses_softc_init;
 /* SAF-TE interface */
 enc_softc_init_t	safte_softc_init;
 
+SYSCTL_DECL(_kern_cam_enc);
+extern int enc_verbose;
+
 /* Helper macros */
 MALLOC_DECLARE(M_SCSIENC);
 #define	ENC_CFLAGS		CAM_RETRY_SELTO
@@ -211,7 +216,7 @@ MALLOC_DECLARE(M_SCSIENC);
 #else
 #define	ENC_DLOG		if (0) enc_log
 #endif
-#define	ENC_VLOG		if (bootverbose) enc_log
+#define	ENC_VLOG		if (enc_verbose) enc_log
 #define	ENC_MALLOC(amt)		malloc(amt, M_SCSIENC, M_NOWAIT)
 #define	ENC_MALLOCZ(amt)	malloc(amt, M_SCSIENC, M_ZERO|M_NOWAIT)
 /* Cast away const avoiding GCC warnings. */
