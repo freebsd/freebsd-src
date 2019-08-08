@@ -240,12 +240,15 @@ struct ata_params {
 #define ATA_SUPPORT_FREEFALL		0x0020
 #define ATA_SUPPORT_SENSE_REPORT	0x0040
 #define ATA_SUPPORT_EPC			0x0080
+#define ATA_SUPPORT_AMAX_ADDR		0x0100
+#define ATA_SUPPORT_DSN			0x0200
 /*120*/ u_int16_t       enabled2;
 #define ATA_ENABLED_WRITEREADVERIFY	0x0002
 #define ATA_ENABLED_WRITEUNCORREXT	0x0004
 #define ATA_ENABLED_FREEFALL		0x0020
 #define ATA_ENABLED_SENSE_REPORT	0x0040
 #define ATA_ENABLED_EPC			0x0080
+#define ATA_ENABLED_DSN			0x0200
 	u_int16_t       reserved121[6];
 /*127*/ u_int16_t       removable_status;
 /*128*/ u_int16_t       security_status;
@@ -434,6 +437,10 @@ struct ata_params {
 #define		ATA_RFPDMA_ZAC_MGMT_IN	0x02	/* NCQ ZAC mgmt in w/data */
 #define ATA_SEP_ATTN                    0x67    /* SEP request */
 #define ATA_SEEK                        0x70    /* seek */
+#define	ATA_AMAX_ADDR			0x78	/* Accessible Max Address */
+#define		ATA_AMAX_ADDR_GET	0x00	/* GET NATIVE MAX ADDRESS EXT */
+#define		ATA_AMAX_ADDR_SET	0x01	/* SET ACCESSIBLE MAX ADDRESS EXT */
+#define		ATA_AMAX_ADDR_FREEZE	0x02	/* FREEZE ACCESSIBLE MAX ADDRESS EXT */
 #define	ATA_ZAC_MANAGEMENT_OUT		0x9f	/* ZAC management out */
 #define		ATA_ZM_CLOSE_ZONE	0x01	/* close zone */
 #define		ATA_ZM_FINISH_ZONE	0x02	/* finish zone */

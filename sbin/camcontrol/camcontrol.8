@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2019
+.Dd July 19, 2019
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -291,6 +291,13 @@
 .Op Fl s Ar max_sectors
 .Op Fl U Ar pwd
 .Op Fl y
+.Nm
+.Ic ama
+.Op device id
+.Op generic args
+.Op Fl f
+.Op Fl q
+.Op Fl s Ar max_sectors
 .Nm
 .Ic persist
 .Op device id
@@ -1599,6 +1606,40 @@ without prompting for confirmation
 .Pp
 The password for all HPA commands is limited to 32 characters, longer passwords
 will fail.
+.It Ic ama
+Update or report Accessible Max Address Configuration.
+By default
+.Nm
+will print out the Accessible Max Address Configuration support and associated
+settings of the device.
+The
+.Ic ama
+command takes several optional arguments:
+.Bl -tag -width 0n
+.It Fl f
+.Pp
+Freeze the Accessible Max Address Configuration of the specified device.
+.Pp
+After command completion any other commands that update the configuration
+shall be command aborted.
+Frozen mode is disabled by power-off.
+.It Fl q
+.Pp
+Be quiet, do not print any status messages.
+.It Fl s Ar max_sectors
+.Pp
+Configures the maximum user accessible sectors of the device.
+This will change the number of sectors the device reports.
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+Changing the max sectors of a device using this option will make the data on
+the device beyond the specified value indeterminate.
+.Pp
+Only one successful
+.Fl s Ar max_sectors
+call can be made without a power-on reset of the device.
+.El
 .It Ic fwdownload
 Program firmware of the named
 .Tn SCSI

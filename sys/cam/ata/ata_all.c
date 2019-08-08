@@ -182,7 +182,13 @@ ata_op_string(struct ata_cmd *cmd)
 		return ("SEP_ATTN");
 	case 0x70: return ("SEEK");
 	case 0x77: return ("SET_DATE_TIME_EXT");
-	case 0x78: return ("ACCESSIBLE_MAX_ADDRESS_CONFIGURATION");
+	case 0x78:
+		switch (cmd->features) {
+		case 0x00: return ("GET_NATIVE_MAX_ADDRESS_EXT");
+		case 0x01: return ("SET_ACCESSIBLE_MAX_ADDRESS_EXT");
+		case 0x02: return ("FREEZE_ACCESSIBLE_MAX_ADDRESS_EXT");
+		}
+		return ("ACCESSIBLE_MAX_ADDRESS_CONFIGURATION");
 	case 0x7C: return ("REMOVE_ELEMENT_AND_TRUNCATE");
 	case 0x87: return ("CFA_TRANSLATE_SECTOR");
 	case 0x90: return ("EXECUTE_DEVICE_DIAGNOSTIC");
