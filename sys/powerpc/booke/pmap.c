@@ -264,7 +264,7 @@ static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 #ifdef __powerpc64__
 static pte_t *ptbl_alloc(mmu_t, pmap_t, pte_t **,
 			 unsigned int, boolean_t);
-static void ptbl_free(mmu_t, pmap_t, pte_t **, unsigned int);
+static void ptbl_free(mmu_t, pmap_t, pte_t **, unsigned int, vm_page_t);
 static void ptbl_hold(mmu_t, pmap_t, pte_t **, unsigned int);
 static int ptbl_unhold(mmu_t, pmap_t, vm_offset_t);
 #else
@@ -615,19 +615,16 @@ pdir_alloc(mmu_t mmu, pmap_t pmap, unsigned int pp2d_idx, bool nosleep)
 
 	/* Zero whole ptbl. */
 	pdir = (pte_t **)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-	bzero(pdir, PAGE_SIZE);
+	mmu_booke_zero_page(mmu, m);
 
 	return (pdir);
 }
 
 /* Free pdir pages and invalidate pdir entry. */
 static void
-pdir_free(mmu_t mmu, pmap_t pmap, unsigned int pp2d_idx)
+pdir_free(mmu_t mmu, pmap_t pmap, unsigned int pp2d_idx, vm_page_t m)
 {
 	pte_t         **pdir;
-	vm_paddr_t	pa;
-	vm_offset_t	va;
-	vm_page_t	m;
 
 	pdir = pmap->pm_pp2d[pp2d_idx];
 
@@ -635,9 +632,6 @@ pdir_free(mmu_t mmu, pmap_t pmap, unsigned int pp2d_idx)
 
 	pmap->pm_pp2d[pp2d_idx] = NULL;
 
-	va = (vm_offset_t) pdir;
-	pa = DMAP_TO_PHYS(va);
-	m = PHYS_TO_VM_PAGE(pa);
 	vm_page_free_zero(m);
 }
 
@@ -667,7 +661,7 @@ pdir_unhold(mmu_t mmu, pmap_t pmap, u_int pp2d_idx)
 	 * Free pdir page if there are no dir entries in this pdir.
 	 */
 	if (vm_page_unwire_noq(m)) {
-		pdir_free(mmu, pmap, pp2d_idx);
+		pdir_free(mmu, pmap, pp2d_idx, m);
 		return (1);
 	}
 	return (0);
@@ -717,19 +711,16 @@ ptbl_alloc(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx,
 
 	/* Zero whole ptbl. */
 	ptbl = (pte_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-	bzero(ptbl, PAGE_SIZE);
+	mmu_booke_zero_page(mmu, m);
 
 	return (ptbl);
 }
 
 /* Free ptbl pages and invalidate pdir entry. */
 static void
-ptbl_free(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx)
+ptbl_free(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx, vm_page_t m)
 {
 	pte_t          *ptbl;
-	vm_paddr_t	pa;
-	vm_offset_t	va;
-	vm_page_t	m;
 
 	ptbl = pdir[pdir_idx];
 
@@ -737,9 +728,6 @@ ptbl_free(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx)
 
 	pdir[pdir_idx] = NULL;
 
-	va = (vm_offset_t) ptbl;
-	pa = DMAP_TO_PHYS(va);
-	m = PHYS_TO_VM_PAGE(pa);
 	vm_page_free_zero(m);
 }
 
@@ -776,7 +764,7 @@ ptbl_unhold(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 	 * last page.
 	 */
 	if (vm_page_unwire_noq(m)) {
-		ptbl_free(mmu, pmap, pdir, pdir_idx);
+		ptbl_free(mmu, pmap, pdir, pdir_idx, m);
 		pdir_unhold(mmu, pmap, pp2d_idx);
 		return (1);
 	}
