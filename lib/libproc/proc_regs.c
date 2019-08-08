@@ -138,7 +138,7 @@ proc_regset(struct proc_handle *phdl, proc_reg_t reg, unsigned long regvalue)
 #elif defined(__i386__)
 		regs.r_esp = regvalue;
 #elif defined(__mips__)
-		regs.r_regs[PC] = regvalue;
+		regs.r_regs[SP] = regvalue;
 #elif defined(__powerpc__)
 		regs.fixreg[1] = regvalue;
 #elif defined(__riscv)
