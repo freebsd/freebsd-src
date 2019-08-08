@@ -315,6 +315,7 @@ static int scsiserial(struct cam_device *device, int task_attr,
 #endif /* MINIMALISTIC */
 static int parse_btl(char *tstr, path_id_t *bus, target_id_t *target,
 		     lun_id_t *lun, cam_argmask *arglst);
+static int reprobe(struct cam_device *device);
 static int dorescan_or_reset(int argc, char **argv, int rescan);
 static int rescan_or_reset_bus(path_id_t bus, int rescan);
 static int scanlun_or_reset_dev(path_id_t bus, target_id_t target,
@@ -386,7 +387,6 @@ static int scsiprintopcodes(struct cam_device *device, int td_req, uint8_t *buf,
 static int scsiopcodes(struct cam_device *device, int argc, char **argv,
 		       char *combinedopt, int task_attr, int retry_count,
 		       int timeout, int verbose);
-static int scsireprobe(struct cam_device *device);
 
 #endif /* MINIMALISTIC */
 #ifndef min
@@ -3115,6 +3115,8 @@ atahpa(struct cam_device *device, int retry_count, int timeout,
 							timeout, ccb,
 							&ident_buf);
 				atahpa_print(ident_buf, hpasize, 1);
+				/* Hint CAM to reprobe the device. */
+				reprobe(device);
 			}
 		}
 		break;
@@ -3257,6 +3259,8 @@ ataama(struct cam_device *device, int retry_count, int timeout,
 				error = ata_do_identify(device, retry_count,
 				    timeout, ccb, &ident_buf);
 				ataama_print(ident_buf, nativesize, 1);
+				/* Hint CAM to reprobe the device. */
+				reprobe(device);
 			}
 		}
 		break;
@@ -9799,7 +9803,7 @@ bailout:
 #endif /* MINIMALISTIC */
 
 static int
-scsireprobe(struct cam_device *device)
+reprobe(struct cam_device *device)
 {
 	union ccb *ccb;
 	int retval = 0;
@@ -9811,7 +9815,7 @@ scsireprobe(struct cam_device *device)
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
+	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
 	ccb->ccb_h.func_code = XPT_REPROBE_LUN;
 
@@ -10580,7 +10584,7 @@ main(int argc, char **argv)
 		    arglist & CAM_ARG_VERBOSE);
 		break;
 	case CAM_CMD_REPROBE:
-		error = scsireprobe(cam_dev);
+		error = reprobe(cam_dev);
 		break;
 	case CAM_CMD_ZONE:
 		error = zone(cam_dev, argc, argv, combinedopt,
