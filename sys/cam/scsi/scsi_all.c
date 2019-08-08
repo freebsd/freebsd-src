@@ -377,7 +377,7 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x40,	D | T | L | P | W | R | O | M | S | C, "CHANGE DEFINITION" },
 	/* 41  O               WRITE SAME(10) */
 	{ 0x41,	D, "WRITE SAME(10)" },
-	/* 42       O          UNMAP */
+	/* 42  O               UNMAP */
 	{ 0x42,	D, "UNMAP" },
 	/* 42       O          READ SUB-CHANNEL */
 	{ 0x42,	R, "READ SUB-CHANNEL" },
@@ -392,7 +392,8 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x46,	R, "GET CONFIGURATION" },
 	/* 47       O          PLAY AUDIO MSF */
 	{ 0x47,	R, "PLAY AUDIO MSF" },
-	/* 48 */
+	/* 48  O               SANITIZE */
+	{ 0x48,	D, "SANITIZE" },
 	/* 49 */
 	/* 4A       M          GET EVENT STATUS NOTIFICATION */
 	{ 0x4A,	R, "GET EVENT STATUS NOTIFICATION" },
@@ -1160,7 +1161,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x1A, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, START/STOP UNIT command in progress") },
 	/* D         B    */
-	{ SST(0x04, 0x1B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x1B, SS_WAIT | EBUSY,
 	    "Logical unit not ready, sanitize in progress") },
 	/* DT     MAEB    */
 	{ SST(0x04, 0x1C, SS_RDEF,	/* XXX TBD */
@@ -1451,7 +1452,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x11, 0x14, SS_RDEF,	/* XXX TBD */
 	    "Read error - LBA marked bad by application client") },
 	/* D              */
-	{ SST(0x11, 0x15, SS_RDEF,	/* XXX TBD */
+	{ SST(0x11, 0x15, SS_FATAL | EIO,
 	    "Write after sanitize required") },
 	/* D   W O   BK   */
 	{ SST(0x12, 0x00, SS_RDEF,
@@ -2062,7 +2063,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x31, 0x02, SS_RDEF,	/* XXX TBD */
 	    "Zoned formatting failed due to spare linking") },
 	/* D         B    */
-	{ SST(0x31, 0x03, SS_RDEF,	/* XXX TBD */
+	{ SST(0x31, 0x03, SS_FATAL | EIO,
 	    "SANITIZE command failed") },
 	/* D   W O   BK   */
 	{ SST(0x32, 0x00, SS_RDEF,

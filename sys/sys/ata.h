@@ -95,6 +95,8 @@ struct ata_params {
 #define ATA_SUPPORT_OVERWRITE_EXT       0x4000
 #define ATA_SUPPORT_CRYPTO_SCRAMBLE_EXT 0x2000
 #define ATA_SUPPORT_SANITIZE            0x1000
+#define	ATA_SUPPORT_SANITIZE_ALLOWED	0x0800
+#define	ATA_SUPPORT_ANTIFREEZE_LOCK_EXT	0x0400
 #define ATA_MULTI_VALID                 0x0100
 
 /*060*/ u_int16_t       lba_size_1;
@@ -452,6 +454,7 @@ struct ata_params {
 #define ATA_ATAPI_IDENTIFY              0xa1    /* get ATAPI params*/
 #define ATA_SERVICE                     0xa2    /* service command */
 #define ATA_SMART_CMD                   0xb0    /* SMART command */
+#define	ATA_SANITIZE			0xb4	/* sanitize device */
 #define ATA_CFA_ERASE                   0xc0    /* CFA erase */
 #define ATA_READ_MUL                    0xc4    /* read multi */
 #define ATA_WRITE_MUL                   0xc5    /* write multi */

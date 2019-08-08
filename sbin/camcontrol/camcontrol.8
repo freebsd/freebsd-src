@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 22, 2019
+.Dd July 25, 2019
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -1276,13 +1276,11 @@ will not be asked about the timeout if a timeout is specified on the
 command line.
 .El
 .It Ic sanitize
-Issue the
-.Tn SCSI
-SANITIZE command to the named device.
+Issue the SANITIZE command to the named device.
 .Pp
 .Em WARNING! WARNING! WARNING!
 .Pp
-ALL data in the cache and on the disk will be destroyed or made inaccessible.
+ALL data on the disk will be destroyed or made inaccessible.
 Recovery of the data is not possible.
 Use extreme caution when issuing this command.
 .Pp
