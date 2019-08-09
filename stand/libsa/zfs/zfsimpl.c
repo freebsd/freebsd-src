@@ -839,6 +839,7 @@ vdev_indirect_remap(vdev_t *vd, uint64_t offset, uint64_t asize, void *arg)
 {
 	list_t stack;
 	spa_t *spa = vd->spa;
+	zio_t *zio = arg;
 
 	list_create(&stack, sizeof (remap_segment_t),
 	    offsetof(remap_segment_t, rs_node));
@@ -872,6 +873,13 @@ vdev_indirect_remap(vdev_t *vd, uint64_t offset, uint64_t asize, void *arg)
 			    dst_offset + inner_offset,
 			    inner_size, arg);
 
+			/*
+			 * vdev_indirect_gather_splits can have memory
+			 * allocation error, we can not recover from it.
+			 */
+			if (zio->io_error != 0)
+				break;
+
 			rs->rs_offset += inner_size;
 			rs->rs_asize -= inner_size;
 			rs->rs_split_offset += inner_size;
@@ -879,6 +887,8 @@ vdev_indirect_remap(vdev_t *vd, uint64_t offset, uint64_t asize, void *arg)
 
 		free(mapping);
 		free(rs);
+		if (zio->io_error != 0)
+			break;
 	}
 
 	list_destroy(&stack);
@@ -935,6 +945,8 @@ vdev_indirect_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	}
 
 	vdev_indirect_remap(vdev, offset, bytes, &zio);
+	if (zio.io_error != 0)
+		return (zio.io_error);
 
 	first = list_head(&iv->iv_splits);
 	if (first->is_size == zio.io_size) {
