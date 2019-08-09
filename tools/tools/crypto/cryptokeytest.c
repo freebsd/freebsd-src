@@ -7,18 +7,20 @@
  * --Jason L. Wright
  */
 #include <sys/types.h>
+#include <sys/endian.h>
 #include <sys/ioctl.h>
-#include <machine/endian.h>
 #include <sys/time.h>
 #include <crypto/cryptodev.h>
-#include <openssl/bn.h>
 
-#include <paths.h>
-#include <fcntl.h>
 #include <err.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdlib.h>
+
+#include <openssl/bn.h>
+#include <openssl/err.h>
 
 int	crid = CRYPTO_FLAG_HARDWARE;
 int	verbose = 0;
@@ -63,80 +65,64 @@ crfind(int crid)
 }
 
 /*
- * Convert a little endian byte string in 'p' that
- * is 'plen' bytes long to a BIGNUM. If 'dst' is NULL,
- * a new BIGNUM is allocated.  Returns NULL on failure.
- *
- * XXX there has got to be a more efficient way to do
- * this, but I haven't figured out enough of the OpenSSL
- * magic.
+ * Convert a little endian byte string in 'p' that is 'plen' bytes long to a
+ * BIGNUM.  A new BIGNUM is allocated.  Returns NULL on failure.
  */
-BIGNUM *
-le_to_bignum(BIGNUM *dst, u_int8_t *p, int plen)
+static BIGNUM *
+le_to_bignum(BIGNUM *res, const void *p, int plen)
 {
-	u_int8_t *pd;
-	int i;
 
-	if (plen == 0)
-		return (NULL);
+	res = BN_lebin2bn(p, plen, res);
+	if (res == NULL)
+		ERR_print_errors_fp(stderr);
 
-	if ((pd = (u_int8_t *)malloc(plen)) == NULL)
-		return (NULL);
-
-	for (i = 0; i < plen; i++)
-		pd[i] = p[plen - i - 1];
-
-	dst = BN_bin2bn(pd, plen, dst);
-	free(pd);
-	return (dst);
+	return (res);
 }
 
 /*
- * Convert a BIGNUM to a little endian byte string.
- * If 'rd' is NULL, allocate space for it, otherwise
- * 'rd' is assumed to have room for BN_num_bytes(n)
- * bytes.  Returns NULL on failure.
+ * Convert a BIGNUM to a little endian byte string.  Space for BN_num_bytes(n)
+ * is allocated.
+ * Returns NULL on failure.
  */
-u_int8_t *
-bignum_to_le(BIGNUM *n, u_int8_t *rd)
+static void *
+bignum_to_le(const BIGNUM *n)
 {
-	int i, j, k;
-	int blen = BN_num_bytes(n);
+	int blen, error;
+	void *rd;
 
+	blen = BN_num_bytes(n);
 	if (blen == 0)
 		return (NULL);
-	if (rd == NULL)
-		rd = (u_int8_t *)malloc(blen);
+
+	rd = malloc(blen);
 	if (rd == NULL)
 		return (NULL);
 
-	for (i = 0, j = 0; i < n->top; i++) {
-		for (k = 0; k < BN_BITS2 / 8; k++) {
-			if ((j + k) >= blen)
-				goto out;
-			rd[j + k] = n->d[i] >> (k * 8);
-		}
-		j += BN_BITS2 / 8;
+	error = BN_bn2lebinpad(n, rd, blen);
+	if (error < 0) {
+		ERR_print_errors_fp(stderr);
+		free(rd);
+		return (NULL);
 	}
-out:
+
 	return (rd);
 }
 
-int
-UB_mod_exp(BIGNUM *res, BIGNUM *a, BIGNUM *b, BIGNUM *c, BN_CTX *ctx)
+static int
+UB_mod_exp(BIGNUM *res, const BIGNUM *a, const BIGNUM *b, const BIGNUM *c)
 {
 	struct crypt_kop kop;
-	u_int8_t *ale, *ble, *cle;
+	void *ale, *ble, *cle;
 	static int crypto_fd = -1;
 
 	if (crypto_fd == -1 && ioctl(devcrypto(), CRIOGET, &crypto_fd) == -1)
 		err(1, "CRIOGET");
 
-	if ((ale = bignum_to_le(a, NULL)) == NULL)
+	if ((ale = bignum_to_le(a)) == NULL)
 		err(1, "bignum_to_le, a");
-	if ((ble = bignum_to_le(b, NULL)) == NULL)
+	if ((ble = bignum_to_le(b)) == NULL)
 		err(1, "bignum_to_le, b");
-	if ((cle = bignum_to_le(c, NULL)) == NULL)
+	if ((cle = bignum_to_le(c)) == NULL)
 		err(1, "bignum_to_le, c");
 
 	bzero(&kop, sizeof(kop));
@@ -158,19 +144,19 @@ UB_mod_exp(BIGNUM *res, BIGNUM *a, BIGNUM *b, BIGNUM *c, BN_CTX *ctx)
 	if (verbose)
 		printf("device = %s\n", crfind(kop.crk_crid));
 
-	bzero(ale, BN_num_bytes(a));
+	explicit_bzero(ale, BN_num_bytes(a));
 	free(ale);
-	bzero(ble, BN_num_bytes(b));
+	explicit_bzero(ble, BN_num_bytes(b));
 	free(ble);
 
 	if (kop.crk_status != 0) {
 		printf("error %d\n", kop.crk_status);
-		bzero(cle, BN_num_bytes(c));
+		explicit_bzero(cle, BN_num_bytes(c));
 		free(cle);
 		return (-1);
 	} else {
 		res = le_to_bignum(res, cle, BN_num_bytes(c));
-		bzero(cle, BN_num_bytes(c));
+		explicit_bzero(cle, BN_num_bytes(c));
 		free(cle);
 		if (res == NULL)
 			err(1, "le_to_bignum");
@@ -179,9 +165,9 @@ UB_mod_exp(BIGNUM *res, BIGNUM *a, BIGNUM *b, BIGNUM *c, BN_CTX *ctx)
 	return (0);
 }
 
-void
-show_result(a, b, c, sw, hw)
-BIGNUM *a, *b, *c, *sw, *hw;
+static void
+show_result(const BIGNUM *a, const BIGNUM *b, const BIGNUM *c,
+    const BIGNUM *sw, const BIGNUM *hw)
 {
 	printf("\n");
 
@@ -208,7 +194,7 @@ BIGNUM *a, *b, *c, *sw, *hw;
 	printf("\n");
 }
 
-void
+static void
 testit(void)
 {
 	BIGNUM *a, *b, *c, *r1, *r2;
@@ -230,10 +216,10 @@ testit(void)
 		BIGNUM *rem = BN_new();
 
 		BN_mod(rem, a, c, ctx);
-		UB_mod_exp(r2, rem, b, c, ctx);
+		UB_mod_exp(r2, rem, b, c);
 		BN_free(rem);
 	} else {
-		UB_mod_exp(r2, a, b, c, ctx);
+		UB_mod_exp(r2, a, b, c);
 	}
 	BN_mod_exp(r1, a, b, c, ctx);
 
