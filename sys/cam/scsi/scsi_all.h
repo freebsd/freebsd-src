@@ -264,7 +264,9 @@ struct scsi_mode_hdr_10
 	u_int8_t datalen[2];
 	u_int8_t medium_type;
 	u_int8_t dev_specific;
-	u_int8_t reserved[2];
+	u_int8_t flags;
+#define	SMH_LONGLBA	0x01
+	u_int8_t reserved;
 	u_int8_t block_descr_len[2];
 };
 
@@ -274,6 +276,20 @@ struct scsi_mode_block_descr
 	u_int8_t num_blocks[3];
 	u_int8_t reserved;
 	u_int8_t block_len[3];
+};
+
+struct scsi_mode_block_descr_dshort
+{
+	u_int8_t num_blocks[4];
+	u_int8_t reserved;
+	u_int8_t block_len[3];
+};
+
+struct scsi_mode_block_descr_dlong
+{
+	u_int8_t num_blocks[8];
+	u_int8_t reserved[4];
+	u_int8_t block_len[4];
 };
 
 struct scsi_per_res_in
