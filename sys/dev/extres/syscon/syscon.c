@@ -238,7 +238,7 @@ syscon_get_by_ofw_property(device_t cdev, phandle_t cnode, char *name,
 	ncells = OF_getencprop_alloc_multi(cnode, name, sizeof(pcell_t),
 	    (void **)&cells);
 	if (ncells < 1)
-		return (ENXIO);
+		return (ENOENT);
 
 	/* Translate to syscon node. */
 	SYSCON_TOPO_SLOCK();
