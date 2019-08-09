@@ -196,9 +196,9 @@ expire_automounted(time_t expiration_time)
 
 		if (mounted_for < expiration_time) {
 			log_debugx("skipping %s (FSID:%d:%d), mounted "
-			    "for %ld  seconds", af->af_mountpoint,
+			    "for %jd  seconds", af->af_mountpoint,
 			    af->af_fsid.val[0], af->af_fsid.val[1],
-			    (long)mounted_for);
+			    (intmax_t)mounted_for);
 
 			if (mounted_for > mounted_max)
 				mounted_max = mounted_for;
