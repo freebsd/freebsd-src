@@ -1438,7 +1438,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			return;
 		}
 
-		CTL_DEBUG_PRINT(("CTL: msg_type %d\n", msg->msg_type));
+		CTL_DEBUG_PRINT(("CTL: msg_type %d\n", msg->hdr.msg_type));
 		switch (msg->hdr.msg_type) {
 		case CTL_MSG_SERIALIZE:
 			io = ctl_alloc_io(softc->othersc_pool);
@@ -5685,12 +5685,36 @@ ctl_write_buffer(struct ctl_scsiio *ctsio)
 	return (CTL_RETVAL_COMPLETE);
 }
 
+static int
+ctl_write_same_cont(union ctl_io *io)
+{
+	struct ctl_lun *lun = CTL_LUN(io);
+	struct ctl_scsiio *ctsio;
+	struct ctl_lba_len_flags *lbalen;
+	int retval;
+
+	ctsio = &io->scsiio;
+	ctsio->io_hdr.status = CTL_STATUS_NONE;
+	lbalen = (struct ctl_lba_len_flags *)
+	    &ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba += lbalen->len;
+	if ((lun->be_lun->maxlba + 1) - lbalen->lba <= UINT32_MAX) {
+		ctsio->io_hdr.flags &= ~CTL_FLAG_IO_CONT;
+		lbalen->len = (lun->be_lun->maxlba + 1) - lbalen->lba;
+	}
+
+	CTL_DEBUG_PRINT(("ctl_write_same_cont: calling config_write()\n"));
+	retval = lun->backend->config_write((union ctl_io *)ctsio);
+	return (retval);
+}
+
 int
 ctl_write_same(struct ctl_scsiio *ctsio)
 {
 	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct ctl_lba_len_flags *lbalen;
-	uint64_t lba;
+	const char *val;
+	uint64_t lba, ival;
 	uint32_t num_blocks;
 	int len, retval;
 	uint8_t byte2;
@@ -5754,17 +5778,25 @@ ctl_write_same(struct ctl_scsiio *ctsio)
 
 	/* Zero number of blocks means "to the last logical block" */
 	if (num_blocks == 0) {
-		if ((lun->be_lun->maxlba + 1) - lba > UINT32_MAX) {
+		ival = UINT64_MAX;
+		val = dnvlist_get_string(lun->be_lun->options,
+		    "write_same_max_lba", NULL);
+		if (val != NULL)
+			ctl_expand_number(val, &ival);
+		if ((lun->be_lun->maxlba + 1) - lba > ival) {
 			ctl_set_invalid_field(ctsio,
-					      /*sks_valid*/ 0,
-					      /*command*/ 1,
-					      /*field*/ 0,
-					      /*bit_valid*/ 0,
-					      /*bit*/ 0);
+			    /*sks_valid*/ 1, /*command*/ 1,
+			    /*field*/ ctsio->cdb[0] == WRITE_SAME_10 ? 7 : 10,
+			    /*bit_valid*/ 0, /*bit*/ 0);
 			ctl_done((union ctl_io *)ctsio);
 			return (CTL_RETVAL_COMPLETE);
 		}
-		num_blocks = (lun->be_lun->maxlba + 1) - lba;
+		if ((lun->be_lun->maxlba + 1) - lba > UINT32_MAX) {
+			ctsio->io_hdr.flags |= CTL_FLAG_IO_CONT;
+			ctsio->io_cont = ctl_write_same_cont;
+			num_blocks = 1 << 31;
+		} else
+			num_blocks = (lun->be_lun->maxlba + 1) - lba;
 	}
 
 	len = lun->be_lun->blocksize;
@@ -9876,6 +9908,8 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 		if (val != NULL)
 			ctl_expand_number(val, &ival);
 		scsi_u64to8b(ival, bl_ptr->max_write_same_length);
+		if (lun->be_lun->maxlba + 1 > ival)
+			bl_ptr->flags |= SVPD_BL_WSNZ;
 	}
 
 	ctl_set_success(ctsio);
@@ -11322,7 +11356,7 @@ ctl_failover_lun(union ctl_io *rio)
 	uint32_t targ_lun;
 
 	targ_lun = rio->io_hdr.nexus.targ_mapped_lun;
-	CTL_DEBUG_PRINT(("FAILOVER for lun %ju\n", targ_lun));
+	CTL_DEBUG_PRINT(("FAILOVER for lun %u\n", targ_lun));
 
 	/* Find and lock the LUN. */
 	mtx_lock(&softc->ctl_lock);
