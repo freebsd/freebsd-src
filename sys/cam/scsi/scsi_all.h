@@ -2763,6 +2763,19 @@ struct scsi_vpd_tpc
 };
 
 /*
+ * SCSI Feature Sets VPD Page
+ */
+struct scsi_vpd_sfs
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_SCSI_SFS			0x92
+	uint8_t page_length[2];
+	uint8_t reserved[4];
+	uint8_t codes[];
+};
+
+/*
  * Block Device Characteristics VPD Page based on
  * T10/1799-D Revision 31
  */
@@ -2803,11 +2816,15 @@ struct scsi_vpd_block_device_characteristics
 	uint8_t flags;
 #define	SVPD_VBULS		0x01
 #define	SVPD_FUAB		0x02
+#define	SVPD_BOCS		0x04
+#define	SVPD_RBWZ		0x08
 #define	SVPD_ZBC_NR		0x00	/* Not Reported */
 #define	SVPD_HAW_ZBC		0x10	/* Host Aware */
 #define	SVPD_DM_ZBC		0x20	/* Drive Managed */
 #define	SVPD_ZBC_MASK		0x30	/* Zoned mask */
-	uint8_t reserved[55];
+	uint8_t reserved[3];
+	uint8_t depopulation_time[4];
+	uint8_t reserved2[48];
 };
 
 #define SBDC_IS_PRESENT(bdc, length, field)				   \
