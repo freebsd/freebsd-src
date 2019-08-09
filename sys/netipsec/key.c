@@ -284,7 +284,7 @@ key_addrprotohash(const union sockaddr_union *src,
 #endif
 	default:
 		hval = 0;
-		ipseclog((LOG_DEBUG, "%s: unknown address family %d",
+		ipseclog((LOG_DEBUG, "%s: unknown address family %d\n",
 		    __func__, dst->sa.sa_family));
 	}
 	return (hval);
@@ -2039,8 +2039,8 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 			key_freesp(&newsp);
 		} else {
 			key_freesp(&newsp);
-			ipseclog((LOG_DEBUG, "%s: a SP entry exists already.",
-			    __func__));
+			ipseclog((LOG_DEBUG,
+			    "%s: a SP entry exists already.\n", __func__));
 			return (key_senderror(so, m, EEXIST));
 		}
 	}
@@ -5409,7 +5409,7 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	}
 	/* saidx should match with SA. */
 	if (key_cmpsaidx(&sav->sah->saidx, &saidx, CMP_MODE_REQID) == 0) {
-		ipseclog((LOG_DEBUG, "%s: saidx mismatched for SPI %u",
+		ipseclog((LOG_DEBUG, "%s: saidx mismatched for SPI %u\n",
 		    __func__, ntohl(sav->spi)));
 		key_freesav(&sav);
 		return key_senderror(so, m, ESRCH);
@@ -6885,14 +6885,14 @@ key_acqdone(const struct secasindex *saidx, uint32_t seq)
 	if (acq != NULL) {
 		if (key_cmpsaidx(&acq->saidx, saidx, CMP_EXACTLY) == 0) {
 			ipseclog((LOG_DEBUG,
-			    "%s: Mismatched saidx for ACQ %u", __func__, seq));
+			    "%s: Mismatched saidx for ACQ %u\n", __func__, seq));
 			acq = NULL;
 		} else {
 			acq->created = 0;
 		}
 	} else {
 		ipseclog((LOG_DEBUG,
-		    "%s: ACQ %u is not found.", __func__, seq));
+		    "%s: ACQ %u is not found.\n", __func__, seq));
 	}
 	ACQ_UNLOCK();
 	if (acq == NULL)
