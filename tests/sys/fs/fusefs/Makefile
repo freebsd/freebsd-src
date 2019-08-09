@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.compiler.mk>
+
 PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/fs/fusefs
@@ -65,7 +67,10 @@ TEST_METADATA+= timeout=10
 FUSEFS=		${SRCTOP}/sys/fs/fuse
 MOUNT=		${SRCTOP}/sbin/mount
 # Suppress warnings that GCC generates for the libc++ and gtest headers.
-CXXWARNFLAGS.gcc+=	-Wno-placement-new -Wno-attributes -Wno-class-memaccess
+CXXWARNFLAGS.gcc+=	-Wno-placement-new -Wno-attributes
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 80000
+CXXWARNFLAGS+=	-Wno-class-memaccess
+.endif
 CXXFLAGS+=	-I${SRCTOP}/tests
 CXXFLAGS+=	-I${FUSEFS}
 CXXFLAGS+=	-I${MOUNT}
