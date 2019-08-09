@@ -31,7 +31,7 @@
 
 #include <sys/types.h>
 
-typedef int (*psci_initfn_t)(device_t dev);
+typedef int (*psci_initfn_t)(device_t dev, int default_version);
 typedef int (*psci_callfn_t)(register_t, register_t, register_t, register_t);
 
 extern int psci_present;
