@@ -91,4 +91,6 @@ _get_curthread(void)
 	return (NULL);
 }
 
+#define	HAS__UMTX_OP_ERR	1
+
 #endif /* _PTHREAD_MD_H_ */
