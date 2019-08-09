@@ -68,7 +68,7 @@ static phynode_method_t phynode_methods[] = {
 DEFINE_CLASS_0(phynode, phynode_class, phynode_methods, 0);
 
 static phynode_list_t phynode_list = TAILQ_HEAD_INITIALIZER(phynode_list);
-
+struct sx phynode_topo_lock;
 SX_SYSINIT(phy_topology, &phynode_topo_lock, "Phy topology lock");
 
 /* ----------------------------------------------------------------------------

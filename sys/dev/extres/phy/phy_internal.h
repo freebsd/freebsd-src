@@ -78,6 +78,6 @@ struct phy {
 #define PHYNODE_XLOCK(_sc)	sx_xlock(&((_sc)->lock))
 #define PHYNODE_UNLOCK(_sc)	sx_unlock(&((_sc)->lock))
 
-struct sx		phynode_topo_lock;
+extern struct sx phynode_topo_lock;
 
 #endif /* DEV_EXTRES_PHY_INTERNAL_H */
