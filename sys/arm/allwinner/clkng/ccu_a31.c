@@ -302,8 +302,8 @@ FRAC_CLK(pll_video0_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
-
+    24, 25,					/* mode sel, freq sel */
+    30000000, 600000000);			/* min freq, max freq */
 static const char *pll_video0_2x_parents[] = {"pll_video0"};
 FIXED_CLK(pll_video0_2x_clk,
     CLK_PLL_VIDEO0_2X,		/* id */
@@ -323,7 +323,8 @@ FRAC_CLK(pll_ve_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    30000000, 600000000);			/* min freq, max freq */
 
 NKMP_CLK_WITH_UPDATE(pll_ddr_clk,
     CLK_PLL_DDR,				/* id */
@@ -369,7 +370,8 @@ FRAC_CLK(pll_video1_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    30000000, 600000000);			/* min freq, max freq */
 
 static const char *pll_video1_2x_parents[] = {"pll_video1"};
 FIXED_CLK(pll_video1_2x_clk,
@@ -390,7 +392,8 @@ FRAC_CLK(pll_gpu_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    30000000, 600000000);			/* min freq, max freq */
 
 static const char *pll_mipi_parents[] = {"pll_video0", "pll_video1"};
 NKMP_CLK(pll_mipi_clk,
@@ -414,7 +417,8 @@ FRAC_CLK(pll9_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    30000000, 600000000);			/* min freq, max freq */
 
 FRAC_CLK(pll10_clk,
     CLK_PLL10,				/* id */
@@ -425,7 +429,8 @@ FRAC_CLK(pll10_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    30000000, 600000000);			/* min freq, max freq */
 
 static struct clk_div_table axi_div_table[] = {
 	{ .value = 0, .divider = 1, },

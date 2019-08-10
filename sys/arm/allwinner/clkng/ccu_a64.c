@@ -288,7 +288,8 @@ FRAC_CLK(pll_video0_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    192000000, 600000000);			/* min freq, max freq */
 static const char *pll_video0_2x_parents[] = {"pll_video0"};
 FIXED_CLK(pll_video0_2x_clk,
     CLK_PLL_VIDEO0_2X,			/* id */
@@ -309,7 +310,8 @@ FRAC_CLK(pll_ve_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    192000000, 600000000);			/* min freq, max freq */
 
 static const char *pll_ddr0_parents[] = {"osc24M"};
 NKMP_CLK_WITH_UPDATE(pll_ddr0_clk,
@@ -379,7 +381,8 @@ FRAC_CLK(pll_video1_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    192000000, 600000000);			/* min freq, max freq */
 
 static const char *pll_gpu_parents[] = {"osc24M"};
 FRAC_CLK(pll_gpu_clk,
@@ -391,7 +394,8 @@ FRAC_CLK(pll_gpu_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    192000000, 600000000);			/* min freq, max freq */
 
 /* PLL MIPI is missing */
 
@@ -405,7 +409,8 @@ FRAC_CLK(pll_hsic_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    192000000, 600000000);			/* min freq, max freq */
 
 static const char *pll_de_parents[] = {"osc24M"};
 FRAC_CLK(pll_de_clk,
@@ -417,7 +422,8 @@ FRAC_CLK(pll_de_clk,
     31, 28, 1000,				/* gate, lock, lock retries */
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
-    24, 25);					/* mode sel, freq sel */
+    24, 25,					/* mode sel, freq sel */
+    192000000, 600000000);			/* min freq, max freq */
 
 static const char *pll_ddr1_parents[] = {"osc24M"};
 NKMP_CLK_WITH_UPDATE(pll_ddr1_clk,
