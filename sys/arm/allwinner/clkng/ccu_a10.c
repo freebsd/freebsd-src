@@ -621,4 +621,4 @@ DEFINE_CLASS_1(ccu_a10ng, ccu_a10ng_driver, ccu_a10ng_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
 EARLY_DRIVER_MODULE(ccu_a10ng, simplebus, ccu_a10ng_driver,
-    ccu_a10ng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    ccu_a10ng_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);

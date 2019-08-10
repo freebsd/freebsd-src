@@ -494,9 +494,9 @@ static driver_t rsb_driver = {
 static devclass_t rsb_devclass;
 
 EARLY_DRIVER_MODULE(iicbus, rsb, iicbus_driver, iicbus_devclass, 0, 0,
-    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 EARLY_DRIVER_MODULE(rsb, simplebus, rsb_driver, rsb_devclass, 0, 0,
-    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rsb, 1);
 MODULE_DEPEND(rsb, iicbus, 1, 1, 1);
 SIMPLEBUS_PNP_INFO(compat_data);
