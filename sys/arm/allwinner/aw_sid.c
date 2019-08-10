@@ -412,6 +412,6 @@ static driver_t aw_sid_driver = {
 static devclass_t aw_sid_devclass;
 
 EARLY_DRIVER_MODULE(aw_sid, simplebus, aw_sid_driver, aw_sid_devclass, 0, 0,
-    BUS_PASS_RESOURCE + BUS_PASS_ORDER_FIRST);
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_FIRST);
 MODULE_VERSION(aw_sid, 1);
 SIMPLEBUS_PNP_INFO(compat_data);

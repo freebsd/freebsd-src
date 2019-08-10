@@ -185,7 +185,7 @@ static driver_t aw_rtc_driver = {
 static devclass_t aw_rtc_devclass;
 
 EARLY_DRIVER_MODULE(aw_rtc, simplebus, aw_rtc_driver, aw_rtc_devclass, 0, 0,
-    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_FIRST);
 MODULE_VERSION(aw_rtc, 1);
 SIMPLEBUS_PNP_INFO(compat_data);
 

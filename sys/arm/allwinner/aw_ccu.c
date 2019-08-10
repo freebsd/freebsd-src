@@ -250,6 +250,6 @@ DEFINE_CLASS_1(aw_ccu, aw_ccu_driver, aw_ccu_methods,
 static devclass_t aw_ccu_devclass;
 
 EARLY_DRIVER_MODULE(aw_ccu, simplebus, aw_ccu_driver, aw_ccu_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
 
 MODULE_VERSION(aw_ccu, 1);
