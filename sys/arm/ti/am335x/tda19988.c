@@ -243,7 +243,6 @@ struct tda19988_softc {
 	uint32_t		sc_addr;
 	uint32_t		sc_cec_addr;
 	uint16_t		sc_version;
-	struct intr_config_hook enum_hook;
 	int			sc_current_page;
 	uint8_t			*sc_edid;
 	uint32_t		sc_edid_len;
@@ -645,15 +644,14 @@ done:
 }
 
 static void
-tda19988_start(void *xdev)
+tda19988_start(struct tda19988_softc *sc)
 {
-	struct tda19988_softc *sc;
-	device_t dev = (device_t)xdev;
+	device_t dev;
 	uint8_t data;
 	uint16_t version;
 
-	sc = device_get_softc(dev);
-
+	dev = sc->sc_dev;
+	
 	tda19988_cec_write(sc, TDA_CEC_ENAMODS, ENAMODS_RXSENS | ENAMODS_HDMI);
 	DELAY(1000);
 	tda19988_cec_read(sc, 0xfe, &data);
@@ -699,7 +697,7 @@ tda19988_start(void *xdev)
 			break;
 		default:
 			device_printf(dev, "Unknown device: %04x\n", sc->sc_version);
-			goto done;
+			return;
 	}
 
 	tda19988_reg_write(sc, TDA_DDC_CTRL, DDC_ENABLE);
@@ -710,16 +708,13 @@ tda19988_start(void *xdev)
 
 	if (tda19988_read_edid(sc) < 0) {
 		device_printf(dev, "failed to read EDID\n");
-		goto done;
+		return;
 	}
 
 	/* Default values for RGB 4:4:4 mapping */
 	tda19988_reg_write(sc, TDA_VIP_CNTRL_0, 0x23);
 	tda19988_reg_write(sc, TDA_VIP_CNTRL_1, 0x01);
 	tda19988_reg_write(sc, TDA_VIP_CNTRL_2, 0x45);
-
-done:
-	config_intrhook_disestablish(&sc->enum_hook);
 }
 
 static int
@@ -738,14 +733,10 @@ tda19988_attach(device_t dev)
 
 	device_set_desc(dev, "NXP TDA19988 HDMI transmitter");
 
-	sc->enum_hook.ich_func = tda19988_start;
-	sc->enum_hook.ich_arg = dev;
-
-	if (config_intrhook_establish(&sc->enum_hook) != 0)
-		return (ENOMEM);
-
 	node = ofw_bus_get_node(dev);
 	OF_device_register_xref(OF_xref_from_node(node), dev);
+
+	tda19988_start(sc);
 
 	return (0);
 }
