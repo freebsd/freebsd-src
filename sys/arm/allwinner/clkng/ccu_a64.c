@@ -607,10 +607,9 @@ MUX_CLK(i2s2mux_clk,
     0xb8, 16, 2);				/* offset, mux shift, mux width */
 
 static const char *spdif_parents[] = {"pll_audio"};
-NM_CLK(spdif_clk,
+M_CLK(spdif_clk,
     CLK_SPDIF, "spdif", spdif_parents,		/* id, name, parents */
     0xC0,					/* offset */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* n factor (fake); */
     0, 4, 0, 0,					/* m factor */
     0, 0,					/* mux */
     31,						/* gate */
@@ -620,20 +619,18 @@ NM_CLK(spdif_clk,
 
 /* DRAM needs update bit */
 static const char *dram_parents[] = {"pll_ddr0", "pll_ddr1"};
-NM_CLK(dram_clk,
+M_CLK(dram_clk,
     CLK_DRAM, "dram", dram_parents,		/* id, name, parents */
     0xF4,					/* offset */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* n factor (fake) */
     0, 2, 0, 0,					/* m factor */
     20, 2,					/* mux */
     0,						/* gate */
     AW_CLK_HAS_MUX);				/* flags */
 
 static const char *de_parents[] = {"pll_periph0_2x", "pll_de"};
-NM_CLK(de_clk,
+M_CLK(de_clk,
     CLK_DE, "de", de_parents,			/* id, name, parents */
     0x104,					/* offset */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* n factor (fake) */
     0, 4, 0, 0,					/* m factor */
     24, 2,					/* mux */
     31,						/* gate */
@@ -641,81 +638,74 @@ NM_CLK(de_clk,
 
 /* TCON0/1 Needs mux table */
 static const char *tcon1_parents[] = {"pll_video0", "pll_video0", "pll_video1"};
-NM_CLK(tcon1_clk,
-  CLK_TCON1, "tcon1", tcon1_parents,
-  0x11C,
-  0, 0, 1, AW_CLK_FACTOR_FIXED,
-  0, 4, 0, 0,
-  24, 2,
-  31,
-  AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);
+M_CLK(tcon1_clk,
+    CLK_TCON1, "tcon1", tcon1_parents,	/* id, name, parents */
+    0x11C,				/* offset */
+    0, 5, 0, 0,				/* m factor */
+    24, 2,				/* mux */
+    31,					/* gate */
+    AW_CLK_HAS_MUX | AW_CLK_HAS_GATE |
+    AW_CLK_SET_PARENT);			/* flags */
 
 static const char *deinterlace_parents[] = {"pll_periph0", "pll_periph1"};
-NM_CLK(deinterlace_clk,
+M_CLK(deinterlace_clk,
     CLK_DEINTERLACE, "deinterlace", deinterlace_parents,	/* id, name, parents */
     0x124,					/* offset */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* n factor (fake) */
     0, 4, 0, 0,					/* m factor */
     24, 2,					/* mux */
     31,						/* gate */
     AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);		/* flags */
 
 static const char *csi_sclk_parents[] = {"pll_periph0", "pll_periph1"};
-NM_CLK(csi_sclk_clk,
+M_CLK(csi_sclk_clk,
     CLK_CSI_SCLK, "csi-sclk", csi_sclk_parents,	/* id, name, parents */
     0x134,					/* offset */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* n factor (fake) */
     16, 4, 0, 0,				/* m factor */
     24, 2,					/* mux */
     31,						/* gate */
     AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);		/* flags */
 
 static const char *csi_mclk_parents[] = {"osc24M", "pll_video0", "pll_periph1"};
-NM_CLK(csi_mclk_clk,
+M_CLK(csi_mclk_clk,
     CLK_CSI_MCLK, "csi-mclk", csi_mclk_parents,	/* id, name, parents */
     0x134,					/* offset */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* n factor (fake) */
     0, 4, 0, 0,					/* m factor */
     8, 2,					/* mux */
     15,						/* gate */
     AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);		/* flags */
 
 static const char *ve_parents[] = {"pll_ve"};
-NM_CLK(ve_clk,
+M_CLK(ve_clk,
     CLK_VE, "ve", ve_parents,			/* id, name, parents */
     0x13C,					/* offset */
-    16, 3, 0, 0,				/* n factor */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor (fake) */
+    16, 3, 0, 0,				/* m factor */
     0, 0,					/* mux */
     31,						/* gate */
     AW_CLK_HAS_GATE);				/* flags */
 
 static const char *hdmi_parents[] = {"pll_video0"};
-NM_CLK(hdmi_clk,
+M_CLK(hdmi_clk,
     CLK_HDMI, "hdmi", hdmi_parents,		/* id, name, parents */
     0x150,					/* offset */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* n factor (fake) */
     0, 4, 0, 0,					/* m factor */
     24, 2,					/* mux */
     31,						/* gate */
-    AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);		/* flags */
+    AW_CLK_HAS_MUX | AW_CLK_HAS_GATE | AW_CLK_SET_PARENT);		/* flags */
 
 static const char *mbus_parents[] = {"osc24M", "pll_periph0_2x", "pll_ddr0"};
-NM_CLK(mbus_clk,
+M_CLK(mbus_clk,
     CLK_MBUS, "mbus", mbus_parents,		/* id, name, parents */
     0x15C,					/* offset */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* n factor (fake) */
     0, 3, 0, 0,					/* m factor */
     24, 2,					/* mux */
     31,						/* gate */
     AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);		/* flags */
 
 static const char *gpu_parents[] = {"pll_gpu"};
-NM_CLK(gpu_clk,
+M_CLK(gpu_clk,
     CLK_GPU, "gpu", gpu_parents,		/* id, name, parents */
     0x1A0,					/* offset */
-    0, 2, 0, 0,					/* n factor */
-    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* m factor (fake) */
+    0, 2, 0, 0,					/* m factor */
     0, 0,					/* mux */
     31,						/* gate */
     AW_CLK_HAS_GATE);				/* flags */
@@ -744,17 +734,17 @@ static struct aw_ccung_clk a64_ccu_clks[] = {
 	{ .type = AW_CLK_NM, .clk.nm = &ce_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &spi0_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &spi1_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &spdif_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &dram_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &de_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &tcon1_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &deinterlace_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &csi_sclk_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &csi_mclk_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &ve_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &hdmi_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &mbus_clk},
-	{ .type = AW_CLK_NM, .clk.nm = &gpu_clk},
+	{ .type = AW_CLK_M, .clk.m = &spdif_clk},
+	{ .type = AW_CLK_M, .clk.m = &dram_clk},
+	{ .type = AW_CLK_M, .clk.m = &de_clk},
+	{ .type = AW_CLK_M, .clk.m = &tcon1_clk},
+	{ .type = AW_CLK_M, .clk.m = &deinterlace_clk},
+	{ .type = AW_CLK_M, .clk.m = &csi_sclk_clk},
+	{ .type = AW_CLK_M, .clk.m = &csi_mclk_clk},
+	{ .type = AW_CLK_M, .clk.m = &ve_clk},
+	{ .type = AW_CLK_M, .clk.m = &hdmi_clk},
+	{ .type = AW_CLK_M, .clk.m = &mbus_clk},
+	{ .type = AW_CLK_M, .clk.m = &gpu_clk},
 	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &ahb1_clk},
 	{ .type = AW_CLK_PREDIV_MUX, .clk.prediv_mux = &ahb2_clk},
 	{ .type = AW_CLK_MUX, .clk.mux = &cpux_clk},
