@@ -163,4 +163,4 @@ DEFINE_CLASS_1(ccu_de2, ccu_de2_driver, ccu_de2_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
 EARLY_DRIVER_MODULE(ccu_de2, simplebus, ccu_de2_driver,
-    ccu_de2ng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_LAST);
+    ccu_de2ng_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_LAST);

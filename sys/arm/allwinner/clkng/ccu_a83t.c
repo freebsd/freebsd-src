@@ -786,4 +786,4 @@ DEFINE_CLASS_1(ccu_a83tng, ccu_a83tng_driver, ccu_a83tng_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
 EARLY_DRIVER_MODULE(ccu_a83tng, simplebus, ccu_a83tng_driver,
-    ccu_a83tng_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_LAST);
+    ccu_a83tng_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
