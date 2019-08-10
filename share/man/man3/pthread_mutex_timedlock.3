@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2018
+.Dd August 7, 2019
 .Dt PTHREAD_MUTEX_TIMEDLOCK 3
 .Os
 .Sh NAME
@@ -92,8 +92,8 @@ The current thread already owns the
 .It Bq Er EOWNERDEAD
 The argument
 .Fa mutex
-points to a robust mutex and the previous owning thread terminated
-while holding the mutex lock.
+points to a robust mutex and the process containing the previous owning
+thread terminated while holding the mutex lock.
 The lock was granted to the caller and it is up to the new owner
 to make the state consistent.
 .It Bq Er ENOTRECOVERABLE

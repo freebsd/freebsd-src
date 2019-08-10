@@ -41,9 +41,9 @@
 .Ft int
 .Fn pthread_mutex_consistent "pthread_mutex_t *mutex"
 .Sh DESCRIPTION
-If the thread owning a robust mutex terminates while holding the
-mutex, the mutex becomes inconsistent and the next thread that
-acquires the mutex lock is notified of the state by the return value
+If the process containing the thread owning a robust mutex terminates
+while holding the mutex, the mutex becomes inconsistent and the next thread
+that acquires the mutex lock is notified of the state by the return value
 .Er EOWNERDEAD .
 In this case, the mutex does not become normally usable again until
 the state is marked consistent.
