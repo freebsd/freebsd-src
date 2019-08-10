@@ -6670,7 +6670,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 #ifdef QUOTA
 	/* Reference the quotas in case the block count is wrong in the end. */
 	quotaref(vp, freeblks->fb_quota);
-	(void) chkdq(ip, -datablocks, NOCRED, 0);
+	(void) chkdq(ip, -datablocks, NOCRED, FORCE);
 #endif
 	freeblks->fb_chkcnt = -datablocks;
 	UFS_LOCK(ump);
@@ -6932,7 +6932,7 @@ softdep_setup_freeblocks(ip, length, flags)
 #ifdef QUOTA
 	/* Reference the quotas in case the block count is wrong in the end. */
 	quotaref(ITOV(ip), freeblks->fb_quota);
-	(void) chkdq(ip, -datablocks, NOCRED, 0);
+	(void) chkdq(ip, -datablocks, NOCRED, FORCE);
 #endif
 	freeblks->fb_chkcnt = -datablocks;
 	UFS_LOCK(ump);
