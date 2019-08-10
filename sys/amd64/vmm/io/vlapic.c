@@ -836,7 +836,8 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 		 */
 		CPU_ZERO(dmask);
 		vcpuid = vm_apicid2vcpuid(vm, dest);
-		if (vcpuid < vm_get_maxcpus(vm))
+		amask = vm_active_cpus(vm);
+		if (vcpuid < vm_get_maxcpus(vm) && CPU_ISSET(vcpuid, &amask))
 			CPU_SET(vcpuid, dmask);
 	} else {
 		/*
