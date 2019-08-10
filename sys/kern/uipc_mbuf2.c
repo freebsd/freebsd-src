@@ -214,7 +214,7 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 		goto ok;
 	}
 	if ((off == 0 || offp) && M_LEADINGSPACE(n->m_next) >= hlen
-	 && writable) {
+	 && writable && n->m_next->m_len >= tlen) {
 		n->m_next->m_data -= hlen;
 		n->m_next->m_len += hlen;
 		bcopy(mtod(n, caddr_t) + off, mtod(n->m_next, caddr_t), hlen);
