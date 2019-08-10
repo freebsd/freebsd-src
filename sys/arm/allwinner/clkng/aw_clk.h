@@ -314,13 +314,15 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
      _nshift, _nwidth, _nvalue, _nflags,		\
      _mshift, _mwidth, _mvalue, _mflags,		\
      _gate_shift, _lock_shift,_lock_retries,		\
-    _flags, _freq0, _freq1, _mode_sel, _freq_sel)	\
+    _flags, _freq0, _freq1, _mode_sel, _freq_sel,	\
+    _min_freq, _max_freq)				\
 	static struct aw_clk_frac_def _clkname = {	\
 		.clkdef = {				\
 			.id = _id,			\
 			.name = _name,			\
 			.parent_names = _pnames,	\
 			.parent_cnt = nitems(_pnames),	\
+			.flags = CLK_NODE_GLITCH_FREE,	\
 		},					\
 		.offset = _offset,			\
 		.n.shift = _nshift,			\
@@ -339,6 +341,8 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.frac.freq1 = _freq1,			\
 		.frac.mode_sel = _mode_sel,		\
 		.frac.freq_sel = _freq_sel,		\
+		.min_freq = _min_freq,			\
+		.max_freq = _max_freq,			\
 	}
 
 #define M_CLK(_clkname, _id, _name, _pnames,		\

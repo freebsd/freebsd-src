@@ -38,6 +38,9 @@ struct aw_clk_frac_def {
 	struct aw_clk_factor	n;
 	struct aw_clk_frac	frac;
 
+	uint64_t		min_freq;
+	uint64_t		max_freq;
+
 	uint32_t		mux_shift;
 	uint32_t		mux_width;
 	uint32_t		gate_shift;

@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 
 #include "clkdev_if.h"
 
+/* #define	dprintf(format, arg...)	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg) */
+#define	dprintf(format, arg...)
+
 /*
  * clknode for clocks matching the formula :
  *
@@ -53,6 +56,9 @@ struct aw_clk_frac_sc {
 	struct aw_clk_factor	m;
 	struct aw_clk_factor	n;
 	struct aw_clk_frac	frac;
+
+	uint64_t		min_freq;
+	uint64_t		max_freq;
 
 	uint32_t	mux_shift;
 	uint32_t	mux_mask;
@@ -89,6 +95,7 @@ aw_clk_frac_init(struct clknode *clk, device_t dev)
 		idx = (val & sc->mux_mask) >> sc->mux_shift;
 	}
 
+	dprintf("init parent idx %d\n", idx);
 	clknode_init_parent_idx(clk, idx);
 	return (0);
 }
@@ -104,6 +111,7 @@ aw_clk_frac_set_gate(struct clknode *clk, bool enable)
 	if ((sc->flags & AW_CLK_HAS_GATE) == 0)
 		return (0);
 
+	dprintf("%sabling gate\n", enable ? "En" : "Dis");
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->offset, &val);
 	if (enable)
@@ -127,6 +135,7 @@ aw_clk_frac_set_mux(struct clknode *clk, int index)
 	if ((sc->flags & AW_CLK_HAS_MUX) == 0)
 		return (0);
 
+	dprintf("Set mux to %d\n", index);
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->offset, &val);
 	val &= ~sc->mux_mask;
@@ -138,7 +147,7 @@ aw_clk_frac_set_mux(struct clknode *clk, int index)
 }
 
 static uint64_t
-aw_clk_frac_find_best(struct aw_clk_frac_sc *sc, uint64_t fparent, uint64_t *fout,
+aw_clk_frac_find_best(struct aw_clk_frac_sc *sc, uint64_t fparent, uint64_t fout,
     uint32_t *factor_n, uint32_t *factor_m)
 {
 	uint64_t cur, best;
@@ -150,18 +159,27 @@ aw_clk_frac_find_best(struct aw_clk_frac_sc *sc, uint64_t fparent, uint64_t *fou
 	max_m = aw_clk_factor_get_max(&sc->m);
 	max_n = aw_clk_factor_get_max(&sc->n);
 	min_m = aw_clk_factor_get_min(&sc->m);
-	min_n = aw_clk_factor_get_min(&sc->n);
+	min_n = sc->min_freq / fparent;
 
 	for (n = min_n; n <= max_n; n++) {
 		for (m = min_m; m <= max_m; m++) {
 			cur = fparent * n / m;
-			if ((*fout - cur) < (*fout - best)) {
+			if (cur < sc->min_freq) {
+				continue;
+			}
+			if (cur > sc->max_freq) {
+				continue;
+			}
+			if (cur == fout) {
+				*factor_n = n;
+				*factor_m = m;
+				return (cur);
+			}
+			if (abs((fout - cur)) < abs((fout - best))) {
 				best = cur;
 				*factor_n = n;
 				*factor_m = m;
 			}
-			if (best == *fout)
-				return (best);
 		}
 	}
 
@@ -175,32 +193,73 @@ aw_clk_frac_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	struct aw_clk_frac_sc *sc;
 	uint64_t cur, best, best_frac;
 	uint32_t val, m, n, best_m, best_n;
-	int retry;
+	int retry, multiple, max_mult, best_mult;
 
 	sc = clknode_get_softc(clk);
 
 	best = best_frac = cur = 0;
+	best_mult = 0;
+	max_mult = 1;
 
-	if (*fout == sc->frac.freq0)
-		best = best_frac = sc->frac.freq0;
-	else if (*fout == sc->frac.freq1)
-		best = best_frac = sc->frac.freq1;
-	else
-		best = aw_clk_frac_find_best(sc, fparent, fout,
-		    &best_n, &best_m);
+	dprintf("Trying to find freq %ju with parent %ju\n", *fout, fparent);
+	if ((flags & CLK_SET_ROUND_MULTIPLE) != 0)
+		max_mult = 10;
+	for (multiple = 1; multiple <= max_mult; multiple++) {
+		/* First test the fractional frequencies */
+		dprintf("Testing with multiple %d\n", multiple);
+		if (*fout * multiple == sc->frac.freq0) {
+			best = best_frac = sc->frac.freq0;
+			best_mult = multiple;
+			dprintf("Found with using frac.freq0 and multiple %d\n", multiple);
+			break;
+		}
+		else if (*fout * multiple == sc->frac.freq1) {
+			best = best_frac = sc->frac.freq1;
+			best_mult = multiple;
+			dprintf("Found with using frac.freq1 and multiple %d\n", multiple);
+			break;
+		}
+		else {
+			cur = aw_clk_frac_find_best(sc, fparent, *fout * multiple,
+			  &n, &m);
+			dprintf("Got %ju with n=%d, m=%d\n", cur, n, m);
+			if (cur == (*fout * multiple)) {
+				best = cur;
+				best_mult = multiple;
+				best_n = n;
+				best_m = m;
+				dprintf("This is the one: n=%d m=%d mult=%d\n", best_n, best_m, best_mult);
+				break;
+			}
+			if (abs(((*fout * multiple) - cur)) < abs(((*fout * multiple) - best))) {
+				best = cur;
+				best_mult = multiple;
+				best_n = n;
+				best_m = m;
+				dprintf("This is the best for now: n=%d m=%d mult=%d\n", best_n, best_m, best_mult);
+			}
+		}
+	}
 
+	if (best < sc->min_freq ||
+	    best > sc->max_freq) {
+		printf("%s: Cannot set %ju for %s (min=%ju max=%ju)\n",
+		    __func__, best, clknode_get_name(clk),
+		    sc->min_freq, sc->max_freq);
+		return (ERANGE);
+	}
 	if ((flags & CLK_SET_DRYRUN) != 0) {
 		*fout = best;
 		*stop = 1;
 		return (0);
 	}
 
-	if ((best < *fout) &&
+	if ((best < (*fout * best_mult)) &&
 	  ((flags & CLK_SET_ROUND_DOWN) == 0)) {
 		*stop = 1;
 		return (ERANGE);
 	}
-	if ((best > *fout) &&
+	if ((best > *fout * best_mult) &&
 	  ((flags & CLK_SET_ROUND_UP) == 0)) {
 		*stop = 1;
 		return (ERANGE);
@@ -271,7 +330,6 @@ aw_clk_frac_recalc(struct clknode *clk, uint64_t *freq)
 	} else {
 		m = aw_clk_get_factor(val, &sc->m);
 		n = aw_clk_get_factor(val, &sc->n);
-
 		*freq = *freq * n / m;
 	}
 
@@ -321,6 +379,9 @@ aw_clk_frac_register(struct clkdom *clkdom, struct aw_clk_frac_def *clkdef)
 	sc->frac.freq1 = clkdef->frac.freq1;
 	sc->frac.mode_sel = 1 << clkdef->frac.mode_sel;
 	sc->frac.freq_sel = 1 << clkdef->frac.freq_sel;
+
+	sc->min_freq = clkdef->min_freq;
+	sc->max_freq = clkdef->max_freq;
 
 	sc->mux_shift = clkdef->mux_shift;
 	sc->mux_mask = ((1 << clkdef->mux_width) - 1) << sc->mux_shift;
