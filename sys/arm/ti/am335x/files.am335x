@@ -10,6 +10,7 @@ arm/ti/am335x/am335x_lcd_syscons.c	optional	sc
 arm/ti/am335x/am335x_pmic.c		optional	am335x_pmic
 arm/ti/am335x/am335x_prcm.c		standard
 arm/ti/am335x/am335x_pwmss.c		standard
+dev/pwm/pwmbus_if.m			standard
 arm/ti/am335x/am335x_ehrpwm.c		standard
 arm/ti/am335x/am335x_ecap.c		standard
 arm/ti/am335x/am335x_rtc.c		optional	am335x_rtc
