@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 struct am335x_pmic_softc {
 	device_t		sc_dev;
 	uint32_t		sc_addr;
-	struct intr_config_hook enum_hook;
 	struct resource		*sc_irq_res;
 	void			*sc_intrhand;
 	struct task 		intr_task;
@@ -210,10 +209,9 @@ am335x_pmic_setvo(device_t dev, uint8_t vo)
 }
 
 static void
-am335x_pmic_start(void *xdev)
+am335x_pmic_start(struct am335x_pmic_softc *sc)
 {
-	struct am335x_pmic_softc *sc;
-	device_t dev = (device_t)xdev;
+	device_t dev;
 	struct tps65217_status_reg status_reg;
 	struct tps65217_chipid_reg chipid_reg;
 	uint8_t reg, vo;
@@ -221,8 +219,7 @@ am335x_pmic_start(void *xdev)
 	char pwr[4][11] = {"Battery", "USB", "AC", "USB and AC"};
 	int rv;
 
-	sc = device_get_softc(dev);
-
+	dev = sc->sc_dev;
 	am335x_pmic_read(dev, TPS65217_CHIPID_REG, (uint8_t *)&chipid_reg, 1);
 	switch (chipid_reg.chip) {
 		case TPS65217A:
@@ -265,8 +262,6 @@ am335x_pmic_start(void *xdev)
 	EVENTHANDLER_REGISTER(shutdown_final, am335x_pmic_shutdown, dev,
 	    SHUTDOWN_PRI_LAST);
 
-	config_intrhook_disestablish(&sc->enum_hook);
-
 	/* Unmask all interrupts and clear pending status */
 	reg = 0;
 	am335x_pmic_write(dev, TPS65217_INT_REG, &reg, 1);
@@ -300,11 +295,7 @@ am335x_pmic_attach(device_t dev)
 		/* return (ENXIO); */
 	}
 
-	sc->enum_hook.ich_func = am335x_pmic_start;
-	sc->enum_hook.ich_arg = dev;
-
-	if (config_intrhook_establish(&sc->enum_hook) != 0)
-		return (ENOMEM);
+	am335x_pmic_start(sc);
 
 	return (0);
 }
