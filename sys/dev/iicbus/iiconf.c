@@ -131,9 +131,15 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 			/*
 			 * Mark the device busy while it owns the bus, to
 			 * prevent detaching the device, bus, or hardware
-			 * controller, until ownership is relinquished.
+			 * controller, until ownership is relinquished.  If the
+			 * device is doing IO from its probe method before
+			 * attaching, it cannot be busied; mark the bus busy.
 			 */
-			device_busy(dev);
+			if (device_get_state(dev) < DS_ATTACHING)
+				sc->busydev = bus;
+			else
+				sc->busydev = dev;
+			device_busy(sc->busydev);
 			/* 
 			 * Drop the lock around the call to the bus driver, it
 			 * should be allowed to sleep in the IIC_WAIT case.
@@ -150,6 +156,7 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 				sc->owner = NULL;
 				sc->owncount = 0;
 				wakeup_one(sc);
+				device_unbusy(sc->busydev);
 			}
 		}
 	}
@@ -183,7 +190,7 @@ iicbus_release_bus(device_t bus, device_t dev)
 		IICBUS_LOCK(sc);
 		sc->owner = NULL;
 		wakeup_one(sc);
-		device_unbusy(dev);
+		device_unbusy(sc->busydev);
 	}
 	IICBUS_UNLOCK(sc);
 	return (0);
