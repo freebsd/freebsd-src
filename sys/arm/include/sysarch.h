@@ -65,12 +65,10 @@
 #ifndef LOCORE
 #ifndef __ASSEMBLER__
 
-#include <sys/cdefs.h>
-
 /*
- * Pickup definition of uintptr_t
+ * Pickup definition of various __types.
  */
-#include <sys/stdint.h>
+#include <sys/_types.h>
 
 /*
  * Architecture specific syscalls (arm)
@@ -83,19 +81,19 @@
 #define ARM_GET_VFPSTATE	4
 
 struct arm_sync_icache_args {
-	uintptr_t	addr;		/* Virtual start address */
-	size_t		len;		/* Region size */
+	__uintptr_t	addr;		/* Virtual start address */
+	__size_t	len;		/* Region size */
 };
 
 struct arm_get_vfpstate_args {
-	size_t		mc_vfp_size;
+	__size_t	mc_vfp_size;
 	void 		*mc_vfp;
 };
 
 #ifndef _KERNEL
 __BEGIN_DECLS
-int	arm_sync_icache (u_int addr, int len);
-int	arm_drain_writebuf (void);
+int	arm_sync_icache(unsigned int, int);
+int	arm_drain_writebuf(void);
 int	sysarch(int, void *);
 __END_DECLS
 #endif
