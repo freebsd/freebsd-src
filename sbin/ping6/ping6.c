@@ -659,6 +659,12 @@ main(int argc, char *argv[])
 		err(1, "socket srecv");
 	freeaddrinfo(res);
 
+	/* revoke root privilege */
+	if (seteuid(getuid()) != 0)
+		err(1, "seteuid() failed");
+	if (setuid(getuid()) != 0)
+		err(1, "setuid() failed");
+
 	/* set the source address if specified. */
 	if ((options & F_SRCADDR) != 0) {
 		/* properly fill sin6_scope_id */
@@ -728,12 +734,6 @@ main(int argc, char *argv[])
 			err(1, "setsockopt(IPV6_RECVRTHDRDSTOPTS)");
 #endif
 	}
-
-	/* revoke root privilege */
-	if (seteuid(getuid()) != 0)
-		err(1, "seteuid() failed");
-	if (setuid(getuid()) != 0)
-		err(1, "setuid() failed");
 
 	if ((options & F_FLOOD) && (options & F_INTERVAL))
 		errx(1, "-f and -i incompatible options");
