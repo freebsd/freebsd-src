@@ -6,8 +6,8 @@ This version is fully compatible with the previous public releases.
 This file is part of bzip2/libbzip2, a program and library for
 lossless, block-sorting data compression.
 
-bzip2/libbzip2 version 1.0.7 of 27 June 2019
-Copyright (C) 1996-2010 Julian Seward <jseward@acm.org>
+bzip2/libbzip2 version 1.0.8 of 13 July 2019
+Copyright (C) 1996-2019 Julian Seward <jseward@acm.org>
 
 Please read the WARNING, DISCLAIMER and PATENTS sections in this file.
 
@@ -165,8 +165,8 @@ WHAT'S NEW IN 1.0.x ?
 
    See the CHANGES file.
 
-I hope you find bzip2 useful.  Feel free to contact me at
-   jseward@acm.org
+I hope you find bzip2 useful.  Feel free to contact the developers at
+   bzip2-devel@sourceware.org
 if you have any suggestions or queries.  Many people mailed me with
 comments, suggestions and patches after the releases of bzip-0.15,
 bzip-0.21, and bzip2 versions 0.1pl2, 0.9.0, 0.9.5, 1.0.0, 1.0.1,
@@ -193,3 +193,4 @@ Cambridge, UK.
 10 December 2007 (bzip2, version 1.0.5)
  6     Sept 2010 (bzip2, version 1.0.6)
 27     June 2019 (bzip2, version 1.0.7)
+13     July 2019 (bzip2, version 1.0.8)
