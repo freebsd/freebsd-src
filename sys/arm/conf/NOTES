@@ -1,44 +1,22 @@
 # $FreeBSD$
 
-machine	arm
-
-cpu	CPU_ARM9E
-
-files	"../mv/files.mv"
-files	"../mv/discovery/files.db78xxx"
-files	"../mv/kirkwood/files.kirkwood"
-files	"../mv/orion/files.db88f5xxx"
-files	"../mv/orion/files.ts7800"
-
-makeoptions	CONF_CFLAGS+="-march=armv5te"
-makeoptions	LDFLAGS="-zmuldefs"
-makeoptions	KERNPHYSADDR=0x00000000
-
 options 	FDT
 
-options 	SOC_MV_DISCOVERY
-options 	SOC_MV_KIRKWOOD
-options 	SOC_MV_ORION
-
-options 	ARM_MANY_BOARD
-device		nand
-
-# IIC
-device		twsi
-
-nooptions	SMP
-nooptions	MAXCPU
+# Undo options from sys/conf/NOTES that we do not want...
 
 nooptions	COMPAT_FREEBSD4
 nooptions	COMPAT_FREEBSD5
 nooptions	COMPAT_FREEBSD6
 nooptions	COMPAT_FREEBSD7
 nooptions	COMPAT_FREEBSD9
-nooption	PPC_PROBE_CHIPSET
+nooptions	PPC_PROBE_CHIPSET
+nooptions	MAXCPU		# value is set in machine/param.h
+
+# Devices in sys/conf/NOTES for which no such hardware exists on arm,
+# or the drivers don't compile...
 
 nodevice	fdc
 nodevice	sym
-nodevice	ukbd
 
 nodevice	sc
 nodevice	blank_saver
@@ -58,24 +36,9 @@ nodevice	cxgbe
 nodevice	cxgbev
 nodevice	snd_cmi
 
-#
-# Enable the kernel DTrace hooks which are required to load the DTrace
-# kernel modules.
-#
-options 	KDTRACE_HOOKS
+nodevice	mpr
+nodevice	mps
 
-# DTrace core
-# NOTE: introduces CDDL-licensed components into the kernel
-#device		dtrace
+# Add devices which are specific to various arm platforms...
 
-# DTrace modules
-#device		dtrace_profile
-#device		dtrace_sdt
-#device		dtrace_fbt
-#device		dtrace_systrace
-#device		dtrace_prototype
-#device		dtnfscl
-#device		dtmalloc
-
-# Alternatively include all the DTrace modules
-#device		dtraceall
+device		twsi		# i2c controller on Marvel and Allwinner

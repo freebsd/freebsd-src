@@ -47,6 +47,11 @@ LINT: ${NOTES} ${MAKELINT_SED}
 	echo "nodevice txp"		>> ${.TARGET}-NOIP
 	echo "nodevice netmap"		>> ${.TARGET}-NOIP
 .endif
+.if ${TARGET} == "arm"
+	cat ${.TARGET} ${.CURDIR}/NOTES.armv5 > ${.TARGET}-V5
+	cat ${.TARGET} ${.CURDIR}/NOTES.armv7 > ${.TARGET}-V7
+	rm ${.TARGET}
+.endif
 .if ${TARGET} == "mips"
 	echo "machine	${TARGET} ${TARGET_ARCH}" >> ${.TARGET}
 .endif
