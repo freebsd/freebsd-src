@@ -2,8 +2,8 @@
 # This file is part of bzip2/libbzip2, a program and library for
 # lossless, block-sorting data compression.
 #
-# bzip2/libbzip2 version 1.0.6 of 6 September 2010
-# Copyright (C) 1996-2010 Julian Seward <jseward@acm.org>
+# bzip2/libbzip2 version 1.0.8 of 13 July 2019
+# Copyright (C) 1996-2019 Julian Seward <jseward@acm.org>
 #
 # Please read the WARNING, DISCLAIMER and PATENTS sections in the 
 # README file.
@@ -137,7 +137,7 @@ bzip2recover.o: bzip2recover.c
 distclean: clean
 	rm -f manual.ps manual.html manual.pdf
 
-DISTNAME=bzip2-1.0.7
+DISTNAME=bzip2-1.0.8
 dist: check manual
 	rm -f $(DISTNAME)
 	ln -s -f . $(DISTNAME)
