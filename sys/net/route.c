@@ -1553,6 +1553,8 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 	switch (req) {
 	case RTM_DELETE:
 		if (netmask) {
+			if (dst->sa_len > sizeof(mdst))
+				return (EINVAL);
 			rt_maskedcopy(dst, (struct sockaddr *)&mdst, netmask);
 			dst = (struct sockaddr *)&mdst;
 		}
