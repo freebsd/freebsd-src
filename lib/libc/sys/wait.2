@@ -58,7 +58,13 @@
 .Ft pid_t
 .Fn wait4 "pid_t wpid" "int *status" "int options" "struct rusage *rusage"
 .Ft pid_t
-.Fn wait6 "idtype_t idtype" "id_t id" "int *status" "int options" "struct __wrusage *wrusage" "siginfo_t *infop"
+.Fo wait6
+.Fa "idtype_t idtype" "id_t id"
+.Fa "int *status"
+.Fa "int options"
+.Fa "struct __wrusage *wrusage"
+.Fa "siginfo_t *infop"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn wait
