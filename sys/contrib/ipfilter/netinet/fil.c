@@ -4023,7 +4023,7 @@ ipf_synclist(softc, fr, ifp)
 		/*
 		 * Lookup all the interface names that are part of the rule.
 		 */
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < FR_NUM(fr->fr_ifas); i++) {
 			if ((ifp != NULL) && (fr->fr_ifas[i] != ifp))
 				continue;
 			if (fr->fr_ifnames[i] == -1)
