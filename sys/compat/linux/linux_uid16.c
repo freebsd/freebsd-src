@@ -281,16 +281,6 @@ linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
 	return (0);
 }
 
-/*
- * The FreeBSD native getgid(2) and getuid(2) also modify td->td_retval[1]
- * when COMPAT_43 is defined. This clobbers registers that are assumed to
- * be preserved. The following lightweight syscalls fixes this. See also
- * linux_getpid(2), linux_getgid(2) and linux_getuid(2) in linux_misc.c
- *
- * linux_getgid16() - MP SAFE
- * linux_getuid16() - MP SAFE
- */
-
 int
 linux_getgid16(struct thread *td, struct linux_getgid16_args *args)
 {
