@@ -41,6 +41,11 @@ FBSD_1.4 {
 	dl_unwind_find_exidx;
 };
 
+FBSD_1.6 {
+	arm_drain_writebuf;
+	arm_sync_icache;
+};
+
 FBSDprivate_1.0 {
 	/* PSEUDO syscalls */
 	__sys_getlogin;
