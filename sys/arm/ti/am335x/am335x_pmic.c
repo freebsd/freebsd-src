@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/taskqueue.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
@@ -62,7 +61,6 @@ struct am335x_pmic_softc {
 	uint32_t		sc_addr;
 	struct resource		*sc_irq_res;
 	void			*sc_intrhand;
-	struct task 		intr_task;
 };
 
 static const char *tps65217_voreg_c[4] = {"4.10V", "4.15V", "4.20V", "4.25V"};
@@ -87,7 +85,7 @@ am335x_pmic_write(device_t dev, uint8_t address, uint8_t *data, uint8_t size)
 }
 
 static void
-am335x_pmic_intrtask(void *arg, int pending)
+am335x_pmic_intr(void *arg)
 {
 	struct am335x_pmic_softc *sc = (struct am335x_pmic_softc *)arg;
 	struct tps65217_status_reg status_reg;
@@ -95,16 +93,20 @@ am335x_pmic_intrtask(void *arg, int pending)
 	int rv;
 	char notify_buf[16];
 
+	THREAD_SLEEPING_OK();
 	rv = am335x_pmic_read(sc->sc_dev, TPS65217_INT_REG, (uint8_t *)&int_reg, 1);
 	if (rv != 0) {
 		device_printf(sc->sc_dev, "Cannot read interrupt register\n");
+		THREAD_NO_SLEEPING();
 		return;
 	}
 	rv = am335x_pmic_read(sc->sc_dev, TPS65217_STATUS_REG, (uint8_t *)&status_reg, 1);
 	if (rv != 0) {
 		device_printf(sc->sc_dev, "Cannot read status register\n");
+		THREAD_NO_SLEEPING();
 		return;
 	}
+	THREAD_NO_SLEEPING();
 
 	if (int_reg.pbi && status_reg.pb)
 		shutdown_nice(RB_POWEROFF);
@@ -113,18 +115,6 @@ am335x_pmic_intrtask(void *arg, int pending)
 		    status_reg.acpwr);
 		devctl_notify_f("ACPI", "ACAD", "power", notify_buf, M_NOWAIT);
 	}
-}
-
-static void
-am335x_pmic_intr(void *arg)
-{
-	struct am335x_pmic_softc *sc = arg;
-
-	/*
-	 * Handling the interrupt requires doing i2c IO, which sleeps while the
-	 * IO is in progress, so do the processing on a taskqueue thread.
-	 */
-	taskqueue_enqueue(taskqueue_thread, &sc->intr_task);
 }
 
 static int
@@ -284,8 +274,6 @@ am335x_pmic_attach(device_t dev)
 	int rid;
 
 	sc = device_get_softc(dev);
-
-	TASK_INIT(&sc->intr_task, 0, am335x_pmic_intrtask, sc);
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
