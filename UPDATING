@@ -16,6 +16,15 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190811:
+	Default permissions on the /var/account/acct file (and copies of it 
+	rotated by periodic daily scripts) are changed from 0644 to 0640 
+	because the file contains sensitive information that should not be 
+	world-readable.  If the /var/account directory must be created by 
+	rc.d/accounting, the mode used is now 0750.  Admins who use the 
+	accounting feature are encouraged to change the mode of an existing 
+	/var/account directory to 0750 or 0700.  
+
 20190723:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 8.0.1.  Please see the 20141231 entry below for
