@@ -45,7 +45,7 @@ _Static_assert(sizeof(struct nvme_power_state) == 256 / NBBY,
 	       "nvme_power_state size wrong");
 
 #define POWER_USAGE							       \
-"       nvmecontrol power [-l] [-p new-state [-w workload-hint]] <controller id>\n"
+	"power [-l] [-p new-state [-w workload-hint]] <controller id>\n"
 
 static void
 power_list_one(int i, struct nvme_power_state *nps)

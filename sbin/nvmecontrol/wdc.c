@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "nvmecontrol.h"
 
 #define WDC_USAGE							       \
-"       nvmecontrol wdc (cap-diag|drive-log|get-crash-dump|purge|purge-montior)\n"
+	"wdc (cap-diag)\n"
 
 SET_DECLARE(wdc, struct nvme_function);
 
@@ -54,7 +54,7 @@ SET_DECLARE(wdc, struct nvme_function);
 
 static void wdc_cap_diag(struct nvme_function *nf, int argc, char *argv[]);
 
-#define WDC_CAP_DIAG_USAGE	"\tnvmecontrol wdc cap-diag [-o path-template]\n"
+#define WDC_CAP_DIAG_USAGE	"wdc cap-diag [-o path-template]\n"
 
 NVME_COMMAND(wdc, cap-diag, wdc_cap_diag, WDC_CAP_DIAG_USAGE);
 
