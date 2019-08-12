@@ -28,7 +28,7 @@
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd January 18, 2013
+.Dd August 12, 2019
 .Dt INSTALL 1
 .Os
 .Sh NAME
@@ -138,11 +138,11 @@ This option does not affect where the actual files are installed.
 .It Fl d
 Create directories.
 Missing parent directories are created as required.
-.It Fl f
+.It Fl f Ar flags
 Specify the target's file flags; see
 .Xr chflags 1
 for a list of possible flags and their meanings.
-.It Fl g
+.It Fl g Ar group
 Specify a group.
 A numeric GID is allowed.
 .It Fl h Ar hash
@@ -165,13 +165,9 @@ The RMD-160 cryptographic message digest.
 .It Sy sha1
 The SHA-1 cryptographic message digest.
 .It Sy sha256
-The 256-bits
-.Tn SHA-2
-cryptographic message digest of the file.
+The 256-bits SHA-2 cryptographic message digest of the file.
 .It Sy sha512
-The 512-bits
-.Tn SHA-2
-cryptographic message digest of the file.
+The 512-bits SHA-2 cryptographic message digest of the file.
 .El
 .It Fl l Ar linkflags
 Instead of copying the file make a link to the source.
@@ -203,13 +199,13 @@ in an
 specification line.
 The metadata includes: the file name and file type, and depending upon
 other options, the owner, group, file flags, modification time, and tags.
-.It Fl m
+.It Fl m Ar mode
 Specify an alternate mode.
 The default mode is set to rwxr-xr-x (0755).
 The specified mode may be either an octal or symbolic value; see
 .Xr chmod 1
 for a description of possible mode values.
-.It Fl N
+.It Fl N Ar dbdir
 Use the user database text file
 .Pa master.passwd
 and group database text file
@@ -221,7 +217,7 @@ rather than using the results from the system's
 and
 .Xr getgrnam 3
 (and related) library calls.
-.It Fl o
+.It Fl o Ar owner
 Specify an owner.
 A numeric UID is allowed.
 .It Fl p
@@ -305,7 +301,7 @@ This is mainly for use in debugging the
 .Fx
 Ports Collection.
 .Sh FILES
-.Bl -tag -width ".Pa INS@XXXX" -compact
+.Bl -tag -width "INS@XXXX" -compact
 .It Pa INS@XXXX
 If either
 .Fl S
