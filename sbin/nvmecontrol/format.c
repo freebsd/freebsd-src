@@ -124,7 +124,7 @@ format(const struct cmd *f, int argc, char *argv[])
 	if (arg_parse(argc, argv, f))
 		return;
 
-	if (opt.Eflag || opt.Cflag || opt.ses != SES_NONE) {
+	if ((int)opt.Eflag + opt.Cflag + (opt.ses != SES_NONE) > 1) {
 		fprintf(stderr,
 		    "Only one of -E, -C or -s may be specified\n");
 		arg_help(argc, argv, f);
