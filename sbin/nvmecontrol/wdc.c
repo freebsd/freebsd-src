@@ -594,7 +594,4 @@ NVME_LOGPAGE(hgst_info,
 NVME_LOGPAGE(wdc_info,
     HGST_INFO_LOG,			"wdc",	"Detailed Health/SMART",
     print_hgst_info_log,		DEFAULT_SIZE);
-NVME_LOGPAGE(wds_info,
-    HGST_INFO_LOG,			"wds",	"Detailed Health/SMART",
-    print_hgst_info_log,		DEFAULT_SIZE);
 NVME_COMMAND(top, wdc, wdc, WDC_USAGE);
