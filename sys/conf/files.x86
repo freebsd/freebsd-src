@@ -1,0 +1,14 @@
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
+#
+# $FreeBSD$
+#
+# This file contains all the x86 devices and such that are
+# common between i386 and amd64, but aren't applicable to
+# any other architecture we support.
+#
+
+dev/fdc/fdc.c			optional	fdc
+dev/fdc/fdc_acpi.c		optional	fdc
+dev/fdc/fdc_isa.c		optional	fdc isa
+dev/fdc/fdc_pccard.c		optional	fdc pccard
