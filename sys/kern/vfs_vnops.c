@@ -1462,6 +1462,7 @@ vn_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
 {
 	struct vattr vattr;
 	struct vnode *vp;
+	struct fiobmap2_arg *bmarg;
 	int error;
 
 	vp = fp->f_vnode;
@@ -1475,6 +1476,18 @@ vn_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
 			VOP_UNLOCK(vp, 0);
 			if (error == 0)
 				*(int *)data = vattr.va_size - fp->f_offset;
+			return (error);
+		case FIOBMAP2:
+			bmarg = (struct fiobmap2_arg *)data;
+			vn_lock(vp, LK_SHARED | LK_RETRY);
+#ifdef MAC
+			error = mac_vnode_check_read(active_cred, fp->f_cred,
+			    vp);
+			if (error == 0)
+#endif
+				error = VOP_BMAP(vp, bmarg->bn, NULL,
+				    &bmarg->bn, &bmarg->runp, &bmarg->runb);
+			VOP_UNLOCK(vp, 0);
 			return (error);
 		case FIONBIO:
 		case FIOASYNC:
