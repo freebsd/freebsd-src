@@ -243,6 +243,9 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 		printf(" LBA:                  %ju\n", entry->lba);
 		printf(" Namespace ID:         %u\n", entry->nsid);
 		printf(" Vendor specific info: %u\n", entry->vendor_specific);
+		printf(" Transport type:       %u\n", entry->trtype);
+		printf(" Command specific info:%ju\n", entry->csi);
+		printf(" Transport specific:   %u\n", entry->ttsi);
 	}
 }
 
@@ -315,6 +318,10 @@ print_log_health(const struct nvme_controller_data *cdata __unused, void *buf, u
 		printf("Temperature Sensor %d:           ", i + 1);
 		print_temp(health->temp_sensor[i]);
 	}
+	printf("Temperature 1 Transition Count: %d\n", health->tmt1tc);
+	printf("Temperature 2 Transition Count: %d\n", health->tmt2tc);
+	printf("Total Time For Temperature 1:   %d\n", health->ttftmt1);
+	printf("Total Time For Temperature 2:   %d\n", health->ttftmt2);
 }
 
 static void
