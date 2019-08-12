@@ -75,7 +75,7 @@ print_perftest(struct nvme_io_test *io_test, bool perthread)
 }
 
 static void
-perftest(struct nvme_function *nf, int argc, char *argv[])
+perftest(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_io_test		io_test;
 	int				fd;

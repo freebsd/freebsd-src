@@ -35,7 +35,7 @@
 #include <dev/nvme/nvme.h>
 
 struct nvme_function;
-typedef void (*nvme_fn_t)(struct nvme_function *nf, int argc, char *argv[]);
+typedef void (*nvme_fn_t)(const struct nvme_function *nf, int argc, char *argv[]);
 
 struct nvme_function {
 	const char	*name;
@@ -96,8 +96,8 @@ struct set_concat {
 void set_concat_add(struct set_concat *m, void *begin, void *end);
 #define SET_CONCAT_DEF(set, t) 							\
 static struct set_concat set ## _concat;					\
-static inline t **set ## _begin() { return ((t **)set ## _concat.begin); }	\
-static inline t **set ## _limit() { return ((t **)set ## _concat.limit); }	\
+static inline const t * const *set ## _begin() { return ((const t * const *)set ## _concat.begin); }	\
+static inline const t * const *set ## _limit() { return ((const t * const *)set ## _concat.limit); }	\
 void add_to_ ## set(t **b, t **e)						\
 {										\
 	set_concat_add(&set ## _concat, b, e);					\
@@ -120,11 +120,13 @@ void read_logpage(int fd, uint8_t log_page, uint32_t nsid, void *payload,
 void print_temp(uint16_t t);
 
 void usage(const struct nvme_function *f);
-void dispatch_set(int argc, char *argv[], struct nvme_function **tbl,
-    struct nvme_function **tbl_limit);
+void dispatch_set(int argc, char *argv[], const struct nvme_function * const *tbl,
+    const struct nvme_function * const *tbl_limit);
 
-#define DISPATCH(argc, argv, set)	\
-	dispatch_set(argc, argv, NVME_CMD_BEGIN(set), NVME_CMD_LIMIT(set))
+#define DISPATCH(argc, argv, set)					\
+	dispatch_set(argc, argv,					\
+	    (const struct nvme_function * const *)NVME_CMD_BEGIN(set),	\
+	    (const struct nvme_function * const *)NVME_CMD_LIMIT(set))	\
 
 /* Utility Routines */
 /*

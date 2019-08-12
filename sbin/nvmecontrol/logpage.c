@@ -326,7 +326,7 @@ NVME_LOGPAGE(fw,
 static void
 logpage_help(void)
 {
-	struct logpage_function		**f;
+	const struct logpage_function	* const *f;
 	const char 			*v;
 
 	fprintf(stderr, "\n");
@@ -341,7 +341,7 @@ logpage_help(void)
 }
 
 static void
-logpage(struct nvme_function *nf, int argc, char *argv[])
+logpage(const struct nvme_function *nf, int argc, char *argv[])
 {
 	int				fd;
 	int				log_page = 0, pageflag = false;
@@ -352,7 +352,7 @@ logpage(struct nvme_function *nf, int argc, char *argv[])
 	uint32_t			nsid, size;
 	void				*buf;
 	const char			*vendor = NULL;
-	struct logpage_function		**f;
+	const struct logpage_function	* const *f;
 	struct nvme_controller_data	cdata;
 	print_fn_t			print_fn;
 	uint8_t				ns_smart;

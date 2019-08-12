@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 	"format [-f fmt] [-m mset] [-p pi] [-l pil] [-E] [-C] <controller id|namespace id>\n"
 
 static void
-format(struct nvme_function *nf, int argc, char *argv[])
+format(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_controller_data	cd;
 	struct nvme_namespace_data	nsd;
