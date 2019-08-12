@@ -46,6 +46,11 @@ struct mdthread {
 };
 
 struct mdproc {
+	/* Avoid empty structs, that have undefined behavior in C99 and
+	 * make compilers complain about it
+	 * (empty struct has size 0 in C, size 1 in C++).
+	 */
+	long	md_spare;
 };
 
 #ifdef __powerpc64__
