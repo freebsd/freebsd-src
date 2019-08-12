@@ -71,7 +71,7 @@ static const struct opts sanitize_opts[] = {
 #define OPT(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
 	OPT("ause", 'U', arg_none, opt, ause,
 	    "Allow Unrestricted Sanitize Exit"),
-	OPT("ndas", 'D', arg_none, opt, ndas,
+	OPT("ndas", 'd', arg_none, opt, ndas,
 	    "No Deallocate After Sanitize"),
 	OPT("oipbp", 'I', arg_none, opt, oipbp,
 	    "Overwrite Invert Pattern Between Passes"),

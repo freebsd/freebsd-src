@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2019
+.Dd August 5, 2019
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -121,6 +121,33 @@
 .Aq device id
 .Aq namespace id
 .Nm
+.Ic resv acquire
+.Aq Fl c Ar crkey
+.Op Fl p Ar prkey
+.Aq Fl t Ar rtype
+.Aq Fl a Ar racqa
+.Aq namespace id
+.Nm
+.Ic resv register
+.Op Fl c Ar crkey
+.Aq Fl k Ar nrkey
+.Aq Fl r Ar rrega
+.Op Fl i Ar iekey
+.Op Fl p Ar cptpl
+.Aq namespace id
+.Nm
+.Ic resv release
+.Aq Fl c Ar crkey
+.Aq Fl t Ar rtype
+.Aq Fl a Ar rrela
+.Aq namespace id
+.Nm
+.Ic resv report
+.Op Fl e
+.Op Fl v
+.Op Fl x
+.Aq namespace id
+.Nm
 .Ic firmware
 .Op Fl s Ar slot
 .Op Fl f Ar path_to_firmware
@@ -140,9 +167,9 @@
 .Ic sanitize
 .Aq Fl a Ar sanact
 .Op Fl c Ar owpass
+.Op Fl d
 .Op Fl p Ar ovrpat
 .Op Fl r
-.Op Fl D
 .Op Fl I
 .Op Fl U
 .Aq device id
@@ -223,6 +250,96 @@ will set Retain Asynchronous Event.
 Various namespace management commands.
 If namespace management is supported by device, allow list, create and delete
 namespaces, list, attach and detach controllers to namespaces.
+.Ss resv acquire
+Acquire or preempt namespace reservation, using specified parameters:
+.Bl -tag -width 6n
+.It Fl a
+Acquire action:
+.Bl -tag -compact -width 6n
+.It Dv 0
+Acquire
+.It Dv 1
+Preempt
+.It Dv 2
+Preempt and abort
+.El
+.It Fl c
+Current reservation key.
+.It Fl p
+Preempt reservation key.
+.It Fl t
+Reservation type:
+.Bl -tag -compact -width 6n
+.It Dv 1
+Write Exclusive
+.It Dv 2
+Exclusive Access
+.It Dv 3
+Write Exclusive - Registrants Only
+.It Dv 4
+Exclusive Access - Registrants Only
+.It Dv 5
+Write Exclusive - All Registrants
+.It Dv 6
+Exclusive Access - All Registrants
+.El
+.El
+.Ss resv register
+Register, unregister or replace reservation key, using specified parameters:
+.Bl -tag -width 6n
+.It Fl c
+Current reservation key.
+.It Fl k
+New reservation key.
+.It Fl r
+Register action:
+.Bl -tag -compact -width 6n
+.It Dv 0
+Register
+.It Dv 1
+Unregister
+.It Dv 2
+Replace
+.El
+.It Fl i
+Ignore Existing Key
+.It Fl p
+Change Persist Through Power Loss State:
+.Bl -tag -compact -width 6n
+.It Dv 0
+No change to PTPL state
+.It Dv 2
+Set PTPL state to ‘0’.
+Reservations are released and registrants are cleared on a power on.
+.It Dv 3
+Set PTPL state to ‘1’.
+Reservations and registrants persist across a power loss.
+.El
+.El
+.Ss resv release
+Release or clear reservation, using specified parameters:
+.Bl -tag -width 6n
+.It Fl c
+Current reservation key.
+.It Fl t
+Reservation type.
+.It Fl a
+Release action:
+.Bl -tag -compact -width 6n
+.It Dv 0
+Release
+.It Dv 1
+Clean
+.El
+.El
+.Ss resv report
+Print reservation status, using specified parameters:
+.Bl -tag -width 6n
+.It Fl x
+Print reservation status in hex.
+.It Fl e
+Use Extended Data Structure.
+.El
 .Ss format
 Format either specified namespace, or all namespaces of specified controller,
 using specified parameters:
@@ -281,7 +398,7 @@ The number of passes when performing an
 operation.
 Valid values are between 1 and 16.
 The default is 1.
-.It Fl D
+.It Fl d
 No Deallocate After Sanitize.
 .It Fl I
 When performing an
