@@ -118,6 +118,7 @@ void print_hex(void *data, uint32_t length);
 void read_logpage(int fd, uint8_t log_page, uint32_t nsid, void *payload,
     uint32_t payload_size);
 void print_temp(uint16_t t);
+void print_intel_add_smart(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused);
 
 void usage(const struct nvme_function *f);
 void dispatch_set(int argc, char *argv[], const struct nvme_function * const *tbl,
