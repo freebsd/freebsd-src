@@ -92,6 +92,8 @@
         ..
         geom
         ..
+        nvmecontrol
+        ..
     ..
     libexec
         resolvconf
