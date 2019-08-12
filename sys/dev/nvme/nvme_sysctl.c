@@ -42,10 +42,14 @@ __FBSDID("$FreeBSD$");
 #endif
 
 int nvme_use_nvd = NVME_USE_NVD;
+bool nvme_verbose_cmd_dump = false;
 
 SYSCTL_NODE(_hw, OID_AUTO, nvme, CTLFLAG_RD, 0, "NVMe sysctl tunables");
 SYSCTL_INT(_hw_nvme, OID_AUTO, use_nvd, CTLFLAG_RDTUN,
     &nvme_use_nvd, 1, "1 = Create NVD devices, 0 = Create NDA devices");
+SYSCTL_BOOL(_hw_nvme, OID_AUTO, verbose_cmd_dump, CTLFLAG_RWTUN,
+    &nvme_verbose_cmd_dump, 0,
+    "enable verbose command printting when a command fails");
 
 /*
  * CTLTYPE_S64 and sysctl_handle_64 were added in r217616.  Define these
