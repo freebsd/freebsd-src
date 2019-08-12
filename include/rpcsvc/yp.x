@@ -40,7 +40,7 @@
 %__FBSDID("$FreeBSD$");
 #endif
 
-const YPMAXRECORD = 1024;
+const YPMAXRECORD = 16777216;
 const YPMAXDOMAIN = 64;
 const YPMAXMAP = 64;
 const YPMAXPEER = 64;
