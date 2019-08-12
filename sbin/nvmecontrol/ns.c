@@ -43,22 +43,22 @@ __FBSDID("$FreeBSD$");
 
 SET_DECLARE(ns, struct nvme_function);
 
-#define NS_USAGE								\
-"       nvmecontrol ns (create|delete|attach|detach)\n"
+#define NS_USAGE							\
+	"ns (create|delete|attach|detach)\n"
 
 /* handles NVME_OPC_NAMESPACE_MANAGEMENT and ATTACHMENT admin cmds */
 
 #define NSCREATE_USAGE							\
-"       nvmecontrol ns create -s size [-c cap] [-f fmt] [-m mset] [-n nmic] [-p pi] [-l pil] nvmeN\n"
+	"ns create -s size [-c cap] [-f fmt] [-m mset] [-n nmic] [-p pi] [-l pil] nvmeN\n"
 
 #define NSDELETE_USAGE							\
-"       nvmecontrol ns delete -n nsid nvmeN\n"
+	"ns delete -n nsid nvmeN\n"
 
 #define NSATTACH_USAGE							\
-"       nvmecontrol ns attach -n nsid [-c ctrlrid] nvmeN \n"
+	"ns attach -n nsid [-c ctrlrid] nvmeN \n"
 
 #define NSDETACH_USAGE							\
-"       nvmecontrol ns detach -n nsid [-c ctrlrid] nvmeN\n"
+	"ns detach -n nsid [-c ctrlrid] nvmeN\n"
 
 void nscreate(struct nvme_function *nf, int argc, char *argv[]);
 void nsdelete(struct nvme_function *nf, int argc, char *argv[]);
