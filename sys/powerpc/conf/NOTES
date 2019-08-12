@@ -90,5 +90,4 @@ nodevice	dcons_crom
 # Options we don't want to deal with
 
 nooption	PPC_DEBUG
-nooption	PPC_PROBE_CHIPSET
-nooption 	UKBD_DFLT_KEYMAP
+nooption	PPC_PROBE_CHIPSET	# uses inb/outb
