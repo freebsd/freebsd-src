@@ -32,6 +32,7 @@
 #define __NVMECONTROL_H__
 
 #include <sys/linker_set.h>
+#include <sys/queue.h>
 #include <dev/nvme/nvme.h>
 
 struct nvme_function;
@@ -56,6 +57,7 @@ struct nvme_function {
 typedef void (*print_fn_t)(const struct nvme_controller_data *cdata, void *buf, uint32_t size);
 
 struct logpage_function {
+        SLIST_ENTRY(logpage_function)   link;
 	uint8_t		log_page;
 	const char     *vendor;
 	const char     *name;
@@ -64,7 +66,6 @@ struct logpage_function {
 };
 
 
-#define NVME_LOGPAGESET(sym)		DATA_SET(NVME_SETNAME(logpage), sym)
 #define NVME_LOGPAGE(unique, lp, vend, nam, fn, sz)			\
 	static struct logpage_function unique ## _lpf = {		\
 		.log_page = lp,						\
@@ -73,10 +74,8 @@ struct logpage_function {
 		.print_fn = fn, 					\
 		.size = sz,						\
 	} ;								\
-	NVME_LOGPAGESET(unique ## _lpf)
-#define NVME_LOGPAGE_BEGIN	SET_BEGIN(NVME_SETNAME(logpage))
-#define NVME_LOGPAGE_LIMIT	SET_LIMIT(NVME_SETNAME(logpage))
-#define NVME_LOGPAGE_DECLARE(t)		SET_DECLARE(NVME_SETNAME(logpage), t)
+        static void logpage_reg_##unique(void) __attribute__((constructor)); \
+        static void logpage_reg_##unique(void) { logpage_register(&unique##_lpf); }
 
 #define DEFAULT_SIZE	(4096)
 struct kv_name {
@@ -87,7 +86,7 @@ struct kv_name {
 const char *kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key);
 
 NVME_CMD_DECLARE(top, struct nvme_function);
-NVME_LOGPAGE_DECLARE(struct logpage_function);
+void logpage_register(struct logpage_function *p);
 
 struct set_concat {
 	void **begin;
@@ -105,7 +104,6 @@ void add_to_ ## set(t **b, t **e)						\
 #define SET_CONCAT_DECL(set, t)							\
 	void add_to_ ## set(t **b, t **e)
 SET_CONCAT_DECL(top, struct nvme_function);
-SET_CONCAT_DECL(logpage, struct logpage_function);
 
 #define NVME_CTRLR_PREFIX	"nvme"
 #define NVME_NS_PREFIX		"ns"
