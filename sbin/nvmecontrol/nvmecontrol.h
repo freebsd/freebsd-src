@@ -73,6 +73,7 @@ void parse_ns_str(const char *ns_str, char *ctrlr_str, uint32_t *nsid);
 void read_controller_data(int fd, struct nvme_controller_data *cdata);
 void read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdata);
 void print_hex(void *data, uint32_t length);
+void print_namespace(struct nvme_namespace_data *nsdata);
 void read_logpage(int fd, uint8_t log_page, uint32_t nsid, void *payload,
     uint32_t payload_size);
 void print_temp(uint16_t t);
