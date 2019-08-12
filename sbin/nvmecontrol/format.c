@@ -76,19 +76,19 @@ static struct options {
 static const struct opts format_opts[] = {
 #define OPT(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
 	OPT("crypto", 'C', arg_none, opt, Cflag,
-	    "Crptographically erase user data by forgetting key"),
+	    "Crptographic erase"),
 	OPT("erase", 'E', arg_none, opt, Eflag,
-	    "Erase user data"),
+	    "User data erase"),
 	OPT("lbaf", 'f', arg_uint32, opt, lbaf,
-	    "Set the LBA Format to apply to the media"),
+	    "LBA Format to apply to the media"),
 	OPT("ms", 'm', arg_uint32, opt, ms,
-	    "Slot to activate and/or download format to"),
+	    "Metadata settings"),
 	OPT("pi", 'p', arg_uint32, opt, pi,
-	    "Slot to activate and/or download format to"),
+	    "Protective information"),
 	OPT("pil", 'l', arg_uint32, opt, pil,
-	    "Slot to activate and/or download format to"),
+	    "Protective information location"),
 	OPT("ses", 's', arg_uint32, opt, ses,
-	    "Slot to activate and/or download format to"),
+	    "Secure erase settings"),
 	{ NULL, 0, arg_none, NULL, NULL }
 };
 #undef OPT
@@ -101,7 +101,7 @@ static const struct args format_args[] = {
 static struct cmd format_cmd = {
 	.name = "format",
 	.fn = format,
-	.descr = "Format/erase one or all the namespaces.",
+	.descr = "Format/erase one or all the namespaces",
 	.ctx_size = sizeof(opt),
 	.opts = format_opts,
 	.args = format_args,
