@@ -174,7 +174,7 @@ activate_firmware(int fd, int slot, int activate_action)
 }
 
 static void
-firmware(struct nvme_function *nf, int argc, char *argv[])
+firmware(const struct nvme_function *nf, int argc, char *argv[])
 {
 	int				fd = -1, slot = 0;
 	int				a_flag, s_flag, f_flag;

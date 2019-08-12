@@ -129,7 +129,7 @@ power_show(int fd)
 }
 
 static void
-power(struct nvme_function *nf, int argc, char *argv[])
+power(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
 	int				ch, listflag = 0, powerflag = 0, power_val = 0, fd;
