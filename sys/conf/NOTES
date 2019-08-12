@@ -1698,32 +1698,6 @@ hint.ata.1.port="0x170"
 hint.ata.1.irq="15"
 
 #
-# Standard floppy disk controllers and floppy tapes, supports
-# the Y-E DATA External FDD (PC Card)
-#
-device		fdc
-hint.fdc.0.at="isa"
-hint.fdc.0.port="0x3F0"
-hint.fdc.0.irq="6"
-hint.fdc.0.drq="2"
-#
-# FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
-# gotta turn it actually on by setting the variable fd_debug with DDB,
-# however.
-options 	FDC_DEBUG
-#
-# Activate this line if you happen to have an Insight floppy tape.
-# Probing them proved to be dangerous for people with floppy disks only,
-# so it's "hidden" behind a flag:
-#hint.fdc.0.flags="1"
-
-# Specify floppy devices
-hint.fd.0.at="fdc0"
-hint.fd.0.drive="0"
-hint.fd.1.at="fdc0"
-hint.fd.1.drive="1"
-
-#
 # uart: newbusified driver for serial interfaces.  It consolidates the sio(4),
 #	sab(4) and zs(4) drivers.
 #
