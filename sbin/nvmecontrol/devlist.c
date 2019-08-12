@@ -42,11 +42,23 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "nvmecontrol.h"
+#include "comnd.h"
 
-#define DEVLIST_USAGE							       \
-	"devlist\n"
+/* Tables for command line parsing */
 
 #define NVME_MAX_UNIT 256
+
+static cmd_fn_t devlist;
+
+static struct cmd devlist_cmd = {
+	.name = "devlist",
+	.fn = devlist,
+	.descr = "Display a list of NVMe controllers and namespaces."
+};
+
+CMD_COMMAND(devlist_cmd);
+
+/* End of tables for command line parsing */
 
 static inline uint32_t
 ns_get_sector_size(struct nvme_namespace_data *nsdata)
@@ -62,21 +74,17 @@ ns_get_sector_size(struct nvme_namespace_data *nsdata)
 }
 
 static void
-devlist(const struct nvme_function *nf, int argc, char *argv[])
+devlist(const struct cmd *f, int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
 	struct nvme_namespace_data	nsdata;
 	char				name[64];
 	uint8_t				mn[64];
 	uint32_t			i;
-	int				ch, ctrlr, fd, found, ret;
+	int				ctrlr, fd, found, ret;
 
-	while ((ch = getopt(argc, argv, "")) != -1) {
-		switch ((char)ch) {
-		default:
-			usage(nf);
-		}
-	}
+	if (arg_parse(argc, argv, f))
+		return;
 
 	ctrlr = -1;
 	found = 0;
@@ -119,5 +127,3 @@ devlist(const struct nvme_function *nf, int argc, char *argv[])
 
 	exit(1);
 }
-
-NVME_COMMAND(top, devlist, devlist, DEVLIST_USAGE);
