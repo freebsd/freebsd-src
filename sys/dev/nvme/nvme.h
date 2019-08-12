@@ -600,6 +600,9 @@ enum nvme_generic_command_status_code {
 	NVME_SC_SANITIZE_IN_PROGRESS		= 0x1d,
 	NVME_SC_SGL_DATA_BLOCK_GRAN_INVALID	= 0x1e,
 	NVME_SC_NOT_SUPPORTED_IN_CMB		= 0x1f,
+	NVME_SC_NAMESPACE_IS_WRITE_PROTECTED	= 0x20,
+	NVME_SC_COMMAND_INTERRUPTED		= 0x21,
+	NVME_SC_TRANSIENT_TRANSPORT_ERROR	= 0x22,
 
 	NVME_SC_LBA_OUT_OF_RANGE		= 0x80,
 	NVME_SC_CAPACITY_EXCEEDED		= 0x81,
@@ -645,6 +648,9 @@ enum nvme_command_specific_status_code {
 	NVME_SC_INVALID_SEC_CTRLR_STATE		= 0x20,
 	NVME_SC_INVALID_NUM_OF_CTRLR_RESRC	= 0x21,
 	NVME_SC_INVALID_RESOURCE_ID		= 0x22,
+	NVME_SC_SANITIZE_PROHIBITED_WPMRE	= 0x23,
+	NVME_SC_ANA_GROUP_ID_INVALID		= 0x24,
+	NVME_SC_ANA_ATTACH_FAILED		= 0x25,
 
 	NVME_SC_CONFLICTING_ATTRIBUTES		= 0x80,
 	NVME_SC_INVALID_PROTECTION_INFO		= 0x81,
@@ -682,20 +688,27 @@ enum nvme_admin_opcode {
 	/* 0x0e-0x0f - reserved */
 	NVME_OPC_FIRMWARE_ACTIVATE		= 0x10,
 	NVME_OPC_FIRMWARE_IMAGE_DOWNLOAD	= 0x11,
+	/* 0x12-0x13 - reserved */
 	NVME_OPC_DEVICE_SELF_TEST		= 0x14,
 	NVME_OPC_NAMESPACE_ATTACHMENT		= 0x15,
+	/* 0x16-0x17 - reserved */
 	NVME_OPC_KEEP_ALIVE			= 0x18,
 	NVME_OPC_DIRECTIVE_SEND			= 0x19,
 	NVME_OPC_DIRECTIVE_RECEIVE		= 0x1a,
+	/* 0x1b - reserved */
 	NVME_OPC_VIRTUALIZATION_MANAGEMENT	= 0x1c,
 	NVME_OPC_NVME_MI_SEND			= 0x1d,
 	NVME_OPC_NVME_MI_RECEIVE		= 0x1e,
+	/* 0x1f-0x7b - reserved */
 	NVME_OPC_DOORBELL_BUFFER_CONFIG		= 0x7c,
 
 	NVME_OPC_FORMAT_NVM			= 0x80,
 	NVME_OPC_SECURITY_SEND			= 0x81,
 	NVME_OPC_SECURITY_RECEIVE		= 0x82,
+	/* 0x83 - reserved */
 	NVME_OPC_SANITIZE			= 0x84,
+	/* 0x85 - reserved */
+	NVME_OPC_GET_LBA_STATUS			= 0x86,
 };
 
 /* nvme nvm opcodes */
@@ -706,11 +719,11 @@ enum nvme_nvm_opcode {
 	/* 0x03 - reserved */
 	NVME_OPC_WRITE_UNCORRECTABLE		= 0x04,
 	NVME_OPC_COMPARE			= 0x05,
-	/* 0x06 - reserved */
+	/* 0x06-0x07 - reserved */
 	NVME_OPC_WRITE_ZEROES			= 0x08,
-	/* 0x07 - reserved */
 	NVME_OPC_DATASET_MANAGEMENT		= 0x09,
-	/* 0x0a-0x0c - reserved */
+	/* 0x0a-0x0b - reserved */
+	NVME_OPC_VERIFY				= 0x0c,
 	NVME_OPC_RESERVATION_REGISTER		= 0x0d,
 	NVME_OPC_RESERVATION_REPORT		= 0x0e,
 	/* 0x0f-0x10 - reserved */
@@ -738,10 +751,21 @@ enum nvme_feature {
 	NVME_FEAT_KEEP_ALIVE_TIMER		= 0x0F,
 	NVME_FEAT_HOST_CONTROLLED_THERMAL_MGMT	= 0x10,
 	NVME_FEAT_NON_OP_POWER_STATE_CONFIG	= 0x11,
-	/* 0x12-0x77 - reserved */
+	NVME_FEAT_READ_RECOVERY_LEVEL_CONFIG	= 0x12,
+	NVME_FEAT_PREDICTABLE_LATENCY_MODE_CONFIG = 0x13,
+	NVME_FEAT_PREDICTABLE_LATENCY_MODE_WINDOW = 0x14,
+	NVME_FEAT_LBA_STATUS_INFORMATION_ATTRIBUTES = 0x15,
+	NVME_FEAT_HOST_BEHAVIOR_SUPPORT		= 0x16,
+	NVME_FEAT_SANITIZE_CONFIG		= 0x17,
+	NVME_FEAT_ENDURANCE_GROUP_EVENT_CONFIGURATION = 0x18,
+	/* 0x19-0x77 - reserved */
 	/* 0x78-0x7f - NVMe Management Interface */
 	NVME_FEAT_SOFTWARE_PROGRESS_MARKER	= 0x80,
-	/* 0x81-0xBF - command set specific (reserved) */
+	NVME_FEAT_HOST_IDENTIFIER		= 0x81,
+	NVME_FEAT_RESERVATION_NOTIFICATION_MASK	= 0x82,
+	NVME_FEAT_RESERVATION_PERSISTENCE	= 0x83,
+	NVME_FEAT_NAMESPACE_WRITE_PROTECTION_CONFIG = 0x84,
+	/* 0x85-0xBF - command set specific (reserved) */
 	/* 0xC0-0xFF - vendor specific */
 };
 
@@ -1154,9 +1178,21 @@ enum nvme_log_page {
 	NVME_LOG_FIRMWARE_SLOT		= 0x03,
 	NVME_LOG_CHANGED_NAMESPACE	= 0x04,
 	NVME_LOG_COMMAND_EFFECT		= 0x05,
+	NVME_LOG_DEVICE_SELF_TEST	= 0x06,
+	NVME_LOG_TELEMETRY_HOST_INITIATED = 0x07,
+	NVME_LOG_TELEMETRY_CONTROLLER_INITIATED = 0x08,
+	NVME_LOG_ENDURANCE_GROUP_INFORMATION = 0x09,
+	NVME_LOG_PREDICTABLE_LATENCY_PER_NVM_SET = 0x0a,
+	NVME_LOG_PREDICTABLE_LATENCY_EVENT_AGGREGATE = 0x0b,
+	NVME_LOG_ASYMMETRIC_NAMESPAVE_ACCESS = 0x0c,
+	NVME_LOG_PERSISTENT_EVENT_LOG	= 0x0d,
+	NVME_LOG_LBA_STATUS_INFORMATION	= 0x0e,
+	NVME_LOG_ENDURANCE_GROUP_EVENT_AGGREGATE = 0x0f,
 	/* 0x06-0x7F - reserved */
 	/* 0x80-0xBF - I/O command set specific */
 	NVME_LOG_RES_NOTIFICATION	= 0x80,
+	NVME_LOG_SANITIZE_STATUS	= 0x81,
+	/* 0x82-0xBF - reserved */
 	/* 0xC0-0xFF - vendor specific */
 
 	/*
@@ -1185,7 +1221,11 @@ struct nvme_error_information_entry {
 	uint64_t		lba;
 	uint32_t		nsid;
 	uint8_t			vendor_specific;
-	uint8_t			reserved[35];
+	uint8_t			trtype;
+	uint16_t		reserved30;
+	uint64_t		csi;
+	uint16_t		ttsi;
+	uint8_t			reserved[22];
 } __packed __aligned(4);
 
 _Static_assert(sizeof(struct nvme_error_information_entry) == 64, "bad size for nvme_error_information_entry");
@@ -1221,8 +1261,16 @@ struct nvme_health_information_page {
 	uint32_t		warning_temp_time;
 	uint32_t		error_temp_time;
 	uint16_t		temp_sensor[8];
+	/* Thermal Management Temperature 1 Transition Count */
+	uint32_t		tmt1tc;
+	/* Thermal Management Temperature 2 Transition Count */
+	uint32_t		tmt2tc;
+	/* Total Time For Thermal Management Temperature 1 */
+	uint32_t		ttftmt1;
+	/* Total Time For Thermal Management Temperature 2 */
+	uint32_t		ttftmt2;
 
-	uint8_t			reserved2[296];
+	uint8_t			reserved2[280];
 } __packed __aligned(4);
 
 _Static_assert(sizeof(struct nvme_health_information_page) == 512, "bad size for nvme_health_information_page");
@@ -1604,6 +1652,8 @@ void	nvme_error_information_entry_swapbytes(struct nvme_error_information_entry 
 	s->error_location = le16toh(s->error_location);
 	s->lba = le64toh(s->lba);
 	s->nsid = le32toh(s->nsid);
+	s->csi = le64toh(s->csi);
+	s->ttsi = le16toh(s->ttsi);
 }
 
 static inline
@@ -1644,6 +1694,10 @@ void	nvme_health_information_page_swapbytes(struct nvme_health_information_page 
 	s->error_temp_time = le32toh(s->error_temp_time);
 	for (i = 0; i < 8; i++)
 		s->temp_sensor[i] = le16toh(s->temp_sensor[i]);
+	s->tmt1tc = le32toh(s->tmt1tc);
+	s->tmt2tc = le32toh(s->tmt2tc);
+	s->ttftmt1 = le32toh(s->ttftmt1);
+	s->ttftmt2 = le32toh(s->ttftmt2);
 }
 
 
