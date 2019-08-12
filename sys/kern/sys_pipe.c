@@ -1420,7 +1420,7 @@ pipe_poll(struct file *fp, int events, struct ucred *active_cred,
 	levents = events &
 	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
 	if (rpipe->pipe_state & PIPE_NAMED && fp->f_flag & FREAD && levents &&
-	    fp->f_seqcount == rpipe->pipe_wgen)
+	    fp->f_pipegen == rpipe->pipe_wgen)
 		events |= POLLINIGNEOF;
 
 	if ((events & POLLINIGNEOF) == 0) {

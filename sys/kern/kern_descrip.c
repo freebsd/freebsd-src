@@ -781,7 +781,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		}
 		if (arg >= 0) {
 			bsize = fp->f_vnode->v_mount->mnt_stat.f_iosize;
-			fp->f_seqcount = (arg + bsize - 1) / bsize;
+			arg = MIN(arg, INT_MAX - bsize + 1);
+			fp->f_seqcount = MIN(IO_SEQMAX,
+			    (arg + bsize - 1) / bsize);
 			atomic_set_int(&fp->f_flag, FRDAHEAD);
 		} else {
 			atomic_clear_int(&fp->f_flag, FRDAHEAD);
