@@ -211,20 +211,6 @@ nodevice	fdc
 # arm64 doesn't support inb/outb, so disable chipset probing which needs it
 nooptions 	PPC_PROBE_CHIPSET
 
-# can't support syscons, no inb/outb, ditto for the screen savers
-nodevice	sc
-nodevice	blank_saver
-nodevice	daemon_saver
-nodevice	dragon_saver
-nodevice	fade_saver
-nodevice	fire_saver
-nodevice	green_saver
-nodevice	logo_saver
-nodevice	rain_saver
-nodevice	snake_saver
-nodevice	star_saver
-nodevice	warp_saver
-
 # These cause weird issues, not sure why
 nodevice	ukbd
 nooptions 	DEBUG
