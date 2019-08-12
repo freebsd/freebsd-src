@@ -237,7 +237,7 @@ nvme_ctrlr_fail_req_task(void *arg, int pending)
 		STAILQ_REMOVE_HEAD(&ctrlr->fail_req, stailq);
 		mtx_unlock(&ctrlr->lock);
 		nvme_qpair_manual_complete_request(req->qpair, req,
-		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, TRUE);
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST);
 		mtx_lock(&ctrlr->lock);
 	}
 	mtx_unlock(&ctrlr->lock);
