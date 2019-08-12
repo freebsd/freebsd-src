@@ -543,7 +543,7 @@ filesystems that have ever had their recordsize larger than 128KB are destroyed.
 l l .
 GUID	org.illumos:sha512
 READ\-ONLY COMPATIBLE	no
-DEPENDENCIES	none
+DEPENDENCIES	extensible_dataset
 .TE
 
 This feature enables the use of the SHA-512/256 truncated hash algorithm
@@ -575,7 +575,7 @@ Booting off of pools utilizing SHA-512/256 is supported.
 l l .
 GUID	org.illumos:skein
 READ\-ONLY COMPATIBLE	no
-DEPENDENCIES	none
+DEPENDENCIES	extensible_dataset
 .TE
 
 This feature enables the use of the Skein hash algorithm for checksum
@@ -609,7 +609,7 @@ Booting off of pools using \fBskein\fR is supported.
 l l .
 GUID	org.illumos:edonr
 READ\-ONLY COMPATIBLE	no
-DEPENDENCIES	none
+DEPENDENCIES	extensible_dataset
 .TE
 
 This feature enables the use of the Edon-R hash algorithm for checksum,
