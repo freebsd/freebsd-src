@@ -445,6 +445,35 @@ enum nvme_critical_warning_state {
 #define NVME_FIRMWARE_PAGE_AFI_SLOT_SHIFT		(0)
 #define NVME_FIRMWARE_PAGE_AFI_SLOT_MASK		(0x7)
 
+/* Commands Supported and Effects */
+#define	NVME_CE_PAGE_CSUP_SHIFT				(0)
+#define	NVME_CE_PAGE_CSUP_MASK				(0x1)
+#define	NVME_CE_PAGE_LBCC_SHIFT				(1)
+#define	NVME_CE_PAGE_LBCC_MASK				(0x1)
+#define	NVME_CE_PAGE_NCC_SHIFT				(2)
+#define	NVME_CE_PAGE_NCC_MASK				(0x1)
+#define	NVME_CE_PAGE_NIC_SHIFT				(3)
+#define	NVME_CE_PAGE_NIC_MASK				(0x1)
+#define	NVME_CE_PAGE_CCC_SHIFT				(4)
+#define	NVME_CE_PAGE_CCC_MASK				(0x1)
+#define	NVME_CE_PAGE_CSE_SHIFT				(16)
+#define	NVME_CE_PAGE_CSE_MASK				(0x7)
+#define	NVME_CE_PAGE_UUID_SHIFT				(19)
+#define	NVME_CE_PAGE_UUID_MASK				(0x1)
+
+/* Sanitize Status */
+#define	NVME_SS_PAGE_SSTAT_STATUS_SHIFT			(0)
+#define	NVME_SS_PAGE_SSTAT_STATUS_MASK			(0x7)
+#define	NVME_SS_PAGE_SSTAT_STATUS_NEVER			(0)
+#define	NVME_SS_PAGE_SSTAT_STATUS_COMPLETED		(1)
+#define	NVME_SS_PAGE_SSTAT_STATUS_INPROG		(2)
+#define	NVME_SS_PAGE_SSTAT_STATUS_FAILED		(3)
+#define	NVME_SS_PAGE_SSTAT_STATUS_COMPLETEDWD		(4)
+#define	NVME_SS_PAGE_SSTAT_PASSES_SHIFT			(3)
+#define	NVME_SS_PAGE_SSTAT_PASSES_MASK			(0x1f)
+#define	NVME_SS_PAGE_SSTAT_GDE_SHIFT			(8)
+#define	NVME_SS_PAGE_SSTAT_GDE_MASK			(0x1)
+
 /* CC register SHN field values */
 enum shn_value {
 	NVME_SHN_NORMAL		= 0x1,
@@ -1291,6 +1320,43 @@ struct nvme_ns_list {
 
 _Static_assert(sizeof(struct nvme_ns_list) == 4096, "bad size for nvme_ns_list");
 
+struct nvme_command_effects_page {
+	uint32_t		acs[256];
+	uint32_t		iocs[256];
+	uint8_t			reserved[2048];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_command_effects_page) == 4096,
+    "bad size for nvme_command_effects_page");
+
+struct nvme_res_notification_page {
+	uint64_t		log_page_count;
+	uint8_t			log_page_type;
+	uint8_t			available_log_pages;
+	uint8_t			reserved2;
+	uint32_t		nsid;
+	uint8_t			reserved[48];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_res_notification_page) == 64,
+    "bad size for nvme_res_notification_page");
+
+struct nvme_sanitize_status_page {
+	uint16_t		sprog;
+	uint16_t		sstat;
+	uint32_t		scdw10;
+	uint32_t		etfo;
+	uint32_t		etfbe;
+	uint32_t		etfce;
+	uint32_t		etfownd;
+	uint32_t		etfbewnd;
+	uint32_t		etfcewnd;
+	uint8_t			reserved[480];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_sanitize_status_page) == 512,
+    "bad size for nvme_sanitize_status_page");
+
 struct intel_log_temp_stats
 {
 	uint64_t	current;
@@ -1717,6 +1783,38 @@ void	nvme_ns_list_swapbytes(struct nvme_ns_list *s)
 
 	for (i = 0; i < 1024; i++)
 		s->ns[i] = le32toh(s->ns[i]);
+}
+
+static inline
+void	nvme_command_effects_page_swapbytes(struct nvme_command_effects_page *s)
+{
+	int i;
+
+	for (i = 0; i < 256; i++)
+		s->acs[i] = le32toh(s->acs[i]);
+	for (i = 0; i < 256; i++)
+		s->iocs[i] = le32toh(s->iocs[i]);
+}
+
+static inline
+void	nvme_res_notification_page_swapbytes(struct nvme_res_notification_page *s)
+{
+	s->log_page_count = le64toh(s->log_page_count);
+	s->nsid = le32toh(s->nsid);
+}
+
+static inline
+void	nvme_sanitize_status_page_swapbytes(struct nvme_sanitize_status_page *s)
+{
+	s->sprog = le16toh(s->sprog);
+	s->sstat = le16toh(s->sstat);
+	s->scdw10 = le32toh(s->scdw10);
+	s->etfo = le32toh(s->etfo);
+	s->etfbe = le32toh(s->etfbe);
+	s->etfce = le32toh(s->etfce);
+	s->etfownd = le32toh(s->etfownd);
+	s->etfbewnd = le32toh(s->etfbewnd);
+	s->etfcewnd = le32toh(s->etfcewnd);
 }
 
 static inline
