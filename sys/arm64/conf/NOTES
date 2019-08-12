@@ -205,9 +205,6 @@ options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)
 # bring in camified MMC too
 options		MMCCAM
 
-# No support for floppies on arm64
-nodevice	fdc
-
 # arm64 doesn't support inb/outb, so disable chipset probing which needs it
 nooptions 	PPC_PROBE_CHIPSET
 

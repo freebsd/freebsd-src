@@ -124,7 +124,6 @@ options 	SC_NO_SYSMOUSE
 # Devices we don't want to deal with
 
 nodevice	bktr
-nodevice	fdc
 nodevice	ppc
 nodevice	snd_ad1816
 nodevice	snd_als4000
@@ -155,7 +154,6 @@ nodevice	snd_uaudio
 #####################################################################
 # Options we don't want to deal with
 
-nooption	FDC_DEBUG
 nooption	COMPAT_FREEBSD4
 nooption	SC_RENDER_DEBUG
 nooption	SC_DEBUG_LEVEL
