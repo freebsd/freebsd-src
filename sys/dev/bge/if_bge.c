@@ -3251,6 +3251,8 @@ bge_mbox_reorder(struct bge_softc *sc)
 		bus = device_get_parent(dev);
 		if (device_get_devclass(dev) != pcib)
 			break;
+		if (device_get_devclass(bus) != pci)
+			break;
 		for (i = 0; i < nitems(mbox_reorder_lists); i++) {
 			if (pci_get_vendor(dev) ==
 			    mbox_reorder_lists[i].vendor &&
@@ -3262,8 +3264,6 @@ bge_mbox_reorder(struct bge_softc *sc)
 				return (1);
 			}
 		}
-		if (device_get_devclass(bus) != pci)
-			break;
 	}
 	return (0);
 }
