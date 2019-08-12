@@ -157,7 +157,7 @@ typedef enum zil_create {
 #define	TX_ACL			13	/* Set ACL */
 #define	TX_CREATE_ACL		14	/* create with ACL */
 #define	TX_CREATE_ATTR		15	/* create + attrs */
-#define	TX_CREATE_ACL_ATTR 	16	/* create with ACL + attrs */
+#define	TX_CREATE_ACL_ATTR	16	/* create with ACL + attrs */
 #define	TX_MKDIR_ACL		17	/* mkdir with ACL */
 #define	TX_MKDIR_ATTR		18	/* mkdir with attr */
 #define	TX_MKDIR_ACL_ATTR	19	/* mkdir with ACL + attrs */
@@ -183,6 +183,19 @@ typedef enum zil_create {
 	(txtype) == TX_ACL_V0 ||	\
 	(txtype) == TX_ACL ||		\
 	(txtype) == TX_WRITE2)
+
+/*
+ * The number of dnode slots consumed by the object is stored in the 8
+ * unused upper bits of the object ID. We subtract 1 from the value
+ * stored on disk for compatibility with implementations that don't
+ * support large dnodes. The slot count for a single-slot dnode will
+ * contain 0 for those bits to preserve the log record format for
+ * "small" dnodes.
+ */
+#define	LR_FOID_GET_SLOTS(oid) (BF64_GET((oid), 56, 8) + 1)
+#define	LR_FOID_SET_SLOTS(oid, x) BF64_SET((oid), 56, 8, (x) - 1)
+#define	LR_FOID_GET_OBJ(oid) BF64_GET((oid), 0, DN_MAX_OBJECT_SHIFT)
+#define	LR_FOID_SET_OBJ(oid, x) BF64_SET((oid), 0, DN_MAX_OBJECT_SHIFT, (x))
 
 /*
  * Format of log records.
@@ -422,7 +435,7 @@ extern void	zil_commit_impl(zilog_t *zilog, uint64_t oid);
 extern int	zil_reset(const char *osname, void *txarg);
 extern int	zil_claim(struct dsl_pool *dp,
     struct dsl_dataset *ds, void *txarg);
-extern int 	zil_check_log_chain(struct dsl_pool *dp,
+extern int	zil_check_log_chain(struct dsl_pool *dp,
     struct dsl_dataset *ds, void *tx);
 extern void	zil_sync(zilog_t *zilog, dmu_tx_t *tx);
 extern void	zil_clean(zilog_t *zilog, uint64_t synced_txg);
