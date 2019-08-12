@@ -41,6 +41,11 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
+SET_DECLARE(ns, struct nvme_function);
+
+#define NS_USAGE								\
+"       nvmecontrol ns (create|delete|attach|detach)\n"
+
 /* handles NVME_OPC_NAMESPACE_MANAGEMENT and ATTACHMENT admin cmds */
 
 #define NSCREATE_USAGE							\
@@ -60,13 +65,10 @@ void nsdelete(int argc, char *argv[]);
 void nsattach(int argc, char *argv[]);
 void nsdetach(int argc, char *argv[]);
 
-static struct nvme_function ns_funcs[] = {
-	{"create",	nscreate, NSCREATE_USAGE},
-	{"delete",	nsdelete, NSDELETE_USAGE},
-	{"attach",	nsattach, NSATTACH_USAGE},
-	{"detach",	nsdetach, NSDETACH_USAGE},
-	{NULL,		NULL,		NULL},
-};
+NVME_COMMAND(ns, create, nscreate, NSCREATE_USAGE);
+NVME_COMMAND(ns, delete, nsdelete, NSDELETE_USAGE);
+NVME_COMMAND(ns, attach, nsattach, NSATTACH_USAGE);
+NVME_COMMAND(ns, detach, nsdetach, NSDETACH_USAGE);
 
 static void
 nscreate_usage(void)
@@ -466,9 +468,11 @@ nsdetach(int argc, char *argv[])
 	exit(0);
 }
 
-void
+static void
 ns(int argc, char *argv[])
 {
 
-	dispatch(argc, argv, ns_funcs);
+	DISPATCH(argc, argv, ns);
 }
+
+NVME_COMMAND(top, ns, ns, NS_USAGE);

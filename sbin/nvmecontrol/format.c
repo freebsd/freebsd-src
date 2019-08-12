@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
+#define FORMAT_USAGE							       \
+"       nvmecontrol format [-f fmt] [-m mset] [-p pi] [-l pil] [-E] [-C] <controller id|namespace id>\n"
+
 static void
 format_usage(void)
 {
@@ -51,7 +54,7 @@ format_usage(void)
 	exit(1);
 }
 
-void
+static void
 format(int argc, char *argv[])
 {
 	struct nvme_controller_data	cd;
@@ -185,3 +188,5 @@ format(int argc, char *argv[])
 	close(fd);
 	exit(0);
 }
+
+NVME_COMMAND(top, format, format, FORMAT_USAGE);
