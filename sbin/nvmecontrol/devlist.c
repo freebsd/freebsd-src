@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #define DEVLIST_USAGE							       \
 	"devlist\n"
 
+#define NVME_MAX_UNIT 256
+
 static inline uint32_t
 ns_get_sector_size(struct nvme_namespace_data *nsdata)
 {
@@ -79,19 +81,17 @@ devlist(const struct nvme_function *nf, int argc, char *argv[])
 	ctrlr = -1;
 	found = 0;
 
-	while (1) {
+	while (ctrlr < NVME_MAX_UNIT) {
 		ctrlr++;
 		sprintf(name, "%s%d", NVME_CTRLR_PREFIX, ctrlr);
 
 		ret = open_dev(name, &fd, 0, 0);
 
-		if (ret != 0) {
-			if (ret == EACCES) {
-				warnx("could not open "_PATH_DEV"%s\n", name);
-				continue;
-			} else
-				break;
-		}
+		if (ret == EACCES) {
+			warnx("could not open "_PATH_DEV"%s\n", name);
+			continue;
+		} else if (ret != 0)
+			continue;
 
 		found++;
 		read_controller_data(fd, &cdata);
