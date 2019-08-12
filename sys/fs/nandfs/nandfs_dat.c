@@ -298,6 +298,9 @@ nandfs_get_dat_bdescs_ioctl(struct nandfs_device *nffsdev,
 	size_t size;
 	int error;
 
+	if (nargv->nv_nmembs >= SIZE_MAX / sizeof(struct nandfs_bdesc))
+		return (EINVAL);
+		
 	size = nargv->nv_nmembs * sizeof(struct nandfs_bdesc);
 	bd = malloc(size, M_NANDFSTEMP, M_WAITOK);
 	error = copyin((void *)(uintptr_t)nargv->nv_base, bd, size);
