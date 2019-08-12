@@ -1457,67 +1457,6 @@ makeoptions	KBDMUX_DFLT_KEYMAP=it.iso
 
 options 	FB_DEBUG		# Frame buffer debugging
 
-device		splash			# Splash screen and screen saver support
-
-# Various screen savers.
-device		blank_saver
-device		daemon_saver
-device		dragon_saver
-device		fade_saver
-device		fire_saver
-device		green_saver
-device		logo_saver
-device		rain_saver
-device		snake_saver
-device		star_saver
-device		warp_saver
-
-# The syscons console driver (SCO color console compatible).
-device		sc
-hint.sc.0.at="isa"
-options 	MAXCONS=16		# number of virtual consoles
-options 	SC_ALT_MOUSE_IMAGE	# simplified mouse cursor in text mode
-options 	SC_DFLT_FONT		# compile font in
-makeoptions	SC_DFLT_FONT=cp850
-options 	SC_DFLT_TERM=\"sc\"	# default terminal emulator
-options 	SC_DISABLE_KDBKEY	# disable `debug' key
-options 	SC_DISABLE_REBOOT	# disable reboot key sequence
-options 	SC_HISTORY_SIZE=200	# number of history buffer lines
-options 	SC_MOUSE_CHAR=0x3	# char code for text mode mouse cursor
-options 	SC_PIXEL_MODE		# add support for the raster text mode
-
-# The following options will let you change the default colors of syscons.
-options 	SC_NORM_ATTR=(FG_GREEN|BG_BLACK)
-options 	SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)
-options 	SC_KERNEL_CONS_ATTR=(FG_RED|BG_BLACK)
-options 	SC_KERNEL_CONS_ATTRS=\"\x0c\x0d\x0e\x0f\x02\x09\x0a\x0b\"
-options 	SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)
-
-# The following options will let you change the default behavior of
-# cut-n-paste feature
-options 	SC_CUT_SPACES2TABS	# convert leading spaces into tabs
-options 	SC_CUT_SEPCHARS=\"x09\"	# set of characters that delimit words
-					# (default is single space - \"x20\")
-
-# If you have a two button mouse, you may want to add the following option
-# to use the right button of the mouse to paste text.
-options 	SC_TWOBUTTON_MOUSE
-
-# You can selectively disable features in syscons.
-options 	SC_NO_CUTPASTE
-options 	SC_NO_FONT_LOADING
-options 	SC_NO_HISTORY
-options 	SC_NO_MODE_CHANGE
-options 	SC_NO_SYSMOUSE
-options 	SC_NO_SUSPEND_VTYSWITCH
-#!options 	SC_NO_TERM_DUMB
-#!options 	SC_NO_TERM_SC
-#!options 	SC_NO_TERM_SCTEKEN
-
-# `flags' for sc
-#	0x80	Put the video card in the VESA 800x600 dots, 16 color mode
-#	0x100	Probe for a keyboard device periodically if one is not present
-
 # Enable experimental features of the syscons terminal emulator (teken).
 options 	TEKEN_CONS25		# cons25-style terminal emulation
 options 	TEKEN_UTF8		# UTF-8 output handling
