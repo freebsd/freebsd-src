@@ -48,14 +48,6 @@ _Static_assert(sizeof(struct nvme_power_state) == 256 / NBBY,
 "       nvmecontrol power [-l] [-p new-state [-w workload-hint]] <controller id>\n"
 
 static void
-power_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, POWER_USAGE);
-	exit(1);
-}
-
-static void
 power_list_one(int i, struct nvme_power_state *nps)
 {
 	int mpower, apower, ipower;
@@ -137,7 +129,7 @@ power_show(int fd)
 }
 
 static void
-power(int argc, char *argv[])
+power(struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
 	int				ch, listflag = 0, powerflag = 0, power_val = 0, fd;
@@ -154,28 +146,28 @@ power(int argc, char *argv[])
 			power_val = strtol(optarg, &end, 0);
 			if (*end != '\0') {
 				fprintf(stderr, "Invalid power state number: %s\n", optarg);
-				power_usage();
+				usage(nf);
 			}
 			break;
 		case 'w':
 			workload = strtol(optarg, &end, 0);
 			if (*end != '\0') {
 				fprintf(stderr, "Invalid workload hint: %s\n", optarg);
-				power_usage();
+				usage(nf);
 			}
 			break;
 		default:
-			power_usage();
+			usage(nf);
 		}
 	}
 
 	/* Check that a controller was specified. */
 	if (optind >= argc)
-		power_usage();
+		usage(nf);
 
 	if (listflag && powerflag) {
 		fprintf(stderr, "Can't set power and list power states\n");
-		power_usage();
+		usage(nf);
 	}
 
 	open_dev(argv[optind], &fd, 1, 1);

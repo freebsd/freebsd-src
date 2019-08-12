@@ -473,14 +473,6 @@ NVME_LOGPAGE(samsung_smart,
     print_intel_add_smart,		DEFAULT_SIZE);
 
 static void
-logpage_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, LOGPAGE_USAGE);
-	exit(1);
-}
-
-static void
 logpage_help(void)
 {
 	struct logpage_function		**f;
@@ -498,7 +490,7 @@ logpage_help(void)
 }
 
 static void
-logpage(int argc, char *argv[])
+logpage(struct nvme_function *nf, int argc, char *argv[])
 {
 	int				fd;
 	int				log_page = 0, pageflag = false;
@@ -529,7 +521,7 @@ logpage(int argc, char *argv[])
 				fprintf(stderr,
 				    "\"%s\" not valid log page id.\n",
 				    optarg);
-				logpage_usage();
+				usage(nf);
 			}
 			pageflag = true;
 			break;
@@ -546,12 +538,12 @@ logpage(int argc, char *argv[])
 
 	if (!pageflag) {
 		printf("Missing page_id (-p).\n");
-		logpage_usage();
+		usage(nf);
 	}
 
 	/* Check that a controller and/or namespace was specified. */
 	if (optind >= argc)
-		logpage_usage();
+		usage(nf);
 
 	if (strstr(argv[optind], NVME_NS_PREFIX) != NULL) {
 		ns_specified = true;
