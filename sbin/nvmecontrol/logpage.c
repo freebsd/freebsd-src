@@ -465,7 +465,7 @@ logpage(const struct cmd *f, int argc, char *argv[])
 		 * unless the vendors match.
 		 */
 		SLIST_FOREACH(lpf, &logpages, link) {
-			if (lpf->vendor != NULL && vendor != NULL &&
+			if (lpf->vendor == NULL || vendor == NULL ||
 			    strcmp(lpf->vendor, vendor) != 0)
 				continue;
 			if (opt.page != lpf->log_page)
