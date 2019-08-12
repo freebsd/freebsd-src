@@ -796,22 +796,18 @@ pte_lookup:
 	rldicl  %r25, %r31, (64 - PP2D_H_L), (64 - PP2D_H_NUM)
 	rldimi  %r21, %r25, PP2D_L_NUM, (64 - (PP2D_L_NUM + PP2D_H_NUM))
 	slwi    %r21, %r21, PP2D_ENTRY_SHIFT	/* multiply by pp2d entry size */
-	addi    %r25, %r26, PM_PP2D		/* pmap pm_pp2d[] address */
-	add     %r25, %r25, %r21		/* offset within pm_pp2d[] table */
-	ld      %r25, 0(%r25)			/* get pdir address, i.e.  pmap->pm_pp2d[pp2d_idx] * */
+	ld	%r25, PM_PP2D(%r26)		/* pmap pm_pp2d[] address */
+	ldx	%r25, %r25, %r21		/* get pdir address, i.e.  pmap->pm_pp2d[pp2d_idx] * */
 
 	cmpdi   %r25, 0
-	beq 1f
+	beq 2f
 
-#if PAGE_SIZE < 65536
-	rldicl  %r21, %r31, (64 - PDIR_L), (64 - PDIR_NUM)      /* pdir offset */
-	slwi    %r21, %r21, PDIR_ENTRY_SHIFT    /* multiply by pdir entry size */
-	add     %r25, %r25, %r21                /* offset within pdir table */
-	ld      %r25, 0(%r25)                   /* get ptbl address, i.e.  pmap->pm_pp2d[pp2d_idx][pdir_idx] */
+	rldicl  %r21, %r31, (64 - PDIR_L), (64 - PDIR_NUM)	/* pdir offset */
+	slwi    %r21, %r21, PDIR_ENTRY_SHIFT	/* multiply by pdir entry size */
+	ldx	%r25, %r25, %r21		/* get ptbl address, i.e.  pmap->pm_pp2d[pp2d_idx][pdir_idx] */
 
 	cmpdi   %r25, 0
-	beq     1f
-#endif
+	beq     2f
 
 	rldicl  %r21, %r31, (64 - PTBL_L), (64 - PTBL_NUM) /* ptbl offset */
 	slwi    %r21, %r21, PTBL_ENTRY_SHIFT   /* multiply by pte entry size */
@@ -820,14 +816,13 @@ pte_lookup:
 	srwi	%r21, %r31, PDIR_SHIFT		/* pdir offset */
 	slwi	%r21, %r21, PDIR_ENTRY_SHIFT	/* multiply by pdir entry size */
 
-	addi	%r25, %r26, PM_PDIR	/* pmap pm_dir[] address */
-	add	%r25, %r25, %r21	/* offset within pm_pdir[] table */
+	lwz	%r25, PM_PDIR(%r26)	/* pmap pm_dir[] address */
 	/*
 	 * Get ptbl address, i.e. pmap->pm_pdir[pdir_idx]
 	 * This load may cause a Data TLB miss for non-kernel pmap!
 	 */
-	LOAD	%r25, 0(%r25)
-	CMPI	%r25, 0
+	lwzx	%r25, %r25, %r21	/* offset within pm_pdir[] table */
+	cmpwi	%r25, 0
 	beq	2f
 
 	lis	%r21, PTBL_MASK@h
