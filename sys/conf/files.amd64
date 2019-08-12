@@ -3,6 +3,10 @@
 #
 # $FreeBSD$
 #
+
+# common files stuff between i386 and amd64
+include 	"conf/files.x86"
+
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
@@ -298,10 +302,6 @@ dev/ixl/i40e_adminq.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/i40e_dcb.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/fdc/fdc.c			optional	fdc
-dev/fdc/fdc_acpi.c		optional	fdc
-dev/fdc/fdc_isa.c		optional	fdc isa
-dev/fdc/fdc_pccard.c		optional	fdc pccard
 dev/gpio/bytgpio.c		optional	bytgpio
 dev/gpio/chvgpio.c		optional	chvgpio
 dev/hpt27xx/hpt27xx_os_bsd.c	optional	hpt27xx
