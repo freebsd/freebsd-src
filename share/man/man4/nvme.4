@@ -117,6 +117,17 @@ hw.nvme.force_intx=1
 .Ed
 .Pp
 Note that use of INTx implies disabling of per-CPU I/O queue pairs.
+.Pp
+When there is an error,
+.Nm
+prints only the most relevant information about the command by default.
+To enable dumping of all information about the command, set the following tunable
+value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.nvme.verbose_cmd_dump=1
+.Ed
+.Pp
 .Sh SYSCTL VARIABLES
 The following controller-level sysctls are currently implemented:
 .Bl -tag -width indent
