@@ -15,7 +15,6 @@ nooptions	MAXCPU		# value is set in machine/param.h
 # Devices in sys/conf/NOTES for which no such hardware exists on arm,
 # or the drivers don't compile...
 
-nodevice	fdc
 nodevice	sym
 
 nodevice	ccr
