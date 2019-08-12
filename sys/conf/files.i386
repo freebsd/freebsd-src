@@ -3,6 +3,10 @@
 #
 # $FreeBSD$
 #
+
+# common files stuff between i386 and amd64
+include 	"conf/files.x86"
+
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
@@ -208,10 +212,6 @@ dev/fb/fb.c			optional fb | vga
 dev/fb/s3_pci.c			optional s3pci
 dev/fb/vesa.c			optional vga vesa
 dev/fb/vga.c			optional vga
-dev/fdc/fdc.c			optional fdc
-dev/fdc/fdc_acpi.c		optional fdc
-dev/fdc/fdc_isa.c		optional fdc isa
-dev/fdc/fdc_pccard.c		optional fdc pccard
 dev/fe/if_fe_isa.c		optional fe isa
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
