@@ -107,11 +107,11 @@ devlist(const struct cmd *f, int argc, char *argv[])
 		printf("%6s: %s\n", name, mn);
 
 		for (i = 0; i < cdata.nn; i++) {
-			sprintf(name, "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,
-			    NVME_NS_PREFIX, i+1);
-			read_namespace_data(fd, i+1, &nsdata);
+			read_namespace_data(fd, i + 1, &nsdata);
 			if (nsdata.nsze == 0)
 				continue;
+			sprintf(name, "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,
+			    NVME_NS_PREFIX, i + 1);
 			printf("  %10s (%lldMB)\n",
 				name,
 				nsdata.nsze *
