@@ -50,14 +50,29 @@ __FBSDID("$FreeBSD$");
 SET_DECLARE(top, struct nvme_function);
 
 static void
+print_usage(const struct nvme_function *f)
+{
+	fprintf(stderr, "%s", f->usage);
+}
+
+static void
 gen_usage_set(struct nvme_function **f, struct nvme_function **flimit)
 {
 
 	fprintf(stderr, "usage:\n");
 	while (f < flimit) {
-		fprintf(stderr, "%s", (*f)->usage);
+		print_usage(*f);
 		f++;
 	}
+	exit(1);
+}
+
+void
+usage(const struct nvme_function *f)
+{
+
+	fprintf(stderr, "usage:\n");
+	print_usage(f);
 	exit(1);
 }
 
@@ -74,7 +89,7 @@ dispatch_set(int argc, char *argv[], struct nvme_function **tbl,
 
 	while (f < tbl_limit) {
 		if (strcmp(argv[1], (*f)->name) == 0) {
-			(*f)->fn(argc-1, &argv[1]);
+			(*f)->fn(*f, argc-1, &argv[1]);
 			return;
 		}
 		f++;

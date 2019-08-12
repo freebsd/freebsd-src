@@ -34,7 +34,8 @@
 #include <sys/linker_set.h>
 #include <dev/nvme/nvme.h>
 
-typedef void (*nvme_fn_t)(int argc, char *argv[]);
+struct nvme_function;
+typedef void (*nvme_fn_t)(struct nvme_function *nf, int argc, char *argv[]);
 
 struct nvme_function {
 	const char	*name;
@@ -88,6 +89,7 @@ void print_hex(void *data, uint32_t length);
 void read_logpage(int fd, uint8_t log_page, uint32_t nsid, void *payload,
     uint32_t payload_size);
 
+void usage(const struct nvme_function *f);
 void dispatch_set(int argc, char *argv[], struct nvme_function **tbl,
     struct nvme_function **tbl_limit);
 
