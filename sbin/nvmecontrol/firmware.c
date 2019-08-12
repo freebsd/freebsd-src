@@ -177,7 +177,7 @@ static void
 firmware(const struct nvme_function *nf, int argc, char *argv[])
 {
 	int				fd = -1, slot = 0;
-	int				a_flag, s_flag, f_flag;
+	int				a_flag, f_flag;
 	int				activate_action, reboot_required;
 	int				opt;
 	char				*p, *image = NULL;
@@ -188,7 +188,7 @@ firmware(const struct nvme_function *nf, int argc, char *argv[])
 	uint8_t				fw_slot1_ro, fw_num_slots;
 	struct nvme_controller_data	cdata;
 
-	a_flag = s_flag = f_flag = false;
+	a_flag = f_flag = false;
 
 	while ((opt = getopt(argc, argv, "af:s:")) != -1) {
 		switch (opt) {
@@ -214,7 +214,6 @@ firmware(const struct nvme_function *nf, int argc, char *argv[])
 				    "7.\n", optarg);
 				usage(nf);
 			}
-			s_flag = true;
 			break;
 		case 'f':
 			image = optarg;
