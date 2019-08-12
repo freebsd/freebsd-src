@@ -57,11 +57,6 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
 #
-ukbdmap.h			optional	ukbd_dflt_keymap	\
-	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
-	no-obj no-implicit-rule before-depend				\
-	clean		"ukbdmap.h"
-#
 hpt27xx_lib.o			optional	hpt27xx			\
 	dependency	"$S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu"	\
 	compile-with	"uudecode < $S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu" \
