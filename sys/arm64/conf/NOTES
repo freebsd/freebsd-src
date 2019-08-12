@@ -209,7 +209,6 @@ options		MMCCAM
 nooptions 	PPC_PROBE_CHIPSET
 
 # These cause weird issues, not sure why
-nodevice	ukbd
 nooptions 	DEBUG
 
 # Makes assumptions about bus tags that aren't true on arm64
