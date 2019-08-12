@@ -18,19 +18,6 @@ nooptions	MAXCPU		# value is set in machine/param.h
 nodevice	fdc
 nodevice	sym
 
-nodevice	sc
-nodevice	blank_saver
-nodevice	daemon_saver
-nodevice	dragon_saver
-nodevice	fade_saver
-nodevice	fire_saver
-nodevice	green_saver
-nodevice	logo_saver
-nodevice	rain_saver
-nodevice	snake_saver
-nodevice	star_saver
-nodevice	warp_saver
-
 nodevice	ccr
 nodevice	cxgbe
 nodevice	cxgbev
