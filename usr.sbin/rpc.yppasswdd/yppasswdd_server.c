@@ -323,15 +323,16 @@ update_inplace(struct passwd *pw, char *domain)
 	DB *dbp = NULL;
 	DBT key = { NULL, 0 };
 	DBT data = { NULL, 0 };
-	char pwbuf[YPMAXRECORD];
+	char *pwbuf;
 	char keybuf[20];
 	int i;
 	char *ptr = NULL;
 	static char yp_last[] = "YP_LAST_MODIFIED";
-	char yplastbuf[YPMAXRECORD];
+	char yplastbuf[64];
 
 	snprintf(yplastbuf, sizeof yplastbuf, "%llu",
 	    (unsigned long long)time(NULL));
+	pwbuf = NULL;
 
 	for (i = 0; i < 4; i++) {
 
@@ -364,12 +365,12 @@ update_inplace(struct passwd *pw, char *domain)
 		if (yp_get_record(domain,maps[i],&key,&data,1) != YP_TRUE) {
 			yp_error("couldn't read %s/%s: %s", domain,
 						maps[i], strerror(errno));
-			return(1);
+			goto ret1;
 		}
 
 		if ((ptr = strchr(data.data, ':')) == NULL) {
 			yp_error("no colon in passwd record?!");
-			return(1);
+			goto ret1;
 		}
 
 		/*
@@ -393,8 +394,12 @@ with the same UID - continuing");
 			 * We're really being ultra-paranoid here.
 			 * This is generally a 'can't happen' condition.
 			 */
-			snprintf(pwbuf, sizeof pwbuf, ":%d:%d:", pw->pw_uid,
-								  pw->pw_gid);
+			free(pwbuf);
+			asprintf(&pwbuf, ":%d:%d:", pw->pw_uid, pw->pw_gid);
+			if (pwbuf == NULL) {
+				yp_error("no memory");
+				goto ret1;
+			}
 			if (!strstr(data.data, pwbuf)) {
 				yp_error("warning: found entry for user %s \
 in map %s@%s with wrong UID", pw->pw_name, maps[i], domain);
@@ -405,16 +410,22 @@ with the same name - continuing");
 		}
 
 		if (i < 2) {
-			snprintf(pwbuf, sizeof pwbuf, formats[i],
+			free(pwbuf);
+			asprintf(&pwbuf, formats[i],
 			   pw->pw_name, pw->pw_passwd, pw->pw_uid,
 			   pw->pw_gid, pw->pw_class, pw->pw_change,
 			   pw->pw_expire, pw->pw_gecos, pw->pw_dir,
 			   pw->pw_shell);
 		} else {
-			snprintf(pwbuf, sizeof pwbuf, formats[i],
+			free(pwbuf);
+			asprintf(&pwbuf, formats[i],
 			   pw->pw_name, *(ptr+1) == '*' ? "*" : pw->pw_passwd,
 			   pw->pw_uid, pw->pw_gid, pw->pw_gecos, pw->pw_dir,
 			   pw->pw_shell);
+		}
+		if (pwbuf == NULL) {
+			yp_error("no memory");
+			goto ret1;
 		}
 
 #define FLAGS O_RDWR|O_CREAT
@@ -422,7 +433,7 @@ with the same name - continuing");
 		if ((dbp = yp_open_db_rw(domain, maps[i], FLAGS)) == NULL) {
 			yp_error("couldn't open %s/%s r/w: %s",domain,
 						maps[i],strerror(errno));
-			return(1);
+			goto ret1;
 		}
 
 		data.data = pwbuf;
@@ -432,7 +443,7 @@ with the same name - continuing");
 			yp_error("failed to update record in %s/%s", domain,
 								maps[i]);
 			(void)(dbp->close)(dbp);
-			return(1);
+			goto ret1;
 		}
 
 		key.data = yp_last;
@@ -444,13 +455,17 @@ with the same name - continuing");
 			yp_error("failed to update timestamp in %s/%s", domain,
 								maps[i]);
 			(void)(dbp->close)(dbp);
-			return(1);
+			goto ret1;
 		}
 
 		(void)(dbp->close)(dbp);
 	}
 
-	return(0);
+	free(pwbuf);
+	return (0);
+ret1:
+	free(pwbuf);
+	return (1);
 }
 
 int *

@@ -438,14 +438,25 @@ static int
 yppush_foreach(int status, char *key, int keylen, char *val, int vallen,
     char *data)
 {
-	char server[YPMAXRECORD + 2];
+	char *server;
 
 	if (status != YP_TRUE)
 		return (status);
 
-	snprintf(server, sizeof(server), "%.*s", vallen, val);
-	if (skip_master && strcasecmp(server, yppush_master) == 0)
+	asprintf(&server, "%.*s", vallen, val);
+
+	/*
+	 * Do not stop the iteration on the allocation failure.  We
+	 * cannot usefully react on low memory condition anyway, and
+	 * the failure is more likely due to insane val.
+	 */
+	if (server == NULL)
 		return (0);
+
+	if (skip_master && strcasecmp(server, yppush_master) == 0) {
+		free(server);
+		return (0);
+	}
 
 	/*
 	 * Restrict the number of concurrent jobs: if yppush_jobs number
@@ -456,12 +467,15 @@ yppush_foreach(int status, char *key, int keylen, char *val, int vallen,
 		;
 
 	/* Cleared for takeoff: set everything in motion. */
-	if (yp_push(server, yppush_mapname, yppush_transid))
+	if (yp_push(server, yppush_mapname, yppush_transid)) {
+		free(server);
 		return(yp_errno);
+	}
 
 	/* Bump the job counter and transaction ID. */
 	yppush_running_jobs++;
 	yppush_transid++;
+	free(server);
 	return (0);
 }
 
