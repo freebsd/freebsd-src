@@ -86,12 +86,26 @@ extern "C" {
 /*
  * Derived constants.
  */
-#define	DNODE_SIZE	(1 << DNODE_SHIFT)
-#define	DN_MAX_NBLKPTR	((DNODE_SIZE - DNODE_CORE_SIZE) >> SPA_BLKPTRSHIFT)
-#define	DN_MAX_BONUSLEN	(DNODE_SIZE - DNODE_CORE_SIZE - (1 << SPA_BLKPTRSHIFT))
-#define	DN_MAX_OBJECT	(1ULL << DN_MAX_OBJECT_SHIFT)
-#define	DN_ZERO_BONUSLEN	(DN_MAX_BONUSLEN + 1)
-#define	DN_KILL_SPILLBLK (1)
+#define	DNODE_MIN_SIZE		(1 << DNODE_SHIFT)
+#define	DNODE_MAX_SIZE		(1 << DNODE_BLOCK_SHIFT)
+#define	DNODE_BLOCK_SIZE	(1 << DNODE_BLOCK_SHIFT)
+#define	DNODE_MIN_SLOTS		(DNODE_MIN_SIZE >> DNODE_SHIFT)
+#define	DNODE_MAX_SLOTS		(DNODE_MAX_SIZE >> DNODE_SHIFT)
+#define	DN_BONUS_SIZE(dnsize)	((dnsize) - DNODE_CORE_SIZE - \
+	(1 << SPA_BLKPTRSHIFT))
+#define	DN_SLOTS_TO_BONUSLEN(slots)	DN_BONUS_SIZE((slots) << DNODE_SHIFT)
+#define	DN_OLD_MAX_BONUSLEN	(DN_BONUS_SIZE(DNODE_MIN_SIZE))
+#define	DN_MAX_NBLKPTR	((DNODE_MIN_SIZE - DNODE_CORE_SIZE) >> SPA_BLKPTRSHIFT)
+#define	DN_MAX_OBJECT		(1ULL << DN_MAX_OBJECT_SHIFT)
+#define	DN_ZERO_BONUSLEN	(DN_BONUS_SIZE(DNODE_MAX_SIZE) + 1)
+#define	DN_KILL_SPILLBLK	(1)
+
+#define	DN_SLOT_UNINIT		((void *)NULL)	/* Uninitialized */
+#define	DN_SLOT_FREE		((void *)1UL)	/* Free slot */
+#define	DN_SLOT_ALLOCATED	((void *)2UL)	/* Allocated slot */
+#define	DN_SLOT_INTERIOR	((void *)3UL)	/* Interior allocated slot */
+#define	DN_SLOT_IS_PTR(dn)	((void *)dn > DN_SLOT_INTERIOR)
+#define	DN_SLOT_IS_VALID(dn)	((void *)dn != NULL)
 
 #define	DNODES_PER_BLOCK_SHIFT	(DNODE_BLOCK_SHIFT - DNODE_SHIFT)
 #define	DNODES_PER_BLOCK	(1ULL << DNODES_PER_BLOCK_SHIFT)
@@ -109,6 +123,10 @@ extern "C" {
 
 #define	DN_BONUS(dnp)	((void*)((dnp)->dn_bonus + \
 	(((dnp)->dn_nblkptr - 1) * sizeof (blkptr_t))))
+#define	DN_MAX_BONUS_LEN(dnp) \
+	((dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR) ? \
+	(uint8_t *)DN_SPILL_BLKPTR(dnp) - (uint8_t *)DN_BONUS(dnp) : \
+	(uint8_t *)(dnp + (dnp->dn_extra_slots + 1)) - (uint8_t *)DN_BONUS(dnp))
 
 #define	DN_USED_BYTES(dnp) (((dnp)->dn_flags & DNODE_FLAG_USED_BYTES) ? \
 	(dnp)->dn_used : (dnp)->dn_used << SPA_MINBLOCKSHIFT)
@@ -132,6 +150,57 @@ enum dnode_dirtycontext {
 /* Does dnode have a SA spill blkptr in bonus? */
 #define	DNODE_FLAG_SPILL_BLKPTR	(1<<2)
 
+/*
+ * VARIABLE-LENGTH (LARGE) DNODES
+ *
+ * The motivation for variable-length dnodes is to eliminate the overhead
+ * associated with using spill blocks.  Spill blocks are used to store
+ * system attribute data (i.e. file metadata) that does not fit in the
+ * dnode's bonus buffer. By allowing a larger bonus buffer area the use of
+ * a spill block can be avoided.  Spill blocks potentially incur an
+ * additional read I/O for every dnode in a dnode block. As a worst case
+ * example, reading 32 dnodes from a 16k dnode block and all of the spill
+ * blocks could issue 33 separate reads. Now suppose those dnodes have size
+ * 1024 and therefore don't need spill blocks. Then the worst case number
+ * of blocks read is reduced to from 33 to two--one per dnode block.
+ *
+ * ZFS-on-Linux systems that make heavy use of extended attributes benefit
+ * from this feature. In particular, ZFS-on-Linux supports the xattr=sa
+ * dataset property which allows file extended attribute data to be stored
+ * in the dnode bonus buffer as an alternative to the traditional
+ * directory-based format. Workloads such as SELinux and the Lustre
+ * distributed filesystem often store enough xattr data to force spill
+ * blocks when xattr=sa is in effect. Large dnodes may therefore provide a
+ * performance benefit to such systems. Other use cases that benefit from
+ * this feature include files with large ACLs and symbolic links with long
+ * target names.
+ *
+ * The size of a dnode may be a multiple of 512 bytes up to the size of a
+ * dnode block (currently 16384 bytes). The dn_extra_slots field of the
+ * on-disk dnode_phys_t structure describes the size of the physical dnode
+ * on disk. The field represents how many "extra" dnode_phys_t slots a
+ * dnode consumes in its dnode block. This convention results in a value of
+ * 0 for 512 byte dnodes which preserves on-disk format compatibility with
+ * older software which doesn't support large dnodes.
+ *
+ * Similarly, the in-memory dnode_t structure has a dn_num_slots field
+ * to represent the total number of dnode_phys_t slots consumed on disk.
+ * Thus dn->dn_num_slots is 1 greater than the corresponding
+ * dnp->dn_extra_slots. This difference in convention was adopted
+ * because, unlike on-disk structures, backward compatibility is not a
+ * concern for in-memory objects, so we used a more natural way to
+ * represent size for a dnode_t.
+ *
+ * The default size for newly created dnodes is determined by the value of
+ * the "dnodesize" dataset property. By default the property is set to
+ * "legacy" which is compatible with older software. Setting the property
+ * to "auto" will allow the filesystem to choose the most suitable dnode
+ * size. Currently this just sets the default dnode size to 1k, but future
+ * code improvements could dynamically choose a size based on observed
+ * workload patterns. Dnodes of varying sizes can coexist within the same
+ * dataset and even within the same dnode block.
+ */
+
 typedef struct dnode_phys {
 	uint8_t dn_type;		/* dmu_object_type_t */
 	uint8_t dn_indblkshift;		/* ln2(indirect block size) */
@@ -143,18 +212,31 @@ typedef struct dnode_phys {
 	uint8_t dn_flags;		/* DNODE_FLAG_* */
 	uint16_t dn_datablkszsec;	/* data block size in 512b sectors */
 	uint16_t dn_bonuslen;		/* length of dn_bonus */
-	uint8_t dn_pad2[4];
+	uint8_t dn_extra_slots;		/* # of subsequent slots consumed */
+	uint8_t dn_pad2[3];
 
 	/* accounting is protected by dn_dirty_mtx */
 	uint64_t dn_maxblkid;		/* largest allocated block ID */
 	uint64_t dn_used;		/* bytes (or sectors) of disk space */
 
 	uint64_t dn_pad3[4];
-
-	blkptr_t dn_blkptr[1];
-	uint8_t dn_bonus[DN_MAX_BONUSLEN - sizeof (blkptr_t)];
-	blkptr_t dn_spill;
+	union {
+		blkptr_t dn_blkptr[1+DN_OLD_MAX_BONUSLEN/sizeof (blkptr_t)];
+		struct {
+			blkptr_t __dn_ignore1;
+			uint8_t dn_bonus[DN_OLD_MAX_BONUSLEN];
+		};
+		struct {
+			blkptr_t __dn_ignore2;
+			uint8_t __dn_ignore3[DN_OLD_MAX_BONUSLEN -
+			    sizeof (blkptr_t)];
+			blkptr_t dn_spill;
+		};
+	};
 } dnode_phys_t;
+
+#define	DN_SPILL_BLKPTR(dnp)	(blkptr_t *)((char *)(dnp) + \
+	(((dnp)->dn_extra_slots + 1) << DNODE_SHIFT) - (1 << SPA_BLKPTRSHIFT))
 
 struct dnode {
 	/*
@@ -192,6 +274,7 @@ struct dnode {
 	uint32_t dn_datablksz;		/* in bytes */
 	uint64_t dn_maxblkid;
 	uint8_t dn_next_type[TXG_SIZE];
+	uint8_t dn_num_slots;		/* metadnode slots consumed on disk */
 	uint8_t dn_next_nblkptr[TXG_SIZE];
 	uint8_t dn_next_nlevels[TXG_SIZE];
 	uint8_t dn_next_indblkshift[TXG_SIZE];
@@ -287,7 +370,7 @@ void dnode_rm_spill(dnode_t *dn, dmu_tx_t *tx);
 
 int dnode_hold(struct objset *dd, uint64_t object,
     void *ref, dnode_t **dnp);
-int dnode_hold_impl(struct objset *dd, uint64_t object, int flag,
+int dnode_hold_impl(struct objset *dd, uint64_t object, int flag, int dn_slots,
     void *ref, dnode_t **dnp);
 boolean_t dnode_add_ref(dnode_t *dn, void *ref);
 void dnode_rele(dnode_t *dn, void *ref);
@@ -295,9 +378,9 @@ void dnode_rele_and_unlock(dnode_t *dn, void *tag, boolean_t evicting);
 void dnode_setdirty(dnode_t *dn, dmu_tx_t *tx);
 void dnode_sync(dnode_t *dn, dmu_tx_t *tx);
 void dnode_allocate(dnode_t *dn, dmu_object_type_t ot, int blocksize, int ibs,
-    dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx);
+    dmu_object_type_t bonustype, int bonuslen, int dn_slots, dmu_tx_t *tx);
 void dnode_reallocate(dnode_t *dn, dmu_object_type_t ot, int blocksize,
-    dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx);
+    dmu_object_type_t bonustype, int bonuslen, int dn_slots, dmu_tx_t *tx);
 void dnode_free(dnode_t *dn, dmu_tx_t *tx);
 void dnode_byteswap(dnode_phys_t *dnp);
 void dnode_buf_byteswap(void *buf, size_t size);
@@ -313,6 +396,7 @@ int dnode_next_offset(dnode_t *dn, int flags, uint64_t *off,
     int minlvl, uint64_t blkfill, uint64_t txg);
 void dnode_evict_dbufs(dnode_t *dn);
 void dnode_evict_bonus(dnode_t *dn);
+void dnode_free_interior_slots(dnode_t *dn);
 boolean_t dnode_needs_remap(const dnode_t *dn);
 
 #define	DNODE_IS_CACHEABLE(_dn)						\
@@ -323,6 +407,140 @@ boolean_t dnode_needs_remap(const dnode_t *dn);
 #define	DNODE_META_IS_CACHEABLE(_dn)					\
 	((_dn)->dn_objset->os_primary_cache == ZFS_CACHE_ALL ||		\
 	(_dn)->dn_objset->os_primary_cache == ZFS_CACHE_METADATA)
+
+/*
+ * Used for dnodestats kstat.
+ */
+typedef struct dnode_stats {
+	/*
+	 * Number of failed attempts to hold a meta dnode dbuf.
+	 */
+	kstat_named_t dnode_hold_dbuf_hold;
+	/*
+	 * Number of failed attempts to read a meta dnode dbuf.
+	 */
+	kstat_named_t dnode_hold_dbuf_read;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_ALLOCATED) was able
+	 * to hold the requested object number which was allocated.  This is
+	 * the common case when looking up any allocated object number.
+	 */
+	kstat_named_t dnode_hold_alloc_hits;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_ALLOCATED) was not
+	 * able to hold the request object number because it was not allocated.
+	 */
+	kstat_named_t dnode_hold_alloc_misses;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_ALLOCATED) was not
+	 * able to hold the request object number because the object number
+	 * refers to an interior large dnode slot.
+	 */
+	kstat_named_t dnode_hold_alloc_interior;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_ALLOCATED) needed
+	 * to retry acquiring slot zrl locks due to contention.
+	 */
+	kstat_named_t dnode_hold_alloc_lock_retry;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_ALLOCATED) did not
+	 * need to create the dnode because another thread did so after
+	 * dropping the read lock but before acquiring the write lock.
+	 */
+	kstat_named_t dnode_hold_alloc_lock_misses;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_ALLOCATED) found
+	 * a free dnode instantiated by dnode_create() but not yet allocated
+	 * by dnode_allocate().
+	 */
+	kstat_named_t dnode_hold_alloc_type_none;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_FREE) was able
+	 * to hold the requested range of free dnode slots.
+	 */
+	kstat_named_t dnode_hold_free_hits;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_FREE) was not
+	 * able to hold the requested range of free dnode slots because
+	 * at least one slot was allocated.
+	 */
+	kstat_named_t dnode_hold_free_misses;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_FREE) was not
+	 * able to hold the requested range of free dnode slots because
+	 * after acquiring the zrl lock at least one slot was allocated.
+	 */
+	kstat_named_t dnode_hold_free_lock_misses;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_FREE) needed
+	 * to retry acquiring slot zrl locks due to contention.
+	 */
+	kstat_named_t dnode_hold_free_lock_retry;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_FREE) requested
+	 * a range of dnode slots which were held by another thread.
+	 */
+	kstat_named_t dnode_hold_free_refcount;
+	/*
+	 * Number of times dnode_hold(..., DNODE_MUST_BE_FREE) requested
+	 * a range of dnode slots which would overflow the dnode_phys_t.
+	 */
+	kstat_named_t dnode_hold_free_overflow;
+	/*
+	 * Number of times a dnode_hold(...) was attempted on a dnode
+	 * which had already been unlinked in an earlier txg.
+	 */
+	kstat_named_t dnode_hold_free_txg;
+	/*
+	 * Number of times dnode_free_interior_slots() needed to retry
+	 * acquiring a slot zrl lock due to contention.
+	 */
+	kstat_named_t dnode_free_interior_lock_retry;
+	/*
+	 * Number of new dnodes allocated by dnode_allocate().
+	 */
+	kstat_named_t dnode_allocate;
+	/*
+	 * Number of dnodes re-allocated by dnode_reallocate().
+	 */
+	kstat_named_t dnode_reallocate;
+	/*
+	 * Number of meta dnode dbufs evicted.
+	 */
+	kstat_named_t dnode_buf_evict;
+	/*
+	 * Number of times dmu_object_alloc*() reached the end of the existing
+	 * object ID chunk and advanced to a new one.
+	 */
+	kstat_named_t dnode_alloc_next_chunk;
+	/*
+	 * Number of times multiple threads attempted to allocate a dnode
+	 * from the same block of free dnodes.
+	 */
+	kstat_named_t dnode_alloc_race;
+	/*
+	 * Number of times dmu_object_alloc*() was forced to advance to the
+	 * next meta dnode dbuf due to an error from  dmu_object_next().
+	 */
+	kstat_named_t dnode_alloc_next_block;
+	/*
+	 * Statistics for tracking dnodes which have been moved.
+	 */
+	kstat_named_t dnode_move_invalid;
+	kstat_named_t dnode_move_recheck1;
+	kstat_named_t dnode_move_recheck2;
+	kstat_named_t dnode_move_special;
+	kstat_named_t dnode_move_handle;
+	kstat_named_t dnode_move_rwlock;
+	kstat_named_t dnode_move_active;
+} dnode_stats_t;
+
+extern dnode_stats_t dnode_stats;
+
+#define	DNODE_STAT_INCR(stat, val) \
+    atomic_add_64(&dnode_stats.stat.value.ui64, (val));
+#define	DNODE_STAT_BUMP(stat) \
+    DNODE_STAT_INCR(stat, 1);
 
 #ifdef ZFS_DEBUG
 

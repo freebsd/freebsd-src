@@ -149,6 +149,7 @@ typedef enum arc_space_type {
 	ARC_SPACE_HDRS,
 	ARC_SPACE_L2HDRS,
 	ARC_SPACE_OTHER,
+	ARC_SPACE_BONUS,
 	ARC_SPACE_NUMTYPES
 } arc_space_type_t;
 

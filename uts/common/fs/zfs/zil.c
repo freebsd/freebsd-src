@@ -63,9 +63,9 @@
  * representation, and the on-disk representation). The on-disk format
  * consists of 3 parts:
  *
- * 	- a single, per-dataset, ZIL header; which points to a chain of
- * 	- zero or more ZIL blocks; each of which contains
- * 	- zero or more ZIL records
+ *	- a single, per-dataset, ZIL header; which points to a chain of
+ *	- zero or more ZIL blocks; each of which contains
+ *	- zero or more ZIL records
  *
  * A ZIL record holds the information necessary to replay a single
  * system call transaction. A ZIL block can hold many ZIL records, and
@@ -1355,7 +1355,7 @@ zil_lwb_write_open(zilog_t *zilog, lwb_t *lwb)
 uint64_t zil_block_buckets[] = {
     4096,		/* non TX_WRITE */
     8192+4096,		/* data base */
-    32*1024 + 4096, 	/* NFS writes */
+    32*1024 + 4096,	/* NFS writes */
     UINT64_MAX
 };
 
@@ -1840,7 +1840,8 @@ zil_itx_assign(zilog_t *zilog, itx_t *itx, dmu_tx_t *tx)
 		list_insert_tail(&itxs->i_sync_list, itx);
 	} else {
 		avl_tree_t *t = &itxs->i_async_tree;
-		uint64_t foid = ((lr_ooo_t *)&itx->itx_lr)->lr_foid;
+		uint64_t foid =
+		    LR_FOID_GET_OBJ(((lr_ooo_t *)&itx->itx_lr)->lr_foid);
 		itx_async_node_t *ian;
 		avl_index_t where;
 
@@ -3088,7 +3089,8 @@ zil_close(zilog_t *zilog)
 
 	if (zilog_is_dirty(zilog))
 		zfs_dbgmsg("zil (%p) is dirty, txg %llu", zilog, txg);
-	VERIFY(!zilog_is_dirty(zilog));
+	if (txg < spa_freeze_txg(zilog->zl_spa))
+		VERIFY(!zilog_is_dirty(zilog));
 
 	zilog->zl_get_data = NULL;
 
@@ -3303,7 +3305,7 @@ zil_replay_log_record(zilog_t *zilog, lr_t *lr, void *zra, uint64_t claim_txg)
 	 */
 	if (TX_OOO(txtype)) {
 		error = dmu_object_info(zilog->zl_os,
-		    ((lr_ooo_t *)lr)->lr_foid, NULL);
+		    LR_FOID_GET_OBJ(((lr_ooo_t *)lr)->lr_foid), NULL);
 		if (error == ENOENT || error == EEXIST)
 			return (0);
 	}

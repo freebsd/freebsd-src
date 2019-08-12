@@ -101,7 +101,7 @@ typedef struct sa_lot {
 	sa_attr_type_t *lot_attrs;	/* array of attr #'s */
 	uint32_t lot_var_sizes;	/* how many aren't fixed size */
 	uint32_t lot_attr_count;	/* total attr count */
-	list_t 	lot_idx_tab;	/* should be only a couple of entries */
+	list_t	lot_idx_tab;	/* should be only a couple of entries */
 	int	lot_instance;	/* used with lot_hash to identify entry */
 } sa_lot_t;
 
@@ -134,7 +134,7 @@ typedef struct sa_idx_tab {
  * adding a completely new attribute is a very rare operation.
  */
 struct sa_os {
-	kmutex_t 	sa_lock;
+	kmutex_t	sa_lock;
 	boolean_t	sa_need_attr_registration;
 	boolean_t	sa_force_spill;
 	uint64_t	sa_master_obj;
@@ -237,7 +237,7 @@ struct sa_handle {
 #define	SA_BONUSTYPE_FROM_DB(db) \
 	(dmu_get_bonustype((dmu_buf_t *)db))
 
-#define	SA_BLKPTR_SPACE	(DN_MAX_BONUSLEN - sizeof (blkptr_t))
+#define	SA_BLKPTR_SPACE	(DN_OLD_MAX_BONUSLEN - sizeof (blkptr_t))
 
 #define	SA_LAYOUT_NUM(x, type) \
 	((!IS_SA_BONUSTYPE(type) ? 0 : (((IS_SA_BONUSTYPE(type)) && \
