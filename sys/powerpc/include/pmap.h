@@ -140,7 +140,6 @@ struct	pmap {
 	struct	mtx	pm_mtx;
 	cpuset_t	pm_active;
 	union {
-#ifdef AIM
 		struct {
 			
 		    #ifdef __powerpc64__
@@ -154,8 +153,6 @@ struct	pmap {
 			struct pmap	*pmap_phys;
 			struct pvo_tree pmap_pvo;
 		};
-#endif
-#ifdef BOOKE
 		struct {
 			/* TID to identify this pmap entries in TLB */
 			tlbtid_t	pm_tid[MAXCPU];	
@@ -165,22 +162,18 @@ struct	pmap {
 			 * Page table directory,
 			 * array of pointers to page directories.
 			 */
-			pte_t **pm_pp2d[PP2D_NENTRIES];
-
-			/* List of allocated pdir bufs (pdir kva regions). */
-			TAILQ_HEAD(, ptbl_buf)	pm_pdir_list;
+			pte_t ***pm_pp2d;
 #else
 			/*
 			 * Page table directory,
 			 * array of pointers to page tables.
 			 */
-			pte_t		*pm_pdir[PDIR_NENTRIES];
-#endif
+			pte_t		**pm_pdir;
 
 			/* List of allocated ptbl bufs (ptbl kva regions). */
 			TAILQ_HEAD(, ptbl_buf)	pm_ptbl_list;
-		};
 #endif
+		};
 	};
 };
 

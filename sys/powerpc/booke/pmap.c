@@ -184,6 +184,7 @@ unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
 #ifdef __powerpc64__
 unsigned int kernel_pdirs;
 #endif
+static uma_zone_t ptbl_root_zone;
 
 /*
  * If user pmap is processed with mmu_booke_remove and the resident count
@@ -262,12 +263,14 @@ static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 #endif
 
 #ifdef __powerpc64__
+#define PMAP_ROOT_SIZE	(sizeof(pte_t***) * PP2D_NENTRIES)
 static pte_t *ptbl_alloc(mmu_t, pmap_t, pte_t **,
 			 unsigned int, boolean_t);
 static void ptbl_free(mmu_t, pmap_t, pte_t **, unsigned int, vm_page_t);
 static void ptbl_hold(mmu_t, pmap_t, pte_t **, unsigned int);
 static int ptbl_unhold(mmu_t, pmap_t, vm_offset_t);
 #else
+#define PMAP_ROOT_SIZE	(sizeof(pte_t**) * PDIR_NENTRIES)
 static void ptbl_init(void);
 static struct ptbl_buf *ptbl_buf_alloc(void);
 static void ptbl_buf_free(struct ptbl_buf *);
@@ -600,9 +603,6 @@ pdir_alloc(mmu_t mmu, pmap_t pmap, unsigned int pp2d_idx, bool nosleep)
 	pte_t          **pdir;
 	int		req;
 
-	KASSERT((pdir[pp2d_idx] == NULL),
-		("%s: valid pdir entry exists!", __func__));
-
 	req = VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
 	while ((m = vm_page_alloc(NULL, pp2d_idx, req)) == NULL) {
 		PMAP_UNLOCK(pmap);
@@ -632,6 +632,7 @@ pdir_free(mmu_t mmu, pmap_t pmap, unsigned int pp2d_idx, vm_page_t m)
 
 	pmap->pm_pp2d[pp2d_idx] = NULL;
 
+	vm_wire_sub(1);
 	vm_page_free_zero(m);
 }
 
@@ -660,7 +661,8 @@ pdir_unhold(mmu_t mmu, pmap_t pmap, u_int pp2d_idx)
 	/*
 	 * Free pdir page if there are no dir entries in this pdir.
 	 */
-	if (vm_page_unwire_noq(m)) {
+	m->wire_count--;
+	if (m->wire_count == 0) {
 		pdir_free(mmu, pmap, pp2d_idx, m);
 		return (1);
 	}
@@ -682,7 +684,7 @@ pdir_hold(mmu_t mmu, pmap_t pmap, pte_t ** pdir)
 	KASSERT((pdir != NULL), ("pdir_hold: null pdir"));
 
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pdir));
-	vm_page_wire(m);
+	m->wire_count++;
 }
 
 /* Allocate page table. */
@@ -728,6 +730,7 @@ ptbl_free(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx, vm_page_
 
 	pdir[pdir_idx] = NULL;
 
+	vm_wire_sub(1);
 	vm_page_free_zero(m);
 }
 
@@ -763,7 +766,8 @@ ptbl_unhold(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 	 * wire_count has the same value for all ptbl pages, so check the
 	 * last page.
 	 */
-	if (vm_page_unwire_noq(m)) {
+	m->wire_count--;
+	if (m->wire_count == 0) {
 		ptbl_free(mmu, pmap, pdir, pdir_idx, m);
 		pdir_unhold(mmu, pmap, pp2d_idx);
 		return (1);
@@ -789,7 +793,7 @@ ptbl_hold(mmu_t mmu, pmap_t pmap, pte_t ** pdir, unsigned int pdir_idx)
 	KASSERT((ptbl != NULL), ("ptbl_hold: null ptbl"));
 
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) ptbl));
-	vm_page_wire(m);
+	m->wire_count++;
 }
 #else
 
@@ -1545,6 +1549,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	vm_offset_t kernel_pdir, kstack0;
 	vm_paddr_t kstack0_phys;
 	void *dpcpu;
+	vm_offset_t kernel_ptbl_root;
 
 	debugf("mmu_booke_bootstrap: entered\n");
 
@@ -1585,7 +1590,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 
 	data_end = round_page(data_end);
 
-#ifndef __powerpc64__
+#ifdef __powerpc64__
+	kernel_ptbl_root = data_end;
+	data_end += PP2D_NENTRIES * sizeof(pte_t**);
+#else
 	/* Allocate space for ptbl_bufs. */
 	ptbl_bufs = (struct ptbl_buf *)data_end;
 	data_end += sizeof(struct ptbl_buf) * PTBL_BUFS;
@@ -1593,6 +1601,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	    (uintptr_t)ptbl_bufs, data_end);
 
 	data_end = round_page(data_end);
+	kernel_ptbl_root = data_end;
+	data_end += PDIR_NENTRIES * sizeof(pte_t*);
 #endif
 
 	/* Allocate PTE tables for kernel KVA. */
@@ -1814,6 +1824,11 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 #ifndef __powerpc64__
 	kptbl_min = VM_MIN_KERNEL_ADDRESS / PDIR_SIZE;
 #endif
+#ifdef __powerpc64__
+	kernel_pmap->pm_pp2d = (pte_t ***)kernel_ptbl_root;
+#else
+	kernel_pmap->pm_pdir = (pte_t **)kernel_ptbl_root;
+#endif
 
 	debugf("kernel_pmap = 0x%"PRI0ptrX"\n", (uintptr_t)kernel_pmap);
 	kernel_pte_alloc(virtual_avail, kernstart, kernel_pdir);
@@ -1988,6 +2003,10 @@ mmu_booke_init(mmu_t mmu)
 
 	/* Pre-fill pvzone with initial number of pv entries. */
 	uma_prealloc(pvzone, PV_ENTRY_ZONE_MIN);
+
+	/* Create a UMA zone for page table roots. */
+	ptbl_root_zone = uma_zcreate("pmap root", PMAP_ROOT_SIZE,
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, UMA_ZONE_VM);
 
 	/* Initialize ptbl allocation. */
 	ptbl_init();
@@ -2182,12 +2201,13 @@ mmu_booke_pinit(mmu_t mmu, pmap_t pmap)
 	CPU_ZERO(&kernel_pmap->pm_active);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 #ifdef __powerpc64__
-	bzero(&pmap->pm_pp2d, sizeof(pte_t **) * PP2D_NENTRIES);
-	TAILQ_INIT(&pmap->pm_pdir_list);
+	pmap->pm_pp2d = uma_zalloc(ptbl_root_zone, M_WAITOK);
+	bzero(pmap->pm_pp2d, sizeof(pte_t **) * PP2D_NENTRIES);
 #else
-	bzero(&pmap->pm_pdir, sizeof(pte_t *) * PDIR_NENTRIES);
-#endif
+	pmap->pm_pdir = uma_zalloc(ptbl_root_zone, M_WAITOK);
+	bzero(pmap->pm_pdir, sizeof(pte_t *) * PDIR_NENTRIES);
 	TAILQ_INIT(&pmap->pm_ptbl_list);
+#endif
 }
 
 /*
@@ -2202,6 +2222,11 @@ mmu_booke_release(mmu_t mmu, pmap_t pmap)
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
+#ifdef __powerpc64__
+	uma_zfree(ptbl_root_zone, pmap->pm_pp2d);
+#else
+	uma_zfree(ptbl_root_zone, pmap->pm_pdir);
+#endif
 }
 
 /*
@@ -2776,7 +2801,7 @@ retry:
 			if (vm_page_pa_tryrelock(pmap, PTE_PA(pte), &pa))
 				goto retry;
 			m = PHYS_TO_VM_PAGE(PTE_PA(pte));
-			vm_page_wire(m);
+			m->wire_count++;
 		}
 	}
 
