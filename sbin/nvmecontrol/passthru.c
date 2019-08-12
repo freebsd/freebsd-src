@@ -101,7 +101,7 @@ static struct options {
  */
 #define ARG(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
 
-static const struct opts opts[] = {
+static struct opts opts[] = {
 	ARG("opcode",		'o',	arg_uint8,	opt, opcode,
 	    "NVMe command opcode (required)"),
 	ARG("cdw2",		'2',	arg_uint32,	opt, cdw2,
@@ -267,7 +267,23 @@ io_passthru(const struct cmd *nf, int argc, char *argv[])
 	passthru(nf, argc, argv);
 }
 
-CMD_COMMAND(top, admin-passthru, admin_passthru, sizeof(struct options), opts, args,
-    "Send a pass through Admin command to the specified device");
-CMD_COMMAND(top, io-passthru, io_passthru, sizeof(struct options), opts, args,
-    "Send a pass through I/O command to the specified device");
+static struct cmd admin_pass_cmd = {
+	.name = "admin-passthru",
+	.fn = admin_passthru,
+	.ctx_size = sizeof(struct options),
+	.opts = opts,
+	.args = args,
+	.descr = "Send a pass through Admin command to the specified device",
+};
+
+static struct cmd io_pass_cmd = {
+	.name = "io-passthru",
+	.fn = io_passthru,
+	.ctx_size = sizeof(struct options),
+	.opts = opts,
+	.args = args,
+	.descr = "Send a pass through Admin command to the specified device",
+};
+
+CMD_COMMAND(admin_pass_cmd);
+CMD_COMMAND(io_pass_cmd);
