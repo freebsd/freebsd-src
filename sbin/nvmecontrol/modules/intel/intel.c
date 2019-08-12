@@ -117,7 +117,7 @@ print_intel_write_lat_log(const struct nvme_controller_data *cdata __unused, voi
 }
 
 /*
- * Table 19. 5.4 SMART Attributes. Samsung also implements this and some extra data not documented.
+ * Table 19. 5.4 SMART Attributes. Others also implement this and some extra data not documented.
  */
 static void
 print_intel_add_smart(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
@@ -192,7 +192,4 @@ NVME_LOGPAGE(intel_wlat,
     print_intel_write_lat_log,		DEFAULT_SIZE);
 NVME_LOGPAGE(intel_smart,
     INTEL_LOG_ADD_SMART,		"intel", "Extra Health/SMART Data",
-    print_intel_add_smart,		DEFAULT_SIZE);
-NVME_LOGPAGE(samsung_smart,					/* NOTE, this will be deleted before 13.0 */
-    INTEL_LOG_ADD_SMART,		"samsung", "Extra Health/SMART Data",
     print_intel_add_smart,		DEFAULT_SIZE);
