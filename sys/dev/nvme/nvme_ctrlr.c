@@ -1227,7 +1227,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	struct make_dev_args	md_args;
 	uint32_t	cap_lo;
 	uint32_t	cap_hi;
-	uint8_t		to;
+	uint32_t	to;
 	uint8_t		dstrd;
 	uint8_t		mpsmin;
 	int		status, timeout_period;
