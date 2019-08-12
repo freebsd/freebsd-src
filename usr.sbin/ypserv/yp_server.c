@@ -173,8 +173,9 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	if (do_dns && result.stat != YP_TRUE &&
 	    (strstr(argp->map, "hosts") || strstr(argp->map, "ipnodes"))) {
 #endif
-		char			nbuf[YPMAXRECORD];
+		char *nbuf;
 
+		nbuf = alloca(argp->key.keydat_len + 1);
 		/* NUL terminate! NUL terminate!! NUL TERMINATE!!! */
 		bcopy(argp->key.keydat_val, nbuf, argp->key.keydat_len);
 		nbuf[argp->key.keydat_len] = '\0';
