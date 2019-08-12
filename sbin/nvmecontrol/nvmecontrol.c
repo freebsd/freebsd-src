@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <ctype.h>
+#include <dlfcn.h>
+#include <dirent.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -47,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-SET_DECLARE(top, struct nvme_function);
+SET_CONCAT_DEF(top, struct nvme_function);
 
 static void
 print_usage(const struct nvme_function *f)
@@ -114,6 +116,32 @@ dispatch_set(int argc, char *argv[], struct nvme_function **tbl,
 
 	fprintf(stderr, "Unknown command: %s\n", argv[1]);
 	gen_usage_set(tbl, tbl_limit);
+}
+
+void
+set_concat_add(struct set_concat *m, void *b, void *e)
+{
+	void **bp, **ep;
+	int add_n, cur_n;
+
+	if (b == NULL)
+		return;
+	/*
+	 * Args are really pointers to arrays of pointers, but C's
+	 * casting rules kinda suck since you can't directly cast
+	 * struct foo ** to a void **.
+	 */
+	bp = (void **)b;
+	ep = (void **)e;
+	add_n = ep - bp;
+	cur_n = 0;
+	if (m->begin != NULL)
+		cur_n = m->limit - m->begin;
+	m->begin = reallocarray(m->begin, cur_n + add_n, sizeof(void *));
+	if (m->begin == NULL)
+		err(1, "expanding concat set");
+	memcpy(m->begin + cur_n, bp, add_n * sizeof(void *));
+	m->limit = m->begin + cur_n + add_n;
 }
 
 static void
@@ -260,14 +288,64 @@ parse_ns_str(const char *ns_str, char *ctrlr_str, uint32_t *nsid)
 	snprintf(ctrlr_str, nsloc - ns_str + 1, "%s", ns_str);
 }
 
+/*
+ * Loads all the .so's from the specified directory.
+ */
+static void
+load_dir(const char *dir)
+{
+	DIR *d;
+	struct dirent *dent;
+	char *path = NULL;
+	void *h;
+
+	d = opendir(dir);
+	if (d == NULL)
+		return;
+	for (dent = readdir(d); dent != NULL; dent = readdir(d)) {
+		if (strcmp(".so", dent->d_name + dent->d_namlen - 3) != 0)
+			continue;
+		asprintf(&path, "%s/%s", dir, dent->d_name);
+		if (path == NULL)
+			err(1, "Can't malloc for path, giving up.");
+		if ((h = dlopen(path, RTLD_NOW | RTLD_GLOBAL)) == NULL)
+			warnx("Can't load %s: %s", path, dlerror());
+		else {
+			/*
+			 * Add in the top (for cli commands) and logpage (for
+			 * logpage parsing) linker sets. We have to do this by
+			 * hand because linker sets aren't automatically merged.
+			 */
+			void *begin, *limit;
+			begin = dlsym(h, "__start_set_top");
+			limit = dlsym(h, "__stop_set_top");
+			if (begin)
+				add_to_top(begin, limit);
+			begin = dlsym(h, "__start_set_logpage");
+			limit = dlsym(h, "__stop_set_logpage");
+			if (begin)
+				add_to_logpage(begin, limit);
+		}
+		free(path);
+		path = NULL;
+	}
+	closedir(d);
+}
+
 int
 main(int argc, char *argv[])
 {
 
-	if (argc < 2)
-		gen_usage_set(SET_BEGIN(top), SET_LIMIT(top));
+	add_to_top(NVME_CMD_BEGIN(top), NVME_CMD_LIMIT(top));
+	add_to_logpage(NVME_LOGPAGE_BEGIN, NVME_LOGPAGE_LIMIT);
 
-	DISPATCH(argc, argv, top);
+	load_dir("/lib/nvmecontrol");
+	load_dir("/usr/local/lib/nvmecontrol");
+
+	if (argc < 2)
+		gen_usage_set(top_begin(), top_limit());
+
+	dispatch_set(argc, argv, top_begin(), top_limit());
 
 	return (0);
 }
