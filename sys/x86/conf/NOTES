@@ -1,0 +1,13 @@
+# $FreeBSD$
+#
+
+# Common NOTES between i386 and amd64
+
+
+#####################################################################
+# COMPATIBILITY OPTIONS
+
+# Implement system calls compatible with 4.3BSD and older versions of
+# FreeBSD.  Needed for FreeBSD a.out support. Unneeded for ELF
+# versions of FreeBSD.
+options 	COMPAT_43

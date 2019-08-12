@@ -339,16 +339,6 @@ options 	UMTX_PROFILING
 #####################################################################
 # COMPATIBILITY OPTIONS
 
-#
-# Implement system calls compatible with 4.3BSD and older versions of
-# FreeBSD.  You probably do NOT want to remove this as much current code
-# still relies on the 4.3 emulation.  Note that some architectures that
-# are supported by FreeBSD do not include support for certain important
-# aspects of this compatibility option, namely those related to the
-# signal delivery mechanism.
-#
-options 	COMPAT_43
-
 # Old tty interface.
 options 	COMPAT_43TTY
 
