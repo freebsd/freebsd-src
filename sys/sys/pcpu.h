@@ -180,6 +180,7 @@ struct pcpu {
 	struct thread	*pc_fpcurthread;	/* Fp state owner */
 	struct thread	*pc_deadthread;		/* Zombie thread or NULL */
 	struct pcb	*pc_curpcb;		/* Current pcb */
+	void		*pc_sched;		/* Scheduler state */
 	uint64_t	pc_switchtime;		/* cpu_ticks() at last csw */
 	int		pc_switchticks;		/* `ticks' at last csw */
 	u_int		pc_cpuid;		/* This cpu number */
