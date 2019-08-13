@@ -107,7 +107,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/uio.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -133,6 +132,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <time.h>
 #include <unistd.h>
 
 #ifdef IPSEC
@@ -144,7 +144,7 @@ __FBSDID("$FreeBSD$");
 
 struct tv32 {
 	u_int32_t tv32_sec;
-	u_int32_t tv32_usec;
+	u_int32_t tv32_nsec;
 };
 
 #define MAXPACKETLEN	131072
@@ -288,7 +288,6 @@ static void	 pr_rthdr(void *, size_t);
 static int	 pr_bitrange(u_int32_t, int, int);
 static void	 pr_retip(struct ip6_hdr *, u_char *);
 static void	 summary(void);
-static void	 tvsub(struct timeval *, struct timeval *);
 static int	 setpolicy(int, char *);
 static char	*nigroup(char *, int);
 static void	 usage(void);
@@ -296,7 +295,7 @@ static void	 usage(void);
 int
 main(int argc, char *argv[])
 {
-	struct timeval last, intvl;
+	struct timespec last, intvl;
 	struct sockaddr_in6 from, *sin6;
 	struct addrinfo hints, *res;
 	struct sigaction si_sa;
@@ -456,15 +455,15 @@ main(int argc, char *argv[])
 				errx(1, "%s: only root may use interval < 1s",
 				    strerror(EPERM));
 			}
-			intvl.tv_sec = (long)t;
-			intvl.tv_usec =
-			    (long)((t - intvl.tv_sec) * 1000000);
+			intvl.tv_sec = (time_t)t;
+			intvl.tv_nsec =
+			    (long)((t - intvl.tv_sec) * 1000000000);
 			if (intvl.tv_sec < 0)
 				errx(1, "illegal timing interval %s", optarg);
 			/* less than 1/hz does not make sense */
-			if (intvl.tv_sec == 0 && intvl.tv_usec < 1) {
+			if (intvl.tv_sec == 0 && intvl.tv_nsec < 1000) {
 				warnx("too small interval, raised to .000001");
-				intvl.tv_usec = 1;
+				intvl.tv_nsec = 1000;
 			}
 			options |= F_INTERVAL;
 			break;
@@ -1102,7 +1101,7 @@ main(int argc, char *argv[])
 		while (preload--)
 			pinger();
 	}
-	gettimeofday(&last, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &last);
 
 	sigemptyset(&si_sa.sa_mask);
 	si_sa.sa_flags = 0;
@@ -1121,15 +1120,15 @@ main(int argc, char *argv[])
 	}
 	if (options & F_FLOOD) {
 		intvl.tv_sec = 0;
-		intvl.tv_usec = 10000;
+		intvl.tv_nsec = 10000000;
 	} else if ((options & F_INTERVAL) == 0) {
 		intvl.tv_sec = interval / 1000;
-		intvl.tv_usec = interval % 1000 * 1000;
+		intvl.tv_nsec = interval % 1000 * 1000000;
 	}
 
 	almost_done = 0;
 	while (seenint == 0) {
-		struct timeval now, timeout;
+		struct timespec now, timeout;
 		struct msghdr m;
 		struct iovec iov[2];
 		fd_set rfds;
@@ -1147,21 +1146,13 @@ main(int argc, char *argv[])
 #endif
 		FD_ZERO(&rfds);
 		FD_SET(srecv, &rfds);
-		gettimeofday(&now, NULL);
-		timeout.tv_sec = last.tv_sec + intvl.tv_sec - now.tv_sec;
-		timeout.tv_usec = last.tv_usec + intvl.tv_usec - now.tv_usec;
-		while (timeout.tv_usec < 0) {
-			timeout.tv_usec += 1000000;
-			timeout.tv_sec--;
-		}
-		while (timeout.tv_usec > 1000000) {
-			timeout.tv_usec -= 1000000;
-			timeout.tv_sec++;
-		}
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		timespecadd(&last, &intvl, &timeout);
+		timespecsub(&timeout, &now, &timeout);
 		if (timeout.tv_sec < 0)
-			timeout.tv_sec = timeout.tv_usec = 0;
+			timespecclear(&timeout);
 
-		n = select(srecv + 1, &rfds, NULL, NULL, &timeout);
+		n = pselect(srecv + 1, &rfds, NULL, NULL, &timeout, NULL);
 		if (n < 0)
 			continue;	/* EINTR */
 		if (n == 1) {
@@ -1222,17 +1213,18 @@ main(int argc, char *argv[])
 			 * if we've received any packets or (waittime)
 			 * milliseconds if we haven't.
 			 */
-				intvl.tv_usec = 0;
+				intvl.tv_nsec = 0;
 				if (nreceived) {
 					intvl.tv_sec = 2 * tmax / 1000;
 					if (intvl.tv_sec == 0)
 						intvl.tv_sec = 1;
 				} else {
 					intvl.tv_sec = waittime / 1000;
-					intvl.tv_usec = waittime % 1000 * 1000;
+					intvl.tv_nsec =
+						waittime % 1000 * 1000000;
 				}
 			}
-			gettimeofday(&last, NULL);
+			clock_gettime(CLOCK_MONOTONIC, &last);
 			if (ntransmitted - nreceived - 1 > nmissedmax) {
 				nmissedmax = ntransmitted - nreceived - 1;
 				if (options & F_MISSED)
@@ -1275,7 +1267,7 @@ onsignal(int sig)
  *	Compose and transmit an ICMP ECHO REQUEST packet.  The IP packet
  * will be added on by the kernel.  The ID field is our UNIX process ID,
  * and the sequence number is an ascending integer.  The first 8 bytes
- * of the data portion are used to hold a UNIX "timeval" struct in VAX
+ * of the data portion are used to hold a UNIX "timespec" struct in VAX
  * byte-order, to compute the round-trip time.
  */
 static size_t
@@ -1375,12 +1367,18 @@ pinger(void)
 		icp->icmp6_id = htons(ident);
 		icp->icmp6_seq = htons(seq);
 		if (timing) {
-			struct timeval tv;
+			struct timespec tv;
 			struct tv32 *tv32;
-			(void)gettimeofday(&tv, NULL);
+			(void)clock_gettime(CLOCK_MONOTONIC, &tv);
 			tv32 = (struct tv32 *)&outpack[ICMP6ECHOLEN];
-			tv32->tv32_sec = htonl(tv.tv_sec);
-			tv32->tv32_usec = htonl(tv.tv_usec);
+			/*
+			 * Truncate seconds down to 32 bits in order
+			 * to fit the timestamp within 8 bytes of the
+			 * packet. We're only concerned with
+			 * durations, not absolute times.
+			 */
+			tv32->tv32_sec = (uint32_t)htonl(tv.tv_sec);
+			tv32->tv32_nsec = (uint32_t)htonl(tv.tv_nsec);
 		}
 		cc = ICMP6ECHOLEN + datalen;
 	}
@@ -1509,7 +1507,7 @@ pr_pack(u_char *buf, int cc, struct msghdr *mhdr)
 	int fromlen;
 	u_char *cp = NULL, *dp, *end = buf + cc;
 	struct in6_pktinfo *pktinfo = NULL;
-	struct timeval tv, tp;
+	struct timespec tv, tp;
 	struct tv32 *tpp;
 	double triptime = 0;
 	int dupflag;
@@ -1518,7 +1516,7 @@ pr_pack(u_char *buf, int cc, struct msghdr *mhdr)
 	u_int16_t seq;
 	char dnsname[MAXDNAME + 1];
 
-	(void)gettimeofday(&tv, NULL);
+	(void)clock_gettime(CLOCK_MONOTONIC, &tv);
 
 	if (!mhdr || !mhdr->msg_name ||
 	    mhdr->msg_namelen != sizeof(struct sockaddr_in6) ||
@@ -1557,10 +1555,10 @@ pr_pack(u_char *buf, int cc, struct msghdr *mhdr)
 		if (timing) {
 			tpp = (struct tv32 *)(icp + 1);
 			tp.tv_sec = ntohl(tpp->tv32_sec);
-			tp.tv_usec = ntohl(tpp->tv32_usec);
-			tvsub(&tv, &tp);
+			tp.tv_nsec = ntohl(tpp->tv32_nsec);
+			timespecsub(&tv, &tp, &tv);
 			triptime = ((double)tv.tv_sec) * 1000.0 +
-			    ((double)tv.tv_usec) / 1000.0;
+			    ((double)tv.tv_nsec) / 1000000.0;
 			tsum += triptime;
 			tsumsq += triptime * triptime;
 			if (triptime < tmin)
@@ -2206,21 +2204,6 @@ get_pathmtu(struct msghdr *mhdr)
 	}
 #endif
 	return(0);
-}
-
-/*
- * tvsub --
- *	Subtract 2 timeval structs:  out = out - in.  Out is assumed to
- * be >= in.
- */
-static void
-tvsub(struct timeval *out, struct timeval *in)
-{
-	if ((out->tv_usec -= in->tv_usec) < 0) {
-		--out->tv_sec;
-		out->tv_usec += 1000000;
-	}
-	out->tv_sec -= in->tv_sec;
 }
 
 /*
