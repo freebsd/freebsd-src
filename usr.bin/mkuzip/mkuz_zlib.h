@@ -32,5 +32,6 @@
     "(kldstat -qm g_uzip||kldload geom_uzip)>&-&&" \
     "mount_cd9660 /dev/`mdconfig -af $0`.uzip $1\nexit $?\n"
 
-void *mkuz_zlib_init(uint32_t);
-struct mkuz_blk *mkuz_zlib_compress(void *, const struct mkuz_blk *);
+size_t mkuz_zlib_cbound(size_t);
+void *mkuz_zlib_init(int *);
+void mkuz_zlib_compress(void *, const struct mkuz_blk *, struct mkuz_blk *);

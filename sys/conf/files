@@ -3627,6 +3627,8 @@ geom/uzip/g_uzip.c		optional geom_uzip
 geom/uzip/g_uzip_lzma.c		optional geom_uzip
 geom/uzip/g_uzip_wrkthr.c	optional geom_uzip
 geom/uzip/g_uzip_zlib.c		optional geom_uzip
+geom/uzip/g_uzip_zstd.c		optional geom_uzip zstdio \
+	compile-with "${NORMAL_C} -I$S/contrib/zstd/lib/freebsd"
 geom/vinum/geom_vinum.c		optional geom_vinum
 geom/vinum/geom_vinum_create.c	optional geom_vinum
 geom/vinum/geom_vinum_drive.c	optional geom_vinum

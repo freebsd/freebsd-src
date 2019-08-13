@@ -26,12 +26,15 @@
  * $FreeBSD$
  */
 
-DEFINE_RAW_METHOD(f_init, void *, uint32_t);
-DEFINE_RAW_METHOD(f_compress, struct mkuz_blk *, void *, const struct mkuz_blk *);
+DEFINE_RAW_METHOD(f_compress_bound, size_t, size_t);
+DEFINE_RAW_METHOD(f_init, void *, int *);
+DEFINE_RAW_METHOD(f_compress, void, void *, const struct mkuz_blk *, struct mkuz_blk *);
 
 struct mkuz_format {
+	const char *option;
         const char *magic;
         const char *default_sufx;
+        f_compress_bound_t f_compress_bound;
         f_init_t f_init;
         f_compress_t f_compress;
 };

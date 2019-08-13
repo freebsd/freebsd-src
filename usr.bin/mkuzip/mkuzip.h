@@ -28,6 +28,9 @@
 
 #define DEFINE_RAW_METHOD(func, rval, args...) typedef rval (*func##_t)(args)
 
+/* Use an algorithm-specific default level if no explicit level is selected. */
+#define USE_DEFAULT_LEVEL INT_MIN
+
 void *mkuz_safe_malloc(size_t);
 void *mkuz_safe_zmalloc(size_t);
 int mkuz_memvcmp(const void *, unsigned char, size_t);

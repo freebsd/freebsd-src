@@ -51,8 +51,9 @@ __FBSDID("$FreeBSD$");
 #include "mkuzip.h"
 #include "mkuz_cloop.h"
 #include "mkuz_blockcache.h"
-#include "mkuz_zlib.h"
 #include "mkuz_lzma.h"
+#include "mkuz_zlib.h"
+#include "mkuz_zstd.h"
 #include "mkuz_blk.h"
 #include "mkuz_cfg.h"
 #include "mkuz_conveyor.h"
@@ -63,18 +64,38 @@ __FBSDID("$FreeBSD$");
 
 #define DEFAULT_CLSTSIZE	16384
 
-static struct mkuz_format uzip_fmt = {
-	.magic = CLOOP_MAGIC_ZLIB,
-	.default_sufx = DEFAULT_SUFX_ZLIB,
-	.f_init = &mkuz_zlib_init,
-	.f_compress = &mkuz_zlib_compress
+enum UZ_ALGORITHM {
+	UZ_ZLIB = 0,
+	UZ_LZMA,
+	UZ_ZSTD,
+	UZ_INVALID
 };
 
-static struct mkuz_format ulzma_fmt = {
-        .magic = CLOOP_MAGIC_LZMA,
-        .default_sufx = DEFAULT_SUFX_LZMA,
-        .f_init = &mkuz_lzma_init,
-        .f_compress = &mkuz_lzma_compress
+static const struct mkuz_format uzip_fmts[] = {
+	[UZ_ZLIB] = {
+		.option = "zlib",
+		.magic = CLOOP_MAGIC_ZLIB,
+		.default_sufx = DEFAULT_SUFX_ZLIB,
+		.f_compress_bound = mkuz_zlib_cbound,
+		.f_init = mkuz_zlib_init,
+		.f_compress = mkuz_zlib_compress,
+	},
+	[UZ_LZMA] = {
+		.option = "lzma",
+		.magic = CLOOP_MAGIC_LZMA,
+		.default_sufx = DEFAULT_SUFX_LZMA,
+		.f_compress_bound = mkuz_lzma_cbound,
+		.f_init = mkuz_lzma_init,
+		.f_compress = mkuz_lzma_compress,
+	},
+	[UZ_ZSTD] = {
+		.option = "zstd",
+		.magic = CLOOP_MAGIC_ZSTD,
+		.default_sufx = DEFAULT_SUFX_ZSTD,
+		.f_compress_bound = mkuz_zstd_cbound,
+		.f_init = mkuz_zstd_init,
+		.f_compress = mkuz_zstd_compress,
+	},
 };
 
 static struct mkuz_blk *readblock(int, u_int32_t);
@@ -111,6 +132,8 @@ int main(int argc, char **argv)
 	struct mkuz_blk_info *chit;
 	size_t ncpusz, ncpu, magiclen;
 	double st, et;
+	enum UZ_ALGORITHM comp_alg;
+	int comp_level;
 
 	st = getdtime();
 
@@ -129,12 +152,27 @@ int main(int argc, char **argv)
 	cfs.en_dedup = 0;
 	summary.en = 0;
 	summary.f = stderr;
-	cfs.handler = &uzip_fmt;
+	comp_alg = UZ_ZLIB;
+	comp_level = USE_DEFAULT_LEVEL;
 	cfs.nworkers = ncpu;
 	struct mkuz_blk *iblk, *oblk;
 
-	while((opt = getopt(argc, argv, "o:s:vZdLSj:")) != -1) {
+	while((opt = getopt(argc, argv, "A:C:o:s:vZdLSj:")) != -1) {
 		switch(opt) {
+		case 'A':
+			for (tmp = UZ_ZLIB; tmp < UZ_INVALID; tmp++) {
+				if (strcmp(uzip_fmts[tmp].option, optarg) == 0)
+					break;
+			}
+			if (tmp == UZ_INVALID)
+				errx(1, "invalid algorithm specified: %s",
+				    optarg);
+				/* Not reached */
+			comp_alg = tmp;
+			break;
+		case 'C':
+			comp_level = atoi(optarg);
+			break;
 		case 'o':
 			oname = optarg;
 			break;
@@ -162,7 +200,7 @@ int main(int argc, char **argv)
 			break;
 
 		case 'L':
-			cfs.handler = &ulzma_fmt;
+			comp_alg = UZ_LZMA;
 			break;
 
 		case 'S':
@@ -193,16 +231,32 @@ int main(int argc, char **argv)
 		/* Not reached */
 	}
 
+	cfs.handler = &uzip_fmts[comp_alg];
+
 	magiclen = strlcpy(hdr.magic, cfs.handler->magic, sizeof(hdr.magic));
 	assert(magiclen < sizeof(hdr.magic));
 
 	if (cfs.en_dedup != 0) {
-		hdr.magic[CLOOP_OFS_VERSN] = CLOOP_MAJVER_3;
+		/*
+		 * Dedupe requires a version 3 format.  Don't downgrade newer
+		 * formats.
+		 */
+		if (hdr.magic[CLOOP_OFS_VERSN] == CLOOP_MAJVER_2)
+			hdr.magic[CLOOP_OFS_VERSN] = CLOOP_MAJVER_3;
 		hdr.magic[CLOOP_OFS_COMPR] =
 		    tolower(hdr.magic[CLOOP_OFS_COMPR]);
 	}
 
-	c_ctx = cfs.handler->f_init(cfs.blksz);
+	if (cfs.blksz % DEV_BSIZE != 0)
+		errx(1, "cluster size should be multiple of %d", DEV_BSIZE);
+
+	cfs.cbound_blksz = cfs.handler->f_compress_bound(cfs.blksz);
+	if (cfs.cbound_blksz > MAXPHYS)
+		errx(1, "maximal compressed cluster size %zu greater than MAXPHYS %zu",
+		    cfs.cbound_blksz, (size_t)MAXPHYS);
+
+	c_ctx = cfs.handler->f_init(&comp_level);
+	cfs.comp_level = comp_level;
 
 	cfs.iname = argv[0];
 	if (oname == NULL) {
@@ -238,6 +292,14 @@ int main(int argc, char **argv)
 		hdr.nblocks++;
 	}
 	toc = mkuz_safe_malloc((hdr.nblocks + 1) * sizeof(*toc));
+
+	/*
+	 * Initialize last+1 entry with non-heap trash.  If final padding is
+	 * added later, it may or may not be overwritten with an offset
+	 * representing the length of the final compressed block.  If not,
+	 * initialize to a defined value.
+	 */
+	toc[hdr.nblocks] = 0;
 
 	cfs.fdw = open(oname, (cfs.en_dedup ? O_RDWR : O_WRONLY) | O_TRUNC | O_CREAT,
 		   S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2019
+.Dd August 13, 2019
 .Dt GEOM_UZIP 4
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@ place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device xz"
+.Cd "options zstd"
 .Cd "options GEOM_UZIP"
 .Ed
 .Pp
@@ -163,6 +164,9 @@ Log operations involving compressed cluster number.
 .Xr md 4 ,
 .Xr geom 8 ,
 .Xr mkuzip 8
+.Sh HISTORY
+Zstd support was added in
+.Fx 13.0 .
 .Sh AUTHORS
 .An -nosplit
 The
