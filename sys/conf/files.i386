@@ -202,7 +202,6 @@ dev/fb/fb.c			optional fb | vga
 dev/fb/s3_pci.c			optional s3pci
 dev/fb/vesa.c			optional vga vesa
 dev/fb/vga.c			optional vga
-dev/fe/if_fe_isa.c		optional fe isa
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
