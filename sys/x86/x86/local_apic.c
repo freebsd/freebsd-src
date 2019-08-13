@@ -130,7 +130,7 @@ struct lvt {
 
 struct lapic {
 	struct lvt la_lvts[APIC_LVT_MAX + 1];
-	struct lvt la_elvts[APIC_ELVT_MAX + 1];;
+	struct lvt la_elvts[APIC_ELVT_MAX + 1];
 	u_int la_id:8;
 	u_int la_cluster:4;
 	u_int la_cluster_id:2;
