@@ -277,17 +277,12 @@ nvd_gonecb(struct disk *dp)
 }
 
 static int
-nvd_ioctl(struct disk *ndisk, u_long cmd, void *data, int fflag,
+nvd_ioctl(struct disk *dp, u_long cmd, void *data, int fflag,
     struct thread *td)
 {
-	int ret = 0;
+	struct nvd_disk		*ndisk = dp->d_drv1;
 
-	switch (cmd) {
-	default:
-		ret = EIO;
-	}
-
-	return (ret);
+	return (nvme_ns_ioctl_process(ndisk->ns, cmd, data, fflag, td));
 }
 
 static int
