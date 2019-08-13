@@ -426,16 +426,6 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size,
 			errx(1, "GEOM_PART: write bootcode to %s failed: %s",
 			    fname, errmsg);
 		gctl_free(grq);
-	} else if (geom_class_available("MBR") != 0) {
-		grq = gctl_get_handle();
-		gctl_ro_param(grq, "verb", -1, "write MBR");
-		gctl_ro_param(grq, "class", -1, "MBR");
-		gctl_ro_param(grq, "geom", -1, pname);
-		gctl_ro_param(grq, "data", mbr_size, mbr);
-		errmsg = gctl_issue(grq);
-		if (errmsg != NULL)
-			err(1, "GEOM_MBR: write MBR to %s failed", fname);
-		gctl_free(grq);
 	} else
 		errx(1, "can't write MBR to %s", fname);
 	free(pname);

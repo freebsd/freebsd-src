@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/diskmbr.h>
 #include <sys/endian.h>
 
+#include "fdisk_mbr_enc.h"
+
 void
 dos_partition_dec(void const *pp, struct dos_partition *d)
 {

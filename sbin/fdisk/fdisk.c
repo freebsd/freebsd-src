@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "fdisk_mbr_enc.h"
+
 static int iotest;
 
 #define NO_DISK_SECTORS ((u_int32_t)-1)
@@ -786,47 +788,17 @@ geom_class_available(const char *name)
 static int
 write_disk(off_t sector, void *buf)
 {
-	struct gctl_req *grq;
-	const char *errmsg;
-	char *pname;
-	int error;
-
-	/* Check that GEOM_MBR is available */
-	if (geom_class_available("MBR") != 0) {
-		grq = gctl_get_handle();
-		gctl_ro_param(grq, "verb", -1, "write MBR");
-		gctl_ro_param(grq, "class", -1, "MBR");
-		pname = g_providername(fd);
-		if (pname == NULL) {
-			warn("Error getting providername for %s", disk);
-			return (-1);
-		}
-		gctl_ro_param(grq, "geom", -1, pname);
-		gctl_ro_param(grq, "data", secsize, buf);
-		errmsg = gctl_issue(grq);
-		free(pname);
-		if (errmsg == NULL) {
-			gctl_free(grq);
-			return(0);
-		}
-		if (!q_flag)
-			warnx("GEOM_MBR: %s", errmsg);
-		gctl_free(grq);
-	} else {
-		/*
-		 * Try to write MBR directly. This may help when disk
-		 * is not in use.
-		 * XXX: hardcoded sectorsize
-		 */
-		error = pwrite(fd, buf, secsize, (sector * 512));
-		if (error == secsize)
-			return (0);
-	}
+	ssize_t wr;
 
 	/*
-	 * GEOM_MBR is not available or failed to write MBR.
-	 * Now check that we have GEOM_PART and recommend to use gpart (8).
+	 * Try to write MBR directly. This may help when disk
+	 * is not in use.
+	 * XXX: hardcoded sectorsize
 	 */
+	wr = pwrite(fd, buf, secsize, (sector * 512));
+	if (wr == secsize)
+		return (0);
+
 	if (geom_class_available("PART") != 0)
 		warnx("Failed to write MBR. Try to use gpart(8).");
 	else
