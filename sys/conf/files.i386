@@ -278,6 +278,7 @@ dev/ntb/ntb_if.m		optional ntb | ntb_transport | if_ntb | ntb_hw_amd | ntb_hw_in
 dev/ntb/ntb_hw/ntb_hw_amd.c	optional ntb_hw_amd | ntb_hw
 dev/ntb/ntb_hw/ntb_hw_intel.c	optional ntb_hw_intel | ntb_hw
 dev/ntb/ntb_hw/ntb_hw_plx.c	optional ntb_hw_plx | ntb_hw
+dev/nvram/nvram.c		optional	nvram isa
 dev/ofw/ofwpci.c		optional fdt pci
 dev/pcf/pcf_isa.c		optional pcf
 dev/random/ivy.c		optional rdrand_rng !random_loadable
