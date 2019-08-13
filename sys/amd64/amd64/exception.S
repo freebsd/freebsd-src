@@ -130,6 +130,7 @@ X\l:
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jz	alltraps_noen_k
 	swapgs
+	lfence
 	jmp	alltraps_noen_u
 	.endm
 
@@ -164,6 +165,7 @@ X\l:
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jz	alltraps_k
 	swapgs
+	lfence
 	jmp	alltraps_u
 	.endm
 
@@ -199,6 +201,7 @@ X\l:
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jz	alltraps_k
 	swapgs
+	lfence
 	jmp	alltraps_u
 	.endm
 
@@ -228,6 +231,7 @@ alltraps_u:
 	.globl	alltraps_k
 	.type	alltraps_k,@function
 alltraps_k:
+	lfence
 	movq	%rdi,TF_RDI(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
 	movq	%rax,TF_RAX(%rsp)
@@ -303,6 +307,7 @@ alltraps_noen_u:
 	.globl	alltraps_noen_k
 	.type	alltraps_noen_k,@function
 alltraps_noen_k:
+	lfence
 	movq	%rdi,TF_RDI(%rsp)
 alltraps_noen_save_segs:
 	SAVE_SEGS
@@ -340,7 +345,7 @@ IDTVEC(dblfault)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
-1:
+1:	lfence
 	movq	PCPU(KCR3),%rax
 	cmpq	$~0,%rax
 	je	2f
@@ -355,6 +360,7 @@ IDTVEC(page_pti)
 	testb	$SEL_RPL_MASK,PTI_CS-PTI_ERR(%rsp)
 	jz	page_k
 	swapgs
+	lfence
 	pushq	%rax
 	movq	%cr3,%rax
 	movq	%rax,PCPU(SAVED_UCR3)
@@ -370,6 +376,7 @@ IDTVEC(page)
 	testb	$SEL_RPL_MASK,TF_CS-TF_ERR(%rsp) /* Did we come from kernel? */
 	jnz	page_u_swapgs		/* already running with kernel GS.base */
 page_k:
+	lfence
 	subq	$TF_ERR,%rsp
 	movq	%rdi,TF_RDI(%rsp)	/* free up GP registers */
 	movq	%rax,TF_RAX(%rsp)
@@ -379,6 +386,7 @@ page_k:
 	ALIGN_TEXT
 page_u_swapgs:
 	swapgs
+	lfence
 page_u:
 	subq	$TF_ERR,%rsp
 	movq	%rdi,TF_RDI(%rsp)
@@ -416,6 +424,7 @@ page_cr2:
 	.macro PROTF_ENTRY name,trapno
 \name\()_pti_doreti:
 	swapgs
+	lfence
 	cmpq	$~0,PCPU(UCR3)
 	je	1f
 	pushq	%rax
@@ -438,9 +447,9 @@ IDTVEC(\name\()_pti)
 	cmpq	$doreti_iret,PTI_RIP-2*8(%rsp)
 	je	\name\()_pti_doreti
 	testb	$SEL_RPL_MASK,PTI_CS-2*8(%rsp) /* %rax, %rdx not yet pushed */
-	jz	X\name
+	jz	X\name		/* lfence is not needed until %gs: use */
 	PTI_UENTRY has_err=1
-	swapgs
+	swapgs	/* fence provided by PTI_UENTRY */
 IDTVEC(\name)
 	subq	$TF_ERR,%rsp
 	movl	$\trapno,TF_TRAPNO(%rsp)
@@ -473,6 +482,7 @@ prot_addrf:
 	jne	2f
 	rdgsbase %rdx
 2:	swapgs
+	lfence
 	movq	PCPU(CURPCB),%rdi
 	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
 	jz	4f
@@ -492,7 +502,8 @@ prot_addrf:
 	jmp	alltraps_pushregs_no_rax
 
 5:	swapgs
-6:	movq	PCPU(CURPCB),%rdi
+6:	lfence
+	movq	PCPU(CURPCB),%rdi
 	jmp	4b
 
 /*
@@ -507,6 +518,7 @@ prot_addrf:
 	SUPERALIGN_TEXT
 IDTVEC(fast_syscall_pti)
 	swapgs
+	lfence
 	movq	%rax,PCPU(SCRATCH_RAX)
 	cmpq	$~0,PCPU(UCR3)
 	je	fast_syscall_common
@@ -516,6 +528,7 @@ IDTVEC(fast_syscall_pti)
 	SUPERALIGN_TEXT
 IDTVEC(fast_syscall)
 	swapgs
+	lfence
 	movq	%rax,PCPU(SCRATCH_RAX)
 fast_syscall_common:
 	movq	%rsp,PCPU(SCRATCH_RSP)
@@ -635,6 +648,7 @@ IDTVEC(dbg)
 	cld
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jnz	dbg_fromuserspace
+	lfence
 	/*
 	 * We've interrupted the kernel.  Preserve GS.base in %r12,
 	 * %cr3 in %r13, and possibly lower half of MSR_IA32_SPEC_CTL in %r14d.
@@ -690,6 +704,7 @@ dbg_fromuserspace:
 	 * in trap().
 	 */
 	swapgs
+	lfence
 	movq	PCPU(KCR3),%rax
 	cmpq	$~0,%rax
 	je	1f
@@ -773,6 +788,7 @@ IDTVEC(nmi)
 	 * We've interrupted the kernel.  Preserve GS.base in %r12,
 	 * %cr3 in %r13, and possibly lower half of MSR_IA32_SPEC_CTL in %r14d.
 	 */
+	lfence
 	movl	$MSR_GSBASE,%ecx
 	rdmsr
 	movq	%rax,%r12
@@ -798,6 +814,7 @@ IDTVEC(nmi)
 nmi_fromuserspace:
 	incl	%ebx
 	swapgs
+	lfence
 	movq	%cr3,%r13
 	movq	PCPU(KCR3),%rax
 	cmpq	$~0,%rax
