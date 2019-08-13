@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2018
+.Dd August 13, 2019
 .Dt GEOM 4
 .Os
 .Sh NAME
@@ -443,24 +443,6 @@ This is unused at this time.
 .It 0x80 Pq Dv G_F_CTLDUMP
 Dump contents of gctl requests.
 .El
-.Sh OBSOLETE OPTIONS
-.Pp
-The following options have been deprecated and will be removed in
-.Fx 12 :
-.Cd GEOM_BSD ,
-.Cd GEOM_FOX ,
-.Cd GEOM_MBR ,
-.Cd GEOM_SUNLABEL ,
-and
-.Cd GEOM_VOL .
-.Pp
-Use
-.Cd GEOM_PART_BSD ,
-.Cd GEOM_MULTIPATH ,
-.Cd GEOM_PART_MBR ,
-.Cd GEOM_PART_VTOC8 ,
-.Cd GEOM_LABEL
-options, respectively, instead.
 .Sh SEE ALSO
 .Xr libgeom 3 ,
 .Xr DECLARE_GEOM_CLASS 9 ,
@@ -475,7 +457,7 @@ options, respectively, instead.
 .Xr g_provider 9 ,
 .Xr g_provider_by_name 9
 .Sh HISTORY
-This software was developed for the
+This software was initially developed for the
 .Fx
 Project by
 .An Poul-Henning Kamp
@@ -485,13 +467,38 @@ under DARPA/SPAWAR contract N66001-01-C-8035
 as part of the
 DARPA CHATS research program.
 .Pp
-The first precursor for
+The following obsolete
 .Nm
-was a gruesome hack to Minix 1.2 and was
-never distributed.
-An earlier attempt to implement a less general scheme
-in
-.Fx
-never succeeded.
+components were removed in
+.Fx 13.0 :
+.Bl -bullet -offset indent -compact
+.It
+.Cd GEOM_BSD ,
+.It
+.Cd GEOM_FOX ,
+.It
+.Cd GEOM_MBR ,
+.It
+.Cd GEOM_SUNLABEL ,
+and
+.It
+.Cd GEOM_VOL .
+.El
+.Pp
+Use
+.Bl -bullet -offset indent -compact
+.It
+.Cd GEOM_PART_BSD ,
+.It
+.Cd GEOM_MULTIPATH ,
+.It
+.Cd GEOM_PART_MBR ,
+.It
+.Cd GEOM_PART_VTOC8 ,
+and
+.It
+.Cd GEOM_LABEL
+.El
+options, respectively, instead.
 .Sh AUTHORS
 .An Poul-Henning Kamp Aq Mt phk@FreeBSD.org

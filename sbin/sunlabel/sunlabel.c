@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/disk.h>
 #include <sys/ioctl.h>
-#include <sys/sun_disklabel.h>
 #include <sys/wait.h>
 
 #include <ctype.h>
@@ -88,6 +87,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "sun_disklabel.h"
 
 #define	_PATH_TMPFILE	"/tmp/EdDk.XXXXXXXXXX"
 #define	_PATH_BOOT	"/boot/boot1"
