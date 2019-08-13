@@ -1,7 +1,7 @@
-/*
- * Copyright (c) 2004-2016 Maxim Sobolev <sobomax@FreeBSD.org>
- * Copyright (c) 2011 Aleksandr Rybalko <ray@ddteam.net>
- * All rights reserved.
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2019 Conrad Meyer <cem@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,17 +27,12 @@
  * $FreeBSD$
  */
 
-/* Format L3.0, since we move to XZ API */
-#define CLOOP_MAGIC_LZMA \
-    "#!/bin/sh\n" \
-    "#L3.0\n" \
-    "n=uncompress\n" \
-    "m=geom_$n\n" \
-    "(kldstat -m $m 2>&-||kldload $m)>&-&&" \
-        "mount_cd9660 /dev/`mdconfig -af $0`.$n $1\n" \
-    "exit $?\n"
-#define DEFAULT_SUFX_LZMA   ".ulzma"
+#define DEFAULT_SUFX_ZSTD       ".uzst"
 
-size_t mkuz_lzma_cbound(size_t);
-void *mkuz_lzma_init(int *);
-void mkuz_lzma_compress(void *, const struct mkuz_blk *, struct mkuz_blk *);
+#define CLOOP_MAGIC_ZSTD        "#!/bin/sh\n#Z4.0 Format\n" \
+    "(kldstat -qm g_uzip||kldload geom_uzip)>&-&&" \
+    "mount_cd9660 /dev/`mdconfig -af $0`.uzip $1\nexit $?\n"
+
+size_t mkuz_zstd_cbound(size_t);
+void *mkuz_zstd_init(int *);
+void mkuz_zstd_compress(void *, const struct mkuz_blk *, struct mkuz_blk *);

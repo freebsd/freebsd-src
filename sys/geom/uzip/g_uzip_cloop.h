@@ -39,14 +39,20 @@
 
 #define CLOOP_MAJVER_2	'2'
 #define CLOOP_MAJVER_3	'3'
+#define CLOOP_MAJVER_4	'4'
 
 #define	CLOOP_COMP_LIBZ		'V'
 #define	CLOOP_COMP_LIBZ_DDP	'v'
 #define	CLOOP_COMP_LZMA		'L'
 #define	CLOOP_COMP_LZMA_DDP	'l'
+#define	CLOOP_COMP_ZSTD		'Z'
+#define	CLOOP_COMP_ZSTD_DDP	'z'
 
 #define	CLOOP_MINVER_LZMA	CLOOP_MAJVER_3
 #define	CLOOP_MINVER_ZLIB	CLOOP_MAJVER_2
+#define	CLOOP_MINVER_ZSTD	CLOOP_MAJVER_4
+
+#define	CLOOP_MINVER_RELIABLE_LASTBLKSZ	CLOOP_MAJVER_4
 
 struct cloop_header {
         char magic[CLOOP_MAGIC_LEN];    /* cloop magic */

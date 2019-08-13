@@ -39,4 +39,6 @@ struct mkuz_cfg {
     const char *iname;
     off_t isize;
     const struct mkuz_format *handler;
+    size_t cbound_blksz;
+    int comp_level;
 };

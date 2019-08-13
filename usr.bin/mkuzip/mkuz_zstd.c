@@ -1,6 +1,7 @@
-/*
- * Copyright (c) 2004-2016 Maxim Sobolev <sobomax@FreeBSD.org>
- * All rights reserved.
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2019 Conrad Meyer <cem@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,58 +28,68 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
 #include <err.h>
+#include <limits.h>
+#include <stddef.h>
 #include <stdint.h>
 
-#include <zlib.h>
+#include <zstd.h>
 
 #include "mkuzip.h"
 #include "mkuz_blk.h"
-#include "mkuz_zlib.h"
-
-struct mkuz_zlib {
-	int comp_level;
-};
+#include "mkuz_zstd.h"
 
 size_t
-mkuz_zlib_cbound(size_t blksz)
+mkuz_zstd_cbound(size_t blksz)
 {
-	return (compressBound(blksz));
+	return (ZSTD_compressBound(blksz));
 }
 
 void *
-mkuz_zlib_init(int *comp_level)
+mkuz_zstd_init(int *comp_level)
 {
-	struct mkuz_zlib *zp;
+	ZSTD_CCtx *cctx;
+	size_t rc;
 
+	/* Default chosen for near-parity with mkuzip zlib default. */
 	if (*comp_level == USE_DEFAULT_LEVEL)
-		*comp_level = Z_BEST_COMPRESSION;
-	if (*comp_level < Z_BEST_SPEED || *comp_level > Z_BEST_COMPRESSION)
+		*comp_level = 9;
+	if (*comp_level < ZSTD_minCLevel() || *comp_level == 0 ||
+	    *comp_level > ZSTD_maxCLevel())
 		errx(1, "provided compression level %d is invalid",
 		    *comp_level);
-		/* Not reached */
 
-	zp = mkuz_safe_zmalloc(sizeof(struct mkuz_zlib));
-	zp->comp_level = *comp_level;
+	cctx = ZSTD_createCCtx();
+	if (cctx == NULL)
+		errx(1, "could not allocate Zstd context");
 
-	return (zp);
+	rc = ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel,
+	    *comp_level);
+	if (ZSTD_isError(rc))
+		errx(1, "Could not set zstd compression level %d: %s",
+		    *comp_level, ZSTD_getErrorName(rc));
+
+	rc = ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1);
+	if (ZSTD_isError(rc))
+		errx(1, "Could not enable zstd checksum: %s",
+		    ZSTD_getErrorName(rc));
+
+	return (cctx);
 }
 
 void
-mkuz_zlib_compress(void *p, const struct mkuz_blk *iblk, struct mkuz_blk *oblk)
+mkuz_zstd_compress(void *p, const struct mkuz_blk *iblk, struct mkuz_blk *oblk)
 {
-	uLongf destlen_z;
-	struct mkuz_zlib *zp;
+	ZSTD_CCtx *cctx;
+	size_t rc;
 
-	zp = (struct mkuz_zlib *)p;
+	cctx = p;
 
-	destlen_z = oblk->alen;
-	if (compress2(oblk->data, &destlen_z, iblk->data, iblk->info.len,
-	    zp->comp_level) != Z_OK) {
-		errx(1, "can't compress data: compress2() failed");
-		/* Not reached */
-	}
+	rc = ZSTD_compress2(cctx, oblk->data, oblk->alen, iblk->data,
+	    iblk->info.len);
+	if (ZSTD_isError(rc))
+		errx(1, "could not compress data: ZSTD_compress2: %s",
+		    ZSTD_getErrorName(rc));
 
-	oblk->info.len = (uint32_t)destlen_z;
+	oblk->info.len = rc;
 }
