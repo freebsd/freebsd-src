@@ -37,6 +37,7 @@
 
 #define	NVME_PASSTHROUGH_CMD		_IOWR('n', 0, struct nvme_pt_command)
 #define	NVME_RESET_CONTROLLER		_IO('n', 1)
+#define	NVME_GET_NSID			_IOR('n', 2, struct nvme_get_nsid)
 
 #define	NVME_IO_TEST			_IOWR('n', 100, struct nvme_io_test)
 #define	NVME_BIO_TEST			_IOWR('n', 101, struct nvme_io_test)
@@ -1047,6 +1048,11 @@ struct nvme_pt_command {
 	struct mtx *		driver_lock;
 };
 
+struct nvme_get_nsid {
+	char		cdev[SPECNAMELEN + 1];
+	uint32_t	nsid;
+};
+
 #define nvme_completion_is_error(cpl)					\
 	((cpl)->status.sc != 0 || (cpl)->status.sct != 0)
 
@@ -1055,6 +1061,7 @@ void	nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen);
 #ifdef _KERNEL
 
 struct bio;
+struct thread;
 
 struct nvme_namespace;
 struct nvme_controller;
@@ -1137,6 +1144,8 @@ uint32_t	nvme_ns_get_stripesize(struct nvme_namespace *ns);
 
 int	nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 			    nvme_cb_fn_t cb_fn);
+int	nvme_ns_ioctl_process(struct nvme_namespace *ns, u_long cmd,
+    caddr_t arg, int flag, struct thread *td);
 
 /*
  * Command building helper functions -- shared with CAM

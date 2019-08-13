@@ -80,6 +80,14 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		pt = (struct nvme_pt_command *)arg;
 		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, ns->id, 
 		    1 /* is_user_buffer */, 0 /* is_admin_cmd */));
+	case NVME_GET_NSID:
+	{
+		struct nvme_get_nsid *gnsid = (struct nvme_get_nsid *)arg;
+		strncpy(gnsid->cdev, device_get_nameunit(ctrlr->dev),
+		    sizeof(gnsid->cdev));
+		gnsid->nsid = ns->id;
+		break;
+	}
 	case DIOCGMEDIASIZE:
 		*(off_t *)arg = (off_t)nvme_ns_get_size(ns);
 		break;
@@ -466,6 +474,13 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 	}
 
 	return (err);
+}
+
+int
+nvme_ns_ioctl_process(struct nvme_namespace *ns, u_long cmd, caddr_t arg,
+    int flag, struct thread *td)
+{
+	return (nvme_ns_ioctl(ns->cdev, cmd, arg, flag, td));
 }
 
 int
