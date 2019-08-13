@@ -77,8 +77,17 @@ void expect_lookup(const char *relpath, uint64_t ino)
 
 };
 
+class AioFsyncDir: public FsyncDir {
+virtual void SetUp() {
+	if (!is_unsafe_aio_enabled())
+		GTEST_SKIP() <<
+			"vfs.aio.enable_unsafe must be set for this test";
+	FuseTest::SetUp();
+}
+};
+
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236379 */
-TEST_F(FsyncDir, aio_fsync)
+TEST_F(AioFsyncDir, aio_fsync)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";

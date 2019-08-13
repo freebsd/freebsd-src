@@ -73,17 +73,10 @@ void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
 class AioRead: public Read {
 public:
 virtual void SetUp() {
-	const char *node = "vfs.aio.enable_unsafe";
-	int val = 0;
-	size_t size = sizeof(val);
-
-	FuseTest::SetUp();
-
-	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	if (!val)
+	if (!is_unsafe_aio_enabled())
 		GTEST_SKIP() <<
 			"vfs.aio.enable_unsafe must be set for this test";
+	FuseTest::SetUp();
 }
 };
 
