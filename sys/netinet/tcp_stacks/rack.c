@@ -128,10 +128,6 @@ uma_zone_t rack_pcb_zone;
 struct sysctl_ctx_list rack_sysctl_ctx;
 struct sysctl_oid *rack_sysctl_root;
 
-#ifndef TCPHPTS
-#error "fatal error missing option TCPHSTS in the build"
-#endif
-
 #define CUM_ACKED 1
 #define SACKED 2
 
@@ -9212,3 +9208,4 @@ static moduledata_t tcp_rack = {
 
 MODULE_VERSION(MODNAME, 1);
 DECLARE_MODULE(MODNAME, tcp_rack, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
+MODULE_DEPEND(MODNAME, tcphpts, 1, 1, 1);
