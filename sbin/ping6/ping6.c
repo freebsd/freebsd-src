@@ -1324,7 +1324,7 @@ pinger(void)
 
 		memcpy(nip->icmp6_ni_nonce, nonce,
 		    sizeof(nip->icmp6_ni_nonce));
-		*(u_int16_t *)nip->icmp6_ni_nonce = ntohs(seq);
+		*(u_int16_t *)nip->icmp6_ni_nonce = htons(seq);
 
 		memcpy(&outpack[ICMP6_NIQLEN], &dst.sin6_addr,
 		    sizeof(dst.sin6_addr));
@@ -1339,7 +1339,7 @@ pinger(void)
 
 		memcpy(nip->icmp6_ni_nonce, nonce,
 		    sizeof(nip->icmp6_ni_nonce));
-		*(u_int16_t *)nip->icmp6_ni_nonce = ntohs(seq);
+		*(u_int16_t *)nip->icmp6_ni_nonce = htons(seq);
 
 		cc = ICMP6_NIQLEN;
 		datalen = 0;
@@ -1351,7 +1351,7 @@ pinger(void)
 
 		memcpy(nip->icmp6_ni_nonce, nonce,
 		    sizeof(nip->icmp6_ni_nonce));
-		*(u_int16_t *)nip->icmp6_ni_nonce = ntohs(seq);
+		*(u_int16_t *)nip->icmp6_ni_nonce = htons(seq);
 
 		memcpy(&outpack[ICMP6_NIQLEN], &dst.sin6_addr,
 		    sizeof(dst.sin6_addr));
@@ -1366,14 +1366,14 @@ pinger(void)
 
 		memcpy(nip->icmp6_ni_nonce, nonce,
 		    sizeof(nip->icmp6_ni_nonce));
-		*(u_int16_t *)nip->icmp6_ni_nonce = ntohs(seq);
+		*(u_int16_t *)nip->icmp6_ni_nonce = htons(seq);
 		cc = ICMP6_NIQLEN;
 		datalen = 0;
 	} else {
 		icp->icmp6_type = ICMP6_ECHO_REQUEST;
 		icp->icmp6_code = 0;
 		icp->icmp6_id = htons(ident);
-		icp->icmp6_seq = ntohs(seq);
+		icp->icmp6_seq = htons(seq);
 		if (timing) {
 			struct timeval tv;
 			struct tv32 *tv32;
