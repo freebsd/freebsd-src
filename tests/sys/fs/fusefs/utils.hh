@@ -44,6 +44,8 @@ inline void nap()
 	usleep(NAP_NS / 1000);
 }
 
+bool is_unsafe_aio_enabled(void);
+
 extern const uint32_t libfuse_max_write;
 extern const uint32_t default_max_write;
 class FuseTest : public ::testing::Test {

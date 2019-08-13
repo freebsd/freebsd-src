@@ -89,6 +89,18 @@ void check_environment()
 		GTEST_SKIP() << "current user is not allowed to mount";
 }
 
+bool is_unsafe_aio_enabled(void) {
+	const char *node = "vfs.aio.enable_unsafe";
+	int val = 0;
+	size_t size = sizeof(val);
+
+	if (sysctlbyname(node, &val, &size, NULL, 0)) {
+		perror("sysctlbyname");
+		return (false);
+	}
+	return (val != 0);
+}
+
 class FuseEnv: public Environment {
 	virtual void SetUp() {
 	}
