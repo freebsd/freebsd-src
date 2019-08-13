@@ -39,12 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
-#include <sys/sun_disklabel.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
 #else
 #include <string.h>
 #endif
+#include "sun_disklabel.h"
 
 #define	SL_TEXT		0x0
 #define	SL_TEXT_SIZEOF	0x80

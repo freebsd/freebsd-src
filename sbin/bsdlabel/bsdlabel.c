@@ -381,8 +381,6 @@ static int
 writelabel(void)
 {
 	int i, fd, serrno;
-	struct gctl_req *grq;
-	char const *errstr;
 	struct disklabel *lp = &lab;
 
 	if (disable_write) {
@@ -423,39 +421,8 @@ writelabel(void)
 			return (1);
 		}
 
-		/* Give up if GEOM_BSD is not available. */
-		if (geom_class_available("BSD") == 0) {
-			warnc(serrno, "%s", specname);
-			return (1);
-		}
-
-		grq = gctl_get_handle();
-		gctl_ro_param(grq, "verb", -1, "write label");
-		gctl_ro_param(grq, "class", -1, "BSD");
-		gctl_ro_param(grq, "geom", -1, pname);
-		gctl_ro_param(grq, "label", 148+16*8,
-			bootarea + labeloffset + labelsoffset * lab.d_secsize);
-		errstr = gctl_issue(grq);
-		if (errstr != NULL) {
-			warnx("%s", errstr);
-			gctl_free(grq);
-			return(1);
-		}
-		gctl_free(grq);
-		if (installboot) {
-			grq = gctl_get_handle();
-			gctl_ro_param(grq, "verb", -1, "write bootcode");
-			gctl_ro_param(grq, "class", -1, "BSD");
-			gctl_ro_param(grq, "geom", -1, pname);
-			gctl_ro_param(grq, "bootcode", BBSIZE, bootarea);
-			errstr = gctl_issue(grq);
-			if (errstr != NULL) {
-				warnx("%s", errstr);
-				gctl_free(grq);
-				return (1);
-			}
-			gctl_free(grq);
-		}
+		warnc(serrno, "%s", specname);
+		return (1);
 	} else {
 		if (write(fd, bootarea, bbsize) != bbsize) {
 			warn("write %s", specname);

@@ -3561,28 +3561,21 @@ geom/eli/g_eli_key_cache.c	optional geom_eli
 geom/eli/g_eli_privacy.c	optional geom_eli
 geom/eli/pkcs5v2.c		optional geom_eli
 geom/gate/g_gate.c		optional geom_gate
-geom/geom_bsd.c			optional geom_bsd
-geom/geom_bsd_enc.c		optional geom_bsd | geom_part_bsd
+geom/geom_bsd_enc.c		optional geom_part_bsd
 geom/geom_ccd.c			optional ccd | geom_ccd
 geom/geom_ctl.c			standard
 geom/geom_dev.c			standard
 geom/geom_disk.c		standard
 geom/geom_dump.c		standard
 geom/geom_event.c		standard
-geom/geom_fox.c			optional geom_fox
 geom/geom_flashmap.c		optional fdt cfi | fdt mx25l | mmcsd | fdt n25q | fdt at45d
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
 geom/geom_map.c			optional geom_map
-geom/geom_mbr.c			optional geom_mbr
-geom/geom_mbr_enc.c		optional geom_mbr
 geom/geom_redboot.c		optional geom_redboot
 geom/geom_slice.c		standard
 geom/geom_subr.c		standard
-geom/geom_sunlabel.c		optional geom_sunlabel
-geom/geom_sunlabel_enc.c	optional geom_sunlabel
 geom/geom_vfs.c			standard
-geom/geom_vol_ffs.c		optional geom_vol
 geom/journal/g_journal.c	optional geom_journal
 geom/journal/g_journal_ufs.c	optional geom_journal
 geom/label/g_label.c		optional geom_label | geom_label_gpt
