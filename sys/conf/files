@@ -2476,8 +2476,6 @@ dev/netmap/netmap_vale.c	optional netmap
 dev/nfsmb/nfsmb.c		optional nfsmb pci
 dev/nge/if_nge.c		optional nge
 dev/nmdm/nmdm.c			optional nmdm
-dev/nsp/nsp.c			optional nsp
-dev/nsp/nsp_pccard.c		optional nsp pccard
 dev/null/null.c			standard
 dev/nvd/nvd.c			optional nvd nvme
 dev/nvme/nvme.c			optional nvme
