@@ -47,6 +47,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"pps-gpio", 	1},
 	{NULL,          0}
 };
+SIMPLEBUS_PNP_INFO(compat_data);
 #endif /* FDT */
 
 static devclass_t pps_devclass;
