@@ -1087,7 +1087,8 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timeval *tv)
 	struct ip *ip;
 	const void *tp;
 	double triptime;
-	int dupflag, hlen, i, j, recv_len, seq;
+	int dupflag, hlen, i, j, recv_len;
+	uint16_t seq;
 	static int old_rrlen;
 	static char old_rr[MAX_IPOPTLEN];
 
