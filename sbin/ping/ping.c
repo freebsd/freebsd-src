@@ -209,7 +209,7 @@ static volatile sig_atomic_t siginfo_p;
 static cap_channel_t *capdns;
 
 static void fill(char *, char *);
-static u_short in_cksum(u_short *, int);
+static u_short in_cksum(u_char *, int);
 static cap_channel_t *capdns_setup(void);
 static void check_status(void);
 static void finish(void) __dead2;
@@ -1046,13 +1046,13 @@ pinger(void)
 	cc = ICMP_MINLEN + phdr_len + datalen;
 
 	/* compute ICMP checksum here */
-	icp->icmp_cksum = in_cksum((u_short *)icp, cc);
+	icp->icmp_cksum = in_cksum((u_char *)icp, cc);
 
 	if (options & F_HDRINCL) {
 		cc += sizeof(struct ip);
 		ip = (struct ip *)outpackhdr;
 		ip->ip_len = htons(cc);
-		ip->ip_sum = in_cksum((u_short *)outpackhdr, cc);
+		ip->ip_sum = in_cksum(outpackhdr, cc);
 		packet = outpackhdr;
 	}
 	i = send(ssend, (char *)packet, cc, 0);
@@ -1348,10 +1348,10 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timespec *tv)
  *	Checksum routine for Internet Protocol family headers (C Version)
  */
 u_short
-in_cksum(u_short *addr, int len)
+in_cksum(u_char *addr, int len)
 {
 	int nleft, sum;
-	u_short *w;
+	u_char *w;
 	union {
 		u_short	us;
 		u_char	uc[2];
@@ -1368,13 +1368,17 @@ in_cksum(u_short *addr, int len)
 	 * carry bits from the top 16 bits into the lower 16 bits.
 	 */
 	while (nleft > 1)  {
-		sum += *w++;
-		nleft -= 2;
+		u_short data;
+
+		memcpy(&data, w, sizeof(data));
+		sum += data;
+		w += sizeof(data);
+		nleft -= sizeof(data);
 	}
 
 	/* mop up an odd byte, if necessary */
 	if (nleft == 1) {
-		last.uc[0] = *(u_char *)w;
+		last.uc[0] = *w;
 		last.uc[1] = 0;
 		sum += last.us;
 	}
