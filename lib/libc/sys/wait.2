@@ -28,7 +28,7 @@
 .\"     @(#)wait.2	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2018
+.Dd August 11, 2019
 .Dt WAIT 2
 .Os
 .Sh NAME
@@ -511,8 +511,12 @@ A status of 0 indicates normal termination.
 .Pp
 If a parent process terminates without
 waiting for all of its child processes to terminate,
-the remaining child processes are assigned the parent
-process 1 ID (the init process ID).
+the remaining child processes are re-assigned to the reaper
+of the exiting process as the parent, see
+.Xr procctl 2
+.Dv PROC_REAP_ACQUIRE .
+If no specific reaper was assigned, the process with ID 1, the init process,
+becomes the parent of the orphaned children by default.
 .Pp
 If a signal is caught while any of the
 .Fn wait
@@ -648,6 +652,7 @@ do not specify a valid set of processes.
 .El
 .Sh SEE ALSO
 .Xr _exit 2 ,
+.Xr procctl 2 ,
 .Xr ptrace 2 ,
 .Xr sigaction 2 ,
 .Xr exit 3 ,
