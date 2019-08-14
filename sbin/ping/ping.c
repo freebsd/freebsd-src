@@ -760,9 +760,15 @@ main(int argc, char *const *argv)
 		}
 	}
 #ifdef SO_TIMESTAMP
-	{ int on = 1;
-	if (setsockopt(srecv, SOL_SOCKET, SO_TIMESTAMP, &on, sizeof(on)) < 0)
-		err(EX_OSERR, "setsockopt SO_TIMESTAMP");
+	{
+		int on = 1;
+		int ts_clock = SO_TS_MONOTONIC;
+		if (setsockopt(srecv, SOL_SOCKET, SO_TIMESTAMP, &on,
+		    sizeof(on)) < 0)
+			err(EX_OSERR, "setsockopt SO_TIMESTAMP");
+		if (setsockopt(srecv, SOL_SOCKET, SO_TS_CLOCK, &ts_clock,
+		    sizeof(ts_clock)) < 0)
+			err(EX_OSERR, "setsockopt SO_TS_CLOCK");
 	}
 #endif
 	if (sweepmax) {
