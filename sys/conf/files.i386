@@ -98,9 +98,6 @@ bf_enc.o			optional crypto | ipsec	| ipsec_support \
 	no-implicit-rule
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | ipsec_support | netsmb
-crypto/via/padlock.c		optional padlock
-crypto/via/padlock_cipher.c	optional padlock
-crypto/via/padlock_hash.c	optional padlock
 dev/acpica/acpi_pci.c		optional acpi pci
 dev/acpica/acpi_pci_link.c	optional acpi pci
 dev/acpica/acpi_pcib.c		optional acpi pci
