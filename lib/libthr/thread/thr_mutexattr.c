@@ -72,12 +72,15 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-__weak_reference(_pthread_mutexattr_init, pthread_mutexattr_init);
+__weak_reference(_thr_mutexattr_init, pthread_mutexattr_init);
+__weak_reference(_thr_mutexattr_init, _pthread_mutexattr_init);
 __weak_reference(_pthread_mutexattr_setkind_np, pthread_mutexattr_setkind_np);
 __weak_reference(_pthread_mutexattr_getkind_np, pthread_mutexattr_getkind_np);
 __weak_reference(_pthread_mutexattr_gettype, pthread_mutexattr_gettype);
-__weak_reference(_pthread_mutexattr_settype, pthread_mutexattr_settype);
-__weak_reference(_pthread_mutexattr_destroy, pthread_mutexattr_destroy);
+__weak_reference(_thr_mutexattr_settype, pthread_mutexattr_settype);
+__weak_reference(_thr_mutexattr_settype, _pthread_mutexattr_settype);
+__weak_reference(_thr_mutexattr_destroy, pthread_mutexattr_destroy);
+__weak_reference(_thr_mutexattr_destroy, _pthread_mutexattr_destroy);
 __weak_reference(_pthread_mutexattr_getpshared, pthread_mutexattr_getpshared);
 __weak_reference(_pthread_mutexattr_setpshared, pthread_mutexattr_setpshared);
 __weak_reference(_pthread_mutexattr_getprotocol, pthread_mutexattr_getprotocol);
@@ -86,11 +89,13 @@ __weak_reference(_pthread_mutexattr_getprioceiling,
     pthread_mutexattr_getprioceiling);
 __weak_reference(_pthread_mutexattr_setprioceiling,
     pthread_mutexattr_setprioceiling);
-__weak_reference(_pthread_mutexattr_getrobust, pthread_mutexattr_getrobust);
-__weak_reference(_pthread_mutexattr_setrobust, pthread_mutexattr_setrobust);
+__weak_reference(_thr_mutexattr_getrobust, pthread_mutexattr_getrobust);
+__weak_reference(_thr_mutexattr_getrobust, _pthread_mutexattr_getrobust);
+__weak_reference(_thr_mutexattr_setrobust, pthread_mutexattr_setrobust);
+__weak_reference(_thr_mutexattr_setrobust, _pthread_mutexattr_setrobust);
 
 int
-_pthread_mutexattr_init(pthread_mutexattr_t *attr)
+_thr_mutexattr_init(pthread_mutexattr_t *attr)
 {
 	int ret;
 	pthread_mutexattr_t pattr;
@@ -136,7 +141,7 @@ _pthread_mutexattr_getkind_np(pthread_mutexattr_t attr)
 }
 
 int
-_pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type)
+_thr_mutexattr_settype(pthread_mutexattr_t *attr, int type)
 {
 	int	ret;
 
@@ -166,7 +171,7 @@ _pthread_mutexattr_gettype(const pthread_mutexattr_t * __restrict attr,
 }
 
 int
-_pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
+_thr_mutexattr_destroy(pthread_mutexattr_t *attr)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL) {
@@ -263,7 +268,7 @@ _pthread_mutexattr_setprioceiling(pthread_mutexattr_t *mattr, int prioceiling)
 }
 
 int
-_pthread_mutexattr_getrobust(pthread_mutexattr_t *mattr, int *robust)
+_thr_mutexattr_getrobust(pthread_mutexattr_t *mattr, int *robust)
 {
 	int ret;
 
@@ -277,7 +282,7 @@ _pthread_mutexattr_getrobust(pthread_mutexattr_t *mattr, int *robust)
 }
 
 int
-_pthread_mutexattr_setrobust(pthread_mutexattr_t *mattr, int robust)
+_thr_mutexattr_setrobust(pthread_mutexattr_t *mattr, int robust)
 {
 	int ret;
 

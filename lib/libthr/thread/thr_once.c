@@ -35,7 +35,8 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-__weak_reference(_pthread_once, pthread_once);
+__weak_reference(_thr_once, pthread_once);
+__weak_reference(_thr_once, _pthread_once);
 
 #define ONCE_NEVER_DONE		PTHREAD_NEEDS_INIT
 #define ONCE_DONE		PTHREAD_DONE_INIT
@@ -63,7 +64,7 @@ once_cancel_handler(void *arg)
 }
 
 int
-_pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
+_thr_once(pthread_once_t *once_control, void (*init_routine)(void))
 {
 	struct pthread *curthread;
 	int state;

@@ -75,10 +75,11 @@ __FBSDID("$FreeBSD$");
 #include "rtld_lock.h"
 #include "thr_private.h"
 
-__weak_reference(_pthread_atfork, pthread_atfork);
+__weak_reference(_thr_atfork, _pthread_atfork);
+__weak_reference(_thr_atfork, pthread_atfork);
 
 int
-_pthread_atfork(void (*prepare)(void), void (*parent)(void),
+_thr_atfork(void (*prepare)(void), void (*parent)(void),
     void (*child)(void))
 {
 	struct pthread *curthread;

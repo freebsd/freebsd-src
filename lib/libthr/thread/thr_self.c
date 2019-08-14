@@ -38,10 +38,11 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-__weak_reference(_pthread_self, pthread_self);
+__weak_reference(_Tthr_self, pthread_self);
+__weak_reference(_Tthr_self, _pthread_self);
 
 pthread_t
-_pthread_self(void)
+_Tthr_self(void)
 {
 	_thr_check_init();
 
