@@ -57,26 +57,6 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
 #
-hpt27xx_lib.o			optional	hpt27xx			\
-	dependency	"$S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu"	\
-	compile-with	"uudecode < $S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu" \
-	no-implicit-rule
-#
-hptmvraid.o			optional	hptmv			\
-	dependency	"$S/dev/hptmv/i386-elf.raid.o.uu"		\
-	compile-with	"uudecode < $S/dev/hptmv/i386-elf.raid.o.uu"	\
-	no-implicit-rule
-#
-hptnr_lib.o			optional	hptnr			\
-	dependency	"$S/dev/hptnr/i386-elf.hptnr_lib.o.uu"	\
-	compile-with	"uudecode < $S/dev/hptnr/i386-elf.hptnr_lib.o.uu" \
-	no-implicit-rule
-#
-hptrr_lib.o			optional	hptrr			\
-	dependency	"$S/dev/hptrr/i386-elf.hptrr_lib.o.uu"		\
-	compile-with	"uudecode < $S/dev/hptrr/i386-elf.hptrr_lib.o.uu" \
-	no-implicit-rule
-#
 cddl/contrib/opensolaris/common/atomic/i386/opensolaris_atomic.S	optional zfs | dtrace compile-with "${ZFS_S}"
 cddl/dev/dtrace/i386/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/i386/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
@@ -204,20 +184,6 @@ dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
 dev/gpio/bytgpio.c		optional	bytgpio
 dev/gpio/chvgpio.c		optional	chvgpio
-dev/hpt27xx/hpt27xx_os_bsd.c	optional hpt27xx
-dev/hpt27xx/hpt27xx_osm_bsd.c	optional hpt27xx
-dev/hpt27xx/hpt27xx_config.c	optional hpt27xx
-dev/hptmv/entry.c		optional hptmv
-dev/hptmv/mv.c			optional hptmv
-dev/hptmv/gui_lib.c		optional hptmv
-dev/hptmv/hptproc.c		optional hptmv
-dev/hptmv/ioctl.c		optional hptmv
-dev/hptnr/hptnr_os_bsd.c	optional hptnr
-dev/hptnr/hptnr_osm_bsd.c	optional hptnr
-dev/hptnr/hptnr_config.c	optional hptnr
-dev/hptrr/hptrr_os_bsd.c	optional hptrr
-dev/hptrr/hptrr_osm_bsd.c	optional hptrr
-dev/hptrr/hptrr_config.c	optional hptrr
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
 dev/hwpmc/hwpmc_intel.c		optional hwpmc
 dev/hwpmc/hwpmc_core.c		optional hwpmc
