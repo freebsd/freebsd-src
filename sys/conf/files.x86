@@ -107,6 +107,12 @@ hptrr_lib.o			optional	hptrr			\
 	dependency	"$S/dev/hptrr/$M-elf.hptrr_lib.o.uu"		\
 	compile-with	"uudecode < $S/dev/hptrr/$M-elf.hptrr_lib.o.uu" \
 	no-implicit-rule
+dev/hwpmc/hwpmc_amd.c		optional	hwpmc
+dev/hwpmc/hwpmc_intel.c		optional	hwpmc
+dev/hwpmc/hwpmc_core.c		optional	hwpmc
+dev/hwpmc/hwpmc_uncore.c	optional	hwpmc
+dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
+dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/hyperv/pcib/vmbus_pcib.c				optional	hyperv pci
 dev/hyperv/netvsc/hn_nvs.c				optional	hyperv
 dev/hyperv/netvsc/hn_rndis.c				optional	hyperv
