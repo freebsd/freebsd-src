@@ -20,6 +20,13 @@ cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with 
 cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
+compat/ndis/kern_ndis.c		optional ndisapi pci
+compat/ndis/kern_windrv.c	optional ndisapi pci
+compat/ndis/subr_hal.c		optional ndisapi pci
+compat/ndis/subr_ndis.c		optional ndisapi pci
+compat/ndis/subr_ntoskrnl.c	optional ndisapi pci
+compat/ndis/subr_pe.c		optional ndisapi pci
+compat/ndis/subr_usbd.c		optional ndisapi pci
 crypto/aesni/aesni.c		optional aesni
 aesni_ghash.o			optional aesni				\
 	dependency	"$S/crypto/aesni/aesni_ghash.c"			\

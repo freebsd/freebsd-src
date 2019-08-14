@@ -84,13 +84,6 @@ compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/linux/linux_vdso.c	optional compat_linux
 compat/linux/linux.c		optional compat_linux
-compat/ndis/kern_ndis.c		optional ndisapi pci
-compat/ndis/kern_windrv.c	optional ndisapi pci
-compat/ndis/subr_hal.c		optional ndisapi pci
-compat/ndis/subr_ndis.c		optional ndisapi pci
-compat/ndis/subr_ntoskrnl.c	optional ndisapi pci
-compat/ndis/subr_pe.c		optional ndisapi pci
-compat/ndis/subr_usbd.c		optional ndisapi pci
 compat/ndis/winx32_wrap.S	optional ndisapi pci
 bf_enc.o			optional crypto | ipsec	| ipsec_support \
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
