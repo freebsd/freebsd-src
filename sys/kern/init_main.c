@@ -824,11 +824,9 @@ start_init(void *dummy)
 }
 
 /*
- * Like kproc_create(), but runs in its own address space.
- * We do this early to reserve pid 1.
- *
- * Note special case - do not make it runnable yet.  Other work
- * in progress will change this more.
+ * Like kproc_create(), but runs in its own address space.  We do this
+ * early to reserve pid 1.  Note special case - do not make it
+ * runnable yet, init execution is started when userspace can be served.
  */
 static void
 create_init(const void *udata __unused)
