@@ -4807,7 +4807,7 @@ sppp_keepalive(void *dummy)
 		sppp_cisco_send (sp, CISCO_KEEPALIVE_REQ,
 			 ++sp->pp_seq[IDX_LCP],	sp->pp_rseq[IDX_LCP]);
 	else if (sp->pp_phase >= PHASE_AUTHENTICATE) {
-		long nmagic = htonl (sp->lcp.magic);
+		uint32_t nmagic = htonl(sp->lcp.magic);
 		sp->lcp.echoid = ++sp->pp_seq[IDX_LCP];
 		sppp_cp_send (sp, PPP_LCP, ECHO_REQ,
 			sp->lcp.echoid, 4, &nmagic);
