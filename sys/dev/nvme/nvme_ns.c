@@ -231,7 +231,11 @@ uint32_t
 nvme_ns_get_stripesize(struct nvme_namespace *ns)
 {
 
-	return (ns->stripesize);
+	if (((ns->data.nsfeat >> NVME_NS_DATA_NSFEAT_NPVALID_SHIFT) &
+	    NVME_NS_DATA_NSFEAT_NPVALID_MASK) != 0 && ns->data.npwg != 0) {
+		return ((ns->data.npwg + 1) * nvme_ns_get_sector_size(ns));
+	}
+	return (ns->boundary);
 }
 
 static void
@@ -447,12 +451,12 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 
 	bp->bio_driver1 = cb_fn;
 
-	if (ns->stripesize > 0 &&
+	if (ns->boundary > 0 &&
 	    (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)) {
 		num_bios = nvme_get_num_segments(bp->bio_offset,
-		    bp->bio_bcount, ns->stripesize);
+		    bp->bio_bcount, ns->boundary);
 		if (num_bios > 1)
-			return (nvme_ns_split_bio(ns, bp, ns->stripesize));
+			return (nvme_ns_split_bio(ns, bp, ns->boundary));
 	}
 
 	switch (bp->bio_cmd) {
@@ -511,25 +515,6 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 
 	ns->ctrlr = ctrlr;
 	ns->id = id;
-	ns->stripesize = 0;
-
-	/*
-	 * Older Intel devices advertise in vendor specific space an alignment
-	 * that improves performance.  If present use for the stripe size.  NVMe
-	 * 1.3 standardized this as NOIOB, and newer Intel drives use that.
-	 */
-	switch (pci_get_devid(ctrlr->dev)) {
-	case 0x09538086:		/* Intel DC PC3500 */
-	case 0x0a538086:		/* Intel DC PC3520 */
-	case 0x0a548086:		/* Intel DC PC4500 */
-	case 0x0a558086:		/* Dell Intel P4600 */
-		if (ctrlr->cdata.vs[3] != 0)
-			ns->stripesize =
-			    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
-		break;
-	default:
-		break;
-	}
 
 	/*
 	 * Namespaces are reconstructed after a controller reset, so check
@@ -574,6 +559,27 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 		printf("lba format %d exceeds number supported (%d)\n",
 		    flbas_fmt, ns->data.nlbaf + 1);
 		return (ENXIO);
+	}
+
+	/*
+	 * Older Intel devices advertise in vendor specific space an alignment
+	 * that improves performance.  If present use for the stripe size.  NVMe
+	 * 1.3 standardized this as NOIOB, and newer Intel drives use that.
+	 */
+	switch (pci_get_devid(ctrlr->dev)) {
+	case 0x09538086:		/* Intel DC PC3500 */
+	case 0x0a538086:		/* Intel DC PC3520 */
+	case 0x0a548086:		/* Intel DC PC4500 */
+	case 0x0a558086:		/* Dell Intel P4600 */
+		if (ctrlr->cdata.vs[3] != 0)
+			ns->boundary =
+			    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
+		else
+			ns->boundary = 0;
+		break;
+	default:
+		ns->boundary = ns->data.noiob * nvme_ns_get_sector_size(ns);
+		break;
 	}
 
 	if (nvme_ctrlr_has_dataset_mgmt(&ctrlr->cdata))
