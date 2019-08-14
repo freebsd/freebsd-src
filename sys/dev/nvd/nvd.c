@@ -306,8 +306,10 @@ nvd_getattr(struct bio *bp)
 		nsdata = nvme_ns_get_data(ndisk->ns);
 
 		/* Try to return NGUID as lunid. */
-		for (i = 0; i < sizeof(nsdata->nguid); i++)
+		for (i = 0; i < sizeof(nsdata->nguid); i++) {
 			if (nsdata->nguid[i] != 0)
+				break;
+		}
 		if (i < sizeof(nsdata->nguid)) {
 			if (bp->bio_length < sizeof(nsdata->nguid) * 2 + 1)
 				return (EFAULT);
@@ -320,8 +322,10 @@ nvd_getattr(struct bio *bp)
 		}
 
 		/* Try to return EUI64 as lunid. */
-		for (i = 0; i < sizeof(nsdata->eui64); i++)
+		for (i = 0; i < sizeof(nsdata->eui64); i++) {
 			if (nsdata->eui64[i] != 0)
+				break;
+		}
 		if (i < sizeof(nsdata->eui64)) {
 			if (bp->bio_length < sizeof(nsdata->eui64) * 2 + 1)
 				return (EFAULT);
