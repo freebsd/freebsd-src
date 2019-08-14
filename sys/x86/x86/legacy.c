@@ -169,8 +169,7 @@ legacy_attach(device_t dev)
 	bus_generic_attach(dev);
 
 	/*
-	 * If we didn't see ISA on a pci bridge, create some
-	 * connection points now so they show up "on motherboard".
+	 * If we didn't see ISA on a PCI bridge, add a top-level bus.
 	 */
 	if (!devclass_get_device(devclass_find("isa"), 0)) {
 		child = BUS_ADD_CHILD(dev, 0, "isa", 0);
@@ -191,7 +190,7 @@ legacy_print_child(device_t bus, device_t child)
 	retval += bus_print_child_header(bus, child);
 	if (atdev->lg_pcibus != -1)
 		retval += printf(" pcibus %d", atdev->lg_pcibus);
-	retval += printf(" on motherboard\n");	/* XXX "motherboard", ick */
+	retval += printf("\n");
 
 	return (retval);
 }

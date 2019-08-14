@@ -924,7 +924,7 @@ ioapic_register(void *cookie)
 	flags = ioapic_read(apic, IOAPIC_VER) & IOART_VER_VERSION;
 	STAILQ_INSERT_TAIL(&ioapic_list, io, io_next);
 	mtx_unlock_spin(&icu_lock);
-	printf("ioapic%u <Version %u.%u> irqs %u-%u on motherboard\n",
+	printf("ioapic%u <Version %u.%u> irqs %u-%u\n",
 	    io->io_id, flags >> 4, flags & 0xf, io->io_intbase,
 	    io->io_intbase + io->io_numintr - 1);
 
