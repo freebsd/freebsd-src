@@ -164,9 +164,6 @@ amd64/pci/pci_cfgreg.c		optional	pci
 cddl/contrib/opensolaris/common/atomic/amd64/opensolaris_atomic.S	optional zfs | dtrace compile-with "${ZFS_S}"
 cddl/dev/dtrace/amd64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/amd64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
-cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
-cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
-cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
 aesni_ghash.o			optional aesni				\
@@ -612,7 +609,6 @@ isa/vga_isa.c			optional	vga
 kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/link_elf_obj.c		standard
-libkern/x86/crc32_sse42.c	standard
 #
 # IA32 binary support
 #
@@ -680,72 +676,20 @@ contrib/x86emu/x86emu.c		optional x86bios | dpms | pci | vesa
 #
 dev/bvm/bvm_console.c		optional	bvmconsole
 dev/bvm/bvm_dbg.c		optional	bvmdebug
-#
-# x86 shared code between IA32 and AMD64 architectures
-#
-x86/acpica/OsdEnvironment.c	optional	acpi
-x86/acpica/acpi_apm.c		optional	acpi
-x86/acpica/acpi_wakeup.c	optional	acpi
+# Common files where we currently configure the system differently, but perhaps shouldn't
+# config(8) doesn't have a way to force standard options, so we've been inconsistent
+# about marking non-optional things 'standard'.
 x86/acpica/madt.c		optional	acpi
-x86/acpica/srat.c		optional	acpi
-x86/bios/smbios.c		optional	smbios
-x86/bios/vpd.c			optional	vpd
-x86/cpufreq/powernow.c		optional	cpufreq
-x86/cpufreq/est.c		optional	cpufreq
-x86/cpufreq/hwpstate.c		optional	cpufreq
-x86/cpufreq/p4tcc.c		optional	cpufreq
-x86/iommu/busdma_dmar.c		optional	acpi acpi_dmar pci
-x86/iommu/intel_ctx.c		optional	acpi acpi_dmar pci
-x86/iommu/intel_drv.c		optional	acpi acpi_dmar pci
-x86/iommu/intel_fault.c		optional	acpi acpi_dmar pci
-x86/iommu/intel_gas.c		optional	acpi acpi_dmar pci
-x86/iommu/intel_idpgtbl.c	optional	acpi acpi_dmar pci
-x86/iommu/intel_intrmap.c	optional	acpi acpi_dmar pci
-x86/iommu/intel_qi.c		optional	acpi acpi_dmar pci
-x86/iommu/intel_quirks.c	optional	acpi acpi_dmar pci
-x86/iommu/intel_utils.c		optional	acpi acpi_dmar pci
 x86/isa/atpic.c			optional	atpic isa
-x86/isa/atrtc.c			standard
-x86/isa/clock.c			standard
 x86/isa/elcr.c			optional	atpic isa | mptable
 x86/isa/isa.c			standard
 x86/isa/isa_dma.c		standard
-x86/isa/nmi.c			standard
-x86/isa/orm.c			optional	isa
-x86/pci/pci_bus.c		optional	pci
 x86/pci/pci_early_quirks.c	optional	pci
-x86/pci/qpi.c			optional	pci
-x86/x86/autoconf.c		standard
-x86/x86/bus_machdep.c		standard
-x86/x86/busdma_bounce.c		standard
-x86/x86/busdma_machdep.c	standard
-x86/x86/cpu_machdep.c		standard
-x86/x86/dump_machdep.c		standard
-x86/x86/fdt_machdep.c		optional	fdt
-x86/x86/identcpu.c		standard
-x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		standard
-x86/x86/legacy.c		standard
 x86/x86/local_apic.c		standard
-x86/x86/mca.c			standard
-x86/x86/x86_mem.c		optional	mem
 x86/x86/mptable.c		optional	mptable
 x86/x86/mptable_pci.c		optional	mptable pci
-x86/x86/mp_x86.c		optional	smp
-x86/x86/mp_watchdog.c		optional	mp_watchdog smp
 x86/x86/msi.c			optional	pci
-x86/x86/nexus.c			standard
-x86/x86/pvclock.c		standard
-x86/x86/stack_machdep.c		optional	ddb | stack
-x86/x86/tsc.c			standard
-x86/x86/ucode.c			standard
-x86/x86/delay.c			standard
-x86/xen/hvm.c			optional	xenhvm
-x86/xen/xen_intr.c		optional	xenhvm
 x86/xen/pv.c			optional	xenhvm
 x86/xen/pvcpu_enum.c		optional	xenhvm
-x86/xen/xen_apic.c		optional	xenhvm
-x86/xen/xenpv.c			optional	xenhvm
-x86/xen/xen_nexus.c		optional	xenhvm
-x86/xen/xen_msi.c		optional	xenhvm
 x86/xen/xen_pci_bus.c		optional	xenhvm
