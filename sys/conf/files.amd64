@@ -148,9 +148,6 @@ crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | \
 	ipsec_support | netsmb
-crypto/via/padlock.c		optional	padlock
-crypto/via/padlock_cipher.c	optional	padlock
-crypto/via/padlock_hash.c	optional	padlock
 dev/acpica/acpi_if.m		standard
 dev/acpica/acpi_hpet.c		optional acpi
 dev/acpica/acpi_pci.c		optional acpi pci
