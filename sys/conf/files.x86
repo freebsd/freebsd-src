@@ -70,10 +70,6 @@ dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/fdc/fdc_pccard.c		optional	fdc pccard
-dev/fdc/fdc.c			optional	fdc
-dev/fdc/fdc_acpi.c		optional	fdc
-dev/fdc/fdc_isa.c		optional	fdc isa
-dev/fdc/fdc_pccard.c		optional	fdc pccard
 dev/hpt27xx/hpt27xx_os_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_osm_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
@@ -104,6 +100,26 @@ hptrr_lib.o			optional	hptrr			\
 	dependency	"$S/dev/hptrr/$M-elf.hptrr_lib.o.uu"		\
 	compile-with	"uudecode < $S/dev/hptrr/$M-elf.hptrr_lib.o.uu" \
 	no-implicit-rule
+dev/hyperv/pcib/vmbus_pcib.c				optional	hyperv pci
+dev/hyperv/netvsc/hn_nvs.c				optional	hyperv
+dev/hyperv/netvsc/hn_rndis.c				optional	hyperv
+dev/hyperv/netvsc/if_hn.c				optional	hyperv
+dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/utilities/hv_kvp.c				optional	hyperv
+dev/hyperv/utilities/hv_snapshot.c			optional	hyperv
+dev/hyperv/utilities/vmbus_heartbeat.c			optional	hyperv
+dev/hyperv/utilities/vmbus_ic.c				optional	hyperv
+dev/hyperv/utilities/vmbus_shutdown.c			optional	hyperv
+dev/hyperv/utilities/vmbus_timesync.c			optional	hyperv
+dev/hyperv/vmbus/hyperv.c				optional	hyperv
+dev/hyperv/vmbus/hyperv_busdma.c			optional	hyperv
+dev/hyperv/vmbus/vmbus.c				optional	hyperv pci
+dev/hyperv/vmbus/vmbus_br.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_chan.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_et.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_if.m				optional	hyperv
+dev/hyperv/vmbus/vmbus_res.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
 libkern/x86/crc32_sse42.c	standard
 #
 # x86 shared code between IA32 and AMD64 architectures
