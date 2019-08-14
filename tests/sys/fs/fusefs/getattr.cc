@@ -195,6 +195,7 @@ TEST_F(Getattr, ok)
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in.header.opcode == FUSE_GETATTR &&
+				in.body.getattr.getattr_flags == 0 &&
 				in.header.nodeid == ino);
 		}, Eq(true)),
 		_)

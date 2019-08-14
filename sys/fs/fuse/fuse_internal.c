@@ -868,7 +868,7 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	enum vtype vtyp;
 	int err;
 
-	fdisp_init(&fdi, 0);
+	fdisp_init(&fdi, sizeof(*fgai));
 	fdisp_make_vp(&fdi, FUSE_GETATTR, vp, td, cred);
 	fgai = fdi.indata;
 	/* 
@@ -877,7 +877,7 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	 * care.
 	 */
 	fgai->getattr_flags = 0;
-	if ((err = fdisp_simple_putget_vp(&fdi, FUSE_GETATTR, vp, td, cred))) {
+	if ((err = fdisp_wait_answ(&fdi))) {
 		if (err == ENOENT)
 			fuse_internal_vnode_disappear(vp);
 		goto out;

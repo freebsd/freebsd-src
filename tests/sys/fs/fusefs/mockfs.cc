@@ -467,6 +467,156 @@ MockFS::~MockFS() {
 		close(m_kq);
 }
 
+void MockFS::audit_request(const mockfs_buf_in &in) {
+	uint32_t inlen = in.header.len;
+	size_t fih = sizeof(in.header);
+	switch (in.header.opcode) {
+	case FUSE_LOOKUP:
+	case FUSE_RMDIR:
+	case FUSE_SYMLINK:
+	case FUSE_UNLINK:
+		ASSERT_GT(inlen, fih) << "Missing request filename";
+		break;
+	case FUSE_FORGET:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.forget));
+		break;
+	case FUSE_GETATTR:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.getattr));
+		break;
+	case FUSE_SETATTR:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.setattr));
+		break;
+	case FUSE_READLINK:
+		ASSERT_EQ(inlen, fih) << "Unexpected request body";
+		break;
+	case FUSE_MKNOD:
+		{
+			size_t s;
+			if (m_kernel_minor_version >= 12)
+				s = sizeof(in.body.mknod);
+			else
+				s = FUSE_COMPAT_MKNOD_IN_SIZE;
+			ASSERT_GE(inlen, fih + s) << "Missing request body";
+			ASSERT_GT(inlen, fih + s) << "Missing request filename";
+			break;
+		}
+	case FUSE_MKDIR:
+		ASSERT_GE(inlen, fih + sizeof(in.body.mkdir)) <<
+			"Missing request body";
+		ASSERT_GT(inlen, fih + sizeof(in.body.mkdir)) <<
+			"Missing request filename";
+		break;
+	case FUSE_RENAME:
+		ASSERT_GE(inlen, fih + sizeof(in.body.rename)) <<
+			"Missing request body";
+		ASSERT_GT(inlen, fih + sizeof(in.body.rename)) <<
+			"Missing request filename";
+		break;
+	case FUSE_LINK:
+		ASSERT_GE(inlen, fih + sizeof(in.body.link)) <<
+			"Missing request body";
+		ASSERT_GT(inlen, fih + sizeof(in.body.link)) <<
+			"Missing request filename";
+		break;
+	case FUSE_OPEN:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.open));
+		break;
+	case FUSE_READ:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.read));
+		break;
+	case FUSE_WRITE:
+		{
+			size_t s;
+
+			if (m_kernel_minor_version >= 9)
+				s = sizeof(in.body.write);
+			else
+				s = FUSE_COMPAT_WRITE_IN_SIZE;
+			ASSERT_GE(inlen, fih + s) << "Missing request body";
+			// I suppose a 0-byte write should be allowed
+			break;
+		}
+	case FUSE_DESTROY:
+	case FUSE_STATFS:
+		ASSERT_EQ(inlen, fih);
+		break;
+	case FUSE_RELEASE:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.release));
+		break;
+	case FUSE_FSYNC:
+	case FUSE_FSYNCDIR:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.fsync));
+		break;
+	case FUSE_SETXATTR:
+		ASSERT_GE(inlen, fih + sizeof(in.body.setxattr)) <<
+			"Missing request body";
+		ASSERT_GT(inlen, fih + sizeof(in.body.setxattr)) <<
+			"Missing request attribute name";
+		break;
+	case FUSE_GETXATTR:
+		ASSERT_GE(inlen, fih + sizeof(in.body.setxattr)) <<
+			"Missing request body";
+		ASSERT_GT(inlen, fih + sizeof(in.body.setxattr)) <<
+			"Missing request attribute name";
+		break;
+	case FUSE_LISTXATTR:
+		ASSERT_GE(inlen, fih + sizeof(in.body.listxattr)) <<
+			"Missing request body";
+		ASSERT_GT(inlen, fih + sizeof(in.body.listxattr)) <<
+			"Missing namespace";
+		break;
+	case FUSE_REMOVEXATTR:
+		ASSERT_GT(inlen, fih) << "Missing request attribute name";
+		break;
+	case FUSE_FLUSH:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.flush));
+		break;
+	case FUSE_INIT:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.init));
+		break;
+	case FUSE_OPENDIR:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.opendir));
+		break;
+	case FUSE_READDIR:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.readdir));
+		break;
+	case FUSE_RELEASEDIR:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.releasedir));
+		break;
+	case FUSE_GETLK:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.getlk));
+		break;
+	case FUSE_SETLK:
+	case FUSE_SETLKW:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.setlk));
+		break;
+	case FUSE_ACCESS:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.access));
+		break;
+	case FUSE_CREATE:
+		ASSERT_GE(inlen, fih + sizeof(in.body.create)) <<
+			"Missing request body";
+		ASSERT_GT(inlen, fih + sizeof(in.body.create)) <<
+			"Missing request filename";
+		break;
+	case FUSE_INTERRUPT:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.interrupt));
+		break;
+	case FUSE_BMAP:
+		ASSERT_EQ(inlen, fih + sizeof(in.body.bmap));
+		break;
+	case FUSE_NOTIFY_REPLY:
+	case FUSE_BATCH_FORGET:
+	case FUSE_FALLOCATE:
+	case FUSE_IOCTL:
+	case FUSE_POLL:
+	case FUSE_READDIRPLUS:
+		FAIL() << "Unsupported opcode?";
+	default:
+		FAIL() << "Unknown opcode " << in.header.opcode;
+	}
+}
+
 void MockFS::init(uint32_t flags) {
 	std::unique_ptr<mockfs_buf_in> in(new mockfs_buf_in);
 	std::unique_ptr<mockfs_buf_out> out(new mockfs_buf_out);
@@ -515,6 +665,7 @@ void MockFS::loop() {
 			break;
 		if (verbosity > 0)
 			debug_request(*in);
+		audit_request(*in);
 		if (pid_ok((pid_t)in->header.pid)) {
 			process(*in, out);
 		} else {
@@ -686,6 +837,12 @@ void MockFS::read_request(mockfs_buf_in &in) {
 		m_quit = true;
 	}
 	ASSERT_TRUE(res >= static_cast<ssize_t>(sizeof(in.header)) || m_quit);
+	/*
+	 * Inconsistently, fuse_in_header.len is the size of the entire
+	 * request,including header, even though fuse_out_header.len excludes
+	 * the size of the header.
+	 */
+	ASSERT_TRUE(res == in.header.len || m_quit);
 }
 
 void MockFS::write_response(const mockfs_buf_out &out) {
