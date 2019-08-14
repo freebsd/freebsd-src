@@ -295,7 +295,7 @@ is 8 bytes on all supported architectures except i386.
 .Fx 11.0 ,
 armv6 used the softfp ABI even though it supported only processors
 with a floating point unit.
-.Ss Tool Chain
+.Ss Default Tool Chain
 .Fx uses a variety of tool chain components for the supported CPU
 architectures:
 .Xr clang 1
@@ -307,6 +307,7 @@ GNU
 and Binutils
 .Xr ld 1 ,
 or an external toolchain compiler and linker provided by a port or package.
+This table shows the default tool chain for each architecture.
 .Bl -column -offset indent "Sy Architecture" "Sy Compiler" "Sy Linker"
 .It Sy Architecture Ta Sy Compiler Ta Sy Linker
 .It aarch64     Ta Clang     Ta lld
