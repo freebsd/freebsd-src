@@ -55,9 +55,11 @@ struct irq_ent {
 static inline int
 linux_irq_rid(struct device *dev, unsigned int irq)
 {
-	if (irq == dev->irq)
+	/* check for MSI- or MSIX- interrupt */
+	if (irq >= dev->irq_start && irq < dev->irq_end)
+		return (irq - dev->irq_start + 1);
+	else
 		return (0);
-	return irq - dev->msix + 1;
 }
 
 extern void linux_irq_handler(void *);
