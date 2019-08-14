@@ -292,7 +292,7 @@ msix_table_read(struct passthru_softc *sc, uint64_t offset, int size)
 	int index;
 
 	pi = sc->psc_pi;
-	if (offset >= pi->pi_msix.pba_offset &&
+	if (pi->pi_msix.pba_page != NULL && offset >= pi->pi_msix.pba_offset &&
 	    offset < pi->pi_msix.pba_offset + pi->pi_msix.pba_size) {
 		switch(size) {
 		case 1:
@@ -371,7 +371,7 @@ msix_table_write(struct vmctx *ctx, int vcpu, struct passthru_softc *sc,
 	int index;
 
 	pi = sc->psc_pi;
-	if (offset >= pi->pi_msix.pba_offset &&
+	if (pi->pi_msix.pba_page != NULL && offset >= pi->pi_msix.pba_offset &&
 	    offset < pi->pi_msix.pba_offset + pi->pi_msix.pba_size) {
 		switch(size) {
 		case 1:
