@@ -148,15 +148,6 @@ crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | \
 	ipsec_support | netsmb
-dev/acpica/acpi_if.m		standard
-dev/acpica/acpi_hpet.c		optional acpi
-dev/acpica/acpi_pci.c		optional acpi pci
-dev/acpica/acpi_pci_link.c	optional acpi pci
-dev/acpica/acpi_pcib.c		optional acpi pci
-dev/acpica/acpi_pcib_acpi.c	optional acpi pci
-dev/acpica/acpi_pcib_pci.c	optional acpi pci
-dev/acpica/acpi_pxm.c		optional	acpi
-dev/acpica/acpi_timer.c		optional	acpi
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
