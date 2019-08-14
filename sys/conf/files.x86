@@ -8,6 +8,11 @@
 # any other architecture we support.
 #
 
+# The long compile-with and dependency lines are required because of
+# limitations in config: backslash-newline doesn't work in strings, and
+# dependency lines other than the first are silently ignored.
+
+#
 cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
@@ -15,6 +20,36 @@ dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/fdc/fdc_pccard.c		optional	fdc pccard
+dev/hpt27xx/hpt27xx_os_bsd.c	optional	hpt27xx
+dev/hpt27xx/hpt27xx_osm_bsd.c	optional	hpt27xx
+dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
+hpt27xx_lib.o			optional	hpt27xx			\
+	dependency	"$S/dev/hpt27xx/$M-elf.hpt27xx_lib.o.uu"	\
+	compile-with	"uudecode < $S/dev/hpt27xx/$M-elf.hpt27xx_lib.o.uu" \
+	no-implicit-rule
+dev/hptmv/entry.c		optional	hptmv
+dev/hptmv/mv.c			optional	hptmv
+dev/hptmv/gui_lib.c		optional	hptmv
+dev/hptmv/hptproc.c		optional	hptmv
+dev/hptmv/ioctl.c		optional	hptmv
+hptmvraid.o			optional	hptmv			\
+	dependency	"$S/dev/hptmv/$M-elf.raid.o.uu"			\
+	compile-with	"uudecode < $S/dev/hptmv/$M-elf.raid.o.uu"	\
+	no-implicit-rule
+dev/hptnr/hptnr_os_bsd.c	optional	hptnr
+dev/hptnr/hptnr_osm_bsd.c	optional	hptnr
+dev/hptnr/hptnr_config.c	optional	hptnr
+hptnr_lib.o			optional	hptnr			\
+	dependency	"$S/dev/hptnr/$M-elf.hptnr_lib.o.uu"		\
+	compile-with	"uudecode < $S/dev/hptnr/$M-elf.hptnr_lib.o.uu" \
+	no-implicit-rule
+dev/hptrr/hptrr_os_bsd.c	optional	hptrr
+dev/hptrr/hptrr_osm_bsd.c	optional	hptrr
+dev/hptrr/hptrr_config.c	optional	hptrr
+hptrr_lib.o			optional	hptrr			\
+	dependency	"$S/dev/hptrr/$M-elf.hptrr_lib.o.uu"		\
+	compile-with	"uudecode < $S/dev/hptrr/$M-elf.hptrr_lib.o.uu" \
+	no-implicit-rule
 libkern/x86/crc32_sse42.c	standard
 #
 # x86 shared code between IA32 and AMD64 architectures
