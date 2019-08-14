@@ -62,6 +62,7 @@ static struct options {
 void
 print_namespace(struct nvme_namespace_data *nsdata)
 {
+	char cbuf[UINT128_DIG + 1];
 	uint32_t	i;
 	uint32_t	lbaf, lbads, ms, rp;
 	uint8_t		thin_prov, ptype;
@@ -73,15 +74,12 @@ print_namespace(struct nvme_namespace_data *nsdata)
 	flbas_fmt = (nsdata->flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT) &
 		NVME_NS_DATA_FLBAS_FORMAT_MASK;
 
-	printf("Size (in LBAs):              %lld (%lldM)\n",
-		(long long)nsdata->nsze,
-		(long long)nsdata->nsze / 1024 / 1024);
-	printf("Capacity (in LBAs):          %lld (%lldM)\n",
-		(long long)nsdata->ncap,
-		(long long)nsdata->ncap / 1024 / 1024);
-	printf("Utilization (in LBAs):       %lld (%lldM)\n",
-		(long long)nsdata->nuse,
-		(long long)nsdata->nuse / 1024 / 1024);
+	printf("Size:                        %lld blocks\n",
+	    (long long)nsdata->nsze);
+	printf("Capacity:                    %lld blocks\n",
+	    (long long)nsdata->ncap);
+	printf("Utilization:                 %lld blocks\n",
+	    (long long)nsdata->nuse);
 	printf("Thin Provisioning:           %s\n",
 		thin_prov ? "Supported" : "Not Supported");
 	printf("Number of LBA Formats:       %d\n", nsdata->nlbaf+1);
@@ -148,7 +146,22 @@ print_namespace(struct nvme_namespace_data *nsdata)
 	     NVME_NS_DATA_DLFEAT_DWZ_MASK ? ", Write Zero" : "",
 	    (nsdata->dlfeat >> NVME_NS_DATA_DLFEAT_GCRC_SHIFT) &
 	     NVME_NS_DATA_DLFEAT_GCRC_MASK ? ", Guard CRC" : "");
-	printf("Optimal I/O Boundary (LBAs): %u\n", nsdata->noiob);
+	printf("Optimal I/O Boundary:        %u blocks\n", nsdata->noiob);
+	printf("NVM Capacity:                %s bytes\n",
+	   uint128_to_str(to128(nsdata->nvmcap), cbuf, sizeof(cbuf)));
+	if ((nsdata->nsfeat >> NVME_NS_DATA_NSFEAT_NPVALID_SHIFT) &
+	    NVME_NS_DATA_NSFEAT_NPVALID_MASK) {
+		printf("Preferred Write Granularity: %u blocks",
+		    nsdata->npwg + 1);
+		printf("Preferred Write Alignment:   %u blocks",
+		    nsdata->npwa + 1);
+		printf("Preferred Deallocate Granul: %u blocks",
+		    nsdata->npdg + 1);
+		printf("Preferred Deallocate Align:  %u blocks",
+		    nsdata->npda + 1);
+		printf("Optimal Write Size:          %u blocks",
+		    nsdata->nows + 1);
+	}
 	printf("Globally Unique Identifier:  ");
 	for (i = 0; i < sizeof(nsdata->nguid); i++)
 		printf("%02x", nsdata->nguid[i]);
