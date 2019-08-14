@@ -48,7 +48,8 @@
 #define	NTB_HW_AMD_H
 
 #define	NTB_HW_AMD_VENDOR_ID	0x1022
-#define	NTB_HW_AMD_DEVICE_ID	0x145B
+#define	NTB_HW_AMD_DEVICE_ID1	0x145B
+#define	NTB_HW_AMD_DEVICE_ID2	0x148B
 
 #define	NTB_DEF_PEER_CNT	1
 #define	NTB_DEF_PEER_IDX	0
@@ -82,6 +83,8 @@
 #define	DB_MASK_UNLOCK(sc)	mtx_unlock_spin(&(sc)->db_mask_lock)
 #define	DB_MASK_ASSERT(sc, f)	mtx_assert(&(sc)->db_mask_lock, (f))
 
+#define QUIRK_MW0_32BIT	0x01
+
 /* amd_ntb_conn_type are hardware numbers, cannot change. */
 enum amd_ntb_conn_type {
 	NTB_CONN_NONE = -1,
@@ -103,8 +106,15 @@ enum amd_ntb_bar {
 };
 
 struct amd_ntb_hw_info {
-	uint32_t	device_id;
-	const char	*desc;
+	uint16_t vendor_id;
+	uint16_t device_id;
+	uint8_t	 mw_count;
+	uint8_t	 bar_start_idx;
+	uint8_t	 spad_count;
+	uint8_t	 db_count;
+	uint8_t	 msix_vector_count;
+	uint8_t	 quirks;
+	char	 *desc;
 };
 
 struct amd_ntb_pci_bar_info {
@@ -135,12 +145,6 @@ struct amd_ntb_vec {
 };
 
 enum {
-	/* AMD NTB Capability */
-	AMD_MW_CNT		= 3,
-	AMD_DB_CNT		= 16,
-	AMD_MSIX_VECTOR_CNT	= 24,
-	AMD_SPADS_CNT		= 16,
-
 	/* AMD NTB Link Status Offset */
 	AMD_LINK_STATUS_OFFSET	= 0x68,
 
@@ -226,15 +230,14 @@ struct amd_ntb_softc {
 	enum amd_ntb_conn_type	conn_type;
 
 	struct amd_ntb_pci_bar_info	bar_info[NTB_MAX_BARS];
-	struct amd_ntb_int_info	int_info[AMD_MSIX_VECTOR_CNT];
+	struct amd_ntb_int_info	int_info[16];
 	struct amd_ntb_vec	*msix_vec;
 	uint16_t		allocated_interrupts;
 
 	struct callout		hb_timer;
 
-	uint8_t			mw_count;
+	struct amd_ntb_hw_info	*hw_info;
 	uint8_t			spad_count;
-	uint8_t			db_count;
 	uint8_t			msix_vec_count;
 
 	struct mtx		db_mask_lock;
