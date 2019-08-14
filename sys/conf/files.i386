@@ -97,33 +97,7 @@ bf_enc.o			optional crypto | ipsec	| ipsec_support \
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
 	no-implicit-rule
 crypto/aesni/aeskeys_i386.S	optional aesni
-crypto/aesni/aesni.c		optional aesni
-aesni_ghash.o			optional aesni				\
-	dependency	"$S/crypto/aesni/aesni_ghash.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
-	no-implicit-rule						\
-	clean		"aesni_ghash.o"
-aesni_ccm.o			optional aesni				\
-	dependency	"$S/crypto/aesni/aesni_ccm.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
-	no-implicit-rule						\
-	clean		"aesni_ccm.o"
-aesni_wrap.o			optional aesni				\
-	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes ${.IMPSRC}" \
-	no-implicit-rule						\
-	clean		"aesni_wrap.o"
 crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | ipsec_support | netsmb
-intel_sha1.o			optional	aesni			\
-	dependency	"$S/crypto/aesni/intel_sha1.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
-	no-implicit-rule						\
-	clean		"intel_sha1.o"
-intel_sha256.o			optional	aesni			\
-	dependency	"$S/crypto/aesni/intel_sha256.c"		\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
-	no-implicit-rule						\
-	clean		"intel_sha256.o"
 crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
 crypto/via/padlock_hash.c	optional padlock
