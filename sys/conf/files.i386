@@ -135,12 +135,6 @@ dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
 dev/gpio/bytgpio.c		optional	bytgpio
 dev/gpio/chvgpio.c		optional	chvgpio
-dev/hwpmc/hwpmc_amd.c		optional hwpmc
-dev/hwpmc/hwpmc_intel.c		optional hwpmc
-dev/hwpmc/hwpmc_core.c		optional hwpmc
-dev/hwpmc/hwpmc_uncore.c	optional hwpmc
-dev/hwpmc/hwpmc_tsc.c		optional hwpmc
-dev/hwpmc/hwpmc_x86.c		optional hwpmc
 dev/hyperv/vmbus/i386/hyperv_machdep.c			optional	hyperv
 dev/hyperv/vmbus/i386/vmbus_vector.S			optional	hyperv
 dev/ichwd/ichwd.c		optional ichwd
