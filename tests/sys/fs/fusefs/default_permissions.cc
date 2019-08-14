@@ -40,6 +40,7 @@ extern "C" {
 #include <sys/extattr.h>
 
 #include <fcntl.h>
+#include <semaphore.h>
 #include <unistd.h>
 }
 
@@ -1157,12 +1158,19 @@ TEST_F(Unlink, ok)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
+	sem_t sem;
+
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
 	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0777, UINT64_MAX, 1);
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, UINT64_MAX, geteuid());
 	expect_unlink(FUSE_ROOT_ID, RELPATH, 0);
+	expect_forget(ino, 1, &sem);
 
 	ASSERT_EQ(0, unlink(FULLPATH)) << strerror(errno);
+
+	sem_wait(&sem);
+	sem_destroy(&sem);
 }
 
 /*
