@@ -1958,6 +1958,11 @@ mmu_booke_kextract(mmu_t mmu, vm_offset_t va)
 	vm_paddr_t p = 0;
 	int i;
 
+#ifdef __powerpc64__
+	if (va >= DMAP_BASE_ADDRESS && va <= DMAP_MAX_ADDRESS)
+		return (DMAP_TO_PHYS(va));
+#endif
+
 	if (va >= VM_MIN_KERNEL_ADDRESS && va <= VM_MAX_KERNEL_ADDRESS)
 		p = pte_vatopa(mmu, kernel_pmap, va);
 	
