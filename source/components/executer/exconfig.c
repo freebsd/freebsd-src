@@ -344,7 +344,9 @@ AcpiExLoadTableOp (
 
     /* Complete the initialization/resolution of new objects */
 
-    AcpiNsInitializeObjects ();
+    AcpiExExitInterpreter();
+    AcpiNsInitializeObjects();
+    AcpiExEnterInterpreter();
 
     /* Parameter Data (optional) */
 
