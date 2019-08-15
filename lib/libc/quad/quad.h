@@ -55,6 +55,11 @@
 #include <sys/types.h>
 #include <limits.h>
 
+#ifdef _STANDALONE
+_Static_assert(sizeof(quad_t) == sizeof(int) * 2,
+	"Bitwise function in libstand are broken on this architecture\n");
+#endif
+
 /*
  * Depending on the desired operation, we view a `long long' (aka quad_t) in
  * one or more of the following formats.
@@ -79,7 +84,14 @@ union uu {
  */
 #define	QUAD_BITS	(sizeof(quad_t) * CHAR_BIT)
 #define	LONG_BITS	(sizeof(long) * CHAR_BIT)
+#ifdef _STANDALONE
+/*
+ * libsa assumes sizeof(int) for qdivrem
+ */
+#define	HALF_BITS	(sizeof(int) * CHAR_BIT / 2)
+#else
 #define	HALF_BITS	(sizeof(long) * CHAR_BIT / 2)
+#endif
 
 /*
  * Extract high and low shortwords from longword, and move low shortword of
@@ -103,3 +115,7 @@ u_quad_t	__udivdi3(u_quad_t a, u_quad_t b);
 u_quad_t	__umoddi3(u_quad_t a, u_quad_t b);
 
 typedef unsigned int	qshift_t;
+
+quad_t		__ashldi3(quad_t, qshift_t);
+quad_t		__ashrdi3(quad_t, qshift_t);
+quad_t		__lshrdi3(quad_t, qshift_t);
