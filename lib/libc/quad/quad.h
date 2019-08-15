@@ -67,8 +67,13 @@ _Static_assert(sizeof(quad_t) == sizeof(int) * 2,
 union uu {
 	quad_t	q;		/* as a (signed) quad */
 	quad_t	uq;		/* as an unsigned quad */
+#ifdef _STANDALONE
+	int	sl[2];		/* as two signed longs */
+	u_int	ul[2];		/* as two unsigned longs */
+#else
 	long	sl[2];		/* as two signed longs */
 	u_long	ul[2];		/* as two unsigned longs */
+#endif
 };
 
 /*
