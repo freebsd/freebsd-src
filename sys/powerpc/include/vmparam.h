@@ -133,6 +133,11 @@
 
 #else /* Book-E */
 
+/* Use the direct map for UMA small allocs on powerpc64. */
+#ifdef __powerpc64__
+#define UMA_MD_SMALL_ALLOC
+#endif
+
 #define	KERNBASE		0x04000100	/* start of kernel physical */
 #ifndef __powerpc64__
 #define	VM_MIN_KERNEL_ADDRESS	0xc0000000
