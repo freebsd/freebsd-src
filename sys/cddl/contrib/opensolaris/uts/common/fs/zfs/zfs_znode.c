@@ -832,7 +832,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 	}
 
 	ZFS_OBJ_HOLD_ENTER(zfsvfs, obj);
-	VERIFY(0 == sa_buf_hold(zfsvfs->z_os, obj, NULL, &db));
+	VERIFY0(sa_buf_hold(zfsvfs->z_os, obj, NULL, &db));
 
 	/*
 	 * If this is the root, fix up the half-initialized parent pointer
@@ -1861,14 +1861,6 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	error = zap_create_claim(os, moid, DMU_OT_MASTER_NODE,
 	    DMU_OT_NONE, 0, tx);
 	ASSERT(error == 0);
-
-	/*
-	 * Give dmu_object_alloc() a hint about where to start
-	 * allocating new objects. Otherwise, since the metadnode's
-	 * dnode_phys_t structure isn't initialized yet, dmu_object_next()
-	 * would fail and we'd have to skip to the next dnode block.
-	 */
-	os->os_obj_next = moid + 1;
 
 	/*
 	 * Set starting attributes.

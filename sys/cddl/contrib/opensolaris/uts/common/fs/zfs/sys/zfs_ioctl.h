@@ -94,7 +94,7 @@ typedef enum drr_headertype {
 /* flag #21 is reserved for a Delphix feature */
 #define	DMU_BACKUP_FEATURE_COMPRESSED		(1 << 22)
 #define	DMU_BACKUP_FEATURE_LARGE_DNODE		(1 << 23)
-/* flag #24 is reserved for the raw send (encryption) feature */
+/* flag #24 is reserved for the raw send feature */
 /* flag #25 is reserved for the ZSTD compression feature */
 
 /*
@@ -120,7 +120,7 @@ typedef enum dmu_send_resume_token_version {
  *
  *	64	56	48	40	32	24	16	8	0
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
- *  	|		reserved	|        feature-flags	    |C|S|
+ *	|		reserved	|        feature-flags	    |C|S|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
  *
  * The low order two bits indicate the header type: SUBSTREAM (0x1)
