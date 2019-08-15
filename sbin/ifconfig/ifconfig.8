@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2019
+.Dd August 15, 2019
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -705,6 +705,13 @@ No packets are transmitted, and received packets are discarded after
 processing.
 .It Fl monitor
 Take the interface out of monitor mode.
+.It Cm pcp Ar priority_code_point
+Priority code point
+.Pq Dv PCP
+is an 3-bit field which refers to the IEEE 802.1p
+class of service and maps to the frame priority level.
+.It Fl pcp
+Stop tagging packets on the interface w/ the priority code point.
 .It Cm up
 Mark an interface
 .Dq up .
