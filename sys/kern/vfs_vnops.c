@@ -2713,18 +2713,92 @@ mem_iszero(void *dat, int len)
 }
 
 /*
+ * Look for a hole in the output file and, if found, adjust *outoffp
+ * and *xferp to skip past the hole.
+ * *xferp is the entire hole length to be written and xfer2 is how many bytes
+ * to be written as 0's upon return.
+ */
+static off_t
+vn_skip_hole(struct vnode *outvp, off_t xfer2, off_t *outoffp, off_t *xferp,
+    off_t *dataoffp, off_t *holeoffp, struct ucred *cred)
+{
+	int error;
+	off_t delta;
+
+	if (*holeoffp == 0 || *holeoffp <= *outoffp) {
+		*dataoffp = *outoffp;
+		error = VOP_IOCTL(outvp, FIOSEEKDATA, dataoffp, 0, cred,
+		    curthread);
+		if (error == 0) {
+			*holeoffp = *dataoffp;
+			error = VOP_IOCTL(outvp, FIOSEEKHOLE, holeoffp, 0, cred,
+			    curthread);
+		}
+		if (error != 0 || *holeoffp == *dataoffp) {
+			/*
+			 * Since outvp is unlocked, it may be possible for
+			 * another thread to do a truncate(), lseek(), write()
+			 * creating a hole at startoff between the above
+			 * VOP_IOCTL() calls, if the other thread does not do
+			 * rangelocking.
+			 * If that happens, *holeoffp == *dataoffp and finding
+			 * the hole has failed, so disable vn_skip_hole().
+			 */
+			*holeoffp = -1;	/* Disable use of vn_skip_hole(). */
+			return (xfer2);
+		}
+		KASSERT(*dataoffp >= *outoffp,
+		    ("vn_skip_hole: dataoff=%jd < outoff=%jd",
+		    (intmax_t)*dataoffp, (intmax_t)*outoffp));
+		KASSERT(*holeoffp > *dataoffp,
+		    ("vn_skip_hole: holeoff=%jd <= dataoff=%jd",
+		    (intmax_t)*holeoffp, (intmax_t)*dataoffp));
+	}
+
+	/*
+	 * If there is a hole before the data starts, advance *outoffp and
+	 * *xferp past the hole.
+	 */
+	if (*dataoffp > *outoffp) {
+		delta = *dataoffp - *outoffp;
+		if (delta >= *xferp) {
+			/* Entire *xferp is a hole. */
+			*outoffp += *xferp;
+			*xferp = 0;
+			return (0);
+		}
+		*xferp -= delta;
+		*outoffp += delta;
+		xfer2 = MIN(xfer2, *xferp);
+	}
+
+	/*
+	 * If a hole starts before the end of this xfer2, reduce this xfer2 so
+	 * that the write ends at the start of the hole.
+	 * *holeoffp should always be greater than *outoffp, but for the
+	 * non-INVARIANTS case, check this to make sure xfer2 remains a sane
+	 * value.
+	 */
+	if (*holeoffp > *outoffp && *holeoffp < *outoffp + xfer2)
+		xfer2 = *holeoffp - *outoffp;
+	return (xfer2);
+}
+
+/*
  * Write an xfer sized chunk to outvp in blksize blocks from dat.
  * dat is a maximum of blksize in length and can be written repeatedly in
  * the chunk.
  * If growfile == true, just grow the file via vn_truncate_locked() instead
  * of doing actual writes.
+ * If checkhole == true, a hole is being punched, so skip over any hole
+ * already in the output file.
  */
 static int
 vn_write_outvp(struct vnode *outvp, char *dat, off_t outoff, off_t xfer,
-    u_long blksize, bool growfile, struct ucred *cred)
+    u_long blksize, bool growfile, bool checkhole, struct ucred *cred)
 {
 	struct mount *mp;
-	off_t xfer2;
+	off_t dataoff, holeoff, xfer2;
 	int error, lckf;
 
 	/*
@@ -2733,7 +2807,24 @@ vn_write_outvp(struct vnode *outvp, char *dat, off_t outoff, off_t xfer,
 	 * done for each iteration, since the xfer argument can be very
 	 * large if there is a large hole to punch in the output file.
 	 */
+	error = 0;
+	holeoff = 0;
 	do {
+		xfer2 = MIN(xfer, blksize);
+		if (checkhole) {
+			/*
+			 * Punching a hole.  Skip writing if there is
+			 * already a hole in the output file.
+			 */
+			xfer2 = vn_skip_hole(outvp, xfer2, &outoff, &xfer,
+			    &dataoff, &holeoff, cred);
+			if (xfer == 0)
+				break;
+			if (holeoff < 0)
+				checkhole = false;
+			KASSERT(xfer2 > 0, ("vn_write_outvp: xfer2=%jd",
+			    (intmax_t)xfer2));
+		}
 		bwillwrite();
 		mp = NULL;
 		error = vn_start_write(outvp, &mp, V_WAIT);
@@ -2749,7 +2840,6 @@ vn_write_outvp(struct vnode *outvp, char *dat, off_t outoff, off_t xfer,
 				error = vn_truncate_locked(outvp, outoff + xfer,
 				    false, cred);
 			else {
-				xfer2 = MIN(xfer, blksize);
 				error = vn_rdwr(UIO_WRITE, outvp, dat, xfer2,
 				    outoff, UIO_SYSSPACE, IO_NODELOCKED,
 				    curthread->td_ucred, cred, NULL, curthread);
@@ -2916,7 +3006,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 					memset(dat, 0, MIN(xfer2, blksize));
 					error = vn_write_outvp(outvp, dat,
 					    *outoffp, xfer2, blksize, false,
-					    outcred);
+					    holeout > 0, outcred);
 				}
 
 				if (error == 0 && *outoffp + xfer >
@@ -2924,7 +3014,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 					/* Grow last block. */
 					error = vn_write_outvp(outvp, dat,
 					    *outoffp, xfer, blksize, true,
-					    outcred);
+					    false, outcred);
 				if (error == 0) {
 					*inoffp += xfer;
 					*outoffp += xfer;
@@ -2980,7 +3070,8 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 					error = vn_write_outvp(outvp, dat,
 					    *outoffp, xfer, blksize,
 					    readzeros && xfer == len &&
-					    *outoffp >= va.va_size, outcred);
+					    *outoffp >= va.va_size, false,
+					    outcred);
 				if (error == 0) {
 					*inoffp += xfer;
 					startoff += xfer;
