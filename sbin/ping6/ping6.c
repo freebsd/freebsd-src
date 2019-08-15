@@ -2082,7 +2082,7 @@ pr_nodeaddr(struct icmp6_nodeinfo *ni, int nilen)
 	if (nilen % (sizeof(u_int32_t) + sizeof(struct in6_addr)) == 0)
 		withttl = 1;
 	while (nilen > 0) {
-		u_int32_t ttl;
+		u_int32_t ttl = 0;
 
 		if (withttl) {
 			/* XXX: alignment? */
