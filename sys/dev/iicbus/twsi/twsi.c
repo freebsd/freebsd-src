@@ -261,7 +261,7 @@ twsi_calc_baud_rate(struct twsi_softc *sc, const u_int target,
 	if (clk_get_freq(sc->clk_core, &clk) < 0)
 		return (-1);
 
-	debugf(sc->dev, "Bus clock is at %lu\n", clk);
+	debugf(sc->dev, "Bus clock is at %ju\n", clk);
 
 	for (n = 0; n < 8; n++) {
 		for (m = 0; m < 16; m++) {
