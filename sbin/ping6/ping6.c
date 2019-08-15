@@ -307,7 +307,7 @@ main(int argc, char *argv[])
 	int ip6optlen = 0;
 	struct cmsghdr *scmsgp = NULL;
 	/* For control (ancillary) data received from recvmsg() */
-	struct cmsghdr cm[CONTROLLEN];
+	u_char cm[CONTROLLEN];
 #if defined(SO_SNDBUF) && defined(SO_RCVBUF)
 	u_long lsockbufsize;
 	int sockbufsize = 0;
