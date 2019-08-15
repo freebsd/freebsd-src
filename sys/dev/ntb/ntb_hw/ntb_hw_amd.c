@@ -385,14 +385,14 @@ amd_ntb_mw_set_trans(device_t dev, unsigned mw_idx, bus_addr_t addr, size_t size
 
 	/* Make sure the range fits in the usable mw size. */
 	if (size > bar_info->size) {
-		amd_ntb_printf(0, "%s: size 0x%x greater than mw_size 0x%x\n",
-		    __func__, (uint32_t)size, (uint32_t)bar_info->size);
+		amd_ntb_printf(0, "%s: size 0x%jx greater than mw_size 0x%jx\n",
+		    __func__, (uintmax_t)size, (uintmax_t)bar_info->size);
 		return (EINVAL);
 	}
 
-	amd_ntb_printf(1, "%s: mw %d mw_size 0x%x size 0x%x base %p\n",
-	    __func__, mw_idx, (uint32_t)bar_info->size,
-	    (uint32_t)size, (void *)bar_info->pci_bus_handle);
+	amd_ntb_printf(1, "%s: mw %d mw_size 0x%jx size 0x%jx base %p\n",
+	    __func__, mw_idx, (uintmax_t)bar_info->size,
+	    (uintmax_t)size, (void *)bar_info->pci_bus_handle);
 
 	/*
 	 * AMD NTB XLAT and Limit registers needs to be written only after
@@ -413,17 +413,17 @@ amd_ntb_mw_set_trans(device_t dev, unsigned mw_idx, bus_addr_t addr, size_t size
 	 * cases all use 64-bit bar.
 	 */
 	if ((mw_idx == 0) && (ntb->hw_info->quirks & QUIRK_MW0_32BIT)) {
-		amd_ntb_reg_write(4, bar_info->limit_off, (uint64_t)size);
+		amd_ntb_reg_write(4, bar_info->limit_off, (uint32_t)size);
 		amd_ntb_printf(1, "%s: limit_off 0x%x cur_val 0x%x limit 0x%x\n",
 		    __func__, bar_info->limit_off,
 		    amd_ntb_peer_reg_read(4, bar_info->limit_off),
 		    (uint32_t)size);
 	} else {
 		amd_ntb_reg_write(8, bar_info->limit_off, (uint64_t)size);
-		amd_ntb_printf(1, "%s: limit_off 0x%x cur_val 0x%lx limit 0x%x\n",
+		amd_ntb_printf(1, "%s: limit_off 0x%x cur_val 0x%jx limit 0x%jx\n",
 		    __func__, bar_info->limit_off,
 		    amd_ntb_peer_reg_read(8, bar_info->limit_off),
-		    (uint32_t)size);
+		    (uintmax_t)size);
 	}
 
 	return (0);
