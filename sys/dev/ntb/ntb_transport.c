@@ -81,7 +81,7 @@ SYSCTL_UINT(_hw_ntb_transport, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 
 static unsigned transport_mtu = 0x10000;
 
-static uint64_t max_mw_size;
+static uint64_t max_mw_size = 256*1024*1024;
 SYSCTL_UQUAD(_hw_ntb_transport, OID_AUTO, max_mw_size, CTLFLAG_RDTUN, &max_mw_size, 0,
     "If enabled (non-zero), limit the size of large memory windows. "
     "Both sides of the NTB MUST set the same value here.");
@@ -177,14 +177,17 @@ struct ntb_transport_mw {
 	size_t		xlat_align;
 	size_t		xlat_align_size;
 	bus_addr_t	addr_limit;
-	/* Tx buff is off vbase / phys_addr */
+	/* Tx buff is vbase / phys_addr / tx_size */
 	caddr_t		vbase;
-	size_t		buff_size;
-	/* Rx buff is off virt_addr / dma_addr */
+	size_t		tx_size;
+	/* Rx buff is virt_addr / dma_addr / rx_size */
 	bus_dma_tag_t	dma_tag;
 	bus_dmamap_t	dma_map;
 	caddr_t		virt_addr;
 	bus_addr_t	dma_addr;
+	size_t		rx_size;
+	/* rx_size increased to size alignment requirements of the hardware. */
+	size_t		buff_size;
 };
 
 struct ntb_transport_child {
@@ -331,7 +334,7 @@ ntb_transport_attach(device_t dev)
 	struct ntb_transport_child **cpp = &nt->child;
 	struct ntb_transport_child *nc;
 	struct ntb_transport_mw *mw;
-	uint64_t db_bitmap, size;
+	uint64_t db_bitmap;
 	int rc, i, db_count, spad_count, qp, qpu, qpo, qpt;
 	char cfg[128] = "";
 	char buf[32];
@@ -374,6 +377,14 @@ ntb_transport_attach(device_t dev)
 		if (rc != 0)
 			goto err;
 
+		mw->tx_size = mw->phys_size;
+		if (max_mw_size != 0 && mw->tx_size > max_mw_size) {
+			device_printf(dev, "Memory window %d limited from "
+			    "%ju to %ju\n", i, mw->phys_size, max_mw_size);
+			mw->tx_size = max_mw_size;
+		}
+
+		mw->rx_size = 0;
 		mw->buff_size = 0;
 		mw->virt_addr = NULL;
 		mw->dma_addr = 0;
@@ -388,10 +399,7 @@ ntb_transport_attach(device_t dev)
 		 * that NTB windows are symmetric and this allocation remain,
 		 * but even if not, we will just reallocate it later.
 		 */
-		size = mw->phys_size;
-		if (max_mw_size != 0 && size > max_mw_size)
-			size = max_mw_size;
-		ntb_set_mw(nt, i, size);
+		ntb_set_mw(nt, i, mw->tx_size);
 	}
 
 	qpu = 0;
@@ -556,7 +564,7 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	struct ntb_transport_mw *mw;
 	struct ntb_transport_qp *qp;
 	vm_paddr_t mw_base;
-	uint64_t mw_size, qp_offset;
+	uint64_t qp_offset;
 	size_t tx_size;
 	unsigned num_qps_mw, mw_num, mw_count;
 
@@ -578,9 +586,8 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 		num_qps_mw = nt->qp_count / mw_count;
 
 	mw_base = mw->phys_addr;
-	mw_size = mw->phys_size;
 
-	tx_size = mw_size / num_qps_mw;
+	tx_size = mw->tx_size / num_qps_mw;
 	qp_offset = tx_size * (qp_num / mw_count);
 
 	qp->tx_mw = mw->vbase + qp_offset;
@@ -1103,11 +1110,7 @@ ntb_transport_link_work(void *arg)
 
 	/* send the local info, in the opposite order of the way we read it */
 	for (i = 0; i < nt->mw_count; i++) {
-		size = nt->mw_vec[i].phys_size;
-
-		if (max_mw_size != 0 && size > max_mw_size)
-			size = max_mw_size;
-
+		size = nt->mw_vec[i].tx_size;
 		ntb_peer_spad_write(dev, NTBT_MW0_SZ_HIGH + (i * 2),
 		    size >> 32);
 		ntb_peer_spad_write(dev, NTBT_MW0_SZ_LOW + (i * 2), size);
@@ -1139,6 +1142,7 @@ ntb_transport_link_work(void *arg)
 		val64 |= val;
 
 		mw = &nt->mw_vec[i];
+		mw->rx_size = val64;
 		val64 = roundup(val64, mw->xlat_align_size);
 		if (mw->buff_size != val64) {
 
@@ -1288,7 +1292,7 @@ ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	else
 		num_qps_mw = nt->qp_count / mw_count;
 
-	rx_size = mw->buff_size / num_qps_mw;
+	rx_size = mw->rx_size / num_qps_mw;
 	qp->rx_buff = mw->virt_addr + rx_size * (qp_num / mw_count);
 	rx_size -= sizeof(struct ntb_rx_info);
 
