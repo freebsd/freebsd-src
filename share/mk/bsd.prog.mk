@@ -3,6 +3,7 @@
 
 .include <bsd.init.mk>
 .include <bsd.compiler.mk>
+.include <bsd.linker.mk>
 
 .SUFFIXES: .out .o .bc .c .cc .cpp .cxx .C .m .y .l .ll .ln .s .S .asm
 
@@ -44,11 +45,15 @@ CXXFLAGS+= -fPIE
 LDFLAGS+= -pie
 .endif
 .if ${MK_RETPOLINE} != "no"
+.if ${COMPILER_FEATURES:Mretpoline} && ${LINKER_FEATURES:Mretpoline}
 CFLAGS+= -mretpoline
 CXXFLAGS+= -mretpoline
 # retpolineplt is broken with static linking (PR 233336)
 .if !defined(NO_SHARED) || ${NO_SHARED:tl} == "no"
 LDFLAGS+= -Wl,-zretpolineplt
+.endif
+.else
+.warning Retpoline requested but not supported by compiler or linker
 .endif
 .endif
 
