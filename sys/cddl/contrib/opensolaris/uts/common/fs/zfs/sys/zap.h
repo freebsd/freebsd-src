@@ -139,6 +139,8 @@ uint64_t zap_create_link(objset_t *os, dmu_object_type_t ot,
      uint64_t parent_obj, const char *name, dmu_tx_t *tx);
 uint64_t zap_create_link_dnsize(objset_t *os, dmu_object_type_t ot,
     uint64_t parent_obj, const char *name, int dnodesize, dmu_tx_t *tx);
+uint64_t zap_create_link_dnsize(objset_t *os, dmu_object_type_t ot,
+    uint64_t parent_obj, const char *name, int dnodesize, dmu_tx_t *tx);
 
 /*
  * Initialize an already-allocated object.
