@@ -2134,8 +2134,7 @@ static object_viewer_t *object_viewer[DMU_OT_NUMTYPES + 1] = {
 };
 
 static void
-dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header,
-    uint64_t *dnode_slots_used)
+dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header)
 {
 	dmu_buf_t *db = NULL;
 	dmu_object_info_t doi;
@@ -2155,7 +2154,7 @@ dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header,
 	CTASSERT(sizeof (bonus_size) >= NN_NUMBUF_SZ);
 
 	if (*print_header) {
-		(void) printf("\n%10s  %3s  %5s  %5s  %5s  %6s  %5s  %6s  %s\n",
+		(void) printf("\n%10s  %3s  %5s  %5s  %5s  %6s %5s  %6s  %s\n",
 		    "Object", "lvl", "iblk", "dblk", "dsize", "dnsize",
 		    "lsize", "%full", "type");
 		*print_header = 0;
@@ -2173,9 +2172,6 @@ dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header,
 		dn = DB_DNODE((dmu_buf_impl_t *)db);
 	}
 	dmu_object_info_from_dnode(dn, &doi);
-
-	if (dnode_slots_used != NULL)
-		*dnode_slots_used = doi.doi_dnodesize / DNODE_MIN_SIZE;
 
 	zdb_nicenum(doi.doi_metadata_block_size, iblk, sizeof (iblk));
 	zdb_nicenum(doi.doi_data_block_size, dblk, sizeof (dblk));
@@ -2199,9 +2195,8 @@ dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header,
 		    ZDB_COMPRESS_NAME(doi.doi_compress));
 	}
 
-	(void) printf("%10" PRIu64
-	    "  %3u  %5s  %5s  %5s  %5s  %5s  %6s  %s%s\n",
-	    object, doi.doi_indirection, iblk, dblk,
+	(void) printf("%10lld  %3u  %5s  %5s  %5s  %6s  %5s  %6s  %s%s\n",
+	    (u_longlong_t)object, doi.doi_indirection, iblk, dblk,
 	    asize, dnsize, lsize, fill, ZDB_OT_NAME(doi.doi_type), aux);
 
 	if (doi.doi_bonus_type != DMU_OT_NONE && verbosity > 3) {
@@ -2310,9 +2305,6 @@ dump_dir(objset_t *os)
 	int print_header = 1;
 	unsigned i;
 	int error;
-	uint64_t total_slots_used = 0;
-	uint64_t max_slot_used = 0;
-	uint64_t dnode_slots;
 
 	/* make sure nicenum has enough space */
 	CTASSERT(sizeof (numbuf) >= NN_NUMBUF_SZ);
@@ -2357,7 +2349,7 @@ dump_dir(objset_t *os)
 	if (zopt_objects != 0) {
 		for (i = 0; i < zopt_objects; i++)
 			dump_object(os, zopt_object[i], verbosity,
-			    &print_header, NULL);
+			    &print_header);
 		(void) printf("\n");
 		return;
 	}
@@ -2382,34 +2374,19 @@ dump_dir(objset_t *os)
 	if (BP_IS_HOLE(os->os_rootbp))
 		return;
 
-	dump_object(os, 0, verbosity, &print_header, NULL);
+	dump_object(os, 0, verbosity, &print_header);
 	object_count = 0;
 	if (DMU_USERUSED_DNODE(os) != NULL &&
 	    DMU_USERUSED_DNODE(os)->dn_type != 0) {
-		dump_object(os, DMU_USERUSED_OBJECT, verbosity, &print_header,
-		    NULL);
-		dump_object(os, DMU_GROUPUSED_OBJECT, verbosity, &print_header,
-		    NULL);
+		dump_object(os, DMU_USERUSED_OBJECT, verbosity, &print_header);
+		dump_object(os, DMU_GROUPUSED_OBJECT, verbosity, &print_header);
 	}
 
 	object = 0;
 	while ((error = dmu_object_next(os, &object, B_FALSE, 0)) == 0) {
-		dump_object(os, object, verbosity, &print_header, &dnode_slots);
+		dump_object(os, object, verbosity, &print_header);
 		object_count++;
-		total_slots_used += dnode_slots;
-		max_slot_used = object + dnode_slots - 1;
 	}
-
-	(void) printf("\n");
-
-	(void) printf("    Dnode slots:\n");
-	(void) printf("\tTotal used:    %10llu\n",
-	    (u_longlong_t)total_slots_used);
-	(void) printf("\tMax used:      %10llu\n",
-	    (u_longlong_t)max_slot_used);
-	(void) printf("\tPercent empty: %10lf\n",
-	    (double)(max_slot_used - total_slots_used)*100 /
-	    (double)max_slot_used);
 
 	(void) printf("\n");
 
@@ -2604,7 +2581,7 @@ dump_path_impl(objset_t *os, uint64_t obj, char *name)
 			return (dump_path_impl(os, child_obj, s + 1));
 		/*FALLTHROUGH*/
 	case DMU_OT_PLAIN_FILE_CONTENTS:
-		dump_object(os, child_obj, dump_opt['v'], &header, NULL);
+		dump_object(os, child_obj, dump_opt['v'], &header);
 		return (0);
 	default:
 		(void) fprintf(stderr, "object %llu has non-file/directory "
