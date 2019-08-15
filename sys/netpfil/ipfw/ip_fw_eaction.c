@@ -391,19 +391,19 @@ ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
 	    cmd->arg1 != eaction_id)
 		return (0);
 	/*
-	 * If instance_id is specified, we need to truncate the
-	 * rule length. Check if there is O_EXTERNAL_INSTANCE opcode.
+	 * Check if there is O_EXTERNAL_INSTANCE opcode, we need
+	 * to truncate the rule length.
 	 *
 	 * NOTE: F_LEN(cmd) must be 1 for O_EXTERNAL_ACTION opcode,
 	 *  and rule length should be enough to keep O_EXTERNAL_INSTANCE
 	 *  opcode, thus we do check for l > 1.
 	 */
 	l = rule->cmd + rule->cmd_len - cmd;
-	if (instance_id != 0 && l > 1) {
+	if (l > 1) {
 		MPASS(F_LEN(cmd) == 1);
 		icmd = cmd + 1;
-		if (icmd->opcode != O_EXTERNAL_INSTANCE ||
-		    icmd->arg1 != instance_id)
+		if (icmd->opcode == O_EXTERNAL_INSTANCE &&
+		    instance_id != 0 && icmd->arg1 != instance_id)
 			return (0);
 		/*
 		 * Since named_object related to this instance will be
