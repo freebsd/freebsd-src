@@ -125,8 +125,8 @@ static struct fortuna_state {
 } fortuna_state;
 
 /*
- * Experimental concurrent reads feature.  For now, disabled by default.  But
- * we may enable it in the future.
+ * This knob enables or disables Concurrent Reads.  The plan is to turn it on
+ * by default sometime before 13.0 branches.
  *
  * The benefit is improved concurrency in Fortuna.  That is reflected in two
  * related aspects:
@@ -141,6 +141,107 @@ static struct fortuna_state {
  *    global state mutex, potentially blocking on a reader.  Our adaptive
  *    mutexes assume that a lock holder currently on CPU will release the lock
  *    quickly, and spin if the owning thread is currently running.
+ *
+ * The concern is that the reduced lock scope might results in a less safe
+ * random(4) design.  However, the reduced-lock scope design is still
+ * fundamentally Fortuna.  This is discussed below.
+ *
+ * Fortuna Read() only needs mutual exclusion between readers to correctly
+ * update the shared read-side state: just C, the 128-bit counter, and K, the
+ * current cipher key.
+ *
+ * In the Fortuna design, the global counter C should provide an independent
+ * range of values per generator (CTR-mode cipher or similar) invocation.
+ *
+ * Under lock, we can save a copy of C on the stack, and increment the global C
+ * by the number of blocks a Read request will require.
+ *
+ * Still under lock, we can save a copy of the key K on the stack, and then
+ * perform the usual key erasure K' <- Keystream(C, K, ...).  This does require
+ * generating 256 bits (32 bytes) of cryptographic keystream output with the
+ * global lock held, but that's all; none of the user keystream generation must
+ * be performed under lock.
+ *
+ * At this point, we may unlock.
+ *
+ * Some example timelines below (to oversimplify, all requests are in units of
+ * native blocks, and the keysize happens to be equal or less to the native
+ * blocksize of the underlying cipher, and the same sequence of two requests
+ * arrive in the same order).  The possibly expensive consumer keystream
+ * generation portion is marked with '**'.
+ *
+ * Status Quo fortuna_read()           Reduced-scope locking
+ * -------------------------           ---------------------
+ * C=C_0, K=K_0                        C=C_0, K=K_0
+ * <Thr 1 requests N blocks>           <Thr 1 requests N blocks>
+ * 1:Lock()                            1:Lock()
+ * <Thr 2 requests M blocks>           <Thr 2 requests M blocks>
+ * 1:GenBytes()                        1:stack_C := C_0
+ * 1:  Keystream(C_0, K_0, N)          1:stack_K := K_0
+ * 1:    <N blocks generated>**        1:C' := C_0 + N
+ * 1:    C' := C_0 + N                 1:K' := Keystream(C', K_0, 1)
+ * 1:    <- Keystream                  1:  <1 block generated>
+ * 1:  K' := Keystream(C', K_0, 1)     1:  C'' := C' + 1
+ * 1:    <1 block generated>           1:  <- Keystream
+ * 1:    C'' := C' + 1                 1:Unlock()
+ * 1:    <- Keystream
+ * 1:  <- GenBytes()
+ * 1:Unlock()
+ *
+ * Just prior to unlock, shared state is identical:
+ * ------------------------------------------------
+ * C'' == C_0 + N + 1                  C'' == C_0 + N + 1
+ * K' == keystream generated from      K' == keystream generated from
+ *       C_0 + N, K_0.                       C_0 + N, K_0.
+ * K_0 has been erased.                K_0 has been erased.
+ *
+ * After both designs unlock, the 2nd reader is unblocked.
+ *
+ * 2:Lock()                            2:Lock()
+ * 2:GenBytes()                        2:stack_C' := C''
+ * 2:  Keystream(C'', K', M)           2:stack_K' := K'
+ * 2:    <M blocks generated>**        2:C''' := C'' + M
+ * 2:    C''' := C'' + M               2:K'' := Keystream(C''', K', 1)
+ * 2:    <- Keystream                  2:  <1 block generated>
+ * 2:  K'' := Keystream(C''', K', 1)   2:  C'''' := C''' + 1
+ * 2:    <1 block generated>           2:  <- Keystream
+ * 2:    C'''' := C''' + 1             2:Unlock()
+ * 2:    <- Keystream
+ * 2:  <- GenBytes()
+ * 2:Unlock()
+ *
+ * Just prior to unlock, shared state is still identical:
+ * ------------------------------------------------------
+ *
+ * C'''' == (C_0 + N + 1) + M + 1      C'''' == (C_0 + N + 1) + M + 1
+ * K'' == keystream generated from     K'' == keystream generated from
+ *        C_0 + N + 1 + M, K'.                C_0 + N + 1 + M, K'.
+ * K' has been erased.                 K' has been erased.
+ *
+ * Finally, in the new design, the two consumer threads can finish the
+ * remainder of the generation at any time (including simultaneously):
+ *
+ *                                     1:  GenBytes()
+ *                                     1:    Keystream(stack_C, stack_K, N)
+ *                                     1:      <N blocks generated>**
+ *                                     1:    <- Keystream
+ *                                     1:  <- GenBytes
+ *                                     1:ExplicitBzero(stack_C, stack_K)
+ *
+ *                                     2:  GenBytes()
+ *                                     2:    Keystream(stack_C', stack_K', M)
+ *                                     2:      <M blocks generated>**
+ *                                     2:    <- Keystream
+ *                                     2:  <- GenBytes
+ *                                     2:ExplicitBzero(stack_C', stack_K')
+ *
+ * The generated user keystream for both threads is identical between the two
+ * implementations:
+ *
+ * 1: Keystream(C_0, K_0, N)           1: Keystream(stack_C, stack_K, N)
+ * 2: Keystream(C'', K', M)            2: Keystream(stack_C', stack_K', M)
+ *
+ * (stack_C == C_0; stack_K == K_0; stack_C' == C''; stack_K' == K'.)
  */
 static bool fortuna_concurrent_read __read_frequently = false;
 
@@ -203,7 +304,7 @@ random_fortuna_init_alg(void *unused __unused)
 
 	SYSCTL_ADD_BOOL(&random_clist, SYSCTL_CHILDREN(random_fortuna_o),
 	    OID_AUTO, "concurrent_read", CTLFLAG_RDTUN,
-	    &fortuna_concurrent_read, 0, "If non-zero, enable EXPERIMENTAL "
+	    &fortuna_concurrent_read, 0, "If non-zero, enable "
 	    "feature to improve concurrent Fortuna performance.");
 #endif
 
@@ -606,13 +707,8 @@ random_fortuna_read_concurrent(uint8_t *buf, size_t bytecount,
 
 	RANDOM_RESEED_LOCK();
 	KASSERT(!uint128_is_zero(fortuna_state.fs_counter), ("FS&K: C != 0"));
+
 	/*
-	 * Technically, we only need mutual exclusion to update shared state
-	 * appropriately.  Nothing about updating the shared internal state
-	 * requires that we perform (most) expensive cryptographic keystream
-	 * generation under lock.  (We still need to generate 256 bits of
-	 * keystream to re-key between consumers.)
-	 *
 	 * Save the original counter and key values that will be used as the
 	 * PRF for this particular consumer.
 	 */
