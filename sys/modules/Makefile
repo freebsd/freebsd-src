@@ -594,6 +594,7 @@ _lio=		lio
 .endif
 _nctgpio=	nctgpio
 _ndis=		ndis
+_ntb=		ntb
 _ocs_fc=	ocs_fc
 _pccard=	pccard
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
@@ -691,7 +692,6 @@ _ioat=		ioat
 _ixl=		ixl
 _linux64=	linux64
 _linux_common=	linux_common
-_ntb=		ntb
 _nvdimm=	nvdimm
 _pms=		pms
 _qlxge=		qlxge
