@@ -121,6 +121,7 @@ beforedepend:
 	ln -sf ${SYSDIR}/sys/stdint.h stdint.h; \
 	ln -sf ${SRCTOP}/include/arpa/inet.h arpa/inet.h; \
 	ln -sf ${SRCTOP}/include/arpa/tftp.h arpa/tftp.h; \
+	ln -sf ${LIBC_SRC}/quad/quad.h quad.h; \
 	for i in _time.h _strings.h _string.h; do \
 		[ -f xlocale/$$i ] || cp /dev/null xlocale/$$i; \
 	done; \
