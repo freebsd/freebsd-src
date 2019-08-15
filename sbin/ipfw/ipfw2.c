@@ -4674,12 +4674,27 @@ read_options:
 		case TOK_JAIL:
 			NEED1("jail requires argument");
 		    {
+			char *end;
 			int jid;
 
 			cmd->opcode = O_JAIL;
-			jid = jail_getid(*av);
-			if (jid < 0)
-				errx(EX_DATAERR, "%s", jail_errmsg);
+			/*
+			 * If av is a number, then we'll just pass it as-is.  If
+			 * it's a name, try to resolve that to a jid.
+			 *
+			 * We save the jail_getid(3) call for a fallback because
+			 * it entails an unconditional trip to the kernel to
+			 * either validate a jid or resolve a name to a jid.
+			 * This specific token doesn't currently require a
+			 * jid to be an active jail, so we save a transition
+			 * by simply using a number that we're given.
+			 */
+			jid = strtoul(*av, &end, 10);
+			if (*end != '\0') {
+				jid = jail_getid(*av);
+				if (jid < 0)
+				    errx(EX_DATAERR, "%s", jail_errmsg);
+			}
 			cmd32->d[0] = (uint32_t)jid;
 			cmd->len |= F_INSN_SIZE(ipfw_insn_u32);
 			av++;
