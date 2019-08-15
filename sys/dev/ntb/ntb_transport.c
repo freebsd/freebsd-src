@@ -380,7 +380,8 @@ ntb_transport_attach(device_t dev)
 		mw->tx_size = mw->phys_size;
 		if (max_mw_size != 0 && mw->tx_size > max_mw_size) {
 			device_printf(dev, "Memory window %d limited from "
-			    "%ju to %ju\n", i, mw->phys_size, max_mw_size);
+			    "%ju to %ju\n", i, (uintmax_t)mw->phys_size,
+			    max_mw_size);
 			mw->tx_size = max_mw_size;
 		}
 
