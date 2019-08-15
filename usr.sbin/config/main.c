@@ -120,10 +120,19 @@ main(int argc, char **argv)
 	printmachine = 0;
 	kernfile = NULL;
 	SLIST_INIT(&includepath);
-	while ((ch = getopt(argc, argv, "CI:d:gmps:Vx:")) != -1)
+	while ((ch = getopt(argc, argv, "Cd:gI:mps:Vx:")) != -1)
 		switch (ch) {
 		case 'C':
 			filebased = 1;
+			break;
+		case 'd':
+			if (*destdir == '\0')
+				strlcpy(destdir, optarg, sizeof(destdir));
+			else
+				errx(EXIT_FAILURE, "directory already set");
+			break;
+		case 'g':
+			debugging++;
 			break;
 		case 'I':
 			ipath = (struct includepath *) \
@@ -135,15 +144,6 @@ main(int argc, char **argv)
 			break;
 		case 'm':
 			printmachine = 1;
-			break;
-		case 'd':
-			if (*destdir == '\0')
-				strlcpy(destdir, optarg, sizeof(destdir));
-			else
-				errx(EXIT_FAILURE, "directory already set");
-			break;
-		case 'g':
-			debugging++;
 			break;
 		case 'p':
 			profiling++;
