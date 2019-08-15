@@ -842,7 +842,8 @@ void MockFS::read_request(mockfs_buf_in &in) {
 	 * request,including header, even though fuse_out_header.len excludes
 	 * the size of the header.
 	 */
-	ASSERT_TRUE(res == in.header.len || m_quit);
+	ASSERT_TRUE(res == static_cast<ssize_t>(sizeof(in.header.len)) ||
+		    m_quit);
 }
 
 void MockFS::write_response(const mockfs_buf_out &out) {
