@@ -333,6 +333,9 @@ main(int argc, char *argv[])
 	memset(&smsghdr, 0, sizeof(smsghdr));
 	memset(&smsgiov, 0, sizeof(smsgiov));
 
+	intvl.tv_sec = interval / 1000;
+	intvl.tv_nsec = interval % 1000 * 1000000;
+
 	alarmtimeout = preload = 0;
 	datap = &outpack[ICMP6ECHOLEN + ICMP6ECHOTMLEN];
 	capdns = capdns_setup();
@@ -1121,9 +1124,6 @@ main(int argc, char *argv[])
 	if (options & F_FLOOD) {
 		intvl.tv_sec = 0;
 		intvl.tv_nsec = 10000000;
-	} else if ((options & F_INTERVAL) == 0) {
-		intvl.tv_sec = interval / 1000;
-		intvl.tv_nsec = interval % 1000 * 1000000;
 	}
 
 	almost_done = 0;
