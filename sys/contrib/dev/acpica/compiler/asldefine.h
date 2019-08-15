@@ -298,4 +298,20 @@
 #define COMMENT_CAPTURE_ON    AslGbl_CommentState.CaptureComments = TRUE;
 #define COMMENT_CAPTURE_OFF   AslGbl_CommentState.CaptureComments = FALSE;
 
+/*
+ * Special name segments - these must only be declared at the root scope
+ */
+#define NAMESEG__PTS    "_PTS"
+#define NAMESEG__WAK    "_WAK"
+#define NAMESEG__S0     "_S0_"
+#define NAMESEG__S1     "_S1_"
+#define NAMESEG__S2     "_S2_"
+#define NAMESEG__S3     "_S3_"
+#define NAMESEG__S4     "_S4_"
+#define NAMESEG__S5     "_S5_"
+#define NAMESEG__TTS    "_TTS"
+
+#define MAX_SPECIAL_NAMES      9
+
+
 #endif /* ASLDEFINE.H */

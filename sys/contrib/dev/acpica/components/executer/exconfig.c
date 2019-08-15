@@ -342,10 +342,11 @@ AcpiExLoadTableOp (
         return_ACPI_STATUS (Status);
     }
 
-    /* Complete the initialization/resolution of package objects */
+    /* Complete the initialization/resolution of new objects */
 
-    Status = AcpiNsWalkNamespace (ACPI_TYPE_PACKAGE, ACPI_ROOT_OBJECT,
-        ACPI_UINT32_MAX, 0, AcpiNsInitOnePackage, NULL, NULL, NULL);
+    AcpiExExitInterpreter();
+    AcpiNsInitializeObjects();
+    AcpiExEnterInterpreter();
 
     /* Parameter Data (optional) */
 
@@ -620,10 +621,11 @@ AcpiExLoadOp (
         return_ACPI_STATUS (Status);
     }
 
-    /* Complete the initialization/resolution of package objects */
+    /* Complete the initialization/resolution of new objects */
 
-    Status = AcpiNsWalkNamespace (ACPI_TYPE_PACKAGE, ACPI_ROOT_OBJECT,
-        ACPI_UINT32_MAX, 0, AcpiNsInitOnePackage, NULL, NULL, NULL);
+    AcpiExExitInterpreter ();
+    AcpiNsInitializeObjects ();
+    AcpiExEnterInterpreter ();
 
     /* Store the DdbHandle into the Target operand */
 

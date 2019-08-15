@@ -166,12 +166,6 @@
  * Things like Events, Global Lock, etc. are not used
  * by the compiler, so they are stubbed out here.
  */
-void
-AcpiNsExecModuleCodeList (
-    void)
-{
-}
-
 ACPI_STATUS
 AcpiNsInitializeObjects (
     void)
