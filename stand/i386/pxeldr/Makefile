@@ -43,6 +43,3 @@ ${LOADER}: ${LOADERBIN} ${BTXLDR} ${BTXKERN}
 	    -b ${BTXKERN} ${LOADERBIN}
 
 .include <bsd.prog.mk>
-
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS.pxeldr.S=	${CLANG_NO_IAS}
