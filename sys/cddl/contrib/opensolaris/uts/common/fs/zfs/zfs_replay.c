@@ -310,7 +310,7 @@ zfs_replay_create_acl(void *arg1, void *arg2, boolean_t byteswap)
 
 	objid = LR_FOID_GET_OBJ(lr->lr_foid);
 	dnodesize = LR_FOID_GET_SLOTS(lr->lr_foid) << DNODE_SHIFT;
-	
+
 	xva_init(&xva);
 	zfs_init_vattr(&xva.xva_vattr, AT_TYPE | AT_MODE | AT_UID | AT_GID,
 	    lr->lr_mode, lr->lr_uid, lr->lr_gid, lr->lr_rdev, objid);
@@ -322,7 +322,6 @@ zfs_replay_create_acl(void *arg1, void *arg2, boolean_t byteswap)
 	 * zfs_create() has no concept of these attributes, so we smuggle
 	 * the values inside the vattr's otherwise unused va_ctime,
 	 * va_nblocks, and va_fsid fields.
-
 	 */
 	ZFS_TIME_DECODE(&xva.xva_vattr.va_ctime, lr->lr_crtime);
 	xva.xva_vattr.va_nblocks = lr->lr_gen;
@@ -464,8 +463,8 @@ zfs_replay_create(void *arg1, void *arg2, boolean_t byteswap)
 	 * eventually end up in zfs_mknode(), which assigns the object's
 	 * creation time, generation number, and dnode slot count. The
 	 * generic zfs_create() has no concept of these attributes, so
-	 * we smuggle the values inside * the vattr's otherwise unused
-	 * va_ctime, va_nblocks, and va_nlink fields.
+	 * we smuggle the values inside the vattr's otherwise unused
+	 * va_ctime, va_nblocks and va_fsid fields.
 	 */
 	ZFS_TIME_DECODE(&xva.xva_vattr.va_ctime, lr->lr_crtime);
 	xva.xva_vattr.va_nblocks = lr->lr_gen;

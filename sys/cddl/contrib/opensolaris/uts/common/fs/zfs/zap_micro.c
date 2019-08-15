@@ -726,9 +726,9 @@ int
 zap_create_claim_norm_dnsize(objset_t *os, uint64_t obj, int normflags,
     dmu_object_type_t ot, dmu_object_type_t bonustype, int bonuslen,
     int dnodesize, dmu_tx_t *tx)
- {
- 	int err;
- 
+{
+	int err;
+
 	err = dmu_object_claim_dnsize(os, obj, ot, 0, bonustype, bonuslen,
 	    dnodesize, tx);
 	if (err != 0)
