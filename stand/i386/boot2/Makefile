@@ -91,6 +91,3 @@ boot2.h: boot1.out
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
 .include <bsd.prog.mk>
-
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS.boot1.S=		${CLANG_NO_IAS}
