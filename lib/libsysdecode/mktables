@@ -43,7 +43,8 @@ fi
 include_dir=$1
 if [ -n "$2" ]; then
 	output_file="$2"
-	exec > "$output_file"
+	output_tmp=$(mktemp -u)
+	exec > "$output_tmp"
 fi
 
 all_headers=
@@ -167,9 +168,17 @@ fi
 
 # Generate a .depend file for our output file
 if [ -n "$output_file" ]; then
-	echo "$output_file: \\" > ".depend.$output_file"
-	echo "$all_headers" | tr ' ' '\n' | sort -u |
-	    sed -e "s,^,	$include_dir/," -e 's,$, \\,' >> \
-	    ".depend.$output_file"
-	echo >> ".depend.$output_file"
+	depend_tmp=$(mktemp -u)
+	{
+		echo "$output_file: \\"
+		echo "$all_headers" | tr ' ' '\n' | sort -u |
+		    sed -e "s,^,	$include_dir/," -e 's,$, \\,'
+		echo
+	} > "$depend_tmp"
+	if cmp -s "$output_tmp" "$output_file"; then
+		rm -f "$output_tmp" "$depend_tmp"
+	else
+		mv -f "$depend_tmp" ".depend.${output_file}"
+		mv -f "$output_tmp" "$output_file"
+	fi
 fi
