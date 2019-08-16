@@ -554,16 +554,13 @@ void MockFS::audit_request(const mockfs_buf_in &in) {
 			"Missing request attribute name";
 		break;
 	case FUSE_GETXATTR:
-		ASSERT_GE(inlen, fih + sizeof(in.body.setxattr)) <<
+		ASSERT_GE(inlen, fih + sizeof(in.body.getxattr)) <<
 			"Missing request body";
-		ASSERT_GT(inlen, fih + sizeof(in.body.setxattr)) <<
+		ASSERT_GT(inlen, fih + sizeof(in.body.getxattr)) <<
 			"Missing request attribute name";
 		break;
 	case FUSE_LISTXATTR:
-		ASSERT_GE(inlen, fih + sizeof(in.body.listxattr)) <<
-			"Missing request body";
-		ASSERT_GT(inlen, fih + sizeof(in.body.listxattr)) <<
-			"Missing namespace";
+		ASSERT_EQ(inlen, fih + sizeof(in.body.listxattr));
 		break;
 	case FUSE_REMOVEXATTR:
 		ASSERT_GT(inlen, fih) << "Missing request attribute name";
