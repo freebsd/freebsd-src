@@ -1,6 +1,7 @@
+%{
 /******************************************************************************
  *
- * Module Name: dbhistry - debugger HISTORY command
+ * Module Name: dtcompilerparser.l - Flex input file for table compiler lexer
  *
  *****************************************************************************/
 
@@ -8,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -149,231 +150,139 @@
  *
  *****************************************************************************/
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acdebug.h"
+#include "aslcompiler.h"
+#include "dtcompilerparser.y.h"
+
+YYSTYPE DtCompilerlval;
+
+#define _COMPONENT          ACPI_COMPILER
+        ACPI_MODULE_NAME    ("dtcompilerscanner")
+
+/* handle locations */
+
+int DtCompilerParsercolumn = 1;
+int DtCompilerParserByteOffset = 0;
+
+#define YY_USER_ACTION \
+            DtCompilerParserlloc.first_line = DtCompilerParserlloc.last_line = DtCompilerParserlineno; \
+            DtCompilerParserlloc.first_column = DtCompilerParsercolumn; \
+            DtCompilerParserlloc.first_byte_offset = DtCompilerParserByteOffset; \
+            DtCompilerParserlloc.last_column = DtCompilerParsercolumn + DtCompilerParserleng-1; \
+            DtCompilerParsercolumn += DtCompilerParserleng; \
+            DtCompilerParserByteOffset += DtCompilerParserleng; \
+            DbgPrint (ASL_PARSE_OUTPUT,\
+                "user action occurred. DtCompilerParserlloc.first_line: %u offset: %u\n",\
+                DtCompilerParserlloc.first_line, DtCompilerParserlloc.first_byte_offset);
+%}
+
+%option nounput noinput yylineno
+
+    /* Indicates a state used for parsing multiline C comments */
+%x ML_COMMENT
+%x DATA_STATE
+
+WhiteSpace      [ \t\v\r]+
+NewLines        [\n]+
+
+    /* Avoid ", \n, and [] as a part of label name. These are not valid characters of a label name */
+LabelName       [^ ":\n\[\]]([^":\n\[\]]*[^" :\n\[\]])?
+
+    /* Avoid ", \n, \\, and [] as a part of data. These are not valid characters of data */
+Data            [^ \\":\n\[\]]([^":\n\[\]\\]*[^" :\n\[\]\\])?
+
+Text            [^ ":\n][^":\n]*
+Comment         \[[^\n\[\]]*\]
+CommentField    {LabelName}{WhiteSpace}*:{WhiteSpace}{Comment}?$
 
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
-        ACPI_MODULE_NAME    ("dbhistry")
+%%
 
-
-#define HI_NO_HISTORY       0
-#define HI_RECORD_HISTORY   1
-#define HISTORY_SIZE        40
-
-
-typedef struct HistoryInfo
-{
-    char                    *Command;
-    UINT32                  CmdNum;
-
-} HISTORY_INFO;
-
-
-static HISTORY_INFO         AcpiGbl_HistoryBuffer[HISTORY_SIZE];
-static UINT16               AcpiGbl_LoHistory = 0;
-static UINT16               AcpiGbl_NumHistory = 0;
-static UINT16               AcpiGbl_NextHistoryIndex = 0;
-UINT32                      AcpiGbl_NextCmdNum = 1;
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbAddToHistory
- *
- * PARAMETERS:  CommandLine     - Command to add
- *
- * RETURN:      None
- *
- * DESCRIPTION: Add a command line to the history buffer.
- *
- ******************************************************************************/
-
-void
-AcpiDbAddToHistory (
-    char                    *CommandLine)
-{
-    UINT16                  CmdLen;
-    UINT16                  BufferLen;
-
-    /* Put command into the next available slot */
-
-    CmdLen = (UINT16) strlen (CommandLine);
-    if (!CmdLen)
-    {
-        return;
+<DATA_STATE>{WhiteSpace}"\\\n" {
+        DbgPrint(ASL_PARSE_OUTPUT,"Continuation matched\n");
+        return (DT_PARSEOP_LINE_CONTINUATION);
     }
 
-    if (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command != NULL)
-    {
-        BufferLen = (UINT16) strlen (
-            AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command);
-
-        if (CmdLen > BufferLen)
-        {
-            AcpiOsFree (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].
-                Command);
-            AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command =
-                AcpiOsAllocate (CmdLen + 1);
-        }
-    }
-    else
-    {
-        AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command =
-            AcpiOsAllocate (CmdLen + 1);
+":" {
+        DbgPrint(ASL_PARSE_OUTPUT, ": Matched\n");
+        BEGIN (DATA_STATE);
+        return (':');
     }
 
-    strcpy (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command,
-        CommandLine);
+<INITIAL,DATA_STATE>{WhiteSpace} { DbgPrint(ASL_PARSE_OUTPUT,"Whitespace matched\n"); }
 
-    AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].CmdNum =
-        AcpiGbl_NextCmdNum;
+<INITIAL,DATA_STATE>{Comment}    { DbgPrint(ASL_PARSE_OUTPUT,"Comment matched\n"); }
 
-    /* Adjust indexes */
+"/*"                     { BEGIN (ML_COMMENT); }
+<ML_COMMENT>"*/"         { BEGIN (INITIAL); }
+<ML_COMMENT>"*/\n"       { BEGIN (INITIAL); }
+<ML_COMMENT>([^*]|\n)+|. /* Ignore */
+"//".*                   /* Ignore */
 
-    if ((AcpiGbl_NumHistory == HISTORY_SIZE) &&
-        (AcpiGbl_NextHistoryIndex == AcpiGbl_LoHistory))
-    {
-        AcpiGbl_LoHistory++;
-        if (AcpiGbl_LoHistory >= HISTORY_SIZE)
-        {
-            AcpiGbl_LoHistory = 0;
-        }
-    }
 
-    AcpiGbl_NextHistoryIndex++;
-    if (AcpiGbl_NextHistoryIndex >= HISTORY_SIZE)
-    {
-        AcpiGbl_NextHistoryIndex = 0;
-    }
+<DATA_STATE>{Data} {
+      char *s;
+      int size = strlen (DtCompilerParsertext);
+      s=UtLocalCacheCalloc (size + 1);
+      AcpiUtSafeStrncpy (s, DtCompilerParsertext, size + 1);
+      DtCompilerParserlval.s = s;
+      DbgPrint (ASL_PARSE_OUTPUT, "Data: %s\n", s);
+      return (DT_PARSEOP_DATA);
+}
 
-    AcpiGbl_NextCmdNum++;
-    if (AcpiGbl_NumHistory < HISTORY_SIZE)
-    {
-        AcpiGbl_NumHistory++;
-    }
+{CommentField}  /* ignore */
+
+{LabelName} {
+    char *s;
+    int size = strlen (DtCompilerParsertext);
+    s=UtLocalCacheCalloc (size + 1);
+    AcpiUtSafeStrncpy (s, DtCompilerParsertext, size + 1);
+    DtCompilerParserlval.s = s;
+    DbgPrint (ASL_PARSE_OUTPUT, "Label: %s\n", s);
+    return (DT_PARSEOP_LABEL);
 }
 
 
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbDisplayHistory
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Display the contents of the history buffer
- *
- ******************************************************************************/
+<DATA_STATE>\"{Text}?\" { // remove outer quotes from the string, they are unnecessary
+    char *s;
+    int size = strlen (DtCompilerParsertext);
+    s=UtLocalCacheCalloc (size - 1);
+    AcpiUtSafeStrncpy (s, DtCompilerParsertext + 1, size - 1);
+    DtCompilerParserlval.s = s;
+    DbgPrint (ASL_PARSE_OUTPUT, "String Data: %s\n", s);
+    BEGIN (INITIAL);
+    return (DT_PARSEOP_STRING_DATA);
+}
+
+
+<INITIAL,DATA_STATE>{NewLines} {
+    DbgPrint(ASL_PARSE_OUTPUT,
+        "Newline matched (data state). Current line number: %u\n",DtCompilerParserlineno);
+    BEGIN (INITIAL); DtCompilerParsercolumn = 1;
+}
+
+
+%%
+
+
+/*
+ * Local support functions
+ */
 
 void
-AcpiDbDisplayHistory (
+DtCompilerInitLexer (
+    FILE                *inFile)
+{
+    yyin = inFile;
+}
+
+void
+DtCompilerTerminateLexer (
     void)
 {
-    UINT32                  i;
-    UINT16                  HistoryIndex;
-
-
-    HistoryIndex = AcpiGbl_LoHistory;
-
-    /* Dump entire history buffer */
-
-    for (i = 0; i < AcpiGbl_NumHistory; i++)
-    {
-        if (AcpiGbl_HistoryBuffer[HistoryIndex].Command)
-        {
-            AcpiOsPrintf ("%3u  %s\n",
-                AcpiGbl_HistoryBuffer[HistoryIndex].CmdNum,
-                AcpiGbl_HistoryBuffer[HistoryIndex].Command);
-        }
-
-        HistoryIndex++;
-        if (HistoryIndex >= HISTORY_SIZE)
-        {
-            HistoryIndex = 0;
-        }
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbGetFromHistory
- *
- * PARAMETERS:  CommandNumArg           - String containing the number of the
- *                                        command to be retrieved
- *
- * RETURN:      Pointer to the retrieved command. Null on error.
- *
- * DESCRIPTION: Get a command from the history buffer
- *
- ******************************************************************************/
-
-char *
-AcpiDbGetFromHistory (
-    char                    *CommandNumArg)
-{
-    UINT32                  CmdNum;
-
-
-    if (CommandNumArg == NULL)
-    {
-        CmdNum = AcpiGbl_NextCmdNum - 1;
-    }
-
-    else
-    {
-        CmdNum = strtoul (CommandNumArg, NULL, 0);
-    }
-
-    return (AcpiDbGetHistoryByIndex (CmdNum));
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbGetHistoryByIndex
- *
- * PARAMETERS:  CmdNum              - Index of the desired history entry.
- *                                    Values are 0...(AcpiGbl_NextCmdNum - 1)
- *
- * RETURN:      Pointer to the retrieved command. Null on error.
- *
- * DESCRIPTION: Get a command from the history buffer
- *
- ******************************************************************************/
-
-char *
-AcpiDbGetHistoryByIndex (
-    UINT32                  CmdNum)
-{
-    UINT32                  i;
-    UINT16                  HistoryIndex;
-
-
-    /* Search history buffer */
-
-    HistoryIndex = AcpiGbl_LoHistory;
-    for (i = 0; i < AcpiGbl_NumHistory; i++)
-    {
-        if (AcpiGbl_HistoryBuffer[HistoryIndex].CmdNum == CmdNum)
-        {
-            /* Found the command, return it */
-
-            return (AcpiGbl_HistoryBuffer[HistoryIndex].Command);
-        }
-
-        /* History buffer is circular */
-
-        HistoryIndex++;
-        if (HistoryIndex >= HISTORY_SIZE)
-        {
-            HistoryIndex = 0;
-        }
-    }
-
-    AcpiOsPrintf ("Invalid history number: %u\n", HistoryIndex);
-    return (NULL);
+    /*
+     * Flex/Bison increments the lineno for the EOF so decrement by 1 to get
+     * the correct number of lines.
+     */
+    AslGbl_CurrentLineNumber = DtCompilerParserlineno - 1;
+    AslGbl_InputByteCount = DtCompilerParserByteOffset;
 }

@@ -837,6 +837,11 @@ AslDoOptions (
             AslGbl_HexOutputFlag = HEX_OUTPUT_C;
             break;
 
+    case 'p': /* data table flex/bison prototype */
+
+            AslGbl_DtLexBisonPrototype = TRUE;
+            break;
+
         case 's':
 
             AslGbl_HexOutputFlag = HEX_OUTPUT_ASL;

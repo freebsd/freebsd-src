@@ -280,7 +280,9 @@ DtCompileString (
 
     if (Length > ByteLength)
     {
-        sprintf (AslGbl_MsgBuffer, "Maximum %u characters", ByteLength);
+        sprintf (AslGbl_MsgBuffer,
+            "Maximum %u characters, found %u characters [%s]",
+            ByteLength, Length, Field->Value);
         DtError (ASL_ERROR, ASL_MSG_STRING_LENGTH, Field, AslGbl_MsgBuffer);
         Length = ByteLength;
     }

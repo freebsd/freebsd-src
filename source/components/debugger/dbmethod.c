@@ -493,6 +493,11 @@ AcpiDbDisassembleMethod (
     }
 
     Status = AcpiUtAllocateOwnerId (&ObjDesc->Method.OwnerId);
+    if (ACPI_FAILURE(Status))
+    {
+        return (Status);
+    }
+
     WalkState->OwnerId = ObjDesc->Method.OwnerId;
 
     /* Push start scope on scope stack and make it current */

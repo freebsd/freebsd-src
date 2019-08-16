@@ -507,6 +507,12 @@ TrTransformSubtree (
         }
         break;
 
+    case PARSEOP_PROCESSOR:
+
+        AslError (ASL_WARNING, ASL_MSG_LEGACY_PROCESSOR_OP, Op, Op->Asl.ExternalName);
+
+        break;
+
     default:
 
         /* Nothing to do here for other opcodes */

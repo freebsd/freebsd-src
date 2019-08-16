@@ -505,9 +505,12 @@ typedef struct asl_files_node
     UINT32                  TotalLineCount;
     UINT32                  OriginalInputFileSize;
     UINT32                  TotalKeywords;
+    UINT32                  TotalFields;
+    UINT32                  OutputByteLength;
     UINT32                  TotalNamedObjects;
     UINT32                  TotalExecutableOpcodes;
     BOOLEAN                 ParserErrorDetected;
+    UINT8                   FileType;
 
 } ASL_GLOBAL_FILE_NODE;
 

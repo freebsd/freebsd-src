@@ -452,7 +452,7 @@ ExecuteOSI (
     {
         AcpiOsPrintf (
             "Return value from _OSI method too small, %.8X\n",
-            ReturnValue.Length);
+            (UINT32) ReturnValue.Length);
         goto ErrorExit;
     }
 

@@ -1,6 +1,7 @@
+%{
 /******************************************************************************
  *
- * Module Name: dbhistry - debugger HISTORY command
+ * Module Name: dtcompilerparser.y - Bison input file for table compiler parser
  *
  *****************************************************************************/
 
@@ -8,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -149,231 +150,138 @@
  *
  *****************************************************************************/
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acdebug.h"
+#include "aslcompiler.h"
 
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
-        ACPI_MODULE_NAME    ("dbhistry")
+#define _COMPONENT          DT_COMPILER
+        ACPI_MODULE_NAME    ("dtcompilerparser")
+
+void *                      AslLocalAllocate (unsigned int Size);
+
+/* Bison/yacc configuration */
+
+#undef alloca
+#define alloca              AslLocalAllocate
+
+int                         DtCompilerParserlex (void);
+int                         DtCompilerParserparse (void);
+void                        DtCompilerParsererror (char const *msg);
+extern char                 *DtCompilerParsertext;
+extern DT_FIELD             *AslGbl_CurrentField;
+
+extern UINT64               DtCompilerParserResult; /* Expression return value */
+extern UINT64               DtCompilerParserlineno; /* Current line number */
+
+/* Bison/yacc configuration */
+
+#define yytname             DtCompilerParsername
+#define YYDEBUG             1               /* Enable debug output */
+#define YYERROR_VERBOSE     1               /* Verbose error messages */
+#define YYFLAG              -32768
+
+/* Define YYMALLOC/YYFREE to prevent redefinition errors  */
+
+#define YYMALLOC            malloc
+#define YYFREE              free
+
+%}
+
+%code requires {
+
+    typedef struct YYLTYPE {
+        int first_line;
+        int last_line;
+        int first_column;
+        int last_column;
+        int first_byte_offset;
+    } YYLTYPE;
+
+    #define YYLTYPE_IS_DECLARED 1
+}
 
 
-#define HI_NO_HISTORY       0
-#define HI_RECORD_HISTORY   1
-#define HISTORY_SIZE        40
+%union {
+    char                *s;
+    DT_FIELD            *f;
+}
 
 
-typedef struct HistoryInfo
-{
-    char                    *Command;
-    UINT32                  CmdNum;
-
-} HISTORY_INFO;
-
-
-static HISTORY_INFO         AcpiGbl_HistoryBuffer[HISTORY_SIZE];
-static UINT16               AcpiGbl_LoHistory = 0;
-static UINT16               AcpiGbl_NumHistory = 0;
-static UINT16               AcpiGbl_NextHistoryIndex = 0;
-UINT32                      AcpiGbl_NextCmdNum = 1;
+%type  <f> Table
+%token <s> DT_PARSEOP_DATA
+%token <s> DT_PARSEOP_LABEL
+%token <s> DT_PARSEOP_STRING_DATA
+%token <s> DT_PARSEOP_LINE_CONTINUATION
+%type  <s> Data
+%type  <s> Datum
+%type  <s> MultiLineData
+%type  <s> MultiLineDataList
 
 
-/*******************************************************************************
+%%
+
+Table
+    :
+    FieldList { DtCompilerParserResult = 5;}
+    ;
+
+FieldList
+    : Field FieldList
+    | Field
+    ;
+
+Field
+    : DT_PARSEOP_LABEL ':' Data { DtCreateField ($1, $3, (@3).first_line, (@1).first_byte_offset, (@1).first_column, (@3).first_column); }
+    ;
+
+Data
+    : MultiLineDataList        { $$ = $1; }
+    | Datum                    { $$ = $1; }
+    | Datum MultiLineDataList  { $$ = $1; } /* combine the string with strcat */
+    ;
+
+MultiLineDataList
+    : MultiLineDataList MultiLineData { $$ = AcpiUtStrcat(AcpiUtStrcat($1, " "), $2); } /* combine the strings with strcat */
+    | MultiLineData                   { $$ = $1; }
+    ;
+
+MultiLineData
+    : DT_PARSEOP_LINE_CONTINUATION Datum { DbgPrint (ASL_PARSE_OUTPUT, "line continuation detected\n"); $$ = $2; }
+    ;
+
+Datum
+    : DT_PARSEOP_DATA        { DbgPrint (ASL_PARSE_OUTPUT, "parser        data: [%s]\n", DtCompilerParserlval.s); $$ = AcpiUtStrdup(DtCompilerParserlval.s); }
+    | DT_PARSEOP_STRING_DATA { DbgPrint (ASL_PARSE_OUTPUT, "parser string data: [%s]\n", DtCompilerParserlval.s); $$ = AcpiUtStrdup(DtCompilerParserlval.s); }
+    ;
+
+
+%%
+
+
+/*
+ * Local support functions, including parser entry point
+ */
+/******************************************************************************
  *
- * FUNCTION:    AcpiDbAddToHistory
+ * FUNCTION:    DtCompilerParsererror
  *
- * PARAMETERS:  CommandLine     - Command to add
+ * PARAMETERS:  Message             - Parser-generated error message
  *
  * RETURN:      None
  *
- * DESCRIPTION: Add a command line to the history buffer.
+ * DESCRIPTION: Handler for parser errors
  *
- ******************************************************************************/
+ *****************************************************************************/
 
 void
-AcpiDbAddToHistory (
-    char                    *CommandLine)
+DtCompilerParsererror (
+    char const              *Message)
 {
-    UINT16                  CmdLen;
-    UINT16                  BufferLen;
-
-    /* Put command into the next available slot */
-
-    CmdLen = (UINT16) strlen (CommandLine);
-    if (!CmdLen)
-    {
-        return;
-    }
-
-    if (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command != NULL)
-    {
-        BufferLen = (UINT16) strlen (
-            AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command);
-
-        if (CmdLen > BufferLen)
-        {
-            AcpiOsFree (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].
-                Command);
-            AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command =
-                AcpiOsAllocate (CmdLen + 1);
-        }
-    }
-    else
-    {
-        AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command =
-            AcpiOsAllocate (CmdLen + 1);
-    }
-
-    strcpy (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command,
-        CommandLine);
-
-    AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].CmdNum =
-        AcpiGbl_NextCmdNum;
-
-    /* Adjust indexes */
-
-    if ((AcpiGbl_NumHistory == HISTORY_SIZE) &&
-        (AcpiGbl_NextHistoryIndex == AcpiGbl_LoHistory))
-    {
-        AcpiGbl_LoHistory++;
-        if (AcpiGbl_LoHistory >= HISTORY_SIZE)
-        {
-            AcpiGbl_LoHistory = 0;
-        }
-    }
-
-    AcpiGbl_NextHistoryIndex++;
-    if (AcpiGbl_NextHistoryIndex >= HISTORY_SIZE)
-    {
-        AcpiGbl_NextHistoryIndex = 0;
-    }
-
-    AcpiGbl_NextCmdNum++;
-    if (AcpiGbl_NumHistory < HISTORY_SIZE)
-    {
-        AcpiGbl_NumHistory++;
-    }
+    DtError (ASL_ERROR, ASL_MSG_SYNTAX,
+        AslGbl_CurrentField, (char *) Message);
 }
 
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbDisplayHistory
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Display the contents of the history buffer
- *
- ******************************************************************************/
-
-void
-AcpiDbDisplayHistory (
-    void)
+int
+DtCompilerParserwrap(void)
 {
-    UINT32                  i;
-    UINT16                  HistoryIndex;
-
-
-    HistoryIndex = AcpiGbl_LoHistory;
-
-    /* Dump entire history buffer */
-
-    for (i = 0; i < AcpiGbl_NumHistory; i++)
-    {
-        if (AcpiGbl_HistoryBuffer[HistoryIndex].Command)
-        {
-            AcpiOsPrintf ("%3u  %s\n",
-                AcpiGbl_HistoryBuffer[HistoryIndex].CmdNum,
-                AcpiGbl_HistoryBuffer[HistoryIndex].Command);
-        }
-
-        HistoryIndex++;
-        if (HistoryIndex >= HISTORY_SIZE)
-        {
-            HistoryIndex = 0;
-        }
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbGetFromHistory
- *
- * PARAMETERS:  CommandNumArg           - String containing the number of the
- *                                        command to be retrieved
- *
- * RETURN:      Pointer to the retrieved command. Null on error.
- *
- * DESCRIPTION: Get a command from the history buffer
- *
- ******************************************************************************/
-
-char *
-AcpiDbGetFromHistory (
-    char                    *CommandNumArg)
-{
-    UINT32                  CmdNum;
-
-
-    if (CommandNumArg == NULL)
-    {
-        CmdNum = AcpiGbl_NextCmdNum - 1;
-    }
-
-    else
-    {
-        CmdNum = strtoul (CommandNumArg, NULL, 0);
-    }
-
-    return (AcpiDbGetHistoryByIndex (CmdNum));
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbGetHistoryByIndex
- *
- * PARAMETERS:  CmdNum              - Index of the desired history entry.
- *                                    Values are 0...(AcpiGbl_NextCmdNum - 1)
- *
- * RETURN:      Pointer to the retrieved command. Null on error.
- *
- * DESCRIPTION: Get a command from the history buffer
- *
- ******************************************************************************/
-
-char *
-AcpiDbGetHistoryByIndex (
-    UINT32                  CmdNum)
-{
-    UINT32                  i;
-    UINT16                  HistoryIndex;
-
-
-    /* Search history buffer */
-
-    HistoryIndex = AcpiGbl_LoHistory;
-    for (i = 0; i < AcpiGbl_NumHistory; i++)
-    {
-        if (AcpiGbl_HistoryBuffer[HistoryIndex].CmdNum == CmdNum)
-        {
-            /* Found the command, return it */
-
-            return (AcpiGbl_HistoryBuffer[HistoryIndex].Command);
-        }
-
-        /* History buffer is circular */
-
-        HistoryIndex++;
-        if (HistoryIndex >= HISTORY_SIZE)
-        {
-            HistoryIndex = 0;
-        }
-    }
-
-    AcpiOsPrintf ("Invalid history number: %u\n", HistoryIndex);
-    return (NULL);
+  return (1);
 }

@@ -33,12 +33,15 @@ vpath %.c \
 HEADERS = \
     $(wildcard $(ASL_COMPILER)/*.h)\
     $(OBJDIR)/aslcompiler.y.h\
+    $(OBJDIR)/dtcompilerparser.y.h\
     $(OBJDIR)/dtparser.y.h\
     $(OBJDIR)/prparser.y.h
 
 OBJECTS = \
 	$(OBJDIR)/aslcompilerlex.o\
 	$(OBJDIR)/aslcompilerparse.o\
+	$(OBJDIR)/dtcompilerparserlex.o\
+	$(OBJDIR)/dtcompilerparserparse.o\
 	$(OBJDIR)/dtparserlex.o\
 	$(OBJDIR)/dtparserparse.o\
 	$(OBJDIR)/prparserlex.o\
@@ -251,11 +254,14 @@ INTERMEDIATES = \
 	$(OBJDIR)/aslcompilerparse.c\
 	$(OBJDIR)/dtparserlex.c\
 	$(OBJDIR)/dtparserparse.c\
+	$(OBJDIR)/dtcompilerparserlex.c\
+	$(OBJDIR)/dtcompilerparserparse.c\
 	$(OBJDIR)/prparserlex.c\
 	$(OBJDIR)/prparserparse.c
 
 MISC = \
 	$(OBJDIR)/aslcompiler.y.h\
+	$(OBJDIR)/dtcompilerparser.y.h\
 	$(OBJDIR)/dtparser.y.h\
 	$(OBJDIR)/prparser.y.h
 
@@ -322,9 +328,17 @@ $(OBJDIR)/aslcompilerparse.c $(OBJDIR)/aslcompiler.y.h : $(OBJDIR)/aslcompiler.y
 	@echo "- " $(YACC) "       "$<
 	@$(call safe_yacc,AslCompiler,$<,$@)
 
+$(OBJDIR)/dtcompilerparserlex.c :      $(ASL_COMPILER)/dtcompilerparser.l $(OBJDIR)/dtcompilerparser.y.h
+	@echo "- " $(LEX) "        "$<
+	@$(LEX) $(DLFLAGS) -PDtCompilerParser -o$@ $<
+
+$(OBJDIR)/dtcompilerparserparse.c $(OBJDIR)/dtcompilerparser.y.h :       $(ASL_COMPILER)/dtcompilerparser.y
+	@echo "- " $(YACC) "       "$<
+	@$(call safe_yacc,DtCompilerParser,$<,$@)
+
 $(OBJDIR)/dtparserlex.c :      $(ASL_COMPILER)/dtparser.l $(OBJDIR)/dtparser.y.h
 	@echo "- " $(LEX) "        "$<
-	@$(LEX) $(LFLAGS) -PDtParser -o$@ $<
+	@$(LEX) $(DLFLAGS) -PDtParser -o$@ $<
 
 $(OBJDIR)/dtparserparse.c $(OBJDIR)/dtparser.y.h :       $(ASL_COMPILER)/dtparser.y
 	@echo "- " $(YACC) "       "$<
@@ -349,6 +363,14 @@ $(OBJDIR)/aslcompilerlex.o :   $(OBJDIR)/aslcompilerlex.c
 	@$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
 
 $(OBJDIR)/aslcompilerparse.o : $(OBJDIR)/aslcompilerparse.c
+	@echo "- " "Intermediate" $<
+	@$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
+
+$(OBJDIR)/dtcompilerparserlex.o :      $(OBJDIR)/dtcompilerparserlex.c
+	@echo "- " "Intermediate" $<
+	@$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
+
+$(OBJDIR)/dtcompilerparserparse.o :    $(OBJDIR)/dtcompilerparserparse.c
 	@echo "- " "Intermediate" $<
 	@$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
 

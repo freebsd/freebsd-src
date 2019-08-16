@@ -495,6 +495,59 @@ DtParseLine (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtCreateField
+ *
+ * PARAMETERS: Name
+ *             Value
+ *             Line
+ *             Offset
+ *             Column
+ *             NameColumn
+ *
+ * RETURN:     None
+ *
+ * DESCRIPTION: Create a field
+ *
+ *****************************************************************************/
+
+void
+DtCreateField (
+    char                    *Name,
+    char                    *Value,
+    UINT32                  Line,
+    UINT32                  Offset,
+    UINT32                  Column,
+    UINT32                  NameColumn)
+{
+    DT_FIELD                *Field = UtFieldCacheCalloc ();
+
+
+    Field->StringLength = 0;
+    if (Name)
+    {
+        Field->Name =
+            strcpy (UtLocalCacheCalloc (strlen (Name) + 1), Name);
+    }
+
+    if (Value)
+    {
+        Field->StringLength = strlen (Value);
+        Field->Value =
+            strcpy (UtLocalCacheCalloc (Field->StringLength + 1), Value);
+    }
+
+    Field->Line = Line;
+    Field->ByteOffset = Offset;
+    Field->NameColumn = NameColumn;
+    Field->Column = Column;
+    DtLinkField (Field);
+
+    DtDumpFieldList (AslGbl_FieldList);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtGetNextLine
  *
  * PARAMETERS:  Handle              - Open file handle for the source file
@@ -1117,7 +1170,7 @@ DtDumpSubtableInfo (
 {
 
     DbgPrint (ASL_DEBUG_OUTPUT,
-        "[%.04X] %24s %.08X %.08X %.08X %.08X %.08X %p %p %p\n",
+        "[%.04X] %24s %.08X %.08X %.08X %.08X %p %p %p %p\n",
         Subtable->Depth, Subtable->Name, Subtable->Length, Subtable->TotalLength,
         Subtable->SizeOfLengthField, Subtable->Flags, Subtable,
         Subtable->Parent, Subtable->Child, Subtable->Peer);
@@ -1131,7 +1184,7 @@ DtDumpSubtableTree (
 {
 
     DbgPrint (ASL_DEBUG_OUTPUT,
-        "[%.04X] %24s %*s%08X (%.02X) - (%.02X)\n",
+        "[%.04X] %24s %*s%p (%.02X) - (%.02X)\n",
         Subtable->Depth, Subtable->Name, (4 * Subtable->Depth), " ",
         Subtable, Subtable->Length, Subtable->TotalLength);
 }
@@ -1225,7 +1278,7 @@ DtWriteFieldToListing (
     if (strlen (Field->Value) > 64)
     {
         FlPrintFile (ASL_FILE_LISTING_OUTPUT, "...Additional data, length 0x%X\n",
-            strlen (Field->Value));
+            (UINT32) strlen (Field->Value));
     }
 
     FlPrintFile (ASL_FILE_LISTING_OUTPUT, "\n");
