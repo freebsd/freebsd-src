@@ -94,7 +94,8 @@ cloudabi_sys_fd_create1(struct thread *td,
 	case CLOUDABI_FILETYPE_SHARED_MEMORY:
 		cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_FTRUNCATE,
 		    CAP_MMAP_RWX);
-		return (kern_shm_open(td, SHM_ANON, O_RDWR, 0, &fcaps));
+		return (kern_shm_open(td, SHM_ANON, O_RDWR | O_CLOEXEC, 0,
+		    &fcaps));
 	default:
 		return (EINVAL);
 	}
