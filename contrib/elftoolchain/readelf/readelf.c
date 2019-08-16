@@ -7124,13 +7124,13 @@ dump_object(struct readelf *re)
 
 	if ((re->elf = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
 		warnx("elf_begin() failed: %s", elf_errmsg(-1));
-		return;
+		goto done;
 	}
 
 	switch (elf_kind(re->elf)) {
 	case ELF_K_NONE:
 		warnx("Not an ELF file.");
-		return;
+		goto done;
 	case ELF_K_ELF:
 		dump_elf(re);
 		break;
@@ -7139,10 +7139,13 @@ dump_object(struct readelf *re)
 		break;
 	default:
 		warnx("Internal: libelf returned unknown elf kind.");
-		return;
+		goto done;
 	}
 
 	elf_end(re->elf);
+
+done:
+	close(fd);
 }
 
 static void
