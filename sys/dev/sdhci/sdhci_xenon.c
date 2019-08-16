@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include <dev/extres/regulator/regulator.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/mmcreg.h>
 
 #include <dev/sdhci/sdhci.h>
+#include <dev/sdhci/sdhci_fdt_gpio.h>
 #include <dev/sdhci/sdhci_xenon.h>
 
 #include "mmcbr_if.h"
@@ -84,10 +86,12 @@ struct sdhci_xenon_softc {
 	uint32_t	max_clk;	/* Max possible freq */
 	struct resource *irq_res;	/* IRQ resource */
 	void		*intrhand;	/* Interrupt handle */
+	struct sdhci_fdt_gpio *gpio;	/* GPIO pins for CD detection. */
 
 	struct sdhci_slot *slot;	/* SDHCI internal data */
 	struct resource	*mem_res;	/* Memory resource */
 
+	regulator_t	reg_vqmmc;	/* vqmmc-supply regulator */
 	uint8_t		znr;		/* PHY ZNR */
 	uint8_t		zpr;		/* PHY ZPR */
 	bool		no_18v;		/* No 1.8V support */
@@ -186,6 +190,14 @@ sdhci_xenon_get_ro(device_t bus, device_t dev)
 	struct sdhci_xenon_softc *sc = device_get_softc(bus);
 
 	return (sdhci_generic_get_ro(bus, dev) ^ sc->wp_inverted);
+}
+
+static bool
+sdhci_xenon_get_card_present(device_t dev, struct sdhci_slot *slot)
+{
+	struct sdhci_xenon_softc *sc = device_get_softc(dev);
+
+	return (sdhci_fdt_gpio_get_present(sc->gpio));
 }
 
 static int
@@ -337,6 +349,25 @@ sdhci_xenon_update_ios(device_t brdev, device_t reqdev)
 	slot = device_get_ivars(reqdev);
  	ios = &slot->host.ios;
 
+	switch (ios->power_mode) {
+	case power_on:
+		break;
+	case power_off:
+		if (bootverbose)
+			device_printf(sc->dev, "Powering down sd/mmc\n");
+
+		if (sc->reg_vqmmc)
+			regulator_disable(sc->reg_vqmmc);
+		break;
+	case power_up:
+		if (bootverbose)
+			device_printf(sc->dev, "Powering up sd/mmc\n");
+
+		if (sc->reg_vqmmc)
+			regulator_enable(sc->reg_vqmmc);
+		break;
+	};
+
 	/* Update the PHY settings. */
 	if (ios->clock != 0)
 		sdhci_xenon_phy_set(brdev, ios);
@@ -346,6 +377,42 @@ sdhci_xenon_update_ios(device_t brdev, device_t reqdev)
 		reg = bus_read_4(sc->mem_res, XENON_SYS_OP_CTRL);
 		reg |= 1 << (XENON_SDCLK_IDLEOFF_ENABLE_SHIFT + sc->slot_id);
 		bus_write_4(sc->mem_res, XENON_SYS_OP_CTRL, reg);
+	}
+
+	return (0);
+}
+
+static int
+sdhci_xenon_switch_vccq(device_t brdev, device_t reqdev)
+{
+	struct sdhci_xenon_softc *sc;
+	struct sdhci_slot *slot;
+	int uvolt, err;
+
+	sc = device_get_softc(brdev);
+
+        if (sc->reg_vqmmc == NULL)
+		return EOPNOTSUPP;
+
+	slot = device_get_ivars(reqdev);
+	switch (slot->host.ios.vccq) {
+	case vccq_180:
+		uvolt = 1800000;
+		break;
+	case vccq_330:
+		uvolt = 3300000;
+		break;
+	default:
+		return EINVAL;
+	}
+
+	err = regulator_set_voltage(sc->reg_vqmmc, uvolt, uvolt);
+	if (err != 0) {
+		device_printf(sc->dev,
+		    "Cannot set vqmmc to %d<->%d\n",
+		    uvolt,
+		    uvolt);
+		return (err);
 	}
 
 	return (0);
@@ -389,6 +456,11 @@ sdhci_xenon_probe(device_t dev)
 	if ((OF_getencprop(sc->node, "marvell,xenon-phy-zpr", &cid,
 	    sizeof(cid))) > 0)
 		sc->zpr = cid & XENON_ZPR_MASK;
+	if (regulator_get_by_ofw_property(dev, 0, "vqmmc-supply",
+	    &sc->reg_vqmmc) == 0 && bootverbose) {
+		if (bootverbose)
+			device_printf(dev, "vqmmc-supply regulator found\n");
+	}
 
 	return (0);
 }
@@ -436,6 +508,12 @@ sdhci_xenon_attach(device_t dev)
 	slot->caps = sc->caps;
 	slot->max_clk = sc->max_clk;
 	sc->slot = slot;
+
+	/*
+	 * Set up any gpio pin handling described in the FDT data. This cannot
+	 * fail; see comments in sdhci_fdt_gpio.h for details.
+	 */
+	sc->gpio = sdhci_fdt_gpio_setup(dev, slot);
 
 	if (sdhci_init_slot(dev, sc->slot, 0))
 		goto fail;
@@ -497,6 +575,9 @@ sdhci_xenon_detach(device_t dev)
 {
 	struct sdhci_xenon_softc *sc = device_get_softc(dev);
 
+	if (sc->gpio != NULL)
+		sdhci_fdt_gpio_teardown(sc->gpio);
+
 	bus_generic_detach(dev);
 	bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq_res),
@@ -526,6 +607,7 @@ static device_method_t sdhci_xenon_methods[] = {
 	DEVMETHOD(mmcbr_get_ro,		sdhci_xenon_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
 	DEVMETHOD(mmcbr_release_host,	sdhci_generic_release_host),
+	DEVMETHOD(mmcbr_switch_vccq,	sdhci_xenon_switch_vccq),
 
 	/* SDHCI registers accessors */
 	DEVMETHOD(sdhci_read_1,		sdhci_xenon_read_1),
@@ -536,6 +618,7 @@ static device_method_t sdhci_xenon_methods[] = {
 	DEVMETHOD(sdhci_write_2,	sdhci_xenon_write_2),
 	DEVMETHOD(sdhci_write_4,	sdhci_xenon_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	sdhci_xenon_write_multi_4),
+	DEVMETHOD(sdhci_get_card_present,	sdhci_xenon_get_card_present),
 
 	DEVMETHOD_END
 };
