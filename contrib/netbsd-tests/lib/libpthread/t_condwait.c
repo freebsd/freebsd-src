@@ -1,4 +1,4 @@
-/* $NetBSD: t_condwait.c,v 1.5 2017/01/16 16:29:19 christos Exp $ */
+/* $NetBSD: t_condwait.c,v 1.8 2019/08/11 11:42:23 martin Exp $ */
 
 /*
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_condwait.c,v 1.5 2017/01/16 16:29:19 christos Exp $");
+__RCSID("$NetBSD: t_condwait.c,v 1.8 2019/08/11 11:42:23 martin Exp $");
 
 #include <sys/time.h>
 #include <errno.h>
@@ -50,10 +50,7 @@ static const int debug = 1;
 static void *
 run(void *param)
 {
-	struct timespec ts, to, te;
-#ifdef __FreeBSD__
-	struct timespec tw;
-#endif
+	struct timespec ts, to, te, twmin, twmax;
 	clockid_t clck;
 	pthread_condattr_t attr;
 	pthread_cond_t cond;
@@ -88,22 +85,23 @@ run(void *param)
 			printf("elapsed: %lld.%09ld sec\n",
 			    (long long)to.tv_sec, to.tv_nsec);
 		}
+		twmin.tv_sec = WAITTIME;
+		twmin.tv_nsec = 0;
 		if (isQEMU()) {
-			double to_seconds = to.tv_sec + 1e-9 * to.tv_nsec;
-			ATF_REQUIRE(to_seconds >= WAITTIME * 0.9);
-			/* Loose upper limit because of qemu timing bugs */
-			ATF_REQUIRE(to_seconds < WAITTIME * 2.5);
+			struct timespec td, t;
+			// td.tv_sec = 0;
+			// td.tv_nsec = 900000000;
+			t = twmin;
+			// timespecsub(&t, &td, &twmin);
+			td.tv_sec = 2;
+			td.tv_nsec = 500000000;
+			timespecadd(&t, &td, &twmax);
 		} else {
-#ifdef __FreeBSD__
-			tw.tv_sec = WAITTIME;
-			tw.tv_nsec = 0;
-			ATF_REQUIRE(timespeccmp(&to, &tw, >=));
-			tw.tv_sec++;
-			ATF_REQUIRE(timespeccmp(&to, &tw, <=));
-#else
-			ATF_REQUIRE_EQ(to.tv_sec, WAITTIME);
-#endif
+			twmax = twmin;
+			twmax.tv_sec++;
 		}
+		ATF_REQUIRE(timespeccmp(&to, &twmin, >=));
+		ATF_REQUIRE(timespeccmp(&to, &twmax, <=));
 		break;
 	default:
 		ATF_REQUIRE_MSG(0, "pthread_cond_timedwait: %s", strerror(ret));
@@ -152,5 +150,5 @@ ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, cond_wait_real);
 	ATF_TP_ADD_TC(tp, cond_wait_mono);
-	return 0;
+	return atf_no_error();
 }
