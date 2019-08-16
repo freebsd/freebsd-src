@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 #include <vm/pmap.h>
 #include <machine/dump.h>
 #include <machine/elf.h>

@@ -48,7 +48,7 @@
 #ifndef _MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
-#include <machine/vmparam.h>
+#include <vm/vm_param.h>
 #include <machine/pte.h>
 
 #if defined(__mips_n32) || defined(__mips_n64) /* PHYSADDR_64BIT */
@@ -157,14 +157,10 @@ struct pv_chunk {
  * so we can describe up to (PHYS_AVAIL_ENTRIES / 2) distinct memory
  * regions.
  */
-#define	PHYS_AVAIL_ENTRIES	10
-extern vm_paddr_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
-extern vm_paddr_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+extern vm_paddr_t physmem_desc[PHYS_AVAIL_COUNT];
 
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
-
-extern vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 
 #define	pmap_page_get_memattr(m) (((m)->md.pv_flags & PV_MEMATTR_MASK) >> PV_MEMATTR_SHIFT)
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))

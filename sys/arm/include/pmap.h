@@ -41,9 +41,6 @@
 #ifdef _KERNEL
 #include <sys/systm.h>
 
-extern vm_paddr_t dump_avail[];
-extern vm_paddr_t phys_avail[];
-
 extern char *_tmppt;	/* poor name! */
 
 extern vm_offset_t virtual_avail;

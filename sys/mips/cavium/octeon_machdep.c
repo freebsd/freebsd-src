@@ -56,8 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 
 #include <machine/atomic.h>
 #include <machine/cache.h>
@@ -73,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcpu.h>
 #include <machine/pte.h>
 #include <machine/trap.h>
-#include <machine/vmparam.h>
 
 #include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-bootmem.h>
