@@ -732,7 +732,14 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 	fdp = td->td_proc->p_fd;
 	cmode = (mode & ~fdp->fd_cmask) & ACCESSPERMS;
 
-	error = falloc_caps(td, &fp, &fd, O_CLOEXEC, fcaps);
+	/*
+	 * shm_open(2) created shm should always have O_CLOEXEC set, as mandated
+	 * by POSIX.  We allow it to be unset here so that an in-kernel
+	 * interface may be written as a thin layer around shm, optionally not
+	 * setting CLOEXEC.  For shm_open(2), O_CLOEXEC is set unconditionally
+	 * in sys_shm_open() to keep this implementation compliant.
+	 */
+	error = falloc_caps(td, &fp, &fd, flags & O_CLOEXEC, fcaps);
 	if (error)
 		return (error);
 
@@ -847,7 +854,8 @@ int
 sys_shm_open(struct thread *td, struct shm_open_args *uap)
 {
 
-	return (kern_shm_open(td, uap->path, uap->flags, uap->mode, NULL));
+	return (kern_shm_open(td, uap->path, uap->flags | O_CLOEXEC, uap->mode,
+	    NULL));
 }
 
 int
