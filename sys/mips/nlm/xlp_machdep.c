@@ -56,7 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>

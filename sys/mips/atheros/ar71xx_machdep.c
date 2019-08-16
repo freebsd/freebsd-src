@@ -45,7 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 
 #include <net/ethernet.h>
 
@@ -55,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
 #include <machine/trap.h>
-#include <machine/vmparam.h>
 
 #include <mips/atheros/ar71xxreg.h>
 

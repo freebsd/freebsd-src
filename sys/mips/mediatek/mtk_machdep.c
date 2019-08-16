@@ -54,8 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 
 #include <machine/cache.h>
 #include <machine/clock.h>
@@ -70,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pte.h>
 #include <machine/sigframe.h>
 #include <machine/trap.h>
-#include <machine/vmparam.h>
 
 #include <mips/mediatek/mtk_sysctl.h>
 #include <mips/mediatek/mtk_soc.h>

@@ -102,11 +102,10 @@ __FBSDID("$FreeBSD$");
 /*
  * Map of physical memory reagions
  */
-vm_paddr_t phys_avail[128];
-static struct ofw_mem_region mra[128];
-struct ofw_mem_region sparc64_memreg[128];
+static struct ofw_mem_region mra[VM_PHYSSEG_MAX];
+struct ofw_mem_region sparc64_memreg[VM_PHYSSEG_MAX];
 int sparc64_nmemreg;
-static struct ofw_map translations[128];
+static struct ofw_map translations[VM_PHYSSEG_MAX];
 static int translations_size;
 
 static vm_offset_t pmap_idle_map;
@@ -331,7 +330,7 @@ pmap_bootstrap(u_int cpu_impl)
 		OF_panic("%s: finddevice /memory", __func__);
 	if ((sz = OF_getproplen(pmem, "available")) == -1)
 		OF_panic("%s: getproplen /memory/available", __func__);
-	if (sizeof(phys_avail) < sz)
+	if (PHYS_AVAIL_ENTRIES < sz)
 		OF_panic("%s: phys_avail too small", __func__);
 	if (sizeof(mra) < sz)
 		OF_panic("%s: mra too small", __func__);

@@ -126,6 +126,11 @@ struct xswdev {
 #define KSTACK_MAX_PAGES 32
 #endif
 
+#ifndef	PHYS_AVAIL_ENTRIES
+#define PHYS_AVAIL_ENTRIES      (VM_PHYSSEG_MAX * 2)
+#endif
+#define PHYS_AVAIL_COUNT        (PHYS_AVAIL_ENTRIES + 2)
+
 #ifndef ASSEMBLER
 #ifdef _KERNEL
 #define num_pages(x) \

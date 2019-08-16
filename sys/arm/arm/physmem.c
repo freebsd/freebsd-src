@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 #include <machine/md_var.h>
 #include <arm/include/physmem.h>
 
@@ -76,32 +79,6 @@ static struct region exregions[MAX_EXCNT];
 
 static size_t hwcnt;
 static size_t excnt;
-
-/*
- * These "avail lists" are globals used to communicate physical memory layout to
- * other parts of the kernel.  Within the arrays, each value is the starting
- * address of a contiguous area of physical address space.  The values at even
- * indexes are areas that contain usable memory and the values at odd indexes
- * are areas that aren't usable.  Each list is terminated by a pair of zero
- * entries.
- *
- * dump_avail tells the dump code what regions to include in a crash dump, and
- * phys_avail is the way we hand all the remaining physical ram we haven't used
- * in early kernel init over to the vm system for allocation management.
- *
- * We size these arrays to hold twice as many available regions as we allow for
- * hardware memory regions, to allow for the fact that exclusions can split a
- * hardware region into two or more available regions.  In the real world there
- * will typically be one or two hardware regions and two or three exclusions.
- *
- * Each available region in this list occupies two array slots (the start of the
- * available region and the start of the unavailable region that follows it).
- */
-#define	MAX_AVAIL_REGIONS	(MAX_HWCNT * 2)
-#define	MAX_AVAIL_ENTRIES	(MAX_AVAIL_REGIONS * 2)
-
-vm_paddr_t phys_avail[MAX_AVAIL_ENTRIES + 2]; /* +2 to allow for a pair  */
-vm_paddr_t dump_avail[MAX_AVAIL_ENTRIES + 2]; /* of zeroes to terminate. */
 
 /*
  * realmem is the total number of hardware pages, excluded or not.
@@ -405,10 +382,10 @@ arm_physmem_init_kernel_globals(void)
 {
 	size_t nextidx;
 
-	regions_to_avail(dump_avail, EXFLAG_NODUMP, MAX_AVAIL_ENTRIES, NULL,
+	regions_to_avail(dump_avail, EXFLAG_NODUMP, PHYS_AVAIL_ENTRIES, NULL,
 	    NULL);
 	nextidx = regions_to_avail(phys_avail, EXFLAG_NOALLOC,
-	    MAX_AVAIL_ENTRIES, &physmem, &realmem);
+	    PHYS_AVAIL_ENTRIES, &physmem, &realmem);
 	if (nextidx == 0)
 		panic("No memory entries in phys_avail");
 	Maxmem = atop(phys_avail[nextidx - 1]);

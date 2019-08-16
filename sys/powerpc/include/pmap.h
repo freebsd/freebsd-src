@@ -75,6 +75,7 @@
 #include <machine/pte.h>
 #include <machine/slb.h>
 #include <machine/tlb.h>
+#include <machine/vmparam.h>
 
 struct pmap;
 typedef struct pmap *pmap_t;
@@ -268,12 +269,6 @@ boolean_t	pmap_mmu_install(char *name, int prio);
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
-#define PHYS_AVAIL_SZ	256	/* Allows up to 16GB Ram on pSeries with
-				 * logical memory block size of 64MB.
-				 * For more Ram increase the lmb or this value.
-				 */
-
-extern	vm_paddr_t phys_avail[PHYS_AVAIL_SZ];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
 

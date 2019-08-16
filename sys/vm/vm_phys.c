@@ -111,6 +111,24 @@ static struct vm_freelist __aligned(CACHE_LINE_SIZE)
 static int __read_mostly vm_nfreelists;
 
 /*
+ * These "avail lists" are globals used to communicate boot-time physical
+ * memory layout to other parts of the kernel.  Each physically contiguous
+ * region of memory is defined by a start address at an even index and an
+ * end address at the following odd index.  Each list is terminated by a
+ * pair of zero entries.
+ *
+ * dump_avail tells the dump code what regions to include in a crash dump, and
+ * phys_avail is all of the remaining physical memory that is available for
+ * the vm system.
+ *
+ * Initially dump_avail and phys_avail are identical.  Boot time memory
+ * allocations remove extents from phys_avail that may still be included
+ * in dumps.
+ */
+vm_paddr_t phys_avail[PHYS_AVAIL_COUNT];
+vm_paddr_t dump_avail[PHYS_AVAIL_COUNT];
+
+/*
  * Provides the mapping from VM_FREELIST_* to free list indices (flind).
  */
 static int __read_mostly vm_freelist_to_flind[VM_NFREELIST];
