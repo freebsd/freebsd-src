@@ -2246,9 +2246,7 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	struct mount *mp = vnode_mount(vp);
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
-	size_t len;
 	char *prefix;
-	char *attr_str;
 	char *bsd_list = NULL;
 	char *linux_list;
 	int bsd_list_len;
@@ -2274,9 +2272,7 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	else
 		prefix = EXTATTR_NAMESPACE_USER_STRING;
 
-	len = strlen(prefix) + sizeof(extattr_namespace_separator) + 1;
-
-	fdisp_init(&fdi, sizeof(*list_xattr_in) + len);
+	fdisp_init(&fdi, sizeof(*list_xattr_in));
 	fdisp_make_vp(&fdi, FUSE_LISTXATTR, vp, td, cred);
 
 	/*
@@ -2284,8 +2280,6 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	 */
 	list_xattr_in = fdi.indata;
 	list_xattr_in->size = 0;
-	attr_str = (char *)fdi.indata + sizeof(*list_xattr_in);
-	snprintf(attr_str, len, "%s%c", prefix, extattr_namespace_separator);
 
 	err = fdisp_wait_answ(&fdi);
 	if (err != 0) {
@@ -2310,8 +2304,6 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	fdisp_refresh_vp(&fdi, FUSE_LISTXATTR, vp, td, cred);
 	list_xattr_in = fdi.indata;
 	list_xattr_in->size = linux_list_len + sizeof(*list_xattr_out);
-	attr_str = (char *)fdi.indata + sizeof(*list_xattr_in);
-	snprintf(attr_str, len, "%s%c", prefix, extattr_namespace_separator);
 
 	err = fdisp_wait_answ(&fdi);
 	if (err != 0)
