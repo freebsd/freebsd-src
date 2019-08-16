@@ -154,7 +154,15 @@ struct pmap_physseg {
 };
 #endif
 
-#define	VM_PHYSSEG_MAX		16	/* 1? */
+#define	VM_PHYSSEG_MAX		16
+
+#define	PHYS_AVAIL_SZ	256	/* Allows up to 16GB Ram on pSeries with
+				 * logical memory block size of 64MB.
+				 * For more Ram increase the lmb or this value.
+				 */
+
+/* XXX This is non-sensical.  Phys avail should hold contiguous regions. */
+#define	PHYS_AVAIL_ENTRIES	PHYS_AVAIL_SZ
 
 /*
  * The physical address space is densely populated on 32-bit systems,

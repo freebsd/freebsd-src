@@ -46,6 +46,9 @@
 #define	VM_NFREEORDER_MAX	VM_NFREEORDER
 #endif
 
+extern vm_paddr_t phys_avail[];
+extern vm_paddr_t dump_avail[];
+
 /* Domains must be dense (non-sparse) and zero-based. */
 struct mem_affinity {
 	vm_paddr_t start;
