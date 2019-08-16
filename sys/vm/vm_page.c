@@ -3032,7 +3032,7 @@ vm_domain_alloc_fail(struct vm_domain *vmd, vm_object_t object, int req)
  *	  this balance without careful testing first.
  */
 void
-vm_waitpfault(struct domainset *dset)
+vm_waitpfault(struct domainset *dset, int timo)
 {
 
 	/*
@@ -3044,7 +3044,7 @@ vm_waitpfault(struct domainset *dset)
 	if (vm_page_count_min_set(&dset->ds_mask)) {
 		vm_min_waiters++;
 		msleep(&vm_min_domains, &vm_domainset_lock, PUSER | PDROP,
-		    "pfault", 0);
+		    "pfault", timo);
 	} else
 		mtx_unlock(&vm_domainset_lock);
 }
