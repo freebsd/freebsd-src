@@ -443,8 +443,8 @@ AdGetLocalTables (
     /* Get the DSDT via table override */
 
     ACPI_MOVE_32_TO_32 (TableHeader.Signature, ACPI_SIG_DSDT);
-    AcpiOsTableOverride (&TableHeader, &NewTable);
-    if (!NewTable)
+    Status = AcpiOsTableOverride (&TableHeader, &NewTable);
+    if (ACPI_FAILURE (Status) || !NewTable)
     {
         fprintf (stderr, "Could not obtain DSDT\n");
         return (AE_NO_ACPI_TABLES);

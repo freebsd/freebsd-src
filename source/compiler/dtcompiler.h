@@ -194,7 +194,7 @@ typedef struct dt_field
 {
     char                    *Name;       /* Field name (from name : value) */
     char                    *Value;      /* Field value (from name : value) */
-    UINT32                  StringLength;/* Length of Value */
+    UINT32                  StringLength; /* Length of Value */
     struct dt_field         *Next;       /* Next field */
     struct dt_field         *NextLabel;  /* If field is a label, next label */
     UINT32                  Line;        /* Line number for this field */
@@ -256,6 +256,10 @@ DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*AslGbl_LabelList, NULL);
 
 DT_EXTERN UINT32            DT_INIT_GLOBAL (AslGbl_CurrentTableOffset, 0);
 
+/* Data table compiler Flex/Bison prototype */
+
+DT_EXTERN BOOLEAN           DT_INIT_GLOBAL (AslGbl_DtLexBisonPrototype, FALSE);
+
 /* Local caches */
 
 DT_EXTERN UINT32            DT_INIT_GLOBAL (AslGbl_SubtableCount, 0);
@@ -288,6 +292,14 @@ DtCompilePadding (
     UINT32                  Length,
     DT_SUBTABLE             **RetSubtable);
 
+void
+DtCreateField (
+    char                    *Name,
+    char                    *Value,
+    UINT32                  Line,
+    UINT32                  Offset,
+    UINT32                  Column,
+    UINT32                  NameColumn);
 
 /* dtio - binary and text input/output */
 
@@ -427,9 +439,22 @@ DtCompileFlag (
 
 /* dtparser - lex/yacc files */
 
+UINT64                      DtCompilerParserResult; /* Expression return value */
+int
+DtCompilerParserparse (
+    void);
+
 UINT64
 DtEvaluateExpression (
     char                    *ExprString);
+
+void
+DtCompilerInitLexer (
+    FILE                    *inFile);
+
+void
+DtCompilerTerminateLexer (
+    void);
 
 int
 DtInitLexer (

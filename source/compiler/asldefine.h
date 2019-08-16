@@ -290,7 +290,7 @@
 
 #define ASL_PARSE_TREE_DEBUG2 \
     " %08X %04X %04X %01X     %04X  %04X %05X  %05X   "\
-    "%08X %08X %08X %08X %08X %08X %04X  %02d  %5d %5d %5d %5d"
+    "%8p %8p %8p %8p %08X %08X %04X  %02d  %5d %5d %5d %5d"
 
 /*
  * Macros for ASL/ASL+ converter
