@@ -132,9 +132,6 @@ __FBSDID("$FreeBSD$");
 #define	LI_EXCLUSIVE	0x00010000	/* Exclusive lock instance. */
 #define	LI_NORELEASE	0x00020000	/* Lock not allowed to be released. */
 
-/* Define this to check for blessed mutexes */
-#undef BLESSING
-
 #ifndef WITNESS_COUNT
 #define	WITNESS_COUNT 		1536
 #endif
@@ -278,12 +275,10 @@ struct witness_lock_order_hash {
 	u_int	wloh_count;
 };
 
-#ifdef BLESSING
 struct witness_blessed {
 	const char	*b_lock1;
 	const char	*b_lock2;
 };
-#endif
 
 struct witness_pendhelp {
 	const char		*wh_type;
@@ -318,9 +313,7 @@ witness_lock_order_key_equal(const struct witness_lock_order_key *a,
 static int	_isitmyx(struct witness *w1, struct witness *w2, int rmask,
 		    const char *fname);
 static void	adopt(struct witness *parent, struct witness *child);
-#ifdef BLESSING
 static int	blessed(struct witness *, struct witness *);
-#endif
 static void	depart(struct witness *w);
 static struct witness	*enroll(const char *description,
 			    struct lock_class *lock_class);
@@ -727,14 +720,25 @@ static struct witness_order_list_entry order_lists[] = {
 	{ NULL, NULL }
 };
 
-#ifdef BLESSING
 /*
- * Pairs of locks which have been blessed
- * Don't complain about order problems with blessed locks
+ * Pairs of locks which have been blessed.  Witness does not complain about
+ * order problems with blessed lock pairs.  Please do not add an entry to the
+ * table without an explanatory comment.
  */
 static struct witness_blessed blessed_list[] = {
+	/*
+	 * See the comment in ufs_dirhash.c.  Basically, a vnode lock serializes
+	 * both lock orders, so a deadlock cannot happen as a result of this
+	 * LOR.
+	 */
+	{ "dirhash",	"bufwait" },
+
+	/*
+	 * A UFS vnode may be locked in vget() while a buffer belonging to the
+	 * parent directory vnode is locked.
+	 */
+	{ "ufs",	"bufwait" },
 };
-#endif
 
 /*
  * This global is set to 0 once it becomes safe to use the witness code.
@@ -1340,16 +1344,6 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			 * We have a lock order violation, check to see if it
 			 * is allowed or has already been yelled about.
 			 */
-#ifdef BLESSING
-
-			/*
-			 * If the lock order is blessed, just bail.  We don't
-			 * look for other lock order violations though, which
-			 * may be a bug.
-			 */
-			if (blessed(w, w1))
-				goto out;
-#endif
 
 			/* Bail if this violation is known */
 			if (w_rmatrix[w1->w_index][w->w_index] & WITNESS_REVERSAL)
@@ -1360,6 +1354,14 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			w_rmatrix[w->w_index][w1->w_index] |= WITNESS_REVERSAL;
 			w->w_reversed = w1->w_reversed = 1;
 			witness_increment_graph_generation();
+
+			/*
+			 * If the lock order is blessed, bail before logging
+			 * anything.  We don't look for other lock order
+			 * violations though, which may be a bug.
+			 */
+			if (blessed(w, w1))
+				goto out;
 			mtx_unlock_spin(&w_mtx);
 
 #ifdef WITNESS_NO_VNODE
@@ -2085,7 +2087,6 @@ isitmydescendant(struct witness *ancestor, struct witness *descendant)
 	    __func__));
 }
 
-#ifdef BLESSING
 static int
 blessed(struct witness *w1, struct witness *w2)
 {
@@ -2105,7 +2106,6 @@ blessed(struct witness *w1, struct witness *w2)
 	}
 	return (0);
 }
-#endif
 
 static struct witness *
 witness_get(void)
@@ -2651,6 +2651,9 @@ restart:
 				    &tmp_data2->wlod_stack);
 			}
 			mtx_unlock_spin(&w_mtx);
+
+			if (blessed(tmp_w1, tmp_w2))
+				continue;
 
 			sbuf_printf(sb,
 	    "\nLock order reversal between \"%s\"(%s) and \"%s\"(%s)!\n",
