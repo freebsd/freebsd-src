@@ -295,7 +295,6 @@ static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
 
-static int pmap_change_attr(vm_offset_t va, vm_size_t size, int mode);
 static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode);
 static pt_entry_t *pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va);
 static pt_entry_t *pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2,
@@ -5263,7 +5262,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
  * latter case, the memory type may have been changed on some part of the
  * virtual address range or the direct map.
  */
-static int
+int
 pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 {
 	int error;
