@@ -836,11 +836,13 @@ oce_fast_isr(void *arg)
 static int
 oce_alloc_intr(POCE_SOFTC sc, int vector, void (*isr) (void *arg, int pending))
 {
-	POCE_INTR_INFO ii = &sc->intrs[vector];
+	POCE_INTR_INFO ii;
 	int rc = 0, rr;
 
 	if (vector >= OCE_MAX_EQ)
 		return (EINVAL);
+
+	ii = &sc->intrs[vector];
 
 	/* Set the resource id for the interrupt.
 	 * MSIx is vector + 1 for the resource id,
