@@ -37,7 +37,7 @@ firewall_config()
 	shift
 
 	while [ $# -gt 0 ]; do
-		if [ $(is_firewall $fw) -eq  1 ]; then
+		if [ $(is_firewall "$1") -eq  1 ]; then
 			current_fw="$1"
 			shift
 			filename=${current_fw}.rule
@@ -94,13 +94,23 @@ firewall_init()
 			atf_skip "This test requires ipf"
 		fi
 	elif [ ${firewall} == "ipfnat" ]; then
-		if ! kldstat -q -m ipfw_nat; then
-			atf_skip "This test requires ipfw_nat"
+		if ! kldstat -q -m ipfilter; then
+			atf_skip "This test requires ipf"
 		fi
 	else
 		atf_fail "$fw is not a valid firewall to initialize"
 	fi
 
+}
+
+nat_init()
+{
+	firewall=$1
+	if [ ${firewall} == "ipfw" ]; then
+		if ! kldstat -q -m ipfw_nat; then
+			atf_skip "This test requires ipfw_nat"
+		fi
+	fi
 }
 
 is_firewall()
