@@ -800,9 +800,10 @@ fork1(struct thread *td, struct fork_req *fr)
 	struct proc *p1, *newproc;
 	struct thread *td2;
 	struct vmspace *vm2;
+	struct ucred *cred;
 	struct file *fp_procdesc;
 	vm_ooffset_t mem_charged;
-	int error, nprocs_new, ok;
+	int error, nprocs_new;
 	static int curfail;
 	static struct timeval lastfail;
 	int flags, pages;
@@ -973,21 +974,17 @@ fork1(struct thread *td, struct fork_req *fr)
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
 	 * a nonprivileged user to exceed their current limit.
-	 *
-	 * XXXRW: Can we avoid privilege here if it's not needed?
 	 */
-	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT);
-	if (error == 0)
-		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
-	else {
-		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
-		    lim_cur(td, RLIMIT_NPROC));
-	}
-	if (ok) {
-		do_fork(td, fr, newproc, td2, vm2, fp_procdesc);
-		return (0);
+	cred = td->td_ucred;
+	if (!chgproccnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_NPROC))) {
+		if (priv_check_cred(cred, PRIV_PROC_LIMIT) != 0)
+			goto fail0;
+		chgproccnt(cred->cr_ruidinfo, 1, 0);
 	}
 
+	do_fork(td, fr, newproc, td2, vm2, fp_procdesc);
+	return (0);
+fail0:
 	error = EAGAIN;
 	sx_xunlock(&allproc_lock);
 #ifdef MAC
