@@ -99,6 +99,8 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
+#include "utils.h"
+
 #define	INADDR_LEN	((int)sizeof(in_addr_t))
 #define	TIMEVAL_LEN	((int)sizeof(struct tv32))
 #define	MASK_LEN	(ICMP_MASKLEN - ICMP_MINLEN)
@@ -209,7 +211,6 @@ static volatile sig_atomic_t siginfo_p;
 static cap_channel_t *capdns;
 
 static void fill(char *, char *);
-static u_short in_cksum(u_char *, int);
 static cap_channel_t *capdns_setup(void);
 static void check_status(void);
 static void finish(void) __dead2;
@@ -1341,53 +1342,6 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timespec *tv)
 		(void)putchar('\n');
 		(void)fflush(stdout);
 	}
-}
-
-/*
- * in_cksum --
- *	Checksum routine for Internet Protocol family headers (C Version)
- */
-u_short
-in_cksum(u_char *addr, int len)
-{
-	int nleft, sum;
-	u_char *w;
-	union {
-		u_short	us;
-		u_char	uc[2];
-	} last;
-	u_short answer;
-
-	nleft = len;
-	sum = 0;
-	w = addr;
-
-	/*
-	 * Our algorithm is simple, using a 32 bit accumulator (sum), we add
-	 * sequential 16 bit words to it, and at the end, fold back all the
-	 * carry bits from the top 16 bits into the lower 16 bits.
-	 */
-	while (nleft > 1)  {
-		u_short data;
-
-		memcpy(&data, w, sizeof(data));
-		sum += data;
-		w += sizeof(data);
-		nleft -= sizeof(data);
-	}
-
-	/* mop up an odd byte, if necessary */
-	if (nleft == 1) {
-		last.uc[0] = *w;
-		last.uc[1] = 0;
-		sum += last.us;
-	}
-
-	/* add back carry outs from top 16 bits to low 16 bits */
-	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
-	sum += (sum >> 16);			/* add carry */
-	answer = ~sum;				/* truncate to 16 bits */
-	return(answer);
 }
 
 /*
