@@ -178,6 +178,8 @@ out:
 #ifndef EFI_STAGING_SIZE
 #if defined(__amd64__)
 #define	EFI_STAGING_SIZE	100
+#elif defined(__arm__)
+#define	EFI_STAGING_SIZE	32
 #else
 #define	EFI_STAGING_SIZE	64
 #endif
