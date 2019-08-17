@@ -481,8 +481,9 @@ sdp_process_rx_wc(struct sdp_sock *ssk, struct ib_wc *wc)
 	if (unlikely(wc->status)) {
 		if (ssk->qp_active && sk) {
 			sdp_dbg(sk, "Recv completion with error. "
-					"Status %d, vendor: %d\n",
-				wc->status, wc->vendor_err);
+			    "Status %s (%d), vendor: %d\n",
+			    ib_wc_status_msg(wc->status), wc->status,
+			    wc->vendor_err);
 			sdp_abort(sk);
 			ssk->qp_active = 0;
 		}
