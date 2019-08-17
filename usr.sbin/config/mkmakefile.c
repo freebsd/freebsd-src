@@ -639,17 +639,16 @@ do_before_depend(FILE *fp)
 	lpos = 15;
 	STAILQ_FOREACH(tp, &ftab, f_next)
 		if (tp->f_flags & BEFORE_DEPEND) {
-			len = strlen(tp->f_fn);
-			if ((len = 3 + len) + lpos > 72) {
+			len = strlen(tp->f_fn) + strlen(tp->f_srcprefix);
+			if (len + lpos > 72) {
 				lpos = 8;
 				fputs("\\\n\t", fp);
 			}
 			if (tp->f_flags & NO_IMPLCT_RULE)
-				fprintf(fp, "%s ", tp->f_fn);
+				lpos += fprintf(fp, "%s ", tp->f_fn);
 			else
-				fprintf(fp, "%s%s ", tp->f_srcprefix,
+				lpos += fprintf(fp, "%s%s ", tp->f_srcprefix,
 				    tp->f_fn);
-			lpos += len + 1;
 		}
 	if (lpos != 8)
 		putc('\n', fp);
@@ -709,12 +708,11 @@ do_xxfiles(char *tag, FILE *fp)
 				continue;
 			if (strcasecmp(&tp->f_fn[len - slen], suff) != 0)
 				continue;
-			if ((len = 3 + len) + lpos > 72) {
+			if (len + strlen(tp->f_srcprefix) + lpos > 72) {
 				lpos = 8;
 				fputs("\\\n\t", fp);
 			}
-			fprintf(fp, "%s%s ", tp->f_srcprefix, tp->f_fn);
-			lpos += len + 1;
+			lpos += fprintf(fp, "%s%s ", tp->f_srcprefix, tp->f_fn);
 		}
 	free(suff);
 	if (lpos != 8)
