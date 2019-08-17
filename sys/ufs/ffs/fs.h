@@ -408,22 +408,27 @@ CTASSERT(sizeof(struct fs) == 1376);
  * The FS_UNCLEAN flag is set by the kernel when the filesystem was
  * mounted with fs_clean set to zero. The FS_DOSOFTDEP flag indicates
  * that the filesystem should be managed by the soft updates code.
- * Note that the FS_NEEDSFSCK flag is set and cleared only by the
- * fsck utility. It is set when background fsck finds an unexpected
+ * Note that the FS_NEEDSFSCK flag is set and cleared by the fsck
+ * utility. It is set when background fsck finds an unexpected
  * inconsistency which requires a traditional foreground fsck to be
  * run. Such inconsistencies should only be found after an uncorrectable
- * disk error. A foreground fsck will clear the FS_NEEDSFSCK flag when
- * it has successfully cleaned up the filesystem. The kernel uses this
+ * disk error. The FS_NEEDSFSCK can also be set when a mounted filesystem
+ * discovers an internal inconsistency such as freeing a freed inode.
+ * A foreground fsck will clear the FS_NEEDSFSCK flag when it has
+ * successfully cleaned up the filesystem. The kernel uses this
  * flag to enforce that inconsistent filesystems be mounted read-only.
- * The FS_INDEXDIRS flag when set indicates that the kernel maintains
- * on-disk auxiliary indexes (such as B-trees) for speeding directory
- * accesses. Kernels that do not support auxiliary indices clear the
- * flag to indicate that the indices need to be rebuilt (by fsck) before
- * they can be used. When a filesystem is mounted, any flags not
- * included in FS_SUPPORTED are cleared. This lets newer features
- * know that the filesystem has been run on an older version of the
- * filesystem and thus that data structures associated with those
- * features are out-of-date and need to be rebuilt.
+ *
+ * The FS_METACKHASH flag when set indicates that the kernel maintains
+ * one or more check hashes. The actual set of supported check hashes
+ * is stored in the fs_metackhash field. Kernels that do not support
+ * check hashes clear the FS_METACKHASH flag to indicate that the
+ * check hashes need to be rebuilt (by fsck) before they can be used.
+ *
+ * When a filesystem is mounted, any flags not included in FS_SUPPORTED
+ * are cleared. This lets newer features know that the filesystem has
+ * been run on an older version of the filesystem and thus that data
+ * structures associated with those features are out-of-date and need
+ * to be rebuilt.
  *
  * FS_ACLS indicates that POSIX.1e ACLs are administratively enabled
  * for the file system, so they should be loaded from extended attributes,
