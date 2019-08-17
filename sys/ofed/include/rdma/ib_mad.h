@@ -44,7 +44,7 @@
 #include <linux/list.h>
 
 #include <rdma/ib_verbs.h>
-#include <rdma/ib_user_mad.h>
+#include <uapi/rdma/ib_user_mad.h>
 
 /* Management base versions */
 #define IB_MGMT_BASE_VERSION			1
