@@ -120,6 +120,16 @@ main(int argc, char **argv)
 	printmachine = 0;
 	kernfile = NULL;
 	SLIST_INIT(&includepath);
+	SLIST_INIT(&cputype);
+	SLIST_INIT(&mkopt);
+	SLIST_INIT(&opt);
+	SLIST_INIT(&rmopts);
+	STAILQ_INIT(&cfgfiles);
+	STAILQ_INIT(&dtab);
+	STAILQ_INIT(&fntab);
+	STAILQ_INIT(&ftab);
+	STAILQ_INIT(&hints);
+	STAILQ_INIT(&envvars);
 	while ((ch = getopt(argc, argv, "Cd:gI:mps:Vx:")) != -1)
 		switch (ch) {
 		case 'C':
@@ -197,16 +207,6 @@ main(int argc, char **argv)
 		strlcat(destdir, PREFIX, sizeof(destdir));
 	}
 
-	SLIST_INIT(&cputype);
-	SLIST_INIT(&mkopt);
-	SLIST_INIT(&opt);
-	SLIST_INIT(&rmopts);
-	STAILQ_INIT(&cfgfiles);
-	STAILQ_INIT(&dtab);
-	STAILQ_INIT(&fntab);
-	STAILQ_INIT(&ftab);
-	STAILQ_INIT(&hints);
-	STAILQ_INIT(&envvars);
 	if (yyparse())
 		exit(3);
 
