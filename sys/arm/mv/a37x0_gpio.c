@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 #include "gpio_if.h"
 
 static struct resource_spec a37x0_gpio_res_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE | RF_SHAREABLE },	/* Pinctl / GPIO */
-	{ SYS_RES_MEMORY, 1, RF_ACTIVE | RF_SHAREABLE },	/* Interrupts control */
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE },	/* Pinctl / GPIO */
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE },	/* Interrupts control */
 	{ -1, 0, 0 }
 };
 
