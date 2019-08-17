@@ -454,6 +454,7 @@ struct sdp_sock {
 #define	SDP_LOCK_ASSERT(ssk)	rw_assert(&(ssk)->lock, RA_LOCKED)
 
 MALLOC_DECLARE(M_SDP);
+SYSCTL_DECL(_net_inet_sdp);
 
 static inline void tx_sa_reset(struct tx_srcavail_state *tx_sa)
 {
