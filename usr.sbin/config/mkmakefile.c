@@ -411,6 +411,7 @@ next:
 	 *      [ dependency "dependency-list"] [ before-depend ]
 	 *	[ clean "file-list"] [ warning "text warning" ]
 	 *	[ obj-prefix "file prefix"]
+	 *	[ nowerror ] [ local ]
 	 */
 	wd = get_word(fp);
 	if (wd == (char *)EOF) {
