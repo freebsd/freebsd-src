@@ -48,6 +48,10 @@ enum {
 static void
 sdp_qp_event_handler(struct ib_event *event, void *data)
 {
+	struct socket *sk = data;
+
+	sdp_dbg(ssk, "QP Event: %s (%d)", ib_event_msg(event->event),
+	    event->event);
 }
 
 static int
@@ -71,6 +75,7 @@ sdp_init_qp(struct socket *sk, struct rdma_cm_id *id)
 {
 	struct ib_qp_init_attr qp_init_attr = {
 		.event_handler = sdp_qp_event_handler,
+		.qp_context = sk,
 		.cap.max_send_wr = SDP_TX_SIZE,
 		.cap.max_recv_wr = SDP_RX_SIZE,
         	.sq_sig_type = IB_SIGNAL_REQ_WR,
