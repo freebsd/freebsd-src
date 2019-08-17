@@ -53,6 +53,7 @@
 #include <rdma/rdma_cm.h>
 #include <rdma/ib_cm.h>
 #include <rdma/ib_fmr_pool.h>
+#include <rdma/rdma_sdp.h>
 
 #ifdef SDP_DEBUG
 #define	CONFIG_INFINIBAND_SDP_DEBUG
@@ -187,49 +188,6 @@ enum {
 	SDP_NEW_SEG     = -2,
 	SDP_DO_WAIT_MEM = -1
 };
-
-struct sdp_bsdh {
-	u8 mid;
-	u8 flags;
-	__u16 bufs;
-	__u32 len;
-	__u32 mseq;
-	__u32 mseq_ack;
-} __attribute__((__packed__));
-
-union cma_ip_addr {
-	struct in6_addr ip6;
-	struct {
-		__u32 pad[3];
-		__u32 addr;
-	} ip4;
-} __attribute__((__packed__));
-
-/* TODO: too much? Can I avoid having the src/dst and port here? */
-struct sdp_hh {
-	struct sdp_bsdh bsdh;
-	u8 majv_minv;
-	u8 ipv_cap;
-	u8 rsvd1;
-	u8 max_adverts;
-	__u32 desremrcvsz;
-	__u32 localrcvsz;
-	__u16 port;
-	__u16 rsvd2;
-	union cma_ip_addr src_addr;
-	union cma_ip_addr dst_addr;
-	u8 rsvd3[IB_CM_REQ_PRIVATE_DATA_SIZE - sizeof(struct sdp_bsdh) - 48];
-} __attribute__((__packed__));
-
-struct sdp_hah {
-	struct sdp_bsdh bsdh;
-	u8 majv_minv;
-	u8 ipv_cap;
-	u8 rsvd1;
-	u8 ext_max_adverts;
-	__u32 actrcvsz;
-	u8 rsvd2[IB_CM_REP_PRIVATE_DATA_SIZE - sizeof(struct sdp_bsdh) - 8];
-} __attribute__((__packed__));
 
 struct sdp_rrch {
 	__u32 len;
