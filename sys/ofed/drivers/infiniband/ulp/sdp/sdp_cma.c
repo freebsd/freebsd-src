@@ -50,7 +50,7 @@ sdp_qp_event_handler(struct ib_event *event, void *data)
 {
 	struct socket *sk = data;
 
-	sdp_dbg(ssk, "QP Event: %s (%d)", ib_event_msg(event->event),
+	sdp_dbg(sk, "QP Event: %s (%d)", ib_event_msg(event->event),
 	    event->event);
 }
 
