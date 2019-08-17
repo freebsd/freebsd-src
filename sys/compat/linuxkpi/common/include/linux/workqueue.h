@@ -91,11 +91,12 @@ struct delayed_work {
 
 #define	DECLARE_DELAYED_WORK(name, fn)					\
 	struct delayed_work name;					\
-	static void name##_init(void *arg)				\
+	static void __linux_delayed_ ## name ## _init(void *arg)	\
 	{								\
 		linux_init_delayed_work(&name, fn);			\
 	}								\
-	SYSINIT(name, SI_SUB_LOCK, SI_ORDER_SECOND, name##_init, NULL)
+	SYSINIT(name, SI_SUB_LOCK, SI_ORDER_SECOND,			\
+	    __linux_delayed_ ## name##_init, NULL)
 
 static inline struct delayed_work *
 to_delayed_work(struct work_struct *work)
