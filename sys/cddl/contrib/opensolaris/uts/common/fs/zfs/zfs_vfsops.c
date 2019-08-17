@@ -2317,8 +2317,11 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 	if (err == 0)
 		*vpp = ZTOV(zp);
 	ZFS_EXIT(zfsvfs);
-	if (err == 0)
+	if (err == 0) {
 		err = vn_lock(*vpp, flags);
+		if (err != 0)
+			vrele(*vpp);
+	}
 	if (err != 0)
 		*vpp = NULL;
 	return (err);
