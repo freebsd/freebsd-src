@@ -439,7 +439,8 @@ sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		break;
 	}
 
-	sdp_dbg(sk, "event %d done. status %d\n", event->event, rc);
+	sdp_dbg(sk, "event %s (%d) done. status %d\n",
+	    rdma_event_msg(event->event), event->event, rc);
 
 	if (rc) {
 		SDP_WLOCK(ssk);
