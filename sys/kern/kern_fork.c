@@ -258,20 +258,13 @@ fork_findpid(int flags)
 	}
 	mtx_lock(&procid_lock);
 retry:
-	/*
-	 * If the process ID prototype has wrapped around,
-	 * restart somewhat above 0, as the low-numbered procs
-	 * tend to include daemons that don't exit.
-	 */
-	if (trypid >= pid_max) {
-		trypid = trypid % pid_max;
-		if (trypid < 100)
-			trypid += 100;
-	}
+	if (trypid >= pid_max)
+		trypid = 2;
 
 	bit_ffc_at(&proc_id_pidmap, trypid, pid_max, &result);
 	if (result == -1) {
-		trypid = 100;
+		KASSERT(trypid != 2, ("unexpectedly ran out of IDs"));
+		trypid = 2;
 		goto retry;
 	}
 	if (bit_test(&proc_id_grpidmap, result) ||
