@@ -1101,8 +1101,8 @@ vm_phys_free_pages(vm_page_t m, int order)
 	vm_page_t m_buddy;
 
 	KASSERT(m->order == VM_NFREEORDER,
-	    ("vm_phys_free_pages: page %p has unexpected order %d",
-	    m, m->order));
+	    ("vm_phys_free_pages: page %p(%p) has unexpected order %d",
+	    m, (void *)m->phys_addr, m->order));
 	KASSERT(m->pool < VM_NFREEPOOL,
 	    ("vm_phys_free_pages: page %p has unexpected pool %d",
 	    m, m->pool));
@@ -1499,6 +1499,222 @@ done:
 		vm_phys_enq_range(&m_ret[npages], npages_end - npages, fl, 0);
 	}
 	return (m_ret);
+}
+
+/*
+ * Return the index of the first unused slot which may be the terminating
+ * entry.
+ */
+static int
+vm_phys_avail_count(void)
+{
+	int i;
+
+	for (i = 0; phys_avail[i + 1]; i += 2)
+		continue;
+	if (i > PHYS_AVAIL_ENTRIES)
+		panic("Improperly terminated phys_avail %d entries", i);
+
+	return (i);
+}
+
+/*
+ * Assert that a phys_avail entry is valid.
+ */
+static void
+vm_phys_avail_check(int i)
+{
+	if (phys_avail[i] & PAGE_MASK)
+		panic("Unaligned phys_avail[%d]: %#jx", i,
+		    (intmax_t)phys_avail[i]);
+	if (phys_avail[i+1] & PAGE_MASK)
+		panic("Unaligned phys_avail[%d + 1]: %#jx", i,
+		    (intmax_t)phys_avail[i]);
+	if (phys_avail[i + 1] < phys_avail[i])
+		panic("phys_avail[%d] start %#jx < end %#jx", i,
+		    (intmax_t)phys_avail[i], (intmax_t)phys_avail[i+1]);
+}
+
+/*
+ * Return the index of an overlapping phys_avail entry or -1.
+ */
+static int
+vm_phys_avail_find(vm_paddr_t pa)
+{
+	int i;
+
+	for (i = 0; phys_avail[i + 1]; i += 2)
+		if (phys_avail[i] <= pa && phys_avail[i + 1] > pa)
+			return (i);
+	return (-1);
+}
+
+/*
+ * Return the index of the largest entry.
+ */
+int
+vm_phys_avail_largest(void)
+{
+	vm_paddr_t sz, largesz;
+	int largest;
+	int i;
+
+	largest = 0;
+	largesz = 0;
+	for (i = 0; phys_avail[i + 1]; i += 2) {
+		sz = vm_phys_avail_size(i);
+		if (sz > largesz) {
+			largesz = sz;
+			largest = i;
+		}
+	}
+
+	return (largest);
+}
+
+vm_paddr_t
+vm_phys_avail_size(int i)
+{
+
+	return (phys_avail[i + 1] - phys_avail[i]);
+}
+
+/*
+ * Split an entry at the address 'pa'.  Return zero on success or errno.
+ */
+static int
+vm_phys_avail_split(vm_paddr_t pa, int i)
+{
+	int cnt;
+
+	vm_phys_avail_check(i);
+	if (pa <= phys_avail[i] || pa >= phys_avail[i + 1])
+		panic("vm_phys_avail_split: invalid address");
+	cnt = vm_phys_avail_count();
+	if (cnt >= PHYS_AVAIL_ENTRIES)
+		return (ENOSPC);
+	memmove(&phys_avail[i + 2], &phys_avail[i],
+	    (cnt - i) * sizeof(phys_avail[0]));
+	phys_avail[i + 1] = pa;
+	phys_avail[i + 2] = pa;
+	vm_phys_avail_check(i);
+	vm_phys_avail_check(i+2);
+
+	return (0);
+}
+
+/*
+ * This routine allocates NUMA node specific memory before the page
+ * allocator is bootstrapped.
+ */
+vm_paddr_t
+vm_phys_early_alloc(int domain, size_t alloc_size)
+{
+	int i, mem_index, biggestone;
+	vm_paddr_t pa, mem_start, mem_end, size, biggestsize, align;
+
+
+	/*
+	 * Search the mem_affinity array for the biggest address
+	 * range in the desired domain.  This is used to constrain
+	 * the phys_avail selection below.
+	 */
+	biggestsize = 0;
+	mem_index = 0;
+	mem_start = 0;
+	mem_end = -1;
+#ifdef NUMA
+	if (mem_affinity != NULL) {
+		for (i = 0; ; i++) {
+			size = mem_affinity[i].end - mem_affinity[i].start;
+			if (size == 0)
+				break;
+			if (mem_affinity[i].domain != domain)
+				continue;
+			if (size > biggestsize) {
+				mem_index = i;
+				biggestsize = size;
+			}
+		}
+		mem_start = mem_affinity[mem_index].start;
+		mem_end = mem_affinity[mem_index].end;
+	}
+#endif
+
+	/*
+	 * Now find biggest physical segment in within the desired
+	 * numa domain.
+	 */
+	biggestsize = 0;
+	biggestone = 0;
+	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+		/* skip regions that are out of range */
+		if (phys_avail[i+1] - alloc_size < mem_start ||
+		    phys_avail[i+1] > mem_end)
+			continue;
+		size = vm_phys_avail_size(i);
+		if (size > biggestsize) {
+			biggestone = i;
+			biggestsize = size;
+		}
+	}
+	alloc_size = round_page(alloc_size);
+
+	/*
+	 * Grab single pages from the front to reduce fragmentation.
+	 */
+	if (alloc_size == PAGE_SIZE) {
+		pa = phys_avail[biggestone];
+		phys_avail[biggestone] += PAGE_SIZE;
+		vm_phys_avail_check(biggestone);
+		return (pa);
+	}
+
+	/*
+	 * Naturally align large allocations.
+	 */
+	align = phys_avail[biggestone + 1] & (alloc_size - 1);
+	if (alloc_size + align > biggestsize)
+		panic("cannot find a large enough size\n");
+	if (align != 0 &&
+	    vm_phys_avail_split(phys_avail[biggestone + 1] - align,
+	    biggestone) != 0)
+		/* Wasting memory. */
+		phys_avail[biggestone + 1] -= align;
+
+	phys_avail[biggestone + 1] -= alloc_size;
+	vm_phys_avail_check(biggestone);
+	pa = phys_avail[biggestone + 1];
+	return (pa);
+}
+
+void
+vm_phys_early_startup(void)
+{
+	int i;
+
+	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+		phys_avail[i] = round_page(phys_avail[i]);
+		phys_avail[i + 1] = trunc_page(phys_avail[i + 1]);
+	}
+
+#ifdef NUMA
+	/* Force phys_avail to be split by domain. */
+	if (mem_affinity != NULL) {
+		int idx;
+
+		for (i = 0; mem_affinity[i].end != 0; i++) {
+			idx = vm_phys_avail_find(mem_affinity[i].start);
+			if (idx != -1 &&
+			    phys_avail[idx] != mem_affinity[i].start)
+				vm_phys_avail_split(mem_affinity[i].start, idx);
+			idx = vm_phys_avail_find(mem_affinity[i].end);
+			if (idx != -1 &&
+			    phys_avail[idx] != mem_affinity[i].end)
+				vm_phys_avail_split(mem_affinity[i].end, idx);
+		}
+	}
+#endif
 }
 
 #ifdef DDB
