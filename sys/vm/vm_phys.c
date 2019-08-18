@@ -1538,6 +1538,7 @@ vm_phys_avail_check(int i)
 /*
  * Return the index of an overlapping phys_avail entry or -1.
  */
+#ifdef NUMA
 static int
 vm_phys_avail_find(vm_paddr_t pa)
 {
@@ -1548,6 +1549,7 @@ vm_phys_avail_find(vm_paddr_t pa)
 			return (i);
 	return (-1);
 }
+#endif
 
 /*
  * Return the index of the largest entry.
