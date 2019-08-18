@@ -1,0 +1,96 @@
+.\" Copyright (c) 2013, 2016 Adrian Chadd <adrian@freebsd.org>
+.\" Copyright (c) 2019 Vladimir Kondratyev <wulf@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 4, 2019
+.Dt IWMBTFW 8
+.Os
+.Sh NAME
+.Nm iwmbtfw
+.Nd firmware download utility for Intel Wireless 8260/8265 chip based Bluetooth
+USB devices
+.Sh SYNOPSIS
+.Nm
+.Fl d Ar device_name
+.Fl f Ar firmware_path
+.Nm
+.Fl h
+.Sh DESCRIPTION
+The
+.Nm
+utility downloads the specified firmware file to the specified
+.Xr ugen 4
+device.
+.Pp
+This utility will
+.Em only
+work with Intel Wireless 8260/8265 chip based Bluetooth USB devices and some of
+their successors.
+The identification is currently based on USB vendor ID/product ID pair.
+The vendor ID should be 0x8087
+.Pq Dv USB_VENDOR_INTEL2
+and the product ID should be one of the supported devices.
+.Pp
+Firmware files are available in the
+.Pa comms/iwmbt-firmware
+port.
+.Pp
+The
+.Nm
+utility will query the device to determine which firmware image and board
+configuration to load in at runtime.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl D
+Enable verbose debugging.
+.It Fl d Ar device_name
+Specify
+.Xr ugen 4
+device name.
+.It Fl I
+Enable informational debugging.
+.It Fl f Ar firmware_path
+Specify the directory containing the firmware files to search and upload.
+.It Fl h
+Display usage message and exit.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr libusb 3 ,
+.Xr ugen 4 ,
+.Xr devd 8
+.Sh AUTHORS
+.Nm
+is based on
+.Xr ath3kfw 8
+utility used as firmware downloader template and on Linux btintel driver
+source code.
+It is written by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
+.Sh BUGS
+Most likely.
+Please report if found.

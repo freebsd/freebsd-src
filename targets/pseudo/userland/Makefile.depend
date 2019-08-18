@@ -443,6 +443,7 @@ DIRDEPS+= \
 	usr.sbin/bluetooth/hccontrol \
 	usr.sbin/bluetooth/hcsecd \
 	usr.sbin/bluetooth/hcseriald \
+	usr.sbin/bluetooth/iwmbtfw \
 	usr.sbin/bluetooth/l2control \
 	usr.sbin/bluetooth/l2ping \
 	usr.sbin/bluetooth/rfcomm_pppd \
