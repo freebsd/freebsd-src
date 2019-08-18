@@ -653,6 +653,17 @@ acpi_pxm_set_cpu_locality(void)
 	}
 }
 
+int
+acpi_pxm_get_cpu_locality(int apic_id)
+{
+	struct cpu_info *cpu;
+
+	cpu = cpu_find(apic_id);
+	if (cpu == NULL)
+		panic("SRAT: CPU with ID %u is not known", apic_id);
+	return (cpu->domain);
+}
+
 /*
  * Free data structures allocated during acpi_pxm_init.
  */
