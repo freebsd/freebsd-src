@@ -538,7 +538,7 @@ vm_page_startup(vm_offset_t vaddr)
 	char *list, *listend;
 	vm_offset_t mapped;
 	vm_paddr_t end, high_avail, low_avail, new_end, page_range, size;
-	vm_paddr_t biggestsize, last_pa, pa;
+	vm_paddr_t last_pa, pa;
 	u_long pagecount;
 	int biggestone, i, segind;
 #ifdef WITNESS
@@ -548,22 +548,10 @@ vm_page_startup(vm_offset_t vaddr)
 	long ii;
 #endif
 
-	biggestsize = 0;
-	biggestone = 0;
 	vaddr = round_page(vaddr);
 
-	for (i = 0; phys_avail[i + 1]; i += 2) {
-		phys_avail[i] = round_page(phys_avail[i]);
-		phys_avail[i + 1] = trunc_page(phys_avail[i + 1]);
-	}
-	for (i = 0; phys_avail[i + 1]; i += 2) {
-		size = phys_avail[i + 1] - phys_avail[i];
-		if (size > biggestsize) {
-			biggestone = i;
-			biggestsize = size;
-		}
-	}
-
+	vm_phys_early_startup();
+	biggestone = vm_phys_avail_largest();
 	end = phys_avail[biggestone+1];
 
 	/*
@@ -776,7 +764,8 @@ vm_page_startup(vm_offset_t vaddr)
 	 * physical pages.
 	 */
 	for (i = 0; phys_avail[i + 1] != 0; i += 2)
-		vm_phys_add_seg(phys_avail[i], phys_avail[i + 1]);
+		if (vm_phys_avail_size(i) != 0)
+			vm_phys_add_seg(phys_avail[i], phys_avail[i + 1]);
 
 	/*
 	 * Initialize the physical memory allocator.
