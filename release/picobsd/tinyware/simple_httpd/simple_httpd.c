@@ -48,33 +48,33 @@
 #include <time.h>
 #include <unistd.h>
 
-int             http_port = 80;
-int             daemonize = 1;
-int             verbose = 0;
-int             http_sock, con_sock;
+static int	http_port = 80;
+static int	daemonize = 1;
+static int	verbose = 0;
+static int	http_sock, con_sock;
 
-const char     *fetch_mode = NULL;
-char            homedir[100];
-char            logfile[80];
-char           *adate(void);
-void            init_servconnection(void);
-void		http_date(void);
-void            http_output(const char *html);
-void            http_request(void);
-void            log_line(char *req);
-void            wait_connection(void);
+static const char *fetch_mode = NULL;
+static char	homedir[100];
+static char	logfile[80];
+static char	*adate(void);
+static void	init_servconnection(void);
+static void	http_date(void);
+static void	http_output(const char *html);
+static void	http_request(void);
+static void	log_line(char *req);
+static void	wait_connection(void);
 
-struct hostent *hst;
-struct sockaddr_in source;
+static struct hostent *hst;
+static struct sockaddr_in source;
 
 /* HTTP basics */
 static char httpd_server_ident[] = "Server: FreeBSD/PicoBSD simple_httpd 1.1\r";
 
 static char http_200[] = "HTTP/1.0 200 OK\r";
 
-const char *default_mime_type = "application/octet-stream";
+static const char *default_mime_type = "application/octet-stream";
 
-const char *mime_type[][2] = {
+static const char *mime_type[][2] = {
     { "txt",      "text/plain"            },
     { "htm",      "text/html"             },
     { "html",     "text/html"             },
@@ -83,7 +83,7 @@ const char *mime_type[][2] = {
     { "mp3",      "audio/mpeg"            }
 };
 
-const int mime_type_max = sizeof(mime_type) / sizeof(mime_type[0]) - 1;
+static const int mime_type_max = sizeof(mime_type) / sizeof(mime_type[0]) - 1;
 
 /* Two parts, HTTP Header and then HTML */
 static const char *http_404[2] = 
@@ -101,7 +101,7 @@ This server only supports GET and HEAD requests.\n</BODY></HTML>\r\n"
 /*
  * Only called on initial invocation
  */
-void
+static void
 init_servconnection(void)
 {
 	struct sockaddr_in server;
@@ -125,7 +125,7 @@ init_servconnection(void)
 /*
  * Wait here until we see an incoming http request
  */
-void
+static void
 wait_connection(void)
 {
 	socklen_t lg;
@@ -142,7 +142,7 @@ wait_connection(void)
 /*
  * Print timestamp for HTTP HEAD and GET
  */
-void
+static void
 http_date(void)
 {
 	time_t	tl;
@@ -157,7 +157,7 @@ http_date(void)
 /*
  * Send data to the open socket
  */
-void
+static void
 http_output(const char *html)
 {
 	write(con_sock, html, strlen(html));
@@ -169,7 +169,7 @@ http_output(const char *html)
  * Create and write the log information to file
  * Log file format is one line per entry
  */
-void
+static void
 log_line(char *req)
 {
 	char	log_buff[256];
@@ -213,7 +213,7 @@ log_line(char *req)
  * We have a connection.  Identify what type of request GET, HEAD, CGI, etc 
  * and do what needs to be done
  */
-void
+static void
 http_request(void)
 {
 	int             fd, lg, i; 
