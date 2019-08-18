@@ -32,6 +32,7 @@ INTERFACE syscon;
 
 HEADER {
 	struct syscon;
+	int syscon_get_handle_default(device_t dev, struct syscon **syscon);
 }
 
 METHOD int init {
@@ -62,3 +63,11 @@ METHOD int modify_4 {
 	uint32_t	clear_bits;
 	uint32_t	set_bits;
 };
+
+/**
+ * Get syscon handle from parent driver
+ */
+METHOD int get_handle {
+	device_t	dev;
+	struct syscon	**syscon;
+} DEFAULT syscon_get_handle_default;
