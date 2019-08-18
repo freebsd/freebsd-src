@@ -695,7 +695,7 @@ vop_set_text {
 };
 
 
-%% vop_unset_text	vp	= = =
+%% vop_unset_text	vp	L L L
 
 vop_unset_text {
 	IN struct vnode *vp;

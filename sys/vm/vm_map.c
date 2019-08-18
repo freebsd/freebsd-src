@@ -547,12 +547,20 @@ vm_map_entry_set_vnode_text(vm_map_entry_t entry, bool add)
 		    "entry %p, object %p, add %d", entry, object, add));
 	}
 	if (vp != NULL) {
-		if (add)
+		if (add) {
 			VOP_SET_TEXT_CHECKED(vp);
-		else
+			VM_OBJECT_RUNLOCK(object);
+		} else {
+			vhold(vp);
+			VM_OBJECT_RUNLOCK(object);
+			vn_lock(vp, LK_SHARED | LK_RETRY);
 			VOP_UNSET_TEXT_CHECKED(vp);
+			VOP_UNLOCK(vp, 0);
+			vdrop(vp);
+		}
+	} else {
+		VM_OBJECT_RUNLOCK(object);
 	}
-	VM_OBJECT_RUNLOCK(object);
 }
 
 static void
