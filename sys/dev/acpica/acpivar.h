@@ -532,6 +532,7 @@ int		acpi_pxm_init(int ncpus, vm_paddr_t maxphys);
 void		acpi_pxm_parse_tables(void);
 void		acpi_pxm_set_mem_locality(void);
 void		acpi_pxm_set_cpu_locality(void);
+int		acpi_pxm_get_cpu_locality(int apic_id);
 void		acpi_pxm_free(void);
 
 /*
