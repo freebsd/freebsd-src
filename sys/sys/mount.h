@@ -398,6 +398,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNTK_MARKER		0x00001000
 #define	MNTK_UNMAPPED_BUFS	0x00002000
 #define	MNTK_USES_BCACHE	0x00004000 /* FS uses the buffer cache. */
+#define	MNTK_TEXT_REFS		0x00008000 /* Keep use ref for text */
 #define MNTK_NOASYNC	0x00800000	/* disable async */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
