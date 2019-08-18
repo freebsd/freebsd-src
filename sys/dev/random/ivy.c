@@ -164,6 +164,12 @@ rdrand_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-DEV_MODULE(rdrand, rdrand_modevent, NULL);
+static moduledata_t rdrand_mod = {
+	"rdrand",
+	rdrand_modevent,
+	0
+};
+
+DECLARE_MODULE(rdrand, rdrand_mod, SI_SUB_RANDOM, SI_ORDER_FOURTH);
 MODULE_VERSION(rdrand, 1);
-MODULE_DEPEND(rdrand, random_device, 1, 1, 1);
+MODULE_DEPEND(rdrand, random_harvestq, 1, 1, 1);
