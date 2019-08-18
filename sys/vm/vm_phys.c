@@ -1101,8 +1101,8 @@ vm_phys_free_pages(vm_page_t m, int order)
 	vm_page_t m_buddy;
 
 	KASSERT(m->order == VM_NFREEORDER,
-	    ("vm_phys_free_pages: page %p(%p) has unexpected order %d",
-	    m, (void *)m->phys_addr, m->order));
+	    ("vm_phys_free_pages: page %p has unexpected order %d",
+	    m, m->order));
 	KASSERT(m->pool < VM_NFREEPOOL,
 	    ("vm_phys_free_pages: page %p has unexpected pool %d",
 	    m, m->pool));
