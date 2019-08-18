@@ -35,6 +35,8 @@
 
 #ifdef EXT_RESOURCES
 #include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
+#include <dev/extres/regulator/regulator.h>
 #endif
 
 enum {
@@ -83,6 +85,9 @@ struct dwmmc_softc {
 #ifdef EXT_RESOURCES
 	clk_t			biu;
 	clk_t			ciu;
+	hwreset_t		hwreset;
+	regulator_t		vmmc;
+	regulator_t		vqmmc;
 #endif
 };
 
