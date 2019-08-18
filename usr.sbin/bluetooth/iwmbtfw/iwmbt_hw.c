@@ -68,7 +68,7 @@ iwmbt_send_fragment(struct libusb_device_handle *hdl,
 	    &transferred,
 	    timeout);
 
-	if (ret < 0 || transferred != IWMBT_HCI_CMD_SIZE(cmd)) {
+	if (ret < 0 || transferred != (int)IWMBT_HCI_CMD_SIZE(cmd)) {
 		iwmbt_err("libusb_bulk_transfer() failed: err=%s, size=%zu",
 		    libusb_strerror(ret),
 		    IWMBT_HCI_CMD_SIZE(cmd));
