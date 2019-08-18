@@ -1831,12 +1831,15 @@ vfs_copyopt(struct vfsoptlist *opts, const char *name, void *dest, int len)
 int
 __vfs_statfs(struct mount *mp, struct statfs *sbp)
 {
-	int error;
 
-	error = mp->mnt_op->vfs_statfs(mp, &mp->mnt_stat);
-	if (sbp != &mp->mnt_stat)
-		*sbp = mp->mnt_stat;
-	return (error);
+	/*
+	 * Set these in case the underlying filesystem fails to do so.
+	 */
+	sbp->f_version = STATFS_VERSION;
+	sbp->f_namemax = NAME_MAX;
+	sbp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+
+	return (mp->mnt_op->vfs_statfs(mp, sbp));
 }
 
 void
