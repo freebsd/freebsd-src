@@ -1360,10 +1360,23 @@ vm_reserv_size(int level)
  * management system's data structures, in particular, the reservation array.
  */
 vm_paddr_t
-vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t high_water)
+vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end)
 {
-	vm_paddr_t new_end;
+	vm_paddr_t new_end, high_water;
 	size_t size;
+	int i;
+
+	high_water = phys_avail[1];
+	for (i = 0; i < vm_phys_nsegs; i++) {
+		if (vm_phys_segs[i].end > high_water)
+			high_water = vm_phys_segs[i].end;
+	}
+
+	/* Skip the first chunk.  It is already accounted for. */
+	for (i = 2; phys_avail[i + 1] != 0; i += 2) {
+		if (phys_avail[i + 1] > high_water)
+			high_water = phys_avail[i + 1];
+	}
 
 	/*
 	 * Calculate the size (in bytes) of the reservation array.  Round up

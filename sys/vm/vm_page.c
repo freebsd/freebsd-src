@@ -135,7 +135,11 @@ static int vm_pageproc_waiters;
  */
 vm_page_t bogus_page;
 
+#ifdef PMAP_HAS_PAGE_ARRAY
+vm_page_t vm_page_array = (vm_page_t)PA_MIN_ADDRESS;
+#else
 vm_page_t vm_page_array;
+#endif
 long vm_page_array_size;
 long first_page;
 
@@ -522,6 +526,31 @@ vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
 	pmap_page_init(m);
 }
 
+#ifndef PMAP_HAS_PAGE_ARRAY
+static vm_paddr_t
+vm_page_array_alloc(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t page_range)
+{
+	vm_paddr_t new_end;
+
+	/*
+	 * Reserve an unmapped guard page to trap access to vm_page_array[-1].
+	 * However, because this page is allocated from KVM, out-of-bounds
+	 * accesses using the direct map will not be trapped.
+	 */
+	*vaddr += PAGE_SIZE;
+
+	/*
+	 * Allocate physical memory for the page structures, and map it.
+	 */
+	new_end = trunc_page(end - page_range * sizeof(struct vm_page));
+	vm_page_array = (vm_page_t)pmap_map(vaddr, new_end, end,
+	    VM_PROT_READ | VM_PROT_WRITE);
+	vm_page_array_size = page_range;
+
+	return (new_end);
+}
+#endif
+
 /*
  *	vm_page_startup:
  *
@@ -693,6 +722,11 @@ vm_page_startup(vm_offset_t vaddr)
 #error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
 #endif
 
+#ifdef PMAP_HAS_PAGE_ARRAY
+	pmap_page_array_startup(size / PAGE_SIZE);
+	biggestone = vm_phys_avail_largest();
+	end = new_end = phys_avail[biggestone + 1];
+#else
 #ifdef VM_PHYSSEG_DENSE
 	/*
 	 * In the VM_PHYSSEG_DENSE case, the number of pages can account for
@@ -723,31 +757,15 @@ vm_page_startup(vm_offset_t vaddr)
 		}
 	}
 	end = new_end;
-
-	/*
-	 * Reserve an unmapped guard page to trap access to vm_page_array[-1].
-	 * However, because this page is allocated from KVM, out-of-bounds
-	 * accesses using the direct map will not be trapped.
-	 */
-	vaddr += PAGE_SIZE;
-
-	/*
-	 * Allocate physical memory for the page structures, and map it.
-	 */
-	new_end = trunc_page(end - page_range * sizeof(struct vm_page));
-	mapped = pmap_map(&vaddr, new_end, end,
-	    VM_PROT_READ | VM_PROT_WRITE);
-	vm_page_array = (vm_page_t)mapped;
-	vm_page_array_size = page_range;
+	new_end = vm_page_array_alloc(&vaddr, end, page_range);
+#endif
 
 #if VM_NRESERVLEVEL > 0
 	/*
 	 * Allocate physical memory for the reservation management system's
 	 * data structures, and map it.
 	 */
-	if (high_avail == end)
-		high_avail = new_end;
-	new_end = vm_reserv_startup(&vaddr, new_end, high_avail);
+	new_end = vm_reserv_startup(&vaddr, new_end);
 #endif
 #if defined(__aarch64__) || defined(__amd64__) || defined(__mips__) || \
     defined(__riscv)
