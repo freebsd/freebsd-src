@@ -137,6 +137,12 @@ darn_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-DEV_MODULE(darn, darn_modevent, NULL);
+static moduledata_t darn_mod = {
+	"darn",
+	darn_modevent,
+	0
+};
+
+DECLARE_MODULE(darn, darn_mod, SI_SUB_RANDOM, SI_ORDER_FOURTH);
 MODULE_VERSION(darn, 1);
-MODULE_DEPEND(darn, random_device, 1, 1, 1);
+MODULE_DEPEND(darn, random_harvestq, 1, 1, 1);

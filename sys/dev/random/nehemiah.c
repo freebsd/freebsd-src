@@ -146,6 +146,12 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-DEV_MODULE(nehemiah, nehemiah_modevent, NULL);
+static moduledata_t nehemiah_mod = {
+	"nehemiah",
+	nehemiah_modevent,
+	0
+};
+
+DECLARE_MODULE(nehemiah, nehemiah_mod, SI_SUB_RANDOM, SI_ORDER_FOURTH);
 MODULE_VERSION(nehemiah, 1);
-MODULE_DEPEND(nehemiah, random_device, 1, 1, 1);
+MODULE_DEPEND(nehemiah, random_harvestq, 1, 1, 1);
