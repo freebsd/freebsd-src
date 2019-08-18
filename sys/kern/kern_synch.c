@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/refcount.h>
 #include <sys/sched.h>
 #include <sys/sdt.h>
 #include <sys/signalvar.h>
@@ -331,6 +332,75 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 	}
 	return (_sleep(&pause_wchan[curcpu], NULL,
 	    (flags & C_CATCH) ? PCATCH : 0, wmesg, sbt, pr, flags));
+}
+
+/*
+ * Potentially release the last reference for refcount.  Check for
+ * unlikely conditions and signal the caller as to whether it was
+ * the final ref.
+ */
+bool
+refcount_release_last(volatile u_int *count, u_int n, u_int old)
+{
+	u_int waiter;
+
+	waiter = old & REFCOUNT_WAITER;
+	old = REFCOUNT_COUNT(old);
+	if (__predict_false(n > old || REFCOUNT_SATURATED(old))) {
+		/*
+		 * Avoid multiple destructor invocations if underflow occurred.
+		 * This is not perfect since the memory backing the containing
+		 * object may already have been reallocated.
+		 */
+		_refcount_update_saturated(count);
+		return (false);
+	}
+
+	/*
+	 * Attempt to atomically clear the waiter bit.  Wakeup waiters
+	 * if we are successful.
+	 */
+	if (waiter != 0 && atomic_cmpset_int(count, REFCOUNT_WAITER, 0))
+		wakeup(__DEVOLATILE(u_int *, count));
+
+	/*
+	 * Last reference.  Signal the user to call the destructor.
+	 *
+	 * Ensure that the destructor sees all updates.  The fence_rel
+	 * at the start of refcount_releasen synchronizes with this fence.
+	 */
+	atomic_thread_fence_acq();
+	return (true);
+}
+
+/*
+ * Wait for a refcount wakeup.  This does not guarantee that the ref is still
+ * zero on return and may be subject to transient wakeups.  Callers wanting
+ * a precise answer should use refcount_wait().
+ */
+void
+refcount_sleep(volatile u_int *count, const char *wmesg, int pri)
+{
+	void *wchan;
+	u_int old;
+
+	if (REFCOUNT_COUNT(*count) == 0)
+		return;
+	wchan = __DEVOLATILE(void *, count);
+	sleepq_lock(wchan);
+	old = *count;
+	for (;;) {
+		if (REFCOUNT_COUNT(old) == 0) {
+			sleepq_release(wchan);
+			return;
+		}
+		if (old & REFCOUNT_WAITER)
+			break;
+		if (atomic_fcmpset_int(count, &old, old | REFCOUNT_WAITER))
+			break;
+	}
+	sleepq_add(wchan, NULL, wmesg, 0, 0);
+	sleepq_wait(wchan, pri);
 }
 
 /*
