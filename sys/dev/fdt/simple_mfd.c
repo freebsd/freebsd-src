@@ -134,7 +134,7 @@ simple_mfd_syscon_get_handle(device_t dev, struct syscon **syscon)
 
 	sc = device_get_softc(dev);
 	*syscon = sc->syscon;
-	if (syscon == NULL)
+	if (*syscon == NULL)
 		return (ENODEV);
 	return (0);
 }
