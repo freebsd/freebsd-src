@@ -78,6 +78,11 @@ arg=$1
 
 if [ -z "$PERIODIC_ANTICONGESTION_FILE" ] ; then
 	export PERIODIC_ANTICONGESTION_FILE=`mktemp ${TMPDIR:-/tmp}/periodic.anticongestion.XXXXXXXXXX`
+	remove_periodic_anticongestion_file=yes
+else
+	# We might be in a recursive invocation; let the top-level invocation
+	# remove the file.
+	remove_periodic_anticongestion_file=no
 fi
 if tty > /dev/null 2>&1; then
 	export PERIODIC_IS_INTERACTIVE=1
@@ -147,4 +152,6 @@ esac
 } | output_pipe $arg "$context"
 
 rm -f $tmp_output
-rm -f $PERIODIC_ANTICONGESTION_FILE
+if [ $remove_periodic_anticongestion_file = "yes" ] ; then
+	rm -f $PERIODIC_ANTICONGESTION_FILE
+fi
