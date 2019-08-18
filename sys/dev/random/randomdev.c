@@ -410,62 +410,6 @@ randomdev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr __unused,
 	return (error);
 }
 
-void
-random_source_register(struct random_source *rsource)
-{
-	struct random_sources *rrs;
-
-	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
-
-	rrs = malloc(sizeof(*rrs), M_ENTROPY, M_WAITOK);
-	rrs->rrs_source = rsource;
-
-	random_harvest_register_source(rsource->rs_source);
-
-	printf("random: registering fast source %s\n", rsource->rs_ident);
-	LIST_INSERT_HEAD(&source_list, rrs, rrs_entries);
-}
-
-void
-random_source_deregister(struct random_source *rsource)
-{
-	struct random_sources *rrs = NULL;
-
-	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
-
-	random_harvest_deregister_source(rsource->rs_source);
-
-	LIST_FOREACH(rrs, &source_list, rrs_entries)
-		if (rrs->rrs_source == rsource) {
-			LIST_REMOVE(rrs, rrs_entries);
-			break;
-		}
-	if (rrs != NULL)
-		free(rrs, M_ENTROPY);
-}
-
-static int
-random_source_handler(SYSCTL_HANDLER_ARGS)
-{
-	struct random_sources *rrs;
-	struct sbuf sbuf;
-	int error, count;
-
-	sbuf_new_for_sysctl(&sbuf, NULL, 64, req);
-	count = 0;
-	LIST_FOREACH(rrs, &source_list, rrs_entries) {
-		sbuf_cat(&sbuf, (count++ ? ",'" : "'"));
-		sbuf_cat(&sbuf, rrs->rrs_source->rs_ident);
-		sbuf_cat(&sbuf, "'");
-	}
-	error = sbuf_finish(&sbuf);
-	sbuf_delete(&sbuf);
-	return (error);
-}
-SYSCTL_PROC(_kern_random, OID_AUTO, random_sources, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    NULL, 0, random_source_handler, "A",
-	    "List of active fast entropy sources.");
-
 /* ARGSUSED */
 static int
 randomdev_modevent(module_t mod __unused, int type, void *data __unused)

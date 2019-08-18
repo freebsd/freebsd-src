@@ -447,7 +447,7 @@ random_harvestq_prime(void *unused __unused)
 				printf("random: no preloaded entropy cache\n");
 	}
 }
-SYSINIT(random_device_prime, SI_SUB_RANDOM, SI_ORDER_FOURTH, random_harvestq_prime, NULL);
+SYSINIT(random_device_prime, SI_SUB_RANDOM, SI_ORDER_MIDDLE, random_harvestq_prime, NULL);
 
 /* ARGSUSED */
 static void
@@ -555,5 +555,61 @@ random_harvest_deregister_source(enum random_entropy_source source)
 
 	hc_source_mask &= ~(1 << source);
 }
+
+void
+random_source_register(struct random_source *rsource)
+{
+	struct random_sources *rrs;
+
+	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
+
+	rrs = malloc(sizeof(*rrs), M_ENTROPY, M_WAITOK);
+	rrs->rrs_source = rsource;
+
+	random_harvest_register_source(rsource->rs_source);
+
+	printf("random: registering fast source %s\n", rsource->rs_ident);
+	LIST_INSERT_HEAD(&source_list, rrs, rrs_entries);
+}
+
+void
+random_source_deregister(struct random_source *rsource)
+{
+	struct random_sources *rrs = NULL;
+
+	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
+
+	random_harvest_deregister_source(rsource->rs_source);
+
+	LIST_FOREACH(rrs, &source_list, rrs_entries)
+		if (rrs->rrs_source == rsource) {
+			LIST_REMOVE(rrs, rrs_entries);
+			break;
+		}
+	if (rrs != NULL)
+		free(rrs, M_ENTROPY);
+}
+
+static int
+random_source_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct random_sources *rrs;
+	struct sbuf sbuf;
+	int error, count;
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 64, req);
+	count = 0;
+	LIST_FOREACH(rrs, &source_list, rrs_entries) {
+		sbuf_cat(&sbuf, (count++ ? ",'" : "'"));
+		sbuf_cat(&sbuf, rrs->rrs_source->rs_ident);
+		sbuf_cat(&sbuf, "'");
+	}
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
+}
+SYSCTL_PROC(_kern_random, OID_AUTO, random_sources, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    NULL, 0, random_source_handler, "A",
+	    "List of active fast entropy sources.");
 
 MODULE_VERSION(random_harvestq, 1);
