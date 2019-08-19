@@ -923,6 +923,24 @@ netdump_network_poll(void)
  */
 
 /*
+ * Flush any buffered vmcore data.
+ */
+static int
+netdump_flush_buf(void)
+{
+	int error;
+
+	error = 0;
+	if (nd_conf.nd_buf_len != 0) {
+		error = netdump_send(NETDUMP_VMCORE, nd_conf.nd_tx_off,
+		    nd_buf, nd_conf.nd_buf_len);
+		if (error == 0)
+			nd_conf.nd_buf_len = 0;
+	}
+	return (error);
+}
+
+/*
  * Callback from dumpsys() to dump a chunk of memory.
  * Copies it out to our static buffer then sends it across the network.
  * Detects the initial KDH and makes sure it is given a special packet type.
@@ -948,13 +966,9 @@ netdump_dumper(void *priv __unused, void *virtual,
 	    virtual, (uintmax_t)offset, length);
 
 	if (virtual == NULL) {
-		if (nd_conf.nd_buf_len != 0) {
-			error = netdump_send(NETDUMP_VMCORE, nd_conf.nd_tx_off, nd_buf,
-			    nd_conf.nd_buf_len);
-			if (error != 0) {
-				dump_failed = 1;
-			}
-		}
+		error = netdump_flush_buf();
+		if (error != 0)
+			dump_failed = 1;
 
 		if (dump_failed != 0)
 			printf("failed to dump the kernel core\n");
@@ -968,16 +982,14 @@ netdump_dumper(void *priv __unused, void *virtual,
 	if (length > sizeof(nd_buf))
 		return (ENOSPC);
 
-	if (nd_conf.nd_buf_len + length > sizeof(nd_buf) || 
-	    (nd_conf.nd_buf_len != 0 && nd_conf.nd_tx_off + 
+	if (nd_conf.nd_buf_len + length > sizeof(nd_buf) ||
+	    (nd_conf.nd_buf_len != 0 && nd_conf.nd_tx_off +
 	    nd_conf.nd_buf_len != offset)) {
-		error = netdump_send(NETDUMP_VMCORE, nd_conf.nd_tx_off, nd_buf, 
-		    nd_conf.nd_buf_len);
+		error = netdump_flush_buf();
 		if (error != 0) {
 			dump_failed = 1;
 			return (error);
 		}
-		nd_conf.nd_buf_len = 0;
 		nd_conf.nd_tx_off = offset;
 	}
 
@@ -1078,6 +1090,9 @@ netdump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh,
 {
 	int error;
 
+	error = netdump_flush_buf();
+	if (error != 0)
+		return (error);
 	memcpy(nd_buf, kdh, sizeof(*kdh));
 	error = netdump_send(NETDUMP_KDH, 0, nd_buf, sizeof(*kdh));
 	if (error == 0 && keysize > 0) {
