@@ -1786,13 +1786,9 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	 */
 	do {
 		bufobj_wwait(bo, 0, 0);
-		if ((flags & V_VMIO) == 0) {
+		if ((flags & V_VMIO) == 0 && bo->bo_object != NULL) {
 			BO_UNLOCK(bo);
-			if (bo->bo_object != NULL) {
-				VM_OBJECT_WLOCK(bo->bo_object);
-				vm_object_pip_wait(bo->bo_object, "bovlbx");
-				VM_OBJECT_WUNLOCK(bo->bo_object);
-			}
+			vm_object_pip_wait_unlocked(bo->bo_object, "bovlbx");
 			BO_LOCK(bo);
 		}
 	} while (bo->bo_numoutput > 0);

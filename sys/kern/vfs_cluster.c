@@ -479,7 +479,8 @@ cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 			}
 			if (tsize > 0) {
 clean_sbusy:
-				vm_object_pip_add(tbp->b_bufobj->bo_object, -j);
+				vm_object_pip_wakeupn(tbp->b_bufobj->bo_object,
+				    j);
 				for (k = 0; k < j; k++)
 					vm_page_sunbusy(tbp->b_pages[k]);
 				VM_OBJECT_WUNLOCK(tbp->b_bufobj->bo_object);

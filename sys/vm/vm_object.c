@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>		/* for curproc, pageproc */
+#include <sys/refcount.h>
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
@@ -221,7 +222,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	object->type = OBJT_DEAD;
 	object->ref_count = 0;
 	vm_radix_init(&object->rtree);
-	object->paging_in_progress = 0;
+	refcount_init(&object->paging_in_progress, 0);
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
 	object->flags = OBJ_DEAD;
@@ -371,41 +372,21 @@ void
 vm_object_pip_add(vm_object_t object, short i)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	object->paging_in_progress += i;
-}
-
-void
-vm_object_pip_subtract(vm_object_t object, short i)
-{
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	object->paging_in_progress -= i;
+	refcount_acquiren(&object->paging_in_progress, i);
 }
 
 void
 vm_object_pip_wakeup(vm_object_t object)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	object->paging_in_progress--;
-	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
-		vm_object_clear_flag(object, OBJ_PIPWNT);
-		wakeup(object);
-	}
+	refcount_release(&object->paging_in_progress);
 }
 
 void
 vm_object_pip_wakeupn(vm_object_t object, short i)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	if (i)
-		object->paging_in_progress -= i;
-	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
-		vm_object_clear_flag(object, OBJ_PIPWNT);
-		wakeup(object);
-	}
+	refcount_releasen(&object->paging_in_progress, i);
 }
 
 void
@@ -413,10 +394,22 @@ vm_object_pip_wait(vm_object_t object, char *waitid)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
+
 	while (object->paging_in_progress) {
-		object->flags |= OBJ_PIPWNT;
-		VM_OBJECT_SLEEP(object, object, PVM, waitid, 0);
+		VM_OBJECT_WUNLOCK(object);
+		refcount_wait(&object->paging_in_progress, waitid, PVM);
+		VM_OBJECT_WLOCK(object);
 	}
+}
+
+void
+vm_object_pip_wait_unlocked(vm_object_t object, char *waitid)
+{
+
+	VM_OBJECT_ASSERT_UNLOCKED(object);
+
+	while (object->paging_in_progress)
+		refcount_wait(&object->paging_in_progress, waitid, PVM);
 }
 
 /*
@@ -615,9 +608,10 @@ retry:
 						}
 					} else if (object->paging_in_progress) {
 						VM_OBJECT_WUNLOCK(robject);
-						object->flags |= OBJ_PIPWNT;
-						VM_OBJECT_SLEEP(object, object,
-						    PDROP | PVM, "objde2", 0);
+						VM_OBJECT_WUNLOCK(object);
+						refcount_wait(
+						    &object->paging_in_progress,
+						    "objde2", PVM);
 						VM_OBJECT_WLOCK(robject);
 						temp = robject->backing_object;
 						if (object == temp) {
@@ -761,14 +755,6 @@ vm_object_terminate(vm_object_t object)
 	vm_object_set_flag(object, OBJ_DEAD);
 
 	/*
-	 * wait for the pageout daemon to be done with the object
-	 */
-	vm_object_pip_wait(object, "objtrm");
-
-	KASSERT(!object->paging_in_progress,
-		("vm_object_terminate: pageout in progress"));
-
-	/*
 	 * Clean and free the pages, as appropriate. All references to the
 	 * object are gone, so we don't need to lock it.
 	 */
@@ -789,6 +775,14 @@ vm_object_terminate(vm_object_t object)
 
 		VM_OBJECT_WLOCK(object);
 	}
+
+	/*
+	 * wait for the pageout daemon to be done with the object
+	 */
+	vm_object_pip_wait(object, "objtrm");
+
+	KASSERT(!object->paging_in_progress,
+		("vm_object_terminate: pageout in progress"));
 
 	KASSERT(object->ref_count == 0, 
 		("vm_object_terminate: object with references, ref_count=%d",
