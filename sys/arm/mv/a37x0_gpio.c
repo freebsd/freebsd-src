@@ -46,21 +46,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "gpio_if.h"
-
-static struct resource_spec a37x0_gpio_res_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },	/* Pinctl / GPIO */
-	{ SYS_RES_MEMORY, 1, RF_ACTIVE },	/* Interrupts control */
-	{ -1, 0, 0 }
-};
+#include "syscon_if.h"
 
 struct a37x0_gpio_softc {
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
 	device_t		sc_busdev;
 	int			sc_type;
 	uint32_t		sc_max_pins;
 	uint32_t		sc_npins;
-	struct resource		*sc_mem_res[nitems(a37x0_gpio_res_spec) - 1];
+	struct syscon		*syscon;
 };
 
 /* Memory regions. */
@@ -72,9 +65,9 @@ struct a37x0_gpio_softc {
 #define	A37X0_SB_GPIO			2
 
 #define	A37X0_GPIO_WRITE(_sc, _off, _val)		\
-    bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off), (_val))
+    SYSCON_WRITE_4((_sc)->syscon, (_off), (_val))
 #define	A37X0_GPIO_READ(_sc, _off)			\
-    bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off))
+    SYSCON_READ_4((_sc)->syscon, (_off))
 
 #define	A37X0_GPIO_BIT(_p)		(1U << ((_p) % 32))
 #define	A37X0_GPIO_OUT_EN(_p)		(0x0 + ((_p) / 32) * 4)
@@ -280,6 +273,12 @@ a37x0_gpio_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	err = syscon_get_handle_default(dev, &sc->syscon);
+	if (err != 0) {
+		device_printf(dev, "Cannot get syscon handle from parent\n");
+		return (ENXIO);
+	}
+
 	/* Read and verify the "gpio-ranges" property. */
 	ncells = OF_getencprop_alloc(ofw_bus_get_node(dev), "gpio-ranges",
 	    (void **)&ranges);
@@ -295,14 +294,6 @@ a37x0_gpio_attach(device_t dev)
 	/* Check the number of pins in the DTS vs HW capabilities. */
 	if (sc->sc_npins > sc->sc_max_pins)
 		return (ENXIO);
-
-	err = bus_alloc_resources(dev, a37x0_gpio_res_spec, sc->sc_mem_res);
-	if (err != 0) {
-		device_printf(dev, "cannot allocate memory window\n");
-		return (ENXIO);
-	}
-	sc->sc_bst = rman_get_bustag(sc->sc_mem_res[A37X0_GPIO]);
-	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res[A37X0_GPIO]);
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
 	if (sc->sc_busdev == NULL)
