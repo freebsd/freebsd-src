@@ -255,6 +255,10 @@ extern struct vm_object kernel_object_store;
 	rw_wowned(&(object)->lock)
 #define	VM_OBJECT_WUNLOCK(object)					\
 	rw_wunlock(&(object)->lock)
+#define	VM_OBJECT_DROP(object)						\
+	lock_class_rw.lc_unlock(&(object)->lock.lock_object)
+#define	VM_OBJECT_PICKUP(object, state)					\
+	lock_class_rw.lc_lock(&(object)->lock.lock_object, (state))
 
 struct vnode;
 
