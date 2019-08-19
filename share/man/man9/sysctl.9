@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2018
+.Dd June 11, 2019
 .Dt SYSCTL 9
 .Os
 .Sh NAME
@@ -60,6 +60,7 @@
 .Nm SYSCTL_INT ,
 .Nm SYSCTL_INT_WITH_LABEL ,
 .Nm SYSCTL_LONG ,
+.Nm sysctl_msec_to_ticks ,
 .Nm SYSCTL_NODE ,
 .Nm SYSCTL_NODE_WITH_LABEL ,
 .Nm SYSCTL_OPAQUE ,
@@ -352,6 +353,8 @@
 .Fn SYSCTL_INT parent number name ctlflags ptr val descr
 .Fn SYSCTL_INT_WITH_LABEL parent number name ctlflags ptr val descr label
 .Fn SYSCTL_LONG parent number name ctlflags ptr val descr
+.Ft int
+.Fn sysctl_msec_to_ticks SYSCTL_HANDLER_ARGS
 .Fn SYSCTL_NODE parent number name ctlflags handler descr
 .Fn SYSCTL_NODE_WITH_LABEL parent number name ctlflags handler descr label
 .Fn SYSCTL_OPAQUE parent number name ctlflags ptr len format descr
@@ -372,6 +375,7 @@
 .Fn SYSCTL_UINT parent number name ctlflags ptr val descr
 .Fn SYSCTL_ULONG parent number name ctlflags ptr val descr
 .Fn SYSCTL_UQUAD parent number name ctlflags ptr val descr
+
 .Sh DESCRIPTION
 The
 .Nm SYSCTL
@@ -501,6 +505,38 @@ Labels should only be applied to siblings that are structurally similar
 and encode the same type of value,
 as aggregation is of no use otherwise.
 .El
+.Sh NODE VALUE TYPES
+Most of the macros and functions used to create sysctl nodes export a
+read-only constant or in-kernel variable whose type matches the type
+of the node's value.
+For example,
+.Fn SYSCTL_INT
+reports the raw value of an associated variable of type
+.Vt int .
+However, nodes may also export a value that is a translatation of an internal
+representation.
+.Pp
+The
+.Fn sysctl_msec_to_ticks
+handler can be used with
+.Fn SYSCTL_PROC
+or
+.Fn SYSCTL_ADD_PROC
+to export a millisecond time interval.
+When using this handler,
+the
+.Fa arg2
+parameter points to an in-kernel variable of type
+.Vt int
+which stores a tick count suitable for use with functions like
+.Xr tsleep 9 .
+The
+.Fn sysctl_msec_to_ticks
+function converts this value to milliseconds when reporting the node's value.
+Similarly,
+.Fn sysctl_msec_to_ticks
+accepts new values in milliseconds and stores an equivalent value in ticks to
+.Fa *arg2 .
 .Sh CREATING ROOT NODES
 Sysctl MIBs or OIDs are created in a hierarchical tree.
 The nodes at the bottom of the tree are called root nodes, and have no
