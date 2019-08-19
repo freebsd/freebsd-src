@@ -197,7 +197,7 @@ struct toepcb {
 
 	TAILQ_HEAD(, kaiocb) aiotx_jobq;
 	struct task aiotx_task;
-	bool aiotx_task_active;
+	struct socket *aiotx_so;
 
 	/* Tx software descriptor */
 	uint8_t txsd_total;
