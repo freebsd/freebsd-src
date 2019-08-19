@@ -10,6 +10,15 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r351201:
+	Add a vop_stdioctl() call, so that file systems that do not support
+	holes will have a trivial implementation of lseek(SEEK_DATA/SEEK_HOLE).
+	The algorithm appears to be compatible with the POSIX draft and
+	the implementation in Linux for the case of a file system that
+	does not support holes.  Prior to this patch, lseek(2) would reply
+	-1 with errno set to ENOTTY for SEEK_DATA/SEEK_HOLE on files in
+	file systems that do not support holes.
+
 r350665:
 	The fuse driver has been renamed to fusefs(5) and been substantially
 	rewritten.  The new driver includes many bug fixes and performance
