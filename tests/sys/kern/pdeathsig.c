@@ -305,7 +305,9 @@ ATF_TC_BODY(signal_delivered_ptrace, tc)
 				    WSTOPSIG(status));
 			assert(rc == 0);
 
-			ptrace(PT_DETACH, c_pid, 0, 0);
+			waitpid(c_pid, &status, 0);
+			if (!WIFEXITED(status))
+				ptrace(PT_DETACH, c_pid, 0, 0);
 
 			_exit(0);
 		}
