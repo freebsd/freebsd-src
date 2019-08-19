@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2018
+.Dd August 19, 2019
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -225,6 +225,17 @@ Defaults to 512.
 .It Fl s Ar image-size
 Set the size of the file system image to
 .Ar image-size .
+This is equivalent to setting both the minimum
+.Fl ( M )
+and the maximum
+.Fl ( m )
+sizes to the same value.
+For
+.Sy ffs
+the
+.Ar image-size
+does not include the
+.Ar offset .
 .It Fl T Ar timestamp
 Specify a timestamp to be set for all filesystem files and directories
 created so that repeatable builds are possible.
