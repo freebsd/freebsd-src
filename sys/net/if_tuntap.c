@@ -671,6 +671,8 @@ static moduledata_t tuntap_mod = {
 
 DECLARE_MODULE(if_tuntap, tuntap_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_tuntap, 1);
+MODULE_VERSION(if_tun, 1);
+MODULE_VERSION(if_tap, 1);
 
 static void
 tunstart(struct ifnet *ifp)
