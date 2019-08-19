@@ -79,7 +79,8 @@ struct mdthread {
 #define	MDTD_COP2USED	0x0002		/* Process used the COP2 */
 
 struct mdproc {
-	/* empty */
+	/* Avoid empty structs because they are undefined behavior. */
+	long	md_spare;
 };
 
 struct syscall_args {
