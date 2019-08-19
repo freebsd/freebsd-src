@@ -84,7 +84,7 @@ else
 	# remove the file.
 	remove_periodic_anticongestion_file=no
 fi
-if tty > /dev/null 2>&1; then
+if [ -t 0 ]; then
 	export PERIODIC_IS_INTERACTIVE=1
 fi
 tmp_output=`mktemp ${TMPDIR:-/tmp}/periodic.XXXXXXXXXX`
