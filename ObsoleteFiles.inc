@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190817: pft_ping.py and sniffer.py moved to /usr/tests/sys/netpfil/common
+OLD_FILES+=usr/tests/sys/netpfil/pf/sniffer.py
+OLD_FILES+=usr/tests/sys/netpfil/pf/pft_ping.py
 # 20190816: dir.h removed from POSIX
 OLD_FILES+=usr/include/sys/dir.h
 # 20190729: gzip'ed a.out support removed
