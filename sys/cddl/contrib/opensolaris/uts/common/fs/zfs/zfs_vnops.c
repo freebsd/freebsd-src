@@ -451,7 +451,7 @@ page_unbusy(vm_page_t pp)
 {
 
 	vm_page_sunbusy(pp);
-	vm_object_pip_subtract(pp->object, 1);
+	vm_object_pip_wakeup(pp->object);
 }
 
 static vm_page_t
@@ -523,6 +523,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 
 	off = start & PAGEOFFSET;
 	zfs_vmobject_wlock(obj);
+	vm_object_pip_add(obj, 1);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
 		vm_page_t pp;
 		int nbytes = imin(PAGESIZE - off, len);
@@ -541,7 +542,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 		len -= nbytes;
 		off = 0;
 	}
-	vm_object_pip_wakeupn(obj, 0);
+	vm_object_pip_wakeup(obj);
 	zfs_vmobject_wunlock(obj);
 }
 
