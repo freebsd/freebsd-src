@@ -119,7 +119,7 @@ XXX: document these
 .It Fl F Ar mtree-specfile
 .Em This is almost certainly not the option you are looking for.
 To create an image from a list of files in an mtree format manifest,
-specify it as the last argument on the commandline, not as a the
+specify it as the last argument on the command line, not as a the
 argument to
 .Fl F .
 .Pp
@@ -160,10 +160,10 @@ and
 (in the case of symbolic links).
 If
 .Sy time
-isn't provided, the current time will be used.
+is not provided, the current time will be used.
 If
 .Sy flags
-isn't provided, the current file flags will be used.
+is not provided, the current file flags will be used.
 Missing regular file entries will be created as zero-length files.
 .It Fl f Ar free-files
 Ensure that a minimum of
@@ -331,9 +331,11 @@ The following keywords are supported:
 Allow the directory structure to exceed the maximum specified in
 the spec.
 .It Sy allow-illegal-chars
-Allow illegal characters in filenames. This option is not implemented.
+Allow illegal characters in filenames.
+This option is not implemented.
 .It Sy allow-lowercase
-Allow lowercase characters in filenames. This option is not implemented.
+Allow lowercase characters in filenames.
+This option is not implemented.
 .It Sy allow-max-name
 Allow 37 instead of 33 characters for filenames by omitting the
 version id.
@@ -348,7 +350,8 @@ extension to encode
 .Tn RISC OS
 metadata.
 .It Sy bootimagedir
-Boot image directory. This option is not implemented.
+Boot image directory.
+This option is not implemented.
 .It Sy chrp-boot
 Write an MBR partition table to the image to allow older CHRP hardware to
 boot.
