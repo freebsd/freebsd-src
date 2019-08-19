@@ -176,6 +176,9 @@ userret(struct thread *td, struct trapframe *frame)
 	KASSERT(td->td_sx_slocks == 0,
 	    ("userret: Returning with %d sx locks held in shared mode",
 	    td->td_sx_slocks));
+	KASSERT(td->td_lk_slocks == 0,
+	    ("userret: Returning with %d lockmanager locks held in shared mode",
+	    td->td_lk_slocks));
 	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
 	    ("userret: Returning with pagefaults disabled"));
 	KASSERT(td->td_no_sleeping == 0,
