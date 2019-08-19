@@ -2,6 +2,8 @@
 
 . $(atf_get_srcdir)/utils.subr
 
+common_dir=$(atf_get_srcdir)/../common
+
 atf_test_case "v4" "cleanup"
 v4_head()
 {
@@ -37,7 +39,7 @@ v4_body()
 
 	# No change is done if not requested
 	pft_set_rules alcatraz "scrub out proto icmp"
-	atf_check -s exit:1 -o ignore $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:1 -o ignore ${common_dir}/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a \
@@ -45,7 +47,7 @@ v4_body()
 
 	# The requested ToS is set
 	pft_set_rules alcatraz "scrub out proto icmp set-tos 42"
-	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a \
@@ -53,7 +55,7 @@ v4_body()
 
 	# ToS is not changed if the scrub rule does not match
 	pft_set_rules alcatraz "scrub out proto tcp set-tos 42"
-	atf_check -s exit:1 -o ignore $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:1 -o ignore ${common_dir}/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a \
@@ -62,14 +64,14 @@ v4_body()
 	# Multiple scrub rules match as expected
 	pft_set_rules alcatraz "scrub out proto tcp set-tos 13" \
 		"scrub out proto icmp set-tos 14"
-	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a \
 		--expect-tos 14
 
 	# And this works even if the packet already has ToS values set
-	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a \
@@ -78,7 +80,7 @@ v4_body()
 
 	# ToS values are unmolested if the packets do not match a scrub rule
 	pft_set_rules alcatraz "scrub out proto tcp set-tos 13"
-	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a \

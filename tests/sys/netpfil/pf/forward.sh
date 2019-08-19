@@ -2,6 +2,8 @@
 
 . $(atf_get_srcdir)/utils.subr
 
+common_dir=$(atf_get_srcdir)/../common
+
 atf_test_case "v4" "cleanup"
 v4_head()
 {
@@ -43,20 +45,20 @@ v4_body()
 
 	# Forward with pf enabled
 	pft_set_rules alcatraz "block in"
-	atf_check -s exit:1 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:1 ${common_dir}/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a
 
 	pft_set_rules alcatraz "block out"
-	atf_check -s exit:1 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:1 ${common_dir}/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recv ${epair_recv}a
 
 	# Allow ICMP
 	pft_set_rules alcatraz "block in" "pass in proto icmp"
-	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a
@@ -98,7 +100,7 @@ v6_body()
 	route add -6 2001:db8:43::/64 2001:db8:42::2
 
 	# Sanity check, can we forward ICMP echo requests without pf?
-	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
 		--ip6 \
 		--sendif ${epair_send}a \
 		--to 2001:db8:43::3 \
@@ -109,7 +111,7 @@ v6_body()
 	# Block incoming echo request packets
 	pft_set_rules alcatraz \
 		"block in inet6 proto icmp6 icmp6-type echoreq"
-	atf_check -s exit:1 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:1 ${common_dir}/pft_ping.py \
 		--ip6 \
 		--sendif ${epair_send}a \
 		--to 2001:db8:43::3 \
@@ -118,7 +120,7 @@ v6_body()
 	# Block outgoing echo request packets
 	pft_set_rules alcatraz \
 		"block out inet6 proto icmp6 icmp6-type echoreq"
-	atf_check -s exit:1 -e ignore $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:1 -e ignore ${common_dir}/pft_ping.py \
 		--ip6 \
 		--sendif ${epair_send}a \
 		--to 2001:db8:43::3 \
@@ -128,7 +130,7 @@ v6_body()
 	pft_set_rules alcatraz \
 		"block out" \
 		"pass out inet6 proto icmp6"
-	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
 		--ip6 \
 		--sendif ${epair_send}a \
 		--to 2001:db8:43::3 \
@@ -138,7 +140,7 @@ v6_body()
 	pft_set_rules alcatraz \
 		"block out inet6 proto icmp6 icmp6-type echoreq" \
 		"pass in proto icmp"
-	atf_check -s exit:1 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:1 ${common_dir}/pft_ping.py \
 		--ip6 \
 		--sendif ${epair_send}a \
 		--to 2001:db8:43::3 \
