@@ -31,7 +31,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2018
+.Dd August 7, 2019
 .Dt RC 8
 .Os
 .Sh NAME
@@ -89,8 +89,13 @@ The
 directories contain scripts which will be automatically
 executed at boot time and shutdown time.
 .Pp
-The sysrc(8) command provides a scripting interface to modify system
-config files.
+The
+.Xr service 8
+command provides a convenient interface to manage rc.d services.
+.Pp
+The
+.Xr sysrc 8
+command provides a scripting interface to modify system config files.
 .Ss Operation of Nm
 .Bl -enum
 .It
@@ -214,7 +219,7 @@ Call each script in turn using
 which sets
 .Va $1
 to
-.Dq Li stop ,
+.Dq Li faststop ,
 and sources the script in a subshell.
 .El
 .Ss Contents of Nm rc.d/
@@ -556,6 +561,7 @@ is unnecessary, but is often included.
 .Xr rcorder 8 ,
 .Xr reboot 8 ,
 .Xr savecore 8 ,
+.Xr service 8 ,
 .Xr sysrc 8
 .Sh HISTORY
 The
