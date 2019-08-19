@@ -327,6 +327,12 @@ gdb_tx_reg(int regnum)
 		gdb_tx_mem(regp, regsz);
 }
 
+bool
+gdb_txbuf_has_capacity(size_t req)
+{
+	return (((char *)gdb_txbuf + sizeof(gdb_txbuf) - gdb_txp) >= req);
+}
+
 /* Read binary data up until the end of the packet or until we have datalen decoded bytes */
 int
 gdb_rx_bindata(unsigned char *data, size_t datalen, size_t *amt)
