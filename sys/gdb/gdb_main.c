@@ -305,7 +305,13 @@ gdb_trap(int type, int code)
 			break;
 		}
 		case 'q':	/* General query. */
-			if (gdb_rx_equal("fThreadInfo")) {
+			if (gdb_rx_equal("C")) {
+				gdb_tx_begin('Q');
+				gdb_tx_char('C');
+				gdb_tx_varhex((long)kdb_thread->td_tid);
+				gdb_tx_end();
+				break;
+			} else if (gdb_rx_equal("fThreadInfo")) {
 				thr_iter = kdb_thr_first();
 				gdb_do_threadinfo(&thr_iter);
 			} else if (gdb_rx_equal("sThreadInfo")) {
