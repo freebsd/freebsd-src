@@ -84,7 +84,7 @@ VNET_DECLARE(int, tcp_autorcvbuf_max);
 #define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
 
 static void	t4_aiotx_cancel(struct kaiocb *job);
-static void	t4_aiotx_queue_toep(struct toepcb *toep);
+static void	t4_aiotx_queue_toep(struct socket *so, struct toepcb *toep);
 
 static size_t
 aiotx_mbuf_pgoff(struct mbuf *m)
@@ -795,7 +795,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 					if (sowwakeup) {
 						if (!TAILQ_EMPTY(
 						    &toep->aiotx_jobq))
-							t4_aiotx_queue_toep(
+							t4_aiotx_queue_toep(so,
 							    toep);
 						sowwakeup_locked(so);
 					} else
@@ -839,7 +839,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		}
 		if (sowwakeup) {
 			if (!TAILQ_EMPTY(&toep->aiotx_jobq))
-				t4_aiotx_queue_toep(toep);
+				t4_aiotx_queue_toep(so, toep);
 			sowwakeup_locked(so);
 		} else
 			SOCKBUF_UNLOCK(sb);
@@ -1827,7 +1827,7 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 				tls_ofld->sb_off -= plen;
 			}
 			if (!TAILQ_EMPTY(&toep->aiotx_jobq))
-				t4_aiotx_queue_toep(toep);
+				t4_aiotx_queue_toep(so, toep);
 			sowwakeup_locked(so);	/* unlocks so_snd */
 		}
 		SOCKBUF_UNLOCK_ASSERT(sb);
@@ -2201,10 +2201,10 @@ static void
 t4_aiotx_task(void *context, int pending)
 {
 	struct toepcb *toep = context;
-	struct inpcb *inp = toep->inp;
-	struct socket *so = inp->inp_socket;
+	struct socket *so;
 	struct kaiocb *job;
 
+	so = toep->aiotx_so;
 	CURVNET_SET(toep->vnet);
 	SOCKBUF_LOCK(&so->so_snd);
 	while (!TAILQ_EMPTY(&toep->aiotx_jobq) && sowriteable(so)) {
@@ -2215,15 +2215,17 @@ t4_aiotx_task(void *context, int pending)
 
 		t4_aiotx_process_job(toep, so, job);
 	}
-	toep->aiotx_task_active = false;
+	toep->aiotx_so = NULL;
 	SOCKBUF_UNLOCK(&so->so_snd);
 	CURVNET_RESTORE();
 
 	free_toepcb(toep);
+	SOCK_LOCK(so);
+	sorele(so);
 }
 
 static void
-t4_aiotx_queue_toep(struct toepcb *toep)
+t4_aiotx_queue_toep(struct socket *so, struct toepcb *toep)
 {
 
 	SOCKBUF_LOCK_ASSERT(&toep->inp->inp_socket->so_snd);
@@ -2231,9 +2233,10 @@ t4_aiotx_queue_toep(struct toepcb *toep)
 	CTR3(KTR_CXGBE, "%s: queueing aiotx task for tid %d, active = %s",
 	    __func__, toep->tid, toep->aiotx_task_active ? "true" : "false");
 #endif
-	if (toep->aiotx_task_active)
+	if (toep->aiotx_so != NULL)
 		return;
-	toep->aiotx_task_active = true;
+	soref(so);
+	toep->aiotx_so = so;
 	hold_toepcb(toep);
 	soaio_enqueue(&toep->aiotx_task);
 }
@@ -2290,7 +2293,7 @@ t4_aio_queue_aiotx(struct socket *so, struct kaiocb *job)
 		panic("new job was cancelled");
 	TAILQ_INSERT_TAIL(&toep->aiotx_jobq, job, list);
 	if (sowriteable(so))
-		t4_aiotx_queue_toep(toep);
+		t4_aiotx_queue_toep(so, toep);
 	SOCKBUF_UNLOCK(&so->so_snd);
 	return (0);
 }
