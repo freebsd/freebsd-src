@@ -1100,6 +1100,9 @@ OLD_FILES+=usr/lib/clang/8.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/8.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/8.0.0/lib
 OLD_DIRS+=usr/lib/clang/8.0.0
+# 20190817: pft_ping.py and sniffer.py moved to /usr/tests/sys/netpfil/common
+OLD_FILES+=usr/tests/sys/netpfil/pf/sniffer.py
+OLD_FILES+=usr/tests/sys/netpfil/pf/pft_ping.py
 # 20190509: tests/sys/opencrypto requires the net/py-dpkt package.
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.py
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.pyc
