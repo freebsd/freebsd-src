@@ -571,7 +571,7 @@ nvdimm_root_child_location_str(device_t dev, device_t child, char *buf,
 	if (handle != NULL)
 		res = snprintf(buf, buflen, "handle=%s", acpi_name(handle));
 	else
-		res = snprintf(buf, buflen, "unknown");
+		res = snprintf(buf, buflen, "");
 
 	if (res >= buflen)
 		return (EOVERFLOW);
