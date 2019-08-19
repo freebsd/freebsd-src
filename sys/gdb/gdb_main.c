@@ -123,6 +123,45 @@ gdb_do_mem_search(void)
 		gdb_tx_err(EIO);
 }
 
+static void
+gdb_do_threadinfo(struct thread **thr_iter)
+{
+	static struct thread * const done_sentinel = (void *)(uintptr_t)1;
+	static const size_t tidsz_hex = sizeof(lwpid_t) * 2;
+	size_t tds_sent;
+
+	if (*thr_iter == NULL) {
+		gdb_tx_err(ENXIO);
+		return;
+	}
+
+	if (*thr_iter == done_sentinel) {
+		gdb_tx_begin('l');
+		*thr_iter = NULL;
+		goto sendit;
+	}
+
+	gdb_tx_begin('m');
+
+	for (tds_sent = 0;
+	    *thr_iter != NULL && gdb_txbuf_has_capacity(tidsz_hex + 1);
+	    *thr_iter = kdb_thr_next(*thr_iter), tds_sent++) {
+		if (tds_sent > 0)
+			gdb_tx_char(',');
+		gdb_tx_varhex((*thr_iter)->td_tid);
+	}
+
+	/*
+	 * Can't send EOF and "some" in same packet, so set a sentinel to send
+	 * EOF when GDB asks us next.
+	 */
+	if (*thr_iter == NULL && tds_sent > 0)
+		*thr_iter = done_sentinel;
+
+sendit:
+	gdb_tx_end();
+}
+
 static int
 gdb_trap(int type, int code)
 {
@@ -268,23 +307,9 @@ gdb_trap(int type, int code)
 		case 'q':	/* General query. */
 			if (gdb_rx_equal("fThreadInfo")) {
 				thr_iter = kdb_thr_first();
-				gdb_tx_begin('m');
-				gdb_tx_hex((long)thr_iter->td_tid, 8);
-				gdb_tx_end();
+				gdb_do_threadinfo(&thr_iter);
 			} else if (gdb_rx_equal("sThreadInfo")) {
-				if (thr_iter == NULL) {
-					gdb_tx_err(ENXIO);
-					break;
-				}
-				thr_iter = kdb_thr_next(thr_iter);
-				if (thr_iter != NULL) {
-					gdb_tx_begin('m');
-					gdb_tx_hex((long)thr_iter->td_tid, 8);
-					gdb_tx_end();
-				} else {
-					gdb_tx_begin('l');
-					gdb_tx_end();
-				}
+				gdb_do_threadinfo(&thr_iter);
 			} else if (gdb_rx_equal("Search:memory:")) {
 				gdb_do_mem_search();
 			} else if (!gdb_cpu_query())
