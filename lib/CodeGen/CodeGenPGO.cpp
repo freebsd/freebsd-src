@@ -1,9 +1,8 @@
 //===--- CodeGenPGO.cpp - PGO Instrumentation for LLVM CodeGen --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -772,14 +771,14 @@ void CodeGenPGO::assignRegionCounters(GlobalDecl GD, llvm::Function *Fn) {
   // If so, instrument only base variant, others are implemented by delegation
   // to the base one, it would be counted twice otherwise.
   if (CGM.getTarget().getCXXABI().hasConstructorVariants()) {
-    if (isa<CXXDestructorDecl>(D) && GD.getDtorType() != Dtor_Base)
-      return;
-
     if (const auto *CCD = dyn_cast<CXXConstructorDecl>(D))
       if (GD.getCtorType() != Ctor_Base &&
           CodeGenFunction::IsConstructorDelegationValid(CCD))
         return;
   }
+  if (isa<CXXDestructorDecl>(D) && GD.getDtorType() != Dtor_Base)
+    return;
+
   CGM.ClearUnusedCoverageMapping(D);
   setFuncName(Fn);
 

@@ -1,9 +1,8 @@
 //===- ExprEngine.h - Path-Sensitive Expression-Level Dataflow --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -23,6 +22,7 @@
 #include "clang/Analysis/ProgramPoint.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugReporterVisitors.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CoreEngine.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/FunctionSummary.h"
@@ -131,6 +131,9 @@ private:
   /// SymMgr - Object that manages the symbol information.
   SymbolManager &SymMgr;
 
+  /// MRMgr - MemRegionManager object that creates memory regions.
+  MemRegionManager &MRMgr;
+
   /// svalBuilder - SValBuilder object that creates SVals from expressions.
   SValBuilder &svalBuilder;
 
@@ -158,7 +161,7 @@ public:
              SetOfConstDecls *VisitedCalleesIn,
              FunctionSummariesTy *FS, InliningModes HowToInlineIn);
 
-  ~ExprEngine() override;
+  ~ExprEngine() override = default;
 
   /// Returns true if there is still simulation state on the worklist.
   bool ExecuteWorkList(const LocationContext *L, unsigned Steps = 150000) {
@@ -179,6 +182,10 @@ public:
   ASTContext &getContext() const { return AMgr.getASTContext(); }
 
   AnalysisManager &getAnalysisManager() override { return AMgr; }
+
+  AnalysisDeclContextManager &getAnalysisDeclContextManager() {
+    return AMgr.getAnalysisDeclContextManager();
+  }
 
   CheckerManager &getCheckerManager() const {
     return *AMgr.getCheckerManager();
@@ -369,10 +376,10 @@ public:
                        const LocationContext *LCtx,
                        const CallEvent *Call) override;
 
-  /// printState - Called by ProgramStateManager to print checker-specific data.
-  void printState(raw_ostream &Out, ProgramStateRef State, const char *NL,
-                  const char *Sep,
-                  const LocationContext *LCtx = nullptr) override;
+  /// printJson - Called by ProgramStateManager to print checker-specific data.
+  void printJson(raw_ostream &Out, ProgramStateRef State,
+                 const LocationContext *LCtx, const char *NL,
+                 unsigned int Space, bool IsDot) const override;
 
   ProgramStateManager &getStateManager() override { return StateMgr; }
 
@@ -387,9 +394,11 @@ public:
     return StateMgr.getBasicVals();
   }
 
-  // FIXME: Remove when we migrate over to just using ValueManager.
   SymbolManager &getSymbolManager() { return SymMgr; }
-  const SymbolManager &getSymbolManager() const { return SymMgr; }
+  MemRegionManager &getRegionManager() { return MRMgr; }
+
+  NoteTag::Factory &getNoteTags() { return Engine.getNoteTags(); }
+
 
   // Functions for external checking of whether we have unfinished work
   bool wasBlocksExhausted() const { return Engine.wasBlocksExhausted(); }
@@ -706,6 +715,25 @@ private:
                                      const ExplodedNode *Pred,
                                      AnalyzerOptions &Opts,
                                      const EvalCallOptions &CallOpts);
+
+  /// See if the given AnalysisDeclContext is built for a function that we
+  /// should always inline simply because it's small enough.
+  /// Apart from "small" functions, we also have "large" functions
+  /// (cf. isLarge()), some of which are huge (cf. isHuge()), and we classify
+  /// the remaining functions as "medium".
+  bool isSmall(AnalysisDeclContext *ADC) const;
+
+  /// See if the given AnalysisDeclContext is built for a function that we
+  /// should inline carefully because it looks pretty large.
+  bool isLarge(AnalysisDeclContext *ADC) const;
+
+  /// See if the given AnalysisDeclContext is built for a function that we
+  /// should never inline because it's legit gigantic.
+  bool isHuge(AnalysisDeclContext *ADC) const;
+
+  /// See if the given AnalysisDeclContext is built for a function that we
+  /// should inline, just by looking at the declaration of the function.
+  bool mayInlineDecl(AnalysisDeclContext *ADC) const;
 
   /// Checks our policies and decides weither the given call should be inlined.
   bool shouldInlineCall(const CallEvent &Call, const Decl *D,

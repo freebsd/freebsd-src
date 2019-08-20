@@ -1,9 +1,8 @@
 //===-- ReplacementsYaml.h -- Serialiazation for Replacements ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -36,7 +35,13 @@ template <> struct MappingTraits<clang::tooling::Replacement> {
 
     NormalizedReplacement(const IO &, const clang::tooling::Replacement &R)
         : FilePath(R.getFilePath()), Offset(R.getOffset()),
-          Length(R.getLength()), ReplacementText(R.getReplacementText()) {}
+          Length(R.getLength()), ReplacementText(R.getReplacementText()) {
+      size_t lineBreakPos = ReplacementText.find('\n');
+      while (lineBreakPos != std::string::npos) {
+        ReplacementText.replace(lineBreakPos, 1, "\n\n");
+        lineBreakPos = ReplacementText.find('\n', lineBreakPos + 2);
+      }
+    }
 
     clang::tooling::Replacement denormalize(const IO &) {
       return clang::tooling::Replacement(FilePath, Offset, Length,
