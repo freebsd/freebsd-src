@@ -2788,7 +2788,7 @@ freebsd32_kmq_timedsend(struct thread *td,
 	if (uap->abs_timeout != NULL) {
 		error = copyin(uap->abs_timeout, &ets32, sizeof(ets32));
 		if (error != 0)
-			return (error);
+			goto out;
 		CP(ets32, ets, tv_sec);
 		CP(ets32, ets, tv_nsec);
 		abs_timeout = &ets;
@@ -2797,6 +2797,7 @@ freebsd32_kmq_timedsend(struct thread *td,
 	waitok = !(fp->f_flag & O_NONBLOCK);
 	error = mqueue_send(mq, uap->msg_ptr, uap->msg_len,
 		uap->msg_prio, waitok, abs_timeout);
+out:
 	fdrop(fp, td);
 	return (error);
 }
