@@ -1,14 +1,14 @@
 //===--------------------- TaskPool.cpp -------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/TaskPool.h"
 #include "lldb/Host/ThreadLauncher.h"
+#include "lldb/Utility/Log.h"
 
 #include <cstdint>
 #include <queue>
@@ -66,15 +66,22 @@ void TaskPoolImpl::AddTask(std::function<void()> &&task_fn) {
     // Note that this detach call needs to happen with the m_tasks_mutex held.
     // This prevents the thread from exiting prematurely and triggering a linux
     // libc bug (https://sourceware.org/bugzilla/show_bug.cgi?id=19951).
-    lldb_private::ThreadLauncher::LaunchThread("task-pool.worker", WorkerPtr,
-                                               this, nullptr, min_stack_size)
-        .Release();
+    llvm::Expected<HostThread> host_thread =
+        lldb_private::ThreadLauncher::LaunchThread(
+            "task-pool.worker", WorkerPtr, this, min_stack_size);
+    if (host_thread) {
+      host_thread->Release();
+    } else {
+      LLDB_LOG(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST),
+               "failed to launch host thread: {}",
+               llvm::toString(host_thread.takeError()));
+    }
   }
 }
 
 lldb::thread_result_t TaskPoolImpl::WorkerPtr(void *pool) {
   Worker((TaskPoolImpl *)pool);
-  return 0;
+  return {};
 }
 
 void TaskPoolImpl::Worker(TaskPoolImpl *pool) {

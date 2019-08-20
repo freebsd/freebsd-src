@@ -1,9 +1,8 @@
 //===-- XML.cpp -------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -135,7 +134,7 @@ XMLNode XMLNode::GetChild() const {
 
 llvm::StringRef XMLNode::GetAttributeValue(const char *name,
                                            const char *fail_value) const {
-  const char *attr_value = NULL;
+  const char *attr_value = nullptr;
 #if defined(LIBXML2_DEFINED)
 
   if (IsValid())

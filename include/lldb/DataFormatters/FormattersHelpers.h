@@ -1,10 +1,9 @@
 //===-- FormattersHelpers.h --------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -37,7 +36,6 @@ void AddOneLineSummary(TypeCategoryImpl::SharedPointer category_sp,
                        ConstString type_name, TypeSummaryImpl::Flags flags,
                        bool regex = false);
 
-#ifndef LLDB_DISABLE_PYTHON
 void AddCXXSummary(TypeCategoryImpl::SharedPointer category_sp,
                    CXXFunctionSummaryFormat::Callback funct,
                    const char *description, ConstString type_name,
@@ -53,7 +51,6 @@ void AddFilter(TypeCategoryImpl::SharedPointer category_sp,
                std::vector<std::string> children, const char *description,
                ConstString type_name, ScriptedSyntheticChildren::Flags flags,
                bool regex = false);
-#endif
 
 size_t ExtractIndexFromString(const char *item_name);
 

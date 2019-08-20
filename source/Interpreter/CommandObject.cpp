@@ -1,9 +1,8 @@
 //===-- CommandObject.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -36,9 +35,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//-------------------------------------------------------------------------
 // CommandObject
-//-------------------------------------------------------------------------
 
 CommandObject::CommandObject(CommandInterpreter &interpreter, llvm::StringRef name,
   llvm::StringRef help, llvm::StringRef syntax, uint32_t flags)
@@ -51,6 +48,8 @@ CommandObject::CommandObject(CommandInterpreter &interpreter, llvm::StringRef na
 }
 
 CommandObject::~CommandObject() {}
+
+Debugger &CommandObject::GetDebugger() { return m_interpreter.GetDebugger(); }
 
 llvm::StringRef CommandObject::GetHelp() { return m_cmd_help_short; }
 
@@ -137,17 +136,15 @@ bool CommandObject::ParseOptions(Args &args, CommandReturnObject &result) {
 }
 
 bool CommandObject::CheckRequirements(CommandReturnObject &result) {
-#ifdef LLDB_CONFIGURATION_DEBUG
   // Nothing should be stored in m_exe_ctx between running commands as
   // m_exe_ctx has shared pointers to the target, process, thread and frame and
   // we don't want any CommandObject instances to keep any of these objects
   // around longer than for a single command. Every command should call
-  // CommandObject::Cleanup() after it has completed
-  assert(m_exe_ctx.GetTargetPtr() == NULL);
-  assert(m_exe_ctx.GetProcessPtr() == NULL);
-  assert(m_exe_ctx.GetThreadPtr() == NULL);
-  assert(m_exe_ctx.GetFramePtr() == NULL);
-#endif
+  // CommandObject::Cleanup() after it has completed.
+  assert(!m_exe_ctx.GetTargetPtr());
+  assert(!m_exe_ctx.GetProcessPtr());
+  assert(!m_exe_ctx.GetThreadPtr());
+  assert(!m_exe_ctx.GetFramePtr());
 
   // Lock down the interpreter's execution context prior to running the command
   // so we guarantee the selected target, process, thread and frame can't go
@@ -1106,7 +1103,8 @@ CommandObject::ArgumentTableEntry CommandObject::g_arguments_data[] = {
 const CommandObject::ArgumentTableEntry *CommandObject::GetArgumentTable() {
   // If this assertion fires, then the table above is out of date with the
   // CommandArgumentType enumeration
-  assert((sizeof(CommandObject::g_arguments_data) /
-          sizeof(CommandObject::ArgumentTableEntry)) == eArgTypeLastArg);
+  static_assert((sizeof(CommandObject::g_arguments_data) /
+                 sizeof(CommandObject::ArgumentTableEntry)) == eArgTypeLastArg,
+                "");
   return CommandObject::g_arguments_data;
 }

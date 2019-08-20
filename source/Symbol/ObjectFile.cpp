@@ -1,9 +1,8 @@
 //===-- ObjectFile.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -57,13 +56,13 @@ ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
                     PluginManager::GetObjectContainerCreateCallbackAtIndex(
                         idx)) != nullptr;
                ++idx) {
-            std::unique_ptr<ObjectContainer> object_container_ap(
+            std::unique_ptr<ObjectContainer> object_container_up(
                 create_object_container_callback(module_sp, data_sp,
                                                  data_offset, file, file_offset,
                                                  file_size));
 
-            if (object_container_ap.get())
-              object_file_sp = object_container_ap->GetObjectFile(file);
+            if (object_container_up)
+              object_file_sp = object_container_up->GetObjectFile(file);
 
             if (object_file_sp.get())
               return object_file_sp;
@@ -106,13 +105,13 @@ ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
                       PluginManager::GetObjectContainerCreateCallbackAtIndex(
                           idx)) != nullptr;
                  ++idx) {
-              std::unique_ptr<ObjectContainer> object_container_ap(
+              std::unique_ptr<ObjectContainer> object_container_up(
                   create_object_container_callback(module_sp, data_sp,
                                                    data_offset, file,
                                                    file_offset, file_size));
 
-              if (object_container_ap.get())
-                object_file_sp = object_container_ap->GetObjectFile(file);
+              if (object_container_up)
+                object_file_sp = object_container_up->GetObjectFile(file);
 
               if (object_file_sp.get())
                 return object_file_sp;
@@ -148,12 +147,12 @@ ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
                   PluginManager::GetObjectContainerCreateCallbackAtIndex(
                       idx)) != nullptr;
              ++idx) {
-          std::unique_ptr<ObjectContainer> object_container_ap(
+          std::unique_ptr<ObjectContainer> object_container_up(
               create_object_container_callback(module_sp, data_sp, data_offset,
                                                file, file_offset, file_size));
 
-          if (object_container_ap.get())
-            object_file_sp = object_container_ap->GetObjectFile(file);
+          if (object_container_up)
+            object_file_sp = object_container_up->GetObjectFile(file);
 
           if (object_file_sp.get())
             return object_file_sp;
@@ -264,9 +263,8 @@ ObjectFile::ObjectFile(const lldb::ModuleSP &module_sp,
     : ModuleChild(module_sp),
       m_file(), // This file could be different from the original module's file
       m_type(eTypeInvalid), m_strata(eStrataInvalid),
-      m_file_offset(file_offset), m_length(length), m_data(),
-      m_unwind_table(*this), m_process_wp(),
-      m_memory_addr(LLDB_INVALID_ADDRESS), m_sections_ap(), m_symtab_ap(),
+      m_file_offset(file_offset), m_length(length), m_data(), m_process_wp(),
+      m_memory_addr(LLDB_INVALID_ADDRESS), m_sections_up(), m_symtab_up(),
       m_synthetic_symbol_idx(0) {
   if (file_spec_ptr)
     m_file = *file_spec_ptr;
@@ -287,9 +285,8 @@ ObjectFile::ObjectFile(const lldb::ModuleSP &module_sp,
                        DataBufferSP &header_data_sp)
     : ModuleChild(module_sp), m_file(), m_type(eTypeInvalid),
       m_strata(eStrataInvalid), m_file_offset(0), m_length(0), m_data(),
-      m_unwind_table(*this), m_process_wp(process_sp),
-      m_memory_addr(header_addr), m_sections_ap(), m_symtab_ap(),
-      m_synthetic_symbol_idx(0) {
+      m_process_wp(process_sp), m_memory_addr(header_addr), m_sections_up(),
+      m_symtab_up(), m_synthetic_symbol_idx(0) {
   if (header_data_sp)
     m_data.SetData(header_data_sp, 0, header_data_sp->GetByteSize());
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
@@ -368,6 +365,7 @@ AddressClass ObjectFile::GetAddressClass(addr_t file_addr) {
           case eSectionTypeDWARFDebugStrOffsets:
           case eSectionTypeDWARFDebugStrOffsetsDwo:
           case eSectionTypeDWARFDebugTypes:
+          case eSectionTypeDWARFDebugTypesDwo:
           case eSectionTypeDWARFAppleNames:
           case eSectionTypeDWARFAppleTypes:
           case eSectionTypeDWARFAppleNamespaces:
@@ -464,12 +462,12 @@ DataBufferSP ObjectFile::ReadMemory(const ProcessSP &process_sp,
                                     lldb::addr_t addr, size_t byte_size) {
   DataBufferSP data_sp;
   if (process_sp) {
-    std::unique_ptr<DataBufferHeap> data_ap(new DataBufferHeap(byte_size, 0));
+    std::unique_ptr<DataBufferHeap> data_up(new DataBufferHeap(byte_size, 0));
     Status error;
     const size_t bytes_read = process_sp->ReadMemory(
-        addr, data_ap->GetBytes(), data_ap->GetByteSize(), error);
+        addr, data_up->GetBytes(), data_up->GetByteSize(), error);
     if (bytes_read == byte_size)
-      data_sp.reset(data_ap.release());
+      data_sp.reset(data_up.release());
   }
   return data_sp;
 }
@@ -536,9 +534,7 @@ size_t ObjectFile::ReadSectionData(Section *section,
   return 0;
 }
 
-//----------------------------------------------------------------------
 // Get the section data the file on disk
-//----------------------------------------------------------------------
 size_t ObjectFile::ReadSectionData(Section *section,
                                    DataExtractor &section_data) {
   // If some other objectfile owns this data, pass this to them.
@@ -602,13 +598,13 @@ void ObjectFile::ClearSymtab() {
     if (log)
       log->Printf("%p ObjectFile::ClearSymtab () symtab = %p",
                   static_cast<void *>(this),
-                  static_cast<void *>(m_symtab_ap.get()));
-    m_symtab_ap.reset();
+                  static_cast<void *>(m_symtab_up.get()));
+    m_symtab_up.reset();
   }
 }
 
 SectionList *ObjectFile::GetSectionList(bool update_module_section_list) {
-  if (m_sections_ap.get() == nullptr) {
+  if (m_sections_up == nullptr) {
     if (update_module_section_list) {
       ModuleSP module_sp(GetModule());
       if (module_sp) {
@@ -620,7 +616,7 @@ SectionList *ObjectFile::GetSectionList(bool update_module_section_list) {
       CreateSections(unified_section_list);
     }
   }
-  return m_sections_ap.get();
+  return m_sections_up.get();
 }
 
 lldb::SymbolType

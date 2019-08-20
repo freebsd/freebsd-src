@@ -1,9 +1,8 @@
 //===-- ThreadGDBRemote.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,18 +20,18 @@
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/State.h"
 #include "lldb/Utility/StreamString.h"
+#include "lldb/Utility/StringExtractorGDBRemote.h"
 
 #include "ProcessGDBRemote.h"
 #include "ProcessGDBRemoteLog.h"
-#include "lldb/Utility/StringExtractorGDBRemote.h"
+
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::process_gdb_remote;
 
-//----------------------------------------------------------------------
 // Thread Registers
-//----------------------------------------------------------------------
 
 ThreadGDBRemote::ThreadGDBRemote(Process &process, lldb::tid_t tid)
     : Thread(process, tid), m_thread_name(), m_dispatch_queue_name(),
@@ -308,9 +307,9 @@ ThreadGDBRemote::CreateRegisterContextForFrame(StackFrame *frame) {
       // supported.
       bool read_all_registers_at_once =
           !gdb_process->GetGDBRemote().GetpPacketSupported(GetID());
-      reg_ctx_sp.reset(new GDBRemoteRegisterContext(
+      reg_ctx_sp = std::make_shared<GDBRemoteRegisterContext>(
           *this, concrete_frame_idx, gdb_process->m_register_info,
-          read_all_registers_at_once));
+          read_all_registers_at_once);
     }
   } else {
     Unwind *unwinder = GetUnwinder();

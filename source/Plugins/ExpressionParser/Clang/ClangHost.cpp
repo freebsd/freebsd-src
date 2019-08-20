@@ -1,9 +1,8 @@
 //===-- ClangHost.cpp -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,29 +16,15 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Threading.h"
 
+#include "lldb/Host/Config.h"
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostInfo.h"
-#if !defined(_WIN32)
-#include "lldb/Host/posix/HostInfoPosix.h"
-#endif
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Log.h"
 
 #include <string>
 
 using namespace lldb_private;
-
-#if defined(_WIN32)
-static bool ComputeClangDirectory(FileSpec &file_spec) { return false; }
-#else
-static bool DefaultComputeClangDirectory(FileSpec &file_spec) {
-  return HostInfoPosix::ComputePathRelativeToLibrary(
-      file_spec, (llvm::Twine("/lib") + CLANG_LIBDIR_SUFFIX + "/clang/" +
-                  CLANG_VERSION_STRING)
-                     .str());
-}
-
-#if defined(__APPLE__)
 
 static bool VerifyClangPath(const llvm::Twine &clang_path) {
   if (FileSystem::Instance().IsDirectory(clang_path))
@@ -52,8 +37,55 @@ static bool VerifyClangPath(const llvm::Twine &clang_path) {
   return false;
 }
 
-bool lldb_private::ComputeClangDirectory(FileSpec &lldb_shlib_spec,
+///
+/// This will compute the clang resource directory assuming that clang was
+/// installed with the same prefix as lldb.
+///
+/// If verify is true, the first candidate resource directory will be returned.
+/// This mode is only used for testing.
+///
+static bool DefaultComputeClangResourceDirectory(FileSpec &lldb_shlib_spec,
+                                                 FileSpec &file_spec,
+                                                 bool verify) {
+  Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST);
+  std::string raw_path = lldb_shlib_spec.GetPath();
+  llvm::StringRef parent_dir = llvm::sys::path::parent_path(raw_path);
+
+  static const llvm::StringRef kResourceDirSuffixes[] = {
+      // LLVM.org's build of LLDB uses the clang resource directory placed
+      // in $install_dir/lib{,64}/clang/$clang_version.
+      "lib" CLANG_LIBDIR_SUFFIX "/clang/" CLANG_VERSION_STRING,
+      // swift-lldb uses the clang resource directory copied from swift, which
+      // by default is placed in $install_dir/lib{,64}/lldb/clang. LLDB places
+      // it there, so we use LLDB_LIBDIR_SUFFIX.
+      "lib" LLDB_LIBDIR_SUFFIX "/lldb/clang",
+  };
+
+  for (const auto &Suffix : kResourceDirSuffixes) {
+    llvm::SmallString<256> clang_dir(parent_dir);
+    llvm::SmallString<32> relative_path(Suffix);
+    llvm::sys::path::native(relative_path);
+    llvm::sys::path::append(clang_dir, relative_path);
+    if (!verify || VerifyClangPath(clang_dir)) {
+      if (log)
+        log->Printf("DefaultComputeClangResourceDir: Setting ClangResourceDir "
+                    "to \"%s\", verify = %s",
+                    clang_dir.str().str().c_str(), verify ? "true" : "false");
+      file_spec.GetDirectory().SetString(clang_dir);
+      FileSystem::Instance().Resolve(file_spec);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool lldb_private::ComputeClangResourceDirectory(FileSpec &lldb_shlib_spec,
                                          FileSpec &file_spec, bool verify) {
+#if !defined(__APPLE__)
+  return DefaultComputeClangResourceDirectory(lldb_shlib_spec, file_spec,
+                                              verify);
+#else
   std::string raw_path = lldb_shlib_spec.GetPath();
 
   auto rev_it = llvm::sys::path::rbegin(raw_path);
@@ -66,8 +98,10 @@ bool lldb_private::ComputeClangDirectory(FileSpec &lldb_shlib_spec,
     ++rev_it;
   }
 
+  // We found a non-framework build of LLDB
   if (rev_it == r_end)
-    return DefaultComputeClangDirectory(file_spec);
+    return DefaultComputeClangResourceDirectory(lldb_shlib_spec, file_spec,
+                                                verify);
 
   // Inside Xcode and in Xcode toolchains LLDB is always in lockstep
   // with the Swift compiler, so it can reuse its Clang resource
@@ -84,7 +118,7 @@ bool lldb_private::ComputeClangDirectory(FileSpec &lldb_shlib_spec,
                             "Developer/Toolchains/XcodeDefault.xctoolchain",
                             swift_clang_resource_dir);
     if (!verify || VerifyClangPath(clang_path)) {
-      file_spec.SetFile(clang_path.c_str(), FileSpec::Style::native);
+      file_spec.GetDirectory().SetString(clang_path.c_str());
       FileSystem::Instance().Resolve(file_spec);
       return true;
     }
@@ -99,7 +133,7 @@ bool lldb_private::ComputeClangDirectory(FileSpec &lldb_shlib_spec,
       raw_path.resize(parent - r_end);
       llvm::sys::path::append(clang_path, raw_path, swift_clang_resource_dir);
       if (!verify || VerifyClangPath(clang_path)) {
-        file_spec.SetFile(clang_path.c_str(), FileSpec::Style::native);
+        file_spec.GetDirectory().SetString(clang_path.c_str());
         FileSystem::Instance().Resolve(file_spec);
         return true;
       }
@@ -112,30 +146,19 @@ bool lldb_private::ComputeClangDirectory(FileSpec &lldb_shlib_spec,
 
   // Fall back to the Clang resource directory inside the framework.
   raw_path.append("LLDB.framework/Resources/Clang");
-  file_spec.SetFile(raw_path.c_str(), FileSpec::Style::native);
+  file_spec.GetDirectory().SetString(raw_path.c_str());
   FileSystem::Instance().Resolve(file_spec);
   return true;
-}
-
-static bool ComputeClangDirectory(FileSpec &file_spec) {
-  if (FileSpec lldb_file_spec = HostInfo::GetShlibDir())
-    return ComputeClangDirectory(lldb_file_spec, file_spec, true);
-  return false;
-}
-#else  // __APPLE__
-
-// All non-Apple posix systems.
-static bool ComputeClangDirectory(FileSpec &file_spec) {
-  return DefaultComputeClangDirectory(file_spec);
-}
 #endif // __APPLE__
-#endif // _WIN32
+}
 
 FileSpec lldb_private::GetClangResourceDir() {
   static FileSpec g_cached_resource_dir;
   static llvm::once_flag g_once_flag;
   llvm::call_once(g_once_flag, []() {
-    ::ComputeClangDirectory(g_cached_resource_dir);
+    if (FileSpec lldb_file_spec = HostInfo::GetShlibDir())
+      ComputeClangResourceDirectory(lldb_file_spec, g_cached_resource_dir,
+                                    true);
     Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST);
     if (log)
       log->Printf("GetClangResourceDir() => '%s'",

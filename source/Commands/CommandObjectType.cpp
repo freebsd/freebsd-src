@@ -1,17 +1,12 @@
 //===-- CommandObjectType.cpp -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "CommandObjectType.h"
-
-#include <algorithm>
-#include <cctype>
-#include <functional>
 
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/IOHandler.h"
@@ -40,6 +35,11 @@
 
 #include "llvm/ADT/STLExtras.h"
 
+#include <algorithm>
+#include <cctype>
+#include <functional>
+#include <memory>
+
 using namespace lldb;
 using namespace lldb_private;
 
@@ -52,7 +52,7 @@ public:
   std::string m_category;
 
   ScriptAddOptions(const TypeSummaryImpl::Flags &flags, bool regx,
-                   const ConstString &name, std::string catg)
+                   ConstString name, std::string catg)
       : m_flags(flags), m_regex(regx), m_name(name), m_category(catg) {}
 
   typedef std::shared_ptr<ScriptAddOptions> SharedPointer;
@@ -96,23 +96,8 @@ static bool WarnOnPotentialUnquotedUnsignedType(Args &command,
 }
 
 static constexpr OptionDefinition g_type_summary_add_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL,                false, "category",        'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,           "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_ALL,                false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean,        "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL,                false, "no-value",        'v', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Don't show the value, just show the summary, for this type." },
-  { LLDB_OPT_SET_ALL,                false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL,                false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL,                false, "regex",           'x', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Type names are actually regular expressions." },
-  { LLDB_OPT_SET_1,                  true,  "inline-children", 'c', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "If true, inline all child values into summary string." },
-  { LLDB_OPT_SET_1,                  false, "omit-names",      'O', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "If true, omit value names in the summary display." },
-  { LLDB_OPT_SET_2,                  true,  "summary-string",  's', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeSummaryString,  "Summary string used to display text and object contents." },
-  { LLDB_OPT_SET_3,                  false, "python-script",   'o', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePythonScript,   "Give a one-liner Python script as part of the command." },
-  { LLDB_OPT_SET_3,                  false, "python-function", 'F', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePythonFunction, "Give the name of a Python function to use for this type." },
-  { LLDB_OPT_SET_3,                  false, "input-python",    'P', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Input Python code to use for this type manually." },
-  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "expand",          'e', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Expand aggregate data types to show children on separate lines." },
-  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "hide-empty",      'h', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Do not expand aggregate data types with no children." },
-  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "name",            'n', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,           "A name for this summary string." }
-    // clang-format on
+#define LLDB_OPTIONS_type_summary_add
+#include "CommandOptions.inc"
 };
 
 class CommandObjectTypeSummaryAdd : public CommandObjectParsed,
@@ -160,7 +145,7 @@ public:
 
   ~CommandObjectTypeSummaryAdd() override = default;
 
-  void IOHandlerActivated(IOHandler &io_handler) override {
+  void IOHandlerActivated(IOHandler &io_handler, bool interactive) override {
     static const char *g_summary_addreader_instructions =
         "Enter your Python command(s). Type 'DONE' to end.\n"
         "def function (valobj,internal_dict):\n"
@@ -169,7 +154,7 @@ public:
         "        internal_dict: an LLDB support object not to be used\"\"\"\n";
 
     StreamFileSP output_sp(io_handler.GetOutputStreamFile());
-    if (output_sp) {
+    if (output_sp && interactive) {
       output_sp->PutCString(g_summary_addreader_instructions);
       output_sp->Flush();
     }
@@ -180,7 +165,7 @@ public:
     StreamFileSP error_sp = io_handler.GetErrorStreamFile();
 
 #ifndef LLDB_DISABLE_PYTHON
-    ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+    ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
     if (interpreter) {
       StringList lines;
       lines.SplitIntoLines(data);
@@ -192,7 +177,7 @@ public:
               options_ptr); // this will ensure that we get rid of the pointer
                             // when going out of scope
 
-          ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+          ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
           if (interpreter) {
             std::string funct_name_str;
             if (interpreter->GenerateTypeScriptFunction(lines,
@@ -206,9 +191,9 @@ public:
                 // for every type in the list
 
                 TypeSummaryImplSP script_format;
-                script_format.reset(new ScriptSummaryFormat(
+                script_format = std::make_shared<ScriptSummaryFormat>(
                     options->m_flags, funct_name_str.c_str(),
-                    lines.CopyList("    ").c_str()));
+                    lines.CopyList("    ").c_str());
 
                 Status error;
 
@@ -298,15 +283,8 @@ static const char *g_synth_addreader_instructions =
     "class synthProvider:\n";
 
 static constexpr OptionDefinition g_type_synth_add_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean,     "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,        "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,        "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,        "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_2,   false, "python-class",    'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePythonClass, "Use this Python class to produce synthetic children." },
-  { LLDB_OPT_SET_3,   false, "input-python",    'P', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,        "Type Python code to generate a class that provides synthetic children." },
-  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,        "Type names are actually regular expressions." }
-    // clang-format on
+#define LLDB_OPTIONS_type_synth_add
+#include "CommandOptions.inc"
 };
 
 class CommandObjectTypeSynthAdd : public CommandObjectParsed,
@@ -412,9 +390,9 @@ protected:
     }
   }
 
-  void IOHandlerActivated(IOHandler &io_handler) override {
+  void IOHandlerActivated(IOHandler &io_handler, bool interactive) override {
     StreamFileSP output_sp(io_handler.GetOutputStreamFile());
-    if (output_sp) {
+    if (output_sp && interactive) {
       output_sp->PutCString(g_synth_addreader_instructions);
       output_sp->Flush();
     }
@@ -425,7 +403,7 @@ protected:
     StreamFileSP error_sp = io_handler.GetErrorStreamFile();
 
 #ifndef LLDB_DISABLE_PYTHON
-    ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+    ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
     if (interpreter) {
       StringList lines;
       lines.SplitIntoLines(data);
@@ -437,7 +415,7 @@ protected:
               options_ptr); // this will ensure that we get rid of the pointer
                             // when going out of scope
 
-          ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+          ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
           if (interpreter) {
             std::string class_name_str;
             if (interpreter->GenerateTypeSynthClass(lines, class_name_str)) {
@@ -450,12 +428,12 @@ protected:
                 // class
 
                 SyntheticChildrenSP synth_provider;
-                synth_provider.reset(new ScriptedSyntheticChildren(
+                synth_provider = std::make_shared<ScriptedSyntheticChildren>(
                     SyntheticChildren::Flags()
                         .SetCascades(options->m_cascade)
                         .SetSkipPointers(options->m_skip_pointers)
                         .SetSkipReferences(options->m_skip_references),
-                    class_name_str.c_str()));
+                    class_name_str.c_str());
 
                 lldb::TypeCategoryImplSP category;
                 DataVisualization::Categories::GetCategory(
@@ -523,19 +501,11 @@ public:
                        Status *error);
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFormatAdd
-//-------------------------------------------------------------------------
 
 static constexpr OptionDefinition g_type_format_add_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,    "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean, "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,    "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,    "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,    "Type names are actually regular expressions." },
-  { LLDB_OPT_SET_2,   false, "type",            't', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,    "Format variables as if they were of this type." }
-    // clang-format on
+#define LLDB_OPTIONS_type_format_add
+#include "CommandOptions.inc"
 };
 
 class CommandObjectTypeFormatAdd : public CommandObjectParsed {
@@ -700,18 +670,18 @@ protected:
     TypeFormatImplSP entry;
 
     if (m_command_options.m_custom_type_name.empty())
-      entry.reset(new TypeFormatImpl_Format(
+      entry = std::make_shared<TypeFormatImpl_Format>(
           format, TypeFormatImpl::Flags()
                       .SetCascades(m_command_options.m_cascade)
                       .SetSkipPointers(m_command_options.m_skip_pointers)
-                      .SetSkipReferences(m_command_options.m_skip_references)));
+                      .SetSkipReferences(m_command_options.m_skip_references));
     else
-      entry.reset(new TypeFormatImpl_EnumType(
+      entry = std::make_shared<TypeFormatImpl_EnumType>(
           ConstString(m_command_options.m_custom_type_name.c_str()),
           TypeFormatImpl::Flags()
               .SetCascades(m_command_options.m_cascade)
               .SetSkipPointers(m_command_options.m_skip_pointers)
-              .SetSkipReferences(m_command_options.m_skip_references)));
+              .SetSkipReferences(m_command_options.m_skip_references));
 
     // now I have a valid format, let's add it to every type
 
@@ -751,11 +721,8 @@ protected:
 };
 
 static constexpr OptionDefinition g_type_formatter_delete_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_1, false, "all",      'a', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Delete from every category." },
-  { LLDB_OPT_SET_2, false, "category", 'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,     "Delete from given category." },
-  { LLDB_OPT_SET_3, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Delete from given language's category." }
-    // clang-format on
+#define LLDB_OPTIONS_type_formatter_delete
+#include "CommandOptions.inc"
 };
 
 class CommandObjectTypeFormatterDelete : public CommandObjectParsed {
@@ -893,9 +860,8 @@ protected:
 };
 
 static constexpr OptionDefinition g_type_formatter_clear_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "all", 'a', OptionParser::eNoArgument, nullptr, {}, 0, eArgTypeNone, "Clear every category." }
-    // clang-format on
+#define LLDB_OPTIONS_type_formatter_clear
+#include "CommandOptions.inc"
 };
 
 class CommandObjectTypeFormatterClear : public CommandObjectParsed {
@@ -980,9 +946,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFormatDelete
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFormatDelete : public CommandObjectTypeFormatterDelete {
 public:
@@ -996,9 +960,7 @@ public:
   ~CommandObjectTypeFormatDelete() override = default;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFormatClear
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFormatClear : public CommandObjectTypeFormatterClear {
 public:
@@ -1011,10 +973,8 @@ public:
 
 
 static constexpr OptionDefinition g_type_formatter_list_options[] = {
-  // clang-format off
-  {LLDB_OPT_SET_1, false, "category-regex", 'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,     "Only show categories matching this filter."},
-  {LLDB_OPT_SET_2, false, "language",       'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Only show the category for a specific language."}
-  // clang-format on
+#define LLDB_OPTIONS_type_formatter_list
+#include "CommandOptions.inc"
 };
 
 template <typename FormatterType>
@@ -1222,9 +1182,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFormatList
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFormatList
     : public CommandObjectTypeFormatterList<TypeFormatImpl> {
@@ -1236,9 +1194,7 @@ public:
 
 #ifndef LLDB_DISABLE_PYTHON
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeSummaryAdd
-//-------------------------------------------------------------------------
 
 #endif // LLDB_DISABLE_PYTHON
 
@@ -1353,10 +1309,10 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
     std::string code =
         ("    " + m_options.m_python_function + "(valobj,internal_dict)");
 
-    script_format.reset(
-        new ScriptSummaryFormat(m_options.m_flags, funct_name, code.c_str()));
+    script_format = std::make_shared<ScriptSummaryFormat>(
+        m_options.m_flags, funct_name, code.c_str());
 
-    ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+    ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
 
     if (interpreter && !interpreter->CheckObjectExists(funct_name))
       result.AppendWarningWithFormat(
@@ -1366,7 +1322,7 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
   } else if (!m_options.m_python_script
                   .empty()) // we have a quick 1-line script, just use it
   {
-    ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+    ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
     if (!interpreter) {
       result.AppendError("script interpreter missing - unable to generate "
                          "function wrapper.\n");
@@ -1390,8 +1346,8 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
 
     std::string code = "    " + m_options.m_python_script;
 
-    script_format.reset(new ScriptSummaryFormat(
-        m_options.m_flags, funct_name_str.c_str(), code.c_str()));
+    script_format = std::make_shared<ScriptSummaryFormat>(
+        m_options.m_flags, funct_name_str.c_str(), code.c_str());
   } else {
     // Use an IOHandler to grab Python code from the user
     ScriptAddOptions *options =
@@ -1713,9 +1669,7 @@ bool CommandObjectTypeSummaryAdd::AddSummary(ConstString type_name,
   }
 }
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeSummaryDelete
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeSummaryDelete : public CommandObjectTypeFormatterDelete {
 public:
@@ -1749,9 +1703,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeSummaryList
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeSummaryList
     : public CommandObjectTypeFormatterList<TypeSummaryImpl> {
@@ -1778,15 +1730,11 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeCategoryDefine
-//-------------------------------------------------------------------------
 
 static constexpr OptionDefinition g_type_category_define_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "enabled",  'e', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "If specified, this category will be created enabled." },
-  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Specify the language that this category is supported for." }
-    // clang-format on
+#define LLDB_OPTIONS_type_category_define
+#include "CommandOptions.inc"
 };
 
 class CommandObjectTypeCategoryDefine : public CommandObjectParsed {
@@ -1885,14 +1833,11 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeCategoryEnable
-//-------------------------------------------------------------------------
 
 static constexpr OptionDefinition g_type_category_enable_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Enable the category for this language." },
-    // clang-format on
+#define LLDB_OPTIONS_type_category_enable
+#include "CommandOptions.inc"
 };
 
 class CommandObjectTypeCategoryEnable : public CommandObjectParsed {
@@ -2002,9 +1947,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeCategoryDelete
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeCategoryDelete : public CommandObjectParsed {
 public:
@@ -2062,14 +2005,11 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeCategoryDisable
-//-------------------------------------------------------------------------
 
 OptionDefinition constexpr g_type_category_disable_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Enable the category for this language." }
-    // clang-format on
+#define LLDB_OPTIONS_type_category_disable
+#include "CommandOptions.inc"
 };
 
 class CommandObjectTypeCategoryDisable : public CommandObjectParsed {
@@ -2174,9 +2114,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeCategoryList
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeCategoryList : public CommandObjectParsed {
 public:
@@ -2245,9 +2183,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFilterList
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFilterList
     : public CommandObjectTypeFormatterList<TypeFilterImpl> {
@@ -2259,9 +2195,7 @@ public:
 
 #ifndef LLDB_DISABLE_PYTHON
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeSynthList
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeSynthList
     : public CommandObjectTypeFormatterList<SyntheticChildren> {
@@ -2274,9 +2208,7 @@ public:
 
 #endif // LLDB_DISABLE_PYTHON
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFilterDelete
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFilterDelete : public CommandObjectTypeFormatterDelete {
 public:
@@ -2291,9 +2223,7 @@ public:
 
 #ifndef LLDB_DISABLE_PYTHON
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeSynthDelete
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeSynthDelete : public CommandObjectTypeFormatterDelete {
 public:
@@ -2309,9 +2239,7 @@ public:
 
 #endif // LLDB_DISABLE_PYTHON
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFilterClear
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFilterClear : public CommandObjectTypeFormatterClear {
 public:
@@ -2323,9 +2251,7 @@ public:
 };
 
 #ifndef LLDB_DISABLE_PYTHON
-//-------------------------------------------------------------------------
 // CommandObjectTypeSynthClear
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeSynthClear : public CommandObjectTypeFormatterClear {
 public:
@@ -2393,7 +2319,7 @@ bool CommandObjectTypeSynthAdd::Execute_PythonClass(
 
   entry.reset(impl);
 
-  ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+  ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
 
   if (interpreter &&
       !interpreter->CheckObjectExists(impl->GetPythonClassName()))
@@ -2491,14 +2417,8 @@ bool CommandObjectTypeSynthAdd::AddSynth(ConstString type_name,
 #endif // LLDB_DISABLE_PYTHON
 
 static constexpr OptionDefinition g_type_filter_add_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean,        "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,           "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_ALL, false, "child",           'c', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeExpressionPath, "Include this expression path in the synthetic view." },
-  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Type names are actually regular expressions." }
-    // clang-format on
+#define LLDB_OPTIONS_type_filter_add
+#include "CommandOptions.inc"
 };
 
 class CommandObjectTypeFilterAdd : public CommandObjectParsed {
@@ -2742,14 +2662,10 @@ protected:
   }
 };
 
-//----------------------------------------------------------------------
 // "type lookup"
-//----------------------------------------------------------------------
 static constexpr OptionDefinition g_type_lookup_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "show-help", 'h', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Display available help for types" },
-  { LLDB_OPT_SET_ALL, false, "language",  'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Which language's types should the search scope be" }
-    // clang-format on
+#define LLDB_OPTIONS_type_lookup
+#include "CommandOptions.inc"
 };
 
 class CommandObjectTypeLookup : public CommandObjectRaw {
@@ -2844,17 +2760,11 @@ public:
       return m_cmd_help_long;
 
     StreamString stream;
-    // FIXME: hardcoding languages is not good
-    lldb::LanguageType languages[] = {eLanguageTypeObjC,
-                                      eLanguageTypeC_plus_plus};
-
-    for (const auto lang_type : languages) {
-      if (auto language = Language::FindPlugin(lang_type)) {
-        if (const char *help = language->GetLanguageSpecificTypeLookupHelp()) {
-          stream.Printf("%s\n", help);
-        }
-      }
-    }
+    Language::ForEach([&](Language *lang) {
+      if (const char *help = lang->GetLanguageSpecificTypeLookupHelp())
+        stream.Printf("%s\n", help);
+      return true;
+    });
 
     m_cmd_help_long = stream.GetString();
     return m_cmd_help_long;
@@ -2879,10 +2789,6 @@ public:
                                  exe_ctx))
         return false;
 
-    // TargetSP
-    // target_sp(GetCommandInterpreter().GetDebugger().GetSelectedTarget());
-    // const bool fill_all_in = true;
-    // ExecutionContext exe_ctx(target_sp.get(), fill_all_in);
     ExecutionContextScope *best_scope = exe_ctx.GetBestExecutionContextScope();
 
     bool any_found = false;
@@ -2894,9 +2800,10 @@ public:
 
     if ((is_global_search =
              (m_command_options.m_language == eLanguageTypeUnknown))) {
-      // FIXME: hardcoding languages is not good
-      languages.push_back(Language::FindPlugin(eLanguageTypeObjC));
-      languages.push_back(Language::FindPlugin(eLanguageTypeC_plus_plus));
+      Language::ForEach([&](Language *lang) {
+        languages.push_back(lang);
+        return true;
+      });
     } else {
       languages.push_back(Language::FindPlugin(m_command_options.m_language));
     }
@@ -2994,7 +2901,7 @@ public:
 protected:
   bool DoExecute(llvm::StringRef command,
                  CommandReturnObject &result) override {
-    TargetSP target_sp = m_interpreter.GetDebugger().GetSelectedTarget();
+    TargetSP target_sp = GetDebugger().GetSelectedTarget();
     Thread *thread = GetDefaultThread();
     if (!thread) {
       result.AppendError("no default thread");
@@ -3168,9 +3075,7 @@ public:
   ~CommandObjectTypeSummary() override = default;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectType
-//-------------------------------------------------------------------------
 
 CommandObjectType::CommandObjectType(CommandInterpreter &interpreter)
     : CommandObjectMultiword(interpreter, "type",

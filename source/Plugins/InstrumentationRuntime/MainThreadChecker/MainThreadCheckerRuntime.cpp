@@ -1,9 +1,8 @@
 //===-- MainThreadCheckerRuntime.cpp ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,6 +23,8 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/RegularExpression.h"
 #include "Plugins/Process/Utility/HistoryThread.h"
+
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -239,7 +240,7 @@ lldb::ThreadCollectionSP
 MainThreadCheckerRuntime::GetBacktracesFromExtendedStopInfo(
     StructuredData::ObjectSP info) {
   ThreadCollectionSP threads;
-  threads.reset(new ThreadCollection());
+  threads = std::make_shared<ThreadCollection>();
   
   ProcessSP process_sp = GetProcessSP();
   
@@ -260,11 +261,8 @@ MainThreadCheckerRuntime::GetBacktracesFromExtendedStopInfo(
   StructuredData::ObjectSP thread_id_obj =
       info->GetObjectForDotSeparatedPath("tid");
   tid_t tid = thread_id_obj ? thread_id_obj->GetIntegerValue() : 0;
-  
-  uint32_t stop_id = 0;
-  bool stop_id_is_valid = false;
-  HistoryThread *history_thread =
-      new HistoryThread(*process_sp, tid, PCs, stop_id, stop_id_is_valid);
+
+  HistoryThread *history_thread = new HistoryThread(*process_sp, tid, PCs);
   ThreadSP new_thread_sp(history_thread);
   
   // Save this in the Process' ExtendedThreadList so a strong pointer retains

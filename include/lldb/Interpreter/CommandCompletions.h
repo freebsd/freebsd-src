@@ -1,9 +1,8 @@
 //===-- CommandCompletions.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,16 +23,14 @@ namespace lldb_private {
 class TildeExpressionResolver;
 class CommandCompletions {
 public:
-  //----------------------------------------------------------------------
   // This is the command completion callback that is used to complete the
   // argument of the option it is bound to (in the OptionDefinition table
   // below).  Return the total number of matches.
-  //----------------------------------------------------------------------
   typedef int (*CompletionCallback)(CommandInterpreter &interpreter,
                                     CompletionRequest &request,
                                     // A search filter to limit the search...
                                     lldb_private::SearchFilter *searcher);
-  typedef enum {
+  enum CommonCompletionTypes {
     eNoCompletion = 0u,
     eSourceFileCompletion = (1u << 0),
     eDiskFileCompletion = (1u << 1),
@@ -48,7 +45,7 @@ public:
     // you can add custom enums starting from here in your Option class. Also
     // if you & in this bit the base code will not process the option.
     eCustomCompletion = (1u << 9)
-  } CommonCompletionTypes;
+  };
 
   struct CommonCompletionElement {
     uint32_t type;
@@ -59,9 +56,7 @@ public:
       CommandInterpreter &interpreter, uint32_t completion_mask,
       lldb_private::CompletionRequest &request, SearchFilter *searcher);
 
-  //----------------------------------------------------------------------
   // These are the generic completer functions:
-  //----------------------------------------------------------------------
   static int DiskFiles(CommandInterpreter &interpreter,
                        CompletionRequest &request, SearchFilter *searcher);
 
@@ -99,10 +94,8 @@ public:
   static int VariablePath(CommandInterpreter &interpreter,
                           CompletionRequest &request, SearchFilter *searcher);
 
-  //----------------------------------------------------------------------
   // The Completer class is a convenient base class for building searchers that
   // go along with the SearchFilter passed to the standard Completer functions.
-  //----------------------------------------------------------------------
   class Completer : public Searcher {
   public:
     Completer(CommandInterpreter &interpreter, CompletionRequest &request);
@@ -124,9 +117,7 @@ public:
     DISALLOW_COPY_AND_ASSIGN(Completer);
   };
 
-  //----------------------------------------------------------------------
   // SourceFileCompleter implements the source file completer
-  //----------------------------------------------------------------------
   class SourceFileCompleter : public Completer {
   public:
     SourceFileCompleter(CommandInterpreter &interpreter,
@@ -150,9 +141,7 @@ public:
     DISALLOW_COPY_AND_ASSIGN(SourceFileCompleter);
   };
 
-  //----------------------------------------------------------------------
   // ModuleCompleter implements the module completer
-  //----------------------------------------------------------------------
   class ModuleCompleter : public Completer {
   public:
     ModuleCompleter(CommandInterpreter &interpreter,
@@ -174,9 +163,7 @@ public:
     DISALLOW_COPY_AND_ASSIGN(ModuleCompleter);
   };
 
-  //----------------------------------------------------------------------
   // SymbolCompleter implements the symbol completer
-  //----------------------------------------------------------------------
   class SymbolCompleter : public Completer {
   public:
     SymbolCompleter(CommandInterpreter &interpreter,

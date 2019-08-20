@@ -1,9 +1,8 @@
 //===-- SBCompileUnit.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,6 +23,8 @@ public:
   ~SBCompileUnit();
 
   const lldb::SBCompileUnit &operator=(const lldb::SBCompileUnit &rhs);
+
+  explicit operator bool() const;
 
   bool IsValid() const;
 
@@ -47,11 +48,10 @@ public:
   uint32_t FindSupportFileIndex(uint32_t start_idx, const SBFileSpec &sb_file,
                                 bool full);
 
-  //------------------------------------------------------------------
   /// Get all types matching \a type_mask from debug info in this
   /// compile unit.
   ///
-  /// @param[in] type_mask
+  /// \param[in] type_mask
   ///    A bitfield that consists of one or more bits logically OR'ed
   ///    together from the lldb::TypeClass enumeration. This allows
   ///    you to request only structure types, or only class, struct
@@ -59,9 +59,8 @@ public:
   ///    all types found in the debug information for this compile
   ///    unit.
   ///
-  /// @return
+  /// \return
   ///    A list of types in this compile unit that match \a type_mask
-  //------------------------------------------------------------------
   lldb::SBTypeList GetTypes(uint32_t type_mask = lldb::eTypeClassAny);
 
   lldb::LanguageType GetLanguage();

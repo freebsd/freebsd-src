@@ -1,9 +1,8 @@
 //===-- IRInterpreter.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,15 +26,13 @@ class ClangExpressionDeclMap;
 class IRMemoryMap;
 }
 
-//----------------------------------------------------------------------
-/// @class IRInterpreter IRInterpreter.h "lldb/Expression/IRInterpreter.h"
+/// \class IRInterpreter IRInterpreter.h "lldb/Expression/IRInterpreter.h"
 /// Attempt to interpret the function's code if it does not require
 ///        running the target.
 ///
 /// In some cases, the IR for an expression can be evaluated entirely in the
 /// debugger, manipulating variables but not executing any code in the target.
 /// The IRInterpreter attempts to do this.
-//----------------------------------------------------------------------
 class IRInterpreter {
 public:
   static bool CanInterpret(llvm::Module &module, llvm::Function &function,

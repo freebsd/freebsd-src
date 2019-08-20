@@ -1,9 +1,8 @@
 //===-- SBAddress.h ---------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,6 +28,12 @@ public:
   ~SBAddress();
 
   const lldb::SBAddress &operator=(const lldb::SBAddress &rhs);
+
+  explicit operator bool() const;
+
+  // operator== is a free function
+
+  bool operator!=(const SBAddress &rhs) const;
 
   bool IsValid() const;
 
@@ -115,7 +120,7 @@ protected:
   void SetAddress(const lldb_private::Address *lldb_object_ptr);
 
 private:
-  std::unique_ptr<lldb_private::Address> m_opaque_ap;
+  std::unique_ptr<lldb_private::Address> m_opaque_up;
 };
 
 bool LLDB_API operator==(const SBAddress &lhs, const SBAddress &rhs);

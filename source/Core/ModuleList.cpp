@@ -1,9 +1,8 @@
 //===-- ModuleList.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,10 +11,10 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Host/FileSystem.h"
-#include "lldb/Host/Symbols.h"
 #include "lldb/Interpreter/OptionValueFileSpec.h"
 #include "lldb/Interpreter/OptionValueProperties.h"
 #include "lldb/Interpreter/Property.h"
+#include "lldb/Symbol/LocateSymbolFile.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/VariableList.h"
@@ -88,7 +87,8 @@ enum { ePropertyEnableExternalLookup, ePropertyClangModulesCachePath };
 } // namespace
 
 ModuleListProperties::ModuleListProperties() {
-  m_collection_sp.reset(new OptionValueProperties(ConstString("symbols")));
+  m_collection_sp =
+      std::make_shared<OptionValueProperties>(ConstString("symbols"));
   m_collection_sp->Initialize(g_properties);
 
   llvm::SmallString<128> path;
@@ -102,6 +102,11 @@ bool ModuleListProperties::GetEnableExternalLookup() const {
       nullptr, idx, g_properties[idx].default_uint_value != 0);
 }
 
+bool ModuleListProperties::SetEnableExternalLookup(bool new_value) {
+  return m_collection_sp->SetPropertyAtIndexAsBoolean(
+      nullptr, ePropertyEnableExternalLookup, new_value);
+}
+
 FileSpec ModuleListProperties::GetClangModulesCachePath() const {
   return m_collection_sp
       ->GetPropertyAtIndexAsOptionValueFileSpec(nullptr, false,
@@ -113,7 +118,6 @@ bool ModuleListProperties::SetClangModulesCachePath(llvm::StringRef path) {
   return m_collection_sp->SetPropertyAtIndexAsString(
       nullptr, ePropertyClangModulesCachePath, path);
 }
-
 
 ModuleList::ModuleList()
     : m_modules(), m_modules_mutex(), m_notifier(nullptr) {}
@@ -130,25 +134,12 @@ ModuleList::ModuleList(ModuleList::Notifier *notifier)
 
 const ModuleList &ModuleList::operator=(const ModuleList &rhs) {
   if (this != &rhs) {
-    // That's probably me nit-picking, but in theoretical situation:
-    //
-    // * that two threads A B and
-    // * two ModuleList's x y do opposite assignments ie.:
-    //
-    //  in thread A: | in thread B:
-    //    x = y;     |   y = x;
-    //
-    // This establishes correct(same) lock taking order and thus avoids
-    // priority inversion.
-    if (uintptr_t(this) > uintptr_t(&rhs)) {
-      std::lock_guard<std::recursive_mutex> lhs_guard(m_modules_mutex);
-      std::lock_guard<std::recursive_mutex> rhs_guard(rhs.m_modules_mutex);
-      m_modules = rhs.m_modules;
-    } else {
-      std::lock_guard<std::recursive_mutex> lhs_guard(m_modules_mutex);
-      std::lock_guard<std::recursive_mutex> rhs_guard(rhs.m_modules_mutex);
-      m_modules = rhs.m_modules;
-    }
+    std::lock(m_modules_mutex, rhs.m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> lhs_guard(m_modules_mutex, 
+                                                    std::adopt_lock);
+    std::lock_guard<std::recursive_mutex> rhs_guard(rhs.m_modules_mutex, 
+                                                    std::adopt_lock);
+    m_modules = rhs.m_modules;
   }
   return *this;
 }
@@ -160,11 +151,13 @@ void ModuleList::AppendImpl(const ModuleSP &module_sp, bool use_notifier) {
     std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     m_modules.push_back(module_sp);
     if (use_notifier && m_notifier)
-      m_notifier->ModuleAdded(*this, module_sp);
+      m_notifier->NotifyModuleAdded(*this, module_sp);
   }
 }
 
-void ModuleList::Append(const ModuleSP &module_sp) { AppendImpl(module_sp); }
+void ModuleList::Append(const ModuleSP &module_sp, bool notify) { 
+  AppendImpl(module_sp, notify); 
+}
 
 void ModuleList::ReplaceEquivalent(const ModuleSP &module_sp) {
   if (module_sp) {
@@ -190,7 +183,7 @@ void ModuleList::ReplaceEquivalent(const ModuleSP &module_sp) {
   }
 }
 
-bool ModuleList::AppendIfNeeded(const ModuleSP &module_sp) {
+bool ModuleList::AppendIfNeeded(const ModuleSP &module_sp, bool notify) {
   if (module_sp) {
     std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::iterator pos, end = m_modules.end();
@@ -199,7 +192,7 @@ bool ModuleList::AppendIfNeeded(const ModuleSP &module_sp) {
         return false; // Already in the list
     }
     // Only push module_sp on the list if it wasn't already in there.
-    Append(module_sp);
+    Append(module_sp, notify);
     return true;
   }
   return false;
@@ -227,7 +220,7 @@ bool ModuleList::RemoveImpl(const ModuleSP &module_sp, bool use_notifier) {
       if (pos->get() == module_sp.get()) {
         m_modules.erase(pos);
         if (use_notifier && m_notifier)
-          m_notifier->ModuleRemoved(*this, module_sp);
+          m_notifier->NotifyModuleRemoved(*this, module_sp);
         return true;
       }
     }
@@ -241,12 +234,12 @@ ModuleList::RemoveImpl(ModuleList::collection::iterator pos,
   ModuleSP module_sp(*pos);
   collection::iterator retval = m_modules.erase(pos);
   if (use_notifier && m_notifier)
-    m_notifier->ModuleRemoved(*this, module_sp);
+    m_notifier->NotifyModuleRemoved(*this, module_sp);
   return retval;
 }
 
-bool ModuleList::Remove(const ModuleSP &module_sp) {
-  return RemoveImpl(module_sp);
+bool ModuleList::Remove(const ModuleSP &module_sp, bool notify) {
+  return RemoveImpl(module_sp, notify);
 }
 
 bool ModuleList::ReplaceModule(const lldb::ModuleSP &old_module_sp,
@@ -255,7 +248,7 @@ bool ModuleList::ReplaceModule(const lldb::ModuleSP &old_module_sp,
     return false;
   AppendImpl(new_module_sp, false);
   if (m_notifier)
-    m_notifier->ModuleUpdated(*this, old_module_sp, new_module_sp);
+    m_notifier->NotifyModuleUpdated(*this, old_module_sp, new_module_sp);
   return true;
 }
 
@@ -304,9 +297,11 @@ size_t ModuleList::Remove(ModuleList &module_list) {
   size_t num_removed = 0;
   collection::iterator pos, end = module_list.m_modules.end();
   for (pos = module_list.m_modules.begin(); pos != end; ++pos) {
-    if (Remove(*pos))
+    if (Remove(*pos, false /* notify */))
       ++num_removed;
   }
+  if (m_notifier)
+    m_notifier->NotifyModulesRemoved(module_list);
   return num_removed;
 }
 
@@ -317,7 +312,7 @@ void ModuleList::Destroy() { ClearImpl(); }
 void ModuleList::ClearImpl(bool use_notifier) {
   std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
   if (use_notifier && m_notifier)
-    m_notifier->WillClearList(*this);
+    m_notifier->NotifyWillClearList(*this);
   m_modules.clear();
 }
 
@@ -344,7 +339,7 @@ ModuleSP ModuleList::GetModuleAtIndexUnlocked(size_t idx) const {
   return module_sp;
 }
 
-size_t ModuleList::FindFunctions(const ConstString &name,
+size_t ModuleList::FindFunctions(ConstString name,
                                  FunctionNameType name_type_mask,
                                  bool include_symbols, bool include_inlines,
                                  bool append,
@@ -380,7 +375,7 @@ size_t ModuleList::FindFunctions(const ConstString &name,
   return sc_list.GetSize() - old_size;
 }
 
-size_t ModuleList::FindFunctionSymbols(const ConstString &name,
+size_t ModuleList::FindFunctionSymbols(ConstString name,
                                        lldb::FunctionNameType name_type_mask,
                                        SymbolContextList &sc_list) {
   const size_t old_size = sc_list.GetSize();
@@ -439,7 +434,7 @@ size_t ModuleList::FindCompileUnits(const FileSpec &path, bool append,
   return sc_list.GetSize();
 }
 
-size_t ModuleList::FindGlobalVariables(const ConstString &name,
+size_t ModuleList::FindGlobalVariables(ConstString name,
                                        size_t max_matches,
                                        VariableList &variable_list) const {
   size_t initial_size = variable_list.GetSize();
@@ -463,7 +458,7 @@ size_t ModuleList::FindGlobalVariables(const RegularExpression &regex,
   return variable_list.GetSize() - initial_size;
 }
 
-size_t ModuleList::FindSymbolsWithNameAndType(const ConstString &name,
+size_t ModuleList::FindSymbolsWithNameAndType(ConstString name,
                                               SymbolType symbol_type,
                                               SymbolContextList &sc_list,
                                               bool append) const {
@@ -542,7 +537,7 @@ ModuleSP ModuleList::FindModule(const UUID &uuid) const {
 }
 
 size_t
-ModuleList::FindTypes(Module *search_first, const ConstString &name,
+ModuleList::FindTypes(Module *search_first, ConstString name,
                       bool name_is_fully_qualified, size_t max_matches,
                       llvm::DenseSet<SymbolFile *> &searched_symbol_files,
                       TypeList &types) const {
@@ -830,7 +825,7 @@ Status ModuleList::GetSharedModule(const ModuleSpec &module_spec,
   if (module_sp)
     return error;
 
-  module_sp.reset(new Module(module_spec));
+  module_sp = std::make_shared<Module>(module_spec);
   // Make sure there are a module and an object file since we can specify a
   // valid file path with an architecture that might not be in that file. By
   // getting the object file we can guarantee that the architecture matches
@@ -872,7 +867,7 @@ Status ModuleList::GetSharedModule(const ModuleSpec &module_spec,
 
       auto resolved_module_spec(module_spec);
       resolved_module_spec.GetFileSpec() = search_path_spec;
-      module_sp.reset(new Module(resolved_module_spec));
+      module_sp = std::make_shared<Module>(resolved_module_spec);
       if (module_sp->GetObjectFile()) {
         // If we get in here we got the correct arch, now we just need to
         // verify the UUID if one was given
@@ -971,7 +966,7 @@ Status ModuleList::GetSharedModule(const ModuleSpec &module_spec,
     }
 
     if (!module_sp) {
-      module_sp.reset(new Module(platform_module_spec));
+      module_sp = std::make_shared<Module>(platform_module_spec);
       // Make sure there are a module and an object file since we can specify a
       // valid file path with an architecture that might not be in that file.
       // By getting the object file we can guarantee that the architecture

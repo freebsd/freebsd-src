@@ -1,9 +1,8 @@
 //===-- CompileUnit.cpp -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,7 +22,7 @@ CompileUnit::CompileUnit(const lldb::ModuleSP &module_sp, void *user_data,
                          lldb_private::LazyBool is_optimized)
     : ModuleChild(module_sp), FileSpec(pathname), UserID(cu_sym_id),
       m_user_data(user_data), m_language(language), m_flags(0),
-      m_support_files(), m_line_table_ap(), m_variables(),
+      m_support_files(), m_line_table_up(), m_variables(),
       m_is_optimized(is_optimized) {
   if (language != eLanguageTypeUnknown)
     m_flags.Set(flagsParsedLanguage);
@@ -36,7 +35,7 @@ CompileUnit::CompileUnit(const lldb::ModuleSP &module_sp, void *user_data,
                          lldb_private::LazyBool is_optimized)
     : ModuleChild(module_sp), FileSpec(fspec), UserID(cu_sym_id),
       m_user_data(user_data), m_language(language), m_flags(0),
-      m_support_files(), m_line_table_ap(), m_variables(),
+      m_support_files(), m_line_table_up(), m_variables(),
       m_is_optimized(is_optimized) {
   if (language != eLanguageTypeUnknown)
     m_flags.Set(flagsParsedLanguage);
@@ -82,12 +81,10 @@ void CompileUnit::ForeachFunction(
       return;
 }
 
-//----------------------------------------------------------------------
 // Dump the current contents of this object. No functions that cause on demand
 // parsing of functions, globals, statics are called, so this is a good
 // function to call to get an idea of the current contents of the CompileUnit
 // object.
-//----------------------------------------------------------------------
 void CompileUnit::Dump(Stream *s, bool show_context) const {
   const char *language = Language::GetNameForLanguageType(m_language);
 
@@ -117,14 +114,11 @@ void CompileUnit::Dump(Stream *s, bool show_context) const {
   }
 }
 
-//----------------------------------------------------------------------
 // Add a function to this compile unit
-//----------------------------------------------------------------------
 void CompileUnit::AddFunction(FunctionSP &funcSP) {
   m_functions_by_uid[funcSP->GetID()] = funcSP;
 }
 
-//----------------------------------------------------------------------
 // Find functions using the Mangled::Tokens token list. This function currently
 // implements an interactive approach designed to find all instances of certain
 // functions. It isn't designed to the quickest way to lookup functions as it
@@ -146,7 +140,6 @@ void CompileUnit::AddFunction(FunctionSP &funcSP) {
 // method should be able to take advantage of any accelerator tables available
 // in the debug information (which is parsed by the SymbolFile parser plug-ins
 // and registered with each Module).
-//----------------------------------------------------------------------
 // void
 // CompileUnit::FindFunctions(const Mangled::Tokens& tokens)
 //{
@@ -190,7 +183,7 @@ lldb::LanguageType CompileUnit::GetLanguage() {
 }
 
 LineTable *CompileUnit::GetLineTable() {
-  if (m_line_table_ap.get() == nullptr) {
+  if (m_line_table_up == nullptr) {
     if (m_flags.IsClear(flagsParsedLineTable)) {
       m_flags.Set(flagsParsedLineTable);
       SymbolVendor *symbol_vendor = GetModule()->GetSymbolVendor();
@@ -198,7 +191,7 @@ LineTable *CompileUnit::GetLineTable() {
         symbol_vendor->ParseLineTable(*this);
     }
   }
-  return m_line_table_ap.get();
+  return m_line_table_up.get();
 }
 
 void CompileUnit::SetLineTable(LineTable *line_table) {
@@ -206,7 +199,7 @@ void CompileUnit::SetLineTable(LineTable *line_table) {
     m_flags.Clear(flagsParsedLineTable);
   else
     m_flags.Set(flagsParsedLineTable);
-  m_line_table_ap.reset(line_table);
+  m_line_table_up.reset(line_table);
 }
 
 DebugMacros *CompileUnit::GetDebugMacros() {
@@ -255,7 +248,7 @@ uint32_t CompileUnit::FindLineEntry(uint32_t start_idx, uint32_t line,
     // All the line table entries actually point to the version of the Compile
     // Unit that is in the support files (the one at 0 was artificially added.)
     // So prefer the one further on in the support files if it exists...
-    FileSpecList &support_files = GetSupportFiles();
+    const FileSpecList &support_files = GetSupportFiles();
     const bool full = true;
     file_idx = support_files.FindFileIndex(
         1, support_files.GetFileSpecAtIndex(0), full);
@@ -391,7 +384,7 @@ void CompileUnit::SetVariableList(VariableListSP &variables) {
   m_variables = variables;
 }
 
-const std::vector<ConstString> &CompileUnit::GetImportedModules() {
+const std::vector<SourceModule> &CompileUnit::GetImportedModules() {
   if (m_imported_modules.empty() &&
       m_flags.IsClear(flagsParsedImportedModules)) {
     m_flags.Set(flagsParsedImportedModules);
@@ -404,7 +397,7 @@ const std::vector<ConstString> &CompileUnit::GetImportedModules() {
   return m_imported_modules;
 }
 
-FileSpecList &CompileUnit::GetSupportFiles() {
+const FileSpecList &CompileUnit::GetSupportFiles() {
   if (m_support_files.GetSize() == 0) {
     if (m_flags.IsClear(flagsParsedSupportFiles)) {
       m_flags.Set(flagsParsedSupportFiles);

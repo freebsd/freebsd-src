@@ -1,19 +1,17 @@
 //===-- DWARFDebugArangeSet.h -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef SymbolFileDWARF_DWARFDebugArangeSet_h_
 #define SymbolFileDWARF_DWARFDebugArangeSet_h_
 
-#include "SymbolFileDWARF.h"
+#include "lldb/Core/dwarf.h"
+#include <cstdint>
 #include <vector>
-
-class SymbolFileDWARF;
 
 class DWARFDebugArangeSet {
 public:
@@ -41,23 +39,11 @@ public:
   DWARFDebugArangeSet();
   void Clear();
   void SetOffset(uint32_t offset) { m_offset = offset; }
-  void SetHeader(uint16_t version, uint32_t cu_offset, uint8_t addr_size,
-                 uint8_t seg_size);
-  void AddDescriptor(const DWARFDebugArangeSet::Descriptor &range);
-  void Compact();
-  bool Extract(const lldb_private::DWARFDataExtractor &data,
-               lldb::offset_t *offset_ptr);
-  void Dump(lldb_private::Stream *s) const;
-  dw_offset_t GetCompileUnitDIEOffset() const { return m_header.cu_offset; }
-  dw_offset_t GetOffsetOfNextEntry() const;
+  llvm::Error extract(const lldb_private::DWARFDataExtractor &data,
+                      lldb::offset_t *offset_ptr);
   dw_offset_t FindAddress(dw_addr_t address) const;
   size_t NumDescriptors() const { return m_arange_descriptors.size(); }
   const Header &GetHeader() const { return m_header; }
-  const Descriptor *GetDescriptor(uint32_t i) const {
-    if (i < m_arange_descriptors.size())
-      return &m_arange_descriptors[i];
-    return NULL;
-  }
 
   const Descriptor &GetDescriptorRef(uint32_t i) const {
     return m_arange_descriptors[i];

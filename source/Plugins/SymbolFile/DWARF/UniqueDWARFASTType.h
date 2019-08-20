@@ -1,9 +1,8 @@
 //===-- UniqueDWARFASTType.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,9 +18,7 @@
 
 class UniqueDWARFASTType {
 public:
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   UniqueDWARFASTType()
       : m_type_sp(), m_die(), m_declaration(),
         m_byte_size(
@@ -81,12 +78,12 @@ public:
 
   ~UniqueDWARFASTTypeMap() {}
 
-  void Insert(const lldb_private::ConstString &name,
+  void Insert(lldb_private::ConstString name,
               const UniqueDWARFASTType &entry) {
     m_collection[name.GetCString()].Append(entry);
   }
 
-  bool Find(const lldb_private::ConstString &name, const DWARFDIE &die,
+  bool Find(lldb_private::ConstString name, const DWARFDIE &die,
             const lldb_private::Declaration &decl, const int32_t byte_size,
             UniqueDWARFASTType &entry) const {
     const char *unique_name_cstr = name.GetCString();

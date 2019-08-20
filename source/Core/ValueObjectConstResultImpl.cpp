@@ -1,9 +1,8 @@
 //===-- ValueObjectConstResultImpl.cpp ---------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -40,7 +39,7 @@ ValueObjectConstResultImpl::ValueObjectConstResultImpl(
       m_address_of_backend() {}
 
 lldb::ValueObjectSP ValueObjectConstResultImpl::Dereference(Status &error) {
-  if (m_impl_backend == NULL)
+  if (m_impl_backend == nullptr)
     return lldb::ValueObjectSP();
 
   return m_impl_backend->ValueObject::Dereference(error);
@@ -48,12 +47,12 @@ lldb::ValueObjectSP ValueObjectConstResultImpl::Dereference(Status &error) {
 
 ValueObject *ValueObjectConstResultImpl::CreateChildAtIndex(
     size_t idx, bool synthetic_array_member, int32_t synthetic_index) {
-  if (m_impl_backend == NULL)
-    return NULL;
+  if (m_impl_backend == nullptr)
+    return nullptr;
 
   m_impl_backend->UpdateValueIfNeeded(false);
 
-  ValueObjectConstResultChild *valobj = NULL;
+  ValueObjectConstResultChild *valobj = nullptr;
 
   bool omit_empty_base_classes = true;
   bool ignore_array_bounds = synthetic_array_member;
@@ -107,7 +106,7 @@ ValueObject *ValueObjectConstResultImpl::CreateChildAtIndex(
 lldb::ValueObjectSP ValueObjectConstResultImpl::GetSyntheticChildAtOffset(
     uint32_t offset, const CompilerType &type, bool can_create,
     ConstString name_const_str) {
-  if (m_impl_backend == NULL)
+  if (m_impl_backend == nullptr)
     return lldb::ValueObjectSP();
 
   return m_impl_backend->ValueObject::GetSyntheticChildAtOffset(
@@ -115,10 +114,10 @@ lldb::ValueObjectSP ValueObjectConstResultImpl::GetSyntheticChildAtOffset(
 }
 
 lldb::ValueObjectSP ValueObjectConstResultImpl::AddressOf(Status &error) {
-  if (m_address_of_backend.get() != NULL)
+  if (m_address_of_backend.get() != nullptr)
     return m_address_of_backend;
 
-  if (m_impl_backend == NULL)
+  if (m_impl_backend == nullptr)
     return lldb::ValueObjectSP();
   if (m_live_address != LLDB_INVALID_ADDRESS) {
     CompilerType compiler_type(m_impl_backend->GetCompilerType());
@@ -144,7 +143,7 @@ lldb::ValueObjectSP ValueObjectConstResultImpl::AddressOf(Status &error) {
 
 lldb::ValueObjectSP
 ValueObjectConstResultImpl::Cast(const CompilerType &compiler_type) {
-  if (m_impl_backend == NULL)
+  if (m_impl_backend == nullptr)
     return lldb::ValueObjectSP();
 
   ValueObjectConstResultCast *result_cast =
@@ -157,7 +156,7 @@ lldb::addr_t
 ValueObjectConstResultImpl::GetAddressOf(bool scalar_is_load_address,
                                          AddressType *address_type) {
 
-  if (m_impl_backend == NULL)
+  if (m_impl_backend == nullptr)
     return 0;
 
   if (m_live_address == LLDB_INVALID_ADDRESS) {
@@ -174,7 +173,7 @@ ValueObjectConstResultImpl::GetAddressOf(bool scalar_is_load_address,
 size_t ValueObjectConstResultImpl::GetPointeeData(DataExtractor &data,
                                                   uint32_t item_idx,
                                                   uint32_t item_count) {
-  if (m_impl_backend == NULL)
+  if (m_impl_backend == nullptr)
     return 0;
   return m_impl_backend->ValueObject::GetPointeeData(data, item_idx,
                                                      item_count);
