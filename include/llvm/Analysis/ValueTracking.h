@@ -1,9 +1,8 @@
 //===- llvm/Analysis/ValueTracking.h - Walk computations --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,8 +16,10 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/Optional.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Intrinsics.h"
 #include <cassert>
@@ -29,10 +30,10 @@ namespace llvm {
 class AddOperator;
 class APInt;
 class AssumptionCache;
-class DataLayout;
 class DominatorTree;
 class GEPOperator;
 class IntrinsicInst;
+class WithOverflowInst;
 struct KnownBits;
 class Loop;
 class LoopInfo;
@@ -223,7 +224,7 @@ class Value;
   /// 0.0 etc. If the value can't be handled with a repeated byte store (e.g.
   /// i16 0x1234), return null. If the value is entirely undef and padding,
   /// return undef.
-  Value *isBytewiseValue(Value *V);
+  Value *isBytewiseValue(Value *V, const DataLayout &DL);
 
   /// Given an aggregrate and an sequence of indices, see if the scalar value
   /// indexed is already around as a register, for example if it were inserted
@@ -237,8 +238,18 @@ class Value;
 
   /// Analyze the specified pointer to see if it can be expressed as a base
   /// pointer plus a constant offset. Return the base and offset to the caller.
-  Value *GetPointerBaseWithConstantOffset(Value *Ptr, int64_t &Offset,
-                                          const DataLayout &DL);
+  ///
+  /// This is a wrapper around Value::stripAndAccumulateConstantOffsets that
+  /// creates and later unpacks the required APInt.
+  inline Value *GetPointerBaseWithConstantOffset(Value *Ptr, int64_t &Offset,
+                                                 const DataLayout &DL) {
+    APInt OffsetAPInt(DL.getIndexTypeSizeInBits(Ptr->getType()), 0);
+    Value *Base =
+        Ptr->stripAndAccumulateConstantOffsets(DL, OffsetAPInt,
+                                               /* AllowNonInbounds */ true);
+    Offset = OffsetAPInt.getSExtValue();
+    return Base;
+  }
   inline const Value *GetPointerBaseWithConstantOffset(const Value *Ptr,
                                                        int64_t &Offset,
                                                        const DataLayout &DL) {
@@ -351,7 +362,8 @@ class Value;
   /// Since A[i] and A[i-1] are independent pointers, getUnderlyingObjects
   /// should not assume that Curr and Prev share the same underlying object thus
   /// it shouldn't look through the phi above.
-  void GetUnderlyingObjects(Value *V, SmallVectorImpl<Value *> &Objects,
+  void GetUnderlyingObjects(const Value *V,
+                            SmallVectorImpl<const Value *> &Objects,
                             const DataLayout &DL, LoopInfo *LI = nullptr,
                             unsigned MaxLookup = 6);
 
@@ -411,7 +423,16 @@ class Value;
   bool isValidAssumeForContext(const Instruction *I, const Instruction *CxtI,
                                const DominatorTree *DT = nullptr);
 
-  enum class OverflowResult { AlwaysOverflows, MayOverflow, NeverOverflows };
+  enum class OverflowResult {
+    /// Always overflows in the direction of signed/unsigned min value.
+    AlwaysOverflowsLow,
+    /// Always overflows in the direction of signed/unsigned max value.
+    AlwaysOverflowsHigh,
+    /// May or may not overflow.
+    MayOverflow,
+    /// Never overflows.
+    NeverOverflows,
+  };
 
   OverflowResult computeOverflowForUnsignedMul(const Value *LHS,
                                                const Value *RHS,
@@ -455,11 +476,16 @@ class Value;
                                              const Instruction *CxtI,
                                              const DominatorTree *DT);
 
-  /// Returns true if the arithmetic part of the \p II 's result is
+  /// Returns true if the arithmetic part of the \p WO 's result is
   /// used only along the paths control dependent on the computation
-  /// not overflowing, \p II being an <op>.with.overflow intrinsic.
-  bool isOverflowIntrinsicNoWrap(const IntrinsicInst *II,
+  /// not overflowing, \p WO being an <op>.with.overflow intrinsic.
+  bool isOverflowIntrinsicNoWrap(const WithOverflowInst *WO,
                                  const DominatorTree &DT);
+
+
+  /// Determine the possible constant range of an integer or vector of integer
+  /// value. This is intended as a cheap, non-recursive check.
+  ConstantRange computeConstantRange(const Value *V, bool UseInstrInfo = true);
 
   /// Return true if this function can prove that the instruction I will
   /// always transfer execution to one of its successors (including the next
@@ -505,6 +531,12 @@ class Value;
   /// undefined behavior if I is executed and that operand has a full-poison
   /// value (all bits poison).
   const Value *getGuaranteedNonFullPoisonOp(const Instruction *I);
+
+  /// Return true if the given instruction must trigger undefined behavior.
+  /// when I is executed with any operands which appear in KnownPoison holding
+  /// a full-poison value at the point of execution.
+  bool mustTriggerUB(const Instruction *I,
+                     const SmallSet<const Value *, 16>& KnownPoison);
 
   /// Return true if this function can prove that if PoisonI is executed
   /// and yields a full-poison value (all bits poison), then that will
@@ -583,6 +615,12 @@ class Value;
     RHS = R;
     return Result;
   }
+
+  /// Determine the pattern that a select with the given compare as its
+  /// predicate and given values as its true/false operands would match.
+  SelectPatternResult matchDecomposedSelectPattern(
+      CmpInst *CmpI, Value *TrueVal, Value *FalseVal, Value *&LHS, Value *&RHS,
+      Instruction::CastOps *CastOp = nullptr, unsigned Depth = 0);
 
   /// Return the canonical comparison predicate for the specified
   /// minimum/maximum flavor.

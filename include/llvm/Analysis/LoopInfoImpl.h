@@ -1,9 +1,8 @@
 //===- llvm/Analysis/LoopInfoImpl.h - Natural Loop Calculator ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -96,49 +95,36 @@ bool LoopBase<BlockT, LoopT>::hasDedicatedExits() const {
   return true;
 }
 
+// Helper function to get unique loop exits. Pred is a predicate pointing to
+// BasicBlocks in a loop which should be considered to find loop exits.
+template <class BlockT, class LoopT, typename PredicateT>
+void getUniqueExitBlocksHelper(const LoopT *L,
+                               SmallVectorImpl<BlockT *> &ExitBlocks,
+                               PredicateT Pred) {
+  assert(!L->isInvalid() && "Loop not in a valid state!");
+  SmallPtrSet<BlockT *, 32> Visited;
+  auto Filtered = make_filter_range(L->blocks(), Pred);
+  for (BlockT *BB : Filtered)
+    for (BlockT *Successor : children<BlockT *>(BB))
+      if (!L->contains(Successor))
+        if (Visited.insert(Successor).second)
+          ExitBlocks.push_back(Successor);
+}
+
 template <class BlockT, class LoopT>
 void LoopBase<BlockT, LoopT>::getUniqueExitBlocks(
     SmallVectorImpl<BlockT *> &ExitBlocks) const {
-  typedef GraphTraits<BlockT *> BlockTraits;
-  typedef GraphTraits<Inverse<BlockT *>> InvBlockTraits;
+  getUniqueExitBlocksHelper(this, ExitBlocks,
+                            [](const BlockT *BB) { return true; });
+}
 
-  assert(hasDedicatedExits() &&
-         "getUniqueExitBlocks assumes the loop has canonical form exits!");
-
-  SmallVector<BlockT *, 32> SwitchExitBlocks;
-  for (BlockT *Block : this->blocks()) {
-    SwitchExitBlocks.clear();
-    for (BlockT *Successor : children<BlockT *>(Block)) {
-      // If block is inside the loop then it is not an exit block.
-      if (contains(Successor))
-        continue;
-
-      BlockT *FirstPred = *InvBlockTraits::child_begin(Successor);
-
-      // If current basic block is this exit block's first predecessor then only
-      // insert exit block in to the output ExitBlocks vector. This ensures that
-      // same exit block is not inserted twice into ExitBlocks vector.
-      if (Block != FirstPred)
-        continue;
-
-      // If a terminator has more then two successors, for example SwitchInst,
-      // then it is possible that there are multiple edges from current block to
-      // one exit block.
-      if (std::distance(BlockTraits::child_begin(Block),
-                        BlockTraits::child_end(Block)) <= 2) {
-        ExitBlocks.push_back(Successor);
-        continue;
-      }
-
-      // In case of multiple edges from current block to exit block, collect
-      // only one edge in ExitBlocks. Use switchExitBlocks to keep track of
-      // duplicate edges.
-      if (!is_contained(SwitchExitBlocks, Successor)) {
-        SwitchExitBlocks.push_back(Successor);
-        ExitBlocks.push_back(Successor);
-      }
-    }
-  }
+template <class BlockT, class LoopT>
+void LoopBase<BlockT, LoopT>::getUniqueNonLatchExitBlocks(
+    SmallVectorImpl<BlockT *> &ExitBlocks) const {
+  const BlockT *Latch = getLoopLatch();
+  assert(Latch && "Latch block must exists");
+  getUniqueExitBlocksHelper(this, ExitBlocks,
+                            [Latch](const BlockT *BB) { return BB != Latch; });
 }
 
 template <class BlockT, class LoopT>
@@ -588,16 +574,9 @@ SmallVector<LoopT *, 4> LoopInfoBase<BlockT, LoopT>::getLoopsInPreorder() {
   // FIXME: If we change the order of LoopInfo we will want to remove the
   // reverse here.
   for (LoopT *RootL : reverse(*this)) {
-    assert(PreOrderWorklist.empty() &&
-           "Must start with an empty preorder walk worklist.");
-    PreOrderWorklist.push_back(RootL);
-    do {
-      LoopT *L = PreOrderWorklist.pop_back_val();
-      // Sub-loops are stored in forward program order, but will process the
-      // worklist backwards so append them in reverse order.
-      PreOrderWorklist.append(L->rbegin(), L->rend());
-      PreOrderLoops.push_back(L);
-    } while (!PreOrderWorklist.empty());
+    auto PreOrderLoopsInRootL = RootL->getLoopsInPreorder();
+    PreOrderLoops.append(PreOrderLoopsInRootL.begin(),
+                         PreOrderLoopsInRootL.end());
   }
 
   return PreOrderLoops;

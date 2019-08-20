@@ -1,9 +1,8 @@
 //===- DWARFDebugFrame.h - Parsing of .debug_frame ------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -267,7 +266,7 @@ void CFIProgram::printOperand(raw_ostream &OS, const MCRegisterInfo *MRI,
   case OT_Expression:
     assert(Instr.Expression && "missing DWARFExpression object");
     OS << " ";
-    Instr.Expression->print(OS, MRI, IsEH);
+    Instr.Expression->print(OS, MRI, nullptr, IsEH);
     break;
   }
 }
@@ -301,7 +300,7 @@ void CIE::dump(raw_ostream &OS, const MCRegisterInfo *MRI, bool IsEH) const {
   OS << format("  Data alignment factor: %d\n", (int32_t)DataAlignmentFactor);
   OS << format("  Return address column: %d\n", (int32_t)ReturnAddressRegister);
   if (Personality)
-    OS << format("  Personality Address: %08x\n", *Personality);
+    OS << format("  Personality Address: %016" PRIx64 "\n", *Personality);
   if (!AugmentationData.empty()) {
     OS << "  Augmentation data:    ";
     for (uint8_t Byte : AugmentationData)
@@ -320,7 +319,7 @@ void FDE::dump(raw_ostream &OS, const MCRegisterInfo *MRI, bool IsEH) const {
                (uint32_t)InitialLocation,
                (uint32_t)InitialLocation + (uint32_t)AddressRange);
   if (LSDAAddress)
-    OS << format("  LSDA Address: %08x\n", *LSDAAddress);
+    OS << format("  LSDA Address: %016" PRIx64 "\n", *LSDAAddress);
   CFIs.dump(OS, MRI, IsEH);
   OS << "\n";
 }
@@ -533,10 +532,9 @@ void DWARFDebugFrame::parse(DWARFDataExtractor Data) {
 }
 
 FrameEntry *DWARFDebugFrame::getEntryAtOffset(uint64_t Offset) const {
-  auto It =
-      std::lower_bound(Entries.begin(), Entries.end(), Offset,
-                       [](const std::unique_ptr<FrameEntry> &E,
-                          uint64_t Offset) { return E->getOffset() < Offset; });
+  auto It = partition_point(Entries, [=](const std::unique_ptr<FrameEntry> &E) {
+    return E->getOffset() < Offset;
+  });
   if (It != Entries.end() && (*It)->getOffset() == Offset)
     return It->get();
   return nullptr;

@@ -1,9 +1,8 @@
 //===- PDBFileBuilder.cpp - PDB File Creation -------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -35,7 +34,7 @@ using namespace llvm::support;
 
 PDBFileBuilder::PDBFileBuilder(BumpPtrAllocator &Allocator)
     : Allocator(Allocator), InjectedSourceHashTraits(Strings),
-      InjectedSourceTable(2, InjectedSourceHashTraits) {}
+      InjectedSourceTable(2) {}
 
 PDBFileBuilder::~PDBFileBuilder() {}
 
@@ -190,7 +189,8 @@ Error PDBFileBuilder::finalizeMsfLayout() {
           static_cast<uint32_t>(PdbRaw_SrcHeaderBlockVer::SrcVerOne);
       Entry.CRC = CRC.getCRC();
       StringRef VName = getStringTableBuilder().getStringForId(IS.VNameIndex);
-      InjectedSourceTable.set_as(VName, std::move(Entry));
+      InjectedSourceTable.set_as(VName, std::move(Entry),
+                                 InjectedSourceHashTraits);
     }
 
     uint32_t SrcHeaderBlockSize =

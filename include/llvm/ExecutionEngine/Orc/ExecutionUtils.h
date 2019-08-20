@@ -1,9 +1,8 @@
 //===- ExecutionUtils.h - Utilities for executing code in Orc ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -98,7 +97,14 @@ class LegacyCtorDtorRunner {
 public:
   /// Construct a CtorDtorRunner for the given range using the given
   ///        name mangling function.
-  LegacyCtorDtorRunner(std::vector<std::string> CtorDtorNames, VModuleKey K)
+  LLVM_ATTRIBUTE_DEPRECATED(
+      LegacyCtorDtorRunner(std::vector<std::string> CtorDtorNames,
+                           VModuleKey K),
+      "ORCv1 utilities (utilities with the 'Legacy' prefix) are deprecated. "
+      "Please use the ORCv2 CtorDtorRunner utility instead");
+
+  LegacyCtorDtorRunner(ORCv1DeprecationAcknowledgement,
+                       std::vector<std::string> CtorDtorNames, VModuleKey K)
       : CtorDtorNames(std::move(CtorDtorNames)), K(K) {}
 
   /// Run the recorded constructors/destructors through the given JIT
@@ -128,6 +134,11 @@ private:
   std::vector<std::string> CtorDtorNames;
   orc::VModuleKey K;
 };
+
+template <typename JITLayerT>
+LegacyCtorDtorRunner<JITLayerT>::LegacyCtorDtorRunner(
+    std::vector<std::string> CtorDtorNames, VModuleKey K)
+    : CtorDtorNames(std::move(CtorDtorNames)), K(K) {}
 
 class CtorDtorRunner {
 public:
@@ -181,7 +192,14 @@ class LegacyLocalCXXRuntimeOverrides : public LocalCXXRuntimeOverridesBase {
 public:
   /// Create a runtime-overrides class.
   template <typename MangleFtorT>
-  LegacyLocalCXXRuntimeOverrides(const MangleFtorT &Mangle) {
+  LLVM_ATTRIBUTE_DEPRECATED(
+      LegacyLocalCXXRuntimeOverrides(const MangleFtorT &Mangle),
+      "ORCv1 utilities (utilities with the 'Legacy' prefix) are deprecated. "
+      "Please use the ORCv2 LocalCXXRuntimeOverrides utility instead");
+
+  template <typename MangleFtorT>
+  LegacyLocalCXXRuntimeOverrides(ORCv1DeprecationAcknowledgement,
+                                 const MangleFtorT &Mangle) {
     addOverride(Mangle("__dso_handle"), toTargetAddress(&DSOHandleOverride));
     addOverride(Mangle("__cxa_atexit"), toTargetAddress(&CXAAtExitOverride));
   }
@@ -202,6 +220,13 @@ private:
   StringMap<JITTargetAddress> CXXRuntimeOverrides;
 };
 
+template <typename MangleFtorT>
+LegacyLocalCXXRuntimeOverrides::LegacyLocalCXXRuntimeOverrides(
+    const MangleFtorT &Mangle) {
+  addOverride(Mangle("__dso_handle"), toTargetAddress(&DSOHandleOverride));
+  addOverride(Mangle("__cxa_atexit"), toTargetAddress(&CXAAtExitOverride));
+}
+
 class LocalCXXRuntimeOverrides : public LocalCXXRuntimeOverridesBase {
 public:
   Error enable(JITDylib &JD, MangleAndInterner &Mangler);
@@ -218,28 +243,29 @@ public:
 
   /// Create a DynamicLibrarySearchGenerator that searches for symbols in the
   /// given sys::DynamicLibrary.
+  ///
   /// If the Allow predicate is given then only symbols matching the predicate
-  /// will be searched for in the DynamicLibrary. If the predicate is not given
-  /// then all symbols will be searched for.
-  DynamicLibrarySearchGenerator(sys::DynamicLibrary Dylib, const DataLayout &DL,
+  /// will be searched for. If the predicate is not given then all symbols will
+  /// be searched for.
+  DynamicLibrarySearchGenerator(sys::DynamicLibrary Dylib, char GlobalPrefix,
                                 SymbolPredicate Allow = SymbolPredicate());
 
   /// Permanently loads the library at the given path and, on success, returns
   /// a DynamicLibrarySearchGenerator that will search it for symbol definitions
   /// in the library. On failure returns the reason the library failed to load.
   static Expected<DynamicLibrarySearchGenerator>
-  Load(const char *FileName, const DataLayout &DL,
+  Load(const char *FileName, char GlobalPrefix,
        SymbolPredicate Allow = SymbolPredicate());
 
   /// Creates a DynamicLibrarySearchGenerator that searches for symbols in
   /// the current process.
   static Expected<DynamicLibrarySearchGenerator>
-  GetForCurrentProcess(const DataLayout &DL,
+  GetForCurrentProcess(char GlobalPrefix,
                        SymbolPredicate Allow = SymbolPredicate()) {
-    return Load(nullptr, DL, std::move(Allow));
+    return Load(nullptr, GlobalPrefix, std::move(Allow));
   }
 
-  SymbolNameSet operator()(JITDylib &JD, const SymbolNameSet &Names);
+  Expected<SymbolNameSet> operator()(JITDylib &JD, const SymbolNameSet &Names);
 
 private:
   sys::DynamicLibrary Dylib;

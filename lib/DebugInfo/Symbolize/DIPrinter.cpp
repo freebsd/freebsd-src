@@ -1,9 +1,8 @@
 //===- lib/DebugInfo/Symbolize/DIPrinter.cpp ------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,6 +18,7 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/LineIterator.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cmath>
@@ -78,8 +78,13 @@ void DIPrinter::print(const DILineInfo &Info, bool Inlined) {
   std::string Filename = Info.FileName;
   if (Filename == kDILineInfoBadString)
     Filename = kBadString;
+  else if (Basenames)
+    Filename = llvm::sys::path::filename(Filename);
   if (!Verbose) {
-    OS << Filename << ":" << Info.Line << ":" << Info.Column << "\n";
+    OS << Filename << ":" << Info.Line;
+    if (Style == OutputStyle::LLVM)
+      OS << ":" << Info.Column;
+    OS << "\n";
     printContext(Filename, Info.Line);
     return;
   }
@@ -114,6 +119,29 @@ DIPrinter &DIPrinter::operator<<(const DIGlobal &Global) {
     Name = kBadString;
   OS << Name << "\n";
   OS << Global.Start << " " << Global.Size << "\n";
+  return *this;
+}
+
+DIPrinter &DIPrinter::operator<<(const DILocal &Local) {
+  OS << Local.FunctionName << '\n';
+  OS << Local.Name << '\n';
+  if (Local.DeclFile.empty())
+    OS << "??";
+  else
+    OS << Local.DeclFile;
+  OS << ':' << Local.DeclLine << '\n';
+  if (Local.FrameOffset)
+    OS << *Local.FrameOffset << ' ';
+  else
+    OS << "?? ";
+  if (Local.Size)
+    OS << *Local.Size << ' ';
+  else
+    OS << "?? ";
+  if (Local.TagOffset)
+    OS << *Local.TagOffset << '\n';
+  else
+    OS << "??\n";
   return *this;
 }
 
