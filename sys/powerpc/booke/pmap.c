@@ -219,7 +219,7 @@ uint32_t tlb1_entries;
 
 #define TLB1_ENTRIES (tlb1_entries)
 
-static vm_offset_t tlb1_map_base = VM_MAXUSER_ADDRESS + PAGE_SIZE;
+static vm_offset_t tlb1_map_base = (vm_offset_t)VM_MAXUSER_ADDRESS + PAGE_SIZE;
 
 static tlbtid_t tid_alloc(struct pmap *);
 static void tid_flush(tlbtid_t tid);
@@ -1574,7 +1574,6 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	 * Note that kernel end does not necessarily relate to kernsize.
 	 * kernsize is the size of the kernel that is actually mapped.
 	 */
-	kernstart = trunc_page(start);
 	data_start = round_page(kernelend);
 	data_end = data_start;
 
@@ -2146,7 +2145,7 @@ mmu_booke_map_user_ptr(mmu_t mmu, pmap_t pm, volatile const void *uaddr,
     void **kaddr, size_t ulen, size_t *klen)
 {
 
-	if ((uintptr_t)uaddr + ulen > VM_MAXUSER_ADDRESS + PAGE_SIZE)
+	if (trunc_page((uintptr_t)uaddr + ulen) > VM_MAXUSER_ADDRESS)
 		return (EFAULT);
 
 	*kaddr = (void *)(uintptr_t)uaddr;
@@ -2166,7 +2165,7 @@ mmu_booke_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr, int *is_user,
     vm_offset_t *decoded_addr)
 {
 
-	if (addr < VM_MAXUSER_ADDRESS)
+	if (trunc_page(addr) <= VM_MAXUSER_ADDRESS)
 		*is_user = 1;
 	else
 		*is_user = 0;
@@ -4025,7 +4024,8 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 void
 tlb1_init()
 {
-	uint32_t mas0, mas1, mas2, mas3, mas7;
+	vm_offset_t mas2;
+	uint32_t mas0, mas1, mas3, mas7;
 	uint32_t tsz;
 
 	tlb1_get_tlbconf();
@@ -4044,6 +4044,7 @@ tlb1_init()
 
 	tsz = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
 	kernsize += (tsz > 0) ? tsize2size(tsz) : 0;
+	kernstart = trunc_page(mas2);
 
 	/* Setup TLB miss defaults */
 	set_mas4_defaults();
