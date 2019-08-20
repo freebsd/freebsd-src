@@ -1,10 +1,9 @@
 //===-- NSDictionary.h ---------------------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -52,8 +51,8 @@ public:
     class Prefix : public Matcher {
     public:
       Prefix(ConstString p);
-      virtual ~Prefix() = default;
-      virtual bool Match(ConstString class_name) override;
+      ~Prefix() override = default;
+      bool Match(ConstString class_name) override;
 
     private:
       ConstString m_prefix;
@@ -61,8 +60,8 @@ public:
     class Full : public Matcher {
     public:
       Full(ConstString n);
-      virtual ~Full() = default;
-      virtual bool Match(ConstString class_name) override;
+      ~Full() override = default;
+      bool Match(ConstString class_name) override;
 
     private:
       ConstString m_name;

@@ -1,9 +1,8 @@
 //===-- AppleObjCTrampolineHandler.h ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -37,7 +36,7 @@ public:
 
   struct DispatchFunction {
   public:
-    typedef enum { eFixUpNone, eFixUpFixed, eFixUpToFix } FixUpState;
+    enum FixUpState { eFixUpNone, eFixUpFixed, eFixUpToFix };
 
     const char *name;
     bool stret_return;
@@ -75,8 +74,9 @@ private:
     class VTableRegion {
     public:
       VTableRegion()
-          : m_valid(false), m_owner(NULL), m_header_addr(LLDB_INVALID_ADDRESS),
-            m_code_start_addr(0), m_code_end_addr(0), m_next_region(0) {}
+          : m_valid(false), m_owner(nullptr),
+            m_header_addr(LLDB_INVALID_ADDRESS), m_code_start_addr(0),
+            m_code_end_addr(0), m_next_region(0) {}
 
       VTableRegion(AppleObjCVTables *owner, lldb::addr_t header_addr);
 
@@ -150,7 +150,7 @@ private:
   lldb::addr_t m_impl_stret_fn_addr;
   lldb::addr_t m_msg_forward_addr;
   lldb::addr_t m_msg_forward_stret_addr;
-  std::unique_ptr<AppleObjCVTables> m_vtables_ap;
+  std::unique_ptr<AppleObjCVTables> m_vtables_up;
 };
 
 } // namespace lldb_private

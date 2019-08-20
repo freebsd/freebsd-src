@@ -1,9 +1,8 @@
 //===-- Materializer.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,6 +22,8 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/RegisterValue.h"
+
+#include <memory>
 
 using namespace lldb_private;
 
@@ -538,7 +539,8 @@ public:
                 "size of variable %s (%" PRIu64
                 ") is larger than the ValueObject's size (%" PRIu64 ")",
                 m_variable_sp->GetName().AsCString(),
-                m_variable_sp->GetType()->GetByteSize(), data.GetByteSize());
+                m_variable_sp->GetType()->GetByteSize().getValueOr(0),
+                data.GetByteSize());
           }
           return;
         }
@@ -560,8 +562,8 @@ public:
 
         m_temporary_allocation_size = data.GetByteSize();
 
-        m_original_data.reset(
-            new DataBufferHeap(data.GetDataStart(), data.GetByteSize()));
+        m_original_data = std::make_shared<DataBufferHeap>(data.GetDataStart(),
+                                                           data.GetByteSize());
 
         if (!alloc_error.Success()) {
           err.SetErrorStringWithFormat(
@@ -1215,8 +1217,8 @@ public:
       return;
     }
 
-    m_register_contents.reset(new DataBufferHeap(register_data.GetDataStart(),
-                                                 register_data.GetByteSize()));
+    m_register_contents = std::make_shared<DataBufferHeap>(
+        register_data.GetDataStart(), register_data.GetByteSize());
 
     Status write_error;
 

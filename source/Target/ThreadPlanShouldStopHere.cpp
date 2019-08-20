@@ -1,9 +1,8 @@
 //===-- ThreadPlanShouldStopHere.cpp ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,9 +15,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // ThreadPlanShouldStopHere constructor
-//----------------------------------------------------------------------
 ThreadPlanShouldStopHere::ThreadPlanShouldStopHere(ThreadPlan *owner)
     : m_callbacks(), m_baton(nullptr), m_owner(owner),
       m_flags(ThreadPlanShouldStopHere::eNone) {
@@ -133,7 +130,7 @@ ThreadPlanSP ThreadPlanShouldStopHere::DefaultStepFromHereCallback(
                     "Queueing StepInRange plan to step through line 0 code.");
 
       return_plan_sp = current_plan->GetThread().QueueThreadPlanForStepInRange(
-          false, range, sc, NULL, eOnlyDuringStepping, status,
+          false, range, sc, nullptr, eOnlyDuringStepping, status,
           eLazyBoolCalculate, eLazyBoolNo);
     }
   }

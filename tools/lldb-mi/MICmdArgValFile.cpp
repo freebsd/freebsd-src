@@ -1,9 +1,8 @@
 //===-- MICmdArgValFile.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,6 @@
 #include "MICmdArgContext.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValFile constructor.
 // Type:    Method.
 // Args:    None.
@@ -22,7 +20,6 @@
 CMICmdArgValFile::CMICmdArgValFile() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValFile constructor.
 // Type:    Method.
 // Args:    vrArgName       - (R) Argument's name to search by.
@@ -39,7 +36,6 @@ CMICmdArgValFile::CMICmdArgValFile(const CMIUtilString &vrArgName,
     : CMICmdArgValBaseTemplate(vrArgName, vbMandatory, vbHandleByCmd) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValFile destructor.
 // Type:    Overridden.
 // Args:    None.
@@ -49,7 +45,6 @@ CMICmdArgValFile::CMICmdArgValFile(const CMIUtilString &vrArgName,
 CMICmdArgValFile::~CMICmdArgValFile() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Parse the command's argument options string and try to extract the
 // value *this
 //          argument is looking for.
@@ -102,7 +97,6 @@ bool CMICmdArgValFile::Validate(CMICmdArgContext &vwArgContext) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Given some text extract the file name path from it. If a space is
 // found in
 //          path done return the path surrounded in quotes.
@@ -125,7 +119,6 @@ CMICmdArgValFile::GetFileNamePath(const CMIUtilString &vrTxt) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Examine the string and determine if it is a valid file name path.
 // Type:    Method.
 // Args:    vrFileNamePath  - (R) File's name and directory path.
@@ -162,7 +155,6 @@ bool CMICmdArgValFile::IsFilePath(const CMIUtilString &vrFileNamePath) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Determine if the path contains valid characters for a file path.
 // Letters can be
 //          either upper or lower case.

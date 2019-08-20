@@ -1,9 +1,8 @@
 //===-- IRInterpreter.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -234,8 +233,9 @@ public:
     case Value::FunctionVal:
       if (const Function *constant_func = dyn_cast<Function>(constant)) {
         lldb_private::ConstString name(constant_func->getName());
-        lldb::addr_t addr = m_execution_unit.FindSymbol(name);
-        if (addr == LLDB_INVALID_ADDRESS)
+        bool missing_weak = false;
+        lldb::addr_t addr = m_execution_unit.FindSymbol(name, missing_weak);
+        if (addr == LLDB_INVALID_ADDRESS || missing_weak)
           return false;
         value = APInt(m_target_data.getPointerSizeInBits(), addr);
         return true;
@@ -655,7 +655,7 @@ bool IRInterpreter::Interpret(llvm::Module &module, llvm::Function &function,
     std::string s;
     raw_string_ostream oss(s);
 
-    module.print(oss, NULL);
+    module.print(oss, nullptr);
 
     oss.flush();
 
@@ -1601,16 +1601,16 @@ bool IRInterpreter::Interpret(llvm::Module &module, llvm::Function &function,
                  "unable to locate host data for transfer to device");
           // Create the required buffer
           rawArgs[i].size = dataSize;
-          rawArgs[i].data_ap.reset(new uint8_t[dataSize + 1]);
+          rawArgs[i].data_up.reset(new uint8_t[dataSize + 1]);
 
           // Read string from host memory
-          execution_unit.ReadMemory(rawArgs[i].data_ap.get(), addr, dataSize,
+          execution_unit.ReadMemory(rawArgs[i].data_up.get(), addr, dataSize,
                                     error);
           assert(!error.Fail() &&
                  "we have failed to read the string from memory");
 
           // Add null terminator
-          rawArgs[i].data_ap[dataSize] = '\0';
+          rawArgs[i].data_up[dataSize] = '\0';
           rawArgs[i].type = lldb_private::ABI::CallArgument::HostPointer;
         } else /* if ( arg_ty->isPointerTy() ) */
         {

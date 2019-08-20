@@ -1,9 +1,8 @@
 //===-- MICmdArgValString.cpp -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,6 @@
 #include "MICmdArgContext.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValString constructor.
 // Type:    Method.
 // Args:    None.
@@ -24,7 +22,6 @@ CMICmdArgValString::CMICmdArgValString()
       m_bHandleDirPaths(false), m_bHandleAnything(false) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValString constructor.
 // Type:    Method.
 // Args:    vbAnything  - (R) True = Parse a string and accept anything, false =
@@ -37,7 +34,6 @@ CMICmdArgValString::CMICmdArgValString(const bool vbAnything)
       m_bHandleDirPaths(false), m_bHandleAnything(vbAnything) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValString constructor.
 // Type:    Method.
 // Args:    vbHandleQuotes      - (R) True = Parse a string surrounded by quotes
@@ -59,7 +55,6 @@ CMICmdArgValString::CMICmdArgValString(const bool vbHandleQuotes,
       m_bHandleDirPaths(vbHandleDirPaths), m_bHandleAnything(false) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValString constructor.
 // Type:    Method.
 // Args:    vrArgName       - (R) Argument's name to search by.
@@ -86,7 +81,6 @@ CMICmdArgValString::CMICmdArgValString(const CMIUtilString &vrArgName,
       m_bHandleDirPaths(false), m_bHandleAnything(false) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValString constructor.
 // Type:    Method.
 // Args:    vrArgName       - (R) Argument's name to search by.
@@ -116,7 +110,6 @@ CMICmdArgValString::CMICmdArgValString(const CMIUtilString &vrArgName,
       m_bHandleDirPaths(vbHandleDirPaths), m_bHandleAnything(false) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValString destructor.
 // Type:    Overridden.
 // Args:    None.
@@ -126,7 +119,6 @@ CMICmdArgValString::CMICmdArgValString(const CMIUtilString &vrArgName,
 CMICmdArgValString::~CMICmdArgValString() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Parse the command's argument options string and try to extract the
 // value *this
 //          argument is looking for.
@@ -147,7 +139,6 @@ bool CMICmdArgValString::Validate(CMICmdArgContext &vrwArgContext) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Parse the command's argument options string and try to extract only
 // the next
 //          word delimited by the next space.
@@ -181,7 +172,6 @@ bool CMICmdArgValString::ValidateSingleText(CMICmdArgContext &vrwArgContext) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Parse the command's argument options string and try to extract all
 // the words
 //          between quotes then delimited by the next space.
@@ -213,7 +203,6 @@ bool CMICmdArgValString::ValidateQuotedText(CMICmdArgContext &vrwArgContext) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Examine the string and determine if it is a valid string type
 // argument.
 // Type:    Method.
@@ -233,7 +222,6 @@ bool CMICmdArgValString::IsStringArg(const CMIUtilString &vrTxt) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Examine the string and determine if it is a valid string type
 // argument or
 //          option value. If the string looks like a long option, short option,
@@ -276,7 +264,6 @@ bool CMICmdArgValString::IsStringArgSingleText(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Examine the string and determine if it is a valid string type
 // argument.
 //          Take into account quotes surrounding the text. Note this function
@@ -327,7 +314,6 @@ bool CMICmdArgValString::IsStringArgQuotedText(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Examine the string and determine if it is a valid string type
 // argument.
 //          Take into account quotes surrounding the text. Take into account
@@ -366,7 +352,6 @@ bool CMICmdArgValString::IsStringArgQuotedTextEmbedded(
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Examine the string and determine if it is a valid string type
 // argument.
 //          Take into account quotes surrounding the text. Take into account

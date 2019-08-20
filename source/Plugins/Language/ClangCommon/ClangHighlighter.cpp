@@ -1,14 +1,14 @@
 //===-- ClangHighlighter.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "ClangHighlighter.h"
 
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Utility/AnsiTerminal.h"
 #include "lldb/Utility/StreamString.h"
@@ -136,7 +136,8 @@ void ClangHighlighter::Highlight(const HighlightStyle &options,
   using namespace clang;
 
   FileSystemOptions file_opts;
-  FileManager file_mgr(file_opts);
+  FileManager file_mgr(file_opts,
+                       FileSystem::Instance().GetVirtualFileSystem());
 
   unsigned line_number = previous_lines.count('\n') + 1U;
 

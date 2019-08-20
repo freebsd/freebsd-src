@@ -1,9 +1,8 @@
 //===-- ThreadPlan.h --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,7 +22,6 @@
 
 namespace lldb_private {
 
-//------------------------------------------------------------------
 //  ThreadPlan:
 //  This is the pure virtual base class for thread plans.
 //
@@ -329,16 +327,15 @@ namespace lldb_private {
 //  for a plan to instruct a sub-plan
 //  on how to respond to ShouldReportStop.
 //
-//------------------------------------------------------------------
 
 class ThreadPlan : public std::enable_shared_from_this<ThreadPlan>,
                    public UserID {
 public:
-  typedef enum { eAllThreads, eSomeThreads, eThisThread } ThreadScope;
+  enum ThreadScope { eAllThreads, eSomeThreads, eThisThread };
 
   // We use these enums so that we can cast a base thread plan to it's real
   // type without having to resort to dynamic casting.
-  typedef enum {
+  enum ThreadPlanKind {
     eKindGeneric,
     eKindNull,
     eKindBase,
@@ -354,30 +351,24 @@ public:
     eKindStepUntil,
     eKindTestCondition
 
-  } ThreadPlanKind;
+  };
 
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   ThreadPlan(ThreadPlanKind kind, const char *name, Thread &thread,
              Vote stop_vote, Vote run_vote);
 
   virtual ~ThreadPlan();
 
-  //------------------------------------------------------------------
   /// Returns the name of this thread plan.
   ///
-  /// @return
+  /// \return
   ///   A const char * pointer to the thread plan's name.
-  //------------------------------------------------------------------
   const char *GetName() const { return m_name.c_str(); }
 
-  //------------------------------------------------------------------
   /// Returns the Thread that is using this thread plan.
   ///
-  /// @return
+  /// \return
   ///   A  pointer to the thread plan's owning thread.
-  //------------------------------------------------------------------
   Thread &GetThread() { return m_thread; }
 
   const Thread &GetThread() const { return m_thread; }
@@ -386,30 +377,26 @@ public:
 
   const Target &GetTarget() const { return m_thread.GetProcess()->GetTarget(); }
 
-  //------------------------------------------------------------------
   /// Print a description of this thread to the stream \a s.
   /// \a thread.
   ///
-  /// @param[in] s
+  /// \param[in] s
   ///    The stream to which to print the description.
   ///
-  /// @param[in] level
+  /// \param[in] level
   ///    The level of description desired.  Note that eDescriptionLevelBrief
   ///    will be used in the stop message printed when the plan is complete.
-  //------------------------------------------------------------------
   virtual void GetDescription(Stream *s, lldb::DescriptionLevel level) = 0;
 
-  //------------------------------------------------------------------
   /// Returns whether this plan could be successfully created.
   ///
-  /// @param[in] error
+  /// \param[in] error
   ///    A stream to which to print some reason why the plan could not be
   ///    created.
   ///    Can be NULL.
   ///
-  /// @return
+  /// \return
   ///   \b true if the plan should be queued, \b false otherwise.
-  //------------------------------------------------------------------
   virtual bool ValidatePlan(Stream *error) = 0;
 
   bool TracerExplainsStop() {
@@ -557,9 +544,7 @@ public:
   }
 
 protected:
-  //------------------------------------------------------------------
   // Classes that inherit from ThreadPlan can see and modify these
-  //------------------------------------------------------------------
 
   virtual bool DoWillResume(lldb::StateType resume_state, bool current_plan) {
     return true;
@@ -605,9 +590,7 @@ protected:
   int32_t m_iteration_count = 1;
 
 private:
-  //------------------------------------------------------------------
   // For ThreadPlan only
-  //------------------------------------------------------------------
   static lldb::user_id_t GetNextID();
 
   ThreadPlanKind m_kind;
@@ -626,13 +609,11 @@ private:
   DISALLOW_COPY_AND_ASSIGN(ThreadPlan);
 };
 
-//----------------------------------------------------------------------
 // ThreadPlanNull:
 // Threads are assumed to always have at least one plan on the plan stack. This
 // is put on the plan stack when a thread is destroyed so that if you
 // accidentally access a thread after it is destroyed you won't crash. But
 // asking questions of the ThreadPlanNull is definitely an error.
-//----------------------------------------------------------------------
 
 class ThreadPlanNull : public ThreadPlan {
 public:
