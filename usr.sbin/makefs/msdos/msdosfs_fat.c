@@ -220,9 +220,9 @@ pcbmap(struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int *sp)
 			return (EIO);
 		}
 		if (FAT32(pmp))
-			cn = getulong(&bp->b_data[bo]);
+			cn = getulong((char *)bp->b_data + bo);
 		else
-			cn = getushort(&bp->b_data[bo]);
+			cn = getushort((char *)bp->b_data + bo);
 		if (FAT12(pmp) && (prevcn & 1))
 			cn >>= 4;
 		cn &= pmp->pm_fatmask;
@@ -502,9 +502,9 @@ fatentry(int function, struct msdosfsmount *pmp, u_long cn, u_long *oldcontents,
 
 	if (function & FAT_GET) {
 		if (FAT32(pmp))
-			readcn = getulong(&bp->b_data[bo]);
+			readcn = getulong((char *)bp->b_data + bo);
 		else
-			readcn = getushort(&bp->b_data[bo]);
+			readcn = getushort((char *)bp->b_data + bo);
 		if (FAT12(pmp) & (cn & 1))
 			readcn >>= 4;
 		readcn &= pmp->pm_fatmask;
@@ -516,7 +516,7 @@ fatentry(int function, struct msdosfsmount *pmp, u_long cn, u_long *oldcontents,
 	if (function & FAT_SET) {
 		switch (pmp->pm_fatmask) {
 		case FAT12_MASK:
-			readcn = getushort(&bp->b_data[bo]);
+			readcn = getushort((char *)bp->b_data + bo);
 			if (cn & 1) {
 				readcn &= 0x000f;
 				readcn |= newcontents << 4;
@@ -524,20 +524,20 @@ fatentry(int function, struct msdosfsmount *pmp, u_long cn, u_long *oldcontents,
 				readcn &= 0xf000;
 				readcn |= newcontents & 0xfff;
 			}
-			putushort(&bp->b_data[bo], readcn);
+			putushort((char *)bp->b_data + bo, readcn);
 			break;
 		case FAT16_MASK:
-			putushort(&bp->b_data[bo], newcontents);
+			putushort((char *)bp->b_data + bo, newcontents);
 			break;
 		case FAT32_MASK:
 			/*
 			 * According to spec we have to retain the
 			 * high order bits of the FAT entry.
 			 */
-			readcn = getulong(&bp->b_data[bo]);
+			readcn = getulong((char *)bp->b_data + bo);
 			readcn &= ~FAT32_MASK;
 			readcn |= newcontents & FAT32_MASK;
-			putulong(&bp->b_data[bo], readcn);
+			putulong((char *)bp->b_data + bo, readcn);
 			break;
 		}
 		updatefats(pmp, bp, bn);
@@ -587,7 +587,7 @@ fatchain(struct msdosfsmount *pmp, u_long start, u_long count, u_long fillwith)
 			newc = --count > 0 ? start : fillwith;
 			switch (pmp->pm_fatmask) {
 			case FAT12_MASK:
-				readcn = getushort(&bp->b_data[bo]);
+				readcn = getushort((char *)bp->b_data + bo);
 				if (start & 1) {
 					readcn &= 0xf000;
 					readcn |= newc & 0xfff;
@@ -595,20 +595,20 @@ fatchain(struct msdosfsmount *pmp, u_long start, u_long count, u_long fillwith)
 					readcn &= 0x000f;
 					readcn |= newc << 4;
 				}
-				putushort(&bp->b_data[bo], readcn);
+				putushort((char *)bp->b_data + bo, readcn);
 				bo++;
 				if (!(start & 1))
 					bo++;
 				break;
 			case FAT16_MASK:
-				putushort(&bp->b_data[bo], newc);
+				putushort((char *)bp->b_data + bo, newc);
 				bo += 2;
 				break;
 			case FAT32_MASK:
-				readcn = getulong(&bp->b_data[bo]);
+				readcn = getulong((char *)bp->b_data + bo);
 				readcn &= ~pmp->pm_fatmask;
 				readcn |= newc & pmp->pm_fatmask;
-				putulong(&bp->b_data[bo], readcn);
+				putulong((char *)bp->b_data + bo, readcn);
 				bo += 4;
 				break;
 			}
@@ -833,7 +833,7 @@ freeclusterchain(struct msdosfsmount *pmp, u_long cluster)
 		usemap_free(pmp, cluster);
 		switch (pmp->pm_fatmask) {
 		case FAT12_MASK:
-			readcn = getushort(&bp->b_data[bo]);
+			readcn = getushort((char *)bp->b_data + bo);
 			if (cluster & 1) {
 				cluster = readcn >> 4;
 				readcn &= 0x000f;
@@ -843,15 +843,15 @@ freeclusterchain(struct msdosfsmount *pmp, u_long cluster)
 				readcn &= 0xf000;
 				readcn |= MSDOSFSFREE & 0xfff;
 			}
-			putushort(&bp->b_data[bo], readcn);
+			putushort((char *)bp->b_data + bo, readcn);
 			break;
 		case FAT16_MASK:
-			cluster = getushort(&bp->b_data[bo]);
-			putushort(&bp->b_data[bo], MSDOSFSFREE);
+			cluster = getushort((char *)bp->b_data + bo);
+			putushort((char *)bp->b_data + bo, MSDOSFSFREE);
 			break;
 		case FAT32_MASK:
-			cluster = getulong(&bp->b_data[bo]);
-			putulong(&bp->b_data[bo],
+			cluster = getulong((char *)bp->b_data + bo);
+			putulong((char *)bp->b_data + bo,
 				 (MSDOSFSFREE & FAT32_MASK) | (cluster & ~FAT32_MASK));
 			break;
 		}
@@ -903,9 +903,9 @@ fillinusemap(struct msdosfsmount *pmp)
 			}
 		}
 		if (FAT32(pmp))
-			readcn = getulong(&bp->b_data[bo]);
+			readcn = getulong((char *)bp->b_data + bo);
 		else
-			readcn = getushort(&bp->b_data[bo]);
+			readcn = getushort((char *)bp->b_data + bo);
 		if (FAT12(pmp) && (cn & 1))
 			readcn >>= 4;
 		readcn &= pmp->pm_fatmask;
