@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -47,10 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
-#include <sys/types.h>
 #include <sys/malloc.h>
-#include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/types.h>
@@ -185,10 +184,9 @@ TAILQ_HEAD(, snd_midi) midi_devs;
  * /dev/midistat variables and declarations, protected by midistat_lock
  */
 
-static struct mtx midistat_lock;
+static struct sx midistat_lock;
 static int      midistat_isopen = 0;
 static struct sbuf midistat_sbuf;
-static int      midistat_bufptr;
 static struct cdev *midistat_dev;
 
 /*
@@ -287,7 +285,7 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 	MIDI_TYPE *buf;
 
 	MIDI_DEBUG(1, printf("midiinit: unit %d/%d.\n", unit, channel));
-	mtx_lock(&midistat_lock);
+	sx_xlock(&midistat_lock);
 	/*
 	 * Protect against call with existing unit/channel or auto-allocate a
 	 * new unit number.
@@ -314,13 +312,8 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 		unit = i + 1;
 
 	MIDI_DEBUG(1, printf("midiinit #2: unit %d/%d.\n", unit, channel));
-	m = malloc(sizeof(*m), M_MIDI, M_NOWAIT | M_ZERO);
-	if (m == NULL)
-		goto err0;
-
-	m->synth = malloc(sizeof(*m->synth), M_MIDI, M_NOWAIT | M_ZERO);
-	if (m->synth == NULL)
-		goto err1;
+	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
+	m->synth = malloc(sizeof(*m->synth), M_MIDI, M_WAITOK | M_ZERO);
 	kobj_init((kobj_t)m->synth, &midisynth_class);
 	m->synth->m = m;
 	kobj_init((kobj_t)m, cls);
@@ -329,7 +322,7 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 
 	MIDI_DEBUG(1, printf("midiinit queues %d/%d.\n", inqsize, outqsize));
 	if (!inqsize && !outqsize)
-		goto err2;
+		goto err1;
 
 	mtx_init(&m->lock, "raw midi", NULL, 0);
 	mtx_init(&m->qlock, "q raw midi", NULL, 0);
@@ -354,8 +347,7 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 
 	if ((inqsize && !MIDIQ_BUF(m->inq)) ||
 	    (outqsize && !MIDIQ_BUF(m->outq)))
-		goto err3;
-
+		goto err2;
 
 	m->busy = 0;
 	m->flags = 0;
@@ -364,14 +356,14 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 	m->cookie = cookie;
 
 	if (MPU_INIT(m, cookie))
-		goto err3;
+		goto err2;
 
 	mtx_unlock(&m->lock);
 	mtx_unlock(&m->qlock);
 
 	TAILQ_INSERT_TAIL(&midi_devs, m, link);
 
-	mtx_unlock(&midistat_lock);
+	sx_xunlock(&midistat_lock);
 
 	m->dev = make_dev(&midi_cdevsw,
 	    MIDIMKMINOR(unit, MIDI_DEV_RAW, channel),
@@ -380,16 +372,19 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 
 	return m;
 
-err3:	mtx_destroy(&m->qlock);
+err2:
+	mtx_destroy(&m->qlock);
 	mtx_destroy(&m->lock);
 
 	if (MIDIQ_BUF(m->inq))
 		free(MIDIQ_BUF(m->inq), M_MIDI);
 	if (MIDIQ_BUF(m->outq))
 		free(MIDIQ_BUF(m->outq), M_MIDI);
-err2:	free(m->synth, M_MIDI);
-err1:	free(m, M_MIDI);
-err0:	mtx_unlock(&midistat_lock);
+err1:
+	free(m->synth, M_MIDI);
+	free(m, M_MIDI);
+err0:
+	sx_xunlock(&midistat_lock);
 	MIDI_DEBUG(1, printf("midi_init ended in error\n"));
 	return NULL;
 }
@@ -407,7 +402,7 @@ midi_uninit(struct snd_midi *m)
 	int err;
 
 	err = EBUSY;
-	mtx_lock(&midistat_lock);
+	sx_xlock(&midistat_lock);
 	mtx_lock(&m->lock);
 	if (m->busy) {
 		if (!(m->rchan || m->wchan))
@@ -426,8 +421,10 @@ midi_uninit(struct snd_midi *m)
 	if (!err)
 		goto exit;
 
-err:	mtx_unlock(&m->lock);
-exit:	mtx_unlock(&midistat_lock);
+err:
+	mtx_unlock(&m->lock);
+exit:
+	sx_xunlock(&midistat_lock);
 	return err;
 }
 
@@ -939,27 +936,22 @@ midistat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	int error;
 
 	MIDI_DEBUG(1, printf("midistat_open\n"));
-	mtx_lock(&midistat_lock);
 
+	sx_xlock(&midistat_lock);
 	if (midistat_isopen) {
-		mtx_unlock(&midistat_lock);
+		sx_xunlock(&midistat_lock);
 		return EBUSY;
 	}
 	midistat_isopen = 1;
-	mtx_unlock(&midistat_lock);
-
 	if (sbuf_new(&midistat_sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
 		error = ENXIO;
-		mtx_lock(&midistat_lock);
 		goto out;
 	}
-	mtx_lock(&midistat_lock);
-	midistat_bufptr = 0;
 	error = (midistat_prepare(&midistat_sbuf) > 0) ? 0 : ENOMEM;
-
-out:	if (error)
+out:
+	if (error)
 		midistat_isopen = 0;
-	mtx_unlock(&midistat_lock);
+	sx_xunlock(&midistat_lock);
 	return error;
 }
 
@@ -967,40 +959,40 @@ static int
 midistat_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	MIDI_DEBUG(1, printf("midistat_close\n"));
-	mtx_lock(&midistat_lock);
+	sx_xlock(&midistat_lock);
 	if (!midistat_isopen) {
-		mtx_unlock(&midistat_lock);
+		sx_xunlock(&midistat_lock);
 		return EBADF;
 	}
 	sbuf_delete(&midistat_sbuf);
 	midistat_isopen = 0;
-
-	mtx_unlock(&midistat_lock);
+	sx_xunlock(&midistat_lock);
 	return 0;
 }
 
 static int
-midistat_read(struct cdev *i_dev, struct uio *buf, int flag)
+midistat_read(struct cdev *i_dev, struct uio *uio, int flag)
 {
-	int l, err;
+	long l;
+	int err;
 
 	MIDI_DEBUG(4, printf("midistat_read\n"));
-	mtx_lock(&midistat_lock);
+	sx_xlock(&midistat_lock);
 	if (!midistat_isopen) {
-		mtx_unlock(&midistat_lock);
+		sx_xunlock(&midistat_lock);
 		return EBADF;
 	}
-	l = min(buf->uio_resid, sbuf_len(&midistat_sbuf) - midistat_bufptr);
+	if (uio->uio_offset < 0 || uio->uio_offset > sbuf_len(&midistat_sbuf)) {
+		sx_xunlock(&midistat_lock);
+		return EINVAL;
+	}
 	err = 0;
+	l = lmin(uio->uio_resid, sbuf_len(&midistat_sbuf) - uio->uio_offset);
 	if (l > 0) {
-		mtx_unlock(&midistat_lock);
-		err = uiomove(sbuf_data(&midistat_sbuf) + midistat_bufptr, l,
-		    buf);
-		mtx_lock(&midistat_lock);
-	} else
-		l = 0;
-	midistat_bufptr += l;
-	mtx_unlock(&midistat_lock);
+		err = uiomove(sbuf_data(&midistat_sbuf) + uio->uio_offset, l,
+		    uio);
+	}
+	sx_xunlock(&midistat_lock);
 	return err;
 }
 
@@ -1013,7 +1005,7 @@ midistat_prepare(struct sbuf *s)
 {
 	struct snd_midi *m;
 
-	mtx_assert(&midistat_lock, MA_OWNED);
+	sx_assert(&midistat_lock, SA_XLOCKED);
 
 	sbuf_printf(s, "FreeBSD Midi Driver (midi2)\n");
 	if (TAILQ_EMPTY(&midi_devs)) {
@@ -1376,8 +1368,7 @@ midisynth_bender(void *n, uint8_t chn, uint16_t val)
 static int
 midi_destroy(struct snd_midi *m, int midiuninit)
 {
-
-	mtx_assert(&midistat_lock, MA_OWNED);
+	sx_assert(&midistat_lock, SA_XLOCKED);
 	mtx_assert(&m->lock, MA_OWNED);
 
 	MIDI_DEBUG(3, printf("midi_destroy\n"));
@@ -1403,8 +1394,8 @@ midi_destroy(struct snd_midi *m, int midiuninit)
 static int
 midi_load(void)
 {
-	mtx_init(&midistat_lock, "midistat lock", NULL, 0);
-	TAILQ_INIT(&midi_devs);		/* Initialize the queue. */
+	sx_init(&midistat_lock, "midistat lock");
+	TAILQ_INIT(&midi_devs);
 
 	midistat_dev = make_dev(&midistat_cdevsw,
 	    MIDIMKMINOR(0, MIDI_DEV_MIDICTL, 0),
@@ -1421,7 +1412,7 @@ midi_unload(void)
 
 	MIDI_DEBUG(1, printf("midi_unload()\n"));
 	retval = EBUSY;
-	mtx_lock(&midistat_lock);
+	sx_xlock(&midistat_lock);
 	if (midistat_isopen)
 		goto exit0;
 
@@ -1434,20 +1425,19 @@ midi_unload(void)
 		if (retval)
 			goto exit1;
 	}
-
-	mtx_unlock(&midistat_lock);	/* XXX */
-
+	sx_xunlock(&midistat_lock);
 	destroy_dev(midistat_dev);
+
 	/*
 	 * Made it here then unload is complete
 	 */
-	mtx_destroy(&midistat_lock);
+	sx_destroy(&midistat_lock);
 	return 0;
 
 exit1:
 	mtx_unlock(&m->lock);
 exit0:
-	mtx_unlock(&midistat_lock);
+	sx_xunlock(&midistat_lock);
 	if (retval)
 		MIDI_DEBUG(2, printf("midi_unload: failed\n"));
 	return retval;
@@ -1496,13 +1486,11 @@ midimapper_open(void *arg1, void **cookie)
 	int retval = 0;
 	struct snd_midi *m;
 
-	mtx_lock(&midistat_lock);
-
+	sx_xlock(&midistat_lock);
 	TAILQ_FOREACH(m, &midi_devs, link) {
 		retval++;
 	}
-
-	mtx_unlock(&midistat_lock);
+	sx_xunlock(&midistat_lock);
 	return retval;
 }
 
@@ -1518,17 +1506,15 @@ midimapper_fetch_synth(void *arg, void *cookie, int unit)
 	struct snd_midi *m;
 	int retval = 0;
 
-	mtx_lock(&midistat_lock);
-
+	sx_xlock(&midistat_lock);
 	TAILQ_FOREACH(m, &midi_devs, link) {
 		if (unit == retval) {
-			mtx_unlock(&midistat_lock);
+			sx_xunlock(&midistat_lock);
 			return (kobj_t)m->synth;
 		}
 		retval++;
 	}
-
-	mtx_unlock(&midistat_lock);
+	sx_xunlock(&midistat_lock);
 	return NULL;
 }
 
