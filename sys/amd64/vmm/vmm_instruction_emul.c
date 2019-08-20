@@ -77,6 +77,8 @@ enum {
 	VIE_OP_TYPE_STOS,
 	VIE_OP_TYPE_BITTEST,
 	VIE_OP_TYPE_TWOB_GRP15,
+	VIE_OP_TYPE_ADD,
+	VIE_OP_TYPE_TEST,
 	VIE_OP_TYPE_LAST
 };
 
@@ -112,6 +114,10 @@ static const struct vie_op two_byte_opcodes[256] = {
 };
 
 static const struct vie_op one_byte_opcodes[256] = {
+	[0x03] = {
+		.op_byte = 0x03,
+		.op_type = VIE_OP_TYPE_ADD,
+	},
 	[0x0F] = {
 		.op_byte = 0x0F,
 		.op_type = VIE_OP_TYPE_TWO_BYTE
@@ -215,6 +221,12 @@ static const struct vie_op one_byte_opcodes[256] = {
 		/* XXX Group 1A extended opcode - not just POP */
 		.op_byte = 0x8F,
 		.op_type = VIE_OP_TYPE_POP,
+	},
+	[0xF7] = {
+		/* XXX Group 3 extended opcode - not just TEST */
+		.op_byte = 0xF7,
+		.op_type = VIE_OP_TYPE_TEST,
+		.op_flags = VIE_OP_F_IMM,
 	},
 	[0xFF] = {
 		/* XXX Group 5 extended opcode - not just PUSH */
@@ -408,6 +420,76 @@ getcc(int opsize, uint64_t x, uint64_t y)
 		return (getcc32(x, y));
 	else
 		return (getcc64(x, y));
+}
+
+/*
+ * Macro creation of functions getaddflags{8,16,32,64}
+ */
+#define	GETADDFLAGS(sz)							\
+static u_long								\
+getaddflags##sz(uint##sz##_t x, uint##sz##_t y)				\
+{									\
+	u_long rflags;							\
+									\
+	__asm __volatile("add %2,%1; pushfq; popq %0" :			\
+	    "=r" (rflags), "+r" (x) : "m" (y));				\
+	return (rflags);						\
+} struct __hack
+
+GETADDFLAGS(8);
+GETADDFLAGS(16);
+GETADDFLAGS(32);
+GETADDFLAGS(64);
+
+static u_long
+getaddflags(int opsize, uint64_t x, uint64_t y)
+{
+	KASSERT(opsize == 1 || opsize == 2 || opsize == 4 || opsize == 8,
+	    ("getaddflags: invalid operand size %d", opsize));
+
+	if (opsize == 1)
+		return (getaddflags8(x, y));
+	else if (opsize == 2)
+		return (getaddflags16(x, y));
+	else if (opsize == 4)
+		return (getaddflags32(x, y));
+	else
+		return (getaddflags64(x, y));
+}
+
+/*
+ * Return the status flags that would result from doing (x & y).
+ */
+#define	GETANDFLAGS(sz)							\
+static u_long								\
+getandflags##sz(uint##sz##_t x, uint##sz##_t y)				\
+{									\
+	u_long rflags;							\
+									\
+	__asm __volatile("and %2,%1; pushfq; popq %0" :			\
+	    "=r" (rflags), "+r" (x) : "m" (y));				\
+	return (rflags);						\
+} struct __hack
+
+GETANDFLAGS(8);
+GETANDFLAGS(16);
+GETANDFLAGS(32);
+GETANDFLAGS(64);
+
+static u_long
+getandflags(int opsize, uint64_t x, uint64_t y)
+{
+	KASSERT(opsize == 1 || opsize == 2 || opsize == 4 || opsize == 8,
+	    ("getandflags: invalid operand size %d", opsize));
+
+	if (opsize == 1)
+		return (getandflags8(x, y));
+	else if (opsize == 2)
+		return (getandflags16(x, y));
+	else if (opsize == 4)
+		return (getandflags32(x, y));
+	else
+		return (getandflags64(x, y));
 }
 
 static int
@@ -1179,6 +1261,111 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 }
 
 static int
+emulate_test(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+{
+	int error, size;
+	uint64_t op1, rflags, rflags2;
+
+	size = vie->opsize;
+	error = EINVAL;
+
+	switch (vie->op.op_byte) {
+	case 0xF7:
+		/*
+		 * F7 /0		test r/m16, imm16
+		 * F7 /0		test r/m32, imm32
+		 * REX.W + F7 /0	test r/m64, imm32 sign-extended to 64
+		 *
+		 * Test mem (ModRM:r/m) with immediate and set status
+		 * flags according to the results.  The comparison is
+		 * performed by anding the immediate from the first
+		 * operand and then setting the status flags.
+		 */
+		if ((vie->reg & 7) != 0)
+			return (EINVAL);
+
+		error = memread(vm, vcpuid, gpa, &op1, size, arg);
+		if (error)
+			return (error);
+
+		rflags2 = getandflags(size, op1, vie->immediate);
+		break;
+	default:
+		return (EINVAL);
+	}
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	if (error)
+		return (error);
+
+	/*
+	 * OF and CF are cleared; the SF, ZF and PF flags are set according
+	 * to the result; AF is undefined.
+	 */
+	rflags &= ~RFLAGS_STATUS_BITS;
+	rflags |= rflags2 & (PSL_PF | PSL_Z | PSL_N);
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
+	return (error);
+}
+
+static int
+emulate_add(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+{
+	int error, size;
+	uint64_t nval, rflags, rflags2, val1, val2;
+	enum vm_reg_name reg;
+
+	size = vie->opsize;
+	error = EINVAL;
+
+	switch (vie->op.op_byte) {
+	case 0x03:
+		/*
+		 * ADD r/m to r and store the result in r
+		 *
+		 * 03/r            ADD r16, r/m16
+		 * 03/r            ADD r32, r/m32
+		 * REX.W + 03/r    ADD r64, r/m64
+		 */
+
+		/* get the first operand */
+		reg = gpr_map[vie->reg];
+		error = vie_read_register(vm, vcpuid, reg, &val1);
+		if (error)
+			break;
+
+		/* get the second operand */
+		error = memread(vm, vcpuid, gpa, &val2, size, arg);
+		if (error)
+			break;
+
+		/* perform the operation and write the result */
+		nval = val1 + val2;
+		error = vie_update_register(vm, vcpuid, reg, nval, size);
+		break;
+	default:
+		break;
+	}
+
+	if (!error) {
+		rflags2 = getaddflags(size, val1, val2);
+		error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS,
+		    &rflags);
+		if (error)
+			return (error);
+
+		rflags &= ~RFLAGS_STATUS_BITS;
+		rflags |= rflags2 & RFLAGS_STATUS_BITS;
+		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS,
+		    rflags, 8);
+	}
+
+	return (error);
+}
+
+static int
 emulate_sub(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
@@ -1541,6 +1728,14 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case VIE_OP_TYPE_TWOB_GRP15:
 		error = emulate_twob_group15(vm, vcpuid, gpa, vie,
+		    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_ADD:
+		error = emulate_add(vm, vcpuid, gpa, vie, memread,
+		    memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_TEST:
+		error = emulate_test(vm, vcpuid, gpa, vie,
 		    memread, memwrite, memarg);
 		break;
 	default:
