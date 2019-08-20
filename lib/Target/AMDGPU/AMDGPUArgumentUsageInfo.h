@@ -1,9 +1,8 @@
 //==- AMDGPUArgumentrUsageInfo.h - Function Arg Usage Info -------*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,7 @@
 #define LLVM_LIB_TARGET_AMDGPU_AMDGPUARGUMENTUSAGEINFO_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/CodeGen/Register.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Pass.h"
 
@@ -29,22 +29,31 @@ private:
   friend class AMDGPUArgumentUsageInfo;
 
   union {
-    unsigned Register;
+    Register Reg;
     unsigned StackOffset;
   };
+
+  // Bitmask to locate argument within the register.
+  unsigned Mask;
 
   bool IsStack : 1;
   bool IsSet : 1;
 
-  ArgDescriptor(unsigned Val = 0, bool IsStack = false, bool IsSet = false)
-    : Register(Val), IsStack(IsStack), IsSet(IsSet) {}
 public:
-  static ArgDescriptor createRegister(unsigned Reg) {
-    return ArgDescriptor(Reg, false, true);
+  ArgDescriptor(unsigned Val = 0, unsigned Mask = ~0u,
+                bool IsStack = false, bool IsSet = false)
+    : Reg(Val), Mask(Mask), IsStack(IsStack), IsSet(IsSet) {}
+
+  static ArgDescriptor createRegister(Register Reg, unsigned Mask = ~0u) {
+    return ArgDescriptor(Reg, Mask, false, true);
   }
 
-  static ArgDescriptor createStack(unsigned Reg) {
-    return ArgDescriptor(Reg, true, true);
+  static ArgDescriptor createStack(Register Reg, unsigned Mask = ~0u) {
+    return ArgDescriptor(Reg, Mask, true, true);
+  }
+
+  static ArgDescriptor createArg(const ArgDescriptor &Arg, unsigned Mask) {
+    return ArgDescriptor(Arg.Reg, Mask, Arg.IsStack, Arg.IsSet);
   }
 
   bool isSet() const {
@@ -59,14 +68,22 @@ public:
     return !IsStack;
   }
 
-  unsigned getRegister() const {
+  Register getRegister() const {
     assert(!IsStack);
-    return Register;
+    return Reg;
   }
 
   unsigned getStackOffset() const {
     assert(IsStack);
     return StackOffset;
+  }
+
+  unsigned getMask() const {
+    return Mask;
+  }
+
+  bool isMasked() const {
+    return Mask != ~0u;
   }
 
   void print(raw_ostream &OS, const TargetRegisterInfo *TRI = nullptr) const;

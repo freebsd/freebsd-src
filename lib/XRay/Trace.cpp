@@ -1,9 +1,8 @@
 //===- Trace.cpp - XRay Trace Loading implementation. ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -372,11 +371,9 @@ Error loadYAMLLog(StringRef Data, XRayFileHeader &FileHeader,
 } // namespace
 
 Expected<Trace> llvm::xray::loadTraceFile(StringRef Filename, bool Sort) {
-  int Fd;
-  if (auto EC = sys::fs::openFileForRead(Filename, Fd)) {
-    return make_error<StringError>(
-        Twine("Cannot read log from '") + Filename + "'", EC);
-  }
+  Expected<sys::fs::file_t> FdOrErr = sys::fs::openNativeFileForRead(Filename);
+  if (!FdOrErr)
+    return FdOrErr.takeError();
 
   uint64_t FileSize;
   if (auto EC = sys::fs::file_size(Filename, FileSize)) {
@@ -392,7 +389,9 @@ Expected<Trace> llvm::xray::loadTraceFile(StringRef Filename, bool Sort) {
   // Map the opened file into memory and use a StringRef to access it later.
   std::error_code EC;
   sys::fs::mapped_file_region MappedFile(
-      Fd, sys::fs::mapped_file_region::mapmode::readonly, FileSize, 0, EC);
+      *FdOrErr, sys::fs::mapped_file_region::mapmode::readonly, FileSize, 0,
+      EC);
+  sys::fs::closeFile(*FdOrErr);
   if (EC) {
     return make_error<StringError>(
         Twine("Cannot read log from '") + Filename + "'", EC);
@@ -462,10 +461,9 @@ Expected<Trace> llvm::xray::loadTrace(const DataExtractor &DE, bool Sort) {
   }
 
   if (Sort)
-    std::stable_sort(T.Records.begin(), T.Records.end(),
-                     [&](const XRayRecord &L, const XRayRecord &R) {
-                       return L.TSC < R.TSC;
-                     });
+    llvm::stable_sort(T.Records, [&](const XRayRecord &L, const XRayRecord &R) {
+      return L.TSC < R.TSC;
+    });
 
   return std::move(T);
 }

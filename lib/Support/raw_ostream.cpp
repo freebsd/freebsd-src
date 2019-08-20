@@ -1,9 +1,8 @@
 //===--- raw_ostream.cpp - Implement the raw_ostream classes --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -613,7 +612,7 @@ raw_fd_ostream::~raw_fd_ostream() {
   // destructing raw_ostream objects which may have errors.
   if (has_error())
     report_fatal_error("IO failure on output stream: " + error().message(),
-                       /*GenCrashDiag=*/false);
+                       /*gen_crash_diag=*/false);
 }
 
 #if defined(_WIN32)

@@ -1,9 +1,8 @@
 //===- lib/MC/MCStreamer.cpp - Streaming Machine Code Output --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -108,6 +107,11 @@ raw_ostream &MCStreamer::GetCommentOS() {
   return nulls();
 }
 
+unsigned MCStreamer::getNumFrameInfos() { return DwarfFrameInfos.size(); }
+ArrayRef<MCDwarfFrameInfo> MCStreamer::getDwarfFrameInfos() const {
+  return DwarfFrameInfos;
+}
+
 void MCStreamer::emitRawComment(const Twine &T, bool TabPrefix) {}
 
 void MCStreamer::addExplicitComment(const Twine &T) {}
@@ -136,10 +140,10 @@ void MCStreamer::EmitIntValue(uint64_t Value, unsigned Size) {
 
 /// EmitULEB128IntValue - Special case of EmitULEB128Value that avoids the
 /// client having to pass in a MCExpr for constant integers.
-void MCStreamer::EmitULEB128IntValue(uint64_t Value) {
+void MCStreamer::EmitULEB128IntValue(uint64_t Value, unsigned PadTo) {
   SmallString<128> Tmp;
   raw_svector_ostream OSE(Tmp);
-  encodeULEB128(Value, OSE);
+  encodeULEB128(Value, OSE, PadTo);
   EmitBytes(OSE.str());
 }
 
@@ -205,7 +209,7 @@ void MCStreamer::EmitZeros(uint64_t NumBytes) {
 Expected<unsigned>
 MCStreamer::tryEmitDwarfFileDirective(unsigned FileNo, StringRef Directory,
                                       StringRef Filename,
-                                      MD5::MD5Result *Checksum,
+                                      Optional<MD5::MD5Result> Checksum,
                                       Optional<StringRef> Source,
                                       unsigned CUID) {
   return getContext().getDwarfFile(Directory, Filename, FileNo, Checksum,
@@ -214,7 +218,7 @@ MCStreamer::tryEmitDwarfFileDirective(unsigned FileNo, StringRef Directory,
 
 void MCStreamer::emitDwarfFile0Directive(StringRef Directory,
                                          StringRef Filename,
-                                         MD5::MD5Result *Checksum,
+                                         Optional<MD5::MD5Result> Checksum,
                                          Optional<StringRef> Source,
                                          unsigned CUID) {
   getContext().setMCLineTableRootFile(CUID, Directory, Filename, Checksum,
@@ -953,8 +957,7 @@ void MCStreamer::visitUsedExpr(const MCExpr &Expr) {
   }
 }
 
-void MCStreamer::EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
-                                 bool) {
+void MCStreamer::EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &) {
   // Scan for values.
   for (unsigned i = Inst.getNumOperands(); i--;)
     if (Inst.getOperand(i).isExpr())
@@ -1074,6 +1077,15 @@ void MCStreamer::EmitVersionForTarget(const Triple &Target,
   unsigned Major;
   unsigned Minor;
   unsigned Update;
+  if (Target.isMacCatalystEnvironment()) {
+    // Mac Catalyst always uses the build version load command.
+    Target.getiOSVersion(Major, Minor, Update);
+    assert(Major && "A non-zero major version is expected");
+    EmitBuildVersion(MachO::PLATFORM_MACCATALYST, Major, Minor, Update,
+                     SDKVersion);
+    return;
+  }
+
   MCVersionMinType VersionType;
   if (Target.isWatchOS()) {
     VersionType = MCVM_WatchOSVersionMin;

@@ -1,9 +1,8 @@
 //===- AsmParser.cpp - Parser for Assembly Files --------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -159,11 +158,15 @@ private:
   /// The values from the last parsed cpp hash file line comment if any.
   struct CppHashInfoTy {
     StringRef Filename;
-    int64_t LineNumber = 0;
+    int64_t LineNumber;
     SMLoc Loc;
-    unsigned Buf = 0;
+    unsigned Buf;
+    CppHashInfoTy() : Filename(), LineNumber(0), Loc(), Buf(0) {}
   };
   CppHashInfoTy CppHashInfo;
+
+  /// The filename from the first cpp hash file line comment, if any.
+  StringRef FirstCppHashFilename;
 
   /// List of forward directional labels for diagnosis at the end.
   SmallVector<std::tuple<SMLoc, CppHashInfoTy, MCSymbol *>, 4> DirLabels;
@@ -426,6 +429,7 @@ private:
     DK_WEAK_DEFINITION,
     DK_WEAK_REFERENCE,
     DK_WEAK_DEF_CAN_BE_HIDDEN,
+    DK_COLD,
     DK_COMM,
     DK_COMMON,
     DK_LCOMM,
@@ -709,6 +713,9 @@ AsmParser::AsmParser(SourceMgr &SM, MCContext &Ctx, MCStreamer &Out,
   case MCObjectFileInfo::IsWasm:
     PlatformParser.reset(createWasmAsmParser());
     break;
+  case MCObjectFileInfo::IsXCOFF:
+    // TODO: Need to implement createXCOFFAsmParser for XCOFF format.
+    break;
   }
 
   PlatformParser->Initialize(*this);
@@ -844,9 +851,20 @@ bool AsmParser::enabledGenDwarfForAssembly() {
   // If we haven't encountered any .file directives (which would imply that
   // the assembler source was produced with debug info already) then emit one
   // describing the assembler source file itself.
-  if (getContext().getGenDwarfFileNumber() == 0)
+  if (getContext().getGenDwarfFileNumber() == 0) {
+    // Use the first #line directive for this, if any. It's preprocessed, so
+    // there is no checksum, and of course no source directive.
+    if (!FirstCppHashFilename.empty())
+      getContext().setMCLineTableRootFile(/*CUID=*/0,
+                                          getContext().getCompilationDir(),
+                                          FirstCppHashFilename,
+                                          /*Cksum=*/None, /*Source=*/None);
+    const MCDwarfFile &RootFile =
+        getContext().getMCDwarfLineTable(/*CUID=*/0).getRootFile();
     getContext().setGenDwarfFileNumber(getStreamer().EmitDwarfFileDirective(
-        0, StringRef(), getContext().getMainFileName()));
+        /*CUID=*/0, getContext().getCompilationDir(), RootFile.Name,
+        RootFile.Checksum, RootFile.Source));
+  }
   return true;
 }
 
@@ -1983,6 +2001,8 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
       return parseDirectiveSymbolAttribute(MCSA_WeakReference);
     case DK_WEAK_DEF_CAN_BE_HIDDEN:
       return parseDirectiveSymbolAttribute(MCSA_WeakDefAutoPrivate);
+    case DK_COLD:
+      return parseDirectiveSymbolAttribute(MCSA_Cold);
     case DK_COMM:
     case DK_COMMON:
       return parseDirectiveComm(/*IsLocal=*/false);
@@ -2275,11 +2295,14 @@ bool AsmParser::parseCppHashLineFilenameComment(SMLoc L) {
   // Get rid of the enclosing quotes.
   Filename = Filename.substr(1, Filename.size() - 2);
 
-  // Save the SMLoc, Filename and LineNumber for later use by diagnostics.
+  // Save the SMLoc, Filename and LineNumber for later use by diagnostics
+  // and possibly DWARF file info.
   CppHashInfo.Loc = L;
   CppHashInfo.Filename = Filename;
   CppHashInfo.LineNumber = LineNumber;
   CppHashInfo.Buf = CurBuffer;
+  if (FirstCppHashFilename.empty())
+    FirstCppHashFilename = Filename;
   return false;
 }
 
@@ -3364,26 +3387,28 @@ bool AsmParser::parseDirectiveFile(SMLoc DirectiveLoc) {
   }
 
   if (FileNumber == -1) {
-    if (!getContext().getAsmInfo()->hasSingleParameterDotFile())
-      return Error(DirectiveLoc,
-                   "target does not support '.file' without a number");
-    getStreamer().EmitFileDirective(Filename);
+    // Ignore the directive if there is no number and the target doesn't support
+    // numberless .file directives. This allows some portability of assembler
+    // between different object file formats.
+    if (getContext().getAsmInfo()->hasSingleParameterDotFile())
+      getStreamer().EmitFileDirective(Filename);
   } else {
     // In case there is a -g option as well as debug info from directive .file,
     // we turn off the -g option, directly use the existing debug info instead.
-    // Also reset any implicit ".file 0" for the assembler source.
+    // Throw away any implicit file table for the assembler source.
     if (Ctx.getGenDwarfForAssembly()) {
-      Ctx.getMCDwarfLineTable(0).resetRootFile();
+      Ctx.getMCDwarfLineTable(0).resetFileTable();
       Ctx.setGenDwarfForAssembly(false);
     }
 
-    MD5::MD5Result *CKMem = nullptr;
+    Optional<MD5::MD5Result> CKMem;
     if (HasMD5) {
-      CKMem = (MD5::MD5Result *)Ctx.allocate(sizeof(MD5::MD5Result), 1);
+      MD5::MD5Result Sum;
       for (unsigned i = 0; i != 8; ++i) {
-        CKMem->Bytes[i] = uint8_t(MD5Hi >> ((7 - i) * 8));
-        CKMem->Bytes[i + 8] = uint8_t(MD5Lo >> ((7 - i) * 8));
+        Sum.Bytes[i] = uint8_t(MD5Hi >> ((7 - i) * 8));
+        Sum.Bytes[i + 8] = uint8_t(MD5Lo >> ((7 - i) * 8));
       }
+      CKMem = Sum;
     }
     if (HasSource) {
       char *SourceBuf = static_cast<char *>(Ctx.allocate(SourceString.size()));
@@ -3399,7 +3424,6 @@ bool AsmParser::parseDirectiveFile(SMLoc DirectiveLoc) {
           FileNumber, Directory, Filename, CKMem, Source);
       if (!FileNumOrErr)
         return Error(DirectiveLoc, toString(FileNumOrErr.takeError()));
-      FileNumber = FileNumOrErr.get();
     }
     // Alert the user if there are some .file directives with MD5 and some not.
     // But only do that once.
@@ -5035,9 +5059,9 @@ bool AsmParser::parseDirectiveIfdef(SMLoc DirectiveLoc, bool expect_defined) {
     MCSymbol *Sym = getContext().lookupSymbol(Name);
 
     if (expect_defined)
-      TheCondState.CondMet = (Sym && !Sym->isUndefined());
+      TheCondState.CondMet = (Sym && !Sym->isUndefined(false));
     else
-      TheCondState.CondMet = (!Sym || Sym->isUndefined());
+      TheCondState.CondMet = (!Sym || Sym->isUndefined(false));
     TheCondState.Ignore = !TheCondState.CondMet;
   }
 
@@ -5223,6 +5247,7 @@ void AsmParser::initializeDirectiveKindMap() {
   DirectiveKindMap[".weak_definition"] = DK_WEAK_DEFINITION;
   DirectiveKindMap[".weak_reference"] = DK_WEAK_REFERENCE;
   DirectiveKindMap[".weak_def_can_be_hidden"] = DK_WEAK_DEF_CAN_BE_HIDDEN;
+  DirectiveKindMap[".cold"] = DK_COLD;
   DirectiveKindMap[".comm"] = DK_COMM;
   DirectiveKindMap[".common"] = DK_COMMON;
   DirectiveKindMap[".lcomm"] = DK_LCOMM;

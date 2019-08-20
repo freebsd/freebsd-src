@@ -1,9 +1,8 @@
 //===-- APInt.cpp - Implement APInt class ---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -483,10 +482,13 @@ unsigned APInt::getBitsNeeded(StringRef str, uint8_t radix) {
   APInt tmp(sufficient, StringRef(p, slen), radix);
 
   // Compute how many bits are required. If the log is infinite, assume we need
-  // just bit.
+  // just bit. If the log is exact and value is negative, then the value is
+  // MinSignedValue with (log + 1) bits.
   unsigned log = tmp.logBase2();
   if (log == (unsigned)-1) {
     return isNegative + 1;
+  } else if (isNegative && tmp.isPowerOf2()) {
+    return isNegative + log;
   } else {
     return isNegative + log + 1;
   }
@@ -1096,6 +1098,8 @@ APInt APInt::sqrt() const {
 /// however we simplify it to speed up calculating only the inverse, and take
 /// advantage of div+rem calculations. We also use some tricks to avoid copying
 /// (potentially large) APInts around.
+/// WARNING: a value of '0' may be returned,
+///          signifying that no multiplicative inverse exists!
 APInt APInt::multiplicativeInverse(const APInt& modulo) const {
   assert(ult(modulo) && "This APInt must be smaller than the modulo");
 
@@ -1915,12 +1919,19 @@ APInt APInt::smul_ov(const APInt &RHS, bool &Overflow) const {
 }
 
 APInt APInt::umul_ov(const APInt &RHS, bool &Overflow) const {
-  APInt Res = *this * RHS;
+  if (countLeadingZeros() + RHS.countLeadingZeros() + 2 <= BitWidth) {
+    Overflow = true;
+    return *this * RHS;
+  }
 
-  if (*this != 0 && RHS != 0)
-    Overflow = Res.udiv(RHS) != *this || Res.udiv(*this) != RHS;
-  else
-    Overflow = false;
+  APInt Res = lshr(1) * RHS;
+  Overflow = Res.isNegative();
+  Res <<= 1;
+  if ((*this)[0]) {
+    Res += RHS;
+    if (Res.ult(RHS))
+      Overflow = true;
+  }
   return Res;
 }
 
@@ -2922,4 +2933,57 @@ llvm::APIntOps::SolveQuadraticEquationWrap(APInt A, APInt B, APInt C,
   X += 1;
   LLVM_DEBUG(dbgs() << __func__ << ": solution (wrap): " << X << '\n');
   return X;
+}
+
+/// StoreIntToMemory - Fills the StoreBytes bytes of memory starting from Dst
+/// with the integer held in IntVal.
+void llvm::StoreIntToMemory(const APInt &IntVal, uint8_t *Dst,
+                            unsigned StoreBytes) {
+  assert((IntVal.getBitWidth()+7)/8 >= StoreBytes && "Integer too small!");
+  const uint8_t *Src = (const uint8_t *)IntVal.getRawData();
+
+  if (sys::IsLittleEndianHost) {
+    // Little-endian host - the source is ordered from LSB to MSB.  Order the
+    // destination from LSB to MSB: Do a straight copy.
+    memcpy(Dst, Src, StoreBytes);
+  } else {
+    // Big-endian host - the source is an array of 64 bit words ordered from
+    // LSW to MSW.  Each word is ordered from MSB to LSB.  Order the destination
+    // from MSB to LSB: Reverse the word order, but not the bytes in a word.
+    while (StoreBytes > sizeof(uint64_t)) {
+      StoreBytes -= sizeof(uint64_t);
+      // May not be aligned so use memcpy.
+      memcpy(Dst + StoreBytes, Src, sizeof(uint64_t));
+      Src += sizeof(uint64_t);
+    }
+
+    memcpy(Dst, Src + sizeof(uint64_t) - StoreBytes, StoreBytes);
+  }
+}
+
+/// LoadIntFromMemory - Loads the integer stored in the LoadBytes bytes starting
+/// from Src into IntVal, which is assumed to be wide enough and to hold zero.
+void llvm::LoadIntFromMemory(APInt &IntVal, uint8_t *Src, unsigned LoadBytes) {
+  assert((IntVal.getBitWidth()+7)/8 >= LoadBytes && "Integer too small!");
+  uint8_t *Dst = reinterpret_cast<uint8_t *>(
+                   const_cast<uint64_t *>(IntVal.getRawData()));
+
+  if (sys::IsLittleEndianHost)
+    // Little-endian host - the destination must be ordered from LSB to MSB.
+    // The source is ordered from LSB to MSB: Do a straight copy.
+    memcpy(Dst, Src, LoadBytes);
+  else {
+    // Big-endian - the destination is an array of 64 bit words ordered from
+    // LSW to MSW.  Each word must be ordered from MSB to LSB.  The source is
+    // ordered from MSB to LSB: Reverse the word order, but not the bytes in
+    // a word.
+    while (LoadBytes > sizeof(uint64_t)) {
+      LoadBytes -= sizeof(uint64_t);
+      // May not be aligned so use memcpy.
+      memcpy(Dst, Src + LoadBytes, sizeof(uint64_t));
+      Dst += sizeof(uint64_t);
+    }
+
+    memcpy(Dst + sizeof(uint64_t) - LoadBytes, Src, LoadBytes);
+  }
 }

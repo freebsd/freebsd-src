@@ -1,9 +1,8 @@
 //===- RISCVSystemOperands.td ----------------------------*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -72,18 +71,16 @@ def : SysReg<"uip", 0x044>;
 // User Floating-Point CSRs
 //===--------------------------
 
-let FeaturesRequired = [{ {RISCV::FeatureStdExtF} }] in {
-def : SysReg<"fflags", 0x001>;
-def : SysReg<"frm", 0x002>;
-def : SysReg<"fcsr", 0x003>;
-}
+def FFLAGS : SysReg<"fflags", 0x001>;
+def FRM    : SysReg<"frm", 0x002>;
+def FCSR   : SysReg<"fcsr", 0x003>;
 
 //===--------------------------
 // User Counter/Timers
 //===--------------------------
-def : SysReg<"cycle", 0xC00>;
-def : SysReg<"time", 0xC01>;
-def : SysReg<"instret", 0xC02>;
+def CYCLE   : SysReg<"cycle", 0xC00>;
+def TIME    : SysReg<"time", 0xC01>;
+def INSTRET : SysReg<"instret", 0xC02>;
 
 def : SysReg<"hpmcounter3", 0xC03>;
 def : SysReg<"hpmcounter4", 0xC04>;
@@ -116,9 +113,9 @@ def : SysReg<"hpmcounter30", 0xC1E>;
 def : SysReg<"hpmcounter31", 0xC1F>;
 
 let isRV32Only = 1 in {
-def: SysReg<"cycleh", 0xC80>;
-def: SysReg<"timeh", 0xC81>;
-def: SysReg<"instreth", 0xC82>;
+def CYCLEH   : SysReg<"cycleh", 0xC80>;
+def TIMEH    : SysReg<"timeh", 0xC81>;
+def INSTRETH : SysReg<"instreth", 0xC82>;
 
 def: SysReg<"hpmcounter3h", 0xC83>;
 def: SysReg<"hpmcounter4h", 0xC84>;

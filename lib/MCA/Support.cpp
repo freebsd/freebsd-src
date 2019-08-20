@@ -1,9 +1,8 @@
 //===--------------------- Support.cpp --------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -20,6 +19,22 @@ namespace llvm {
 namespace mca {
 
 #define DEBUG_TYPE "llvm-mca"
+
+ResourceCycles &ResourceCycles::operator+=(const ResourceCycles &RHS) {
+  if (Denominator == RHS.Denominator)
+    Numerator += RHS.Numerator;
+  else {
+    // Create a common denominator for LHS and RHS by calculating the least
+    // common multiple from the GCD.
+    unsigned GCD = GreatestCommonDivisor64(Denominator, RHS.Denominator);
+    unsigned LCM = (Denominator * RHS.Denominator) / GCD;
+    unsigned LHSNumerator = Numerator * (LCM / Denominator);
+    unsigned RHSNumerator = RHS.Numerator * (LCM / RHS.Denominator);
+    Numerator = LHSNumerator + RHSNumerator;
+    Denominator = LCM;
+  }
+  return *this;
+}
 
 void computeProcResourceMasks(const MCSchedModel &SM,
                               MutableArrayRef<uint64_t> Masks) {
@@ -57,8 +72,9 @@ void computeProcResourceMasks(const MCSchedModel &SM,
                     << "\n");
   for (unsigned I = 0, E = SM.getNumProcResourceKinds(); I < E; ++I) {
     const MCProcResourceDesc &Desc = *SM.getProcResource(I);
-    LLVM_DEBUG(dbgs() << '[' << I << "] " << Desc.Name << " - " << Masks[I]
-                      << '\n');
+    LLVM_DEBUG(dbgs() << '[' << format_decimal(I,2) << "] " << " - "
+                      << format_hex(Masks[I],16) << " - "
+                      << Desc.Name << '\n');
   }
 #endif
 }

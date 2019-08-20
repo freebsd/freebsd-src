@@ -1,9 +1,8 @@
 //===-- SystemZSubtarget.h - SystemZ subtarget information -----*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -63,6 +62,12 @@ protected:
   bool HasVectorEnhancements1;
   bool HasVectorPackedDecimal;
   bool HasInsertReferenceBitsMultiple;
+  bool HasMiscellaneousExtensions3;
+  bool HasMessageSecurityAssist9;
+  bool HasVectorEnhancements2;
+  bool HasVectorPackedDecimalEnhancement;
+  bool HasEnhancedSort;
+  bool HasDeflateConversion;
 
 private:
   Triple TargetTriple;
@@ -209,6 +214,30 @@ public:
   bool hasInsertReferenceBitsMultiple() const {
     return HasInsertReferenceBitsMultiple;
   }
+
+  // Return true if the target has the miscellaneous-extensions facility 3.
+  bool hasMiscellaneousExtensions3() const {
+    return HasMiscellaneousExtensions3;
+  }
+
+  // Return true if the target has the message-security-assist
+  // extension facility 9.
+  bool hasMessageSecurityAssist9() const { return HasMessageSecurityAssist9; }
+
+  // Return true if the target has the vector-enhancements facility 2.
+  bool hasVectorEnhancements2() const { return HasVectorEnhancements2; }
+
+  // Return true if the target has the vector-packed-decimal
+  // enhancement facility.
+  bool hasVectorPackedDecimalEnhancement() const {
+    return HasVectorPackedDecimalEnhancement;
+  }
+
+  // Return true if the target has the enhanced-sort facility.
+  bool hasEnhancedSort() const { return HasEnhancedSort; }
+
+  // Return true if the target has the deflate-conversion facility.
+  bool hasDeflateConversion() const { return HasDeflateConversion; }
 
   // Return true if GV can be accessed using LARL for reloc model RM
   // and code model CM.

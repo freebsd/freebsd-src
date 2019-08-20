@@ -1,9 +1,8 @@
 //===-- NVPTXTargetTransformInfo.cpp - NVPTX specific TTI -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -39,7 +38,6 @@ static bool readsLaneId(const IntrinsicInst *II) {
 static bool isNVVMAtomic(const IntrinsicInst *II) {
   switch (II->getIntrinsicID()) {
     default: return false;
-    case Intrinsic::nvvm_atomic_load_add_f32:
     case Intrinsic::nvvm_atomic_load_inc_32:
     case Intrinsic::nvvm_atomic_load_dec_32:
 

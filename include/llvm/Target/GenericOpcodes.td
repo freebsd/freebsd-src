@@ -1,9 +1,8 @@
 //===-- GenericOpcodes.td - Opcodes used with GlobalISel ---*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -93,12 +92,14 @@ def G_BITCAST : GenericInstruction {
   let hasSideEffects = 0;
 }
 
+// Only supports scalar result types
 def G_CONSTANT : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins unknown:$imm);
   let hasSideEffects = 0;
 }
 
+// Only supports scalar result types
 def G_FCONSTANT : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins unknown:$imm);
@@ -122,31 +123,31 @@ def G_VAARG : GenericInstruction {
 
 def G_CTLZ : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src);
+  let InOperandList = (ins type1:$src);
   let hasSideEffects = 0;
 }
 
 def G_CTLZ_ZERO_UNDEF : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src);
+  let InOperandList = (ins type1:$src);
   let hasSideEffects = 0;
 }
 
 def G_CTTZ : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src);
+  let InOperandList = (ins type1:$src);
   let hasSideEffects = 0;
 }
 
 def G_CTTZ_ZERO_UNDEF : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src);
+  let InOperandList = (ins type1:$src);
   let hasSideEffects = 0;
 }
 
 def G_CTPOP : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src);
+  let InOperandList = (ins type1:$src);
   let hasSideEffects = 0;
 }
 
@@ -165,6 +166,12 @@ def G_ADDRSPACE_CAST : GenericInstruction {
 def G_BLOCK_ADDR : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins unknown:$ba);
+  let hasSideEffects = 0;
+}
+
+def G_JUMP_TABLE : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins unknown:$jti);
   let hasSideEffects = 0;
 }
 
@@ -255,21 +262,21 @@ def G_XOR : GenericInstruction {
 // Generic left-shift.
 def G_SHL : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src1, type0:$src2);
+  let InOperandList = (ins type0:$src1, type1:$src2);
   let hasSideEffects = 0;
 }
 
 // Generic logical right-shift.
 def G_LSHR : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src1, type0:$src2);
+  let InOperandList = (ins type0:$src1, type1:$src2);
   let hasSideEffects = 0;
 }
 
 // Generic arithmetic right-shift.
 def G_ASHR : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src1, type0:$src2);
+  let InOperandList = (ins type0:$src1, type1:$src2);
   let hasSideEffects = 0;
 }
 
@@ -305,6 +312,38 @@ def G_PTR_MASK : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins type0:$src, unknown:$bits);
   let hasSideEffects = 0;
+}
+
+// Generic signed integer minimum.
+def G_SMIN : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
+// Generic signed integer maximum.
+def G_SMAX : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
+// Generic unsigned integer minimum.
+def G_UMIN : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
+// Generic unsigned integer maximum.
+def G_UMAX : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
 }
 
 //------------------------------------------------------------------------------
@@ -454,6 +493,74 @@ def G_FABS : GenericInstruction {
   let hasSideEffects = 0;
 }
 
+def G_FCOPYSIGN : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src0, type1:$src1);
+  let hasSideEffects = 0;
+}
+
+def G_FCANONICALIZE : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src);
+  let hasSideEffects = 0;
+}
+
+// FMINNUM/FMAXNUM - Perform floating-point minimum or maximum on two
+// values.
+//
+// In the case where a single input is a NaN (either signaling or quiet),
+// the non-NaN input is returned.
+//
+// The return value of (FMINNUM 0.0, -0.0) could be either 0.0 or -0.0.
+def G_FMINNUM : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
+def G_FMAXNUM : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
+// FMINNUM_IEEE/FMAXNUM_IEEE - Perform floating-point minimum or maximum on
+// two values, following the IEEE-754 2008 definition. This differs from
+// FMINNUM/FMAXNUM in the handling of signaling NaNs. If one input is a
+// signaling NaN, returns a quiet NaN.
+def G_FMINNUM_IEEE : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
+def G_FMAXNUM_IEEE : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
+// FMINIMUM/FMAXIMUM - NaN-propagating minimum/maximum that also treat -0.0
+// as less than 0.0. While FMINNUM_IEEE/FMAXNUM_IEEE follow IEEE 754-2008
+// semantics, FMINIMUM/FMAXIMUM follow IEEE 754-2018 draft semantics.
+def G_FMINIMUM : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
+def G_FMAXIMUM : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
 //------------------------------------------------------------------------------
 // Floating Point Binary ops.
 //------------------------------------------------------------------------------
@@ -554,6 +661,51 @@ def G_FCEIL : GenericInstruction {
   let hasSideEffects = 0;
 }
 
+// Floating point cosine of a value.
+def G_FCOS : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+}
+
+// Floating point sine of a value.
+def G_FSIN : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+}
+
+// Floating point square root of a value.
+// This returns NaN for negative nonzero values.
+// NOTE: Unlike libm sqrt(), this never sets errno. In all other respects it's
+// libm-conformant.
+def G_FSQRT : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+}
+
+// Floating point floor of a value.
+def G_FFLOOR : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+}
+
+// Floating point round to next integer.
+def G_FRINT : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+}
+
+// Floating point round to the nearest integer.
+def G_FNEARBYINT : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+}
+
 //------------------------------------------------------------------------------
 // Opcodes for LLVM Intrinsics
 //------------------------------------------------------------------------------
@@ -647,6 +799,12 @@ def G_ATOMICRMW_MIN : G_ATOMICRMW_OP;
 def G_ATOMICRMW_UMAX : G_ATOMICRMW_OP;
 def G_ATOMICRMW_UMIN : G_ATOMICRMW_OP;
 
+def G_FENCE : GenericInstruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins i32imm:$ordering, i32imm:$scope);
+  let hasSideEffects = 1;
+}
+
 //------------------------------------------------------------------------------
 // Variadic ops
 //------------------------------------------------------------------------------
@@ -689,7 +847,9 @@ def G_MERGE_VALUES : GenericInstruction {
   let hasSideEffects = 0;
 }
 
-/// Create a vector from multiple scalar registers.
+/// Create a vector from multiple scalar registers. No implicit
+/// conversion is performed (i.e. the result element type must be the
+/// same as all source operands)
 def G_BUILD_VECTOR : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins type1:$src0, variable_ops);
@@ -754,6 +914,15 @@ def G_BRCOND : GenericInstruction {
 def G_BRINDIRECT : GenericInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+  let isBranch = 1;
+  let isTerminator = 1;
+}
+
+// Generic branch to jump table entry
+def G_BRJT : GenericInstruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins ptype0:$tbl, unknown:$jti, type1:$idx);
   let hasSideEffects = 0;
   let isBranch = 1;
   let isTerminator = 1;

@@ -1,9 +1,8 @@
 //===- SourceMgr.h - Manager for Source Buffers & Diagnostics ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -107,6 +106,8 @@ public:
   SourceMgr() = default;
   SourceMgr(const SourceMgr &) = delete;
   SourceMgr &operator=(const SourceMgr &) = delete;
+  SourceMgr(SourceMgr &&) = default;
+  SourceMgr &operator=(SourceMgr &&) = default;
   ~SourceMgr() = default;
 
   void setIncludeDirs(const std::vector<std::string> &Dirs) {

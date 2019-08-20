@@ -1,9 +1,8 @@
 //===- IRCompileLayer.h -- Eagerly compile IR for JIT -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -64,8 +63,18 @@ public:
 
   /// Construct an LegacyIRCompileLayer with the given BaseLayer, which must
   ///        implement the ObjectLayer concept.
+  LLVM_ATTRIBUTE_DEPRECATED(
+      LegacyIRCompileLayer(
+          BaseLayerT &BaseLayer, CompileFtor Compile,
+          NotifyCompiledCallback NotifyCompiled = NotifyCompiledCallback()),
+      "ORCv1 layers (layers with the 'Legacy' prefix) are deprecated. Please "
+      "use "
+      "the ORCv2 IRCompileLayer instead");
+
+  /// Legacy layer constructor with deprecation acknowledgement.
   LegacyIRCompileLayer(
-      BaseLayerT &BaseLayer, CompileFtor Compile,
+      ORCv1DeprecationAcknowledgement, BaseLayerT &BaseLayer,
+      CompileFtor Compile,
       NotifyCompiledCallback NotifyCompiled = NotifyCompiledCallback())
       : BaseLayer(BaseLayer), Compile(std::move(Compile)),
         NotifyCompiled(std::move(NotifyCompiled)) {}
@@ -123,8 +132,14 @@ private:
   NotifyCompiledCallback NotifyCompiled;
 };
 
-} // end namespace orc
+template <typename BaseLayerT, typename CompileFtor>
+LegacyIRCompileLayer<BaseLayerT, CompileFtor>::LegacyIRCompileLayer(
+    BaseLayerT &BaseLayer, CompileFtor Compile,
+    NotifyCompiledCallback NotifyCompiled)
+    : BaseLayer(BaseLayer), Compile(std::move(Compile)),
+      NotifyCompiled(std::move(NotifyCompiled)) {}
 
+} // end namespace orc
 } // end namespace llvm
 
 #endif // LLVM_EXECUTIONENGINE_ORC_IRCOMPILINGLAYER_H
