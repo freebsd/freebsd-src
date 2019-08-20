@@ -707,6 +707,7 @@ static void iflib_altq_if_start(if_t ifp);
 static int iflib_altq_if_transmit(if_t ifp, struct mbuf *m);
 #endif
 static int iflib_register(if_ctx_t);
+static void iflib_deregister(if_ctx_t);
 static void iflib_init_locked(if_ctx_t ctx);
 static void iflib_add_device_sysctl_pre(if_ctx_t ctx);
 static void iflib_add_device_sysctl_post(if_ctx_t ctx);
@@ -4350,6 +4351,18 @@ iflib_device_probe(device_t dev)
 	return (ENXIO);
 }
 
+int
+iflib_device_probe_vendor(device_t dev)
+{
+	int probe;
+
+	probe = iflib_device_probe(dev);
+	if (probe == BUS_PROBE_DEFAULT)
+		return (BUS_PROBE_VENDOR);
+	else
+		return (probe);
+}
+
 static void
 iflib_reset_qvalues(if_ctx_t ctx)
 {
@@ -4360,9 +4373,6 @@ iflib_reset_qvalues(if_ctx_t ctx)
 
 	scctx->isc_txrx_budget_bytes_max = IFLIB_MAX_TX_BYTES;
 	scctx->isc_tx_qdepth = IFLIB_DEFAULT_TX_QDEPTH;
-	/*
-	 * XXX sanity check that ntxd & nrxd are a power of 2
-	 */
 	if (ctx->ifc_sysctl_ntxqs != 0)
 		scctx->isc_ntxqsets = ctx->ifc_sysctl_ntxqs;
 	if (ctx->ifc_sysctl_nrxqs != 0)
@@ -4393,6 +4403,11 @@ iflib_reset_qvalues(if_ctx_t ctx)
 				      i, scctx->isc_nrxd[i], sctx->isc_nrxd_max[i]);
 			scctx->isc_nrxd[i] = sctx->isc_nrxd_max[i];
 		}
+		if (!powerof2(scctx->isc_nrxd[i])) {
+			device_printf(dev, "nrxd%d: %d is not a power of 2 - using default value of %d\n",
+				      i, scctx->isc_nrxd[i], sctx->isc_nrxd_default[i]);
+			scctx->isc_nrxd[i] = sctx->isc_nrxd_default[i];
+		}
 	}
 
 	for (i = 0; i < sctx->isc_ntxqs; i++) {
@@ -4405,6 +4420,11 @@ iflib_reset_qvalues(if_ctx_t ctx)
 			device_printf(dev, "ntxd%d: %d greater than ntxd_max %d - resetting to max\n",
 				      i, scctx->isc_ntxd[i], sctx->isc_ntxd_max[i]);
 			scctx->isc_ntxd[i] = sctx->isc_ntxd_max[i];
+		}
+		if (!powerof2(scctx->isc_ntxd[i])) {
+			device_printf(dev, "ntxd%d: %d is not a power of 2 - using default value of %d\n",
+				      i, scctx->isc_ntxd[i], sctx->isc_ntxd_default[i]);
+			scctx->isc_ntxd[i] = sctx->isc_ntxd_default[i];
 		}
 	}
 }
@@ -4482,7 +4502,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	if_softc_ctx_t scctx;
 	kobjop_desc_t kobj_desc;
 	kobj_method_t *kobj_method;
-	int err, i, msix, rid;
+	int err, msix, rid;
 	uint16_t main_rxq, main_txq;
 
 	ctx = malloc(sizeof(* ctx), M_IFLIB, M_WAITOK|M_ZERO);
@@ -4534,23 +4554,6 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	/* XXX change for per-queue sizes */
 	device_printf(dev, "Using %d TX descriptors and %d RX descriptors\n",
 	    scctx->isc_ntxd[main_txq], scctx->isc_nrxd[main_rxq]);
-	for (i = 0; i < sctx->isc_nrxqs; i++) {
-		if (!powerof2(scctx->isc_nrxd[i])) {
-			/* round down instead? */
-			device_printf(dev,
-			    "# RX descriptors must be a power of 2\n");
-			err = EINVAL;
-			goto fail_iflib_detach;
-		}
-	}
-	for (i = 0; i < sctx->isc_ntxqs; i++) {
-		if (!powerof2(scctx->isc_ntxd[i])) {
-			device_printf(dev,
-			    "# TX descriptors must be a power of 2");
-			err = EINVAL;
-			goto fail_iflib_detach;
-		}
-	}
 
 	if (scctx->isc_tx_nsegments > scctx->isc_ntxd[main_txq] /
 	    MAX_SINGLE_PACKET_FRACTION)
@@ -4676,7 +4679,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 			    err);
 			goto fail_queues;
 		}
-	} else {
+	} else if (scctx->isc_intr != IFLIB_INTR_MSIX) {
 		rid = 0;
 		if (scctx->isc_intr == IFLIB_INTR_MSI) {
 			MPASS(msix == 1);
@@ -4686,6 +4689,11 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 			device_printf(dev, "iflib_legacy_setup failed %d\n", err);
 			goto fail_queues;
 		}
+	} else {
+		device_printf(dev,
+		    "Cannot use iflib with only 1 MSI-X interrupt!\n");
+		err = ENODEV;
+		goto fail_intr_free;
 	}
 
 	ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac);
@@ -4725,11 +4733,13 @@ fail_intr_free:
 fail_queues:
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
-fail_iflib_detach:
+	taskqgroup_detach(qgroup_if_config_tqg, &ctx->ifc_admin_task);
 	IFDI_DETACH(ctx);
 fail_unlock:
 	CTX_UNLOCK(ctx);
+	iflib_deregister(ctx);
 fail_ctx_free:
+	device_set_softc(ctx->ifc_dev, NULL);
         if (ctx->ifc_flags & IFC_SC_ALLOCATED)
                 free(ctx->ifc_softc, M_IFLIB);
         free(ctx, M_IFLIB);
@@ -4768,9 +4778,6 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	scctx = &ctx->ifc_softc_ctx;
 	ifp = ctx->ifc_ifp;
 
-	/*
-	 * XXX sanity check that ntxd & nrxd are a power of 2
-	 */
 	iflib_reset_qvalues(ctx);
 	CTX_LOCK(ctx);
 	if ((err = IFDI_ATTACH_PRE(ctx)) != 0) {
@@ -4834,23 +4841,6 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	/* XXX change for per-queue sizes */
 	device_printf(dev, "Using %d TX descriptors and %d RX descriptors\n",
 	    scctx->isc_ntxd[main_txq], scctx->isc_nrxd[main_rxq]);
-	for (i = 0; i < sctx->isc_nrxqs; i++) {
-		if (!powerof2(scctx->isc_nrxd[i])) {
-			/* round down instead? */
-			device_printf(dev,
-			    "# RX descriptors must be a power of 2\n");
-			err = EINVAL;
-			goto fail_iflib_detach;
-		}
-	}
-	for (i = 0; i < sctx->isc_ntxqs; i++) {
-		if (!powerof2(scctx->isc_ntxd[i])) {
-			device_printf(dev,
-			    "# TX descriptors must be a power of 2");
-			err = EINVAL;
-			goto fail_iflib_detach;
-		}
-	}
 
 	if (scctx->isc_tx_nsegments > scctx->isc_ntxd[main_txq] /
 	    MAX_SINGLE_PACKET_FRACTION)
@@ -4941,6 +4931,7 @@ fail_iflib_detach:
 	IFDI_DETACH(ctx);
 fail_unlock:
 	CTX_UNLOCK(ctx);
+	iflib_deregister(ctx);
 fail_ctx_free:
 	free(ctx->ifc_softc, M_IFLIB);
 	free(ctx, M_IFLIB);
@@ -4957,15 +4948,7 @@ iflib_pseudo_deregister(if_ctx_t ctx)
 	struct taskqgroup *tqg;
 	iflib_fl_t fl;
 
-	/* Unregister VLAN events */
-	if (ctx->ifc_vlan_attach_event != NULL)
-		EVENTHANDLER_DEREGISTER(vlan_config, ctx->ifc_vlan_attach_event);
-	if (ctx->ifc_vlan_detach_event != NULL)
-		EVENTHANDLER_DEREGISTER(vlan_unconfig, ctx->ifc_vlan_detach_event);
-
 	ether_ifdetach(ifp);
-	/* ether_ifdetach calls if_qflush - lock must be destroy afterwards*/
-	CTX_LOCK_DESTROY(ctx);
 	/* XXX drain any dependent tasks */
 	tqg = qgroup_if_io_tqg;
 	for (txq = ctx->ifc_txqs, i = 0; i < NTXQSETS(ctx); i++, txq++) {
@@ -4986,10 +4969,11 @@ iflib_pseudo_deregister(if_ctx_t ctx)
 	if (ctx->ifc_vflr_task.gt_uniq != NULL)
 		taskqgroup_detach(tqg, &ctx->ifc_vflr_task);
 
-	if_free(ifp);
-
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
+
+	iflib_deregister(ctx);
+
 	if (ctx->ifc_flags & IFC_SC_ALLOCATED)
 		free(ctx->ifc_softc, M_IFLIB);
 	free(ctx, M_IFLIB);
@@ -5075,19 +5059,19 @@ iflib_device_deregister(if_ctx_t ctx)
 	CTX_UNLOCK(ctx);
 
 	/* ether_ifdetach calls if_qflush - lock must be destroy afterwards*/
-	CTX_LOCK_DESTROY(ctx);
-	device_set_softc(ctx->ifc_dev, NULL);
 	iflib_free_intr_mem(ctx);
 
 	bus_generic_detach(dev);
-	if_free(ifp);
 
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
+
+	iflib_deregister(ctx);
+
+	device_set_softc(ctx->ifc_dev, NULL);
 	if (ctx->ifc_flags & IFC_SC_ALLOCATED)
 		free(ctx->ifc_softc, M_IFLIB);
 	unref_ctx_core_offset(ctx);
-	STATE_LOCK_DESTROY(ctx);
 	free(ctx, M_IFLIB);
 	return (0);
 }
@@ -5239,6 +5223,8 @@ iflib_module_event_handler(module_t mod, int what, void *arg)
 static void
 _iflib_assert(if_shared_ctx_t sctx)
 {
+	int i;
+
 	MPASS(sctx->isc_tx_maxsize);
 	MPASS(sctx->isc_tx_maxsegsize);
 
@@ -5246,12 +5232,25 @@ _iflib_assert(if_shared_ctx_t sctx)
 	MPASS(sctx->isc_rx_nsegments);
 	MPASS(sctx->isc_rx_maxsegsize);
 
-	MPASS(sctx->isc_nrxd_min[0]);
-	MPASS(sctx->isc_nrxd_max[0]);
-	MPASS(sctx->isc_nrxd_default[0]);
-	MPASS(sctx->isc_ntxd_min[0]);
-	MPASS(sctx->isc_ntxd_max[0]);
-	MPASS(sctx->isc_ntxd_default[0]);
+	MPASS(sctx->isc_nrxqs >= 1 && sctx->isc_nrxqs <= 8);
+	for (i = 0; i < sctx->isc_nrxqs; i++) {
+		MPASS(sctx->isc_nrxd_min[i]);
+		MPASS(powerof2(sctx->isc_nrxd_min[i]));
+		MPASS(sctx->isc_nrxd_max[i]);
+		MPASS(powerof2(sctx->isc_nrxd_max[i]));
+		MPASS(sctx->isc_nrxd_default[i]);
+		MPASS(powerof2(sctx->isc_nrxd_default[i]));
+	}
+
+	MPASS(sctx->isc_ntxqs >= 1 && sctx->isc_ntxqs <= 8);
+	for (i = 0; i < sctx->isc_ntxqs; i++) {
+		MPASS(sctx->isc_ntxd_min[i]);
+		MPASS(powerof2(sctx->isc_ntxd_min[i]));
+		MPASS(sctx->isc_ntxd_max[i]);
+		MPASS(powerof2(sctx->isc_ntxd_max[i]));
+		MPASS(sctx->isc_ntxd_default[i]);
+		MPASS(powerof2(sctx->isc_ntxd_default[i]));
+	}
 }
 
 static void
@@ -5290,7 +5289,6 @@ iflib_register(if_ctx_t ctx)
 	 */
 	kobj_init((kobj_t) ctx, (kobj_class_t) driver);
 	kobj_class_compile((kobj_class_t) driver);
-	driver->refs++;
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setsoftc(ifp, ctx);
@@ -5318,6 +5316,36 @@ iflib_register(if_ctx_t ctx)
 					 iflib_media_change, iflib_media_status);
 
 	return (0);
+}
+
+static void
+iflib_deregister(if_ctx_t ctx)
+{
+	if_t ifp = ctx->ifc_ifp;
+
+	/* Remove all media */
+	ifmedia_removeall(&ctx->ifc_media);
+
+	/* Unregister VLAN events */
+	if (ctx->ifc_vlan_attach_event != NULL) {
+		EVENTHANDLER_DEREGISTER(vlan_config, ctx->ifc_vlan_attach_event);
+		ctx->ifc_vlan_attach_event = NULL;
+	}
+	if (ctx->ifc_vlan_detach_event != NULL) {
+		EVENTHANDLER_DEREGISTER(vlan_unconfig, ctx->ifc_vlan_detach_event);
+		ctx->ifc_vlan_detach_event = NULL;
+	}
+
+	/* Release kobject reference */
+	kobj_delete((kobj_t) ctx, NULL);
+
+	/* Free the ifnet structure */
+	if_free(ifp);
+
+	STATE_LOCK_DESTROY(ctx);
+
+	/* ether_ifdetach calls if_qflush - lock must be destroy afterwards*/
+	CTX_LOCK_DESTROY(ctx);
 }
 
 static int
