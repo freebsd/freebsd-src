@@ -47,24 +47,29 @@
  * October 1992
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/errno.h>
+#include <sys/vnode.h>
 
-#include <ffs/buf.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <util.h>
 
 #include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/msdosfsmount.h>
-#include <fs/msdosfs/direntry.h>
-#include <fs/msdosfs/denode.h>
-#include <fs/msdosfs/fat.h>
 
-#include <util.h>
+#include "makefs.h"
+#include "msdos.h"
+
+#include "ffs/buf.h"
+
+#include "msdos/denode.h"
+#include "msdos/direntry.h"
+#include "msdos/fat.h"
+#include "msdos/msdosfsmount.h"
 
 /*
  * If deget() succeeds it returns with the gotten denode locked().
@@ -81,20 +86,15 @@ __FBSDID("$FreeBSD$");
 int
 deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
     struct denode **depp)
-	/* pmp:	 so we know the maj/min number */
-	/* dirclust:		 cluster this dir entry came from */
-	/* diroffset:		 index of entry within the cluster */
-	/* depp:		 returns the addr of the gotten denode */
 {
 	int error;
+	uint64_t inode;
 	struct direntry *direntptr;
 	struct denode *ldep;
 	struct buf *bp;
 
-#ifdef MSDOSFS_DEBUG
-	printf("deget(pmp %p, dirclust %lu, diroffset %lx, depp %p)\n",
-	    pmp, dirclust, diroffset, depp);
-#endif
+	MSDOSFS_DPRINTF(("deget(pmp %p, dirclust %lu, diroffset %lx, depp %p)\n",
+	    pmp, dirclust, diroffset, depp));
 
 	/*
 	 * On FAT32 filesystems, root is a (more or less) normal
@@ -103,18 +103,17 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 	if (FAT32(pmp) && dirclust == MSDOSFSROOT)
 		dirclust = pmp->pm_rootdirblk;
 
+	inode = (uint64_t)pmp->pm_bpcluster * dirclust + diroffset;
+
 	ldep = ecalloc(1, sizeof(*ldep));
 	ldep->de_vnode = NULL;
 	ldep->de_flag = 0;
-	ldep->de_devvp = 0;
-	ldep->de_lockf = 0;
-	ldep->de_dev = pmp->pm_dev;
 	ldep->de_dirclust = dirclust;
 	ldep->de_diroffset = diroffset;
+	ldep->de_inode = inode;
 	ldep->de_pmp = pmp;
-	ldep->de_devvp = pmp->pm_devvp;
 	ldep->de_refcnt = 1;
-	fc_purge(ldep, 0);
+	fc_purge(ldep, 0);	/* init the FAT cache for this denode */
 	/*
 	 * Copy the directory entry into the denode area of the vnode.
 	 */
@@ -131,12 +130,13 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 		ldep->de_vnode = (struct vnode *)-1;
 
 		ldep->de_Attributes = ATTR_DIRECTORY;
+		ldep->de_LowerCase = 0;
 		if (FAT32(pmp))
 			ldep->de_StartCluster = pmp->pm_rootdirblk;
 			/* de_FileSize will be filled in further down */
 		else {
 			ldep->de_StartCluster = MSDOSFSROOT;
-			ldep->de_FileSize = pmp->pm_rootdirsize * pmp->pm_BytesPerSec;
+			ldep->de_FileSize = pmp->pm_rootdirsize * DEV_BSIZE;
 		}
 		/*
 		 * fill in time and date so that dos2unixtime() doesn't
@@ -155,11 +155,12 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 	} else {
 		error = readep(pmp, dirclust, diroffset, &bp, &direntptr);
 		if (error) {
-			ldep->de_devvp = NULL;
 			ldep->de_Name[0] = SLOT_DELETED;
+
+			*depp = NULL;
 			return (error);
 		}
-		DE_INTERNALIZE(ldep, direntptr);
+		(void)DE_INTERNALIZE(ldep, direntptr);
 		brelse(bp);
 	}
 
@@ -176,13 +177,27 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 		 */
 		u_long size;
 
+		/*
+		 * XXX it sometimes happens that the "." entry has cluster
+		 * number 0 when it shouldn't.  Use the actual cluster number
+		 * instead of what is written in directory entry.
+		 */
+		if (diroffset == 0 && ldep->de_StartCluster != dirclust) {
+			MSDOSFS_DPRINTF(("deget(): \".\" entry at clust %lu != %lu\n",
+			    dirclust, ldep->de_StartCluster));
+
+			ldep->de_StartCluster = dirclust;
+		}
+
 		if (ldep->de_StartCluster != MSDOSFSROOT) {
-			error = pcbmap(ldep, CLUST_END, 0, &size, 0);
+			error = pcbmap(ldep, 0xffff, 0, &size, 0);
 			if (error == E2BIG) {
 				ldep->de_FileSize = de_cn2off(pmp, size);
 				error = 0;
-			} else
-				printf("deget(): pcbmap returned %d\n", error);
+			} else {
+				MSDOSFS_DPRINTF(("deget(): pcbmap returned %d\n",
+				    error));
+			}
 		}
 	}
 	*depp = ldep;
@@ -193,21 +208,20 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
  * Truncate the file described by dep to the length specified by length.
  */
 int
-detrunc(struct denode *dep, u_long length, int flags, struct kauth_cred *cred)
+detrunc(struct denode *dep, u_long length, int flags)
 {
 	int error;
-	int allerror = 0;
+	int allerror;
 	u_long eofentry;
-	u_long chaintofree = 0;
-	daddr_t bn, lastblock;
+	u_long chaintofree;
+	daddr_t bn;
 	int boff;
 	int isadir = dep->de_Attributes & ATTR_DIRECTORY;
 	struct buf *bp;
 	struct msdosfsmount *pmp = dep->de_pmp;
 
-#ifdef MSDOSFS_DEBUG
-	printf("detrunc(): file %s, length %lu, flags %x\n", dep->de_Name, length, flags);
-#endif
+	MSDOSFS_DPRINTF(("detrunc(): file %s, length %lu, flags %x\n",
+	    dep->de_Name, length, flags));
 
 	/*
 	 * Disallow attempts to truncate the root directory since it is of
@@ -218,14 +232,15 @@ detrunc(struct denode *dep, u_long length, int flags, struct kauth_cred *cred)
 	 * directory's life.
 	 */
 	if (dep->de_vnode != NULL && !FAT32(pmp)) {
-		printf("detrunc(): can't truncate root directory, clust %ld, offset %ld\n",
-		    dep->de_dirclust, dep->de_diroffset);
+		MSDOSFS_DPRINTF(("detrunc(): can't truncate root directory, "
+		    "clust %ld, offset %ld\n",
+		    dep->de_dirclust, dep->de_diroffset));
+
 		return (EINVAL);
 	}
 
 	if (dep->de_FileSize < length)
-		return (deextend(dep, length, cred));
-	lastblock = de_clcount(pmp, length) - 1;
+		return deextend(dep, length);
 
 	/*
 	 * If the desired length is 0 then remember the starting cluster of
@@ -241,14 +256,16 @@ detrunc(struct denode *dep, u_long length, int flags, struct kauth_cred *cred)
 		dep->de_StartCluster = 0;
 		eofentry = ~0;
 	} else {
-		error = pcbmap(dep, lastblock, 0, &eofentry, 0);
+		error = pcbmap(dep, de_clcount(pmp, length) - 1, 0,
+		    &eofentry, 0);
 		if (error) {
-#ifdef MSDOSFS_DEBUG
-			printf("detrunc(): pcbmap fails %d\n", error);
-#endif
-			return (error);
+			MSDOSFS_DPRINTF(("detrunc(): pcbmap fails %d\n",
+			    error));
+			return error;
 		}
 	}
+
+	fc_purge(dep, de_clcount(pmp, length));
 
 	/*
 	 * If the new length is not a multiple of the cluster size then we
@@ -258,13 +275,14 @@ detrunc(struct denode *dep, u_long length, int flags, struct kauth_cred *cred)
 	if ((boff = length & pmp->pm_crbomask) != 0) {
 		if (isadir) {
 			bn = cntobn(pmp, eofentry);
-			error = bread(pmp->pm_devvp, de_bn2kb(pmp, bn),
-			    pmp->pm_bpcluster, B_MODIFY, &bp);
+			error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster,
+			    0, &bp);
 			if (error) {
-#ifdef MSDOSFS_DEBUG
-				printf("detrunc(): bread fails %d\n", error);
-#endif
-				return (error);
+				brelse(bp);
+				MSDOSFS_DPRINTF(("detrunc(): bread fails %d\n",
+				    error));
+
+				return error;
 			}
 			memset((char *)bp->b_data + boff, 0,
 			    pmp->pm_bpcluster - boff);
@@ -282,41 +300,40 @@ detrunc(struct denode *dep, u_long length, int flags, struct kauth_cred *cred)
 	dep->de_FileSize = length;
 	if (!isadir)
 		dep->de_flag |= DE_UPDATE|DE_MODIFIED;
-#ifdef MSDOSFS_DEBUG
-	printf("detrunc(): allerror %d, eofentry %lu\n",
-	       allerror, eofentry);
-#endif
+	MSDOSFS_DPRINTF(("detrunc(): allerror %d, eofentry %lu\n",
+	    allerror, eofentry));
 
 	/*
 	 * If we need to break the cluster chain for the file then do it
 	 * now.
 	 */
-	if (eofentry != (u_long)~0) {
+	if (eofentry != ~0) {
 		error = fatentry(FAT_GET_AND_SET, pmp, eofentry,
 				 &chaintofree, CLUST_EOFE);
 		if (error) {
-#ifdef MSDOSFS_DEBUG
-			printf("detrunc(): fatentry errors %d\n", error);
-#endif
+			MSDOSFS_DPRINTF(("detrunc(): fatentry errors %d\n",
+			    error));
 			return (error);
 		}
+		fc_setcache(dep, FC_LASTFC, de_cluster(pmp, length - 1),
+		    eofentry);
 	}
 
 	/*
 	 * Now free the clusters removed from the file because of the
 	 * truncation.
 	 */
-	if (chaintofree != 0 && !MSDOSFSEOF(chaintofree, pmp->pm_fatmask))
+	if (chaintofree != 0 && !MSDOSFSEOF(pmp, chaintofree))
 		freeclusterchain(pmp, chaintofree);
 
-	return (allerror);
+	return allerror;
 }
 
 /*
  * Extend the file described by dep to length specified by length.
  */
 int
-deextend(struct denode *dep, u_long length, struct kauth_cred *cred)
+deextend(struct denode *dep, u_long length)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
 	u_long count;
@@ -347,7 +364,7 @@ deextend(struct denode *dep, u_long length, struct kauth_cred *cred)
 		error = extendfile(dep, count, NULL, NULL, DE_CLEAR);
 		if (error) {
 			/* truncate the added clusters away again */
-			(void) detrunc(dep, dep->de_FileSize, 0, cred);
+			(void) detrunc(dep, dep->de_FileSize, 0);
 			return (error);
 		}
 	}
@@ -358,6 +375,6 @@ deextend(struct denode *dep, u_long length, struct kauth_cred *cred)
 	 * is zero'd later.
 	 */
 	dep->de_FileSize = length;
-	dep->de_flag |= DE_UPDATE|DE_MODIFIED;
+	dep->de_flag |= DE_UPDATE | DE_MODIFIED;
 	return 0;
 }

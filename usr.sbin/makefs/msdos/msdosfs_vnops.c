@@ -46,34 +46,34 @@
  *
  * October 1992
  */
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/clock.h>
+#include <sys/errno.h>
 #include <sys/mman.h>
+#include <sys/time.h>
+
 #include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 #include <unistd.h>
 
-#include <ffs/buf.h>
-
 #include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/direntry.h>
-#include <fs/msdosfs/denode.h>
-#include <fs/msdosfs/msdosfsmount.h>
-#include <fs/msdosfs/fat.h>
 
 #include "makefs.h"
 #include "msdos.h"
 
-#ifdef MSDOSFS_DEBUG
-#define DPRINTF(a) printf a
-#else
-#define DPRINTF(a)
-#endif
+#include "ffs/buf.h"
+
+#include "msdos/denode.h"
+#include "msdos/direntry.h"
+#include "msdos/fat.h"
+#include "msdos/msdosfsmount.h"
+
 /*
  * Some general notes:
  *
@@ -93,28 +93,40 @@ __FBSDID("$FreeBSD$");
  */
 
 static int msdosfs_wfile(const char *, struct denode *, fsnode *);
+static void unix2fattime(const struct timespec *tsp, uint16_t *ddp,
+    uint16_t *dtp);
 
 static void
-msdosfs_times(struct msdosfsmount *pmp, struct denode *dep,
-    const struct stat *st)
+msdosfs_times(struct denode *dep, const struct stat *st)
 {
-	struct timespec at;
-	struct timespec mt;
-
 	if (stampst.st_ino)
-	    st = &stampst;
+		st = &stampst;
 
-#ifndef HAVE_NBTOOL_CONFIG_H
-	at = st->st_atimespec;
-	mt = st->st_mtimespec;
-#else
-	at.tv_sec = st->st_atime;
-	at.tv_nsec = 0;
-	mt.tv_sec = st->st_mtime;
-	mt.tv_nsec = 0;
-#endif
-	unix2dostime(&at, pmp->pm_gmtoff, &dep->de_ADate, NULL, NULL);
-	unix2dostime(&mt, pmp->pm_gmtoff, &dep->de_MDate, &dep->de_MTime, NULL);
+	unix2fattime(&st->st_birthtim, &dep->de_CDate, &dep->de_CTime);
+	unix2fattime(&st->st_atim, &dep->de_ADate, NULL);
+	unix2fattime(&st->st_mtim, &dep->de_MDate, &dep->de_MTime);
+}
+
+static void
+unix2fattime(const struct timespec *tsp, uint16_t *ddp, uint16_t *dtp)
+{
+	time_t t1;
+	struct tm lt = {0};
+
+	t1 = tsp->tv_sec;
+	localtime_r(&t1, &lt);
+
+	unsigned long fat_time = ((lt.tm_year - 80) << 25) |
+            ((lt.tm_mon + 1) << 21) |
+            (lt.tm_mday << 16) |
+            (lt.tm_hour << 11) |
+            (lt.tm_min << 5) |
+            (lt.tm_sec >> 1);
+
+	if (ddp != NULL)
+		*ddp = (uint16_t)(fat_time >> 16);
+	if (dtp != NULL)
+		*dtp = (uint16_t)fat_time;
 }
 
 /*
@@ -162,12 +174,12 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 		break;
 	case 2:
 		wincnt = winSlotCnt((const u_char *)cnp->cn_nameptr,
-		    cnp->cn_namelen, pmp->pm_flags & MSDOSFSMNT_UTF8) + 1;
+		    cnp->cn_namelen) + 1;
 		break;
 	case 3:
 		olddos = 0;
 		wincnt = winSlotCnt((const u_char *)cnp->cn_nameptr,
-		    cnp->cn_namelen, pmp->pm_flags & MSDOSFSMNT_UTF8) + 1;
+		    cnp->cn_namelen) + 1;
 		break;
 	}
 
@@ -181,7 +193,7 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 	 * case it doesn't already exist.
 	 */
 	slotcount = 0;
-	DPRINTF(("%s(): dos filename: %s\n", __func__, dosfilename));
+	MSDOSFS_DPRINTF(("%s(): dos filename: %s\n", __func__, dosfilename));
 	/*
 	 * Search the directory pointed at by vdp for the name pointed at
 	 * by cnp->cn_nameptr.
@@ -200,8 +212,7 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 				break;
 			return (error);
 		}
-		error = bread(pmp->pm_devvp, de_bn2kb(pmp, bn), blsize,
-		    0, &bp);
+		error = bread(pmp->pm_devvp, bn, blsize, 0, &bp);
 		if (error) {
 			return (error);
 		}
@@ -248,11 +259,10 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 					if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 						continue;
 
-					chksum = winChkName((const u_char *)cnp->cn_nameptr,
-							    cnp->cn_namelen,
-							    (struct winentry *)dep,
-							    chksum,
-							    pmp->pm_flags & MSDOSFSMNT_UTF8);
+					chksum = winChkName(
+					    (const u_char *)cnp->cn_nameptr,
+					    cnp->cn_namelen,
+					    (struct winentry *)dep, chksum);
 					continue;
 				}
 
@@ -274,7 +284,7 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 					chksum = -1;
 					continue;
 				}
-				DPRINTF(("%s(): match blkoff %d, diroff %d\n",
+				MSDOSFS_DPRINTF(("%s(): match blkoff %d, diroff %u\n",
 				    __func__, blkoff, diroff));
 				/*
 				 * Remember where this directory
@@ -304,7 +314,7 @@ notfound:
 	 * that's ok if we are creating or renaming and are at the end of
 	 * the pathname and the directory hasn't been removed.
 	 */
-	DPRINTF(("%s(): refcnt %ld, slotcount %d, slotoffset %d\n",
+	MSDOSFS_DPRINTF(("%s(): refcnt %ld, slotcount %d, slotoffset %d\n",
 	    __func__, dp->de_refcnt, slotcount, slotoffset));
 	/*
 	 * Fixup the slot description to point to the place where
@@ -352,13 +362,12 @@ msdosfs_mkfile(const char *path, struct denode *pdep, fsnode *node)
 	struct denode *dep;
 	int error;
 	struct stat *st = &node->inode->st;
-	struct msdosfsmount *pmp = pdep->de_pmp;
 
 	cn.cn_nameptr = node->name;
 	cn.cn_namelen = strlen(node->name);
 
-	DPRINTF(("%s(name %s, mode 0%o size %zu)\n", __func__, node->name,
-	    st->st_mode, (size_t)st->st_size));
+	MSDOSFS_DPRINTF(("%s(name %s, mode 0%o size %zu)\n",
+	    __func__, node->name, st->st_mode, (size_t)st->st_size));
 
 	/*
 	 * If this is the root directory and there is no space left we
@@ -385,11 +394,10 @@ msdosfs_mkfile(const char *path, struct denode *pdep, fsnode *node)
 				ATTR_ARCHIVE : ATTR_ARCHIVE | ATTR_READONLY;
 	ndirent.de_StartCluster = 0;
 	ndirent.de_FileSize = 0;
-	ndirent.de_dev = pdep->de_dev;
-	ndirent.de_devvp = pdep->de_devvp;
 	ndirent.de_pmp = pdep->de_pmp;
 	ndirent.de_flag = DE_ACCESS | DE_CREATE | DE_UPDATE;
-	msdosfs_times(pmp, &ndirent, st);
+	msdosfs_times(&ndirent, &node->inode->st);
+
 	if ((error = msdosfs_findslot(pdep, &cn)) != 0)
 		goto bad;
 	if ((error = createde(&ndirent, pdep, &dep, &cn)) != 0)
@@ -434,8 +442,9 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 	u_long cn = 0;
 
 	error = 0;	/* XXX: gcc/vax */
-	DPRINTF(("%s(diroff %lu, dirclust %lu, startcluster %lu)\n", __func__,
-	    dep->de_diroffset, dep->de_dirclust, dep->de_StartCluster));
+	MSDOSFS_DPRINTF(("%s(diroff %lu, dirclust %lu, startcluster %lu)\n",
+	    __func__, dep->de_diroffset, dep->de_dirclust,
+	    dep->de_StartCluster));
 	if (st->st_size == 0)
 		return 0;
 
@@ -444,9 +453,9 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 		return EFBIG;
 
 	nsize = st->st_size;
-	DPRINTF(("%s(nsize=%zu, osize=%zu)\n", __func__, nsize, osize));
+	MSDOSFS_DPRINTF(("%s(nsize=%zu, osize=%zu)\n", __func__, nsize, osize));
 	if (nsize > osize) {
-		if ((error = deextend(dep, nsize, NULL)) != 0)
+		if ((error = deextend(dep, nsize)) != 0)
 			return error;
 		if ((error = msdosfs_updatede(dep)) != 0)
 			return error;
@@ -454,14 +463,14 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 
 	if ((fd = open(path, O_RDONLY)) == -1) {
 		error = errno;
-		DPRINTF((1, "open %s: %s", path, strerror(error)));
+		MSDOSFS_DPRINTF(("open %s: %s", path, strerror(error)));
 		return error;
 	}
 
 	if ((dat = mmap(0, nsize, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0))
 	    == MAP_FAILED) {
 		error = errno;
-		DPRINTF(("%s: mmap %s: %s", __func__, node->name,
+		MSDOSFS_DPRINTF(("%s: mmap %s: %s", __func__, node->name,
 		    strerror(error)));
 		close(fd);
 		goto out;
@@ -472,27 +481,17 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 		int blsize, cpsize;
 		daddr_t bn;
 		u_long on = offs & pmp->pm_crbomask;
-#ifdef HACK
-		cn = dep->de_StartCluster;
-		if (cn == MSDOSFSROOT) {
-			DPRINTF(("%s: bad lbn %lu", __func__, cn));
-			error = EINVAL;
-			goto out;
-		}
-		bn = cntobn(pmp, cn);
-		blsize = pmp->pm_bpcluster;
-#else
+
 		if ((error = pcbmap(dep, cn++, &bn, NULL, &blsize)) != 0) {
-			DPRINTF(("%s: pcbmap %lu", __func__, bn));
+			MSDOSFS_DPRINTF(("%s: pcbmap %lu",
+			    __func__, (unsigned long)bn));
 			goto out;
 		}
-#endif
-		DPRINTF(("%s(cn=%lu, bn=%llu/%llu, blsize=%d)\n", __func__,
-		    cn, (unsigned long long)bn,
-		    (unsigned long long)de_bn2kb(pmp, bn), blsize));
-		if ((error = bread(pmp->pm_devvp, de_bn2kb(pmp, bn), blsize,
-		    0, &bp)) != 0) {
-			DPRINTF(("bread %d\n", error));
+
+		MSDOSFS_DPRINTF(("%s(cn=%lu, bn=%llu, blsize=%d)\n",
+		    __func__, cn, (unsigned long long)bn, blsize));
+		if ((error = bread(pmp->pm_devvp, bn, blsize, 0, &bp)) != 0) {
+			MSDOSFS_DPRINTF(("bread %d\n", error));
 			goto out;
 		}
 		cpsize = MIN((nsize - offs), blsize - on);
@@ -508,12 +507,11 @@ out:
 	return error;
 }
 
-
 static const struct {
 	struct direntry dot;
 	struct direntry dotdot;
 } dosdirtemplate = {
-	{	".       ", "   ",			/* the . entry */
+	{	".          ",				/* the . entry */
 		ATTR_DIRECTORY,				/* file attribute */
 		0,					/* reserved */
 		0, { 0, 0 }, { 0, 0 },			/* create time & date */
@@ -523,7 +521,7 @@ static const struct {
 		{ 0, 0 },				/* startcluster */
 		{ 0, 0, 0, 0 }				/* filesize */
 	},
-	{	"..      ", "   ",			/* the .. entry */
+	{	"..         ",				/* the .. entry */
 		ATTR_DIRECTORY,				/* file attribute */
 		0,					/* reserved */
 		0, { 0, 0 }, { 0, 0 },			/* create time & date */
@@ -540,11 +538,9 @@ msdosfs_mkdire(const char *path, struct denode *pdep, fsnode *node) {
 	struct denode ndirent;
 	struct denode *dep;
 	struct componentname cn;
-	struct stat *st = &node->inode->st;
 	struct msdosfsmount *pmp = pdep->de_pmp;
 	int error;
 	u_long newcluster, pcl, bn;
-	daddr_t lbn;
 	struct direntry *denp;
 	struct buf *bp;
 
@@ -564,14 +560,14 @@ msdosfs_mkdire(const char *path, struct denode *pdep, fsnode *node) {
 	/*
 	 * Allocate a cluster to hold the about to be created directory.
 	 */
-	error = clusteralloc(pmp, 0, 1, &newcluster, NULL);
+	error = clusteralloc(pmp, 0, 1, CLUST_EOFE, &newcluster, NULL);
 	if (error)
 		goto bad2;
 
 	memset(&ndirent, 0, sizeof(ndirent));
 	ndirent.de_pmp = pmp;
 	ndirent.de_flag = DE_ACCESS | DE_CREATE | DE_UPDATE;
-	msdosfs_times(pmp, &ndirent, st);
+	msdosfs_times(&ndirent, &node->inode->st);
 
 	/*
 	 * Now fill the cluster with the "." and ".." entries. And write
@@ -579,11 +575,10 @@ msdosfs_mkdire(const char *path, struct denode *pdep, fsnode *node) {
 	 * directory to be pointing at if there were a crash.
 	 */
 	bn = cntobn(pmp, newcluster);
-	lbn = de_bn2kb(pmp, bn);
-	DPRINTF(("%s(newcluster %lu, bn=%lu, lbn=%lu)\n", __func__, newcluster,
-	    bn, lbn));
+	MSDOSFS_DPRINTF(("%s(newcluster %lu, bn=%lu)\n",
+	    __func__, newcluster, bn));
 	/* always succeeds */
-	bp = getblk(pmp->pm_devvp, lbn, pmp->pm_bpcluster, 0, 0);
+	bp = getblk(pmp->pm_devvp, bn, pmp->pm_bpcluster, 0, 0, 0);
 	memset(bp->b_data, 0, pmp->pm_bpcluster);
 	memcpy(bp->b_data, &dosdirtemplate, sizeof dosdirtemplate);
 	denp = (struct direntry *)bp->b_data;
@@ -595,7 +590,7 @@ msdosfs_mkdire(const char *path, struct denode *pdep, fsnode *node) {
 	putushort(denp[0].deMDate, ndirent.de_MDate);
 	putushort(denp[0].deMTime, ndirent.de_MTime);
 	pcl = pdep->de_StartCluster;
-	DPRINTF(("%s(pcl %lu, rootdirblk=%lu)\n", __func__, pcl,
+	MSDOSFS_DPRINTF(("%s(pcl %lu, rootdirblk=%lu)\n", __func__, pcl,
 	    pmp->pm_rootdirblk));
 	if (FAT32(pmp) && pcl == pmp->pm_rootdirblk)
 		pcl = 0;
@@ -628,8 +623,6 @@ msdosfs_mkdire(const char *path, struct denode *pdep, fsnode *node) {
 	ndirent.de_Attributes = ATTR_DIRECTORY;
 	ndirent.de_StartCluster = newcluster;
 	ndirent.de_FileSize = 0;
-	ndirent.de_dev = pdep->de_dev;
-	ndirent.de_devvp = pdep->de_devvp;
 	ndirent.de_pmp = pdep->de_pmp;
 	if ((error = msdosfs_findslot(pdep, &cn)) != 0)
 		goto bad;

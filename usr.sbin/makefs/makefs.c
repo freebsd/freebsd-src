@@ -74,8 +74,9 @@ static fstype_t fstypes[] = {
 	# name, name ## _prep_opts, name ## _parse_opts, \
 	name ## _cleanup_opts, name ## _makefs  \
 }
-	ENTRY(ffs),
 	ENTRY(cd9660),
+	ENTRY(ffs),
+	ENTRY(msdos),
 	{ .type = NULL	},
 };
 

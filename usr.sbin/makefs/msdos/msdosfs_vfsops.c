@@ -45,43 +45,36 @@
  * October 1992
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-#endif
-
 #include <sys/cdefs.h>
 /* $NetBSD: msdosfs_vfsops.c,v 1.10 2016/01/30 09:59:27 mlelstv Exp $ */
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/mount.h>
 
-#include <ffs/buf.h>
-
-#include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/bootsect.h>
-#include <fs/msdosfs/direntry.h>
-#include <fs/msdosfs/denode.h>
-#include <fs/msdosfs/msdosfsmount.h>
-#include <fs/msdosfs/fat.h>
-
-#include <stdio.h>
 #include <errno.h>
-#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <util.h>
+
+#include <fs/msdosfs/bootsect.h>
+#include <fs/msdosfs/bpb.h>
+
+#include <mkfs_msdos.h>
 
 #include "makefs.h"
 #include "msdos.h"
-#include "mkfs_msdos.h"
 
-#ifdef MSDOSFS_DEBUG
-#define DPRINTF(a) printf a
-#else
-#define DPRINTF(a)
-#endif
+#include "ffs/buf.h"
+
+#include "msdos/denode.h"
+#include "msdos/direntry.h"
+#include "msdos/fat.h"
+#include "msdos/msdosfsmount.h"
 
 struct msdosfsmount *
-msdosfs_mount(struct vnode *devvp, int flags)
+msdosfs_mount(struct vnode *devvp)
 {
 	struct msdosfsmount *pmp = NULL;
 	struct buf *bp;
@@ -90,13 +83,11 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	struct byte_bpb50 *b50;
 	struct byte_bpb710 *b710;
 	uint8_t SecPerClust;
-	int	ronly = 0, error, tmp;
+	int	ronly = 0, error;
 	int	bsize;
-	struct msdos_options *m = devvp->fs->fs_specific;
-	uint64_t psize = m->create_size;
 	unsigned secsize = 512;
 
-	DPRINTF(("%s(bread 0)\n", __func__));
+	MSDOSFS_DPRINTF(("%s(bread 0)\n", __func__));
 	if ((error = bread(devvp, 0, secsize, 0, &bp)) != 0)
 		goto error_exit;
 
@@ -105,20 +96,17 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	b50 = (struct byte_bpb50 *)bsp->bs50.bsBPB;
 	b710 = (struct byte_bpb710 *)bsp->bs710.bsBPB;
 
-	if (!(flags & MSDOSFSMNT_GEMDOSFS)) {
-		if (bsp->bs50.bsBootSectSig0 != BOOTSIG0
-		    || bsp->bs50.bsBootSectSig1 != BOOTSIG1) {
-			DPRINTF(("bootsig0 %d bootsig1 %d\n",
-			    bsp->bs50.bsBootSectSig0,
-			    bsp->bs50.bsBootSectSig1));
-			error = EINVAL;
-			goto error_exit;
-		}
-		bsize = 0;
-	} else
-		bsize = 512;
+	if (bsp->bs50.bsBootSectSig0 != BOOTSIG0 ||
+	    bsp->bs50.bsBootSectSig1 != BOOTSIG1) {
+		MSDOSFS_DPRINTF(("bootsig0 %d bootsig1 %d\n",
+		    bsp->bs50.bsBootSectSig0,
+		    bsp->bs50.bsBootSectSig1));
+		error = EINVAL;
+		goto error_exit;
+	}
+	bsize = 0;
 
-	pmp = ecalloc(1, sizeof *pmp);
+	pmp = ecalloc(1, sizeof(*pmp));
 	/*
 	 * Compute several useful quantities from the bpb in the
 	 * bootsector.  Copy in the dos 5 variant of the bpb then fix up
@@ -135,29 +123,23 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	pmp->pm_Heads = getushort(b50->bpbHeads);
 	pmp->pm_Media = b50->bpbMedia;
 
-	DPRINTF(("%s(BytesPerSec=%u, ResSectors=%u, FATs=%d, RootDirEnts=%u, "
-	    "Sectors=%u, FATsecs=%lu, SecPerTrack=%u, Heads=%u, Media=%u)\n",
-	    __func__, pmp->pm_BytesPerSec, pmp->pm_ResSectors, pmp->pm_FATs,
-	    pmp->pm_RootDirEnts, pmp->pm_Sectors, pmp->pm_FATsecs,
-	    pmp->pm_SecPerTrack, pmp->pm_Heads, pmp->pm_Media));
-	if (!(flags & MSDOSFSMNT_GEMDOSFS)) {
-		/* XXX - We should probably check more values here */
-		if (!pmp->pm_BytesPerSec || !SecPerClust
-			|| pmp->pm_SecPerTrack > 63) {
-			DPRINTF(("bytespersec %d secperclust %d "
-			    "secpertrack %d\n",
-			    pmp->pm_BytesPerSec, SecPerClust,
-			    pmp->pm_SecPerTrack));
-			error = EINVAL;
-			goto error_exit;
-		}
-	}
+	MSDOSFS_DPRINTF(("%s(BytesPerSec=%u, ResSectors=%u, FATs=%d, "
+	    "RootDirEnts=%u, Sectors=%u, FATsecs=%lu, SecPerTrack=%u, "
+	    "Heads=%u, Media=%u)\n",
+	    __func__, pmp->pm_BytesPerSec, pmp->pm_ResSectors,
+	    pmp->pm_FATs, pmp->pm_RootDirEnts, pmp->pm_Sectors,
+	    pmp->pm_FATsecs, pmp->pm_SecPerTrack, pmp->pm_Heads,
+	    pmp->pm_Media));
 
-	pmp->pm_flags = flags & MSDOSFSMNT_MNTOPT;
-	if (pmp->pm_flags & MSDOSFSMNT_GEMDOSFS)
-		pmp->pm_flags |= MSDOSFSMNT_NOWIN95;
-	if (pmp->pm_flags & MSDOSFSMNT_NOWIN95)
-		pmp->pm_flags |= MSDOSFSMNT_SHORTNAME;
+	/* XXX - We should probably check more values here */
+	if (!pmp->pm_BytesPerSec || !SecPerClust
+		|| pmp->pm_SecPerTrack > 63) {
+		MSDOSFS_DPRINTF(("bytespersec %d secperclust %d "
+		    "secpertrack %d\n", pmp->pm_BytesPerSec,
+		    SecPerClust, pmp->pm_SecPerTrack));
+		error = EINVAL;
+		goto error_exit;
+	}
 
 	if (pmp->pm_Sectors == 0) {
 		pmp->pm_HiddenSects = getulong(b50->bpbHiddenSecs);
@@ -167,6 +149,7 @@ msdosfs_mount(struct vnode *devvp, int flags)
 		pmp->pm_HugeSectors = pmp->pm_Sectors;
 	}
 
+	pmp->pm_flags = 0;
 	if (pmp->pm_RootDirEnts == 0) {
 		unsigned short vers = getushort(b710->bpbFSVers);
 		/*
@@ -175,7 +158,7 @@ msdosfs_mount(struct vnode *devvp, int flags)
 		 * do not set these to zero.  Therefore, do not insist.
 		 */
 		if (pmp->pm_Sectors || pmp->pm_FATsecs || vers) {
-			DPRINTF(("sectors %d fatsecs %lu vers %d\n",
+			MSDOSFS_DPRINTF(("sectors %d fatsecs %lu vers %d\n",
 			    pmp->pm_Sectors, pmp->pm_FATsecs, vers));
 			error = EINVAL;
 			goto error_exit;
@@ -193,52 +176,9 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	} else
 		pmp->pm_flags |= MSDOSFS_FATMIRROR;
 
-	if (flags & MSDOSFSMNT_GEMDOSFS) {
-		if (FAT32(pmp)) {
-			DPRINTF(("FAT32 for GEMDOS\n"));
-			/*
-			 * GEMDOS doesn't know FAT32.
-			 */
-			error = EINVAL;
-			goto error_exit;
-		}
-
-		/*
-		 * Check a few values (could do some more):
-		 * - logical sector size: power of 2, >= block size
-		 * - sectors per cluster: power of 2, >= 1
-		 * - number of sectors:   >= 1, <= size of partition
-		 */
-		if ( (SecPerClust == 0)
-		  || (SecPerClust & (SecPerClust - 1))
-		  || (pmp->pm_BytesPerSec < bsize)
-		  || (pmp->pm_BytesPerSec & (pmp->pm_BytesPerSec - 1))
-		  || (pmp->pm_HugeSectors == 0)
-		  || (pmp->pm_HugeSectors * (pmp->pm_BytesPerSec / bsize)
-		      > psize)) {
-			DPRINTF(("consistency checks for GEMDOS\n"));
-			error = EINVAL;
-			goto error_exit;
-		}
-		/*
-		 * XXX - Many parts of the msdosfs driver seem to assume that
-		 * the number of bytes per logical sector (BytesPerSec) will
-		 * always be the same as the number of bytes per disk block
-		 * Let's pretend it is.
-		 */
-		tmp = pmp->pm_BytesPerSec / bsize;
-		pmp->pm_BytesPerSec  = bsize;
-		pmp->pm_HugeSectors *= tmp;
-		pmp->pm_HiddenSects *= tmp;
-		pmp->pm_ResSectors  *= tmp;
-		pmp->pm_Sectors     *= tmp;
-		pmp->pm_FATsecs     *= tmp;
-		SecPerClust         *= tmp;
-	}
-
 	/* Check that fs has nonzero FAT size */
 	if (pmp->pm_FATsecs == 0) {
-		DPRINTF(("FATsecs is 0\n"));
+		MSDOSFS_DPRINTF(("FATsecs is 0\n"));
 		error = EINVAL;
 		goto error_exit;
 	}
@@ -258,22 +198,11 @@ msdosfs_mount(struct vnode *devvp, int flags)
 		pmp->pm_firstcluster = pmp->pm_rootdirblk + pmp->pm_rootdirsize;
 	}
 
-	pmp->pm_nmbrofclusters = (pmp->pm_HugeSectors - pmp->pm_firstcluster) /
-	    SecPerClust;
-	pmp->pm_maxcluster = pmp->pm_nmbrofclusters + 1;
+	pmp->pm_maxcluster = ((pmp->pm_HugeSectors - pmp->pm_firstcluster) /
+	    SecPerClust) + 1;
 	pmp->pm_fatsize = pmp->pm_FATsecs * pmp->pm_BytesPerSec;
 
-	if (flags & MSDOSFSMNT_GEMDOSFS) {
-		if (pmp->pm_nmbrofclusters <= (0xff0 - 2)) {
-			pmp->pm_fatmask = FAT12_MASK;
-			pmp->pm_fatmult = 3;
-			pmp->pm_fatdiv = 2;
-		} else {
-			pmp->pm_fatmask = FAT16_MASK;
-			pmp->pm_fatmult = 2;
-			pmp->pm_fatdiv = 1;
-		}
-	} else if (pmp->pm_fatmask == 0) {
+	if (pmp->pm_fatmask == 0) {
 		if (pmp->pm_maxcluster
 		    <= ((CLUST_RSRVD - CLUST_FIRST) & FAT12_MASK)) {
 			/*
@@ -306,18 +235,19 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	pmp->pm_crbomask = pmp->pm_bpcluster - 1;
 	pmp->pm_cnshift = ffs(pmp->pm_bpcluster) - 1;
 
-	DPRINTF(("%s(fatmask=%lu, fatmult=%u, fatdiv=%u, fatblocksize=%lu, "
-	    "fatblocksec=%lu, bnshift=%lu, pbcluster=%lu, crbomask=%lu, "
-	    "cnshift=%lu)\n",
-	    __func__, pmp->pm_fatmask, pmp->pm_fatmult, pmp->pm_fatdiv,
-	    pmp->pm_fatblocksize, pmp->pm_fatblocksec, pmp->pm_bnshift,
-	    pmp->pm_bpcluster, pmp->pm_crbomask, pmp->pm_cnshift));
+	MSDOSFS_DPRINTF(("%s(fatmask=%lu, fatmult=%u, fatdiv=%u, "
+	    "fatblocksize=%lu, fatblocksec=%lu, bnshift=%lu, pbcluster=%lu, "
+	    "crbomask=%lu, cnshift=%lu)\n",
+	    __func__, (unsigned long)pmp->pm_fatmask, pmp->pm_fatmult,
+	    pmp->pm_fatdiv, pmp->pm_fatblocksize, pmp->pm_fatblocksec,
+	    pmp->pm_bnshift, pmp->pm_bpcluster, pmp->pm_crbomask,
+	    pmp->pm_cnshift));
 	/*
 	 * Check for valid cluster size
 	 * must be a power of 2
 	 */
 	if (pmp->pm_bpcluster ^ (1 << pmp->pm_cnshift)) {
-		DPRINTF(("bpcluster %lu cnshift %lu\n",
+		MSDOSFS_DPRINTF(("bpcluster %lu cnshift %lu\n",
 		    pmp->pm_bpcluster, pmp->pm_cnshift));
 		error = EINVAL;
 		goto error_exit;
@@ -340,16 +270,13 @@ msdosfs_mount(struct vnode *devvp, int flags)
 		 *	2KB or larger sectors, is the fsinfo structure
 		 *	padded at the end or in the middle?
 		 */
-		DPRINTF(("%s(bread %lu)\n", __func__,
-		    (unsigned long)de_bn2kb(pmp, pmp->pm_fsinfo)));
-		if ((error = bread(devvp, de_bn2kb(pmp, pmp->pm_fsinfo),
-		    pmp->pm_BytesPerSec, 0, &bp)) != 0)
+		if ((error = bread(devvp, pmp->pm_fsinfo, pmp->pm_BytesPerSec,
+		    0, &bp)) != 0)
 			goto error_exit;
 		fp = (struct fsinfo *)bp->b_data;
 		if (!memcmp(fp->fsisig1, "RRaA", 4)
 		    && !memcmp(fp->fsisig2, "rrAa", 4)
-		    && !memcmp(fp->fsisig3, "\0\0\125\252", 4)
-		    && !memcmp(fp->fsisig4, "\0\0\125\252", 4))
+		    && !memcmp(fp->fsisig3, "\0\0\125\252", 4))
 			pmp->pm_nxtfree = getulong(fp->fsinxtfree);
 		else
 			pmp->pm_fsinfo = 0;
@@ -383,7 +310,7 @@ msdosfs_mount(struct vnode *devvp, int flags)
 	 * Have the inuse map filled in.
 	 */
 	if ((error = fillinusemap(pmp)) != 0) {
-		DPRINTF(("fillinusemap %d\n", error));
+		MSDOSFS_DPRINTF(("fillinusemap %d\n", error));
 		goto error_exit;
 	}
 
@@ -407,7 +334,7 @@ msdosfs_mount(struct vnode *devvp, int flags)
 
 error_exit:
 	if (bp)
-		brelse(bp, BC_AGE);
+		brelse(bp);
 	if (pmp) {
 		if (pmp->pm_inusemap)
 			free(pmp->pm_inusemap);
