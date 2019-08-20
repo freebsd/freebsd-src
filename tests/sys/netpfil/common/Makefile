@@ -6,7 +6,8 @@ TESTSDIR=	${TESTSBASE}/sys/netpfil/common
 
 ATF_TESTS_SH+=	\
 	nat \
-	pass_block
+	pass_block \
+	tos
 
 ${PACKAGE}FILES+=	\
 	pft_ping.py \
