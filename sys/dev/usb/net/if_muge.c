@@ -87,6 +87,10 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_media.h>
+
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -112,6 +116,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/net/usb_ethernet.h>
 
 #include <dev/usb/net/if_mugereg.h>
+
+#include "miibus_if.h"
 
 #ifdef USB_DEBUG
 static int muge_debug = 0;

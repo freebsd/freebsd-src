@@ -116,6 +116,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/net/usb_ethernet.h>
 #include <dev/usb/net/if_axereg.h>
 
+#include "miibus_if.h"
+
 /*
  * AXE_178_MAX_FRAME_BURST
  * max frame burst size for Ax88178 and Ax88772
