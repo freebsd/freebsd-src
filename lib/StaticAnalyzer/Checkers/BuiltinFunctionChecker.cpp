@@ -1,9 +1,8 @@
 //=== BuiltinFunctionChecker.cpp --------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,6 +14,7 @@
 #include "clang/Basic/Builtins.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 
 using namespace clang;
@@ -24,30 +24,32 @@ namespace {
 
 class BuiltinFunctionChecker : public Checker<eval::Call> {
 public:
-  bool evalCall(const CallExpr *CE, CheckerContext &C) const;
+  bool evalCall(const CallEvent &Call, CheckerContext &C) const;
 };
 
 }
 
-bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
+bool BuiltinFunctionChecker::evalCall(const CallEvent &Call,
                                       CheckerContext &C) const {
   ProgramStateRef state = C.getState();
-  const FunctionDecl *FD = C.getCalleeDecl(CE);
-  const LocationContext *LCtx = C.getLocationContext();
+  const auto *FD = dyn_cast_or_null<FunctionDecl>(Call.getDecl());
   if (!FD)
     return false;
+
+  const LocationContext *LCtx = C.getLocationContext();
+  const Expr *CE = Call.getOriginExpr();
 
   switch (FD->getBuiltinID()) {
   default:
     return false;
 
   case Builtin::BI__builtin_assume: {
-    assert (CE->arg_begin() != CE->arg_end());
-    SVal ArgSVal = C.getSVal(CE->getArg(0));
-    if (ArgSVal.isUndef())
+    assert (Call.getNumArgs() > 0);
+    SVal Arg = Call.getArgSVal(0);
+    if (Arg.isUndef())
       return true; // Return true to model purity.
 
-    state = state->assume(ArgSVal.castAs<DefinedOrUnknownSVal>(), true);
+    state = state->assume(Arg.castAs<DefinedOrUnknownSVal>(), true);
     // FIXME: do we want to warn here? Not right now. The most reports might
     // come from infeasible paths, thus being false positives.
     if (!state) {
@@ -67,9 +69,9 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
     // __builtin_assume_aligned, just return the value of the subexpression.
     // __builtin_addressof is going from a reference to a pointer, but those
     // are represented the same way in the analyzer.
-    assert (CE->arg_begin() != CE->arg_end());
-    SVal X = C.getSVal(*(CE->arg_begin()));
-    C.addTransition(state->BindExpr(CE, LCtx, X));
+    assert (Call.getNumArgs() > 0);
+    SVal Arg = Call.getArgSVal(0);
+    C.addTransition(state->BindExpr(CE, LCtx, Arg));
     return true;
   }
 
@@ -83,12 +85,14 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
     // Set the extent of the region in bytes. This enables us to use the
     // SVal of the argument directly. If we save the extent in bits, we
     // cannot represent values like symbol*8.
-    auto Size = C.getSVal(*(CE->arg_begin())).castAs<DefinedOrUnknownSVal>();
+    auto Size = Call.getArgSVal(0);
+    if (Size.isUndef())
+      return true; // Return true to model purity.
 
     SValBuilder& svalBuilder = C.getSValBuilder();
     DefinedOrUnknownSVal Extent = R->getExtent(svalBuilder);
     DefinedOrUnknownSVal extentMatchesSizeArg =
-      svalBuilder.evalEQ(state, Extent, Size);
+      svalBuilder.evalEQ(state, Extent, Size.castAs<DefinedOrUnknownSVal>());
     state = state->assume(extentMatchesSizeArg, true);
     assert(state && "The region should not have any previous constraints");
 
@@ -96,19 +100,28 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
     return true;
   }
 
+  case Builtin::BI__builtin_dynamic_object_size:
   case Builtin::BI__builtin_object_size:
   case Builtin::BI__builtin_constant_p: {
     // This must be resolvable at compile time, so we defer to the constant
     // evaluator for a value.
+    SValBuilder &SVB = C.getSValBuilder();
     SVal V = UnknownVal();
     Expr::EvalResult EVResult;
     if (CE->EvaluateAsInt(EVResult, C.getASTContext(), Expr::SE_NoSideEffects)) {
       // Make sure the result has the correct type.
       llvm::APSInt Result = EVResult.Val.getInt();
-      SValBuilder &SVB = C.getSValBuilder();
       BasicValueFactory &BVF = SVB.getBasicValueFactory();
       BVF.getAPSIntType(CE->getType()).apply(Result);
       V = SVB.makeIntVal(Result);
+    }
+
+    if (FD->getBuiltinID() == Builtin::BI__builtin_constant_p) {
+      // If we didn't manage to figure out if the value is constant or not,
+      // it is safe to assume that it's not constant and unsafe to assume
+      // that it's constant.
+      if (V.isUnknown())
+        V = SVB.makeIntVal(0, CE->getType());
     }
 
     C.addTransition(state->BindExpr(CE, LCtx, V));
@@ -119,4 +132,8 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
 
 void ento::registerBuiltinFunctionChecker(CheckerManager &mgr) {
   mgr.registerChecker<BuiltinFunctionChecker>();
+}
+
+bool ento::shouldRegisterBuiltinFunctionChecker(const LangOptions &LO) {
+  return true;
 }

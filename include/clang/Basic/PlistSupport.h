@@ -1,9 +1,8 @@
 //===- PlistSupport.h - Plist Output Utilities ------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -128,7 +127,11 @@ inline void EmitRange(raw_ostream &o, const SourceManager &SM,
   assert(R.isCharRange() && "cannot handle a token range");
   Indent(o, indent) << "<array>\n";
   EmitLocation(o, SM, R.getBegin(), FM, indent + 1);
-  EmitLocation(o, SM, R.getEnd(), FM, indent + 1);
+
+  // The ".getLocWithOffset(-1)" emulates the behavior of an off-by-one bug
+  // in Lexer that is already fixed. It is here for backwards compatibility
+  // even though it is incorrect.
+  EmitLocation(o, SM, R.getEnd().getLocWithOffset(-1), FM, indent + 1);
   Indent(o, indent) << "</array>\n";
 }
 
