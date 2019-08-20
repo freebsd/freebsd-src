@@ -1,3 +1,0 @@
-RUN: llvm-strings -a %S/Inputs/abcd | FileCheck %s
-RUN: llvm-strings --all %S/Inputs/abcd | FileCheck %s
-CHECK: abcd

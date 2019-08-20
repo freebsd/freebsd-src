@@ -1,2 +1,0 @@
-RUN: echo -n abcd | llvm-strings - | FileCheck %s --strict-whitespace
-CHECK: {{^}}abcd{{$}}
