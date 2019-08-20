@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -50,6 +49,8 @@ ompt_data_t *__ompt_get_thread_data_internal();
  * Unused currently
 static uint64_t __ompt_get_get_unique_id_internal();
 */
+
+ompt_sync_region_t __ompt_get_barrier_kind(enum barrier_type, kmp_info_t *);
 
 /*****************************************************************************
  * macros

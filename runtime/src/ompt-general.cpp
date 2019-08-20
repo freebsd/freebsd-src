@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -362,10 +361,11 @@ void ompt_post_init() {
           ompt_thread_initial, __ompt_get_thread_data_internal());
     }
     ompt_data_t *task_data;
-    __ompt_get_task_info_internal(0, NULL, &task_data, NULL, NULL, NULL);
-    if (ompt_enabled.ompt_callback_task_create) {
-      ompt_callbacks.ompt_callback(ompt_callback_task_create)(
-          NULL, NULL, task_data, ompt_task_initial, 0, NULL);
+    ompt_data_t *parallel_data;
+    __ompt_get_task_info_internal(0, NULL, &task_data, NULL, &parallel_data, NULL);
+    if (ompt_enabled.ompt_callback_implicit_task) {
+      ompt_callbacks.ompt_callback(ompt_callback_implicit_task)(
+          ompt_scope_begin, parallel_data, task_data, 1, 1, ompt_task_initial);
     }
 
     ompt_set_thread_state(root_thread, ompt_state_work_serial);
@@ -524,8 +524,7 @@ OMPT_API_ROUTINE int ompt_get_task_info(int ancestor_level, int *type,
 
 OMPT_API_ROUTINE int ompt_get_task_memory(void **addr, size_t *size,
                                           int block) {
-  // stub
-  return 0;
+  return __ompt_get_task_memory_internal(addr, size, block);
 }
 
 /*****************************************************************************
@@ -700,9 +699,7 @@ OMPT_API_ROUTINE uint64_t ompt_get_unique_id(void) {
   return __ompt_get_unique_id_internal();
 }
 
-OMPT_API_ROUTINE void ompt_finalize_tool(void) {
-  // stub
-}
+OMPT_API_ROUTINE void ompt_finalize_tool(void) { __kmp_internal_end_atexit(); }
 
 /*****************************************************************************
  * Target
