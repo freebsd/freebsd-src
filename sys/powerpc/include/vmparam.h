@@ -72,53 +72,35 @@
 #endif
 
 #ifdef AIM
-#define	VM_MAXUSER_ADDRESS32	((vm_offset_t)0xfffff000)
+#define	VM_MAXUSER_ADDRESS32	0xfffff000
 #else
-#define	VM_MAXUSER_ADDRESS32	((vm_offset_t)0x7ffff000)
+#define	VM_MAXUSER_ADDRESS32	0x7ffff000
 #endif
 
 /*
  * Would like to have MAX addresses = 0, but this doesn't (currently) work
  */
-#if !defined(LOCORE)
 #ifdef __powerpc64__
-#define	VM_MIN_ADDRESS		(0x0000000000000000UL)
-#define	VM_MAXUSER_ADDRESS	(0x3ffffffffffff000UL)
-#define	VM_MAX_ADDRESS		(0xffffffffffffffffUL)
-#else
-#define	VM_MIN_ADDRESS		((vm_offset_t)0)
-#define	VM_MAXUSER_ADDRESS	VM_MAXUSER_ADDRESS32
-#define	VM_MAX_ADDRESS		((vm_offset_t)0xffffffff)
-#endif
-#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
-#else /* LOCORE */
-#ifdef BOOKE
-#define	VM_MIN_ADDRESS		0
-#ifdef __powerpc64__
+#define	VM_MIN_ADDRESS		0x0000000000000000
 #define	VM_MAXUSER_ADDRESS	0x3ffffffffffff000
+#define	VM_MAX_ADDRESS		0xffffffffffffffff
+#define	VM_MIN_KERNEL_ADDRESS		0xe000000000000000
+#define	VM_MAX_KERNEL_ADDRESS		0xe0000007ffffffff
+#define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
 #else
-#define	VM_MAXUSER_ADDRESS	0x7ffff000
+#define	VM_MIN_ADDRESS		0
+#define	VM_MAXUSER_ADDRESS	VM_MAXUSER_ADDRESS32
+#define	VM_MAX_ADDRESS		0xffffffff
 #endif
-#endif
-#endif /* LOCORE */
+
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 
 #define	FREEBSD32_SHAREDPAGE	(VM_MAXUSER_ADDRESS32 - PAGE_SIZE)
 #define	FREEBSD32_USRSTACK	FREEBSD32_SHAREDPAGE
 
-#ifdef __powerpc64__
-#ifndef LOCORE
-#define	VM_MIN_KERNEL_ADDRESS		0xe000000000000000UL
-#define	VM_MAX_KERNEL_ADDRESS		0xe0000007ffffffffUL
-#else
-#define	VM_MIN_KERNEL_ADDRESS		0xe000000000000000
-#define	VM_MAX_KERNEL_ADDRESS		0xe0000007ffffffff
-#endif
-#define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
-#endif
-
-#ifdef AIM
 #define	KERNBASE		0x00100100	/* start of kernel virtual */
 
+#ifdef AIM
 #ifndef __powerpc64__
 #define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)KERNEL_SR << ADDR_SR_SHFT)
 #define	VM_MAX_SAFE_KERNEL_ADDRESS (VM_MIN_KERNEL_ADDRESS + 2*SEGMENT_LENGTH -1)
@@ -136,12 +118,9 @@
 /* Use the direct map for UMA small allocs on powerpc64. */
 #ifdef __powerpc64__
 #define UMA_MD_SMALL_ALLOC
-#endif
-
-#define	KERNBASE		0x04000100	/* start of kernel physical */
-#ifndef __powerpc64__
-#define	VM_MIN_KERNEL_ADDRESS	0xc0000000
-#define	VM_MAX_KERNEL_ADDRESS	0xffffefff
+#else
+#define	VM_MIN_KERNEL_ADDRESS		0xc0000000
+#define	VM_MAX_KERNEL_ADDRESS		0xffffefff
 #define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
 #endif
 
