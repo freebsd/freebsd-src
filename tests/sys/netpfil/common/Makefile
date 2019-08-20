@@ -5,6 +5,7 @@ PACKAGE=	tests
 TESTSDIR=	${TESTSBASE}/sys/netpfil/common
 
 ATF_TESTS_SH+=	\
+	fragments \
 	nat \
 	pass_block \
 	tos
