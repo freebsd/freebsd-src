@@ -70,11 +70,17 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_media.h>
+
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include "usbdevs.h"
+
+#include "miibus_if.h"
 
 #define	USB_DEBUG_VAR udav_debug
 #include <dev/usb/usb_debug.h>
