@@ -16,6 +16,23 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190820	p3	FreeBSD-EN-19:16.bhyve
+			FreeBSD-SA-19:17.ipfw
+			FreeBSD-SA-19:22.mbuf
+			FreeBSD-SA-19:23.midi
+			FreeBSD-SA-19:24.mqueuefs
+
+	Bhyve instruction emulation improvements (opcode 03H and F7H).
+						[EN-19:16.bhyve]
+
+	Fix ipfw(8) jail keyword prior to jail startup. [EN-19:17.ipfw]
+
+	Fix IPv6 remote denial of service. [SA-19:22.mbuf]
+
+	Fix kernel memory disclosure from /dev/midistat. [SA-19:23.midi]
+
+	Fix reference count overflow in mqueuefs. [SA-19:24.mqueuefs]
+
 20190806	p2	FreeBSD-SA-19:18.bzip2
 			FreeBSD-SA-19:19.mldv2
 			FreeBSD-SA-19:20.bsnmp
