@@ -89,6 +89,27 @@
 	<entry><para>Insufficient validation of guest-supplied
 	  data</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:22.mbuf.asc">FreeBSD-SA-19:22.mbuf</link></entry>
+	<entry>20&nbsp;August&nbsp;2019</entry>
+	<entry><para>IPv6 remove denial-of-service</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:23.midi.asc">FreeBSD-SA-19:23.midi</link></entry>
+	<entry>20&nbsp;August&nbsp;2019</entry>
+	<entry><para>Kernel memory disclosure</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:24.mqueuefs.asc">FreeBSD-SA-19:24.mqueuefs</link></entry>
+	<entry>20&nbsp;August&nbsp;2019</entry>
+	<entry><para>Reference count overflow</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

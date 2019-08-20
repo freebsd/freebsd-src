@@ -32,6 +32,20 @@
 	<entry>6&nbsp;August&nbsp;2019</entry>
 	<entry><para>Incorrect exception handling</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-19:16.bhyve.asc">FreeBSD-EN-19:16.bhyve</link></entry>
+	<entry>20&nbsp;August&nbsp;2019</entry>
+	<entry><para>Instruction emulation improvements</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-19:17.ipfw.asc">FreeBSD-EN-19:17.ipfw</link></entry>
+	<entry>20&nbsp;August&nbsp;2019</entry>
+	<entry><para>&quot;jail&quot; keyword fix</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
