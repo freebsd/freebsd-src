@@ -1,9 +1,8 @@
 //===-- sanitizer_platform_limits_netbsd.h --------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -803,7 +802,6 @@ extern unsigned struct_rf_recon_req_sz;
 extern unsigned struct_rio_conf_sz;
 extern unsigned struct_rio_interface_sz;
 extern unsigned struct_rio_stats_sz;
-extern unsigned struct_satlink_id_sz;
 extern unsigned struct_scan_io_sz;
 extern unsigned struct_scbusaccel_args_sz;
 extern unsigned struct_scbusiodetach_args_sz;
@@ -1266,9 +1264,6 @@ extern unsigned IOCTL_IRDA_GET_TURNAROUNDMASK;
 extern unsigned IOCTL_IRFRAMETTY_GET_DEVICE;
 extern unsigned IOCTL_IRFRAMETTY_GET_DONGLE;
 extern unsigned IOCTL_IRFRAMETTY_SET_DONGLE;
-extern unsigned IOCTL_SATIORESET;
-extern unsigned IOCTL_SATIOGID;
-extern unsigned IOCTL_SATIOSBUFSIZE;
 extern unsigned IOCTL_ISV_CMD;
 extern unsigned IOCTL_WTQICMD;
 extern unsigned IOCTL_ISCSI_GET_VERSION;
