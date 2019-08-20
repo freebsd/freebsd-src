@@ -17,7 +17,7 @@ the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
 20190820	p3	FreeBSD-EN-19:16.bhyve
-			FreeBSD-SA-19:17.ipfw
+			FreeBSD-EN-19:17.ipfw
 			FreeBSD-SA-19:22.mbuf
 			FreeBSD-SA-19:23.midi
 			FreeBSD-SA-19:24.mqueuefs
