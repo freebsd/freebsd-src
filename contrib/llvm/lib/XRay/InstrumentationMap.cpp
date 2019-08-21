@@ -1,9 +1,8 @@
 //===- InstrumentationMap.cpp - XRay Instrumentation Map ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -79,9 +78,10 @@ loadObj(StringRef Filename, object::OwningBinary<object::ObjectFile> &ObjFile,
         "Failed to find XRay instrumentation map.",
         std::make_error_code(std::errc::executable_format_error));
 
-  if (I->getContents(Contents))
-    return errorCodeToError(
-        std::make_error_code(std::errc::executable_format_error));
+  if (Expected<StringRef> E = I->getContents())
+    Contents = *E;
+  else
+    return E.takeError();
 
   RelocMap Relocs;
   if (ObjFile.getBinary()->isELF()) {
@@ -172,13 +172,14 @@ loadObj(StringRef Filename, object::OwningBinary<object::ObjectFile> &ObjFile,
 }
 
 static Error
-loadYAML(int Fd, size_t FileSize, StringRef Filename,
+loadYAML(sys::fs::file_t Fd, size_t FileSize, StringRef Filename,
          InstrumentationMap::SledContainer &Sleds,
          InstrumentationMap::FunctionAddressMap &FunctionAddresses,
          InstrumentationMap::FunctionAddressReverseMap &FunctionIds) {
   std::error_code EC;
   sys::fs::mapped_file_region MappedFile(
       Fd, sys::fs::mapped_file_region::mapmode::readonly, FileSize, 0, EC);
+  sys::fs::closeFile(Fd);
   if (EC)
     return make_error<StringError>(
         Twine("Failed memory-mapping file '") + Filename + "'.", EC);
@@ -214,9 +215,12 @@ llvm::xray::loadInstrumentationMap(StringRef Filename) {
   if (!ObjectFileOrError) {
     auto E = ObjectFileOrError.takeError();
     // We try to load it as YAML if the ELF load didn't work.
-    int Fd;
-    if (sys::fs::openFileForRead(Filename, Fd))
+    Expected<sys::fs::file_t> FdOrErr = sys::fs::openNativeFileForRead(Filename);
+    if (!FdOrErr) {
+      // Report the ELF load error if YAML failed.
+      consumeError(FdOrErr.takeError());
       return std::move(E);
+    }
 
     uint64_t FileSize;
     if (sys::fs::file_size(Filename, FileSize))
@@ -229,7 +233,7 @@ llvm::xray::loadInstrumentationMap(StringRef Filename) {
     // From this point on the errors will be only for the YAML parts, so we
     // consume the errors at this point.
     consumeError(std::move(E));
-    if (auto E = loadYAML(Fd, FileSize, Filename, Map.Sleds,
+    if (auto E = loadYAML(*FdOrErr, FileSize, Filename, Map.Sleds,
                           Map.FunctionAddresses, Map.FunctionIds))
       return std::move(E);
   } else if (auto E = loadObj(Filename, *ObjectFileOrError, Map.Sleds,

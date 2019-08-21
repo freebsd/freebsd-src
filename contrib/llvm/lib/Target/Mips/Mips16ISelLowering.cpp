@@ -1,9 +1,8 @@
 //===-- Mips16ISelLowering.h - Mips16 DAG Lowering Interface ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -156,11 +155,8 @@ llvm::createMips16TargetLowering(const MipsTargetMachine &TM,
   return new Mips16TargetLowering(TM, STI);
 }
 
-bool
-Mips16TargetLowering::allowsMisalignedMemoryAccesses(EVT VT,
-                                                     unsigned,
-                                                     unsigned,
-                                                     bool *Fast) const {
+bool Mips16TargetLowering::allowsMisalignedMemoryAccesses(
+    EVT VT, unsigned, unsigned, MachineMemOperand::Flags, bool *Fast) const {
   return false;
 }
 
@@ -463,8 +459,7 @@ getOpndList(SmallVectorImpl<SDValue> &Ops,
         }
         // one more look at list of intrinsics
         const Mips16IntrinsicHelperType *Helper =
-            std::lower_bound(std::begin(Mips16IntrinsicHelper),
-                             std::end(Mips16IntrinsicHelper), IntrinsicFind);
+            llvm::lower_bound(Mips16IntrinsicHelper, IntrinsicFind);
         if (Helper != std::end(Mips16IntrinsicHelper) &&
             *Helper == IntrinsicFind) {
           Mips16HelperFunction = Helper->Helper;

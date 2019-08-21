@@ -1,9 +1,8 @@
 //===-- llvm/CodeGen/MachineBasicBlock.cpp ----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -133,8 +132,12 @@ void ilist_traits<MachineInstr>::transferNodesFromList(ilist_traits &FromList,
                                                        instr_iterator First,
                                                        instr_iterator Last) {
   assert(Parent->getParent() == FromList.Parent->getParent() &&
-        "MachineInstr parent mismatch!");
-  assert(this != &FromList && "Called without a real transfer...");
+         "cannot transfer MachineInstrs between MachineFunctions");
+
+  // If it's within the same BB, there's nothing to do.
+  if (this == &FromList)
+    return;
+
   assert(Parent != FromList.Parent && "Two lists have the same parent?");
 
   // If splicing between two blocks within the same function, just update the
@@ -995,7 +998,7 @@ MachineBasicBlock *MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ,
     while (!KilledRegs.empty()) {
       unsigned Reg = KilledRegs.pop_back_val();
       for (instr_iterator I = instr_end(), E = instr_begin(); I != E;) {
-        if (!(--I)->addRegisterKilled(Reg, TRI, /* addIfNotFound= */ false))
+        if (!(--I)->addRegisterKilled(Reg, TRI, /* AddIfNotFound= */ false))
           continue;
         if (TargetRegisterInfo::isVirtualRegister(Reg))
           LV->getVarInfo(Reg).Kills.push_back(&*I);

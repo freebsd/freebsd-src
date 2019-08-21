@@ -1,9 +1,8 @@
 //===- MipsConstantIslandPass.cpp - Emit Pc Relative loads ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -842,9 +841,7 @@ void MipsConstantIslands::updateForInsertedWaterBlock
 
   // Next, update WaterList.  Specifically, we need to add NewMBB as having
   // available water after it.
-  water_iterator IP =
-    std::lower_bound(WaterList.begin(), WaterList.end(), NewBB,
-                     CompareMBBNumbers);
+  water_iterator IP = llvm::lower_bound(WaterList, NewBB, CompareMBBNumbers);
   WaterList.insert(IP, NewBB);
 }
 
@@ -894,9 +891,7 @@ MipsConstantIslands::splitBlockBeforeInstr(MachineInstr &MI) {
   // available water after it (but not if it's already there, which happens
   // when splitting before a conditional branch that is followed by an
   // unconditional branch - in that case we want to insert NewBB).
-  water_iterator IP =
-    std::lower_bound(WaterList.begin(), WaterList.end(), OrigBB,
-                     CompareMBBNumbers);
+  water_iterator IP = llvm::lower_bound(WaterList, OrigBB, CompareMBBNumbers);
   MachineBasicBlock* WaterBB = *IP;
   if (WaterBB == OrigBB)
     WaterList.insert(std::next(IP), NewBB);

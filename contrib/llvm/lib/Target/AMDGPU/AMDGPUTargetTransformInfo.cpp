@@ -1,9 +1,8 @@
 //===- AMDGPUTargetTransformInfo.cpp - AMDGPU specific TTI pass -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -118,8 +117,10 @@ void AMDGPUTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
       // Add a small bonus for each of such "if" statements.
       if (const BranchInst *Br = dyn_cast<BranchInst>(&I)) {
         if (UP.Threshold < MaxBoost && Br->isConditional()) {
-          if (L->isLoopExiting(Br->getSuccessor(0)) ||
-              L->isLoopExiting(Br->getSuccessor(1)))
+          BasicBlock *Succ0 = Br->getSuccessor(0);
+          BasicBlock *Succ1 = Br->getSuccessor(1);
+          if ((L->contains(Succ0) && L->isLoopExiting(Succ0)) ||
+              (L->contains(Succ1) && L->isLoopExiting(Succ1)))
             continue;
           if (dependsOnLocalPhi(L, Br->getCondition())) {
             UP.Threshold += UnrollThresholdIf;
@@ -141,7 +142,7 @@ void AMDGPUTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
       unsigned Threshold = 0;
       if (AS == AMDGPUAS::PRIVATE_ADDRESS)
         Threshold = ThresholdPrivate;
-      else if (AS == AMDGPUAS::LOCAL_ADDRESS)
+      else if (AS == AMDGPUAS::LOCAL_ADDRESS || AS == AMDGPUAS::REGION_ADDRESS)
         Threshold = ThresholdLocal;
       else
         continue;
@@ -159,7 +160,8 @@ void AMDGPUTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
         unsigned AllocaSize = Ty->isSized() ? DL.getTypeAllocSize(Ty) : 0;
         if (AllocaSize > MaxAlloca)
           continue;
-      } else if (AS == AMDGPUAS::LOCAL_ADDRESS) {
+      } else if (AS == AMDGPUAS::LOCAL_ADDRESS ||
+                 AS == AMDGPUAS::REGION_ADDRESS) {
         LocalGEPsSeen++;
         // Inhibit unroll for local memory if we have seen addressing not to
         // a variable, most likely we will be unable to combine it.
@@ -254,7 +256,8 @@ unsigned GCNTTIImpl::getStoreVectorFactor(unsigned VF, unsigned StoreSize,
 unsigned GCNTTIImpl::getLoadStoreVecRegBitWidth(unsigned AddrSpace) const {
   if (AddrSpace == AMDGPUAS::GLOBAL_ADDRESS ||
       AddrSpace == AMDGPUAS::CONSTANT_ADDRESS ||
-      AddrSpace == AMDGPUAS::CONSTANT_ADDRESS_32BIT) {
+      AddrSpace == AMDGPUAS::CONSTANT_ADDRESS_32BIT ||
+      AddrSpace == AMDGPUAS::BUFFER_FAT_POINTER) {
     return 512;
   }
 
@@ -401,7 +404,7 @@ int GCNTTIImpl::getArithmeticInstrCost(
     if (SLT == MVT::f64) {
       int Cost = 4 * get64BitInstrCost() + 7 * getQuarterRateInstrCost();
       // Add cost of workaround.
-      if (ST->getGeneration() == AMDGPUSubtarget::SOUTHERN_ISLANDS)
+      if (!ST->hasUsableDivScaleConditionOutput())
         Cost += 3 * getFullRateInstrCost();
 
       return LT.first * Cost * NElts;
@@ -579,6 +582,8 @@ bool GCNTTIImpl::isAlwaysUniform(const Value *V) const {
       return false;
     case Intrinsic::amdgcn_readfirstlane:
     case Intrinsic::amdgcn_readlane:
+    case Intrinsic::amdgcn_icmp:
+    case Intrinsic::amdgcn_fcmp:
       return true;
     }
   }
@@ -609,7 +614,7 @@ unsigned GCNTTIImpl::getShuffleCost(TTI::ShuffleKind Kind, Type *Tp, int Index,
 }
 
 bool GCNTTIImpl::areInlineCompatible(const Function *Caller,
-                                        const Function *Callee) const {
+                                     const Function *Callee) const {
   const TargetMachine &TM = getTLI()->getTargetMachine();
   const FeatureBitset &CallerBits =
     TM.getSubtargetImpl(*Caller)->getFeatureBits();
@@ -618,7 +623,14 @@ bool GCNTTIImpl::areInlineCompatible(const Function *Caller,
 
   FeatureBitset RealCallerBits = CallerBits & ~InlineFeatureIgnoreList;
   FeatureBitset RealCalleeBits = CalleeBits & ~InlineFeatureIgnoreList;
-  return ((RealCallerBits & RealCalleeBits) == RealCalleeBits);
+  if ((RealCallerBits & RealCalleeBits) != RealCalleeBits)
+    return false;
+
+  // FIXME: dx10_clamp can just take the caller setting, but there seems to be
+  // no way to support merge for backend defined attributes.
+  AMDGPU::SIModeRegisterDefaults CallerMode(*Caller);
+  AMDGPU::SIModeRegisterDefaults CalleeMode(*Callee);
+  return CallerMode.isInlineCompatible(CalleeMode);
 }
 
 void GCNTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,

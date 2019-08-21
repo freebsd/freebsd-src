@@ -1,9 +1,8 @@
 //===- TailDuplicator.cpp - Duplicate blocks into predecessors' tails -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -435,7 +434,7 @@ void TailDuplicator::duplicateInstruction(
             if (NewRC == nullptr)
               NewRC = OrigRC;
             unsigned NewReg = MRI->createVirtualRegister(NewRC);
-            BuildMI(*PredBB, MI, MI->getDebugLoc(),
+            BuildMI(*PredBB, NewMI, NewMI.getDebugLoc(),
                     TII->get(TargetOpcode::COPY), NewReg)
                 .addReg(VI->second.Reg, 0, VI->second.SubReg);
             LocalVRMap.erase(VI);
@@ -558,7 +557,7 @@ bool TailDuplicator::shouldTailDuplicate(bool IsSimple,
   unsigned MaxDuplicateCount;
   if (TailDupSize == 0 &&
       TailDuplicateSize.getNumOccurrences() == 0 &&
-      MF->getFunction().optForSize())
+      MF->getFunction().hasOptSize())
     MaxDuplicateCount = 1;
   else if (TailDupSize == 0)
     MaxDuplicateCount = TailDuplicateSize;
@@ -856,11 +855,6 @@ bool TailDuplicator::tailDuplicate(bool IsSimple, MachineBasicBlock *TailBB,
       }
     }
     appendCopies(PredBB, CopyInfos, Copies);
-
-    // Simplify
-    MachineBasicBlock *PredTBB = nullptr, *PredFBB = nullptr;
-    SmallVector<MachineOperand, 4> PredCond;
-    TII->analyzeBranch(*PredBB, PredTBB, PredFBB, PredCond);
 
     NumTailDupAdded += TailBB->size() - 1; // subtract one for removed branch
 

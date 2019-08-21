@@ -1,9 +1,8 @@
 //===- llvm/ADT/STLExtras.h - Useful STL related functions ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -239,6 +238,13 @@ private:
 template <class ItTy, class FuncTy>
 inline mapped_iterator<ItTy, FuncTy> map_iterator(ItTy I, FuncTy F) {
   return mapped_iterator<ItTy, FuncTy>(std::move(I), std::move(F));
+}
+
+template <class ContainerTy, class FuncTy>
+auto map_range(ContainerTy &&C, FuncTy F)
+    -> decltype(make_range(map_iterator(C.begin(), F),
+                           map_iterator(C.end(), F))) {
+  return make_range(map_iterator(C.begin(), F), map_iterator(C.end(), F));
 }
 
 /// Helper to determine if type T has a member called rbegin().
@@ -1278,29 +1284,52 @@ auto partition(R &&Range, UnaryPredicate P) -> decltype(adl_begin(Range)) {
 
 /// Provide wrappers to std::lower_bound which take ranges instead of having to
 /// pass begin/end explicitly.
-template <typename R, typename ForwardIt>
-auto lower_bound(R &&Range, ForwardIt I) -> decltype(adl_begin(Range)) {
-  return std::lower_bound(adl_begin(Range), adl_end(Range), I);
+template <typename R, typename T>
+auto lower_bound(R &&Range, T &&Value) -> decltype(adl_begin(Range)) {
+  return std::lower_bound(adl_begin(Range), adl_end(Range),
+                          std::forward<T>(Value));
 }
 
-template <typename R, typename ForwardIt, typename Compare>
-auto lower_bound(R &&Range, ForwardIt I, Compare C)
+template <typename R, typename T, typename Compare>
+auto lower_bound(R &&Range, T &&Value, Compare C)
     -> decltype(adl_begin(Range)) {
-  return std::lower_bound(adl_begin(Range), adl_end(Range), I, C);
+  return std::lower_bound(adl_begin(Range), adl_end(Range),
+                          std::forward<T>(Value), C);
 }
 
 /// Provide wrappers to std::upper_bound which take ranges instead of having to
 /// pass begin/end explicitly.
-template <typename R, typename ForwardIt>
-auto upper_bound(R &&Range, ForwardIt I) -> decltype(adl_begin(Range)) {
-  return std::upper_bound(adl_begin(Range), adl_end(Range), I);
+template <typename R, typename T>
+auto upper_bound(R &&Range, T &&Value) -> decltype(adl_begin(Range)) {
+  return std::upper_bound(adl_begin(Range), adl_end(Range),
+                          std::forward<T>(Value));
 }
 
-template <typename R, typename ForwardIt, typename Compare>
-auto upper_bound(R &&Range, ForwardIt I, Compare C)
+template <typename R, typename T, typename Compare>
+auto upper_bound(R &&Range, T &&Value, Compare C)
     -> decltype(adl_begin(Range)) {
-  return std::upper_bound(adl_begin(Range), adl_end(Range), I, C);
+  return std::upper_bound(adl_begin(Range), adl_end(Range),
+                          std::forward<T>(Value), C);
 }
+
+template <typename R>
+void stable_sort(R &&Range) {
+  std::stable_sort(adl_begin(Range), adl_end(Range));
+}
+
+template <typename R, typename Compare>
+void stable_sort(R &&Range, Compare C) {
+  std::stable_sort(adl_begin(Range), adl_end(Range), C);
+}
+
+/// Binary search for the first iterator in a range where a predicate is false.
+/// Requires that C is always true below some limit, and always false above it.
+template <typename R, typename Predicate,
+          typename Val = decltype(*adl_begin(std::declval<R>()))>
+auto partition_point(R &&Range, Predicate P) -> decltype(adl_begin(Range)) {
+  return std::partition_point(adl_begin(Range), adl_end(Range), P);
+}
+
 /// Wrapper function around std::equal to detect if all elements
 /// in a container are same.
 template <typename R>
@@ -1329,6 +1358,33 @@ to_vector(R &&Range) {
 template <typename Container, typename UnaryPredicate>
 void erase_if(Container &C, UnaryPredicate P) {
   C.erase(remove_if(C, P), C.end());
+}
+
+/// Given a sequence container Cont, replace the range [ContIt, ContEnd) with
+/// the range [ValIt, ValEnd) (which is not from the same container).
+template<typename Container, typename RandomAccessIterator>
+void replace(Container &Cont, typename Container::iterator ContIt,
+             typename Container::iterator ContEnd, RandomAccessIterator ValIt,
+             RandomAccessIterator ValEnd) {
+  while (true) {
+    if (ValIt == ValEnd) {
+      Cont.erase(ContIt, ContEnd);
+      return;
+    } else if (ContIt == ContEnd) {
+      Cont.insert(ContIt, ValIt, ValEnd);
+      return;
+    }
+    *ContIt++ = *ValIt++;
+  }
+}
+
+/// Given a sequence container Cont, replace the range [ContIt, ContEnd) with
+/// the range R.
+template<typename Container, typename Range = std::initializer_list<
+                                 typename Container::value_type>>
+void replace(Container &Cont, typename Container::iterator ContIt,
+             typename Container::iterator ContEnd, Range R) {
+  replace(Cont, ContIt, ContEnd, R.begin(), R.end());
 }
 
 //===----------------------------------------------------------------------===//
@@ -1418,6 +1474,9 @@ namespace detail {
 template <typename R> class enumerator_iter;
 
 template <typename R> struct result_pair {
+  using value_reference =
+      typename std::iterator_traits<IterOfRange<R>>::reference;
+
   friend class enumerator_iter<R>;
 
   result_pair() = default;
@@ -1431,8 +1490,8 @@ template <typename R> struct result_pair {
   }
 
   std::size_t index() const { return Index; }
-  const ValueOfRange<R> &value() const { return *Iter; }
-  ValueOfRange<R> &value() { return *Iter; }
+  const value_reference value() const { return *Iter; }
+  value_reference value() { return *Iter; }
 
 private:
   std::size_t Index = std::numeric_limits<std::size_t>::max();
@@ -1576,6 +1635,19 @@ bool hasNItemsOrMore(
       return false; // Too few.
   return true;
 }
+
+/// Returns a raw pointer that represents the same address as the argument.
+///
+/// The late bound return should be removed once we move to C++14 to better
+/// align with the C++20 declaration. Also, this implementation can be removed
+/// once we move to C++20 where it's defined as std::to_addres()
+///
+/// The std::pointer_traits<>::to_address(p) variations of these overloads has
+/// not been implemented.
+template <class Ptr> auto to_address(const Ptr &P) -> decltype(P.operator->()) {
+  return P.operator->();
+}
+template <class T> constexpr T *to_address(T *P) { return P; }
 
 } // end namespace llvm
 
