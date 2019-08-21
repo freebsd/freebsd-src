@@ -1478,7 +1478,6 @@ static t_Error CalcWredCurve(t_QmCgWredCurve *p_WredCurve, uint32_t  *p_CurveWor
         }
     sa = sa/pres;
     ASSERT_COND(sa<128 && sa>=64);
-    sn = sn;
     ASSERT_COND(sn<64 && sn>=7);
 
     *p_CurveWord = ((ma << 24) |
