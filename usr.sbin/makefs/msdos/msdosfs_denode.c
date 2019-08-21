@@ -59,17 +59,17 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <util.h>
 
+#include "ffs/buf.h"
+
 #include <fs/msdosfs/bpb.h>
-#include "msdos/denode.h"
-#include "msdos/msdosfsmount.h"
+#include <fs/msdosfs/direntry.h>
+#include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
+#include "msdos/msdosfsmount.h"
 
 #include "makefs.h"
 #include "msdos.h"
 
-#include "ffs/buf.h"
-
-#include "msdos/direntry.h"
 
 /*
  * If deget() succeeds it returns with the gotten denode locked().
@@ -208,7 +208,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
  * Truncate the file described by dep to the length specified by length.
  */
 int
-detrunc(struct denode *dep, u_long length, int flags)
+detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 {
 	int error;
 	int allerror;
@@ -240,7 +240,7 @@ detrunc(struct denode *dep, u_long length, int flags)
 	}
 
 	if (dep->de_FileSize < length)
-		return deextend(dep, length);
+		return deextend(dep, length, cred);
 
 	/*
 	 * If the desired length is 0 then remember the starting cluster of
@@ -333,7 +333,7 @@ detrunc(struct denode *dep, u_long length, int flags)
  * Extend the file described by dep to length specified by length.
  */
 int
-deextend(struct denode *dep, u_long length)
+deextend(struct denode *dep, u_long length, struct ucred *cred)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
 	u_long count;
@@ -364,7 +364,7 @@ deextend(struct denode *dep, u_long length)
 		error = extendfile(dep, count, NULL, NULL, DE_CLEAR);
 		if (error) {
 			/* truncate the added clusters away again */
-			(void) detrunc(dep, dep->de_FileSize, 0);
+			(void) detrunc(dep, dep->de_FileSize, 0, cred);
 			return (error);
 		}
 	}
