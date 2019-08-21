@@ -9,6 +9,7 @@ SRCS =	nvme.c			\
 	nvme_ctrlr_cmd.c	\
 	nvme_ns.c		\
 	nvme_ns_cmd.c		\
+	nvme_pci.c		\
 	nvme_qpair.c		\
 	nvme_sim.c		\
 	nvme_sysctl.c		\

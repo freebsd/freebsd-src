@@ -37,6 +37,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
@@ -121,6 +122,8 @@ struct nvme_completion_poll_status {
 	struct nvme_completion	cpl;
 	int			done;
 };
+
+extern devclass_t nvme_devclass;
 
 #define NVME_REQUEST_VADDR	1
 #define NVME_REQUEST_NULL	2 /* For requests with no payload. */
@@ -438,6 +441,10 @@ void	nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr);
 
 void	nvme_dump_command(struct nvme_command *cmd);
 void	nvme_dump_completion(struct nvme_completion *cpl);
+
+int	nvme_attach(device_t dev);
+int	nvme_shutdown(device_t dev);
+int	nvme_detach(device_t dev);
 
 static __inline void
 nvme_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
