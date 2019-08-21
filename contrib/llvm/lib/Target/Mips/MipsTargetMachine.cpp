@@ -1,9 +1,8 @@
 //===-- MipsTargetMachine.cpp - Define TargetMachine for Mips -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,6 +18,7 @@
 #include "MipsSEISelDAGToDAG.h"
 #include "MipsSubtarget.h"
 #include "MipsTargetObjectFile.h"
+#include "TargetInfo/MipsTargetInfo.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
@@ -205,8 +205,7 @@ MipsTargetMachine::getSubtargetImpl(const Function &F) const {
 void MipsTargetMachine::resetSubtarget(MachineFunction *MF) {
   LLVM_DEBUG(dbgs() << "resetSubtarget\n");
 
-  Subtarget = const_cast<MipsSubtarget *>(getSubtargetImpl(MF->getFunction()));
-  MF->setSubtarget(Subtarget);
+  Subtarget = &MF->getSubtarget<MipsSubtarget>();
 }
 
 namespace {
@@ -240,12 +239,18 @@ public:
   bool addLegalizeMachineIR() override;
   bool addRegBankSelect() override;
   bool addGlobalInstructionSelect() override;
+
+  std::unique_ptr<CSEConfigBase> getCSEConfig() const override;
 };
 
 } // end anonymous namespace
 
 TargetPassConfig *MipsTargetMachine::createPassConfig(PassManagerBase &PM) {
   return new MipsPassConfig(*this, PM);
+}
+
+std::unique_ptr<CSEConfigBase> MipsPassConfig::getCSEConfig() const {
+  return getStandardCSEConfigForOpt(TM->getOptLevel());
 }
 
 void MipsPassConfig::addIRPasses() {

@@ -1,17 +1,17 @@
 //===- llvm-objcopy.cpp ---------------------------------------------------===//
 //
-//                      The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm-objcopy.h"
 #include "Buffer.h"
-#include "COFF/COFFObjcopy.h"
 #include "CopyConfig.h"
 #include "ELF/ELFObjcopy.h"
+#include "COFF/COFFObjcopy.h"
+#include "MachO/MachOObjcopy.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
@@ -24,6 +24,7 @@
 #include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/ELFTypes.h"
 #include "llvm/Object/Error.h"
+#include "llvm/Object/MachO.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/Option.h"
@@ -52,16 +53,23 @@ namespace objcopy {
 StringRef ToolName;
 
 LLVM_ATTRIBUTE_NORETURN void error(Twine Message) {
-  WithColor::error(errs(), ToolName) << Message << ".\n";
-  errs().flush();
+  WithColor::error(errs(), ToolName) << Message << "\n";
+  exit(1);
+}
+
+LLVM_ATTRIBUTE_NORETURN void error(Error E) {
+  assert(E);
+  std::string Buf;
+  raw_string_ostream OS(Buf);
+  logAllUnhandledErrors(std::move(E), OS);
+  OS.flush();
+  WithColor::error(errs(), ToolName) << Buf;
   exit(1);
 }
 
 LLVM_ATTRIBUTE_NORETURN void reportError(StringRef File, std::error_code EC) {
   assert(EC);
-  WithColor::error(errs(), ToolName)
-      << "'" << File << "': " << EC.message() << ".\n";
-  exit(1);
+  error(createFileError(File, EC));
 }
 
 LLVM_ATTRIBUTE_NORETURN void reportError(StringRef File, Error E) {
@@ -72,6 +80,12 @@ LLVM_ATTRIBUTE_NORETURN void reportError(StringRef File, Error E) {
   OS.flush();
   WithColor::error(errs(), ToolName) << "'" << File << "': " << Buf;
   exit(1);
+}
+
+ErrorSuccess reportWarning(Error E) {
+  assert(E);
+  WithColor::warning(errs(), ToolName) << toString(std::move(E));
+  return Error::success();
 }
 
 } // end namespace objcopy
@@ -87,10 +101,13 @@ static Error deepWriteArchive(StringRef ArcName,
                               ArrayRef<NewArchiveMember> NewMembers,
                               bool WriteSymtab, object::Archive::Kind Kind,
                               bool Deterministic, bool Thin) {
-  Error E =
-      writeArchive(ArcName, NewMembers, WriteSymtab, Kind, Deterministic, Thin);
-  if (!Thin || E)
-    return E;
+  if (Error E = writeArchive(ArcName, NewMembers, WriteSymtab, Kind,
+                             Deterministic, Thin))
+    return createFileError(ArcName, std::move(E));
+
+  if (!Thin)
+    return Error::success();
+
   for (const NewArchiveMember &Member : NewMembers) {
     // Internally, FileBuffer will use the buffer created by
     // FileOutputBuffer::create, for regular files (that is the case for
@@ -101,132 +118,212 @@ static Error deepWriteArchive(StringRef ArcName,
     // NewArchiveMember still requires them even though writeArchive does not
     // write them on disk.
     FileBuffer FB(Member.MemberName);
-    FB.allocate(Member.Buf->getBufferSize());
+    if (Error E = FB.allocate(Member.Buf->getBufferSize()))
+      return E;
     std::copy(Member.Buf->getBufferStart(), Member.Buf->getBufferEnd(),
               FB.getBufferStart());
-    if (auto E = FB.commit())
+    if (Error E = FB.commit())
       return E;
   }
   return Error::success();
 }
 
+/// The function executeObjcopyOnIHex does the dispatch based on the format
+/// of the output specified by the command line options.
+static Error executeObjcopyOnIHex(const CopyConfig &Config, MemoryBuffer &In,
+                                  Buffer &Out) {
+  // TODO: support output formats other than ELF.
+  return elf::executeObjcopyOnIHex(Config, In, Out);
+}
+
 /// The function executeObjcopyOnRawBinary does the dispatch based on the format
 /// of the output specified by the command line options.
-static void executeObjcopyOnRawBinary(const CopyConfig &Config,
-                                      MemoryBuffer &In, Buffer &Out) {
-  // TODO: llvm-objcopy should parse CopyConfig.OutputFormat to recognize
-  // formats other than ELF / "binary" and invoke
-  // elf::executeObjcopyOnRawBinary, macho::executeObjcopyOnRawBinary or
-  // coff::executeObjcopyOnRawBinary accordingly.
-  return elf::executeObjcopyOnRawBinary(Config, In, Out);
+static Error executeObjcopyOnRawBinary(const CopyConfig &Config,
+                                       MemoryBuffer &In, Buffer &Out) {
+  switch (Config.OutputFormat) {
+  case FileFormat::ELF:
+  // FIXME: Currently, we call elf::executeObjcopyOnRawBinary even if the
+  // output format is binary/ihex or it's not given. This behavior differs from
+  // GNU objcopy. See https://bugs.llvm.org/show_bug.cgi?id=42171 for details.
+  case FileFormat::Binary:
+  case FileFormat::IHex:
+  case FileFormat::Unspecified:
+    return elf::executeObjcopyOnRawBinary(Config, In, Out);
+  }
+
+  llvm_unreachable("unsupported output format");
 }
 
 /// The function executeObjcopyOnBinary does the dispatch based on the format
 /// of the input binary (ELF, MachO or COFF).
-static void executeObjcopyOnBinary(const CopyConfig &Config, object::Binary &In,
-                                   Buffer &Out) {
+static Error executeObjcopyOnBinary(const CopyConfig &Config,
+                                    object::Binary &In, Buffer &Out) {
   if (auto *ELFBinary = dyn_cast<object::ELFObjectFileBase>(&In))
     return elf::executeObjcopyOnBinary(Config, *ELFBinary, Out);
   else if (auto *COFFBinary = dyn_cast<object::COFFObjectFile>(&In))
     return coff::executeObjcopyOnBinary(Config, *COFFBinary, Out);
+  else if (auto *MachOBinary = dyn_cast<object::MachOObjectFile>(&In))
+    return macho::executeObjcopyOnBinary(Config, *MachOBinary, Out);
   else
-    error("Unsupported object file format");
+    return createStringError(object_error::invalid_file_type,
+                             "unsupported object file format");
 }
 
-static void executeObjcopyOnArchive(const CopyConfig &Config,
-                                    const Archive &Ar) {
+static Error executeObjcopyOnArchive(const CopyConfig &Config,
+                                     const Archive &Ar) {
   std::vector<NewArchiveMember> NewArchiveMembers;
   Error Err = Error::success();
   for (const Archive::Child &Child : Ar.children(Err)) {
-    Expected<std::unique_ptr<Binary>> ChildOrErr = Child.getAsBinary();
-    if (!ChildOrErr)
-      reportError(Ar.getFileName(), ChildOrErr.takeError());
-    Binary *Bin = ChildOrErr->get();
-
     Expected<StringRef> ChildNameOrErr = Child.getName();
     if (!ChildNameOrErr)
-      reportError(Ar.getFileName(), ChildNameOrErr.takeError());
+      return createFileError(Ar.getFileName(), ChildNameOrErr.takeError());
+
+    Expected<std::unique_ptr<Binary>> ChildOrErr = Child.getAsBinary();
+    if (!ChildOrErr)
+      return createFileError(Ar.getFileName() + "(" + *ChildNameOrErr + ")",
+                             ChildOrErr.takeError());
 
     MemBuffer MB(ChildNameOrErr.get());
-    executeObjcopyOnBinary(Config, *Bin, MB);
+    if (Error E = executeObjcopyOnBinary(Config, *ChildOrErr->get(), MB))
+      return E;
 
     Expected<NewArchiveMember> Member =
         NewArchiveMember::getOldMember(Child, Config.DeterministicArchives);
     if (!Member)
-      reportError(Ar.getFileName(), Member.takeError());
+      return createFileError(Ar.getFileName(), Member.takeError());
     Member->Buf = MB.releaseMemoryBuffer();
     Member->MemberName = Member->Buf->getBufferIdentifier();
     NewArchiveMembers.push_back(std::move(*Member));
   }
-
   if (Err)
-    reportError(Config.InputFilename, std::move(Err));
-  if (Error E = deepWriteArchive(Config.OutputFilename, NewArchiveMembers,
-                                 Ar.hasSymbolTable(), Ar.kind(),
-                                 Config.DeterministicArchives, Ar.isThin()))
-    reportError(Config.OutputFilename, std::move(E));
+    return createFileError(Config.InputFilename, std::move(Err));
+
+  return deepWriteArchive(Config.OutputFilename, NewArchiveMembers,
+                          Ar.hasSymbolTable(), Ar.kind(),
+                          Config.DeterministicArchives, Ar.isThin());
 }
 
-static void restoreDateOnFile(StringRef Filename,
-                              const sys::fs::file_status &Stat) {
+static Error restoreStatOnFile(StringRef Filename,
+                               const sys::fs::file_status &Stat,
+                               bool PreserveDates) {
   int FD;
+
+  // Writing to stdout should not be treated as an error here, just
+  // do not set access/modification times or permissions.
+  if (Filename == "-")
+    return Error::success();
 
   if (auto EC =
           sys::fs::openFileForWrite(Filename, FD, sys::fs::CD_OpenExisting))
-    reportError(Filename, EC);
+    return createFileError(Filename, EC);
 
-  if (auto EC = sys::fs::setLastAccessAndModificationTime(
-          FD, Stat.getLastAccessedTime(), Stat.getLastModificationTime()))
-    reportError(Filename, EC);
+  if (PreserveDates)
+    if (auto EC = sys::fs::setLastAccessAndModificationTime(
+            FD, Stat.getLastAccessedTime(), Stat.getLastModificationTime()))
+      return createFileError(Filename, EC);
+
+  sys::fs::file_status OStat;
+  if (std::error_code EC = sys::fs::status(FD, OStat))
+    return createFileError(Filename, EC);
+  if (OStat.type() == sys::fs::file_type::regular_file)
+#ifdef _WIN32
+    if (auto EC = sys::fs::setPermissions(
+            Filename, static_cast<sys::fs::perms>(Stat.permissions() &
+                                                  ~sys::fs::getUmask())))
+#else
+    if (auto EC = sys::fs::setPermissions(
+            FD, static_cast<sys::fs::perms>(Stat.permissions() &
+                                            ~sys::fs::getUmask())))
+#endif
+      return createFileError(Filename, EC);
 
   if (auto EC = sys::Process::SafelyCloseFileDescriptor(FD))
-    reportError(Filename, EC);
+    return createFileError(Filename, EC);
+
+  return Error::success();
 }
 
 /// The function executeObjcopy does the higher level dispatch based on the type
 /// of input (raw binary, archive or single object file) and takes care of the
 /// format-agnostic modifications, i.e. preserving dates.
-static void executeObjcopy(const CopyConfig &Config) {
+static Error executeObjcopy(const CopyConfig &Config) {
   sys::fs::file_status Stat;
-  if (Config.PreserveDates)
+  if (Config.InputFilename != "-") {
     if (auto EC = sys::fs::status(Config.InputFilename, Stat))
-      reportError(Config.InputFilename, EC);
+      return createFileError(Config.InputFilename, EC);
+  } else {
+    Stat.permissions(static_cast<sys::fs::perms>(0777));
+  }
 
-  if (Config.InputFormat == "binary") {
-    auto BufOrErr = MemoryBuffer::getFile(Config.InputFilename);
+  typedef Error (*ProcessRawFn)(const CopyConfig &, MemoryBuffer &, Buffer &);
+  ProcessRawFn ProcessRaw;
+  switch (Config.InputFormat) {
+  case FileFormat::Binary:
+    ProcessRaw = executeObjcopyOnRawBinary;
+    break;
+  case FileFormat::IHex:
+    ProcessRaw = executeObjcopyOnIHex;
+    break;
+  default:
+    ProcessRaw = nullptr;
+  }
+
+  if (ProcessRaw) {
+    auto BufOrErr = MemoryBuffer::getFileOrSTDIN(Config.InputFilename);
     if (!BufOrErr)
-      reportError(Config.InputFilename, BufOrErr.getError());
+      return createFileError(Config.InputFilename, BufOrErr.getError());
     FileBuffer FB(Config.OutputFilename);
-    executeObjcopyOnRawBinary(Config, *BufOrErr->get(), FB);
+    if (Error E = ProcessRaw(Config, *BufOrErr->get(), FB))
+      return E;
   } else {
     Expected<OwningBinary<llvm::object::Binary>> BinaryOrErr =
         createBinary(Config.InputFilename);
     if (!BinaryOrErr)
-      reportError(Config.InputFilename, BinaryOrErr.takeError());
+      return createFileError(Config.InputFilename, BinaryOrErr.takeError());
 
     if (Archive *Ar = dyn_cast<Archive>(BinaryOrErr.get().getBinary())) {
-      executeObjcopyOnArchive(Config, *Ar);
+      if (Error E = executeObjcopyOnArchive(Config, *Ar))
+        return E;
     } else {
       FileBuffer FB(Config.OutputFilename);
-      executeObjcopyOnBinary(Config, *BinaryOrErr.get().getBinary(), FB);
+      if (Error E = executeObjcopyOnBinary(Config,
+                                           *BinaryOrErr.get().getBinary(), FB))
+        return E;
     }
   }
 
-  if (Config.PreserveDates) {
-    restoreDateOnFile(Config.OutputFilename, Stat);
-    if (!Config.SplitDWO.empty())
-      restoreDateOnFile(Config.SplitDWO, Stat);
+  if (Error E =
+          restoreStatOnFile(Config.OutputFilename, Stat, Config.PreserveDates))
+    return E;
+
+  if (!Config.SplitDWO.empty()) {
+    Stat.permissions(static_cast<sys::fs::perms>(0666));
+    if (Error E =
+            restoreStatOnFile(Config.SplitDWO, Stat, Config.PreserveDates))
+      return E;
   }
+
+  return Error::success();
 }
 
 int main(int argc, char **argv) {
   InitLLVM X(argc, argv);
   ToolName = argv[0];
-  DriverConfig DriverConfig;
-  if (sys::path::stem(ToolName).contains("strip"))
-    DriverConfig = parseStripOptions(makeArrayRef(argv + 1, argc));
-  else
-    DriverConfig = parseObjcopyOptions(makeArrayRef(argv + 1, argc));
-  for (const CopyConfig &CopyConfig : DriverConfig.CopyConfigs)
-    executeObjcopy(CopyConfig);
+  bool IsStrip = sys::path::stem(ToolName).contains("strip");
+  Expected<DriverConfig> DriverConfig =
+      IsStrip ? parseStripOptions(makeArrayRef(argv + 1, argc), reportWarning)
+              : parseObjcopyOptions(makeArrayRef(argv + 1, argc));
+  if (!DriverConfig) {
+    logAllUnhandledErrors(DriverConfig.takeError(),
+                          WithColor::error(errs(), ToolName));
+    return 1;
+  }
+  for (const CopyConfig &CopyConfig : DriverConfig->CopyConfigs) {
+    if (Error E = executeObjcopy(CopyConfig)) {
+      logAllUnhandledErrors(std::move(E), WithColor::error(errs(), ToolName));
+      return 1;
+    }
+  }
+
+  return 0;
 }

@@ -1,9 +1,8 @@
 //===--------------------- Pipeline.cpp -------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -64,9 +63,10 @@ Error Pipeline::runCycle() {
     Err = FirstStage.execute(IR);
 
   // Update stages in preparation for a new cycle.
-  for (auto I = Stages.rbegin(), E = Stages.rend(); I != E && !Err; ++I) {
-    const std::unique_ptr<Stage> &S = *I;
+  for (const std::unique_ptr<Stage> &S : Stages) {
     Err = S->cycleEnd();
+    if (Err)
+      break;
   }
 
   return Err;

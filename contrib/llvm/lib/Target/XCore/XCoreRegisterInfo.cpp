@@ -1,9 +1,8 @@
 //===-- XCoreRegisterInfo.cpp - XCore Register Information ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -284,7 +283,7 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   Offset += StackSize;
 
-  unsigned FrameReg = getFrameRegister(MF);
+  Register FrameReg = getFrameRegister(MF);
 
   // Special handling of DBG_VALUE instructions.
   if (MI.isDebugValue()) {
@@ -322,7 +321,7 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 }
 
 
-unsigned XCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+Register XCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const XCoreFrameLowering *TFI = getFrameLowering(MF);
 
   return TFI->hasFP(MF) ? XCore::R10 : XCore::SP;

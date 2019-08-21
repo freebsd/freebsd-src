@@ -1,9 +1,8 @@
 //===- ArgList.h - Argument List Management ---------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -302,10 +301,12 @@ public:
   bool hasFlag(OptSpecifier Pos, OptSpecifier PosAlias, OptSpecifier Neg,
                bool Default = true) const;
 
-  /// AddLastArg - Render only the last argument match \p Id0, if present.
-  void AddLastArg(ArgStringList &Output, OptSpecifier Id0) const;
-  void AddLastArg(ArgStringList &Output, OptSpecifier Id0,
-                  OptSpecifier Id1) const;
+  /// Render only the last argument match \p Id0, if present.
+  template<typename ...OptSpecifiers>
+  void AddLastArg(ArgStringList &Output, OptSpecifiers ...Ids) const {
+    if (Arg *A = getLastArg(Ids...)) // Calls claim() on all Ids's Args.
+      A->render(*this, Output);
+  }
 
   /// AddAllArgsExcept - Render all arguments matching any of the given ids
   /// and not matching any of the excluded ids.

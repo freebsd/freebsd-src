@@ -1,9 +1,8 @@
 //===-- WebAssemblyFixFunctionBitcasts.cpp - Fix function bitcasts --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -65,12 +64,12 @@ ModulePass *llvm::createWebAssemblyFixFunctionBitcasts() {
 
 // Recursively descend the def-use lists from V to find non-bitcast users of
 // bitcasts of V.
-static void FindUses(Value *V, Function &F,
+static void findUses(Value *V, Function &F,
                      SmallVectorImpl<std::pair<Use *, Function *>> &Uses,
                      SmallPtrSetImpl<Constant *> &ConstantBCs) {
   for (Use &U : V->uses()) {
-    if (BitCastOperator *BC = dyn_cast<BitCastOperator>(U.getUser()))
-      FindUses(BC, F, Uses, ConstantBCs);
+    if (auto *BC = dyn_cast<BitCastOperator>(U.getUser()))
+      findUses(BC, F, Uses, ConstantBCs);
     else if (U.get()->getType() != F.getType()) {
       CallSite CS(U.getUser());
       if (!CS)
@@ -82,8 +81,8 @@ static void FindUses(Value *V, Function &F,
         continue;
       if (isa<Constant>(U.get())) {
         // Only add constant bitcasts to the list once; they get RAUW'd
-        auto c = ConstantBCs.insert(cast<Constant>(U.get()));
-        if (!c.second)
+        auto C = ConstantBCs.insert(cast<Constant>(U.get()));
+        if (!C.second)
           continue;
       }
       Uses.push_back(std::make_pair(&U, &F));
@@ -114,7 +113,7 @@ static void FindUses(Value *V, Function &F,
 // For bitcasts that involve struct types we don't know at this stage if they
 // would be equivalent at the wasm level and so we can't know if we need to
 // generate a wrapper.
-static Function *CreateWrapper(Function *F, FunctionType *Ty) {
+static Function *createWrapper(Function *F, FunctionType *Ty) {
   Module *M = F->getParent();
 
   Function *Wrapper = Function::Create(Ty, Function::PrivateLinkage,
@@ -152,11 +151,11 @@ static Function *CreateWrapper(Function *F, FunctionType *Ty) {
         BB->getInstList().push_back(PtrCast);
         Args.push_back(PtrCast);
       } else if (ArgType->isStructTy() || ParamType->isStructTy()) {
-        LLVM_DEBUG(dbgs() << "CreateWrapper: struct param type in bitcast: "
+        LLVM_DEBUG(dbgs() << "createWrapper: struct param type in bitcast: "
                           << F->getName() << "\n");
         WrapperNeeded = false;
       } else {
-        LLVM_DEBUG(dbgs() << "CreateWrapper: arg type mismatch calling: "
+        LLVM_DEBUG(dbgs() << "createWrapper: arg type mismatch calling: "
                           << F->getName() << "\n");
         LLVM_DEBUG(dbgs() << "Arg[" << Args.size() << "] Expected: "
                           << *ParamType << " Got: " << *ArgType << "\n");
@@ -192,11 +191,11 @@ static Function *CreateWrapper(Function *F, FunctionType *Ty) {
       BB->getInstList().push_back(Cast);
       ReturnInst::Create(M->getContext(), Cast, BB);
     } else if (RtnType->isStructTy() || ExpectedRtnType->isStructTy()) {
-      LLVM_DEBUG(dbgs() << "CreateWrapper: struct return type in bitcast: "
+      LLVM_DEBUG(dbgs() << "createWrapper: struct return type in bitcast: "
                         << F->getName() << "\n");
       WrapperNeeded = false;
     } else {
-      LLVM_DEBUG(dbgs() << "CreateWrapper: return type mismatch calling: "
+      LLVM_DEBUG(dbgs() << "createWrapper: return type mismatch calling: "
                         << F->getName() << "\n");
       LLVM_DEBUG(dbgs() << "Expected: " << *ExpectedRtnType
                         << " Got: " << *RtnType << "\n");
@@ -213,18 +212,18 @@ static Function *CreateWrapper(Function *F, FunctionType *Ty) {
     new UnreachableInst(M->getContext(), BB);
     Wrapper->setName(F->getName() + "_bitcast_invalid");
   } else if (!WrapperNeeded) {
-    LLVM_DEBUG(dbgs() << "CreateWrapper: no wrapper needed: " << F->getName()
+    LLVM_DEBUG(dbgs() << "createWrapper: no wrapper needed: " << F->getName()
                       << "\n");
     Wrapper->eraseFromParent();
     return nullptr;
   }
-  LLVM_DEBUG(dbgs() << "CreateWrapper: " << F->getName() << "\n");
+  LLVM_DEBUG(dbgs() << "createWrapper: " << F->getName() << "\n");
   return Wrapper;
 }
 
 // Test whether a main function with type FuncTy should be rewritten to have
 // type MainTy.
-bool shouldFixMainFunction(FunctionType *FuncTy, FunctionType *MainTy) {
+static bool shouldFixMainFunction(FunctionType *FuncTy, FunctionType *MainTy) {
   // Only fix the main function if it's the standard zero-arg form. That way,
   // the standard cases will work as expected, and users will see signature
   // mismatches from the linker for non-standard cases.
@@ -243,7 +242,7 @@ bool FixFunctionBitcasts::runOnModule(Module &M) {
 
   // Collect all the places that need wrappers.
   for (Function &F : M) {
-    FindUses(&F, F, Uses, ConstantBCs);
+    findUses(&F, F, Uses, ConstantBCs);
 
     // If we have a "main" function, and its type isn't
     // "int main(int argc, char *argv[])", create an artificial call with it
@@ -263,7 +262,7 @@ bool FixFunctionBitcasts::runOnModule(Module &M) {
                          UndefValue::get(MainArgTys[1])};
         Value *Casted =
             ConstantExpr::getBitCast(Main, PointerType::get(MainTy, 0));
-        CallMain = CallInst::Create(Casted, Args, "call_main");
+        CallMain = CallInst::Create(MainTy, Casted, Args, "call_main");
         Use *UseMain = &CallMain->getOperandUse(2);
         Uses.push_back(std::make_pair(UseMain, &F));
       }
@@ -275,8 +274,8 @@ bool FixFunctionBitcasts::runOnModule(Module &M) {
   for (auto &UseFunc : Uses) {
     Use *U = UseFunc.first;
     Function *F = UseFunc.second;
-    PointerType *PTy = cast<PointerType>(U->get()->getType());
-    FunctionType *Ty = dyn_cast<FunctionType>(PTy->getElementType());
+    auto *PTy = cast<PointerType>(U->get()->getType());
+    auto *Ty = dyn_cast<FunctionType>(PTy->getElementType());
 
     // If the function is casted to something like i8* as a "generic pointer"
     // to be later casted to something else, we can't generate a wrapper for it.
@@ -286,7 +285,7 @@ bool FixFunctionBitcasts::runOnModule(Module &M) {
 
     auto Pair = Wrappers.insert(std::make_pair(std::make_pair(F, Ty), nullptr));
     if (Pair.second)
-      Pair.first->second = CreateWrapper(F, Ty);
+      Pair.first->second = createWrapper(F, Ty);
 
     Function *Wrapper = Pair.first->second;
     if (!Wrapper)
@@ -302,7 +301,7 @@ bool FixFunctionBitcasts::runOnModule(Module &M) {
   // one that gets called from startup.
   if (CallMain) {
     Main->setName("__original_main");
-    Function *MainWrapper =
+    auto *MainWrapper =
         cast<Function>(CallMain->getCalledValue()->stripPointerCasts());
     delete CallMain;
     if (Main->isDeclaration()) {

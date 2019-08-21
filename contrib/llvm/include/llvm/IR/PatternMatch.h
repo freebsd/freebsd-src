@@ -1,9 +1,8 @@
 //===- PatternMatch.h - Match on the LLVM IR --------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -419,6 +418,46 @@ inline cst_pred_ty<is_lowbit_mask> m_LowBitMask() {
   return cst_pred_ty<is_lowbit_mask>();
 }
 
+struct icmp_pred_with_threshold {
+  ICmpInst::Predicate Pred;
+  const APInt *Thr;
+  bool isValue(const APInt &C) {
+    switch (Pred) {
+    case ICmpInst::Predicate::ICMP_EQ:
+      return C.eq(*Thr);
+    case ICmpInst::Predicate::ICMP_NE:
+      return C.ne(*Thr);
+    case ICmpInst::Predicate::ICMP_UGT:
+      return C.ugt(*Thr);
+    case ICmpInst::Predicate::ICMP_UGE:
+      return C.uge(*Thr);
+    case ICmpInst::Predicate::ICMP_ULT:
+      return C.ult(*Thr);
+    case ICmpInst::Predicate::ICMP_ULE:
+      return C.ule(*Thr);
+    case ICmpInst::Predicate::ICMP_SGT:
+      return C.sgt(*Thr);
+    case ICmpInst::Predicate::ICMP_SGE:
+      return C.sge(*Thr);
+    case ICmpInst::Predicate::ICMP_SLT:
+      return C.slt(*Thr);
+    case ICmpInst::Predicate::ICMP_SLE:
+      return C.sle(*Thr);
+    default:
+      llvm_unreachable("Unhandled ICmp predicate");
+    }
+  }
+};
+/// Match an integer or vector with every element comparing 'pred' (eg/ne/...)
+/// to Threshold. For vectors, this includes constants with undefined elements.
+inline cst_pred_ty<icmp_pred_with_threshold>
+m_SpecificInt_ICMP(ICmpInst::Predicate Predicate, const APInt &Threshold) {
+  cst_pred_ty<icmp_pred_with_threshold> P;
+  P.Pred = Predicate;
+  P.Thr = &Threshold;
+  return P;
+}
+
 struct is_nan {
   bool isValue(const APFloat &C) { return C.isNaN(); }
 };
@@ -668,18 +707,26 @@ template <typename Op_t> struct FNeg_match {
   FNeg_match(const Op_t &Op) : X(Op) {}
   template <typename OpTy> bool match(OpTy *V) {
     auto *FPMO = dyn_cast<FPMathOperator>(V);
-    if (!FPMO || FPMO->getOpcode() != Instruction::FSub)
-      return false;
-    if (FPMO->hasNoSignedZeros()) {
-      // With 'nsz', any zero goes.
-      if (!cstfp_pred_ty<is_any_zero_fp>().match(FPMO->getOperand(0)))
-        return false;
-    } else {
-      // Without 'nsz', we need fsub -0.0, X exactly.
-      if (!cstfp_pred_ty<is_neg_zero_fp>().match(FPMO->getOperand(0)))
-        return false;
+    if (!FPMO) return false;
+
+    if (FPMO->getOpcode() == Instruction::FNeg)
+      return X.match(FPMO->getOperand(0));
+
+    if (FPMO->getOpcode() == Instruction::FSub) {
+      if (FPMO->hasNoSignedZeros()) {
+        // With 'nsz', any zero goes.
+        if (!cstfp_pred_ty<is_any_zero_fp>().match(FPMO->getOperand(0)))
+          return false;
+      } else {
+        // Without 'nsz', we need fsub -0.0, X exactly.
+        if (!cstfp_pred_ty<is_neg_zero_fp>().match(FPMO->getOperand(0)))
+          return false;
+      }
+
+      return X.match(FPMO->getOperand(1));
     }
-    return X.match(FPMO->getOperand(1));
+
+    return false;
   }
 };
 
@@ -1463,6 +1510,20 @@ struct UAddWithOverflow_match {
     if (Pred == ICmpInst::ICMP_UGT)
       if (AddExpr.match(ICmpRHS) && (ICmpLHS == AddLHS || ICmpLHS == AddRHS))
         return L.match(AddLHS) && R.match(AddRHS) && S.match(ICmpRHS);
+
+    // Match special-case for increment-by-1.
+    if (Pred == ICmpInst::ICMP_EQ) {
+      // (a + 1) == 0
+      // (1 + a) == 0
+      if (AddExpr.match(ICmpLHS) && m_ZeroInt().match(ICmpRHS) &&
+          (m_One().match(AddLHS) || m_One().match(AddRHS)))
+        return L.match(AddLHS) && R.match(AddRHS) && S.match(ICmpLHS);
+      // 0 == (a + 1)
+      // 0 == (1 + a)
+      if (m_ZeroInt().match(ICmpLHS) && AddExpr.match(ICmpRHS) &&
+          (m_One().match(AddLHS) || m_One().match(AddRHS)))
+        return L.match(AddLHS) && R.match(AddRHS) && S.match(ICmpRHS);
+    }
 
     return false;
   }

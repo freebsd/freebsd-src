@@ -1,9 +1,8 @@
 //===-- Execution.cpp - Implement code to simulate the program ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -41,6 +40,60 @@ static cl::opt<bool> PrintVolatile("interpreter-print-volatile", cl::Hidden,
 
 static void SetValue(Value *V, GenericValue Val, ExecutionContext &SF) {
   SF.Values[V] = Val;
+}
+
+//===----------------------------------------------------------------------===//
+//                    Unary Instruction Implementations
+//===----------------------------------------------------------------------===//
+
+static void executeFNegInst(GenericValue &Dest, GenericValue Src, Type *Ty) {
+  switch (Ty->getTypeID()) {
+  case Type::FloatTyID:
+    Dest.FloatVal = -Src.FloatVal;
+    break;
+  case Type::DoubleTyID:
+    Dest.DoubleVal = -Src.DoubleVal;
+    break;
+  default:
+    llvm_unreachable("Unhandled type for FNeg instruction");
+  }
+}
+
+void Interpreter::visitUnaryOperator(UnaryOperator &I) {
+  ExecutionContext &SF = ECStack.back();
+  Type *Ty = I.getOperand(0)->getType();
+  GenericValue Src = getOperandValue(I.getOperand(0), SF);
+  GenericValue R; // Result
+
+  // First process vector operation
+  if (Ty->isVectorTy()) {
+    R.AggregateVal.resize(Src.AggregateVal.size());
+
+    switch(I.getOpcode()) {
+    default:
+      llvm_unreachable("Don't know how to handle this unary operator");
+      break;
+    case Instruction::FNeg:
+      if (cast<VectorType>(Ty)->getElementType()->isFloatTy()) {
+        for (unsigned i = 0; i < R.AggregateVal.size(); ++i)
+          R.AggregateVal[i].FloatVal = -Src.AggregateVal[i].FloatVal;
+      } else if (cast<VectorType>(Ty)->getElementType()->isDoubleTy()) {
+        for (unsigned i = 0; i < R.AggregateVal.size(); ++i)
+          R.AggregateVal[i].DoubleVal = -Src.AggregateVal[i].DoubleVal;
+      } else {
+        llvm_unreachable("Unhandled type for FNeg instruction");
+      }
+      break;
+    }
+  } else {
+    switch (I.getOpcode()) {
+    default:
+      llvm_unreachable("Don't know how to handle this unary operator");
+      break;
+    case Instruction::FNeg: executeFNegInst(R, Src, Ty); break;
+    }
+  }
+  SetValue(&I, R, SF);
 }
 
 //===----------------------------------------------------------------------===//
@@ -2113,7 +2166,7 @@ void Interpreter::run() {
     // Track the number of dynamic instructions executed.
     ++NumDynamicInsts;
 
-    LLVM_DEBUG(dbgs() << "About to interpret: " << I);
+    LLVM_DEBUG(dbgs() << "About to interpret: " << I << "\n");
     visit(I);   // Dispatch to one of the visit* methods...
   }
 }

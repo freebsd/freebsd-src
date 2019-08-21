@@ -1,9 +1,8 @@
 //===- lib/MC/ELFObjectWriter.cpp - ELF File Writer -----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -426,7 +425,8 @@ void ELFWriter::writeHeader(const MCAssembler &Asm) {
   W.OS << char(ELF::EV_CURRENT);        // e_ident[EI_VERSION]
   // e_ident[EI_OSABI]
   W.OS << char(OWriter.TargetObjectWriter->getOSABI());
-  W.OS << char(0);                  // e_ident[EI_ABIVERSION]
+  // e_ident[EI_ABIVERSION]
+  W.OS << char(OWriter.TargetObjectWriter->getABIVersion());
 
   W.OS.write_zeros(ELF::EI_NIDENT - ELF::EI_PAD);
 
@@ -463,7 +463,7 @@ void ELFWriter::writeHeader(const MCAssembler &Asm) {
 
 uint64_t ELFWriter::SymbolValue(const MCSymbol &Sym,
                                 const MCAsmLayout &Layout) {
-  if (Sym.isCommon() && Sym.isExternal())
+  if (Sym.isCommon() && (Sym.isTargetCommon() || Sym.isExternal()))
     return Sym.getCommonAlignment();
 
   uint64_t Res;
@@ -577,6 +577,10 @@ bool ELFWriter::isInSymtab(const MCAsmLayout &Layout, const MCSymbolELF &Symbol,
                            bool Used, bool Renamed) {
   if (Symbol.isVariable()) {
     const MCExpr *Expr = Symbol.getVariableValue();
+    // Target Expressions that are always inlined do not appear in the symtab
+    if (const auto *T = dyn_cast<MCTargetExpr>(Expr))
+      if (T->inlineAssignedExpr())
+        return false;
     if (const MCSymbolRefExpr *Ref = dyn_cast<MCSymbolRefExpr>(Expr)) {
       if (Ref->getKind() == MCSymbolRefExpr::VK_WEAKREF)
         return false;
@@ -656,8 +660,12 @@ void ELFWriter::computeSymbolTable(
     if (Symbol.isAbsolute()) {
       MSD.SectionIndex = ELF::SHN_ABS;
     } else if (Symbol.isCommon()) {
-      assert(!Local);
-      MSD.SectionIndex = ELF::SHN_COMMON;
+      if (Symbol.isTargetCommon()) {
+        MSD.SectionIndex = Symbol.getIndex();
+      } else {
+        assert(!Local);
+        MSD.SectionIndex = ELF::SHN_COMMON;
+      }
     } else if (Symbol.isUndefined()) {
       if (isSignature && !Used) {
         MSD.SectionIndex = RevGroupMap.lookup(&Symbol);
@@ -710,7 +718,7 @@ void ELFWriter::computeSymbolTable(
 
   if (HasLargeSectionIndex) {
     MCSectionELF *SymtabShndxSection =
-        Ctx.getELFSection(".symtab_shndxr", ELF::SHT_SYMTAB_SHNDX, 0, 4, "");
+        Ctx.getELFSection(".symtab_shndx", ELF::SHT_SYMTAB_SHNDX, 0, 4, "");
     SymtabShndxSectionIndex = addToSectionTable(SymtabShndxSection);
     SymtabShndxSection->setAlignment(4);
   }
@@ -882,12 +890,16 @@ void ELFWriter::writeSectionData(const MCAssembler &Asm, MCSection &Sec,
     return;
   }
 
-  if (ZlibStyle)
+  if (ZlibStyle) {
     // Set the compressed flag. That is zlib style.
     Section.setFlags(Section.getFlags() | ELF::SHF_COMPRESSED);
-  else
+    // Alignment field should reflect the requirements of
+    // the compressed section header.
+    Section.setAlignment(is64Bit() ? 8 : 4);
+  } else {
     // Add "z" prefix to section name. This is zlib-gnu style.
     MC.renameELFSection(&Section, (".z" + SectionName.drop_front(1)).str());
+  }
   W.OS << CompressedContents;
 }
 
@@ -1364,6 +1376,12 @@ bool ELFObjectWriter::shouldRelocateWithSymbol(const MCAssembler &Asm,
     // has to point to the symbol for a reason analogous to the STB_WEAK case.
     return true;
   }
+
+  // Keep symbol type for a local ifunc because it may result in an IRELATIVE
+  // reloc that the dynamic loader will use to resolve the address at startup
+  // time.
+  if (Sym->getType() == ELF::STT_GNU_IFUNC)
+    return true;
 
   // If a relocation points to a mergeable section, we have to be careful.
   // If the offset is zero, a relocation with the section will encode the

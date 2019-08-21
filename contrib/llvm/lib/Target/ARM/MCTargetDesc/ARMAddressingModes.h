@@ -1,9 +1,8 @@
 //===-- ARMAddressingModes.h - ARM Addressing Modes -------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -31,7 +30,8 @@ namespace ARM_AM {
     lsl,
     lsr,
     ror,
-    rrx
+    rrx,
+    uxtw
   };
 
   enum AddrOpc {
@@ -49,6 +49,7 @@ namespace ARM_AM {
     case ARM_AM::lsr: return "lsr";
     case ARM_AM::ror: return "ror";
     case ARM_AM::rrx: return "rrx";
+    case ARM_AM::uxtw: return "uxtw";
     }
   }
 
