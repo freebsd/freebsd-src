@@ -646,7 +646,7 @@ XX_IpcInitSession(char destAddr[XX_IPC_MAX_ADDR_NAME_LENGTH],
 
 	/* Should not be called */
 	printf("NetCommSW: Unimplemented function %s() called!\n", __func__);
-	return (E_OK);
+	return (NULL);
 }
 
 t_Error
