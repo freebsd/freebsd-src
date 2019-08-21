@@ -256,7 +256,9 @@ void		addarc(nltype *, nltype *, long);
 bool		addcycle(arctype **, arctype **);
 void		addlist(struct stringlist *, char *);
 void		alignentries(void);
+#ifdef WITH_AOUT
 int		aout_getnfile(const char *, char ***);
+#endif
 int		arccmp(arctype *, arctype *);
 arctype		*arclookup(nltype *, nltype *);
 void		asgnsamples(void);
