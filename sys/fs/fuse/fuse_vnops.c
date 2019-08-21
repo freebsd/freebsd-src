@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>

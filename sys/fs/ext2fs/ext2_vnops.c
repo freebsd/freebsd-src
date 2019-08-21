@@ -51,6 +51,7 @@
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
+#include <sys/limits.h>
 #include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/bio.h>

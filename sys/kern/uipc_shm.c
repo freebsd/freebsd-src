@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/fnv_hash.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/uio.h>
 #include <sys/signal.h>
 #include <sys/jail.h>
