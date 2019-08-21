@@ -429,6 +429,15 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC298 && HDA_DEV_MATCH(LENOVO_ALL_SUBVENDOR, subid)) {
+		switch (nid) {
+		case 23:
+			config = 0x03a1103f;
+			break;
+		case 33:
+			config = 0x2121101f;
+			break;
+		}
 	} else if (id == HDA_CODEC_ALC298 && subid == DELL_XPS9560_SUBVENDOR) {
 		switch (nid) {
 		case 24:
