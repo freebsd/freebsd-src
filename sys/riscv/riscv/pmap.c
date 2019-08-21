@@ -3940,12 +3940,12 @@ pmap_ts_referenced(vm_page_t m)
 	pt_entry_t *l3, l3e;
 	vm_paddr_t pa;
 	vm_offset_t va;
-	int md_gen, pvh_gen, ret;
+	int cleared, md_gen, not_cleared, pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
 	SLIST_INIT(&free);
-	ret = 0;
+	cleared = 0;
 	pa = VM_PAGE_TO_PHYS(m);
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
 
@@ -3953,6 +3953,7 @@ pmap_ts_referenced(vm_page_t m)
 	rw_rlock(&pvh_global_lock);
 	rw_wlock(lock);
 retry:
+	not_cleared = 0;
 	if ((pvf = TAILQ_FIRST(&pvh->pv_list)) == NULL)
 		goto small_mappings;
 	pv = pvf;
@@ -4003,8 +4004,9 @@ retry:
 			    (l2e & PTE_SW_WIRED) == 0) {
 				pmap_clear_bits(l2, PTE_A);
 				pmap_invalidate_page(pmap, va);
-			}
-			ret++;
+				cleared++;
+			} else
+				not_cleared++;
 		}
 		PMAP_UNLOCK(pmap);
 		/* Rotate the PV list if it has more than one entry. */
@@ -4013,7 +4015,7 @@ retry:
 			TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
 			pvh->pv_gen++;
 		}
-		if (ret >= PMAP_TS_REFERENCED_MAX)
+		if (cleared + not_cleared >= PMAP_TS_REFERENCED_MAX)
 			goto out;
 	} while ((pv = TAILQ_FIRST(&pvh->pv_list)) != pvf);
 small_mappings:
@@ -4052,8 +4054,9 @@ small_mappings:
 				 */
 				pmap_clear_bits(l3, PTE_A);
 				pmap_invalidate_page(pmap, pv->pv_va);
-			}
-			ret++;
+				cleared++;
+			} else
+				not_cleared++;
 		}
 		PMAP_UNLOCK(pmap);
 		/* Rotate the PV list if it has more than one entry. */
@@ -4062,13 +4065,13 @@ small_mappings:
 			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 			m->md.pv_gen++;
 		}
-	} while ((pv = TAILQ_FIRST(&m->md.pv_list)) != pvf && ret <
-	    PMAP_TS_REFERENCED_MAX);
+	} while ((pv = TAILQ_FIRST(&m->md.pv_list)) != pvf && cleared +
+	    not_cleared < PMAP_TS_REFERENCED_MAX);
 out:
 	rw_wunlock(lock);
 	rw_runlock(&pvh_global_lock);
 	vm_page_free_pages_toq(&free, false);
-	return (ret);
+	return (cleared + not_cleared);
 }
 
 /*
