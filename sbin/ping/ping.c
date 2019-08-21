@@ -1168,8 +1168,7 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timespec *tv)
 			(void)write(STDOUT_FILENO, &BSPACE, 1);
 		else {
 			(void)printf("%d bytes from %s: icmp_seq=%u", cc,
-			   inet_ntoa(*(struct in_addr *)&from->sin_addr.s_addr),
-			   seq);
+			    pr_addr(from->sin_addr), seq);
 			(void)printf(" ttl=%d", ip->ip_ttl);
 			if (timing)
 				(void)printf(" time=%.3f ms", triptime);
