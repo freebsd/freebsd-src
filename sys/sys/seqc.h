@@ -78,7 +78,7 @@ seqc_read(const seqc_t *seqcp)
 
 	for (;;) {
 		ret = atomic_load_acq_int(__DECONST(seqc_t *, seqcp));
-		if (seqc_in_modify(ret)) {
+		if (__predict_false(seqc_in_modify(ret))) {
 			cpu_spinwait();
 			continue;
 		}
@@ -88,14 +88,14 @@ seqc_read(const seqc_t *seqcp)
 	return (ret);
 }
 
-static __inline seqc_t
+static __inline bool
 seqc_consistent_nomb(const seqc_t *seqcp, seqc_t oldseqc)
 {
 
 	return (*seqcp == oldseqc);
 }
 
-static __inline seqc_t
+static __inline bool
 seqc_consistent(const seqc_t *seqcp, seqc_t oldseqc)
 {
 
