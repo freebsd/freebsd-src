@@ -45,6 +45,7 @@
 .Nm SYSCTL_ADD_STRING ,
 .Nm SYSCTL_ADD_CONST_STRING ,
 .Nm SYSCTL_ADD_STRUCT ,
+.Nm SYSCTL_ADD_TIMEVAL_SEC ,
 .Nm SYSCTL_ADD_U8 ,
 .Nm SYSCTL_ADD_U16 ,
 .Nm SYSCTL_ADD_U32 ,
@@ -74,6 +75,7 @@
 .Nm SYSCTL_STRING ,
 .Nm SYSCTL_CONST_STRING ,
 .Nm SYSCTL_STRUCT ,
+.Nm SYSCTL_TIMEVAL_SEC ,
 .Nm SYSCTL_U8 ,
 .Nm SYSCTL_U16 ,
 .Nm SYSCTL_U32 ,
@@ -249,6 +251,16 @@
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_TIMEVAL_SEC
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "struct timeval *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
 .Fo SYSCTL_ADD_U8
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
@@ -368,6 +380,7 @@
 .Fn SYSCTL_STRING parent number name ctlflags arg len descr
 .Fn SYSCTL_CONST_STRING parent number name ctlflags arg descr
 .Fn SYSCTL_STRUCT parent number name ctlflags ptr struct_type descr
+.Fn SYSCTL_TIMEVAL_SEC parent number name ctlflags ptr descr
 .Fn SYSCTL_U8 parent number name ctlflags ptr val descr
 .Fn SYSCTL_U16 parent number name ctlflags ptr val descr
 .Fn SYSCTL_U32 parent number name ctlflags ptr val descr
@@ -537,6 +550,21 @@ Similarly,
 .Fn sysctl_msec_to_ticks
 accepts new values in milliseconds and stores an equivalent value in ticks to
 .Fa *arg2 .
+.Pp
+The
+.Fn SYSCTL_ADD_TIMEVAL_SEC
+function and
+.Fn SYSCTL_TIMEVAL_SEC
+macro create nodes which export an in-kernel variable of type
+.Vt struct timeval .
+These nodes do not export full value of the associated structure.
+Instead, they export a count in seconds as a simple integer which is
+stored in the
+.Fa tv_sec
+field of the associated variable.
+This function and macro are intended to be used with variables which
+store a non-negative interval rather than an absolute time.
+As a result, they reject attempts to store negative values.
 .Sh CREATING ROOT NODES
 Sysctl MIBs or OIDs are created in a hierarchical tree.
 The nodes at the bottom of the tree are called root nodes, and have no
@@ -614,6 +642,7 @@ Static sysctls are declared using one of the
 .Fn SYSCTL_STRING ,
 .Fn SYSCTL_CONST_STRING ,
 .Fn SYSCTL_STRUCT ,
+.Fn SYSCTL_TIMEVAL_SEC ,
 .Fn SYSCTL_U8 ,
 .Fn SYSCTL_U16 ,
 .Fn SYSCTL_U32 ,
@@ -640,6 +669,7 @@ Dynamic nodes are created using one of the
 .Fn SYSCTL_ADD_STRING ,
 .Fn SYSCTL_ADD_CONST_STRING ,
 .Fn SYSCTL_ADD_STRUCT ,
+.Fn SYSCTL_ADD_TIMEVAL_SEC ,
 .Fn SYSCTL_ADD_U8 ,
 .Fn SYSCTL_ADD_U16 ,
 .Fn SYSCTL_ADD_U32 ,

@@ -294,6 +294,11 @@ struct fcrypt {
 	int		sesn;
 };
 
+static struct timeval warninterval = { .tv_sec = 60, .tv_usec = 0 };
+SYSCTL_TIMEVAL_SEC(_kern, OID_AUTO, cryptodev_warn_interval, CTLFLAG_RW,
+    &warninterval,
+    "Delay in seconds between warnings of deprecated /dev/crypto algorithms");
+
 static	int cryptof_ioctl(struct file *, u_long, void *,
 		    struct ucred *, struct thread *);
 static	int cryptof_stat(struct file *, struct stat *,
@@ -388,7 +393,6 @@ cryptof_ioctl(
 #endif
 	static struct timeval arc4warn, blfwarn, castwarn, deswarn, md5warn;
 	static struct timeval skipwarn, tdeswarn;
-	static struct timeval warninterval = { .tv_sec = 60, .tv_usec = 0 };
 
 	switch (cmd) {
 	case CIOCGSESSION:

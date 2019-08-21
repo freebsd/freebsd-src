@@ -54,13 +54,12 @@ static void
 des1_init(struct krb5_key_state *ks)
 {
 	static struct timeval lastwarn;
-	static struct timeval warninterval = { .tv_sec = 3600, .tv_usec = 0 };
 	struct des1_state *ds;
 
 	ds = malloc(sizeof(struct des1_state), M_GSSAPI, M_WAITOK|M_ZERO);
 	mtx_init(&ds->ds_lock, "gss des lock", NULL, MTX_DEF);
 	ks->ks_priv = ds;
-	if (ratecheck(&lastwarn, &warninterval))
+	if (ratecheck(&lastwarn, &krb5_warn_interval))
 		gone_in(13, "DES cipher for Kerberos GSS");
 }
 

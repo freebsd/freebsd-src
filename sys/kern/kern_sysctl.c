@@ -1694,6 +1694,30 @@ retry:
 }
 
 /*
+ * Convert seconds to a struct timeval.  Intended for use with
+ * intervals and thus does not permit negative seconds.
+ */
+int
+sysctl_sec_to_timeval(SYSCTL_HANDLER_ARGS)
+{
+	struct timeval *tv;
+	int error, secs;
+
+	tv = arg1;
+	secs = tv->tv_sec;
+
+	error = sysctl_handle_int(oidp, &secs, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	if (secs < 0)
+		return (EINVAL);
+	tv->tv_sec = secs;
+
+	return (0);
+}
+
+/*
  * Transfer functions to/from kernel space.
  * XXX: rather untested at this point
  */
