@@ -58,20 +58,20 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <util.h>
 
+#include "ffs/buf.h"
 #include <fs/msdosfs/bootsect.h>
 #include <fs/msdosfs/bpb.h>
-#include "msdos/denode.h"
-#include "msdos/msdosfsmount.h"
+#include "msdos/direntry.h"
+#include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
+#include "msdos/msdosfsmount.h"
 
 #include <mkfs_msdos.h>
 
 #include "makefs.h"
 #include "msdos.h"
 
-#include "ffs/buf.h"
 
-#include "msdos/direntry.h"
 
 struct msdosfsmount *
 msdosfs_mount(struct vnode *devvp)

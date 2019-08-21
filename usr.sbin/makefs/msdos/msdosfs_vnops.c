@@ -62,17 +62,15 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
+#include "ffs/buf.h"
 #include <fs/msdosfs/bpb.h>
-#include "msdos/denode.h"
-#include "msdos/msdosfsmount.h"
+#include "msdos/direntry.h"
+#include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
+#include "msdos/msdosfsmount.h"
 
 #include "makefs.h"
 #include "msdos.h"
-
-#include "ffs/buf.h"
-
-#include "msdos/direntry.h"
 
 /*
  * Some general notes:
@@ -455,7 +453,7 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 	nsize = st->st_size;
 	MSDOSFS_DPRINTF(("%s(nsize=%zu, osize=%zu)\n", __func__, nsize, osize));
 	if (nsize > osize) {
-		if ((error = deextend(dep, nsize)) != 0)
+		if ((error = deextend(dep, nsize, NULL)) != 0)
 			return error;
 		if ((error = msdosfs_updatede(dep)) != 0)
 			return error;
