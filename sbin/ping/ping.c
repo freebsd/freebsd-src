@@ -297,7 +297,7 @@ main(int argc, char *const *argv)
 
 	outpack = outpackhdr + sizeof(struct ip);
 	while ((ch = getopt(argc, argv,
-		"Aac:DdfG:g:h:I:i:Ll:M:m:nop:QqRrS:s:T:t:vW:z:"
+		"Aac:DdfG:g:Hh:I:i:Ll:M:m:nop:QqRrS:s:T:t:vW:z:"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -362,6 +362,9 @@ main(int argc, char *const *argv)
 			}
 			options |= F_SWEEP;
 			sweepmin = ltmp;
+			break;
+		case 'H':
+			options &= ~F_NUMERIC;
 			break;
 		case 'h': /* Packet size increment for ping sweep */
 			ltmp = strtol(optarg, &ep, 0);
@@ -1743,11 +1746,11 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: ping [-AaDdfnoQqRrv] [-c count] [-G sweepmaxsize] [-g sweepminsize]",
+"usage: ping [-AaDdfHnoQqRrv] [-c count] [-G sweepmaxsize] [-g sweepminsize]",
 "            [-h sweepincrsize] [-i wait] [-l preload] [-M mask | time] [-m ttl]",
 "           " SECOPT " [-p pattern] [-S src_addr] [-s packetsize] [-t timeout]",
 "            [-W waittime] [-z tos] host",
-"       ping [-AaDdfLnoQqRrv] [-c count] [-I iface] [-i wait] [-l preload]",
+"       ping [-AaDdfHLnoQqRrv] [-c count] [-I iface] [-i wait] [-l preload]",
 "            [-M mask | time] [-m ttl]" SECOPT " [-p pattern] [-S src_addr]",
 "            [-s packetsize] [-T ttl] [-t timeout] [-W waittime]",
 "            [-z tos] mcast-group");
