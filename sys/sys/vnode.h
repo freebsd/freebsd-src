@@ -826,27 +826,30 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 
 #define VOP_LOCK(vp, flags) VOP_LOCK1(vp, flags, __FILE__, __LINE__)
 
-#ifdef	INVARIANTS
+#ifdef INVARIANTS
 #define	VOP_ADD_WRITECOUNT_CHECKED(vp, cnt)				\
 do {									\
 	int error_;							\
 									\
 	error_ = VOP_ADD_WRITECOUNT((vp), (cnt));			\
-	MPASS(error_ == 0);						\
+	VNASSERT(error_ == 0, (vp), ("VOP_ADD_WRITECOUNT returned %d",	\
+	    error_));							\
 } while (0)
 #define	VOP_SET_TEXT_CHECKED(vp)					\
 do {									\
 	int error_;							\
 									\
 	error_ = VOP_SET_TEXT((vp));					\
-	MPASS(error_ == 0);						\
+	VNASSERT(error_ == 0, (vp), ("VOP_SET_TEXT returned %d",	\
+	    error_));							\
 } while (0)
 #define	VOP_UNSET_TEXT_CHECKED(vp)					\
 do {									\
 	int error_;							\
 									\
 	error_ = VOP_UNSET_TEXT((vp));					\
-	MPASS(error_ == 0);						\
+	VNASSERT(error_ == 0, (vp), ("VOP_UNSET_TEXT returned %d",	\
+	    error_));							\
 } while (0)
 #else
 #define	VOP_ADD_WRITECOUNT_CHECKED(vp, cnt)	VOP_ADD_WRITECOUNT((vp), (cnt))
