@@ -495,6 +495,48 @@ ahci_pci_attach(device_t dev)
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
 
+	/*
+	 * Intel RAID hardware can remap NVMe devices inside its BAR.
+	 * Try to detect this. Either we have to add the device
+	 * here, or the user has to change the mode in the BIOS
+	 * from RST to AHCI.
+	 */
+	if (pci_get_vendor(dev) == 0x8086) {
+		uint32_t vscap;
+
+		vscap = ATA_INL(ctlr->r_mem, AHCI_VSCAP);
+		if (vscap & 1) {
+			uint32_t cap = ATA_INL(ctlr->r_mem, 0x800); /* Intel's REMAP CAP */
+			int i;
+
+			ctlr->remap_offset = 0x4000;
+			ctlr->remap_size = 0x4000;
+
+			/*
+			 * Check each of the devices that might be remapped to
+			 * make sure they are an nvme device. At the present,
+			 * nvme are the only known devices remapped.
+			 */
+			for (i = 0; i < 3; i++) {
+				if (cap & (1 << i) &&
+				    (ATA_INL(ctlr->r_mem, 0x880 + i * 0x80) ==
+				     ((PCIC_STORAGE << 16) |
+				      (PCIS_STORAGE_NVM << 8) |
+				      PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0))) {
+					ctlr->remapped_devices++;
+				}
+			}
+
+			/* If we have any remapped device, disable MSI */
+			if (ctlr->remapped_devices > 0) {
+				device_printf(dev, "Detected %d nvme remapped devices\n",
+				    ctlr->remapped_devices);
+				ctlr->quirks |= (AHCI_Q_NOMSIX | AHCI_Q_NOMSI);
+			}
+		}
+	}
+
+
 	if (ctlr->quirks & AHCI_Q_NOMSIX)
 		msix_count = 0;
 
