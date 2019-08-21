@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include "msdos/denode.h"
 #include "msdos/direntry.h"
-#include "msdos/fat.h"
 #include "msdos/msdosfsmount.h"
 
 static int char8ucs2str(const uint8_t *in, int n, uint16_t *out, int m);

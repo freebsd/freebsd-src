@@ -60,16 +60,16 @@ __FBSDID("$FreeBSD$");
 #include <util.h>
 
 #include <fs/msdosfs/bpb.h>
+#include "msdos/denode.h"
+#include "msdos/msdosfsmount.h"
+#include <fs/msdosfs/fat.h>
 
 #include "makefs.h"
 #include "msdos.h"
 
 #include "ffs/buf.h"
 
-#include "msdos/denode.h"
 #include "msdos/direntry.h"
-#include "msdos/fat.h"
-#include "msdos/msdosfsmount.h"
 
 /*
  * If deget() succeeds it returns with the gotten denode locked().
