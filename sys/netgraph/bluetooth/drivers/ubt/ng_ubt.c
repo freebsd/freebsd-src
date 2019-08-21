@@ -554,6 +554,7 @@ ubt_do_hci_request(struct usb_device *udev, struct ubt_hci_cmd *cmd,
 		return (USB_ERR_NORMAL_COMPLETION);
 
 	/* Initialize INTR endpoint xfer and wait for response */
+	bzero(&mtx, sizeof(mtx));
 	mtx_init(&mtx, "ubt pb", NULL, MTX_DEF);
 
 	error = usbd_transfer_setup(udev, &iface_index, xfer,
