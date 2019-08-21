@@ -893,11 +893,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 		return (ENOENT);
 	}
 
-	/*
-	 * Exclusive lock is required by insmntque1 call in
-	 * null_nodeget()
-	 */
-	error = vn_lock(ldvp, LK_EXCLUSIVE);
+	error = vn_lock(ldvp, LK_SHARED);
 	if (error != 0) {
 		vrele(ldvp);
 		vn_lock(vp, locked | LK_RETRY);
