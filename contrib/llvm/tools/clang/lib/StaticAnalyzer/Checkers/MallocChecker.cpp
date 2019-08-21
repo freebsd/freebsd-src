@@ -1,9 +1,8 @@
 //=== MallocChecker.cpp - A malloc/free checker -------------------*- C++ -*--//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,6 +17,7 @@
 #include "clang/AST/ParentMap.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Lex/Lexer.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/CommonBugCategories.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
@@ -178,9 +178,10 @@ public:
         II_free(nullptr), II_realloc(nullptr), II_calloc(nullptr),
         II_valloc(nullptr), II_reallocf(nullptr), II_strndup(nullptr),
         II_strdup(nullptr), II_win_strdup(nullptr), II_kmalloc(nullptr),
-        II_if_nameindex(nullptr), II_if_freenameindex(nullptr),
-        II_wcsdup(nullptr), II_win_wcsdup(nullptr), II_g_malloc(nullptr),
-        II_g_malloc0(nullptr), II_g_realloc(nullptr), II_g_try_malloc(nullptr),
+        II_kfree(nullptr), II_if_nameindex(nullptr),
+        II_if_freenameindex(nullptr), II_wcsdup(nullptr),
+        II_win_wcsdup(nullptr), II_g_malloc(nullptr), II_g_malloc0(nullptr),
+        II_g_realloc(nullptr), II_g_try_malloc(nullptr),
         II_g_try_malloc0(nullptr), II_g_try_realloc(nullptr),
         II_g_free(nullptr), II_g_memdup(nullptr), II_g_malloc_n(nullptr),
         II_g_malloc0_n(nullptr), II_g_realloc_n(nullptr),
@@ -250,13 +251,13 @@ private:
   mutable IdentifierInfo *II_alloca, *II_win_alloca, *II_malloc, *II_free,
                          *II_realloc, *II_calloc, *II_valloc, *II_reallocf,
                          *II_strndup, *II_strdup, *II_win_strdup, *II_kmalloc,
-                         *II_if_nameindex, *II_if_freenameindex, *II_wcsdup,
-                         *II_win_wcsdup, *II_g_malloc, *II_g_malloc0,
-                         *II_g_realloc, *II_g_try_malloc, *II_g_try_malloc0,
-                         *II_g_try_realloc, *II_g_free, *II_g_memdup,
-                         *II_g_malloc_n, *II_g_malloc0_n, *II_g_realloc_n,
-                         *II_g_try_malloc_n, *II_g_try_malloc0_n,
-                         *II_g_try_realloc_n;
+                         *II_kfree, *II_if_nameindex, *II_if_freenameindex,
+                         *II_wcsdup, *II_win_wcsdup, *II_g_malloc,
+                         *II_g_malloc0, *II_g_realloc, *II_g_try_malloc,
+                         *II_g_try_malloc0, *II_g_try_realloc, *II_g_free,
+                         *II_g_memdup, *II_g_malloc_n, *II_g_malloc0_n,
+                         *II_g_realloc_n, *II_g_try_malloc_n,
+                         *II_g_try_malloc0_n, *II_g_try_realloc_n;
   mutable Optional<uint64_t> KernelZeroFlagVal;
 
   void initIdentifierInfo(ASTContext &C) const;
@@ -358,6 +359,11 @@ private:
 
   /// Check if the memory associated with this symbol was released.
   bool isReleased(SymbolRef Sym, CheckerContext &C) const;
+
+  /// See if deallocation happens in a suspicious context. If so, escape the
+  /// pointers that otherwise would have been deallocated and return true.
+  bool suppressDeallocationsInSuspiciousContexts(const CallExpr *CE,
+                                                 CheckerContext &C) const;
 
   bool checkUseAfterFree(SymbolRef Sym, CheckerContext &C, const Stmt *S) const;
 
@@ -599,6 +605,7 @@ void MallocChecker::initIdentifierInfo(ASTContext &Ctx) const {
   II_strndup = &Ctx.Idents.get("strndup");
   II_wcsdup = &Ctx.Idents.get("wcsdup");
   II_kmalloc = &Ctx.Idents.get("kmalloc");
+  II_kfree = &Ctx.Idents.get("kfree");
   II_if_nameindex = &Ctx.Idents.get("if_nameindex");
   II_if_freenameindex = &Ctx.Idents.get("if_freenameindex");
 
@@ -658,7 +665,7 @@ bool MallocChecker::isCMemFunction(const FunctionDecl *FD,
 
     if (Family == AF_Malloc && CheckFree) {
       if (FunI == II_free || FunI == II_realloc || FunI == II_reallocf ||
-          FunI == II_g_free)
+          FunI == II_g_free || FunI == II_kfree)
         return true;
     }
 
@@ -875,7 +882,10 @@ void MallocChecker::checkPostStmt(const CallExpr *CE, CheckerContext &C) const {
       State = CallocMem(C, CE, State);
       State = ProcessZeroAllocation(C, CE, 0, State);
       State = ProcessZeroAllocation(C, CE, 1, State);
-    } else if (FunI == II_free || FunI == II_g_free) {
+    } else if (FunI == II_free || FunI == II_g_free || FunI == II_kfree) {
+      if (suppressDeallocationsInSuspiciousContexts(CE, C))
+        return;
+
       State = FreeMemAux(C, CE, State, 0, false, ReleasedAllocatedMemory);
     } else if (FunI == II_strdup || FunI == II_win_strdup ||
                FunI == II_wcsdup || FunI == II_win_wcsdup) {
@@ -985,7 +995,7 @@ ProgramStateRef MallocChecker::ProcessZeroAllocation(
   }
   else if (const CXXNewExpr *NE = dyn_cast<CXXNewExpr>(E)) {
     if (NE->isArray())
-      Arg = NE->getArraySize();
+      Arg = *NE->getArraySize();
     else
       return State;
   }
@@ -1117,7 +1127,7 @@ ProgramStateRef MallocChecker::addExtentSize(CheckerContext &C,
   SVal ElementCount;
   const SubRegion *Region;
   if (NE->isArray()) {
-    const Expr *SizeExpr = NE->getArraySize();
+    const Expr *SizeExpr = *NE->getArraySize();
     ElementCount = C.getSVal(SizeExpr);
     // Store the extent size for the (symbolic)region
     // containing the elements.
@@ -1207,7 +1217,7 @@ void MallocChecker::checkPostObjCMessage(const ObjCMethodCall &Call,
   ProgramStateRef State = FreeMemAux(C, Call.getArgExpr(0),
                                      Call.getOriginExpr(), C.getState(),
                                      /*Hold=*/true, ReleasedAllocatedMemory,
-                                     /*RetNullOnFailure=*/true);
+                                     /*ReturnsNullOnFailure=*/true);
 
   C.addTransition(State);
 }
@@ -2301,14 +2311,14 @@ void MallocChecker::reportLeak(SymbolRef Sym, ExplodedNode *N,
 
   assert(N);
   if (!BT_Leak[*CheckKind]) {
-    BT_Leak[*CheckKind].reset(new BugType(CheckNames[*CheckKind], "Memory leak",
-                                          categories::MemoryError));
     // Leaks should not be reported if they are post-dominated by a sink:
     // (1) Sinks are higher importance bugs.
     // (2) NoReturnFunctionChecker uses sink nodes to represent paths ending
     //     with __noreturn functions such as assert() or exit(). We choose not
     //     to report leaks on such paths.
-    BT_Leak[*CheckKind]->setSuppressOnSink(true);
+    BT_Leak[*CheckKind].reset(new BugType(CheckNames[*CheckKind], "Memory leak",
+                                          categories::MemoryError,
+                                          /*SuppressOnSink=*/true));
   }
 
   // Most bug reports are cached at the location where they occurred.
@@ -2529,6 +2539,35 @@ bool MallocChecker::isReleased(SymbolRef Sym, CheckerContext &C) const {
   assert(Sym);
   const RefState *RS = C.getState()->get<RegionState>(Sym);
   return (RS && RS->isReleased());
+}
+
+bool MallocChecker::suppressDeallocationsInSuspiciousContexts(
+    const CallExpr *CE, CheckerContext &C) const {
+  if (CE->getNumArgs() == 0)
+    return false;
+
+  StringRef FunctionStr = "";
+  if (const auto *FD = dyn_cast<FunctionDecl>(C.getStackFrame()->getDecl()))
+    if (const Stmt *Body = FD->getBody())
+      if (Body->getBeginLoc().isValid())
+        FunctionStr =
+            Lexer::getSourceText(CharSourceRange::getTokenRange(
+                                     {FD->getBeginLoc(), Body->getBeginLoc()}),
+                                 C.getSourceManager(), C.getLangOpts());
+
+  // We do not model the Integer Set Library's retain-count based allocation.
+  if (!FunctionStr.contains("__isl_"))
+    return false;
+
+  ProgramStateRef State = C.getState();
+
+  for (const Expr *Arg : CE->arguments())
+    if (SymbolRef Sym = C.getSVal(Arg).getAsSymbol())
+      if (const RefState *RS = State->get<RegionState>(Sym))
+        State = State->set<RegionState>(Sym, RefState::getEscaped(RS));
+
+  C.addTransition(State);
+  return true;
 }
 
 bool MallocChecker::checkUseAfterFree(SymbolRef Sym, CheckerContext &C,
@@ -2832,7 +2871,6 @@ ProgramStateRef MallocChecker::checkPointerEscapeAux(ProgramStateRef State,
     if (const RefState *RS = State->get<RegionState>(sym)) {
       if ((RS->isAllocated() || RS->isAllocatedOfSizeZero()) &&
           CheckRefState(RS)) {
-        State = State->remove<RegionState>(sym);
         State = State->set<RegionState>(sym, RefState::getEscaped(RS));
       }
     }
@@ -3087,47 +3125,37 @@ markReleased(ProgramStateRef State, SymbolRef Sym, const Expr *Origin) {
 } // end namespace ento
 } // end namespace clang
 
-void ento::registerNewDeleteLeaksChecker(CheckerManager &mgr) {
-  registerCStringCheckerBasic(mgr);
-  MallocChecker *checker = mgr.registerChecker<MallocChecker>();
-  checker->IsOptimistic = mgr.getAnalyzerOptions().getCheckerBooleanOption(
-      "Optimistic", false, checker);
-  checker->ChecksEnabled[MallocChecker::CK_NewDeleteLeaksChecker] = true;
-  checker->CheckNames[MallocChecker::CK_NewDeleteLeaksChecker] =
-      mgr.getCurrentCheckName();
-  // We currently treat NewDeleteLeaks checker as a subchecker of NewDelete
-  // checker.
-  if (!checker->ChecksEnabled[MallocChecker::CK_NewDeleteChecker]) {
-    checker->ChecksEnabled[MallocChecker::CK_NewDeleteChecker] = true;
-    // FIXME: This does not set the correct name, but without this workaround
-    //        no name will be set at all.
-    checker->CheckNames[MallocChecker::CK_NewDeleteChecker] =
-        mgr.getCurrentCheckName();
-  }
-}
-
 // Intended to be used in InnerPointerChecker to register the part of
 // MallocChecker connected to it.
 void ento::registerInnerPointerCheckerAux(CheckerManager &mgr) {
-    registerCStringCheckerBasic(mgr);
-    MallocChecker *checker = mgr.registerChecker<MallocChecker>();
-    checker->IsOptimistic = mgr.getAnalyzerOptions().getCheckerBooleanOption(
-        "Optimistic", false, checker);
-    checker->ChecksEnabled[MallocChecker::CK_InnerPointerChecker] = true;
-    checker->CheckNames[MallocChecker::CK_InnerPointerChecker] =
-        mgr.getCurrentCheckName();
+  MallocChecker *checker = mgr.getChecker<MallocChecker>();
+  checker->ChecksEnabled[MallocChecker::CK_InnerPointerChecker] = true;
+  checker->CheckNames[MallocChecker::CK_InnerPointerChecker] =
+      mgr.getCurrentCheckName();
+}
+
+void ento::registerDynamicMemoryModeling(CheckerManager &mgr) {
+  auto *checker = mgr.registerChecker<MallocChecker>();
+  checker->IsOptimistic = mgr.getAnalyzerOptions().getCheckerBooleanOption(
+                                                         checker, "Optimistic");
+}
+
+bool ento::shouldRegisterDynamicMemoryModeling(const LangOptions &LO) {
+  return true;
 }
 
 #define REGISTER_CHECKER(name)                                                 \
   void ento::register##name(CheckerManager &mgr) {                             \
-    registerCStringCheckerBasic(mgr);                                          \
-    MallocChecker *checker = mgr.registerChecker<MallocChecker>();             \
-    checker->IsOptimistic = mgr.getAnalyzerOptions().getCheckerBooleanOption(  \
-        "Optimistic", false, checker);                                         \
+    MallocChecker *checker = mgr.getChecker<MallocChecker>();                  \
     checker->ChecksEnabled[MallocChecker::CK_##name] = true;                   \
     checker->CheckNames[MallocChecker::CK_##name] = mgr.getCurrentCheckName(); \
+  }                                                                            \
+                                                                               \
+  bool ento::shouldRegister##name(const LangOptions &LO) {                     \
+    return true;                                                               \
   }
 
 REGISTER_CHECKER(MallocChecker)
 REGISTER_CHECKER(NewDeleteChecker)
+REGISTER_CHECKER(NewDeleteLeaksChecker)
 REGISTER_CHECKER(MismatchedDeallocatorChecker)

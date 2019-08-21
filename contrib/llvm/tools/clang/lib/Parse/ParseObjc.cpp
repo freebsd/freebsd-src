@@ -1,9 +1,8 @@
 //===--- ParseObjC.cpp - Objective C Parsing ------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -65,7 +64,7 @@ Parser::ParseObjCAtDirectives(ParsedAttributesWithRange &Attrs) {
   case tok::objc_protocol:
     return ParseObjCAtProtocolDeclaration(AtLoc, Attrs);
   case tok::objc_implementation:
-    return ParseObjCAtImplementationDeclaration(AtLoc);
+    return ParseObjCAtImplementationDeclaration(AtLoc, Attrs);
   case tok::objc_end:
     return ParseObjCAtEndDeclaration(AtLoc);
   case tok::objc_compatibility_alias:
@@ -624,6 +623,8 @@ void Parser::ParseObjCInterfaceDeclList(tok::ObjCKeywordKind contextKey,
     }
     // Ignore excess semicolons.
     if (Tok.is(tok::semi)) {
+      // FIXME: This should use ConsumeExtraSemi() for extraneous semicolons,
+      // to make -Wextra-semi diagnose them.
       ConsumeToken();
       continue;
     }
@@ -647,7 +648,19 @@ void Parser::ParseObjCInterfaceDeclList(tok::ObjCKeywordKind contextKey,
       // erroneous r_brace would cause an infinite loop if not handled here.
       if (Tok.is(tok::r_brace))
         break;
+
       ParsedAttributesWithRange attrs(AttrFactory);
+
+      // Since we call ParseDeclarationOrFunctionDefinition() instead of
+      // ParseExternalDeclaration() below (so that this doesn't parse nested
+      // @interfaces), this needs to duplicate some code from the latter.
+      if (Tok.isOneOf(tok::kw_static_assert, tok::kw__Static_assert)) {
+        SourceLocation DeclEnd;
+        allTUVariables.push_back(
+            ParseDeclaration(DeclaratorContext::FileContext, DeclEnd, attrs));
+        continue;
+      }
+
       allTUVariables.push_back(ParseDeclarationOrFunctionDefinition(attrs));
       continue;
     }
@@ -1234,11 +1247,11 @@ ParsedType Parser::ParseObjCTypeName(ObjCDeclSpec &DS,
   BalancedDelimiterTracker T(*this, tok::l_paren);
   T.consumeOpen();
 
-  SourceLocation TypeStartLoc = Tok.getLocation();
   ObjCDeclContextSwitch ObjCDC(*this);
 
   // Parse type qualifiers, in, inout, etc.
   ParseObjCTypeQualifierList(DS, context);
+  SourceLocation TypeStartLoc = Tok.getLocation();
 
   ParsedType Ty;
   if (isTypeSpecifierQualifier() || isObjCInstancetype()) {
@@ -1876,6 +1889,7 @@ void Parser::HelperActionsForIvarDeclarations(Decl *interfaceDecl, SourceLocatio
 ///     ';'
 ///     objc-instance-variable-decl-list objc-visibility-spec
 ///     objc-instance-variable-decl-list objc-instance-variable-decl ';'
+///     objc-instance-variable-decl-list static_assert-declaration
 ///     objc-instance-variable-decl-list ';'
 ///
 ///   objc-visibility-spec:
@@ -1929,7 +1943,7 @@ void Parser::ParseObjCClassInstanceVariables(Decl *interfaceDecl,
         Tok.setLocation(Tok.getLocation().getLocWithOffset(-1));
         Tok.setKind(tok::at);
         Tok.setLength(1);
-        PP.EnterToken(Tok);
+        PP.EnterToken(Tok, /*IsReinject*/true);
         HelperActionsForIvarDeclarations(interfaceDecl, atLoc,
                                          T, AllIvarDecls, true);
         return;
@@ -1944,6 +1958,15 @@ void Parser::ParseObjCClassInstanceVariables(Decl *interfaceDecl,
       Actions.CodeCompleteOrdinaryName(getCurScope(),
                                        Sema::PCC_ObjCInstanceVariableList);
       return cutOffParsing();
+    }
+
+    // This needs to duplicate a small amount of code from
+    // ParseStructUnionBody() for things that should work in both
+    // C struct and in Objective-C class instance variables.
+    if (Tok.isOneOf(tok::kw_static_assert, tok::kw__Static_assert)) {
+      SourceLocation DeclEnd;
+      ParseStaticAssertDeclaration(DeclEnd);
+      continue;
     }
 
     auto ObjCIvarCallback = [&](ParsingFieldDeclarator &FD) {
@@ -2074,7 +2097,8 @@ Parser::ParseObjCAtProtocolDeclaration(SourceLocation AtLoc,
 ///   objc-category-implementation-prologue:
 ///     @implementation identifier ( identifier )
 Parser::DeclGroupPtrTy
-Parser::ParseObjCAtImplementationDeclaration(SourceLocation AtLoc) {
+Parser::ParseObjCAtImplementationDeclaration(SourceLocation AtLoc,
+                                             ParsedAttributes &Attrs) {
   assert(Tok.isObjCAtKeyword(tok::objc_implementation) &&
          "ParseObjCAtImplementationDeclaration(): Expected @implementation");
   CheckNestedObjCContexts(AtLoc);
@@ -2151,8 +2175,7 @@ Parser::ParseObjCAtImplementationDeclaration(SourceLocation AtLoc) {
                                         /*consumeLastToken=*/true);
     }
     ObjCImpDecl = Actions.ActOnStartCategoryImplementation(
-                                    AtLoc, nameId, nameLoc, categoryId,
-                                    categoryLoc);
+        AtLoc, nameId, nameLoc, categoryId, categoryLoc, Attrs);
 
   } else {
     // We have a class implementation
@@ -2166,8 +2189,7 @@ Parser::ParseObjCAtImplementationDeclaration(SourceLocation AtLoc) {
       superClassLoc = ConsumeToken(); // Consume super class name
     }
     ObjCImpDecl = Actions.ActOnStartClassImplementation(
-                                    AtLoc, nameId, nameLoc,
-                                    superClassId, superClassLoc);
+        AtLoc, nameId, nameLoc, superClassId, superClassLoc, Attrs);
 
     if (Tok.is(tok::l_brace)) // we have ivars
       ParseObjCClassInstanceVariables(ObjCImpDecl, tok::objc_private, AtLoc);
@@ -2704,7 +2726,8 @@ Decl *Parser::ParseObjCMethodDefinition() {
   return MDecl;
 }
 
-StmtResult Parser::ParseObjCAtStatement(SourceLocation AtLoc) {
+StmtResult Parser::ParseObjCAtStatement(SourceLocation AtLoc,
+                                        ParsedStmtContext StmtCtx) {
   if (Tok.is(tok::code_completion)) {
     Actions.CodeCompleteObjCAtStatement(getCurScope());
     cutOffParsing();
@@ -2741,7 +2764,7 @@ StmtResult Parser::ParseObjCAtStatement(SourceLocation AtLoc) {
 
   // Otherwise, eat the semicolon.
   ExpectAndConsumeSemi(diag::err_expected_semi_after_expr);
-  return Actions.ActOnExprStmt(Res);
+  return handleExprStmt(Res, StmtCtx);
 }
 
 ExprResult Parser::ParseObjCAtExpression(SourceLocation AtLoc) {
@@ -3171,15 +3194,15 @@ Parser::ParseObjCMessageExpressionBody(SourceLocation LBracLoc,
         if (SuperLoc.isValid())
           Actions.CodeCompleteObjCSuperMessage(getCurScope(), SuperLoc,
                                                KeyIdents,
-                                               /*AtArgumentEpression=*/true);
+                                               /*AtArgumentExpression=*/true);
         else if (ReceiverType)
           Actions.CodeCompleteObjCClassMessage(getCurScope(), ReceiverType,
                                                KeyIdents,
-                                               /*AtArgumentEpression=*/true);
+                                               /*AtArgumentExpression=*/true);
         else
           Actions.CodeCompleteObjCInstanceMessage(getCurScope(), ReceiverExpr,
                                                   KeyIdents,
-                                                  /*AtArgumentEpression=*/true);
+                                                  /*AtArgumentExpression=*/true);
 
         cutOffParsing();
         return ExprError();
@@ -3209,15 +3232,15 @@ Parser::ParseObjCMessageExpressionBody(SourceLocation LBracLoc,
         if (SuperLoc.isValid())
           Actions.CodeCompleteObjCSuperMessage(getCurScope(), SuperLoc,
                                                KeyIdents,
-                                               /*AtArgumentEpression=*/false);
+                                               /*AtArgumentExpression=*/false);
         else if (ReceiverType)
           Actions.CodeCompleteObjCClassMessage(getCurScope(), ReceiverType,
                                                KeyIdents,
-                                               /*AtArgumentEpression=*/false);
+                                               /*AtArgumentExpression=*/false);
         else
           Actions.CodeCompleteObjCInstanceMessage(getCurScope(), ReceiverExpr,
                                                   KeyIdents,
-                                                /*AtArgumentEpression=*/false);
+                                                /*AtArgumentExpression=*/false);
         cutOffParsing();
         return ExprError();
       }
@@ -3631,7 +3654,7 @@ void Parser::ParseLexedObjCMethodDefs(LexedMethod &LM, bool parseMethod) {
   // Append the current token at the end of the new token stream so that it
   // doesn't get lost.
   LM.Toks.push_back(Tok);
-  PP.EnterTokenStream(LM.Toks, true);
+  PP.EnterTokenStream(LM.Toks, true, /*IsReinject*/true);
 
   // Consume the previously pushed token.
   ConsumeAnyToken(/*ConsumeCodeCompletionTok=*/true);

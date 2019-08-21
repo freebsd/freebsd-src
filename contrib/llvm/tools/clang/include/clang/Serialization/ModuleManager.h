@@ -1,9 +1,8 @@
 //===- ModuleManager.cpp - Module Manager -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -39,7 +38,7 @@ class FileEntry;
 class FileManager;
 class GlobalModuleIndex;
 class HeaderSearch;
-class MemoryBufferCache;
+class InMemoryModuleCache;
 class ModuleMap;
 class PCHContainerReader;
 
@@ -68,7 +67,7 @@ class ModuleManager {
   FileManager &FileMgr;
 
   /// Cache of PCM files.
-  IntrusiveRefCntPtr<MemoryBufferCache> PCMCache;
+  IntrusiveRefCntPtr<InMemoryModuleCache> ModuleCache;
 
   /// Knows how to unwrap module containers.
   const PCHContainerReader &PCHContainerRdr;
@@ -140,7 +139,7 @@ public:
       SmallVectorImpl<std::unique_ptr<ModuleFile>>::reverse_iterator>;
   using ModuleOffset = std::pair<uint32_t, StringRef>;
 
-  explicit ModuleManager(FileManager &FileMgr, MemoryBufferCache &PCMCache,
+  explicit ModuleManager(FileManager &FileMgr, InMemoryModuleCache &ModuleCache,
                          const PCHContainerReader &PCHContainerRdr,
                          const HeaderSearch &HeaderSearchInfo);
   ~ModuleManager();
@@ -318,7 +317,7 @@ public:
   /// View the graphviz representation of the module graph.
   void viewGraph();
 
-  MemoryBufferCache &getPCMCache() const { return *PCMCache; }
+  InMemoryModuleCache &getModuleCache() const { return *ModuleCache; }
 };
 
 } // namespace serialization

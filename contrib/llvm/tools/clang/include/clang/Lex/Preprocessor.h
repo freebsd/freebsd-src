@@ -1,9 +1,8 @@
 //===- Preprocessor.h - C Language Family Preprocessor ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -34,6 +33,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/FunctionExtras.h"
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PointerUnion.h"
@@ -49,8 +49,8 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -72,7 +72,6 @@ class FileEntry;
 class FileManager;
 class HeaderSearch;
 class MacroArgs;
-class MemoryBufferCache;
 class PragmaHandler;
 class PragmaNamespace;
 class PreprocessingRecord;
@@ -126,6 +125,7 @@ class Preprocessor {
   friend class VAOptDefinitionContext;
   friend class VariadicMacroScopeGuard;
 
+  llvm::unique_function<void(const clang::Token &)> OnToken;
   std::shared_ptr<PreprocessorOptions> PPOpts;
   DiagnosticsEngine        *Diags;
   LangOptions       &LangOpts;
@@ -133,7 +133,6 @@ class Preprocessor {
   const TargetInfo *AuxTarget = nullptr;
   FileManager       &FileMgr;
   SourceManager     &SourceMgr;
-  MemoryBufferCache &PCMCache;
   std::unique_ptr<ScratchBuffer> ScratchBuf;
   HeaderSearch      &HeaderInfo;
   ModuleLoader      &TheModuleLoader;
@@ -150,6 +149,7 @@ class Preprocessor {
   IdentifierInfo *Ident__DATE__, *Ident__TIME__;   // __DATE__, __TIME__
   IdentifierInfo *Ident__INCLUDE_LEVEL__;          // __INCLUDE_LEVEL__
   IdentifierInfo *Ident__BASE_FILE__;              // __BASE_FILE__
+  IdentifierInfo *Ident__FILE_NAME__;              // __FILE_NAME__
   IdentifierInfo *Ident__TIMESTAMP__;              // __TIMESTAMP__
   IdentifierInfo *Ident__COUNTER__;                // __COUNTER__
   IdentifierInfo *Ident_Pragma, *Ident__pragma;    // _Pragma, __pragma
@@ -173,6 +173,9 @@ class Preprocessor {
   IdentifierInfo *Ident__is_target_vendor;         // __is_target_vendor
   IdentifierInfo *Ident__is_target_os;             // __is_target_os
   IdentifierInfo *Ident__is_target_environment;    // __is_target_environment
+
+  // Weak, only valid (and set) while InMacroArgs is true.
+  Token* ArgMacro;
 
   SourceLocation DATELoc, TIMELoc;
 
@@ -285,6 +288,84 @@ class Preprocessor {
   /// Whether the last token we lexed was an '@'.
   bool LastTokenWasAt = false;
 
+  /// A position within a C++20 import-seq.
+  class ImportSeq {
+  public:
+    enum State : int {
+      // Positive values represent a number of unclosed brackets.
+      AtTopLevel = 0,
+      AfterTopLevelTokenSeq = -1,
+      AfterExport = -2,
+      AfterImportSeq = -3,
+    };
+
+    ImportSeq(State S) : S(S) {}
+
+    /// Saw any kind of open bracket.
+    void handleOpenBracket() {
+      S = static_cast<State>(std::max<int>(S, 0) + 1);
+    }
+    /// Saw any kind of close bracket other than '}'.
+    void handleCloseBracket() {
+      S = static_cast<State>(std::max<int>(S, 1) - 1);
+    }
+    /// Saw a close brace.
+    void handleCloseBrace() {
+      handleCloseBracket();
+      if (S == AtTopLevel && !AfterHeaderName)
+        S = AfterTopLevelTokenSeq;
+    }
+    /// Saw a semicolon.
+    void handleSemi() {
+      if (atTopLevel()) {
+        S = AfterTopLevelTokenSeq;
+        AfterHeaderName = false;
+      }
+    }
+
+    /// Saw an 'export' identifier.
+    void handleExport() {
+      if (S == AfterTopLevelTokenSeq)
+        S = AfterExport;
+      else if (S <= 0)
+        S = AtTopLevel;
+    }
+    /// Saw an 'import' identifier.
+    void handleImport() {
+      if (S == AfterTopLevelTokenSeq || S == AfterExport)
+        S = AfterImportSeq;
+      else if (S <= 0)
+        S = AtTopLevel;
+    }
+
+    /// Saw a 'header-name' token; do not recognize any more 'import' tokens
+    /// until we reach a top-level semicolon.
+    void handleHeaderName() {
+      if (S == AfterImportSeq)
+        AfterHeaderName = true;
+      handleMisc();
+    }
+
+    /// Saw any other token.
+    void handleMisc() {
+      if (S <= 0)
+        S = AtTopLevel;
+    }
+
+    bool atTopLevel() { return S <= 0; }
+    bool afterImportSeq() { return S == AfterImportSeq; }
+
+  private:
+    State S;
+    /// Whether we're in the pp-import-suffix following the header-name in a
+    /// pp-import. If so, a close-brace is not sufficient to end the
+    /// top-level-token-seq of an import-seq.
+    bool AfterHeaderName = false;
+  };
+
+  /// Our current position within a C++20 import-seq.
+  ImportSeq ImportSeqState = ImportSeq::AfterTopLevelTokenSeq;
+
   /// Whether the module import expects an identifier next. Otherwise,
   /// it expects a '.' or ';'.
   bool ModuleImportExpectsIdentifier = false;
@@ -322,6 +403,14 @@ class Preprocessor {
   /// Whether we hit an error due to reaching max allowed include depth. Allows
   /// to avoid hitting the same error over and over again.
   bool HasReachedMaxIncludeDepth = false;
+
+  /// The number of currently-active calls to Lex.
+  ///
+  /// Lex is reentrant, and asking for an (end-of-phase-4) token can often
+  /// require asking for multiple additional tokens. This counter makes it
+  /// possible for Lex to detect whether it's producing a token for the end
+  /// of phase 4 of translation or for some other situation.
+  unsigned LexLevel = 0;
 
 public:
   struct PreambleSkipInfo {
@@ -777,7 +866,6 @@ private:
 public:
   Preprocessor(std::shared_ptr<PreprocessorOptions> PPOpts,
                DiagnosticsEngine &diags, LangOptions &opts, SourceManager &SM,
-               MemoryBufferCache &PCMCache,
                HeaderSearch &Headers, ModuleLoader &TheModuleLoader,
                IdentifierInfoLookup *IILookup = nullptr,
                bool OwnsHeaderSearch = false,
@@ -817,7 +905,6 @@ public:
   const TargetInfo *getAuxTargetInfo() const { return AuxTarget; }
   FileManager &getFileManager() const { return FileMgr; }
   SourceManager &getSourceManager() const { return SourceMgr; }
-  MemoryBufferCache &getPCMCache() const { return PCMCache; }
   HeaderSearch &getHeaderSearchInfo() const { return HeaderInfo; }
 
   IdentifierTable &getIdentifierTable() { return Identifiers; }
@@ -912,6 +999,13 @@ public:
     Callbacks = std::move(C);
   }
   /// \}
+
+  /// Register a function that would be called on each token in the final
+  /// expanded token stream.
+  /// This also reports annotation tokens produced by the parser.
+  void setTokenWatcher(llvm::unique_function<void(const clang::Token &)> F) {
+    OnToken = std::move(F);
+  }
 
   bool isMacroDefined(StringRef Id) {
     return isMacroDefined(&Identifiers.get(Id));
@@ -1197,6 +1291,7 @@ public:
   void EnterMacro(Token &Tok, SourceLocation ILEnd, MacroInfo *Macro,
                   MacroArgs *Args);
 
+private:
   /// Add a "macro" context to the top of the include stack,
   /// which will cause the lexer to start returning the specified tokens.
   ///
@@ -1208,18 +1303,24 @@ public:
   /// of tokens has a permanent owner somewhere, so they do not need to be
   /// copied. If it is true, it assumes the array of tokens is allocated with
   /// \c new[] and the Preprocessor will delete[] it.
-private:
+  ///
+  /// If \p IsReinject the resulting tokens will have Token::IsReinjected flag
+  /// set, see the flag documentation for details.
   void EnterTokenStream(const Token *Toks, unsigned NumToks,
-                        bool DisableMacroExpansion, bool OwnsTokens);
+                        bool DisableMacroExpansion, bool OwnsTokens,
+                        bool IsReinject);
 
 public:
   void EnterTokenStream(std::unique_ptr<Token[]> Toks, unsigned NumToks,
-                        bool DisableMacroExpansion) {
-    EnterTokenStream(Toks.release(), NumToks, DisableMacroExpansion, true);
+                        bool DisableMacroExpansion, bool IsReinject) {
+    EnterTokenStream(Toks.release(), NumToks, DisableMacroExpansion, true,
+                     IsReinject);
   }
 
-  void EnterTokenStream(ArrayRef<Token> Toks, bool DisableMacroExpansion) {
-    EnterTokenStream(Toks.data(), Toks.size(), DisableMacroExpansion, false);
+  void EnterTokenStream(ArrayRef<Token> Toks, bool DisableMacroExpansion,
+                        bool IsReinject) {
+    EnterTokenStream(Toks.data(), Toks.size(), DisableMacroExpansion, false,
+                     IsReinject);
   }
 
   /// Pop the current lexer/macro exp off the top of the lexer stack.
@@ -1246,24 +1347,6 @@ public:
   /// Disable the last EnableBacktrackAtThisPos call.
   void CommitBacktrackedTokens();
 
-  struct CachedTokensRange {
-    CachedTokensTy::size_type Begin, End;
-  };
-
-private:
-  /// A range of cached tokens that should be erased after lexing
-  /// when backtracking requires the erasure of such cached tokens.
-  Optional<CachedTokensRange> CachedTokenRangeToErase;
-
-public:
-  /// Returns the range of cached tokens that were lexed since
-  /// EnableBacktrackAtThisPos() was previously called.
-  CachedTokensRange LastCachedTokenRange();
-
-  /// Erase the range of cached tokens that were lexed since
-  /// EnableBacktrackAtThisPos() was previously called.
-  void EraseCachedTokens(CachedTokensRange TokenRange);
-
   /// Make Preprocessor re-lex the tokens that were lexed since
   /// EnableBacktrackAtThisPos() was previously called.
   void Backtrack();
@@ -1275,7 +1358,11 @@ public:
   /// Lex the next token for this preprocessor.
   void Lex(Token &Result);
 
-  void LexAfterModuleImport(Token &Result);
+  /// Lex a token, forming a header-name token if possible.
+  bool LexHeaderName(Token &Result, bool AllowMacroExpansion = true);
+
+  bool LexAfterModuleImport(Token &Result);
+  void CollectPpImportSuffix(SmallVectorImpl<Token> &Toks);
 
   void makeModuleVisible(Module *M, SourceLocation Loc);
 
@@ -1352,6 +1439,7 @@ public:
   /// tokens after phase 5.  As such, it is equivalent to using
   /// 'Lex', not 'LexUnexpandedToken'.
   const Token &LookAhead(unsigned N) {
+    assert(LexLevel == 0 && "cannot use lookahead while lexing");
     if (CachedLexPos + N < CachedTokens.size())
       return CachedTokens[CachedLexPos+N];
     else
@@ -1377,9 +1465,20 @@ public:
   ///
   /// If BackTrack() is called afterwards, the token will remain at the
   /// insertion point.
-  void EnterToken(const Token &Tok) {
-    EnterCachingLexMode();
-    CachedTokens.insert(CachedTokens.begin()+CachedLexPos, Tok);
+  /// If \p IsReinject is true, resulting token will have Token::IsReinjected
+  /// flag set. See the flag documentation for details.
+  void EnterToken(const Token &Tok, bool IsReinject) {
+    if (LexLevel) {
+      // It's not correct in general to enter caching lex mode while in the
+      // middle of a nested lexing action.
+      auto TokCopy = llvm::make_unique<Token[]>(1);
+      TokCopy[0] = Tok;
+      EnterTokenStream(std::move(TokCopy), 1, true, IsReinject);
+    } else {
+      EnterCachingLexMode();
+      assert(IsReinject && "new tokens in the middle of cached stream");
+      CachedTokens.insert(CachedTokens.begin()+CachedLexPos, Tok);
+    }
   }
 
   /// We notify the Preprocessor that if it is caching tokens (because
@@ -1813,11 +1912,15 @@ public:
   /// If not, emit a diagnostic and consume up until the eod.
   /// If \p EnableMacros is true, then we consider macros that expand to zero
   /// tokens as being ok.
-  void CheckEndOfDirective(const char *DirType, bool EnableMacros = false);
+  ///
+  /// \return The location of the end of the directive (the terminating
+  /// newline).
+  SourceLocation CheckEndOfDirective(const char *DirType,
+                                     bool EnableMacros = false);
 
   /// Read and discard all tokens remaining on the current line until
-  /// the tok::eod token is found.
-  void DiscardUntilEndOfDirective();
+  /// the tok::eod token is found. Returns the range of the skipped tokens.
+  SourceRange DiscardUntilEndOfDirective();
 
   /// Returns true if the preprocessor has seen a use of
   /// __DATE__ or __TIME__ in the file so far.
@@ -1855,7 +1958,8 @@ public:
                               SmallVectorImpl<char> *SearchPath,
                               SmallVectorImpl<char> *RelativePath,
                               ModuleMap::KnownHeader *SuggestedModule,
-                              bool *IsMapped, bool SkipCache = false);
+                              bool *IsMapped, bool *IsFrameworkFound,
+                              bool SkipCache = false);
 
   /// Get the DirectoryLookup structure used to find the current
   /// FileEntry, if CurLexer is non-null and if applicable.
@@ -1866,22 +1970,6 @@ public:
 
   /// Return true if we're in the top-level file, not in a \#include.
   bool isInPrimaryFile() const;
-
-  /// Handle cases where the \#include name is expanded
-  /// from a macro as multiple tokens, which need to be glued together.
-  ///
-  /// This occurs for code like:
-  /// \code
-  ///    \#define FOO <x/y.h>
-  ///    \#include FOO
-  /// \endcode
-  /// because in this case, "<x/y.h>" is returned as 7 tokens, not one.
-  ///
-  /// This code concatenates and consumes tokens up to the '>' token.  It
-  /// returns false if the > was found, otherwise it returns true if it finds
-  /// and consumes the EOD marker.
-  bool ConcatenateIncludeName(SmallString<128> &FilenameBuffer,
-                              SourceLocation &End);
 
   /// Lex an on-off-switch (C99 6.10.6p2) and verify that it is
   /// followed by EOD.  Return true if the token is not a valid on-off-switch.
@@ -1982,6 +2070,9 @@ private:
 
     /// True if the expression contained identifiers that were undefined.
     bool IncludedUndefinedIds;
+
+    /// The source range for the expression.
+    SourceRange ExprRange;
   };
 
   /// Evaluate an integer constant expression that may occur after a
@@ -2073,6 +2164,7 @@ private:
   }
 
   void EnterCachingLexMode();
+  void EnterCachingLexModeUnchecked();
 
   void ExitCachingLexMode() {
     if (InCachingLexMode())
@@ -2093,12 +2185,32 @@ private:
   void HandleMacroPublicDirective(Token &Tok);
   void HandleMacroPrivateDirective();
 
+  /// An additional notification that can be produced by a header inclusion or
+  /// import to tell the parser what happened.
+  struct ImportAction {
+    enum ActionKind {
+      None,
+      ModuleBegin,
+      ModuleImport,
+      SkippedModuleImport,
+    } Kind;
+    Module *ModuleForHeader = nullptr;
+
+    ImportAction(ActionKind AK, Module *Mod = nullptr)
+        : Kind(AK), ModuleForHeader(Mod) {
+      assert((AK == None || Mod) && "no module for module action");
+    }
+  };
+
   // File inclusion.
-  void HandleIncludeDirective(SourceLocation HashLoc,
-                              Token &Tok,
+  void HandleIncludeDirective(SourceLocation HashLoc, Token &Tok,
                               const DirectoryLookup *LookupFrom = nullptr,
-                              const FileEntry *LookupFromFile = nullptr,
-                              bool isImport = false);
+                              const FileEntry *LookupFromFile = nullptr);
+  ImportAction
+  HandleHeaderIncludeOrImport(SourceLocation HashLoc, Token &IncludeTok,
+                              Token &FilenameTok, SourceLocation EndLoc,
+                              const DirectoryLookup *LookupFrom = nullptr,
+                              const FileEntry *LookupFromFile = nullptr);
   void HandleIncludeNextDirective(SourceLocation HashLoc, Token &Tok);
   void HandleIncludeMacrosDirective(SourceLocation HashLoc, Token &Tok);
   void HandleImportDirective(SourceLocation HashLoc, Token &Tok);
@@ -2179,8 +2291,7 @@ private:
   void HandleElifDirective(Token &ElifToken, const Token &HashToken);
 
   // Pragmas.
-  void HandlePragmaDirective(SourceLocation IntroducerLoc,
-                             PragmaIntroducerKind Introducer);
+  void HandlePragmaDirective(PragmaIntroducer Introducer);
 
 public:
   void HandlePragmaOnce(Token &OnceTok);

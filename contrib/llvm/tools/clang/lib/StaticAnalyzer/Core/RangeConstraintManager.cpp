@@ -1,9 +1,8 @@
 //== RangeConstraintManager.cpp - Manage range constraints.------*- C++ -*--==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Basic/JsonSupport.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/APSIntType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
@@ -174,6 +174,22 @@ RangeSet RangeSet::Intersect(BasicValueFactory &BV, Factory &F,
   return newRanges;
 }
 
+// Returns a set containing the values in the receiving set, intersected with
+// the range set passed as parameter.
+RangeSet RangeSet::Intersect(BasicValueFactory &BV, Factory &F,
+                             const RangeSet &Other) const {
+  PrimRangeSet newRanges = F.getEmptySet();
+
+  for (iterator i = Other.begin(), e = Other.end(); i != e; ++i) {
+    RangeSet newPiece = Intersect(BV, F, i->From(), i->To());
+    for (iterator j = newPiece.begin(), ee = newPiece.end(); j != ee; ++j) {
+      newRanges = F.add(newRanges, *j);
+    }
+  }
+
+  return newRanges;
+}
+
 // Turn all [A, B] ranges to [-B, -A]. Ranges [MIN, B] are turned to range set
 // [MIN, MIN] U [-B, MAX], when MIN and MAX are the minimal and the maximal
 // signed values of the type.
@@ -231,6 +247,11 @@ public:
   // Implementation for interface from ConstraintManager.
   //===------------------------------------------------------------------===//
 
+  bool haveEqualConstraints(ProgramStateRef S1,
+                            ProgramStateRef S2) const override {
+    return S1->get<ConstraintRange>() == S2->get<ConstraintRange>();
+  }
+
   bool canReasonAbout(SVal X) const override;
 
   ConditionTruthVal checkNull(ProgramStateRef State, SymbolRef Sym) override;
@@ -241,8 +262,8 @@ public:
   ProgramStateRef removeDeadBindings(ProgramStateRef State,
                                      SymbolReaper &SymReaper) override;
 
-  void print(ProgramStateRef State, raw_ostream &Out, const char *nl,
-             const char *sep) override;
+  void printJson(raw_ostream &Out, ProgramStateRef State, const char *NL = "\n",
+                 unsigned int Space = 0, bool IsDot = false) const override;
 
   //===------------------------------------------------------------------===//
   // Implementation for interface from RangedConstraintManager.
@@ -457,14 +478,21 @@ static RangeSet applyBitwiseConstraints(
 
 RangeSet RangeConstraintManager::getRange(ProgramStateRef State,
                                           SymbolRef Sym) {
-  if (ConstraintRangeTy::data_type *V = State->get<ConstraintRange>(Sym))
-    return *V;
-
-  BasicValueFactory &BV = getBasicVals();
+  ConstraintRangeTy::data_type *V = State->get<ConstraintRange>(Sym);
 
   // If Sym is a difference of symbols A - B, then maybe we have range set
   // stored for B - A.
-  if (const RangeSet *R = getRangeForMinusSymbol(State, Sym))
+  BasicValueFactory &BV = getBasicVals();
+  const RangeSet *R = getRangeForMinusSymbol(State, Sym);
+
+  // If we have range set stored for both A - B and B - A then calculate the
+  // effective range set by intersecting the range set for A - B and the
+  // negated range set of B - A.
+  if (V && R)
+    return V->Intersect(BV, F, R->Negate(BV, F));
+  if (V)
+    return *V;
+  if (R)
     return R->Negate(BV, F);
 
   // Lazily generate a new RangeSet representing all possible values for the
@@ -727,25 +755,35 @@ ProgramStateRef RangeConstraintManager::assumeSymOutsideInclusiveRange(
   return New.isEmpty() ? nullptr : State->set<ConstraintRange>(Sym, New);
 }
 
-//===------------------------------------------------------------------------===
+//===----------------------------------------------------------------------===//
 // Pretty-printing.
-//===------------------------------------------------------------------------===/
+//===----------------------------------------------------------------------===//
 
-void RangeConstraintManager::print(ProgramStateRef St, raw_ostream &Out,
-                                   const char *nl, const char *sep) {
+void RangeConstraintManager::printJson(raw_ostream &Out, ProgramStateRef State,
+                                       const char *NL, unsigned int Space,
+                                       bool IsDot) const {
+  ConstraintRangeTy Constraints = State->get<ConstraintRange>();
 
-  ConstraintRangeTy Ranges = St->get<ConstraintRange>();
-
-  if (Ranges.isEmpty()) {
-    Out << nl << sep << "Ranges are empty." << nl;
+  Indent(Out, Space, IsDot) << "\"constraints\": ";
+  if (Constraints.isEmpty()) {
+    Out << "null," << NL;
     return;
   }
 
-  Out << nl << sep << "Ranges of symbol values:";
-  for (ConstraintRangeTy::iterator I = Ranges.begin(), E = Ranges.end(); I != E;
-       ++I) {
-    Out << nl << ' ' << I.getKey() << " : ";
+  ++Space;
+  Out << '[' << NL;
+  for (ConstraintRangeTy::iterator I = Constraints.begin();
+       I != Constraints.end(); ++I) {
+    Indent(Out, Space, IsDot)
+        << "{ \"symbol\": \"" << I.getKey() << "\", \"range\": \"";
     I.getData().print(Out);
+    Out << "\" }";
+
+    if (std::next(I) != Constraints.end())
+      Out << ',';
+    Out << NL;
   }
-  Out << nl;
+
+  --Space;
+  Indent(Out, Space, IsDot) << "]," << NL;
 }
