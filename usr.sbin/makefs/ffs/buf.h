@@ -45,6 +45,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 
+struct componentname;
 struct makefs_fsinfo;
 struct ucred;
 

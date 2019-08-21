@@ -56,14 +56,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <fs/msdosfs/bpb.h>
-#include "msdos/denode.h"
-#include "msdos/msdosfsmount.h"
-#include <fs/msdosfs/fat.h>
-
 #include "ffs/buf.h"
-
+#include <fs/msdosfs/bpb.h>
 #include "msdos/direntry.h"
+#include <fs/msdosfs/denode.h>
+#include <fs/msdosfs/fat.h>
+#include "msdos/msdosfsmount.h"
 
 #include "makefs.h"
 #include "msdos.h"
@@ -104,7 +102,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 		dirclust = de_clcount(pmp, diroffset);
 		error = extendfile(ddep, dirclust, 0, 0, DE_CLEAR);
 		if (error) {
-			(void)detrunc(ddep, ddep->de_FileSize, 0);
+			(void)detrunc(ddep, ddep->de_FileSize, 0, NULL);
 			return error;
 		}
 

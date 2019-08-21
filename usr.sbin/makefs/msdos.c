@@ -55,17 +55,17 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <util.h>
 
+#include "ffs/buf.h"
 #include "makefs.h"
 #include "msdos.h"
 
 #include <mkfs_msdos.h>
 #include <fs/msdosfs/bpb.h>
+#include "msdos/direntry.h"
+#include <fs/msdosfs/denode.h>
 
-#include "ffs/buf.h"
 
 #include "msdos/msdosfsmount.h"
-#include "msdos/direntry.h"
-#include "msdos/denode.h"
 
 static int msdos_populate_dir(const char *, struct denode *, fsnode *,
     fsnode *, fsinfo_t *);
