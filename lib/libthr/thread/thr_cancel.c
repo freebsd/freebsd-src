@@ -43,6 +43,8 @@ __weak_reference(_thr_setcanceltype, pthread_setcanceltype);
 __weak_reference(_thr_setcanceltype, _pthread_setcanceltype);
 __weak_reference(_Tthr_testcancel, pthread_testcancel);
 __weak_reference(_Tthr_testcancel, _pthread_testcancel);
+__weak_reference(_Tthr_cancel_enter, _pthread_cancel_enter);
+__weak_reference(_Tthr_cancel_leave, _pthread_cancel_leave);
 
 static inline void
 testcancel(struct pthread *curthread)
@@ -173,13 +175,13 @@ _thr_cancel_leave(struct pthread *curthread, int maycancel)
 }
 
 void
-_pthread_cancel_enter(int maycancel)
+_Tthr_cancel_enter(int maycancel)
 {
 	_thr_cancel_enter2(_get_curthread(), maycancel);
 }
 
 void
-_pthread_cancel_leave(int maycancel)
+_Tthr_cancel_leave(int maycancel)
 {
 	_thr_cancel_leave(_get_curthread(), maycancel);
 }
