@@ -3056,21 +3056,15 @@ vm_waitpfault(struct domainset *dset, int timo)
 		mtx_unlock(&vm_domainset_lock);
 }
 
-struct vm_pagequeue *
+static struct vm_pagequeue *
 vm_page_pagequeue(vm_page_t m)
 {
 
-	return (&vm_pagequeue_domain(m)->vmd_pagequeues[m->queue]);
-}
-
-static struct mtx *
-vm_page_pagequeue_lockptr(vm_page_t m)
-{
 	uint8_t queue;
 
 	if ((queue = atomic_load_8(&m->queue)) == PQ_NONE)
 		return (NULL);
-	return (&vm_pagequeue_domain(m)->vmd_pagequeues[queue].pq_mutex);
+	return (&vm_pagequeue_domain(m)->vmd_pagequeues[queue]);
 }
 
 static inline void
@@ -3093,10 +3087,8 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 	    m, pq, qflags));
 
 	if ((qflags & PGA_DEQUEUE) != 0) {
-		if (__predict_true((qflags & PGA_ENQUEUED) != 0)) {
-			TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
-			vm_pagequeue_cnt_dec(pq);
-		}
+		if (__predict_true((qflags & PGA_ENQUEUED) != 0))
+			vm_pagequeue_remove(pq, m);
 		vm_page_dequeue_complete(m);
 	} else if ((qflags & (PGA_REQUEUE | PGA_REQUEUE_HEAD)) != 0) {
 		if ((qflags & PGA_ENQUEUED) != 0)
@@ -3299,16 +3291,14 @@ vm_page_dequeue_deferred_free(vm_page_t m)
 void
 vm_page_dequeue(vm_page_t m)
 {
-	struct mtx *lock, *lock1;
-	struct vm_pagequeue *pq;
+	struct vm_pagequeue *pq, *pq1;
 	uint8_t aflags;
 
-	KASSERT(mtx_owned(vm_page_lockptr(m)) || m->order == VM_NFREEORDER,
+	KASSERT(mtx_owned(vm_page_lockptr(m)) || m->object == NULL,
 	    ("page %p is allocated and unlocked", m));
 
-	for (;;) {
-		lock = vm_page_pagequeue_lockptr(m);
-		if (lock == NULL) {
+	for (pq = vm_page_pagequeue(m);; pq = pq1) {
+		if (pq == NULL) {
 			/*
 			 * A thread may be concurrently executing
 			 * vm_page_dequeue_complete().  Ensure that all queue
@@ -3327,27 +3317,24 @@ vm_page_dequeue(vm_page_t m)
 			 * critical section.
 			 */
 			cpu_spinwait();
+			pq1 = vm_page_pagequeue(m);
 			continue;
 		}
-		mtx_lock(lock);
-		if ((lock1 = vm_page_pagequeue_lockptr(m)) == lock)
+		vm_pagequeue_lock(pq);
+		if ((pq1 = vm_page_pagequeue(m)) == pq)
 			break;
-		mtx_unlock(lock);
-		lock = lock1;
+		vm_pagequeue_unlock(pq);
 	}
-	KASSERT(lock == vm_page_pagequeue_lockptr(m),
+	KASSERT(pq == vm_page_pagequeue(m),
 	    ("%s: page %p migrated directly between queues", __func__, m));
 	KASSERT((m->aflags & PGA_DEQUEUE) != 0 ||
 	    mtx_owned(vm_page_lockptr(m)),
 	    ("%s: queued unlocked page %p", __func__, m));
 
-	if ((m->aflags & PGA_ENQUEUED) != 0) {
-		pq = vm_page_pagequeue(m);
-		TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
-		vm_pagequeue_cnt_dec(pq);
-	}
+	if ((m->aflags & PGA_ENQUEUED) != 0)
+		vm_pagequeue_remove(pq, m);
 	vm_page_dequeue_complete(m);
-	mtx_unlock(lock);
+	vm_pagequeue_unlock(pq);
 }
 
 /*
