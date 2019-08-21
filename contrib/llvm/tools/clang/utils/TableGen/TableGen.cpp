@@ -1,9 +1,8 @@
 //===- TableGen.cpp - Top-Level TableGen implementation for Clang ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -54,6 +53,7 @@ enum ActionType {
   GenClangCommentHTMLNamedCharacterReferences,
   GenClangCommentCommandInfo,
   GenClangCommentCommandList,
+  GenClangOpenCLBuiltins,
   GenArmNeon,
   GenArmFP16,
   GenArmNeonSema,
@@ -148,6 +148,8 @@ cl::opt<ActionType> Action(
         clEnumValN(GenClangCommentCommandList, "gen-clang-comment-command-list",
                    "Generate list of commands that are used in "
                    "documentation comments"),
+        clEnumValN(GenClangOpenCLBuiltins, "gen-clang-opencl-builtins",
+                   "Generate OpenCL builtin declaration handlers"),
         clEnumValN(GenArmNeon, "gen-arm-neon", "Generate arm_neon.h for clang"),
         clEnumValN(GenArmFP16, "gen-arm-fp16", "Generate arm_fp16.h for clang"),
         clEnumValN(GenArmNeonSema, "gen-arm-neon-sema",
@@ -266,6 +268,9 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
     break;
   case GenClangCommentCommandList:
     EmitClangCommentCommandList(Records, OS);
+    break;
+  case GenClangOpenCLBuiltins:
+    EmitClangOpenCLBuiltins(Records, OS);
     break;
   case GenArmNeon:
     EmitNeon(Records, OS);

@@ -1,9 +1,8 @@
 //===--- X86.cpp - X86 Helpers for Tools ------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -136,6 +135,7 @@ void x86::getX86TargetFeatures(const Driver &D, const llvm::Triple &Triple,
     if (ArchType == llvm::Triple::x86_64) {
       Features.push_back("+sse4.2");
       Features.push_back("+popcnt");
+      Features.push_back("+cx16");
     } else
       Features.push_back("+ssse3");
   }

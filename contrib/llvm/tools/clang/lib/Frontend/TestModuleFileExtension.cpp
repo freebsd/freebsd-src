@@ -1,16 +1,15 @@
 //===-- TestModuleFileExtension.cpp - Module Extension Tester -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #include "TestModuleFileExtension.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/Hashing.h"
-#include "llvm/Bitcode/BitstreamWriter.h"
+#include "llvm/Bitstream/BitstreamWriter.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstdio>
 using namespace clang;
@@ -49,7 +48,12 @@ TestModuleFileExtension::Reader::Reader(ModuleFileExtension *Ext,
   // Read the extension block.
   SmallVector<uint64_t, 4> Record;
   while (true) {
-    llvm::BitstreamEntry Entry = Stream.advanceSkippingSubblocks();
+    llvm::Expected<llvm::BitstreamEntry> MaybeEntry =
+        Stream.advanceSkippingSubblocks();
+    if (!MaybeEntry)
+      (void)MaybeEntry.takeError();
+    llvm::BitstreamEntry Entry = MaybeEntry.get();
+
     switch (Entry.Kind) {
     case llvm::BitstreamEntry::SubBlock:
     case llvm::BitstreamEntry::EndBlock:
@@ -62,8 +66,12 @@ TestModuleFileExtension::Reader::Reader(ModuleFileExtension *Ext,
 
     Record.clear();
     StringRef Blob;
-    unsigned RecCode = Stream.readRecord(Entry.ID, Record, &Blob);
-    switch (RecCode) {
+    Expected<unsigned> MaybeRecCode =
+        Stream.readRecord(Entry.ID, Record, &Blob);
+    if (!MaybeRecCode)
+      fprintf(stderr, "Failed reading rec code: %s\n",
+              toString(MaybeRecCode.takeError()).c_str());
+    switch (MaybeRecCode.get()) {
     case FIRST_EXTENSION_RECORD_ID: {
       StringRef Message = Blob.substr(0, Record[0]);
       fprintf(stderr, "Read extension block message: %s\n",

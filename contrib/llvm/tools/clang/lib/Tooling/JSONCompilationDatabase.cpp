@@ -1,9 +1,8 @@
 //===- JSONCompilationDatabase.cpp ----------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,7 +14,9 @@
 #include "clang/Basic/LLVM.h"
 #include "clang/Tooling/CompilationDatabase.h"
 #include "clang/Tooling/CompilationDatabasePluginRegistry.h"
+#include "clang/Tooling/Tooling.h"
 #include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -166,7 +167,9 @@ class JSONCompilationDatabasePlugin : public CompilationDatabasePlugin {
     llvm::sys::path::append(JSONDatabasePath, "compile_commands.json");
     auto Base = JSONCompilationDatabase::loadFromFile(
         JSONDatabasePath, ErrorMessage, JSONCommandLineSyntax::AutoDetect);
-    return Base ? inferMissingCompileCommands(std::move(Base)) : nullptr;
+    return Base ? inferTargetAndDriverMode(
+                      inferMissingCompileCommands(std::move(Base)))
+                : nullptr;
   }
 };
 
@@ -191,8 +194,11 @@ std::unique_ptr<JSONCompilationDatabase>
 JSONCompilationDatabase::loadFromFile(StringRef FilePath,
                                       std::string &ErrorMessage,
                                       JSONCommandLineSyntax Syntax) {
+  // Don't mmap: if we're a long-lived process, the build system may overwrite.
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> DatabaseBuffer =
-      llvm::MemoryBuffer::getFile(FilePath);
+      llvm::MemoryBuffer::getFile(FilePath, /*FileSize=*/-1,
+                                  /*RequiresNullTerminator=*/true,
+                                  /*IsVolatile=*/true);
   if (std::error_code Result = DatabaseBuffer.getError()) {
     ErrorMessage = "Error while opening JSON database: " + Result.message();
     return nullptr;
@@ -250,15 +256,57 @@ JSONCompilationDatabase::getAllCompileCommands() const {
   return Commands;
 }
 
+static llvm::StringRef stripExecutableExtension(llvm::StringRef Name) {
+  Name.consume_back(".exe");
+  return Name;
+}
+
+// There are compiler-wrappers (ccache, distcc, gomacc) that take the "real"
+// compiler as an argument, e.g. distcc gcc -O3 foo.c.
+// These end up in compile_commands.json when people set CC="distcc gcc".
+// Clang's driver doesn't understand this, so we need to unwrap.
+static bool unwrapCommand(std::vector<std::string> &Args) {
+  if (Args.size() < 2)
+    return false;
+  StringRef Wrapper =
+      stripExecutableExtension(llvm::sys::path::filename(Args.front()));
+  if (Wrapper == "distcc" || Wrapper == "gomacc" || Wrapper == "ccache") {
+    // Most of these wrappers support being invoked 3 ways:
+    // `distcc g++ file.c` This is the mode we're trying to match.
+    //                     We need to drop `distcc`.
+    // `distcc file.c`     This acts like compiler is cc or similar.
+    //                     Clang's driver can handle this, no change needed.
+    // `g++ file.c`        g++ is a symlink to distcc.
+    //                     We don't even notice this case, and all is well.
+    //
+    // We need to distinguish between the first and second case.
+    // The wrappers themselves don't take flags, so Args[1] is a compiler flag,
+    // an input file, or a compiler. Inputs have extensions, compilers don't.
+    bool HasCompiler =
+        (Args[1][0] != '-') &&
+        !llvm::sys::path::has_extension(stripExecutableExtension(Args[1]));
+    if (HasCompiler) {
+      Args.erase(Args.begin());
+      return true;
+    }
+    // If !HasCompiler, wrappers act like GCC. Fine: so do we.
+  }
+  return false;
+}
+
 static std::vector<std::string>
 nodeToCommandLine(JSONCommandLineSyntax Syntax,
                   const std::vector<llvm::yaml::ScalarNode *> &Nodes) {
   SmallString<1024> Storage;
-  if (Nodes.size() == 1)
-    return unescapeCommandLine(Syntax, Nodes[0]->getValue(Storage));
   std::vector<std::string> Arguments;
-  for (const auto *Node : Nodes)
-    Arguments.push_back(Node->getValue(Storage));
+  if (Nodes.size() == 1)
+    Arguments = unescapeCommandLine(Syntax, Nodes[0]->getValue(Storage));
+  else
+    for (const auto *Node : Nodes)
+      Arguments.push_back(Node->getValue(Storage));
+  // There may be multiple wrappers: using distcc and ccache together is common.
+  while (unwrapCommand(Arguments))
+    ;
   return Arguments;
 }
 
@@ -371,6 +419,7 @@ bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
       SmallString<128> AbsolutePath(
           Directory->getValue(DirectoryStorage));
       llvm::sys::path::append(AbsolutePath, FileName);
+      llvm::sys::path::remove_dots(AbsolutePath, /*remove_dot_dot=*/ true);
       llvm::sys::path::native(AbsolutePath, NativeFilePath);
     } else {
       llvm::sys::path::native(FileName, NativeFilePath);
