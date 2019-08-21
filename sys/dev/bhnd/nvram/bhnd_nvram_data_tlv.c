@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/ctype.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #else /* !_KERNEL */
