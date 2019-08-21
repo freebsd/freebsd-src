@@ -42,48 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/endian.h>
 
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-
 #include "nvme_private.h"
 
 #define B4_CHK_RDY_DELAY_MS	2300		/* work around controller bug */
 
 static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 						struct nvme_async_event_request *aer);
-static void nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr);
-
-static int
-nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
-{
-
-	ctrlr->resource_id = PCIR_BAR(0);
-
-	ctrlr->resource = bus_alloc_resource_any(ctrlr->dev, SYS_RES_MEMORY,
-	    &ctrlr->resource_id, RF_ACTIVE);
-
-	if(ctrlr->resource == NULL) {
-		nvme_printf(ctrlr, "unable to allocate pci resource\n");
-		return (ENOMEM);
-	}
-
-	ctrlr->bus_tag = rman_get_bustag(ctrlr->resource);
-	ctrlr->bus_handle = rman_get_bushandle(ctrlr->resource);
-	ctrlr->regs = (struct nvme_registers *)ctrlr->bus_handle;
-
-	/*
-	 * The NVMe spec allows for the MSI-X table to be placed behind
-	 *  BAR 4/5, separate from the control/doorbell registers.  Always
-	 *  try to map this bar, because it must be mapped prior to calling
-	 *  pci_alloc_msix().  If the table isn't behind BAR 4/5,
-	 *  bus_alloc_resource() will just return NULL which is OK.
-	 */
-	ctrlr->bar4_resource_id = PCIR_BAR(4);
-	ctrlr->bar4_resource = bus_alloc_resource_any(ctrlr->dev, SYS_RES_MEMORY,
-	    &ctrlr->bar4_resource_id, RF_ACTIVE);
-
-	return (0);
-}
 
 static int
 nvme_ctrlr_construct_admin_qpair(struct nvme_controller *ctrlr)
@@ -876,9 +840,8 @@ nvme_ctrlr_start(void *ctrlr_arg)
 	 *  the number of I/O queues supported, so cannot reset
 	 *  the adminq again here.
 	 */
-	if (ctrlr->is_resetting) {
+	if (ctrlr->is_resetting)
 		nvme_qpair_reset(&ctrlr->adminq);
-	}
 
 	for (i = 0; i < ctrlr->num_io_queues; i++)
 		nvme_qpair_reset(&ctrlr->ioq[i]);
@@ -1002,34 +965,6 @@ nvme_ctrlr_intx_handler(void *arg)
 	nvme_mmio_write_4(ctrlr, intms, 1);
 	nvme_ctrlr_poll(ctrlr);
 	nvme_mmio_write_4(ctrlr, intmc, 1);
-}
-
-static int
-nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
-{
-
-	ctrlr->msix_enabled = 0;
-	ctrlr->num_io_queues = 1;
-	ctrlr->num_cpus_per_ioq = mp_ncpus;
-	ctrlr->rid = 0;
-	ctrlr->res = bus_alloc_resource_any(ctrlr->dev, SYS_RES_IRQ,
-	    &ctrlr->rid, RF_SHAREABLE | RF_ACTIVE);
-
-	if (ctrlr->res == NULL) {
-		nvme_printf(ctrlr, "unable to allocate shared IRQ\n");
-		return (ENOMEM);
-	}
-
-	bus_setup_intr(ctrlr->dev, ctrlr->res,
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, nvme_ctrlr_intx_handler,
-	    ctrlr, &ctrlr->tag);
-
-	if (ctrlr->tag == NULL) {
-		nvme_printf(ctrlr, "unable to setup intx handler\n");
-		return (ENOMEM);
-	}
-
-	return (0);
 }
 
 static void
@@ -1177,88 +1112,6 @@ static struct cdevsw nvme_ctrlr_cdevsw = {
 	.d_ioctl =	nvme_ctrlr_ioctl
 };
 
-static void
-nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
-{
-	device_t	dev;
-	int		per_cpu_io_queues;
-	int		min_cpus_per_ioq;
-	int		num_vectors_requested, num_vectors_allocated;
-	int		num_vectors_available;
-
-	dev = ctrlr->dev;
-	min_cpus_per_ioq = 1;
-	TUNABLE_INT_FETCH("hw.nvme.min_cpus_per_ioq", &min_cpus_per_ioq);
-
-	if (min_cpus_per_ioq < 1) {
-		min_cpus_per_ioq = 1;
-	} else if (min_cpus_per_ioq > mp_ncpus) {
-		min_cpus_per_ioq = mp_ncpus;
-	}
-
-	per_cpu_io_queues = 1;
-	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
-
-	if (per_cpu_io_queues == 0) {
-		min_cpus_per_ioq = mp_ncpus;
-	}
-
-	ctrlr->force_intx = 0;
-	TUNABLE_INT_FETCH("hw.nvme.force_intx", &ctrlr->force_intx);
-
-	/*
-	 * FreeBSD currently cannot allocate more than about 190 vectors at
-	 *  boot, meaning that systems with high core count and many devices
-	 *  requesting per-CPU interrupt vectors will not get their full
-	 *  allotment.  So first, try to allocate as many as we may need to
-	 *  understand what is available, then immediately release them.
-	 *  Then figure out how many of those we will actually use, based on
-	 *  assigning an equal number of cores to each I/O queue.
-	 */
-
-	/* One vector for per core I/O queue, plus one vector for admin queue. */
-	num_vectors_available = min(pci_msix_count(dev), mp_ncpus + 1);
-	if (pci_alloc_msix(dev, &num_vectors_available) != 0) {
-		num_vectors_available = 0;
-	}
-	pci_release_msi(dev);
-
-	if (ctrlr->force_intx || num_vectors_available < 2) {
-		nvme_ctrlr_configure_intx(ctrlr);
-		return;
-	}
-
-	/*
-	 * Do not use all vectors for I/O queues - one must be saved for the
-	 *  admin queue.
-	 */
-	ctrlr->num_cpus_per_ioq = max(min_cpus_per_ioq,
-	    howmany(mp_ncpus, num_vectors_available - 1));
-
-	ctrlr->num_io_queues = howmany(mp_ncpus, ctrlr->num_cpus_per_ioq);
-	num_vectors_requested = ctrlr->num_io_queues + 1;
-	num_vectors_allocated = num_vectors_requested;
-
-	/*
-	 * Now just allocate the number of vectors we need.  This should
-	 *  succeed, since we previously called pci_alloc_msix()
-	 *  successfully returning at least this many vectors, but just to
-	 *  be safe, if something goes wrong just revert to INTx.
-	 */
-	if (pci_alloc_msix(dev, &num_vectors_allocated) != 0) {
-		nvme_ctrlr_configure_intx(ctrlr);
-		return;
-	}
-
-	if (num_vectors_allocated < num_vectors_requested) {
-		pci_release_msi(dev);
-		nvme_ctrlr_configure_intx(ctrlr);
-		return;
-	}
-
-	ctrlr->msix_enabled = 1;
-}
-
 int
 nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 {
@@ -1273,11 +1126,6 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	ctrlr->dev = dev;
 
 	mtx_init(&ctrlr->lock, "nvme ctrlr lock", NULL, MTX_DEF);
-
-	status = nvme_ctrlr_allocate_bar(ctrlr);
-
-	if (status != 0)
-		return (status);
 
 	/*
 	 * Software emulators may set the doorbell stride to something
@@ -1307,8 +1155,6 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 
 	ctrlr->enable_aborts = 0;
 	TUNABLE_INT_FETCH("hw.nvme.enable_aborts", &ctrlr->enable_aborts);
-
-	nvme_ctrlr_setup_interrupts(ctrlr);
 
 	ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
 	if (nvme_ctrlr_construct_admin_qpair(ctrlr) != 0)
@@ -1394,9 +1240,6 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	if (ctrlr->res)
 		bus_release_resource(ctrlr->dev, SYS_RES_IRQ,
 		    rman_get_rid(ctrlr->res), ctrlr->res);
-
-	if (ctrlr->msix_enabled)
-		pci_release_msi(dev);
 
 	if (ctrlr->bar4_resource != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
