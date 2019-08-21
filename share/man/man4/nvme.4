@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2019
+.Dd August 21, 2019
 .Dt NVME 4
 .Os
 .Sh NAME
@@ -207,6 +207,23 @@ with a completion entry that was posted by the controller.
 (W) Writing 1 to this sysctl will dump the full contents of the submission
 and completion queues to the console.
 .El
+.Pp
+In addition to the typical pci attachment, the
+.Nm
+driver supports attaching to a
+.Xr ahci 4
+device.
+Intel's Rapid Storage Technology (RST) hides the nvme device
+behind the AHCI device due to limitations in Windows.
+However, this effectively hides it from the
+.Fx
+kernel.
+To work around this limitation,
+.Fx
+detects that the AHCI device supports RST and when it is enabled.
+See
+.Xr ahci 4
+for more details.
 .Sh SEE ALSO
 .Xr nda 4 ,
 .Xr nvd 4 ,
