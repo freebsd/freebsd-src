@@ -28,7 +28,7 @@
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2017
+.Dd August 1, 2019
 .Dt DU 1
 .Os
 .Sh NAME
@@ -221,8 +221,78 @@ Also display a grand total at the end:
 .Xr fts 3 ,
 .Xr symlink 7 ,
 .Xr quot 8
-.Sh HISTORY
-A
+.Sh STANDARDS
+The
 .Nm
-command appeared in
+utility is compliant with the
+.St -p1003.1-2008
+specification.
+.Pp
+The flags
+.Op Fl cdhP ,
+as well as the
+.Ev BLOCKSIZE
+environment variable,
+are extensions to that specification.
+.Pp
+The flag
+.Op Fl r
+is accepted but ignored, for compatibility with systems implementing
+the obsolete
+.St -xcu5
+standard.
+.Sh HISTORY
+The
+.Nm
+utility and its
+.Fl a
+and
+.Fl s
+options first appeared in
 .At v1 .
+.Pp
+The
+.Fl r
+option first appeared in
+.At III
+and is available since
+.Fx 3.5 .
+The
+.Fl k
+and
+.Fl x
+options first appeared in
+.Bx 4.3 Reno
+and
+.Fl H
+in
+.Bx 4.4 .
+The
+.Fl c
+and
+.Fl L
+options first appeared in the GNU fileutils;
+.Fl L
+and
+.Fl P
+are available since
+.Bx 4.4 Lite1 ,
+.Fl c
+since
+.Fx 2.2.6 .
+The
+.Fl d
+option first appeared in
+.Fx 2.2 ,
+.Fl h
+first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An -nosplit
+This version of
+.Nm
+was written by
+.An Chris Newcomb
+for
+.Bx 4.3 Reno
+in 1989.
