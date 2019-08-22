@@ -65,7 +65,7 @@ static const u_int8_t ftable[0x100] =
  */
 
 void
-subkey_table_gen (u_int8_t *key, u_int8_t **key_tables)
+subkey_table_gen (const u_int8_t *key, u_int8_t **key_tables)
 {
 	int i, k;
 

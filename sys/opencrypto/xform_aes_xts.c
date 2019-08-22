@@ -52,11 +52,11 @@ __FBSDID("$FreeBSD$");
 
 #include <opencrypto/xform_enc.h>
 
-static	int aes_xts_setkey(u_int8_t **, u_int8_t *, int);
+static	int aes_xts_setkey(u_int8_t **, const u_int8_t *, int);
 static	void aes_xts_encrypt(caddr_t, u_int8_t *);
 static	void aes_xts_decrypt(caddr_t, u_int8_t *);
 static	void aes_xts_zerokey(u_int8_t **);
-static	void aes_xts_reinit(caddr_t, u_int8_t *);
+static	void aes_xts_reinit(caddr_t, const u_int8_t *);
 
 /* Encryption instances */
 struct enc_xform enc_xform_aes_xts = {
@@ -73,7 +73,7 @@ struct enc_xform enc_xform_aes_xts = {
  * Encryption wrapper routines.
  */
 static void
-aes_xts_reinit(caddr_t key, u_int8_t *iv)
+aes_xts_reinit(caddr_t key, const u_int8_t *iv)
 {
 	struct aes_xts_ctx *ctx = (struct aes_xts_ctx *)key;
 	u_int64_t blocknum;
@@ -136,7 +136,7 @@ aes_xts_decrypt(caddr_t key, u_int8_t *data)
 }
 
 static int
-aes_xts_setkey(u_int8_t **sched, u_int8_t *key, int len)
+aes_xts_setkey(u_int8_t **sched, const u_int8_t *key, int len)
 {
 	struct aes_xts_ctx *ctx;
 

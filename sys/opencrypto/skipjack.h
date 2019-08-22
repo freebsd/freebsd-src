@@ -19,6 +19,6 @@
 
 extern void skipjack_forwards(u_int8_t *plain, u_int8_t *cipher, u_int8_t **key);
 extern void skipjack_backwards(u_int8_t *cipher, u_int8_t *plain, u_int8_t **key);
-extern void subkey_table_gen(u_int8_t *key, u_int8_t **key_tables);
+extern void subkey_table_gen(const u_int8_t *key, u_int8_t **key_tables);
 
 #endif

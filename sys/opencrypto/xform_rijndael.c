@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <crypto/rijndael/rijndael.h>
 #include <opencrypto/xform_enc.h>
 
-static	int rijndael128_setkey(u_int8_t **, u_int8_t *, int);
+static	int rijndael128_setkey(u_int8_t **, const u_int8_t *, int);
 static	void rijndael128_encrypt(caddr_t, u_int8_t *);
 static	void rijndael128_decrypt(caddr_t, u_int8_t *);
 static	void rijndael128_zerokey(u_int8_t **);
@@ -87,7 +87,7 @@ rijndael128_decrypt(caddr_t key, u_int8_t *blk)
 }
 
 static int
-rijndael128_setkey(u_int8_t **sched, u_int8_t *key, int len)
+rijndael128_setkey(u_int8_t **sched, const u_int8_t *key, int len)
 {
 	int err;
 
@@ -96,7 +96,7 @@ rijndael128_setkey(u_int8_t **sched, u_int8_t *key, int len)
 	*sched = KMALLOC(sizeof(rijndael_ctx), M_CRYPTO_DATA,
 	    M_NOWAIT|M_ZERO);
 	if (*sched != NULL) {
-		rijndael_set_key((rijndael_ctx *) *sched, (u_char *) key,
+		rijndael_set_key((rijndael_ctx *) *sched, key,
 		    len * 8);
 		err = 0;
 	} else

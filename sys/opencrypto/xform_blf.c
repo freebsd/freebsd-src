@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <crypto/blowfish/blowfish.h>
 #include <opencrypto/xform_enc.h>
 
-static	int blf_setkey(u_int8_t **, u_int8_t *, int);
+static	int blf_setkey(u_int8_t **, const u_int8_t *, int);
 static	void blf_encrypt(caddr_t, u_int8_t *);
 static	void blf_decrypt(caddr_t, u_int8_t *);
 static	void blf_zerokey(u_int8_t **);
@@ -104,7 +104,7 @@ blf_decrypt(caddr_t key, u_int8_t *blk)
 }
 
 static int
-blf_setkey(u_int8_t **sched, u_int8_t *key, int len)
+blf_setkey(u_int8_t **sched, const u_int8_t *key, int len)
 {
 	int err;
 
