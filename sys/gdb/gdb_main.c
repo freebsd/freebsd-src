@@ -653,7 +653,10 @@ gdb_trap(int type, int code)
 		case 'H': {	/* Set thread. */
 			intmax_t tid;
 			struct thread *thr;
-			gdb_rx_char();
+
+			/* Ignore 'g' (general) or 'c' (continue) flag. */
+			(void) gdb_rx_char();
+
 			if (gdb_rx_varhex(&tid)) {
 				gdb_tx_err(EINVAL);
 				break;
@@ -768,7 +771,7 @@ gdb_trap(int type, int code)
 				gdb_tx_err(ENOENT);
 			break;
 		}
-		case -1:
+		case EOF:
 			/* Empty command. Treat as unknown command. */
 			/* FALLTHROUGH */
 		default:
