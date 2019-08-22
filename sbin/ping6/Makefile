@@ -21,4 +21,7 @@ LIBADD+=	cap_dns
 CFLAGS+=-DWITH_CASPER
 .endif
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 .include <bsd.prog.mk>
