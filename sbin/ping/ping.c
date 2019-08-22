@@ -261,6 +261,8 @@ main(int argc, char *const *argv)
 #endif
 	cap_rights_t rights;
 
+	options |= F_NUMERIC;
+
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
 	 * then drop our setuid bit.  Save error reporting for
