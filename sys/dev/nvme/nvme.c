@@ -138,7 +138,6 @@ nvme_attach(device_t dev)
 
 	/*
 	 * Reset controller twice to ensure we do a transition from cc.en==1
-	 * Reset controller twice to ensure we do a transition from cc.en==1
 	 *  to cc.en==0.  This is because we don't really know what status
 	 *  the controller was left in when boot handed off to OS.
 	 */
