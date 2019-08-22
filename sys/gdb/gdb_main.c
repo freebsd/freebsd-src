@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/sbuf.h>
 
 #include <machine/gdb_machdep.h>
 #include <machine/kdb.h>
@@ -252,11 +253,12 @@ gdb_do_qsupported(uint32_t *feat)
 	 */
 	gdb_tx_varhex(GDB_BUFSZ + strlen("$#nn") - 1);
 
+	gdb_tx_str(";qXfer:threads:read+");
+
 	/*
 	 * Future consideration:
 	 *   - vCont
 	 *   - multiprocess
-	 *   - qXfer:threads:read
 	 */
 	gdb_tx_end();
 	return;
@@ -264,6 +266,305 @@ gdb_do_qsupported(uint32_t *feat)
 error:
 	*feat = 0;
 	gdb_tx_err(EINVAL);
+}
+
+/*
+ * A qXfer_context provides a vaguely generic way to generate a multi-packet
+ * response on the fly, making some assumptions about the size of sbuf writes
+ * vs actual packet length constraints.  A non-byzantine gdb host should allow
+ * hundreds of bytes per packet or more.
+ *
+ * Upper layers are considered responsible for escaping the four forbidden
+ * characters '# $ } *'.
+ */
+struct qXfer_context {
+	struct sbuf sb;
+	size_t last_offset;
+	bool flushed;
+	bool lastmessage;
+	char xfer_buf[GDB_BUFSZ];
+};
+
+static int
+qXfer_drain(void *v, const char *buf, int len)
+{
+	struct qXfer_context *qx;
+
+	if (len < 0)
+		return (-EINVAL);
+
+	qx = v;
+	if (qx->flushed) {
+		/*
+		 * Overflow.  We lost some message.  Maybe the packet size is
+		 * ridiculously small.
+		 */
+		printf("%s: Overflow in qXfer detected.\n", __func__);
+		return (-ENOBUFS);
+	}
+
+	qx->last_offset += len;
+	qx->flushed = true;
+
+	if (qx->lastmessage)
+		gdb_tx_begin('l');
+	else
+		gdb_tx_begin('m');
+
+	memcpy(gdb_txp, buf, len);
+	gdb_txp += len;
+
+	gdb_tx_end();
+	return (len);
+}
+
+static int
+init_qXfer_ctx(struct qXfer_context *qx, uintmax_t len)
+{
+
+	/* Protocol (max) length field includes framing overhead. */
+	if (len < sizeof("$m#nn"))
+		return (ENOSPC);
+
+	len -= 4;
+	len = ummin(len, GDB_BUFSZ - 1);
+
+	qx->last_offset = 0;
+	qx->flushed = false;
+	qx->lastmessage = false;
+	sbuf_new(&qx->sb, qx->xfer_buf, len, SBUF_FIXEDLEN);
+	sbuf_set_drain(&qx->sb, qXfer_drain, qx);
+	return (0);
+}
+
+/*
+ * dst must be 2x strlen(max_src) + 1.
+ *
+ * Squashes invalid XML characters down to _.  Sorry.  Then escapes for GDB.
+ */
+static void
+qXfer_escape_xmlattr_str(char *dst, size_t dstlen, const char *src)
+{
+	static const char *forbidden = "#$}*";
+
+	size_t i;
+	char c;
+
+	for (i = 0; i < dstlen - 1 && *src != 0; src++, i++) {
+		c = *src;
+		/* XML attr filter */
+		if (c < 32)
+			c = '_';
+		/* We assume attributes will be "" quoted. */
+		if (c == '<' || c == '&' || c == '"')
+			c = '_';
+
+		/* GDB escape. */
+		if (strchr(forbidden, c) != NULL) {
+			*dst++ = '}';
+			c ^= 0x20;
+		}
+		*dst++ = c;
+	}
+	if (*src != 0)
+		printf("XXX%s: overflow; API misuse\n", __func__);
+
+	*dst = 0;
+}
+
+/*
+ * Dynamically generate qXfer:threads document, one packet at a time.
+ *
+ * The format is loosely described[0], although it does not seem that the
+ * <?xml?> mentioned on that page is required.
+ *
+ * [0]: https://sourceware.org/gdb/current/onlinedocs/gdb/Thread-List-Format.html
+ */
+static void
+do_qXfer_threads_read(void)
+{
+	/* Kludgy context */
+	static struct {
+		struct qXfer_context qXfer;
+		/* Kludgy state machine */
+		struct thread *iter;
+		enum {
+			XML_START_THREAD,	/* '<thread' */
+			XML_THREAD_ID,		/* ' id="xxx"' */
+			XML_THREAD_CORE,	/* ' core="yyy"' */
+			XML_THREAD_NAME,	/* ' name="zzz"' */
+			XML_THREAD_EXTRA,	/* '> ...' */
+			XML_END_THREAD,		/* '</thread>' */
+			XML_SENT_END_THREADS,	/* '</threads>' */
+		} next_step;
+	} ctx;
+	static char td_name_escape[MAXCOMLEN * 2 + 1];
+
+	const char *name_src;
+	uintmax_t offset, len;
+	int error;
+
+	/* Annex part must be empty. */
+	if (gdb_rx_char() != ':')
+		goto misformed_request;
+
+	if (gdb_rx_varhex(&offset) != 0 ||
+	    gdb_rx_char() != ',' ||
+	    gdb_rx_varhex(&len) != 0)
+		goto misformed_request;
+
+	/*
+	 * Validate resume xfers.
+	 */
+	if (offset != 0) {
+		if (offset != ctx.qXfer.last_offset) {
+			printf("%s: Resumed offset %ju != expected %ju\n",
+			    __func__, offset, ctx.qXfer.last_offset);
+			error = ESPIPE;
+			goto request_error;
+		}
+		ctx.qXfer.flushed = false;
+	}
+
+	if (offset == 0) {
+		ctx.iter = kdb_thr_first();
+		ctx.next_step = XML_START_THREAD;
+		error = init_qXfer_ctx(&ctx.qXfer, len);
+		if (error != 0)
+			goto request_error;
+
+		sbuf_cat(&ctx.qXfer.sb, "<threads>");
+	}
+
+	while (!ctx.qXfer.flushed && ctx.iter != NULL) {
+		switch (ctx.next_step) {
+		case XML_START_THREAD:
+			ctx.next_step = XML_THREAD_ID;
+			sbuf_cat(&ctx.qXfer.sb, "<thread");
+			continue;
+
+		case XML_THREAD_ID:
+			ctx.next_step = XML_THREAD_CORE;
+			sbuf_printf(&ctx.qXfer.sb, " id=\"%jx\"",
+			    (uintmax_t)ctx.iter->td_tid);
+			continue;
+
+		case XML_THREAD_CORE:
+			ctx.next_step = XML_THREAD_NAME;
+			if (ctx.iter->td_oncpu != NOCPU) {
+				sbuf_printf(&ctx.qXfer.sb, " core=\"%d\"",
+				    ctx.iter->td_oncpu);
+			}
+			continue;
+
+		case XML_THREAD_NAME:
+			ctx.next_step = XML_THREAD_EXTRA;
+
+			if (ctx.iter->td_name[0] != 0)
+				name_src = ctx.iter->td_name;
+			else if (ctx.iter->td_proc != NULL &&
+			    ctx.iter->td_proc->p_comm[0] != 0)
+				name_src = ctx.iter->td_proc->p_comm;
+			else
+				continue;
+
+			qXfer_escape_xmlattr_str(td_name_escape,
+			    sizeof(td_name_escape), name_src);
+			sbuf_printf(&ctx.qXfer.sb, " name=\"%s\"",
+			    td_name_escape);
+			continue;
+
+		case XML_THREAD_EXTRA:
+			ctx.next_step = XML_END_THREAD;
+
+			sbuf_putc(&ctx.qXfer.sb, '>');
+
+			if (ctx.iter->td_state == TDS_RUNNING)
+				sbuf_cat(&ctx.qXfer.sb, "Running");
+			else if (ctx.iter->td_state == TDS_RUNQ)
+				sbuf_cat(&ctx.qXfer.sb, "RunQ");
+			else if (ctx.iter->td_state == TDS_CAN_RUN)
+				sbuf_cat(&ctx.qXfer.sb, "CanRun");
+			else if (TD_ON_LOCK(ctx.iter))
+				sbuf_cat(&ctx.qXfer.sb, "Blocked");
+			else if (TD_IS_SLEEPING(ctx.iter))
+				sbuf_cat(&ctx.qXfer.sb, "Sleeping");
+			else if (TD_IS_SWAPPED(ctx.iter))
+				sbuf_cat(&ctx.qXfer.sb, "Swapped");
+			else if (TD_AWAITING_INTR(ctx.iter))
+				sbuf_cat(&ctx.qXfer.sb, "IthreadWait");
+			else if (TD_IS_SUSPENDED(ctx.iter))
+				sbuf_cat(&ctx.qXfer.sb, "Suspended");
+			else
+				sbuf_cat(&ctx.qXfer.sb, "???");
+			continue;
+
+		case XML_END_THREAD:
+			ctx.next_step = XML_START_THREAD;
+			sbuf_cat(&ctx.qXfer.sb, "</thread>");
+			ctx.iter = kdb_thr_next(ctx.iter);
+			continue;
+
+		/*
+		 * This one isn't part of the looping state machine,
+		 * but GCC complains if you leave an enum value out of the
+		 * select.
+		 */
+		case XML_SENT_END_THREADS:
+			/* NOTREACHED */
+			break;
+		}
+	}
+	if (ctx.qXfer.flushed)
+		return;
+
+	if (ctx.next_step != XML_SENT_END_THREADS) {
+		ctx.next_step = XML_SENT_END_THREADS;
+		sbuf_cat(&ctx.qXfer.sb, "</threads>");
+	}
+	if (ctx.qXfer.flushed)
+		return;
+
+	ctx.qXfer.lastmessage = true;
+	sbuf_finish(&ctx.qXfer.sb);
+	sbuf_delete(&ctx.qXfer.sb);
+	ctx.qXfer.last_offset = 0;
+	return;
+
+misformed_request:
+	/*
+	 * GDB "General-Query-Packets.html" qXfer-read anchor specifically
+	 * documents an E00 code for malformed requests or invalid annex.
+	 * Non-zero codes indicate invalid offset or "error reading the data."
+	 */
+	error = 0;
+request_error:
+	gdb_tx_err(error);
+	return;
+}
+
+/*
+ * A set of standardized transfers from "special data areas."
+ *
+ * We've already matched on "qXfer:" and advanced the rx packet buffer past
+ * that bit.  Parse out the rest of the packet and generate an appropriate
+ * response.
+ */
+static void
+do_qXfer(void)
+{
+	if (!gdb_rx_equal("threads:"))
+		goto unrecognized;
+
+	if (!gdb_rx_equal("read:"))
+		goto unrecognized;
+
+	do_qXfer_threads_read();
+	return;
+
+unrecognized:
+	gdb_tx_empty();
+	return;
 }
 
 static int
@@ -425,6 +726,8 @@ gdb_trap(int type, int code)
 				gdb_do_threadinfo(&thr_iter);
 			} else if (gdb_rx_equal("sThreadInfo")) {
 				gdb_do_threadinfo(&thr_iter);
+			} else if (gdb_rx_equal("Xfer:")) {
+				do_qXfer();
 			} else if (gdb_rx_equal("Search:memory:")) {
 				gdb_do_mem_search();
 			} else if (!gdb_cpu_query())
