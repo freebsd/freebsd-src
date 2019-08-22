@@ -1,4 +1,4 @@
-.\"	$Id: mdoc.7,v 1.276 2019/02/07 15:45:53 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.279 2019/07/15 19:20:30 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013-2018 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: February 7 2019 $
+.Dd $Mdocdate: July 15 2019 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -596,6 +596,13 @@ block.
 Book or journal page number of an
 .Ic \&Rs
 block.
+Conventionally, the argument starts with
+.Ql p.\&
+for a single page or
+.Ql pp.\&
+for a range of pages, for example:
+.Pp
+.Dl .%P pp. 42\e(en47
 .It Ic \&%Q Ar name
 Institutional author (school, government, etc.) of an
 .Ic \&Rs
@@ -1156,17 +1163,19 @@ declarations.
 This practise is discouraged.
 .It Ic \&Cm Ar keyword ...
 Command modifiers.
-Typically used for fixed strings passed as arguments, unless
+Typically used for fixed strings passed as arguments to interactive
+commands, to commands in interpreted scripts, or to configuration
+file directives, unless
 .Ic \&Fl
 is more appropriate.
-Also useful when specifying configuration options or keys.
 .Pp
 Examples:
 .Dl ".Nm mt Fl f Ar device Cm rewind"
 .Dl ".Nm ps Fl o Cm pid , Ns Cm command"
 .Dl ".Nm dd Cm if= Ns Ar file1 Cm of= Ns Ar file2"
-.Dl ".Cm IdentityFile Pa ~/.ssh/id_rsa"
-.Dl ".Cm LogLevel Dv DEBUG"
+.Dl ".Ic set Fl o Cm vi"
+.Dl ".Ic lookup Cm file bind"
+.Dl ".Ic permit Ar identity Op Cm as Ar target"
 .It Ic \&D1 Ar line
 One-line indented display.
 This is formatted by the default rules and is useful for simple indented
@@ -1677,10 +1686,10 @@ This macro is not implemented in
 .Xr mandoc 1 .
 It was used to include the contents of a (header) file literally.
 .It Ic \&Ic Ar keyword ...
-Designate an internal or interactive command.
-This is similar to
-.Ic \&Cm
-but used for instructions rather than values.
+Internal or interactive command, or configuration instruction
+in a configuration file.
+See also
+.Ic \&Cm .
 .Pp
 Examples:
 .Dl \&.Ic :wq
@@ -2969,7 +2978,7 @@ exclamation mark
 Note that even a period preceded by a backslash
 .Pq Sq \e.\&
 gets this special handling; use
-.Sq \e&.
+.Sq \e&.\&
 to prevent that.
 .Pp
 Many in-line macros interrupt their scope when they encounter
@@ -2996,6 +3005,13 @@ in the same way as a plain
 .Sq \&|
 character.
 Using this predefined string is not recommended in new manuals.
+.Pp
+Appending a zero-width space
+.Pq Sq \e&
+to the end of an input line is also useful to prevent the interpretation
+of a trailing period, exclamation or question mark as the end of a
+sentence, for example when an abbreviation happens to occur
+at the end of a text or macro input line.
 .Ss Font handling
 In
 .Nm

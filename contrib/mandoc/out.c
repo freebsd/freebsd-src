@@ -1,4 +1,4 @@
-/*	$Id: out.c,v 1.77 2018/12/13 11:55:47 schwarze Exp $ */
+/*	$Id: out.c,v 1.78 2019/03/29 21:27:06 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011,2014,2015,2017,2018 Ingo Schwarze <schwarze@openbsd.org>
@@ -149,7 +149,7 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 		gp = &first_group;
 		for (dp = sp->first; dp != NULL; dp = dp->next) {
 			icol = dp->layout->col;
-			while (icol > maxcol)
+			while (maxcol < icol + dp->hspans)
 				tbl->cols[++maxcol].spacing = SIZE_MAX;
 			col = tbl->cols + icol;
 			col->flags |= dp->layout->flags;

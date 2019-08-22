@@ -1,7 +1,7 @@
-/*	$Id: mandoc.h,v 1.262 2018/12/16 00:17:02 schwarze Exp $ */
+/*	$Id: mandoc.h,v 1.264 2019/07/14 18:16:13 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2012-2018 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2012-2019 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -193,7 +193,6 @@ enum	mandocerr {
 	MANDOCERR_TBLDATA_BLK, /* data block open at end of tbl: macro */
 
 	/* related to document structure and macros */
-	MANDOCERR_FILE, /* cannot open file */
 	MANDOCERR_PROLOG_REP, /* duplicate prologue macro: macro */
 	MANDOCERR_DT_LATE, /* skipping late title macro: Dt args */
 	MANDOCERR_ROFFLOOP, /* input stack limit exceeded, infinite loop? */
@@ -242,6 +241,35 @@ enum	mandocerr {
 	MANDOCERR_TBLLAYOUT_MOD, /* unsupported tbl layout modifier: m */
 	MANDOCERR_TBLMACRO, /* ignoring macro in table: macro */
 
+	MANDOCERR_BADARG, /* ===== start of bad invocations ===== */
+
+	MANDOCERR_BADARG_BAD, /* bad argument */
+	MANDOCERR_BADARG_DUPE, /* duplicate argument */
+	MANDOCERR_BADVAL, /* does not take a value */
+	MANDOCERR_BADVAL_MISS, /* missing argument value */
+	MANDOCERR_BADVAL_BAD, /* bad argument value */
+	MANDOCERR_BADVAL_DUPE, /* duplicate argument value */
+	MANDOCERR_TAG, /* no such tag */
+
+	MANDOCERR_SYSERR, /* ===== start of system errors ===== */
+
+	MANDOCERR_DUP,
+	MANDOCERR_EXEC,
+	MANDOCERR_FDOPEN,
+	MANDOCERR_FFLUSH,
+	MANDOCERR_FORK,
+	MANDOCERR_FSTAT,
+	MANDOCERR_GETLINE,
+	MANDOCERR_GLOB,
+	MANDOCERR_GZCLOSE,
+	MANDOCERR_GZDOPEN,
+	MANDOCERR_MKSTEMP,
+	MANDOCERR_OPEN,
+	MANDOCERR_PLEDGE,
+	MANDOCERR_READ,
+	MANDOCERR_WAIT,
+	MANDOCERR_WRITE,
+
 	MANDOCERR_MAX
 };
 
@@ -281,6 +309,7 @@ enum mandoclevel  mandoc_msg_getrc(void);
 void		  mandoc_msg_setrc(enum mandoclevel);
 void		  mandoc_msg(enum mandocerr, int, int, const char *, ...)
 			__attribute__((__format__ (__printf__, 4, 5)));
+void		  mandoc_msg_summary(void);
 void		  mchars_alloc(void);
 void		  mchars_free(void);
 int		  mchars_num2char(const char *, size_t);
