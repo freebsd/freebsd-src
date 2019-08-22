@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include <bsd.compiler.mk>
 
 PACKAGE=		tests
@@ -9,7 +10,8 @@ TESTSDIR=		${TESTSBASE}/sys/fs
 TESTSRC=		${SRCTOP}/contrib/netbsd-tests/fs
 
 #TESTS_SUBDIRS+=	nullfs	# XXX: needs rump
-.if ${COMPILER_FEATURES:Mc++14}
+# fusefs tests cannot be compiled/used without the googletest infrastructure.
+.if ${COMPILER_FEATURES:Mc++14} && ${MK_GOOGLETEST} != "no"
 TESTS_SUBDIRS+=		fusefs
 .endif
 TESTS_SUBDIRS+=		tmpfs
