@@ -198,8 +198,11 @@ gdb_trap(int type, int code)
 		/* printf("GDB: got '%s'\n", gdb_rxp); */
 		switch (gdb_rx_char()) {
 		case '?':	/* Last signal. */
-			gdb_tx_begin('S');
+			gdb_tx_begin('T');
 			gdb_tx_hex(gdb_cpu_signal(type, code), 2);
+			gdb_tx_str("thread:");
+			gdb_tx_varhex((long)kdb_thread->td_tid);
+			gdb_tx_char(';');
 			gdb_tx_end();
 			break;
 		case 'c': {	/* Continue. */
