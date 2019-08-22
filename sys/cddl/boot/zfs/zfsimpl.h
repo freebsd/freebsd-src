@@ -715,6 +715,9 @@ typedef enum {
 #define	ZPOOL_CONFIG_CHILDREN		"children"
 #define	ZPOOL_CONFIG_ID			"id"
 #define	ZPOOL_CONFIG_GUID		"guid"
+#define	ZPOOL_CONFIG_INDIRECT_OBJECT	"com.delphix:indirect_object"
+#define	ZPOOL_CONFIG_INDIRECT_BIRTHS	"com.delphix:indirect_births"
+#define	ZPOOL_CONFIG_PREV_INDIRECT_VDEV	"com.delphix:prev_indirect_vdev"
 #define	ZPOOL_CONFIG_PATH		"path"
 #define	ZPOOL_CONFIG_DEVID		"devid"
 #define	ZPOOL_CONFIG_METASLAB_ARRAY	"metaslab_array"
@@ -758,6 +761,7 @@ typedef enum {
 #define	VDEV_TYPE_SPARE			"spare"
 #define	VDEV_TYPE_LOG			"log"
 #define	VDEV_TYPE_L2CACHE		"l2cache"
+#define	VDEV_TYPE_INDIRECT		"indirect"
 
 /*
  * This is needed in userland to report the minimum necessary device size.
@@ -850,7 +854,7 @@ struct uberblock {
  */
 #define	DNODE_SHIFT		9	/* 512 bytes */
 #define	DN_MIN_INDBLKSHIFT	12	/* 4k */
-#define	DN_MAX_INDBLKSHIFT	14	/* 16k */
+#define	DN_MAX_INDBLKSHIFT	17	/* 128k */
 #define	DNODE_BLOCK_SHIFT	14	/* 16k */
 #define	DNODE_CORE_SIZE		64	/* 64 bytes for dnode sans blkptrs */
 #define	DN_MAX_OBJECT_SHIFT	48	/* 256 trillion (zfs_fid_t limit) */
@@ -1217,6 +1221,9 @@ typedef struct dsl_dataset_phys {
 #define	DMU_POOL_HISTORY		"history"
 #define	DMU_POOL_PROPS			"pool_props"
 #define	DMU_POOL_CHECKSUM_SALT		"org.illumos:checksum_salt"
+#define	DMU_POOL_REMOVING		"com.delphix:removing"
+#define	DMU_POOL_OBSOLETE_BPOBJ		"com.delphix:obsolete_bpobj"
+#define	DMU_POOL_CONDENSING_INDIRECT	"com.delphix:condensing_indirect"
 
 #define	ZAP_MAGIC 0x2F52AB2ABULL
 
@@ -1530,6 +1537,116 @@ typedef int vdev_read_t(struct vdev *vdev, const blkptr_t *bp,
 
 typedef STAILQ_HEAD(vdev_list, vdev) vdev_list_t;
 
+typedef struct vdev_indirect_mapping_entry_phys {
+	/*
+	 * Decode with DVA_MAPPING_* macros.
+	 * Contains:
+	 *   the source offset (low 63 bits)
+	 *   the one-bit "mark", used for garbage collection (by zdb)
+	 */
+	uint64_t vimep_src;
+
+	/*
+	 * Note: the DVA's asize is 24 bits, and can thus store ranges
+	 * up to 8GB.
+	 */
+	dva_t	vimep_dst;
+} vdev_indirect_mapping_entry_phys_t;
+
+#define	DVA_MAPPING_GET_SRC_OFFSET(vimep)	\
+	BF64_GET_SB((vimep)->vimep_src, 0, 63, SPA_MINBLOCKSHIFT, 0)
+#define	DVA_MAPPING_SET_SRC_OFFSET(vimep, x)	\
+	BF64_SET_SB((vimep)->vimep_src, 0, 63, SPA_MINBLOCKSHIFT, 0, x)
+
+typedef struct vdev_indirect_mapping_entry {
+	vdev_indirect_mapping_entry_phys_t	vime_mapping;
+	uint32_t				vime_obsolete_count;
+	list_node_t				vime_node;
+} vdev_indirect_mapping_entry_t;
+
+/*
+ * This is stored in the bonus buffer of the mapping object, see comment of
+ * vdev_indirect_config for more details.
+ */
+typedef struct vdev_indirect_mapping_phys {
+	uint64_t	vimp_max_offset;
+	uint64_t	vimp_bytes_mapped;
+	uint64_t	vimp_num_entries; /* number of v_i_m_entry_phys_t's */
+
+	/*
+	 * For each entry in the mapping object, this object contains an
+	 * entry representing the number of bytes of that mapping entry
+	 * that were no longer in use by the pool at the time this indirect
+	 * vdev was last condensed.
+	 */
+	uint64_t	vimp_counts_object;
+} vdev_indirect_mapping_phys_t;
+
+#define	VDEV_INDIRECT_MAPPING_SIZE_V0	(3 * sizeof (uint64_t))
+
+typedef struct vdev_indirect_mapping {
+	uint64_t	vim_object;
+	boolean_t	vim_havecounts;
+
+	/* vim_entries segment offset currently in memory. */
+	uint64_t	vim_entry_offset;
+	/* vim_entries segment size. */
+	size_t		vim_num_entries;
+
+	/* Needed by dnode_read() */
+	const void	*vim_spa;
+	dnode_phys_t	*vim_dn;
+
+	/*
+	 * An ordered array of mapping entries, sorted by source offset.
+	 * Note that vim_entries is needed during a removal (and contains
+	 * mappings that have been synced to disk so far) to handle frees
+	 * from the removing device.
+	 */
+	vdev_indirect_mapping_entry_phys_t *vim_entries;
+	objset_phys_t	*vim_objset;
+	vdev_indirect_mapping_phys_t	*vim_phys;
+} vdev_indirect_mapping_t;
+
+/*
+ * On-disk indirect vdev state.
+ *
+ * An indirect vdev is described exclusively in the MOS config of a pool.
+ * The config for an indirect vdev includes several fields, which are
+ * accessed in memory by a vdev_indirect_config_t.
+ */
+typedef struct vdev_indirect_config {
+	/*
+	 * Object (in MOS) which contains the indirect mapping. This object
+	 * contains an array of vdev_indirect_mapping_entry_phys_t ordered by
+	 * vimep_src. The bonus buffer for this object is a
+	 * vdev_indirect_mapping_phys_t. This object is allocated when a vdev
+	 * removal is initiated.
+	 *
+	 * Note that this object can be empty if none of the data on the vdev
+	 * has been copied yet.
+	 */
+	uint64_t	vic_mapping_object;
+
+	/*
+	 * Object (in MOS) which contains the birth times for the mapping
+	 * entries. This object contains an array of
+	 * vdev_indirect_birth_entry_phys_t sorted by vibe_offset. The bonus
+	 * buffer for this object is a vdev_indirect_birth_phys_t. This object
+	 * is allocated when a vdev removal is initiated.
+	 *
+	 * Note that this object can be empty if none of the vdev has yet been
+	 * copied.
+	 */
+	uint64_t	vic_births_object;
+
+/*
+ * This is the vdev ID which was removed previous to this vdev, or
+ * UINT64_MAX if there are no previously removed vdevs.
+ */
+	uint64_t	vic_prev_indirect_vdev;
+} vdev_indirect_config_t;
+
 typedef struct vdev {
 	STAILQ_ENTRY(vdev) v_childlink;	/* link in parent's child list */
 	STAILQ_ENTRY(vdev) v_alllink;	/* link in global vdev list */
@@ -1546,6 +1663,11 @@ typedef struct vdev {
 	vdev_read_t	*v_read;	/* read from vdev */
 	void		*v_read_priv;	/* private data for read function */
 	struct spa	*spa;		/* link to spa */
+	/*
+	 * Values stored in the config for an indirect or removing vdev.
+	 */
+	vdev_indirect_config_t vdev_indirect_config;
+	vdev_indirect_mapping_t *v_mapping;
 } vdev_t;
 
 /*
@@ -1565,5 +1687,20 @@ typedef struct spa {
 	void		*spa_cksum_tmpls[ZIO_CHECKSUM_FUNCTIONS];
 	int		spa_inited;	/* initialized */
 } spa_t;
+
+/* IO related arguments. */
+typedef struct zio {
+	spa_t		*io_spa;
+	blkptr_t	*io_bp;
+	void		*io_data;
+	uint64_t	io_size;
+	uint64_t	io_offset;
+
+	/* Stuff for the vdev stack */
+	vdev_t		*io_vd;
+	void		*io_vsd;
+
+	int		io_error;
+} zio_t;
 
 static void decode_embedded_bp_compressed(const blkptr_t *, void *);
