@@ -1,5 +1,29 @@
 ChangeLog for hostapd
 
+2019-08-07 - v2.9
+	* SAE changes
+	  - disable use of groups using Brainpool curves
+	  - improved protection against side channel attacks
+	  [https://w1.fi/security/2019-6/]
+	* EAP-pwd changes
+	  - disable use of groups using Brainpool curves
+	  - improved protection against side channel attacks
+	  [https://w1.fi/security/2019-6/]
+	* fixed FT-EAP initial mobility domain association using PMKSA caching
+	* added configuration of airtime policy
+	* fixed FILS to and RSNE into (Re)Association Response frames
+	* fixed DPP bootstrapping URI parser of channel list
+	* added support for regulatory WMM limitation (for ETSI)
+	* added support for MACsec Key Agreement using IEEE 802.1X/PSK
+	* added experimental support for EAP-TEAP server (RFC 7170)
+	* added experimental support for EAP-TLS server with TLS v1.3
+	* added support for two server certificates/keys (RSA/ECC)
+	* added AKMSuiteSelector into "STA <addr>" control interface data to
+	  determine with AKM was used for an association
+	* added eap_sim_id parameter to allow EAP-SIM/AKA server pseudonym and
+	  fast reauthentication use to be disabled
+	* fixed an ECDH operation corner case with OpenSSL
+
 2019-04-21 - v2.8
 	* SAE changes
 	  - added support for SAE Password Identifier

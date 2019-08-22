@@ -1176,3 +1176,23 @@ u8 * wpa_auth_write_assoc_resp_owe(struct wpa_state_machine *sm,
 	return pos + res;
 }
 #endif /* CONFIG_OWE */
+
+
+#ifdef CONFIG_FILS
+u8 * wpa_auth_write_assoc_resp_fils(struct wpa_state_machine *sm,
+				    u8 *pos, size_t max_len,
+				    const u8 *req_ies, size_t req_ies_len)
+{
+	int res;
+
+	if (!sm ||
+	    sm->wpa_key_mgmt & (WPA_KEY_MGMT_FT_FILS_SHA256 |
+				WPA_KEY_MGMT_FT_FILS_SHA384))
+		return pos;
+
+	res = wpa_write_rsn_ie(&sm->wpa_auth->conf, pos, max_len, NULL);
+	if (res < 0)
+		return pos;
+	return pos + res;
+}
+#endif /* CONFIG_FILS */

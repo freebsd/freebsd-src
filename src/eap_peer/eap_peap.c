@@ -295,7 +295,7 @@ static int eap_peap_derive_cmk(struct eap_sm *sm, struct eap_peap_data *data)
 	res = peap_prfplus(data->peap_version, tk, 40,
 			   "Inner Methods Compound Keys",
 			   isk, sizeof(isk), imck, sizeof(imck));
-	os_memset(isk, 0, sizeof(isk));
+	forced_memzero(isk, sizeof(isk));
 	if (res < 0)
 		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: IMCK (IPMKj)",
@@ -305,7 +305,7 @@ static int eap_peap_derive_cmk(struct eap_sm *sm, struct eap_peap_data *data)
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: IPMK (S-IPMKj)", data->ipmk, 40);
 	os_memcpy(data->cmk, imck + 40, 20);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: CMK (CMKj)", data->cmk, 20);
-	os_memset(imck, 0, sizeof(imck));
+	forced_memzero(imck, sizeof(imck));
 
 	return 0;
 }
@@ -1267,7 +1267,7 @@ static u8 * eap_peap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 		os_memcpy(key, csk, EAP_TLS_KEY_LEN);
 		wpa_hexdump(MSG_DEBUG, "EAP-PEAP: Derived key",
 			    key, EAP_TLS_KEY_LEN);
-		os_memset(csk, 0, sizeof(csk));
+		forced_memzero(csk, sizeof(csk));
 	} else
 		os_memcpy(key, data->key_data, EAP_TLS_KEY_LEN);
 

@@ -11,6 +11,7 @@ CFLAGS += -DCONFIG_NO_RANDOM_POOL
 CFLAGS += -DTEST_FUZZ
 endif
 
+CFLAGS += $(FUZZ_CFLAGS)
 CFLAGS += -I.. -I../utils
 
 

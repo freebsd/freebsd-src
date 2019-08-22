@@ -663,7 +663,7 @@ rtbuf_len(void)
 #undef WPA_OUI_TYPE
 
 static int bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
-			  int reason_code);
+			  u16 reason_code);
 
 static const char *
 ether_sprintf(const u8 *addr)
@@ -755,7 +755,7 @@ bsd_read_sta_driver_data(void *priv, struct hostap_sta_driver_data *data,
 }
 
 static int
-bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr, int reason_code)
+bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr, u16 reason_code)
 {
 	return bsd_send_mlme_param(priv, IEEE80211_MLME_DEAUTH, reason_code,
 				   addr);
@@ -763,7 +763,7 @@ bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr, int reason_code)
 
 static int
 bsd_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr,
-		 int reason_code)
+		 u16 reason_code)
 {
 	return bsd_send_mlme_param(priv, IEEE80211_MLME_DISASSOC, reason_code,
 				   addr);
@@ -1026,7 +1026,7 @@ wpa_driver_bsd_set_drop_unencrypted(void *priv, int enabled)
 }
 
 static int
-wpa_driver_bsd_deauthenticate(void *priv, const u8 *addr, int reason_code)
+wpa_driver_bsd_deauthenticate(void *priv, const u8 *addr, u16 reason_code)
 {
 	return bsd_send_mlme_param(priv, IEEE80211_MLME_DEAUTH, reason_code,
 				   addr);

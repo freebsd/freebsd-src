@@ -23,6 +23,7 @@
 #include "common/sae.h"
 #include "common/dpp.h"
 #include "common/ocv.h"
+#include "common/wpa_common.h"
 #include "radius/radius.h"
 #include "radius/radius_client.h"
 #include "p2p/p2p.h"
@@ -709,7 +710,8 @@ static void sae_sme_send_external_auth_status(struct hostapd_data *hapd,
 	os_memset(&params, 0, sizeof(params));
 	params.status = status;
 	params.bssid = sta->addr;
-	if (status == WLAN_STATUS_SUCCESS && sta->sae)
+	if (status == WLAN_STATUS_SUCCESS && sta->sae &&
+	    !hapd->conf->disable_pmksa_caching)
 		params.pmkid = sta->sae->pmkid;
 
 	hostapd_drv_send_external_auth_status(hapd, &params);
@@ -1038,8 +1040,8 @@ static void handle_auth_sae(struct hostapd_data *hapd, struct sta_info *sta,
 
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG,
-			       "start SAE authentication (RX commit, status=%u)",
-			       status_code);
+			       "start SAE authentication (RX commit, status=%u (%s))",
+			       status_code, status2str(status_code));
 
 		if ((hapd->conf->mesh & MESH_ENABLED) &&
 		    status_code == WLAN_STATUS_ANTI_CLOGGING_TOKEN_REQ &&
@@ -1182,8 +1184,8 @@ static void handle_auth_sae(struct hostapd_data *hapd, struct sta_info *sta,
 	} else if (auth_transaction == 2) {
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG,
-			       "SAE authentication (RX confirm, status=%u)",
-			       status_code);
+			       "SAE authentication (RX confirm, status=%u (%s))",
+			       status_code, status2str(status_code));
 		if (status_code != WLAN_STATUS_SUCCESS)
 			goto remove_sta;
 		if (sta->sae->state >= SAE_CONFIRMED ||
@@ -1224,8 +1226,9 @@ static void handle_auth_sae(struct hostapd_data *hapd, struct sta_info *sta,
 	} else {
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG,
-			       "unexpected SAE authentication transaction %u (status=%u)",
-			       auth_transaction, status_code);
+			       "unexpected SAE authentication transaction %u (status=%u (%s))",
+			       auth_transaction, status_code,
+			       status2str(status_code));
 		if (status_code != WLAN_STATUS_SUCCESS)
 			goto remove_sta;
 		resp = WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION;
@@ -2323,8 +2326,11 @@ static void handle_auth(struct hostapd_data *hapd,
 		sta->flags &= ~(WLAN_STA_ASSOC | WLAN_STA_AUTH |
 				WLAN_STA_AUTHORIZED);
 
-		if (hostapd_sta_add(hapd, sta->addr, 0, 0, NULL, 0, 0,
-				    NULL, NULL, sta->flags, 0, 0, 0, 0)) {
+		if (hostapd_sta_add(hapd, sta->addr, 0, 0,
+				    sta->supported_rates,
+				    sta->supported_rates_len,
+				    0, NULL, NULL, NULL, 0,
+				    sta->flags, 0, 0, 0, 0)) {
 			hostapd_logger(hapd, sta->addr,
 				       HOSTAPD_MODULE_IEEE80211,
 				       HOSTAPD_LEVEL_NOTICE,
@@ -2790,6 +2796,123 @@ static u16 owe_process_assoc_req(struct hostapd_data *hapd,
 	return WLAN_STATUS_SUCCESS;
 }
 
+
+u16 owe_validate_request(struct hostapd_data *hapd, const u8 *peer,
+			 const u8 *rsn_ie, size_t rsn_ie_len,
+			 const u8 *owe_dh, size_t owe_dh_len)
+{
+	struct wpa_ie_data data;
+	int res;
+
+	if (!rsn_ie || rsn_ie_len < 2) {
+		wpa_printf(MSG_DEBUG, "OWE: Invalid RSNE from " MACSTR,
+			   MAC2STR(peer));
+		return WLAN_STATUS_INVALID_IE;
+	}
+	rsn_ie -= 2;
+	rsn_ie_len += 2;
+
+	res = wpa_parse_wpa_ie_rsn(rsn_ie, rsn_ie_len, &data);
+	if (res) {
+		wpa_printf(MSG_DEBUG, "Failed to parse RSNE from " MACSTR
+			   " (res=%d)", MAC2STR(peer), res);
+		wpa_hexdump(MSG_DEBUG, "RSNE", rsn_ie, rsn_ie_len);
+		return wpa_res_to_status_code(res);
+	}
+	if (!(data.key_mgmt & WPA_KEY_MGMT_OWE)) {
+		wpa_printf(MSG_DEBUG,
+			   "OWE: Unexpected key mgmt 0x%x from " MACSTR,
+			   (unsigned int) data.key_mgmt, MAC2STR(peer));
+		return WLAN_STATUS_AKMP_NOT_VALID;
+	}
+	if (!owe_dh) {
+		wpa_printf(MSG_DEBUG,
+			   "OWE: No Diffie-Hellman Parameter element from "
+			   MACSTR, MAC2STR(peer));
+		return WLAN_STATUS_AKMP_NOT_VALID;
+	}
+
+	return WLAN_STATUS_SUCCESS;
+}
+
+
+u16 owe_process_rsn_ie(struct hostapd_data *hapd,
+		       struct sta_info *sta,
+		       const u8 *rsn_ie, size_t rsn_ie_len,
+		       const u8 *owe_dh, size_t owe_dh_len)
+{
+	u16 status;
+	u8 *owe_buf, ie[256 * 2];
+	size_t ie_len = 0;
+	int res;
+
+	if (!rsn_ie || rsn_ie_len < 2) {
+		wpa_printf(MSG_DEBUG, "OWE: No RSNE in (Re)AssocReq");
+		status = WLAN_STATUS_INVALID_IE;
+		goto end;
+	}
+
+	if (!sta->wpa_sm)
+		sta->wpa_sm = wpa_auth_sta_init(hapd->wpa_auth,	sta->addr,
+						NULL);
+	if (!sta->wpa_sm) {
+		wpa_printf(MSG_WARNING,
+			   "OWE: Failed to initialize WPA state machine");
+		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+		goto end;
+	}
+	rsn_ie -= 2;
+	rsn_ie_len += 2;
+	res = wpa_validate_wpa_ie(hapd->wpa_auth, sta->wpa_sm,
+				  hapd->iface->freq, rsn_ie, rsn_ie_len,
+				  NULL, 0, owe_dh, owe_dh_len);
+	status = wpa_res_to_status_code(res);
+	if (status != WLAN_STATUS_SUCCESS)
+		goto end;
+	status = owe_process_assoc_req(hapd, sta, owe_dh, owe_dh_len);
+	if (status != WLAN_STATUS_SUCCESS)
+		goto end;
+	owe_buf = wpa_auth_write_assoc_resp_owe(sta->wpa_sm, ie, sizeof(ie),
+						NULL, 0);
+	if (!owe_buf) {
+		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+		goto end;
+	}
+
+	if (sta->owe_ecdh) {
+		struct wpabuf *pub;
+
+		pub = crypto_ecdh_get_pubkey(sta->owe_ecdh, 0);
+		if (!pub) {
+			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			goto end;
+		}
+
+		/* OWE Diffie-Hellman Parameter element */
+		*owe_buf++ = WLAN_EID_EXTENSION; /* Element ID */
+		*owe_buf++ = 1 + 2 + wpabuf_len(pub); /* Length */
+		*owe_buf++ = WLAN_EID_EXT_OWE_DH_PARAM; /* Element ID Extension
+							 */
+		WPA_PUT_LE16(owe_buf, sta->owe_group);
+		owe_buf += 2;
+		os_memcpy(owe_buf, wpabuf_head(pub), wpabuf_len(pub));
+		owe_buf += wpabuf_len(pub);
+		wpabuf_free(pub);
+		sta->external_dh_updated = 1;
+	}
+	ie_len = owe_buf - ie;
+
+end:
+	wpa_printf(MSG_DEBUG, "OWE: Update status %d, ie len %d for peer "
+			      MACSTR, status, (unsigned int) ie_len,
+			      MAC2STR(sta->addr));
+	hostapd_drv_update_dh_ie(hapd, sta->addr, status,
+				 status == WLAN_STATUS_SUCCESS ? ie : NULL,
+				 ie_len);
+
+	return status;
+}
+
 #endif /* CONFIG_OWE */
 
 
@@ -2845,10 +2968,6 @@ static u16 check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
 		if (resp != WLAN_STATUS_SUCCESS)
 			return resp;
 
-		resp = copy_sta_vht_oper(hapd, sta, elems.vht_operation);
-		if (resp != WLAN_STATUS_SUCCESS)
-			return resp;
-
 		resp = set_sta_vht_opmode(hapd, sta, elems.vht_opmode_notif);
 		if (resp != WLAN_STATUS_SUCCESS)
 			return resp;
@@ -2869,6 +2988,15 @@ static u16 check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
 			return resp;
 	}
 #endif /* CONFIG_IEEE80211AC */
+#ifdef CONFIG_IEEE80211AX
+	if (hapd->iconf->ieee80211ax) {
+		resp = copy_sta_he_capab(hapd, sta, IEEE80211_MODE_AP,
+					 elems.he_capabilities,
+					 elems.he_capabilities_len);
+		if (resp != WLAN_STATUS_SUCCESS)
+			return resp;
+	}
+#endif /* CONFIG_IEEE80211AX */
 
 #ifdef CONFIG_P2P
 	if (elems.p2p) {
@@ -3231,6 +3359,7 @@ static int add_associated_sta(struct hostapd_data *hapd,
 {
 	struct ieee80211_ht_capabilities ht_cap;
 	struct ieee80211_vht_capabilities vht_cap;
+	struct ieee80211_he_capabilities he_cap;
 	int set = 1;
 
 	/*
@@ -3283,6 +3412,12 @@ static int add_associated_sta(struct hostapd_data *hapd,
 	if (sta->flags & WLAN_STA_VHT)
 		hostapd_get_vht_capab(hapd, sta->vht_capabilities, &vht_cap);
 #endif /* CONFIG_IEEE80211AC */
+#ifdef CONFIG_IEEE80211AX
+	if (sta->flags & WLAN_STA_HE) {
+		hostapd_get_he_capab(hapd, sta->he_capab, &he_cap,
+				     sta->he_capab_len);
+	}
+#endif /* CONFIG_IEEE80211AX */
 
 	/*
 	 * Add the station with forced WLAN_STA_ASSOC flag. The sta->flags
@@ -3294,6 +3429,8 @@ static int add_associated_sta(struct hostapd_data *hapd,
 			    sta->listen_interval,
 			    sta->flags & WLAN_STA_HT ? &ht_cap : NULL,
 			    sta->flags & WLAN_STA_VHT ? &vht_cap : NULL,
+			    sta->flags & WLAN_STA_HE ? &he_cap : NULL,
+			    sta->flags & WLAN_STA_HE ? sta->he_capab_len : 0,
 			    sta->flags | WLAN_STA_ASSOC, sta->qosinfo,
 			    sta->vht_opmode, sta->p2p_ie ? 1 : 0,
 			    set)) {
@@ -3331,6 +3468,8 @@ static u16 send_assoc_resp(struct hostapd_data *hapd, struct sta_info *sta,
 #ifdef CONFIG_FILS
 	if (sta && sta->fils_hlp_resp)
 		buflen += wpabuf_len(sta->fils_hlp_resp);
+	if (sta)
+		buflen += 150;
 #endif /* CONFIG_FILS */
 #ifdef CONFIG_OWE
 	if (sta && (hapd->conf->wpa_key_mgmt & WPA_KEY_MGMT_OWE))
@@ -3392,6 +3531,15 @@ static u16 send_assoc_resp(struct hostapd_data *hapd, struct sta_info *sta,
 		}
 	}
 #endif /* CONFIG_IEEE80211R_AP */
+#ifdef CONFIG_FILS
+	if (sta && status_code == WLAN_STATUS_SUCCESS &&
+	    (sta->auth_alg == WLAN_AUTH_FILS_SK ||
+	     sta->auth_alg == WLAN_AUTH_FILS_SK_PFS ||
+	     sta->auth_alg == WLAN_AUTH_FILS_PK))
+		p = wpa_auth_write_assoc_resp_fils(sta->wpa_sm, p,
+						   buf + buflen - p,
+						   ies, ies_len);
+#endif /* CONFIG_FILS */
 
 #ifdef CONFIG_OWE
 	if (sta && status_code == WLAN_STATUS_SUCCESS &&
@@ -3433,6 +3581,15 @@ static u16 send_assoc_resp(struct hostapd_data *hapd, struct sta_info *sta,
 		p = hostapd_eid_vht_operation(hapd, p);
 	}
 #endif /* CONFIG_IEEE80211AC */
+
+#ifdef CONFIG_IEEE80211AX
+	if (hapd->iconf->ieee80211ax) {
+		p = hostapd_eid_he_capab(hapd, p, IEEE80211_MODE_AP);
+		p = hostapd_eid_he_operation(hapd, p);
+		p = hostapd_eid_spatial_reuse(hapd, p);
+		p = hostapd_eid_he_mu_edca_parameter_set(hapd, p);
+	}
+#endif /* CONFIG_IEEE80211AX */
 
 	p = hostapd_eid_ext_capab(hapd, p);
 	p = hostapd_eid_bss_max_idle_period(hapd, p);
@@ -3606,6 +3763,12 @@ u8 * owe_assoc_req_process(struct hostapd_data *hapd, struct sta_info *sta,
 		wpa_printf(MSG_DEBUG, "OWE: Using PMKSA caching");
 		owe_buf = wpa_auth_write_assoc_resp_owe(sta->wpa_sm, owe_buf,
 							owe_buf_len, NULL, 0);
+		*reason = WLAN_STATUS_SUCCESS;
+		return owe_buf;
+	}
+
+	if (sta->owe_pmk && sta->external_dh_updated) {
+		wpa_printf(MSG_DEBUG, "OWE: Using previously derived PMK");
 		*reason = WLAN_STATUS_SUCCESS;
 		return owe_buf;
 	}

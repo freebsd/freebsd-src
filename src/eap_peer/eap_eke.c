@@ -414,7 +414,7 @@ static struct wpabuf * eap_eke_process_commit(struct eap_sm *sm,
 	 */
 	if (eap_eke_dh_init(data->sess.dhgroup, data->dh_priv, pub) < 0) {
 		wpa_printf(MSG_INFO, "EAP-EKE: Failed to initialize DH");
-		os_memset(key, 0, sizeof(key));
+		forced_memzero(key, sizeof(key));
 		return eap_eke_build_fail(data, ret, id,
 					  EAP_EKE_FAIL_PRIVATE_INTERNAL_ERROR);
 	}
@@ -422,7 +422,7 @@ static struct wpabuf * eap_eke_process_commit(struct eap_sm *sm,
 	if (eap_eke_shared_secret(&data->sess, key, data->dh_priv, dhcomp) < 0)
 	{
 		wpa_printf(MSG_INFO, "EAP-EKE: Failed to derive shared secret");
-		os_memset(key, 0, sizeof(key));
+		forced_memzero(key, sizeof(key));
 		return eap_eke_build_fail(data, ret, id,
 					  EAP_EKE_FAIL_PRIVATE_INTERNAL_ERROR);
 	}
@@ -431,7 +431,7 @@ static struct wpabuf * eap_eke_process_commit(struct eap_sm *sm,
 				 data->serverid, data->serverid_len,
 				 data->peerid, data->peerid_len) < 0) {
 		wpa_printf(MSG_INFO, "EAP-EKE: Failed to derive Ke/Ki");
-		os_memset(key, 0, sizeof(key));
+		forced_memzero(key, sizeof(key));
 		return eap_eke_build_fail(data, ret, id,
 					  EAP_EKE_FAIL_PRIVATE_INTERNAL_ERROR);
 	}
@@ -442,7 +442,7 @@ static struct wpabuf * eap_eke_process_commit(struct eap_sm *sm,
 				 data->sess.dhcomp_len + data->sess.pnonce_len,
 				 EAP_EKE_COMMIT);
 	if (resp == NULL) {
-		os_memset(key, 0, sizeof(key));
+		forced_memzero(key, sizeof(key));
 		return eap_eke_build_fail(data, ret, id,
 					  EAP_EKE_FAIL_PRIVATE_INTERNAL_ERROR);
 	}
@@ -452,11 +452,11 @@ static struct wpabuf * eap_eke_process_commit(struct eap_sm *sm,
 	if (eap_eke_dhcomp(&data->sess, key, pub, rpos) < 0) {
 		wpabuf_free(resp);
 		wpa_printf(MSG_INFO, "EAP-EKE: Failed to build DHComponent_P");
-		os_memset(key, 0, sizeof(key));
+		forced_memzero(key, sizeof(key));
 		return eap_eke_build_fail(data, ret, id,
 					  EAP_EKE_FAIL_PRIVATE_INTERNAL_ERROR);
 	}
-	os_memset(key, 0, sizeof(key));
+	forced_memzero(key, sizeof(key));
 
 	wpa_hexdump(MSG_DEBUG, "EAP-EKE: DHComponent_P",
 		    rpos, data->sess.dhcomp_len);

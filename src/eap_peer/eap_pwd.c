@@ -30,6 +30,7 @@ struct eap_pwd_data {
 	u8 *password;
 	size_t password_len;
 	int password_hash;
+	struct wpa_freq_range_list allowed_groups;
 	u16 group_num;
 	u8 prep;
 	u8 token[4];
@@ -52,6 +53,9 @@ struct eap_pwd_data {
 	u8 emsk[EAP_EMSK_LEN];
 	u8 session_id[1 + SHA256_MAC_LEN];
 };
+
+
+static void eap_pwd_deinit(struct eap_sm *sm, void *priv);
 
 
 #ifndef CONFIG_NO_STDOUT_DEBUG
@@ -92,6 +96,7 @@ static void * eap_pwd_init(struct eap_sm *sm)
 	size_t identity_len, password_len;
 	int fragment_size;
 	int pwhash;
+	const char *phase1;
 
 	password = eap_get_config_password2(sm, &password_len, &pwhash);
 	if (password == NULL) {
@@ -129,6 +134,30 @@ static void * eap_pwd_init(struct eap_sm *sm)
 	data->password_len = password_len;
 	data->password_hash = pwhash;
 
+	phase1 = eap_get_config_phase1(sm);
+	if (phase1) {
+		const char *pos, *end;
+		char *copy = NULL;
+		int res;
+
+		pos = os_strstr(phase1, "eap_pwd_groups=");
+		if (pos) {
+			pos += 15;
+			end = os_strchr(pos, ' ');
+			if (end) {
+				copy = os_zalloc(end - pos + 1);
+				if (!copy)
+					goto fail;
+				os_memcpy(copy, pos, end - pos);
+				pos = copy;
+			}
+			res = freq_range_list_parse(&data->allowed_groups, pos);
+			os_free(copy);
+			if (res)
+				goto fail;
+		}
+	}
+
 	data->out_frag_pos = data->in_frag_pos = 0;
 	data->inbuf = data->outbuf = NULL;
 	fragment_size = eap_get_config_fragment_size(sm);
@@ -140,6 +169,9 @@ static void * eap_pwd_init(struct eap_sm *sm)
 	data->state = PWD_ID_Req;
 
 	return data;
+fail:
+	eap_pwd_deinit(sm, data);
+	return NULL;
 }
 
 
@@ -163,6 +195,7 @@ static void eap_pwd_deinit(struct eap_sm *sm, void *priv)
 	}
 	wpabuf_free(data->inbuf);
 	wpabuf_free(data->outbuf);
+	os_free(data->allowed_groups.range);
 	bin_clear_free(data, sizeof(*data));
 }
 
@@ -203,6 +236,18 @@ static u8 * eap_pwd_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
+static int eap_pwd_allowed_group(struct eap_pwd_data *data, u16 group)
+{
+	if (!data->allowed_groups.range) {
+		/* By default, allow the groups using NIST curves P-256, P-384,
+		 * and P-521. */
+		return group == 19 || group == 20 || group == 21;
+	}
+
+	return freq_range_list_includes(&data->allowed_groups, group);
+}
+
+
 static void
 eap_pwd_perform_id_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 			    struct eap_method_ret *ret,
@@ -228,9 +273,11 @@ eap_pwd_perform_id_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	wpa_printf(MSG_DEBUG,
 		   "EAP-PWD: Server EAP-pwd-ID proposal: group=%u random=%u prf=%u prep=%u",
 		   data->group_num, id->random_function, id->prf, id->prep);
-	if ((id->random_function != EAP_PWD_DEFAULT_RAND_FUNC) ||
-	    (id->prf != EAP_PWD_DEFAULT_PRF)) {
-		ret->ignore = TRUE;
+	if (id->random_function != EAP_PWD_DEFAULT_RAND_FUNC ||
+	    id->prf != EAP_PWD_DEFAULT_PRF ||
+	    !eap_pwd_allowed_group(data, data->group_num)) {
+		wpa_printf(MSG_INFO,
+			   "EAP-pwd: Unsupported or disabled proposal");
 		eap_pwd_state(data, FAILURE);
 		return;
 	}
@@ -362,7 +409,7 @@ eap_pwd_perform_commit_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 					       data->password_len, pwhash);
 			if (res == 0)
 				res = hash_nt_password_hash(pwhash, pwhashhash);
-			os_memset(pwhash, 0, sizeof(pwhash));
+			forced_memzero(pwhash, sizeof(pwhash));
 		}
 
 		if (res) {
@@ -514,8 +561,8 @@ eap_pwd_perform_commit_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 				       data->id_server, data->id_server_len,
 				       data->id_peer, data->id_peer_len,
 				       data->token);
-	os_memset(pwhashhash, 0, sizeof(pwhashhash));
-	os_memset(salthashpwd, 0, sizeof(salthashpwd));
+	forced_memzero(pwhashhash, sizeof(pwhashhash));
+	forced_memzero(salthashpwd, sizeof(salthashpwd));
 	if (res) {
 		wpa_printf(MSG_INFO, "EAP-PWD (peer): unable to compute PWE");
 		eap_pwd_state(data, FAILURE);

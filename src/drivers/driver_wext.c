@@ -1915,7 +1915,7 @@ static int wpa_driver_wext_set_drop_unencrypted(void *priv,
 
 
 static int wpa_driver_wext_mlme(struct wpa_driver_wext_data *drv,
-				const u8 *addr, int cmd, int reason_code)
+				const u8 *addr, int cmd, u16 reason_code)
 {
 	struct iwreq iwr;
 	struct iw_mlme mlme;
@@ -1998,7 +1998,7 @@ static void wpa_driver_wext_disconnect(struct wpa_driver_wext_data *drv)
 
 
 static int wpa_driver_wext_deauthenticate(void *priv, const u8 *addr,
-					  int reason_code)
+					  u16 reason_code)
 {
 	struct wpa_driver_wext_data *drv = priv;
 	int ret;

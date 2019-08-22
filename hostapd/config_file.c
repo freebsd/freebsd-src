@@ -24,14 +24,6 @@
 #include "config_file.h"
 
 
-#ifndef CONFIG_NO_RADIUS
-#ifdef EAP_SERVER
-static struct hostapd_radius_attr *
-hostapd_parse_radius_attr(const char *value);
-#endif /* EAP_SERVER */
-#endif /* CONFIG_NO_RADIUS */
-
-
 #ifndef CONFIG_NO_VLAN
 static int hostapd_config_read_vlan_file(struct hostapd_bss_config *bss,
 					 const char *fname)
@@ -659,75 +651,6 @@ hostapd_config_read_radius_addr(struct hostapd_radius_server **server,
 	return ret;
 }
 
-
-static struct hostapd_radius_attr *
-hostapd_parse_radius_attr(const char *value)
-{
-	const char *pos;
-	char syntax;
-	struct hostapd_radius_attr *attr;
-	size_t len;
-
-	attr = os_zalloc(sizeof(*attr));
-	if (attr == NULL)
-		return NULL;
-
-	attr->type = atoi(value);
-
-	pos = os_strchr(value, ':');
-	if (pos == NULL) {
-		attr->val = wpabuf_alloc(1);
-		if (attr->val == NULL) {
-			os_free(attr);
-			return NULL;
-		}
-		wpabuf_put_u8(attr->val, 0);
-		return attr;
-	}
-
-	pos++;
-	if (pos[0] == '\0' || pos[1] != ':') {
-		os_free(attr);
-		return NULL;
-	}
-	syntax = *pos++;
-	pos++;
-
-	switch (syntax) {
-	case 's':
-		attr->val = wpabuf_alloc_copy(pos, os_strlen(pos));
-		break;
-	case 'x':
-		len = os_strlen(pos);
-		if (len & 1)
-			break;
-		len /= 2;
-		attr->val = wpabuf_alloc(len);
-		if (attr->val == NULL)
-			break;
-		if (hexstr2bin(pos, wpabuf_put(attr->val, len), len) < 0) {
-			wpabuf_free(attr->val);
-			os_free(attr);
-			return NULL;
-		}
-		break;
-	case 'd':
-		attr->val = wpabuf_alloc(4);
-		if (attr->val)
-			wpabuf_put_be32(attr->val, atoi(pos));
-		break;
-	default:
-		os_free(attr);
-		return NULL;
-	}
-
-	if (attr->val == NULL) {
-		os_free(attr);
-		return NULL;
-	}
-
-	return attr;
-}
 
 
 static int hostapd_parse_das_client(struct hostapd_bss_config *bss, char *val)
@@ -2313,6 +2236,42 @@ static unsigned int parse_tls_flags(const char *val)
 #endif /* EAP_SERVER */
 
 
+#ifdef CONFIG_AIRTIME_POLICY
+static int add_airtime_weight(struct hostapd_bss_config *bss, char *value)
+{
+	struct airtime_sta_weight *wt;
+	char *pos, *next;
+
+	wt = os_zalloc(sizeof(*wt));
+	if (!wt)
+		return -1;
+
+	/* 02:01:02:03:04:05 10 */
+	pos = value;
+	next = os_strchr(pos, ' ');
+	if (next)
+		*next++ = '\0';
+	if (!next || hwaddr_aton(pos, wt->addr)) {
+		wpa_printf(MSG_ERROR, "Invalid station address: '%s'", pos);
+		os_free(wt);
+		return -1;
+	}
+
+	pos = next;
+	wt->weight = atoi(pos);
+	if (!wt->weight) {
+		wpa_printf(MSG_ERROR, "Invalid weight: '%s'", pos);
+		os_free(wt);
+		return -1;
+	}
+
+	wt->next = bss->airtime_weight_list;
+	bss->airtime_weight_list = wt;
+	return 0;
+}
+#endif /* CONFIG_AIRTIME_POLICY */
+
+
 #ifdef CONFIG_SAE
 static int parse_sae_password(struct hostapd_bss_config *bss, const char *val)
 {
@@ -2374,6 +2333,36 @@ fail:
 	return -1;
 }
 #endif /* CONFIG_SAE */
+
+
+#ifdef CONFIG_DPP2
+static int hostapd_dpp_controller_parse(struct hostapd_bss_config *bss,
+					const char *pos)
+{
+	struct dpp_controller_conf *conf;
+	char *val;
+
+	conf = os_zalloc(sizeof(*conf));
+	if (!conf)
+		return -1;
+	val = get_param(pos, "ipaddr=");
+	if (!val || hostapd_parse_ip_addr(val, &conf->ipaddr))
+		goto fail;
+	os_free(val);
+	val = get_param(pos, "pkhash=");
+	if (!val || os_strlen(val) != 2 * SHA256_MAC_LEN ||
+	    hexstr2bin(val, conf->pkhash, SHA256_MAC_LEN) < 0)
+		goto fail;
+	os_free(val);
+	conf->next = bss->dpp_controller;
+	bss->dpp_controller = conf;
+	return 0;
+fail:
+	os_free(val);
+	os_free(conf);
+	return -1;
+}
+#endif /* CONFIG_DPP2 */
 
 
 static int hostapd_config_fill(struct hostapd_config *conf,
@@ -2496,7 +2485,11 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 	} else if (os_strcmp(buf, "eapol_version") == 0) {
 		int eapol_version = atoi(pos);
 
+#ifdef CONFIG_MACSEC
+		if (eapol_version < 1 || eapol_version > 3) {
+#else /* CONFIG_MACSEC */
 		if (eapol_version < 1 || eapol_version > 2) {
+#endif /* CONFIG_MACSEC */
 			wpa_printf(MSG_ERROR,
 				   "Line %d: invalid EAPOL version (%d): '%s'.",
 				   line, eapol_version, pos);
@@ -2519,12 +2512,21 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 	} else if (os_strcmp(buf, "server_cert") == 0) {
 		os_free(bss->server_cert);
 		bss->server_cert = os_strdup(pos);
+	} else if (os_strcmp(buf, "server_cert2") == 0) {
+		os_free(bss->server_cert2);
+		bss->server_cert2 = os_strdup(pos);
 	} else if (os_strcmp(buf, "private_key") == 0) {
 		os_free(bss->private_key);
 		bss->private_key = os_strdup(pos);
+	} else if (os_strcmp(buf, "private_key2") == 0) {
+		os_free(bss->private_key2);
+		bss->private_key2 = os_strdup(pos);
 	} else if (os_strcmp(buf, "private_key_passwd") == 0) {
 		os_free(bss->private_key_passwd);
 		bss->private_key_passwd = os_strdup(pos);
+	} else if (os_strcmp(buf, "private_key_passwd2") == 0) {
+		os_free(bss->private_key_passwd2);
+		bss->private_key_passwd2 = os_strdup(pos);
 	} else if (os_strcmp(buf, "check_cert_subject") == 0) {
 		if (!pos[0]) {
 			wpa_printf(MSG_ERROR, "Line %d: unknown check_cert_subject '%s'",
@@ -2605,6 +2607,20 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 	} else if (os_strcmp(buf, "pac_key_refresh_time") == 0) {
 		bss->pac_key_refresh_time = atoi(pos);
 #endif /* EAP_SERVER_FAST */
+#ifdef EAP_SERVER_TEAP
+	} else if (os_strcmp(buf, "eap_teap_auth") == 0) {
+		int val = atoi(pos);
+
+		if (val < 0 || val > 1) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: Invalid eap_teap_auth value",
+				   line);
+			return 1;
+		}
+		bss->eap_teap_auth = val;
+	} else if (os_strcmp(buf, "eap_teap_pac_no_inner") == 0) {
+		bss->eap_teap_pac_no_inner = atoi(pos);
+#endif /* EAP_SERVER_TEAP */
 #ifdef EAP_SERVER_SIM
 	} else if (os_strcmp(buf, "eap_sim_db") == 0) {
 		os_free(bss->eap_sim_db);
@@ -2613,6 +2629,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		bss->eap_sim_db_timeout = atoi(pos);
 	} else if (os_strcmp(buf, "eap_sim_aka_result_ind") == 0) {
 		bss->eap_sim_aka_result_ind = atoi(pos);
+	} else if (os_strcmp(buf, "eap_sim_id") == 0) {
+		bss->eap_sim_id = atoi(pos);
 #endif /* EAP_SERVER_SIM */
 #ifdef EAP_SERVER_TNC
 	} else if (os_strcmp(buf, "tnc") == 0) {
@@ -2816,6 +2834,9 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 				a = a->next;
 			a->next = attr;
 		}
+	} else if (os_strcmp(buf, "radius_req_attr_sqlite") == 0) {
+		os_free(bss->radius_req_attr_sqlite);
+		bss->radius_req_attr_sqlite = os_strdup(pos);
 	} else if (os_strcmp(buf, "radius_das_port") == 0) {
 		bss->radius_das_port = atoi(pos);
 	} else if (os_strcmp(buf, "radius_das_client") == 0) {
@@ -3442,6 +3463,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		conf->he_op.he_twt_required = atoi(pos);
 	} else if (os_strcmp(buf, "he_rts_threshold") == 0) {
 		conf->he_op.he_rts_threshold = atoi(pos);
+	} else if (os_strcmp(buf, "he_basic_mcs_nss_set") == 0) {
+		conf->he_op.he_basic_mcs_nss_set = atoi(pos);
 	} else if (os_strcmp(buf, "he_mu_edca_qos_info_param_count") == 0) {
 		conf->he_mu_edca.he_qos_info |=
 			set_he_cap(atoi(pos), HE_QOS_INFO_EDCA_PARAM_SET_COUNT);
@@ -3526,6 +3549,20 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 	} else if (os_strcmp(buf, "he_mu_edca_ac_vo_timer") == 0) {
 		conf->he_mu_edca.he_mu_ac_vo_param[HE_MU_AC_PARAM_TIMER_IDX] =
 			atoi(pos) & 0xff;
+	} else if (os_strcmp(buf, "he_spr_sr_control") == 0) {
+		conf->spr.sr_control = atoi(pos) & 0xff;
+	} else if (os_strcmp(buf, "he_spr_non_srg_obss_pd_max_offset") == 0) {
+		conf->spr.non_srg_obss_pd_max_offset = atoi(pos);
+	} else if (os_strcmp(buf, "he_spr_srg_obss_pd_min_offset") == 0) {
+		conf->spr.srg_obss_pd_min_offset = atoi(pos);
+	} else if (os_strcmp(buf, "he_spr_srg_obss_pd_max_offset") == 0) {
+		conf->spr.srg_obss_pd_max_offset = atoi(pos);
+	} else if (os_strcmp(buf, "he_oper_chwidth") == 0) {
+		conf->he_oper_chwidth = atoi(pos);
+	} else if (os_strcmp(buf, "he_oper_centr_freq_seg0_idx") == 0) {
+		conf->he_oper_centr_freq_seg0_idx = atoi(pos);
+	} else if (os_strcmp(buf, "he_oper_centr_freq_seg1_idx") == 0) {
+		conf->he_oper_centr_freq_seg1_idx = atoi(pos);
 #endif /* CONFIG_IEEE80211AX */
 	} else if (os_strcmp(buf, "max_listen_interval") == 0) {
 		bss->max_listen_interval = atoi(pos);
@@ -4298,6 +4335,11 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 	} else if (os_strcmp(buf, "dpp_csign") == 0) {
 		if (parse_wpabuf_hex(line, buf, &bss->dpp_csign, pos))
 			return 1;
+#ifdef CONFIG_DPP2
+	} else if (os_strcmp(buf, "dpp_controller") == 0) {
+		if (hostapd_dpp_controller_parse(bss, pos))
+			return 1;
+#endif /* CONFIG_DPP2 */
 #endif /* CONFIG_DPP */
 #ifdef CONFIG_OWE
 	} else if (os_strcmp(buf, "owe_transition_bssid") == 0) {
@@ -4349,6 +4391,121 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		conf->rssi_reject_assoc_timeout = atoi(pos);
 	} else if (os_strcmp(buf, "pbss") == 0) {
 		bss->pbss = atoi(pos);
+#ifdef CONFIG_AIRTIME_POLICY
+	} else if (os_strcmp(buf, "airtime_mode") == 0) {
+		int val = atoi(pos);
+
+		if (val < 0 || val > AIRTIME_MODE_MAX) {
+			wpa_printf(MSG_ERROR, "Line %d: Unknown airtime_mode",
+				   line);
+			return 1;
+		}
+		conf->airtime_mode = val;
+	} else if (os_strcmp(buf, "airtime_update_interval") == 0) {
+		conf->airtime_update_interval = atoi(pos);
+	} else if (os_strcmp(buf, "airtime_bss_weight") == 0) {
+		bss->airtime_weight = atoi(pos);
+	} else if (os_strcmp(buf, "airtime_bss_limit") == 0) {
+		int val = atoi(pos);
+
+		if (val < 0 || val > 1) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: Invalid airtime_bss_limit (must be 0 or 1)",
+				   line);
+			return 1;
+		}
+		bss->airtime_limit = val;
+	} else if (os_strcmp(buf, "airtime_sta_weight") == 0) {
+		if (add_airtime_weight(bss, pos) < 0) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: Invalid airtime weight '%s'",
+				   line, pos);
+			return 1;
+		}
+#endif /* CONFIG_AIRTIME_POLICY */
+#ifdef CONFIG_MACSEC
+	} else if (os_strcmp(buf, "macsec_policy") == 0) {
+		int macsec_policy = atoi(pos);
+
+		if (macsec_policy < 0 || macsec_policy > 1) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: invalid macsec_policy (%d): '%s'.",
+				   line, macsec_policy, pos);
+			return 1;
+		}
+		bss->macsec_policy = macsec_policy;
+	} else if (os_strcmp(buf, "macsec_integ_only") == 0) {
+		int macsec_integ_only = atoi(pos);
+
+		if (macsec_integ_only < 0 || macsec_integ_only > 1) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: invalid macsec_integ_only (%d): '%s'.",
+				   line, macsec_integ_only, pos);
+			return 1;
+		}
+		bss->macsec_integ_only = macsec_integ_only;
+	} else if (os_strcmp(buf, "macsec_replay_protect") == 0) {
+		int macsec_replay_protect = atoi(pos);
+
+		if (macsec_replay_protect < 0 || macsec_replay_protect > 1) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: invalid macsec_replay_protect (%d): '%s'.",
+				   line, macsec_replay_protect, pos);
+			return 1;
+		}
+		bss->macsec_replay_protect = macsec_replay_protect;
+	} else if (os_strcmp(buf, "macsec_replay_window") == 0) {
+		bss->macsec_replay_window = atoi(pos);
+	} else if (os_strcmp(buf, "macsec_port") == 0) {
+		int macsec_port = atoi(pos);
+
+		if (macsec_port < 1 || macsec_port > 65534) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: invalid macsec_port (%d): '%s'.",
+				   line, macsec_port, pos);
+			return 1;
+		}
+		bss->macsec_port = macsec_port;
+	} else if (os_strcmp(buf, "mka_priority") == 0) {
+		int mka_priority = atoi(pos);
+
+		if (mka_priority < 0 || mka_priority > 255) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: invalid mka_priority (%d): '%s'.",
+				   line, mka_priority, pos);
+			return 1;
+		}
+		bss->mka_priority = mka_priority;
+	} else if (os_strcmp(buf, "mka_cak") == 0) {
+		size_t len = os_strlen(pos);
+
+		if (len > 2 * MACSEC_CAK_MAX_LEN ||
+		    (len != 2 * 16 && len != 2 * 32) ||
+		    hexstr2bin(pos, bss->mka_cak, len / 2)) {
+			wpa_printf(MSG_ERROR, "Line %d: Invalid MKA-CAK '%s'.",
+				   line, pos);
+			return 1;
+		}
+		bss->mka_cak_len = len / 2;
+		bss->mka_psk_set |= MKA_PSK_SET_CAK;
+	} else if (os_strcmp(buf, "mka_ckn") == 0) {
+		size_t len = os_strlen(pos);
+
+		if (len > 2 * MACSEC_CKN_MAX_LEN || /* too long */
+		    len < 2 || /* too short */
+		    len % 2 != 0 /* not an integral number of bytes */) {
+			wpa_printf(MSG_ERROR, "Line %d: Invalid MKA-CKN '%s'.",
+				   line, pos);
+			return 1;
+		}
+		bss->mka_ckn_len = len / 2;
+		if (hexstr2bin(pos, bss->mka_ckn, bss->mka_ckn_len)) {
+			wpa_printf(MSG_ERROR, "Line %d: Invalid MKA-CKN '%s'.",
+				   line, pos);
+			return -1;
+		}
+		bss->mka_psk_set |= MKA_PSK_SET_CKN;
+#endif /* CONFIG_MACSEC */
 	} else {
 		wpa_printf(MSG_ERROR,
 			   "Line %d: unknown configuration item '%s'",

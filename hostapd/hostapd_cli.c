@@ -1214,6 +1214,13 @@ static int hostapd_cli_cmd_disable(struct wpa_ctrl *ctrl, int argc,
 }
 
 
+static int hostapd_cli_cmd_update_beacon(struct wpa_ctrl *ctrl, int argc,
+				      char *argv[])
+{
+	return wpa_ctrl_command(ctrl, "UPDATE_BEACON");
+}
+
+
 static int hostapd_cli_cmd_vendor(struct wpa_ctrl *ctrl, int argc, char *argv[])
 {
 	char cmd[256];
@@ -1617,6 +1624,8 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
 	  "= reload configuration for current interface" },
 	{ "disable", hostapd_cli_cmd_disable, NULL,
 	  "= disable hostapd on current interface" },
+	{ "update_beacon", hostapd_cli_cmd_update_beacon, NULL,
+	  "= update Beacon frame contents\n"},
 	{ "erp_flush", hostapd_cli_cmd_erp_flush, NULL,
 	  "= drop all ERP keys"},
 	{ "log_level", hostapd_cli_cmd_log_level, NULL,
