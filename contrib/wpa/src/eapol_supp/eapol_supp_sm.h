@@ -11,6 +11,8 @@
 
 #include "common/defs.h"
 
+struct tls_cert_data;
+
 typedef enum { Unauthorized, Authorized } PortStatus;
 typedef enum { Auto, ForceUnauthorized, ForceAuthorized } PortControl;
 
@@ -246,16 +248,11 @@ struct eapol_ctx {
 	/**
 	 * cert_cb - Notification of a peer certificate
 	 * @ctx: Callback context (ctx)
-	 * @depth: Depth in certificate chain (0 = server)
-	 * @subject: Subject of the peer certificate
-	 * @altsubject: Select fields from AltSubject of the peer certificate
-	 * @num_altsubject: Number of altsubject values
+	 * @cert: Certificate information
 	 * @cert_hash: SHA-256 hash of the certificate
-	 * @cert: Peer certificate
 	 */
-	void (*cert_cb)(void *ctx, int depth, const char *subject,
-			const char *altsubject[], int num_altsubject,
-			const char *cert_hash, const struct wpabuf *cert);
+	void (*cert_cb)(void *ctx, struct tls_cert_data *cert,
+			const char *cert_hash);
 
 	/**
 	 * cert_in_cb - Include server certificates in callback

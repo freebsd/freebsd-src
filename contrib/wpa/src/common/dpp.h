@@ -18,9 +18,11 @@
 #include "crypto/sha256.h"
 
 struct crypto_ecdh;
+struct hostapd_ip_addr;
 struct dpp_global;
 
 #define DPP_HDR_LEN (4 + 2) /* OUI, OUI Type, Crypto Suite, DPP frame type */
+#define DPP_TCP_PORT 7871
 
 enum dpp_public_action_frame_type {
 	DPP_PA_AUTHENTICATION_REQ = 0,
@@ -257,6 +259,22 @@ struct dpp_introduction {
 	u8 pmkid[PMKID_LEN];
 	u8 pmk[PMK_LEN_MAX];
 	size_t pmk_len;
+};
+
+struct dpp_relay_config {
+	const struct hostapd_ip_addr *ipaddr;
+	const u8 *pkhash;
+
+	void *cb_ctx;
+	void (*tx)(void *ctx, const u8 *addr, unsigned int freq, const u8 *msg,
+		   size_t len);
+	void (*gas_resp_tx)(void *ctx, const u8 *addr, u8 dialog_token, int prot,
+			    struct wpabuf *buf);
+};
+
+struct dpp_controller_config {
+	const char *configurator_params;
+	int tcp_port;
 };
 
 #ifdef CONFIG_TESTING_OPTIONS
@@ -497,7 +515,26 @@ int dpp_configurator_add(struct dpp_global *dpp, const char *cmd);
 int dpp_configurator_remove(struct dpp_global *dpp, const char *id);
 int dpp_configurator_get_key_id(struct dpp_global *dpp, unsigned int id,
 				char *buf, size_t buflen);
-struct dpp_global * dpp_global_init(void);
+int dpp_relay_add_controller(struct dpp_global *dpp,
+			     struct dpp_relay_config *config);
+int dpp_relay_rx_action(struct dpp_global *dpp, const u8 *src, const u8 *hdr,
+			const u8 *buf, size_t len, unsigned int freq,
+			const u8 *i_bootstrap, const u8 *r_bootstrap);
+int dpp_relay_rx_gas_req(struct dpp_global *dpp, const u8 *src, const u8 *data,
+			 size_t data_len);
+int dpp_controller_start(struct dpp_global *dpp,
+			 struct dpp_controller_config *config);
+void dpp_controller_stop(struct dpp_global *dpp);
+int dpp_tcp_init(struct dpp_global *dpp, struct dpp_authentication *auth,
+		 const struct hostapd_ip_addr *addr, int port);
+
+struct dpp_global_config {
+	void *msg_ctx;
+	void *cb_ctx;
+	int (*process_conf_obj)(void *ctx, struct dpp_authentication *auth);
+};
+
+struct dpp_global * dpp_global_init(struct dpp_global_config *config);
 void dpp_global_clear(struct dpp_global *dpp);
 void dpp_global_deinit(struct dpp_global *dpp);
 

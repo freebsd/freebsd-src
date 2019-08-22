@@ -102,7 +102,7 @@ int sha384_prf_bits(const u8 *key, size_t key_len, const char *label,
 		buf[pos - 1] &= mask;
 	}
 
-	os_memset(hash, 0, sizeof(hash));
+	forced_memzero(hash, sizeof(hash));
 
 	return 0;
 }

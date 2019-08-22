@@ -86,7 +86,8 @@ int hmac_sha1_vector(const u8 *key, size_t key_len, size_t num_elem,
 	_addr[1] = mac;
 	_len[1] = SHA1_MAC_LEN;
 	ret = sha1_vector(2, _addr, _len, mac);
-	os_memset(k_pad, 0, sizeof(k_pad));
+	forced_memzero(k_pad, sizeof(k_pad));
+	forced_memzero(tk, sizeof(tk));
 	return ret;
 }
 

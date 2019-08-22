@@ -1869,7 +1869,10 @@ struct eap_sm * eap_server_sm_init(void *eapol_ctx,
 	sm->eap_fast_prov = conf->eap_fast_prov;
 	sm->pac_key_lifetime = conf->pac_key_lifetime;
 	sm->pac_key_refresh_time = conf->pac_key_refresh_time;
+	sm->eap_teap_auth = conf->eap_teap_auth;
+	sm->eap_teap_pac_no_inner = conf->eap_teap_pac_no_inner;
 	sm->eap_sim_aka_result_ind = conf->eap_sim_aka_result_ind;
+	sm->eap_sim_id = conf->eap_sim_id;
 	sm->tnc = conf->tnc;
 	sm->wps = conf->wps;
 	if (conf->assoc_wps_ie)

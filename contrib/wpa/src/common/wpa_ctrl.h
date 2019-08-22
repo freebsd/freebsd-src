@@ -87,6 +87,9 @@ extern "C" {
 #define WPA_EVENT_BEACON_LOSS "CTRL-EVENT-BEACON-LOSS "
 /** Regulatory domain channel */
 #define WPA_EVENT_REGDOM_CHANGE "CTRL-EVENT-REGDOM-CHANGE "
+/** Channel switch started (followed by freq=<MHz> and other channel parameters)
+ */
+#define WPA_EVENT_CHANNEL_SWITCH_STARTED "CTRL-EVENT-STARTED-CHANNEL-SWITCH "
 /** Channel switch (followed by freq=<MHz> and other channel parameters) */
 #define WPA_EVENT_CHANNEL_SWITCH "CTRL-EVENT-CHANNEL-SWITCH "
 /** SAE authentication failed due to unknown password identifier */

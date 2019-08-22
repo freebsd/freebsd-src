@@ -1085,7 +1085,17 @@ ieee802_1x_mka_i_in_peerlist(struct ieee802_1x_mka_participant *participant,
 				wpa_printf(MSG_DEBUG,
 					   "KaY: My MI - received MN %u, most recently transmitted MN %u",
 					   mn, participant->mn);
-				if (mn == participant->mn)
+				/* IEEE Std 802.1X-2010 is not exactly clear
+				 * which values of MN should be accepted here.
+				 * It uses "acceptably recent MN" language
+				 * without defining what would be acceptable
+				 * recent. For now, allow the last two used MN
+				 * values (i.e., peer having copied my MI,MN
+				 * from either of the last two MKPDUs that I
+				 * have sent). */
+				if (mn == participant->mn ||
+				    (participant->mn > 1 &&
+				     mn == participant->mn - 1))
 					return TRUE;
 			}
 		}

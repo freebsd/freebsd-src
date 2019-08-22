@@ -431,6 +431,7 @@ static struct wpa_bss * wpa_bss_add(struct wpa_supplicant *wpa_s,
 				    struct os_reltime *fetch_time)
 {
 	struct wpa_bss *bss;
+	char extra[50];
 
 	bss = os_zalloc(sizeof(*bss) + res->ie_len + res->beacon_ie_len);
 	if (bss == NULL)
@@ -456,10 +457,15 @@ static struct wpa_bss * wpa_bss_add(struct wpa_supplicant *wpa_s,
 	dl_list_add_tail(&wpa_s->bss, &bss->list);
 	dl_list_add_tail(&wpa_s->bss_id, &bss->list_id);
 	wpa_s->num_bss++;
+	if (!is_zero_ether_addr(bss->hessid))
+		os_snprintf(extra, sizeof(extra), " HESSID " MACSTR,
+			    MAC2STR(bss->hessid));
+	else
+		extra[0] = '\0';
 	wpa_dbg(wpa_s, MSG_DEBUG, "BSS: Add new id %u BSSID " MACSTR
-		" SSID '%s' freq %d",
+		" SSID '%s' freq %d%s",
 		bss->id, MAC2STR(bss->bssid), wpa_ssid_txt(ssid, ssid_len),
-		bss->freq);
+		bss->freq, extra);
 	wpas_notify_bss_added(wpa_s, bss->bssid, bss->id);
 	return bss;
 }
