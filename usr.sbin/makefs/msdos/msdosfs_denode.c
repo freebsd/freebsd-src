@@ -1,6 +1,8 @@
 /*	$NetBSD: msdosfs_denode.c,v 1.7 2015/03/29 05:52:59 agc Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
  * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
@@ -31,7 +33,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
+/*-
  * Written by Paul Popelka (paulp@uts.amdahl.com)
  *
  * You can do anything you want with this software, just don't say you wrote
@@ -261,7 +263,7 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 		if (error) {
 			MSDOSFS_DPRINTF(("detrunc(): pcbmap fails %d\n",
 			    error));
-			return error;
+			return (error);
 		}
 	}
 
@@ -282,10 +284,9 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 				MSDOSFS_DPRINTF(("detrunc(): bread fails %d\n",
 				    error));
 
-				return error;
+				return (error);
 			}
-			memset((char *)bp->b_data + boff, 0,
-			    pmp->pm_bpcluster - boff);
+			memset(bp->b_data + boff, 0, pmp->pm_bpcluster - boff);
 			if (flags & IO_SYNC)
 				bwrite(bp);
 			else
@@ -326,7 +327,7 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 	if (chaintofree != 0 && !MSDOSFSEOF(pmp, chaintofree))
 		freeclusterchain(pmp, chaintofree);
 
-	return allerror;
+	return (allerror);
 }
 
 /*
@@ -343,16 +344,16 @@ deextend(struct denode *dep, u_long length, struct ucred *cred)
 	 * The root of a DOS filesystem cannot be extended.
 	 */
 	if (dep->de_vnode != NULL && !FAT32(pmp))
-		return EINVAL;
+		return (EINVAL);
 
 	/*
 	 * Directories cannot be extended.
 	 */
 	if (dep->de_Attributes & ATTR_DIRECTORY)
-		return EISDIR;
+		return (EISDIR);
 
 	if (length <= dep->de_FileSize)
-		return E2BIG;
+		return (E2BIG);
 
 	/*
 	 * Compute the number of clusters to allocate.
