@@ -15,6 +15,14 @@ r351361:
 	corresponding lockstat(1) events, and document the new probes in
 	dtrace_lockstat.4.
 
+r351356:
+	Intel RST is a new 'feature' that remaps NVMe devices from
+	their normal location to part of the AHCI bar space.  This
+	will eliminate the need to set the BIOS SATA setting from RST
+	to AHCI causing the nvme drive to be erased before FreeBSD
+	will see the nvme drive. FreeBSD will now be able to see the
+	nvme drive now in the default config.
+
 r351201, r351372:
 	Add a vop_stdioctl() call, so that file systems that do not support
 	holes will have a trivial implementation of lseek(SEEK_DATA/SEEK_HOLE).
