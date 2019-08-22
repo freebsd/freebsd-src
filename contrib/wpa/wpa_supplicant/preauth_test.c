@@ -35,7 +35,7 @@ struct preauth_test_data {
 };
 
 
-static void _wpa_supplicant_deauthenticate(void *wpa_s, int reason_code)
+static void _wpa_supplicant_deauthenticate(void *wpa_s, u16 reason_code)
 {
 	wpa_supplicant_deauthenticate(wpa_s, reason_code);
 }

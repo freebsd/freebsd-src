@@ -144,6 +144,7 @@ int wpa_debug_open_linux_tracing(void)
 		printf("failed to read /proc/mounts\n");
 		return -1;
 	}
+	buf[buflen] = '\0';
 
 	line = strtok_r(buf, "\n", &tmp1);
 	while (line) {

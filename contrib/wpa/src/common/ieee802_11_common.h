@@ -94,6 +94,7 @@ struct ieee802_11_elems {
 	const u8 *oci;
 	const u8 *multi_ap;
 	const u8 *he_capabilities;
+	const u8 *he_operation;
 
 	u8 ssid_len;
 	u8 supp_rates_len;
@@ -143,6 +144,7 @@ struct ieee802_11_elems {
 	u8 oci_len;
 	u8 multi_ap_len;
 	u8 he_capabilities_len;
+	u8 he_operation_len;
 
 	struct mb_ies_info mb_ies;
 };
@@ -185,6 +187,8 @@ int mb_ies_info_by_ies(struct mb_ies_info *info, const u8 *ies_buf,
 struct wpabuf * mb_ies_by_info(struct mb_ies_info *info);
 
 const char * fc2str(u16 fc);
+const char * reason2str(u16 reason);
+const char * status2str(u16 status);
 
 struct oper_class_map {
 	enum hostapd_hw_mode mode;

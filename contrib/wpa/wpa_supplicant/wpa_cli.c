@@ -2064,6 +2064,13 @@ static int wpa_cli_cmd_mesh_peer_add(struct wpa_ctrl *ctrl, int argc,
 	return wpa_cli_cmd(ctrl, "MESH_PEER_ADD", 1, argc, argv);
 }
 
+
+static int wpa_cli_cmd_mesh_link_probe(struct wpa_ctrl *ctrl, int argc,
+				       char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "MESH_LINK_PROBE", 1, argc, argv);
+}
+
 #endif /* CONFIG_MESH */
 
 
@@ -3384,6 +3391,9 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 	{ "mesh_peer_add", wpa_cli_cmd_mesh_peer_add, NULL,
 	  cli_cmd_flag_none,
 	  "<addr> [duration=<seconds>] = Add a mesh peer" },
+	{ "mesh_link_probe", wpa_cli_cmd_mesh_link_probe, NULL,
+	  cli_cmd_flag_none,
+	  "<addr> [payload=<hex dump of payload>] = Probe a mesh link for a given peer by injecting a frame." },
 #endif /* CONFIG_MESH */
 #ifdef CONFIG_P2P
 	{ "p2p_find", wpa_cli_cmd_p2p_find, wpa_cli_complete_p2p_find,
@@ -3967,6 +3977,8 @@ static void wpa_cli_action_process(const char *msg)
 			wpa_cli_connected = 0;
 			wpa_cli_exec(action_file, ifname, "DISCONNECTED");
 		}
+	} else if (str_starts(pos, WPA_EVENT_CHANNEL_SWITCH_STARTED)) {
+		wpa_cli_exec(action_file, ctrl_ifname, pos);
 	} else if (str_starts(pos, AP_EVENT_ENABLED)) {
 		wpa_cli_exec(action_file, ctrl_ifname, pos);
 	} else if (str_starts(pos, AP_EVENT_DISABLED)) {
@@ -4008,6 +4020,22 @@ static void wpa_cli_action_process(const char *msg)
 	} else if (str_starts(pos, HS20_DEAUTH_IMMINENT_NOTICE)) {
 		wpa_cli_exec(action_file, ifname, pos);
 	} else if (str_starts(pos, HS20_T_C_ACCEPTANCE)) {
+		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, DPP_EVENT_CONF_RECEIVED)) {
+		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, DPP_EVENT_CONFOBJ_AKM)) {
+		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, DPP_EVENT_CONFOBJ_SSID)) {
+		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, DPP_EVENT_CONNECTOR)) {
+		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, DPP_EVENT_CONFOBJ_PASS)) {
+		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, DPP_EVENT_CONFOBJ_PSK)) {
+		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, DPP_EVENT_C_SIGN_KEY)) {
+		wpa_cli_exec(action_file, ifname, pos);
+	} else if (str_starts(pos, DPP_EVENT_NET_ACCESS_KEY)) {
 		wpa_cli_exec(action_file, ifname, pos);
 	} else if (str_starts(pos, WPA_EVENT_TERMINATING)) {
 		printf("wpa_supplicant is terminating - stop monitoring\n");

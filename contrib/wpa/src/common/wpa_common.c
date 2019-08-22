@@ -2075,6 +2075,16 @@ u32 wpa_akm_to_suite(int akm)
 		return RSN_AUTH_KEY_MGMT_FT_FILS_SHA256;
 	if (akm & WPA_KEY_MGMT_FT_FILS_SHA384)
 		return RSN_AUTH_KEY_MGMT_FT_FILS_SHA384;
+	if (akm & WPA_KEY_MGMT_SAE)
+		return RSN_AUTH_KEY_MGMT_SAE;
+	if (akm & WPA_KEY_MGMT_FT_SAE)
+		return RSN_AUTH_KEY_MGMT_FT_SAE;
+	if (akm & WPA_KEY_MGMT_OWE)
+		return RSN_AUTH_KEY_MGMT_OWE;
+	if (akm & WPA_KEY_MGMT_DPP)
+		return RSN_AUTH_KEY_MGMT_DPP;
+	if (akm & WPA_KEY_MGMT_OSEN)
+		return RSN_AUTH_KEY_MGMT_OSEN;
 	return 0;
 }
 

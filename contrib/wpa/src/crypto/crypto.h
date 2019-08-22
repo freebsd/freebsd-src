@@ -645,13 +645,6 @@ int crypto_bignum_cmp(const struct crypto_bignum *a,
 		      const struct crypto_bignum *b);
 
 /**
- * crypto_bignum_bits - Get size of a bignum in bits
- * @a: Bignum
- * Returns: Number of bits in the bignum
- */
-int crypto_bignum_bits(const struct crypto_bignum *a);
-
-/**
  * crypto_bignum_is_zero - Is the given bignum zero
  * @a: Bignum
  * Returns: 1 if @a is zero or 0 if not
