@@ -36,7 +36,7 @@ v4_body()
 	route add -net 198.51.100.0/24 192.0.2.2
 
 	# Sanity check, can we forward ICMP echo requests without pf?
-	atf_check -s exit:0 $(atf_get_srcdir)/pft_ping.py \
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
 		--sendif ${epair_send}a \
 		--to 198.51.100.3 \
 		--recvif ${epair_recv}a

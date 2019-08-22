@@ -2,6 +2,8 @@
 
 . $(atf_get_srcdir)/utils.subr
 
+common_dir=$(atf_get_srcdir)/../common
+
 atf_test_case "cve_2019_5598" "cleanup"
 cve_2019_5598_head()
 {
@@ -32,7 +34,8 @@ cve_2019_5598_body()
 		"pass in proto udp to 198.51.100.3 port 53" \
 		"pass out proto udp to 198.51.100.3 port 53"
 
-	atf_check -s exit:0 $(atf_get_srcdir)/CVE-2019-5598.py \
+	atf_check -s exit:0 env PYTHONPATH=${common_dir} \
+		$(atf_get_srcdir)/CVE-2019-5598.py \
 		--sendif ${epair_in}a \
 		--recvif ${epair_out}a \
 		--src 192.0.2.1 \
