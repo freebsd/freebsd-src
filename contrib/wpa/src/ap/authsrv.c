@@ -120,7 +120,10 @@ static int hostapd_setup_radius_srv(struct hostapd_data *hapd)
 	srv.eap_fast_prov = conf->eap_fast_prov;
 	srv.pac_key_lifetime = conf->pac_key_lifetime;
 	srv.pac_key_refresh_time = conf->pac_key_refresh_time;
+	srv.eap_teap_auth = conf->eap_teap_auth;
+	srv.eap_teap_pac_no_inner = conf->eap_teap_pac_no_inner;
 	srv.eap_sim_aka_result_ind = conf->eap_sim_aka_result_ind;
+	srv.eap_sim_id = conf->eap_sim_id;
 	srv.tnc = conf->tnc;
 	srv.wps = hapd->wps;
 	srv.ipv6 = conf->radius_server_ipv6;
@@ -195,7 +198,8 @@ int authsrv_init(struct hostapd_data *hapd)
 #ifdef EAP_TLS_FUNCS
 	if (hapd->conf->eap_server &&
 	    (hapd->conf->ca_cert || hapd->conf->server_cert ||
-	     hapd->conf->private_key || hapd->conf->dh_file)) {
+	     hapd->conf->private_key || hapd->conf->dh_file ||
+	     hapd->conf->server_cert2 || hapd->conf->private_key2)) {
 		struct tls_config conf;
 		struct tls_connection_params params;
 
@@ -224,8 +228,11 @@ int authsrv_init(struct hostapd_data *hapd)
 		os_memset(&params, 0, sizeof(params));
 		params.ca_cert = hapd->conf->ca_cert;
 		params.client_cert = hapd->conf->server_cert;
+		params.client_cert2 = hapd->conf->server_cert2;
 		params.private_key = hapd->conf->private_key;
+		params.private_key2 = hapd->conf->private_key2;
 		params.private_key_passwd = hapd->conf->private_key_passwd;
+		params.private_key_passwd2 = hapd->conf->private_key_passwd2;
 		params.dh_file = hapd->conf->dh_file;
 		params.openssl_ciphers = hapd->conf->openssl_ciphers;
 		params.openssl_ecdh_curves = hapd->conf->openssl_ecdh_curves;

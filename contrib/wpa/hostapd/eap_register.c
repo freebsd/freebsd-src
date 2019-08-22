@@ -121,6 +121,11 @@ int eap_server_register_methods(void)
 		ret = eap_server_fast_register();
 #endif /* EAP_SERVER_FAST */
 
+#ifdef EAP_SERVER_TEAP
+	if (ret == 0)
+		ret = eap_server_teap_register();
+#endif /* EAP_SERVER_TEAP */
+
 #ifdef EAP_SERVER_WSC
 	if (ret == 0)
 		ret = eap_server_wsc_register();

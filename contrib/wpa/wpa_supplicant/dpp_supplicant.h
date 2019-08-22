@@ -25,5 +25,6 @@ int wpas_dpp_init(struct wpa_supplicant *wpa_s);
 void wpas_dpp_deinit(struct wpa_supplicant *wpa_s);
 int wpas_dpp_check_connect(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid,
 			   struct wpa_bss *bss);
+int wpas_dpp_controller_start(struct wpa_supplicant *wpa_s, const char *cmd);
 
 #endif /* DPP_SUPPLICANT_H */

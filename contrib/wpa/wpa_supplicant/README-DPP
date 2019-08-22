@@ -100,7 +100,7 @@ On enrollee side:
 Generate QR code for the device. Store the qr code id returned by the
 command.
 
-> dpp_bootstrap_gen type=qrcode mac=<mac-address-of-device> chan=<operating-channel> key=<key of the device>
+> dpp_bootstrap_gen type=qrcode mac=<mac-address-of-device> chan=<operating-class/operating-channel> key=<key of the device>
 (returns bootstrapping info id)
 
 Get QR Code of device using the bootstrap info id.

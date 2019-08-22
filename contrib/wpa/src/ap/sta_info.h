@@ -37,6 +37,7 @@
 #define WLAN_STA_VENDOR_VHT BIT(21)
 #define WLAN_STA_PENDING_FILS_ERP BIT(22)
 #define WLAN_STA_MULTI_AP BIT(23)
+#define WLAN_STA_HE BIT(24)
 #define WLAN_STA_PENDING_DISASSOC_CB BIT(29)
 #define WLAN_STA_PENDING_DEAUTH_CB BIT(30)
 #define WLAN_STA_NONERP BIT(31)
@@ -119,6 +120,7 @@ struct sta_info {
 	unsigned int agreed_to_steer:1;
 	unsigned int hs20_t_c_filtering:1;
 	unsigned int ft_over_ds:1;
+	unsigned int external_dh_updated:1;
 
 	u16 auth_alg;
 
@@ -166,6 +168,8 @@ struct sta_info {
 	struct ieee80211_vht_capabilities *vht_capabilities;
 	struct ieee80211_vht_operation *vht_operation;
 	u8 vht_opmode;
+	struct ieee80211_he_capabilities *he_capab;
+	size_t he_capab_len;
 
 #ifdef CONFIG_IEEE80211W
 	int sa_query_count; /* number of pending SA Query requests;
@@ -275,6 +279,10 @@ struct sta_info {
 	u8 last_tk[WPA_TK_MAX_LEN];
 	size_t last_tk_len;
 #endif /* CONFIG_TESTING_OPTIONS */
+#ifdef CONFIG_AIRTIME_POLICY
+	unsigned int airtime_weight;
+	struct os_reltime backlogged_until;
+#endif /* CONFIG_AIRTIME_POLICY */
 };
 
 

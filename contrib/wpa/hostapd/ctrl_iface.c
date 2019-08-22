@@ -1830,26 +1830,40 @@ static void hostapd_data_test_rx(void *ctx, const u8 *src_addr, const u8 *buf,
 	struct iphdr ip;
 	const u8 *pos;
 	unsigned int i;
+	char extra[30];
 
-	if (len != HWSIM_PACKETLEN)
+	if (len < sizeof(*eth) + sizeof(ip) || len > HWSIM_PACKETLEN) {
+		wpa_printf(MSG_DEBUG,
+			   "test data: RX - ignore unexpected length %d",
+			   (int) len);
 		return;
+	}
 
 	eth = (const struct ether_header *) buf;
 	os_memcpy(&ip, eth + 1, sizeof(ip));
 	pos = &buf[sizeof(*eth) + sizeof(ip)];
 
 	if (ip.ihl != 5 || ip.version != 4 ||
-	    ntohs(ip.tot_len) != HWSIM_IP_LEN)
+	    ntohs(ip.tot_len) > HWSIM_IP_LEN) {
+		wpa_printf(MSG_DEBUG,
+			   "test data: RX - ignore unexpect IP header");
 		return;
+	}
 
-	for (i = 0; i < HWSIM_IP_LEN - sizeof(ip); i++) {
-		if (*pos != (u8) i)
+	for (i = 0; i < ntohs(ip.tot_len) - sizeof(ip); i++) {
+		if (*pos != (u8) i) {
+			wpa_printf(MSG_DEBUG,
+				   "test data: RX - ignore mismatching payload");
 			return;
+		}
 		pos++;
 	}
 
-	wpa_msg(hapd->msg_ctx, MSG_INFO, "DATA-TEST-RX " MACSTR " " MACSTR,
-		MAC2STR(eth->ether_dhost), MAC2STR(eth->ether_shost));
+	extra[0] = '\0';
+	if (ntohs(ip.tot_len) != HWSIM_IP_LEN)
+		os_snprintf(extra, sizeof(extra), " len=%d", ntohs(ip.tot_len));
+	wpa_msg(hapd->msg_ctx, MSG_INFO, "DATA-TEST-RX " MACSTR " " MACSTR "%s",
+		MAC2STR(eth->ether_dhost), MAC2STR(eth->ether_shost), extra);
 }
 
 
@@ -1894,7 +1908,7 @@ static int hostapd_ctrl_iface_data_test_config(struct hostapd_data *hapd,
 static int hostapd_ctrl_iface_data_test_tx(struct hostapd_data *hapd, char *cmd)
 {
 	u8 dst[ETH_ALEN], src[ETH_ALEN];
-	char *pos;
+	char *pos, *pos2;
 	int used;
 	long int val;
 	u8 tos;
@@ -1903,11 +1917,12 @@ static int hostapd_ctrl_iface_data_test_tx(struct hostapd_data *hapd, char *cmd)
 	struct iphdr *ip;
 	u8 *dpos;
 	unsigned int i;
+	size_t send_len = HWSIM_IP_LEN;
 
 	if (hapd->l2_test == NULL)
 		return -1;
 
-	/* format: <dst> <src> <tos> */
+	/* format: <dst> <src> <tos> [len=<length>] */
 
 	pos = cmd;
 	used = hwaddr_aton2(pos, dst);
@@ -1921,10 +1936,18 @@ static int hostapd_ctrl_iface_data_test_tx(struct hostapd_data *hapd, char *cmd)
 		return -1;
 	pos += used;
 
-	val = strtol(pos, NULL, 0);
+	val = strtol(pos, &pos2, 0);
 	if (val < 0 || val > 0xff)
 		return -1;
 	tos = val;
+
+	pos = os_strstr(pos2, " len=");
+	if (pos) {
+		i = atoi(pos + 5);
+		if (i < sizeof(*ip) || i > HWSIM_IP_LEN)
+			return -1;
+		send_len = i;
+	}
 
 	eth = (struct ether_header *) &buf[2];
 	os_memcpy(eth->ether_dhost, dst, ETH_ALEN);
@@ -1936,17 +1959,17 @@ static int hostapd_ctrl_iface_data_test_tx(struct hostapd_data *hapd, char *cmd)
 	ip->version = 4;
 	ip->ttl = 64;
 	ip->tos = tos;
-	ip->tot_len = htons(HWSIM_IP_LEN);
+	ip->tot_len = htons(send_len);
 	ip->protocol = 1;
 	ip->saddr = htonl(192U << 24 | 168 << 16 | 1 << 8 | 1);
 	ip->daddr = htonl(192U << 24 | 168 << 16 | 1 << 8 | 2);
 	ip->check = ipv4_hdr_checksum(ip, sizeof(*ip));
 	dpos = (u8 *) (ip + 1);
-	for (i = 0; i < HWSIM_IP_LEN - sizeof(*ip); i++)
+	for (i = 0; i < send_len - sizeof(*ip); i++)
 		*dpos++ = i;
 
 	if (l2_packet_send(hapd->l2_test, dst, ETHERTYPE_IP, &buf[2],
-			   HWSIM_PACKETLEN) < 0)
+			   sizeof(struct ether_header) + send_len) < 0)
 		return -1;
 
 	wpa_dbg(hapd->msg_ctx, MSG_DEBUG, "test data: TX dst=" MACSTR

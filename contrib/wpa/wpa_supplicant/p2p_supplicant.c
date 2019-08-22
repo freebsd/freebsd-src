@@ -1556,7 +1556,7 @@ static int wpas_send_action_work(struct wpa_supplicant *wpa_s,
 {
 	struct send_action_work *awork;
 
-	if (wpa_s->p2p_send_action_work) {
+	if (radio_work_pending(wpa_s, "p2p-send-action")) {
 		wpa_printf(MSG_DEBUG, "P2P: Cannot schedule new p2p-send-action work since one is already pending");
 		return -1;
 	}
@@ -1573,7 +1573,7 @@ static int wpas_send_action_work(struct wpa_supplicant *wpa_s,
 	awork->wait_time = wait_time;
 	os_memcpy(awork->buf, buf, len);
 
-	if (radio_add_work(wpa_s, freq, "p2p-send-action", 0,
+	if (radio_add_work(wpa_s, freq, "p2p-send-action", 1,
 			   wpas_send_action_cb, awork) < 0) {
 		os_free(awork);
 		return -1;
@@ -2268,6 +2268,8 @@ static void wpas_go_neg_completed(void *ctx, struct p2p_go_neg_results *res)
 		res->ht40 = 1;
 	if (wpa_s->p2p_go_vht)
 		res->vht = 1;
+	if (wpa_s->p2p_go_he)
+		res->he = 1;
 	res->max_oper_chwidth = wpa_s->p2p_go_max_oper_chwidth;
 	res->vht_center_freq2 = wpa_s->p2p_go_vht_center_freq2;
 
@@ -5476,7 +5478,7 @@ exit_free:
  * @ht40: Start GO with 40 MHz channel width
  * @vht:  Start GO with VHT support
  * @vht_chwidth: Channel width supported by GO operating with VHT support
- *	(VHT_CHANWIDTH_*).
+ *	(CHANWIDTH_*).
  * @group_ssid: Specific Group SSID for join or %NULL if not set
  * @group_ssid_len: Length of @group_ssid in octets
  * Returns: 0 or new PIN (if pin was %NULL) on success, -1 on unspecified
@@ -9193,11 +9195,11 @@ static int wpas_p2p_move_go_csa(struct wpa_supplicant *wpa_s)
 		csa_settings.freq_params.center_freq2 = freq2;
 
 		switch (conf->vht_oper_chwidth) {
-		case VHT_CHANWIDTH_80MHZ:
-		case VHT_CHANWIDTH_80P80MHZ:
+		case CHANWIDTH_80MHZ:
+		case CHANWIDTH_80P80MHZ:
 			csa_settings.freq_params.bandwidth = 80;
 			break;
-		case VHT_CHANWIDTH_160MHZ:
+		case CHANWIDTH_160MHZ:
 			csa_settings.freq_params.bandwidth = 160;
 			break;
 		}

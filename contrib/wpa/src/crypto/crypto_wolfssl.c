@@ -1198,12 +1198,6 @@ int crypto_bignum_cmp(const struct crypto_bignum *a,
 }
 
 
-int crypto_bignum_bits(const struct crypto_bignum *a)
-{
-	return mp_count_bits((mp_int *) a);
-}
-
-
 int crypto_bignum_is_zero(const struct crypto_bignum *a)
 {
 	return mp_iszero((mp_int *) a);

@@ -1522,9 +1522,9 @@ static void gas_serv_req_local_processing(struct hostapd_data *hapd,
 
 
 #ifdef CONFIG_DPP
-static void gas_serv_req_dpp_processing(struct hostapd_data *hapd,
-					const u8 *sa, u8 dialog_token,
-					int prot, struct wpabuf *buf)
+void gas_serv_req_dpp_processing(struct hostapd_data *hapd,
+				 const u8 *sa, u8 dialog_token,
+				 int prot, struct wpabuf *buf)
 {
 	struct wpabuf *tx_buf;
 
@@ -1681,7 +1681,8 @@ static void gas_serv_rx_gas_initial_req(struct hostapd_data *hapd,
 	if (dpp) {
 		struct wpabuf *msg;
 
-		msg = hostapd_dpp_gas_req_handler(hapd, sa, pos, slen);
+		msg = hostapd_dpp_gas_req_handler(hapd, sa, pos, slen,
+						  data, len);
 		if (!msg)
 			return;
 		gas_serv_req_dpp_processing(hapd, sa, dialog_token, prot, msg);
