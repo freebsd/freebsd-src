@@ -31,6 +31,10 @@
 #ifndef _GDB_GDB_INT_H_
 #define	_GDB_GDB_INT_H_
 
+#ifndef EOF
+#define EOF	(-1)
+#endif
+
 extern struct gdb_dbgport *gdb_cur;
 
 extern int gdb_listening;
@@ -54,7 +58,7 @@ gdb_rx_char(void)
 		c = *gdb_rxp++;
 		gdb_rxsz--;
 	} else
-		c = -1;
+		c = EOF;
 	return (c);
 }
 
