@@ -1,9 +1,8 @@
 //===-- MICmnStreamStdin.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,7 +21,6 @@
 #include "MIUtilSingletonHelper.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnStreamStdin constructor.
 // Type:    Method.
 // Args:    None.
@@ -33,7 +31,6 @@ CMICmnStreamStdin::CMICmnStreamStdin()
     : m_strPromptCurrent("(gdb)"), m_bShowPrompt(true), m_pCmdBuffer(nullptr) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmnStreamStdin destructor.
 // Type:    Overridable.
 // Args:    None.
@@ -43,7 +40,6 @@ CMICmnStreamStdin::CMICmnStreamStdin()
 CMICmnStreamStdin::~CMICmnStreamStdin() { Shutdown(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Initialize resources for *this Stdin stream.
 // Type:    Method.
 // Args:    None.
@@ -80,7 +76,6 @@ bool CMICmnStreamStdin::Initialize() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Release resources for *this Stdin stream.
 // Type:    Method.
 // Args:    None.
@@ -118,7 +113,6 @@ bool CMICmnStreamStdin::Shutdown() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Validate and set the text that forms the prompt on the command line.
 // Type:    Method.
 // Args:    vNewPrompt  - (R) Text description.
@@ -140,7 +134,6 @@ bool CMICmnStreamStdin::SetPrompt(const CMIUtilString &vNewPrompt) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the command line prompt text currently being used.
 // Type:    Method.
 // Args:    None.
@@ -152,7 +145,6 @@ const CMIUtilString &CMICmnStreamStdin::GetPrompt() const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Set whether to display optional command line prompt. The prompt is
 // output to
 //          stdout. Disable it when this may interfere with the client reading
@@ -170,7 +162,6 @@ void CMICmnStreamStdin::SetEnablePrompt(const bool vbYes) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Get whether to display optional command line prompt. The prompt is
 // output to
 //          stdout. Disable it when this may interfere with the client reading
@@ -185,7 +176,6 @@ void CMICmnStreamStdin::SetEnablePrompt(const bool vbYes) {
 bool CMICmnStreamStdin::GetEnablePrompt() const { return m_bShowPrompt; }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Wait on new line of data from stdin stream (completed by '\n' or
 // '\r').
 // Type:    Method.

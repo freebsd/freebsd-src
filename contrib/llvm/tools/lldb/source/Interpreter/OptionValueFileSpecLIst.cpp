@@ -1,9 +1,8 @@
 //===-- OptionValueFileSpecLIst.cpp -----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,6 +17,7 @@ using namespace lldb_private;
 
 void OptionValueFileSpecList::DumpValue(const ExecutionContext *exe_ctx,
                                         Stream &strm, uint32_t dump_mask) {
+  std::lock_guard<std::recursive_mutex> lock(m_mutex);
   if (dump_mask & eDumpOptionType)
     strm.Printf("(%s)", GetTypeAsCString());
   if (dump_mask & eDumpOptionValue) {
@@ -44,6 +44,7 @@ void OptionValueFileSpecList::DumpValue(const ExecutionContext *exe_ctx,
 
 Status OptionValueFileSpecList::SetValueFromString(llvm::StringRef value,
                                                    VarSetOperationType op) {
+  std::lock_guard<std::recursive_mutex> lock(m_mutex);
   Status error;
   Args args(value.str());
   const size_t argc = args.GetArgumentCount();
@@ -164,5 +165,6 @@ Status OptionValueFileSpecList::SetValueFromString(llvm::StringRef value,
 }
 
 lldb::OptionValueSP OptionValueFileSpecList::DeepCopy() const {
-  return OptionValueSP(new OptionValueFileSpecList(*this));
+  std::lock_guard<std::recursive_mutex> lock(m_mutex);
+  return OptionValueSP(new OptionValueFileSpecList(m_current_value));
 }

@@ -1,20 +1,22 @@
 //===-- ThreadMemory.cpp ----------------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "Plugins/Process/Utility/ThreadMemory.h"
+
 #include "Plugins/Process/Utility/RegisterContextThreadMemory.h"
 #include "lldb/Target/OperatingSystem.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/StopInfo.h"
 #include "lldb/Target/Unwind.h"
+
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -45,8 +47,8 @@ void ThreadMemory::ClearStackFrames() {
 
 RegisterContextSP ThreadMemory::GetRegisterContext() {
   if (!m_reg_context_sp)
-    m_reg_context_sp.reset(
-        new RegisterContextThreadMemory(*this, m_register_data_addr));
+    m_reg_context_sp = std::make_shared<RegisterContextThreadMemory>(
+        *this, m_register_data_addr);
   return m_reg_context_sp;
 }
 

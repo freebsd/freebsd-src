@@ -1,10 +1,9 @@
 //===-- OptionValueUInt64.h --------------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -28,17 +27,13 @@ public:
 
   ~OptionValueUInt64() override {}
 
-  //---------------------------------------------------------------------
   // Decode a uint64_t from "value_cstr" return a OptionValueUInt64 object
   // inside of a lldb::OptionValueSP object if all goes well. If the string
   // isn't a uint64_t value or any other error occurs, return an empty
   // lldb::OptionValueSP and fill error in with the correct stuff.
-  //---------------------------------------------------------------------
   static lldb::OptionValueSP Create(const char *, Status &) = delete;
   static lldb::OptionValueSP Create(llvm::StringRef value_str, Status &error);
-  //---------------------------------------------------------------------
   // Virtual subclass pure virtual overrides
-  //---------------------------------------------------------------------
 
   OptionValue::Type GetType() const override { return eTypeUInt64; }
 
@@ -60,9 +55,7 @@ public:
 
   lldb::OptionValueSP DeepCopy() const override;
 
-  //---------------------------------------------------------------------
   // Subclass specific functions
-  //---------------------------------------------------------------------
 
   const uint64_t &operator=(uint64_t value) {
     m_current_value = value;

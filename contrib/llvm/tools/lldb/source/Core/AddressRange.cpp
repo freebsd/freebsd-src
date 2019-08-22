@@ -1,9 +1,8 @@
 //===-- AddressRange.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -121,6 +120,24 @@ bool AddressRange::ContainsLoadAddress(addr_t load_addr, Target *target) const {
     return (load_addr - load_base_addr) < GetByteSize();
 
   return false;
+}
+
+bool AddressRange::Extend(const AddressRange &rhs_range) {
+  addr_t lhs_end_addr = GetBaseAddress().GetFileAddress() + GetByteSize();
+  addr_t rhs_base_addr = rhs_range.GetBaseAddress().GetFileAddress();
+
+  if (!ContainsFileAddress(rhs_range.GetBaseAddress()) &&
+      lhs_end_addr != rhs_base_addr)
+    // The ranges don't intersect at all on the right side of this range.
+    return false;
+
+  addr_t rhs_end_addr = rhs_base_addr + rhs_range.GetByteSize();
+  if (lhs_end_addr >= rhs_end_addr)
+    // The rhs range totally overlaps this one, nothing to add.
+    return false;
+
+  m_byte_size += rhs_end_addr - lhs_end_addr;
+  return true;
 }
 
 void AddressRange::Clear() {

@@ -1,9 +1,8 @@
 //===-- MemoryHistoryASan.cpp -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,7 +30,7 @@ using namespace lldb_private;
 
 MemoryHistorySP MemoryHistoryASan::CreateInstance(const ProcessSP &process_sp) {
   if (!process_sp.get())
-    return NULL;
+    return nullptr;
 
   Target &target = process_sp->GetTarget();
 
@@ -137,8 +136,7 @@ static void CreateHistoryThreadFromValueObject(ProcessSP process_sp,
     pcs.push_back(pc);
   }
 
-  HistoryThread *history_thread =
-      new HistoryThread(*process_sp, tid, pcs, 0, false);
+  HistoryThread *history_thread = new HistoryThread(*process_sp, tid, pcs);
   ThreadSP new_thread_sp(history_thread);
   std::ostringstream thread_name_with_number;
   thread_name_with_number << thread_name << " Thread " << tid;
@@ -148,8 +146,6 @@ static void CreateHistoryThreadFromValueObject(ProcessSP process_sp,
   process_sp->GetExtendedThreadList().AddThread(new_thread_sp);
   result.push_back(new_thread_sp);
 }
-
-static constexpr std::chrono::seconds g_get_stack_function_timeout(2);
 
 HistoryThreads MemoryHistoryASan::GetHistoryThreads(lldb::addr_t address) {
   HistoryThreads result;
@@ -178,7 +174,7 @@ HistoryThreads MemoryHistoryASan::GetHistoryThreads(lldb::addr_t address) {
   options.SetTryAllThreads(true);
   options.SetStopOthers(true);
   options.SetIgnoreBreakpoints(true);
-  options.SetTimeout(g_get_stack_function_timeout);
+  options.SetTimeout(process_sp->GetUtilityExpressionTimeout());
   options.SetPrefix(memory_history_asan_command_prefix);
   options.SetAutoApplyFixIts(false);
   options.SetLanguage(eLanguageTypeObjC_plus_plus);

@@ -1,9 +1,8 @@
 //===-- MICmdArgValListOfN.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,7 +17,6 @@
 #include "MICmdArgValThreadGrp.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValListOfN constructor.
 // Type:    Method.
 // Args:    None.
@@ -28,7 +26,6 @@
 CMICmdArgValListOfN::CMICmdArgValListOfN() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValListOfN constructor.
 // Type:    Method.
 // Args:    vrArgName       - (R) Argument's name to search by.
@@ -48,7 +45,6 @@ CMICmdArgValListOfN::CMICmdArgValListOfN(const CMIUtilString &vrArgName,
     : CMICmdArgValListBase(vrArgName, vbMandatory, vbHandleByCmd, veType) {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdArgValListOfN destructor.
 // Type:    Overridden.
 // Args:    None.
@@ -58,7 +54,6 @@ CMICmdArgValListOfN::CMICmdArgValListOfN(const CMIUtilString &vrArgName,
 CMICmdArgValListOfN::~CMICmdArgValListOfN() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Parse the command's argument options string and try to extract the
 // list of
 //          arguments based on the argument object type to look for.
@@ -88,7 +83,6 @@ bool CMICmdArgValListOfN::Validate(CMICmdArgContext &vwArgContext) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Create list of argument objects each holding a value extract from
 // the command
 //          options line.
@@ -125,7 +119,6 @@ bool CMICmdArgValListOfN::CreateList(const CMIUtilString &vrTxt) {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Examine the string and determine if it is a valid string type
 // argument.
 // Type:    Method.
@@ -158,7 +151,6 @@ bool CMICmdArgValListOfN::IsListOfN(const CMIUtilString &vrTxt) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Retrieve the list of CMICmdArgValBase derived option objects found
 // following
 //          *this long option argument. For example "list-thread-groups [

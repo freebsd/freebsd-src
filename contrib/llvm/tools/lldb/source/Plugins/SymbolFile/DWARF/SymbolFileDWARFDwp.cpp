@@ -1,9 +1,8 @@
 //===-- SymbolFileDWARFDwp.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -82,7 +81,7 @@ SymbolFileDWARFDwp::SymbolFileDWARFDwp(lldb::ModuleSP module_sp,
 {}
 
 std::unique_ptr<SymbolFileDWARFDwo>
-SymbolFileDWARFDwp::GetSymbolFileForDwoId(DWARFUnit *dwarf_cu,
+SymbolFileDWARFDwp::GetSymbolFileForDwoId(DWARFCompileUnit &dwarf_cu,
                                           uint64_t dwo_id) {
   return std::unique_ptr<SymbolFileDWARFDwo>(
       new SymbolFileDWARFDwoDwp(this, m_obj_file, dwarf_cu, dwo_id));

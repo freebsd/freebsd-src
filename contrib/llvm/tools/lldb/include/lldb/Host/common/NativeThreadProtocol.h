@@ -1,9 +1,8 @@
 //===-- NativeThreadProtocol.h ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,9 +16,7 @@
 #include "lldb/lldb-types.h"
 
 namespace lldb_private {
-//------------------------------------------------------------------
 // NativeThreadProtocol
-//------------------------------------------------------------------
 class NativeThreadProtocol {
 public:
   NativeThreadProtocol(NativeProcessProtocol &process, lldb::tid_t tid);
@@ -39,17 +36,13 @@ public:
 
   NativeProcessProtocol &GetProcess() { return m_process; }
 
-  // ---------------------------------------------------------------------
   // Thread-specific watchpoints
-  // ---------------------------------------------------------------------
   virtual Status SetWatchpoint(lldb::addr_t addr, size_t size,
                                uint32_t watch_flags, bool hardware) = 0;
 
   virtual Status RemoveWatchpoint(lldb::addr_t addr) = 0;
 
-  // ---------------------------------------------------------------------
   // Thread-specific Hardware Breakpoint routines
-  // ---------------------------------------------------------------------
   virtual Status SetHardwareBreakpoint(lldb::addr_t addr, size_t size) = 0;
 
   virtual Status RemoveHardwareBreakpoint(lldb::addr_t addr) = 0;

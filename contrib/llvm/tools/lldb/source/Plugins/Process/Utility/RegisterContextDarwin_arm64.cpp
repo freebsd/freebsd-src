@@ -1,10 +1,9 @@
 //===-- RegisterContextDarwin_arm64.cpp ---------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,6 +22,8 @@
 #include "llvm/Support/Compiler.h"
 
 #include "Plugins/Process/Utility/InstructionUtils.h"
+
+#include <memory>
 
 // Support building against older versions of LLVM, this macro was added
 // recently.
@@ -66,9 +67,7 @@ using namespace lldb_private;
    sizeof(RegisterContextDarwin_arm64::FPU) +                                  \
    sizeof(RegisterContextDarwin_arm64::EXC))
 
-//-----------------------------------------------------------------------------
 // Include RegisterInfos_arm64 to declare our g_register_infos_arm64 structure.
-//-----------------------------------------------------------------------------
 #define DECLARE_REGISTER_INFOS_ARM64_STRUCT
 #include "RegisterInfos_arm64.h"
 #undef DECLARE_REGISTER_INFOS_ARM64_STRUCT
@@ -123,7 +122,7 @@ RegisterContextDarwin_arm64::GetRegisterInfoAtIndex(size_t reg) {
   assert(k_num_register_infos == k_num_registers);
   if (reg < k_num_registers)
     return &g_register_infos_arm64_le[reg];
-  return NULL;
+  return nullptr;
 }
 
 size_t RegisterContextDarwin_arm64::GetRegisterInfosCount() {
@@ -139,11 +138,9 @@ const size_t k_num_gpr_registers = llvm::array_lengthof(g_gpr_regnums);
 const size_t k_num_fpu_registers = llvm::array_lengthof(g_fpu_regnums);
 const size_t k_num_exc_registers = llvm::array_lengthof(g_exc_regnums);
 
-//----------------------------------------------------------------------
 // Register set definitions. The first definitions at register set index of
 // zero is for all registers, followed by other registers sets. The register
 // information for the all register set need not be filled in.
-//----------------------------------------------------------------------
 static const RegisterSet g_reg_sets[] = {
     {
         "General Purpose Registers", "gpr", k_num_gpr_registers, g_gpr_regnums,
@@ -160,12 +157,10 @@ size_t RegisterContextDarwin_arm64::GetRegisterSetCount() {
 const RegisterSet *RegisterContextDarwin_arm64::GetRegisterSet(size_t reg_set) {
   if (reg_set < k_num_regsets)
     return &g_reg_sets[reg_set];
-  return NULL;
+  return nullptr;
 }
 
-//----------------------------------------------------------------------
 // Register information definitions for arm64
-//----------------------------------------------------------------------
 int RegisterContextDarwin_arm64::GetSetForNativeRegNum(int reg) {
   if (reg < fpu_v0)
     return GPRRegSet;
@@ -428,7 +423,7 @@ bool RegisterContextDarwin_arm64::ReadRegister(const RegisterInfo *reg_info,
   case fpu_v29:
   case fpu_v30:
   case fpu_v31:
-    value.SetBytes(fpu.v[reg].bytes.buffer, reg_info->byte_size,
+    value.SetBytes(fpu.v[reg - fpu_v0].bytes.buffer, reg_info->byte_size,
                    endian::InlHostByteOrder());
     break;
 
@@ -620,7 +615,8 @@ bool RegisterContextDarwin_arm64::WriteRegister(const RegisterInfo *reg_info,
   case fpu_v29:
   case fpu_v30:
   case fpu_v31:
-    ::memcpy(fpu.v[reg].bytes.buffer, value.GetBytes(), value.GetByteSize());
+    ::memcpy(fpu.v[reg - fpu_v0].bytes.buffer, value.GetBytes(),
+             value.GetByteSize());
     break;
 
   case fpu_fpsr:
@@ -649,9 +645,9 @@ bool RegisterContextDarwin_arm64::WriteRegister(const RegisterInfo *reg_info,
 
 bool RegisterContextDarwin_arm64::ReadAllRegisterValues(
     lldb::DataBufferSP &data_sp) {
-  data_sp.reset(new DataBufferHeap(REG_CONTEXT_SIZE, 0));
-  if (data_sp && ReadGPR(false) == KERN_SUCCESS &&
-      ReadFPU(false) == KERN_SUCCESS && ReadEXC(false) == KERN_SUCCESS) {
+  data_sp = std::make_shared<DataBufferHeap>(REG_CONTEXT_SIZE, 0);
+  if (ReadGPR(false) == KERN_SUCCESS && ReadFPU(false) == KERN_SUCCESS &&
+      ReadEXC(false) == KERN_SUCCESS) {
     uint8_t *dst = data_sp->GetBytes();
     ::memcpy(dst, &gpr, sizeof(gpr));
     dst += sizeof(gpr);

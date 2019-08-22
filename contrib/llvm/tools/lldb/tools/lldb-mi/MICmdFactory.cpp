@@ -1,9 +1,8 @@
 //===-- MICmdFactory.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,7 +14,6 @@
 #include "MICmnResources.h"
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdFactory constructor.
 // Type:    Method.
 // Args:    None.
@@ -25,7 +23,6 @@
 CMICmdFactory::CMICmdFactory() {}
 
 //++
-//------------------------------------------------------------------------------------
 // Details: CMICmdFactory destructor.
 // Type:    Overridable.
 // Args:    None.
@@ -35,7 +32,6 @@ CMICmdFactory::CMICmdFactory() {}
 CMICmdFactory::~CMICmdFactory() { Shutdown(); }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Initialize resources for *this Command factory.
 // Type:    Method.
 // Args:    None.
@@ -57,7 +53,6 @@ bool CMICmdFactory::Initialize() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Release resources for *this Command Factory.
 // Type:    Method.
 // Args:    None.
@@ -80,7 +75,6 @@ bool CMICmdFactory::Shutdown() {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Register a command's creator function with the command identifier
 // the MI
 //          command name i.e. 'file-exec-and-symbols'.
@@ -117,7 +111,6 @@ bool CMICmdFactory::CmdRegister(const CMIUtilString &vMiCmd,
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Check a command is already registered.
 // Type:    Method.
 // Args:    vMiCmd  - (R) Command's name, the MI command.
@@ -132,7 +125,6 @@ bool CMICmdFactory::HaveAlready(const CMIUtilString &vMiCmd) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Check a command's name is valid:
 //              - name is not empty
 //              - name does not have spaces
@@ -158,7 +150,6 @@ bool CMICmdFactory::IsValid(const CMIUtilString &vMiCmd) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Check a command is already registered.
 // Type:    Method.
 // Args:    vMiCmd  - (R) Command's name, the MI command.
@@ -171,7 +162,6 @@ bool CMICmdFactory::CmdExist(const CMIUtilString &vMiCmd) const {
 }
 
 //++
-//------------------------------------------------------------------------------------
 // Details: Create a command given the specified MI command name. The command
 // data object
 //          contains the options for the command.

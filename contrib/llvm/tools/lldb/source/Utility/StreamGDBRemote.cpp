@@ -1,9 +1,8 @@
 //===-- StreamGDBRemote.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,7 +26,7 @@ StreamGDBRemote::~StreamGDBRemote() {}
 
 int StreamGDBRemote::PutEscapedBytes(const void *s, size_t src_len) {
   int bytes_written = 0;
-  const uint8_t *src = (const uint8_t *)s;
+  const uint8_t *src = static_cast<const uint8_t *>(s);
   bool binary_is_set = m_flags.Test(eBinary);
   m_flags.Clear(eBinary);
   while (src_len) {

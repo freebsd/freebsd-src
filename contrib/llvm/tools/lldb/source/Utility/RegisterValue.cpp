@@ -1,9 +1,8 @@
 //===-- RegisterValue.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -147,23 +146,25 @@ bool RegisterValue::GetScalarValue(Scalar &scalar) const {
       scalar = *(const uint8_t *)buffer.bytes;
       return true;
     case 2:
-      scalar = *(const uint16_t *)buffer.bytes;
+      scalar = *reinterpret_cast<const uint16_t *>(buffer.bytes);
       return true;
     case 4:
-      scalar = *(const uint32_t *)buffer.bytes;
+      scalar = *reinterpret_cast<const uint32_t *>(buffer.bytes);
       return true;
     case 8:
-      scalar = *(const uint64_t *)buffer.bytes;
+      scalar = *reinterpret_cast<const uint64_t *>(buffer.bytes);
       return true;
     case 16:
     case 32:
+    case 64:
       if (buffer.length % sizeof(uint64_t) == 0) {
         const auto length_in_bits = buffer.length * 8;
         const auto length_in_uint64 = buffer.length / sizeof(uint64_t);
         scalar =
             llvm::APInt(length_in_bits,
-                        llvm::ArrayRef<uint64_t>((const uint64_t *)buffer.bytes,
-                                                 length_in_uint64));
+                        llvm::ArrayRef<uint64_t>(
+                            reinterpret_cast<const uint64_t *>(buffer.bytes),
+                            length_in_uint64));
         return true;
       }
       break;
@@ -518,7 +519,7 @@ uint16_t RegisterValue::GetAsUInt16(uint16_t fail_value,
       break;
     case 1:
     case 2:
-      return *(const uint16_t *)buffer.bytes;
+      return *reinterpret_cast<const uint16_t *>(buffer.bytes);
     }
   } break;
   }
@@ -548,7 +549,7 @@ uint32_t RegisterValue::GetAsUInt32(uint32_t fail_value,
     case 1:
     case 2:
     case 4:
-      return *(const uint32_t *)buffer.bytes;
+      return *reinterpret_cast<const uint32_t *>(buffer.bytes);
     }
   } break;
   }
@@ -579,11 +580,11 @@ uint64_t RegisterValue::GetAsUInt64(uint64_t fail_value,
     case 1:
       return *(const uint8_t *)buffer.bytes;
     case 2:
-      return *(const uint16_t *)buffer.bytes;
+      return *reinterpret_cast<const uint16_t *>(buffer.bytes);
     case 4:
-      return *(const uint32_t *)buffer.bytes;
+      return *reinterpret_cast<const uint32_t *>(buffer.bytes);
     case 8:
-      return *(const uint64_t *)buffer.bytes;
+      return *reinterpret_cast<const uint64_t *>(buffer.bytes);
     }
   } break;
   }
@@ -618,7 +619,7 @@ llvm::APInt RegisterValue::GetAsUInt128(const llvm::APInt &fail_value,
     case 8:
     case 16:
       return llvm::APInt(BITWIDTH_INT128, NUM_OF_WORDS_INT128,
-                         ((const type128 *)buffer.bytes)->x);
+                         (reinterpret_cast<const type128 *>(buffer.bytes))->x);
     }
   } break;
   }

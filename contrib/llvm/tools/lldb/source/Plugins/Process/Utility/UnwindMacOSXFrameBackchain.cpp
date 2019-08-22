@@ -1,9 +1,8 @@
 //===-- UnwindMacOSXFrameBackchain.cpp --------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,6 +16,8 @@
 #include "lldb/Utility/ArchSpec.h"
 
 #include "RegisterContextMacOSXFrameBackchain.h"
+
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -66,8 +67,8 @@ UnwindMacOSXFrameBackchain::DoCreateRegisterContextForFrame(StackFrame *frame) {
   uint32_t concrete_idx = frame->GetConcreteFrameIndex();
   const uint32_t frame_count = GetFrameCount();
   if (concrete_idx < frame_count)
-    reg_ctx_sp.reset(new RegisterContextMacOSXFrameBackchain(
-        m_thread, concrete_idx, m_cursors[concrete_idx]));
+    reg_ctx_sp = std::make_shared<RegisterContextMacOSXFrameBackchain>(
+        m_thread, concrete_idx, m_cursors[concrete_idx]);
   return reg_ctx_sp;
 }
 
@@ -78,7 +79,7 @@ size_t UnwindMacOSXFrameBackchain::GetStackFrameData_i386(
   StackFrame *first_frame = exe_ctx.GetFramePtr();
 
   Process *process = exe_ctx.GetProcessPtr();
-  if (process == NULL)
+  if (process == nullptr)
     return 0;
 
   struct Frame_i386 {
@@ -120,7 +121,7 @@ size_t UnwindMacOSXFrameBackchain::GetStackFrameData_i386(
 
       SymbolContext first_frame_sc(
           first_frame->GetSymbolContext(resolve_scope));
-      const AddressRange *addr_range_ptr = NULL;
+      const AddressRange *addr_range_ptr = nullptr;
       AddressRange range;
       if (first_frame_sc.function)
         addr_range_ptr = &first_frame_sc.function->GetAddressRange();
@@ -168,7 +169,7 @@ size_t UnwindMacOSXFrameBackchain::GetStackFrameData_x86_64(
   m_cursors.clear();
 
   Process *process = exe_ctx.GetProcessPtr();
-  if (process == NULL)
+  if (process == nullptr)
     return 0;
 
   StackFrame *first_frame = exe_ctx.GetFramePtr();
@@ -211,7 +212,7 @@ size_t UnwindMacOSXFrameBackchain::GetStackFrameData_x86_64(
 
       SymbolContext first_frame_sc(
           first_frame->GetSymbolContext(resolve_scope));
-      const AddressRange *addr_range_ptr = NULL;
+      const AddressRange *addr_range_ptr = nullptr;
       AddressRange range;
       if (first_frame_sc.function)
         addr_range_ptr = &first_frame_sc.function->GetAddressRange();

@@ -1,9 +1,8 @@
 //===-- CommandObjectHelp.cpp -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,13 +15,12 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//-------------------------------------------------------------------------
 // CommandObjectHelp
-//-------------------------------------------------------------------------
 
 void CommandObjectHelp::GenerateAdditionalHelpAvenuesMessage(
-    Stream *s, llvm::StringRef command, llvm::StringRef prefix, llvm::StringRef subcommand,
-    bool include_apropos, bool include_type_lookup) {
+    Stream *s, llvm::StringRef command, llvm::StringRef prefix,
+    llvm::StringRef subcommand, bool include_upropos,
+    bool include_type_lookup) {
   if (!s || command.empty())
     return;
 
@@ -33,7 +31,7 @@ void CommandObjectHelp::GenerateAdditionalHelpAvenuesMessage(
   s->Printf("'%s' is not a known command.\n", command_str.c_str());
   s->Printf("Try '%shelp' to see a current list of commands.\n",
             prefix.str().c_str());
-  if (include_apropos) {
+  if (include_upropos) {
     s->Printf("Try '%sapropos %s' for a list of related commands.\n",
       prefix_str.c_str(), lookup_str.c_str());
   }
@@ -68,11 +66,8 @@ CommandObjectHelp::CommandObjectHelp(CommandInterpreter &interpreter)
 CommandObjectHelp::~CommandObjectHelp() = default;
 
 static constexpr OptionDefinition g_help_options[] = {
-    // clang-format off
-  {LLDB_OPT_SET_ALL, false, "hide-aliases",         'a', OptionParser::eNoArgument, nullptr, {}, 0, eArgTypeNone, "Hide aliases in the command list."},
-  {LLDB_OPT_SET_ALL, false, "hide-user-commands",   'u', OptionParser::eNoArgument, nullptr, {}, 0, eArgTypeNone, "Hide user-defined commands from the list."},
-  {LLDB_OPT_SET_ALL, false, "show-hidden-commands", 'h', OptionParser::eNoArgument, nullptr, {}, 0, eArgTypeNone, "Include commands prefixed with an underscore."},
-    // clang-format on
+#define LLDB_OPTIONS_help
+#include "CommandOptions.inc"
 };
 
 llvm::ArrayRef<OptionDefinition>
