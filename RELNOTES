@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r351361:
+	Add probes for lockmgr(9) to the lockstat DTrace provider, add
+	corresponding lockstat(1) events, and document the new probes in
+	dtrace_lockstat.4.
+
 r351201:
 	Add a vop_stdioctl() call, so that file systems that do not support
 	holes will have a trivial implementation of lseek(SEEK_DATA/SEEK_HOLE).
