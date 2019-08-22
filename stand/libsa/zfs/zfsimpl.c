@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <sys/stdint.h>
+#include <sys/list.h>
 
 #include "zfsimpl.h"
 #include "zfssubr.c"
@@ -44,6 +45,58 @@ struct zfsmount {
 	uint64_t	rootobj;
 };
 static struct zfsmount zfsmount __unused;
+
+/*
+ * The indirect_child_t represents the vdev that we will read from, when we
+ * need to read all copies of the data (e.g. for scrub or reconstruction).
+ * For plain (non-mirror) top-level vdevs (i.e. is_vdev is not a mirror),
+ * ic_vdev is the same as is_vdev.  However, for mirror top-level vdevs,
+ * ic_vdev is a child of the mirror.
+ */
+typedef struct indirect_child {
+	void *ic_data;
+	vdev_t *ic_vdev;
+} indirect_child_t;
+
+/*
+ * The indirect_split_t represents one mapped segment of an i/o to the
+ * indirect vdev. For non-split (contiguously-mapped) blocks, there will be
+ * only one indirect_split_t, with is_split_offset==0 and is_size==io_size.
+ * For split blocks, there will be several of these.
+ */
+typedef struct indirect_split {
+	list_node_t is_node; /* link on iv_splits */
+
+	/*
+	 * is_split_offset is the offset into the i/o.
+	 * This is the sum of the previous splits' is_size's.
+	 */
+	uint64_t is_split_offset;
+
+	vdev_t *is_vdev; /* top-level vdev */
+	uint64_t is_target_offset; /* offset on is_vdev */
+	uint64_t is_size;
+	int is_children; /* number of entries in is_child[] */
+
+	/*
+	 * is_good_child is the child that we are currently using to
+	 * attempt reconstruction.
+	 */
+	int is_good_child;
+
+	indirect_child_t is_child[1]; /* variable-length */
+} indirect_split_t;
+
+/*
+ * The indirect_vsd_t is associated with each i/o to the indirect vdev.
+ * It is the "Vdev-Specific Data" in the zio_t's io_vsd.
+ */
+typedef struct indirect_vsd {
+	boolean_t iv_split_block;
+	boolean_t iv_reconstruct;
+
+	list_t iv_splits; /* list of indirect_split_t's */
+} indirect_vsd_t;
 
 /*
  * List of all vdevs, chained through v_alllink.
@@ -63,6 +116,8 @@ static const char *features_for_read[] = {
 	"org.illumos:skein",
 	"org.zfsonlinux:large_dnode",
 	"com.joyent:multi_vdev_crash_dump",
+	"com.delphix:device_removal",
+	"com.delphix:obsolete_counts",
 	NULL
 };
 
@@ -85,6 +140,18 @@ static int zfs_rlookup(const spa_t *spa, uint64_t objnum, char *result);
 static int zap_lookup(const spa_t *spa, const dnode_phys_t *dnode,
     const char *name, uint64_t integer_size, uint64_t num_integers,
     void *value);
+static int objset_get_dnode(const spa_t *, const objset_phys_t *, uint64_t,
+    dnode_phys_t *);
+static int dnode_read(const spa_t *, const dnode_phys_t *, off_t, void *,
+    size_t);
+static int vdev_indirect_read(vdev_t *, const blkptr_t *, void *, off_t,
+    size_t);
+static int vdev_mirror_read(vdev_t *, const blkptr_t *, void *, off_t, size_t);
+vdev_indirect_mapping_t *vdev_indirect_mapping_open(spa_t *, objset_phys_t *,
+    uint64_t);
+vdev_indirect_mapping_entry_phys_t *
+    vdev_indirect_mapping_duplicate_adjacent_entries(vdev_t *, uint64_t,
+    uint64_t, uint64_t *);
 
 static void
 zfs_init(void)
@@ -162,7 +229,7 @@ xdr_uint64_t(const unsigned char **xdr, uint64_t *lp)
 
 static int
 nvlist_find(const unsigned char *nvlist, const char *name, int type,
-	    int* elementsp, void *valuep)
+	    int *elementsp, void *valuep)
 {
 	const unsigned char *p, *pair;
 	int junk;
@@ -427,10 +494,509 @@ vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	rc = vdev->v_phys_read(vdev, vdev->v_read_priv, offset, buf, psize);
 	if (rc)
 		return (rc);
-	if (bp && zio_checksum_verify(vdev->spa, bp, buf))
-		return (EIO);
+	if (bp != NULL)
+		return (zio_checksum_verify(vdev->spa, bp, buf));
 
 	return (0);
+}
+
+typedef struct remap_segment {
+	vdev_t *rs_vd;
+	uint64_t rs_offset;
+	uint64_t rs_asize;
+	uint64_t rs_split_offset;
+	list_node_t rs_node;
+} remap_segment_t;
+
+static remap_segment_t *
+rs_alloc(vdev_t *vd, uint64_t offset, uint64_t asize, uint64_t split_offset)
+{
+	remap_segment_t *rs = malloc(sizeof (remap_segment_t));
+
+	if (rs != NULL) {
+		rs->rs_vd = vd;
+		rs->rs_offset = offset;
+		rs->rs_asize = asize;
+		rs->rs_split_offset = split_offset;
+	}
+
+	return (rs);
+}
+
+vdev_indirect_mapping_t *
+vdev_indirect_mapping_open(spa_t *spa, objset_phys_t *os,
+    uint64_t mapping_object)
+{
+	vdev_indirect_mapping_t *vim;
+	vdev_indirect_mapping_phys_t *vim_phys;
+	int rc;
+
+	vim = calloc(1, sizeof (*vim));
+	if (vim == NULL)
+		return (NULL);
+
+	vim->vim_dn = calloc(1, sizeof (*vim->vim_dn));
+	if (vim->vim_dn == NULL) {
+		free(vim);
+		return (NULL);
+	}
+
+	rc = objset_get_dnode(spa, os, mapping_object, vim->vim_dn);
+	if (rc != 0) {
+		free(vim->vim_dn);
+		free(vim);
+		return (NULL);
+	}
+
+	vim->vim_spa = spa;
+	vim->vim_phys = malloc(sizeof (*vim->vim_phys));
+	if (vim->vim_phys == NULL) {
+		free(vim->vim_dn);
+		free(vim);
+		return (NULL);
+	}
+
+	vim_phys = (vdev_indirect_mapping_phys_t *)DN_BONUS(vim->vim_dn);
+	*vim->vim_phys = *vim_phys;
+
+	vim->vim_objset = os;
+	vim->vim_object = mapping_object;
+	vim->vim_entries = NULL;
+
+	vim->vim_havecounts =
+	    (vim->vim_dn->dn_bonuslen > VDEV_INDIRECT_MAPPING_SIZE_V0);
+	return (vim);
+}
+
+/*
+ * Compare an offset with an indirect mapping entry; there are three
+ * possible scenarios:
+ *
+ *     1. The offset is "less than" the mapping entry; meaning the
+ *        offset is less than the source offset of the mapping entry. In
+ *        this case, there is no overlap between the offset and the
+ *        mapping entry and -1 will be returned.
+ *
+ *     2. The offset is "greater than" the mapping entry; meaning the
+ *        offset is greater than the mapping entry's source offset plus
+ *        the entry's size. In this case, there is no overlap between
+ *        the offset and the mapping entry and 1 will be returned.
+ *
+ *        NOTE: If the offset is actually equal to the entry's offset
+ *        plus size, this is considered to be "greater" than the entry,
+ *        and this case applies (i.e. 1 will be returned). Thus, the
+ *        entry's "range" can be considered to be inclusive at its
+ *        start, but exclusive at its end: e.g. [src, src + size).
+ *
+ *     3. The last case to consider is if the offset actually falls
+ *        within the mapping entry's range. If this is the case, the
+ *        offset is considered to be "equal to" the mapping entry and
+ *        0 will be returned.
+ *
+ *        NOTE: If the offset is equal to the entry's source offset,
+ *        this case applies and 0 will be returned. If the offset is
+ *        equal to the entry's source plus its size, this case does
+ *        *not* apply (see "NOTE" above for scenario 2), and 1 will be
+ *        returned.
+ */
+static int
+dva_mapping_overlap_compare(const void *v_key, const void *v_array_elem)
+{
+	const uint64_t *key = v_key;
+	const vdev_indirect_mapping_entry_phys_t *array_elem =
+	    v_array_elem;
+	uint64_t src_offset = DVA_MAPPING_GET_SRC_OFFSET(array_elem);
+
+	if (*key < src_offset) {
+		return (-1);
+	} else if (*key < src_offset + DVA_GET_ASIZE(&array_elem->vimep_dst)) {
+		return (0);
+	} else {
+		return (1);
+	}
+}
+
+/*
+ * Return array entry.
+ */
+static vdev_indirect_mapping_entry_phys_t *
+vdev_indirect_mapping_entry(vdev_indirect_mapping_t *vim, uint64_t index)
+{
+	uint64_t size;
+	off_t offset = 0;
+	int rc;
+
+	if (vim->vim_phys->vimp_num_entries == 0)
+		return (NULL);
+
+	if (vim->vim_entries == NULL) {
+		uint64_t bsize;
+
+		bsize = vim->vim_dn->dn_datablkszsec << SPA_MINBLOCKSHIFT;
+		size = vim->vim_phys->vimp_num_entries *
+		    sizeof (*vim->vim_entries);
+		if (size > bsize) {
+			size = bsize / sizeof (*vim->vim_entries);
+			size *= sizeof (*vim->vim_entries);
+		}
+		vim->vim_entries = malloc(size);
+		if (vim->vim_entries == NULL)
+			return (NULL);
+		vim->vim_num_entries = size / sizeof (*vim->vim_entries);
+		offset = index * sizeof (*vim->vim_entries);
+	}
+
+	/* We have data in vim_entries */
+	if (offset == 0) {
+		if (index >= vim->vim_entry_offset &&
+		    index <= vim->vim_entry_offset + vim->vim_num_entries) {
+			index -= vim->vim_entry_offset;
+			return (&vim->vim_entries[index]);
+		}
+		offset = index * sizeof (*vim->vim_entries);
+	}
+
+	vim->vim_entry_offset = index;
+	size = vim->vim_num_entries * sizeof (*vim->vim_entries);
+	rc = dnode_read(vim->vim_spa, vim->vim_dn, offset, vim->vim_entries,
+	    size);
+	if (rc != 0) {
+		/* Read error, invalidate vim_entries. */
+		free(vim->vim_entries);
+		vim->vim_entries = NULL;
+		return (NULL);
+	}
+	index -= vim->vim_entry_offset;
+	return (&vim->vim_entries[index]);
+}
+
+/*
+ * Returns the mapping entry for the given offset.
+ *
+ * It's possible that the given offset will not be in the mapping table
+ * (i.e. no mapping entries contain this offset), in which case, the
+ * return value value depends on the "next_if_missing" parameter.
+ *
+ * If the offset is not found in the table and "next_if_missing" is
+ * B_FALSE, then NULL will always be returned. The behavior is intended
+ * to allow consumers to get the entry corresponding to the offset
+ * parameter, iff the offset overlaps with an entry in the table.
+ *
+ * If the offset is not found in the table and "next_if_missing" is
+ * B_TRUE, then the entry nearest to the given offset will be returned,
+ * such that the entry's source offset is greater than the offset
+ * passed in (i.e. the "next" mapping entry in the table is returned, if
+ * the offset is missing from the table). If there are no entries whose
+ * source offset is greater than the passed in offset, NULL is returned.
+ */
+static vdev_indirect_mapping_entry_phys_t *
+vdev_indirect_mapping_entry_for_offset(vdev_indirect_mapping_t *vim,
+    uint64_t offset)
+{
+	ASSERT(vim->vim_phys->vimp_num_entries > 0);
+
+	vdev_indirect_mapping_entry_phys_t *entry;
+
+	uint64_t last = vim->vim_phys->vimp_num_entries - 1;
+	uint64_t base = 0;
+
+	/*
+	 * We don't define these inside of the while loop because we use
+	 * their value in the case that offset isn't in the mapping.
+	 */
+	uint64_t mid;
+	int result;
+
+	while (last >= base) {
+		mid = base + ((last - base) >> 1);
+
+		entry = vdev_indirect_mapping_entry(vim, mid);
+		if (entry == NULL)
+			break;
+		result = dva_mapping_overlap_compare(&offset, entry);
+
+		if (result == 0) {
+			break;
+		} else if (result < 0) {
+			last = mid - 1;
+		} else {
+			base = mid + 1;
+		}
+	}
+	return (entry);
+}
+
+/*
+ * Given an indirect vdev and an extent on that vdev, it duplicates the
+ * physical entries of the indirect mapping that correspond to the extent
+ * to a new array and returns a pointer to it. In addition, copied_entries
+ * is populated with the number of mapping entries that were duplicated.
+ *
+ * Finally, since we are doing an allocation, it is up to the caller to
+ * free the array allocated in this function.
+ */
+vdev_indirect_mapping_entry_phys_t *
+vdev_indirect_mapping_duplicate_adjacent_entries(vdev_t *vd, uint64_t offset,
+    uint64_t asize, uint64_t *copied_entries)
+{
+	vdev_indirect_mapping_entry_phys_t *duplicate_mappings = NULL;
+	vdev_indirect_mapping_t *vim = vd->v_mapping;
+	uint64_t entries = 0;
+
+	vdev_indirect_mapping_entry_phys_t *first_mapping =
+	    vdev_indirect_mapping_entry_for_offset(vim, offset);
+	ASSERT3P(first_mapping, !=, NULL);
+
+	vdev_indirect_mapping_entry_phys_t *m = first_mapping;
+	while (asize > 0) {
+		uint64_t size = DVA_GET_ASIZE(&m->vimep_dst);
+		uint64_t inner_offset = offset - DVA_MAPPING_GET_SRC_OFFSET(m);
+		uint64_t inner_size = MIN(asize, size - inner_offset);
+
+		offset += inner_size;
+		asize -= inner_size;
+		entries++;
+		m++;
+	}
+
+	size_t copy_length = entries * sizeof (*first_mapping);
+	duplicate_mappings = malloc(copy_length);
+	if (duplicate_mappings != NULL)
+		bcopy(first_mapping, duplicate_mappings, copy_length);
+	else
+		entries = 0;
+
+	*copied_entries = entries;
+
+	return (duplicate_mappings);
+}
+
+static vdev_t *
+vdev_lookup_top(spa_t *spa, uint64_t vdev)
+{
+	vdev_t *rvd;
+
+	STAILQ_FOREACH(rvd, &spa->spa_vdevs, v_childlink)
+		if (rvd->v_id == vdev)
+			break;
+
+	return (rvd);
+}
+
+/*
+ * This is a callback for vdev_indirect_remap() which allocates an
+ * indirect_split_t for each split segment and adds it to iv_splits.
+ */
+static void
+vdev_indirect_gather_splits(uint64_t split_offset, vdev_t *vd, uint64_t offset,
+    uint64_t size, void *arg)
+{
+	int n = 1;
+	zio_t *zio = arg;
+	indirect_vsd_t *iv = zio->io_vsd;
+
+	if (vd->v_read == vdev_indirect_read)
+		return;
+
+	if (vd->v_read == vdev_mirror_read)
+		n = vd->v_nchildren;
+
+	indirect_split_t *is =
+	    malloc(offsetof(indirect_split_t, is_child[n]));
+	if (is == NULL) {
+		zio->io_error = ENOMEM;
+		return;
+	}
+	bzero(is, offsetof(indirect_split_t, is_child[n]));
+
+	is->is_children = n;
+	is->is_size = size;
+	is->is_split_offset = split_offset;
+	is->is_target_offset = offset;
+	is->is_vdev = vd;
+
+	/*
+	 * Note that we only consider multiple copies of the data for
+	 * *mirror* vdevs.  We don't for "replacing" or "spare" vdevs, even
+	 * though they use the same ops as mirror, because there's only one
+	 * "good" copy under the replacing/spare.
+	 */
+	if (vd->v_read == vdev_mirror_read) {
+		int i = 0;
+		vdev_t *kid;
+
+		STAILQ_FOREACH(kid, &vd->v_children, v_childlink) {
+			is->is_child[i++].ic_vdev = kid;
+		}
+	} else {
+		is->is_child[0].ic_vdev = vd;
+	}
+
+	list_insert_tail(&iv->iv_splits, is);
+}
+
+static void
+vdev_indirect_remap(vdev_t *vd, uint64_t offset, uint64_t asize, void *arg)
+{
+	list_t stack;
+	spa_t *spa = vd->spa;
+	zio_t *zio = arg;
+
+	list_create(&stack, sizeof (remap_segment_t),
+	    offsetof(remap_segment_t, rs_node));
+
+	for (remap_segment_t *rs = rs_alloc(vd, offset, asize, 0);
+	    rs != NULL; rs = list_remove_head(&stack)) {
+		vdev_t *v = rs->rs_vd;
+		uint64_t num_entries = 0;
+		/* vdev_indirect_mapping_t *vim = v->v_mapping; */
+		vdev_indirect_mapping_entry_phys_t *mapping =
+		    vdev_indirect_mapping_duplicate_adjacent_entries(v,
+		    rs->rs_offset, rs->rs_asize, &num_entries);
+
+		for (uint64_t i = 0; i < num_entries; i++) {
+			vdev_indirect_mapping_entry_phys_t *m = &mapping[i];
+			uint64_t size = DVA_GET_ASIZE(&m->vimep_dst);
+			uint64_t dst_offset = DVA_GET_OFFSET(&m->vimep_dst);
+			uint64_t dst_vdev = DVA_GET_VDEV(&m->vimep_dst);
+			uint64_t inner_offset = rs->rs_offset -
+			    DVA_MAPPING_GET_SRC_OFFSET(m);
+			uint64_t inner_size =
+			    MIN(rs->rs_asize, size - inner_offset);
+			vdev_t *dst_v = vdev_lookup_top(spa, dst_vdev);
+
+			if (dst_v->v_read == vdev_indirect_read) {
+				list_insert_head(&stack,
+				    rs_alloc(dst_v, dst_offset + inner_offset,
+				    inner_size, rs->rs_split_offset));
+			}
+			vdev_indirect_gather_splits(rs->rs_split_offset, dst_v,
+			    dst_offset + inner_offset,
+			    inner_size, arg);
+
+			/*
+			 * vdev_indirect_gather_splits can have memory
+			 * allocation error, we can not recover from it.
+			 */
+			if (zio->io_error != 0)
+				break;
+
+			rs->rs_offset += inner_size;
+			rs->rs_asize -= inner_size;
+			rs->rs_split_offset += inner_size;
+		}
+
+		free(mapping);
+		free(rs);
+		if (zio->io_error != 0)
+			break;
+	}
+
+	list_destroy(&stack);
+}
+
+static void
+vdev_indirect_map_free(zio_t *zio)
+{
+	indirect_vsd_t *iv = zio->io_vsd;
+	indirect_split_t *is;
+
+	while ((is = list_head(&iv->iv_splits)) != NULL) {
+		for (int c = 0; c < is->is_children; c++) {
+			indirect_child_t *ic = &is->is_child[c];
+			free(ic->ic_data);
+		}
+		list_remove(&iv->iv_splits, is);
+		free(is);
+	}
+	free(iv);
+}
+
+static int
+vdev_indirect_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
+    off_t offset, size_t bytes)
+{
+	zio_t zio = { 0 };
+	spa_t *spa = vdev->spa;
+	indirect_vsd_t *iv = malloc(sizeof (*iv));
+	indirect_split_t *first;
+	int rc = EIO;
+
+	if (iv == NULL)
+		return (ENOMEM);
+	bzero(iv, sizeof (*iv));
+
+	list_create(&iv->iv_splits,
+	    sizeof (indirect_split_t), offsetof(indirect_split_t, is_node));
+
+	zio.io_spa = spa;
+	zio.io_bp = (blkptr_t *)bp;
+	zio.io_data = buf;
+	zio.io_size = bytes;
+	zio.io_offset = offset;
+	zio.io_vd = vdev;
+	zio.io_vsd = iv;
+
+	if (vdev->v_mapping == NULL) {
+		vdev_indirect_config_t *vic;
+
+		vic = &vdev->vdev_indirect_config;
+		vdev->v_mapping = vdev_indirect_mapping_open(spa,
+		    &spa->spa_mos, vic->vic_mapping_object);
+	}
+
+	vdev_indirect_remap(vdev, offset, bytes, &zio);
+	if (zio.io_error != 0)
+		return (zio.io_error);
+
+	first = list_head(&iv->iv_splits);
+	if (first->is_size == zio.io_size) {
+		/*
+		 * This is not a split block; we are pointing to the entire
+		 * data, which will checksum the same as the original data.
+		 * Pass the BP down so that the child i/o can verify the
+		 * checksum, and try a different location if available
+		 * (e.g. on a mirror).
+		 *
+		 * While this special case could be handled the same as the
+		 * general (split block) case, doing it this way ensures
+		 * that the vast majority of blocks on indirect vdevs
+		 * (which are not split) are handled identically to blocks
+		 * on non-indirect vdevs.  This allows us to be less strict
+		 * about performance in the general (but rare) case.
+		 */
+		rc = first->is_vdev->v_read(first->is_vdev, zio.io_bp,
+		    zio.io_data, first->is_target_offset, bytes);
+	} else {
+		iv->iv_split_block = B_TRUE;
+		/*
+		 * Read one copy of each split segment, from the
+		 * top-level vdev.  Since we don't know the
+		 * checksum of each split individually, the child
+		 * zio can't ensure that we get the right data.
+		 * E.g. if it's a mirror, it will just read from a
+		 * random (healthy) leaf vdev.  We have to verify
+		 * the checksum in vdev_indirect_io_done().
+		 */
+		for (indirect_split_t *is = list_head(&iv->iv_splits);
+		    is != NULL; is = list_next(&iv->iv_splits, is)) {
+			char *ptr = zio.io_data;
+
+			rc = is->is_vdev->v_read(is->is_vdev, zio.io_bp,
+			    ptr + is->is_split_offset, is->is_target_offset,
+			    is->is_size);
+		}
+		if (zio_checksum_verify(spa, zio.io_bp, zio.io_data))
+			rc = ECKSUM;
+		else
+			rc = 0;
+	}
+
+	vdev_indirect_map_free(&zio);
+	if (rc == 0)
+		rc = zio.io_error;
+
+	return (rc);
 }
 
 static int
@@ -499,6 +1065,7 @@ static vdev_t *
 vdev_create(uint64_t guid, vdev_read_t *_read)
 {
 	vdev_t *vdev;
+	vdev_indirect_config_t *vic;
 
 	vdev = malloc(sizeof(vdev_t));
 	memset(vdev, 0, sizeof(vdev_t));
@@ -506,8 +1073,9 @@ vdev_create(uint64_t guid, vdev_read_t *_read)
 	vdev->v_guid = guid;
 	vdev->v_state = VDEV_STATE_OFFLINE;
 	vdev->v_read = _read;
-	vdev->v_phys_read = 0;
-	vdev->v_read_priv = 0;
+
+	vic = &vdev->vdev_indirect_config;
+	vic->vic_prev_indirect_vdev = UINT64_MAX;
 	STAILQ_INSERT_TAIL(&zfs_vdevs, vdev, v_alllink);
 
 	return (vdev);
@@ -541,6 +1109,7 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
 	    && strcmp(type, VDEV_TYPE_FILE)
 #endif
 	    && strcmp(type, VDEV_TYPE_RAIDZ)
+	    && strcmp(type, VDEV_TYPE_INDIRECT)
 	    && strcmp(type, VDEV_TYPE_REPLACING)) {
 		printf("ZFS: can only boot from disk, mirror, raidz1, raidz2 and raidz3 vdevs\n");
 		return (EIO);
@@ -569,7 +1138,23 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
 			vdev = vdev_create(guid, vdev_raidz_read);
 		else if (!strcmp(type, VDEV_TYPE_REPLACING))
 			vdev = vdev_create(guid, vdev_replacing_read);
-		else
+		else if (!strcmp(type, VDEV_TYPE_INDIRECT)) {
+			vdev_indirect_config_t *vic;
+
+			vdev = vdev_create(guid, vdev_indirect_read);
+			vdev->v_state = VDEV_STATE_HEALTHY;
+			vic = &vdev->vdev_indirect_config;
+
+			nvlist_find(nvlist,
+			    ZPOOL_CONFIG_INDIRECT_OBJECT, DATA_TYPE_UINT64,
+			    NULL, &vic->vic_mapping_object);
+			nvlist_find(nvlist,
+			    ZPOOL_CONFIG_INDIRECT_BIRTHS, DATA_TYPE_UINT64,
+			    NULL, &vic->vic_births_object);
+			nvlist_find(nvlist,
+			    ZPOOL_CONFIG_PREV_INDIRECT_VDEV, DATA_TYPE_UINT64,
+			    NULL, &vic->vic_prev_indirect_vdev);
+		} else
 			vdev = vdev_create(guid, vdev_disk_read);
 
 		vdev->v_id = id;
@@ -592,20 +1177,24 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
 				path += 5;
 			vdev->v_name = strdup(path);
 		} else {
+			char *name;
+
 			if (!strcmp(type, "raidz")) {
-				if (vdev->v_nparity == 1)
-					vdev->v_name = "raidz1";
-				else if (vdev->v_nparity == 2)
-					vdev->v_name = "raidz2";
-				else if (vdev->v_nparity == 3)
-					vdev->v_name = "raidz3";
-				else {
-					printf("ZFS: can only boot from disk, mirror, raidz1, raidz2 and raidz3 vdevs\n");
+				if (vdev->v_nparity < 1 ||
+				    vdev->v_nparity > 3) {
+					printf("ZFS: can only boot from disk, "
+					    "mirror, raidz1, raidz2 and raidz3 "
+					    "vdevs\n");
 					return (EIO);
 				}
+				asprintf(&name, "%s%d-%jd", type,
+				    vdev->v_nparity, id);
 			} else {
-				vdev->v_name = strdup(type);
+				asprintf(&name, "%s-%jd", type, id);
 			}
+			if (name == NULL)
+				return (ENOMEM);
+			vdev->v_name = name;
 		}
 	} else {
 		is_new = 0;
@@ -2229,10 +2818,48 @@ check_mos_features(const spa_t *spa)
 }
 
 static int
+load_nvlist(spa_t *spa, uint64_t obj, unsigned char **value)
+{
+	dnode_phys_t dir;
+	size_t size;
+	int rc;
+	unsigned char *nv;
+
+	*value = NULL;
+	if ((rc = objset_get_dnode(spa, &spa->spa_mos, obj, &dir)) != 0)
+		return (rc);
+	if (dir.dn_type != DMU_OT_PACKED_NVLIST &&
+	    dir.dn_bonustype != DMU_OT_PACKED_NVLIST_SIZE) {
+		return (EIO);
+	}
+
+	if (dir.dn_bonuslen != sizeof (uint64_t))
+		return (EIO);
+
+	size = *(uint64_t *)DN_BONUS(&dir);
+	nv = malloc(size);
+	if (nv == NULL)
+		return (ENOMEM);
+
+	rc = dnode_read(spa, &dir, 0, nv, size);
+	if (rc != 0) {
+		free(nv);
+		nv = NULL;
+		return (rc);
+	}
+	*value = nv;
+	return (rc);
+}
+
+static int
 zfs_spa_init(spa_t *spa)
 {
 	dnode_phys_t dir;
-	int rc;
+	uint64_t config_object;
+	unsigned char *nvlist;
+	char *type;
+	const unsigned char *nv;
+	int nkids, rc;
 
 	if (zio_read(spa, &spa->spa_uberblock.ub_rootbp, &spa->spa_mos)) {
 		printf("ZFS: can't read MOS of pool %s\n", spa->spa_name);
@@ -2257,8 +2884,77 @@ zfs_spa_init(spa_t *spa)
 	rc = check_mos_features(spa);
 	if (rc != 0) {
 		printf("ZFS: pool %s is not supported\n", spa->spa_name);
+		return (rc);
 	}
 
+	rc = zap_lookup(spa, &dir, DMU_POOL_CONFIG,
+	    sizeof (config_object), 1, &config_object);
+	if (rc != 0) {
+		printf("ZFS: can not read MOS %s\n", DMU_POOL_CONFIG);
+		return (EIO);
+	}
+	rc = load_nvlist(spa, config_object, &nvlist);
+	if (rc != 0)
+		return (rc);
+
+	/* Update vdevs from MOS config. */
+	if (nvlist_find(nvlist + 4, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
+	    NULL, &nv)) {
+		rc = EIO;
+		goto done;
+	}
+
+	if (nvlist_find(nv, ZPOOL_CONFIG_TYPE, DATA_TYPE_STRING,
+            NULL, &type)) {
+		printf("ZFS: can't find vdev details\n");
+		rc = ENOENT;
+		goto done;
+	}
+	if (strcmp(type, VDEV_TYPE_ROOT) != 0) {
+		rc = ENOENT;
+		goto done;
+	}
+
+	rc = nvlist_find(nv, ZPOOL_CONFIG_CHILDREN, DATA_TYPE_NVLIST_ARRAY,
+            &nkids, &nv);
+	if (rc != 0)
+		goto done;
+
+	for (int i = 0; i < nkids; i++) {
+		vdev_t *vd, *prev, *kid = NULL;
+		rc = vdev_init_from_nvlist(nv, NULL, &kid, 0);
+		if (rc != 0) {
+			printf("vdev_init_from_nvlist: %d\n", rc);
+			break;
+		}
+		kid->spa = spa;
+		prev = NULL;
+		STAILQ_FOREACH(vd, &spa->spa_vdevs, v_childlink) {
+			/* Already present? */
+			if (kid->v_id == vd->v_id) {
+				kid = NULL;
+				break;
+			}
+			if (vd->v_id > kid->v_id) {
+				if (prev == NULL) {
+					STAILQ_INSERT_HEAD(&spa->spa_vdevs,
+					    kid, v_childlink);
+				} else {
+					STAILQ_INSERT_AFTER(&spa->spa_vdevs,
+					    prev, kid, v_childlink);
+				}
+				kid = NULL;
+				break;
+			}
+			prev = vd;
+		}
+		if (kid != NULL)
+			STAILQ_INSERT_TAIL(&spa->spa_vdevs, kid, v_childlink);
+		nv = nvlist_next(nv);
+	}
+	rc = 0;
+done:
+	free(nvlist);
 	return (rc);
 }
 

@@ -3300,13 +3300,6 @@ zpool_vdev_remove(zpool_handle_t *zhp, const char *path)
 		return (zfs_error(hdl, EZFS_BADVERSION, msg));
 	}
 
-	if (!islog && !avail_spare && !l2cache && zpool_is_bootable(zhp)) {
-		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-		    "root pool can not have removed devices, "
-		    "because GRUB does not understand them"));
-		return (zfs_error(hdl, EINVAL, msg));
-	}
-
 	zc.zc_guid = fnvlist_lookup_uint64(tgt, ZPOOL_CONFIG_GUID);
 
 	if (zfs_ioctl(hdl, ZFS_IOC_VDEV_REMOVE, &zc) == 0)
