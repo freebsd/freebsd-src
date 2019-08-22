@@ -946,6 +946,7 @@ static int wpa_config_write_network(HKEY hk, struct wpa_ssid *ssid, int id)
 	INT(update_identifier);
 #endif /* CONFIG_HS20 */
 	INT(group_rekey);
+	INT(ft_eap_pmksa_caching);
 
 #undef STR
 #undef INT

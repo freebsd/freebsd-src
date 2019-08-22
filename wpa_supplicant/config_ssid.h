@@ -48,6 +48,15 @@ struct psk_list_entry {
 	u8 p2p;
 };
 
+enum wpas_mode {
+	WPAS_MODE_INFRA = 0,
+	WPAS_MODE_IBSS = 1,
+	WPAS_MODE_AP = 2,
+	WPAS_MODE_P2P_GO = 3,
+	WPAS_MODE_P2P_GROUP_FORMATION = 4,
+	WPAS_MODE_MESH = 5,
+};
+
 /**
  * struct wpa_ssid - Network configuration data
  *
@@ -394,14 +403,7 @@ struct wpa_ssid {
 	 * CCMP, but not both), and psk must also be set (either directly or
 	 * using ASCII passphrase).
 	 */
-	enum wpas_mode {
-		WPAS_MODE_INFRA = 0,
-		WPAS_MODE_IBSS = 1,
-		WPAS_MODE_AP = 2,
-		WPAS_MODE_P2P_GO = 3,
-		WPAS_MODE_P2P_GROUP_FORMATION = 4,
-		WPAS_MODE_MESH = 5,
-	} mode;
+	enum wpas_mode mode;
 
 	/**
 	 * pbss - Whether to use PBSS. Relevant to DMG networks only.
@@ -1005,6 +1007,16 @@ struct wpa_ssid {
 	 * 1 = Multi-AP backhaul station
 	 */
 	int multi_ap_backhaul_sta;
+
+	/**
+	 * ft_eap_pmksa_caching - Whether FT-EAP PMKSA caching is allowed
+	 * 0 = do not try to use PMKSA caching with FT-EAP
+	 * 1 = try to use PMKSA caching with FT-EAP
+	 *
+	 * This controls whether to try to use PMKSA caching with FT-EAP for the
+	 * FT initial mobility domain association.
+	 */
+	int ft_eap_pmksa_caching;
 };
 
 #endif /* CONFIG_SSID_H */

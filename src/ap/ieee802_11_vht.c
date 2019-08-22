@@ -242,7 +242,7 @@ u8 * hostapd_eid_txpower_envelope(struct hostapd_data *hapd, u8 *eid)
 		return eid;
 
 	switch (iface->conf->vht_oper_chwidth) {
-	case VHT_CHANWIDTH_USE_HT:
+	case CHANWIDTH_USE_HT:
 		if (iconf->secondary_channel == 0) {
 			/* Max Transmit Power count = 0 (20 MHz) */
 			tx_pwr_count = 0;
@@ -251,12 +251,12 @@ u8 * hostapd_eid_txpower_envelope(struct hostapd_data *hapd, u8 *eid)
 			tx_pwr_count = 1;
 		}
 		break;
-	case VHT_CHANWIDTH_80MHZ:
+	case CHANWIDTH_80MHZ:
 		/* Max Transmit Power count = 2 (20, 40, and 80 MHz) */
 		tx_pwr_count = 2;
 		break;
-	case VHT_CHANWIDTH_80P80MHZ:
-	case VHT_CHANWIDTH_160MHZ:
+	case CHANWIDTH_80P80MHZ:
+	case CHANWIDTH_160MHZ:
 		/* Max Transmit Power count = 3 (20, 40, 80, 160/80+80 MHz) */
 		tx_pwr_count = 3;
 		break;

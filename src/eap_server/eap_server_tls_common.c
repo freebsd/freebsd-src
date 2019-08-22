@@ -145,20 +145,21 @@ u8 * eap_server_tls_derive_session_id(struct eap_sm *sm,
 {
 	struct tls_random keys;
 	u8 *out;
+	const u8 context[] = { EAP_TYPE_TLS };
 
 	if (eap_type == EAP_TYPE_TLS && data->tls_v13) {
 		u8 *id, *method_id;
 
 		/* Session-Id = <EAP-Type> || Method-Id
 		 * Method-Id = TLS-Exporter("EXPORTER_EAP_TLS_Method-Id",
-		 *                          "", 64)
+		 *                          Type-Code, 64)
 		 */
 		*len = 1 + 64;
 		id = os_malloc(*len);
 		if (!id)
 			return NULL;
 		method_id = eap_server_tls_derive_key(
-			sm, data, "EXPORTER_EAP_TLS_Method-Id", NULL, 0, 64);
+			sm, data, "EXPORTER_EAP_TLS_Method-Id", context, 1, 64);
 		if (!method_id) {
 			os_free(id);
 			return NULL;
@@ -372,6 +373,8 @@ static int eap_server_tls_reassemble(struct eap_ssl_data *data, u8 flags,
 {
 	unsigned int tls_msg_len = 0;
 	const u8 *end = *pos + *left;
+
+	wpa_hexdump(MSG_MSGDUMP, "SSL: Received data", *pos, *left);
 
 	if (flags & EAP_TLS_FLAGS_LENGTH_INCLUDED) {
 		if (*left < 4) {

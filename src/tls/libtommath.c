@@ -2441,6 +2441,7 @@ static int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 
   /* clear the carry */
   _W = 0;
+  os_memset(W, 0, sizeof(W));
   for (ix = 0; ix < pa; ix++) {
       int      tx, ty;
       int      iy;

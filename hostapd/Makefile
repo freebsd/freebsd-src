@@ -313,6 +313,7 @@ OBJS += ../src/common/sae.o
 NEED_ECC=y
 NEED_DH_GROUPS=y
 NEED_AP_MLME=y
+NEED_DRAGONFLY=y
 endif
 
 ifdef CONFIG_OWE
@@ -324,6 +325,11 @@ NEED_HMAC_SHA512_KDF=y
 NEED_SHA256=y
 NEED_SHA384=y
 NEED_SHA512=y
+endif
+
+ifdef CONFIG_AIRTIME_POLICY
+CFLAGS += -DCONFIG_AIRTIME_POLICY
+OBJS += ../src/ap/airtime_policy.o
 endif
 
 ifdef CONFIG_FILS
@@ -496,6 +502,7 @@ CFLAGS += -DEAP_SERVER_PWD
 OBJS += ../src/eap_server/eap_server_pwd.o ../src/eap_common/eap_pwd_common.o
 NEED_SHA256=y
 NEED_ECC=y
+NEED_DRAGONFLY=y
 endif
 
 ifdef CONFIG_EAP_EKE
@@ -516,6 +523,16 @@ OBJS += ../src/eap_server/eap_server_fast.o
 OBJS += ../src/eap_common/eap_fast_common.o
 TLS_FUNCS=y
 NEED_T_PRF=y
+NEED_AES_UNWRAP=y
+endif
+
+ifdef CONFIG_EAP_TEAP
+CFLAGS += -DEAP_SERVER_TEAP
+OBJS += ../src/eap_server/eap_server_teap.o
+OBJS += ../src/eap_common/eap_teap_common.o
+TLS_FUNCS=y
+NEED_T_PRF=y
+NEED_SHA384=y
 NEED_AES_UNWRAP=y
 endif
 
@@ -613,6 +630,15 @@ LIBS += -ldl
 endif
 endif
 
+ifdef CONFIG_MACSEC
+CFLAGS += -DCONFIG_MACSEC
+OBJS += ../src/ap/wpa_auth_kay.o
+OBJS += ../src/pae/ieee802_1x_cp.o
+OBJS += ../src/pae/ieee802_1x_kay.o
+OBJS += ../src/pae/ieee802_1x_key.o
+OBJS += ../src/pae/ieee802_1x_secy_ops.o
+endif
+
 # Basic EAP functionality is needed for EAPOL
 OBJS += eap_register.o
 OBJS += ../src/eap_server/eap_server.o
@@ -627,6 +653,10 @@ endif
 
 ifdef CONFIG_PKCS12
 CFLAGS += -DPKCS12_FUNCS
+endif
+
+ifdef NEED_DRAGONFLY
+OBJS += ../src/common/dragonfly.o
 endif
 
 ifdef MS_FUNCS

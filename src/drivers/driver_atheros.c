@@ -86,7 +86,7 @@ struct atheros_driver_data {
 };
 
 static int atheros_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
-			      int reason_code);
+			      u16 reason_code);
 static int atheros_set_privacy(void *priv, int enabled);
 
 static const char * athr_get_ioctl_name(int op)
@@ -761,7 +761,7 @@ atheros_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
 
 static int
 atheros_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
-		   int reason_code)
+		   u16 reason_code)
 {
 	struct atheros_driver_data *drv = priv;
 	struct ieee80211req_mlme mlme;
@@ -785,7 +785,7 @@ atheros_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
 
 static int
 atheros_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr,
-		     int reason_code)
+		     u16 reason_code)
 {
 	struct atheros_driver_data *drv = priv;
 	struct ieee80211req_mlme mlme;

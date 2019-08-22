@@ -477,6 +477,7 @@ int hwaddr_aton2(const char *txt, u8 *addr);
 int hex2byte(const char *hex);
 int hexstr2bin(const char *hex, u8 *buf, size_t len);
 void inc_byte_array(u8 *counter, size_t len);
+void buf_shift_right(u8 *buf, size_t len, size_t bits);
 void wpa_get_ntp_timestamp(u8 *buf);
 int wpa_scnprintf(char *buf, size_t size, const char *fmt, ...);
 int wpa_snprintf_hex_sep(char *buf, size_t buf_size, const u8 *data, size_t len,
@@ -568,6 +569,8 @@ int str_starts(const char *str, const char *start);
 
 u8 rssi_to_rcpi(int rssi);
 char * get_param(const char *cmd, const char *param);
+
+void forced_memzero(void *ptr, size_t len);
 
 /*
  * gcc 4.4 ends up generating strict-aliasing warnings about some very common

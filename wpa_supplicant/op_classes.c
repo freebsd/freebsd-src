@@ -348,7 +348,7 @@ size_t wpas_supp_op_class_ie(struct wpa_supplicant *wpa_s,
 	 * TODO: Use the secondary channel and VHT channel width that will be
 	 * used after association.
 	 */
-	if (ieee80211_freq_to_channel_ext(freq, 0, VHT_CHANWIDTH_USE_HT,
+	if (ieee80211_freq_to_channel_ext(freq, 0, CHANWIDTH_USE_HT,
 					  &current, &chan) == NUM_HOSTAPD_MODES)
 		return 0;
 

@@ -48,6 +48,18 @@ enum tls_fail_reason {
 
 #define TLS_MAX_ALT_SUBJECT 10
 
+struct tls_cert_data {
+	int depth;
+	const char *subject;
+	const struct wpabuf *cert;
+	const u8 *hash;
+	size_t hash_len;
+	const char *altsubject[TLS_MAX_ALT_SUBJECT];
+	int num_altsubject;
+	const char *serial_num;
+	int tod;
+};
+
 union tls_event_data {
 	struct {
 		int depth;
@@ -57,16 +69,7 @@ union tls_event_data {
 		const struct wpabuf *cert;
 	} cert_fail;
 
-	struct {
-		int depth;
-		const char *subject;
-		const struct wpabuf *cert;
-		const u8 *hash;
-		size_t hash_len;
-		const char *altsubject[TLS_MAX_ALT_SUBJECT];
-		int num_altsubject;
-		const char *serial_num;
-	} peer_cert;
+	struct tls_cert_data peer_cert;
 
 	struct {
 		int is_local;
@@ -108,6 +111,7 @@ struct tls_config {
 #define TLS_CONN_ENABLE_TLSv1_0 BIT(14)
 #define TLS_CONN_ENABLE_TLSv1_1 BIT(15)
 #define TLS_CONN_ENABLE_TLSv1_2 BIT(16)
+#define TLS_CONN_TEAP_ANON_DH BIT(17)
 
 /**
  * struct tls_connection_params - Parameters for TLS connection
@@ -184,12 +188,15 @@ struct tls_connection_params {
 	const char *suffix_match;
 	const char *domain_match;
 	const char *client_cert;
+	const char *client_cert2;
 	const u8 *client_cert_blob;
 	size_t client_cert_blob_len;
 	const char *private_key;
+	const char *private_key2;
 	const u8 *private_key_blob;
 	size_t private_key_blob_len;
 	const char *private_key_passwd;
+	const char *private_key_passwd2;
 	const char *dh_file;
 	const u8 *dh_blob;
 	size_t dh_blob_len;
@@ -642,5 +649,25 @@ const struct wpabuf *
 tls_connection_get_success_data(struct tls_connection *conn);
 
 void tls_connection_remove_session(struct tls_connection *conn);
+
+/**
+ * tls_get_tls_unique - Fetch "tls-unique" for channel binding
+ * @conn: Connection context data from tls_connection_init()
+ * @buf: Buffer for returning the value
+ * @max_len: Maximum length of the buffer in bytes
+ * Returns: Number of bytes written to buf or -1 on error
+ *
+ * This function can be used to fetch "tls-unique" (RFC 5929, Section 3) which
+ * is the first TLS Finished message sent in the most recent TLS handshake of
+ * the TLS connection.
+ */
+int tls_get_tls_unique(struct tls_connection *conn, u8 *buf, size_t max_len);
+
+/**
+ * tls_connection_get_cipher_suite - Get current TLS cipher suite
+ * @conn: Connection context data from tls_connection_init()
+ * Returns: TLS cipher suite of the current connection or 0 on error
+ */
+u16 tls_connection_get_cipher_suite(struct tls_connection *conn);
 
 #endif /* TLS_H */

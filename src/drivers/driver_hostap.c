@@ -1028,7 +1028,7 @@ static void hostap_driver_deinit(void *priv)
 
 
 static int hostap_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
-			     int reason)
+			     u16 reason)
 {
 	struct hostap_driver_data *drv = priv;
 	struct ieee80211_mgmt mgmt;
@@ -1076,7 +1076,7 @@ static int hostap_set_freq(void *priv, struct hostapd_freq_params *freq)
 
 
 static int hostap_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr,
-			       int reason)
+			       u16 reason)
 {
 	struct hostap_driver_data *drv = priv;
 	struct ieee80211_mgmt mgmt;

@@ -261,8 +261,43 @@ static void eap_tls_process_msg(struct eap_sm *sm, void *priv,
 			   "handshake message");
 		return;
 	}
-	if (eap_server_tls_phase1(sm, &data->ssl) < 0)
+	if (eap_server_tls_phase1(sm, &data->ssl) < 0) {
 		eap_tls_state(data, FAILURE);
+		return;
+	}
+
+	if (data->ssl.tls_v13 &&
+	    tls_connection_established(sm->ssl_ctx, data->ssl.conn)) {
+		struct wpabuf *plain, *encr;
+
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TLS: Send empty application data to indicate end of exchange");
+		/* FIX: This should be an empty application data based on
+		 * draft-ietf-emu-eap-tls13-05, but OpenSSL does not allow zero
+		 * length payload (SSL_write() documentation explicitly
+		 * describes this as not allowed), so work around that for now
+		 * by sending out a payload of one octet. Hopefully the draft
+		 * specification will change to allow this so that no crypto
+		 * library changes are needed. */
+		plain = wpabuf_alloc(1);
+		if (!plain)
+			return;
+		wpabuf_put_u8(plain, 0);
+		encr = eap_server_tls_encrypt(sm, &data->ssl, plain);
+		wpabuf_free(plain);
+		if (!encr)
+			return;
+		if (wpabuf_resize(&data->ssl.tls_out, wpabuf_len(encr)) < 0) {
+			wpa_printf(MSG_INFO,
+				   "EAP-TLS: Failed to resize output buffer");
+			wpabuf_free(encr);
+			return;
+		}
+		wpabuf_put_buf(data->ssl.tls_out, encr);
+		wpa_hexdump_buf(MSG_DEBUG,
+				"EAP-TLS: Data appended to the message", encr);
+		wpabuf_free(encr);
+	}
 }
 
 
@@ -322,16 +357,22 @@ static u8 * eap_tls_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	struct eap_tls_data *data = priv;
 	u8 *eapKeyData;
 	const char *label;
+	const u8 eap_tls13_context[] = { EAP_TYPE_TLS };
+	const u8 *context = NULL;
+	size_t context_len = 0;
 
 	if (data->state != SUCCESS)
 		return NULL;
 
-	if (data->ssl.tls_v13)
+	if (data->ssl.tls_v13) {
 		label = "EXPORTER_EAP_TLS_Key_Material";
-	else
+		context = eap_tls13_context;
+		context_len = 1;
+	} else {
 		label = "client EAP encryption";
+	}
 	eapKeyData = eap_server_tls_derive_key(sm, &data->ssl, label,
-					       NULL, 0,
+					       context, context_len,
 					       EAP_TLS_KEY_LEN + EAP_EMSK_LEN);
 	if (eapKeyData) {
 		*len = EAP_TLS_KEY_LEN;
@@ -351,16 +392,22 @@ static u8 * eap_tls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 	struct eap_tls_data *data = priv;
 	u8 *eapKeyData, *emsk;
 	const char *label;
+	const u8 eap_tls13_context[] = { EAP_TYPE_TLS };
+	const u8 *context = NULL;
+	size_t context_len = 0;
 
 	if (data->state != SUCCESS)
 		return NULL;
 
-	if (data->ssl.tls_v13)
+	if (data->ssl.tls_v13) {
 		label = "EXPORTER_EAP_TLS_Key_Material";
-	else
+		context = eap_tls13_context;
+		context_len = 1;
+	} else {
 		label = "client EAP encryption";
+	}
 	eapKeyData = eap_server_tls_derive_key(sm, &data->ssl, label,
-					       NULL, 0,
+					       context, context_len,
 					       EAP_TLS_KEY_LEN + EAP_EMSK_LEN);
 	if (eapKeyData) {
 		emsk = os_malloc(EAP_EMSK_LEN);

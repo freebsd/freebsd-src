@@ -15,6 +15,7 @@
 #include "common/wpa_common.h"
 #include "common/ieee802_11_defs.h"
 #include "common/ieee802_11_common.h"
+#include "crypto/sha256.h"
 #include "wps/wps.h"
 #include "fst/fst.h"
 #include "vlan.h"
@@ -252,6 +253,18 @@ struct sae_password_entry {
 	int vlan_id;
 };
 
+struct dpp_controller_conf {
+	struct dpp_controller_conf *next;
+	u8 pkhash[SHA256_MAC_LEN];
+	struct hostapd_ip_addr ipaddr;
+};
+
+struct airtime_sta_weight {
+	struct airtime_sta_weight *next;
+	unsigned int weight;
+	u8 addr[ETH_ALEN];
+};
+
 /**
  * struct hostapd_bss_config - Per-BSS configuration
  */
@@ -288,6 +301,7 @@ struct hostapd_bss_config {
 	int radius_request_cui;
 	struct hostapd_radius_attr *radius_auth_req_attr;
 	struct hostapd_radius_attr *radius_acct_req_attr;
+	char *radius_req_attr_sqlite;
 	int radius_das_port;
 	unsigned int radius_das_time_window;
 	int radius_das_require_event_timestamp;
@@ -390,8 +404,11 @@ struct hostapd_bss_config {
 
 	char *ca_cert;
 	char *server_cert;
+	char *server_cert2;
 	char *private_key;
+	char *private_key2;
 	char *private_key_passwd;
+	char *private_key_passwd2;
 	char *check_cert_subject;
 	int check_crl;
 	int check_crl_strict;
@@ -410,7 +427,10 @@ struct hostapd_bss_config {
 	int eap_fast_prov;
 	int pac_key_lifetime;
 	int pac_key_refresh_time;
+	int eap_teap_auth;
+	int eap_teap_pac_no_inner;
 	int eap_sim_aka_result_ind;
+	int eap_sim_id;
 	int tnc;
 	int fragment_size;
 	u16 pwd_group;
@@ -570,6 +590,7 @@ struct hostapd_bss_config {
 	int osen;
 	int proxy_arp;
 	int na_mcast_to_ucast;
+
 #ifdef CONFIG_HS20
 	int hs20;
 	int hs20_release;
@@ -692,6 +713,9 @@ struct hostapd_bss_config {
 	struct wpabuf *dpp_netaccesskey;
 	unsigned int dpp_netaccesskey_expiry;
 	struct wpabuf *dpp_csign;
+#ifdef CONFIG_DPP2
+	struct dpp_controller_conf *dpp_controller;
+#endif /* CONFIG_DPP2 */
 #endif /* CONFIG_DPP */
 
 #ifdef CONFIG_OWE
@@ -709,6 +733,100 @@ struct hostapd_bss_config {
 #define BACKHAUL_BSS 1
 #define FRONTHAUL_BSS 2
 	int multi_ap; /* bitmap of BACKHAUL_BSS, FRONTHAUL_BSS */
+
+#ifdef CONFIG_AIRTIME_POLICY
+	unsigned int airtime_weight;
+	int airtime_limit;
+	struct airtime_sta_weight *airtime_weight_list;
+#endif /* CONFIG_AIRTIME_POLICY */
+
+#ifdef CONFIG_MACSEC
+	/**
+	 * macsec_policy - Determines the policy for MACsec secure session
+	 *
+	 * 0: MACsec not in use (default)
+	 * 1: MACsec enabled - Should secure, accept key server's advice to
+	 *    determine whether to use a secure session or not.
+	 */
+	int macsec_policy;
+
+	/**
+	 * macsec_integ_only - Determines how MACsec are transmitted
+	 *
+	 * This setting applies only when MACsec is in use, i.e.,
+	 *  - macsec_policy is enabled
+	 *  - the key server has decided to enable MACsec
+	 *
+	 * 0: Encrypt traffic (default)
+	 * 1: Integrity only
+	 */
+	int macsec_integ_only;
+
+	/**
+	 * macsec_replay_protect - Enable MACsec replay protection
+	 *
+	 * This setting applies only when MACsec is in use, i.e.,
+	 *  - macsec_policy is enabled
+	 *  - the key server has decided to enable MACsec
+	 *
+	 * 0: Replay protection disabled (default)
+	 * 1: Replay protection enabled
+	 */
+	int macsec_replay_protect;
+
+	/**
+	 * macsec_replay_window - MACsec replay protection window
+	 *
+	 * A window in which replay is tolerated, to allow receipt of frames
+	 * that have been misordered by the network.
+	 *
+	 * This setting applies only when MACsec replay protection active, i.e.,
+	 *  - macsec_replay_protect is enabled
+	 *  - the key server has decided to enable MACsec
+	 *
+	 * 0: No replay window, strict check (default)
+	 * 1..2^32-1: number of packets that could be misordered
+	 */
+	u32 macsec_replay_window;
+
+	/**
+	 * macsec_port - MACsec port (in SCI)
+	 *
+	 * Port component of the SCI.
+	 *
+	 * Range: 1-65534 (default: 1)
+	 */
+	int macsec_port;
+
+	/**
+	 * mka_priority - Priority of MKA Actor
+	 *
+	 * Range: 0-255 (default: 255)
+	 */
+	int mka_priority;
+
+	/**
+	 * mka_ckn - MKA pre-shared CKN
+	 */
+#define MACSEC_CKN_MAX_LEN 32
+	size_t mka_ckn_len;
+	u8 mka_ckn[MACSEC_CKN_MAX_LEN];
+
+	/**
+	 * mka_cak - MKA pre-shared CAK
+	 */
+#define MACSEC_CAK_MAX_LEN 32
+	size_t mka_cak_len;
+	u8 mka_cak[MACSEC_CAK_MAX_LEN];
+
+#define MKA_PSK_SET_CKN BIT(0)
+#define MKA_PSK_SET_CAK BIT(1)
+#define MKA_PSK_SET (MKA_PSK_SET_CKN | MKA_PSK_SET_CAK)
+	/**
+	 * mka_psk_set - Whether mka_ckn and mka_cak are set
+	 */
+	u8 mka_psk_set;
+#endif /* CONFIG_MACSEC */
 };
 
 /**
@@ -727,7 +845,20 @@ struct he_operation {
 	u8 he_bss_color;
 	u8 he_default_pe_duration;
 	u8 he_twt_required;
-	u8 he_rts_threshold;
+	u16 he_rts_threshold;
+	u16 he_basic_mcs_nss_set;
+};
+
+/**
+ * struct spatial_reuse - Spatial reuse
+ */
+struct spatial_reuse {
+	u8 sr_control;
+	u8 non_srg_obss_pd_max_offset;
+	u8 srg_obss_pd_min_offset;
+	u8 srg_obss_pd_max_offset;
+	u8 srg_obss_color_bitmap;
+	u8 srg_obss_color_partial_bitmap;
 };
 
 /**
@@ -852,6 +983,10 @@ struct hostapd_config {
 	struct he_phy_capabilities_info he_phy_capab;
 	struct he_operation he_op;
 	struct ieee80211_he_mu_edca_parameter_set he_mu_edca;
+	struct spatial_reuse spr;
+	u8 he_oper_chwidth;
+	u8 he_oper_centr_freq_seg0_idx;
+	u8 he_oper_centr_freq_seg1_idx;
 #endif /* CONFIG_IEEE80211AX */
 
 	/* VHT enable/disable config from CHAN_SWITCH */
@@ -861,12 +996,87 @@ struct hostapd_config {
 
 	int rssi_reject_assoc_rssi;
 	int rssi_reject_assoc_timeout;
+
+#ifdef CONFIG_AIRTIME_POLICY
+	enum {
+		AIRTIME_MODE_OFF = 0,
+		AIRTIME_MODE_STATIC = 1,
+		AIRTIME_MODE_DYNAMIC = 2,
+		AIRTIME_MODE_LIMIT = 3,
+		__AIRTIME_MODE_MAX,
+	} airtime_mode;
+	unsigned int airtime_update_interval;
+#define AIRTIME_MODE_MAX (__AIRTIME_MODE_MAX - 1)
+#endif /* CONFIG_AIRTIME_POLICY */
 };
+
+
+static inline u8 hostapd_get_oper_chwidth(struct hostapd_config *conf)
+{
+#ifdef CONFIG_IEEE80211AX
+	if (conf->ieee80211ax)
+		return conf->he_oper_chwidth;
+#endif /* CONFIG_IEEE80211AX */
+	return conf->vht_oper_chwidth;
+}
+
+static inline void
+hostapd_set_oper_chwidth(struct hostapd_config *conf, u8 oper_chwidth)
+{
+#ifdef CONFIG_IEEE80211AX
+	if (conf->ieee80211ax)
+		conf->he_oper_chwidth = oper_chwidth;
+#endif /* CONFIG_IEEE80211AX */
+	conf->vht_oper_chwidth = oper_chwidth;
+}
+
+static inline u8
+hostapd_get_oper_centr_freq_seg0_idx(struct hostapd_config *conf)
+{
+#ifdef CONFIG_IEEE80211AX
+	if (conf->ieee80211ax)
+		return conf->he_oper_centr_freq_seg0_idx;
+#endif /* CONFIG_IEEE80211AX */
+	return conf->vht_oper_centr_freq_seg0_idx;
+}
+
+static inline void
+hostapd_set_oper_centr_freq_seg0_idx(struct hostapd_config *conf,
+				     u8 oper_centr_freq_seg0_idx)
+{
+#ifdef CONFIG_IEEE80211AX
+	if (conf->ieee80211ax)
+		conf->he_oper_centr_freq_seg0_idx = oper_centr_freq_seg0_idx;
+#endif /* CONFIG_IEEE80211AX */
+	conf->vht_oper_centr_freq_seg0_idx = oper_centr_freq_seg0_idx;
+}
+
+static inline u8
+hostapd_get_oper_centr_freq_seg1_idx(struct hostapd_config *conf)
+{
+#ifdef CONFIG_IEEE80211AX
+	if (conf->ieee80211ax)
+		return conf->he_oper_centr_freq_seg1_idx;
+#endif /* CONFIG_IEEE80211AX */
+	return conf->vht_oper_centr_freq_seg1_idx;
+}
+
+static inline void
+hostapd_set_oper_centr_freq_seg1_idx(struct hostapd_config *conf,
+				     u8 oper_centr_freq_seg1_idx)
+{
+#ifdef CONFIG_IEEE80211AX
+	if (conf->ieee80211ax)
+		conf->he_oper_centr_freq_seg1_idx = oper_centr_freq_seg1_idx;
+#endif /* CONFIG_IEEE80211AX */
+	conf->vht_oper_centr_freq_seg1_idx = oper_centr_freq_seg1_idx;
+}
 
 
 int hostapd_mac_comp(const void *a, const void *b);
 struct hostapd_config * hostapd_config_defaults(void);
 void hostapd_config_defaults_bss(struct hostapd_bss_config *bss);
+void hostapd_config_free_radius_attr(struct hostapd_radius_attr *attr);
 void hostapd_config_free_eap_user(struct hostapd_eap_user *user);
 void hostapd_config_free_eap_users(struct hostapd_eap_user *user);
 void hostapd_config_clear_wpa_psk(struct hostapd_wpa_psk **p);
@@ -885,6 +1095,7 @@ const char * hostapd_get_vlan_id_ifname(struct hostapd_vlan *vlan,
 					int vlan_id);
 struct hostapd_radius_attr *
 hostapd_config_get_radius_attr(struct hostapd_radius_attr *attr, u8 type);
+struct hostapd_radius_attr * hostapd_parse_radius_attr(const char *value);
 int hostapd_config_check(struct hostapd_config *conf, int full_config);
 void hostapd_set_security_params(struct hostapd_bss_config *bss,
 				 int full_config);

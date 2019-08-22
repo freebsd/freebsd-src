@@ -9,6 +9,7 @@
 #include "includes.h"
 #include "common.h"
 #include "utils/const_time.h"
+#include "common/dragonfly.h"
 #include "crypto/sha256.h"
 #include "crypto/crypto.h"
 #include "eap_defs.h"
@@ -85,20 +86,11 @@ static int eap_pwd_kdf(const u8 *key, size_t keylen, const u8 *label,
 }
 
 
-static int eap_pwd_suitable_group(u16 num)
-{
-	/* Do not allow ECC groups with prime under 256 bits based on guidance
-	 * for the similar design in SAE. */
-	return num == 19 || num == 20 || num == 21 ||
-		num == 28 || num == 29 || num == 30;
-}
-
-
 EAP_PWD_group * get_eap_pwd_group(u16 num)
 {
 	EAP_PWD_group *grp;
 
-	if (!eap_pwd_suitable_group(num)) {
+	if (!dragonfly_suitable_group(num, 1)) {
 		wpa_printf(MSG_INFO, "EAP-pwd: unsuitable group %u", num);
 		return NULL;
 	}
@@ -119,15 +111,6 @@ EAP_PWD_group * get_eap_pwd_group(u16 num)
 }
 
 
-static void buf_shift_right(u8 *buf, size_t len, size_t bits)
-{
-	size_t i;
-	for (i = len - 1; i > 0; i--)
-		buf[i] = (buf[i - 1] << (8 - bits)) | (buf[i] >> bits);
-	buf[0] >>= bits;
-}
-
-
 /*
  * compute a "random" secret point on an elliptic curve based
  * on the password and identities.
@@ -138,22 +121,24 @@ int compute_password_element(EAP_PWD_group *grp, u16 num,
 			     const u8 *id_peer, size_t id_peer_len,
 			     const u8 *token)
 {
-	struct crypto_bignum *qr = NULL, *qnr = NULL, *one = NULL;
-	struct crypto_bignum *qr_or_qnr = NULL;
+	struct crypto_bignum *qr = NULL, *qnr = NULL;
 	u8 qr_bin[MAX_ECC_PRIME_LEN];
 	u8 qnr_bin[MAX_ECC_PRIME_LEN];
 	u8 qr_or_qnr_bin[MAX_ECC_PRIME_LEN];
 	u8 x_bin[MAX_ECC_PRIME_LEN];
-	struct crypto_bignum *tmp1 = NULL, *tmp2 = NULL, *pm1 = NULL;
+	u8 prime_bin[MAX_ECC_PRIME_LEN];
+	struct crypto_bignum *tmp2 = NULL;
 	struct crypto_hash *hash;
 	unsigned char pwe_digest[SHA256_MAC_LEN], *prfbuf = NULL, ctr;
-	int ret = 0, check, res;
+	int ret = 0, res;
 	u8 found = 0; /* 0 (false) or 0xff (true) to be used as const_time_*
 		       * mask */
 	size_t primebytelen = 0, primebitlen;
 	struct crypto_bignum *x_candidate = NULL;
 	const struct crypto_bignum *prime;
-	u8 mask, found_ctr = 0, is_odd = 0;
+	u8 found_ctr = 0, is_odd = 0;
+	int cmp_prime;
+	unsigned int in_range;
 
 	if (grp->pwe)
 		return -1;
@@ -161,41 +146,26 @@ int compute_password_element(EAP_PWD_group *grp, u16 num,
 	os_memset(x_bin, 0, sizeof(x_bin));
 
 	prime = crypto_ec_get_prime(grp->group);
+	primebitlen = crypto_ec_prime_len_bits(grp->group);
+	primebytelen = crypto_ec_prime_len(grp->group);
+	if (crypto_bignum_to_bin(prime, prime_bin, sizeof(prime_bin),
+				 primebytelen) < 0)
+		return -1;
 	grp->pwe = crypto_ec_point_init(grp->group);
-	tmp1 = crypto_bignum_init();
-	pm1 = crypto_bignum_init();
-	one = crypto_bignum_init_set((const u8 *) "\x01", 1);
-	if (!grp->pwe || !tmp1 || !pm1 || !one) {
+	if (!grp->pwe) {
 		wpa_printf(MSG_INFO, "EAP-pwd: unable to create bignums");
 		goto fail;
 	}
 
-	primebitlen = crypto_ec_prime_len_bits(grp->group);
-	primebytelen = crypto_ec_prime_len(grp->group);
 	if ((prfbuf = os_malloc(primebytelen)) == NULL) {
 		wpa_printf(MSG_INFO, "EAP-pwd: unable to malloc space for prf "
 			   "buffer");
 		goto fail;
 	}
-	if (crypto_bignum_sub(prime, one, pm1) < 0)
-		goto fail;
 
 	/* get a random quadratic residue and nonresidue */
-	while (!qr || !qnr) {
-		if (crypto_bignum_rand(tmp1, prime) < 0)
-			goto fail;
-		res = crypto_bignum_legendre(tmp1, prime);
-		if (!qr && res == 1) {
-			qr = tmp1;
-			tmp1 = crypto_bignum_init();
-		} else if (!qnr && res == -1) {
-			qnr = tmp1;
-			tmp1 = crypto_bignum_init();
-		}
-		if (!tmp1)
-			goto fail;
-	}
-	if (crypto_bignum_to_bin(qr, qr_bin, sizeof(qr_bin),
+	if (dragonfly_get_random_qr_qnr(prime, &qr, &qnr) < 0 ||
+	    crypto_bignum_to_bin(qr, qr_bin, sizeof(qr_bin),
 				 primebytelen) < 0 ||
 	    crypto_bignum_to_bin(qnr, qnr_bin, sizeof(qnr_bin),
 				 primebytelen) < 0)
@@ -237,6 +207,13 @@ int compute_password_element(EAP_PWD_group *grp, u16 num,
 		if (primebitlen % 8)
 			buf_shift_right(prfbuf, primebytelen,
 					8 - primebitlen % 8);
+		cmp_prime = const_time_memcmp(prfbuf, prime_bin, primebytelen);
+		/* Create a const_time mask for selection based on prf result
+		 * being smaller than prime. */
+		in_range = const_time_fill_msb((unsigned int) cmp_prime);
+		/* The algorithm description would skip the next steps if
+		 * cmp_prime >= 0, but go through them regardless to minimize
+		 * externally observable differences in behavior. */
 
 		crypto_bignum_deinit(x_candidate, 1);
 		x_candidate = crypto_bignum_init_set(prfbuf, primebytelen);
@@ -245,9 +222,6 @@ int compute_password_element(EAP_PWD_group *grp, u16 num,
 				   "EAP-pwd: unable to create x_candidate");
 			goto fail;
 		}
-
-		if (crypto_bignum_cmp(x_candidate, prime) >= 0)
-			continue;
 
 		wpa_hexdump_key(MSG_DEBUG, "EAP-pwd: x_candidate",
 				prfbuf, primebytelen);
@@ -264,46 +238,16 @@ int compute_password_element(EAP_PWD_group *grp, u16 num,
 		if (!tmp2)
 			goto fail;
 
-		/*
-		 * mask tmp2 so doing legendre won't leak timing info
-		 *
-		 * tmp1 is a random number between 1 and p-1
-		 */
-		if (crypto_bignum_rand(tmp1, pm1) < 0 ||
-		    crypto_bignum_mulmod(tmp2, tmp1, prime, tmp2) < 0 ||
-		    crypto_bignum_mulmod(tmp2, tmp1, prime, tmp2) < 0)
+		res = dragonfly_is_quadratic_residue_blind(grp->group, qr_bin,
+							   qnr_bin, tmp2);
+		if (res < 0)
 			goto fail;
-
-		/*
-		 * Now tmp2 (y^2) is masked, all values between 1 and p-1
-		 * are equally probable. Multiplying by r^2 does not change
-		 * whether or not tmp2 is a quadratic residue, just masks it.
-		 *
-		 * Flip a coin, multiply by the random quadratic residue or the
-		 * random quadratic nonresidue and record heads or tails.
-		 */
-		mask = const_time_eq_u8(crypto_bignum_is_odd(tmp1), 1);
-		check = const_time_select_s8(mask, 1, -1);
-		const_time_select_bin(mask, qr_bin, qnr_bin, primebytelen,
-				      qr_or_qnr_bin);
-		crypto_bignum_deinit(qr_or_qnr, 1);
-		qr_or_qnr = crypto_bignum_init_set(qr_or_qnr_bin, primebytelen);
-		if (!qr_or_qnr ||
-		    crypto_bignum_mulmod(tmp2, qr_or_qnr, prime, tmp2) < 0)
-			goto fail;
-
-		/*
-		 * Now it's safe to do legendre, if check is 1 then it's
-		 * a straightforward test (multiplying by qr does not
-		 * change result), if check is -1 then it's the opposite test
-		 * (multiplying a qr by qnr would make a qnr).
-		 */
-		res = crypto_bignum_legendre(tmp2, prime);
-		if (res == -2)
-			goto fail;
-		mask = const_time_eq(res, check);
 		found_ctr = const_time_select_u8(found, found_ctr, ctr);
-		found |= mask;
+		/* found is 0 or 0xff here and res is 0 or 1. Bitwise OR of them
+		 * (with res converted to 0/0xff and masked with prf being below
+		 * prime) handles this in constant time.
+		 */
+		found |= (res & in_range) * 0xff;
 	}
 	if (found == 0) {
 		wpa_printf(MSG_INFO,
@@ -344,13 +288,9 @@ int compute_password_element(EAP_PWD_group *grp, u16 num,
 	}
 	/* cleanliness and order.... */
 	crypto_bignum_deinit(x_candidate, 1);
-	crypto_bignum_deinit(pm1, 0);
-	crypto_bignum_deinit(tmp1, 1);
 	crypto_bignum_deinit(tmp2, 1);
 	crypto_bignum_deinit(qr, 1);
 	crypto_bignum_deinit(qnr, 1);
-	crypto_bignum_deinit(qr_or_qnr, 1);
-	crypto_bignum_deinit(one, 0);
 	bin_clear_free(prfbuf, primebytelen);
 	os_memset(qr_bin, 0, sizeof(qr_bin));
 	os_memset(qnr_bin, 0, sizeof(qnr_bin));
@@ -504,25 +444,6 @@ int eap_pwd_get_rand_mask(EAP_PWD_group *group, struct crypto_bignum *_rand,
 			  struct crypto_bignum *_mask,
 			  struct crypto_bignum *scalar)
 {
-	const struct crypto_bignum *order;
-	int count;
-
-	order = crypto_ec_get_order(group->group);
-
-	/* Select two random values rand,mask such that 1 < rand,mask < r and
-	 * rand + mask mod r > 1. */
-	for (count = 0; count < 100; count++) {
-		if (crypto_bignum_rand(_rand, order) == 0 &&
-		    !crypto_bignum_is_zero(_rand) &&
-		    crypto_bignum_rand(_mask, order) == 0 &&
-		    !crypto_bignum_is_zero(_mask) &&
-		    crypto_bignum_add(_rand, _mask, scalar) == 0 &&
-		    crypto_bignum_mod(scalar, order, scalar) == 0 &&
-		    !crypto_bignum_is_zero(scalar) &&
-		    !crypto_bignum_is_one(scalar))
-			return 0;
-	}
-
-	wpa_printf(MSG_INFO, "EAP-pwd: unable to get randomness");
-	return -1;
+	return dragonfly_generate_scalar(crypto_ec_get_order(group->group),
+					 _rand, _mask, scalar);
 }

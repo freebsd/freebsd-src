@@ -1,5 +1,34 @@
 ChangeLog for wpa_supplicant
 
+2019-08-07 - v2.9
+	* SAE changes
+	  - disable use of groups using Brainpool curves
+	  - improved protection against side channel attacks
+	  [https://w1.fi/security/2019-6/]
+	* EAP-pwd changes
+	  - disable use of groups using Brainpool curves
+	  - allow the set of groups to be configured (eap_pwd_groups)
+	  - improved protection against side channel attacks
+	  [https://w1.fi/security/2019-6/]
+	* fixed FT-EAP initial mobility domain association using PMKSA caching
+	  (disabled by default for backwards compatibility; can be enabled
+	  with ft_eap_pmksa_caching=1)
+	* fixed a regression in OpenSSL 1.1+ engine loading
+	* added validation of RSNE in (Re)Association Response frames
+	* fixed DPP bootstrapping URI parser of channel list
+	* extended EAP-SIM/AKA fast re-authentication to allow use with FILS
+	* extended ca_cert_blob to support PEM format
+	* improved robustness of P2P Action frame scheduling
+	* added support for EAP-SIM/AKA using anonymous@realm identity
+	* fixed Hotspot 2.0 credential selection based on roaming consortium
+	  to ignore credentials without a specific EAP method
+	* added experimental support for EAP-TEAP peer (RFC 7170)
+	* added experimental support for EAP-TLS peer with TLS v1.3
+	* fixed a regression in WMM parameter configuration for a TDLS peer
+	* fixed a regression in operation with drivers that offload 802.1X
+	  4-way handshake
+	* fixed an ECDH operation corner case with OpenSSL
+
 2019-04-21 - v2.8
 	* SAE changes
 	  - added support for SAE Password Identifier

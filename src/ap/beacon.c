@@ -347,7 +347,7 @@ static u8 * hostapd_eid_supported_op_classes(struct hostapd_data *hapd, u8 *eid)
 
 	if (ieee80211_freq_to_channel_ext(hapd->iface->freq,
 					  hapd->iconf->secondary_channel,
-					  hapd->iconf->vht_oper_chwidth,
+					  hostapd_get_oper_chwidth(hapd->iconf),
 					  &op_class, &channel) ==
 	    NUM_HOSTAPD_MODES)
 		return eid;
@@ -398,7 +398,8 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
 	if (hapd->iconf->ieee80211ax) {
 		buflen += 3 + sizeof(struct ieee80211_he_capabilities) +
 			3 + sizeof(struct ieee80211_he_operation) +
-			3 + sizeof(struct ieee80211_he_mu_edca_parameter_set);
+			3 + sizeof(struct ieee80211_he_mu_edca_parameter_set) +
+			3 + sizeof(struct ieee80211_spatial_reuse);
 	}
 #endif /* CONFIG_IEEE80211AX */
 
@@ -509,9 +510,10 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
 
 #ifdef CONFIG_IEEE80211AX
 	if (hapd->iconf->ieee80211ax) {
-		pos = hostapd_eid_he_capab(hapd, pos);
+		pos = hostapd_eid_he_capab(hapd, pos, IEEE80211_MODE_AP);
 		pos = hostapd_eid_he_operation(hapd, pos);
 		pos = hostapd_eid_he_mu_edca_parameter_set(hapd, pos);
+		pos = hostapd_eid_spatial_reuse(hapd, pos);
 	}
 #endif /* CONFIG_IEEE80211AX */
 
@@ -593,7 +595,7 @@ static enum ssid_match_result ssid_match(struct hostapd_data *hapd,
 
 	pos = ssid_list;
 	end = ssid_list + ssid_list_len;
-	while (end - pos >= 1) {
+	while (end - pos >= 2) {
 		if (2 + pos[1] > end - pos)
 			break;
 		if (pos[1] == 0)
@@ -1088,7 +1090,8 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
 	if (hapd->iconf->ieee80211ax) {
 		tail_len += 3 + sizeof(struct ieee80211_he_capabilities) +
 			3 + sizeof(struct ieee80211_he_operation) +
-			3 + sizeof(struct ieee80211_he_mu_edca_parameter_set);
+			3 + sizeof(struct ieee80211_he_mu_edca_parameter_set) +
+			3 + sizeof(struct ieee80211_spatial_reuse);
 	}
 #endif /* CONFIG_IEEE80211AX */
 
@@ -1223,9 +1226,11 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
 
 #ifdef CONFIG_IEEE80211AX
 	if (hapd->iconf->ieee80211ax) {
-		tailpos = hostapd_eid_he_capab(hapd, tailpos);
+		tailpos = hostapd_eid_he_capab(hapd, tailpos,
+					       IEEE80211_MODE_AP);
 		tailpos = hostapd_eid_he_operation(hapd, tailpos);
 		tailpos = hostapd_eid_he_mu_edca_parameter_set(hapd, tailpos);
+		tailpos = hostapd_eid_spatial_reuse(hapd, tailpos);
 	}
 #endif /* CONFIG_IEEE80211AX */
 
@@ -1394,6 +1399,7 @@ int ieee802_11_set_beacon(struct hostapd_data *hapd)
 	struct hostapd_freq_params freq;
 	struct hostapd_iface *iface = hapd->iface;
 	struct hostapd_config *iconf = iface->conf;
+	struct hostapd_hw_modes *cmode = iface->current_mode;
 	struct wpabuf *beacon, *proberesp, *assocresp;
 	int res, ret = -1;
 
@@ -1417,15 +1423,16 @@ int ieee802_11_set_beacon(struct hostapd_data *hapd)
 	params.reenable = hapd->reenable_beacon;
 	hapd->reenable_beacon = 0;
 
-	if (iface->current_mode &&
+	if (cmode &&
 	    hostapd_set_freq_params(&freq, iconf->hw_mode, iface->freq,
 				    iconf->channel, iconf->ieee80211n,
-				    iconf->ieee80211ac,
+				    iconf->ieee80211ac, iconf->ieee80211ax,
 				    iconf->secondary_channel,
-				    iconf->vht_oper_chwidth,
-				    iconf->vht_oper_centr_freq_seg0_idx,
-				    iconf->vht_oper_centr_freq_seg1_idx,
-				    iface->current_mode->vht_capab) == 0)
+				    hostapd_get_oper_chwidth(iconf),
+				    hostapd_get_oper_centr_freq_seg0_idx(iconf),
+				    hostapd_get_oper_centr_freq_seg1_idx(iconf),
+				    cmode->vht_capab,
+				    &cmode->he_capab[IEEE80211_MODE_AP]) == 0)
 		params.freq = &freq;
 
 	res = hostapd_drv_set_ap(hapd, &params);
