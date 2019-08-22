@@ -215,11 +215,13 @@ static int
 nvme_pci_detach(device_t dev)
 {
 	struct nvme_controller*ctrlr = DEVICE2SOFTC(dev);
+	int rv;
 
+	rv = nvme_detach(dev);
 	if (ctrlr->msix_enabled)
 		pci_release_msi(dev);
 	pci_disable_busmaster(dev);
-	return (nvme_detach(dev));
+	return (rv);
 }
 
 static int
