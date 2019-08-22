@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,8 +19,6 @@
 #if OMPT_SUPPORT
 #include "ompt-specific.h"
 #endif
-
-#if OMP_40_ENABLED
 
 // TODO: Improve memory allocation? keep a list of pre-allocated structures?
 // allocate in blocks? re-use list finished list entries?
@@ -536,10 +533,8 @@ kmp_int32 __kmpc_omp_task_with_deps(ident_t *loc_ref, kmp_int32 gtid,
   bool serial = current_task->td_flags.team_serial ||
                 current_task->td_flags.tasking_ser ||
                 current_task->td_flags.final;
-#if OMP_45_ENABLED
   kmp_task_team_t *task_team = thread->th.th_task_team;
   serial = serial && !(task_team && task_team->tt.tt_found_proxy_tasks);
-#endif
 
   if (!serial && (ndeps > 0 || ndeps_noalias > 0)) {
     /* if no dependencies have been tracked yet, create the dependence hash */
@@ -624,10 +619,8 @@ void __kmpc_omp_wait_deps(ident_t *loc_ref, kmp_int32 gtid, kmp_int32 ndeps,
   bool ignore = current_task->td_flags.team_serial ||
                 current_task->td_flags.tasking_ser ||
                 current_task->td_flags.final;
-#if OMP_45_ENABLED
   ignore = ignore && thread->th.th_task_team != NULL &&
            thread->th.th_task_team->tt.tt_found_proxy_tasks == FALSE;
-#endif
   ignore = ignore || current_task->td_dephash == NULL;
 
   if (ignore) {
@@ -660,5 +653,3 @@ void __kmpc_omp_wait_deps(ident_t *loc_ref, kmp_int32 gtid, kmp_int32 ndeps,
   KA_TRACE(10, ("__kmpc_omp_wait_deps(exit): T#%d finished waiting : loc=%p\n",
                 gtid, loc_ref));
 }
-
-#endif /* OMP_40_ENABLED */

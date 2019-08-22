@@ -3,10 +3,9 @@
 #
 #//===----------------------------------------------------------------------===//
 #//
-#//                     The LLVM Compiler Infrastructure
-#//
-#// This file is dual licensed under the MIT and the University of Illinois Open
-#// Source Licenses. See LICENSE.txt for details.
+#// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+#// See https://llvm.org/LICENSE.txt for license information.
+#// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #//
 #//===----------------------------------------------------------------------===//
 #
@@ -39,7 +38,6 @@ VERSION {
 
         _You_must_link_with_*;     # Mutual detection/MS compatibility symbols.
 
-
         #
         # Debugger support.
         #
@@ -55,7 +53,6 @@ VERSION {
         ___kmp_allocate;
         ___kmp_free;
         __kmp_thread_pool;
-        __kmp_thread_pool_nth;
 
 	__kmp_reset_stats;
 
@@ -84,7 +81,7 @@ VERSION {
         __kmp_reap_worker;
         __kmp_release_64;
         __kmp_wait_64;
-        __kmp_wait_yield_4;
+        __kmp_wait_4;
 
         # ittnotify symbols to be used by debugger
         __kmp_itt_fini_ittlib;

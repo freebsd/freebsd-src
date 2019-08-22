@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -211,7 +210,8 @@ ompt_data_t *__ompt_get_thread_data_internal() {
 void __ompt_thread_assign_wait_id(void *variable) {
   kmp_info_t *ti = ompt_get_thread();
 
-  ti->th.ompt_thread_info.wait_id = (ompt_wait_id_t)(uintptr_t)variable;
+  if (ti)
+    ti->th.ompt_thread_info.wait_id = (ompt_wait_id_t)(uintptr_t)variable;
 }
 
 int __ompt_get_state_internal(ompt_wait_id_t *omp_wait_id) {
@@ -428,6 +428,38 @@ int __ompt_get_task_info_internal(int ancestor_level, int *type,
   return 0;
 }
 
+int __ompt_get_task_memory_internal(void **addr, size_t *size, int blocknum) {
+  if (blocknum != 0)
+    return 0; // support only a single block
+
+  kmp_info_t *thr = ompt_get_thread();
+  if (!thr)
+    return 0;
+
+  kmp_taskdata_t *taskdata = thr->th.th_current_task;
+  kmp_task_t *task = KMP_TASKDATA_TO_TASK(taskdata);
+
+  if (taskdata->td_flags.tasktype != TASK_EXPLICIT)
+    return 0; // support only explicit task
+
+  void *ret_addr;
+  int64_t ret_size = taskdata->td_size_alloc - sizeof(kmp_taskdata_t);
+
+  // kmp_task_t->data1 is an optional member
+  if (taskdata->td_flags.destructors_thunk)
+    ret_addr = &task->data1 + 1;
+  else
+    ret_addr = &task->part_id + 1;
+
+  ret_size -= (char *)(ret_addr) - (char *)(task);
+  if (ret_size < 0)
+    return 0;
+
+  *addr = ret_addr;
+  *size = ret_size;
+  return 1;
+}
+
 //----------------------------------------------------------
 // team support
 //----------------------------------------------------------
@@ -448,4 +480,26 @@ static uint64_t __ompt_get_unique_id_internal() {
     ID = new_thread << (sizeof(uint64_t) * 8 - OMPT_THREAD_ID_BITS);
   }
   return ++ID;
+}
+
+ompt_sync_region_t __ompt_get_barrier_kind(enum barrier_type bt,
+                                           kmp_info_t *thr) {
+  if (bt == bs_forkjoin_barrier)
+    return ompt_sync_region_barrier_implicit;
+
+  if (bt != bs_plain_barrier)
+    return ompt_sync_region_barrier_implementation;
+
+  if (!thr->th.th_ident)
+    return ompt_sync_region_barrier;
+
+  kmp_int32 flags = thr->th.th_ident->flags;
+
+  if ((flags & KMP_IDENT_BARRIER_EXPL) != 0)
+    return ompt_sync_region_barrier_explicit;
+
+  if ((flags & KMP_IDENT_BARRIER_IMPL) != 0)
+    return ompt_sync_region_barrier_implicit;
+
+  return ompt_sync_region_barrier_implementation;
 }
