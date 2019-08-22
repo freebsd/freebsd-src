@@ -73,11 +73,11 @@ void
 BF_set_key(key, len, data)
 	BF_KEY *key;
 	int len;
-	unsigned char *data;
+	const unsigned char *data;
 {
 	int i;
 	BF_LONG *p, ri, in[2];
-	unsigned char *d, *end;
+	const unsigned char *d, *end;
 
 	memcpy((char *)key, (const char *)&bf_init, sizeof(BF_KEY));
 	p = key->P;

@@ -52,12 +52,12 @@ __FBSDID("$FreeBSD$");
 
 #include <opencrypto/xform_enc.h>
 
-static	int aes_icm_setkey(u_int8_t **, u_int8_t *, int);
+static	int aes_icm_setkey(u_int8_t **, const u_int8_t *, int);
 static	void aes_icm_crypt(caddr_t, u_int8_t *);
 static	void aes_icm_zerokey(u_int8_t **);
-static	void aes_icm_reinit(caddr_t, u_int8_t *);
-static	void aes_gcm_reinit(caddr_t, u_int8_t *);
-static	void aes_ccm_reinit(caddr_t, u_int8_t *);
+static	void aes_icm_reinit(caddr_t, const u_int8_t *);
+static	void aes_gcm_reinit(caddr_t, const u_int8_t *);
+static	void aes_ccm_reinit(caddr_t, const u_int8_t *);
 
 /* Encryption instances */
 struct enc_xform enc_xform_aes_icm = {
@@ -96,7 +96,7 @@ struct enc_xform enc_xform_ccm = {
  * Encryption wrapper routines.
  */
 static void
-aes_icm_reinit(caddr_t key, u_int8_t *iv)
+aes_icm_reinit(caddr_t key, const u_int8_t *iv)
 {
 	struct aes_icm_ctx *ctx;
 
@@ -105,7 +105,7 @@ aes_icm_reinit(caddr_t key, u_int8_t *iv)
 }
 
 static void
-aes_gcm_reinit(caddr_t key, u_int8_t *iv)
+aes_gcm_reinit(caddr_t key, const u_int8_t *iv)
 {
 	struct aes_icm_ctx *ctx;
 
@@ -118,7 +118,7 @@ aes_gcm_reinit(caddr_t key, u_int8_t *iv)
 }
 
 static void
-aes_ccm_reinit(caddr_t key, u_int8_t *iv)
+aes_ccm_reinit(caddr_t key, const u_int8_t *iv)
 {
 	struct aes_icm_ctx *ctx;
 
@@ -153,7 +153,7 @@ aes_icm_crypt(caddr_t key, u_int8_t *data)
 }
 
 static int
-aes_icm_setkey(u_int8_t **sched, u_int8_t *key, int len)
+aes_icm_setkey(u_int8_t **sched, const u_int8_t *key, int len)
 {
 	struct aes_icm_ctx *ctx;
 
@@ -166,7 +166,7 @@ aes_icm_setkey(u_int8_t **sched, u_int8_t *key, int len)
 		return ENOMEM;
 
 	ctx = (struct aes_icm_ctx *)*sched;
-	ctx->ac_nr = rijndaelKeySetupEnc(ctx->ac_ek, (u_char *)key, len * 8);
+	ctx->ac_nr = rijndaelKeySetupEnc(ctx->ac_ek, key, len * 8);
 	return 0;
 }
 

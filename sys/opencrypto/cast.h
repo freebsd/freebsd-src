@@ -16,7 +16,7 @@ typedef struct {
 	int		rounds;		/* Number of rounds to use, 12 or 16 */
 } cast_key;
 
-void cast_setkey(cast_key * key, u_int8_t * rawkey, int keybytes);
+void cast_setkey(cast_key * key, const u_int8_t * rawkey, int keybytes);
 void cast_encrypt(cast_key * key, u_int8_t * inblock, u_int8_t * outblock);
 void cast_decrypt(cast_key * key, u_int8_t * inblock, u_int8_t * outblock);
 
