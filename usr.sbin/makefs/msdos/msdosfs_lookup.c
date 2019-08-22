@@ -276,7 +276,7 @@ uniqdosname(struct denode *dep, struct componentname *cnp, u_char *cp)
 				return error;
 			}
 			for (dentp = (struct direntry *)bp->b_data;
-			     (char *)dentp < (char *)bp->b_data + blsize;
+			     (char *)dentp < bp->b_data + blsize;
 			     dentp++) {
 				if (dentp->deName[0] == SLOT_EMPTY) {
 					/*
