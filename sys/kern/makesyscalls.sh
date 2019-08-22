@@ -512,20 +512,20 @@ sed -e '
 		}
 		printf("\t\t*n_args = %d;\n\t\tbreak;\n\t}\n", argc) > systrace
 		printf("\t\tbreak;\n") > systracetmp
-		if (argc != 0 && !flag("NOARGS") && !flag("NOPROTO") && \
-		    !flag("NODEF")) {
-			printf("struct %s {\n", argalias) > sysarg
-			for (i = 1; i <= argc; i++)
-				printf("\tchar %s_l_[PADL_(%s)]; " \
-				    "%s %s; char %s_r_[PADR_(%s)];\n",
-				    argname[i], argtype[i],
-				    argtype[i], argname[i],
-				    argname[i], argtype[i]) > sysarg
-			printf("};\n") > sysarg
+		if (!flag("NOARGS") && !flag("NOPROTO") && !flag("NODEF")) {
+			if (argc != 0) {
+				printf("struct %s {\n", argalias) > sysarg
+				for (i = 1; i <= argc; i++)
+					printf("\tchar %s_l_[PADL_(%s)]; " \
+					    "%s %s; char %s_r_[PADR_(%s)];\n",
+					    argname[i], argtype[i],
+					    argtype[i], argname[i],
+					    argname[i], argtype[i]) > sysarg
+				printf("};\n") > sysarg
+			} else
+				printf("struct %s {\n\tregister_t dummy;\n};\n",
+				    argalias) > sysarg
 		}
-		else if (!flag("NOARGS") && !flag("NOPROTO") && !flag("NODEF"))
-			printf("struct %s {\n\tregister_t dummy;\n};\n",
-			    argalias) > sysarg
 		if (!flag("NOPROTO") && !flag("NODEF")) {
 			if (funcname == "nosys" || funcname == "lkmnosys" ||
 			    funcname == "sysarch" || funcname ~ /^freebsd/ || 
