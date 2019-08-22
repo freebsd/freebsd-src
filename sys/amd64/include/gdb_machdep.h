@@ -31,9 +31,10 @@
 #ifndef _MACHINE_GDB_MACHDEP_H_
 #define	_MACHINE_GDB_MACHDEP_H_
 
-#define	GDB_BUFSZ	(GDB_NREGS * 16)
+#define	GDB_BUFSZ	4096
 #define	GDB_NREGS	56
 #define	GDB_REG_PC	16
+_Static_assert(GDB_BUFSZ >= (GDB_NREGS * 16), "buffer fits 'g' regs");
 
 static __inline size_t
 gdb_cpu_regsz(int regnum)
