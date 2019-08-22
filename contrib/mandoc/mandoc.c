@@ -1,4 +1,4 @@
-/*	$Id: mandoc.c,v 1.114 2018/12/30 00:49:55 schwarze Exp $ */
+/*	$Id: mandoc.c,v 1.116 2019/06/27 15:07:30 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011-2015, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
@@ -494,9 +494,10 @@ time2a(time_t t)
 	size_t		 ssz;
 	int		 isz;
 
+	buf = NULL;
 	tm = localtime(&t);
 	if (tm == NULL)
-		return NULL;
+		goto fail;
 
 	/*
 	 * Reserve space:
@@ -520,7 +521,8 @@ time2a(time_t t)
 	 * of looking at LC_TIME.
 	 */
 
-	if ((isz = snprintf(p, 4 + 1, "%d, ", tm->tm_mday)) == -1)
+	isz = snprintf(p, 4 + 1, "%d, ", tm->tm_mday);
+	if (isz < 0 || isz > 4)
 		goto fail;
 	p += isz;
 
@@ -530,7 +532,7 @@ time2a(time_t t)
 
 fail:
 	free(buf);
-	return NULL;
+	return mandoc_strdup("");
 }
 
 char *
@@ -539,12 +541,15 @@ mandoc_normdate(struct roff_man *man, char *in, int ln, int pos)
 	char		*cp;
 	time_t		 t;
 
+	if (man->quick)
+		return mandoc_strdup(in == NULL ? "" : in);
+
 	/* No date specified: use today's date. */
 
-	if (in == NULL || *in == '\0' || strcmp(in, "$" "Mdocdate$") == 0) {
+	if (in == NULL || *in == '\0')
 		mandoc_msg(MANDOCERR_DATE_MISSING, ln, pos, NULL);
+	if (in == NULL || *in == '\0' || strcmp(in, "$" "Mdocdate$") == 0)
 		return time2a(time(NULL));
-	}
 
 	/* Valid mdoc(7) date format. */
 

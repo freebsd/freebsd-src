@@ -1,7 +1,7 @@
-/*	$Id: mandocdb.c,v 1.262 2018/12/30 00:49:55 schwarze Exp $ */
+/*	$Id: mandocdb.c,v 1.263 2019/05/03 18:17:12 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011-2018 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2019 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2016 Ed Maste <emaste@freebsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -1186,9 +1186,11 @@ mpages_merge(struct dba *dba, struct mparse *mp)
 				mlink->next = mlink_dest->next;
 				mlink_dest->next = mpage->mlinks;
 				mpage->mlinks = NULL;
+				goto nextpage;
 			}
-			goto nextpage;
-		} else if (meta != NULL && meta->macroset == MACROSET_MDOC) {
+			meta->macroset = MACROSET_NONE;
+		}
+		if (meta != NULL && meta->macroset == MACROSET_MDOC) {
 			mpage->form = FORM_SRC;
 			mpage->sec = meta->msec;
 			mpage->sec = mandoc_strdup(
@@ -1208,12 +1210,15 @@ mpages_merge(struct dba *dba, struct mparse *mp)
 		}
 
 		assert(mpage->desc == NULL);
-		if (meta == NULL) {
-			mpage->form = FORM_CAT;
+		if (meta == NULL || meta->sodest != NULL) {
 			mpage->sec = mandoc_strdup(mlink->dsec);
 			mpage->arch = mandoc_strdup(mlink->arch);
 			mpage->title = mandoc_strdup(mlink->name);
-			parse_cat(mpage, fd);
+			if (meta == NULL) {
+				mpage->form = FORM_CAT;
+				parse_cat(mpage, fd);
+			} else
+				mpage->form = FORM_SRC;
 		} else if (meta->macroset == MACROSET_MDOC)
 			parse_mdoc(mpage, meta, meta->first);
 		else
