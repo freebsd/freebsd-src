@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2018
+.Dd August 14, 2019
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -295,6 +295,50 @@ is 8 bytes on all supported architectures except i386.
 .Fx 11.0 ,
 armv6 used the softfp ABI even though it supported only processors
 with a floating point unit.
+.Ss Default Tool Chain
+.Fx uses a variety of tool chain components for the supported CPU
+architectures:
+.Xr clang 1
+and
+.Xr ld.lld 1
+provided by the base system,
+GNU
+.Xr gcc 1
+and Binutils
+.Xr ld 1 ,
+or an external toolchain compiler and linker provided by a port or package.
+This table shows the default tool chain for each architecture.
+.Bl -column -offset indent "Sy Architecture" "Sy Compiler" "Sy Linker"
+.It Sy Architecture Ta Sy Compiler Ta Sy Linker
+.It aarch64     Ta Clang     Ta lld
+.It amd64       Ta Clang     Ta lld
+.It arm         Ta Clang     Ta GNU ld 2.17.50
+.It armv6       Ta Clang     Ta GNU ld 2.17.50
+.It armv7       Ta Clang     Ta lld
+.It i386        Ta Clang     Ta lld
+.It mips        Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It mipsel      Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It mipselhf    Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It mipshf      Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It mipsn32     Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It mips64      Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It mips64el    Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It mips64elhf  Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It mips64hf    Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It powerpc     Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It powerpcspe  Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It powerpc64   Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.It riscv64     Ta GCC(1)    Ta GNU ld(1)
+.It riscv64sf   Ta GCC(1)    Ta GNU ld(1)
+.It sparc64     Ta GCC 4.2.1 Ta GNU ld 2.17.50
+.El
+.Pp
+(1) External toolchain provided by ports/packages.
+.Pp
+Note that GCC 4.2.1 is deprecated, and scheduled for removal on 2020-03-31.
+Any CPU architectures not migrated by then
+(to either base system Clang or external toolchain)
+may be removed from the tree after that date.
 .Ss Predefined Macros
 The compiler provides a number of predefined macros.
 Some of these provide architecture-specific details and are explained below.
