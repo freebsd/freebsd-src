@@ -418,7 +418,7 @@ do_qXfer_threads_read(void)
 	 */
 	if (offset != 0) {
 		if (offset != ctx.qXfer.last_offset) {
-			printf("%s: Resumed offset %ju != expected %ju\n",
+			printf("%s: Resumed offset %ju != expected %zu\n",
 			    __func__, offset, ctx.qXfer.last_offset);
 			error = ESPIPE;
 			goto request_error;
