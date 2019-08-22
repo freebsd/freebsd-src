@@ -209,6 +209,7 @@ main(int argc, char *argv[])
 	if (*argv)
 		sel_users = argv;
 
+	save_p = NULL;
 	setutxent();
 	for (nusers = 0; (utmp = getutxent()) != NULL;) {
 		struct addrinfo hints, *res;
