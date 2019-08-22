@@ -4,10 +4,9 @@
 //
 ////===----------------------------------------------------------------------===//
 ////
-////                     The LLVM Compiler Infrastructure
-////
-//// This file is dual licensed under the MIT and the University of Illinois Open
-//// Source Licenses. See LICENSE.txt for details.
+//// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+//// See https://llvm.org/LICENSE.txt for license information.
+//// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 ////
 ////===----------------------------------------------------------------------===//
 //
@@ -233,39 +232,6 @@ __kmp_unnamed_critical_addr:
         ret
 
 	DEBUG_INFO __kmp_x86_pause
-
-// void
-// __kmp_x86_cpuid( int mode, int mode2, void *cpuid_buffer );
-
-	PROC  __kmp_x86_cpuid
-
-	pushl %ebp
-	movl  %esp,%ebp
-        pushl %edi
-        pushl %ebx
-        pushl %ecx
-        pushl %edx
-
-	movl  8(%ebp), %eax
-	movl  12(%ebp), %ecx
-	cpuid		// Query the CPUID for the current processor
-
-	movl  16(%ebp), %edi
-	movl  %eax, 0(%edi)
-	movl  %ebx, 4(%edi)
-	movl  %ecx, 8(%edi)
-	movl  %edx, 12(%edi)
-
-        popl  %edx
-        popl  %ecx
-        popl  %ebx
-        popl  %edi
-        movl  %ebp, %esp
-        popl  %ebp
-	ret
-
-	DEBUG_INFO __kmp_x86_cpuid
-
 
 # if !KMP_ASM_INTRINS
 
@@ -528,54 +494,6 @@ __kmp_unnamed_critical_addr:
 
 # endif /* !KMP_ASM_INTRINS */
 
-
-//------------------------------------------------------------------------
-// FUNCTION __kmp_load_x87_fpu_control_word
-//
-// void
-// __kmp_load_x87_fpu_control_word( kmp_int16 *p );
-//
-// parameters:
-// 	p:	4(%esp)
-        PROC  __kmp_load_x87_fpu_control_word
-
-        movl  4(%esp), %eax
-        fldcw (%eax)
-        ret
-
-        DEBUG_INFO __kmp_load_x87_fpu_control_word
-
-
-//------------------------------------------------------------------------
-// FUNCTION __kmp_store_x87_fpu_control_word
-//
-// void
-// __kmp_store_x87_fpu_control_word( kmp_int16 *p );
-//
-// parameters:
-// 	p:	4(%esp)
-        PROC  __kmp_store_x87_fpu_control_word
-
-        movl  4(%esp), %eax
-        fstcw (%eax)
-        ret
-
-        DEBUG_INFO __kmp_store_x87_fpu_control_word
-
-
-//------------------------------------------------------------------------
-// FUNCTION __kmp_clear_x87_fpu_status_word
-//
-// void
-// __kmp_clear_x87_fpu_status_word();
-        PROC  __kmp_clear_x87_fpu_status_word
-
-        fnclex
-        ret
-
-        DEBUG_INFO __kmp_clear_x87_fpu_status_word
-
-
 //------------------------------------------------------------------------
 // typedef void	(*microtask_t)( int *gtid, int *tid, ... );
 //
@@ -688,41 +606,6 @@ KMP_LABEL(invoke_3):
 // To prevent getting our code into .data section .text added to every routine
 // definition for x86_64.
 //------------------------------------------------------------------------
-// FUNCTION __kmp_x86_cpuid
-//
-// void
-// __kmp_x86_cpuid( int mode, int mode2, void *cpuid_buffer );
-//
-// parameters:
-// 	mode:		%edi
-// 	mode2:		%esi
-// 	cpuid_buffer:	%rdx
-        .text
-	PROC  __kmp_x86_cpuid
-
-	pushq  %rbp
-	movq   %rsp,%rbp
-        pushq  %rbx			// callee-save register
-
-	movl   %esi, %ecx		// "mode2"
-	movl   %edi, %eax		// "mode"
-        movq   %rdx, %rsi               // cpuid_buffer
-	cpuid				// Query the CPUID for the current processor
-
-	movl   %eax, 0(%rsi)		// store results into buffer
-	movl   %ebx, 4(%rsi)
-	movl   %ecx, 8(%rsi)
-	movl   %edx, 12(%rsi)
-
-        popq   %rbx			// callee-save register
-        movq   %rbp, %rsp
-        popq   %rbp
-	ret
-
-        DEBUG_INFO __kmp_x86_cpuid
-
-
-
 # if !KMP_ASM_INTRINS
 
 //------------------------------------------------------------------------
@@ -1107,63 +990,6 @@ KMP_LABEL(invoke_3):
 
 # endif /* !KMP_ASM_INTRINS */
 
-
-//------------------------------------------------------------------------
-// FUNCTION __kmp_load_x87_fpu_control_word
-//
-// void
-// __kmp_load_x87_fpu_control_word( kmp_int16 *p );
-//
-// parameters:
-// 	p:	%rdi
-        .text
-        PROC  __kmp_load_x87_fpu_control_word
-
-        fldcw (%rdi)
-        ret
-
-        DEBUG_INFO __kmp_load_x87_fpu_control_word
-
-
-//------------------------------------------------------------------------
-// FUNCTION __kmp_store_x87_fpu_control_word
-//
-// void
-// __kmp_store_x87_fpu_control_word( kmp_int16 *p );
-//
-// parameters:
-// 	p:	%rdi
-        .text
-        PROC  __kmp_store_x87_fpu_control_word
-
-        fstcw (%rdi)
-        ret
-
-        DEBUG_INFO __kmp_store_x87_fpu_control_word
-
-
-//------------------------------------------------------------------------
-// FUNCTION __kmp_clear_x87_fpu_status_word
-//
-// void
-// __kmp_clear_x87_fpu_status_word();
-        .text
-        PROC  __kmp_clear_x87_fpu_status_word
-
-#if KMP_MIC
-// TODO: remove the workaround for problem with fnclex instruction (no CQ known)
-        fstenv  -32(%rsp)              // store FP env
-        andw    $~0x80ff, 4-32(%rsp)   // clear 0-7,15 bits of FP SW
-        fldenv  -32(%rsp)              // load FP env back
-        ret
-#else
-        fnclex
-        ret
-#endif
-
-        DEBUG_INFO __kmp_clear_x87_fpu_status_word
-
-
 //------------------------------------------------------------------------
 // typedef void	(*microtask_t)( int *gtid, int *tid, ... );
 //
@@ -1359,7 +1185,6 @@ KMP_LABEL(kmp_1_exit):
 
         DEBUG_INFO __kmp_bsr32
 
-
 // -----------------------------------------------------------------------
 #endif /* KMP_ARCH_X86_64 */
 
@@ -1417,7 +1242,7 @@ __tid = 8
 
 	orr	w9, wzr, #1
 	add	w9, w9, w3, lsr #1
-	sub	sp, sp, w9, lsl #4
+	sub	sp, sp, w9, uxtw #4
 	mov	x11, sp
 
 	mov	x8, x0
