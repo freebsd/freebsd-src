@@ -194,7 +194,7 @@ static	int		ppsratecheck(struct timeval *, int *, int);
  * hand side to allow for binary searching of the array and include a trailer
  * with a 0 for the bitmask for linear searches to easily find the end with.
  */
-static const	struct	optlist	ipopts[20] = {
+static const	struct	optlist	ipopts[] = {
 	{ IPOPT_NOP,	0x000001 },
 	{ IPOPT_RR,	0x000002 },
 	{ IPOPT_ZSU,	0x000004 },
@@ -235,7 +235,7 @@ static const struct optlist ip6exthdr[] = {
 /*
  * bit values for identifying presence of individual IP security options
  */
-static const	struct	optlist	secopt[8] = {
+static const	struct	optlist	secopt[] = {
 	{ IPSO_CLASS_RES4,	0x01 },
 	{ IPSO_CLASS_TOPS,	0x02 },
 	{ IPSO_CLASS_SECR,	0x04 },
