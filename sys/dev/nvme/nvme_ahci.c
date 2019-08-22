@@ -55,7 +55,8 @@ static driver_t nvme_ahci_driver = {
 };
 
 DRIVER_MODULE(nvme, ahci, nvme_ahci_driver, nvme_devclass, NULL, 0);
-MODULE_VERSION(nvme_ahci, 1);
+MODULE_VERSION(nvme, 1);
+MODULE_DEPEND(nvme, cam, 1, 1, 1);
 
 static int
 nvme_ahci_probe (device_t device)
