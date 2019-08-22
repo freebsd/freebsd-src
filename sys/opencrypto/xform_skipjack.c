@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/skipjack.h>
 #include <opencrypto/xform_enc.h>
 
-static	int skipjack_setkey(u_int8_t **, u_int8_t *, int);
+static	int skipjack_setkey(u_int8_t **, const u_int8_t *, int);
 static	void skipjack_encrypt(caddr_t, u_int8_t *);
 static	void skipjack_decrypt(caddr_t, u_int8_t *);
 static	void skipjack_zerokey(u_int8_t **);
@@ -85,7 +85,7 @@ skipjack_decrypt(caddr_t key, u_int8_t *blk)
 }
 
 static int
-skipjack_setkey(u_int8_t **sched, u_int8_t *key, int len)
+skipjack_setkey(u_int8_t **sched, const u_int8_t *key, int len)
 {
 	int err;
 

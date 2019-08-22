@@ -103,12 +103,12 @@ void des_ede3_cbc_encrypt(const unsigned char *, unsigned char *, long,
 
 void des_set_odd_parity(des_cblock *);
 void des_fixup_key_parity(des_cblock *); 
-int des_is_weak_key(des_cblock *);
-int des_set_key(des_cblock *, des_key_schedule);
-int des_key_sched(des_cblock *, des_key_schedule);
-int des_set_key_checked(des_cblock *, des_key_schedule);
-void des_set_key_unchecked(des_cblock *, des_key_schedule);
-int des_check_key_parity(des_cblock *);
+int des_is_weak_key(const des_cblock *);
+int des_set_key(const des_cblock *, des_key_schedule);
+int des_key_sched(const des_cblock *, des_key_schedule);
+int des_set_key_checked(const des_cblock *, des_key_schedule);
+void des_set_key_unchecked(const des_cblock *, des_key_schedule);
+int des_check_key_parity(const des_cblock *);
 
 #ifdef  __cplusplus
 }
