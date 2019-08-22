@@ -15,7 +15,7 @@ r351361:
 	corresponding lockstat(1) events, and document the new probes in
 	dtrace_lockstat.4.
 
-r351201:
+r351201, r351372:
 	Add a vop_stdioctl() call, so that file systems that do not support
 	holes will have a trivial implementation of lseek(SEEK_DATA/SEEK_HOLE).
 	The algorithm appears to be compatible with the POSIX draft and
@@ -23,6 +23,8 @@ r351201:
 	does not support holes.  Prior to this patch, lseek(2) would reply
 	-1 with errno set to ENOTTY for SEEK_DATA/SEEK_HOLE on files in
 	file systems that do not support holes.
+	r351372 maps ENOTTY to EINVAL for lseek(SEEK_DATA/SEEK_HOLE) for
+	any other cases, such as a ENOTTY return from vn_bmap_seekhole().
 
 r350665:
 	The fuse driver has been renamed to fusefs(5) and been substantially
