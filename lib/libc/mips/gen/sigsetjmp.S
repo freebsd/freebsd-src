@@ -34,7 +34,6 @@
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
-#include <machine/regnum.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 	ASMSTR("from: @(#)setjmp.s	8.1 (Berkeley) 6/4/93")
 	ASMSTR("$NetBSD: sigsetjmp.S,v 1.8 2005/09/17 11:49:39 tsutsui Exp $")
