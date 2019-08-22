@@ -162,12 +162,117 @@ sendit:
 	gdb_tx_end();
 }
 
+#define	BIT(n)	(1ull << (n))
+enum {
+	GDB_MULTIPROCESS,
+	GDB_SWBREAK,
+	GDB_HWBREAK,
+	GDB_QRELOCINSN,
+	GDB_FORK_EVENTS,
+	GDB_VFORK_EVENTS,
+	GDB_EXEC_EVENTS,
+	GDB_VCONT_SUPPORTED,
+	GDB_QTHREADEVENTS,
+	GDB_NO_RESUMED,
+};
+static const char * const gdb_feature_names[] = {
+	[GDB_MULTIPROCESS] = "multiprocess",
+	[GDB_SWBREAK] = "swbreak",
+	[GDB_HWBREAK] = "hwbreak",
+	[GDB_QRELOCINSN] = "qRelocInsn",
+	[GDB_FORK_EVENTS] = "fork-events",
+	[GDB_VFORK_EVENTS] = "vfork-events",
+	[GDB_EXEC_EVENTS] = "exec-events",
+	[GDB_VCONT_SUPPORTED] = "vContSupported",
+	[GDB_QTHREADEVENTS] = "QThreadEvents",
+	[GDB_NO_RESUMED] = "no-resumed",
+};
+static void
+gdb_do_qsupported(uint32_t *feat)
+{
+	char *tok, *delim, ok;
+	size_t i, toklen;
+
+	/* Parse supported host features */
+	*feat = 0;
+	if (gdb_rx_char() != ':')
+		goto error;
+
+	while (gdb_rxsz > 0) {
+		tok = gdb_rxp;
+		delim = strchrnul(gdb_rxp, ';');
+		toklen = (delim - tok);
+
+		gdb_rxp += toklen;
+		gdb_rxsz -= toklen;
+		if (*delim != '\0') {
+			*delim = '\0';
+			gdb_rxp += 1;
+			gdb_rxsz -= 1;
+		}
+
+		if (toklen < 2)
+			goto error;
+
+		ok = tok[toklen - 1];
+		if (ok != '-' && ok != '+') {
+			/*
+			 * GDB only has one KV-pair feature, and we don't
+			 * support it, so ignore and move on.
+			 */
+			if (strchr(tok, '=') != NULL)
+				continue;
+			/* Not a KV-pair, and not a +/- flag?  Malformed. */
+			goto error;
+		}
+		if (ok != '+')
+			continue;
+		tok[toklen - 1] = '\0';
+
+		for (i = 0; i < nitems(gdb_feature_names); i++)
+			if (strcmp(gdb_feature_names[i], tok) == 0)
+				break;
+
+		if (i == nitems(gdb_feature_names)) {
+			/* Unknown GDB feature. */
+			continue;
+		}
+
+		*feat |= BIT(i);
+	}
+
+	/* Send a supported feature list back */
+	gdb_tx_begin(0);
+
+	gdb_tx_str("PacketSize");
+	gdb_tx_char('=');
+	/*
+	 * We don't buffer framing bytes, but we do need to retain a byte for a
+	 * trailing nul.
+	 */
+	gdb_tx_varhex(GDB_BUFSZ + strlen("$#nn") - 1);
+
+	/*
+	 * Future consideration:
+	 *   - vCont
+	 *   - multiprocess
+	 *   - qXfer:threads:read
+	 */
+	gdb_tx_end();
+	return;
+
+error:
+	*feat = 0;
+	gdb_tx_err(EINVAL);
+}
+
 static int
 gdb_trap(int type, int code)
 {
 	jmp_buf jb;
 	struct thread *thr_iter;
 	void *prev_jb;
+	uint32_t host_features;
 
 	prev_jb = kdb_jmpbuf(jb);
 	if (setjmp(jb) != 0) {
@@ -313,6 +418,8 @@ gdb_trap(int type, int code)
 				gdb_tx_char('C');
 				gdb_tx_varhex((long)kdb_thread->td_tid);
 				gdb_tx_end();
+			} else if (gdb_rx_equal("Supported")) {
+				gdb_do_qsupported(&host_features);
 			} else if (gdb_rx_equal("fThreadInfo")) {
 				thr_iter = kdb_thr_first();
 				gdb_do_threadinfo(&thr_iter);
