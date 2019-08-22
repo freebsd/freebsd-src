@@ -1,9 +1,8 @@
 //===-- RegisterContextPOSIX_x86.cpp ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -319,7 +318,7 @@ RegisterContextPOSIX_x86::RegisterContextPOSIX_x86(
     Thread &thread, uint32_t concrete_frame_idx,
     RegisterInfoInterface *register_info)
     : RegisterContext(thread, concrete_frame_idx) {
-  m_register_info_ap.reset(register_info);
+  m_register_info_up.reset(register_info);
 
   switch (register_info->m_target_arch.GetMachine()) {
   case llvm::Triple::x86:
@@ -405,7 +404,7 @@ size_t RegisterContextPOSIX_x86::GetRegisterCount() {
 }
 
 size_t RegisterContextPOSIX_x86::GetGPRSize() {
-  return m_register_info_ap->GetGPRSize();
+  return m_register_info_up->GetGPRSize();
 }
 
 size_t RegisterContextPOSIX_x86::GetFXSAVEOffset() {
@@ -416,7 +415,7 @@ const RegisterInfo *RegisterContextPOSIX_x86::GetRegisterInfo() {
   // Commonly, this method is overridden and g_register_infos is copied and
   // specialized. So, use GetRegisterInfo() rather than g_register_infos in
   // this scope.
-  return m_register_info_ap->GetRegisterInfo();
+  return m_register_info_up->GetRegisterInfo();
 }
 
 const RegisterInfo *
@@ -424,7 +423,7 @@ RegisterContextPOSIX_x86::GetRegisterInfoAtIndex(size_t reg) {
   if (reg < m_reg_info.num_registers)
     return &GetRegisterInfo()[reg];
   else
-    return NULL;
+    return nullptr;
 }
 
 size_t RegisterContextPOSIX_x86::GetRegisterSetCount() {
@@ -439,17 +438,17 @@ size_t RegisterContextPOSIX_x86::GetRegisterSetCount() {
 
 const RegisterSet *RegisterContextPOSIX_x86::GetRegisterSet(size_t set) {
   if (IsRegisterSetAvailable(set)) {
-    switch (m_register_info_ap->m_target_arch.GetMachine()) {
+    switch (m_register_info_up->m_target_arch.GetMachine()) {
     case llvm::Triple::x86:
       return &g_reg_sets_i386[set];
     case llvm::Triple::x86_64:
       return &g_reg_sets_x86_64[set];
     default:
       assert(false && "Unhandled target architecture.");
-      return NULL;
+      return nullptr;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 const char *RegisterContextPOSIX_x86::GetRegisterName(unsigned reg) {
@@ -475,22 +474,13 @@ bool RegisterContextPOSIX_x86::CopyYMMtoXSTATE(uint32_t reg,
     return false;
 
   if (byte_order == eByteOrderLittle) {
-    ::memcpy(m_fpr.fxsave.xmm[reg - m_reg_info.first_ymm].bytes,
-             m_ymm_set.ymm[reg - m_reg_info.first_ymm].bytes, sizeof(XMMReg));
-    ::memcpy(m_fpr.xsave.ymmh[reg - m_reg_info.first_ymm].bytes,
-             m_ymm_set.ymm[reg - m_reg_info.first_ymm].bytes + sizeof(XMMReg),
-             sizeof(YMMHReg));
+    uint32_t reg_no = reg - m_reg_info.first_ymm;
+    YMMToXState(m_ymm_set.ymm[reg_no],
+        m_fpr.fxsave.xmm[reg_no].bytes,
+        m_fpr.xsave.ymmh[reg_no].bytes);
     return true;
   }
 
-  if (byte_order == eByteOrderBig) {
-    ::memcpy(m_fpr.fxsave.xmm[reg - m_reg_info.first_ymm].bytes,
-             m_ymm_set.ymm[reg - m_reg_info.first_ymm].bytes + sizeof(XMMReg),
-             sizeof(XMMReg));
-    ::memcpy(m_fpr.xsave.ymmh[reg - m_reg_info.first_ymm].bytes,
-             m_ymm_set.ymm[reg - m_reg_info.first_ymm].bytes, sizeof(YMMHReg));
-    return true;
-  }
   return false; // unsupported or invalid byte order
 }
 
@@ -501,24 +491,13 @@ bool RegisterContextPOSIX_x86::CopyXSTATEtoYMM(uint32_t reg,
     return false;
 
   if (byte_order == eByteOrderLittle) {
-    ::memcpy(m_ymm_set.ymm[reg - m_reg_info.first_ymm].bytes,
-             m_fpr.fxsave.xmm[reg - m_reg_info.first_ymm].bytes,
-             sizeof(XMMReg));
-    ::memcpy(m_ymm_set.ymm[reg - m_reg_info.first_ymm].bytes + sizeof(XMMReg),
-             m_fpr.xsave.ymmh[reg - m_reg_info.first_ymm].bytes,
-             sizeof(YMMHReg));
+    uint32_t reg_no = reg - m_reg_info.first_ymm;
+    m_ymm_set.ymm[reg_no] = XStateToYMM(
+        m_fpr.fxsave.xmm[reg_no].bytes,
+        m_fpr.xsave.ymmh[reg_no].bytes);
     return true;
   }
 
-  if (byte_order == eByteOrderBig) {
-    ::memcpy(m_ymm_set.ymm[reg - m_reg_info.first_ymm].bytes + sizeof(XMMReg),
-             m_fpr.fxsave.xmm[reg - m_reg_info.first_ymm].bytes,
-             sizeof(XMMReg));
-    ::memcpy(m_ymm_set.ymm[reg - m_reg_info.first_ymm].bytes,
-             m_fpr.xsave.ymmh[reg - m_reg_info.first_ymm].bytes,
-             sizeof(YMMHReg));
-    return true;
-  }
   return false; // unsupported or invalid byte order
 }
 

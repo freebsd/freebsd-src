@@ -1,9 +1,8 @@
 //===-- SBType.h ------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -25,6 +24,8 @@ public:
   ~SBTypeMember();
 
   lldb::SBTypeMember &operator=(const lldb::SBTypeMember &rhs);
+
+  explicit operator bool() const;
 
   bool IsValid() const;
 
@@ -52,7 +53,7 @@ protected:
 
   const lldb_private::TypeMemberImpl &ref() const;
 
-  std::unique_ptr<lldb_private::TypeMemberImpl> m_opaque_ap;
+  std::unique_ptr<lldb_private::TypeMemberImpl> m_opaque_up;
 };
 
 class SBTypeMemberFunction {
@@ -64,6 +65,8 @@ public:
   ~SBTypeMemberFunction();
 
   lldb::SBTypeMemberFunction &operator=(const lldb::SBTypeMemberFunction &rhs);
+
+  explicit operator bool() const;
 
   bool IsValid() const;
 
@@ -105,6 +108,8 @@ public:
   SBType(const lldb::SBType &rhs);
 
   ~SBType();
+
+  explicit operator bool() const;
 
   bool IsValid() const;
 
@@ -236,6 +241,8 @@ public:
 
   lldb::SBTypeList &operator=(const lldb::SBTypeList &rhs);
 
+  explicit operator bool() const;
+
   bool IsValid();
 
   void Append(lldb::SBType type);
@@ -245,7 +252,7 @@ public:
   uint32_t GetSize();
 
 private:
-  std::unique_ptr<lldb_private::TypeListImpl> m_opaque_ap;
+  std::unique_ptr<lldb_private::TypeListImpl> m_opaque_up;
   friend class SBModule;
   friend class SBCompileUnit;
 };

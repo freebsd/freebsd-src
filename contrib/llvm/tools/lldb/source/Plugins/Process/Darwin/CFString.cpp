@@ -1,9 +1,8 @@
 //===-- CFString.cpp --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,19 +14,13 @@
 #include <glob.h>
 #include <string>
 
-//----------------------------------------------------------------------
 // CFString constructor
-//----------------------------------------------------------------------
 CFString::CFString(CFStringRef s) : CFReleaser<CFStringRef>(s) {}
 
-//----------------------------------------------------------------------
 // CFString copy constructor
-//----------------------------------------------------------------------
 CFString::CFString(const CFString &rhs) : CFReleaser<CFStringRef>(rhs) {}
 
-//----------------------------------------------------------------------
 // CFString copy constructor
-//----------------------------------------------------------------------
 CFString &CFString::operator=(const CFString &rhs) {
   if (this != &rhs)
     *this = rhs;
@@ -42,9 +35,7 @@ CFString::CFString(const char *cstr, CFStringEncoding cstr_encoding)
   }
 }
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 CFString::~CFString() {}
 
 const char *CFString::GetFileSystemRepresentation(std::string &s) {

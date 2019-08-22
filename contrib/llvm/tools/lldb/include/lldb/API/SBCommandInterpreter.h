@@ -1,9 +1,8 @@
 //===-- SBCommandInterpreter.h ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -87,6 +86,8 @@ public:
   GetArgumentDescriptionAsCString(const lldb::CommandArgumentType arg_type);
 
   static bool EventIsCommandInterpreterEvent(const lldb::SBEvent &event);
+
+  explicit operator bool() const;
 
   bool IsValid() const;
 
@@ -189,16 +190,13 @@ public:
       lldb_private::CommandInterpreter *interpreter_ptr =
           nullptr); // Access using SBDebugger::GetCommandInterpreter();
 
-  //----------------------------------------------------------------------
   /// Return true if the command interpreter is the active IO handler.
   ///
   /// This indicates that any input coming into the debugger handles will
   /// go to the command interpreter and will result in LLDB command line
   /// commands being executed.
-  //----------------------------------------------------------------------
   bool IsActive();
 
-  //----------------------------------------------------------------------
   /// Get the string that needs to be written to the debugger stdin file
   /// handle when a control character is typed.
   ///
@@ -207,43 +205,34 @@ public:
   /// terminal, so this function allows GUI programs to emulate this
   /// functionality.
   ///
-  /// @param[in] ch
+  /// \param[in] ch
   ///     The character that was typed along with the control key
   ///
-  /// @return
+  /// \return
   ///     The string that should be written into the file handle that is
   ///     feeding the input stream for the debugger, or nullptr if there is
   ///     no string for this control key.
-  //----------------------------------------------------------------------
   const char *GetIOHandlerControlSequence(char ch);
 
   bool GetPromptOnQuit();
 
   void SetPromptOnQuit(bool b);
 
-  //----------------------------------------------------------------------
   /// Sets whether the command interpreter should allow custom exit codes
   /// for the 'quit' command.
-  //----------------------------------------------------------------------
   void AllowExitCodeOnQuit(bool allow);
 
-  //----------------------------------------------------------------------
   /// Returns true if the user has called the 'quit' command with a custom exit
   /// code.
-  //----------------------------------------------------------------------
   bool HasCustomQuitExitCode();
 
-  //----------------------------------------------------------------------
   /// Returns the exit code that the user has specified when running the
   /// 'quit' command. Returns 0 if the user hasn't called 'quit' at all or
   /// without a custom exit code.
-  //----------------------------------------------------------------------
   int GetQuitStatus();
 
-  //----------------------------------------------------------------------
   /// Resolve the command just as HandleCommand would, expanding abbreviations
   /// and aliases.  If successful, result->GetOutput has the full expansion.
-  //----------------------------------------------------------------------
   void ResolveCommand(const char *command_line, SBCommandReturnObject &result);
 
 protected:
@@ -255,8 +244,6 @@ protected:
 
 private:
   friend class SBDebugger;
-
-  static void InitializeSWIG();
 
   lldb_private::CommandInterpreter *m_opaque_ptr;
 };
@@ -274,6 +261,8 @@ public:
 class SBCommand {
 public:
   SBCommand();
+
+  explicit operator bool() const;
 
   bool IsValid();
 

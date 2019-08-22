@@ -1,9 +1,8 @@
 //===-- ASTResultSynthesizer.cpp --------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -35,8 +34,9 @@ using namespace lldb_private;
 
 ASTResultSynthesizer::ASTResultSynthesizer(ASTConsumer *passthrough,
                                            bool top_level, Target &target)
-    : m_ast_context(NULL), m_passthrough(passthrough), m_passthrough_sema(NULL),
-      m_target(target), m_sema(NULL), m_top_level(top_level) {
+    : m_ast_context(nullptr), m_passthrough(passthrough),
+      m_passthrough_sema(nullptr), m_target(target), m_sema(nullptr),
+      m_top_level(top_level) {
   if (!m_passthrough)
     return;
 
@@ -239,7 +239,7 @@ bool ASTResultSynthesizer::SynthesizeBodyResult(CompoundStmt *Body,
       break;
 
     last_expr = implicit_cast->getSubExpr();
-  } while (0);
+  } while (false);
 
   // is_lvalue is used to record whether the expression returns an assignable
   // Lvalue or an Rvalue.  This is relevant because they are handled
@@ -312,7 +312,7 @@ bool ASTResultSynthesizer::SynthesizeBodyResult(CompoundStmt *Body,
                 (is_lvalue ? "lvalue" : "rvalue"), s.c_str());
   }
 
-  clang::VarDecl *result_decl = NULL;
+  clang::VarDecl *result_decl = nullptr;
 
   if (is_lvalue) {
     IdentifierInfo *result_ptr_id;
@@ -330,14 +330,14 @@ bool ASTResultSynthesizer::SynthesizeBodyResult(CompoundStmt *Body,
 
     QualType ptr_qual_type;
 
-    if (expr_qual_type->getAs<ObjCObjectType>() != NULL)
+    if (expr_qual_type->getAs<ObjCObjectType>() != nullptr)
       ptr_qual_type = Ctx.getObjCObjectPointerType(expr_qual_type);
     else
       ptr_qual_type = Ctx.getPointerType(expr_qual_type);
 
     result_decl =
         VarDecl::Create(Ctx, DC, SourceLocation(), SourceLocation(),
-                        result_ptr_id, ptr_qual_type, NULL, SC_Static);
+                        result_ptr_id, ptr_qual_type, nullptr, SC_Static);
 
     if (!result_decl)
       return false;
@@ -351,8 +351,9 @@ bool ASTResultSynthesizer::SynthesizeBodyResult(CompoundStmt *Body,
   } else {
     IdentifierInfo &result_id = Ctx.Idents.get("$__lldb_expr_result");
 
-    result_decl = VarDecl::Create(Ctx, DC, SourceLocation(), SourceLocation(),
-                                  &result_id, expr_qual_type, NULL, SC_Static);
+    result_decl =
+        VarDecl::Create(Ctx, DC, SourceLocation(), SourceLocation(), &result_id,
+                        expr_qual_type, nullptr, SC_Static);
 
     if (!result_decl)
       return false;
@@ -508,7 +509,7 @@ void ASTResultSynthesizer::InitializeSema(Sema &S) {
 }
 
 void ASTResultSynthesizer::ForgetSema() {
-  m_sema = NULL;
+  m_sema = nullptr;
 
   if (m_passthrough_sema)
     m_passthrough_sema->ForgetSema();

@@ -1,9 +1,8 @@
 //===-- SectionLoadHistory.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -81,7 +80,7 @@ SectionLoadHistory::GetSectionLoadListForStopID(uint32_t stop_id,
       StopIDToSectionLoadList::reverse_iterator rpos =
           m_stop_id_to_section_load_list.rbegin();
       SectionLoadListSP section_load_list_sp(
-          new SectionLoadList(*rpos->second.get()));
+          new SectionLoadList(*rpos->second));
       m_stop_id_to_section_load_list[stop_id] = section_load_list_sp;
       return section_load_list_sp.get();
     }
@@ -98,7 +97,7 @@ SectionLoadList &SectionLoadHistory::GetCurrentSectionLoadList() {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
   SectionLoadList *section_load_list =
       GetSectionLoadListForStopID(eStopIDNow, read_only);
-  assert(section_load_list != NULL);
+  assert(section_load_list != nullptr);
   return *section_load_list;
 }
 

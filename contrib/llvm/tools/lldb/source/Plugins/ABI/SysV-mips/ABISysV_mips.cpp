@@ -1,9 +1,8 @@
 //===-- ABISysV_mips.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -550,9 +549,7 @@ ABISysV_mips::GetRegisterInfoArray(uint32_t &count) {
 
 size_t ABISysV_mips::GetRedZoneSize() const { return 0; }
 
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 
 ABISP
 ABISysV_mips::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch) {
@@ -1063,9 +1060,7 @@ lldb_private::ConstString ABISysV_mips::GetPluginNameStatic() {
   return g_name;
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 
 lldb_private::ConstString ABISysV_mips::GetPluginName() {
   return GetPluginNameStatic();
