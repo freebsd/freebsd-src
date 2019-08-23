@@ -409,7 +409,7 @@ vm_daemon(void)
 			 * avoidance measure.
 			 */
 			if ((swapout_flags & VM_SWAP_NORMAL) != 0)
-				vm_page_drain_pqbatch();
+				vm_page_pqbatch_drain();
 			swapout_procs(swapout_flags);
 		}
 
