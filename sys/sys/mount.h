@@ -265,8 +265,12 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNT_ITRYLOCK(mp) mtx_trylock(&(mp)->mnt_mtx)
 #define	MNT_IUNLOCK(mp)	mtx_unlock(&(mp)->mnt_mtx)
 #define	MNT_MTX(mp)	(&(mp)->mnt_mtx)
-#define	MNT_REF(mp)	(mp)->mnt_ref++
+#define	MNT_REF(mp)	do {						\
+	mtx_assert(MNT_MTX(mp), MA_OWNED);				\
+	(mp)->mnt_ref++;						\
+} while (0)
 #define	MNT_REL(mp)	do {						\
+	mtx_assert(MNT_MTX(mp), MA_OWNED);				\
 	KASSERT((mp)->mnt_ref > 0, ("negative mnt_ref"));		\
 	(mp)->mnt_ref--;						\
 	if ((mp)->mnt_ref == 0)						\
