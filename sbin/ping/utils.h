@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef PING_H
-#define PING_H 1
+#ifndef UTILS_H
+#define UTILS_H 1
 
 #include <sys/types.h>
 
