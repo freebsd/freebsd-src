@@ -364,3 +364,19 @@ nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl)
 	memcpy(&status->cpl, cpl, sizeof(*cpl));
 	atomic_store_rel_int(&status->done, 1);
 }
+
+static int
+nvme_modevent(module_t mod __unused, int type __unused, void *argp __unused)
+{
+       return (0);
+}
+
+static moduledata_t nvme_mod = {
+       "nvme",
+       nvme_modevent,
+       0
+};
+
+DECLARE_MODULE(nvme, nvme_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
+MODULE_VERSION(nvme, 1);
+MODULE_DEPEND(nvme, cam, 1, 1, 1);
