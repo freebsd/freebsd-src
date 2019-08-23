@@ -3130,8 +3130,8 @@ vm_pqbatch_process(struct vm_pagequeue *pq, struct vm_batchqueue *bq,
 	vm_batchqueue_init(bq);
 }
 
-static void
-vm_pqbatch_submit_page(vm_page_t m, uint8_t queue)
+void
+vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 {
 	struct vm_batchqueue *bq;
 	struct vm_pagequeue *pq;
@@ -3181,14 +3181,14 @@ vm_pqbatch_submit_page(vm_page_t m, uint8_t queue)
 }
 
 /*
- *	vm_page_drain_pqbatch:		[ internal use only ]
+ *	vm_page_pqbatch_drain:		[ internal use only ]
  *
  *	Force all per-CPU page queue batch queues to be drained.  This is
  *	intended for use in severe memory shortages, to ensure that pages
  *	do not remain stuck in the batch queues.
  */
 void
-vm_page_drain_pqbatch(void)
+vm_page_pqbatch_drain(void)
 {
 	struct thread *td;
 	struct vm_domain *vmd;
@@ -3253,7 +3253,7 @@ vm_page_dequeue_deferred(vm_page_t m)
 	if ((queue = vm_page_queue(m)) == PQ_NONE)
 		return;
 	vm_page_aflag_set(m, PGA_DEQUEUE);
-	vm_pqbatch_submit_page(m, queue);
+	vm_page_pqbatch_submit(m, queue);
 }
 
 /*
@@ -3277,7 +3277,7 @@ vm_page_dequeue_deferred_free(vm_page_t m)
 	if ((queue = m->queue) == PQ_NONE)
 		return;
 	vm_page_aflag_set(m, PGA_DEQUEUE);
-	vm_pqbatch_submit_page(m, queue);
+	vm_page_pqbatch_submit(m, queue);
 }
 
 /*
@@ -3352,7 +3352,7 @@ vm_page_enqueue(vm_page_t m, uint8_t queue)
 	m->queue = queue;
 	if ((m->aflags & PGA_REQUEUE) == 0)
 		vm_page_aflag_set(m, PGA_REQUEUE);
-	vm_pqbatch_submit_page(m, queue);
+	vm_page_pqbatch_submit(m, queue);
 }
 
 /*
@@ -3372,7 +3372,7 @@ vm_page_requeue(vm_page_t m)
 
 	if ((m->aflags & PGA_REQUEUE) == 0)
 		vm_page_aflag_set(m, PGA_REQUEUE);
-	vm_pqbatch_submit_page(m, atomic_load_8(&m->queue));
+	vm_page_pqbatch_submit(m, atomic_load_8(&m->queue));
 }
 
 /*
@@ -3700,7 +3700,7 @@ vm_page_deactivate_noreuse(vm_page_t m)
 	}
 	if ((m->aflags & PGA_REQUEUE_HEAD) == 0)
 		vm_page_aflag_set(m, PGA_REQUEUE_HEAD);
-	vm_pqbatch_submit_page(m, PQ_INACTIVE);
+	vm_page_pqbatch_submit(m, PQ_INACTIVE);
 }
 
 /*
