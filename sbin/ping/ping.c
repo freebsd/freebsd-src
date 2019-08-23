@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <math.h>
 #include <netdb.h>
+#include <stddef.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -217,10 +218,10 @@ static void finish(void) __dead2;
 static void pinger(void);
 static char *pr_addr(struct in_addr);
 static char *pr_ntime(n_time);
-static void pr_icmph(struct icmp *);
+static void pr_icmph(struct icmp *, struct ip *, const u_char *const);
 static void pr_iph(struct ip *);
-static void pr_pack(char *, int, struct sockaddr_in *, struct timespec *);
-static void pr_retip(struct ip *);
+static void pr_pack(char *, ssize_t, struct sockaddr_in *, struct timespec *);
+static void pr_retip(struct ip *, const u_char *);
 static void status(int);
 static void stopit(int);
 static void usage(void) __dead2;
@@ -232,7 +233,6 @@ main(int argc, char *const *argv)
 	struct in_addr ifaddr;
 	struct timespec last, intvl;
 	struct iovec iov;
-	struct ip *ip;
 	struct msghdr msg;
 	struct sigaction si_sa;
 	size_t sz;
@@ -687,7 +687,9 @@ main(int argc, char *const *argv)
 #endif /*IPSEC*/
 
 	if (options & F_HDRINCL) {
-		ip = (struct ip*)outpackhdr;
+		struct ip ip;
+
+		memcpy(&ip, outpackhdr, sizeof(ip));
 		if (!(options & (F_TTL | F_MTTL))) {
 			mib[0] = CTL_NET;
 			mib[1] = PF_INET;
@@ -698,15 +700,16 @@ main(int argc, char *const *argv)
 				err(1, "sysctl(net.inet.ip.ttl)");
 		}
 		setsockopt(ssend, IPPROTO_IP, IP_HDRINCL, &hold, sizeof(hold));
-		ip->ip_v = IPVERSION;
-		ip->ip_hl = sizeof(struct ip) >> 2;
-		ip->ip_tos = tos;
-		ip->ip_id = 0;
-		ip->ip_off = htons(df ? IP_DF : 0);
-		ip->ip_ttl = ttl;
-		ip->ip_p = IPPROTO_ICMP;
-		ip->ip_src.s_addr = source ? sock_in.sin_addr.s_addr : INADDR_ANY;
-		ip->ip_dst = to->sin_addr;
+		ip.ip_v = IPVERSION;
+		ip.ip_hl = sizeof(struct ip) >> 2;
+		ip.ip_tos = tos;
+		ip.ip_id = 0;
+		ip.ip_off = htons(df ? IP_DF : 0);
+		ip.ip_ttl = ttl;
+		ip.ip_p = IPPROTO_ICMP;
+		ip.ip_src.s_addr = source ? sock_in.sin_addr.s_addr : INADDR_ANY;
+		ip.ip_dst = to->sin_addr;
+		memcpy(outpackhdr, &ip, sizeof(ip));
         }
 
 	/*
@@ -898,7 +901,8 @@ main(int argc, char *const *argv)
 	while (!finish_up) {
 		struct timespec now, timeout;
 		fd_set rfds;
-		int cc, n;
+		int n;
+		ssize_t cc;
 
 		check_status();
 		if ((unsigned)srecv >= FD_SETSIZE)
@@ -1016,18 +1020,17 @@ pinger(void)
 {
 	struct timespec now;
 	struct tv32 tv32;
-	struct ip *ip;
-	struct icmp *icp;
+	struct icmp icp;
 	int cc, i;
 	u_char *packet;
 
 	packet = outpack;
-	icp = (struct icmp *)outpack;
-	icp->icmp_type = icmp_type;
-	icp->icmp_code = 0;
-	icp->icmp_cksum = 0;
-	icp->icmp_seq = htons(ntransmitted);
-	icp->icmp_id = ident;			/* ID */
+	memcpy(&icp, outpack, ICMP_MINLEN + phdr_len);
+	icp.icmp_type = icmp_type;
+	icp.icmp_code = 0;
+	icp.icmp_cksum = 0;
+	icp.icmp_seq = htons(ntransmitted);
+	icp.icmp_id = ident;			/* ID */
 
 	CLR(ntransmitted % mx_dup_ck);
 
@@ -1042,7 +1045,7 @@ pinger(void)
 		tv32.tv32_sec = (uint32_t)htonl(now.tv_sec);
 		tv32.tv32_nsec = (uint32_t)htonl(now.tv_nsec);
 		if (options & F_TIME)
-			icp->icmp_otime = htonl((now.tv_sec % (24*60*60))
+			icp.icmp_otime = htonl((now.tv_sec % (24*60*60))
 				* 1000 + now.tv_nsec / 1000000);
 		if (timing)
 			bcopy((void *)&tv32,
@@ -1050,16 +1053,28 @@ pinger(void)
 			    sizeof(tv32));
 	}
 
+	memcpy(outpack, &icp, ICMP_MINLEN + phdr_len);
+
 	cc = ICMP_MINLEN + phdr_len + datalen;
 
 	/* compute ICMP checksum here */
-	icp->icmp_cksum = in_cksum((u_char *)icp, cc);
+	icp.icmp_cksum = in_cksum(outpack, cc);
+	/* Update icmp_cksum in the raw packet data buffer. */
+	memcpy(outpack + offsetof(struct icmp, icmp_cksum), &icp.icmp_cksum,
+	    sizeof(icp.icmp_cksum));
 
 	if (options & F_HDRINCL) {
+		struct ip ip;
+
 		cc += sizeof(struct ip);
-		ip = (struct ip *)outpackhdr;
-		ip->ip_len = htons(cc);
-		ip->ip_sum = in_cksum(outpackhdr, cc);
+		ip.ip_len = htons(cc);
+		/* Update ip_len in the raw packet data buffer. */
+		memcpy(outpackhdr + offsetof(struct ip, ip_len), &ip.ip_len,
+		    sizeof(ip.ip_len));
+		ip.ip_sum = in_cksum(outpackhdr, cc);
+		/* Update ip_sum in the raw packet data buffer. */
+		memcpy(outpackhdr + offsetof(struct ip, ip_sum), &ip.ip_sum,
+		    sizeof(ip.ip_sum));
 		packet = outpackhdr;
 	}
 	i = send(ssend, (char *)packet, cc, 0);
@@ -1089,47 +1104,61 @@ pinger(void)
  * program to be run without having intermingled output (or statistics!).
  */
 static void
-pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timespec *tv)
+pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 {
 	struct in_addr ina;
-	u_char *cp, *dp;
-	struct icmp *icp;
-	struct ip *ip;
-	const void *tp;
+	u_char *cp, *dp, l;
+	struct icmp icp;
+	struct ip ip;
+	const u_char *icmp_data_raw;
 	double triptime;
 	int dupflag, hlen, i, j, recv_len;
 	uint16_t seq;
 	static int old_rrlen;
 	static char old_rr[MAX_IPOPTLEN];
+	struct ip oip;
+	u_char oip_header_len;
+	struct icmp oicmp;
+	const u_char *oicmp_raw;
+
+	/*
+	 * Get size of IP header of the received packet. The
+	 * information is contained in the lower four bits of the
+	 * first byte.
+	 */
+	memcpy(&l, buf, sizeof(l));
+	hlen = (l & 0x0f) << 2;
+	memcpy(&ip, buf, hlen);
 
 	/* Check the IP header */
-	ip = (struct ip *)buf;
-	hlen = ip->ip_hl << 2;
 	recv_len = cc;
 	if (cc < hlen + ICMP_MINLEN) {
 		if (options & F_VERBOSE)
-			warn("packet too short (%d bytes) from %s", cc,
+			warn("packet too short (%zd bytes) from %s", cc,
 			     inet_ntoa(from->sin_addr));
 		return;
 	}
 
+#ifndef icmp_data
+	icmp_data_raw = buf + hlen + offsetof(struct icmp, icmp_ip);
+#else
+	icmp_data_raw = buf + hlen + offsetof(struct icmp, icmp_data);
+#endif
+
 	/* Now the ICMP part */
 	cc -= hlen;
-	icp = (struct icmp *)(buf + hlen);
-	if (icp->icmp_type == icmp_type_rsp) {
-		if (icp->icmp_id != ident)
+	memcpy(&icp, buf + hlen, MIN((ssize_t)sizeof(icp), cc));
+	if (icp.icmp_type == icmp_type_rsp) {
+		if (icp.icmp_id != ident)
 			return;			/* 'Twas not our ECHO */
 		++nreceived;
 		triptime = 0.0;
 		if (timing) {
 			struct timespec tv1;
 			struct tv32 tv32;
-#ifndef icmp_data
-			tp = &icp->icmp_ip;
-#else
-			tp = icp->icmp_data;
-#endif
-			tp = (const char *)tp + phdr_len;
+			const u_char *tp;
+
+			tp = icmp_data_raw + phdr_len;
 
 			if ((size_t)(cc - ICMP_MINLEN - phdr_len) >=
 			    sizeof(tv1)) {
@@ -1150,7 +1179,7 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timespec *tv)
 				timing = 0;
 		}
 
-		seq = ntohs(icp->icmp_seq);
+		seq = ntohs(icp.icmp_seq);
 
 		if (TST(seq % mx_dup_ck)) {
 			++nrepeats;
@@ -1172,9 +1201,9 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timespec *tv)
 		if (options & F_FLOOD)
 			(void)write(STDOUT_FILENO, &BSPACE, 1);
 		else {
-			(void)printf("%d bytes from %s: icmp_seq=%u", cc,
+			(void)printf("%zd bytes from %s: icmp_seq=%u", cc,
 			    pr_addr(from->sin_addr), seq);
-			(void)printf(" ttl=%d", ip->ip_ttl);
+			(void)printf(" ttl=%d", ip.ip_ttl);
 			if (timing)
 				(void)printf(" time=%.3f ms", triptime);
 			if (dupflag)
@@ -1184,12 +1213,12 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timespec *tv)
 			if (options & F_MASK) {
 				/* Just prentend this cast isn't ugly */
 				(void)printf(" mask=%s",
-					inet_ntoa(*(struct in_addr *)&(icp->icmp_mask)));
+					inet_ntoa(*(struct in_addr *)&(icp.icmp_mask)));
 			}
 			if (options & F_TIME) {
-				(void)printf(" tso=%s", pr_ntime(icp->icmp_otime));
-				(void)printf(" tsr=%s", pr_ntime(icp->icmp_rtime));
-				(void)printf(" tst=%s", pr_ntime(icp->icmp_ttime));
+				(void)printf(" tso=%s", pr_ntime(icp.icmp_otime));
+				(void)printf(" tsr=%s", pr_ntime(icp.icmp_rtime));
+				(void)printf(" tst=%s", pr_ntime(icp.icmp_ttime));
 			}
 			if (recv_len != send_len) {
                         	(void)printf(
@@ -1197,7 +1226,8 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timespec *tv)
 				     recv_len, send_len);
 			}
 			/* check the data */
-			cp = (u_char*)&icp->icmp_data[phdr_len];
+			cp = (u_char*)(buf + hlen + offsetof(struct icmp,
+				icmp_data) + phdr_len);
 			dp = &outpack[ICMP_MINLEN + phdr_len];
 			cc -= ICMP_MINLEN + phdr_len;
 			i = 0;
@@ -1212,7 +1242,8 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timespec *tv)
 	(void)printf("\nwrong data byte #%d should be 0x%x but was 0x%x",
 	    i, *dp, *cp);
 					(void)printf("\ncp:");
-					cp = (u_char*)&icp->icmp_data[0];
+					cp = (u_char*)(buf + hlen +
+					    offsetof(struct icmp, icmp_data));
 					for (i = 0; i < datalen; ++i, ++cp) {
 						if ((i % 16) == 8)
 							(void)printf("\n\t");
@@ -1240,22 +1271,22 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timespec *tv)
 		 * as root to avoid leaking information not normally
 		 * available to those not running as root.
 		 */
-#ifndef icmp_data
-		struct ip *oip = &icp->icmp_ip;
-#else
-		struct ip *oip = (struct ip *)icp->icmp_data;
-#endif
-		struct icmp *oicmp = (struct icmp *)(oip + 1);
+		memcpy(&oip_header_len, icmp_data_raw, sizeof(oip_header_len));
+		oip_header_len = (oip_header_len & 0x0f) << 2;
+		memcpy(&oip, icmp_data_raw, oip_header_len);
+		oicmp_raw = icmp_data_raw + oip_header_len;
+		memcpy(&oicmp, oicmp_raw, offsetof(struct icmp, icmp_id) +
+		    sizeof(oicmp.icmp_id));
 
 		if (((options & F_VERBOSE) && uid == 0) ||
 		    (!(options & F_QUIET2) &&
-		     (oip->ip_dst.s_addr == whereto.sin_addr.s_addr) &&
-		     (oip->ip_p == IPPROTO_ICMP) &&
-		     (oicmp->icmp_type == ICMP_ECHO) &&
-		     (oicmp->icmp_id == ident))) {
-		    (void)printf("%d bytes from %s: ", cc,
+		     (oip.ip_dst.s_addr == whereto.sin_addr.s_addr) &&
+		     (oip.ip_p == IPPROTO_ICMP) &&
+		     (oicmp.icmp_type == ICMP_ECHO) &&
+		     (oicmp.icmp_id == ident))) {
+		    (void)printf("%zd bytes from %s: ", cc,
 			pr_addr(from->sin_addr));
-		    pr_icmph(icp);
+		    pr_icmph(&icp, &oip, oicmp_raw);
 		} else
 		    return;
 	}
@@ -1441,7 +1472,7 @@ static char *ttab[] = {
  *	Print a descriptive string about an ICMP header.
  */
 static void
-pr_icmph(struct icmp *icp)
+pr_icmph(struct icmp *icp, struct ip *oip, const u_char *const oicmp_raw)
 {
 
 	switch(icp->icmp_type) {
@@ -1479,19 +1510,11 @@ pr_icmph(struct icmp *icp)
 			break;
 		}
 		/* Print returned IP header information */
-#ifndef icmp_data
-		pr_retip(&icp->icmp_ip);
-#else
-		pr_retip((struct ip *)icp->icmp_data);
-#endif
+		pr_retip(oip, oicmp_raw);
 		break;
 	case ICMP_SOURCEQUENCH:
 		(void)printf("Source Quench\n");
-#ifndef icmp_data
-		pr_retip(&icp->icmp_ip);
-#else
-		pr_retip((struct ip *)icp->icmp_data);
-#endif
+		pr_retip(oip, oicmp_raw);
 		break;
 	case ICMP_REDIRECT:
 		switch(icp->icmp_code) {
@@ -1512,11 +1535,7 @@ pr_icmph(struct icmp *icp)
 			break;
 		}
 		(void)printf("(New addr: %s)\n", inet_ntoa(icp->icmp_gwaddr));
-#ifndef icmp_data
-		pr_retip(&icp->icmp_ip);
-#else
-		pr_retip((struct ip *)icp->icmp_data);
-#endif
+		pr_retip(oip, oicmp_raw);
 		break;
 	case ICMP_ECHO:
 		(void)printf("Echo Request\n");
@@ -1535,20 +1554,12 @@ pr_icmph(struct icmp *icp)
 			    icp->icmp_code);
 			break;
 		}
-#ifndef icmp_data
-		pr_retip(&icp->icmp_ip);
-#else
-		pr_retip((struct ip *)icp->icmp_data);
-#endif
+		pr_retip(oip, oicmp_raw);
 		break;
 	case ICMP_PARAMPROB:
 		(void)printf("Parameter problem: pointer = 0x%02x\n",
 		    icp->icmp_hun.ih_pptr);
-#ifndef icmp_data
-		pr_retip(&icp->icmp_ip);
-#else
-		pr_retip((struct ip *)icp->icmp_data);
-#endif
+		pr_retip(oip, oicmp_raw);
 		break;
 	case ICMP_TSTAMP:
 		(void)printf("Timestamp\n");
@@ -1646,14 +1657,9 @@ pr_addr(struct in_addr ina)
  *	Dump some info on a returned (via ICMP) IP packet.
  */
 static void
-pr_retip(struct ip *ip)
+pr_retip(struct ip *ip, const u_char *cp)
 {
-	u_char *cp;
-	int hlen;
-
 	pr_iph(ip);
-	hlen = ip->ip_hl << 2;
-	cp = (u_char *)ip + hlen;
 
 	if (ip->ip_p == 6)
 		(void)printf("TCP: from port %u, to port %u (decimal)\n",
