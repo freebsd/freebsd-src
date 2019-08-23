@@ -27,21 +27,21 @@
 #
 # $FreeBSD$
 
-atf_test_case ping6_c1_s8_X1
-ping6_c1_s8_X1_head() {
+atf_test_case ping6_c1_s8_t1
+ping6_c1_s8_t1_head() {
     atf_set "descr" "Stop after receiving 1 ECHO_RESPONSE packet"
 }
-ping6_c1_s8_X1_body() {
+ping6_c1_s8_t1_body() {
     if ! getaddrinfo -f inet6 localhost 1>/dev/null 2>&1; then
 	atf_skip "IPv6 is not configured"
     fi
     atf_check -s exit:0 -o save:std.out -e empty \
-	      ping6 -c 1 -s 8 -X 1 localhost
-    check_ping_statistics std.out $(atf_get_srcdir)/ping6_c1_s8_X1.out
+	      ping6 -c 1 -s 8 -t 1 localhost
+    check_ping_statistics std.out $(atf_get_srcdir)/ping6_c1_s8_t1.out
 }
 
 atf_init_test_cases() {
-    atf_add_test_case ping6_c1_s8_X1
+    atf_add_test_case ping6_c1_s8_t1
 }
 
 check_ping_statistics() {
