@@ -576,6 +576,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 	int optlen = 0;
 #ifdef INET
 	int len;
+	uint8_t ipttl;
 #endif
 	int tlen = 0, off;
 	int drop_hdrlen;
@@ -697,6 +698,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 			 * Checksum extended TCP header and data.
 			 */
 			len = off0 + tlen;
+			ipttl = ip->ip_ttl;
 			bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
 			ipov->ih_len = htons(tlen);
 			th->th_sum = in_cksum(m, len);
@@ -705,6 +707,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 			/* Reset TOS bits */
 			ip->ip_tos = iptos;
 			/* Re-initialization for later version check */
+			ip->ip_ttl = ipttl;
 			ip->ip_v = IPVERSION;
 			ip->ip_hl = off0 >> 2;
 		}
