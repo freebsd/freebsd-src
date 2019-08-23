@@ -419,6 +419,7 @@ void	pmap_kremove(vm_offset_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev_attr(vm_paddr_t, vm_size_t, int);
+void	*pmap_mapdev_pciecfg(vm_paddr_t pa, vm_size_t size);
 boolean_t pmap_page_is_mapped(vm_page_t m);
 void	pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 void	pmap_pinit_pml4(vm_page_t);
