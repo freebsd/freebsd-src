@@ -51,6 +51,7 @@ struct componentname {
 	size_t cn_namelen;
 };
 
+int msdosfs_fsiflush(struct msdosfsmount *);
 struct msdosfsmount *msdosfs_mount(struct vnode *);
 int msdosfs_root(struct msdosfsmount *, struct vnode *);
 
