@@ -3174,7 +3174,6 @@ vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 		    ("invalid queue transition for page %p", m));
 		KASSERT((m->aflags & PGA_ENQUEUED) == 0,
 		    ("page %p is enqueued with invalid queue index", m));
-		vm_page_aflag_clear(m, PGA_QUEUE_STATE_MASK);
 	}
 	vm_pagequeue_unlock(pq);
 	critical_exit();
