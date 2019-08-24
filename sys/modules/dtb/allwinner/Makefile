@@ -25,7 +25,8 @@ DTS=	\
 
 DTSO=	sun8i-a83t-sid.dtso \
 	sun8i-h3-i2c0.dtso \
-	sun8i-h3-sid.dtso
+	sun8i-h3-sid.dtso \
+	sun8i-h3-ths.dtso
 
 LINKS= \
 	${DTBDIR}/sun4i-a10-cubieboard.dtb ${DTBDIR}/cubieboard.dtb \
