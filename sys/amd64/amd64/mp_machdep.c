@@ -510,7 +510,7 @@ native_start_all_aps(void)
 	outb(CMOS_DATA, mpbiosreason);
 
 	/* number of APs actually started */
-	return mp_naps;
+	return (mp_naps);
 }
 
 
