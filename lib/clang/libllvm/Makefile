@@ -893,6 +893,7 @@ SRCS_MIN+=	Support/Watchdog.cpp
 SRCS_MIN+=	Support/WithColor.cpp
 SRCS_MIN+=	Support/YAMLParser.cpp
 SRCS_MIN+=	Support/YAMLTraits.cpp
+SRCS_FUL+=	Support/Z3Solver.cpp
 SRCS_MIN+=	Support/circular_raw_ostream.cpp
 SRCS_MIN+=	Support/raw_os_ostream.cpp
 SRCS_MIN+=	Support/raw_ostream.cpp
