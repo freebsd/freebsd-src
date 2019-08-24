@@ -1028,6 +1028,8 @@ void __thr_cleanup_pop_imp(int);
 void _thr_cleanup_push(void (*)(void *), void *);
 void _thr_cleanup_pop(int);
 void _Tthr_testcancel(void);
+void _Tthr_cancel_enter(int);
+void _Tthr_cancel_leave(int);
 int _thr_cancel(pthread_t);
 int _thr_atfork(void (*)(void), void (*)(void), void (*)(void));
 int _thr_attr_destroy(pthread_attr_t *);
