@@ -131,12 +131,10 @@ SYSINIT(dpcpu, SI_SUB_KLD, SI_ORDER_FIRST, dpcpu_startup, NULL);
 
 /*
  * UMA_PCPU_ZONE zones, that are available for all kernel
- * consumers. Right now 64 bit zone is used for counter(9)
- * and pointer zone is used by flowtable.
+ * consumers. Right now 64 bit zone is used for counter(9).
  */
 
 uma_zone_t pcpu_zone_64;
-uma_zone_t pcpu_zone_ptr;
 
 static void
 pcpu_zones_startup(void)
@@ -144,12 +142,6 @@ pcpu_zones_startup(void)
 
 	pcpu_zone_64 = uma_zcreate("64 pcpu", sizeof(uint64_t),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
-
-	if (sizeof(uint64_t) == sizeof(void *))
-		pcpu_zone_ptr = pcpu_zone_64;
-	else
-		pcpu_zone_ptr = uma_zcreate("ptr pcpu", sizeof(void *),
-		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 }
 SYSINIT(pcpu_zones, SI_SUB_VM, SI_ORDER_ANY, pcpu_zones_startup, NULL);
 
