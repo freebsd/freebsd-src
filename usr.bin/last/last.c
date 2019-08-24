@@ -92,8 +92,8 @@ static const	char *crmsg;			/* cause of last reboot */
 static time_t	currentout;			/* current logout value */
 static long	maxrec;				/* records to display */
 static const	char *file = NULL;		/* utx.log file */
+static int	noctfix = 0;			/* locale is C or UTF-8 */
 static int	sflag = 0;			/* show delta in seconds */
-static int	utf8flag;			/* current locale is UTF-8 */
 static int	width = 5;			/* show seconds in delta */
 static int	yflag;				/* show year */
 static int      d_first;
@@ -120,7 +120,7 @@ ctf(const char *fmt) {
 	const char  *src, *end;
 	char	    *dst;
 
-	if (utf8flag)
+	if (noctfix)
 		return (fmt);
 
 	end = buf + sizeof(buf);
@@ -158,7 +158,9 @@ main(int argc, char *argv[])
 	d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 
 	(void) setlocale(LC_CTYPE, "");
-	utf8flag = (strcmp(nl_langinfo(CODESET), "UTF-8") == 0);
+	p = nl_langinfo(CODESET);
+	if (strcmp (p, "UTF-8") == 0 || strcmp (p, "US-ASCII") == 0)
+		noctfix = 1;
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
