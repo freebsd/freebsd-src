@@ -12,6 +12,10 @@ SRCS+=		COFF/Writer.cpp
 SRCS+=		CopyConfig.cpp
 SRCS+=		ELF/ELFObjcopy.cpp
 SRCS+=		ELF/Object.cpp
+SRCS+=		MachO/MachOObjcopy.cpp
+SRCS+=		MachO/MachOReader.cpp
+SRCS+=		MachO/MachOWriter.cpp
+SRCS+=		MachO/Object.cpp
 SRCS+=		llvm-objcopy.cpp
 
 .include "${SRCTOP}/lib/clang/llvm.pre.mk"
@@ -42,6 +46,7 @@ LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 
 PACKAGE=	clang
 
+LIBADD+=	execinfo
 LIBADD+=	ncursesw
 LIBADD+=	pthread
 LIBADD+=	z
