@@ -875,6 +875,7 @@ main(int argc, char *const *argv)
 	msg.msg_iovlen = 1;
 #ifdef SO_TIMESTAMP
 	msg.msg_control = (caddr_t)ctrl;
+	msg.msg_controllen = sizeof(ctrl);
 #endif
 	iov.iov_base = packet;
 	iov.iov_len = IP_MAXPACKET;
@@ -920,9 +921,7 @@ main(int argc, char *const *argv)
 		if (n == 1) {
 			struct timespec *tv = NULL;
 #ifdef SO_TIMESTAMP
-			struct cmsghdr *cmsg = (struct cmsghdr *)&ctrl;
-
-			msg.msg_controllen = sizeof(ctrl);
+			struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
 #endif
 			msg.msg_namelen = sizeof(from);
 			if ((cc = recvmsg(srecv, &msg, 0)) < 0) {
