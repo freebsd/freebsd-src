@@ -9,14 +9,9 @@ cmake/
 docs/.htaccess
 docs/CMakeLists.txt
 docs/_static/
-docs/building-with-debug-llvm.txt
-docs/code-signing.txt
 docs/conf.py
 docs/doxygen-mainpage.dox
 docs/doxygen.cfg.in
-docs/doxygen.footer
-docs/doxygen.header
-docs/doxygen.intro
 docs/index.rst
 docs/lldb-for-gdb-users.txt
 docs/lldb-gdb-remote.txt
@@ -125,7 +120,6 @@ source/Plugins/OperatingSystem/Python/CMakeLists.txt
 source/Plugins/Platform/Android/
 source/Plugins/Platform/CMakeLists.txt
 source/Plugins/Platform/FreeBSD/CMakeLists.txt
-source/Plugins/Platform/Kalimba/
 source/Plugins/Platform/Linux/
 source/Plugins/Platform/MacOSX/
 source/Plugins/Platform/NetBSD/CMakeLists.txt
@@ -175,7 +169,6 @@ tools/darwin-threads/
 tools/debugserver/
 tools/driver/CMakeLists.txt
 tools/driver/lldb-Info.plist
-tools/install-headers/
 tools/intel-features/
 tools/lldb-instr/CMakeLists.txt
 tools/lldb-mi/CMakeLists.txt
@@ -186,5 +179,12 @@ tools/lldb-test/
 tools/lldb-vscode/
 unittests/
 use_lldb_suite_root.py
-utils/
-www/
+utils/TableGen/CMakeLists.txt
+utils/git-svn/
+utils/lit-cpuid/
+utils/lldb-dotest/
+utils/lui/
+utils/misc/
+utils/sync-source/
+utils/test/
+utils/vim-lldb/
