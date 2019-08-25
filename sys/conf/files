@@ -3999,8 +3999,6 @@ libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
 libkern/timingsafe_bcmp.c	standard
-libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | netgraph_deflate | ddb_ctf | gzio
 contrib/zlib/adler32.c	optional crypto | geom_uzip | ipsec | \
 	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
 contrib/zlib/compress.c	optional crypto | geom_uzip | ipsec | \
