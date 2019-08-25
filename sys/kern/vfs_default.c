@@ -1068,6 +1068,7 @@ int
 vop_stdset_text(struct vop_set_text_args *ap)
 {
 	struct vnode *vp;
+	struct mount *mp;
 	int error;
 
 	vp = ap->a_vp;
@@ -1075,6 +1076,17 @@ vop_stdset_text(struct vop_set_text_args *ap)
 	if (vp->v_writecount > 0) {
 		error = ETXTBSY;
 	} else {
+		/*
+		 * If requested by fs, keep a use reference to the
+		 * vnode until the last text reference is released.
+		 */
+		mp = vp->v_mount;
+		if (mp != NULL && (mp->mnt_kern_flag & MNTK_TEXT_REFS) != 0 &&
+		    vp->v_writecount == 0) {
+			vp->v_iflag |= VI_TEXT_REF;
+			vrefl(vp);
+		}
+
 		vp->v_writecount--;
 		error = 0;
 	}
@@ -1087,16 +1099,25 @@ vop_stdunset_text(struct vop_unset_text_args *ap)
 {
 	struct vnode *vp;
 	int error;
+	bool last;
 
 	vp = ap->a_vp;
+	last = false;
 	VI_LOCK(vp);
 	if (vp->v_writecount < 0) {
+		if ((vp->v_iflag & VI_TEXT_REF) != 0 &&
+		    vp->v_writecount == -1) {
+			last = true;
+			vp->v_iflag &= ~VI_TEXT_REF;
+		}
 		vp->v_writecount++;
 		error = 0;
 	} else {
 		error = EINVAL;
 	}
 	VI_UNLOCK(vp);
+	if (last)
+		vunref(vp);
 	return (error);
 }
 
