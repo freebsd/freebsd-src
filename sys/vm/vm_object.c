@@ -653,9 +653,10 @@ doterm:
 		 * recursion due to the terminate having to sync data
 		 * to disk.
 		 */
-		if ((object->flags & OBJ_DEAD) == 0)
+		if ((object->flags & OBJ_DEAD) == 0) {
+			vm_object_set_flag(object, OBJ_DEAD);
 			vm_object_terminate(object);
-		else
+		} else
 			VM_OBJECT_WUNLOCK(object);
 		object = temp;
 	}
@@ -746,35 +747,9 @@ vm_object_terminate_pages(vm_object_t object)
 void
 vm_object_terminate(vm_object_t object)
 {
-
 	VM_OBJECT_ASSERT_WLOCKED(object);
-
-	/*
-	 * Make sure no one uses us.
-	 */
-	vm_object_set_flag(object, OBJ_DEAD);
-
-	/*
-	 * Clean and free the pages, as appropriate. All references to the
-	 * object are gone, so we don't need to lock it.
-	 */
-	if (object->type == OBJT_VNODE) {
-		struct vnode *vp = (struct vnode *)object->handle;
-
-		/*
-		 * Clean pages and flush buffers.
-		 */
-		vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_WUNLOCK(object);
-
-		vinvalbuf(vp, V_SAVE, 0, 0);
-
-		BO_LOCK(&vp->v_bufobj);
-		vp->v_bufobj.bo_flag |= BO_DEAD;
-		BO_UNLOCK(&vp->v_bufobj);
-
-		VM_OBJECT_WLOCK(object);
-	}
+	KASSERT((object->flags & OBJ_DEAD) != 0,
+	    ("terminating non-dead obj %p", object));
 
 	/*
 	 * wait for the pageout daemon to be done with the object

@@ -200,6 +200,21 @@ vnode_destroy_vobject(struct vnode *vp)
 		 * don't double-terminate the object
 		 */
 		if ((obj->flags & OBJ_DEAD) == 0) {
+			vm_object_set_flag(obj, OBJ_DEAD);
+
+			/*
+			 * Clean pages and flush buffers.
+			 */
+			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
+			VM_OBJECT_WUNLOCK(obj);
+
+			vinvalbuf(vp, V_SAVE, 0, 0);
+
+			BO_LOCK(&vp->v_bufobj);
+			vp->v_bufobj.bo_flag |= BO_DEAD;
+			BO_UNLOCK(&vp->v_bufobj);
+
+			VM_OBJECT_WLOCK(obj);
 			vm_object_terminate(obj);
 		} else {
 			/*
