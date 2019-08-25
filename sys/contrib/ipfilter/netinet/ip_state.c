@@ -975,7 +975,7 @@ ipf_state_putent(softc, softs, data)
 		/*
 		 * Look up all the interface names in the rule.
 		 */
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < FR_NUM(fr->fr_ifnames); i++) {
 			if (fr->fr_ifnames[i] == -1) {
 				fr->fr_ifas[i] = NULL;
 				continue;
@@ -985,7 +985,7 @@ ipf_state_putent(softc, softs, data)
 							fr->fr_family);
 		}
 
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < FR_NUM(isn->is_ifname); i++) {
 			name = isn->is_ifname[i];
 			isn->is_ifp[i] = ipf_resolvenic(softc, name,
 							isn->is_v);
@@ -1076,7 +1076,7 @@ ipf_state_insert(softc, is, rev)
 	/*
 	 * Look up all the interface names in the state entry.
 	 */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < FR_NUM(is->is_ifp); i++) {
 		if (is->is_ifp[i] != NULL)
 			continue;
 		is->is_ifp[i] = ipf_resolvenic(softc, is->is_ifname[i],
@@ -3574,7 +3574,7 @@ ipf_state_sync(softc, ifp)
 		/*
 		 * Look up all the interface names in the state entry.
 		 */
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < FR_NUM(is->is_ifp); i++) {
 			if (ifp == NULL || ifp == is->is_ifp[i])
 				is->is_ifp[i] = ipf_resolvenic(softc,
 							      is->is_ifname[i],
