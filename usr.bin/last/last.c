@@ -159,7 +159,7 @@ main(int argc, char *argv[])
 
 	(void) setlocale(LC_CTYPE, "");
 	p = nl_langinfo(CODESET);
-	if (strcmp (p, "UTF-8") == 0 || strcmp (p, "US-ASCII") == 0)
+	if (strcmp(p, "UTF-8") == 0 || strcmp(p, "US-ASCII") == 0)
 		noctfix = 1;
 
 	argc = xo_parse_args(argc, argv);
