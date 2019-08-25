@@ -234,8 +234,6 @@ enum zfreeskip {
 	SKIP_FINI =	0x00020000,
 };
 
-#define	UMA_ANYDOMAIN	-1	/* Special value for domain search. */
-
 /* Prototypes.. */
 
 int	uma_startup_count(int);
