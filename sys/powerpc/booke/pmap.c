@@ -2546,8 +2546,11 @@ mmu_booke_map(mmu_t mmu, vm_offset_t *virt, vm_paddr_t pa_start,
 	vm_offset_t sva = *virt;
 	vm_offset_t va = sva;
 
-	//debugf("mmu_booke_map: s (sva = 0x%08x pa_start = 0x%08x pa_end = 0x%08x)\n",
-	//		sva, pa_start, pa_end);
+#ifdef __powerpc64__
+	/* XXX: Handle memory not starting at 0x0. */
+	if (pa_end < ctob(Maxmem))
+		return (PHYS_TO_DMAP(pa_start));
+#endif
 
 	while (pa_start < pa_end) {
 		mmu_booke_kenter(mmu, va, pa_start);
@@ -2556,7 +2559,6 @@ mmu_booke_map(mmu_t mmu, vm_offset_t *virt, vm_paddr_t pa_start,
 	}
 	*virt = va;
 
-	//debugf("mmu_booke_map: e (va = 0x%08x)\n", va);
 	return (sva);
 }
 
