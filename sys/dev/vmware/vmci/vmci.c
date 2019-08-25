@@ -73,6 +73,16 @@ static driver_t vmci_driver = {
 static devclass_t vmci_devclass;
 DRIVER_MODULE(vmci, pci, vmci_driver, vmci_devclass, 0, 0);
 MODULE_VERSION(vmci, VMCI_VERSION);
+const struct {
+	uint16_t vendor;
+	uint16_t device;
+	const char *desc;
+} vmci_ids[] = {
+	{ VMCI_VMWARE_VENDOR_ID, VMCI_VMWARE_DEVICE_ID,
+	    "VMware Virtual Machine Communication Interface" },
+};
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, vmci, vmci_ids,
+    nitems(vmci_ids));
 
 MODULE_DEPEND(vmci, pci, 1, 1, 1);
 
@@ -112,10 +122,9 @@ static int
 vmci_probe(device_t dev)
 {
 
-	if (pci_get_vendor(dev) == VMCI_VMWARE_VENDOR_ID &&
-	    pci_get_device(dev) == VMCI_VMWARE_DEVICE_ID) {
-		device_set_desc(dev,
-		    "VMware Virtual Machine Communication Interface");
+	if (pci_get_vendor(dev) == vmci_ids[0].vendor &&
+	    pci_get_device(dev) == vmci_ids[0].device) {
+		device_set_desc(dev, vmci_ids[0].desc);
 
 		return (BUS_PROBE_DEFAULT);
 	}
