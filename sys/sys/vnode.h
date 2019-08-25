@@ -657,6 +657,7 @@ void	vgone(struct vnode *vp);
 #define	vhold(vp)	_vhold((vp), 0)
 #define	vholdl(vp)	_vhold((vp), 1)
 void	_vhold(struct vnode *, bool);
+void	vholdnz(struct vnode *);
 void	vinactive(struct vnode *, struct thread *);
 int	vinvalbuf(struct vnode *vp, int save, int slpflag, int slptimeo);
 int	vtruncbuf(struct vnode *vp, off_t length, int blksize);
