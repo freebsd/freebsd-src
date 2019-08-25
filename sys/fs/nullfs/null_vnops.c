@@ -668,7 +668,7 @@ null_lock(struct vop_lock1_args *ap)
 		 * We prevent it from being recycled by holding the vnode
 		 * here.
 		 */
-		vholdl(lvp);
+		vholdnz(lvp);
 		error = VOP_LOCK(lvp, flags);
 
 		/*
@@ -710,31 +710,16 @@ static int
 null_unlock(struct vop_unlock_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	int flags = ap->a_flags;
-	int mtxlkflag = 0;
 	struct null_node *nn;
 	struct vnode *lvp;
 	int error;
 
-	if ((flags & LK_INTERLOCK) != 0)
-		mtxlkflag = 1;
-	else if (mtx_owned(VI_MTX(vp)) == 0) {
-		VI_LOCK(vp);
-		mtxlkflag = 2;
-	}
 	nn = VTONULL(vp);
 	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL) {
-		VI_LOCK_FLAGS(lvp, MTX_DUPOK);
-		flags |= LK_INTERLOCK;
-		vholdl(lvp);
-		VI_UNLOCK(vp);
-		error = VOP_UNLOCK(lvp, flags);
+		vholdnz(lvp);
+		error = VOP_UNLOCK(lvp, 0);
 		vdrop(lvp);
-		if (mtxlkflag == 0)
-			VI_LOCK(vp);
 	} else {
-		if (mtxlkflag == 2)
-			VI_UNLOCK(vp);
 		error = vop_stdunlock(ap);
 	}
 
@@ -845,10 +830,8 @@ null_getwritemount(struct vop_getwritemount_args *ap)
 	VI_LOCK(vp);
 	xp = VTONULL(vp);
 	if (xp && (lowervp = xp->null_lowervp)) {
-		VI_LOCK_FLAGS(lowervp, MTX_DUPOK);
+		vholdnz(lowervp);
 		VI_UNLOCK(vp);
-		vholdl(lowervp);
-		VI_UNLOCK(lowervp);
 		VOP_GETWRITEMOUNT(lowervp, ap->a_mpp);
 		vdrop(lowervp);
 	} else {
