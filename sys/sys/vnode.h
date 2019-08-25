@@ -811,14 +811,14 @@ int	vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a);
 void	vop_strategy_pre(void *a);
 void	vop_lock_pre(void *a);
 void	vop_lock_post(void *a, int rc);
-void	vop_unlock_post(void *a, int rc);
 void	vop_unlock_pre(void *a);
+void	vop_unlock_post(void *a, int rc);
 #else
 #define	vop_strategy_pre(x)	do { } while (0)
 #define	vop_lock_pre(x)		do { } while (0)
 #define	vop_lock_post(x, y)	do { } while (0)
-#define	vop_unlock_post(x, y)	do { } while (0)
 #define	vop_unlock_pre(x)	do { } while (0)
+#define	vop_unlock_post(x, y)	do { } while (0)
 #endif
 
 void	vop_rename_fail(struct vop_rename_args *ap);
