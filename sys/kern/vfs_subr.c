@@ -3018,6 +3018,19 @@ _vhold(struct vnode *vp, bool locked)
 		VI_UNLOCK(vp);
 }
 
+void
+vholdnz(struct vnode *vp)
+{
+
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+#ifdef INVARIANTS
+	int old = atomic_fetchadd_int(&vp->v_holdcnt, 1);
+	VNASSERT(old > 0, vp, ("%s: wrong hold count", __func__));
+#else
+	atomic_add_int(&vp->v_holdcnt, 1);
+#endif
+}
+
 /*
  * Drop the hold count of the vnode.  If this is the last reference to
  * the vnode we place it on the free list unless it has been vgone'd
