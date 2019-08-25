@@ -161,16 +161,18 @@ static int availmem_regions_sz;
 static struct mem_region *physmem_regions;
 static int physmem_regions_sz;
 
+#ifndef __powerpc64__
 /* Reserved KVA space and mutex for mmu_booke_zero_page. */
 static vm_offset_t zero_page_va;
 static struct mtx zero_page_mutex;
-
-static struct mtx tlbivax_mutex;
 
 /* Reserved KVA space and mutex for mmu_booke_copy_page. */
 static vm_offset_t copy_page_src_va;
 static vm_offset_t copy_page_dst_va;
 static struct mtx copy_page_mutex;
+#endif
+
+static struct mtx tlbivax_mutex;
 
 /**************************************************************************/
 /* PMAP */
@@ -1646,6 +1648,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	virtual_avail = round_page(data_end);
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
+#ifndef __powerpc64__
 	/* Allocate KVA space for page zero/copy operations. */
 	zero_page_va = virtual_avail;
 	virtual_avail += PAGE_SIZE;
@@ -1661,7 +1664,6 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	mtx_init(&zero_page_mutex, "mmu_booke_zero_page", NULL, MTX_DEF);
 	mtx_init(&copy_page_mutex, "mmu_booke_copy_page", NULL, MTX_DEF);
 
-#ifndef __powerpc64__
 	/* Allocate KVA space for ptbl bufs. */
 	ptbl_buf_pool_vabase = virtual_avail;
 	virtual_avail += PTBL_BUFS * PTBL_PAGES * PAGE_SIZE;
@@ -1820,12 +1822,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Initialize (statically allocated) kernel pmap. */
 	/*******************************************************/
 	PMAP_LOCK_INIT(kernel_pmap);
-#ifndef __powerpc64__
-	kptbl_min = VM_MIN_KERNEL_ADDRESS / PDIR_SIZE;
-#endif
 #ifdef __powerpc64__
 	kernel_pmap->pm_pp2d = (pte_t ***)kernel_ptbl_root;
 #else
+	kptbl_min = VM_MIN_KERNEL_ADDRESS / PDIR_SIZE;
 	kernel_pmap->pm_pdir = (pte_t **)kernel_ptbl_root;
 #endif
 
