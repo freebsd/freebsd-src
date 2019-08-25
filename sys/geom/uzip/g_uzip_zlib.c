@@ -33,7 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 
-#include <sys/zlib.h>
+#include <contrib/zlib/zlib.h>
+#include <dev/zlib/zcalloc.h>
 
 #include <geom/uzip/g_uzip.h>
 #include <geom/uzip/g_uzip_dapi.h>
@@ -46,8 +47,6 @@ struct g_uzip_zlib {
 	z_stream zs;
 };
 
-static void *z_alloc(void *, u_int, u_int);
-static void z_free(void *, void *);
 static int g_uzip_zlib_rewind(struct g_uzip_dapi *, const char *);
 
 static void
@@ -97,26 +96,17 @@ g_uzip_zlib_rewind(struct g_uzip_dapi *zpp, const char *gp_name)
 	return (err);
 }
 
-static int
-z_compressBound(int len)
-{
-
-	return (len + (len >> 12) + (len >> 14) + 11);
-}
-
 struct g_uzip_dapi *
 g_uzip_zlib_ctor(uint32_t blksz)
 {
 	struct g_uzip_zlib *zp;
 
-	zp = malloc(sizeof(struct g_uzip_zlib), M_GEOM_UZIP, M_WAITOK);
-	zp->zs.zalloc = z_alloc;
-	zp->zs.zfree = z_free;
+	zp = malloc(sizeof(struct g_uzip_zlib), M_GEOM_UZIP, M_WAITOK | M_ZERO);
 	if (inflateInit(&zp->zs) != Z_OK) {
 		goto e1;
 	}
 	zp->blksz = blksz;
-	zp->pub.max_blen = z_compressBound(blksz);
+	zp->pub.max_blen = compressBound(blksz);
 	zp->pub.decompress = &g_uzip_zlib_decompress;
 	zp->pub.free = &g_uzip_zlib_free;
 	zp->pub.rewind = &g_uzip_zlib_rewind;
@@ -125,21 +115,4 @@ g_uzip_zlib_ctor(uint32_t blksz)
 e1:
 	free(zp, M_GEOM_UZIP);
 	return (NULL);
-}
-
-static void *
-z_alloc(void *nil, u_int type, u_int size)
-{
-        void *ptr;
-
-        ptr = malloc(type * size, M_GEOM_UZIP, M_NOWAIT);
-
-        return (ptr);
-}
-
-static void
-z_free(void *nil, void *ptr)
-{
-
-        free(ptr, M_GEOM_UZIP);
 }

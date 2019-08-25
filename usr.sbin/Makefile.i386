@@ -16,7 +16,6 @@ SUBDIR+=	cpucontrol
 SUBDIR+=	hyperv
 .endif
 SUBDIR+=	kgmon
-SUBDIR+=	kgzip
 SUBDIR+=	lptcontrol
 SUBDIR+=	mptable
 .if ${MK_NDIS} != "no"

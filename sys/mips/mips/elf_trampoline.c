@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
  */
 #include "opt_global.h"
 
-#include <sys/inflate.h>
 #include <machine/elf.h>
 #include <machine/cpufunc.h>
 #include <machine/stdarg.h>

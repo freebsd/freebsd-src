@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220410: zlib 1.0.4 removed from kernel
+OLD_FILES+=/usr/include/sys/zlib.h
+OLD_FILES+=/usr/include/sys/zutil.h
+# 20220410: Remove obsolete kgzip and support files
+OLD_FILES+=usr/sbin/kgzip
+OLD_FILES+=usr/lib/kgzldr.o
+OLD_FILES+=usr/share/man/man8/kgzip.8.gz
+
 # 20211222: new clang import which bumps version from 12.0.1 to 13.0.0
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/complex

@@ -27,16 +27,13 @@
  */
 
 #include <sys/param.h>
+#include <sys/gsb_crc32.h>
 
 #include <stdint.h>
 
 #include <atf-c.h>
 
-#if defined(__amd64__) || defined(__i386__)
-extern uint32_t sse42_crc32c(uint32_t, const unsigned char *, unsigned);
-#elif defined(__aarch64__)
-extern uint32_t armv8_crc32c(uint32_t, const unsigned char *, unsigned);
-#else
+#if !defined(__amd64__) && !defined(__i386__) && !defined(__aarch64__)
 #error These tests are not supported on this platform
 #endif
 

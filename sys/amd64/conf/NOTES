@@ -127,7 +127,6 @@ device		nvram		# Access to rtc cmos via /dev/nvram
 device		speaker		#Play IBM BASIC-style noises out your speaker
 hint.speaker.0.at="isa"
 hint.speaker.0.port="0x61"
-device		gzip		#Exec gzipped a.out's.  REQUIRES COMPAT_AOUT!
 
 
 #####################################################################

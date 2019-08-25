@@ -40,6 +40,7 @@
 #include <sys/buf.h>
 #include <sys/endian.h>
 #include <sys/conf.h>
+#include <sys/gsb_crc32.h>
 #include <sys/mount.h>
 
 #include <fs/ext2fs/fs.h>

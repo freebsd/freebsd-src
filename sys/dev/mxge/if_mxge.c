@@ -47,7 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
-#include <sys/zlib.h>
+#include <contrib/zlib/zlib.h>
+#include <dev/zlib/zcalloc.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -683,22 +684,6 @@ mxge_validate_firmware(mxge_softc_t *sc, const mcp_gen_header_t *hdr)
 
 }
 
-static void *
-z_alloc(void *nil, u_int items, u_int size)
-{
-	void *ptr;
-
-	ptr = malloc(items * size, M_TEMP, M_NOWAIT);
-	return ptr;
-}
-
-static void
-z_free(void *nil, void *ptr)
-{
-	free(ptr, M_TEMP);
-}
-
-
 static int
 mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 {
@@ -723,8 +708,8 @@ mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 
 	/* setup zlib and decompress f/w */
 	bzero(&zs, sizeof (zs));
-	zs.zalloc = z_alloc;
-	zs.zfree = z_free;
+	zs.zalloc = zcalloc_nowait;
+	zs.zfree = zcfree;
 	status = inflateInit(&zs);
 	if (status != Z_OK) {
 		status = EIO;

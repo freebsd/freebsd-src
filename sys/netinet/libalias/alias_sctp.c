@@ -75,6 +75,7 @@
 #ifdef _KERNEL
 #include <machine/stdarg.h>
 #include <sys/param.h>
+#include <sys/gsb_crc32.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>

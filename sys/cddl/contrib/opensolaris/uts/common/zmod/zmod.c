@@ -25,10 +25,48 @@
  */
 
 #include <sys/types.h>
+#include <sys/cmn_err.h>
+#include <sys/systm.h>
+#include <sys/kobj.h>
 #include <sys/zmod.h>
 
-#include "zlib.h"
-#include "zutil.h"
+#include <contrib/zlib/zlib.h>
+#include <contrib/zlib/zutil.h>
+
+struct zchdr {
+	uint_t zch_magic;
+	uint_t zch_size;
+};
+
+#define	ZCH_MAGIC	0x3cc13cc1
+
+/*ARGSUSED*/
+static void *
+zfs_zcalloc(void *opaque, uint_t items, uint_t size)
+{
+	size_t nbytes = sizeof (struct zchdr) + items * size;
+	struct zchdr *z = kobj_zalloc(nbytes, KM_NOWAIT|KM_TMP);
+
+	if (z == NULL)
+		return (NULL);
+
+	z->zch_magic = ZCH_MAGIC;
+	z->zch_size = nbytes;
+
+	return (z + 1);
+}
+
+/*ARGSUSED*/
+static void
+zfs_zcfree(void *opaque, void *ptr)
+{
+	struct zchdr *z = ((struct zchdr *)ptr) - 1;
+
+	if (z->zch_magic != ZCH_MAGIC)
+		panic("zcfree region corrupt: hdr=%p ptr=%p", (void *)z, ptr);
+
+	kobj_free(z, z->zch_size);
+}
 
 /*
  * Uncompress the buffer 'src' into the buffer 'dst'.  The caller must store
@@ -47,6 +85,8 @@ z_uncompress(void *dst, size_t *dstlen, const void *src, size_t srclen)
 	zs.avail_in = srclen;
 	zs.next_out = dst;
 	zs.avail_out = *dstlen;
+	zs.zalloc = zfs_zcalloc;
+	zs.zfree = zfs_zcfree;
 
 	/*
 	 * Call inflateInit2() specifying a window size of DEF_WBITS
@@ -78,6 +118,8 @@ z_compress_level(void *dst, size_t *dstlen, const void *src, size_t srclen,
 	zs.avail_in = srclen;
 	zs.next_out = dst;
 	zs.avail_out = *dstlen;
+	zs.zalloc = zfs_zcalloc;
+	zs.zfree = zfs_zcfree;
 
 	if ((err = deflateInit(&zs, level)) != Z_OK)
 		return (err);

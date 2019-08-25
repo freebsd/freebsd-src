@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 #include <sys/libkern.h>
 #include <sys/systm.h>
+#include <sys/gsb_crc32.h>
 
 #if defined(__amd64__) || defined(__i386__)
 #include <machine/md_var.h>

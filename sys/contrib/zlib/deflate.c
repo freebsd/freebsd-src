@@ -263,7 +263,7 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
 
     strm->msg = Z_NULL;
     if (strm->zalloc == (alloc_func)0) {
-#ifdef Z_SOLO
+#if defined(Z_SOLO) && !defined(_KERNEL)
         return Z_STREAM_ERROR;
 #else
         strm->zalloc = zcalloc;
@@ -271,7 +271,7 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
 #endif
     }
     if (strm->zfree == (free_func)0)
-#ifdef Z_SOLO
+#if defined(Z_SOLO) && !defined(_KERNEL)
         return Z_STREAM_ERROR;
 #else
         strm->zfree = zcfree;
@@ -1664,8 +1664,10 @@ local void fill_window(s)
 /* Maximum stored block length in deflate format (not including header). */
 #define MAX_STORED 65535
 
+#if !defined(MIN)
 /* Minimum of a and b. */
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
+#endif
 
 /* ===========================================================================
  * Copy without compression as much as possible from the input stream, return

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/gsb_crc32.h>
 
 #include <netinet/sctp.h>
 #include <netinet/sctp_crc32.h>

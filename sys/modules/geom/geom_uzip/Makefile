@@ -10,7 +10,7 @@ SRCS+=	g_uzip.h g_uzip_dapi.h g_uzip_lzma.h g_uzip_zlib.h g_uzip_softc.h \
 
 .PATH:	${SRCTOP}/sys/net
 
-CFLAGS+= -I${SRCTOP}/sys/contrib/xz-embedded/freebsd \
+CFLAGS.g_uzip_lzma.c+= -I${SRCTOP}/sys/contrib/xz-embedded/freebsd \
 	-I${SRCTOP}/sys/contrib/xz-embedded/linux/lib/xz/
 SRCS+=	opt_geom.h
 

@@ -21,10 +21,6 @@ SUBDIR.yes+=	loader_simp
 # special boot programs, 'self-extracting boot2+loader'
 SUBDIR.yes+=	pxeldr
 
-.if ${MACHINE_CPUARCH} == "i386"
-SUBDIR.yes+=	kgzldr
-.endif
-
 SUBDIR.${MK_LOADER_ZFS}+=	zfsboot gptzfsboot
 
 SUBDIR_DEPEND_pxeldr+=	loader_${LOADER_DEFAULT_INTERP}

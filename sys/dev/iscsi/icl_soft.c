@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
+#include <sys/gsb_crc32.h>
 #include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
