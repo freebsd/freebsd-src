@@ -821,6 +821,8 @@
             ..
             link
             ..
+            mixer
+            ..
             mkdir
             ..
             mkfifo
