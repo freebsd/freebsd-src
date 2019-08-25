@@ -23,7 +23,6 @@ include 	"std.armv7"
 include 	"../annapurna/alpine/std.alpine"
 
 makeoptions	MODULES_OVERRIDE=""
-makeoptions	WERROR="-Werror"
 
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	SMP			# Enable multiple cores
