@@ -891,6 +891,8 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_add_rel_64 atomic_add_64
 #define	atomic_subtract_acq_64 atomic_subtract_64
 #define	atomic_subtract_rel_64 atomic_subtract_64
+#define	atomic_load_64 atomic_load_acq_64
+#define	atomic_store_64 atomic_store_rel_64
 
 /* Operations on pointers. */
 #define	atomic_set_ptr(p, v) \
