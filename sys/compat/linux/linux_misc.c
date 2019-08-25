@@ -494,8 +494,13 @@ cleanup:
 		locked = false;
 		VOP_CLOSE(vp, FREAD, td->td_ucred, td);
 	}
-	if (textset)
+	if (textset) {
+		if (!locked) {
+			locked = true;
+			VOP_LOCK(vp, LK_SHARED | LK_RETRY);
+		}
 		VOP_UNSET_TEXT_CHECKED(vp);
+	}
 	if (locked)
 		VOP_UNLOCK(vp, 0);
 
