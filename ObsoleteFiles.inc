@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190825: zlib 1.0.4 removed from kernel
+OLD_FILES+=/usr/include/sys/zlib.h
+OLD_FILES+=/usr/include/sys/zutil.h
 # 20190817: pft_ping.py and sniffer.py moved to /usr/tests/sys/netpfil/common
 OLD_FILES+=usr/tests/sys/netpfil/pf/sniffer.py
 OLD_FILES+=usr/tests/sys/netpfil/pf/pft_ping.py
