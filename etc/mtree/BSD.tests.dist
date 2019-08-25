@@ -821,8 +821,6 @@
             ..
             link
             ..
-            mixer
-            ..
             mkdir
             ..
             mkfifo
@@ -1081,6 +1079,8 @@
         fstyp
         ..
         makefs
+        ..
+        mixer
         ..
         newsyslog
         ..
