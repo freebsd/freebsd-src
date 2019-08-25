@@ -402,6 +402,8 @@ mp_realloc_pcpu(int cpuid, int domain)
 		return;
 	m = vm_page_alloc_domain(NULL, 0, domain,
 	    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
+	if (m == NULL)
+		return;
 	na = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 	pagecopy((void *)oa, (void *)na);
 	pmap_qenter((vm_offset_t)&__pcpu[cpuid], &m, 1);
