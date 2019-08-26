@@ -229,6 +229,7 @@ ATF_TC_BODY(signal_delivered_ptrace, tc)
 	int rc;
 	int pipe_ca[2];
 	int pipe_db[2];
+	int pipe_cd[2];
 	char buffer;
 	int status;
 
@@ -236,6 +237,8 @@ ATF_TC_BODY(signal_delivered_ptrace, tc)
 	ATF_REQUIRE(rc == 0);
 	rc = pipe(pipe_db);
 	ATF_REQUIRE(rc == 0);
+	rc = pipe(pipe_cd);
+	assert(rc == 0);
 
 	rc = fork();
 	ATF_REQUIRE(rc != -1);
@@ -262,6 +265,9 @@ ATF_TC_BODY(signal_delivered_ptrace, tc)
 			/* request a signal on parent death and register a handler */
 			rc = procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signum);
 			assert(rc == 0);
+
+			rc = write(pipe_cd[1], "x", 1);
+			assert(rc == 1);
 
 			/* wait for B to die and signal us... */
 			signum = 0xdeadbeef;
@@ -292,6 +298,9 @@ ATF_TC_BODY(signal_delivered_ptrace, tc)
 
 			rc = ptrace(PT_CONTINUE, c_pid, (caddr_t) 1, 0);
 			assert(rc == 0);
+
+			rc = read(pipe_cd[0], &buffer, 1);
+			assert(rc == 1);
 
 			/* tell B that we're ready for it to exit now */
 			rc = write(pipe_db[1], ".", 1);
