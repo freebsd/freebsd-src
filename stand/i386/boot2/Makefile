@@ -78,7 +78,12 @@ boot2.ldr:
 boot2.bin: boot2.out
 	${OBJCOPY} -S -O binary boot2.out ${.TARGET}
 
-boot2.out: ${BTXCRT} boot2.o sio.o
+# For __ashldi3
+.PATH: ${SRCTOP}/contrib/compiler-rt/lib/builtins
+CFLAGS.ashldi3.c=	-Wno-missing-prototypes -Wno-missing-declarations
+CLEANFILES+=	ashldi3.o
+
+boot2.out: ${BTXCRT} boot2.o sio.o ashldi3.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
 SRCS=	boot2.c boot2.h
