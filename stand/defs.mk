@@ -33,6 +33,7 @@ SASRC=		${BOOTSRC}/libsa
 SYSDIR=		${SRCTOP}/sys
 UBOOTSRC=	${BOOTSRC}/uboot
 ZFSSRC=		${SASRC}/zfs
+LIBCSRC=	${SRCTOP}/lib/libc
 
 BOOTOBJ=	${OBJTOP}/stand
 
