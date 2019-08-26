@@ -81,7 +81,9 @@
 #endif // LLDB_ENABLE_ALL
 #include "Plugins/MemoryHistory/asan/MemoryHistoryASan.h"
 #include "Plugins/ObjectContainer/BSD-Archive/ObjectContainerBSDArchive.h"
+#ifdef LLDB_ENABLE_ALL
 #include "Plugins/ObjectContainer/Universal-Mach-O/ObjectContainerUniversalMachO.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/ObjectFile/Breakpad/ObjectFileBreakpad.h"
 #include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
 #ifdef LLDB_ENABLE_ALL
@@ -173,7 +175,9 @@ llvm::Error SystemInitializerFull::Initialize() {
 #endif // LLDB_ENABLE_ALL
 
   ObjectContainerBSDArchive::Initialize();
+#ifdef LLDB_ENABLE_ALL
   ObjectContainerUniversalMachO::Initialize();
+#endif // LLDB_ENABLE_ALL
 
   ScriptInterpreterNone::Initialize();
 
@@ -467,7 +471,9 @@ void SystemInitializerFull::Terminate() {
 #endif // LLDB_ENABLE_ALL
 
   ObjectContainerBSDArchive::Terminate();
+#ifdef LLDB_ENABLE_ALL
   ObjectContainerUniversalMachO::Terminate();
+#endif // LLDB_ENABLE_ALL
 
   // Now shutdown the common parts, in reverse order.
   SystemInitializerCommon::Terminate();
