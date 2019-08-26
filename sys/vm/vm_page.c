@@ -3081,9 +3081,10 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 	 * the page queue lock held.  In this case it is about to free the page,
 	 * which must not have any queue state.
 	 */
-	qflags = atomic_load_8(&m->aflags) & PGA_QUEUE_STATE_MASK;
-	KASSERT(pq == vm_page_pagequeue(m) || qflags == 0,
-	    ("page %p doesn't belong to queue %p but has queue state %#x",
+	qflags = atomic_load_8(&m->aflags);
+	KASSERT(pq == vm_page_pagequeue(m) ||
+	    (qflags & PGA_QUEUE_STATE_MASK) == 0,
+	    ("page %p doesn't belong to queue %p but has aflags %#x",
 	    m, pq, qflags));
 
 	if ((qflags & PGA_DEQUEUE) != 0) {
@@ -3097,6 +3098,13 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 			vm_pagequeue_cnt_inc(pq);
 			vm_page_aflag_set(m, PGA_ENQUEUED);
 		}
+
+		/*
+		 * Give PGA_REQUEUE_HEAD precedence over PGA_REQUEUE.
+		 * In particular, if both flags are set in close succession,
+		 * only PGA_REQUEUE_HEAD will be applied, even if it was set
+		 * first.
+		 */
 		if ((qflags & PGA_REQUEUE_HEAD) != 0) {
 			KASSERT(m->queue == PQ_INACTIVE,
 			    ("head enqueue not supported for page %p", m));
@@ -3105,12 +3113,8 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
 		} else
 			TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 
-		/*
-		 * PGA_REQUEUE and PGA_REQUEUE_HEAD must be cleared after
-		 * setting PGA_ENQUEUED in order to synchronize with the
-		 * page daemon.
-		 */
-		vm_page_aflag_clear(m, PGA_REQUEUE | PGA_REQUEUE_HEAD);
+		vm_page_aflag_clear(m, qflags & (PGA_REQUEUE |
+		    PGA_REQUEUE_HEAD));
 	}
 }
 
