@@ -2182,6 +2182,10 @@ _clang_tblgen= \
 	lib/clang/libllvmminimal \
 	usr.bin/clang/llvm-tblgen \
 	usr.bin/clang/clang-tblgen
+.if ${MK_LLDB} != "no"
+_clang_tblgen+=	\
+	usr.bin/clang/lldb-tblgen
+.endif
 
 ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmminimal
 ${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
