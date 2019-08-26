@@ -76,19 +76,17 @@ struct enc_xform enc_xform_3des = {
 static void
 des3_encrypt(caddr_t key, u_int8_t *blk)
 {
-	des_cblock *cb = (des_cblock *) blk;
 	des_key_schedule *p = (des_key_schedule *) key;
 
-	des_ecb3_encrypt(cb, cb, p[0], p[1], p[2], DES_ENCRYPT);
+	des_ecb3_encrypt(blk, blk, p[0], p[1], p[2], DES_ENCRYPT);
 }
 
 static void
 des3_decrypt(caddr_t key, u_int8_t *blk)
 {
-	des_cblock *cb = (des_cblock *) blk;
 	des_key_schedule *p = (des_key_schedule *) key;
 
-	des_ecb3_encrypt(cb, cb, p[0], p[1], p[2], DES_DECRYPT);
+	des_ecb3_encrypt(blk, blk, p[0], p[1], p[2], DES_DECRYPT);
 }
 
 static int
@@ -100,9 +98,9 @@ des3_setkey(u_int8_t **sched, const u_int8_t *key, int len)
 	p = KMALLOC(3*sizeof (des_key_schedule),
 		M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
 	if (p != NULL) {
-		des_set_key((const des_cblock *)(key +  0), p[0]);
-		des_set_key((const des_cblock *)(key +  8), p[1]);
-		des_set_key((const des_cblock *)(key + 16), p[2]);
+		des_set_key(key +  0, p[0]);
+		des_set_key(key +  8, p[1]);
+		des_set_key(key + 16, p[2]);
 		err = 0;
 	} else
 		err = ENOMEM;

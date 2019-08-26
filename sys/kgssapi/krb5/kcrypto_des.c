@@ -135,8 +135,8 @@ des1_random_to_key(struct krb5_key_state *ks, const void *in)
 	    | ((inkey[4] & 1) << 5)
 	    | ((inkey[5] & 1) << 6)
 	    | ((inkey[6] & 1) << 7));
-	des_set_odd_parity((des_cblock *) outkey);
-	if (des_is_weak_key((des_cblock *) outkey))
+	des_set_odd_parity(outkey);
+	if (des_is_weak_key(outkey))
 		outkey[7] ^= 0xf0;
 
 	des1_set_key(ks, ks->ks_key);
