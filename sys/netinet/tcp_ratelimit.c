@@ -390,12 +390,10 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		    rs->rs_ifp->if_xname,
 		    CTLFLAG_RW, 0,
 		    "");
-		CK_LIST_INSERT_HEAD(&int_rs, rs, next);
-		/* Unlock to allow the sysctl stuff to allocate */
-		mtx_unlock(&rs_mtx);
 		rl_add_syctl_entries(rl_sysctl_root, rs);
-		/* re-lock for our caller */
 		mtx_lock(&rs_mtx);
+		CK_LIST_INSERT_HEAD(&int_rs, rs, next);
+		mtx_unlock(&rs_mtx);
 		return (rs);
 	} else if ((rl.flags & RT_IS_INDIRECT) == RT_IS_INDIRECT) {
 		memset(rs, 0, sizeof(struct tcp_rate_set));
@@ -410,12 +408,10 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		    rs->rs_ifp->if_xname,
 		    CTLFLAG_RW, 0,
 		    "");
-		CK_LIST_INSERT_HEAD(&int_rs, rs, next);
-		/* Unlock to allow the sysctl stuff to allocate */
-		mtx_unlock(&rs_mtx);
 		rl_add_syctl_entries(rl_sysctl_root, rs);
-		/* re-lock for our caller */
 		mtx_lock(&rs_mtx);
+		CK_LIST_INSERT_HEAD(&int_rs, rs, next);
+		mtx_unlock(&rs_mtx);
 		return (rs);
 	} else if ((rl.flags & RT_IS_FIXED_TABLE) == RT_IS_FIXED_TABLE) {
 		/* Mellanox most likely */
@@ -560,7 +556,6 @@ bail:
 		goto bail;
 	}
 	rs_number_alive++;
-	CK_LIST_INSERT_HEAD(&int_rs, rs, next);
 	sysctl_ctx_init(&rs->sysctl_ctx);
 	rl_sysctl_root = SYSCTL_ADD_NODE(&rs->sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_net_inet_tcp_rl),
@@ -568,11 +563,10 @@ bail:
 	    rs->rs_ifp->if_xname,
 	    CTLFLAG_RW, 0,
 	    "");
-	/* Unlock to allow the sysctl stuff to allocate */
-	mtx_unlock(&rs_mtx);
 	rl_add_syctl_entries(rl_sysctl_root, rs);
-	/* re-lock for our caller */
 	mtx_lock(&rs_mtx);
+	CK_LIST_INSERT_HEAD(&int_rs, rs, next);
+	mtx_unlock(&rs_mtx);
 	return (rs);
 }
 
@@ -978,8 +972,8 @@ tcp_rl_ifnet_link(void *arg __unused, struct ifnet *ifp, int link_state)
 			return;
 		}
 	}
-	rt_setup_new_rs(ifp, &error);
 	mtx_unlock(&rs_mtx);
+	rt_setup_new_rs(ifp, &error);
 }
 
 static void
