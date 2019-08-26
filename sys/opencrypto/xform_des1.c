@@ -75,19 +75,17 @@ struct enc_xform enc_xform_des = {
 static void
 des1_encrypt(caddr_t key, u_int8_t *blk)
 {
-	des_cblock *cb = (des_cblock *) blk;
 	des_key_schedule *p = (des_key_schedule *) key;
 
-	des_ecb_encrypt(cb, cb, p[0], DES_ENCRYPT);
+	des_ecb_encrypt(blk, blk, p[0], DES_ENCRYPT);
 }
 
 static void
 des1_decrypt(caddr_t key, u_int8_t *blk)
 {
-	des_cblock *cb = (des_cblock *) blk;
 	des_key_schedule *p = (des_key_schedule *) key;
 
-	des_ecb_encrypt(cb, cb, p[0], DES_DECRYPT);
+	des_ecb_encrypt(blk, blk, p[0], DES_DECRYPT);
 }
 
 static int
@@ -99,7 +97,7 @@ des1_setkey(u_int8_t **sched, const u_int8_t *key, int len)
 	p = KMALLOC(sizeof (des_key_schedule),
 		M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
 	if (p != NULL) {
-		des_set_key((const des_cblock *) key, p[0]);
+		des_set_key(key, p[0]);
 		err = 0;
 	} else
 		err = ENOMEM;
