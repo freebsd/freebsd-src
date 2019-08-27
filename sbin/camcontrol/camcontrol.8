@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2019
+.Dd August 6, 2019
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -125,6 +125,8 @@
 .Op Fl 6
 .Aq Fl m Ar page[,subpage] | Fl l
 .Op Fl P Ar pgctl
+.Op Fl D
+.Op Fl L
 .Op Fl b | Fl e
 .Op Fl d
 .Nm
@@ -733,6 +735,11 @@ If not specified,
 starts with 10 byte commands and falls back to 6 byte on error.
 .It Fl d
 Disable block descriptors for mode sense.
+.It Fl D
+Display/edit block descriptors instead of mode page.
+.It Fl L
+Use long LBA block descriptors.
+Allows number of LBAs bigger then 2^^32.
 .It Fl b
 Displays mode page data in binary format.
 .It Fl e
