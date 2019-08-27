@@ -1977,6 +1977,44 @@ atom_perform_link_restart(struct ntb_softc *ntb)
 }
 
 static int
+intel_ntb_port_number(device_t dev)
+{
+	struct ntb_softc *ntb = device_get_softc(dev);
+
+	return (ntb->dev_type == NTB_DEV_USD ? 0 : 1);
+}
+
+static int
+intel_ntb_peer_port_count(device_t dev)
+{
+
+	return (1);
+}
+
+static int
+intel_ntb_peer_port_number(device_t dev, int pidx)
+{
+	struct ntb_softc *ntb = device_get_softc(dev);
+
+	if (pidx != 0)
+		return (-EINVAL);
+
+	return (ntb->dev_type == NTB_DEV_USD ? 1 : 0);
+}
+
+static int
+intel_ntb_peer_port_idx(device_t dev, int port)
+{
+	int peer_port;
+
+	peer_port = intel_ntb_peer_port_number(dev, 0);
+	if (peer_port == -EINVAL || port != peer_port)
+		return (-EINVAL);
+
+	return (0);
+}
+
+static int
 intel_ntb_link_enable(device_t dev, enum ntb_speed speed __unused,
     enum ntb_width width __unused)
 {
@@ -3086,6 +3124,10 @@ static device_method_t ntb_intel_methods[] = {
 	DEVMETHOD(bus_child_location_str, ntb_child_location_str),
 	DEVMETHOD(bus_print_child,	ntb_print_child),
 	/* NTB interface */
+	DEVMETHOD(ntb_port_number,	intel_ntb_port_number),
+	DEVMETHOD(ntb_peer_port_count,	intel_ntb_peer_port_count),
+	DEVMETHOD(ntb_peer_port_number,	intel_ntb_peer_port_number),
+	DEVMETHOD(ntb_peer_port_idx, 	intel_ntb_peer_port_idx),
 	DEVMETHOD(ntb_link_is_up,	intel_ntb_link_is_up),
 	DEVMETHOD(ntb_link_enable,	intel_ntb_link_enable),
 	DEVMETHOD(ntb_link_disable,	intel_ntb_link_disable),
