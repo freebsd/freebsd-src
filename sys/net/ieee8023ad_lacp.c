@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kern_tls.h"
 #include "opt_ratelimit.h"
 
 #include <sys/param.h>
@@ -882,7 +883,7 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 	return (lp->lp_lagg);
 }
 
-#ifdef RATELIMIT
+#if defined(RATELIMIT) || defined(KERN_TLS)
 struct lagg_port *
 lacp_select_tx_port_by_hash(struct lagg_softc *sc, uint32_t flowid)
 {

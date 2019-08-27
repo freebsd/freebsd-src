@@ -6971,6 +6971,12 @@ rack_output(struct tcpcb *tp)
 	struct ip6_hdr *ip6 = NULL;
 	int32_t isipv6;
 #endif
+#ifdef KERN_TLS
+	const bool hw_tls = (so->so_snd.sb_flags & SB_TLS_IFNET) != 0;
+#else
+	const bool hw_tls = false;
+#endif
+
 	/* setup and take the cache hits here */
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	inp = rack->rc_inp;
@@ -7946,7 +7952,7 @@ send:
 		 * sb_offset in the socket buffer chain.
 		 */
 		mb = sbsndptr_noadv(sb, sb_offset, &moff);
-		if (len <= MHLEN - hdrlen - max_linkhdr) {
+		if (len <= MHLEN - hdrlen - max_linkhdr && !hw_tls) {
 			m_copydata(mb, moff, (int)len,
 			    mtod(m, caddr_t)+hdrlen);
 			if (SEQ_LT(tp->snd_nxt, tp->snd_max))
@@ -7960,7 +7966,8 @@ send:
 			else
 				msb = sb;
 			m->m_next = tcp_m_copym(/*tp, */ mb, moff, &len,
-			    if_hw_tsomaxsegcount, if_hw_tsomaxsegsize, msb /*, 0, NULL*/);
+			    if_hw_tsomaxsegcount, if_hw_tsomaxsegsize, msb,
+			    hw_tls /*, NULL */);
 			if (len <= (tp->t_maxseg - optlen)) {
 				/* 
 				 * Must have ran out of mbufs for the copy

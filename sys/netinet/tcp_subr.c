@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_kern_tls.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -49,6 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #ifdef TCP_HHOOK
 #include <sys/khelp.h>
+#endif
+#ifdef KERN_TLS
+#include <sys/ktls.h>
 #endif
 #include <sys/sysctl.h>
 #include <sys/jail.h>
@@ -3075,6 +3079,120 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
     CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP, NULL,
     0, sysctl_drop, "", "Drop TCP connection");
+
+#ifdef KERN_TLS
+static int
+sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
+{
+	/* addrs[0] is a foreign socket, addrs[1] is a local one. */
+	struct sockaddr_storage addrs[2];
+	struct inpcb *inp;
+	struct sockaddr_in *fin, *lin;
+	struct epoch_tracker et;
+#ifdef INET6
+	struct sockaddr_in6 *fin6, *lin6;
+#endif
+	int error;
+
+	inp = NULL;
+	fin = lin = NULL;
+#ifdef INET6
+	fin6 = lin6 = NULL;
+#endif
+	error = 0;
+
+	if (req->oldptr != NULL || req->oldlen != 0)
+		return (EINVAL);
+	if (req->newptr == NULL)
+		return (EPERM);
+	if (req->newlen < sizeof(addrs))
+		return (ENOMEM);
+	error = SYSCTL_IN(req, &addrs, sizeof(addrs));
+	if (error)
+		return (error);
+
+	switch (addrs[0].ss_family) {
+#ifdef INET6
+	case AF_INET6:
+		fin6 = (struct sockaddr_in6 *)&addrs[0];
+		lin6 = (struct sockaddr_in6 *)&addrs[1];
+		if (fin6->sin6_len != sizeof(struct sockaddr_in6) ||
+		    lin6->sin6_len != sizeof(struct sockaddr_in6))
+			return (EINVAL);
+		if (IN6_IS_ADDR_V4MAPPED(&fin6->sin6_addr)) {
+			if (!IN6_IS_ADDR_V4MAPPED(&lin6->sin6_addr))
+				return (EINVAL);
+			in6_sin6_2_sin_in_sock((struct sockaddr *)&addrs[0]);
+			in6_sin6_2_sin_in_sock((struct sockaddr *)&addrs[1]);
+			fin = (struct sockaddr_in *)&addrs[0];
+			lin = (struct sockaddr_in *)&addrs[1];
+			break;
+		}
+		error = sa6_embedscope(fin6, V_ip6_use_defzone);
+		if (error)
+			return (error);
+		error = sa6_embedscope(lin6, V_ip6_use_defzone);
+		if (error)
+			return (error);
+		break;
+#endif
+#ifdef INET
+	case AF_INET:
+		fin = (struct sockaddr_in *)&addrs[0];
+		lin = (struct sockaddr_in *)&addrs[1];
+		if (fin->sin_len != sizeof(struct sockaddr_in) ||
+		    lin->sin_len != sizeof(struct sockaddr_in))
+			return (EINVAL);
+		break;
+#endif
+	default:
+		return (EINVAL);
+	}
+	INP_INFO_RLOCK_ET(&V_tcbinfo, et);
+	switch (addrs[0].ss_family) {
+#ifdef INET6
+	case AF_INET6:
+		inp = in6_pcblookup(&V_tcbinfo, &fin6->sin6_addr,
+		    fin6->sin6_port, &lin6->sin6_addr, lin6->sin6_port,
+		    INPLOOKUP_WLOCKPCB, NULL);
+		break;
+#endif
+#ifdef INET
+	case AF_INET:
+		inp = in_pcblookup(&V_tcbinfo, fin->sin_addr, fin->sin_port,
+		    lin->sin_addr, lin->sin_port, INPLOOKUP_WLOCKPCB, NULL);
+		break;
+#endif
+	}
+	INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
+	if (inp != NULL) {
+		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) != 0 ||
+		    inp->inp_socket == NULL) {
+			error = ECONNRESET;
+			INP_WUNLOCK(inp);
+		} else {
+			struct socket *so;
+	
+			so = inp->inp_socket;
+			soref(so);
+			error = ktls_set_tx_mode(so,
+			    arg2 == 0 ? TCP_TLS_MODE_SW : TCP_TLS_MODE_IFNET);
+			INP_WUNLOCK(inp);
+			SOCK_LOCK(so);
+			sorele(so);
+		}
+	} else
+		error = ESRCH;
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, switch_to_sw_tls,
+    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP, NULL,
+    0, sysctl_switch_tls, "", "Switch TCP connection to SW TLS");
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, switch_to_ifnet_tls,
+    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP, NULL,
+    1, sysctl_switch_tls, "", "Switch TCP connection to ifnet TLS");
+#endif
 
 /*
  * Generate a standardized TCP log line for use throughout the
