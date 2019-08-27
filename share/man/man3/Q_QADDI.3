@@ -1,0 +1,134 @@
+.\"
+.\" Copyright (c) 2018 Netflix, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 8, 2018
+.Dt Q_QADDI 3
+.Os
+.Sh NAME
+.Nm Q_QADDI ,
+.Nm Q_QDIVI ,
+.Nm Q_QMULI ,
+.Nm Q_QSUBI ,
+.Nm Q_QFRACI ,
+.Nm Q_QCPYVALI
+.Nd fixed-point math functions which apply integers to a Q number
+.Sh SYNOPSIS
+.In sys/qmath.h
+.Ft int
+.Fn Q_QADDI "QTYPE *a" "ITYPE b"
+.Ft int
+.Fn Q_QDIVI "QTYPE *a" "ITYPE b"
+.Ft int
+.Fn Q_QMULI "QTYPE *a" "ITYPE b"
+.Ft int
+.Fn Q_QSUBI "QTYPE *a" "ITYPE b"
+.Ft int
+.Fn Q_QFRACI "QTYPE *q" "ITYPE n" "ITYPE d"
+.Ft int
+.Fn Q_QCPYVALI "QTYPE *q" "ITYPE i"
+.Sh DESCRIPTION
+The
+.Fn Q_QADDI ,
+.Fn Q_QDIVI ,
+.Fn Q_QMULI
+and
+.Fn Q_QSUBI
+functions add, divide, multiply or subtract
+.Fa b
+to/by/from
+.Fa a
+respectively, storing the result in
+.Fa a .
+.Pp
+The
+.Fn Q_QFRACI
+function computes the fraction
+.Fa n
+divided by
+.Fa d
+and stores the fixed-point result in
+.Fa q .
+.Pp
+The
+.Fn Q_QCPYVALI
+function overwrites
+.Fa q Ap s
+integer and fractional bits with the Q representation of integer value
+.Fa i .
+.Pp
+All of those functions operate on
+the following data types:
+.Vt s8q_t ,
+.Vt u8q_t ,
+.Vt s16q_t ,
+.Vt u16q_t ,
+.Vt s32q_t ,
+.Vt u32q_t ,
+.Vt s64q_t ,
+and
+.Vt u64q_t ,
+which are referred to generically as
+.Fa QTYPE .
+The
+.Fa ITYPE
+refers to the
+.Xr stdint 7
+integer types.
+.Pp
+For more details, see
+.Xr qmath 3 .
+.Sh RETURN VALUES
+.Fn Q_QADDI ,
+.Fn Q_QDIVI ,
+.Fn Q_QMULI ,
+.Fn Q_QSUBI ,
+.Fn Q_QFRACI
+and
+.Fn Q_QCPYVALI
+functions return 0 on success, or an errno on failure.
+.Er EINVAL
+is returned for divide-by-zero.
+.Er EOVERFLOW
+and
+.Er ERANGE
+are returned for overflow and underflow respectively.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr qmath 3 ,
+.Xr stdint 7
+.Sh HISTORY
+The
+.Xr qmath 3
+functions first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Xr qmath 3
+functions and this manual page were written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and sponsored by Netflix, Inc.
