@@ -54,6 +54,7 @@ struct nvd_controller;
 static disk_ioctl_t nvd_ioctl;
 static disk_strategy_t nvd_strategy;
 static dumper_t nvd_dump;
+static disk_getattr_t nvd_getattr;
 
 static void nvd_done(void *arg, const struct nvme_completion *cpl);
 static void nvd_gone(struct nvd_disk *ndisk);
@@ -294,6 +295,51 @@ nvd_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
 	return (nvme_ns_dump(ndisk->ns, virt, offset, len));
 }
 
+static int
+nvd_getattr(struct bio *bp)
+{
+	struct nvd_disk *ndisk = (struct nvd_disk *)bp->bio_disk->d_drv1;
+	const struct nvme_namespace_data *nsdata;
+	u_int i;
+
+	if (!strcmp("GEOM::lunid", bp->bio_attribute)) {
+		nsdata = nvme_ns_get_data(ndisk->ns);
+
+		/* Try to return NGUID as lunid. */
+		for (i = 0; i < sizeof(nsdata->nguid); i++) {
+			if (nsdata->nguid[i] != 0)
+				break;
+		}
+		if (i < sizeof(nsdata->nguid)) {
+			if (bp->bio_length < sizeof(nsdata->nguid) * 2 + 1)
+				return (EFAULT);
+			for (i = 0; i < sizeof(nsdata->nguid); i++) {
+				sprintf(&bp->bio_data[i * 2], "%02x",
+				    nsdata->nguid[i]);
+			}
+			bp->bio_completed = bp->bio_length;
+			return (0);
+		}
+
+		/* Try to return EUI64 as lunid. */
+		for (i = 0; i < sizeof(nsdata->eui64); i++) {
+			if (nsdata->eui64[i] != 0)
+				break;
+		}
+		if (i < sizeof(nsdata->eui64)) {
+			if (bp->bio_length < sizeof(nsdata->eui64) * 2 + 1)
+				return (EFAULT);
+			for (i = 0; i < sizeof(nsdata->eui64); i++) {
+				sprintf(&bp->bio_data[i * 2], "%02x",
+				    nsdata->eui64[i]);
+			}
+			bp->bio_completed = bp->bio_length;
+			return (0);
+		}
+	}
+	return (-1);
+}
+
 static void
 nvd_done(void *arg, const struct nvme_completion *cpl)
 {
@@ -403,6 +449,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk->d_strategy = nvd_strategy;
 	disk->d_ioctl = nvd_ioctl;
 	disk->d_dump = nvd_dump;
+	disk->d_getattr = nvd_getattr;
 	disk->d_gone = nvd_gonecb;
 	disk->d_name = NVD_STR;
 	disk->d_unit = ndisk->unit;
