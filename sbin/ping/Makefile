@@ -9,7 +9,6 @@ SRCS=	ping.c utils.c
 MAN=	ping.8
 BINOWN=	root
 BINMODE=4555
-WARNS?=	3
 LIBADD=	m
 
 .if ${MK_DYNAMICROOT} == "no"
