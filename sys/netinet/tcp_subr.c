@@ -530,6 +530,9 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
 			return (EINVAL);			
 		}
 	}	
+	if (blk->tfb_flags & TCP_FUNC_BEING_REMOVED) {
+		return (EINVAL);
+	}
 	n = malloc(sizeof(struct tcp_function), M_TCPFUNCTIONS, wait);
 	if (n == NULL) {
 		return (ENOMEM);
@@ -545,7 +548,6 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
 		return (EALREADY);
 	}
 	refcount_init(&blk->tfb_refcnt, 0);
-	blk->tfb_flags = 0;
 	TAILQ_INSERT_TAIL(&t_functions, n, tf_next);
 	rw_wunlock(&tcp_function_lock);
 	return(0);
