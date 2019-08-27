@@ -654,6 +654,10 @@ options 	IPSEC			#IP security (requires device crypto)
 options		IPSEC_SUPPORT
 #options 	IPSEC_DEBUG		#debug for IP security
 
+
+# TLS framing and encryption of data transmitted over TCP sockets.
+options		KERN_TLS		# TLS transmit offload
+
 #
 # SMB/CIFS requester
 # NETSMB enables support for SMB protocol, it requires LIBMCHAIN and LIBICONV

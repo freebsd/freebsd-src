@@ -301,6 +301,7 @@ struct mbuf {
 	};
 };
 
+struct ktls_session;
 struct socket;
 
 /*
@@ -344,7 +345,7 @@ struct mbuf_ext_pgs {
 	uint16_t	last_pg_len;		/* Length of last page */
 	vm_paddr_t	pa[MBUF_PEXT_MAX_PGS];	/* phys addrs of pages */
 	char		hdr[MBUF_PEXT_HDR_LEN];	/* TLS header */
-	void		*tls;			/* TLS session */
+	struct ktls_session *tls;		/* TLS session */
 #if defined(__i386__) || \
     (defined(__powerpc__) && !defined(__powerpc64__) && defined(BOOKE))
 	/*
@@ -357,9 +358,10 @@ struct mbuf_ext_pgs {
 		char	trail[MBUF_PEXT_TRAIL_LEN]; /* TLS trailer */
 		struct {
 			struct socket *so;
-			void	*mbuf;
+			struct mbuf *mbuf;
 			uint64_t seqno;
 			STAILQ_ENTRY(mbuf_ext_pgs) stailq;
+			int enc_cnt;
 		};
 	};
 };
@@ -1505,6 +1507,19 @@ void	netdump_mbuf_drain(void);
 void	netdump_mbuf_dump(void);
 void	netdump_mbuf_reinit(int nmbuf, int nclust, int clsize);
 #endif
+
+static inline bool
+mbuf_has_tls_session(struct mbuf *m)
+{
+
+	if (m->m_flags & M_NOMAP) {
+		MBUF_EXT_PGS_ASSERT(m);
+		if (m->m_ext.ext_pgs->tls != NULL) {
+			return (true);
+		}
+	}
+	return (false);
+}
 
 #endif /* _KERNEL */
 #endif /* !_SYS_MBUF_H_ */

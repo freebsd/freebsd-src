@@ -23,6 +23,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_kern_tls.h"
 #include "opt_ratelimit.h"
 
 #include <sys/param.h>
@@ -135,7 +136,7 @@ static void	lagg_port2req(struct lagg_port *, struct lagg_reqport *);
 static void	lagg_init(void *);
 static void	lagg_stop(struct lagg_softc *);
 static int	lagg_ioctl(struct ifnet *, u_long, caddr_t);
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 static int	lagg_snd_tag_alloc(struct ifnet *,
 		    union if_snd_tag_alloc_params *,
 		    struct m_snd_tag **);
@@ -534,7 +535,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_ioctl = lagg_ioctl;
 	ifp->if_get_counter = lagg_get_counter;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 	ifp->if_snd_tag_alloc = lagg_snd_tag_alloc;
 	ifp->if_snd_tag_modify = lagg_snd_tag_modify;
 	ifp->if_snd_tag_query = lagg_snd_tag_query;
@@ -1550,7 +1551,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 static inline struct lagg_snd_tag *
 mst_to_lst(struct m_snd_tag *mst)
 {
@@ -1811,7 +1812,7 @@ lagg_transmit(struct ifnet *ifp, struct mbuf *m)
 	struct lagg_softc *sc = (struct lagg_softc *)ifp->if_softc;
 	int error;
 
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		MPASS(m->m_pkthdr.snd_tag->ifp == ifp);
 #endif
@@ -2007,7 +2008,7 @@ int
 lagg_enqueue(struct ifnet *ifp, struct mbuf *m)
 {
 
-#ifdef RATELIMIT
+#if defined(KERN_TLS) || defined(RATELIMIT)
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG) {
 		struct lagg_snd_tag *lst;
 		struct m_snd_tag *mst;

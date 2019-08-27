@@ -952,7 +952,7 @@ uint32_t tcp_compute_initwnd(uint32_t);
 void	 tcp_sndbuf_autoscale(struct tcpcb *, struct socket *, uint32_t);
 struct mbuf *
 	 tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
-	   int32_t seglimit, int32_t segsize, struct sockbuf *sb);
+	   int32_t seglimit, int32_t segsize, struct sockbuf *sb, bool hw_tls);
 
 
 static inline void
