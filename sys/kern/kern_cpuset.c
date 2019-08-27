@@ -500,25 +500,31 @@ _domainset_create(struct domainset *domain, struct domainlist *freelist)
 static bool
 domainset_empty_vm(struct domainset *domain)
 {
-	int i, j, max;
+	domainset_t empty;
+	int i, j;
 
-	max = DOMAINSET_FLS(&domain->ds_mask) + 1;
-	for (i = 0; i < max; i++)
-		if (DOMAINSET_ISSET(i, &domain->ds_mask) && VM_DOMAIN_EMPTY(i))
-			DOMAINSET_CLR(i, &domain->ds_mask);
+	DOMAINSET_ZERO(&empty);
+	for (i = 0; i < vm_ndomains; i++)
+		if (VM_DOMAIN_EMPTY(i))
+			DOMAINSET_SET(i, &empty);
+	if (DOMAINSET_SUBSET(&empty, &domain->ds_mask))
+		return (true);
+
+	/* Remove empty domains from the set and recompute. */
+	DOMAINSET_NAND(&domain->ds_mask, &empty);
 	domain->ds_cnt = DOMAINSET_COUNT(&domain->ds_mask);
-	max = DOMAINSET_FLS(&domain->ds_mask) + 1;
-	for (i = j = 0; i < max; i++) {
+	for (i = j = 0; i < DOMAINSET_FLS(&domain->ds_mask); i++)
 		if (DOMAINSET_ISSET(i, &domain->ds_mask))
 			domain->ds_order[j++] = i;
-		else if (domain->ds_policy == DOMAINSET_POLICY_PREFER &&
-		    domain->ds_prefer == i && domain->ds_cnt > 1) {
-			domain->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
-			domain->ds_prefer = -1;
-		}
+
+	/* Convert a PREFER policy referencing an empty domain to RR. */
+	if (domain->ds_policy == DOMAINSET_POLICY_PREFER &&
+	    DOMAINSET_ISSET(domain->ds_prefer, &empty)) {
+		domain->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
+		domain->ds_prefer = -1;
 	}
 
-	return (DOMAINSET_EMPTY(&domain->ds_mask));
+	return (false);
 }
 
 /*
