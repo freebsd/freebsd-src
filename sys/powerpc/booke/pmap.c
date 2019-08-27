@@ -2807,7 +2807,7 @@ retry:
 			if (vm_page_pa_tryrelock(pmap, PTE_PA(pte), &pa))
 				goto retry;
 			m = PHYS_TO_VM_PAGE(PTE_PA(pte));
-			m->wire_count++;
+			vm_page_wire(m);
 		}
 	}
 
