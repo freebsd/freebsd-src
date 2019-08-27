@@ -223,7 +223,7 @@ struct nvme_namespace {
 	uint32_t			flags;
 	struct cdev			*cdev;
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
-	uint32_t			stripesize;
+	uint32_t			boundary;
 	struct mtx			lock;
 };
 
