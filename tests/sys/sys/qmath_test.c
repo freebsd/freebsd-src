@@ -448,10 +448,10 @@ ATF_TC_BODY(qfraci_s64q, tc)
 		maxe_dbl = fabs(1.0 / Q_NFBITS(a_s64q));
 		delta_dbl = fabs(r_dbl - Q_Q2D(r_s64q));
 		ATF_CHECK_MSG(delta_dbl <= maxe_dbl,
-		    "\tQFRACI(%ld / %ld): |%10f - %10f| = %10f "
+		    "\tQFRACI(%jd / %jd): |%10f - %10f| = %10f "
 		    "(max err %f)\n",
-		    a_int, b_int, Q_Q2D(r_s64q), r_dbl, delta_dbl,
-		    maxe_dbl);
+		    (intmax_t)a_int, (intmax_t)b_int, Q_Q2D(r_s64q),
+		    r_dbl, delta_dbl, maxe_dbl);
 	}
 }
 
@@ -495,10 +495,10 @@ ATF_TC_BODY(qmuli_s64q, tc)
 		maxe_dbl = fabs((1.0 / Q_NFBITS(a_s64q)) * (double)b_int);
 		delta_dbl = fabs(r_dbl - Q_Q2D(r_s64q));
 		ATF_CHECK_MSG(delta_dbl <= maxe_dbl,
-		    "\tQMULI(%ld * %ld): |%10f - %10f| = %10f "
+		    "\tQMULI(%jd * %jd): |%10f - %10f| = %10f "
 		    "(max err %f)\n",
-		    a_int, b_int, Q_Q2D(r_s64q), r_dbl, delta_dbl,
-		    maxe_dbl);
+		    (intmax_t)(intmax_t)a_int, b_int, Q_Q2D(r_s64q),
+		    r_dbl, delta_dbl, maxe_dbl);
 	}
 }
 
@@ -546,10 +546,10 @@ ATF_TC_BODY(qaddi_s64q, tc)
 #endif
 		delta_dbl = fabs(r_dbl - Q_Q2D(r_s64q));
 		ATF_CHECK_MSG(delta_dbl <= maxe_dbl,
-		    "\tQADDI(%ld + %ld): |%10f - %10f| = %10f "
+		    "\tQADDI(%jd + %jd): |%10f - %10f| = %10f "
 		    "(max err %f)\n",
-		    a_int, b_int, Q_Q2D(r_s64q), r_dbl, delta_dbl,
-		    maxe_dbl);
+		    (intmax_t)a_int, (intmax_t)b_int, Q_Q2D(r_s64q),
+		    r_dbl, delta_dbl, maxe_dbl);
 	}
 }
 
@@ -594,10 +594,10 @@ ATF_TC_BODY(qsubi_s64q, tc)
 #endif
 		delta_dbl = fabs(r_dbl - Q_Q2D(r_s64q));
 		ATF_CHECK_MSG(delta_dbl <= maxe_dbl,
-		    "\tQSUBI(%ld - %ld): |%10f - %10f| = %10f "
+		    "\tQSUBI(%jd - %jd): |%10f - %10f| = %10f "
 		    "(max err %f)\n",
-		    a_int, b_int, Q_Q2D(r_s64q), r_dbl, delta_dbl,
-		    maxe_dbl);
+		    (intmax_t)a_int, (intmax_t)b_int, Q_Q2D(r_s64q),
+		    r_dbl, delta_dbl, maxe_dbl);
 	}
 }
 
