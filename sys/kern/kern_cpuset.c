@@ -457,7 +457,7 @@ static struct domainset *
 _domainset_create(struct domainset *domain, struct domainlist *freelist)
 {
 	struct domainset *ndomain;
-	int i, j, max;
+	int i, j;
 
 	KASSERT(domain->ds_cnt <= vm_ndomains,
 	    ("invalid domain count in domainset %p", domain));
@@ -476,8 +476,7 @@ _domainset_create(struct domainset *domain, struct domainlist *freelist)
 	if (ndomain == NULL) {
 		LIST_INSERT_HEAD(&cpuset_domains, domain, ds_link);
 		domain->ds_cnt = DOMAINSET_COUNT(&domain->ds_mask);
-		max = DOMAINSET_FLS(&domain->ds_mask) + 1;
-		for (i = 0, j = 0; i < max; i++)
+		for (i = 0, j = 0; i < DOMAINSET_FLS(&domain->ds_mask); i++)
 			if (DOMAINSET_ISSET(i, &domain->ds_mask))
 				domain->ds_order[j++] = i;
 	}
