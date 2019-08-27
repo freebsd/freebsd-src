@@ -77,7 +77,7 @@ static void	t4_aiotx_cancel(struct kaiocb *job);
 static void	t4_aiotx_queue_toep(struct socket *so, struct toepcb *toep);
 
 void
-send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
+send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 {
 	struct wrqe *wr;
 	struct fw_flowc_wr *flowc;
@@ -91,17 +91,17 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	KASSERT(!(toep->flags & TPF_FLOWC_WR_SENT),
 	    ("%s: flowc for tid %u sent already", __func__, toep->tid));
 
-	if (ftxp != NULL)
+	if (tp != NULL)
 		nparams = 8;
 	else
 		nparams = 6;
-	if (toep->ulp_mode == ULP_MODE_TLS)
+	if (ulp_mode(toep) == ULP_MODE_TLS)
 		nparams++;
 	if (toep->tls.fcplenmax != 0)
 		nparams++;
-	if (toep->tc_idx != -1) {
-		MPASS(toep->tc_idx >= 0 &&
-		    toep->tc_idx < sc->chip_params->nsched_cls);
+	if (toep->params.tc_idx != -1) {
+		MPASS(toep->params.tc_idx >= 0 &&
+		    toep->params.tc_idx < sc->chip_params->nsched_cls);
 		nparams++;
 	}
 
@@ -133,30 +133,23 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	FLOWC_PARAM(CH, pi->tx_chan);
 	FLOWC_PARAM(PORT, pi->tx_chan);
 	FLOWC_PARAM(IQID, toep->ofld_rxq->iq.abs_id);
-	if (ftxp) {
-		uint32_t sndbuf = min(ftxp->snd_space, sc->tt.sndbuf);
-
-		FLOWC_PARAM(SNDNXT, ftxp->snd_nxt);
-		FLOWC_PARAM(RCVNXT, ftxp->rcv_nxt);
-		FLOWC_PARAM(SNDBUF, sndbuf);
-		FLOWC_PARAM(MSS, ftxp->mss);
-
-		CTR6(KTR_CXGBE,
-		    "%s: tid %u, mss %u, sndbuf %u, snd_nxt 0x%x, rcv_nxt 0x%x",
-		    __func__, toep->tid, ftxp->mss, sndbuf, ftxp->snd_nxt,
-		    ftxp->rcv_nxt);
-	} else {
-		FLOWC_PARAM(SNDBUF, 512);
-		FLOWC_PARAM(MSS, 512);
-
-		CTR2(KTR_CXGBE, "%s: tid %u", __func__, toep->tid);
+	FLOWC_PARAM(SNDBUF, toep->params.sndbuf);
+	FLOWC_PARAM(MSS, toep->params.emss);
+	if (tp) {
+		FLOWC_PARAM(SNDNXT, tp->snd_nxt);
+		FLOWC_PARAM(RCVNXT, tp->rcv_nxt);
 	}
-	if (toep->ulp_mode == ULP_MODE_TLS)
-		FLOWC_PARAM(ULP_MODE, toep->ulp_mode);
+	CTR6(KTR_CXGBE,
+	    "%s: tid %u, mss %u, sndbuf %u, snd_nxt 0x%x, rcv_nxt 0x%x",
+	    __func__, toep->tid, toep->params.emss, toep->params.sndbuf,
+	    tp ? tp->snd_nxt : 0, tp ? tp->rcv_nxt : 0);
+
+	if (ulp_mode(toep) == ULP_MODE_TLS)
+		FLOWC_PARAM(ULP_MODE, ulp_mode(toep));
 	if (toep->tls.fcplenmax != 0)
 		FLOWC_PARAM(TXDATAPLEN_MAX, toep->tls.fcplenmax);
-	if (toep->tc_idx != -1)
-		FLOWC_PARAM(SCHEDCLASS, toep->tc_idx);
+	if (toep->params.tc_idx != -1)
+		FLOWC_PARAM(SCHEDCLASS, toep->params.tc_idx);
 #undef FLOWC_PARAM
 
 	KASSERT(paramidx == nparams, ("nparams mismatch"));
@@ -197,7 +190,7 @@ update_tx_rate_limit(struct adapter *sc, struct toepcb *toep, u_int Bps)
 		MPASS(tc_idx >= 0 && tc_idx < sc->chip_params->nsched_cls);
 	}
 
-	if (toep->tc_idx != tc_idx) {
+	if (toep->params.tc_idx != tc_idx) {
 		struct wrqe *wr;
 		struct fw_flowc_wr *flowc;
 		int nparams = 1, flowclen, flowclen16;
@@ -236,9 +229,9 @@ update_tx_rate_limit(struct adapter *sc, struct toepcb *toep, u_int Bps)
 		t4_wrq_tx(sc, wr);
 	}
 
-	if (toep->tc_idx >= 0)
-		t4_release_cl_rl(sc, port_id, toep->tc_idx);
-	toep->tc_idx = tc_idx;
+	if (toep->params.tc_idx >= 0)
+		t4_release_cl_rl(sc, port_id, toep->params.tc_idx);
+	toep->params.tc_idx = tc_idx;
 
 	return (0);
 }
@@ -313,30 +306,30 @@ assign_rxopt(struct tcpcb *tp, uint16_t opt)
 
 	INP_LOCK_ASSERT(inp);
 
-	toep->tcp_opt = opt;
-	toep->mtu_idx = G_TCPOPT_MSS(opt);
-	tp->t_maxseg = sc->params.mtus[toep->mtu_idx];
+	toep->params.mtu_idx = G_TCPOPT_MSS(opt);
+	tp->t_maxseg = sc->params.mtus[toep->params.mtu_idx];
 	if (inp->inp_inc.inc_flags & INC_ISIPV6)
 		tp->t_maxseg -= sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
 	else
 		tp->t_maxseg -= sizeof(struct ip) + sizeof(struct tcphdr);
 
-	toep->emss = tp->t_maxseg;
+	toep->params.emss = tp->t_maxseg;
 	if (G_TCPOPT_TSTAMP(opt)) {
+		toep->params.tstamp = 1;
+		toep->params.emss -= TCPOLEN_TSTAMP_APPA;
 		tp->t_flags |= TF_RCVD_TSTMP;	/* timestamps ok */
 		tp->ts_recent = 0;		/* hmmm */
 		tp->ts_recent_age = tcp_ts_getticks();
-		toep->emss -= TCPOLEN_TSTAMP_APPA;
-	}
+	} else
+		toep->params.tstamp = 0;
 
-	CTR6(KTR_CXGBE, "%s: tid %d, mtu_idx %u (%u), t_maxseg %u, emss %u",
-	    __func__, toep->tid, toep->mtu_idx,
-	    sc->params.mtus[G_TCPOPT_MSS(opt)], tp->t_maxseg, toep->emss);
-
-	if (G_TCPOPT_SACK(opt))
+	if (G_TCPOPT_SACK(opt)) {
+		toep->params.sack = 1;
 		tp->t_flags |= TF_SACK_PERMIT;	/* should already be set */
-	else
+	} else {
+		toep->params.sack = 0;
 		tp->t_flags &= ~TF_SACK_PERMIT;	/* sack disallowed by peer */
+	}
 
 	if (G_TCPOPT_WSCALE_OK(opt))
 		tp->t_flags |= TF_RCVD_SCALE;
@@ -346,7 +339,13 @@ assign_rxopt(struct tcpcb *tp, uint16_t opt)
 	    (TF_RCVD_SCALE | TF_REQ_SCALE)) {
 		tp->rcv_scale = tp->request_r_scale;
 		tp->snd_scale = G_TCPOPT_SND_WSCALE(opt);
-	}
+	} else
+		toep->params.wscale = 0;
+
+	CTR6(KTR_CXGBE,
+	    "assign_rxopt: tid %d, mtu_idx %u, emss %u, ts %u, sack %u, wscale %u",
+	    toep->tid, toep->params.mtu_idx, toep->params.emss,
+	    toep->params.tstamp, toep->params.sack, toep->params.wscale);
 }
 
 /*
@@ -361,9 +360,7 @@ make_established(struct toepcb *toep, uint32_t iss, uint32_t irs, uint16_t opt)
 	struct inpcb *inp = toep->inp;
 	struct socket *so = inp->inp_socket;
 	struct tcpcb *tp = intotcpcb(inp);
-	long bufsize;
 	uint16_t tcpopt = be16toh(opt);
-	struct flowc_tx_params ftxp;
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(tp->t_state == TCPS_SYN_SENT ||
@@ -379,7 +376,7 @@ make_established(struct toepcb *toep, uint32_t iss, uint32_t irs, uint16_t opt)
 
 	tp->irs = irs;
 	tcp_rcvseqinit(tp);
-	tp->rcv_wnd = (u_int)toep->opt0_rcv_bufsize << 10;
+	tp->rcv_wnd = (u_int)toep->params.opt0_bufsize << 10;
 	tp->rcv_adv += tp->rcv_wnd;
 	tp->last_ack_sent = tp->rcv_nxt;
 
@@ -390,19 +387,7 @@ make_established(struct toepcb *toep, uint32_t iss, uint32_t irs, uint16_t opt)
 	tp->snd_max = iss + 1;
 
 	assign_rxopt(tp, tcpopt);
-
-	SOCKBUF_LOCK(&so->so_snd);
-	if (so->so_snd.sb_flags & SB_AUTOSIZE && V_tcp_do_autosndbuf)
-		bufsize = V_tcp_autosndbuf_max;
-	else
-		bufsize = sbspace(&so->so_snd);
-	SOCKBUF_UNLOCK(&so->so_snd);
-
-	ftxp.snd_nxt = tp->snd_nxt;
-	ftxp.rcv_nxt = tp->rcv_nxt;
-	ftxp.snd_space = bufsize;
-	ftxp.mss = toep->emss;
-	send_flowc_wr(toep, &ftxp);
+	send_flowc_wr(toep, tp);
 
 	soisconnected(so);
 }
@@ -459,7 +444,7 @@ t4_rcvd_locked(struct toedev *tod, struct tcpcb *tp)
 	SOCKBUF_LOCK_ASSERT(sb);
 
 	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
-	if (toep->ulp_mode == ULP_MODE_TLS) {
+	if (ulp_mode(toep) == ULP_MODE_TLS) {
 		if (toep->tls.rcv_over >= rx_credits) {
 			toep->tls.rcv_over -= rx_credits;
 			rx_credits = 0;
@@ -578,7 +563,7 @@ max_dsgl_nsegs(int tx_credits)
 
 static inline void
 write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
-    unsigned int plen, uint8_t credits, int shove, int ulp_submode, int txalign)
+    unsigned int plen, uint8_t credits, int shove, int ulp_submode)
 {
 	struct fw_ofld_tx_data_wr *txwr = dst;
 
@@ -586,20 +571,18 @@ write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
 	    V_FW_WR_IMMDLEN(immdlen));
 	txwr->flowid_len16 = htobe32(V_FW_WR_FLOWID(toep->tid) |
 	    V_FW_WR_LEN16(credits));
-	txwr->lsodisable_to_flags = htobe32(V_TX_ULP_MODE(toep->ulp_mode) |
+	txwr->lsodisable_to_flags = htobe32(V_TX_ULP_MODE(ulp_mode(toep)) |
 	    V_TX_ULP_SUBMODE(ulp_submode) | V_TX_URG(0) | V_TX_SHOVE(shove));
 	txwr->plen = htobe32(plen);
 
-	if (txalign > 0) {
-		struct tcpcb *tp = intotcpcb(toep->inp);
-
-		if (plen < 2 * toep->emss)
+	if (toep->params.tx_align > 0) {
+		if (plen < 2 * toep->params.emss)
 			txwr->lsodisable_to_flags |=
 			    htobe32(F_FW_OFLD_TX_DATA_WR_LSODISABLE);
 		else
 			txwr->lsodisable_to_flags |=
 			    htobe32(F_FW_OFLD_TX_DATA_WR_ALIGNPLD |
-				(tp->t_flags & TF_NODELAY ? 0 :
+				(toep->params.nagle == 0 ? 0 :
 				F_FW_OFLD_TX_DATA_WR_ALIGNPLDSHOVE));
 	}
 }
@@ -694,11 +677,11 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, toep->tid));
 
-	KASSERT(toep->ulp_mode == ULP_MODE_NONE ||
-	    toep->ulp_mode == ULP_MODE_TCPDDP ||
-	    toep->ulp_mode == ULP_MODE_TLS ||
-	    toep->ulp_mode == ULP_MODE_RDMA,
-	    ("%s: ulp_mode %u for toep %p", __func__, toep->ulp_mode, toep));
+	KASSERT(ulp_mode(toep) == ULP_MODE_NONE ||
+	    ulp_mode(toep) == ULP_MODE_TCPDDP ||
+	    ulp_mode(toep) == ULP_MODE_TLS ||
+	    ulp_mode(toep) == ULP_MODE_RDMA,
+	    ("%s: ulp_mode %u for toep %p", __func__, ulp_mode(toep), toep));
 
 #ifdef VERBOSE_TRACES
 	CTR5(KTR_CXGBE, "%s: tid %d toep flags %#x tp flags %#x drop %d",
@@ -837,8 +820,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr->wr_len, 16);
-			write_tx_wr(txwr, toep, plen, plen, credits, shove, 0,
-			    sc->tt.tx_align);
+			write_tx_wr(txwr, toep, plen, plen, credits, shove, 0);
 			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
 			nsegs = 0;
 		} else {
@@ -856,8 +838,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr_len, 16);
-			write_tx_wr(txwr, toep, 0, plen, credits, shove, 0,
-			    sc->tt.tx_align);
+			write_tx_wr(txwr, toep, 0, plen, credits, shove, 0);
 			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
 			    max_nsegs_1mbuf);
 			if (wr_len & 0xf) {
@@ -877,7 +858,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		    toep->tx_nocompl >= toep->tx_total / 4)
 			compl = 1;
 
-		if (compl || toep->ulp_mode == ULP_MODE_RDMA) {
+		if (compl || ulp_mode(toep) == ULP_MODE_RDMA) {
 			txwr->op_to_immdlen |= htobe32(F_FW_WR_COMPL);
 			toep->tx_nocompl = 0;
 			toep->plen_nocompl = 0;
@@ -951,8 +932,8 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, toep->tid));
-	KASSERT(toep->ulp_mode == ULP_MODE_ISCSI,
-	    ("%s: ulp_mode %u for toep %p", __func__, toep->ulp_mode, toep));
+	KASSERT(ulp_mode(toep) == ULP_MODE_ISCSI,
+	    ("%s: ulp_mode %u for toep %p", __func__, ulp_mode(toep), toep));
 
 	if (__predict_false(toep->flags & TPF_ABORT_SHUTDOWN))
 		return;
@@ -1035,7 +1016,7 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			txwr = wrtod(wr);
 			credits = howmany(wr->wr_len, 16);
 			write_tx_wr(txwr, toep, plen, adjusted_plen, credits,
-			    shove, ulp_submode, sc->tt.tx_align);
+			    shove, ulp_submode);
 			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
 			nsegs = 0;
 		} else {
@@ -1053,7 +1034,7 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			txwr = wrtod(wr);
 			credits = howmany(wr_len, 16);
 			write_tx_wr(txwr, toep, 0, adjusted_plen, credits,
-			    shove, ulp_submode, sc->tt.tx_align);
+			    shove, ulp_submode);
 			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
 			    max_nsegs_1mbuf);
 			if (wr_len & 0xf) {
@@ -1119,7 +1100,7 @@ t4_tod_output(struct toedev *tod, struct tcpcb *tp)
 	    ("%s: inp %p dropped.", __func__, inp));
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
-	if (toep->ulp_mode == ULP_MODE_ISCSI)
+	if (ulp_mode(toep) == ULP_MODE_ISCSI)
 		t4_push_pdus(sc, toep, 0);
 	else if (tls_tx_key(toep))
 		t4_push_tls_records(sc, toep, 0);
@@ -1145,7 +1126,7 @@ t4_send_fin(struct toedev *tod, struct tcpcb *tp)
 
 	toep->flags |= TPF_SEND_FIN;
 	if (tp->t_state >= TCPS_ESTABLISHED) {
-		if (toep->ulp_mode == ULP_MODE_ISCSI)
+		if (ulp_mode(toep) == ULP_MODE_ISCSI)
 			t4_push_pdus(sc, toep, 0);
 		else if (tls_tx_key(toep))
 			t4_push_tls_records(sc, toep, 0);
@@ -1232,7 +1213,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	so = inp->inp_socket;
 	socantrcvmore(so);
-	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP) {
 		DDP_LOCK(toep);
 		if (__predict_false(toep->ddp.flags &
 		    (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE)))
@@ -1240,7 +1221,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		DDP_UNLOCK(toep);
 	}
 
-	if (toep->ulp_mode != ULP_MODE_RDMA) {
+	if (ulp_mode(toep) != ULP_MODE_RDMA) {
 		KASSERT(tp->rcv_nxt == be32toh(cpl->rcv_nxt),
 	    		("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
 	    		be32toh(cpl->rcv_nxt)));
@@ -1551,14 +1532,14 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	tp->rcv_nxt += len;
 	if (tp->rcv_wnd < len) {
-		KASSERT(toep->ulp_mode == ULP_MODE_RDMA,
+		KASSERT(ulp_mode(toep) == ULP_MODE_RDMA,
 				("%s: negative window size", __func__));
 	}
 
 	tp->rcv_wnd -= len;
 	tp->t_rcvtime = ticks;
 
-	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 		DDP_LOCK(toep);
 	so = inp_inpcbtosocket(inp);
 	sb = &so->so_rcv;
@@ -1569,7 +1550,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		    __func__, tid, len);
 		m_freem(m);
 		SOCKBUF_UNLOCK(sb);
-		if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 			DDP_UNLOCK(toep);
 		INP_WUNLOCK(inp);
 
@@ -1600,7 +1581,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			sb->sb_flags &= ~SB_AUTOSIZE;
 	}
 
-	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP) {
 		int changed = !(toep->ddp.flags & DDP_ON) ^ cpl->ddp_off;
 
 		if (toep->ddp.waiting_count != 0 || toep->ddp.active_count != 0)
@@ -1643,7 +1624,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		tp->rcv_adv += rx_credits;
 	}
 
-	if (toep->ulp_mode == ULP_MODE_TCPDDP && toep->ddp.waiting_count > 0 &&
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP && toep->ddp.waiting_count > 0 &&
 	    sbavail(sb) != 0) {
 		CTR2(KTR_CXGBE, "%s: tid %u queueing AIO task", __func__,
 		    tid);
@@ -1651,7 +1632,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(sb);
-	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 		DDP_UNLOCK(toep);
 
 	INP_WUNLOCK(inp);
@@ -1761,7 +1742,7 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 #endif
 		toep->flags &= ~TPF_TX_SUSPENDED;
 		CURVNET_SET(toep->vnet);
-		if (toep->ulp_mode == ULP_MODE_ISCSI)
+		if (ulp_mode(toep) == ULP_MODE_ISCSI)
 			t4_push_pdus(sc, toep, plen);
 		else if (tls_tx_key(toep))
 			t4_push_tls_records(sc, toep, plen);
@@ -1774,7 +1755,7 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 		SOCKBUF_LOCK(sb);
 		sbu = sbused(sb);
-		if (toep->ulp_mode == ULP_MODE_ISCSI) {
+		if (ulp_mode(toep) == ULP_MODE_ISCSI) {
 
 			if (__predict_false(sbu > 0)) {
 				/*

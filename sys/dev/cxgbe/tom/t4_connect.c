@@ -102,7 +102,7 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 	make_established(toep, be32toh(cpl->snd_isn) - 1,
 	    be32toh(cpl->rcv_isn) - 1, cpl->tcp_opt);
 
-	if (toep->ulp_mode == ULP_MODE_TLS)
+	if (ulp_mode(toep) == ULP_MODE_TLS)
 		tls_establish(toep);
 
 done:
@@ -163,96 +163,6 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	act_open_failure_cleanup(sc, atid, rc);
 
 	return (0);
-}
-
-/*
- * Options2 for active open.
- */
-static uint32_t
-calc_opt2a(struct socket *so, struct toepcb *toep,
-    const struct offload_settings *s)
-{
-	struct tcpcb *tp = so_sototcpcb(so);
-	struct port_info *pi = toep->vi->pi;
-	struct adapter *sc = pi->adapter;
-	uint32_t opt2 = 0;
-
-	/*
-	 * rx flow control, rx coalesce, congestion control, and tx pace are all
-	 * explicitly set by the driver.  On T5+ the ISS is also set by the
-	 * driver to the value picked by the kernel.
-	 */
-	if (is_t4(sc)) {
-		opt2 |= F_RX_FC_VALID | F_RX_COALESCE_VALID;
-		opt2 |= F_CONG_CNTRL_VALID | F_PACE_VALID;
-	} else {
-		opt2 |= F_T5_OPT_2_VALID;	/* all 4 valid */
-		opt2 |= F_T5_ISS;		/* ISS provided in CPL */
-	}
-
-	if (s->sack > 0 || (s->sack < 0 && (tp->t_flags & TF_SACK_PERMIT)))
-		opt2 |= F_SACK_EN;
-
-	if (s->tstamp > 0 || (s->tstamp < 0 && (tp->t_flags & TF_REQ_TSTMP)))
-		opt2 |= F_TSTAMPS_EN;
-
-	if (tp->t_flags & TF_REQ_SCALE)
-		opt2 |= F_WND_SCALE_EN;
-
-	if (s->ecn > 0 || (s->ecn < 0 && V_tcp_do_ecn == 1))
-		opt2 |= F_CCTRL_ECN;
-
-	/* XXX: F_RX_CHANNEL for multiple rx c-chan support goes here. */
-
-	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
-
-	/* These defaults are subject to ULP specific fixups later. */
-	opt2 |= V_RX_FC_DDP(0) | V_RX_FC_DISABLE(0);
-
-	opt2 |= V_PACE(0);
-
-	if (s->cong_algo >= 0)
-		opt2 |= V_CONG_CNTRL(s->cong_algo);
-	else if (sc->tt.cong_algorithm >= 0)
-		opt2 |= V_CONG_CNTRL(sc->tt.cong_algorithm & M_CONG_CNTRL);
-	else {
-		struct cc_algo *cc = CC_ALGO(tp);
-
-		if (strcasecmp(cc->name, "reno") == 0)
-			opt2 |= V_CONG_CNTRL(CONG_ALG_RENO);
-		else if (strcasecmp(cc->name, "tahoe") == 0)
-			opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
-		if (strcasecmp(cc->name, "newreno") == 0)
-			opt2 |= V_CONG_CNTRL(CONG_ALG_NEWRENO);
-		if (strcasecmp(cc->name, "highspeed") == 0)
-			opt2 |= V_CONG_CNTRL(CONG_ALG_HIGHSPEED);
-		else {
-			/*
-			 * Use newreno in case the algorithm selected by the
-			 * host stack is not supported by the hardware.
-			 */
-			opt2 |= V_CONG_CNTRL(CONG_ALG_NEWRENO);
-		}
-	}
-
-	if (s->rx_coalesce > 0 || (s->rx_coalesce < 0 && sc->tt.rx_coalesce))
-		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
-
-	/* Note that ofld_rxq is already set according to s->rxq. */
-	opt2 |= F_RSS_QUEUE_VALID;
-	opt2 |= V_RSS_QUEUE(toep->ofld_rxq->iq.abs_id);
-
-#ifdef USE_DDP_RX_FLOW_CONTROL
-	if (toep->ulp_mode == ULP_MODE_TCPDDP)
-		opt2 |= F_RX_FC_DDP;
-#endif
-
-	if (toep->ulp_mode == ULP_MODE_TLS) {
-		opt2 &= ~V_RX_COALESCE(M_RX_COALESCE);
-		opt2 |= F_RX_FC_DISABLE;
-	}
-
-	return (htobe32(opt2));
 }
 
 void
@@ -322,7 +232,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	struct wrqe *wr = NULL;
 	struct ifnet *rt_ifp = rt->rt_ifp;
 	struct vi_info *vi;
-	int mtu_idx, rscale, qid_atid, rc, isipv6, txqid, rxqid;
+	int qid_atid, rc, isipv6;
 	struct inpcb *inp = sotoinpcb(so);
 	struct tcpcb *tp = intotcpcb(inp);
 	int reason;
@@ -353,18 +263,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	if (!settings.offload)
 		DONT_OFFLOAD_ACTIVE_OPEN(EPERM);
 
-	if (settings.txq >= 0 && settings.txq < vi->nofldtxq)
-		txqid = settings.txq;
-	else
-		txqid = arc4random() % vi->nofldtxq;
-	txqid += vi->first_ofld_txq;
-	if (settings.rxq >= 0 && settings.rxq < vi->nofldrxq)
-		rxqid = settings.rxq;
-	else
-		rxqid = arc4random() % vi->nofldrxq;
-	rxqid += vi->first_ofld_rxq;
-
-	toep = alloc_toepcb(vi, txqid, rxqid, M_NOWAIT | M_ZERO);
+	toep = alloc_toepcb(vi, M_NOWAIT);
 	if (toep == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
@@ -377,27 +276,16 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	if (toep->l2te == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
+	toep->vnet = so->so_vnet;
+	init_conn_params(vi, &settings, &inp->inp_inc, so, NULL,
+	    toep->l2te->idx, &toep->params);
+	init_toepcb(vi, toep);
+
 	isipv6 = nam->sa_family == AF_INET6;
 	wr = alloc_wrqe(act_open_cpl_size(sc, isipv6), toep->ctrlq);
 	if (wr == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
-	toep->vnet = so->so_vnet;
-	set_ulp_mode(toep, select_ulp_mode(so, sc, &settings));
-	SOCKBUF_LOCK(&so->so_rcv);
-	toep->opt0_rcv_bufsize = min(select_rcv_wnd(so) >> 10, M_RCV_BUFSIZ);
-	SOCKBUF_UNLOCK(&so->so_rcv);
-
-	/*
-	 * The kernel sets request_r_scale based on sb_max whereas we need to
-	 * take hardware's MAX_RCV_WND into account too.  This is normally a
-	 * no-op as MAX_RCV_WND is much larger than the default sb_max.
-	 */
-	if (tp->t_flags & TF_REQ_SCALE)
-		rscale = tp->request_r_scale = select_rcv_wscale();
-	else
-		rscale = 0;
-	mtu_idx = find_best_mtu_idx(sc, &inp->inp_inc, &settings);
 	qid_atid = V_TID_QID(toep->ofld_rxq->iq.abs_id) | V_TID_TID(toep->tid) |
 	    V_TID_COOKIE(CPL_COOKIE_TOM);
 
@@ -438,9 +326,13 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		cpl->peer_port = inp->inp_fport;
 		cpl->peer_ip_hi = *(uint64_t *)&inp->in6p_faddr.s6_addr[0];
 		cpl->peer_ip_lo = *(uint64_t *)&inp->in6p_faddr.s6_addr[8];
-		cpl->opt0 = calc_opt0(so, vi, toep->l2te, mtu_idx, rscale,
-		    toep->opt0_rcv_bufsize, toep->ulp_mode, &settings);
-		cpl->opt2 = calc_opt2a(so, toep, &settings);
+		cpl->opt0 = calc_options0(vi, &toep->params);
+		cpl->opt2 = calc_options2(vi, &toep->params);
+
+		CTR6(KTR_CXGBE,
+		    "%s: atid %u, toep %p, inp %p, opt0 %#016lx, opt2 %#08x",
+		    __func__, toep->tid, toep, inp, be64toh(cpl->opt0),
+		    be32toh(cpl->opt2));
 	} else {
 		struct cpl_act_open_req *cpl = wrtod(wr);
 		struct cpl_t5_act_open_req *cpl5 = (void *)cpl;
@@ -467,13 +359,14 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		    qid_atid));
 		inp_4tuple_get(inp, &cpl->local_ip, &cpl->local_port,
 		    &cpl->peer_ip, &cpl->peer_port);
-		cpl->opt0 = calc_opt0(so, vi, toep->l2te, mtu_idx, rscale,
-		    toep->opt0_rcv_bufsize, toep->ulp_mode, &settings);
-		cpl->opt2 = calc_opt2a(so, toep, &settings);
-	}
+		cpl->opt0 = calc_options0(vi, &toep->params);
+		cpl->opt2 = calc_options2(vi, &toep->params);
 
-	CTR5(KTR_CXGBE, "%s: atid %u (%s), toep %p, inp %p", __func__,
-	    toep->tid, tcpstates[tp->t_state], toep, inp);
+		CTR6(KTR_CXGBE,
+		    "%s: atid %u, toep %p, inp %p, opt0 %#016lx, opt2 %#08x",
+		    __func__, toep->tid, toep, inp, be64toh(cpl->opt0),
+		    be32toh(cpl->opt2));
+	}
 
 	offload_socket(so, toep);
 	rc = t4_l2t_send(sc, wr, toep->l2te);
