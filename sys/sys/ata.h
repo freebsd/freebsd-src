@@ -143,7 +143,8 @@ struct ata_params {
 /*77*/  u_int16_t       satacapabilities2;
 #define ATA_SATA_CURR_GEN_MASK          0x0006
 #define ATA_SUPPORT_NCQ_STREAM          0x0010
-#define ATA_SUPPORT_NCQ_QMANAGEMENT     0x0020
+#define ATA_SUPPORT_NCQ_NON_DATA        0x0020
+#define ATA_SUPPORT_NCQ_QMANAGEMENT     ATA_SUPPORT_NCQ_NON_DATA
 #define ATA_SUPPORT_RCVSND_FPDMA_QUEUED 0x0040
 /*78*/  u_int16_t       satasupport;
 #define ATA_SUPPORT_NONZERO             0x0002
@@ -152,6 +153,7 @@ struct ata_params {
 #define ATA_SUPPORT_INORDERDATA         0x0010
 #define ATA_SUPPORT_ASYNCNOTIF          0x0020
 #define ATA_SUPPORT_SOFTSETPRESERVE     0x0040
+#define ATA_SUPPORT_NCQ_AUTOSENSE       0x0080
 /*79*/  u_int16_t       sataenabled;
 #define ATA_ENABLED_DAPST               0x0080
 
@@ -285,7 +287,8 @@ struct ata_params {
 #define ATA_FORM_FACTOR_C_FAST		0x0009
 /*169*/	u_int16_t       support_dsm;
 #define ATA_SUPPORT_DSM_TRIM		0x0001
-	u_int16_t       reserved170[6];
+/*170*/ u_int8_t        product_id[8];	/* Additional Product Identifier */
+	u_int16_t       reserved174[2];
 /*176*/ u_int8_t        media_serial[60];
 /*206*/ u_int16_t       sct;
 	u_int16_t       reserved207[2];
