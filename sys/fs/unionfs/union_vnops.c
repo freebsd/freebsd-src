@@ -1882,12 +1882,9 @@ unionfs_lock(struct vop_lock1_args *ap)
 	if (lvp != NULLVP) {
 		if (uvp != NULLVP && flags & LK_UPGRADE) {
 			/* Share Lock is once released and a deadlock is avoided.  */
-			VI_LOCK_FLAGS(uvp, MTX_DUPOK);
-			vholdl(uvp);
+			vholdnz(uvp);
 			uhold = 1;
-			VI_UNLOCK(vp);
-			VOP_UNLOCK(uvp, LK_RELEASE | LK_INTERLOCK);
-			VI_LOCK(vp);
+			VOP_UNLOCK(uvp, LK_RELEASE);
 			unp = VTOUNIONFS(vp);
 			if (unp == NULL) {
 				/* vnode is released. */
@@ -1978,7 +1975,6 @@ unionfs_unlock(struct vop_unlock_args *ap)
 {
 	int		error;
 	int		flags;
-	int		mtxlkflag;
 	int		uhold;
 	struct vnode   *vp;
 	struct vnode   *lvp;
@@ -1988,17 +1984,9 @@ unionfs_unlock(struct vop_unlock_args *ap)
 	KASSERT_UNIONFS_VNODE(ap->a_vp);
 
 	error = 0;
-	mtxlkflag = 0;
 	uhold = 0;
 	flags = ap->a_flags | LK_RELEASE;
 	vp = ap->a_vp;
-
-	if ((flags & LK_INTERLOCK) != 0)
-		mtxlkflag = 1;
-	else if (mtx_owned(VI_MTX(vp)) == 0) {
-		VI_LOCK(vp);
-		mtxlkflag = 2;
-	}
 
 	unp = VTOUNIONFS(vp);
 	if (unp == NULL)
@@ -2007,45 +1995,24 @@ unionfs_unlock(struct vop_unlock_args *ap)
 	uvp = unp->un_uppervp;
 
 	if (lvp != NULLVP) {
-		VI_LOCK_FLAGS(lvp, MTX_DUPOK);
-		flags |= LK_INTERLOCK;
-		vholdl(lvp);
-
-		VI_UNLOCK(vp);
-		ap->a_flags &= ~LK_INTERLOCK;
-
+		vholdnz(lvp);
 		error = VOP_UNLOCK(lvp, flags);
-
-		VI_LOCK(vp);
 	}
 
 	if (error == 0 && uvp != NULLVP) {
-		VI_LOCK_FLAGS(uvp, MTX_DUPOK);
-		flags |= LK_INTERLOCK;
-		vholdl(uvp);
+		vholdnz(uvp);
 		uhold = 1;
-
-		VI_UNLOCK(vp);
-		ap->a_flags &= ~LK_INTERLOCK;
-
 		error = VOP_UNLOCK(uvp, flags);
-
-		VI_LOCK(vp);
 	}
 
-	VI_UNLOCK(vp);
 	if (lvp != NULLVP)
 		vdrop(lvp);
 	if (uhold != 0)
 		vdrop(uvp);
-	if (mtxlkflag == 0)
-		VI_LOCK(vp);
 
 	return error;
 
 unionfs_unlock_null_vnode:
-	if (mtxlkflag == 2)
-		VI_UNLOCK(vp);
 	return (vop_stdunlock(ap));
 }
 
