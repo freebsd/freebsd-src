@@ -88,7 +88,9 @@ struct sf_io {
 	int		npages;
 	struct socket	*so;
 	struct mbuf	*m;
+#ifdef KERN_TLS
 	struct ktls_session *tls;
+#endif
 	vm_page_t	pa[];
 };
 
@@ -266,7 +268,7 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 	if (!refcount_release(&sfio->nios))
 		return;
 
-#ifdef INVARIANTS
+#if defined(KERN_TLS) && defined(INVARIANTS)
 	if ((sfio->m->m_flags & M_EXT) != 0 &&
 	    sfio->m->m_ext.ext_type == EXT_PGS)
 		KASSERT(sfio->tls == sfio->m->m_ext.ext_pgs->tls,
