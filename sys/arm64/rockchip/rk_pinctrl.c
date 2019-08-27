@@ -384,6 +384,13 @@ struct rk_pinctrl_conf rk3288_conf = {
 	.get_syscon = rk3288_get_syscon,
 };
 
+static struct rk_pinctrl_gpio rk3328_gpio_bank[] = {
+	RK_GPIO(0, "gpio0"),
+	RK_GPIO(1, "gpio1"),
+	RK_GPIO(2, "gpio2"),
+	RK_GPIO(3, "gpio3"),
+};
+
 static struct rk_pinctrl_bank rk3328_iomux_bank[] = {
 	/*    bank sub offs nbits */
 	RK_IOMUX(0, 0, 0x0000, 2),
@@ -394,18 +401,14 @@ static struct rk_pinctrl_bank rk3328_iomux_bank[] = {
 	RK_IOMUX(1, 1, 0x0014, 2),
 	RK_IOMUX(1, 2, 0x0018, 2),
 	RK_IOMUX(1, 3, 0x001C, 2),
-	RK_IOMUX(2, 0, 0xE000, 2),
-	RK_IOMUX(2, 1, 0xE004, 2),
-	RK_IOMUX(2, 2, 0xE008, 2),
-	RK_IOMUX(2, 3, 0xE00C, 2),
-	RK_IOMUX(3, 0, 0xE010, 2),
-	RK_IOMUX(3, 1, 0xE014, 2),
-	RK_IOMUX(3, 2, 0xE018, 2),
-	RK_IOMUX(3, 3, 0xE01C, 2),
-	RK_IOMUX(4, 0, 0xE020, 2),
-	RK_IOMUX(4, 1, 0xE024, 2),
-	RK_IOMUX(4, 2, 0xE028, 2),
-	RK_IOMUX(4, 3, 0xE02C, 2),
+	RK_IOMUX(2, 0, 0x0020, 2),
+	RK_IOMUX(2, 1, 0x0024, 3),
+	RK_IOMUX(2, 2, 0x002c, 3),
+	RK_IOMUX(2, 3, 0x0034, 2),
+	RK_IOMUX(3, 0, 0x0038, 3),
+	RK_IOMUX(3, 1, 0x0040, 3),
+	RK_IOMUX(3, 2, 0x0048, 2),
+	RK_IOMUX(3, 3, 0x004c, 2),
 };
 
 static struct rk_pinctrl_pin_fixup rk3328_pin_fixup[] = {
@@ -518,6 +521,8 @@ struct rk_pinctrl_conf rk3328_conf = {
 	.npin_fixup = nitems(rk3328_pin_fixup),
 	.pin_drive = rk3328_pin_drive,
 	.npin_drive = nitems(rk3328_pin_drive),
+	.gpio_bank = rk3328_gpio_bank,
+	.ngpio_bank = nitems(rk3328_gpio_bank),
 	.get_pd_offset = rk3328_get_pd_offset,
 	.get_syscon = rk3328_get_syscon,
 };
