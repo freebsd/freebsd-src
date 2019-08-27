@@ -61,6 +61,24 @@ HEADER {
 	};
 };
 
+METHOD int port_number {
+	device_t	ntb;
+};
+
+METHOD int peer_port_count {
+	device_t	ntb;
+};
+
+METHOD int peer_port_number {
+	device_t	ntb;
+	int		pidx;
+};
+
+METHOD int peer_port_idx {
+	device_t	ntb;
+	int		port;
+};
+
 METHOD bool link_is_up {
 	device_t	 ntb;
 	enum ntb_speed	*speed;
