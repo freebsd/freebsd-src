@@ -159,22 +159,6 @@ readcf(cfname, safe, e)
 	FileName = cfname;
 	LineNumber = 0;
 
-#if STARTTLS
-	Srv_SSL_Options = SSL_OP_ALL;
-	Clt_SSL_Options = SSL_OP_ALL
-# ifdef SSL_OP_NO_SSLv2
-		| SSL_OP_NO_SSLv2
-# endif
-# ifdef SSL_OP_NO_TICKET
-		| SSL_OP_NO_TICKET
-# endif
-		;
-# ifdef SSL_OP_TLSEXT_PADDING
-	/* SSL_OP_TLSEXT_PADDING breaks compatibility with some sites */
-	Srv_SSL_Options &= ~SSL_OP_TLSEXT_PADDING;
-	Clt_SSL_Options &= ~SSL_OP_TLSEXT_PADDING;
-# endif /* SSL_OP_TLSEXT_PADDING */
-#endif /* STARTTLS */
 	if (DontLockReadFiles)
 		sff |= SFF_NOLOCK;
 	cf = safefopen(cfname, O_RDONLY, 0444, sff);
