@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/extres/clk/clk.h>
 
-#include "opt_soc.h"
-
 #include "gpio_if.h"
 
 #define	RK_GPIO_SWPORTA_DR	0x00	/* Data register */
@@ -196,6 +194,7 @@ rk_gpio_pin_max(device_t dev, int *maxpin)
 {
 
 	/* Each bank have always 32 pins */
+	/* XXX not true*/
 	*maxpin = 32;
 	return (0);
 }
@@ -225,6 +224,7 @@ rk_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 
 	sc = device_get_softc(dev);
 
+	/* XXX Combine this with parent (pinctrl) */
 	RK_GPIO_LOCK(sc);
 	reg = RK_GPIO_READ(sc, RK_GPIO_SWPORTA_DDR);
 	RK_GPIO_UNLOCK(sc);
@@ -242,6 +242,7 @@ rk_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
 
 	/* Caps are managed by the pinctrl device */
+	/* XXX Pass this to parent (pinctrl) */
 	*caps = 0;
 	return (0);
 }
@@ -254,6 +255,7 @@ rk_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 
 	sc = device_get_softc(dev);
 
+	/* XXX Combine this with parent (pinctrl) */
 	RK_GPIO_LOCK(sc);
 
 	reg = RK_GPIO_READ(sc, RK_GPIO_SWPORTA_DDR);
@@ -394,6 +396,14 @@ rk_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 	return (0);
 }
 
+static phandle_t
+rk_gpio_get_node(device_t bus, device_t dev)
+{
+
+	/* We only have one child, the GPIO bus, which needs our own node. */
+	return (ofw_bus_get_node(bus));
+}
+
 static device_method_t rk_gpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		rk_gpio_probe),
@@ -414,6 +424,9 @@ static device_method_t rk_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_config_32,	rk_gpio_pin_config_32),
 	DEVMETHOD(gpio_map_gpios,	rk_gpio_map_gpios),
 
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	rk_gpio_get_node),
+
 	DEVMETHOD_END
 };
 
@@ -425,5 +438,10 @@ static driver_t rk_gpio_driver = {
 
 static devclass_t rk_gpio_devclass;
 
+/*
+ * GPIO driver is always a child of rk_pinctrl driver and should be probed
+ * and attached within rk_pinctrl_attach function. Due to this, bus pass order
+ * must be same as bus pass order of rk_pinctrl driver.
+ */
 EARLY_DRIVER_MODULE(rk_gpio, simplebus, rk_gpio_driver,
-    rk_gpio_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+    rk_gpio_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
