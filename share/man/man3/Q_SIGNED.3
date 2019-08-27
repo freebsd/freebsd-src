@@ -1,0 +1,210 @@
+.\"
+.\" Copyright (c) 2018 Netflix, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 8, 2018
+.Dt Q_SIGNED 3
+.Os
+.Sh NAME
+.Nm Q_SIGNED ,
+.Nm Q_LTZ ,
+.Nm Q_PRECEQ ,
+.Nm Q_QLTQ ,
+.Nm Q_QLEQ ,
+.Nm Q_QGTQ ,
+.Nm Q_QGEQ ,
+.Nm Q_QEQ ,
+.Nm Q_QNEQ ,
+.Nm Q_OFLOW ,
+.Nm Q_RELPREC
+.Nd fixed-point math comparison and logic functions
+.Sh SYNOPSIS
+.In sys/qmath.h
+.Ft bool
+.Fn Q_SIGNED "NTYPE n"
+.Ft bool
+.Fn Q_LTZ "NTYPE n"
+.Ft bool
+.Fn Q_PRECEQ "QTYPE a" "QTYPE b"
+.Ft bool
+.Fn Q_QLTQ "QTYPE a" "QTYPE b"
+.Ft bool
+.Fn Q_QLEQ "QTYPE a" "QTYPE b"
+.Ft bool
+.Fn Q_QGTQ "QTYPE a" "QTYPE b"
+.Ft bool
+.Fn Q_QGEQ "QTYPE a" "QTYPE b"
+.Ft bool
+.Fn Q_QEQ "QTYPE a" "QTYPE b"
+.Ft bool
+.Fn Q_QNEQ "QTYPE a" "QTYPE b"
+.Ft bool
+.Fn Q_OFLOW "QTYPE q" "ITYPE iv"
+.Ft int
+.Fn Q_RELPREC "QTYPE a" "QTYPE b"
+.Sh DESCRIPTION
+.Fn Q_SIGNED
+returns
+.Ft true
+if the numeric data type passed in as
+.Fa n
+is signed, or
+.Ft false
+otherwise.
+.Pp
+.Fn Q_LTZ
+returns
+.Ft true
+if the numeric value
+passed in as
+.Fa n
+is negative
+.Pq requires types which use the MSB as the sign bit ,
+or
+.Ft false
+otherwise.
+.Pp
+.Fn Q_PRECEQ
+returns
+.Ft true
+if the number of
+.Fa a
+and
+.Fa b
+fractional bits is the same,
+.Ft false
+otherwise.
+.Pp
+The
+.Fn Q_QLTQ ,
+.Fn Q_QLEQ ,
+.Fn Q_QGTQ ,
+.Fn Q_QGEQ ,
+.Fn Q_QEQ
+and
+.Fn Q_QNEQ
+functions compare two Q numbers, returning
+.Ft true
+if
+.Fa a
+is less than, less than or equal to, greater than, greater than or equal to,
+equal to, or not equal to
+.Fa b
+respectively, or
+.Ft false
+otherwise.
+The integral and fractional values are used to perform the comparison, without
+explicit concern for the underlying number of integer versus fractional bits.
+.Pp
+.Fn Q_OFLOW
+returns
+.Ft true
+if integer value
+.Fa iv
+cannot be stored in
+.Fa q
+without truncation, or false otherwise.
+.Pp
+.Fn Q_RELPREC
+returns the relative precision of
+.Fa a
+versus
+.Fa b .
+In terms of
+.Em Qm.n
+notation, this function returns the difference between the
+.Em n
+values of
+.Fa a
+and
+.Fa b .
+For example, a return value of +4 means that
+.Fa a
+has an additional 4 bits of fractional precision compared to
+.Fa b .
+.Pp
+All of those functions operate on
+the following data types:
+.Vt s8q_t ,
+.Vt u8q_t ,
+.Vt s16q_t ,
+.Vt u16q_t ,
+.Vt s32q_t ,
+.Vt u32q_t ,
+.Vt s64q_t ,
+and
+.Vt u64q_t ,
+which are referred to generically as
+.Fa QTYPE .
+The
+.Fa ITYPE
+refers to the
+.Xr stdint 7
+integer types.
+.Fa NTYPE
+is used to refer to any numeric type and is therefore a superset of
+.Fa QTYPE
+and
+.Fa ITYPE .
+.Pp
+For more details, see
+.Xr qmath 3 .
+.Sh RETURN VALUES
+The
+.Fn Q_SIGNED ,
+.Fn Q_LTZ ,
+.Fn Q_PRECEQ ,
+.Fn Q_QLTQ ,
+.Fn Q_QLEQ ,
+.Fn Q_QGTQ ,
+.Fn Q_QGEQ ,
+.Fn Q_QEQ ,
+.Fn Q_QNEQ
+and
+.Fn Q_OFLOW
+functions return expressions that evaluate to boolean
+.Vt true
+or
+.Vt false .
+.Pp
+.Fn Q_RELPREC
+returns the relative precision difference as a signed integer.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr qmath 3 ,
+.Xr stdint 7
+.Sh HISTORY
+The
+.Xr qmath 3
+functions first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Xr qmath 3
+functions and this manual page were written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and sponsored by Netflix, Inc.
