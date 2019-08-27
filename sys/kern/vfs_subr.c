@@ -1034,8 +1034,8 @@ vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 		    (vp->v_iflag & VI_FREE) != 0 ||
 		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
-			VOP_UNLOCK(vp, LK_INTERLOCK);
-			vdrop(vp);
+			VOP_UNLOCK(vp, 0);
+			vdropl(vp);
 			goto next_iter_mntunlocked;
 		}
 		KASSERT((vp->v_iflag & VI_DOOMED) == 0,
@@ -1398,7 +1398,8 @@ vtryrecycle(struct vnode *vp)
 	 */
 	VI_LOCK(vp);
 	if (vp->v_usecount) {
-		VOP_UNLOCK(vp, LK_INTERLOCK);
+		VOP_UNLOCK(vp, 0);
+		VI_UNLOCK(vp);
 		vn_finished_write(vnmp);
 		CTR2(KTR_VFS,
 		    "%s: impossible to recycle, %p is already referenced",
@@ -1409,7 +1410,8 @@ vtryrecycle(struct vnode *vp)
 		counter_u64_add(recycles_count, 1);
 		vgonel(vp);
 	}
-	VOP_UNLOCK(vp, LK_INTERLOCK);
+	VOP_UNLOCK(vp, 0);
+	VI_UNLOCK(vp);
 	vn_finished_write(vnmp);
 	return (0);
 }
