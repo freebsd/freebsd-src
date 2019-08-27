@@ -527,6 +527,14 @@ struct rk_pinctrl_conf rk3328_conf = {
 	.get_syscon = rk3328_get_syscon,
 };
 
+static struct rk_pinctrl_gpio rk3399_gpio_bank[] = {
+	RK_GPIO(0, "gpio0"),
+	RK_GPIO(1, "gpio1"),
+	RK_GPIO(2, "gpio2"),
+	RK_GPIO(3, "gpio3"),
+	RK_GPIO(4, "gpio4"),
+};
+
 static struct rk_pinctrl_bank rk3399_iomux_bank[] = {
 	/*    bank sub  offs   nbits */
 	RK_IOMUX(0, 0, 0x0000, 2),
@@ -536,7 +544,7 @@ static struct rk_pinctrl_bank rk3399_iomux_bank[] = {
 	RK_IOMUX(1, 0, 0x0010, 2),
 	RK_IOMUX(1, 1, 0x0014, 2),
 	RK_IOMUX(1, 2, 0x0018, 2),
-	RK_IOMUX(1, 3, 0x000C, 2),
+	RK_IOMUX(1, 3, 0x001C, 2),
 	RK_IOMUX(2, 0, 0xE000, 2),
 	RK_IOMUX(2, 1, 0xE004, 2),
 	RK_IOMUX(2, 2, 0xE008, 2),
@@ -617,6 +625,8 @@ struct rk_pinctrl_conf rk3399_conf = {
 	.npin_fixup = nitems(rk3399_pin_fixup),
 	.pin_drive = rk3399_pin_drive,
 	.npin_drive = nitems(rk3399_pin_drive),
+	.gpio_bank = rk3399_gpio_bank,
+	.ngpio_bank = nitems(rk3399_gpio_bank),
 	.get_pd_offset = rk3399_get_pd_offset,
 	.get_syscon = rk3399_get_syscon,
 };
