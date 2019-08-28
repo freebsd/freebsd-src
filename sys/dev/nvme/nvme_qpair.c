@@ -788,7 +788,8 @@ nvme_timeout(void *arg)
 		    nvme_abort_complete, tr);
 	} else {
 		nvme_printf(ctrlr, "Resetting controller due to a timeout%s.\n",
-		    csts.bits.cfs ? " and fatal error status" : "");
+		    (csts.raw == 0xffffffff) ? " and possible hot unplug" :
+		    (csts.bits.cfs ? " and fatal error status" : ""));
 		nvme_ctrlr_reset(ctrlr);
 	}
 }

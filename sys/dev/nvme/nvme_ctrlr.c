@@ -202,10 +202,13 @@ nvme_ctrlr_fail(struct nvme_controller *ctrlr)
 	int i;
 
 	ctrlr->is_failed = TRUE;
+	nvme_admin_qpair_disable(&ctrlr->adminq);
 	nvme_qpair_fail(&ctrlr->adminq);
 	if (ctrlr->ioq != NULL) {
-		for (i = 0; i < ctrlr->num_io_queues; i++)
+		for (i = 0; i < ctrlr->num_io_queues; i++) {
+			nvme_io_qpair_disable(&ctrlr->ioq[i]);
 			nvme_qpair_fail(&ctrlr->ioq[i]);
+		}
 	}
 	nvme_notify_fail_consumers(ctrlr);
 }
@@ -244,17 +247,19 @@ nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr, int desired_val)
 	int ms_waited;
 	union csts_register csts;
 
-	csts.raw = nvme_mmio_read_4(ctrlr, csts);
-
 	ms_waited = 0;
-	while (csts.bits.rdy != desired_val) {
+	while (1) {
+		csts.raw = nvme_mmio_read_4(ctrlr, csts);
+		if (csts.raw == 0xffffffff)		/* Hot unplug. */
+			return (ENXIO);
+		if (csts.bits.rdy == desired_val)
+			break;
 		if (ms_waited++ > ctrlr->ready_timeout_in_ms) {
 			nvme_printf(ctrlr, "controller ready did not become %d "
 			    "within %d ms\n", desired_val, ctrlr->ready_timeout_in_ms);
 			return (ENXIO);
 		}
 		DELAY(1000);
-		csts.raw = nvme_mmio_read_4(ctrlr, csts);
 	}
 
 	return (0);
@@ -1229,12 +1234,20 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 void
 nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 {
-	int				i;
+	int	gone, i;
 
 	if (ctrlr->resource == NULL)
 		goto nores;
 
-	nvme_notify_fail_consumers(ctrlr);
+	/*
+	 * Check whether it is a hot unplug or a clean driver detach.
+	 * If device is not there any more, skip any shutdown commands.
+	 */
+	gone = (nvme_mmio_read_4(ctrlr, csts) == 0xffffffff);
+	if (gone)
+		nvme_ctrlr_fail(ctrlr);
+	else
+		nvme_notify_fail_consumers(ctrlr);
 
 	for (i = 0; i < NVME_MAX_NAMESPACES; i++)
 		nvme_ns_destruct(&ctrlr->ns[i]);
@@ -1243,11 +1256,11 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 		destroy_dev(ctrlr->cdev);
 
 	for (i = 0; i < ctrlr->num_io_queues; i++) {
-		nvme_ctrlr_destroy_qpair(ctrlr, &ctrlr->ioq[i]);
+		if (!gone)
+			nvme_ctrlr_destroy_qpair(ctrlr, &ctrlr->ioq[i]);
 		nvme_io_qpair_destroy(&ctrlr->ioq[i]);
 	}
 	free(ctrlr->ioq, M_NVME);
-
 	nvme_admin_qpair_destroy(&ctrlr->adminq);
 
 	/*
@@ -1257,9 +1270,11 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	 *   shutdown notification in case the system is shutdown before
 	 *   reloading the driver.
 	 */
-	nvme_ctrlr_shutdown(ctrlr);
+	if (!gone)
+		nvme_ctrlr_shutdown(ctrlr);
 
-	nvme_ctrlr_disable(ctrlr);
+	if (!gone)
+		nvme_ctrlr_disable(ctrlr);
 
 	if (ctrlr->taskqueue)
 		taskqueue_free(ctrlr->taskqueue);
@@ -1296,14 +1311,19 @@ nvme_ctrlr_shutdown(struct nvme_controller *ctrlr)
 	cc.raw = nvme_mmio_read_4(ctrlr, cc);
 	cc.bits.shn = NVME_SHN_NORMAL;
 	nvme_mmio_write_4(ctrlr, cc, cc.raw);
-	csts.raw = nvme_mmio_read_4(ctrlr, csts);
-	while ((csts.bits.shst != NVME_SHST_COMPLETE) && (ticks++ < 5*hz)) {
-		pause("nvme shn", 1);
+	while (1) {
 		csts.raw = nvme_mmio_read_4(ctrlr, csts);
+		if (csts.raw == 0xffffffff)		/* Hot unplug. */
+			break;
+		if (csts.bits.shst == NVME_SHST_COMPLETE)
+			break;
+		if (ticks++ > 5*hz) {
+			nvme_printf(ctrlr, "did not complete shutdown within"
+			    " 5 seconds of notification\n");
+			break;
+		}
+		pause("nvme shn", 1);
 	}
-	if (csts.bits.shst != NVME_SHST_COMPLETE)
-		nvme_printf(ctrlr, "did not complete shutdown within 5 seconds "
-		    "of notification\n");
 }
 
 void
