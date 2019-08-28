@@ -120,6 +120,7 @@ struct vop_vector default_vnodeops = {
 	.vop_getpages_async =	vop_stdgetpages_async,
 	.vop_getwritemount = 	vop_stdgetwritemount,
 	.vop_inactive =		VOP_NULL,
+	.vop_need_inactive =	vop_stdneed_inactive,
 	.vop_ioctl =		vop_stdioctl,
 	.vop_kqfilter =		vop_stdkqfilter,
 	.vop_islocked =		vop_stdislocked,
@@ -1155,6 +1156,13 @@ vop_stdadd_writecount(struct vop_add_writecount_args *ap)
 	}
 	VI_UNLOCK(vp);
 	return (error);
+}
+
+int
+vop_stdneed_inactive(struct vop_need_inactive_args *ap)
+{
+
+	return (1);
 }
 
 static int
