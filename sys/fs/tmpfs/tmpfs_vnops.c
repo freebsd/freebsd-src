@@ -1283,6 +1283,27 @@ tmpfs_inactive(struct vop_inactive_args *v)
 	return (0);
 }
 
+static int
+tmpfs_need_inactive(struct vop_need_inactive_args *ap)
+{
+	struct vnode *vp;
+	struct tmpfs_node *node;
+	struct vm_object *obj;
+
+	vp = ap->a_vp;
+	node = VP_TO_TMPFS_NODE(vp);
+	if (node->tn_links == 0)
+		goto need;
+	if (vp->v_type == VREG) {
+		obj = vp->v_object;
+		if ((obj->flags & OBJ_TMPFS_DIRTY) != 0)
+			goto need;
+	}
+	return (0);
+need:
+	return (1);
+}
+
 int
 tmpfs_reclaim(struct vop_reclaim_args *v)
 {
@@ -1584,6 +1605,7 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_readdir =			tmpfs_readdir,
 	.vop_readlink =			tmpfs_readlink,
 	.vop_inactive =			tmpfs_inactive,
+	.vop_need_inactive =		tmpfs_need_inactive,
 	.vop_reclaim =			tmpfs_reclaim,
 	.vop_print =			tmpfs_print,
 	.vop_pathconf =			tmpfs_pathconf,
