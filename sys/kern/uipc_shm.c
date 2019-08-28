@@ -188,7 +188,8 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	 * lock to page out tobj's pages because tobj is a OBJT_SWAP
 	 * type object.
 	 */
-	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
+	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
+	    VM_ALLOC_WIRED);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		vm_page_xbusy(m);
 		if (vm_pager_has_page(obj, idx, NULL, NULL)) {
@@ -198,6 +199,7 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	    "uiomove_object: vm_obj %p idx %jd valid %x pager error %d\n",
 				    obj, idx, m->valid, rv);
 				vm_page_lock(m);
+				vm_page_unwire_noq(m);
 				vm_page_free(m);
 				vm_page_unlock(m);
 				VM_OBJECT_WUNLOCK(obj);
@@ -207,9 +209,6 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 			vm_page_zero_invalid(m, TRUE);
 		vm_page_xunbusy(m);
 	}
-	vm_page_lock(m);
-	vm_page_wire(m);
-	vm_page_unlock(m);
 	VM_OBJECT_WUNLOCK(obj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);
 	if (uio->uio_rw == UIO_WRITE && error == 0) {

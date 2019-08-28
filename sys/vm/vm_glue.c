@@ -230,7 +230,7 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
 		if (rv != VM_PAGER_OK) {
 			vm_page_lock(m);
-			vm_page_unwire(m, PQ_NONE);
+			vm_page_unwire_noq(m);
 			vm_page_free(m);
 			vm_page_unlock(m);
 			m = NULL;
