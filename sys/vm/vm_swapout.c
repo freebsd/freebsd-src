@@ -227,20 +227,22 @@ vm_swapout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 				vm_page_activate(p);
 				p->act_count += act_delta;
 			} else if (vm_page_active(p)) {
+				/*
+				 * The page daemon does not requeue pages
+				 * after modifying their activation count.
+				 */
 				if (act_delta == 0) {
 					p->act_count -= min(p->act_count,
 					    ACT_DECLINE);
 					if (!remove_mode && p->act_count == 0) {
 						pmap_remove_all(p);
 						vm_page_deactivate(p);
-					} else
-						vm_page_requeue(p);
+					}
 				} else {
 					vm_page_activate(p);
 					if (p->act_count < ACT_MAX -
 					    ACT_ADVANCE)
 						p->act_count += ACT_ADVANCE;
-					vm_page_requeue(p);
 				}
 			} else if (vm_page_inactive(p))
 				pmap_remove_all(p);
