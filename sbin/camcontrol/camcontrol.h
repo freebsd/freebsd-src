@@ -88,16 +88,17 @@ int epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
 int timestamp(struct cam_device *device, int argc, char **argv,
 	      char *combinedopt, int task_attr, int retry_count, int timeout,
 	      int verbosemode);
-void mode_sense(struct cam_device *device, int dbd, int pc, int page,
-		int subpage, int task_attr, int retry_count, int timeout,
-		uint8_t *data, int datalen);
-void mode_select(struct cam_device *device, int save_pages, int task_attr,
-		 int retry_count, int timeout, u_int8_t *data, int datalen);
-void mode_edit(struct cam_device *device, int dbd, int pc, int page,
-	       int subpage, int edit, int binary, int task_attr,
+void mode_sense(struct cam_device *device, int *cdb_len, int dbd, int pc,
+		int page, int subpage, int task_attr, int retry_count,
+		int timeout, uint8_t *data, int datalen);
+void mode_select(struct cam_device *device, int cdb_len, int save_pages,
+		 int task_attr, int retry_count, int timeout, u_int8_t *data,
+		 int datalen);
+void mode_edit(struct cam_device *device, int cdb_len, int dbd, int pc,
+	       int page, int subpage, int edit, int binary, int task_attr,
 	       int retry_count, int timeout);
-void mode_list(struct cam_device *device, int dbd, int pc, int subpages,
-	       int task_attr, int retry_count, int timeout);
+void mode_list(struct cam_device *device, int cdb_len, int dbd, int pc,
+	       int subpages, int task_attr, int retry_count, int timeout);
 int scsidoinquiry(struct cam_device *device, int argc, char **argv,
 		  char *combinedopt, int task_attr, int retry_count,
 		  int timeout);

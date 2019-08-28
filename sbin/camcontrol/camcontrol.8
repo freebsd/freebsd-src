@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2019
+.Dd July 30, 2019
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -122,6 +122,7 @@
 .Ic modepage
 .Op device id
 .Op generic args
+.Op Fl 6
 .Aq Fl m Ar page[,subpage] | Fl l
 .Op Fl P Ar pgctl
 .Op Fl b | Fl e
@@ -723,6 +724,13 @@ The
 .Ic modepage
 command takes several arguments:
 .Bl -tag -width 12n
+.It Fl 6
+Use 6 byte MODE commands instead of default 10 byte.
+Old devices may not support 10 byte MODE commands, while new devices may
+not be able to report all mode pages with 6 byte commands.
+If not specified,
+.Nm
+starts with 10 byte commands and falls back to 6 byte on error.
 .It Fl d
 Disable block descriptors for mode sense.
 .It Fl b
