@@ -316,16 +316,21 @@ nvme_notify(struct nvme_consumer *cons,
 		return;
 
 	cmpset = atomic_cmpset_32(&ctrlr->notification_sent, 0, 1);
-
 	if (cmpset == 0)
 		return;
 
 	if (cons->ctrlr_fn != NULL)
 		ctrlr_cookie = (*cons->ctrlr_fn)(ctrlr);
 	else
-		ctrlr_cookie = NULL;
+		ctrlr_cookie = (void *)(uintptr_t)0xdeadc0dedeadc0de;
 	ctrlr->cons_cookie[cons->id] = ctrlr_cookie;
+
+	/* ctrlr_fn has failed.  Nothing to notify here any more. */
+	if (ctrlr_cookie == NULL)
+		return;
+
 	if (ctrlr->is_failed) {
+		ctrlr->cons_cookie[cons->id] = NULL;
 		if (cons->fail_fn != NULL)
 			(*cons->fail_fn)(ctrlr_cookie);
 		/*
@@ -381,13 +386,16 @@ nvme_notify_async_consumers(struct nvme_controller *ctrlr,
 			    uint32_t log_page_size)
 {
 	struct nvme_consumer	*cons;
+	void			*ctrlr_cookie;
 	uint32_t		i;
 
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
 		cons = &nvme_consumer[i];
-		if (cons->id != INVALID_CONSUMER_ID && cons->async_fn != NULL)
-			(*cons->async_fn)(ctrlr->cons_cookie[i], async_cpl,
+		if (cons->id != INVALID_CONSUMER_ID && cons->async_fn != NULL &&
+		    (ctrlr_cookie = ctrlr->cons_cookie[i]) != NULL) {
+			(*cons->async_fn)(ctrlr_cookie, async_cpl,
 			    log_page_id, log_page_buffer, log_page_size);
+		}
 	}
 }
 
@@ -395,6 +403,7 @@ void
 nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
 {
 	struct nvme_consumer	*cons;
+	void			*ctrlr_cookie;
 	uint32_t		i;
 
 	/*
@@ -408,8 +417,12 @@ nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
 
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
 		cons = &nvme_consumer[i];
-		if (cons->id != INVALID_CONSUMER_ID && cons->fail_fn != NULL)
-			cons->fail_fn(ctrlr->cons_cookie[i]);
+		if (cons->id != INVALID_CONSUMER_ID &&
+		    (ctrlr_cookie = ctrlr->cons_cookie[i]) != NULL) {
+			ctrlr->cons_cookie[i] = NULL;
+			if (cons->fail_fn != NULL)
+				cons->fail_fn(ctrlr_cookie);
+		}
 	}
 }
 
