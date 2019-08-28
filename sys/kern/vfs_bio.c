@@ -4881,10 +4881,9 @@ vm_hold_free_pages(struct buf *bp, int newbsize)
 	for (index = newnpages; index < bp->b_npages; index++) {
 		p = bp->b_pages[index];
 		bp->b_pages[index] = NULL;
-		p->wire_count--;
+		vm_page_unwire_noq(p);
 		vm_page_free(p);
 	}
-	vm_wire_sub(bp->b_npages - newnpages);
 	bp->b_npages = newnpages;
 }
 
