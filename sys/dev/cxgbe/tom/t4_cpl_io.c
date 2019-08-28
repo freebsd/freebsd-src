@@ -2023,7 +2023,6 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 static void
 t4_aiotx_process_job(struct toepcb *toep, struct socket *so, struct kaiocb *job)
 {
-	struct adapter *sc;
 	struct sockbuf *sb;
 	struct file *fp;
 	struct inpcb *inp;
@@ -2032,7 +2031,6 @@ t4_aiotx_process_job(struct toepcb *toep, struct socket *so, struct kaiocb *job)
 	int error, len;
 	bool moretocome, sendmore;
 
-	sc = td_adapter(toep->td);
 	sb = &so->so_snd;
 	SOCKBUF_UNLOCK(sb);
 	fp = job->fd_file;
@@ -2104,8 +2102,8 @@ sendanother:
 		moretocome = false;
 	} else
 		moretocome = true;
-	if (len > sc->tt.sndbuf) {
-		len = sc->tt.sndbuf;
+	if (len > toep->params.sndbuf) {
+		len = toep->params.sndbuf;
 		sendmore = true;
 	} else
 		sendmore = false;
