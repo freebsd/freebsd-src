@@ -1294,25 +1294,6 @@ pstats_free(struct pstats *ps)
 	free(ps, M_SUBPROC);
 }
 
-/*
- * Locate a zombie process by number
- */
-struct proc *
-zpfind(pid_t pid)
-{
-	struct proc *p;
-
-	sx_slock(&zombproc_lock);
-	LIST_FOREACH(p, &zombproc, p_list) {
-		if (p->p_pid == pid) {
-			PROC_LOCK(p);
-			break;
-		}
-	}
-	sx_sunlock(&zombproc_lock);
-	return (p);
-}
-
 #ifdef COMPAT_FREEBSD32
 
 /*
