@@ -319,9 +319,10 @@
 /* Total main work area. */
 #define AHCI_WORK_SIZE              (AHCI_CT_OFFSET + AHCI_CT_SIZE * ch->numslots)
 
-
-/* NVMe remapped device */
-#define AHCI_REMAPPED_UNIT	(1 << 31)
+/* ivars value fields */
+#define AHCI_REMAPPED_UNIT	(1 << 31)	/* NVMe remapped device. */
+#define AHCI_EM_UNIT		(1 << 30)	/* Enclosure Mgmt device. */
+#define AHCI_UNIT		0xff		/* Channel number. */
 
 struct ahci_dma_prd {
     u_int64_t                   dba;
