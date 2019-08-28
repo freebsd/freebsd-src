@@ -35,6 +35,9 @@
 extern "C" {
 #include <sys/types.h>
 #include <sys/extattr.h>
+#include <sys/wait.h>
+#include <semaphore.h>
+#include <signal.h>
 #include <string.h>
 }
 
@@ -45,6 +48,17 @@ using namespace testing;
 
 const char FULLPATH[] = "mountpoint/some_file.txt";
 const char RELPATH[] = "some_file.txt";
+static sem_t killer_semaphore;
+
+void* killer(void* target) {
+	pid_t pid = *(pid_t*)target;
+	sem_wait(&killer_semaphore);
+	if (verbosity > 1)
+		printf("Killing! pid %d\n", pid);
+	kill(pid, SIGINT);
+
+	return(NULL);
+}
 
 class Xattr: public FuseTest {
 public:
@@ -62,17 +76,31 @@ void expect_getxattr(uint64_t ino, const char *attr, ProcessMockerT r)
 	).WillOnce(Invoke(r));
 }
 
-void expect_listxattr(uint64_t ino, uint32_t size, ProcessMockerT r)
+void expect_listxattr(uint64_t ino, uint32_t size, ProcessMockerT r,
+    Sequence *seq = NULL)
 {
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in.header.opcode == FUSE_LISTXATTR &&
-				in.header.nodeid == ino &&
-				in.body.listxattr.size == size);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(r))
-	.RetiresOnSaturation();
+	if (seq == NULL) {
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in.header.opcode == FUSE_LISTXATTR &&
+					in.header.nodeid == ino &&
+					in.body.listxattr.size == size);
+			}, Eq(true)),
+			_)
+		).WillOnce(Invoke(r))
+		.RetiresOnSaturation();
+	} else {
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in.header.opcode == FUSE_LISTXATTR &&
+					in.header.nodeid == ino &&
+					in.body.listxattr.size == size);
+			}, Eq(true)),
+			_)
+		).InSequence(*seq)
+		.WillOnce(Invoke(r))
+		.RetiresOnSaturation();
+	}
 }
 
 void expect_removexattr(uint64_t ino, const char *attr, int error)
@@ -108,7 +136,37 @@ void expect_setxattr(uint64_t ino, const char *attr, const char *value,
 };
 
 class Getxattr: public Xattr {};
+
 class Listxattr: public Xattr {};
+
+/* Listxattr tests that need to use a signal */
+class ListxattrSig: public Listxattr {
+public:
+pthread_t m_killer_th;
+pid_t m_child;
+
+void SetUp() {
+	/*
+	 * Mount with -o nointr so the mount can't get interrupted while
+	 * waiting for a response from the server
+	 */
+	m_nointr = true;
+	FuseTest::SetUp();
+
+	ASSERT_EQ(0, sem_init(&killer_semaphore, 0, 0)) << strerror(errno);
+}
+
+void TearDown() {
+	if (m_killer_th != NULL) {
+		pthread_join(m_killer_th, NULL);
+	}
+
+	sem_destroy(&killer_semaphore);
+
+	FuseTest::TearDown();
+}
+};
+
 class Removexattr: public Xattr {};
 class Setxattr: public Xattr {};
 class RofsXattr: public Xattr {
@@ -175,6 +233,7 @@ TEST_F(Getxattr, enosys)
  * behavior.
  *
  * This test case covers a filesystem that uses the Linux behavior
+ * TODO: require FreeBSD Behavior.
  */
 TEST_F(Getxattr, erange)
 {
@@ -300,27 +359,109 @@ TEST_F(Listxattr, enotsup)
 }
 
 /*
- * On FreeBSD, if the user passes an insufficiently large buffer then the
- * filesystem is supposed to copy as much of the attribute's value as will fit.
+ * On FreeBSD, if the user passes an insufficiently large buffer to
+ * extattr_list_file(2) or VOP_LISTEXTATTR(9), then the file system is supposed
+ * to copy as much of the attribute's value as will fit.
  *
- * On Linux, however, the filesystem is supposed to return ERANGE.
+ * On Linux, however, the file system is supposed to return ERANGE if an
+ * insufficiently large buffer is passed to listxattr(2).
  *
- * libfuse specifies the Linux behavior.  However, that's probably an error.
- * It would probably be correct for the filesystem to use platform-dependent
- * behavior.
- *
- * This test case covers a filesystem that uses the Linux behavior
+ * fusefs(5) must guarantee the usual FreeBSD behavior.
  */
 TEST_F(Listxattr, erange)
 {
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
+	char attrs[9] = "user.foo";
+	char expected[3] = {3, 'f', 'o'};
+	char buf[3];
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
-	expect_listxattr(ino, 0, ReturnErrno(ERANGE));
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto& out)
+	{
+		out.body.listxattr.size = sizeof(attrs);
+		SET_OUT_HEADER_LEN(out, listxattr);
+	}));
+	expect_listxattr(ino, sizeof(attrs),
+	ReturnImmediate([&](auto in __unused, auto& out) {
+		memcpy((void*)out.body.bytes, attrs, sizeof(attrs));
+		out.header.len = sizeof(fuse_out_header) + sizeof(attrs);
+	}));
 
-	ASSERT_EQ(-1, extattr_list_file(FULLPATH, ns, NULL, 0));
-	ASSERT_EQ(ERANGE, errno);
+
+	ASSERT_EQ(static_cast<ssize_t>(sizeof(buf)),
+		  extattr_list_file(FULLPATH, ns, buf, sizeof(buf)));
+	ASSERT_EQ(0, memcmp(expected, buf, sizeof(buf)));
+}
+
+/* 
+ * A buggy or malicious file system always returns ERANGE, even if we pass an
+ * appropriately sized buffer.  That will send the kernel into an infinite
+ * loop.  This test will ensure that the loop is interruptible by killing the
+ * blocked process with SIGINT.
+ */
+TEST_F(ListxattrSig, erange_forever)
+{
+	uint64_t ino = 42;
+	uint32_t lie_size = 10;
+	int status;
+
+	fork(false, &status, [&] {
+		EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+		.WillRepeatedly(Invoke(
+			ReturnImmediate([=](auto in __unused, auto& out) {
+			SET_OUT_HEADER_LEN(out, entry);
+			out.body.entry.attr.mode = S_IFREG | 0644;
+			out.body.entry.nodeid = ino;
+			out.body.entry.attr.nlink = 1;
+			out.body.entry.attr_valid = UINT64_MAX;
+			out.body.entry.entry_valid = UINT64_MAX;
+		})));
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in.header.opcode == FUSE_LISTXATTR &&
+					in.header.nodeid == ino &&
+					in.body.listxattr.size == 0);
+			}, Eq(true)),
+			_)
+		).WillRepeatedly(ReturnImmediate([=](auto i __unused, auto& out)
+		{
+			/* The file system requests 10 bytes, but it's a lie */
+			out.body.listxattr.size = lie_size;
+			SET_OUT_HEADER_LEN(out, listxattr);
+			/*
+			 * We can send the signal any time after fusefs enters
+			 * VOP_LISTEXTATTR
+			 */
+			sem_post(&killer_semaphore);
+		}));
+		/* 
+		 * Even though the kernel faithfully respects our size request,
+		 * we'll return ERANGE anyway.
+		 */
+		EXPECT_CALL(*m_mock, process(
+			ResultOf([=](auto in) {
+				return (in.header.opcode == FUSE_LISTXATTR &&
+					in.header.nodeid == ino &&
+					in.body.listxattr.size == lie_size);
+			}, Eq(true)),
+			_)
+		).WillRepeatedly(ReturnErrno(ERANGE));
+
+		ASSERT_EQ(0, pthread_create(&m_killer_th, NULL, killer,
+					    &m_mock->m_child_pid))
+			<< strerror(errno);
+
+	}, [] {
+		/* Child process will block until it gets signaled */
+		int ns = EXTATTR_NAMESPACE_USER;
+		char buf[3];
+		extattr_list_file(FULLPATH, ns, buf, sizeof(buf));
+		return 0;
+	}
+	);
+
+	ASSERT_TRUE(WIFSIGNALED(status));
 }
 
 /*
@@ -351,21 +492,102 @@ TEST_F(Listxattr, size_only_nonempty)
 {
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
+	char attrs[9] = "user.foo";
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
-	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto& out) {
-		out.body.listxattr.size = 45;
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto& out)
+	{
+		out.body.listxattr.size = sizeof(attrs);
 		SET_OUT_HEADER_LEN(out, listxattr);
 	}));
 
-	// TODO: fix the expected size after fixing the size calculation bug in
-	// fuse_vnop_listextattr.  It should be exactly 45.
-	expect_listxattr(ino, 53,
-		ReturnImmediate([](auto in __unused, auto& out) {
-			const char l[] = "user.foo";
-			strlcpy((char*)out.body.bytes, l,
-				sizeof(out.body.bytes));
-			out.header.len = sizeof(fuse_out_header) + sizeof(l);
+	expect_listxattr(ino, sizeof(attrs),
+		ReturnImmediate([=](auto in __unused, auto& out) {
+			size_t l = sizeof(attrs);
+			strlcpy((char*)out.body.bytes, attrs, l);
+			out.header.len = sizeof(fuse_out_header) + l;
+		})
+	);
+
+	ASSERT_EQ(4, extattr_list_file(FULLPATH, ns, NULL, 0))
+		<< strerror(errno);
+}
+
+/*
+ * The list of extended attributes grows in between the server's two calls to
+ * FUSE_LISTXATTR.
+ */
+TEST_F(Listxattr, size_only_race_bigger)
+{
+	uint64_t ino = 42;
+	int ns = EXTATTR_NAMESPACE_USER;
+	char attrs0[9] = "user.foo";
+	char attrs1[18] = "user.foo\0user.bar";
+	Sequence seq;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillRepeatedly(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto& out)
+	{
+		out.body.listxattr.size = sizeof(attrs0);
+		SET_OUT_HEADER_LEN(out, listxattr);
+	}), &seq);
+
+	/* 
+	 * After the first FUSE_LISTXATTR the list grew, so the second
+	 * operation returns ERANGE.
+	 */
+	expect_listxattr(ino, sizeof(attrs0), ReturnErrno(ERANGE), &seq);
+
+	/* And now the kernel retries */
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto& out)
+	{
+		out.body.listxattr.size = sizeof(attrs1);
+		SET_OUT_HEADER_LEN(out, listxattr);
+	}), &seq);
+	expect_listxattr(ino, sizeof(attrs1),
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			memcpy((char*)out.body.bytes, attrs1, sizeof(attrs1));
+			out.header.len = sizeof(fuse_out_header) +
+			    sizeof(attrs1);
+		}), &seq
+	);
+
+	/* Userspace should never know about the retry */
+	ASSERT_EQ(8, extattr_list_file(FULLPATH, ns, NULL, 0))
+		<< strerror(errno);
+}
+
+/*
+ * The list of extended attributes shrinks in between the server's two calls to
+ * FUSE_LISTXATTR
+ */
+TEST_F(Listxattr, size_only_race_smaller)
+{
+	uint64_t ino = 42;
+	int ns = EXTATTR_NAMESPACE_USER;
+	char attrs0[18] = "user.foo\0user.bar";
+	char attrs1[9] = "user.foo";
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto& out)
+	{
+		out.body.listxattr.size = sizeof(attrs0);
+		SET_OUT_HEADER_LEN(out, listxattr);
+	}));
+	expect_listxattr(ino, sizeof(attrs0),
+		ReturnImmediate([&](auto in __unused, auto& out) {
+			strlcpy((char*)out.body.bytes, attrs1, sizeof(attrs1));
+			out.header.len = sizeof(fuse_out_header) +
+			    sizeof(attrs1);
 		})
 	);
 
@@ -384,9 +606,7 @@ TEST_F(Listxattr, size_only_really_big)
 		SET_OUT_HEADER_LEN(out, listxattr);
 	}));
 
-	// TODO: fix the expected size after fixing the size calculation bug in
-	// fuse_vnop_listextattr.  It should be exactly 16000.
-	expect_listxattr(ino, 16008,
+	expect_listxattr(ino, 16000,
 		ReturnImmediate([](auto in __unused, auto& out) {
 			const char l[16] = "user.foobarbang";
 			for (int i=0; i < 1000; i++) {
@@ -420,9 +640,7 @@ TEST_F(Listxattr, user)
 		})
 	);
 
-	// TODO: fix the expected size after fixing the size calculation bug in
-	// fuse_vnop_listextattr.
-	expect_listxattr(ino, sizeof(attrs) + 8,
+	expect_listxattr(ino, sizeof(attrs),
 	ReturnImmediate([&](auto in __unused, auto& out) {
 		memcpy((void*)out.body.bytes, attrs, sizeof(attrs));
 		out.header.len = sizeof(fuse_out_header) + sizeof(attrs);
@@ -454,9 +672,7 @@ TEST_F(Listxattr, system)
 		})
 	);
 
-	// TODO: fix the expected size after fixing the size calculation bug in
-	// fuse_vnop_listextattr.
-	expect_listxattr(ino, sizeof(attrs) + 8,
+	expect_listxattr(ino, sizeof(attrs),
 	ReturnImmediate([&](auto in __unused, auto& out) {
 		memcpy((void*)out.body.bytes, attrs, sizeof(attrs));
 		out.header.len = sizeof(fuse_out_header) + sizeof(attrs);
