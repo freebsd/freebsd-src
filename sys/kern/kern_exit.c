@@ -447,13 +447,10 @@ exit1(struct thread *td, int rval, int signo)
 	WITNESS_WARN(WARN_PANIC, NULL, "process (pid %d) exiting", p->p_pid);
 
 	/*
-	 * Move proc from allproc queue to zombproc.
+	 * Remove from allproc. It still sits in the hash.
 	 */
 	sx_xlock(&allproc_lock);
-	sx_xlock(&zombproc_lock);
 	LIST_REMOVE(p, p_list);
-	LIST_INSERT_HEAD(&zombproc, p, p_list);
-	sx_xunlock(&zombproc_lock);
 	sx_xunlock(&allproc_lock);
 
 	sx_xlock(&proctree_lock);
@@ -903,9 +900,6 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * Remove other references to this process to ensure we have an
 	 * exclusive reference.
 	 */
-	sx_xlock(&zombproc_lock);
-	LIST_REMOVE(p, p_list);	/* off zombproc */
-	sx_xunlock(&zombproc_lock);
 	sx_xlock(PIDHASHLOCK(p->p_pid));
 	LIST_REMOVE(p, p_hash);
 	sx_xunlock(PIDHASHLOCK(p->p_pid));
