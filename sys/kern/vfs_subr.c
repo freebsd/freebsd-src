@@ -2891,6 +2891,21 @@ vputx(struct vnode *vp, int func)
 	CTR2(KTR_VFS, "%s: return vnode %p to the freelist", __func__, vp);
 
 	/*
+	 * Check if the fs wants to perform inactive processing. Note we
+	 * may be only holding the interlock, in which case it is possible
+	 * someone else called vgone on the vnode and ->v_data is now NULL.
+	 * Since vgone performs inactive on its own there is nothing to do
+	 * here but to drop our hold count.
+	 */
+	if (__predict_false(vp->v_iflag & VI_DOOMED) ||
+	    VOP_NEED_INACTIVE(vp) == 0) {
+		if (func == VPUTX_VPUT)
+			VOP_UNLOCK(vp, 0);
+		vdropl(vp);
+		return;
+	}
+
+	/*
 	 * We must call VOP_INACTIVE with the node locked. Mark
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
@@ -4353,6 +4368,7 @@ static struct vop_vector sync_vnodeops = {
 	.vop_close =	sync_close,		/* close */
 	.vop_fsync =	sync_fsync,		/* fsync */
 	.vop_inactive =	sync_inactive,	/* inactive */
+	.vop_need_inactive = vop_stdneed_inactive, /* need_inactive */
 	.vop_reclaim =	sync_reclaim,	/* reclaim */
 	.vop_lock1 =	vop_stdlock,	/* lock */
 	.vop_unlock =	vop_stdunlock,	/* unlock */
@@ -4512,6 +4528,20 @@ sync_reclaim(struct vop_reclaim_args *ap)
 	BO_UNLOCK(bo);
 
 	return (0);
+}
+
+int
+vn_need_pageq_flush(struct vnode *vp)
+{
+	struct vm_object *obj;
+	int need;
+
+	MPASS(mtx_owned(VI_MTX(vp)));
+	need = 0;
+	if ((obj = vp->v_object) != NULL && (vp->v_vflag & VV_NOSYNC) == 0 &&
+	    (obj->flags & OBJ_MIGHTBEDIRTY) != 0)
+		need = 1;
+	return (need);
 }
 
 /*
@@ -4893,6 +4923,22 @@ vop_unlock_post(void *ap, int rc)
 
 	if (a->a_flags & LK_INTERLOCK)
 		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_UNLOCK");
+}
+
+void
+vop_need_inactive_pre(void *ap)
+{
+	struct vop_need_inactive_args *a = ap;
+
+	ASSERT_VI_LOCKED(a->a_vp, "VOP_NEED_INACTIVE");
+}
+
+void
+vop_need_inactive_post(void *ap, int rc)
+{
+	struct vop_need_inactive_args *a = ap;
+
+	ASSERT_VI_LOCKED(a->a_vp, "VOP_NEED_INACTIVE");
 }
 #endif
 
