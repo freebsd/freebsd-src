@@ -199,6 +199,14 @@ vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 #define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)
 
 static inline void
+vm_pagequeue_remove(struct vm_pagequeue *pq, vm_page_t m)
+{
+
+	TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
+	vm_pagequeue_cnt_dec(pq);
+}
+
+static inline void
 vm_batchqueue_init(struct vm_batchqueue *bq)
 {
 

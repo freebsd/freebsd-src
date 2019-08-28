@@ -554,7 +554,6 @@ void vm_page_launder(vm_page_t m);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
-struct vm_pagequeue *vm_page_pagequeue(vm_page_t m);
 vm_page_t vm_page_prev(vm_page_t m);
 bool vm_page_ps_test(vm_page_t m, int flags, vm_page_t skip_m);
 void vm_page_putfake(vm_page_t m);
