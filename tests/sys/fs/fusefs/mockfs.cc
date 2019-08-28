@@ -204,6 +204,9 @@ void MockFS::debug_request(const mockfs_buf_in &in)
 		case FUSE_LINK:
 			printf(" oldnodeid=%" PRIu64, in.body.link.oldnodeid);
 			break;
+		case FUSE_LISTXATTR:
+			printf(" size=%" PRIu32, in.body.listxattr.size);
+			break;
 		case FUSE_LOOKUP:
 			printf(" %s", in.body.lookup);
 			break;

@@ -2225,6 +2225,20 @@ fuse_xattrlist_convert(char *prefix, const char *list, int list_len,
 }
 
 /*
+ * List extended attributes
+ *
+ * The FUSE_LISTXATTR operation is based on Linux's listxattr(2) syscall, which
+ * has a number of differences compared to its FreeBSD equivalent,
+ * extattr_list_file:
+ *
+ * - FUSE_LISTXATTR returns all extended attributes across all namespaces,
+ *   whereas listxattr(2) only returns attributes for a single namespace
+ * - FUSE_LISTXATTR prepends each attribute name with "namespace."
+ * - If the provided buffer is not large enough to hold the result,
+ *   FUSE_LISTXATTR should return ERANGE, whereas listxattr is expected to
+ *   return as many results as will fit.
+ */
+/*
     struct vop_listextattr_args {
 	struct vop_generic_args a_gen;
 	struct vnode *a_vp;
@@ -2303,14 +2317,31 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	 */
 	fdisp_refresh_vp(&fdi, FUSE_LISTXATTR, vp, td, cred);
 	list_xattr_in = fdi.indata;
-	list_xattr_in->size = linux_list_len + sizeof(*list_xattr_out);
+	list_xattr_in->size = linux_list_len;
 
 	err = fdisp_wait_answ(&fdi);
-	if (err != 0)
+	if (err == ERANGE) {
+		/* 
+		 * Race detected.  The attribute list must've grown since the
+		 * first FUSE_LISTXATTR call.  Start over.  Go all the way back
+		 * to userland so we can process signals, if necessary, before
+		 * restarting.
+		 */
+		err = ERESTART;
+		goto out;
+	} else if (err != 0)
 		goto out;
 
 	linux_list = fdi.answ;
-	linux_list_len = fdi.iosize;
+	/* FUSE doesn't allow the server to return more data than requested */
+	if (fdi.iosize > linux_list_len) {
+		printf("WARNING: FUSE protocol violation.  Server returned "
+			"more extended attribute data than requested; "
+			"should've returned ERANGE instead");
+	} else {
+		/* But returning less data is fine */
+		linux_list_len = fdi.iosize;
+	}
 
 	/*
 	 * Retrieve the BSD compatible list values.
