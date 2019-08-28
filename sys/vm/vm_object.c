@@ -536,7 +536,7 @@ vm_object_deallocate(vm_object_t object)
 				vp = object->un_pager.swp.swp_tmpfs;
 				vhold(vp);
 				VM_OBJECT_WUNLOCK(object);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+				vn_lock(vp, LK_SHARED | LK_RETRY);
 				VM_OBJECT_WLOCK(object);
 				if (object->type == OBJT_DEAD ||
 				    object->ref_count != 1) {
