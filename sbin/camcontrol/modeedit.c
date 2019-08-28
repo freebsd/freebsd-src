@@ -295,11 +295,8 @@ editentry_set(char *name, char *newvalue, int editonly)
 /*
  * Macro to determine the maximum value of the given size for the current
  * resolution.
- * XXX Lovely x86's optimize out the case of shifting by 32 and gcc doesn't
- *     currently workaround it (even for int64's), so we have to kludge it.
  */
-#define	RESOLUTION_MAX(size) ((resolution * (size) == 32)? 		\
-	UINT_MAX: (1 << (resolution * (size))) - 1)
+#define	RESOLUTION_MAX(size)	((1LL << (resolution * (size))) - 1)
 
 	assert(newvalue != NULL);
 	if (*newvalue == '\0')
