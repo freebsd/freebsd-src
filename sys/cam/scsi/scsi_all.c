@@ -2054,7 +2054,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x30, 0x13, SS_RDEF,	/* XXX TBD */
 	    "Cleaning volume expired") },
 	/* DT  WRO   BK   */
-	{ SST(0x31, 0x00, SS_RDEF,
+	{ SST(0x31, 0x00, SS_FATAL | ENXIO,
 	    "Medium format corrupted") },
 	/* D L  RO   B    */
 	{ SST(0x31, 0x01, SS_RDEF,

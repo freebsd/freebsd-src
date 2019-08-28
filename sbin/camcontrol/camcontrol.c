@@ -224,7 +224,7 @@ static struct camcontrol_opts option_table[] = {
 	{"devtype", CAM_CMD_DEVTYPE, CAM_ARG_NONE, ""},
 #ifndef MINIMALISTIC
 	{"periphlist", CAM_CMD_DEVLIST, CAM_ARG_NONE, NULL},
-	{"modepage", CAM_CMD_MODE_PAGE, CAM_ARG_NONE, "6bdelm:P:"},
+	{"modepage", CAM_CMD_MODE_PAGE, CAM_ARG_NONE, "6bdelm:DLP:"},
 	{"tags", CAM_CMD_TAG, CAM_ARG_NONE, "N:q"},
 	{"negotiate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"rate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
@@ -4430,9 +4430,9 @@ reassignblocks(struct cam_device *device, u_int32_t *blocks, int num_blocks)
 
 #ifndef MINIMALISTIC
 void
-mode_sense(struct cam_device *device, int *cdb_len, int dbd, int pc, int page,
-    int subpage, int task_attr, int retry_count, int timeout, u_int8_t *data,
-    int datalen)
+mode_sense(struct cam_device *device, int *cdb_len, int dbd, int llbaa, int pc,
+    int page, int subpage, int task_attr, int retry_count, int timeout,
+    u_int8_t *data, int datalen)
 {
 	union ccb *ccb;
 	int error_code, sense_key, asc, ascq;
@@ -4464,6 +4464,11 @@ retry:
 			/* minimum_cmd_size */ *cdb_len,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ timeout ? timeout : 5000);
+	if (llbaa && ccb->csio.cdb_len == 10) {
+		struct scsi_mode_sense_10 *cdb =
+		    (struct scsi_mode_sense_10 *)ccb->csio.cdb_io.cdb_bytes;
+		cdb->byte2 |= SMS10_LLBAA;
+	}
 
 	/* Record what CDB size the above function really set. */
 	*cdb_len = ccb->csio.cdb_len;
@@ -4555,8 +4560,8 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	 int task_attr, int retry_count, int timeout)
 {
 	char *str_subpage;
-	int c, page = -1, subpage = -1, pc = 0;
-	int binary = 0, cdb_len = 10, dbd = 0, edit = 0, list = 0;
+	int c, page = -1, subpage = -1, pc = 0, llbaa = 0;
+	int binary = 0, cdb_len = 10, dbd = 0, desc = 0, edit = 0, list = 0;
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
@@ -4588,6 +4593,12 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			if (subpage < 0)
 				errx(1, "invalid mode subpage %d", subpage);
 			break;
+		case 'D':
+			desc = 1;
+			break;
+		case 'L':
+			llbaa = 1;
+			break;
 		case 'P':
 			pc = strtol(optarg, NULL, 0);
 			if ((pc < 0) || (pc > 3))
@@ -4598,15 +4609,21 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 	}
 
-	if (page == -1 && list == 0)
+	if (page == -1 && desc == 0 && list == 0)
 		errx(1, "you must specify a mode page!");
+
+	if (dbd && desc)
+		errx(1, "-d and -D are incompatible!");
+
+	if (llbaa && cdb_len != 10)
+		errx(1, "LLBAA bit is not present in MODE SENSE(6)!");
 
 	if (list != 0) {
 		mode_list(device, cdb_len, dbd, pc, list > 1, task_attr,
 		    retry_count, timeout);
 	} else {
-		mode_edit(device, cdb_len, dbd, pc, page, subpage, edit,
-		    binary, task_attr, retry_count, timeout);
+		mode_edit(device, cdb_len, desc, dbd, llbaa, pc, page, subpage,
+		    edit, binary, task_attr, retry_count, timeout);
 	}
 }
 
