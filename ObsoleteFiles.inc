@@ -38,6 +38,17 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 2019mmdd: libc++ 9.0.0 removed some experimental files
+OLD_FILES+=usr/include/c++/v1/experimental/any
+OLD_FILES+=usr/include/c++/v1/experimental/chrono
+OLD_FILES+=usr/include/c++/v1/experimental/numeric
+OLD_FILES+=usr/include/c++/v1/experimental/optional
+OLD_FILES+=usr/include/c++/v1/experimental/ratio
+OLD_FILES+=usr/include/c++/v1/experimental/string_view
+OLD_FILES+=usr/include/c++/v1/experimental/system_error
+OLD_FILES+=usr/include/c++/v1/experimental/tuple
+OLD_FILES+=usr/lib/libc++fs.a
+
 # 20190817: pft_ping.py and sniffer.py moved to /usr/tests/sys/netpfil/common
 OLD_FILES+=usr/tests/sys/netpfil/pf/sniffer.py
 OLD_FILES+=usr/tests/sys/netpfil/pf/pft_ping.py
