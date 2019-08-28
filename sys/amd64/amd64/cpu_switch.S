@@ -45,18 +45,6 @@
 
 	.text
 
-#ifdef SMP
-#define LK	lock ;
-#else
-#define LK
-#endif
-
-#if defined(SCHED_ULE) && defined(SMP)
-#define	SETLK	xchgq
-#else
-#define	SETLK	movq
-#endif
-
 /*
  * cpu_throw()
  *
@@ -150,17 +138,15 @@ ctx_switch_xsave:
 	movq	%rdx,%r15
 	movq	%rsi,%rdi
 	callq	pmap_activate_sw
-	SETLK	%r15,TD_LOCK(%r13)		/* Release the old thread */
+	movq	%r15,TD_LOCK(%r13)		/* Release the old thread */
 sw1:
 	movq	TD_PCB(%r12),%r8
 #if defined(SCHED_ULE) && defined(SMP)
-	/* Wait for the new thread to become unblocked */
 	movq	$blocked_lock, %rdx
-1:
 	movq	TD_LOCK(%r12),%rcx
 	cmpq	%rcx, %rdx
-	pause
-	je	1b
+	je	sw1wait
+sw1cont:
 #endif
 	/*
 	 * At this point, we've switched address spaces and are ready
@@ -496,3 +482,14 @@ ENTRY(resumectx)
 	xorl	%eax,%eax
 	ret
 END(resumectx)
+
+/* Wait for the new thread to become unblocked */
+#if defined(SCHED_ULE) && defined(SMP)
+sw1wait:
+1:
+	pause
+	movq	TD_LOCK(%r12),%rcx
+	cmpq	%rcx, %rdx
+	je	1b
+	jmp	sw1cont
+#endif
