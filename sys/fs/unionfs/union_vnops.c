@@ -2523,6 +2523,7 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_getextattr =	unionfs_getextattr,
 	.vop_getwritemount =	unionfs_getwritemount,
 	.vop_inactive =		unionfs_inactive,
+	.vop_need_inactive =	vop_stdneed_inactive,
 	.vop_islocked =		unionfs_islocked,
 	.vop_ioctl =		unionfs_ioctl,
 	.vop_link =		unionfs_link,

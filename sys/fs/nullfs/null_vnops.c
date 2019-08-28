@@ -907,6 +907,7 @@ struct vop_vector null_vnodeops = {
 	.vop_getattr =		null_getattr,
 	.vop_getwritemount =	null_getwritemount,
 	.vop_inactive =		null_inactive,
+	.vop_need_inactive =	vop_stdneed_inactive,
 	.vop_islocked =		vop_stdislocked,
 	.vop_lock1 =		null_lock,
 	.vop_lookup =		null_lookup,
