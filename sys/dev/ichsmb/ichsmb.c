@@ -131,11 +131,8 @@ ichsmb_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Attach "smbus" child */
-	if ((error = bus_generic_attach(dev)) != 0) {
-		device_printf(dev, "failed to attach child: %d\n", error);
-		goto fail;
-	}
+	/* Probe and attach the smbus when interrupts are available */
+	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
 
 	return (0);
 
