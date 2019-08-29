@@ -118,6 +118,7 @@ static struct entry {
 	char	*args;			/* arg list of interesting process */
 	struct	kinfo_proc *dkp;	/* debug option proc list */
 	char	*from;			/* "from": name or addr */
+	char	*save_from;		/* original "from": name or addr */
 } *ep, *ehead = NULL, **nextp = &ehead;
 
 #define	debugproc(p) *(&((struct kinfo_proc *)p)->ki_udata)
@@ -209,7 +210,6 @@ main(int argc, char *argv[])
 	if (*argv)
 		sel_users = argv;
 
-	save_p = NULL;
 	setutxent();
 	for (nusers = 0; (utmp = getutxent()) != NULL;) {
 		struct addrinfo hints, *res;
@@ -312,6 +312,8 @@ main(int argc, char *argv[])
 		ep->from = strdup(p);
 		if ((i = strlen(p)) > fromwidth)
 			fromwidth = i;
+		if (save_p != p)
+			ep->save_from = strdup(save_p);
 	}
 	endutxent();
 
@@ -451,8 +453,8 @@ main(int argc, char *argv[])
 			 strncmp(ep->utmp.ut_line, "cua", 3) ?
 			 ep->utmp.ut_line : ep->utmp.ut_line + 3) : "-");
 
-		if (save_p && save_p != p)
-		    xo_attr("address", "%s", save_p);
+		if (ep->save_from)
+		    xo_attr("address", "%s", ep->save_from);
 		xo_emit("{:from/%-*.*s/%@**@s} ",
 		    fromwidth, fromwidth, ep->from);
 		t = ep->utmp.ut_tv.tv_sec;
