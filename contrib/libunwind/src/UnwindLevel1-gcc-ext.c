@@ -227,7 +227,7 @@ _LIBUNWIND_EXPORT uintptr_t _Unwind_GetIPInfo(struct _Unwind_Context *context,
 
 #if defined(_LIBUNWIND_SUPPORT_DWARF_UNWIND)
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
 
 // Based on LLVM's lib/ExecutionEngine/RuntimeDyld/RTDyldMemoryManager.cpp
 // and XXX should be fixed to be alignment-safe.
@@ -242,9 +242,9 @@ static void processFDE(const char *addr, bool isDeregister) {
     uint32_t offset = *((const uint32_t *)p);
     if (offset != 0) {
       if (isDeregister)
-        _unw_remove_dynamic_fde((unw_word_t)(uintptr_t)addr);
+        __unw_remove_dynamic_fde((unw_word_t)(uintptr_t)addr);
       else
-        _unw_add_dynamic_fde((unw_word_t)(uintptr_t)addr);
+        __unw_add_dynamic_fde((unw_word_t)(uintptr_t)addr);
     }
     addr = p + length;
   }
@@ -265,8 +265,7 @@ _LIBUNWIND_EXPORT void __deregister_frame(const void *addr) {
   processFDE(addr, true);
 }
 
-
-#else
+#else // defined(__FreeBSD__)
 
 /// Called by programs with dynamic code generators that want
 /// to register a dynamically generated FDE.
@@ -277,7 +276,6 @@ _LIBUNWIND_EXPORT void __register_frame(const void *fde) {
   __unw_add_dynamic_fde((unw_word_t)(uintptr_t)fde);
 }
 
-
 /// Called by programs with dynamic code generators that want
 /// to unregister a dynamically generated FDE.
 /// This function has existed on Mac OS X since 10.4, but
@@ -287,7 +285,7 @@ _LIBUNWIND_EXPORT void __deregister_frame(const void *fde) {
   __unw_remove_dynamic_fde((unw_word_t)(uintptr_t)fde);
 }
 
-#endif
+#endif // defined(__FreeBSD__)
 
 // The following register/deregister functions are gcc extensions.
 // They have existed on Mac OS X, but have never worked because Mac OS X
