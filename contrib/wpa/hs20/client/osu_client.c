@@ -1588,6 +1588,7 @@ static void set_pps_cred_digital_cert(struct hs20_osu_client *ctx, int id,
 				      xml_node_t *node, const char *fqdn)
 {
 	char buf[200], dir[200];
+	int res;
 
 	wpa_printf(MSG_INFO, "- Credential/DigitalCertificate");
 
@@ -1599,14 +1600,20 @@ static void set_pps_cred_digital_cert(struct hs20_osu_client *ctx, int id,
 		wpa_printf(MSG_INFO, "Failed to set username");
 	}
 
-	snprintf(buf, sizeof(buf), "%s/SP/%s/client-cert.pem", dir, fqdn);
+	res = os_snprintf(buf, sizeof(buf), "%s/SP/%s/client-cert.pem", dir,
+			  fqdn);
+	if (os_snprintf_error(sizeof(buf), res))
+		return;
 	if (os_file_exists(buf)) {
 		if (set_cred_quoted(ctx->ifname, id, "client_cert", buf) < 0) {
 			wpa_printf(MSG_INFO, "Failed to set client_cert");
 		}
 	}
 
-	snprintf(buf, sizeof(buf), "%s/SP/%s/client-key.pem", dir, fqdn);
+	res = os_snprintf(buf, sizeof(buf), "%s/SP/%s/client-key.pem", dir,
+			  fqdn);
+	if (os_snprintf_error(sizeof(buf), res))
+		return;
 	if (os_file_exists(buf)) {
 		if (set_cred_quoted(ctx->ifname, id, "private_key", buf) < 0) {
 			wpa_printf(MSG_INFO, "Failed to set private_key");
@@ -1620,6 +1627,7 @@ static void set_pps_cred_realm(struct hs20_osu_client *ctx, int id,
 {
 	char *str = xml_node_get_text(ctx->xml, node);
 	char buf[200], dir[200];
+	int res;
 
 	if (str == NULL)
 		return;
@@ -1634,7 +1642,9 @@ static void set_pps_cred_realm(struct hs20_osu_client *ctx, int id,
 
 	if (getcwd(dir, sizeof(dir)) == NULL)
 		return;
-	snprintf(buf, sizeof(buf), "%s/SP/%s/aaa-ca.pem", dir, fqdn);
+	res = os_snprintf(buf, sizeof(buf), "%s/SP/%s/aaa-ca.pem", dir, fqdn);
+	if (os_snprintf_error(sizeof(buf), res))
+		return;
 	if (os_file_exists(buf)) {
 		if (set_cred_quoted(ctx->ifname, id, "ca_cert", buf) < 0) {
 			wpa_printf(MSG_INFO, "Failed to set CA cert");
@@ -2717,6 +2727,8 @@ static int cmd_pol_upd(struct hs20_osu_client *ctx, const char *address,
 
 	if (!pps_fname) {
 		char buf[256];
+		int res;
+
 		wpa_printf(MSG_INFO, "Determining PPS file based on Home SP information");
 		if (address && os_strncmp(address, "fqdn=", 5) == 0) {
 			wpa_printf(MSG_INFO, "Use requested FQDN from command line");
@@ -2737,8 +2749,13 @@ static int cmd_pol_upd(struct hs20_osu_client *ctx, const char *address,
 			    "SP/%s/pps.xml", ctx->fqdn);
 		pps_fname = pps_fname_buf;
 
-		os_snprintf(ca_fname_buf, sizeof(ca_fname_buf), "SP/%s/ca.pem",
-			    buf);
+		res = os_snprintf(ca_fname_buf, sizeof(ca_fname_buf),
+				  "SP/%s/ca.pem", buf);
+		if (os_snprintf_error(sizeof(ca_fname_buf), res)) {
+			os_free(ctx->fqdn);
+			ctx->fqdn = NULL;
+			return -1;
+		}
 		ca_fname = ca_fname_buf;
 	}
 

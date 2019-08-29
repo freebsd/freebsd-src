@@ -30,6 +30,7 @@ struct eap_aka_data {
 	u8 ck[EAP_AKA_CK_LEN];
 	u8 ik[EAP_AKA_IK_LEN];
 	u8 res[EAP_AKA_RES_MAX_LEN];
+	u8 reauth_mac[EAP_SIM_MAC_LEN];
 	size_t res_len;
 	enum {
 		IDENTITY, CHALLENGE, REAUTH, NOTIFICATION, SUCCESS, FAILURE
@@ -392,7 +393,10 @@ static int eap_aka_build_encr(struct eap_sm *sm, struct eap_aka_data *data,
 			      const u8 *nonce_s)
 {
 	os_free(data->next_pseudonym);
-	if (nonce_s == NULL) {
+	if (!(sm->eap_sim_id & 0x01)) {
+		/* Use of pseudonyms disabled in configuration */
+		data->next_pseudonym = NULL;
+	} else if (!nonce_s) {
 		data->next_pseudonym =
 			eap_sim_db_get_next_pseudonym(
 				sm->eap_sim_db_priv,
@@ -403,7 +407,10 @@ static int eap_aka_build_encr(struct eap_sm *sm, struct eap_aka_data *data,
 		data->next_pseudonym = NULL;
 	}
 	os_free(data->next_reauth_id);
-	if (data->counter <= EAP_AKA_MAX_FAST_REAUTHS) {
+	if (!(sm->eap_sim_id & 0x02)) {
+		/* Use of fast reauth disabled in configuration */
+		data->next_reauth_id = NULL;
+	} else if (data->counter <= EAP_AKA_MAX_FAST_REAUTHS) {
 		data->next_reauth_id =
 			eap_sim_db_get_next_reauth_id(
 				sm->eap_sim_db_priv,
@@ -542,6 +549,7 @@ static struct wpabuf * eap_aka_build_reauth(struct eap_sm *sm,
 					    struct eap_aka_data *data, u8 id)
 {
 	struct eap_sim_msg *msg;
+	struct wpabuf *buf;
 
 	wpa_printf(MSG_DEBUG, "EAP-AKA: Generating Re-authentication");
 
@@ -581,7 +589,16 @@ static struct wpabuf * eap_aka_build_reauth(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "   AT_MAC");
 	eap_sim_msg_add_mac(msg, EAP_SIM_AT_MAC);
-	return eap_sim_msg_finish(msg, data->eap_method, data->k_aut, NULL, 0);
+	buf = eap_sim_msg_finish(msg, data->eap_method, data->k_aut, NULL, 0);
+
+	/* Remember this MAC before sending it to the peer. This MAC is used for
+	 * Session-Id calculation after receiving response from the peer and
+	 * after all other checks pass. */
+	os_memcpy(data->reauth_mac,
+		  wpabuf_head_u8(buf) + wpabuf_len(buf) - EAP_SIM_MAC_LEN,
+		  EAP_SIM_MAC_LEN);
+
+	return buf;
 }
 
 
@@ -1304,14 +1321,24 @@ static u8 * eap_aka_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	*len = 1 + EAP_AKA_RAND_LEN + EAP_AKA_AUTN_LEN;
+	if (!data->reauth)
+		*len = 1 + EAP_AKA_RAND_LEN + EAP_AKA_AUTN_LEN;
+	else
+		*len = 1 + EAP_SIM_NONCE_S_LEN + EAP_SIM_MAC_LEN;
 	id = os_malloc(*len);
 	if (id == NULL)
 		return NULL;
 
 	id[0] = data->eap_method;
-	os_memcpy(id + 1, data->rand, EAP_AKA_RAND_LEN);
-	os_memcpy(id + 1 + EAP_AKA_RAND_LEN, data->autn, EAP_AKA_AUTN_LEN);
+	if (!data->reauth) {
+		os_memcpy(id + 1, data->rand, EAP_AKA_RAND_LEN);
+		os_memcpy(id + 1 + EAP_AKA_RAND_LEN, data->autn,
+			  EAP_AKA_AUTN_LEN);
+	} else {
+		os_memcpy(id + 1, data->nonce_s, EAP_SIM_NONCE_S_LEN);
+		os_memcpy(id + 1 + EAP_SIM_NONCE_S_LEN, data->reauth_mac,
+			  EAP_SIM_MAC_LEN);
+	}
 	wpa_hexdump(MSG_DEBUG, "EAP-AKA: Derived Session-Id", id, *len);
 
 	return id;

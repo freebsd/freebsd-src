@@ -230,6 +230,16 @@ void inc_byte_array(u8 *counter, size_t len)
 }
 
 
+void buf_shift_right(u8 *buf, size_t len, size_t bits)
+{
+	size_t i;
+
+	for (i = len - 1; i > 0; i--)
+		buf[i] = (buf[i - 1] << (8 - bits)) | (buf[i] >> bits);
+	buf[0] >>= bits;
+}
+
+
 void wpa_get_ntp_timestamp(u8 *buf)
 {
 	struct os_time now;
@@ -960,7 +970,7 @@ void str_clear_free(char *str)
 {
 	if (str) {
 		size_t len = os_strlen(str);
-		os_memset(str, 0, len);
+		forced_memzero(str, len);
 		os_free(str);
 	}
 }
@@ -969,7 +979,7 @@ void str_clear_free(char *str)
 void bin_clear_free(void *bin, size_t len)
 {
 	if (bin) {
-		os_memset(bin, 0, len);
+		forced_memzero(bin, len);
 		os_free(bin);
 	}
 }
@@ -1248,4 +1258,23 @@ char * get_param(const char *cmd, const char *param)
 	os_memcpy(val, pos, len);
 	val[len] = '\0';
 	return val;
+}
+
+
+/* Try to prevent most compilers from optimizing out clearing of memory that
+ * becomes unaccessible after this function is called. This is mostly the case
+ * for clearing local stack variables at the end of a function. This is not
+ * exactly perfect, i.e., someone could come up with a compiler that figures out
+ * the pointer is pointing to memset and then end up optimizing the call out, so
+ * try go a bit further by storing the first octet (now zero) to make this even
+ * a bit more difficult to optimize out. Once memset_s() is available, that
+ * could be used here instead. */
+static void * (* const volatile memset_func)(void *, int, size_t) = memset;
+static u8 forced_memzero_val;
+
+void forced_memzero(void *ptr, size_t len)
+{
+	memset_func(ptr, 0, len);
+	if (len)
+		forced_memzero_val = ((u8 *) ptr)[0];
 }

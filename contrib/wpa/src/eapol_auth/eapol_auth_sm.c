@@ -300,7 +300,7 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
 
 	if (sm->auth_pae_state == AUTH_PAE_AUTHENTICATING && sm->authSuccess)
 		sm->authAuthSuccessesWhileAuthenticating++;
-							
+
 	SM_ENTRY_MA(AUTH_PAE, AUTHENTICATED, auth_pae);
 
 	sm->authPortStatus = Authorized;
@@ -835,7 +835,10 @@ eapol_auth_alloc(struct eapol_authenticator *eapol, const u8 *addr,
 	eap_conf.eap_fast_prov = eapol->conf.eap_fast_prov;
 	eap_conf.pac_key_lifetime = eapol->conf.pac_key_lifetime;
 	eap_conf.pac_key_refresh_time = eapol->conf.pac_key_refresh_time;
+	eap_conf.eap_teap_auth = eapol->conf.eap_teap_auth;
+	eap_conf.eap_teap_pac_no_inner = eapol->conf.eap_teap_pac_no_inner;
 	eap_conf.eap_sim_aka_result_ind = eapol->conf.eap_sim_aka_result_ind;
+	eap_conf.eap_sim_id = eapol->conf.eap_sim_id;
 	eap_conf.tnc = eapol->conf.tnc;
 	eap_conf.wps = eapol->conf.wps;
 	eap_conf.assoc_wps_ie = assoc_wps_ie;
@@ -1231,7 +1234,10 @@ static int eapol_auth_conf_clone(struct eapol_auth_config *dst,
 	dst->eap_fast_prov = src->eap_fast_prov;
 	dst->pac_key_lifetime = src->pac_key_lifetime;
 	dst->pac_key_refresh_time = src->pac_key_refresh_time;
+	dst->eap_teap_auth = src->eap_teap_auth;
+	dst->eap_teap_pac_no_inner = src->eap_teap_pac_no_inner;
 	dst->eap_sim_aka_result_ind = src->eap_sim_aka_result_ind;
+	dst->eap_sim_id = src->eap_sim_id;
 	dst->tnc = src->tnc;
 	dst->wps = src->wps;
 	dst->fragment_size = src->fragment_size;

@@ -733,7 +733,7 @@ struct wps_context {
 	 * uses this when acting as an Enrollee to notify Registrar of the
 	 * current configuration.
 	 *
-	 * When using WPA/WPA2-Person, this key can be either the ASCII
+	 * When using WPA/WPA2-Personal, this key can be either the ASCII
 	 * passphrase (8..63 characters) or the 32-octet PSK (64 hex
 	 * characters). When this is set to the ASCII passphrase, the PSK can
 	 * be provided in the psk buffer and used per-Enrollee to control which

@@ -16,6 +16,7 @@
 #include "hostapd.h"
 #include "ap_drv_ops.h"
 #include "gas_query_ap.h"
+#include "gas_serv.h"
 #include "wpa_auth.h"
 #include "dpp_hostapd.h"
 
@@ -557,6 +558,14 @@ static void hostapd_dpp_rx_auth_req(struct hostapd_data *hapd, const u8 *src,
 	 * received hash values */
 	dpp_bootstrap_find_pair(hapd->iface->interfaces->dpp, i_bootstrap,
 				r_bootstrap, &own_bi, &peer_bi);
+#ifdef CONFIG_DPP2
+	if (!own_bi) {
+		if (dpp_relay_rx_action(hapd->iface->interfaces->dpp,
+					src, hdr, buf, len, freq, i_bootstrap,
+					r_bootstrap) == 0)
+			return;
+	}
+#endif /* CONFIG_DPP2 */
 	if (!own_bi) {
 		wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_FAIL
 			"No matching own bootstrapping key found - ignore message");
@@ -1357,6 +1366,12 @@ void hostapd_dpp_rx_action(struct hostapd_data *hapd, const u8 *src,
 	wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_RX "src=" MACSTR
 		" freq=%u type=%d", MAC2STR(src), freq, type);
 
+#ifdef CONFIG_DPP2
+	if (dpp_relay_rx_action(hapd->iface->interfaces->dpp,
+				src, hdr, buf, len, freq, NULL, NULL) == 0)
+		return;
+#endif /* CONFIG_DPP2 */
+
 	switch (type) {
 	case DPP_PA_AUTHENTICATION_REQ:
 		hostapd_dpp_rx_auth_req(hapd, src, hdr, buf, len, freq);
@@ -1410,7 +1425,8 @@ void hostapd_dpp_rx_action(struct hostapd_data *hapd, const u8 *src,
 
 struct wpabuf *
 hostapd_dpp_gas_req_handler(struct hostapd_data *hapd, const u8 *sa,
-			    const u8 *query, size_t query_len)
+			    const u8 *query, size_t query_len,
+			    const u8 *data, size_t data_len)
 {
 	struct dpp_authentication *auth = hapd->dpp_auth;
 	struct wpabuf *resp;
@@ -1418,6 +1434,13 @@ hostapd_dpp_gas_req_handler(struct hostapd_data *hapd, const u8 *sa,
 	wpa_printf(MSG_DEBUG, "DPP: GAS request from " MACSTR, MAC2STR(sa));
 	if (!auth || !auth->auth_success ||
 	    os_memcmp(sa, auth->peer_mac_addr, ETH_ALEN) != 0) {
+#ifdef CONFIG_DPP2
+		if (dpp_relay_rx_gas_req(hapd->iface->interfaces->dpp, sa, data,
+				     data_len) == 0) {
+			/* Response will be forwarded once received over TCP */
+			return NULL;
+		}
+#endif /* CONFIG_DPP2 */
 		wpa_printf(MSG_DEBUG, "DPP: No matching exchange in progress");
 		return NULL;
 	}
@@ -1609,11 +1632,67 @@ void hostapd_dpp_stop(struct hostapd_data *hapd)
 }
 
 
+#ifdef CONFIG_DPP2
+
+static void hostapd_dpp_relay_tx(void *ctx, const u8 *addr, unsigned int freq,
+				 const u8 *msg, size_t len)
+{
+	struct hostapd_data *hapd = ctx;
+	u8 *buf;
+
+	wpa_printf(MSG_DEBUG, "DPP: Send action frame dst=" MACSTR " freq=%u",
+		   MAC2STR(addr), freq);
+	buf = os_malloc(2 + len);
+	if (!buf)
+		return;
+	buf[0] = WLAN_ACTION_PUBLIC;
+	buf[1] = WLAN_PA_VENDOR_SPECIFIC;
+	os_memcpy(buf + 2, msg, len);
+	hostapd_drv_send_action(hapd, freq, 0, addr, buf, 2 + len);
+	os_free(buf);
+}
+
+
+static void hostapd_dpp_relay_gas_resp_tx(void *ctx, const u8 *addr,
+					  u8 dialog_token, int prot,
+					  struct wpabuf *buf)
+{
+	struct hostapd_data *hapd = ctx;
+
+	gas_serv_req_dpp_processing(hapd, addr, dialog_token, prot, buf);
+}
+
+#endif /* CONFIG_DPP2 */
+
+
+static int hostapd_dpp_add_controllers(struct hostapd_data *hapd)
+{
+#ifdef CONFIG_DPP2
+	struct dpp_controller_conf *ctrl;
+	struct dpp_relay_config config;
+
+	os_memset(&config, 0, sizeof(config));
+	config.cb_ctx = hapd;
+	config.tx = hostapd_dpp_relay_tx;
+	config.gas_resp_tx = hostapd_dpp_relay_gas_resp_tx;
+	for (ctrl = hapd->conf->dpp_controller; ctrl; ctrl = ctrl->next) {
+		config.ipaddr = &ctrl->ipaddr;
+		config.pkhash = ctrl->pkhash;
+		if (dpp_relay_add_controller(hapd->iface->interfaces->dpp,
+					     &config) < 0)
+			return -1;
+	}
+#endif /* CONFIG_DPP2 */
+
+	return 0;
+}
+
+
 int hostapd_dpp_init(struct hostapd_data *hapd)
 {
 	hapd->dpp_allowed_roles = DPP_CAPAB_CONFIGURATOR | DPP_CAPAB_ENROLLEE;
 	hapd->dpp_init_done = 1;
-	return 0;
+	return hostapd_dpp_add_controllers(hapd);
 }
 
 

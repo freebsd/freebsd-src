@@ -188,7 +188,7 @@ static inline enum wpa_states wpa_sm_get_state(struct wpa_sm *sm)
 	return sm->ctx->get_state(sm->ctx->ctx);
 }
 
-static inline void wpa_sm_deauthenticate(struct wpa_sm *sm, int reason_code)
+static inline void wpa_sm_deauthenticate(struct wpa_sm *sm, u16 reason_code)
 {
 	WPA_ASSERT(sm->ctx->deauthenticate);
 	sm->ctx->deauthenticate(sm->ctx->ctx, reason_code);

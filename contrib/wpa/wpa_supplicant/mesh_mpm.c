@@ -245,6 +245,16 @@ static void mesh_mpm_send_plink_action(struct wpa_supplicant *wpa_s,
 			   2 + 5;  /* VHT Operation */
 	}
 #endif /* CONFIG_IEEE80211AC */
+#ifdef CONFIG_IEEE80211AX
+	if (type != PLINK_CLOSE && wpa_s->mesh_he_enabled) {
+		buf_len += 3 +
+			   HE_MAX_MAC_CAPAB_SIZE +
+			   HE_MAX_PHY_CAPAB_SIZE +
+			   HE_MAX_MCS_CAPAB_SIZE +
+			   HE_MAX_PPET_CAPAB_SIZE;
+		buf_len += 3 + sizeof(struct ieee80211_he_operation);
+	}
+#endif /* CONFIG_IEEE80211AX */
 	if (type != PLINK_CLOSE)
 		buf_len += conf->rsn_ie_len; /* RSN IE */
 #ifdef CONFIG_OCV
@@ -362,6 +372,21 @@ static void mesh_mpm_send_plink_action(struct wpa_supplicant *wpa_s,
 		wpabuf_put_data(buf, vht_capa_oper, pos - vht_capa_oper);
 	}
 #endif /* CONFIG_IEEE80211AC */
+#ifdef CONFIG_IEEE80211AX
+	if (type != PLINK_CLOSE && wpa_s->mesh_he_enabled) {
+		u8 he_capa_oper[3 +
+				HE_MAX_MAC_CAPAB_SIZE +
+				HE_MAX_PHY_CAPAB_SIZE +
+				HE_MAX_MCS_CAPAB_SIZE +
+				HE_MAX_PPET_CAPAB_SIZE +
+				3 + sizeof(struct ieee80211_he_operation)];
+
+		pos = hostapd_eid_he_capab(bss, he_capa_oper,
+					   IEEE80211_MODE_MESH);
+		pos = hostapd_eid_he_operation(bss, pos);
+		wpabuf_put_data(buf, he_capa_oper, pos - he_capa_oper);
+	}
+#endif /* CONFIG_IEEE80211AX */
 
 #ifdef CONFIG_OCV
 	if (type != PLINK_CLOSE && conf->ocv) {
@@ -725,6 +750,11 @@ static struct sta_info * mesh_mpm_add_peer(struct wpa_supplicant *wpa_s,
 	set_sta_vht_opmode(data, sta, elems->vht_opmode_notif);
 #endif /* CONFIG_IEEE80211AC */
 
+#ifdef CONFIG_IEEE80211AX
+	copy_sta_he_capab(data, sta, IEEE80211_MODE_MESH,
+			  elems->he_capabilities, elems->he_capabilities_len);
+#endif /* CONFIG_IEEE80211AX */
+
 	if (hostapd_get_aid(data, sta) < 0) {
 		wpa_msg(wpa_s, MSG_ERROR, "No AIDs available");
 		ap_free_sta(data, sta);
@@ -742,6 +772,8 @@ static struct sta_info * mesh_mpm_add_peer(struct wpa_supplicant *wpa_s,
 	params.listen_interval = 100;
 	params.ht_capabilities = sta->ht_capabilities;
 	params.vht_capabilities = sta->vht_capabilities;
+	params.he_capab = sta->he_capab;
+	params.he_capab_len = sta->he_capab_len;
 	params.flags |= WPA_STA_WMM;
 	params.flags_mask |= WPA_STA_AUTHENTICATED;
 	if (conf->security == MESH_CONF_SEC_NONE) {

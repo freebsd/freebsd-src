@@ -361,30 +361,35 @@ int check_40mhz_2g4(struct hostapd_hw_modes *mode,
 int hostapd_set_freq_params(struct hostapd_freq_params *data,
 			    enum hostapd_hw_mode mode,
 			    int freq, int channel, int ht_enabled,
-			    int vht_enabled, int sec_channel_offset,
-			    int vht_oper_chwidth, int center_segment0,
-			    int center_segment1, u32 vht_caps)
+			    int vht_enabled, int he_enabled,
+			    int sec_channel_offset,
+			    int oper_chwidth, int center_segment0,
+			    int center_segment1, u32 vht_caps,
+			    struct he_capabilities *he_cap)
 {
+	if (!he_cap)
+		he_enabled = 0;
 	os_memset(data, 0, sizeof(*data));
 	data->mode = mode;
 	data->freq = freq;
 	data->channel = channel;
 	data->ht_enabled = ht_enabled;
 	data->vht_enabled = vht_enabled;
+	data->he_enabled = he_enabled;
 	data->sec_channel_offset = sec_channel_offset;
 	data->center_freq1 = freq + sec_channel_offset * 10;
 	data->center_freq2 = 0;
 	data->bandwidth = sec_channel_offset ? 40 : 20;
 
-	if (data->vht_enabled) switch (vht_oper_chwidth) {
-	case VHT_CHANWIDTH_USE_HT:
+	if (data->vht_enabled) switch (oper_chwidth) {
+	case CHANWIDTH_USE_HT:
 		if (center_segment1 ||
 		    (center_segment0 != 0 &&
 		     5000 + center_segment0 * 5 != data->center_freq1 &&
 		     2407 + center_segment0 * 5 != data->center_freq1))
 			return -1;
 		break;
-	case VHT_CHANWIDTH_80P80MHZ:
+	case CHANWIDTH_80P80MHZ:
 		if (!(vht_caps & VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)) {
 			wpa_printf(MSG_ERROR,
 				   "80+80 channel width is not supported!");
@@ -395,11 +400,11 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 			return -1;
 		data->center_freq2 = 5000 + center_segment1 * 5;
 		/* fall through */
-	case VHT_CHANWIDTH_80MHZ:
+	case CHANWIDTH_80MHZ:
 		data->bandwidth = 80;
-		if ((vht_oper_chwidth == VHT_CHANWIDTH_80MHZ &&
+		if ((oper_chwidth == CHANWIDTH_80MHZ &&
 		     center_segment1) ||
-		    (vht_oper_chwidth == VHT_CHANWIDTH_80P80MHZ &&
+		    (oper_chwidth == CHANWIDTH_80P80MHZ &&
 		     !center_segment1) ||
 		    !sec_channel_offset)
 			return -1;
@@ -432,7 +437,7 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 				return -1;
 		}
 		break;
-	case VHT_CHANWIDTH_160MHZ:
+	case CHANWIDTH_160MHZ:
 		data->bandwidth = 160;
 		if (!(vht_caps & (VHT_CAP_SUPP_CHAN_WIDTH_160MHZ |
 				  VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ))) {

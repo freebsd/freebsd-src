@@ -13,12 +13,14 @@
 #include "crypto/tls.h"
 #include "radius/radius_client.h"
 #include "common/ieee802_11_defs.h"
+#include "common/ieee802_1x_defs.h"
 #include "common/eapol_common.h"
 #include "common/dhcp.h"
 #include "eap_common/eap_wsc_common.h"
 #include "eap_server/eap.h"
 #include "wpa_auth.h"
 #include "sta_info.h"
+#include "airtime_policy.h"
 #include "ap_config.h"
 
 
@@ -76,6 +78,7 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
 
 	bss->radius_server_auth_port = 1812;
 	bss->eap_sim_db_timeout = 1;
+	bss->eap_sim_id = 3;
 	bss->ap_max_inactivity = AP_MAX_INACTIVITY;
 	bss->eapol_version = EAPOL_VERSION;
 
@@ -137,6 +140,11 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
 #ifdef CONFIG_HS20
 	bss->hs20_release = (HS20_VERSION >> 4) + 1;
 #endif /* CONFIG_HS20 */
+
+#ifdef CONFIG_MACSEC
+	bss->mka_priority = DEFAULT_PRIO_NOT_KEY_SERVER;
+	bss->macsec_port = 1;
+#endif /* CONFIG_MACSEC */
 
 	/* Default to strict CRL checking. */
 	bss->check_crl_strict = 1;
@@ -236,6 +244,13 @@ struct hostapd_config * hostapd_config_defaults(void)
 	conf->acs_num_scans = 5;
 #endif /* CONFIG_ACS */
 
+#ifdef CONFIG_IEEE80211AX
+	conf->he_op.he_rts_threshold = HE_OPERATION_RTS_THRESHOLD_MASK >>
+		HE_OPERATION_RTS_THRESHOLD_OFFSET;
+	/* Set default basic MCS/NSS set to single stream MCS 0-7 */
+	conf->he_op.he_basic_mcs_nss_set = 0xfffc;
+#endif /* CONFIG_IEEE80211AX */
+
 	/* The third octet of the country string uses an ASCII space character
 	 * by default to indicate that the regulations encompass all
 	 * environments for the current frequency band in the country. */
@@ -243,6 +258,10 @@ struct hostapd_config * hostapd_config_defaults(void)
 
 	conf->rssi_reject_assoc_rssi = 0;
 	conf->rssi_reject_assoc_timeout = 30;
+
+#ifdef CONFIG_AIRTIME_POLICY
+	conf->airtime_update_interval = AIRTIME_DEFAULT_UPDATE_INTERVAL;
+#endif /* CONFIG_AIRTIME_POLICY */
 
 	return conf;
 }
@@ -458,7 +477,76 @@ hostapd_config_get_radius_attr(struct hostapd_radius_attr *attr, u8 type)
 }
 
 
-static void hostapd_config_free_radius_attr(struct hostapd_radius_attr *attr)
+struct hostapd_radius_attr * hostapd_parse_radius_attr(const char *value)
+{
+	const char *pos;
+	char syntax;
+	struct hostapd_radius_attr *attr;
+	size_t len;
+
+	attr = os_zalloc(sizeof(*attr));
+	if (!attr)
+		return NULL;
+
+	attr->type = atoi(value);
+
+	pos = os_strchr(value, ':');
+	if (!pos) {
+		attr->val = wpabuf_alloc(1);
+		if (!attr->val) {
+			os_free(attr);
+			return NULL;
+		}
+		wpabuf_put_u8(attr->val, 0);
+		return attr;
+	}
+
+	pos++;
+	if (pos[0] == '\0' || pos[1] != ':') {
+		os_free(attr);
+		return NULL;
+	}
+	syntax = *pos++;
+	pos++;
+
+	switch (syntax) {
+	case 's':
+		attr->val = wpabuf_alloc_copy(pos, os_strlen(pos));
+		break;
+	case 'x':
+		len = os_strlen(pos);
+		if (len & 1)
+			break;
+		len /= 2;
+		attr->val = wpabuf_alloc(len);
+		if (!attr->val)
+			break;
+		if (hexstr2bin(pos, wpabuf_put(attr->val, len), len) < 0) {
+			wpabuf_free(attr->val);
+			os_free(attr);
+			return NULL;
+		}
+		break;
+	case 'd':
+		attr->val = wpabuf_alloc(4);
+		if (attr->val)
+			wpabuf_put_be32(attr->val, atoi(pos));
+		break;
+	default:
+		os_free(attr);
+		return NULL;
+	}
+
+	if (!attr->val) {
+		os_free(attr);
+		return NULL;
+	}
+
+	return attr;
+}
+
+
+void hostapd_config_free_radius_attr(struct hostapd_radius_attr *attr)
 {
 	struct hostapd_radius_attr *prev;
 
@@ -559,8 +647,26 @@ static void hostapd_config_free_sae_passwords(struct hostapd_bss_config *conf)
 }
 
 
+#ifdef CONFIG_DPP2
+static void hostapd_dpp_controller_conf_free(struct dpp_controller_conf *conf)
+{
+	struct dpp_controller_conf *prev;
+
+	while (conf) {
+		prev = conf;
+		conf = conf->next;
+		os_free(prev);
+	}
+}
+#endif /* CONFIG_DPP2 */
+
+
 void hostapd_config_free_bss(struct hostapd_bss_config *conf)
 {
+#if defined(CONFIG_WPS) || defined(CONFIG_HS20)
+	size_t i;
+#endif
+
 	if (conf == NULL)
 		return;
 
@@ -589,12 +695,16 @@ void hostapd_config_free_bss(struct hostapd_bss_config *conf)
 	}
 	hostapd_config_free_radius_attr(conf->radius_auth_req_attr);
 	hostapd_config_free_radius_attr(conf->radius_acct_req_attr);
+	os_free(conf->radius_req_attr_sqlite);
 	os_free(conf->rsn_preauth_interfaces);
 	os_free(conf->ctrl_interface);
 	os_free(conf->ca_cert);
 	os_free(conf->server_cert);
+	os_free(conf->server_cert2);
 	os_free(conf->private_key);
+	os_free(conf->private_key2);
 	os_free(conf->private_key_passwd);
+	os_free(conf->private_key_passwd2);
 	os_free(conf->check_cert_subject);
 	os_free(conf->ocsp_stapling_response);
 	os_free(conf->ocsp_stapling_response_multi);
@@ -653,12 +763,8 @@ void hostapd_config_free_bss(struct hostapd_bss_config *conf)
 	os_free(conf->model_description);
 	os_free(conf->model_url);
 	os_free(conf->upc);
-	{
-		unsigned int i;
-
-		for (i = 0; i < MAX_WPS_VENDOR_EXTENSIONS; i++)
-			wpabuf_free(conf->wps_vendor_ext[i]);
-	}
+	for (i = 0; i < MAX_WPS_VENDOR_EXTENSIONS; i++)
+		wpabuf_free(conf->wps_vendor_ext[i]);
 	wpabuf_free(conf->wps_nfc_dh_pubkey);
 	wpabuf_free(conf->wps_nfc_dh_privkey);
 	wpabuf_free(conf->wps_nfc_dev_pw);
@@ -684,7 +790,6 @@ void hostapd_config_free_bss(struct hostapd_bss_config *conf)
 	os_free(conf->hs20_operating_class);
 	os_free(conf->hs20_icons);
 	if (conf->hs20_osu_providers) {
-		size_t i;
 		for (i = 0; i < conf->hs20_osu_providers_count; i++) {
 			struct hs20_osu_provider *p;
 			size_t j;
@@ -702,8 +807,6 @@ void hostapd_config_free_bss(struct hostapd_bss_config *conf)
 		os_free(conf->hs20_osu_providers);
 	}
 	if (conf->hs20_operator_icon) {
-		size_t i;
-
 		for (i = 0; i < conf->hs20_operator_icon_count; i++)
 			os_free(conf->hs20_operator_icon[i]);
 		os_free(conf->hs20_operator_icon);
@@ -740,9 +843,26 @@ void hostapd_config_free_bss(struct hostapd_bss_config *conf)
 	os_free(conf->dpp_connector);
 	wpabuf_free(conf->dpp_netaccesskey);
 	wpabuf_free(conf->dpp_csign);
+#ifdef CONFIG_DPP2
+	hostapd_dpp_controller_conf_free(conf->dpp_controller);
+#endif /* CONFIG_DPP2 */
 #endif /* CONFIG_DPP */
 
 	hostapd_config_free_sae_passwords(conf);
+
+#ifdef CONFIG_AIRTIME_POLICY
+	{
+		struct airtime_sta_weight *wt, *wt_prev;
+
+		wt = conf->airtime_weight_list;
+		conf->airtime_weight_list = NULL;
+		while (wt) {
+			wt_prev = wt;
+			wt = wt->next;
+			os_free(wt_prev);
+		}
+	}
+#endif /* CONFIG_AIRTIME_POLICY */
 
 	os_free(conf);
 }
@@ -1140,6 +1260,13 @@ int hostapd_config_check(struct hostapd_config *conf, int full_config)
 		return -1;
 	}
 
+#ifdef CONFIG_AIRTIME_POLICY
+	if (full_config && conf->airtime_mode > AIRTIME_MODE_STATIC &&
+	    !conf->airtime_update_interval) {
+		wpa_printf(MSG_ERROR, "Airtime update interval cannot be zero");
+		return -1;
+	}
+#endif /* CONFIG_AIRTIME_POLICY */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		if (hostapd_config_check_cw(conf, i))
 			return -1;
