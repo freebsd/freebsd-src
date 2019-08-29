@@ -231,6 +231,12 @@ struct scsi_read_toc
 	u_int8_t op_code;
 	u_int8_t byte2;
 	u_int8_t format;
+#define	SRTOC_FORMAT_TOC	0x00
+#define	SRTOC_FORMAT_LAST_ADDR	0x01
+#define	SRTOC_FORMAT_QSUB_TOC	0x02
+#define	SRTOC_FORMAT_QSUB_PMA	0x03
+#define	SRTOC_FORMAT_ATIP	0x04
+#define	SRTOC_FORMAT_CD_TEXT	0x05
 	u_int8_t unused[3];
 	u_int8_t from_track;
 	u_int8_t data_len[2];
@@ -870,6 +876,12 @@ void scsi_read_dvd_structure(struct ccb_scsiio *csio, u_int32_t retries,
 			     u_int8_t agid, u_int8_t *data_ptr,
 			     u_int32_t dxfer_len, u_int8_t sense_len,
 			     u_int32_t timeout);
+
+void scsi_read_toc(struct ccb_scsiio *csio, uint32_t retries,
+		   void (*cbfcnp)(struct cam_periph *, union ccb *),
+		   uint8_t tag_action, uint8_t byte1_flags, uint8_t format,
+		   uint8_t track, uint8_t *data_ptr, uint32_t dxfer_len,
+		   int sense_len, int timeout);
 
 __END_DECLS
 
