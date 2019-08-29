@@ -128,6 +128,9 @@ struct radius_server_conf {
 	 */
 	int pac_key_refresh_time;
 
+	int eap_teap_auth;
+	int eap_teap_pac_no_inner;
+
 	/**
 	 * eap_sim_aka_result_ind - EAP-SIM/AKA protected success indication
 	 *
@@ -135,6 +138,8 @@ struct radius_server_conf {
 	 * (AT_RESULT_IND) is used with EAP-SIM and EAP-AKA.
 	 */
 	int eap_sim_aka_result_ind;
+
+	int eap_sim_id;
 
 	/**
 	 * tnc - Trusted Network Connect (TNC)

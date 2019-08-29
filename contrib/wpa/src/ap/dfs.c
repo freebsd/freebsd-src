@@ -28,17 +28,17 @@ static int dfs_get_used_n_chans(struct hostapd_iface *iface, int *seg1)
 	if (iface->conf->ieee80211n && iface->conf->secondary_channel)
 		n_chans = 2;
 
-	if (iface->conf->ieee80211ac) {
-		switch (iface->conf->vht_oper_chwidth) {
-		case VHT_CHANWIDTH_USE_HT:
+	if (iface->conf->ieee80211ac || iface->conf->ieee80211ax) {
+		switch (hostapd_get_oper_chwidth(iface->conf)) {
+		case CHANWIDTH_USE_HT:
 			break;
-		case VHT_CHANWIDTH_80MHZ:
+		case CHANWIDTH_80MHZ:
 			n_chans = 4;
 			break;
-		case VHT_CHANWIDTH_160MHZ:
+		case CHANWIDTH_160MHZ:
 			n_chans = 8;
 			break;
-		case VHT_CHANWIDTH_80P80MHZ:
+		case CHANWIDTH_80P80MHZ:
 			n_chans = 4;
 			*seg1 = 4;
 			break;
@@ -188,8 +188,8 @@ static int is_in_chanlist(struct hostapd_iface *iface,
  * The function assumes HT40+ operation.
  * Make sure to adjust the following variables after calling this:
  *  - hapd->secondary_channel
- *  - hapd->vht_oper_centr_freq_seg0_idx
- *  - hapd->vht_oper_centr_freq_seg1_idx
+ *  - hapd->vht/he_oper_centr_freq_seg0_idx
+ *  - hapd->vht/he_oper_centr_freq_seg1_idx
  */
 static int dfs_find_channel(struct hostapd_iface *iface,
 			    struct hostapd_channel_data **ret_chan,
@@ -232,44 +232,44 @@ static int dfs_find_channel(struct hostapd_iface *iface,
 }
 
 
-static void dfs_adjust_vht_center_freq(struct hostapd_iface *iface,
-				       struct hostapd_channel_data *chan,
-				       int secondary_channel,
-				       u8 *vht_oper_centr_freq_seg0_idx,
-				       u8 *vht_oper_centr_freq_seg1_idx)
+static void dfs_adjust_center_freq(struct hostapd_iface *iface,
+				   struct hostapd_channel_data *chan,
+				   int secondary_channel,
+				   u8 *oper_centr_freq_seg0_idx,
+				   u8 *oper_centr_freq_seg1_idx)
 {
-	if (!iface->conf->ieee80211ac)
+	if (!iface->conf->ieee80211ac && !iface->conf->ieee80211ax)
 		return;
 
 	if (!chan)
 		return;
 
-	*vht_oper_centr_freq_seg1_idx = 0;
+	*oper_centr_freq_seg1_idx = 0;
 
-	switch (iface->conf->vht_oper_chwidth) {
-	case VHT_CHANWIDTH_USE_HT:
+	switch (hostapd_get_oper_chwidth(iface->conf)) {
+	case CHANWIDTH_USE_HT:
 		if (secondary_channel == 1)
-			*vht_oper_centr_freq_seg0_idx = chan->chan + 2;
+			*oper_centr_freq_seg0_idx = chan->chan + 2;
 		else if (secondary_channel == -1)
-			*vht_oper_centr_freq_seg0_idx = chan->chan - 2;
+			*oper_centr_freq_seg0_idx = chan->chan - 2;
 		else
-			*vht_oper_centr_freq_seg0_idx = chan->chan;
+			*oper_centr_freq_seg0_idx = chan->chan;
 		break;
-	case VHT_CHANWIDTH_80MHZ:
-		*vht_oper_centr_freq_seg0_idx = chan->chan + 6;
+	case CHANWIDTH_80MHZ:
+		*oper_centr_freq_seg0_idx = chan->chan + 6;
 		break;
-	case VHT_CHANWIDTH_160MHZ:
-		*vht_oper_centr_freq_seg0_idx = chan->chan + 14;
+	case CHANWIDTH_160MHZ:
+		*oper_centr_freq_seg0_idx = chan->chan + 14;
 		break;
 	default:
 		wpa_printf(MSG_INFO, "DFS only VHT20/40/80/160 is supported now");
-		*vht_oper_centr_freq_seg0_idx = 0;
+		*oper_centr_freq_seg0_idx = 0;
 		break;
 	}
 
 	wpa_printf(MSG_DEBUG, "DFS adjusting VHT center frequency: %d, %d",
-		   *vht_oper_centr_freq_seg0_idx,
-		   *vht_oper_centr_freq_seg1_idx);
+		   *oper_centr_freq_seg0_idx,
+		   *oper_centr_freq_seg1_idx);
 }
 
 
@@ -288,24 +288,24 @@ static int dfs_get_start_chan_idx(struct hostapd_iface *iface, int *seg1_start)
 	if (iface->conf->ieee80211n && iface->conf->secondary_channel == -1)
 		channel_no -= 4;
 
-	/* VHT */
-	if (iface->conf->ieee80211ac) {
-		switch (iface->conf->vht_oper_chwidth) {
-		case VHT_CHANWIDTH_USE_HT:
+	/* VHT/HE */
+	if (iface->conf->ieee80211ac || iface->conf->ieee80211ax) {
+		switch (hostapd_get_oper_chwidth(iface->conf)) {
+		case CHANWIDTH_USE_HT:
 			break;
-		case VHT_CHANWIDTH_80MHZ:
-			channel_no =
-				iface->conf->vht_oper_centr_freq_seg0_idx - 6;
+		case CHANWIDTH_80MHZ:
+			channel_no = hostapd_get_oper_centr_freq_seg0_idx(
+				iface->conf) - 6;
 			break;
-		case VHT_CHANWIDTH_160MHZ:
-			channel_no =
-				iface->conf->vht_oper_centr_freq_seg0_idx - 14;
+		case CHANWIDTH_160MHZ:
+			channel_no = hostapd_get_oper_centr_freq_seg0_idx(
+				iface->conf) - 14;
 			break;
-		case VHT_CHANWIDTH_80P80MHZ:
-			channel_no =
-				iface->conf->vht_oper_centr_freq_seg0_idx - 6;
-			chan_seg1 =
-				iface->conf->vht_oper_centr_freq_seg1_idx - 6;
+		case CHANWIDTH_80P80MHZ:
+			channel_no = hostapd_get_oper_centr_freq_seg0_idx(
+				iface->conf) - 6;
+			chan_seg1 = hostapd_get_oper_centr_freq_seg1_idx(
+				iface->conf) - 6;
 			break;
 		default:
 			wpa_printf(MSG_INFO,
@@ -348,7 +348,7 @@ static int dfs_get_start_chan_idx(struct hostapd_iface *iface, int *seg1_start)
 			   mode->num_channels, channel_no, iface->conf->channel,
 			   iface->conf->ieee80211n,
 			   iface->conf->secondary_channel,
-			   iface->conf->vht_oper_chwidth);
+			   hostapd_get_oper_chwidth(iface->conf));
 
 		for (i = 0; i < mode->num_channels; i++) {
 			wpa_printf(MSG_DEBUG, "Available channel: %d",
@@ -435,8 +435,8 @@ static int dfs_check_chans_unavailable(struct hostapd_iface *iface,
 static struct hostapd_channel_data *
 dfs_get_valid_channel(struct hostapd_iface *iface,
 		      int *secondary_channel,
-		      u8 *vht_oper_centr_freq_seg0_idx,
-		      u8 *vht_oper_centr_freq_seg1_idx,
+		      u8 *oper_centr_freq_seg0_idx,
+		      u8 *oper_centr_freq_seg1_idx,
 		      int skip_radar)
 {
 	struct hostapd_hw_modes *mode;
@@ -447,8 +447,8 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
 
 	wpa_printf(MSG_DEBUG, "DFS: Selecting random channel");
 	*secondary_channel = 0;
-	*vht_oper_centr_freq_seg0_idx = 0;
-	*vht_oper_centr_freq_seg1_idx = 0;
+	*oper_centr_freq_seg0_idx = 0;
+	*oper_centr_freq_seg1_idx = 0;
 
 	if (iface->current_mode == NULL)
 		return NULL;
@@ -473,10 +473,10 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
 	else
 		*secondary_channel = 0;
 
-	dfs_adjust_vht_center_freq(iface, chan,
-				   *secondary_channel,
-				   vht_oper_centr_freq_seg0_idx,
-				   vht_oper_centr_freq_seg1_idx);
+	dfs_adjust_center_freq(iface, chan,
+			       *secondary_channel,
+			       oper_centr_freq_seg0_idx,
+			       oper_centr_freq_seg1_idx);
 
 	return chan;
 }
@@ -724,8 +724,8 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
 			iface->freq = channel->freq;
 			iface->conf->channel = channel->chan;
 			iface->conf->secondary_channel = sec;
-			iface->conf->vht_oper_centr_freq_seg0_idx = cf1;
-			iface->conf->vht_oper_centr_freq_seg1_idx = cf2;
+			hostapd_set_oper_centr_freq_seg0_idx(iface->conf, cf1);
+			hostapd_set_oper_centr_freq_seg1_idx(iface->conf, cf2);
 		}
 	} while (res);
 
@@ -736,20 +736,19 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
 		"freq=%d chan=%d sec_chan=%d, width=%d, seg0=%d, seg1=%d, cac_time=%ds",
 		iface->freq,
 		iface->conf->channel, iface->conf->secondary_channel,
-		iface->conf->vht_oper_chwidth,
-		iface->conf->vht_oper_centr_freq_seg0_idx,
-		iface->conf->vht_oper_centr_freq_seg1_idx,
+		hostapd_get_oper_chwidth(iface->conf),
+		hostapd_get_oper_centr_freq_seg0_idx(iface->conf),
+		hostapd_get_oper_centr_freq_seg1_idx(iface->conf),
 		iface->dfs_cac_ms / 1000);
 
-	res = hostapd_start_dfs_cac(iface, iface->conf->hw_mode,
-				    iface->freq,
-				    iface->conf->channel,
-				    iface->conf->ieee80211n,
-				    iface->conf->ieee80211ac,
-				    iface->conf->secondary_channel,
-				    iface->conf->vht_oper_chwidth,
-				    iface->conf->vht_oper_centr_freq_seg0_idx,
-				    iface->conf->vht_oper_centr_freq_seg1_idx);
+	res = hostapd_start_dfs_cac(
+		iface, iface->conf->hw_mode, iface->freq, iface->conf->channel,
+		iface->conf->ieee80211n, iface->conf->ieee80211ac,
+		iface->conf->ieee80211ax,
+		iface->conf->secondary_channel,
+		hostapd_get_oper_chwidth(iface->conf),
+		hostapd_get_oper_centr_freq_seg0_idx(iface->conf),
+		hostapd_get_oper_centr_freq_seg1_idx(iface->conf));
 
 	if (res) {
 		wpa_printf(MSG_ERROR, "DFS start_dfs_cac() failed, %d", res);
@@ -842,16 +841,16 @@ static int hostapd_dfs_start_channel_switch_cac(struct hostapd_iface *iface)
 {
 	struct hostapd_channel_data *channel;
 	int secondary_channel;
-	u8 vht_oper_centr_freq_seg0_idx = 0;
-	u8 vht_oper_centr_freq_seg1_idx = 0;
+	u8 oper_centr_freq_seg0_idx = 0;
+	u8 oper_centr_freq_seg1_idx = 0;
 	int skip_radar = 0;
 	int err = 1;
 
 	/* Radar detected during active CAC */
 	iface->cac_started = 0;
 	channel = dfs_get_valid_channel(iface, &secondary_channel,
-					&vht_oper_centr_freq_seg0_idx,
-					&vht_oper_centr_freq_seg1_idx,
+					&oper_centr_freq_seg0_idx,
+					&oper_centr_freq_seg1_idx,
 					skip_radar);
 
 	if (!channel) {
@@ -868,10 +867,10 @@ static int hostapd_dfs_start_channel_switch_cac(struct hostapd_iface *iface)
 	iface->freq = channel->freq;
 	iface->conf->channel = channel->chan;
 	iface->conf->secondary_channel = secondary_channel;
-	iface->conf->vht_oper_centr_freq_seg0_idx =
-		vht_oper_centr_freq_seg0_idx;
-	iface->conf->vht_oper_centr_freq_seg1_idx =
-		vht_oper_centr_freq_seg1_idx;
+	hostapd_set_oper_centr_freq_seg0_idx(iface->conf,
+					     oper_centr_freq_seg0_idx);
+	hostapd_set_oper_centr_freq_seg1_idx(iface->conf,
+					     oper_centr_freq_seg1_idx);
 	err = 0;
 
 	hostapd_setup_interface_complete(iface, err);
@@ -883,12 +882,13 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 {
 	struct hostapd_channel_data *channel;
 	int secondary_channel;
-	u8 vht_oper_centr_freq_seg0_idx;
-	u8 vht_oper_centr_freq_seg1_idx;
+	u8 oper_centr_freq_seg0_idx;
+	u8 oper_centr_freq_seg1_idx;
 	int skip_radar = 1;
 	struct csa_settings csa_settings;
 	unsigned int i;
 	int err = 1;
+	struct hostapd_hw_modes *cmode = iface->current_mode;
 
 	wpa_printf(MSG_DEBUG, "%s called (CAC active: %s, CSA active: %s)",
 		   __func__, iface->cac_started ? "yes" : "no",
@@ -911,8 +911,8 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 
 	/* Perform channel switch/CSA */
 	channel = dfs_get_valid_channel(iface, &secondary_channel,
-					&vht_oper_centr_freq_seg0_idx,
-					&vht_oper_centr_freq_seg1_idx,
+					&oper_centr_freq_seg0_idx,
+					&oper_centr_freq_seg1_idx,
 					skip_radar);
 
 	if (!channel) {
@@ -923,8 +923,8 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 		 */
 		skip_radar = 0;
 		channel = dfs_get_valid_channel(iface, &secondary_channel,
-						&vht_oper_centr_freq_seg0_idx,
-						&vht_oper_centr_freq_seg1_idx,
+						&oper_centr_freq_seg0_idx,
+						&oper_centr_freq_seg1_idx,
 						skip_radar);
 		if (!channel) {
 			wpa_printf(MSG_INFO,
@@ -936,10 +936,10 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 		iface->freq = channel->freq;
 		iface->conf->channel = channel->chan;
 		iface->conf->secondary_channel = secondary_channel;
-		iface->conf->vht_oper_centr_freq_seg0_idx =
-			vht_oper_centr_freq_seg0_idx;
-		iface->conf->vht_oper_centr_freq_seg1_idx =
-			vht_oper_centr_freq_seg1_idx;
+		hostapd_set_oper_centr_freq_seg0_idx(iface->conf,
+						     oper_centr_freq_seg0_idx);
+		hostapd_set_oper_centr_freq_seg1_idx(iface->conf,
+						     oper_centr_freq_seg1_idx);
 
 		hostapd_disable_iface(iface);
 		hostapd_enable_iface(iface);
@@ -962,11 +962,13 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 				      channel->chan,
 				      iface->conf->ieee80211n,
 				      iface->conf->ieee80211ac,
+				      iface->conf->ieee80211ax,
 				      secondary_channel,
-				      iface->conf->vht_oper_chwidth,
-				      vht_oper_centr_freq_seg0_idx,
-				      vht_oper_centr_freq_seg1_idx,
-				      iface->current_mode->vht_capab);
+				      hostapd_get_oper_chwidth(iface->conf),
+				      oper_centr_freq_seg0_idx,
+				      oper_centr_freq_seg1_idx,
+				      cmode->vht_capab,
+				      &cmode->he_capab[IEEE80211_MODE_AP]);
 
 	if (err) {
 		wpa_printf(MSG_ERROR, "DFS failed to calculate CSA freq params");
@@ -986,10 +988,10 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 		iface->freq = channel->freq;
 		iface->conf->channel = channel->chan;
 		iface->conf->secondary_channel = secondary_channel;
-		iface->conf->vht_oper_centr_freq_seg0_idx =
-			vht_oper_centr_freq_seg0_idx;
-		iface->conf->vht_oper_centr_freq_seg1_idx =
-			vht_oper_centr_freq_seg1_idx;
+		hostapd_set_oper_centr_freq_seg0_idx(iface->conf,
+						     oper_centr_freq_seg0_idx);
+		hostapd_set_oper_centr_freq_seg1_idx(iface->conf,
+						     oper_centr_freq_seg1_idx);
 
 		hostapd_disable_iface(iface);
 		hostapd_enable_iface(iface);

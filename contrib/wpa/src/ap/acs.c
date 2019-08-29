@@ -594,12 +594,12 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
 	    iface->conf->secondary_channel)
 		n_chans = 2;
 
-	if (iface->conf->ieee80211ac) {
-		switch (iface->conf->vht_oper_chwidth) {
-		case VHT_CHANWIDTH_80MHZ:
+	if (iface->conf->ieee80211ac || iface->conf->ieee80211ax) {
+		switch (hostapd_get_oper_chwidth(iface->conf)) {
+		case CHANWIDTH_80MHZ:
 			n_chans = 4;
 			break;
-		case VHT_CHANWIDTH_160MHZ:
+		case CHANWIDTH_160MHZ:
 			n_chans = 8;
 			break;
 		}
@@ -607,7 +607,7 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
 
 	bw = num_chan_to_bw(n_chans);
 
-	/* TODO: VHT80+80. Update acs_adjust_vht_center_freq() too. */
+	/* TODO: VHT/HE80+80. Update acs_adjust_center_freq() too. */
 
 	wpa_printf(MSG_DEBUG,
 		   "ACS: Survey analysis for selected bandwidth %d MHz", bw);
@@ -647,9 +647,9 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
 		}
 
 		if (iface->current_mode->mode == HOSTAPD_MODE_IEEE80211A &&
-		    iface->conf->ieee80211ac) {
-			if (iface->conf->vht_oper_chwidth ==
-			    VHT_CHANWIDTH_80MHZ &&
+		    (iface->conf->ieee80211ac || iface->conf->ieee80211ax)) {
+			if (hostapd_get_oper_chwidth(iface->conf) ==
+			    CHANWIDTH_80MHZ &&
 			    !acs_usable_vht80_chan(chan)) {
 				wpa_printf(MSG_DEBUG,
 					   "ACS: Channel %d: not allowed as primary channel for VHT80",
@@ -657,8 +657,8 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
 				continue;
 			}
 
-			if (iface->conf->vht_oper_chwidth ==
-			    VHT_CHANWIDTH_160MHZ &&
+			if (hostapd_get_oper_chwidth(iface->conf) ==
+			    CHANWIDTH_160MHZ &&
 			    !acs_usable_vht160_chan(chan)) {
 				wpa_printf(MSG_DEBUG,
 					   "ACS: Channel %d: not allowed as primary channel for VHT160",
@@ -783,20 +783,20 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
 }
 
 
-static void acs_adjust_vht_center_freq(struct hostapd_iface *iface)
+static void acs_adjust_center_freq(struct hostapd_iface *iface)
 {
 	int offset;
 
 	wpa_printf(MSG_DEBUG, "ACS: Adjusting VHT center frequency");
 
-	switch (iface->conf->vht_oper_chwidth) {
-	case VHT_CHANWIDTH_USE_HT:
+	switch (hostapd_get_oper_chwidth(iface->conf)) {
+	case CHANWIDTH_USE_HT:
 		offset = 2 * iface->conf->secondary_channel;
 		break;
-	case VHT_CHANWIDTH_80MHZ:
+	case CHANWIDTH_80MHZ:
 		offset = 6;
 		break;
-	case VHT_CHANWIDTH_160MHZ:
+	case CHANWIDTH_160MHZ:
 		offset = 14;
 		break;
 	default:
@@ -807,8 +807,8 @@ static void acs_adjust_vht_center_freq(struct hostapd_iface *iface)
 		return;
 	}
 
-	iface->conf->vht_oper_centr_freq_seg0_idx =
-		iface->conf->channel + offset;
+	hostapd_set_oper_centr_freq_seg0_idx(iface->conf,
+					     iface->conf->channel + offset);
 }
 
 
@@ -863,8 +863,8 @@ static void acs_study(struct hostapd_iface *iface)
 
 	iface->conf->channel = ideal_chan->chan;
 
-	if (iface->conf->ieee80211ac)
-		acs_adjust_vht_center_freq(iface);
+	if (iface->conf->ieee80211ac || iface->conf->ieee80211ax)
+		acs_adjust_center_freq(iface);
 
 	err = 0;
 fail:

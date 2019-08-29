@@ -41,6 +41,7 @@ int eap_server_sake_register(void);
 int eap_server_gpsk_register(void);
 int eap_server_vendor_test_register(void);
 int eap_server_fast_register(void);
+int eap_server_teap_register(void);
 int eap_server_wsc_register(void);
 int eap_server_ikev2_register(void);
 int eap_server_tnc_register(void);

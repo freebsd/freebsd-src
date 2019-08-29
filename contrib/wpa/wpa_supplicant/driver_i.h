@@ -87,6 +87,16 @@ static inline int wpa_drv_leave_mesh(struct wpa_supplicant *wpa_s)
 	return -1;
 }
 
+static inline int wpa_drv_mesh_link_probe(struct wpa_supplicant *wpa_s,
+					  const u8 *addr,
+					  const u8 *eth, size_t len)
+{
+	if (wpa_s->driver->probe_mesh_link)
+		return wpa_s->driver->probe_mesh_link(wpa_s->drv_priv, addr,
+						      eth, len);
+	return -1;
+}
+
 static inline int wpa_drv_scan(struct wpa_supplicant *wpa_s,
 			       struct wpa_driver_scan_params *params)
 {
@@ -168,7 +178,7 @@ static inline int wpa_drv_get_seqnum(struct wpa_supplicant *wpa_s,
 }
 
 static inline int wpa_drv_sta_deauth(struct wpa_supplicant *wpa_s,
-				     const u8 *addr, int reason_code)
+				     const u8 *addr, u16 reason_code)
 {
 	if (wpa_s->driver->sta_deauth) {
 		return wpa_s->driver->sta_deauth(wpa_s->drv_priv,
@@ -179,7 +189,7 @@ static inline int wpa_drv_sta_deauth(struct wpa_supplicant *wpa_s,
 }
 
 static inline int wpa_drv_deauthenticate(struct wpa_supplicant *wpa_s,
-					 const u8 *addr, int reason_code)
+					 const u8 *addr, u16 reason_code)
 {
 	if (wpa_s->driver->deauthenticate) {
 		return wpa_s->driver->deauthenticate(wpa_s->drv_priv, addr,

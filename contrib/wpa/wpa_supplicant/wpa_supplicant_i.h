@@ -802,7 +802,9 @@ struct wpa_supplicant {
 		int sae_group_index;
 		unsigned int sae_pmksa_caching:1;
 		u16 seq_num;
-		struct external_auth ext_auth;
+		u8 ext_auth_bssid[ETH_ALEN];
+		u8 ext_auth_ssid[SSID_MAX_LEN];
+		size_t ext_auth_ssid_len;
 #endif /* CONFIG_SAE */
 	} sme;
 #endif /* CONFIG_SME */
@@ -821,6 +823,7 @@ struct wpa_supplicant {
 	unsigned int mesh_if_created:1;
 	unsigned int mesh_ht_enabled:1;
 	unsigned int mesh_vht_enabled:1;
+	unsigned int mesh_he_enabled:1;
 	struct wpa_driver_mesh_join_params *mesh_params;
 #ifdef CONFIG_PMKSA_CACHE_EXTERNAL
 	/* struct external_pmksa_cache::list */
@@ -1291,7 +1294,7 @@ struct wpa_ssid * wpa_supplicant_get_ssid(struct wpa_supplicant *wpa_s);
 const char * wpa_supplicant_get_eap_mode(struct wpa_supplicant *wpa_s);
 void wpa_supplicant_cancel_auth_timeout(struct wpa_supplicant *wpa_s);
 void wpa_supplicant_deauthenticate(struct wpa_supplicant *wpa_s,
-				   int reason_code);
+				   u16 reason_code);
 
 struct wpa_ssid * wpa_supplicant_add_network(struct wpa_supplicant *wpa_s);
 int wpa_supplicant_remove_network(struct wpa_supplicant *wpa_s, int id);
@@ -1415,6 +1418,12 @@ size_t wpas_supp_op_class_ie(struct wpa_supplicant *wpa_s,
 			     struct wpa_ssid *ssid,
 			     int freq, u8 *pos, size_t len);
 
+int wpas_enable_mac_addr_randomization(struct wpa_supplicant *wpa_s,
+				       unsigned int type, const u8 *addr,
+				       const u8 *mask);
+int wpas_disable_mac_addr_randomization(struct wpa_supplicant *wpa_s,
+					unsigned int type);
+
 /**
  * wpa_supplicant_ctrl_iface_ctrl_rsp_handle - Handle a control response
  * @wpa_s: Pointer to wpa_supplicant data
@@ -1461,6 +1470,25 @@ static inline int network_is_persistent_group(struct wpa_ssid *ssid)
 {
 	return ssid->disabled == 2 && ssid->p2p_persistent_group;
 }
+
+
+static inline int wpas_mode_to_ieee80211_mode(enum wpas_mode mode)
+{
+	switch (mode) {
+	default:
+	case WPAS_MODE_INFRA:
+		return IEEE80211_MODE_INFRA;
+	case WPAS_MODE_IBSS:
+		return IEEE80211_MODE_IBSS;
+	case WPAS_MODE_AP:
+	case WPAS_MODE_P2P_GO:
+	case WPAS_MODE_P2P_GROUP_FORMATION:
+		return IEEE80211_MODE_AP;
+	case WPAS_MODE_MESH:
+		return IEEE80211_MODE_MESH;
+	}
+}
+
 
 int wpas_network_disabled(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid);
 int wpas_get_ssid_pmf(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid);

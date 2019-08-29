@@ -468,6 +468,7 @@
 #define WLAN_EID_EXT_HE_CAPABILITIES 35
 #define WLAN_EID_EXT_HE_OPERATION 36
 #define WLAN_EID_EXT_HE_MU_EDCA_PARAMS 38
+#define WLAN_EID_EXT_SPATIAL_REUSE 39
 #define WLAN_EID_EXT_OCV_OCI 54
 
 /* Extended Capabilities field */
@@ -1274,10 +1275,12 @@ struct ieee80211_ampe_ie {
 #define VHT_RX_NSS_MAX_STREAMS			    8
 
 /* VHT channel widths */
-#define VHT_CHANWIDTH_USE_HT	0
-#define VHT_CHANWIDTH_80MHZ	1
-#define VHT_CHANWIDTH_160MHZ	2
-#define VHT_CHANWIDTH_80P80MHZ	3
+#define CHANWIDTH_USE_HT	0
+#define CHANWIDTH_80MHZ		1
+#define CHANWIDTH_160MHZ	2
+#define CHANWIDTH_80P80MHZ	3
+
+#define HE_NSS_MAX_STREAMS			    8
 
 #define OUI_MICROSOFT 0x0050f2 /* Microsoft (also used in Wi-Fi specs)
 				* 00:50:F2 */
@@ -2091,7 +2094,7 @@ enum phy_type {
 /*
  * IEEE P802.11-REVmc/D5.0 Table 9-152 - HT/VHT Operation Information
  * subfields.
- * Note: These definitions are not the same as other VHT_CHANWIDTH_*.
+ * Note: These definitions are not the same as other CHANWIDTH_*.
  */
 enum nr_chan_width {
 	NR_CHAN_WIDTH_20 = 0,
@@ -2104,21 +2107,46 @@ enum nr_chan_width {
 struct ieee80211_he_capabilities {
 	u8 he_mac_capab_info[6];
 	u8 he_phy_capab_info[11];
-	u8 he_txrx_mcs_support[12]; /* TODO: 4, 8, or 12 octets */
-	/* PPE Thresholds (optional) */
+	/* Followed by 4, 8, or 12 octets of Supported HE-MCS And NSS Set field
+	* and optional variable length PPE Thresholds field. */
+	u8 optional[];
 } STRUCT_PACKED;
 
 struct ieee80211_he_operation {
-	u32 he_oper_params; /* HE Operation Parameters[3] and
-			     * BSS Color Information[1] */
-	u8 he_mcs_nss_set[2];
+	le32 he_oper_params; /* HE Operation Parameters[3] and
+			      * BSS Color Information[1] */
+	le16 he_mcs_nss_set;
 	u8 vht_op_info_chwidth;
 	u8 vht_op_info_chan_center_freq_seg0_idx;
 	u8 vht_op_info_chan_center_freq_seg1_idx;
 	/* Followed by conditional MaxBSSID Indicator subfield (u8) */
 } STRUCT_PACKED;
 
+/*
+ * IEEE P802.11ax/D4.0, 9.4.2.246 Spatial Reuse Parameter Set element
+ */
+struct ieee80211_spatial_reuse {
+	u8 sr_ctrl; /* SR Control */
+	/* Up to 19 octets of parameters:
+	 * Non-SRG OBSS PD Max Offset[0 or 1]
+	 * SRG OBSS PD Min Offset[0 or 1]
+	 * SRG OBSS PD Max Offset[0 or 1]
+	 * SRG BSS Color Bitmap[0 or 8]
+	 * SRG Partial BSSID Bitmap[0 or 8]
+	 */
+	u8 params[19];
+} STRUCT_PACKED;
+
 /* HE Capabilities Information defines */
+
+#define HE_PHYCAP_CHANNEL_WIDTH_SET_IDX		0
+#define HE_PHYCAP_CHANNEL_WIDTH_MASK		((u8) (BIT(1) | BIT(2) | \
+						      BIT(3) | BIT(4)))
+#define HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_IN_2G         ((u8) BIT(1))
+#define HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G	((u8) BIT(2))
+#define HE_PHYCAP_CHANNEL_WIDTH_SET_160MHZ_IN_5G	((u8) BIT(3))
+#define HE_PHYCAP_CHANNEL_WIDTH_SET_80PLUS80MHZ_IN_5G	((u8) BIT(4))
+
 #define HE_PHYCAP_SU_BEAMFORMER_CAPAB_IDX	3
 #define HE_PHYCAP_SU_BEAMFORMER_CAPAB		((u8) BIT(7))
 #define HE_PHYCAP_SU_BEAMFORMEE_CAPAB_IDX	4
@@ -2126,23 +2154,39 @@ struct ieee80211_he_operation {
 #define HE_PHYCAP_MU_BEAMFORMER_CAPAB_IDX	4
 #define HE_PHYCAP_MU_BEAMFORMER_CAPAB		((u8) BIT(1))
 
+#define HE_PHYCAP_PPE_THRESHOLD_PRESENT_IDX	6
+#define HE_PHYCAP_PPE_THRESHOLD_PRESENT		((u8) BIT(7))
+
+/* HE PPE Threshold define */
+#define HE_PPE_THRES_RU_INDEX_BITMASK_MASK	0xf
+#define HE_PPE_THRES_RU_INDEX_BITMASK_SHIFT	3
+#define HE_PPE_THRES_NSS_MASK			0x7
+
 /* HE Operation defines */
 /* HE Operation Parameters and BSS Color Information fields */
-#define HE_OPERATION_BSS_COLOR_MASK		((u32) (BIT(0) | BIT(1) | \
-							BIT(2) | BIT(3) | \
-							BIT(4) | BIT(5)))
-#define HE_OPERATION_PARTIAL_BSS_COLOR		((u32) BIT(6))
-#define HE_OPERATION_BSS_COLOR_DISABLED		((u32) BIT(7))
-#define HE_OPERATION_DFLT_PE_DURATION_MASK	((u32) (BIT(8) | BIT(9) | \
-							BIT(10)))
-#define HE_OPERATION_DFLT_PE_DURATION_OFFSET	8
-#define HE_OPERATION_TWT_REQUIRED		((u32) BIT(11))
-#define HE_OPERATION_RTS_THRESHOLD_MASK	((u32) (BIT(12) | BIT(13) | \
-						BIT(14) | BIT(15) | \
-						BIT(16) | BIT(17) | \
-						BIT(18) | BIT(19) | \
-						BIT(20) | BIT(21)))
-#define HE_OPERATION_RTS_THRESHOLD_OFFSET	12
+#define HE_OPERATION_DFLT_PE_DURATION_MASK	((u32) (BIT(0) | BIT(1) | \
+							BIT(2)))
+#define HE_OPERATION_DFLT_PE_DURATION_OFFSET	0
+#define HE_OPERATION_TWT_REQUIRED		((u32) BIT(3))
+#define HE_OPERATION_RTS_THRESHOLD_MASK	((u32) (BIT(4) | BIT(5) | \
+						BIT(6) | BIT(7) | \
+						BIT(8) | BIT(9) | \
+						BIT(10) | BIT(11) | \
+						BIT(12) | BIT(13)))
+#define HE_OPERATION_RTS_THRESHOLD_OFFSET	4
+#define HE_OPERATION_BSS_COLOR_MASK		((u32) (BIT(24) | BIT(25) | \
+							BIT(26) | BIT(27) | \
+							BIT(28) | BIT(29)))
+#define HE_OPERATION_PARTIAL_BSS_COLOR		((u32) BIT(30))
+#define HE_OPERATION_BSS_COLOR_DISABLED		((u32) BIT(31))
+#define HE_OPERATION_BSS_COLOR_OFFSET		24
+
+/* Spatial Reuse defines */
+#define SPATIAL_REUSE_SRP_DISALLOWED		BIT(0)
+#define SPATIAL_REUSE_NON_SRG_OBSS_PD_SR_DISALLOWED	BIT(1)
+#define SPATIAL_REUSE_NON_SRG_OFFSET_PRESENT	BIT(2)
+#define SPATIAL_REUSE_SRG_INFORMATION_PRESENT	BIT(3)
+#define SPATIAL_REUSE_HESIGA_SR_VAL15_ALLOWED	BIT(4)
 
 struct ieee80211_he_mu_edca_parameter_set {
 	u8 he_qos_info;
