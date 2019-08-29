@@ -1726,8 +1726,9 @@ ata_dev_advinfo(union ccb *start_ccb)
 {
 	struct cam_ed *device;
 	struct ccb_dev_advinfo *cdai;
-	off_t amt; 
+	off_t amt;
 
+	xpt_path_assert(start_ccb->ccb_h.path, MA_OWNED);
 	start_ccb->ccb_h.status = CAM_REQ_INVALID;
 	device = start_ccb->ccb_h.path->device;
 	cdai = &start_ccb->cdai;
