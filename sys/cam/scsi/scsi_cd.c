@@ -264,7 +264,9 @@ static	int		cdgetpagesize(int page_num);
 static	void		cdprevent(struct cam_periph *periph, int action);
 static	void		cdmediaprobedone(struct cam_periph *periph);
 static	int		cdcheckmedia(struct cam_periph *periph, int do_wait);
+#if 0
 static	int		cdsize(struct cam_periph *periph, u_int32_t *size);
+#endif
 static	int		cd6byteworkaround(union ccb *ccb);
 static	int		cderror(union ccb *ccb, u_int32_t cam_flags,
 				u_int32_t sense_flags);
@@ -2846,7 +2848,6 @@ bailout:
 
 	return (error);
 }
-#endif
 
 static int
 cdsize(struct cam_periph *periph, u_int32_t *size)
@@ -2903,6 +2904,7 @@ cdsize(struct cam_periph *periph, u_int32_t *size)
 	return (error);
 
 }
+#endif
 
 static int
 cd6byteworkaround(union ccb *ccb)
