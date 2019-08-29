@@ -121,6 +121,7 @@ void	process_deferred_inactive(struct mount *mp);
  * Flags to ffs_vgetf
  */
 #define	FFSV_FORCEINSMQ	0x0001
+#define	FFSV_REPLACE	0x0002
 
 /*
  * Flags to ffs_reload
