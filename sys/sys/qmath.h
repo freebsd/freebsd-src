@@ -267,7 +267,7 @@ typedef	u64q_t		umaxq_t;
 
 /* Left shift an integral value to align with the int bits of 'q'. */
 #define	Q_SHL(q, iv) \
-    (Q_LTZ(iv) ? -(Q_ABS(iv) << Q_NFBITS(q)) :	\
+    (Q_LTZ(iv) ? -(int64_t)(Q_ABS(iv) << Q_NFBITS(q)) :	\
     Q_TC(q, iv) << Q_NFBITS(q))
 
 /* Calculate the relative fractional precision between 'a' and 'b' in bits. */
