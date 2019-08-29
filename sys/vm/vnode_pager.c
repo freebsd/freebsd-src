@@ -147,17 +147,9 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 	if (!vn_isdisk(vp, NULL) && vn_canvmio(vp) == FALSE)
 		return (0);
 
-	while ((object = vp->v_object) != NULL) {
-		VM_OBJECT_WLOCK(object);
-		if (!(object->flags & OBJ_DEAD)) {
-			VM_OBJECT_WUNLOCK(object);
-			return (0);
-		}
-		VOP_UNLOCK(vp, 0);
-		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
-		VM_OBJECT_SLEEP(object, object, PDROP | PVM, "vodead", 0);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	}
+	object = vp->v_object;
+	if (object != NULL)
+		return (0);
 
 	if (size == 0) {
 		if (vn_isdisk(vp, NULL)) {
@@ -190,10 +182,11 @@ vnode_destroy_vobject(struct vnode *vp)
 	struct vm_object *obj;
 
 	obj = vp->v_object;
-	if (obj == NULL)
+	if (obj == NULL || obj->handle != vp)
 		return;
 	ASSERT_VOP_ELOCKED(vp, "vnode_destroy_vobject");
 	VM_OBJECT_WLOCK(obj);
+	MPASS(obj->type == OBJT_VNODE);
 	umtx_shm_object_terminated(obj);
 	if (obj->ref_count == 0) {
 		/*
@@ -223,9 +216,6 @@ vnode_destroy_vobject(struct vnode *vp)
 			 * prevented new waiters from referencing the dying
 			 * object.
 			 */
-			KASSERT((obj->flags & OBJ_DISCONNECTWNT) == 0,
-			    ("OBJ_DISCONNECTWNT set obj %p flags %x",
-			    obj, obj->flags));
 			vp->v_object = NULL;
 			VM_OBJECT_WUNLOCK(obj);
 		}
@@ -243,8 +233,6 @@ vnode_destroy_vobject(struct vnode *vp)
 /*
  * Allocate (or lookup) pager for a vnode.
  * Handle is a vnode pointer.
- *
- * MPSAFE
  */
 vm_object_t
 vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
@@ -259,28 +247,18 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	if (handle == NULL)
 		return (NULL);
 
-	vp = (struct vnode *) handle;
-
-	/*
-	 * If the object is being terminated, wait for it to
-	 * go away.
-	 */
-retry:
-	while ((object = vp->v_object) != NULL) {
-		VM_OBJECT_WLOCK(object);
-		if ((object->flags & OBJ_DEAD) == 0)
-			break;
-		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
-		VM_OBJECT_SLEEP(object, object, PDROP | PVM, "vadead", 0);
-	}
-
+	vp = (struct vnode *)handle;
+	ASSERT_VOP_LOCKED(vp, "vnode_pager_alloc");
 	KASSERT(vp->v_usecount != 0, ("vnode_pager_alloc: no vnode reference"));
+retry:
+	object = vp->v_object;
 
 	if (object == NULL) {
 		/*
 		 * Add an object of the appropriate size
 		 */
-		object = vm_object_allocate(OBJT_VNODE, OFF_TO_IDX(round_page(size)));
+		object = vm_object_allocate(OBJT_VNODE,
+		    OFF_TO_IDX(round_page(size)));
 
 		object->un_pager.vnp.vnp_size = size;
 		object->un_pager.vnp.writemappings = 0;
@@ -290,7 +268,7 @@ retry:
 		VI_LOCK(vp);
 		if (vp->v_object != NULL) {
 			/*
-			 * Object has been created while we were sleeping
+			 * Object has been created while we were allocating.
 			 */
 			VI_UNLOCK(vp);
 			VM_OBJECT_WLOCK(object);
@@ -305,6 +283,7 @@ retry:
 		vp->v_object = object;
 		VI_UNLOCK(vp);
 	} else {
+		VM_OBJECT_WLOCK(object);
 		object->ref_count++;
 #if VM_NRESERVLEVEL > 0
 		vm_object_color(object, 0);
@@ -334,10 +313,6 @@ vnode_pager_dealloc(vm_object_t object)
 
 	object->handle = NULL;
 	object->type = OBJT_DEAD;
-	if (object->flags & OBJ_DISCONNECTWNT) {
-		vm_object_clear_flag(object, OBJ_DISCONNECTWNT);
-		wakeup(object);
-	}
 	ASSERT_VOP_ELOCKED(vp, "vnode_pager_dealloc");
 	if (object->un_pager.vnp.writemappings > 0) {
 		object->un_pager.vnp.writemappings = 0;
