@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
@@ -111,8 +112,6 @@ static struct intr_ipi ipi_sources[INTR_IPI_COUNT];
 static struct intr_ipi *intr_ipi_lookup(u_int);
 static void intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *,
     void *);
-
-extern struct pcpu __pcpu[];
 
 static void ipi_ast(void *);
 static void ipi_hardclock(void *);
