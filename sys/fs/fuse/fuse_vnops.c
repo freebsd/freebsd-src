@@ -1537,7 +1537,6 @@ fuse_vnop_reclaim(struct vop_reclaim_args *ap)
 	fuse_vnode_setparent(vp, NULL);
 	cache_purge(vp);
 	vfs_hash_remove(vp);
-	vnode_destroy_vobject(vp);
 	fuse_vnode_destroy(vp);
 
 	return 0;

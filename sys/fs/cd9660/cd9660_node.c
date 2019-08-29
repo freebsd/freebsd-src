@@ -92,10 +92,6 @@ cd9660_reclaim(ap)
 	struct vnode *vp = ap->a_vp;
 
 	/*
-	 * Destroy the vm object and flush associated pages.
-	 */
-	vnode_destroy_vobject(vp);
-	/*
 	 * Remove the inode from its hash chain.
 	 */
 	vfs_hash_remove(vp);

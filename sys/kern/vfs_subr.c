@@ -3481,9 +3481,9 @@ static void
 vgonel(struct vnode *vp)
 {
 	struct thread *td;
-	int oweinact;
-	int active;
 	struct mount *mp;
+	vm_object_t object;
+	bool active, oweinact;
 
 	ASSERT_VOP_ELOCKED(vp, "vgonel");
 	ASSERT_VI_LOCKED(vp, "vgonel");
@@ -3503,8 +3503,8 @@ vgonel(struct vnode *vp)
 	 * Check to see if the vnode is in use.  If so, we have to call
 	 * VOP_CLOSE() and VOP_INACTIVE().
 	 */
-	active = vp->v_usecount;
-	oweinact = (vp->v_iflag & VI_OWEINACT);
+	active = vp->v_usecount > 0;
+	oweinact = (vp->v_iflag & VI_OWEINACT) != 0;
 	VI_UNLOCK(vp);
 	vfs_notify_upper(vp, VFS_NOTIFY_UPPER_RECLAIM);
 
@@ -3543,12 +3543,24 @@ vgonel(struct vnode *vp)
 	    ("vp %p bufobj not invalidated", vp));
 
 	/*
-	 * For VMIO bufobj, BO_DEAD is set in vm_object_terminate()
-	 * after the object's page queue is flushed.
+	 * For VMIO bufobj, BO_DEAD is set later, or in
+	 * vm_object_terminate() after the object's page queue is
+	 * flushed.
 	 */
-	if (vp->v_bufobj.bo_object == NULL)
+	object = vp->v_bufobj.bo_object;
+	if (object == NULL)
 		vp->v_bufobj.bo_flag |= BO_DEAD;
 	BO_UNLOCK(&vp->v_bufobj);
+
+	/*
+	 * Handle the VM part.  Tmpfs handles v_object on its own (the
+	 * OBJT_VNODE check).  Nullfs or other bypassing filesystems
+	 * should not touch the object borrowed from the lower vnode
+	 * (the handle check).
+	 */
+	if (object != NULL && object->type == OBJT_VNODE &&
+	    object->handle == vp)
+		vnode_destroy_vobject(vp);
 
 	/*
 	 * Reclaim the vnode.
