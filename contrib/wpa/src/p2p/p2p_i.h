@@ -158,16 +158,6 @@ struct p2p_sd_query {
 	struct wpabuf *tlvs;
 };
 
-struct p2p_pending_action_tx {
-	unsigned int freq;
-	u8 dst[ETH_ALEN];
-	u8 src[ETH_ALEN];
-	u8 bssid[ETH_ALEN];
-	size_t len;
-	unsigned int wait_time;
-	/* Followed by len octets of the frame */
-};
-
 /**
  * struct p2p_data - P2P module data (internal to P2P module)
  */
@@ -449,8 +439,6 @@ struct p2p_data {
 		P2P_AFTER_SCAN_CONNECT
 	} start_after_scan;
 	u8 after_scan_peer[ETH_ALEN];
-	struct p2p_pending_action_tx *after_scan_tx;
-	unsigned int after_scan_tx_in_progress:1;
 	unsigned int send_action_in_progress:1;
 
 	/* Requested device types for find/search */

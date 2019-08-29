@@ -65,7 +65,7 @@ extern const u8 rcons[10];
 
 #else /* AES_SMALL_TABLES */
 
-#define RCON(i) (rcons[(i)] << 24)
+#define RCON(i) ((u32) rcons[(i)] << 24)
 
 static inline u32 rotr(u32 val, int bits)
 {
@@ -94,10 +94,10 @@ static inline u32 rotr(u32 val, int bits)
 #define TD1(i) rotr(Td0[((i) >> 16) & 0xff], 8)
 #define TD2(i) rotr(Td0[((i) >> 8) & 0xff], 16)
 #define TD3(i) rotr(Td0[(i) & 0xff], 24)
-#define TD41(i) (Td4s[((i) >> 24) & 0xff] << 24)
-#define TD42(i) (Td4s[((i) >> 16) & 0xff] << 16)
-#define TD43(i) (Td4s[((i) >> 8) & 0xff] << 8)
-#define TD44(i) (Td4s[(i) & 0xff])
+#define TD41(i) ((u32) Td4s[((i) >> 24) & 0xff] << 24)
+#define TD42(i) ((u32) Td4s[((i) >> 16) & 0xff] << 16)
+#define TD43(i) ((u32) Td4s[((i) >> 8) & 0xff] << 8)
+#define TD44(i) ((u32) Td4s[(i) & 0xff])
 #define TD0_(i) Td0[(i) & 0xff]
 #define TD1_(i) rotr(Td0[(i) & 0xff], 8)
 #define TD2_(i) rotr(Td0[(i) & 0xff], 16)

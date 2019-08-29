@@ -305,6 +305,9 @@ static int wpa_supplicant_get_pmk(struct wpa_sm *sm,
 #endif /* CONFIG_IEEE80211R */
 	} else if (wpa_key_mgmt_wpa_ieee8021x(sm->key_mgmt) && sm->eapol) {
 		int res, pmk_len;
+#ifdef CONFIG_IEEE80211R
+		u8 buf[2 * PMK_LEN];
+#endif /* CONFIG_IEEE80211R */
 
 		if (wpa_key_mgmt_sha384(sm->key_mgmt))
 			pmk_len = PMK_LEN_SUITE_B_192;
@@ -320,24 +323,42 @@ static int wpa_supplicant_get_pmk(struct wpa_sm *sm,
 				res = eapol_sm_get_key(sm->eapol, sm->pmk, 16);
 				pmk_len = 16;
 			}
-		} else {
-#ifdef CONFIG_IEEE80211R
-			u8 buf[2 * PMK_LEN];
-			if (eapol_sm_get_key(sm->eapol, buf, 2 * PMK_LEN) == 0)
-			{
-				if (wpa_key_mgmt_sha384(sm->key_mgmt)) {
-					os_memcpy(sm->xxkey, buf,
-						  SHA384_MAC_LEN);
-					sm->xxkey_len = SHA384_MAC_LEN;
-				} else {
-					os_memcpy(sm->xxkey, buf + PMK_LEN,
-						  PMK_LEN);
-					sm->xxkey_len = PMK_LEN;
-				}
-				os_memset(buf, 0, sizeof(buf));
-			}
-#endif /* CONFIG_IEEE80211R */
 		}
+#ifdef CONFIG_IEEE80211R
+		if (res == 0 &&
+		    eapol_sm_get_key(sm->eapol, buf, 2 * PMK_LEN) == 0) {
+			if (wpa_key_mgmt_sha384(sm->key_mgmt)) {
+				os_memcpy(sm->xxkey, buf, SHA384_MAC_LEN);
+				sm->xxkey_len = SHA384_MAC_LEN;
+			} else {
+				os_memcpy(sm->xxkey, buf + PMK_LEN, PMK_LEN);
+				sm->xxkey_len = PMK_LEN;
+			}
+			forced_memzero(buf, sizeof(buf));
+			if (sm->proto == WPA_PROTO_RSN &&
+			    wpa_key_mgmt_ft(sm->key_mgmt)) {
+				struct rsn_pmksa_cache_entry *sa = NULL;
+				const u8 *fils_cache_id = NULL;
+
+#ifdef CONFIG_FILS
+				if (sm->fils_cache_id_set)
+					fils_cache_id = sm->fils_cache_id;
+#endif /* CONFIG_FILS */
+				wpa_hexdump_key(MSG_DEBUG,
+						"FT: Cache XXKey/MPMK",
+						sm->xxkey, sm->xxkey_len);
+				sa = pmksa_cache_add(sm->pmksa,
+						     sm->xxkey, sm->xxkey_len,
+						     NULL, NULL, 0,
+						     src_addr, sm->own_addr,
+						     sm->network_ctx,
+						     sm->key_mgmt,
+						     fils_cache_id);
+				if (!sm->cur_pmksa)
+					sm->cur_pmksa = sa;
+			}
+		}
+#endif /* CONFIG_IEEE80211R */
 		if (res == 0) {
 			struct rsn_pmksa_cache_entry *sa = NULL;
 			const u8 *fils_cache_id = NULL;
@@ -628,7 +649,7 @@ static void wpa_supplicant_process_1_of_4(struct wpa_sm *sm,
 		os_memcpy(buf, &ptk->tk[16], 8);
 		os_memcpy(&ptk->tk[16], &ptk->tk[24], 8);
 		os_memcpy(&ptk->tk[24], buf, 8);
-		os_memset(buf, 0, sizeof(buf));
+		forced_memzero(buf, sizeof(buf));
 	}
 	sm->tptk_set = 1;
 
@@ -902,7 +923,7 @@ static int wpa_supplicant_install_gtk(struct wpa_sm *sm,
 			wpa_msg(sm->ctx->msg_ctx, MSG_WARNING,
 				"WPA: Failed to set GTK to the driver "
 				"(Group only)");
-			os_memset(gtk_buf, 0, sizeof(gtk_buf));
+			forced_memzero(gtk_buf, sizeof(gtk_buf));
 			return -1;
 		}
 	} else if (wpa_sm_set_key(sm, gd->alg, broadcast_ether_addr,
@@ -912,10 +933,10 @@ static int wpa_supplicant_install_gtk(struct wpa_sm *sm,
 			"WPA: Failed to set GTK to "
 			"the driver (alg=%d keylen=%d keyidx=%d)",
 			gd->alg, gd->gtk_len, gd->keyidx);
-		os_memset(gtk_buf, 0, sizeof(gtk_buf));
+		forced_memzero(gtk_buf, sizeof(gtk_buf));
 		return -1;
 	}
-	os_memset(gtk_buf, 0, sizeof(gtk_buf));
+	forced_memzero(gtk_buf, sizeof(gtk_buf));
 
 	if (wnm_sleep) {
 		sm->gtk_wnm_sleep.gtk_len = gd->gtk_len;
@@ -1021,10 +1042,10 @@ static int wpa_supplicant_pairwise_gtk(struct wpa_sm *sm,
 	     wpa_supplicant_install_gtk(sm, &gd, key_rsc, 0))) {
 		wpa_dbg(sm->ctx->msg_ctx, MSG_DEBUG,
 			"RSN: Failed to install GTK");
-		os_memset(&gd, 0, sizeof(gd));
+		forced_memzero(&gd, sizeof(gd));
 		return -1;
 	}
-	os_memset(&gd, 0, sizeof(gd));
+	forced_memzero(&gd, sizeof(gd));
 
 	return 0;
 }
@@ -1693,12 +1714,12 @@ static int wpa_supplicant_process_1_of_2_wpa(struct wpa_sm *sm,
 		os_memcpy(ek + 16, sm->ptk.kek, sm->ptk.kek_len);
 		os_memcpy(gd->gtk, key_data, key_data_len);
 		if (rc4_skip(ek, 32, 256, gd->gtk, key_data_len)) {
-			os_memset(ek, 0, sizeof(ek));
+			forced_memzero(ek, sizeof(ek));
 			wpa_msg(sm->ctx->msg_ctx, MSG_ERROR,
 				"WPA: RC4 failed");
 			return -1;
 		}
-		os_memset(ek, 0, sizeof(ek));
+		forced_memzero(ek, sizeof(ek));
 #endif /* CONFIG_NO_RC4 */
 	} else if (ver == WPA_KEY_INFO_TYPE_HMAC_SHA1_AES) {
 		if (maxkeylen % 8) {
@@ -1847,7 +1868,7 @@ static void wpa_supplicant_process_1_of_2(struct wpa_sm *sm,
 	if (wpa_supplicant_install_gtk(sm, &gd, key_rsc, 0) ||
 	    wpa_supplicant_send_2_of_2(sm, key, ver, key_info) < 0)
 		goto failed;
-	os_memset(&gd, 0, sizeof(gd));
+	forced_memzero(&gd, sizeof(gd));
 
 	if (rekey) {
 		wpa_msg(sm->ctx->msg_ctx, MSG_INFO, "WPA: Group rekeying "
@@ -1866,7 +1887,7 @@ static void wpa_supplicant_process_1_of_2(struct wpa_sm *sm,
 	return;
 
 failed:
-	os_memset(&gd, 0, sizeof(gd));
+	forced_memzero(&gd, sizeof(gd));
 	wpa_sm_deauthenticate(sm, WLAN_REASON_UNSPECIFIED);
 }
 
@@ -1980,12 +2001,12 @@ static int wpa_supplicant_decrypt_key_data(struct wpa_sm *sm,
 		os_memcpy(ek, key->key_iv, 16);
 		os_memcpy(ek + 16, sm->ptk.kek, sm->ptk.kek_len);
 		if (rc4_skip(ek, 32, 256, key_data, *key_data_len)) {
-			os_memset(ek, 0, sizeof(ek));
+			forced_memzero(ek, sizeof(ek));
 			wpa_msg(sm->ctx->msg_ctx, MSG_ERROR,
 				"WPA: RC4 failed");
 			return -1;
 		}
-		os_memset(ek, 0, sizeof(ek));
+		forced_memzero(ek, sizeof(ek));
 #endif /* CONFIG_NO_RC4 */
 	} else if (ver == WPA_KEY_INFO_TYPE_HMAC_SHA1_AES ||
 		   ver == WPA_KEY_INFO_TYPE_AES_128_CMAC ||
@@ -3425,12 +3446,12 @@ int wpa_wnmsleep_install_key(struct wpa_sm *sm, u8 subelem_id, u8 *buf)
 		wpa_hexdump_key(MSG_DEBUG, "Install GTK (WNM SLEEP)",
 				gd.gtk, gd.gtk_len);
 		if (wpa_supplicant_install_gtk(sm, &gd, key_rsc, 1)) {
-			os_memset(&gd, 0, sizeof(gd));
+			forced_memzero(&gd, sizeof(gd));
 			wpa_printf(MSG_DEBUG, "Failed to install the GTK in "
 				   "WNM mode");
 			return -1;
 		}
-		os_memset(&gd, 0, sizeof(gd));
+		forced_memzero(&gd, sizeof(gd));
 #ifdef CONFIG_IEEE80211W
 	} else if (subelem_id == WNM_SLEEP_SUBELEM_IGTK) {
 		const struct wpa_igtk_kde *igtk;
@@ -3860,7 +3881,7 @@ int fils_process_auth(struct wpa_sm *sm, const u8 *bssid, const u8 *data,
 				       dh_ss ? wpabuf_head(dh_ss) : NULL,
 				       dh_ss ? wpabuf_len(dh_ss) : 0,
 				       sm->pmk, &sm->pmk_len);
-		os_memset(rmsk, 0, sizeof(rmsk));
+		forced_memzero(rmsk, sizeof(rmsk));
 
 		/* Don't use DHss in PTK derivation if PMKSA caching is not
 		 * used. */
@@ -3935,7 +3956,7 @@ int fils_process_auth(struct wpa_sm *sm, const u8 *bssid, const u8 *data,
 			       sm->fils_key_auth_ap,
 			       &sm->fils_key_auth_len);
 	wpabuf_free(pub);
-	os_memset(ick, 0, sizeof(ick));
+	forced_memzero(ick, sizeof(ick));
 	return res;
 fail:
 	wpabuf_free(pub);
@@ -4299,6 +4320,26 @@ int fils_process_assoc_resp(struct wpa_sm *sm, const u8 *resp, size_t len)
 			    sm->fils_session, FILS_SESSION_LEN);
 	}
 
+	if (!elems.rsn_ie) {
+		wpa_printf(MSG_DEBUG,
+			   "FILS: No RSNE in (Re)Association Response");
+		/* As an interop workaround, allow this for now since IEEE Std
+		 * 802.11ai-2016 did not include all the needed changes to make
+		 * a FILS AP include RSNE in the frame. This workaround might
+		 * eventually be removed and replaced with rejection (goto fail)
+		 * to follow a strict interpretation of the standard. */
+	} else if (wpa_compare_rsn_ie(wpa_key_mgmt_ft(sm->key_mgmt),
+				      sm->ap_rsn_ie, sm->ap_rsn_ie_len,
+				      elems.rsn_ie - 2, elems.rsn_ie_len + 2)) {
+		wpa_msg(sm->ctx->msg_ctx, MSG_INFO,
+			"FILS: RSNE mismatch between Beacon/Probe Response and (Re)Association Response");
+		wpa_hexdump(MSG_DEBUG, "FILS: RSNE in Beacon/Probe Response",
+			    sm->ap_rsn_ie, sm->ap_rsn_ie_len);
+		wpa_hexdump(MSG_DEBUG, "FILS: RSNE in (Re)Association Response",
+			    elems.rsn_ie, elems.rsn_ie_len);
+		goto fail;
+	}
+
 	/* TODO: FILS Public Key */
 
 	if (!elems.fils_key_confirm) {
@@ -4439,9 +4480,11 @@ int fils_process_assoc_resp(struct wpa_sm *sm, const u8 *resp, size_t len)
 
 	wpa_printf(MSG_DEBUG, "FILS: Auth+Assoc completed successfully");
 	sm->fils_completed = 1;
+	forced_memzero(&gd, sizeof(gd));
 
 	return 0;
 fail:
+	forced_memzero(&gd, sizeof(gd));
 	return -1;
 }
 
@@ -4653,7 +4696,7 @@ int owe_process_assoc_resp(struct wpa_sm *sm, const u8 *bssid,
 	else if (group == 21)
 		res = hmac_sha512_kdf(prk, hash_len, NULL, (const u8 *) info,
 				      os_strlen(info), sm->pmk, hash_len);
-	os_memset(prk, 0, SHA512_MAC_LEN);
+	forced_memzero(prk, SHA512_MAC_LEN);
 	if (res < 0) {
 		sm->pmk_len = 0;
 		return -1;

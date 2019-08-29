@@ -676,7 +676,9 @@ void p2p_check_pref_chan(struct p2p_data *p2p, int go,
 				"Ignore local driver frequency preference %u MHz since it is not acceptable for P2P use (go=%d)",
 				freq_list[i], go);
 			if (size - i - 1 > 0)
-				os_memmove(&freq_list[i], &freq_list[i + 1], size - i - 1);
+				os_memmove(&freq_list[i], &freq_list[i + 1],
+					   (size - i - 1) *
+					   sizeof(unsigned int));
 			size--;
 			continue;
 		}
