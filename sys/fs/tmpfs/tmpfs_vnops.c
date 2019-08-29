@@ -1317,8 +1317,6 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 
 	if (vp->v_type == VREG)
 		tmpfs_destroy_vobject(vp, node->tn_reg.tn_aobj);
-	else
-		vnode_destroy_vobject(vp);
 	vp->v_object = NULL;
 	if (tmpfs_use_nc(vp))
 		cache_purge(vp);
