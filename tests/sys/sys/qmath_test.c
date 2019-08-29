@@ -208,7 +208,9 @@ ATF_TC_BODY(qmulq_s64q, tc)
 {
 	s64q_t a_s64q, b_s64q, r_s64q;
 	double a_dbl, b_dbl, r_dbl, maxe_dbl, delta_dbl;
+#ifdef notyet
 	int64_t a_int, b_int;
+#endif
 	int error;
 
 	srandomdev();
@@ -231,8 +233,6 @@ ATF_TC_BODY(qmulq_s64q, tc)
 		 * test with equal precision.
 		 */
 		Q_SCVAL(b_s64q, Q_GCVAL(a_s64q));
-		a_int = Q_GIVAL(a_s64q);
-		b_int = Q_GIVAL(b_s64q);
 
 		/* Q<op>Q testing. */
 		a_dbl = Q_Q2D(a_s64q);
@@ -247,6 +247,9 @@ ATF_TC_BODY(qmulq_s64q, tc)
 
 		r_dbl = a_dbl * b_dbl;
 #ifdef notyet
+		a_int = Q_GIVAL(a_s64q);
+		b_int = Q_GIVAL(b_s64q);
+
 		maxe_dbl = fabs(((1.0 / Q_NFBITS(a_s64q)) * (double)b_int) +
 		    ((1.0 / Q_NFBITS(b_s64q)) * (double)a_int));
 #else
@@ -270,7 +273,6 @@ ATF_TC_BODY(qdivq_s64q, tc)
 {
 	s64q_t a_s64q, b_s64q, r_s64q;
 	double a_dbl, b_dbl, r_dbl, maxe_dbl, delta_dbl;
-	int64_t a_int, b_int;
 	int error;
 
 	srandomdev();
@@ -283,8 +285,6 @@ ATF_TC_BODY(qdivq_s64q, tc)
 		 * test with equal precision.
 		 */
 		Q_SCVAL(b_s64q, Q_GCVAL(a_s64q));
-		a_int = Q_GIVAL(a_s64q);
-		b_int = Q_GIVAL(b_s64q);
 
 		/* Q<op>Q testing. */
 		a_dbl = Q_Q2D(a_s64q);
@@ -318,7 +318,6 @@ ATF_TC_BODY(qaddq_s64q, tc)
 {
 	s64q_t a_s64q, b_s64q, r_s64q;
 	double a_dbl, b_dbl, r_dbl, maxe_dbl, delta_dbl;
-	int64_t a_int, b_int;
 	int error;
 
 	srandomdev();
@@ -331,8 +330,6 @@ ATF_TC_BODY(qaddq_s64q, tc)
 		 * test with equal precision.
 		 */
 		Q_SCVAL(b_s64q, Q_GCVAL(a_s64q));
-		a_int = Q_GIVAL(a_s64q);
-		b_int = Q_GIVAL(b_s64q);
 
 		/* Q<op>Q testing. */
 		a_dbl = Q_Q2D(a_s64q);
@@ -369,7 +366,6 @@ ATF_TC_BODY(qsubq_s64q, tc)
 {
 	s64q_t a_s64q, b_s64q, r_s64q;
 	double a_dbl, b_dbl, r_dbl, maxe_dbl, delta_dbl;
-	int64_t a_int, b_int;
 	int error;
 
 	srandomdev();
@@ -382,8 +378,6 @@ ATF_TC_BODY(qsubq_s64q, tc)
 		 * test with equal precision.
 		 */
 		Q_SCVAL(b_s64q, Q_GCVAL(a_s64q));
-		a_int = Q_GIVAL(a_s64q);
-		b_int = Q_GIVAL(b_s64q);
 
 		/* Q<op>Q testing. */
 		a_dbl = Q_Q2D(a_s64q);
