@@ -2778,6 +2778,7 @@ void
 vref(struct vnode *vp)
 {
 
+	ASSERT_VI_UNLOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	_vhold(vp, false);
 	v_incr_usecount(vp);
@@ -2853,6 +2854,9 @@ vputx(struct vnode *vp, int func)
 	else
 		KASSERT(func == VPUTX_VRELE, ("vputx: wrong func"));
 	ASSERT_VI_UNLOCKED(vp, __func__);
+	VNASSERT(vp->v_holdcnt > 0 && vp->v_usecount > 0, vp,
+	    ("%s: wrong ref counts", __func__));
+
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 
 	if (vp->v_type != VCHR &&
@@ -3069,8 +3073,10 @@ _vdrop(struct vnode *vp, bool locked)
 	else
 		ASSERT_VI_UNLOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	if ((int)vp->v_holdcnt <= 0)
-		panic("vdrop: holdcnt %d", vp->v_holdcnt);
+	if (__predict_false((int)vp->v_holdcnt <= 0)) {
+		vn_printf(vp, "vdrop: holdcnt %d", vp->v_holdcnt);
+		panic("vdrop: wrong holdcnt");
+	}
 	if (!locked) {
 		if (refcount_release_if_not_last(&vp->v_holdcnt))
 			return;
