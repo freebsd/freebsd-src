@@ -1156,15 +1156,15 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		if (p->num_entries <= 0 || 
 		    p->num_entries > NG_HCI_MAX_NEIGHBOR_NUM ||
 		    p->entries == NULL) {
-			error = EINVAL;
-			break;
+			mtx_unlock(&pcb->pcb_mtx);
+			return (EINVAL);
 		}
 
 		NG_MKMESSAGE(msg, NGM_HCI_COOKIE,
 			NGM_HCI_NODE_GET_NEIGHBOR_CACHE, 0, M_NOWAIT);
 		if (msg == NULL) {
-			error = ENOMEM;
-			break;
+			mtx_unlock(&pcb->pcb_mtx);
+			return (ENOMEM);
 		}
 		ng_btsocket_hci_raw_get_token(&msg->header.token);
 		pcb->token = msg->header.token;
@@ -1173,7 +1173,8 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		NG_SEND_MSG_PATH(error, ng_btsocket_hci_raw_node, msg, path, 0);
 		if (error != 0) {
 			pcb->token = 0;
-			break;
+			mtx_unlock(&pcb->pcb_mtx);
+			return (error);
 		}
 
 		error = msleep(&pcb->msg, &pcb->pcb_mtx,
@@ -1181,16 +1182,21 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 				ng_btsocket_hci_raw_ioctl_timeout * hz);
 		pcb->token = 0;
 
-		if (error != 0)
-			break;
+		if (error != 0) {
+			mtx_unlock(&pcb->pcb_mtx);
+			return (error);
+		}
 
-		if (pcb->msg != NULL &&
-		    pcb->msg->header.cmd == NGM_HCI_NODE_GET_NEIGHBOR_CACHE) {
+		msg = pcb->msg;
+		pcb->msg = NULL;
+
+		mtx_unlock(&pcb->pcb_mtx);
+		
+		if (msg != NULL &&
+		    msg->header.cmd == NGM_HCI_NODE_GET_NEIGHBOR_CACHE) {
 			/* Return data back to user space */
-			p1 = (ng_hci_node_get_neighbor_cache_ep *)
-				(pcb->msg->data);
-			p2 = (ng_hci_node_neighbor_cache_entry_ep *)
-				(p1 + 1);
+			p1 = (ng_hci_node_get_neighbor_cache_ep *)(msg->data);
+			p2 = (ng_hci_node_neighbor_cache_entry_ep *)(p1 + 1);
 
 			p->num_entries = min(p->num_entries, p1->num_entries);
 			if (p->num_entries > 0)
@@ -1200,8 +1206,9 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		} else
 			error = EINVAL;
 
-		NG_FREE_MSG(pcb->msg); /* checks for != NULL */
-		}break;
+		NG_FREE_MSG(msg); /* checks for != NULL */
+		return (error);
+		} /* NOTREACHED */
 
 	case SIOC_HCI_RAW_NODE_GET_CON_LIST: {
 		struct ng_btsocket_hci_raw_con_list	*p = 
@@ -1212,15 +1219,15 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		if (p->num_connections == 0 ||
 		    p->num_connections > NG_HCI_MAX_CON_NUM ||
 		    p->connections == NULL) {
-			error = EINVAL;
-			break;
+			mtx_unlock(&pcb->pcb_mtx);
+			return (EINVAL);
 		}
 
 		NG_MKMESSAGE(msg, NGM_HCI_COOKIE, NGM_HCI_NODE_GET_CON_LIST,
 			0, M_NOWAIT);
 		if (msg == NULL) {
-			error = ENOMEM;
-			break;
+			mtx_unlock(&pcb->pcb_mtx);
+			return (ENOMEM);
 		}
 		ng_btsocket_hci_raw_get_token(&msg->header.token);
 		pcb->token = msg->header.token;
@@ -1229,7 +1236,8 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		NG_SEND_MSG_PATH(error, ng_btsocket_hci_raw_node, msg, path, 0);
 		if (error != 0) {
 			pcb->token = 0;
-			break;
+			mtx_unlock(&pcb->pcb_mtx);
+			return (error);
 		}
 
 		error = msleep(&pcb->msg, &pcb->pcb_mtx,
@@ -1237,13 +1245,20 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 				ng_btsocket_hci_raw_ioctl_timeout * hz);
 		pcb->token = 0;
 
-		if (error != 0)
-			break;
+		if (error != 0) {
+			mtx_unlock(&pcb->pcb_mtx);
+			return (error);
+		}
 
-		if (pcb->msg != NULL &&
-		    pcb->msg->header.cmd == NGM_HCI_NODE_GET_CON_LIST) {
+		msg = pcb->msg;
+		pcb->msg = NULL;
+
+		mtx_unlock(&pcb->pcb_mtx);
+
+		if (msg != NULL &&
+		    msg->header.cmd == NGM_HCI_NODE_GET_CON_LIST) {
 			/* Return data back to user space */
-			p1 = (ng_hci_node_con_list_ep *)(pcb->msg->data);
+			p1 = (ng_hci_node_con_list_ep *)(msg->data);
 			p2 = (ng_hci_node_con_ep *)(p1 + 1);
 
 			p->num_connections = min(p->num_connections,
@@ -1255,8 +1270,9 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		} else
 			error = EINVAL;
 
-		NG_FREE_MSG(pcb->msg); /* checks for != NULL */
-		} break;
+		NG_FREE_MSG(msg); /* checks for != NULL */
+		return (error);
+		} /* NOTREACHED */
 
 	case SIOC_HCI_RAW_NODE_GET_LINK_POLICY_MASK: {
 		struct ng_btsocket_hci_raw_node_link_policy_mask	*p = 
@@ -1332,15 +1348,15 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		struct nodeinfo					*ni = nl->names;
 
 		if (nl->num_names == 0) {
-			error = EINVAL;
-			break;
+			mtx_unlock(&pcb->pcb_mtx);
+			return (EINVAL);
 		}
 
 		NG_MKMESSAGE(msg, NGM_GENERIC_COOKIE, NGM_LISTNAMES,
 			0, M_NOWAIT);
 		if (msg == NULL) {
-			error = ENOMEM;
-			break;
+			mtx_unlock(&pcb->pcb_mtx);
+			return (ENOMEM);
 		}
 		ng_btsocket_hci_raw_get_token(&msg->header.token);
 		pcb->token = msg->header.token;
@@ -1349,7 +1365,8 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		NG_SEND_MSG_PATH(error, ng_btsocket_hci_raw_node, msg, ".:", 0);
 		if (error != 0) {
 			pcb->token = 0;
-			break;
+			mtx_unlock(&pcb->pcb_mtx);
+			return (error);
 		}
 
 		error = msleep(&pcb->msg, &pcb->pcb_mtx,
@@ -1357,12 +1374,19 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 				ng_btsocket_hci_raw_ioctl_timeout * hz);
 		pcb->token = 0;
 
-		if (error != 0)
-			break;
+		if (error != 0) {
+			mtx_unlock(&pcb->pcb_mtx);
+			return (error);
+		}
 
-		if (pcb->msg != NULL && pcb->msg->header.cmd == NGM_LISTNAMES) {
+		msg = pcb->msg;
+		pcb->msg = NULL;
+
+		mtx_unlock(&pcb->pcb_mtx);
+
+		if (msg != NULL && msg->header.cmd == NGM_LISTNAMES) {
 			/* Return data back to user space */
-			struct namelist	*nl1 = (struct namelist *) pcb->msg->data;
+			struct namelist	*nl1 = (struct namelist *) msg->data;
 			struct nodeinfo	*ni1 = &nl1->nodeinfo[0];
 
 			while (nl->num_names > 0 && nl1->numnames > 0) {
@@ -1385,8 +1409,9 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		} else
 			error = EINVAL;
 
-		NG_FREE_MSG(pcb->msg); /* checks for != NULL */
-		} break;
+		NG_FREE_MSG(msg); /* checks for != NULL */
+		return (error);
+		} /* NOTREACHED */
 
 	default:
 		error = EINVAL;
