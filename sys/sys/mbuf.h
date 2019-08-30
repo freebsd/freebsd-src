@@ -1434,7 +1434,7 @@ static inline int
 mbufq_full(const struct mbufq *mq)
 {
 
-	return (mq->mq_len >= mq->mq_maxlen);
+	return (mq->mq_maxlen > 0 && mq->mq_len >= mq->mq_maxlen);
 }
 
 static inline int
