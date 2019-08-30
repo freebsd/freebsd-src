@@ -186,8 +186,7 @@ xchan_bufs_alloc(xdma_channel_t *xchan)
 	xdma = xchan->xdma;
 
 	if (xdma == NULL) {
-		device_printf(xdma->dev,
-		    "%s: Channel was not allocated properly.\n", __func__);
+		printf("%s: Channel was not allocated properly.\n", __func__);
 		return (-1);
 	}
 
