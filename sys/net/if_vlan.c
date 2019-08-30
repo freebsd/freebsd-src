@@ -294,6 +294,8 @@ static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
 static	int vlan_setflags(struct ifnet *ifp, int status);
 static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_transmit(struct ifnet *ifp, struct mbuf *m);
+static	int vlan_output(struct ifnet *ifp, struct mbuf *m,
+    const struct sockaddr *dst, struct route *ro);
 static	void vlan_unconfig(struct ifnet *ifp);
 static	void vlan_unconfig_locked(struct ifnet *ifp, int departing);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
@@ -1209,6 +1211,27 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	return (error);
 }
 
+static int
+vlan_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+    struct route *ro)
+{
+	struct epoch_tracker et;
+	struct ifvlan *ifv;
+	struct ifnet *p;
+
+	NET_EPOCH_ENTER(et);
+	ifv = ifp->if_softc;
+	if (TRUNK(ifv) == NULL) {
+		NET_EPOCH_EXIT(et);
+		m_freem(m);
+		return (ENETDOWN);
+	}
+	p = PARENT(ifv);
+	NET_EPOCH_EXIT(et);
+	return p->if_output(ifp, m, dst, ro);
+}
+
+
 /*
  * The ifp->if_qflush entry point for vlan(4) is a no-op.
  */
@@ -1424,12 +1447,17 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	 */
 	ifp->if_mtu = p->if_mtu - ifv->ifv_mtufudge;
 	ifp->if_baudrate = p->if_baudrate;
-	ifp->if_output = p->if_output;
 	ifp->if_input = p->if_input;
 	ifp->if_resolvemulti = p->if_resolvemulti;
 	ifp->if_addrlen = p->if_addrlen;
 	ifp->if_broadcastaddr = p->if_broadcastaddr;
 	ifp->if_pcp = ifv->ifv_pcp;
+
+	/*
+	 * We wrap the parent's if_output using vlan_output to ensure that it
+	 * can't become stale.
+	 */
+	ifp->if_output = vlan_output;
 
 	/*
 	 * Copy only a selected subset of flags from the parent.
