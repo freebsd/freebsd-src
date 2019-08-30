@@ -518,7 +518,6 @@ clear:
 		}
 		if (head == fat[n].head) {
 			pwarn("Cluster chain starting at %u loops at cluster %u\n",
-			
 			    head, p);
 			goto clear;
 		}
