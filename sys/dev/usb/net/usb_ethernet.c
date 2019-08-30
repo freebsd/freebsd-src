@@ -598,7 +598,7 @@ uether_rxmbuf(struct usb_ether *ue, struct mbuf *m,
 	m->m_pkthdr.len = m->m_len = len;
 
 	/* enqueue for later when the lock can be released */
-	_IF_ENQUEUE(&ue->ue_rxq, m);
+	(void)mbufq_enqueue(&ue->ue_rxq, m);
 	return (0);
 }
 
@@ -628,7 +628,7 @@ uether_rxbuf(struct usb_ether *ue, struct usb_page_cache *pc,
 	m->m_pkthdr.len = m->m_len = len;
 
 	/* enqueue for later when the lock can be released */
-	_IF_ENQUEUE(&ue->ue_rxq, m);
+	(void)mbufq_enqueue(&ue->ue_rxq, m);
 	return (0);
 }
 
@@ -641,7 +641,7 @@ uether_rxflush(struct usb_ether *ue)
 	UE_LOCK_ASSERT(ue, MA_OWNED);
 
 	for (;;) {
-		_IF_DEQUEUE(&ue->ue_rxq, m);
+		m = mbufq_dequeue(&ue->ue_rxq);
 		if (m == NULL)
 			break;
 

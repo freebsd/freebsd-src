@@ -41,12 +41,10 @@
 #include <sys/limits.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
-#include <net/ifq.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
 
@@ -89,7 +87,7 @@ struct usb_ether {
 
 	struct usb_process	ue_tq;
 	struct sysctl_ctx_list	ue_sysctl_ctx;
-	struct ifqueue		ue_rxq;
+	struct mbufq		ue_rxq;
 	struct usb_callout	ue_watchdog;
 	struct usb_ether_cfg_task	ue_sync_task[2];
 	struct usb_ether_cfg_task	ue_media_task[2];
