@@ -255,10 +255,12 @@ efipart_inithandles(void)
 
 		/*
 		 * We assume the block size 512 or greater power of 2.
+		 * Also skip devices with block size > 32k.
 		 * iPXE is known to insert stub BLOCK IO device with
 		 * BlockSize 1.
 		 */
 		if (blkio->Media->BlockSize < 512 ||
+		    blkio->Media->BlockSize > (1 << 15) ||
 		    !powerof2(blkio->Media->BlockSize)) {
 			continue;
 		}
@@ -603,7 +605,8 @@ restart:
 			continue;
 
 		if (DevicePathType(node) == HARDWARE_DEVICE_PATH &&
-		    DevicePathSubType(node) == HW_PCI_DP) {
+		    (DevicePathSubType(node) == HW_PCI_DP ||
+		     DevicePathSubType(node) == HW_VENDOR_DP)) {
 			STAILQ_REMOVE(&pdinfo, hd, pdinfo, pd_link);
 			efipart_hdinfo_add(hd, NULL);
 			goto restart;
