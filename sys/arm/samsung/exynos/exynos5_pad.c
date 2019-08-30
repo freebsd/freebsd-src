@@ -410,7 +410,7 @@ pad_setup_intr(int gpio_number, void (*ih)(void *), void *ih_user)
 	sc = gpio_sc;
 
 	if (sc == NULL) {
-		device_printf(sc->dev, "Error: pad is not attached\n");
+		printf("%s: Error: pad is not attached\n", __func__);
 		return (-1);
 	}
 
