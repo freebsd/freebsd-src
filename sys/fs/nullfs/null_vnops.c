@@ -732,14 +732,13 @@ null_unlock(struct vop_unlock_args *ap)
  * ours.
  */
 static int
-null_inactive(struct vop_inactive_args *ap __unused)
+null_want_recycle(struct vnode *vp)
 {
-	struct vnode *vp, *lvp;
+	struct vnode *lvp;
 	struct null_node *xp;
 	struct mount *mp;
 	struct null_mount *xmp;
 
-	vp = ap->a_vp;
 	xp = VTONULL(vp);
 	lvp = NULLVPTOLOWERVP(vp);
 	mp = vp->v_mount;
@@ -753,10 +752,29 @@ null_inactive(struct vop_inactive_args *ap __unused)
 		 * deleted, then free up the vnode so as not to tie up
 		 * the lower vnodes.
 		 */
+		return (1);
+	}
+	return (0);
+}
+
+static int
+null_inactive(struct vop_inactive_args *ap)
+{
+	struct vnode *vp;
+
+	vp = ap->a_vp;
+	if (null_want_recycle(vp)) {
 		vp->v_object = NULL;
 		vrecycle(vp);
 	}
 	return (0);
+}
+
+static int
+null_need_inactive(struct vop_need_inactive_args *ap)
+{
+
+	return (null_want_recycle(ap->a_vp));
 }
 
 /*
@@ -907,7 +925,7 @@ struct vop_vector null_vnodeops = {
 	.vop_getattr =		null_getattr,
 	.vop_getwritemount =	null_getwritemount,
 	.vop_inactive =		null_inactive,
-	.vop_need_inactive =	vop_stdneed_inactive,
+	.vop_need_inactive =	null_need_inactive,
 	.vop_islocked =		vop_stdislocked,
 	.vop_lock1 =		null_lock,
 	.vop_lookup =		null_lookup,
