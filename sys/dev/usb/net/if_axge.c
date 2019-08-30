@@ -1041,7 +1041,7 @@ axge_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned int offset,
 	}
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
-	_IF_ENQUEUE(&ue->ue_rxq, m);
+	(void)mbufq_enqueue(&ue->ue_rxq, m);
 }
 
 static void
