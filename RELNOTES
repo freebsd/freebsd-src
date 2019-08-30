@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r351522:
+	Add kernel-side support for in-kernel Transport Layer Security
+	(KTLS).  KTLS permits using sendfile(2) over sockets using
+	TLS.
+
 r351361:
 	Add probes for lockmgr(9) to the lockstat DTrace provider, add
 	corresponding lockstat(1) events, and document the new probes in
@@ -64,6 +69,9 @@ r350315, r350316:
 r350307:
 	libcap_random(3) has been removed.  Applications can use native
 	APIs to get random data in capability mode.
+
+r349529,r349530:
+	Add support for using unmapped mbufs with sendfile(2).
 
 r349352:
 	nand(4) and related components have been removed.
