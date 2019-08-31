@@ -3073,7 +3073,7 @@ ipf_nat_newrdr(fin, nat, ni)
 /* Attempts to create a new NAT entry.  Does not actually change the packet */
 /* in any way.                                                              */
 /*                                                                          */
-/* This fucntion is in three main parts: (1) deal with creating a new NAT   */
+/* This function is in three main parts: (1) deal with creating a new NAT   */
 /* structure for a "MAP" rule (outgoing NAT translation); (2) deal with     */
 /* creating a new NAT structure for a "RDR" rule (incoming NAT translation) */
 /* and (3) building that structure and putting it into the NAT table(s).    */
