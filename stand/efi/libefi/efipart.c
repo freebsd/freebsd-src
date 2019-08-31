@@ -255,12 +255,13 @@ efipart_inithandles(void)
 
 		/*
 		 * We assume the block size 512 or greater power of 2.
-		 * Also skip devices with block size > 32k.
+		 * Also skip devices with block size > 64k (16 is max
+		 * ashift supported by zfs).
 		 * iPXE is known to insert stub BLOCK IO device with
 		 * BlockSize 1.
 		 */
 		if (blkio->Media->BlockSize < 512 ||
-		    blkio->Media->BlockSize > (1 << 15) ||
+		    blkio->Media->BlockSize > (1 << 16) ||
 		    !powerof2(blkio->Media->BlockSize)) {
 			continue;
 		}
