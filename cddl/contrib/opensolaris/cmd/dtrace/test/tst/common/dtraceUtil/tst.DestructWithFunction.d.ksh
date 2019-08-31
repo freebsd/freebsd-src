@@ -43,7 +43,7 @@ reader()
 	while true
 	do
 		sleep 0.1
-		cat /etc/motd > /dev/null
+		cat /COPYRIGHT > /dev/null
 	done
 }
 
