@@ -39,6 +39,9 @@
         clang
             9.0.0
                 include
+                    cuda_wrappers
+                    openmp_wrappers
+                    ppc_wrappers
                     sanitizer
                     ..
                 ..
