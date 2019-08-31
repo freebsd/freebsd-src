@@ -3498,6 +3498,7 @@ ipf_nat_insert(softc, softn, nat)
 
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_nat_hashtab_add                                         */
+/* Returns:     int - 0 == sucess, -1 == failure                            */
 /* Parameters:  softc(I) - pointer to soft context main structure           */
 /*              softn(I) - pointer to NAT context structure                 */
 /*              nat(I) - pointer to NAT structure                           */
