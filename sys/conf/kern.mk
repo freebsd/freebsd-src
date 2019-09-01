@@ -37,8 +37,6 @@ CWARNEXTRA+=	-Wno-error-shift-negative-value
 .if ${COMPILER_VERSION} >= 40000
 CWARNEXTRA+=	-Wno-address-of-packed-member
 .endif
-
-CLANG_NO_IAS= -no-integrated-as
 .endif
 
 .if ${COMPILER_TYPE} == "gcc"
