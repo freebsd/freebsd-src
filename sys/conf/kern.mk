@@ -40,8 +40,6 @@ CWARNEXTRA+=	-Wno-address-of-packed-member
 .if ${COMPILER_VERSION} >= 100000
 NO_WMISLEADING_INDENTATION=	-Wno-misleading-indentation
 .endif
-
-CLANG_NO_IAS= -no-integrated-as
 .endif
 
 .if ${COMPILER_TYPE} == "gcc"
