@@ -191,10 +191,6 @@ ppc64_cas(void)
 	ihandle_t ihandle;
 	cell_t err;
 
-	/* Skip CAS when running on PowerNV */
-	if (!ppc64_hv())
-		return (0);
-
 	/* Perform CAS only for POWER8 and later cores */
 	switch (mfpvr() & PVR_VER_MASK) {
 		case PVR_VER_P8:
@@ -205,6 +201,10 @@ ppc64_cas(void)
 		default:
 			return (0);
 	}
+
+	/* Skip CAS when running on PowerNV */
+	if (!ppc64_hv())
+		return (0);
 
 	ihandle = OF_open("/");
 	if (ihandle == -1) {
