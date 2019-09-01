@@ -638,16 +638,16 @@ static int
 null_lock(struct vop_lock1_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	int flags = ap->a_flags;
+	int flags;
 	struct null_node *nn;
 	struct vnode *lvp;
 	int error;
 
-
-	if ((flags & LK_INTERLOCK) == 0) {
+	if ((ap->a_flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
-		ap->a_flags = flags |= LK_INTERLOCK;
-	}
+	else
+		ap->a_flags &= ~LK_INTERLOCK;
+	flags = ap->a_flags;
 	nn = VTONULL(vp);
 	/*
 	 * If we're still active we must ask the lower layer to
@@ -655,8 +655,6 @@ null_lock(struct vop_lock1_args *ap)
 	 * vop lock.
 	 */
 	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL) {
-		VI_LOCK_FLAGS(lvp, MTX_DUPOK);
-		VI_UNLOCK(vp);
 		/*
 		 * We have to hold the vnode here to solve a potential
 		 * reclaim race.  If we're forcibly vgone'd while we
@@ -669,6 +667,7 @@ null_lock(struct vop_lock1_args *ap)
 		 * here.
 		 */
 		vholdnz(lvp);
+		VI_UNLOCK(vp);
 		error = VOP_LOCK(lvp, flags);
 
 		/*
@@ -678,7 +677,7 @@ null_lock(struct vop_lock1_args *ap)
 		 * case by reacquiring correct lock in requested mode.
 		 */
 		if (VTONULL(vp) == NULL && error == 0) {
-			ap->a_flags &= ~(LK_TYPE_MASK | LK_INTERLOCK);
+			ap->a_flags &= ~LK_TYPE_MASK;
 			switch (flags & LK_TYPE_MASK) {
 			case LK_SHARED:
 				ap->a_flags |= LK_SHARED;
@@ -695,8 +694,10 @@ null_lock(struct vop_lock1_args *ap)
 			error = vop_stdlock(ap);
 		}
 		vdrop(lvp);
-	} else
+	} else {
+		VI_UNLOCK(vp);
 		error = vop_stdlock(ap);
+	}
 
 	return (error);
 }
