@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2019
+.Dd September 1, 2019
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -97,6 +97,10 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 .Fn uma_zone_reserve "uma_zone_t zone" "int nitems"
 .Ft void
 .Fn uma_zone_reserve_kva "uma_zone_t zone" "int nitems"
+.Ft void
+.Fn uma_reclaim "int req"
+.Ft void
+.Fn uma_zone_reclaim "uma_zone_t zone" "int req"
 .Ft void
 .Fn uma_zone_set_allocf "uma_zone_t zone" "uma_alloc allocf"
 .Ft void
@@ -436,6 +440,32 @@ Note that unlike
 does not restrict the use of the pre-allocation to
 .Dv M_USE_RESERVE
 requests.
+.Pp
+The
+.Fn uma_reclaim
+and
+.Fn uma_zone_reclaim
+functions reclaim cached items from UMA zones, releasing unused memory.
+The
+.Fn uma_reclaim
+function reclaims items from all regular zones, while
+.Fn uma_zone_reclaim
+reclaims items only from the specified zone.
+The
+.Fa req
+parameter must be one of three values which specify how aggressively
+items are to be reclaimed:
+.Bl -tag -width indent
+.It Dv UMA_RECLAIM_TRIM
+Reclaim items only in excess of the zone's estimated working set size.
+The working set size is periodically updated and tracks the recent history
+of the zone's usage.
+.It Dv UMA_RECLAIM_DRAIN
+Reclaim all items from the unbounded cache.
+Free items in the per-CPU caches are left alone.
+.It Dv UMA_RECLAIM_DRAIN_CPU
+Reclaim all cached items.
+.El
 .Pp
 The
 .Fn uma_zone_set_allocf

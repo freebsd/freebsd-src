@@ -474,9 +474,9 @@ skip_percpu:
 				ret = kread(kvm, &uz.uz_domain[i], &uzd,
 				   sizeof(uzd), 0);
 				for (ubp =
-				    LIST_FIRST(&uzd.uzd_buckets);
+				    TAILQ_FIRST(&uzd.uzd_buckets);
 				    ubp != NULL;
-				    ubp = LIST_NEXT(&ub, ub_link)) {
+				    ubp = TAILQ_NEXT(&ub, ub_link)) {
 					ret = kread(kvm, ubp, &ub,
 					   sizeof(ub), 0);
 					mtp->mt_zonefree += ub.ub_cnt;
