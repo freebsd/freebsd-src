@@ -32,7 +32,6 @@ SRCS+=		kmp_settings.cpp
 SRCS+=		kmp_str.cpp
 SRCS+=		kmp_taskdeps.cpp
 SRCS+=		kmp_tasking.cpp
-SRCS+=		kmp_taskq.cpp
 SRCS+=		kmp_threadprivate.cpp
 SRCS+=		kmp_utility.cpp
 SRCS+=		kmp_version.cpp
