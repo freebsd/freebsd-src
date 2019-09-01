@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/msdosfs/bpb.h>
 #include "msdos/direntry.h"
-#include "msdos/msdosfsmount.h"
+#include <fs/msdosfs/msdosfsmount.h>
 
 #include "makefs.h"
 #include "msdos.h"

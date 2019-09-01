@@ -64,7 +64,7 @@
 #include "msdos/direntry.h"
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
-#include "msdos/msdosfsmount.h"
+#include <fs/msdosfs/msdosfsmount.h>
 
 #include "makefs.h"
 #include "msdos.h"
