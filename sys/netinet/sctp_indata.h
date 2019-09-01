@@ -61,7 +61,6 @@ sctp_build_readq_entry(struct sctp_tcb *stcb,
 		(_ctl)->sinfo_ppid = ppid; \
 		(_ctl)->sinfo_context = context; \
 		(_ctl)->fsn_included = 0xffffffff; \
-		(_ctl)->top_fsn = 0xffffffff; \
 		(_ctl)->sinfo_tsn = tsn; \
 		(_ctl)->sinfo_cumtsn = tsn; \
 		(_ctl)->sinfo_assoc_id = sctp_get_associd((in_it)); \
