@@ -562,6 +562,10 @@ enum {
 	 * This requires the 'ioeventfd' fields to be valid (cannot be < 0).
 	 */
 	NETMAP_REQ_OPT_SYNC_KLOOP_MODE,
+
+	/* This is a marker to count the number of available options.
+	 * New options must be added above it. */
+	NETMAP_REQ_OPT_MAX,
 };
 
 /*
