@@ -809,7 +809,7 @@ ProcessMonitor::~ProcessMonitor() { StopMonitor(); }
 //------------------------------------------------------------------------------
 // Thread setup and tear down.
 void ProcessMonitor::StartLaunchOpThread(LaunchArgs *args, Status &error) {
-  static const char *g_thread_name = "lldb.process.freebsd.operation";
+  static const char *g_thread_name = "freebsd.op";
 
   if (m_operation_thread.IsJoinable())
     return;
@@ -975,7 +975,7 @@ FINISH:
 
 void ProcessMonitor::StartAttachOpThread(AttachArgs *args,
                                          lldb_private::Status &error) {
-  static const char *g_thread_name = "lldb.process.freebsd.operation";
+  static const char *g_thread_name = "freebsd.op";
 
   if (m_operation_thread.IsJoinable())
     return;
