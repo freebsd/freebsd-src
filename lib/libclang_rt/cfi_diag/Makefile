@@ -2,8 +2,9 @@
 
 .include <bsd.init.mk>
 
-LIB=		clang_rt.ubsan_standalone-${CRTARCH}
+LIB=		clang_rt.cfi_diag-${CRTARCH}
 
+SRCS+=		cfi/cfi.cpp
 SRCS+=		interception/interception_linux.cc
 SRCS+=		interception/interception_type_test.cc
 SRCS+=		sanitizer_common/sancov_flags.cc
@@ -48,14 +49,10 @@ SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cc
 SRCS+=		sanitizer_common/sanitizer_type_traits.cc
 SRCS+=		sanitizer_common/sanitizer_unwind_linux_libcdep.cc
 SRCS+=		ubsan/ubsan_diag.cc
-SRCS+=		ubsan/ubsan_diag_standalone.cc
 SRCS+=		ubsan/ubsan_flags.cc
 SRCS+=		ubsan/ubsan_handlers.cc
 SRCS+=		ubsan/ubsan_init.cc
-SRCS+=		ubsan/ubsan_init_standalone.cc
-SRCS+=		ubsan/ubsan_init_standalone_preinit.cc
 SRCS+=		ubsan/ubsan_monitor.cc
-SRCS+=		ubsan/ubsan_signals_standalone.cc
 SRCS+=		ubsan/ubsan_value.cc
 
 .include <bsd.lib.mk>

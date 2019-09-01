@@ -2,17 +2,14 @@
 
 .include <bsd.init.mk>
 
-LIB=		clang_rt.ubsan_standalone-${CRTARCH}
+LIB=		clang_rt.dd-${CRTARCH}
 
 SRCS+=		interception/interception_linux.cc
 SRCS+=		interception/interception_type_test.cc
-SRCS+=		sanitizer_common/sancov_flags.cc
 SRCS+=		sanitizer_common/sanitizer_allocator.cc
 SRCS+=		sanitizer_common/sanitizer_allocator_checks.cc
-SRCS+=		sanitizer_common/sanitizer_allocator_report.cc
 SRCS+=		sanitizer_common/sanitizer_common.cc
 SRCS+=		sanitizer_common/sanitizer_common_libcdep.cc
-SRCS+=		sanitizer_common/sanitizer_coverage_libcdep_new.cc
 SRCS+=		sanitizer_common/sanitizer_deadlock_detector1.cc
 SRCS+=		sanitizer_common/sanitizer_deadlock_detector2.cc
 SRCS+=		sanitizer_common/sanitizer_errno.cc
@@ -32,30 +29,12 @@ SRCS+=		sanitizer_common/sanitizer_posix_libcdep.cc
 SRCS+=		sanitizer_common/sanitizer_printf.cc
 SRCS+=		sanitizer_common/sanitizer_procmaps_bsd.cc
 SRCS+=		sanitizer_common/sanitizer_procmaps_common.cc
-SRCS+=		sanitizer_common/sanitizer_stackdepot.cc
-SRCS+=		sanitizer_common/sanitizer_stacktrace.cc
-SRCS+=		sanitizer_common/sanitizer_stacktrace_libcdep.cc
-SRCS+=		sanitizer_common/sanitizer_stacktrace_printer.cc
 SRCS+=		sanitizer_common/sanitizer_suppressions.cc
-SRCS+=		sanitizer_common/sanitizer_symbolizer.cc
-SRCS+=		sanitizer_common/sanitizer_symbolizer_libbacktrace.cc
-SRCS+=		sanitizer_common/sanitizer_symbolizer_libcdep.cc
-SRCS+=		sanitizer_common/sanitizer_symbolizer_posix_libcdep.cc
-SRCS+=		sanitizer_common/sanitizer_symbolizer_report.cc
 SRCS+=		sanitizer_common/sanitizer_termination.cc
 SRCS+=		sanitizer_common/sanitizer_thread_registry.cc
 SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cc
 SRCS+=		sanitizer_common/sanitizer_type_traits.cc
-SRCS+=		sanitizer_common/sanitizer_unwind_linux_libcdep.cc
-SRCS+=		ubsan/ubsan_diag.cc
-SRCS+=		ubsan/ubsan_diag_standalone.cc
-SRCS+=		ubsan/ubsan_flags.cc
-SRCS+=		ubsan/ubsan_handlers.cc
-SRCS+=		ubsan/ubsan_init.cc
-SRCS+=		ubsan/ubsan_init_standalone.cc
-SRCS+=		ubsan/ubsan_init_standalone_preinit.cc
-SRCS+=		ubsan/ubsan_monitor.cc
-SRCS+=		ubsan/ubsan_signals_standalone.cc
-SRCS+=		ubsan/ubsan_value.cc
+SRCS+=		tsan/dd/dd_interceptors.cc
+SRCS+=		tsan/dd/dd_rtl.cc
 
 .include <bsd.lib.mk>
