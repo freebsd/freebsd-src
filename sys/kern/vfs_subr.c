@@ -1321,7 +1321,7 @@ vnlru_proc(void)
 		}
 		mtx_unlock(&mountlist_mtx);
 		if (onumvnodes > desiredvnodes && numvnodes <= desiredvnodes)
-			uma_reclaim();
+			uma_reclaim(UMA_RECLAIM_DRAIN);
 		if (done == 0) {
 			if (force == 0 || force == 1) {
 				force = 2;

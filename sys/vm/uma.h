@@ -50,8 +50,6 @@ struct uma_zone;
 /* Opaque type used as a handle to the zone */
 typedef struct uma_zone * uma_zone_t;
 
-void zone_drain(uma_zone_t);
-
 /*
  * Item constructor
  *
@@ -438,17 +436,18 @@ typedef void *(*uma_alloc)(uma_zone_t zone, vm_size_t size, int domain,
 typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 
 /*
- * Reclaims unused memory for all zones
+ * Reclaims unused memory
  *
  * Arguments:
- *	None
+ *	req  Reclamation request type.
  * Returns:
  *	None
- *
- * This should only be called by the page out daemon.
  */
-
-void uma_reclaim(void);
+#define	UMA_RECLAIM_DRAIN	1	/* release bucket cache */
+#define	UMA_RECLAIM_DRAIN_CPU	2	/* release bucket and per-CPU caches */
+#define	UMA_RECLAIM_TRIM	3	/* trim bucket cache to WSS */
+void uma_reclaim(int req);
+void uma_zone_reclaim(uma_zone_t, int req);
 
 /*
  * Sets the alignment mask to be used for all zones requesting cache
