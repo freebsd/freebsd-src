@@ -1037,8 +1037,13 @@ netmap_do_unregif(struct netmap_priv_d *priv)
 		na->nm_krings_delete(na);
 
 		/* restore the default number of host tx and rx rings */
-		na->num_host_tx_rings = 1;
-		na->num_host_rx_rings = 1;
+		if (na->na_flags & NAF_HOST_RINGS) {
+			na->num_host_tx_rings = 1;
+			na->num_host_rx_rings = 1;
+		} else {
+			na->num_host_tx_rings = 0;
+			na->num_host_rx_rings = 0;
+		}
 	}
 
 	/* possibily decrement counter of tx_si/rx_si users */
@@ -2505,17 +2510,11 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 				}
 
 #ifdef WITH_EXTMEM
-				opt = nmreq_findoption((struct nmreq_option *)(uintptr_t)hdr->nr_options,
-						NETMAP_REQ_OPT_EXTMEM);
+				opt = nmreq_getoption(hdr, NETMAP_REQ_OPT_EXTMEM);
 				if (opt != NULL) {
 					struct nmreq_opt_extmem *e =
 						(struct nmreq_opt_extmem *)opt;
 
-					error = nmreq_checkduplicate(opt);
-					if (error) {
-						opt->nro_status = error;
-						break;
-					}
 					nmd = netmap_mem_ext_create(e->nro_usrptr,
 							&e->nro_info, &error);
 					opt->nro_status = error;
@@ -2559,15 +2558,11 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 					break;
 				}
 
-				opt = nmreq_findoption((struct nmreq_option *)(uintptr_t)hdr->nr_options,
-							NETMAP_REQ_OPT_CSB);
+				opt = nmreq_getoption(hdr, NETMAP_REQ_OPT_CSB);
 				if (opt != NULL) {
 					struct nmreq_opt_csb *csbo =
 						(struct nmreq_opt_csb *)opt;
-					error = nmreq_checkduplicate(opt);
-					if (!error) {
-						error = netmap_csb_validate(priv, csbo);
-					}
+					error = netmap_csb_validate(priv, csbo);
 					opt->nro_status = error;
 					if (error) {
 						netmap_do_unregif(priv);
@@ -2841,19 +2836,15 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 		case NETMAP_REQ_CSB_ENABLE: {
 			struct nmreq_option *opt;
 
-			opt = nmreq_findoption((struct nmreq_option *)(uintptr_t)hdr->nr_options,
-						NETMAP_REQ_OPT_CSB);
+			opt = nmreq_getoption(hdr, NETMAP_REQ_OPT_CSB);
 			if (opt == NULL) {
 				error = EINVAL;
 			} else {
 				struct nmreq_opt_csb *csbo =
 					(struct nmreq_opt_csb *)opt;
-				error = nmreq_checkduplicate(opt);
-				if (!error) {
-					NMG_LOCK();
-					error = netmap_csb_validate(priv, csbo);
-					NMG_UNLOCK();
-				}
+				NMG_LOCK();
+				error = netmap_csb_validate(priv, csbo);
+				NMG_UNLOCK();
 				opt->nro_status = error;
 			}
 			break;
@@ -3021,13 +3012,72 @@ nmreq_opt_size_by_type(uint32_t nro_reqtype, uint64_t nro_size)
 	return rv - sizeof(struct nmreq_option);
 }
 
+/*
+ * nmreq_copyin: create an in-kernel version of the request.
+ *
+ * We build the following data structure:
+ *
+ * hdr -> +-------+                buf
+ *        |       |          +---------------+
+ *        +-------+          |usr body ptr   |
+ *        |options|-.        +---------------+
+ *        +-------+ |        |usr options ptr|
+ *        |body   |--------->+---------------+
+ *        +-------+ |        |               |
+ *                  |        |  copy of body |
+ *                  |        |               |
+ *                  |        +---------------+
+ *                  |        |    NULL       |
+ *                  |        +---------------+
+ *                  |    .---|               |\
+ *                  |    |   +---------------+ |
+ *                  | .------|               | |
+ *                  | |  |   +---------------+  \ option table
+ *                  | |  |   |      ...      |  / indexed by option
+ *                  | |  |   +---------------+ |  type
+ *                  | |  |   |               | |
+ *                  | |  |   +---------------+/
+ *                  | |  |   |usr next ptr 1 |
+ *                  `-|----->+---------------+
+ *                    |  |   | copy of opt 1 |
+ *                    |  |   |               |
+ *                    |  | .-| nro_next      |
+ *                    |  | | +---------------+
+ *                    |  | | |usr next ptr 2 |
+ *                    |  `-`>+---------------+
+ *                    |      | copy of opt 2 |
+ *                    |      |               |
+ *                    |    .-| nro_next      |
+ *                    |    | +---------------+
+ *                    |    | |               |
+ *                    ~    ~ ~      ...      ~
+ *                    |    .-|               |
+ *                    `----->+---------------+
+ *                         | |usr next ptr n |
+ *                         `>+---------------+
+ *                           | copy of opt n |
+ *                           |               |
+ *                           | nro_next(NULL)|
+ *                           +---------------+
+ *
+ * The options and body fields of the hdr structure are overwritten
+ * with in-kernel valid pointers inside the buf. The original user
+ * pointers are saved in the buf and restored on copyout.
+ * The list of options is copied and the pointers adjusted. The
+ * original pointers are saved before the option they belonged.
+ *
+ * The option table has an entry for every availabe option.  Entries
+ * for options that have not been passed contain NULL.
+ *
+ */
+
 int
 nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 {
 	size_t rqsz, optsz, bufsz;
-	int error;
+	int error = 0;
 	char *ker = NULL, *p;
-	struct nmreq_option **next, *src;
+	struct nmreq_option **next, *src, **opt_tab;
 	struct nmreq_option buf;
 	uint64_t *ptrs;
 
@@ -3058,7 +3108,13 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 		goto out_err;
 	}
 
-	bufsz = 2 * sizeof(void *) + rqsz;
+	bufsz = 2 * sizeof(void *) + rqsz +
+		NETMAP_REQ_OPT_MAX * sizeof(opt_tab);
+	/* compute the size of the buf below the option table.
+	 * It must contain a copy of every received option structure.
+	 * For every option we also need to store a copy of the user
+	 * list pointer.
+	 */
 	optsz = 0;
 	for (src = (struct nmreq_option *)(uintptr_t)hdr->nr_options; src;
 	     src = (struct nmreq_option *)(uintptr_t)buf.nro_next)
@@ -3072,15 +3128,16 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 			error = EMSGSIZE;
 			goto out_err;
 		}
-		bufsz += optsz + sizeof(void *);
+		bufsz += sizeof(void *);
 	}
+	bufsz += optsz;
 
 	ker = nm_os_malloc(bufsz);
 	if (ker == NULL) {
 		error = ENOMEM;
 		goto out_err;
 	}
-	p = ker;
+	p = ker;	/* write pointer into the buffer */
 
 	/* make a copy of the user pointers */
 	ptrs = (uint64_t*)p;
@@ -3095,6 +3152,9 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 	/* overwrite the user pointer with the in-kernel one */
 	hdr->nr_body = (uintptr_t)p;
 	p += rqsz;
+	/* start of the options table */
+	opt_tab = (struct nmreq_option **)p;
+	p += sizeof(opt_tab) * NETMAP_REQ_OPT_MAX;
 
 	/* copy the options */
 	next = (struct nmreq_option **)&hdr->nr_options;
@@ -3118,6 +3178,34 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 		 */
 		opt->nro_status = EOPNOTSUPP;
 
+		/* check for invalid types */
+		if (opt->nro_reqtype < 1) {
+			if (netmap_verbose)
+				nm_prinf("invalid option type: %u", opt->nro_reqtype);
+			opt->nro_status = EINVAL;
+			error = EINVAL;
+			goto next;
+		}
+
+		if (opt->nro_reqtype >= NETMAP_REQ_OPT_MAX) {
+			/* opt->nro_status is already EOPNOTSUPP */
+			error = EOPNOTSUPP;
+			goto next;
+		}
+
+		/* if the type is valid, index the option in the table
+		 * unless it is a duplicate.
+		 */
+		if (opt_tab[opt->nro_reqtype] != NULL) {
+			if (netmap_verbose)
+				nm_prinf("duplicate option: %u", opt->nro_reqtype);
+			opt->nro_status = EINVAL;
+			opt_tab[opt->nro_reqtype]->nro_status = EINVAL;
+			error = EINVAL;
+			goto next;
+		}
+		opt_tab[opt->nro_reqtype] = opt;
+
 		p = (char *)(opt + 1);
 
 		/* copy the option body */
@@ -3131,11 +3219,14 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 			p += optsz;
 		}
 
+	next:
 		/* move to next option */
 		next = (struct nmreq_option **)&opt->nro_next;
 		src = *next;
 	}
-	return 0;
+	if (error)
+		nmreq_copyout(hdr, error);
+	return error;
 
 out_restore:
 	ptrs = (uint64_t *)ker;
@@ -3218,25 +3309,15 @@ out:
 }
 
 struct nmreq_option *
-nmreq_findoption(struct nmreq_option *opt, uint16_t reqtype)
+nmreq_getoption(struct nmreq_header *hdr, uint16_t reqtype)
 {
-	for ( ; opt; opt = (struct nmreq_option *)(uintptr_t)opt->nro_next)
-		if (opt->nro_reqtype == reqtype)
-			return opt;
-	return NULL;
-}
+	struct nmreq_option **opt_tab;
 
-int
-nmreq_checkduplicate(struct nmreq_option *opt) {
-	uint16_t type = opt->nro_reqtype;
-	int dup = 0;
+	if (!hdr->nr_options)
+		return NULL;
 
-	while ((opt = nmreq_findoption((struct nmreq_option *)(uintptr_t)opt->nro_next,
-			type))) {
-		dup++;
-		opt->nro_status = EINVAL;
-	}
-	return (dup ? EINVAL : 0);
+	opt_tab = (struct nmreq_option **)(hdr->nr_options) - (NETMAP_REQ_OPT_MAX + 1);
+	return opt_tab[reqtype];
 }
 
 static int
