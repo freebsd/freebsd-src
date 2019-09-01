@@ -53,7 +53,7 @@
 #ifndef _MSDOSFS_MSDOSFSMOUNT_H_
 #define	_MSDOSFS_MSDOSFSMOUNT_H_
 
-#ifdef _KERNEL
+#if defined (_KERNEL) || defined(MAKEFS)
 
 #include <sys/types.h>
 #include <sys/lock.h>
@@ -224,6 +224,7 @@ struct msdosfs_fileno {
 
 #endif /* _KERNEL */
 
+#ifndef MAKEFS
 /*
  *  Arguments to mount MSDOS filesystems.
  */
@@ -241,6 +242,7 @@ struct msdosfs_args {
 	char	*cs_local;	/* Local Charset */
 	mode_t	dirmask;	/* dir  mask to be applied for msdosfs perms */
 };
+#endif /* MAKEFS */
 
 /*
  * Msdosfs mount options:
