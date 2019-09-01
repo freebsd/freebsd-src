@@ -197,7 +197,7 @@ struct uma_hash {
  */
 
 struct uma_bucket {
-	LIST_ENTRY(uma_bucket)	ub_link;	/* Link into the zone */
+	TAILQ_ENTRY(uma_bucket)	ub_link;	/* Link into the zone */
 	int16_t	ub_cnt;				/* Count of items in bucket. */
 	int16_t	ub_entries;			/* Max items. */
 	void	*ub_bucket[];			/* actual allocation storage */
@@ -306,8 +306,10 @@ struct uma_slab {
 
 typedef struct uma_slab * uma_slab_t;
 
+TAILQ_HEAD(uma_bucketlist, uma_bucket);
+
 struct uma_zone_domain {
-	LIST_HEAD(,uma_bucket)	uzd_buckets;	/* full buckets */
+	struct uma_bucketlist uzd_buckets; /* full buckets */
 	long		uzd_nitems;	/* total item count */
 	long		uzd_imax;	/* maximum item count this period */
 	long		uzd_imin;	/* minimum item count this period */
@@ -384,7 +386,7 @@ struct uma_zone {
  * These flags must not overlap with the UMA_ZONE flags specified in uma.h.
  */
 #define	UMA_ZFLAG_CACHE		0x04000000	/* uma_zcache_create()d it */
-#define	UMA_ZFLAG_DRAINING	0x08000000	/* Running zone_drain. */
+#define	UMA_ZFLAG_RECLAIMING	0x08000000	/* Running zone_reclaim(). */
 #define	UMA_ZFLAG_BUCKET	0x10000000	/* Bucket zone. */
 #define UMA_ZFLAG_INTERNAL	0x20000000	/* No offpage no PCPU. */
 #define UMA_ZFLAG_CACHEONLY	0x80000000	/* Don't ask VM for buckets. */

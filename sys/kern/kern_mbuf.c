@@ -711,14 +711,14 @@ mb_dtor_pack(void *mem, int size, void *arg)
 #endif
 	/*
 	 * If there are processes blocked on zone_clust, waiting for pages
-	 * to be freed up, * cause them to be woken up by draining the
-	 * packet zone.  We are exposed to a race here * (in the check for
+	 * to be freed up, cause them to be woken up by draining the
+	 * packet zone.  We are exposed to a race here (in the check for
 	 * the UMA_ZFLAG_FULL) where we might miss the flag set, but that
 	 * is deliberate. We don't want to acquire the zone lock for every
 	 * mbuf free.
 	 */
 	if (uma_zone_exhausted_nolock(zone_clust))
-		zone_drain(zone_pack);
+		uma_zone_reclaim(zone_pack, UMA_RECLAIM_DRAIN);
 }
 
 /*
@@ -1362,7 +1362,7 @@ m_clget(struct mbuf *m, int how)
 	 * we might be able to loosen a few clusters up on the drain.
 	 */
 	if ((how & M_NOWAIT) && (m->m_ext.ext_buf == NULL)) {
-		zone_drain(zone_pack);
+		uma_zone_reclaim(zone_pack, UMA_RECLAIM_DRAIN);
 		uma_zalloc_arg(zone_clust, m, how);
 	}
 	MBUF_PROBE2(m__clget, m, how);
