@@ -100,10 +100,10 @@ parselist(char *list, struct bitset *mask, int size)
 	for (l = list; *l != '\0';) {
 		if (isdigit(*l)) {
 			curnum = atoi(l);
-			if (curnum > size)
+			if (curnum >= size)
 				errx(EXIT_FAILURE,
 				    "List entry %d exceeds maximum of %d",
-				    curnum, size);
+				    curnum, size - 1);
 			while (isdigit(*l))
 				l++;
 			switch (state) {
