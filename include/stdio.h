@@ -269,7 +269,6 @@ long	 ftell(FILE *);
 size_t	 fwrite(const void * __restrict, size_t, size_t, FILE * __restrict);
 int	 getc(FILE *);
 int	 getchar(void);
-char	*gets(char *);
 #if __EXT1_VISIBLE
 char	*gets_s(char *, rsize_t);
 #endif
