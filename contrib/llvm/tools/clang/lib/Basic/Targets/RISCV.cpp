@@ -56,6 +56,10 @@ bool RISCVTargetInfo::validateAsmConstraint(
     // A 5-bit unsigned immediate for CSR access instructions.
     Info.setRequiresImmediate(0, 31);
     return true;
+  case 'f':
+    // A floating-point register.
+    Info.setAllowsRegister();
+    return true;
   }
 }
 
@@ -65,9 +69,18 @@ void RISCVTargetInfo::getTargetDefines(const LangOptions &Opts,
   Builder.defineMacro("__riscv");
   bool Is64Bit = getTriple().getArch() == llvm::Triple::riscv64;
   Builder.defineMacro("__riscv_xlen", Is64Bit ? "64" : "32");
-  // TODO: modify when more code models and ABIs are supported.
+  // TODO: modify when more code models are supported.
   Builder.defineMacro("__riscv_cmodel_medlow");
-  Builder.defineMacro("__riscv_float_abi_soft");
+
+  StringRef ABIName = getABI();
+  if (ABIName == "ilp32f" || ABIName == "lp64f")
+    Builder.defineMacro("__riscv_float_abi_single");
+  else if (ABIName == "ilp32d" || ABIName == "lp64d")
+    Builder.defineMacro("__riscv_float_abi_double");
+  else if (ABIName == "ilp32e")
+    Builder.defineMacro("__riscv_abi_rve");
+  else
+    Builder.defineMacro("__riscv_float_abi_soft");
 
   if (HasM) {
     Builder.defineMacro("__riscv_mul");

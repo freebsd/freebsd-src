@@ -6,5 +6,5 @@
 #define LLD_VERSION_MINOR 0
 
 // <Upstream revision at import>-<Local identifier in __FreeBSD_version style>
-#define LLD_REVISION "366426-1300004"
+#define LLD_REVISION "369369-1300004"
 #define LLD_REPOSITORY "FreeBSD"

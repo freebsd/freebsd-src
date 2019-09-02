@@ -1921,10 +1921,11 @@ llvm::Value *MicrosoftCXXABI::EmitVirtualDestructorCall(
       DtorType == Dtor_Deleting);
 
   QualType ThisTy;
-  if (CE)
-    ThisTy = CE->getImplicitObjectArgument()->getType()->getPointeeType();
-  else
+  if (CE) {
+    ThisTy = CE->getObjectType();
+  } else {
     ThisTy = D->getDestroyedType();
+  }
 
   This = adjustThisArgumentForVirtualFunctionCall(CGF, GD, This, true);
   RValue RV = CGF.EmitCXXDestructorCall(GD, Callee, This.getPointer(), ThisTy,

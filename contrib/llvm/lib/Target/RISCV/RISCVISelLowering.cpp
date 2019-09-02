@@ -1007,12 +1007,14 @@ bool RISCVTargetLowering::isDesirableToCommuteWithShift(
       // We can materialise `c1 << c2` into an add immediate, so it's "free",
       // and the combine should happen, to potentially allow further combines
       // later.
-      if (isLegalAddImmediate(ShiftedC1Int.getSExtValue()))
+      if (ShiftedC1Int.getMinSignedBits() <= 64 &&
+          isLegalAddImmediate(ShiftedC1Int.getSExtValue()))
         return true;
 
       // We can materialise `c1` in an add immediate, so it's "free", and the
       // combine should be prevented.
-      if (isLegalAddImmediate(C1Int.getSExtValue()))
+      if (C1Int.getMinSignedBits() <= 64 &&
+          isLegalAddImmediate(C1Int.getSExtValue()))
         return false;
 
       // Neither constant will fit into an immediate, so find materialisation
@@ -2397,6 +2399,25 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   return nullptr;
 }
 
+/// getConstraintType - Given a constraint letter, return the type of
+/// constraint it is for this target.
+RISCVTargetLowering::ConstraintType
+RISCVTargetLowering::getConstraintType(StringRef Constraint) const {
+  if (Constraint.size() == 1) {
+    switch (Constraint[0]) {
+    default:
+      break;
+    case 'f':
+      return C_RegisterClass;
+    case 'I':
+    case 'J':
+    case 'K':
+      return C_Immediate;
+    }
+  }
+  return TargetLowering::getConstraintType(Constraint);
+}
+
 std::pair<unsigned, const TargetRegisterClass *>
 RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
                                                   StringRef Constraint,
@@ -2407,6 +2428,12 @@ RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
     switch (Constraint[0]) {
     case 'r':
       return std::make_pair(0U, &RISCV::GPRRegClass);
+    case 'f':
+      if (Subtarget.hasStdExtF() && VT == MVT::f32)
+        return std::make_pair(0U, &RISCV::FPR32RegClass);
+      if (Subtarget.hasStdExtD() && VT == MVT::f64)
+        return std::make_pair(0U, &RISCV::FPR64RegClass);
+      break;
     default:
       break;
     }

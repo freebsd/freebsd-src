@@ -1755,10 +1755,11 @@ llvm::Value *ItaniumCXXABI::EmitVirtualDestructorCall(
   CGCallee Callee = CGCallee::forVirtual(CE, GD, This, Ty);
 
   QualType ThisTy;
-  if (CE)
-    ThisTy = CE->getImplicitObjectArgument()->getType()->getPointeeType();
-  else
+  if (CE) {
+    ThisTy = CE->getObjectType();
+  } else {
     ThisTy = D->getDestroyedType();
+  }
 
   CGF.EmitCXXDestructorCall(GD, Callee, This.getPointer(), ThisTy, nullptr,
                             QualType(), nullptr);

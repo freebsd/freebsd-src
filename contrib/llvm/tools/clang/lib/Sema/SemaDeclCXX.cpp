@@ -1030,8 +1030,10 @@ static IsTupleLike isTupleLike(Sema &S, SourceLocation Loc, QualType T,
   TemplateArgumentListInfo Args(Loc, Loc);
   Args.addArgument(getTrivialTypeTemplateArgument(S, Loc, T));
 
-  // If there's no tuple_size specialization, it's not tuple-like.
-  if (lookupStdTypeTraitMember(S, R, Loc, "tuple_size", Args, /*DiagID*/0))
+  // If there's no tuple_size specialization or the lookup of 'value' is empty,
+  // it's not tuple-like.
+  if (lookupStdTypeTraitMember(S, R, Loc, "tuple_size", Args, /*DiagID*/ 0) ||
+      R.empty())
     return IsTupleLike::NotTupleLike;
 
   // If we get this far, we've committed to the tuple interpretation, but
@@ -1047,11 +1049,6 @@ static IsTupleLike isTupleLike(Sema &S, SourceLocation Loc, QualType T,
           << printTemplateArgs(S.Context.getPrintingPolicy(), Args);
     }
   } Diagnoser(R, Args);
-
-  if (R.empty()) {
-    Diagnoser.diagnoseNotICE(S, Loc, SourceRange());
-    return IsTupleLike::Error;
-  }
 
   ExprResult E =
       S.BuildDeclarationNameExpr(CXXScopeSpec(), R, /*NeedsADL*/false);
@@ -6165,8 +6162,8 @@ void Sema::CheckCompletedCXXClass(CXXRecordDecl *Record) {
         M->dropAttr<DLLExportAttr>();
 
       if (M->hasAttr<DLLExportAttr>()) {
-        DefineImplicitSpecialMember(*this, M, M->getLocation());
-        ActOnFinishInlineFunctionDef(M);
+        // Define after any fields with in-class initializers have been parsed.
+        DelayedDllExportMemberFunctions.push_back(M);
       }
     }
   };
@@ -11419,6 +11416,21 @@ void Sema::ActOnFinishCXXMemberDecls() {
 
 void Sema::ActOnFinishCXXNonNestedClass(Decl *D) {
   referenceDLLExportedClassMethods();
+
+  if (!DelayedDllExportMemberFunctions.empty()) {
+    SmallVector<CXXMethodDecl*, 4> WorkList;
+    std::swap(DelayedDllExportMemberFunctions, WorkList);
+    for (CXXMethodDecl *M : WorkList) {
+      DefineImplicitSpecialMember(*this, M, M->getLocation());
+
+      // Pass the method to the consumer to get emitted. This is not necessary
+      // for explicit instantiation definitions, as they will get emitted
+      // anyway.
+      if (M->getParent()->getTemplateSpecializationKind() !=
+          TSK_ExplicitInstantiationDefinition)
+        ActOnFinishInlineFunctionDef(M);
+    }
+  }
 }
 
 void Sema::referenceDLLExportedClassMethods() {
