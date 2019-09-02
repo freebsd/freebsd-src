@@ -32,8 +32,10 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 
+static EFI_GUID simple_input_ex_guid = EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL_GUID;
 static SIMPLE_TEXT_OUTPUT_INTERFACE	*conout;
 static SIMPLE_INPUT_INTERFACE		*conin;
+static EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *coninex;
 
 #ifdef TERM_EMU
 #define	DEFAULT_FGCOLOR	EFI_LIGHTGRAY
@@ -115,6 +117,8 @@ efi_cons_probe(struct console *cp)
 static int
 efi_cons_init(int arg)
 {
+	EFI_STATUS status;
+
 #ifdef TERM_EMU
 	conout->SetAttribute(conout, EFI_TEXT_ATTR(DEFAULT_FGCOLOR,
 	    DEFAULT_BGCOLOR));
@@ -125,7 +129,11 @@ efi_cons_init(int arg)
 	bg_c = DEFAULT_BGCOLOR;
 #endif
 	conout->EnableCursor(conout, TRUE);
-	return 0;
+	status = BS->OpenProtocol(ST->ConsoleInHandle, &simple_input_ex_guid,
+	    (void **)&coninex, IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	if (status != EFI_SUCCESS)
+		coninex = NULL;
+	return (0);
 }
 
 static void
@@ -524,6 +532,40 @@ efi_readkey(void)
 	return (false);
 }
 
+static bool
+efi_readkey_ex(void)
+{
+	EFI_STATUS status;
+	EFI_INPUT_KEY *kp;
+	EFI_KEY_DATA  key_data;
+	uint32_t kss;
+
+	status = coninex->ReadKeyStrokeEx(coninex, &key_data);
+	if (status == EFI_SUCCESS) {
+		kss = key_data.KeyState.KeyShiftState;
+		kp = &key_data.Key;
+		if (kss & EFI_SHIFT_STATE_VALID) {
+
+			/*
+			 * quick mapping to control chars, replace with
+			 * map lookup later.
+			 */
+			if (kss & EFI_RIGHT_CONTROL_PRESSED ||
+			    kss & EFI_LEFT_CONTROL_PRESSED) {
+				if (kp->UnicodeChar >= 'a' &&
+				    kp->UnicodeChar <= 'z') {
+					kp->UnicodeChar -= 'a';
+					kp->UnicodeChar++;
+				}
+			}
+		}
+
+		keybuf_inschar(kp);
+		return (true);
+	}
+	return (false);
+}
+
 int
 efi_cons_getchar(void)
 {
@@ -534,8 +576,13 @@ efi_cons_getchar(void)
 
 	key_pending = 0;
 
-	if (efi_readkey())
-		return (keybuf_getchar());
+	if (coninex == NULL) {
+		if (efi_readkey())
+			return (keybuf_getchar());
+	} else {
+		if (efi_readkey_ex())
+			return (keybuf_getchar());
+	}
 
 	return (-1);
 }
@@ -543,6 +590,7 @@ efi_cons_getchar(void)
 int
 efi_cons_poll(void)
 {
+	EFI_STATUS status;
 
 	if (keybuf_ischar() || key_pending)
 		return (1);
@@ -552,10 +600,21 @@ efi_cons_poll(void)
 	 * WaitForKey().
 	 * CheckEvent() can clear the signaled state.
 	 */
-	if (conin->WaitForKey == NULL)
-		key_pending = efi_readkey();
-	else
-		key_pending = BS->CheckEvent(conin->WaitForKey) == EFI_SUCCESS;
+	if (coninex != NULL) {
+		if (coninex->WaitForKeyEx == NULL) {
+			key_pending = efi_readkey_ex();
+		} else {
+			status = BS->CheckEvent(coninex->WaitForKeyEx);
+			key_pending = status == EFI_SUCCESS;
+		}
+	} else {
+		if (conin->WaitForKey == NULL) {
+			key_pending = efi_readkey();
+		} else {
+			status = BS->CheckEvent(conin->WaitForKey);
+			key_pending = status == EFI_SUCCESS;
+		}
+	}
 
 	return (key_pending);
 }
