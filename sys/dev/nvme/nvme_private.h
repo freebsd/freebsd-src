@@ -446,6 +446,14 @@ int	nvme_attach(device_t dev);
 int	nvme_shutdown(device_t dev);
 int	nvme_detach(device_t dev);
 
+static __inline
+void
+nvme_completion_poll(struct nvme_completion_poll_status *status)
+{
+	while (!atomic_load_acq_int(&status->done))
+		pause("nvme", 1);
+}
+
 static __inline void
 nvme_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
