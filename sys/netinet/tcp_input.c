@@ -1486,7 +1486,6 @@ tcp_autorcvbuf(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	} else {
 		tp->rfbuf_cnt += tlen;	/* add up */
 	}
-
 	return (newsize);
 }
 
