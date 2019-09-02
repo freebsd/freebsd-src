@@ -446,12 +446,24 @@ int	nvme_attach(device_t dev);
 int	nvme_shutdown(device_t dev);
 int	nvme_detach(device_t dev);
 
+/*
+ * Wait for a command to complete using the nvme_completion_poll_cb.
+ * Used in limited contexts where the caller knows it's OK to block
+ * briefly while the command runs. The ISR will run the callback which
+ * will set status->done to true.usually within microseconds. A 1s
+ * pause means something is seriously AFU and we should panic to
+ * provide the proper context to diagnose.
+ */
 static __inline
 void
 nvme_completion_poll(struct nvme_completion_poll_status *status)
 {
-	while (!atomic_load_acq_int(&status->done))
+	int sanity = hz * 1;
+
+	while (!atomic_load_acq_int(&status->done) && --sanity > 0)
 		pause("nvme", 1);
+	if (sanity <= 0)
+		panic("NVME polled command failed to complete within 1s.");
 }
 
 static __inline void
