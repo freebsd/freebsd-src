@@ -398,7 +398,7 @@ nis_rpcent(void *retval, void *mdata, va_list ap)
 	char	*lastkey;
 	char	*resultbuf;
 	int	resultbuflen;
-	char	buf[YPMAXRECORD + 2];
+	char	*buf;
 
 	struct nis_state	*st;
 	int		rv;
@@ -420,6 +420,7 @@ nis_rpcent(void *retval, void *mdata, va_list ap)
 		return (NS_NOTFOUND);
 	}
 
+	buf = NULL;
 	rpc = va_arg(ap, struct rpcent *);
 	buffer = va_arg(ap, char *);
 	bufsize = va_arg(ap, size_t);
@@ -443,7 +444,10 @@ nis_rpcent(void *retval, void *mdata, va_list ap)
 		case nss_lt_name:
 			if (!st->no_name_map)
 			{
-				snprintf(buf, sizeof buf, "%s", name);
+				free(buf);
+				asprintf(&buf, "%s", name);
+				if (buf == NULL)
+					return (NS_TRYAGAIN);
 				rv = yp_match(st->domain, "rpc.byname", buf,
 			    		strlen(buf), &resultbuf, &resultbuflen);
 
@@ -471,7 +475,10 @@ nis_rpcent(void *retval, void *mdata, va_list ap)
 			}
 		break;
 		case nss_lt_id:
-			snprintf(buf, sizeof buf, "%d", number);
+			free(buf);
+			asprintf(&buf, "%d", number);
+			if (buf == NULL)
+				return (NS_TRYAGAIN);
 			if (yp_match(st->domain, "rpc.bynumber", buf,
 			    	strlen(buf), &resultbuf, &resultbuflen)) {
 				rv = NS_NOTFOUND;
@@ -558,6 +565,7 @@ done:
 	} while (!(rv & NS_TERMINATE) && (how == nss_lt_all));
 
 fin:
+	free(buf);
 	if ((rv == NS_SUCCESS) && (retval != NULL))
 		*((struct rpcent **)retval) = rpc;
 
