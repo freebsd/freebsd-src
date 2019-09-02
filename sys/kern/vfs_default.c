@@ -601,6 +601,8 @@ vop_stdgetwritemount(ap)
 	 */
 	vp = ap->a_vp;
 	mp = vp->v_mount;
+	if (mp == NULL)
+		goto out;
 	MNT_ILOCK(mp);
 	if (mp != vp->v_mount) {
 		MNT_IUNLOCK(mp);
