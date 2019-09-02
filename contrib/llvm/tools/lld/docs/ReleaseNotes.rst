@@ -5,11 +5,6 @@ lld 9.0.0 Release Notes
 .. contents::
     :local:
 
-.. warning::
-   These are in-progress notes for the upcoming LLVM 9.0.0 release.
-   Release notes for previous releases can be found on
-   `the Download Page <https://releases.llvm.org/download.html>`_.
-
 Introduction
 ============
 
@@ -37,8 +32,6 @@ ELF Improvements
   into corresponding PT_MIPS_REGINFO, PT_MIPS_OPTIONS, and PT_MIPS_ABIFLAGS
   segments.
 
-* ...
-
 COFF Improvements
 -----------------
 
@@ -50,6 +43,12 @@ COFF Improvements
 * lld-link now correctly reports duplicate symbol errors when several res
   input files define resources with the same type, name, and language.
   This can be demoted to a warning using ``/force:multipleres``.
+
+* lld-link now rejects more than one resource obj input files, matching
+  link.exe. Previously, lld-link would silently ignore all but one.
+  If you hit this: Don't pass resource obj files to the linker, instead pass
+  res files to the linker directly. Don't put res files in static libraries,
+  pass them on the command line.
 
 * Having more than two ``/natvis:`` now works correctly; it used to not
   work for larger binaries before.
@@ -70,8 +69,6 @@ COFF Improvements
 * The generated thunks for delayimports now share the majority of code
   among thunks, significantly reducing the overhead of using delayimport
 
-* ...
-
 MinGW Improvements
 ------------------
 
@@ -89,13 +86,3 @@ MinGW Improvements
   name, with the new option ``-pdb=`` with an empty value to the option.
   (The old existing syntax ``-pdb <filename>`` was more cumbersome to use
   with an empty parameter value.)
-
-MachO Improvements
-------------------
-
-* Item 1.
-
-WebAssembly Improvements
-------------------------
-
-* ...
