@@ -478,27 +478,30 @@ keybuf_inschar(EFI_INPUT_KEY *key)
 {
 
 	switch (key->ScanCode) {
-	case 0x1: /* UP */
+	case SCAN_UP: /* UP */
 		keybuf[0] = 0x1b;	/* esc */
 		keybuf[1] = '[';
 		keybuf[2] = 'A';
 		break;
-	case 0x2: /* DOWN */
+	case SCAN_DOWN: /* DOWN */
 		keybuf[0] = 0x1b;	/* esc */
 		keybuf[1] = '[';
 		keybuf[2] = 'B';
 		break;
-	case 0x3: /* RIGHT */
+	case SCAN_RIGHT: /* RIGHT */
 		keybuf[0] = 0x1b;	/* esc */
 		keybuf[1] = '[';
 		keybuf[2] = 'C';
 		break;
-	case 0x4: /* LEFT */
+	case SCAN_LEFT: /* LEFT */
 		keybuf[0] = 0x1b;	/* esc */
 		keybuf[1] = '[';
 		keybuf[2] = 'D';
 		break;
-	case 0x17:
+	case SCAN_DELETE:
+		keybuf[0] = CHAR_BACKSPACE;
+		break;
+	case SCAN_ESC:
 		keybuf[0] = 0x1b;	/* esc */
 		break;
 	default:
