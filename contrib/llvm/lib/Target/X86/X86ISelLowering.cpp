@@ -4069,6 +4069,11 @@ X86TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   InFlag = Chain.getValue(1);
   DAG.addCallSiteInfo(Chain.getNode(), std::move(CSInfo));
 
+  // Save heapallocsite metadata.
+  if (CLI.CS)
+    if (MDNode *HeapAlloc = CLI.CS->getMetadata("heapallocsite"))
+      DAG.addHeapAllocSite(Chain.getNode(), HeapAlloc);
+
   // Create the CALLSEQ_END node.
   unsigned NumBytesForCalleeToPop;
   if (X86::isCalleePop(CallConv, Is64Bit, isVarArg,
@@ -5500,6 +5505,7 @@ static bool collectConcatOps(SDNode *N, SmallVectorImpl<SDValue> &Ops) {
     if (VT.getSizeInBits() == (SubVT.getSizeInBits() * 2) &&
         Idx == (VT.getVectorNumElements() / 2) &&
         Src.getOpcode() == ISD::INSERT_SUBVECTOR &&
+        Src.getOperand(1).getValueType() == SubVT &&
         isNullConstant(Src.getOperand(2))) {
       Ops.push_back(Src.getOperand(1));
       Ops.push_back(Sub);
@@ -34062,25 +34068,6 @@ bool X86TargetLowering::SimplifyDemandedVectorEltsForTargetNode(
       return true;
     break;
   }
-  case X86ISD::SUBV_BROADCAST: {
-    // Reduce size of broadcast if we don't need the upper half.
-    unsigned HalfElts = NumElts / 2;
-    if (DemandedElts.extractBits(HalfElts, HalfElts).isNullValue()) {
-      SDValue Src = Op.getOperand(0);
-      MVT SrcVT = Src.getSimpleValueType();
-
-      SDValue Half = Src;
-      if (SrcVT.getVectorNumElements() != HalfElts) {
-        MVT HalfVT = MVT::getVectorVT(SrcVT.getScalarType(), HalfElts);
-        Half = TLO.DAG.getNode(X86ISD::SUBV_BROADCAST, SDLoc(Op), HalfVT, Src);
-      }
-
-      return TLO.CombineTo(Op, insertSubVector(TLO.DAG.getUNDEF(VT), Half, 0,
-                                               TLO.DAG, SDLoc(Op),
-                                               Half.getValueSizeInBits()));
-    }
-    break;
-  }
   case X86ISD::VPERMV: {
     SDValue Mask = Op.getOperand(0);
     APInt MaskUndef, MaskZero;
@@ -34134,6 +34121,21 @@ bool X86TargetLowering::SimplifyDemandedVectorEltsForTargetNode(
       SDValue Insert =
           insertSubVector(UndefVec, ExtOp, 0, TLO.DAG, DL, ExtSizeInBits);
       return TLO.CombineTo(Op, Insert);
+    }
+      // Subvector broadcast.
+    case X86ISD::SUBV_BROADCAST: {
+      SDLoc DL(Op);
+      SDValue Src = Op.getOperand(0);
+      if (Src.getValueSizeInBits() > ExtSizeInBits)
+        Src = extractSubVector(Src, 0, TLO.DAG, DL, ExtSizeInBits);
+      else if (Src.getValueSizeInBits() < ExtSizeInBits) {
+        MVT SrcSVT = Src.getSimpleValueType().getScalarType();
+        MVT SrcVT =
+            MVT::getVectorVT(SrcSVT, ExtSizeInBits / SrcSVT.getSizeInBits());
+        Src = TLO.DAG.getNode(X86ISD::SUBV_BROADCAST, DL, SrcVT, Src);
+      }
+      return TLO.CombineTo(Op, insertSubVector(TLO.DAG.getUNDEF(VT), Src, 0,
+                                               TLO.DAG, DL, ExtSizeInBits));
     }
       // Byte shifts by immediate.
     case X86ISD::VSHLDQ:
@@ -43839,6 +43841,7 @@ static SDValue combineInsertSubvector(SDNode *N, SelectionDAG &DAG,
       Vec.getOpcode() == ISD::INSERT_SUBVECTOR &&
       OpVT.getSizeInBits() == SubVecVT.getSizeInBits() * 2 &&
       isNullConstant(Vec.getOperand(2)) && !Vec.getOperand(0).isUndef() &&
+      Vec.getOperand(1).getValueSizeInBits() == SubVecVT.getSizeInBits() &&
       Vec.hasOneUse()) {
     Vec = DAG.getNode(ISD::INSERT_SUBVECTOR, dl, OpVT, DAG.getUNDEF(OpVT),
                       Vec.getOperand(1), Vec.getOperand(2));
@@ -44660,10 +44663,11 @@ X86TargetLowering::getConstraintType(StringRef Constraint) const {
     case 'I':
     case 'J':
     case 'K':
-    case 'L':
-    case 'M':
     case 'N':
     case 'G':
+    case 'L':
+    case 'M':
+      return C_Immediate;
     case 'C':
     case 'e':
     case 'Z':

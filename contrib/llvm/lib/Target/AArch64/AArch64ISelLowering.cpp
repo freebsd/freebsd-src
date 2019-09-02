@@ -606,6 +606,10 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
 
   MaxStoresPerMemmoveOptSize = MaxStoresPerMemmove = 4;
 
+  MaxLoadsPerMemcmpOptSize = 4;
+  MaxLoadsPerMemcmp = Subtarget->requiresStrictAlign()
+                      ? MaxLoadsPerMemcmpOptSize : 8;
+
   setStackPointerRegisterToSaveRestore(AArch64::SP);
 
   setSchedulingPreference(Sched::Hybrid);
@@ -5661,8 +5665,6 @@ AArch64TargetLowering::getConstraintType(StringRef Constraint) const {
     switch (Constraint[0]) {
     default:
       break;
-    case 'z':
-      return C_Other;
     case 'x':
     case 'w':
       return C_RegisterClass;
@@ -5670,6 +5672,16 @@ AArch64TargetLowering::getConstraintType(StringRef Constraint) const {
     // currently handle addresses it is the same as 'r'.
     case 'Q':
       return C_Memory;
+    case 'I':
+    case 'J':
+    case 'K':
+    case 'L':
+    case 'M':
+    case 'N':
+    case 'Y':
+    case 'Z':
+      return C_Immediate;
+    case 'z':
     case 'S': // A symbolic address
       return C_Other;
     }
