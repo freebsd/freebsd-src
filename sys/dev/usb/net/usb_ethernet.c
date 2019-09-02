@@ -219,6 +219,7 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	ue->ue_unit = alloc_unr(ueunit);
 	usb_callout_init_mtx(&ue->ue_watchdog, ue->ue_mtx, 0);
 	sysctl_ctx_init(&ue->ue_sysctl_ctx);
+	mbufq_init(&ue->ue_rxq, 0 /* unlimited length */);
 
 	error = 0;
 	CURVNET_SET_QUIET(vnet0);
@@ -284,6 +285,11 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 
 fail:
 	CURVNET_RESTORE();
+
+	/* drain mbuf queue */
+	mbufq_drain(&ue->ue_rxq);
+
+	/* free unit */
 	free_unr(ueunit, ue->ue_unit);
 	if (ue->ue_ifp != NULL) {
 		if_free(ue->ue_ifp);
@@ -329,6 +335,9 @@ uether_ifdetach(struct usb_ether *ue)
 
 		/* free sysctl */
 		sysctl_ctx_free(&ue->ue_sysctl_ctx);
+
+		/* drain mbuf queue */
+		mbufq_drain(&ue->ue_rxq);
 
 		/* free unit */
 		free_unr(ueunit, ue->ue_unit);
