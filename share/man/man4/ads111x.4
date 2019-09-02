@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2019
+.Dd September 2, 2019
 .Dt ADS111x 4
 .Os
 .Sh NAME
@@ -160,7 +160,7 @@ based system, the
 device is defined as a slave device subnode
 of the i2c bus controller node.
 All properties documented in the
-.Va ads1115.txt
+.Va ads1015.txt
 bindings document can be used with the
 .Nm
 device.
@@ -182,7 +182,7 @@ I2c slave address of device.
 .Pp
 Specific channels can be configured by adding child nodes to the
 .Nm
-node, as described in the standard ads1115.txt bindings document.
+node, as described in the standard ads1015.txt bindings document.
 If no channels are configured, sysctl variables will be created
 for all possible channels supported by the device type, otherwise
 only the specified channels are created.
