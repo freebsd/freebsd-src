@@ -906,7 +906,6 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	LIST_REMOVE(p, p_sibling);
 	reaper_abandon_children(p, true);
 	reaper_clear(p);
-	proc_id_clear(PROC_ID_PID, p->p_pid);
 	PROC_LOCK(p);
 	proc_clear_orphan(p);
 	PROC_UNLOCK(p);
@@ -914,6 +913,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	if (p->p_procdesc != NULL)
 		procdesc_reap(p);
 	sx_xunlock(&proctree_lock);
+
+	proc_id_clear(PROC_ID_PID, p->p_pid);
 
 	PROC_LOCK(p);
 	knlist_detach(p->p_klist);
