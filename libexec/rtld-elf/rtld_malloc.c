@@ -89,15 +89,15 @@ static int morepages(int n);
 #define	MAGIC		0xef		/* magic # on accounting info */
 
 /*
- * nextf[i] is the pointer to the next free block of size 2^(i+3).  The
- * smallest allocatable block is 8 bytes.  The overhead information
- * precedes the data area returned to the user.
+ * nextf[i] is the pointer to the next free block of size
+ * (FIRST_BUCKET_SIZE << i).  The overhead information precedes the data
+ * area returned to the user.
  */
+#define	FIRST_BUCKET_SIZE	8
 #define	NBUCKETS 30
 static	union overhead *nextf[NBUCKETS];
 
 static	int pagesz;			/* page size */
-static	int pagebucket;			/* page size bucket */
 
 /*
  * The array of supported page sizes is provided by the user, i.e., the
@@ -112,50 +112,25 @@ __crt_malloc(size_t nbytes)
 {
 	union overhead *op;
 	int bucket;
-	ssize_t n;
 	size_t amt;
 
 	/*
-	 * First time malloc is called, setup page size and
-	 * align break pointer so all data will be page aligned.
+	 * First time malloc is called, setup page size.
 	 */
-	if (pagesz == 0) {
-		pagesz = n = pagesizes[0];
-		if (morepages(NPOOLPAGES) == 0)
-			return NULL;
-		op = (union overhead *)(pagepool_start);
-  		n = n - sizeof (*op) - ((long)op & (n - 1));
-		if (n < 0)
-			n += pagesz;
-  		if (n) {
-			pagepool_start += n;
-		}
-		bucket = 0;
-		amt = 8;
-		while ((unsigned)pagesz > amt) {
-			amt <<= 1;
-			bucket++;
-		}
-		pagebucket = bucket;
-	}
+	if (pagesz == 0)
+		pagesz = pagesizes[0];
 	/*
 	 * Convert amount of memory requested into closest block size
 	 * stored in hash buckets which satisfies request.
 	 * Account for space used per block for accounting.
 	 */
-	if (nbytes <= (unsigned long)(n = pagesz - sizeof(*op))) {
-		amt = 8;	/* size of first bucket */
-		bucket = 0;
-		n = -sizeof(*op);
-	} else {
-		amt = pagesz;
-		bucket = pagebucket;
-	}
-	while (nbytes > amt + n) {
+	amt = FIRST_BUCKET_SIZE;
+	bucket = 0;
+	while (nbytes > amt - sizeof(*op)) {
 		amt <<= 1;
-		if (amt == 0)
-			return (NULL);
 		bucket++;
+		if (amt == 0 || bucket >= NBUCKETS)
+			return (NULL);
 	}
 	/*
 	 * If nothing in hash bucket right now,
@@ -200,18 +175,12 @@ morecore(int bucket)
   	int amt;			/* amount to allocate */
   	int nblks;			/* how many blocks we get */
 
-	/*
-	 * sbrk_size <= 0 only for big, FLUFFY, requests (about
-	 * 2^30 bytes on a VAX, I think) or for a negative arg.
-	 */
-	if ((unsigned)bucket >= NBBY * sizeof(int) - 4)
-		return;
-	sz = 1 << (bucket + 3);
+	sz = FIRST_BUCKET_SIZE << bucket;
 	if (sz < pagesz) {
 		amt = pagesz;
   		nblks = amt / sz;
 	} else {
-		amt = sz + pagesz;
+		amt = sz;
 		nblks = 1;
 	}
 	if (amt > pagepool_end - pagepool_start)
