@@ -793,7 +793,7 @@ ql_mbx_isr(void *arg)
 	ha = arg;
 
 	if (ha == NULL) {
-		device_printf(ha->pci_dev, "%s: arg == NULL\n", __func__);
+		printf("%s: arg == NULL\n", __func__);
 		return;
 	}
 
