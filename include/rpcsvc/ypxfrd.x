@@ -70,7 +70,7 @@
 #endif
 
 /* XXX cribbed from yp.x */
-const _YPMAXRECORD = 1024;
+const _YPMAXRECORD = 16777216;
 const _YPMAXDOMAIN = 64;
 const _YPMAXMAP = 64;
 const _YPMAXPEER = 64;

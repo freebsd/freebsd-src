@@ -323,7 +323,7 @@ ypproc_match_2_svc(ypreq_key *arg, struct svc_req *req)
 	static struct ypresp_val res;
 	const char		*estr;
 	char			*bp, *cp;
-	char			 key[YPMAXRECORD+1];
+	char			 *key;
 
 	log_debug("matching '%.*s' in map %s", arg->key.keydat_len,
 	   arg->key.keydat_val, arg->map);
@@ -342,7 +342,9 @@ ypproc_match_2_svc(ypreq_key *arg, struct svc_req *req)
 		log_debug("argument too long");
 		return (NULL);
 	}
-	memset(key, 0, sizeof(key));
+	key = calloc(arg->key.keydat_len + 1, 1);
+	if (key == NULL)
+		return (NULL);
 	(void)strncpy(key, arg->key.keydat_val, arg->key.keydat_len);
 
 	if (strcmp(arg->map, "passwd.byname") == 0 ||
@@ -351,23 +353,23 @@ ypproc_match_2_svc(ypreq_key *arg, struct svc_req *req)
 		if ((ue = RB_FIND(user_name_tree, env->sc_user_names,
 		    &ukey)) == NULL) {
 			res.stat = YP_NOKEY;
-			return (&res);
+			goto out;
 		}
 
 		yp_make_val(&res, ue->ue_line, 1);
-		return (&res);
+		goto out;
 	} else if (strcmp(arg->map, "passwd.byuid") == 0 ||
 		   strcmp(arg->map, "master.passwd.byuid") == 0) {
 		ukey.ue_uid = strtonum(key, 0, UID_MAX, &estr); 
 		if (estr) {
 			res.stat = YP_BADARGS;
-			return (&res);
+			goto out;
 		}
 
 		if ((ue = RB_FIND(user_uid_tree, &env->sc_user_uids,
 		    &ukey)) == NULL) {
 			res.stat = YP_NOKEY;
-			return (&res);
+			goto out;
 		}
 
 		yp_make_val(&res, ue->ue_line, 1);
@@ -376,12 +378,12 @@ ypproc_match_2_svc(ypreq_key *arg, struct svc_req *req)
 		gkey.ge_gid = strtonum(key, 0, GID_MAX, &estr); 
 		if (estr) {
 			res.stat = YP_BADARGS;
-			return (&res);
+			goto out;
 		}
 		if ((ge = RB_FIND(group_gid_tree, &env->sc_group_gids,
 		    &gkey)) == NULL) {
 			res.stat = YP_NOKEY;
-			return (&res);
+			goto out;
 		}
 
 		yp_make_val(&res, ge->ge_line, 1);
@@ -391,7 +393,7 @@ ypproc_match_2_svc(ypreq_key *arg, struct svc_req *req)
 		if ((ge = RB_FIND(group_name_tree, env->sc_group_names,
 		    &gkey)) == NULL) {
 			res.stat = YP_NOKEY;
-			return (&res);
+			goto out;
 		}
 
 		yp_make_val(&res, ge->ge_line, 1);
@@ -401,46 +403,49 @@ ypproc_match_2_svc(ypreq_key *arg, struct svc_req *req)
 
 		if (strncmp(bp, "unix.", strlen("unix.")) != 0) {
 			res.stat = YP_BADARGS;
-			return (&res);
+			goto out;
 		}
 
 		bp += strlen("unix.");
 
 		if (*bp == '\0') {
 			res.stat = YP_BADARGS;
-			return (&res);
+			goto out;
 		}
 
 		if (!(cp = strsep(&bp, "@"))) {
 			res.stat = YP_BADARGS;
-			return (&res);
+			goto out;
 		}
 
 		if (strcmp(bp, arg->domain) != 0) {
 			res.stat = YP_BADARGS;
-			return (&res);
+			goto out;
 		}
 
 		ukey.ue_uid = strtonum(cp, 0, UID_MAX, &estr); 
 		if (estr) {
 			res.stat = YP_BADARGS;
-			return (&res);
+			goto out;
 		}
 
 		if ((ue = RB_FIND(user_uid_tree, &env->sc_user_uids,
 		    &ukey)) == NULL) {
 			res.stat = YP_NOKEY;
-			return (&res);
+			goto out;
 		}
 
 		yp_make_val(&res, ue->ue_netid_line, 0);
-		return (&res);
+		goto out;
 	
 	} else {
 		log_debug("unknown map %s", arg->map);
 		res.stat = YP_NOMAP;
-		return (&res);
+		goto out;
 	}
+out:
+	free(key);
+	return (&res);
 }
 
 ypresp_key_val *
@@ -479,14 +484,19 @@ ypproc_next_2_svc(ypreq_key *arg, struct svc_req *req)
 	struct groupent			*ge;
 	char				*line;
 	static struct ypresp_key_val	 res;
-	char				 key[YPMAXRECORD+1];
+	char				 *key;
 
 	if (yp_valid_domain(arg->domain, (struct ypresp_val *)&res) == -1)
 		return (&res);
 
+	key = NULL;
 	if (strcmp(arg->map, "passwd.byname") == 0 ||
 	    strcmp(arg->map, "master.passwd.byname") == 0) {
-		memset(key, 0, sizeof(key));
+		key = calloc(arg->key.keydat_len + 1, 1);
+		if (key == NULL) {
+			res.stat = YP_YPERR;
+			return (&res);
+		}
 		(void)strncpy(key, arg->key.keydat_val,
 		    arg->key.keydat_len);
 		ukey.ue_line = key;
@@ -506,6 +516,7 @@ ypproc_next_2_svc(ypreq_key *arg, struct svc_req *req)
 				RB_REMOVE(user_name_tree, env->sc_user_names,
 				    &ukey);
 				res.stat = YP_NOKEY;
+				free(key);
 				return (&res);
 			}
 			RB_REMOVE(user_name_tree, env->sc_user_names, &ukey);
@@ -513,11 +524,16 @@ ypproc_next_2_svc(ypreq_key *arg, struct svc_req *req)
 		line = ue->ue_line + (strlen(ue->ue_line) + 1);
 		line = line + (strlen(line) + 1);
 		yp_make_keyval(&res, line, line);
+		free(key);
 		return (&res);
 
 
 	} else if (strcmp(arg->map, "group.byname") == 0) {
-		memset(key, 0, sizeof(key));
+		key = calloc(arg->key.keydat_len + 1, 1);
+		if (key == NULL) {
+			res.stat = YP_YPERR;
+			return (&res);
+		}
 		(void)strncpy(key, arg->key.keydat_val,
 		    arg->key.keydat_len);
 		
@@ -533,6 +549,7 @@ ypproc_next_2_svc(ypreq_key *arg, struct svc_req *req)
 				RB_REMOVE(group_name_tree, env->sc_group_names,
 				    &gkey);
 				res.stat = YP_NOKEY;
+				free(key);
 				return (&res);
 			}
 			RB_REMOVE(group_name_tree, env->sc_group_names, &gkey);
@@ -541,6 +558,7 @@ ypproc_next_2_svc(ypreq_key *arg, struct svc_req *req)
 		line = ge->ge_line + (strlen(ge->ge_line) + 1);
 		line = line + (strlen(line) + 1);
 		yp_make_keyval(&res, line, line);
+		free(key);
 		return (&res);
 	} else {
 		log_debug("unknown map %s", arg->map);
