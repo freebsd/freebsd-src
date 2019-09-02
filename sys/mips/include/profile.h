@@ -46,7 +46,8 @@
 /*XXX This is not MIPS64 safe. */
 
 #define	MCOUNT \
-	__asm(".globl _mcount;"		\
+	__asm(".text;"			\
+	".globl _mcount;"		\
 	".type _mcount,@function;"	\
 	"_mcount:;"			\
 	".set noreorder;"		\
