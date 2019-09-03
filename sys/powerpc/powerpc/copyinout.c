@@ -433,6 +433,7 @@ casueword32(volatile uint32_t *addr, uint32_t old, uint32_t *oldvalp,
 	pmap_t pm;
 	jmp_buf		env;
 	uint32_t *p, val;
+	int res;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
@@ -449,24 +450,26 @@ casueword32(volatile uint32_t *addr, uint32_t old, uint32_t *oldvalp,
 		return (-1);
 	}
 
+	res = 0;
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
-		"cmplw %3, %0\n\t"		/* compare */
-		"bne 2f\n\t"			/* exit if not equal */
-		"stwcx. %4, 0, %2\n\t"      	/* attempt to store */
-		"bne- 1b\n\t"			/* spin if failed */
+		"lwarx %0, 0, %3\n\t"		/* load old value */
+		"cmplw %4, %0\n\t"		/* compare */
+		"bne 1f\n\t"			/* exit if not equal */
+		"stwcx. %5, 0, %3\n\t"      	/* attempt to store */
+		"bne- 2f\n\t"			/* if failed */
 		"b 3f\n\t"			/* we've succeeded */
-		"2:\n\t"
-		"stwcx. %0, 0, %2\n\t"       	/* clear reservation (74xx) */
+		"1:\n\t"
+		"stwcx. %0, 0, %3\n\t"       	/* clear reservation (74xx) */
+		"2:li %2, 1\n\t"
 		"3:\n\t"
-		: "=&r" (val), "=m" (*p)
+		: "=&r" (val), "=m" (*p), "+&r" (res)
 		: "r" (p), "r" (old), "r" (new), "m" (*p)
 		: "cr0", "memory");
 
 	td->td_pcb->pcb_onfault = NULL;
 
 	*oldvalp = val;
-	return (0);
+	return (res);
 }
 
 #ifndef __powerpc64__
@@ -485,6 +488,7 @@ casueword(volatile u_long *addr, u_long old, u_long *oldvalp, u_long new)
 	pmap_t pm;
 	jmp_buf		env;
 	u_long *p, val;
+	int res;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
@@ -501,23 +505,25 @@ casueword(volatile u_long *addr, u_long old, u_long *oldvalp, u_long new)
 		return (-1);
 	}
 
+	res = 0;
 	__asm __volatile (
-		"1:\tldarx %0, 0, %2\n\t"	/* load old value */
-		"cmpld %3, %0\n\t"		/* compare */
-		"bne 2f\n\t"			/* exit if not equal */
-		"stdcx. %4, 0, %2\n\t"      	/* attempt to store */
-		"bne- 1b\n\t"			/* spin if failed */
+		"ldarx %0, 0, %3\n\t"		/* load old value */
+		"cmpld %4, %0\n\t"		/* compare */
+		"bne 1f\n\t"			/* exit if not equal */
+		"stdcx. %5, 0, %3\n\t"      	/* attempt to store */
+		"bne- 2f\n\t"			/* if failed */
 		"b 3f\n\t"			/* we've succeeded */
-		"2:\n\t"
-		"stdcx. %0, 0, %2\n\t"       	/* clear reservation (74xx) */
+		"1:\n\t"
+		"stdcx. %0, 0, %3\n\t"       	/* clear reservation (74xx) */
+		"2:li %2, 1\n\t"
 		"3:\n\t"
-		: "=&r" (val), "=m" (*p)
+		: "=&r" (val), "=m" (*p), "+&r" (res)
 		: "r" (p), "r" (old), "r" (new), "m" (*p)
 		: "cr0", "memory");
 
 	td->td_pcb->pcb_onfault = NULL;
 
 	*oldvalp = val;
-	return (0);
+	return (res);
 }
 #endif
