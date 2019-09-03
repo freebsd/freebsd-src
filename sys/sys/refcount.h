@@ -37,6 +37,7 @@
 #ifdef _KERNEL
 #include <sys/systm.h>
 #else
+#include <stdbool.h>
 #define	KASSERT(exp, msg)	/* */
 #endif
 
