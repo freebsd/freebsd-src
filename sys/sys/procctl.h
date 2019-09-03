@@ -61,6 +61,8 @@
 #define	PROC_ASLR_STATUS	14	/* query ASLR status */
 #define	PROC_PROTMAX_CTL	15	/* en/dis implicit PROT_MAX */
 #define	PROC_PROTMAX_STATUS	16	/* query implicit PROT_MAX status */
+#define	PROC_STACKGAP_CTL	17	/* en/dis stack gap on MAP_STACK */
+#define	PROC_STACKGAP_STATUS	18	/* query stack gap */
 
 /* Operations for PROC_SPROTECT (passed in integer arg). */
 #define	PPROT_OP(x)	((x) & 0xf)
@@ -133,6 +135,11 @@ struct procctl_reaper_kill {
 #define	PROC_PROTMAX_FORCE_DISABLE	2
 #define	PROC_PROTMAX_NOFORCE		3
 #define	PROC_PROTMAX_ACTIVE		0x80000000
+
+#define	PROC_STACKGAP_ENABLE		0x0001
+#define	PROC_STACKGAP_DISABLE		0x0002
+#define	PROC_STACKGAP_ENABLE_EXEC	0x0004
+#define	PROC_STACKGAP_DISABLE_EXEC	0x0008
 
 #ifndef _KERNEL
 __BEGIN_DECLS

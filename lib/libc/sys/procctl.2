@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2019
+.Dd August 31, 2019
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -503,6 +503,67 @@ must point to a memory location that can hold a value of type
 .Vt int .
 If signal delivery has not been requested, it will contain zero
 on return.
+.It Dv PROC_STACKGAP_CTL
+Controls the stack gaps in the specified process.
+A stack gap is the part of the growth area for a
+.Dv MAP_STACK
+mapped region that is reserved and never filled by memory.
+Instead, the process is guaranteed to receive a
+.Dv SIGSEGV
+signal on accessing pages in the gap.
+Gaps protect against stack overflow corrupting memory adjacent
+to the stack.
+.Pp
+The
+.Fa data
+argument must point to an integer variable containing flags.
+The following flags are allowed:
+.Bl -tag -width PROC_STACKGAP_DISABLE_EXEC
+.It Dv PROC_STACKGAP_ENABLE
+This flag is only accepted for consistency with
+.Dv PROC_STACKGAP_STATUS .
+If stack gaps are enabled, the flag is ignored.
+If disabled, the flag causes an
+.Ev EINVAL
+error to be returned.
+After gaps are disabled in a process, they can only be re-enabled when an
+.Xr execve 2
+is performed.
+.It Dv PROC_STACKGAP_DISABLE
+Disable stack gaps for the process.
+For existing stacks, the gap is no longer a reserved part of the growth
+area and can be filled by memory on access.
+.It Dv PROC_STACKGAP_ENABLE_EXEC
+Enable stack gaps for programs started after an
+.Xr execve 2
+by the specified process.
+.It Dv PROC_STACKGAP_DISABLE_EXEC
+Inherit disabled stack gaps state after
+.Xr execve 2 .
+In other words, if the currently executing program has stack gaps disabled,
+they are kept disabled on exec.
+If gaps were enabled, they are kept enabled after exec.
+.El
+.Pp
+The stack gap state is inherited from the parent on
+.Xr fork 2 .
+.It Dv PROC_STACKGAP_STATUS
+Returns the current stack gap state for the specified process.
+.Fa data
+must point to an integer variable, which is used to return a bitmask
+consisting of the following flags:
+.Bl -tag -width PROC_STACKGAP_DISABLE_EXEC
+.It Dv PROC_STACKGAP_ENABLE
+Stack gaps are enabled.
+.It Dv PROC_STACKGAP_DISABLE
+Stack gaps are disabled.
+.It Dv PROC_STACKGAP_ENABLE_EXEC
+Stack gaps are enabled in the process after
+.Xr execve 2 .
+.It Dv PROC_STACKGAP_DISABLE_EXEC
+Stack gaps are disabled in the process after
+.Xr execve 2 .
+.El
 .El
 .Sh NOTES
 Disabling tracing on a process should not be considered a security
