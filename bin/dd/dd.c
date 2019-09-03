@@ -164,6 +164,8 @@ setup(void)
 		errx(1, "files is not supported for non-tape devices");
 
 	cap_rights_set(&rights, CAP_FTRUNCATE, CAP_IOCTL, CAP_WRITE);
+	if (ddflags & C_FSYNC)
+		cap_rights_set(&rights, CAP_FSYNC);
 	if (out.name == NULL) {
 		/* No way to check for read access here. */
 		out.fd = STDOUT_FILENO;
@@ -504,6 +506,11 @@ dd_close(void)
 	if (out.seek_offset > 0 && (out.flags & ISTRUNC)) {
 		if (ftruncate(out.fd, out.seek_offset) == -1)
 			err(1, "truncating %s", out.name);
+	}
+
+	if (ddflags & C_FSYNC) {
+		if (fsync(out.fd) == -1)
+			err(1, "fsyncing %s", out.name);
 	}
 }
 
