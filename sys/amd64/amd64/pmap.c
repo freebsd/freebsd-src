@@ -3850,22 +3850,21 @@ pmap_page_array_startup(long pages)
 	end = va + pages * sizeof(struct vm_page);
 	while (va < end) {
 		pfn = first_page + (va - start) / sizeof(struct vm_page);
-		domain = _vm_phys_domain(ctob(pfn));
+		domain = _vm_phys_domain(ptoa(pfn));
 		pdpe = pmap_pdpe(kernel_pmap, va);
 		if ((*pdpe & X86_PG_V) == 0) {
 			pa = vm_phys_early_alloc(domain, PAGE_SIZE);
 			dump_add_page(pa);
-			bzero((void *)PHYS_TO_DMAP(pa), PAGE_SIZE);
+			pagezero((void *)PHYS_TO_DMAP(pa));
 			*pdpe = (pdp_entry_t)(pa | X86_PG_V | X86_PG_RW |
 			    X86_PG_A | X86_PG_M);
-			continue; /* try again */
 		}
 		pde = pmap_pdpe_to_pde(pdpe, va);
 		if ((*pde & X86_PG_V) != 0)
 			panic("Unexpected pde");
 		pa = vm_phys_early_alloc(domain, NBPDR);
 		for (i = 0; i < NPDEPG; i++)
-			dump_add_page(pa + (i * PAGE_SIZE));
+			dump_add_page(pa + i * PAGE_SIZE);
 		newpdir = (pd_entry_t)(pa | X86_PG_V | X86_PG_RW | X86_PG_A |
 		    X86_PG_M | PG_PS | pg_g | pg_nx);
 		pde_store(pde, newpdir);
