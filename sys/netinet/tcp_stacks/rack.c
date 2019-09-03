@@ -1790,6 +1790,11 @@ rack_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tc
 			 */
 			tcp_update_sack_list(tp, th->th_seq,
 			    th->th_seq + todrop);
+			/*
+			 * ACK now, as the next in-sequence segment
+			 * will clear the DSACK block again
+			 */
+			tp->t_flags |= TF_ACKNOW;
 		}
 		*drop_hdrlen += todrop;	/* drop from the top afterwards */
 		th->th_seq += todrop;
@@ -2338,7 +2343,7 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts, int
 	}
 	hpts_timeout = rack_timer_start(tp, rack, cts);
 	if (tp->t_flags & TF_DELACK) {
-		delayed_ack = tcp_delacktime;
+		delayed_ack = TICKS_2_MSEC(tcp_delacktime);
 		rack->r_ctl.rc_hpts_flags |= PACE_TMR_DELACK;
 	}
 	if (delayed_ack && ((hpts_timeout == 0) ||
