@@ -1,4 +1,4 @@
-.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" Copyright (c) 2014, 2019 The FreeBSD Foundation
 .\" All rights reserved.
 .\"
 .\" Part of this documentation was written by
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2014
+.Dd April 19, 2019
 .Dt CASU 9
 .Os
 .Sh NAME
@@ -106,7 +106,9 @@ The
 .Fn casueword
 and
 .Fn casueword32
-functions return 0 on success and -1 on failure.
+functions return 0 on success, -1 on failure to access memory,
+and 1 when comparison or store failed.
+The store can fail on load-linked/store-conditional architectures.
 .Sh SEE ALSO
 .Xr atomic 9 ,
 .Xr fetch 9 ,

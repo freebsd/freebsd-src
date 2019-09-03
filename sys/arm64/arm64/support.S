@@ -57,17 +57,17 @@ ENTRY(casueword32)
 	cmp	x0, x4
 	b.cs	fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
+	mov	w5, #1
 	SET_FAULT_HANDLER(x6, x4)	/* And set it */
 	ENTER_USER_ACCESS(w6, x4)
 1:	ldxr	w4, [x0]		/* Load-exclusive the data */
 	cmp	w4, w1			/* Compare */
 	b.ne	2f			/* Not equal, exit */
 	stxr	w5, w3, [x0]		/* Store the new data */
-	cbnz	w5, 1b			/* Retry on failure */
 2:	EXIT_USER_ACCESS(w6)
-	SET_FAULT_HANDLER(xzr, x5)	/* Reset the fault handler */
+	SET_FAULT_HANDLER(xzr, x6)	/* Reset the fault handler */
 	str	w4, [x2]		/* Store the read data */
-	mov	x0, #0			/* Success */
+	mov	w0, w5			/* Result same as store status */
 	ret				/* Return */
 END(casueword32)
 
@@ -79,17 +79,17 @@ ENTRY(casueword)
 	cmp	x0, x4
 	b.cs	fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
+	mov	w5, #1
 	SET_FAULT_HANDLER(x6, x4)	/* And set it */
 	ENTER_USER_ACCESS(w6, x4)
 1:	ldxr	x4, [x0]		/* Load-exclusive the data */
 	cmp	x4, x1			/* Compare */
 	b.ne	2f			/* Not equal, exit */
 	stxr	w5, x3, [x0]		/* Store the new data */
-	cbnz	w5, 1b			/* Retry on failure */
 2:	EXIT_USER_ACCESS(w6)
-	SET_FAULT_HANDLER(xzr, x5)	/* Reset the fault handler */
+	SET_FAULT_HANDLER(xzr, x6)	/* Reset the fault handler */
 	str	x4, [x2]		/* Store the read data */
-	mov	x0, #0			/* Success */
+	mov	w0, w5			/* Result same as store status */
 	ret				/* Return */
 END(casueword)
 
