@@ -391,6 +391,7 @@ MAN=	aac.4 \
 	null.4 \
 	numa.4 \
 	${_nvd.4} \
+	${_nvdimm.4} \
 	${_nvme.4} \
 	${_nvram.4} \
 	${_nvram2env.4} \
@@ -846,6 +847,7 @@ _ntb.4=		ntb.4
 _ntb_hw_intel.4=	ntb_hw_intel.4
 _ntb_hw_plx.4=	ntb_hw_plx.4
 _ntb_transport.4=ntb_transport.4
+_nvdimm.4=	nvdimm.4
 _qlxge.4=	qlxge.4
 _qlxgb.4=	qlxgb.4
 _qlxgbe.4=	qlxgbe.4
