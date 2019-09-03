@@ -143,6 +143,10 @@ static u_int auto_resize = 1;
 SYSCTL_UINT(_kern_geom_part, OID_AUTO, auto_resize,
     CTLFLAG_RWTUN, &auto_resize, 1,
     "Enable auto resize");
+static u_int allow_nesting = 0;
+SYSCTL_UINT(_kern_geom_part, OID_AUTO, allow_nesting,
+    CTLFLAG_RWTUN, &allow_nesting, 0,
+    "Allow additional levels of nesting");
 
 /*
  * The GEOM partitioning class.
@@ -2271,7 +2275,13 @@ g_part_start(struct bio *bp)
 			return;
 		if (g_handleattr_int(bp, "GEOM::fwsectors", table->gpt_sectors))
 			return;
-		if (g_handleattr_int(bp, "PART::isleaf", table->gpt_isleaf))
+		/*
+		 * allow_nesting overrides "isleaf" to false _unless_ the
+		 * provider offset is zero, since otherwise we would recurse.
+		 */
+		if (g_handleattr_int(bp, "PART::isleaf",
+			table->gpt_isleaf &&
+			(allow_nesting == 0 || entry->gpe_offset == 0)))
 			return;
 		if (g_handleattr_int(bp, "PART::depth", table->gpt_depth))
 			return;
