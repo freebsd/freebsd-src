@@ -275,6 +275,10 @@ ATF_TC_BODY(qdivq_s64q, tc)
 	double a_dbl, b_dbl, r_dbl, maxe_dbl, delta_dbl;
 	int error;
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/240219");
+
+
 	srandomdev();
 
 	for (int i = 0; i < 10; i++) {
