@@ -55,7 +55,7 @@ else
 	removeinet6=0
 fi
 
-$dtrace -c "/sbin/ping6 -q -c 1 -X 3 $local" -qs /dev/stdin <<EOF | sort -n | \
+$dtrace -c "/sbin/ping6 -q -c 1 -t 3 $local" -qs /dev/stdin <<EOF | sort -n | \
     grep -v -e '^round-trip ' -e '^--- '
 ip:::send
 /args[2]->ip_saddr == "$local" && args[2]->ip_daddr == "$local" &&

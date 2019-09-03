@@ -2256,6 +2256,32 @@ freebsd32___sysctl(struct thread *td, struct freebsd32___sysctl_args *uap)
 }
 
 int
+freebsd32___sysctlbyname(struct thread *td,
+    struct freebsd32___sysctlbyname_args *uap)
+{
+	size_t oldlen, rv;
+	int error;
+	uint32_t tmp;
+
+	if (uap->oldlenp != NULL) {
+		error = fueword32(uap->oldlenp, &tmp);
+		oldlen = tmp;
+	} else {
+		error = oldlen = 0;
+	}
+	if (error != 0)
+		return (EFAULT);
+	error = kern___sysctlbyname(td, uap->name, uap->namelen, uap->old,
+	    &oldlen, uap->new, uap->newlen, &rv, SCTL_MASK32, 1);
+	if (error != 0)
+		return (error);
+	if (uap->oldlenp != NULL)
+		error = suword32(uap->oldlenp, rv);
+
+	return (error);
+}
+
+int
 freebsd32_jail(struct thread *td, struct freebsd32_jail_args *uap)
 {
 	uint32_t version;

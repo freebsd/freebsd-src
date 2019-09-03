@@ -1,6 +1,8 @@
 /*	$NetBSD: msdosfs_vnops.c,v 1.19 2017/04/13 17:10:12 christos Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
  * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
@@ -31,7 +33,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
+/*-
  * Written by Paul Popelka (paulp@uts.amdahl.com)
  *
  * You can do anything you want with this software, just don't say you wrote
@@ -62,17 +64,15 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
+#include "ffs/buf.h"
 #include <fs/msdosfs/bpb.h>
+#include "msdos/direntry.h"
+#include <fs/msdosfs/denode.h>
+#include <fs/msdosfs/fat.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 #include "makefs.h"
 #include "msdos.h"
-
-#include "ffs/buf.h"
-
-#include "msdos/denode.h"
-#include "msdos/direntry.h"
-#include "msdos/fat.h"
-#include "msdos/msdosfsmount.h"
 
 /*
  * Some general notes:
@@ -219,7 +219,7 @@ msdosfs_findslot(struct denode *dp, struct componentname *cnp)
 		for (blkoff = 0; blkoff < blsize;
 		     blkoff += sizeof(struct direntry),
 		     diroff += sizeof(struct direntry)) {
-			dep = (struct direntry *)((char *)bp->b_data + blkoff);
+			dep = (struct direntry *)(bp->b_data + blkoff);
 			/*
 			 * If the slot is empty and we are still looking
 			 * for an empty then remember this one.	 If the
@@ -455,7 +455,7 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 	nsize = st->st_size;
 	MSDOSFS_DPRINTF(("%s(nsize=%zu, osize=%zu)\n", __func__, nsize, osize));
 	if (nsize > osize) {
-		if ((error = deextend(dep, nsize)) != 0)
+		if ((error = deextend(dep, nsize, NULL)) != 0)
 			return error;
 		if ((error = msdosfs_updatede(dep)) != 0)
 			return error;
@@ -495,7 +495,7 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 			goto out;
 		}
 		cpsize = MIN((nsize - offs), blsize - on);
-		memcpy((char *)bp->b_data + on, dat + offs, cpsize);
+		memcpy(bp->b_data + on, dat + offs, cpsize);
 		bwrite(bp);
 		offs += cpsize;
 	}

@@ -588,7 +588,7 @@ qc_drain(vmem_t *vm)
 
 	qcache_idx_max = vm->vm_qcache_max >> vm->vm_quantum_shift;
 	for (i = 0; i < qcache_idx_max; i++)
-		zone_drain(vm->vm_qcache[i].qc_cache);
+		uma_zone_reclaim(vm->vm_qcache[i].qc_cache, UMA_RECLAIM_DRAIN);
 }
 
 #ifndef UMA_MD_SMALL_ALLOC

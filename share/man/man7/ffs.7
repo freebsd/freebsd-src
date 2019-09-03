@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2001
+.Dd August 25, 2019
 .Dt FFS 7
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@ In the kernel configuration file:
 .Cd "options UFS_DIRHASH"
 .Cd "options UFS_EXTATTR"
 .Cd "options UFS_EXTATTR_AUTOSTART"
+.Cd "options UFS_GJOURNAL"
 .Pp
 In
 .Xr fstab 5 :
@@ -84,20 +85,65 @@ and enforces metadata update dependencies
 (e.g., updating free block maps)
 to ensure that the file system remains consistent.
 .Pp
-To enable soft updates on an
-.Em unmounted
-file system, use the following command:
+To create a new file system with the soft updates
+enabled,
+use
+.Xr newfs 8
+command:
 .Pp
-.D1 Nm tunefs Fl n Cm enable Ar fs
+.D1 Nm newfs Fl U Ar fs
 .Pp
 .Ar fs
 can be either a mount point listed in
 .Xr fstab 5
-(e.g.,
-.Pa /usr ) ,
+.Pq e.g. , Pa /usr ,
 or a disk device
-(e.g.,
-.Pa /dev/da0a ) .
+.Pq e.g., Pa /dev/da0a .
+.Pp
+It is possible to enable soft updates on an
+.Em unmounted
+file system by using
+.Xr tunefs 8
+command:
+.Pp
+.D1 Nm tunefs Fl n Cm enable Ar fs
+.Pp
+Soft updates can also add journaling that reduces the time spent by
+.Xr fsck_ffs 8
+cleaning up a filesystem after a crash from several minutes to a few seconds.
+The journal is placed in an inode named
+.Pa .sujournal ,
+and is kept as a circular log of segments containing
+records that describe metadata operations.
+.Pp
+To create a new file system with both the soft updates
+and soft updates journaling enabled,
+use the following command:
+.Pp
+.D1 Nm newfs Fl j Ar fs
+.Pp
+This runs
+.Xr tunefs 8
+command after
+.Xr newfs 8
+command with
+.Fl U
+flag enabled.
+It is possible to enable soft updates journaling on an
+.Em unmounted
+file system by using
+.Xr tunefs 8
+command:
+.Pp
+.D1 Nm tunefs Fl j Cm enable Ar fs
+.Pp
+This flag automatically enables the soft updates feature
+when it is not enabled.
+Note that this
+.Xr tunefs 8
+command will fail if a file
+.Pa .sujournal
+already exists before enabling the soft updates journaling.
 .El
 .Ss File Ownership Inheritance
 .Bl -tag -width 2n
@@ -155,10 +201,9 @@ extattrctl initattr -p / 388 posix1e.acl_default
 .Ed
 .Pp
 On the next mount of the root file system,
-the attributes will be automatically started
-(if
+the attributes will be automatically started if
 .Dv UFS_EXTATTR_AUTOSTART
-is included in the kernel configuration),
+is included in the kernel configuration,
 and ACLs will be enabled.
 .Ss Directory Hashing
 .Bl -tag -width 2n
@@ -183,7 +228,52 @@ subdirectory of the file system root during the mount operation.
 If found, extended attribute support will be
 automatically started for that file system.
 .El
+.Ss GEOM-based Journaling
+.Bl -tag -width 2n
+.It Cd "options UFS_GJOURNAL"
+Implements a block level journaling of a UFS file system,
+which is for both data and metadata.
+To enable this,
+create a
+.Xr gjournal 8
+GEOM provider for a block device by using the
+following command:
 .Pp
+.D1 Nm gjournal label Ar da0
+.Pp
+In this example,
+.Pa /dev/da0
+is used as the target block device,
+and
+.Pa /dev/da0.journal
+is created.
+Then create a new file system by using
+.Xr newfs 8
+with the block level journaling flag and mount it:
+.Pp
+.D1 Nm newfs Fl J Ar /dev/da0.journal
+.D1 Nm mount Fl o Cm async Ar /dev/da0.journal Ar /mnt
+.Pp
+.Cm async
+option is not mandatory but recommended for better performance
+because the journaling guarantees the consistency of an
+.Cm async
+mount.
+.Pp
+It is also possible to enable the block level journaling
+on an existing file system.
+To do so,
+use
+.Xr gjournal 8
+utility to label the underlying block device and
+.Xr tunefs 8
+utility to enable the block level journaling flag:
+.Pp
+.D1 Nm gjournal label Ar da0
+.D1 Nm tunefs Fl J Cm enable Ar /dev/da0.journal
+.D1 Nm mount Fl o Cm async Ar /dev/da0.journal Ar /mnt
+.El
+.Ss Xr sysctl 8 MIBs
 The following
 .Xr sysctl 8
 MIBs are defined for use with
@@ -192,11 +282,11 @@ MIBs are defined for use with
 .It Va vfs.ffs.doasyncfree
 Asynchronously write out modified i-node and indirect blocks
 upon reallocating file system blocks to be contiguous.
-(Default: 1.)
+.Pq Default: 1 .
 .It Va vfs.ffs.doreallocblks
 Enable support for the rearrangement of blocks
 to be contiguous.
-(Default: 1.)
+.Pq Default: 1 .
 .El
 .Sh SEE ALSO
 .Xr quota 1 ,
@@ -204,7 +294,9 @@ to be contiguous.
 .Xr extattr 3 ,
 .Xr edquota 8 ,
 .Xr extattrctl 8 ,
-.Xr sysctl 8
+.Xr fsck_ffs 8 ,
+.Xr sysctl 8 ,
+.Xr tunefs 8
 .Rs
 .%A M. McKusick
 .%A W. Joy
@@ -223,4 +315,11 @@ to be contiguous.
 .%T "Soft Updates: A Technique for Eliminating Most Synchronous Writes in the Fast Filesystem"
 .%J "Proceedings of the Freenix Track at the 1999 Usenix Annual Technical Conference"
 .%P 71-84
+.Re
+.Rs
+.%A M. McKusick
+.%A J. Roberson
+.%D May 2010
+.%T "Journaled Soft-updates"
+.%J "BSD Canada Conference 2010 (BSDCan)"
 .Re

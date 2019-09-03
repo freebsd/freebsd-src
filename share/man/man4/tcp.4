@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2019
+.Dd August 26, 2019
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -293,6 +293,51 @@ If an SADB entry cannot be found for the destination,
 the system does not send any outgoing segments and drops any inbound segments.
 .Pp
 Each dropped segment is taken into account in the TCP protocol statistics.
+.It Dv TCP_TXTLS_ENABLE
+Enable in-kernel Transport Layer Security (TLS) for data written to this
+socket.
+The
+.Vt struct tls_so_enable
+argument defines the encryption and authentication algorithms and keys
+used to encrypt the socket data as well as the maximum TLS record
+payload size.
+.Pp
+All data written to this socket will be encapsulated in TLS records
+and subsequently encrypted.
+By default all data written to this socket is treated as application data.
+Individual TLS records with a type other than application data
+(for example, handshake messages),
+may be transmitted by invoking
+.Xr sendmsg 2
+with a custom TLS record type set in a
+.Dv TLS_SET_RECORD_TYPE
+control message.
+The payload of this control message is a single byte holding the desired
+TLS record type.
+.Pp
+Data read from this socket will still be encrypted and must be parsed by
+a TLS-aware consumer.
+.Pp
+At present, only a single key may be set on a socket.
+As such, users of this option must disable rekeying.
+.It Dv TCP_TXTLS_MODE
+The integer argument can be used to get or set the current TLS mode of a
+socket.
+Setting the mode can only used to toggle between software and NIC TLS after
+TLS has been initially enabled via the
+.Dv TCP_TXTLS_ENABLE
+option.
+The available modes are:
+.Bl -tag -width "Dv TCP_TLS_MODE_IFNET"
+.It Dv TCP_TLS_MODE_NONE
+In-kernel TLS framing and encryption is not enabled for this socket.
+.It Dv TCP_TLS_MODE_SW
+TLS records are encrypted by the kernel prior to placing the data in the
+socket buffer.
+Typically this encryption is performed in software.
+.It Dv TCP_TLS_MODE_IFNET
+TLS records are encrypted by the network interface card (NIC).
+.El
 .El
 .Pp
 The option level for the

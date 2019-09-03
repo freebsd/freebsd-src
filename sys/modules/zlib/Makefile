@@ -5,9 +5,6 @@
 .PATH: ${SRCTOP}/sys/contrib/zlib
 
 KMOD=	zlib
-# legacy zlib - 1.0.4
-SRCS=	zlib.c
-# newer zlib - 1.2.11
 SRCS+=	zcalloc.c
 SRCS+=	zlib_mod.c
 SRCS+=	adler32.c

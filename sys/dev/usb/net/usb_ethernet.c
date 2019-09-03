@@ -219,6 +219,7 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	ue->ue_unit = alloc_unr(ueunit);
 	usb_callout_init_mtx(&ue->ue_watchdog, ue->ue_mtx, 0);
 	sysctl_ctx_init(&ue->ue_sysctl_ctx);
+	mbufq_init(&ue->ue_rxq, 0 /* unlimited length */);
 
 	error = 0;
 	CURVNET_SET_QUIET(vnet0);
@@ -284,6 +285,11 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 
 fail:
 	CURVNET_RESTORE();
+
+	/* drain mbuf queue */
+	mbufq_drain(&ue->ue_rxq);
+
+	/* free unit */
 	free_unr(ueunit, ue->ue_unit);
 	if (ue->ue_ifp != NULL) {
 		if_free(ue->ue_ifp);
@@ -329,6 +335,9 @@ uether_ifdetach(struct usb_ether *ue)
 
 		/* free sysctl */
 		sysctl_ctx_free(&ue->ue_sysctl_ctx);
+
+		/* drain mbuf queue */
+		mbufq_drain(&ue->ue_rxq);
 
 		/* free unit */
 		free_unr(ueunit, ue->ue_unit);
@@ -598,7 +607,7 @@ uether_rxmbuf(struct usb_ether *ue, struct mbuf *m,
 	m->m_pkthdr.len = m->m_len = len;
 
 	/* enqueue for later when the lock can be released */
-	_IF_ENQUEUE(&ue->ue_rxq, m);
+	(void)mbufq_enqueue(&ue->ue_rxq, m);
 	return (0);
 }
 
@@ -628,7 +637,7 @@ uether_rxbuf(struct usb_ether *ue, struct usb_page_cache *pc,
 	m->m_pkthdr.len = m->m_len = len;
 
 	/* enqueue for later when the lock can be released */
-	_IF_ENQUEUE(&ue->ue_rxq, m);
+	(void)mbufq_enqueue(&ue->ue_rxq, m);
 	return (0);
 }
 
@@ -641,7 +650,7 @@ uether_rxflush(struct usb_ether *ue)
 	UE_LOCK_ASSERT(ue, MA_OWNED);
 
 	for (;;) {
-		_IF_DEQUEUE(&ue->ue_rxq, m);
+		m = mbufq_dequeue(&ue->ue_rxq);
 		if (m == NULL)
 			break;
 

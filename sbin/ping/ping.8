@@ -28,7 +28,7 @@
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2016
+.Dd August 22, 2019
 .Dt PING 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
-.Op Fl AaDdfnoQqRrv
+.Op Fl AaDdfHnoQqRrv
 .Op Fl c Ar count
 .Op Fl G Ar sweepmaxsize
 .Op Fl g Ar sweepminsize
@@ -56,7 +56,7 @@ packets to network hosts
 .Op Fl z Ar tos
 .Ar host
 .Nm
-.Op Fl AaDdfLnoQqRrv
+.Op Fl AaDdfHLnoQqRrv
 .Op Fl c Ar count
 .Op Fl I Ar iface
 .Op Fl i Ar wait
@@ -157,6 +157,12 @@ Specify the size of
 .Tn ICMP
 payload to start with when sending sweeping pings.
 The default value is 0.
+.It Fl H
+Hostname output.
+Try to do a reverse DNS lookup when displaying addresses.
+This is the opposite of the
+.Fl n
+option.
 .It Fl h Ar sweepincrsize
 Specify the number of bytes to increment the size of
 .Tn ICMP
@@ -220,6 +226,9 @@ MIB variable.
 .It Fl n
 Numeric output only.
 No attempt will be made to lookup symbolic names for host addresses.
+This is the opposite of
+.Fl H ,
+and it is the default behavior.
 .It Fl o
 Exit successfully after receiving one reply packet.
 .It Fl P Ar policy

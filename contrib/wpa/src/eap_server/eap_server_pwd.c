@@ -632,7 +632,7 @@ static void eap_pwd_process_id_resp(struct eap_sm *sm,
 				       data->id_server, data->id_server_len,
 				       data->id_peer, data->id_peer_len,
 				       (u8 *) &data->token);
-	os_memset(pwhashhash, 0, sizeof(pwhashhash));
+	forced_memzero(pwhashhash, sizeof(pwhashhash));
 	if (res) {
 		wpa_printf(MSG_INFO, "EAP-PWD (server): unable to compute "
 			   "PWE");

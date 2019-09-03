@@ -1871,9 +1871,12 @@ vm_pageout_lowmem(void)
 
 		/*
 		 * We do this explicitly after the caches have been
-		 * drained above.
+		 * drained above.  If we have a severe page shortage on
+		 * our hands, completely drain all UMA zones.  Otherwise,
+		 * just prune the caches.
 		 */
-		uma_reclaim();
+		uma_reclaim(vm_page_count_min() ? UMA_RECLAIM_DRAIN_CPU :
+		    UMA_RECLAIM_TRIM);
 		return (true);
 	}
 	return (false);

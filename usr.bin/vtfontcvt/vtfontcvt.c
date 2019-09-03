@@ -224,38 +224,19 @@ add_char(unsigned curchar, unsigned map_idx, uint8_t *bytes, uint8_t *bytes_r)
 }
 
 /*
- * Right-shift glyph row by _shift_ bits. Row _len_ bits wide, _size_ bytes.
+ * Right-shift glyph row.
  */
-static int
-rshift_row(uint8_t *line, size_t size, size_t len, size_t shift)
+static void
+rshift_row(uint8_t *buf, size_t len, size_t shift)
 {
-	size_t d, s, i;
-	uint16_t t;
-
-	assert(size > 0 && len > 0);
-	assert(size * 8 >= len);
+	ssize_t i, off_byte = shift / 8;
+	size_t off_bit = shift % 8;
 
 	if (shift == 0)
-		return (0);
-
-	d = shift / 8;
-	s = 8 - shift % 8;
-	i = howmany(len, 8);
-
-	while (i > 0) {
-		i--;
-
-		t = *(line + i);
-		*(line + i) = 0;
-
-		t <<= s;
-
-		if (i + d + 1 < size)
-			*(line + i + d + 1) |= (uint8_t)t;
-		if (i + d < size)
-			*(line + i + d) = t >> 8;
-	}
-	return (0);
+		return;
+	for (i = len - 1; i >= 0; i--)
+		buf[i] = (i >= off_byte ? buf[i - off_byte] >> off_bit : 0) |
+		    (i > off_byte ? buf[i - off_byte - 1] << (8 - off_bit) : 0);
 }
 
 /*
@@ -426,11 +407,7 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 					*(line + j) = (uint8_t)val;
 				}
 
-				rv = rshift_row(line, wbytes * 2, bbw,
-				    bbox - fbbox);
-				if (rv != 0)
-					goto out;
-
+				rshift_row(line, wbytes * 2, bbox - fbbox);
 				rv = split_row(bytes + i * wbytes,
 				     bytes_r + i * wbytes, line, dwidth);
 				if (rv != 0)

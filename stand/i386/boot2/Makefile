@@ -80,7 +80,7 @@ boot2.bin: boot2.out
 
 # For __ashldi3
 .PATH: ${SRCTOP}/contrib/compiler-rt/lib/builtins
-CFLAGS.ashldi3.c=	-Wno-missing-prototypes
+CFLAGS.ashldi3.c=	-Wno-missing-prototypes -Wno-missing-declarations
 CLEANFILES+=	ashldi3.o
 
 boot2.out: ${BTXCRT} boot2.o sio.o ashldi3.o

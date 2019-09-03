@@ -33,9 +33,7 @@
 
 #include <sys/pcpu.h>
 
-extern struct pcpu __pcpu[];
-
-#define	EARLY_COUNTER	&__pcpu[0].pc_early_dummy_counter
+#define	EARLY_COUNTER	&temp_bsp_pcpu.pc_early_dummy_counter
 
 #define	counter_enter()	do {} while (0)
 #define	counter_exit()	do {} while (0)

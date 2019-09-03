@@ -214,6 +214,7 @@
 #define		AHCI_CAP2_SADM	0x00000010
 #define		AHCI_CAP2_DESO	0x00000020
 
+#define AHCI_VSCAP                  0xa4
 #define AHCI_OFFSET                 0x100
 #define AHCI_STEP                   0x80
 
@@ -317,6 +318,11 @@
 #define AHCI_CT_SIZE                (128 + AHCI_SG_ENTRIES * 16)
 /* Total main work area. */
 #define AHCI_WORK_SIZE              (AHCI_CT_OFFSET + AHCI_CT_SIZE * ch->numslots)
+
+/* ivars value fields */
+#define AHCI_REMAPPED_UNIT	(1 << 31)	/* NVMe remapped device. */
+#define AHCI_EM_UNIT		(1 << 30)	/* Enclosure Mgmt device. */
+#define AHCI_UNIT		0xff		/* Channel number. */
 
 struct ahci_dma_prd {
     u_int64_t                   dba;
@@ -518,6 +524,9 @@ struct ahci_controller {
 	int			cccv;		/* CCC vector */
 	int			direct;		/* Direct command completion */
 	int			msi;		/* MSI interupts */
+	int			remapped_devices; /* Remapped NVMe devices */
+	uint32_t		remap_offset;
+	uint32_t		remap_size;
 	struct {
 		void			(*function)(void *);
 		void			*argument;

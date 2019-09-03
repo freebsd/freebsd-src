@@ -92,6 +92,7 @@ static const	char *crmsg;			/* cause of last reboot */
 static time_t	currentout;			/* current logout value */
 static long	maxrec;				/* records to display */
 static const	char *file = NULL;		/* utx.log file */
+static int	noctfix = 0;			/* locale is C or UTF-8 */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
 static int	yflag;				/* show year */
@@ -103,6 +104,7 @@ static time_t	snaptime;			/* if != 0, we will only
 						 */
 
 static void	 addarg(int, char *);
+static const char *ctf(const char *);
 static time_t	 dateconv(char *);
 static void	 doentry(struct utmpx *);
 static void	 hostconv(char *);
@@ -111,6 +113,31 @@ static char	*ttyconv(char *);
 static int	 want(struct utmpx *);
 static void	 usage(void);
 static void	 wtmp(void);
+
+static const char*
+ctf(const char *fmt) {
+	static char  buf[31];
+	const char  *src, *end;
+	char	    *dst;
+
+	if (noctfix)
+		return (fmt);
+
+	end = buf + sizeof(buf);
+	for (src = fmt, dst = buf; dst < end; *dst++ = *src++) {
+		if (*src == '\0') {
+			*dst = '\0';
+			break;
+		} else if (*src == '%' && *(src+1) == 's') {
+			*dst++ = '%';
+			*dst++ = 'h';
+			*dst++ = 's';
+			strlcpy(dst, src+2, end - dst);
+			return (buf);
+		}
+	}
+	return (buf);
+}
 
 static void
 usage(void)
@@ -129,6 +156,11 @@ main(int argc, char *argv[])
 
 	(void) setlocale(LC_TIME, "");
 	d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+
+	(void) setlocale(LC_CTYPE, "");
+	p = nl_langinfo(CODESET);
+	if (strcmp(p, "UTF-8") == 0 || strcmp(p, "US-ASCII") == 0)
+		noctfix = 1;
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
@@ -262,7 +294,7 @@ wtmp(void)
 	(void) strftime(ct, sizeof(ct), "%+", tm);
 	xo_emit("\n{:utxdb/%s}", (file == NULL) ? "utx.log" : file);
 	xo_attr("seconds", "%lu", (unsigned long) t);
-	xo_emit(" begins {:begins/%s}\n", ct);
+	xo_emit(ctf(" begins {:begins/%s}\n"), ct);
 	xo_close_container("last-information");
 }
 
@@ -379,7 +411,7 @@ printentry(struct utmpx *bp, struct idtab *tt)
 		break;
 	}
 	xo_attr("seconds", "%lu", (unsigned long)t);
-	xo_emit(" {:login-time/%s%c/%s}", ct, tt == NULL ? '\n' : ' ');
+	xo_emit(ctf(" {:login-time/%s%c/%s}"), ct, tt == NULL ? '\n' : ' ');
 	if (tt == NULL)
 		goto end;
 	if (!tt->logout) {
@@ -393,7 +425,7 @@ printentry(struct utmpx *bp, struct idtab *tt)
 		tm = localtime(&tt->logout);
 		(void) strftime(ct, sizeof(ct), "%R", tm);
 		xo_attr("seconds", "%lu", (unsigned long)tt->logout);
-		xo_emit("- {:logout-time/%s}", ct);
+		xo_emit(ctf("- {:logout-time/%s}"), ct);
 	}
 	delta = tt->logout - bp->ut_tv.tv_sec;
 	xo_attr("seconds", "%ld", (long)delta);
@@ -403,9 +435,9 @@ printentry(struct utmpx *bp, struct idtab *tt)
 		tm = gmtime(&delta);
 		(void) strftime(ct, sizeof(ct), width >= 8 ? "%T" : "%R", tm);
 		if (delta < 86400)
-			xo_emit("  ({:session-length/%s})\n", ct);
+			xo_emit(ctf("  ({:session-length/%s})\n"), ct);
 		else
-			xo_emit(" ({:session-length/%ld+%s})\n",
+			xo_emit(ctf(" ({:session-length/%ld+%s})\n"),
 			    (long)delta / 86400, ct);
 	}
 

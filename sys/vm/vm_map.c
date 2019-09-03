@@ -1554,7 +1554,7 @@ charged:
 				map->size += end - prev_entry->end;
 			vm_map_entry_resize(map, prev_entry,
 			    end - prev_entry->end);
-			vm_map_simplify_entry(map, prev_entry);
+			vm_map_try_merge_entries(map, prev_entry, prev_entry->next);
 			return (KERN_SUCCESS);
 		}
 
@@ -1614,7 +1614,8 @@ charged:
 	 * with the previous entry when object is NULL.  Here, we handle the
 	 * other cases, which are less common.
 	 */
-	vm_map_simplify_entry(map, new_entry);
+	vm_map_try_merge_entries(map, prev_entry, new_entry);
+	vm_map_try_merge_entries(map, new_entry, new_entry->next);
 
 	if ((cow & (MAP_PREFAULT | MAP_PREFAULT_PARTIAL)) != 0) {
 		vm_map_pmap_enter(map, start, prot, object, OFF_TO_IDX(offset),
@@ -2083,33 +2084,23 @@ vm_map_merged_neighbor_dispose(vm_map_t map, vm_map_entry_t entry)
 }
 
 /*
- *	vm_map_simplify_entry:
+ *	vm_map_try_merge_entries:
  *
- *	Simplify the given map entry by merging with either neighbor.  This
- *	routine also has the ability to merge with both neighbors.
+ *	Compare the given map entry to its predecessor, and merge its precessor
+ *	into it if possible.  The entry remains valid, and may be extended.
+ *	The predecessor may be deleted.
  *
  *	The map must be locked.
- *
- *	This routine guarantees that the passed entry remains valid (though
- *	possibly extended).  When merging, this routine may delete one or
- *	both neighbors.
  */
 void
-vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
+vm_map_try_merge_entries(vm_map_t map, vm_map_entry_t prev, vm_map_entry_t entry)
 {
-	vm_map_entry_t next, prev;
 
-	if ((entry->eflags & MAP_ENTRY_NOMERGE_MASK) != 0)
-		return;
-	prev = entry->prev;
-	if (vm_map_mergeable_neighbors(prev, entry)) {
+	VM_MAP_ASSERT_LOCKED(map);
+	if ((entry->eflags & MAP_ENTRY_NOMERGE_MASK) == 0 &&
+	    vm_map_mergeable_neighbors(prev, entry)) {
 		vm_map_entry_unlink(map, prev, UNLINK_MERGE_NEXT);
 		vm_map_merged_neighbor_dispose(map, prev);
-	}
-	next = entry->next;
-	if (vm_map_mergeable_neighbors(entry, next)) {
-		vm_map_entry_unlink(map, next, UNLINK_MERGE_PREV);
-		vm_map_merged_neighbor_dispose(map, next);
 	}
 }
 
@@ -2580,7 +2571,8 @@ again:
 	 * [Note that clipping is not necessary the second time.]
 	 */
 	for (current = entry; current->start < end;
-	    vm_map_simplify_entry(map, current), current = current->next) {
+	    vm_map_try_merge_entries(map, current->prev, current),
+	    current = current->next) {
 		if (rv != KERN_SUCCESS ||
 		    (current->eflags & MAP_ENTRY_GUARD) != 0)
 			continue;
@@ -2618,6 +2610,7 @@ again:
 #undef	MASK
 		}
 	}
+	vm_map_try_merge_entries(map, current->prev, current);
 	vm_map_unlock(map);
 	return (rv);
 }
@@ -2722,8 +2715,9 @@ vm_map_madvise(
 			default:
 				break;
 			}
-			vm_map_simplify_entry(map, current);
+			vm_map_try_merge_entries(map, current->prev, current);
 		}
+		vm_map_try_merge_entries(map, current->prev, current);
 		vm_map_unlock(map);
 	} else {
 		vm_pindex_t pstart, pend;
@@ -2837,9 +2831,10 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		if ((entry->eflags & MAP_ENTRY_GUARD) == 0 ||
 		    new_inheritance != VM_INHERIT_ZERO)
 			entry->inheritance = new_inheritance;
-		vm_map_simplify_entry(map, entry);
+		vm_map_try_merge_entries(map, entry->prev, entry);
 		entry = entry->next;
 	}
+	vm_map_try_merge_entries(map, entry->prev, entry);
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
@@ -3016,8 +3011,9 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			entry->eflags &= ~MAP_ENTRY_NEEDS_WAKEUP;
 			need_wakeup = true;
 		}
-		vm_map_simplify_entry(map, entry);
+		vm_map_try_merge_entries(map, entry->prev, entry);
 	}
+	vm_map_try_merge_entries(map, entry->prev, entry);
 	vm_map_unlock(map);
 	if (need_wakeup)
 		vm_map_wakeup(map);
@@ -3313,8 +3309,9 @@ done:
 			entry->eflags &= ~MAP_ENTRY_NEEDS_WAKEUP;
 			need_wakeup = true;
 		}
-		vm_map_simplify_entry(map, entry);
+		vm_map_try_merge_entries(map, entry->prev, entry);
 	}
+	vm_map_try_merge_entries(map, entry->prev, entry);
 	if (need_wakeup)
 		vm_map_wakeup(map);
 	return (rv);
@@ -3952,8 +3949,8 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				    old_entry->object.vm_object);
 
 				/*
-				 * As in vm_map_simplify_entry(), the
-				 * vnode lock will not be acquired in
+				 * As in vm_map_merged_neighbor_dispose(),
+				 * the vnode lock will not be acquired in
 				 * this call to vm_object_deallocate().
 				 */
 				vm_object_deallocate(object);
@@ -4189,8 +4186,20 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	rv = vm_map_insert(map, NULL, 0, gap_bot, gap_top, VM_PROT_NONE,
 	    VM_PROT_NONE, MAP_CREATE_GUARD | (orient == MAP_STACK_GROWS_DOWN ?
 	    MAP_CREATE_STACK_GAP_DN : MAP_CREATE_STACK_GAP_UP));
-	if (rv != KERN_SUCCESS)
+	if (rv == KERN_SUCCESS) {
+		/*
+		 * Gap can never successfully handle a fault, so
+		 * read-ahead logic is never used for it.  Re-use
+		 * next_read of the gap entry to store
+		 * stack_guard_page for vm_map_growstack().
+		 */
+		if (orient == MAP_STACK_GROWS_DOWN)
+			new_entry->prev->next_read = sgp;
+		else
+			new_entry->next->next_read = sgp;
+	} else {
 		(void)vm_map_delete(map, bot, top);
+	}
 	return (rv);
 }
 
@@ -4231,7 +4240,6 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 
 	MPASS(!map->system_map);
 
-	guard = stack_guard_page * PAGE_SIZE;
 	lmemlim = lim_cur(curthread, RLIMIT_MEMLOCK);
 	stacklim = lim_cur(curthread, RLIMIT_STACK);
 	vmemlim = lim_cur(curthread, RLIMIT_VMEM);
@@ -4258,6 +4266,7 @@ retry:
 	} else {
 		return (KERN_FAILURE);
 	}
+	guard = gap_entry->next_read;
 	max_grow = gap_entry->end - gap_entry->start;
 	if (guard > max_grow)
 		return (KERN_NO_SPACE);

@@ -34,11 +34,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kern_tls.h"
 #include "opt_param.h"
 
 #include <sys/param.h>
 #include <sys/aio.h> /* for aio_swake proto */
 #include <sys/kernel.h>
+#include <sys/ktls.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -112,7 +114,8 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 		MPASS((m->m_flags & M_NOTREADY) == 0);
 
 		/* Compress small unmapped mbufs into plain mbufs. */
-		if ((m->m_flags & M_NOMAP) && m->m_len <= MLEN) {
+		if ((m->m_flags & M_NOMAP) && m->m_len <= MLEN &&
+		    !mbuf_has_tls_session(m)) {
 			MPASS(m->m_flags & M_EXT);
 			ext_size = m->m_ext.ext_size;
 			if (mb_unmapped_compress(m) == 0) {
@@ -133,6 +136,8 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 		while ((n != NULL) && (n != end) && (m->m_flags & M_EOR) == 0 &&
 		    M_WRITABLE(m) &&
 		    (m->m_flags & M_NOMAP) == 0 &&
+		    !mbuf_has_tls_session(n) &&
+		    !mbuf_has_tls_session(m) &&
 		    n->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
 		    n->m_len <= M_TRAILINGSPACE(m) &&
 		    m->m_type == n->m_type) {
@@ -668,6 +673,11 @@ sbdestroy(struct sockbuf *sb, struct socket *so)
 {
 
 	sbrelease_internal(sb, so);
+#ifdef KERN_TLS
+	if (sb->sb_tls_info != NULL)
+		ktls_free(sb->sb_tls_info);
+	sb->sb_tls_info = NULL;
+#endif
 }
 
 /*
@@ -830,6 +840,11 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m, int flags)
 	KASSERT(sb->sb_mb == sb->sb_lastrecord,("sbappendstream 1"));
 
 	SBLASTMBUFCHK(sb);
+
+#ifdef KERN_TLS
+	if (sb->sb_tls_info != NULL)
+		ktls_seq(sb, m);
+#endif
 
 	/* Remove all packet headers and mbuf tags to get a pure data chain. */
 	m_demote(m, 1, flags & PRUS_NOTREADY ? M_NOTREADY : 0);
@@ -1134,6 +1149,8 @@ sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 		    ((sb->sb_flags & SB_NOCOALESCE) == 0) &&
 		    !(m->m_flags & M_NOTREADY) &&
 		    !(n->m_flags & (M_NOTREADY | M_NOMAP)) &&
+		    !mbuf_has_tls_session(m) &&
+		    !mbuf_has_tls_session(n) &&
 		    m->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
 		    m->m_len <= M_TRAILINGSPACE(n) &&
 		    n->m_type == m->m_type) {
@@ -1149,7 +1166,8 @@ sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 			continue;
 		}
 		if (m->m_len <= MLEN && (m->m_flags & M_NOMAP) &&
-		    (m->m_flags & M_NOTREADY) == 0)
+		    (m->m_flags & M_NOTREADY) == 0 &&
+		    !mbuf_has_tls_session(m))
 			(void)mb_unmapped_compress(m);
 		if (n)
 			n->m_next = m;

@@ -62,6 +62,7 @@ struct eap_ssl_data {
 #define EAP_TLS_FLAGS_LENGTH_INCLUDED 0x80
 #define EAP_TLS_FLAGS_MORE_FRAGMENTS 0x40
 #define EAP_TLS_FLAGS_START 0x20
+#define EAP_TEAP_FLAGS_OUTER_TLV_LEN 0x10
 #define EAP_TLS_VERSION_MASK 0x07
 
  /* could be up to 128 bytes, but only the first 64 bytes are used */

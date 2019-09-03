@@ -495,7 +495,8 @@ ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcp
 		 * DSACK - add SACK block for dropped range
 		 */
 		if (tp->t_flags & TF_SACK_PERMIT) {
-			tcp_update_sack_list(tp, th->th_seq, th->th_seq + tlen);
+			tcp_update_sack_list(tp, th->th_seq,
+			    th->th_seq + todrop);
 			/*
 			 * ACK now, as the next in-sequence segment
 			 * will clear the DSACK block again

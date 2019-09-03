@@ -135,12 +135,12 @@ struct winentry {
 #define DD_YEAR_MASK		0xFE00	/* year - 1980 */
 #define DD_YEAR_SHIFT		9
 
-uint8_t winChksum(uint8_t *name);
-int winSlotCnt(const u_char *un, size_t unlen);
-int unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen);
-int winChkName(const u_char *un, size_t unlen, struct winentry *wep,
-    int chksum);
-int unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
-    int chksum);
+int	unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen);
+int	unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
+	    int chksum);
+int	winChkName(const u_char *un, size_t unlen, struct winentry *wep,
+	    int chksum);
+uint8_t	winChksum(uint8_t *name);
+int	winSlotCnt(const u_char *un, size_t unlen);
 
 #endif	/* !_FS_MSDOSFS_DIRENTRY_H_ */

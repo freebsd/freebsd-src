@@ -37,6 +37,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
@@ -121,6 +122,8 @@ struct nvme_completion_poll_status {
 	struct nvme_completion	cpl;
 	int			done;
 };
+
+extern devclass_t nvme_devclass;
 
 #define NVME_REQUEST_VADDR	1
 #define NVME_REQUEST_NULL	2 /* For requests with no payload. */
@@ -438,6 +441,30 @@ void	nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr);
 
 void	nvme_dump_command(struct nvme_command *cmd);
 void	nvme_dump_completion(struct nvme_completion *cpl);
+
+int	nvme_attach(device_t dev);
+int	nvme_shutdown(device_t dev);
+int	nvme_detach(device_t dev);
+
+/*
+ * Wait for a command to complete using the nvme_completion_poll_cb.
+ * Used in limited contexts where the caller knows it's OK to block
+ * briefly while the command runs. The ISR will run the callback which
+ * will set status->done to true.usually within microseconds. A 1s
+ * pause means something is seriously AFU and we should panic to
+ * provide the proper context to diagnose.
+ */
+static __inline
+void
+nvme_completion_poll(struct nvme_completion_poll_status *status)
+{
+	int sanity = hz * 1;
+
+	while (!atomic_load_acq_int(&status->done) && --sanity > 0)
+		pause("nvme", 1);
+	if (sanity <= 0)
+		panic("NVME polled command failed to complete within 1s.");
+}
 
 static __inline void
 nvme_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)

@@ -97,6 +97,9 @@ static struct radius_msg * accounting_msg(struct hostapd_data *hapd,
 				   msg) < 0)
 		goto fail;
 
+	if (sta && add_sqlite_radius_attr(hapd, sta, msg, 1) < 0)
+		goto fail;
+
 	if (sta) {
 		for (i = 0; ; i++) {
 			val = ieee802_1x_get_radius_class(sta->eapol_sm, &len,

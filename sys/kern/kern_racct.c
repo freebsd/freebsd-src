@@ -1256,17 +1256,11 @@ racctd(void)
 
 		sx_slock(&allproc_lock);
 
-		sx_slock(&zombproc_lock);
-		LIST_FOREACH(p, &zombproc, p_list) {
-			PROC_LOCK(p);
-			racct_set(p, RACCT_PCTCPU, 0);
-			PROC_UNLOCK(p);
-		}
-		sx_sunlock(&zombproc_lock);
-
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (p->p_state != PRS_NORMAL) {
+				if (p->p_state == PRS_ZOMBIE)
+					racct_set(p, RACCT_PCTCPU, 0);
 				PROC_UNLOCK(p);
 				continue;
 			}

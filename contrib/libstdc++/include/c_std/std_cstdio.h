@@ -74,7 +74,6 @@
 #undef fwrite
 #undef getc
 #undef getchar
-#undef gets
 #undef perror
 #undef printf
 #undef putc
@@ -121,7 +120,6 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
   using ::fwrite;
   using ::getc;
   using ::getchar;
-  using ::gets;
   using ::perror;
   using ::printf;
   using ::putc;

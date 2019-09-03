@@ -29,6 +29,15 @@ CFLAGS+=	-std=${CSTD}
 CXXFLAGS+=	-std=${CXXSTD}
 .endif
 
+#
+# Turn off -Werror for gcc 4.2.1. The compiler is on the glide path out of the
+# system, and any warnings specific to it are no longer relevant as there are
+# too many false positives.
+#
+.if ${COMPILER_VERSION} <  50000
+NO_WERROR.gcc=	yes
+.endif
+
 # -pedantic is problematic because it also imposes namespace restrictions
 #CFLAGS+=	-pedantic
 .if defined(WARNS)
@@ -189,13 +198,6 @@ CWARNFLAGS+=	-Wno-unknown-pragmas
 # This warning is utter nonsense
 CFLAGS+=	-Wno-format-zero-length
 
-# We need this conditional because many places that use it
-# only enable it for some files with CLFAGS.$FILE+=${CLANG_NO_IAS}.
-# unconditionally, and can't easily use the CFLAGS.clang=
-# mechanism.
-.if ${COMPILER_TYPE} == "clang"
-CLANG_NO_IAS=	 -no-integrated-as
-.endif
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -simplifycfg-dup-ret
 .if ${COMPILER_VERSION} >= 30500 && ${COMPILER_VERSION} < 30700

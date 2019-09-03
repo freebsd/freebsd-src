@@ -348,7 +348,7 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct vi_info *vi = ifp->if_softc;
 	struct port_info *pi = vi->pi;
-	struct l2t_entry *e = &sc->l2t->l2tab[synqe->l2e_idx];
+	struct l2t_entry *e = &sc->l2t->l2tab[synqe->params.l2t_idx];
 	struct wrqe *wr;
 	struct fw_flowc_wr *flowc;
 	struct cpl_abort_req *req;
@@ -368,8 +368,8 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 		return;	/* abort already in progress */
 	synqe->flags |= TPF_ABORT_SHUTDOWN;
 
-	ofld_txq = &sc->sge.ofld_txq[synqe->txqid];
-	ofld_rxq = &sc->sge.ofld_rxq[synqe->rxqid];
+	ofld_txq = &sc->sge.ofld_txq[synqe->params.txq_idx];
+	ofld_rxq = &sc->sge.ofld_rxq[synqe->params.rxq_idx];
 
 	/* The wrqe will have two WRs - a flowc followed by an abort_req */
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
@@ -836,7 +836,7 @@ done_with_synqe(struct adapter *sc, struct synq_entry *synqe)
 {
 	struct listen_ctx *lctx = synqe->lctx;
 	struct inpcb *inp = lctx->inp;
-	struct l2t_entry *e = &sc->l2t->l2tab[synqe->l2e_idx];
+	struct l2t_entry *e = &sc->l2t->l2tab[synqe->params.l2t_idx];
 	int ntids;
 
 	INP_WLOCK_ASSERT(inp);
@@ -887,7 +887,7 @@ do_abort_req_synqe(struct sge_iq *iq, const struct rss_header *rss,
 
 	INP_WLOCK(inp);
 
-	ofld_txq = &sc->sge.ofld_txq[synqe->txqid];
+	ofld_txq = &sc->sge.ofld_txq[synqe->params.txq_idx];
 
 	/*
 	 * If we'd initiated an abort earlier the reply to it is responsible for
@@ -962,28 +962,6 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 	synqe->flags |= TPF_SYNQE_EXPANDED;
 }
 
-static inline void
-save_qids_in_synqe(struct synq_entry *synqe, struct vi_info *vi,
-    struct offload_settings *s)
-{
-	uint32_t txqid, rxqid;
-
-	if (s->txq >= 0 && s->txq < vi->nofldtxq)
-		txqid = s->txq;
-	else
-		txqid = arc4random() % vi->nofldtxq;
-	txqid += vi->first_ofld_txq;
-
-	if (s->rxq >= 0 && s->rxq < vi->nofldrxq)
-		rxqid = s->rxq;
-	else
-		rxqid = arc4random() % vi->nofldrxq;
-	rxqid += vi->first_ofld_rxq;
-
-	synqe->txqid = txqid;
-	synqe->rxqid = rxqid;
-}
-
 static void
 t4opt_to_tcpopt(const struct tcp_options *t4opt, struct tcpopt *to)
 {
@@ -994,7 +972,7 @@ t4opt_to_tcpopt(const struct tcp_options *t4opt, struct tcpopt *to)
 		to->to_mss = be16toh(t4opt->mss);
 	}
 
-	if (t4opt->wsf) {
+	if (t4opt->wsf > 0 && t4opt->wsf < 15) {
 		to->to_flags |= TOF_SCALE;
 		to->to_wscale = t4opt->wsf;
 	}
@@ -1004,95 +982,6 @@ t4opt_to_tcpopt(const struct tcp_options *t4opt, struct tcpopt *to)
 
 	if (t4opt->sack)
 		to->to_flags |= TOF_SACKPERM;
-}
-
-/*
- * Options2 for passive open.
- */
-static uint32_t
-calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
-	const struct tcp_options *tcpopt, struct tcphdr *th, int ulp_mode,
-	struct cc_algo *cc, const struct offload_settings *s)
-{
-	struct sge_ofld_rxq *ofld_rxq = &sc->sge.ofld_rxq[rxqid];
-	uint32_t opt2 = 0;
-
-	/*
-	 * rx flow control, rx coalesce, congestion control, and tx pace are all
-	 * explicitly set by the driver.  On T5+ the ISS is also set by the
-	 * driver to the value picked by the kernel.
-	 */
-	if (is_t4(sc)) {
-		opt2 |= F_RX_FC_VALID | F_RX_COALESCE_VALID;
-		opt2 |= F_CONG_CNTRL_VALID | F_PACE_VALID;
-	} else {
-		opt2 |= F_T5_OPT_2_VALID;	/* all 4 valid */
-		opt2 |= F_T5_ISS;		/* ISS provided in CPL */
-	}
-
-	if (tcpopt->sack && (s->sack > 0 || (s->sack < 0 && V_tcp_do_rfc1323)))
-		opt2 |= F_SACK_EN;
-
-	if (tcpopt->tstamp &&
-	    (s->tstamp > 0 || (s->tstamp < 0 && V_tcp_do_rfc1323)))
-		opt2 |= F_TSTAMPS_EN;
-
-	if (tcpopt->wsf < 15 && V_tcp_do_rfc1323)
-		opt2 |= F_WND_SCALE_EN;
-
-	if (th->th_flags & (TH_ECE | TH_CWR) &&
-	    (s->ecn > 0 || (s->ecn < 0 && V_tcp_do_ecn)))
-		opt2 |= F_CCTRL_ECN;
-
-	/* XXX: F_RX_CHANNEL for multiple rx c-chan support goes here. */
-
-	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
-
-	/* These defaults are subject to ULP specific fixups later. */
-	opt2 |= V_RX_FC_DDP(0) | V_RX_FC_DISABLE(0);
-
-	opt2 |= V_PACE(0);
-
-	if (s->cong_algo >= 0)
-		opt2 |= V_CONG_CNTRL(s->cong_algo);
-	else if (sc->tt.cong_algorithm >= 0)
-		opt2 |= V_CONG_CNTRL(sc->tt.cong_algorithm & M_CONG_CNTRL);
-	else {
-		if (strcasecmp(cc->name, "reno") == 0)
-			opt2 |= V_CONG_CNTRL(CONG_ALG_RENO);
-		else if (strcasecmp(cc->name, "tahoe") == 0)
-			opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
-		if (strcasecmp(cc->name, "newreno") == 0)
-			opt2 |= V_CONG_CNTRL(CONG_ALG_NEWRENO);
-		if (strcasecmp(cc->name, "highspeed") == 0)
-			opt2 |= V_CONG_CNTRL(CONG_ALG_HIGHSPEED);
-		else {
-			/*
-			 * Use newreno in case the algorithm selected by the
-			 * host stack is not supported by the hardware.
-			 */
-			opt2 |= V_CONG_CNTRL(CONG_ALG_NEWRENO);
-		}
-	}
-
-	if (s->rx_coalesce > 0 || (s->rx_coalesce < 0 && sc->tt.rx_coalesce))
-		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
-
-	/* Note that ofld_rxq is already set according to s->rxq. */
-	opt2 |= F_RSS_QUEUE_VALID;
-	opt2 |= V_RSS_QUEUE(ofld_rxq->iq.abs_id);
-
-#ifdef USE_DDP_RX_FLOW_CONTROL
-	if (ulp_mode == ULP_MODE_TCPDDP)
-		opt2 |= F_RX_FC_DDP;
-#endif
-
-	if (ulp_mode == ULP_MODE_TLS) {
-		opt2 &= ~V_RX_COALESCE(M_RX_COALESCE);
-		opt2 |= F_RX_FC_DISABLE;
-	}
-
-	return (htobe32(opt2));
 }
 
 static void
@@ -1145,7 +1034,7 @@ get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
 	struct l2t_entry *e;
 	struct sockaddr_in6 sin6;
 	struct sockaddr *dst = (void *)&sin6;
- 
+
 	if (inc->inc_flags & INC_ISIPV6) {
 		struct nhop6_basic nh6;
 
@@ -1189,7 +1078,7 @@ send_synack(struct adapter *sc, struct synq_entry *synqe, uint64_t opt0,
 {
 	struct wrqe *wr;
 	struct cpl_pass_accept_rpl *rpl;
-	struct l2t_entry *e = &sc->l2t->l2tab[synqe->l2e_idx];
+	struct l2t_entry *e = &sc->l2t->l2tab[synqe->params.l2t_idx];
 
 	wr = alloc_wrqe(is_t4(sc) ? sizeof(struct cpl_pass_accept_rpl) :
 	    sizeof(struct cpl_t5_pass_accept_rpl), &sc->sge.ctrlq[0]);
@@ -1385,6 +1274,9 @@ found:
 	}
 	atomic_store_int(&synqe->ok_to_respond, 0);
 
+	init_conn_params(vi, &settings, &inc, so, &cpl->tcpopt, e->idx,
+	    &synqe->params);
+
 	/*
 	 * If all goes well t4_syncache_respond will get called during
 	 * syncache_add.  Note that syncache_add releases the pcb lock.
@@ -1395,27 +1287,12 @@ found:
 	if (atomic_load_int(&synqe->ok_to_respond) > 0) {
 		uint64_t opt0;
 		uint32_t opt2;
-		u_int wnd;
-		int rscale, mtu_idx, rx_credits;
 
-		mtu_idx = find_best_mtu_idx(sc, &inc, &settings);
-		rscale = cpl->tcpopt.wsf && V_tcp_do_rfc1323 ?  select_rcv_wscale() : 0;
-		wnd = max(so->sol_sbrcv_hiwat, MIN_RCV_WND);
-		wnd = min(wnd, MAX_RCV_WND);
-		rx_credits = min(wnd >> 10, M_RCV_BUFSIZ);
-
-		save_qids_in_synqe(synqe, vi, &settings);
-		synqe->ulp_mode = select_ulp_mode(so, sc, &settings);
-
-		opt0 = calc_opt0(so, vi, e, mtu_idx, rscale, rx_credits,
-		    synqe->ulp_mode, &settings);
-		opt2 = calc_opt2p(sc, pi, synqe->rxqid, &cpl->tcpopt, &th,
-		    synqe->ulp_mode, CC_ALGO(intotcpcb(inp)), &settings);
+		opt0 = calc_options0(vi, &synqe->params);
+		opt2 = calc_options2(vi, &synqe->params);
 
 		insert_tid(sc, tid, synqe, ntids);
 		synqe->tid = tid;
-		synqe->l2e_idx = e->idx;
-		synqe->rcv_bufsize = rx_credits;
 		synqe->syn = m;
 		m = NULL;
 
@@ -1427,8 +1304,8 @@ found:
 		}
 
 		CTR6(KTR_CXGBE,
-		    "%s: stid %u, tid %u, lctx %p, synqe %p, mode %d, SYNACK",
-		    __func__, stid, tid, lctx, synqe, synqe->ulp_mode);
+		    "%s: stid %u, tid %u, synqe %p, opt0 %#016lx, opt2 %#08x",
+		    __func__, stid, tid, synqe, be64toh(opt0), be32toh(opt2));
 	} else
 		REJECT_PASS_ACCEPT_REQ(false);
 
@@ -1540,18 +1417,19 @@ reset:
 		return (0);
 	}
 
-	KASSERT(synqe->rxqid == iq_to_ofld_rxq(iq) - &sc->sge.ofld_rxq[0],
+	KASSERT(synqe->params.rxq_idx == iq_to_ofld_rxq(iq) - &sc->sge.ofld_rxq[0],
 	    ("%s: CPL arrived on unexpected rxq.  %d %d", __func__,
-	    synqe->rxqid, (int)(iq_to_ofld_rxq(iq) - &sc->sge.ofld_rxq[0])));
+	    synqe->params.rxq_idx,
+	    (int)(iq_to_ofld_rxq(iq) - &sc->sge.ofld_rxq[0])));
 
-	toep = alloc_toepcb(vi, synqe->txqid, synqe->rxqid, M_NOWAIT);
+	toep = alloc_toepcb(vi, M_NOWAIT);
 	if (toep == NULL)
 		goto reset;
 	toep->tid = tid;
-	toep->l2te = &sc->l2t->l2tab[synqe->l2e_idx];
+	toep->l2te = &sc->l2t->l2tab[synqe->params.l2t_idx];
 	toep->vnet = lctx->vnet;
-	set_ulp_mode(toep, synqe->ulp_mode);
-	toep->opt0_rcv_bufsize = synqe->rcv_bufsize;
+	bcopy(&synqe->params, &toep->params, sizeof(toep->params));
+	init_toepcb(vi, toep);
 
 	MPASS(be32toh(cpl->snd_isn) - 1 == synqe->iss);
 	MPASS(be32toh(cpl->rcv_isn) - 1 == synqe->irs);

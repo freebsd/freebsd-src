@@ -129,7 +129,7 @@ u_int32_t t, l, r;
 
 /***** Key Schedule *****/
 
-void cast_setkey(cast_key* key, u_int8_t* rawkey, int keybytes)
+void cast_setkey(cast_key* key, const u_int8_t* rawkey, int keybytes)
 {
 u_int32_t t[4] = {0, 0, 0, 0}, z[4] = {0, 0, 0, 0}, x[4];
 int i;

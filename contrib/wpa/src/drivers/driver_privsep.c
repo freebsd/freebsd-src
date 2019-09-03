@@ -368,7 +368,7 @@ static int wpa_driver_privsep_get_ssid(void *priv, u8 *ssid)
 
 
 static int wpa_driver_privsep_deauthenticate(void *priv, const u8 *addr,
-					  int reason_code)
+					     u16 reason_code)
 {
 	//struct wpa_driver_privsep_data *drv = priv;
 	wpa_printf(MSG_DEBUG, "%s addr=" MACSTR " reason_code=%d",

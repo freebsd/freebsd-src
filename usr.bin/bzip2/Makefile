@@ -12,7 +12,9 @@ LIBADD=	bz2
 
 LINKS=	${BINDIR}/bzip2 ${BINDIR}/bunzip2
 LINKS+=	${BINDIR}/bzip2 ${BINDIR}/bzcat
-MLINKS= bzip2.1 bunzip2.1 bzip2.1 bzcat.1
+MLINKS=	bzip2.1 bunzip2.1 \
+	bzip2.1 bzcat.1 \
+	bzip2.1 bzip2recover.1
 
 REFFILES=	sample1.ref sample2.ref sample3.ref 
 DREFFILES=	sample1.bz2 sample2.bz2 sample3.bz2 

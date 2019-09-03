@@ -9,7 +9,8 @@ ATF_TESTS_SH+=	\
 		pass_block \
 		nat \
 		tos \
-		fragments
+		fragments \
+		forward
 
 ${PACKAGE}FILES+=	\
 		utils.subr \

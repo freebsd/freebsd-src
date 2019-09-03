@@ -658,7 +658,7 @@ t_Error FmHcPcdKgSetClsPlan(t_Handle h_FmHc, t_FmPcdKgInterModuleClsPlanSet *p_S
         p_HcFrame->extraReg = HC_HCOR_KG_SCHEME_REGS_MASK;
 
         idx = (uint8_t)(i - p_Set->baseEntry);
-        memcpy(&p_HcFrame->hcSpecificData.clsPlanEntries, &p_Set->vectors[idx], CLS_PLAN_NUM_PER_GRP*sizeof(uint32_t));
+        memcpy(__DEVOLATILE(uint32_t *, &p_HcFrame->hcSpecificData.clsPlanEntries), &p_Set->vectors[idx], CLS_PLAN_NUM_PER_GRP*sizeof(uint32_t));
         p_HcFrame->commandSequence = seqNum;
 
         BUILD_FD(sizeof(t_HcFrame));

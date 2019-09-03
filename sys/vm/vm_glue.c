@@ -230,7 +230,7 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
 		if (rv != VM_PAGER_OK) {
 			vm_page_lock(m);
-			vm_page_unwire(m, PQ_NONE);
+			vm_page_unwire_noq(m);
 			vm_page_free(m);
 			vm_page_unlock(m);
 			m = NULL;
@@ -454,12 +454,18 @@ vm_thread_dispose(struct thread *td)
 static int
 kstack_import(void *arg, void **store, int cnt, int domain, int flags)
 {
+	struct domainset *ds;
 	vm_object_t ksobj;
 	int i;
 
+	if (domain == UMA_ANYDOMAIN)
+		ds = DOMAINSET_RR();
+	else
+		ds = DOMAINSET_PREF(domain);
+
 	for (i = 0; i < cnt; i++) {
-		store[i] = (void *)vm_thread_stack_create(
-		    DOMAINSET_PREF(domain), &ksobj, kstack_pages);
+		store[i] = (void *)vm_thread_stack_create(ds, &ksobj,
+		    kstack_pages);
 		if (store[i] == NULL)
 			break;
 	}

@@ -55,17 +55,15 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <util.h>
 
+#include "ffs/buf.h"
 #include "makefs.h"
 #include "msdos.h"
 
 #include <mkfs_msdos.h>
 #include <fs/msdosfs/bpb.h>
-
-#include "ffs/buf.h"
-
-#include "msdos/msdosfsmount.h"
 #include "msdos/direntry.h"
-#include "msdos/denode.h"
+#include <fs/msdosfs/denode.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 static int msdos_populate_dir(const char *, struct denode *, fsnode *,
     fsnode *, fsinfo_t *);
@@ -203,6 +201,8 @@ msdos_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 		errx(1, "Image file `%s' not created.", image);
 	TIMER_RESULTS(start, "msdos_populate_dir");
 
+	if (msdosfs_fsiflush(pmp) != 0)
+		errx(1, "Unable to update FSInfo block.");
 	if (debug & DEBUG_FS_MAKEFS)
 		putchar('\n');
 

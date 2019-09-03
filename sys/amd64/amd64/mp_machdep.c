@@ -94,8 +94,6 @@ __FBSDID("$FreeBSD$");
 
 #define	AP_BOOTPT_SZ		(PAGE_SIZE * 3)
 
-extern	struct pcpu __pcpu[];
-
 /* Temporary variables for init_secondary()  */
 char *doublefault_stack;
 char *mce_stack;
@@ -401,10 +399,12 @@ mp_realloc_pcpu(int cpuid, int domain)
 	if (_vm_phys_domain(pmap_kextract(oa)) == domain)
 		return;
 	m = vm_page_alloc_domain(NULL, 0, domain,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_ZERO);
+	    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
+	if (m == NULL)
+		return;
 	na = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 	pagecopy((void *)oa, (void *)na);
-	pmap_enter(kernel_pmap, oa, m, VM_PROT_READ | VM_PROT_WRITE, 0, 0);
+	pmap_qenter((vm_offset_t)&__pcpu[cpuid], &m, 1);
 	/* XXX old pcpu page leaked. */
 }
 #endif
@@ -475,18 +475,16 @@ native_start_all_aps(void)
 			domain = acpi_pxm_get_cpu_locality(apic_id);
 #endif
 		/* allocate and set up an idle stack data page */
-		bootstacks[cpu] = (void *)kmem_malloc_domainset(
-		    DOMAINSET_FIXED(domain), kstack_pages * PAGE_SIZE,
+		bootstacks[cpu] = (void *)kmem_malloc(kstack_pages * PAGE_SIZE,
 		    M_WAITOK | M_ZERO);
-		doublefault_stack = (char *)kmem_malloc_domainset(
-		    DOMAINSET_FIXED(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
-		mce_stack = (char *)kmem_malloc_domainset(
-		    DOMAINSET_FIXED(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
+		doublefault_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK |
+		    M_ZERO);
+		mce_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
 		nmi_stack = (char *)kmem_malloc_domainset(
-		    DOMAINSET_FIXED(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
+		    DOMAINSET_PREF(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
 		dbg_stack = (char *)kmem_malloc_domainset(
-		    DOMAINSET_FIXED(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
-		dpcpu = (void *)kmem_malloc_domainset(DOMAINSET_FIXED(domain),
+		    DOMAINSET_PREF(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc_domainset(DOMAINSET_PREF(domain),
 		    DPCPU_SIZE, M_WAITOK | M_ZERO);
 
 		bootSTK = (char *)bootstacks[cpu] +
@@ -510,7 +508,7 @@ native_start_all_aps(void)
 	outb(CMOS_DATA, mpbiosreason);
 
 	/* number of APs actually started */
-	return mp_naps;
+	return (mp_naps);
 }
 
 

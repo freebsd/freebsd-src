@@ -11,7 +11,6 @@ ident 	ARMADA38X
 
 options 	SOC_MV_ARMADA38X
 
-makeoptions 	WERROR="-Werror"
 makeoptions 	MODULES_EXTRA="dtb/mv"
 
 #options 	MD_ROOT

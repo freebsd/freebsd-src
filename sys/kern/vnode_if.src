@@ -358,6 +358,12 @@ vop_inactive {
 	IN struct thread *td;
 };
 
+%! need_inactive	pre	vop_need_inactive_pre
+%! need_inactive	post	vop_need_inactive_post
+
+vop_need_inactive {
+        IN struct vnode *vp;
+};
 
 %% reclaim	vp	E E E
 %! reclaim	post	vop_reclaim_post

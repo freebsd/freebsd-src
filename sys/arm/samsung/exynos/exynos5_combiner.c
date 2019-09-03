@@ -314,7 +314,7 @@ combiner_setup_intr(char *source_name, void (*ih)(void *), void *ih_user)
 	sc = combiner_sc;
 
 	if (sc == NULL) {
-		device_printf(sc->dev, "Error: combiner is not attached\n");
+		printf("%s: error: combiner is not attached\n", __func__);
 		return;
 	}
 

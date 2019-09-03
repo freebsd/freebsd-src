@@ -895,7 +895,7 @@ static t_Handle BuildNewAd(
 
     XX_Free(p_FmPcdCcNodeTmp);
 
-    return E_OK;
+    return NULL;
 }
 
 static t_Error DynamicChangeHc(

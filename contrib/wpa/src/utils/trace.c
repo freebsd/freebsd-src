@@ -186,7 +186,7 @@ static void wpa_trace_bfd_addr(void *pc)
 	if (abfd == NULL)
 		return;
 
-	data.pc = (bfd_hostptr_t) (pc - start_offset);
+	data.pc = (bfd_hostptr_t) ((u8 *) pc - start_offset);
 	data.found = FALSE;
 	bfd_map_over_sections(abfd, find_addr_sect, &data);
 
@@ -227,7 +227,7 @@ static const char * wpa_trace_bfd_addr2func(void *pc)
 	if (abfd == NULL)
 		return NULL;
 
-	data.pc = (bfd_hostptr_t) (pc - start_offset);
+	data.pc = (bfd_hostptr_t) ((u8 *) pc - start_offset);
 	data.found = FALSE;
 	bfd_map_over_sections(abfd, find_addr_sect, &data);
 
@@ -299,7 +299,7 @@ size_t wpa_trace_calling_func(const char *buf[], size_t len)
 	for (i = 0; i < btrace_num; i++) {
 		struct bfd_data data;
 
-		data.pc = (bfd_hostptr_t) (btrace_res[i] - start_offset);
+		data.pc = (bfd_hostptr_t) ((u8 *) btrace_res[i] - start_offset);
 		data.found = FALSE;
 		bfd_map_over_sections(abfd, find_addr_sect, &data);
 

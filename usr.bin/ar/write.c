@@ -615,9 +615,9 @@ write_objs(struct bsdar *bsdar)
 	size_t s_sz;		/* size of archive symbol table. */
 	size_t pm_sz;		/* size of pseudo members */
 	size_t w_sz;		/* size of words in symbol table */
+	size_t			 i;
 	uint64_t		 nr;
 	uint32_t		 nr32;
-	int			 i;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0,
@@ -671,7 +671,7 @@ write_objs(struct bsdar *bsdar)
 			    bsdar->s_sn_sz;
 			pm_sz += s_sz;
 			/* Convert to big-endian. */
-			for (i = 0; (size_t)i < bsdar->s_cnt; i++)
+			for (i = 0; i < bsdar->s_cnt; i++)
 				bsdar->s_so[i] =
 				    htobe64(bsdar->s_so[i] + pm_sz);
 		} else {
@@ -679,7 +679,7 @@ write_objs(struct bsdar *bsdar)
 			 * Convert to big-endian and shuffle in-place to
 			 * the front of the allocation. XXX UB
 			 */
-			for (i = 0; (size_t)i < bsdar->s_cnt; i++)
+			for (i = 0; i < bsdar->s_cnt; i++)
 				((uint32_t *)(bsdar->s_so))[i] =
 				    htobe32(bsdar->s_so[i] + pm_sz);
 		}

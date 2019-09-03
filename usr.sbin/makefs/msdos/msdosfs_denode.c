@@ -1,6 +1,8 @@
 /*	$NetBSD: msdosfs_denode.c,v 1.7 2015/03/29 05:52:59 agc Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
  * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
@@ -31,7 +33,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
+/*-
  * Written by Paul Popelka (paulp@uts.amdahl.com)
  *
  * You can do anything you want with this software, just don't say you wrote
@@ -59,17 +61,17 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <util.h>
 
+#include "ffs/buf.h"
+
 #include <fs/msdosfs/bpb.h>
+#include <fs/msdosfs/direntry.h>
+#include <fs/msdosfs/denode.h>
+#include <fs/msdosfs/fat.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 #include "makefs.h"
 #include "msdos.h"
 
-#include "ffs/buf.h"
-
-#include "msdos/denode.h"
-#include "msdos/direntry.h"
-#include "msdos/fat.h"
-#include "msdos/msdosfsmount.h"
 
 /*
  * If deget() succeeds it returns with the gotten denode locked().
@@ -208,7 +210,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
  * Truncate the file described by dep to the length specified by length.
  */
 int
-detrunc(struct denode *dep, u_long length, int flags)
+detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 {
 	int error;
 	int allerror;
@@ -240,7 +242,7 @@ detrunc(struct denode *dep, u_long length, int flags)
 	}
 
 	if (dep->de_FileSize < length)
-		return deextend(dep, length);
+		return deextend(dep, length, cred);
 
 	/*
 	 * If the desired length is 0 then remember the starting cluster of
@@ -261,7 +263,7 @@ detrunc(struct denode *dep, u_long length, int flags)
 		if (error) {
 			MSDOSFS_DPRINTF(("detrunc(): pcbmap fails %d\n",
 			    error));
-			return error;
+			return (error);
 		}
 	}
 
@@ -282,10 +284,9 @@ detrunc(struct denode *dep, u_long length, int flags)
 				MSDOSFS_DPRINTF(("detrunc(): bread fails %d\n",
 				    error));
 
-				return error;
+				return (error);
 			}
-			memset((char *)bp->b_data + boff, 0,
-			    pmp->pm_bpcluster - boff);
+			memset(bp->b_data + boff, 0, pmp->pm_bpcluster - boff);
 			if (flags & IO_SYNC)
 				bwrite(bp);
 			else
@@ -326,14 +327,14 @@ detrunc(struct denode *dep, u_long length, int flags)
 	if (chaintofree != 0 && !MSDOSFSEOF(pmp, chaintofree))
 		freeclusterchain(pmp, chaintofree);
 
-	return allerror;
+	return (allerror);
 }
 
 /*
  * Extend the file described by dep to length specified by length.
  */
 int
-deextend(struct denode *dep, u_long length)
+deextend(struct denode *dep, u_long length, struct ucred *cred)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
 	u_long count;
@@ -343,16 +344,16 @@ deextend(struct denode *dep, u_long length)
 	 * The root of a DOS filesystem cannot be extended.
 	 */
 	if (dep->de_vnode != NULL && !FAT32(pmp))
-		return EINVAL;
+		return (EINVAL);
 
 	/*
 	 * Directories cannot be extended.
 	 */
 	if (dep->de_Attributes & ATTR_DIRECTORY)
-		return EISDIR;
+		return (EISDIR);
 
 	if (length <= dep->de_FileSize)
-		return E2BIG;
+		return (E2BIG);
 
 	/*
 	 * Compute the number of clusters to allocate.
@@ -364,7 +365,7 @@ deextend(struct denode *dep, u_long length)
 		error = extendfile(dep, count, NULL, NULL, DE_CLEAR);
 		if (error) {
 			/* truncate the added clusters away again */
-			(void) detrunc(dep, dep->de_FileSize, 0);
+			(void) detrunc(dep, dep->de_FileSize, 0, cred);
 			return (error);
 		}
 	}

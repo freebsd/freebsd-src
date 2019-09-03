@@ -41,7 +41,7 @@
 #include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-#include <sys/zlib.h>
+#include <contrib/zlib/zlib.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -82,13 +82,9 @@ static ng_rcvdata_t	ng_deflate_rcvdata;
 static ng_disconnect_t	ng_deflate_disconnect;
 
 /* Helper functions */
-static void	*z_alloc(void *, u_int items, u_int size);
-static void	z_free(void *, void *ptr);
-static int	ng_deflate_compress(node_p node,
-		    struct mbuf *m, struct mbuf **resultp);
-static int	ng_deflate_decompress(node_p node,
-		    struct mbuf *m, struct mbuf **resultp);
-static void	ng_deflate_reset_req(node_p node);
+static int	ng_deflate_compress(node_p, struct mbuf *, struct mbuf **);
+static int	ng_deflate_decompress(node_p, struct mbuf *, struct mbuf **);
+static void	ng_deflate_reset_req(node_p);
 
 /* Parse type for struct ng_deflate_config. */
 static const struct ng_parse_struct_field ng_deflate_config_type_fields[]
@@ -255,8 +251,6 @@ ng_deflate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		if (priv->cfg.enable) {
 			priv->cx.next_in = NULL;
-			priv->cx.zalloc = z_alloc;
-			priv->cx.zfree = z_free;
 			int res;
 			if (priv->compress) {
 				if ((res = deflateInit2(&priv->cx,
@@ -346,7 +340,6 @@ ng_deflate_rcvdata(hook_p hook, item_p item)
 			log(LOG_NOTICE, "%s: error: %d\n", __func__, error);
 			return (error);
 		}
-
 	} else { /* Decompress */
 		if ((error = ng_deflate_decompress(node, m, &out)) != 0) {
 			NG_FREE_ITEM(item);
@@ -420,24 +413,6 @@ ng_deflate_disconnect(hook_p hook)
  ************************************************************************/
 
 /*
- * Space allocation and freeing routines for use by zlib routines.
- */
-
-static void *
-z_alloc(void *notused, u_int items, u_int size)
-{
-
-	return (malloc(items * size, M_NETGRAPH_DEFLATE, M_NOWAIT));
-}
-
-static void
-z_free(void *notused, void *ptr)
-{
-
-	free(ptr, M_NETGRAPH_DEFLATE);
-}
-
-/*
  * Compress/encrypt a packet and put the result in a new mbuf at *resultp.
  * The original mbuf is not free'd.
  */
@@ -486,7 +461,7 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	priv->cx.avail_out = outlen - 2 - DEFLATE_HDRLEN;
 
 	/* Compress. */
-	rtn = deflate(&priv->cx, Z_PACKET_FLUSH);
+	rtn = deflate(&priv->cx, Z_SYNC_FLUSH);
 
 	/* Check return value. */
 	if (rtn != Z_OK) {
@@ -499,6 +474,19 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 
 	/* Calculate resulting size. */
 	outlen -= priv->cx.avail_out;
+	/*
+	 * Z_SYNC_FLUSH completes the current deflate block and follows
+	 * it with an empty stored block that is three bits plus filler
+	 * bits to the next byte, followed by four bytes (00 00 ff ff).
+	 * RFC 1979 Section 2.1, "Data" requires the four bytes be
+	 * removed before transmission.
+	 */
+	outlen -= 4;
+	MPASS(outlen > 0);
+	MPASS(priv->outbuf[outlen + 0] == 0x00);
+	MPASS(priv->outbuf[outlen + 1] == 0x00);
+	MPASS(priv->outbuf[outlen + 2] == 0xff);
+	MPASS(priv->outbuf[outlen + 3] == 0xff);
 
 	/* If we can't compress this packet, send it as-is. */
 	if (outlen > inlen) {
@@ -538,11 +526,13 @@ static int
 ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 {
 	const priv_p 	priv = NG_NODE_PRIVATE(node);
-	int 		outlen, inlen;
+	int 		outlen, inlen, datalen;
 	int 		rtn;
 	uint16_t	proto;
 	int		offset;
 	uint16_t	rseqnum;
+	u_char		headbuf[5];
+	static u_char	EMPTY_BLOCK[4] = { 0x00, 0x00, 0xff, 0xff };
 
 	/* Initialize. */
 	*resultp = NULL;
@@ -604,7 +594,7 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		priv->cx.avail_out = outlen - 1;
 
 		/* Decompress. */
-		rtn = inflate(&priv->cx, Z_PACKET_FLUSH);
+		rtn = inflate(&priv->cx, Z_SYNC_FLUSH);
 
 		/* Check return value. */
 		if (rtn != Z_OK && rtn != Z_STREAM_END) {
@@ -622,6 +612,13 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 			default:
 				return (EINVAL);
 			}
+		}
+
+		/* Handle the EMPTY_BLOCK omitted by sender */
+		if (inflateSyncPoint(&priv->cx)) {
+			priv->cx.avail_in = 4;
+			priv->cx.next_in = EMPTY_BLOCK;
+			inflate(&priv->cx, Z_SYNC_FLUSH);
 		}
 
 		/* Calculate resulting size. */
@@ -648,22 +645,44 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		priv->stats.FramesPlain++;
 		priv->stats.OutOctets+=outlen;
 
-	} else { /* Packet is not compressed, just update dictionary. */
+	} else {
+		/* Packet is not compressed, just update dictionary. */
 		priv->stats.FramesUncomp++;
-		if (priv->inbuf[0] == 0) {
-		    priv->cx.next_in = priv->inbuf + 1; /* compress protocol */
-		    priv->cx.avail_in = inlen - 1;
-		} else {
-		    priv->cx.next_in = priv->inbuf;
-		    priv->cx.avail_in = inlen;
-		}
 
-		rtn = inflateIncomp(&priv->cx);
+		/*
+		 * Fake a header for uncompressed data block
+		 */
+		datalen = inlen - offset + 1;
+		headbuf[0] = 0x80;
+		headbuf[1] = datalen & 0xff;
+		headbuf[2] = datalen >> 8;
+		headbuf[3] = (~datalen) & 0xff;
+		headbuf[4] = (~datalen) >> 8;
+
+		priv->cx.next_in = headbuf;
+		priv->cx.avail_in = sizeof(headbuf);
+		priv->cx.next_out = priv->outbuf;
+		priv->cx.avail_out = DEFLATE_BUF_SIZE;
+
+		rtn = inflate(&priv->cx, Z_NO_FLUSH);
+
+		if (priv->inbuf[0] == 0) {
+			priv->cx.next_in =
+			    priv->inbuf + 1; /* compress protocol */
+			priv->cx.avail_in = inlen - 1;
+		} else {
+			priv->cx.next_in = priv->inbuf;
+			priv->cx.avail_in = inlen;
+		}
+		priv->cx.next_out = priv->outbuf;
+		priv->cx.avail_out = DEFLATE_BUF_SIZE;
+
+		rtn = inflate(&priv->cx, Z_SYNC_FLUSH);
 
 		/* Check return value */
 		if (rtn != Z_OK) {
 			priv->stats.Errors++;
-			log(LOG_NOTICE, "%s: inflateIncomp error: %d (%s)\n",
+			log(LOG_NOTICE, "%s: inflate error: %d (%s)\n",
 			    __func__, rtn, priv->cx.msg);
 			NG_FREE_M(m);
 			priv->seqnum = 0;

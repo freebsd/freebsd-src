@@ -410,4 +410,5 @@ MIASM =  \
 	fhlinkat.o \
 	fhreadlink.o \
 	funlinkat.o \
-	copy_file_range.o
+	copy_file_range.o \
+	__sysctlbyname.o
