@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 /* FreeBSD/mips-specific system call handling. */
 
+#define	_WANT_MIPS_REGNUM
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 
