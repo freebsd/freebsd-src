@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd August 13, 2019
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -94,9 +94,7 @@ pipe.
 A user account compromise is even more common than a DoS attack.
 Many
 sysadmins still run standard
-.Xr telnetd 8 ,
-.Xr rlogind 8 ,
-.Xr rshd 8 ,
+.Xr telnetd 8
 and
 .Xr ftpd 8
 servers on their machines.
@@ -181,8 +179,6 @@ in the
 file
 so that direct root logins via
 .Xr telnet 1
-or
-.Xr rlogin 1
 are disallowed.
 If using
 other login services such as
@@ -337,10 +333,7 @@ virtually every server ever run as root, including basic system servers.
 If you are running a machine through which people only log in via
 .Xr sshd 8
 and never log in via
-.Xr telnetd 8 ,
-.Xr rshd 8 ,
-or
-.Xr rlogind 8 ,
+.Xr telnetd 8
 then turn off those services!
 .Pp
 .Fx
@@ -373,7 +366,7 @@ occur through them.
 The other big potential root hole in a system are the SUID-root and SGID
 binaries installed on the system.
 Most of these binaries, such as
-.Xr rlogin 1 ,
+.Xr su 1 ,
 reside in
 .Pa /bin , /sbin , /usr/bin ,
 or
@@ -900,8 +893,6 @@ if you intend to use them.
 Kerberos5 is an excellent authentication
 protocol but the kerberized
 .Xr telnet 1
-and
-.Xr rlogin 1
 suck rocks.
 There are bugs that make them unsuitable for dealing with binary streams.
 Also, by default
