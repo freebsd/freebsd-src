@@ -1733,6 +1733,12 @@ vm_pageout_oom_pagecount(struct vmspace *vmspace)
 	return (res);
 }
 
+static int vm_oom_ratelim_last;
+static int vm_oom_pf_secs = 10;
+SYSCTL_INT(_vm, OID_AUTO, oom_pf_secs, CTLFLAG_RWTUN, &vm_oom_pf_secs, 0,
+    "");
+static struct mtx vm_oom_ratelim_mtx;
+
 void
 vm_pageout_oom(int shortage)
 {
@@ -1740,7 +1746,29 @@ vm_pageout_oom(int shortage)
 	vm_offset_t size, bigsize;
 	struct thread *td;
 	struct vmspace *vm;
+	int now;
 	bool breakout;
+
+	/*
+	 * For OOM requests originating from vm_fault(), there is a high
+	 * chance that a single large process faults simultaneously in
+	 * several threads.  Also, on an active system running many
+	 * processes of middle-size, like buildworld, all of them
+	 * could fault almost simultaneously as well.
+	 *
+	 * To avoid killing too many processes, rate-limit OOMs
+	 * initiated by vm_fault() time-outs on the waits for free
+	 * pages.
+	 */
+	mtx_lock(&vm_oom_ratelim_mtx);
+	now = ticks;
+	if (shortage == VM_OOM_MEM_PF &&
+	    (u_int)(now - vm_oom_ratelim_last) < hz * vm_oom_pf_secs) {
+		mtx_unlock(&vm_oom_ratelim_mtx);
+		return;
+	}
+	vm_oom_ratelim_last = now;
+	mtx_unlock(&vm_oom_ratelim_mtx);
 
 	/*
 	 * We keep the process bigproc locked once we find it to keep anyone
@@ -1806,7 +1834,7 @@ vm_pageout_oom(int shortage)
 			continue;
 		}
 		size = vmspace_swap_count(vm);
-		if (shortage == VM_OOM_MEM)
+		if (shortage == VM_OOM_MEM || shortage == VM_OOM_MEM_PF)
 			size += vm_pageout_oom_pagecount(vm);
 		vm_map_unlock_read(&vm->vm_map);
 		vmspace_free(vm);
@@ -2061,6 +2089,7 @@ vm_pageout(void)
 	p = curproc;
 	td = curthread;
 
+	mtx_init(&vm_oom_ratelim_mtx, "vmoomr", NULL, MTX_DEF);
 	swap_pager_swap_init();
 	for (first = -1, i = 0; i < vm_ndomains; i++) {
 		if (VM_DOMAIN_EMPTY(i)) {

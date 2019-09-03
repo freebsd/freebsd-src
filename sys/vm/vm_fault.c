@@ -134,6 +134,18 @@ static void vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr,
 static void vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 	    int backward, int forward, bool obj_locked);
 
+static int vm_pfault_oom_attempts = 3;
+SYSCTL_INT(_vm, OID_AUTO, pfault_oom_attempts, CTLFLAG_RWTUN,
+    &vm_pfault_oom_attempts, 0,
+    "Number of page allocation attempts in page fault handler before it "
+    "triggers OOM handling");
+
+static int vm_pfault_oom_wait = 10;
+SYSCTL_INT(_vm, OID_AUTO, pfault_oom_wait, CTLFLAG_RWTUN,
+    &vm_pfault_oom_wait, 0,
+    "Number of seconds to wait for free pages before retrying "
+    "the page fault handler");
+
 static inline void
 release_page(struct faultstate *fs)
 {
@@ -568,7 +580,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	vm_pindex_t retry_pindex;
 	vm_prot_t prot, retry_prot;
 	int ahead, alloc_req, behind, cluster_offset, error, era, faultcount;
-	int locked, nera, result, rv;
+	int locked, nera, oom, result, rv;
 	u_char behavior;
 	boolean_t wired;	/* Passed by reference. */
 	bool dead, hardfault, is_first_object_locked;
@@ -579,7 +591,9 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	nera = -1;
 	hardfault = false;
 
-RetryFault:;
+RetryFault:
+	oom = 0;
+RetryFault_oom:
 
 	/*
 	 * Find the backing store object and offset into it to begin the
@@ -825,7 +839,18 @@ RetryFault:;
 			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
-				vm_waitpfault(dset);
+				if (vm_pfault_oom_attempts < 0 ||
+				    oom < vm_pfault_oom_attempts) {
+					oom++;
+					vm_waitpfault(dset,
+					    vm_pfault_oom_wait * hz);
+					goto RetryFault_oom;
+				}
+				if (bootverbose)
+					printf(
+	"proc %d (%s) failed to alloc page on fault, starting OOM\n",
+					    curproc->p_pid, curproc->p_comm);
+				vm_pageout_oom(VM_OOM_MEM_PF);
 				goto RetryFault;
 			}
 		}
