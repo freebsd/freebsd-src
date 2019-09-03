@@ -160,13 +160,12 @@
  * 0xffff808000000000 - 0xffff847fffffffff   large map (can be tuned up)
  * 0xffff848000000000 - 0xfffff7ffffffffff   unused (large map extends there)
  * 0xfffff80000000000 - 0xfffffbffffffffff   4TB direct map
- * 0xfffffc0000000000 - 0xfffffcffffffffff   unused
- * 0xfffffd0000000000 - 0xfffffd7fffffffff   page array 512GB
- * 0xfffffd8000000000 - 0xfffffdffffffffff   unused
+ * 0xfffffc0000000000 - 0xfffffdffffffffff   unused
  * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
  *
  * Within the kernel map:
  *
+ * 0xfffffe0000000000                        vm_page_array
  * 0xffffffff80000000                        KERNBASE
  */
 
@@ -216,10 +215,10 @@
 	(x) & ~DMAP_MIN_ADDRESS; })
 
 /*
- * amd64 statically allocates the page array address so that it can
- * be more easily allocated on the correct memory domains.
+ * amd64 maps the page array into KVA so that it can be more easily
+ * allocated on the correct memory domains.
  */
-#define PMAP_HAS_PAGE_ARRAY	1
+#define	PMAP_HAS_PAGE_ARRAY	1
 
 /*
  * How many physical pages per kmem arena virtual page.

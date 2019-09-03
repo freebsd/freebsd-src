@@ -135,11 +135,7 @@ static int vm_pageproc_waiters;
  */
 vm_page_t bogus_page;
 
-#ifdef PMAP_HAS_PAGE_ARRAY
-vm_page_t vm_page_array = (vm_page_t)PA_MIN_ADDRESS;
-#else
 vm_page_t vm_page_array;
-#endif
 long vm_page_array_size;
 long first_page;
 
