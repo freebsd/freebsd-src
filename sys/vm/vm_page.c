@@ -3130,6 +3130,13 @@ vm_pqbatch_process(struct vm_pagequeue *pq, struct vm_batchqueue *bq,
 	vm_batchqueue_init(bq);
 }
 
+/*
+ *	vm_page_pqbatch_submit:		[ internal use only ]
+ *
+ *	Enqueue a page in the specified page queue's batched work queue.
+ *	The caller must have encoded the requested operation in the page
+ *	structure's aflags field.
+ */
 void
 vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 {
@@ -3251,17 +3258,26 @@ vm_page_dequeue_deferred(vm_page_t m)
 
 	if ((queue = vm_page_queue(m)) == PQ_NONE)
 		return;
-	vm_page_aflag_set(m, PGA_DEQUEUE);
-	vm_page_pqbatch_submit(m, queue);
+
+	/*
+	 * Set PGA_DEQUEUE if it is not already set to handle a concurrent call
+	 * to vm_page_dequeue_deferred_free().  In particular, avoid modifying
+	 * the page's queue state once vm_page_dequeue_deferred_free() has been
+	 * called.  In the event of a race, two batch queue entries for the page
+	 * will be created, but the second will have no effect.
+	 */
+	if (vm_page_pqstate_cmpset(m, queue, queue, PGA_DEQUEUE, PGA_DEQUEUE))
+		vm_page_pqbatch_submit(m, queue);
 }
 
 /*
  * A variant of vm_page_dequeue_deferred() that does not assert the page
- * lock and is only to be called from vm_page_free_prep().  It is just an
- * open-coded implementation of vm_page_dequeue_deferred().  Because the
- * page is being freed, we can assume that nothing else is scheduling queue
- * operations on this page, so we get for free the mutual exclusion that
- * is otherwise provided by the page lock.
+ * lock and is only to be called from vm_page_free_prep().  Because the
+ * page is being freed, we can assume that nothing other than the page
+ * daemon is scheduling queue operations on this page, so we get for
+ * free the mutual exclusion that is otherwise provided by the page lock.
+ * To handle races, the page daemon must take care to atomically check
+ * for PGA_DEQUEUE when updating queue state.
  */
 static void
 vm_page_dequeue_deferred_free(vm_page_t m)
@@ -3372,6 +3388,42 @@ vm_page_requeue(vm_page_t m)
 	if ((m->aflags & PGA_REQUEUE) == 0)
 		vm_page_aflag_set(m, PGA_REQUEUE);
 	vm_page_pqbatch_submit(m, atomic_load_8(&m->queue));
+}
+
+/*
+ *	vm_page_swapqueue:		[ internal use only ]
+ *
+ *	Move the page from one queue to another, or to the tail of its
+ *	current queue, in the face of a possible concurrent call to
+ *	vm_page_dequeue_deferred_free().
+ */
+void
+vm_page_swapqueue(vm_page_t m, uint8_t oldq, uint8_t newq)
+{
+	struct vm_pagequeue *pq;
+
+	KASSERT(oldq < PQ_COUNT && newq < PQ_COUNT && oldq != newq,
+	    ("vm_page_swapqueue: invalid queues (%d, %d)", oldq, newq));
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+	    ("vm_page_swapqueue: page %p is unmanaged", m));
+	vm_page_assert_locked(m);
+
+	/*
+	 * Atomically update the queue field and set PGA_REQUEUE while
+	 * ensuring that PGA_DEQUEUE has not been set.
+	 */
+	pq = &vm_pagequeue_domain(m)->vmd_pagequeues[oldq];
+	vm_pagequeue_lock(pq);
+	if (!vm_page_pqstate_cmpset(m, oldq, newq, PGA_DEQUEUE, PGA_REQUEUE)) {
+		vm_pagequeue_unlock(pq);
+		return;
+	}
+	if ((m->aflags & PGA_ENQUEUED) != 0) {
+		vm_pagequeue_remove(pq, m);
+		vm_page_aflag_clear(m, PGA_ENQUEUED);
+	}
+	vm_pagequeue_unlock(pq);
+	vm_page_pqbatch_submit(m, newq);
 }
 
 /*

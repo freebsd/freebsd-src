@@ -742,7 +742,7 @@ recheck:
 		 * chance.
 		 */
 		if ((m->aflags & PGA_REQUEUE) != 0) {
-			vm_page_requeue(m);
+			vm_page_pqbatch_submit(m, queue);
 			continue;
 		}
 
@@ -1256,9 +1256,9 @@ act_scan:
 			 * place them directly in the laundry queue to reduce
 			 * queuing overhead.
 			 */
-			if (page_shortage <= 0)
-				vm_page_deactivate(m);
-			else {
+			if (page_shortage <= 0) {
+				vm_page_swapqueue(m, PQ_ACTIVE, PQ_INACTIVE);
+			} else {
 				/*
 				 * Calling vm_page_test_dirty() here would
 				 * require acquisition of the object's write
@@ -1270,11 +1270,13 @@ act_scan:
 				 * dirty field by the pmap.
 				 */
 				if (m->dirty == 0) {
-					vm_page_deactivate(m);
+					vm_page_swapqueue(m, PQ_ACTIVE,
+					    PQ_INACTIVE);
 					page_shortage -=
 					    act_scan_laundry_weight;
 				} else {
-					vm_page_launder(m);
+					vm_page_swapqueue(m, PQ_ACTIVE,
+					    PQ_LAUNDRY);
 					page_shortage--;
 				}
 			}
