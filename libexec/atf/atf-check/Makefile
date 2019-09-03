@@ -38,6 +38,9 @@ MAN=		atf-check.1
 CFLAGS+=	-I${ATF}
 CFLAGS+=	-DATF_SHELL='"/bin/sh"'
 
+# Silence warnings about std::auto_ptr usage
+CWARNFLAGS+=	-Wno-deprecated-declarations
+
 LIBADD=		atf_cxx
 
 HAS_TESTS=
