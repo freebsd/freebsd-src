@@ -55,6 +55,20 @@ refcount_acquire(volatile u_int *count)
 	atomic_add_int(count, 1);
 }
 
+static __inline __result_use_check bool
+refcount_acquire_checked(volatile u_int *count)
+{
+	u_int lcount;
+
+	for (lcount = *count;;) {
+		if (__predict_false(lcount + 1 < lcount))
+			return (false);
+		if (__predict_true(atomic_fcmpset_int(count, &lcount,
+		    lcount + 1) == 1))
+			return (true);
+	}
+}
+
 static __inline int
 refcount_release(volatile u_int *count)
 {

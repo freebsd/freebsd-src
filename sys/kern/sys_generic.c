@@ -757,7 +757,11 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 		fp = NULL;	/* fhold() was not called yet */
 		goto out;
 	}
-	fhold(fp);
+	if (!fhold(fp)) {
+		error = EBADF;
+		fp = NULL;
+		goto out;
+	}
 	if (locked == LA_SLOCKED) {
 		FILEDESC_SUNLOCK(fdp);
 		locked = LA_UNLOCKED;

@@ -2154,7 +2154,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 	struct timespec *ts;
 	void *data;
 	socklen_t clen, datalen;
-	int i, error, *fdp, oldfds;
+	int i, j, error, *fdp, oldfds;
 	u_int newlen;
 
 	UNP_LINK_UNLOCK_ASSERT();
@@ -2235,6 +2235,19 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 				FILEDESC_SUNLOCK(fdesc);
 				error = E2BIG;
 				goto out;
+			}
+			fdp = data;
+			for (i = 0; i < oldfds; i++, fdp++) {
+				if (!fhold(fdesc->fd_ofiles[*fdp].fde_file)) {
+					fdp = data;
+					for (j = 0; j < i; j++, fdp++) {
+						fdrop(fdesc->fd_ofiles[*fdp].
+						    fde_file, td);
+					}
+					FILEDESC_SUNLOCK(fdesc);
+					error = EBADF;
+					goto out;
+				}
 			}
 			fdp = data;
 			fdep = (struct filedescent **)
@@ -2440,7 +2453,6 @@ unp_internalize_fp(struct file *fp)
 		unp->unp_file = fp;
 		unp->unp_msgcount++;
 	}
-	fhold(fp);
 	unp_rights++;
 	UNP_LINK_WUNLOCK();
 }
@@ -2601,10 +2613,10 @@ unp_gc(__unused void *arg, int pending)
 			if ((unp->unp_gcflag & UNPGC_DEAD) != 0) {
 				f = unp->unp_file;
 				if (unp->unp_msgcount == 0 || f == NULL ||
-				    f->f_count != unp->unp_msgcount)
+				    f->f_count != unp->unp_msgcount ||
+				    !fhold(f))
 					continue;
 				unref[total++] = f;
-				fhold(f);
 				KASSERT(total <= unp_unreachable,
 				    ("unp_gc: incorrect unreachable count."));
 			}
