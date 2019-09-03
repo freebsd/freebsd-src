@@ -2145,6 +2145,68 @@ sys___sysctl(struct thread *td, struct sysctl_args *uap)
 	return (error);
 }
 
+int
+kern___sysctlbyname(struct thread *td, const char *oname, size_t namelen,
+    void *old, size_t *oldlenp, void *new, size_t newlen, size_t *retval,
+    int flags, bool inkernel)
+{
+	int oid[CTL_MAXNAME];
+	char namebuf[16];
+	char *name;
+	size_t oidlen;
+	int error;
+
+	if (namelen > MAXPATHLEN || namelen == 0)
+		return (EINVAL);
+	name = namebuf;
+	if (namelen > sizeof(namebuf))
+		name = malloc(namelen, M_SYSCTL, M_WAITOK);
+	error = copyin(oname, name, namelen);
+	if (error != 0)
+		goto out;
+
+	oid[0] = 0;
+	oid[1] = 3;
+	oidlen = sizeof(oid);
+	error = kernel_sysctl(td, oid, 2, oid, &oidlen, (void *)name, namelen,
+	    retval, flags);
+	if (error != 0)
+		goto out;
+	error = userland_sysctl(td, oid, *retval / sizeof(int), old, oldlenp,
+	    inkernel, new, newlen, retval, flags);
+
+out:
+	if (namelen > sizeof(namebuf))
+		free(name, M_SYSCTL);
+	return (error);
+}
+
+#ifndef	_SYS_SYSPROTO_H_
+struct __sysctlbyname_args {
+	const char	*name;
+	size_t	namelen;
+	void	*old;
+	size_t	*oldlenp;
+	void	*new;
+	size_t	newlen;
+};
+#endif
+int
+sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
+{
+	size_t rv;
+	int error;
+
+	error = kern___sysctlbyname(td, uap->name, uap->namelen, uap->old,
+	    uap->oldlenp, uap->new, uap->newlen, &rv, 0, 0);
+	if (error != 0)
+		return (error);
+	if (uap->oldlenp != NULL)
+		error = copyout(&rv, uap->oldlenp, sizeof(rv));
+
+	return (error);
+}
+
 /*
  * This is used from various compatibility syscalls too.  That's why name
  * must be in kernel space.
