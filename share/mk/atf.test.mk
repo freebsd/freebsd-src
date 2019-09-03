@@ -55,6 +55,8 @@ LDADD.${_T}+= ${LIBATF_CXX} ${LIBATF_C}
 .endif
 TEST_INTERFACE.${_T}= atf
 .endfor
+# Silence warnings about std::auto_ptr usage
+CWARNFLAGS+= -Wno-deprecated-declarations
 .endif
 
 .if !empty(ATF_TESTS_SH)
