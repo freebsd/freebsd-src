@@ -339,7 +339,7 @@ ppt_assigned_devices(struct vm *vm)
 	return (num);
 }
 
-boolean_t
+bool
 ppt_is_mmio(struct vm *vm, vm_paddr_t gpa)
 {
 	int i;
@@ -355,11 +355,11 @@ ppt_is_mmio(struct vm *vm, vm_paddr_t gpa)
 			if (seg->len == 0)
 				continue;
 			if (gpa >= seg->gpa && gpa < seg->gpa + seg->len)
-				return (TRUE);
+				return (true);
 		}
 	}
 
-	return (FALSE);
+	return (false);
 }
 
 static void
