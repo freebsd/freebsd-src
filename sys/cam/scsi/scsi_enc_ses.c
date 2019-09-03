@@ -1025,7 +1025,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 
 	args = (ses_setphyspath_callback_args_t *)arg;
 	old_physpath = malloc(MAXPATHLEN, M_SCSIENC, M_WAITOK|M_ZERO);
-	cam_periph_lock(enc->periph);
+	xpt_path_lock(path);
 	xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 	cdai.buftype = CDAI_TYPE_PHYS_PATH;
@@ -1050,7 +1050,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 		if (cdai.ccb_h.status == CAM_REQ_CMP)
 			args->num_set++;
 	}
-	cam_periph_unlock(enc->periph);
+	xpt_path_unlock(path);
 	free(old_physpath, M_SCSIENC);
 }
 
