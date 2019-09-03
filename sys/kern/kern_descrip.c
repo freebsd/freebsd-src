@@ -853,6 +853,10 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 		goto unlock;
 	}
 
+	oldfde = &fdp->fd_ofiles[old];
+	if (!fhold(oldfde->fde_file))
+		goto unlock;
+
 	/*
 	 * If the caller specified a file descriptor, make sure the file
 	 * table is large enough to hold it, and grab it.  Otherwise, just
@@ -861,13 +865,17 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	switch (mode) {
 	case FDDUP_NORMAL:
 	case FDDUP_FCNTL:
-		if ((error = fdalloc(td, new, &new)) != 0)
+		if ((error = fdalloc(td, new, &new)) != 0) {
+			fdrop(oldfde->fde_file, td);
 			goto unlock;
+		}
 		break;
 	case FDDUP_MUSTREPLACE:
 		/* Target file descriptor must exist. */
-		if (fget_locked(fdp, new) == NULL)
+		if (fget_locked(fdp, new) == NULL) {
+			fdrop(oldfde->fde_file, td);
 			goto unlock;
+		}
 		break;
 	case FDDUP_FIXED:
 		if (new >= fdp->fd_nfiles) {
@@ -886,6 +894,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 				PROC_UNLOCK(p);
 				if (error != 0) {
 					error = EMFILE;
+					fdrop(oldfde->fde_file, td);
 					goto unlock;
 				}
 			}
@@ -901,8 +910,6 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 
 	KASSERT(old != new, ("new fd is same as old"));
 
-	oldfde = &fdp->fd_ofiles[old];
-	fhold(oldfde->fde_file);
 	newfde = &fdp->fd_ofiles[new];
 	delfp = newfde->fde_file;
 
@@ -1915,12 +1922,14 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
 
 	MPASS(fd != NULL);
 
+	if (!fhold(fp))
+		return (EBADF);
 	FILEDESC_XLOCK(fdp);
 	if ((error = fdalloc(td, 0, fd))) {
 		FILEDESC_XUNLOCK(fdp);
+		fdrop(fp, td);
 		return (error);
 	}
-	fhold(fp);
 	_finstall(fdp, fp, *fd, flags, fcaps);
 	FILEDESC_XUNLOCK(fdp);
 	return (0);
@@ -2061,7 +2070,8 @@ fdcopy(struct filedesc *fdp)
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
 		ofde = &fdp->fd_ofiles[i];
 		if (ofde->fde_file == NULL ||
-		    (ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) == 0) {
+		    (ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) == 0 ||
+		    !fhold(ofde->fde_file)) {
 			if (newfdp->fd_freefile == -1)
 				newfdp->fd_freefile = i;
 			continue;
@@ -2069,7 +2079,6 @@ fdcopy(struct filedesc *fdp)
 		nfde = &newfdp->fd_ofiles[i];
 		*nfde = *ofde;
 		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps, true);
-		fhold(nfde->fde_file);
 		fdused_init(newfdp, i);
 		newfdp->fd_lastfile = i;
 	}
@@ -2122,10 +2131,13 @@ fdcopy_remapped(struct filedesc *fdp, const int *fds, size_t nfds,
 			error = EINVAL;
 			goto bad;
 		}
+		if (!fhold(nfde->fde_file)) {
+			error = EBADF;
+			goto bad;
+		}
 		nfde = &newfdp->fd_ofiles[i];
 		*nfde = *ofde;
 		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps, true);
-		fhold(nfde->fde_file);
 		fdused_init(newfdp, i);
 		newfdp->fd_lastfile = i;
 	}
@@ -2167,9 +2179,9 @@ fdclearlocks(struct thread *td)
 	    (p->p_leader->p_flag & P_ADVLOCK) != 0) {
 		for (i = 0; i <= fdp->fd_lastfile; i++) {
 			fp = fdp->fd_ofiles[i].fde_file;
-			if (fp == NULL || fp->f_type != DTYPE_VNODE)
+			if (fp == NULL || fp->f_type != DTYPE_VNODE ||
+			    !fhold(fp))
 				continue;
-			fhold(fp);
 			FILEDESC_XUNLOCK(fdp);
 			lf.l_whence = SEEK_SET;
 			lf.l_start = 0;
@@ -2613,8 +2625,8 @@ fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
 get_locked:
 	FILEDESC_SLOCK(fdp);
 	error = fget_cap_locked(fdp, fd, needrightsp, fpp, havecapsp);
-	if (error == 0)
-		fhold(*fpp);
+	if (error == 0 && !fhold(*fpp))
+		error = EBADF;
 	FILEDESC_SUNLOCK(fdp);
 #endif
 	return (error);
@@ -2673,14 +2685,19 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 			 * table before this fd was closed, so it possible that
 			 * there is a stale fp pointer in cached version.
 			 */
-			fdt = *(const struct fdescenttbl * const volatile *)&(fdp->fd_files);
+			fdt = *(const struct fdescenttbl * const volatile *)
+			    &(fdp->fd_files);
 			continue;
 		}
+		if (__predict_false(count + 1 < count))
+			return (EBADF);
+
 		/*
 		 * Use an acquire barrier to force re-reading of fdt so it is
 		 * refreshed for verification.
 		 */
-		if (atomic_fcmpset_acq_int(&fp->f_count, &count, count + 1) == 0)
+		if (__predict_false(atomic_fcmpset_acq_int(&fp->f_count,
+		    &count, count + 1) == 0))
 			goto retry;
 		fdt = fdp->fd_files;
 #ifdef	CAPABILITIES
@@ -3065,7 +3082,11 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 			FILEDESC_XUNLOCK(fdp);
 			return (EACCES);
 		}
-		fhold(fp);
+		if (!fhold(fp)) {
+			fdunused(fdp, indx);
+			FILEDESC_XUNLOCK(fdp);
+			return (EBADF);
+		}
 		newfde = &fdp->fd_ofiles[indx];
 		oldfde = &fdp->fd_ofiles[dfd];
 		ioctls = filecaps_copy_prep(&oldfde->fde_caps);
