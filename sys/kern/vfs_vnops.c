@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vnode_pager.h>
+#include <vm/vm_pager.h>
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -2502,7 +2502,7 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 		 * writecount, then undo that now.
 		 */
 		if (writecounted)
-			vnode_pager_release_writecount(object, 0, size);
+			vm_pager_release_writecount(object, 0, size);
 		vm_object_deallocate(object);
 	}
 #ifdef HWPMC_HOOKS
