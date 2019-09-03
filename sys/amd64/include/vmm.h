@@ -290,12 +290,12 @@ vcpu_reqidle(struct vm_eventinfo *info)
 }
 
 /*
- * Return 1 if device indicated by bus/slot/func is supposed to be a
+ * Return true if device indicated by bus/slot/func is supposed to be a
  * pci passthrough device.
  *
- * Return 0 otherwise.
+ * Return false otherwise.
  */
-int vmm_is_pptdev(int bus, int slot, int func);
+bool vmm_is_pptdev(int bus, int slot, int func);
 
 void *vm_iommu_domain(struct vm *vm);
 

@@ -842,7 +842,7 @@ vmm_sysmem_maxaddr(struct vm *vm)
 }
 
 static void
-vm_iommu_modify(struct vm *vm, boolean_t map)
+vm_iommu_modify(struct vm *vm, bool map)
 {
 	int i, sz;
 	vm_paddr_t gpa, hpa;
@@ -905,8 +905,8 @@ vm_iommu_modify(struct vm *vm, boolean_t map)
 		iommu_invalidate_tlb(vm->iommu);
 }
 
-#define	vm_iommu_unmap(vm)	vm_iommu_modify((vm), FALSE)
-#define	vm_iommu_map(vm)	vm_iommu_modify((vm), TRUE)
+#define	vm_iommu_unmap(vm)	vm_iommu_modify((vm), false)
+#define	vm_iommu_map(vm)	vm_iommu_modify((vm), true)
 
 int
 vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func)
@@ -1038,20 +1038,20 @@ vm_set_register(struct vm *vm, int vcpuid, int reg, uint64_t val)
 	return (0);
 }
 
-static boolean_t
+static bool
 is_descriptor_table(int reg)
 {
 
 	switch (reg) {
 	case VM_REG_GUEST_IDTR:
 	case VM_REG_GUEST_GDTR:
-		return (TRUE);
+		return (true);
 	default:
-		return (FALSE);
+		return (false);
 	}
 }
 
-static boolean_t
+static bool
 is_segment_register(int reg)
 {
 	
@@ -1064,9 +1064,9 @@ is_segment_register(int reg)
 	case VM_REG_GUEST_GS:
 	case VM_REG_GUEST_TR:
 	case VM_REG_GUEST_LDTR:
-		return (TRUE);
+		return (true);
 	default:
-		return (FALSE);
+		return (false);
 	}
 }
 
@@ -2214,12 +2214,12 @@ vm_hpet(struct vm *vm)
 	return (vm->vhpet);
 }
 
-boolean_t
+bool
 vmm_is_pptdev(int bus, int slot, int func)
 {
-	int found, i, n;
-	int b, s, f;
+	int b, f, i, n, s;
 	char *val, *cp, *cp2;
+	bool found;
 
 	/*
 	 * XXX
@@ -2233,7 +2233,7 @@ vmm_is_pptdev(int bus, int slot, int func)
 	const char *names[] = { "pptdevs", "pptdevs2", "pptdevs3", NULL };
 
 	/* set pptdevs="1/2/3 4/5/6 7/8/9 10/11/12" */
-	found = 0;
+	found = false;
 	for (i = 0; names[i] != NULL && !found; i++) {
 		cp = val = kern_getenv(names[i]);
 		while (cp != NULL && *cp != '\0') {
@@ -2242,7 +2242,7 @@ vmm_is_pptdev(int bus, int slot, int func)
 
 			n = sscanf(cp, "%d/%d/%d", &b, &s, &f);
 			if (n == 3 && bus == b && slot == s && func == f) {
-				found = 1;
+				found = true;
 				break;
 			}
 		
