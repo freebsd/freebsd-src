@@ -1128,6 +1128,9 @@ int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 void	sysctl_wlock(void);
 void	sysctl_wunlock(void);
 int	sysctl_wire_old_buffer(struct sysctl_req *req, size_t len);
+int	kern___sysctlbyname(struct thread *td, const char *name,
+	    size_t namelen, void *old, size_t *oldlenp, void *new,
+	    size_t newlen, size_t *retval, int flags, bool inkernel);
 
 struct sbuf;
 struct sbuf *sbuf_new_for_sysctl(struct sbuf *, char *, int,

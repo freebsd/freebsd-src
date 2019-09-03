@@ -505,4 +505,5 @@
 #define	SYS_fhreadlink	567
 #define	SYS_funlinkat	568
 #define	SYS_copy_file_range	569
-#define	SYS_MAXSYSCALL	570
+#define	SYS___sysctlbyname	570
+#define	SYS_MAXSYSCALL	571

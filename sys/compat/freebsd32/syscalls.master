@@ -1150,5 +1150,8 @@
 569	AUE_NULL	NOPROTO	{ ssize_t copy_file_range(int infd, \
 				    off_t *inoffp, int outfd, off_t *outoffp, \
 				    size_t len, unsigned int flags); }
+570	AUE_SYSCTL	STD	{ int freebsd32___sysctlbyname(const char *name, \
+				    size_t namelen, void *old, uint32_t *oldlenp, \
+				    void *new, size_t newlen); }
 
 ; vim: syntax=off
